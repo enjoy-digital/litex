@@ -1,4 +1,5 @@
 from migen.fhdl import structure as f
+from migen.fhdl import verilog
 from functools import partial
 
 class Divider:
@@ -45,4 +46,5 @@ class Divider:
 
 d = Divider(32)
 f = d.GetFragment()
-print(f)
+o = verilog.Convert(f, {d.start_i, d.dividend_i, d.divisor_i}, {d.ready_o, d.quotient_o, d.remainder_o})
+print(o)

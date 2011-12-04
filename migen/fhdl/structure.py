@@ -146,6 +146,9 @@ class Signal(Value):
 
 	def __str__(self):
 		return self.name
+	
+	def __hash__(self):
+		return id(self)
 
 def Declare(parent, name, bv=BV(), variable=False, reset=0):
 	setattr(parent, name, Signal(bv, parent.__class__.__name__+"_"+name, variable, reset))
@@ -178,7 +181,7 @@ def _indent(s):
 		return "\t" + s.replace("\n", "\n\t")
 	else:
 		return ""
-
+		
 class If:
 	def __init__(self, cond, t, f=StatementList()):
 		self.cond = cond
