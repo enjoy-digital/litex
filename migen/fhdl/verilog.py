@@ -1,60 +1,12 @@
 from .structure import *
+from .convtools import *
 from functools import partial
 
-class Namespace:
-	def __init__(self):
-		self.counts = {}
-		self.sigs = {}
-	
-	def GetName(self, sig):
-		try:
-			n = self.sigs[sig]
-			if n:
-				return sig.name + "_" + str(n)
-			else:
-				return sig.name
-		except KeyError:
-			try:
-				n = self.counts[sig.name]
-			except KeyError:
-				n = 0
-			self.sigs[sig] = n
-			self.counts[sig.name] = n + 1
-			if n:
-				return sig.name + "_" + str(n)
-			else:
-				return sig.name
-
-def ListSignals(node):
-	if isinstance(node, Constant):
-		return set()
-	elif isinstance(node, Signal):
-		return {node}
-	elif isinstance(node, Operator):
-		l = list(map(ListSignals, node.operands))
-		return set().union(*l)
-	elif isinstance(node, Slice):
-		return ListSignals(node.value)
-	elif isinstance(node, Cat):
-		l = list(map(ListSignals, node.l))
-		return set().union(*l)
-	elif isinstance(node, Assign):
-		return ListSignals(node.l) | ListSignals(node.r)
-	elif isinstance(node, StatementList):
-		l = list(map(ListSignals, node.l))
-		return set().union(*l)
-	elif isinstance(node, If):
-		return ListSignals(node.cond) | ListSignals(node.t) | ListSignals(node.f)
-	elif isinstance(node, Fragment):
-		return ListSignals(node.comb) | ListSignals(node.sync)
-	else:
-		raise TypeError
-
-def Convert(f, ins, outs, name="top"):
+def Convert(f, ins, outs, name="top", clkname="sys_clk", rstname="sys_rst"):
 	ns = Namespace()
 	
-	clks = Signal(name="sys_clk")
-	rsts = Signal(name="sys_rst")
+	clks = Signal(name=clkname)
+	rsts = Signal(name=rstname)
 	clk = ns.GetName(clks)
 	rst = ns.GetName(rsts)
 	
@@ -129,7 +81,7 @@ def Convert(f, ins, outs, name="top"):
 	
 	if f.sync.l:
 		r += "always @(posedge " + clk + ") begin\n"
-		r += printnode(1, f.sync)
+		r += printnode(1, InsertReset(rsts, f.sync))
 		r += "end\n\n"
 	
 	r += "endmodule\n"

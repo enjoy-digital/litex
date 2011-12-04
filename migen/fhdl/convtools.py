@@ -1,0 +1,76 @@
+from .structure import *
+
+class Namespace:
+	def __init__(self):
+		self.counts = {}
+		self.sigs = {}
+	
+	def GetName(self, sig):
+		try:
+			n = self.sigs[sig]
+			if n:
+				return sig.name + "_" + str(n)
+			else:
+				return sig.name
+		except KeyError:
+			try:
+				n = self.counts[sig.name]
+			except KeyError:
+				n = 0
+			self.sigs[sig] = n
+			self.counts[sig.name] = n + 1
+			if n:
+				return sig.name + "_" + str(n)
+			else:
+				return sig.name
+
+def ListSignals(node):
+	if isinstance(node, Constant):
+		return set()
+	elif isinstance(node, Signal):
+		return {node}
+	elif isinstance(node, Operator):
+		l = list(map(ListSignals, node.operands))
+		return set().union(*l)
+	elif isinstance(node, Slice):
+		return ListSignals(node.value)
+	elif isinstance(node, Cat):
+		l = list(map(ListSignals, node.l))
+		return set().union(*l)
+	elif isinstance(node, Assign):
+		return ListSignals(node.l) | ListSignals(node.r)
+	elif isinstance(node, StatementList):
+		l = list(map(ListSignals, node.l))
+		return set().union(*l)
+	elif isinstance(node, If):
+		return ListSignals(node.cond) | ListSignals(node.t) | ListSignals(node.f)
+	elif isinstance(node, Fragment):
+		return ListSignals(node.comb) | ListSignals(node.sync)
+	else:
+		raise TypeError
+
+def ListTargets(node):
+	if isinstance(node, Signal):
+		return {node}
+	elif isinstance(node, Slice):
+		return ListTargets(node.value)
+	elif isinstance(node, Cat):
+		l = list(map(ListTargets, node.l))
+		return set().union(*l)
+	elif isinstance(node, Assign):
+		return ListTargets(node.l)
+	elif isinstance(node, StatementList):
+		l = list(map(ListTargets, node.l))
+		return set().union(*l)
+	elif isinstance(node, If):
+		return ListTargets(node.t) | ListTargets(node.f)
+	else:
+		raise TypeError
+
+def InsertReset(rst, sl):
+	targets = ListTargets(sl)
+	resetcode = []
+	for t in targets:
+		if not t.variable:
+			resetcode.append(Assign(t, t.reset))
+	return If(rst == 1, resetcode, sl)
