@@ -73,6 +73,21 @@ def ListTargets(node):
 	else:
 		raise TypeError
 
+def IsVariable(node):
+	if isinstance(node, Signal):
+		return node.variable
+	elif isinstance(node, Slice):
+		return IsVariable(node.value)
+	elif isinstance(node, Cat):
+		arevars = list(map(IsVariable, node.l))
+		r = arevars[0]
+		for x in arevars:
+			if x != r:
+				raise TypeError
+		return r
+	else:
+		raise TypeError
+
 def InsertReset(rst, sl):
 	targets = ListTargets(sl)
 	resetcode = []
