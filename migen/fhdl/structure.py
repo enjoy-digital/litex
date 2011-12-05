@@ -195,9 +195,10 @@ class If:
 		return r
 
 class Case:
-	def __init__(self, test, cases=[]):
+	def __init__(self, test, cases=[], default=StatementList()):
 		self.test = test
-		self.cases = cases
+		self.cases = [(c[0], _sl(c[1])) for c in cases]
+		self.default = _sl(default)
 
 #
 
@@ -208,3 +209,6 @@ class Fragment:
 	
 	def __str__(self):
 		return "Comb:\n" + _indent(str(self.comb)) + "\nSync:\n" + _indent(str(self.sync))
+	
+	def __add__(self, other):
+		return Fragment(self.comb.l + other.comb.l, self.sync.l + other.sync.l)

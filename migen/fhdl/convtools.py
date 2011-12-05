@@ -44,6 +44,9 @@ def ListSignals(node):
 		return set().union(*l)
 	elif isinstance(node, If):
 		return ListSignals(node.cond) | ListSignals(node.t) | ListSignals(node.f)
+	elif isinstance(node, Case):
+		l = list(map(lambda x: ListSignals(x[1]), node.cases))
+		return ListSignals(node.test).union(*l).union(ListSignals(node.default))
 	elif isinstance(node, Fragment):
 		return ListSignals(node.comb) | ListSignals(node.sync)
 	else:
@@ -64,6 +67,9 @@ def ListTargets(node):
 		return set().union(*l)
 	elif isinstance(node, If):
 		return ListTargets(node.t) | ListTargets(node.f)
+	elif isinstance(node, Case):
+		l = list(map(lambda x: ListTargets(x[1]), node.cases))
+		return ListTargets(node.default).union(*l)
 	else:
 		raise TypeError
 
@@ -73,4 +79,4 @@ def InsertReset(rst, sl):
 	for t in targets:
 		if not t.variable:
 			resetcode.append(Assign(t, t.reset))
-	return If(rst == 1, resetcode, sl)
+	return If(rst, resetcode, sl)

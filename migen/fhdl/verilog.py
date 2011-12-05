@@ -2,7 +2,7 @@ from .structure import *
 from .convtools import *
 from functools import partial
 
-def Convert(f, ins, outs, name="top", clkname="sys_clk", rstname="sys_rst"):
+def Convert(f, outs=set(), ins=set(), name="top", clkname="sys_clk", rstname="sys_rst"):
 	ns = Namespace()
 	
 	clks = Signal(name=clkname)
@@ -50,12 +50,20 @@ def Convert(f, ins, outs, name="top", clkname="sys_clk", rstname="sys_rst"):
 		elif isinstance(node, StatementList):
 			return "".join(list(map(partial(printnode, level), node.l)))
 		elif isinstance(node, If):
-			r = "\t"*level + "if " + printnode(level, node.cond) + " begin\n"
+			r = "\t"*level + "if (" + printnode(level, node.cond) + ") begin\n"
 			r += printnode(level + 1, node.t)
 			if node.f.l:
 				r += "\t"*level + "end else begin\n"
 				r += printnode(level + 1, node.f)
 			r += "\t"*level + "end\n"
+			return r
+		elif isinstance(node, Case):
+			r = "\t"*level + "case (" + printnode(level, node.test) + ")\n"
+			for case in node.cases:
+				r += "\t"*(level + 1) + printnode(level, case[0]) + ": begin\n"
+				r += printnode(level + 2, case[1])
+				r += "\t"*(level + 1) + "end\n"
+			r += "\t"*level + "endcase\n"
 			return r
 		else:
 			raise TypeError
