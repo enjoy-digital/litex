@@ -20,17 +20,20 @@ def Convert(f, outs=set(), ins=set(), name="top", clkname="sys_clk", rstname="sy
 		n += ns.GetName(s)
 		return n
 	
-	def printnode(level, node):
+	def printexpr(node):
 		if isinstance(node, Constant):
-			return str(node)
+			if node.n >= 0:
+				return str(node.bv) + str(node.n)
+			else:
+				return "-" + str(node.bv) + str(-self.n)
 		elif isinstance(node, Signal):
 			return ns.GetName(node)
 		elif isinstance(node, Operator):
 			arity = len(node.operands)
 			if arity == 1:
-				r = self.op + str(node.operands[0])
+				r = self.op + printexpr(node.operands[0])
 			elif arity == 2:
-				r = printnode(level, node.operands[0]) + " " + node.op + " " + printnode(level, node.operands[1])
+				r = printexpr(node.operands[0]) + " " + node.op + " " + printexpr(node.operands[1])
 			else:
 				raise TypeError
 			return "(" + r + ")"
@@ -39,18 +42,22 @@ def Convert(f, outs=set(), ins=set(), name="top", clkname="sys_clk", rstname="sy
 				sr = "[" + str(node.start) + "]"
 			else:
 				sr = "[" + str(node.stop-1) + ":" + str(node.start) + "]"
-			return str(node.value) + sr
+			return printexpr(node.value) + sr
 		elif isinstance(node, Cat):
-			l = list(map(partial(printnode, level), node.l))
+			l = list(map(printexpr, node.l))
 			l.reverse()
 			return "{" + ", ".join(l) + "}"
-		elif isinstance(node, Assign):
+		else:
+			raise TypeError
+	
+	def printnode(level, node):
+		if isinstance(node, Assign):
 			# TODO: variables
-			return "\t"*level + printnode(level, node.l) + " <= " + printnode(level, node.r) + ";\n"
+			return "\t"*level + printexpr(node.l) + " <= " + printexpr(node.r) + ";\n"
 		elif isinstance(node, StatementList):
 			return "".join(list(map(partial(printnode, level), node.l)))
 		elif isinstance(node, If):
-			r = "\t"*level + "if (" + printnode(level, node.cond) + ") begin\n"
+			r = "\t"*level + "if (" + printexpr(node.cond) + ") begin\n"
 			r += printnode(level + 1, node.t)
 			if node.f.l:
 				r += "\t"*level + "end else begin\n"
@@ -58,9 +65,9 @@ def Convert(f, outs=set(), ins=set(), name="top", clkname="sys_clk", rstname="sy
 			r += "\t"*level + "end\n"
 			return r
 		elif isinstance(node, Case):
-			r = "\t"*level + "case (" + printnode(level, node.test) + ")\n"
+			r = "\t"*level + "case (" + printexpr(node.test) + ")\n"
 			for case in node.cases:
-				r += "\t"*(level + 1) + printnode(level, case[0]) + ": begin\n"
+				r += "\t"*(level + 1) + printexpr(case[0]) + ": begin\n"
 				r += printnode(level + 2, case[1])
 				r += "\t"*(level + 1) + "end\n"
 			r += "\t"*level + "endcase\n"
