@@ -19,9 +19,6 @@ class BV:
 		return r
 
 class Value:
-	def __init__(self, bv):
-		self.bv = bv
-	
 	def __add__(self, other):
 		return Operator("+", [self, other])
 	def __radd__(self, other):
@@ -98,10 +95,7 @@ class Cat(Value):
 
 class Constant(Value):
 	def __init__(self, n, bv=None):
-		if bv == None:
-			Value.__init__(self, BV(BitsFor(n)))
-		else:
-			Value.__init__(self, bv)
+		self.bv = bv or BV(BitsFor(n))
 		self.n = n
 
 def _cst(x):
@@ -112,7 +106,6 @@ def _cst(x):
 
 class Signal(Value):
 	def __init__(self, bv=BV(), name="anonymous", variable=False, reset=0):
-		Value.__init__(self, bv)
 		self.bv = bv
 		self.variable = variable
 		self.name = name
