@@ -72,6 +72,8 @@ class Value:
 		elif isinstance(key, slice):
 			start = key.start or 0
 			stop = key.stop or self.bv.width
+			if stop > self.bv.width:
+				stop = self.bv.width
 			if key.step != None:
 				raise KeyError
 			return Slice(self, start, stop)
