@@ -19,6 +19,9 @@ class BV:
 		return r
 
 class Value:
+	def __invert__(self):
+		return Operator("~", [self])
+
 	def __add__(self, other):
 		return Operator("+", [self, other])
 	def __radd__(self, other):
