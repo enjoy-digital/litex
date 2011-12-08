@@ -157,8 +157,15 @@ class Instance:
 			self.name = name
 		else:
 			self.name = of
-		self.outs = dict([(x[0], Signal(x[1], self.name + "_" + x[0])) for x in outs])
-		self.ins = dict([(x[0], Signal(x[1], self.name + "_" + x[0])) for x in ins])
+		def process_io(x):
+			if isinstance(x[1], Signal):
+				return x # override
+			elif isinstance(x[1], BV):
+				return (x[0], Signal(x[1], self.name + "_" + x[0]))
+			else:
+				raise TypeError
+		self.outs = dict(map(process_io, outs))
+		self.ins = dict(map(process_io, ins))
 		self.parameters = parameters
 		self.clkport = clkport
 		self.rstport = rstport
