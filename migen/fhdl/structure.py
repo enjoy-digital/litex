@@ -150,10 +150,32 @@ class Case:
 
 #
 
+class Instance:
+	def __init__(self, of, outs=[], ins=[], parameters=[], clkport="", rstport="", name=""):
+		self.of = of
+		if name:
+			self.name = name
+		else:
+			self.name = of
+		self.outs = dict([(x[0], Signal(x[1], self.name + "_" + x[0])) for x in outs])
+		self.ins = dict([(x[0], Signal(x[1], self.name + "_" + x[0])) for x in ins])
+		self.parameters = parameters
+		self.clkport = clkport
+		self.rstport = rstport
+
+	def __hash__(self):
+		return id(self)
+
 class Fragment:
-	def __init__(self, comb=StatementList(), sync=StatementList()):
+	def __init__(self, comb=StatementList(), sync=StatementList(), instances=[]):
 		self.comb = _sl(comb)
 		self.sync = _sl(sync)
+		self.instances = instances
 	
 	def __add__(self, other):
-		return Fragment(self.comb.l + other.comb.l, self.sync.l + other.sync.l)
+		return Fragment(self.comb.l + other.comb.l, self.sync.l + other.sync.l, self.instances + other.instances)
+	def __iadd__(self, other):
+		self.comb.l += other.comb.l
+		self.sync.l += other.sync.l
+		self.instances += other.instances
+		return self

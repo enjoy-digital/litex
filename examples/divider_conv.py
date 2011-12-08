@@ -45,6 +45,6 @@ class Divider:
 		return f.Fragment(comb, sync)
 
 d = Divider(32)
-f = d.GetFragment()
-o = verilog.Convert(f, {d.ready_o, d.quotient_o, d.remainder_o}, {d.start_i, d.dividend_i, d.divisor_i})
+frag = d.GetFragment()
+o = verilog.Convert(frag, {d.ready_o, d.quotient_o, d.remainder_o, d.start_i, d.dividend_i, d.divisor_i})
 print(o)

@@ -70,8 +70,19 @@ def ListTargets(node):
 	elif isinstance(node, Case):
 		l = list(map(lambda x: ListTargets(x[1]), node.cases))
 		return ListTargets(node.default).union(*l)
+	elif isinstance(node, Fragment):
+		return ListTargets(node.comb) | ListTargets(node.sync)
 	else:
 		raise TypeError
+
+def ListInstOuts(i):
+	if isinstance(i, Fragment):
+		return ListInstOuts(i.instances)
+	else:
+		l = []
+		for x in i:
+			l += list(map(lambda x: x[1], list(x.outs.items())))
+		return set(l)
 
 def IsVariable(node):
 	if isinstance(node, Signal):

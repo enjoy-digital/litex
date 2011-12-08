@@ -21,5 +21,5 @@ bank = csrgen.Bank([oreg, ireg])
 f = bank.GetFragment() + inf
 i = bank.interface
 ofield.dev_r.name = "gpio_out"
-v = verilog.Convert(f, {i.d_o, ofield.dev_r}, {i.a_i, i.we_i, i.d_i, gpio_in})
+v = verilog.Convert(f, {i.d_o, ofield.dev_r, i.a_i, i.we_i, i.d_i, gpio_in})
 print(v)
