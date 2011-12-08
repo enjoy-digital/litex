@@ -5,6 +5,7 @@ _desc = [
 	(True,	"adr",	32),
 	(True,	"dat",	32),
 	(False,	"dat",	32),
+	(True,	"sel",	4),
 	(True,	"cyc",	1),
 	(True,	"stb",	1),
 	(False,	"ack",	1),
