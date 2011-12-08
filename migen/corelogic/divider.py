@@ -1,4 +1,5 @@
 from migen.fhdl import structure as f
+from functools import partial
 
 class Inst:
 	def __init__(self, w):
