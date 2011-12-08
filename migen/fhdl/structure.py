@@ -120,7 +120,13 @@ class Signal(Value):
 		return id(self)
 
 def Declare(parent, name, bv=BV(), variable=False, reset=0):
-	setattr(parent, name, Signal(bv, parent.__class__.__name__ + "_" + name, variable, reset))
+	# try to find a meaningful prefix
+	if parent.__module__ == "__main__":
+		prefix = parent.__class__.__name__
+	else:
+		modules = parent.__module__.split('.')
+		prefix = modules[len(modules)-1]
+	setattr(parent, name, Signal(bv, prefix + "_" + name, variable, reset))
 
 # statements
 
