@@ -23,7 +23,7 @@ def _printexpr(ns, node):
 	elif isinstance(node, Operator):
 		arity = len(node.operands)
 		if arity == 1:
-			r = self.op + _printexpr(ns, node.operands[0])
+			r = node.op + _printexpr(ns, node.operands[0])
 		elif arity == 2:
 			r = _printexpr(ns, node.operands[0]) + " " + node.op + " " + _printexpr(ns, node.operands[1])
 		else:
