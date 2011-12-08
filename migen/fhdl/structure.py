@@ -117,7 +117,7 @@ class Signal(Value):
 		return id(self)
 
 def Declare(parent, name, bv=BV(), variable=False, reset=0):
-	setattr(parent, name, Signal(bv, parent.__class__.__name__+"_"+name, variable, reset))
+	setattr(parent, name, Signal(bv, parent.__class__.__name__ + "_" + name, variable, reset))
 
 # statements
 

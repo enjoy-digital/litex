@@ -1,21 +1,20 @@
 from migen.fhdl import structure as f
-from functools import partial
+from .simple import Simple
 
-class Master:
-	def __init__(self):
-		d = partial(f.Declare, self)
-		d("a_o", f.BV(16))
-		d("we_o")
-		d("d_o", f.BV(32))
-		d("d_i", f.BV(32))
+_desc = [
+	(True,	"a",	16),
+	(True,	"we",	1),
+	(True,	"d",	32),
+	(False,	"d",	32)
+]
 
-class Slave:
+class Master(Simple):
 	def __init__(self):
-		d = partial(f.Declare, self)
-		d("a_i", f.BV(16))
-		d("we_i")
-		d("d_i", f.BV(32))
-		d("d_o", f.BV(32))
+		Simple.__init__(self, _desc, False)
+
+class Slave(Simple):
+	def __init__(self):
+		Simple.__init__(self, _desc, True)
 
 class Interconnect:
 	def __init__(self, master, slaves):
