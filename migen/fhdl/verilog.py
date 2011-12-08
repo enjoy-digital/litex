@@ -65,6 +65,10 @@ def _printnode(ns, level, comb, node):
 			r += "\t"*(level + 1) + _printexpr(ns, case[0]) + ": begin\n"
 			r += _printnode(ns, level + 2, comb, case[1])
 			r += "\t"*(level + 1) + "end\n"
+		if node.default.l:
+			r += "\t"*(level + 1) + "default: begin\n"
+			r += _printnode(ns, level + 2, comb, node.default)
+			r += "\t"*(level + 1) + "end\n"
 		r += "\t"*level + "endcase\n"
 		return r
 	else:
