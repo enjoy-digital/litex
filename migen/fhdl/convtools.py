@@ -37,6 +37,8 @@ def ListSignals(node):
 	elif isinstance(node, Cat):
 		l = list(map(ListSignals, node.l))
 		return set().union(*l)
+	elif isinstance(node, Replicate):
+		return ListSignals(node.v)
 	elif isinstance(node, Assign):
 		return ListSignals(node.l) | ListSignals(node.r)
 	elif isinstance(node, StatementList):
@@ -60,6 +62,8 @@ def ListTargets(node):
 	elif isinstance(node, Cat):
 		l = list(map(ListTargets, node.l))
 		return set().union(*l)
+	elif isinstance(node, Replicate):
+		return ListTargets(node.v)
 	elif isinstance(node, Assign):
 		return ListTargets(node.l)
 	elif isinstance(node, StatementList):

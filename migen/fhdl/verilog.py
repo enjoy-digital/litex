@@ -39,6 +39,8 @@ def _printexpr(ns, node):
 		l = list(map(partial(_printexpr, ns), node.l))
 		l.reverse()
 		return "{" + ", ".join(l) + "}"
+	elif isinstance(node, Replicate):
+		return "{" + str(node.n) + "{" + _printexpr(ns, node.v) + "}}"
 	else:
 		raise TypeError
 

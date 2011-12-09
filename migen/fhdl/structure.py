@@ -1,17 +1,20 @@
 import math
 
 def BitsFor(n):
-	if n == 0:
-		return 1
+	if isinstance(n, Constant):
+		return n.bv.width
 	else:
-		return int(math.ceil(math.log(n+1, 2)))
+		if n == 0:
+			return 1
+		else:
+			return int(math.ceil(math.log(n+1, 2)))
 
 class BV:
 	def __init__(self, width=1, signed=False):
 		self.width = width
 		self.signed = signed
 	
-	def __str__(self):
+	def __repr__(self):
 		r = str(self.width) + "'"
 		if self.signed:
 			r += "s"
@@ -98,10 +101,18 @@ class Cat(Value):
 	def __init__(self, *args):
 		self.l = list(map(_cst, args))
 
+class Replicate(Value):
+	def __init__(self, v, n):
+		self.v = v
+		self.n = n
+
 class Constant(Value):
 	def __init__(self, n, bv=None):
 		self.bv = bv or BV(BitsFor(n))
 		self.n = n
+	
+	def __repr__(self):
+		return str(self.bv) + str(self.n)
 
 def _cst(x):
 	if isinstance(x, int):
