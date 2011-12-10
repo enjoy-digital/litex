@@ -8,6 +8,5 @@ def FromLocal():
 	for x in ns:
 		obj = ns[x]
 		if hasattr(obj, "GetFragment"):
-			print("adding "+x)
 			f += obj.GetFragment()
 	return f
