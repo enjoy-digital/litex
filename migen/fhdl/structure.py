@@ -194,7 +194,7 @@ class Instance:
 		return id(self)
 
 class Fragment:
-	def __init__(self, comb=StatementList(), sync=StatementList(), instances=[], pads=set()):
+	def __init__(self, comb=[], sync=[], instances=[], pads=set()):
 		self.comb = _sl(comb)
 		self.sync = _sl(sync)
 		self.instances = instances
