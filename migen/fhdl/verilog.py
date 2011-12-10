@@ -118,6 +118,8 @@ def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst"):
 	
 	clks = Signal(name=clkname)
 	rsts = Signal(name=rstname)
+	
+	ios |= f.pads
 
 	sigs = ListSignals(f)
 	targets = ListTargets(f)

@@ -194,15 +194,20 @@ class Instance:
 		return id(self)
 
 class Fragment:
-	def __init__(self, comb=StatementList(), sync=StatementList(), instances=[]):
+	def __init__(self, comb=StatementList(), sync=StatementList(), instances=[], pads=set()):
 		self.comb = _sl(comb)
 		self.sync = _sl(sync)
 		self.instances = instances
+		self.pads = pads
 	
 	def __add__(self, other):
-		return Fragment(self.comb.l + other.comb.l, self.sync.l + other.sync.l, self.instances + other.instances)
+		return Fragment(self.comb.l + other.comb.l,
+			self.sync.l + other.sync.l,
+			self.instances + other.instances,
+			self.pads | other.pads)
 	def __iadd__(self, other):
 		self.comb.l += other.comb.l
 		self.sync.l += other.sync.l
 		self.instances += other.instances
+		self.pads |= other.pads
 		return self
