@@ -16,7 +16,7 @@ class Bank:
 		comb = []
 		sync = []
 		
-		comb.append(a(self._sel, self.interface.a_i[12:] == f.Constant(self.address, f.BV(4))))
+		comb.append(a(self._sel, self.interface.a_i[10:] == f.Constant(self.address, f.BV(4))))
 		
 		nregs = len(self.description)
 		nbits = f.BitsFor(nregs-1)
