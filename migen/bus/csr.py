@@ -2,7 +2,7 @@ from migen.fhdl import structure as f
 from .simple import Simple
 
 _desc = [
-	(True,	"a",	16),
+	(True,	"a",	14),
 	(True,	"we",	1),
 	(True,	"d",	32),
 	(False,	"d",	32)

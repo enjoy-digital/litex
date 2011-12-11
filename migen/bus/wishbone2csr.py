@@ -14,7 +14,7 @@ class Inst():
 		sync = [
 			f.Assign(self.csr.we_o, self.wishbone.we_i),
 			f.Assign(self.csr.d_o, self.wishbone.dat_i),
-			f.Assign(self.csr.a_o, self.wishbone.adr_i[:16]),
+			f.Assign(self.csr.a_o, self.wishbone.adr_i[2:16]),
 			f.Assign(self.wishbone.ack_o, 0),
 			f.Assign(self.wishbone.dat_o, self.csr.d_i)
 		]
