@@ -205,9 +205,3 @@ class Fragment:
 			self.sync.l + other.sync.l,
 			self.instances + other.instances,
 			self.pads | other.pads)
-	def __iadd__(self, other):
-		self.comb.l += other.comb.l
-		self.sync.l += other.sync.l
-		self.instances += other.instances
-		self.pads |= other.pads
-		return self
