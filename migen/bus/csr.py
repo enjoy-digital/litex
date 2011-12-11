@@ -30,5 +30,5 @@ class Interconnect:
 			comb.append(a(slave.we_i, self.master.we_o))
 			comb.append(a(slave.d_i, self.master.d_o))
 			rb = rb | slave.d_o
-		comb.append(a(master.d_i, rb))
+		comb.append(a(self.master.d_i, rb))
 		return f.Fragment(comb)
