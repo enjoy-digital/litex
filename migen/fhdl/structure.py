@@ -147,7 +147,8 @@ class Assign:
 		self.r = _cst(r)
 
 class StatementList:
-	def __init__(self, l=[]):
+	def __init__(self, l=None):
+		if l is None: l = []
 		self.l = l
 
 def _sl(x):
@@ -194,7 +195,10 @@ class Instance:
 		return id(self)
 
 class Fragment:
-	def __init__(self, comb=[], sync=[], instances=[], pads=set()):
+	def __init__(self, comb=None, sync=None, instances=None, pads=set()):
+		if comb is None: comb = []
+		if sync is None: sync = []
+		if instances is None: instances = []
 		self.comb = _sl(comb)
 		self.sync = _sl(sync)
 		self.instances = instances
