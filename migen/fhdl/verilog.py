@@ -88,15 +88,17 @@ def _printinstances(ns, i, clk, rst):
 					r += ",\n"
 				firstp = False
 				r += "\t." + p[0] + "("
-				if isinstance(p[1], int):
+				if isinstance(p[1], int) or isinstance(p[1], Constant):
 					r += str(p[1])
-				elif isinstance(p[1], basestring):
+				elif isinstance(p[1], str):
 					r += "\"" + p[1] + "\""
 				else:
 					raise TypeError
 				r += ")"
 			r += "\n) "
-		r += ns.GetName(x) + "(\n"
+		r += ns.GetName(x) 
+		if x.parameters: r += " "
+		r += "(\n"
 		ports = list(x.ins.items()) + list(x.outs.items())
 		if x.clkport:
 			ports.append((x.clkport, clk))
