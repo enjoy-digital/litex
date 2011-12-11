@@ -107,6 +107,5 @@ def InsertReset(rst, sl):
 	targets = ListTargets(sl)
 	resetcode = []
 	for t in targets:
-		if not t.variable:
-			resetcode.append(Assign(t, t.reset))
+		resetcode.append(Assign(t, t.reset))
 	return If(rst, resetcode, sl)
