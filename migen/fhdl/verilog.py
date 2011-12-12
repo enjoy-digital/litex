@@ -115,12 +115,12 @@ def _printinstances(ns, i, clk, rst):
 		r += ");\n\n"
 	return r
 
-def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst"):
-	ns = Namespace()
-	
+def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst", ns=None):
+	if ns is None: ns = Namespace()
+
 	clks = Signal(name=clkname)
 	rsts = Signal(name=rstname)
-	
+
 	ios |= f.pads
 
 	sigs = ListSignals(f)
