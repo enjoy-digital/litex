@@ -44,16 +44,20 @@ class Arbiter:
 		s2m_names = [GetSigName(x, False) for x in _desc if not x[0]]
 		for name in s2m_names:
 			source = getattr(self.target, name)
+			i = 0
 			for m in self.masters:
 				dest = getattr(m, name)
-				comb.append(f.Assign(dest, source))
+				if name == "ack_i" or name == "err_i":
+					comb.append(f.Assign(dest, source & (self.rr.grant == f.Constant(i, self.rr.grant.bv))))
+				else:
+					comb.append(f.Assign(dest, source))
+				i += 1
 		
 		# connect bus requests to round-robin selector
 		reqs = [m.cyc_o for m in self.masters]
 		comb.append(f.Assign(self.rr.request, f.Cat(*reqs)))
 		
 		return f.Fragment(comb) + self.rr.GetFragment()
-
 
 class Decoder:
 	# slaves is a list of pairs:
