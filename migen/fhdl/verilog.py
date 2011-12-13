@@ -44,32 +44,32 @@ def _printexpr(ns, node):
 	else:
 		raise TypeError
 
-def _printnode(ns, level, comb, node):
+def _printnode(ns, level, node):
 	if isinstance(node, Assign):
-		if comb or IsVariable(node.l):
+		if IsVariable(node.l):
 			assignment = " = "
 		else:
 			assignment = " <= "
 		return "\t"*level + _printexpr(ns, node.l) + assignment + _printexpr(ns, node.r) + ";\n"
 	elif isinstance(node, StatementList):
-		return "".join(list(map(partial(_printnode, ns, level, comb), node.l)))
+		return "".join(list(map(partial(_printnode, ns, level), node.l)))
 	elif isinstance(node, If):
 		r = "\t"*level + "if (" + _printexpr(ns, node.cond) + ") begin\n"
-		r += _printnode(ns, level + 1, comb, node.t)
+		r += _printnode(ns, level + 1, node.t)
 		if node.f.l:
 			r += "\t"*level + "end else begin\n"
-			r += _printnode(ns, level + 1, comb, node.f)
+			r += _printnode(ns, level + 1, node.f)
 		r += "\t"*level + "end\n"
 		return r
 	elif isinstance(node, Case):
 		r = "\t"*level + "case (" + _printexpr(ns, node.test) + ")\n"
 		for case in node.cases:
 			r += "\t"*(level + 1) + _printexpr(ns, case[0]) + ": begin\n"
-			r += _printnode(ns, level + 2, comb, case[1])
+			r += _printnode(ns, level + 2, case[1])
 			r += "\t"*(level + 1) + "end\n"
 		if node.default.l:
 			r += "\t"*(level + 1) + "default: begin\n"
-			r += _printnode(ns, level + 2, comb, node.default)
+			r += _printnode(ns, level + 2, node.default)
 			r += "\t"*(level + 1) + "end\n"
 		r += "\t"*level + "endcase\n"
 		return r
@@ -148,11 +148,11 @@ def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst", ns=N
 	
 	if f.comb.l:
 		r += "always @(*) begin\n"
-		r += _printnode(ns, 1, True, f.comb)
+		r += _printnode(ns, 1, f.comb)
 		r += "end\n\n"
 	if f.sync.l:
 		r += "always @(posedge " + ns.GetName(clks) + ") begin\n"
-		r += _printnode(ns, 1, False, InsertReset(rsts, f.sync))
+		r += _printnode(ns, 1, InsertReset(rsts, f.sync))
 		r += "end\n\n"
 	r += _printinstances(ns, f.instances, clks, rsts)
 	
