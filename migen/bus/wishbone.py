@@ -113,7 +113,7 @@ class Decoder:
 		# combine cyc with slave selection signals
 		i = 0
 		for slave in self.slaves:
-			comb.append(f.Assign(slave[1].cyc_i, self.master.cyc_o & self._slave_sel_r[i]))
+			comb.append(f.Assign(slave[1].cyc_i, self.master.cyc_o & self._slave_sel[i]))
 			i += 1
 		
 		# generate master ack (resp. err) by ORing all slave acks (resp. errs)
