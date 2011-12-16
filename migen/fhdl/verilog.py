@@ -1,6 +1,7 @@
-from .structure import *
-from .convtools import *
 from functools import partial
+
+from migen.fhdl.structure import *
+from migen.fhdl.convtools import *
 
 def _printsig(ns, s):
 	if s.bv.signed:
@@ -9,7 +10,7 @@ def _printsig(ns, s):
 		n = ""
 	if s.bv.width > 1:
 		n += "[" + str(s.bv.width-1) + ":0] "
-	n += ns.GetName(s)
+	n += ns.get_name(s)
 	return n
 
 def _printexpr(ns, node):
@@ -19,7 +20,7 @@ def _printexpr(ns, node):
 		else:
 			return "-" + str(node.bv) + str(-self.n)
 	elif isinstance(node, Signal):
-		return ns.GetName(node)
+		return ns.get_name(node)
 	elif isinstance(node, Operator):
 		arity = len(node.operands)
 		if arity == 1:
@@ -46,7 +47,7 @@ def _printexpr(ns, node):
 
 def _printnode(ns, level, node):
 	if isinstance(node, Assign):
-		if IsVariable(node.l):
+		if is_variable(node.l):
 			assignment = " = "
 		else:
 			assignment = " <= "
@@ -96,7 +97,7 @@ def _printinstances(ns, i, clk, rst):
 					raise TypeError
 				r += ")"
 			r += "\n) "
-		r += ns.GetName(x) 
+		r += ns.get_name(x) 
 		if x.parameters: r += " "
 		r += "(\n"
 		ports = list(x.ins.items()) + list(x.outs.items())
@@ -109,7 +110,7 @@ def _printinstances(ns, i, clk, rst):
 			if not firstp:
 				r += ",\n"
 			firstp = False
-			r += "\t." + p[0] + "(" + ns.GetName(p[1]) + ")"
+			r += "\t." + p[0] + "(" + ns.get_name(p[1]) + ")"
 		if not firstp:
 			r += "\n"
 		r += ");\n\n"
@@ -123,14 +124,14 @@ def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst", ns=N
 
 	ios |= f.pads
 
-	sigs = ListSignals(f)
-	targets = ListTargets(f)
-	instouts = ListInstOuts(f)
+	sigs = list_signals(f)
+	targets = list_targets(f)
+	instouts = list_inst_outs(f)
 	
 	r = "/* Machine-generated using Migen */\n"
 	r += "module " + name + "(\n"
-	r += "\tinput " + ns.GetName(clks) + ",\n"
-	r += "\tinput " + ns.GetName(rsts)
+	r += "\tinput " + ns.get_name(clks) + ",\n"
+	r += "\tinput " + ns.get_name(rsts)
 	for sig in ios:
 		if sig in targets:
 			r += ",\n\toutput reg " + _printsig(ns, sig)
@@ -151,8 +152,8 @@ def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst", ns=N
 		r += _printnode(ns, 1, f.comb)
 		r += "end\n\n"
 	if f.sync.l:
-		r += "always @(posedge " + ns.GetName(clks) + ") begin\n"
-		r += _printnode(ns, 1, InsertReset(rsts, f.sync))
+		r += "always @(posedge " + ns.get_name(clks) + ") begin\n"
+		r += _printnode(ns, 1, insert_reset(rsts, f.sync))
 		r += "end\n\n"
 	r += _printinstances(ns, f.instances, clks, rsts)
 	

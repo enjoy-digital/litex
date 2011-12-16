@@ -1,6 +1,6 @@
 from migen.fhdl import structure as f
 
-def GetSigName(signal, slave):
+def get_sig_name(signal, slave):
 	if signal[0] ^ slave:
 		suffix = "_o"
 	else:
@@ -18,5 +18,5 @@ class Simple():
 			busname = modules[len(modules)-1]
 			if name:
 				busname += "_" + name
-			signame = GetSigName(signal, slave)
+			signame = get_sig_name(signal, slave)
 			setattr(self, signame, f.Signal(f.BV(signal[2]), busname + "_" + signame))

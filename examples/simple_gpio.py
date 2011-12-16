@@ -18,7 +18,7 @@ insync = [f.Assign(gpio_in_s, gpio_in), f.Assign(ifield.dev_w, gpio_in_s)]
 inf = f.Fragment(incomb, insync)
 
 bank = csrgen.Bank([oreg, ireg])
-f = bank.GetFragment() + inf
+f = bank.get_fragment() + inf
 i = bank.interface
 ofield.dev_r.name = "gpio_out"
 v = verilog.Convert(f, {i.d_o, ofield.dev_r, i.a_i, i.we_i, i.d_i, gpio_in})

@@ -37,11 +37,11 @@ class LM32:
 			"rst_i",
 			"lm32")
 	
-	def GetFragment(self):
+	def get_fragment(self):
 		return f.Fragment(instances=[self.inst])
 
 cpus = [LM32() for i in range(4)]
 frag = f.Fragment()
 for cpu in cpus:
-	frag += cpu.GetFragment()
+	frag += cpu.get_fragment()
 print(verilog.Convert(frag, set([cpus[0].inst.ins["interrupt"], cpus[0].inst.outs["I_WE_O"]])))

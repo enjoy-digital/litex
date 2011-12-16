@@ -1,11 +1,11 @@
-from ..fhdl import structure as f
+from migen.fhdl import structure as f
 
 class Register:
 	def __init__(self, name):
 		self.name = name
 		self.fields = []
 	
-	def AddField(self, f):
+	def add_field(self, f):
 		self.fields.append(f)
 
 (READ_ONLY, WRITE_ONLY, READ_WRITE) = range(3)
@@ -25,4 +25,4 @@ class Field:
 		if self.access_dev == WRITE_ONLY or self.access_dev == READ_WRITE:
 			self.dev_w = f.Signal(f.BV(self.size), fullname + "_w")
 			self.dev_we = f.Signal(name=fullname + "_we")
-		self.parent.AddField(self)
+		self.parent.add_field(self)

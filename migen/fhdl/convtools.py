@@ -5,7 +5,7 @@ class Namespace:
 		self.counts = {}
 		self.sigs = {}
 	
-	def GetName(self, sig):
+	def get_name(self, sig):
 		try:
 			n = self.sigs[sig]
 			if n:
@@ -24,77 +24,77 @@ class Namespace:
 			else:
 				return sig.name
 
-def ListSignals(node):
+def list_signals(node):
 	if isinstance(node, Constant):
 		return set()
 	elif isinstance(node, Signal):
 		return {node}
 	elif isinstance(node, Operator):
-		l = list(map(ListSignals, node.operands))
+		l = list(map(list_signals, node.operands))
 		return set().union(*l)
 	elif isinstance(node, Slice):
-		return ListSignals(node.value)
+		return list_signals(node.value)
 	elif isinstance(node, Cat):
-		l = list(map(ListSignals, node.l))
+		l = list(map(list_signals, node.l))
 		return set().union(*l)
 	elif isinstance(node, Replicate):
-		return ListSignals(node.v)
+		return list_signals(node.v)
 	elif isinstance(node, Assign):
-		return ListSignals(node.l) | ListSignals(node.r)
+		return list_signals(node.l) | list_signals(node.r)
 	elif isinstance(node, StatementList):
-		l = list(map(ListSignals, node.l))
+		l = list(map(list_signals, node.l))
 		return set().union(*l)
 	elif isinstance(node, If):
-		return ListSignals(node.cond) | ListSignals(node.t) | ListSignals(node.f)
+		return list_signals(node.cond) | list_signals(node.t) | list_signals(node.f)
 	elif isinstance(node, Case):
-		l = list(map(lambda x: ListSignals(x[1]), node.cases))
-		return ListSignals(node.test).union(*l).union(ListSignals(node.default))
+		l = list(map(lambda x: list_signals(x[1]), node.cases))
+		return list_signals(node.test).union(*l).union(list_signals(node.default))
 	elif isinstance(node, Fragment):
-		return ListSignals(node.comb) | ListSignals(node.sync)
+		return list_signals(node.comb) | list_signals(node.sync)
 	else:
 		raise TypeError
 
-def ListTargets(node):
+def list_targets(node):
 	if isinstance(node, Signal):
 		return {node}
 	elif isinstance(node, Slice):
-		return ListTargets(node.value)
+		return list_targets(node.value)
 	elif isinstance(node, Cat):
-		l = list(map(ListTargets, node.l))
+		l = list(map(list_targets, node.l))
 		return set().union(*l)
 	elif isinstance(node, Replicate):
-		return ListTargets(node.v)
+		return list_targets(node.v)
 	elif isinstance(node, Assign):
-		return ListTargets(node.l)
+		return list_targets(node.l)
 	elif isinstance(node, StatementList):
-		l = list(map(ListTargets, node.l))
+		l = list(map(list_targets, node.l))
 		return set().union(*l)
 	elif isinstance(node, If):
-		return ListTargets(node.t) | ListTargets(node.f)
+		return list_targets(node.t) | list_targets(node.f)
 	elif isinstance(node, Case):
-		l = list(map(lambda x: ListTargets(x[1]), node.cases))
-		return ListTargets(node.default).union(*l)
+		l = list(map(lambda x: list_targets(x[1]), node.cases))
+		return list_targets(node.default).union(*l)
 	elif isinstance(node, Fragment):
-		return ListTargets(node.comb) | ListTargets(node.sync)
+		return list_targets(node.comb) | list_targets(node.sync)
 	else:
 		raise TypeError
 
-def ListInstOuts(i):
+def list_inst_outs(i):
 	if isinstance(i, Fragment):
-		return ListInstOuts(i.instances)
+		return list_inst_outs(i.instances)
 	else:
 		l = []
 		for x in i:
 			l += list(map(lambda x: x[1], list(x.outs.items())))
 		return set(l)
 
-def IsVariable(node):
+def is_variable(node):
 	if isinstance(node, Signal):
 		return node.variable
 	elif isinstance(node, Slice):
-		return IsVariable(node.value)
+		return is_variable(node.value)
 	elif isinstance(node, Cat):
-		arevars = list(map(IsVariable, node.l))
+		arevars = list(map(is_variable, node.l))
 		r = arevars[0]
 		for x in arevars:
 			if x != r:
@@ -103,8 +103,8 @@ def IsVariable(node):
 	else:
 		raise TypeError
 
-def InsertReset(rst, sl):
-	targets = ListTargets(sl)
+def insert_reset(rst, sl):
+	targets = list_targets(sl)
 	resetcode = []
 	for t in targets:
 		resetcode.append(Assign(t, t.reset))

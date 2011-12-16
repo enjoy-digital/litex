@@ -1,17 +1,15 @@
-from ..fhdl import structure as f
-from ..bus.csr import *
-from .description import *
-from functools import partial
+from migen.fhdl import structure as f
+from migen.bus.csr import *
+from migen.bank.description import *
 
 class Bank:
 	def __init__(self, description, address=0):
 		self.description = description
 		self.address = address
 		self.interface = Slave()
-		d = partial(f.Declare, self)
-		d("_sel")
+		f.declare_signal(self, "_sel")
 	
-	def GetFragment(self):
+	def get_fragment(self):
 		a = f.Assign
 		comb = []
 		sync = []
@@ -19,7 +17,7 @@ class Bank:
 		comb.append(a(self._sel, self.interface.a_i[10:] == f.Constant(self.address, f.BV(4))))
 		
 		nregs = len(self.description)
-		nbits = f.BitsFor(nregs-1)
+		nbits = f.bits_for(nregs-1)
 		
 		# Bus writes
 		bwcases = []

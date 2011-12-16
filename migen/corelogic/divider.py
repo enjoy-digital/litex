@@ -1,11 +1,12 @@
-from migen.fhdl import structure as f
 from functools import partial
+
+from migen.fhdl import structure as f
 
 class Inst:
 	def __init__(self, w):
 		self.w = w
 		
-		d = partial(f.Declare, self)
+		d = partial(f.declare_signal, self)
 		
 		d("start_i")
 		d("dividend_i", f.BV(w))
@@ -15,11 +16,11 @@ class Inst:
 		d("remainder_o", f.BV(w))
 		
 		d("_qr", f.BV(2*w))
-		d("_counter", f.BV(f.BitsFor(w)))
+		d("_counter", f.BV(f.bits_for(w)))
 		d("_divisor_r", f.BV(w))
 		d("_diff", f.BV(w+1))
 	
-	def GetFragment(self):
+	def get_fragment(self):
 		a = f.Assign
 		comb = [
 			a(self.quotient_o, self._qr[:self.w]),

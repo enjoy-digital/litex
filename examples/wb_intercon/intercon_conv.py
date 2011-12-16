@@ -12,7 +12,7 @@ wishbonecon0 = wishbone.InterconnectShared(
 		register=True,
 		offset=1)
 
-frag = wishbonecon0.GetFragment()
+frag = wishbonecon0.get_fragment()
 v = verilog.Convert(frag, name="intercon", ios={m1.cyc_o, m1.stb_o, m1.we_o, m1.adr_o, m1.sel_o, m1.dat_o, m1.dat_i, m1.ack_i,
 	m2.cyc_o, m2.stb_o, m2.we_o, m2.adr_o, m2.sel_o, m2.dat_o, m2.dat_i, m2.ack_i,
 	s1.cyc_i, s1.stb_i, s1.we_i, s1.adr_i, s1.sel_i, s1.dat_i, s1.dat_o, s1.ack_o,

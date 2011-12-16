@@ -3,11 +3,11 @@ from migen.fhdl import structure as f
 class Inst:
 	def __init__(self, n):
 		self.n = n
-		self.bn = f.BitsFor(self.n-1)
-		f.Declare(self, "request", f.BV(self.n))
-		f.Declare(self, "grant", f.BV(self.bn))
+		self.bn = f.bits_for(self.n-1)
+		f.declare_signal(self, "request", f.BV(self.n))
+		f.declare_signal(self, "grant", f.BV(self.bn))
 	
-	def GetFragment(self):
+	def get_fragment(self):
 		cases = []
 		for i in range(self.n):
 			switch = []

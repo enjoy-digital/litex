@@ -1,7 +1,7 @@
+from migen.bus import wishbone
+from migen.bus import csr
 from migen.fhdl import structure as f
 from migen.corelogic import timeline
-from . import wishbone
-from . import csr
 
 class Inst():
 	def __init__(self):
@@ -12,11 +12,11 @@ class Inst():
 			(2, [f.Assign(self.wishbone.ack_o, 1)]),
 			(3, [f.Assign(self.wishbone.ack_o, 0)])])
 	
-	def GetFragment(self):
+	def get_fragment(self):
 		sync = [
 			f.Assign(self.csr.we_o, 0),
 			f.Assign(self.csr.d_o, self.wishbone.dat_i),
 			f.Assign(self.csr.a_o, self.wishbone.adr_i[2:16]),
 			f.Assign(self.wishbone.dat_o, self.csr.d_i)
 		]
-		return f.Fragment(sync=sync) + self.timeline.GetFragment()
+		return f.Fragment(sync=sync) + self.timeline.get_fragment()

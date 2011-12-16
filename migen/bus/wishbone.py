@@ -1,7 +1,8 @@
+from functools import partial
+
 from migen.fhdl import structure as f
 from migen.corelogic import roundrobin, multimux
-from .simple import Simple, GetSigName
-from functools import partial
+from migen.bus.simple import Simple, get_sig_name
 
 _desc = [
 	(True,	"adr",	32),
@@ -31,17 +32,17 @@ class Arbiter:
 		self.target = target
 		self.rr = roundrobin.Inst(len(self.masters))
 
-	def GetFragment(self):
+	def get_fragment(self):
 		comb = []
 		
 		# mux master->slave signals
-		m2s_names = [GetSigName(x, False) for x in _desc if x[0]]
+		m2s_names = [get_sig_name(x, False) for x in _desc if x[0]]
 		m2s_masters = [[getattr(m, name) for name in m2s_names] for m in self.masters]
 		m2s_target = [getattr(self.target, name) for name in m2s_names]
-		comb += multimux.MultiMux(self.rr.grant, m2s_masters, m2s_target)
+		comb += multimux.multimux(self.rr.grant, m2s_masters, m2s_target)
 		
 		# connect slave->master signals
-		s2m_names = [GetSigName(x, False) for x in _desc if not x[0]]
+		s2m_names = [get_sig_name(x, False) for x in _desc if not x[0]]
 		for name in s2m_names:
 			source = getattr(self.target, name)
 			i = 0
@@ -57,7 +58,7 @@ class Arbiter:
 		reqs = [m.cyc_o for m in self.masters]
 		comb.append(f.Assign(self.rr.request, f.Cat(*reqs)))
 		
-		return f.Fragment(comb) + self.rr.GetFragment()
+		return f.Fragment(comb) + self.rr.get_fragment()
 
 class Decoder:
 	# slaves is a list of pairs:
@@ -75,7 +76,7 @@ class Decoder:
 		self.register = register
 		
 		addresses = [slave[0] for slave in self.slaves]
-		maxbits = max([f.BitsFor(addr) for addr in addresses])
+		maxbits = max([f.bits_for(addr) for addr in addresses])
 		def mkconst(x):
 			if isinstance(x, int):
 				return f.Constant(x, f.BV(maxbits))
@@ -84,11 +85,11 @@ class Decoder:
 		self.addresses = list(map(mkconst, addresses))
 		
 		ns = len(self.slaves)
-		d = partial(f.Declare, self)
+		d = partial(f.declare_signal, self)
 		d("_slave_sel", f.BV(ns))
 		d("_slave_sel_r", f.BV(ns))
 
-	def GetFragment(self):
+	def get_fragment(self):
 		comb = []
 		sync = []
 		
@@ -105,7 +106,7 @@ class Decoder:
 			comb.append(f.Assign(self._slave_sel_r, self._slave_sel))
 		
 		# connect master->slaves signals except cyc
-		m2s_names = [(GetSigName(x, False), GetSigName(x, True))
+		m2s_names = [(get_sig_name(x, False), get_sig_name(x, True))
 			for x in _desc if x[0] and x[1] != "cyc"]
 		comb += [f.Assign(getattr(slave[1], name[1]), getattr(self.master, name[0]))
 			for name in m2s_names for slave in self.slaves]
@@ -142,5 +143,5 @@ class InterconnectShared:
 		self._decoder = Decoder(self._shared, slaves, offset, register)
 		self.addresses = self._decoder.addresses
 	
-	def GetFragment(self):
-		return self._arbiter.GetFragment() + self._decoder.GetFragment()
+	def get_fragment(self):
+		return self._arbiter.get_fragment() + self._decoder.get_fragment()

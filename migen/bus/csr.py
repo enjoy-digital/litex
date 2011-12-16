@@ -1,5 +1,5 @@
 from migen.fhdl import structure as f
-from .simple import Simple
+from migen.bus.simple import Simple
 
 _desc = [
 	(True,	"a",	14),
@@ -21,7 +21,7 @@ class Interconnect:
 		self.master = master
 		self.slaves = slaves
 	
-	def GetFragment(self):
+	def get_fragment(self):
 		a = f.Assign
 		comb = []
 		rb = f.Constant(0, f.BV(32))

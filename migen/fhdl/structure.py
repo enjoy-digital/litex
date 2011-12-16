@@ -1,6 +1,6 @@
 import math
 
-def BitsFor(n):
+def bits_for(n):
 	if isinstance(n, Constant):
 		return n.bv.width
 	else:
@@ -108,7 +108,7 @@ class Replicate(Value):
 
 class Constant(Value):
 	def __init__(self, n, bv=None):
-		self.bv = bv or BV(BitsFor(n))
+		self.bv = bv or BV(bits_for(n))
 		self.n = n
 	
 	def __repr__(self):
@@ -130,7 +130,7 @@ class Signal(Value):
 	def __hash__(self):
 		return id(self)
 
-def Declare(parent, name, bv=BV(), variable=False, reset=0):
+def declare_signal(parent, name, bv=BV(), variable=False, reset=0):
 	# try to find a meaningful prefix
 	if parent.__module__ == "__main__":
 		prefix = parent.__class__.__name__

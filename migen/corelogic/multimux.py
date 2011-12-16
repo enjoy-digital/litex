@@ -1,6 +1,6 @@
 from migen.fhdl import structure as f
 
-def MultiMux(sel, inputs, output):
+def multimux(sel, inputs, output):
 	n = len(inputs)
 	i = 0
 	comb = []
