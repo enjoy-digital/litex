@@ -117,11 +117,15 @@ def _printinstances(ns, i, clk, rst):
 		r += ");\n\n"
 	return r
 
-def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst", ns=None):
-	if ns is None: ns = Namespace()
-
-	clks = Signal(name=clkname)
-	rsts = Signal(name=rstname)
+def Convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None):
+	if clk_signal is None:
+		clk_signal = Signal(name="sys_clk")
+		ios.add(clk_signal)
+	if rst_signal is None:
+		rst_signal = Signal(name="sys_rst")
+		ios.add(rst_signal)
+	if ns is None:
+		ns = Namespace()
 
 	ios |= f.pads
 
@@ -131,15 +135,17 @@ def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst", ns=N
 	
 	r = "/* Machine-generated using Migen */\n"
 	r += "module " + name + "(\n"
-	r += "\tinput " + ns.get_name(clks) + ",\n"
-	r += "\tinput " + ns.get_name(rsts)
+	firstp = True
 	for sig in ios:
+		if not firstp:
+			r += ",\n"
+		firstp = False
 		if sig in targets:
-			r += ",\n\toutput reg " + _printsig(ns, sig)
+			r += "\toutput reg " + _printsig(ns, sig)
 		elif sig in instouts:
-			r += ",\n\toutput " + _printsig(ns, sig)
+			r += "\toutput " + _printsig(ns, sig)
 		else:
-			r += ",\n\tinput " + _printsig(ns, sig)
+			r += "\tinput " + _printsig(ns, sig)
 	r += "\n);\n\n"
 	for sig in sigs - ios:
 		if sig in instouts:
@@ -153,10 +159,10 @@ def Convert(f, ios=set(), name="top", clkname="sys_clk", rstname="sys_rst", ns=N
 		r += _printnode(ns, 1, f.comb)
 		r += "end\n\n"
 	if f.sync.l:
-		r += "always @(posedge " + ns.get_name(clks) + ") begin\n"
-		r += _printnode(ns, 1, insert_reset(rsts, f.sync))
+		r += "always @(posedge " + ns.get_name(clk_signal) + ") begin\n"
+		r += _printnode(ns, 1, insert_reset(rst_signal, f.sync))
 		r += "end\n\n"
-	r += _printinstances(ns, f.instances, clks, rsts)
+	r += _printinstances(ns, f.instances, clk_signal, rst_signal)
 	
 	r += "endmodule\n"
 	
