@@ -1,4 +1,4 @@
-from migen.fhdl import structure as f
+from migen.fhdl.structure import *
 
 class Register:
 	def __init__(self, name):
@@ -19,10 +19,10 @@ class Field:
 		self.access_dev = access_dev
 		self.reset = reset
 		fullname = parent.name + "_" + name
-		self.storage = f.Signal(f.BV(self.size), fullname)
+		self.storage = Signal(BV(self.size), fullname)
 		if self.access_dev == READ_ONLY or self.access_dev == READ_WRITE:
-			self.dev_r = f.Signal(f.BV(self.size), fullname + "_r")
+			self.dev_r = Signal(BV(self.size), fullname + "_r")
 		if self.access_dev == WRITE_ONLY or self.access_dev == READ_WRITE:
-			self.dev_w = f.Signal(f.BV(self.size), fullname + "_w")
-			self.dev_we = f.Signal(name=fullname + "_we")
+			self.dev_w = Signal(BV(self.size), fullname + "_w")
+			self.dev_we = Signal(name=fullname + "_we")
 		self.parent.add_field(self)

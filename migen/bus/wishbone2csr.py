@@ -1,6 +1,6 @@
 from migen.bus import wishbone
 from migen.bus import csr
-from migen.fhdl import structure as f
+from migen.fhdl.structure import *
 from migen.corelogic import timeline
 
 class Inst():
@@ -8,15 +8,15 @@ class Inst():
 		self.wishbone = wishbone.Slave("to_csr")
 		self.csr = csr.Master("from_wishbone")
 		self.timeline = timeline.Inst(self.wishbone.cyc_i & self.wishbone.stb_i,
-			[(1, [f.Assign(self.csr.we_o, self.wishbone.we_i)]),
-			(2, [f.Assign(self.wishbone.ack_o, 1)]),
-			(3, [f.Assign(self.wishbone.ack_o, 0)])])
+			[(1, [self.csr.we_o.eq(self.wishbone.we_i)]),
+			(2, [self.wishbone.ack_o.eq(1)]),
+			(3, [self.wishbone.ack_o.eq(0)])])
 	
 	def get_fragment(self):
 		sync = [
-			f.Assign(self.csr.we_o, 0),
-			f.Assign(self.csr.d_o, self.wishbone.dat_i),
-			f.Assign(self.csr.a_o, self.wishbone.adr_i[2:16]),
-			f.Assign(self.wishbone.dat_o, self.csr.d_i)
+			self.csr.we_o.eq(0),
+			self.csr.d_o.eq(self.wishbone.dat_i),
+			self.csr.a_o.eq(self.wishbone.adr_i[2:16]),
+			self.wishbone.dat_o.eq(self.csr.d_i)
 		]
-		return f.Fragment(sync=sync) + self.timeline.get_fragment()
+		return Fragment(sync=sync) + self.timeline.get_fragment()

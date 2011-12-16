@@ -1,4 +1,4 @@
-from migen.fhdl import structure as f
+from migen.fhdl.structure import *
 
 def multimux(sel, inputs, output):
 	n = len(inputs)
@@ -6,8 +6,8 @@ def multimux(sel, inputs, output):
 	comb = []
 	for osig in output:
 		choices = [x[i] for x in inputs]
-		cases = [(f.Constant(j, sel.bv), [f.Assign(osig, choices[j])]) for j in range(n)]
-		default = cases.pop()[1]
-		comb.append(f.Case(sel, cases, default))
+		cases = [[Constant(j, sel.bv), osig.eq(choices[j])] for j in range(n)]
+		cases[n-1][0] = Default()
+		comb.append(Case(sel, *cases))
 		i += 1
 	return comb

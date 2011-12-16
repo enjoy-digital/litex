@@ -1,6 +1,7 @@
 from functools import partial
 
 from migen.fhdl.structure import *
+from migen.fhdl.structure import _Operator
 from migen.fhdl.convtools import *
 
 def _printsig(ns, s):
@@ -21,7 +22,7 @@ def _printexpr(ns, node):
 			return "-" + str(node.bv) + str(-self.n)
 	elif isinstance(node, Signal):
 		return ns.get_name(node)
-	elif isinstance(node, Operator):
+	elif isinstance(node, _Operator):
 		arity = len(node.operands)
 		if arity == 1:
 			r = node.op + _printexpr(ns, node.operands[0])

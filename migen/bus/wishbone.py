@@ -1,6 +1,6 @@
 from functools import partial
 
-from migen.fhdl import structure as f
+from migen.fhdl.structure import *
 from migen.corelogic import roundrobin, multimux
 from migen.bus.simple import Simple, get_sig_name
 
@@ -49,16 +49,16 @@ class Arbiter:
 			for m in self.masters:
 				dest = getattr(m, name)
 				if name == "ack_i" or name == "err_i":
-					comb.append(f.Assign(dest, source & (self.rr.grant == f.Constant(i, self.rr.grant.bv))))
+					comb.append(dest.eq(source & (self.rr.grant == Constant(i, self.rr.grant.bv))))
 				else:
-					comb.append(f.Assign(dest, source))
+					comb.append(dest.eq(source))
 				i += 1
 		
 		# connect bus requests to round-robin selector
 		reqs = [m.cyc_o for m in self.masters]
-		comb.append(f.Assign(self.rr.request, f.Cat(*reqs)))
+		comb.append(self.rr.request.eq(Cat(*reqs)))
 		
-		return f.Fragment(comb) + self.rr.get_fragment()
+		return Fragment(comb) + self.rr.get_fragment()
 
 class Decoder:
 	# slaves is a list of pairs:
@@ -76,18 +76,18 @@ class Decoder:
 		self.register = register
 		
 		addresses = [slave[0] for slave in self.slaves]
-		maxbits = max([f.bits_for(addr) for addr in addresses])
+		maxbits = max([bits_for(addr) for addr in addresses])
 		def mkconst(x):
 			if isinstance(x, int):
-				return f.Constant(x, f.BV(maxbits))
+				return Constant(x, BV(maxbits))
 			else:
 				return x
 		self.addresses = list(map(mkconst, addresses))
 		
 		ns = len(self.slaves)
-		d = partial(f.declare_signal, self)
-		d("_slave_sel", f.BV(ns))
-		d("_slave_sel_r", f.BV(ns))
+		d = partial(declare_signal, self)
+		d("_slave_sel", BV(ns))
+		d("_slave_sel_r", BV(ns))
 
 	def get_fragment(self):
 		comb = []
@@ -97,44 +97,44 @@ class Decoder:
 		i = 0
 		hi = self.master.adr_o.bv.width - self.offset
 		for addr in self.addresses:
-			comb.append(f.Assign(self._slave_sel[i],
+			comb.append(self._slave_sel[i].eq(
 				self.master.adr_o[hi-addr.bv.width:hi] == addr))
 			i += 1
 		if self.register:
-			sync.append(f.Assign(self._slave_sel_r, self._slave_sel))
+			sync.append(self._slave_sel_r.eq(self._slave_sel))
 		else:
-			comb.append(f.Assign(self._slave_sel_r, self._slave_sel))
+			comb.append(self._slave_sel_r.eq(self._slave_sel))
 		
 		# connect master->slaves signals except cyc
 		m2s_names = [(get_sig_name(x, False), get_sig_name(x, True))
 			for x in _desc if x[0] and x[1] != "cyc"]
-		comb += [f.Assign(getattr(slave[1], name[1]), getattr(self.master, name[0]))
+		comb += [getattr(slave[1], name[1]).eq(getattr(self.master, name[0]))
 			for name in m2s_names for slave in self.slaves]
 		
 		# combine cyc with slave selection signals
 		i = 0
 		for slave in self.slaves:
-			comb.append(f.Assign(slave[1].cyc_i, self.master.cyc_o & self._slave_sel[i]))
+			comb.append(slave[1].cyc_i.eq(self.master.cyc_o & self._slave_sel[i]))
 			i += 1
 		
 		# generate master ack (resp. err) by ORing all slave acks (resp. errs)
-		ackv = f.Constant(0)
-		errv = f.Constant(0)
+		ackv = Constant(0)
+		errv = Constant(0)
 		for slave in self.slaves:
 			ackv = ackv | slave[1].ack_o
 			errv = errv | slave[1].err_o
-		comb.append(f.Assign(self.master.ack_i, ackv))
-		comb.append(f.Assign(self.master.err_i, errv))
+		comb.append(self.master.ack_i.eq(ackv))
+		comb.append(self.master.err_i.eq(errv))
 		
 		# mux (1-hot) slave data return
 		i = 0
-		datav = f.Constant(0, self.master.dat_i.bv)
+		datav = Constant(0, self.master.dat_i.bv)
 		for slave in self.slaves:
-			datav = datav | (f.Replicate(self._slave_sel_r[i], self.master.dat_i.bv.width) & slave[1].dat_o)
+			datav = datav | (Replicate(self._slave_sel_r[i], self.master.dat_i.bv.width) & slave[1].dat_o)
 			i += 1
-		comb.append(f.Assign(self.master.dat_i, datav))
+		comb.append(self.master.dat_i.eq(datav))
 		
-		return f.Fragment(comb, sync)
+		return Fragment(comb, sync)
 
 class InterconnectShared:
 	def __init__(self, masters, slaves, offset=0, register=False):

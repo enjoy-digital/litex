@@ -1,4 +1,5 @@
-from .structure import *
+from migen.fhdl.structure import *
+from migen.fhdl.structure import _Operator
 
 class Namespace:
 	def __init__(self):
@@ -29,7 +30,7 @@ def list_signals(node):
 		return set()
 	elif isinstance(node, Signal):
 		return {node}
-	elif isinstance(node, Operator):
+	elif isinstance(node, _Operator):
 		l = list(map(list_signals, node.operands))
 		return set().union(*l)
 	elif isinstance(node, Slice):
@@ -105,7 +106,5 @@ def is_variable(node):
 
 def insert_reset(rst, sl):
 	targets = list_targets(sl)
-	resetcode = []
-	for t in targets:
-		resetcode.append(Assign(t, t.reset))
-	return If(rst, resetcode, sl)
+	resetcode = [t.eq(t.reset) for t in targets]
+	return If(rst, *resetcode).Else(*sl.l)

@@ -1,4 +1,4 @@
-from migen.fhdl import structure as f
+from migen.fhdl.structure import *
 from migen.bus.simple import Simple
 
 _desc = [
@@ -22,13 +22,12 @@ class Interconnect:
 		self.slaves = slaves
 	
 	def get_fragment(self):
-		a = f.Assign
 		comb = []
-		rb = f.Constant(0, f.BV(32))
+		rb = Constant(0, BV(32))
 		for slave in self.slaves:
-			comb.append(a(slave.a_i, self.master.a_o))
-			comb.append(a(slave.we_i, self.master.we_o))
-			comb.append(a(slave.d_i, self.master.d_o))
+			comb.append(slave.a_i.eq(self.master.a_o))
+			comb.append(slave.we_i.eq(self.master.we_o))
+			comb.append(slave.d_i.eq(self.master.d_o))
 			rb = rb | slave.d_o
-		comb.append(a(self.master.d_i, rb))
-		return f.Fragment(comb)
+		comb.append(self.master.d_i.eq(rb))
+		return Fragment(comb)

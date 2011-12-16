@@ -23,53 +23,53 @@ class BV:
 
 class Value:
 	def __invert__(self):
-		return Operator("~", [self])
+		return _Operator("~", [self])
 
 	def __add__(self, other):
-		return Operator("+", [self, other])
+		return _Operator("+", [self, other])
 	def __radd__(self, other):
-		return Operator("+", [other, self])
+		return _Operator("+", [other, self])
 	def __sub__(self, other):
-		return Operator("-", [self, other])
+		return _Operator("-", [self, other])
 	def __rsub__(self, other):
-		return Operator("-", [other, self])
+		return _Operator("-", [other, self])
 	def __mul__(self, other):
-		return Operator("*", [self, other])
+		return _Operator("*", [self, other])
 	def __rmul__(self, other):
-		return Operator("*", [other, self])
+		return _Operator("*", [other, self])
 	def __lshift__(self, other):
-		return Operator("<<", [self, other])
+		return _Operator("<<", [self, other])
 	def __rlshift__(self, other):
-		return Operator("<<", [other, self])
+		return _Operator("<<", [other, self])
 	def __rshift__(self, other):
-		return Operator(">>", [self, other])
+		return _Operator(">>", [self, other])
 	def __rrshift__(self, other):
-		return Operator(">>", [other, self])
+		return _Operator(">>", [other, self])
 	def __and__(self, other):
-		return Operator("&", [self, other])
+		return _Operator("&", [self, other])
 	def __rand__(self, other):
-		return Operator("&", [other, self])
+		return _Operator("&", [other, self])
 	def __xor__(self, other):
-		return Operator("^", [self, other])
+		return _Operator("^", [self, other])
 	def __rxor__(self, other):
-		return Operator("^", [other, self])
+		return _Operator("^", [other, self])
 	def __or__(self, other):
-		return Operator("|", [self, other])
+		return _Operator("|", [self, other])
 	def __ror__(self, other):
-		return Operator("|", [other, self])
+		return _Operator("|", [other, self])
 	
 	def __lt__(self, other):
-		return Operator("<", [self, other])
+		return _Operator("<", [self, other])
 	def __le__(self, other):
-		return Operator("<=", [self, other])
+		return _Operator("<=", [self, other])
 	def __eq__(self, other):
-		return Operator("==", [self, other])
+		return _Operator("==", [self, other])
 	def __ne__(self, other):
-		return Operator("!=", [self, other])
+		return _Operator("!=", [self, other])
 	def __gt__(self, other):
-		return Operator(">", [self, other])
+		return _Operator(">", [self, other])
 	def __ge__(self, other):
-		return Operator(">=", [self, other])
+		return _Operator(">=", [self, other])
 	
 	
 	def __getitem__(self, key):
@@ -85,8 +85,11 @@ class Value:
 			return Slice(self, start, stop)
 		else:
 			raise KeyError
+	
+	def eq(self, r):
+		return Assign(self, r)
 
-class Operator(Value):
+class _Operator(Value):
 	def __init__(self, op, operands):
 		self.op = op
 		self.operands = list(map(_cst, operands))
@@ -151,23 +154,41 @@ class StatementList:
 		if l is None: l = []
 		self.l = l
 
+class If:
+	def __init__(self, cond, *t):
+		self.cond = cond
+		self.t = StatementList(t)
+		self.f = StatementList()
+	
+	def Else(self, *f):
+		self.f = StatementList(f)
+		return self
+	
+	def Elif(self, cond, *t):
+		self.f = StatementList([If(cond, *t)])
+		return self
+
 def _sl(x):
 	if isinstance(x, list):
 		return StatementList(x)
 	else:
 		return x
 
-class If:
-	def __init__(self, cond, t, f=StatementList()):
-		self.cond = cond
-		self.t = _sl(t)
-		self.f = _sl(f)
+class Default:
+	pass
 
 class Case:
-	def __init__(self, test, cases=[], default=StatementList()):
+	def __init__(self, test, *cases):
 		self.test = test
-		self.cases = [(c[0], _sl(c[1])) for c in cases]
-		self.default = _sl(default)
+		self.cases = [(c[0], StatementList(c[1:])) for c in cases if not isinstance(c[0], Default)]
+		self.default = None
+		for c in cases:
+			if isinstance(c[0], Default):
+				if self.default is not None:
+					raise ValueError
+				self.default = StatementList(c[1:])
+		if self.default is None:
+			self.default = StatementList()
 
 #
 
