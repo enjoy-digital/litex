@@ -13,7 +13,6 @@ class Inst:
 		d("oe_n")
 		d("we_n")
 		d("ce_n")
-		d("rst_n")
 		self.timeline = timeline.Inst(self.bus.cyc_i & self.bus.stb_i,
 			[(0, [self.adr.eq(Cat(0, self.bus.adr_i[2:adr_width]))]),
 			(rd_timing, [
@@ -27,6 +26,6 @@ class Inst:
 	
 	def get_fragment(self):
 		comb = [self.oe_n.eq(0), self.we_n.eq(1),
-			self.ce_n.eq(0), self.rst_n.eq(1)]
-		return Fragment(comb, pads={self.adr, self.d, self.oe_n, self.we_n, self.ce_n, self.rst_n}) \
+			self.ce_n.eq(0)]
+		return Fragment(comb, pads={self.adr, self.d, self.oe_n, self.we_n, self.ce_n}) \
 			+ self.timeline.get_fragment()

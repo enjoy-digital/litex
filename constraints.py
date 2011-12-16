@@ -1,4 +1,4 @@
-def get(ns, norflash0, uart0):
+def get(ns, reset0, norflash0, uart0):
 	constraints = []
 	def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
 		constraints.append((ns.get_name(signal), vec, pin, iostandard, extra))
@@ -7,6 +7,11 @@ def get(ns, norflash0, uart0):
 		for p in pins:
 			add(signal, p, i, iostandard, extra)
 			i += 1
+	
+	add(reset0.trigger_reset, "AA4")
+	add(reset0.ac97_rst_n, "D6")
+	add(reset0.videoin_rst_n, "W17")
+	add(reset0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
 	
 	add_vec(norflash0.adr, ["L22", "L20", "K22", "K21", "J19", "H20", "F22",
 		"F21", "K17", "J17", "E22", "E20", "H18", "H19", "F20",
@@ -18,7 +23,6 @@ def get(ns, norflash0, uart0):
 	add(norflash0.oe_n, "M22", extra="SLEW = FAST | DRIVE = 8")
 	add(norflash0.we_n, "N20", extra="SLEW = FAST | DRIVE = 8")
 	add(norflash0.ce_n, "M21", extra="SLEW = FAST | DRIVE = 8")
-	add(norflash0.rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
 	
 	add(uart0.tx, "L17", extra="SLEW = SLOW")
 	add(uart0.rx, "K18", extra="PULLUP")
@@ -38,8 +42,6 @@ def get(ns, norflash0, uart0):
 NET "sys_clk" LOC = AB11 | IOSTANDARD = LVCMOS33;
 NET "sys_clk" TNM_NET = "GRPclk50";
 TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
-
-NET "sys_rst" LOC = AA4 | IOSTANDARD = LVCMOS33;
 	"""
 	
 	return r
