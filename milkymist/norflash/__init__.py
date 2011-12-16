@@ -1,32 +1,32 @@
 from functools import partial
 
-from migen.fhdl import structure as f
+from migen.fhdl.structure import *
 from migen.bus import wishbone
 from migen.corelogic import timeline
 
 class Inst:
 	def __init__(self, adr_width, rd_timing):
 		self.bus = wishbone.Slave("norflash")
-		d = partial(f.declare_signal, self)
-		d("adr", f.BV(adr_width-1))
-		d("d", f.BV(16))
+		d = partial(declare_signal, self)
+		d("adr", BV(adr_width-1))
+		d("d", BV(16))
 		d("oe_n")
 		d("we_n")
 		d("ce_n")
 		d("rst_n")
 		self.timeline = timeline.Inst(self.bus.cyc_i & self.bus.stb_i,
-			[(0, [f.Assign(self.adr, f.Cat(0, self.bus.adr_i[2:adr_width]))]),
+			[(0, [self.adr.eq(Cat(0, self.bus.adr_i[2:adr_width]))]),
 			(rd_timing, [
-				f.Assign(self.bus.dat_o[16:], self.d),
-				f.Assign(self.adr, f.Cat(1, self.bus.adr_i[2:adr_width]))]),
+				self.bus.dat_o[16:].eq(self.d),
+				self.adr.eq(Cat(1, self.bus.adr_i[2:adr_width]))]),
 			(2*rd_timing, [
-				f.Assign(self.bus.dat_o[:16], self.d),
-				f.Assign(self.bus.ack_o, 1)]),
+				self.bus.dat_o[:16].eq(self.d),
+				self.bus.ack_o.eq(1)]),
 			(2*rd_timing+1, [
-				f.Assign(self.bus.ack_o, 0)])])
+				self.bus.ack_o.eq(0)])])
 	
 	def get_fragment(self):
-		comb = [f.Assign(self.oe_n, 0), f.Assign(self.we_n, 1),
-			f.Assign(self.ce_n, 0), f.Assign(self.rst_n, 1)]
-		return f.Fragment(comb, pads={self.adr, self.d, self.oe_n, self.we_n, self.ce_n, self.rst_n}) \
+		comb = [self.oe_n.eq(0), self.we_n.eq(1),
+			self.ce_n.eq(0), self.rst_n.eq(1)]
+		return Fragment(comb, pads={self.adr, self.d, self.oe_n, self.we_n, self.ce_n, self.rst_n}) \
 			+ self.timeline.get_fragment()

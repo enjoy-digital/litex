@@ -1,5 +1,4 @@
 from migen.fhdl import verilog
-from migen.fhdl import structure as f
 from migen.bus import wishbone
 from milkymist import norflash
 
