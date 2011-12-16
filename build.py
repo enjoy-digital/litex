@@ -27,7 +27,7 @@ def str2file(filename, contents):
 	f.close()
 
 # generate source
-(src_verilog, src_ucf) = top.Get()
+(src_verilog, src_ucf) = top.get()
 str2file("soc.v", src_verilog)
 str2file("soc.ucf", src_ucf)
 verilog_sources.append("build/soc.v")

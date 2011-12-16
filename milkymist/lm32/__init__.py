@@ -5,8 +5,8 @@ class Inst:
 	def __init__(self):
 		self.ibus = i = wishbone.Master("lm32i")
 		self.dbus = d = wishbone.Master("lm32d")
-		f.Declare(self, "interrupt", f.BV(32))
-		f.Declare(self, "ext_break")
+		f.declare_signal(self, "interrupt", f.BV(32))
+		f.declare_signal(self, "ext_break")
 		self._inst = f.Instance("lm32_top",
 			[("I_ADR_O", i.adr_o),
 			("I_DAT_O", i.dat_o),
@@ -41,7 +41,7 @@ class Inst:
 			"rst_i",
 			"lm32")
 
-	def GetFragment(self):
+	def get_fragment(self):
 		comb = [
 			f.Assign(self._inst.ins["I_RTY_I"], 0),
 			f.Assign(self._inst.ins["D_RTY_I"], 0)

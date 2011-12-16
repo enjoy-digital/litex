@@ -1,7 +1,7 @@
-def Get(ns, norflash0, uart0):
+def get(ns, norflash0, uart0):
 	constraints = []
 	def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
-		constraints.append((ns.GetName(signal), vec, pin, iostandard, extra))
+		constraints.append((ns.get_name(signal), vec, pin, iostandard, extra))
 	def add_vec(signal, pins, iostandard="LVCMOS33", extra=""):
 		i = 0
 		for p in pins:

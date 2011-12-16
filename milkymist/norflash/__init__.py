@@ -1,12 +1,13 @@
+from functools import partial
+
 from migen.fhdl import structure as f
 from migen.bus import wishbone
 from migen.corelogic import timeline
-from functools import partial
 
 class Inst:
 	def __init__(self, adr_width, rd_timing):
 		self.bus = wishbone.Slave("norflash")
-		d = partial(f.Declare, self)
+		d = partial(f.declare_signal, self)
 		d("adr", f.BV(adr_width-1))
 		d("d", f.BV(16))
 		d("oe_n")
@@ -24,8 +25,8 @@ class Inst:
 			(2*rd_timing+1, [
 				f.Assign(self.bus.ack_o, 0)])])
 	
-	def GetFragment(self):
+	def get_fragment(self):
 		comb = [f.Assign(self.oe_n, 0), f.Assign(self.we_n, 1),
 			f.Assign(self.ce_n, 0), f.Assign(self.rst_n, 1)]
 		return f.Fragment(comb, pads={self.adr, self.d, self.oe_n, self.we_n, self.ce_n, self.rst_n}) \
-			+ self.timeline.GetFragment()
+			+ self.timeline.get_fragment()
