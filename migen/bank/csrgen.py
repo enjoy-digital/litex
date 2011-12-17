@@ -13,7 +13,7 @@ class Bank:
 		comb = []
 		sync = []
 		
-		comb.append(self._sel.eq(self.interface.a_i[10:] == Constant(self.address, BV(4))))
+		comb.append(self._sel.eq(self.interface.a_i[9:] == Constant(self.address, BV(5))))
 		
 		nregs = len(self.description)
 		nbits = bits_for(nregs-1)
@@ -53,10 +53,10 @@ class Bank:
 				else:
 					brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(brs[0])])
 		if brcases:
-			sync.append(self.interface.d_o.eq(Constant(0, BV(32))))
+			sync.append(self.interface.d_o.eq(Constant(0, BV(8))))
 			sync.append(If(self._sel, Case(self.interface.a_i[:nbits], *brcases)))
 		else:
-			comb.append(self.interface.d_o.eq(Constant(0, BV(32))))
+			comb.append(self.interface.d_o.eq(Constant(0, BV(8))))
 		
 		# Device access
 		for reg in self.description:
