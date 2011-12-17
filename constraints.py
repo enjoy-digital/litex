@@ -1,4 +1,4 @@
-def get(ns, reset0, norflash0, uart0):
+def get(ns, clkfx_sys, reset0, norflash0, uart0):
 	constraints = []
 	def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
 		constraints.append((ns.get_name(signal), vec, pin, iostandard, extra))
@@ -7,6 +7,8 @@ def get(ns, reset0, norflash0, uart0):
 		for p in pins:
 			add(signal, p, i, iostandard, extra)
 			i += 1
+	
+	add(clkfx_sys.clkin, "AB11", extra="TNM_NET = \"GRPclk50\"")
 	
 	add(reset0.trigger_reset, "AA4")
 	add(reset0.ac97_rst_n, "D6")
@@ -39,8 +41,6 @@ def get(ns, reset0, norflash0, uart0):
 		r += ";\n"
 	
 	r += """
-NET "sys_clk" LOC = AB11 | IOSTANDARD = LVCMOS33;
-NET "sys_clk" TNM_NET = "GRPclk50";
 TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
 	"""
 	
