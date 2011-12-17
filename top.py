@@ -21,7 +21,7 @@ def get():
 		register=True,
 		offset=1)
 	uart0 = uart.Inst(0, clk_freq, baud=115200)
-	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [uart0.bus])
+	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [uart0.bank.interface])
 	
 	frag = autofragment.from_local()
 	vns = convtools.Namespace()

@@ -17,7 +17,6 @@ add_core_files("lm32", ["lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v
 	"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
 	"lm32_dcache.v", "lm32_top.v", "lm32_debug.v", "lm32_jtag.v", "jtag_cores.v",
 	"jtag_tap_spartan6.v"])
-add_core_dir("uart")
 
 os.system("rm -rf build/*")
 os.chdir("build")
