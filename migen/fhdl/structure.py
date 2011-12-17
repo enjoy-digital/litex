@@ -161,12 +161,20 @@ class If:
 		self.f = StatementList()
 	
 	def Else(self, *f):
-		self.f = StatementList(f)
+		_insert_else(self, StatementList(f))
 		return self
 	
 	def Elif(self, cond, *t):
-		self.f = StatementList([If(cond, *t)])
+		_insert_else(self, StatementList([If(cond, *t)]))
 		return self
+
+def _insert_else(obj, clause):
+	o = obj
+	while o.f.l:
+		assert(len(o.f.l) == 1)
+		assert(isinstance(o.f.l[0], If))
+		o = o.f.l[0]
+	o.f = clause
 
 def _sl(x):
 	if isinstance(x, list):
