@@ -17,7 +17,7 @@ class Inst:
 			("csr_we", self.bus.we_i),
 			("csr_di", self.bus.d_i),
 			("uart_rx", self.rx)],
-			[("csr_addr", Constant(csr_addr, BV(4))),
+			[("csr_addr", Constant(csr_addr, BV(5))),
 			("clk_freq", clk_freq),
 			("baud", baud),
 			("break_en_default", break_en_default)],

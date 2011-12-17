@@ -1,6 +1,6 @@
 /*
  * Milkymist SoC
- * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
+ * Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  */
 
 module uart #(
-	parameter csr_addr = 4'h0,
+	parameter csr_addr = 5'h0,
 	parameter clk_freq = 100000000,
 	parameter baud = 115200,
 	parameter break_en_default = 1'b0
@@ -26,8 +26,8 @@ module uart #(
 	
 	input [13:0] csr_a,
 	input csr_we,
-	input [31:0] csr_di,
-	output reg [31:0] csr_do,
+	input [7:0] csr_di,
+	output reg [7:0] csr_do,
 
 	output irq,
 
@@ -67,11 +67,11 @@ assign uart_tx = thru_en ? uart_rx : uart_tx_transceiver;
 assign break = break_en & break_transceiver;
 
 /* CSR interface */
-wire csr_selected = csr_a[13:10] == csr_addr;
+wire csr_selected = csr_a[13:9] == csr_addr;
 
 assign irq = (tx_event & tx_irq_en) | (rx_event & rx_irq_en);
 
-assign tx_data = csr_di[7:0];
+assign tx_data = csr_di;
 assign tx_wr = csr_selected & csr_we & (csr_a[2:0] == 3'b000);
 
 parameter default_divisor = clk_freq/baud/16;
@@ -111,7 +111,7 @@ always @(posedge sys_clk) begin
 		if(csr_selected) begin
 			case(csr_a[2:0])
 				3'b000: csr_do <= rx_data;
-				3'b001: csr_do <= divisor;
+// TODO				3'b001: csr_do <= divisor;
 				3'b010: csr_do <= {tx_event, rx_event, thre};
 				3'b011: csr_do <= {thru_en, tx_irq_en, rx_irq_en};
 				3'b100: csr_do <= {break_en};
@@ -119,7 +119,7 @@ always @(posedge sys_clk) begin
 			if(csr_we) begin
 				case(csr_a[2:0])
 					3'b000:; /* handled by transceiver */
-					3'b001: divisor <= csr_di[15:0];
+// TODO					3'b001: divisor <= csr_di[15:0];
 					3'b010: begin
 						/* write one to clear */
 						if(csr_di[1])
