@@ -1,9 +1,15 @@
 from migen.fhdl.structure import *
 
 class Register:
-	def __init__(self, name):
+	def __init__(self, name, raw=None):
 		self.name = name
-		self.fields = []
+		self.raw = raw
+		if raw is not None:
+			self.dev_re = Signal(name=name + "_re")
+			self.dev_r = Signal(raw, name + "_r")
+			self.dev_w = Signal(raw, name + "_w")
+		else:
+			self.fields = []
 	
 	def add_field(self, f):
 		self.fields.append(f)
