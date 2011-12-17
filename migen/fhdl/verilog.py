@@ -155,8 +155,23 @@ def Convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None)
 	r += "\n"
 	
 	if f.comb.l:
+		# Generate a dummy event to get the simulator
+		# to run the combinatorial process once at the beginning.
+		syn_off = "// synthesis translate off\n"
+		syn_on = "// synthesis translate on\n"
+		dummy_s = Signal(name="dummy_s")
+		dummy_d = Signal(name="dummy_d")
+		r += syn_off
+		r += "reg " + _printsig(ns, dummy_s) + ";\n"
+		r += "reg " + _printsig(ns, dummy_d) + ";\n"
+		r += "initial " + ns.get_name(dummy_s) + " <= 1'b0;\n"
+		r += syn_on + "\n"
+		
 		r += "always @(*) begin\n"
 		r += _printnode(ns, 1, f.comb)
+		r += syn_off
+		r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
+		r += syn_on
 		r += "end\n\n"
 	if f.sync.l:
 		r += "always @(posedge " + ns.get_name(clk_signal) + ") begin\n"
