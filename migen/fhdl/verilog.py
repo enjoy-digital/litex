@@ -90,7 +90,7 @@ def _printinstances(ns, i, clk, rst):
 					r += ",\n"
 				firstp = False
 				r += "\t." + p[0] + "("
-				if isinstance(p[1], int) or isinstance(p[1], Constant):
+				if isinstance(p[1], int) or isinstance(p[1], float) or isinstance(p[1], Constant):
 					r += str(p[1])
 				elif isinstance(p[1], str):
 					r += "\"" + p[1] + "\""
