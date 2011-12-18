@@ -4,12 +4,12 @@ class Inst:
 	def __init__(self, w):
 		self.w = w
 		
-		start_i = Signal()
-		dividend_i = Signal(BV(w))
-		divisor_i = Signal(BV(w))
-		ready_o = Signal()
-		quotient_o = Signal(BV(w))
-		remainder_o = Signal(BV(w))
+		self.start_i = Signal()
+		self.dividend_i = Signal(BV(w))
+		self.divisor_i = Signal(BV(w))
+		self.ready_o = Signal()
+		self.quotient_o = Signal(BV(w))
+		self.remainder_o = Signal(BV(w))
 	
 	def get_fragment(self):
 		w = self.w
