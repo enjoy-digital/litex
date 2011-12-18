@@ -1,4 +1,4 @@
-from migen.fhdl import structure as f
+from migen.fhdl.structure import *
 from migen.fhdl import verilog
 from migen.bank import description, csrgen
 
@@ -11,11 +11,11 @@ ireg = description.Register("i")
 ifield = description.Field(ireg, "val", ninputs, description.READ_ONLY, description.WRITE_ONLY)
 
 # input path
-gpio_in = f.Signal(f.BV(ninputs), name="gpio_in")
-gpio_in_s = f.Signal(f.BV(ninputs), name="gpio_in_s") # synchronizer
-incomb = [f.Assign(ifield.dev_we, 1)]
-insync = [f.Assign(gpio_in_s, gpio_in), f.Assign(ifield.dev_w, gpio_in_s)]
-inf = f.Fragment(incomb, insync)
+gpio_in = Signal(BV(ninputs))
+gpio_in_s = Signal(BV(ninputs)) # synchronizer
+incomb = [ifield.dev_we.eq(1)]
+insync = [gpio_in_s.eq(gpio_in), ifield.dev_w.eq(gpio_in_s)]
+inf = Fragment(incomb, insync)
 
 bank = csrgen.Bank([oreg, ireg])
 f = bank.get_fragment() + inf

@@ -1,4 +1,3 @@
-from migen.fhdl import structure as f
 from migen.fhdl import verilog
 from migen.corelogic import roundrobin, divider
 
