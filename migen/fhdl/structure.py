@@ -128,9 +128,11 @@ def _cst(x):
 def _make_signal_name():
 	frame = inspect.currentframe().f_back.f_back
 	line = inspect.getframeinfo(frame).code_context[0]
-	m = re.match('[\t ]*([0-9A-Za-z_]+) =', line)
+	m = re.match('[\t ]*([0-9A-Za-z_\.]+) =', line)
 	if m is None: return None
 	name = m.group(1)
+	name = name.split('.')
+	name = name[len(name)-1]
 	modules = frame.f_globals["__name__"]
 	if modules != "__main__":
 		modules = modules.split('.')
@@ -150,15 +152,6 @@ class Signal(Value):
 
 	def __hash__(self):
 		return id(self)
-
-def declare_signal(parent, name, bv=BV(), variable=False, reset=0):
-	# try to find a meaningful prefix
-	if parent.__module__ == "__main__":
-		prefix = parent.__class__.__name__
-	else:
-		modules = parent.__module__.split('.')
-		prefix = modules[len(modules)-1]
-	setattr(parent, name, Signal(bv, prefix + "_" + name, variable, reset))
 
 # statements
 
