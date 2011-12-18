@@ -1,15 +1,12 @@
-from functools import partial
-
 from migen.fhdl.structure import *
 
 class Inst:
 	def __init__(self):
-		d = partial(declare_signal, self)
-		d("trigger_reset")
-		d("sys_rst")
-		d("ac97_rst_n")
-		d("videoin_rst_n")
-		d("flash_rst_n")
+		self.trigger_reset = Signal()
+		self.sys_rst = Signal()
+		self.ac97_rst_n = Signal()
+		self.videoin_rst_n = Signal()
+		self.flash_rst_n = Signal()
 		self._inst = Instance("m1reset",
 			[("sys_rst", self.sys_rst),
 			("ac97_rst_n", self.ac97_rst_n),

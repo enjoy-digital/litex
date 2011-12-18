@@ -5,8 +5,8 @@ class Inst:
 	def __init__(self):
 		self.ibus = i = wishbone.Master("lm32i")
 		self.dbus = d = wishbone.Master("lm32d")
-		declare_signal(self, "interrupt", BV(32))
-		declare_signal(self, "ext_break")
+		self.interrupt = Signal(BV(32))
+		self.ext_break = Signal()
 		self._inst = Instance("lm32_top",
 			[("I_ADR_O", i.adr_o),
 			("I_DAT_O", i.dat_o),

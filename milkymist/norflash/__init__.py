@@ -1,5 +1,3 @@
-from functools import partial
-
 from migen.fhdl.structure import *
 from migen.bus import wishbone
 from migen.corelogic import timeline
@@ -7,12 +5,11 @@ from migen.corelogic import timeline
 class Inst:
 	def __init__(self, adr_width, rd_timing):
 		self.bus = wishbone.Slave("norflash")
-		d = partial(declare_signal, self)
-		d("adr", BV(adr_width-1))
-		d("d", BV(16))
-		d("oe_n")
-		d("we_n")
-		d("ce_n")
+		self.adr = Signal(BV(adr_width-1))
+		self.d = Signal(BV(16))
+		self.oe_n = Signal()
+		self.we_n = Signal()
+		self.ce_n = Signal()
 		self.timeline = timeline.Inst(self.bus.cyc_i & self.bus.stb_i,
 			[(0, [self.adr.eq(Cat(0, self.bus.adr_i[2:adr_width]))]),
 			(rd_timing, [

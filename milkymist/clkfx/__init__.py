@@ -4,8 +4,8 @@ from migen.fhdl.structure import *
 
 class Inst:
 	def __init__(self, infreq, outfreq):
-		declare_signal(self, "clkin")
-		declare_signal(self, "clkout")
+		self.clkin = Signal()
+		self.clkout = Signal()
 		
 		ratio = Fraction(outfreq)/Fraction(infreq)
 		appr = ratio.limit_denominator(32)
