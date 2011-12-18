@@ -1,44 +1,42 @@
-from functools import partial
-
 from migen.fhdl.structure import *
 
 class Inst:
 	def __init__(self, w):
 		self.w = w
 		
-		d = partial(declare_signal, self)
-		
-		d("start_i")
-		d("dividend_i", BV(w))
-		d("divisor_i", BV(w))
-		d("ready_o")
-		d("quotient_o", BV(w))
-		d("remainder_o", BV(w))
-		
-		d("_qr", BV(2*w))
-		d("_counter", BV(bits_for(w)))
-		d("_divisor_r", BV(w))
-		d("_diff", BV(w+1))
+		start_i = Signal()
+		dividend_i = Signal(BV(w))
+		divisor_i = Signal(BV(w))
+		ready_o = Signal()
+		quotient_o = Signal(BV(w))
+		remainder_o = Signal(BV(w))
 	
 	def get_fragment(self):
+		w = self.w
+		
+		qr = Signal(BV(2*w))
+		counter = Signal(BV(bits_for(w)))
+		divisor_r = Signal(BV(w))
+		diff = Signal(BV(w+1))
+		
 		comb = [
-			self.quotient_o.eq(self._qr[:self.w]),
-			self.remainder_o.eq(self._qr[self.w:]),
-			self.ready_o.eq(self._counter == Constant(0, self._counter.bv)),
-			self._diff.eq(self.remainder_o - self._divisor_r)
+			self.quotient_o.eq(qr[:w]),
+			self.remainder_o.eq(qr[w:]),
+			self.ready_o.eq(counter == Constant(0, counter.bv)),
+			diff.eq(self.remainder_o - divisor_r)
 		]
 		sync = [
 			If(self.start_i,
-				self._counter.eq(self.w),
-				self._qr.eq(self.dividend_i),
-				self._divisor_r.eq(self.divisor_i)
+				counter.eq(w),
+				qr.eq(self.dividend_i),
+				divisor_r.eq(self.divisor_i)
 			).Elif(~self.ready_o,
-					If(self._diff[self.w],
-						self._qr.eq(Cat(0, self._qr[:2*self.w-1]))
+					If(diff[w],
+						qr.eq(Cat(0, qr[:2*w-1]))
 					).Else(
-						self._qr.eq(Cat(1, self._qr[:self.w-1], self._diff[:self.w]))
+						qr.eq(Cat(1, qr[:w-1], diff[:w]))
 					),
-					self._counter.eq(self._counter - Constant(1, self._counter.bv))
+					counter.eq(counter - Constant(1, counter.bv))
 			)
 		]
 		return Fragment(comb, sync)

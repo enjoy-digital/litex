@@ -4,8 +4,8 @@ class Inst:
 	def __init__(self, n):
 		self.n = n
 		self.bn = bits_for(self.n-1)
-		declare_signal(self, "request", BV(self.n))
-		declare_signal(self, "grant", BV(self.bn))
+		request = Signal(BV(self.n))
+		grant = Signal(BV(self.bn))
 	
 	def get_fragment(self):
 		cases = []

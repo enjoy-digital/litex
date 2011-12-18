@@ -1,5 +1,3 @@
-from functools import partial
-
 from migen.fhdl.structure import *
 from migen.corelogic import roundrobin, multimux
 from migen.bus.simple import Simple, get_sig_name
@@ -83,27 +81,26 @@ class Decoder:
 			else:
 				return x
 		self.addresses = list(map(mkconst, addresses))
-		
-		ns = len(self.slaves)
-		d = partial(declare_signal, self)
-		d("_slave_sel", BV(ns))
-		d("_slave_sel_r", BV(ns))
 
 	def get_fragment(self):
 		comb = []
 		sync = []
 		
+		ns = len(self.slaves)
+		slave_sel = Signal(BV(ns))
+		slave_sel_r = Signal(BV(ns))
+		
 		# decode slave addresses
 		i = 0
 		hi = self.master.adr_o.bv.width - self.offset
 		for addr in self.addresses:
-			comb.append(self._slave_sel[i].eq(
+			comb.append(slave_sel[i].eq(
 				self.master.adr_o[hi-addr.bv.width:hi] == addr))
 			i += 1
 		if self.register:
-			sync.append(self._slave_sel_r.eq(self._slave_sel))
+			sync.append(slave_sel_r.eq(slave_sel))
 		else:
-			comb.append(self._slave_sel_r.eq(self._slave_sel))
+			comb.append(slave_sel_r.eq(slave_sel))
 		
 		# connect master->slaves signals except cyc
 		m2s_names = [(get_sig_name(x, False), get_sig_name(x, True))
@@ -114,7 +111,7 @@ class Decoder:
 		# combine cyc with slave selection signals
 		i = 0
 		for slave in self.slaves:
-			comb.append(slave[1].cyc_i.eq(self.master.cyc_o & self._slave_sel[i]))
+			comb.append(slave[1].cyc_i.eq(self.master.cyc_o & slave_sel[i]))
 			i += 1
 		
 		# generate master ack (resp. err) by ORing all slave acks (resp. errs)
@@ -130,7 +127,7 @@ class Decoder:
 		i = 0
 		datav = Constant(0, self.master.dat_i.bv)
 		for slave in self.slaves:
-			datav = datav | (Replicate(self._slave_sel_r[i], self.master.dat_i.bv.width) & slave[1].dat_o)
+			datav = datav | (Replicate(slave_sel_r[i], self.master.dat_i.bv.width) & slave[1].dat_o)
 			i += 1
 		comb.append(self.master.dat_i.eq(datav))
 		
