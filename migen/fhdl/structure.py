@@ -1,4 +1,6 @@
 import math
+import inspect
+import re
 
 def bits_for(n):
 	if isinstance(n, Constant):
@@ -123,11 +125,27 @@ def _cst(x):
 	else:
 		return x
 
+def _make_signal_name():
+	frame = inspect.currentframe().f_back.f_back
+	line = inspect.getframeinfo(frame).code_context[0]
+	m = re.match('[\t ]*([0-9A-Za-z_]+) =', line)
+	if m is None: return None
+	name = m.group(1)
+	modules = frame.f_globals["__name__"]
+	if modules != "__main__":
+		modules = modules.split('.')
+		name = modules[len(modules)-1] + "_" + name
+	return name
+
 class Signal(Value):
-	def __init__(self, bv=BV(), name="anonymous", variable=False, reset=0):
+	def __init__(self, bv=BV(), name=None, variable=False, reset=0):
 		self.bv = bv
 		self.variable = variable
 		self.name = name
+		if self.name is None:
+			self.name = _make_signal_name()
+			if self.name is None:
+				self.name = "anonymous"
 		self.reset = Constant(reset, bv)
 
 	def __hash__(self):
