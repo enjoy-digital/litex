@@ -128,7 +128,7 @@ def _cst(x):
 def _make_signal_name():
 	frame = inspect.currentframe().f_back.f_back
 	line = inspect.getframeinfo(frame).code_context[0]
-	m = re.match('[\t ]*([0-9A-Za-z_\.]+) =', line)
+	m = re.match('[\t ]*([0-9A-Za-z_\.]+)[\t ]*=', line)
 	if m is None: return None
 	name = m.group(1)
 	name = name.split('.')
