@@ -389,19 +389,62 @@ If the device can write, the field object provides the following signals:
   - dev_w, which provides the value to be written into the field.
   - dev_we, which strobes the value into the field.
 
-Migen Flow
+Migen Flow (TODO)
 ==========
+Many hardware acceleration problems can be expressed in the dataflow
+paradigm, that is, using a directed graph representing the flow of data
+between actors.
 
-(TODO: there is no implementation of Migen Flow in the repository yet)
+Actors in Migen are written directly in FHDL. This maximizes the
+flexibility: for example, an actor can implement a DMA master to read
+data from system memory. It is conceivable that a CAL [7] to FHDL
+compiler be implemented at some point, to support higher level
+descriptions of some actors and reuse of third-party RVC-CAL
+applications. [8] [9] [10]
+
+Actors communicate by exchanging tokens, whose flow is typically
+controlled using handshake signals (strobe/ack).
+
+Each actor has a "scheduling model". It can be:
+  - N-sequential: the actor fires when tokens are available at all its
+    inputs, and it produces one output token after N cycles. It cannot
+    accept new input tokens until it has produced its output. A
+    multicycle integer divider would use this model.
+  - N-pipelined: similar to the sequential model, but the actor can
+    always accept new input tokens. It produces an output token N cycles
+    of latency after accepting input tokens. A pipelined multiplier would
+    use this model.
+  - Dynamic: the general case, when no simple hypothesis can be made on
+    the token flow behaviour of the actor. An actor accessing system
+    memory on a shared bus would use this model.
+
+Migen Flow automatically generates handshake logic for the first two
+scheduling models. In the third case, the FHDL descriptions for the logic
+driving the handshake signals must be provided by the actor.
+
+If sequential or pipelined actors are connected together, Migen Flow will
+attempt to find a static schedule, remove the handshake signals, optimize
+away the control logic in each actor and replace it with a centralized
+FSM implementing the static schedule.
+
+An actor can be a composition of other actors.
+
+Actor graphs are managed using the NetworkX [11] library.
 
 
 References:
-[1] http://milkymist.org
-[2] http://www.myhdl.org
-[3] http://milkymist.org/thesis/thesis.pdf
-[4] http://www.xilinx.com/publications/archives/xcell/Xcell77.pdf p30-35
-[5] http://cdn.opencores.org/downloads/wbspec_b4.pdf
-[6] http://www.ohwr.org/projects/wishbone-gen
+[ 1] http://milkymist.org
+[ 2] http://www.myhdl.org
+[ 3] http://milkymist.org/thesis/thesis.pdf
+[ 4] http://www.xilinx.com/publications/archives/xcell/Xcell77.pdf p30-35
+[ 5] http://cdn.opencores.org/downloads/wbspec_b4.pdf
+[ 6] http://www.ohwr.org/projects/wishbone-gen
+[ 7] http://opendf.svn.sourceforge.net/viewvc/opendf/trunk/doc/
+     GentleIntro/GentleIntro.pdf
+[ 8] http://orcc.sourceforge.net/
+[ 9] http://orc-apps.sourceforge.net/
+[10] http://opendf.sourceforge.net/
+[11] http://networkx.lanl.gov/
 
 Practical information
 =====================
