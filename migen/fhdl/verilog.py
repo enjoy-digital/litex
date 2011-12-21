@@ -119,6 +119,16 @@ def _printcomb(f, ns):
 		r += syn_on + "\n"
 		
 		r += "always @(*) begin\n"
+		to_reset = list_targets(f.comb)
+		# do not reset signals with obvious unconditional assignments
+		for s in f.comb.l:
+			if isinstance(s, _Assign) and isinstance(s.l, Signal):
+				try:
+					to_reset.remove(s.l)
+				except KeyError:
+					pass
+		for t in to_reset:
+			r += "\t" + ns.get_name(t) + " <= " + str(t.reset) + ";\n"
 		r += _printnode(ns, False, 1, f.comb)
 		r += syn_off
 		r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
