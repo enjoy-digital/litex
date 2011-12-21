@@ -78,6 +78,62 @@ def _printnode(ns, is_sync, level, node):
 	else:
 		raise TypeError
 
+def _printheader(f, ios, name, ns):
+	sigs = list_signals(f)
+	targets = list_targets(f)
+	instouts = list_inst_outs(f)
+	r = "module " + name + "(\n"
+	firstp = True
+	for sig in ios:
+		if not firstp:
+			r += ",\n"
+		firstp = False
+		if sig in targets:
+			r += "\toutput reg " + _printsig(ns, sig)
+		elif sig in instouts:
+			r += "\toutput " + _printsig(ns, sig)
+		else:
+			r += "\tinput " + _printsig(ns, sig)
+	r += "\n);\n\n"
+	for sig in sigs - ios:
+		if sig in instouts:
+			r += "wire " + _printsig(ns, sig) + ";\n"
+		else:
+			r += "reg " + _printsig(ns, sig) + ";\n"
+	r += "\n"
+	return r
+
+def _printcomb(f, ns):
+	r = ""
+	if f.comb.l:
+		# Generate a dummy event to get the simulator
+		# to run the combinatorial process once at the beginning.
+		syn_off = "// synthesis translate off\n"
+		syn_on = "// synthesis translate on\n"
+		dummy_s = Signal(name="dummy_s")
+		dummy_d = Signal(name="dummy_d")
+		r += syn_off
+		r += "reg " + _printsig(ns, dummy_s) + ";\n"
+		r += "reg " + _printsig(ns, dummy_d) + ";\n"
+		r += "initial " + ns.get_name(dummy_s) + " <= 1'b0;\n"
+		r += syn_on + "\n"
+		
+		r += "always @(*) begin\n"
+		r += _printnode(ns, False, 1, f.comb)
+		r += syn_off
+		r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
+		r += syn_on
+		r += "end\n\n"
+	return r
+
+def _printsync(f, ns, clk_signal, rst_signal):
+	r = ""
+	if f.sync.l:
+		r += "always @(posedge " + ns.get_name(clk_signal) + ") begin\n"
+		r += _printnode(ns, True, 1, insert_reset(rst_signal, f.sync))
+		r += "end\n\n"
+	return r
+
 def _printinstances(ns, i, clk, rst):
 	r = ""
 	for x in i:
@@ -116,7 +172,7 @@ def _printinstances(ns, i, clk, rst):
 			r += "\n"
 		r += ");\n\n"
 	return r
-
+	
 def Convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None):
 	if clk_signal is None:
 		clk_signal = Signal(name="sys_clk")
@@ -128,55 +184,11 @@ def Convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None)
 		ns = Namespace()
 
 	ios |= f.pads
-
-	sigs = list_signals(f)
-	targets = list_targets(f)
-	instouts = list_inst_outs(f)
 	
 	r = "/* Machine-generated using Migen */\n"
-	r += "module " + name + "(\n"
-	firstp = True
-	for sig in ios:
-		if not firstp:
-			r += ",\n"
-		firstp = False
-		if sig in targets:
-			r += "\toutput reg " + _printsig(ns, sig)
-		elif sig in instouts:
-			r += "\toutput " + _printsig(ns, sig)
-		else:
-			r += "\tinput " + _printsig(ns, sig)
-	r += "\n);\n\n"
-	for sig in sigs - ios:
-		if sig in instouts:
-			r += "wire " + _printsig(ns, sig) + ";\n"
-		else:
-			r += "reg " + _printsig(ns, sig) + ";\n"
-	r += "\n"
-	
-	if f.comb.l:
-		# Generate a dummy event to get the simulator
-		# to run the combinatorial process once at the beginning.
-		syn_off = "// synthesis translate off\n"
-		syn_on = "// synthesis translate on\n"
-		dummy_s = Signal(name="dummy_s")
-		dummy_d = Signal(name="dummy_d")
-		r += syn_off
-		r += "reg " + _printsig(ns, dummy_s) + ";\n"
-		r += "reg " + _printsig(ns, dummy_d) + ";\n"
-		r += "initial " + ns.get_name(dummy_s) + " <= 1'b0;\n"
-		r += syn_on + "\n"
-		
-		r += "always @(*) begin\n"
-		r += _printnode(ns, False, 1, f.comb)
-		r += syn_off
-		r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
-		r += syn_on
-		r += "end\n\n"
-	if f.sync.l:
-		r += "always @(posedge " + ns.get_name(clk_signal) + ") begin\n"
-		r += _printnode(ns, True, 1, insert_reset(rst_signal, f.sync))
-		r += "end\n\n"
+	r += _printheader(f, ios, name, ns)
+	r += _printcomb(f, ns)
+	r += _printsync(f, ns, clk_signal, rst_signal)
 	r += _printinstances(ns, f.instances, clk_signal, rst_signal)
 	
 	r += "endmodule\n"
