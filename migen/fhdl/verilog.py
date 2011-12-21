@@ -46,32 +46,32 @@ def _printexpr(ns, node):
 	else:
 		raise TypeError
 
-def _printnode(ns, level, node):
+def _printnode(ns, is_sync, level, node):
 	if isinstance(node, _Assign):
-		if is_variable(node.l):
+		if is_sync and is_variable(node.l):
 			assignment = " = "
 		else:
 			assignment = " <= "
 		return "\t"*level + _printexpr(ns, node.l) + assignment + _printexpr(ns, node.r) + ";\n"
 	elif isinstance(node, _StatementList):
-		return "".join(list(map(partial(_printnode, ns, level), node.l)))
+		return "".join(list(map(partial(_printnode, ns, is_sync, level), node.l)))
 	elif isinstance(node, If):
 		r = "\t"*level + "if (" + _printexpr(ns, node.cond) + ") begin\n"
-		r += _printnode(ns, level + 1, node.t)
+		r += _printnode(ns, is_sync, level + 1, node.t)
 		if node.f.l:
 			r += "\t"*level + "end else begin\n"
-			r += _printnode(ns, level + 1, node.f)
+			r += _printnode(ns, is_sync, level + 1, node.f)
 		r += "\t"*level + "end\n"
 		return r
 	elif isinstance(node, Case):
 		r = "\t"*level + "case (" + _printexpr(ns, node.test) + ")\n"
 		for case in node.cases:
 			r += "\t"*(level + 1) + _printexpr(ns, case[0]) + ": begin\n"
-			r += _printnode(ns, level + 2, case[1])
+			r += _printnode(ns, is_sync, level + 2, case[1])
 			r += "\t"*(level + 1) + "end\n"
 		if node.default.l:
 			r += "\t"*(level + 1) + "default: begin\n"
-			r += _printnode(ns, level + 2, node.default)
+			r += _printnode(ns, is_sync, level + 2, node.default)
 			r += "\t"*(level + 1) + "end\n"
 		r += "\t"*level + "endcase\n"
 		return r
@@ -168,14 +168,14 @@ def Convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None)
 		r += syn_on + "\n"
 		
 		r += "always @(*) begin\n"
-		r += _printnode(ns, 1, f.comb)
+		r += _printnode(ns, False, 1, f.comb)
 		r += syn_off
 		r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
 		r += syn_on
 		r += "end\n\n"
 	if f.sync.l:
 		r += "always @(posedge " + ns.get_name(clk_signal) + ") begin\n"
-		r += _printnode(ns, 1, insert_reset(rst_signal, f.sync))
+		r += _printnode(ns, True, 1, insert_reset(rst_signal, f.sync))
 		r += "end\n\n"
 	r += _printinstances(ns, f.instances, clk_signal, rst_signal)
 	
