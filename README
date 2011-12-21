@@ -213,11 +213,11 @@ Assignments
 -----------
 Assignments are represented with the _Assign object. Since using it
 directly would result in a cluttered syntax, the preferred technique for
-assignments is to use the be() method provided by objects that can have a
+assignments is to use the eq() method provided by objects that can have a
 value assigned to them. They are signals, and their combinations with the
 slice and concatenation operators.
 As an example, the statement:
-  a[0].be(b)
+  a[0].eq(b)
 is equivalent to:
   _Assign(_Slice(a, 0, 1), b)
 
@@ -237,15 +237,15 @@ For convenience, there is also a Elif() method.
 
 Example:
 If(tx_count16 == 0,
-    tx_bitcount.be(tx_bitcount + 1),
+    tx_bitcount.eq(tx_bitcount + 1),
     If(tx_bitcount == 8,
-        self.tx.be(1)
+        self.tx.eq(1)
     ).Elif(tx_bitcount == 9,
-        self.tx.be(1),
-        tx_busy.be(0)
+        self.tx.eq(1),
+        tx_busy.eq(0)
     ).Else(
-        self.tx.be(tx_reg[0]),
-        tx_reg.be(Cat(tx_reg[1:], 0))
+        self.tx.eq(tx_reg[0]),
+        tx_reg.eq(Cat(tx_reg[1:], 0))
     )
 )
 

@@ -76,7 +76,7 @@ class Value:
 	
 	def __getitem__(self, key):
 		if isinstance(key, int):
-			return Slice(self, key, key+1)
+			return _Slice(self, key, key+1)
 		elif isinstance(key, slice):
 			start = key.start or 0
 			stop = key.stop or self.bv.width
@@ -84,19 +84,19 @@ class Value:
 				stop = self.bv.width
 			if key.step != None:
 				raise KeyError
-			return Slice(self, start, stop)
+			return _Slice(self, start, stop)
 		else:
 			raise KeyError
 	
 	def eq(self, r):
-		return Assign(self, r)
+		return _Assign(self, r)
 
 class _Operator(Value):
 	def __init__(self, op, operands):
 		self.op = op
 		self.operands = list(map(_cst, operands))
 
-class Slice(Value):
+class _Slice(Value):
 	def __init__(self, value, start, stop):
 		self.value = value
 		self.start = start
@@ -155,12 +155,12 @@ class Signal(Value):
 
 # statements
 
-class Assign:
+class _Assign:
 	def __init__(self, l, r):
 		self.l = l
 		self.r = _cst(r)
 
-class StatementList:
+class _StatementList:
 	def __init__(self, l=None):
 		if l is None: l = []
 		self.l = l
@@ -168,15 +168,15 @@ class StatementList:
 class If:
 	def __init__(self, cond, *t):
 		self.cond = cond
-		self.t = StatementList(t)
-		self.f = StatementList()
+		self.t = _StatementList(t)
+		self.f = _StatementList()
 	
 	def Else(self, *f):
-		_insert_else(self, StatementList(f))
+		_insert_else(self, _StatementList(f))
 		return self
 	
 	def Elif(self, cond, *t):
-		_insert_else(self, StatementList([If(cond, *t)]))
+		_insert_else(self, _StatementList([If(cond, *t)]))
 		return self
 
 def _insert_else(obj, clause):
@@ -189,7 +189,7 @@ def _insert_else(obj, clause):
 
 def _sl(x):
 	if isinstance(x, list):
-		return StatementList(x)
+		return _StatementList(x)
 	else:
 		return x
 
@@ -199,15 +199,15 @@ class Default:
 class Case:
 	def __init__(self, test, *cases):
 		self.test = test
-		self.cases = [(c[0], StatementList(c[1:])) for c in cases if not isinstance(c[0], Default)]
+		self.cases = [(c[0], _StatementList(c[1:])) for c in cases if not isinstance(c[0], Default)]
 		self.default = None
 		for c in cases:
 			if isinstance(c[0], Default):
 				if self.default is not None:
 					raise ValueError
-				self.default = StatementList(c[1:])
+				self.default = _StatementList(c[1:])
 		if self.default is None:
-			self.default = StatementList()
+			self.default = _StatementList()
 
 #
 

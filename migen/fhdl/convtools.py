@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
 
 class Namespace:
 	def __init__(self):
@@ -33,16 +33,16 @@ def list_signals(node):
 	elif isinstance(node, _Operator):
 		l = list(map(list_signals, node.operands))
 		return set().union(*l)
-	elif isinstance(node, Slice):
+	elif isinstance(node, _Slice):
 		return list_signals(node.value)
 	elif isinstance(node, Cat):
 		l = list(map(list_signals, node.l))
 		return set().union(*l)
 	elif isinstance(node, Replicate):
 		return list_signals(node.v)
-	elif isinstance(node, Assign):
+	elif isinstance(node, _Assign):
 		return list_signals(node.l) | list_signals(node.r)
-	elif isinstance(node, StatementList):
+	elif isinstance(node, _StatementList):
 		l = list(map(list_signals, node.l))
 		return set().union(*l)
 	elif isinstance(node, If):
@@ -58,16 +58,16 @@ def list_signals(node):
 def list_targets(node):
 	if isinstance(node, Signal):
 		return {node}
-	elif isinstance(node, Slice):
+	elif isinstance(node, _Slice):
 		return list_targets(node.value)
 	elif isinstance(node, Cat):
 		l = list(map(list_targets, node.l))
 		return set().union(*l)
 	elif isinstance(node, Replicate):
 		return list_targets(node.v)
-	elif isinstance(node, Assign):
+	elif isinstance(node, _Assign):
 		return list_targets(node.l)
-	elif isinstance(node, StatementList):
+	elif isinstance(node, _StatementList):
 		l = list(map(list_targets, node.l))
 		return set().union(*l)
 	elif isinstance(node, If):
@@ -92,7 +92,7 @@ def list_inst_outs(i):
 def is_variable(node):
 	if isinstance(node, Signal):
 		return node.variable
-	elif isinstance(node, Slice):
+	elif isinstance(node, _Slice):
 		return is_variable(node.value)
 	elif isinstance(node, Cat):
 		arevars = list(map(is_variable, node.l))

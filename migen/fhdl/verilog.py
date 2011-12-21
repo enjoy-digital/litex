@@ -1,7 +1,7 @@
 from functools import partial
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
 from migen.fhdl.convtools import *
 
 def _printsig(ns, s):
@@ -31,7 +31,7 @@ def _printexpr(ns, node):
 		else:
 			raise TypeError
 		return "(" + r + ")"
-	elif isinstance(node, Slice):
+	elif isinstance(node, _Slice):
 		if node.start + 1 == node.stop:
 			sr = "[" + str(node.start) + "]"
 		else:
@@ -47,13 +47,13 @@ def _printexpr(ns, node):
 		raise TypeError
 
 def _printnode(ns, level, node):
-	if isinstance(node, Assign):
+	if isinstance(node, _Assign):
 		if is_variable(node.l):
 			assignment = " = "
 		else:
 			assignment = " <= "
 		return "\t"*level + _printexpr(ns, node.l) + assignment + _printexpr(ns, node.r) + ";\n"
-	elif isinstance(node, StatementList):
+	elif isinstance(node, _StatementList):
 		return "".join(list(map(partial(_printnode, ns, level), node.l)))
 	elif isinstance(node, If):
 		r = "\t"*level + "if (" + _printexpr(ns, node.cond) + ") begin\n"
