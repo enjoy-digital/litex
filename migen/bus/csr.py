@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.corelogic.misc import optree
 from migen.bus.simple import Simple
 
 _desc = [
@@ -23,11 +24,10 @@ class Interconnect:
 	
 	def get_fragment(self):
 		comb = []
-		rb = Constant(0, BV(8))
 		for slave in self.slaves:
 			comb.append(slave.a_i.eq(self.master.a_o))
 			comb.append(slave.we_i.eq(self.master.we_o))
 			comb.append(slave.d_i.eq(self.master.d_o))
-			rb = rb | slave.d_o
+		rb = optree('|', [slave.d_o for slave in self.slaves])
 		comb.append(self.master.d_i.eq(rb))
 		return Fragment(comb)
