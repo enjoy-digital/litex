@@ -1,8 +1,8 @@
 from migen.fhdl.structure import *
-from migen.corelogic.optree import optree
+from migen.corelogic.misc import optree
 
 class SchedulingModel:
-	COMBINATORIAL, SEQUENTIAL, PIPELINE, DYNAMIC = range(6)
+	COMBINATORIAL, SEQUENTIAL, PIPELINE, DYNAMIC = range(4)
 	
 	def __init__(self, model, latency=1):
 		self.model = model
@@ -43,7 +43,7 @@ def _control_fragment_comb(l_stb_i, l_ack_o, l_stb_o, l_ack_i):
 def _control_fragment_seq(latency, l_stb_i, l_ack_o, l_stb_o, l_ack_i, trigger):
 	ready = Signal()
 	timer = Signal(BV(bits_for(latency)))
-	comb = [ready.eq(timer == 0))]
+	comb = [ready.eq(timer == 0)]
 	sync = [
 		If(trigger,
 			timer.eq(latency)
@@ -55,13 +55,13 @@ def _control_fragment_seq(latency, l_stb_i, l_ack_o, l_stb_o, l_ack_i, trigger):
 	nsources = len(l_stb_o)
 	mask = Signal(BV(nsources))
 	sync.append(If(trigger, mask.eq(0)).Else(mask.eq(mask | Cat(*l_ack_i))))
-
-	comb.append(Cat(*l_stb_o).eq(Replicate(len(l_stb_o), ready) & ~mask))
-	comb.append(Cat(*l_ack_o).eq(Replicate(len(l_ack_o), trigger)))
+	
+	comb.append(Cat(*l_stb_o).eq(Replicate(ready, len(l_stb_o)) & ~mask))
+	comb.append(Cat(*l_ack_o).eq(Replicate(trigger, len(l_ack_o))))
 	
 	stb_all = Signal()
 	comb.append(stb_all.eq(optree('&', l_stb_i)))
-	comb.append(trigger.eq(ready & stb_all & ((mask | Cat(*l_ack_i)) == Replicate(nsources, 1))))
+	comb.append(trigger.eq(ready & stb_all & ((mask | Cat(*l_ack_i)) == Replicate(1, nsources))))
 
 	return Fragment(comb, sync)
 
@@ -70,7 +70,7 @@ def _control_fragment_pipe(latency, l_stb_i, l_ack_o, l_stb_o, l_ack_i, pipe_ce)
 	comb = [stb_all.eq(optree('&', l_stb_i))]
 	valid = Signal(BV(latency))
 	if latency > 1:
-		sync = [If(pipe_ce, valid.eq(Cat(stb_all, valid[1:])))]
+		sync = [If(pipe_ce, valid.eq(Cat(stb_all, valid[:latency-1])))]
 	else:
 		sync = [If(pipe_ce, valid.eq(stb_all))]
 	last_valid = valid[latency-1]
@@ -79,10 +79,10 @@ def _control_fragment_pipe(latency, l_stb_i, l_ack_o, l_stb_o, l_ack_i, pipe_ce)
 	mask = Signal(BV(nsources))
 	sync.append(If(pipe_ce, mask.eq(0)).Else(mask.eq(mask | Cat(*l_ack_i))))
 	
-	comb.append(Cat(*l_stb_o).eq(Replicate(len(l_stb_o), last_valid) & ~mask))
-	comb.append(Cat(*l_ack_o).eq(Replicate(len(l_ack_o), pipe_ce)))
+	comb.append(Cat(*l_stb_o).eq(Replicate(last_valid, len(l_stb_o)) & ~mask))
+	comb.append(Cat(*l_ack_o).eq(Replicate(pipe_ce, len(l_ack_o))))
 	
-	comb.append(pipe_ce.eq(~last_valid | ((mask | Cat(*l_ack_i)) == Replicate(nsources, 1))))
+	comb.append(pipe_ce.eq(~last_valid | ((mask | Cat(*l_ack_i)) == Replicate(1, nsources))))
 	
 	return Fragment(comb, sync)
 
@@ -91,24 +91,24 @@ class Actor:
 		self.scheduling_model = scheduling_model
 		self.sinks = sinks
 		self.sources = sources
-		if self.scheduling_model.model == SEQUENTIAL:
+		if self.scheduling_model.model == SchedulingModel.SEQUENTIAL:
 			self.trigger = Signal()
-		elif self.scheduling_model.model == PIPELINE:
+		elif self.scheduling_model.model == SchedulingModel.PIPELINE:
 			self.pipe_ce = Signal()
 	
-	def get_control_fragment():
+	def get_control_fragment(self):
 		l_stb_i = [e.stb_i for e in self.sinks]
 		l_ack_o = [e.ack_o for e in self.sinks]
 		l_stb_o = [e.stb_o for e in self.sources]
 		l_ack_i = [e.ack_i for e in self.sources]
-		if self.scheduling_model.model == COMBINATORIAL:
+		if self.scheduling_model.model == SchedulingModel.COMBINATORIAL:
 			return _control_fragment_comb(l_stb_i, l_ack_o, l_stb_o, l_ack_i)
-		elif self.scheduling_model.model == SEQUENTIAL:
+		elif self.scheduling_model.model == SchedulingModel.SEQUENTIAL:
 			return _control_fragment_seq(self.scheduling_model.latency, l_stb_i, l_ack_o, l_stb_o, l_ack_i, self.trigger)
-		elif self.scheduling_model.model == PIPELINE:
+		elif self.scheduling_model.model == SchedulingModel.PIPELINE:
 			return _control_fragment_pipe(self.scheduling_model.latency, l_stb_i, l_ack_o, l_stb_o, l_ack_i, self.pipe_ce)
-		elif self.scheduling_model.model == DYNAMIC:
+		elif self.scheduling_model.model == SchedulingModel.DYNAMIC:
 			raise NotImplementedError("Actor classes with dynamic scheduling must overload get_control_fragment")
 	
-	def get_process_fragment():
+	def get_process_fragment(self):
 		raise NotImplementedError("Actor classes must overload get_process_fragment")
