@@ -108,7 +108,7 @@ class Cat(Value):
 
 class Replicate(Value):
 	def __init__(self, v, n):
-		self.v = v
+		self.v = _cst(v)
 		self.n = n
 
 class Constant(Value):
