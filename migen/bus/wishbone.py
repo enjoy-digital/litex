@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
-from migen.corelogic import roundrobin, multimux
+from migen.corelogic import roundrobin
+from migen.corelogic.misc import multimux, optree
 from migen.bus.simple import Simple, get_sig_name
 
 _desc = [
@@ -37,7 +38,7 @@ class Arbiter:
 		m2s_names = [get_sig_name(x, False) for x in _desc if x[0]]
 		m2s_masters = [[getattr(m, name) for name in m2s_names] for m in self.masters]
 		m2s_target = [getattr(self.target, name) for name in m2s_names]
-		comb += multimux.multimux(self.rr.grant, m2s_masters, m2s_target)
+		comb += multimux(self.rr.grant, m2s_masters, m2s_target)
 		
 		# connect slave->master signals
 		s2m_names = [get_sig_name(x, False) for x in _desc if not x[0]]
@@ -115,21 +116,12 @@ class Decoder:
 			i += 1
 		
 		# generate master ack (resp. err) by ORing all slave acks (resp. errs)
-		ackv = Constant(0)
-		errv = Constant(0)
-		for slave in self.slaves:
-			ackv = ackv | slave[1].ack_o
-			errv = errv | slave[1].err_o
-		comb.append(self.master.ack_i.eq(ackv))
-		comb.append(self.master.err_i.eq(errv))
+		comb.append(self.master.ack_i.eq(optree('|', [slave[1].ack_o for slave in self.slaves])))
+		comb.append(self.master.err_i.eq(optree('|', [slave[1].err_o for slave in self.slaves])))
 		
 		# mux (1-hot) slave data return
-		i = 0
-		datav = Constant(0, self.master.dat_i.bv)
-		for slave in self.slaves:
-			datav = datav | (Replicate(slave_sel_r[i], self.master.dat_i.bv.width) & slave[1].dat_o)
-			i += 1
-		comb.append(self.master.dat_i.eq(datav))
+		masked = [Replicate(slave_sel_r[i], self.master.dat_i.bv.width) & self.slaves[i][1].dat_o for i in range(len(self.slaves))]
+		comb.append(self.master.dat_i.eq(optree('|', masked)))
 		
 		return Fragment(comb, sync)
 
