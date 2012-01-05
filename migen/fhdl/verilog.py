@@ -182,8 +182,8 @@ def _printinstances(ns, i, clk, rst):
 			r += "\n"
 		r += ");\n\n"
 	return r
-	
-def Convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None):
+
+def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None):
 	if clk_signal is None:
 		clk_signal = Signal(name="sys_clk")
 		ios.add(clk_signal)
