@@ -31,7 +31,7 @@ def str2file(filename, contents):
 str2file("soc.v", src_verilog)
 str2file("soc.ucf", src_ucf)
 verilog_sources.append("build/soc.v")
-
+#raise SystemExit
 # xst
 xst_prj = ""
 for s in verilog_sources:

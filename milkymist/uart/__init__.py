@@ -14,7 +14,7 @@ class Inst:
 		self.tx = Signal(reset=1)
 		self.rx = Signal()
 		
-		self.divisor = int(clk_freq/baud/16); # TODO
+		self.divisor = int(clk_freq/baud/16) # TODO
 	
 	def get_fragment(self):
 		enable16 = Signal()

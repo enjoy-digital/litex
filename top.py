@@ -25,7 +25,7 @@ def get():
 	
 	frag = autofragment.from_local()
 	vns = convtools.Namespace()
-	src_verilog = verilog.Convert(frag,
+	src_verilog = verilog.convert(frag,
 		{clkfx_sys.clkin, reset0.trigger_reset},
 		name="soc",
 		clk_signal=clkfx_sys.clkout,
