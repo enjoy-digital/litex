@@ -2,7 +2,7 @@ from functools import partial
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
-from migen.fhdl.convtools import *
+from migen.fhdl.tools import *
 
 def _printsig(ns, s):
 	if s.bv.signed:
