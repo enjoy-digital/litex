@@ -6,7 +6,7 @@ from migen.corelogic import divider
 class Adder(Actor):
 	def __init__(self, width):
 		self.operands = Record([('a', BV(width)), ('b', BV(width))])
-		self.result = Record(['sum', BV(width+1)])
+		self.result = Record([('sum', BV(width+1))])
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
 			self.operands, self.result)

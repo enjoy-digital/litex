@@ -104,3 +104,6 @@ class Actor:
 	
 	def get_process_fragment(self):
 		raise NotImplementedError("Actor classes must overload get_process_fragment")
+
+def get_actor_fragments(*actors):
+	return sum([a.get_control_fragment() + a.get_process_fragment() for a in actors], Fragment())
