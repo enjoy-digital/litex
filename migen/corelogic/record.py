@@ -73,3 +73,6 @@ class Record:
 			elif isinstance(e, Record):
 				l += e.flatten()
 		return l
+	
+	def __repr__(self):
+		return repr(self.template())
