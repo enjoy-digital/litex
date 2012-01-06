@@ -22,6 +22,9 @@ class BV:
 			r += "s"
 		r += "d"
 		return r
+	
+	def __eq__(self, other):
+		return self.width == other.width and self.signed == other.signed
 
 class Value:
 	def __invert__(self):

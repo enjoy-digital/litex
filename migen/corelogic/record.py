@@ -19,7 +19,7 @@ class Record:
 
 	def template(self):
 		l = []
-		for key in self.__dict__:
+		for key in sorted(self.__dict__):
 			e = self.__dict__[key]
 			if isinstance(e, Signal):
 				l.append((key, e.bv))
@@ -58,6 +58,11 @@ class Record:
 					l.append((key, e))
 			return l
 		return Record(dict_to_list(fields), "subrecord")
+	
+	def compatible(self, other):
+		tpl1 = self.template()
+		tpl2 = other.template()
+		return tpl1 == tpl2
 	
 	def flatten(self):
 		l = []
