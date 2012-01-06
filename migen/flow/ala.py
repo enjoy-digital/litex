@@ -9,8 +9,7 @@ class Adder(Actor):
 		self.result = Record(['sum', BV(width+1)])
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
-			[Sink(self, self.operands)],
-			[Source(self, self.result)])
+			self.operands, self.result)
 
 	def get_process_fragment(self):
 		return Fragment([self.result.sum.eq(self.operands.a + self.operands.b)])
@@ -22,8 +21,7 @@ class Divider(Actor):
 		self.result = Record([('quotient', self.div.quotient_o), ('remainder', self.div.remainder_o)])
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.SEQUENTIAL, width),
-			[Sink(self, [self.operands])],
-			[Source(self, [self.result])])
+			self.operands, self.result)
 
 	def get_process_fragment(self):
 		return self.div.get_fragment() + Fragment([self.div.start_i.eq(self.trigger)])
