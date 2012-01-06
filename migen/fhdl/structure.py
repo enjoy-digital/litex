@@ -129,7 +129,8 @@ def _make_signal_name():
 	frame = inspect.currentframe().f_back.f_back
 	line = inspect.getframeinfo(frame).code_context[0]
 	m = re.match('[\t ]*([0-9A-Za-z_\.]+)[\t ]*=', line)
-	if m is None: return None
+	if m is None:
+		return "anonymous"
 	name = m.group(1)
 	name = name.split('.')
 	name = name[len(name)-1]
@@ -146,12 +147,13 @@ class Signal(Value):
 		self.name = name
 		if self.name is None:
 			self.name = _make_signal_name()
-			if self.name is None:
-				self.name = "anonymous"
 		self.reset = Constant(reset, bv)
 
 	def __hash__(self):
 		return id(self)
+	
+	def __repr__(self):
+		return "<Signal " + self.name + ">"
 
 # statements
 
