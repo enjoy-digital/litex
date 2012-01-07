@@ -152,16 +152,17 @@ def _try_module_name(frame):
 	else:
 		return None
 	
-def _make_signal_name():
+def _make_signal_name(name=None):
 	frame = inspect.currentframe().f_back.f_back
 	
-	line = inspect.getframeinfo(frame).code_context[0]
-	m = re.match('[\t ]*([0-9A-Za-z_\.]+)[\t ]*=', line)
-	if m is None:
-		name = "anonymous"
-	else:
-		names = m.group(1).split('.')
-		name = names[len(names)-1]
+	if name is None:
+		line = inspect.getframeinfo(frame).code_context[0]
+		m = re.match('[\t ]*([0-9A-Za-z_\.]+)[\t ]*=', line)
+		if m is None:
+			name = "anonymous"
+		else:
+			names = m.group(1).split('.')
+			name = names[len(names)-1]
 	
 	prefix = _try_class_name(frame)
 	if prefix is None:
@@ -174,12 +175,12 @@ def _make_signal_name():
 	return prefix + name
 
 class Signal(Value):
-	def __init__(self, bv=BV(), name=None, variable=False, reset=0):
+	def __init__(self, bv=BV(), name=None, variable=False, reset=0, namer=None):
 		self.bv = bv
 		self.variable = variable
 		self.name = name
 		if self.name is None:
-			self.name = _make_signal_name()
+			self.name = _make_signal_name(namer)
 		self.reset = Constant(reset, bv)
 
 	def __hash__(self):

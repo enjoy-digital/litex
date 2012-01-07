@@ -22,9 +22,12 @@ class SchedulingModel:
 class Endpoint:
 	def __init__(self, token):
 		self.token = token
-		self.stb = Signal()
-		self.ack = Signal()
-	
+		if isinstance(self, Sink):
+			self.stb = Signal(namer="stb_i")
+			self.ack = Signal(namer="ack_o")
+		else:
+			self.stb = Signal(namer="stb_o")
+			self.ack = Signal(namer="ack_i")
 	def __hash__(self):
 		return id(self)
 		
