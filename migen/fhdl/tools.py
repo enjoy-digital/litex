@@ -63,8 +63,6 @@ def list_targets(node):
 	elif isinstance(node, Cat):
 		l = list(map(list_targets, node.l))
 		return set().union(*l)
-	elif isinstance(node, Replicate):
-		return list_targets(node.v)
 	elif isinstance(node, _Assign):
 		return list_targets(node.l)
 	elif isinstance(node, _StatementList):
@@ -79,6 +77,21 @@ def list_targets(node):
 		return list_targets(node.comb) | list_targets(node.sync)
 	else:
 		raise TypeError
+
+def group_by_targets(sl):
+	groups = []
+	for statement in sl.l:
+		targets = list_targets(statement)
+		processed = False
+		for g in groups:
+			if not targets.isdisjoint(g[0]):
+				g[0].update(targets)
+				g[1].append(statement)
+				processed = True
+				break
+		if not processed:
+			groups.append((targets, [statement]))
+	return groups
 
 def list_inst_outs(i):
 	if isinstance(i, Fragment):
