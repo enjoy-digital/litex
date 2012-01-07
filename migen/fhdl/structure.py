@@ -131,20 +131,47 @@ def _cst(x):
 	else:
 		return x
 
-def _make_signal_name():
-	frame = inspect.currentframe().f_back.f_back
-	line = inspect.getframeinfo(frame).code_context[0]
-	m = re.match('[\t ]*([0-9A-Za-z_\.]+)[\t ]*=', line)
-	if m is None:
-		return "anonymous"
-	name = m.group(1)
-	name = name.split('.')
-	name = name[len(name)-1]
+def _try_class_name(frame):
+	while frame is not None:
+		try:
+			cl = frame.f_locals['self']
+			prefix = cl.__class__.__name__.lower()
+			if prefix != 'inst' and prefix != 'source' and prefix != 'sink':
+				return prefix
+		except KeyError:
+			pass
+		frame = frame.f_back
+	return None
+
+def _try_module_name(frame):
 	modules = frame.f_globals["__name__"]
 	if modules != "__main__":
 		modules = modules.split('.')
-		name = modules[len(modules)-1] + "_" + name
-	return name
+		prefix = modules[len(modules)-1]
+		return prefix
+	else:
+		return None
+	
+def _make_signal_name():
+	frame = inspect.currentframe().f_back.f_back
+	
+	line = inspect.getframeinfo(frame).code_context[0]
+	m = re.match('[\t ]*([0-9A-Za-z_\.]+)[\t ]*=', line)
+	if m is None:
+		name = "anonymous"
+	else:
+		names = m.group(1).split('.')
+		name = names[len(names)-1]
+	
+	prefix = _try_class_name(frame)
+	if prefix is None:
+		prefix = _try_module_name(frame)
+	if prefix is None:
+		prefix = ""
+	else:
+		prefix += "_"
+	
+	return prefix + name
 
 class Signal(Value):
 	def __init__(self, bv=BV(), name=None, variable=False, reset=0):
