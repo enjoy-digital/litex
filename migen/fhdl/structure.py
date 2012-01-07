@@ -121,6 +121,9 @@ class Constant(Value):
 	
 	def __repr__(self):
 		return str(self.bv) + str(self.n)
+	
+	def __eq__(self, other):
+		return self.bv == other.bv and self.n == other.n
 
 def _cst(x):
 	if isinstance(x, int):
