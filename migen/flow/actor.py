@@ -28,6 +28,12 @@ class Endpoint:
 		else:
 			self.stb = Signal(namer="stb_o")
 			self.ack = Signal(namer="ack_i")
+	
+	def token_signal(self):
+		sigs = self.token.flatten()
+		assert(len(sigs) == 1)
+		return sigs[0]
+	
 	def __hash__(self):
 		return id(self)
 		
@@ -145,8 +151,8 @@ class Actor:
 		return "<Actor " + repr(self.scheduling_model) + " " + repr(self.sinks()) + " " + repr(self.sources()) + ">"
 
 def get_conn_control_fragment(source, sink):
-	assert(isinstance(source, Source))
-	assert(isinstance(sink, Sink))
+	assert isinstance(source, Source)
+	assert isinstance(sink, Sink)
 	comb = [
 		source.ack.eq(sink.ack),
 		sink.stb.eq(source.stb)
@@ -154,9 +160,9 @@ def get_conn_control_fragment(source, sink):
 	return Fragment(comb)
 	
 def get_conn_process_fragment(source, sink):
-	assert(isinstance(source, Source))
-	assert(isinstance(sink, Sink))
-	assert(sink.token.compatible(source.token))
+	assert isinstance(source, Source)
+	assert isinstance(sink, Sink)
+	assert sink.token.compatible(source.token)
 	sigs_source = source.token.flatten()
 	sigs_sink = sink.token.flatten()
 	comb = [Cat(*sigs_sink).eq(Cat(*sigs_source))]

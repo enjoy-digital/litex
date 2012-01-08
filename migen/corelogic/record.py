@@ -60,9 +60,9 @@ class Record:
 		return Record(dict_to_list(fields), "subrecord")
 	
 	def compatible(self, other):
-		tpl1 = self.template()
-		tpl2 = other.template()
-		return tpl1 == tpl2
+		tpl1 = self.flatten()
+		tpl2 = other.flatten()
+		return len(tpl1) == len(tpl2)
 	
 	def flatten(self):
 		l = []
