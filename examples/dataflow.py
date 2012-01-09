@@ -1,3 +1,4 @@
+import sys
 import networkx as nx
 
 from migen.fhdl import verilog 
@@ -10,9 +11,13 @@ a1 = make_composable(g, Add(BV(16)))
 a2 = make_composable(g, Add(BV(16)))
 a3 = make_composable(g, Add(BV(16)))
 c3 = (a1 + a2)*a3
-print(c3)
 c = CompositeActor(g)
 
 frag = c.get_control_fragment() + c.get_process_fragment()
 
 print(verilog.convert(frag))
+
+if len(sys.argv) > 1 and sys.argv[1] == "draw":
+	import matplotlib.pyplot as plt
+	nx.draw(g)
+	plt.show()

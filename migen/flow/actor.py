@@ -152,7 +152,7 @@ class Actor:
 		raise NotImplementedError("Actor classes must overload get_process_fragment")
 	
 	def __repr__(self):
-		return "<Actor " + repr(self.scheduling_model) + " " + repr(self.sinks()) + " " + repr(self.sources()) + ">"
+		return "<" + self.__class__.__name__ + " " + repr(self.scheduling_model) + " " + repr(self.sinks()) + " " + repr(self.sources()) + ">"
 
 def get_conn_control_fragment(source, sink):
 	assert isinstance(source, Source)
