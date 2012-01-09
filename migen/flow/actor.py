@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.corelogic.misc import optree
 
 class SchedulingModel:
 	COMBINATORIAL, SEQUENTIAL, PIPELINE, DYNAMIC = range(4)
@@ -49,10 +50,10 @@ class Source(Endpoint):
 	def __repr__(self):
 		return "<Source " + str(self.token) + ">"
 
-def _control_fragment_comb(stb_i, ack_o, stb_o, ack_i):
-	return Fragment([stb_o.eq(stb_i), ack_o.eq(ack_i)])
+def _control_fragment_comb(stb_i, ack_o, stb_o, ack_i, busy):
+	return Fragment([stb_o.eq(stb_i), ack_o.eq(ack_i), busy.eq(0)])
 
-def _control_fragment_seq(latency, stb_i, ack_o, stb_o, ack_i, trigger):
+def _control_fragment_seq(latency, stb_i, ack_o, stb_o, ack_i, busy, trigger):
 	ready = Signal()
 	timer = Signal(BV(bits_for(latency)))
 	comb = [ready.eq(timer == 0)]
@@ -69,6 +70,7 @@ def _control_fragment_seq(latency, stb_i, ack_o, stb_o, ack_i, trigger):
 		stb_o.eq(ready & mask),
 		trigger.eq(stb_i & (ack_i | ~mask) & ready),
 		ack_o.eq(trigger),
+		busy.eq(~ready)
 	]
 	sync += [
 		If(trigger, mask.eq(1)),
@@ -77,7 +79,7 @@ def _control_fragment_seq(latency, stb_i, ack_o, stb_o, ack_i, trigger):
 
 	return Fragment(comb, sync)
 
-def _control_fragment_pipe(latency, stb_i, ack_o, stb_o, ack_i, pipe_ce):
+def _control_fragment_pipe(latency, stb_i, ack_o, stb_o, ack_i, busy, pipe_ce):
 	valid = Signal(BV(latency))
 	if latency > 1:
 		sync = [If(pipe_ce, valid.eq(Cat(stb_i, valid[:latency-1])))]
@@ -88,7 +90,8 @@ def _control_fragment_pipe(latency, stb_i, ack_o, stb_o, ack_i, pipe_ce):
 	comb = [
 		pipe_ce.eq(ack_i | ~last_valid),
 		ack_o.eq(pipe_ce),
-		stb_o.eq(last_valid)
+		stb_o.eq(last_valid),
+		busy.eq(optree('|', [valid[i] for i in range(latency)]))
 	]
 	
 	return Fragment(comb, sync)
@@ -107,6 +110,7 @@ class Actor:
 				self.endpoints.append(Source(sources))
 		else:
 			self.endpoints = endpoints
+		self.busy = Signal()
 		if self.scheduling_model.model == SchedulingModel.SEQUENTIAL:
 			self.trigger = Signal()
 		elif self.scheduling_model.model == SchedulingModel.PIPELINE:
@@ -136,11 +140,11 @@ class Actor:
 		stb_o = source.stb
 		ack_i = source.ack
 		if self.scheduling_model.model == SchedulingModel.COMBINATORIAL:
-			return _control_fragment_comb(stb_i, ack_o, stb_o, ack_i)
+			return _control_fragment_comb(stb_i, ack_o, stb_o, ack_i, self.busy)
 		elif self.scheduling_model.model == SchedulingModel.SEQUENTIAL:
-			return _control_fragment_seq(self.scheduling_model.latency, stb_i, ack_o, stb_o, ack_i, self.trigger)
+			return _control_fragment_seq(self.scheduling_model.latency, stb_i, ack_o, stb_o, ack_i, self.busy, self.trigger)
 		elif self.scheduling_model.model == SchedulingModel.PIPELINE:
-			return _control_fragment_pipe(self.scheduling_model.latency, stb_i, ack_o, stb_o, ack_i, self.pipe_ce)
+			return _control_fragment_pipe(self.scheduling_model.latency, stb_i, ack_o, stb_o, ack_i, self.busy, self.pipe_ce)
 		elif self.scheduling_model.model == SchedulingModel.DYNAMIC:
 			raise NotImplementedError("Actor classes with dynamic scheduling must overload get_control_fragment")
 	

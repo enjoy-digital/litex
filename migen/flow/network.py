@@ -1,6 +1,8 @@
 import networkx as nx
 
+from migen.fhdl.structure import *
 from migen.flow.actor import *
+from migen.corelogic.misc import optree
 
 class CompositeActor(Actor):
 	def __init__(self, dfg):
@@ -22,7 +24,8 @@ class CompositeActor(Actor):
 		this = sum([get_conn_control_fragment(x[2]['source'], x[2]['sink'])
 			for x in self.dfg.edges(data=True)], Fragment())
 		others = sum([node.get_control_fragment() for node in self.dfg], Fragment())
-		return this + others
+		busy = Fragment([self.busy.eq(optree('|', [node.busy for node in self.dfg]))])
+		return this + others + busy
 	
 	def get_process_fragment(self):
 		this = sum([get_conn_process_fragment(x[2]['source'], x[2]['sink'])
