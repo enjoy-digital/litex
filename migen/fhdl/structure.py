@@ -131,12 +131,14 @@ def _cst(x):
 	else:
 		return x
 
+_forbidden_prefixes = {'inst', 'source', 'sink', 'fsm'}
+
 def _try_class_name(frame):
 	while frame is not None:
 		try:
 			cl = frame.f_locals['self']
 			prefix = cl.__class__.__name__.lower()
-			if prefix != 'inst' and prefix != 'source' and prefix != 'sink':
+			if prefix not in _forbidden_prefixes:
 				return prefix
 		except KeyError:
 			pass
