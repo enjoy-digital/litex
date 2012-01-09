@@ -54,7 +54,6 @@ class Record:
 			if len(list(filter(lambda x: x[0] == last, pos_fields))) > 0:
 				raise ValueError
 			pos_fields.append((last, getattr(pos_self, last)))
-		print(fields)
 		return Record(fields, "subrecord")
 	
 	def compatible(self, other):
