@@ -42,8 +42,8 @@ class Record:
 			pos_fields = fields
 			for hop in path:
 				pos_self = getattr(pos_self, hop)
+				lu = list(filter(lambda x: x[0] == hop, pos_fields))
 				try:
-					lu = list(filter(lambda x: x[0] == hop, pos_fields))
 					pos_fields = lu[0][1]
 				except IndexError:
 					n = []
