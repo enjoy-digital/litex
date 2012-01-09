@@ -15,23 +15,29 @@ class Record:
 					setattr(self, f[0], Record(f[1], self.name + "_" + f[0]))
 				else:
 					raise TypeError
-				self.field_order.append(f[0])
+				if len(f) == 3:
+					self.field_order.append((f[0], f[2]))
+				else:
+					self.field_order.append((f[0], 1))
 			else:
 				setattr(self, f, Signal(BV(1), self.name + "_" + f))
-				self.field_order.append(f)
+				self.field_order.append((f, 1))
 
 	def layout(self):
 		l = []
-		for key in self.field_order:
+		for key, alignment in self.field_order:
 			e = self.__dict__[key]
 			if isinstance(e, Signal):
-				l.append((key, e.bv))
+				l.append((key, e.bv, alignment))
 			elif isinstance(e, Record):
-				l.append((key, e.layout()))
+				l.append((key, e.layout(), alignment))
 		return l
 	
 	def copy(self, name=None):
 		return Record(self.layout(), name or _make_signal_name())
+	
+	def get_alignment(self, name):
+		return list(filter(lambda x: x[0] == name, self.field_order))[0][1]
 	
 	def subrecord(self, *descr):
 		fields = []
@@ -53,7 +59,7 @@ class Record:
 					raise ValueError
 			if len(list(filter(lambda x: x[0] == last, pos_fields))) > 0:
 				raise ValueError
-			pos_fields.append((last, getattr(pos_self, last)))
+			pos_fields.append((last, getattr(pos_self, last), pos_self.get_alignment(last)))
 		return Record(fields, "subrecord")
 	
 	def compatible(self, other):
@@ -61,14 +67,25 @@ class Record:
 		tpl2 = other.flatten()
 		return len(tpl1) == len(tpl2)
 	
-	def flatten(self):
+	def flatten(self, align=False, offset=0):
 		l = []
-		for key in self.field_order:
+		for key, alignment in self.field_order:
+			if align:
+				pad_size = alignment - (offset % alignment)
+				if pad_size < alignment:
+					l.append(Constant(0, BV(pad_size)))
+					offset += pad_size
+			
 			e = self.__dict__[key]
 			if isinstance(e, Signal):
-				l.append(e)
+				added = [e]
 			elif isinstance(e, Record):
-				l += e.flatten()
+				added = e.flatten(align, offset)
+			else:
+				raise TypeError
+			for x in added:
+				offset += x.bv.width
+			l += added
 		return l
 	
 	def __repr__(self):
