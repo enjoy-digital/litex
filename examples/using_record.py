@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.corelogic.record import *
 
-TPL = [
+L = [
 	("x", BV(10)),
 	("y", BV(10)),
 	("level2", [
@@ -10,10 +10,10 @@ TPL = [
 	])
 ]
 
-myrec = Record(TPL)
+myrec = Record(L)
 print(myrec.flatten())
 s = myrec.subrecord("level2/a", "x")
 print(s.flatten())
-print(s.level2.template())
+print(s.level2.layout())
 myrec2 = myrec.copy()
 print(myrec2.flatten())

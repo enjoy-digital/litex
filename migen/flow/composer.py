@@ -14,7 +14,7 @@ def _simple_binary(a, b, actor_class):
 	width = max(signal_self.bv.width, signal_other.bv.width)
 	signed = signal_self.bv.signed and signal_other.bv.signed
 	actor = actor_class(BV(width, signed))
-	combinator = Combinator(actor.operands.template(), ["a"], ["b"])
+	combinator = Combinator(actor.operands.layout(), ["a"], ["b"])
 	add_connection(a.dfg, combinator, actor)
 	add_connection(a.dfg, a.actor, combinator, a.endp, combinator.sinks()[0])
 	add_connection(a.dfg, b.actor, combinator, b.endp, combinator.sinks()[1])

@@ -2,9 +2,10 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import _make_signal_name
 
 class Record:
-	def __init__(self, template, name=None):
+	def __init__(self, layout, name=None):
 		self.name = name or _make_signal_name()
-		for f in template:
+		self.field_order = []
+		for f in layout:
 			if isinstance(f, tuple):
 				if isinstance(f[1], BV):
 					setattr(self, f[0], Signal(f[1], self.name + "_" + f[0]))
@@ -14,24 +15,26 @@ class Record:
 					setattr(self, f[0], Record(f[1], self.name + "_" + f[0]))
 				else:
 					raise TypeError
+				self.field_order.append(f[0])
 			else:
 				setattr(self, f, Signal(BV(1), self.name + "_" + f))
+				self.field_order.append(f)
 
-	def template(self):
+	def layout(self):
 		l = []
-		for key in sorted(self.__dict__):
+		for key in self.field_order:
 			e = self.__dict__[key]
 			if isinstance(e, Signal):
 				l.append((key, e.bv))
 			elif isinstance(e, Record):
-				l.append((key, e.template()))
+				l.append((key, e.layout()))
 		return l
 	
 	def copy(self, name=None):
-		return Record(self.template(), name or _make_signal_name())
+		return Record(self.layout(), name or _make_signal_name())
 	
 	def subrecord(self, *descr):
-		fields = {}
+		fields = []
 		for item in descr:
 			path = item.split('/')
 			last = path.pop()
@@ -40,24 +43,19 @@ class Record:
 			for hop in path:
 				pos_self = getattr(pos_self, hop)
 				try:
-					pos_fields = fields[hop]
-				except KeyError:
-					pos_fields = fields[hop] = {}
-				if not isinstance(pos_fields, dict):
+					lu = list(filter(lambda x: x[0] == hop, pos_fields))
+					pos_fields = lu[0][1]
+				except IndexError:
+					n = []
+					pos_fields.append((hop, n))
+					pos_fields = n
+				if not isinstance(pos_fields, list):
 					raise ValueError
-			if last in pos_fields:
+			if len(list(filter(lambda x: x[0] == last, pos_fields))) > 0:
 				raise ValueError
-			pos_fields[last] = getattr(pos_self, last)
-		def dict_to_list(d):
-			l = []
-			for key in d:
-				e = d[key]
-				if isinstance(e, dict):
-					l.append((key, dict_to_list(e)))
-				else:
-					l.append((key, e))
-			return l
-		return Record(dict_to_list(fields), "subrecord")
+			pos_fields.append((last, getattr(pos_self, last)))
+		print(fields)
+		return Record(fields, "subrecord")
 	
 	def compatible(self, other):
 		tpl1 = self.flatten()
@@ -66,7 +64,7 @@ class Record:
 	
 	def flatten(self):
 		l = []
-		for key in sorted(self.__dict__):
+		for key in self.field_order:
 			e = self.__dict__[key]
 			if isinstance(e, Signal):
 				l.append(e)
@@ -75,4 +73,4 @@ class Record:
 		return l
 	
 	def __repr__(self):
-		return repr(self.template())
+		return repr(self.layout())

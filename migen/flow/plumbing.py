@@ -4,9 +4,9 @@ from migen.corelogic.record import *
 from migen.corelogic.misc import optree
 
 class Buffer(Actor):
-	def __init__(self, template):
-		self.d = Record(template)
-		self.q = Record(template)
+	def __init__(self, layout):
+		self.d = Record(layout)
+		self.q = Record(layout)
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.PIPELINE, 1),
 			self.d, self.q)
@@ -18,8 +18,8 @@ class Buffer(Actor):
 		return Fragment(sync=sync)
 
 class Combinator(Actor):
-	def __init__(self, template, *subrecords):
-		self.destination = Record(template)
+	def __init__(self, layout, *subrecords):
+		self.destination = Record(layout)
 		self.ins = [self.destination.subrecord(*subr) for subr in subrecords]
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
@@ -36,8 +36,8 @@ class Combinator(Actor):
 		return Fragment(comb)
 
 class Splitter(Actor):
-	def __init__(self, template, *subrecords):
-		self.source = Record(template)
+	def __init__(self, layout, *subrecords):
+		self.source = Record(layout)
 		self.outs = [self.source.subrecord(*subr) for subr in subrecords]
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
