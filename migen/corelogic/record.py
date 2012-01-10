@@ -67,7 +67,7 @@ class Record:
 		tpl2 = other.flatten()
 		return len(tpl1) == len(tpl2)
 	
-	def flatten(self, align=False, offset=0):
+	def flatten(self, align=False, offset=0, return_offset=False):
 		l = []
 		for key, alignment in self.field_order:
 			if align:
@@ -86,7 +86,10 @@ class Record:
 			for x in added:
 				offset += x.bv.width
 			l += added
-		return l
+		if return_offset:
+			return (l, offset)
+		else:
+			return l
 	
 	def __repr__(self):
 		return repr(self.layout())
