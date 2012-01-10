@@ -20,18 +20,12 @@ class CompositeActor(Actor):
 			SchedulingModel(SchedulingModel.DYNAMIC),
 			endpoints=our_endpoints)
 	
-	def get_control_fragment(self):
-		this = sum([get_conn_control_fragment(x[2]['source'], x[2]['sink'])
+	def get_fragment(self):
+		this = sum([get_conn_fragment(x[2]['source'], x[2]['sink'])
 			for x in self.dfg.edges(data=True)], Fragment())
-		others = sum([node.get_control_fragment() for node in self.dfg], Fragment())
+		others = sum([node.get_fragment() for node in self.dfg], Fragment())
 		busy = Fragment([self.busy.eq(optree('|', [node.busy for node in self.dfg]))])
 		return this + others + busy
-	
-	def get_process_fragment(self):
-		this = sum([get_conn_process_fragment(x[2]['source'], x[2]['sink'])
-			for x in self.dfg.edges(data=True)], Fragment())
-		others = sum([node.get_process_fragment() for node in self.dfg], Fragment())
-		return this + others
 
 def add_connection(dfg, source_node, sink_node, source_ep=None, sink_ep=None):
 	if source_ep is None:

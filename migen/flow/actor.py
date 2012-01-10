@@ -146,28 +146,26 @@ class Actor:
 		elif self.scheduling_model.model == SchedulingModel.PIPELINE:
 			return _control_fragment_pipe(self.scheduling_model.latency, stb_i, ack_o, stb_o, ack_i, self.busy, self.pipe_ce)
 		elif self.scheduling_model.model == SchedulingModel.DYNAMIC:
-			raise NotImplementedError("Actor classes with dynamic scheduling must overload get_control_fragment")
+			raise NotImplementedError("Actor classes with dynamic scheduling must overload get_control_fragment or get_fragment")
 	
 	def get_process_fragment(self):
 		raise NotImplementedError("Actor classes must overload get_process_fragment")
 	
+	def get_fragment(self):
+		return self.get_control_fragment() + self.get_process_fragment()
+	
 	def __repr__(self):
 		return "<" + self.__class__.__name__ + " " + repr(self.scheduling_model) + " " + repr(self.sinks()) + " " + repr(self.sources()) + ">"
 
-def get_conn_control_fragment(source, sink):
-	assert isinstance(source, Source)
-	assert isinstance(sink, Sink)
-	comb = [
-		source.ack.eq(sink.ack),
-		sink.stb.eq(source.stb)
-	]
-	return Fragment(comb)
-	
-def get_conn_process_fragment(source, sink):
+def get_conn_fragment(source, sink):
 	assert isinstance(source, Source)
 	assert isinstance(sink, Sink)
 	assert sink.token.compatible(source.token)
 	sigs_source = source.token.flatten()
 	sigs_sink = sink.token.flatten()
-	comb = [Cat(*sigs_sink).eq(Cat(*sigs_source))]
+	comb = [
+		source.ack.eq(sink.ack),
+		sink.stb.eq(source.stb),
+		Cat(*sigs_sink).eq(Cat(*sigs_source))
+	]
 	return Fragment(comb)

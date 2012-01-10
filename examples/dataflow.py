@@ -1,7 +1,7 @@
 import sys
 import networkx as nx
 
-from migen.fhdl import verilog 
+from migen.fhdl import verilog
 from migen.flow.ala import *
 from migen.flow.network import *
 from migen.flow.composer import *
@@ -13,7 +13,7 @@ a3 = make_composable(g, Add(BV(16)))
 c3 = (a1 + a2)*a3
 c = CompositeActor(g)
 
-frag = c.get_control_fragment() + c.get_process_fragment()
+frag = c.get_fragment()
 
 print(verilog.convert(frag))
 

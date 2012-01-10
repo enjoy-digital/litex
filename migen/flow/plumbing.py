@@ -25,10 +25,7 @@ class Combinator(Actor):
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
 			self.ins, self.destination)
 
-	def get_process_fragment(self):
-		return Fragment() # nothing to do
-	
-	def get_control_fragment(self):
+	def get_fragment(self):
 		source = self.sources()[0]
 		sinks = self.sinks()
 		comb = [source.stb.eq(optree('&', [sink.stb for sink in sinks]))]
@@ -43,7 +40,4 @@ class Splitter(Actor):
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
 			self.source, self.outs)
 		
-	def get_process_fragment(self):
-		return Fragment() # nothing to do
-	
-	# TODO def get_control_fragment(self):
+	# TODO def get_fragment(self):
