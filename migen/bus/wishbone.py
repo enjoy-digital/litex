@@ -4,7 +4,7 @@ from migen.corelogic.misc import multimux, optree
 from migen.bus.simple import Simple, get_sig_name
 
 _desc = [
-	(True,	"adr",	32),
+	(True,	"adr",	30),
 	(True,	"dat",	32),
 	(False,	"dat",	32),
 	(True,	"sel",	4),
