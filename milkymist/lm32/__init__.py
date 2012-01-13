@@ -8,7 +8,7 @@ class Inst:
 		self.interrupt = Signal(BV(32))
 		self.ext_break = Signal()
 		self._inst = Instance("lm32_top",
-			[("I_ADR_O", i.adr_o),
+			[("I_ADR_O", BV(32)),
 			("I_DAT_O", i.dat_o),
 			("I_SEL_O", i.sel_o),
 			("I_CYC_O", i.cyc_o),
@@ -17,7 +17,7 @@ class Inst:
 			("I_CTI_O", i.cti_o),
 			("I_LOCK_O", BV(1)),
 			("I_BTE_O", i.bte_o),
-			("D_ADR_O", d.adr_o),
+			("D_ADR_O", BV(32)),
 			("D_DAT_O", d.dat_o),
 			("D_SEL_O", d.sel_o),
 			("D_CYC_O", d.cyc_o),
@@ -44,6 +44,8 @@ class Inst:
 	def get_fragment(self):
 		comb = [
 			self._inst.ins["I_RTY_I"].eq(0),
-			self._inst.ins["D_RTY_I"].eq(0)
+			self._inst.ins["D_RTY_I"].eq(0),
+			self.ibus.adr_o.eq(self._inst.outs["I_ADR_O"][2:]),
+			self.dbus.adr_o.eq(self._inst.outs["D_ADR_O"][2:])
 		]
 		return Fragment(comb=comb, instances=[self._inst])

@@ -11,10 +11,10 @@ class Inst:
 		self.we_n = Signal()
 		self.ce_n = Signal()
 		self.timeline = timeline.Inst(self.bus.cyc_i & self.bus.stb_i,
-			[(0, [self.adr.eq(Cat(0, self.bus.adr_i[2:adr_width]))]),
+			[(0, [self.adr.eq(Cat(0, self.bus.adr_i[:adr_width-2]))]),
 			(rd_timing, [
 				self.bus.dat_o[16:].eq(self.d),
-				self.adr.eq(Cat(1, self.bus.adr_i[2:adr_width]))]),
+				self.adr.eq(Cat(1, self.bus.adr_i[:adr_width-2]))]),
 			(2*rd_timing, [
 				self.bus.dat_o[:16].eq(self.d),
 				self.bus.ack_o.eq(1)]),
