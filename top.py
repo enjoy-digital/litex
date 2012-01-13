@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl import convtools, verilog, autofragment
+from migen.fhdl import tools, verilog, autofragment
 from migen.bus import wishbone, csr, wishbone2csr
 
 from milkymist import m1reset, clkfx, lm32, norflash, uart
@@ -24,7 +24,7 @@ def get():
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [uart0.bank.interface])
 	
 	frag = autofragment.from_local()
-	vns = convtools.Namespace()
+	vns = tools.Namespace()
 	src_verilog = verilog.convert(frag,
 		{clkfx_sys.clkin, reset0.trigger_reset},
 		name="soc",
