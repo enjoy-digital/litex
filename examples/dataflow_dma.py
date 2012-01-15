@@ -1,10 +1,9 @@
-import sys
 import networkx as nx
 
 from migen.fhdl import verilog
 from migen.flow.ala import *
 from migen.flow.network import *
-from migen.actorlib import dma_wishbone
+from migen.actorlib import dma_wishbone, control
 
 L = [
 	("x", BV(10), 8),
@@ -15,6 +14,14 @@ L = [
 	])
 ]
 
+adrgen = control.For(10)
 reader = dma_wishbone.Reader(L)
-frag = reader.get_fragment()
-print(verilog.convert(frag, ios=set(reader.bus.signals())))
+
+g = nx.MultiDiGraph()
+add_connection(g, adrgen, reader)
+comp = CompositeActor(g)
+
+frag = comp.get_fragment()
+ios = set(reader.bus.signals())
+ios.add(comp.busy)
+print(verilog.convert(frag, ios=ios))
