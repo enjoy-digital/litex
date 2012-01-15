@@ -154,8 +154,10 @@ def _try_module_name(frame):
 	else:
 		return None
 	
-def _make_signal_name(name=None):
-	frame = inspect.currentframe().f_back.f_back
+def _make_signal_name(name=None, back=2):
+	frame = inspect.currentframe()
+	for i in range(back):
+		frame = frame.f_back
 	
 	if name is None:
 		line = inspect.getframeinfo(frame).code_context[0]

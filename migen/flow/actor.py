@@ -1,5 +1,7 @@
 from migen.fhdl.structure import *
+from migen.fhdl.structure import _make_signal_name
 from migen.corelogic.misc import optree
+from migen.corelogic.record import *
 
 class SchedulingModel:
 	COMBINATORIAL, SEQUENTIAL, PIPELINE, DYNAMIC = range(4)
@@ -97,17 +99,18 @@ def _control_fragment_pipe(latency, stb_i, ack_o, stb_o, ack_i, busy, pipe_ce):
 	return Fragment(comb, sync)
 
 class Actor:
-	def __init__(self, scheduling_model, sinks=None, sources=None, endpoints=None):
+	def __init__(self, scheduling_model, *endpoint_descriptions, endpoints=None):
 		self.scheduling_model = scheduling_model
 		if endpoints is None:
-			if isinstance(sinks, list):
-				self.endpoints = [Sink(sink) for sink in sinks]
-			else:
-				self.endpoints = [Sink(sinks)]
-			if isinstance(sources, list):
-				self.endpoints += [Source(source) for source in sources]
-			else:
-				self.endpoints.append(Source(sources))
+			self.endpoints = {}
+			for desc in endpoint_descriptions:
+				# desc: (name, Sink/Source, token layout or existing record)
+				if isinstance(desc[2], Record):
+					token = desc[2]
+				else:
+					token = Record(desc[2], name=_make_signal_name(desc[0], 1))
+				ep = desc[1](token)
+				self.endpoints[desc[0]] = ep
 		else:
 			self.endpoints = endpoints
 		self.busy = Signal()
@@ -116,25 +119,25 @@ class Actor:
 		elif self.scheduling_model.model == SchedulingModel.PIPELINE:
 			self.pipe_ce = Signal()
 	
+	def token(self, ep):
+		return self.endpoints[ep].token
+	
+	def filter_endpoints(self, cl):
+		return [k for k, v in self.endpoints.items() if isinstance(v, cl)]
+
 	def sinks(self):
-		return [x for x in self.endpoints if isinstance(x, Sink)]
+		return self.filter_endpoints(Sink)
 
 	def sources(self):
-		return [x for x in self.endpoints if isinstance(x, Source)]
-		
+		return self.filter_endpoints(Source)
+
 	def get_control_fragment(self):
-		if len(self.endpoints) != 2:
-			raise ValueError("Actors with automatic control fragment must have exactly two endpoints.")
-		if isinstance(self.endpoints[0], Sink):
-			assert(isinstance(self.endpoints[1], Source))
-			sink = self.endpoints[0]
-			source = self.endpoints[1]
-		elif isinstance(self.endpoints[0], Source):
-			assert(isinstance(self.endpoints[1], Sink))
-			sink = self.endpoints[1]
-			source = self.endpoints[0]
-		else:
-			raise ValueError("Actors with automatic control fragment must have one sink and one source. Consider using plumbing actors.")
+		def get_single_ep(l):
+			if len(l) != 1:
+				raise ValueError("Actors with automatic control fragment must have exactly one sink and one source. Consider using plumbing actors.")
+			return self.endpoints[l[0]]
+		sink = get_single_ep(self.sinks())
+		source = get_single_ep(self.sources())
 		stb_i = sink.stb
 		ack_o = sink.ack
 		stb_o = source.stb

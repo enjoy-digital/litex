@@ -7,17 +7,18 @@ from migen.flow.network import *
 
 def _get_bin_sigs(a, b):
 	assert id(a.dfg) == id(b.dfg)
-	return (a.endp.token_signal(), b.endp.token_signal())
+	return (a.actor.endpoints[a.endp].token_signal(),
+		b.actor.endpoints[b.endp].token_signal())
 
 def _simple_binary(a, b, actor_class):
 	(signal_self, signal_other) = _get_bin_sigs(a, b)
 	width = max(signal_self.bv.width, signal_other.bv.width)
 	signed = signal_self.bv.signed and signal_other.bv.signed
 	actor = actor_class(BV(width, signed))
-	combinator = Combinator(actor.operands.layout(), ["a"], ["b"])
+	combinator = Combinator(actor.token("operands").layout(), ["a"], ["b"])
 	add_connection(a.dfg, combinator, actor)
-	add_connection(a.dfg, a.actor, combinator, a.endp, combinator.sinks()[0])
-	add_connection(a.dfg, b.actor, combinator, b.endp, combinator.sinks()[1])
+	add_connection(a.dfg, a.actor, combinator, a.endp, "sink0")
+	add_connection(a.dfg, b.actor, combinator, b.endp, "sink1")
 	return make_composable(a.dfg, actor)
 
 class ComposableSource():
@@ -65,11 +66,10 @@ class ComposableSource():
 		return _simple_binary(other, self, LE)
 
 def make_composable(dfg, actor):
-	sources = actor.sources()
-	l = [ComposableSource(dfg, actor, source) for source in sources]
-	if len(l) > 1:
-		return tuple(l)
-	elif len(l) > 0:
-		return l[0]
+	r = [ComposableSource(dfg, actor, k) for k in sorted(actor.sources())]
+	if len(r) > 1:
+		return tuple(r)
+	elif len(r) > 0:
+		return r[0]
 	else:
 		return None

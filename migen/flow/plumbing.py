@@ -5,39 +5,46 @@ from migen.corelogic.misc import optree
 
 class Buffer(Actor):
 	def __init__(self, layout):
-		self.d = Record(layout)
-		self.q = Record(layout)
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.PIPELINE, 1),
-			self.d, self.q)
+			("d", Sink, layout), ("q", Source, layout))
 	
 	def get_process_fragment(self):
-		sigs_d = self.d.flatten()
-		sigs_q = self.q.flatten()
+		sigs_d = self.token("d").flatten()
+		sigs_q = self.token("q").flatten()
 		sync = [If(self.pipe_ce, Cat(*sigs_q).eq(Cat(*sigs_d)))]
 		return Fragment(sync=sync)
 
 class Combinator(Actor):
 	def __init__(self, layout, *subrecords):
-		self.destination = Record(layout)
-		self.ins = [self.destination.subrecord(*subr) for subr in subrecords]
+		source = Record(layout)
+		subrecords = [source.subrecord(*subr) for subr in subrecords]
+		eps = [("sink{0}".format(x[0]), Sink, x[1])
+			for x in zip(range(len(subrecords)), subrecords)]
+		ep_source = ("source", Source, source)
+		eps.append(ep_source)
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
-			self.ins, self.destination)
+			*eps)
 
 	def get_fragment(self):
-		source = self.sources()[0]
-		sinks = self.sinks()
+		source = self.endpoints["source"]
+		sinks = [self.endpoints["sink{0}".format(n)]
+			for n in range(len(self.endpoints)-1)]
 		comb = [source.stb.eq(optree('&', [sink.stb for sink in sinks]))]
 		comb += [sink.ack.eq(source.ack & source.stb) for sink in sinks]
 		return Fragment(comb)
 
 class Splitter(Actor):
 	def __init__(self, layout, *subrecords):
-		self.source = Record(layout)
-		self.outs = [self.source.subrecord(*subr) for subr in subrecords]
+		sink = Record(layout)
+		subrecords = [sink.subrecord(*subr) for subr in subrecords]
+		eps = [("source{0}".format(x[0]), Source, x[1])
+			for x in zip(range(len(subrecords)), subrecords)]
+		ep_sink = ("sink", Sink, sink)
+		eps.append(ep_sink)
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
-			self.source, self.outs)
+			*eps)
 		
 	# TODO def get_fragment(self):

@@ -7,15 +7,15 @@ from migen.corelogic import divider
 class _SimpleBinary(Actor):
 	def __init__(self, op, bv_op, bv_r):
 		self.op = op
-		self.operands = Record([('a', bv_op), ('b', bv_op)])
-		self.result = Record([('r', bv_r)])
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
-			self.operands, self.result)
+			("operands", Sink, [('a', bv_op), ('b', bv_op)]),
+			("result", Source, [('r', bv_r)]))
 
 	def get_process_fragment(self):
 		return Fragment([
-			self.result.r.eq(_Operator(self.op, [self.operands.a, self.operands.b]))
+			self.token("result").r.eq(_Operator(self.op, 
+				[self.token("operands").a, self.token("operands").b]))
 		])
 
 class Add(_SimpleBinary):
@@ -61,11 +61,10 @@ class NE(_SimpleBinary):
 class DivMod(Actor):
 	def __init__(self, width):
 		self.div = divider.Inst(width)
-		self.operands = Record([('dividend', self.div.dividend_i), ('divisor', self.div.divisor_i)])
-		self.result = Record([('quotient', self.div.quotient_o), ('remainder', self.div.remainder_o)])
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.SEQUENTIAL, width),
-			self.operands, self.result)
+			("operands", Sink, [("dividend", self.div.dividend_i), ("divisor", self.div.divisor_i)]),
+			("result", Source, [("quotient", self.div.quotient_o), ("remainder", self.div.remainder_o)]))
 
 	def get_process_fragment(self):
 		return self.div.get_fragment() + Fragment([self.div.start_i.eq(self.trigger)])
