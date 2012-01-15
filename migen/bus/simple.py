@@ -20,3 +20,8 @@ class Simple():
 				busname += "_" + name
 			signame = get_sig_name(signal, slave)
 			setattr(self, signame, Signal(BV(signal[2]), busname + "_" + signame))
+	
+	def signals(self):
+		return [self.__dict__[k]
+			for k in self.__dict__
+			if isinstance(self.__dict__[k], Signal)]
