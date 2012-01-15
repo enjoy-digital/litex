@@ -26,7 +26,9 @@ class Namespace:
 				return sig.name
 
 def list_signals(node):
-	if isinstance(node, Constant):
+	if node is None:
+		return set()
+	elif isinstance(node, Constant):
 		return set()
 	elif isinstance(node, Signal):
 		return {node}
@@ -56,7 +58,9 @@ def list_signals(node):
 		raise TypeError
 
 def list_targets(node):
-	if isinstance(node, Signal):
+	if node is None:
+		return set()
+	elif isinstance(node, Signal):
 		return {node}
 	elif isinstance(node, _Slice):
 		return list_targets(node.value)

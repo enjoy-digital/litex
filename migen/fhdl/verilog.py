@@ -49,7 +49,9 @@ def _printexpr(ns, node):
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
 def _printnode(ns, at, level, node):
-	if isinstance(node, _Assign):
+	if node is None:
+		return ""
+	elif isinstance(node, _Assign):
 		if at == _AT_BLOCKING:
 			assignment = " = "
 		elif at == _AT_NONBLOCKING:
