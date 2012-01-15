@@ -70,11 +70,10 @@ class Reader(Actor):
 				self.bus.stb_o.eq(1),
 				ob_stbs[w].eq(1),
 				If(self.bus.ack_i,
-					fsm.next_state(next_state)
+					fsm.next_state(next_state),
+					ag_inc.eq(1) if nwords > 1 else None
 				)
 			)
-			if nwords > 1:
-				fsm.act(state, If(self.bus.ack_i, ag_inc.eq(1)))
 		fsm.act(fsm.STROBE,
 			self.endpoints["data"].stb.eq(1),
 			If(self.endpoints["data"].ack, fsm.next_state(fsm.IDLE))
