@@ -20,6 +20,6 @@ inf = Fragment(incomb, insync)
 bank = csrgen.Bank([oreg, ireg])
 f = bank.get_fragment() + inf
 i = bank.interface
-ofield.dev_r.name = "gpio_out"
+ofield.dev_r.name_override = "gpio_out"
 v = verilog.convert(f, {i.d_o, ofield.dev_r, i.a_i, i.we_i, i.d_i, gpio_in})
 print(v)

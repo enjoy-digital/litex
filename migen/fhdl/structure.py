@@ -145,7 +145,7 @@ class Signal(Value):
 		return id(self)
 	
 	def __repr__(self):
-		return "<Signal " + self.name + ">"
+		return "<Signal " + (self.backtrace[-1][1] or "anonymous") + ">"
 
 # statements
 

@@ -131,7 +131,7 @@ def _printcomb(f, ns):
 		# to run the combinatorial process once at the beginning.
 		syn_off = "// synthesis translate off\n"
 		syn_on = "// synthesis translate on\n"
-		dummy_s = Signal()
+		dummy_s = Signal(name_override="dummy_s")
 		r += syn_off
 		r += "reg " + _printsig(ns, dummy_s) + ";\n"
 		r += "initial " + ns.get_name(dummy_s) + " <= 1'b0;\n"
@@ -143,7 +143,7 @@ def _printcomb(f, ns):
 			if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
 				r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
 			else:
-				dummy_d = Signal()
+				dummy_d = Signal(name_override="dummy_d")
 				r += "\n" + syn_off
 				r += "reg " + _printsig(ns, dummy_d) + ";\n"
 				r += syn_on

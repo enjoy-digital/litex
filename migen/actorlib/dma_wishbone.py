@@ -81,3 +81,6 @@ class Reader(Actor):
 		controller = fsm.get_fragment()
 
 		return address_generator + output_buffer + controller
+
+class Writer(Actor):
+	pass # TODO

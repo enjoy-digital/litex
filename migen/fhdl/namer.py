@@ -67,7 +67,7 @@ def build_tree(signals):
 
 def name_backtrace(root, backtrace):
 	parts = []
-	for step in backtrace:
+	for step in backtrace[:-1]:
 		n = obj_name(step[0])
 		found = list(filter(lambda x: x.name == n, root.children))
 		node = found[0]
@@ -78,13 +78,19 @@ def name_backtrace(root, backtrace):
 				parts.append(node.name)
 		if node.include_varname and step[1] is not None:
 			parts.append(step[1])
+		root = node
+	last = backtrace[-1]
+	if last[1] is not None:
+		parts.append(last[1])
+	else:
+		parts.append(obj_name(last[0]))
 	return "_".join(parts)
 
 def _include_divergence(root, bt1, bt2):
 	for step1, step2 in zip(bt1, bt2):
 		n1, n2 = obj_name(step1[0]), obj_name(step2[0])
-		node1 = list(filter(lambda x: x.name == n1, root.children))
-		node2 = list(filter(lambda x: x.name == n2, root.children))
+		node1 = list(filter(lambda x: x.name == n1, root.children))[0]
+		node2 = list(filter(lambda x: x.name == n2, root.children))[0]
 		if node1 != node2:
 			node1.include_context = True
 			node2.include_context = True
@@ -101,7 +107,7 @@ def _include_divergence(root, bt1, bt2):
 
 def resolve_conflicts(root, signals):
 	for s1, s2 in combinations(signals, 2):
-		if name_backtrace(root, s1) == name_backtrace(root, s2):
+		if name_backtrace(root, s1.backtrace) == name_backtrace(root, s2.backtrace):
 			_include_divergence(root, s1.backtrace, s2.backtrace)
 
 def build_tree_res(signals):
