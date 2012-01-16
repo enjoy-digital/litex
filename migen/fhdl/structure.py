@@ -2,6 +2,8 @@ import math
 import inspect
 import re
 
+from migen.fhdl import namer
+
 def bits_for(n):
 	if isinstance(n, Constant):
 		return n.bv.width
@@ -131,61 +133,13 @@ def _cst(x):
 	else:
 		return x
 
-_forbidden_prefixes = {'inst', 'source', 'sink', 'fsm'}
-
-def _try_class_name(frame):
-	while frame is not None:
-		try:
-			cl = frame.f_locals['self']
-			prefix = cl.__class__.__name__.lower()
-			if prefix not in _forbidden_prefixes:
-				return prefix
-		except KeyError:
-			pass
-		frame = frame.f_back
-	return None
-
-def _try_module_name(frame):
-	modules = frame.f_globals["__name__"]
-	if modules != "__main__":
-		modules = modules.split('.')
-		prefix = modules[len(modules)-1]
-		return prefix
-	else:
-		return None
-	
-def _make_signal_name(name=None, back=2):
-	frame = inspect.currentframe()
-	for i in range(back):
-		frame = frame.f_back
-	
-	if name is None:
-		line = inspect.getframeinfo(frame).code_context[0]
-		m = re.match('[\t ]*([0-9A-Za-z_\.]+)[\t ]*=', line)
-		if m is None:
-			name = "anonymous"
-		else:
-			names = m.group(1).split('.')
-			name = names[len(names)-1]
-	
-	prefix = _try_class_name(frame)
-	if prefix is None:
-		prefix = _try_module_name(frame)
-	if prefix is None:
-		prefix = ""
-	else:
-		prefix += "_"
-	
-	return prefix + name
-
 class Signal(Value):
-	def __init__(self, bv=BV(), name=None, variable=False, reset=0, namer=None):
+	def __init__(self, bv=BV(), name=None, variable=False, reset=0, name_override=None):
 		self.bv = bv
 		self.variable = variable
-		self.name = name
-		if self.name is None:
-			self.name = _make_signal_name(namer)
 		self.reset = Constant(reset, bv)
+		self.name_override = name_override
+		self.backtrace = namer.trace_back(name)
 
 	def __hash__(self):
 		return id(self)

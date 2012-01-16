@@ -1,9 +1,8 @@
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _make_signal_name
 
 class Record:
 	def __init__(self, layout, name=None):
-		self.name = name or _make_signal_name()
+		self.name = name or "anonymous"
 		self.field_order = []
 		for f in layout:
 			if isinstance(f, tuple):
@@ -34,7 +33,7 @@ class Record:
 		return l
 	
 	def copy(self, name=None):
-		return Record(self.layout(), name or _make_signal_name())
+		return Record(self.layout(), name)
 	
 	def get_alignment(self, name):
 		return list(filter(lambda x: x[0] == name, self.field_order))[0][1]

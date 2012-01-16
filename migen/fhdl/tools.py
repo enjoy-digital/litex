@@ -1,30 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
 
-class Namespace:
-	def __init__(self):
-		self.counts = {}
-		self.sigs = {}
-	
-	def get_name(self, sig):
-		try:
-			n = self.sigs[sig]
-			if n:
-				return sig.name + "_" + str(n)
-			else:
-				return sig.name
-		except KeyError:
-			try:
-				n = self.counts[sig.name]
-			except KeyError:
-				n = 0
-			self.sigs[sig] = n
-			self.counts[sig.name] = n + 1
-			if n:
-				return sig.name + "_" + str(n)
-			else:
-				return sig.name
-
 def list_signals(node):
 	if node is None:
 		return set()

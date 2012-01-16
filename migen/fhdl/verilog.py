@@ -3,6 +3,7 @@ from functools import partial
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
 from migen.fhdl.tools import *
+from migen.fhdl.namer import Namespace, build_tree_res
 
 def _printsig(ns, s):
 	if s.bv.signed:
@@ -205,15 +206,14 @@ def _printinstances(ns, i, clk, rst):
 		r += ");\n\n"
 	return r
 
-def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None):
+def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, return_ns=False):
 	if clk_signal is None:
-		clk_signal = Signal(name="sys_clk")
+		clk_signal = Signal(name_override="sys_clk")
 		ios.add(clk_signal)
 	if rst_signal is None:
-		rst_signal = Signal(name="sys_rst")
+		rst_signal = Signal(name_override="sys_rst")
 		ios.add(rst_signal)
-	if ns is None:
-		ns = Namespace()
+	ns = Namespace(namer.build_tree_res(list_signals(f)))
 
 	ios |= f.pads
 	
@@ -225,4 +225,7 @@ def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, ns=None)
 	
 	r += "endmodule\n"
 	
-	return r
+	if return_ns:
+		return r, ns
+	else:
+		return r

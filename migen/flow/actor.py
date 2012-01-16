@@ -1,5 +1,4 @@
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _make_signal_name
 from migen.corelogic.misc import optree
 from migen.corelogic.record import *
 
@@ -26,11 +25,11 @@ class Endpoint:
 	def __init__(self, token):
 		self.token = token
 		if isinstance(self, Sink):
-			self.stb = Signal(namer="stb_i")
-			self.ack = Signal(namer="ack_o")
+			self.stb = Signal(name="stb_i")
+			self.ack = Signal(name="ack_o")
 		else:
-			self.stb = Signal(namer="stb_o")
-			self.ack = Signal(namer="ack_i")
+			self.stb = Signal(name="stb_o")
+			self.ack = Signal(name="ack_i")
 	
 	def token_signal(self):
 		sigs = self.token.flatten()
@@ -108,7 +107,7 @@ class Actor:
 				if isinstance(desc[2], Record):
 					token = desc[2]
 				else:
-					token = Record(desc[2], name=_make_signal_name(desc[0], 1))
+					token = Record(desc[2])
 				ep = desc[1](token)
 				self.endpoints[desc[0]] = ep
 		else:
