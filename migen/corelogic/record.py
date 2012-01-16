@@ -1,17 +1,21 @@
 from migen.fhdl.structure import *
 
 class Record:
-	def __init__(self, layout, name=None):
-		self.name = name or "anonymous"
+	def __init__(self, layout, name=""):
+		self.name = name
 		self.field_order = []
+		if self.name:
+			prefix = self.name + "_"
+		else:
+			prefix = ""
 		for f in layout:
 			if isinstance(f, tuple):
 				if isinstance(f[1], BV):
-					setattr(self, f[0], Signal(f[1], self.name + "_" + f[0]))
+					setattr(self, f[0], Signal(f[1], prefix + f[0]))
 				elif isinstance(f[1], Signal) or isinstance(f[1], Record):
 					setattr(self, f[0], f[1])
 				elif isinstance(f[1], list):
-					setattr(self, f[0], Record(f[1], self.name + "_" + f[0]))
+					setattr(self, f[0], Record(f[1], prefix + f[0]))
 				else:
 					raise TypeError
 				if len(f) == 3:
@@ -19,7 +23,7 @@ class Record:
 				else:
 					self.field_order.append((f[0], 1))
 			else:
-				setattr(self, f, Signal(BV(1), self.name + "_" + f))
+				setattr(self, f, Signal(BV(1), prefix + f))
 				self.field_order.append((f, 1))
 
 	def layout(self):
