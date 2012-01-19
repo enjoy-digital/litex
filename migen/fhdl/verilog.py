@@ -3,7 +3,7 @@ from functools import partial
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
 from migen.fhdl.tools import *
-from migen.fhdl.namer import Namespace, build_tree_res
+from migen.fhdl.namer import Namespace, build_pnd
 
 def _printsig(ns, s):
 	if s.bv.signed:
@@ -213,7 +213,7 @@ def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, return_n
 	if rst_signal is None:
 		rst_signal = Signal(name_override="sys_rst")
 		ios.add(rst_signal)
-	ns = Namespace(namer.build_tree_res(list_signals(f)))
+	ns = Namespace(namer.build_pnd(list_signals(f)))
 
 	ios |= f.pads
 	

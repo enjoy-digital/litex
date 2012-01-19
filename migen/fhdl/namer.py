@@ -31,110 +31,92 @@ def trace_back(name=None):
 		frame = frame.f_back
 	return l
 
-def obj_name(obj):
-	if isinstance(obj, str):
-		return obj
-	else:
-		return obj.__class__.__name__.lower()
-
-class TreeNode:
-	def __init__(self, name):
-		self.name = name
-		self.ids = {}
-		self.children = []
-		self.include_context = False
-		self.include_varname = False
+class _StepNamer():
+	def __init__(self):
+		self.name_to_ids = {}
 	
-def add_to_tree(root, backtrace):
-	for step in backtrace:
-		n = obj_name(step[0])
-		found = list(filter(lambda x: x.name == n, root.children))
-		if found:
-			node = found[0]
+	def basename(self, obj):
+		if isinstance(obj, str):
+			return obj
 		else:
-			node = TreeNode(n)
-			root.children.append(node)
-		if not isinstance(step[0], str) and id(step[0]) not in node.ids:
-			node.ids[id(step[0])] = len(node.ids)
-		root = node
-
-def build_tree(signals):
-	t = TreeNode("root")
-	for signal in signals:
-		if signal.name_override is None:
-			add_to_tree(t, signal.backtrace)
-	return t
-
-def name_backtrace(root, backtrace):
-	parts = []
-	for step in backtrace[:-1]:
-		n = obj_name(step[0])
-		found = list(filter(lambda x: x.name == n, root.children))
-		node = found[0]
-		if node.include_context:
-			if len(node.ids) > 1:
-				parts.append(node.name + str(node.ids[id(step[0])]))
+			n = obj.__class__.__name__.lower()
+			try:
+				l = self.name_to_ids[n]
+			except KeyError:
+				self.name_to_ids[n] = [id(obj)]
+				return n + "0"
 			else:
-				parts.append(node.name)
-		if node.include_varname and step[1] is not None:
-			parts.append(step[1])
-		root = node
-	last = backtrace[-1]
-	if last[1] is not None:
-		parts.append(last[1])
+				try:
+					idx = l.index(id(obj))
+				except ValueError:
+					idx = len(l)
+					l.append(id(obj))
+				return n + str(idx)
+
+	def name(self, step):
+		n = self.basename(step[0])
+		if step[1] is not None:
+			n += "_" + step[1]
+		return n
+
+def _bin(sn, sig_iters):
+	terminals = []
+	bins = {}
+	for signal, it in sig_iters:
+		try:
+			step = it.__next__()
+		except StopIteration:
+			terminals.append(signal)
+		else:
+			step_name = sn.name(step)
+			if step_name not in bins:
+				bins[step_name] = []
+			bins[step_name].append((signal, it))
+	return terminals, bins
+
+def _r_build_pnd(sn, sig_iters):
+	terminals, bins = _bin(sn, sig_iters)
+	bins_named = [(k, _r_build_pnd(sn, v)) for k, v in bins.items()]
+	name_sets = [set(sub_pnd.values()) for prefix, sub_pnd in bins_named]
+	if name_sets:
+		intersection = set.intersection(*name_sets)
 	else:
-		parts.append(obj_name(last[0]))
-	return "_".join(parts)
-
-def _include_divergence(root, bt1, bt2):
-	for step1, step2 in zip(bt1, bt2):
-		n1, n2 = obj_name(step1[0]), obj_name(step2[0])
-		node1 = list(filter(lambda x: x.name == n1, root.children))[0]
-		node2 = list(filter(lambda x: x.name == n2, root.children))[0]
-		if node1 != node2:
-			node1.include_context = True
-			node2.include_context = True
-			return
-		if not isinstance(step1[0], str) and not isinstance(step2[0], str) \
-		  and id(step1[0]) != id(step2[0]):
-			node1.include_context = True
-			return
-		if step1[1] is not None and step2[1] is not None \
-		  and step1[1] != step2[1]:
-			  node1.include_varname = True
-			  return
-		root = node1
-
-def resolve_conflicts(root, signals):
-	for s1, s2 in combinations(signals, 2):
-		if name_backtrace(root, s1.backtrace) == name_backtrace(root, s2.backtrace):
-			_include_divergence(root, s1.backtrace, s2.backtrace)
-
-def build_tree_res(signals):
-	t = build_tree(signals)
-	resolve_conflicts(t, signals)
-	return t
-
-def signal_name(root, sig):
-	if sig.name_override is not None:
-		return sig.name_override
+		intersection = set()
+	r = {}
+	if intersection:
+		for prefix, sub_pnd in bins_named:
+			for s, n in sub_pnd.items():
+				if n:
+					r[s] = prefix + "_" + n
+				else:
+					r[s] = prefix
 	else:
-		return name_backtrace(root, sig.backtrace)
+		for prefix, sub_pnd in bins_named:
+			r.update(sub_pnd)
+	for t in terminals:
+		r[t] = ""
+	return r
+
+def build_pnd(signals):
+	sig_iters = [(signal, iter(signal.backtrace))
+	  for signal in signals]
+	return _r_build_pnd(_StepNamer(), sig_iters)
 
 class Namespace:
-	def __init__(self, tree):
+	def __init__(self, pnd):
 		self.counts = {}
 		self.sigs = {}
-		self.tree = tree
+		self.pnd = pnd
 	
 	def get_name(self, sig):
-		sig_name = signal_name(self.tree, sig)
+		if sig.name_override is not None:
+			sig_name = sig.name_override
+		else:
+			sig_name = self.pnd[sig]
+		if not sig_name:
+			sig_name = "anonymous"
 		try:
 			n = self.sigs[sig]
-			if n:
-				return sig_name + "_" + str(n)
-			else:
-				return sig_name
 		except KeyError:
 			try:
 				n = self.counts[sig_name]
@@ -142,7 +124,7 @@ class Namespace:
 				n = 0
 			self.sigs[sig] = n
 			self.counts[sig_name] = n + 1
-			if n:
-				return sig_name + "_" + str(n)
-			else:
-				return sig_name
+		if n:
+			return sig_name + "_" + str(n)
+		else:
+			return sig_name
