@@ -35,7 +35,7 @@ class _StepNamer():
 	def __init__(self):
 		self.name_to_ids = {}
 	
-	def basename(self, obj):
+	def context_prefix(self, obj):
 		if isinstance(obj, str):
 			return obj
 		else:
@@ -53,18 +53,40 @@ class _StepNamer():
 					l.append(id(obj))
 				return n + str(idx)
 
-	def name(self, step):
-		n = self.basename(step[0])
-		if step[1] is not None:
-			n += "_" + step[1]
+	def name(self, with_context_prefix, step):
+		if with_context_prefix or step[1] is None:
+			n = self.context_prefix(step[0])
+			if step[1] is not None:
+				n += "_" + step[1]
+		else:
+			n = step[1]
 		return n
 
+# Returns True if we should include the context prefix
+def _choose_strategy(objs):
+	id_with_name = {}
+	for obj in objs:
+		if not isinstance(obj, str):
+			n = obj.__class__.__name__.lower()
+			try:
+				existing_id = id_with_name[n]
+			except KeyError:
+				id_with_name[n] = id(obj)
+			else:
+				if existing_id != id(obj):
+					return True
+	return False
+
 def _bin(sn, sig_iters):
-	terminals = []
-	bins = {}
+	status = []
 	for signal, it in sig_iters:
 		step, last = next(it)
-		step_name = sn.name(step)
+		status.append((signal, it, step, last))
+	with_context_prefix = _choose_strategy(step[0] for signal, it, step, last in status)
+	terminals = []
+	bins = {}
+	for signal, it, step, last in status:
+		step_name = sn.name(with_context_prefix, step)
 		if last:
 			terminals.append((step_name, signal))
 		else:
