@@ -73,16 +73,18 @@ def _bin(sn, sig_iters):
 			bins[step_name].append((signal, it))
 	return terminals, bins
 
+def _sets_disjoint(l):
+	for s1, s2 in combinations(l, 2):
+		if not s1.isdisjoint(s2):
+			return False
+	return True
+	
 def _r_build_pnd(sn, sig_iters):
 	terminals, bins = _bin(sn, sig_iters)
 	bins_named = [(k, _r_build_pnd(sn, v)) for k, v in bins.items()]
 	name_sets = [set(sub_pnd.values()) for prefix, sub_pnd in bins_named]
-	if name_sets:
-		intersection = set.intersection(*name_sets)
-	else:
-		intersection = set()
 	r = {}
-	if intersection:
+	if not _sets_disjoint(name_sets):
 		for prefix, sub_pnd in bins_named:
 			for s, n in sub_pnd.items():
 				r[s] = prefix + "_" + n
