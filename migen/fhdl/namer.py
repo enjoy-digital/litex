@@ -63,12 +63,11 @@ def _bin(sn, sig_iters):
 	terminals = []
 	bins = {}
 	for signal, it in sig_iters:
-		try:
-			step = it.__next__()
-		except StopIteration:
-			terminals.append(signal)
+		step, last = next(it)
+		step_name = sn.name(step)
+		if last:
+			terminals.append((step_name, signal))
 		else:
-			step_name = sn.name(step)
 			if step_name not in bins:
 				bins[step_name] = []
 			bins[step_name].append((signal, it))
@@ -86,19 +85,24 @@ def _r_build_pnd(sn, sig_iters):
 	if intersection:
 		for prefix, sub_pnd in bins_named:
 			for s, n in sub_pnd.items():
-				if n:
-					r[s] = prefix + "_" + n
-				else:
-					r[s] = prefix
+				r[s] = prefix + "_" + n
 	else:
 		for prefix, sub_pnd in bins_named:
 			r.update(sub_pnd)
-	for t in terminals:
-		r[t] = ""
+	for n, s in terminals:
+		r[s] = n
 	return r
 
+def last_flagged(seq):
+	seq = iter(seq)
+	a = next(seq)
+	for b in seq:
+		yield a, False
+		a = b
+	yield a, True
+
 def build_pnd(signals):
-	sig_iters = [(signal, iter(signal.backtrace))
+	sig_iters = [(signal, last_flagged(signal.backtrace))
 	  for signal in signals]
 	return _r_build_pnd(_StepNamer(), sig_iters)
 
@@ -113,8 +117,6 @@ class Namespace:
 			sig_name = sig.name_override
 		else:
 			sig_name = self.pnd[sig]
-		if not sig_name:
-			sig_name = "anonymous"
 		try:
 			n = self.sigs[sig]
 		except KeyError:
