@@ -213,9 +213,10 @@ def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, return_n
 	if rst_signal is None:
 		rst_signal = Signal(name_override="sys_rst")
 		ios.add(rst_signal)
+	ios |= f.pads
+
 	ns = build_namespace(list_signals(f) | list_inst_ios(f, True, True) | ios)
 
-	ios |= f.pads
 	
 	r = "/* Machine-generated using Migen */\n"
 	r += _printheader(f, ios, name, ns)
