@@ -60,7 +60,7 @@ class NE(_SimpleBinary):
 
 class DivMod(Actor):
 	def __init__(self, width):
-		self.div = divider.Inst(width)
+		self.div = divider.Divider(width)
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.SEQUENTIAL, width),
 			("operands", Sink, [("dividend", self.div.dividend_i), ("divisor", self.div.divisor_i)]),

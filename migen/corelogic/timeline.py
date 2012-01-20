@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 
-class Inst:
+class Timeline:
 	def __init__(self, trigger, events):
 		self.trigger = trigger
 		self.events = events

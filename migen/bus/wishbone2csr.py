@@ -3,11 +3,11 @@ from migen.bus import csr
 from migen.fhdl.structure import *
 from migen.corelogic import timeline
 
-class Inst():
+class WB2CSR():
 	def __init__(self):
 		self.wishbone = wishbone.Slave("to_csr")
 		self.csr = csr.Master("from_wishbone")
-		self.timeline = timeline.Inst(self.wishbone.cyc_i & self.wishbone.stb_i,
+		self.timeline = timeline.Timeline(self.wishbone.cyc_i & self.wishbone.stb_i,
 			[(1, [self.csr.we_o.eq(self.wishbone.we_i)]),
 			(2, [self.wishbone.ack_o.eq(1)]),
 			(3, [self.wishbone.ack_o.eq(0)])])

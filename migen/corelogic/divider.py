@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 
-class Inst:
+class Divider:
 	def __init__(self, w):
 		self.w = w
 		

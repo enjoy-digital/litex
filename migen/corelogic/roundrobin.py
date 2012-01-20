@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 
-class Inst:
+class RoundRobin:
 	def __init__(self, n):
 		self.n = n
 		self.bn = bits_for(self.n-1)

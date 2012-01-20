@@ -29,7 +29,7 @@ class Arbiter:
 	def __init__(self, masters, target):
 		self.masters = masters
 		self.target = target
-		self.rr = roundrobin.Inst(len(self.masters))
+		self.rr = roundrobin.RoundRobin(len(self.masters))
 
 	def get_fragment(self):
 		comb = []
