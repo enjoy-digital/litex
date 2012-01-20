@@ -98,7 +98,7 @@ def _list_comb_wires(f):
 def _printheader(f, ios, name, ns):
 	sigs = list_signals(f)
 	targets = list_targets(f)
-	instouts = list_inst_outs(f)
+	instouts = list_inst_ios(f, False, True)
 	wires = _list_comb_wires(f)
 	r = "module " + name + "(\n"
 	firstp = True
@@ -213,7 +213,7 @@ def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, return_n
 	if rst_signal is None:
 		rst_signal = Signal(name_override="sys_rst")
 		ios.add(rst_signal)
-	ns = build_namespace(list_signals(f) | ios)
+	ns = build_namespace(list_signals(f) | list_inst_ios(f, True, True) | ios)
 
 	ios |= f.pads
 	

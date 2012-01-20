@@ -73,13 +73,16 @@ def group_by_targets(sl):
 			groups.append((targets, [statement]))
 	return groups
 
-def list_inst_outs(i):
+def list_inst_ios(i, ins, outs):
 	if isinstance(i, Fragment):
-		return list_inst_outs(i.instances)
+		return list_inst_ios(i.instances, ins, outs)
 	else:
 		l = []
 		for x in i:
-			l += list(map(lambda x: x[1], list(x.outs.items())))
+			if ins:
+				l += x.ins.values()
+			if outs:
+				l += x.outs.values()
 		return set(l)
 
 def is_variable(node):

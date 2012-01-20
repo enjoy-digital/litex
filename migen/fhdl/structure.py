@@ -209,14 +209,14 @@ class Instance:
 	def __init__(self, of, outs=[], ins=[], parameters=[], clkport="", rstport="", name=""):
 		self.of = of
 		if name:
-			self.name = name
+			self.name_override = name
 		else:
-			self.name = of
+			self.name_override = of
 		def process_io(x):
 			if isinstance(x[1], Signal):
 				return x # override
 			elif isinstance(x[1], BV):
-				return (x[0], Signal(x[1], self.name + "_" + x[0]))
+				return (x[0], Signal(x[1], self.name_override + "_" + x[0]))
 			else:
 				raise TypeError
 		self.outs = dict(map(process_io, outs))
