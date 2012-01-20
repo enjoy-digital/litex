@@ -24,12 +24,11 @@ def get():
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [uart0.bank.interface])
 	
 	frag = autofragment.from_local()
-	vns = tools.Namespace()
-	src_verilog = verilog.convert(frag,
+	src_verilog, vns = verilog.convert(frag,
 		{clkfx_sys.clkin, reset0.trigger_reset},
 		name="soc",
 		clk_signal=clkfx_sys.clkout,
 		rst_signal=reset0.sys_rst,
-		ns=vns)
+		return_ns=True)
 	src_ucf = constraints.get(vns, clkfx_sys, reset0, norflash0, uart0)
 	return (src_verilog, src_ucf)
