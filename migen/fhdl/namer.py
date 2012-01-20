@@ -16,13 +16,13 @@ def trace_back(name=None):
 			obj = modules[len(modules)-1]
 		
 		if name is None:
-			line = inspect.getframeinfo(frame).code_context[0]
-			m = re.match("[\t ]*([0-9A-Za-z_\.]+)[\t ]*=", line)
-			if m is None:
-				name = None
-			else:
-				names = m.group(1).split(".")
-				name = names[len(names)-1]
+			code_contexts = inspect.getframeinfo(frame).code_context
+			if code_contexts is not None:
+				line = code_contexts[0]
+				m = re.match("[\t ]*([0-9A-Za-z_\.]+)[\t ]*=", line)
+				if m is not None:
+					names = m.group(1).split(".")
+					name = names[len(names)-1]
 		l.insert(0, (obj, name))
 		name = None
 		frame = frame.f_back
