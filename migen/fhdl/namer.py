@@ -2,9 +2,6 @@ import inspect
 import re
 from itertools import combinations
 
-class NoContext:
-	pass
-
 def trace_back(name=None):
 	l = []
 	frame = inspect.currentframe().f_back.f_back
@@ -13,7 +10,7 @@ def trace_back(name=None):
 			obj = frame.f_locals["self"]
 		except KeyError:
 			obj = None
-		if obj is None or isinstance(obj, NoContext):
+		if obj is None:
 			modules = frame.f_globals["__name__"]
 			modules = modules.split(".")
 			obj = modules[len(modules)-1]
