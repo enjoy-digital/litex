@@ -122,10 +122,16 @@ def last_flagged(seq):
 		a = b
 	yield a, True
 
-def build_pnd(signals):
+def build_namespace(signals):
 	sig_iters = [(signal, last_flagged(signal.backtrace))
-	  for signal in signals]
-	return _r_build_pnd(_StepNamer(), sig_iters)
+	  for signal in signals if signal.name_override is None]
+	pnd = _r_build_pnd(_StepNamer(), sig_iters)
+	ns = Namespace(pnd)
+	# register signals with name_override
+	for signal in signals:
+		if signal.name_override is not None:
+			ns.get_name(signal)
+	return ns
 
 class Namespace:
 	def __init__(self, pnd):
