@@ -32,7 +32,7 @@ class Mul(_SimpleBinary):
 
 class And(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '*', bv, bv)
+		_SimpleBinary.__init__(self, '&', bv, bv)
 
 class Xor(_SimpleBinary):
 	def __init__(self, bv):
