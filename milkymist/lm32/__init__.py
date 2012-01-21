@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.bus import wishbone
 
-class Inst:
+class LM32:
 	def __init__(self):
 		self.ibus = i = wishbone.Master("lm32i")
 		self.dbus = d = wishbone.Master("lm32d")

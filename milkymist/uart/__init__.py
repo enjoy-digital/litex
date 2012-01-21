@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.bank.description import *
 from migen.bank import csrgen
 
-class Inst:
+class UART:
 	def __init__(self, address, clk_freq, baud=115200):
 		self._rxtx = rxtx = Register("rxtx", BV(8))
 		divisor = Register("divisor")

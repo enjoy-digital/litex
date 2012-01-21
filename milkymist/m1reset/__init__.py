@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 
-class Inst:
+class M1Reset:
 	def __init__(self):
 		self.trigger_reset = Signal()
 		self.sys_rst = Signal()

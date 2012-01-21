@@ -2,7 +2,7 @@ from fractions import Fraction
 
 from migen.fhdl.structure import *
 
-class Inst:
+class ClkFX:
 	def __init__(self, infreq, outfreq):
 		self.clkin = Signal()
 		self.clkout = Signal()

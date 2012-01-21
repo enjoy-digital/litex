@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.bus import wishbone
 from migen.corelogic import timeline
 
-class Inst:
+class NorFlash:
 	def __init__(self, adr_width, rd_timing):
 		self.bus = wishbone.Slave("norflash")
 		self.adr = Signal(BV(adr_width-1))
@@ -10,7 +10,7 @@ class Inst:
 		self.oe_n = Signal()
 		self.we_n = Signal()
 		self.ce_n = Signal()
-		self.timeline = timeline.Inst(self.bus.cyc_i & self.bus.stb_i,
+		self.timeline = timeline.Timeline(self.bus.cyc_i & self.bus.stb_i,
 			[(0, [self.adr.eq(Cat(0, self.bus.adr_i[:adr_width-2]))]),
 			(rd_timing, [
 				self.bus.dat_o[16:].eq(self.d),
