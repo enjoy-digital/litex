@@ -331,18 +331,18 @@ Migen Bus
 Migen Bus contains classes providing a common structure for master and
 slave interfaces of the following buses:
   - Wishbone [5], the general purpose bus recommended by Opencores.
-  - CSR-NG, a low-bandwidth, resource-sensitive bus designed for
+  - CSR-2, a low-bandwidth, resource-sensitive bus designed for
     accessing the configuration and status registers of cores from
     software.
-  - FastMemoryLink-NG, a split-transaction bus optimized for use with a
-    high-performance, out-of-order SDRAM controller. (TODO)
+  - ASMIbus, a split-transaction bus optimized for use with a
+    high-performance, out-of-order SDRAM controller.
 
 It also provides interconnect components for these buses, such as
 arbiters and address decoders. The strength of the Migen procedurally
 generated logic can be illustrated by the following example:
   wbcon = wishbone.InterconnectShared(
       [cpu.ibus, cpu.dbus, ethernet.dma, audio.dma],
-      [(0, norflash.bus), (1, wishbone2fml.wishbone),
+      [(0, norflash.bus), (1, wishbone2asmi.wishbone),
       (3, wishbone2csr.wishbone)])
 In this example, the interconnect component generates a 4-way round-robin
 arbiter, multiplexes the master bus signals into a shared bus, determines
