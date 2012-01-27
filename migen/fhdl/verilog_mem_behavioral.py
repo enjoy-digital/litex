@@ -41,14 +41,19 @@ def handler(memory, ns, clk):
 				r += "\t\t" + gn(storage) + "[" + gn(port.adr) + "] <= " + gn(port.dat_w) + ";\n"
 		if not port.async_read:
 			if port.mode == WRITE_FIRST and port.we is not None:
-				r += "\t" + gn(adr_regs[id(port)]) + " <= " + gn(port.adr) + ";\n"
+				rd = "\t" + gn(adr_regs[id(port)]) + " <= " + gn(port.adr) + ";\n"
 			else:
 				bassign = gn(data_regs[id(port)]) + " <= " + gn(storage) + "[" + gn(port.adr) + "];\n"
 				if port.mode == READ_FIRST or port.we is None:
-					r += "\t" + bassign
+					rd = "\t" + bassign
 				elif port.mode == NO_CHANGE:
-					r += "\tif (!" + gn(port.we) + ")\n"
-					r += "\t\t" + bassign
+					rd = "\tif (!" + gn(port.we) + ")\n" \
+					  + "\t\t" + bassign
+		if port.re is None:
+			r += rd
+		else:
+			r += "\tif (" + gn(port.re) + ")\n"
+			r += "\t" + rd.replace("\n\t", "\n\t\t")
 	r += "end\n\n"
 	
 	for port in memory.ports:
