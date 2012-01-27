@@ -3,8 +3,8 @@ from migen.bus import wishbone
 
 class LM32:
 	def __init__(self):
-		self.ibus = i = wishbone.Master("lm32i")
-		self.dbus = d = wishbone.Master("lm32d")
+		self.ibus = i = wishbone.Master()
+		self.dbus = d = wishbone.Master()
 		self.interrupt = Signal(BV(32))
 		self.ext_break = Signal()
 		self._inst = Instance("lm32_top",

@@ -4,7 +4,7 @@ from migen.corelogic import timeline
 
 class NorFlash:
 	def __init__(self, adr_width, rd_timing):
-		self.bus = wishbone.Slave("norflash")
+		self.bus = wishbone.Slave()
 		self.adr = Signal(BV(adr_width-1))
 		self.d = Signal(BV(16))
 		self.oe_n = Signal()

@@ -3,7 +3,7 @@ from migen.bus import wishbone
 
 class SRAM:
 	def __init__(self, depth):
-		self.bus = wishbone.Slave("sram")
+		self.bus = wishbone.Slave()
 		self.depth = depth
 	
 	def get_fragment(self):
