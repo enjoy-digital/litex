@@ -228,8 +228,11 @@ class Instance:
 	def __hash__(self):
 		return id(self)
 
+(READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
+
 class MemoryPort:
-	def __init__(self, adr, dat_r, we=None, dat_w=None, async_read=False, re=None, we_granularity=0):
+	def __init__(self, adr, dat_r, we=None, dat_w=None,
+	  async_read=False, re=None, we_granularity=0, mode=READ_FIRST):
 		self.adr = adr
 		self.dat_r = dat_r
 		self.we = we
@@ -237,6 +240,7 @@ class MemoryPort:
 		self.async_read = async_read
 		self.re = re
 		self.we_granularity = we_granularity
+		self.mode = mode
 
 class Memory:
 	def __init__(self, width, depth, *ports, init=None):

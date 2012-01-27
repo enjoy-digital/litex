@@ -205,10 +205,10 @@ def _printinstances(f, ns, clk, rst):
 		r += ");\n\n"
 	return r
 
-def _printmemories(f, ns, handler, clk, rst):
+def _printmemories(f, ns, handler, clk):
 	r = ""
 	for memory in f.memories:
-		r += handler(memory, ns, clk, rst)
+		r += handler(memory, ns, clk)
 	return r
 
 def convert(f, ios=set(), name="top",
@@ -233,7 +233,7 @@ def convert(f, ios=set(), name="top",
 	r += _printcomb(f, ns)
 	r += _printsync(f, ns, clk_signal, rst_signal)
 	r += _printinstances(f, ns, clk_signal, rst_signal)
-	r += _printmemories(f, ns, memory_handler, clk_signal, rst_signal)
+	r += _printmemories(f, ns, memory_handler, clk_signal)
 	r += "endmodule\n"
 
 	if return_ns:
