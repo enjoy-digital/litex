@@ -28,12 +28,11 @@ should be able to peek ahead at the incoming requests and service
 several of them in parallel, while respecting the various timing
 specifications of each DRAM bank and avoiding conflicts for the shared
 data lines. Going further in this direction, a controller able to
-complete transfers out of order can provide more performance by:
-(1) grouping together requests by DRAM row, in order to minimize time
-    spent on precharging and activating banks.
-(2) grouping together requests by direction (read or write) in order to
-    minimize delays introduced by bus turnaround and write recovery
-    times.
+complete transfers out of order can provide even more performance by:
+(1) grouping requests by DRAM row, in order to minimize time spent on
+    precharging and activating banks.
+(2) grouping requests by direction (read or write) in order to minimize
+    delays introduced by bus turnaround and write recovery times.
 (3) being able to complete a request that hits a page earlier than a
     concurrent one which requires the cycling of another bank.
 
@@ -81,8 +80,8 @@ The data signals are used to complete requests.
      - DATA_W must supply data to the controller from the appropriate
        write transaction, on the cycle after they have been called using
        CALL and TAG_CALL.
-     - DATA_WM are the byte-granularity write data masks. They are used
-       in combination with DATA_W to identify the bytes that should be
+     - DATA_WM are the byte-granular write data masks. They are used in
+       combination with DATA_W to identify the bytes that should be
        modified in the memory. The DATA_WM bit should be high for its
        corresponding DATA_W byte to be written.
 
@@ -112,8 +111,8 @@ STB <0><1><0><0><1><1><0><1><1><0>
 ACK <0><0><1><0><0><0><1><0><1><1>
 TAG ------<A>---------<B>---<C><D>
 
-SDRAM burst width and clock ratios
-==================================
+SDRAM burst length and clock ratios
+===================================
 A system using ASMI must set the SDRAM burst length B, the ASMIbus word
 width W and the ratio between the ASMIbus clock frequency Fa and the
 SDRAM I/O frequency Fi so that all data transfers last for exactly one
