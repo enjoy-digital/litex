@@ -10,12 +10,12 @@ _desc = [
 ]
 
 class Master(Simple):
-	def __init__(self, name=""):
-		Simple.__init__(self, _desc, False, name)
+	def __init__(self):
+		Simple.__init__(self, _desc, False)
 
 class Slave(Simple):
-	def __init__(self, name=""):
-		Simple.__init__(self, _desc, True, name)
+	def __init__(self):
+		Simple.__init__(self, _desc, True)
 
 class Interconnect:
 	def __init__(self, master, slaves):

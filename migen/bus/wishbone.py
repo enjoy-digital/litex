@@ -18,12 +18,12 @@ _desc = [
 ]
 
 class Master(Simple):
-	def __init__(self, name=""):
-		Simple.__init__(self, _desc, False, name)
+	def __init__(self):
+		Simple.__init__(self, _desc, False)
 
 class Slave(Simple):
-	def __init__(self, name=""):
-		Simple.__init__(self, _desc, True, name)
+	def __init__(self):
+		Simple.__init__(self, _desc, True)
 
 class Arbiter:
 	def __init__(self, masters, target):
@@ -127,7 +127,7 @@ class Decoder:
 
 class InterconnectShared:
 	def __init__(self, masters, slaves, offset=0, register=False):
-		self._shared = Master("shr")
+		self._shared = Master()
 		self._arbiter = Arbiter(masters, self._shared)
 		self._decoder = Decoder(self._shared, slaves, offset, register)
 		self.addresses = self._decoder.addresses

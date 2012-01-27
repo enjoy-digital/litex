@@ -12,12 +12,10 @@ def get_sig_name(signal, slave):
 # 1) string: name
 # 2) int: width
 class Simple():
-	def __init__(self, desc, slave, name):
+	def __init__(self, desc, slave):
 		for signal in desc:
 			modules = self.__module__.split('.')
 			busname = modules[len(modules)-1]
-			if name:
-				busname += "_" + name
 			signame = get_sig_name(signal, slave)
 			setattr(self, signame, Signal(BV(signal[2]), busname + "_" + signame))
 	
