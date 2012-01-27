@@ -310,7 +310,7 @@ Each port description contains:
     in each sub-word. If it is set to 0, the port is using whole-word
     writes only and the width of the write enable signal must be 1. This
     parameter is ignored if there is no write enable signal.
-  - the mode of the port (default READ_FIRST, ignored for asynchronous
+  - the mode of the port (default WRITE_FIRST, ignored for asynchronous
     ports). It can be:
      * READ_FIRST: during a write, the previous value is read.
      * WRITE_FIRST: the written value is returned.

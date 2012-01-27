@@ -232,7 +232,7 @@ class Instance:
 
 class MemoryPort:
 	def __init__(self, adr, dat_r, we=None, dat_w=None,
-	  async_read=False, re=None, we_granularity=0, mode=READ_FIRST):
+	  async_read=False, re=None, we_granularity=0, mode=WRITE_FIRST):
 		self.adr = adr
 		self.dat_r = dat_r
 		self.we = we
