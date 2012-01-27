@@ -4,6 +4,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
 from migen.fhdl.tools import *
 from migen.fhdl.namer import Namespace, build_namespace
+from migen.fhdl import verilog_mem_behavioral
 
 def _printsig(ns, s):
 	if s.bv.signed:
@@ -96,10 +97,10 @@ def _list_comb_wires(f):
 	return r
 
 def _printheader(f, ios, name, ns):
-	sigs = list_signals(f)
-	targets = list_targets(f)
-	instouts = list_inst_ios(f, False, True)
-	wires = _list_comb_wires(f)
+	sigs = list_signals(f) | list_inst_ios(f, True, True) | list_mem_ios(f, True, True)
+	inst_mem_outs = list_inst_ios(f, False, True) | list_mem_ios(f, False, True)
+	targets = list_targets(f) | inst_mem_outs
+	wires = _list_comb_wires(f) | inst_mem_outs
 	r = "module " + name + "(\n"
 	firstp = True
 	for sig in ios:
@@ -111,13 +112,11 @@ def _printheader(f, ios, name, ns):
 				r += "\toutput " + _printsig(ns, sig)
 			else:
 				r += "\toutput reg " + _printsig(ns, sig)
-		elif sig in instouts:
-			r += "\toutput " + _printsig(ns, sig)
 		else:
 			r += "\tinput " + _printsig(ns, sig)
 	r += "\n);\n\n"
 	for sig in sigs - ios:
-		if sig in wires or sig in instouts:
+		if sig in wires:
 			r += "wire " + _printsig(ns, sig) + ";\n"
 		else:
 			r += "reg " + _printsig(ns, sig) + ";\n"
@@ -159,17 +158,17 @@ def _printcomb(f, ns):
 	r += "\n"
 	return r
 
-def _printsync(f, ns, clk_signal, rst_signal):
+def _printsync(f, ns, clk, rst):
 	r = ""
 	if f.sync.l:
-		r += "always @(posedge " + ns.get_name(clk_signal) + ") begin\n"
-		r += _printnode(ns, _AT_SIGNAL, 1, insert_reset(rst_signal, f.sync))
+		r += "always @(posedge " + ns.get_name(clk) + ") begin\n"
+		r += _printnode(ns, _AT_SIGNAL, 1, insert_reset(rst, f.sync))
 		r += "end\n\n"
 	return r
 
-def _printinstances(ns, i, clk, rst):
+def _printinstances(f, ns, clk, rst):
 	r = ""
-	for x in i:
+	for x in f.instances:
 		r += x.of + " "
 		if x.parameters:
 			r += "#(\n"
@@ -206,7 +205,16 @@ def _printinstances(ns, i, clk, rst):
 		r += ");\n\n"
 	return r
 
-def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, return_ns=False):
+def _printmemories(f, ns, handler, clk, rst):
+	r = ""
+	for memory in f.memories:
+		r += handler(memory, ns, clk, rst)
+	return r
+
+def convert(f, ios=set(), name="top",
+  clk_signal=None, rst_signal=None,
+  return_ns=False,
+  memory_handler=verilog_mem_behavioral.handler):
 	if clk_signal is None:
 		clk_signal = Signal(name_override="sys_clk")
 		ios.add(clk_signal)
@@ -215,17 +223,19 @@ def convert(f, ios=set(), name="top", clk_signal=None, rst_signal=None, return_n
 		ios.add(rst_signal)
 	ios |= f.pads
 
-	ns = build_namespace(list_signals(f) | list_inst_ios(f, True, True) | ios)
+	ns = build_namespace(list_signals(f) \
+		| list_inst_ios(f, True, True) \
+		| list_mem_ios(f, True, True) \
+		| ios)
 
-	
 	r = "/* Machine-generated using Migen */\n"
 	r += _printheader(f, ios, name, ns)
 	r += _printcomb(f, ns)
 	r += _printsync(f, ns, clk_signal, rst_signal)
-	r += _printinstances(ns, f.instances, clk_signal, rst_signal)
-	
+	r += _printinstances(f, ns, clk_signal, rst_signal)
+	r += _printmemories(f, ns, memory_handler, clk_signal, rst_signal)
 	r += "endmodule\n"
-	
+
 	if return_ns:
 		return r, ns
 	else:

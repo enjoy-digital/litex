@@ -85,6 +85,23 @@ def list_inst_ios(i, ins, outs):
 				l += x.outs.values()
 		return set(l)
 
+def list_mem_ios(m, ins, outs):
+	if isinstance(m, Fragment):
+		return list_mem_ios(m.memories, ins, outs)
+	else:
+		s = set()
+		def add(*sigs):
+			for sig in sigs:
+				if sig is not None:
+					s.add(sig)
+		for x in m:
+			for p in x.ports:
+				if ins:
+					add(p.adr, p.we, p.dat_w, p.re)
+				if outs:
+					add(p.dat_r)
+		return s
+
 def is_variable(node):
 	if isinstance(node, Signal):
 		return node.variable
