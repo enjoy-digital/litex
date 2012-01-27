@@ -228,18 +228,38 @@ class Instance:
 	def __hash__(self):
 		return id(self)
 
+class MemoryPort:
+	def __init__(self, adr, dat_r, we=None, dat_w=None, async_read=False, re=None, we_granularity=0):
+		self.adr = adr
+		self.dat_r = dat_r
+		self.we = we
+		self.dat_w = dat_w
+		self.async_read = async_read
+		self.re = re
+		self.we_granularity = we_granularity
+
+class Memory:
+	def __init__(self, width, depth, *ports, init=None):
+		self.width = width
+		self.depth = depth
+		self.ports = ports
+		self.init = init
+
 class Fragment:
-	def __init__(self, comb=None, sync=None, instances=None, pads=set()):
+	def __init__(self, comb=None, sync=None, instances=None, memories=None, pads=set()):
 		if comb is None: comb = []
 		if sync is None: sync = []
 		if instances is None: instances = []
+		if memories is None: memories = []
 		self.comb = _sl(comb)
 		self.sync = _sl(sync)
 		self.instances = instances
+		self.memories = memories
 		self.pads = pads
 	
 	def __add__(self, other):
 		return Fragment(self.comb.l + other.comb.l,
 			self.sync.l + other.sync.l,
 			self.instances + other.instances,
+			self.memories + other.memories,
 			self.pads | other.pads)
