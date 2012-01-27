@@ -288,8 +288,39 @@ The properties of the instance object are:
 
 Memories
 --------
-Memories (on-chip SRAM) are not supported, but will be soon, using a
-mechanism similar to instances. (TODO)
+Memories (on-chip SRAM) are supported using a mechanism similar to
+instances.
+
+A memory object has the following parameters:
+  - the width, which is the number of bits in each word.
+  - the depth, which represents the number of words in the memory.
+  - an optional list of integers used to initialize the memory.
+  - a list of port descriptions.
+
+Each port description contains:
+  - the address signal (mandatory).
+  - the data read signal (mandatory).
+  - the write enable signal (optional). If the port is using masked
+    writes, the width of the write enable signal should match the number
+    of sub-words.
+  - the data write signal (iff there is a write enable signal).
+  - whether reads are synchronous (default) or asynchronous.
+  - the read enable port (optional, ignored for asynchronous ports).
+  - the write granularity (default 0), which defines the number of bits
+    in each sub-word. If it is set to 0, the port is using whole-word
+    writes only and the width of the write enable signal must be 1. This
+    parameter is ignored if there is no write enable signal.
+  - the mode of the port (default READ_FIRST, ignored for asynchronous
+    ports). It can be:
+     * READ_FIRST: during a write, the previous value is read.
+     * WRITE_FIRST: the written value is returned.
+     * NO_CHANGE: the data read signal keeps its previous value on a
+       write.
+
+Migen generates behavioural V*HDL code that should be compatible with all
+simulators and, if the number of ports is <= 2, most FPGA synthesizers.
+If a specific code is needed, the memory generator function can be
+overriden using the memory_handler parameter of the conversion function.
 
 Fragments
 ---------
