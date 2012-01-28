@@ -1,6 +1,27 @@
 import inspect
-import re
 from itertools import combinations
+from opcode import opname
+
+def get_var_name(frame):
+	code = frame.f_code
+	call_index = frame.f_lasti
+	if opname[code.co_code[call_index]] != "CALL_FUNCTION":
+		return None
+	index = call_index+3
+	while True:
+		opc = opname[code.co_code[index]]
+		if opc == "STORE_NAME" or opc == "STORE_ATTR":
+			name_index = int(code.co_code[index+1])
+			return code.co_names[name_index]
+		elif opc == "STORE_FAST":
+			name_index = int(code.co_code[index+1])
+			return code.co_varnames[name_index]
+		elif opc == "LOAD_GLOBAL" or opc == "LOAD_ATTR" or opc == "LOAD_FAST":
+			index += 3
+		elif opc == "DUP_TOP":
+			index += 1
+		else:
+			return None
 
 def trace_back(name=None):
 	l = []
@@ -16,13 +37,7 @@ def trace_back(name=None):
 			obj = modules[len(modules)-1]
 		
 		if name is None:
-			code_contexts = inspect.getframeinfo(frame).code_context
-			if code_contexts is not None:
-				line = code_contexts[0]
-				m = re.match("[\t ]*([0-9A-Za-z_\.]+)[\t ]*=", line)
-				if m is not None:
-					names = m.group(1).split(".")
-					name = names[len(names)-1]
+			name = get_var_name(frame)
 		l.insert(0, (obj, name))
 		name = None
 		frame = frame.f_back
