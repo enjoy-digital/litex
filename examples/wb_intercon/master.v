@@ -26,7 +26,7 @@ module master #(
 	
 	output reg [31:0] dat_w,
 	input [31:0] dat_r,
-	output reg [31:0] adr,
+	output reg [29:0] adr,
 	output reg we,
 	output reg [3:0] sel,
 	output cyc,
@@ -66,7 +66,7 @@ always @(posedge sys_clk) begin
 			active <= 1'b0;
 		end else if(~active) begin
 			if(($random % p) == 0) begin
-				adr <= (($random % 5)<< (32-2)) + id;
+				adr <= (($random % 5) << (30-2)) + id;
 				sel <= sel + 1;
 				active <= 1'b1;
 				if(($random % 2) == 0) begin

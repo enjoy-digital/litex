@@ -1,10 +1,10 @@
 from migen.fhdl import verilog
 from migen.bus import wishbone
 
-m1 = wishbone.Master("m1")
-m2 = wishbone.Master("m2")
-s1 = wishbone.Slave("s1")
-s2 = wishbone.Slave("s2")
+m1 = wishbone.Master()
+m2 = wishbone.Master()
+s1 = wishbone.Slave()
+s2 = wishbone.Slave()
 wishbonecon0 = wishbone.InterconnectShared(
 		[m1, m2],
 		[(0, s1), (1, s2)],

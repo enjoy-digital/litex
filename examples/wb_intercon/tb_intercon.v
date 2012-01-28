@@ -1,6 +1,6 @@
 /*
  * Milkymist SoC
- * Copyright (C) 2007, 2008, 2009, 2011 Sebastien Bourdeauducq
+ * Copyright (C) 2007, 2008, 2009, 2011, 2012 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,54 +23,54 @@ reg sys_clk;
 //------------------------------------------------------------------
 // Wishbone master wires
 //------------------------------------------------------------------
-wire [31:0]	wishbone_m1_adr,
-		wishbone_m2_adr;
+wire [29:0]	m1_wishbone_adr,
+		m2_wishbone_adr;
 
-wire [31:0]	wishbone_m1_dat_r,
-		wishbone_m1_dat_w,
-		wishbone_m2_dat_r,
-		wishbone_m2_dat_w;
+wire [31:0]	m1_wishbone_dat_r,
+		m1_wishbone_dat_w,
+		m2_wishbone_dat_r,
+		m2_wishbone_dat_w;
 
-wire [3:0]	wishbone_m1_sel,
-		wishbone_m2_sel;
+wire [3:0]	m1_wishbone_sel,
+		m2_wishbone_sel;
 
-wire		wishbone_m1_we,
-		wishbone_m2_we;
+wire		m1_wishbone_we,
+		m2_wishbone_we;
 
-wire		wishbone_m1_cyc,
-		wishbone_m2_cyc;
+wire		m1_wishbone_cyc,
+		m2_wishbone_cyc;
 
-wire		wishbone_m1_stb,
-		wishbone_m2_stb;
+wire		m1_wishbone_stb,
+		m2_wishbone_stb;
 
-wire		wishbone_m1_ack,
-		wishbone_m2_ack;
+wire		m1_wishbone_ack,
+		m2_wishbone_ack;
 
 //------------------------------------------------------------------
 // Wishbone slave wires
 //------------------------------------------------------------------
-wire [31:0]	wishbone_s1_adr,
-		wishbone_s2_adr;
+wire [29:0]	s1_wishbone_adr,
+		s2_wishbone_adr;
 
-wire [31:0]	wishbone_s1_dat_r,
-		wishbone_s1_dat_w,
-		wishbone_s2_dat_r,
-		wishbone_s2_dat_w;
+wire [31:0]	s1_wishbone_dat_r,
+		s1_wishbone_dat_w,
+		s2_wishbone_dat_r,
+		s2_wishbone_dat_w;
 
-wire [3:0]	wishbone_s1_sel,
-		wishbone_s2_sel;
+wire [3:0]	s1_wishbone_sel,
+		s2_wishbone_sel;
 
-wire		wishbone_s1_we,
-		wishbone_s2_we;
+wire		s1_wishbone_we,
+		s2_wishbone_we;
 
-wire		wishbone_s1_cyc,
-		wishbone_s2_cyc;
+wire		s1_wishbone_cyc,
+		s2_wishbone_cyc;
 
-wire		wishbone_s1_stb,
-		wishbone_s2_stb;
+wire		s1_wishbone_stb,
+		s2_wishbone_stb;
 
-wire		wishbone_s1_ack,
-		wishbone_s2_ack;
+wire		s1_wishbone_ack,
+		s2_wishbone_ack;
 
 //---------------------------------------------------------------------------
 // Wishbone switch
@@ -80,84 +80,84 @@ intercon dut(
 	.sys_rst(sys_rst),
 
 	// Master 0
-	.wishbone_m1_dat_o(wishbone_m1_dat_w),
-	.wishbone_m1_dat_i(wishbone_m1_dat_r),
-	.wishbone_m1_adr_o(wishbone_m1_adr),
-	.wishbone_m1_we_o(wishbone_m1_we),
-	.wishbone_m1_sel_o(wishbone_m1_sel),
-	.wishbone_m1_cyc_o(wishbone_m1_cyc),
-	.wishbone_m1_stb_o(wishbone_m1_stb),
-	.wishbone_m1_ack_i(wishbone_m1_ack),
+	.m1_wishbone_dat_o(m1_wishbone_dat_w),
+	.m1_wishbone_dat_i(m1_wishbone_dat_r),
+	.m1_wishbone_adr_o(m1_wishbone_adr),
+	.m1_wishbone_we_o(m1_wishbone_we),
+	.m1_wishbone_sel_o(m1_wishbone_sel),
+	.m1_wishbone_cyc_o(m1_wishbone_cyc),
+	.m1_wishbone_stb_o(m1_wishbone_stb),
+	.m1_wishbone_ack_i(m1_wishbone_ack),
 	// Master 1
-	.wishbone_m2_dat_o(wishbone_m2_dat_w),
-	.wishbone_m2_dat_i(wishbone_m2_dat_r),
-	.wishbone_m2_adr_o(wishbone_m2_adr),
-	.wishbone_m2_we_o(wishbone_m2_we),
-	.wishbone_m2_sel_o(wishbone_m2_sel),
-	.wishbone_m2_cyc_o(wishbone_m2_cyc),
-	.wishbone_m2_stb_o(wishbone_m2_stb),
-	.wishbone_m2_ack_i(wishbone_m2_ack),
+	.m2_wishbone_dat_o(m2_wishbone_dat_w),
+	.m2_wishbone_dat_i(m2_wishbone_dat_r),
+	.m2_wishbone_adr_o(m2_wishbone_adr),
+	.m2_wishbone_we_o(m2_wishbone_we),
+	.m2_wishbone_sel_o(m2_wishbone_sel),
+	.m2_wishbone_cyc_o(m2_wishbone_cyc),
+	.m2_wishbone_stb_o(m2_wishbone_stb),
+	.m2_wishbone_ack_i(m2_wishbone_ack),
 
 	// Slave 0
-	.wishbone_s1_dat_o(wishbone_s1_dat_r),
-	.wishbone_s1_dat_i(wishbone_s1_dat_w),
-	.wishbone_s1_adr_i(wishbone_s1_adr),
-	.wishbone_s1_sel_i(wishbone_s1_sel),
-	.wishbone_s1_we_i(wishbone_s1_we),
-	.wishbone_s1_cyc_i(wishbone_s1_cyc),
-	.wishbone_s1_stb_i(wishbone_s1_stb),
-	.wishbone_s1_ack_o(wishbone_s1_ack),
+	.s1_wishbone_dat_o(s1_wishbone_dat_r),
+	.s1_wishbone_dat_i(s1_wishbone_dat_w),
+	.s1_wishbone_adr_i(s1_wishbone_adr),
+	.s1_wishbone_sel_i(s1_wishbone_sel),
+	.s1_wishbone_we_i(s1_wishbone_we),
+	.s1_wishbone_cyc_i(s1_wishbone_cyc),
+	.s1_wishbone_stb_i(s1_wishbone_stb),
+	.s1_wishbone_ack_o(s1_wishbone_ack),
 	// Slave 1
-	.wishbone_s2_dat_o(wishbone_s2_dat_r),
-	.wishbone_s2_dat_i(wishbone_s2_dat_w),
-	.wishbone_s2_adr_i(wishbone_s2_adr),
-	.wishbone_s2_sel_i(wishbone_s2_sel),
-	.wishbone_s2_we_i(wishbone_s2_we),
-	.wishbone_s2_cyc_i(wishbone_s2_cyc),
-	.wishbone_s2_stb_i(wishbone_s2_stb),
-	.wishbone_s2_ack_o(wishbone_s2_ack)
+	.s2_wishbone_dat_o(s2_wishbone_dat_r),
+	.s2_wishbone_dat_i(s2_wishbone_dat_w),
+	.s2_wishbone_adr_i(s2_wishbone_adr),
+	.s2_wishbone_sel_i(s2_wishbone_sel),
+	.s2_wishbone_we_i(s2_wishbone_we),
+	.s2_wishbone_cyc_i(s2_wishbone_cyc),
+	.s2_wishbone_stb_i(s2_wishbone_stb),
+	.s2_wishbone_ack_o(s2_wishbone_ack)
 );
 
 //---------------------------------------------------------------------------
 // Masters
 //---------------------------------------------------------------------------
 
-wire wishbone_m1_end;
+wire m1_wishbone_end;
 master #(
 	.id(0)
 ) m0 (
 	.sys_clk(sys_clk),
 	.sys_rst(sys_rst),
 	
-	.dat_w(wishbone_m1_dat_w),
-	.dat_r(wishbone_m1_dat_r),
-	.adr(wishbone_m1_adr),
-	.we(wishbone_m1_we),
-	.sel(wishbone_m1_sel),
-	.cyc(wishbone_m1_cyc),
-	.stb(wishbone_m1_stb),
-	.ack(wishbone_m1_ack),
+	.dat_w(m1_wishbone_dat_w),
+	.dat_r(m1_wishbone_dat_r),
+	.adr(m1_wishbone_adr),
+	.we(m1_wishbone_we),
+	.sel(m1_wishbone_sel),
+	.cyc(m1_wishbone_cyc),
+	.stb(m1_wishbone_stb),
+	.ack(m1_wishbone_ack),
 	
-	.tend(wishbone_m1_end)
+	.tend(m1_wishbone_end)
 );
 
-wire wishbone_m2_end;
+wire m2_wishbone_end;
 master #(
 	.id(1)
 ) m1 (
 	.sys_clk(sys_clk),
 	.sys_rst(sys_rst),
 	
-	.dat_w(wishbone_m2_dat_w),
-	.dat_r(wishbone_m2_dat_r),
-	.adr(wishbone_m2_adr),
-	.we(wishbone_m2_we),
-	.sel(wishbone_m2_sel),
-	.cyc(wishbone_m2_cyc),
-	.stb(wishbone_m2_stb),
-	.ack(wishbone_m2_ack),
+	.dat_w(m2_wishbone_dat_w),
+	.dat_r(m2_wishbone_dat_r),
+	.adr(m2_wishbone_adr),
+	.we(m2_wishbone_we),
+	.sel(m2_wishbone_sel),
+	.cyc(m2_wishbone_cyc),
+	.stb(m2_wishbone_stb),
+	.ack(m2_wishbone_ack),
 	
-	.tend(wishbone_m2_end)
+	.tend(m2_wishbone_end)
 );
 
 //---------------------------------------------------------------------------
@@ -170,14 +170,14 @@ slave #(
 	.sys_clk(sys_clk),
 	.sys_rst(sys_rst),
 
-	.dat_w(wishbone_s1_dat_w),
-	.dat_r(wishbone_s1_dat_r),
-	.adr(wishbone_s1_adr),
-	.we(wishbone_s1_we),
-	.sel(wishbone_s1_sel),
-	.cyc(wishbone_s1_cyc),
-	.stb(wishbone_s1_stb),
-	.ack(wishbone_s1_ack)
+	.dat_w(s1_wishbone_dat_w),
+	.dat_r(s1_wishbone_dat_r),
+	.adr(s1_wishbone_adr),
+	.we(s1_wishbone_we),
+	.sel(s1_wishbone_sel),
+	.cyc(s1_wishbone_cyc),
+	.stb(s1_wishbone_stb),
+	.ack(s1_wishbone_ack)
 );
 
 slave #(
@@ -186,20 +186,20 @@ slave #(
 	.sys_clk(sys_clk),
 	.sys_rst(sys_rst),
 
-	.dat_w(wishbone_s2_dat_w),
-	.dat_r(wishbone_s2_dat_r),
-	.adr(wishbone_s2_adr),
-	.we(wishbone_s2_we),
-	.sel(wishbone_s2_sel),
-	.cyc(wishbone_s2_cyc),
-	.stb(wishbone_s2_stb),
-	.ack(wishbone_s2_ack)
+	.dat_w(s2_wishbone_dat_w),
+	.dat_r(s2_wishbone_dat_r),
+	.adr(s2_wishbone_adr),
+	.we(s2_wishbone_we),
+	.sel(s2_wishbone_sel),
+	.cyc(s2_wishbone_cyc),
+	.stb(s2_wishbone_stb),
+	.ack(s2_wishbone_ack)
 );
 
 initial sys_clk = 1'b0;
 always #5 sys_clk = ~sys_clk;
 
-wire all_end = wishbone_m1_end & wishbone_m2_end;
+wire all_end = m1_wishbone_end & m2_wishbone_end;
 
 always begin
 	$dumpfile("intercon.vcd");

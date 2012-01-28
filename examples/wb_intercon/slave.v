@@ -24,7 +24,7 @@ module slave #(
 	
 	input [31:0] dat_w,
 	output reg [31:0] dat_r,
-	input [31:0] adr,
+	input [29:0] adr,
 	input we,
 	input [3:0] sel,
 	input cyc,
