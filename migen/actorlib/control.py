@@ -17,9 +17,9 @@ class For(Actor):
 		if step: params.append("step")
 		self.d_bv = [BV(bits_for(dimension)) for dimension in maxima]
 		l_sink = [("d{0}".format(n), [(p, bv) for p in params])
-			for n, bv in zip(range(len(self.d_bv)), self.d_bv)]
+			for n, bv in enumerate(self.d_bv)]
 		l_source = [("d{0}".format(n), bv)
-			for n, bv in zip(range(len(self.d_bv)), self.d_bv)]
+			for n, bv in enumerate(self.d_bv)]
 		Actor.__init__(self, SchedulingModel(SchedulingModel.DYNAMIC),
 			("sink", Sink, l_sink),
 			("source", Source, l_source))

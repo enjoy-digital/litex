@@ -5,7 +5,7 @@ class FSM:
 		self._state_bv = BV(bits_for(len(states)-1))
 		self._state = Signal(self._state_bv)
 		self._next_state = Signal(self._state_bv)
-		for state, n in zip(states, range(len(states))):
+		for n, state in enumerate(states):
 			setattr(self, state, Constant(n, self._state_bv))
 		self.actions = [[] for i in range(len(states))]
 	
@@ -20,7 +20,7 @@ class FSM:
 	
 	def get_fragment(self):
 		cases = [[Constant(s, self._state_bv)] + a
-			for s, a in zip(range(len(self.actions)), self.actions) if a]
+			for s, a in enumerate(self.actions) if a]
 		comb = [
 			self._next_state.eq(self._state),
 			Case(self._state, *cases)

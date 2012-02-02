@@ -19,8 +19,8 @@ class Combinator(Actor):
 	def __init__(self, layout, *subrecords):
 		source = Record(layout)
 		subrecords = [source.subrecord(*subr) for subr in subrecords]
-		eps = [("sink{0}".format(x[0]), Sink, x[1])
-			for x in zip(range(len(subrecords)), subrecords)]
+		eps = [("sink{0}".format(n), Sink, r)
+			for x in enumerate(subrecords)]
 		ep_source = ("source", Source, source)
 		eps.append(ep_source)
 		Actor.__init__(self,
@@ -39,8 +39,8 @@ class Splitter(Actor):
 	def __init__(self, layout, *subrecords):
 		sink = Record(layout)
 		subrecords = [sink.subrecord(*subr) for subr in subrecords]
-		eps = [("source{0}".format(x[0]), Source, x[1])
-			for x in zip(range(len(subrecords)), subrecords)]
+		eps = [("source{0}".format(n), Source, r)
+			for n, r in enumerate(subrecords)]
 		ep_sink = ("sink", Sink, sink)
 		eps.append(ep_sink)
 		Actor.__init__(self,
