@@ -9,7 +9,7 @@ class SRAM:
 	def get_fragment(self):
 		# generate write enable signal
 		we = Signal(BV(4))
-		comb = [we[i].eq(self.bus.cyc_i & self.bus.stb_i & self.bus.sel_i[3-i])
+		comb = [we[i].eq(self.bus.cyc_i & self.bus.stb_i & self.bus.we_i & self.bus.sel_i[3-i])
 			for i in range(4)]
 		# split address
 		nbits = bits_for(self.depth-1)
