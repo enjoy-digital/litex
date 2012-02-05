@@ -127,6 +127,9 @@ class Constant(Value):
 	def __eq__(self, other):
 		return self.bv == other.bv and self.n == other.n
 
+def binc(x, signed=False):
+	return Constant(int(x, 2), BV(len(x), signed))
+
 def _cst(x):
 	if isinstance(x, int):
 		return Constant(x)
