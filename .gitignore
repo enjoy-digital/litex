@@ -1,2 +1,8 @@
 __pycache__
 build/*
+*.o
+*.d
+*.a
+tools/bin2hex
+tools/flterm
+tools/mkmmimg
