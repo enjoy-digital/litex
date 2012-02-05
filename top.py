@@ -17,11 +17,25 @@ def get():
 	norflash0 = norflash.NorFlash(25, 12)
 	sram0 = sram.SRAM(sram_size//4)
 	wishbone2csr0 = wishbone2csr.WB2CSR()
+	
+	# norflash     0x00000000 (shadow @0x80000000)
+	# SRAM/debug   0x10000000 (shadow @0x90000000)
+	# USB          0x20000000 (shadow @0xa0000000)
+	# Ethernet     0x30000000 (shadow @0xb0000000)
+	# SDRAM        0x40000000 (shadow @0xc0000000)
+	# CSR bridge   0x60000000 (shadow @0xe0000000)	
 	wishbonecon0 = wishbone.InterconnectShared(
-		[cpu0.ibus, cpu0.dbus],
-		[(0, norflash0.bus), (1, sram0.bus), (3, wishbone2csr0.wishbone)],
+		[
+			cpu0.ibus,
+			cpu0.dbus
+		], [
+			(binc("000"), norflash0.bus),
+			(binc("001"), sram0.bus),
+			(binc("11"), wishbone2csr0.wishbone)
+		],
 		register=True,
 		offset=1)
+	
 	uart0 = uart.UART(0, clk_freq, baud=115200)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [uart0.bank.interface])
 	
