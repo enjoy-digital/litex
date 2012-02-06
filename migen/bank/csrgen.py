@@ -15,11 +15,12 @@ class Bank:
 		sel = Signal()
 		comb.append(sel.eq(self.interface.a_i[9:] == Constant(self.address, BV(5))))
 		
-		nbits = bits_for(len(self.description)-1)
+		desc_exp = expand_description(self.description, 8)
+		nbits = bits_for(len(desc_exp)-1)
 		
 		# Bus writes
 		bwcases = []
-		for i, reg in enumerate(self.description):
+		for i, reg in enumerate(desc_exp):
 			if isinstance(reg, RegisterRaw):
 				comb.append(reg.r.eq(self.interface.d_i[:reg.size]))
 				comb.append(reg.re.eq(sel & \
@@ -27,9 +28,11 @@ class Bank:
 					(self.interface.a_i[:nbits] == Constant(i, BV(nbits)))))
 			elif isinstance(reg, RegisterFields):
 				bwra = [Constant(i, BV(nbits))]
-				for j, field in enumerate(reg.fields):
+				offset = 0
+				for field in reg.fields:
 					if field.access_bus == WRITE_ONLY or field.access_bus == READ_WRITE:
-						bwra.append(field.storage.eq(self.interface.d_i[j]))
+						bwra.append(field.storage.eq(self.interface.d_i[offset:offset+field.size]))
+					offset += field.size
 				if len(bwra) > 1:
 					bwcases.append(bwra)
 			else:
@@ -39,13 +42,13 @@ class Bank:
 		
 		# Bus reads
 		brcases = []
-		for i, reg in enumerate(self.description):
+		for i, reg in enumerate(desc_exp):
 			if isinstance(reg, RegisterRaw):
 				brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(reg.w)])
 			elif isinstance(reg, RegisterFields):
 				brs = []
 				reg_readable = False
-				for j, field in enumerate(reg.fields):
+				for field in reg.fields:
 					if field.access_bus == READ_ONLY or field.access_bus == READ_WRITE:
 						brs.append(field.storage)
 						reg_readable = True
@@ -53,7 +56,7 @@ class Bank:
 						brs.append(Constant(0, BV(field.size)))
 				if reg_readable:
 					if len(brs) > 1:
-						brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(f.Cat(*brs))])
+						brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(Cat(*brs))])
 					else:
 						brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(brs[0])])
 			else:

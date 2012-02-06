@@ -3,7 +3,7 @@ from migen.fhdl import verilog
 from migen.bank import description, csrgen
 
 ninputs = 4
-noutputs = 4
+noutputs = 31
 
 oreg = description.RegisterField("o", noutputs)
 ireg = description.RegisterRaw("i", ninputs)
