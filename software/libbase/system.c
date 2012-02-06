@@ -44,7 +44,7 @@ __attribute__((noreturn)) void reboot(void)
 {
 	uart_sync();
 	irq_setmask(0);
-	irq_enable(0);
+	irq_setie(0);
 	CSR_SYSTEM_ID = 1; /* Writing to CSR_SYSTEM_ID causes a system reset */
 	while(1);
 }
@@ -61,7 +61,7 @@ __attribute__((noreturn)) void reconf(void)
 {
 	uart_sync();
 	irq_setmask(0);
-	irq_enable(0);
+	irq_setie(0);
 	icap_write(0, 0xffff); /* dummy word */
 	icap_write(0, 0xffff); /* dummy word */
 	icap_write(0, 0xffff); /* dummy word */

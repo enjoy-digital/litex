@@ -49,9 +49,4 @@ static inline unsigned int irq_pending(void)
        return pending;
 }
 
-static inline void irq_ack(unsigned int mask)
-{
-       __asm__ __volatile__("wcsr IP, %0" : : "r" (mask));
-}
-
 #endif /* __IRQ_H */

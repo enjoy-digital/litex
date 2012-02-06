@@ -62,7 +62,6 @@ void uart_isr(void)
 	}
 
 	CSR_UART_EV_PENDING = stat;
-	irq_ack(IRQ_UART);
 }
 
 /* Do not use in interrupt handlers! */
@@ -107,8 +106,6 @@ void uart_init(void)
 	tx_produce = 0;
 	tx_consume = 0;
 	tx_cts = 1;
-
-	irq_ack(IRQ_UART);
 
 	/* ack any events */
 	CSR_UART_EV_PENDING = CSR_UART_EV_PENDING;
