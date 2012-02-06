@@ -93,7 +93,7 @@ parameter interrupts = `CFG_INTERRUPTS;         // Number of interrupts
 input clk_i;                                    // Clock
 input rst_i;                                    // Reset
 
-input [interrupts-1:0] interrupt;               // Interrupt pins, active-low
+input [interrupts-1:0] interrupt;               // Interrupt pins
 
 input stall_x;                                  // Stall X pipeline stage
 
@@ -126,8 +126,6 @@ reg    [`LM32_WORD_RNG] csr_read_data;
 // Internal nets and registers 
 /////////////////////////////////////////////////////
 
-wire [interrupts-1:0] asserted;                 // Which interrupts are currently being asserted
-//pragma attribute asserted preserve_signal true
 wire [interrupts-1:0] interrupt_n_exception;
 
 // Interrupt CSRs
@@ -149,9 +147,6 @@ assign interrupt_n_exception = ip & im;
 
 // Determine if any unmasked interrupts have occured
 assign interrupt_exception = (|interrupt_n_exception) & ie;
-
-// Determine which interrupts are currently being asserted (active-low) or are already pending
-assign asserted = ip | interrupt;
        
 assign ie_csr_read_data = {{`LM32_WORD_WIDTH-3{1'b0}}, 
 `ifdef CFG_DEBUG_ENABLED
@@ -231,7 +226,7 @@ begin
     else
     begin
         // Set IP bit when interrupt line is asserted
-        ip <= asserted;
+        ip <= interrupt;
 `ifdef CFG_DEBUG_ENABLED
         if (non_debug_exception == `TRUE)
         begin
@@ -276,8 +271,6 @@ begin
                 end
                 if (csr == `LM32_CSR_IM)
                     im <= csr_write_data[interrupts-1:0];
-                if (csr == `LM32_CSR_IP)
-                    ip <= asserted & ~csr_write_data[interrupts-1:0];
             end
         end
     end
@@ -300,7 +293,7 @@ begin
     else
     begin
         // Set IP bit when interrupt line is asserted
-        ip <= asserted;
+        ip <= interrupt;
 `ifdef CFG_DEBUG_ENABLED
         if (non_debug_exception == `TRUE)
         begin
@@ -343,8 +336,6 @@ begin
                     bie <= csr_write_data[2];
 `endif
                 end
-                if (csr == `LM32_CSR_IP)
-                    ip <= asserted & ~csr_write_data[interrupts-1:0];
             end
         end
     end
