@@ -1,34 +1,34 @@
 from migen.fhdl.structure import *
 
-class Register:
-	def __init__(self, name, raw=None):
+class RegisterRaw:
+	def __init__(self, name, size=1):
 		self.name = name
-		self.raw = raw
-		if raw is not None:
-			self.dev_re = Signal(name=name + "_re")
-			self.dev_r = Signal(raw, name + "_r")
-			self.dev_w = Signal(raw, name + "_w")
-		else:
-			self.fields = []
-	
-	def add_field(self, f):
-		self.fields.append(f)
+		self.size = size
+		self.re = Signal()
+		self.r = Signal(BV(self.size))
+		self.w = Signal(BV(self.size))
 
 (READ_ONLY, WRITE_ONLY, READ_WRITE) = range(3)
 
 class Field:
-	def __init__(self, parent, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0):
-		self.parent = parent
+	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0):
 		self.name = name
 		self.size = size
 		self.access_bus = access_bus
 		self.access_dev = access_dev
-		self.reset = reset
-		fullname = parent.name + "_" + name
-		self.storage = Signal(BV(self.size), fullname)
+		self.storage = Signal(BV(self.size), reset=reset)
 		if self.access_dev == READ_ONLY or self.access_dev == READ_WRITE:
-			self.dev_r = Signal(BV(self.size), fullname + "_r")
+			self.r = Signal(BV(self.size))
 		if self.access_dev == WRITE_ONLY or self.access_dev == READ_WRITE:
-			self.dev_w = Signal(BV(self.size), fullname + "_w")
-			self.dev_we = Signal(name=fullname + "_we")
-		self.parent.add_field(self)
+			self.w = Signal(BV(self.size))
+			self.we = Signal()
+
+class RegisterFields:
+	def __init__(self, name, fields):
+		self.name = name
+		self.fields = fields
+
+class RegisterField(RegisterFields):
+	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0):
+		self.field = Field(name, size, access_bus, access_dev, reset)
+		RegisterFields.__init__(self, name, [self.field])

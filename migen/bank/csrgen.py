@@ -20,7 +20,12 @@ class Bank:
 		# Bus writes
 		bwcases = []
 		for i, reg in enumerate(self.description):
-			if reg.raw is None:
+			if isinstance(reg, RegisterRaw):
+				comb.append(reg.r.eq(self.interface.d_i[:reg.size]))
+				comb.append(reg.re.eq(sel & \
+					self.interface.we_i & \
+					(self.interface.a_i[:nbits] == Constant(i, BV(nbits)))))
+			elif isinstance(reg, RegisterFields):
 				bwra = [Constant(i, BV(nbits))]
 				for j, field in enumerate(reg.fields):
 					if field.access_bus == WRITE_ONLY or field.access_bus == READ_WRITE:
@@ -28,17 +33,16 @@ class Bank:
 				if len(bwra) > 1:
 					bwcases.append(bwra)
 			else:
-				comb.append(reg.dev_r.eq(self.interface.d_i[:reg.raw.width]))
-				comb.append(reg.dev_re.eq(sel & \
-					self.interface.we_i & \
-					(self.interface.a_i[:nbits] == Constant(i, BV(nbits)))))
+				raise TypeError
 		if bwcases:
 			sync.append(If(sel & self.interface.we_i, Case(self.interface.a_i[:nbits], *bwcases)))
 		
 		# Bus reads
 		brcases = []
 		for i, reg in enumerate(self.description):
-			if reg.raw is None:
+			if isinstance(reg, RegisterRaw):
+				brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(reg.w)])
+			elif isinstance(reg, RegisterFields):
 				brs = []
 				reg_readable = False
 				for j, field in enumerate(reg.fields):
@@ -53,7 +57,7 @@ class Bank:
 					else:
 						brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(brs[0])])
 			else:
-				brcases.append([Constant(i, BV(nbits)), self.interface.d_o.eq(reg.dev_w)])
+				raise TypeError
 		if brcases:
 			sync.append(self.interface.d_o.eq(Constant(0, BV(8))))
 			sync.append(If(sel, Case(self.interface.a_i[:nbits], *brcases)))
@@ -62,11 +66,11 @@ class Bank:
 		
 		# Device access
 		for reg in self.description:
-			if reg.raw is None:
+			if isinstance(reg, RegisterFields):
 				for field in reg.fields:
 					if field.access_dev == READ_ONLY or field.access_dev == READ_WRITE:
-						comb.append(field.dev_r.eq(field.storage))
+						comb.append(field.r.eq(field.storage))
 					if field.access_dev == WRITE_ONLY or field.access_dev == READ_WRITE:
-						sync.append(If(field.dev_we, field.storage.eq(field.dev_w)))
+						sync.append(If(field.we, field.storage.eq(field.w)))
 		
 		return Fragment(comb, sync)
