@@ -44,14 +44,14 @@ static volatile int tx_cts;
 
 void uart_isr(void)
 {
-	unsigned int stat = CSR_UART_STAT;
+	unsigned int stat = CSR_UART_EV_PENDING;
 
-	if(stat & UART_STAT_RX_EVT) {
+	if(stat & UART_EV_RX) {
 		rx_buf[rx_produce] = CSR_UART_RXTX;
 		rx_produce = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
 	}
 
-	if(stat & UART_STAT_TX_EVT) {
+	if(stat & UART_EV_TX) {
 		if(tx_produce != tx_consume) {
 			CSR_UART_RXTX = tx_buf[tx_consume];
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
@@ -59,7 +59,7 @@ void uart_isr(void)
 			tx_cts = 1;
 	}
 
-	CSR_UART_STAT = stat;
+	CSR_UART_EV_PENDING = stat;
 	irq_ack(IRQ_UART);
 }
 
@@ -109,10 +109,10 @@ void uart_init(void)
 	irq_ack(IRQ_UART);
 
 	/* ack any events */
-	CSR_UART_STAT = CSR_UART_STAT;
+	CSR_UART_EV_PENDING = CSR_UART_EV_PENDING;
 
 	/* enable interrupts */
-	CSR_UART_CTRL = UART_CTRL_TX_INT | UART_CTRL_RX_INT;
+	CSR_UART_EV_ENABLE = UART_EV_TX | UART_EV_RX;
 
 	mask = irq_getmask();
 	mask |= IRQ_UART;

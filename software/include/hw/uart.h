@@ -1,6 +1,6 @@
 /*
  * Milkymist SoC (Software)
- * Copyright (C) 2007, 2008, 2009, 2010 Sebastien Bourdeauducq
+ * Copyright (C) 2007, 2008, 2009, 2010, 2012 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,19 +21,14 @@
 #include <hw/common.h>
 
 #define CSR_UART_RXTX 		MMPTR(0xe0000000)
-#define CSR_UART_DIVISOR	MMPTR(0xe0000004)
-#define CSR_UART_STAT		MMPTR(0xe0000008)
-#define CSR_UART_CTRL		MMPTR(0xe000000c)
-#define CSR_UART_DEBUG		MMPTR(0xe0000010)
+#define CSR_UART_DIVISORH	MMPTR(0xe0000004)
+#define CSR_UART_DIVISORL	MMPTR(0xe0000008)
 
-#define UART_STAT_THRE		(0x1)
-#define UART_STAT_RX_EVT	(0x2)
-#define UART_STAT_TX_EVT	(0x4)
+#define CSR_UART_EV_STAT	MMPTR(0xe000000c)
+#define CSR_UART_EV_PENDING	MMPTR(0xe0000010)
+#define CSR_UART_EV_ENABLE	MMPTR(0xe0000014)
 
-#define UART_CTRL_RX_INT	(0x1)
-#define UART_CTRL_TX_INT	(0x2)
-#define UART_CTRL_THRU		(0x4)
-
-#define UART_DEBUG_BREAK_EN	(0x1)
+#define UART_EV_TX		(0x1)
+#define UART_EV_RX		(0x2)
 
 #endif /* __HW_UART_H */

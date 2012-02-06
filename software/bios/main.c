@@ -3,7 +3,7 @@
 static void print(const char *s)
 {
 	while(*s) {
-		while(!(CSR_UART_STAT & UART_STAT_THRE));
+		while(CSR_UART_EV_STAT & UART_EV_TX);
 		CSR_UART_RXTX = *s;
 		s++;
 	}
