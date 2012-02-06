@@ -8,7 +8,7 @@ import constraints
 def get():
 	MHz = 1000000
 	clk_freq = 80*MHz
-	sram_size = 4096 # in kilobytes
+	sram_size = 4096 # in bytes
 	
 	clkfx_sys = clkfx.ClkFX(50*MHz, clk_freq)
 	reset0 = m1reset.M1Reset()
