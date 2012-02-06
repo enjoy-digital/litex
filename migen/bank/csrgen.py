@@ -15,18 +15,14 @@ class Bank:
 		sel = Signal()
 		comb.append(sel.eq(self.interface.a_i[9:] == Constant(self.address, BV(5))))
 		
-		nregs = len(self.description)
-		nbits = bits_for(nregs-1)
+		nbits = bits_for(len(self.description)-1)
 		
 		# Bus writes
 		bwcases = []
-		for i in range(nregs):
-			reg = self.description[i]
+		for i, reg in enumerate(self.description):
 			if reg.raw is None:
 				bwra = [Constant(i, BV(nbits))]
-				nfields = len(reg.fields)
-				for j in range(nfields):
-					field = reg.fields[j]
+				for j, field in enumerate(reg.fields):
 					if field.access_bus == WRITE_ONLY or field.access_bus == READ_WRITE:
 						bwra.append(field.storage.eq(self.interface.d_i[j]))
 				if len(bwra) > 1:
@@ -41,14 +37,11 @@ class Bank:
 		
 		# Bus reads
 		brcases = []
-		for i in range(nregs):
-			reg = self.description[i]
+		for i, reg in enumerate(self.description):
 			if reg.raw is None:
-				nfields = len(reg.fields)
 				brs = []
 				reg_readable = False
-				for j in range(nfields):
-					field = reg.fields[j]
+				for j, field in enumerate(reg.fields):
 					if field.access_bus == READ_ONLY or field.access_bus == READ_WRITE:
 						brs.append(field.storage)
 						reg_readable = True
