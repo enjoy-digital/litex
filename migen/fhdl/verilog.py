@@ -34,6 +34,12 @@ def _printexpr(ns, node):
 			raise TypeError
 		return "(" + r + ")"
 	elif isinstance(node, _Slice):
+		# Verilog does not like us slicing non-array signals...
+		if isinstance(node.value, Signal) \
+		  and node.value.bv.width == 1 \
+		  and node.start == 0 and node.stop == 1:
+			  return _printexpr(ns, node.value)
+
 		if node.start + 1 == node.stop:
 			sr = "[" + str(node.start) + "]"
 		else:
