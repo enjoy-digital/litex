@@ -39,7 +39,11 @@ def get():
 	uart0 = uart.UART(0, clk_freq, baud=115200)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [uart0.bank.interface])
 	
-	frag = autofragment.from_local()
+	interrupts = Fragment([
+		cpu0.interrupt[0].eq(uart0.events.irq)
+	])
+	
+	frag = autofragment.from_local() + interrupts
 	src_verilog, vns = verilog.convert(frag,
 		{clkfx_sys.clkin, reset0.trigger_reset},
 		name="soc",
