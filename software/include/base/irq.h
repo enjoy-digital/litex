@@ -18,9 +18,16 @@
 #ifndef __IRQ_H
 #define __IRQ_H
 
-static inline void irq_enable(unsigned int en)
+static inline unsigned int irq_getie(void)
 {
-       __asm__ __volatile__("wcsr IE, %0" : : "r" (en));
+       unsigned int ie;
+       __asm__ __volatile__("rcsr %0, IE" : "=r" (ie));
+       return ie;
+}
+
+static inline void irq_setie(unsigned int ie)
+{
+       __asm__ __volatile__("wcsr IE, %0" : : "r" (ie));
 }
 
 static inline unsigned int irq_getmask(void)
@@ -45,18 +52,6 @@ static inline unsigned int irq_pending(void)
 static inline void irq_ack(unsigned int mask)
 {
        __asm__ __volatile__("wcsr IP, %0" : : "r" (mask));
-}
-
-static inline unsigned int irq_getie(void)
-{
-       unsigned int ie;
-       __asm__ __volatile__("rcsr %0, IE" : "=r" (ie));
-       return ie;
-}
-
-static inline void irq_setie(unsigned int ie)
-{
-       __asm__ __volatile__("wcsr IE, %0" : : "r" (ie));
 }
 
 #endif /* __IRQ_H */

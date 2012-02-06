@@ -1,16 +1,14 @@
-#include <hw/uart.h>
-
-static void print(const char *s)
-{
-	while(*s) {
-		while(CSR_UART_EV_STAT & UART_EV_TX);
-		CSR_UART_RXTX = *s;
-		s++;
-	}
-}
+#include <stdio.h>
+#include <irq.h>
+#include <uart.h>
 
 int main(void)
 {
-	print("Hello World\n");
+	irq_setmask(0);
+	irq_setie(1);
+	uart_init();
+	
+	printf("Hello World with IRQs\n");
+	
 	while(1);
 }

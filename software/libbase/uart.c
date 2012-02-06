@@ -44,7 +44,9 @@ static volatile int tx_cts;
 
 void uart_isr(void)
 {
-	unsigned int stat = CSR_UART_EV_PENDING;
+	unsigned int stat;
+	
+	stat = CSR_UART_EV_PENDING;
 
 	if(stat & UART_EV_RX) {
 		rx_buf[rx_produce] = CSR_UART_RXTX;

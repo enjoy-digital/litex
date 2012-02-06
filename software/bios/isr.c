@@ -16,10 +16,16 @@
  */
 
 #include <hw/interrupts.h>
+#include <hw/uart.h>
 #include <irq.h>
+#include <uart.h>
 
 void isr(void)
 {
 	unsigned int irqs;
+	
 	irqs = irq_pending() & irq_getmask();
+	
+	if(irqs & IRQ_UART)
+		uart_isr();
 }
