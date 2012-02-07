@@ -20,6 +20,7 @@
 #include <irq.h>
 #include <uart.h>
 
+void isr(void);
 void isr(void)
 {
 	unsigned int irqs;

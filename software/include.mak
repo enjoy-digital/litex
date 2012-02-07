@@ -38,9 +38,8 @@ endif
 INCLUDES_NOLIBC ?= -nostdinc -I$(M2DIR)/software/include/base
 INCLUDES = $(INCLUDES_NOLIBC) -I$(M2DIR)/software/include -I$(M2DIR)/tools
 ASFLAGS = $(INCLUDES) -nostdinc
-# later: -Wmissing-prototypes
 CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
-	 -fsigned-char $(INCLUDES)
+	 -Wmissing-prototypes -fsigned-char $(INCLUDES)
 LDFLAGS = -nostdlib -nodefaultlibs
 
 # compile and generate dependencies, based on

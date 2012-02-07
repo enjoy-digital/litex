@@ -19,6 +19,7 @@
 
 #define exitdiv(sign, res) if (sign) { res = - res;} return res;
 
+long __divsi3 (long numerator, long denominator);
 long __divsi3 (long numerator, long denominator)
 {
 	int sign;
@@ -30,6 +31,7 @@ long __divsi3 (long numerator, long denominator)
 	exitdiv(sign, dividend);
 }
 
+long __modsi3 (long numerator, long denominator);
 long __modsi3 (long numerator, long denominator)
 {
 	int sign;
