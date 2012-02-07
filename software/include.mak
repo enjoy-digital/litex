@@ -1,15 +1,16 @@
 # Mico32 toolchain
 #
 CROSS_COMPILER=lm32-rtems4.11-
+CLANG=clang -ccc-host-triple mico32-generic-generic -ccc-gcc-name $(CROSS_COMPILER)gcc
 
-CC_normal := $(CROSS_COMPILER)gcc
+CC_normal := $(CLANG)
 AR_normal := $(CROSS_COMPILER)ar
 AS_normal := $(CROSS_COMPILER)as
 LD_normal := $(CROSS_COMPILER)ld
 OBJCOPY_normal := $(CROSS_COMPILER)objcopy
 RANLIB_normal := $(CROSS_COMPILER)ranlib
 
-CC_quiet = @echo " CC " $@ && $(CROSS_COMPILER)gcc
+CC_quiet = @echo " CC " $@ && $(CLANG)
 AR_quiet = @echo " AR " $@ && $(CROSS_COMPILER)ar
 AS_quiet = @echo " AS " $@ && $(CROSS_COMPILER)as
 LD_quiet = @echo " LD " $@ && $(CROSS_COMPILER)ld
@@ -39,9 +40,7 @@ INCLUDES = $(INCLUDES_NOLIBC) -I$(M2DIR)/software/include -I$(M2DIR)/tools
 ASFLAGS = $(INCLUDES) -nostdinc
 # later: -Wmissing-prototypes
 CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
-	 -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled \
-	 -msign-extend-enabled -fno-builtin -fsigned-char \
-	 -fsingle-precision-constant $(INCLUDES)
+	 -fsigned-char $(INCLUDES)
 LDFLAGS = -nostdlib -nodefaultlibs
 
 # compile and generate dependencies, based on

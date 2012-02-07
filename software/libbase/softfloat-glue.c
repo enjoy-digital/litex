@@ -123,3 +123,13 @@ unsigned int __fixunssfsi(float32 x)
 	return float32_to_int32_round_to_zero(x); // XXX
 }
 
+int __unordsf2(float32 a, float32 b)
+{
+	/*
+	 * The comparison is unordered if either input is a NaN.
+	 * Test for this by comparing each operand with itself.
+	 * We must perform both comparisons to correctly check for
+	 * signalling NaNs.
+	 */
+	return 1 ^ (float32_eq(a, a) & float32_eq(b, b));
+}
