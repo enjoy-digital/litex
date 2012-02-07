@@ -23,8 +23,6 @@
 /*
  * Buffer sizes must be a power of 2 so that modulos can be computed
  * with logical AND.
- * RX functions are written in such a way that they do not require locking.
- * TX functions already implement locking.
  */
 
 #define UART_RINGBUFFER_SIZE_RX 128
@@ -41,6 +39,7 @@ static char tx_buf[UART_RINGBUFFER_SIZE_TX];
 static unsigned int tx_produce;
 static unsigned int tx_consume;
 static volatile int tx_cts;
+static volatile int tx_level;
 
 void uart_isr(void)
 {
@@ -54,9 +53,10 @@ void uart_isr(void)
 	}
 
 	if(stat & UART_EV_TX) {
-		if(tx_produce != tx_consume) {
+		if(tx_level > 0) {
 			CSR_UART_RXTX = tx_buf[tx_consume];
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
+			tx_level--;
 		} else
 			tx_cts = 1;
 	}
@@ -84,6 +84,10 @@ void uart_write(char c)
 {
 	unsigned int oldmask;
 	
+	if(irq_getie()) {
+		while(tx_level == UART_RINGBUFFER_SIZE_TX);
+	}
+	
 	oldmask = irq_getmask();
 	irq_setmask(0);
 
@@ -93,6 +97,7 @@ void uart_write(char c)
 	} else {
 		tx_buf[tx_produce] = c;
 		tx_produce = (tx_produce + 1) & UART_RINGBUFFER_MASK_TX;
+		tx_level++;
 	}
 	irq_setmask(oldmask);
 }
@@ -103,9 +108,11 @@ void uart_init(void)
 	
 	rx_produce = 0;
 	rx_consume = 0;
+	
 	tx_produce = 0;
 	tx_consume = 0;
 	tx_cts = 1;
+	tx_level = 0;
 
 	/* ack any events */
 	CSR_UART_EV_PENDING = CSR_UART_EV_PENDING;
