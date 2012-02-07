@@ -27,8 +27,8 @@
 #define PRINTF_SPECIAL	32		/* 0x */
 #define PRINTF_LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
 
-typedef int size_t;
-typedef int ptrdiff_t;
+typedef unsigned long size_t;
+typedef long ptrdiff_t;
 
 #define NULL ((void *)0)
 
