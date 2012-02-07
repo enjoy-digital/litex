@@ -28,7 +28,6 @@ void console_set_read_hook(console_read_hook r, console_read_nonblock_hook rn);
 char readchar(void);
 int readchar_nonblock(void);
 
-int puts(const char *s);
 void putsnonl(const char *s);
 
 #endif /* __CONSOLE_H */

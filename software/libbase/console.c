@@ -19,8 +19,6 @@
 #include <console.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <irq.h>
-#include <hw/interrupts.h>
 
 static console_write_hook write_hook;
 static console_read_hook read_hook;
@@ -37,11 +35,12 @@ void console_set_read_hook(console_read_hook r, console_read_nonblock_hook rn)
 	read_nonblock_hook = rn;
 }
 
-static void writechar(char c)
+int putchar(int c)
 {
 	uart_write(c);
 	if(write_hook != NULL)
 		write_hook(c);
+	return c;
 }
 
 char readchar(void)
@@ -62,34 +61,20 @@ int readchar_nonblock(void)
 
 int puts(const char *s)
 {
-	unsigned int oldmask;
-
-	oldmask = irq_getmask();
-	irq_setmask(IRQ_UART); // HACK: prevent UART data loss
-
 	while(*s) {
-		writechar(*s);
+		putchar(*s);
 		s++;
 	}
-	writechar('\n');
-	
-	irq_setmask(oldmask);
+	putchar('\n');
 	return 1;
 }
 
 void putsnonl(const char *s)
 {
-	unsigned int oldmask;
-
-	oldmask = irq_getmask();
-	irq_setmask(IRQ_UART); // HACK: prevent UART data loss
-	
 	while(*s) {
-		writechar(*s);
+		putchar(*s);
 		s++;
 	}
-	
-	irq_setmask(oldmask);
 }
 
 int printf(const char *fmt, ...)

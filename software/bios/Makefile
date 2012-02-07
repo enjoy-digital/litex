@@ -18,11 +18,12 @@ bios.elf: linker.ld $(OBJECTS) libs
 bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 
 %.elf:
-	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) -L$(M2DIR)/software/libbase -lbase
+	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) -L$(M2DIR)/software/libbase -L$(M2DIR)/software/libextra -lbase -lextra
 	chmod -x $@
 
 libs:
 	make -C $(M2DIR)/software/libbase
+	make -C $(M2DIR)/software/libextra
 
 .PHONY: clean libs
 

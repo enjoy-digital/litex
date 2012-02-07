@@ -1,4 +1,4 @@
-#include <crc.h>
+#include <extra/crc.h>
 
 static const unsigned int crc16_table[256] = {
 	0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
