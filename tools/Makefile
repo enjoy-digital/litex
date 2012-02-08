@@ -1,4 +1,4 @@
-TARGETS=bin2hex mkmmimg flterm
+TARGETS=mkmmimg flterm
 CC=clang
 
 all: $(TARGETS)
