@@ -134,7 +134,10 @@ class Hub:
 			port.finalize(tagbits, base)
 			base += len(port.slots)
 	
+	def get_slots(self):
+		return sum([port.slots for port in self.ports], [])
+	
 	def get_fragment(self):
 		if not self.finalized:
 			raise FinalizeError
-		return sum([port.get_fragment() for port in self.ports])
+		return sum([port.get_fragment() for port in self.ports], Fragment())
