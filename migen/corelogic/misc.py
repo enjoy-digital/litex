@@ -39,3 +39,18 @@ def split(v, *counts):
 		r.append(v[offset:offset+n])
 		offset += n
 	return tuple(r)
+
+def displacer(signal, shift, output, n=None):
+	if n is None:
+		n = 2**shift.bv.width
+	w = signal.bv.width
+	l = [Replicate(shift == i, w) & signal for i in range(n)]
+	return output.eq(Cat(*l))
+
+def chooser(signal, shift, output, n=None):
+	if n is None:
+		n = 2**shift.bv.width
+	w = signal.bv.width
+	cases = [[Constant(i, shift.bv), output.eq(signal[i*w:i*(w+1)])] for i in range(n)]
+	cases[n-1][0] = Default()
+	return Case(shift, *cases)
