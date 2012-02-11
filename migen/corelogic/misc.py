@@ -4,14 +4,14 @@ from migen.fhdl.structure import _Operator
 def multimux(sel, inputs, output):
 	n = len(inputs)
 	i = 0
-	comb = []
+	statements = []
 	for osig in output:
 		choices = [x[i] for x in inputs]
 		cases = [[Constant(j, sel.bv), osig.eq(choices[j])] for j in range(n)]
 		cases[n-1][0] = Default()
-		comb.append(Case(sel, *cases))
+		statements.append(Case(sel, *cases))
 		i += 1
-	return comb
+	return statements
 
 def optree(op, operands, lb=None, ub=None, default=None):
 	if lb is None:
