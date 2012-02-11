@@ -94,5 +94,14 @@ class Record:
 		else:
 			return l
 	
+	def to_signal(self, assignment_list, sig_out, align=False):
+		flattened, length = self.flatten(align, return_offset=True)
+		raw = Signal(BV(length))
+		if sig_out:
+			assignment_list.append(raw.eq(Cat(*flattened)))
+		else:
+			assignment_list.append(Cat(*flattened).eq(raw))
+		return raw
+	
 	def __repr__(self):
 		return repr(self.layout())
