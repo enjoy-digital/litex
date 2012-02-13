@@ -43,32 +43,60 @@ communication protocol with the memory controller must be devised. Migen
 and Milkymist SoC (-NG) implement their own bus, called ASMIbus, based
 on the split-transaction principle.
 
-ASMIbus - the big picture
-=========================
+Topology
+========
+The ASMI consists of a memory controller (e.g. ASMIcon) containing a hub
+that connects the multiple masters, handles transaction tags, and
+presents a view of the pending requests to the rest of the memory
+controller.
+
+Links between the masters and the hub are using the same ASMIbus protocol
+described below.
+
+It is suggested that memory controllers use an interface to a PHY
+compatible with DFI [2]. The DFI clock can be the same as the ASMIbus
+clock, with optional serialization and deserialization happening across
+the PHY, as specified in the DFI standard.
+
++-------+    +---+
+|Master1|<==>|   |                             +----------+
++-------+    |   +-------+    +-------+        | Off-chip |
+             |Hub|ASMIcon|<-->|DDR PHY|<<====>>|  SDRAM   |
++-------+    |   +-------+    +-------+        |device(s) |
+|Master2|<==>|   |                             +----------+
++-------+    +---+
+
+<====> ASMIbus links
+<----> DFI (or similar) links
+<<==>> PCB traces to external SDRAM chips
+
+Signals
+=======
 The ASMIbus consists of two parts: the control signals, and the data
 signals.
 
 The control signals are used to issue requests.
- * Master->Slave:
+ * Master->Hub:
      - ADR communicates the memory address to be accessed. The unit is
        the word width of the particular implementation of ASMIbus.
      - WE is the write enable signal.
      - STB qualifies the transaction request, and should be asserted
        until ACK goes high.
- * Slave->Master
+ * Hub->Master
      - TAG_ISSUE is an integer representing the transaction ("tag")
-       attributed by the memory controller. The width of this signal is
-       determined by the maximum number of in-flight transactions that
-       the memory controller can handle.
-     - ACK is asserted at least one cycle after STB when TAG_ISSUE is
-       valid and the transaction has been accepted by the memory
-       controller.
+       attributed by the hub. The width of this signal is determined by
+       the maximum number of in-flight transactions that the hub port
+       can handle.
+     - ACK is asserted when TAG_ISSUE is valid and the transaction has
+       been registered by the hub. A hub may assert ACK even when STB is
+       low, which means it is ready to accept any new transaction and
+       will do as soon as STB goes high.
 
 The data signals are used to complete requests.
- * Slave->Master
+ * Hub->Master
      - TAG_CALL is used to identify the transaction for which the data
        is "called". It takes the tag value that has been previously
-       attributed by the controller to that transaction during the issue
+       attributed by the hub to that transaction during the issue
        phase.
      - CALL qualifies TAG_CALL.
      - DATA_R returns data from the DRAM in the case of a read
@@ -76,7 +104,7 @@ The data signals are used to complete requests.
        asserted and TAG_CALL has identified the transaction.
        The value of this signal is undefined for the cycle after a write
        transaction data have been called.
- * Master->Slave
+ * Master->Hub
      - DATA_W must supply data to the controller from the appropriate
        write transaction, on the cycle after they have been called using
        CALL and TAG_CALL.
@@ -85,31 +113,14 @@ The data signals are used to complete requests.
        modified in the memory. The DATA_WM bit should be high for its
        corresponding DATA_W byte to be written.
 
-DATA_W and DATA_WM must always be driven low by a master, except during
-the data call for a write transaction that it has requested.
+In order to avoid duplicating the tag matching and tracking logic, the
+master->hub data signals must be driven low when they are not in use, so
+that they can be simply ORed together inside the memory controller. This
+way, only masters have to track (their own) transactions for arbitrating
+the data lines.
 
-Tags represent in-flight transactions. The memory controller can reissue
-a tag as soon as the cycle when it appears on TAG_CALL.
-
-Performance considerations
-==========================
-Note that the payload of a transaction lasts for only one cycle (i.e.
-there are no bursts). Therefore, to be able to achieve 100% bandwidth
-utilization, the issuance of a tag should also take no more than a
-cycle.
-
-For this purpose, the control signals are pipelined. When ACK is
-asserted, STB can qualify a new request in the same cycle. This puts a
-constraint on the arbiter, which must be able to switch combinatorially
-to the next transaction on the assertion of ACK and still meet timing.
-
-The controller is not allowed to generate ACK combinatorially from STB.
-However, the master can generate STB combinatorially from ACK in order
-to maximize bus bandwidth.
-
-STB <0><1><0><0><1><1><0><1><1><0>
-ACK <0><0><1><0><0><0><1><0><1><1>
-TAG ------<A>---------<B>---<C><D>
+Tags represent in-flight transactions. The hub can reissue a tag as soon
+as the cycle when it appears on TAG_CALL.
 
 SDRAM burst length and clock ratios
 ===================================
@@ -124,58 +135,29 @@ W = B*[number of SDRAM I/O pins]
 
 For DDR memories, the I/O frequency is twice the logic frequency.
 
-Environment
-===========
-The ASMI consists of a memory controller (e.g. ASMIcon) and optionally
-an arbiter/switch (e.g. ASMIswitch) thanks to which multiple masters can
-access the shared system memory.
-
-Links between them are using the same ASMIbus protocol described above.
-In order to avoid duplicating the tag matching and tracking logic, the
-master->slave data signals must be driven low when they are not in use,
-so that they can be simply ORed together at the arbiter. This way, only
-masters have to track (their own) transactions.
-
-It is suggested that memory controllers use an interface to a PHY
-compatible with DFI [2]. The DFI clock can be the same as the ASMIbus
-clock, with optional serialization and deserialization happening across
-the PHY, as specified in the DFI standard.
-
-+-------+    +----------+
-|Master1|<==>|          |                                  +----------+
-+-------+    |          |    +-------+    +-------+        | Off-chip |
-             |ASMIswitch|<==>|ASMIcon|<-->|DDR PHY|<<====>>|  SDRAM   |
-+-------+    |          |    +-------+    +-------+        |device(s) |
-|Master2|<==>|          |                                  +----------+
-+-------+    +----------+
-
-<====> ASMIbus links
-<----> DFI (or similar) links
-<<==>> PCB traces to external SDRAM chips
-
 Example transactions
 ====================
 
 Basic transaction:
-CTL  <R A1>------------------------
-ISSUE------< T1 >------------------
-CALL ------------------< T1 >------
-DAT_R------------------------<D A1>
-DAT_W------------------------------
+CTL  <R A1>------------------
+ISSUE< T1 >------------------
+CALL ------------< T1 >------
+DAT_R------------------<D A1>
+DAT_W------------------------
 
 Two simple transactions:
-CTL  <R A1>------<R A2>------------------------------
-ISSUE------< T1 >------< T2 >------------------------
-CALL ------------------------< T1 >------< T2 >------
-DAT_R------------------------------<D A1>------<D A2>
-DAT_W------------------------------------------------
+CTL  <R A1>------<R A2>------------------------
+ISSUE< T1 >------< T2 >------------------------
+CALL ------------------< T1 >------< T2 >------
+DAT_R------------------------<D A1>------<D A2>
+DAT_W------------------------------------------
 
 Interleaved transactions:
-CTL  <R A1>------<R A2><W A3><R A4><W A5>------------------------------
-ISSUE------< T1 >------< T1 >< T2 >< T1 >< T1 >------------------------
-CALL ------------------< T1 >------< T1 >< T1 >------< T1 >< T2 >------
-DAT_R------------------------<D A1>------<D A2><D A4>------------------
-DAT_W------------------------------------------------------<D A5><D A3>
+CTL  <R A1>------<R A2><W A3><R A4><W A5>------------------------
+ISSUE< T1 >------< T1 >< T2 >< T1 >< T1 >------------------------
+CALL ------------< T1 >------< T1 >< T1 >------< T1 >< T2 >------
+DAT_R------------------<D A1>------<D A2><D A4>------------------
+DAT_W------------------------------------------------<D A5><D A3>
 
 <R Ax> Read address x
 <W Ax> Write address x
