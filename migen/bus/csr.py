@@ -3,10 +3,10 @@ from migen.corelogic.misc import optree
 from migen.bus.simple import Simple
 
 _desc = [
-	(True,	"a",	14),
+	(True,	"adr",	14),
 	(True,	"we",	1),
-	(True,	"d",	8),
-	(False,	"d",	8)
+	(True,	"dat",	8),
+	(False,	"dat",	8)
 ]
 
 class Master(Simple):
@@ -25,9 +25,9 @@ class Interconnect:
 	def get_fragment(self):
 		comb = []
 		for slave in self.slaves:
-			comb.append(slave.a_i.eq(self.master.a_o))
+			comb.append(slave.adr_i.eq(self.master.adr_o))
 			comb.append(slave.we_i.eq(self.master.we_o))
-			comb.append(slave.d_i.eq(self.master.d_o))
-		rb = optree('|', [slave.d_o for slave in self.slaves])
-		comb.append(self.master.d_i.eq(rb))
+			comb.append(slave.dat_i.eq(self.master.dat_o))
+		rb = optree("|", [slave.dat_o for slave in self.slaves])
+		comb.append(self.master.dat_i.eq(rb))
 		return Fragment(comb)
