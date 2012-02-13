@@ -52,6 +52,7 @@ class WB2ASMI:
 		data_mem = Memory(adw, 2**linebits, data_port)
 		
 		write_from_asmi = Signal()
+		write_to_asmi = Signal()
 		adr_offset_r = Signal(BV(offsetbits))
 		comb += [
 			data_adr.eq(adr_line),
@@ -64,7 +65,10 @@ class WB2ASMI:
 					displacer(self.wishbone.we_i, adr_offset, data_we)
 				)
 			),
-			self.asmiport.dat_w.eq(data_do),
+			If(write_to_asmi,
+				self.asmiport.dat_w.eq(data_do),
+				self.asmiport.dat_wm.eq(Replicate(1, adw//8))
+			),
 			chooser(data_do, adr_offset_r, self.wishbone.dat_o)
 		]
 		sync += [
@@ -90,6 +94,9 @@ class WB2ASMI:
 		]
 		
 		# Control FSM
+		write_to_asmi_pre = Signal()
+		sync.append(write_to_asmi.eq(write_to_asmi_pre))
+		
 		fsm = FSM("IDLE", "TEST_HIT",
 			"EVICT_ISSUE", "EVICT_WAIT",
 			"REFILL_WRTAG", "REFILL_ISSUE", "REFILL_WAIT", "REFILL_COMPLETE")
@@ -123,7 +130,10 @@ class WB2ASMI:
 			# Data is actually sampled by the memory controller in the next state.
 			# But since the data memory has one cycle latency, it gets the data
 			# at the address given during this cycle.
-			If(self.asmiport.get_call_expression(), fsm.next_state(fsm.REFILL_WRTAG))
+			If(self.asmiport.get_call_expression(),
+				write_to_asmi_pre.eq(1),
+				fsm.next_state(fsm.REFILL_WRTAG)
+			)
 		)
 		
 		fsm.act(fsm.REFILL_WRTAG,
