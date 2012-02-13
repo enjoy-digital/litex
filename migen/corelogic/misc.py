@@ -40,17 +40,27 @@ def split(v, *counts):
 		offset += n
 	return tuple(r)
 
-def displacer(signal, shift, output, n=None):
+def displacer(signal, shift, output, n=None, reverse=False):
 	if n is None:
 		n = 2**shift.bv.width
 	w = signal.bv.width
-	l = [Replicate(shift == i, w) & signal for i in range(n)]
+	if reverse:
+		r = reversed(range(n))
+	else:
+		r = range(n)
+	l = [Replicate(shift == i, w) & signal for i in r]
 	return output.eq(Cat(*l))
 
-def chooser(signal, shift, output, n=None):
+def chooser(signal, shift, output, n=None, reverse=False):
 	if n is None:
 		n = 2**shift.bv.width
 	w = output.bv.width
-	cases = [[Constant(i, shift.bv), output.eq(signal[i*w:(i+1)*w])] for i in range(n)]
+	cases = []
+	for i in range(n):
+		if reverse:
+			s = n - i - 1
+		else:
+			s = i
+		cases.append([Constant(i, shift.bv), output.eq(signal[s*w:(s+1)*w])])
 	cases[n-1][0] = Default()
 	return Case(shift, *cases)
