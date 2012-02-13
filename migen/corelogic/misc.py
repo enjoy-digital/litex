@@ -50,7 +50,7 @@ def displacer(signal, shift, output, n=None):
 def chooser(signal, shift, output, n=None):
 	if n is None:
 		n = 2**shift.bv.width
-	w = signal.bv.width
-	cases = [[Constant(i, shift.bv), output.eq(signal[i*w:i*(w+1)])] for i in range(n)]
+	w = output.bv.width
+	cases = [[Constant(i, shift.bv), output.eq(signal[i*w:(i+1)*w])] for i in range(n)]
 	cases[n-1][0] = Default()
 	return Case(shift, *cases)

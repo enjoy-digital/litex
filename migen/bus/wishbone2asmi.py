@@ -60,9 +60,9 @@ class WB2ASMI:
 				data_di.eq(self.asmiport.dat_r),
 				data_we.eq(Replicate(1, adw//8))
 			).Else(
-				data_di.eq(Replicate(self.wishbone.dat_i, adw//32),
+				data_di.eq(Replicate(self.wishbone.dat_i, adw//32)),
 				If(self.wishbone.cyc_i & self.wishbone.stb_i & self.wishbone.ack_o,
-					displacer(self.wishbone.we_i, adr_offset, data_we)
+					displacer(self.wishbone.we_i, adr_offset, data_we, 2**offsetbits)
 				)
 			),
 			If(write_to_asmi,

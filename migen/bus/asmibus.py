@@ -25,7 +25,7 @@ class Slot:
 		comb = []
 		sync = [
 			If(self.allocate,
-				self.state.eq(SLOT_PENDING)
+				self.state.eq(SLOT_PENDING),
 				self.we.eq(self.allocate_we),
 				self.adr.eq(self.allocate_adr)
 			),
@@ -39,7 +39,7 @@ class Slot:
 			sync += [
 				If(self.allocate,
 					self._counter.eq(self.time)
-				).Elif(self._counter.eq != 0,
+				).Elif(self._counter != 0,
 					self._counter.eq(self._counter - 1)
 				)
 			]
@@ -68,6 +68,7 @@ class Port:
 	def finalize(self, tagbits, base):
 		if self.finalized:
 			raise FinalizeError
+		self.finalized = True
 		self.tagbits = tagbits
 		self.base = base
 		nslots = len(self.slots)
@@ -121,7 +122,9 @@ class Hub:
 	def get_port(self, nslots=1):
 		if self.finalized:
 			raise FinalizeError
-		self.ports.append(Port(self, nslots))
+		new_port = Port(self, nslots)
+		self.ports.append(new_port)
+		return new_port
 	
 	def finalize(self):
 		if self.finalized:
