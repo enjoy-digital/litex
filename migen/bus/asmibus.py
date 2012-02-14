@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.corelogic.misc import optree
 
 class FinalizeError(Exception):
 	pass
@@ -118,6 +119,12 @@ class Hub:
 		self.time = time
 		self.ports = []
 		self.finalized = False
+		
+		self.call = Signal()
+		# tag_call is created by finalize()
+		self.dat_r = Signal(BV(self.dw))
+		self.dat_w = Signal(BV(self.dw))
+		self.dat_wm = Signal(BV(self.dw//8))
 	
 	def get_port(self, nslots=1):
 		if self.finalized:
@@ -136,6 +143,7 @@ class Hub:
 		for port in self.ports:
 			port.finalize(tagbits, base)
 			base += len(port.slots)
+		self.tag_call = Signal(BV(tagbits))
 	
 	def get_slots(self):
 		return sum([port.slots for port in self.ports], [])
@@ -143,4 +151,16 @@ class Hub:
 	def get_fragment(self):
 		if not self.finalized:
 			raise FinalizeError
-		return sum([port.get_fragment() for port in self.ports], Fragment())
+		ports = sum([port.get_fragment() for port in self.ports], Fragment())
+		comb = []
+		for port in self.ports:
+			comb += [
+				port.call.eq(self.call),
+				port.tag_call.eq(self.tag_call),
+				port.dat_r.eq(self.dat_r)
+			]
+		comb += [
+			self.dat_w.eq(optree("|", [port.dat_w for port in self.ports])),
+			self.dat_wm.eq(optree("|", [port.dat_wm for port in self.ports]))
+		]
+		return ports + Fragment(comb)
