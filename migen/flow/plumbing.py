@@ -31,7 +31,7 @@ class Combinator(Actor):
 		source = self.endpoints["source"]
 		sinks = [self.endpoints["sink{0}".format(n)]
 			for n in range(len(self.endpoints)-1)]
-		comb = [source.stb.eq(optree('&', [sink.stb for sink in sinks]))]
+		comb = [source.stb.eq(optree("&", [sink.stb for sink in sinks]))]
 		comb += [sink.ack.eq(source.ack & source.stb) for sink in sinks]
 		return Fragment(comb)
 

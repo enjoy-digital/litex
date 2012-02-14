@@ -15,7 +15,7 @@ class CompositeActor(Actor):
 			for x in self.dfg.edges(data=True)]
 		this = sum(this_fragments, Fragment())
 		others = sum([node.get_fragment() for node in self.dfg], Fragment())
-		busy = Fragment([self.busy.eq(optree('|', [node.busy for node in self.dfg]))])
+		busy = Fragment([self.busy.eq(optree("|", [node.busy for node in self.dfg]))])
 		return this + others + busy
 
 def add_connection(dfg, source_node, sink_node, source_ep=None, sink_ep=None):

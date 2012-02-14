@@ -116,12 +116,12 @@ class Decoder:
 			i += 1
 		
 		# generate master ack (resp. err) by ORing all slave acks (resp. errs)
-		comb.append(self.master.ack_i.eq(optree('|', [slave[1].ack_o for slave in self.slaves])))
-		comb.append(self.master.err_i.eq(optree('|', [slave[1].err_o for slave in self.slaves])))
+		comb.append(self.master.ack_i.eq(optree("|", [slave[1].ack_o for slave in self.slaves])))
+		comb.append(self.master.err_i.eq(optree("|", [slave[1].err_o for slave in self.slaves])))
 		
 		# mux (1-hot) slave data return
 		masked = [Replicate(slave_sel_r[i], self.master.dat_i.bv.width) & self.slaves[i][1].dat_o for i in range(len(self.slaves))]
-		comb.append(self.master.dat_i.eq(optree('|', masked)))
+		comb.append(self.master.dat_i.eq(optree("|", masked)))
 		
 		return Fragment(comb, sync)
 

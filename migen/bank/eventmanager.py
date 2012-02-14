@@ -59,6 +59,6 @@ class EventManager:
 		
 		# IRQ
 		irqs = [self.pending.w[i] & field.r for i, field in enumerate(self.enable.fields)]
-		comb.append(self.irq.eq(optree('|', irqs)))
+		comb.append(self.irq.eq(optree("|", irqs)))
 		
 		return Fragment(comb, sync)

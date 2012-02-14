@@ -92,7 +92,7 @@ def _control_fragment_pipe(latency, stb_i, ack_o, stb_o, ack_i, busy, pipe_ce):
 		pipe_ce.eq(ack_i | ~last_valid),
 		ack_o.eq(pipe_ce),
 		stb_o.eq(last_valid),
-		busy.eq(optree('|', [valid[i] for i in range(latency)]))
+		busy.eq(optree("|", [valid[i] for i in range(latency)]))
 	]
 	
 	return Fragment(comb, sync)

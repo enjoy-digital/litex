@@ -9,8 +9,8 @@ class _SimpleBinary(Actor):
 		self.op = op
 		Actor.__init__(self,
 			SchedulingModel(SchedulingModel.COMBINATORIAL),
-			("operands", Sink, [('a', bv_op), ('b', bv_op)]),
-			("result", Source, [('r', bv_r)]))
+			("operands", Sink, [("a", bv_op), ("b", bv_op)]),
+			("result", Source, [("r", bv_r)]))
 
 	def get_process_fragment(self):
 		return Fragment([
@@ -20,43 +20,43 @@ class _SimpleBinary(Actor):
 
 class Add(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '+', bv, BV(bv.width+1, bv.signed))
+		_SimpleBinary.__init__(self, "+", bv, BV(bv.width+1, bv.signed))
 
 class Sub(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '-', bv, BV(bv.width+1, bv.signed))
+		_SimpleBinary.__init__(self, "-", bv, BV(bv.width+1, bv.signed))
 
 class Mul(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '*', bv, BV(2*bv.width, bv.signed))
+		_SimpleBinary.__init__(self, "*", bv, BV(2*bv.width, bv.signed))
 
 class And(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '&', bv, bv)
+		_SimpleBinary.__init__(self, "&", bv, bv)
 
 class Xor(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '^', bv, bv)
+		_SimpleBinary.__init__(self, "^", bv, bv)
 
 class Or(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '|', bv, bv)
+		_SimpleBinary.__init__(self, "|", bv, bv)
 
 class LT(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '<', bv, BV(1))
+		_SimpleBinary.__init__(self, "<", bv, BV(1))
 
 class LE(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '<=', bv, BV(1))
+		_SimpleBinary.__init__(self, "<=", bv, BV(1))
 
 class EQ(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '==', bv, BV(1))
+		_SimpleBinary.__init__(self, "==", bv, BV(1))
 
 class NE(_SimpleBinary):
 	def __init__(self, bv):
-		_SimpleBinary.__init__(self, '!=', bv, BV(1))
+		_SimpleBinary.__init__(self, "!=", bv, BV(1))
 
 class DivMod(Actor):
 	def __init__(self, width):

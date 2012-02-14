@@ -45,7 +45,7 @@ class Record:
 	def subrecord(self, *descr):
 		fields = []
 		for item in descr:
-			path = item.split('/')
+			path = item.split("/")
 			last = path.pop()
 			pos_self = self
 			pos_fields = fields
