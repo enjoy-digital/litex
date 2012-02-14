@@ -6,3 +6,5 @@ build/*
 tools/bin2hex
 tools/flterm
 tools/mkmmimg
+verilog/s6ddrphy/*.v
+verilog/s6ddrphy/.pc
