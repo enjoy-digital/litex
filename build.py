@@ -22,7 +22,7 @@ os.system("rm -rf build/*")
 os.chdir("build")
 
 def str2file(filename, contents):
-	f = open(filename, 'w')
+	f = open(filename, "w")
 	f.write(contents)
 	f.close()
 
