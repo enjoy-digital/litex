@@ -1,0 +1,79 @@
+[> Milkymist-NG system-on-chip
+------------------------------
+
+This is the next-generation Milkymist(tm) system-on-chip design,
+introducing two key innovations:
+ * Built on the powerful Migen VLSI logic design system.
+ * Increased system memory performance thanks to a new architecture
+   (ASMI) containing a transaction-reordering and superscalar controller.
+
+The Milkymist-NG SoC supports the Milkymist One board. Obtain yours from:
+  http://milkymist.org
+
+Note that the -NG version is still experimental work in progress. For the
+production version of Milkymist SoC, visit:
+  https://github.com/milkymist/milkymist
+
+[> Instructions
+---------------
+First, download and install Migen from:
+  https://github.com/milkymist/migen
+
+Then, you will need to fetch the "Spartan-6 FPGA DDR/DDR2 SDRAM PHY core"
+(PHY only solution, we do not need the NWL memory controller) from:
+  http://www.xilinx.com/products/intellectual-property/1-1MFEDB.htm
+Downloading it is free of charge, but it cannot be redistributed in
+source form due to copyright restrictions.
+
+Place the Verilog source code of the PHY (contents of
+phy_rtl/spartan6_soft_phy) into the verilog/s6ddrphy folder.
+Then run (from verilog/s6ddrphy):
+  quilt push -a
+in order to apply patches that make the PHY more compliant with the DFI
+specification in general, and in particular with the capability to send
+multiple SDRAM commands in one system clock cycle, which our new SDRAM
+controller is capable of doing.
+The patches are against version 1.04 of the PHY.
+
+Once this is done, build the bitstream with:
+  python3 build.py
+This will generate the build/soc.bit programming file.
+
+The SoC expects a bootloader to be located in flash at 0x860000, just
+like the legacy SoC did. However, there is no binary compatibility and a
+new BIOS needs to be built and flashed for the -NG SoC.
+
+You can find the source code of a compatible BIOS in the software/bios
+directory. It compiles with Clang and LLVM by default, and you can find
+the modified version with support for LM32 at:
+  https://github.com/milkymist/llvm-lm32
+  https://github.com/milkymist/clang-lm32
+
+Enjoy!
+
+[> Misc
+-------
+Code repository:
+  https://github.com/milkymist/milkymist-ng
+
+Send questions, comments and patches to devel [AT] lists.milkymist.org
+We are also on IRC: #milkymist on the Freenode network.
+
+Milkymist-NG is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, version 3 of the License. This program is
+distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+The authors grant the additional permissions that the code can be used in
+conjunction with the LatticeMico32 CPU core from Lattice and the
+Spartan-6 FPGA DDR/DDR2 SDRAM PHY core from Xilinx and Northwest Logic.
+
+Unless otherwise noted, Milkymist-NG's source code is copyright (C)
+2011-2012 Sebastien Bourdeauducq. Other authors retain ownership of their
+contributions. If a submission can reasonably be considered independently
+copyrightable, it's yours and I encourage you to claim it with
+appropriate copyright notices. This submission then falls under the
+"otherwise noted" category. All submissions must use a license compatible
+with the GPL and the additional permissions above.
