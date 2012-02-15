@@ -367,6 +367,8 @@ slave interfaces of the following buses:
     software.
   - ASMIbus, a split-transaction bus optimized for use with a
     high-performance, out-of-order SDRAM controller.
+  - DFI [12] (partial), a standard interface protocol between memory
+    controller logic and PHY interfaces.
 
 It also provides interconnect components for these buses, such as
 arbiters and address decoders. The strength of the Migen procedurally
@@ -476,3 +478,4 @@ References:
 [ 9] http://orc-apps.sourceforge.net/
 [10] http://opendf.sourceforge.net/
 [11] http://networkx.lanl.gov/
+[12] http://www.ddr-phy.org/
