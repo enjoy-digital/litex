@@ -18,5 +18,5 @@ bank = csrgen.Bank([oreg, ireg])
 f = bank.get_fragment() + inf
 oreg.field.r.name_override = "gpio_out"
 i = bank.interface
-v = verilog.convert(f, {i.d_o, oreg.field.r, i.a_i, i.we_i, i.d_i, gpio_in})
+v = verilog.convert(f, {i.dat_r, oreg.field.r, i.adr, i.we, i.dat_w, gpio_in})
 print(v)
