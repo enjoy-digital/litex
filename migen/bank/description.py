@@ -17,11 +17,14 @@ class Field:
 		self.access_bus = access_bus
 		self.access_dev = access_dev
 		self.storage = Signal(BV(self.size), reset=reset)
-		if self.access_dev == READ_ONLY or self.access_dev == READ_WRITE:
-			self.r = Signal(BV(self.size))
-		if self.access_dev == WRITE_ONLY or self.access_dev == READ_WRITE:
+		if self.access_bus == READ_ONLY and self.access_dev == WRITE_ONLY:
 			self.w = Signal(BV(self.size))
-			self.we = Signal()
+		else:
+			if self.access_dev == READ_ONLY or self.access_dev == READ_WRITE:
+				self.r = Signal(BV(self.size))
+			if self.access_dev == WRITE_ONLY or self.access_dev == READ_WRITE:
+				self.w = Signal(BV(self.size))
+				self.we = Signal()
 
 class RegisterFields:
 	def __init__(self, name, fields):

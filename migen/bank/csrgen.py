@@ -71,9 +71,12 @@ class Bank:
 		for reg in self.description:
 			if isinstance(reg, RegisterFields):
 				for field in reg.fields:
-					if field.access_dev == READ_ONLY or field.access_dev == READ_WRITE:
-						comb.append(field.r.eq(field.storage))
-					if field.access_dev == WRITE_ONLY or field.access_dev == READ_WRITE:
-						sync.append(If(field.we, field.storage.eq(field.w)))
+					if field.access_bus == READ_ONLY and field.access_dev == WRITE_ONLY:
+						comb.append(field.storage.eq(field.w))
+					else:
+						if field.access_dev == READ_ONLY or field.access_dev == READ_WRITE:
+							comb.append(field.r.eq(field.storage))
+						if field.access_dev == WRITE_ONLY or field.access_dev == READ_WRITE:
+							sync.append(If(field.we, field.storage.eq(field.w)))
 		
 		return Fragment(comb, sync)
