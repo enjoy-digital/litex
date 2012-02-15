@@ -33,11 +33,12 @@ class SimpleInterconnect:
 		self.slaves = slaves
 	
 	def get_fragment(self):
-		s2m = master.desc.get_names(S_TO_M)
-		m2s = master.desc.get_names(M_TO_S)
-		comb = [getattr(slave, name).eq(getattr(master, name))
-			for name in m2s for slave in self.slave]
-		comb += [getattr(master, name).eq(
+		desc = self.master.desc 
+		s2m = desc.get_names(S_TO_M)
+		m2s = desc.get_names(M_TO_S)
+		comb = [getattr(slave, name).eq(getattr(self.master, name))
+			for name in m2s for slave in self.slaves]
+		comb += [getattr(self.master, name).eq(
 				optree("|", [getattr(slave, name) for slave in self.slaves])
 			)
 			for name in s2m]
