@@ -1,25 +1,44 @@
 from migen.fhdl.structure import *
+from migen.corelogic.misc import optree
 
-def get_sig_name(signal, slave):
-	if signal[0] ^ slave:
-		suffix = "_o"
-	else:
-		suffix = "_i"
-	return signal[1] + suffix
+(S_TO_M, M_TO_S) = range(2)
 
 # desc is a list of tuples, each made up of:
-# 0) boolean: "master to slave"
+# 0) S_TO_M/M_TO_S: data direction
 # 1) string: name
 # 2) int: width
-class Simple():
-	def __init__(self, desc, slave):
-		for signal in desc:
-			modules = self.__module__.split(".")
-			busname = modules[len(modules)-1]
-			signame = get_sig_name(signal, slave)
-			setattr(self, signame, Signal(BV(signal[2]), busname + "_" + signame))
+
+class Description:
+	def __init__(self, *desc):
+		self.desc = desc
 	
-	def signals(self):
-		return [self.__dict__[k]
-			for k in self.__dict__
-			if isinstance(self.__dict__[k], Signal)]
+	def get_names(self, direction, *exclude_list):
+		exclude = set(exclude_list)
+		return [signal[1]
+			for signal in self.desc
+			if signal[0] == direction and signal[1] not in exclude]
+
+class SimpleInterface:
+	def __init__(self, desc):
+		self.desc = desc
+		modules = self.__module__.split(".")
+		busname = modules[len(modules)-1]
+		for signal in self.desc.desc:
+			signame = signal[1]
+			setattr(self, signame, Signal(BV(signal[2]), busname + "_" + signame))
+
+class SimpleInterconnect:
+	def __init__(self, master, slaves):
+		self.master = master
+		self.slaves = slaves
+	
+	def get_fragment(self):
+		s2m = master.desc.get_names(S_TO_M)
+		m2s = master.desc.get_names(M_TO_S)
+		comb = [getattr(slave, name).eq(getattr(master, name))
+			for name in m2s for slave in self.slave]
+		comb += [getattr(master, name).eq(
+				optree("|", [getattr(slave, name) for slave in self.slaves])
+			)
+			for name in s2m]
+		return Fragment(comb)

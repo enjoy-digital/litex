@@ -5,18 +5,18 @@ from migen.corelogic import timeline
 
 class WB2CSR:
 	def __init__(self):
-		self.wishbone = wishbone.Slave()
-		self.csr = csr.Master()
-		self.timeline = timeline.Timeline(self.wishbone.cyc_i & self.wishbone.stb_i,
-			[(1, [self.csr.we_o.eq(self.wishbone.we_i)]),
-			(2, [self.wishbone.ack_o.eq(1)]),
-			(3, [self.wishbone.ack_o.eq(0)])])
+		self.wishbone = wishbone.Interface()
+		self.csr = csr.Interface()
+		self.timeline = timeline.Timeline(self.wishbone.cyc & self.wishbone.stb,
+			[(1, [self.csr.we.eq(self.wishbone.we)]),
+			(2, [self.wishbone.ack.eq(1)]),
+			(3, [self.wishbone.ack.eq(0)])])
 	
 	def get_fragment(self):
 		sync = [
-			self.csr.we_o.eq(0),
-			self.csr.dat_o.eq(self.wishbone.dat_i[:8]),
-			self.csr.adr_o.eq(self.wishbone.adr_i[:14]),
-			self.wishbone.dat_o.eq(self.csr.dat_i)
+			self.csr.we.eq(0),
+			self.csr.dat_w.eq(self.wishbone.dat_w[:8]),
+			self.csr.adr.eq(self.wishbone.adr[:14]),
+			self.wishbone.dat_r.eq(self.csr.dat_r)
 		]
 		return Fragment(sync=sync) + self.timeline.get_fragment()

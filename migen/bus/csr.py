@@ -1,33 +1,16 @@
 from migen.fhdl.structure import *
-from migen.corelogic.misc import optree
-from migen.bus.simple import Simple
+from migen.bus.simple import *
 
-_desc = [
-	(True,	"adr",	14),
-	(True,	"we",	1),
-	(True,	"dat",	8),
-	(False,	"dat",	8)
-]
+_desc = Description(
+	(M_TO_S,	"adr",		14),
+	(M_TO_S,	"we",		1),
+	(M_TO_S,	"dat_w",	8),
+	(S_TO_M,	"dat_r",	8)
+)
 
-class Master(Simple):
+class Interface(SimpleInterface):
 	def __init__(self):
-		Simple.__init__(self, _desc, False)
+		SimpleInterface.__init__(self, _desc)
 
-class Slave(Simple):
-	def __init__(self):
-		Simple.__init__(self, _desc, True)
-
-class Interconnect:
-	def __init__(self, master, slaves):
-		self.master = master
-		self.slaves = slaves
-	
-	def get_fragment(self):
-		comb = []
-		for slave in self.slaves:
-			comb.append(slave.adr_i.eq(self.master.adr_o))
-			comb.append(slave.we_i.eq(self.master.we_o))
-			comb.append(slave.dat_i.eq(self.master.dat_o))
-		rb = optree("|", [slave.dat_o for slave in self.slaves])
-		comb.append(self.master.dat_i.eq(rb))
-		return Fragment(comb)
+class Interconnect(SimpleInterconnect):
+	pass

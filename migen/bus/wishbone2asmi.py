@@ -18,7 +18,7 @@ def _log2_int(n):
 # cachesize (in 32-bit words) is the size of the data store, must be a power of 2
 class WB2ASMI:
 	def __init__(self, cachesize, asmiport):
-		self.wishbone = wishbone.Slave()
+		self.wishbone = wishbone.Interface()
 		self.cachesize = cachesize
 		self.asmiport = asmiport
 		if len(self.asmiport.slots) != 1:
@@ -41,7 +41,7 @@ class WB2ASMI:
 		addressbits = aaw + offsetbits
 		linebits = _log2_int(self.cachesize) - offsetbits
 		tagbits = aaw - linebits
-		adr_offset, adr_line, adr_tag = split(self.wishbone.adr_i, offsetbits, linebits, tagbits)
+		adr_offset, adr_line, adr_tag = split(self.wishbone.adr, offsetbits, linebits, tagbits)
 		
 		# Data memory
 		data_adr = Signal(BV(linebits))
@@ -60,16 +60,16 @@ class WB2ASMI:
 				data_di.eq(self.asmiport.dat_r),
 				data_we.eq(Replicate(1, adw//8))
 			).Else(
-				data_di.eq(Replicate(self.wishbone.dat_i, adw//32)),
-				If(self.wishbone.cyc_i & self.wishbone.stb_i & self.wishbone.we_i & self.wishbone.ack_o,
-					displacer(self.wishbone.sel_i, adr_offset, data_we, 2**offsetbits, reverse=True)
+				data_di.eq(Replicate(self.wishbone.dat_w, adw//32)),
+				If(self.wishbone.cyc & self.wishbone.stb & self.wishbone.we & self.wishbone.ack,
+					displacer(self.wishbone.sel, adr_offset, data_we, 2**offsetbits, reverse=True)
 				)
 			),
 			If(write_to_asmi,
 				self.asmiport.dat_w.eq(data_do),
 				self.asmiport.dat_wm.eq(Replicate(1, adw//8))
 			),
-			chooser(data_do, adr_offset_r, self.wishbone.dat_o, reverse=True)
+			chooser(data_do, adr_offset_r, self.wishbone.dat_r, reverse=True)
 		]
 		sync += [
 			adr_offset_r.eq(adr_offset)
@@ -102,12 +102,12 @@ class WB2ASMI:
 			"REFILL_WRTAG", "REFILL_ISSUE", "REFILL_WAIT", "REFILL_COMPLETE")
 		
 		fsm.act(fsm.IDLE,
-			If(self.wishbone.cyc_i & self.wishbone.stb_i, fsm.next_state(fsm.TEST_HIT))
+			If(self.wishbone.cyc & self.wishbone.stb, fsm.next_state(fsm.TEST_HIT))
 		)
 		fsm.act(fsm.TEST_HIT,
 			If(tag_do.tag == adr_tag,
-				self.wishbone.ack_o.eq(1),
-				If(self.wishbone.we_i,
+				self.wishbone.ack.eq(1),
+				If(self.wishbone.we,
 					tag_di.dirty.eq(1),
 					tag_we.eq(1)
 				),
