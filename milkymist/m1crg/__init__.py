@@ -37,8 +37,9 @@ class M1CRG:
 			generated,
 			[
 				("clkin", self.clkin),
-				("trigger_reset", self.trigger_reset),
-				("rd_clk_lb", self.rd_clk_lb) # TODO: inout
+				("trigger_reset", self.trigger_reset)
+			], [
+				("rd_clk_lb", self.rd_clk_lb)
 			], [
 				("in_period", in_period),
 				("f_mult", ratio.numerator),
