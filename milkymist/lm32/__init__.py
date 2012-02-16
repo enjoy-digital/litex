@@ -38,11 +38,8 @@ class LM32:
 			("D_ERR_I", d.err),
 			("D_RTY_I", BV(1))],
 			
-			[],
-			
-			"clk_i",
-			"rst_i",
-			"lm32")
+			clkport="clk_i",
+			rstport="rst_i")
 
 	def get_fragment(self):
 		comb = [
