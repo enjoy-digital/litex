@@ -1,4 +1,4 @@
-def get(ns, clkfx_sys, reset0, norflash0, uart0):
+def get(ns, crg0, norflash0, uart0):
 	constraints = []
 	def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
 		constraints.append((ns.get_name(signal), vec, pin, iostandard, extra))
@@ -8,12 +8,12 @@ def get(ns, clkfx_sys, reset0, norflash0, uart0):
 			add(signal, p, i, iostandard, extra)
 			i += 1
 	
-	add(clkfx_sys.clkin, "AB11", extra="TNM_NET = \"GRPclk50\"")
-	
-	add(reset0.trigger_reset, "AA4")
-	add(reset0.ac97_rst_n, "D6")
-	add(reset0.videoin_rst_n, "W17")
-	add(reset0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
+	add(crg0.clkin, "AB11", extra="TNM_NET = \"GRPclk50\"")
+	add(crg0.ac97_rst_n, "D6")
+	add(crg0.videoin_rst_n, "W17")
+	add(crg0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
+	add(crg0.rd_clk_lb, "K5")
+	add(crg0.trigger_reset, "AA4")
 	
 	add_vec(norflash0.adr, ["L22", "L20", "K22", "K21", "J19", "H20", "F22",
 		"F21", "K17", "J17", "E22", "E20", "H18", "H19", "F20",

@@ -10,7 +10,7 @@ def add_core_dir(d):
 def add_core_files(d, files):
 	for f in files:
 		verilog_sources.append(os.path.join("verilog", d, f))
-add_core_dir("m1reset")
+add_core_dir("m1crg")
 add_core_files("lm32", ["lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
 	"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
 	"lm32_shifter.v", "lm32_multiplier_spartan6.v", "lm32_mc_arithmetic.v",
@@ -59,4 +59,4 @@ os.system("map -ol high -w soc.ngd")
 os.system("par -ol high -w soc.ncd soc-routed.ncd")
 
 # bitgen
-os.system("bitgen -g LCK_cycle:6 -g Binary:Yes -g INIT_9K:Yes -w soc-routed.ncd soc.bit")
+os.system("bitgen -g Binary:Yes -g INIT_9K:Yes -w soc-routed.ncd soc.bit")
