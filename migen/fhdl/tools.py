@@ -73,9 +73,9 @@ def group_by_targets(sl):
 			groups.append((targets, [statement]))
 	return groups
 
-def list_inst_ios(i, ins, outs):
+def list_inst_ios(i, ins, outs, inouts):
 	if isinstance(i, Fragment):
-		return list_inst_ios(i.instances, ins, outs)
+		return list_inst_ios(i.instances, ins, outs, inouts)
 	else:
 		l = []
 		for x in i:
@@ -83,6 +83,8 @@ def list_inst_ios(i, ins, outs):
 				l += x.ins.values()
 			if outs:
 				l += x.outs.values()
+			if inouts:
+				l += x.inouts.values()
 		return set(l)
 
 def list_mem_ios(m, ins, outs):

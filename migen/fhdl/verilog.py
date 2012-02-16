@@ -103,8 +103,9 @@ def _list_comb_wires(f):
 	return r
 
 def _printheader(f, ios, name, ns):
-	sigs = list_signals(f) | list_inst_ios(f, True, True) | list_mem_ios(f, True, True)
-	inst_mem_outs = list_inst_ios(f, False, True) | list_mem_ios(f, False, True)
+	sigs = list_signals(f) | list_inst_ios(f, True, True, True) | list_mem_ios(f, True, True)
+	inst_mem_outs = list_inst_ios(f, False, True, False) | list_mem_ios(f, False, True)
+	inouts = list_inst_ios(f, False, False, True)
 	targets = list_targets(f) | inst_mem_outs
 	wires = _list_comb_wires(f) | inst_mem_outs
 	r = "module " + name + "(\n"
@@ -113,7 +114,9 @@ def _printheader(f, ios, name, ns):
 		if not firstp:
 			r += ",\n"
 		firstp = False
-		if sig in targets:
+		if sig in inouts:
+			r += "\tinout " + _printsig(ns, sig)
+		elif sig in targets:
 			if sig in wires:
 				r += "\toutput " + _printsig(ns, sig)
 			else:
@@ -230,7 +233,7 @@ def convert(f, ios=set(), name="top",
 	ios |= f.pads
 
 	ns = build_namespace(list_signals(f) \
-		| list_inst_ios(f, True, True) \
+		| list_inst_ios(f, True, True, True) \
 		| list_mem_ios(f, True, True) \
 		| ios)
 

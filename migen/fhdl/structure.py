@@ -209,7 +209,7 @@ class Case:
 #
 
 class Instance:
-	def __init__(self, of, outs=[], ins=[], parameters=[], clkport="", rstport="", name=""):
+	def __init__(self, of, outs=[], ins=[], inouts=[], parameters=[], clkport="", rstport="", name=""):
 		self.of = of
 		if name:
 			self.name_override = name
@@ -224,6 +224,7 @@ class Instance:
 				raise TypeError
 		self.outs = dict(map(process_io, outs))
 		self.ins = dict(map(process_io, ins))
+		self.inouts = dict(map(process_io, inouts))
 		self.parameters = parameters
 		self.clkport = clkport
 		self.rstport = rstport

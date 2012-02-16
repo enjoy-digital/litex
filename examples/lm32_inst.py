@@ -32,10 +32,9 @@ class LM32:
 			("D_ACK_I", BV(1)),
 			("D_ERR_I", BV(1)),
 			("D_RTY_I", BV(1))],
-			[],
-			"clk_i",
-			"rst_i",
-			"lm32")
+			clkport="clk_i",
+			rstport="rst_i",
+			name="lm32")
 	
 	def get_fragment(self):
 		return Fragment(instances=[self.inst])
