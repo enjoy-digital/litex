@@ -34,6 +34,7 @@ class Bank:
 						bwra.append(field.storage.eq(self.interface.dat_w[offset:offset+field.size]))
 					offset += field.size
 				if len(bwra) > 1:
+					bwra.append(reg.re.eq(1))
 					bwcases.append(bwra)
 			else:
 				raise TypeError
