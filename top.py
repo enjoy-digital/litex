@@ -2,15 +2,19 @@ from fractions import Fraction
 
 from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
-from migen.bus import wishbone, asmibus, wishbone2asmi, csr, wishbone2csr
+from migen.bus import wishbone, asmibus, wishbone2asmi, csr, wishbone2csr, dfi
 
-from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy
+from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii
 import constraints
 
 MHz = 1000000
 clk_freq = (83 + Fraction(1, 3))*MHz
 sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
+
+dfi_a = 13
+dfi_ba = 2
+dfi_d = 128 # TODO -> 64
 
 def ddrphy_clocking(crg, phy):
 	names = [
@@ -31,11 +35,17 @@ def get():
 	#
 	# ASMI
 	#
-	ddrphy0 = s6ddrphy.S6DDRPHY(1, 13, 2, 128)
 	asmihub0 = asmibus.Hub(23, 128, 12) # TODO: get hub from memory controller
 	asmiport_wb = asmihub0.get_port()
 	asmihub0.finalize()
 	
+	#
+	# DFI
+	#
+	ddrphy0 = s6ddrphy.S6DDRPHY(1, dfi_a, dfi_ba, dfi_d)
+	dfii0 = dfii.DFIInjector(2, dfi_a, dfi_ba, dfi_d, 2)
+	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
+
 	#
 	# WISHBONE
 	#
@@ -70,7 +80,8 @@ def get():
 	uart0 = uart.UART(0, clk_freq, baud=115200)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
-		ddrphy0.bank.interface
+		ddrphy0.bank.interface,
+		dfii0.bank.interface
 	])
 	
 	#
