@@ -1,0 +1,27 @@
+Index: s6ddrphy/spartan6_soft_phy.v
+===================================================================
+--- s6ddrphy.orig/spartan6_soft_phy.v
++++ s6ddrphy/spartan6_soft_phy.v
+@@ -116,7 +116,6 @@ module spartan6_soft_phy # (
+     inout  [NUM_DQ-1:0]                         sd_dq,                          // Data in from SDRAM device
+     output [NUM_DQS-1:0]                        sd_dm,                          // Data mask to SDRAM devices
+     inout  [NUM_DQS-1:0]                        sd_dqs,                         // DQS
+-    inout  [NUM_DQS-1:0]                        sd_dqs_n,                       // complimentary DQS
+ 
+     // configuration ports
+     input  [2:0]                                cfg_al,                         // Posted CAS additive latency
+@@ -300,12 +299,11 @@ genvar j;
+ generate
+     for (j = 0; j < NUM_DQ/8*(NIBBLE_DEVICES+1) ; j = j + 1)
+     begin:dqs_iob
+-        IOBUFDS iobufds (
++        IOBUF iobufds (
+             .O              (sd_dqs_in[j]),
+             .I              (sd_dqs_out[j]),
+             .T              (sd_dqs_oe_n[j]),
+-            .IO             (sd_dqs[j]),
+-            .IOB            (sd_dqs_n[j])
++            .IO             (sd_dqs[j])
+             );
+     end
+ endgenerate
