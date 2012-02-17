@@ -31,7 +31,7 @@ def get():
 	#
 	# ASMI
 	#
-	ddrphy0 = s6ddrphy.S6DDRPHY(13, 2, 128)
+	ddrphy0 = s6ddrphy.S6DDRPHY(1, 13, 2, 128)
 	asmihub0 = asmibus.Hub(23, 128, 12) # TODO: get hub from memory controller
 	asmiport_wb = asmihub0.get_port()
 	asmihub0.finalize()
@@ -68,7 +68,10 @@ def get():
 	# CSR
 	#
 	uart0 = uart.UART(0, clk_freq, baud=115200)
-	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [uart0.bank.interface])
+	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
+		uart0.bank.interface,
+		ddrphy0.bank.interface
+	])
 	
 	#
 	# Interrupts
