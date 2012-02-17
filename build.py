@@ -21,7 +21,6 @@ add_core_files("lm32", ["lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v
 	"lm32_dcache.v", "lm32_top.v", "lm32_debug.v", "lm32_jtag.v", "jtag_cores.v",
 	"jtag_tap_spartan6.v"])
 
-os.system("rm -rf build/*")
 os.chdir("build")
 
 def str2file(filename, contents):
@@ -35,33 +34,8 @@ str2file("soc.v", src_verilog)
 str2file("soc.ucf", src_ucf)
 verilog_sources.append("build/soc.v")
 
-#raise SystemExit
-
-# xst
+# generate XST project file
 xst_prj = ""
 for s in verilog_sources:
 	xst_prj += "verilog work ../" + s + "\n"
 str2file("soc.prj", xst_prj)
-str2file("soc.xst", """run
--ifn soc.prj
--top soc
--ifmt MIXED
--opt_mode SPEED
--opt_level 2
--resource_sharing no
--reduce_control_sets auto
--ofn soc.ngc
--p xc6slx45-fgg484-2""")
-os.system("xst -ifn soc.xst")
-
-# ngdbuild
-os.system("ngdbuild -uc soc.ucf soc.ngc")
-
-# map
-os.system("map -ol high -w soc.ngd")
-
-# par
-os.system("par -ol high -w soc.ncd soc-routed.ncd")
-
-# bitgen
-os.system("bitgen -g Binary:Yes -g INIT_9K:Yes -w soc-routed.ncd soc.bit")

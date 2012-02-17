@@ -1,0 +1,5 @@
+cable milkymist
+detect
+instruction CFG_OUT  000100 BYPASS
+instruction CFG_IN   000101 BYPASS
+pld load build/soc.bit
