@@ -25,7 +25,10 @@ libs:
 	make -C $(M2DIR)/software/libbase
 	make -C $(M2DIR)/software/libextra
 
-.PHONY: clean libs
+flash: bios.bin
+	m1nor bios.bin
 
 clean:
 	rm -f $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
+
+.PHONY: clean libs flash
