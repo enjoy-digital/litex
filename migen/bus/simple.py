@@ -27,19 +27,21 @@ class SimpleInterface:
 			signame = signal[1]
 			setattr(self, signame, Signal(BV(signal[2]), busname + "_" + signame))
 
+def simple_interconnect_stmts(desc, master, slaves):
+	s2m = desc.get_names(S_TO_M)
+	m2s = desc.get_names(M_TO_S)
+	sl = [getattr(slave, name).eq(getattr(master, name))
+		for name in m2s for slave in slaves]
+	sl += [getattr(master, name).eq(
+			optree("|", [getattr(slave, name) for slave in slaves])
+		)
+		for name in s2m]
+	return sl
+
 class SimpleInterconnect:
 	def __init__(self, master, slaves):
 		self.master = master
 		self.slaves = slaves
 	
 	def get_fragment(self):
-		desc = self.master.desc 
-		s2m = desc.get_names(S_TO_M)
-		m2s = desc.get_names(M_TO_S)
-		comb = [getattr(slave, name).eq(getattr(self.master, name))
-			for name in m2s for slave in self.slaves]
-		comb += [getattr(self.master, name).eq(
-				optree("|", [getattr(slave, name) for slave in self.slaves])
-			)
-			for name in s2m]
-		return Fragment(comb)
+		return Fragment(simple_interconnect_stmts(self.master.desc, self.master, self.slaves))

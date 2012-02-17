@@ -42,14 +42,16 @@ class Interface:
 					r.append(("dfi_" + signal[1] + suffix, getattr(phase, signal[1])))
 		return r
 
+def interconnect_stmts(master, slave):
+	r = []
+	for pm, ps in zip(master.phases, slave.phases):
+		r += simple_interconnect_stmts(master.pdesc, pm, [ps])
+	return r
+
 class Interconnect:
 	def __init__(self, master, slave):
 		self.master = master
 		self.slave = slave
 	
 	def get_fragment(self):
-		f = Fragment()
-		for pm, ps in zip(self.master.phases, self.slave.phases):
-			ic = SimpleInterconnect(pm, [ps])
-			f += ic.get_fragment()
-		return f
+		return Fragment(interconnect_stmts(self.master, self.slave))
