@@ -4,13 +4,16 @@ import top
 # list Verilog sources before changing directory
 verilog_sources = []
 def add_core_dir(d):
-	for root, subFolders, files in os.walk(os.path.join("verilog", d)):
-		for f in files:
+	root = os.path.join("verilog", d)
+	files = os.listdir(root)
+	for f in files:
+		if f[-2:] == ".v":
 			verilog_sources.append(os.path.join(root, f))
 def add_core_files(d, files):
 	for f in files:
 		verilog_sources.append(os.path.join("verilog", d, f))
 add_core_dir("m1crg")
+add_core_dir("s6ddrphy")
 add_core_files("lm32", ["lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
 	"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
 	"lm32_shifter.v", "lm32_multiplier_spartan6.v", "lm32_mc_arithmetic.v",
@@ -31,7 +34,9 @@ def str2file(filename, contents):
 str2file("soc.v", src_verilog)
 str2file("soc.ucf", src_ucf)
 verilog_sources.append("build/soc.v")
+
 #raise SystemExit
+
 # xst
 xst_prj = ""
 for s in verilog_sources:

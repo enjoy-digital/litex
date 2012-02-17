@@ -1,8 +1,9 @@
-def get(ns, crg0, norflash0, uart0):
+def get(ns, crg0, norflash0, uart0, ddrphy0):
 	constraints = []
 	def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
 		constraints.append((ns.get_name(signal), vec, pin, iostandard, extra))
 	def add_vec(signal, pins, iostandard="LVCMOS33", extra=""):
+		assert(signal.bv.width == len(pins))
 		i = 0
 		for p in pins:
 			add(signal, p, i, iostandard, extra)
@@ -12,7 +13,7 @@ def get(ns, crg0, norflash0, uart0):
 	add(crg0.ac97_rst_n, "D6")
 	add(crg0.videoin_rst_n, "W17")
 	add(crg0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
-	add(crg0.rd_clk_lb, "K5")
+	add(crg0.rd_clk_lb, "K5", extra="IOSTANDARD = SSTL2_I")
 	add(crg0.trigger_reset, "AA4")
 	
 	add_vec(norflash0.adr, ["L22", "L20", "K22", "K21", "J19", "H20", "F22",
@@ -21,13 +22,31 @@ def get(ns, crg0, norflash0, uart0):
 		extra="SLEW = FAST | DRIVE = 8")
 	add_vec(norflash0.d, ["AA20", "U14", "U13", "AA6", "AB6", "W4", "Y4", "Y7",
 		"AA2", "AB2", "V15", "AA18", "AB18", "Y13", "AA12", "AB12"],
-		extra = "SLEW = FAST | DRIVE = 8 | PULLDOWN")
+		extra="SLEW = FAST | DRIVE = 8 | PULLDOWN")
 	add(norflash0.oe_n, "M22", extra="SLEW = FAST | DRIVE = 8")
 	add(norflash0.we_n, "N20", extra="SLEW = FAST | DRIVE = 8")
 	add(norflash0.ce_n, "M21", extra="SLEW = FAST | DRIVE = 8")
 	
 	add(uart0.tx, "L17", extra="SLEW = SLOW")
 	add(uart0.rx, "K18", extra="PULLUP")
+	
+	ddrsettings = "IOSTANDARD = SSTL2_I"
+	add(ddrphy0.sd_clk_out_p, "M3", extra=ddrsettings)
+	add(ddrphy0.sd_clk_out_n, "L4", extra=ddrsettings)
+	add_vec(ddrphy0.sd_a, ["B1", "B2", "H8", "J7", "E4", "D5", "K7", "F5",
+		"G6", "C1", "C3", "D1", "D2"], extra=ddrsettings)
+	add_vec(ddrphy0.sd_ba, ["A2", "E6"], extra=ddrsettings)
+	add(ddrphy0.sd_cs_n, "F7", extra=ddrsettings)
+	add(ddrphy0.sd_cke, "G7", extra=ddrsettings)
+	add(ddrphy0.sd_ras_n, "E5", extra=ddrsettings)
+	add(ddrphy0.sd_cas_n, "C4", extra=ddrsettings)
+	add(ddrphy0.sd_we_n, "D3", extra=ddrsettings)
+	add_vec(ddrphy0.sd_dq, ["Y2", "W3", "W1", "P8", "P7", "P6", "P5", "T4", "T3",
+		"U4", "V3", "N6", "N7", "M7", "M8", "R4", "P4", "M6", "L6", "P3", "N4",
+		"M5", "V2", "V1", "U3", "U1", "T2", "T1", "R3", "R1", "P2", "P1"],
+		extra=ddrsettings)
+	add_vec(ddrphy0.sd_dm, ["E1", "E3", "F3", "G4"], extra=ddrsettings)
+	add_vec(ddrphy0.sd_dqs, ["F1", "F2", "H5", "H6"], extra=ddrsettings)
 	
 	r = ""
 	for c in constraints:
@@ -42,6 +61,15 @@ def get(ns, crg0, norflash0, uart0):
 	
 	r += """
 TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
-	"""
+INST "spartan6_soft_phy/datapath_s6_inst/dq_idelay_cal_inst/max_tap_drp" LOC = "IODELAY_X0Y79"; # use sd_dm[0] at E1
+INST "m1crg/wr_bufpll_left" LOC = "BUFPLL_X0Y2";
+INST "m1crg/wr_bufpll_right" LOC = "BUFPLL_X2Y2";
+INST "m1crg/rd_bufpll_left" LOC = "BUFPLL_X0Y3";
+INST "m1crg/rd_bufpll_right" LOC = "BUFPLL_X2Y3";
+
+# MAP (13.4) hallucinates that this placement is unroutable. Tell it to STFU.
+PIN "m1crg/rd_bufpll_left.IOCLK" CLOCK_DEDICATED_ROUTE = FALSE;
+PIN "spartan6_soft_phy/datapath_s6_inst/dq_idelay_cal_inst/max_tap_drp.IOCLK0" CLOCK_DEDICATED_ROUTE = FALSE;
+"""
 	
 	return r

@@ -4,7 +4,7 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, asmibus, wishbone2asmi, csr, wishbone2csr
 
-from milkymist import m1crg, lm32, norflash, uart, sram#, s6ddrphy
+from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy
 import constraints
 
 MHz = 1000000
@@ -12,11 +12,26 @@ clk_freq = (83 + Fraction(1, 3))*MHz
 sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
 
+def ddrphy_clocking(crg, phy):
+	names = [
+		"clk2x_90",
+		"clk4x_wr_left",
+		"clk4x_wr_strb_left",
+		"clk4x_wr_right",
+		"clk4x_wr_strb_right",
+		"clk4x_rd_left",
+		"clk4x_rd_strb_left",
+		"clk4x_rd_right",
+		"clk4x_rd_strb_right",
+	]
+	comb = [getattr(phy, name).eq(getattr(crg, name)) for name in names]
+	return Fragment(comb)
+
 def get():
 	#
 	# ASMI
 	#
-	#ddrphy0 = s6ddrphy.S6DDRPHY(13, 2, 128)
+	ddrphy0 = s6ddrphy.S6DDRPHY(13, 2, 128)
 	asmihub0 = asmibus.Hub(23, 128, 12) # TODO: get hub from memory controller
 	asmiport_wb = asmihub0.get_port()
 	asmihub0.finalize()
@@ -67,12 +82,12 @@ def get():
 	#
 	crg0 = m1crg.M1CRG(50*MHz, clk_freq)
 	
-	frag = autofragment.from_local() + interrupts
+	frag = autofragment.from_local() + interrupts + ddrphy_clocking(crg0, ddrphy0)
 	src_verilog, vns = verilog.convert(frag,
 		{crg0.trigger_reset},
 		name="soc",
 		clk_signal=crg0.sys_clk,
 		rst_signal=crg0.sys_rst,
 		return_ns=True)
-	src_ucf = constraints.get(vns, crg0, norflash0, uart0)
+	src_ucf = constraints.get(vns, crg0, norflash0, uart0, ddrphy0)
 	return (src_verilog, src_ucf)

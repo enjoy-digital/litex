@@ -23,7 +23,7 @@ class M1CRG:
 			"clk4x_rd_strb_left",
 			"clk4x_rd_right",
 			"clk4x_rd_strb_right"
-		  ]:
+		]:
 			s = Signal(name=name)
 			setattr(self, name, s)
 			generated.append((name, s))  
