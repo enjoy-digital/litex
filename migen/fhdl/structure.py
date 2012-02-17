@@ -138,6 +138,7 @@ def _cst(x):
 
 class Signal(Value):
 	def __init__(self, bv=BV(), name=None, variable=False, reset=0, name_override=None):
+		assert(isinstance(bv, BV))
 		self.bv = bv
 		self.variable = variable
 		self.reset = Constant(reset, bv)
