@@ -27,6 +27,8 @@
 
 #include <hw/flash.h>
 
+#include "ddrinit.h"
+
 enum {
 	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,
 	CSR_DC, CSR_DEBA, CSR_JTX, CSR_JRX, CSR_BP0, CSR_BP1, CSR_BP2, CSR_BP3,
@@ -440,11 +442,12 @@ int main(int i, char **c)
 	uart_init();
 	printf(banner);
 	crcbios();
-
+	print_mac();
+	ddrinit();
+	
 	if(rescue)
 		printf("I: Booting in rescue mode\n");
-
-	print_mac();
+	
 	while(1) {
 		putsnonl("\e[1mBIOS>\e[0m ");
 		readstr(buffer, 64);
