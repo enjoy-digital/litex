@@ -198,7 +198,7 @@ def _printinstances(f, ns, clk, rst):
 		r += ns.get_name(x) 
 		if x.parameters: r += " "
 		r += "(\n"
-		ports = list(x.ins.items()) + list(x.outs.items())
+		ports = list(x.ins.items()) + list(x.outs.items()) + list(x.inouts.items())
 		if x.clkport:
 			ports.append((x.clkport, clk))
 		if x.rstport:
