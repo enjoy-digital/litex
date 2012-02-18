@@ -300,7 +300,7 @@ static void wcsr(char *csr, char *value)
 
 /* Init + command line */
 
-static void help()
+static void help(void)
 {
 	puts("Milkymist(tm) BIOS");
 	puts("Don't know what to do? Try 'flashboot'.\n");
@@ -351,6 +351,8 @@ static void do_command(char *c)
 
 	else if(strcmp(token, "rcsr") == 0) rcsr(get_token(&c));
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
+	
+	else if(strcmp(token, "ddrinit") == 0) ddrinit();
 
 	else if(strcmp(token, "") != 0)
 		printf("Command not found\n");
@@ -359,7 +361,7 @@ static void do_command(char *c)
 int rescue;
 extern unsigned int _edata;
 
-static void crcbios()
+static void crcbios(void)
 {
 	unsigned int offset_bios;
 	unsigned int length;
@@ -384,7 +386,7 @@ static void crcbios()
 	}
 }
 
-static void print_mac()
+static void print_mac(void)
 {
 	unsigned char *macadr = (unsigned char *)FLASH_OFFSET_MAC_ADDRESS;
 
