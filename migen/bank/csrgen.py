@@ -27,6 +27,7 @@ class Bank:
 					self.interface.we & \
 					(self.interface.adr[:nbits] == Constant(i, BV(nbits)))))
 			elif isinstance(reg, RegisterFields):
+				sync.append(reg.re.eq(0))
 				bwra = [Constant(i, BV(nbits))]
 				offset = 0
 				for field in reg.fields:
