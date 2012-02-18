@@ -43,7 +43,7 @@ def get():
 	# DFI
 	#
 	ddrphy0 = s6ddrphy.S6DDRPHY(1, dfi_a, dfi_ba, dfi_d)
-	dfii0 = dfii.DFIInjector(2, dfi_a, dfi_ba, dfi_d, 2)
+	dfii0 = dfii.DFIInjector(2, dfi_a, dfi_ba, dfi_d, 1)
 	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
 
 	#

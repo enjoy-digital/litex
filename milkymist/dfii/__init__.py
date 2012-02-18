@@ -83,7 +83,6 @@ class DFIInjector:
 				phase.we_n.eq(1),
 				phase.cas_n.eq(1),
 				phase.ras_n.eq(1)
-				
 			]
 		
 		# commands
@@ -99,6 +98,12 @@ class DFIInjector:
 				cmdphase.cas_n.eq(1),
 				cmdphase.ras_n.eq(1)
 			)
+		]
+		
+		# addresses
+		comb += [
+			cmdphase.address.eq(self._address.field.r),
+			cmdphase.bank.eq(self._baddress.field.r)
 		]
 		
 		# data enables
