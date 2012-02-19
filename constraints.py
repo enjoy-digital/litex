@@ -62,6 +62,8 @@ def get(ns, crg0, norflash0, uart0, ddrphy0):
 TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
 INST "m1crg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "m1crg/rd_bufpll" LOC = "BUFPLL_X0Y3";
+
+PIN "m1crg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 """
 	
 	return r
