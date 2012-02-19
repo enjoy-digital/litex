@@ -17,7 +17,6 @@
 
 #include <stdio.h>
 
-#include <hw/s6ddrphy.h>
 #include <hw/dfii.h>
 
 #include "ddrinit.h"
@@ -79,54 +78,11 @@ static void init_sequence(void)
 	cdelay(200);
 }
 
-static void calibrate_phy(void)
-{
-	int requests;
-	int addr;
-	
-	printf("Calibrating PHY...\n");
-	
-	CSR_DFII_WRDELAY = 4;
-	CSR_DFII_WRDURATION = 1;
-	CSR_DFII_RDDELAY = 7;
-	CSR_DFII_RDDURATION = 1;
-	
-	/* Use bank 0, activate row 0 */
-	CSR_DFII_BA = 0;
-	setaddr(0x0000);
-	CSR_DFII_COMMAND = DFII_COMMAND_RAS|DFII_COMMAND_CS;
-	
-	while(!(CSR_DDRPHY_STATUS & DDRPHY_STATUS_PHY_CAL_DONE)) {
-		cdelay(20);
-		requests = CSR_DDRPHY_REQUESTS;
-		addr = CSR_DDRPHY_REQADDR;
-		
-		setaddr(addr << 2);
-		if(requests & DDRPHY_REQUEST_READ) {
-			printf("R %d\n", addr);
-			CSR_DFII_COMMAND = DFII_COMMAND_RDDATA|DFII_COMMAND_CAS|DFII_COMMAND_CS;
-		}
-		if(requests & DDRPHY_REQUEST_WRITE) {
-			printf("W %d\n", addr);
-			CSR_DFII_COMMAND = DFII_COMMAND_WRDATA|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
-		}
-		
-		CSR_DDRPHY_REQUESTS = requests;
-	}
-	
-	/* Precharge All */
-	setaddr(0x0400);
-	CSR_DFII_COMMAND = DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
-}
-
 int ddrinit(void)
 {
 	printf("Initializing DDR SDRAM...\n");
 	
-	CSR_DDRPHY_STATUS = DDRPHY_STATUS_RESETN;
 	init_sequence();
-	CSR_DDRPHY_STATUS = DDRPHY_STATUS_RESETN|DDRPHY_STATUS_INIT_DONE;
-	calibrate_phy();
 	
 	return 1;
 }

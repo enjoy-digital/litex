@@ -15,20 +15,14 @@ class M1CRG:
 			"videoin_rst_n",
 			"flash_rst_n",
 			"clk2x_90",
-			"clk4x_wr_left",
-			"clk4x_wr_strb_left",
-			"clk4x_wr_right",
-			"clk4x_wr_strb_right",
-			"clk4x_rd_left",
-			"clk4x_rd_strb_left",
-			"clk4x_rd_right",
-			"clk4x_rd_strb_right"
+			"clk4x_wr",
+			"clk4x_wr_strb",
+			"clk4x_rd",
+			"clk4x_rd_strb"
 		]:
 			s = Signal(name=name)
 			setattr(self, name, s)
 			generated.append((name, s))  
-		
-		self.rd_clk_lb = Signal()
 		
 		ratio = Fraction(outfreq1x)/Fraction(infreq)
 		in_period = float(Fraction(1000000000)/Fraction(infreq))
@@ -38,9 +32,8 @@ class M1CRG:
 			[
 				("clkin", self.clkin),
 				("trigger_reset", self.trigger_reset)
-			], [
-				("rd_clk_lb", self.rd_clk_lb)
-			], [
+			],
+			parameters=[
 				("in_period", in_period),
 				("f_mult", ratio.numerator),
 				("f_div", ratio.denominator)
@@ -49,4 +42,4 @@ class M1CRG:
 
 	def get_fragment(self):
 		return Fragment(instances=[self._inst],
-			pads={self.clkin, self.ac97_rst_n, self.videoin_rst_n, self.flash_rst_n, self.rd_clk_lb})
+			pads={self.clkin, self.ac97_rst_n, self.videoin_rst_n, self.flash_rst_n})

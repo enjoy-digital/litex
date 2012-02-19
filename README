@@ -19,22 +19,6 @@ production version of Milkymist SoC, visit:
 First, download and install Migen from:
   https://github.com/milkymist/migen
 
-Then, you will need to fetch the "Spartan-6 FPGA DDR/DDR2 SDRAM PHY core"
-(PHY only solution, we do not need the NWL memory controller) from:
-  http://www.xilinx.com/products/intellectual-property/1-1MFEDB.htm
-Downloading it is free of charge, but it cannot be redistributed in
-source form due to copyright restrictions.
-
-Place the Verilog source code of the PHY (contents of
-phy_rtl/spartan6_soft_phy) into the verilog/s6ddrphy folder.
-Then run (from verilog/s6ddrphy):
-  quilt push -a
-in order to apply patches that make the PHY more compliant with the DFI
-specification in general, and in particular with the capability to send
-multiple SDRAM commands in one system clock cycle, which our new SDRAM
-controller is capable of doing.
-The patches are against version 1.04 of the PHY.
-
 Once this is done, build the bitstream with:
   python3 build.py
 This will generate the build/soc.bit programming file.
@@ -67,8 +51,7 @@ without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 The authors grant the additional permissions that the code can be used in
-conjunction with the LatticeMico32 CPU core from Lattice and the
-Spartan-6 FPGA DDR/DDR2 SDRAM PHY core from Xilinx and Northwest Logic.
+conjunction with the LatticeMico32 CPU core from Lattice.
 
 Unless otherwise noted, Milkymist-NG's source code is copyright (C)
 2011-2012 Sebastien Bourdeauducq. Other authors retain ownership of their

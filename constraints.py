@@ -13,7 +13,6 @@ def get(ns, crg0, norflash0, uart0, ddrphy0):
 	add(crg0.ac97_rst_n, "D6")
 	add(crg0.videoin_rst_n, "W17")
 	add(crg0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
-	add(crg0.rd_clk_lb, "K5", extra="IOSTANDARD = SSTL2_I")
 	add(crg0.trigger_reset, "AA4")
 	
 	add_vec(norflash0.adr, ["L22", "L20", "K22", "K21", "J19", "H20", "F22",
@@ -61,15 +60,8 @@ def get(ns, crg0, norflash0, uart0, ddrphy0):
 	
 	r += """
 TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
-INST "spartan6_soft_phy/datapath_s6_inst/dq_idelay_cal_inst/max_tap_drp" LOC = "IODELAY_X0Y79"; # use sd_dm[0] at E1
-INST "m1crg/wr_bufpll_left" LOC = "BUFPLL_X0Y2";
-INST "m1crg/wr_bufpll_right" LOC = "BUFPLL_X2Y2";
-INST "m1crg/rd_bufpll_left" LOC = "BUFPLL_X0Y3";
-INST "m1crg/rd_bufpll_right" LOC = "BUFPLL_X2Y3";
-
-# MAP (13.4) hallucinates that this placement is unroutable. Tell it to STFU.
-PIN "m1crg/rd_bufpll_left.IOCLK" CLOCK_DEDICATED_ROUTE = FALSE;
-PIN "spartan6_soft_phy/datapath_s6_inst/dq_idelay_cal_inst/max_tap_drp.IOCLK0" CLOCK_DEDICATED_ROUTE = FALSE;
+INST "m1crg/wr_bufpll" LOC = "BUFPLL_X0Y2";
+INST "m1crg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 """
 	
 	return r

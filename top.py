@@ -14,19 +14,15 @@ l2_size = 8192 # in bytes
 
 dfi_a = 13
 dfi_ba = 2
-dfi_d = 128 # TODO -> 64
+dfi_d = 64
 
 def ddrphy_clocking(crg, phy):
 	names = [
 		"clk2x_90",
-		"clk4x_wr_left",
-		"clk4x_wr_strb_left",
-		"clk4x_wr_right",
-		"clk4x_wr_strb_right",
-		"clk4x_rd_left",
-		"clk4x_rd_strb_left",
-		"clk4x_rd_right",
-		"clk4x_rd_strb_right",
+		"clk4x_wr",
+		"clk4x_wr_strb",
+		"clk4x_rd",
+		"clk4x_rd_strb"
 	]
 	comb = [getattr(phy, name).eq(getattr(crg, name)) for name in names]
 	return Fragment(comb)
@@ -42,8 +38,8 @@ def get():
 	#
 	# DFI
 	#
-	ddrphy0 = s6ddrphy.S6DDRPHY(1, dfi_a, dfi_ba, dfi_d)
-	dfii0 = dfii.DFIInjector(2, dfi_a, dfi_ba, dfi_d, 1)
+	ddrphy0 = s6ddrphy.S6DDRPHY(dfi_a, dfi_ba, dfi_d)
+	dfii0 = dfii.DFIInjector(1, dfi_a, dfi_ba, dfi_d, 2)
 	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
 
 	#
@@ -80,7 +76,6 @@ def get():
 	uart0 = uart.UART(0, clk_freq, baud=115200)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
-		ddrphy0.bank.interface,
 		dfii0.bank.interface
 	])
 	

@@ -21,7 +21,7 @@ build/soc-routed.ncd: build/soc.ncd
 	cd build && par -ol high -w soc.ncd soc-routed.ncd
 
 build/soc.bit build/soc.bin: build/soc-routed.ncd
-	cd build && bitgen -g Binary:Yes -g INIT_9K:Yes -w soc-routed.ncd soc.bit
+	cd build && bitgen -g LCK_cycle:6 -g Binary:Yes -g INIT_9K:Yes -w soc-routed.ncd soc.bit
 
 load: build/soc.bit
 	jtag -n load.jtag
