@@ -34,9 +34,9 @@ class Interface:
 				if (m2s and signal[0] == M_TO_S) or (s2m and signal[0] == S_TO_M):
 					if add_suffix:
 						if signal[0] == M_TO_S:
-							suffix = "_p" + int(n)
+							suffix = "_p" + str(n)
 						else:
-							suffix = "_w" + int(n)
+							suffix = "_w" + str(n)
 					else:
 						suffix = ""
 					r.append(("dfi_" + signal[1] + suffix, getattr(phase, signal[1])))
