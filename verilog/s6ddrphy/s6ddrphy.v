@@ -182,9 +182,179 @@ always @(posedge clk2x_90) begin
 	end
 end
 
-// TODO
-assign sd_dq = 32'hzzzzzzzz;
-assign sd_dm = 0;
-assign sd_dqs = 4'hz;
+/* 
+ * DQ/DQS/DM data
+ */
+
+genvar i;
+
+wire drive_dqs;
+wire [NUM_D/16-1:0] dqs_o;
+wire [NUM_D/16-1:0] dqs_t;
+generate
+	for(i=0;i<NUM_D/16;i=i+1)
+	begin: gen_dqs
+		ODDR2 #(
+			.DDR_ALIGNMENT("C0"),
+			.INIT(1'b0),
+			.SRTYPE("ASYNC")
+		) dqs_o_oddr (
+			.Q(dqs_o[i]),
+			.C0(clk2x_90),
+			.C1(~clk2x_90),
+			.CE(1'b1),
+			.D0(1'b0),
+			.D1(1'b1),
+			.R(1'b0),
+			.S(1'b0)
+		);
+		ODDR2 #(
+			.DDR_ALIGNMENT("C0"),
+			.INIT(1'b0),
+			.SRTYPE("ASYNC")
+		) dqs_t_oddr (
+			.Q(dqs_t[i]),
+			.C0(clk2x_90),
+			.C1(~clk2x_90),
+			.CE(1'b1),
+			.D0(~drive_dqs),
+			.D1(~drive_dqs),
+			.R(1'b0),
+			.S(1'b0)
+		);
+		OBUFT dqs_obuft(
+			.I(dqs_o[i]),
+			.T(dqs_t[i]),
+			.O(sd_dqs[i])
+		);
+	end
+endgenerate
+
+wire drive_dq;
+wire [NUM_D/2-1:0] dq_i;
+wire [NUM_D/2-1:0] dq_o;
+wire [NUM_D/2-1:0] dq_t;
+generate
+	for(i=0;i<NUM_D/2;i=i+1)
+	begin: gen_dq
+		OSERDES2 #(
+			.DATA_WIDTH(4),
+			.DATA_RATE_OQ("SDR"),
+			.DATA_RATE_OT("SDR"),
+			.SERDES_MODE("NONE"),
+			.OUTPUT_MODE("SINGLE_ENDED")
+		) dq_oserdes (
+			.OQ(dq_o[i]),
+			.OCE(1'b1),
+			.CLK0(clk4x_wr),
+			.CLK1(1'b0),
+			.IOCE(clk4x_wr_strb),
+			.RST(),
+			.CLKDIV(sys_clk),
+			.D1(dfi_wrdata_p0[2*i]),
+			.D2(dfi_wrdata_p0[2*i+1]),
+			.D3(dfi_wrdata_p1[2*i]),
+			.D4(dfi_wrdata_p1[2*i+1]),
+			.TQ(dq_t[i]),
+			.T1(~drive_dq),
+			.T2(~drive_dq),
+			.T3(~drive_dq),
+			.T4(~drive_dq),
+			.TRAIN(1'b0),
+			.TCE(1'b1),
+			.SHIFTIN1(1'b0),
+			.SHIFTIN2(1'b0),
+			.SHIFTIN3(1'b0),
+			.SHIFTIN4(1'b0),
+			.SHIFTOUT1(),
+			.SHIFTOUT2(),
+			.SHIFTOUT3(),
+			.SHIFTOUT4()
+		);
+		ISERDES2 #(
+			.DATA_WIDTH(4),
+			.DATA_RATE("SDR"),
+			.BITSLIP_ENABLE("FALSE"),
+			.SERDES_MODE("NONE"),
+			.INTERFACE_TYPE("RETIMED")
+		) dq_iserdes (
+			.D(dq_i[i]),
+			.CE0(1'b1),
+			.CLK0(clk4x_rd),
+			.CLK1(1'b0),
+			.IOCE(clk4x_rd_strb),
+			.RST(),
+			.CLKDIV(clk),
+			.SHIFTIN(),
+			.BITSLIP(1'b0),
+			.FABRICOUT(),
+			.Q1(dfi_rddata_w0[2*i]),
+			.Q2(dfi_rddata_w0[2*i+1]),
+			.Q3(dfi_rddata_w1[2*i]),
+			.Q4(dfi_rddata_w1[2*i+1]),
+			.DFB(),
+			.CFB0(),
+			.CFB1(),
+			.VALID(),
+			.INCDEC(),
+			.SHIFTOUT()
+		);
+		IOBUF dq_iobuf(
+			.I(dq_o[i]),
+			.O(dq_i[i]),
+			.T(dq_t[i]),
+			.IO(sd_dq[i])
+		);
+	end
+endgenerate
+
+generate
+	for(i=0;i<NUM_D/16;i=i+1)
+	begin: gen_dm_oserdes
+		OSERDES2 #(
+			.DATA_WIDTH(4),
+			.DATA_RATE_OQ("SDR"),
+			.DATA_RATE_OT("SDR"),
+			.SERDES_MODE("NONE"),
+			.OUTPUT_MODE("SINGLE_ENDED")
+		) dm_oserdes (
+			.OQ(sd_dm[i]),
+			.OCE(1'b1),
+			.CLK0(clk4x_wr),
+			.CLK1(1'b0),
+			.IOCE(clk4x_wr_strb),
+			.RST(),
+			.CLKDIV(sys_clk),
+			.D1(dfi_wrdata_mask_p0[2*i]),
+			.D2(dfi_wrdata_mask_p0[2*i+1]),
+			.D3(dfi_wrdata_mask_p1[2*i]),
+			.D4(dfi_wrdata_mask_p1[2*i+1]),
+			.TQ(),
+			.T1(),
+			.T2(),
+			.T3(),
+			.T4(),
+			.TRAIN(1'b0),
+			.TCE(1'b0),
+			.SHIFTIN1(1'b0),
+			.SHIFTIN2(1'b0),
+			.SHIFTIN3(1'b0),
+			.SHIFTIN4(1'b0),
+			.SHIFTOUT1(),
+			.SHIFTOUT2(),
+			.SHIFTOUT3(),
+			.SHIFTOUT4()
+		);
+	end
+endgenerate
  
+/* 
+ * DQ/DQS/DM control
+ */
+
+// TODO
+
+assign drive_dqs = 0;
+assign drive_dq = 0;
+
 endmodule
