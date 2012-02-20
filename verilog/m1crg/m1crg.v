@@ -33,7 +33,7 @@ module m1crg #(
 	output flash_rst_n,
 	
 	/* DDR PHY clocks */
-	output clk2x_90,
+	output clk2x_270,
 	output clk4x_wr,
 	output clk4x_wr_strb,
 	output clk4x_rd,
@@ -122,7 +122,7 @@ PLL_ADV #(
 	.CLKOUT1_PHASE(0),
 	.CLKOUT2_DIVIDE(2*f_div),
 	.CLKOUT2_DUTY_CYCLE(0.5),
-	.CLKOUT2_PHASE(90.0),
+	.CLKOUT2_PHASE(270.0),
 	.CLKOUT3_DIVIDE(4*f_div),
 	.CLKOUT3_DUTY_CYCLE(0.5),
 	.CLKOUT3_PHASE(0.0),
@@ -192,7 +192,7 @@ BUFPLL #(
 
 BUFG bufg_x2_2(
 	.I(pllout2),
-	.O(clk2x_90)
+	.O(clk2x_270)
 );
 
 BUFG bufg_x1(

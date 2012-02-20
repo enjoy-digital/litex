@@ -14,7 +14,7 @@ class M1CRG:
 			"ac97_rst_n",
 			"videoin_rst_n",
 			"flash_rst_n",
-			"clk2x_90",
+			"clk2x_270",
 			"clk4x_wr",
 			"clk4x_wr_strb",
 			"clk4x_rd",

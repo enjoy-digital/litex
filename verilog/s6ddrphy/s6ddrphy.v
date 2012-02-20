@@ -3,9 +3,9 @@
  *
  * Command path:
  *   posedge sys_clk             + 1
- *   negedge clk2x_90            + 0.375
- *   negedge clk2x_90            + 0.5
- * Command latency:              1.875 cycles
+ *   posedge clk2x_270           + 0.375
+ *   negedge clk2x_270           + 0.125
+ * Command latency:              1.5 cycles
  *
  * Data write path (phase 0, word 0):
  *   posedge sys_clk [oserdes]   + 1
@@ -14,9 +14,9 @@
  *
  * DQS OE path:
  *   posedge sys_clk             + 1
- *   negedge clk2x_90            + 0.375
- *   negedge clk2x_90 [oddr]     + 0.5
- * DQS OE latency                1.875 cycles
+ *   posedge clk2x_270           + 0.375
+ *   negedge clk2x_270 [oddr]    + 0.125
+ * DQS OE latency                1.5 cycles
  *
  * Data read path:
  */
@@ -27,7 +27,7 @@ module s6ddrphy #(
 ) (
 	/* Clocks */
 	input sys_clk,
-	input clk2x_90,
+	input clk2x_270,
 	input clk4x_wr,
 	input clk4x_wr_strb,
 	input clk4x_rd,
@@ -87,8 +87,8 @@ ODDR2 #(
 	.SRTYPE("SYNC")
 ) sd_clk_forward_p (
 	.Q(sd_clk_out_p),
-	.C0(clk2x_90),
-	.C1(~clk2x_90),
+	.C0(clk2x_270),
+	.C1(~clk2x_270),
 	.CE(1'b1),
 	.D0(1'b1),
 	.D1(1'b0),
@@ -101,8 +101,8 @@ ODDR2 #(
 	.SRTYPE("SYNC")
 ) sd_clk_forward_n (
 	.Q(sd_clk_out_n),
-	.C0(clk2x_90),
-	.C1(~clk2x_90),
+	.C0(clk2x_270),
+	.C1(~clk2x_270),
 	.CE(1'b1),
 	.D0(1'b0),
 	.D1(1'b1),
@@ -115,7 +115,7 @@ ODDR2 #(
  */
 
 reg phase_sel;
-always @(negedge clk2x_90)
+always @(negedge clk2x_270)
 	phase_sel <= sys_clk;
 
 reg [NUM_AD-1:0] r_dfi_address_p0;
@@ -166,7 +166,7 @@ reg r2_dfi_ras_n_p1;
 reg r2_dfi_cas_n_p1;
 reg r2_dfi_we_n_p1;
 	
-always @(negedge clk2x_90) begin
+always @(posedge clk2x_270) begin
 	r2_dfi_address_p0 <= r_dfi_address_p0;
 	r2_dfi_bank_p0 <= r_dfi_bank_p0;
 	r2_dfi_cs_n_p0 <= r_dfi_cs_n_p0;
@@ -184,16 +184,8 @@ always @(negedge clk2x_90) begin
 	r2_dfi_we_n_p1 <= r_dfi_we_n_p1;
 end
 
-always @(negedge clk2x_90) begin
+always @(negedge clk2x_270) begin
 	if(phase_sel) begin
-		sd_a <= r2_dfi_address_p1;
-		sd_ba <= r2_dfi_bank_p1;
-		sd_cs_n <= r2_dfi_cs_n_p1;
-		sd_cke <= r2_dfi_cke_p1;
-		sd_ras_n <= r2_dfi_ras_n_p1;
-		sd_cas_n <= r2_dfi_cas_n_p1;
-		sd_we_n <= r2_dfi_we_n_p1;
-	end else begin
 		sd_a <= r2_dfi_address_p0;
 		sd_ba <= r2_dfi_bank_p0;
 		sd_cs_n <= r2_dfi_cs_n_p0;
@@ -201,6 +193,14 @@ always @(negedge clk2x_90) begin
 		sd_ras_n <= r2_dfi_ras_n_p0;
 		sd_cas_n <= r2_dfi_cas_n_p0;
 		sd_we_n <= r2_dfi_we_n_p0;
+	end else begin
+		sd_a <= r2_dfi_address_p1;
+		sd_ba <= r2_dfi_bank_p1;
+		sd_cs_n <= r2_dfi_cs_n_p1;
+		sd_cke <= r2_dfi_cke_p1;
+		sd_ras_n <= r2_dfi_ras_n_p1;
+		sd_cas_n <= r2_dfi_cas_n_p1;
+		sd_we_n <= r2_dfi_we_n_p1;
 	end
 end
 
@@ -210,10 +210,10 @@ end
 
 genvar i;
 
-wire drive_dqs_p0;
-wire drive_dqs_p1;
+wire drive_dqs;
 wire [NUM_D/16-1:0] dqs_o;
 wire [NUM_D/16-1:0] dqs_t;
+reg postamble;
 generate
 	for(i=0;i<NUM_D/16;i=i+1)
 	begin: gen_dqs
@@ -223,8 +223,8 @@ generate
 			.SRTYPE("ASYNC")
 		) dqs_o_oddr (
 			.Q(dqs_o[i]),
-			.C0(clk2x_90),
-			.C1(~clk2x_90),
+			.C0(clk2x_270),
+			.C1(~clk2x_270),
 			.CE(1'b1),
 			.D0(1'b0),
 			.D1(1'b1),
@@ -237,11 +237,11 @@ generate
 			.SRTYPE("ASYNC")
 		) dqs_t_oddr (
 			.Q(dqs_t[i]),
-			.C0(clk2x_90),
-			.C1(~clk2x_90),
+			.C0(clk2x_270),
+			.C1(~clk2x_270),
 			.CE(1'b1),
-			.D0(~drive_dqs_p0),
-			.D1(~drive_dqs_p1),
+			.D0(~(drive_dqs | postamble)),
+			.D1(~drive_dqs),
 			.R(1'b0),
 			.S(1'b0)
 		);
@@ -252,9 +252,10 @@ generate
 		);
 	end
 endgenerate
+always @(posedge clk2x_270)
+	postamble <= drive_dqs;
 
-wire drive_dq_p0;
-wire drive_dq_p1;
+wire drive_dq;
 wire [NUM_D/2-1:0] dq_i;
 wire [NUM_D/2-1:0] dq_o;
 wire [NUM_D/2-1:0] dq_t;
@@ -273,17 +274,17 @@ generate
 			.CLK0(clk4x_wr),
 			.CLK1(1'b0),
 			.IOCE(clk4x_wr_strb),
-			.RST(),
+			.RST(1'b0),
 			.CLKDIV(sys_clk),
-			.D1(dfi_wrdata_p0[2*i]),
-			.D2(dfi_wrdata_p0[2*i+1]),
-			.D3(dfi_wrdata_p1[2*i]),
-			.D4(dfi_wrdata_p1[2*i+1]),
+			.D1(dfi_wrdata_p0[i+NUM_D/2]),
+			.D2(dfi_wrdata_p0[i]),
+			.D3(dfi_wrdata_p1[i+NUM_D/2]),
+			.D4(dfi_wrdata_p1[i]),
 			.TQ(dq_t[i]),
-			.T1(~drive_dq_p0),
-			.T2(~drive_dq_p0),
-			.T3(~drive_dq_p1),
-			.T4(~drive_dq_p1),
+			.T1(~drive_dq),
+			.T2(~drive_dq),
+			.T3(~drive_dq),
+			.T4(~drive_dq),
 			.TRAIN(1'b0),
 			.TCE(1'b1),
 			.SHIFTIN1(1'b0),
@@ -307,15 +308,15 @@ generate
 			.CLK0(clk4x_rd),
 			.CLK1(1'b0),
 			.IOCE(clk4x_rd_strb),
-			.RST(),
+			.RST(1'b0),
 			.CLKDIV(clk),
 			.SHIFTIN(),
 			.BITSLIP(1'b0),
 			.FABRICOUT(),
-			.Q1(dfi_rddata_w0[2*i]),
-			.Q2(dfi_rddata_w0[2*i+1]),
-			.Q3(dfi_rddata_w1[2*i]),
-			.Q4(dfi_rddata_w1[2*i+1]),
+			.Q1(dfi_rddata_w0[i+NUM_D/2]),
+			.Q2(dfi_rddata_w0[i]),
+			.Q3(dfi_rddata_w1[i+NUM_D/2]),
+			.Q4(dfi_rddata_w1[i]),
 			.DFB(),
 			.CFB0(),
 			.CFB1(),
@@ -347,12 +348,12 @@ generate
 			.CLK0(clk4x_wr),
 			.CLK1(1'b0),
 			.IOCE(clk4x_wr_strb),
-			.RST(),
+			.RST(1'b0),
 			.CLKDIV(sys_clk),
-			.D1(dfi_wrdata_mask_p0[2*i]),
-			.D2(dfi_wrdata_mask_p0[2*i+1]),
-			.D3(dfi_wrdata_mask_p1[2*i]),
-			.D4(dfi_wrdata_mask_p1[2*i+1]),
+			.D1(dfi_wrdata_mask_p0[i+NUM_D/16]),
+			.D2(dfi_wrdata_mask_p0[i]),
+			.D3(dfi_wrdata_mask_p1[i+NUM_D/16]),
+			.D4(dfi_wrdata_mask_p1[i]),
 			.TQ(),
 			.T1(),
 			.T2(),
@@ -387,15 +388,13 @@ end
 reg r2_dfi_wrdata_en_p0;
 reg r2_dfi_wrdata_en_p1;
 
-always @(negedge clk2x_90) begin
+always @(posedge clk2x_270) begin
 	r2_dfi_wrdata_en_p0 <= r_dfi_wrdata_en_p0;
 	r2_dfi_wrdata_en_p1 <= r_dfi_wrdata_en_p1;
 end
 
-assign drive_dqs_p0 = r2_dfi_wrdata_en_p0;
-assign drive_dqs_p1 = r2_dfi_wrdata_en_p1;
-assign drive_dq_p0 = dfi_wrdata_en_p0;
-assign drive_dq_p1 = dfi_wrdata_en_p1;
+assign drive_dqs = r2_dfi_wrdata_en_p0 | r2_dfi_wrdata_en_p1;
+assign drive_dq = dfi_wrdata_en_p0 | dfi_wrdata_en_p1;
 
 // TODO: dfi_rddata_valid_w0/1?
 

@@ -18,7 +18,7 @@ dfi_d = 64
 
 def ddrphy_clocking(crg, phy):
 	names = [
-		"clk2x_90",
+		"clk2x_270",
 		"clk4x_wr",
 		"clk4x_wr_strb",
 		"clk4x_rd",

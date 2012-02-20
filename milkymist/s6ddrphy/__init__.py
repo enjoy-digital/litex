@@ -8,7 +8,7 @@ class S6DDRPHY:
 		inouts = []
 		
 		for name in [
-			"clk2x_90",
+			"clk2x_270",
 			"clk4x_wr",
 			"clk4x_wr_strb",
 			"clk4x_rd",
