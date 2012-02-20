@@ -1,3 +1,25 @@
+/*
+ * 1:2 DDR PHY for Spartan-6
+ *
+ * Command path:
+ *   posedge sys_clk             + 1
+ *   negedge clk2x_90            + 0.375
+ *   negedge clk2x_90            + 0.5
+ * Command latency:              1.875 cycles
+ *
+ * Data write path (phase 0, word 0):
+ *   posedge sys_clk [oserdes]   + 1
+ *   strobe [oserdes]            + 1
+ * Data write latency:           2 cycles
+ *
+ * DQS OE path:
+ *   posedge sys_clk             + 1
+ *   negedge clk2x_90            + 0.375
+ *   negedge clk2x_90 [oddr]     + 0.5
+ * DQS OE latency                1.875 cycles
+ *
+ * Data read path:
+ */
 module s6ddrphy #(
 	parameter NUM_AD = 0,
 	parameter NUM_BA = 0,
@@ -162,7 +184,7 @@ always @(negedge clk2x_90) begin
 	r2_dfi_we_n_p1 <= r_dfi_we_n_p1;
 end
 
-always @(posedge clk2x_90) begin
+always @(negedge clk2x_90) begin
 	if(phase_sel) begin
 		sd_a <= r2_dfi_address_p1;
 		sd_ba <= r2_dfi_bank_p1;
@@ -188,14 +210,15 @@ end
 
 genvar i;
 
-wire drive_dqs;
+wire drive_dqs_p0;
+wire drive_dqs_p1;
 wire [NUM_D/16-1:0] dqs_o;
 wire [NUM_D/16-1:0] dqs_t;
 generate
 	for(i=0;i<NUM_D/16;i=i+1)
 	begin: gen_dqs
 		ODDR2 #(
-			.DDR_ALIGNMENT("C0"),
+			.DDR_ALIGNMENT("C1"),
 			.INIT(1'b0),
 			.SRTYPE("ASYNC")
 		) dqs_o_oddr (
@@ -209,7 +232,7 @@ generate
 			.S(1'b0)
 		);
 		ODDR2 #(
-			.DDR_ALIGNMENT("C0"),
+			.DDR_ALIGNMENT("C1"),
 			.INIT(1'b0),
 			.SRTYPE("ASYNC")
 		) dqs_t_oddr (
@@ -217,8 +240,8 @@ generate
 			.C0(clk2x_90),
 			.C1(~clk2x_90),
 			.CE(1'b1),
-			.D0(~drive_dqs),
-			.D1(~drive_dqs),
+			.D0(~drive_dqs_p0),
+			.D1(~drive_dqs_p1),
 			.R(1'b0),
 			.S(1'b0)
 		);
@@ -230,7 +253,8 @@ generate
 	end
 endgenerate
 
-wire drive_dq;
+wire drive_dq_p0;
+wire drive_dq_p1;
 wire [NUM_D/2-1:0] dq_i;
 wire [NUM_D/2-1:0] dq_o;
 wire [NUM_D/2-1:0] dq_t;
@@ -256,10 +280,10 @@ generate
 			.D3(dfi_wrdata_p1[2*i]),
 			.D4(dfi_wrdata_p1[2*i+1]),
 			.TQ(dq_t[i]),
-			.T1(~drive_dq),
-			.T2(~drive_dq),
-			.T3(~drive_dq),
-			.T4(~drive_dq),
+			.T1(~drive_dq_p0),
+			.T2(~drive_dq_p0),
+			.T3(~drive_dq_p1),
+			.T4(~drive_dq_p1),
 			.TRAIN(1'b0),
 			.TCE(1'b1),
 			.SHIFTIN1(1'b0),
@@ -352,9 +376,27 @@ endgenerate
  * DQ/DQS/DM control
  */
 
-// TODO
+reg r_dfi_wrdata_en_p0;
+reg r_dfi_wrdata_en_p1;
 
-assign drive_dqs = 0;
-assign drive_dq = 0;
+always @(posedge sys_clk) begin
+	r_dfi_wrdata_en_p0 <= dfi_wrdata_en_p0;
+	r_dfi_wrdata_en_p1 <= dfi_wrdata_en_p1;
+end
+
+reg r2_dfi_wrdata_en_p0;
+reg r2_dfi_wrdata_en_p1;
+
+always @(negedge clk2x_90) begin
+	r2_dfi_wrdata_en_p0 <= r_dfi_wrdata_en_p0;
+	r2_dfi_wrdata_en_p1 <= r_dfi_wrdata_en_p1;
+end
+
+assign drive_dqs_p0 = r2_dfi_wrdata_en_p0;
+assign drive_dqs_p1 = r2_dfi_wrdata_en_p1;
+assign drive_dq_p0 = dfi_wrdata_en_p0;
+assign drive_dq_p1 = dfi_wrdata_en_p1;
+
+// TODO: dfi_rddata_valid_w0/1?
 
 endmodule
