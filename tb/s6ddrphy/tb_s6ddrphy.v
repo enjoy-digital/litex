@@ -58,6 +58,13 @@ reg dfi_wrdata_en_p1 = 0;
 reg [7:0] dfi_wrdata_mask_p1 = 0;
 reg [63:0] dfi_wrdata_p1 = 0;
 
+reg dfi_rddata_en_p0 = 0;
+reg dfi_rddata_en_p1 = 0;
+
+wire [31:0] sd_dq;
+reg [31:0] dq_tb = 32'hzzzzzzzz;
+assign sd_dq = dq_tb;
+
 s6ddrphy #(
 	.NUM_AD(13),
 	.NUM_BA(2),
@@ -83,37 +90,76 @@ s6ddrphy #(
 	.dfi_wrdata_en_p1(dfi_wrdata_en_p1),
 	.dfi_wrdata_mask_p1(dfi_wrdata_mask_p1),
 	.dfi_wrdata_p1(dfi_wrdata_p1),
-	.sd_dq(),
+	.sd_dq(sd_dq),
 	.sd_dm(),
-	.sd_dqs()
+	.sd_dqs(),
+	
+	.dfi_rddata_en_p0(dfi_rddata_en_p0),
+	.dfi_rddata_en_p1(dfi_rddata_en_p1),
+	.dfi_rddata_w0(),
+	.dfi_rddata_w1(),
+	.dfi_rddata_valid_w0(),
+	.dfi_rddata_valid_w1()
 );
+
+`define TEST_SIMPLE_CMD
+`define TEST_WRITE
+`define TEST_READ
 
 initial begin
 	$dumpfile("s6ddrphy.vcd");
 	$dumpvars(3, dut);
+
+`ifdef TEST_SIMPLE_CMD
 	#13;
-	
-	/*dfi_address_p0 <= 13'h1aba;
+	dfi_address_p0 <= 13'h1aba;
 	dfi_address_p1 <= 13'h1234;
 	#12;
 	dfi_address_p0 <= 0;
 	dfi_address_p1 <= 0;
-	#60;*/
-	
-	dfi_address_p0 <= 13'h0dea;
+	#59;
+`endif
+
+`ifdef TEST_WRITE
+	#13;
 	dfi_address_p1 <= 13'h0dbe;
+	#12;
+	dfi_address_p1 <= 0;
+	dfi_wrdata_en_p1 <= 1;
+	dfi_wrdata_mask_p0 <= 8'h12;
+	dfi_wrdata_mask_p1 <= 8'h34;
 	dfi_wrdata_p0 <= 64'hcafebabeabadface;
 	dfi_wrdata_p1 <= 64'h0123456789abcdef;
-	dfi_wrdata_en_p0 <= 1'b1;
-	dfi_wrdata_en_p1 <= 1'b1;
 	#12;
-	dfi_address_p0 <= 0;
-	dfi_address_p1 <= 0;
+	dfi_wrdata_en_p1 <= 0;
+	dfi_wrdata_mask_p0 <= 0;
+	dfi_wrdata_mask_p1 <= 0;
 	dfi_wrdata_p0 <= 64'd0;
 	dfi_wrdata_p1 <= 64'd0;
-	dfi_wrdata_en_p0 <= 1'b0;
-	dfi_wrdata_en_p1 <= 1'b0;
+	#59;
+`endif
+
+`ifdef TEST_READ
+	#13;
+	dfi_address_p0 <= 13'h1234;
+	#12;
+	dfi_address_p0 <= 0;
+	dfi_rddata_en_p0 <= 1;
+	#12;
+	dfi_rddata_en_p0 <= 0;
+	#15.5;
+	dq_tb <= 32'h12345678;
+	#3;
+	dq_tb <= 32'hdeadbeef;
+	#3;
+	dq_tb <= 32'hcafebabe;
+	#3;
+	dq_tb <= 32'habadface;
+	#3;
+	dq_tb <= 32'hzzzzzzzz;
 	#60;
+`endif
+	
 	$finish;
 end
 

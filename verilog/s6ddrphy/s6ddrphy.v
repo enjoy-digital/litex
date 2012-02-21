@@ -1,6 +1,21 @@
 /*
- * 1:2 DDR PHY for Spartan-6
+ * 1:2 frequency-ratio DDR PHY for Spartan-6
  *
+ ************* DATAPATH SIGNALS ***********
+ * Assert dfi_wrdata_en and present the data 
+ * on dfi_wrdata_mask/dfi_wrdata one cycle after
+ * a write command. 
+ *
+ * Assert dfi_rddata_en one cycle after a read
+ * command. The data will come back on dfi_rddata
+ * 3 cycles later, along with the assertion of
+ * dfi_rddata_valid.
+ *
+ * This PHY only supports CAS Latency 3.
+ * Read commands must be sent on phase 0.
+ * Write commands must be sent on phase 1.
+ *
+ ************* DETAILED TIMING ************
  * Command path:
  *   posedge sys_clk             + 1
  *   posedge clk2x_270           + 0.375
@@ -17,8 +32,6 @@
  *   posedge clk2x_270           + 0.375
  *   negedge clk2x_270 [oddr]    + 0.125
  * DQS OE latency                1.5 cycles
- *
- * Data read path:
  */
 module s6ddrphy #(
 	parameter NUM_AD = 0,
@@ -309,7 +322,7 @@ generate
 			.CLK1(1'b0),
 			.IOCE(clk4x_rd_strb),
 			.RST(1'b0),
-			.CLKDIV(clk),
+			.CLKDIV(sys_clk),
 			.SHIFTIN(),
 			.BITSLIP(1'b0),
 			.FABRICOUT(),
@@ -377,25 +390,22 @@ endgenerate
  * DQ/DQS/DM control
  */
 
-reg r_dfi_wrdata_en_p0;
 reg r_dfi_wrdata_en_p1;
-
-always @(posedge sys_clk) begin
-	r_dfi_wrdata_en_p0 <= dfi_wrdata_en_p0;
+always @(posedge sys_clk)
 	r_dfi_wrdata_en_p1 <= dfi_wrdata_en_p1;
-end
 
-reg r2_dfi_wrdata_en_p0;
 reg r2_dfi_wrdata_en_p1;
-
-always @(posedge clk2x_270) begin
-	r2_dfi_wrdata_en_p0 <= r_dfi_wrdata_en_p0;
+always @(posedge clk2x_270)
 	r2_dfi_wrdata_en_p1 <= r_dfi_wrdata_en_p1;
-end
 
-assign drive_dqs = r2_dfi_wrdata_en_p0 | r2_dfi_wrdata_en_p1;
-assign drive_dq = dfi_wrdata_en_p0 | dfi_wrdata_en_p1;
+assign drive_dqs = r2_dfi_wrdata_en_p1;
+assign drive_dq = dfi_wrdata_en_p1;
 
-// TODO: dfi_rddata_valid_w0/1?
+wire rddata_valid;
+reg [3:0] rddata_sr;
+assign dfi_rddata_valid_w0 = rddata_sr[0];
+assign dfi_rddata_valid_w1 = rddata_sr[0];
+always @(posedge sys_clk)
+	rddata_sr <= {dfi_rddata_en_p0, rddata_sr[3:1]};
 
 endmodule
