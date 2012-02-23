@@ -3,26 +3,53 @@ from migen.bus import dfi
 from migen.bank.description import *
 from migen.bank import csrgen
 
-def _data_en(trigger, output, delay, duration):
-	dcounter = Signal(BV(4))
-	dce = Signal()
-	return [
-		If(trigger,
-			dcounter.eq(delay),
-			dce.eq(1)
-		).Elif(dce,
-			dcounter.eq(dcounter - 1),
-			If(dcounter == 0,
-				If(~output,
-					output.eq(1),
-					dcounter.eq(duration)
-				).Else(
-					output.eq(0),
-					dce.eq(0)
-				)
-			)
-		)
-	]
+class PhaseInjector:
+	def __init__(self, phase):
+		self.phase = phase
+		
+		self._cs = Field("cs", 1, WRITE_ONLY, READ_ONLY)
+		self._we = Field("we", 1, WRITE_ONLY, READ_ONLY)
+		self._cas = Field("cas", 1, WRITE_ONLY, READ_ONLY)
+		self._ras = Field("ras", 1, WRITE_ONLY, READ_ONLY)
+		self._wren = Field("wren", 1, WRITE_ONLY, READ_ONLY)
+		self._rden = Field("rden", 1, WRITE_ONLY, READ_ONLY)
+		self._command = RegisterFields("command",
+			[self._cs, self._we, self._cas, self._ras, self._wren, self._rden])
+		
+		self._address = RegisterField("address", self.phase.address.bv.width)
+		self._baddress = RegisterField("baddress", self.phase.bank.bv.width)
+		
+		self._wrdata = RegisterField("wrdata", self.phase.wrdata.bv.width)
+		self._rddata = RegisterField("rddata", self.phase.rddata.bv.width, READ_ONLY, WRITE_ONLY)
+	
+	def get_registers(self):
+		return [self._command,
+			self._address, self._baddress,
+			self._wrdata, self._rddata]
+		
+	def get_fragment(self):
+		comb = [
+			If(self._command.re,
+				self.phase.cs_n.eq(~self._cs.r),
+				self.phase.we_n.eq(~self._we.r),
+				self.phase.cas_n.eq(~self._cas.r),
+				self.phase.ras_n.eq(~self._ras.r)
+			).Else(
+				self.phase.cs_n.eq(1),
+				self.phase.we_n.eq(1),
+				self.phase.cas_n.eq(1),
+				self.phase.ras_n.eq(1)
+			),
+			self.phase.address.eq(self._address.field.r),
+			self.phase.bank.eq(self._baddress.field.r),
+			self.phase.wrdata.eq(self._wrdata.field.r)
+		]
+		sync = [
+			self.phase.wrdata_en.eq(self._command.re & self._wren.r),
+			self.phase.rddata_en.eq(self._command.re & self._rden.r),
+			If(self.phase.rddata_valid, self._rddata.field.w.eq(self.phase.rddata))
+		]
+		return Fragment(comb, sync)
 
 class DFIInjector:
 	def __init__(self, csr_address, a, ba, d, nphases=1):
@@ -34,84 +61,19 @@ class DFIInjector:
 		self._cke = Field("cke")
 		self._control = RegisterFields("control", [self._sel, self._cke])
 		
-		self._cs = Field("cs", 1, WRITE_ONLY, READ_ONLY)
-		self._we = Field("we", 1, WRITE_ONLY, READ_ONLY)
-		self._cas = Field("cas", 1, WRITE_ONLY, READ_ONLY)
-		self._ras = Field("ras", 1, WRITE_ONLY, READ_ONLY)
-		self._rddata = Field("rddata", 1, WRITE_ONLY, READ_ONLY)
-		self._wrdata = Field("wrdata", 1, WRITE_ONLY, READ_ONLY)
-		self._command = RegisterFields("command",
-			[self._cs, self._we, self._cas, self._ras, self._rddata, self._wrdata])
+		self._phase_injectors = [PhaseInjector(phase) for phase in self._int.phases]
 		
-		self._address = RegisterField("address", a)
-		self._baddress = RegisterField("baddress", ba)
-		
-		self._rddelay = RegisterField("rddelay", 4, reset=5)
-		self._rdduration = RegisterField("rdduration", 3, reset=0)
-		self._wrdelay = RegisterField("wrdelay", 4, reset=3)
-		self._wrduration = RegisterField("wrduration", 3, reset=0)
-		
-		self.bank = csrgen.Bank([
-				self._control, self._command,
-				self._address, self._baddress,
-				self._rddelay, self._rdduration,
-				self._wrdelay, self._wrduration
-			], address=csr_address)
+		registers = sum([pi.get_registers() for pi in self._phase_injectors], [self._control])
+		self.bank = csrgen.Bank(registers, address=csr_address)
 	
 	def get_fragment(self):
-		comb = []
-		sync = []
-		
-		# mux
 		connect_int = dfi.interconnect_stmts(self._int, self.master)
 		connect_slave = dfi.interconnect_stmts(self.slave, self.master)
-		comb.append(If(self._sel.r, *connect_slave).Else(*connect_int))
-		
-		# phases
-		rddata_en = Signal()
-		wrdata_en = Signal()
-		for phase in self._int.phases:
-			comb += [
-				phase.cke.eq(self._cke.r),
-				phase.rddata_en.eq(rddata_en),
-				phase.wrdata_en.eq(wrdata_en)
-			]
-		cmdphase = self._int.phases[0]
-		for phase in self._int.phases[1:]:
-			comb += [
-				phase.cs_n.eq(1),
-				phase.we_n.eq(1),
-				phase.cas_n.eq(1),
-				phase.ras_n.eq(1)
-			]
-		
-		# commands
-		comb += [
-			If(self._command.re,
-				cmdphase.cs_n.eq(~self._cs.r),
-				cmdphase.we_n.eq(~self._we.r),
-				cmdphase.cas_n.eq(~self._cas.r),
-				cmdphase.ras_n.eq(~self._ras.r)
-			).Else(
-				cmdphase.cs_n.eq(1),
-				cmdphase.we_n.eq(1),
-				cmdphase.cas_n.eq(1),
-				cmdphase.ras_n.eq(1)
-			)
+		comb = [
+			If(self._sel.r, *connect_slave).Else(*connect_int)
 		]
+		comb += [phase.cke.eq(self._cke.r) for phase in self._int.phases]
 		
-		# addresses
-		comb += [
-			cmdphase.address.eq(self._address.field.r),
-			cmdphase.bank.eq(self._baddress.field.r)
-		]
-		
-		# data enables
-		sync += _data_en(self._command.re & self._rddata.r,
-			rddata_en,
-			self._rddelay.field.r, self._rdduration.field.r)
-		sync += _data_en(self._command.re & self._wrdata.r,
-			wrdata_en,
-			self._wrdelay.field.r, self._wrduration.field.r)
-		
-		return Fragment(comb, sync) + self.bank.get_fragment()
+		return Fragment(comb) \
+			+ sum([pi.get_fragment() for pi in self._phase_injectors], Fragment()) \
+			+ self.bank.get_fragment()

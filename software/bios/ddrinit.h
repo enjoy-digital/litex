@@ -19,5 +19,7 @@
 #define __DDRINIT_H
 
 int ddrinit(void);
+void ddrrd(char *startaddr);
+void ddrwr(char *startaddr);
 
 #endif /* __DDRINIT_H */
