@@ -42,7 +42,8 @@ class PhaseInjector:
 			),
 			self.phase.address.eq(self._address.field.r),
 			self.phase.bank.eq(self._baddress.field.r),
-			self.phase.wrdata.eq(self._wrdata.field.r)
+			self.phase.wrdata.eq(self._wrdata.field.r),
+			self.phase.wrdata_mask.eq(0)
 		]
 		sync = [
 			self.phase.wrdata_en.eq(self._command.re & self._wren.r),
