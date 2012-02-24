@@ -14,25 +14,8 @@
  * This PHY only supports CAS Latency 3.
  * Read commands must be sent on phase 0.
  * Write commands must be sent on phase 1.
- *
- ************* DETAILED TIMING ************
- * Command path:
- *   posedge sys_clk             + 1
- *   posedge clk2x_270           + 0.375
- *   negedge clk2x_270           + 0.125
- * Command latency:              1.5 cycles
- *
- * Data write path (phase 0, word 0):
- *   posedge sys_clk [oserdes]   + 1
- *   strobe [oserdes]            + 1
- * Data write latency:           2 cycles
- *
- * DQS OE path:
- *   posedge sys_clk             + 1
- *   posedge clk2x_270           + 0.375
- *   negedge clk2x_270 [oddr]    + 0.125
- * DQS OE latency                1.5 cycles
  */
+
 module s6ddrphy #(
 	parameter NUM_AD = 0,
 	parameter NUM_BA = 0,
@@ -128,7 +111,7 @@ ODDR2 #(
  */
 
 reg phase_sel;
-always @(negedge clk2x_270)
+always @(posedge clk2x_270)
 	phase_sel <= sys_clk;
 
 reg [NUM_AD-1:0] r_dfi_address_p0;
@@ -164,56 +147,23 @@ always @(posedge sys_clk) begin
 	r_dfi_we_n_p1 <= dfi_we_n_p1;
 end
 
-reg [NUM_AD-1:0] r2_dfi_address_p0;
-reg [NUM_BA-1:0] r2_dfi_bank_p0;
-reg r2_dfi_cs_n_p0;
-reg r2_dfi_cke_p0;
-reg r2_dfi_ras_n_p0;
-reg r2_dfi_cas_n_p0;
-reg r2_dfi_we_n_p0;
-reg [NUM_AD-1:0] r2_dfi_address_p1;
-reg [NUM_BA-1:0] r2_dfi_bank_p1;
-reg r2_dfi_cs_n_p1;
-reg r2_dfi_cke_p1;
-reg r2_dfi_ras_n_p1;
-reg r2_dfi_cas_n_p1;
-reg r2_dfi_we_n_p1;
-	
 always @(posedge clk2x_270) begin
-	r2_dfi_address_p0 <= r_dfi_address_p0;
-	r2_dfi_bank_p0 <= r_dfi_bank_p0;
-	r2_dfi_cs_n_p0 <= r_dfi_cs_n_p0;
-	r2_dfi_cke_p0 <= r_dfi_cke_p0;
-	r2_dfi_ras_n_p0 <= r_dfi_ras_n_p0;
-	r2_dfi_cas_n_p0 <= r_dfi_cas_n_p0;
-	r2_dfi_we_n_p0 <= r_dfi_we_n_p0;
-	
-	r2_dfi_address_p1 <= r_dfi_address_p1;
-	r2_dfi_bank_p1 <= r_dfi_bank_p1;
-	r2_dfi_cs_n_p1 <= r_dfi_cs_n_p1;
-	r2_dfi_cke_p1 <= r_dfi_cke_p1;
-	r2_dfi_ras_n_p1 <= r_dfi_ras_n_p1;
-	r2_dfi_cas_n_p1 <= r_dfi_cas_n_p1;
-	r2_dfi_we_n_p1 <= r_dfi_we_n_p1;
-end
-
-always @(negedge clk2x_270) begin
 	if(phase_sel) begin
-		sd_a <= r2_dfi_address_p0;
-		sd_ba <= r2_dfi_bank_p0;
-		sd_cs_n <= r2_dfi_cs_n_p0;
-		sd_cke <= r2_dfi_cke_p0;
-		sd_ras_n <= r2_dfi_ras_n_p0;
-		sd_cas_n <= r2_dfi_cas_n_p0;
-		sd_we_n <= r2_dfi_we_n_p0;
+		sd_a <= r_dfi_address_p1;
+		sd_ba <= r_dfi_bank_p1;
+		sd_cs_n <= r_dfi_cs_n_p1;
+		sd_cke <= r_dfi_cke_p1;
+		sd_ras_n <= r_dfi_ras_n_p1;
+		sd_cas_n <= r_dfi_cas_n_p1;
+		sd_we_n <= r_dfi_we_n_p1;
 	end else begin
-		sd_a <= r2_dfi_address_p1;
-		sd_ba <= r2_dfi_bank_p1;
-		sd_cs_n <= r2_dfi_cs_n_p1;
-		sd_cke <= r2_dfi_cke_p1;
-		sd_ras_n <= r2_dfi_ras_n_p1;
-		sd_cas_n <= r2_dfi_cas_n_p1;
-		sd_we_n <= r2_dfi_we_n_p1;
+		sd_a <= r_dfi_address_p0;
+		sd_ba <= r_dfi_bank_p0;
+		sd_cs_n <= r_dfi_cs_n_p0;
+		sd_cke <= r_dfi_cke_p0;
+		sd_ras_n <= r_dfi_ras_n_p0;
+		sd_cas_n <= r_dfi_cas_n_p0;
+		sd_we_n <= r_dfi_we_n_p0;
 	end
 end
 
