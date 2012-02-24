@@ -218,7 +218,19 @@ endgenerate
 always @(posedge clk2x_270)
 	postamble <= drive_dqs;
 
+reg [NUM_D-1:0] d_dfi_wrdata_p0;
+reg [NUM_D-1:0] d_dfi_wrdata_p1;
+reg [NUM_D/8-1:0] d_dfi_wrdata_mask_p0;
+reg [NUM_D/8-1:0] d_dfi_wrdata_mask_p1;
+always @(posedge sys_clk) begin
+	d_dfi_wrdata_p0 <= dfi_wrdata_p0;
+	d_dfi_wrdata_p1 <= dfi_wrdata_p1;
+	d_dfi_wrdata_mask_p0 <= dfi_wrdata_mask_p0;
+	d_dfi_wrdata_mask_p1 <= dfi_wrdata_mask_p1;
+end
+
 wire drive_dq;
+wire d_drive_dq;
 wire [NUM_D/2-1:0] dq_i;
 wire [NUM_D/2-1:0] dq_o;
 wire [NUM_D/2-1:0] dq_t;
@@ -239,14 +251,14 @@ generate
 			.IOCE(clk4x_wr_strb),
 			.RST(1'b0),
 			.CLKDIV(sys_clk),
-			.D1(dfi_wrdata_p0[i+NUM_D/2]),
-			.D2(dfi_wrdata_p0[i]),
-			.D3(dfi_wrdata_p1[i+NUM_D/2]),
-			.D4(dfi_wrdata_p1[i]),
+			.D1(d_dfi_wrdata_p0[i]),
+			.D2(d_dfi_wrdata_p1[i+NUM_D/2]),
+			.D3(d_dfi_wrdata_p1[i]),
+			.D4(dfi_wrdata_p0[i+NUM_D/2]),
 			.TQ(dq_t[i]),
-			.T1(~drive_dq),
-			.T2(~drive_dq),
-			.T3(~drive_dq),
+			.T1(~d_drive_dq),
+			.T2(~d_drive_dq),
+			.T3(~d_drive_dq),
 			.T4(~drive_dq),
 			.TRAIN(1'b0),
 			.TCE(1'b1),
@@ -313,10 +325,10 @@ generate
 			.IOCE(clk4x_wr_strb),
 			.RST(1'b0),
 			.CLKDIV(sys_clk),
-			.D1(dfi_wrdata_mask_p0[i+NUM_D/16]),
-			.D2(dfi_wrdata_mask_p0[i]),
-			.D3(dfi_wrdata_mask_p1[i+NUM_D/16]),
-			.D4(dfi_wrdata_mask_p1[i]),
+			.D1(d_dfi_wrdata_mask_p0[i]),
+			.D2(d_dfi_wrdata_mask_p1[i+NUM_D/16]),
+			.D3(d_dfi_wrdata_mask_p1[i]),
+			.D4(dfi_wrdata_mask_p0[i+NUM_D/16]),
 			.TQ(),
 			.T1(),
 			.T2(),
@@ -344,16 +356,17 @@ reg d_dfi_wrdata_en_p1;
 always @(posedge sys_clk)
 	d_dfi_wrdata_en_p1 <= dfi_wrdata_en_p1;
  
+assign drive_dq = dfi_wrdata_en_p1;
+assign d_drive_dq = d_dfi_wrdata_en_p1;
+ 
 reg r_dfi_wrdata_en;
-always @(posedge clk2x_270)
-	r_dfi_wrdata_en <= d_dfi_wrdata_en_p1;
-
 reg r2_dfi_wrdata_en;
-always @(posedge clk2x_270)
+always @(posedge clk2x_270) begin
+	r_dfi_wrdata_en <= d_dfi_wrdata_en_p1;
 	r2_dfi_wrdata_en <= r_dfi_wrdata_en;
+end
 
 assign drive_dqs = r2_dfi_wrdata_en;
-assign drive_dq = d_dfi_wrdata_en_p1;
 
 wire rddata_valid;
 reg [4:0] rddata_sr;

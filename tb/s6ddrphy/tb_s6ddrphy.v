@@ -123,14 +123,13 @@ initial begin
 `ifdef TEST_WRITE
 	#13;
 	dfi_address_p1 <= 13'h0dbe;
-	#12;
-	dfi_address_p1 <= 0;
 	dfi_wrdata_en_p1 <= 1;
 	dfi_wrdata_mask_p0 <= 8'h12;
 	dfi_wrdata_mask_p1 <= 8'h34;
 	dfi_wrdata_p0 <= 64'hcafebabeabadface;
 	dfi_wrdata_p1 <= 64'h0123456789abcdef;
 	#12;
+	dfi_address_p1 <= 0;
 	dfi_wrdata_en_p1 <= 0;
 	dfi_wrdata_mask_p0 <= 0;
 	dfi_wrdata_mask_p1 <= 0;
@@ -142,10 +141,9 @@ initial begin
 `ifdef TEST_READ
 	#13;
 	dfi_address_p0 <= 13'h1234;
-	#12;
-	dfi_address_p0 <= 0;
 	dfi_rddata_en_p0 <= 1;
 	#12;
+	dfi_address_p0 <= 0;
 	dfi_rddata_en_p0 <= 0;
 	#15.5;
 	dq_tb <= 32'h12345678;
