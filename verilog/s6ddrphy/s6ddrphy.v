@@ -3,12 +3,12 @@
  *
  ************* DATAPATH SIGNALS ***********
  * Assert dfi_wrdata_en and present the data 
- * on dfi_wrdata_mask/dfi_wrdata one cycle after
- * a write command. 
+ * on dfi_wrdata_mask/dfi_wrdata in the same
+ * cycle as the write command.
  *
- * Assert dfi_rddata_en one cycle after a read
+ * Assert dfi_rddata_en in the same cycle as the read
  * command. The data will come back on dfi_rddata
- * 3 cycles later, along with the assertion of
+ * 4 cycles later, along with the assertion of
  * dfi_rddata_valid.
  *
  * This PHY only supports CAS Latency 3.
@@ -340,22 +340,26 @@ endgenerate
  * DQ/DQS/DM control
  */
 
+reg d_dfi_wrdata_en_p1;
+always @(posedge sys_clk)
+	d_dfi_wrdata_en_p1 <= dfi_wrdata_en_p1;
+ 
 reg r_dfi_wrdata_en;
 always @(posedge clk2x_270)
-	r_dfi_wrdata_en <= dfi_wrdata_en_p1;
+	r_dfi_wrdata_en <= d_dfi_wrdata_en_p1;
 
 reg r2_dfi_wrdata_en;
 always @(posedge clk2x_270)
 	r2_dfi_wrdata_en <= r_dfi_wrdata_en;
 
 assign drive_dqs = r2_dfi_wrdata_en;
-assign drive_dq = dfi_wrdata_en_p1;
+assign drive_dq = d_dfi_wrdata_en_p1;
 
 wire rddata_valid;
-reg [3:0] rddata_sr;
+reg [4:0] rddata_sr;
 assign dfi_rddata_valid_w0 = rddata_sr[0];
 assign dfi_rddata_valid_w1 = rddata_sr[0];
 always @(posedge sys_clk)
-	rddata_sr <= {dfi_rddata_en_p0, rddata_sr[3:1]};
+	rddata_sr <= {dfi_rddata_en_p0, rddata_sr[4:1]};
 
 endmodule
