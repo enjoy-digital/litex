@@ -129,7 +129,7 @@ reg r_dfi_ras_n_p1;
 reg r_dfi_cas_n_p1;
 reg r_dfi_we_n_p1;
 	
-always @(posedge sys_clk) begin
+always @(posedge clk2x_270) begin
 	r_dfi_address_p0 <= dfi_address_p0;
 	r_dfi_bank_p0 <= dfi_bank_p0;
 	r_dfi_cs_n_p0 <= dfi_cs_n_p0;
@@ -149,14 +149,6 @@ end
 
 always @(posedge clk2x_270) begin
 	if(phase_sel) begin
-		sd_a <= r_dfi_address_p1;
-		sd_ba <= r_dfi_bank_p1;
-		sd_cs_n <= r_dfi_cs_n_p1;
-		sd_cke <= r_dfi_cke_p1;
-		sd_ras_n <= r_dfi_ras_n_p1;
-		sd_cas_n <= r_dfi_cas_n_p1;
-		sd_we_n <= r_dfi_we_n_p1;
-	end else begin
 		sd_a <= r_dfi_address_p0;
 		sd_ba <= r_dfi_bank_p0;
 		sd_cs_n <= r_dfi_cs_n_p0;
@@ -164,6 +156,14 @@ always @(posedge clk2x_270) begin
 		sd_ras_n <= r_dfi_ras_n_p0;
 		sd_cas_n <= r_dfi_cas_n_p0;
 		sd_we_n <= r_dfi_we_n_p0;
+	end else begin
+		sd_a <= r_dfi_address_p1;
+		sd_ba <= r_dfi_bank_p1;
+		sd_cs_n <= r_dfi_cs_n_p1;
+		sd_cke <= r_dfi_cke_p1;
+		sd_ras_n <= r_dfi_ras_n_p1;
+		sd_cas_n <= r_dfi_cas_n_p1;
+		sd_we_n <= r_dfi_we_n_p1;
 	end
 end
 
@@ -340,15 +340,15 @@ endgenerate
  * DQ/DQS/DM control
  */
 
-reg r_dfi_wrdata_en_p1;
-always @(posedge sys_clk)
-	r_dfi_wrdata_en_p1 <= dfi_wrdata_en_p1;
-
-reg r2_dfi_wrdata_en_p1;
+reg r_dfi_wrdata_en;
 always @(posedge clk2x_270)
-	r2_dfi_wrdata_en_p1 <= r_dfi_wrdata_en_p1;
+	r_dfi_wrdata_en <= dfi_wrdata_en_p1;
 
-assign drive_dqs = r2_dfi_wrdata_en_p1;
+reg r2_dfi_wrdata_en;
+always @(posedge clk2x_270)
+	r2_dfi_wrdata_en <= r_dfi_wrdata_en;
+
+assign drive_dqs = r2_dfi_wrdata_en;
 assign drive_dq = dfi_wrdata_en_p1;
 
 wire rddata_valid;

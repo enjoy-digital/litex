@@ -60,8 +60,8 @@ static void init_sequence(void)
 	CSR_DFII_BA_P0 = 0;
 	
 	/* Load Mode Register */
-	//setaddr(0x0132); /* Reset DLL, CL=3, BL=4 */
-	setaddr(0x0162); /* Reset DLL, CL=2.5, BL=4 */
+	setaddr(0x0132); /* Reset DLL, CL=3, BL=4 */
+	//setaddr(0x0162); /* Reset DLL, CL=2.5, BL=4 */
 	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
 	cdelay(200);
 	
@@ -77,8 +77,8 @@ static void init_sequence(void)
 	}
 	
 	/* Load Mode Register */
-	//setaddr(0x0032); /* CL=3, BL=4 */
-	setaddr(0x0062); /* CL=2.5, BL=4 */
+	setaddr(0x0032); /* CL=3, BL=4 */
+	//setaddr(0x0062); /* CL=2.5, BL=4 */
 	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
 	cdelay(200);
 }
