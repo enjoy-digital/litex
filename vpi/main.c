@@ -35,9 +35,10 @@ static int h_read(char *name, void *user)
 	vpiHandle item;
 	s_vpi_value value;
 	int size;
-	int nchunks;
 	int i;
-	unsigned int aval;
+	int nvals;
+	unsigned int vals[64];
+	int nchunks;
 	unsigned char chunks[255];
 	
 	item = vpi_handle_by_name(name, NULL);
@@ -49,28 +50,26 @@ static int h_read(char *name, void *user)
 	value.format = vpiVectorVal;
 	vpi_get_value(item, &value);
 	size = vpi_get(vpiSize, item);
+	nvals = (size + 31)/32;
+	assert(nvals <= 64);
+	for(i=0;i<nvals;i++)
+		vals[i] = value.value.vector[i].aval & ~value.value.vector[i].bval;
 	nchunks = (size + 7)/8;
+	assert(nchunks <= 255);
 	for(i=0;i<nchunks;i++) {
-		aval = value.value.vector[i/4].aval;
 		switch(i % 4) {
 			case 0:
-				chunks[i] = aval & 0xff;
+				chunks[i] = vals[i/4] & 0xff;
 				break;
 			case 1:
-				chunks[i] = (aval & 0xff00) >> 8;
+				chunks[i] = (vals[i/4] & 0xff00) >> 8;
 				break;
 			case 2:
-				chunks[i] = (aval & 0xff0000) >> 16;
+				chunks[i] = (vals[i/4] & 0xff0000) >> 16;
 				break;
 			case 3:
-				chunks[i] = (aval & 0xff000000) >> 24;
+				chunks[i] = (vals[i/4] & 0xff000000) >> 24;
 				break;
-		}
-	}
-	for(i=0;i<(size + 31)/32;i++) {
-		if(value.value.vector[i].bval != 0) {
-			fprintf(stderr, "Signal %s has undefined bits\n", name);
-			return 0;
 		}
 	}
 	
@@ -92,7 +91,7 @@ static int process_until_go(struct migensim_softc *sc)
 	return 1;
 }
 
-static int connect_calltf(char *user)
+static PLI_INT32 connect_calltf(PLI_BYTE8 *user)
 {
 	struct migensim_softc *sc = (struct migensim_softc *)user;
 	vpiHandle sys;
@@ -121,7 +120,7 @@ static int connect_calltf(char *user)
 	return 0;
 }
 
-static int tick_calltf(char *user)
+static PLI_INT32 tick_calltf(PLI_BYTE8 *user)
 {
 	struct migensim_softc *sc = (struct migensim_softc *)user;
 	
@@ -140,7 +139,7 @@ static int tick_calltf(char *user)
 
 static struct migensim_softc sc;
 
-static void simple_register(const char *tfname, PLI_INT32 (*calltf)(PLI_BYTE8*))
+static void simple_register(const char *tfname, PLI_INT32 (*calltf)(PLI_BYTE8 *))
 {
 	s_vpi_systf_data tf_data;
 
