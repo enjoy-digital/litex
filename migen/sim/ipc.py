@@ -10,6 +10,14 @@ class Message:
 		for parameter, value in zip(self.parameters, pvalues):
 			assert(isinstance(value, parameter[0]))
 			setattr(self, parameter[1], value)
+	
+	def __str__(self):
+		p = ""
+		for parameter in self.parameters:
+			p += parameter[1] + "=" + str(getattr(self, parameter[1]))
+		if p:
+			p = " " + p
+		return "<" + self.__class__.__name__ + p + ">"
 
 class MessageTick(Message):
 	code = 0
@@ -21,11 +29,11 @@ class MessageGo(Message):
 
 class MessageWrite(Message):
 	code = 2
-	parameters = [(str, "signal"), (int, "value")]
+	parameters = [(str, "name"), (int, "value")]
 
 class MessageRead(Message):
 	code = 3
-	parameters = [(str, "signal")]
+	parameters = [(str, "name")]
 
 class MessageReadReply(Message):
 	code = 4
@@ -38,16 +46,21 @@ message_classes = [MessageTick, MessageGo, MessageWrite, MessageRead, MessageRea
 #
 
 def _pack_int(v):
-	# TODO
-	return []
+	p = []
+	while v != 0:
+		p.append(v & 0xff)
+		v >>= 8
+	p.insert(0, len(p))
+	return p
 
 def _pack_str(v):
-	# TODO
-	return []
+	p = [ord(c) for c in v]
+	p.append(0)
+	return p
 
 def _pack(message):
 	r = [message.code]
-	for p, t in message.parameters:
+	for t, p in message.parameters:
 		value = getattr(message, p)
 		assert(isinstance(value, t))
 		if t == int:
@@ -63,19 +76,28 @@ def _pack(message):
 #
 
 def _unpack_int(i):
-	# TODO
-	return 0
+	v = 0
+	power = 1
+	nchunks = next(i)
+	for j in range(nchunks):
+		v += power*next(i)
+		power *= 256
+	return v
 
 def _unpack_str(i):
-	# TODO
-	return ""
+	v = ""
+	c = next(i)
+	while c:
+		v += chr(c)
+		c = next(i)
+	return v
 
 def _unpack(message):
 	i = iter(message)
 	code = next(i)
 	msgclass = next(filter(lambda x: x.code == code, message_classes))
 	pvalues = []
-	for p, t in msgclass.parameters:
+	for t, p in msgclass.parameters:
 		if t == int:
 			v = _unpack_int(i)
 		elif t == str:
@@ -113,8 +135,10 @@ class Initiator:
 		self.conn.send(_pack(message))
 	
 	def recv(self):
-		maxlen = 4096
+		maxlen = 2048
 		packet = self.conn.recv(maxlen)
+		if len(packet) < 1:
+			return None
 		if len(packet) >= maxlen:
 			raise PacketTooLarge
 		return _unpack(packet)
