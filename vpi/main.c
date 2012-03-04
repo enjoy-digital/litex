@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vpi_user.h>
@@ -12,10 +13,7 @@ struct migensim_softc {
 static int h_go(void *user)
 {
 	struct migensim_softc *sc = (struct migensim_softc *)user;
-	
-	printf("GO\n");
 	sc->has_go = 1;
-	
 	return 1;
 }
 
@@ -33,7 +31,53 @@ static int h_write(char *name, int nchunks, const unsigned char *chunks, void *u
 
 static int h_read(char *name, void *user)
 {
-	printf("READ: %s\n", name);
+	struct migensim_softc *sc = (struct migensim_softc *)user;
+	vpiHandle item;
+	s_vpi_value value;
+	int size;
+	int nchunks;
+	int i;
+	unsigned int aval;
+	unsigned char chunks[255];
+	
+	item = vpi_handle_by_name(name, NULL);
+	if(item == NULL) {
+		fprintf(stderr, "Attempted to read non-existing signal %s\n", name);
+		return 0;
+	}
+	
+	value.format = vpiVectorVal;
+	vpi_get_value(item, &value);
+	size = vpi_get(vpiSize, item);
+	nchunks = (size + 7)/8;
+	for(i=0;i<nchunks;i++) {
+		aval = value.value.vector[i/4].aval;
+		switch(i % 4) {
+			case 0:
+				chunks[i] = aval & 0xff;
+				break;
+			case 1:
+				chunks[i] = (aval & 0xff00) >> 8;
+				break;
+			case 2:
+				chunks[i] = (aval & 0xff0000) >> 16;
+				break;
+			case 3:
+				chunks[i] = (aval & 0xff000000) >> 24;
+				break;
+		}
+	}
+	for(i=0;i<(size + 31)/32;i++) {
+		if(value.value.vector[i].bval != 0) {
+			fprintf(stderr, "Signal %s has undefined bits\n", name);
+			return 0;
+		}
+	}
+	
+	if(!ipc_read_reply(sc->ipc, nchunks, chunks)) {
+		perror("ipc_read_reply");
+		return 0;
+	}
 	
 	return 1;
 }
