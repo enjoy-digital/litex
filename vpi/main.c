@@ -17,14 +17,36 @@ static int h_go(void *user)
 	return 1;
 }
 
+static s_vpi_time zero_delay = {
+	.type = vpiSimTime,
+	.high = 0,
+	.low = 0
+};
+
 static int h_write(char *name, int nchunks, const unsigned char *chunks, void *user)
 {
+	vpiHandle item;
+	s_vpi_vecval vector[64];
 	int i;
+	s_vpi_value value;
 	
-	printf("WRITE: %s / nchunks: %d / ", name, nchunks);
+	item = vpi_handle_by_name(name, NULL);
+	if(item == NULL) {
+		fprintf(stderr, "Attempted to write non-existing signal %s\n", name);
+		return 0;
+	}
+	
+	assert(nchunks <= 255);
+	for(i=0;i<64;i++) {
+		vector[i].aval = 0;
+		vector[i].bval = 0;
+	}
 	for(i=0;i<nchunks;i++)
-		printf("%02hhx", chunks[i]);
-	printf("\n");
+		vector[i/4].aval |= chunks[i] << 8*(i % 4);
+	
+	value.format = vpiVectorVal;
+	value.value.vector = vector;
+	vpi_put_value(item, &value, &zero_delay, vpiInertialDelay);
 	
 	return 1;
 }
