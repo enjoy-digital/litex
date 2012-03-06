@@ -84,7 +84,7 @@ class Simulator:
 			rst_signal=rst_signal,
 			return_ns=True)
 		
-		self.cycle_counter = 0
+		self.cycle_counter = -1
 		self.interrupt = False
 
 		self.sim_runner = sim_runner
@@ -92,36 +92,46 @@ class Simulator:
 		self.ipc.accept()
 		reply = self.ipc.recv()
 		assert(isinstance(reply, MessageTick))
-		self.fragment.call_sim(self, -1)
+		self.fragment.call_sim(self)
 	
 	def run(self, ncycles=-1):
+		self.interrupt = False
 		counter = 0
 		while not self.interrupt and (ncycles < 0 or counter < ncycles):
+			self.cycle_counter += 1
+			counter += 1
 			self.ipc.send(MessageGo())
 			reply = self.ipc.recv()
 			assert(isinstance(reply, MessageTick))
-			self.fragment.call_sim(self, self.cycle_counter)
-			self.cycle_counter += 1
-			counter += 1
+			self.fragment.call_sim(self)
 
-	def rd(self, signal):
+	def rd(self, item, index=0):
 		name = self.top_level.top_name + "." \
 		  + self.top_level.dut_name + "." \
-		  + self.namespace.get_name(signal)
-		self.ipc.send(MessageRead(name))
+		  + self.namespace.get_name(item)
+		self.ipc.send(MessageRead(name, Int32(index)))
 		reply = self.ipc.recv()
 		assert(isinstance(reply, MessageReadReply))
-		nbits = signal.bv.width
+		if isinstance(item, Memory):
+			signed = False
+			nbits = item.width
+		else:
+			signed = item.bv.signed
+			nbits = item.bv.width
 		value = reply.value & (2**nbits - 1)
-		if signal.bv.signed and (value & 2**(nbits - 1)):
+		if signed and (value & 2**(nbits - 1)):
 			value -= 2**nbits
 		return value
 	
-	def wr(self, signal, value):
+	def wr(self, item, value, index=0):
 		name = self.top_level.top_name + "." \
 		  + self.top_level.dut_name + "." \
-		  + self.namespace.get_name(signal)
+		  + self.namespace.get_name(item)
+		if isinstance(item, Memory):
+			nbits = item.width
+		else:
+			nbits = item.bv.width
 		if value < 0:
-			value += 2**signal.bv.width
-		assert(value >= 0 and value < 2**signal.bv.width)
-		self.ipc.send(MessageWrite(name, value))
+			value += 2**nbits
+		assert(value >= 0 and value < 2**nbits)
+		self.ipc.send(MessageWrite(name, Int32(index), value))

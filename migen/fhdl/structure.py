@@ -276,6 +276,6 @@ class Fragment:
 			self.pads | other.pads,
 			self.sim + other.sim)
 
-	def call_sim(self, simulator, cycle):
+	def call_sim(self, simulator):
 		for s in self.sim:
-			s(simulator, cycle)
+			s(simulator)

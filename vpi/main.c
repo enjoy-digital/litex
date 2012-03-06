@@ -23,7 +23,7 @@ static s_vpi_time zero_delay = {
 	.low = 0
 };
 
-static int h_write(char *name, int nchunks, const unsigned char *chunks, void *user)
+static int h_write(char *name, int index, int nchunks, const unsigned char *chunks, void *user)
 {
 	vpiHandle item;
 	s_vpi_vecval vector[64];
@@ -35,6 +35,10 @@ static int h_write(char *name, int nchunks, const unsigned char *chunks, void *u
 		fprintf(stderr, "Attempted to write non-existing signal %s\n", name);
 		return 0;
 	}
+	if(vpi_get(vpiType, item) == vpiMemory)
+		item = vpi_handle_by_index(item, index);
+	else
+		assert(index == 0);
 	
 	assert(nchunks <= 255);
 	for(i=0;i<64;i++) {
@@ -51,7 +55,7 @@ static int h_write(char *name, int nchunks, const unsigned char *chunks, void *u
 	return 1;
 }
 
-static int h_read(char *name, void *user)
+static int h_read(char *name, int index, void *user)
 {
 	struct migensim_softc *sc = (struct migensim_softc *)user;
 	vpiHandle item;
@@ -68,6 +72,10 @@ static int h_read(char *name, void *user)
 		fprintf(stderr, "Attempted to read non-existing signal %s\n", name);
 		return 0;
 	}
+	if(vpi_get(vpiType, item) == vpiMemory)
+		item = vpi_handle_by_index(item, index);
+	else
+		assert(index == 0);
 	
 	value.format = vpiVectorVal;
 	vpi_get_value(item, &value);

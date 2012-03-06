@@ -4,8 +4,8 @@
 struct ipc_softc;
 
 typedef int(*go_handler)(void *);
-typedef int(*write_handler)(char *, int, const unsigned char *, void *);
-typedef int(*read_handler)(char *, void *);
+typedef int(*write_handler)(char *, int, int, const unsigned char *, void *);
+typedef int(*read_handler)(char *, int, void *);
 
 struct ipc_softc *ipc_connect(const char *sockaddr, 
 	go_handler h_go, write_handler h_write, read_handler h_read, void *user);

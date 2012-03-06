@@ -5,6 +5,9 @@ import os
 # Message classes
 #
 
+class Int32(int):
+	pass
+
 class Message:
 	def __init__(self, *pvalues):
 		for parameter, value in zip(self.parameters, pvalues):
@@ -29,11 +32,11 @@ class MessageGo(Message):
 
 class MessageWrite(Message):
 	code = 2
-	parameters = [(str, "name"), (int, "value")]
+	parameters = [(str, "name"), (Int32, "index"), (int, "value")]
 
 class MessageRead(Message):
 	code = 3
-	parameters = [(str, "name")]
+	parameters = [(str, "name"), (Int32, "index")]
 
 class MessageReadReply(Message):
 	code = 4
@@ -58,6 +61,14 @@ def _pack_str(v):
 	p.append(0)
 	return p
 
+def _pack_int32(v):
+	return [
+		v & 0xff,
+		(v & 0xff00) >> 8,
+		(v & 0xff0000) >> 16,
+		(v & 0xff000000) >> 24
+	]
+
 def _pack(message):
 	r = [message.code]
 	for t, p in message.parameters:
@@ -67,6 +78,8 @@ def _pack(message):
 			r += _pack_int(value)
 		elif t == str:
 			r += _pack_str(value)
+		elif t == Int32:
+			r += _pack_int32(value)
 		else:
 			raise TypeError
 	return bytes(r)
@@ -75,10 +88,11 @@ def _pack(message):
 # Unpacking
 #
 
-def _unpack_int(i):
+def _unpack_int(i, nchunks=None):
 	v = 0
 	power = 1
-	nchunks = next(i)
+	if nchunks is None:
+		nchunks = next(i)
 	for j in range(nchunks):
 		v += power*next(i)
 		power *= 256
@@ -102,6 +116,8 @@ def _unpack(message):
 			v = _unpack_int(i)
 		elif t == str:
 			v = _unpack_str(i)
+		elif t == Int32:
+			v = _unpack_int(i, 4)
 		else:
 			raise TypeError
 		pvalues.append(v)
