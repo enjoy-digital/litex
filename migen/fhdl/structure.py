@@ -2,7 +2,7 @@ import math
 import inspect
 import re
 
-from migen.fhdl import namer
+from migen.fhdl import tracer
 
 def bits_for(n):
 	if isinstance(n, Constant):
@@ -143,7 +143,7 @@ class Signal(Value):
 		self.variable = variable
 		self.reset = Constant(reset, bv)
 		self.name_override = name_override
-		self.backtrace = namer.trace_back(name)
+		self.backtrace = tracer.trace_back(name)
 
 	def __hash__(self):
 		return id(self)

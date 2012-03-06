@@ -5,9 +5,8 @@ def handler(memory, ns, clk):
 	gn = ns.get_name
 	adrbits = bits_for(memory.depth-1)
 	
-	storage = Signal(name_override="mem")
 	r += "reg [" + str(memory.width-1) + ":0] " \
-		+ gn(storage) \
+		+ gn(memory) \
 		+ "[0:" + str(memory.depth-1) + "];\n"
 
 	adr_regs = {}
@@ -35,15 +34,15 @@ def handler(memory, ns, clk):
 					M = (i+1)*port.we_granularity-1
 					sl = "[" + str(M) + ":" + str(m) + "]"
 					r += "\tif (" + gn(port.we) + "[" + str(i) + "])\n"
-					r += "\t\t" + gn(storage) + "[" + gn(port.adr) + "]" + sl + " <= " + gn(port.dat_w) + sl + ";\n"
+					r += "\t\t" + gn(memory) + "[" + gn(port.adr) + "]" + sl + " <= " + gn(port.dat_w) + sl + ";\n"
 			else:
 				r += "\tif (" + gn(port.we) + ")\n"
-				r += "\t\t" + gn(storage) + "[" + gn(port.adr) + "] <= " + gn(port.dat_w) + ";\n"
+				r += "\t\t" + gn(memory) + "[" + gn(port.adr) + "] <= " + gn(port.dat_w) + ";\n"
 		if not port.async_read:
 			if port.mode == WRITE_FIRST and port.we is not None:
 				rd = "\t" + gn(adr_regs[id(port)]) + " <= " + gn(port.adr) + ";\n"
 			else:
-				bassign = gn(data_regs[id(port)]) + " <= " + gn(storage) + "[" + gn(port.adr) + "];\n"
+				bassign = gn(data_regs[id(port)]) + " <= " + gn(memory) + "[" + gn(port.adr) + "];\n"
 				if port.mode == READ_FIRST or port.we is None:
 					rd = "\t" + bassign
 				elif port.mode == NO_CHANGE:
@@ -58,10 +57,10 @@ def handler(memory, ns, clk):
 	
 	for port in memory.ports:
 		if port.async_read:
-			r += "assign " + gn(port.dat_r) + " = " + gn(storage) + "[" + gn(port.adr) + "];\n"
+			r += "assign " + gn(port.dat_r) + " = " + gn(memory) + "[" + gn(port.adr) + "];\n"
 		else:
 			if port.mode == WRITE_FIRST and port.we is not None:
-				r += "assign " + gn(port.dat_r) + " = " + gn(storage) + "[" + gn(adr_regs[id(port)]) + "];\n"
+				r += "assign " + gn(port.dat_r) + " = " + gn(memory) + "[" + gn(adr_regs[id(port)]) + "];\n"
 			else:
 				r += "assign " + gn(port.dat_r) + " = " + gn(data_regs[id(port)]) + ";\n"
 	r += "\n"
@@ -69,7 +68,7 @@ def handler(memory, ns, clk):
 	if memory.init is not None:
 		r += "initial begin\n"
 		for i, c in enumerate(memory.init):
-			r += "\t" + gn(storage) + "[" + str(i) + "] <= " + str(memory.width) + "'d" + str(c) + ";\n"
+			r += "\t" + gn(memory) + "[" + str(i) + "] <= " + str(memory.width) + "'d" + str(c) + ";\n"
 		r += "end\n\n"
 	
 	return r
