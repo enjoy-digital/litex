@@ -115,7 +115,7 @@ class PacketTooLarge(Exception):
 	pass
 	
 class Initiator:
-	def __init__(self, sockaddr="simsocket"):
+	def __init__(self, sockaddr):
 		self.sockaddr = sockaddr
 		self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
 		self._cleanup_file()
