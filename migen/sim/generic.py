@@ -111,12 +111,17 @@ class Simulator:
 		self.ipc.send(MessageRead(name))
 		reply = self.ipc.recv()
 		assert(isinstance(reply, MessageReadReply))
-		# TODO: negative numbers + cleanup LSBs
-		return reply.value
+		nbits = signal.bv.width
+		value = reply.value & (2**nbits - 1)
+		if signal.bv.signed and (value & 2**(nbits - 1)):
+			value -= 2**nbits
+		return value
 	
 	def wr(self, signal, value):
 		name = self.top_level.top_name + "." \
 		  + self.top_level.dut_name + "." \
 		  + self.namespace.get_name(signal)
-		# TODO: negative numbers
+		if value < 0:
+			value += 2**signal.bv.width
+		assert(value >= 0 and value < 2**signal.bv.width)
 		self.ipc.send(MessageWrite(name, value))

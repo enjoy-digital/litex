@@ -5,7 +5,7 @@ from migen.sim.icarus import Runner
 class Counter:
 	def __init__(self):
 		self.ce = Signal()
-		self.count = Signal(BV(4))
+		self.count = Signal(BV(37, True), reset=-5)
 	
 	def do_simulation(self, s, cycle):
 		if cycle % 2:
@@ -22,6 +22,6 @@ class Counter:
 def main():
 	dut = Counter()
 	sim = Simulator(dut.get_fragment(), Runner(), TopLevel("my.vcd"))
-	sim.run(10)
+	sim.run(20)
 
 main()
