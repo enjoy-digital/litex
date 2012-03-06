@@ -69,10 +69,13 @@ class Simulator:
 			rst_signal=rst_signal,
 			return_ns=True)
 		
-		sim_runner.start(c_top, c_fragment)
-		self.ipc.accept()
 		self.cycle_counter = 0
 		self.interrupt = False
+
+		self.sim_runner = sim_runner
+		self.sim_runner.start(c_top, c_fragment)
+		self.ipc.accept()
+		
 		self.fragment.call_sim(self, 0)
 		self.ipc.send(MessageGo())
 	
