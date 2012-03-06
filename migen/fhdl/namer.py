@@ -34,6 +34,8 @@ def trace_back(name=None):
 			obj = frame.f_locals["self"]
 		except KeyError:
 			obj = None
+		if obj is not None and hasattr(obj, "__del__"):
+			obj = None
 		if obj is None:
 			modules = frame.f_globals["__name__"]
 			modules = modules.split(".")
