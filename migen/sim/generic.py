@@ -75,19 +75,19 @@ class Simulator:
 		self.sim_runner = sim_runner
 		self.sim_runner.start(c_top, c_fragment)
 		self.ipc.accept()
-		
-		self.fragment.call_sim(self, 0)
-		self.ipc.send(MessageGo())
+		reply = self.ipc.recv()
+		assert(isinstance(reply, MessageTick))
+		self.fragment.call_sim(self, -1)
 	
 	def run(self, ncycles=-1):
 		counter = 0
 		while not self.interrupt and (ncycles < 0 or counter < ncycles):
+			self.ipc.send(MessageGo())
 			reply = self.ipc.recv()
 			assert(isinstance(reply, MessageTick))
+			self.fragment.call_sim(self, self.cycle_counter)
 			self.cycle_counter += 1
 			counter += 1
-			self.fragment.call_sim(self, self.cycle_counter)
-			self.ipc.send(MessageGo())
 
 	def rd(self, signal):
 		name = self.top_level.top_name + "." \

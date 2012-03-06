@@ -64,6 +64,11 @@ enum {
 
 #define MAX_LEN 2048
 
+/*
+ * 0 -> error
+ * 1 -> success
+ * 2 -> graceful shutdown
+ */
 int ipc_receive(struct ipc_softc *sc)
 {
 	char buffer[MAX_LEN];
@@ -71,7 +76,9 @@ int ipc_receive(struct ipc_softc *sc)
 	int i;
 	
 	l = recv(sc->socket, buffer, MAX_LEN, 0);
-	if((l <= 0) || (l >= MAX_LEN))
+	if(l == 0)
+		return 2;
+	if((l < 0) || (l >= MAX_LEN))
 		return 0;
 	
 	i = 0;

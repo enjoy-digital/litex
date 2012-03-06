@@ -145,7 +145,9 @@ class Initiator:
 
 	def __del__(self):
 		if hasattr(self, "conn"):
+			self.conn.shutdown(socket.SHUT_RDWR)
 			self.conn.close()
 		if hasattr(self, "socket"):
+			self.socket.shutdown(socket.SHUT_RDWR)
 			self.socket.close()
 		self._cleanup_file()

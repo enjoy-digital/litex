@@ -20,9 +20,11 @@ class Runner:
 		_str2file(self.top_file, c_top)
 		_str2file(self.dut_file, c_dut)
 		subprocess.check_call(["iverilog", "-o", self.vvp_file, self.top_file, self.dut_file] + self.extra_files)
-		subprocess.Popen(["vvp", "-mmigensim", self.vvp_file])
+		self.process = subprocess.Popen(["vvp", "-mmigensim", self.vvp_file])
 
 	def __del__(self):
+		if hasattr(self, "process"):
+			self.process.wait()
 		if not self.keep_files:
 			for f in [self.top_file, self.dut_file, self.vvp_file]:
 				try:

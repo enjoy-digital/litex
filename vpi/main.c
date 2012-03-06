@@ -105,10 +105,13 @@ static int h_read(char *name, void *user)
 
 static int process_until_go(struct migensim_softc *sc)
 {
+	int r;
+	
 	sc->has_go = 0;
 	while(!sc->has_go) {
-		if(!ipc_receive(sc->ipc))
-			return 0;
+		r = ipc_receive(sc->ipc);
+		if(r != 1)
+			return r;
 	}
 	return 1;
 }
@@ -134,25 +137,26 @@ static PLI_INT32 connect_calltf(PLI_BYTE8 *user)
 		return 0;
 	}
 	
-	if(!process_until_go(sc)) {
-		vpi_control(vpiFinish, 1);
-		return 0;
-	}
-	
 	return 0;
 }
 
 static PLI_INT32 tick_calltf(PLI_BYTE8 *user)
 {
 	struct migensim_softc *sc = (struct migensim_softc *)user;
+	int r;
 	
 	if(!ipc_tick(sc->ipc)) {
 		perror("ipc_tick");
 		vpi_control(vpiFinish, 1);
+		ipc_destroy(sc->ipc);
+		sc->ipc = NULL;
 		return 0;
 	}
-	if(!process_until_go(sc)) {
-		vpi_control(vpiFinish, 1);
+	r = process_until_go(sc);
+	if(r != 1) {
+		vpi_control(vpiFinish, r == 2 ? 0 : 1);
+		ipc_destroy(sc->ipc);
+		sc->ipc = NULL;
 		return 0;
 	}
 	
