@@ -13,6 +13,7 @@ class Counter:
 		else:
 			s.wr(self.ce, 1)
 		print("Cycle: " + str(s.cycle_counter) + " Count: " + str(s.rd(self.count)))
+	do_simulation.initialize = True
 	
 	def get_fragment(self):
 		sync = [If(self.ce, self.count.eq(self.count + 1))]

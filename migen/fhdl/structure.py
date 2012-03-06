@@ -278,4 +278,5 @@ class Fragment:
 
 	def call_sim(self, simulator):
 		for s in self.sim:
-			s(simulator)
+			if simulator.cycle_counter >= 0 or (hasattr(s, "initialize") and s.initialize):
+				s(simulator)
