@@ -21,7 +21,7 @@ def _printexpr(ns, node):
 		if node.n >= 0:
 			return str(node.bv) + str(node.n)
 		else:
-			return "-" + str(node.bv) + str(-self.n)
+			return "-" + str(node.bv) + str(-node.n)
 	elif isinstance(node, Signal):
 		return ns.get_name(node)
 	elif isinstance(node, _Operator):
