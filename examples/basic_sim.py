@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.sim.generic import Simulator
+from migen.sim.generic import Simulator, TopLevel
 from migen.sim.icarus import Runner
 
 class Counter:
@@ -21,7 +21,7 @@ class Counter:
 
 def main():
 	dut = Counter()
-	sim = Simulator(dut.get_fragment(), Runner())
+	sim = Simulator(dut.get_fragment(), Runner(), TopLevel("my.vcd"))
 	sim.run(10)
 
 main()

@@ -3,8 +3,11 @@ from migen.fhdl import verilog
 from migen.sim.ipc import *
 
 class TopLevel:
-	def __init__(self, top_name="top", dut_type="dut", dut_name="dut", clk_name="sys_clk", 
-	  clk_period=10, rst_name="sys_rst"):
+	def __init__(self, vcd_name=None, vcd_level=1,
+	  top_name="top", dut_type="dut", dut_name="dut",
+	  clk_name="sys_clk", clk_period=10, rst_name="sys_rst"):
+		self.vcd_name = vcd_name
+		self.vcd_level = vcd_level
 		self.top_name = top_name
 		self.dut_type = dut_type
 		self.dut_name = dut_name
@@ -13,7 +16,9 @@ class TopLevel:
 		self.rst_name = rst_name
 	
 	def get(self, sockaddr):
-		template = """module {top_name}();
+		template1 = """`timescale 1ns / 1ps
+
+module {top_name}();
 
 reg {clk_name};
 reg {rst_name};
@@ -38,16 +43,26 @@ end
 
 initial $migensim_connect("{sockaddr}");
 always @(posedge {clk_name}) $migensim_tick;
-
-endmodule
 """
-		return template.format(top_name=self.top_name,
+		template2 = """
+initial begin
+	$dumpfile("{vcd_name}");
+	$dumpvars({vcd_level}, {dut_name});
+end
+"""
+		r = template1.format(top_name=self.top_name,
 			dut_type=self.dut_type,
 			dut_name=self.dut_name,
 			clk_name=self.clk_name,
 			hclk_period=str(self.clk_period/2),
 			rst_name=self.rst_name,
 			sockaddr=sockaddr)
+		if self.vcd_name is not None:
+			r += template2.format(vcd_name=self.vcd_name,
+				vcd_level=str(self.vcd_level),
+				dut_name=self.dut_name)
+		r += "\nendmodule"
+		return r
 
 class Simulator:
 	def __init__(self, fragment, sim_runner, top_level=None, sockaddr="simsocket"):
