@@ -1,4 +1,6 @@
 CC=clang
+INSTDIR=/usr/lib/ivl
+
 OBJ=ipc.o main.o
 
 all: migensim.vpi
@@ -9,8 +11,11 @@ all: migensim.vpi
 migensim.vpi: $(OBJ)
 	$(CC) -shared -o $@ $(OBJ) -lvpi
 
+install: migensim.vpi
+	install -m755 -t $(INSTDIR) $^
+
 clean:
 	rm -f $(OBJ)
 	rm -f migensim.vpi
 
-.PHONY: clean
+.PHONY: install clean
