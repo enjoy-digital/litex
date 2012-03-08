@@ -15,12 +15,14 @@ class Message:
 			setattr(self, parameter[1], value)
 	
 	def __str__(self):
-		p = ""
+		p = []
 		for parameter in self.parameters:
-			p += parameter[1] + "=" + str(getattr(self, parameter[1]))
+			p.append(parameter[1] + "=" + str(getattr(self, parameter[1])))
 		if p:
-			p = " " + p
-		return "<" + self.__class__.__name__ + p + ">"
+			pf = " " + " ".join(p)
+		else:
+			pf = ""
+		return "<" + self.__class__.__name__ + pf + ">"
 
 class MessageTick(Message):
 	code = 0
