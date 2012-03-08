@@ -8,7 +8,9 @@ def bits_for(n):
 	if isinstance(n, Constant):
 		return n.bv.width
 	else:
-		if n == 0:
+		if n < 0:
+			return bits_for(-n) + 1
+		elif n == 0:
 			return 1
 		else:
 			return int(math.ceil(math.log(n+1, 2)))
@@ -118,7 +120,7 @@ class Replicate(Value):
 
 class Constant(Value):
 	def __init__(self, n, bv=None):
-		self.bv = bv or BV(bits_for(n))
+		self.bv = bv or BV(bits_for(n), n < 0)
 		self.n = n
 	
 	def __repr__(self):
