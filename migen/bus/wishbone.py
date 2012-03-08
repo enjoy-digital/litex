@@ -2,6 +2,7 @@ from migen.fhdl.structure import *
 from migen.corelogic import roundrobin
 from migen.corelogic.misc import multimux, optree
 from migen.bus.simple import *
+from migen.bus.transactions import *
 
 _desc = Description(
 	(M_TO_S,	"adr",		30),
@@ -127,3 +128,78 @@ class InterconnectShared:
 	
 	def get_fragment(self):
 		return self._arbiter.get_fragment() + self._decoder.get_fragment()
+
+class Tap:
+	def __init__(self, bus=None, handler=print):
+		# If bus is None, create one and act as a normal slave.
+		# If we pass an existing one, dump the transactions
+		# without interfering with the bus.
+		if bus is None:
+			self.bus = Interface()
+			self.ack = True
+		else:
+			self.bus = bus
+			self.ack = False
+		self.handler = handler
+	
+	def do_simulation(self, s):
+		if s.rd(self.bus.ack):
+			assert(s.rd(self.bus.cyc) and s.rd(self.bus.stb))
+			if s.rd(self.bus.we):
+				transaction = TWrite(s.rd(self.bus.adr),
+					s.rd(self.bus.dat_w),
+					s.rd(self.bus.sel))
+			else:
+				transaction = TRead(s.rd(self.bus.adr),
+					s.rd(self.bus.dat_r))
+			self.handler(transaction)
+	
+	def get_fragment(self):
+		if self.ack:
+			sync = [
+				self.bus.ack.eq(0),
+				If(self.bus.cyc & self.bus.stb & ~self.bus.ack,
+					self.bus.ack.eq(1)
+				)
+			]
+		else:
+			sync = []
+		return Fragment(sync=sync, sim=[self.do_simulation])
+
+class Initiator:
+	def __init__(self, generator):
+		self.generator = generator
+		self.bus = Interface()
+		self.transaction_start = 0
+		self.transaction = None
+		self.done = False
+	
+	def do_simulation(self, s):
+		if not self.done:
+			if self.transaction is None or s.rd(self.bus.ack):
+				if self.transaction is not None:
+					self.transaction.latency = s.cycle_counter - self.transaction_start - 1
+					if isinstance(self.transaction, TRead):
+						self.transaction.data = s.rd(self.bus.dat_r)
+				try:
+					self.transaction = next(self.generator)
+				except StopIteration:
+					self.done = True
+					self.transaction = None
+				if self.transaction is not None:
+					self.transaction_start = s.cycle_counter
+					s.wr(self.bus.cyc, 1)
+					s.wr(self.bus.stb, 1)
+					s.wr(self.bus.adr, self.transaction.address)
+					if isinstance(self.transaction, TWrite):
+						s.wr(self.bus.we, 1)
+						s.wr(self.bus.sel, self.transaction.sel)
+						s.wr(self.bus.dat_w, self.transaction.data)
+					else:
+						s.wr(self.bus.we, 0)
+				else:
+					s.wr(self.bus.cyc, 0)
+					s.wr(self.bus.stb, 0)
+	
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])
