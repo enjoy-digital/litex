@@ -51,11 +51,14 @@ message_classes = [MessageTick, MessageGo, MessageWrite, MessageRead, MessageRea
 #
 
 def _pack_int(v):
-	p = []
-	while v != 0:
-		p.append(v & 0xff)
-		v >>= 8
-	p.insert(0, len(p))
+	if v == 0:
+		p = [1, 0]
+	else:
+		p = []
+		while v != 0:
+			p.append(v & 0xff)
+			v >>= 8
+		p.insert(0, len(p))
 	return p
 
 def _pack_str(v):
