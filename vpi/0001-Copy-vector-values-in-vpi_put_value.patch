@@ -1,0 +1,63 @@
+From 6e85fad37a9d40cb02a71196fe5e6981cf255d6e Mon Sep 17 00:00:00 2001
+From: Sebastien Bourdeauducq <sebastien@milkymist.org>
+Date: Thu, 8 Mar 2012 17:13:32 +0100
+Subject: [PATCH] Copy vector values in vpi_put_value.
+
+Like it's done for strings.
+---
+ vvp/vpi_priv.cc |   22 ++++++++++++++++++++--
+ 1 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/vvp/vpi_priv.cc b/vvp/vpi_priv.cc
+index 0d82b55..be04b31 100644
+--- a/vvp/vpi_priv.cc
++++ b/vvp/vpi_priv.cc
+@@ -948,15 +948,31 @@ void vpip_put_value_event::run_run()
+ 	  case vpiStringVal:
+ 	    free(value.value.str);
+ 	    break;
++	  case vpiVectorVal:
++	    free(value.value.vector);
++	    break;
+ 	    /* If these are ever copied then free them too. */
+ 	  case vpiTimeVal:
+-	  case vpiVectorVal:
+ 	  case vpiStrengthVal:
+ 	  default:
+ 	    break;
+       }
+ }
+ 
++static t_vpi_vecval *copy_vector_for(vpiHandle obj, t_vpi_vecval *source)
++{
++	int size;
++	int nbytes;
++	t_vpi_vecval *r;
++	
++	size = vpi_get(vpiSize, obj);
++	nbytes = ((size + 31)/32)*sizeof(t_vpi_vecval);
++	r = (t_vpi_vecval *)malloc(nbytes);
++	assert(r);
++	memcpy(r, source, nbytes);
++	return r;
++}
++
+ vpiHandle vpi_put_value(vpiHandle obj, s_vpi_value*vp,
+ 			s_vpi_time*when, PLI_INT32 flags)
+ {
+@@ -1008,9 +1024,11 @@ vpiHandle vpi_put_value(vpiHandle obj, s_vpi_value*vp,
+ 		case vpiStringVal:
+ 		  put->value.value.str = strdup(put->value.value.str);
+ 		  break;
++		case vpiVectorVal:
++		  put->value.value.vector = copy_vector_for(obj, put->value.value.vector);
++		  break;
+ 		  /* Do these also need to be copied? */
+ 		case vpiTimeVal:
+-		case vpiVectorVal:
+ 		case vpiStrengthVal:
+ 		default:
+ 		  break;
+-- 
+1.7.7.6
+
