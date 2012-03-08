@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.sim.generic import Simulator, TopLevel
+from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 
 class Mem:
