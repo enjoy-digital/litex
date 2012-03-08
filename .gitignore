@@ -1,2 +1,5 @@
 __pycache__
 *.pyc
+vpi/*.o
+vpi/migensim.vpi
+examples/*.vcd
