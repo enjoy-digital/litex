@@ -1,13 +1,17 @@
 Migen manual
 ############
 
-.. _introduction:
-
 Introduction
 ############
+
 Migen is a Python-based tool that aims at automating further the VLSI design process.
 
 Migen makes it possible to apply modern software concepts such as object-oriented programming and metaprogramming to design hardware. This results in more elegant and easily maintained designs and reduces the incidence of human errors.
+
+.. _background:
+
+Background
+**********
 
 Even though the Milkymist system-on-chip [mm]_ is technically successful, it suffers from several limitations stemming from its implementation in manually written Verilog HDL:
 
@@ -27,13 +31,13 @@ Even though the Milkymist system-on-chip [mm]_ is technically successful, it suf
    #. simulation mismatches with combinatorial processes/always blocks
    #. and more...
    
-   A little-known fact about FPGAs is that many of them have to ability to initialize their registers from the bitstream contents. This can be done in a portable and standard way using an "initial" block in Verilog, and by affecting a value at the signal declaration in VHDL. This renders an explicit reset signal unnecessary in practice in some cases, which opens the way for further design optimization. However, this form of initialization is entirely not synthesizable for ASIC targets, and it is not easy to switch between the two forms of reset using V*HDL.
+   A little-known fact about FPGAs is that many of them have the ability to initialize their registers from the bitstream contents. This can be done in a portable and standard way using an "initial" block in Verilog, and by affecting a value at the signal declaration in VHDL. This renders an explicit reset signal unnecessary in practice in some cases, which opens the way for further design optimization. However, this form of initialization is entirely not synthesizable for ASIC targets, and it is not easy to switch between the two forms of reset using V*HDL.
 
 #. V*HDL support for composite types is very limited. Signals having a record type in VHDL are unidirectional, which makes them clumsy to use e.g. in bus interfaces. There is no record type support in Verilog, which means that a lot of copy-and-paste has to be done when forwarding grouped signals.
 
 #. V*HDL support for procedurally generated logic is extremely limited. The most advanced forms of procedural generation of synthesizable logic that V*HDL offers are CPP-style directives in Verilog, combinatorial functions, and generate statements. Nothing really fancy, and it shows. To give a few examples:
 
-   #. Building highly flexible bus interconnect is not possible. Even arbitrating any given number of bus masters for commonplace protocols such as Wishbone is difficult with the tools at V*HDL puts at our disposal.
+   #. Building highly flexible bus interconnect is not possible. Even arbitrating any given number of bus masters for commonplace protocols such as Wishbone is difficult with the tools that V*HDL puts at our disposal.
    #. Building a memory infrastructure (including bus interconnect, bridges and caches) that can automatically adapt itself at compile-time to any word size of the SDRAM is clumsy and tedious.
    #. Building register banks for control, status and interrupt management of cores can also largely benefit from automation.
    #. Many hardware acceleration problems can fit into the dataflow programming model. Manual dataflow implementation in V*HDL has, again, a lot of redundancy and potential for human errors. See the Milkymist texture mapping unit [mthesis]_ [mxcell]_ for an example of this. The amount of detail to deal with manually also makes the design space exploration difficult, and therefore hinders the design of efficient architectures.
@@ -46,13 +50,20 @@ Enter Migen, a Python toolbox for building complex digital hardware. We could ha
 
 Migen is made up of several related components, which are described in this manual.
 
+Installing Migen
+****************
+Either run the ``setup.py`` installation script or simply set ``PYTHONPATH`` to the root of the source directory.
+
+For simulation support, an extra step is needed. See :ref:`vpisetup`.
+
+
 The FHDL layer
 ##############
 
 The Fragmented Hardware Description Language (FHDL) is the lowest layer of Migen. It consists of a formal system to describe signals, and combinatorial and synchronous statements operating on them. The formal system itself is low level and close to the synthesizable subset of Verilog, and we then rely on Python algorithms to build complex structures by combining FHDL elements and encapsulating them in "fragments".
 The FHDL module also contains a back-end to produce synthesizable Verilog, and some basic analysis functions. It would be possible to develop a VHDL back-end as well, though more difficult than for Verilog - we are "cheating" a bit now as Verilog provides most of the FHDL semantics.
 
-FHDL differs from MyHDL [myhdl]_ in fundamental ways. MyHDL follows the event-driven paradigm of traditional HDLs (see :ref:`introduction`) while FHDL separates the code into combinatorial statements, synchronous statements, and reset values. In MyHDL, the logic is described directly in the Python AST. The converter to Verilog or VHDL then examines the Python AST and recognizes a subset of Python that it translates into V*HDL statements. This seriously impedes the capability of MyHDL to generate logic procedurally. With FHDL, you manipulate a custom AST from Python, and you can more easily design algorithms that operate on it.
+FHDL differs from MyHDL [myhdl]_ in fundamental ways. MyHDL follows the event-driven paradigm of traditional HDLs (see :ref:`background`) while FHDL separates the code into combinatorial statements, synchronous statements, and reset values. In MyHDL, the logic is described directly in the Python AST. The converter to Verilog or VHDL then examines the Python AST and recognizes a subset of Python that it translates into V*HDL statements. This seriously impedes the capability of MyHDL to generate logic procedurally. With FHDL, you manipulate a custom AST from Python, and you can more easily design algorithms that operate on it.
 
 .. [myhdl] http://www.myhdl.org
 
@@ -212,7 +223,7 @@ Each port description contains:
   * ``WRITE_FIRST``: the written value is returned.
   * ``NO_CHANGE``: the data read signal keeps its previous value on a write.
 
-Migen generates behavioural V*HDL code that should be compatible with all simulators and, if the number of ports is <= 2, most FPGA synthesizers. If a specific code is needed, the memory generator function can be overriden using the memory_handler parameter of the conversion function.
+Migen generates behavioural V*HDL code that should be compatible with all simulators and, if the number of ports is <= 2, most FPGA synthesizers. If a specific code is needed, the memory generator function can be overriden using the ``memory_handler`` parameter of the conversion function.
 
 Fragments
 *********
@@ -240,6 +251,7 @@ Migen does not provide support for any specific synthesis tools or ASIC/FPGA tec
 
 Bus support
 ###########
+
 Migen Bus contains classes providing a common structure for master and slave interfaces of the following buses:
 
 * Wishbone [wishbone]_, the general purpose bus recommended by Opencores.
@@ -353,7 +365,7 @@ The control signals are used to issue requests.
 * Hub-to-Master
 
   * ``tag_issue`` is an integer representing the transaction ("tag") attributed by the hub. The width of this signal is determined by the maximum number of in-flight transactions that the hub port can handle.
-  * ``ack`` is asserted when ``tag_issue`` is valid and the transaction has been registered by the hub. A hub may assert ACK even when ``stb`` is low, which means it is ready to accept any new transaction and will do as soon as ``stb`` goes high.
+  * ``ack`` is asserted when ``tag_issue`` is valid and the transaction has been registered by the hub. A hub may assert ``ack'' even when ``stb`` is low, which means it is ready to accept any new transaction and will do as soon as ``stb`` goes high.
 
 The data signals are used to complete requests.
 
@@ -426,3 +438,8 @@ Actor graphs are managed using the NetworkX [networkx]_ library.
 
 Simulating a Migen design
 #########################
+
+.. _vpisetup:
+
+Installing the VPI module
+*************************
