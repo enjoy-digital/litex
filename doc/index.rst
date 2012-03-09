@@ -98,7 +98,7 @@ The properties of a signal object are:
 * a bit vector description
 * a name, used as a hint for the V*HDL back-end name mangler.
 * a boolean "variable". If true, the signal will behave like a VHDL variable, or a Verilog reg that uses blocking assignment. This parameter only has an effect when the signal's value is modified in a synchronous statement.
-* the signal's reset value. It must be an integer, and defaults to 0. When the signal's value is modified with a synchronous statement, the reset value is the initialization value of the associated register. When the signal is assigned to in a conditional combinatorial statement (If or Case), the reset value is the value that the signal has when no condition that causes the signal to be driven is verified. This enforces the absence of latches in designs. If the signal is permanently driven using a combinatorial statement, the reset value has no effect.
+* the signal's reset value. It must be an integer, and defaults to 0. When the signal's value is modified with a synchronous statement, the reset value is the initialization value of the associated register. When the signal is assigned to in a conditional combinatorial statement (``If`` or ``Case``), the reset value is the value that the signal has when no condition that causes the signal to be driven is verified. This enforces the absence of latches in designs. If the signal is permanently driven using a combinatorial statement, the reset value has no effect.
   
 The sole purpose of the name property is to make the generated V*HDL code easier to understand and debug. From a purely functional point of view, it is perfectly OK to have several signals with the same name property. The back-end will generate a unique name for each object. If no name property is specified, Migen will analyze the code that created the signal object, and try to extract the variable or member name from there. For example, the following statements will create one or several signal named "bar": ::
 
@@ -111,7 +111,7 @@ In case of conflicts, Migen tries first to resolve the situation by prefixing th
 
 Operators
 =========
-Operators are represented by the _Operator object, which generally should not be used directly. Instead, most FHDL objects overload the usual Python logic and arithmetic operators, which allows a much lighter syntax to be used. For example, the expression: ::
+Operators are represented by the ``_Operator`` object, which generally should not be used directly. Instead, most FHDL objects overload the usual Python logic and arithmetic operators, which allows a much lighter syntax to be used. For example, the expression: ::
 
   a * b + c
 
@@ -121,23 +121,23 @@ is equivalent to::
 
 Slices
 ======
-Likewise, slices are represented by the _Slice object, which often should not be used in favor of the Python slice operation [x:y]. Implicit indices using the forms [x], [x:] and [:y] are supported. Beware! Slices work like Python slices, not like VHDL or Verilog slices. The first bound is the index of the LSB and is inclusive. The second bound is the index of MSB and is exclusive. In V*HDL, bounds are MSB:LSB and both are inclusive.
+Likewise, slices are represented by the ``_Slice`` object, which often should not be used in favor of the Python slice operation [x:y]. Implicit indices using the forms [x], [x:] and [:y] are supported. Beware! Slices work like Python slices, not like VHDL or Verilog slices. The first bound is the index of the LSB and is inclusive. The second bound is the index of MSB and is exclusive. In V*HDL, bounds are MSB:LSB and both are inclusive.
 
 Concatenations
 ==============
-Concatenations are done using the Cat object. To make the syntax lighter, its constructor takes a variable number of arguments, which are the signals to be concatenated together (you can use the Python "*" operator to pass a list instead).
+Concatenations are done using the ``Cat`` object. To make the syntax lighter, its constructor takes a variable number of arguments, which are the signals to be concatenated together (you can use the Python "*" operator to pass a list instead).
 To be consistent with slices, the first signal is connected to the bits with the lowest indices in the result. This is the opposite of the way the "{}" construct works in Verilog.
 
 Replications
 ============
-The Replicate object represents the equivalent of {count{expression}} in Verilog.
+The ``Replicate`` object represents the equivalent of {count{expression}} in Verilog.
 
 Statements
 **********
 
 Assignment
 ==========
-Assignments are represented with the _Assign object. Since using it directly would result in a cluttered syntax, the preferred technique for assignments is to use the eq() method provided by objects that can have a value assigned to them. They are signals, and their combinations with the slice and concatenation operators.
+Assignments are represented with the ``_Assign`` object. Since using it directly would result in a cluttered syntax, the preferred technique for assignments is to use the ``eq()`` method provided by objects that can have a value assigned to them. They are signals, and their combinations with the slice and concatenation operators.
 As an example, the statement: ::
 
   a[0].eq(b)
@@ -148,11 +148,11 @@ is equivalent to: ::
 
 If
 ==
-The If object takes a first parameter which must be an expression (combination of the Constant, Signal, _Operator, _Slice, etc. objects) representing the condition, then a variable number of parameters representing the statements (_Assign, If, Case, etc. objects) to be executed when the condition is verified.
+The ``If`` object takes a first parameter which must be an expression (combination of the ``Constant``, ``Signal``, ``_Operator``, ``_Slice``, etc. objects) representing the condition, then a variable number of parameters representing the statements (``_Assign``, ``If``, ``Case``, etc. objects) to be executed when the condition is verified.
 
-The If object defines a Else() method, which when called defines the statements to be executed when the condition is not true. Those statements are passed as parameters to the variadic method.
+The ``If`` object defines a ``Else()`` method, which when called defines the statements to be executed when the condition is not true. Those statements are passed as parameters to the variadic method.
 
-For convenience, there is also a Elif() method.
+For convenience, there is also a ``Elif()`` method.
 
 Example: ::
 
@@ -171,9 +171,9 @@ Example: ::
 
 Case
 ====
-The Case object constructor takes as first parameter the expression to be tested, then a variable number of lists describing the various cases.
+The ``Case`` object constructor takes as first parameter the expression to be tested, then a variable number of lists describing the various cases.
 
-Each list contains an expression (typically a constant) describing the value to be matched, followed by the statements to be executed when there is a match. The head of the list can be the an instance of the Default object.
+Each list contains an expression (typically a constant) describing the value to be matched, followed by the statements to be executed when there is a match. The head of the list can be the an instance of the ``Default`` object.
 
 Special elements
 ****************
