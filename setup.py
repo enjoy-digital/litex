@@ -3,7 +3,8 @@
 """ Migen's distutils distribution and installation script. """
 
 import sys, os
-from distutils.core import setup
+from setuptools import setup
+from setuptools import find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, "README")).read()
@@ -13,14 +14,6 @@ if sys.version_info < required_version:
 	raise SystemExit("migen requires python {0} or greater".format(
 		".".join(map(str, required_version))))
 
-packages = ["migen"]
-packages_dir = os.path.sep.join((here, packages[0]))
-for entry in os.listdir(packages_dir):
-	if (os.path.isdir(os.path.sep.join((packages_dir, entry))) and
-	 os.path.isfile(os.path.sep.join((packages_dir, entry, "__init__.py")))):
-		packages.append(".".join((packages[0], entry)))
-
-packages_dir={"": "migen"}
 setup(
 	name="migen",
 	version="unknown",
@@ -30,7 +23,7 @@ setup(
 	author_email="sebastien@milkymist.org",
 	url="http://www.milkymist.org",
 	download_url="https://github.com/milkymist/migen",
-	packages=packages,
+	packages=find_packages(here),
 	license="GPL",
 	platforms=["Any"],
 	keywords="HDL ASIC FPGA hardware design",
