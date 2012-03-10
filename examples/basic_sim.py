@@ -1,28 +1,38 @@
 from migen.fhdl.structure import *
-from migen.sim.generic import Simulator, TopLevel
+from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 
+# Our simple counter, which increments at every cycle
+# and prints its current value in simulation.
 class Counter:
 	def __init__(self):
-		self.ce = Signal()
-		self.count = Signal(BV(37, True), reset=-5)
+		self.count = Signal(BV(4))
 	
+	# This function will be called at every cycle.
 	def do_simulation(self, s):
-		if s.cycle_counter % 2:
-			s.wr(self.ce, 0)
-		else:
-			s.wr(self.ce, 1)
-		print("Cycle: " + str(s.cycle_counter) + " Count: " + str(s.rd(self.count)))
-	do_simulation.initialize = True
+		# Simply read the count signal and print it.
+		# The output is:
+		# Count: 0 
+		# Count: 1
+		# Count: 2
+		# ...
+		print("Count: " + str(s.rd(self.count)))
 	
 	def get_fragment(self):
-		sync = [If(self.ce, self.count.eq(self.count + 1))]
+		# At each cycle, increase the value of the count signal.
+		# We do it with convertible/synthesizable FHDL code.
+		sync = [self.count.eq(self.count + 1)]
+		# List our simulation function in the fragment.
 		sim = [self.do_simulation]
 		return Fragment(sync=sync, sim=sim)
 
 def main():
 	dut = Counter()
-	sim = Simulator(dut.get_fragment(), Runner(), TopLevel("my.vcd"))
+	# Use the Icarus Verilog runner.
+	# We do not specify a top-level object, and use the default.
+	sim = Simulator(dut.get_fragment(), Runner())
+	# Since we do not use sim.interrupt, limit the simulation
+	# to some number of cycles.
 	sim.run(20)
 
 main()

@@ -567,29 +567,30 @@ Migen comes with a ``migen.sim.generic.TopLevel`` object that implements the abo
 
 The main parameters of its constructor are the output VCD file (default: ``None``) and the levels of hierarchy that must be present in the VCD (default: 1).
 
-Basic simulation example
-========================
-::
+Simulation examples
+*******************
 
-	from migen.fhdl.structure import *
-	from migen.sim.generic import Simulator
-	from migen.sim.icarus import Runner
+Most basic
+==========
+.. include:: ../examples/basic_sim.py
+   :code: python
 
-	class Counter:
-		def __init__(self):
-			self.count = Signal(BV(4))
-		
-		def do_simulation(self, s):
-			print("Count: " + str(s.rd(self.count)))
-		
-		def get_fragment(self):
-			sync = [self.count.eq(self.count + 1)]
-			sim = [self.do_simulation]
-			return Fragment(sync=sync, sim=sim)
+A few more features
+===================
+.. include:: ../examples/basic2_sim.py
+   :code: python
 
-	def main():
-		dut = Counter()
-		sim = Simulator(dut.get_fragment(), Runner())
-		sim.run(20)
+Memory access
+=============
+.. include:: ../examples/memory_sim.py
+   :code: python
 
-	main()
+A FIR filter
+============
+.. include:: ../examples/fir.py
+   :code: python
+   
+Wishbone
+========
+.. include:: ../examples/wb_initiator.py
+   :code: python

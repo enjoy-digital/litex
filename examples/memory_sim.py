@@ -7,11 +7,20 @@ class Mem:
 		self.a = Signal(BV(12))
 		self.d = Signal(BV(16))
 		p = MemoryPort(self.a, self.d)
+		# Initialize the beginning of the memory with integers
+		# from 0 to 19.
 		self.mem = Memory(16, 2**12, p, init=list(range(20)))
 	
 	def do_simulation(self, s):
+		# Read the memory. Use the cycle counter as address.
 		value = s.rd(self.mem, s.cycle_counter)
+		# Print the result. Output is:
+		# 0
+		# 1
+		# 2
+		# ...
 		print(value)
+		# Demonstrate how to interrupt the simulator.
 		if value == 10:
 			s.interrupt = True
 	
@@ -21,6 +30,7 @@ class Mem:
 def main():
 	dut = Mem()
 	sim = Simulator(dut.get_fragment(), Runner())
+	# No need for a cycle limit here, we use sim.interrupt instead.
 	sim.run()
 
 main()

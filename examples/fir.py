@@ -1,5 +1,5 @@
-from scipy import signal
 from math import cos, pi
+from scipy import signal
 
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
@@ -8,6 +8,7 @@ from migen.fhdl import autofragment
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 
+# A synthesizable FIR filter.
 class FIR:
 	def __init__(self, coef, wsize=16):
 		self.coef = coef
@@ -31,6 +32,8 @@ class FIR:
 		comb = [self.o.eq(sum_full[self.wsize-1:])]
 		return Fragment(comb, sync)
 
+# A test bench for our FIR filter.
+# Generates a sine wave at the input and records the output.
 class TB:
 	def __init__(self, fir, frequency):
 		self.fir = fir
@@ -49,12 +52,17 @@ class TB:
 		return Fragment(sim=[self.do_simulation])
 
 def main():
+	# Compute filter coefficients with SciPy.
 	coef = signal.remez(80, [0, 0.1, 0.1, 0.5], [1, 0])
 	fir = FIR(coef)
 	tb = TB(fir, 0.3)
+	# Combine the FIR filter with its test bench.
 	fragment = autofragment.from_local()
 	sim = Simulator(fragment, Runner())
 	sim.run(200)
+	# Print data from the input and output waveforms.
+	# When matplotlib works easily with Python 3, we could
+	# display them graphically here.
 	print(tb.inputs)
 	print(tb.outputs)
 
