@@ -1,12 +1,16 @@
 Migen (Milkymist Generator)
   a Python toolbox for building complex digital hardware
 
-Migen aims at automating further the VLSI design process. It provides
-tools to build synchronous designs more productively, integrate
-system-on-chips, design dataflow systems, and more. Migen will become
-the foundation for the next-generation Milkymist SoC.
+Migen aims at automating further the VLSI design process. Migen makes it
+possible to apply modern software concepts such as object-oriented
+programming and metaprogramming to design hardware. This results in more
+elegant and easily maintained designs and reduces the incidence of human
+errors. Built on these principles, it also provides tools to build
+synchronous designs more productively, integrate system-on-chips, design
+dataflow systems, and more. Migen will become the foundation for the
+next-generation Milkymist SoC.
 
-See doc/migen.txt for a more complete description.
+See the doc/ folder for a more complete description.
 
 Code repository:
 https://github.com/milkymist/migen
