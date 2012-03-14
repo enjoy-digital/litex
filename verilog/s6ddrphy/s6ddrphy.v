@@ -1,7 +1,6 @@
 /*
  * 1:2 frequency-ratio DDR PHY for Spartan-6
  *
- ************* DATAPATH SIGNALS ***********
  * Assert dfi_wrdata_en and present the data 
  * on dfi_wrdata_mask/dfi_wrdata in the same
  * cycle as the write command.

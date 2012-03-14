@@ -1,10 +1,11 @@
 from fractions import Fraction
+from math import ceil
 
 from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
-from migen.bus import wishbone, asmibus, wishbone2asmi, csr, wishbone2csr, dfi
+from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
-from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii
+from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon
 import constraints
 
 MHz = 1000000
@@ -12,9 +13,28 @@ clk_freq = (83 + Fraction(1, 3))*MHz
 sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
 
-dfi_a = 13
-dfi_ba = 2
-dfi_d = 64
+clk_period_ns = 1000000000/clk_freq
+def ns(t, margin=False):
+	if margin:
+		t += clk_period_ns/2
+	return ceil(t/clk_period_ns)
+
+sdram_phy = asmicon.PhySettings(
+	dfi_a=13,
+	dfi_ba=2,
+	dfi_d=64, 
+	nphases=2,
+	rdphase=0,
+	wrphase=1
+)
+sdram_geom = asmicon.GeomSettings(
+	row_a=13,
+	col_a=10
+)
+sdram_timing = asmicon.TimingSettings(
+	tREFI=ns(7800),
+	tRFC=ns(70)
+)
 
 def ddrphy_clocking(crg, phy):
 	names = [
@@ -31,16 +51,17 @@ def get():
 	#
 	# ASMI
 	#
-	asmihub0 = asmibus.Hub(23, 128, 12) # TODO: get hub from memory controller
-	asmiport_wb = asmihub0.get_port()
-	asmihub0.finalize()
+	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing, 8)
+	asmiport_wb = asmicon0.hub.get_port()
+	asmicon0.finalize()
 	
 	#
 	# DFI
 	#
-	ddrphy0 = s6ddrphy.S6DDRPHY(dfi_a, dfi_ba, dfi_d)
-	dfii0 = dfii.DFIInjector(1, dfi_a, dfi_ba, dfi_d, 2)
+	ddrphy0 = s6ddrphy.S6DDRPHY(sdram_phy.dfi_a, sdram_phy.dfi_ba, sdram_phy.dfi_d)
+	dfii0 = dfii.DFIInjector(1, sdram_phy.dfi_a, sdram_phy.dfi_ba, sdram_phy.dfi_d, sdram_phy.nphases)
 	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
+	dficon1 = dfi.Interconnect(asmicon0.dfi, dfii0.slave)
 
 	#
 	# WISHBONE
