@@ -4,17 +4,6 @@ from migen.corelogic.fsm import FSM
 from migen.corelogic.misc import split, displacer, chooser
 from migen.corelogic.record import Record
 
-def _log2_int(n):
-	l = 1
-	r = 0
-	while l < n:
-		l *= 2
-		r += 1
-	if l == n:
-		return r
-	else:
-		raise ValueError("Not a power of 2")
-
 # cachesize (in 32-bit words) is the size of the data store, must be a power of 2
 class WB2ASMI:
 	def __init__(self, cachesize, asmiport):
@@ -37,9 +26,9 @@ class WB2ASMI:
 		
 		# Split address:
 		# TAG | LINE NUMBER | LINE OFFSET
-		offsetbits = _log2_int(adw//32)
+		offsetbits = log2_int(adw//32)
 		addressbits = aaw + offsetbits
-		linebits = _log2_int(self.cachesize) - offsetbits
+		linebits = log2_int(self.cachesize) - offsetbits
 		tagbits = aaw - linebits
 		adr_offset, adr_line, adr_tag = split(self.wishbone.adr, offsetbits, linebits, tagbits)
 		

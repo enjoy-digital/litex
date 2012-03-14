@@ -4,6 +4,17 @@ import re
 
 from migen.fhdl import tracer
 
+def log2_int(n):
+	l = 1
+	r = 0
+	while l < n:
+		l *= 2
+		r += 1
+	if l == n:
+		return r
+	else:
+		raise ValueError("Not a power of 2")
+
 def bits_for(n):
 	if isinstance(n, Constant):
 		return n.bv.width
