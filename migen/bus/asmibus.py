@@ -146,6 +146,8 @@ class Hub:
 		self.tag_call = Signal(BV(tagbits))
 	
 	def get_slots(self):
+		if not self.finalized:
+			raise FinalizeError
 		return sum([port.slots for port in self.ports], [])
 	
 	def get_fragment(self):
