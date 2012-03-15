@@ -21,17 +21,18 @@ def ns(t, margin=False):
 
 sdram_phy = asmicon.PhySettings(
 	dfi_a=13,
-	dfi_ba=2,
 	dfi_d=64, 
 	nphases=2,
 	rdphase=0,
 	wrphase=1
 )
 sdram_geom = asmicon.GeomSettings(
+	bank_a=2,
 	row_a=13,
 	col_a=10
 )
 sdram_timing = asmicon.TimingSettings(
+	tRP=ns(15),
 	tREFI=ns(7800),
 	tRFC=ns(70)
 )
@@ -58,8 +59,8 @@ def get():
 	#
 	# DFI
 	#
-	ddrphy0 = s6ddrphy.S6DDRPHY(sdram_phy.dfi_a, sdram_phy.dfi_ba, sdram_phy.dfi_d)
-	dfii0 = dfii.DFIInjector(1, sdram_phy.dfi_a, sdram_phy.dfi_ba, sdram_phy.dfi_d, sdram_phy.nphases)
+	ddrphy0 = s6ddrphy.S6DDRPHY(sdram_phy.dfi_a, sdram_geom.bank_a, sdram_phy.dfi_d)
+	dfii0 = dfii.DFIInjector(1, sdram_phy.dfi_a, sdram_geom.bank_a, sdram_phy.dfi_d, sdram_phy.nphases)
 	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
 	dficon1 = dfi.Interconnect(asmicon0.dfi, dfii0.slave)
 
