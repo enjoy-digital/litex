@@ -5,14 +5,14 @@ from migen.corelogic.fsm import FSM
 from milkymist.asmicon.multiplexer import *
 
 class Refresher:
-	def __init__(self, dfi_a, dfi_ba, tRP, tREFI, tRFC):
+	def __init__(self, a, ba, tRP, tREFI, tRFC):
 		self.tRP = tRP
 		self.tREFI = tREFI
 		self.tRFC = tRFC
 		
 		self.req = Signal()
 		self.ack = Signal()
-		self.cmd_request = CommandRequest(dfi_a, dfi_ba)
+		self.cmd_request = CommandRequest(a, ba)
 	
 	def get_fragment(self):
 		comb = []
@@ -38,7 +38,7 @@ class Refresher:
 				self.cmd_request.cas_n.eq(0),
 				self.cmd_request.ras_n.eq(0)
 			]),
-			(self.tRP+self.tRFC, [
+			(self.tRP+self.tRFC-1, [
 				seq_done.eq(1)
 			])
 		])

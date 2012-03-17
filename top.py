@@ -14,13 +14,12 @@ sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
 
 clk_period_ns = 1000000000/clk_freq
-def ns(t, margin=False):
+def ns(t, margin=True):
 	if margin:
 		t += clk_period_ns/2
 	return ceil(t/clk_period_ns)
 
 sdram_phy = asmicon.PhySettings(
-	dfi_a=13,
 	dfi_d=64, 
 	nphases=2,
 	rdphase=0,
@@ -33,7 +32,8 @@ sdram_geom = asmicon.GeomSettings(
 )
 sdram_timing = asmicon.TimingSettings(
 	tRP=ns(15),
-	tREFI=ns(7800),
+	tRCD=ns(15),
+	tREFI=ns(7800, False),
 	tRFC=ns(70)
 )
 
@@ -52,15 +52,15 @@ def get():
 	#
 	# ASMI
 	#
-	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing, 8)
+	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing, 16)
 	asmiport_wb = asmicon0.hub.get_port()
 	asmicon0.finalize()
 	
 	#
 	# DFI
 	#
-	ddrphy0 = s6ddrphy.S6DDRPHY(sdram_phy.dfi_a, sdram_geom.bank_a, sdram_phy.dfi_d)
-	dfii0 = dfii.DFIInjector(1, sdram_phy.dfi_a, sdram_geom.bank_a, sdram_phy.dfi_d, sdram_phy.nphases)
+	ddrphy0 = s6ddrphy.S6DDRPHY(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d)
+	dfii0 = dfii.DFIInjector(1, sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d, sdram_phy.nphases)
 	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
 	dficon1 = dfi.Interconnect(asmicon0.dfi, dfii0.slave)
 
