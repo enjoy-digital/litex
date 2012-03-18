@@ -20,14 +20,15 @@ class GeomSettings:
 		self.mux_a = max(row_a, col_a)
 
 class TimingSettings:
-	def __init__(self, tRP, tRCD, tREFI, tRFC):
+	def __init__(self, tRP, tRCD, tREFI, tRFC, slot_time):
 		self.tRP = tRP
 		self.tRCD = tRCD
 		self.tREFI = tREFI
 		self.tRFC = tRFC
+		self.slot_time = slot_time
 
 class ASMIcon:
-	def __init__(self, phy_settings, geom_settings, timing_settings, time=0):
+	def __init__(self, phy_settings, geom_settings, timing_settings):
 		self.phy_settings = phy_settings
 		self.geom_settings = geom_settings
 		self.timing_settings = timing_settings
@@ -41,7 +42,7 @@ class ASMIcon:
 		self.address_align = log2_int(burst_length)
 		aw = self.geom_settings.bank_a + self.geom_settings.row_a + self.geom_settings.col_a - self.address_align
 		dw = self.phy_settings.dfi_d*self.phy_settings.nphases
-		self.hub = asmibus.Hub(aw, dw, time)
+		self.hub = asmibus.Hub(aw, dw, self.timing_settings.slot_time)
 	
 	def finalize(self):
 		if self.finalized:

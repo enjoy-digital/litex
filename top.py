@@ -34,7 +34,8 @@ sdram_timing = asmicon.TimingSettings(
 	tRP=ns(15),
 	tRCD=ns(15),
 	tREFI=ns(7800, False),
-	tRFC=ns(70)
+	tRFC=ns(70),
+	slot_time=16
 )
 
 def ddrphy_clocking(crg, phy):
@@ -52,7 +53,7 @@ def get():
 	#
 	# ASMI
 	#
-	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing, 16)
+	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
 	asmiport_wb = asmicon0.hub.get_port()
 	asmicon0.finalize()
 	
