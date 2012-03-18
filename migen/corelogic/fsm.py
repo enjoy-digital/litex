@@ -17,7 +17,7 @@ class FSM:
 				name_state = len(self.actions)
 				setattr(self, name, Constant(name_state, self._state_bv))
 				for i in range(delay-1):
-					self.actions.append([self.next_state(Constant(name_state+i+1), self._state_bv)])
+					self.actions.append([self.next_state(Constant(name_state+i+1, self._state_bv))])
 				self.actions.append([self.next_state(target_state)])
 			else:
 				# alias
