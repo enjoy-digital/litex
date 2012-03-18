@@ -150,7 +150,7 @@ class BankMachine:
 		
 		self.refresh_req = Signal()
 		self.refresh_gnt = Signal()
-		self.cmd_request = CommandRequestRW(geom_settings.mux_a, geom_settings.bank_a,
+		self.cmd = CommandRequestRW(geom_settings.mux_a, geom_settings.bank_a,
 			bits_for(len(slots)-1))
 
 	def get_fragment(self):
@@ -182,15 +182,15 @@ class BankMachine:
 		# Address generation
 		s_row_adr = Signal()
 		comb += [
-			self.cmd_request.ba.eq(self.bankn),
+			self.cmd.ba.eq(self.bankn),
 			If(s_row_adr,
-				self.cmd_request.a.eq(slicer.row(buf.adr))
+				self.cmd.a.eq(slicer.row(buf.adr))
 			).Else(
-				self.cmd_request.a.eq(slicer.col(buf.adr))
+				self.cmd.a.eq(slicer.col(buf.adr))
 			)
 		]
 		
-		comb.append(self.cmd_request.tag.eq(buf.tag))
+		comb.append(self.cmd.tag.eq(buf.tag))
 		
 		# Control and command generation FSM
 		fsm = FSM("REGULAR", "PRECHARGE", "ACTIVATE", "REFRESH", delayed_enters=[
@@ -203,12 +203,12 @@ class BankMachine:
 			).Elif(buf.stb,
 				If(has_openrow,
 					If(hit,
-						self.cmd_request.stb.eq(1),
-						buf.ack.eq(self.cmd_request.ack),
-						self.cmd_request.is_read.eq(~buf.we),
-						self.cmd_request.is_write.eq(buf.we),
-						self.cmd_request.cas_n.eq(0),
-						self.cmd_request.we_n.eq(~buf.we)
+						self.cmd.stb.eq(1),
+						buf.ack.eq(self.cmd.ack),
+						self.cmd.is_read.eq(~buf.we),
+						self.cmd.is_write.eq(buf.we),
+						self.cmd.cas_n.eq(0),
+						self.cmd.we_n.eq(~buf.we)
 					).Else(
 						fsm.next_state(fsm.PRECHARGE)
 					)
@@ -222,17 +222,17 @@ class BankMachine:
 			# 1. we are presenting the column address, A10 is always low
 			# 2. since we always go to the ACTIVATE state, we do not need
 			# to assert track_close.
-			self.cmd_request.stb.eq(1),
-			If(self.cmd_request.ack, fsm.next_state(fsm.TRP)),
-			self.cmd_request.ras_n.eq(0),
-			self.cmd_request.we_n.eq(0)
+			self.cmd.stb.eq(1),
+			If(self.cmd.ack, fsm.next_state(fsm.TRP)),
+			self.cmd.ras_n.eq(0),
+			self.cmd.we_n.eq(0)
 		)
 		fsm.act(fsm.ACTIVATE,
 			s_row_adr.eq(1),
 			track_open.eq(1),
-			self.cmd_request.stb.eq(1),
-			If(self.cmd_request.ack, fsm.next_state(fsm.TRCD)),
-			self.cmd_request.ras_n.eq(0)
+			self.cmd.stb.eq(1),
+			If(self.cmd.ack, fsm.next_state(fsm.TRCD)),
+			self.cmd.ras_n.eq(0)
 		)
 		fsm.act(fsm.REFRESH,
 			self.refresh_gnt.eq(1),

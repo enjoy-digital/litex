@@ -11,8 +11,8 @@ class Refresher:
 		self.tRFC = tRFC
 		
 		self.req = Signal()
-		self.ack = Signal()
-		self.cmd_request = CommandRequest(a, ba)
+		self.ack = Signal() # 1st command 1 cycle after assertion of ack
+		self.cmd = CommandRequest(a, ba)
 	
 	def get_fragment(self):
 		comb = []
@@ -23,22 +23,22 @@ class Refresher:
 		seq_start = Signal()
 		seq_done = Signal()
 		sync += [
-			self.cmd_request.a.eq(2**10),
-			self.cmd_request.ba.eq(0),
-			self.cmd_request.cas_n.eq(1),
-			self.cmd_request.ras_n.eq(1),
-			self.cmd_request.we_n.eq(1)
+			self.cmd.a.eq(2**10),
+			self.cmd.ba.eq(0),
+			self.cmd.cas_n.eq(1),
+			self.cmd.ras_n.eq(1),
+			self.cmd.we_n.eq(1)
 		]
 		sync += timeline(seq_start, [
-			(0, [
-				self.cmd_request.ras_n.eq(0),
-				self.cmd_request.we_n.eq(0)
+			(1, [
+				self.cmd.ras_n.eq(0),
+				self.cmd.we_n.eq(0)
 			]),
-			(self.tRP, [
-				self.cmd_request.cas_n.eq(0),
-				self.cmd_request.ras_n.eq(0)
+			(1+self.tRP, [
+				self.cmd.cas_n.eq(0),
+				self.cmd.ras_n.eq(0)
 			]),
-			(self.tRP+self.tRFC-1, [
+			(1+self.tRP+self.tRFC, [
 				seq_done.eq(1)
 			])
 		])

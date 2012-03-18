@@ -33,9 +33,16 @@ sdram_geom = asmicon.GeomSettings(
 sdram_timing = asmicon.TimingSettings(
 	tRP=ns(15),
 	tRCD=ns(15),
+	tWR=ns(15),
 	tREFI=ns(7800, False),
 	tRFC=ns(70),
-	slot_time=16
+	
+	CL=3,
+	rd_delay=4,
+
+	slot_time=16,
+	read_time=32,
+	write_time=16
 )
 
 def ddrphy_clocking(crg, phy):
