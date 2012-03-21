@@ -35,6 +35,10 @@
 #include <getopt.h>
 #include <sfl.h>
 
+#ifdef __linux__
+#include <linux/serial.h>
+#endif
+
 #define DEFAULT_KERNELADR	(0x40000000)
 #define DEFAULT_CMDLINEADR	(0x41000000)
 #define DEFAULT_INITRDADR	(0x41002000)
@@ -375,7 +379,7 @@ static void gdb_process_packet(int infd, int outfd, int altfd)
 }
 
 static void do_terminal(char *serial_port,
-	int doublerate, int gdb_passthrough,
+	int baud, int gdb_passthrough,
 	const char *kernel_image, unsigned int kernel_address,
 	const char *cmdline, unsigned int cmdline_address,
 	const char *initrd_image, unsigned int initrd_address,
@@ -390,6 +394,8 @@ static void do_terminal(char *serial_port,
 	struct pollfd fds[3];
 	int flags;
 	int rsp_pending = 0;
+	int c_cflag;
+	int custom_divisor;
 	
 	/* Open and configure the serial port */
 	if(log_path != NULL) {
@@ -406,11 +412,41 @@ static void do_terminal(char *serial_port,
 		return;
 	}
 
+	custom_divisor = 0;
+	switch(baud) {
+		case 9600: c_cflag = B9600; break;
+		case 19200: c_cflag = B19200; break;
+		case 38400: c_cflag = B38400; break;
+		case 57600: c_cflag = B57600; break;
+		case 115200: c_cflag = B115200; break;
+		case 230400: c_cflag = B230400; break;
+		default:
+			c_cflag = B38400;
+			custom_divisor = 1;
+			break;
+	}
+
+#ifdef __linux__
+	if(custom_divisor) {
+		struct serial_struct serial_info;
+		ioctl(serialfd, TIOCGSERIAL, &serial_info);
+		serial_info.custom_divisor = serial_info.baud_base / baud;
+		serial_info.flags &= ~ASYNC_SPD_MASK;
+		serial_info.flags |= ASYNC_SPD_CUST;
+		ioctl(serialfd, TIOCSSERIAL, &serial_info);
+	}
+#else
+	if(custom_divisor) {
+		fprintf(stderr, "[FLTERM] baudrate not supported\n");
+		return;
+	}
+#endif
+
 	/* Thanks to Julien Schmitt (GTKTerm) for figuring out the correct parameters
 	 * to put into that weird struct.
 	 */
 	tcgetattr(serialfd, &my_termios);
-	my_termios.c_cflag = doublerate ? B230400 : B115200;
+	my_termios.c_cflag = c_cflag;
 	my_termios.c_cflag |= CS8;
 	my_termios.c_cflag |= CREAD;
 	my_termios.c_iflag = IGNPAR | IGNBRK;
@@ -535,7 +571,7 @@ static void do_terminal(char *serial_port,
 enum {
 	OPTION_PORT,
 	OPTION_GDB_PASSTHROUGH,
-	OPTION_DOUBLERATE,
+	OPTION_SPEED,
 	OPTION_DEBUG,
 	OPTION_KERNEL,
 	OPTION_KERNELADR,
@@ -563,9 +599,9 @@ static const struct option options[] = {
 		.val = OPTION_DEBUG
 	},
 	{
-		.name = "double-rate",
-		.has_arg = 0,
-		.val = OPTION_DOUBLERATE
+		.name = "speed",
+		.has_arg = 1,
+		.val = OPTION_SPEED
 	},
 	{
 		.name = "kernel",
@@ -609,7 +645,7 @@ static const struct option options[] = {
 
 static void print_usage()
 {
-	fprintf(stderr, "Serial boot program for Milkymist SoC - v. 2.2\n");
+	fprintf(stderr, "Serial boot program for Milkymist SoC - v. 2.3\n");
 	fprintf(stderr, "Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq\n");
 	fprintf(stderr, "Copyright (C) 2011 Michael Walle\n");
 	fprintf(stderr, "Copyright (C) 2004 MontaVista Software, Inc\n\n");
@@ -619,7 +655,7 @@ static void print_usage()
 	fprintf(stderr, "the Free Software Foundation, version 3 of the License.\n\n");
 
 	fprintf(stderr, "Usage: flterm --port <port>\n");
-	fprintf(stderr, "              [--double-rate] [--gdb-passthrough] [--debug]\n");
+	fprintf(stderr, "              [--speed <speed>] [--gdb-passthrough] [--debug]\n");
 	fprintf(stderr, "              [--kernel <kernel_image> [--kernel-adr <address>]]\n");
 	fprintf(stderr, "              [--cmdline <cmdline> [--cmdline-adr <address>]]\n");
 	fprintf(stderr, "              [--initrd <initrd_image> [--initrd-adr <address>]]\n");
@@ -634,7 +670,7 @@ int main(int argc, char *argv[])
 {
 	int opt;
 	char *serial_port;
-	int doublerate;
+	int baud;
 	int gdb_passthrough;
 	char *kernel_image;
 	unsigned int kernel_address;
@@ -648,7 +684,7 @@ int main(int argc, char *argv[])
 	
 	/* Fetch command line arguments */
 	serial_port = NULL;
-	doublerate = 0;
+	baud = 115200;
 	gdb_passthrough = 0;
 	kernel_image = NULL;
 	kernel_address = DEFAULT_KERNELADR;
@@ -667,8 +703,12 @@ int main(int argc, char *argv[])
 				free(serial_port);
 				serial_port = strdup(optarg);
 				break;
-			case OPTION_DOUBLERATE:
-				doublerate = 1;
+			case OPTION_SPEED:
+				baud = strtoul(optarg, &endptr, 0);
+				if(*endptr != 0) {
+					fprintf(stderr, "[FLTERM] Couldn't parse baudrate\n");
+					return 1;
+				}
 				break;
 			case OPTION_DEBUG:
 				debug = 1;
@@ -682,7 +722,10 @@ int main(int argc, char *argv[])
 				break;
 			case OPTION_KERNELADR:
 				kernel_address = strtoul(optarg, &endptr, 0);
-				if(*endptr != 0) kernel_address = 0;
+				if(*endptr != 0) {
+					fprintf(stderr, "[FLTERM] Couldn't parse kernel address\n");
+					return 1;
+				}
 				break;
 			case OPTION_CMDLINE:
 				free(cmdline);
@@ -690,7 +733,10 @@ int main(int argc, char *argv[])
 				break;
 			case OPTION_CMDLINEADR:
 				cmdline_address = strtoul(optarg, &endptr, 0);
-				if(*endptr != 0) cmdline_address = 0;
+				if(*endptr != 0) {
+					fprintf(stderr, "[FLTERM] Couldn't parse cmdline address\n");
+					return 1;
+				}
 				break;
 			case OPTION_INITRD:
 				free(initrd_image);
@@ -698,7 +744,10 @@ int main(int argc, char *argv[])
 				break;
 			case OPTION_INITRDADR:
 				initrd_address = strtoul(optarg, &endptr, 0);
-				if(*endptr != 0) initrd_address = 0;
+				if(*endptr != 0) {
+					fprintf(stderr, "[FLTERM] Couldn't parse initrd address\n");
+					return 1;
+				}
 				break;
 			case OPTION_LOG:
 				free(log_path);
@@ -708,7 +757,7 @@ int main(int argc, char *argv[])
 	}
 
 	if(serial_port == NULL) {
-		print_usage();
+		fprintf(stderr, "[FLTERM] No port given\n");
 		return 1;
 	}
 
@@ -722,7 +771,7 @@ int main(int argc, char *argv[])
 	tcsetattr(0, TCSANOW, &ntty);
 
 	/* Do the bulk of the work */
-	do_terminal(serial_port, doublerate, gdb_passthrough,
+	do_terminal(serial_port, baud, gdb_passthrough,
 		kernel_image, kernel_address,
 		cmdline, cmdline_address,
 		initrd_image, initrd_address,
