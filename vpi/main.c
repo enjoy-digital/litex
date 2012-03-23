@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2012 Vermeer Manufacturing Co.
+ * License: GPLv3 with additional permissions (see README).
+ */
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

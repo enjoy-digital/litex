@@ -1,3 +1,6 @@
+# Copyright (C) 2012 Vermeer Manufacturing Co.
+# License: GPLv3 with additional permissions (see README).
+
 from math import cos, pi
 from scipy import signal
 

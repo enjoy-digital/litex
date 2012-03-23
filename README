@@ -54,11 +54,18 @@ presumption that third-party software is unaffected by the copyleft
 requirements of the license of Migen.
 
 Unless otherwise noted, Migen's source code is copyright (C) 2011-2012
-Sebastien Bourdeauducq. Other authors retain ownership of their
-contributions. If a submission can reasonably be considered
-independently copyrightable, it's yours and I encourage you to claim it
-with appropriate copyright notices. This submission then falls under the
-"otherwise noted" category. All submissions must use a license
-compatible with the GPL and the exception above.
+Sebastien Bourdeauducq.
+
+The simulation extension (as mentioned in the comments at the beginning
+of the corresponding source files) is copyright (C) 2012 Vermeer
+Manufacturing Co.
+
+Other authors retain ownership of their contributions. If a submission
+can reasonably be considered independently copyrightable, it's yours and
+I encourage you to claim it with appropriate copyright notices. This
+submission then falls under the "otherwise noted" category. All
+submissions must use a license compatible with the GPL and the exception
+above.
+
 
   "Electricity! It's like magic!"
