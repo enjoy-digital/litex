@@ -138,3 +138,20 @@ class Simulator:
 			value += 2**nbits
 		assert(value >= 0 and value < 2**nbits)
 		self.ipc.send(MessageWrite(name, Int32(index), value))
+
+class Proxy:
+	def __init__(self, sim, obj):
+		self.__dict__["_sim"] = sim
+		self.__dict__["_obj"] = obj
+	
+	def __getattr__(self, name):
+		item = getattr(self._obj, name)
+		if isinstance(item, Signal):
+			return self._sim.rd(item)
+		else:
+			return Proxy(self._sim, item)
+
+	def __setattr__(self, name, value):
+		item = getattr(self._obj, name)
+		assert(isinstance(item, Signal))
+		self._sim.wr(item, value)
