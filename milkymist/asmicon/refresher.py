@@ -27,7 +27,8 @@ class Refresher:
 			self.cmd.ba.eq(0),
 			self.cmd.cas_n.eq(1),
 			self.cmd.ras_n.eq(1),
-			self.cmd.we_n.eq(1)
+			self.cmd.we_n.eq(1),
+			seq_done.eq(0)
 		]
 		sync += timeline(seq_start, [
 			(1, [
