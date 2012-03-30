@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
 from migen.corelogic.misc import optree
+from migen.bus.transactions import *
 
 class FinalizeError(Exception):
 	pass
@@ -166,3 +167,60 @@ class Hub:
 			self.dat_wm.eq(optree("|", [port.dat_wm for port in self.ports]))
 		]
 		return ports + Fragment(comb)
+
+class Initiator:
+	def __init__(self, port, generator):
+		self.port = port
+		self.generator = generator
+		self.done = False
+		self._exe = None
+	
+	def _execute(self, s, port, generator):
+		while True:
+			transaction = next(generator)
+			transaction_start = s.cycle_counter
+			if transaction is None:
+				yield
+			else:
+				# tag phase
+				s.wr(port.adr, transaction.address)
+				if isinstance(transaction, TWrite):
+					s.wr(port.we, 1)
+				else:
+					s.wr(port.we, 0)
+				s.wr(port.stb, 1)
+				yield
+				while not s.rd(port.ack):
+					yield
+				if hasattr(port, "tag_issue"):
+					tag = s.rd(port.tag_issue)
+				else:
+					tag = 0
+				tag += port.base
+				s.wr(port.stb, 0)
+				
+				# data phase
+				while not (s.rd(port.call) and (s.rd(port.tag_call) == tag)):
+					yield
+				if isinstance(transaction, TWrite):
+					s.wr(port.dat_w, transaction.data)
+					s.wr(port.dat_wm, transaction.sel)
+					yield
+					s.wr(port.dat_w, 0)
+					s.wr(port.dat_wm, 0)
+				else:
+					yield
+					transaction.data = s.rd(port.dat_r)
+				transaction.latency = s.cycle_counter - transaction_start - 1
+	
+	def do_simulation(self, s):
+		if not self.done:
+			if self._exe is None:
+				self._exe = self._execute(s, self.port, self.generator)
+			try:
+				next(self._exe)
+			except StopIteration:
+				self.done = True
+	
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])
