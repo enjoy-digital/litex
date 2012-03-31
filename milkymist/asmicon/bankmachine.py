@@ -13,16 +13,25 @@ class _AddressSlicer:
 		self.address_align = address_align
 		
 		self._b1 = self.geom_settings.col_a - self.address_align
-		self._b2 = self._b1 + self.geom_settings.row_a
-	
-	def bank(self, address):
-		return address[self._b2:]
+		self._b2 = self._b1 + self.geom_settings.bank_a
 	
 	def row(self, address):
-		return address[self._b1:self._b2]
+		if isinstance(address, int):
+			return address >> self._b2
+		else:
+			return address[self._b2:]
+	
+	def bank(self, address):
+		if isinstance(address, int):
+			return (address & (2**self._b2 - 1)) >> self._b1
+		else:
+			return address[self._b1:self._b2]
 	
 	def col(self, address):
-		return Cat(Constant(0, BV(self.address_align)), address[:self._b1])
+		if isinstance(address, int):
+			return (address & (2**self._b1 - 1)) << self.address_align
+		else:
+			return Cat(Constant(0, BV(self.address_align)), address[:self._b1])
 
 class _Selector:
 	def __init__(self, slicer, bankn, slots):
@@ -46,8 +55,8 @@ class _Selector:
 		for slot in self.slots:
 			outstanding = Signal()
 			comb.append(outstanding.eq(
-				self.slicer.bank(slot.adr) == self.bankn & \
-				slot.state == SLOT_PENDING
+				(self.slicer.bank(slot.adr) == self.bankn) & \
+				(slot.state == SLOT_PENDING)
 			))
 			outstandings.append(outstanding)
 		
@@ -69,9 +78,9 @@ class _Selector:
 			)
 		]
 		hits = []
-		for slot in self.slots:
+		for slot, os in zip(self.slots, outstandings):
 			hit = Signal()
-			comb.append(hit.eq(self.slicer.row(slot.adr) == openrow))
+			comb.append(hit.eq((self.slicer.row(slot.adr) == openrow) & os))
 			hits.append(hit)
 		
 		# Determine best request
@@ -79,8 +88,8 @@ class _Selector:
 		has_hit = Signal()
 		comb.append(has_hit.eq(optree("|", hits)))
 		
-		best_hit = [rr.request[i].eq(hit & os)
-			for i, (hit, os) in enumerate(zip(hits, outstandings))]
+		best_hit = [rr.request[i].eq(hit)
+			for i, hit in enumerate(hits)]
 		best_fallback = [rr.request[i].eq(os)
 			for i, os in enumerate(outstandings)]
 		select_stmt = If(has_hit,
@@ -91,10 +100,15 @@ class _Selector:
 		
 		if self.slots[0].time:
 			# Implement anti-starvation timer
+			matures = []
+			for slot, os in zip(self.slots, outstandings):
+				mature = Signal()
+				comb.append(mature.eq(slot.mature & os))
+				matures.append(mature)
 			has_mature = Signal()
-			comb.append(has_mature.eq(optree("|", [slot.mature for slot in self.slots])))
-			best_mature = [rr.request[i].eq(slot.mature & os)
-				for i, (slot, os) in enumerate(zip(self.slots, outstandings))]
+			comb.append(has_mature.eq(optree("|", matures)))
+			best_mature = [rr.request[i].eq(mature)
+				for i, mature in enumerate(matures)]
 			select_stmt = If(has_mature, *best_mature).Else(select_stmt)
 		comb.append(select_stmt)
 		
@@ -109,7 +123,7 @@ class _Selector:
 			rr.ce.eq(self.ack),
 			self.tag.eq(rr.grant)
 		]
-		comb += [slot.process.eq(rr.grant == i & self.ack)
+		comb += [slot.process.eq((rr.grant == i) & self.stb & self.ack)
 			for i, slot in enumerate(self.slots)]
 		
 		return Fragment(comb, sync) + rr.get_fragment()
