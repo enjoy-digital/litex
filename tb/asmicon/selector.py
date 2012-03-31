@@ -1,3 +1,5 @@
+from random import Random
+
 from migen.fhdl.structure import *
 from migen.bus.asmibus import *
 from migen.sim.generic import Simulator, TopLevel
@@ -24,18 +26,25 @@ def my_generator(dt, offset):
 class Selector:
 	def __init__(self, slicer, bankn, slots):
 		self.selector = _Selector(slicer, bankn, slots)
+		self.buf = _Buffer(self.selector)
 		self.queue = []
+		self.prng = Random(876)
 	
 	def do_simulation(self, s):
-		if s.rd(self.selector.stb):
-			tag = s.rd(self.selector.tag)
+		if self.prng.randrange(0, 5):
+			s.wr(self.buf.ack, 1)
+		else:
+			s.wr(self.buf.ack, 0)
+		if s.rd(self.buf.stb) and s.rd(self.buf.ack):
+			tag = s.rd(self.buf.tag)
 			self.queue.append(tag)
 			print("==> SELECTED: " + str(tag))
 		print("")
 	
 	def get_fragment(self):
-		comb = [self.selector.ack.eq(1)]
-		return self.selector.get_fragment() + Fragment(comb, sim=[self.do_simulation])
+		return self.selector.get_fragment() + \
+			self.buf.get_fragment() + \
+			Fragment(sim=[self.do_simulation])
 
 class Completer:
 	def __init__(self, hub, queue):
