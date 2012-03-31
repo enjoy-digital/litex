@@ -1,9 +1,44 @@
+from fractions import Fraction
+from math import ceil
+
 from migen.fhdl.structure import *
 from migen.sim.generic import Proxy
 
+from milkymist import asmicon
+
+MHz = 1000000
+clk_freq = (83 + Fraction(1, 3))*MHz
+
+clk_period_ns = 1000000000/clk_freq
+def ns(t, margin=True):
+	if margin:
+		t += clk_period_ns/2
+	return ceil(t/clk_period_ns)
+
+sdram_geom = asmicon.GeomSettings(
+	bank_a=2,
+	row_a=13,
+	col_a=10
+)
+sdram_timing = asmicon.TimingSettings(
+	tRP=ns(15),
+	tRCD=ns(15),
+	tWR=ns(15),
+	tREFI=ns(7800, False),
+	tRFC=ns(70),
+	
+	CL=3,
+	rd_delay=4,
+
+	slot_time=16,
+	read_time=32,
+	write_time=16
+)
+
 class CommandLogger:
-	def __init__(self, cmd):
+	def __init__(self, cmd, rw=False):
 		self.cmd = cmd
+		self.rw = rw
 	
 	def do_simulation(self, s):
 		elts = ["@" + str(s.cycle_counter)]
@@ -38,7 +73,11 @@ class CommandLogger:
 			print("\t".join(elts))
 	
 	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
+		if self.rw:
+			comb = [self.cmd.ack.eq(1)]
+		else:
+			comb = []
+		return Fragment(comb, sim=[self.do_simulation])
 
 class SlotsLogger:
 	def __init__(self, slicer, slots):

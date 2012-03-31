@@ -5,16 +5,9 @@ from migen.bus.asmibus import *
 from migen.sim.generic import Simulator, TopLevel
 from migen.sim.icarus import Runner
 
-from milkymist import asmicon
 from milkymist.asmicon.bankmachine import _AddressSlicer, _Selector, _Buffer
 
-from common import SlotsLogger
-
-sdram_geom = asmicon.GeomSettings(
-	bank_a=2,
-	row_a=13,
-	col_a=10
-)
+from common import SlotsLogger, sdram_geom
 
 def my_generator(dt, offset):
 	for t in range(dt):
