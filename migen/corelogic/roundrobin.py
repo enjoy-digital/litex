@@ -13,24 +13,27 @@ class RoundRobin:
 			self.ce = Signal()
 	
 	def get_fragment(self):
-		cases = []
-		for i in range(self.n):
-			switch = []
-			for j in reversed(range(i+1,i+self.n)):
-				t = j % self.n
-				switch = [
-					If(self.request[t],
-						self.grant.eq(Constant(t, BV(self.bn)))
-					).Else(
-						*switch
-					)
-				]
-			if self.switch_policy == SP_WITHDRAW:
-				case = [If(~self.request[i], *switch)]
-			else:
-				case = switch
-			cases.append([Constant(i, BV(self.bn))] + case)
-		statement = Case(self.grant, *cases)
-		if self.switch_policy == SP_CE:
-			statement = If(self.ce, statement)
-		return Fragment(sync=[statement])
+		if self.n > 1:
+			cases = []
+			for i in range(self.n):
+				switch = []
+				for j in reversed(range(i+1,i+self.n)):
+					t = j % self.n
+					switch = [
+						If(self.request[t],
+							self.grant.eq(Constant(t, BV(self.bn)))
+						).Else(
+							*switch
+						)
+					]
+				if self.switch_policy == SP_WITHDRAW:
+					case = [If(~self.request[i], *switch)]
+				else:
+					case = switch
+				cases.append([Constant(i, BV(self.bn))] + case)
+			statement = Case(self.grant, *cases)
+			if self.switch_policy == SP_CE:
+				statement = If(self.ce, statement)
+			return Fragment(sync=[statement])
+		else:
+			return Fragment([self.grant.eq(0)])
