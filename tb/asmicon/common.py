@@ -39,3 +39,28 @@ class CommandLogger:
 	
 	def get_fragment(self):
 		return Fragment(sim=[self.do_simulation])
+
+class SlotsLogger:
+	def __init__(self, slicer, slots):
+		self.slicer = slicer
+		self.slots = slots
+		
+	def do_simulation(self, sim):
+		state_strs = ["EMPTY", "PEND", "PRCESS"]
+		rw_strs = ["RD", "WR"]
+		print("\t" + "\t".join([str(x) for x in range(len(self.slots))]))
+		print("State:\t" + "\t".join([state_strs[sim.rd(s.state)] for s in self.slots]))
+		print("RW:\t" + "\t".join([rw_strs[sim.rd(s.we)] for s in self.slots]))
+		print("Row:\t" + "\t".join([str(self.slicer.row(sim.rd(s.adr))) for s in self.slots]))
+		print("Bank:\t" + "\t".join([str(self.slicer.bank(sim.rd(s.adr))) for s in self.slots]))
+		print("Col:\t" + "\t".join([str(self.slicer.col(sim.rd(s.adr))) for s in self.slots]))
+		times = []
+		for s in self.slots:
+			if s.time:
+				times.append(str(sim.rd(s._counter)) + "/" + str(s.time))
+			else:
+				times.append("N/A")
+		print("Time:\t" + "\t".join(times))
+
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])
