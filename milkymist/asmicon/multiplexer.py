@@ -53,11 +53,11 @@ class _CommandChooser:
 		outputs_filtered = [self.cmd.cas_n, self.cmd.ras_n, self.cmd.we_n]
 		ms = multimux(rr.grant, inputs_filtered, outputs_filtered)
 		comb += [
-			self.cmd.stb.eq(stb & ((self.cmd.is_read == self.want_reads) | (self.cmd.is_write == self.want_writes))),
+			self.cmd.stb.eq(stb & (self.cmd.is_read == self.want_reads) & (self.cmd.is_write == self.want_writes)),
 			If(self.cmd.stb, *ms)
 		]
 		
-		comb += [req.ack.eq(self.cmd.stb & self.cmd.ack & rr.grant == i)
+		comb += [If(self.cmd.stb & self.cmd.ack & (rr.grant == i), req.ack.eq(1))
 			for i, req in enumerate(self.requests)]
 		comb.append(rr.ce.eq(self.cmd.ack))
 		

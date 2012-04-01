@@ -119,11 +119,13 @@ class _Selector:
 			for slot in self.slots]
 		comb += multimux(rr.grant, mux_inputs, mux_outputs)
 		comb += [
-			self.stb.eq(state == SLOT_PENDING),
+			self.stb.eq(
+				(self.slicer.bank(self.adr) == self.bankn) \
+				& (state == SLOT_PENDING)),
 			rr.ce.eq(self.ack),
 			self.tag.eq(rr.grant)
 		]
-		comb += [slot.process.eq((rr.grant == i) & self.stb & self.ack)
+		comb += [If((rr.grant == i) & self.stb & self.ack, slot.process.eq(1))
 			for i, slot in enumerate(self.slots)]
 		
 		return Fragment(comb, sync) + rr.get_fragment()
