@@ -148,6 +148,8 @@ class Proxy:
 		item = getattr(self._obj, name)
 		if isinstance(item, Signal):
 			return self._sim.rd(item)
+		elif isinstance(item, list):
+			return [Proxy(self._sim, si) for si in item]
 		else:
 			return Proxy(self._sim, item)
 
