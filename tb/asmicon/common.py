@@ -15,6 +15,12 @@ def ns(t, margin=True):
 		t += clk_period_ns/2
 	return ceil(t/clk_period_ns)
 
+sdram_phy = asmicon.PhySettings(
+	dfi_d=64, 
+	nphases=2,
+	rdphase=0,
+	wrphase=1
+)
 sdram_geom = asmicon.GeomSettings(
 	bank_a=2,
 	row_a=13,
@@ -35,6 +41,34 @@ sdram_timing = asmicon.TimingSettings(
 	write_time=16
 )
 
+def decode_sdram(ras_n, cas_n, we_n, bank, address):
+	elts = []
+	if not ras_n and cas_n and we_n:
+		elts.append("ACTIVATE")
+		elts.append("BANK " + str(bank))
+		elts.append("ROW " + str(address))
+	elif ras_n and not cas_n and we_n:
+		elts.append("READ\t")
+		elts.append("BANK " + str(bank))
+		elts.append("COL " + str(address))
+	elif ras_n and not cas_n and not we_n:
+		elts.append("WRITE\t")
+		elts.append("BANK " + str(bank))
+		elts.append("COL " + str(address))
+	elif ras_n and cas_n and not we_n:
+		elts.append("BST")
+	elif not ras_n and not cas_n and we_n:
+		elts.append("AUTO REFRESH")
+	elif not ras_n and cas_n and not we_n:
+		elts.append("PRECHARGE")
+		if address & 2**10:
+			elts.append("ALL")
+		else:
+			elts.append("BANK " + str(bank))
+	elif not ras_n and not cas_n and not we_n:
+		elts.append("LMR")
+	return elts
+
 class CommandLogger:
 	def __init__(self, cmd, rw=False):
 		self.cmd = cmd
@@ -42,33 +76,8 @@ class CommandLogger:
 	
 	def do_simulation(self, s):
 		elts = ["@" + str(s.cycle_counter)]
-		
 		cmdp = Proxy(s, self.cmd)
-		if not cmdp.ras_n and cmdp.cas_n and cmdp.we_n:
-			elts.append("ACTIVATE")
-			elts.append("BANK " + str(cmdp.ba))
-			elts.append("ROW " + str(cmdp.a))
-		elif cmdp.ras_n and not cmdp.cas_n and cmdp.we_n:
-			elts.append("READ\t")
-			elts.append("BANK " + str(cmdp.ba))
-			elts.append("COL " + str(cmdp.a))
-		elif cmdp.ras_n and not cmdp.cas_n and not cmdp.we_n:
-			elts.append("WRITE\t")
-			elts.append("BANK " + str(cmdp.ba))
-			elts.append("COL " + str(cmdp.a))
-		elif cmdp.ras_n and cmdp.cas_n and not cmdp.we_n:
-			elts.append("BST")
-		elif not cmdp.ras_n and not cmdp.cas_n and cmdp.we_n:
-			elts.append("AUTO REFRESH")
-		elif not cmdp.ras_n and cmdp.cas_n and not cmdp.we_n:
-			elts.append("PRECHARGE")
-			if cmdp.a & 2**10:
-				elts.append("ALL")
-			else:
-				elts.append("BANK " + str(cmdp.ba))
-		elif not cmdp.ras_n and not cmdp.cas_n and not cmdp.we_n:
-			elts.append("LMR")
-		
+		elts += decode_sdram(cmdp.ras_n, cmdp.cas_n, cmdp.we_n, cmdp.ba, cmdp.a)
 		if len(elts) > 1:
 			print("\t".join(elts))
 	
@@ -79,6 +88,22 @@ class CommandLogger:
 			comb = []
 		return Fragment(comb, sim=[self.do_simulation])
 
+class DFILogger:
+	def __init__(self, dfi):
+		self.dfi = dfi
+	
+	def do_simulation(self, s):
+		dfip = Proxy(s, self.dfi)
+		
+		for i, p in enumerate(dfip.phases):
+			elts = ["PH=" + str(i) + "\t @" + str(s.cycle_counter)]
+			elts += decode_sdram(p.ras_n, p.cas_n, p.we_n, p.bank, p.address)
+			if len(elts) > 1:
+				print("\t".join(elts))
+	
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])
+		
 class SlotsLogger:
 	def __init__(self, slicer, slots):
 		self.slicer = slicer
