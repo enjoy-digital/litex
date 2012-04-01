@@ -220,6 +220,16 @@ def _printmemories(f, ns, handler, clk):
 		r += handler(memory, ns, clk)
 	return r
 
+def _printinit(f, exclude, ns):
+	r = ""
+	signals = list_signals(f) - exclude - list_targets(f)
+	if signals:
+		r += "initial begin\n"
+		for s in signals:
+			r += "\t" + ns.get_name(s) + " <= " + _printexpr(ns, s.reset) + ";\n"
+		r += "end\n\n"
+	return r
+
 def convert(f, ios=set(), name="top",
   clk_signal=None, rst_signal=None,
   return_ns=False,
@@ -243,6 +253,7 @@ def convert(f, ios=set(), name="top",
 	r += _printsync(f, ns, clk_signal, rst_signal)
 	r += _printinstances(f, ns, clk_signal, rst_signal)
 	r += _printmemories(f, ns, memory_handler, clk_signal)
+	r += _printinit(f, ios, ns)
 	r += "endmodule\n"
 
 	if return_ns:
