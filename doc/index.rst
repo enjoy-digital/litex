@@ -233,7 +233,6 @@ A "fragment" is a unit of logic, which is composed of:
 * a list of synchronous statements.
 * a list of instances.
 * a list of memories.
-* a set of pads, which are signals intended to be connected to off-chip devices.
 * a list of simulation functions (see :ref:`simulating`).
 
 Fragments can reference arbitrary signals, including signals that are referenced in other fragments. Fragments can be combined using the "+" operator, which returns a new fragment containing the concatenation of each pair of lists.

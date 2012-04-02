@@ -268,7 +268,7 @@ class Memory:
 		self.init = init
 
 class Fragment:
-	def __init__(self, comb=None, sync=None, instances=None, memories=None, pads=set(), sim=None):
+	def __init__(self, comb=None, sync=None, instances=None, memories=None, sim=None):
 		if comb is None: comb = []
 		if sync is None: sync = []
 		if instances is None: instances = []
@@ -278,7 +278,6 @@ class Fragment:
 		self.sync = _sl(sync)
 		self.instances = instances
 		self.memories = memories
-		self.pads = pads
 		self.sim = sim
 	
 	def __add__(self, other):
@@ -286,7 +285,6 @@ class Fragment:
 			self.sync.l + other.sync.l,
 			self.instances + other.instances,
 			self.memories + other.memories,
-			self.pads | other.pads,
 			self.sim + other.sim)
 
 	def call_sim(self, simulator):
