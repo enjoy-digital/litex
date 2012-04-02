@@ -220,9 +220,13 @@ def _printmemories(f, ns, handler, clk):
 		r += handler(memory, ns, clk)
 	return r
 
-def _printinit(f, exclude, ns):
+def _printinit(f, ios, ns):
 	r = ""
-	signals = list_signals(f) - exclude - list_targets(f)
+	signals = list_signals(f) \
+		- ios \
+		- list_targets(f) \
+		- list_inst_ios(f, False, True, False) \
+		- list_mem_ios(f, False, True)
 	if signals:
 		r += "initial begin\n"
 		for s in signals:
