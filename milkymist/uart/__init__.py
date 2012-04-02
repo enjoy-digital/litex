@@ -107,4 +107,4 @@ class UART:
 		
 		return self.bank.get_fragment() \
 			+ self.events.get_fragment() \
-			+ Fragment(comb, sync, pads={self.tx, self.rx})
+			+ Fragment(comb, sync)

@@ -6,7 +6,7 @@ from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
 from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon
-import constraints
+from constraints import Constraints
 
 MHz = 1000000
 clk_freq = (83 + Fraction(1, 3))*MHz
@@ -122,11 +122,12 @@ def get():
 	crg0 = m1crg.M1CRG(50*MHz, clk_freq)
 	
 	frag = autofragment.from_local() + interrupts + ddrphy_clocking(crg0, ddrphy0)
+	cst = Constraints(crg0, norflash0, uart0, ddrphy0)
 	src_verilog, vns = verilog.convert(frag,
-		{crg0.trigger_reset},
+		cst.get_ios(),
 		name="soc",
 		clk_signal=crg0.sys_clk,
 		rst_signal=crg0.sys_rst,
 		return_ns=True)
-	src_ucf = constraints.get(vns, crg0, norflash0, uart0, ddrphy0)
+	src_ucf = cst.get_ucf(vns)
 	return (src_verilog, src_ucf)

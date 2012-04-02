@@ -28,4 +28,4 @@ class NorFlash:
 			(2*self.rd_timing + 1, [
 				self.bus.ack.eq(0)])
 		])
-		return Fragment(comb, sync, pads={self.adr, self.d, self.oe_n, self.we_n, self.ce_n})
+		return Fragment(comb, sync)

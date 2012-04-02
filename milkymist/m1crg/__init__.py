@@ -41,5 +41,4 @@ class M1CRG:
 		)
 
 	def get_fragment(self):
-		return Fragment(instances=[self._inst],
-			pads={self.clkin, self.ac97_rst_n, self.videoin_rst_n, self.flash_rst_n})
+		return Fragment(instances=[self._inst])
