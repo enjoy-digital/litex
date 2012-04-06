@@ -3,10 +3,12 @@ from migen.bus.csr import *
 from migen.bank.description import *
 
 class Bank:
-	def __init__(self, description, address=0):
+	def __init__(self, description, address=0, interface=None):
 		self.description = description
 		self.address = address
-		self.interface = Interface()
+		if interface is None:
+			interface = Interface()
+		self.interface = interface
 	
 	def get_fragment(self):
 		comb = []
