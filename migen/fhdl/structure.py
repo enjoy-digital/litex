@@ -157,6 +157,9 @@ class Signal(Value):
 		self.reset = Constant(reset, bv)
 		self.name_override = name_override
 		self.backtrace = tracer.trace_back(name)
+	
+	def __len__(self):
+		return self.bv.width
 
 	def __hash__(self):
 		return id(self)
