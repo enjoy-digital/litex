@@ -25,7 +25,7 @@ def main():
 	fragment = dut.get_fragment() + initiator.get_fragment() + \
 		logger.get_fragment() + \
 		Fragment(sim=[end_simulation])
-	sim = Simulator(fragment, Runner(keep_files=True), TopLevel("my.vcd"))
+	sim = Simulator(fragment, Runner(), TopLevel("my.vcd"))
 	sim.run()
 
 main()
