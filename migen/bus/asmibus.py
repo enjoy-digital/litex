@@ -102,10 +102,11 @@ class Port:
 		choose_slot = None
 		for s in reversed(self.slots):
 			choose_slot = If(s.state == SLOT_EMPTY,
-				self.ack.eq(1),
 				s.allocate.eq(self.stb)
 			).Else(choose_slot)
 		comb.append(choose_slot)
+		comb.append(self.ack.eq(optree("|", 
+			[s.state == SLOT_EMPTY for s in self.slots])))
 		
 		# call
 		comb += [s.call.eq(self.get_call_expression(n))
