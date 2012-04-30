@@ -132,7 +132,7 @@ def _printheader(f, ios, name, ns):
 	r += "\n"
 	return r
 
-def _printcomb(f, ns):
+def _printcomb(f, ns, display_run):
 	r = ""
 	if f.comb.l:
 		# Generate a dummy event to get the simulator
@@ -147,7 +147,7 @@ def _printcomb(f, ns):
 		
 		groups = group_by_targets(f.comb)
 		
-		for g in groups:
+		for n, g in enumerate(groups):
 			if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
 				r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
 			else:
@@ -157,6 +157,8 @@ def _printcomb(f, ns):
 				r += syn_on
 				
 				r += "always @(*) begin\n"
+				if display_run:
+					r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
 				for t in g[0]:
 					r += "\t" + ns.get_name(t) + " <= " + str(t.reset) + ";\n"
 				r += _printnode(ns, _AT_NONBLOCKING, 1, _StatementList(g[1]))
@@ -237,7 +239,8 @@ def _printinit(f, ios, ns):
 def convert(f, ios=set(), name="top",
   clk_signal=None, rst_signal=None,
   return_ns=False,
-  memory_handler=verilog_mem_behavioral.handler):
+  memory_handler=verilog_mem_behavioral.handler,
+  display_run=False):
 	if clk_signal is None:
 		clk_signal = Signal(name_override="sys_clk")
 		ios.add(clk_signal)
@@ -252,7 +255,7 @@ def convert(f, ios=set(), name="top",
 
 	r = "/* Machine-generated using Migen */\n"
 	r += _printheader(f, ios, name, ns)
-	r += _printcomb(f, ns)
+	r += _printcomb(f, ns, display_run)
 	r += _printsync(f, ns, clk_signal, rst_signal)
 	r += _printinstances(f, ns, clk_signal, rst_signal)
 	r += _printmemories(f, ns, memory_handler, clk_signal)
