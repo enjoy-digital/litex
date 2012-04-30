@@ -68,7 +68,7 @@ end
 		return r
 
 class Simulator:
-	def __init__(self, fragment, sim_runner, top_level=None, sockaddr="simsocket"):
+	def __init__(self, fragment, sim_runner, top_level=None, sockaddr="simsocket", **vopts):
 		self.fragment = fragment
 		if top_level is None:
 			self.top_level = TopLevel()
@@ -85,7 +85,8 @@ class Simulator:
 			name=self.top_level.dut_type,
 			clk_signal=clk_signal,
 			rst_signal=rst_signal,
-			return_ns=True)
+			return_ns=True,
+			**vopts)
 		
 		self.cycle_counter = -1
 		self.interrupt = False

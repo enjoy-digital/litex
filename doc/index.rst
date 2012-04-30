@@ -474,6 +474,7 @@ The constructor of the ``Simulator`` object takes the following parameters:
 #. A simulator runner object (see :ref:`simrunner`).
 #. A top-level object (see :ref:`toplevel`). With the default value of ``None``, the simulator creates a default top-level object itself.
 #. The name of the UNIX domain socket used to communicate with the external simulator through the VPI plug-in (default: "simsocket").
+#. Additional keyword arguments (if any) are passed to the Verilog conversion function.
 
 Running the simulation
 ======================
