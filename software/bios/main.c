@@ -353,6 +353,9 @@ static void do_command(char *c)
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
 	
 	else if(strcmp(token, "ddrinit") == 0) ddrinit();
+	else if(strcmp(token, "ddrrow") == 0) ddrrow(get_token(&c));
+	else if(strcmp(token, "ddrsw") == 0) ddrsw();
+	else if(strcmp(token, "ddrhw") == 0) ddrhw();
 	else if(strcmp(token, "ddrrd") == 0) ddrrd(get_token(&c));
 	else if(strcmp(token, "ddrwr") == 0) ddrwr(get_token(&c));
 

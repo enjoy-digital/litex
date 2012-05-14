@@ -81,6 +81,43 @@ static void init_sequence(void)
 	cdelay(200);
 }
 
+void ddrsw(void)
+{
+	CSR_DFII_CONTROL = DFII_CONTROL_CKE;
+	printf("DDR now under software control\n");
+}
+
+void ddrhw(void)
+{
+	CSR_DFII_CONTROL = DFII_CONTROL_SEL|DFII_CONTROL_CKE;
+	printf("DDR now under hardware control\n");
+}
+
+void ddrrow(char *_row)
+{
+	char *c;
+	unsigned int row;
+	
+	if(*_row == 0) {
+		setaddr(0x0000);
+		CSR_DFII_BA_P0 = 0;
+		CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
+		cdelay(15);
+		printf("Precharged\n");
+	} else {
+		row = strtoul(_row, &c, 0);
+		if(*c != 0) {
+			printf("incorrect row\n");
+			return;
+		}
+		setaddr(row);
+		CSR_DFII_BA_P0 = 0;
+		CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CS;
+		cdelay(15);
+		printf("Activated row %d\n", row);
+	}
+}
+
 void ddrrd(char *startaddr)
 {
 	char *c;
@@ -140,11 +177,6 @@ int ddrinit(void)
 	printf("Initializing DDR SDRAM...\n");
 	
 	init_sequence();
-	
-	setaddr(0x0000);
-	CSR_DFII_BA_P0 = 0;
-	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CS;
-	cdelay(15);
 	
 	return 1;
 }

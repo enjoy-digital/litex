@@ -19,6 +19,9 @@
 #define __DDRINIT_H
 
 int ddrinit(void);
+void ddrsw(void);
+void ddrhw(void);
+void ddrrow(char *_row);
 void ddrrd(char *startaddr);
 void ddrwr(char *startaddr);
 
