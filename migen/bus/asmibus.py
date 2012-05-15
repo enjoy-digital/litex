@@ -205,7 +205,7 @@ class Initiator:
 					yield
 				if isinstance(transaction, TWrite):
 					s.wr(port.dat_w, transaction.data)
-					s.wr(port.dat_wm, transaction.sel)
+					s.wr(port.dat_wm, ~transaction.sel)
 					yield
 					s.wr(port.dat_w, 0)
 					s.wr(port.dat_wm, 0)

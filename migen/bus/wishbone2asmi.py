@@ -54,10 +54,8 @@ class WB2ASMI:
 					displacer(self.wishbone.sel, adr_offset, data_we, 2**offsetbits, reverse=True)
 				)
 			),
-			If(write_to_asmi,
-				self.asmiport.dat_w.eq(data_do),
-				self.asmiport.dat_wm.eq(Replicate(1, adw//8))
-			),
+			If(write_to_asmi, self.asmiport.dat_w.eq(data_do)),
+			self.asmiport.dat_wm.eq(0),
 			chooser(data_do, adr_offset_r, self.wishbone.dat_r, reverse=True)
 		]
 		sync += [

@@ -377,7 +377,7 @@ The data signals are used to complete requests.
 * Master-to-Hub
 
   * ``data_w`` must supply data to the controller from the appropriate write transaction, on the cycle after they have been called using ``call`` and ``tag_call``.
-  * ``data_wm`` are the byte-granular write data masks. They are used in combination with ``data_w`` to identify the bytes that should be modified in the memory. The ``data_wm`` bit should be high for its corresponding ``data_w`` byte to be written.
+  * ``data_wm`` are the byte-granular write data masks. They are used in combination with ``data_w`` to identify the bytes that should be modified in the memory. The ``data_wm`` bit should be low for its corresponding ``data_w`` byte to be written.
 
 In order to avoid duplicating the tag matching and tracking logic, the master-to-hub data signals must be driven low when they are not in use, so that they can be simply ORed together inside the memory controller. This way, only masters have to track (their own) transactions for arbitrating the data lines.
 
