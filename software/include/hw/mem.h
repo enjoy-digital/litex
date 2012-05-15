@@ -15,16 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __DDRINIT_H
-#define __DDRINIT_H
+#ifndef __HW_MEM_H
+#define __HW_MEM_H
 
-void ddrsw(void);
-void ddrhw(void);
-void ddrrow(char *_row);
-void ddrrd(char *startaddr);
-void ddrwr(char *startaddr);
-int memtest_silent(void);
-void memtest(void);
-int ddrinit(void);
+#define SDRAM_BASE		(0x40000000)
 
-#endif /* __DDRINIT_H */
+#endif /* __HW_MEM_H */

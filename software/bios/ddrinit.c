@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include <hw/dfii.h>
+#include <hw/mem.h>
 
 #include "ddrinit.h"
 
@@ -41,8 +42,6 @@ static void setaddr(int a)
 static void init_sequence(void)
 {
 	int i;
-	
-	printf("Sending initialization sequence...\n");
 	
 	/* Bring CKE high */
 	setaddr(0x0000);
@@ -172,11 +171,45 @@ void ddrwr(char *startaddr)
 	CSR_DFII_COMMAND_P1 = DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA;
 }
 
+#define TEST_SIZE (4*1024*1024)
+
+int memtest_silent(void)
+{
+	volatile unsigned int *array = (unsigned int *)SDRAM_BASE;
+	int i;
+	unsigned int prv;
+	
+	prv = 0;
+	for(i=0;i<TEST_SIZE/4;i++) {
+		prv = 1664525*prv + 1013904223;
+		array[i] = prv;
+	}
+	
+	prv = 0;
+	for(i=0;i<TEST_SIZE/4;i++) {
+		prv = 1664525*prv + 1013904223;
+		if(array[i] != prv)
+			return 0;
+	}
+	return 1;
+}
+
+void memtest(void)
+{
+	if(memtest_silent())
+		printf("OK\n");
+	else
+		printf("Failed\n");
+}
+
 int ddrinit(void)
 {
-	printf("Initializing DDR SDRAM...\n");
+	printf("Initializing DDRAM...\n");
 	
 	init_sequence();
+	CSR_DFII_CONTROL = DFII_CONTROL_SEL|DFII_CONTROL_CKE;
+	if(!memtest_silent())
+		return 0;
 	
 	return 1;
 }

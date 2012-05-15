@@ -352,12 +352,13 @@ static void do_command(char *c)
 	else if(strcmp(token, "rcsr") == 0) rcsr(get_token(&c));
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
 	
-	else if(strcmp(token, "ddrinit") == 0) ddrinit();
 	else if(strcmp(token, "ddrrow") == 0) ddrrow(get_token(&c));
 	else if(strcmp(token, "ddrsw") == 0) ddrsw();
 	else if(strcmp(token, "ddrhw") == 0) ddrhw();
 	else if(strcmp(token, "ddrrd") == 0) ddrrd(get_token(&c));
 	else if(strcmp(token, "ddrwr") == 0) ddrwr(get_token(&c));
+	else if(strcmp(token, "memtest") == 0) memtest();
+	else if(strcmp(token, "ddrinit") == 0) ddrinit();
 
 	else if(strcmp(token, "") != 0)
 		printf("Command not found\n");
@@ -384,10 +385,10 @@ static void crcbios(void)
 	length = (unsigned int)&_edata - offset_bios;
 	actual_crc = crc32((unsigned char *)offset_bios, length);
 	if(expected_crc == actual_crc)
-		printf("I: BIOS CRC passed (%08x)\n", actual_crc);
+		printf("BIOS CRC passed (%08x)\n", actual_crc);
 	else {
-		printf("W: BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
-		printf("W: The system will continue, but expect problems.\n");
+		printf("BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
+		printf("The system will continue, but expect problems.\n");
 	}
 }
 
@@ -395,7 +396,7 @@ static void print_mac(void)
 {
 	unsigned char *macadr = (unsigned char *)FLASH_OFFSET_MAC_ADDRESS;
 
-	printf("I: MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
+	printf("MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
 }
 
 static const char banner[] =
@@ -441,6 +442,7 @@ static void readstr(char *s, int size)
 int main(int i, char **c)
 {
 	char buffer[64];
+	int ddr_ok;
 
 	rescue = !((unsigned int)main > FLASH_OFFSET_REGULAR_BIOS);
 
@@ -449,11 +451,16 @@ int main(int i, char **c)
 	uart_init();
 	printf(banner);
 	crcbios();
-	print_mac();
-	ddrinit();
-	
 	if(rescue)
-		printf("I: Booting in rescue mode\n");
+		printf("Rescue mode\n");
+	print_mac();
+	ddr_ok = ddrinit();
+	if(ddr_ok) {
+		printf("Booting...\n");
+	} else {
+		printf("Memory initialization failed\n");
+	}
+	
 	
 	while(1) {
 		putsnonl("\e[1mBIOS>\e[0m ");
