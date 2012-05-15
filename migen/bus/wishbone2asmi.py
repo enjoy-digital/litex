@@ -29,7 +29,7 @@ class WB2ASMI:
 		offsetbits = log2_int(adw//32)
 		addressbits = aaw + offsetbits
 		linebits = log2_int(self.cachesize) - offsetbits
-		tagbits = aaw - linebits
+		tagbits = addressbits - linebits
 		adr_offset, adr_line, adr_tag = split(self.wishbone.adr, offsetbits, linebits, tagbits)
 		
 		# Data memory
@@ -63,7 +63,7 @@ class WB2ASMI:
 		]
 		
 		# Tag memory
-		tag_layout = [("tag", BV(linebits)), ("dirty", BV(1))]
+		tag_layout = [("tag", BV(tagbits)), ("dirty", BV(1))]
 		tag_do = Record(tag_layout)
 		tag_do_raw = tag_do.to_signal(comb, False)
 		tag_di = Record(tag_layout)
