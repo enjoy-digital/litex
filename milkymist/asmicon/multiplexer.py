@@ -120,9 +120,10 @@ class _Datapath:
 			)
 		]
 		
-		rd_valid_d = [Signal() for i in range(self.timing_settings.rd_delay)]
-		rd_tag_d = [Signal(BV(tagbits)) for i in range(self.timing_settings.rd_delay)]
-		for i in range(self.timing_settings.rd_delay):
+		rd_delay = self.timing_settings.rd_delay + 1
+		rd_valid_d = [Signal() for i in range(rd_delay)]
+		rd_tag_d = [Signal(BV(tagbits)) for i in range(rd_delay)]
+		for i in range(rd_delay):
 			if i:
 				sync += [
 					rd_valid_d[i].eq(rd_valid_d[i-1]),
