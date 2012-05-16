@@ -4,7 +4,7 @@ CC=clang
 all: $(TARGETS)
 
 %: %.c
-	$(CC) -O2 -Wall -I. -s -o $@ $<
+	$(CC) -O2 -Wall -I../common -s -o $@ $<
 
 install: mkmmimg flterm
 	install -d /usr/local/bin

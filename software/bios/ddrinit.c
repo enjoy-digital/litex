@@ -204,7 +204,7 @@ void memtest(void)
 
 int ddrinit(void)
 {
-	printf("Initializing DDRAM...\n");
+	printf("Initializing DDR SDRAM...\n");
 	
 	init_sequence();
 	CSR_DFII_CONTROL = DFII_CONTROL_SEL|DFII_CONTROL_CKE;

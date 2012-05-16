@@ -36,7 +36,7 @@ endif
 # Toolchain options
 #
 INCLUDES_NOLIBC ?= -nostdinc -I$(M2DIR)/software/include/base
-INCLUDES = $(INCLUDES_NOLIBC) -I$(M2DIR)/software/include -I$(M2DIR)/tools
+INCLUDES = $(INCLUDES_NOLIBC) -I$(M2DIR)/software/include -I$(M2DIR)/common
 ASFLAGS = $(INCLUDES) -nostdinc
 CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
 	 -Wmissing-prototypes -fsigned-char $(INCLUDES)
