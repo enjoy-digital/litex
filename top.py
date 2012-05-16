@@ -6,6 +6,7 @@ from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
 from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon
+from cmacros import get_macros
 from constraints import Constraints
 
 MHz = 1000000
@@ -56,6 +57,12 @@ def ddrphy_clocking(crg, phy):
 	comb = [getattr(phy, name).eq(getattr(crg, name)) for name in names]
 	return Fragment(comb)
 
+csr_macros = get_macros("common/csrbase.h")
+def csr_offset(name):
+	base = int(csr_macros[name + "_BASE"], 0)
+	assert((base >= 0xe0000000) and (base <= 0xe0010000))
+	return (base - 0xe0000000)//0x800
+
 def get():
 	#
 	# ASMI
@@ -68,7 +75,8 @@ def get():
 	# DFI
 	#
 	ddrphy0 = s6ddrphy.S6DDRPHY(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d)
-	dfii0 = dfii.DFIInjector(1, sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d, sdram_phy.nphases)
+	dfii0 = dfii.DFIInjector(csr_offset("DFII"),
+		sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d, sdram_phy.nphases)
 	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
 	dficon1 = dfi.Interconnect(asmicon0.dfi, dfii0.slave)
 
@@ -103,7 +111,7 @@ def get():
 	#
 	# CSR
 	#
-	uart0 = uart.UART(0, clk_freq, baud=115200)
+	uart0 = uart.UART(csr_offset("UART"), clk_freq, baud=115200)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
 		dfii0.bank.interface
