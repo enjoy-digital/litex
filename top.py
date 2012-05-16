@@ -5,7 +5,7 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
-from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon
+from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, identifier
 from cmacros import get_macros
 from constraints import Constraints
 
@@ -63,6 +63,8 @@ def csr_offset(name):
 	assert((base >= 0xe0000000) and (base <= 0xe0010000))
 	return (base - 0xe0000000)//0x800
 
+version = get_macros("common/version.h")["VERSION"][1:-1]
+
 def get():
 	#
 	# ASMI
@@ -112,9 +114,11 @@ def get():
 	# CSR
 	#
 	uart0 = uart.UART(csr_offset("UART"), clk_freq, baud=115200)
+	identifier0 = identifier.Identifier(csr_offset("ID"), 0x4D31, version)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
-		dfii0.bank.interface
+		dfii0.bank.interface,
+		identifier0.bank.interface
 	])
 	
 	#

@@ -1,6 +1,6 @@
 /*
  * Milkymist SoC (Software)
- * Copyright (C) 2007, 2008, 2009, 2011 Sebastien Bourdeauducq
+ * Copyright (C) 2007, 2008, 2009, 2011, 2012 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <hw/sysctl.h>
+#include <hw/id.h>
 #include <hw/gpio.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <version.h>
 #include <board.h>
 
 static const struct board_desc boards[1] = {
@@ -29,7 +31,7 @@ static const struct board_desc boards[1] = {
 	},
 };
 
-const struct board_desc *get_board_desc_id(unsigned short int id)
+static const struct board_desc *get_board_desc_id(unsigned short int id)
 {
 	unsigned int i;
 
@@ -39,18 +41,19 @@ const struct board_desc *get_board_desc_id(unsigned short int id)
 	return NULL;
 }
 
-const struct board_desc *get_board_desc(void)
+static const struct board_desc *get_board_desc(void)
 {
-	return get_board_desc_id(CSR_SYSTEM_ID & 0xffff);
+	return get_board_desc_id((CSR_ID_SYSTEMH << 8) | CSR_ID_SYSTEML);
 }
 
 int get_pcb_revision(void)
 {
+	/* TODO
 	int r;
 	unsigned int io;
 
-	io = CSR_GPIO_IN;
 	r = 0;
+	io = CSR_GPIO_IN;
 	if(io & GPIO_PCBREV0)
 		r |= 0x1;
 	if(io & GPIO_PCBREV1)
@@ -59,18 +62,20 @@ int get_pcb_revision(void)
 		r |= 0x4;
 	if(io & GPIO_PCBREV3)
 		r |= 0x8;
-	return r;
+	return r;*/
+	return 0;
 }
 
 void get_soc_version(unsigned int *major, unsigned int *minor, unsigned int *subminor, unsigned int *rc)
 {
 	unsigned int id;
 
-	id = CSR_SYSTEM_ID;
-	*major = (id & 0xf0000000) >> 28;
-	*minor = (id & 0x0f000000) >> 24;
-	*subminor = (id & 0x00f00000) >> 20;
-	*rc = (id & 0x000f0000) >> 16;
+	id = CSR_ID_VERSIONH;
+	*major = (id & 0xf0) >> 4;
+	*minor = id & 0x0f;
+	id = CSR_ID_VERSIONL;
+	*subminor = (id & 0xf0) >> 4;
+	*rc = id & 0x0f;
 }
 
 void get_soc_version_formatted(char *version)
@@ -84,4 +89,26 @@ void get_soc_version_formatted(char *version)
 		version += sprintf(version, ".%u", subminor);
 	if(rc != 0)
 		sprintf(version, "RC%u", rc);
+}
+
+const struct board_desc *brd_desc;
+
+void board_init(void)
+{
+	int rev;
+	char soc_version[13];
+
+	brd_desc = get_board_desc();
+
+	if(brd_desc == NULL) {
+		printf("Running on unknown board, startup aborted.\n");
+		while(1);
+	}
+	rev = get_pcb_revision();
+	get_soc_version_formatted(soc_version);
+	printf("Detected SoC %s on %s (PCB revision %d)\n", soc_version, brd_desc->name, rev);
+	if(strcmp(soc_version, VERSION) != 0)
+		printf("SoC and BIOS versions do not match!\n");
+	if(rev > 2)
+		printf("Unsupported PCB revision, please upgrade!\n");
 }

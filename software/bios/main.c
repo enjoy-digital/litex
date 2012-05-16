@@ -344,8 +344,6 @@ static void do_command(char *c)
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
 
 	else if(strcmp(token, "version") == 0) puts(VERSION);
-	else if(strcmp(token, "reboot") == 0) reboot();
-	else if(strcmp(token, "reconf") == 0) reconf();
 
 	else if(strcmp(token, "help") == 0) help();
 
@@ -453,6 +451,7 @@ int main(int i, char **c)
 	crcbios();
 	if(rescue)
 		printf("Rescue mode\n");
+	board_init();
 	print_mac();
 	ddr_ok = ddrinit();
 	if(ddr_ok) {

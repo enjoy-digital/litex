@@ -1,6 +1,6 @@
 /*
  * Milkymist SoC (Software)
- * Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq
+ * Copyright (C) 2007, 2008, 2009, 2010, 2012 Sebastien Bourdeauducq
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,22 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __BOARD_H
-#define __BOARD_H
+#ifndef __HW_ID_H
+#define __HW_ID_H
 
-#define BOARD_NAME_LEN 32
+#include <hw/common.h>
+#include <csrbase.h>
 
-struct board_desc {
-	unsigned short int id;
-	char name[BOARD_NAME_LEN];
-	unsigned int ethernet_phyadr;
-};
+#define ID_CSR(x)		MMPTR(ID_BASE+(x))
 
-int get_pcb_revision(void);
-void get_soc_version(unsigned int *major, unsigned int *minor, unsigned int *subminor, unsigned int *rc);
-void get_soc_version_formatted(char *version);
+#define CSR_ID_SYSTEMH		ID_CSR(0x00)
+#define CSR_ID_SYSTEML		ID_CSR(0x04)
+#define CSR_ID_VERSIONH		ID_CSR(0x08)
+#define CSR_ID_VERSIONL		ID_CSR(0x0c)
 
-extern const struct board_desc *brd_desc;
-void board_init(void);
-
-#endif /* __BOARD_H */
+#endif /* __HW_ID_H */
