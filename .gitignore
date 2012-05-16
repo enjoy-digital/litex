@@ -3,6 +3,8 @@ build/*
 *.o
 *.d
 *.a
+*.bin
+*.elf
 tools/bin2hex
 tools/flterm
 tools/mkmmimg
