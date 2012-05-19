@@ -1,5 +1,5 @@
 class Constraints:
-	def __init__(self, crg0, norflash0, uart0, ddrphy0):
+	def __init__(self, crg0, norflash0, uart0, ddrphy0, minimac0):
 		self.constraints = []
 		def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra))
@@ -15,6 +15,7 @@ class Constraints:
 		add(crg0.videoin_rst_n, "W17")
 		add(crg0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
 		add(crg0.trigger_reset, "AA4")
+		add(crg0.phy_clk, "M20")
 		
 		add_vec(norflash0.adr, ["L22", "L20", "K22", "K21", "J19", "H20", "F22",
 			"F21", "K17", "J17", "E22", "E20", "H18", "H19", "F20",
@@ -47,6 +48,21 @@ class Constraints:
 			extra=ddrsettings)
 		add_vec(ddrphy0.sd_dm, ["E1", "E3", "F3", "G4"], extra=ddrsettings)
 		add_vec(ddrphy0.sd_dqs, ["F1", "F2", "H5", "H6"], extra=ddrsettings)
+		
+		add(minimac0.phy_rst_n, "R22")
+		add(minimac0.phy_dv, "V21")
+		add(minimac0.phy_rx_clk, "H22")
+		add(minimac0.phy_rx_er, "V22")
+		add_vec(minimac0.phy_rx_data, ["U22", "U20", "T22", "T21"])
+		add(minimac0.phy_tx_en, "N19")
+		add(minimac0.phy_tx_clk, "H21")
+		add(minimac0.phy_tx_er, "M19")
+		add_vec(minimac0.phy_tx_data, ["M16", "L15", "P19", "P20"])
+		add(minimac0.phy_col, "W20")
+		add(minimac0.phy_crs, "W22")
+		
+		self._phy_rx_clk = minimac0.phy_rx_clk
+		self._phy_tx_clk = minimac0.phy_tx_clk
 
 	def get_ios(self):
 		return set([c[0] for c in self.constraints])
@@ -69,6 +85,13 @@ INST "m1crg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "m1crg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
 PIN "m1crg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
-"""
+
+NET "{phy_rx_clk}" TNM_NET = "GRPphy_rx_clk";
+NET "{phy_tx_clk}" TNM_NET = "GRPphy_tx_clk";
+TIMESPEC "TSphy_rx_clk" = PERIOD "GRPphy_rx_clk" 40 ns HIGH 50%;
+TIMESPEC "TSphy_tx_clk" = PERIOD "GRPphy_tx_clk" 40 ns HIGH 50%;
+TIMESPEC "TSphy_tx_clk_io" = FROM "GRPphy_tx_clk" TO "PADS" 10 ns;
+TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
+""".format(phy_rx_clk=ns.get_name(self._phy_rx_clk), phy_tx_clk=ns.get_name(self._phy_tx_clk))
 	
 		return r

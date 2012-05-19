@@ -18,7 +18,8 @@ class M1CRG:
 			"clk4x_wr",
 			"clk4x_wr_strb",
 			"clk4x_rd",
-			"clk4x_rd_strb"
+			"clk4x_rd_strb",
+			"phy_clk"
 		]:
 			s = Signal(name=name)
 			setattr(self, name, s)

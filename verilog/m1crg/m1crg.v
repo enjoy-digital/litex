@@ -37,7 +37,10 @@ module m1crg #(
 	output clk4x_wr,
 	output clk4x_wr_strb,
 	output clk4x_rd,
-	output clk4x_rd_strb
+	output clk4x_rd_strb,
+	
+	/* Ethernet PHY clock */
+	output reg phy_clk
 );
 
 /*
@@ -107,6 +110,7 @@ wire pllout0;
 wire pllout1;
 wire pllout2;
 wire pllout3;
+wire pllout4;
 
 PLL_ADV #(
 	.BANDWIDTH("OPTIMIZED"),
@@ -126,7 +130,7 @@ PLL_ADV #(
 	.CLKOUT3_DIVIDE(4*f_div),
 	.CLKOUT3_DUTY_CYCLE(0.5),
 	.CLKOUT3_PHASE(0.0),
-	.CLKOUT4_DIVIDE(7),
+	.CLKOUT4_DIVIDE(4*f_mult),
 	.CLKOUT4_DUTY_CYCLE(0.5),
 	.CLKOUT4_PHASE(0),
 	.CLKOUT5_DIVIDE(7),
@@ -144,7 +148,7 @@ PLL_ADV #(
 	.CLKOUT1(pllout1), /* < x4 clock for reads */
 	.CLKOUT2(pllout2), /* < x2 90 clock to generate memory clock, clock DQS and memory address and control signals. */
 	.CLKOUT3(pllout3), /* < x1 clock for system and memory controller */
-	.CLKOUT4(),
+	.CLKOUT4(pllout4), /* < buffered clkin */
 	.CLKOUT5(),
 	.CLKOUTDCM0(),
 	.CLKOUTDCM1(),
@@ -199,5 +203,9 @@ BUFG bufg_x1(
 	.I(pllout3),
 	.O(sys_clk)
 );
+
+/* Ethernet PHY */
+always @(posedge pllout4)
+	phy_clk <= ~phy_clk;
  
 endmodule

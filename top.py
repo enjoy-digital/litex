@@ -5,7 +5,7 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
-from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, identifier
+from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, identifier, minimac3
 from cmacros import get_macros
 from constraints import Constraints
 
@@ -88,6 +88,7 @@ def get():
 	cpu0 = lm32.LM32()
 	norflash0 = norflash.NorFlash(25, 12)
 	sram0 = sram.SRAM(sram_size//4)
+	minimac0 = minimac3.MiniMAC(csr_offset("MINIMAC"))
 	wishbone2asmi0 = wishbone2asmi.WB2ASMI(l2_size//4, asmiport_wb)
 	wishbone2csr0 = wishbone2csr.WB2CSR()
 	
@@ -104,6 +105,7 @@ def get():
 		], [
 			(binc("000"), norflash0.bus),
 			(binc("001"), sram0.bus),
+			(binc("011"), minimac0.membus),
 			(binc("10"), wishbone2asmi0.wishbone),
 			(binc("11"), wishbone2csr0.wishbone)
 		],
@@ -118,7 +120,8 @@ def get():
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
 		dfii0.bank.interface,
-		identifier0.bank.interface
+		identifier0.bank.interface,
+		minimac0.bank.interface
 	])
 	
 	#
@@ -134,7 +137,7 @@ def get():
 	crg0 = m1crg.M1CRG(50*MHz, clk_freq)
 	
 	frag = autofragment.from_local() + interrupts + ddrphy_clocking(crg0, ddrphy0)
-	cst = Constraints(crg0, norflash0, uart0, ddrphy0)
+	cst = Constraints(crg0, norflash0, uart0, ddrphy0, minimac0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="soc",

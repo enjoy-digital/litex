@@ -12,6 +12,7 @@ def add_core_dir(d):
 def add_core_files(d, files):
 	for f in files:
 		verilog_sources.append(os.path.join("verilog", d, f))
+add_core_dir("generic")
 add_core_dir("m1crg")
 add_core_dir("s6ddrphy")
 add_core_files("lm32", ["lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
@@ -20,6 +21,7 @@ add_core_files("lm32", ["lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v
 	"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
 	"lm32_dcache.v", "lm32_top.v", "lm32_debug.v", "lm32_jtag.v", "jtag_cores.v",
 	"jtag_tap_spartan6.v"])
+add_core_dir("minimac3")
 
 os.chdir("build")
 
