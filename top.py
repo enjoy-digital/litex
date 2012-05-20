@@ -128,7 +128,8 @@ def get():
 	# Interrupts
 	#
 	interrupts = Fragment([
-		cpu0.interrupt[0].eq(uart0.events.irq)
+		cpu0.interrupt[0].eq(uart0.events.irq),
+		cpu0.interrupt[1].eq(minimac0.events.irq)
 	])
 	
 	#
