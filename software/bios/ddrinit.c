@@ -33,10 +33,10 @@ static void cdelay(int i)
 
 static void setaddr(int a)
 {
-	CSR_DFII_AH_P0 = (a & 0x1fe0) >> 5;
-	CSR_DFII_AL_P0 = a & 0x001f;
-	CSR_DFII_AH_P1 = (a & 0x1fe0) >> 5;
-	CSR_DFII_AL_P1 = a & 0x001f;
+	CSR_DFII_AH_P0 = (a & 0xff00) >> 8;
+	CSR_DFII_AL_P0 = a & 0x00ff;
+	CSR_DFII_AH_P1 = (a & 0xff00) >> 8;
+	CSR_DFII_AL_P1 = a & 0x00ff;
 }
 
 static void init_sequence(void)
