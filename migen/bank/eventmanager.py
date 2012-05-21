@@ -5,6 +5,7 @@ from migen.corelogic.misc import optree
 class EventSource:
 	def __init__(self):
 		self.trigger = Signal()
+		self.pending = Signal()
 
 class EventSourcePulse(EventSource):
 	pass
@@ -40,22 +41,21 @@ class EventManager:
 		
 		# pending
 		for i, source in enumerate(self.sources):
-			pending = Signal()
 			# W1C
-			sync.append(If(self.pending.re & self.pending.r[i], pending.eq(0)))
+			sync.append(If(self.pending.re & self.pending.r[i], source.pending.eq(0)))
 			if isinstance(source, EventSourcePulse):
 				# set on a positive trigger pulse
-				sync.append(If(source.trigger, pending.eq(1)))
+				sync.append(If(source.trigger, source.pending.eq(1)))
 			elif isinstance(source, EventSourceLevel):
 				# set on the falling edge of the trigger
 				old_trigger = Signal()
 				sync += [
 					old_trigger.eq(source.trigger),
-					If(~source.trigger & old_trigger, pending.eq(1))
+					If(~source.trigger & old_trigger, source.pending.eq(1))
 				]
 			else:
 				raise TypeError
-			comb.append(self.pending.w[i].eq(pending))
+			comb.append(self.pending.w[i].eq(source.pending))
 		
 		# IRQ
 		irqs = [self.pending.w[i] & field.r for i, field in enumerate(self.enable.fields)]
