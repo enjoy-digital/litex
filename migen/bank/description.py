@@ -61,6 +61,13 @@ def expand_description(description, busword):
 			for field in reg.fields:
 				size += field.size
 				if size > busword:
+					# add padding
+					totalsize = sum([field.size for field in reg.fields])
+					padding = busword - (totalsize % busword)
+					if padding == busword:
+						padding = 0
+					size += padding
+					
 					top = field.size
 					while size > busword:
 						slice1 = busword - size + top
