@@ -1,6 +1,6 @@
 /*
  * CRC32 computation tool and Milkymist image file writer
- * (c) 2009, 2010, Sebastien Bourdeauducq
+ * (c) 2009, 2010, 2012 Sebastien Bourdeauducq
  * Released under GNU GPL v3
  * This file is part of Milkymist.
  */
@@ -102,8 +102,8 @@ int main(int argc, char *argv[])
 	unsigned int crc;
 	
 	if(((argc != 2) && (argc != 3) && (argc != 4))
-		|| ((argc > 2) && (strcmp(argv[2], "write") && (strcmp(argv[2], "writelzma"))))) {
-		fprintf(stderr, "Usage: mkmmimg <filename> [write[lzma]] [dest]\n");
+		|| ((argc > 2) && (strcmp(argv[2], "write")))) {
+		fprintf(stderr, "Usage: mkmmimg <filename> [write] [dest]\n");
 		return 1;
 	}
 	
@@ -155,8 +155,6 @@ int main(int argc, char *argv[])
 		b[1] = (length & 0x00ff0000) >> 16;
 		b[2] = (length & 0x0000ff00) >> 8;
 		b[3] = (length & 0x000000ff) >> 0;
-		if(strcmp(argv[2], "writelzma") == 0)
-			b[0] |= 0x80;
 		write(fd_out, &b[0], 4);
 		b[0] = (crc & 0xff000000) >> 24;
 		b[1] = (crc & 0x00ff0000) >> 16;
