@@ -5,7 +5,7 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
-from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, identifier, minimac3
+from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, identifier, timer, minimac3
 from cmacros import get_macros
 from constraints import Constraints
 
@@ -117,10 +117,12 @@ def get():
 	#
 	uart0 = uart.UART(csr_offset("UART"), clk_freq, baud=115200)
 	identifier0 = identifier.Identifier(csr_offset("ID"), 0x4D31, version)
+	timer0 = timer.Timer(csr_offset("TIMER0"))
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
 		dfii0.bank.interface,
 		identifier0.bank.interface,
+		timer0.bank.interface,
 		minimac0.bank.interface
 	])
 	
@@ -129,7 +131,8 @@ def get():
 	#
 	interrupts = Fragment([
 		cpu0.interrupt[0].eq(uart0.events.irq),
-		cpu0.interrupt[1].eq(minimac0.events.irq)
+		cpu0.interrupt[1].eq(timer0.events.irq),
+		cpu0.interrupt[2].eq(minimac0.events.irq)
 	])
 	
 	#

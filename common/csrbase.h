@@ -4,6 +4,7 @@
 #define UART_BASE	0xe0000000
 #define DFII_BASE	0xe0000800
 #define ID_BASE		0xe0001000
-#define MINIMAC_BASE	0xe0001800
+#define TIMER0_BASE	0xe0001800
+#define MINIMAC_BASE	0xe0002000
 
 #endif /* __CSRBASE_H */
