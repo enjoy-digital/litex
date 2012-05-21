@@ -18,7 +18,7 @@
 #include <uart.h>
 #include <irq.h>
 #include <hw/uart.h>
-#include <hw/interrupts.h>
+#include <interrupt.h>
 
 /*
  * Buffer sizes must be a power of 2 so that modulos can be computed
@@ -121,7 +121,7 @@ void uart_init(void)
 	CSR_UART_EV_ENABLE = UART_EV_TX | UART_EV_RX;
 
 	mask = irq_getmask();
-	mask |= IRQ_UART;
+	mask |= UART_INTERRUPT;
 	irq_setmask(mask);
 }
 

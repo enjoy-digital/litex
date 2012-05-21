@@ -63,6 +63,10 @@ def csr_offset(name):
 	assert((base >= 0xe0000000) and (base <= 0xe0010000))
 	return (base - 0xe0000000)//0x800
 
+interrupt_macros = get_macros("common/interrupt.h")
+def interrupt_n(name):
+	return int(interrupt_macros[name + "_INTERRUPT"], 0)
+
 version = get_macros("common/version.h")["VERSION"][1:-1]
 
 def get():
@@ -130,9 +134,9 @@ def get():
 	# Interrupts
 	#
 	interrupts = Fragment([
-		cpu0.interrupt[0].eq(uart0.events.irq),
-		cpu0.interrupt[1].eq(timer0.events.irq),
-		cpu0.interrupt[2].eq(minimac0.events.irq)
+		cpu0.interrupt[interrupt_n("UART")].eq(uart0.events.irq),
+		cpu0.interrupt[interrupt_n("TIMER0")].eq(timer0.events.irq),
+		cpu0.interrupt[interrupt_n("MINIMAC")].eq(minimac0.events.irq)
 	])
 	
 	#

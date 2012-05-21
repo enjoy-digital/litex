@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <hw/interrupts.h>
 #include <hw/uart.h>
+#include <interrupt.h>
 #include <irq.h>
 #include <uart.h>
 
@@ -27,6 +27,6 @@ void isr(void)
 	
 	irqs = irq_pending() & irq_getmask();
 	
-	if(irqs & IRQ_UART)
+	if(irqs & (1 << UART_INTERRUPT))
 		uart_isr();
 }
