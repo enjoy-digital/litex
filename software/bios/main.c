@@ -26,8 +26,11 @@
 #include <extra/crc.h>
 
 #include <hw/flash.h>
+#include <hw/minimac.h>
 
 #include "ddrinit.h"
+#include "timer.h"
+#include "boot.h"
 
 enum {
 	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,
@@ -311,9 +314,10 @@ static void help(void)
 	puts("crc        - compute CRC32 of a part of the address space");
 	puts("rcsr       - read processor CSR");
 	puts("wcsr       - write processor CSR");
+	puts("netboot    - boot via TFTP");
+	puts("serialboot - boot via SFL");
+	puts("flashboot  - boot from flash");
 	puts("version    - display version");
-	puts("reboot     - system reset");
-	puts("reconf     - reload FPGA configuration");
 }
 
 static char *get_token(char **str)
@@ -343,6 +347,10 @@ static void do_command(char *c)
 	else if(strcmp(token, "mc") == 0) mc(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
 
+	else if(strcmp(token, "flashboot") == 0) flashboot();
+	else if(strcmp(token, "serialboot") == 0) serialboot();
+	else if(strcmp(token, "netboot") == 0) netboot();
+	
 	else if(strcmp(token, "version") == 0) puts(VERSION);
 
 	else if(strcmp(token, "help") == 0) help();
@@ -388,6 +396,17 @@ static void crcbios(void)
 		printf("BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
 		printf("The system will continue, but expect problems.\n");
 	}
+}
+
+static void ethreset(void)
+{
+	CSR_MINIMAC_PHYRST = 0;
+	busy_wait(2);
+	/* that pesky ethernet PHY needs two resets at times... */
+	CSR_MINIMAC_PHYRST = 1;
+	busy_wait(2);
+	CSR_MINIMAC_PHYRST = 0;
+	busy_wait(2);
 }
 
 static void print_mac(void)
@@ -437,6 +456,54 @@ static void readstr(char *s, int size)
 	}
 }
 
+static int test_user_abort(void)
+{
+	char c;
+
+	printf("Automatic boot in 2 seconds...\n");
+	printf("Q/ESC: abort boot\n");
+	printf("F7:    boot from serial\n");
+	printf("F8:    boot from network\n");
+	timer_enable(0);
+	timer_set_reload(0);
+	timer_set_counter(get_system_frequency()*2);
+	timer_enable(1);
+	while(timer_get()) {
+		if(readchar_nonblock()) {
+			c = readchar();
+			if((c == 'Q')||(c == '\e')) {
+				puts("Aborted");
+				return 0;
+			}
+			if(c == 0x06) {
+				serialboot();
+				return 0;
+			}
+			if(c == 0x07) {
+				netboot();
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+static void boot_sequence(void)
+{
+	if(test_user_abort()) {
+		if(rescue) {
+			netboot();
+			serialboot();
+			flashboot();
+		} else {
+			flashboot();
+			netboot();
+			serialboot();
+		}
+		printf("No boot medium found\n");
+	}
+}
+
 int main(int i, char **c)
 {
 	char buffer[64];
@@ -452,14 +519,13 @@ int main(int i, char **c)
 	if(rescue)
 		printf("Rescue mode\n");
 	board_init();
+	ethreset();
 	print_mac();
 	ddr_ok = ddrinit();
-	if(ddr_ok) {
-		printf("Booting...\n");
-	} else {
+	if(ddr_ok)
+		boot_sequence();
+	else
 		printf("Memory initialization failed\n");
-	}
-	
 	
 	while(1) {
 		putsnonl("\e[1mBIOS>\e[0m ");
