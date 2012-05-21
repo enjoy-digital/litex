@@ -121,7 +121,7 @@ void uart_init(void)
 	CSR_UART_EV_ENABLE = UART_EV_TX | UART_EV_RX;
 
 	mask = irq_getmask();
-	mask |= UART_INTERRUPT;
+	mask |= 1 << UART_INTERRUPT;
 	irq_setmask(mask);
 }
 
