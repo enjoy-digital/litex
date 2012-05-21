@@ -26,7 +26,8 @@ class MiniMAC:
 		self._rx_count_0 = RegisterField("rx_count_0", _count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._rx_count_1 = RegisterField("rx_count_1", _count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._tx_count = RegisterField("tx_count", _count_width, access_dev=READ_WRITE)
-		regs = [self._phy_reset, self._rx_count_0, self._rx_count_1, self._tx_count]
+		self._tx_start = RegisterField("tx_start", access_bus=WRITE_ONLY)
+		regs = [self._phy_reset, self._rx_count_0, self._rx_count_1, self._tx_count, self._tx_start]
 		
 		self._rx_event_0 = EventSourcePulse()
 		self._rx_event_1 = EventSourcePulse()
@@ -78,7 +79,7 @@ class MiniMAC:
 					("rx_ready_0", rx_ready_0),
 					("rx_ready_1", rx_ready_1),
 					
-					("tx_start", self._tx_count.re),
+					("tx_start", self._tx_start.re),
 					("tx_count", self._tx_count.field.r),
 					
 					("wb_adr_i", self.membus.adr),
