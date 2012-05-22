@@ -24,11 +24,11 @@
 #include <sfl.h>
 #include <string.h>
 #include <irq.h>
+#include <timer.h>
 
 #include <hw/flash.h>
 #include <hw/mem.h>
 
-#include "timer.h"
 #include "microudp.h"
 #include "tftp.h"
 #include "boot.h"

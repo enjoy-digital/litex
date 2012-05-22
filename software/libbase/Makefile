@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/include.mak
 
-OBJECTS=divsi3.o libc.o console.o system.o board.o uart.o softfloat.o softfloat-glue.o vsnprintf.o atof.o
+OBJECTS=divsi3.o libc.o console.o timer.o system.o board.o uart.o softfloat.o softfloat-glue.o vsnprintf.o atof.o
 
 all: libbase.a
 

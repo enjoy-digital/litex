@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/include.mak
 
-OBJECTS=crt0.o isr.o ddrinit.o timer.o main.o microudp.o tftp.o boot-helper.o boot.o
+OBJECTS=crt0.o isr.o ddrinit.o main.o microudp.o tftp.o boot-helper.o boot.o
 
 all: bios.bin
 

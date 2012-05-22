@@ -120,7 +120,7 @@ def get():
 	# CSR
 	#
 	uart0 = uart.UART(csr_offset("UART"), clk_freq, baud=115200)
-	identifier0 = identifier.Identifier(csr_offset("ID"), 0x4D31, version)
+	identifier0 = identifier.Identifier(csr_offset("ID"), 0x4D31, version, int(clk_freq))
 	timer0 = timer.Timer(csr_offset("TIMER0"))
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,

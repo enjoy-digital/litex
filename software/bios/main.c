@@ -24,12 +24,12 @@
 #include <irq.h>
 #include <version.h>
 #include <extra/crc.h>
+#include <timer.h>
 
 #include <hw/flash.h>
 #include <hw/minimac.h>
 
 #include "ddrinit.h"
-#include "timer.h"
 #include "boot.h"
 
 enum {

@@ -16,12 +16,16 @@
  */
 
 #include <hw/timer.h>
+#include <hw/id.h>
 
 #include "timer.h"
 
 unsigned int get_system_frequency(void)
 {
-	return 83333333; /* TODO */
+	return (CSR_ID_FREQ3 << 24)
+		|(CSR_ID_FREQ2 << 16)
+		|(CSR_ID_FREQ1 << 8)
+		|CSR_ID_FREQ0;
 }
 
 void timer_enable(int en)

@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <version.h>
+#include <timer.h>
 #include <board.h>
 
 static const struct board_desc boards[1] = {
@@ -106,7 +107,8 @@ void board_init(void)
 	}
 	rev = get_pcb_revision();
 	get_soc_version_formatted(soc_version);
-	printf("Detected SoC %s on %s (PCB revision %d)\n", soc_version, brd_desc->name, rev);
+	printf("Detected SoC %s at %dMHz on %s (PCB revision %d)\n", soc_version, get_system_frequency()/1000000,
+	       brd_desc->name, rev);
 	if(strcmp(soc_version, VERSION) != 0)
 		printf("SoC and BIOS versions do not match!\n");
 	if(rev > 2)
