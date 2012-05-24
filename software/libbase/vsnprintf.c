@@ -196,12 +196,11 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 			case 'f': {
 				int m;
-				float f;
+				double f;
 				int integer;
 				
-				/* until I sort out how to disable this stupid promotion to double ... */
-				f = *(va_arg(args, float *));
-				if((f <= 0.0f) && (f != 0.0f)) { /* TODO: fix that |[#{'"é! '<' operator */
+				f = va_arg(args, double);
+				if(f < 0.0) {
 					*str = '-';
 					str++;
 					f = -f;
@@ -233,7 +232,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				for(i=0;i<6;i++) {
 					int n;
 
-					f = f*10.0f;
+					f = f*10.0;
 					n = f;
 					f = f - n;
 					if(str >= end) break;
