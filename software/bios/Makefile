@@ -18,12 +18,11 @@ bios.elf: linker.ld $(OBJECTS) libs
 bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 
 %.elf:
-	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) -L$(M2DIR)/software/libbase -L$(M2DIR)/software/libextra -lbase -lextra
+	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) -L$(M2DIR)/software/libbase -lbase
 	chmod -x $@
 
 libs:
 	make -C $(M2DIR)/software/libbase
-	make -C $(M2DIR)/software/libextra
 
 flash: bios.bin
 	m1nor bios.bin

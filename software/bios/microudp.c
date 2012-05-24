@@ -17,7 +17,7 @@
 
 #include <stdio.h>
 #include <system.h>
-#include <extra/crc.h>
+#include <crc.h>
 #include <hw/minimac.h>
 
 #include "microudp.h"

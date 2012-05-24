@@ -20,7 +20,7 @@
 #include <uart.h>
 #include <system.h>
 #include <board.h>
-#include <extra/crc.h>
+#include <crc.h>
 #include <sfl.h>
 #include <string.h>
 #include <irq.h>

@@ -23,7 +23,7 @@
 #include <board.h>
 #include <irq.h>
 #include <version.h>
-#include <extra/crc.h>
+#include <crc.h>
 #include <timer.h>
 
 #include <hw/flash.h>
