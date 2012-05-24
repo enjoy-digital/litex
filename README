@@ -20,7 +20,7 @@ First, download and install Migen from:
   https://github.com/milkymist/migen
 
 Once this is done, build the bitstream with:
-  python3 build.py
+  make
 This will generate the build/soc.bit programming file.
 
 The SoC expects a bootloader to be located in flash at 0x860000, just
