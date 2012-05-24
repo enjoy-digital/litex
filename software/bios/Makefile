@@ -1,5 +1,5 @@
 M2DIR=../..
-include $(M2DIR)/software/include.mak
+include $(M2DIR)/software/common.mak
 
 OBJECTS=crt0.o isr.o ddrinit.o main.o microudp.o tftp.o boot-helper.o boot.o
 
