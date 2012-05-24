@@ -105,6 +105,7 @@ flag float32_lt( float32, float32 );
 flag float32_eq_signaling( float32, float32 );
 flag float32_le_quiet( float32, float32 );
 flag float32_lt_quiet( float32, float32 );
+flag float32_is_nan( float32 );
 flag float32_is_signaling_nan( float32 );
 
 /*----------------------------------------------------------------------------
@@ -130,5 +131,6 @@ flag float64_lt( float64, float64 );
 flag float64_eq_signaling( float64, float64 );
 flag float64_le_quiet( float64, float64 );
 flag float64_lt_quiet( float64, float64 );
+flag float64_is_nan( float64 );
 flag float64_is_signaling_nan( float64 );
 
