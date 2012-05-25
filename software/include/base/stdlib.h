@@ -19,6 +19,8 @@
 #ifndef __STDLIB_H
 #define __STDLIB_H
 
+#include <stddef.h>
+
 #define PRINTF_ZEROPAD	1		/* pad with zero */
 #define PRINTF_SIGN	2		/* unsigned/signed long */
 #define PRINTF_PLUS	4		/* show plus */
@@ -26,11 +28,6 @@
 #define PRINTF_LEFT	16		/* left justified */
 #define PRINTF_SPECIAL	32		/* 0x */
 #define PRINTF_LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
-
-typedef unsigned long size_t;
-typedef long ptrdiff_t;
-
-#define NULL ((void *)0)
 
 #define likely(x) x
 #define unlikely(x) x
