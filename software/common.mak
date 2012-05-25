@@ -35,11 +35,10 @@ endif
 
 # Toolchain options
 #
-INCLUDES_NOLIBC ?= -nostdinc -I$(M2DIR)/software/include/base
-INCLUDES = $(INCLUDES_NOLIBC) -I$(M2DIR)/software/include -I$(M2DIR)/common
-ASFLAGS = $(INCLUDES) -nostdinc
+INCLUDES = -I$(M2DIR)/software/include/base -I$(M2DIR)/software/include -I$(M2DIR)/common
+ASFLAGS = -nostdinc $(INCLUDES)
 CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
-	 -Wmissing-prototypes -fsigned-char $(INCLUDES)
+	 -Wmissing-prototypes -fsigned-char -nostdinc $(INCLUDES)
 LDFLAGS = -nostdlib -nodefaultlibs
 
 # compile and generate dependencies, based on
