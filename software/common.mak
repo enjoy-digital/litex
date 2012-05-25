@@ -44,9 +44,9 @@ LDFLAGS = -nostdlib -nodefaultlibs
 # compile and generate dependencies, based on
 # http://scottmcpeak.com/autodepend/autodepend.html
 
-%.o: %.c
-	$(CC) -c $(CFLAGS) $*.c -o $*.o
-	@$(CC_normal) -MM $(CFLAGS) $*.c > $*.d
+%.o: $(SRCDIR)%.c
+	$(CC) -c $(CFLAGS) $(SRCDIR)$*.c -o $*.o
+	@$(CC_normal) -MM $(CFLAGS) $(SRCDIR)$*.c > $*.d
 	@mv -f $*.d $*.d.tmp
 	@sed -e 's|.*:|$*.o:|' < $*.d.tmp > $*.d
 	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
