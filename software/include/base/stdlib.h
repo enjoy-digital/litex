@@ -44,7 +44,7 @@ static inline long atol(const char *nptr) {
 }
 char *number(char *buf, char *end, unsigned long num, int base, int size, int precision, int type);
 long strtol(const char *nptr, char **endptr, int base);
-float atof(const char *s);
+double strtod(const char *str, char **endptr);
 
 #define   RAND_MAX        2147483647
 

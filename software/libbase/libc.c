@@ -39,6 +39,24 @@ char *strchr(const char *s, int c)
 }
 
 /**
+ * strpbrk - Find the first occurrence of a set of characters
+ * @cs: The string to be searched
+ * @ct: The characters to search for
+ */
+char *strpbrk(const char *cs, const char *ct)
+{
+	const char *sc1, *sc2;
+
+	for (sc1 = cs; *sc1 != '\0'; ++sc1) {
+		for (sc2 = ct; *sc2 != '\0'; ++sc2) {
+			if (*sc1 == *sc2)
+				return (char *)sc1;
+		}
+	}
+	return NULL;
+}
+
+/**
  * strrchr - Find the last occurrence of a character in a string
  * @s: The string to be searched
  * @c: The character to search for
@@ -172,6 +190,29 @@ size_t strnlen(const char *s, size_t count)
 }
 
 /**
+ * strspn - Calculate the length of the initial substring of @s which only contain letters in @accept
+ * @s: The string to be searched
+ * @accept: The string to search for
+ */
+size_t strspn(const char *s, const char *accept)
+{
+	const char *p;
+	const char *a;
+	size_t count = 0;
+
+	for (p = s; *p != '\0'; ++p) {
+		for (a = accept; *a != '\0'; ++a) {
+			if (*p == *a)
+				break;
+		}
+		if (*a == '\0')
+			return count;
+		++count;
+	}
+	return count;
+}
+
+/**
  * memcmp - Compare two areas of memory
  * @cs: One area of memory
  * @ct: Another area of memory
@@ -299,6 +340,26 @@ char *strstr(const char *s1, const char *s2)
 		if (!memcmp(s1, s2, l2))
 			return (char *)s1;
 		s1++;
+	}
+	return NULL;
+}
+
+/**
+ * memchr - Find a character in an area of memory.
+ * @s: The memory area
+ * @c: The byte to search for
+ * @n: The size of the area.
+ *
+ * returns the address of the first occurrence of @c, or %NULL
+ * if @c is not found
+ */
+void *memchr(const void *s, int c, size_t n)
+{
+	const unsigned char *p = s;
+	while (n-- != 0) {
+        	if ((unsigned char)c == *p++) {
+			return (void *)(p - 1);
+		}
 	}
 	return NULL;
 }
@@ -560,6 +621,33 @@ int sprintf(char * buf, const char *fmt, ...)
 	va_end(args);
 	return i;
 }
+
+/* From linux/lib/ctype.c, Copyright (C) 1991, 1992  Linus Torvalds */
+const unsigned char _ctype[] = {
+_C,_C,_C,_C,_C,_C,_C,_C,				/* 0-7 */
+_C,_C|_S,_C|_S,_C|_S,_C|_S,_C|_S,_C,_C,			/* 8-15 */
+_C,_C,_C,_C,_C,_C,_C,_C,				/* 16-23 */
+_C,_C,_C,_C,_C,_C,_C,_C,				/* 24-31 */
+_S|_SP,_P,_P,_P,_P,_P,_P,_P,				/* 32-39 */
+_P,_P,_P,_P,_P,_P,_P,_P,				/* 40-47 */
+_D,_D,_D,_D,_D,_D,_D,_D,				/* 48-55 */
+_D,_D,_P,_P,_P,_P,_P,_P,				/* 56-63 */
+_P,_U|_X,_U|_X,_U|_X,_U|_X,_U|_X,_U|_X,_U,		/* 64-71 */
+_U,_U,_U,_U,_U,_U,_U,_U,				/* 72-79 */
+_U,_U,_U,_U,_U,_U,_U,_U,				/* 80-87 */
+_U,_U,_U,_P,_P,_P,_P,_P,				/* 88-95 */
+_P,_L|_X,_L|_X,_L|_X,_L|_X,_L|_X,_L|_X,_L,		/* 96-103 */
+_L,_L,_L,_L,_L,_L,_L,_L,				/* 104-111 */
+_L,_L,_L,_L,_L,_L,_L,_L,				/* 112-119 */
+_L,_L,_L,_P,_P,_P,_P,_C,				/* 120-127 */
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,			/* 128-143 */
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,			/* 144-159 */
+_S|_SP,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,	/* 160-175 */
+_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,	/* 176-191 */
+_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,	/* 192-207 */
+_U,_U,_U,_U,_U,_U,_U,_P,_U,_U,_U,_U,_U,_U,_U,_L,	/* 208-223 */
+_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,	/* 224-239 */
+_L,_L,_L,_L,_L,_L,_L,_P,_L,_L,_L,_L,_L,_L,_L,_L};	/* 240-255 */
 
 /**
  * rand - Returns a pseudo random number

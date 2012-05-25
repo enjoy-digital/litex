@@ -19,9 +19,10 @@
 #ifndef __STRING_H
 #define __STRING_H
 
-#include <stdlib.h>
+#include <stddef.h>
 
 char *strchr(const char *s, int c);
+char *strpbrk(const char *,const char *);
 char *strrchr(const char *s, int c);
 char *strnchr(const char *s, size_t count, int c);
 char *strcpy(char *dest, const char *src);
@@ -30,10 +31,12 @@ int strcmp(const char *cs, const char *ct);
 int strncmp(const char *cs, const char *ct, size_t count);
 size_t strlen(const char *s);
 size_t strnlen(const char *s, size_t count);
+size_t strspn(const char *s, const char *accept);
 int memcmp(const void *cs, const void *ct, size_t count);
 void *memset(void *s, int c, size_t count);
 void *memcpy(void *to, const void *from, size_t n);
 void *memmove(void *dest, const void *src, size_t count);
 char *strstr(const char *s1, const char *s2);
+void *memchr(const void *s, int c, size_t n);
 
 #endif /* __STRING_H */
