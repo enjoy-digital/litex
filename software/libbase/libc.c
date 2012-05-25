@@ -563,11 +563,16 @@ int sprintf(char * buf, const char *fmt, ...)
  * rand - Returns a pseudo random number
  */
 
-static unsigned int seed;
+static unsigned int randseed;
 unsigned int rand(void)
 {
-	seed = 129 * seed + 907633385;
-	return seed;
+	randseed = 129 * randseed + 907633385;
+	return randseed;
+}
+
+void srand(unsigned int seed)
+{
+	randseed = seed;
 }
 
 void abort(void)

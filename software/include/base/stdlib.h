@@ -49,7 +49,10 @@ char *number(char *buf, char *end, unsigned long num, int base, int size, int pr
 long strtol(const char *nptr, char **endptr, int base);
 float atof(const char *s);
 
+#define   RAND_MAX        2147483647
+
 unsigned int rand(void);
+void srand(unsigned int seed);
 void abort(void);
 
 #endif /* __STDLIB_H */
