@@ -52,4 +52,10 @@ unsigned int rand(void);
 void srand(unsigned int seed);
 void abort(void);
 
+/*
+ * The following functions are not provided by this library.
+ */
+
+char *getenv(const char *name);
+
 #endif /* __STDLIB_H */
