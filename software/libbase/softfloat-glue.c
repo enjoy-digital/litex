@@ -180,6 +180,12 @@ float32 __floatsisf(int32 x)
 	return int32_to_float32(x);
 }
 
+float32 __floatunsisf(int32 x);
+float32 __floatunsisf(int32 x)
+{
+	return int32_to_float32(x); // XXX
+}
+
 int32 __fixsfsi(float32 x);
 int32 __fixsfsi(float32 x)
 {
@@ -235,6 +241,12 @@ float64 __floatsidf(int32 x);
 float64 __floatsidf(int32 x)
 {
 	return int32_to_float64(x);
+}
+
+float64 __floatunsidf(int32 x);
+float64 __floatunsidf(int32 x)
+{
+	return int32_to_float64(x); // XXX
 }
 
 int32 __fixdfsi(float64 x);
