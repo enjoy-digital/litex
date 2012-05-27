@@ -280,6 +280,21 @@ void *memcpy(void *to, const void *from, size_t n)
 		from = sfrom;
 		n -= 2;
 	}
+	if((long)from & 2) {
+		short *sto = to;
+		const short *sfrom = from;
+		temp = n >> 1;
+		for (; temp; temp--)
+			*sto++ = *sfrom++;
+		to = sto;
+		from = sfrom;
+		if(n & 1) {
+			char *cto = to;
+			const char *cfrom = from;
+			*cto = *cfrom;
+		}
+		return xto;
+	}
 	temp = n >> 2;
 	if(temp) {
 		long *lto = to;
