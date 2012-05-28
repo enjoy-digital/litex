@@ -58,4 +58,8 @@ void abort(void);
 
 char *getenv(const char *name);
 
+void *malloc(size_t size);
+void free(void *ptr);
+void *realloc(void *ptr, size_t size);
+
 #endif /* __STDLIB_H */
