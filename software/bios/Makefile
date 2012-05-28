@@ -18,7 +18,10 @@ bios.elf: linker.ld $(OBJECTS) libs
 bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 
 %.elf:
-	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) -L$(M2DIR)/software/libbase -lbase
+	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) \
+		-L$(M2DIR)/software/libbase \
+		-L$(CRTDIR) \
+		-lbase -lcompiler_rt
 	chmod -x $@
 
 libs:
