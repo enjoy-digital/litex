@@ -23,8 +23,6 @@
 #include <string.h>
 #include <limits.h>
 
-int errno;
-
 /**
  * strchr - Find the first occurrence of a character in a string
  * @s: The string to be searched

@@ -39,4 +39,6 @@ void *memmove(void *dest, const void *src, size_t count);
 char *strstr(const char *s1, const char *s2);
 void *memchr(const void *s, int c, size_t n);
 
+char *strerror(int errnum);
+
 #endif /* __STRING_H */
