@@ -192,6 +192,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 						16, field_width, precision, flags);
 				continue;
 
+			case 'g':
 			case 'f': {
 				int m;
 				double f;
