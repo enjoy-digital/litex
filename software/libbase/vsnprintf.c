@@ -22,8 +22,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#define fabsf(x) ((x) > 0.0 ? x : -x)
-
 /**
  * vsnprintf - Format a string and place it in a buffer
  * @buf: The buffer to place the result into
