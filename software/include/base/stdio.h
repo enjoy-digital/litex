@@ -12,6 +12,12 @@ int sprintf(char *buf, const char *fmt, ...);
 
 int printf(const char *fmt, ...);
 
+/* Not sure this belongs here... */
+typedef long long loff_t;
+typedef long off_t;
+typedef int mode_t;
+typedef int dev_t;
+
 /*
  * Note: this library does not provide FILE operations.
  * User code must implement them.
