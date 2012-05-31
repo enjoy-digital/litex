@@ -24,6 +24,9 @@ bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 		-lbase -lcompiler_rt
 	chmod -x $@
 
+%.o: %.c
+	$(compile-dep)
+
 libs:
 	make -C $(M2DIR)/software/libbase
 

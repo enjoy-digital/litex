@@ -12,6 +12,9 @@ libbase.a: $(OBJECTS)
 	$(AR) clr libbase.a $(OBJECTS)
 	$(RANLIB) libbase.a
 
+%.o: %.c
+	$(compile-dep)
+
 .PHONY: clean
 
 clean:
