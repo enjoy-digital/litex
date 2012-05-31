@@ -1,20 +1,17 @@
-# Mico32 toolchain
-#
-CROSS_COMPILER=lm32-elf-
-# TODO: mico32 should be renamed lm32 in LLVM
-CLANG=clang -ccc-host-triple mico32-elf
+TARGET_PREFIX=lm32-elf
+CLANG=clang -ccc-host-triple $(TARGET_PREFIX)
 
 CC_normal := $(CLANG)
-AR_normal := $(CROSS_COMPILER)ar
-LD_normal := $(CROSS_COMPILER)ld
-OBJCOPY_normal := $(CROSS_COMPILER)objcopy
-RANLIB_normal := $(CROSS_COMPILER)ranlib
+AR_normal := $(TARGET_PREFIX)-ar
+LD_normal := $(TARGET_PREFIX)-ld
+OBJCOPY_normal := $(TARGET_PREFIX)-objcopy
+RANLIB_normal := $(TARGET_PREFIX)-ranlib
 
 CC_quiet = @echo " CC " $@ && $(CLANG)
-AR_quiet = @echo " AR " $@ && $(CROSS_COMPILER)ar
-LD_quiet = @echo " LD " $@ && $(CROSS_COMPILER)ld
-OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(CROSS_COMPILER)objcopy
-RANLIB_quiet = @echo " RANLIB  " $@ && $(CROSS_COMPILER)ranlib
+AR_quiet = @echo " AR " $@ && $(TARGET_PREFIX)-ar
+LD_quiet = @echo " LD " $@ && $(TARGET_PREFIX)-ld
+OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(TARGET_PREFIX)-objcopy
+RANLIB_quiet = @echo " RANLIB  " $@ && $(TARGET_PREFIX)-ranlib
 
 ifeq ($(V),1)
     CC = $(CC_normal)
