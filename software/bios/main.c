@@ -10,7 +10,7 @@
 #include <crc.h>
 #include <timer.h>
 
-#include <hw/flash.h>
+#include <hw/mem.h>
 #include <hw/minimac.h>
 
 #include "ddrinit.h"
