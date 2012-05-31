@@ -29,6 +29,8 @@ char *strcpy(char *dest, const char *src);
 char *strncpy(char *dest, const char *src, size_t count);
 int strcmp(const char *cs, const char *ct);
 int strncmp(const char *cs, const char *ct, size_t count);
+char *strcat(char *dest, const char *src);
+char *strncat(char *dest, const char *src, size_t n);
 size_t strlen(const char *s);
 size_t strnlen(const char *s, size_t count);
 size_t strspn(const char *s, const char *accept);
