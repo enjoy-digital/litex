@@ -31,6 +31,18 @@ typedef int dev_t;
 #define EOF -1
 #endif
 
+#ifndef SEEK_SET
+#define SEEK_SET	0
+#endif
+
+#ifndef SEEK_CUR
+#define SEEK_CUR	1
+#endif
+
+#ifndef SEEK_END
+#define SEEK_END	2
+#endif
+
 typedef int FILE;
 
 extern FILE *stdin;
@@ -50,5 +62,9 @@ int fputc(int c, FILE *stream);
 int ferror(FILE *stream);
 int feof(FILE *stream);
 int fclose(FILE *fp);
+
+int fseek(FILE *stream, long offset, int whence);
+long ftell(FILE *stream);
+
 
 #endif /* __STDIO_H */
