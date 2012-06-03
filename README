@@ -36,7 +36,7 @@ production version of Milkymist SoC, visit:
   cd compiler-rt-lm32
   make lm32
 
-4. Set the CRTDIR environment variable to where the libcompiler_rt.a is.
+4. Set the CRTDIR environment variable to where libcompiler_rt.a is.
   export CRTDIR=/path_to/compiler-rt-lm32/lm32/lm32
 
 5. Build and flash the BIOS (part of this source distribution).
@@ -44,7 +44,11 @@ production version of Milkymist SoC, visit:
   make
   make flash
 
-The second command requires UrJTAG and FJMEM.
+The second command requires m1nor, FJMEM and UrJTAG.
+These tools can be found respectively at:
+  http://projects.qi-hardware.com/index.php/p/wernermisc/
+  https://github.com/milkymist/fjmem-m1
+  http://urjtag.org
   
 [> Instructions (gateware)
 --------------------------
