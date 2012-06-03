@@ -14,24 +14,53 @@ Note that the -NG version is still experimental work in progress. For the
 production version of Milkymist SoC, visit:
   https://github.com/milkymist/milkymist
 
-[> Instructions
----------------
+[> Instructions (software)
+--------------------------
+1. Compile and install binutils. Take the latest version from GNU.
+  ./configure --target=lm32-elf
+  make
+  make install
+  
+2. Compile and install LLVM and Clang.
+  git clone git://github.com/milkymist/llvm-lm32.git
+  cd llvm-lm32/tools
+  git clone git://github.com/milkymist/clang-lm32.git clang
+  cd ..
+  mkdir build
+  cmake ..
+  make
+  make install
+
+3. Build compiler-rt.
+  git clone git://github.com/milkymist/compiler-rt-lm32.git
+  cd compiler-rt-lm32
+  make lm32
+
+4. Set the CRTDIR environment variable to where the libcompiler_rt.a is.
+  export CRTDIR=/path_to/compiler-rt-lm32/lm32/lm32
+
+5. Build and flash the BIOS (part of this source distribution).
+  cd software/bios
+  make
+  make flash
+
+The second command requires UrJTAG and FJMEM.
+  
+[> Instructions (gateware)
+--------------------------
 First, download and install Migen from:
   https://github.com/milkymist/migen
 
 Once this is done, build the bitstream with:
   make
 This will generate the build/soc.bit programming file.
+Use:
+  make load
+to load it with UrJTAG.
 
 The SoC expects a bootloader to be located in flash at 0x860000, just
 like the legacy SoC did. However, there is no binary compatibility and a
 new BIOS needs to be built and flashed for the -NG SoC.
-
-You can find the source code of a compatible BIOS in the software/bios
-directory. It compiles with Clang and LLVM by default, and you can find
-the modified version with support for LM32 at:
-  https://github.com/milkymist/llvm-lm32
-  https://github.com/milkymist/clang-lm32
 
 Enjoy!
 
