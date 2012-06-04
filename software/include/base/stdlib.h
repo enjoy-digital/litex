@@ -32,7 +32,15 @@
 #define likely(x) x
 #define unlikely(x) x
 
-#define abs(x) ((x) > 0 ? (x) : -(x))
+static inline int abs(int x)
+{
+	return x > 0 ? x : -x;
+}
+
+static inline long int labs(long int x)
+{
+	return x > 0 ? x : -x;
+}
 
 unsigned long strtoul(const char *nptr, char **endptr, int base);
 int skip_atoi(const char **s);
