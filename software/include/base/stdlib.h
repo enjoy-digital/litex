@@ -60,6 +60,8 @@ unsigned int rand(void);
 void srand(unsigned int seed);
 void abort(void);
 
+void qsort(void *base, size_t nmemb, size_t size, int(*compar)(const void *, const void *));
+
 /*
  * The following functions are not provided by this library.
  */
