@@ -70,7 +70,7 @@ class Actor:
 		return self.get_control_fragment() + self.get_process_fragment()
 	
 	def __repr__(self):
-		return "<" + self.__class__.__name__ + " " + repr(self.scheduling_model) + " " + repr(self.sinks()) + " " + repr(self.sources()) + ">"
+		return "<" + self.__class__.__name__ + " " + repr(self.sinks()) + " " + repr(self.sources()) + ">"
 
 class BinaryActor(Actor):
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
