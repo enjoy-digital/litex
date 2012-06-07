@@ -4,11 +4,10 @@ from migen.flow.actor import *
 from migen.corelogic.record import *
 from migen.corelogic import divider
 
-class _SimpleBinary(Actor):
+class _SimpleBinary(CombinatorialActor):
 	def __init__(self, op, bv_op, bv_r):
 		self.op = op
-		Actor.__init__(self,
-			SchedulingModel(SchedulingModel.COMBINATORIAL),
+		CombinatorialActor.__init__(self,
 			("operands", Sink, [("a", bv_op), ("b", bv_op)]),
 			("result", Source, [("r", bv_r)]))
 
@@ -58,11 +57,10 @@ class NE(_SimpleBinary):
 	def __init__(self, bv):
 		_SimpleBinary.__init__(self, "!=", bv, BV(1))
 
-class DivMod(Actor):
+class DivMod(SequentialActor):
 	def __init__(self, width):
 		self.div = divider.Divider(width)
-		Actor.__init__(self,
-			SchedulingModel(SchedulingModel.SEQUENTIAL, width),
+		SequentialActor.__init__(self, width,
 			("operands", Sink, [("dividend", self.div.dividend_i), ("divisor", self.div.divisor_i)]),
 			("result", Source, [("quotient", self.div.quotient_o), ("remainder", self.div.remainder_o)]))
 

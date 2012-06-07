@@ -7,8 +7,7 @@ from migen.corelogic.misc import optree
 class CompositeActor(Actor):
 	def __init__(self, dfg): # TODO: endpoints
 		self.dfg = dfg
-		Actor.__init__(self,
-			SchedulingModel(SchedulingModel.DYNAMIC))
+		Actor.__init__(self)
 	
 	def get_fragment(self):
 		this_fragments = [get_conn_fragment(x[0].endpoints[x[2]["source"]], x[1].endpoints[x[2]["sink"]])
