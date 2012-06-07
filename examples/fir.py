@@ -3,6 +3,7 @@
 
 from math import cos, pi
 from scipy import signal
+import matplotlib.pyplot as plt
 
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
@@ -58,15 +59,22 @@ def main():
 	# Compute filter coefficients with SciPy.
 	coef = signal.remez(80, [0, 0.1, 0.1, 0.5], [1, 0])
 	fir = FIR(coef)
-	tb = TB(fir, 0.3)
-	# Combine the FIR filter with its test bench.
-	fragment = autofragment.from_local()
-	sim = Simulator(fragment, Runner())
-	sim.run(200)
-	# Print data from the input and output waveforms.
-	# When matplotlib works easily with Python 3, we could
-	# display them graphically here.
-	print(tb.inputs)
-	print(tb.outputs)
+	
+	# Simulate for different frequencies and concatenate
+	# the results.
+	in_signals = []
+	out_signals = []
+	for frequency in [0.05, 0.07, 0.1, 0.15, 0.2]:
+		tb = TB(fir, frequency)
+		fragment = autofragment.from_local()
+		sim = Simulator(fragment, Runner())
+		sim.run(100)
+		in_signals += tb.inputs
+		out_signals += tb.outputs
+	
+	# Plot data from the input and output waveforms.
+	plt.plot(in_signals)
+	plt.plot(out_signals)
+	plt.show()
 
 main()
