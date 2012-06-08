@@ -15,34 +15,33 @@ class Token:
 class SimActor(Actor):
 	def __init__(self, generator, *endpoint_descriptions, **misc):
 		self.generator = generator
-		self.active = [] # TODO: use set
+		self.active = set()
 		self.done = False
 		super().__init__(*endpoint_descriptions, **misc)
 
 	def _process_transactions(self, s):
-		completed = []
+		completed = set()
 		for token in self.active:
 			ep = self.endpoints[token.endpoint]
 			if isinstance(ep, Sink):
 				if s.rd(ep.ack):
 					if s.rd(ep.stb):
 						token.value = s.multiread(ep.token)
-						completed.append(token)
+						completed.add(token)
 						s.wr(ep.ack, 0)
 				else:
 					s.wr(ep.ack, 1)
 			elif isinstance(ep, Source):
 				if s.rd(ep.stb):
 					if s.rd(ep.ack):
-						completed.append(token)
+						completed.add(token)
 						s.wr(ep.stb, 0)
 				else:
 					s.wr(ep.stb, 1)
 					s.multiwrite(ep.token, token.value)
 			else:
 				raise TypeError
-		for token in completed: # XXX
-			self.active.remove(token)
+		self.active -= completed
 	
 	def _next_transactions(self):
 		try:
@@ -51,9 +50,11 @@ class SimActor(Actor):
 			self.done = True
 			transactions = None
 		if isinstance(transactions, Token):
-			self.active = [transactions]
-		elif isinstance(transactions, tuple) or isinstance(transactions, list):
-			self.active = list(transactions)
+			self.active = {transactions}
+		elif isinstance(transactions, tuple) \
+			or isinstance(transactions, list) \
+			or isinstance(transactions, set):
+			self.active = set(transactions)
 		elif transactions is None:
 			self.active = []
 		else:
