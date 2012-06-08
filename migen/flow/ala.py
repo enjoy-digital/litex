@@ -7,7 +7,7 @@ from migen.corelogic import divider
 class _SimpleBinary(CombinatorialActor):
 	def __init__(self, op, bv_op, bv_r):
 		self.op = op
-		super().__init____(
+		super().__init__(
 			("operands", Sink, [("a", bv_op), ("b", bv_op)]),
 			("result", Source, [("r", bv_r)]))
 
