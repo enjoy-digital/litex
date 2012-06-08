@@ -72,7 +72,7 @@ def trgen_gen():
 def test_writer():
 	print("*** Testing writer")
 	trgen = SimActor(trgen_gen(), ("address_data", Source, [("a", BV(30)), ("d", BV(32))]))
-	writer = dma_wishbone.Reader()
+	writer = dma_wishbone.Writer()
 	g = nx.MultiDiGraph()
 	add_connection(g, trgen, writer)
 	comp = CompositeActor(g)
