@@ -104,4 +104,4 @@ class Record:
 		return raw
 	
 	def __repr__(self):
-		return repr(self.layout())
+		return "<Record " + repr(self.layout()) + ">"
