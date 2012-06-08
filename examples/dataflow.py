@@ -1,5 +1,4 @@
 import sys
-import networkx as nx
 
 from migen.fhdl import verilog
 from migen.flow.ala import *
@@ -19,5 +18,6 @@ print(verilog.convert(frag))
 
 if len(sys.argv) > 1 and sys.argv[1] == "draw":
 	import matplotlib.pyplot as plt
+	import networkx as nx
 	nx.draw(g)
 	plt.show()
