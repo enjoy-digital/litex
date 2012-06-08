@@ -139,7 +139,28 @@ class Simulator:
 			value += 2**nbits
 		assert(value >= 0 and value < 2**nbits)
 		self.ipc.send(MessageWrite(name, Int32(index), value))
+	
+	def multiread(self, obj):
+		if isinstance(obj, Signal):
+			return self.rd(obj)
+		elif isinstance(obj, list):
+			return [self.multiread(item) for item in obj]
+		elif hasattr(obj, "__dict__"):
+			return dict([(k, self.multiread(v)) for k, v in obj.__dict__.items()])
+	
+	def multiwrite(self, obj, value):
+		if isinstance(obj, Signal):
+			self.wr(obj, value)
+		elif isinstance(obj, list):
+			for target, source in zip(obj, value):
+				self.multiwrite(target, source)
+		else:
+			for k, v in value.items():
+				self.multiwrite(getattr(obj, k), v)
 
+
+# Contrary to multiread/multiwrite, Proxy fetches the necessary signals only and
+# immediately forwards writes into the simulation.
 class Proxy:
 	def __init__(self, sim, obj):
 		self.__dict__["_sim"] = sim
