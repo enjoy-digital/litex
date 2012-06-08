@@ -1,86 +1,58 @@
 from migen.fhdl.structure import *
-from migen.corelogic.record import *
-from migen.corelogic.fsm import *
 from migen.bus import wishbone
 from migen.flow.actor import *
 
 class Reader(Actor):
-	def __init__(self, layout):
-		self.bus = wishbone.Master()
-		Actor.__init__(self,
-			SchedulingModel(SchedulingModel.DYNAMIC),
+	def __init__(self):
+		self.bus = wishbone.Interface()
+		super().__init__(
 			("address", Sink, [("a", BV(30))]),
-			("data", Source, layout))
+			("data", Source, [("d", BV(32))]))
 	
 	def get_fragment(self):
-		components, length = self.token("data").flatten(align=True, return_offset=True)
-		nwords = (length + 31)//32
+		bus_stb = Signal()
 		
-		# Address generator
-		ag_stb = Signal()
-		ag_sync = [If(ag_stb, self.bus.adr_o.eq(self.token("address").a))]
-		if nwords > 1:
-			ag_inc = Signal()
-			ag_sync.append(If(ag_inc, self.bus.adr_o.eq(self.bus.adr_o + 1)))
-		address_generator = Fragment(sync=ag_sync)
+		data_reg_loaded = Signal()
+		data_reg = Signal(BV(32))
 		
-		# Output buffer
-		ob_reg = Signal(BV(length))
-		ob_stbs = Signal(BV(nwords))
-		ob_sync = []
-		top = length
-		for w in range(nwords):
-			if top >= 32:
-				width = 32
-				sl = self.bus.dat_i
-			else:
-				width = top
-				sl = self.bus.dat_i[32-top:]
-			ob_sync.append(If(ob_stbs[w],
-				ob_reg[top-width:top].eq(sl)))
-			top -= width
-		ob_comb = []
-		offset = 0
-		for s in components:
-			w = s.bv.width
-			if isinstance(s, Signal):
-				ob_comb.append(s.eq(ob_reg[length-offset-w:length-offset]))
-			offset += w
-		output_buffer = Fragment(ob_comb, ob_sync)
-		
-		# Controller
-		fetch_states = ["FETCH{0}".format(w) for w in range(nwords)]
-		states = ["IDLE"] + fetch_states + ["STROBE"]
-		fsm = FSM(*states)
-		self.busy.reset = Constant(1)
-		fsm.act(fsm.IDLE,
-			self.busy.eq(0),
-			ag_stb.eq(1),
-			self.endpoints["address"].ack.eq(1),
-			If(self.endpoints["address"].stb, fsm.next_state(fsm.FETCH0))
-		)
-		for w in range(nwords):
-			state = getattr(fsm, fetch_states[w])
-			if w == nwords - 1:
-				next_state = fsm.STROBE
-			else:
-				next_state = getattr(fsm, fetch_states[w+1])
-			fsm.act(state,
-				self.bus.cyc_o.eq(1),
-				self.bus.stb_o.eq(1),
-				ob_stbs[w].eq(1),
-				If(self.bus.ack_i,
-					fsm.next_state(next_state),
-					ag_inc.eq(1) if nwords > 1 else None
-				)
+		comb = [
+			self.busy.eq(data_reg_loaded),
+			self.bus.we.eq(0),
+			bus_stb.eq(self.endpoints["address"].stb & (~data_reg_loaded | self.endpoints["data"].ack)),
+			self.bus.cyc.eq(bus_stb),
+			self.bus.stb.eq(bus_stb),
+			self.bus.adr.eq(self.token("address").a),
+			self.endpoints["address"].ack.eq(self.bus.ack),
+			self.endpoints["data"].stb.eq(data_reg_loaded),
+			self.token("data").d.eq(data_reg)
+		]
+		sync = [
+			If(self.endpoints["data"].ack,
+				data_reg_loaded.eq(0)
+			),
+			If(self.bus.ack,
+				data_reg_loaded.eq(1),
+				data_reg.eq(self.bus.dat_r)
 			)
-		fsm.act(fsm.STROBE,
-			self.endpoints["data"].stb.eq(1),
-			If(self.endpoints["data"].ack, fsm.next_state(fsm.IDLE))
-		)
-		controller = fsm.get_fragment()
+		]
 
-		return address_generator + output_buffer + controller
+		return Fragment(comb, sync)
 
 class Writer(Actor):
-	pass # TODO
+	def __init__(self):
+		self.bus = wishbone.Interface()
+		super().__init__(
+			("address_data", Sink, [("a", BV(30)), ("d", BV(32))]))
+
+	def get_fragment(self):
+		comb = [
+			self.busy.eq(0),
+			self.bus.we.eq(1),
+			self.bus.cyc.eq(self.endpoints["address_data"].stb),
+			self.bus.stb.eq(self.endpoints["address_data"].stb),
+			self.bus.adr.eq(self.token("address_data").a),
+			self.bus.sel.eq(0xf),
+			self.bus.dat_w.eq(self.token("address_data").d),
+			self.endpoints["address_data"].ack.eq(self.bus.ack)
+		]
+		return Fragment(comb)
