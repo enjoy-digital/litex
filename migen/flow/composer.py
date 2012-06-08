@@ -1,5 +1,3 @@
-import networkx as nx
-
 from migen.flow.actor import *
 from migen.flow.ala import *
 from migen.flow.plumbing import *
@@ -16,9 +14,9 @@ def _simple_binary(a, b, actor_class):
 	signed = signal_self.bv.signed and signal_other.bv.signed
 	actor = actor_class(BV(width, signed))
 	combinator = Combinator(actor.token("operands").layout(), ["a"], ["b"])
-	add_connection(a.dfg, combinator, actor)
-	add_connection(a.dfg, a.actor, combinator, a.endp, "sink0")
-	add_connection(a.dfg, b.actor, combinator, b.endp, "sink1")
+	a.dfg.add_connection(combinator, actor)
+	a.dfg.add_connection(a.actor, combinator, a.endp, "sink0")
+	a.dfg.add_connection(b.actor, combinator, b.endp, "sink1")
 	return make_composable(a.dfg, actor)
 
 class ComposableSource():

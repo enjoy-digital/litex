@@ -1,5 +1,3 @@
-import networkx as nx
-
 from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
@@ -21,8 +19,8 @@ def sink_gen():
 def main():
 	source = SimActor(source_gen(), ("source", Source, [("value", BV(32))]))
 	sink = SimActor(sink_gen(), ("sink", Sink, [("value", BV(32))]))
-	g = nx.MultiDiGraph()
-	add_connection(g, source, sink)
+	g = DataFlowGraph()
+	g.add_connection(source, sink)
 	comp = CompositeActor(g)
 	def end_simulation(s):
 		s.interrupt = source.done

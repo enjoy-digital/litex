@@ -1,4 +1,3 @@
-import networkx as nx
 from random import Random
 
 from migen.fhdl import verilog
@@ -43,9 +42,9 @@ def test_reader():
 	adrgen = SimActor(adrgen_gen(), ("address", Source, [("a", BV(30))]))
 	reader = dma_wishbone.Reader()
 	dumper = SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))]))
-	g = nx.MultiDiGraph()
-	add_connection(g, adrgen, reader)
-	add_connection(g, reader, dumper)
+	g = DataFlowGraph()
+	g.add_connection(adrgen, reader)
+	g.add_connection(reader, dumper)
 	comp = CompositeActor(g)
 	
 	peripheral = MyPeripheral()
@@ -73,8 +72,8 @@ def test_writer():
 	print("*** Testing writer")
 	trgen = SimActor(trgen_gen(), ("address_data", Source, [("a", BV(30)), ("d", BV(32))]))
 	writer = dma_wishbone.Writer()
-	g = nx.MultiDiGraph()
-	add_connection(g, trgen, writer)
+	g = DataFlowGraph()
+	g.add_connection(trgen, writer)
 	comp = CompositeActor(g)
 	
 	peripheral = MyPeripheral()
