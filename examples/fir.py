@@ -76,5 +76,9 @@ def main():
 	plt.plot(in_signals)
 	plt.plot(out_signals)
 	plt.show()
+	
+	# Print the Verilog source for the filter.
+	print(verilog.convert(fir.get_fragment(),
+		ios={fir.i, fir.o}))
 
 main()
