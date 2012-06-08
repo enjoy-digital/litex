@@ -10,7 +10,7 @@ _desc = Description(
 
 class Interface(SimpleInterface):
 	def __init__(self):
-		SimpleInterface.__init__(self, _desc)
+		super().__init__(_desc)
 
 class Interconnect(SimpleInterconnect):
 	pass

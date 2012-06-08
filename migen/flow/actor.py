@@ -93,7 +93,7 @@ class SequentialActor(BinaryActor):
 	def __init__(self, delay, *endpoint_descriptions, **misc):
 		self.delay = delay
 		self.trigger = Signal()
-		BinaryActor.__init__(*endpoint_descriptions, **misc)
+		super().__init__(*endpoint_descriptions, **misc)
 
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
 		ready = Signal()
@@ -125,7 +125,7 @@ class PipelinedActor(BinaryActor):
 	def __init__(self, latency, *endpoint_descriptions, **misc):
 		self.latency = latency
 		self.pipe_ce = Signal()
-		BinaryActor.__init__(*endpoint_descriptions, **misc)
+		super().__init__(*endpoint_descriptions, **misc)
 
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
 		valid = Signal(BV(self.latency))

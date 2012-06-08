@@ -20,7 +20,7 @@ class For(Actor):
 			for n, bv in enumerate(self.d_bv)]
 		l_source = [("d{0}".format(n), bv)
 			for n, bv in enumerate(self.d_bv)]
-		Actor.__init__(self,
+		super().__init__(
 			("sink", Sink, l_sink),
 			("source", Source, l_source))
 	

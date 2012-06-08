@@ -38,7 +38,7 @@ class RegisterFields:
 class RegisterField(RegisterFields):
 	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0):
 		self.field = Field(name, size, access_bus, access_dev, reset)
-		RegisterFields.__init__(self, name, [self.field])
+		super().__init__(name, [self.field])
 
 class FieldAlias:
 	def __init__(self, f, start, end):
