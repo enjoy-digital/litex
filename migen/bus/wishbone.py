@@ -130,16 +130,8 @@ class InterconnectShared:
 		return self._arbiter.get_fragment() + self._decoder.get_fragment()
 
 class Tap:
-	def __init__(self, bus=None, handler=print):
-		# If bus is None, create one and act as a normal slave.
-		# If we pass an existing one, dump the transactions
-		# without interfering with the bus.
-		if bus is None:
-			self.bus = Interface()
-			self.ack = True
-		else:
-			self.bus = bus
-			self.ack = False
+	def __init__(self, bus, handler=print):
+		self.bus = bus
 		self.handler = handler
 	
 	def do_simulation(self, s):
@@ -155,16 +147,7 @@ class Tap:
 			self.handler(transaction)
 	
 	def get_fragment(self):
-		if self.ack:
-			sync = [
-				self.bus.ack.eq(0),
-				If(self.bus.cyc & self.bus.stb & ~self.bus.ack,
-					self.bus.ack.eq(1)
-				)
-			]
-		else:
-			sync = []
-		return Fragment(sync=sync, sim=[self.do_simulation])
+		return Fragment(sim=[self.do_simulation])
 
 class Initiator:
 	def __init__(self, generator):
