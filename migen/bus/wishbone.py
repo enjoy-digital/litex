@@ -188,6 +188,16 @@ class Initiator:
 	def get_fragment(self):
 		return Fragment(sim=[self.do_simulation])
 
+class TargetModel:
+	def read(self, address):
+		return 0
+	
+	def write(self, address, data, sel):
+		pass
+	
+	def can_ack(self, bus):
+		return True
+
 class Target:
 	def __init__(self, model):
 		self.bus = Interface()
@@ -196,11 +206,7 @@ class Target:
 	def do_simulation(self, s):
 		bus = Proxy(s, self.bus)
 		if not bus.ack:
-			if hasattr(self.model, "can_ack"):
-				can_ack = self.model.can_ack(bus)
-			else:
-				can_ack = True
-			if can_ack and bus.cyc and bus.stb:
+			if self.model.can_ack(bus) and bus.cyc and bus.stb:
 				if bus.we:
 					self.model.write(bus.adr, bus.dat_w, bus.sel)
 				else:

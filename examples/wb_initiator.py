@@ -33,15 +33,12 @@ def my_generator():
 			yield None
 
 # Our bus slave.
-class MyModel:
+class MyModel(wishbone.TargetModel):
 	def __init__(self):
 		self.prng = Random(763627)
 	
 	def read(self, address):
 		return address + 4
-	
-	def write(self, address, data, sel):
-		pass
 	
 	def can_ack(self, bus):
 		return self.prng.randrange(0, 2)
