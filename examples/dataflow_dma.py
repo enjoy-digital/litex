@@ -9,22 +9,18 @@ from migen.bus import wishbone
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 
-class MyPeripheral:
+class MyModel:
 	def __init__(self):
-		self.bus = wishbone.Interface()
-		self.ack_en = Signal()
 		self.prng = Random(763627)
-
-	def do_simulation(self, s):
-		# Only authorize acks on certain cycles to simulate variable latency.
-		s.wr(self.ack_en, self.prng.randrange(0, 2))
-
-	def get_fragment(self):
-		comb = [
-			self.bus.ack.eq(self.bus.cyc & self.bus.stb & self.ack_en),
-			self.bus.dat_r.eq(self.bus.adr + 4)
-		]
-		return Fragment(comb, sim=[self.do_simulation])
+	
+	def read(self, address):
+		return address + 4
+	
+	def write(self, address, data, sel):
+		pass
+	
+	def can_ack(self, bus):
+		return self.prng.randrange(0, 2)
 
 def adrgen_gen():
 	for i in range(10):
@@ -47,7 +43,7 @@ def test_reader():
 	g.add_connection(reader, dumper)
 	comp = CompositeActor(g)
 	
-	peripheral = MyPeripheral()
+	peripheral = wishbone.Target(MyModel())
 	interconnect = wishbone.InterconnectPointToPoint(reader.bus, peripheral.bus)
 	
 	def end_simulation(s):
@@ -76,7 +72,7 @@ def test_writer():
 	g.add_connection(trgen, writer)
 	comp = CompositeActor(g)
 	
-	peripheral = MyPeripheral()
+	peripheral = wishbone.Target(MyModel())
 	tap = wishbone.Tap(peripheral.bus)
 	interconnect = wishbone.InterconnectPointToPoint(writer.bus, peripheral.bus)
 	

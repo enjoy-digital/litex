@@ -3,6 +3,7 @@ from migen.corelogic import roundrobin
 from migen.corelogic.misc import multimux, optree
 from migen.bus.simple import *
 from migen.bus.transactions import *
+from migen.sim.generic import Proxy
 
 _desc = Description(
 	(M_TO_S,	"adr",		30),
@@ -183,6 +184,30 @@ class Initiator:
 				else:
 					s.wr(self.bus.cyc, 0)
 					s.wr(self.bus.stb, 0)
+	
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])
+
+class Target:
+	def __init__(self, model):
+		self.bus = Interface()
+		self.model = model
+	
+	def do_simulation(self, s):
+		bus = Proxy(s, self.bus)
+		if not bus.ack:
+			if hasattr(self.model, "can_ack"):
+				can_ack = self.model.can_ack(bus)
+			else:
+				can_ack = True
+			if can_ack and bus.cyc and bus.stb:
+				if bus.we:
+					self.model.write(bus.adr, bus.dat_w, bus.sel)
+				else:
+					bus.dat_r = self.model.read(bus.adr)
+				bus.ack = 1
+		else:
+			bus.ack = 0
 	
 	def get_fragment(self):
 		return Fragment(sim=[self.do_simulation])

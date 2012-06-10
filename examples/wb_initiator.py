@@ -33,31 +33,26 @@ def my_generator():
 			yield None
 
 # Our bus slave.
-# All transactions complete with a random delay.
-# Reads return address + 4. Writes are simply acknowledged.
-class MyPeripheral:
+class MyModel:
 	def __init__(self):
-		self.bus = wishbone.Interface()
-		self.ack_en = Signal()
 		self.prng = Random(763627)
-
-	def do_simulation(self, s):
-		# Only authorize acks on certain cycles to simulate variable latency.
-		s.wr(self.ack_en, self.prng.randrange(0, 2))
-
-	def get_fragment(self):
-		comb = [
-			self.bus.ack.eq(self.bus.cyc & self.bus.stb & self.ack_en),
-			self.bus.dat_r.eq(self.bus.adr + 4)
-		]
-		return Fragment(comb, sim=[self.do_simulation])
+	
+	def read(self, address):
+		return address + 4
+	
+	def write(self, address, data, sel):
+		pass
+	
+	def can_ack(self, bus):
+		return self.prng.randrange(0, 2)
 
 def main():
 	# The "wishbone.Initiator" library component runs our generator
 	# and manipulates the bus signals accordingly.
 	master = wishbone.Initiator(my_generator())
-	# Our slave.
-	slave = MyPeripheral()
+	# The "wishbone.Target" library component examines the bus signals
+	# and calls into our model object.
+	slave = wishbone.Target(MyModel())
 	# The "wishbone.Tap" library component examines the bus at the slave port
 	# and displays the transactions on the console (<TRead...>/<TWrite...>).
 	tap = wishbone.Tap(slave.bus)
