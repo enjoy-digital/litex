@@ -9,7 +9,7 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog
 from migen.corelogic.misc import optree
 from migen.fhdl import autofragment
-from migen.sim.generic import Simulator
+from migen.sim.generic import Simulator, PureSimulable
 from migen.sim.icarus import Runner
 
 # A synthesizable FIR filter.
@@ -38,7 +38,7 @@ class FIR:
 
 # A test bench for our FIR filter.
 # Generates a sine wave at the input and records the output.
-class TB:
+class TB(PureSimulable):
 	def __init__(self, fir, frequency):
 		self.fir = fir
 		self.frequency = frequency
@@ -51,9 +51,6 @@ class TB:
 		s.wr(self.fir.i, int(f*v))
 		self.inputs.append(v)
 		self.outputs.append(s.rd(self.fir.o)/f)
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
 
 def main():
 	# Compute filter coefficients with SciPy.

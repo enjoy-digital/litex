@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.corelogic.misc import optree
 from migen.bus.transactions import *
-from migen.sim.generic import Proxy
+from migen.sim.generic import Proxy, PureSimulable
 
 class FinalizeError(Exception):
 	pass
@@ -170,7 +170,7 @@ class Hub:
 		]
 		return ports + Fragment(comb)
 
-class Tap:
+class Tap(PureSimulable):
 	def __init__(self, hub, handler=print):
 		self.hub = hub
 		self.handler = handler
@@ -209,11 +209,8 @@ class Tap:
 			transaction = self.tag_to_transaction[hub.tag_call]
 			transaction.latency = s.cycle_counter - transaction.latency + 1
 			self.transaction = transaction
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
 
-class Initiator:
+class Initiator(PureSimulable):
 	def __init__(self, port, generator):
 		self.port = port
 		self.generator = generator
@@ -266,9 +263,6 @@ class Initiator:
 				next(self._exe)
 			except StopIteration:
 				self.done = True
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
 
 class TargetModel:
 	def __init__(self):
@@ -291,7 +285,7 @@ class TargetModel:
 			self.last_slot += 1
 		return self.last_slot
 
-class Target:
+class Target(PureSimulable):
 	def __init__(self, hub, model):
 		self.hub = hub
 		self.model = model
@@ -337,6 +331,3 @@ class Target:
 		else:
 			s.wr(self.hub.call, 0)
 			self._calling_tag = -1
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])

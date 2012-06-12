@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
+from migen.sim.generic import PureSimulable
 
 class Token:
 	def __init__(self, endpoint, value=None):
@@ -12,7 +13,7 @@ class Token:
 #
 # NB: the possibility to push several tokens at once is important to interact
 # with actors that only accept a group of tokens when all of them are available.
-class SimActor(Actor):
+class SimActor(Actor, PureSimulable):
 	def __init__(self, generator, *endpoint_descriptions, **misc):
 		self.generator = generator
 		self.active = set()
@@ -66,6 +67,3 @@ class SimActor(Actor):
 				self._process_transactions(s)
 			else:
 				self._next_transactions()
-		
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])

@@ -179,3 +179,10 @@ class Proxy:
 		item = getattr(self._obj, name)
 		assert(isinstance(item, Signal))
 		self._sim.wr(item, value)
+
+class PureSimulable:
+	def do_simulation(self, s):
+		raise NotImplementedError("Need to overload do_simulation")
+	
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])

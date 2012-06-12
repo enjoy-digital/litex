@@ -3,7 +3,7 @@ from migen.corelogic import roundrobin
 from migen.corelogic.misc import multimux, optree
 from migen.bus.simple import *
 from migen.bus.transactions import *
-from migen.sim.generic import Proxy
+from migen.sim.generic import Proxy, PureSimulable
 
 _desc = Description(
 	(M_TO_S,	"adr",		30),
@@ -130,7 +130,7 @@ class InterconnectShared:
 	def get_fragment(self):
 		return self._arbiter.get_fragment() + self._decoder.get_fragment()
 
-class Tap:
+class Tap(PureSimulable):
 	def __init__(self, bus, handler=print):
 		self.bus = bus
 		self.handler = handler
@@ -146,11 +146,8 @@ class Tap:
 				transaction = TRead(s.rd(self.bus.adr),
 					s.rd(self.bus.dat_r))
 			self.handler(transaction)
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
 
-class Initiator:
+class Initiator(PureSimulable):
 	def __init__(self, generator):
 		self.generator = generator
 		self.bus = Interface()
@@ -184,9 +181,6 @@ class Initiator:
 				else:
 					s.wr(self.bus.cyc, 0)
 					s.wr(self.bus.stb, 0)
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
 
 class TargetModel:
 	def read(self, address):
@@ -198,7 +192,7 @@ class TargetModel:
 	def can_ack(self, bus):
 		return True
 
-class Target:
+class Target(PureSimulable):
 	def __init__(self, model):
 		self.bus = Interface()
 		self.model = model
@@ -214,6 +208,3 @@ class Target:
 				bus.ack = 1
 		else:
 			bus.ack = 0
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
