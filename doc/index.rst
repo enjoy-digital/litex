@@ -572,25 +572,30 @@ Simulation examples
 
 Most basic
 ==========
-.. include:: ../examples/basic_sim.py
+.. include:: ../examples/sim/basic1.py
    :code: python
 
 A few more features
 ===================
-.. include:: ../examples/basic2_sim.py
+.. include:: ../examples/sim/basic2.py
    :code: python
 
 Memory access
 =============
-.. include:: ../examples/memory_sim.py
+.. include:: ../examples/sim/memory.py
    :code: python
 
 A FIR filter
 ============
-.. include:: ../examples/fir.py
+.. include:: ../examples/sim/fir.py
    :code: python
    
 Abstract bus transactions
 =========================
-.. include:: ../examples/abstract_transactions.py
+.. include:: ../examples/sim/abstract_transactions.py
+   :code: python
+
+Dataflow simulation actors
+==========================
+.. include:: ../examples/sim/dataflow.py
    :code: python
