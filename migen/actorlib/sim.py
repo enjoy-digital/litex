@@ -13,7 +13,7 @@ class Token:
 #
 # NB: the possibility to push several tokens at once is important to interact
 # with actors that only accept a group of tokens when all of them are available.
-class SimActor(Actor, PureSimulable):
+class SimActor(PureSimulable, Actor):
 	def __init__(self, generator, *endpoint_descriptions, **misc):
 		self.generator = generator
 		self.active = set()
