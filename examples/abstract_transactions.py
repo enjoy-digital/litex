@@ -6,7 +6,7 @@ from random import Random
 from migen.fhdl.structure import *
 from migen.fhdl import autofragment
 from migen.bus.transactions import *
-from migen.bus import wishbone
+from migen.bus import wishbone, asmibus
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 
@@ -33,23 +33,30 @@ def my_generator():
 			yield None
 
 # Our bus slave.
-class MyModel(wishbone.TargetModel):
-	def __init__(self):
-		self.prng = Random(763627)
-	
+class MyModel:
 	def read(self, address):
 		return address + 4
-	
+
+class MyModelWB(MyModel, wishbone.TargetModel):
+	def __init__(self):
+		self.prng = Random(763627)
+
 	def can_ack(self, bus):
+		# Simulate variable latency.
 		return self.prng.randrange(0, 2)
 
-def main():
+class MyModelASMI(MyModel, asmibus.TargetModel):
+	pass
+
+def test_wishbone():
+	print("*** Wishbone test")
+	
 	# The "wishbone.Initiator" library component runs our generator
 	# and manipulates the bus signals accordingly.
 	master = wishbone.Initiator(my_generator())
 	# The "wishbone.Target" library component examines the bus signals
 	# and calls into our model object.
-	slave = wishbone.Target(MyModel())
+	slave = wishbone.Target(MyModelWB())
 	# The "wishbone.Tap" library component examines the bus at the slave port
 	# and displays the transactions on the console (<TRead...>/<TWrite...>).
 	tap = wishbone.Tap(slave.bus)
@@ -63,7 +70,26 @@ def main():
 	sim = Simulator(fragment, Runner())
 	sim.run()
 
-main()
+def test_asmi():
+	print("*** ASMI test")
+	
+	# Create a hub with one port for our initiator.
+	hub = asmibus.Hub(32, 32)
+	port = hub.get_port()
+	hub.finalize()
+	# Create the initiator, target and tap (similar to the Wishbone case).
+	master = asmibus.Initiator(port, my_generator())
+	slave = asmibus.Target(hub, MyModelASMI())
+	tap = asmibus.Tap(hub)
+	# Run the simulation (same as the Wishbone case).
+	def end_simulation(s):
+		s.interrupt = master.done
+	fragment = autofragment.from_local() + Fragment(sim=[end_simulation])
+	sim = Simulator(fragment, Runner())
+	sim.run()
+	
+test_wishbone()
+test_asmi()
 
 # Output:
 # <TWrite adr:0x0 dat:0x0>

@@ -1,6 +1,7 @@
 from migen.fhdl.structure import *
 from migen.corelogic.misc import optree
 from migen.bus.transactions import *
+from migen.sim.generic import Proxy
 
 class FinalizeError(Exception):
 	pass
@@ -169,6 +170,49 @@ class Hub:
 		]
 		return ports + Fragment(comb)
 
+class Tap:
+	def __init__(self, hub, handler=print):
+		self.hub = hub
+		self.handler = handler
+		self.tag_to_transaction = dict()
+		self.transaction = None
+	
+	def do_simulation(self, s):
+		hub = Proxy(s, self.hub)
+		
+		# Pull any data announced in the previous cycle.
+		if isinstance(self.transaction, TWrite):
+			self.transaction.data = hub.dat_w
+			self.transaction.sel = ~hub.dat_wm
+			self.handler(self.transaction)
+			self.transaction = None
+		if isinstance(self.transaction, TRead):
+			self.transaction.data = hub.dat_r
+			self.handler(self.transaction)
+			self.transaction = None
+		
+		# Tag issue. Transaction objects are created here
+		# and placed into the tag_to_transaction dictionary.
+		for tag, slot in enumerate(self.hub.get_slots()):
+			if s.rd(slot.allocate):
+				adr = s.rd(slot.allocate_adr)
+				we = s.rd(slot.allocate_we)
+				if we:
+					transaction = TWrite(adr)
+				else:
+					transaction = TRead(adr)
+				transaction.latency = s.cycle_counter
+				self.tag_to_transaction[tag] = transaction
+		
+		# Tag call.
+		if hub.call:
+			transaction = self.tag_to_transaction[hub.tag_call]
+			transaction.latency = s.cycle_counter - transaction.latency + 1
+			self.transaction = transaction
+	
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])
+
 class Initiator:
 	def __init__(self, port, generator):
 		self.port = port
@@ -222,6 +266,77 @@ class Initiator:
 				next(self._exe)
 			except StopIteration:
 				self.done = True
+	
+	def get_fragment(self):
+		return Fragment(sim=[self.do_simulation])
+
+class TargetModel:
+	def __init__(self):
+		self.last_slot = 0
+	
+	def read(self, address):
+		return 0
+	
+	def write(self, address, data, mask):
+		pass
+	
+	# Round-robin scheduling.
+	def select_slot(self, pending_slots):
+		if not pending_slots:
+			return -1
+		self.last_slot += 1
+		if self.last_slot > max(pending_slots):
+			self.last_slot = 0
+		while self.last_slot not in pending_slots:
+			self.last_slot += 1
+		return self.last_slot
+
+class Target:
+	def __init__(self, hub, model):
+		self.hub = hub
+		self.model = model
+		self._calling_tag = -1
+		self._write_request_d = -1
+		self._write_request = -1
+		self._read_request = -1
+	
+	def do_simulation(self, s):
+		slots = self.hub.get_slots()
+		
+		# Data I/O
+		if self._write_request >= 0:
+			self.model.write(self._write_request,
+				s.rd(self.hub.dat_w), s.rd(self.hub.dat_wm))
+		if self._read_request >= 0:
+			s.wr(self.hub.dat_r, self.model.read(self._read_request))
+			
+		# Request pipeline
+		self._read_request = -1
+		self._write_request = self._write_request_d
+		self._write_request_d = -1
+		
+		# Examine pending slots and possibly choose one.
+		# Note that we do not use the SLOT_PROCESSING state here.
+		# Selected slots are immediately called.
+		pending_slots = set()
+		for tag, slot in enumerate(slots):
+			if tag != self._calling_tag and s.rd(slot.state) == SLOT_PENDING:
+				pending_slots.add(tag)
+		slot_to_call = self.model.select_slot(pending_slots)
+		
+		# Call slot.
+		if slot_to_call >= 0:
+			slot = slots[slot_to_call]
+			s.wr(self.hub.call, 1)
+			s.wr(self.hub.tag_call, slot_to_call)
+			self._calling_tag = slot_to_call
+			if s.rd(slot.we):
+				self._write_request_d = s.rd(slot.adr)
+			else:
+				self._read_request = s.rd(slot.adr)
+		else:
+			s.wr(self.hub.call, 0)
+			self._calling_tag = -1
 	
 	def get_fragment(self):
 		return Fragment(sim=[self.do_simulation])

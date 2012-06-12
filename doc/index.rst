@@ -590,7 +590,7 @@ A FIR filter
 .. include:: ../examples/fir.py
    :code: python
    
-Wishbone
-========
-.. include:: ../examples/wb_initiator.py
+Abstract bus transactions
+=========================
+.. include:: ../examples/abstract_transactions.py
    :code: python
