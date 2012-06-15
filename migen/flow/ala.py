@@ -5,8 +5,11 @@ from migen.corelogic.record import *
 from migen.corelogic import divider
 
 class _SimpleBinary(CombinatorialActor):
-	def __init__(self, op, bv_op, bv_r):
-		self.op = op
+	def __init__(self, bv_op, bv_r=None):
+		self.bv_op = bv_op
+		if bv_r is None:
+			bv_r = self.__class__.get_result_bv(bv_op)
+		self.bv_r = bv_r
 		super().__init__(
 			("operands", Sink, [("a", bv_op), ("b", bv_op)]),
 			("result", Source, [("r", bv_r)]))
@@ -18,44 +21,54 @@ class _SimpleBinary(CombinatorialActor):
 		])
 
 class Add(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("+", bv, BV(bv.width+1, bv.signed))
+	op = "+"
+	def get_result_bv(bv):
+		return BV(bv.width+1, bv.signed)
 
 class Sub(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("-", bv, BV(bv.width+1, bv.signed))
+	op = "-"
+	def get_result_bv(bv):
+		return BV(bv.width+1, bv.signed)
 
 class Mul(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("*", bv, BV(2*bv.width, bv.signed))
+	op = "*"
+	def get_result_bv(bv):
+		return BV(2*bv.width, bv.signed)
 
 class And(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("&", bv, bv)
+	op = "&"
+	def get_result_bv(bv):
+		return bv
 
 class Xor(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("^", bv, bv)
+	op = "^"
+	def get_result_bv(bv):
+		return bv
 
 class Or(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("|", bv, bv)
+	op = "|"
+	def get_result_bv(bv):
+		return bv
 
 class LT(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("<", bv, BV(1))
+	op = "<"
+	def get_result_bv(bv):
+		return BV(1)
 
 class LE(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("<=", bv, BV(1))
+	op = "<="
+	def get_result_bv(bv):
+		return BV(1)
 
 class EQ(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("==", bv, BV(1))
+	op = "=="
+	def get_result_bv(bv):
+		return BV(1)
 
 class NE(_SimpleBinary):
-	def __init__(self, bv):
-		super().__init__("!=", bv, BV(1))
+	op = "!="
+	def get_result_bv(bv):
+		return BV(1)
 
 class DivMod(SequentialActor):
 	def __init__(self, width):

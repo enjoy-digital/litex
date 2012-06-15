@@ -3,71 +3,62 @@ from migen.flow.ala import *
 from migen.flow.plumbing import *
 from migen.flow.network import *
 
-def _get_bin_sigs(a, b):
+def _create(a, b, actor_class):
 	assert id(a.dfg) == id(b.dfg)
-	return (a.actor.endpoints[a.endp].token_signal(),
-		b.actor.endpoints[b.endp].token_signal())
+	dfg = a.dfg
+	
+	bva = a.actor_node.get_dict()["bv_r"]
+	bvb = b.actor_node.get_dict()["bv_r"]
+	bv_op = BV(max(bva.width, bvb.width), bva.signed and bvb.signed)
+	bv_r = actor_class.get_result_bv(bv_op)
+	
+	new_actor = ActorNode(actor_class, {"bv_op": bv_op, "bv_r": bv_r})
+	dfg.add_connection(a.actor_node, new_actor, "result", "operands", sink_subr=["a"])
+	dfg.add_connection(b.actor_node, new_actor, "result", "operands", sink_subr=["b"])
+	
+	return ComposableSource(dfg, new_actor)
 
-def _simple_binary(a, b, actor_class):
-	(signal_self, signal_other) = _get_bin_sigs(a, b)
-	width = max(signal_self.bv.width, signal_other.bv.width)
-	signed = signal_self.bv.signed and signal_other.bv.signed
-	actor = actor_class(BV(width, signed))
-	combinator = Combinator(actor.token("operands").layout(), ["a"], ["b"])
-	a.dfg.add_connection(combinator, actor)
-	a.dfg.add_connection(a.actor, combinator, a.endp, "sink0")
-	a.dfg.add_connection(b.actor, combinator, b.endp, "sink1")
-	return make_composable(a.dfg, actor)
-
-class ComposableSource():
-	def __init__(self, dfg, actor, endp):
+class ComposableSource:
+	def __init__(self, dfg, actor_node):
 		self.dfg = dfg
-		self.actor = actor
-		self.endp = endp
+		if not isinstance(actor_node, ActorNode):
+			actor_node = ActorNode(actor_node)
+		self.actor_node = actor_node
 	
 	def __add__(self, other):
-		return _simple_binary(self, other, Add)
+		return _create(self, other, Add)
 	def __radd__(self, other):
-		return _simple_binary(other, self, Add)
+		return _create(other, self, Add)
 	def __sub__(self, other):
-		return _simple_binary(self, other, Sub)
+		return _create(self, other, Sub)
 	def __rsub__(self, other):
-		return _simple_binary(other, self, Sub)
+		return _create(other, self, Sub)
 	def __mul__(self, other):
-		return _simple_binary(self, other, Mul)
+		return _create(self, other, Mul)
 	def __rmul__(self, other):
-		return _simple_binary(other, self, Mul)
+		return _create(other, self, Mul)
 	def __and__(self, other):
-		return _simple_binary(self, other, And)
+		return _create(self, other, And)
 	def __rand__(self, other):
-		return _simple_binary(other, self, And)
+		return _create(other, self, And)
 	def __xor__(self, other):
-		return _simple_binary(self, other, Xor)
+		return _create(self, other, Xor)
 	def __rxor__(self, other):
-		return _simple_binary(other, self, Xor)
+		return _create(other, self, Xor)
 	def __or__(self, other):
-		return _simple_binary(self, other, Or)
+		return _create(self, other, Or)
 	def __ror__(self, other):
-		return _simple_binary(other, self, Or)
+		return _create(other, self, Or)
 
 	def __lt__(self, other):
-		return _simple_binary(self, other, LT)
+		return _create(self, other, LT)
 	def __le__(self, other):
-		return _simple_binary(self, other, LE)
+		return _create(self, other, LE)
 	def __eq__(self, other):
-		return _simple_binary(self, other, EQ)
+		return _create(self, other, EQ)
 	def __ne__(self, other):
-		return _simple_binary(self, other, NE)
+		return _create(self, other, NE)
 	def __gt__(self, other):
-		return _simple_binary(other, self, LT)
+		return _create(other, self, LT)
 	def __ge__(self, other):
-		return _simple_binary(other, self, LE)
-
-def make_composable(dfg, actor):
-	r = [ComposableSource(dfg, actor, k) for k in sorted(actor.sources())]
-	if len(r) > 1:
-		return tuple(r)
-	elif len(r) > 0:
-		return r[0]
-	else:
-		return None
+		return _create(other, self, LE)

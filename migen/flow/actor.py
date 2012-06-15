@@ -46,6 +46,7 @@ class Actor:
 				self.endpoints[desc[0]] = ep
 		else:
 			self.endpoints = endpoints
+		self.name = None
 		self.busy = Signal()
 
 	def token(self, ep):
@@ -70,7 +71,11 @@ class Actor:
 		return self.get_control_fragment() + self.get_process_fragment()
 	
 	def __repr__(self):
-		return "<" + self.__class__.__name__ + " " + repr(self.sinks()) + " " + repr(self.sources()) + ">"
+		r = "<" + self.__class__.__name__
+		if self.name is not None:
+			r += ": " + self.name
+		r += ">"
+		return r
 
 class BinaryActor(Actor):
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
