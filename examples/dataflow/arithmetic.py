@@ -34,6 +34,6 @@ if draw:
 	plt.show()
 
 # Convert
-#c = CompositeActor(g)
-#frag = c.get_fragment()
-#print(verilog.convert(frag))
+c = CompositeActor(g)
+frag = c.get_fragment()
+print(verilog.convert(frag))

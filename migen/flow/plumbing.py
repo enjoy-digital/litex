@@ -15,7 +15,7 @@ class Buffer(PipelinedActor):
 		return Fragment(sync=sync)
 
 class Combinator(CombinatorialActor):
-	def __init__(self, layout, *subrecords):
+	def __init__(self, layout, subrecords):
 		source = Record(layout)
 		subrecords = [source.subrecord(*subr) for subr in subrecords]
 		eps = [("sink{0}".format(n), Sink, r)
@@ -33,7 +33,7 @@ class Combinator(CombinatorialActor):
 		return Fragment(comb)
 
 class Splitter(CombinatorialActor):
-	def __init__(self, layout, *subrecords):
+	def __init__(self, layout, subrecords):
 		sink = Record(layout)
 		subrecords = [sink.subrecord(*subr) for subr in subrecords]
 		eps = [("source{0}".format(n), Source, r)
@@ -43,3 +43,13 @@ class Splitter(CombinatorialActor):
 		super().__init__(*eps)
 		
 	# TODO def get_fragment(self):
+
+class Distributor:
+	pass # TODO
+
+# Actors whose layout should be inferred from what their single sink is connected to.
+layout_sink = {Buffer, Splitter, Distributor}
+# Actors whose layout should be inferred from what their single source is connected to.
+layout_source = {Buffer, Combinator}
+# All actors.
+actors = layout_sink | layout_source

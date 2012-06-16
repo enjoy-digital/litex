@@ -2,6 +2,7 @@ from networkx import MultiDiGraph
 
 from migen.fhdl.structure import *
 from migen.flow.actor import *
+from migen.flow import plumbing
 from migen.corelogic.misc import optree
 
 # Graph nodes can be either:
@@ -23,10 +24,10 @@ class ActorNode:
 		return hasattr(self, "actor_class")
 		
 	def instantiate(self):
-		if self.is_abstract():
-			self.actor = self.actor_class(**self.parameters)
-			del self.actor_class
-			del self.parameters
+		self.actor = self.actor_class(**self.parameters)
+		self.actor.name = self.name
+		del self.actor_class
+		del self.parameters
 	
 	def get_dict(self):
 		if self.is_abstract():
@@ -60,32 +61,56 @@ class DataFlowGraph(MultiDiGraph):
 			source=source_ep, sink=sink_ep,
 			source_subr=source_subr, sink_subr=sink_subr)
 	
+	def del_connections(self, source_node, sink_node, data_requirements):
+		edges_to_delete = []
+		for key, data in self.get_edge_data(source_node, sink_node).items():
+			if all(k not in data_requirements or data_requirements[k] == v
+			  for k, v in data.items()):
+				edges_to_delete.append(key)
+		for key in edges_to_delete:
+			self.remove_edge(source_node, sink_node, key)
+	
 	# Returns a dictionary
 	#   source -> [sink1, ..., sinkn]
-	# each element being as a (node, endpoint) pair.
-	# NB: ignores subrecords.
+	# source element is a (node, endpoint) pair.
+	# sink elements are (node, endpoint, source subrecord) triples.
 	def _source_to_sinks(self):
 		d = dict()
 		for u, v, data in self.edges_iter(data=True):
 			el_src = (u, data["source"])
-			el_dst = (v, data["sink"])
+			el_dst = (v, data["sink"], data["source_subr"])
 			if el_src in d:
 				d[el_src].append(el_dst)
 			else:
 				d[el_src] = [el_dst]
 		return d
-		
+	
+	# Returns a dictionary
+	#   sink -> [source1, ... sourcen]
+	# sink element is a (node, endpoint) pair.
+	# source elements are (node, endpoint, sink subrecord) triples.
+	def _sink_to_sources(self):
+		d = dict()
+		for u, v, data in self.edges_iter(data=True):
+			el_src = (u, data["source"], data["sink_subr"])
+			el_dst = (v, data["sink"])
+			if el_dst in d:
+				d[el_dst].append(el_src)
+			else:
+				d[el_dst] = [el_src]
+		return d
+	
 	# List sources that feed more than one sink.
-	# NB: ignores subrecords.
 	def _list_divergences(self):
 		d = self._source_to_sinks()
 		return dict((k, v) for k, v in d.items() if len(v) > 1)
-	
+
 	# A graph is abstract if any of these conditions is met:
 	#  (1) A node is an abstract actor.
 	#  (2) A subrecord is used.
 	#  (3) A single source feeds more than one sink.
-	# NB: It is not allowed for a single sink to be fed by more than one source.
+	# NB: It is not allowed for a single sink to be fed by more than one source
+	# (except with subrecords, i.e. when a combinator is used)
 	def is_abstract(self):
 		return any(x.is_abstract() for x in self) \
 			or any(d["source_subr"] is not None or d["sink_subr"] is not None
@@ -93,14 +118,59 @@ class DataFlowGraph(MultiDiGraph):
 			or self._list_divergences()
 	
 	def _eliminate_subrecords(self):
-		pass # TODO
+		# Insert combinators.
+		for (dst_node, dst_endpoint), sources in self._sink_to_sources().items():
+			if len(sources) > 1 or sources[0][2] is not None:
+				# build combinator
+				# "layout" is filled in during instantiation
+				subrecords = [dst_subrecord for src_node, src_endpoint, dst_subrecord in sources]
+				combinator = ActorNode(plumbing.Combinator, {"subrecords": subrecords})
+				# disconnect source1 -> sink ... sourcen -> sink
+				# connect source1 -> combinator_sink1 ... sourcen -> combinator_sinkn
+				for n, (src_node, src_endpoint, dst_subrecord) in enumerate(sources):
+					self.del_connections(src_node, dst_node,
+						{"source": src_endpoint, "sink": dst_endpoint})
+					self.add_connection(src_node, combinator,
+						src_endpoint, "sink{0}".format(n))
+				# connect combinator_source -> sink
+				self.add_connection(combinator, dst_node, "source", dst_endpoint)
+		# Insert splitters.
+		# TODO
 	
 	def _eliminate_divergences(self):
 		pass # TODO
 	
+	def _infer_plumbing_layout(self):
+		while True:
+			ap = [a for a in self if a.is_abstract() and a.actor_class in plumbing.actors]
+			if not ap:
+				break
+			for a in ap:
+				if a.actor_class in plumbing.layout_sink:
+					edges = self.in_edges(a, data=True)
+					assert(len(edges) == 1)
+					other, me, data = edges[0]
+					other_ep = data["source"]
+				elif a.actor_class in plumbing.layout_source:
+					edges = self.out_edges(a, data=True)
+					assert(len(edges) == 1)
+					me, other, data = edges[0]
+					other_ep = data["sink"]
+				else:
+					raise AssertionError
+				if not other.is_abstract():
+					layout = other.actor.token(other_ep).layout()
+					a.parameters["layout"] = layout
+					a.instantiate()
+	
 	def _instantiate_actors(self):
+		# 1. instantiate all abstract non-plumbing actors
 		for actor in self:
-			actor.instantiate()
+			if actor.is_abstract() and actor.actor_class not in plumbing.actors:
+				actor.instantiate()
+		# 2. infer plumbing layout and instantiate plumbing
+		self._infer_plumbing_layout()
+		# 3. resolve default eps
 		for u, v, d in self.edges_iter(data=True):
 			if d["source"] is None:
 				source_eps = u.actor.sources()
