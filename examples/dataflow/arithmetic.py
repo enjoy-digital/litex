@@ -3,37 +3,62 @@ import sys
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from migen.fhdl import verilog
 from migen.flow.ala import *
 from migen.flow.network import *
 from migen.flow.composer import *
+from migen.actorlib.sim import *
+from migen.sim.generic import Simulator
+from migen.sim.icarus import Runner
 
-draw = len(sys.argv) > 1 and sys.argv[1] == "draw"
+class NumberGen(SimActor):
+	def __init__(self):
+		self.bv_r = BV(16)
+		def number_gen():
+			for i in range(10):
+				yield Token("result", {"r": i})
+		super().__init__(number_gen(),
+			("result", Source, [("r", self.bv_r)]))
 
-# Create graph
-g = DataFlowGraph()
-a1 = ComposableSource(g, Add(BV(16)))
-a2 = ComposableSource(g, Add(BV(16)))
-a3 = ComposableSource(g, Add(BV(16)))
-c3 = (a1 + a2)*a3
+class Dumper(SimActor):
+	def __init__(self):
+		def dumper_gen():
+			while True:
+				t = Token("result")
+				yield t
+				print("Received: " + str(t.value["r"]))
+		super().__init__(dumper_gen(),
+			("result", Sink, [("r", BV(32))]))
 
-a1.actor_node.name = "in1"
-a2.actor_node.name = "in2"
-a3.actor_node.name = "in3"
-c3.actor_node.name = "result"
+def main():
+	# Create graph
+	g = DataFlowGraph()
+	a1 = ComposableSource(g, NumberGen())
+	a2 = ComposableSource(g, NumberGen())
+	a3 = ComposableSource(g, NumberGen())
+	c3 = (a1 + a2)*a3
+	g.add_connection(c3.actor_node, Dumper())
 
-# Elaborate
-print("is_abstract before elaboration: " + str(g.is_abstract()))
-if draw:
-	nx.draw(g)
-	plt.show()
-g.elaborate()
-print("is_abstract after elaboration : " + str(g.is_abstract()))
-if draw:
-	nx.draw(g)
-	plt.show()
+	a1.actor_node.actor.name = "gen1"
+	a2.actor_node.actor.name = "gen2"
+	a3.actor_node.actor.name = "gen3"
+	c3.actor_node.name = "result"
+	
+	# Elaborate
+	draw = len(sys.argv) > 1 and sys.argv[1] == "draw"
+	print("is_abstract before elaboration: " + str(g.is_abstract()))
+	if draw:
+		nx.draw(g)
+		plt.show()
+	g.elaborate()
+	print("is_abstract after elaboration : " + str(g.is_abstract()))
+	if draw:
+		nx.draw(g)
+		plt.show()
 
-# Convert
-c = CompositeActor(g)
-frag = c.get_fragment()
-print(verilog.convert(frag))
+	# Simulate
+	c = CompositeActor(g)
+	fragment = c.get_fragment()
+	sim = Simulator(fragment, Runner())
+	sim.run(100)
+
+main()
