@@ -63,7 +63,11 @@ class DataFlowGraph(MultiDiGraph):
 	
 	def del_connections(self, source_node, sink_node, data_requirements):
 		edges_to_delete = []
-		for key, data in self.get_edge_data(source_node, sink_node).items():
+		edge_data = self.get_edge_data(source_node, sink_node)
+		if edge_data is None:
+			# the two nodes are already completely disconnected
+			return
+		for key, data in edge_data.items():
 			if all(k not in data_requirements or data_requirements[k] == v
 			  for k, v in data.items()):
 				edges_to_delete.append(key)
@@ -115,9 +119,9 @@ class DataFlowGraph(MultiDiGraph):
 		return any(x.is_abstract() for x in self) \
 			or any(d["source_subr"] is not None or d["sink_subr"] is not None
 				for u, v, d in self.edges_iter(data=True)) \
-			or self._list_divergences()
+			or bool(self._list_divergences())
 	
-	def _eliminate_subrecords(self):
+	def _eliminate_subrecords_and_divergences(self):
 		# Insert combinators.
 		for (dst_node, dst_endpoint), sources in self._sink_to_sources().items():
 			if len(sources) > 1 or sources[0][2] is not None:
@@ -135,10 +139,19 @@ class DataFlowGraph(MultiDiGraph):
 				# connect combinator_source -> sink
 				self.add_connection(combinator, dst_node, "source", dst_endpoint)
 		# Insert splitters.
-		# TODO
-	
-	def _eliminate_divergences(self):
-		pass # TODO
+		for (src_node, src_endpoint), sinks in self._source_to_sinks().items():
+			if len(sinks) > 1 or sinks[0][2] is not None:
+				subrecords = [src_subrecord for dst_node, dst_endpoint, src_subrecord in sinks]
+				splitter = ActorNode(plumbing.Splitter, {"subrecords": subrecords})
+				# disconnect source -> sink1 ... source -> sinkn
+				# connect splitter_source1 -> sink1 ... splitter_sourcen -> sinkn
+				for n, (dst_node, dst_endpoint, src_subrecord) in enumerate(sinks):
+					self.del_connections(src_node, dst_node,
+						{"source": src_endpoint, "sink": dst_endpoint})
+					self.add_connection(splitter, dst_node,
+						"source{0}".format(n), dst_endpoint)
+				# connect source -> splitter_sink
+				self.add_connection(src_node, splitter, src_endpoint, "sink")
 	
 	def _infer_plumbing_layout(self):
 		while True:
@@ -182,17 +195,16 @@ class DataFlowGraph(MultiDiGraph):
 				d["sink"] = sink_eps[0]
 	
 	# Elaboration turns an abstract DFG into a concrete one.
-	#   Pass 1: eliminate subrecords by inserting Combinator/Splitter actors
-	#   Pass 2: eliminate divergences by inserting Distributor actors
-	#   Pass 3: run optimizer (e.g. share and duplicate actors)
-	#   Pass 4: instantiate all abstract actors and explicit "None" endpoints
+	#   Pass 1: eliminate subrecords and divergences
+	#           by inserting Combinator/Splitter actors
+	#   Pass 2: run optimizer (e.g. share and duplicate actors)
+	#   Pass 3: instantiate all abstract actors and explicit "None" endpoints
 	def elaborate(self, optimizer=None):
 		if self.elaborated:
 			return
 		self.elaborated = True
 		
-		self._eliminate_subrecords()
-		self._eliminate_divergences()
+		self._eliminate_subrecords_and_divergences()
 		if optimizer is not None:
 			optimizer(self)
 		self._instantiate_actors()

@@ -35,20 +35,39 @@ class Combinator(CombinatorialActor):
 class Splitter(CombinatorialActor):
 	def __init__(self, layout, subrecords):
 		sink = Record(layout)
-		subrecords = [sink.subrecord(*subr) for subr in subrecords]
+		subr = []
+		for s in subrecords:
+			if s is None:
+				subr.append(sink)
+			else:
+				subr.append(sink.subrecord(*s))
 		eps = [("source{0}".format(n), Source, r)
-			for n, r in enumerate(subrecords)]
+			for n, r in enumerate(subr)]
 		ep_sink = ("sink", Sink, sink)
 		eps.append(ep_sink)
 		super().__init__(*eps)
 		
-	# TODO def get_fragment(self):
-
-class Distributor:
-	pass # TODO
+	def get_fragment(self):
+		sources = [self.endpoints[e] for e in self.sources()]
+		sink = self.endpoints[self.sinks()[0]]
+		
+		already_acked = Signal(BV(len(sources)))
+		sync = [
+			If(sink.stb,
+				already_acked.eq(already_acked | Cat(*[s.ack for s in sources])),
+				If(sink.ack, already_acked.eq(0))
+			)
+		]
+		comb = [
+			sink.ack.eq(optree("&",
+				[s.ack | already_acked[n] for n, s in enumerate(sources)]))
+		]
+		for n, s in enumerate(sources):
+			comb.append(s.stb.eq(sink.stb & ~already_acked[n]))
+		return Fragment(comb, sync)
 
 # Actors whose layout should be inferred from what their single sink is connected to.
-layout_sink = {Buffer, Splitter, Distributor}
+layout_sink = {Buffer, Splitter}
 # Actors whose layout should be inferred from what their single source is connected to.
 layout_source = {Buffer, Combinator}
 # All actors.

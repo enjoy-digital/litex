@@ -29,31 +29,32 @@ class Dumper(SimActor):
 		super().__init__(dumper_gen(),
 			("result", Sink, [("r", BV(32))]))
 
+def draw(g):
+	if len(sys.argv) > 1 and sys.argv[1] == "draw":
+		nx.draw(g)
+		plt.show()
+
 def main():
 	# Create graph
 	g = DataFlowGraph()
-	a1 = ComposableSource(g, NumberGen())
-	a2 = ComposableSource(g, NumberGen())
-	a3 = ComposableSource(g, NumberGen())
-	c3 = (a1 + a2)*a3
-	g.add_connection(c3.actor_node, Dumper())
+	gen1 = ComposableSource(g, NumberGen())
+	gen2 = ComposableSource(g, NumberGen())
+	
+	ps = gen1 + gen2
+	result = ps*gen1 + ps*gen2
+	
+	g.add_connection(result.actor_node, Dumper())
 
-	a1.actor_node.actor.name = "gen1"
-	a2.actor_node.actor.name = "gen2"
-	a3.actor_node.actor.name = "gen3"
-	c3.actor_node.name = "result"
+	gen1.actor_node.actor.name = "gen1"
+	gen2.actor_node.actor.name = "gen2"
+	result.actor_node.name = "result"
 	
 	# Elaborate
-	draw = len(sys.argv) > 1 and sys.argv[1] == "draw"
 	print("is_abstract before elaboration: " + str(g.is_abstract()))
-	if draw:
-		nx.draw(g)
-		plt.show()
+	draw(g)
 	g.elaborate()
 	print("is_abstract after elaboration : " + str(g.is_abstract()))
-	if draw:
-		nx.draw(g)
-		plt.show()
+	draw(g)
 
 	# Simulate
 	c = CompositeActor(g)
