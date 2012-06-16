@@ -60,6 +60,16 @@ class Actor:
 
 	def sources(self):
 		return self.filter_endpoints(Source)
+		
+	def single_sink(self):
+		eps = self.sinks()
+		assert(len(eps) == 1)
+		return eps[0]
+	
+	def single_source(self):
+		eps = self.sources()
+		assert(len(eps) == 1)
+		return eps[0]
 
 	def get_control_fragment(self):
 		raise NotImplementedError("Actor classes must overload get_control_fragment or get_fragment")
