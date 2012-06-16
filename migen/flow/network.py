@@ -161,18 +161,25 @@ class DataFlowGraph(MultiDiGraph):
 					edges = self.in_edges(a, data=True)
 					assert(len(edges) == 1)
 					other, me, data = edges[0]
+					if other.is_abstract():
+						continue
 					other_ep = data["source"]
+					if other_ep is None:
+						other_ep = other.actor.single_source()
 				elif a.actor_class in plumbing.layout_source:
 					edges = self.out_edges(a, data=True)
 					assert(len(edges) == 1)
 					me, other, data = edges[0]
+					if other.is_abstract():
+						continue
 					other_ep = data["sink"]
+					if other_ep is None:
+						other_ep = other.actor.single_sink()
 				else:
 					raise AssertionError
-				if not other.is_abstract():
-					layout = other.actor.token(other_ep).layout()
-					a.parameters["layout"] = layout
-					a.instantiate()
+				layout = other.actor.token(other_ep).layout()
+				a.parameters["layout"] = layout
+				a.instantiate()
 	
 	def _instantiate_actors(self):
 		# 1. instantiate all abstract non-plumbing actors
@@ -184,13 +191,9 @@ class DataFlowGraph(MultiDiGraph):
 		# 3. resolve default eps
 		for u, v, d in self.edges_iter(data=True):
 			if d["source"] is None:
-				source_eps = u.actor.sources()
-				assert(len(source_eps) == 1)
-				d["source"] = source_eps[0]
+				d["source"] = u.actor.single_source()
 			if d["sink"] is None:
-				sink_eps = v.actor.sinks()
-				assert(len(sink_eps) == 1)
-				d["sink"] = sink_eps[0]
+				d["sink"] = v.actor.single_sink()
 	
 	# Elaboration turns an abstract DFG into a concrete one.
 	#   Pass 1: eliminate subrecords and divergences
