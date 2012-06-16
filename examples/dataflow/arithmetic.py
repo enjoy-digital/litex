@@ -3,7 +3,6 @@ import sys
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from migen.flow.ala import *
 from migen.flow.network import *
 from migen.flow.composer import *
 from migen.actorlib.sim import *
@@ -25,7 +24,7 @@ class Dumper(SimActor):
 			while True:
 				t = Token("result")
 				yield t
-				print("Received: " + str(t.value["r"]))
+				print(t.value["r"])
 		super().__init__(dumper_gen(),
 			("result", Sink, [("r", BV(32))]))
 
@@ -43,7 +42,7 @@ def main():
 	ps = gen1 + gen2
 	result = ps*gen1 + ps*gen2
 	
-	g.add_connection(result.actor_node, Dumper())
+	g.add_connection(result.actor_node, ActorNode(Dumper()))
 
 	gen1.actor_node.actor.name = "gen1"
 	gen2.actor_node.actor.name = "gen2"
