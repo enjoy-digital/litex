@@ -12,7 +12,7 @@ from migen.corelogic.misc import optree
 #      This form is needed to enable actor duplication or sharing during elaboration.
 
 class ActorNode:
-	def __init__(self, actor_class, parameters=None):
+	def __init__(self, actor_class, parameters=dict()):
 		if isinstance(actor_class, type):
 			self.actor_class = actor_class
 			self.parameters = parameters
