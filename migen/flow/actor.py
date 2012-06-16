@@ -154,7 +154,7 @@ class PipelinedActor(BinaryActor):
 			self.pipe_ce.eq(ack_i | ~last_valid),
 			ack_o.eq(self.pipe_ce),
 			stb_o.eq(last_valid),
-			busy.eq(optree("|", [valid[i] for i in range(self.latency)]))
+			self.busy.eq(optree("|", [valid[i] for i in range(self.latency)]))
 		]
 		
 		return Fragment(comb, sync)
