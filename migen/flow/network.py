@@ -53,10 +53,8 @@ class DataFlowGraph(MultiDiGraph):
 	def add_connection(self, source_node, sink_node,
 	  source_ep=None, sink_ep=None,		# default: assume nodes have 1 source/sink and use that one
 	  source_subr=None, sink_subr=None):	# default: use whole record
-		if not isinstance(source_node, ActorNode):
-			source_node = ActorNode(source_node)
-		if not isinstance(sink_node, ActorNode):
-			sink_node = ActorNode(sink_node)
+		assert(isinstance(source_node, ActorNode))
+		assert(isinstance(sink_node, ActorNode))
 		self.add_edge(source_node, sink_node,
 			source=source_ep, sink=sink_ep,
 			source_subr=source_subr, sink_subr=sink_subr)
