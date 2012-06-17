@@ -1,6 +1,5 @@
 from random import Random
 
-from migen.fhdl import verilog
 from migen.flow.ala import *
 from migen.flow.network import *
 from migen.actorlib import dma_wishbone, dma_asmi
