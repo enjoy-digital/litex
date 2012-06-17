@@ -14,7 +14,7 @@ class Buffer(PipelinedActor):
 		sync = [If(self.pipe_ce, Cat(*sigs_q).eq(Cat(*sigs_d)))]
 		return Fragment(sync=sync)
 
-class Combinator(CombinatorialActor):
+class Combinator(Actor):
 	def __init__(self, layout, subrecords):
 		source = Record(layout)
 		subrecords = [source.subrecord(*subr) for subr in subrecords]
@@ -32,7 +32,7 @@ class Combinator(CombinatorialActor):
 		comb += [sink.ack.eq(source.ack & source.stb) for sink in sinks]
 		return Fragment(comb)
 
-class Splitter(CombinatorialActor):
+class Splitter(Actor):
 	def __init__(self, layout, subrecords):
 		sink = Record(layout)
 		subr = []

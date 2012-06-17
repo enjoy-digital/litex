@@ -1,5 +1,3 @@
-import sys
-
 from migen.flow.ala import *
 from migen.flow.network import *
 from migen.flow import plumbing
