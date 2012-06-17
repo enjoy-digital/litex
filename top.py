@@ -5,7 +5,8 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
-from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, identifier, timer, minimac3
+from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, \
+	identifier, timer, minimac3, framebuffer
 from cmacros import get_macros
 from constraints import Constraints
 
@@ -75,6 +76,7 @@ def get():
 	#
 	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
 	asmiport_wb = asmicon0.hub.get_port()
+	asmiport_fb = asmicon0.hub.get_port()
 	asmicon0.finalize()
 	
 	#
@@ -122,12 +124,14 @@ def get():
 	uart0 = uart.UART(csr_offset("UART"), clk_freq, baud=115200)
 	identifier0 = identifier.Identifier(csr_offset("ID"), 0x4D31, version, int(clk_freq))
 	timer0 = timer.Timer(csr_offset("TIMER0"))
+	fb0 = framebuffer.Framebuffer(csr_offset("FB"), asmiport_fb)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
 		dfii0.bank.interface,
 		identifier0.bank.interface,
 		timer0.bank.interface,
-		minimac0.bank.interface
+		minimac0.bank.interface,
+		#fb0.bank.interface
 	])
 	
 	#
@@ -144,8 +148,14 @@ def get():
 	#
 	crg0 = m1crg.M1CRG(50*MHz, clk_freq)
 	
-	frag = autofragment.from_local() + interrupts + ddrphy_clocking(crg0, ddrphy0)
-	cst = Constraints(crg0, norflash0, uart0, ddrphy0, minimac0)
+	vga_clocking = Fragment([
+		fb0.vga_clk.eq(crg0.vga_clk)
+	])
+	frag = autofragment.from_local() \
+		+ interrupts \
+		+ ddrphy_clocking(crg0, ddrphy0) \
+		+ vga_clocking
+	cst = Constraints(crg0, norflash0, uart0, ddrphy0, minimac0, fb0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="soc",

@@ -19,7 +19,9 @@ class M1CRG:
 			"clk4x_wr_strb",
 			"clk4x_rd",
 			"clk4x_rd_strb",
-			"phy_clk"
+			"phy_clk",
+			"vga_clk",
+			"vga_clk_pad"
 		]:
 			s = Signal(name=name)
 			setattr(self, name, s)

@@ -23,7 +23,11 @@ module m1crg #(
 	output clk4x_rd_strb,
 	
 	/* Ethernet PHY clock */
-	output reg phy_clk
+	output reg phy_clk,	/* < unbuffered, to I/O */
+	
+	/* VGA clock */
+	output vga_clk,		/* < buffered, to internal clock network */
+	output vga_clk_pad	/* < forwarded through ODDR2, to I/O */
 );
 
 /*
@@ -190,5 +194,45 @@ BUFG bufg_x1(
 /* Ethernet PHY */
 always @(posedge pllout4)
 	phy_clk <= ~phy_clk;
+
+/* VGA clock */
+// TODO: hook up the reprogramming interface
+DCM_CLKGEN #(
+	.CLKFXDV_DIVIDE(2),
+	.CLKFX_DIVIDE(4),
+	.CLKFX_MD_MAX(2.0),
+	.CLKFX_MULTIPLY(2),
+	.CLKIN_PERIOD(0.0),
+	.SPREAD_SPECTRUM("NONE"),
+	.STARTUP_WAIT("FALSE")
+) vga_clock_gen (
+	.CLKFX(vga_clk),
+	.CLKFX180(),
+	.CLKFXDV(),
+	.LOCKED(),
+	.PROGDONE(),
+	.STATUS(),
+	.CLKIN(pllout4),
+	.FREEZEDCM(1'b0),
+	.PROGCLK(1'b0),
+	.PROGDATA(),
+	.PROGEN(1'b0),
+	.RST(1'b0)
+);
+
+ODDR2 #(
+	.DDR_ALIGNMENT("NONE"),
+	.INIT(1'b0),
+	.SRTYPE("SYNC")
+) vga_clock_forward (
+	.Q(vga_clk_pad),
+	.C0(vga_clk),
+	.C1(~vga_clk),
+	.CE(1'b1),
+	.D0(1'b1),
+	.D1(1'b0),
+	.R(1'b0),
+	.S(1'b0)
+);
  
 endmodule

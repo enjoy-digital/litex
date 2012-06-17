@@ -1,5 +1,5 @@
 class Constraints:
-	def __init__(self, crg0, norflash0, uart0, ddrphy0, minimac0):
+	def __init__(self, crg0, norflash0, uart0, ddrphy0, minimac0, fb0):
 		self.constraints = []
 		def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra))
@@ -16,6 +16,7 @@ class Constraints:
 		add(crg0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
 		add(crg0.trigger_reset, "AA4")
 		add(crg0.phy_clk, "M20")
+		add(crg0.vga_clk_pad, "A11")
 		
 		add_vec(norflash0.adr, ["L22", "L20", "K22", "K21", "J19", "H20", "F22",
 			"F21", "K17", "J17", "E22", "E20", "H18", "H19", "F20",
@@ -60,6 +61,13 @@ class Constraints:
 		add_vec(minimac0.phy_tx_data, ["M16", "L15", "P19", "P20"])
 		add(minimac0.phy_col, "W20")
 		add(minimac0.phy_crs, "W22")
+		
+		add_vec(fb0.vga_r, ["C6", "B6", "A6", "C7", "A7", "B8", "A8", "D9"])
+		add_vec(fb0.vga_g, ["C8", "C9", "A9", "D7", "D8", "D10", "C10", "B10"])
+		add_vec(fb0.vga_b, ["D11", "C12", "B12", "A12", "C13", "A13", "D14", "C14"])
+		add(fb0.vga_hsync_n, "A14")
+		add(fb0.vga_vsync_n, "C15")
+		add(fb0.vga_psave_n, "B14")
 		
 		self._phy_rx_clk = minimac0.phy_rx_clk
 		self._phy_tx_clk = minimac0.phy_tx_clk

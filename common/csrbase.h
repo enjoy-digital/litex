@@ -6,5 +6,6 @@
 #define ID_BASE		0xe0001000
 #define TIMER0_BASE	0xe0001800
 #define MINIMAC_BASE	0xe0002000
+#define FB_BASE		0xe0002800
 
 #endif /* __CSRBASE_H */
