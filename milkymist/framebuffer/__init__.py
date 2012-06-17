@@ -1,6 +1,8 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
+from migen.flow import ala, plumbing
+from migen.actorlib import control, dma_asmi
 from migen.bank.description import *
 from migen.bank import csrgen
 
@@ -8,9 +10,8 @@ _hbits = 11
 _vbits = 11
 
 class _FrameInitiator(Actor):
-	def __init__(self, asmi_bits, alignment_bits):
+	def __init__(self, asmi_bits, length_bits, alignment_bits):
 		self._alignment_bits = alignment_bits
-		length_bits = _hbits + _vbits + 2 - alignment_bits
 		
 		self._enable = RegisterField("enable")
 		
@@ -69,10 +70,25 @@ class Framebuffer:
 	def __init__(self, address, asmiport):
 		asmi_bits = asmiport.hub.aw
 		alignment_bits = asmiport.hub.dw//8
+		length_bits = _hbits + _vbits + 2 - alignment_bits
 		
-		fi = _FrameInitiator(asmi_bits, alignment_bits)
+		fi = ActorNode(_FrameInitiator(asmi_bits, length_bits, alignment_bits))
+		adrloop = ActorNode(control.For(length_bits))
+		adrbase = ActorNode(ala.Add(BV(asmi_bits)))
+		adrbuffer = ActorNode(plumbing.Buffer)
+		dma = ActorNode(dma_asmi.SequentialReader(asmiport))
+		# TODO: chop
+		# TODO: VTG
 		
-		self.bank = csrgen.Bank(fi.get_registers(), address=address)
+		g = DataFlowGraph()
+		g.add_connection(fi, adrloop, source_subr=["length"])
+		g.add_connection(adrloop, adrbase, sink_subr=["a"])
+		g.add_connection(fi, adrbase, source_subr=["base"], sink_subr=["b"])
+		g.add_connection(adrbase, adrbuffer)
+		g.add_connection(adrbuffer, dma)
+		self._comp_actor = CompositeActor(g)
+		
+		self.bank = csrgen.Bank(fi.actor.get_registers(), address=address)
 		
 		# VGA clock input
 		self.vga_clk = Signal()
@@ -93,4 +109,6 @@ class Framebuffer:
 			self.vga_psave_n.eq(1),
 			self.vga_blank_n.eq(1)
 		]
-		return Fragment()
+		return self.bank.get_fragment() \
+			+ self._comp_actor.get_fragment() \
+			+ Fragment(comb)
