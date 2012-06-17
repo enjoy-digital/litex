@@ -131,7 +131,7 @@ def get():
 		identifier0.bank.interface,
 		timer0.bank.interface,
 		minimac0.bank.interface,
-		#fb0.bank.interface
+		fb0.bank.interface
 	])
 	
 	#
