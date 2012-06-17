@@ -8,14 +8,14 @@ from migen.flow.actor import *
 
 # Generates integers from start to maximum-1
 class For(Actor):
-	def __init__(self, *maxima, start=False, step=False):
-		self.dimensions = len(maxima)
+	def __init__(self, *nbits, start=False, step=False):
+		self.dimensions = len(nbits)
 		self.start = start
 		self.step = step
 		params = ["end"]
 		if start: params.append("start")
 		if step: params.append("step")
-		self.d_bv = [BV(bits_for(dimension)) for dimension in maxima]
+		self.d_bv = [BV(dimension) for dimension in nbits]
 		l_sink = [("d{0}".format(n), [(p, bv) for p in params])
 			for n, bv in enumerate(self.d_bv)]
 		l_source = [("d{0}".format(n), bv)
