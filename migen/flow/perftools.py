@@ -14,7 +14,7 @@ class EndpointReporter(PureSimulable):
 	
 	# Total number of cycles per token (inverse token rate)
 	def cpt(self):
-		return (self.inactive + self.nack + 1)/self.ack
+		return (self.inactive + self.nack + self.ack)/self.ack
 	
 	# Inactivity cycles per token (slack)
 	def ipt(self):
