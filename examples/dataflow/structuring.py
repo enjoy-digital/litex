@@ -1,3 +1,5 @@
+from itertools import count
+
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -11,7 +13,7 @@ from migen.flow import perftools
 pack_factor = 5
 
 def source_gen():
-	for i in range(180):
+	for i in count(0):
 		yield Token("source", {"value": i})
 
 def sink_gen():
