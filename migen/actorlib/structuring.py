@@ -67,6 +67,7 @@ class Pack(Actor):
 			Cat(*self.token("source").subrecord("chunk{0}".format(i)).flatten()).eq(*self.token("sink").flatten()))
 			for i in range(self.n)]
 		comb = [
+			self.busy.eq(strobe_all),
 			self.endpoints["sink"].ack.eq(~strobe_all | self.endpoints["source"].ack),
 			self.endpoints["source"].stb.eq(strobe_all),
 			load_part.eq(self.endpoints["sink"].stb & self.endpoints["sink"].ack)
