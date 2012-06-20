@@ -16,13 +16,14 @@ class Cast(CombinatorialActor):
 			Cat(*sigs_to).eq(Cat(*sigs_from))
 		])
 
-class Chop(Actor):
+def pack_layout(l, n):
+	return [("chunk{0}".format(i), l) for i in range(n)]
+
+class Unpack(Actor):
 	def __init__(self, n, layout_to):
 		self.n = n
-		layout_from = [("chunk{0}".format(i), layout_to)
-			for i in range(self.n)]
 		super().__init__(
-			("sink", Sink, layout_from),
+			("sink", Sink, pack_layout(layout_to, n)),
 			("source", Source, layout_to))
 	
 	def get_fragment(self):
@@ -43,21 +44,18 @@ class Chop(Actor):
 				)
 			)
 		]
-		cases = [(Constant(i, BV(muxbits)),
+		cases = [(Constant(i, BV(muxbits)) if i else Default(),
 			Cat(*self.token("source").flatten()).eq(*self.token("sink").subrecord("chunk{0}".format(i)).flatten()))
 			for i in range(self.n)]
-		cases[-1][0] = Default()
 		comb.append(Case(mux, *cases))
 		return Fragment(comb, sync)
 
 class Pack(Actor):
 	def __init__(self, layout_from, n):
 		self.n = n
-		layout_to = [("chunk{0}".format(i), layout_from)
-			for i in range(self.n)]
 		super().__init__(
 			("sink", Sink, layout_from),
-			("source", Source, layout_to))
+			("source", Source, pack_layout(layout_from, n)))
 	
 	def get_fragment(self):
 		demuxbits = bits_for(self.n-1)
@@ -66,7 +64,7 @@ class Pack(Actor):
 		load_part = Signal()
 		strobe_all = Signal()
 		cases = [(Constant(i, BV(demuxbits)),
-			Cat(*self.token("source").subrecord("chunk{0}".format(i)).flatten()).eq(*self.token("sink").flatten())
+			Cat(*self.token("source").subrecord("chunk{0}".format(i)).flatten()).eq(*self.token("sink").flatten()))
 			for i in range(self.n)]
 		comb = [
 			self.endpoints["sink"].ack.eq(~strobe_all | self.endpoints["source"].ack),
