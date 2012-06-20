@@ -1,13 +1,17 @@
+import networkx as nx
+import matplotlib.pyplot as plt
+
 from migen.flow.network import *
 from migen.actorlib import structuring
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
+from migen.flow import perftools
 
 pack_factor = 5
 
 def source_gen():
-	for i in range(80):
+	for i in range(180):
 		yield Token("source", {"value": i})
 
 def sink_gen():
@@ -37,9 +41,16 @@ def main():
 	g.add_connection(from_raw, unpacker)
 	g.add_connection(unpacker, sink)
 	comp = CompositeActor(g)
+	reporter = perftools.DFGReporter(g)
 	
-	fragment = comp.get_fragment()
+	fragment = comp.get_fragment() + reporter.get_fragment()
 	sim = Simulator(fragment, Runner())
-	sim.run(100)
+	sim.run(1000)
+	
+	g_layout = nx.spectral_layout(g)
+	nx.draw(g, g_layout)
+	nx.draw_networkx_edge_labels(g, g_layout, reporter.get_edge_labels())
+	plt.show()
+
 
 main()
