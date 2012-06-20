@@ -57,13 +57,13 @@ class SimActor(PureSimulable, Actor):
 			or isinstance(transactions, set):
 			self.active = set(transactions)
 		elif transactions is None:
-			self.active = []
+			self.active = set()
 		else:
 			raise TypeError
 	
 	def do_simulation(self, s):
 		if not self.done:
+			if not self.active:
+				self._next_transactions()
 			if self.active:
 				self._process_transactions(s)
-			else:
-				self._next_transactions()
