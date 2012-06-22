@@ -43,7 +43,7 @@ def trgen_gen():
 def wishbone_sim(efragment, master, end_simulation):
 	peripheral = wishbone.Target(MyModelWB())
 	tap = wishbone.Tap(peripheral.bus)
-	interconnect = wishbone.InterconnectPointToPoint(master.bus, peripheral.bus)
+	interconnect = wishbone.InterconnectPointToPoint(master.actor.bus, peripheral.bus)
 	def _end_simulation(s):
 		s.interrupt = end_simulation(s)
 	fragment = efragment \
@@ -70,27 +70,27 @@ def asmi_sim(efragment, hub, end_simulation):
 
 def test_wb_reader():
 	print("*** Testing Wishbone reader")
-	adrgen = SimActor(adrgen_gen(), ("address", Source, [("a", BV(30))]))
-	reader = dma_wishbone.Reader()
-	dumper = SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))]))
+	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", BV(30))])))
+	reader = ActorNode(dma_wishbone.Reader())
+	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))])))
 	g = DataFlowGraph()
 	g.add_connection(adrgen, reader)
 	g.add_connection(reader, dumper)
 	comp = CompositeActor(g)
 	
 	wishbone_sim(comp.get_fragment(), reader,
-		lambda s: adrgen.done and not s.rd(comp.busy))
+		lambda s: adrgen.actor.done and not s.rd(comp.busy))
 
 def test_wb_writer():
 	print("*** Testing Wishbone writer")
-	trgen = SimActor(trgen_gen(), ("address_data", Source, [("a", BV(30)), ("d", BV(32))]))
-	writer = dma_wishbone.Writer()
+	trgen = ActorNode(SimActor(trgen_gen(), ("address_data", Source, [("a", BV(30)), ("d", BV(32))])))
+	writer = ActorNode(dma_wishbone.Writer())
 	g = DataFlowGraph()
 	g.add_connection(trgen, writer)
 	comp = CompositeActor(g)
 	
 	wishbone_sim(comp.get_fragment(), writer,
-		lambda s: trgen.done and not s.rd(comp.busy))
+		lambda s: trgen.actor.done and not s.rd(comp.busy))
 
 def test_asmi_seqreader():
 	print("*** Testing ASMI sequential reader")
@@ -99,16 +99,16 @@ def test_asmi_seqreader():
 	port = hub.get_port()
 	hub.finalize()
 	
-	adrgen = SimActor(adrgen_gen(), ("address", Source, [("a", BV(32))]))
-	reader = dma_asmi.SequentialReader(port)
-	dumper = SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))]))
+	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", BV(32))])))
+	reader = ActorNode(dma_asmi.SequentialReader(port))
+	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))])))
 	g = DataFlowGraph()
 	g.add_connection(adrgen, reader)
 	g.add_connection(reader, dumper)
 	comp = CompositeActor(g)
 	
 	asmi_sim(hub.get_fragment() + comp.get_fragment(), hub,
-		lambda s: adrgen.done and not s.rd(comp.busy))
+		lambda s: adrgen.actor.done and not s.rd(comp.busy))
 
 test_wb_reader()
 test_wb_writer()
