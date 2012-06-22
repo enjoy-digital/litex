@@ -17,13 +17,13 @@ def sink_gen():
 		print("Received: " + str(t.value["value"]))
 
 def main():
-	source = SimActor(source_gen(), ("source", Source, [("value", BV(32))]))
-	sink = SimActor(sink_gen(), ("sink", Sink, [("value", BV(32))]))
+	source = ActorNode(SimActor(source_gen(), ("source", Source, [("value", BV(32))])))
+	sink = ActorNode(SimActor(sink_gen(), ("sink", Sink, [("value", BV(32))])))
 	g = DataFlowGraph()
 	g.add_connection(source, sink)
 	comp = CompositeActor(g)
 	def end_simulation(s):
-		s.interrupt = source.done
+		s.interrupt = source.actor.done
 	fragment = comp.get_fragment() + Fragment(sim=[end_simulation])
 	sim = Simulator(fragment, Runner())
 	sim.run()
