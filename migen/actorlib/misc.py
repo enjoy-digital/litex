@@ -4,7 +4,7 @@ from migen.corelogic.fsm import *
 from migen.flow.actor import *
 
 # Generates integers from start to maximum-1
-class For(Actor):
+class IntSequence(Actor):
 	def __init__(self, nbits, step=1):
 		self.nbits = nbits
 		self.step = step

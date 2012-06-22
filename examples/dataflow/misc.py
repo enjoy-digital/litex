@@ -1,5 +1,5 @@
 from migen.flow.network import *
-from migen.actorlib import control
+from migen.actorlib import misc
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
@@ -18,7 +18,7 @@ def sink_gen():
 
 def main():
 	source = ActorNode(SimActor(source_gen(), ("source", Source, [("value", BV(32))])))
-	loop = ActorNode(control.For(32))
+	loop = ActorNode(misc.IntSequence(32))
 	sink = ActorNode(SimActor(sink_gen(), ("sink", Sink, [("value", BV(32))])))
 	g = DataFlowGraph()
 	g.add_connection(source, loop)
