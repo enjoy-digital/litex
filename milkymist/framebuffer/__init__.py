@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow import ala, plumbing
-from migen.actorlib import control, dma_asmi
+from migen.actorlib import misc, dma_asmi
 from migen.bank.description import *
 from migen.bank import csrgen
 
@@ -73,7 +73,7 @@ class Framebuffer:
 		length_bits = _hbits + _vbits + 2 - alignment_bits
 		
 		fi = ActorNode(_FrameInitiator(asmi_bits, length_bits, alignment_bits))
-		adrloop = ActorNode(control.For(length_bits))
+		adrloop = ActorNode(misc.IntSequence(length_bits))
 		adrbase = ActorNode(ala.Add(BV(asmi_bits)))
 		adrbuffer = ActorNode(plumbing.Buffer)
 		dma = ActorNode(dma_asmi.SequentialReader(asmiport))
