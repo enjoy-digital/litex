@@ -168,10 +168,23 @@ This actor receives N tokens with a layout L and generates one token with the fi
 Simulation actors
 =================
 
+When hardware implementation is not desired, Migen lets you program actor behaviour in "regular" Python.
+
+For this purpose, it provides a ``migen.actorlib.sim.SimActor`` class. The constructor takes a generator as parameter, and a list of endpoints (similarly to the base ``migen.flow.actor.Actor`` class). The generator implements the actor's behaviour.
+
+Generators can yield ``None`` (in which case, the actor does no transfer for one cycle) or one or a tuple of instances of the ``Token`` class. Tokens for sink endpoints are pulled and the "value" field filled in. Tokens for source endpoints are pushed according to their "value" field. The generator is run again after all transactions are completed.
+
+The possibility to push several tokens at once is important to interact with actors that only accept a group of tokens when all of them are available.
+
+The ``Token`` class contains the following items:
+
+* The name of the endpoint from which it is to be received, or to which it is to be transmitted. This value is not modified by the transaction.
+* A dictionary of values corresponding to the fields of the token. Fields that are lower-level records are represented by another dictionary. This item should be set to ``None`` (default) when receiving from a sink.
+
 Arithmetic and logic actors
 ===========================
 
-.. _schedmod:
+.. _busactors:
 
 Bus actors
 ==========
