@@ -120,6 +120,31 @@ The Migen actor library
 Plumbing actors
 ===============
 
+Plumbing actors arbitrate the flow of data between actors. For example, when a source feeds two sinks, they ensure that each sink receives exactly one copy of each token transmitted by the source.
+
+Most of the time, you will not need to instantiate plumbing actors directly, as abstract actor networks (see :ref:`actornetworks`) provide a more powerful solution and let Migen insert plumbing actors behind the scenes.
+
+Buffer
+------
+
+The ``Buffer`` registers the incoming token and retransmits it. It is a pipelined actor with one stage. It can be used to relieve some performance problems or ease timing closure when many levels of combinatorial logic are accumulated in the datapath of a system.
+
+When used in a network, abstract instances of ``Buffer`` are automatically configured by Migen (i.e. the appropriate token layout is set).
+
+Combinator
+----------
+
+This actor combines tokens from several sinks into one source.
+
+For example, when the operands of a pipelined multiplier are available independently, the ``Combinator`` can turn them into a structured token that is sent atomically into the multiplier when both operands are available, simplifying the design of the multiplier actor.
+
+Splitter
+--------
+
+This actor does the opposite job of the ``Combinator``. It receives a token from its sink, duplicates it into an arbitrary number of copies, and transmits one through each of its sources. It can optionally omit certain fields of the token (i.e. take a subrecord).
+
+For example, an Euclidean division actor generating the quotient and the remainder in one step can transmit both using one token. The ``Splitter`` can then forward the quotient and the remainder independently, as integers, to other actors.
+
 Structuring actors
 ==================
 
