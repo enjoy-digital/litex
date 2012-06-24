@@ -1,7 +1,7 @@
 Case studies
 ############
 
-A VGA framebuffer using dataflow
-********************************
+A VGA framebuffer
+*****************
 
 TODO

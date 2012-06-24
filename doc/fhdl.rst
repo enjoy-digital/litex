@@ -13,6 +13,8 @@ FHDL is made of several elements, which are briefly explained below.
 Expressions
 ***********
 
+.. _bv:
+
 Bit vector (BV)
 ===============
 The bit vector (BV) object defines if a constant or signal is signed or unsigned, and how many bits it has. This is useful e.g. to:
