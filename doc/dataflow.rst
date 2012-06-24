@@ -195,6 +195,32 @@ The ``ComposableSource`` class is a derivative of the ``ActorNode`` class (see :
 Bus actors
 ==========
 
+Migen provides a collection of bus-mastering actors, which makes it possible for dataflow systems to access system memory easily and efficiently.
+
+Wishbone reader
+---------------
+
+The ``migen.actorlib.dma_wishbone.reader`` takes a token representing a 30-bit Wishbone address (expressed in words), reads one 32-bit word on the bus at that address, and transmits the data.
+
+It does so using Wishbone classic cycles (there is no burst or cache support). The actor is pipelined and its throughput is only limited by the Wishbone stall cycles.
+
+Wishbone writer
+---------------
+
+The ``migen.actorlib.dma_wishbone.writer`` takes a token containing a 30-bit Wishbone address (expressed in words) and a 32-bit word of data, and writes that word to the bus.
+
+Only Wishbone classic cycles are supported. The throughput is limited by the Wishbone stall cycles only.
+
+ASMI reader
+-----------
+
+TODO (status: prototype available, sequential without reorder buffer)
+
+ASMI writer
+-----------
+
+TODO
+
 .. _actornetworks:
 
 Actor networks
