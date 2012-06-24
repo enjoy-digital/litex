@@ -8,6 +8,9 @@ Actors communicate by exchanging data units called tokens. A token contains arbi
 Actors
 ******
 
+Actors and endpoints
+====================
+
 Actors in Migen are implemented in FHDL. This low-level approach maximizes the practical flexibility: for example, an actor can manipulate the bus signals to implement a DMA master in order to read data from system memory.
 
 Token exchange ports of actors are called endpoints. Endpoints are unidirectional and can be sources (which transmit tokens out of the actor) or sinks (which receive tokens into the actor).
@@ -40,14 +43,14 @@ Actors are derived from the the ``migen.flow.actor.Actor`` base class. The const
 
 An endpoint description is a triple consisting of:
 
- * The endpoint's name.
- * A reference to the ``migen.flow.actor.Sink`` or the ``migen.flow.actor.Source`` class, defining the token direction of the endpoint.
- * The layout of the data record that the endpoint is dealing with.
+* The endpoint's name.
+* A reference to the ``migen.flow.actor.Sink`` or the ``migen.flow.actor.Source`` class, defining the token direction of the endpoint.
+* The layout of the data record that the endpoint is dealing with.
 
 Record layouts are a list of fields. Each field is described by a pair consisting of:
 
- * The field's name.
- * Either a BV object (see :ref:`bv`) if the field is a bit vector, or another record layout if the field is a lower-level record.
+* The field's name.
+* Either a BV object (see :ref:`bv`) if the field is a bit vector, or another record layout if the field is a lower-level record.
 
 For example, this code: ::
 
@@ -57,39 +60,57 @@ For example, this code: ::
 
 creates an actor with:
 
- * One sink named ``operands`` accepting data structured as a 16-bit field ``a`` and a 16-bit field ``b``. Note that this is functionally different from having two endpoints ``a`` and ``b``, each accepting a single 16-bit field. With a single endpoint, the data is strobed when *both* ``a`` and ``b`` are valid, and ``a`` and ``b`` are *both* acknowledged *atomically*. With two endpoints, the actor has to deal with accepting ``a`` and ``b`` independently. Plumbing actors (see :ref:`plumbing`) and abstract networks (see :ref:`actornetworks`) provide a systematic way of converting between these two behaviours, so user actors should implement the behaviour that results in the simplest or highest performance design.
- * One source named ``result`` transmitting a single 17-bit field named ``r``.
+* One sink named ``operands`` accepting data structured as a 16-bit field ``a`` and a 16-bit field ``b``. Note that this is functionally different from having two endpoints ``a`` and ``b``, each accepting a single 16-bit field. With a single endpoint, the data is strobed when *both* ``a`` and ``b`` are valid, and ``a`` and ``b`` are *both* acknowledged *atomically*. With two endpoints, the actor has to deal with accepting ``a`` and ``b`` independently. Plumbing actors (see :ref:`plumbing`) and abstract networks (see :ref:`actornetworks`) provide a systematic way of converting between these two behaviours, so user actors should implement the behaviour that results in the simplest or highest performance design.
+* One source named ``result`` transmitting a single 17-bit field named ``r``.
 
 Implementing the functionality of the actor can be done in two ways:
 
- * Overloading the ``get_fragment`` method.
- * Overloading both the ``get_control_fragment`` and ``get_process_fragment`` methods. The ``get_control_fragment`` method should return a fragment that manipulates the control signals (strobes, acknowledgements and the actor's busy signal) while ``get_process_fragment`` should return a fragment that manipulates the token payload. Overloading ``get_control_fragment`` alone allows you to define abstract actor classes implementing a given scheduling model. Migen comes with a library of such abstract classes for the most common schedules (see :ref:`schedmod`).
+* Overloading the ``get_fragment`` method.
+* Overloading both the ``get_control_fragment`` and ``get_process_fragment`` methods. The ``get_control_fragment`` method should return a fragment that manipulates the control signals (strobes, acknowledgements and the actor's busy signal) while ``get_process_fragment`` should return a fragment that manipulates the token payload. Overloading ``get_control_fragment`` alone allows you to define abstract actor classes implementing a given scheduling model. Migen comes with a library of such abstract classes for the most common schedules (see :ref:`schedmod`).
 
 Accessing the endpoints is done via the ``endpoints`` dictionary, which is keyed by endpoint names and contains instances of the ``migen.flow.actor.Endpoint`` class. The latter holds:
 
- * A signal object ``stb``.
- * A signal object ``ack``.
- * The data payload ``token``. The individual fields are the items (in the Python sense) of this object.
+* A signal object ``stb``.
+* A signal object ``ack``.
+* The data payload ``token``. The individual fields are the items (in the Python sense) of this object.
 
 Busy signal
 ===========
+
+The basic actor class creates a ``busy`` control signal that actor implementations should drive.
+
+This signal represents whether the actor's state holds information that will cause the completion of the transmission of output tokens. For example:
+
+* A "buffer" actor that simply registers and forwards incoming tokens should drive 1 on ``busy`` when its register contains valid data pending acknowledgement by the receiving actor, and 0 otherwise.
+* An actor sequenced by a finite state machine should drive ``busy`` to 1 whenever the state machine leaves its idle state.
+* An actor made of combinatorial logic is stateless and should tie ``busy`` to 0.
 
 .. _schedmod:
 
 Common scheduling models
 ========================
 
+For the simplest and most common scheduling cases, Migen provides logic to generate the handshake signals and the busy signal. This is done through abstract actor classes that overload ``get_control_fragment`` only, and the user should overload ``get_process_fragment`` to implement the actor's payload.
+
+These classes are usable only when the actor has exactly one sink and one source (but those endpoints can contain an arbitrary data structure), and in the cases listed below.
+
 Combinatorial
 -------------
 The actor datapath is made entirely of combinatorial logic. The handshake signals pass through. A small integer adder would use this model.
+
+This model is implemented by the ``migen.flow.actor.CombinatorialActor`` class. There are no parameters or additional control signals.
 
 N-sequential
 ------------
 The actor consumes one token at its input, and it produces one output token after N cycles. It cannot accept new input tokens until it has produced its output. A multicycle integer divider would use this model.
 
+This model is implemented by the ``migen.flow.actor.SequentialActor`` class. The constructor of this class takes as parameter the number of cycles N. The class provides an extra control signal ``trigger`` that pulses to 1 for one cycle when the actor should register the inputs and start its processing. The actor is then expected to provide an output after the N cycles and hold it constant until the next trigger pulse.
+
 N-pipelined
 -----------
 This is similar to the sequential model, but the actor can always accept new input tokens. It produces an output token N cycles of latency after accepting an input token. A pipelined multiplier would use this model.
+
+This model is implemented by the ``migen.flow.actor.PipelinedActor`` class. The constructor takes the number of pipeline stages N. There is an extra control signal ``pipe_ce`` that should enable or disable all synchronous statements in the datapath (i.e. it is the common clock enable signal for all the registers forming the pipeline stages).
 
 The Migen actor library
 ***********************

@@ -52,3 +52,7 @@ Installing Migen
 Either run the ``setup.py`` installation script or simply set ``PYTHONPATH`` to the root of the source directory.
 
 For simulation support, an extra step is needed. See :ref:`vpisetup`.
+
+Feedback
+********
+Feedback concerning Migen or this manual should be sent to the Milkymist developers' mailing list at devel@lists.milkymist.org.

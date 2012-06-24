@@ -19,9 +19,9 @@ Bit vector (BV)
 ===============
 The bit vector (BV) object defines if a constant or signal is signed or unsigned, and how many bits it has. This is useful e.g. to:
 
-* determine when to perform sign extension (FHDL uses the same rules as Verilog).
-* determine the size of registers.
-* determine how many bits should be used by each value in concatenations.
+* Determine when to perform sign extension (FHDL uses the same rules as Verilog).
+* Determine the size of registers.
+* Determine how many bits should be used by each value in concatenations.
 
 Constant
 ========
@@ -38,10 +38,10 @@ The main point of the signal object is that it is identified by its Python ID (a
 
 The properties of a signal object are:
 
-* a bit vector description
-* a name, used as a hint for the V*HDL back-end name mangler.
-* a boolean "variable". If true, the signal will behave like a VHDL variable, or a Verilog reg that uses blocking assignment. This parameter only has an effect when the signal's value is modified in a synchronous statement.
-* the signal's reset value. It must be an integer, and defaults to 0. When the signal's value is modified with a synchronous statement, the reset value is the initialization value of the associated register. When the signal is assigned to in a conditional combinatorial statement (``If`` or ``Case``), the reset value is the value that the signal has when no condition that causes the signal to be driven is verified. This enforces the absence of latches in designs. If the signal is permanently driven using a combinatorial statement, the reset value has no effect.
+* A bit vector description
+* A name, used as a hint for the V*HDL back-end name mangler.
+* A boolean "variable". If true, the signal will behave like a VHDL variable, or a Verilog reg that uses blocking assignment. This parameter only has an effect when the signal's value is modified in a synchronous statement.
+* The signal's reset value. It must be an integer, and defaults to 0. When the signal's value is modified with a synchronous statement, the reset value is the initialization value of the associated register. When the signal is assigned to in a conditional combinatorial statement (``If`` or ``Case``), the reset value is the value that the signal has when no condition that causes the signal to be driven is verified. This enforces the absence of latches in designs. If the signal is permanently driven using a combinatorial statement, the reset value has no effect.
   
 The sole purpose of the name property is to make the generated V*HDL code easier to understand and debug. From a purely functional point of view, it is perfectly OK to have several signals with the same name property. The back-end will generate a unique name for each object. If no name property is specified, Migen will analyze the code that created the signal object, and try to extract the variable or member name from there. For example, the following statements will create one or several signals named "bar": ::
 
@@ -125,20 +125,20 @@ Instances
 =========
 Instance objects represent the parametrized instantiation of a V*HDL module, and the connection of its ports to FHDL signals. They are useful in a number of cases:
 
-* reusing legacy or third-party V*HDL code.
-* using special FPGA features (DCM, ICAP, ...).
-* implementing logic that cannot be expressed with FHDL (asynchronous circuits, ...).
-* breaking down a Migen system into multiple sub-systems, possibly using different clock domains.
+* Reusing legacy or third-party V*HDL code.
+* Using special FPGA features (DCM, ICAP, ...).
+* Implementing logic that cannot be expressed with FHDL (asynchronous circuits, ...).
+* Breaking down a Migen system into multiple sub-systems, possibly using different clock domains.
 
 The properties of the instance object are:
 
-* the type of the instance (i.e. name of the instantiated module).
-* a list of output ports of the instantiated module. Each element of the list is a pair containing a string, which is the name of the module's port, and either an existing signal (on which the port will be connected to) or a BV (which will cause the creation of a new signal).
-* a list of input ports (likewise).
-* a list of (name, value) pairs for the parameters ("generics" in VHDL) of the module.
-* the name of the clock port of the module (if any). If this is specified, the port will be connected to the system clock.
-* the name of the reset port of the module (likewise).
-* the name of the instance (can be mangled like signal names).
+* The type of the instance (i.e. name of the instantiated module).
+* A list of output ports of the instantiated module. Each element of the list is a pair containing a string, which is the name of the module's port, and either an existing signal (on which the port will be connected to) or a BV (which will cause the creation of a new signal).
+* A list of input ports (likewise).
+* A list of (name, value) pairs for the parameters ("generics" in VHDL) of the module.
+* The name of the clock port of the module (if any). If this is specified, the port will be connected to the system clock.
+* The name of the reset port of the module (likewise).
+* The name of the instance (can be mangled like signal names).
 
 Memories
 ========
@@ -146,21 +146,21 @@ Memories (on-chip SRAM) are supported using a mechanism similar to instances.
 
 A memory object has the following parameters:
 
-* the width, which is the number of bits in each word.
-* the depth, which represents the number of words in the memory.
-* an optional list of integers used to initialize the memory.
-* a list of port descriptions.
+* The width, which is the number of bits in each word.
+* The depth, which represents the number of words in the memory.
+* An optional list of integers used to initialize the memory.
+* A list of port descriptions.
 
 Each port description contains:
 
-* the address signal (mandatory).
-* the data read signal (mandatory).
-* the write enable signal (optional). If the port is using masked writes, the width of the write enable signal should match the number of sub-words.
-* the data write signal (iff there is a write enable signal).
-* whether reads are synchronous (default) or asynchronous.
-* the read enable port (optional, ignored for asynchronous ports).
-* the write granularity (default 0), which defines the number of bits in each sub-word. If it is set to 0, the port is using whole-word writes only and the width of the write enable signal must be 1. This parameter is ignored if there is no write enable signal.
-* the mode of the port (default ``WRITE_FIRST``, ignored for asynchronous ports). It can be:
+* The address signal (mandatory).
+* The data read signal (mandatory).
+* The write enable signal (optional). If the port is using masked writes, the width of the write enable signal should match the number of sub-words.
+* The data write signal (iff there is a write enable signal).
+* Whether reads are synchronous (default) or asynchronous.
+* The read enable port (optional, ignored for asynchronous ports).
+* The write granularity (default 0), which defines the number of bits in each sub-word. If it is set to 0, the port is using whole-word writes only and the width of the write enable signal must be 1. This parameter is ignored if there is no write enable signal.
+* The mode of the port (default ``WRITE_FIRST``, ignored for asynchronous ports). It can be:
 
   * ``READ_FIRST``: during a write, the previous value is read.
   * ``WRITE_FIRST``: the written value is returned.
@@ -172,11 +172,11 @@ Fragments
 *********
 A "fragment" is a unit of logic, which is composed of:
 
-* a list of combinatorial statements.
-* a list of synchronous statements.
-* a list of instances.
-* a list of memories.
-* a list of simulation functions (see :ref:`simulating`).
+* A list of combinatorial statements.
+* A list of synchronous statements.
+* A list of instances.
+* A list of memories.
+* A list of simulation functions (see :ref:`simulating`).
 
 Fragments can reference arbitrary signals, including signals that are referenced in other fragments. Fragments can be combined using the "+" operator, which returns a new fragment containing the concatenation of each pair of lists.
 
