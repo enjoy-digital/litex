@@ -184,6 +184,12 @@ The ``Token`` class contains the following items:
 Arithmetic and logic actors
 ===========================
 
+The ``migen.actorlib.ala`` module provides arithmetic and logic actors for the usual integer operations.
+
+If complex operation combinations are needed, the ``ComposableSource`` class can be used. It overloads Python operators to make them instantiate the arithmetic and logic actors and connect them into an existing network. This creates a small internal domain-specific language (DSL).
+
+The ``ComposableSource`` class is a derivative of the ``ActorNode`` class (see :ref:`actornetworks`) and should be used in the place of the latter when the DSL feature is desired.
+
 .. _busactors:
 
 Bus actors

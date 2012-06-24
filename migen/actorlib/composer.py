@@ -1,3 +1,5 @@
+# TODO: merge this into ala + derive ComposableSource from ActorNode
+
 from migen.flow.actor import *
 from migen.flow.plumbing import *
 from migen.flow.network import *
