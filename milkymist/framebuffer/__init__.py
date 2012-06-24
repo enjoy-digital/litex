@@ -1,8 +1,8 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
-from migen.flow import ala, plumbing
-from migen.actorlib import misc, dma_asmi
+from migen.flow import plumbing
+from migen.actorlib import ala, misc, dma_asmi
 from migen.bank.description import *
 from migen.bank import csrgen
 
