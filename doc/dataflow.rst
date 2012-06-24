@@ -1,9 +1,9 @@
 Dataflow synthesis
 ##################
 
-Many hardware acceleration problems can be expressed in the dataflow paradigm, that is, using a directed graph representing the flow of data between actors.
+Many hardware acceleration problems can be expressed in the dataflow paradigm. It models a program as a directed graph of the data flowing between functions. The nodes of the graph are functional units called actors, and the edges represent the connections (transporting data) between them.
 
-Actors communicate by exchanging tokens, whose flow is controlled using handshake signals (strobe and acknowledgement).
+Actors communicate by exchanging data units called tokens. A token contains arbitrary (user-defined) data, which is a record containing one or many fields, a field being a bit vector or another record. Token exchanges are atomic (i.e. all fields are transferred at once from the transmitting actor to the receiving actor). The flow of tokens is controlled using handshake signals (strobe and acknowledgement).
 
 Actors
 ******
