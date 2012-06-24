@@ -11,7 +11,7 @@ Actors
 Actors and endpoints
 ====================
 
-Actors in Migen are implemented in FHDL. This low-level approach maximizes the practical flexibility: for example, an actor can manipulate the bus signals to implement a DMA master in order to read data from system memory.
+Actors in Migen are implemented in FHDL. This low-level approach maximizes the practical flexibility: for example, an actor can manipulate the bus signals to implement a DMA master in order to read data from system memory (see :ref:`busactors`).
 
 Token exchange ports of actors are called endpoints. Endpoints are unidirectional and can be sources (which transmit tokens out of the actor) or sinks (which receive tokens into the actor).
 
@@ -148,11 +148,30 @@ For example, an Euclidean division actor generating the quotient and the remaind
 Structuring actors
 ==================
 
+Cast
+----
+
+This actor concatenates all the bits from the data of its sink (in the order as they appear in the layout) and connects them to the raw bits of its source (obtained in the same way). The source and the sink layouts must contain the same number of raw bits. This actor is a simple "connect-through" which does not use any hardware resources.
+
+It can be used in conjunction with the bus master actors (see :ref:`busactors`) to destructure (resp. structure) data going to (resp. coming from) the bus.
+
+Unpack
+------
+
+This actor takes a token with the fields ``chunk0`` ... ``chunk[N-1]`` (each having the same layout L) and generates N tokens with the layout L containing the data of ``chunk0`` ... ``chunk[N-1]`` respectively.
+
+Pack
+----
+
+This actor receives N tokens with a layout L and generates one token with the fields ``chunk0`` ... ``chunk[N-1]`` (each having the same layout L) containing the data of the N incoming tokens respectively.
+
 Simulation actors
 =================
 
 Arithmetic and logic actors
 ===========================
+
+.. _schedmod:
 
 Bus actors
 ==========
