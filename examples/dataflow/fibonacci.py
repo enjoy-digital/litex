@@ -1,6 +1,6 @@
-from migen.flow.ala import *
 from migen.flow.network import *
 from migen.flow import plumbing
+from migen.actorlib.ala import *
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner

@@ -1,7 +1,7 @@
 from migen.flow.actor import *
-from migen.flow.ala import *
 from migen.flow.plumbing import *
 from migen.flow.network import *
+from migen.actorlib.ala import *
 
 def _create(a, b, actor_class):
 	assert id(a.dfg) == id(b.dfg)
