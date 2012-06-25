@@ -186,9 +186,9 @@ Arithmetic and logic actors
 
 The ``migen.actorlib.ala`` module provides arithmetic and logic actors for the usual integer operations.
 
-If complex operation combinations are needed, the ``ComposableSource`` class can be used. It overloads Python operators to make them instantiate the arithmetic and logic actors and connect them into an existing network. This creates a small internal domain-specific language (DSL).
+If complex operation combinations are needed, the ``ComposableNode`` class can be used. It overloads Python operators to make them instantiate the arithmetic and logic actors and connect them into an existing network. This creates a small internal domain-specific language (DSL).
 
-The ``ComposableSource`` class is a derivative of the ``ActorNode`` class (see :ref:`actornetworks`) and should be used in the place of the latter when the DSL feature is desired.
+The ``ComposableNode`` class is a derivative of the ``ActorNode`` class (see :ref:`actornetworks`) and should be used in the place of the latter when the DSL feature is desired.
 
 .. _busactors:
 
@@ -226,9 +226,70 @@ TODO
 Actor networks
 **************
 
-Actor networks are managed using the NetworkX [networkx]_ library.
+Graph definition
+================
+
+Migen represents an actor network using the ``migen.flow.network.DataFlowGraph`` class. It is derived from ``MultiDiGraph`` from the NetworkX [networkx]_ library.
 
 .. [networkx] http://networkx.lanl.gov/
+
+Nodes of the graph are instances of the ``migen.flow.network.ActorNode`` class. The latter can represent actors in two ways:
+
+* A reference to an existing actor (*physical actor*).
+* An class and a dictionary (*abstract actor*), meaning that the actor class should be instantiated with the parameters from the dictionary. This form is needed to enable optimizations such as actor duplication or sharing during elaboration.
+
+Edges of the graph represent the flow of data between actors. They have the following data properties:
+
+* ``source``: a string containing the name of the source endpoint, which can be ``None`` (Python's ``None``, not the string ``"None"``) if the transmitting actor has only one source endpoint.
+* ``sink``: a string containing the name of the sink endpoint, which can be ``None`` if the transmitting actor has only one sink endpoint.
+* ``source_subr``: if only certain fields (a subrecord) of the source endpoint should be included in the connection, their names are listed in this parameter. The ``None`` value connects all fields.
+* ``sink_subr``: if the connection should only drive certain fields (a subrecord) of the sink endpoint, they are listed here. The ``None`` value connects all fields.
+
+Compared to NetworkX's ``MultiDiGraph`` it is based on, Migen's ``DataFlowGraph`` class implements an additional method that makes it easier to add actor connections to a graph: ::
+
+  add_connection(source_node, sink_node,
+    source_ep=None, sink_ep=None, # default: assume nodes have 1 source/sink
+                                  # and use that one
+    source_subr=None, sink_subr=None) # default: use whole record
+
+Abstract and physical networks
+==============================
+
+A network (or graph) is abstract if it cannot be physically implemented by only connecting existing records  together. More explicitly, a graph is abstract if any of these conditions is met:
+
+#. A node is an abstract actor.
+#. A subrecord is used at a source or a sink.
+#. A single source feeds more than one sink.
+
+The ``DataFlowGraph`` class implements a method ``is_abstract`` that tests and returns if the network is abstract.
+
+An abstract graph can be turned into a physical graph through *elaboration*.
+
+Elaboration
+===========
+
+The most straightforward elaboration process goes as follows:
+
+#. Whenever several sources drive different fields of a single sink, insert a ``Combinator`` plumbing actor. A ``Combinator`` should also be inserted when a single source drive only certain fields of a sink.
+#. Whenever several sinks are driven by a single source (possibly by different fields of that source), insert a ``Splitter`` plumbing actor. A ``Splitter`` should also be inserted when only certain fields of a source drive a sink.
+#. Whenever an actor is abstract, instantiate it.
+
+This method is implemented by default by the ``elaborate`` method of the ``DataFlowGraph`` class, that modifies the graph in-place.
+
+Thanks to abstract actors, there are optimization possibilities during this stage:
+
+* Time-sharing an actor to reduce resource utilization.
+* Duplicating an actor to increase performance.
+* Promoting an actor to a wider datapath to enable time-sharing with another. For example, if a network contains a 16-bit and a 32-bit multiplier, the 16-bit multiplier can be promoted to 32-bit and time-shared.
+* Algebraic optimizations.
+* Removing redundant actors whose output is only used partially. For example, two instances of divider using the restoring method can be present in a network, and each could generate either the quotient or the remainder of the same integers. Since the restoring method produces both results at the same time, only one actor should be used instead.
+
+None of these optimizations are implemented yet.
+
+Implementation
+==============
+
+A physical graph can be implemented and turned into a synthesizable or simulable fragment using the ``migen.flow.network.CompositeActor`` actor.
 
 Performance tools
 *****************

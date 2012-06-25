@@ -195,7 +195,7 @@ class DataFlowGraph(MultiDiGraph):
 			if d["sink"] is None:
 				d["sink"] = v.actor.single_sink()
 	
-	# Elaboration turns an abstract DFG into a concrete one.
+	# Elaboration turns an abstract DFG into a physical one.
 	#   Pass 1: eliminate subrecords and divergences
 	#           by inserting Combinator/Splitter actors
 	#   Pass 2: run optimizer (e.g. share and duplicate actors)
