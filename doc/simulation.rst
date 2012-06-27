@@ -160,6 +160,8 @@ Abstract bus transactions
 .. include:: ../examples/sim/abstract_transactions.py
    :code: python
 
+.. _dfsimexample:
+   
 Dataflow simulation actors
 ==========================
 .. include:: ../examples/sim/dataflow.py

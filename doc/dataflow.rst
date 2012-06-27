@@ -181,6 +181,8 @@ The ``Token`` class contains the following items:
 * The name of the endpoint from which it is to be received, or to which it is to be transmitted. This value is not modified by the transaction.
 * A dictionary of values corresponding to the fields of the token. Fields that are lower-level records are represented by another dictionary. This item should be set to ``None`` (default) when receiving from a sink.
 
+See :ref:`dfsimexample` for an example demonstrating the use of these actors.
+
 Arithmetic and logic actors
 ===========================
 
