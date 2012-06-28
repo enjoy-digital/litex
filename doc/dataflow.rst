@@ -145,6 +145,8 @@ This actor does the opposite job of the ``Combinator``. It receives a token from
 
 For example, an Euclidean division actor generating the quotient and the remainder in one step can transmit both using one token. The ``Splitter`` can then forward the quotient and the remainder independently, as integers, to other actors.
 
+.. _structuring:
+
 Structuring actors
 ==================
 
@@ -295,6 +297,27 @@ A physical graph can be implemented and turned into a synthesizable or simulable
 
 Performance tools
 *****************
+
+The module ``migen.flow.perftools`` provides utilities to analyze the performance of a dataflow network.
+
+The class ``EndpointReporter`` is a simulation object that attaches to an endpoint and measures three parameters:
+
+* The total number of clock cycles per token (CPT). This gives a measure of the raw inverse token rate through the endpoint. The smaller this number, the faster the endpoint operates. Since an endpoint has only one set of synchronous control signals, the CPT value is always superior or equal to 1 (multiple data records can however be packed into a single token, see for example :ref:`structuring`).
+* The average number of inactivity cycles per token (IPT). An inactivity cycle is defined as a cycle with the ``stb`` signal deasserted. This gives a measure of the delay between attempts at token transmissions ("slack") on the endpoint.
+* The average number of stall cycles per token (NPT). A stall cycle is defined as a cycle with ``stb`` asserted and ``ack`` deasserted. This gives a measure of the "backpressure" on the endpoint, which represents the average number of wait cycles it takes for the source to have a token accepted by the sink. If all tokens are accepted immediately in one cycle, then NPT=0.
+
+In the case of an actor network, the ``DFGReporter`` simulation object attaches an ``EndpointReporter`` to the source endpoint of each edge in the graph. The graph must not be abstract.
+
+The ``DFGReporter`` contains a dictionary ``nodepair_to_ep`` that is keyed by ``(source actor, destination actor)`` pairs. Entries are other dictionaries that are keyed with the name of the source endpoint and return the associated ``EndpointReporter`` objects.
+
+``DFGReporter`` also provides a method ``get_edge_labels`` that can be used in conjunction with NetworkX's ``draw_networkx_edge_labels`` function to draw the performance report on a graphical representation of the graph (for an example, see :ref:`get_edge_labels`).
+
+.. _get_edge_labels:
+
+.. figure:: get_edge_labels.png
+   :scale: 55 %
+
+   Actor network with performance data from a simulation run.
 
 
 High-level actor description
