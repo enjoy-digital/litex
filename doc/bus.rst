@@ -60,7 +60,20 @@ As a special exception, fields that are read-only from the bus and write-only fo
 
 Generating interrupt controllers
 ================================
-TODO: please document me!
+The event manager provides a systematic way to generate standard interrupt controllers.
+
+Its constructor takes as parameters one or several *event sources*. An event source is an instance of either:
+
+* ``EventSourcePulse``, which contains a signal ``trigger`` that generates an event when high. The event stays asserted after the ``trigger`` signal goes low, and until software acknowledges it. An example use is to pulse ``trigger`` high for 1 cycle after the reception of a character in a UART.
+* ``EventSourceLevel``, which contains a signal ``trigger`` that generates an event on its falling edge. The purpose of this event source is to monitor the status of processes and generate an interrupt on their completion. The signal ``trigger`` can be connected to the ``busy`` signal of a dataflow actor, for example.
+
+The ``EventManager`` provides a signal ``irq`` which is driven high whenever there is a pending and unmasked event. It is typically connected to an interrupt line of a CPU.
+
+The ``EventManager`` provides a method ``get_registers``, that returns a list of registers to be used with Migen Bank. Each event source is assigned one bit in each of those registers. They are:
+
+* ``status``: contains the current level of the trigger line of ``EventSourceLevel`` sources. It is 0 for ``EventSourcePulse``. This register is read-only.
+* ``pending``: contains the currently asserted events. Writing 1 to the bit assigned to an event clears it.
+* ``enable``: defines which asserted events will cause the ``irq`` line to be asserted. This register is read-write.
 
 .. _asmi:
 
