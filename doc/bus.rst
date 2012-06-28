@@ -46,7 +46,7 @@ Bank takes a description made up of a list of registers and generates logic impl
 A register can be "raw", which means that the core has direct access to it. It also means that the register width must be less or equal to the bus word width. In that case, the register object provides the following signals:
 
 * ``r``, which contains the data written from the bus interface.
-* ``re``, which is the strobe signal for ``r``. It is active for one cycle, after or during a write from the bus. r is only valid when re is high.
+* ``re``, which is the strobe signal for ``r``. It is active for one cycle, after or during a write from the bus. ``r`` is only valid when ``re`` is high.
 * ``w``, which must provide at all times the value to be read from the bus.
 
 Registers that are not raw are managed by Bank and contain fields. If the sum of the widths of all fields attached to a register exceeds the bus word width, the register will automatically be sliced into words of the maximum size and implemented at consecutive bus addresses, MSB first. Field objects have two parameters, ``access_bus`` and ``access_dev``, determining respectively the access policies for the bus and core sides. They can take the values ``READ_ONLY``, ``WRITE_ONLY`` and ``READ_WRITE``.
@@ -93,11 +93,14 @@ Topology
 ========
 The ASMI consists of a memory controller (e.g. ASMIcon) containing a hub that connects the multiple masters, handles transaction tags, and presents a view of the pending requests to the rest of the memory controller.
 
-Links between the masters and the hub are using the same ASMIbus protocol described below.
+Each master has a number of dedicated transaction slots allocated inside the hub. Each slot is assigned a tag, that is later used in the data transfer to identify the slot the data belongs to.
 
-It is suggested that memory controllers use an interface to a PHY compatible with DFI [dfi]_. The DFI clock can be the same as the ASMIbus clock, with optional serialization and deserialization happening across the PHY, as specified in the DFI standard.
+It is suggested that memory controllers use an interface to a PHY compatible with DFI [dfi]_. The DFI clock can be the same as the ASMIbus clock, with optional serialization and deserialization taking place across the PHY, as specified in the DFI standard.
 
-TODO: figure
+.. figure:: asmi_topology.png
+   :scale: 85 %
+
+   ASMI topology.
 
 Signals
 =======
@@ -144,10 +147,6 @@ B = Fi/Fa
 W = B*[number of SDRAM I/O pins]
 
 For DDR memories, the I/O frequency is twice the logic frequency.
-
-Example transactions
-====================
-TODO: please document me!
 
 Using ASMI with Migen
 =====================
