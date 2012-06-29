@@ -9,6 +9,24 @@ from migen.bank import csrgen
 _hbits = 11
 _vbits = 11
 
+_bpp = 32
+_bpc = 10
+_pixel_layout = [
+	("b", BV(_bpc)),
+	("g", BV(_bpc)),
+	("r", BV(_bpc)),
+	("pad", BV(_bpp-3*_bpc))
+]
+
+_bpc_dac = 8
+_dac_layout = [
+	("hsync", BV(1)),
+	("vsync", BV(1)),
+	("b", BV(_bpc_dac)),
+	("g", BV(_bpc_dac)),
+	("r", BV(_bpc_dac))
+]
+
 class _FrameInitiator(Actor):
 	def __init__(self, asmi_bits, length_bits, alignment_bits):
 		self._alignment_bits = alignment_bits
@@ -52,6 +70,7 @@ class _FrameInitiator(Actor):
 		# TODO: make address updates atomic
 		token = self.token("frame")
 		comb = [
+			self.busy.eq(0),
 			self.endpoints["frame"].stb.eq(self._enable.field.r),
 			token.hres.eq(self._hres.field.r),
 			token.hsync_start.eq(self._hsync_start.field.r),
@@ -66,14 +85,38 @@ class _FrameInitiator(Actor):
 		]
 		return Fragment(comb)
 
-_bpp = 32
-_bpc = 10
-_pixel_layout = [
-	("b", BV(_bpc)),
-	("g", BV(_bpc)),
-	("r", BV(_bpc)),
-	("pad", BV(_bpp-3*_bpc))
-]
+class VTG(Actor):
+	def __init__(self):
+		super().__init__(
+			("timing", Sink, [
+				("hres", BV(_hbits)),
+				("hsync_start", BV(_hbits)),
+				("hsync_end", BV(_hbits)),
+				("hscan", BV(_hbits)),
+				("vres", BV(_vbits)),
+				("vsync_start", BV(_vbits)),
+				("vsync_end", BV(_vbits)),
+				("vscan", BV(_vbits))]),
+			("pixels", Sink, _pixel_layout),
+			("dac", Source, _dac_layout)
+		)
+	
+	def get_fragment(self):
+		return Fragment() # TODO
+
+class FIFO(Actor):
+	def __init__(self):
+		super().__init__(("dac", Sink, _dac_layout))
+		
+		self.vga_clk = Signal()
+		self.vga_hsync_n = Signal()
+		self.vga_vsync_n = Signal()
+		self.vga_r = Signal(BV(8))
+		self.vga_g = Signal(BV(8))
+		self.vga_b = Signal(BV(8))
+	
+	def get_fragment(self):
+		return Fragment() # TODO
 
 class Framebuffer:
 	def __init__(self, address, asmiport):
@@ -90,7 +133,8 @@ class Framebuffer:
 		dma = ActorNode(dma_asmi.SequentialReader(asmiport))
 		cast = ActorNode(structuring.Cast(asmiport.hub.dw, packed_pixels))
 		unpack = ActorNode(structuring.Unpack(pack_factor, _pixel_layout))
-		# TODO: VTG
+		vtg = ActorNode(VTG())
+		fifo = ActorNode(FIFO())
 		
 		g = DataFlowGraph()
 		g.add_connection(fi, adrloop, source_subr=["length"])
@@ -100,22 +144,27 @@ class Framebuffer:
 		g.add_connection(adrbuffer, dma)
 		g.add_connection(dma, cast)
 		g.add_connection(cast, unpack)
+		g.add_connection(unpack, vtg, sink_ep="pixels")
+		g.add_connection(fi, vtg, sink_ep="timing", source_subr=[
+			"hres", "hsync_start", "hsync_end", "hscan", 
+			"vres", "vsync_start", "vsync_end", "vscan"])
+		g.add_connection(vtg, fifo)
 		self._comp_actor = CompositeActor(g)
 		
 		self.bank = csrgen.Bank(fi.actor.get_registers(), address=address)
 		
 		# VGA clock input
-		self.vga_clk = Signal()
+		self.vga_clk = fifo.actor.vga_clk
 		
 		# Pads
 		self.vga_psave_n = Signal()
-		self.vga_hsync_n = Signal()
-		self.vga_vsync_n = Signal()
+		self.vga_hsync_n = fifo.actor.vga_hsync_n
+		self.vga_vsync_n = fifo.actor.vga_vsync_n
 		self.vga_sync_n = Signal()
 		self.vga_blank_n = Signal()
-		self.vga_r = Signal(BV(8))
-		self.vga_g = Signal(BV(8))
-		self.vga_b = Signal(BV(8))
+		self.vga_r = fifo.actor.vga_r
+		self.vga_g = fifo.actor.vga_g
+		self.vga_b = fifo.actor.vga_b
 
 	def get_fragment(self):
 		comb = [
