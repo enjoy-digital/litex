@@ -1,11 +1,17 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
 
+def _rawbits_layout(l):
+	if isinstance(l, int):
+		return [("rawbits", BV(l))]
+	else:
+		return l
+
 class Cast(CombinatorialActor):
 	def __init__(self, layout_from, layout_to):
 		super().__init__(
-			("sink", Sink, layout_from),
-			("source", Source, layout_to))
+			("sink", Sink, _rawbits_layout(layout_from)),
+			("source", Source, _rawbits_layout(layout_to)))
 	
 	def get_process_fragment(self):
 		sigs_from = self.token("sink").flatten()
@@ -45,7 +51,7 @@ class Unpack(Actor):
 			)
 		]
 		cases = [(Constant(i, BV(muxbits)) if i else Default(),
-			Cat(*self.token("source").flatten()).eq(*self.token("sink").subrecord("chunk{0}".format(i)).flatten()))
+			Cat(*self.token("source").flatten()).eq(Cat(*self.token("sink").subrecord("chunk{0}".format(i)).flatten())))
 			for i in range(self.n)]
 		comb.append(Case(mux, *cases))
 		return Fragment(comb, sync)
