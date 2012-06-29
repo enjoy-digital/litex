@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow import plumbing
-from migen.actorlib import ala, misc, dma_asmi
+from migen.actorlib import ala, misc, dma_asmi, structuring
 from migen.bank.description import *
 from migen.bank import csrgen
 
@@ -66,18 +66,30 @@ class _FrameInitiator(Actor):
 		]
 		return Fragment(comb)
 
+_bpp = 32
+_bpc = 10
+_pixel_layout = [
+	("b", BV(_bpc)),
+	("g", BV(_bpc)),
+	("r", BV(_bpc)),
+	("pad", BV(_bpp-3*_bpc))
+]
+
 class Framebuffer:
 	def __init__(self, address, asmiport):
 		asmi_bits = asmiport.hub.aw
 		alignment_bits = asmiport.hub.dw//8
 		length_bits = _hbits + _vbits + 2 - alignment_bits
+		pack_factor = asmiport.hub.dw//_bpp
+		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
 		
 		fi = ActorNode(_FrameInitiator(asmi_bits, length_bits, alignment_bits))
 		adrloop = ActorNode(misc.IntSequence(length_bits))
 		adrbase = ActorNode(ala.Add(BV(asmi_bits)))
 		adrbuffer = ActorNode(plumbing.Buffer)
 		dma = ActorNode(dma_asmi.SequentialReader(asmiport))
-		# TODO: chop
+		cast = ActorNode(structuring.Cast(asmiport.hub.dw, packed_pixels))
+		unpack = ActorNode(structuring.Unpack(pack_factor, _pixel_layout))
 		# TODO: VTG
 		
 		g = DataFlowGraph()
@@ -86,6 +98,8 @@ class Framebuffer:
 		g.add_connection(fi, adrbase, source_subr=["base"], sink_subr=["b"])
 		g.add_connection(adrbase, adrbuffer)
 		g.add_connection(adrbuffer, dma)
+		g.add_connection(dma, cast)
+		g.add_connection(cast, unpack)
 		self._comp_actor = CompositeActor(g)
 		
 		self.bank = csrgen.Bank(fi.actor.get_registers(), address=address)
