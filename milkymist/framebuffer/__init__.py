@@ -44,7 +44,7 @@ class _FrameInitiator(Actor):
 		self._vscan = RegisterField("vscan", _vbits, reset=524)
 		
 		self._base = RegisterField("base", asmi_bits + self._alignment_bits)
-		self._length = RegisterField("length", length_bits + self._alignment_bits)
+		self._length = RegisterField("length", length_bits + self._alignment_bits, reset=640*480*4)
 		
 		layout = [
 			("hres", BV(_hbits)),
@@ -102,7 +102,59 @@ class VTG(Actor):
 		)
 	
 	def get_fragment(self):
-		return Fragment() # TODO
+		hactive = Signal()
+		vactive = Signal()
+		active = Signal()
+		
+		generate_en = Signal()
+		hcounter = Signal(BV(_hbits))
+		vcounter = Signal(BV(_vbits))
+		hsync = Signal()
+		vsync = Signal()
+		
+		comb = [
+			active.eq(hactive & vactive),
+			If(active,
+				self.token("dac").r.eq(self.token("pixels").r[:_bpc_dac]),
+				self.token("dac").g.eq(self.token("pixels").g[:_bpc_dac]),
+				self.token("dac").b.eq(self.token("pixels").b[:_bpc_dac])
+			),
+			
+			generate_en.eq(self.endpoints["timing"].stb & self.endpoints["dac"].ack \
+				& (~active | self.endpoints["pixels"].stb)),
+			self.endpoints["pixels"].ack.eq(self.endpoints["dac"].ack & active),
+			self.endpoints["dac"].stb.eq(generate_en)
+		]
+		tp = self.token("timing")
+		sync = [
+			self.endpoints["timing"].ack.eq(0),
+			If(generate_en,
+				hcounter.eq(hcounter + 1),
+			
+				If(hcounter == 0, hactive.eq(1)),
+				If(hcounter == tp.hres, hactive.eq(0)),
+				If(hcounter == tp.hsync_start, hsync.eq(1)),
+				If(hcounter == tp.hsync_end, hsync.eq(0)),
+				If(hcounter == tp.hscan,
+					hcounter.eq(0),
+					If(vcounter == tp.vscan,
+						vcounter.eq(0)
+					).Else(
+						vcounter.eq(vcounter + 1)
+					)
+				),
+				
+				If(vcounter == 0, vactive.eq(1)),
+				If(vcounter == tp.vres, vactive.eq(0)),
+				If(vcounter == tp.vsync_start, vsync.eq(1)),
+				If(vcounter == tp.vsync_end,
+					vsync.eq(0),
+					self.endpoints["timing"].ack.eq(1)
+				)
+			)
+		]
+		
+		return Fragment(comb, sync)
 
 class FIFO(Actor):
 	def __init__(self):
@@ -153,7 +205,7 @@ class FIFO(Actor):
 class Framebuffer:
 	def __init__(self, address, asmiport):
 		asmi_bits = asmiport.hub.aw
-		alignment_bits = asmiport.hub.dw//8
+		alignment_bits = bits_for(asmiport.hub.dw//8)
 		length_bits = _hbits + _vbits + 2 - alignment_bits
 		pack_factor = asmiport.hub.dw//_bpp
 		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
