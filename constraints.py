@@ -100,6 +100,11 @@ TIMESPEC "TSphy_rx_clk" = PERIOD "GRPphy_rx_clk" 40 ns HIGH 50%;
 TIMESPEC "TSphy_tx_clk" = PERIOD "GRPphy_tx_clk" 40 ns HIGH 50%;
 TIMESPEC "TSphy_tx_clk_io" = FROM "GRPphy_tx_clk" TO "PADS" 10 ns;
 TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
+
+NET "asfifo*/counter_read/gray_count*" TIG;
+NET "asfifo*/counter_write/gray_count*" TIG;
+NET "asfifo*/preset_empty*" TIG;
+
 """.format(phy_rx_clk=ns.get_name(self._phy_rx_clk), phy_tx_clk=ns.get_name(self._phy_tx_clk))
 	
 		return r
