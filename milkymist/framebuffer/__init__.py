@@ -187,19 +187,20 @@ class FIFO(Actor):
 			],
 			clkport="clk_write")
 		t = self.token("dac")
-		return Fragment([
-			asfifo.ins["read_en"].eq(1),
-			
-			self.endpoints["dac"].ack.eq(~asfifo.outs["full"]),
-			asfifo.ins["write_en"].eq(self.endpoints["dac"].stb),
-			asfifo.ins["data_in"].eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
-			
-			self.busy.eq(0),
-			asfifo.ins["rst"].eq(0)
-		], [
-			Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"])
-		],
-		instances=[asfifo])
+		return Fragment(
+			[
+				asfifo.ins["read_en"].eq(1),
+				
+				self.endpoints["dac"].ack.eq(~asfifo.outs["full"]),
+				asfifo.ins["write_en"].eq(self.endpoints["dac"].stb),
+				asfifo.ins["data_in"].eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
+				
+				self.busy.eq(0),
+				asfifo.ins["rst"].eq(0)
+			], [
+				Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"])
+			],
+			instances=[asfifo])
 
 class FakeDMA(Actor):
 	def __init__(self, port):
