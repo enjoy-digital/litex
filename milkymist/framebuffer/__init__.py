@@ -110,12 +110,13 @@ class VTG(Actor):
 		hcounter = Signal(BV(_hbits))
 		vcounter = Signal(BV(_vbits))
 		
+		skip = _bpc - _bpc_dac
 		comb = [
 			active.eq(hactive & vactive),
 			If(active,
-				self.token("dac").r.eq(self.token("pixels").r[:_bpc_dac]),
-				self.token("dac").g.eq(self.token("pixels").g[:_bpc_dac]),
-				self.token("dac").b.eq(self.token("pixels").b[:_bpc_dac])
+				self.token("dac").r.eq(self.token("pixels").r[skip:]),
+				self.token("dac").g.eq(self.token("pixels").g[skip:]),
+				self.token("dac").b.eq(self.token("pixels").b[skip:])
 			),
 			
 			generate_en.eq(self.endpoints["timing"].stb & self.endpoints["dac"].ack \
