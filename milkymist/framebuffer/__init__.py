@@ -119,15 +119,14 @@ class VTG(Actor):
 				self.token("dac").b.eq(self.token("pixels").b[skip:])
 			),
 			
-			generate_en.eq(self.endpoints["timing"].stb & self.endpoints["dac"].ack \
-				& (~active | self.endpoints["pixels"].stb)),
+			generate_en.eq(self.endpoints["timing"].stb & (~active | self.endpoints["pixels"].stb)),
 			self.endpoints["pixels"].ack.eq(self.endpoints["dac"].ack & active),
 			self.endpoints["dac"].stb.eq(generate_en)
 		]
 		tp = self.token("timing")
 		sync = [
 			self.endpoints["timing"].ack.eq(0),
-			If(generate_en,
+			If(generate_en & self.endpoints["dac"].ack,
 				hcounter.eq(hcounter + 1),
 			
 				If(hcounter == 0, hactive.eq(1)),
@@ -138,6 +137,8 @@ class VTG(Actor):
 					hcounter.eq(0),
 					If(vcounter == tp.vscan,
 						vcounter.eq(0)
+						# FIXME: work around Flow bug
+						#self.endpoints["timing"].ack.eq(1)
 					).Else(
 						vcounter.eq(vcounter + 1)
 					)
@@ -146,10 +147,7 @@ class VTG(Actor):
 				If(vcounter == 0, vactive.eq(1)),
 				If(vcounter == tp.vres, vactive.eq(0)),
 				If(vcounter == tp.vsync_start, self.token("dac").vsync.eq(1)),
-				If(vcounter == tp.vsync_end,
-					self.token("dac").vsync.eq(0),
-					self.endpoints["timing"].ack.eq(1)
-				)
+				If(vcounter == tp.vsync_end, self.token("dac").vsync.eq(0))
 			)
 		]
 		
