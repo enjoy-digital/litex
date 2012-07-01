@@ -201,6 +201,25 @@ class FIFO(Actor):
 		],
 		instances=[asfifo])
 
+class FakeDMA(Actor):
+	def __init__(self, port):
+		self.port = port
+		super().__init__(
+				("address", Sink, [("a", BV(self.port.hub.aw))]),
+				("data", Source, [("d", BV(self.port.hub.dw))]))
+	
+	def get_fragment(self):
+		pixel = Signal(BV(32))
+		comb = [
+			self.endpoints["address"].ack.eq(1),
+			self.endpoints["data"].stb.eq(1),
+			self.token("data").d.eq(Replicate(pixel, 4))
+		]
+		sync = [
+			If(self.endpoints["data"].ack, pixel.eq(pixel + 1))
+		]
+		return Fragment(comb, sync)
+
 class Framebuffer:
 	def __init__(self, address, asmiport):
 		asmi_bits = asmiport.hub.aw
@@ -213,7 +232,8 @@ class Framebuffer:
 		adrloop = ActorNode(misc.IntSequence(length_bits))
 		adrbase = ActorNode(ala.Add(BV(asmi_bits)))
 		adrbuffer = ActorNode(plumbing.Buffer)
-		dma = ActorNode(dma_asmi.SequentialReader(asmiport))
+		#dma = ActorNode(dma_asmi.SequentialReader(asmiport))
+		dma = ActorNode(FakeDMA(asmiport))
 		cast = ActorNode(structuring.Cast(asmiport.hub.dw, packed_pixels))
 		unpack = ActorNode(structuring.Unpack(pack_factor, _pixel_layout))
 		vtg = ActorNode(VTG())
