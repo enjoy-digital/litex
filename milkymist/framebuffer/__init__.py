@@ -109,8 +109,6 @@ class VTG(Actor):
 		generate_en = Signal()
 		hcounter = Signal(BV(_hbits))
 		vcounter = Signal(BV(_vbits))
-		hsync = Signal()
-		vsync = Signal()
 		
 		comb = [
 			active.eq(hactive & vactive),
@@ -133,8 +131,8 @@ class VTG(Actor):
 			
 				If(hcounter == 0, hactive.eq(1)),
 				If(hcounter == tp.hres, hactive.eq(0)),
-				If(hcounter == tp.hsync_start, hsync.eq(1)),
-				If(hcounter == tp.hsync_end, hsync.eq(0)),
+				If(hcounter == tp.hsync_start, self.token("dac").hsync.eq(1)),
+				If(hcounter == tp.hsync_end, self.token("dac").hsync.eq(0)),
 				If(hcounter == tp.hscan,
 					hcounter.eq(0),
 					If(vcounter == tp.vscan,
@@ -146,9 +144,9 @@ class VTG(Actor):
 				
 				If(vcounter == 0, vactive.eq(1)),
 				If(vcounter == tp.vres, vactive.eq(0)),
-				If(vcounter == tp.vsync_start, vsync.eq(1)),
+				If(vcounter == tp.vsync_start, self.token("dac").vsync.eq(1)),
 				If(vcounter == tp.vsync_end,
-					vsync.eq(0),
+					self.token("dac").vsync.eq(0),
 					self.endpoints["timing"].ack.eq(1)
 				)
 			)
