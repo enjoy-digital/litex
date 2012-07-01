@@ -191,7 +191,6 @@ class FIFO(Actor):
 			clkport="clk_write")
 		t = self.token("dac")
 		return Fragment([
-			Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"]),
 			asfifo.ins["read_en"].eq(1),
 			
 			self.endpoints["dac"].ack.eq(~asfifo.outs["full"]),
@@ -200,7 +199,10 @@ class FIFO(Actor):
 			
 			self.busy.eq(0),
 			asfifo.ins["rst"].eq(0)
-		], instances=[asfifo])
+		], [
+			Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"])
+		],
+		instances=[asfifo])
 
 class Framebuffer:
 	def __init__(self, address, asmiport):
