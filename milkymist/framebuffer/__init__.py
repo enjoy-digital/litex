@@ -111,12 +111,44 @@ class FIFO(Actor):
 		self.vga_clk = Signal()
 		self.vga_hsync_n = Signal()
 		self.vga_vsync_n = Signal()
-		self.vga_r = Signal(BV(8))
-		self.vga_g = Signal(BV(8))
-		self.vga_b = Signal(BV(8))
+		self.vga_r = Signal(BV(_bpc_dac))
+		self.vga_g = Signal(BV(_bpc_dac))
+		self.vga_b = Signal(BV(_bpc_dac))
 	
 	def get_fragment(self):
-		return Fragment() # TODO
+		data_width = 2+3*_bpc_dac
+		asfifo = Instance("asfifo",
+			[
+				("data_out", BV(data_width)),
+				("empty", BV(1)),
+				
+				("full", BV(1))
+			], [
+				("read_en", BV(1)),
+				("clk_read", self.vga_clk),
+				
+				("data_in", BV(data_width)),
+				("write_en", BV(1)),
+				
+				("rst", BV(1))
+			],
+			parameters=[
+				("data_width", data_width),
+				("address_width", 8)
+			],
+			clkport="clk_write")
+		t = self.token("dac")
+		return Fragment([
+			Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"]),
+			asfifo.ins["read_en"].eq(1),
+			
+			self.endpoints["dac"].ack.eq(~asfifo.outs["full"]),
+			asfifo.ins["write_en"].eq(self.endpoints["dac"].stb),
+			asfifo.ins["data_in"].eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
+			
+			self.busy.eq(0),
+			asfifo.ins["rst"].eq(0)
+		], instances=[asfifo])
 
 class Framebuffer:
 	def __init__(self, address, asmiport):
