@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow import plumbing
-from migen.actorlib import ala, misc, dma_asmi, structuring
+from migen.actorlib import ala, misc, dma_asmi, structuring, sim
 from migen.bank.description import *
 from migen.bank import csrgen
 
@@ -202,6 +202,12 @@ class FIFO(Actor):
 			],
 			instances=[asfifo])
 
+def sim_fifo_gen():
+	while True:
+		t = sim.Token("dac")
+		yield t
+		print("H/V:" + str(t.value["hsync"]) + str(t.value["vsync"]))
+
 class FakeDMA(Actor):
 	def __init__(self, port):
 		self.port = port
@@ -222,7 +228,7 @@ class FakeDMA(Actor):
 		return Fragment(comb, sync)
 
 class Framebuffer:
-	def __init__(self, address, asmiport):
+	def __init__(self, address, asmiport, simulation=False):
 		asmi_bits = asmiport.hub.aw
 		alignment_bits = bits_for(asmiport.hub.dw//8) - 1
 		length_bits = _hbits + _vbits + 2 - alignment_bits
@@ -238,7 +244,10 @@ class Framebuffer:
 		cast = ActorNode(structuring.Cast(asmiport.hub.dw, packed_pixels))
 		unpack = ActorNode(structuring.Unpack(pack_factor, _pixel_layout))
 		vtg = ActorNode(VTG())
-		fifo = ActorNode(FIFO())
+		if simulation:
+			fifo = ActorNode(sim.SimActor(sim_fifo_gen(), ("dac", Sink, _dac_layout)))
+		else:
+			fifo = ActorNode(FIFO())
 		
 		g = DataFlowGraph()
 		g.add_connection(fi, adrloop, source_subr=["length"])
@@ -258,17 +267,20 @@ class Framebuffer:
 		self.bank = csrgen.Bank(fi.actor.get_registers(), address=address)
 		
 		# VGA clock input
-		self.vga_clk = fifo.actor.vga_clk
+		if not simulation:
+			self.vga_clk = fifo.actor.vga_clk
 		
 		# Pads
 		self.vga_psave_n = Signal()
-		self.vga_hsync_n = fifo.actor.vga_hsync_n
-		self.vga_vsync_n = fifo.actor.vga_vsync_n
+		if not simulation:
+			self.vga_hsync_n = fifo.actor.vga_hsync_n
+			self.vga_vsync_n = fifo.actor.vga_vsync_n
 		self.vga_sync_n = Signal()
 		self.vga_blank_n = Signal()
-		self.vga_r = fifo.actor.vga_r
-		self.vga_g = fifo.actor.vga_g
-		self.vga_b = fifo.actor.vga_b
+		if not simulation:
+			self.vga_r = fifo.actor.vga_r
+			self.vga_g = fifo.actor.vga_g
+			self.vga_b = fifo.actor.vga_b
 
 	def get_fragment(self):
 		comb = [
