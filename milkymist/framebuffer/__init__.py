@@ -224,7 +224,7 @@ class FakeDMA(Actor):
 class Framebuffer:
 	def __init__(self, address, asmiport):
 		asmi_bits = asmiport.hub.aw
-		alignment_bits = bits_for(asmiport.hub.dw//8)
+		alignment_bits = bits_for(asmiport.hub.dw//8) - 1
 		length_bits = _hbits + _vbits + 2 - alignment_bits
 		pack_factor = asmiport.hub.dw//_bpp
 		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
