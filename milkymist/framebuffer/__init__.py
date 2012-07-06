@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow import plumbing
-from migen.actorlib import ala, misc, dma_asmi, structuring, sim
+from migen.actorlib import misc, dma_asmi, structuring, sim
 from migen.bank.description import *
 from migen.bank import csrgen
 
@@ -136,9 +136,8 @@ class VTG(Actor):
 				If(hcounter == tp.hscan,
 					hcounter.eq(0),
 					If(vcounter == tp.vscan,
-						vcounter.eq(0)
-						# FIXME: work around Flow bug
-						#self.endpoints["timing"].ack.eq(1)
+						vcounter.eq(0),
+						self.endpoints["timing"].ack.eq(1)
 					).Else(
 						vcounter.eq(vcounter + 1)
 					)
@@ -236,8 +235,7 @@ class Framebuffer:
 		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
 		
 		fi = ActorNode(_FrameInitiator(asmi_bits, length_bits, alignment_bits))
-		adrloop = ActorNode(misc.IntSequence(length_bits))
-		adrbase = ActorNode(ala.Add(BV(asmi_bits)))
+		adrloop = ActorNode(misc.IntSequence(length_bits, asmi_bits))
 		adrbuffer = ActorNode(plumbing.Buffer)
 		#dma = ActorNode(dma_asmi.SequentialReader(asmiport))
 		dma = ActorNode(FakeDMA(asmiport))
@@ -250,10 +248,8 @@ class Framebuffer:
 			fifo = ActorNode(FIFO())
 		
 		g = DataFlowGraph()
-		g.add_connection(fi, adrloop, source_subr=["length"])
-		g.add_connection(adrloop, adrbase, sink_subr=["a"])
-		g.add_connection(fi, adrbase, source_subr=["base"], sink_subr=["b"])
-		g.add_connection(adrbase, adrbuffer)
+		g.add_connection(fi, adrloop, source_subr=["length", "base"])
+		g.add_connection(adrloop, adrbuffer)
 		g.add_connection(adrbuffer, dma)
 		g.add_connection(dma, cast)
 		g.add_connection(cast, unpack)
