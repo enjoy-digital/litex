@@ -5,13 +5,18 @@ from migen.flow.actor import *
 
 # Generates integers from start to maximum-1
 class IntSequence(Actor):
-	def __init__(self, nbits, step=1):
+	def __init__(self, nbits, offsetbits=0, step=1):
 		self.nbits = nbits
+		self.offsetbits = offsetbits
 		self.step = step
 		
+		parameters_layout = [("maximum", BV(self.nbits))]
+		if self.offsetbits:
+			parameters_layout.append(("offset", BV(self.offsetbits)))
+		
 		super().__init__(
-			("maximum", Sink, [("value", BV(nbits))]),
-			("source", Source, [("value", BV(nbits))]))
+			("parameters", Sink, parameters_layout),
+			("source", Source, [("value", BV(max(self.nbits, self.offsetbits)))]))
 	
 	def get_fragment(self):
 		load = Signal()
@@ -19,6 +24,8 @@ class IntSequence(Actor):
 		last = Signal()
 		
 		maximum = Signal(BV(self.nbits))
+		if self.offsetbits:
+			offset = Signal(BV(self.offsetbits))
 		counter = Signal(BV(self.nbits))
 		
 		if self.step > 1:
@@ -28,7 +35,8 @@ class IntSequence(Actor):
 		sync = [
 			If(load,
 				counter.eq(0),
-				maximum.eq(self.token("maximum").value)
+				maximum.eq(self.token("parameters").maximum),
+				offset.eq(self.token("parameters").offset) if self.offsetbits else None
 			).Elif(ce,
 				If(last,
 					counter.eq(0)
@@ -37,14 +45,17 @@ class IntSequence(Actor):
 				)
 			)
 		]
-		comb.append(self.token("source").value.eq(counter))
+		if self.offsetbits:
+			comb.append(self.token("source").value.eq(counter + offset))
+		else:
+			comb.append(self.token("source").value.eq(counter))
 		counter_fragment = Fragment(comb, sync)
 		
 		fsm = FSM("IDLE", "ACTIVE")
 		fsm.act(fsm.IDLE,
 			load.eq(1),
-			self.endpoints["maximum"].ack.eq(1),
-			If(self.endpoints["maximum"].stb, fsm.next_state(fsm.ACTIVE))
+			self.endpoints["parameters"].ack.eq(1),
+			If(self.endpoints["parameters"].stb, fsm.next_state(fsm.ACTIVE))
 		)
 		fsm.act(fsm.ACTIVE,
 			self.busy.eq(1),
