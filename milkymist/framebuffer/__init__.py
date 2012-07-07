@@ -189,6 +189,7 @@ class FIFO(Actor):
 		return Fragment(
 			[
 				asfifo.ins["read_en"].eq(1),
+				Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"]),
 				
 				self.endpoints["dac"].ack.eq(~asfifo.outs["full"]),
 				asfifo.ins["write_en"].eq(self.endpoints["dac"].stb),
@@ -196,8 +197,6 @@ class FIFO(Actor):
 				
 				self.busy.eq(0),
 				asfifo.ins["rst"].eq(0)
-			], [
-				Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"])
 			],
 			instances=[asfifo])
 

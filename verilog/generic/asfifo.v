@@ -10,7 +10,7 @@ module asfifo #(
 	parameter fifo_depth = (1 << address_width)
 ) (
 	/* Read port */
-	output [data_width-1:0] data_out,
+	output reg [data_width-1:0] data_out,
 	output reg empty,
 	input read_en,
 	input clk_read,
@@ -33,7 +33,12 @@ wire set_status, clear_status;
 reg status;
 wire preset_full, preset_empty;
 
-assign data_out = mem[read_index];
+reg [data_width-1:0] data_out0;
+
+always @(posedge clk_read) begin
+	data_out0 <= mem[read_index];
+	data_out <= data_out0;
+end
 
 always @(posedge clk_write) begin
 	if(write_en & !full)
