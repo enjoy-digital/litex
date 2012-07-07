@@ -204,7 +204,8 @@ def sim_fifo_gen():
 	while True:
 		t = sim.Token("dac")
 		yield t
-		print("H/V:" + str(t.value["hsync"]) + str(t.value["vsync"]))
+		print("H/V:" + str(t.value["hsync"]) + str(t.value["vsync"])
+			+ " " + str(t.value["r"]) + " " + str(t.value["g"]) + " " + str(t.value["b"]))
 
 class FakeDMA(Actor):
 	def __init__(self, port):
