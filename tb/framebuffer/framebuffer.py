@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.bus import asmibus
-from migen.sim.generic import Simulator, TopLevel
+from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 
 from milkymist.framebuffer import *
@@ -13,7 +13,7 @@ def main():
 	dut = Framebuffer(1, port, True)
 	
 	fragment = hub.get_fragment() + dut.get_fragment()
-	sim = Simulator(fragment, Runner(), TopLevel("my.vcd"))
+	sim = Simulator(fragment, Runner())
 	
 	sim.run(1)
 	def csr_w(addr, d):
