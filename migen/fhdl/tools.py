@@ -1,5 +1,7 @@
+from copy import copy
+
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList, _ArrayProxy
 
 def list_signals(node):
 	if node is None:
@@ -123,3 +125,98 @@ def insert_reset(rst, sl):
 	targets = list_targets(sl)
 	resetcode = [t.eq(t.reset) for t in targets]
 	return If(rst, *resetcode).Else(*sl.l)
+
+def _lower_arrays_values(vl):
+	r = []
+	extra_comb = []
+	for v in vl:
+		v2, e = _lower_arrays_value(v)
+		extra_comb += e
+		r.append(v2)
+	return r, extra_comb
+	
+def _lower_arrays_value(v):
+	if isinstance(v, _Operator):
+		op2, e = _lower_arrays_values(v.operands)
+		return _Operator(v.op, op2), e
+	elif isinstance(v, _Slice):
+		v2, e = _lower_arrays_value(v.value)
+		return _Slice(v2, v.start, v.stop), e
+	elif isinstance(v, Cat):
+		l2, e = _lower_arrays_values(v.l)
+		return Cat(*l2), e
+	elif isinstance(v, Replicate):
+		v2, e = _lower_arrays_value(v.v)
+		return Replicate(v2, v.n), e
+	elif isinstance(v, Constant):
+		return v, []
+	elif isinstance(v, Signal):
+		return v, []
+	elif isinstance(v, _ArrayProxy):
+		choices2, e = _lower_arrays_values(v.choices)
+		array_muxed = Signal(BV(32)) # TODO: use the correct BV
+		cases = [[Constant(n), _Assign(array_muxed, choice)]
+			for n, choice in enumerate(choices2)]
+		cases[-1][0] = Default()
+		e.append(Case(v.key, *cases))
+		return array_muxed, e
+
+def _lower_arrays_assign(l, r):
+	extra_comb = []
+	if isinstance(l, _ArrayProxy):
+		k, e = _lower_arrays_value(l.key)
+		extra_comb += e
+		cases = []
+		for n, choice in enumerate(l.choices):
+			assign, e = _lower_arrays_assign(choice, r)
+			extra_comb += e
+			cases.append([Constant(n), assign])
+		cases[-1][0] = Default()
+		return Case(k, *cases), extra_comb
+	else:
+		return _Assign(l, r), extra_comb
+		
+def _lower_arrays_sl(sl):
+	result = _StatementList()
+	rs = result.l
+	extra_comb = []
+	for statement in sl.l:
+		if isinstance(statement, _Assign):
+			r, e = _lower_arrays_value(statement.r)
+			extra_comb += e
+			r, e = _lower_arrays_assign(statement.l, r)
+			extra_comb += e
+			rs.append(r)
+		elif isinstance(statement, If):
+			cond, e = _lower_arrays_value(statement.cond)
+			extra_comb += e
+			t, e = _lower_arrays_sl(statement.t)
+			extra_comb += e
+			f, e = _lower_arrays_sl(statement.f)
+			extra_comb += e
+			i = If(cond)
+			i.t = t
+			i.f = f
+			rs.append(i)
+		elif isinstance(statement, Case):
+			test, e = _lower_arrays_value(statement.test)
+			extra_comb += e
+			c = Case(test)
+			for cond, csl in statement.cases:
+				stmts, e = _lower_arrays_sl(csl)
+				extra_comb += e
+				c.cases.append((cond, stmts))
+			if statement.default is not None:
+				c.default, e = _lower_arrays_sl(statement.default)
+				extra_comb += e
+			rs.append(c)
+		elif statement is not None:
+			raise TypeError
+	return result, extra_comb
+
+def lower_arrays(f):
+	f = copy(f)
+	f.comb, ec1 = _lower_arrays_sl(f.comb)
+	f.sync, ec2 = _lower_arrays_sl(f.sync)
+	f.comb.l += ec1 + ec2
+	return f

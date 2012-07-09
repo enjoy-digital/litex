@@ -247,6 +247,8 @@ def convert(f, ios=set(), name="top",
 	if rst_signal is None:
 		rst_signal = Signal(name_override="sys_rst")
 		ios.add(rst_signal)
+		
+	f = lower_arrays(f)
 
 	ns = build_namespace(list_signals(f) \
 		| list_inst_ios(f, True, True, True) \

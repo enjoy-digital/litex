@@ -223,7 +223,29 @@ class Case:
 		if self.default is None:
 			self.default = _StatementList()
 
-#
+# arrays
+
+class _ArrayProxy(Value):
+	def __init__(self, choices, key):
+		self.choices = choices
+		self.key = key
+	
+	def __getattr__(self, attr):
+		return _ArrayProxy([getattr(choice, attr) for choice in self.choices],
+			self.key)
+	
+	def __getitem__(self, key):
+		return _ArrayProxy([choice.__getitem__(key) for choice in self.choices],
+			self.key)
+
+class Array(list):
+	def __getitem__(self, key):
+		if isinstance(key, Value):
+			return _ArrayProxy(self, key)
+		else:
+			return super().__getitem__(key)
+
+# extras
 
 class Instance:
 	def __init__(self, of, outs=[], ins=[], inouts=[], parameters=[], clkport="", rstport="", name=""):
@@ -269,6 +291,8 @@ class Memory:
 		self.depth = depth
 		self.ports = ports
 		self.init = init
+
+#
 
 class Fragment:
 	def __init__(self, comb=None, sync=None, instances=None, memories=None, sim=None):

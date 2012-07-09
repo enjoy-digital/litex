@@ -1,6 +1,8 @@
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator
 
+# multimux is deprecated - use Array instead
+# TODO: remove uses of multimux
 def multimux(sel, inputs, output):
 	n = len(inputs)
 	i = 0
