@@ -4,8 +4,8 @@ from migen.fhdl import verilog
 dx = 5
 dy = 5
 
-x = Signal(BV(bits_for(dx)))
-y = Signal(BV(bits_for(dy)))
+x = Signal(BV(bits_for(dx-1)))
+y = Signal(BV(bits_for(dy-1)))
 out = Signal()
 
 my_2d_array = Array(Array(Signal() for a in range(dx)) for b in range(dy))

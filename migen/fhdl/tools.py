@@ -126,6 +126,44 @@ def insert_reset(rst, sl):
 	resetcode = [t.eq(t.reset) for t in targets]
 	return If(rst, *resetcode).Else(*sl.l)
 
+def value_bv(v):
+	if isinstance(v, Constant):
+		return v.bv
+	elif isinstance(v, Signal):
+		return v.bv
+	elif isinstance(v, _Operator):
+		obv = map(value_bv, v.operands)
+		if v.op == "+" or v.op == "-":
+			return BV(max(obv[0].width, obv[1].width) + 1,
+				obv[0].signed and obv[1].signed)
+		elif v.op == "*":
+			signed = obv[0].signed and obv[1].signed
+			if signed:
+				return BV(obv[0].width + obv[1].width - 1, signed)
+			else:
+				return BV(obv[0].width + obv[1].width, signed)
+		elif v.op == "<<" or v.op == ">>":
+			return obv[0].bv
+		elif v.op == "&" or v.op == "^" or v.op == "|":
+			return BV(max(obv[0].width, obv[1].width),
+				obv[0].signed and obv[1].signed)
+		elif v.op == "<" or v.op == "<=" or v.op == "==" or v.op == "!=" \
+		  or v.op == ">" or v.op == ">=":
+			  return BV(1)
+		else:
+			raise TypeError
+	elif isinstance(v, _Slice):
+		return BV(v.stop - v.start, value_bv(v.value).signed)
+	elif isinstance(v, Cat):
+		return BV(sum(value_bv(sv).width for sv in v.l))
+	elif isinstance(v, Replicate):
+		return BV(value_bv(v.v).width*v.n)
+	elif isinstance(v, _ArrayProxy):
+		bvc = map(value_bv, v.choices)
+		return BV(max(bv.width for bv in bvc), any(bv.signed for bv in bvc))
+	else:
+		raise TypeError
+
 def _lower_arrays_values(vl):
 	r = []
 	extra_comb = []
@@ -134,9 +172,13 @@ def _lower_arrays_values(vl):
 		extra_comb += e
 		r.append(v2)
 	return r, extra_comb
-	
+
 def _lower_arrays_value(v):
-	if isinstance(v, _Operator):
+	if isinstance(v, Constant):
+		return v, []
+	elif isinstance(v, Signal):
+		return v, []
+	elif isinstance(v, _Operator):
 		op2, e = _lower_arrays_values(v.operands)
 		return _Operator(v.op, op2), e
 	elif isinstance(v, _Slice):
@@ -148,13 +190,9 @@ def _lower_arrays_value(v):
 	elif isinstance(v, Replicate):
 		v2, e = _lower_arrays_value(v.v)
 		return Replicate(v2, v.n), e
-	elif isinstance(v, Constant):
-		return v, []
-	elif isinstance(v, Signal):
-		return v, []
 	elif isinstance(v, _ArrayProxy):
 		choices2, e = _lower_arrays_values(v.choices)
-		array_muxed = Signal(BV(32)) # TODO: use the correct BV
+		array_muxed = Signal(value_bv(v))
 		cases = [[Constant(n), _Assign(array_muxed, choice)]
 			for n, choice in enumerate(choices2)]
 		cases[-1][0] = Default()
