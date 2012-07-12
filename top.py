@@ -76,7 +76,7 @@ def get():
 	#
 	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
 	asmiport_wb = asmicon0.hub.get_port()
-	asmiport_fb = asmicon0.hub.get_port()
+	asmiport_fb = asmicon0.hub.get_port(2)
 	asmicon0.finalize()
 	
 	#
