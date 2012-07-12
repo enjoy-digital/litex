@@ -69,9 +69,10 @@ class _FrameInitiator(Actor):
 	def get_fragment(self):
 		# TODO: make address updates atomic
 		token = self.token("frame")
+		stb = self.endpoints["frame"].stb
+		ack = self.endpoints["frame"].ack
 		comb = [
-			self.busy.eq(0),
-			self.endpoints["frame"].stb.eq(self._enable.field.r),
+			self.busy.eq(stb),
 			token.hres.eq(self._hres.field.r),
 			token.hsync_start.eq(self._hsync_start.field.r),
 			token.hsync_end.eq(self._hsync_end.field.r),
@@ -80,10 +81,15 @@ class _FrameInitiator(Actor):
 			token.vsync_start.eq(self._vsync_start.field.r),
 			token.vsync_end.eq(self._vsync_end.field.r),
 			token.vscan.eq(self._vscan.field.r),
-			token.base.eq(self._base.field.r[self._alignment_bits:]),
 			token.length.eq(self._length.field.r[self._alignment_bits:])
 		]
-		return Fragment(comb)
+		sync = [
+			If(ack | ~stb,
+				stb.eq(self._enable.field.r),
+				token.base.eq(self._base.field.r[self._alignment_bits:])
+			)
+		]
+		return Fragment(comb, sync)
 
 class VTG(Actor):
 	def __init__(self):
