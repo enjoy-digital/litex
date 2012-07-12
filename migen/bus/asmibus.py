@@ -101,9 +101,11 @@ class Port:
 				s.allocate_adr.eq(self.adr)
 			]
 		choose_slot = None
-		for s in reversed(self.slots):
+		needs_tags = len(self.slots) > 1
+		for n, s in reversed(list(enumerate(self.slots))):
 			choose_slot = If(s.state == SLOT_EMPTY,
-				s.allocate.eq(self.stb)
+				s.allocate.eq(self.stb),
+				self.tag_issue.eq(n) if needs_tags else None
 			).Else(choose_slot)
 		comb.append(choose_slot)
 		comb.append(self.ack.eq(optree("|", 
