@@ -92,15 +92,15 @@ def test_wb_writer():
 	wishbone_sim(comp.get_fragment(), writer,
 		lambda s: trgen.actor.done and not s.rd(comp.busy))
 
-def test_asmi_seqreader():
-	print("*** Testing ASMI sequential reader")
+def test_asmi_reader(nslots):
+	print("*** Testing ASMI reader (nslots={})".format(nslots))
 	
 	hub = asmibus.Hub(32, 32)
-	port = hub.get_port()
+	port = hub.get_port(nslots)
 	hub.finalize()
 	
 	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", BV(32))])))
-	reader = ActorNode(dma_asmi.SequentialReader(port))
+	reader = ActorNode(dma_asmi.Reader(port))
 	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))])))
 	g = DataFlowGraph()
 	g.add_connection(adrgen, reader)
@@ -112,4 +112,5 @@ def test_asmi_seqreader():
 
 test_wb_reader()
 test_wb_writer()
-test_asmi_seqreader()
+test_asmi_reader(1)
+test_asmi_reader(2)
