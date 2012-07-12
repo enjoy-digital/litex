@@ -207,24 +207,6 @@ def sim_fifo_gen():
 		print("H/V:" + str(t.value["hsync"]) + str(t.value["vsync"])
 			+ " " + str(t.value["r"]) + " " + str(t.value["g"]) + " " + str(t.value["b"]))
 
-class FakeDMA(Actor):
-	def __init__(self, port):
-		self.port = port
-		super().__init__(
-				("address", Sink, [("a", BV(self.port.hub.aw))]),
-				("data", Source, [("d", BV(self.port.hub.dw))]))
-	
-	def get_fragment(self):
-		pixel = Signal(BV(32))
-		comb = [
-			self.endpoints["address"].ack.eq(1),
-			self.endpoints["data"].stb.eq(1),
-			self.token("data").d.eq(Replicate(pixel, 4))
-		]
-		sync = [
-			If(self.endpoints["data"].ack, pixel.eq(pixel + 1))
-		]
-		return Fragment(comb, sync)
 
 class Framebuffer:
 	def __init__(self, address, asmiport, simulation=False):
@@ -237,8 +219,8 @@ class Framebuffer:
 		fi = ActorNode(_FrameInitiator(asmi_bits, length_bits, alignment_bits))
 		adrloop = ActorNode(misc.IntSequence(length_bits, asmi_bits))
 		adrbuffer = ActorNode(plumbing.Buffer)
-		#dma = ActorNode(dma_asmi.SequentialReader(asmiport))
-		dma = ActorNode(FakeDMA(asmiport))
+		dma = ActorNode(dma_asmi.Reader(asmiport))
+		datbuffer = ActorNode(plumbing.Buffer)
 		cast = ActorNode(structuring.Cast(asmiport.hub.dw, packed_pixels))
 		unpack = ActorNode(structuring.Unpack(pack_factor, _pixel_layout))
 		vtg = ActorNode(VTG())
@@ -251,7 +233,8 @@ class Framebuffer:
 		g.add_connection(fi, adrloop, source_subr=["length", "base"])
 		g.add_connection(adrloop, adrbuffer)
 		g.add_connection(adrbuffer, dma)
-		g.add_connection(dma, cast)
+		g.add_connection(dma, datbuffer)
+		g.add_connection(datbuffer, cast)
 		g.add_connection(cast, unpack)
 		g.add_connection(unpack, vtg, sink_ep="pixels")
 		g.add_connection(fi, vtg, sink_ep="timing", source_subr=[
