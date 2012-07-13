@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.corelogic import roundrobin
-from migen.corelogic.misc import multimux, optree
+from migen.corelogic.misc import optree
 from migen.bus.simple import *
 from migen.bus.transactions import *
 from migen.sim.generic import Proxy, PureSimulable
@@ -37,10 +37,9 @@ class Arbiter:
 		comb = []
 		
 		# mux master->slave signals
-		m2s_names = _desc.get_names(M_TO_S)
-		m2s_masters = [[getattr(m, name) for name in m2s_names] for m in self.masters]
-		m2s_target = [getattr(self.target, name) for name in m2s_names]
-		comb += multimux(self.rr.grant, m2s_masters, m2s_target)
+		for name in _desc.get_names(M_TO_S):
+			choices = Array(getattr(m, name) for m in self.masters)
+			comb.append(getattr(self.target, name).eq(choices[self.rr.grant]))
 		
 		# connect slave->master signals
 		for name in _desc.get_names(S_TO_M):
