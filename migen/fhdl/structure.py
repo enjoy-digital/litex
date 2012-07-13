@@ -134,6 +134,9 @@ class Constant(Value):
 		self.bv = bv or BV(bits_for(n), n < 0)
 		self.n = n
 	
+	def __len__(self):
+		return self.bv.width
+	
 	def __repr__(self):
 		return str(self.bv) + str(self.n)
 	
