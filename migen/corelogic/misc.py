@@ -30,8 +30,8 @@ def split(v, *counts):
 
 def displacer(signal, shift, output, n=None, reverse=False):
 	if n is None:
-		n = 2**shift.bv.width
-	w = signal.bv.width
+		n = 2**len(shift)
+	w = len(signal)
 	if reverse:
 		r = reversed(range(n))
 	else:
@@ -41,8 +41,8 @@ def displacer(signal, shift, output, n=None, reverse=False):
 
 def chooser(signal, shift, output, n=None, reverse=False):
 	if n is None:
-		n = 2**shift.bv.width
-	w = output.bv.width
+		n = 2**len(shift)
+	w = len(output)
 	cases = []
 	for i in range(n):
 		if reverse:

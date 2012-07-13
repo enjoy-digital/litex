@@ -11,8 +11,8 @@ def _printsig(ns, s):
 		n = "signed "
 	else:
 		n = ""
-	if s.bv.width > 1:
-		n += "[" + str(s.bv.width-1) + ":0] "
+	if len(s) > 1:
+		n += "[" + str(len(s)-1) + ":0] "
 	n += ns.get_name(s)
 	return n
 
@@ -36,7 +36,7 @@ def _printexpr(ns, node):
 	elif isinstance(node, _Slice):
 		# Verilog does not like us slicing non-array signals...
 		if isinstance(node.value, Signal) \
-		  and node.value.bv.width == 1 \
+		  and len(node.value) == 1 \
 		  and node.start == 0 and node.stop == 1:
 			  return _printexpr(ns, node.value)
 

@@ -121,7 +121,7 @@ class Simulator:
 			nbits = item.width
 		else:
 			signed = item.bv.signed
-			nbits = item.bv.width
+			nbits = len(item)
 		value = reply.value & (2**nbits - 1)
 		if signed and (value & 2**(nbits - 1)):
 			value -= 2**nbits
@@ -134,7 +134,7 @@ class Simulator:
 		if isinstance(item, Memory):
 			nbits = item.width
 		else:
-			nbits = item.bv.width
+			nbits = len(item)
 		if value < 0:
 			value += 2**nbits
 		assert(value >= 0 and value < 2**nbits)

@@ -87,7 +87,7 @@ class Record:
 			else:
 				raise TypeError
 			for x in added:
-				offset += x.bv.width
+				offset += len(x)
 			l += added
 		if return_offset:
 			return (l, offset)

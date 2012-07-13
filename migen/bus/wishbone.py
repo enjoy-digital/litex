@@ -90,8 +90,8 @@ class Decoder:
 		slave_sel_r = Signal(BV(ns))
 		
 		# decode slave addresses
-		hi = self.master.adr.bv.width - self.offset
-		comb += [slave_sel[i].eq(self.master.adr[hi-addr.bv.width:hi] == addr)
+		hi = len(self.master.adr) - self.offset
+		comb += [slave_sel[i].eq(self.master.adr[hi-len(addr):hi] == addr)
 			for i, addr in enumerate(self.addresses)]
 		if self.register:
 			sync.append(slave_sel_r.eq(slave_sel))
@@ -114,7 +114,7 @@ class Decoder:
 		]
 		
 		# mux (1-hot) slave data return
-		masked = [Replicate(slave_sel_r[i], self.master.dat_r.bv.width) & self.slaves[i][1].dat_r for i in range(len(self.slaves))]
+		masked = [Replicate(slave_sel_r[i], len(self.master.dat_r)) & self.slaves[i][1].dat_r for i in range(len(self.slaves))]
 		comb.append(self.master.dat_r.eq(optree("|", masked)))
 		
 		return Fragment(comb, sync)

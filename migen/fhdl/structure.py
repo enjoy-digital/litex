@@ -17,7 +17,7 @@ def log2_int(n):
 
 def bits_for(n):
 	if isinstance(n, Constant):
-		return n.bv.width
+		return len(n)
 	else:
 		if n < 0:
 			return bits_for(-n) + 1
@@ -97,9 +97,9 @@ class Value:
 			return _Slice(self, key, key+1)
 		elif isinstance(key, slice):
 			start = key.start or 0
-			stop = key.stop or self.bv.width
-			if stop > self.bv.width:
-				stop = self.bv.width
+			stop = key.stop or len(self)
+			if stop > len(self):
+				stop = len(self)
 			if key.step != None:
 				raise KeyError
 			return _Slice(self, start, stop)
