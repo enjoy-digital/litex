@@ -1,20 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator
 
-# multimux is deprecated - use Array instead
-# TODO: remove uses of multimux
-def multimux(sel, inputs, output):
-	n = len(inputs)
-	i = 0
-	statements = []
-	for osig in output:
-		choices = [x[i] for x in inputs]
-		cases = [[Constant(j, sel.bv), osig.eq(choices[j])] for j in range(n)]
-		cases[n-1][0] = Default()
-		statements.append(Case(sel, *cases))
-		i += 1
-	return statements
-
 def optree(op, operands, lb=None, ub=None, default=None):
 	if lb is None:
 		lb = 0
