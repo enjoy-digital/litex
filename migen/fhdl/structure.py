@@ -174,38 +174,27 @@ class _Assign:
 		self.l = l
 		self.r = _cst(r)
 
-class _StatementList:
-	def __init__(self, l=None):
-		if l is None: l = []
-		self.l = l
-
 class If:
 	def __init__(self, cond, *t):
 		self.cond = cond
-		self.t = _StatementList(t)
-		self.f = _StatementList()
+		self.t = list(t)
+		self.f = []
 	
 	def Else(self, *f):
-		_insert_else(self, _StatementList(f))
+		_insert_else(self, list(f))
 		return self
 	
 	def Elif(self, cond, *t):
-		_insert_else(self, _StatementList([If(cond, *t)]))
+		_insert_else(self, [If(cond, *t)])
 		return self
 
 def _insert_else(obj, clause):
 	o = obj
-	while o.f.l:
-		assert(len(o.f.l) == 1)
-		assert(isinstance(o.f.l[0], If))
-		o = o.f.l[0]
+	while o.f:
+		assert(len(o.f) == 1)
+		assert(isinstance(o.f[0], If))
+		o = o.f[0]
 	o.f = clause
-
-def _sl(x):
-	if isinstance(x, list):
-		return _StatementList(x)
-	else:
-		return x
 
 class Default:
 	pass
@@ -213,15 +202,15 @@ class Default:
 class Case:
 	def __init__(self, test, *cases):
 		self.test = test
-		self.cases = [(c[0], _StatementList(c[1:])) for c in cases if not isinstance(c[0], Default)]
+		self.cases = [(c[0], list(c[1:])) for c in cases if not isinstance(c[0], Default)]
 		self.default = None
 		for c in cases:
 			if isinstance(c[0], Default):
 				if self.default is not None:
 					raise ValueError
-				self.default = _StatementList(c[1:])
+				self.default = list(c[1:])
 		if self.default is None:
-			self.default = _StatementList()
+			self.default = []
 
 # arrays
 
@@ -301,15 +290,15 @@ class Fragment:
 		if instances is None: instances = []
 		if memories is None: memories = []
 		if sim is None: sim = []
-		self.comb = _sl(comb)
-		self.sync = _sl(sync)
+		self.comb = comb
+		self.sync = sync
 		self.instances = instances
 		self.memories = memories
 		self.sim = sim
 	
 	def __add__(self, other):
-		return Fragment(self.comb.l + other.comb.l,
-			self.sync.l + other.sync.l,
+		return Fragment(self.comb + other.comb,
+			self.sync + other.sync,
 			self.instances + other.instances,
 			self.memories + other.memories,
 			self.sim + other.sim)

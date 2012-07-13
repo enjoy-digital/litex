@@ -1,7 +1,7 @@
 from functools import partial
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList
+from migen.fhdl.structure import _Operator, _Slice, _Assign
 from migen.fhdl.tools import *
 from migen.fhdl.namer import Namespace, build_namespace
 from migen.fhdl import verilog_mem_behavioral
@@ -69,12 +69,12 @@ def _printnode(ns, at, level, node):
 		else:
 			assignment = " <= "
 		return "\t"*level + _printexpr(ns, node.l) + assignment + _printexpr(ns, node.r) + ";\n"
-	elif isinstance(node, _StatementList):
-		return "".join(list(map(partial(_printnode, ns, at, level), node.l)))
+	elif isinstance(node, list):
+		return "".join(list(map(partial(_printnode, ns, at, level), node)))
 	elif isinstance(node, If):
 		r = "\t"*level + "if (" + _printexpr(ns, node.cond) + ") begin\n"
 		r += _printnode(ns, at, level + 1, node.t)
-		if node.f.l:
+		if node.f:
 			r += "\t"*level + "end else begin\n"
 			r += _printnode(ns, at, level + 1, node.f)
 		r += "\t"*level + "end\n"
@@ -85,7 +85,7 @@ def _printnode(ns, at, level, node):
 			r += "\t"*(level + 1) + _printexpr(ns, case[0]) + ": begin\n"
 			r += _printnode(ns, at, level + 2, case[1])
 			r += "\t"*(level + 1) + "end\n"
-		if node.default.l:
+		if node.default:
 			r += "\t"*(level + 1) + "default: begin\n"
 			r += _printnode(ns, at, level + 2, node.default)
 			r += "\t"*(level + 1) + "end\n"
@@ -134,7 +134,7 @@ def _printheader(f, ios, name, ns):
 
 def _printcomb(f, ns, display_run):
 	r = ""
-	if f.comb.l:
+	if f.comb:
 		# Generate a dummy event to get the simulator
 		# to run the combinatorial process once at the beginning.
 		syn_off = "// synthesis translate off\n"
@@ -161,7 +161,7 @@ def _printcomb(f, ns, display_run):
 					r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
 				for t in g[0]:
 					r += "\t" + ns.get_name(t) + " <= " + str(t.reset) + ";\n"
-				r += _printnode(ns, _AT_NONBLOCKING, 1, _StatementList(g[1]))
+				r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
 				r += syn_off
 				r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
 				r += syn_on
@@ -171,7 +171,7 @@ def _printcomb(f, ns, display_run):
 
 def _printsync(f, ns, clk, rst):
 	r = ""
-	if f.sync.l:
+	if f.sync:
 		r += "always @(posedge " + ns.get_name(clk) + ") begin\n"
 		r += _printnode(ns, _AT_SIGNAL, 1, insert_reset(rst, f.sync))
 		r += "end\n\n"

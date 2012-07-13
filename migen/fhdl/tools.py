@@ -1,7 +1,7 @@
 from copy import copy
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Slice, _Assign, _StatementList, _ArrayProxy
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
 
 def list_signals(node):
 	if node is None:
@@ -22,8 +22,8 @@ def list_signals(node):
 		return list_signals(node.v)
 	elif isinstance(node, _Assign):
 		return list_signals(node.l) | list_signals(node.r)
-	elif isinstance(node, _StatementList):
-		l = list(map(list_signals, node.l))
+	elif isinstance(node, list):
+		l = list(map(list_signals, node))
 		return set().union(*l)
 	elif isinstance(node, If):
 		return list_signals(node.cond) | list_signals(node.t) | list_signals(node.f)
@@ -47,8 +47,8 @@ def list_targets(node):
 		return set().union(*l)
 	elif isinstance(node, _Assign):
 		return list_targets(node.l)
-	elif isinstance(node, _StatementList):
-		l = list(map(list_targets, node.l))
+	elif isinstance(node, list):
+		l = list(map(list_targets, node))
 		return set().union(*l)
 	elif isinstance(node, If):
 		return list_targets(node.t) | list_targets(node.f)
@@ -62,7 +62,7 @@ def list_targets(node):
 
 def group_by_targets(sl):
 	groups = []
-	for statement in sl.l:
+	for statement in sl:
 		targets = list_targets(statement)
 		processed = False
 		for g in groups:
@@ -124,7 +124,7 @@ def is_variable(node):
 def insert_reset(rst, sl):
 	targets = list_targets(sl)
 	resetcode = [t.eq(t.reset) for t in targets]
-	return If(rst, *resetcode).Else(*sl.l)
+	return If(rst, *resetcode).Else(*sl)
 
 def value_bv(v):
 	if isinstance(v, Constant):
@@ -215,10 +215,9 @@ def _lower_arrays_assign(l, r):
 		return _Assign(l, r), extra_comb
 		
 def _lower_arrays_sl(sl):
-	result = _StatementList()
-	rs = result.l
+	rs = []
 	extra_comb = []
-	for statement in sl.l:
+	for statement in sl:
 		if isinstance(statement, _Assign):
 			r, e = _lower_arrays_value(statement.r)
 			extra_comb += e
@@ -250,11 +249,11 @@ def _lower_arrays_sl(sl):
 			rs.append(c)
 		elif statement is not None:
 			raise TypeError
-	return result, extra_comb
+	return rs, extra_comb
 
 def lower_arrays(f):
 	f = copy(f)
 	f.comb, ec1 = _lower_arrays_sl(f.comb)
 	f.sync, ec2 = _lower_arrays_sl(f.sync)
-	f.comb.l += ec1 + ec2
+	f.comb += ec1 + ec2
 	return f
