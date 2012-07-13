@@ -132,7 +132,7 @@ def value_bv(v):
 	elif isinstance(v, Signal):
 		return v.bv
 	elif isinstance(v, _Operator):
-		obv = map(value_bv, v.operands)
+		obv = list(map(value_bv, v.operands))
 		if v.op == "+" or v.op == "-":
 			return BV(max(obv[0].width, obv[1].width) + 1,
 				obv[0].signed and obv[1].signed)
