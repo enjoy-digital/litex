@@ -42,7 +42,6 @@ sdram_timing = asmicon.TimingSettings(
 	CL=3,
 	rd_delay=4,
 
-	slot_time=16,
 	read_time=32,
 	write_time=16
 )

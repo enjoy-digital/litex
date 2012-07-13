@@ -46,9 +46,46 @@ class _Selector:
 		self.adr = Signal(self.slots[0].adr.bv)
 		self.we = Signal()
 		
+		# derived classes should drive rr.request
+		self.rr = RoundRobin(self.nslots, SP_CE)
+	
+	def get_fragment(self):
+		comb = []
+		rr = self.rr
+		
+		# Multiplex
+		state = Signal(BV(2))
+		comb += [
+			state.eq(Array(slot.state for slot in self.slots)[rr.grant]),
+			self.adr.eq(Array(slot.adr for slot in self.slots)[rr.grant]),
+			self.we.eq(Array(slot.we for slot in self.slots)[rr.grant]),
+			self.stb.eq(
+				(self.slicer.bank(self.adr) == self.bankn) \
+				& (state == SLOT_PENDING)),
+			rr.ce.eq(self.ack),
+			self.tag.eq(rr.grant)
+		]
+		comb += [If((rr.grant == i) & self.stb & self.ack, slot.process.eq(1))
+			for i, slot in enumerate(self.slots)]
+			
+		return Fragment(comb) + rr.get_fragment()
+
+class _SimpleSelector(_Selector):
+	def get_fragment(self):
+		comb = []
+		for i, slot in enumerate(self.slots):
+			comb.append(self.rr.request[i].eq(
+				(self.slicer.bank(slot.adr) == self.bankn) & \
+				(slot.state == SLOT_PENDING)
+			))
+	
+		return Fragment(comb) + super().get_fragment()
+
+class _FullSelector(_Selector):
 	def get_fragment(self):
 		comb = []
 		sync = []
+		rr = self.rr
 
 		# List outstanding requests for our bank
 		outstandings = []
@@ -112,22 +149,7 @@ class _Selector:
 			select_stmt = If(has_mature, *best_mature).Else(select_stmt)
 		comb.append(select_stmt)
 		
-		# Multiplex
-		state = Signal(BV(2))
-		comb += [
-			state.eq(Array(slot.state for slot in self.slots)[rr.grant]),
-			self.adr.eq(Array(slot.adr for slot in self.slots)[rr.grant]),
-			self.we.eq(Array(slot.we for slot in self.slots)[rr.grant]),
-			self.stb.eq(
-				(self.slicer.bank(self.adr) == self.bankn) \
-				& (state == SLOT_PENDING)),
-			rr.ce.eq(self.ack),
-			self.tag.eq(rr.grant)
-		]
-		comb += [If((rr.grant == i) & self.stb & self.ack, slot.process.eq(1))
-			for i, slot in enumerate(self.slots)]
-		
-		return Fragment(comb, sync) + rr.get_fragment()
+		return Fragment(comb, sync) + super().get_fragment()
 
 class _Buffer:
 	def __init__(self, source):
@@ -156,12 +178,13 @@ class _Buffer:
 		return Fragment(comb, sync)
 	
 class BankMachine:
-	def __init__(self, geom_settings, timing_settings, address_align, bankn, slots):
+	def __init__(self, geom_settings, timing_settings, address_align, bankn, slots, full_selector=False):
 		self.geom_settings = geom_settings
 		self.timing_settings = timing_settings
 		self.address_align = address_align
 		self.bankn = bankn
 		self.slots = slots
+		self.full_selector = full_selector
 		
 		self.refresh_req = Signal()
 		self.refresh_gnt = Signal()
@@ -174,7 +197,10 @@ class BankMachine:
 		
 		# Sub components
 		slicer = _AddressSlicer(self.geom_settings, self.address_align)
-		selector = _Selector(slicer, self.bankn, self.slots)
+		if self.full_selector:
+			selector = _FullSelector(slicer, self.bankn, self.slots)
+		else:
+			selector = _SimpleSelector(slicer, self.bankn, self.slots)
 		buf = _Buffer(selector)
 		
 		# Row tracking

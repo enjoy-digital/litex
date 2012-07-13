@@ -20,7 +20,7 @@ class GeomSettings:
 		self.mux_a = max(row_a, col_a)
 
 class TimingSettings:
-	def __init__(self, tRP, tRCD, tWR, tREFI, tRFC, CL, rd_delay, slot_time, read_time, write_time):
+	def __init__(self, tRP, tRCD, tWR, tREFI, tRFC, CL, rd_delay, read_time, write_time, slot_time=0):
 		self.tRP = tRP
 		self.tRCD = tRCD
 		self.tWR = tWR
@@ -30,9 +30,9 @@ class TimingSettings:
 		self.CL = CL
 		self.rd_delay = rd_delay
 		
-		self.slot_time = slot_time
 		self.read_time = read_time
 		self.write_time = write_time
+		self.slot_time = slot_time
 
 class ASMIcon:
 	def __init__(self, phy_settings, geom_settings, timing_settings):
