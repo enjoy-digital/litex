@@ -16,11 +16,11 @@ class PhaseInjector:
 		self._command = RegisterFields("command",
 			[self._cs, self._we, self._cas, self._ras, self._wren, self._rden])
 		
-		self._address = RegisterField("address", self.phase.address.bv.width)
-		self._baddress = RegisterField("baddress", self.phase.bank.bv.width)
+		self._address = RegisterField("address", len(self.phase.address))
+		self._baddress = RegisterField("baddress", len(self.phase.bank))
 		
-		self._wrdata = RegisterField("wrdata", self.phase.wrdata.bv.width)
-		self._rddata = RegisterField("rddata", self.phase.rddata.bv.width, READ_ONLY, WRITE_ONLY)
+		self._wrdata = RegisterField("wrdata", len(self.phase.wrdata))
+		self._rddata = RegisterField("rddata", len(self.phase.rddata), READ_ONLY, WRITE_ONLY)
 	
 	def get_registers(self):
 		return [self._command,

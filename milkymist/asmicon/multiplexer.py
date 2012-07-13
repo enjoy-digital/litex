@@ -29,7 +29,7 @@ class _CommandChooser:
 		self.want_reads = Signal()
 		self.want_writes = Signal()
 		# NB: cas_n/ras_n/we_n are 1 when stb is inactive
-		self.cmd = CommandRequestRW(self.requests[0].a.bv.width, self.requests[0].ba.bv.width, tagbits)
+		self.cmd = CommandRequestRW(len(self.requests[0].a), len(self.requests[0].ba), tagbits)
 	
 	def get_fragment(self):
 		comb = []
@@ -102,7 +102,7 @@ class _Datapath:
 	def get_fragment(self):
 		comb = []
 		sync = []
-		tagbits = self.hub.tag_call.bv.width
+		tagbits = len(self.hub.tag_call)
 		
 		rd_valid = Signal()
 		rd_tag = Signal(BV(tagbits))
@@ -169,7 +169,7 @@ class Multiplexer:
 		
 		# Command choosing
 		requests = [bm.cmd for bm in self.bank_machines]
-		tagbits = self.hub.tag_call.bv.width
+		tagbits = len(self.hub.tag_call)
 		choose_cmd = _CommandChooser(requests, tagbits)
 		choose_req = _CommandChooser(requests, tagbits)
 		comb += [
