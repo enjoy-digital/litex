@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.bus.asmibus import *
 from migen.corelogic.roundrobin import *
 from migen.corelogic.fsm import FSM
-from migen.corelogic.misc import multimux, optree
+from migen.corelogic.misc import optree
 
 from milkymist.asmicon.multiplexer import *
 
@@ -114,11 +114,10 @@ class _Selector:
 		
 		# Multiplex
 		state = Signal(BV(2))
-		mux_outputs = [state, self.adr, self.we]
-		mux_inputs = [[slot.state, slot.adr, slot.we]
-			for slot in self.slots]
-		comb += multimux(rr.grant, mux_inputs, mux_outputs)
 		comb += [
+			state.eq(Array(slot.state for slot in self.slots)[rr.grant]),
+			self.adr.eq(Array(slot.adr for slot in self.slots)[rr.grant]),
+			self.we.eq(Array(slot.we for slot in self.slots)[rr.grant]),
 			self.stb.eq(
 				(self.slicer.bank(self.adr) == self.bankn) \
 				& (state == SLOT_PENDING)),

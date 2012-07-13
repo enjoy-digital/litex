@@ -2,7 +2,7 @@ import math
 
 from migen.fhdl.structure import *
 from migen.corelogic.roundrobin import *
-from migen.corelogic.misc import multimux, optree
+from migen.corelogic.misc import optree
 from migen.corelogic.fsm import FSM
 
 class CommandRequest:
@@ -41,21 +41,17 @@ class _CommandChooser:
 			for i, req in enumerate(self.requests)]
 		
 		stb = Signal()
-		inputs_perm = [[req.stb,
-			req.a, req.ba,
-			req.is_read, req.is_write, req.tag] for req in self.requests]
-		outputs_perm = [stb,
-			self.cmd.a, self.cmd.ba,
-			self.cmd.is_read, self.cmd.is_write, self.cmd.tag]
-		comb += multimux(rr.grant, inputs_perm, outputs_perm)
-		
-		inputs_filtered = [[req.cas_n, req.ras_n, req.we_n] for req in self.requests]
-		outputs_filtered = [self.cmd.cas_n, self.cmd.ras_n, self.cmd.we_n]
-		ms = multimux(rr.grant, inputs_filtered, outputs_filtered)
-		comb += [
-			self.cmd.stb.eq(stb & (self.cmd.is_read == self.want_reads) & (self.cmd.is_write == self.want_writes)),
-			If(self.cmd.stb, *ms)
-		]
+		comb.append(stb.eq(Array(req.stb for req in self.requests)[rr.grant]))
+		for name in ["a", "ba", "is_read", "is_write", "tag"]:
+			choices = Array(getattr(req, name) for req in self.requests)
+			comb.append(getattr(self.cmd, name).eq(choices[rr.grant]))
+		for name in ["cas_n", "ras_n", "we_n"]:
+			# we should only assert those signals when stb is 1
+			choices = Array(getattr(req, name) for req in self.requests)
+			comb.append(If(self.cmd.stb, getattr(self.cmd, name).eq(choices[rr.grant])))
+		comb.append(self.cmd.stb.eq(stb \
+			& (self.cmd.is_read == self.want_reads) \
+			& (self.cmd.is_write == self.want_writes)))
 		
 		comb += [If(self.cmd.stb & self.cmd.ack & (rr.grant == i), req.ack.eq(1))
 			for i, req in enumerate(self.requests)]
@@ -80,19 +76,20 @@ class _Steerer:
 				return Constant(0)
 			else:
 				return cmd.stb & getattr(cmd, attr)
-		inputs = [[cmd.a, cmd.ba,
-			cmd.cas_n, cmd.ras_n,
-			cmd.we_n, stb_and(cmd, "is_read"), stb_and(cmd, "is_write")]
-			for cmd in self.commands]
 		for phase, sel in zip(self.dfi.phases, self.sel):
 			comb += [
 				phase.cke.eq(1),
 				phase.cs_n.eq(0)
 			]
-			outputs = [phase.address, phase.bank,
-				phase.cas_n, phase.ras_n, phase.we_n,
-				phase.rddata_en, phase.wrdata_en]
-			sync += multimux(sel, inputs, outputs)
+			sync += [
+				phase.address.eq(Array(cmd.a for cmd in self.commands)[sel]),
+				phase.bank.eq(Array(cmd.ba for cmd in self.commands)[sel]),
+				phase.cas_n.eq(Array(cmd.cas_n for cmd in self.commands)[sel]),
+				phase.ras_n.eq(Array(cmd.ras_n for cmd in self.commands)[sel]),
+				phase.we_n.eq(Array(cmd.we_n for cmd in self.commands)[sel]),
+				phase.rddata_en.eq(Array(stb_and(cmd, "is_read") for cmd in self.commands)[sel]),
+				phase.wrdata_en.eq(Array(stb_and(cmd, "is_write") for cmd in self.commands)[sel])
+			]
 		return Fragment(comb, sync)
 
 class _Datapath:
