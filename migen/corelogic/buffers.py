@@ -77,4 +77,11 @@ class ReorderBuffer:
 			)
 		]
 		
+		# do not touch empty count when issuing and reading at the same time
+		sync += [
+			If(self.issue & self.can_issue & self.read & self.can_read,
+				self._empty_count.eq(self._empty_count)
+			)
+		]
+		
 		return Fragment(comb, sync)
