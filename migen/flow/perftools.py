@@ -1,6 +1,6 @@
 from migen.flow.hooks import *
 
-class EndpointReporter(EndpointHook):
+class EndpointReporter(EndpointSimHook):
 	def __init__(self, endpoint):
 		super().__init__(endpoint)
 		self.reset()
