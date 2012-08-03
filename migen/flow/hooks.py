@@ -37,9 +37,10 @@ class DFGHook:
 			ep = data["source"]
 			ep_to_hook[ep] = create(u, ep, v)
 	
-	def get_fragment(self):
-		frag = Fragment()
+	def hooks_iter(self):
 		for v1 in self.nodepair_to_ep.values():
 			for v2 in v1.values():
-				frag += v2.get_fragment()
-		return frag
+				yield v2
+	
+	def get_fragment(self):
+		return sum([h.get_fragment() for h in self.hooks_iter()], Fragment())
