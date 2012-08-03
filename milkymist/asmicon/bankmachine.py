@@ -199,21 +199,23 @@ class BankMachine:
 		slicer = _AddressSlicer(self.geom_settings, self.address_align)
 		if self.full_selector:
 			selector = _FullSelector(slicer, self.bankn, self.slots)
+			buf = _Buffer(selector)
+			cmdsource = buf
 		else:
 			selector = _SimpleSelector(slicer, self.bankn, self.slots)
-		buf = _Buffer(selector)
+			cmdsource = selector
 		
 		# Row tracking
 		has_openrow = Signal()
 		openrow = Signal(BV(self.geom_settings.row_a))
 		hit = Signal()
-		comb.append(hit.eq(openrow == slicer.row(buf.adr)))
+		comb.append(hit.eq(openrow == slicer.row(cmdsource.adr)))
 		track_open = Signal()
 		track_close = Signal()
 		sync += [
 			If(track_open,
 				has_openrow.eq(1),
-				openrow.eq(slicer.row(buf.adr))
+				openrow.eq(slicer.row(cmdsource.adr))
 			),
 			If(track_close,
 				has_openrow.eq(0)
@@ -225,13 +227,13 @@ class BankMachine:
 		comb += [
 			self.cmd.ba.eq(self.bankn),
 			If(s_row_adr,
-				self.cmd.a.eq(slicer.row(buf.adr))
+				self.cmd.a.eq(slicer.row(cmdsource.adr))
 			).Else(
-				self.cmd.a.eq(slicer.col(buf.adr))
+				self.cmd.a.eq(slicer.col(cmdsource.adr))
 			)
 		]
 		
-		comb.append(self.cmd.tag.eq(buf.tag))
+		comb.append(self.cmd.tag.eq(cmdsource.tag))
 		
 		# Control and command generation FSM
 		fsm = FSM("REGULAR", "PRECHARGE", "ACTIVATE", "REFRESH", delayed_enters=[
@@ -241,15 +243,15 @@ class BankMachine:
 		fsm.act(fsm.REGULAR,
 			If(self.refresh_req,
 				fsm.next_state(fsm.REFRESH)
-			).Elif(buf.stb,
+			).Elif(cmdsource.stb,
 				If(has_openrow,
 					If(hit,
 						self.cmd.stb.eq(1),
-						buf.ack.eq(self.cmd.ack),
-						self.cmd.is_read.eq(~buf.we),
-						self.cmd.is_write.eq(buf.we),
+						cmdsource.ack.eq(self.cmd.ack),
+						self.cmd.is_read.eq(~cmdsource.we),
+						self.cmd.is_write.eq(cmdsource.we),
 						self.cmd.cas_n.eq(0),
-						self.cmd.we_n.eq(~buf.we)
+						self.cmd.we_n.eq(~cmdsource.we)
 					).Else(
 						fsm.next_state(fsm.PRECHARGE)
 					)
@@ -281,7 +283,11 @@ class BankMachine:
 			If(~self.refresh_req, fsm.next_state(fsm.REGULAR))
 		)
 		
+		if self.full_selector:
+			buf_fragment = buf.get_fragment()
+		else:
+			buf_fragment = Fragment()
 		return Fragment(comb, sync) + \
 			selector.get_fragment() + \
-			buf.get_fragment() + \
+			buf_fragment + \
 			fsm.get_fragment()
