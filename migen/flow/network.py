@@ -221,7 +221,6 @@ class CompositeActor(Actor):
 	
 	def get_registers(self):
 		if hasattr(self, "debugger"):
-			self.debugger.print_map()
 			return self.debugger.get_registers()
 		else:
 			return []
