@@ -14,6 +14,7 @@
 #include <hw/minimac.h>
 
 #include "ddrinit.h"
+#include "dataflow.h"
 #include "boot.h"
 
 enum {
@@ -285,6 +286,23 @@ static void wcsr(char *csr, char *value)
 	}
 }
 
+static void dfs(char *baseaddr)
+{
+	char *c;
+	unsigned int addr;
+
+	if(*baseaddr == 0) {
+		printf("dfs <address>\n");
+		return;
+	}
+	addr = strtoul(baseaddr, &c, 0);
+	if(*c != 0) {
+		printf("incorrect address\n");
+		return;
+	}
+	print_isd_info(addr);
+}
+
 /* Init + command line */
 
 static void help(void)
@@ -349,6 +367,8 @@ static void do_command(char *c)
 	else if(strcmp(token, "ddrwr") == 0) ddrwr(get_token(&c));
 	else if(strcmp(token, "memtest") == 0) memtest();
 	else if(strcmp(token, "ddrinit") == 0) ddrinit();
+	
+	else if(strcmp(token, "dfs") == 0) dfs(get_token(&c));
 
 	else if(strcmp(token, "") != 0)
 		printf("Command not found\n");
