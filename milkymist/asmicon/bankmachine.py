@@ -178,7 +178,7 @@ class _Buffer:
 		return Fragment(comb, sync)
 	
 class BankMachine:
-	def __init__(self, geom_settings, timing_settings, address_align, bankn, slots, full_selector=False):
+	def __init__(self, geom_settings, timing_settings, address_align, bankn, slots, full_selector):
 		self.geom_settings = geom_settings
 		self.timing_settings = timing_settings
 		self.address_align = address_align

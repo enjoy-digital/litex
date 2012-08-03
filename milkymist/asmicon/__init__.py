@@ -35,10 +35,11 @@ class TimingSettings:
 		self.slot_time = slot_time
 
 class ASMIcon:
-	def __init__(self, phy_settings, geom_settings, timing_settings):
+	def __init__(self, phy_settings, geom_settings, timing_settings, full_selector=False):
 		self.phy_settings = phy_settings
 		self.geom_settings = geom_settings
 		self.timing_settings = timing_settings
+		self.full_selector = full_selector
 		self.finalized = False
 		
 		self.dfi = dfi.Interface(self.geom_settings.mux_a,
@@ -59,7 +60,8 @@ class ASMIcon:
 		slots = self.hub.get_slots()
 		self.refresher = Refresher(self.geom_settings.mux_a, self.geom_settings.bank_a,
 			self.timing_settings.tRP, self.timing_settings.tREFI, self.timing_settings.tRFC)
-		self.bank_machines = [BankMachine(self.geom_settings, self.timing_settings, self.address_align, i, slots) for i in range(2**self.geom_settings.bank_a)]
+		self.bank_machines = [BankMachine(self.geom_settings, self.timing_settings, self.address_align, i, slots, self.full_selector)
+			for i in range(2**self.geom_settings.bank_a)]
 		self.multiplexer = Multiplexer(self.phy_settings, self.geom_settings, self.timing_settings,
 			self.bank_machines, self.refresher,
 			self.dfi, self.hub)
