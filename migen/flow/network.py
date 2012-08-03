@@ -1,9 +1,10 @@
 from networkx import MultiDiGraph
 
 from migen.fhdl.structure import *
+from migen.corelogic.misc import optree
 from migen.flow.actor import *
 from migen.flow import plumbing
-from migen.corelogic.misc import optree
+from migen.flow.isd import DFGReporter
 
 # Graph nodes can be either:
 #  (1) a reference to an existing actor
@@ -211,10 +212,19 @@ class DataFlowGraph(MultiDiGraph):
 		self._instantiate_actors()
 
 class CompositeActor(Actor):
-	def __init__(self, dfg):
+	def __init__(self, dfg, debugger=False, debugger_nbits=48):
 		dfg.elaborate()
 		self.dfg = dfg
+		if debugger:
+			self.debugger = DFGReporter(self.dfg, debugger_nbits)
 		super().__init__()
+	
+	def get_registers(self):
+		if hasattr(self, "debugger"):
+			self.debugger.print_map()
+			return self.debugger.get_registers()
+		else:
+			return []
 	
 	def get_fragment(self):
 		comb = [self.busy.eq(optree("|", [node.actor.busy for node in self.dfg]))]
@@ -225,4 +235,6 @@ class CompositeActor(Actor):
 			ep_src = u.actor.endpoints[d["source"]]
 			ep_dst = v.actor.endpoints[d["sink"]]
 			fragment += get_conn_fragment(ep_src, ep_dst)
+		if hasattr(self, "debugger"):
+			fragment += self.debugger.get_fragment()
 		return fragment
