@@ -5,7 +5,7 @@ from migen.bus.asmibus import *
 from migen.sim.generic import Simulator, TopLevel
 from migen.sim.icarus import Runner
 
-from milkymist.asmicon.bankmachine import _AddressSlicer, _Selector, _Buffer
+from milkymist.asmicon.bankmachine import _AddressSlicer, _SimpleSelector
 
 from common import SlotsLogger, sdram_geom
 
@@ -18,25 +18,23 @@ def my_generator(dt, offset):
 
 class Selector:
 	def __init__(self, slicer, bankn, slots):
-		self.selector = _Selector(slicer, bankn, slots)
-		self.buf = _Buffer(self.selector)
+		self.selector = _SimpleSelector(slicer, bankn, slots)
 		self.queue = []
 		self.prng = Random(876)
 	
 	def do_simulation(self, s):
 		if self.prng.randrange(0, 5):
-			s.wr(self.buf.ack, 1)
+			s.wr(self.selector.ack, 1)
 		else:
-			s.wr(self.buf.ack, 0)
-		if s.rd(self.buf.stb) and s.rd(self.buf.ack):
-			tag = s.rd(self.buf.tag)
+			s.wr(self.selector.ack, 0)
+		if s.rd(self.selector.stb) and s.rd(self.selector.ack):
+			tag = s.rd(self.selector.tag)
 			self.queue.append(tag)
 			print("==> SELECTED: " + str(tag))
 		print("")
 	
 	def get_fragment(self):
 		return self.selector.get_fragment() + \
-			self.buf.get_fragment() + \
 			Fragment(sim=[self.do_simulation])
 
 class Completer:
