@@ -62,7 +62,7 @@ class _Selector:
 			self.stb.eq(
 				(self.slicer.bank(self.adr) == self.bankn) \
 				& (state == SLOT_PENDING)),
-			rr.ce.eq(self.ack),
+			rr.ce.eq(self.ack | ~self.stb),
 			self.tag.eq(rr.grant)
 		]
 		comb += [If((rr.grant == i) & self.stb & self.ack, slot.process.eq(1))
