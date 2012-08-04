@@ -294,7 +294,7 @@ class BankMachine:
 			self.cmd.ras_n.eq(0)
 		)
 		fsm.act(fsm.REFRESH,
-			self.refresh_gnt.eq(1),
+			self.refresh_gnt.eq(precharge_ok),
 			track_close.eq(1),
 			If(~self.refresh_req, fsm.next_state(fsm.REGULAR))
 		)

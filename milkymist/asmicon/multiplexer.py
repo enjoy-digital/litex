@@ -1,5 +1,3 @@
-import math
-
 from migen.fhdl.structure import *
 from migen.corelogic.roundrobin import *
 from migen.corelogic.misc import optree
@@ -212,27 +210,11 @@ class Multiplexer:
 		write_time_en, max_write_time = anti_starvation(self.timing_settings.write_time)
 		
 		# Refresh
-		refresh_w_ok = Signal()
-		t_unsafe_refresh = 2 + self.timing_settings.tWR - 1
-		unsafe_refresh_count = Signal(BV(bits_for(t_unsafe_refresh)))
-		comb.append(refresh_w_ok.eq(unsafe_refresh_count == 0))
-		sync += [
-			If(choose_req.cmd.stb & choose_req.cmd.ack & choose_req.cmd.is_write,
-				unsafe_refresh_count.eq(t_unsafe_refresh)
-			).Elif(~refresh_w_ok,
-				unsafe_refresh_count.eq(unsafe_refresh_count-1)
-			)
-		]
-		# Reads cannot conflict with refreshes, since we have one idle cycle
-		# (all bank machines in refresh state) before the PRECHARGE ALL command
-		# from the refresher.
 		comb += [bm.refresh_req.eq(self.refresher.req)
 			for bm in self.bank_machines]
-		comb.append(
-			self.refresher.ack.eq(optree("&",
-				[bm.refresh_gnt for bm in self.bank_machines]) \
-				& refresh_w_ok)
-		)
+		go_to_refresh = Signal()
+		comb.append(go_to_refresh.eq(
+			optree("&", [bm.refresh_gnt for bm in self.bank_machines])))
 		
 		# Datapath
 		datapath = _Datapath(self.timing_settings, choose_req.cmd, self.dfi, self.hub)
@@ -253,7 +235,7 @@ class Multiplexer:
 				# TODO: switch only after several cycles of ~read_available?
 				If(~read_available | max_read_time, fsm.next_state(fsm.RTW))
 			),
-			If(self.refresher.ack, fsm.next_state(fsm.REFRESH))
+			If(go_to_refresh, fsm.next_state(fsm.REFRESH))
 		)
 		fsm.act(fsm.WRITE,
 			write_time_en.eq(1),
@@ -265,10 +247,11 @@ class Multiplexer:
 			If(read_available,
 				If(~write_available | max_write_time, fsm.next_state(fsm.WTR))
 			),
-			If(self.refresher.ack, fsm.next_state(fsm.REFRESH))
+			If(go_to_refresh, fsm.next_state(fsm.REFRESH))
 		)
 		fsm.act(fsm.REFRESH,
 			steerer.sel[0].eq(STEER_REFRESH),
+			self.refresher.ack.eq(1),
 			If(~self.refresher.req, fsm.next_state(fsm.READ))
 		)
 		
