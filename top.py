@@ -6,7 +6,7 @@ from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
 from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, \
-	identifier, timer, minimac3, framebuffer
+	identifier, timer, minimac3, framebuffer, asmiprobe
 from cmacros import get_macros
 from constraints import Constraints
 
@@ -124,13 +124,15 @@ def get():
 	identifier0 = identifier.Identifier(csr_offset("ID"), 0x4D31, version, int(clk_freq))
 	timer0 = timer.Timer(csr_offset("TIMER0"))
 	fb0 = framebuffer.Framebuffer(csr_offset("FB"), asmiport_fb)
+	asmiprobe0 = asmiprobe.ASMIprobe(csr_offset("ASMIPROBE"), asmicon0.hub)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
 		uart0.bank.interface,
 		dfii0.bank.interface,
 		identifier0.bank.interface,
 		timer0.bank.interface,
 		minimac0.bank.interface,
-		fb0.bank.interface
+		fb0.bank.interface,
+		asmiprobe0.bank.interface
 	])
 	
 	#
