@@ -19,9 +19,8 @@ void print_isd_info(unsigned int baseaddr)
 	neps = regs[2];
 	nbytes = (regs[3] + 7)/8;
 	
-	// regs[4] is reset
-	
-	offset = 5;
+	regs[4] = 1; // freeze
+	offset = 6; // regs[5] is reset
 	for(i=0;i<neps;i++) {
 		ack_count = 0;
 		for(j=0;j<nbytes;j++) {
@@ -39,4 +38,5 @@ void print_isd_info(unsigned int baseaddr)
 			cur_status & 1 ? "stb" : "   ",
 			cur_status & 2 ? "ack" : "   ");
 	}
+	regs[4] = 0; // unfreeze
 }
