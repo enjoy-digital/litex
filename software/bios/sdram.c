@@ -3,8 +3,9 @@
 
 #include <hw/dfii.h>
 #include <hw/mem.h>
+#include <csrbase.h>
 
-#include "ddrinit.h"
+#include "sdram.h"
 
 static void cdelay(int i)
 {
@@ -195,4 +196,33 @@ int ddrinit(void)
 		return 0;
 	
 	return 1;
+}
+
+static const char *format_slot_state(int state)
+{
+	switch(state) {
+		case 0: return "Empty";
+		case 1: return "Pending";
+		case 2: return "Processing";
+		default: return "UNEXPECTED VALUE";
+	}
+}
+
+void asmiprobe(void)
+{
+	volatile unsigned int *regs = (unsigned int *)ASMIPROBE_BASE;
+	int slot_count;
+	int trace_depth;
+	int i;
+	int offset;
+	
+	offset = 0;
+	slot_count = regs[offset++];
+	trace_depth = regs[offset++];
+	for(i=0;i<slot_count;i++)
+		printf("Slot #%d: %s\n", i, format_slot_state(regs[offset++]));
+	printf("Latest tags:\n");
+	for(i=0;i<trace_depth;i++)
+		printf("%d ", regs[offset++]);
+	printf("\n");
 }

@@ -1,5 +1,5 @@
-#ifndef __DDRINIT_H
-#define __DDRINIT_H
+#ifndef __SDRAM_H
+#define __SDRAM_H
 
 void ddrsw(void);
 void ddrhw(void);
@@ -10,4 +10,6 @@ int memtest_silent(void);
 void memtest(void);
 int ddrinit(void);
 
-#endif /* __DDRINIT_H */
+void asmiprobe(void);
+
+#endif /* __SDRAM_H */
