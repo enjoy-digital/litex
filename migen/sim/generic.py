@@ -158,6 +158,9 @@ class Simulator:
 			for k, v in value.items():
 				self.multiwrite(getattr(obj, k), v)
 
+	def __del__(self):
+		del self.ipc
+		del self.sim_runner
 
 # Contrary to multiread/multiwrite, Proxy fetches the necessary signals only and
 # immediately forwards writes into the simulation.

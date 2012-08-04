@@ -66,6 +66,7 @@ def main():
 		fragment = autofragment.from_local()
 		sim = Simulator(fragment, Runner())
 		sim.run(100)
+		del sim
 		in_signals += tb.inputs
 		out_signals += tb.outputs
 	
