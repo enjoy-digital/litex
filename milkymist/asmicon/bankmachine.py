@@ -235,6 +235,19 @@ class BankMachine:
 		
 		comb.append(self.cmd.tag.eq(cmdsource.tag))
 		
+		# Respect write-to-precharge specification
+		precharge_ok = Signal()
+		t_unsafe_precharge = 2 + self.timing_settings.tWR - 1
+		unsafe_precharge_count = Signal(BV(bits_for(t_unsafe_precharge)))
+		comb.append(precharge_ok.eq(unsafe_precharge_count == 0))
+		sync += [
+			If(self.cmd.stb & self.cmd.ack & self.cmd.is_write,
+				unsafe_precharge_count.eq(t_unsafe_precharge)
+			).Elif(~precharge_ok,
+				unsafe_precharge_count.eq(unsafe_precharge_count-1)
+			)
+		]
+		
 		# Control and command generation FSM
 		fsm = FSM("REGULAR", "PRECHARGE", "ACTIVATE", "REFRESH", delayed_enters=[
 			("TRP", "ACTIVATE", self.timing_settings.tRP-1),
@@ -246,6 +259,7 @@ class BankMachine:
 			).Elif(cmdsource.stb,
 				If(has_openrow,
 					If(hit,
+						# NB: write-to-read specification is enforced by multiplexer
 						self.cmd.stb.eq(1),
 						cmdsource.ack.eq(self.cmd.ack),
 						self.cmd.is_read.eq(~cmdsource.we),
@@ -265,10 +279,12 @@ class BankMachine:
 			# 1. we are presenting the column address, A10 is always low
 			# 2. since we always go to the ACTIVATE state, we do not need
 			# to assert track_close.
-			self.cmd.stb.eq(1),
-			If(self.cmd.ack, fsm.next_state(fsm.TRP)),
-			self.cmd.ras_n.eq(0),
-			self.cmd.we_n.eq(0)
+			If(precharge_ok,
+				self.cmd.stb.eq(1),
+				If(self.cmd.ack, fsm.next_state(fsm.TRP)),
+				self.cmd.ras_n.eq(0),
+				self.cmd.we_n.eq(0)
+			)
 		)
 		fsm.act(fsm.ACTIVATE,
 			s_row_adr.eq(1),
