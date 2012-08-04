@@ -239,7 +239,7 @@ class Multiplexer:
 		
 		# Control FSM
 		fsm = FSM("READ", "WRITE", "REFRESH", delayed_enters=[
-			("RTW", "WRITE", math.ceil((self.timing_settings.CL+1)/2)),
+			("RTW", "WRITE", self.timing_settings.rd_delay),
 			("WTR", "READ", self.timing_settings.tWR)
 		])
 		fsm.act(fsm.READ,
