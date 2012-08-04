@@ -247,11 +247,10 @@ class Framebuffer:
 			"hres", "hsync_start", "hsync_end", "hscan", 
 			"vres", "vsync_start", "vsync_end", "vscan"])
 		g.add_connection(vtg, fifo)
-		self._comp_actor = CompositeActor(g, debugger=True)
+		self._comp_actor = CompositeActor(g, debugger=False)
 		
 		self.bank = csrgen.Bank(fi.actor.get_registers() + self._comp_actor.get_registers(),
 			address=address)
-		self._comp_actor.debugger.print_map()
 		
 		# VGA clock input
 		if not simulation:
