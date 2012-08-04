@@ -4,14 +4,15 @@ from migen.flow.hooks import DFGHook
 
 ISD_MAGIC = 0x6ab4
 
-# TODO: add freeze
 class EndpointReporter:
 	def __init__(self, endpoint, nbits):
 		self.endpoint = endpoint
+		self.nbits = nbits
 		self.reset = Signal()
+		self.freeze = Signal()
 		
-		self._ack_count = RegisterField("ack_count", nbits, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._nack_count = RegisterField("nack_count", nbits, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._ack_count = RegisterField("ack_count", self.nbits, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._nack_count = RegisterField("nack_count", self.nbits, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._cur_stb = Field("cur_stb", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._cur_ack = Field("cur_ack", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._cur_status = RegisterFields("cur_status", [self._cur_stb, self._cur_ack])
@@ -22,8 +23,8 @@ class EndpointReporter:
 	def get_fragment(self):
 		stb = Signal()
 		ack = Signal()
-		ack_count = self._ack_count.field.w
-		nack_count = self._nack_count.field.w
+		ack_count = Signal(BV(self.nbits))
+		nack_count = Signal(BV(self.nbits))
 		comb = [
 			self._cur_stb.w.eq(stb),
 			self._cur_ack.w.eq(ack)
@@ -44,6 +45,10 @@ class EndpointReporter:
 						nack_count.eq(nack_count + 1)
 					)
 				)
+			),
+			If(~self.freeze,
+				self._ack_count.field.w.eq(ack_count),
+				self._nack_count.field.w.eq(nack_count)
 			)
 		]
 		return Fragment(comb, sync)
@@ -55,6 +60,7 @@ class DFGReporter(DFGHook):
 		self._r_magic = RegisterField("magic", 16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._r_neps = RegisterField("neps", 8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._r_nbits = RegisterField("nbits", 8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_freeze = RegisterField("freeze", 1)
 		self._r_reset = RegisterRaw("reset", 1)
 		
 		self.order = []
@@ -69,7 +75,8 @@ class DFGReporter(DFGHook):
 			print("#" + str(n) + ": " + str(u) + ":" + ep + "  ->  " + str(v))
 	
 	def get_registers(self):
-		registers = [self._r_magic, self._r_neps, self._r_nbits, self._r_reset]
+		registers = [self._r_magic, self._r_neps, self._r_nbits,
+			self._r_freeze, self._r_reset]
 		for u, ep, v in self.order:
 			registers += self.nodepair_to_ep[(u, v)][ep].get_registers()
 		return registers
@@ -80,5 +87,9 @@ class DFGReporter(DFGHook):
 			self._r_neps.field.w.eq(len(self.order)),
 			self._r_nbits.field.w.eq(self._nbits)
 		]
-		comb += [h.reset.eq(self._r_reset.re) for h in self.hooks_iter()]
+		for h in self.hooks_iter():
+			comb += [
+				h.freeze.eq(self._r_freeze.field.r),
+				h.reset.eq(self._r_reset.re)
+			]
 		return Fragment(comb) + super().get_fragment()
