@@ -118,6 +118,28 @@ The ``Case`` object constructor takes as first parameter the expression to be te
 
 Each list contains an expression (typically a constant) describing the value to be matched, followed by the statements to be executed when there is a match. The head of the list can be the an instance of the ``Default`` object.
 
+Arrays
+======
+The ``Array`` object represents lists of other objects that can be indexed by FHDL expressions. It is explicitely possible to:
+
+* nest ``Array`` objects to create multidimensional tables.
+* list any Python object in a ``Array`` as long as every expression appearing in a fragment ultimately evaluates to a ``Signal`` for all possible values of the indices. This allows the creation of lists of structured data.
+* use expressions involving ``Array`` objects in both directions (assignment and reading).
+
+For example, this creates a 4x4 matrix of 1-bit signals: ::
+
+  my_2d_array = Array(Array(Signal() for a in range(4)) for b in range(4))
+
+You can then read the matrix with (``x`` and ``y`` being 2-bit signals): ::
+
+  out.eq(my_2d_array[x][y])
+
+and write it with: ::
+
+  my_2d_array[x][y].eq(inp)
+
+Since they have no direct equivalent in Verilog, ``Array`` objects are lowered into multiplexers and conditional statements before the actual conversion takes place. Such lowering happens automatically without any user intervention.
+
 Special elements
 ****************
 
