@@ -35,6 +35,8 @@ It is the successor of the CSR bus used in Milkymist SoC 1.x, with two modificat
 * Up to 32 slave devices (instead of 16)
 * Data words are 8 bits (instead of 32)
 
+.. _bank:
+
 Generating register banks
 =========================
 Migen Bank is a system comparable to wishbone-gen [wbgen]_, which automates the creation of configuration and status register banks and interrupt/event managers implemented in cores.
