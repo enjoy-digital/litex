@@ -8,7 +8,7 @@ from migen.bus import csr
 import migScope
 
 #
-#Test RangeDetector
+#Test Term
 #
 #term = migScope.Term(32,True)
 #v = verilog.convert(term.get_fragment())
@@ -70,12 +70,15 @@ import migScope
 #v = verilog.convert(recorder.get_fragment())
 #print(v)
 
-
+#
+#Test Trigger
+#
 term0 = migScope.Term(32)
-term1 = migScope.Term(32)
-term2 = migScope.Term(32)
+term1 = migScope.RangeDetector(32)
+term2 = migScope.EdgeDetector(32)
 term3 = migScope.Term(32)
 
 trigger0 = migScope.Trigger(0,32,64,[term0, term1, term2, term3])
 v = verilog.convert(trigger0.get_fragment())
 print(v)
+

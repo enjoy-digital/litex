@@ -66,25 +66,25 @@ class EdgeDetector:
 		# Rising Edge
 		if "R" in self.mode:
 			if self.pipe:
-				sync += [self.ro.eq(self.i & (~self.i_d))]
+				sync += [self.ro.eq(self.r_mask & self.i & (~self.i_d))]
 			else:
-				comb +=  [self.ro.eq(self.i & (~ self.i_d))]
+				comb +=  [self.ro.eq(self.r_mask & self.i & (~ self.i_d))]
 		else:
 			comb +=  [self.ro.eq(0)]
 		# Falling Edge
 		if "F" in self.mode:
 			if self.pipe:
-				sync += [self.fo.eq((~ self.i) & self.i_d)]
+				sync += [self.fo.eq(self.f_mask & (~ self.i) & self.i_d)]
 			else:
-				comb +=  [self.fo.eq((~ self.i) & self.i_d)]
+				comb +=  [self.fo.eq(self.f_mask & (~ self.i) & self.i_d)]
 		else:
 			comb +=  [self.fo.eq(0)]
 		# Both
 		if "B" in self.mode:
 			if self.pipe:
-				sync += [self.bo.eq(self.i != self.i_d)]
+				sync += [self.bo.eq(self.b_mask & self.i != self.i_d)]
 			else:
-				comb +=  [self.bo.eq(self.i != self.i_d)]
+				comb +=  [self.bo.eq(self.b_mask & self.i != self.i_d)]
 		else:
 			comb +=  [self.bo.eq(0)]
 		#Output
@@ -256,7 +256,7 @@ class Trigger:
 		
 		comb+= [self.dat.eq(self.in_dat)]
 		
-		return frag + _sum.get_fragment() + Fragment(comb=comb, sync=sync)
+		return frag + Fragment(comb=comb, sync=sync)
 
 
 class Storage:
