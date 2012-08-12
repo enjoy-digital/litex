@@ -268,7 +268,6 @@ class Trigger:
 		
 		# Connect output of trig elements to sum
 		# Todo : Add sum tree to have more that 4 inputs
-		
 		comb+= [self._sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
 		
 		# Connect sum ouput to hit
@@ -280,7 +279,6 @@ class Trigger:
 		for port in self.ports:
 			frag += port.get_fragment()
 		comb+= [self.dat.eq(self.in_dat)]
-		
 		
 		#Connect Registers
 		for i in range(len(self.ports)):
@@ -468,9 +466,6 @@ class Recorder:
 		return self.bank.get_fragment()+\
 			self.storage.get_fragment()+self.sequencer.get_fragment()+\
 			Fragment(comb=comb, sync=sync)
-			
-
-
 
 class MigCon:
 	pass

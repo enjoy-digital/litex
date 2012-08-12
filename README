@@ -2,7 +2,7 @@
 ------------
 
 This is a small Logic Analyser to be embedded in a Fpga design to debug internal
-or external.signals.
+or external signals.
 
 [> Status:
 Early development phase

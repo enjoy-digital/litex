@@ -6,6 +6,7 @@ from migen.fhdl import verilog, autofragment
 from migen.bus import csr
 
 import migScope
+import spi2Csr
 
 #
 #Test Term
@@ -73,13 +74,21 @@ import migScope
 #
 #Test Trigger
 #
-term0 = migScope.Term(32)
-term1 = migScope.RangeDetector(32)
-term2 = migScope.EdgeDetector(32)
-term3 = migScope.Term(32)
+#term0 = migScope.Term(32)
+#term1 = migScope.RangeDetector(32)
+#term2 = migScope.EdgeDetector(32)
+#term3 = migScope.Term(32)
 
-trigger0 = migScope.Trigger(0,32,64,[term0, term1, term2, term3])
-#trigger0 = migScope.Trigger(0,32,64,[term0])
-v = verilog.convert(trigger0.get_fragment())
+#trigger0 = migScope.Trigger(0,32,64,[term0, term1, term2, term3])
+#recorder0 = migScope.Recorder(0,32,1024)
+#v = verilog.convert(trigger0.get_fragment()+recorder0.get_fragment())
+#print(v)
+
+#
+#Test spi2Csr
+#
+spi2csr0 = spi2Csr.Spi2Csr(16,8)
+v = verilog.convert(spi2csr0.get_fragment())
 print(v)
+
 
