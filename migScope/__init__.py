@@ -225,10 +225,12 @@ class Sum:
 
 class Trigger:
 	def __init__(self,address, trig_width, dat_width, ports):
+		self.address = address
 		self.trig_width = trig_width
 		self.dat_width = dat_width
 		self.ports = ports
 		assert (len(self.ports) <= 4), "Nb Ports > 4 (This version support 4 ports Max)"
+		self._sum = Sum(len(self.ports))
 		
 		self.in_trig = Signal(BV(self.trig_width))
 		self.in_dat  = Signal(BV(self.dat_width))
@@ -236,6 +238,27 @@ class Trigger:
 		self.hit = Signal()
 		self.dat = Signal(BV(self.dat_width))
 		
+		# Csr interface
+		for i in range(len(self.ports)):
+			if isinstance(self.ports[i],Term):
+				setattr(self,"_term_reg%d"%i,RegisterField("rst", 1*self.trig_width, reset=0,
+					access_bus=WRITE_ONLY, access_dev=READ_ONLY))
+			elif isinstance(self.ports[i],EdgeDetector):
+				setattr(self,"_edge_reg%d"%i,RegisterField("rst", 3*self.trig_width, reset=0,
+					access_bus=WRITE_ONLY, access_dev=READ_ONLY))
+			elif isinstance(self.ports[i],RangeDetector):
+				setattr(self,"_range_reg%d"%i,RegisterField("rst", 2*self.trig_width, reset=0,
+					access_bus=WRITE_ONLY, access_dev=READ_ONLY))
+					
+		self._sum_reg = RegisterField("_sum_reg", 17, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+		
+		regs = []
+		objects = self.__dict__
+		for object in objects:
+			if "_reg" in object:
+				regs.append(objects[object])
+		regs.append(self._sum_reg)
+		self.bank = csrgen.Bank(regs,address=address)
 		
 	def get_fragment(self):
 		comb = []
@@ -245,20 +268,36 @@ class Trigger:
 		
 		# Connect output of trig elements to sum
 		# Todo : Add sum tree to have more that 4 inputs
-		_sum = Sum(len(self.ports))
-		comb+= [_sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
+		
+		comb+= [self._sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
 		
 		# Connect sum ouput to hit
-		comb+= [self.hit.eq(_sum.o)]
+		comb+= [self.hit.eq(self._sum.o)]
 		
 		# Add ports & sum to frag
-		frag = _sum.get_fragment()
+		frag = self.bank.get_fragment() 
+		frag += self._sum.get_fragment()
 		for port in self.ports:
 			frag += port.get_fragment()
-
-		
 		comb+= [self.dat.eq(self.in_dat)]
 		
+		
+		#Connect Registers
+		for i in range(len(self.ports)):
+			if isinstance(self.ports[i],Term):
+				comb += [self.ports[i].t.eq(getattr(self,"_term_reg%d"%i).field.r[0:self.trig_width])]
+			elif isinstance(self.ports[i],EdgeDetector):
+				comb += [self.ports[i].r_mask.eq(getattr(self,"_edge_reg%d"%i).field.r[0:1*self.trig_width])]
+				comb += [self.ports[i].f_mask.eq(getattr(self,"_edge_reg%d"%i).field.r[1*self.trig_width:2*self.trig_width])]
+				comb += [self.ports[i].b_mask.eq(getattr(self,"_edge_reg%d"%i).field.r[2*self.trig_width:3*self.trig_width])]
+			elif isinstance(self.ports[i],RangeDetector):
+				comb += [self.ports[i].low.eq(getattr(self,"_range_reg%d"%i).field.r[0:1*self.trig_width])]
+				comb += [self.ports[i].high.eq(getattr(self,"_range_reg%d"%i).field.r[1*self.trig_width:2*self.trig_width])]
+				
+		comb += [
+			self._sum.prog_dat.eq(self._sum_reg.field.r[0:16]),
+			self._sum.prog.eq(self._sum_reg.field.r[16]),
+			]
 		return frag + Fragment(comb=comb, sync=sync)
 
 

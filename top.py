@@ -79,6 +79,7 @@ term2 = migScope.EdgeDetector(32)
 term3 = migScope.Term(32)
 
 trigger0 = migScope.Trigger(0,32,64,[term0, term1, term2, term3])
+#trigger0 = migScope.Trigger(0,32,64,[term0])
 v = verilog.convert(trigger0.get_fragment())
 print(v)
 
