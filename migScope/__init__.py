@@ -1,6 +1,7 @@
 from migen.fhdl.structure import *
+from migen.bus import csr
 from migen.bank import description, csrgen
-from migen.bank.description import READ_ONLY, WRITE_ONLY
+from migen.bank.description import *
 
 class Term:
 	def __init__(self, width, pipe=False):
@@ -220,7 +221,7 @@ class Sum:
 		return Fragment(comb=comb,sync=sync,instances=inst)
 
 
-class Recorder:
+class Storage:
 	def __init__(self, width, depth):
 		self.width = width
 		self.depth = depth
@@ -286,7 +287,7 @@ class Recorder:
 			)
 			]
 		return Fragment(comb=comb, sync=sync, memories=memories)
-		
+
 class Sequencer:
 	def __init__(self,depth):
 		self.depth = depth
@@ -294,12 +295,14 @@ class Sequencer:
 		# Controller interface
 		self.ctl_rst = Signal()
 		self.ctl_offset = Signal(BV(self.depth_width))
+		self.ctl_size = Signal(BV(self.depth_width))
 		self.ctl_arm = Signal()
 		self.ctl_done = Signal()
 		# Triggers interface
 		self.trig_hit  = Signal()
 		# Recorder interface
 		self.rec_offset = Signal(BV(self.depth_width))
+		self.rec_size = Signal(BV(self.depth_width))
 		self.rec_start = Signal()
 		self.rec_done  = Signal()
 		# Others
@@ -320,10 +323,71 @@ class Sequencer:
 			]
 		comb += [
 			self.rec_offset.eq(self.ctl_offset),
-			self.rec_start.eq(self.enable & self.trig_hit)
+			self.rec_size.eq(self.ctl_size),
+			self.rec_start.eq(self.enable & self.trig_hit),
+			self.ctl_done.eq(~self.enable)
 			]
 		return Fragment(comb=comb, sync=sync)
 
+class Recorder:
+	def __init__(self,address, width, depth):
+		self.address = address
+		self.width = width
+		self.depth = depth
+		self.depth_width = bits_for(self.depth)
+		
+		self.storage = Storage(self.width, self.depth)
+		self.sequencer = Sequencer(self.depth)
+		
+		# Csr interface
+		self._rst = RegisterField("rst", reset=1)
+		self._arm = RegisterField("arm", reset=0)
+		self._done = RegisterField("done", reset=0, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		
+		self._size = RegisterField("size", self.depth_width, reset=1)
+		self._offset = RegisterField("offset", self.depth_width, reset=1)
+		
+		self._get = RegisterField("get", reset=1)
+		self._get_dat = RegisterField("get_dat", self.width, reset=1,access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		
+		regs = [self._rst, self._arm, self._done,
+			self._size, self._offset,
+			self._get, self._get_dat]
+			
+		self.bank = csrgen.Bank(regs,address=address)
+		
+		# Trigger Interface
+		self.trig_hit = Signal()
+		self.trig_dat = Signal(BV(self.width))
+		
+	def get_fragment(self):
+		comb = []
+		sync = []
+		#Bank <--> Storage / Sequencer
+		comb += [
+			self.sequencer.ctl_rst.eq(self._rst.field.r),
+			self.storage.rst.eq(self._rst.field.r),
+			self.sequencer.ctl_offset.eq(self._offset.field.r),
+			self.sequencer.ctl_size.eq(self._size.field.r),
+			self.sequencer.ctl_arm.eq(self._arm.field.r),
+			self._done.field.w.eq(self.sequencer.ctl_done)
+			]
+		
+		#Storage <--> Sequencer <--> Trigger
+		comb += [
+			self.storage.offset.eq(self.sequencer.rec_offset),
+			self.storage.size.eq(self.sequencer.rec_size),
+			self.storage.start.eq(self.sequencer.rec_start),
+			self.sequencer.rec_done.eq(self.storage.done),
+			self.sequencer.trig_hit.eq(self.trig_hit),
+			self.storage.put.eq(self.sequencer.enable),
+			self.storage.put_dat.eq(self.trig_dat)
+			
+			]
+
+		return self.bank.get_fragment()+\
+			self.storage.get_fragment()+self.sequencer.get_fragment()+\
+			Fragment(comb=comb, sync=sync)
 
 class MigCon:
 	pass

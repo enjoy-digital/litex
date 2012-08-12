@@ -50,15 +50,22 @@ import migScope
 #print(v)
 
 #
-#Test Recorder
+#Test Storage
 #
-#recorder = migScope.Recorder(32,1024)
-#v = verilog.convert(recorder.get_fragment())
+#storage = migScope.Storage(32,1024)
+#v = verilog.convert(storage.get_fragment())
 #print(v)
 
 #
 #Test Sequencer
 #
-sequencer = migScope.Sequencer(1024)
-v = verilog.convert(sequencer.get_fragment())
+#sequencer = migScope.Sequencer(1024)
+#v = verilog.convert(sequencer.get_fragment())
+#print(v)
+
+#
+#Test Recorder
+#
+recorder = migScope.Recorder(0,32,1024)
+v = verilog.convert(recorder.get_fragment())
 print(v)
