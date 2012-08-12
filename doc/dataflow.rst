@@ -206,21 +206,25 @@ Migen provides a collection of bus-mastering actors, which makes it possible for
 Wishbone reader
 ---------------
 
-The ``migen.actorlib.dma_wishbone.reader`` takes a token representing a 30-bit Wishbone address (expressed in words), reads one 32-bit word on the bus at that address, and transmits the data.
+The ``migen.actorlib.dma_wishbone.Reader`` takes a token representing a 30-bit Wishbone address (expressed in words), reads one 32-bit word on the bus at that address, and transmits the data.
 
 It does so using Wishbone classic cycles (there is no burst or cache support). The actor is pipelined and its throughput is only limited by the Wishbone stall cycles.
 
 Wishbone writer
 ---------------
 
-The ``migen.actorlib.dma_wishbone.writer`` takes a token containing a 30-bit Wishbone address (expressed in words) and a 32-bit word of data, and writes that word to the bus.
+The ``migen.actorlib.dma_wishbone.Writer`` takes a token containing a 30-bit Wishbone address (expressed in words) and a 32-bit word of data, and writes that word to the bus.
 
 Only Wishbone classic cycles are supported. The throughput is limited by the Wishbone stall cycles only.
 
 ASMI reader
 -----------
 
-TODO (status: prototype available, sequential without reorder buffer)
+The ``migen.actorlib.dma_asmi.Reader`` requires a ASMI port at instantiation time. This port defines the address and data widths of the actor and how many outstanding transactions are supported.
+
+Input tokens contain the raw ASMI address, and output tokens are wide ASMI data words.
+
+If more than one slot are assigned to the port, the reader actor implements a reorder buffer (so that the order of the output tokens matches that of the input tokens even if the memory system completes transactions out-of-order) and is capable of supporting as many outstanding transactions as there are slots.
 
 ASMI writer
 -----------
