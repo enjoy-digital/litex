@@ -38,9 +38,9 @@ import migScope
 #
 #Test Sum
 #
-sum = migScope.Sum(4,pipe=True)
-v = verilog.convert(sum.get_fragment())
-print(v)
+#sum = migScope.Sum(4,pipe=True)
+#v = verilog.convert(sum.get_fragment())
+#print(v)
 
 #
 #Test MigIo
@@ -55,3 +55,10 @@ print(v)
 #recorder = migScope.Recorder(32,1024)
 #v = verilog.convert(recorder.get_fragment())
 #print(v)
+
+#
+#Test Sequencer
+#
+sequencer = migScope.Sequencer(1024)
+v = verilog.convert(sequencer.get_fragment())
+print(v)

@@ -228,6 +228,7 @@ class Recorder:
 		#Control
 		self.rst = Signal()
 		self.start = Signal()
+		self.offset = Signal(BV(self.depth_width))
 		self.size = Signal(BV(self.depth_width))
 		self.done = Signal()
 		#Write Path
@@ -245,10 +246,14 @@ class Recorder:
 		#Others
 		self._mem = Memory(self.width, self.depth, self._put_port, self._get_port)
 		
+		
 	def get_fragment(self):
 		comb = []
 		sync = []
 		memories = [self._mem]
+		size_minus_offset = Signal(BV(self.depth_width))
+		comb += [size_minus_offset.eq(self.size-self.offset)]
+		
 		#Control
 		sync += [
 			If(self.rst,
@@ -259,7 +264,8 @@ class Recorder:
 				self.done.eq(0)
 			).Elif(self.start,
 				self._put_cnt.eq(0),
-				self._get_cnt.eq(0)
+				self._get_cnt.eq(0),
+				self._get_ptr.eq(self._put_ptr-size_minus_offset)
 			),
 			If(self.put,
 				self._put_cnt.eq(self._put_cnt+1),
@@ -271,15 +277,53 @@ class Recorder:
 			)
 			]
 		comb += [
-			If(self._put_cnt == self.size-1,
+			If(self._put_cnt == size_minus_offset-1,
 				self.done.eq(1)
-			).Elif(self._get_cnt == self.size-1,
+			).Elif(self._get_cnt == size_minus_offset-1,
 				self.done.eq(1)
 			).Else(
 				self.done.eq(0)
 			)
 			]
 		return Fragment(comb=comb, sync=sync, memories=memories)
+		
+class Sequencer:
+	def __init__(self,depth):
+		self.depth = depth
+		self.depth_width = bits_for(self.depth)
+		# Controller interface
+		self.ctl_rst = Signal()
+		self.ctl_offset = Signal(BV(self.depth_width))
+		self.ctl_arm = Signal()
+		self.ctl_done = Signal()
+		# Triggers interface
+		self.trig_hit  = Signal()
+		# Recorder interface
+		self.rec_offset = Signal(BV(self.depth_width))
+		self.rec_start = Signal()
+		self.rec_done  = Signal()
+		# Others
+		self.enable = Signal()
+		
+	def get_fragment(self):
+		comb = []
+		sync = []
+		#Control
+		sync += [
+			If(self.ctl_rst,
+				self.enable.eq(0)
+			).Elif(self.ctl_arm,
+				self.enable.eq(1)
+			).Elif(self.rec_done,
+				self.enable.eq(0)
+			)
+			]
+		comb += [
+			self.rec_offset.eq(self.ctl_offset),
+			self.rec_start.eq(self.enable & self.trig_hit)
+			]
+		return Fragment(comb=comb, sync=sync)
+
 
 class MigCon:
 	pass
