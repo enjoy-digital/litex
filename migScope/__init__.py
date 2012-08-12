@@ -65,26 +65,29 @@ class EdgeDetector:
 		sync += [self.i_d.eq(self.i)]
 		# Rising Edge
 		if "R" in self.mode:
+			r_eq = [self.ro.eq(self.r_mask & self.i & (~self.i_d))]
 			if self.pipe:
-				sync += [self.ro.eq(self.r_mask & self.i & (~self.i_d))]
+				sync += r_eq
 			else:
-				comb +=  [self.ro.eq(self.r_mask & self.i & (~ self.i_d))]
+				comb += r_eq
 		else:
 			comb +=  [self.ro.eq(0)]
 		# Falling Edge
 		if "F" in self.mode:
+			f_eq = [self.fo.eq(self.f_mask & (~ self.i) & self.i_d)]
 			if self.pipe:
-				sync += [self.fo.eq(self.f_mask & (~ self.i) & self.i_d)]
+				sync += f_eq
 			else:
-				comb +=  [self.fo.eq(self.f_mask & (~ self.i) & self.i_d)]
+				comb += f_eq
 		else:
 			comb +=  [self.fo.eq(0)]
 		# Both
 		if "B" in self.mode:
+			b_eq = [self.bo.eq(self.b_mask & self.i != self.i_d)]
 			if self.pipe:
-				sync += [self.bo.eq(self.b_mask & self.i != self.i_d)]
+				sync += b_eq
 			else:
-				comb +=  [self.bo.eq(self.b_mask & self.i != self.i_d)]
+				comb += b_eq
 		else:
 			comb +=  [self.bo.eq(0)]
 		#Output
