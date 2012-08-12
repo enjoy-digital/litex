@@ -145,10 +145,9 @@ class Sum:
 		self.pipe = pipe
 		self.prog_mode = prog_mode
 		assert (size <= 4), "size > 4 (This version support only non cascadable SRL16)"
-		self.i0 = Signal()
-		self.i1 = Signal()
-		self.i2 = Signal()
-		self.i3 = Signal()
+		self.i = Array(Signal() for j in range(4))
+		for j in range(4):
+			self.i[j].name_override = "i%d"%j
 		
 		self._ce = Signal()
 		self._shift_in = Signal()
@@ -197,10 +196,10 @@ class Sum:
 		inst = [
 			Instance("SRLC16E",
 				[
-				("a0", self.i0),
-				("a1", self.i1),
-				("a2", self.i2),
-				("a3", self.i3),
+				("a0", self.i[0]),
+				("a1", self.i[1]),
+				("a2", self.i[2]),
+				("a3", self.i[3]),
 				("ce", self._ce),
 				("d", self._shift_in)
 				] , [
@@ -219,6 +218,45 @@ class Sum:
 		else:
 			comb += [self.o.eq(self._o)]
 		return Fragment(comb=comb,sync=sync,instances=inst)
+		
+
+class Trigger:
+	def __init__(self,address, trig_width, dat_width, ports):
+		self.trig_width = trig_width
+		self.dat_width = dat_width
+		self.ports = ports
+		assert (len(self.ports) <= 4), "Nb Ports > 4 (This version support 4 ports Max)"
+		
+		self.in_trig = Signal(BV(self.trig_width))
+		self.in_dat  = Signal(BV(self.dat_width))
+		
+		self.hit = Signal()
+		self.dat = Signal(BV(self.dat_width))
+		
+		
+	def get_fragment(self):
+		comb = []
+		sync = []
+		# Connect in_trig to input of trig elements
+		comb+= [port.i.eq(self.in_trig) for port in self.ports]
+		
+		# Connect output of trig elements to sum
+		# Todo : Add sum tree to have more that 4 inputs
+		_sum = Sum(len(self.ports))
+		comb+= [_sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
+		
+		# Connect sum ouput to hit
+		comb+= [self.hit.eq(_sum.o)]
+		
+		# Add ports & sum to frag
+		frag = _sum.get_fragment()
+		for port in self.ports:
+			frag += port.get_fragment()
+
+		
+		comb+= [self.dat.eq(self.in_dat)]
+		
+		return frag + _sum.get_fragment() + Fragment(comb=comb, sync=sync)
 
 
 class Storage:
@@ -388,6 +426,9 @@ class Recorder:
 		return self.bank.get_fragment()+\
 			self.storage.get_fragment()+self.sequencer.get_fragment()+\
 			Fragment(comb=comb, sync=sync)
+			
+
+
 
 class MigCon:
 	pass

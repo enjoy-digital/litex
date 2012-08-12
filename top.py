@@ -66,6 +66,16 @@ import migScope
 #
 #Test Recorder
 #
-recorder = migScope.Recorder(0,32,1024)
-v = verilog.convert(recorder.get_fragment())
+#recorder = migScope.Recorder(0,32,1024)
+#v = verilog.convert(recorder.get_fragment())
+#print(v)
+
+
+term0 = migScope.Term(32)
+term1 = migScope.Term(32)
+term2 = migScope.Term(32)
+term3 = migScope.Term(32)
+
+trigger0 = migScope.Trigger(0,32,64,[term0, term1, term2, term3])
+v = verilog.convert(trigger0.get_fragment())
 print(v)
