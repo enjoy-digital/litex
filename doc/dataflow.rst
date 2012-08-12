@@ -227,6 +227,26 @@ ASMI writer
 
 TODO
 
+Miscellaneous actors
+====================
+
+.. _intsequence:
+
+Integer sequence generator
+--------------------------
+
+The integer sequence generator either:
+
+* takes a token containing a maximum value N and generates N tokens containing the numbers 0 to N-1.
+* takes a token containing a number of values N and a offset O and generates N-O tokens containing the numbers O to O+N-1.
+
+The actor instantiation takes several parameters:
+
+* the number of bits needed to represent the maximum number of generated values.
+* the number of bits needed to represent the maximum offset. When this value is 0 (default), then offsets are not supported and the sequence generator accepts tokens which contain the maximum value alone.
+
+The integer sequence generator can be used in combination with bus actors to generate addresses and read contiguous blocks of system memory (see :ref:`busactors`).
+
 .. _actornetworks:
 
 Actor networks
