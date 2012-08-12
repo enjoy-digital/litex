@@ -1,7 +1,7 @@
 [> migScope
 ------------
 
-This is a small Logic Analyser to be embedded in an Fpga design to debug internal
+This is a small Logic Analyser to be embedded in a Fpga design to debug internal
 or external.signals.
 
 [> Status:
