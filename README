@@ -1,0 +1,11 @@
+[> migScope
+------------
+
+This is a small Logic Analyser to be embedded in an Fpga design to debug internal
+or external.signals.
+
+[> Status:
+Early development phase
+
+[> Contact
+E-mail: florent@enjoy-digital.fr
