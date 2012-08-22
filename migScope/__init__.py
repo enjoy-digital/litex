@@ -2,6 +2,7 @@ from migen.fhdl.structure import *
 from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
+from migen.corelogic.misc import optree
 
 class Term:
 	def __init__(self, width, pipe=False):
@@ -143,84 +144,25 @@ class Timer:
 		return Fragment(comb, sync)
 
 class Sum:
-	def __init__(self,size=4,pipe=False,prog_mode="PAR"):
+	def __init__(self,size=4,pipe=False):
 		self.size = size
 		self.pipe = pipe
-		self.prog_mode = prog_mode
-		assert (size <= 4), "size > 4 (This version support only non cascadable SRL16)"
-		self.i = Array(Signal() for j in range(4))
-		for j in range(4):
-			self.i[j].name_override = "i%d"%j
-		
-		self._ce = Signal()
-		self._shift_in = Signal()
-		
-		self.o = Signal()
+		self.i = Array(Signal() for j in range(self.size))
 		self._o = Signal()
-		
-		if self.prog_mode == "PAR":
-			self.prog =  Signal()
-			self.prog_dat = Signal(BV(16))
-			self._shift_dat = Signal(BV(17))
-			self._shift_cnt = Signal(BV(4))
-		elif self.prog_mode == "SHIFT":
-			self.shift_ce = Signal()
-			self.shift_in = Signal()
-			self.shift_out = Signal()
-		
+		self.o = Signal()
+
+		self.prog = Signal()
+		self.prog_dat = Signal(BV(16))
 		
 	def get_fragment(self):
-		_shift_out = Signal()
 		comb = []
 		sync = []
-		if self.prog_mode == "PAR":
-			sync += [
-				If(self.prog,
-					self._shift_dat.eq(self.prog_dat),
-					self._shift_cnt.eq(16)
-				),
-			
-				If(self._shift_cnt != 0,
-					self._shift_dat.eq(self._shift_dat[1:]),
-					self._shift_cnt.eq(self._shift_cnt-1),
-					self._ce.eq(1)
-				).Else(
-					self._ce.eq(0)
-				)
-				]
-			comb += [
-				self._shift_in.eq(self._shift_dat[0])
-				]
-		elif self.prog_mode == "SHIFT":
-			comb += [
-				self._ce.eq(self.shift_ce),
-				self._shift_in.eq(self.shift_in)
-				]
-		inst = [
-			Instance("SRLC16E",
-				[
-				("a0", self.i[0]),
-				("a1", self.i[1]),
-				("a2", self.i[2]),
-				("a3", self.i[3]),
-				("ce", self._ce),
-				("d", self._shift_in)
-				] , [
-				("q", self._o),
-				("q15",_shift_out)
-				] ,
-				clkport="clk",
-			)
-		]
-		if self.prog_mode == "SHIFT":
-			comb += [
-				self.shift_out.eq(_shift_out)
-				]
+		comb +=[self.o.eq(optree("|", [self.i[j] for j in range(self.size)]))]
 		if self.pipe:
 			sync += [self.o.eq(self._o)]
 		else:
 			comb += [self.o.eq(self._o)]
-		return Fragment(comb=comb,sync=sync,instances=inst)
+		return Fragment(comb=comb,sync=sync)
 		
 
 class Trigger:
