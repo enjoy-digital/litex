@@ -144,25 +144,31 @@ class Timer:
 		return Fragment(comb, sync)
 
 class Sum:
-	def __init__(self,size=4,pipe=False):
-		self.size = size
+	def __init__(self,width=4,pipe=False):
+		self.width = width
 		self.pipe = pipe
-		self.i = Array(Signal() for j in range(self.size))
+		
+		self.i = Signal(BV(self.width))
 		self._o = Signal()
 		self.o = Signal()
-
+		self._lut_port = MemoryPort(adr=self.i, dat_r=self._o)
+		
 		self.prog = Signal()
-		self.prog_dat = Signal(BV(16))
+		self.prog_adr = Signal(BV(width))
+		self.prog_dat = Signal()
+		self._prog_port = MemoryPort(adr=self.prog_adr, we=self.prog, dat_w=self.prog_dat)
+		
+		self._mem = Memory(1, 2**self.width, self._lut_port, self._prog_port)
 		
 	def get_fragment(self):
 		comb = []
 		sync = []
-		comb +=[self.o.eq(optree("|", [self.i[j] for j in range(self.size)]))]
+		memories = [self._mem]
 		if self.pipe:
 			sync += [self.o.eq(self._o)]
 		else:
 			comb += [self.o.eq(self._o)]
-		return Fragment(comb=comb,sync=sync)
+		return Fragment(comb=comb,sync=sync,memories=memories)
 		
 
 class Trigger:
