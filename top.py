@@ -39,7 +39,7 @@ import spi2Csr
 #
 #Test Sum
 #
-#sum = migScope.Sum(4,pipe=True)
+#sum = migScope.Sum(4,pipe=False)
 #v = verilog.convert(sum.get_fragment())
 #print(v)
 
@@ -74,21 +74,21 @@ import spi2Csr
 #
 #Test Trigger
 #
-#term0 = migScope.Term(32)
-#term1 = migScope.RangeDetector(32)
-#term2 = migScope.EdgeDetector(32)
-#term3 = migScope.Term(32)
+term0 = migScope.Term(32)
+term1 = migScope.RangeDetector(32)
+term2 = migScope.EdgeDetector(32)
+term3 = migScope.Term(32)
 
-#trigger0 = migScope.Trigger(0,32,64,[term0, term1, term2, term3])
-#recorder0 = migScope.Recorder(0,32,1024)
-#v = verilog.convert(trigger0.get_fragment()+recorder0.get_fragment())
-#print(v)
+trigger0 = migScope.Trigger(0,32,64,[term0, term1, term2, term3])
+recorder0 = migScope.Recorder(0,32,1024)
+v = verilog.convert(trigger0.get_fragment()+recorder0.get_fragment())
+print(v)
 
 #
 #Test spi2Csr
 #
-spi2csr0 = spi2Csr.Spi2Csr(16,8)
-v = verilog.convert(spi2csr0.get_fragment())
-print(v)
+#spi2csr0 = spi2Csr.Spi2Csr(16,8)
+#v = verilog.convert(spi2csr0.get_fragment())
+#print(v)
 
 

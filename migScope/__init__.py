@@ -196,16 +196,15 @@ class Trigger:
 					access_bus=WRITE_ONLY, access_dev=READ_ONLY))
 			elif isinstance(self.ports[i],RangeDetector):
 				setattr(self,"_range_reg%d"%i,RegisterField("rst", 2*self.trig_width, reset=0,
-					access_bus=WRITE_ONLY, access_dev=READ_ONLY))
-					
-		self._sum_reg = RegisterField("_sum_reg", 17, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+					access_bus=WRITE_ONLY, access_dev=READ_ONLY))		
+		self._sum_reg = RegisterField("_sum_reg", 32, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
 		
 		regs = []
 		objects = self.__dict__
-		for object in objects:
+		for object in sorted(objects):
 			if "_reg" in object:
+				print(object)
 				regs.append(objects[object])
-		regs.append(self._sum_reg)
 		self.bank = csrgen.Bank(regs,address=address)
 		
 	def get_fragment(self):
@@ -215,7 +214,6 @@ class Trigger:
 		comb+= [port.i.eq(self.in_trig) for port in self.ports]
 		
 		# Connect output of trig elements to sum
-		# Todo : Add sum tree to have more that 4 inputs
 		comb+= [self._sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
 		
 		# Connect sum ouput to hit
@@ -241,8 +239,9 @@ class Trigger:
 				comb += [self.ports[i].high.eq(getattr(self,"_range_reg%d"%i).field.r[1*self.trig_width:2*self.trig_width])]
 				
 		comb += [
-			self._sum.prog_dat.eq(self._sum_reg.field.r[0:16]),
-			self._sum.prog.eq(self._sum_reg.field.r[16]),
+			self._sum.prog_adr.eq(self._sum_reg.field.r[0:16]),
+			self._sum.prog_dat.eq(self._sum_reg.field.r[16]),
+			self._sum.prog.eq(self._sum_reg.field.r[17])
 			]
 		return frag + Fragment(comb=comb, sync=sync)
 
