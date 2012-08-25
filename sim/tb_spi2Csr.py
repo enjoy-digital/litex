@@ -15,10 +15,12 @@ def get_bit(dat, bit):
 	return int(dat & (1<<bit) != 0)
 
 def spi_transactions():
-	yield TWrite(0xA5A5,1)
-	yield TWrite(0x5A5A,2)
-	yield TWrite(0xA5A5,3)
-	yield TWrite(0x5A5A,4)
+	yield TWrite(0x8000,0x00)
+	yield TWrite(0x8001,0x01)
+	yield TWrite(0x8002,0x02)
+	yield TWrite(0x8003,0x03)
+	for i in range(100):
+		yield None 
 
 class SpiMaster(PureSimulable):
 	def __init__(self, spi, generator):
@@ -45,30 +47,30 @@ class SpiMaster(PureSimulable):
 			
 					# Clk
 					if self.transaction_cnt%2:
-						s.wr(self.spi.spi_clk,1)
+						s.wr(self.spi.spi_clk, 1)
 					else:
-						s.wr(self.spi.spi_clk,0)
+						s.wr(self.spi.spi_clk, 0)
 
 					# Mosi Addr
-					if self.transaction_cnt < a_w*2-1:	
+					if self.transaction_cnt < a_w*2:	
 						bit = a_w-1-int((self.transaction_cnt)/2)					
-						data = get_bit(self.transaction.address,bit)
-						s.wr(self.spi.spi_mosi,data)
-
+						data = get_bit(self.transaction.address, bit)
+						s.wr(self.spi.spi_mosi, data)
 					# Mosi Data
-					if self.transaction_cnt > a_w*2 and self.transaction_cnt < a_w*2+d_w*2-1:	
+					elif self.transaction_cnt >= a_w*2 and self.transaction_cnt < a_w*2+d_w*2:
 						bit = d_w-1-int((self.transaction_cnt-a_w*2)/2)					
 						data = get_bit(self.transaction.data,bit)
-						s.wr(self.spi.spi_mosi,data)					
-
+						s.wr(self.spi.spi_mosi, data)						
+					else:
+						s.wr(self.spi.spi_mosi, 0)
 
 					# Cs_n
 					if self.transaction_cnt < a_w*2+d_w*2:
 						s.wr(self.spi.spi_cs_n,0)
 					else:
-						s.wr(self.spi.spi_cs_n,1)
-						s.wr(self.spi.spi_clk,0)
-						s.wr(self.spi.spi_mosi,0)
+						s.wr(self.spi.spi_cs_n, 1)
+						s.wr(self.spi.spi_clk, 0)
+						s.wr(self.spi.spi_mosi, 0)
 						self.transaction = None
 
 					# Incr transaction_cnt
@@ -76,12 +78,12 @@ class SpiMaster(PureSimulable):
 
 def main():
 	# Csr Slave
-	scratch_reg0 = RegisterField("scratch_reg0", 32, reset=0,access_dev=READ_ONLY)
-	scratch_reg1 = RegisterField("scratch_reg1", 32, reset=0,access_dev=READ_ONLY)
-	scratch_reg2 = RegisterField("scratch_reg3", 32, reset=0,access_dev=READ_ONLY)
-	scratch_reg3 = RegisterField("scratch_reg4", 32, reset=0,access_dev=READ_ONLY)
-	regs = [scratch_reg0,scratch_reg1,scratch_reg2,scratch_reg3]
-	bank0 = csrgen.Bank([scratch_reg0,],address=0x0000)
+	scratch_reg0 = RegisterField("scratch_reg0", 32, reset=0, access_dev=READ_ONLY)
+	scratch_reg1 = RegisterField("scratch_reg1", 32, reset=0, access_dev=READ_ONLY)
+	scratch_reg2 = RegisterField("scratch_reg3", 32, reset=0, access_dev=READ_ONLY)
+	scratch_reg3 = RegisterField("scratch_reg4", 32, reset=0, access_dev=READ_ONLY)
+	regs = [scratch_reg0, scratch_reg1, scratch_reg2, scratch_reg3]
+	bank0 = csrgen.Bank(regs,address=0x0000)
 
 	# Spi2Csr
 	spi2csr0 = spi2Csr.Spi2Csr(16,8)

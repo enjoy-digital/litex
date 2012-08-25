@@ -12,10 +12,10 @@ class Spi2Csr :
 		self.csr = csr.Interface(self.d_width)
 		# Spi interface
 		self.spi_clk = Signal()
-		self.spi_cs_n = Signal()
+		self.spi_cs_n = Signal(reset=1)
 		self.spi_mosi = Signal()
 		self.spi_miso = Signal()
-		self.spi_int_n = Signal()
+		self.spi_int_n = Signal(reset=1)
 		
 	def get_fragment(self):
 		comb = []
@@ -82,12 +82,15 @@ class Spi2Csr :
 		last_b = Signal()
 		
 		comb +=[
-			first_b.eq(spi_cnt[0:bits_for(self.d_width)] == 0),
-			last_b.eq(spi_cnt[0:bits_for(self.d_width)] == 2**self.d_width-1)
+			first_b.eq(spi_cnt[0:bits_for(self.d_width)-1] == 0),
+			last_b.eq(spi_cnt[0:bits_for(self.d_width)-1] == 2**(bits_for(self.d_width)-1)-1)
 		]
 		sync +=[
-			If(spi_cnt >= self.a_width & first_b,
+			If((spi_cnt >= (self.a_width + self.d_width)) & first_b,
 				spi_we.eq(spi_addr[self.a_width-1] & ~spi_we_re_done),
+				spi_re.eq(~spi_addr[self.a_width-1] & ~spi_we_re_done),
+				spi_we_re_done.eq(1)
+			).Elif((spi_cnt >= self.a_width) & first_b,
 				spi_re.eq(~spi_addr[self.a_width-1] & ~spi_we_re_done),
 				spi_we_re_done.eq(1)
 			).Else(
@@ -104,15 +107,15 @@ class Spi2Csr :
 			).Elif(spi_clk_rising,
 				# addr
 				If(spi_cnt < self.a_width,
-					spi_addr.eq(spi_addr[0:self.a_width-1]&spi_mosi_dat)
-				).Elif(spi_cnt >= self.a_width+self.d_width & last_b,
+					spi_addr.eq(Cat(spi_mosi_dat,spi_addr[:self.a_width-1]))
+				).Elif((spi_cnt >= (self.a_width+self.d_width)) & last_b,
 					spi_addr.eq(spi_addr+1)
-				).Elif(spi_cnt >= self.a_width & last_b & spi_cnt[self.a_width-1] == 0,
+				).Elif((spi_cnt >= self.a_width) & last_b & (spi_cnt[self.a_width-1] == 0),
 					spi_addr.eq(spi_addr+1)
 				),
 				# dat
 				If(spi_cnt >= self.a_width,
-					spi_w_dat.eq(Cat(spi_w_dat[:self.d_width],spi_mosi_dat))
+					spi_w_dat.eq(Cat(spi_mosi_dat,spi_w_dat[:self.d_width-1]))
 				),
 				
 				# spi_cnt
