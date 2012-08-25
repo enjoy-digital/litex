@@ -21,7 +21,7 @@ def sum_prog(off, addr, dat):
 	yield TWrite(off+1, we+dat)
 	yield TWrite(off+0, 0)
 	for i in range(4):
-		TWrite(off+i,0)
+		yield TWrite(off+i,0)
 
 
 csr_done = False
@@ -84,7 +84,7 @@ def main():
 	fragment = autofragment.from_local()
 	fragment += Fragment(sim=[end_simulation])
 	fragment += Fragment(sim=[term_stimuli])
-	sim = Simulator(fragment, Runner(),TopLevel("myvcd"))
+	sim = Simulator(fragment, Runner(),TopLevel("tb_TriggerCsr.vcd"))
 	sim.run(2000)
 
 main()
