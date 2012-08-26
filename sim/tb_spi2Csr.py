@@ -13,6 +13,7 @@ import spi2Csr
 
 def get_bit(dat, bit):
 	return int(dat & (1<<bit) != 0)
+
 def set_bit(dat, bit):
 	return dat | (1<<bit)	
 
@@ -57,8 +58,8 @@ class SpiMaster(PureSimulable):
 				if self.transaction is not None:
 					self.transaction_cnt = 0
 					self.r_dat = 0
-					print(self.transaction)				
-			elif isinstance(self.transaction, TWrite):	
+					print(self.transaction)
+			elif isinstance(self.transaction, TWrite):
 			
 					# Clk
 					if (int(self.transaction_cnt/(self.clk_ratio/2)))%2:
@@ -76,9 +77,9 @@ class SpiMaster(PureSimulable):
 						s.wr(self.spi.spi_mosi, data)
 					# Mosi Data
 					elif self.transaction_cnt >= a_w*self.clk_ratio and self.transaction_cnt < (a_w + d_w)*self.clk_ratio:
-						bit = d_w-1-int((self.transaction_cnt-a_w*self.clk_ratio)/self.clk_ratio)					
+						bit = d_w-1-int((self.transaction_cnt-a_w*self.clk_ratio)/self.clk_ratio)
 						data = get_bit(self.transaction.data,bit)
-						s.wr(self.spi.spi_mosi, data)						
+						s.wr(self.spi.spi_mosi, data)
 					else:
 						s.wr(self.spi.spi_mosi, 0)
 
@@ -109,7 +110,7 @@ class SpiMaster(PureSimulable):
 							data = 0
 						else:
 							data = get_bit(self.transaction.address, bit)
-						s.wr(self.spi.spi_mosi, data)					
+						s.wr(self.spi.spi_mosi, data)
 					else:
 						s.wr(self.spi.spi_mosi, 0)
 					
@@ -117,7 +118,7 @@ class SpiMaster(PureSimulable):
 					if self.transaction_cnt >= a_w*self.clk_ratio and self.transaction_cnt%self.clk_ratio==self.clk_ratio/2:
 						bit = d_w-1-int((self.transaction_cnt-a_w*self.clk_ratio)/self.clk_ratio)
 						if s.rd(self.spi.spi_miso):
-							self.r_dat = set_bit(self.r_dat, bit)							
+							self.r_dat = set_bit(self.r_dat, bit)
 
 					# Cs_n
 					if self.transaction_cnt < (a_w + d_w)*self.clk_ratio:
