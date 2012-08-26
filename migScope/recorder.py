@@ -49,13 +49,11 @@ class Storage:
 			).Elif(self.start,
 				self._put_cnt.eq(0),
 				self._get_cnt.eq(0),
-				self._get_ptr.eq(self._put_ptr-size_minus_offset)
-			),
-			If(self.put,
+				self._get_ptr.eq(self._put_ptr-self.offset)
+			).Elif(self.put & ~self.done,
 				self._put_cnt.eq(self._put_cnt+1),
 				self._put_ptr.eq(self._put_ptr+1)
-			),
-			If(self.get,
+			).Elif(self.get,
 				self._get_cnt.eq(self._get_cnt+1),
 				self._get_ptr.eq(self._get_ptr+1)
 			)
@@ -83,6 +81,7 @@ class Sequencer:
 		self.ctl_done = Signal()
 		# Triggers interface
 		self.trig_hit  = Signal()
+		self._trig_hit_d = Signal()
 		# Recorder interface
 		self.rec_offset = Signal(BV(self.depth_width))
 		self.rec_size = Signal(BV(self.depth_width))
@@ -104,10 +103,11 @@ class Sequencer:
 				self.enable.eq(0)
 			)
 			]
+		sync += [self._trig_hit_d.eq(self.trig_hit)]
 		comb += [
 			self.rec_offset.eq(self.ctl_offset),
 			self.rec_size.eq(self.ctl_size),
-			self.rec_start.eq(self.enable & self.trig_hit),
+			self.rec_start.eq(self.enable & (self.trig_hit & ~self._trig_hit_d)),
 			self.ctl_done.eq(~self.enable)
 			]
 		return Fragment(comb=comb, sync=sync)
@@ -130,7 +130,7 @@ class Recorder:
 		self._size = RegisterField("size", self.depth_width, reset=1)
 		self._offset = RegisterField("offset", self.depth_width, reset=1)
 		
-		self._get = RegisterField("get", reset=1)
+		self._get = RegisterField("get", reset=0)
 		self._get_dat = RegisterField("get_dat", self.width, reset=1,access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		
 		regs = [self._rst, self._arm, self._done,
@@ -153,7 +153,9 @@ class Recorder:
 			self.sequencer.ctl_offset.eq(self._offset.field.r),
 			self.sequencer.ctl_size.eq(self._size.field.r),
 			self.sequencer.ctl_arm.eq(self._arm.field.r),
-			self._done.field.w.eq(self.sequencer.ctl_done)
+			self._done.field.w.eq(self.sequencer.ctl_done),
+			self.storage.get.eq(self._get.field.r),
+			self._get_dat.field.w.eq(self.storage.get_dat)
 			]
 		
 		#Storage <--> Sequencer <--> Trigger
