@@ -8,6 +8,8 @@ from migen.bus import csr
 import migScope
 import spi2Csr
 
+from migScope.tools.truthtable import *
+
 #
 #Test Term
 #
@@ -90,5 +92,7 @@ print(v)
 #spi2csr0 = spi2Csr.Spi2Csr(16,8)
 #v = verilog.convert(spi2csr0.get_fragment())
 #print(v)
+
+print(gen_truth_table("A&B&C"))
 
 
