@@ -9,6 +9,8 @@ import sys
 sys.path.append("../")
 import migScope
 
+from migScope.tools.truthtable import *
+
 def term_prog(off, dat):
 	for i in range(4):
 		yield TWrite(off+3-i, (dat>>(8*i))&0xFF)
@@ -40,6 +42,15 @@ def csr_transactions():
 	sum_trans = []
 	sum_trans += [sum_prog(0x00,i,1) for i in range(8)]
 	sum_trans += [sum_prog(0x00,i,0) for i in range(8)]
+	for t in sum_trans:
+		for r in t:
+			yield r
+			
+	sum_tt = gen_truth_table("i1 & i2 & i3 & i4")
+	sum_trans = []
+	for i in range(len(sum_tt)):
+		sum_trans.append(sum_prog(0x00,i,sum_tt[i]))
+	print(sum_tt)
 	for t in sum_trans:
 		for r in t:
 			yield r
