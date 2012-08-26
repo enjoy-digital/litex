@@ -7,7 +7,8 @@ from migen.bus.transactions import *
 
 import sys
 sys.path.append("../")
-import migScope
+
+from migScope import trigger
 
 from migScope.tools.truthtable import *
 
@@ -67,11 +68,11 @@ def main():
 	csr_master0 = csr.Initiator(csr_transactions())
 
 	# Trigger
-	term0 = migScope.Term(32)
-	term1 = migScope.Term(32)
-	term2 = migScope.Term(32)
-	term3 = migScope.Term(32)
-	trigger0 = migScope.Trigger(0, 32, 64, [term0, term1, term2, term3])
+	term0 = trigger.Term(32)
+	term1 = trigger.Term(32)
+	term2 = trigger.Term(32)
+	term3 = trigger.Term(32)
+	trigger0 = trigger.Trigger(0, 32, 64, [term0, term1, term2, term3])
 	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(csr_master0.bus, 
