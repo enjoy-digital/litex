@@ -11,7 +11,7 @@ class WB2CSR:
 	def get_fragment(self):
 		sync = [
 			self.csr.we.eq(0),
-			self.csr.dat_w.eq(self.wishbone.dat_w[:8]),
+			self.csr.dat_w.eq(self.wishbone.dat_w[:csr.data_width]),
 			self.csr.adr.eq(self.wishbone.adr[:14]),
 			self.wishbone.dat_r.eq(self.csr.dat_r)
 		]

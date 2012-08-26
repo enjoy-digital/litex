@@ -3,16 +3,15 @@ from migen.bus.simple import *
 from migen.bus.transactions import *
 from migen.sim.generic import PureSimulable
 
-_desc = Description(
-	(M_TO_S,	"adr",		14),
-	(M_TO_S,	"we",		1),
-	(M_TO_S,	"dat_w",	8),
-	(S_TO_M,	"dat_r",	8)
-)
+data_width = 8
 
 class Interface(SimpleInterface):
 	def __init__(self):
-		super().__init__(_desc)
+		super().__init__(Description(
+			(M_TO_S,	"adr",		14),
+			(M_TO_S,	"we",		1),
+			(M_TO_S,	"dat_w",	data_width),
+			(S_TO_M,	"dat_r",	data_width)))
 
 class Interconnect(SimpleInterconnect):
 	pass

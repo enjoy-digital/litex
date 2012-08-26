@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.bus.csr import *
+from migen.bus import csr
 from migen.bank.description import *
 
 class Bank:
@@ -7,7 +7,7 @@ class Bank:
 		self.description = description
 		self.address = address
 		if interface is None:
-			interface = Interface()
+			interface = csr.Interface()
 		self.interface = interface
 	
 	def get_fragment(self):
@@ -17,7 +17,7 @@ class Bank:
 		sel = Signal()
 		comb.append(sel.eq(self.interface.adr[9:] == Constant(self.address, BV(5))))
 		
-		desc_exp = expand_description(self.description, 8)
+		desc_exp = expand_description(self.description, csr.data_width)
 		nbits = bits_for(len(desc_exp)-1)
 		
 		# Bus writes
@@ -66,10 +66,10 @@ class Bank:
 			else:
 				raise TypeError
 		if brcases:
-			sync.append(self.interface.dat_r.eq(Constant(0, BV(8))))
+			sync.append(self.interface.dat_r.eq(0))
 			sync.append(If(sel, Case(self.interface.adr[:nbits], *brcases)))
 		else:
-			comb.append(self.interface.dat_r.eq(Constant(0, BV(8))))
+			comb.append(self.interface.dat_r.eq(0))
 		
 		# Device access
 		for reg in self.description:
