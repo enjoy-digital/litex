@@ -59,8 +59,8 @@ class Spi2Csr :
 		spi_mosi_dat = Signal()
 		
 		comb += [
-			spi_clk_rising.eq(spi_clk_d3 & ~spi_clk_d2),
-			spi_clk_falling.eq(~spi_clk_d3 & spi_clk_d2),
+			spi_clk_rising.eq(spi_clk_d2 & ~spi_clk_d3),
+			spi_clk_falling.eq(~spi_clk_d2 & spi_clk_d3),
 			spi_cs_n_active.eq(~spi_cs_n_d3),
 			spi_mosi_dat.eq(spi_mosi_d3)
 		]
@@ -136,7 +136,7 @@ class Spi2Csr :
 				spi_miso_dat.eq(0)
 			).Elif(spi_clk_falling,
 				spi_miso_dat.eq(spi_r_dat_shift[self.d_width-1]),
-				spi_r_dat_shift.eq(Cat(spi_r_dat_shift[:self.d_width-2],0))
+				spi_r_dat_shift.eq(Cat(0,spi_r_dat_shift[:self.d_width-1]))
 			)
 			]
 			
