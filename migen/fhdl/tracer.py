@@ -42,7 +42,9 @@ def trace_back(name=None):
 		
 		if name is None:
 			name = get_var_name(frame)
-		l.insert(0, (obj, name))
+		if name is not None:
+			l.insert(0, name)
+		l.insert(0, obj)
 		name = None
 		frame = frame.f_back
 	return l
