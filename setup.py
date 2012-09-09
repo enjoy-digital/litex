@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# vim: noexpandtab:tabstop=8:softtabstop=8
-""" Migen's distutils distribution and installation script. """
 
 import sys, os
 from setuptools import setup
@@ -11,7 +9,7 @@ README = open(os.path.join(here, "README")).read()
 
 required_version = (3, 1)
 if sys.version_info < required_version:
-	raise SystemExit("migen requires python {0} or greater".format(
+	raise SystemExit("Migen requires python {0} or greater".format(
 		".".join(map(str, required_version))))
 
 setup(
