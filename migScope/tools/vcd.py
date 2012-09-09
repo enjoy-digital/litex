@@ -1,5 +1,7 @@
+import sys
 import datetime
 
+sys.path.append("../../")
 from migScope.tools.conv import *
 
 class Var:
@@ -161,7 +163,7 @@ def main():
 	myvcd.add(Var("wire",3,"foo3"))
 	myvcd.add(Var("wire",4,"foo4"))
 	ramp = [i%128 for i in range(1024)]
-	myvcd.add(Var("wire",16,"sinus",ramp))
+	myvcd.add(Var("wire",16,"ramp",ramp))
 	print(myvcd)
 	
 if __name__ == '__main__':

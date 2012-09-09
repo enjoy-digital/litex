@@ -9,7 +9,6 @@ import sys
 sys.path.append("../")
 
 from migScope import trigger, recorder
-
 from migScope.tools.truthtable import *
 from migScope.tools.vcd import *
 
@@ -76,11 +75,14 @@ def csr_transactions(trigger0, recorder0):
 	#Arm
 	yield TWrite(recorder0.address + 1,  1)
 
-
+	# Wait Record to be done
+	##############################
 	global rec_done
 	while not rec_done:
 		yield None
 
+	# Read recorded data
+	##############################
 	global dat_rdy	
 	for t in range(64):
 		yield TWrite(recorder0.address + 7, 1)
