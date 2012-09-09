@@ -7,5 +7,15 @@ or external signals.
 [> Status:
 Early development phase
 
+Simulation:
+-tb_spi2Csr      :   Test Spi <--> Csr Bridge : [Ok]
+-tb_TriggerCsr   :   Test Trigger with Csr    : [Ok]
+-tb_RecorderCsr  :   Test Recorder with Csr   : [Ok]
+-tb_MigScope     :   Global Test with Csr     : [Ok]
+
+Example Design:
+-de0_nano        :   Generate Signals in FPGA and probe them with migScope : [Wip]
+
+
 [> Contact
 E-mail: florent@enjoy-digital.fr

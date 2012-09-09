@@ -45,7 +45,7 @@ def csr_transactions():
 	while not rec_done:
 		yield None
 
-	global dat_rdy	
+	global dat_rdy
 	for t in range(32):
 		yield TWrite(7, 1)
 		dat_rdy = False
@@ -66,10 +66,10 @@ def main():
 	csr_master0 = csr.Initiator(csr_transactions())
 
 	# Recorder
-	recorder0 = recorder.Recorder(0,32,1024)
+	recorder0 = recorder.Recorder(0, 32, 1024)
 	
 	# Csr Interconnect
-	csrcon0 = csr.Interconnect(csr_master0.bus, 
+	csrcon0 = csr.Interconnect(csr_master0.bus,
 			[
 				recorder0.bank.interface
 			])
@@ -78,7 +78,7 @@ def main():
 	def recorder_data(s):
 		global arm_done
 		if arm_done:
-			s.wr(recorder0.trig_hit,1)
+			s.wr(recorder0.trig_hit, 1)
 			arm_done = False
 
 		global trig_dat
@@ -100,7 +100,7 @@ def main():
 	fragment = autofragment.from_local()
 	fragment += Fragment(sim=[end_simulation])
 	fragment += Fragment(sim=[recorder_data])
-	sim = Simulator(fragment, Runner(),TopLevel("tb_RecorderCsr.vcd"))
+	sim = Simulator(fragment, Runner(), TopLevel("tb_RecorderCsr.vcd"))
 	sim.run(10000)
 
 main()

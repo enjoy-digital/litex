@@ -24,7 +24,7 @@ class Var:
 		try : 
 			if self.values[cnt+1] != self.val:
 				r += "b"
-				r += dec2bin(self.values[cnt+1],self.width)
+				r += dec2bin(self.values[cnt+1], self.width)
 				r += " "
 				r += self.vcd_id
 				r += "\n"
@@ -158,12 +158,12 @@ class Vcd:
 
 def main():
 	myvcd = Vcd()
-	myvcd.add(Var("wire",1,"foo1",[0,1,0,1,0,1]))
-	myvcd.add(Var("wire",2,"foo2",[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
-	myvcd.add(Var("wire",3,"foo3"))
-	myvcd.add(Var("wire",4,"foo4"))
+	myvcd.add(Var("wire", 1, "foo1", [0,1,0,1,0,1]))
+	myvcd.add(Var("wire", 2, "foo2", [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
+	myvcd.add(Var("wire", 3, "foo3"))
+	myvcd.add(Var("wire", 4, "foo4"))
 	ramp = [i%128 for i in range(1024)]
-	myvcd.add(Var("wire",16,"ramp",ramp))
+	myvcd.add(Var("wire", 16, "ramp", ramp))
 	print(myvcd)
 	
 if __name__ == '__main__':

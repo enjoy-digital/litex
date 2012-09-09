@@ -41,10 +41,10 @@ def csr_transactions(trigger0, recorder0):
 
 	# Term Prog
 	term_trans = []
-	term_trans += [term_prog(trigger0.ports[0].reg_base,0x00000000)]
-	term_trans += [term_prog(trigger0.ports[1].reg_base,0x00000004)]
-	term_trans += [term_prog(trigger0.ports[2].reg_base,0x00000008)]
-	term_trans += [term_prog(trigger0.ports[3].reg_base,0x0000000C)]
+	term_trans += [term_prog(trigger0.ports[0].reg_base, 0x00000000)]
+	term_trans += [term_prog(trigger0.ports[1].reg_base, 0x00000004)]
+	term_trans += [term_prog(trigger0.ports[2].reg_base, 0x00000008)]
+	term_trans += [term_prog(trigger0.ports[3].reg_base, 0x0000000C)]
 	for t in term_trans:
 		for r in t:
 			yield r
@@ -53,7 +53,7 @@ def csr_transactions(trigger0, recorder0):
 	sum_tt = gen_truth_table("term0 | term1 | term2 | term3")
 	sum_trans = []
 	for i in range(len(sum_tt)):
-		sum_trans.append(sum_prog(trigger0.sum.reg_base,i,sum_tt[i]))
+		sum_trans.append(sum_prog(trigger0.sum.reg_base, i, sum_tt[i]))
 	for t in sum_trans:
 		for r in t:
 			yield r
@@ -151,7 +151,7 @@ def main():
 		global dat_rdy
 		if dat_rdy:
 			print("%08X" %s.rd(recorder0._get_dat.field.w))
-			global dat_vcd			
+			global dat_vcd
 			dat_vcd.append(s.rd(recorder0._get_dat.field.w))
 
 	
@@ -159,8 +159,8 @@ def main():
 	def end_simulation(s):
 		s.interrupt = csr_master0.done
 		myvcd = Vcd()
-		myvcd.add(Var("wire",32,"trig_dat",dat_vcd))
-		f = open("tb_Miscope_Out.vcd","w")
+		myvcd.add(Var("wire", 32, "trig_dat", dat_vcd))
+		f = open("tb_Miscope_Out.vcd", "w")
 		f.write(str(myvcd))
 		f.close()
 	

@@ -3,7 +3,7 @@ import re
 import sys
 
 def get_operands(s):
-	return sorted(re.findall("[A-z0-9_]+",s))
+	return sorted(re.findall("[A-z0-9_]+", s))
 
 def gen_truth_table(s):
 	operands = get_operands(s)

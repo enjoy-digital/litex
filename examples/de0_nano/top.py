@@ -11,13 +11,13 @@
 #                  ----------------------------------
 ################################################################################
 #
-# In this example, signals are generated inside generated inside the FPGA. 
-# We will use migScope to record those signals it and visualize them.
+# In this example signals are generated in the FPGA. 
+# We will use migScope to record those signals and visualize them.
 # 
 # Example architecture:
 # ----------------------
-#        migScope Config  <-- Python Client (Host) --> Vcd Output
-#                                   |
+#        migScope Config  --> Python Client (Host) --> Vcd Output
+#             & Trig                |
 #                        Arduino (Uart<-->Spi Bridge)
 #                                   |
 #                                De0 Nano

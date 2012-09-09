@@ -135,7 +135,7 @@ class Recorder:
 		self._offset = RegisterField("offset", self.depth_width, reset=1)
 		
 		self._get = RegisterField("get", reset=0)
-		self._get_dat = RegisterField("get_dat", self.width, reset=1,access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._get_dat = RegisterField("get_dat", self.width, reset=1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		
 		regs = [self._rst, self._arm, self._done,
 			self._size, self._offset,

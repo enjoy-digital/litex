@@ -209,7 +209,7 @@ class Sum:
 			sync += [self.o.eq(self._o)]
 		else:
 			comb += [self.o.eq(self._o)]
-		return Fragment(comb=comb,sync=sync,memories=memories)
+		return Fragment(comb=comb, sync=sync, memories=memories)
 		
 	def connect_to_reg(self, reg):
 		comb = []
@@ -242,7 +242,7 @@ class Trigger:
 		for port in self.ports:
 			setattr(self,port.reg_name,RegisterField(port.reg_name, port.reg_size, reset=0,
 				access_bus=WRITE_ONLY, access_dev=READ_ONLY))
-		self.sum_reg = RegisterField(self.sum.reg_name, self.sum.reg_size, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+		self.sum_reg = RegisterField(self.sum.reg_name, self.sum.reg_size, reset=0, access_bus=WRITE_ONLY, access_dev=READ_ONLY)
 		
 		regs = []
 		objects = self.__dict__

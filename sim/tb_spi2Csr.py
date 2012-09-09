@@ -22,15 +22,15 @@ def spi_transactions():
 	yield TWrite(0x0001, 0xA5)
 	yield TWrite(0x0002, 0x5A)
 	yield TWrite(0x0003, 0xA5)
-
+	
 	for i in range(10):
 		yield None 
-
+	
 	yield TRead(0x0000)
 	yield TRead(0x0001)
 	yield TRead(0x0002)
 	yield TRead(0x0003)
-
+	
 	for i in range(100):
 		yield None 
 
@@ -47,7 +47,7 @@ class SpiMaster(PureSimulable):
 	def do_simulation(self, s):
 		a_w = self.spi.a_width
 		d_w = self.spi.d_width
-
+		
 		if not self.done:
 			if self.transaction is None:
 				try:
@@ -66,7 +66,7 @@ class SpiMaster(PureSimulable):
 						s.wr(self.spi.spi_clk, 1)
 					else:
 						s.wr(self.spi.spi_clk, 0)
-
+					
 					# Mosi Addr
 					if self.transaction_cnt < a_w*self.clk_ratio:
 						bit = a_w-1-int((self.transaction_cnt)/self.clk_ratio)
@@ -82,7 +82,7 @@ class SpiMaster(PureSimulable):
 						s.wr(self.spi.spi_mosi, data)
 					else:
 						s.wr(self.spi.spi_mosi, 0)
-
+					
 					# Cs_n
 					if self.transaction_cnt < (a_w + d_w)*self.clk_ratio:
 						s.wr(self.spi.spi_cs_n,0)
@@ -91,10 +91,10 @@ class SpiMaster(PureSimulable):
 						s.wr(self.spi.spi_clk, 0)
 						s.wr(self.spi.spi_mosi, 0)
 						self.transaction = None
-
+					
 					# Incr transaction_cnt
 					self.transaction_cnt +=1
-
+			
 			elif isinstance(self.transaction, TRead):	
 			
 					# Clk
@@ -102,7 +102,7 @@ class SpiMaster(PureSimulable):
 						s.wr(self.spi.spi_clk, 1)
 					else:
 						s.wr(self.spi.spi_clk, 0)
-
+					
 					# Mosi Addr
 					if self.transaction_cnt < a_w*self.clk_ratio:
 						bit = a_w-1-int((self.transaction_cnt)/self.clk_ratio)
@@ -119,7 +119,7 @@ class SpiMaster(PureSimulable):
 						bit = d_w-1-int((self.transaction_cnt-a_w*self.clk_ratio)/self.clk_ratio)
 						if s.rd(self.spi.spi_miso):
 							self.r_dat = set_bit(self.r_dat, bit)
-
+					
 					# Cs_n
 					if self.transaction_cnt < (a_w + d_w)*self.clk_ratio:
 						s.wr(self.spi.spi_cs_n,0)
@@ -129,10 +129,9 @@ class SpiMaster(PureSimulable):
 						s.wr(self.spi.spi_mosi, 0)
 						self.transaction = None
 						print("%02X" %self.r_dat)
-
+					
 					# Incr transaction_cnt
 					self.transaction_cnt +=1
-
 
 
 def main():
@@ -143,11 +142,11 @@ def main():
 	scratch_reg3 = RegisterField("scratch_reg4", 32, reset=0, access_dev=READ_ONLY)
 	regs = [scratch_reg0, scratch_reg1, scratch_reg2, scratch_reg3]
 	bank0 = csrgen.Bank(regs,address=0x0000)
-
+	
 	# Spi2Csr
 	spi2csr0 = spi2Csr.Spi2Csr(16,8)
-
-
+	
+	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
 			[
@@ -156,12 +155,12 @@ def main():
 	
 	# Spi Master
 	spi_master0 = SpiMaster(spi2csr0, 8, spi_transactions())
-
+	
 	# Simulation
 	def end_simulation(s):
 		s.interrupt = spi_master0.done
-
-
+	
+	
 	fragment = autofragment.from_local()
 	fragment += Fragment(sim=[end_simulation])
 	sim = Simulator(fragment, Runner(),TopLevel("tb_spi2Csr.vcd"))

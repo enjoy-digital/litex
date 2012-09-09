@@ -16,7 +16,6 @@ def term_prog(off, dat):
 	for i in range(4):
 		yield TWrite(off+3-i, (dat>>(8*i))&0xFF)
 
-
 def sum_prog(off, addr, dat):
 	we = 2
 	yield TWrite(off+3, addr%0xFF)
@@ -39,18 +38,18 @@ def csr_transactions():
 	for t in term_trans:
 		for r in t:
 			yield r
-
+	
 	sum_trans = []
-	sum_trans += [sum_prog(0x00,i,1) for i in range(8)]
-	sum_trans += [sum_prog(0x00,i,0) for i in range(8)]
+	sum_trans += [sum_prog(0x00, i, 1) for i in range(8)]
+	sum_trans += [sum_prog(0x00, i, 0) for i in range(8)]
 	for t in sum_trans:
 		for r in t:
 			yield r
-			
+	
 	sum_tt = gen_truth_table("i1 & i2 & i3 & i4")
 	sum_trans = []
 	for i in range(len(sum_tt)):
-		sum_trans.append(sum_prog(0x00,i,sum_tt[i]))
+		sum_trans.append(sum_prog(0x00, i, sum_tt[i]))
 	print(sum_tt)
 	for t in sum_trans:
 		for r in t:
@@ -66,7 +65,7 @@ def csr_transactions():
 def main():
 	# Csr Master
 	csr_master0 = csr.Initiator(csr_transactions())
-
+	
 	# Trigger
 	term0 = trigger.Term(32)
 	term1 = trigger.Term(32)
@@ -79,24 +78,24 @@ def main():
 			[
 				trigger0.bank.interface
 			])
-
+	
 	# Term Test
 	def term_stimuli(s):
 		if csr_done:
-			s.wr(term0.i,0xDEADBEEF)
-			s.wr(term1.i,0xCAFEFADE)
-			s.wr(term2.i,0xDEADBEEF)
-			s.wr(term3.i,0xCAFEFADE)
-
+			s.wr(term0.i, 0xDEADBEEF)
+			s.wr(term1.i ,0xCAFEFADE)
+			s.wr(term2.i, 0xDEADBEEF)
+			s.wr(term3.i, 0xCAFEFADE)
+	
 	
 	# Simulation
 	def end_simulation(s):
 		s.interrupt = csr_master0.done
-
+	
 	fragment = autofragment.from_local()
 	fragment += Fragment(sim=[end_simulation])
 	fragment += Fragment(sim=[term_stimuli])
-	sim = Simulator(fragment, Runner(),TopLevel("tb_TriggerCsr.vcd"))
+	sim = Simulator(fragment, Runner(), TopLevel("tb_TriggerCsr.vcd"))
 	sim.run(2000)
 
 main()
