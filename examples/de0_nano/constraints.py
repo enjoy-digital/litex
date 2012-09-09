@@ -1,5 +1,5 @@
 class Constraints:
-	def __init__(self):
+	def __init__(self, in_clk, in_rst, spi2csr0, led0):
 		self.constraints = []
 		def add(signal, pin, vec=-1, iostandard="3.3-V LVTTL", extra="", sch=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra,sch))
@@ -9,7 +9,23 @@ class Constraints:
 			for p in pins:
 				add(signal, p, i, iostandard, extra)
 				i += 1
-	
+		# sys_clk
+		add(in_clk,  "R8")	# CLOCK_50
+		
+		# sys_rst
+		add(in_rst,  "J15")	# KEY[0]			
+				
+		# spi2csr0 
+		add(spi2csr0.spi_clk,  "A14")		#GPIO_2[0]
+		add(spi2csr0.spi_cs_n, "B16")		#GPIO_2[1]
+		add(spi2csr0.spi_mosi, "C14")		#GPIO_2[2]
+		add(spi2csr0.spi_miso, "C16")		#GPIO_2[3]
+		
+		# led0
+		add_vec(led0, 	["A15", "A13", "B13", "A11",
+					 "D1" , "F3" , "B1" , "L3"])
+
+		
 	def get_ios(self):
 		return set([c[0] for c in self.constraints])
 		
@@ -32,7 +48,7 @@ class Constraints:
 		r += """
 set_global_assignment -name FAMILY "Cyclone IV E"
 set_global_assignment -name DEVICE EP4CE22F17C6
-set_global_assignment -name TOP_LEVEL_ENTITY "soc"
+set_global_assignment -name TOP_LEVEL_ENTITY "de0_nano"
 set_global_assignment -name DEVICE_FILTER_PACKAGE FPGA
 set_global_assignment -name DEVICE_FILTER_PIN_COUNT 256
 set_global_assignment -name DEVICE_FILTER_SPEED_GRADE 6

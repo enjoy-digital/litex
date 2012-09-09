@@ -105,6 +105,13 @@ def get():
 		sig_gen.eq(sig_gen+1)
 	]
 	
+	# Led
+	led0 = Signal(BV(8))
+	comb += [
+		led0.eq(control_reg0.field.r[:8])
+	]
+	
+	
 	# Dat / Trig Bus
 	comb += [
 		trigger0.in_trig.eq(sig_gen),
@@ -119,12 +126,16 @@ def get():
 	
 
 	# HouseKeeping
+	in_clk = Signal()
+	in_rst = Signal()
 	frag = autofragment.from_local()
 	frag += Fragment(sync=sync,comb=comb)
-	cst = Constraints()
+	cst = Constraints(in_clk, in_rst, spi2csr0, led0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="de0_nano",
+		clk_signal = in_clk,
+		rst_signal = in_rst,
 		return_ns=True)
 	src_qsf = cst.get_qsf(vns)
 	return (src_verilog, src_qsf)
