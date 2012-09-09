@@ -9,6 +9,10 @@ class Term:
 		self.width = width
 		self.pipe = pipe
 		
+		self.reg_name = "term_reg"
+		self.reg_base = 0
+		self.reg_size = 1*width
+		
 		self.i = Signal(BV(self.width))
 		self.t = Signal(BV(self.width))
 		self.o = Signal()
@@ -21,12 +25,21 @@ class Term:
 			return Fragment(sync=frag)
 		else:
 			return Fragment(comb=frag)
+			
+	def connect_to_reg(self, reg):
+		comb = []
+		comb += [self.t.eq(reg.field.r[0*self.width:1*self.width])]
+		return comb
 
 class RangeDetector:
 	def __init__(self, width, pipe=False):
 		self.width = width
 		self.pipe = pipe
-
+		
+		self.reg_name = "range_reg"
+		self.reg_base = 0
+		self.reg_size = 2*width
+		
 		self.i = Signal(BV(self.width))
 		self.low = Signal(BV(self.width))
 		self.high = Signal(BV(self.width))
@@ -40,12 +53,22 @@ class RangeDetector:
 			return Fragment(sync=frag)
 		else:
 			return Fragment(comb=frag)
+	
+	def connect_to_reg(self, reg):
+		comb = []
+		comb += [self.low.eq(reg.field.r[0*self.width:1*self.width])]
+		comb += [self.low.eq(reg.field.r[1*self.width:2*self.width])]
+		return comb
 
 class EdgeDetector:
 	def __init__(self, width, pipe=False, mode = "RFB"):
 		self.width = width
 		self.pipe = pipe
 		self.mode = mode
+		
+		self.reg_name = "edge_reg"
+		self.reg_base = 0
+		self.reg_size = len(self.mode)*width
 		
 		self.i = Signal(BV(self.width))
 		self.i_d = Signal(BV(self.width))
@@ -95,6 +118,20 @@ class EdgeDetector:
 		comb +=  [self.o.eq(self.ro | self.fo | self.bo)]
 		
 		return Fragment(comb, sync)
+		
+	def connect_to_reg(self, reg):
+		comb = []
+		i = 0
+		if "R" in self.mode:
+			comb += [self.r_mask.eq(reg.field.r[i*self.width:(i+1)*self.width])]
+			i += 1
+		if "F" in self.mode:
+			comb += [self.f_mask.eq(reg.field.r[i*self.width:(i+1)*self.width])]
+			i += 1
+		if "B" in self.mode:
+			comb += [self.b_mask.eq(reg.field.r[i*self.width:(i+1)*self.width])]
+			i += 1
+		return comb
 
 class Timer:
 	def __init__(self, width):
@@ -153,6 +190,10 @@ class Sum:
 		self.o = Signal()
 		self._lut_port = MemoryPort(adr=self.i, dat_r=self._o)
 		
+		self.reg_name = "sum_reg"
+		self.reg_base = 0
+		self.reg_size = 32
+		
 		self.prog = Signal()
 		self.prog_adr = Signal(BV(width))
 		self.prog_dat = Signal()
@@ -170,14 +211,21 @@ class Sum:
 			comb += [self.o.eq(self._o)]
 		return Fragment(comb=comb,sync=sync,memories=memories)
 		
-
+	def connect_to_reg(self, reg):
+		comb = []
+		comb += [
+			self.prog_adr.eq(reg.field.r[0:16]),
+			self.prog_dat.eq(reg.field.r[16]),
+			self.prog.eq(reg.field.r[17])
+			]
+		return comb
+		
 class Trigger:
 	def __init__(self,address, trig_width, dat_width, ports):
 		self.address = address
 		self.trig_width = trig_width
 		self.dat_width = dat_width
 		self.ports = ports
-		assert (len(self.ports) <= 4), "Nb Ports > 4 (This version support 4 ports Max)"
 		self._sum = Sum(len(self.ports))
 		
 		self.in_trig = Signal(BV(self.trig_width))
@@ -186,25 +234,27 @@ class Trigger:
 		self.hit = Signal()
 		self.dat = Signal(BV(self.dat_width))
 		
-		# Csr interface
+		# Update port reg_name
 		for i in range(len(self.ports)):
-			if isinstance(self.ports[i],Term):
-				setattr(self,"_term_reg%d"%i,RegisterField("rst", 1*self.trig_width, reset=0,
-					access_bus=WRITE_ONLY, access_dev=READ_ONLY))
-			elif isinstance(self.ports[i],EdgeDetector):
-				setattr(self,"_edge_reg%d"%i,RegisterField("rst", 3*self.trig_width, reset=0,
-					access_bus=WRITE_ONLY, access_dev=READ_ONLY))
-			elif isinstance(self.ports[i],RangeDetector):
-				setattr(self,"_range_reg%d"%i,RegisterField("rst", 2*self.trig_width, reset=0,
-					access_bus=WRITE_ONLY, access_dev=READ_ONLY))		
-		self._sum_reg = RegisterField("_sum_reg", 32, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+			self.ports[i].reg_name += "_%d"%i
+		
+		# Csr interface
+		for port in self.ports:
+			setattr(self,port.reg_name,RegisterField(port.reg_name, port.reg_size, reset=0,
+				access_bus=WRITE_ONLY, access_dev=READ_ONLY))
+		self._sum_reg = RegisterField(self._sum.reg_name, self._sum.reg_size, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
 		
 		regs = []
 		objects = self.__dict__
 		for object in sorted(objects):
 			if "_reg" in object:
 				regs.append(objects[object])
-		self.bank = csrgen.Bank(regs,address=address)
+		self.bank = csrgen.Bank(regs,address=self.address)
+		
+		# Update base addr
+		for port in self.ports:
+			port.reg_base = self.address + self.bank.get_base(port.reg_name)
+		self._sum.reg_base = self.address + self.bank.get_base(self._sum.reg_name)
 		
 	def get_fragment(self):
 		comb = []
@@ -226,20 +276,7 @@ class Trigger:
 		comb+= [self.dat.eq(self.in_dat)]
 		
 		#Connect Registers
-		for i in range(len(self.ports)):
-			if isinstance(self.ports[i],Term):
-				comb += [self.ports[i].t.eq(getattr(self,"_term_reg%d"%i).field.r[0:self.trig_width])]
-			elif isinstance(self.ports[i],EdgeDetector):
-				comb += [self.ports[i].r_mask.eq(getattr(self,"_edge_reg%d"%i).field.r[0:1*self.trig_width])]
-				comb += [self.ports[i].f_mask.eq(getattr(self,"_edge_reg%d"%i).field.r[1*self.trig_width:2*self.trig_width])]
-				comb += [self.ports[i].b_mask.eq(getattr(self,"_edge_reg%d"%i).field.r[2*self.trig_width:3*self.trig_width])]
-			elif isinstance(self.ports[i],RangeDetector):
-				comb += [self.ports[i].low.eq(getattr(self,"_range_reg%d"%i).field.r[0:1*self.trig_width])]
-				comb += [self.ports[i].high.eq(getattr(self,"_range_reg%d"%i).field.r[1*self.trig_width:2*self.trig_width])]
-				
-		comb += [
-			self._sum.prog_adr.eq(self._sum_reg.field.r[0:16]),
-			self._sum.prog_dat.eq(self._sum_reg.field.r[16]),
-			self._sum.prog.eq(self._sum_reg.field.r[17])
-			]
+		for port in self.ports:
+			comb += port.connect_to_reg(getattr(self, port.reg_name))
+		comb += self._sum.connect_to_reg(self._sum_reg)
 		return frag + Fragment(comb=comb, sync=sync)
