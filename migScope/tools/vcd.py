@@ -1,6 +1,6 @@
 import datetime
 
-from conv import *
+from migScope.tools.conv import *
 
 class Var:
 	def __init__(self,type , width , name, values=[], default="x"):

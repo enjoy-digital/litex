@@ -15,6 +15,7 @@ class Storage:
 		self.offset = Signal(BV(self.depth_width))
 		self.size = Signal(BV(self.depth_width))
 		self.done = Signal()
+		self.run = Signal()
 		#Write Path
 		self.put = Signal()
 		self.put_dat = Signal(BV(self.width))
@@ -45,11 +46,14 @@ class Storage:
 				self._put_ptr.eq(0),
 				self._get_cnt.eq(0),
 				self._get_ptr.eq(0),
-				self.done.eq(0)
-			).Elif(self.start,
+				self.run.eq(0)
+			).Elif(self.start & ~self.run,
 				self._put_cnt.eq(0),
 				self._get_cnt.eq(0),
-				self._get_ptr.eq(self._put_ptr-self.offset)
+				self._get_ptr.eq(self._put_ptr-self.offset),
+				self.run.eq(1)
+			).Elif(self.done,
+				self.run.eq(0)
 			).Elif(self.put & ~self.done,
 				self._put_cnt.eq(self._put_cnt+1),
 				self._put_ptr.eq(self._put_ptr+1)
@@ -59,9 +63,7 @@ class Storage:
 			)
 			]
 		comb += [
-			If(self._put_cnt == size_minus_offset-1,
-				self.done.eq(1)
-			).Elif(self._get_cnt == size_minus_offset-1,
+			If((self._put_cnt == size_minus_offset-1) & self.run,
 				self.done.eq(1)
 			).Else(
 				self.done.eq(0)
@@ -79,6 +81,7 @@ class Sequencer:
 		self.ctl_size = Signal(BV(self.depth_width))
 		self.ctl_arm = Signal()
 		self.ctl_done = Signal()
+		self._ctl_arm_d = Signal()
 		# Triggers interface
 		self.trig_hit  = Signal()
 		self._trig_hit_d = Signal()
@@ -97,11 +100,12 @@ class Sequencer:
 		sync += [
 			If(self.ctl_rst,
 				self.enable.eq(0)
-			).Elif(self.ctl_arm,
+			).Elif(self.ctl_arm & ~self._ctl_arm_d,
 				self.enable.eq(1)
 			).Elif(self.rec_done,
 				self.enable.eq(0)
-			)
+			),
+			self._ctl_arm_d.eq(self.ctl_arm)
 			]
 		sync += [self._trig_hit_d.eq(self.trig_hit)]
 		comb += [
@@ -137,7 +141,7 @@ class Recorder:
 			self._size, self._offset,
 			self._get, self._get_dat]
 			
-		self.bank = csrgen.Bank(regs,address=address)
+		self.bank = csrgen.Bank(regs,address=self.address)
 		
 		# Trigger Interface
 		self.trig_hit = Signal()
@@ -146,6 +150,7 @@ class Recorder:
 	def get_fragment(self):
 		comb = []
 		sync = []
+
 		#Bank <--> Storage / Sequencer
 		comb += [
 			self.sequencer.ctl_rst.eq(self._rst.field.r),

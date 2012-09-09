@@ -1,5 +1,3 @@
-import datetime
-
 def dec2bin(d,nb=0):
 	if d=="x":
 		return "x"*nb

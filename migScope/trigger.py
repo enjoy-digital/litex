@@ -226,7 +226,7 @@ class Trigger:
 		self.trig_width = trig_width
 		self.dat_width = dat_width
 		self.ports = ports
-		self._sum = Sum(len(self.ports))
+		self.sum = Sum(len(self.ports))
 		
 		self.in_trig = Signal(BV(self.trig_width))
 		self.in_dat  = Signal(BV(self.dat_width))
@@ -242,19 +242,19 @@ class Trigger:
 		for port in self.ports:
 			setattr(self,port.reg_name,RegisterField(port.reg_name, port.reg_size, reset=0,
 				access_bus=WRITE_ONLY, access_dev=READ_ONLY))
-		self._sum_reg = RegisterField(self._sum.reg_name, self._sum.reg_size, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+		self.sum_reg = RegisterField(self.sum.reg_name, self.sum.reg_size, reset=0,access_bus=WRITE_ONLY, access_dev=READ_ONLY)
 		
 		regs = []
 		objects = self.__dict__
 		for object in sorted(objects):
 			if "_reg" in object:
 				regs.append(objects[object])
-		self.bank = csrgen.Bank(regs,address=self.address)
+		self.bank = csrgen.Bank(regs,address=address)
 		
 		# Update base addr
 		for port in self.ports:
-			port.reg_base = self.address + self.bank.get_base(port.reg_name)
-		self._sum.reg_base = self.address + self.bank.get_base(self._sum.reg_name)
+			port.reg_base = self.bank.get_base(port.reg_name)
+		self.sum.reg_base = self.bank.get_base(self.sum.reg_name)
 		
 	def get_fragment(self):
 		comb = []
@@ -263,14 +263,14 @@ class Trigger:
 		comb+= [port.i.eq(self.in_trig) for port in self.ports]
 		
 		# Connect output of trig elements to sum
-		comb+= [self._sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
+		comb+= [self.sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
 		
 		# Connect sum ouput to hit
-		comb+= [self.hit.eq(self._sum.o)]
+		comb+= [self.hit.eq(self.sum.o)]
 		
 		# Add ports & sum to frag
 		frag = self.bank.get_fragment() 
-		frag += self._sum.get_fragment()
+		frag += self.sum.get_fragment()
 		for port in self.ports:
 			frag += port.get_fragment()
 		comb+= [self.dat.eq(self.in_dat)]
@@ -278,5 +278,5 @@ class Trigger:
 		#Connect Registers
 		for port in self.ports:
 			comb += port.connect_to_reg(getattr(self, port.reg_name))
-		comb += self._sum.connect_to_reg(self._sum_reg)
+		comb += self.sum.connect_to_reg(self.sum_reg)
 		return frag + Fragment(comb=comb, sync=sync)
