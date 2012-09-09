@@ -61,7 +61,8 @@ def trace_back(varname=None):
 					modules = frame.f_globals["__name__"]
 					modules = modules.split(".")
 					coname = modules[len(modules)-1]
-				l.insert(0, (coname, -1))
+				l.insert(0, (coname, name_to_idx[coname]))
+				name_to_idx[coname] += 1
 		else:
 			classname = obj.__class__.__name__.lower()
 			try:

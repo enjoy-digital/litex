@@ -8,17 +8,35 @@ def _bin(sig_iters):
 	# advance by one in the trace of each signal
 	status = []
 	for signal, it in sig_iters:
-		if it is not None:
-			step, last = next(it)
-			status.append((signal, it, step, last))
+		step, last = next(it)
+		status.append((signal, it, step, last))
 	
 	# build bins accordingly
-	bins = defaultdict(list)
+	bins = defaultdict(lambda: defaultdict(list))
 	for signal, it, (stepname, stepidx), last in status:
 		if last:
 			it = None
-		bins[stepname].append((stepidx, signal, it))
-	return bins
+		bins[stepname][stepidx].append((signal, it))
+
+	r = []
+	# merge bins when all step indices differ
+	for stepname, stepname_d in bins.items():
+		if all(len(content) == 1 for content in stepname_d.values()):
+			r.append((stepname, [(stepidx, signal, it)
+				for stepidx, stepidx_d in stepname_d.items()
+				for signal, it in stepidx_d]))
+		else:
+			for stepidx, stepidx_d in stepname_d.items():
+				r.append((stepname, [(stepidx, signal, it)
+					for signal, it in stepidx_d]))
+	
+	#for stepname, content in r:
+		#print("Bin: " + stepname)
+		#for stepidx, signal, it in content:
+			#print("   stepidx:" + str(stepidx) + " " + str(signal) + " " + str(it))
+	#print("++++++++++")
+	
+	return r
 
 def _sets_disjoint(l):
 	for s1, s2 in combinations(l, 2):
@@ -35,7 +53,7 @@ def _r_build_pnd(sig_iters):
 	bins_named = []
 	stepindices = {}
 	
-	for stepname, next_steps in bins.items():
+	for stepname, next_steps in bins:
 		bin_content = []
 		for stepidx, signal, it in next_steps:
 			if it is None:
@@ -50,12 +68,13 @@ def _r_build_pnd(sig_iters):
 	if not _sets_disjoint(name_sets):
 		for prefix, sub_pnd in bins_named:
 			for signal, subname in sub_pnd.items():
-				subname = prefix + "_" + subname
+				subname = (prefix, subname)
 				subnames[signal] = subname
 				mentions[subname].append(signal)
 	else:
 		for prefix, sub_pnd in bins_named:
 			for signal, subname in sub_pnd.items():
+				subname = ("", subname)
 				subnames[signal] = subname
 				mentions[subname].append(signal)
 	
@@ -64,16 +83,25 @@ def _r_build_pnd(sig_iters):
 		v.sort(key=lambda x: stepindices[x])
 	
 	r = {}
-	for stepname, next_steps in bins.items():
+	for stepname, next_steps in bins:
 		for stepidx, signal, it in next_steps:
 			if it is None:
 				name = stepname
+				prefix = ""
 			else:
-				name = subnames[signal]
-			if len(mentions[name]) > 1:
-				r[signal] = name + str(index_id(mentions[name], signal))
+				prefix = subnames[signal][0]
+				name = subnames[signal][1]
+			mention = mentions[(prefix, name)]
+			if prefix:
+				if len(mention) > 1:
+					r[signal] = prefix + str(index_id(mention, signal)) + "_" + name
+				else:
+					r[signal] = prefix + "_" + name
 			else:
-				r[signal] = name
+				if len(mention) > 1:
+					r[signal] = name + str(index_id(mention, signal))
+				else:
+					r[signal] = name
 	
 	return r
 
