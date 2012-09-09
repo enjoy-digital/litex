@@ -23,6 +23,8 @@ def get_var_name(frame):
 			index += 3
 		elif opc == "DUP_TOP":
 			index += 1
+		elif opc == "BUILD_LIST":
+			index += 3
 		else:
 			return None
 
