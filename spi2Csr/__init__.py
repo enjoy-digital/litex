@@ -110,7 +110,7 @@ class Spi2Csr :
 					spi_addr.eq(Cat(spi_mosi_dat,spi_addr[:self.a_width-1]))
 				).Elif((spi_cnt >= (self.a_width+self.d_width)) & last_b,
 					spi_addr.eq(spi_addr+1)
-				).Elif((spi_cnt >= self.a_width) & last_b & (spi_cnt[self.a_width-1] == 0),
+				).Elif((spi_cnt >= self.a_width) & last_b & (spi_addr[self.a_width-1] == 0),
 					spi_addr.eq(spi_addr+1)
 				),
 				# dat

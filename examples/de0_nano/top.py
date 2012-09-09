@@ -1,24 +1,50 @@
-# De0Nano-System On Chip / Generic Base for a Custom SOC
-# - Lm32 SoftCore
-# - 32MB Sdram
-# - 2KB Eeprom			(TBD)
-# - G Sensor & AD Converter	(TBD)
-# - Up to 72 GPIO		(8 in/ 8 out)
-# - Uart
-# - Spi Slave & Master		(Only Master)
+################################################################################
+#            _____       _            ____  _     _ _       _ 
+#           |   __|___  |_|___ _ _   |    \|_|___|_| |_ ___| |
+#           |   __|   | | | . | | |  |  |  | | . | |  _| .'| |
+#           |_____|_|_|_| |___|_  |  |____/|_|_  |_|_| |__,|_|
+#                     |___|   |___|          |___|
+#
+#      Copyright 2012 / Florent Kermarrec / florent@enjoy-digital.fr
+#
+#                  migScope Example on De0 Nano Board
+#                  ----------------------------------
+################################################################################
+#
+# In this example, signals are generated inside generated inside the FPGA. 
+# We will use migScope to record those signals it and visualize them.
+# 
+# Example architecture:
+# ----------------------
+#        migScope Config  <-- Python Client (Host) --> Vcd Output
+#                                   |
+#                        Arduino (Uart<-->Spi Bridge)
+#                                   |
+#                                De0 Nano
+#                                   |
+#              +--------------------+-----------------------+  
+#            migIo             Signal Generator           migLa
+#       Control of Signal        Ramp, Sinus,           Logic Analyzer  
+#           generator            Square, ...
+###############################################################################
+
 
 #==============================================================================
 #	I M P O R T 
 #==============================================================================
-from fractions import Fraction
-from math import ceil
-
 from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
-from migen.bus import wishbone, csr, wishbone2csr, fml
+from migen.bus import csr
+from migen.bus.transactions import *
+from migen.bank import description, csrgen
+from migen.bank.description import *
 
-from soc import lm32, uart, rc5, gpio, spi_master, identifier, fmlbrg, hpdmc_sdr16
-from cmacros import get_macros
+import sys
+sys.path.append("../../")
+
+from migScope import trigger, recorder
+import spi2Csr
+
 from timings import *
 from constraints import Constraints
 
@@ -31,93 +57,74 @@ clk_freq	= 50*MHz
 clk_period_ns	= clk_freq*ns
 n		= t2n(clk_period_ns)
 
+# Bus Width
+trig_width = 16
+dat_width = 16
+
+# Record Size
+record_size = 1024
+
+# Csr Addr
+CONTROL_ADDR  = 0x0000
+TRIGGER_ADDR  = 0x0200
+RECORDER_ADDR = 0x0400
+
 #==============================================================================
-#	S O C
+#       M I S C O P E    E X A M P L E
 #==============================================================================
-
-#
-# Configuration
-#===============================================================================
-
-# Csr
-csr_macros = get_macros("common/csrbase.h")
-def csr_offset(name):
-	base = int(csr_macros[name + "_BASE"], 0)
-	assert((base >= 0xe0000000) and (base <= 0xe0010000))
-	return (base - 0xe0000000)//0x800
-	
-# Interrupt
-interrupt_macros = get_macros("common/interrupt.h")
-def interrupt_n(name):
-	return int(interrupt_macros[name + "_INTERRUPT"], 0)
-	
-# Version
-version = get_macros("common/version.h")["VERSION"][1:-1]
-
 def get():
-	
-	#
-	# Wishbone
-	#===============================================================================
-	cpu0		= lm32.LM32()
-	wishbone2csr0	= wishbone2csr.WB2CSR()
-	fmlbrg0		= fmlbrg.FMLBRG(16)
-	hpdmc0		= hpdmc_sdr16.HPDMC_SDR16(13)
 
-	# CSR          0x00000000 (shadow @0x80000000)
-	# FML bridge   0x10000000 (shadow @0x90000000)
-	wishbonecon = wishbone.InterconnectShared(
-		[
-		cpu0.ibus,
-		cpu0.dbus
-		], [
-		(binc("000") , wishbone2csr0.wishbone),
-		(binc("001") , fmlbrg0.wishbone)
-		],
-		register=True,
-		offset=1)
-	#
-	# Fml
-	#===============================================================================
-	fmlcon0 = fml.Interconnect(fmlbrg0.fml,hpdmc0.fml)
+	# Control Reg
+	control_reg0 = RegisterField("control_reg0", 32, reset=0, access_dev=READ_ONLY)
+	regs = [control_reg0]
+	bank0 = csrgen.Bank(regs,address=CONTROL_ADDR)
+
+	# Trigger
+	term0 = trigger.Term(trig_width)
+	trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0])
 	
-	#
-	# Csr
-	#===============================================================================
-	uart0		= uart.UART(csr_offset("UART"), clk_freq, baud=115200)
-	identifier0	= identifier.Identifier(csr_offset("ID"), 0x1234, version, int(clk_freq))
-	rc50		= rc5.RC5(csr_offset("RC5"),clk_freq)
-	gpio0		= gpio.GPIO(csr_offset("GPIO"))
-	led0		= gpio.GPIO(csr_offset("LED"))
-	sw0		= gpio.GPIO(csr_offset("SW"),4)
-	spi_master0	= spi_master.SPI_MASTER(csr_offset("SPI_MASTER"))
-	csrcon0		= csr.Interconnect(wishbone2csr0.csr, [
-								uart0.csr,
-								identifier0.bank.interface,
-								rc50.csr,
-								gpio0.csr,
-								led0.csr,
-								sw0.csr,
-								spi_master0.csr,
-								hpdmc0.csr
-								])
+	# Recorder
+	recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size)
 	
-	#
-	# Interrupts
-	#===============================================================================
-	interrupts = Fragment([
-		cpu0.interrupt[interrupt_n("UART")].eq(uart0.irq),
-		cpu0.interrupt[interrupt_n("RC5")].eq(rc50.irq),
-		cpu0.interrupt[interrupt_n("GPIO")].eq(gpio0.irq)
-	])
-	#
+	# Spi2Csr
+	spi2csr0 = spi2Csr.Spi2Csr(16,8)
+
+	# Csr Interconnect
+	csrcon0 = csr.Interconnect(spi2csr0.csr, 
+			[
+				bank0.interface,
+				trigger0.bank.interface,
+				recorder0.bank.interface
+			])
+	comb = []
+	sync = []
+	
+	# Signal Generator
+	sig_gen = Signal(BV(trig_width))
+	sync += [
+		sig_gen.eq(sig_gen+1)
+	]
+	
+	# Dat / Trig Bus
+	comb += [
+		trigger0.in_trig.eq(sig_gen),
+		trigger0.in_dat.eq(sig_gen)
+	]
+	
+	# Trigger --> Recorder	
+	comb += [
+		recorder0.trig_dat.eq(trigger0.dat),
+		recorder0.trig_hit.eq(trigger0.hit)
+	]
+	
+
 	# HouseKeeping
-	#===============================================================================
-	frag = autofragment.from_local() + interrupts
-	cst = Constraints(uart0, rc50, gpio0, led0, sw0, spi_master0, hpdmc0)
+	frag = autofragment.from_local()
+	frag += Fragment(sync=sync,comb=comb)
+	cst = Constraints()
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
-		name="soc",
+		name="de0_nano",
 		return_ns=True)
 	src_qsf = cst.get_qsf(vns)
 	return (src_verilog, src_qsf)

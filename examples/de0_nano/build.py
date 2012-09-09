@@ -19,15 +19,6 @@ def get_qsf_prj():
 		r += "set_global_assignment -name VERILOG_FILE " + s + "\n"
 	return r
 
-add_core_dir("generic")
-add_core_dir("lm32")
-add_core_dir("hpdmc_sdr16")
-add_core_dir("fmlbrg")
-add_core_dir("uart")
-add_core_dir("rc5")
-add_core_dir("gpio")
-add_core_dir("spi_master")
-
 os.chdir("build")
 
 def str2file(filename, contents):
@@ -37,8 +28,8 @@ def str2file(filename, contents):
 
 # generate top
 (src_verilog, qsf_cst) = top.get()
-str2file("soc.v", src_verilog)
-verilog_sources.append("build/soc.v")
+str2file("de0_nano.v", src_verilog)
+verilog_sources.append("build/de0_nano.v")
 
 # generate Quartus project file
 qsf_prj = get_qsf_prj()

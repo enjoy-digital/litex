@@ -9,8 +9,8 @@ build/soc.qsf:
 	$(PYTHON) build.py
 
 build/soc.map: build/soc.qsf
-	cp soc.qpf build/soc.qpf
-	cd build && quartus_map soc.qpf
+	cp soc.qpf build/de0_nano.qpf
+	cd build && quartus_map de0_nano.qpf
 
 clean:
 	rm -rf build/*
