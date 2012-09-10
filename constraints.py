@@ -15,7 +15,7 @@ class Constraints:
 		add(crg0.videoin_rst_n, "W17")
 		add(crg0.flash_rst_n, "P22", extra="SLEW = FAST | DRIVE = 8")
 		add(crg0.trigger_reset, "AA4")
-		add(crg0.phy_clk, "M20")
+		add(crg0.eth_clk_pad, "M20")
 		add(crg0.vga_clk_pad, "A11")
 		
 		add_vec(norflash0.adr, ["L22", "L20", "K22", "K21", "J19", "H20", "F22",

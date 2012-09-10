@@ -162,7 +162,6 @@ class FIFO(Actor):
 	def __init__(self):
 		super().__init__(("dac", Sink, _dac_layout))
 		
-		self.vga_clk = Signal()
 		self.vga_hsync_n = Signal()
 		self.vga_vsync_n = Signal()
 		self.vga_r = Signal(BV(_bpc_dac))
@@ -178,7 +177,7 @@ class FIFO(Actor):
 			Instance.Output("data_out", BV(data_width)),
 			Instance.Output("empty", BV(1)),
 			Instance.Input("read_en", BV(1)),
-			Instance.Input("clk_read", self.vga_clk),
+			Instance.ClockPort("clk_read", "vga"),
 
 			Instance.Input("data_in", BV(data_width)),
 			Instance.Output("full", BV(1)),
@@ -246,10 +245,6 @@ class Framebuffer:
 		
 		self.bank = csrgen.Bank(fi.actor.get_registers() + self._comp_actor.get_registers(),
 			address=address)
-		
-		# VGA clock input
-		if not simulation:
-			self.vga_clk = fifo.actor.vga_clk
 		
 		# Pads
 		self.vga_psave_n = Signal()

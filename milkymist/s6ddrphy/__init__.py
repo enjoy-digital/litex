@@ -7,13 +7,13 @@ class S6DDRPHY:
 			Instance.Parameter("NUM_AD", a),
 			Instance.Parameter("NUM_BA", ba),
 			Instance.Parameter("NUM_D", d),
-			Instance.ClockPort("sys_clk")
+			Instance.ClockPort("sys_clk"),
+			Instance.ClockPort("clk2x_270", "sys2x_270"),
+			Instance.ClockPort("clk4x_wr", "sys4x_wr"),
+			Instance.ClockPort("clk4x_rd", "sys4x_rd")
 		]
 		for name, width, cl in [
-			("clk2x_270", 1, Instance.Input),
-			("clk4x_wr", 1, Instance.Input),
 			("clk4x_wr_strb", 1, Instance.Input),
-			("clk4x_rd", 1, Instance.Input),
 			("clk4x_rd_strb", 1, Instance.Input),
 			
 			("sd_clk_out_p", 1, Instance.Output),

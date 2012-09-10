@@ -8,6 +8,10 @@ class M1CRG:
 		self.trigger_reset = Signal()
 		
 		self.cd_sys = ClockDomain("sys")
+		self.cd_sys2x_270 = ClockDomain("sys2x_270")
+		self.cd_sys4x_wr = ClockDomain("sys4x_wr")
+		self.cd_sys4x_rd = ClockDomain("sys4x_rd")
+		self.cd_vga = ClockDomain("vga")
 		
 		ratio = Fraction(outfreq1x)/Fraction(infreq)
 		in_period = float(Fraction(1000000000)/Fraction(infreq))
@@ -20,20 +24,20 @@ class M1CRG:
 			Instance.Input("trigger_reset", self.trigger_reset),
 			
 			Instance.Output("sys_clk", self.cd_sys.clk),
-			Instance.Output("sys_rst", self.cd_sys.rst)
+			Instance.Output("sys_rst", self.cd_sys.rst),
+			Instance.Output("clk2x_270", self.cd_sys2x_270.clk),
+			Instance.Output("clk4x_wr", self.cd_sys4x_wr.clk),
+			Instance.Output("clk4x_rd", self.cd_sys4x_rd.clk),
+			Instance.Output("vga_clk", self.cd_vga.clk)
 		]
 		
 		for name in [
 			"ac97_rst_n",
 			"videoin_rst_n",
 			"flash_rst_n",
-			"clk2x_270",
-			"clk4x_wr",
 			"clk4x_wr_strb",
-			"clk4x_rd",
 			"clk4x_rd_strb",
-			"phy_clk",
-			"vga_clk",
+			"eth_clk_pad",
 			"vga_clk_pad"
 		]:
 			s = Signal(name=name)

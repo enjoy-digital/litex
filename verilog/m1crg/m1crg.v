@@ -23,7 +23,7 @@ module m1crg #(
 	output clk4x_rd_strb,
 	
 	/* Ethernet PHY clock */
-	output reg phy_clk,	/* < unbuffered, to I/O */
+	output reg eth_clk_pad,	/* < unbuffered, to I/O */
 	
 	/* VGA clock */
 	output vga_clk,		/* < buffered, to internal clock network */
@@ -193,7 +193,7 @@ BUFG bufg_x1(
 
 /* Ethernet PHY */
 always @(posedge pllout4)
-	phy_clk <= ~phy_clk;
+	eth_clk_pad <= ~eth_clk_pad;
 
 /* VGA clock */
 // TODO: hook up the reprogramming interface

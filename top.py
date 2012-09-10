@@ -46,17 +46,6 @@ sdram_timing = asmicon.TimingSettings(
 	write_time=16
 )
 
-def ddrphy_clocking(crg, phy):
-	names = [
-		"clk2x_270",
-		"clk4x_wr",
-		"clk4x_wr_strb",
-		"clk4x_rd",
-		"clk4x_rd_strb"
-	]
-	comb = [getattr(phy, name).eq(getattr(crg, name)) for name in names]
-	return Fragment(comb)
-
 csr_macros = get_macros("common/csrbase.h")
 def csr_offset(name):
 	base = int(csr_macros[name + "_BASE"], 0)
@@ -149,18 +138,24 @@ def get():
 	#
 	crg0 = m1crg.M1CRG(50*MHz, clk_freq)
 	
-	vga_clocking = Fragment([
-		fb0.vga_clk.eq(crg0.vga_clk)
+	ddrphy_strobes = Fragment([
+		ddrphy0.clk4x_wr_strb.eq(crg0.clk4x_wr_strb),
+		ddrphy0.clk4x_rd_strb.eq(crg0.clk4x_rd_strb)
 	])
 	frag = autofragment.from_local() \
 		+ interrupts \
-		+ ddrphy_clocking(crg0, ddrphy0) \
-		+ vga_clocking
+		+ ddrphy_strobes
 	cst = Constraints(crg0, norflash0, uart0, ddrphy0, minimac0, fb0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="soc",
-		clock_domains={"sys": crg0.cd_sys},
+		clock_domains={
+			"sys": crg0.cd_sys,
+			"sys2x_270": crg0.cd_sys2x_270,
+			"sys4x_wr": crg0.cd_sys4x_wr,
+			"sys4x_rd": crg0.cd_sys4x_rd,
+			"vga": crg0.cd_vga
+		},
 		return_ns=True)
 	src_ucf = cst.get_ucf(vns)
 	return (src_verilog, src_ucf)
