@@ -14,9 +14,14 @@ class TopLevel:
 		self.top_name = top_name
 		self.dut_type = dut_type
 		self.dut_name = dut_name
-		self.clk_name = clk_name
-		self.clk_period = clk_period
-		self.rst_name = rst_name
+		
+		self._clk_name = clk_name
+		self._clk_period = clk_period
+		self._rst_name = rst_name
+		
+		cd = ClockDomain(self._clk_name, self._rst_name)
+		self.clock_domains = {"sys": cd}
+		self.ios = {cd.clk, cd.rst}
 	
 	def get(self, sockaddr):
 		template1 = """`timescale 1ns / 1ps
@@ -56,9 +61,9 @@ end
 		r = template1.format(top_name=self.top_name,
 			dut_type=self.dut_type,
 			dut_name=self.dut_name,
-			clk_name=self.clk_name,
-			hclk_period=str(self.clk_period/2),
-			rst_name=self.rst_name,
+			clk_name=self._clk_name,
+			hclk_period=str(self._clk_period/2),
+			rst_name=self._rst_name,
 			sockaddr=sockaddr)
 		if self.vcd_name is not None:
 			r += template2.format(vcd_name=self.vcd_name,
@@ -78,13 +83,10 @@ class Simulator:
 		
 		c_top = self.top_level.get(sockaddr)
 		
-		clk_signal = Signal(name_override=self.top_level.clk_name)
-		rst_signal = Signal(name_override=self.top_level.rst_name)
 		c_fragment, self.namespace = verilog.convert(fragment,
-			{clk_signal, rst_signal},
+			ios=self.top_level.ios,
 			name=self.top_level.dut_type,
-			clk_signal=clk_signal,
-			rst_signal=rst_signal,
+			clock_domains=self.top_level.clock_domains,
 			return_ns=True,
 			**vopts)
 		

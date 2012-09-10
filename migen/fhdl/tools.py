@@ -31,7 +31,10 @@ def list_signals(node):
 		l = list(map(lambda x: list_signals(x[1]), node.cases))
 		return list_signals(node.test).union(*l).union(list_signals(node.default))
 	elif isinstance(node, Fragment):
-		return list_signals(node.comb) | list_signals(node.sync)
+		l = list_signals(node.comb)
+		for k, v in node.sync.items():
+			l |= list_signals(v)
+		return l
 	else:
 		raise TypeError
 
@@ -56,7 +59,10 @@ def list_targets(node):
 		l = list(map(lambda x: list_targets(x[1]), node.cases))
 		return list_targets(node.default).union(*l)
 	elif isinstance(node, Fragment):
-		return list_targets(node.comb) | list_targets(node.sync)
+		l = list_targets(node.comb)
+		for k, v in node.sync.items():
+			l |= list_targets(v)
+		return l
 	else:
 		raise TypeError
 
@@ -78,16 +84,17 @@ def group_by_targets(sl):
 def list_inst_ios(i, ins, outs, inouts):
 	if isinstance(i, Fragment):
 		return list_inst_ios(i.instances, ins, outs, inouts)
+	elif isinstance(i, list):
+		if i:
+			return set.union(*(list_inst_ios(e, ins, outs, inouts) for e in i))
+		else:
+			return set()
 	else:
-		l = []
-		for x in i:
-			if ins:
-				l += x.ins.values()
-			if outs:
-				l += x.outs.values()
-			if inouts:
-				l += x.inouts.values()
-		return set(l)
+		return set(item.signal for item in filter(lambda x:
+			(ins and isinstance(x, Instance.Input))
+			or (outs and isinstance(x, Instance.Output))
+			or (inouts and isinstance(x, Instance.InOut)),
+			i.items))
 
 def list_mem_ios(m, ins, outs):
 	if isinstance(m, Fragment):
@@ -254,6 +261,10 @@ def _lower_arrays_sl(sl):
 def lower_arrays(f):
 	f = copy(f)
 	f.comb, ec1 = _lower_arrays_sl(f.comb)
-	f.sync, ec2 = _lower_arrays_sl(f.sync)
-	f.comb += ec1 + ec2
+	f.comb += ec1
+	newsync = dict()
+	for k, v in f.sync.items():
+		newsync[k], ec2 = _lower_arrays_sl(v)
+		f.comb += ec2
+	f.sync = newsync
 	return f
