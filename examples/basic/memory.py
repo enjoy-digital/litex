@@ -15,7 +15,7 @@ p1 = MemoryPort(a1, d1, we1, dw1, we_granularity=8)
 a2 = Signal(BV(d_b))
 d2 = Signal(BV(w))
 re2 = Signal()
-p2 = MemoryPort(a2, d2, re=re2)
+p2 = MemoryPort(a2, d2, re=re2, clock_domain="rd")
 
 mem = Memory(w, d, p1, p2, init=[5, 18, 32])
 f = Fragment(memories=[mem])
