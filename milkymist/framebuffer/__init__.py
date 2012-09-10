@@ -172,37 +172,32 @@ class FIFO(Actor):
 	def get_fragment(self):
 		data_width = 2+3*_bpc_dac
 		asfifo = Instance("asfifo",
-			[
-				("data_out", BV(data_width)),
-				("empty", BV(1)),
-				
-				("full", BV(1))
-			], [
-				("read_en", BV(1)),
-				("clk_read", self.vga_clk),
-				
-				("data_in", BV(data_width)),
-				("write_en", BV(1)),
-				
-				("rst", BV(1))
-			],
-			parameters=[
-				("data_width", data_width),
-				("address_width", 8)
-			],
-			clkport="clk_write")
+			Instance.Parameter("data_width", data_width),
+			Instance.Parameter("address_width", 8),
+	
+			Instance.Output("data_out", BV(data_width)),
+			Instance.Output("empty", BV(1)),
+			Instance.Input("read_en", BV(1)),
+			Instance.Input("clk_read", self.vga_clk),
+
+			Instance.Input("data_in", BV(data_width)),
+			Instance.Output("full", BV(1)),
+			Instance.Input("write_en", BV(1)),
+			Instance.ClockPort("clk_write"),
+			
+			Instance.Input("rst", BV(1)))
 		t = self.token("dac")
 		return Fragment(
 			[
-				asfifo.ins["read_en"].eq(1),
-				Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.outs["data_out"]),
+				asfifo.get_io("read_en").eq(1),
+				Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.get_io("data_out")),
 				
-				self.endpoints["dac"].ack.eq(~asfifo.outs["full"]),
-				asfifo.ins["write_en"].eq(self.endpoints["dac"].stb),
-				asfifo.ins["data_in"].eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
+				self.endpoints["dac"].ack.eq(~asfifo.get_io("full")),
+				asfifo.get_io("write_en").eq(self.endpoints["dac"].stb),
+				asfifo.get_io("data_in").eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
 				
 				self.busy.eq(0),
-				asfifo.ins["rst"].eq(0)
+				asfifo.get_io("rst").eq(0)
 			],
 			instances=[asfifo])
 

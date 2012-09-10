@@ -61,45 +61,39 @@ class MiniMAC:
 		]
 		inst = [
 			Instance("minimac3",
-				[
-					("rx_done_0", self._rx_event_0.trigger),
-					("rx_count_0", self._rx_count_0.field.w),
-					("rx_done_1", self._rx_event_1.trigger),
-					("rx_count_1", self._rx_count_1.field.w),
-					
-					("tx_done", self._tx_event.trigger),
-					
-					("wb_dat_o", self.membus.dat_r),
-					("wb_ack_o", self.membus.ack),
-					
-					("phy_tx_data", self.phy_tx_data),
-					("phy_tx_en", self.phy_tx_en),
-					("phy_tx_er", self.phy_tx_er),
-				], [
-					("rx_ready_0", rx_ready_0),
-					("rx_ready_1", rx_ready_1),
-					
-					("tx_start", self._tx_start.re),
-					("tx_count", self._tx_count.field.r),
-					
-					("wb_adr_i", self.membus.adr),
-					("wb_dat_i", self.membus.dat_w),
-					("wb_sel_i", self.membus.sel),
-					("wb_stb_i", self.membus.stb),
-					("wb_cyc_i", self.membus.cyc),
-					("wb_we_i", self.membus.we),
-					
-					("phy_tx_clk", self.phy_tx_clk),
-					("phy_rx_clk", self.phy_rx_clk),
-					("phy_rx_data", self.phy_rx_data),
-					("phy_dv", self.phy_dv),
-					("phy_rx_er", self.phy_rx_er),
-					("phy_col", self.phy_col),
-					("phy_crs", self.phy_crs)
-				],
-				clkport="sys_clk",
-				rstport="sys_rst"
-			)
+				Instance.ClockPort("sys_clk"),
+				Instance.ResetPort("sys_rst"),
+
+				Instance.Output("rx_done_0", self._rx_event_0.trigger),
+				Instance.Output("rx_count_0", self._rx_count_0.field.w),
+				Instance.Output("rx_done_1", self._rx_event_1.trigger),
+				Instance.Output("rx_count_1", self._rx_count_1.field.w),
+				Instance.Input("rx_ready_0", rx_ready_0),
+				Instance.Input("rx_ready_1", rx_ready_1),
+
+				Instance.Input("tx_start", self._tx_start.re),
+				Instance.Input("tx_count", self._tx_count.field.r),
+				Instance.Output("tx_done", self._tx_event.trigger),
+				
+				Instance.Input("wb_adr_i", self.membus.adr),
+				Instance.Input("wb_dat_i", self.membus.dat_w),
+				Instance.Input("wb_sel_i", self.membus.sel),
+				Instance.Input("wb_stb_i", self.membus.stb),
+				Instance.Input("wb_cyc_i", self.membus.cyc),
+				Instance.Input("wb_we_i", self.membus.we),
+				Instance.Output("wb_dat_o", self.membus.dat_r),
+				Instance.Output("wb_ack_o", self.membus.ack),
+				
+				Instance.Output("phy_tx_data", self.phy_tx_data),
+				Instance.Output("phy_tx_en", self.phy_tx_en),
+				Instance.Output("phy_tx_er", self.phy_tx_er),				
+				Instance.Input("phy_tx_clk", self.phy_tx_clk),
+				Instance.Input("phy_rx_clk", self.phy_rx_clk),
+				Instance.Input("phy_rx_data", self.phy_rx_data),
+				Instance.Input("phy_dv", self.phy_dv),
+				Instance.Input("phy_rx_er", self.phy_rx_er),
+				Instance.Input("phy_col", self.phy_col),
+				Instance.Input("phy_crs", self.phy_crs))
 		]
 		return Fragment(comb, sync, instances=inst) \
 			+ self.events.get_fragment() \

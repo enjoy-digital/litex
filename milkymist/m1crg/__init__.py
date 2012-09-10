@@ -7,10 +7,23 @@ class M1CRG:
 		self.clkin = Signal()
 		self.trigger_reset = Signal()
 		
-		generated = []
+		self.cd_sys = ClockDomain("sys")
+		
+		ratio = Fraction(outfreq1x)/Fraction(infreq)
+		in_period = float(Fraction(1000000000)/Fraction(infreq))
+
+		inst_items = [
+			Instance.Parameter("in_period", in_period),
+			Instance.Parameter("f_mult", ratio.numerator),
+			Instance.Parameter("f_div", ratio.denominator),
+			Instance.Input("clkin", self.clkin),
+			Instance.Input("trigger_reset", self.trigger_reset),
+			
+			Instance.Output("sys_clk", self.cd_sys.clk),
+			Instance.Output("sys_rst", self.cd_sys.rst)
+		]
+		
 		for name in [
-			"sys_clk",
-			"sys_rst",
 			"ac97_rst_n",
 			"videoin_rst_n",
 			"flash_rst_n",
@@ -25,23 +38,10 @@ class M1CRG:
 		]:
 			s = Signal(name=name)
 			setattr(self, name, s)
-			generated.append((name, s))  
+			inst_items.append(Instance.Output(name, s))  
 		
-		ratio = Fraction(outfreq1x)/Fraction(infreq)
-		in_period = float(Fraction(1000000000)/Fraction(infreq))
-		
-		self._inst = Instance("m1crg",
-			generated,
-			[
-				("clkin", self.clkin),
-				("trigger_reset", self.trigger_reset)
-			],
-			parameters=[
-				("in_period", in_period),
-				("f_mult", ratio.numerator),
-				("f_div", ratio.denominator)
-			]
-		)
+		self._inst = Instance("m1crg", *inst_items)
+
 
 	def get_fragment(self):
 		return Fragment(instances=[self._inst])

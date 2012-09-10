@@ -160,8 +160,7 @@ def get():
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="soc",
-		clk_signal=crg0.sys_clk,
-		rst_signal=crg0.sys_rst,
+		clock_domains={"sys": crg0.cd_sys},
 		return_ns=True)
 	src_ucf = cst.get_ucf(vns)
 	return (src_verilog, src_ucf)
