@@ -1,6 +1,7 @@
 import math
 import inspect
 import re
+from collections import defaultdict
 
 from migen.fhdl import tracer
 
@@ -240,26 +241,49 @@ class Array(list):
 # extras
 
 class Instance:
-	def __init__(self, of, outs=[], ins=[], inouts=[], parameters=[], clkport="", rstport="", name=""):
+	def __init__(self, of, *items, name=""):
 		self.of = of
 		if name:
 			self.name_override = name
 		else:
 			self.name_override = of
-		def process_io(x):
-			if isinstance(x[1], Signal):
-				return x # override
-			elif isinstance(x[1], BV):
-				return (x[0], Signal(x[1], x[0]))
+		self.items = items
+	
+	class _IO:
+		def __init__(self, name, signal_or_bv):
+			self.name = name
+			if isinstance(signal_or_bv, Signal):
+				self.signal = signal_or_bv
+			elif isinstance(signal_or_bv, BV):
+				self.signal = Signal(signal_or_bv, name)
 			else:
 				raise TypeError
-		self.outs = dict(map(process_io, outs))
-		self.ins = dict(map(process_io, ins))
-		self.inouts = dict(map(process_io, inouts))
-		self.parameters = parameters
-		self.clkport = clkport
-		self.rstport = rstport
+	class Input(_IO):
+		pass	
+	class Output(_IO):
+		pass
+	class InOut(_IO):
+		pass
 
+	class Parameter:
+		def __init__(self, name, value):
+			self.name = name
+			self.value = value
+	
+	class _CR:
+		def __init__(self, name_inst, domain="sys"):
+			self.name_inst = name_inst
+			self.domain = domain
+	class ClockPort(_CR):
+		pass
+	class ResetPort(_CR):
+		pass
+	
+	def get_io(self, name):
+		for item in self.items:
+			if isinstance(item, Instance._IO) and item.name == name:
+				return item.signal
+	
 	def __hash__(self):
 		return id(self)
 
@@ -267,7 +291,8 @@ class Instance:
 
 class MemoryPort:
 	def __init__(self, adr, dat_r, we=None, dat_w=None,
-	  async_read=False, re=None, we_granularity=0, mode=WRITE_FIRST):
+	  async_read=False, re=None, we_granularity=0, mode=WRITE_FIRST,
+	  clock_domain="sys"):
 		self.adr = adr
 		self.dat_r = dat_r
 		self.we = we
@@ -276,6 +301,7 @@ class MemoryPort:
 		self.re = re
 		self.we_granularity = we_granularity
 		self.mode = mode
+		self.clock_domain = clock_domain
 
 class Memory:
 	def __init__(self, width, depth, *ports, init=None):
@@ -289,24 +315,66 @@ class Memory:
 class Fragment:
 	def __init__(self, comb=None, sync=None, instances=None, memories=None, sim=None):
 		if comb is None: comb = []
-		if sync is None: sync = []
+		if sync is None: sync = dict()
 		if instances is None: instances = []
 		if memories is None: memories = []
 		if sim is None: sim = []
+		
+		if isinstance(sync, list):
+			sync = {"sys": sync}
+		
 		self.comb = comb
 		self.sync = sync
 		self.instances = instances
 		self.memories = memories
 		self.sim = sim
+		
 	
 	def __add__(self, other):
-		return Fragment(self.comb + other.comb,
-			self.sync + other.sync,
+		newsync = defaultdict(list)
+		for k, v in self.sync.items():
+			newsync[k] = v[:]
+		for k, v in other.sync.items():
+			newsync[k].extend(v)
+		return Fragment(self.comb + other.comb, newsync,
 			self.instances + other.instances,
 			self.memories + other.memories,
 			self.sim + other.sim)
+	
+	def rename_clock_domain(self, old, new):
+		self.sync["new"] = self.sync["old"]
+		del self.sync["old"]
+		for inst in self.instances:
+			for cr in filter(lambda x: isinstance(x, Instance._CR), inst.items):
+				if cr.domain == old:
+					cr.domain = new
+		for mem in self.memories:
+			for port in mem.ports:
+				if port.clock_domain == old:
+					port.clock_domain = new
 
+	def get_clock_domains(self):
+		r = set(self.sync.keys())
+		r |= set(cr.domain 
+			for inst in self.instances
+			for cr in filter(lambda x: isinstance(x, Instance._CR), inst.items))
+		r |= set(port.clock_domain
+			for mem in self.memories
+			for port in mem.ports)
+		return r
+	
 	def call_sim(self, simulator):
 		for s in self.sim:
 			if simulator.cycle_counter >= 0 or (hasattr(s, "initialize") and s.initialize):
 				s(simulator)
+
+class ClockDomain:
+	def __init__(self, n1, n2=None):
+		if n2 is None:
+			n_clk = n1 + "_clk"
+			n_rst = n1 + "_rst"
+		else:
+			n_clk = n1
+			n_rst = n2
+		self.clk = Signal(name_override=n_clk)
+		self.rst = Signal(name_override=n_rst)

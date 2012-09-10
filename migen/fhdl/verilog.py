@@ -169,57 +169,64 @@ def _printcomb(f, ns, display_run):
 	r += "\n"
 	return r
 
-def _printsync(f, ns, clk, rst):
+def _printsync(f, ns, clock_domains):
 	r = ""
-	if f.sync:
-		r += "always @(posedge " + ns.get_name(clk) + ") begin\n"
-		r += _printnode(ns, _AT_SIGNAL, 1, insert_reset(rst, f.sync))
+	for k, v in f.sync.items():
+		r += "always @(posedge " + ns.get_name(clock_domains[k].clk) + ") begin\n"
+		r += _printnode(ns, _AT_SIGNAL, 1, insert_reset(clock_domains[k].rst, v))
 		r += "end\n\n"
 	return r
 
-def _printinstances(f, ns, clk, rst):
+def _printinstances(f, ns, clock_domains):
 	r = ""
 	for x in f.instances:
+		parameters = list(filter(lambda i: isinstance(i, Instance.Parameter), x.items))
 		r += x.of + " "
-		if x.parameters:
+		if parameters:
 			r += "#(\n"
 			firstp = True
-			for p in x.parameters:
+			for p in parameters:
 				if not firstp:
 					r += ",\n"
 				firstp = False
-				r += "\t." + p[0] + "("
-				if isinstance(p[1], int) or isinstance(p[1], float) or isinstance(p[1], Constant):
-					r += str(p[1])
-				elif isinstance(p[1], str):
-					r += "\"" + p[1] + "\""
+				r += "\t." + p.name + "("
+				if isinstance(p.value, int) or isinstance(p.value, float) or isinstance(p.value, Constant):
+					r += str(p.value)
+				elif isinstance(p.value, str):
+					r += "\"" + p.value + "\""
 				else:
 					raise TypeError
 				r += ")"
 			r += "\n) "
 		r += ns.get_name(x) 
-		if x.parameters: r += " "
+		if parameters: r += " "
 		r += "(\n"
-		ports = list(x.ins.items()) + list(x.outs.items()) + list(x.inouts.items())
-		if x.clkport:
-			ports.append((x.clkport, clk))
-		if x.rstport:
-			ports.append((x.rstport, rst))
 		firstp = True
-		for p in ports:
+		for p in x.items:
+			if isinstance(p, Instance._IO):
+				name_inst = p.name
+				name_design = ns.get_name(p.signal)
+			elif isinstance(p, Instance.ClockPort):
+				name_inst = p.name_inst
+				name_design = ns.get_name(clock_domains[p.domain].clk)
+			elif isinstance(p, Instance.ResetPort):
+				name_inst = p.name_inst
+				name_design = ns.get_name(clock_domains[p.domain].rst)
+			else:
+				continue
 			if not firstp:
 				r += ",\n"
 			firstp = False
-			r += "\t." + p[0] + "(" + ns.get_name(p[1]) + ")"
+			r += "\t." + name_inst + "(" + name_design + ")"
 		if not firstp:
 			r += "\n"
 		r += ");\n\n"
 	return r
 
-def _printmemories(f, ns, handler, clk):
+def _printmemories(f, ns, handler, clock_domains):
 	r = ""
 	for memory in f.memories:
-		r += handler(memory, ns, clk)
+		r += handler(memory, ns, clock_domains)
 	return r
 
 def _printinit(f, ios, ns):
@@ -237,16 +244,17 @@ def _printinit(f, ios, ns):
 	return r
 
 def convert(f, ios=set(), name="top",
-  clk_signal=None, rst_signal=None,
+  clock_domains=None,
   return_ns=False,
   memory_handler=verilog_mem_behavioral.handler,
   display_run=False):
-	if clk_signal is None:
-		clk_signal = Signal(name_override="sys_clk")
-		ios.add(clk_signal)
-	if rst_signal is None:
-		rst_signal = Signal(name_override="sys_rst")
-		ios.add(rst_signal)
+	if clock_domains is None:
+		clock_domains = dict()
+		for d in f.get_clock_domains():
+			cd = ClockDomain(d)
+			clock_domains[d] = cd
+			ios.add(cd.clk)
+			ios.add(cd.rst)
 		
 	f = lower_arrays(f)
 
@@ -258,9 +266,9 @@ def convert(f, ios=set(), name="top",
 	r = "/* Machine-generated using Migen */\n"
 	r += _printheader(f, ios, name, ns)
 	r += _printcomb(f, ns, display_run)
-	r += _printsync(f, ns, clk_signal, rst_signal)
-	r += _printinstances(f, ns, clk_signal, rst_signal)
-	r += _printmemories(f, ns, memory_handler, clk_signal)
+	r += _printsync(f, ns, clock_domains)
+	r += _printinstances(f, ns, clock_domains)
+	r += _printmemories(f, ns, memory_handler, clock_domains)
 	r += _printinit(f, ios, ns)
 	r += "endmodule\n"
 

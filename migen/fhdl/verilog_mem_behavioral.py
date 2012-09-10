@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 
-def handler(memory, ns, clk):
+def handler(memory, ns, clock_domains):
 	r = ""
 	gn = ns.get_name
 	adrbits = bits_for(memory.depth-1)
@@ -24,8 +24,8 @@ def handler(memory, ns, clk):
 					+ gn(data_reg) + ";\n"
 				data_regs[id(port)] = data_reg
 
-	r += "always @(posedge " + gn(clk) + ") begin\n"
 	for port in memory.ports:
+		r += "always @(posedge " + gn(clock_domains[port.clock_domain].clk) + ") begin\n"
 		if port.we is not None:
 			if port.we_granularity:
 				n = memory.width//port.we_granularity
@@ -53,7 +53,7 @@ def handler(memory, ns, clk):
 		else:
 			r += "\tif (" + gn(port.re) + ")\n"
 			r += "\t" + rd.replace("\n\t", "\n\t\t")
-	r += "end\n\n"
+		r += "end\n\n"
 	
 	for port in memory.ports:
 		if port.async_read:
