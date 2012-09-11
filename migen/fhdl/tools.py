@@ -130,7 +130,7 @@ def is_variable(node):
 
 def insert_reset(rst, sl):
 	targets = list_targets(sl)
-	resetcode = [t.eq(t.reset) for t in targets]
+	resetcode = [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.order)]
 	return If(rst, *resetcode).Else(*sl)
 
 def value_bv(v):

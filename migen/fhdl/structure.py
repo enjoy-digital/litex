@@ -154,6 +154,7 @@ def _cst(x):
 		return x
 
 class Signal(Value):
+	_counter = 0
 	def __init__(self, bv=BV(), name=None, variable=False, reset=0, name_override=None):
 		assert(isinstance(bv, BV))
 		self.bv = bv
@@ -161,7 +162,9 @@ class Signal(Value):
 		self.reset = Constant(reset, bv)
 		self.name_override = name_override
 		self.backtrace = tracer.trace_back(name)
-	
+		self.order = Signal._counter
+		Signal._counter += 1
+
 	def __len__(self):
 		return self.bv.width
 
