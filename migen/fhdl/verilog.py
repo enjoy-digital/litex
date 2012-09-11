@@ -1,4 +1,5 @@
 from functools import partial
+from operator import itemgetter
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign
@@ -171,7 +172,7 @@ def _printcomb(f, ns, display_run):
 
 def _printsync(f, ns, clock_domains):
 	r = ""
-	for k, v in f.sync.items():
+	for k, v in sorted(f.sync.items(), key=itemgetter(0)):
 		r += "always @(posedge " + ns.get_name(clock_domains[k].clk) + ") begin\n"
 		r += _printnode(ns, _AT_SIGNAL, 1, insert_reset(clock_domains[k].rst, v))
 		r += "end\n\n"
