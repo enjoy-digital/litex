@@ -42,7 +42,7 @@ from migen.bank.description import *
 import sys
 sys.path.append("../../")
 
-from migScope import trigger, recorder
+from migScope import trigger, recorder, migIo
 import spi2Csr
 
 from timings import *
@@ -74,10 +74,8 @@ RECORDER_ADDR = 0x0400
 #==============================================================================
 def get():
 
-	# Control Reg
-	control_reg0 = RegisterField("control_reg0", 32, reset=0, access_dev=READ_ONLY)
-	regs = [control_reg0]
-	bank0 = csrgen.Bank(regs,address=CONTROL_ADDR)
+	# migIo
+	migIo0 = migIo.MigIo(8,"IO")
 
 	# Trigger
 	term0 = trigger.Term(trig_width)
@@ -92,7 +90,7 @@ def get():
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
 			[
-				bank0.interface,
+				migIo0.bank.interface,
 				trigger0.bank.interface,
 				recorder0.bank.interface
 			])
@@ -107,10 +105,11 @@ def get():
 	
 	# Led
 	led0 = Signal(BV(8))
-	comb += [
-		led0.eq(control_reg0.field.r[:8])
-	]
-
+	comb += [led0.eq(migIo0.o)]
+	
+	#Switch
+	sw0 = Signal(BV(8))
+	comb += [migIo0.i.eq(sw0)]
 	
 	
 	# Dat / Trig Bus
@@ -135,7 +134,7 @@ def get():
 	]
 	frag = autofragment.from_local()
 	frag += Fragment(sync=sync,comb=comb)
-	cst = Constraints(in_clk, in_rst_n, spi2csr0, led0)
+	cst = Constraints(in_clk, in_rst_n, spi2csr0, led0, sw0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="de1",

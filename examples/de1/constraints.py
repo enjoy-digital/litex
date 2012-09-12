@@ -1,5 +1,5 @@
 class Constraints:
-	def __init__(self, in_clk, in_rst_n, spi2csr0, led0):
+	def __init__(self, in_clk, in_rst_n, spi2csr0, led0, sw0):
 		self.constraints = []
 		def add(signal, pin, vec=-1, iostandard="3.3-V LVTTL", extra="", sch=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra,sch))
@@ -24,6 +24,9 @@ class Constraints:
 		# led0
 		add_vec(led0, 	["U22", "U21", "V22", "V21",
 					 "W22" , "W21" , "Y22" , "Y21"])
+		# sw0
+		add_vec(sw0, 	["L22", "L21", "M22", "V12",
+					 "W12" , "U12" , "U11" , "M2"])
 	
 	def get_ios(self):
 		return set([c[0] for c in self.constraints])
