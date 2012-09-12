@@ -20,7 +20,7 @@
 #             & Trig                |
 #                        Arduino (Uart<-->Spi Bridge)
 #                                   |
-#                                De0 Nano
+#                                  De1 
 #                                   |
 #              +--------------------+-----------------------+  
 #            migIo             Signal Generator           migLa
@@ -110,6 +110,7 @@ def get():
 	comb += [
 		led0.eq(control_reg0.field.r[:8])
 	]
+
 	
 	
 	# Dat / Trig Bus
@@ -137,7 +138,7 @@ def get():
 	cst = Constraints(in_clk, in_rst_n, spi2csr0, led0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
-		name="de0_nano",
+		name="de1",
 		clk_signal = in_clk,
 		rst_signal = in_rst,
 		return_ns=True)
