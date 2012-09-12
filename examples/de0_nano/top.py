@@ -127,10 +127,14 @@ def get():
 
 	# HouseKeeping
 	in_clk = Signal()
+	in_rst_n = Signal()
 	in_rst = Signal()
+	comb += [
+		in_rst.eq(~in_rst_n)
+	]
 	frag = autofragment.from_local()
 	frag += Fragment(sync=sync,comb=comb)
-	cst = Constraints(in_clk, in_rst, spi2csr0, led0)
+	cst = Constraints(in_clk, in_rst_n, spi2csr0, led0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="de0_nano",

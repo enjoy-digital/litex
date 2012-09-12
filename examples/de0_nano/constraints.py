@@ -1,5 +1,5 @@
 class Constraints:
-	def __init__(self, in_clk, in_rst, spi2csr0, led0):
+	def __init__(self, in_clk, in_rst_n, spi2csr0, led0):
 		self.constraints = []
 		def add(signal, pin, vec=-1, iostandard="3.3-V LVTTL", extra="", sch=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra,sch))
@@ -13,7 +13,7 @@ class Constraints:
 		add(in_clk,  "R8")	# CLOCK_50
 		
 		# sys_rst
-		add(in_rst,  "J15")	# KEY[0]			
+		add(in_rst_n,  "J15")	# KEY[0]			
 				
 		# spi2csr0 
 		add(spi2csr0.spi_clk,  "A14")		#GPIO_2[0]
@@ -57,5 +57,7 @@ set_global_assignment -name RESERVE_FLASH_NCE_AFTER_CONFIGURATION "USE AS REGULA
 set_global_assignment -name RESERVE_DATA0_AFTER_CONFIGURATION "USE AS REGULAR IO"
 set_global_assignment -name RESERVE_DATA1_AFTER_CONFIGURATION "USE AS REGULAR IO"
 set_global_assignment -name RESERVE_DCLK_AFTER_CONFIGURATION "USE AS REGULAR IO"
+set_global_assignment -name DUTY_CYCLE 50 -section_id in_clk
+set_global_assignment -name FMAX_REQUIREMENT "50.0 MHz" -section_id in_clk
 			"""
 		return r

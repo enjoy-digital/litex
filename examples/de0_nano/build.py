@@ -33,4 +33,4 @@ verilog_sources.append("build/de0_nano.v")
 
 # generate Quartus project file
 qsf_prj = get_qsf_prj()
-str2file("soc.qsf", qsf_prj + qsf_cst)
+str2file("de0_nano.qsf", qsf_prj + qsf_cst)
