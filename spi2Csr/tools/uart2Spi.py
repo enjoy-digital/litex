@@ -1,9 +1,10 @@
 import string
 import time
 import serial
+from struct import *
 
-def write_ascii(uart, data):
-	uart.write(bytes("%c" % data, encoding="ascii"))
+def write_b(uart, data):
+	uart.write(pack('B',data))
 
 class Uart2Spi:
 	def __init__(self, port, baudrate):
@@ -13,20 +14,20 @@ class Uart2Spi:
 	
 	def read(self, addr):
 		while True:
-			write_ascii(self.uart, 0x02)
-			write_ascii(self.uart, (addr>>8)&0xFF)
-			write_ascii(self.uart, (addr&0xFF))
-			write_ascii(self.uart, 0x00)
+			write_b(self.uart, 0x02)
+			write_b(self.uart, (addr>>8)&0xFF)
+			write_b(self.uart, (addr&0xFF))
+			write_b(self.uart, 0x00)
 			read = self.uart.read()
 			if len(read) == 1:
 				break
 		return read[0]
 	
 	def write(self, addr, data):
-		write_ascii(self.uart, 0x01)
-		write_ascii(self.uart, (addr>>8)&0xFF)
-		write_ascii(self.uart, (addr&0xFF))
-		write_ascii(self.uart, data)
+		write_b(self.uart, 0x01)
+		write_b(self.uart, (addr>>8)&0xFF)
+		write_b(self.uart, (addr&0xFF))
+		write_b(self.uart, data)
 
 def main():
 	csr = Uart2Spi(1,115200)
