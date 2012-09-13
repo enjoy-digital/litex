@@ -249,7 +249,7 @@ class Trigger:
 		for object in sorted(objects):
 			if "_reg" in object:
 				regs.append(objects[object])
-		self.bank = csrgen.Bank(regs,address=address)
+		self.bank = csrgen.Bank(regs,address=self.address)
 		
 		# Update base addr
 		for port in self.ports:

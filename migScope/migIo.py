@@ -5,11 +5,10 @@ from migen.bank.description import *
 
 
 class MigIo:
-	def __init__(self, width, mode = "IO"):
+	def __init__(self,address, width, mode = "IO"):
+		self.address = address
 		self.width = width
 		self.mode = mode
-		self.ireg = description.RegisterField("i", 0, READ_ONLY, WRITE_ONLY)
-		self.oreg = description.RegisterField("o", 0)
 		if "I" in self.mode:
 			self.i = Signal(BV(self.width))
 			self.ireg = description.RegisterField("i", self.width, READ_ONLY, WRITE_ONLY)
@@ -18,10 +17,12 @@ class MigIo:
 			self.o = Signal(BV(self.width))
 			self.oreg = description.RegisterField("o", self.width)
 			self.oreg.field.r.name_override = "ouptuts"
-		self.bank = csrgen.Bank([self.oreg, self.ireg])
+		self.bank = csrgen.Bank([self.oreg, self.ireg], address=self.address)
 
 	def get_fragment(self):
 		comb = []
-		comb += [self.ireg.field.w.eq(self.i)]
-		comb += [self.o.eq(self.oreg.field.r)]		
+		if "I" in self.mode:
+			comb += [self.ireg.field.w.eq(self.i)]
+		if "O" in self.mode:
+			comb += [self.o.eq(self.oreg.field.r)]
 		return Fragment(comb=comb) + self.bank.get_fragment()

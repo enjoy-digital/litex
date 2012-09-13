@@ -65,7 +65,7 @@ dat_width = 16
 record_size = 1024
 
 # Csr Addr
-CONTROL_ADDR  = 0x0000
+MIGIO_ADDR  = 0x0000
 TRIGGER_ADDR  = 0x0200
 RECORDER_ADDR = 0x0400
 
@@ -75,7 +75,7 @@ RECORDER_ADDR = 0x0400
 def get():
 
 	# migIo
-	migIo0 = migIo.MigIo(8,"IO")
+	migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO")
 	
 	# Trigger
 	term0 = trigger.Term(trig_width)

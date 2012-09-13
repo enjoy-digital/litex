@@ -42,7 +42,7 @@ from migen.bank.description import *
 import sys
 sys.path.append("../../")
 
-from migScope import trigger, recorder
+from migScope import trigger, recorder, migIo
 import spi2Csr
 
 from timings import *
@@ -65,7 +65,7 @@ dat_width = 16
 record_size = 1024
 
 # Csr Addr
-CONTROL_ADDR  = 0x0000
+MIGIO_ADDR  = 0x0000
 TRIGGER_ADDR  = 0x0200
 RECORDER_ADDR = 0x0400
 
@@ -74,11 +74,9 @@ RECORDER_ADDR = 0x0400
 #==============================================================================
 def get():
 
-	# Control Reg
-	control_reg0 = RegisterField("control_reg0", 32, reset=0, access_dev=READ_ONLY)
-	regs = [control_reg0]
-	bank0 = csrgen.Bank(regs,address=CONTROL_ADDR)
-
+	# migIo
+	migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO")
+	
 	# Trigger
 	term0 = trigger.Term(trig_width)
 	trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0])
@@ -88,11 +86,11 @@ def get():
 	
 	# Spi2Csr
 	spi2csr0 = spi2Csr.Spi2Csr(16,8)
-
+	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
 			[
-				bank0.interface,
+				migIo0.bank.interface,
 				trigger0.bank.interface,
 				recorder0.bank.interface
 			])
@@ -107,9 +105,8 @@ def get():
 	
 	# Led
 	led0 = Signal(BV(8))
-	comb += [
-		led0.eq(control_reg0.field.r[:8])
-	]
+	comb += [led0.eq(migIo0.o)]
+
 	
 	
 	# Dat / Trig Bus
