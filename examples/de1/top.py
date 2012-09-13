@@ -76,7 +76,7 @@ def get():
 
 	# migIo
 	migIo0 = migIo.MigIo(8,"IO")
-
+	
 	# Trigger
 	term0 = trigger.Term(trig_width)
 	trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0])
@@ -86,7 +86,7 @@ def get():
 	
 	# Spi2Csr
 	spi2csr0 = spi2Csr.Spi2Csr(16,8)
-
+	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
 			[
@@ -124,7 +124,7 @@ def get():
 		recorder0.trig_hit.eq(trigger0.hit)
 	]
 	
-
+	
 	# HouseKeeping
 	in_clk = Signal()
 	in_rst_n = Signal()
