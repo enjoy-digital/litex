@@ -9,7 +9,7 @@ class Spi2Csr :
 		self.d_width = d_width
 		self.max_burst = 8
 		# Csr interface
-		self.csr = csr.Interface(self.d_width)
+		self.csr = csr.Interface(self.a_width, self.d_width)
 		# Spi interface
 		self.spi_clk = Signal()
 		self.spi_cs_n = Signal(reset=1)

@@ -117,11 +117,12 @@ class Sequencer:
 		return Fragment(comb=comb, sync=sync)
 
 class Recorder:
-	def __init__(self,address, width, depth):
+	def __init__(self,address, width, depth, interface = None):
 		self.address = address
 		self.width = width
 		self.depth = depth
 		self.depth_width = bits_for(self.depth)
+		self.interface = interface
 		
 		self.storage = Storage(self.width, self.depth)
 		self.sequencer = Sequencer(self.depth)
@@ -146,7 +147,23 @@ class Recorder:
 		# Trigger Interface
 		self.trig_hit = Signal()
 		self.trig_dat = Signal(BV(self.width))
+	
+	def reset(self):
+		self.interface.write(self.address + 0x00, 1)
+		self.interface.write(self.address + 0x00, 0)
+	
+	def arm(self):
+		self.interface.write(self.address + 0x01, 1)
+	
+	def is_done(self):
+		return self.interface.read(self.address + 0x02) == 1
 		
+	def size(self, dat):
+		self.interface.write_n(self.address + 0x03, dat, 16)
+		
+	def offset(self, dat):
+		self.interface.write_n(self.address + 0x05, dat, 16)
+							
 	def get_fragment(self):
 		comb = []
 		sync = []

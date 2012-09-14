@@ -8,14 +8,19 @@ class Term:
 	def __init__(self, width, pipe=False):
 		self.width = width
 		self.pipe = pipe
+		self.interface = None
 		
 		self.reg_name = "term_reg"
 		self.reg_base = 0
 		self.reg_size = 1*width
+		self.words = int(2**bits_for(width-1)/8)
 		
 		self.i = Signal(BV(self.width))
 		self.t = Signal(BV(self.width))
 		self.o = Signal()
+	
+	def write(self, dat):
+		self.interface.write_n(self.reg_base, dat ,self.width)
 	
 	def get_fragment(self):
 		frag = [
@@ -35,15 +40,23 @@ class RangeDetector:
 	def __init__(self, width, pipe=False):
 		self.width = width
 		self.pipe = pipe
+		self.interface = None
 		
 		self.reg_name = "range_reg"
 		self.reg_base = 0
 		self.reg_size = 2*width
+		self.words = int(2**bits_for(width-1)/8)
 		
 		self.i = Signal(BV(self.width))
 		self.low = Signal(BV(self.width))
 		self.high = Signal(BV(self.width))
 		self.o = Signal()
+		
+	def write_low(self, dat):
+		self.interface.write_n(self.reg_base, dat ,self.width)
+	
+	def write_high(self, dat):
+		self.interface.write_n(self.reg_base + self.words, dat ,self.width)
 	
 	def get_fragment(self):
 		frag = [
@@ -65,6 +78,7 @@ class EdgeDetector:
 		self.width = width
 		self.pipe = pipe
 		self.mode = mode
+		self.interface = None
 		
 		self.reg_name = "edge_reg"
 		self.reg_base = 0
@@ -72,16 +86,32 @@ class EdgeDetector:
 		
 		self.i = Signal(BV(self.width))
 		self.i_d = Signal(BV(self.width))
-		if "R" in mode:
+		if "R" in self.mode:
 			self.r_mask = Signal(BV(self.width))
 			self.ro = Signal()
-		if "F" in mode:
+		if "F" in self.mode:
 			self.f_mask = Signal(BV(self.width))
 			self.fo = Signal()
-		if "B" in mode:
+		if "B" in self.mode:
 			self.b_mask = Signal(BV(self.width))
 			self.bo = Signal()
 		self.o = Signal()
+		
+	def write_r(self, dat):
+		self.interface.write_n(self.reg_base, dat ,self.width)
+	
+	def write_f(self, dat):
+		offset = 0
+		if "R" in self.mode:
+			offset += self.words
+		self.interface.write_n(self.reg_base + offset, dat ,self.width)
+		
+	def write_b(self, dat):
+		if "R" in self.mode:
+			offset += self.words
+		if "F" in self.mode:
+			offset += self.words
+		self.interface.write_n(self.reg_base + offset, dat ,self.width)
 	
 	def get_fragment(self):
 		comb = []
@@ -136,6 +166,7 @@ class EdgeDetector:
 class Timer:
 	def __init__(self, width):
 		self.width = width
+		self.interface = None
 		
 		self.start = Signal()
 		self.stop = Signal()
@@ -146,7 +177,7 @@ class Timer:
 		self.cnt_max = Signal(BV(self.width))
 		
 		self.o = Signal()
-
+	
 	def get_fragment(self):
 		comb = []
 		sync = []
@@ -184,6 +215,7 @@ class Sum:
 	def __init__(self,width=4,pipe=False):
 		self.width = width
 		self.pipe = pipe
+		self.interface = None
 		
 		self.i = Signal(BV(self.width))
 		self._o = Signal()
@@ -201,6 +233,15 @@ class Sum:
 		
 		self._mem = Memory(1, 2**self.width, self._lut_port, self._prog_port)
 		
+	def write(self, truth_table):
+		for i in range(len(truth_table)):
+			val = truth_table[i]
+			we  = 1<<17
+			dat = val<<16
+			addr = i
+			self.interface.write_n(self.reg_base, we + dat + addr,self.reg_size)
+			self.interface.write_n(self.reg_base, 0, self.reg_size)
+				
 	def get_fragment(self):
 		comb = []
 		sync = []
@@ -221,11 +262,12 @@ class Sum:
 		return comb
 		
 class Trigger:
-	def __init__(self,address, trig_width, dat_width, ports):
+	def __init__(self,address, trig_width, dat_width, ports, interface = None):
 		self.address = address
 		self.trig_width = trig_width
 		self.dat_width = dat_width
 		self.ports = ports
+		self.interface = interface
 		self.sum = Sum(len(self.ports))
 		
 		self.in_trig = Signal(BV(self.trig_width))
@@ -255,6 +297,11 @@ class Trigger:
 		for port in self.ports:
 			port.reg_base = self.bank.get_base(port.reg_name)
 		self.sum.reg_base = self.bank.get_base(self.sum.reg_name)
+		
+		# Update interface
+		for port in self.ports:
+			port.interface = self.interface
+		self.sum.interface = self.interface
 		
 	def get_fragment(self):
 		comb = []

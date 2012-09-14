@@ -22,34 +22,25 @@ dat_width = 16
 # Record Size
 record_size = 1024
 
+csr = Uart2Spi(1,115200)
+
 # Csr Addr
 MIGIO0_ADDR  = 0x0000
-TRIGGER_ADDR  = 0x0200
-RECORDER_ADDR = 0x0400
 
 # MigScope Configuration
 # migIo
-migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO")
-
-# Trigger
-term0 = trigger.Term(trig_width)
-trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0])
-
-# Recorder
-recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size)
+migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO", csr)
 
 #==============================================================================
 #                  T E S T  M I G I O 
 #==============================================================================
 
-csr = Uart2Spi(1,115200)
-
 print("1) Write Led Reg")
 for i in range(10):
-	csr.write(MIGIO0_ADDR + 0,0xA5)
+	migIo0.write(0xA5)
 	time.sleep(0.1)
-	csr.write(MIGIO0_ADDR + 0,0x5A)
+	migIo0.write(0x5A)
 	time.sleep(0.1)
 	
 print("2) Read Switch Reg")
-print(csr.read(MIGIO0_ADDR + 1))
+print(migIo0.read())
