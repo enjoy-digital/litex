@@ -89,7 +89,7 @@ def get():
 	recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size)
 	
 	# Spi2Csr
-	spi2csr0 = spi2Csr.Spi2Csr(14,8)
+	spi2csr0 = spi2Csr.Spi2Csr(16,8)
 	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
@@ -109,7 +109,7 @@ def get():
 	
 	# Led
 	led0 = Signal(BV(8))
-	comb += [led0.eq(migIo0.o[:8])]
+	#comb += [led0.eq(migIo0.o[:8])]
 	
 	#Switch
 	sw0 = Signal(BV(8))
@@ -124,13 +124,13 @@ def get():
 		trigger0.in_trig.eq(sig_gen),
 		trigger0.in_dat.eq(sig_gen)
 	]
-	#comb += [led0[7].eq(trigger0.sum.i)]
-	#comb += [led0[6].eq(trigger0.sum.o)]
+	comb += [led0[7].eq(trigger0.sum.i)]
+	comb += [led0[6].eq(trigger0.sum.o)]
 	
-	#comb += [led0[3].eq(term3.o)]
-	#comb += [led0[2].eq(term2.o)]
-	#comb += [led0[1].eq(term1.o)]
-	#comb += [led0[0].eq(term0.o)]
+	comb += [led0[3].eq(term3.o)]
+	comb += [led0[2].eq(term2.o)]
+	comb += [led0[1].eq(term1.o)]
+	comb += [led0[0].eq(term0.o)]
 	
 	# Trigger --> Recorder	
 	comb += [

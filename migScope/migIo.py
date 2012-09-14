@@ -25,8 +25,7 @@ class MigIo:
 			self.interface.write_n(self.address, data, self.width)
 			
 	def read(self):
-		r = 0
-			r = self.interface.read_n(self.address + self.words, self.width)
+		r = self.interface.read_n(self.address + self.words, self.width)
 		return r
 				
 	def get_fragment(self):

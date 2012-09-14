@@ -44,5 +44,8 @@ void loop()
      data = SF.rd(addrMsb<<8|addrLsb);
      Serial.print(data);
    }
+   else {
+     Serial.flush();
+   }
  }
 }
