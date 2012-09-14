@@ -154,7 +154,11 @@ class Vcd:
 		r += self.p_dumpvars()
 		r += self.p_valuechange()
 		return r
-	
+		
+	def write(self, filename):
+		f = open(filename, "w")
+		f.write(str(self))
+		f.close()
 
 def main():
 	myvcd = Vcd()

@@ -79,11 +79,8 @@ def get():
 	
 	# Trigger
 	term0 = trigger.Term(trig_width)
-	term1 = trigger.Term(trig_width)
-	term2 = trigger.Term(trig_width)
-	term3 = trigger.Term(trig_width)
 	
-	trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0, term1, term2, term3])
+	trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0])
 	
 	# Recorder
 	recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size)
@@ -103,34 +100,24 @@ def get():
 	
 	# Signal Generator
 	sig_gen = Signal(BV(trig_width))
-	#sync += [
-	#	sig_gen.eq(sig_gen+1)
-	#]
+	sync += [
+		sig_gen.eq(sig_gen+1)
+	]
+	#comb += [sig_gen.eq(migIo0.o)]
 	
 	# Led
 	led0 = Signal(BV(8))
-	#comb += [led0.eq(migIo0.o[:8])]
+	comb += [led0.eq(migIo0.o[:8])]
 	
 	#Switch
 	sw0 = Signal(BV(8))
 	comb += [migIo0.i.eq(sw0)]
-	
-	sync += [
-		sig_gen.eq(migIo0.o)
-	]
 	
 	# Dat / Trig Bus
 	comb += [
 		trigger0.in_trig.eq(sig_gen),
 		trigger0.in_dat.eq(sig_gen)
 	]
-	comb += [led0[7].eq(trigger0.sum.i)]
-	comb += [led0[6].eq(trigger0.sum.o)]
-	
-	comb += [led0[3].eq(term3.o)]
-	comb += [led0[2].eq(term2.o)]
-	comb += [led0[1].eq(term1.o)]
-	comb += [led0[0].eq(term0.o)]
 	
 	# Trigger --> Recorder	
 	comb += [

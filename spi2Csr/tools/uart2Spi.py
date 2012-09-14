@@ -8,9 +8,10 @@ def write_b(uart, data):
 	uart.write(pack('B',data))
 
 class Uart2Spi:
-	def __init__(self, port, baudrate):
+	def __init__(self, port, baudrate, debug = False):
 		self.port = port
 		self.baudrate = baudrate
+		self.debug = debug
 		self.uart = serial.Serial(port, baudrate, timeout=0.01)
 	
 	def read(self, addr):
@@ -39,7 +40,8 @@ class Uart2Spi:
 		write_b(self.uart, (addr>>8)&0xFF)
 		write_b(self.uart, (addr&0xFF))
 		write_b(self.uart, data)
-		print("WR %02X @ %04X" %(data, addr))
+		if self.debug:
+			print("WR %02X @ %04X" %(data, addr))
 		
 	def write_n(self, addr, data, n, endianess = "LE"):
 		words = int(2**bits_for(n-1)/8)
@@ -48,7 +50,8 @@ class Uart2Spi:
 				self.write(addr+i, (data>>(8*i)) & 0xFF)
 			elif endianess == "LE":
 				self.write(addr+words-1-i, (data>>(8*i)) & 0xFF)
-		print("WR %08X @ %04X" %(data, addr))
+		if self.debug:
+			print("WR %08X @ %04X" %(data, addr))
 
 def main():
 	csr = Uart2Spi(1,115200)

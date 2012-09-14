@@ -16,8 +16,12 @@ Simulation:
 Example Design:
 -de0_nano        :   Generate Signals in FPGA and probe them with migScope : [Wip]
                      Toolchain [Ok]
--de1             :   Generate Signals in FPGA and probe them with migScope : [Wip]              
+-de1             :   Generate Signals in FPGA and probe them with migScope : [Wip]
                      Toolchain [Ok]
+                     - test_MigIo : Led & Switch Test controlled by Python [Ok]
+                     - test_MigLa : Logic Analyzer controlled by Python [Wip]
+                                    (Still some glitches in received Data, let's use
+                                     migScope to debug itself :))
 
 [> Contact
 E-mail: florent@enjoy-digital.fr

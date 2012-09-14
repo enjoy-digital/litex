@@ -10,6 +10,7 @@ sys.path.append("../../../")
 
 from migScope import trigger, recorder, migIo
 from migScope.tools.truthtable import *
+from migScope.tools.vcd import *
 import spi2Csr
 from spi2Csr.tools.uart2Spi import *
 
@@ -36,10 +37,7 @@ migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO",csr)
 
 # Trigger
 term0 = trigger.Term(trig_width)
-term1 = trigger.Term(trig_width)
-term2 = trigger.Term(trig_width)
-term3 = trigger.Term(trig_width)
-trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0, term1, term2, term3], csr)
+trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0], csr)
 
 # Recorder
 recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size, csr)
@@ -47,23 +45,26 @@ recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size, csr)
 #==============================================================================
 #                  T E S T  M I G L A 
 #==============================================================================
+term0.write(0x005A)
 
-term0.write(0x5A)
-term1.write(0x5A)
-term2.write(0x5A)
-term3.write(0x5A)
-sum_tt = gen_truth_table("term0 & term1 & term2 & term3")
-print(sum_tt)
+sum_tt = gen_truth_table("term0")
 trigger0.sum.write(sum_tt)
-
-migIo0.write(0x5A)
 
 recorder0.reset()
 recorder0.size(256)
 recorder0.offset(0)
 recorder0.arm()
-
+print("-Recorder [Armed]")
+print("-Waiting Trigger...", end = ' ')
 while(not recorder0.is_done()):
-	print(".")
-	time.sleep(1)
+	time.sleep(0.1)
+print("[Done]")
 
+print("-Receiving Data...", end = ' ')
+sys.stdout.flush()
+dat_vcd = recorder0.read(256)
+print("[Done]")
+
+myvcd = Vcd()
+myvcd.add(Var("wire", 32, "trig_dat", dat_vcd))
+myvcd.write("test_MigLa.vcd")

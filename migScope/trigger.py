@@ -240,7 +240,7 @@ class Sum:
 			dat = val<<16
 			addr = i
 			self.interface.write_n(self.reg_base, we + dat + addr,self.reg_size)
-			self.interface.write_n(self.reg_base, 0, self.reg_size)
+			self.interface.write_n(self.reg_base, dat + addr, self.reg_size)
 				
 	def get_fragment(self):
 		comb = []

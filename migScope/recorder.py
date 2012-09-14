@@ -159,14 +159,31 @@ class Recorder:
 		return self.interface.read(self.address + 0x02) == 1
 		
 	def size(self, dat):
+		self.size = dat
 		self.interface.write_n(self.address + 0x03, dat, 16)
 		
 	def offset(self, dat):
 		self.interface.write_n(self.address + 0x05, dat, 16)
-							
+		
+	def read(self, size):
+		r = []
+		for i in range(size):
+			self.interface.write(self.address+7, 1)
+			self.interface.write(self.address+7, 0)
+			r.append(self.interface.read_n(self.address+8,self.width))
+		return r
+	
 	def get_fragment(self):
 		comb = []
 		sync = []
+		
+		_get_d = Signal()
+		_get_rising = Signal()
+		
+		sync += [
+			_get_d.eq(self._get.field.r),
+			_get_rising.eq(self._get.field.r & ~_get_d)
+		]
 
 		#Bank <--> Storage / Sequencer
 		comb += [
@@ -176,7 +193,7 @@ class Recorder:
 			self.sequencer.ctl_size.eq(self._size.field.r),
 			self.sequencer.ctl_arm.eq(self._arm.field.r),
 			self._done.field.w.eq(self.sequencer.ctl_done),
-			self.storage.get.eq(self._get.field.r),
+			self.storage.get.eq(_get_rising),
 			self._get_dat.field.w.eq(self.storage.get_dat)
 			]
 		
