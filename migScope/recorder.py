@@ -44,26 +44,36 @@ class Storage:
 			If(self.rst,
 				self._put_cnt.eq(0),
 				self._put_ptr.eq(0),
-				self._get_cnt.eq(0),
-				self._get_ptr.eq(0),
 				self.run.eq(0)
 			).Elif(self.start & ~self.run,
 				self._put_cnt.eq(0),
-				self._get_cnt.eq(0),
-				self._get_ptr.eq(self._put_ptr-self.offset),
-				self.run.eq(1)
+				self.run.eq(1),
+				If(self.put,
+					self._put_cnt.eq(self._put_cnt+1),
+					self._put_ptr.eq(self._put_ptr+1)
+				)
 			).Elif(self.done,
 				self.run.eq(0)
 			).Elif(self.put & ~self.done,
 				self._put_cnt.eq(self._put_cnt+1),
 				self._put_ptr.eq(self._put_ptr+1)
+			),
+			
+			
+			If(self.rst,
+				self._get_cnt.eq(0),
+				self._get_ptr.eq(0),
+			).Elif(self.start & ~self.run,
+				self._get_cnt.eq(0),
+				self._get_ptr.eq(self._put_ptr-self.offset-1),
 			).Elif(self.get,
 				self._get_cnt.eq(self._get_cnt+1),
 				self._get_ptr.eq(self._get_ptr+1)
 			)
+			
 			]
 		comb += [
-			If((self._put_cnt == size_minus_offset-1) & self.run,
+			If((self._put_cnt == size_minus_offset-2) & self.run,
 				self.done.eq(1)
 			).Else(
 				self.done.eq(0)
@@ -208,7 +218,7 @@ class Recorder:
 			self.storage.put_dat.eq(self.trig_dat)
 			
 			]
-
+		
 		return self.bank.get_fragment()+\
 			self.storage.get_fragment()+self.sequencer.get_fragment()+\
 			Fragment(comb=comb, sync=sync)
