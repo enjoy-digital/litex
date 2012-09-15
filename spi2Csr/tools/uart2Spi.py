@@ -12,17 +12,16 @@ class Uart2Spi:
 		self.port = port
 		self.baudrate = baudrate
 		self.debug = debug
-		self.uart = serial.Serial(port, baudrate, timeout=0.01)
+		self.uart = serial.Serial(port, baudrate, timeout=0.25)
 	
 	def read(self, addr):
-		while True:
-			write_b(self.uart, 0x02)
-			write_b(self.uart, (addr>>8)&0xFF)
-			write_b(self.uart, (addr&0xFF))
-			write_b(self.uart, 0x00)
-			read = self.uart.read()
-			if len(read) == 1:
-				break
+		write_b(self.uart, 0x02)
+		write_b(self.uart, (addr>>8)&0xFF)
+		write_b(self.uart, (addr&0xFF))
+		write_b(self.uart, 0x00)
+		read = self.uart.read()
+		if self.debug:
+			print("RD @ %04X" %addr)
 		return int(read[0])
 	
 	def read_n(self, addr, n, endianess = "LE"):
@@ -33,7 +32,10 @@ class Uart2Spi:
 				r += self.read(addr+i)<<(8*i)
 			elif endianess == "LE":
 				r += self.read(addr+words-1-i)<<(8*i)
+		if self.debug:
+			print("RD @ %04X" %addr)
 		return r
+		
 	
 	def write(self, addr, data):
 		write_b(self.uart, 0x01)
