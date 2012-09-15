@@ -22,7 +22,7 @@ trig_width = 16
 dat_width = 16
 
 # Record Size
-record_size = 1024
+record_size = 4096
 
 # Csr Addr
 MIGIO0_ADDR   = 0x0000
@@ -45,13 +45,15 @@ recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size, csr)
 #==============================================================================
 #                  T E S T  M I G L A 
 #==============================================================================
-term0.write(0x005A)
+term0.write(0x0000)
 
 sum_tt = gen_truth_table("term0")
 trigger0.sum.write(sum_tt)
 
+csr.write(0x0000,0)
+
 recorder0.reset()
-recorder0.size(256)
+recorder0.size(1024)
 recorder0.offset(0)
 recorder0.arm()
 print("-Recorder [Armed]")
@@ -62,7 +64,7 @@ print("[Done]")
 
 print("-Receiving Data...", end = ' ')
 sys.stdout.flush()
-dat_vcd = recorder0.read(256)
+dat_vcd = recorder0.read(1024)
 print("[Done]")
 
 myvcd = Vcd()

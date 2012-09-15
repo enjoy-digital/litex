@@ -62,7 +62,7 @@ trig_width = 16
 dat_width = 16
 
 # Record Size
-record_size = 1024
+record_size = 4096
 
 # Csr Addr
 MIGIO_ADDR  = 0x0000
@@ -98,11 +98,55 @@ def get():
 	comb = []
 	sync = []
 	
+	#
 	# Signal Generator
-	sig_gen = Signal(BV(trig_width))
+	#
+	
+	# Counter
+	cnt_gen = Signal(BV(8))
 	sync += [
-		sig_gen.eq(sig_gen+1)
+		cnt_gen.eq(cnt_gen+1)
 	]
+	
+	# Square
+	square_gen = Signal(BV(8))
+	sync += [
+		If(cnt_gen[7],
+			square_gen.eq(255)
+		).Else(
+			square_gen.eq(0)
+		)
+	]
+	
+	
+	# Signal Selection
+	sig_gen = Signal(BV(8))
+	comb += [
+		If(migIo0.o == 0,
+			sig_gen.eq(cnt_gen)
+		).Elif(migIo0.o == 1,
+			sig_gen.eq(square_gen)
+		).Else(
+			sig_gen.eq(0)
+		)
+	]
+	
+	ramp_gen = Signal(BV(8))
+	sync += [
+		ramp_gen.eq(ramp_gen+1)
+	]
+	
+	square_gen = Signal(BV(8))
+	sync += [
+		
+		ramp_gen.eq(ramp_gen+1)
+	]
+	
+	
+	
+	
+	
+	
 	#comb += [sig_gen.eq(migIo0.o)]
 	
 	# Led
