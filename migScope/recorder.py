@@ -19,13 +19,12 @@ class Storage:
 		#Write Path
 		self.put = Signal()
 		self.put_dat = Signal(BV(self.width))
-		self._put_cnt = Signal(BV(self.depth_width))
 		self._put_ptr = Signal(BV(self.depth_width))
+		self._put_ptr_stop = Signal(BV(self.depth_width))
 		self._put_port = MemoryPort(adr=self._put_ptr, we=self.put, dat_w=self.put_dat)
 		#Read Path
 		self.get = Signal()
 		self.get_dat = Signal(BV(self.width))
-		self._get_cnt = Signal(BV(self.depth_width))
 		self._get_ptr = Signal(BV(self.depth_width))
 		self._get_port = MemoryPort(adr=self._get_ptr, re=self.get, dat_r=self.get_dat)
 		#Others
@@ -42,41 +41,31 @@ class Storage:
 		#Control
 		sync += [
 			If(self.rst,
-				self._put_cnt.eq(0),
-				self._put_ptr.eq(0),
-				self.run.eq(0)
+				self.run.eq(0),
+				self._put_ptr.eq(0)
 			).Elif(self.start & ~self.run,
-				self._put_cnt.eq(0),
 				self.run.eq(1),
-				If(self.put,
-					self._put_cnt.eq(self._put_cnt+1),
-					self._put_ptr.eq(self._put_ptr+1)
-				)
+				self._put_ptr_stop.eq(self._put_ptr + self.size - self.offset)
 			).Elif(self.done,
 				self.run.eq(0)
-			).Elif(self.put & ~self.done,
-				self._put_cnt.eq(self._put_cnt+1),
+			),
+			
+			If(self.put & ~self.done,
 				self._put_ptr.eq(self._put_ptr+1)
 			),
 			
+			If(self.rst,
+				self.done.eq(0)
+			).Elif((self._put_ptr == self._put_ptr_stop) & self.run,
+				self.done.eq(1)
+			),
 			
 			If(self.rst,
-				self._get_cnt.eq(0),
-				self._get_ptr.eq(0),
+				self._get_ptr.eq(0)
 			).Elif(self.start & ~self.run,
-				self._get_cnt.eq(0),
-				self._get_ptr.eq(self._put_ptr-self.offset-1),
+				self._get_ptr.eq(self._put_ptr-self.offset-1)
 			).Elif(self.get,
-				self._get_cnt.eq(self._get_cnt+1),
 				self._get_ptr.eq(self._get_ptr+1)
-			)
-			
-			]
-		comb += [
-			If((self._put_cnt == size_minus_offset-2) & self.run,
-				self.done.eq(1)
-			).Else(
-				self.done.eq(0)
 			)
 			]
 		return Fragment(comb=comb, sync=sync, memories=memories)
@@ -164,6 +153,7 @@ class Recorder:
 	
 	def arm(self):
 		self.interface.write(self.address + 0x01, 1)
+		self.interface.write(self.address + 0x01, 0)
 	
 	def is_done(self):
 		return self.interface.read(self.address + 0x02) == 1
