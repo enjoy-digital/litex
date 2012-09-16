@@ -22,34 +22,48 @@ dat_width = 16
 # Record Size
 record_size = 1024
 
+csr = Uart2Spi(1,115200)
+
 # Csr Addr
 MIGIO0_ADDR  = 0x0000
-TRIGGER_ADDR  = 0x0200
-RECORDER_ADDR = 0x0400
 
 # MigScope Configuration
 # migIo
-migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO")
+migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO", csr)
 
-# Trigger
-term0 = trigger.Term(trig_width)
-trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0])
+def led_anim0():
+	for i in range(10):
+		migIo0.write(0xA5)
+		time.sleep(0.1)
+		migIo0.write(0x5A)
+		time.sleep(0.1)
 
-# Recorder
-recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size)
+def led_anim1():
+	#Led <<
+	for j in range(4):
+		ledData = 1
+		for i in range(8):
+			migIo0.write(ledData)
+			time.sleep(i*i*0.0020)
+			ledData = (ledData<<1)
+		#Led >>
+		ledData = 128
+		for i in range(8): 
+			migIo0.write(ledData)
+			time.sleep(i*i*0.0020)
+			ledData = (ledData>>1)
 
 #==============================================================================
 #                  T E S T  M I G I O 
 #==============================================================================
 
-csr = Uart2Spi(1,115200)
+print("- Small Led Animation...")
+led_anim0()
+time.sleep(1)
+led_anim1()
+time.sleep(1)
 
-print("1) Write Led Reg")
-for i in range(10):
-	csr.write(MIGIO0_ADDR + 0,0xA5)
-	time.sleep(0.1)
-	csr.write(MIGIO0_ADDR + 0,0x5A)
-	time.sleep(0.1)
-	
-print("2) Read Switch Reg")
-print(csr.read(MIGIO0_ADDR + 1))
+print("- Read Switch: ",end=' ')
+print(migIo0.read())
+
+

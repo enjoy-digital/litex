@@ -48,6 +48,8 @@ import spi2Csr
 from timings import *
 from constraints import Constraints
 
+from math import sin
+
 #==============================================================================
 #	P A R A M E T E R S
 #==============================================================================
@@ -118,6 +120,13 @@ def get():
 		)
 	]
 	
+	sinus = [int(128*sin((2*3.1415)/256*(x+1)))+128 for x in range(256)]
+	print(sinus)
+	sinus_re = Signal()
+	sinus_gen = Signal(BV(8))
+	comb +=[sinus_re.eq(1)]
+	sinus_port = MemoryPort(adr=cnt_gen, re=sinus_re, dat_r=sinus_gen)
+	sinus_mem = Memory(8, 256, sinus_port, init = sinus)
 	
 	# Signal Selection
 	sig_gen = Signal(BV(8))
@@ -126,28 +135,12 @@ def get():
 			sig_gen.eq(cnt_gen)
 		).Elif(migIo0.o == 1,
 			sig_gen.eq(square_gen)
+		).Elif(migIo0.o == 2,
+			sig_gen.eq(sinus_gen)
 		).Else(
 			sig_gen.eq(0)
 		)
 	]
-	
-	ramp_gen = Signal(BV(8))
-	sync += [
-		ramp_gen.eq(ramp_gen+1)
-	]
-	
-	square_gen = Signal(BV(8))
-	sync += [
-		
-		ramp_gen.eq(ramp_gen+1)
-	]
-	
-	
-	
-	
-	
-	
-	#comb += [sig_gen.eq(migIo0.o)]
 	
 	# Led
 	led0 = Signal(BV(8))
@@ -178,7 +171,7 @@ def get():
 		in_rst.eq(~in_rst_n)
 	]
 	frag = autofragment.from_local()
-	frag += Fragment(sync=sync,comb=comb)
+	frag += Fragment(sync=sync,comb=comb,memories=[sinus_mem])
 	cst = Constraints(in_clk, in_rst_n, spi2csr0, led0, sw0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),

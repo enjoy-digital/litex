@@ -1,4 +1,3 @@
-# Synopsys, Inc. constraint file
 #
 # Clocks
 #

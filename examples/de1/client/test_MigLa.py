@@ -45,28 +45,47 @@ recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size, csr)
 #==============================================================================
 #                  T E S T  M I G L A 
 #==============================================================================
-term0.write(0x0000)
-
-sum_tt = gen_truth_table("term0")
-trigger0.sum.write(sum_tt)
-
-csr.write(0x0000,0)
-
-recorder0.reset()
+dat_vcd = []
 recorder0.size(1024)
-recorder0.offset(0)
-recorder0.arm()
-print("-Recorder [Armed]")
-print("-Waiting Trigger...", end = ' ')
-while(not recorder0.is_done()):
-	time.sleep(0.1)
-print("[Done]")
 
-print("-Receiving Data...", end = ' ')
-sys.stdout.flush()
-dat_vcd = recorder0.read(1024)
-print("[Done]")
+def capture():
+	global trigger0
+	global recorder0
+	global dat_vcd
+	sum_tt = gen_truth_table("term0")
+	trigger0.sum.write(sum_tt)
+	recorder0.reset()
+	recorder0.offset(0)
+	recorder0.arm()
+	print("-Recorder [Armed]")
+	print("-Waiting Trigger...", end = ' ')
+	while(not recorder0.is_done()):
+		time.sleep(0.1)
+	print("[Done]")
+	
+	print("-Receiving Data...", end = ' ')
+	sys.stdout.flush()
+	dat_vcd += recorder0.read(1024)
+	print("[Done]")
+	
+print("Capturing Ramp..")
+print("----------------------")
+term0.write(0x0000)
+csr.write(0x0000, 0)
+capture()
+
+print("Capturing Square..")
+print("----------------------")
+term0.write(0x0000)
+csr.write(0x0000, 1)
+capture()
+
+print("Capturing Sinus..")
+print("----------------------")
+term0.write(0x0080)
+csr.write(0x0000, 2)
+capture()
 
 myvcd = Vcd()
-myvcd.add(Var("wire", 32, "trig_dat", dat_vcd))
+myvcd.add(Var("wire", 16, "trig_dat", dat_vcd))
 myvcd.write("test_MigLa.vcd")

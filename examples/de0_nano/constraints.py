@@ -49,9 +49,6 @@ class Constraints:
 set_global_assignment -name FAMILY "Cyclone IV E"
 set_global_assignment -name DEVICE EP4CE22F17C6
 set_global_assignment -name TOP_LEVEL_ENTITY "de0_nano"
-set_global_assignment -name DEVICE_FILTER_PACKAGE FPGA
-set_global_assignment -name DEVICE_FILTER_PIN_COUNT 256
-set_global_assignment -name DEVICE_FILTER_SPEED_GRADE 6
 set_global_assignment -name CYCLONEII_RESERVE_NCEO_AFTER_CONFIGURATION "USE AS REGULAR IO"
 set_global_assignment -name RESERVE_FLASH_NCE_AFTER_CONFIGURATION "USE AS REGULAR IO"
 set_global_assignment -name RESERVE_DATA0_AFTER_CONFIGURATION "USE AS REGULAR IO"

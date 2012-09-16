@@ -48,6 +48,8 @@ import spi2Csr
 from timings import *
 from constraints import Constraints
 
+from math import sin
+
 #==============================================================================
 #	P A R A M E T E R S
 #==============================================================================
@@ -62,7 +64,7 @@ trig_width = 16
 dat_width = 16
 
 # Record Size
-record_size = 1024
+record_size = 4096
 
 # Csr Addr
 MIGIO_ADDR  = 0x0000
@@ -97,16 +99,51 @@ def get():
 	comb = []
 	sync = []
 	
+	#
 	# Signal Generator
-	sig_gen = Signal(BV(trig_width))
+	#
+	
+	# Counter
+	cnt_gen = Signal(BV(8))
 	sync += [
-		sig_gen.eq(sig_gen+1)
+		cnt_gen.eq(cnt_gen+1)
+	]
+	
+	# Square
+	square_gen = Signal(BV(8))
+	sync += [
+		If(cnt_gen[7],
+			square_gen.eq(255)
+		).Else(
+			square_gen.eq(0)
+		)
+	]
+	
+	sinus = [int(128*sin((2*3.1415)/256*(x+1)))+128 for x in range(256)]
+	print(sinus)
+	sinus_re = Signal()
+	sinus_gen = Signal(BV(8))
+	comb +=[sinus_re.eq(1)]
+	sinus_port = MemoryPort(adr=cnt_gen, re=sinus_re, dat_r=sinus_gen)
+	sinus_mem = Memory(8, 256, sinus_port, init = sinus)
+	
+	# Signal Selection
+	sig_gen = Signal(BV(8))
+	comb += [
+		If(migIo0.o == 0,
+			sig_gen.eq(cnt_gen)
+		).Elif(migIo0.o == 1,
+			sig_gen.eq(square_gen)
+		).Elif(migIo0.o == 2,
+			sig_gen.eq(sinus_gen)
+		).Else(
+			sig_gen.eq(0)
+		)
 	]
 	
 	# Led
 	led0 = Signal(BV(8))
-	comb += [led0.eq(migIo0.o)]
-
+	comb += [led0.eq(migIo0.o[:8])]
 	
 	
 	# Dat / Trig Bus
@@ -130,11 +167,11 @@ def get():
 		in_rst.eq(~in_rst_n)
 	]
 	frag = autofragment.from_local()
-	frag += Fragment(sync=sync,comb=comb)
+	frag += Fragment(sync=sync,comb=comb,memories=[sinus_mem])
 	cst = Constraints(in_clk, in_rst_n, spi2csr0, led0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
-		name="de0_nano",
+		name="de1",
 		clk_signal = in_clk,
 		rst_signal = in_rst,
 		return_ns=True)
