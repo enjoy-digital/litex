@@ -14,14 +14,12 @@ Simulation:
 -tb_MigScope     :   Global Test with Csr     : [Ok]
 
 Example Design:
--de0_nano        :   Generate Signals in FPGA and probe them with migScope : [Wip]
+-de0_nano        :   Generate Signals in FPGA and probe them with migScope : [Ok]
                      Toolchain [Ok]
--de1             :   Generate Signals in FPGA and probe them with migScope : [Wip]
+-de1             :   Generate Signals in FPGA and probe them with migScope : [Ok]
                      Toolchain [Ok]
                      - test_MigIo : Led & Switch Test controlled by Python [Ok]
-                     - test_MigLa : Logic Analyzer controlled by Python [Wip]
-                                    (Still some glitches in received Data, let's use
-                                     migScope to debug itself :))
+                     - test_MigLa : Logic Analyzer controlled by Python [Ok]
 
 [> Contact
 E-mail: florent@enjoy-digital.fr
