@@ -1,5 +1,5 @@
 class Constraints:
-	def __init__(self, in_clk, in_rst_n, spi2csr0, led0, sw0):
+	def __init__(self, in_rst_n, cd_in, spi2csr0, led0, sw0):
 		self.constraints = []
 		def add(signal, pin, vec=-1, iostandard="3.3-V LVTTL", extra="", sch=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra,sch))
@@ -10,11 +10,11 @@ class Constraints:
 				add(signal, p, i, iostandard, extra)
 				i += 1
 		# sys_clk
-		add(in_clk,  "L1")	# CLOCK_50
+		add(cd_in.clk,  "L1")	# CLOCK_50
 		
 		# sys_rst
-		add(in_rst_n,  "R22")	# KEY[0]			
-				
+		add(in_rst_n,  "R22")	# KEY[0]
+		
 		# spi2csr0 
 		add(spi2csr0.spi_clk,  "F13")		#GPIO_1[9]
 		add(spi2csr0.spi_cs_n, "G15")		#GPIO_1[3]

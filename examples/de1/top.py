@@ -121,7 +121,6 @@ def get():
 	]
 	
 	sinus = [int(128*sin((2*3.1415)/256*(x+1)))+128 for x in range(256)]
-	print(sinus)
 	sinus_re = Signal()
 	sinus_gen = Signal(BV(8))
 	comb +=[sinus_re.eq(1)]
@@ -164,20 +163,21 @@ def get():
 	
 	
 	# HouseKeeping
-	in_clk = Signal()
+	cd_in = ClockDomain("in")
 	in_rst_n = Signal()
-	in_rst = Signal()
 	comb += [
-		in_rst.eq(~in_rst_n)
+		cd_in.rst.eq(~in_rst_n)
 	]
+
 	frag = autofragment.from_local()
 	frag += Fragment(sync=sync,comb=comb,memories=[sinus_mem])
-	cst = Constraints(in_clk, in_rst_n, spi2csr0, led0, sw0)
+	cst = Constraints(in_rst_n, cd_in, spi2csr0, led0, sw0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
 		name="de1",
-		clk_signal = in_clk,
-		rst_signal = in_rst,
+		clock_domains={
+			"sys": cd_in
+		},
 		return_ns=True)
 	src_qsf = cst.get_qsf(vns)
 	return (src_verilog, src_qsf)
