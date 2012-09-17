@@ -60,30 +60,41 @@ clk_period_ns	= clk_freq*ns
 n		= t2n(clk_period_ns)
 
 # Bus Width
-trig_width = 16
-dat_width = 16
+trig0_width = 16
+dat0_width = 16
+
+trig1_width = 32
+dat1_width = 32
 
 # Record Size
 record_size = 4096
 
 # Csr Addr
-MIGIO_ADDR  = 0x0000
-MIGLA_ADDR  = 0x0200
+MIGIO0_ADDR  = 0x0000
+MIGLA0_ADDR  = 0x0200
+MIGLA1_ADDR  = 0x0600
 
 #==============================================================================
 #       M I S C O P E    E X A M P L E
 #==============================================================================
 def get():
 
-	# migIo
-	migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO")
+	# migIo0
+	migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO")
 	
-	# migLa
-	term0 = trigger.Term(trig_width)
-	trigger0 = trigger.Trigger(trig_width, [term0])
-	recorder0 = recorder.Recorder(dat_width, record_size)
+	# migLa0
+	term0 = trigger.Term(trig0_width)
+	trigger0 = trigger.Trigger(trig0_width, [term0])
+	recorder0 = recorder.Recorder(dat0_width, record_size)
 	
-	migLa0 = migLa.MigLa(MIGLA_ADDR, trigger0, recorder0)
+	migLa0 = migLa.MigLa(MIGLA0_ADDR, trigger0, recorder0)
+	
+	# migLa1
+	term1 = trigger.Term(trig1_width)
+	trigger1 = trigger.Trigger(trig1_width, [term1])
+	recorder1 = recorder.Recorder(dat1_width, record_size)
+	
+	migLa1 = migLa.MigLa(MIGLA1_ADDR, trigger1, recorder1)
 	
 	# Spi2Csr
 	spi2csr0 = spi2Csr.Spi2Csr(16,8)
@@ -93,7 +104,10 @@ def get():
 			[
 				migIo0.bank.interface,
 				migLa0.trig.bank.interface,
-				migLa0.rec.bank.interface
+				migLa0.rec.bank.interface,
+				migLa1.trig.bank.interface,
+				migLa1.rec.bank.interface,
+				
 			])
 	comb = []
 	sync = []
@@ -152,6 +166,17 @@ def get():
 		migLa0.in_trig.eq(sig_gen),
 		migLa0.in_dat.eq(sig_gen)
 	]
+	
+	# MigLa1 input
+	comb += [
+		migLa1.in_trig[:8].eq(spi2csr0.csr.dat_w),
+		migLa1.in_trig[8:24].eq(spi2csr0.csr.adr),
+		migLa1.in_trig[24].eq(spi2csr0.csr.we),
+		migLa1.in_dat[:8].eq(spi2csr0.csr.dat_w),
+		migLa1.in_dat[8:24].eq(spi2csr0.csr.adr),
+		migLa1.in_dat[24].eq(spi2csr0.csr.we)
+	]
+	
 	
 	# HouseKeeping
 	cd_in = ClockDomain("in")

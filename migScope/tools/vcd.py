@@ -4,6 +4,19 @@ import datetime
 sys.path.append("../../")
 from migScope.tools.conv import *
 
+def get_bits(values, width, low, high =None):
+	r = []
+	for val in values:
+		t = dec2bin(val,width)[::-1]
+		if high == None:
+			t = t[low]
+		else:
+			t = t[low:high]
+		t = t[::1]
+		t = int(t,2)
+		r.append(t)
+	return r
+
 class Var:
 	def __init__(self,type , width , name, values=[], default="x"):
 		self.type = type

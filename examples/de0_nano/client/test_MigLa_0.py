@@ -31,10 +31,10 @@ MIGLA_ADDR   = 0x0200
 csr = Uart2Spi(1,115200,debug=False)
 
 # MigScope Configuration
-# migIo
+# migIo0
 migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO",csr)
 
-# Trigger
+# migIla0
 term0 = trigger.Term(trig_width)
 trigger0 = trigger.Trigger(trig_width, [term0])
 recorder0 = recorder.Recorder(dat_width, record_size)
@@ -87,4 +87,4 @@ capture(1024)
 
 myvcd = Vcd()
 myvcd.add(Var("wire", 16, "trig_dat", dat_vcd))
-myvcd.write("test_MigLa.vcd")
+myvcd.write("test_MigLa_0.vcd")
