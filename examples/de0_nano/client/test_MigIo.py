@@ -25,11 +25,11 @@ record_size = 1024
 csr = Uart2Spi(1,115200)
 
 # Csr Addr
-MIGIO0_ADDR  = 0x0000
+MIGIO_ADDR  = 0x0000
 
 # MigScope Configuration
 # migIo
-migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO", csr)
+migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO", csr)
 
 def led_anim0():
 	for i in range(10):

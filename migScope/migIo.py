@@ -5,6 +5,9 @@ from migen.bank.description import *
 
 
 class MigIo:
+	# 
+	# Definition
+	#
 	def __init__(self,address, width, mode = "IO", interface=None):
 		self.address = address
 		self.width = width
@@ -20,14 +23,7 @@ class MigIo:
 			self.oreg = description.RegisterField("o", self.width)
 			self.oreg.field.r.name_override = "ouptuts"
 		self.bank = csrgen.Bank([self.oreg, self.ireg], address=self.address)
-	
-	def write(self, data):
-			self.interface.write_n(self.address, data, self.width)
-			
-	def read(self):
-		r = self.interface.read_n(self.address + self.words, self.width)
-		return r
-				
+		
 	def get_fragment(self):
 		comb = []
 		if "I" in self.mode:
@@ -35,3 +31,12 @@ class MigIo:
 		if "O" in self.mode:
 			comb += [self.o.eq(self.oreg.field.r)]
 		return Fragment(comb=comb) + self.bank.get_fragment()
+	#
+	#Driver
+	#
+	def write(self, data):
+			self.interface.write_n(self.address, data, self.width)
+			
+	def read(self):
+		r = self.interface.read_n(self.address + self.words, self.width)
+		return r

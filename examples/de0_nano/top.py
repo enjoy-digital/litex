@@ -42,7 +42,7 @@ from migen.bank.description import *
 import sys
 sys.path.append("../../")
 
-from migScope import trigger, recorder, migIo
+from migScope import trigger, recorder, migIo, migLa
 import spi2Csr
 
 from timings import *
@@ -68,8 +68,7 @@ record_size = 4096
 
 # Csr Addr
 MIGIO_ADDR  = 0x0000
-TRIGGER_ADDR  = 0x0200
-RECORDER_ADDR = 0x0400
+MIGLA_ADDR  = 0x0200
 
 #==============================================================================
 #       M I S C O P E    E X A M P L E
@@ -79,13 +78,12 @@ def get():
 	# migIo
 	migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO")
 	
-	# Trigger
+	# migLa
 	term0 = trigger.Term(trig_width)
+	trigger0 = trigger.Trigger(trig_width, [term0])
+	recorder0 = recorder.Recorder(dat_width, record_size)
 	
-	trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0])
-	
-	# Recorder
-	recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size)
+	migLa0 = migLa.MigLa(MIGLA_ADDR, trigger0, recorder0)
 	
 	# Spi2Csr
 	spi2csr0 = spi2Csr.Spi2Csr(16,8)
@@ -94,8 +92,8 @@ def get():
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
 			[
 				migIo0.bank.interface,
-				trigger0.bank.interface,
-				recorder0.bank.interface
+				migLa0.trig.bank.interface,
+				migLa0.rec.bank.interface
 			])
 	comb = []
 	sync = []
@@ -146,18 +144,11 @@ def get():
 	comb += [led0.eq(migIo0.o[:8])]
 	
 	
-	# Dat / Trig Bus
+	# MigLa0 input
 	comb += [
-		trigger0.in_trig.eq(sig_gen),
-		trigger0.in_dat.eq(sig_gen)
+		migLa0.in_trig.eq(sig_gen),
+		migLa0.in_dat.eq(sig_gen)
 	]
-	
-	# Trigger --> Recorder	
-	comb += [
-		recorder0.trig_dat.eq(trigger0.dat),
-		recorder0.trig_hit.eq(trigger0.hit)
-	]
-	
 	
 	# HouseKeeping
 	cd_in = ClockDomain("in")

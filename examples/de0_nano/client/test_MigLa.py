@@ -8,7 +8,7 @@ from migen.bank.description import *
 import sys
 sys.path.append("../../../")
 
-from migScope import trigger, recorder, migIo
+from migScope import trigger, recorder, migIo, migLa
 from migScope.tools.truthtable import *
 from migScope.tools.vcd import *
 import spi2Csr
@@ -25,22 +25,21 @@ dat_width = 16
 record_size = 4096
 
 # Csr Addr
-MIGIO0_ADDR   = 0x0000
-TRIGGER_ADDR  = 0x0200
-RECORDER_ADDR = 0x0400
+MIGIO_ADDR   = 0x0000
+MIGLA_ADDR   = 0x0200
 
-csr = Uart2Spi(1,115200)
+csr = Uart2Spi(1,115200,debug=False)
 
 # MigScope Configuration
 # migIo
-migIo0 = migIo.MigIo(MIGIO0_ADDR, 8, "IO",csr)
+migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO",csr)
 
 # Trigger
 term0 = trigger.Term(trig_width)
-trigger0 = trigger.Trigger(TRIGGER_ADDR, trig_width, dat_width, [term0], csr)
+trigger0 = trigger.Trigger(trig_width, [term0])
+recorder0 = recorder.Recorder(dat_width, record_size)
 
-# Recorder
-recorder0 = recorder.Recorder(RECORDER_ADDR, dat_width, record_size, csr)
+migLa0 = migLa.MigLa(MIGLA_ADDR, trigger0, recorder0, csr)
 
 #==============================================================================
 #                  T E S T  M I G L A 
@@ -53,19 +52,19 @@ def capture():
 	global recorder0
 	global dat_vcd
 	sum_tt = gen_truth_table("term0")
-	trigger0.sum.write(sum_tt)
-	recorder0.reset()
-	recorder0.offset(0)
-	recorder0.arm()
+	migLa0.trig.sum.write(sum_tt)
+	migLa0.rec.reset()
+	migLa0.rec.offset(0)
+	migLa0.rec.arm()
 	print("-Recorder [Armed]")
 	print("-Waiting Trigger...", end = ' ')
-	while(not recorder0.is_done()):
+	while(not migLa0.rec.is_done()):
 		time.sleep(0.1)
 	print("[Done]")
 	
 	print("-Receiving Data...", end = ' ')
 	sys.stdout.flush()
-	dat_vcd += recorder0.read(1024)
+	dat_vcd += migLa0.rec.read(1024)
 	print("[Done]")
 	
 print("Capturing Ramp..")

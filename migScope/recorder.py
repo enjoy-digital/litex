@@ -5,6 +5,9 @@ from migen.bank.description import *
 from migen.corelogic.misc import optree
 
 class Storage:
+	# 
+	# Definition
+	#
 	def __init__(self, width, depth):
 		self.width = width
 		self.depth = depth
@@ -71,6 +74,9 @@ class Storage:
 		return Fragment(comb=comb, sync=sync, memories=memories)
 
 class Sequencer:
+	# 
+	# Definition
+	#
 	def __init__(self,depth):
 		self.depth = depth
 		self.depth_width = bits_for(self.depth)
@@ -116,7 +122,10 @@ class Sequencer:
 		return Fragment(comb=comb, sync=sync)
 
 class Recorder:
-	def __init__(self,address, width, depth, interface = None):
+	# 
+	# Definition
+	#
+	def __init__(self, width, depth, address = 0x0000, interface = None):
 		self.address = address
 		self.width = width
 		self.depth = depth
@@ -137,42 +146,23 @@ class Recorder:
 		self._get = RegisterField("get", reset=0)
 		self._get_dat = RegisterField("get_dat", self.width, reset=1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		
-		regs = [self._rst, self._arm, self._done,
+		self.regs = [self._rst, self._arm, self._done,
 			self._size, self._offset,
 			self._get, self._get_dat]
 			
-		self.bank = csrgen.Bank(regs,address=self.address)
+		self.bank = csrgen.Bank(self.regs,address=self.address)
 		
 		# Trigger Interface
 		self.trig_hit = Signal()
 		self.trig_dat = Signal(BV(self.width))
 	
-	def reset(self):
-		self.interface.write(self.address + 0x00, 1)
-		self.interface.write(self.address + 0x00, 0)
-	
-	def arm(self):
-		self.interface.write(self.address + 0x01, 1)
-		self.interface.write(self.address + 0x01, 0)
-	
-	def is_done(self):
-		return self.interface.read(self.address + 0x02) == 1
+	def set_address(self, address):
+		self.address = address
+		self.bank = csrgen.Bank(self.regs,address=self.address)
+			
+	def set_interface(self, interface):
+		self.interface = interface
 		
-	def size(self, dat):
-		self.size = dat
-		self.interface.write_n(self.address + 0x03, dat, 16)
-		
-	def offset(self, dat):
-		self.interface.write_n(self.address + 0x05, dat, 16)
-		
-	def read(self, size):
-		r = []
-		for i in range(size):
-			self.interface.write(self.address+7, 1)
-			self.interface.write(self.address+7, 0)
-			r.append(self.interface.read_n(self.address+8,self.width))
-		return r
-	
 	def get_fragment(self):
 		comb = []
 		sync = []
@@ -212,3 +202,32 @@ class Recorder:
 		return self.bank.get_fragment()+\
 			self.storage.get_fragment()+self.sequencer.get_fragment()+\
 			Fragment(comb=comb, sync=sync)
+	
+	#
+	#Driver
+	#
+	def reset(self):
+		self.interface.write(self.address + 0x00, 1)
+		self.interface.write(self.address + 0x00, 0)
+	
+	def arm(self):
+		self.interface.write(self.address + 0x01, 1)
+		self.interface.write(self.address + 0x01, 0)
+	
+	def is_done(self):
+		return self.interface.read(self.address + 0x02) == 1
+		
+	def size(self, dat):
+		self.size = dat
+		self.interface.write_n(self.address + 0x03, dat, 16)
+		
+	def offset(self, dat):
+		self.interface.write_n(self.address + 0x05, dat, 16)
+		
+	def read(self, size):
+		r = []
+		for i in range(size):
+			self.interface.write(self.address+7, 1)
+			self.interface.write(self.address+7, 0)
+			r.append(self.interface.read_n(self.address+8,self.width))
+		return r

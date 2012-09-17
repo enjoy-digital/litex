@@ -5,6 +5,9 @@ from migen.bank.description import *
 from migen.corelogic.misc import optree
 
 class Term:
+	# 
+	# Definition
+	#
 	def __init__(self, width, pipe=False):
 		self.width = width
 		self.pipe = pipe
@@ -18,10 +21,7 @@ class Term:
 		self.i = Signal(BV(self.width))
 		self.t = Signal(BV(self.width))
 		self.o = Signal()
-	
-	def write(self, dat):
-		self.interface.write_n(self.reg_base, dat ,self.width)
-	
+		
 	def get_fragment(self):
 		frag = [
 			self.o.eq(self.i==self.t)
@@ -35,8 +35,16 @@ class Term:
 		comb = []
 		comb += [self.t.eq(reg.field.r[0*self.width:1*self.width])]
 		return comb
+	#	
+	#Driver
+	#
+	def write(self, dat):
+		self.interface.write_n(self.reg_base, dat ,self.width)
 
 class RangeDetector:
+	# 
+	# Definition
+	#
 	def __init__(self, width, pipe=False):
 		self.width = width
 		self.pipe = pipe
@@ -52,12 +60,6 @@ class RangeDetector:
 		self.high = Signal(BV(self.width))
 		self.o = Signal()
 		
-	def write_low(self, dat):
-		self.interface.write_n(self.reg_base, dat ,self.width)
-	
-	def write_high(self, dat):
-		self.interface.write_n(self.reg_base + self.words, dat ,self.width)
-	
 	def get_fragment(self):
 		frag = [
 			self.o.eq((self.i >= self.low) & ((self.i <= self.high)))
@@ -72,8 +74,19 @@ class RangeDetector:
 		comb += [self.low.eq(reg.field.r[0*self.width:1*self.width])]
 		comb += [self.low.eq(reg.field.r[1*self.width:2*self.width])]
 		return comb
+	#
+	#Driver
+	#
+	def write_low(self, dat):
+		self.interface.write_n(self.reg_base, dat ,self.width)
+	
+	def write_high(self, dat):
+		self.interface.write_n(self.reg_base + self.words, dat ,self.width)
 
 class EdgeDetector:
+	# 
+	# Definition
+	#
 	def __init__(self, width, pipe=False, mode = "RFB"):
 		self.width = width
 		self.pipe = pipe
@@ -97,22 +110,6 @@ class EdgeDetector:
 			self.bo = Signal()
 		self.o = Signal()
 		
-	def write_r(self, dat):
-		self.interface.write_n(self.reg_base, dat ,self.width)
-	
-	def write_f(self, dat):
-		offset = 0
-		if "R" in self.mode:
-			offset += self.words
-		self.interface.write_n(self.reg_base + offset, dat ,self.width)
-		
-	def write_b(self, dat):
-		if "R" in self.mode:
-			offset += self.words
-		if "F" in self.mode:
-			offset += self.words
-		self.interface.write_n(self.reg_base + offset, dat ,self.width)
-	
 	def get_fragment(self):
 		comb = []
 		sync = []
@@ -148,7 +145,7 @@ class EdgeDetector:
 		comb +=  [self.o.eq(self.ro | self.fo | self.bo)]
 		
 		return Fragment(comb, sync)
-		
+	
 	def connect_to_reg(self, reg):
 		comb = []
 		i = 0
@@ -162,8 +159,30 @@ class EdgeDetector:
 			comb += [self.b_mask.eq(reg.field.r[i*self.width:(i+1)*self.width])]
 			i += 1
 		return comb
+		
+	#
+	#Driver
+	#
+	def write_r(self, dat):
+		self.interface.write_n(self.reg_base, dat ,self.width)
+	
+	def write_f(self, dat):
+		offset = 0
+		if "R" in self.mode:
+			offset += self.words
+		self.interface.write_n(self.reg_base + offset, dat ,self.width)
+		
+	def write_b(self, dat):
+		if "R" in self.mode:
+			offset += self.words
+		if "F" in self.mode:
+			offset += self.words
+		self.interface.write_n(self.reg_base + offset, dat ,self.width)
 
 class Timer:
+	# 
+	# Definition
+	#
 	def __init__(self, width):
 		self.width = width
 		self.interface = None
@@ -212,6 +231,9 @@ class Timer:
 		return Fragment(comb, sync)
 
 class Sum:
+	# 
+	# Definition
+	#
 	def __init__(self,width=4,pipe=False):
 		self.width = width
 		self.pipe = pipe
@@ -233,15 +255,6 @@ class Sum:
 		
 		self._mem = Memory(1, 2**self.width, self._lut_port, self._prog_port)
 		
-	def write(self, truth_table):
-		for i in range(len(truth_table)):
-			val = truth_table[i]
-			we  = 1<<17
-			dat = val<<16
-			addr = i
-			self.interface.write_n(self.reg_base, we + dat + addr,self.reg_size)
-			self.interface.write_n(self.reg_base, dat + addr, self.reg_size)
-				
 	def get_fragment(self):
 		comb = []
 		sync = []
@@ -260,21 +273,33 @@ class Sum:
 			self.prog.eq(reg.field.r[17])
 			]
 		return comb
+	
+	#
+	#Driver
+	#
+	def write(self, truth_table):
+		for i in range(len(truth_table)):
+			val = truth_table[i]
+			we  = 1<<17
+			dat = val<<16
+			addr = i
+			self.interface.write_n(self.reg_base, we + dat + addr,self.reg_size)
+			self.interface.write_n(self.reg_base, dat + addr, self.reg_size)
 		
 class Trigger:
-	def __init__(self,address, trig_width, dat_width, ports, interface = None):
+	# 
+	# Definition
+	#
+	def __init__(self, trig_width, ports, address = 0x0000, interface = None):
 		self.address = address
 		self.trig_width = trig_width
-		self.dat_width = dat_width
 		self.ports = ports
 		self.interface = interface
 		self.sum = Sum(len(self.ports))
 		
 		self.in_trig = Signal(BV(self.trig_width))
-		self.in_dat  = Signal(BV(self.dat_width))
 		
 		self.hit = Signal()
-		self.dat = Signal(BV(self.dat_width))
 		
 		# Update port reg_name
 		for i in range(len(self.ports)):
@@ -286,19 +311,28 @@ class Trigger:
 				access_bus=WRITE_ONLY, access_dev=READ_ONLY))
 		self.sum_reg = RegisterField(self.sum.reg_name, self.sum.reg_size, reset=0, access_bus=WRITE_ONLY, access_dev=READ_ONLY)
 		
-		regs = []
+		self.regs = []
 		objects = self.__dict__
 		for object in sorted(objects):
 			if "_reg" in object:
-				regs.append(objects[object])
-		self.bank = csrgen.Bank(regs,address=self.address)
+				self.regs.append(objects[object])
+		self.bank = csrgen.Bank(self.regs,address=self.address)
 		
 		# Update base addr
+		self.set_address(self.address)
+		
+		# Update interface
+		self.set_interface(self.interface)
+		
+	def set_address(self, address):
+		self.address = address
+		self.bank = csrgen.Bank(self.regs,address=self.address)
 		for port in self.ports:
 			port.reg_base = self.bank.get_base(port.reg_name)
 		self.sum.reg_base = self.bank.get_base(self.sum.reg_name)
 		
-		# Update interface
+	def set_interface(self, interface):
+		self.interface = interface
 		for port in self.ports:
 			port.interface = self.interface
 		self.sum.interface = self.interface
@@ -320,7 +354,6 @@ class Trigger:
 		frag += self.sum.get_fragment()
 		for port in self.ports:
 			frag += port.get_fragment()
-		comb+= [self.dat.eq(self.in_dat)]
 		
 		#Connect Registers
 		for port in self.ports:
