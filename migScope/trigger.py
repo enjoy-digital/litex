@@ -15,16 +15,17 @@ class Term:
 		
 		self.reg_name = "term_reg"
 		self.reg_base = 0
-		self.reg_size = 1*width
+		self.reg_size = 2*width
 		self.words = int(2**bits_for(width-1)/8)
 		
 		self.i = Signal(BV(self.width))
 		self.t = Signal(BV(self.width))
+		self.m = Signal(BV(self.width))
 		self.o = Signal()
 		
 	def get_fragment(self):
 		frag = [
-			self.o.eq(self.i==self.t)
+			self.o.eq((self.m & self.i) == self.t)
 			]
 		if self.pipe:
 			return Fragment(sync=frag)
@@ -34,13 +35,17 @@ class Term:
 	def connect_to_reg(self, reg):
 		comb = []
 		comb += [self.t.eq(reg.field.r[0*self.width:1*self.width])]
+		comb += [self.m.eq(reg.field.r[1*self.width:2*self.width])]
 		return comb
 	#	
 	#Driver
 	#
-	def write(self, dat):
-		self.interface.write_n(self.reg_base, dat ,self.width)
-
+	def write(self, dat, mask = None):
+		if mask == None:
+			mask = (2**self.width)-1
+		self.interface.write_n(self.reg_base + self.words, dat ,self.width)
+		self.interface.write_n(self.reg_base, mask ,self.width)
+		
 class RangeDetector:
 	# 
 	# Definition
@@ -163,21 +168,30 @@ class EdgeDetector:
 	#
 	#Driver
 	#
+	
+	def get_offset(self, type):
+		if type == "R":
+			r = 0
+			r = r+self.words if "F" in self.mode else r
+			r = r+self.words if "B" in self.mode else r
+			return r
+		elif type == "F":
+			r = 0
+			r = r+self.words if "B" in self.mode else r
+			return r
+		elif type == "B":
+			r = 0
+			return r
+		return 0
+			
 	def write_r(self, dat):
-		self.interface.write_n(self.reg_base, dat ,self.width)
+		self.interface.write_n(self.reg_base + self.get_offset("R"), dat ,self.width)
 	
 	def write_f(self, dat):
-		offset = 0
-		if "R" in self.mode:
-			offset += self.words
-		self.interface.write_n(self.reg_base + offset, dat ,self.width)
+		self.interface.write_n(self.reg_base + self.get_offset("F"), dat ,self.width)
 		
 	def write_b(self, dat):
-		if "R" in self.mode:
-			offset += self.words
-		if "F" in self.mode:
-			offset += self.words
-		self.interface.write_n(self.reg_base + offset, dat ,self.width)
+		self.interface.write_n(self.reg_base + self.get_offset("B"), dat ,self.width)
 
 class Timer:
 	# 

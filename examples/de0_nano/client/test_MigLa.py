@@ -47,7 +47,7 @@ migLa0 = migLa.MigLa(MIGLA_ADDR, trigger0, recorder0, csr)
 dat_vcd = []
 recorder0.size(1024)
 
-def capture():
+def capture(size):
 	global trigger0
 	global recorder0
 	global dat_vcd
@@ -64,26 +64,26 @@ def capture():
 	
 	print("-Receiving Data...", end = ' ')
 	sys.stdout.flush()
-	dat_vcd += migLa0.rec.read(1024)
+	dat_vcd += migLa0.rec.read(size)
 	print("[Done]")
 	
 print("Capturing Ramp..")
 print("----------------------")
-term0.write(0x0000)
+term0.write(0x0000,0xFFFF)
 csr.write(0x0000, 0)
-capture()
+capture(1024)
 
 print("Capturing Square..")
 print("----------------------")
-term0.write(0x0000)
+term0.write(0x0000,0xFFFF)
 csr.write(0x0000, 1)
-capture()
+capture(1024)
 
 print("Capturing Sinus..")
 print("----------------------")
-term0.write(0x0080)
+term0.write(0x0080,0xFFFF)
 csr.write(0x0000, 2)
-capture()
+capture(1024)
 
 myvcd = Vcd()
 myvcd.add(Var("wire", 16, "trig_dat", dat_vcd))
