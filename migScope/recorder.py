@@ -218,7 +218,6 @@ class Recorder:
 		return self.interface.read(self.address + 0x02) == 1
 		
 	def size(self, dat):
-		self.size = dat
 		self.interface.write_n(self.address + 0x03, dat, 16)
 		
 	def offset(self, dat):
