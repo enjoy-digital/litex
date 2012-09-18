@@ -1,3 +1,5 @@
+.. image:: Illustrations/migscope_logo.png
+
 Introduction
 ############
 
