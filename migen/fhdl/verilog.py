@@ -210,6 +210,8 @@ def _printinstances(f, ns, clock_domains):
 			elif isinstance(p, Instance.ClockPort):
 				name_inst = p.name_inst
 				name_design = ns.get_name(clock_domains[p.domain].clk)
+				if p.invert:
+					name_design = "~" + name_design
 			elif isinstance(p, Instance.ResetPort):
 				name_inst = p.name_inst
 				name_design = ns.get_name(clock_domains[p.domain].rst)

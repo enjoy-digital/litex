@@ -274,9 +274,10 @@ class Instance:
 			self.value = value
 	
 	class _CR:
-		def __init__(self, name_inst, domain="sys"):
+		def __init__(self, name_inst, domain="sys", invert=False):
 			self.name_inst = name_inst
 			self.domain = domain
+			self.invert = invert
 	class ClockPort(_CR):
 		pass
 	class ResetPort(_CR):
