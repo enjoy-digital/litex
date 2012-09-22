@@ -90,11 +90,15 @@ def list_inst_ios(i, ins, outs, inouts):
 		else:
 			return set()
 	else:
-		return set(item.signal for item in filter(lambda x:
+		subsets = [list_signals(item.expr) for item in filter(lambda x:
 			(ins and isinstance(x, Instance.Input))
 			or (outs and isinstance(x, Instance.Output))
 			or (inouts and isinstance(x, Instance.InOut)),
-			i.items))
+			i.items)]
+		if subsets:
+			return set.union(*subsets)
+		else:
+			return set()
 
 def list_mem_ios(m, ins, outs):
 	if isinstance(m, Fragment):

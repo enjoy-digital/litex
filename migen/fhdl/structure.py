@@ -253,14 +253,14 @@ class Instance:
 		self.items = items
 	
 	class _IO:
-		def __init__(self, name, signal_or_bv):
+		def __init__(self, name, expr=BV(1)):
 			self.name = name
-			if isinstance(signal_or_bv, Signal):
-				self.signal = signal_or_bv
-			elif isinstance(signal_or_bv, BV):
-				self.signal = Signal(signal_or_bv, name)
+			if isinstance(expr, BV):
+				self.expr = Signal(expr, name)
+			elif isinstance(expr, int):
+				self.expr = Constant(expr)
 			else:
-				raise TypeError
+				self.expr = expr
 	class Input(_IO):
 		pass	
 	class Output(_IO):

@@ -206,7 +206,7 @@ def _printinstances(f, ns, clock_domains):
 		for p in x.items:
 			if isinstance(p, Instance._IO):
 				name_inst = p.name
-				name_design = ns.get_name(p.signal)
+				name_design = _printexpr(ns, p.expr)
 			elif isinstance(p, Instance.ClockPort):
 				name_inst = p.name_inst
 				name_design = ns.get_name(clock_domains[p.domain].clk)
