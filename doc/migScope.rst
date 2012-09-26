@@ -7,7 +7,7 @@ MigScope is a small logic analyzer to be embedded in an FPGA.
 
 While free vendor toolchains are generally used by beginners or for prototyping ( situations where having a logic analyser in the design is generally very helpfull) free toolchains are always provided without the proprietary logic analyzer solution. . . :(
 
-Based on Migen, MigScope aims to provide a free and more portable / flexible alternative to vendor's solutions.
+Based on Migen, MigScope aims to provide a free and portable / flexible alternative to vendor's solutions.
 
 About Migen
 ***********
@@ -100,8 +100,8 @@ Read parameters are:
 
   - CSR Address
 
-Example Design
---------------
+Examples Design
+---------------
 
 de0_nano and de1 examples instanciate a MigIo Core.
 
@@ -112,4 +112,107 @@ The Host Code is in examples/deX/client/test_MigIo.py
 MigLa
 #####
 
-[To Be Done]
+Description
+-----------
+
+The MigLa is the Logic Analyser core, it provides N (configurable) Trigger bits and M (Configurable) Data bits:
+
+.. image:: Illustrations/migLa.png
+
+Each MigLa instance is composed of a Trigger and a Recorder controlled by the CSR Bus:
+
+.. image:: Illustrations/migLa_structure.png
+
+The Trigger is configured by the user to detect particular events on the N Trigger bits. Once detected, the hit signal rise.
+
+The Recorder is armed by the user and is waiting for the hit signal to rise to store the M Data bits bus.
+
+Trigger Description
+-------------------
+
+.. image:: Illustrations/Trigger_structure.png
+
+
+The Trigger is an assembly of customized modules:
+
+  - Term : Hit when Trigger bus = (Value* & Mask*)
+  - Range Detector : Hit when Range Min* < Trigger Bus < Range Max*
+  - Edge Detector  : Hit when :
+    - (Trigger Bus  & Rising Mask*) is Rising
+    - or (Trigger Bus  & Falling Mask*) is Falling
+    - or (Trigger Bus  & Both Mask*) is Both Rising or Falling
+    
+(* dynamically configurable by CSR Bus)
+
+Each module has a Hit Output that is connected to the Sum. 
+
+The Sum module is a LUT that is configured by the user and define the logical equation between the triggers elements.
+
+Recorder Description
+--------------------
+
+.. image:: Illustrations/Recorder_structure.png
+
+The Sequencer is armed by the user and generate a record window for the Storage module.
+
+The window offset and size can be dynamically configured (use of a circular buffer)
+
+Instanciation
+-------------
+
+::
+
+  term0 = trigger.Term(trig0_width)
+  trigger0 = trigger.Trigger(trig0_width, [term0])
+  recorder0 = recorder.Recorder(dat0_width, record_size)
+  
+  migLa0 = migLa.MigLa(MIGLA0_ADDR, trigger0, recorder0)
+
+This example above describes a MigLa instance with 1 trig element (Term term0)
+
+Term parameters are:
+
+  - Trigger Width
+
+Trigger parameters are:
+
+  - Trigger Width
+  - List if trig elements to use in trigger
+
+Recorder parameters are:
+
+  - Data Width
+  - Maximum size of Record
+
+MigLa parameters are:
+
+  - CSR address : core base Address
+  - Trigger object to use
+  - Recorder object to use
+
+Driver
+------
+
+To use drivers functions, an interface is defined::
+
+  csr = Uart2Spi(1,115200,debug=False)
+  
+  [...]
+  
+  migLa0 = migLa.MigLa(MIGLA_ADDR, trigger0, recorder0, csr)
+  
+MigLa drivers functions will now use our csr interface. Note that it's only useful to define the migLa interface in the Python code that will be executed on the Host, the code that will be translated in HDL don't need it
+
+Examples Design
+---------------
+
+de0_nano and de1 examples instanciate a MigLa Core.
+
+The HDL Code is in examples/deX/top.py
+
+The Host Code is in examples/deX/client/test_MigLa_0.py and test_MigLa_1.py
+
+Examples Design
+###############
+
+[To be done]
