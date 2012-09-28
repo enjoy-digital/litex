@@ -286,7 +286,7 @@ class Instance:
 	def get_io(self, name):
 		for item in self.items:
 			if isinstance(item, Instance._IO) and item.name == name:
-				return item.signal
+				return item.expr
 	
 	def __hash__(self):
 		return id(self)
