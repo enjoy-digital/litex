@@ -24,7 +24,7 @@ class Collector(Actor):
 		dummy = Signal(BV(self._dw))
 		wd = Signal(BV(self._dw))
 		we = Signal()
-		wp = MemoryPort(wa, dummy, wd, we)
+		wp = MemoryPort(wa, dummy, we, wd)
 		ra = Signal(BV(bits_for(self._depth-1)))
 		rd = Signal(BV(self._dw))
 		rp = MemoryPort(ra, rd)
