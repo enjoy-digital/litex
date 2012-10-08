@@ -6,7 +6,7 @@ from migen.bank.description import READ_ONLY, WRITE_ONLY
 ninputs = 32
 noutputs = 32
 
-oreg = description.RegisterField("o", noutputs)
+oreg = description.RegisterField("o", noutputs, atomic_write=True)
 ireg = description.RegisterField("i", ninputs, READ_ONLY, WRITE_ONLY)
 
 # input path

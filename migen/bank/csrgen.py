@@ -39,6 +39,11 @@ class Bank:
 				if len(bwra) > 1:
 					bwra.append(reg.re.eq(1))
 					bwcases.append(bwra)
+				# commit atomic writes
+				for field in reg.fields:
+					if isinstance(field, FieldAlias) and field.commit_list:
+						commit_instr = [hf.commit_to.eq(hf.storage) for hf in field.commit_list]
+						sync.append(If(sel & self.interface.we & self.interface.adr[:nbits] == i, *commit_instr))
 			else:
 				raise TypeError
 		if bwcases:
@@ -59,10 +64,7 @@ class Bank:
 					else:
 						brs.append(Constant(0, BV(field.size)))
 				if reg_readable:
-					if len(brs) > 1:
-						brcases.append([Constant(i, BV(nbits)), self.interface.dat_r.eq(Cat(*brs))])
-					else:
-						brcases.append([Constant(i, BV(nbits)), self.interface.dat_r.eq(brs[0])])
+					brcases.append([Constant(i, BV(nbits)), self.interface.dat_r.eq(Cat(*brs))])
 			else:
 				raise TypeError
 		if brcases:
