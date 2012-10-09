@@ -15,6 +15,7 @@ class PhaseInjector:
 		self._rden = Field("rden", 1, WRITE_ONLY, READ_ONLY)
 		self._command = RegisterFields("command",
 			[self._cs, self._we, self._cas, self._ras, self._wren, self._rden])
+		self._command_issue = RegisterRaw("command_issue")
 		
 		self._address = RegisterField("address", len(self.phase.address))
 		self._baddress = RegisterField("baddress", len(self.phase.bank))
@@ -23,13 +24,13 @@ class PhaseInjector:
 		self._rddata = RegisterField("rddata", len(self.phase.rddata), READ_ONLY, WRITE_ONLY)
 	
 	def get_registers(self):
-		return [self._command,
+		return [self._command, self._command_issue,
 			self._address, self._baddress,
 			self._wrdata, self._rddata]
 		
 	def get_fragment(self):
 		comb = [
-			If(self._command.re,
+			If(self._command_issue.re,
 				self.phase.cs_n.eq(~self._cs.r),
 				self.phase.we_n.eq(~self._we.r),
 				self.phase.cas_n.eq(~self._cas.r),
@@ -42,8 +43,8 @@ class PhaseInjector:
 			),
 			self.phase.address.eq(self._address.field.r),
 			self.phase.bank.eq(self._baddress.field.r),
-			self.phase.wrdata_en.eq(self._command.re & self._wren.r),
-			self.phase.rddata_en.eq(self._command.re & self._rden.r),
+			self.phase.wrdata_en.eq(self._command_issue.re & self._wren.r),
+			self.phase.rddata_en.eq(self._command_issue.re & self._rden.r),
 			self.phase.wrdata.eq(self._wrdata.field.r),
 			self.phase.wrdata_mask.eq(0)
 		]

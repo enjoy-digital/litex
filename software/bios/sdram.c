@@ -23,6 +23,18 @@ static void setaddr(int a)
 	CSR_DFII_AL_P1 = a & 0x00ff;
 }
 
+static void command_p0(int cmd)
+{
+	CSR_DFII_COMMAND_P0 = cmd;
+	CSR_DFII_COMMAND_ISSUE_P0 = 1;
+}
+
+static void command_p1(int cmd)
+{
+	CSR_DFII_COMMAND_P1 = cmd;
+	CSR_DFII_COMMAND_ISSUE_P1 = 1;
+}
+
 static void init_sequence(void)
 {
 	int i;
@@ -34,33 +46,33 @@ static void init_sequence(void)
 	
 	/* Precharge All */
 	setaddr(0x0400);
-	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	
 	/* Load Extended Mode Register */
 	CSR_DFII_BA_P0 = 1;
 	setaddr(0x0000);
-	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	CSR_DFII_BA_P0 = 0;
 	
 	/* Load Mode Register */
 	setaddr(0x0132); /* Reset DLL, CL=3, BL=4 */
-	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(200);
 	
 	/* Precharge All */
 	setaddr(0x0400);
-	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	
 	/* 2x Auto Refresh */
 	for(i=0;i<2;i++) {
 		setaddr(0);
-		CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_CS;
+		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_CS);
 		cdelay(4);
 	}
 	
 	/* Load Mode Register */
 	setaddr(0x0032); /* CL=3, BL=4 */
-	CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(200);
 }
 
@@ -84,7 +96,7 @@ void ddrrow(char *_row)
 	if(*_row == 0) {
 		setaddr(0x0000);
 		CSR_DFII_BA_P0 = 0;
-		CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS;
+		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 		cdelay(15);
 		printf("Precharged\n");
 	} else {
@@ -95,7 +107,7 @@ void ddrrow(char *_row)
 		}
 		setaddr(row);
 		CSR_DFII_BA_P0 = 0;
-		CSR_DFII_COMMAND_P0 = DFII_COMMAND_RAS|DFII_COMMAND_CS;
+		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
 		cdelay(15);
 		printf("Activated row %d\n", row);
 	}
@@ -119,7 +131,7 @@ void ddrrd(char *startaddr)
 	
 	setaddr(addr);
 	CSR_DFII_BA_P0 = 0;
-	CSR_DFII_COMMAND_P0 = DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA;
+	command_p0(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
 	
 	for(i=0;i<8;i++)
@@ -152,7 +164,7 @@ void ddrwr(char *startaddr)
 	
 	setaddr(addr);
 	CSR_DFII_BA_P1 = 0;
-	CSR_DFII_COMMAND_P1 = DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA;
+	command_p1(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
 }
 
 #define TEST_SIZE (4*1024*1024)
