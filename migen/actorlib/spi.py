@@ -10,9 +10,8 @@ class Collector(Actor):
 		self._depth = depth
 		self._dw = sum(len(s) for s in self.token("sink").flatten())
 		
-		# TODO: reg_wc should have atomic update
 		self._reg_wa = RegisterField("write_address", bits_for(self._depth-1), access_bus=READ_WRITE, access_dev=READ_WRITE)
-		self._reg_wc = RegisterField("write_count", bits_for(self._depth), access_bus=READ_WRITE, access_dev=READ_WRITE)
+		self._reg_wc = RegisterField("write_count", bits_for(self._depth), access_bus=READ_WRITE, access_dev=READ_WRITE, atomic_update=True)
 		self._reg_ra = RegisterField("read_address", bits_for(self._depth-1), access_bus=READ_WRITE, access_dev=READ_ONLY)
 		self._reg_rd = RegisterField("read_data", self._dw, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 	
