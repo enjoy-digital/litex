@@ -4,6 +4,81 @@ from migen.fhdl.structure import *
 from migen.bank.description import *
 from migen.flow.actor import *
 
+# layout is a list of tuples, either:
+# - (name, bv, [reset value], [alignment bits])
+# - (name, sublayout)
+
+def _convert_layout(layout):
+	r = []
+	for element in layout:
+		if isinstance(element[1], list):
+			r.append((element[0], _convert_layout(element[1])))
+		else:
+			r.append((element[0], element[1]))
+	return r
+
+def _create_registers_assign(layout, target, atomic, prefix=""):
+	registers = []
+	assigns = []
+	for element in layout:
+		if isinstance(element[1], list):
+			r_registers, r_assigns = _create_registers_assign(element[1],
+				atomic,
+				getattr(target, element[0]),
+				element[0] + "_")
+			registers += r_registers
+			assigns += r_assigns
+		else:
+			name = element[0]
+			bv = element[1]
+			if len(element) > 2:
+				reset = element[2]
+			else:
+				reset = 0
+			if len(element) > 3:
+				alignment = element[3]
+			else:
+				alignment = 0
+			reg = RegisterField(prefix + name, bv.width + alignment,
+				reset=reset, atomic_write=atomic)
+			registers.append(reg)
+			assigns.append(getattr(target, name).eq(reg.field.r[alignment:]))
+	return registers, assigns
+
+(MODE_EXTERNAL, MODE_SINGLE_SHOT, MODE_CONTINUOUS) = range(3)
+
+class SingleGenerator(Actor):
+	def __init__(self, layout, mode):
+		self._mode = mode
+		super().__init__(("source", Source, _convert_layout(layout)))
+		self._registers, self._assigns = _create_registers_assign(layout,
+			self.token("source"), self._mode != MODE_SINGLE_SHOT)
+		if mode == MODE_EXTERNAL:
+			self.trigger = Signal()
+		elif mode == MODE_SINGLE_SHOT:
+			shoot = RegisterRaw("shoot")
+			self._registers.insert(0, shoot)
+			self.trigger = shoot.re
+		elif mode == MODE_CONTINUOUS:
+			enable = RegisterField("enable")
+			self._registers.insert(0, enable)
+			self.trigger = enable.field.r
+		else:
+			raise ValueError
+	
+	def get_registers(self):
+		return self._registers
+	
+	def get_fragment(self):
+		stb = self.endpoints["source"].stb
+		ack = self.endpoints["source"].ack
+		comb = [
+			self.busy.eq(stb)
+		]
+		stmts = [stb.eq(self.trigger)] + self._assigns
+		sync = [If(ack | ~stb, *stmts)]
+		return Fragment(comb, sync)
+
 class Collector(Actor):
 	def __init__(self, layout, depth=1024):
 		super().__init__(("sink", Sink, layout))
