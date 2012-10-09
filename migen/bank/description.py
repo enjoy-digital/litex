@@ -28,13 +28,9 @@ class Field:
 				self.we = Signal()
 
 class RegisterFields:
-	def __init__(self, name, fields, re=None):
+	def __init__(self, name, fields):
 		self.name = name
 		self.fields = fields
-		if re is None:
-			self.re = Signal()
-		else:
-			self.re = re
 
 class RegisterField(RegisterFields):
 	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False):
@@ -111,7 +107,7 @@ def expand_description(description, busword):
 				else:
 					f.append(field)
 			if f:
-				d.append(RegisterFields(reg.name, f, reg.re))
+				d.append(RegisterFields(reg.name, f))
 		else:
 			raise TypeError
 	return d

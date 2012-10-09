@@ -29,7 +29,6 @@ class Bank:
 					self.interface.we & \
 					(self.interface.adr[:nbits] == Constant(i, BV(nbits)))))
 			elif isinstance(reg, RegisterFields):
-				sync.append(reg.re.eq(0))
 				bwra = [Constant(i, BV(nbits))]
 				offset = 0
 				for field in reg.fields:
@@ -37,7 +36,6 @@ class Bank:
 						bwra.append(field.storage.eq(self.interface.dat_w[offset:offset+field.size]))
 					offset += field.size
 				if len(bwra) > 1:
-					bwra.append(reg.re.eq(1))
 					bwcases.append(bwra)
 				# commit atomic writes
 				for field in reg.fields:
