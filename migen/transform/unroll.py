@@ -1,3 +1,5 @@
+from itertools import repeat
+
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
 
@@ -60,6 +62,7 @@ def _replace(node, rin, rout, mode=_UNDETERMINED):
 		raise TypeError
 
 def _list_step_dicts(d):
+	assert(d)
 	iterdict = dict((k, iter(v)) for k, v in d.items())
 	r = []
 	try:
@@ -78,11 +81,19 @@ def _variable_for(s, n):
 	return Signal(s.bv, name=name, variable=True)
 
 def unroll_sync(sync, inputs, outputs):
-	sd_in = _list_step_dicts(inputs)
-	sd_out = _list_step_dicts(outputs)
+	assert(inputs or outputs)
+	if inputs:
+		sd_in = _list_step_dicts(inputs)
+	else:
+		sd_in = repeat({})
+	if outputs:
+		sd_out = _list_step_dicts(outputs)
+		io_var_dict = sd_out[-1].copy()
+	else:
+		sd_out = repeat({})
+		io_var_dict = {}
 
 	r = []
-	io_var_dict = sd_out[-1].copy()
 	for n, (di, do) in enumerate(zip(sd_in, sd_out)):
 		do_var = dict((k, _variable_for(v, n)) for k, v in do.items())
 		
