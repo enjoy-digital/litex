@@ -80,15 +80,27 @@ def _variable_for(s, n):
 def unroll_sync(sync, inputs, outputs):
 	sd_in = _list_step_dicts(inputs)
 	sd_out = _list_step_dicts(outputs)
-	
-	do_var_old = sd_out[-1]
+
 	r = []
+	io_var_dict = sd_out[-1].copy()
 	for n, (di, do) in enumerate(zip(sd_in, sd_out)):
 		do_var = dict((k, _variable_for(v, n)) for k, v in do.items())
-		di_plus_do_var_old = di.copy()
-		di_plus_do_var_old.update(do_var_old)
-		r += _replace(sync, di_plus_do_var_old, do_var)
+		
+		# initialize variables
+		for k, v in io_var_dict.items():
+			if k.variable:
+				r.append(do_var[k].eq(io_var_dict[k]))
+				io_var_dict[k] = do_var[k]
+			
+		
+		# replace signals with intermediate variables and copy statements
+		io_var_dict.update(di)
+		r += _replace(sync, io_var_dict, do_var)
+		
+		# assign to output signals
 		r += [v.eq(do_var[k]) for k, v in do.items()]
-		do_var_old = do_var
+		
+		# prepare the next i+o dictionary
+		io_var_dict = do_var.copy()
 	
 	return r
