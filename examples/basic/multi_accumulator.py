@@ -19,5 +19,5 @@ ys = [Signal(BV(4)) for i in range(n)]
 accs = [Signal(BV(4)) for i in range(n)]
 zs = [Signal() for i in range(n)]
 
-sync_u = unroll_sync(sync, {x: xs, y: ys}, {acc: accs, z: zs})
+sync_u = unroll_sync(sync, {x: xs, y: ys, acc: accs, z: zs})
 print(verilog.convert(Fragment(sync=sync_u), ios=set(xs+ys+zs)))

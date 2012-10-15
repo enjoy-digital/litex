@@ -2,10 +2,11 @@ from itertools import repeat
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
+from migen.fhdl.tools import list_targets
 
 # y <= y + a + b
 #
-# unroll_sync(sync, {b: [b1, b2], c: [c1, c2]}, {y: [y1, y2]})
+# unroll_sync(sync, {b: [b1, b2], c: [c1, c2], y: [y1, y2]})
 #
 # ==>
 #
@@ -72,6 +73,17 @@ def _list_step_dicts(d):
 		pass
 	return r
 
+def _classify_repl(statements, replacements):
+	targets = list_targets(statements)
+	inputs = {}
+	outputs = {}
+	for k, v in replacements.items():
+		if k in targets:
+			outputs[k] = v
+		else:
+			inputs[k] = v
+	return inputs, outputs
+
 def _variable_for(s, n):
 	sn = s.backtrace[-1][0]
 	if isinstance(sn, str):
@@ -80,7 +92,12 @@ def _variable_for(s, n):
 		name = "v"
 	return Signal(s.bv, name=name, variable=True)
 
-def unroll_sync(statements, inputs, outputs):
+def unroll_sync(statements, replacements):
+	if isinstance(statements, list):
+		sl = statements
+	else:
+		sl = statements(0)
+	inputs, outputs = _classify_repl(sl, replacements)
 	assert(inputs or outputs)
 	if inputs:
 		sd_in = _list_step_dicts(inputs)
@@ -106,10 +123,11 @@ def unroll_sync(statements, inputs, outputs):
 		
 		# replace signals with intermediate variables and copy statements
 		io_var_dict.update(di)
-		if isinstance(statements, list):
-			sl = statements
-		else:
-			sl = statements(n)
+		if n: # done for n = 0 at the beginning of function
+			if isinstance(statements, list):
+				sl = statements
+			else:
+				sl = statements(n)
 		r += _replace(sl, io_var_dict, do_var)
 		
 		# assign to output signals
