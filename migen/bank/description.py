@@ -1,5 +1,10 @@
 from migen.fhdl.structure import *
 
+def regprefix(prefix, registers):
+	for register in registers:
+		register.name = prefix + register.name
+	return registers
+
 class RegisterRaw:
 	def __init__(self, name, size=1):
 		self.name = name
