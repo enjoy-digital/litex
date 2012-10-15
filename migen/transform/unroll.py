@@ -80,7 +80,7 @@ def _variable_for(s, n):
 		name = "v"
 	return Signal(s.bv, name=name, variable=True)
 
-def unroll_sync(sync, inputs, outputs):
+def unroll_sync(statements, inputs, outputs):
 	assert(inputs or outputs)
 	if inputs:
 		sd_in = _list_step_dicts(inputs)
@@ -106,7 +106,11 @@ def unroll_sync(sync, inputs, outputs):
 		
 		# replace signals with intermediate variables and copy statements
 		io_var_dict.update(di)
-		r += _replace(sync, io_var_dict, do_var)
+		if isinstance(statements, list):
+			sl = statements
+		else:
+			sl = statements(n)
+		r += _replace(sl, io_var_dict, do_var)
 		
 		# assign to output signals
 		r += [v.eq(do_var[k]) for k, v in do.items()]
