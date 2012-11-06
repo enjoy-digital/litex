@@ -109,6 +109,9 @@ class Value:
 	
 	def eq(self, r):
 		return _Assign(self, r)
+	
+	def __hash__(self):
+		return id(self)
 
 class _Operator(Value):
 	def __init__(self, op, operands):
@@ -168,9 +171,6 @@ class Signal(Value):
 	def __len__(self):
 		return self.bv.width
 
-	def __hash__(self):
-		return id(self)
-	
 	def __repr__(self):
 		return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"
 
