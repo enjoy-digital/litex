@@ -33,7 +33,8 @@ class _Register:
 		if not self.finalized:
 			raise FinalizeError
 		# do nothing when sel == 0
-		cases = [(v, self.storage.eq(k)) for k, v in self.source_encoding.items()]
+		cases = [(Constant(v, self.sel.bv),
+			self.storage.eq(k)) for k, v in self.source_encoding.items()]
 		sync = [Case(self.sel, *cases)]
 		return Fragment(sync=sync)
 
@@ -53,13 +54,15 @@ class _Compiler:
 	
 	# blocks and statements
 	def visit_block(self, statements):
-		r = []
+		states = []
 		for statement in statements:
 			if isinstance(statement, ast.Assign):
-				r += self.visit_assign(statement)
+				op = self.visit_assign(statement)
+				if op:
+					states.append(op)
 			else:
 				raise NotImplementedError
-		return r
+		return states
 	
 	def visit_assign(self, node):
 		if isinstance(node.targets[0], ast.Name):
@@ -155,9 +158,10 @@ def make_pytholite(func):
 	symdict = func.__globals__.copy()
 	registers = []
 	
-	c = _Compiler(symdict, registers)
+	states = _Compiler(symdict, registers).visit_top(tree)
+	
 	print("compilation result:")
-	print(c.visit_top(tree))
+	print(states)
 	
 	print("registers:")
 	print(registers)
@@ -166,3 +170,9 @@ def make_pytholite(func):
 
 	print("ast:")
 	print(ast.dump(tree))
+
+	regf = Fragment()
+	for register in registers:
+		register.finalize()
+		regf += register.get_fragment()
+	return regf
