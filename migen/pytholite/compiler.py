@@ -1,7 +1,10 @@
 import inspect
 import ast
+from operator import itemgetter
 
 from migen.fhdl.structure import *
+from migen.fhdl import visit as fhdl
+from migen.corelogic.fsm import FSM
 from migen.pytholite import transel
 
 class FinalizeError(Exception):
@@ -11,6 +14,18 @@ class _AbstractLoad:
 	def __init__(self, target, source):
 		self.target = target
 		self.source = source
+	
+	def lower(self):
+		if not self.target.finalized:
+			raise FinalizeError
+		return self.target.sel.eq(self.target.source_encoding[self.source])
+
+class _LowerAbstractLoad(fhdl.NodeTransformer):
+	def visit_unknown(self, node):
+		if isinstance(node, _AbstractLoad):
+			return node.lower()
+		else:
+			return node
 
 class _Register:
 	def __init__(self, name, nbits):
@@ -26,15 +41,16 @@ class _Register:
 	def finalize(self):
 		if self.finalized:
 			raise FinalizeError
-		self.sel = Signal(BV(bits_for(len(self.source_encoding) + 1)))
+		self.sel = Signal(BV(bits_for(len(self.source_encoding) + 1)), name="pl_regsel")
 		self.finalized = True
 	
 	def get_fragment(self):
 		if not self.finalized:
 			raise FinalizeError
 		# do nothing when sel == 0
+		items = sorted(self.source_encoding.items(), key=itemgetter(1))
 		cases = [(Constant(v, self.sel.bv),
-			self.storage.eq(k)) for k, v in self.source_encoding.items()]
+			self.storage.eq(k)) for k, v in items]
 		sync = [Case(self.sel, *cases)]
 		return Fragment(sync=sync)
 
@@ -153,6 +169,18 @@ class _Compiler:
 	def visit_expr_num(self, node):
 		return node.n
 
+def _create_fsm(states):
+	stnames = ["S" + str(i) for i in range(len(states))]
+	fsm = FSM(*stnames)
+	for i, state in enumerate(states):
+		if i == len(states) - 1:
+			actions = []
+		else:
+			actions = [fsm.next_state(getattr(fsm, stnames[i+1]))]
+		actions += state
+		fsm.act(getattr(fsm, stnames[i]), *actions)
+	return fsm
+
 def make_pytholite(func):
 	tree = ast.parse(inspect.getsource(func))
 	symdict = func.__globals__.copy()
@@ -163,11 +191,6 @@ def make_pytholite(func):
 	print("compilation result:")
 	print(states)
 	
-	print("registers:")
-	print(registers)
-	#print("symdict:")
-	#print(symdict)
-
 	print("ast:")
 	print(ast.dump(tree))
 
@@ -175,4 +198,9 @@ def make_pytholite(func):
 	for register in registers:
 		register.finalize()
 		regf += register.get_fragment()
-	return regf
+	
+	fsm = _create_fsm(states)
+	fsmf = _LowerAbstractLoad().visit(fsm.get_fragment())
+	
+	return regf + fsmf
+
