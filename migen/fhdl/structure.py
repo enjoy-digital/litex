@@ -146,6 +146,10 @@ class Constant(Value):
 	
 	def __eq__(self, other):
 		return self.bv == other.bv and self.n == other.n
+	
+	def __hash__(self):
+		return id(self)
+
 
 def binc(x, signed=False):
 	return Constant(int(x, 2), BV(len(x), signed))
