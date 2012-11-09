@@ -229,7 +229,7 @@ class _Compiler:
 		return r
 	
 	def visit_expr_num(self, node):
-		return node.n
+		return Constant(node.n)
 
 # like list.index, but using "is" instead of comparison
 def _index_is(l, x):
