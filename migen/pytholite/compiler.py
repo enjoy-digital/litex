@@ -29,7 +29,8 @@ class _LowerAbstractLoad(fhdl.NodeTransformer):
 
 class _Register:
 	def __init__(self, name, nbits):
-		self.storage = Signal(BV(nbits), name=name)
+		self.name = name
+		self.storage = Signal(BV(nbits), name=self.name)
 		self.source_encoding = {}
 		self.finalized = False
 	
@@ -41,7 +42,7 @@ class _Register:
 	def finalize(self):
 		if self.finalized:
 			raise FinalizeError
-		self.sel = Signal(BV(bits_for(len(self.source_encoding) + 1)), name="pl_regsel")
+		self.sel = Signal(BV(bits_for(len(self.source_encoding) + 1)), name="pl_regsel_"+self.name)
 		self.finalized = True
 	
 	def get_fragment(self):
