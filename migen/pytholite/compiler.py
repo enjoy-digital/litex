@@ -118,6 +118,8 @@ class _Compiler:
 				raise NotImplementedError
 		elif isinstance(node, ast.BinOp):
 			return self.visit_expr_binop(node)
+		elif isinstance(node, ast.Compare):
+			return self.visit_expr_compare(node)
 		elif isinstance(node, ast.Name):
 			return self.visit_expr_name(node)
 		elif isinstance(node, ast.Num):
@@ -160,6 +162,32 @@ class _Compiler:
 		else:
 			raise NotImplementedError
 	
+	def visit_expr_compare(self, node):
+		test = visit_expr(node.test)
+		r = None
+		for op, rcomparator in zip(node.ops, node.comparators):
+			comparator = visit_expr(rcomparator)
+			if isinstance(op, ast.Eq):
+				comparison = test == comparator
+			elif isinstance(op, ast.NotEq):
+				comparison = test != comparator
+			elif isinstance(op, ast.Lt):
+				comparison = test < comparator
+			elif isinstance(op, ast.LtE):
+				comparison = test <= comparator
+			elif isinstance(op, ast.Gt):
+				comparison = test > comparator
+			elif isinstance(op, ast.GtE):
+				comparison = test >= comparator
+			else:
+				raise NotImplementedError
+			if r is None:
+				r = comparison
+			else:
+				r = r & comparison
+			test = comparator
+		return r
+	
 	def visit_expr_name(self, node):
 		r = self.symdict[node.id]
 		if isinstance(r, _Register):
@@ -186,14 +214,14 @@ def make_pytholite(func):
 	symdict = func.__globals__.copy()
 	registers = []
 	
+	print("ast:")
+	print(ast.dump(tree))
+	
 	states = _Compiler(symdict, registers).visit_top(tree)
 	
 	print("compilation result:")
 	print(states)
 	
-	print("ast:")
-	print(ast.dump(tree))
-
 	regf = Fragment()
 	for register in registers:
 		register.finalize()
