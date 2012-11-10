@@ -7,6 +7,7 @@ from migen.fhdl.structure import _Slice
 from migen.fhdl import visit as fhdl
 from migen.corelogic.fsm import FSM
 from migen.pytholite import transel
+from migen.pytholite.io import *
 
 class FinalizeError(Exception):
 	pass
@@ -319,7 +320,9 @@ def _create_fsm(states):
 		fsm.act(getattr(fsm, stnames[i]), *actions)
 	return fsm
 
-def make_pytholite(func):
+def make_pytholite(func, **ioresources):
+	pl = make_io_object(**ioresources)
+	
 	tree = ast.parse(inspect.getsource(func))
 	symdict = func.__globals__.copy()
 	registers = []
@@ -334,4 +337,5 @@ def make_pytholite(func):
 	fsm = _create_fsm(states)
 	fsmf = _LowerAbstractLoad().visit(fsm.get_fragment())
 	
-	return regf + fsmf
+	pl.fragment = regf + fsmf
+	return pl
