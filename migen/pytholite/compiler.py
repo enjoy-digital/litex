@@ -3,6 +3,7 @@ import ast
 from operator import itemgetter
 
 from migen.fhdl.structure import *
+from migen.fhdl.structure import _Slice
 from migen.fhdl import visit as fhdl
 from migen.corelogic.fsm import FSM
 from migen.pytholite import transel
@@ -186,12 +187,12 @@ class _Compiler:
 			raise NotImplementedError
 	
 	# expressions
-	def visit_expr(self, node, allow_call=False):
+	def visit_expr(self, node, allow_registers=False):
 		if isinstance(node, ast.Call):
-			if allow_call:
-				return self.visit_expr_call(node)
-			else:
+			r = self.visit_expr_call(node)
+			if not allow_registers and isinstance(r, _Register):
 				raise NotImplementedError
+			return r
 		elif isinstance(node, ast.BinOp):
 			return self.visit_expr_binop(node)
 		elif isinstance(node, ast.Compare):
@@ -213,6 +214,16 @@ class _Compiler:
 				raise TypeError("Register() takes exactly 1 argument")
 			nbits = ast.literal_eval(node.args[0])
 			return _Register(self.targetname, nbits)
+		elif callee == transel.bitslice:
+			if len(node.args) != 2 and len(node.args) != 3:
+				raise TypeError("bitslice() takes 2 or 3 arguments")
+			val = self.visit_expr(node.args[0])
+			low = ast.literal_eval(node.args[1])
+			if len(node.args) == 3:
+				up = ast.literal_eval(node.args[2])
+			else:
+				up = low + 1
+			return _Slice(val, low, up)
 		else:
 			raise NotImplementedError
 	
@@ -324,4 +335,3 @@ def make_pytholite(func):
 	fsmf = _LowerAbstractLoad().visit(fsm.get_fragment())
 	
 	return regf + fsmf
-
