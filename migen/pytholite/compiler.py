@@ -55,35 +55,13 @@ class _Register:
 		sync = [Case(self.sel, *cases)]
 		return Fragment(sync=sync)
 
-class _SymbolStack:
-	def __init__(self):
-		self.stack = []
-	
-	def push(self, init={}):
-		self.stack.append(init)
-	
-	def pop(self):
-		return self.stack.pop()
-	
-	def __setitem__(self, key, value):
-		self.stack[-1][key] = value
-	
-	def __getitem__(self, key):
-		for frame in reversed(self.stack):
-			try:
-				return frame[key]
-			except KeyError:
-				pass
-		raise KeyError
-		
 class _AbstractNextState:
 	def __init__(self, target_state):
 		self.target_state = target_state
 
 class _Compiler:
 	def __init__(self, symdict, registers):
-		self.symdict = _SymbolStack()
-		self.symdict.push(symdict)
+		self.symdict = symdict
 		self.registers = registers
 		self.targetname = ""
 	
