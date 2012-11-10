@@ -92,17 +92,17 @@ class _Compiler:
 	
 	# entry state is first state returned
 	def visit_statement(self, statement):
-		states = []
-		exit_states = []
 		if isinstance(statement, ast.Assign):
 			op = self.visit_assign(statement)
 			if op:
-				states.append(op)
-				exit_states.append(op)
+				return [op], [op]
+			else:
+				return [], []
 		elif isinstance(statement, ast.If):
 			test = self.visit_expr(statement.test)
 			states_t, exit_states_t = self.visit_block(statement.body)
 			states_f, exit_states_f = self.visit_block(statement.orelse)
+			exit_states = exit_states_t + exit_states_f
 			
 			test_state_stmt = If(test, _AbstractNextState(states_t[0]))
 			test_state = [test_state_stmt]
@@ -111,9 +111,7 @@ class _Compiler:
 			else:
 				exit_states.append(test_state)
 			
-			states.append(test_state)
-			states += states_t + states_f
-			exit_states += exit_states_t + exit_states_f
+			return [test_state] + states_t + states_f, exit_states
 		elif isinstance(statement, ast.While):
 			test = self.visit_expr(statement.test)
 			states_b, exit_states_b = self.visit_block(statement.body)
@@ -122,9 +120,7 @@ class _Compiler:
 			for exit_state in exit_states_b:
 				exit_state.insert(0, _AbstractNextState(test_state))
 			
-			exit_states.append(test_state)
-			states += states_b
-			states.append(test_state)
+			return [test_state] + states_b, [test_state]
 		elif isinstance(statement, ast.For):
 			if not isinstance(statement.target, ast.Name):
 				raise NotImplementedError
@@ -132,6 +128,7 @@ class _Compiler:
 			if target in self.symdict:
 				raise NotImplementedError("For loop target must use an available name")
 			it = self.visit_iterator(statement.iter)
+			states = []
 			last_exit_states = []
 			for iteration in it:
 				self.symdict[target] = iteration
@@ -140,17 +137,15 @@ class _Compiler:
 					exit_state.insert(0, _AbstractNextState(states_b[0]))
 				last_exit_states = exit_states_b
 				states += states_b
-			exit_states += last_exit_states
 			del self.symdict[target]
+			return states, last_exit_states
 		elif isinstance(statement, ast.Expr):
 			if isinstance(statement.value, ast.Yield):
 				yvalue = statement.value.value
 				if not isinstance(yvalue, ast.Call) or not isinstance(yvalue.func, ast.Name):
 					raise NotImplementedError("Unrecognized I/O sequence")
 				callee = self.symdict[yvalue.func.id]
-				states_i, exit_states_i = gen_io(self, callee, yvalue.args, [])
-				states += states_i
-				exit_states += exit_states_i
+				return gen_io(self, callee, yvalue.args, [])
 			else:
 				raise NotImplementedError
 		else:
