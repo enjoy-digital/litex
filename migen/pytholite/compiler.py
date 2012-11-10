@@ -122,6 +122,23 @@ class _Compiler:
 			exit_states.append(test_state)
 			states += states_b
 			states.append(test_state)
+		elif isinstance(statement, ast.For):
+			if not isinstance(statement.target, ast.Name):
+				raise NotImplementedError
+			target = statement.target.id
+			if target in self.symdict:
+				raise NotImplementedError("For loop target must use an available name")
+			it = ast.literal_eval(statement.iter)
+			last_exit_states = []
+			for iteration in it:
+				self.symdict[target] = iteration
+				states_b, exit_states_b = self.visit_block(statement.body)
+				for exit_state in last_exit_states:
+					exit_state.insert(0, _AbstractNextState(states_b[0]))
+				last_exit_states = exit_states_b
+				states += states_b
+			exit_states += last_exit_states
+			del self.symdict[target]
 		else:
 			raise NotImplementedError
 		return states, exit_states
@@ -242,6 +259,8 @@ class _Compiler:
 		r = self.symdict[node.id]
 		if isinstance(r, _Register):
 			r = r.storage
+		if isinstance(r, int):
+			r = Constant(r)
 		return r
 	
 	def visit_expr_num(self, node):
