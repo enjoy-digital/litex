@@ -128,7 +128,7 @@ class _Compiler:
 			target = statement.target.id
 			if target in self.symdict:
 				raise NotImplementedError("For loop target must use an available name")
-			it = ast.literal_eval(statement.iter)
+			it = self.visit_iterator(statement.iter)
 			last_exit_states = []
 			for iteration in it:
 				self.symdict[target] = iteration
@@ -142,6 +142,19 @@ class _Compiler:
 		else:
 			raise NotImplementedError
 		return states, exit_states
+	
+	def visit_iterator(self, node):
+		if isinstance(node, ast.List):
+			return ast.literal_eval(node)
+		elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+			funcname = node.func.id
+			args = map(ast.literal_eval, node.args)
+			if funcname == "range":
+				return range(*args)
+			else:
+				raise NotImplementedError
+		else:
+			raise NotImplementedError
 	
 	def visit_assign(self, node):
 		if isinstance(node.targets[0], ast.Name):
