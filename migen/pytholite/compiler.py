@@ -7,7 +7,7 @@ from migen.fhdl.structure import _Slice
 from migen.fhdl import visit as fhdl
 from migen.corelogic.fsm import FSM
 from migen.pytholite import transel
-from migen.pytholite.io import *
+from migen.pytholite.io import make_io_object, gen_io
 
 class FinalizeError(Exception):
 	pass
@@ -62,7 +62,8 @@ class _AbstractNextState:
 		self.target_state = target_state
 
 class _Compiler:
-	def __init__(self, symdict, registers):
+	def __init__(self, ioo, symdict, registers):
+		self.ioo = ioo
 		self.symdict = symdict
 		self.registers = registers
 		self.targetname = ""
@@ -101,7 +102,7 @@ class _Compiler:
 		elif isinstance(statement, ast.If):
 			test = self.visit_expr(statement.test)
 			states_t, exit_states_t = self.visit_block(statement.body)
-			states_f, exit_states_f  = self.visit_block(statement.orelse)
+			states_f, exit_states_f = self.visit_block(statement.orelse)
 			
 			test_state_stmt = If(test, _AbstractNextState(states_t[0]))
 			test_state = [test_state_stmt]
@@ -141,6 +142,17 @@ class _Compiler:
 				states += states_b
 			exit_states += last_exit_states
 			del self.symdict[target]
+		elif isinstance(statement, ast.Expr):
+			if isinstance(statement.value, ast.Yield):
+				yvalue = statement.value.value
+				if not isinstance(yvalue, ast.Call) or not isinstance(yvalue.func, ast.Name):
+					raise NotImplementedError("Unrecognized I/O sequence")
+				callee = self.symdict[yvalue.func.id]
+				states_i, exit_states_i = gen_io(self, callee, yvalue.args, [])
+				states += states_i
+				exit_states += exit_states_i
+			else:
+				raise NotImplementedError
 		else:
 			raise NotImplementedError
 		return states, exit_states
@@ -321,13 +333,13 @@ def _create_fsm(states):
 	return fsm
 
 def make_pytholite(func, **ioresources):
-	pl = make_io_object(**ioresources)
+	ioo = make_io_object(**ioresources)
 	
 	tree = ast.parse(inspect.getsource(func))
 	symdict = func.__globals__.copy()
 	registers = []
 	
-	states = _Compiler(symdict, registers).visit_top(tree)
+	states = _Compiler(ioo, symdict, registers).visit_top(tree)
 	
 	regf = Fragment()
 	for register in registers:
@@ -337,5 +349,5 @@ def make_pytholite(func, **ioresources):
 	fsm = _create_fsm(states)
 	fsmf = _LowerAbstractLoad().visit(fsm.get_fragment())
 	
-	pl.fragment = regf + fsmf
-	return pl
+	ioo.fragment = regf + fsmf
+	return ioo

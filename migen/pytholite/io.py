@@ -1,4 +1,7 @@
+import ast
+
 from migen.flow.actor import *
+from migen.actorlib.sim import *
 
 class Pytholite:
 	def get_fragment(self):
@@ -13,3 +16,9 @@ def make_io_object(dataflow=None):
 	else:
 		return DFPytholite(dataflow)
 
+
+def gen_io(compiler, model, to_model, from_model):
+	print(model)
+	for arg in to_model:
+		print(ast.dump(arg))
+	return [], []
