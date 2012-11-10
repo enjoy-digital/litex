@@ -111,6 +111,17 @@ class _Compiler:
 			states.append(test_state)
 			states += states_t + states_f
 			exit_states += exit_states_t + exit_states_f
+		elif isinstance(statement, ast.While):
+			test = self.visit_expr(statement.test)
+			states_b, exit_states_b = self.visit_block(statement.body)
+
+			test_state = [If(test, _AbstractNextState(states_b[0]))]
+			for exit_state in exit_states_b:
+				exit_state.insert(0, _AbstractNextState(test_state))
+			
+			exit_states.append(test_state)
+			states += states_b
+			states.append(test_state)
 		else:
 			raise NotImplementedError
 		return states, exit_states
@@ -224,6 +235,10 @@ class _Compiler:
 		return r
 	
 	def visit_expr_name(self, node):
+		if node.id == "True":
+			return Constant(1)
+		if node.id == "False":
+			return Constant(0)
 		r = self.symdict[node.id]
 		if isinstance(r, _Register):
 			r = r.storage
