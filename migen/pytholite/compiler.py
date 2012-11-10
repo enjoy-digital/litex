@@ -300,13 +300,7 @@ def make_pytholite(func):
 	symdict = func.__globals__.copy()
 	registers = []
 	
-	print("ast:")
-	print(ast.dump(tree))
-	
 	states = _Compiler(symdict, registers).visit_top(tree)
-	
-	print("compilation result:")
-	print(states)
 	
 	regf = Fragment()
 	for register in registers:
