@@ -5,9 +5,9 @@ from operator import itemgetter
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Slice
 from migen.fhdl import visit as fhdl
-from migen.corelogic.fsm import FSM
 from migen.pytholite import transel
 from migen.pytholite.io import make_io_object, gen_io
+from migen.pytholite.fsm import *
 
 class FinalizeError(Exception):
 	pass
@@ -57,25 +57,6 @@ class _Register:
 		sync = [Case(self.sel, *cases)]
 		return Fragment(sync=sync)
 
-class _AbstractNextState:
-	def __init__(self, target_state):
-		self.target_state = target_state
-
-# entry state is first state returned
-class _StateAssembler:
-	def __init__(self):
-		self.states = []
-		self.exit_states = []
-	
-	def assemble(self, n_states, n_exit_states):
-		self.states += n_states
-		for exit_state in self.exit_states:
-			exit_state.insert(0, _AbstractNextState(n_states[0]))
-		self.exit_states = n_exit_states
-	
-	def ret(self):
-		return self.states, self.exit_states
-		
 class _Compiler:
 	def __init__(self, ioo, symdict, registers):
 		self.ioo = ioo
@@ -94,7 +75,7 @@ class _Compiler:
 	
 	# blocks and statements
 	def visit_block(self, statements):
-		sa = _StateAssembler()
+		sa = StateAssembler()
 		statements = iter(statements)
 		while True:
 			try:
@@ -148,10 +129,10 @@ class _Compiler:
 		states_f, exit_states_f = self.visit_block(node.orelse)
 		exit_states = exit_states_t + exit_states_f
 		
-		test_state_stmt = If(test, _AbstractNextState(states_t[0]))
+		test_state_stmt = If(test, AbstractNextState(states_t[0]))
 		test_state = [test_state_stmt]
 		if states_f:
-			test_state_stmt.Else(_AbstractNextState(states_f[0]))
+			test_state_stmt.Else(AbstractNextState(states_f[0]))
 		else:
 			exit_states.append(test_state)
 		
@@ -162,9 +143,9 @@ class _Compiler:
 		test = self.visit_expr(node.test)
 		states_b, exit_states_b = self.visit_block(node.body)
 
-		test_state = [If(test, _AbstractNextState(states_b[0]))]
+		test_state = [If(test, AbstractNextState(states_b[0]))]
 		for exit_state in exit_states_b:
-			exit_state.insert(0, _AbstractNextState(test_state))
+			exit_state.insert(0, AbstractNextState(test_state))
 		
 		sa.assemble([test_state] + states_b, [test_state])
 	
@@ -181,7 +162,7 @@ class _Compiler:
 			self.symdict[target] = iteration
 			states_b, exit_states_b = self.visit_block(node.body)
 			for exit_state in last_exit_states:
-				exit_state.insert(0, _AbstractNextState(states_b[0]))
+				exit_state.insert(0, AbstractNextState(states_b[0]))
 			last_exit_states = exit_states_b
 			states += states_b
 		del self.symdict[target]
@@ -315,35 +296,6 @@ class _Compiler:
 	def visit_expr_num(self, node):
 		return Constant(node.n)
 
-# like list.index, but using "is" instead of comparison
-def _index_is(l, x):
-	for i, e in enumerate(l):
-		if e is x:
-			return i
-
-class _LowerAbstractNextState(fhdl.NodeTransformer):
-	def __init__(self, fsm, states, stnames):
-		self.fsm = fsm
-		self.states = states
-		self.stnames = stnames
-		
-	def visit_unknown(self, node):
-		if isinstance(node, _AbstractNextState):
-			index = _index_is(self.states, node.target_state)
-			estate = getattr(self.fsm, self.stnames[index])
-			return self.fsm.next_state(estate)
-		else:
-			return node
-
-def _create_fsm(states):
-	stnames = ["S" + str(i) for i in range(len(states))]
-	fsm = FSM(*stnames)
-	lans = _LowerAbstractNextState(fsm, states, stnames)
-	for i, state in enumerate(states):
-		actions = lans.visit(state)
-		fsm.act(getattr(fsm, stnames[i]), *actions)
-	return fsm
-
 def make_pytholite(func, **ioresources):
 	ioo = make_io_object(**ioresources)
 	
@@ -358,7 +310,7 @@ def make_pytholite(func, **ioresources):
 		register.finalize()
 		regf += register.get_fragment()
 	
-	fsm = _create_fsm(states)
+	fsm = implement_fsm(states)
 	fsmf = _LowerAbstractLoad().visit(fsm.get_fragment())
 	
 	ioo.fragment = regf + fsmf
