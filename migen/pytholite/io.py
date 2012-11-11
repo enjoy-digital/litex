@@ -18,7 +18,11 @@ def make_io_object(dataflow=None):
 
 
 def gen_io(compiler, model, to_model, from_model):
-	print(model)
+	print("model: " + str(model))
+	print("to_model:")
 	for arg in to_model:
 		print(ast.dump(arg))
+	print("from_model:")
+	for target, expr in from_model:
+		print(str(target) + " <= " + ast.dump(expr))
 	return [], []

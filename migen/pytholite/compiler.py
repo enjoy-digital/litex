@@ -57,6 +57,12 @@ class _Register:
 		sync = [Case(self.sel, *cases)]
 		return Fragment(sync=sync)
 
+def _is_name_used(node, name):
+	for n in ast.walk(node):
+		if isinstance(n, ast.Name) and n.id == name:
+			return True
+	return False
+
 class _Compiler:
 	def __init__(self, ioo, symdict, registers):
 		self.ioo = ioo
@@ -148,7 +154,52 @@ class _Compiler:
 				else:
 					raise NotImplementedError
 		else:
-			raise NotImplementedError
+			return self.visit_io_pattern(sa, node.targets, callee, value.args, statements)
+	
+	def visit_io_pattern(self, sa, targets, model, args, statements):
+		# first statement is <modelname> = <model>(<args>)
+		if len(targets) != 1 or not isinstance(targets[0], ast.Name):
+			raise NotImplementedError("Unrecognized I/O pattern")
+		modelname = targets[0].id
+		if modelname in self.symdict:
+			raise NotImplementedError("I/O model name is not free")
+		
+		# second statement must be yield <modelname>
+		try:
+			ystatement = next(statements)
+		except StopIteration:
+			raise NotImplementedError("Incomplete or fragmented I/O pattern")
+		if not isinstance(ystatement, ast.Expr) \
+		  or not isinstance(ystatement.value, ast.Yield) \
+		  or not isinstance(ystatement.value.value, ast.Name) \
+		  or ystatement.value.value.id != modelname:
+			raise NotImplementedError("Unrecognized I/O pattern")
+		
+		# following optional statements are assignments to registers
+		# with <modelname> used in expressions.
+		from_model = []
+		while True:
+			try:
+				fstatement = next(statements)
+			except StopIteration:
+				fstatement = None
+			if not isinstance(fstatement, ast.Assign) \
+			  or not _is_name_used(fstatement.value, modelname):
+				break
+			tregs = []
+			for target in fstatement.targets:
+				if isinstance(target, ast.Attribute) and target.attr == "store":
+					if isinstance(target.value, ast.Name):
+						tregs.append(self.symdict[target.value.id])
+					else:
+						raise NotImplementedError
+				else:
+					raise NotImplementedError
+			from_model.append((tregs, fstatement.value))
+		
+		states, exit_states = gen_io(self, model, args, from_model)
+		sa.assemble(states, exit_states)
+		return fstatement
 	
 	def visit_if(self, sa, node):
 		test = self.visit_expr(node.test)
@@ -212,7 +263,7 @@ class _Compiler:
 		if isinstance(node.value, ast.Yield):
 			yvalue = node.value.value
 			if not isinstance(yvalue, ast.Call) or not isinstance(yvalue.func, ast.Name):
-				raise NotImplementedError("Unrecognized I/O sequence")
+				raise NotImplementedError("Unrecognized I/O pattern")
 			callee = self.symdict[yvalue.func.id]
 			states, exit_states = gen_io(self, callee, yvalue.args, [])
 			sa.assemble(states, exit_states)
