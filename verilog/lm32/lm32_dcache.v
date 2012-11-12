@@ -112,14 +112,14 @@ parameter bytes_per_line = 16;                          // Number of bytes per c
 parameter base_address = 0;                             // Base address of cachable memory
 parameter limit = 0;                                    // Limit (highest address) of cachable memory
 
-localparam addr_offset_width = clogb2(bytes_per_line)-1-2;
-localparam addr_set_width = clogb2(sets)-1;
+localparam addr_offset_width = $clog2(bytes_per_line)-2;
+localparam addr_set_width = $clog2(sets);
 localparam addr_offset_lsb = 2;
 localparam addr_offset_msb = (addr_offset_lsb+addr_offset_width-1);
 localparam addr_set_lsb = (addr_offset_msb+1);
 localparam addr_set_msb = (addr_set_lsb+addr_set_width-1);
 localparam addr_tag_lsb = (addr_set_msb+1);
-localparam addr_tag_msb = clogb2(`CFG_DCACHE_LIMIT-`CFG_DCACHE_BASE_ADDRESS)-1;
+localparam addr_tag_msb = $clog2(`CFG_DCACHE_LIMIT-`CFG_DCACHE_BASE_ADDRESS);
 localparam addr_tag_width = (addr_tag_msb-addr_tag_lsb+1);
 
 /////////////////////////////////////////////////////
@@ -199,8 +199,6 @@ genvar i, j;
 /////////////////////////////////////////////////////
 // Functions
 /////////////////////////////////////////////////////
-
-`include "lm32_functions.v"
 
 /////////////////////////////////////////////////////
 // Instantiations
