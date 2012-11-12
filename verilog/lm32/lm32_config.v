@@ -36,4 +36,15 @@
 //`define CFG_EXTERNAL_BREAK_ENABLED
 //`define CFG_GDBSTUB_ENABLED
 
+function integer clog2;
+  input integer value;
+  begin
+    value = value - 1;
+    for (clog2 = 0; value > 0; clog2 = clog2 + 1)
+      value = value >> 1;
+  end
+endfunction
+
+`define CLOG2 clog2
+
 `endif
