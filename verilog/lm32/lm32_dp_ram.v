@@ -8,7 +8,6 @@ module lm32_dp_ram(
 	rdata_o);
 
 parameter addr_width = 32;
-parameter addr_depth = 1024;
 parameter data_width = 8;
 
 input clk_i;
@@ -19,7 +18,7 @@ input [data_width-1:0] wdata_i;
 input [addr_width-1:0] raddr_i;
 output [data_width-1:0] rdata_o;
 
-reg [data_width-1:0] mem[addr_depth-1:0];
+reg [data_width-1:0] mem[(1<<addr_width)-1:0];
 
 reg [addr_width-1:0] raddr_r;
 assign rdata_o = mem[raddr_r];
