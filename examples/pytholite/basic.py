@@ -3,6 +3,7 @@ from migen.actorlib.sim import *
 from migen.pytholite.compiler import make_pytholite
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
+from migen.fhdl import verilog
 
 layout = [("r", BV(32))]
 
@@ -32,12 +33,15 @@ def run_sim(ng):
 	del sim
 
 def main():
+	print("Simulating native Python:")
+	ng_native = SimActor(number_gen(), ("result", Source, layout))
+	run_sim(ng_native)
+	
 	print("Simulating Pytholite:")
 	ng_pytholite = make_pytholite(number_gen, dataflow=[("result", Source, layout)])
 	run_sim(ng_pytholite)
 	
-	print("Simulating native Python:")
-	ng_native = SimActor(number_gen(), ("result", Source, layout))
-	run_sim(ng_native)
+	print("Converting Pytholite to Verilog:")
+	print(verilog.convert(ng_pytholite.get_fragment()))
 
 main()
