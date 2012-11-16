@@ -19,6 +19,10 @@ class ExprCompiler:
 			return self.visit_expr_name(node)
 		elif isinstance(node, ast.Num):
 			return self.visit_expr_num(node)
+		elif isinstance(node, ast.Attribute):
+			return self.visit_expr_attribute(node)
+		elif isinstance(node, ast.Subscript):
+			return self.visit_expr_subscript(node)
 		else:
 			raise NotImplementedError
 	
@@ -102,3 +106,10 @@ class ExprCompiler:
 	
 	def visit_expr_num(self, node):
 		return Constant(node.n)
+	
+	def visit_expr_attribute(self, node):
+		raise NotImplementedError
+	
+	def visit_expr_subscript(self, node):
+		raise NotImplementedError
+	

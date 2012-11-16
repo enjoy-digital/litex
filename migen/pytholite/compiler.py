@@ -154,7 +154,7 @@ class _Compiler:
 					raise NotImplementedError
 			from_model.append((tregs, fstatement.value))
 		
-		states, exit_states = gen_io(self, model, args, from_model)
+		states, exit_states = gen_io(self, modelname, model, args, from_model)
 		sa.assemble(states, exit_states)
 		return fstatement
 	
@@ -222,7 +222,7 @@ class _Compiler:
 			if not isinstance(yvalue, ast.Call) or not isinstance(yvalue.func, ast.Name):
 				raise NotImplementedError("Unrecognized I/O pattern")
 			callee = self.symdict[yvalue.func.id]
-			states, exit_states = gen_io(self, callee, yvalue.args, [])
+			states, exit_states = gen_io(self, None, callee, yvalue.args, [])
 			sa.assemble(states, exit_states)
 		else:
 			raise NotImplementedError
