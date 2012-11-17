@@ -1,6 +1,7 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.bus import wishbone
+from migen.uio.trampoline import Trampoline
 
 class UnifiedIOObject(Actor):
 	def __init__(self, dataflow=None, buses={}):
@@ -12,7 +13,7 @@ class UnifiedIOObject(Actor):
 
 class UnifiedIOSimulation(UnifiedIOObject):
 	def __init__(self, generator, dataflow=None, buses={}):
-		self.generator = generator
+		self.generator = Trampoline(generator)
 		super().__init__(dataflow, buses)
 		
 		self.callers = []
