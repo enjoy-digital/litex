@@ -17,9 +17,9 @@ class Interconnect(SimpleInterconnect):
 	pass
 
 class Initiator(PureSimulable):
-	def __init__(self, generator):
+	def __init__(self, generator, bus=Interface()):
 		self.generator = generator
-		self.bus = Interface()
+		self.bus = bus
 		self.transaction = None
 		self.done = False
 		
