@@ -17,7 +17,7 @@ def gen():
 		r = TRead(i)
 		yield r
 		ds.store = r.data
-		yield Token("result", {"r": int(ds)})
+		yield Token("result", {"r": ds})
 
 class Dumper(SimActor):
 	def __init__(self):

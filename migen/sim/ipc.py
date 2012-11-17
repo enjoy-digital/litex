@@ -14,8 +14,7 @@ class Int32(int):
 class Message:
 	def __init__(self, *pvalues):
 		for parameter, value in zip(self.parameters, pvalues):
-			assert(isinstance(value, parameter[0]))
-			setattr(self, parameter[1], value)
+			setattr(self, parameter[1], parameter[0](value))
 	
 	def __str__(self):
 		p = []
