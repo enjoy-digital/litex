@@ -13,17 +13,17 @@ class Token:
 #
 # NB: the possibility to push several tokens at once is important to interact
 # with actors that only accept a group of tokens when all of them are available.
-class SimActor(PureSimulable, Actor):
-	def __init__(self, generator, *endpoint_descriptions, **misc):
+class TokenExchanger(PureSimulable):
+	def __init__(self, actor, generator):
+		self.actor = actor
 		self.generator = generator
 		self.active = set()
 		self.done = False
-		super().__init__(*endpoint_descriptions, **misc)
 
 	def _process_transactions(self, s):
 		completed = set()
 		for token in self.active:
-			ep = self.endpoints[token.endpoint]
+			ep = self.actor.endpoints[token.endpoint]
 			if isinstance(ep, Sink):
 				if s.rd(ep.ack):
 					if s.rd(ep.stb):
@@ -67,3 +67,11 @@ class SimActor(PureSimulable, Actor):
 				self._next_transactions()
 			if self.active:
 				self._process_transactions(s)
+
+class SimActor(Actor):
+	def __init__(self, generator, *endpoint_descriptions, **misc):
+		super().__init__(*endpoint_descriptions, **misc)
+		self.token_exchanger = TokenExchanger(self, generator)
+	
+	def get_fragment(self):
+		return self.token_exchanger.get_fragment()
