@@ -21,8 +21,8 @@ def my_generator_w():
 
 def main():
 	dut = ASMIcon(sdram_phy, sdram_geom, sdram_timing)
-	initiator1 = Initiator(dut.hub.get_port(), my_generator_r())
-	initiator2 = Initiator(dut.hub.get_port(), my_generator_w())
+	initiator1 = Initiator(my_generator_r(), dut.hub.get_port())
+	initiator2 = Initiator(my_generator_w(), dut.hub.get_port())
 	dut.finalize()
 	
 	logger = DFILogger(dut.dfi)
