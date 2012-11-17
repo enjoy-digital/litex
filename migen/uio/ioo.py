@@ -1,6 +1,8 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
+from migen.actorlib.sim import TokenExchanger, Token
 from migen.bus import wishbone
+from migen.bus.transactions import *
 from migen.uio.trampoline import Trampoline
 
 class UnifiedIOObject(Actor):
@@ -19,11 +21,11 @@ class UnifiedIOSimulation(UnifiedIOObject):
 		self.callers = []
 		self.busname_to_caller_id = {}
 		if dataflow is not None:
-			self.callers.append(TokenExchanger(self.demux_g(0), self))
+			self.callers.append(TokenExchanger(self.dispatch_g(0), self))
 		for k, v in self.buses.items():
 			caller_id = len(self.callers)
 			self.busname_to_caller_id[k] = caller_id
-			g = self.demux_g(caller_id)
+			g = self.dispatch_g(caller_id)
 			if isinstance(v, wishbone.Interface):
 				caller = wishbone.Initiator(g, v)
 			else:
