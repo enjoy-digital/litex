@@ -156,8 +156,23 @@ class Register:
 	def __index__(self):
 		return int(self._val)
 
-	def __cmp__(self, other):
-		return cmp(self._val, other)
+	def __lt__(self, other):
+		return self._val < other
+
+	def __le__(self, other):
+		return self._val <= other
+
+	def __eq__(self, other):
+		return self._val == other
+
+	def __ge__(self, other):
+		return self._val >= other
+
+	def __gt__(self, other):
+		return self._val > other
+
+	def __ne__(self, other):
+		return self._val != other
 
 	def __str__(self):
 		return str(self._val)
