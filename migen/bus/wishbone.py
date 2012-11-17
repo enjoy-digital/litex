@@ -147,9 +147,9 @@ class Tap(PureSimulable):
 			self.handler(transaction)
 
 class Initiator(PureSimulable):
-	def __init__(self, generator):
+	def __init__(self, generator, bus=Interface()):
 		self.generator = generator
-		self.bus = Interface()
+		self.bus = bus
 		self.transaction_start = 0
 		self.transaction = None
 		self.done = False
@@ -192,8 +192,8 @@ class TargetModel:
 		return True
 
 class Target(PureSimulable):
-	def __init__(self, model):
-		self.bus = Interface()
+	def __init__(self, model, bus=Interface()):
+		self.bus = bus
 		self.model = model
 	
 	def do_simulation(self, s):
