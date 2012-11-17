@@ -6,7 +6,7 @@ from migen.fhdl.structure import _Slice
 from migen.pytholite.reg import *
 from migen.pytholite.expr import *
 from migen.pytholite import transel
-from migen.pytholite.io import make_io_object, gen_io
+from migen.pytholite.io import Pytholite, gen_io
 from migen.pytholite.fsm import *
 
 def _is_name_used(node, name):
@@ -228,7 +228,7 @@ class _Compiler:
 			raise NotImplementedError
 
 def make_pytholite(func, **ioresources):
-	ioo = make_io_object(**ioresources)
+	ioo = Pytholite(**ioresources)
 	
 	tree = ast.parse(inspect.getsource(func))
 	symdict = func.__globals__.copy()

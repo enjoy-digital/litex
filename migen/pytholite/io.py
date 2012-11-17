@@ -1,23 +1,15 @@
 import ast
 
 from migen.fhdl.structure import *
-from migen.flow.actor import *
+from migen.uio.ioo import UnifiedIOObject
 from migen.actorlib.sim import *
+from migen.bus.transactions import *
 from migen.pytholite.fsm import *
 from migen.pytholite.expr import ExprCompiler
 
-class Pytholite:
+class Pytholite(UnifiedIOObject):
 	def get_fragment(self):
 		return self.fragment
-
-class DFPytholite(Pytholite, Actor):
-	pass
-
-def make_io_object(dataflow=None):
-	if dataflow is None:
-		return Pytholite()
-	else:
-		return DFPytholite(*dataflow)
 
 class _TokenPullExprCompiler(ExprCompiler):
 	def __init__(self, symdict, modelname, ep):
