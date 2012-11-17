@@ -78,8 +78,8 @@ def test_asmi():
 	port = hub.get_port()
 	hub.finalize()
 	# Create the initiator, target and tap (similar to the Wishbone case).
-	master = asmibus.Initiator(port, my_generator())
-	slave = asmibus.Target(hub, MyModelASMI())
+	master = asmibus.Initiator(my_generator(), port)
+	slave = asmibus.Target(MyModelASMI(), hub)
 	tap = asmibus.Tap(hub)
 	# Run the simulation (same as the Wishbone case).
 	def end_simulation(s):

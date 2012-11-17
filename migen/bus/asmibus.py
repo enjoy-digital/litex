@@ -213,13 +213,13 @@ class Tap(PureSimulable):
 			self.transaction = transaction
 
 class Initiator(PureSimulable):
-	def __init__(self, port, generator):
-		self.port = port
+	def __init__(self, generator, port):
 		self.generator = generator
+		self.port = port
 		self.done = False
 		self._exe = None
 	
-	def _execute(self, s, port, generator):
+	def _execute(self, s, generator, port):
 		while True:
 			transaction = next(generator)
 			transaction_start = s.cycle_counter
@@ -260,7 +260,7 @@ class Initiator(PureSimulable):
 	def do_simulation(self, s):
 		if not self.done:
 			if self._exe is None:
-				self._exe = self._execute(s, self.port, self.generator)
+				self._exe = self._execute(s, self.generator, self.port)
 			try:
 				next(self._exe)
 			except StopIteration:
@@ -288,9 +288,9 @@ class TargetModel:
 		return self.last_slot
 
 class Target(PureSimulable):
-	def __init__(self, hub, model):
-		self.hub = hub
+	def __init__(self, model, hub):
 		self.model = model
+		self.hub = hub
 		self._calling_tag = -1
 		self._write_request_d = -1
 		self._write_request = -1
