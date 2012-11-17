@@ -14,9 +14,9 @@ class Token:
 # NB: the possibility to push several tokens at once is important to interact
 # with actors that only accept a group of tokens when all of them are available.
 class TokenExchanger(PureSimulable):
-	def __init__(self, actor, generator):
-		self.actor = actor
+	def __init__(self, generator, actor):
 		self.generator = generator
+		self.actor = actor
 		self.active = set()
 		self.done = False
 
@@ -71,7 +71,7 @@ class TokenExchanger(PureSimulable):
 class SimActor(Actor):
 	def __init__(self, generator, *endpoint_descriptions, **misc):
 		super().__init__(*endpoint_descriptions, **misc)
-		self.token_exchanger = TokenExchanger(self, generator)
+		self.token_exchanger = TokenExchanger(generator, self)
 	
 	def get_fragment(self):
 		return self.token_exchanger.get_fragment()
