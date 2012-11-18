@@ -81,17 +81,20 @@ def _printnode(ns, at, level, node):
 		r += "\t"*level + "end\n"
 		return r
 	elif isinstance(node, Case):
-		r = "\t"*level + "case (" + _printexpr(ns, node.test) + ")\n"
-		for case in node.cases:
-			r += "\t"*(level + 1) + _printexpr(ns, case[0]) + ": begin\n"
-			r += _printnode(ns, at, level + 2, case[1])
-			r += "\t"*(level + 1) + "end\n"
-		if node.default:
-			r += "\t"*(level + 1) + "default: begin\n"
-			r += _printnode(ns, at, level + 2, node.default)
-			r += "\t"*(level + 1) + "end\n"
-		r += "\t"*level + "endcase\n"
-		return r
+		if node.cases or node.default:
+			r = "\t"*level + "case (" + _printexpr(ns, node.test) + ")\n"
+			for case in node.cases:
+				r += "\t"*(level + 1) + _printexpr(ns, case[0]) + ": begin\n"
+				r += _printnode(ns, at, level + 2, case[1])
+				r += "\t"*(level + 1) + "end\n"
+			if node.default:
+				r += "\t"*(level + 1) + "default: begin\n"
+				r += _printnode(ns, at, level + 2, node.default)
+				r += "\t"*(level + 1) + "end\n"
+			r += "\t"*level + "endcase\n"
+			return r
+		else:
+			return ""
 	else:
 		raise TypeError
 
