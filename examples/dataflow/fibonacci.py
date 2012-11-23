@@ -31,16 +31,6 @@ class Init(Actor):
 		]
 		return Fragment(comb, sync)
 
-class Dumper(SimActor):
-	def __init__(self, nbits):
-		def dumper_gen():
-			while True:
-				t = Token("result")
-				yield t
-				print(t.value["r"])
-		super().__init__(dumper_gen(),
-			("result", Sink, [("r", BV(nbits))]))
-
 def main():
 	nbits = 32
 	
@@ -63,7 +53,7 @@ def main():
 	g.add_connection(init2, buf2)
 	g.add_connection(buf2, adder, sink_subr="b")
 	
-	g.add_connection(bufadd, ActorNode(Dumper(nbits)))
+	g.add_connection(bufadd, ActorNode(Dumper([("r", BV(nbits))])))
 	
 	c = CompositeActor(g)
 	fragment = c.get_fragment()

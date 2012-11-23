@@ -18,16 +18,6 @@ class NumberGen(SimActor):
 		super().__init__(number_gen(),
 			("result", Source, [("r", self.bv_r)]))
 
-class Dumper(SimActor):
-	def __init__(self):
-		def dumper_gen():
-			while True:
-				t = Token("result")
-				yield t
-				print(t.value["r"])
-		super().__init__(dumper_gen(),
-			("result", Sink, [("r", BV(32))]))
-
 def draw(g):
 	if len(sys.argv) > 1 and sys.argv[1] == "draw":
 		nx.draw_spectral(g)
@@ -42,7 +32,7 @@ def main():
 	ps = gen1 + gen2
 	result = ps*gen1 + ps*gen2
 	
-	g.add_connection(result, ActorNode(Dumper()))
+	g.add_connection(result, ActorNode(Dumper([("r", BV(32))])))
 
 	gen1.actor.name = "gen1"
 	gen2.actor.name = "gen2"

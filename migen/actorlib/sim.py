@@ -75,3 +75,17 @@ class SimActor(Actor):
 	
 	def get_fragment(self):
 		return self.token_exchanger.get_fragment()
+
+class Dumper(SimActor):
+	def __init__(self, layout, prefix=""):
+		def dumper_gen():
+			while True:
+				t = Token("result")
+				yield t
+				if len(t.value) > 1:
+					s = str(t.value)
+				else:
+					s = str(list(t.value.values())[0])
+				print(prefix + s)
+		super().__init__(dumper_gen(),
+			("result", Sink, layout))

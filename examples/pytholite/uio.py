@@ -24,23 +24,13 @@ def gen():
 		ds.store = r.data
 		yield Token("result", {"r": ds})
 
-class Dumper(SimActor):
-	def __init__(self):
-		def dumper_gen():
-			while True:
-				t = Token("result")
-				yield t
-				print(t.value["r"])
-		super().__init__(dumper_gen(),
-			("result", Sink, layout))
-
 class SlaveModel(wishbone.TargetModel):
 	def read(self, address):
 		return address + 4
 
 def run_sim(ng):
 	g = DataFlowGraph()
-	d = Dumper()
+	d = Dumper(layout)
 	g.add_connection(ActorNode(ng), ActorNode(d))
 	
 	slave = wishbone.Target(SlaveModel())

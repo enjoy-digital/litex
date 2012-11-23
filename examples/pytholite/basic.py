@@ -11,19 +11,9 @@ def number_gen():
 	for i in range(10):
 		yield Token("result", {"r": i})
 
-class Dumper(SimActor):
-	def __init__(self):
-		def dumper_gen():
-			while True:
-				t = Token("result")
-				yield t
-				print(t.value["r"])
-		super().__init__(dumper_gen(),
-			("result", Sink, layout))
-
 def run_sim(ng):
 	g = DataFlowGraph()
-	d = Dumper()
+	d = Dumper(layout)
 	g.add_connection(ActorNode(ng), ActorNode(d))
 	
 	c = CompositeActor(g)
