@@ -335,6 +335,8 @@ class Memory(HUID):
 	def get_port(self, write_capable=False, async_read=False,
 	  has_re=False, we_granularity=0, mode=WRITE_FIRST,
 	  clock_domain="sys"):
+		if we_granularity >= self.width:
+			we_granularity = 0
 		adr = Signal(BV(bits_for(self.depth-1)))
 		dat_r = Signal(BV(self.width))
 		if write_capable:
