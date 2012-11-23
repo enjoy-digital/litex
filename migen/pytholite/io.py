@@ -72,6 +72,20 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 		]
 		return [state], [state]
 
+class _BusReadExprCompiler(ExprCompiler):
+	def __init__(self, symdict, modelname, data_signal):
+		super().__init__(symdict)
+		self.modelname = modelname
+		self.data_signal = data_signal
+	
+	def visit_expr_attribute(self, node):
+		# recognize <modelname>.data as the bus read signal, raise exception otherwise
+		if not isinstance(node.value, ast.Name) \
+		  or node.value.id != self.modelname \
+		  or node.attr != "data":
+			raise NotImplementedError
+		return self.data_signal
+
 def _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus):
 	state = [
 		bus.cyc.eq(1),
@@ -85,7 +99,10 @@ def _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus):
 			raise TypeError("Attempted to read from write transaction")
 	else:
 		state.append(bus.we.eq(0))
-		# TODO
+		ec = _BusReadExprCompiler(compiler.symdict, modelname, bus.dat_r)
+		for target_regs, expr in from_model:
+			cexpr = ec.visit_expr(expr)
+			state += [reg.load(cexpr) for reg in target_regs]
 	state.append(If(~bus.ack, AbstractNextState(state)))
 	return [state], [state]
 
