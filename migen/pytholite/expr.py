@@ -1,6 +1,7 @@
 import ast
 
 from migen.fhdl.structure import *
+from migen.fhdl.structure import _Slice
 from migen.pytholite import transel
 from migen.pytholite.reg import *
 
