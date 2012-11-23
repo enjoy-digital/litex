@@ -13,8 +13,12 @@ layout = [("r", BV(32))]
 
 def gen():
 	ds = Register(32)
+	for i in range(3):
+		r = TRead(i, busname="mem")
+		yield r
+		ds.store = r.data
+		yield Token("result", {"r": ds})
 	for i in range(5):
-		# NB: busname is optional when only one bus is configured
 		r = TRead(i, busname="wb")
 		yield r
 		ds.store = r.data
@@ -46,20 +50,27 @@ def run_sim(ng):
 	fragment = slave.get_fragment() + intercon.get_fragment() + c.get_fragment()
 	
 	sim = Simulator(fragment, Runner())
-	sim.run(30)
+	sim.run(50)
 	del sim
 
 def main():
+	mem = Memory(32, 3, init=[42, 37, 81])
+	dataflow = [("result", Source, layout)]
+	buses = {
+		"wb":	wishbone.Interface(),
+		"mem":	mem
+	}
+	
 	print("Simulating native Python:")
 	ng_native = UnifiedIOSimulation(gen(), 
-		dataflow=[("result", Source, layout)],
-		buses={"wb": wishbone.Interface()})
+		dataflow=dataflow,
+		buses=buses)
 	run_sim(ng_native)
 	
 	print("Simulating Pytholite:")
 	ng_pytholite = make_pytholite(gen,
-		dataflow=[("result", Source, layout)],
-		buses={"wb": wishbone.Interface()})
+		dataflow=dataflow,
+		buses=buses)
 	run_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
