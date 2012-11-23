@@ -94,9 +94,18 @@ def _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus):
 	]
 	
 	if model == TWrite:
-		state.append(bus.we.eq(1))
 		if from_model:
 			raise TypeError("Attempted to read from write transaction")
+		state += [
+			bus.we.eq(1),
+			bus.dat_w.eq(compiler.ec.visit_expr(to_model["data"]))
+		]
+		sel = to_model["sel"]
+		if isinstance(sel, ast.Name) and sel.id == "None":
+			nbytes = (len(bus.dat_w) + 7)//8
+			state.append(bus.sel.eq(2**nbytes-1))
+		else:
+			state.append(bus.sel.eq(compiler.ec.visit_expr(sel)))
 	else:
 		state.append(bus.we.eq(0))
 		ec = _BusReadExprCompiler(compiler.symdict, modelname, bus.dat_r)
