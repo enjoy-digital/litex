@@ -11,7 +11,7 @@ from migen.pytholite.expr import ExprCompiler
 
 class Pytholite(UnifiedIOObject):
 	def get_fragment(self):
-		return self.fragment
+		return super().get_fragment() + self.fragment
 
 class _TokenPullExprCompiler(ExprCompiler):
 	def __init__(self, symdict, modelname, ep):

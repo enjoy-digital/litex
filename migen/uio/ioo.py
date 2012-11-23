@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.actorlib.sim import TokenExchanger, Token
-from migen.bus import wishbone
+from migen.bus import wishbone, memory
 from migen.bus.transactions import *
 from migen.uio.trampoline import Trampoline
 
@@ -10,6 +10,11 @@ class UnifiedIOObject(Actor):
 		if dataflow is not None:
 			super().__init__(*dataflow)
 		self.buses = buses
+		
+		self._memories = set(v for v in self.buses.values() if isinstance(v, Memory))
+	
+	def get_fragment(self):
+		return Fragment(memories=list(self._memories))
 
 (_WAIT_COMPLETE, _WAIT_POLL) = range(2)
 
@@ -28,6 +33,8 @@ class UnifiedIOSimulation(UnifiedIOObject):
 			g = self.dispatch_g(caller_id)
 			if isinstance(v, wishbone.Interface):
 				caller = wishbone.Initiator(g, v)
+			elif isinstance(v, Memory):
+				caller = memory.Initiator(g, v)
 			else:
 				raise NotImplementedError
 			self.callers.append(caller)
@@ -69,4 +76,5 @@ class UnifiedIOSimulation(UnifiedIOObject):
 				yield None
 	
 	def get_fragment(self):
-		return sum([c.get_fragment() for c in self.callers], Fragment())
+		f = super().get_fragment()
+		return sum([c.get_fragment() for c in self.callers], f)
