@@ -14,7 +14,7 @@ class UnifiedIOObject(Actor):
 		self._memories = set(v for v in self.buses.values() if isinstance(v, Memory))
 	
 	def get_fragment(self):
-		return Fragment(memories=list(self._memories))
+		return Fragment(memories=self._memories)
 
 (_WAIT_COMPLETE, _WAIT_POLL) = range(2)
 

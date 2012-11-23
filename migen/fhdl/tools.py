@@ -84,7 +84,7 @@ def group_by_targets(sl):
 def list_inst_ios(i, ins, outs, inouts):
 	if isinstance(i, Fragment):
 		return list_inst_ios(i.instances, ins, outs, inouts)
-	elif isinstance(i, list):
+	elif isinstance(i, set):
 		if i:
 			return set.union(*(list_inst_ios(e, ins, outs, inouts) for e in i))
 		else:

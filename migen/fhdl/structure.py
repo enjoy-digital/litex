@@ -324,8 +324,8 @@ class Fragment:
 	def __init__(self, comb=None, sync=None, instances=None, memories=None, sim=None):
 		if comb is None: comb = []
 		if sync is None: sync = dict()
-		if instances is None: instances = []
-		if memories is None: memories = []
+		if instances is None: instances = set()
+		if memories is None: memories = set()
 		if sim is None: sim = []
 		
 		if isinstance(sync, list):
@@ -333,8 +333,8 @@ class Fragment:
 		
 		self.comb = comb
 		self.sync = sync
-		self.instances = instances
-		self.memories = memories
+		self.instances = set(instances)
+		self.memories = set(memories)
 		self.sim = sim
 		
 	
@@ -345,8 +345,8 @@ class Fragment:
 		for k, v in other.sync.items():
 			newsync[k].extend(v)
 		return Fragment(self.comb + other.comb, newsync,
-			self.instances + other.instances,
-			self.memories + other.memories,
+			self.instances | other.instances,
+			self.memories | other.memories,
 			self.sim + other.sim)
 	
 	def rename_clock_domain(self, old, new):
