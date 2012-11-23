@@ -12,8 +12,9 @@ from migen.flow.isd import DFGReporter
 #      instantiated with the parameters from the dictionary.
 #      This form is needed to enable actor duplication or sharing during elaboration.
 
-class ActorNode:
+class ActorNode(HUID):
 	def __init__(self, actor_class, parameters=dict()):
+		super().__init__()
 		if isinstance(actor_class, type):
 			self.actor_class = actor_class
 			self.parameters = parameters

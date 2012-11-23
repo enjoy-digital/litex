@@ -114,7 +114,7 @@ def _printheader(f, ios, name, ns):
 	wires = _list_comb_wires(f) | inst_mem_outs
 	r = "module " + name + "(\n"
 	firstp = True
-	for sig in sorted(ios, key=lambda x: x.order):
+	for sig in sorted(ios, key=lambda x: x.huid):
 		if not firstp:
 			r += ",\n"
 		firstp = False
@@ -128,7 +128,7 @@ def _printheader(f, ios, name, ns):
 		else:
 			r += "\tinput " + _printsig(ns, sig)
 	r += "\n);\n\n"
-	for sig in sorted(sigs - ios, key=lambda x: x.order):
+	for sig in sorted(sigs - ios, key=lambda x: x.huid):
 		if sig in wires:
 			r += "wire " + _printsig(ns, sig) + ";\n"
 		else:
@@ -244,7 +244,7 @@ def _printinit(f, ios, ns):
 		- list_mem_ios(f, False, True)
 	if signals:
 		r += "initial begin\n"
-		for s in sorted(signals, key=lambda x: x.order):
+		for s in sorted(signals, key=lambda x: x.huid):
 			r += "\t" + ns.get_name(s) + " <= " + _printexpr(ns, s.reset) + ";\n"
 		r += "end\n\n"
 	return r

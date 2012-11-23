@@ -42,7 +42,17 @@ class BV:
 	def __eq__(self, other):
 		return self.width == other.width and self.signed == other.signed
 
-class Value:
+
+class HUID:
+	__next_uid = 0
+	def __init__(self):
+		self.huid = HUID.__next_uid
+		HUID.__next_uid += 1
+	
+	def __hash__(self):
+		return self.huid
+
+class Value(HUID):
 	def __invert__(self):
 		return _Operator("~", [self])
 
@@ -111,30 +121,35 @@ class Value:
 		return _Assign(self, r)
 	
 	def __hash__(self):
-		return id(self)
+		return super().__hash__()
 
 class _Operator(Value):
 	def __init__(self, op, operands):
+		super().__init__()
 		self.op = op
 		self.operands = list(map(_cst, operands))
 
 class _Slice(Value):
 	def __init__(self, value, start, stop):
+		super().__init__()
 		self.value = value
 		self.start = start
 		self.stop = stop
 
 class Cat(Value):
 	def __init__(self, *args):
+		super().__init__()
 		self.l = list(map(_cst, args))
 
 class Replicate(Value):
 	def __init__(self, v, n):
+		super().__init__()
 		self.v = _cst(v)
 		self.n = n
 
 class Constant(Value):
 	def __init__(self, n, bv=None):
+		super().__init__()
 		self.bv = bv or BV(bits_for(n), n < 0)
 		self.n = n
 	
@@ -148,7 +163,7 @@ class Constant(Value):
 		return self.bv == other.bv and self.n == other.n
 	
 	def __hash__(self):
-		return id(self)
+		return super().__hash__()
 
 
 def binc(x, signed=False):
@@ -161,16 +176,14 @@ def _cst(x):
 		return x
 
 class Signal(Value):
-	_counter = 0
 	def __init__(self, bv=BV(), name=None, variable=False, reset=0, name_override=None):
+		super().__init__()
 		assert(isinstance(bv, BV))
 		self.bv = bv
 		self.variable = variable
 		self.reset = Constant(reset, bv)
 		self.name_override = name_override
 		self.backtrace = tracer.trace_back(name)
-		self.order = Signal._counter
-		Signal._counter += 1
 
 	def __len__(self):
 		return self.bv.width
@@ -247,8 +260,9 @@ class Array(list):
 
 # extras
 
-class Instance:
+class Instance(HUID):
 	def __init__(self, of, *items, name=""):
+		super().__init__()
 		self.of = of
 		if name:
 			self.name_override = name
@@ -291,9 +305,6 @@ class Instance:
 		for item in self.items:
 			if isinstance(item, Instance._IO) and item.name == name:
 				return item.expr
-	
-	def __hash__(self):
-		return id(self)
 
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
 
@@ -311,8 +322,9 @@ class MemoryPort:
 		self.mode = mode
 		self.clock_domain = clock_domain
 
-class Memory:
+class Memory(HUID):
 	def __init__(self, width, depth, *ports, init=None):
+		super().__init__()
 		self.width = width
 		self.depth = depth
 		self.ports = ports
