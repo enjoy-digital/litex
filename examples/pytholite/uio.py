@@ -13,8 +13,9 @@ layout = [("r", BV(32))]
 
 def gen():
 	ds = Register(32)
-	for i in range(10):
-		r = TRead(i)
+	for i in range(5):
+		# NB: busname is optional when only one bus is configured
+		r = TRead(i, busname="wb")
 		yield r
 		ds.store = r.data
 		yield Token("result", {"r": ds})
@@ -55,11 +56,13 @@ def main():
 		buses={"wb": wishbone.Interface()})
 	run_sim(ng_native)
 	
-	#print("Simulating Pytholite:")
-	#ng_pytholite = make_pytholite(gen, dataflow=[("result", Source, layout)])
-	#run_sim(ng_pytholite)
+	print("Simulating Pytholite:")
+	ng_pytholite = make_pytholite(gen,
+		dataflow=[("result", Source, layout)],
+		buses={"wb": wishbone.Interface()})
+	run_sim(ng_pytholite)
 	
-	#print("Converting Pytholite to Verilog:")
-	#print(verilog.convert(ng_pytholite.get_fragment()))
+	print("Converting Pytholite to Verilog:")
+	print(verilog.convert(ng_pytholite.get_fragment()))
 
 main()
