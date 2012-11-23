@@ -10,7 +10,6 @@ class UnifiedIOObject(Actor):
 		if dataflow is not None:
 			super().__init__(*dataflow)
 		self.buses = buses
-		
 		self._memories = set(v for v in self.buses.values() if isinstance(v, Memory))
 	
 	def get_fragment(self):

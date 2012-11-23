@@ -10,6 +10,11 @@ from migen.pytholite.fsm import *
 from migen.pytholite.expr import ExprCompiler
 
 class Pytholite(UnifiedIOObject):
+	def __init__(self, dataflow=None, buses={}):
+		super().__init__(dataflow, buses)
+		self.memory_ports = dict((mem, mem.get_port(write_capable=True, we_granularity=8))
+			for mem in self._memories)
+	
 	def get_fragment(self):
 		return super().get_fragment() + self.fragment
 
@@ -107,13 +112,34 @@ def _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus):
 		else:
 			state.append(bus.sel.eq(compiler.ec.visit_expr(sel)))
 	else:
-		state.append(bus.we.eq(0))
 		ec = _BusReadExprCompiler(compiler.symdict, modelname, bus.dat_r)
 		for target_regs, expr in from_model:
 			cexpr = ec.visit_expr(expr)
 			state += [reg.load(cexpr) for reg in target_regs]
 	state.append(If(~bus.ack, AbstractNextState(state)))
 	return [state], [state]
+
+def _gen_memory_io(compiler, modelname, model, to_model, from_model, port):
+	s1 = [port.adr.eq(compiler.ec.visit_expr(to_model["address"]))]
+	if model == TWrite:
+		if from_model:
+			raise TypeError("Attempted to read from write transaction")
+		s1.append(port.dat_w.eq(compiler.ec.visit_expr(to_model["data"])))
+		sel = to_model["sel"]
+		if isinstance(sel, ast.Name) and sel.id == "None":
+			nbytes = (len(port.dat_w) + 7)//8
+			s1.append(port.we.eq(2**nbytes-1))
+		else:
+			s1.append(port.we.eq(compiler.ec.visit_expr(sel)))
+		return [s1], [s1]
+	else:
+		s2 = []
+		s1.append(AbstractNextState(s2))
+		ec = _BusReadExprCompiler(compiler.symdict, modelname, port.dat_r)
+		for target_regs, expr in from_model:
+			cexpr = ec.visit_expr(expr)
+			s2 += [reg.load(cexpr) for reg in target_regs]
+		return [s1, s2], [s2]
 
 def _gen_bus_io(compiler, modelname, model, to_model, from_model):
 	busname = ast.literal_eval(to_model["busname"])
@@ -125,6 +151,9 @@ def _gen_bus_io(compiler, modelname, model, to_model, from_model):
 		bus = compiler.ioo.buses[busname]
 	if isinstance(bus, wishbone.Interface):
 		return _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus)
+	elif isinstance(bus, Memory):
+		port = compiler.ioo.memory_ports[bus]
+		return _gen_memory_io(compiler, modelname, model, to_model, from_model, port)
 	else:
 		raise NotImplementedError("Unsupported bus")
 
