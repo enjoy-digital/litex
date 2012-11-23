@@ -338,7 +338,10 @@ class Memory(HUID):
 		adr = Signal(BV(bits_for(self.depth-1)))
 		dat_r = Signal(BV(self.width))
 		if write_capable:
-			we = Signal()
+			if we_granularity:
+				we = Signal(BV(self.width//we_granularity))
+			else:
+				we = Signal()
 			dat_w = Signal(BV(self.width))
 		else:
 			we = None
@@ -348,8 +351,8 @@ class Memory(HUID):
 		else:
 			re = None
 		mp = MemoryPort(adr, dat_r, we, dat_w,
-		async_read, re, we_granularity, mode,
-		clock_domain)
+		  async_read, re, we_granularity, mode,
+		  clock_domain)
 		self.ports.append(mp)
 		return mp
 
