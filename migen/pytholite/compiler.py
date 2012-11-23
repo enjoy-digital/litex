@@ -110,9 +110,9 @@ class _Compiler:
 				else:
 					raise NotImplementedError
 		else:
-			return self.visit_io_pattern(sa, node.targets, callee, value.args, statements)
+			return self.visit_io_pattern(sa, node.targets, callee, value.args, value.keywords, statements)
 	
-	def visit_io_pattern(self, sa, targets, model, args, statements):
+	def visit_io_pattern(self, sa, targets, model, args, keywords, statements):
 		# first statement is <modelname> = <model>(<args>)
 		if len(targets) != 1 or not isinstance(targets[0], ast.Name):
 			raise NotImplementedError("Unrecognized I/O pattern")
@@ -154,7 +154,7 @@ class _Compiler:
 					raise NotImplementedError
 			from_model.append((tregs, fstatement.value))
 		
-		states, exit_states = gen_io(self, modelname, model, args, from_model)
+		states, exit_states = gen_io(self, modelname, model, args, keywords, from_model)
 		sa.assemble(states, exit_states)
 		return fstatement
 	
@@ -222,7 +222,7 @@ class _Compiler:
 			if not isinstance(yvalue, ast.Call) or not isinstance(yvalue.func, ast.Name):
 				raise NotImplementedError("Unrecognized I/O pattern")
 			callee = self.symdict[yvalue.func.id]
-			states, exit_states = gen_io(self, None, callee, yvalue.args, [])
+			states, exit_states = gen_io(self, None, callee, yvalue.args, yvalue.keywords, [])
 			sa.assemble(states, exit_states)
 		else:
 			raise NotImplementedError
