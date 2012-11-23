@@ -146,9 +146,19 @@ class Simulator:
 		if isinstance(obj, Signal):
 			return self.rd(obj)
 		elif isinstance(obj, list):
-			return [self.multiread(item) for item in obj]
+			r = []
+			for item in obj:
+				rd = self.multiread(item)
+				if isinstance(item, Signal) or rd:
+					r.append(rd)
+			return r
 		elif hasattr(obj, "__dict__"):
-			return dict([(k, self.multiread(v)) for k, v in obj.__dict__.items()])
+			r = {}
+			for k, v in obj.__dict__.items():
+				rd = self.multiread(v)
+				if isinstance(v, Signal) or rd:
+					r[k] = rd
+			return r
 	
 	def multiwrite(self, obj, value):
 		if isinstance(obj, Signal):
