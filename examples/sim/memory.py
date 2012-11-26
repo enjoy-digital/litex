@@ -7,12 +7,9 @@ from migen.sim.icarus import Runner
 
 class Mem:
 	def __init__(self):
-		self.a = Signal(BV(12))
-		self.d = Signal(BV(16))
-		p = MemoryPort(self.a, self.d)
 		# Initialize the beginning of the memory with integers
 		# from 0 to 19.
-		self.mem = Memory(16, 2**12, p, init=list(range(20)))
+		self.mem = Memory(16, 2**12, init=list(range(20)))
 	
 	def do_simulation(self, s):
 		# Read the memory. Use the cycle counter as address.
