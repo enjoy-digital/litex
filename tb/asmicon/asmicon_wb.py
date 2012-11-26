@@ -10,18 +10,18 @@ from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 l2_size = 8192 # in bytes
 
 def my_generator():
-	#for x in range(20):
-		#t = TWrite(x, x)
-		#yield t
-		#print(str(t) + " delay=" + str(t.latency))
 	for x in range(20):
-		t = TRead(4194304//4 + x)
+		t = TWrite(x, x)
 		yield t
 		print(str(t) + " delay=" + str(t.latency))
-	#for x in range(20):
-		#t = TRead(x+l2_size//4)
-		#yield t
-		#print(str(t) + " delay=" + str(t.latency))
+	for x in range(20):
+		t = TRead(x)
+		yield t
+		print(str(t) + " delay=" + str(t.latency))
+	for x in range(20):
+		t = TRead(x+l2_size//4)
+		yield t
+		print(str(t) + " delay=" + str(t.latency))
 
 def main():
 	controller = ASMIcon(sdram_phy, sdram_geom, sdram_timing)
