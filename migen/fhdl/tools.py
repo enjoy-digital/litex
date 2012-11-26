@@ -2,69 +2,38 @@ from copy import copy
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
+from migen.fhdl.visit import NodeVisitor
 
+class _SignalLister(NodeVisitor):
+	def __init__(self):
+		self.output_list = set()
+	
+	def visit_Signal(self, node):
+		self.output_list.add(node)
+
+class _TargetLister(NodeVisitor):
+	def __init__(self):
+		self.output_list = set()
+		self.target_context = False
+	
+	def visit_Signal(self, node):
+		if self.target_context:
+			self.output_list.add(node)
+	
+	def visit_Assign(self, node):
+		self.target_context = True
+		self.visit(node.l)
+		self.target_context = False
+	
 def list_signals(node):
-	if node is None:
-		return set()
-	elif isinstance(node, Constant):
-		return set()
-	elif isinstance(node, Signal):
-		return {node}
-	elif isinstance(node, _Operator):
-		l = list(map(list_signals, node.operands))
-		return set().union(*l)
-	elif isinstance(node, _Slice):
-		return list_signals(node.value)
-	elif isinstance(node, Cat):
-		l = list(map(list_signals, node.l))
-		return set().union(*l)
-	elif isinstance(node, Replicate):
-		return list_signals(node.v)
-	elif isinstance(node, _Assign):
-		return list_signals(node.l) | list_signals(node.r)
-	elif isinstance(node, list):
-		l = list(map(list_signals, node))
-		return set().union(*l)
-	elif isinstance(node, If):
-		return list_signals(node.cond) | list_signals(node.t) | list_signals(node.f)
-	elif isinstance(node, Case):
-		l = list(map(lambda x: list_signals(x[1]), node.cases))
-		return list_signals(node.test).union(*l).union(list_signals(node.default))
-	elif isinstance(node, Fragment):
-		l = list_signals(node.comb)
-		for k, v in node.sync.items():
-			l |= list_signals(v)
-		return l
-	else:
-		raise TypeError
+	lister = _SignalLister()
+	lister.visit(node)
+	return lister.output_list
 
 def list_targets(node):
-	if node is None:
-		return set()
-	elif isinstance(node, Signal):
-		return {node}
-	elif isinstance(node, _Slice):
-		return list_targets(node.value)
-	elif isinstance(node, Cat):
-		l = list(map(list_targets, node.l))
-		return set().union(*l)
-	elif isinstance(node, _Assign):
-		return list_targets(node.l)
-	elif isinstance(node, list):
-		l = list(map(list_targets, node))
-		return set().union(*l)
-	elif isinstance(node, If):
-		return list_targets(node.t) | list_targets(node.f)
-	elif isinstance(node, Case):
-		l = list(map(lambda x: list_targets(x[1]), node.cases))
-		return list_targets(node.default).union(*l)
-	elif isinstance(node, Fragment):
-		l = list_targets(node.comb)
-		for k, v in node.sync.items():
-			l |= list_targets(v)
-		return l
-	else:
-		raise TypeError
+	lister = _TargetLister()
+	lister.visit(node)
+	return lister.output_list
 
 def group_by_targets(sl):
 	groups = []
