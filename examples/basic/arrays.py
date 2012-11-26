@@ -21,5 +21,5 @@ sync = [
 	)
 ]
 
-f = Fragment(comb)
+f = Fragment(comb, sync)
 print(verilog.convert(f))
