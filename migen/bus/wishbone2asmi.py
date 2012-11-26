@@ -33,49 +33,45 @@ class WB2ASMI:
 		adr_offset, adr_line, adr_tag = split(self.wishbone.adr, offsetbits, linebits, tagbits)
 		
 		# Data memory
-		data_adr = Signal(BV(linebits))
-		data_do = Signal(BV(adw))
-		data_di = Signal(BV(adw))
-		data_we = Signal(BV(adw//8))
-		data_port = MemoryPort(data_adr, data_do, data_we, data_di, we_granularity=8)
-		data_mem = Memory(adw, 2**linebits, data_port)
+		data_mem = Memory(adw, 2**linebits)
+		data_port = data_mem.get_port(write_capable=True, we_granularity=8)
 		
 		write_from_asmi = Signal()
 		write_to_asmi = Signal()
 		adr_offset_r = Signal(BV(offsetbits))
 		comb += [
-			data_adr.eq(adr_line),
+			data_port.adr.eq(adr_line),
 			If(write_from_asmi,
-				data_di.eq(self.asmiport.dat_r),
-				data_we.eq(Replicate(1, adw//8))
+				data_port.dat_w.eq(self.asmiport.dat_r),
+				data_port.we.eq(Replicate(1, adw//8))
 			).Else(
-				data_di.eq(Replicate(self.wishbone.dat_w, adw//32)),
+				data_port.dat_w.eq(Replicate(self.wishbone.dat_w, adw//32)),
 				If(self.wishbone.cyc & self.wishbone.stb & self.wishbone.we & self.wishbone.ack,
-					displacer(self.wishbone.sel, adr_offset, data_we, 2**offsetbits, reverse=True)
+					displacer(self.wishbone.sel, adr_offset, data_port.we, 2**offsetbits, reverse=True)
 				)
 			),
-			If(write_to_asmi, self.asmiport.dat_w.eq(data_do)),
+			If(write_to_asmi, self.asmiport.dat_w.eq(data_port.dat_r)),
 			self.asmiport.dat_wm.eq(0),
-			chooser(data_do, adr_offset_r, self.wishbone.dat_r, reverse=True)
+			chooser(data_port.dat_r, adr_offset_r, self.wishbone.dat_r, reverse=True)
 		]
 		sync += [
 			adr_offset_r.eq(adr_offset)
 		]
 		
 		# Tag memory
+		tag_mem = Memory(tagbits+1, 2**linebits)
+		tag_port = tag_mem.get_port(write_capable=True)
+		
 		tag_layout = [("tag", BV(tagbits)), ("dirty", BV(1))]
 		tag_do = Record(tag_layout)
-		tag_do_raw = tag_do.to_signal(comb, False)
 		tag_di = Record(tag_layout)
-		tag_di_raw = tag_di.to_signal(comb, True)
-		
-		tag_adr = Signal(BV(linebits))
-		tag_we = Signal()
-		tag_port = MemoryPort(tag_adr, tag_do_raw, tag_we, tag_di_raw)
-		tag_mem = Memory(tagbits+1, 2**linebits, tag_port)
-		
 		comb += [
-			tag_adr.eq(adr_line),
+			Cat(*tag_do.flatten()).eq(tag_port.dat_r),
+			tag_port.dat_w.eq(Cat(*tag_di.flatten()))
+		]
+			
+		comb += [
+			tag_port.adr.eq(adr_line),
 			tag_di.tag.eq(adr_tag),
 			self.asmiport.adr.eq(Cat(adr_line, tag_do.tag))
 		]
@@ -96,7 +92,7 @@ class WB2ASMI:
 				self.wishbone.ack.eq(1),
 				If(self.wishbone.we,
 					tag_di.dirty.eq(1),
-					tag_we.eq(1)
+					tag_port.we.eq(1)
 				),
 				fsm.next_state(fsm.IDLE)
 			).Else(
@@ -125,7 +121,7 @@ class WB2ASMI:
 		
 		fsm.act(fsm.REFILL_WRTAG,
 			# Write the tag first to set the ASMI address
-			tag_we.eq(1),
+			tag_port.we.eq(1),
 			fsm.next_state(fsm.REFILL_ISSUE)
 		)
 		fsm.act(fsm.REFILL_ISSUE,
