@@ -94,15 +94,9 @@ class Collector(Actor):
 		return [self._reg_wa, self._reg_wc, self._reg_ra, self._reg_rd]
 	
 	def get_fragment(self):
-		wa = Signal(BV(bits_for(self._depth-1)))
-		dummy = Signal(BV(self._dw))
-		wd = Signal(BV(self._dw))
-		we = Signal()
-		wp = MemoryPort(wa, dummy, we, wd)
-		ra = Signal(BV(bits_for(self._depth-1)))
-		rd = Signal(BV(self._dw))
-		rp = MemoryPort(ra, rd)
-		mem = Memory(self._dw, self._depth, wp, rp)
+		mem = Memory(self._dw, self._depth)
+		wp = mem.get_port(write_capable=True)
+		rp = mem.get_port()
 		
 		comb = [
 			If(self._reg_wc.field.r != 0,
@@ -110,17 +104,17 @@ class Collector(Actor):
 				If(self.endpoints["sink"].stb,
 					self._reg_wa.field.we.eq(1),
 					self._reg_wc.field.we.eq(1),
-					we.eq(1)
+					wp.we.eq(1)
 				)
 			),
 			self._reg_wa.field.w.eq(self._reg_wa.field.r + 1),
 			self._reg_wc.field.w.eq(self._reg_wc.field.r - 1),
 			
-			wa.eq(self._reg_wa.field.r),
-			wd.eq(Cat(*self.token("sink").flatten())),
+			wp.adr.eq(self._reg_wa.field.r),
+			wp.dat_w.eq(Cat(*self.token("sink").flatten())),
 			
-			ra.eq(self._reg_ra.field.r),
-			self._reg_rd.field.w.eq(rd)
+			rp.adr.eq(self._reg_ra.field.r),
+			self._reg_rd.field.w.eq(rp.dat_r)
 		]
 		
 		return Fragment(comb, memories=[mem])
