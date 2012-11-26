@@ -308,8 +308,7 @@ class Instance(HUID):
 
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
 
-# NOTE: Direct use of MemoryPort is deprecated. Use Memory.get_port() instead.
-class MemoryPort:
+class _MemoryPort:
 	def __init__(self, adr, dat_r, we=None, dat_w=None,
 	  async_read=False, re=None, we_granularity=0, mode=WRITE_FIRST,
 	  clock_domain="sys"):
@@ -323,13 +322,12 @@ class MemoryPort:
 		self.mode = mode
 		self.clock_domain = clock_domain
 
-# NOTE: ports parameter will be removed
 class Memory(HUID):
-	def __init__(self, width, depth, *ports, init=None):
+	def __init__(self, width, depth, init=None):
 		super().__init__()
 		self.width = width
 		self.depth = depth
-		self.ports = list(ports)
+		self.ports = []
 		self.init = init
 	
 	def get_port(self, write_capable=False, async_read=False,
@@ -352,7 +350,7 @@ class Memory(HUID):
 			re = Signal()
 		else:
 			re = None
-		mp = MemoryPort(adr, dat_r, we, dat_w,
+		mp = _MemoryPort(adr, dat_r, we, dat_w,
 		  async_read, re, we_granularity, mode,
 		  clock_domain)
 		self.ports.append(mp)
