@@ -105,8 +105,10 @@ def insert_reset(rst, sl):
 	return If(rst, *resetcode).Else(*sl)
 
 def value_bv(v):
-	if isinstance(v, Constant):
-		return v.bv
+	if isinstance(v, bool):
+		return BV(1, False)
+	elif isinstance(v, int):
+		return BV(bits_for(v), v < 0)
 	elif isinstance(v, Signal):
 		return v.bv
 	elif isinstance(v, _Operator):
@@ -152,7 +154,7 @@ class _ArrayLowerer(NodeTransformer):
 			cases = []
 			for n, choice in enumerate(node.l.choices):
 				assign = self.visit_Assign(_Assign(choice, node.r))
-				cases.append([Constant(n), assign])
+				cases.append([n, assign])
 			cases[-1][0] = Default()
 			return Case(k, *cases)
 		else:
@@ -160,7 +162,7 @@ class _ArrayLowerer(NodeTransformer):
 	
 	def visit_ArrayProxy(self, node):
 		array_muxed = Signal(value_bv(node))
-		cases = [[Constant(n), _Assign(array_muxed, self.visit(choice))]
+		cases = [[n, _Assign(array_muxed, self.visit(choice))]
 			for n, choice in enumerate(node.choices)]
 		cases[-1][0] = Default()
 		self.comb.append(Case(self.visit(node.key), *cases))

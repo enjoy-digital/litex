@@ -47,7 +47,7 @@ class Arbiter:
 			for i, m in enumerate(self.masters):
 				dest = getattr(m, name)
 				if name == "ack" or name == "err":
-					comb.append(dest.eq(source & (self.rr.grant == Constant(i, self.rr.grant.bv))))
+					comb.append(dest.eq(source & (self.rr.grant == i)))
 				else:
 					comb.append(dest.eq(source))
 		
@@ -59,27 +59,15 @@ class Arbiter:
 
 class Decoder:
 	# slaves is a list of pairs:
-	# 0) structure.Constant defining address (always decoded on the upper bits)
-	#    Slaves can have differing numbers of address bits, but addresses 
-	#    must not conflict.
-	# 1) wishbone.Slave reference
-	# Addresses are decoded from bit 31-offset and downwards.
+	# 0) function that takes the address signal and returns a FHDL expression
+	#    that evaluates to 1 when the slave is selected and 0 otherwise.
+	# 1) wishbone.Slave reference.
 	# register adds flip-flops after the address comparators. Improves timing,
 	# but breaks Wishbone combinatorial feedback.
-	def __init__(self, master, slaves, offset=0, register=False):
+	def __init__(self, master, slaves, register=False):
 		self.master = master
 		self.slaves = slaves
-		self.offset = offset
 		self.register = register
-		
-		addresses = [slave[0] for slave in self.slaves]
-		maxbits = max([bits_for(addr) for addr in addresses])
-		def mkconst(x):
-			if isinstance(x, int):
-				return Constant(x, BV(maxbits))
-			else:
-				return x
-		self.addresses = list(map(mkconst, addresses))
 
 	def get_fragment(self):
 		comb = []
@@ -90,9 +78,8 @@ class Decoder:
 		slave_sel_r = Signal(BV(ns))
 		
 		# decode slave addresses
-		hi = len(self.master.adr) - self.offset
-		comb += [slave_sel[i].eq(self.master.adr[hi-len(addr):hi] == addr)
-			for i, addr in enumerate(self.addresses)]
+		comb += [slave_sel[i].eq(fun(self.master.adr))
+			for i, (fun, bus) in enumerate(self.slaves)]
 		if self.register:
 			sync.append(slave_sel_r.eq(slave_sel))
 		else:
@@ -120,11 +107,10 @@ class Decoder:
 		return Fragment(comb, sync)
 
 class InterconnectShared:
-	def __init__(self, masters, slaves, offset=0, register=False):
+	def __init__(self, masters, slaves, register=False):
 		self._shared = Interface()
 		self._arbiter = Arbiter(masters, self._shared)
-		self._decoder = Decoder(self._shared, slaves, offset, register)
-		self.addresses = self._decoder.addresses
+		self._decoder = Decoder(self._shared, slaves, register)
 	
 	def get_fragment(self):
 		return self._arbiter.get_fragment() + self._decoder.get_fragment()

@@ -95,18 +95,16 @@ class ExprCompiler:
 	
 	def visit_expr_name(self, node):
 		if node.id == "True":
-			return Constant(1)
+			return 1
 		if node.id == "False":
-			return Constant(0)
+			return 0
 		r = self.symdict[node.id]
 		if isinstance(r, ImplRegister):
 			r = r.storage
-		if isinstance(r, int):
-			r = Constant(r)
 		return r
 	
 	def visit_expr_num(self, node):
-		return Constant(node.n)
+		return node.n
 	
 	def visit_expr_attribute(self, node):
 		raise NotImplementedError

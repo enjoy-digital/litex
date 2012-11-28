@@ -83,7 +83,7 @@ class Port:
 		if not self.finalized:
 			raise FinalizeError
 		return self.call \
-			& (self.tag_call == Constant(self.base + slotn, BV(self.tagbits)))
+			& (self.tag_call == (self.base + slotn))
 		
 	def get_fragment(self):
 		if not self.finalized:

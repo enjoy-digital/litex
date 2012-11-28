@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.tools import value_bv
 
 class Record:
 	def __init__(self, layout, name=""):
@@ -76,7 +77,7 @@ class Record:
 			if align:
 				pad_size = alignment - (offset % alignment)
 				if pad_size < alignment:
-					l.append(Constant(0, BV(pad_size)))
+					l.append(Replicate(0, pad_size))
 					offset += pad_size
 			
 			e = self.__dict__[key]
@@ -87,7 +88,7 @@ class Record:
 			else:
 				raise TypeError
 			for x in added:
-				offset += len(x)
+				offset += value_bv(x).width
 			l += added
 		if return_offset:
 			return (l, offset)

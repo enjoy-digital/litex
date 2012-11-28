@@ -15,8 +15,6 @@ def log2_int(n, need_pow2=True):
 	return r
 
 def bits_for(n, require_sign_bit=False):
-	if isinstance(n, Constant):
-		return len(n)
 	if n > 0:
 		r = log2_int(n + 1, False)
 	else:
@@ -126,7 +124,7 @@ class _Operator(Value):
 	def __init__(self, op, operands):
 		super().__init__()
 		self.op = op
-		self.operands = list(map(_cst, operands))
+		self.operands = operands
 
 class _Slice(Value):
 	def __init__(self, value, start, stop):
@@ -138,41 +136,13 @@ class _Slice(Value):
 class Cat(Value):
 	def __init__(self, *args):
 		super().__init__()
-		self.l = list(map(_cst, args))
+		self.l = args
 
 class Replicate(Value):
 	def __init__(self, v, n):
 		super().__init__()
-		self.v = _cst(v)
+		self.v = v
 		self.n = n
-
-class Constant(Value):
-	def __init__(self, n, bv=None):
-		super().__init__()
-		self.bv = bv or BV(bits_for(n), n < 0)
-		self.n = n
-	
-	def __len__(self):
-		return self.bv.width
-	
-	def __repr__(self):
-		return str(self.bv) + str(self.n)
-	
-	def __eq__(self, other):
-		return self.bv == other.bv and self.n == other.n
-	
-	def __hash__(self):
-		return super().__hash__()
-
-
-def binc(x, signed=False):
-	return Constant(int(x, 2), BV(len(x), signed))
-
-def _cst(x):
-	if isinstance(x, int):
-		return Constant(x)
-	else:
-		return x
 
 class Signal(Value):
 	def __init__(self, bv=BV(), name=None, variable=False, reset=0, name_override=None):
@@ -180,7 +150,7 @@ class Signal(Value):
 		assert(isinstance(bv, BV))
 		self.bv = bv
 		self.variable = variable
-		self.reset = Constant(reset, bv)
+		self.reset = reset
 		self.name_override = name_override
 		self.backtrace = tracer.trace_back(name)
 
@@ -195,7 +165,7 @@ class Signal(Value):
 class _Assign:
 	def __init__(self, l, r):
 		self.l = l
-		self.r = _cst(r)
+		self.r = r
 
 class If:
 	def __init__(self, cond, *t):
@@ -274,8 +244,6 @@ class Instance(HUID):
 			self.name = name
 			if isinstance(expr, BV):
 				self.expr = Signal(expr, name)
-			elif isinstance(expr, int):
-				self.expr = Constant(expr)
 			else:
 				self.expr = expr
 	class Input(_IO):

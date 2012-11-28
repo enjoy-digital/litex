@@ -8,16 +8,16 @@ class FSM:
 		self._state = Signal(self._state_bv)
 		self._next_state = Signal(self._state_bv)
 		for n, state in enumerate(states):
-			setattr(self, state, Constant(n, self._state_bv))
+			setattr(self, state, n)
 		self.actions = [[] for i in range(len(states))]
 		
 		for name, target, delay in delayed_enters:
 			target_state = getattr(self, target)
 			if delay:
 				name_state = len(self.actions)
-				setattr(self, name, Constant(name_state, self._state_bv))
+				setattr(self, name, name_state)
 				for i in range(delay-1):
-					self.actions.append([self.next_state(Constant(name_state+i+1, self._state_bv))])
+					self.actions.append([self.next_state(name_state+i+1)])
 				self.actions.append([self.next_state(target_state)])
 			else:
 				# alias
@@ -30,11 +30,10 @@ class FSM:
 		return self._next_state.eq(state)
 	
 	def act(self, state, *statements):
-		self.actions[state.n] += statements
+		self.actions[state] += statements
 	
 	def get_fragment(self):
-		cases = [[Constant(s, self._state_bv)] + a
-			for s, a in enumerate(self.actions) if a]
+		cases = [[s] + a for s, a in enumerate(self.actions) if a]
 		comb = [
 			self._next_state.eq(self._state),
 			Case(self._state, *cases)

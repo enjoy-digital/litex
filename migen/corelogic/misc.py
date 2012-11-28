@@ -49,7 +49,7 @@ def chooser(signal, shift, output, n=None, reverse=False):
 			s = n - i - 1
 		else:
 			s = i
-		cases.append([Constant(i, shift.bv), output.eq(signal[s*w:(s+1)*w])])
+		cases.append([i, output.eq(signal[s*w:(s+1)*w])])
 	cases[n-1][0] = Default()
 	return Case(shift, *cases)
 
@@ -57,25 +57,25 @@ def timeline(trigger, events):
 	lastevent = max([e[0] for e in events])
 	counter = Signal(BV(bits_for(lastevent)))
 	
-	counterlogic = If(counter != Constant(0, counter.bv),
-		counter.eq(counter + Constant(1, counter.bv))
+	counterlogic = If(counter != 0,
+		counter.eq(counter + 1)
 	).Elif(trigger,
-		counter.eq(Constant(1, counter.bv))
+		counter.eq(1)
 	)
 	# insert counter reset if it doesn't naturally overflow
 	# (test if lastevent+1 is a power of 2)
 	if (lastevent & (lastevent + 1)) != 0:
 		counterlogic = If(counter == lastevent,
-			counter.eq(Constant(0, counter.bv))
+			counter.eq(0)
 		).Else(
 			counterlogic
 		)
 	
 	def get_cond(e):
 		if e[0] == 0:
-			return trigger & (counter == Constant(0, counter.bv))
+			return trigger & (counter == 0)
 		else:
-			return counter == Constant(e[0], counter.bv)
+			return counter == e[0]
 	sync = [If(get_cond(e), *e[1]) for e in events]
 	sync.append(counterlogic)
 	return sync

@@ -25,10 +25,10 @@ class Interface:
 		self.pdesc = phase_description(a, ba, d)
 		self.phases = [SimpleInterface(self.pdesc) for i in range(nphases)]
 		for p in self.phases:
-			p.cas_n.reset = Constant(1)
-			p.cs_n.reset = Constant(1)
-			p.ras_n.reset = Constant(1)
-			p.we_n.reset = Constant(1)
+			p.cas_n.reset = 1
+			p.cs_n.reset = 1
+			p.ras_n.reset = 1
+			p.we_n.reset = 1
 	
 	# Returns pairs (DFI-mandated signal name, Migen signal object)
 	def get_standard_names(self, m2s=True, s2m=True):

@@ -15,7 +15,7 @@ class Bank:
 		sync = []
 		
 		sel = Signal()
-		comb.append(sel.eq(self.interface.adr[9:] == Constant(self.address, BV(5))))
+		comb.append(sel.eq(self.interface.adr[9:] == self.address))
 		
 		desc_exp = expand_description(self.description, csr.data_width)
 		nbits = bits_for(len(desc_exp)-1)
@@ -27,9 +27,9 @@ class Bank:
 				comb.append(reg.r.eq(self.interface.dat_w[:reg.size]))
 				comb.append(reg.re.eq(sel & \
 					self.interface.we & \
-					(self.interface.adr[:nbits] == Constant(i, BV(nbits)))))
+					(self.interface.adr[:nbits] == i)))
 			elif isinstance(reg, RegisterFields):
-				bwra = [Constant(i, BV(nbits))]
+				bwra = [i]
 				offset = 0
 				for field in reg.fields:
 					if field.access_bus == WRITE_ONLY or field.access_bus == READ_WRITE:
@@ -51,7 +51,7 @@ class Bank:
 		brcases = []
 		for i, reg in enumerate(desc_exp):
 			if isinstance(reg, RegisterRaw):
-				brcases.append([Constant(i, BV(nbits)), self.interface.dat_r.eq(reg.w)])
+				brcases.append([i, self.interface.dat_r.eq(reg.w)])
 			elif isinstance(reg, RegisterFields):
 				brs = []
 				reg_readable = False
@@ -60,9 +60,9 @@ class Bank:
 						brs.append(field.storage)
 						reg_readable = True
 					else:
-						brs.append(Constant(0, BV(field.size)))
+						brs.append(Replicate(0, field.size))
 				if reg_readable:
-					brcases.append([Constant(i, BV(nbits)), self.interface.dat_r.eq(Cat(*brs))])
+					brcases.append([i, self.interface.dat_r.eq(Cat(*brs))])
 			else:
 				raise TypeError
 		if brcases:

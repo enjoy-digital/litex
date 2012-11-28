@@ -22,7 +22,7 @@ class Divider:
 		comb = [
 			self.quotient_o.eq(qr[:w]),
 			self.remainder_o.eq(qr[w:]),
-			self.ready_o.eq(counter == Constant(0, counter.bv)),
+			self.ready_o.eq(counter == 0),
 			diff.eq(self.remainder_o - divisor_r)
 		]
 		sync = [
@@ -36,7 +36,7 @@ class Divider:
 					).Else(
 						qr.eq(Cat(1, qr[:w-1], diff[:w]))
 					),
-					counter.eq(counter - Constant(1, counter.bv))
+					counter.eq(counter - 1)
 			)
 		]
 		return Fragment(comb, sync)

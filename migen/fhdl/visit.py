@@ -5,8 +5,8 @@ from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
 
 class NodeVisitor:
 	def visit(self, node):
-		if isinstance(node, Constant):
-			self.visit_Constant(node)
+		if isinstance(node, (int, bool)):
+			self.visit_constant(node)
 		elif isinstance(node, Signal):
 			self.visit_Signal(node)
 		elif isinstance(node, _Operator):
@@ -34,7 +34,7 @@ class NodeVisitor:
 		elif node is not None:
 			self.visit_unknown(node)
 	
-	def visit_Constant(self, node):
+	def visit_constant(self, node):
 		pass
 	
 	def visit_Signal(self, node):
@@ -90,15 +90,14 @@ class NodeVisitor:
 		pass
 
 # Default methods always copy the node, except for:
-# - Constants
 # - Signals
 # - Unknown objects
 # - All fragment fields except comb and sync
 # In those cases, the original node is returned unchanged.
 class NodeTransformer:
 	def visit(self, node):
-		if isinstance(node, Constant):
-			return self.visit_Constant(node)
+		if isinstance(node, (int, bool)):
+			return self.visit_constant(node)
 		elif isinstance(node, Signal):
 			return self.visit_Signal(node)
 		elif isinstance(node, _Operator):
@@ -128,7 +127,7 @@ class NodeTransformer:
 		else:
 			return None
 	
-	def visit_Constant(self, node):
+	def visit_constant(self, node):
 		return node
 	
 	def visit_Signal(self, node):

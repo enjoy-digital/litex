@@ -17,12 +17,23 @@ def _printsig(ns, s):
 	n += ns.get_name(s)
 	return n
 
-def _printexpr(ns, node):
-	if isinstance(node, Constant):
-		if node.n >= 0:
-			return str(node.bv) + str(node.n)
+def _printintbool(node):
+	if isinstance(node, bool):
+		if node:
+			return "1'd1"
 		else:
-			return "-" + str(node.bv) + str(-node.n)
+			return "1'd0"
+	elif isinstance(node, int):
+		if node >= 0:
+			return str(bits_for(node)) + "'d" + str(node)
+		else:
+			return "-" + str(bits_for(node)) + "'sd" + str(-node)
+	else:
+		raise TypeError
+
+def _printexpr(ns, node):
+	if isinstance(node, (int, bool)):
+		return _printintbool(node)
 	elif isinstance(node, Signal):
 		return ns.get_name(node)
 	elif isinstance(node, _Operator):
@@ -146,7 +157,7 @@ def _printcomb(f, ns, display_run):
 		dummy_s = Signal(name_override="dummy_s")
 		r += syn_off
 		r += "reg " + _printsig(ns, dummy_s) + ";\n"
-		r += "initial " + ns.get_name(dummy_s) + " <= 1'b0;\n"
+		r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
 		r += syn_on
 		
 		groups = group_by_targets(f.comb)
@@ -164,7 +175,7 @@ def _printcomb(f, ns, display_run):
 				if display_run:
 					r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
 				for t in g[0]:
-					r += "\t" + ns.get_name(t) + " <= " + str(t.reset) + ";\n"
+					r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset) + ";\n"
 				r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
 				r += syn_off
 				r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
@@ -194,7 +205,9 @@ def _printinstances(f, ns, clock_domains):
 					r += ",\n"
 				firstp = False
 				r += "\t." + p.name + "("
-				if isinstance(p.value, int) or isinstance(p.value, float) or isinstance(p.value, Constant):
+				if isinstance(p.value, (int, bool)):
+					r += _printintbool(p.value)
+				elif isinstance(p.value, float):
 					r += str(p.value)
 				elif isinstance(p.value, str):
 					r += "\"" + p.value + "\""

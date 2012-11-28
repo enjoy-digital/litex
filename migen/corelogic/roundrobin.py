@@ -21,7 +21,7 @@ class RoundRobin:
 					t = j % self.n
 					switch = [
 						If(self.request[t],
-							self.grant.eq(Constant(t, BV(self.bn)))
+							self.grant.eq(t)
 						).Else(
 							*switch
 						)
@@ -30,7 +30,7 @@ class RoundRobin:
 					case = [If(~self.request[i], *switch)]
 				else:
 					case = switch
-				cases.append([Constant(i, BV(self.bn))] + case)
+				cases.append([i] + case)
 			statement = Case(self.grant, *cases)
 			if self.switch_policy == SP_CE:
 				statement = If(self.ce, statement)

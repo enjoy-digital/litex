@@ -50,7 +50,7 @@ class Unpack(Actor):
 				)
 			)
 		]
-		cases = [(Constant(i, BV(muxbits)) if i else Default(),
+		cases = [(i if i else Default(),
 			Cat(*self.token("source").flatten()).eq(Cat(*self.token("sink").subrecord("chunk{0}".format(i)).flatten())))
 			for i in range(self.n)]
 		comb.append(Case(mux, *cases))
@@ -69,7 +69,7 @@ class Pack(Actor):
 		
 		load_part = Signal()
 		strobe_all = Signal()
-		cases = [(Constant(i, BV(demuxbits)),
+		cases = [(i,
 			Cat(*self.token("source").subrecord("chunk{0}".format(i)).flatten()).eq(*self.token("sink").flatten()))
 			for i in range(self.n)]
 		comb = [
