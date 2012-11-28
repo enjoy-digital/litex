@@ -31,7 +31,7 @@ class _AddressSlicer:
 		if isinstance(address, int):
 			return (address & (2**self._b1 - 1)) << self.address_align
 		else:
-			return Cat(Constant(0, BV(self.address_align)), address[:self._b1])
+			return Cat(Replicate(0, self.address_align), address[:self._b1])
 
 class _Selector:
 	def __init__(self, slicer, bankn, slots):

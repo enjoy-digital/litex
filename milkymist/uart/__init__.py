@@ -21,7 +21,7 @@ class UART:
 		enable16 = Signal()
 		enable16_counter = Signal(BV(16))
 		comb = [
-			enable16.eq(enable16_counter == Constant(0, BV(16)))
+			enable16.eq(enable16_counter == 0)
 		]
 		sync = [
 			enable16_counter.eq(enable16_counter - 1),
@@ -43,7 +43,7 @@ class UART:
 				self.tx.eq(0)
 			).Elif(enable16 & tx_busy,
 				tx_count16.eq(tx_count16 + 1),
-				If(tx_count16 == Constant(0, BV(4)),
+				If(tx_count16 == 0,
 					tx_bitcount.eq(tx_bitcount + 1),
 					If(tx_bitcount == 8,
 						self.tx.eq(1)

@@ -71,7 +71,7 @@ class _Steerer:
 		sync = []
 		def stb_and(cmd, attr):
 			if not hasattr(cmd, "stb"):
-				return Constant(0)
+				return 0
 			else:
 				return cmd.stb & getattr(cmd, attr)
 		for phase, sel in zip(self.dfi.phases, self.sel):

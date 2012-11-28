@@ -97,14 +97,13 @@ def get():
 			cpu0.ibus,
 			cpu0.dbus
 		], [
-			(binc("000"), norflash0.bus),
-			(binc("001"), sram0.bus),
-			(binc("011"), minimac0.membus),
-			(binc("10"), wishbone2asmi0.wishbone),
-			(binc("11"), wishbone2csr0.wishbone)
+			(lambda a: a[26:29] == 0, norflash0.bus),
+			(lambda a: a[26:29] == 1, sram0.bus),
+			(lambda a: a[26:29] == 3, minimac0.membus),
+			(lambda a: a[27:29] == 2, wishbone2asmi0.wishbone),
+			(lambda a: a[27:29] == 3, wishbone2csr0.wishbone)
 		],
-		register=True,
-		offset=1)
+		register=True)
 	
 	#
 	# CSR
