@@ -57,7 +57,7 @@ def wishbone_sim(efragment, master, end_simulation):
 def asmi_sim(efragment, hub, end_simulation):
 	def _end_simulation(s):
 		s.interrupt = end_simulation(s)
-	peripheral = asmibus.Target(hub, MyModelASMI())
+	peripheral = asmibus.Target(MyModelASMI(), hub)
 	tap = asmibus.Tap(hub)
 	def _end_simulation(s):
 		s.interrupt = end_simulation(s)
@@ -79,7 +79,7 @@ def test_wb_reader():
 	comp = CompositeActor(g)
 	
 	wishbone_sim(comp.get_fragment(), reader,
-		lambda s: adrgen.actor.done and not s.rd(comp.busy))
+		lambda s: adrgen.actor.token_exchanger.done and not s.rd(comp.busy))
 
 def test_wb_writer():
 	print("*** Testing Wishbone writer")
@@ -90,7 +90,7 @@ def test_wb_writer():
 	comp = CompositeActor(g)
 	
 	wishbone_sim(comp.get_fragment(), writer,
-		lambda s: trgen.actor.done and not s.rd(comp.busy))
+		lambda s: trgen.actor.token_exchanger.done and not s.rd(comp.busy))
 
 def test_asmi_reader(nslots):
 	print("*** Testing ASMI reader (nslots={})".format(nslots))
@@ -108,7 +108,7 @@ def test_asmi_reader(nslots):
 	comp = CompositeActor(g)
 	
 	asmi_sim(hub.get_fragment() + comp.get_fragment(), hub,
-		lambda s: adrgen.actor.done and not s.rd(comp.busy))
+		lambda s: adrgen.actor.token_exchanger.done and not s.rd(comp.busy))
 
 test_wb_reader()
 test_wb_writer()
