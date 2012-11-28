@@ -1,31 +1,30 @@
-import math
 import inspect
 import re
 from collections import defaultdict
 
 from migen.fhdl import tracer
 
-def log2_int(n):
+def log2_int(n, need_pow2=True):
 	l = 1
 	r = 0
 	while l < n:
 		l *= 2
 		r += 1
-	if l == n:
-		return r
-	else:
+	if need_pow2 and l != n:
 		raise ValueError("Not a power of 2")
+	return r
 
-def bits_for(n):
+def bits_for(n, require_sign_bit=False):
 	if isinstance(n, Constant):
 		return len(n)
+	if n > 0:
+		r = log2_int(n + 1, False)
 	else:
-		if n < 0:
-			return bits_for(-n) + 1
-		elif n == 0:
-			return 1
-		else:
-			return int(math.ceil(math.log(n+1, 2)))
+		require_sign_bit = True
+		r = log2_int(-n, False)
+	if require_sign_bit:
+		r += 1
+	return r
 
 class BV:
 	def __init__(self, width=1, signed=False):
