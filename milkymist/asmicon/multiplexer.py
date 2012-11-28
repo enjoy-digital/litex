@@ -251,9 +251,10 @@ class Multiplexer:
 		)
 		fsm.act(fsm.REFRESH,
 			steerer.sel[0].eq(STEER_REFRESH),
-			self.refresher.ack.eq(1),
 			If(~self.refresher.req, fsm.next_state(fsm.READ))
 		)
+		# FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
+		comb.append(self.refresher.ack.eq(fsm._state == fsm.REFRESH))
 		
 		return Fragment(comb, sync) + \
 			choose_cmd.get_fragment() + \
