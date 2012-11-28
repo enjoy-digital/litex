@@ -1,3 +1,5 @@
+from copy import copy
+
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
 
@@ -87,6 +89,12 @@ class NodeVisitor:
 	def visit_unknown(self, node):
 		pass
 
+# Default methods always copy the node, except for:
+# - Constants
+# - Signals
+# - Unknown objects
+# - All fragment fields except comb and sync
+# In those cases, the original node is returned unchanged.
 class NodeTransformer:
 	def visit(self, node):
 		if isinstance(node, Constant):
@@ -127,42 +135,37 @@ class NodeTransformer:
 		return node
 	
 	def visit_Operator(self, node):
-		node.operands = [self.visit(o) for o in node.operands]
-		return node
+		return _Operator(node.op, [self.visit(o) for o in node.operands])
 	
 	def visit_Slice(self, node):
-		node.value = self.visit(node.value)
-		return node
+		return _Slice(self.visit(node.value), node.start, node.stop)
 	
 	def visit_Cat(self, node):
-		node.l = [self.visit(e) for e in node.l]
-		return node
+		return Cat(*[self.visit(e) for e in node.l])
 	
 	def visit_Replicate(self, node):
-		node.v = self.visit(node.v)
-		return node
+		return Replicate(self.visit(node.v), node.n)
 	
 	def visit_Assign(self, node):
-		node.l = self.visit(node.l)
-		node.r = self.visit(node.r)
-		return node
+		return _Assign(self.visit(node.l), self.visit(node.r))
 	
 	def visit_If(self, node):
-		node.cond = self.visit(node.cond)
-		node.t = self.visit(node.t)
-		node.f = self.visit(node.f)
-		return node
+		r = If(self.visit(node.cond))
+		r.t = self.visit(node.t)
+		r.f = self.visit(node.f)
+		return r
 	
 	def visit_Case(self, node):
-		node.test = self.visit(node.test)
-		node.cases = [(v, self.visit(statements)) for v, statements in node.cases]
-		node.default = self.visit(node.default)
-		return node
+		r = Case(self.visit(node.test))
+		r.cases = [(v, self.visit(statements)) for v, statements in node.cases]
+		r.default = self.visit(node.default)
+		return r
 	
 	def visit_Fragment(self, node):
-		node.comb = self.visit(node.comb)
-		node.sync = self.visit(node.sync)
-		return node
+		r = copy(node)
+		r.comb = self.visit(node.comb)
+		r.sync = self.visit(node.sync)
+		return r
 	
 	def visit_statements(self, node):
 		return [self.visit(statement) for statement in node]
@@ -171,9 +174,8 @@ class NodeTransformer:
 		return dict((clockname, self.visit(statements)) for clockname, statements in node.items())
 	
 	def visit_ArrayProxy(self, node):
-		node.choices = [self.visit(choice) for choice in node.choices]
-		node.key = self.visit(node.key)
-		return node
+		return _ArrayProxy([self.visit(choice) for choice in node.choices],
+			self.visit(node.key))
 	
 	def visit_unknown(self, node):
 		return node
