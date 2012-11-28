@@ -14,7 +14,7 @@ class AbstractLoad:
 	def lower(self):
 		if not self.target.finalized:
 			raise FinalizeError
-		return self.target.sel.eq(self.target.source_encoding[self.source])
+		return self.target.sel.eq(self.target.source_encoding[id(self.source)])
 
 class LowerAbstractLoad(fhdl.NodeTransformer):
 	def visit_unknown(self, node):
@@ -28,11 +28,13 @@ class ImplRegister:
 		self.name = name
 		self.storage = Signal(BV(nbits), name=self.name)
 		self.source_encoding = {}
+		self.id_to_source = {}
 		self.finalized = False
 	
 	def load(self, source):
-		if source not in self.source_encoding:
-			self.source_encoding[source] = len(self.source_encoding) + 1
+		if id(source) not in self.source_encoding:
+			self.source_encoding[id(source)] = len(self.source_encoding) + 1
+			self.id_to_source[id(source)] = source
 		return AbstractLoad(self, source)
 	
 	def finalize(self):
@@ -46,6 +48,6 @@ class ImplRegister:
 			raise FinalizeError
 		# do nothing when sel == 0
 		items = sorted(self.source_encoding.items(), key=itemgetter(1))
-		cases = [(v, self.storage.eq(k)) for k, v in items]
+		cases = [(v, self.storage.eq(self.id_to_source[k])) for k, v in items]
 		sync = [Case(self.sel, *cases)]
 		return Fragment(sync=sync)
