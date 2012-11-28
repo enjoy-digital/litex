@@ -23,7 +23,7 @@ def main():
 	g.add_connection(source, sink)
 	comp = CompositeActor(g)
 	def end_simulation(s):
-		s.interrupt = source.actor.done
+		s.interrupt = source.actor.token_exchanger.done
 	fragment = comp.get_fragment() + Fragment(sim=[end_simulation])
 	sim = Simulator(fragment, Runner())
 	sim.run()
