@@ -92,15 +92,16 @@ def _printnode(ns, at, level, node):
 		r += "\t"*level + "end\n"
 		return r
 	elif isinstance(node, Case):
-		if node.cases or node.default:
+		if node.cases:
 			r = "\t"*level + "case (" + _printexpr(ns, node.test) + ")\n"
-			for case in node.cases:
-				r += "\t"*(level + 1) + _printexpr(ns, case[0]) + ": begin\n"
-				r += _printnode(ns, at, level + 2, case[1])
+			css = sorted([(k, v) for (k, v) in node.cases.items() if k != "default"], key=itemgetter(0))
+			for choice, statements in css:
+				r += "\t"*(level + 1) + _printexpr(ns, choice) + ": begin\n"
+				r += _printnode(ns, at, level + 2, statements)
 				r += "\t"*(level + 1) + "end\n"
-			if node.default:
+			if "default" in node.cases:
 				r += "\t"*(level + 1) + "default: begin\n"
-				r += _printnode(ns, at, level + 2, node.default)
+				r += _printnode(ns, at, level + 2, node.cases["default"])
 				r += "\t"*(level + 1) + "end\n"
 			r += "\t"*level + "endcase\n"
 			return r

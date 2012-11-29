@@ -48,6 +48,6 @@ class ImplRegister:
 			raise FinalizeError
 		# do nothing when sel == 0
 		items = sorted(self.source_encoding.items(), key=itemgetter(1))
-		cases = [(v, self.storage.eq(self.id_to_source[k])) for k, v in items]
-		sync = [Case(self.sel, *cases)]
+		cases = dict((v, self.storage.eq(self.id_to_source[k])) for k, v in items)
+		sync = [Case(self.sel, cases)]
 		return Fragment(sync=sync)

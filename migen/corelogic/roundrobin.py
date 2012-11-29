@@ -14,7 +14,7 @@ class RoundRobin:
 	
 	def get_fragment(self):
 		if self.n > 1:
-			cases = []
+			cases = {}
 			for i in range(self.n):
 				switch = []
 				for j in reversed(range(i+1,i+self.n)):
@@ -30,8 +30,8 @@ class RoundRobin:
 					case = [If(~self.request[i], *switch)]
 				else:
 					case = switch
-				cases.append([i] + case)
-			statement = Case(self.grant, *cases)
+				cases[i] = case
+			statement = Case(self.grant, cases)
 			if self.switch_policy == SP_CE:
 				statement = If(self.ce, statement)
 			return Fragment(sync=[statement])

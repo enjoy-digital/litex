@@ -151,21 +151,19 @@ class _ArrayLowerer(NodeTransformer):
 	def visit_Assign(self, node):
 		if isinstance(node.l, _ArrayProxy):
 			k = self.visit(node.l.key)
-			cases = []
+			cases = {}
 			for n, choice in enumerate(node.l.choices):
 				assign = self.visit_Assign(_Assign(choice, node.r))
-				cases.append([n, assign])
-			cases[-1][0] = Default()
-			return Case(k, *cases)
+				cases[n] = [assign]
+			return Case(k, cases).makedefault()
 		else:
 			return super().visit_Assign(node)
 	
 	def visit_ArrayProxy(self, node):
 		array_muxed = Signal(value_bv(node))
-		cases = [[n, _Assign(array_muxed, self.visit(choice))]
-			for n, choice in enumerate(node.choices)]
-		cases[-1][0] = Default()
-		self.comb.append(Case(self.visit(node.key), *cases))
+		cases = dict((n, _Assign(array_muxed, self.visit(choice)))
+			for n, choice in enumerate(node.choices))
+		self.comb.append(Case(self.visit(node.key), cases).makedefault())
 		return array_muxed
 
 def lower_arrays(f):

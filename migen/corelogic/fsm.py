@@ -33,10 +33,10 @@ class FSM:
 		self.actions[state] += statements
 	
 	def get_fragment(self):
-		cases = [[s] + a for s, a in enumerate(self.actions) if a]
+		cases = dict((s, a) for s, a in enumerate(self.actions) if a)
 		comb = [
 			self._next_state.eq(self._state),
-			Case(self._state, *cases)
+			Case(self._state, cases)
 		]
 		sync = [self._state.eq(self._next_state)]
 		return Fragment(comb, sync)

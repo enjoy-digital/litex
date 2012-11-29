@@ -50,10 +50,10 @@ class Unpack(Actor):
 				)
 			)
 		]
-		cases = [(i if i else Default(),
-			Cat(*self.token("source").flatten()).eq(Cat(*self.token("sink").subrecord("chunk{0}".format(i)).flatten())))
-			for i in range(self.n)]
-		comb.append(Case(mux, *cases))
+		cases = {}
+		for i in range(self.n):
+			cases[i] = [Cat(*self.token("source").flatten()).eq(Cat(*self.token("sink").subrecord("chunk{0}".format(i)).flatten()))]
+		comb.append(Case(mux, cases).makedefault())
 		return Fragment(comb, sync)
 
 class Pack(Actor):
@@ -69,9 +69,9 @@ class Pack(Actor):
 		
 		load_part = Signal()
 		strobe_all = Signal()
-		cases = [(i,
-			Cat(*self.token("source").subrecord("chunk{0}".format(i)).flatten()).eq(*self.token("sink").flatten()))
-			for i in range(self.n)]
+		cases = {}
+		for i in range(self.n):
+			cases[i] = [Cat(*self.token("source").subrecord("chunk{0}".format(i)).flatten()).eq(*self.token("sink").flatten())]
 		comb = [
 			self.busy.eq(strobe_all),
 			self.endpoints["sink"].ack.eq(~strobe_all | self.endpoints["source"].ack),
@@ -83,7 +83,7 @@ class Pack(Actor):
 				strobe_all.eq(0)
 			),
 			If(load_part,
-				Case(demux, *cases),
+				Case(demux, cases),
 				If(demux == (self.n - 1),
 					demux.eq(0),
 					strobe_all.eq(1)

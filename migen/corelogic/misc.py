@@ -43,15 +43,14 @@ def chooser(signal, shift, output, n=None, reverse=False):
 	if n is None:
 		n = 2**len(shift)
 	w = len(output)
-	cases = []
+	cases = {}
 	for i in range(n):
 		if reverse:
 			s = n - i - 1
 		else:
 			s = i
-		cases.append([i, output.eq(signal[s*w:(s+1)*w])])
-	cases[n-1][0] = Default()
-	return Case(shift, *cases)
+		cases[i] = [output.eq(signal[s*w:(s+1)*w])]
+	return Case(shift, cases).makedefault()
 
 def timeline(trigger, events):
 	lastevent = max([e[0] for e in events])

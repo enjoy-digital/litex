@@ -189,21 +189,19 @@ def _insert_else(obj, clause):
 		o = o.f[0]
 	o.f = clause
 
-class Default:
-	pass
-
 class Case:
-	def __init__(self, test, *cases):
+	def __init__(self, test, cases):
 		self.test = test
-		self.cases = [(c[0], list(c[1:])) for c in cases if not isinstance(c[0], Default)]
-		self.default = None
-		for c in cases:
-			if isinstance(c[0], Default):
-				if self.default is not None:
-					raise ValueError
-				self.default = list(c[1:])
-		if self.default is None:
-			self.default = []
+		self.cases = cases
+	
+	def makedefault(self, key=None):
+		if key is None:
+			for choice in self.cases.keys():
+				if key is None or choice > key:
+					key = choice
+		self.cases["default"] = self.cases[key]
+		del self.cases[key]
+		return self
 
 # arrays
 

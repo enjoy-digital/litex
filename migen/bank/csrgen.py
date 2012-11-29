@@ -21,7 +21,7 @@ class Bank:
 		nbits = bits_for(len(desc_exp)-1)
 		
 		# Bus writes
-		bwcases = []
+		bwcases = {}
 		for i, reg in enumerate(desc_exp):
 			if isinstance(reg, RegisterRaw):
 				comb.append(reg.r.eq(self.interface.dat_w[:reg.size]))
@@ -29,14 +29,14 @@ class Bank:
 					self.interface.we & \
 					(self.interface.adr[:nbits] == i)))
 			elif isinstance(reg, RegisterFields):
-				bwra = [i]
+				bwra = []
 				offset = 0
 				for field in reg.fields:
 					if field.access_bus == WRITE_ONLY or field.access_bus == READ_WRITE:
 						bwra.append(field.storage.eq(self.interface.dat_w[offset:offset+field.size]))
 					offset += field.size
-				if len(bwra) > 1:
-					bwcases.append(bwra)
+				if bwra:
+					bwcases[i] = bwra
 				# commit atomic writes
 				for field in reg.fields:
 					if isinstance(field, FieldAlias) and field.commit_list:
@@ -45,13 +45,13 @@ class Bank:
 			else:
 				raise TypeError
 		if bwcases:
-			sync.append(If(sel & self.interface.we, Case(self.interface.adr[:nbits], *bwcases)))
+			sync.append(If(sel & self.interface.we, Case(self.interface.adr[:nbits], bwcases)))
 		
 		# Bus reads
-		brcases = []
+		brcases = {}
 		for i, reg in enumerate(desc_exp):
 			if isinstance(reg, RegisterRaw):
-				brcases.append([i, self.interface.dat_r.eq(reg.w)])
+				brcases[i] = [self.interface.dat_r.eq(reg.w)]
 			elif isinstance(reg, RegisterFields):
 				brs = []
 				reg_readable = False
@@ -62,12 +62,12 @@ class Bank:
 					else:
 						brs.append(Replicate(0, field.size))
 				if reg_readable:
-					brcases.append([i, self.interface.dat_r.eq(Cat(*brs))])
+					brcases[i] = [self.interface.dat_r.eq(Cat(*brs))]
 			else:
 				raise TypeError
 		if brcases:
 			sync.append(self.interface.dat_r.eq(0))
-			sync.append(If(sel, Case(self.interface.adr[:nbits], *brcases)))
+			sync.append(If(sel, Case(self.interface.adr[:nbits], brcases)))
 		else:
 			comb.append(self.interface.dat_r.eq(0))
 		

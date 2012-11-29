@@ -65,9 +65,8 @@ class NodeVisitor:
 	
 	def visit_Case(self, node):
 		self.visit(node.test)
-		for v, statements in node.cases:
+		for v, statements in node.cases.items():
 			self.visit(statements)
-		self.visit(node.default)
 	
 	def visit_Fragment(self, node):
 		self.visit(node.comb)
@@ -155,9 +154,8 @@ class NodeTransformer:
 		return r
 	
 	def visit_Case(self, node):
-		r = Case(self.visit(node.test))
-		r.cases = [(v, self.visit(statements)) for v, statements in node.cases]
-		r.default = self.visit(node.default)
+		cases = dict((v, self.visit(statements)) for v, statements in node.cases.items())
+		r = Case(self.visit(node.test), cases)
 		return r
 	
 	def visit_Fragment(self, node):
