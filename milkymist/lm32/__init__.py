@@ -5,7 +5,7 @@ class LM32:
 	def __init__(self):
 		self.ibus = i = wishbone.Interface()
 		self.dbus = d = wishbone.Interface()
-		self.interrupt = Signal(BV(32))
+		self.interrupt = Signal(32)
 		self.ext_break = Signal()
 		self._inst = Instance("lm32_top",
 			Instance.ClockPort("clk_i"),
@@ -14,33 +14,33 @@ class LM32:
 			Instance.Input("interrupt", self.interrupt),
 			#Instance.Input("ext_break", self.ext_break),
 		
-			Instance.Output("I_ADR_O", BV(32)),
+			Instance.Output("I_ADR_O", 32),
 			Instance.Output("I_DAT_O", i.dat_w),
 			Instance.Output("I_SEL_O", i.sel),
 			Instance.Output("I_CYC_O", i.cyc),
 			Instance.Output("I_STB_O", i.stb),
 			Instance.Output("I_WE_O", i.we),
 			Instance.Output("I_CTI_O", i.cti),
-			Instance.Output("I_LOCK_O", BV(1)),
+			Instance.Output("I_LOCK_O", 1),
 			Instance.Output("I_BTE_O", i.bte),
 			Instance.Input("I_DAT_I", i.dat_r),
 			Instance.Input("I_ACK_I", i.ack),
 			Instance.Input("I_ERR_I", i.err),
-			Instance.Input("I_RTY_I", BV(1)),
+			Instance.Input("I_RTY_I", 1),
 			
-			Instance.Output("D_ADR_O", BV(32)),
+			Instance.Output("D_ADR_O", 32),
 			Instance.Output("D_DAT_O", d.dat_w),
 			Instance.Output("D_SEL_O", d.sel),
 			Instance.Output("D_CYC_O", d.cyc),
 			Instance.Output("D_STB_O", d.stb),
 			Instance.Output("D_WE_O", d.we),
 			Instance.Output("D_CTI_O", d.cti),
-			Instance.Output("D_LOCK_O", BV(1)),
+			Instance.Output("D_LOCK_O", 1),
 			Instance.Output("D_BTE_O", d.bte),
 			Instance.Input("D_DAT_I", d.dat_r),
 			Instance.Input("D_ACK_I", d.ack),
 			Instance.Input("D_ERR_I", d.err),
-			Instance.Input("D_RTY_I", BV(1)))
+			Instance.Input("D_RTY_I", 1))
 
 	def get_fragment(self):
 		comb = [

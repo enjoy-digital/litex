@@ -45,7 +45,7 @@ class Refresher:
 		])
 		
 		# Periodic refresh counter
-		counter = Signal(BV(bits_for(self.tREFI - 1)))
+		counter = Signal(bits_for(self.tREFI - 1))
 		start = Signal()
 		sync += [
 			start.eq(0),

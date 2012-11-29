@@ -10,11 +10,11 @@ class MiniMAC:
 	def __init__(self, address):
 		# PHY signals
 		self.phy_tx_clk = Signal()
-		self.phy_tx_data = Signal(BV(4))
+		self.phy_tx_data = Signal(4)
 		self.phy_tx_en = Signal()
 		self.phy_tx_er = Signal()
 		self.phy_rx_clk = Signal()
-		self.phy_rx_data = Signal(BV(4))
+		self.phy_rx_data = Signal(4)
 		self.phy_dv = Signal()
 		self.phy_rx_er = Signal()
 		self.phy_col = Signal()

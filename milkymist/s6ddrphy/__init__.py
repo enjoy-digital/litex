@@ -30,7 +30,7 @@ class S6DDRPHY:
 			("sd_dqs", d//16, Instance.InOut)
 			
 		]:
-			s = Signal(BV(width), name=name)
+			s = Signal(width, name=name)
 			setattr(self, name, s)
 			inst_items.append(cl(name, s))
 		

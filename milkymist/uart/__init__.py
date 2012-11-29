@@ -19,7 +19,7 @@ class UART:
 	
 	def get_fragment(self):
 		enable16 = Signal()
-		enable16_counter = Signal(BV(16))
+		enable16_counter = Signal(16)
 		comb = [
 			enable16.eq(enable16_counter == 0)
 		]
@@ -30,9 +30,9 @@ class UART:
 		]
 		
 		# TX
-		tx_reg = Signal(BV(8))
-		tx_bitcount = Signal(BV(4))
-		tx_count16 = Signal(BV(4))
+		tx_reg = Signal(8)
+		tx_bitcount = Signal(4)
+		tx_count16 = Signal(4)
 		tx_busy = self._tx_event.trigger
 		sync += [
 			If(self._rxtx.re,
@@ -66,9 +66,9 @@ class UART:
 			rx.eq(rx0)
 		]
 		rx_r = Signal()
-		rx_reg = Signal(BV(8))
-		rx_bitcount = Signal(BV(4))
-		rx_count16 = Signal(BV(4))
+		rx_reg = Signal(8)
+		rx_bitcount = Signal(4)
+		rx_count16 = Signal(4)
 		rx_busy = Signal()
 		rx_done = self._rx_event.trigger
 		rx_data = self._rxtx.w

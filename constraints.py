@@ -4,7 +4,7 @@ class Constraints:
 		def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra))
 		def add_vec(signal, pins, iostandard="LVCMOS33", extra=""):
-			assert(signal.bv.width == len(pins))
+			assert(signal.nbits == len(pins))
 			i = 0
 			for p in pins:
 				add(signal, p, i, iostandard, extra)

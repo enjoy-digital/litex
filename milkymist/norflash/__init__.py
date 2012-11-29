@@ -8,8 +8,8 @@ class NorFlash:
 		self.rd_timing = rd_timing
 		
 		self.bus = wishbone.Interface()
-		self.adr = Signal(BV(adr_width-1))
-		self.d = Signal(BV(16))
+		self.adr = Signal(adr_width-1)
+		self.d = Signal(16)
 		self.oe_n = Signal()
 		self.we_n = Signal()
 		self.ce_n = Signal()

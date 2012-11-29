@@ -42,8 +42,8 @@ class _Selector:
 		self.nslots = len(self.slots)
 		self.stb = Signal()
 		self.ack = Signal()
-		self.tag = Signal(BV(bits_for(self.nslots-1)))
-		self.adr = Signal(self.slots[0].adr.bv)
+		self.tag = Signal(bits_for(self.nslots-1))
+		self.adr = Signal(self.slots[0].adr.nbits)
 		self.we = Signal()
 		
 		# derived classes should drive rr.request
@@ -54,7 +54,7 @@ class _Selector:
 		rr = self.rr
 		
 		# Multiplex
-		state = Signal(BV(2))
+		state = Signal(2)
 		comb += [
 			state.eq(Array(slot.state for slot in self.slots)[rr.grant]),
 			self.adr.eq(Array(slot.adr for slot in self.slots)[rr.grant]),
@@ -98,9 +98,9 @@ class _FullSelector(_Selector):
 			outstandings.append(outstanding)
 		
 		# Row tracking
-		openrow_r = Signal(BV(self.slicer.geom_settings.row_a))
-		openrow_n = Signal(BV(self.slicer.geom_settings.row_a))
-		openrow = Signal(BV(self.slicer.geom_settings.row_a))
+		openrow_r = Signal(self.slicer.geom_settings.row_a)
+		openrow_n = Signal(self.slicer.geom_settings.row_a)
+		openrow = Signal(self.slicer.geom_settings.row_a)
 		comb += [
 			openrow_n.eq(self.slicer.row(self.adr)),
 			If(self.stb,
@@ -207,7 +207,7 @@ class BankMachine:
 		
 		# Row tracking
 		has_openrow = Signal()
-		openrow = Signal(BV(self.geom_settings.row_a))
+		openrow = Signal(self.geom_settings.row_a)
 		hit = Signal()
 		comb.append(hit.eq(openrow == slicer.row(cmdsource.adr)))
 		track_open = Signal()
@@ -238,7 +238,7 @@ class BankMachine:
 		# Respect write-to-precharge specification
 		precharge_ok = Signal()
 		t_unsafe_precharge = 2 + self.timing_settings.tWR - 1
-		unsafe_precharge_count = Signal(BV(bits_for(t_unsafe_precharge)))
+		unsafe_precharge_count = Signal(bits_for(t_unsafe_precharge))
 		comb.append(precharge_ok.eq(unsafe_precharge_count == 0))
 		sync += [
 			If(self.cmd.stb & self.cmd.ack & self.cmd.is_write,

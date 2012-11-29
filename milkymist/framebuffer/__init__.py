@@ -12,36 +12,36 @@ _vbits = 11
 _bpp = 32
 _bpc = 10
 _pixel_layout = [
-	("b", BV(_bpc)),
-	("g", BV(_bpc)),
-	("r", BV(_bpc)),
-	("pad", BV(_bpp-3*_bpc))
+	("b", _bpc),
+	("g", _bpc),
+	("r", _bpc),
+	("pad", _bpp-3*_bpc)
 ]
 
 _bpc_dac = 8
 _dac_layout = [
-	("hsync", BV(1)),
-	("vsync", BV(1)),
-	("b", BV(_bpc_dac)),
-	("g", BV(_bpc_dac)),
-	("r", BV(_bpc_dac))
+	("hsync", 1),
+	("vsync", 1),
+	("b", _bpc_dac),
+	("g", _bpc_dac),
+	("r", _bpc_dac)
 ]
 
 class _FrameInitiator(spi.SingleGenerator):
 	def __init__(self, asmi_bits, length_bits, alignment_bits):
 		layout = [
-			("hres", BV(_hbits), 640),
-			("hsync_start", BV(_hbits), 656),
-			("hsync_end", BV(_hbits), 752),
-			("hscan", BV(_hbits), 799),
+			("hres", _hbits, 640),
+			("hsync_start", _hbits, 656),
+			("hsync_end", _hbits, 752),
+			("hscan", _hbits, 799),
 			
-			("vres", BV(_vbits), 480),
-			("vsync_start", BV(_vbits), 492),
-			("vsync_end", BV(_vbits), 494),
-			("vscan", BV(_vbits), 524),
+			("vres", _vbits, 480),
+			("vsync_start", _vbits, 492),
+			("vsync_end", _vbits, 494),
+			("vscan", _vbits, 524),
 			
-			("base", BV(asmi_bits), 0, alignment_bits),
-			("length", BV(length_bits), 640*480*4, alignment_bits)
+			("base", asmi_bits, 0, alignment_bits),
+			("length", length_bits, 640*480*4, alignment_bits)
 		]
 		super().__init__(layout, spi.MODE_CONTINUOUS)
 
@@ -49,14 +49,14 @@ class VTG(Actor):
 	def __init__(self):
 		super().__init__(
 			("timing", Sink, [
-				("hres", BV(_hbits)),
-				("hsync_start", BV(_hbits)),
-				("hsync_end", BV(_hbits)),
-				("hscan", BV(_hbits)),
-				("vres", BV(_vbits)),
-				("vsync_start", BV(_vbits)),
-				("vsync_end", BV(_vbits)),
-				("vscan", BV(_vbits))]),
+				("hres", _hbits),
+				("hsync_start", _hbits),
+				("hsync_end", _hbits),
+				("hscan", _hbits),
+				("vres", _vbits),
+				("vsync_start", _vbits),
+				("vsync_end", _vbits),
+				("vscan", _vbits)]),
 			("pixels", Sink, _pixel_layout),
 			("dac", Source, _dac_layout)
 		)
@@ -67,8 +67,8 @@ class VTG(Actor):
 		active = Signal()
 		
 		generate_en = Signal()
-		hcounter = Signal(BV(_hbits))
-		vcounter = Signal(BV(_vbits))
+		hcounter = Signal(_hbits)
+		vcounter = Signal(_vbits)
 		
 		skip = _bpc - _bpc_dac
 		comb = [
@@ -118,9 +118,9 @@ class FIFO(Actor):
 		
 		self.vga_hsync_n = Signal()
 		self.vga_vsync_n = Signal()
-		self.vga_r = Signal(BV(_bpc_dac))
-		self.vga_g = Signal(BV(_bpc_dac))
-		self.vga_b = Signal(BV(_bpc_dac))
+		self.vga_r = Signal(_bpc_dac)
+		self.vga_g = Signal(_bpc_dac)
+		self.vga_b = Signal(_bpc_dac)
 	
 	def get_fragment(self):
 		data_width = 2+3*_bpc_dac
@@ -128,17 +128,17 @@ class FIFO(Actor):
 			Instance.Parameter("data_width", data_width),
 			Instance.Parameter("address_width", 8),
 	
-			Instance.Output("data_out", BV(data_width)),
-			Instance.Output("empty", BV(1)),
-			Instance.Input("read_en", BV(1)),
+			Instance.Output("data_out", data_width),
+			Instance.Output("empty", 1),
+			Instance.Input("read_en", 1),
 			Instance.ClockPort("clk_read", "vga"),
 
-			Instance.Input("data_in", BV(data_width)),
-			Instance.Output("full", BV(1)),
-			Instance.Input("write_en", BV(1)),
+			Instance.Input("data_in", data_width),
+			Instance.Output("full", 1),
+			Instance.Input("write_en", 1),
 			Instance.ClockPort("clk_write"),
 			
-			Instance.Input("rst", BV(1)))
+			Instance.Input("rst", 1))
 		t = self.token("dac")
 		return Fragment(
 			[

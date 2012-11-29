@@ -5,8 +5,8 @@ from migen.corelogic.fsm import FSM
 
 class CommandRequest:
 	def __init__(self, a, ba):
-		self.a = Signal(BV(a))
-		self.ba = Signal(BV(ba))
+		self.a = Signal(a)
+		self.ba = Signal(ba)
 		self.cas_n = Signal(reset=1)
 		self.ras_n = Signal(reset=1)
 		self.we_n = Signal(reset=1)
@@ -18,7 +18,7 @@ class CommandRequestRW(CommandRequest):
 		self.ack = Signal()
 		self.is_read = Signal()
 		self.is_write = Signal()
-		self.tag = Signal(BV(tagbits))
+		self.tag = Signal(tagbits)
 
 class _CommandChooser:
 	def __init__(self, requests, tagbits):
@@ -64,7 +64,7 @@ class _Steerer:
 		
 		ncmd = len(self.commands)
 		nph = len(self.dfi.phases)
-		self.sel = [Signal(BV(bits_for(ncmd-1))) for i in range(nph)]
+		self.sel = [Signal(bits_for(ncmd-1)) for i in range(nph)]
 	
 	def get_fragment(self):
 		comb = []
@@ -103,9 +103,9 @@ class _Datapath:
 		tagbits = len(self.hub.tag_call)
 		
 		rd_valid = Signal()
-		rd_tag = Signal(BV(tagbits))
+		rd_tag = Signal(tagbits)
 		wr_valid = Signal()
-		wr_tag = Signal(BV(tagbits))
+		wr_tag = Signal(tagbits)
 		comb += [
 			self.hub.call.eq(rd_valid | wr_valid),
 			If(wr_valid,
@@ -117,7 +117,7 @@ class _Datapath:
 		
 		rd_delay = self.timing_settings.rd_delay + 1
 		rd_valid_d = [Signal() for i in range(rd_delay)]
-		rd_tag_d = [Signal(BV(tagbits)) for i in range(rd_delay)]
+		rd_tag_d = [Signal(tagbits) for i in range(rd_delay)]
 		for i in range(rd_delay):
 			if i:
 				sync += [
@@ -194,7 +194,7 @@ class Multiplexer:
 			max_time = Signal()
 			if timeout:
 				t = timeout - 1
-				time = Signal(BV(bits_for(t)))
+				time = Signal(bits_for(t))
 				comb.append(max_time.eq(time == 0))
 				sync.append(
 					If(~en,
