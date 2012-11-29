@@ -37,6 +37,8 @@ class HUID:
 class Value(HUID):
 	def __invert__(self):
 		return _Operator("~", [self])
+	def __neg__(self):
+		return _Operator("-", [self])
 
 	def __add__(self, other):
 		return _Operator("+", [self, other])
