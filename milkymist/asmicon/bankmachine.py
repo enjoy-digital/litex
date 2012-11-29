@@ -42,7 +42,7 @@ class _Selector:
 		self.nslots = len(self.slots)
 		self.stb = Signal()
 		self.ack = Signal()
-		self.tag = Signal(bits_for(self.nslots-1))
+		self.tag = Signal(max=self.nslots)
 		self.adr = Signal(self.slots[0].adr.nbits)
 		self.we = Signal()
 		
@@ -238,7 +238,7 @@ class BankMachine:
 		# Respect write-to-precharge specification
 		precharge_ok = Signal()
 		t_unsafe_precharge = 2 + self.timing_settings.tWR - 1
-		unsafe_precharge_count = Signal(bits_for(t_unsafe_precharge))
+		unsafe_precharge_count = Signal(max=t_unsafe_precharge+1)
 		comb.append(precharge_ok.eq(unsafe_precharge_count == 0))
 		sync += [
 			If(self.cmd.stb & self.cmd.ack & self.cmd.is_write,

@@ -64,7 +64,7 @@ class _Steerer:
 		
 		ncmd = len(self.commands)
 		nph = len(self.dfi.phases)
-		self.sel = [Signal(bits_for(ncmd-1)) for i in range(nph)]
+		self.sel = [Signal(max=ncmd) for i in range(nph)]
 	
 	def get_fragment(self):
 		comb = []
@@ -194,7 +194,7 @@ class Multiplexer:
 			max_time = Signal()
 			if timeout:
 				t = timeout - 1
-				time = Signal(bits_for(t))
+				time = Signal(max=t+1)
 				comb.append(max_time.eq(time == 0))
 				sync.append(
 					If(~en,
