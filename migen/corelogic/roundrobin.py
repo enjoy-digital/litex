@@ -5,7 +5,7 @@ from migen.fhdl.structure import *
 class RoundRobin:
 	def __init__(self, n, switch_policy=SP_WITHDRAW):
 		self.n = n
-		self.request = Signal(nbits=self.n)
+		self.request = Signal(self.n)
 		self.grant = Signal(max=self.n)
 		self.switch_policy = switch_policy
 		if self.switch_policy == SP_CE:
