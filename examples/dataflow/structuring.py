@@ -23,9 +23,9 @@ def sink_gen():
 		print(t.value["value"])
 
 def main():
-	base_layout = [("value", BV(32))]
+	base_layout = [("value", 32)]
 	packed_layout = structuring.pack_layout(base_layout, pack_factor)
-	rawbits_layout = [("value", BV(32*pack_factor))]
+	rawbits_layout = [("value", 32*pack_factor)]
 	
 	source = ActorNode(SimActor(source_gen(), ("source", Source, base_layout)))
 	sink = ActorNode(SimActor(sink_gen(), ("sink", Sink, base_layout)))

@@ -12,7 +12,7 @@ class Counter:
 	def __init__(self):
 		self.ce = Signal()
 		# Demonstrate negative numbers and signals larger than 32 bits.
-		self.count = Signal(BV(37, True), reset=-5)
+		self.count = Signal((37, True), reset=-5)
 	
 	def do_simulation(self, s):
 		# Only assert CE every second cycle.

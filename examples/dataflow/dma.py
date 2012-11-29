@@ -70,9 +70,9 @@ def asmi_sim(efragment, hub, end_simulation):
 
 def test_wb_reader():
 	print("*** Testing Wishbone reader")
-	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", BV(30))])))
+	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", 30)])))
 	reader = ActorNode(dma_wishbone.Reader())
-	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))])))
+	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", 32)])))
 	g = DataFlowGraph()
 	g.add_connection(adrgen, reader)
 	g.add_connection(reader, dumper)
@@ -83,7 +83,7 @@ def test_wb_reader():
 
 def test_wb_writer():
 	print("*** Testing Wishbone writer")
-	trgen = ActorNode(SimActor(trgen_gen(), ("address_data", Source, [("a", BV(30)), ("d", BV(32))])))
+	trgen = ActorNode(SimActor(trgen_gen(), ("address_data", Source, [("a", 30), ("d", 32)])))
 	writer = ActorNode(dma_wishbone.Writer())
 	g = DataFlowGraph()
 	g.add_connection(trgen, writer)
@@ -99,9 +99,9 @@ def test_asmi_reader(nslots):
 	port = hub.get_port(nslots)
 	hub.finalize()
 	
-	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", BV(32))])))
+	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", 32)])))
 	reader = ActorNode(dma_asmi.Reader(port))
-	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", BV(32))])))
+	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", 32)])))
 	g = DataFlowGraph()
 	g.add_connection(adrgen, reader)
 	g.add_connection(reader, dumper)

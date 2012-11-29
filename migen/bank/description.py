@@ -10,8 +10,8 @@ class RegisterRaw:
 		self.name = name
 		self.size = size
 		self.re = Signal()
-		self.r = Signal(BV(self.size))
-		self.w = Signal(BV(self.size))
+		self.r = Signal(self.size)
+		self.w = Signal(self.size)
 
 (READ_ONLY, WRITE_ONLY, READ_WRITE) = range(3)
 
@@ -21,15 +21,15 @@ class Field:
 		self.size = size
 		self.access_bus = access_bus
 		self.access_dev = access_dev
-		self.storage = Signal(BV(self.size), reset=reset)
+		self.storage = Signal(self.size, reset=reset)
 		self.atomic_write = atomic_write
 		if self.access_bus == READ_ONLY and self.access_dev == WRITE_ONLY:
-			self.w = Signal(BV(self.size))
+			self.w = Signal(self.size)
 		else:
 			if self.access_dev == READ_ONLY or self.access_dev == READ_WRITE:
-				self.r = Signal(BV(self.size))
+				self.r = Signal(self.size)
 			if self.access_dev == WRITE_ONLY or self.access_dev == READ_WRITE:
-				self.w = Signal(BV(self.size))
+				self.w = Signal(self.size)
 				self.we = Signal()
 
 class RegisterFields:
@@ -51,7 +51,7 @@ class FieldAlias:
 		self.access_bus = f.access_bus
 		self.access_dev = f.access_dev
 		if mode == ALIAS_ATOMIC_HOLD:
-			self.storage = Signal(BV(end-start), name="atomic_hold")
+			self.storage = Signal(end-start, name="atomic_hold")
 			self.commit_to = f.storage[start:end]
 		else:
 			self.storage = f.storage[start:end]

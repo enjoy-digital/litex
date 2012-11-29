@@ -51,7 +51,7 @@ class Splitter(Actor):
 		sources = [self.endpoints[e] for e in self.sources()]
 		sink = self.endpoints[self.sinks()[0]]
 		
-		already_acked = Signal(BV(len(sources)))
+		already_acked = Signal(len(sources))
 		sync = [
 			If(sink.stb,
 				already_acked.eq(already_acked | Cat(*[s.ack for s in sources])),

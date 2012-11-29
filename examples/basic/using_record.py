@@ -2,11 +2,11 @@ from migen.fhdl.structure import *
 from migen.corelogic.record import *
 
 L = [
-	("x", BV(10), 8),
-	("y", BV(10), 8),
+	("x", 10, 8),
+	("y", 10, 8),
 	("level2", [
-		("a", BV(5), 32),
-		("b", BV(5), 16)
+		("a", 5, 32),
+		("b", 5, 16)
 	])
 ]
 

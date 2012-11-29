@@ -26,7 +26,7 @@ class LowerAbstractLoad(fhdl.NodeTransformer):
 class ImplRegister:
 	def __init__(self, name, nbits):
 		self.name = name
-		self.storage = Signal(BV(nbits), name=self.name)
+		self.storage = Signal(nbits, name=self.name)
 		self.source_encoding = {}
 		self.id_to_source = {}
 		self.finalized = False
@@ -40,7 +40,7 @@ class ImplRegister:
 	def finalize(self):
 		if self.finalized:
 			raise FinalizeError
-		self.sel = Signal(BV(bits_for(len(self.source_encoding) + 1)), name="pl_regsel_"+self.name)
+		self.sel = Signal(max=len(self.source_encoding)+2, name="pl_regsel_"+self.name)
 		self.finalized = True
 	
 	def get_fragment(self):

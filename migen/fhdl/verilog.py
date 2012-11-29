@@ -8,7 +8,7 @@ from migen.fhdl.namer import Namespace, build_namespace
 from migen.fhdl import verilog_mem_behavioral
 
 def _printsig(ns, s):
-	if s.bv.signed:
+	if s.signed:
 		n = "signed "
 	else:
 		n = ""

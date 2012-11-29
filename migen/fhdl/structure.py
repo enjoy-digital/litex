@@ -1,5 +1,6 @@
 import inspect
 import re
+import builtins
 from collections import defaultdict
 
 from migen.fhdl import tracer
@@ -23,22 +24,6 @@ def bits_for(n, require_sign_bit=False):
 	if require_sign_bit:
 		r += 1
 	return r
-
-class BV:
-	def __init__(self, width=1, signed=False):
-		self.width = width
-		self.signed = signed
-	
-	def __repr__(self):
-		r = str(self.width) + "'"
-		if self.signed:
-			r += "s"
-		r += "d"
-		return r
-	
-	def __eq__(self, other):
-		return self.width == other.width and self.signed == other.signed
-
 
 class HUID:
 	__next_uid = 0
@@ -66,13 +51,13 @@ class Value(HUID):
 	def __rmul__(self, other):
 		return _Operator("*", [other, self])
 	def __lshift__(self, other):
-		return _Operator("<<", [self, other])
+		return _Operator("<<<", [self, other])
 	def __rlshift__(self, other):
-		return _Operator("<<", [other, self])
+		return _Operator("<<<", [other, self])
 	def __rshift__(self, other):
-		return _Operator(">>", [self, other])
+		return _Operator(">>>", [self, other])
 	def __rrshift__(self, other):
-		return _Operator(">>", [other, self])
+		return _Operator(">>>", [other, self])
 	def __and__(self, other):
 		return _Operator("&", [self, other])
 	def __rand__(self, other):
@@ -145,17 +130,34 @@ class Replicate(Value):
 		self.n = n
 
 class Signal(Value):
-	def __init__(self, bv=BV(), name=None, variable=False, reset=0, name_override=None):
+	def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None):
 		super().__init__()
-		assert(isinstance(bv, BV))
-		self.bv = bv
+		
+		# determine number of bits and signedness
+		if bits_sign is None:
+			if min is None:
+				min = 0
+			if max is None:
+				max = 2
+			max -= 1 # make both bounds inclusive
+			assert(min < max)
+			self.signed = min < 0 or max < 0
+			self.nbits = builtins.max(bits_for(min, self.signed), bits_for(max, self.signed))
+		else:
+			assert(min is None and max is None)
+			if isinstance(bits_sign, tuple):
+				self.nbits, self.signed = bits_sign
+			else:
+				self.nbits, self.signed = bits_sign, False
+		assert(isinstance(self.nbits, int))
+		
 		self.variable = variable
 		self.reset = reset
 		self.name_override = name_override
 		self.backtrace = tracer.trace_back(name)
 
-	def __len__(self):
-		return self.bv.width
+	def __len__(self): # TODO: remove (use tools.value_bits_sign instead)
+		return self.nbits
 
 	def __repr__(self):
 		return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"
@@ -238,9 +240,9 @@ class Instance(HUID):
 		self.items = items
 	
 	class _IO:
-		def __init__(self, name, expr=BV(1)):
+		def __init__(self, name, expr=1):
 			self.name = name
-			if isinstance(expr, BV):
+			if isinstance(expr, (int, tuple)):
 				self.expr = Signal(expr, name)
 			else:
 				self.expr = expr
@@ -300,14 +302,14 @@ class Memory(HUID):
 	  clock_domain="sys"):
 		if we_granularity >= self.width:
 			we_granularity = 0
-		adr = Signal(BV(bits_for(self.depth-1)))
-		dat_r = Signal(BV(self.width))
+		adr = Signal(max=self.depth)
+		dat_r = Signal(self.width)
 		if write_capable:
 			if we_granularity:
-				we = Signal(BV(self.width//we_granularity))
+				we = Signal(self.width//we_granularity)
 			else:
 				we = Signal()
-			dat_w = Signal(BV(self.width))
+			dat_w = Signal(self.width)
 		else:
 			we = None
 			dat_w = None

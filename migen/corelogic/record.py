@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl.tools import value_bv
+from migen.fhdl.tools import value_bits_sign
 
 class Record:
 	def __init__(self, layout, name=""):
@@ -11,7 +11,7 @@ class Record:
 			prefix = ""
 		for f in layout:
 			if isinstance(f, tuple):
-				if isinstance(f[1], BV):
+				if isinstance(f[1], (int, tuple)):
 					setattr(self, f[0], Signal(f[1], prefix + f[0]))
 				elif isinstance(f[1], Signal) or isinstance(f[1], Record):
 					setattr(self, f[0], f[1])
@@ -24,7 +24,7 @@ class Record:
 				else:
 					self.field_order.append((f[0], 1))
 			else:
-				setattr(self, f, Signal(BV(1), prefix + f))
+				setattr(self, f, Signal(1, prefix + f))
 				self.field_order.append((f, 1))
 
 	def layout(self):
@@ -32,7 +32,7 @@ class Record:
 		for key, alignment in self.field_order:
 			e = self.__dict__[key]
 			if isinstance(e, Signal):
-				l.append((key, e.bv, alignment))
+				l.append((key, (e.nbits, e.signed), alignment))
 			elif isinstance(e, Record):
 				l.append((key, e.layout(), alignment))
 		return l
@@ -88,7 +88,7 @@ class Record:
 			else:
 				raise TypeError
 			for x in added:
-				offset += value_bv(x).width
+				offset += value_bits_sign(x)[0]
 			l += added
 		if return_offset:
 			return (l, offset)
@@ -97,7 +97,7 @@ class Record:
 	
 	def to_signal(self, assignment_list, sig_out, align=False):
 		flattened, length = self.flatten(align, return_offset=True)
-		raw = Signal(BV(length))
+		raw = Signal(length)
 		if sig_out:
 			assignment_list.append(raw.eq(Cat(*flattened)))
 		else:

@@ -5,19 +5,19 @@ class Divider:
 		self.w = w
 		
 		self.start_i = Signal()
-		self.dividend_i = Signal(BV(w))
-		self.divisor_i = Signal(BV(w))
+		self.dividend_i = Signal(w)
+		self.divisor_i = Signal(w)
 		self.ready_o = Signal()
-		self.quotient_o = Signal(BV(w))
-		self.remainder_o = Signal(BV(w))
+		self.quotient_o = Signal(w)
+		self.remainder_o = Signal(w)
 	
 	def get_fragment(self):
 		w = self.w
 		
-		qr = Signal(BV(2*w))
-		counter = Signal(BV(bits_for(w)))
-		divisor_r = Signal(BV(w))
-		diff = Signal(BV(w+1))
+		qr = Signal(2*w)
+		counter = Signal(bits_for(w))
+		divisor_r = Signal(w)
+		diff = Signal(w+1)
 		
 		comb = [
 			self.quotient_o.eq(qr[:w]),

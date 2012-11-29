@@ -4,8 +4,8 @@ class ReorderSlot:
 	def __init__(self, tag_width, data_width):
 		self.wait_data = Signal()
 		self.has_data = Signal()
-		self.tag = Signal(BV(tag_width))
-		self.data = Signal(BV(data_width))
+		self.tag = Signal(tag_width)
+		self.data = Signal(data_width)
 
 class ReorderBuffer:
 	def __init__(self, tag_width, data_width, depth):
@@ -14,21 +14,21 @@ class ReorderBuffer:
 		# issue
 		self.can_issue = Signal()
 		self.issue = Signal()
-		self.tag_issue = Signal(BV(tag_width))
+		self.tag_issue = Signal(tag_width)
 		
 		# call
 		self.call = Signal()
-		self.tag_call = Signal(BV(tag_width))
-		self.data_call = Signal(BV(data_width))
+		self.tag_call = Signal(tag_width)
+		self.data_call = Signal(data_width)
 		
 		# readback
 		self.can_read = Signal()
 		self.read = Signal()
-		self.data_read = Signal(BV(data_width))
+		self.data_read = Signal(data_width)
 		
-		self._empty_count = Signal(BV(bits_for(self.depth)), reset=self.depth)
-		self._produce = Signal(BV(bits_for(self.depth-1)))
-		self._consume = Signal(BV(bits_for(self.depth-1)))
+		self._empty_count = Signal(max=self.depth+1, reset=self.depth)
+		self._produce = Signal(max=self.depth)
+		self._consume = Signal(max=self.depth)
 		self._slots = Array(ReorderSlot(tag_width, data_width)
 			for n in range(self.depth))
 	

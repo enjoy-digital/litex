@@ -112,7 +112,7 @@ class SequentialActor(BinaryActor):
 
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
 		ready = Signal()
-		timer = Signal(BV(bits_for(self.delay)))
+		timer = Signal(bits_for(self.delay))
 		comb = [ready.eq(timer == 0)]
 		sync = [
 			If(self.trigger,
@@ -143,7 +143,7 @@ class PipelinedActor(BinaryActor):
 		super().__init__(*endpoint_descriptions, **misc)
 
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
-		valid = Signal(BV(self.latency))
+		valid = Signal(self.latency)
 		if self.latency > 1:
 			sync = [If(self.pipe_ce, valid.eq(Cat(stb_i, valid[:self.latency-1])))]
 		else:

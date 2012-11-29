@@ -6,8 +6,8 @@ class RoundRobin:
 	def __init__(self, n, switch_policy=SP_WITHDRAW):
 		self.n = n
 		self.bn = bits_for(self.n-1)
-		self.request = Signal(BV(self.n))
-		self.grant = Signal(BV(self.bn))
+		self.request = Signal(self.n)
+		self.grant = Signal(self.bn)
 		self.switch_policy = switch_policy
 		if self.switch_policy == SP_CE:
 			self.ce = Signal()

@@ -7,13 +7,13 @@ class SequentialReader(Actor):
 		self.port = port
 		assert(len(self.port.slots) == 1)
 		super().__init__(
-			("address", Sink, [("a", BV(self.port.hub.aw))]),
-			("data", Source, [("d", BV(self.port.hub.dw))]))
+			("address", Sink, [("a", self.port.hub.aw)]),
+			("data", Source, [("d", self.port.hub.dw)]))
 	
 	def get_fragment(self):
 		sample = Signal()
 		data_reg_loaded = Signal()
-		data_reg = Signal(BV(self.port.hub.dw))
+		data_reg = Signal(self.port.hub.dw)
 		
 		accept_new = Signal()
 		
@@ -49,8 +49,8 @@ class OOOReader(Actor):
 		self.port = port
 		assert(len(self.port.slots) > 1)
 		super().__init__(
-			("address", Sink, [("a", BV(self.port.hub.aw))]),
-			("data", Source, [("d", BV(self.port.hub.dw))]))
+			("address", Sink, [("a", self.port.hub.aw)]),
+			("data", Source, [("d", self.port.hub.dw)]))
 	
 	def get_fragment(self):
 		tag_width = len(self.port.tag_call)

@@ -7,7 +7,7 @@ def gen_list(n):
 	return s
 
 def gen_2list(n):
-	s = [Signal(BV(2)) for i in range(n)]
+	s = [Signal(2) for i in range(n)]
 	return s
 
 class Foo:

@@ -38,7 +38,7 @@ class WB2ASMI:
 		
 		write_from_asmi = Signal()
 		write_to_asmi = Signal()
-		adr_offset_r = Signal(BV(offsetbits))
+		adr_offset_r = Signal(offsetbits)
 		comb += [
 			data_port.adr.eq(adr_line),
 			If(write_from_asmi,
@@ -62,7 +62,7 @@ class WB2ASMI:
 		tag_mem = Memory(tagbits+1, 2**linebits)
 		tag_port = tag_mem.get_port(write_capable=True)
 		
-		tag_layout = [("tag", BV(tagbits)), ("dirty", BV(1))]
+		tag_layout = [("tag", tagbits), ("dirty", 1)]
 		tag_do = Record(tag_layout)
 		tag_di = Record(tag_layout)
 		comb += [

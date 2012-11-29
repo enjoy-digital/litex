@@ -5,7 +5,7 @@ from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 from migen.fhdl import verilog
 
-layout = [("r", BV(32))]
+layout = [("r", 32)]
 
 def number_gen():
 	for i in range(10):

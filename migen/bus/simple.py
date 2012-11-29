@@ -25,7 +25,7 @@ class SimpleInterface:
 		busname = modules[len(modules)-1]
 		for signal in self.desc.desc:
 			signame = signal[1]
-			setattr(self, signame, Signal(BV(signal[2]), busname + "_" + signame))
+			setattr(self, signame, Signal(signal[2], busname + "_" + signame))
 
 def simple_interconnect_stmts(desc, master, slaves):
 	s2m = desc.get_names(S_TO_M)

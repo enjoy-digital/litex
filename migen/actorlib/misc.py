@@ -10,23 +10,23 @@ class IntSequence(Actor):
 		self.offsetbits = offsetbits
 		self.step = step
 		
-		parameters_layout = [("maximum", BV(self.nbits))]
+		parameters_layout = [("maximum", self.nbits)]
 		if self.offsetbits:
-			parameters_layout.append(("offset", BV(self.offsetbits)))
+			parameters_layout.append(("offset", self.offsetbits))
 		
 		super().__init__(
 			("parameters", Sink, parameters_layout),
-			("source", Source, [("value", BV(max(self.nbits, self.offsetbits)))]))
+			("source", Source, [("value", max(self.nbits, self.offsetbits))]))
 	
 	def get_fragment(self):
 		load = Signal()
 		ce = Signal()
 		last = Signal()
 		
-		maximum = Signal(BV(self.nbits))
+		maximum = Signal(self.nbits)
 		if self.offsetbits:
-			offset = Signal(BV(self.offsetbits))
-		counter = Signal(BV(self.nbits))
+			offset = Signal(self.offsetbits)
+		counter = Signal(self.nbits)
 		
 		if self.step > 1:
 			comb = [last.eq(counter + self.step >= maximum)]

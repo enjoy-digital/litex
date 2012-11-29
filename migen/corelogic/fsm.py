@@ -4,9 +4,8 @@ class FSM:
 	def __init__(self, *states, delayed_enters=[]):
 		nstates = len(states) + sum([d[2] for d in delayed_enters])
 		
-		self._state_bv = BV(bits_for(nstates-1))
-		self._state = Signal(self._state_bv)
-		self._next_state = Signal(self._state_bv)
+		self._state = Signal(max=nstates)
+		self._next_state = Signal(max=nstates)
 		for n, state in enumerate(states):
 			setattr(self, state, n)
 		self.actions = [[] for i in range(len(states))]

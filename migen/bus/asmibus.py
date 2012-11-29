@@ -10,17 +10,17 @@ class FinalizeError(Exception):
 
 class Slot:
 	def __init__(self, aw, time):
-		self.state = Signal(BV(2))
+		self.state = Signal(2)
 		self.we = Signal()
-		self.adr = Signal(BV(aw))
+		self.adr = Signal(aw)
 		self.time = time
 		if self.time:
-			self._counter = Signal(BV(bits_for(time)))
+			self._counter = Signal(bits_for(time))
 			self.mature = Signal()
 		
 		self.allocate = Signal()
 		self.allocate_we = Signal()
-		self.allocate_adr = Signal(BV(aw))
+		self.allocate_adr = Signal(aw)
 		self.process = Signal()
 		self.call = Signal()
 	
@@ -55,7 +55,7 @@ class Port:
 		self.finalized = False
 		
 		# request issuance
-		self.adr = Signal(BV(self.hub.aw))
+		self.adr = Signal(self.hub.aw)
 		self.we = Signal()
 		self.stb = Signal()
 		# tag_issue is created by finalize()
@@ -64,9 +64,9 @@ class Port:
 		# request completion
 		self.call = Signal()
 		# tag_call is created by finalize()
-		self.dat_r = Signal(BV(self.hub.dw))
-		self.dat_w = Signal(BV(self.hub.dw))
-		self.dat_wm = Signal(BV(self.hub.dw//8))
+		self.dat_r = Signal(self.hub.dw)
+		self.dat_w = Signal(self.hub.dw)
+		self.dat_wm = Signal(self.hub.dw//8)
 	
 	def finalize(self, tagbits, base):
 		if self.finalized:
@@ -76,8 +76,8 @@ class Port:
 		self.base = base
 		nslots = len(self.slots)
 		if nslots > 1:
-			self.tag_issue = Signal(BV(bits_for(nslots-1)))
-		self.tag_call = Signal(BV(tagbits))
+			self.tag_issue = Signal(bits_for(nslots-1))
+		self.tag_call = Signal(tagbits)
 	
 	def get_call_expression(self, slotn=0):
 		if not self.finalized:
@@ -127,9 +127,9 @@ class Hub:
 		
 		self.call = Signal()
 		# tag_call is created by finalize()
-		self.dat_r = Signal(BV(self.dw))
-		self.dat_w = Signal(BV(self.dw))
-		self.dat_wm = Signal(BV(self.dw//8))
+		self.dat_r = Signal(self.dw)
+		self.dat_w = Signal(self.dw)
+		self.dat_wm = Signal(self.dw//8)
 	
 	def get_port(self, nslots=1):
 		if self.finalized:
@@ -148,7 +148,7 @@ class Hub:
 		for port in self.ports:
 			port.finalize(tagbits, base)
 			base += len(port.slots)
-		self.tag_call = Signal(BV(tagbits))
+		self.tag_call = Signal(tagbits)
 	
 	def get_slots(self):
 		if not self.finalized:

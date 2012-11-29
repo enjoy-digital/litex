@@ -17,21 +17,20 @@ class FIR:
 	def __init__(self, coef, wsize=16):
 		self.coef = coef
 		self.wsize = wsize
-		self.i = Signal(BV(self.wsize, True))
-		self.o = Signal(BV(self.wsize, True))
+		self.i = Signal((self.wsize, True))
+		self.o = Signal((self.wsize, True))
 	
 	def get_fragment(self):
 		muls = []
 		sync = []
 		src = self.i
 		for c in self.coef:
-			sreg = Signal(BV(self.wsize, True))
+			sreg = Signal((self.wsize, True))
 			sync.append(sreg.eq(src))
 			src = sreg
 			c_fp = int(c*2**(self.wsize - 1))
-			c_e = Constant(c_fp, BV(bits_for(c_fp), True))
-			muls.append(c_e*sreg)
-		sum_full = Signal(BV(2*self.wsize-1, True))
+			muls.append(c_fp*sreg)
+		sum_full = Signal((2*self.wsize-1, True))
 		sync.append(sum_full.eq(optree("+", muls)))
 		comb = [self.o.eq(sum_full[self.wsize-1:])]
 		return Fragment(comb, sync)

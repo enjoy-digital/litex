@@ -74,8 +74,8 @@ class Decoder:
 		sync = []
 		
 		ns = len(self.slaves)
-		slave_sel = Signal(BV(ns))
-		slave_sel_r = Signal(BV(ns))
+		slave_sel = Signal(ns)
+		slave_sel_r = Signal(ns)
 		
 		# decode slave addresses
 		comb += [slave_sel[i].eq(fun(self.master.adr))

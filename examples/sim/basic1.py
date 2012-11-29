@@ -9,7 +9,7 @@ from migen.sim.icarus import Runner
 # and prints its current value in simulation.
 class Counter:
 	def __init__(self):
-		self.count = Signal(BV(4))
+		self.count = Signal(4)
 	
 	# This function will be called at every cycle.
 	def do_simulation(self, s):

@@ -10,8 +10,8 @@ oreg = description.RegisterField("o", noutputs, atomic_write=True)
 ireg = description.RegisterField("i", ninputs, READ_ONLY, WRITE_ONLY)
 
 # input path
-gpio_in = Signal(BV(ninputs))
-gpio_in_s = Signal(BV(ninputs)) # synchronizer
+gpio_in = Signal(ninputs)
+gpio_in_s = Signal(ninputs) # synchronizer
 insync = [gpio_in_s.eq(gpio_in), ireg.field.w.eq(gpio_in_s)]
 inf = Fragment(sync=insync)
 

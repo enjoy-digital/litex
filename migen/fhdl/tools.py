@@ -104,43 +104,77 @@ def insert_reset(rst, sl):
 	resetcode = [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.huid)]
 	return If(rst, *resetcode).Else(*sl)
 
-def value_bv(v):
+def value_bits_sign(v):
 	if isinstance(v, bool):
-		return BV(1, False)
+		return 1, False
 	elif isinstance(v, int):
-		return BV(bits_for(v), v < 0)
+		return bits_for(v), v < 0
 	elif isinstance(v, Signal):
-		return v.bv
+		return v.nbits, v.signed
 	elif isinstance(v, _Operator):
-		obv = list(map(value_bv, v.operands))
+		obs = list(map(value_bits_sign, v.operands))
 		if v.op == "+" or v.op == "-":
-			return BV(max(obv[0].width, obv[1].width) + 1,
-				obv[0].signed and obv[1].signed)
-		elif v.op == "*":
-			signed = obv[0].signed and obv[1].signed
-			if signed:
-				return BV(obv[0].width + obv[1].width - 1, signed)
+			if not obs[0][1] and not obs[1][1]:
+				# both operands unsigned
+				return max(obs[0][0], obs[1][0]) + 1, False
+			elif obs[0][1] and obs[1][1]:
+				# both operands signed
+				return max(obs[0][0], obs[1][0]) + 1, True
+			elif not obs[0][1] and obs[1][1]:
+				# first operand unsigned (add sign bit), second operand signed
+				return max(obs[0][0] + 1, obs[1][0]) + 1, True
 			else:
-				return BV(obv[0].width + obv[1].width, signed)
-		elif v.op == "<<" or v.op == ">>":
-			return obv[0].bv
+				# first signed, second operand unsigned (add sign bit)
+				return max(obs[0][0], obs[1][0] + 1) + 1, True
+		elif v.op == "*":
+			if not obs[0][1] and not obs[1][1]:
+				# both operands unsigned
+				return obs[0][0] + obs[1][0]
+			elif obs[0][1] and obs[1][1]:
+				# both operands signed
+				return obs[0][0] + obs[1][0] - 1
+			else:
+				# one operand signed, the other unsigned (add sign bit)
+				return obs[0][0] + obs[1][0] + 1 - 1
+		elif v.op == "<<<":
+			if obs[1][1]:
+				extra = 2**(obs[1][0] - 1) - 1
+			else:
+				extra = 2**obs[1][0] - 1
+			return obs[0][0] + extra, obs[0][1]
+		elif v.op == ">>>":
+			if obs[1][1]:
+				extra = 2**(obs[1][0] - 1)
+			else:
+				extra = 0
+			return obs[0][0] + extra, obs[0][1]
 		elif v.op == "&" or v.op == "^" or v.op == "|":
-			return BV(max(obv[0].width, obv[1].width),
-				obv[0].signed and obv[1].signed)
+			if not obs[0][1] and not obs[1][1]:
+				# both operands unsigned
+				return max(obs[0][0], obs[1][0]), False
+			elif obs[0][1] and obs[1][1]:
+				# both operands signed
+				return max(obs[0][0], obs[1][0]), True
+			elif not obs[0][1] and obs[1][1]:
+				# first operand unsigned (add sign bit), second operand signed
+				return max(obs[0][0] + 1, obs[1][0]), True
+			else:
+				# first signed, second operand unsigned (add sign bit)
+				return max(obs[0][0], obs[1][0] + 1), True
 		elif v.op == "<" or v.op == "<=" or v.op == "==" or v.op == "!=" \
 		  or v.op == ">" or v.op == ">=":
-			  return BV(1)
+			  return 1, False
 		else:
 			raise TypeError
 	elif isinstance(v, _Slice):
-		return BV(v.stop - v.start, value_bv(v.value).signed)
+		return v.stop - v.start, value_bits_sign(v.value)[1]
 	elif isinstance(v, Cat):
-		return BV(sum(value_bv(sv).width for sv in v.l))
+		return sum(value_bits_sign(sv)[0] for sv in v.l), False
 	elif isinstance(v, Replicate):
-		return BV(value_bv(v.v).width*v.n)
+		return (value_bits_sign(v.v)[0])*v.n, False
 	elif isinstance(v, _ArrayProxy):
-		bvc = map(value_bv, v.choices)
-		return BV(max(bv.width for bv in bvc), any(bv.signed for bv in bvc))
+		bsc = map(value_bits_sign, v.choices)
+		return max(bs[0] for bs in bsc), any(bs[1] for bs in bsc)
 	else:
 		raise TypeError
 
@@ -160,7 +194,7 @@ class _ArrayLowerer(NodeTransformer):
 			return super().visit_Assign(node)
 	
 	def visit_ArrayProxy(self, node):
-		array_muxed = Signal(value_bv(node))
+		array_muxed = Signal(value_bits_sign(node))
 		cases = dict((n, _Assign(array_muxed, self.visit(choice)))
 			for n, choice in enumerate(node.choices))
 		self.comb.append(Case(self.visit(node.key), cases).makedefault())

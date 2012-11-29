@@ -3,7 +3,7 @@ from migen.flow.actor import *
 
 def _rawbits_layout(l):
 	if isinstance(l, int):
-		return [("rawbits", BV(l))]
+		return [("rawbits", l)]
 	else:
 		return l
 
@@ -34,7 +34,7 @@ class Unpack(Actor):
 	
 	def get_fragment(self):
 		muxbits = bits_for(self.n-1)
-		mux = Signal(BV(muxbits))
+		mux = Signal(muxbits)
 		last = Signal()
 		comb = [
 			last.eq(mux == (self.n-1)),
@@ -65,7 +65,7 @@ class Pack(Actor):
 	
 	def get_fragment(self):
 		demuxbits = bits_for(self.n-1)
-		demux = Signal(BV(demuxbits))
+		demux = Signal(demuxbits)
 		
 		load_part = Signal()
 		strobe_all = Signal()

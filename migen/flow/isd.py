@@ -23,8 +23,8 @@ class EndpointReporter:
 	def get_fragment(self):
 		stb = Signal()
 		ack = Signal()
-		ack_count = Signal(BV(self.nbits))
-		nack_count = Signal(BV(self.nbits))
+		ack_count = Signal(self.nbits)
+		nack_count = Signal(self.nbits)
 		comb = [
 			self._cur_stb.w.eq(stb),
 			self._cur_ack.w.eq(ack)

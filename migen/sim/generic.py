@@ -122,7 +122,7 @@ class Simulator:
 			signed = False
 			nbits = item.width
 		else:
-			signed = item.bv.signed
+			signed = item.signed
 			nbits = len(item)
 		value = reply.value & (2**nbits - 1)
 		if signed and (value & 2**(nbits - 1)):

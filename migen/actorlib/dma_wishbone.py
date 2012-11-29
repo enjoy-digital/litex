@@ -6,14 +6,14 @@ class Reader(Actor):
 	def __init__(self):
 		self.bus = wishbone.Interface()
 		super().__init__(
-			("address", Sink, [("a", BV(30))]),
-			("data", Source, [("d", BV(32))]))
+			("address", Sink, [("a", 30)]),
+			("data", Source, [("d", 32)]))
 	
 	def get_fragment(self):
 		bus_stb = Signal()
 		
 		data_reg_loaded = Signal()
-		data_reg = Signal(BV(32))
+		data_reg = Signal(32)
 		
 		comb = [
 			self.busy.eq(data_reg_loaded),
@@ -42,7 +42,7 @@ class Writer(Actor):
 	def __init__(self):
 		self.bus = wishbone.Interface()
 		super().__init__(
-			("address_data", Sink, [("a", BV(30)), ("d", BV(32))]))
+			("address_data", Sink, [("a", 30), ("d", 32)]))
 
 	def get_fragment(self):
 		comb = [

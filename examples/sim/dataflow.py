@@ -17,8 +17,8 @@ def sink_gen():
 		print("Received: " + str(t.value["value"]))
 
 def main():
-	source = ActorNode(SimActor(source_gen(), ("source", Source, [("value", BV(32))])))
-	sink = ActorNode(SimActor(sink_gen(), ("sink", Sink, [("value", BV(32))])))
+	source = ActorNode(SimActor(source_gen(), ("source", Source, [("value", 32)])))
+	sink = ActorNode(SimActor(sink_gen(), ("sink", Sink, [("value", 32)])))
 	g = DataFlowGraph()
 	g.add_connection(source, sink)
 	comp = CompositeActor(g)
