@@ -33,8 +33,7 @@ class Unpack(Actor):
 			("source", Source, layout_to))
 	
 	def get_fragment(self):
-		muxbits = bits_for(self.n-1)
-		mux = Signal(muxbits)
+		mux = Signal(max=self.n)
 		last = Signal()
 		comb = [
 			last.eq(mux == (self.n-1)),
@@ -64,8 +63,7 @@ class Pack(Actor):
 			("source", Source, pack_layout(layout_from, n)))
 	
 	def get_fragment(self):
-		demuxbits = bits_for(self.n-1)
-		demux = Signal(demuxbits)
+		demux = Signal(max=self.n)
 		
 		load_part = Signal()
 		strobe_all = Signal()

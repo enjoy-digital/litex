@@ -112,7 +112,7 @@ class SequentialActor(BinaryActor):
 
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
 		ready = Signal()
-		timer = Signal(bits_for(self.delay))
+		timer = Signal(max=self.delay+1)
 		comb = [ready.eq(timer == 0)]
 		sync = [
 			If(self.trigger,

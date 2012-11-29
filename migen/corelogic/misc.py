@@ -54,7 +54,7 @@ def chooser(signal, shift, output, n=None, reverse=False):
 
 def timeline(trigger, events):
 	lastevent = max([e[0] for e in events])
-	counter = Signal(bits_for(lastevent))
+	counter = Signal(max=lastevent+1)
 	
 	counterlogic = If(counter != 0,
 		counter.eq(counter + 1)

@@ -15,7 +15,7 @@ class Slot:
 		self.adr = Signal(aw)
 		self.time = time
 		if self.time:
-			self._counter = Signal(bits_for(time))
+			self._counter = Signal(max=time+1)
 			self.mature = Signal()
 		
 		self.allocate = Signal()
@@ -76,7 +76,7 @@ class Port:
 		self.base = base
 		nslots = len(self.slots)
 		if nslots > 1:
-			self.tag_issue = Signal(bits_for(nslots-1))
+			self.tag_issue = Signal(max=nslots)
 		self.tag_call = Signal(tagbits)
 	
 	def get_call_expression(self, slotn=0):

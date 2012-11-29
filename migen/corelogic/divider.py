@@ -15,7 +15,7 @@ class Divider:
 		w = self.w
 		
 		qr = Signal(2*w)
-		counter = Signal(bits_for(w))
+		counter = Signal(max=w+1)
 		divisor_r = Signal(w)
 		diff = Signal(w+1)
 		
