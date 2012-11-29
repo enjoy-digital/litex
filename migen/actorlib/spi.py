@@ -5,7 +5,7 @@ from migen.bank.description import *
 from migen.flow.actor import *
 
 # layout is a list of tuples, either:
-# - (name, bv, [reset value], [alignment bits])
+# - (name, nbits, [reset value], [alignment bits])
 # - (name, sublayout)
 
 def _convert_layout(layout):
@@ -30,7 +30,7 @@ def _create_registers_assign(layout, target, atomic, prefix=""):
 			assigns += r_assigns
 		else:
 			name = element[0]
-			bv = element[1]
+			nbits = element[1]
 			if len(element) > 2:
 				reset = element[2]
 			else:
@@ -39,7 +39,7 @@ def _create_registers_assign(layout, target, atomic, prefix=""):
 				alignment = element[3]
 			else:
 				alignment = 0
-			reg = RegisterField(prefix + name, bv.width + alignment,
+			reg = RegisterField(prefix + name, nbits + alignment,
 				reset=reset, atomic_write=atomic)
 			registers.append(reg)
 			assigns.append(getattr(target, name).eq(reg.field.r[alignment:]))

@@ -78,7 +78,7 @@ def _printexpr(ns, node):
 		l = [_printexpr(ns, v)[0] for v in reversed(node.l)]
 		return "{" + ", ".join(l) + "}", False
 	elif isinstance(node, Replicate):
-		return "{" + str(node.n) + "{" + _printexpr(ns, node.v) + "}}", False
+		return "{" + str(node.n) + "{" + _printexpr(ns, node.v)[0] + "}}", False
 	else:
 		raise TypeError
 
@@ -223,7 +223,7 @@ def _printinstances(f, ns, clock_domains):
 				firstp = False
 				r += "\t." + p.name + "("
 				if isinstance(p.value, (int, bool)):
-					r += _printintbool(p.value)
+					r += _printintbool(p.value)[0]
 				elif isinstance(p.value, float):
 					r += str(p.value)
 				elif isinstance(p.value, str):
