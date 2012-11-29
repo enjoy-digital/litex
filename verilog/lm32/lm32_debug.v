@@ -167,7 +167,7 @@ wire [0:breakpoints-1]bp_match_n;               // Indicates if a h/w instructio
 
 reg [`LM32_WPC_C_RNG] wpc_c[0:watchpoints-1];   // Watchpoint enable
 reg [`LM32_WORD_RNG] wp[0:watchpoints-1];       // Watchpoint address
-wire [0:watchpoints]wp_match_n;               // Indicates if a h/w data watchpoint matched
+wire [0:watchpoints-1]wp_match_n;               // Indicates if a h/w data watchpoint matched
 
 wire debug_csr_write_enable;                    // Debug CSR write enable (from either a wcsr instruction of external debugger)
 wire [`LM32_WORD_RNG] debug_csr_write_data;     // Data to write to debug CSR
