@@ -40,7 +40,7 @@ class ImplRegister:
 	def finalize(self):
 		if self.finalized:
 			raise FinalizeError
-		self.sel = Signal(max=len(self.source_encoding)+2, name="pl_regsel_"+self.name)
+		self.sel = Signal(max=len(self.source_encoding)+1, name="pl_regsel_"+self.name)
 		self.finalized = True
 	
 	def get_fragment(self):
