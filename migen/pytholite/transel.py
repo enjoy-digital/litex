@@ -8,12 +8,21 @@ def bitslice(val, low, up=None):
 	return (val & mask) >> low
 
 class Register:
-	def __init__(self, nbits):
-		self._nbits = nbits
+	def __init__(self, bits_sign):
+		if isinstance(bits_sign, tuple):
+			self._nbits, self._signed = bits_sign
+		else:
+			self._nbits, self._signed = bits_sign, False
 		self._val = 0
 	
 	def _set_store(self, val):
-		self._val = val & (2**self._nbits - 1)
+		if self._signed:
+			sbw = 2**(self._nbits - 1)
+			self._val = val & (sbw - 1)
+			if val & sbw:
+				self._val -= sbw
+		else:
+			self._val = val & (2**self._nbits - 1)
 	store = property(None, _set_store)
 
 	def __nonzero__(self):

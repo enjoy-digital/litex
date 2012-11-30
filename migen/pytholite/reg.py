@@ -24,9 +24,9 @@ class LowerAbstractLoad(fhdl.NodeTransformer):
 			return node
 
 class ImplRegister:
-	def __init__(self, name, nbits):
+	def __init__(self, name, bits_sign):
 		self.name = name
-		self.storage = Signal(nbits, name=self.name)
+		self.storage = Signal(bits_sign, name=self.name)
 		self.source_encoding = {}
 		self.id_to_source = {}
 		self.finalized = False

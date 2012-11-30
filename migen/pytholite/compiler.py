@@ -96,12 +96,12 @@ class _Compiler:
 		if callee == transel.Register:
 			if len(value.args) != 1:
 				raise TypeError("Register() takes exactly 1 argument")
-			nbits = ast.literal_eval(value.args[0])
+			bits_sign = ast.literal_eval(value.args[0])
 			if isinstance(node.targets[0], ast.Name):
 				targetname = node.targets[0].id
 			else:
 				targetname = "unk"
-			reg = ImplRegister(targetname, nbits)
+			reg = ImplRegister(targetname, bits_sign)
 			self.registers.append(reg)
 			for target in node.targets:
 				if isinstance(target, ast.Name):
