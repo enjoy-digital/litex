@@ -197,7 +197,7 @@ class Target(PureSimulable):
 class SRAM:
 	def __init__(self, mem_or_size, bus=Interface()):
 		if isinstance(mem_or_size, Memory):
-			assert(mem_or_size.width == 32)
+			assert(mem_or_size.width <= 32)
 			self.mem = mem_or_size
 		else:
 			self.mem = Memory(32, mem_or_size//4)
