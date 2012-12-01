@@ -193,3 +193,33 @@ class Target(PureSimulable):
 				bus.ack = 1
 		else:
 			bus.ack = 0
+
+class SRAM:
+	def __init__(self, mem_or_size, bus=Interface()):
+		if isinstance(mem_or_size, Memory):
+			assert(mem_or_size.width == 32)
+			self.mem = mem_or_size
+		else:
+			self.mem = Memory(32, mem_or_size//4)
+		self.bus = bus
+	
+	def get_fragment(self):
+		# memory
+		port = self.mem.get_port(write_capable=True, we_granularity=8)
+		# generate write enable signal
+		comb = [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
+			for i in range(4)]
+		# address and data
+		comb += [
+			port.adr.eq(self.bus.adr[:len(port.adr)]),
+			port.dat_w.eq(self.bus.dat_w),
+			self.bus.dat_r.eq(port.dat_r)
+		]
+		# generate ack
+		sync = [
+			self.bus.ack.eq(0),
+			If(self.bus.cyc & self.bus.stb & ~self.bus.ack,
+				self.bus.ack.eq(1)
+			)
+		]
+		return Fragment(comb, sync, memories=[self.mem])
