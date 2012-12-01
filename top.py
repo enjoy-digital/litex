@@ -5,7 +5,7 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 
-from milkymist import m1crg, lm32, norflash, uart, sram, s6ddrphy, dfii, asmicon, \
+from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
 	identifier, timer, minimac3, framebuffer, asmiprobe
 from cmacros import get_macros
 from constraints import Constraints
@@ -81,7 +81,7 @@ def get():
 	#
 	cpu0 = lm32.LM32()
 	norflash0 = norflash.NorFlash(25, 12)
-	sram0 = sram.SRAM(sram_size//4)
+	sram0 = wishbone.SRAM(sram_size)
 	minimac0 = minimac3.MiniMAC(csr_offset("MINIMAC"))
 	wishbone2asmi0 = wishbone2asmi.WB2ASMI(l2_size//4, asmiport_wb)
 	wishbone2csr0 = wishbone2csr.WB2CSR()
