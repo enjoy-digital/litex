@@ -27,7 +27,7 @@ class Field:
 			self.w = Signal(self.size)
 		else:
 			if self.access_dev == READ_ONLY or self.access_dev == READ_WRITE:
-				self.r = Signal(self.size)
+				self.r = Signal(self.size, reset=reset)
 			if self.access_dev == WRITE_ONLY or self.access_dev == READ_WRITE:
 				self.w = Signal(self.size)
 				self.we = Signal()
