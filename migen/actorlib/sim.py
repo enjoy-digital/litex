@@ -73,8 +73,11 @@ class SimActor(Actor):
 		super().__init__(*endpoint_descriptions, **misc)
 		self.token_exchanger = TokenExchanger(generator, self)
 	
+	def update_busy(self, s):
+		s.wr(self.busy, not self.token_exchanger.done)
+	
 	def get_fragment(self):
-		return self.token_exchanger.get_fragment()
+		return self.token_exchanger.get_fragment() + Fragment(sim=[self.update_busy])
 
 class Dumper(SimActor):
 	def __init__(self, layout, prefix=""):
