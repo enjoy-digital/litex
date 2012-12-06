@@ -18,8 +18,10 @@ class Interconnect(SimpleInterconnect):
 	pass
 
 class Initiator(PureSimulable):
-	def __init__(self, generator, bus=Interface()):
+	def __init__(self, generator, bus=None):
 		self.generator = generator
+		if bus is None:
+			bus = Interface()
 		self.bus = bus
 		self.transaction = None
 		self.done = False
@@ -50,7 +52,7 @@ def _compute_page_bits(nwords):
 		return 0
 
 class SRAM:
-	def __init__(self, mem_or_size, address, bus=Interface()):
+	def __init__(self, mem_or_size, address, bus=None):
 		if isinstance(mem_or_size, Memory):
 			assert(mem_or_size.width <= data_width)
 			self.mem = mem_or_size
@@ -62,6 +64,8 @@ class SRAM:
 			self._page = RegisterField("page", page_bits)
 		else:
 			self._page = None
+		if bus is None:
+			bus = Interface()
 		self.bus = bus
 	
 	def get_registers(self):

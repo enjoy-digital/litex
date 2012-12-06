@@ -133,8 +133,10 @@ class Tap(PureSimulable):
 			self.handler(transaction)
 
 class Initiator(PureSimulable):
-	def __init__(self, generator, bus=Interface()):
+	def __init__(self, generator, bus=None):
 		self.generator = generator
+		if bus is None:
+			bus = Interface()
 		self.bus = bus
 		self.transaction_start = 0
 		self.transaction = None
@@ -178,7 +180,9 @@ class TargetModel:
 		return True
 
 class Target(PureSimulable):
-	def __init__(self, model, bus=Interface()):
+	def __init__(self, model, bus=None):
+		if bus is None:
+			bus = Interface()
 		self.bus = bus
 		self.model = model
 	
@@ -195,12 +199,14 @@ class Target(PureSimulable):
 			bus.ack = 0
 
 class SRAM:
-	def __init__(self, mem_or_size, bus=Interface()):
+	def __init__(self, mem_or_size, bus=None):
 		if isinstance(mem_or_size, Memory):
 			assert(mem_or_size.width <= 32)
 			self.mem = mem_or_size
 		else:
 			self.mem = Memory(32, mem_or_size//4)
+		if bus is None:
+			bus = Interface()
 		self.bus = bus
 	
 	def get_fragment(self):
