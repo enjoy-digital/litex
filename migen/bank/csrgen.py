@@ -3,9 +3,11 @@ from migen.bus import csr
 from migen.bank.description import *
 
 class Bank:
-	def __init__(self, description, address=0, bus=csr.Interface()):
+	def __init__(self, description, address=0, bus=None):
 		self.description = description
 		self.address = address
+		if bus is None:
+			bus = csr.Interface()
 		self.bus = bus
 	
 	def get_fragment(self):
