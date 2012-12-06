@@ -124,33 +124,35 @@ class FIFO(Actor):
 	
 	def get_fragment(self):
 		data_width = 2+3*_bpc_dac
+		fifo_full = Signal()
+		fifo_write_en = Signal()
+		fifo_data_out = Signal(data_width)
+		fifo_data_in = Signal(data_width)
 		asfifo = Instance("asfifo",
 			Instance.Parameter("data_width", data_width),
 			Instance.Parameter("address_width", 8),
 	
-			Instance.Output("data_out", data_width),
-			Instance.Output("empty", 1),
+			Instance.Output("data_out", fifo_data_out),
+			Instance.Output("empty"),
 			Instance.Input("read_en", 1),
 			Instance.ClockPort("clk_read", "vga"),
 
-			Instance.Input("data_in", data_width),
-			Instance.Output("full", 1),
-			Instance.Input("write_en", 1),
+			Instance.Input("data_in", fifo_data_in),
+			Instance.Output("full", fifo_full),
+			Instance.Input("write_en", fifo_write_en),
 			Instance.ClockPort("clk_write"),
 			
-			Instance.Input("rst", 1))
+			Instance.Input("rst", 0))
 		t = self.token("dac")
 		return Fragment(
 			[
-				asfifo.get_io("read_en").eq(1),
 				Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.get_io("data_out")),
 				
-				self.endpoints["dac"].ack.eq(~asfifo.get_io("full")),
-				asfifo.get_io("write_en").eq(self.endpoints["dac"].stb),
-				asfifo.get_io("data_in").eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
+				self.endpoints["dac"].ack.eq(~fifo_full),
+				fifo_write_en.eq(self.endpoints["dac"].stb),
+				fifo_data_in.eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
 				
-				self.busy.eq(0),
-				asfifo.get_io("rst").eq(0)
+				self.busy.eq(0)
 			],
 			instances=[asfifo])
 
