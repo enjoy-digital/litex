@@ -242,12 +242,11 @@ class Instance(HUID):
 		self.items = items
 	
 	class _IO:
-		def __init__(self, name, expr=1):
+		def __init__(self, name, expr=None):
 			self.name = name
-			if isinstance(expr, (int, tuple)):
-				self.expr = Signal(expr, name)
-			else:
-				self.expr = expr
+			if expr is None:
+				expr = Signal()
+			self.expr = expr
 	class Input(_IO):
 		pass	
 	class Output(_IO):
