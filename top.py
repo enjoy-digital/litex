@@ -114,13 +114,13 @@ def get():
 	fb0 = framebuffer.Framebuffer(csr_offset("FB"), asmiport_fb)
 	asmiprobe0 = asmiprobe.ASMIprobe(csr_offset("ASMIPROBE"), asmicon0.hub)
 	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
-		uart0.bank.interface,
-		dfii0.bank.interface,
-		identifier0.bank.interface,
-		timer0.bank.interface,
-		minimac0.bank.interface,
-		fb0.bank.interface,
-		asmiprobe0.bank.interface
+		uart0.bank.bus,
+		dfii0.bank.bus,
+		identifier0.bank.bus,
+		timer0.bank.bus,
+		minimac0.bank.bus,
+		fb0.bank.bus,
+		asmiprobe0.bank.bus
 	])
 	
 	#
