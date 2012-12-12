@@ -14,7 +14,7 @@ def number_gen():
 def run_sim(ng):
 	g = DataFlowGraph()
 	d = Dumper(layout)
-	g.add_connection(ActorNode(ng), ActorNode(d))
+	g.add_connection(ng, d)
 	
 	c = CompositeActor(g)
 	fragment = c.get_fragment()

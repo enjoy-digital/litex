@@ -1,7 +1,6 @@
 from random import Random
 
 from migen.flow.network import *
-from migen.actorlib.ala import *
 from migen.actorlib import dma_wishbone, dma_asmi
 from migen.actorlib.sim import *
 from migen.bus import wishbone, asmibus
@@ -43,7 +42,7 @@ def trgen_gen():
 def wishbone_sim(efragment, master, end_simulation):
 	peripheral = wishbone.Target(MyModelWB())
 	tap = wishbone.Tap(peripheral.bus)
-	interconnect = wishbone.InterconnectPointToPoint(master.actor.bus, peripheral.bus)
+	interconnect = wishbone.InterconnectPointToPoint(master.bus, peripheral.bus)
 	def _end_simulation(s):
 		s.interrupt = end_simulation(s)
 	fragment = efragment \
@@ -70,27 +69,27 @@ def asmi_sim(efragment, hub, end_simulation):
 
 def test_wb_reader():
 	print("*** Testing Wishbone reader")
-	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", 30)])))
-	reader = ActorNode(dma_wishbone.Reader())
-	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", 32)])))
+	adrgen = SimActor(adrgen_gen(), ("address", Source, [("a", 30)]))
+	reader = dma_wishbone.Reader()
+	dumper = SimActor(dumper_gen(), ("data", Sink, [("d", 32)]))
 	g = DataFlowGraph()
 	g.add_connection(adrgen, reader)
 	g.add_connection(reader, dumper)
 	comp = CompositeActor(g)
 	
 	wishbone_sim(comp.get_fragment(), reader,
-		lambda s: adrgen.actor.token_exchanger.done and not s.rd(comp.busy))
+		lambda s: adrgen.token_exchanger.done and not s.rd(comp.busy))
 
 def test_wb_writer():
 	print("*** Testing Wishbone writer")
-	trgen = ActorNode(SimActor(trgen_gen(), ("address_data", Source, [("a", 30), ("d", 32)])))
-	writer = ActorNode(dma_wishbone.Writer())
+	trgen = SimActor(trgen_gen(), ("address_data", Source, [("a", 30), ("d", 32)]))
+	writer = dma_wishbone.Writer()
 	g = DataFlowGraph()
 	g.add_connection(trgen, writer)
 	comp = CompositeActor(g)
 	
 	wishbone_sim(comp.get_fragment(), writer,
-		lambda s: trgen.actor.token_exchanger.done and not s.rd(comp.busy))
+		lambda s: trgen.token_exchanger.done and not s.rd(comp.busy))
 
 def test_asmi_reader(nslots):
 	print("*** Testing ASMI reader (nslots={})".format(nslots))
@@ -99,16 +98,16 @@ def test_asmi_reader(nslots):
 	port = hub.get_port(nslots)
 	hub.finalize()
 	
-	adrgen = ActorNode(SimActor(adrgen_gen(), ("address", Source, [("a", 32)])))
-	reader = ActorNode(dma_asmi.Reader(port))
-	dumper = ActorNode(SimActor(dumper_gen(), ("data", Sink, [("d", 32)])))
+	adrgen = SimActor(adrgen_gen(), ("address", Source, [("a", 32)]))
+	reader = dma_asmi.Reader(port)
+	dumper = SimActor(dumper_gen(), ("data", Sink, [("d", 32)]))
 	g = DataFlowGraph()
 	g.add_connection(adrgen, reader)
 	g.add_connection(reader, dumper)
 	comp = CompositeActor(g)
 	
 	asmi_sim(hub.get_fragment() + comp.get_fragment(), hub,
-		lambda s: adrgen.actor.token_exchanger.done and not s.rd(comp.busy))
+		lambda s: adrgen.token_exchanger.done and not s.rd(comp.busy))
 
 test_wb_reader()
 test_wb_writer()

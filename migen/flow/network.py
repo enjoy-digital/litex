@@ -6,57 +6,37 @@ from migen.flow.actor import *
 from migen.flow import plumbing
 from migen.flow.isd import DFGReporter
 
-# Graph nodes can be either:
-#  (1) a reference to an existing actor
-#  (2) an abstract (class, dictionary) pair meaning that the actor class should be
-#      instantiated with the parameters from the dictionary.
-#      This form is needed to enable actor duplication or sharing during elaboration.
+# Abstract actors mean that the actor class should be instantiated with the parameters 
+# from the dictionary. They are needed to enable actor duplication or sharing during
+# elaboration, and automatic parametrization of plumbing actors.
 
-class ActorNode(HUID):
-	def __init__(self, actor_class, parameters=dict()):
+class AbstractActor(HUID):
+	def __init__(self, actor_class, parameters=dict(), name=None):
 		super().__init__()
-		if isinstance(actor_class, type):
-			self.actor_class = actor_class
-			self.parameters = parameters
-		else:
-			self.actor = actor_class
-		self.name = None
+		self.actor_class = actor_class
+		self.parameters = parameters
+		self.name = name
 	
-	def is_abstract(self):
-		return hasattr(self, "actor_class")
-		
-	def instantiate(self):
-		self.actor = self.actor_class(**self.parameters)
-		self.actor.name = self.name
-		del self.actor_class
-		del self.parameters
-	
-	def get_dict(self):
-		if self.is_abstract():
-			return self.parameters
-		else:
-			return self.actor.__dict__
+	def create_instance(self):
+		return self.actor_class(**self.parameters)
 	
 	def __repr__(self):
-		if self.is_abstract():
-			r = "<abstract " + self.actor_class.__name__
-			if self.name is not None:
-				r += ": " + self.name
-			r += ">"
-		else:
-			r = repr(self.actor)
+		r = "<abstract " + self.actor_class.__name__
+		if self.name is not None:
+			r += ": " + self.name
+		r += ">"
 		return r
 
 class DataFlowGraph(MultiDiGraph):
 	def __init__(self):
-		self.elaborated = False
 		super().__init__()
+		self.elaborated = False
 	
 	def add_connection(self, source_node, sink_node,
 	  source_ep=None, sink_ep=None,		# default: assume nodes have 1 source/sink and use that one
 	  source_subr=None, sink_subr=None):	# default: use whole record
-		assert(isinstance(source_node, ActorNode))
-		assert(isinstance(sink_node, ActorNode))
+		assert(isinstance(source_node, (Actor, AbstractActor)))
+		assert(isinstance(sink_node, (Actor, AbstractActor)))
 		self.add_edge(source_node, sink_node,
 			source=source_ep, sink=sink_ep,
 			source_subr=source_subr, sink_subr=sink_subr)
@@ -73,6 +53,17 @@ class DataFlowGraph(MultiDiGraph):
 				edges_to_delete.append(key)
 		for key in edges_to_delete:
 			self.remove_edge(source_node, sink_node, key)
+	
+	def replace_actor(self, old, new):
+		self.add_node(new)
+		for xold, v, data in self.out_edges(old, data=True):
+			self.add_edge(new, v, **data)
+		for u, xold, data in self.in_edges(old, data=True):
+			self.add_edge(u, new, **data)
+		self.remove_node(old)
+		
+	def instantiate(self, actor):
+		self.replace_actor(actor, actor.create_instance())
 	
 	# Returns a dictionary
 	#   source -> [sink1, ..., sinkn]
@@ -116,7 +107,7 @@ class DataFlowGraph(MultiDiGraph):
 	# NB: It is not allowed for a single sink to be fed by more than one source
 	# (except with subrecords, i.e. when a combinator is used)
 	def is_abstract(self):
-		return any(x.is_abstract() for x in self) \
+		return any(isinstance(x, AbstractActor) for x in self) \
 			or any(d["source_subr"] is not None or d["sink_subr"] is not None
 				for u, v, d in self.edges_iter(data=True)) \
 			or bool(self._list_divergences())
@@ -128,7 +119,7 @@ class DataFlowGraph(MultiDiGraph):
 				# build combinator
 				# "layout" is filled in during instantiation
 				subrecords = [dst_subrecord for src_node, src_endpoint, dst_subrecord, src_subrecord in sources]
-				combinator = ActorNode(plumbing.Combinator, {"subrecords": subrecords})
+				combinator = AbstractActor(plumbing.Combinator, {"subrecords": subrecords})
 				# disconnect source1 -> sink ... sourcen -> sink
 				# connect source1 -> combinator_sink1 ... sourcen -> combinator_sinkn
 				for n, (src_node, src_endpoint, dst_subrecord, src_subrecord) in enumerate(sources):
@@ -142,7 +133,7 @@ class DataFlowGraph(MultiDiGraph):
 		for (src_node, src_endpoint), sinks in self._source_to_sinks().items():
 			if len(sinks) > 1 or sinks[0][2] is not None:
 				subrecords = [src_subrecord for dst_node, dst_endpoint, src_subrecord, dst_subrecord in sinks]
-				splitter = ActorNode(plumbing.Splitter, {"subrecords": subrecords})
+				splitter = AbstractActor(plumbing.Splitter, {"subrecords": subrecords})
 				# disconnect source -> sink1 ... source -> sinkn
 				# connect splitter_source1 -> sink1 ... splitter_sourcen -> sinkn
 				for n, (dst_node, dst_endpoint, src_subrecord, dst_subrecord) in enumerate(sinks):
@@ -155,7 +146,7 @@ class DataFlowGraph(MultiDiGraph):
 	
 	def _infer_plumbing_layout(self):
 		while True:
-			ap = [a for a in self if a.is_abstract() and a.actor_class in plumbing.actors]
+			ap = [a for a in self if isinstance(a, AbstractActor) and a.actor_class in plumbing.actors]
 			if not ap:
 				break
 			for a in ap:
@@ -167,7 +158,7 @@ class DataFlowGraph(MultiDiGraph):
 						continue
 					other_ep = data["source"]
 					if other_ep is None:
-						other_ep = other.actor.single_source()
+						other_ep = other.single_source()
 				elif a.actor_class in plumbing.layout_source:
 					edges = self.out_edges(a, data=True)
 					assert(len(edges) == 1)
@@ -176,26 +167,26 @@ class DataFlowGraph(MultiDiGraph):
 						continue
 					other_ep = data["sink"]
 					if other_ep is None:
-						other_ep = other.actor.single_sink()
+						other_ep = other.single_sink()
 				else:
 					raise AssertionError
-				layout = other.actor.token(other_ep).layout()
+				layout = other.token(other_ep).layout()
 				a.parameters["layout"] = layout
-				a.instantiate()
+				self.instantiate(a)
 	
 	def _instantiate_actors(self):
 		# 1. instantiate all abstract non-plumbing actors
-		for actor in self:
-			if actor.is_abstract() and actor.actor_class not in plumbing.actors:
-				actor.instantiate()
+		for actor in list(self):
+			if isinstance(actor, AbstractActor) and actor.actor_class not in plumbing.actors:
+				self.instantiate(actor)
 		# 2. infer plumbing layout and instantiate plumbing
 		self._infer_plumbing_layout()
 		# 3. resolve default eps
 		for u, v, d in self.edges_iter(data=True):
 			if d["source"] is None:
-				d["source"] = u.actor.single_source()
+				d["source"] = u.single_source()
 			if d["sink"] is None:
-				d["sink"] = v.actor.single_sink()
+				d["sink"] = v.single_sink()
 	
 	# Elaboration turns an abstract DFG into a physical one.
 	#   Pass 1: eliminate subrecords and divergences
@@ -227,13 +218,13 @@ class CompositeActor(Actor):
 			return []
 	
 	def get_fragment(self):
-		comb = [self.busy.eq(optree("|", [node.actor.busy for node in self.dfg]))]
+		comb = [self.busy.eq(optree("|", [node.busy for node in self.dfg]))]
 		fragment = Fragment(comb)
 		for node in self.dfg:
-			fragment += node.actor.get_fragment()
+			fragment += node.get_fragment()
 		for u, v, d in self.dfg.edges_iter(data=True):
-			ep_src = u.actor.endpoints[d["source"]]
-			ep_dst = v.actor.endpoints[d["sink"]]
+			ep_src = u.endpoints[d["source"]]
+			ep_dst = v.endpoints[d["sink"]]
 			fragment += get_conn_fragment(ep_src, ep_dst)
 		if hasattr(self, "debugger"):
 			fragment += self.debugger.get_fragment()

@@ -32,8 +32,9 @@ class Source(Endpoint):
 	def __repr__(self):
 		return "<Source " + str(self.token) + ">"
 
-class Actor:
+class Actor(HUID):
 	def __init__(self, *endpoint_descriptions, endpoints=None):
+		super().__init__()
 		if endpoints is None:
 			self.endpoints = {}
 			for desc in endpoint_descriptions:

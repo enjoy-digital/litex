@@ -27,14 +27,14 @@ def main():
 	packed_layout = structuring.pack_layout(base_layout, pack_factor)
 	rawbits_layout = [("value", 32*pack_factor)]
 	
-	source = ActorNode(SimActor(source_gen(), ("source", Source, base_layout)))
-	sink = ActorNode(SimActor(sink_gen(), ("sink", Sink, base_layout)))
+	source = SimActor(source_gen(), ("source", Source, base_layout))
+	sink = SimActor(sink_gen(), ("sink", Sink, base_layout))
 	
 	# A tortuous way of passing integer tokens.
-	packer = ActorNode(structuring.Pack(base_layout, pack_factor))
-	to_raw = ActorNode(structuring.Cast(packed_layout, rawbits_layout))
-	from_raw = ActorNode(structuring.Cast(rawbits_layout, packed_layout))
-	unpacker = ActorNode(structuring.Unpack(pack_factor, base_layout))
+	packer = structuring.Pack(base_layout, pack_factor)
+	to_raw = structuring.Cast(packed_layout, rawbits_layout)
+	from_raw = structuring.Cast(rawbits_layout, packed_layout)
+	unpacker = structuring.Unpack(pack_factor, base_layout)
 	
 	g = DataFlowGraph()
 	g.add_connection(source, packer)

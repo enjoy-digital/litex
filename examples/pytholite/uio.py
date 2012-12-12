@@ -31,7 +31,7 @@ class SlaveModel(wishbone.TargetModel):
 def run_sim(ng):
 	g = DataFlowGraph()
 	d = Dumper(layout)
-	g.add_connection(ActorNode(ng), ActorNode(d))
+	g.add_connection(ng, d)
 	
 	slave = wishbone.Target(SlaveModel())
 	intercon = wishbone.InterconnectPointToPoint(ng.buses["wb"], slave.bus)

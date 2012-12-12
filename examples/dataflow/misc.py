@@ -17,9 +17,9 @@ def sink_gen():
 		print(t.value["value"])
 
 def main():
-	source = ActorNode(SimActor(source_gen(), ("source", Source, [("value", 32)])))
-	loop = ActorNode(misc.IntSequence(32))
-	sink = ActorNode(SimActor(sink_gen(), ("sink", Sink, [("value", 32)])))
+	source = SimActor(source_gen(), ("source", Source, [("value", 32)]))
+	loop = misc.IntSequence(32)
+	sink = SimActor(sink_gen(), ("sink", Sink, [("value", 32)]))
 	g = DataFlowGraph()
 	g.add_connection(source, loop)
 	g.add_connection(loop, sink)
