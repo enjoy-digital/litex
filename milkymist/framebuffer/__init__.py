@@ -172,18 +172,18 @@ class Framebuffer:
 		pack_factor = asmiport.hub.dw//_bpp
 		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
 		
-		fi = ActorNode(_FrameInitiator(asmi_bits, length_bits, alignment_bits))
-		adrloop = ActorNode(misc.IntSequence(length_bits, asmi_bits))
-		adrbuffer = ActorNode(plumbing.Buffer)
-		dma = ActorNode(dma_asmi.Reader(asmiport))
-		datbuffer = ActorNode(plumbing.Buffer)
-		cast = ActorNode(structuring.Cast(asmiport.hub.dw, packed_pixels))
-		unpack = ActorNode(structuring.Unpack(pack_factor, _pixel_layout))
-		vtg = ActorNode(VTG())
+		fi = _FrameInitiator(asmi_bits, length_bits, alignment_bits)
+		adrloop = misc.IntSequence(length_bits, asmi_bits)
+		adrbuffer = AbstractActor(plumbing.Buffer)
+		dma = dma_asmi.Reader(asmiport)
+		datbuffer = AbstractActor(plumbing.Buffer)
+		cast = structuring.Cast(asmiport.hub.dw, packed_pixels)
+		unpack = structuring.Unpack(pack_factor, _pixel_layout)
+		vtg = VTG()
 		if simulation:
-			fifo = ActorNode(sim.SimActor(sim_fifo_gen(), ("dac", Sink, _dac_layout)))
+			fifo = sim.SimActor(sim_fifo_gen(), ("dac", Sink, _dac_layout))
 		else:
-			fifo = ActorNode(FIFO())
+			fifo = FIFO()
 		
 		g = DataFlowGraph()
 		g.add_connection(fi, adrloop, source_subr=["length", "base"])
@@ -199,20 +199,20 @@ class Framebuffer:
 		g.add_connection(vtg, fifo)
 		self._comp_actor = CompositeActor(g, debugger=False)
 		
-		self.bank = csrgen.Bank(fi.actor.get_registers() + self._comp_actor.get_registers(),
+		self.bank = csrgen.Bank(fi.get_registers() + self._comp_actor.get_registers(),
 			address=address)
 		
 		# Pads
 		self.vga_psave_n = Signal()
 		if not simulation:
-			self.vga_hsync_n = fifo.actor.vga_hsync_n
-			self.vga_vsync_n = fifo.actor.vga_vsync_n
+			self.vga_hsync_n = fifo.vga_hsync_n
+			self.vga_vsync_n = fifo.vga_vsync_n
 		self.vga_sync_n = Signal()
 		self.vga_blank_n = Signal()
 		if not simulation:
-			self.vga_r = fifo.actor.vga_r
-			self.vga_g = fifo.actor.vga_g
-			self.vga_b = fifo.actor.vga_b
+			self.vga_r = fifo.vga_r
+			self.vga_g = fifo.vga_g
+			self.vga_b = fifo.vga_b
 
 	def get_fragment(self):
 		comb = [
