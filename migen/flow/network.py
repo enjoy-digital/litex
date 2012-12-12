@@ -154,7 +154,7 @@ class DataFlowGraph(MultiDiGraph):
 					edges = self.in_edges(a, data=True)
 					assert(len(edges) == 1)
 					other, me, data = edges[0]
-					if other.is_abstract():
+					if isinstance(other, AbstractActor):
 						continue
 					other_ep = data["source"]
 					if other_ep is None:
@@ -163,7 +163,7 @@ class DataFlowGraph(MultiDiGraph):
 					edges = self.out_edges(a, data=True)
 					assert(len(edges) == 1)
 					me, other, data = edges[0]
-					if other.is_abstract():
+					if isinstance(other, AbstractActor):
 						continue
 					other_ep = data["sink"]
 					if other_ep is None:
