@@ -29,7 +29,7 @@ def adrgen_gen():
 
 def dumper_gen():
 	while True:
-		t = Token("data")
+		t = Token("data", idle_wait=True)
 		yield t
 		print("Received: " + str(t.value["d"]))
 

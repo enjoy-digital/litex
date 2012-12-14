@@ -13,6 +13,8 @@ from migen.pytholite.expr import ExprCompiler
 class Pytholite(UnifiedIOObject):
 	def __init__(self, dataflow=None, buses={}):
 		super().__init__(dataflow, buses)
+		if dataflow is not None:
+			self.busy.reset = 1
 		self.memory_ports = dict((mem, mem.get_port(write_capable=True, we_granularity=8))
 			for mem in self._memories)
 	
@@ -43,14 +45,18 @@ class _TokenPullExprCompiler(ExprCompiler):
 def _gen_df_io(compiler, modelname, to_model, from_model):
 	epname = ast.literal_eval(to_model["endpoint"])
 	values = to_model["value"]
+	idle_wait = ast.literal_eval(to_model["idle_wait"])
 	ep = compiler.ioo.endpoints[epname]
+	if idle_wait:
+		state = [compiler.ioo.busy.eq(0)]
+	else:
+		state = []
 	
 	if isinstance(values, ast.Name) and values.id == "None":
 		# token pull from sink
 		if not isinstance(ep, Sink):
 			raise TypeError("Attempted to pull from source")
 		ec = _TokenPullExprCompiler(compiler.symdict, modelname, ep)
-		state = []
 		for target_regs, expr in from_model:
 			cexpr = ec.visit_expr(expr)
 			state += [reg.load(cexpr) for reg in target_regs]
@@ -67,7 +73,6 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 			raise TypeError("Attempted to read from pushed token")
 		if not isinstance(values, ast.Dict):
 			raise NotImplementedError
-		state = []
 		for akey, value in zip(values.keys, values.values):
 			key = ast.literal_eval(akey)
 			signal = getattr(ep.token, key)
@@ -190,6 +195,7 @@ def gen_io(compiler, modelname, model, to_model, to_model_kw, from_model):
 		desc = [
 			"endpoint",
 			("value", ast.Name("None", ast.Load())),
+			("idle_wait", ast.Name("False", ast.Load()))
 		]
 		args = _decode_args(desc, to_model, to_model_kw)
 		return _gen_df_io(compiler, modelname, args, from_model)

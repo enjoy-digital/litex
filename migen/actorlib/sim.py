@@ -14,6 +14,7 @@ class TokenExchanger(PureSimulable):
 		self.generator = generator
 		self.actor = actor
 		self.active = set()
+		self.busy = True
 		self.done = False
 
 	def _process_transactions(self, s):
@@ -39,12 +40,15 @@ class TokenExchanger(PureSimulable):
 			else:
 				raise TypeError
 		self.active -= completed
+		if not self.active:
+			self.busy = True
 	
 	def _next_transactions(self):
 		try:
 			transactions = next(self.generator)
 		except StopIteration:
 			self.done = True
+			self.busy = False
 			transactions = None
 		if isinstance(transactions, Token):
 			self.active = {transactions}
@@ -56,6 +60,8 @@ class TokenExchanger(PureSimulable):
 			self.active = set()
 		else:
 			raise TypeError
+		if all(transaction.idle_wait for transaction in self.active):
+			self.busy = False
 	
 	def do_simulation(self, s):
 		if not self.done:
@@ -70,7 +76,7 @@ class SimActor(Actor):
 		self.token_exchanger = TokenExchanger(generator, self)
 	
 	def update_busy(self, s):
-		s.wr(self.busy, not self.token_exchanger.done)
+		s.wr(self.busy, self.token_exchanger.busy)
 	
 	def get_fragment(self):
 		return self.token_exchanger.get_fragment() + Fragment(sim=[self.update_busy])
