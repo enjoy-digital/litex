@@ -205,3 +205,8 @@ def lower_arrays(f):
 	f2 = al.visit(f)
 	f2.comb += al.comb
 	return f2
+
+def bitreverse(s):
+	length, signed = value_bits_sign(s)
+	l = [s[i] for i in reversed(range(length))]
+	return Cat(*l)
