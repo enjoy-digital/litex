@@ -1,6 +1,7 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.flow.network import *
+from migen.flow.transactions import *
 from migen.flow import plumbing
 from migen.actorlib import misc, dma_asmi, structuring, sim, spi
 from migen.bank.description import *
@@ -158,7 +159,7 @@ class FIFO(Actor):
 
 def sim_fifo_gen():
 	while True:
-		t = sim.Token("dac")
+		t = Token("dac")
 		yield t
 		print("H/V:" + str(t.value["hsync"]) + str(t.value["vsync"])
 			+ " " + str(t.value["r"]) + " " + str(t.value["g"]) + " " + str(t.value["b"]))
