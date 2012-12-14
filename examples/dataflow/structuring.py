@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from migen.flow.network import *
+from migen.flow.transactions import *
 from migen.actorlib import structuring
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator

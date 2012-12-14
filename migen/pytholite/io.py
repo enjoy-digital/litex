@@ -3,7 +3,8 @@ from itertools import zip_longest
 
 from migen.fhdl.structure import *
 from migen.uio.ioo import UnifiedIOObject
-from migen.actorlib.sim import *
+from migen.flow.actor import Source, Sink
+from migen.flow.transactions import *
 from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.pytholite.fsm import *

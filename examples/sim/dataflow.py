@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
+from migen.flow.transactions import *
 from migen.flow.network import *
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator

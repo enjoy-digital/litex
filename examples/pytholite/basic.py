@@ -1,4 +1,5 @@
 from migen.flow.network import *
+from migen.flow.transactions import *
 from migen.actorlib.sim import *
 from migen.pytholite.compiler import make_pytholite
 from migen.sim.generic import Simulator

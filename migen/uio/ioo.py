@@ -1,6 +1,7 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
-from migen.actorlib.sim import TokenExchanger, Token
+from migen.flow.transactions import *
+from migen.actorlib.sim import TokenExchanger
 from migen.bus import wishbone, memory
 from migen.bus.transactions import *
 from migen.uio.trampoline import Trampoline

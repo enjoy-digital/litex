@@ -1,6 +1,7 @@
 from random import Random
 
 from migen.flow.network import *
+from migen.flow.transactions import *
 from migen.actorlib import dma_wishbone, dma_asmi
 from migen.actorlib.sim import *
 from migen.bus import wishbone, asmibus

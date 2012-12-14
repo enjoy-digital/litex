@@ -1,4 +1,5 @@
 from migen.flow.network import *
+from migen.flow.transactions import *
 from migen.actorlib import misc
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator

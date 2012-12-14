@@ -1,11 +1,7 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
+from migen.flow.transactions import *
 from migen.sim.generic import PureSimulable
-
-class Token:
-	def __init__(self, endpoint, value=None):
-		self.endpoint = endpoint
-		self.value = value
 
 # Generators yield None or a tuple of Tokens.
 # Tokens for Sink endpoints are pulled and the "value" field filled in.
