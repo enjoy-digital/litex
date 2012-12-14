@@ -60,7 +60,7 @@ class TokenExchanger(PureSimulable):
 			self.active = set()
 		else:
 			raise TypeError
-		if all(transaction.idle_wait for transaction in self.active):
+		if self.active and all(transaction.idle_wait for transaction in self.active):
 			self.busy = False
 	
 	def do_simulation(self, s):
