@@ -1,5 +1,6 @@
 from migen.flow.network import *
 from migen.flow.transactions import *
+from migen.actorlib.sim import Dumper
 from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.uio.ioo import UnifiedIOSimulation
