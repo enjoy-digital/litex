@@ -12,18 +12,18 @@ from migen.pytholite.expr import ExprCompiler
 
 class Pytholite(UnifiedIOObject):
 	def __init__(self, dataflow=None, buses={}):
-		super().__init__(dataflow, buses)
+		UnifiedIOObject.__init__(self, dataflow, buses)
 		if dataflow is not None:
 			self.busy.reset = 1
 		self.memory_ports = dict((mem, mem.get_port(write_capable=True, we_granularity=8))
 			for mem in self._memories)
 	
 	def get_fragment(self):
-		return super().get_fragment() + self.fragment
+		return UnifiedIOObject.get_fragment(self) + self.fragment
 
 class _TokenPullExprCompiler(ExprCompiler):
 	def __init__(self, symdict, modelname, ep):
-		super().__init__(symdict)
+		ExprCompiler.__init__(self, symdict)
 		self.modelname = modelname
 		self.ep = ep
 	
@@ -85,7 +85,7 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 
 class _BusReadExprCompiler(ExprCompiler):
 	def __init__(self, symdict, modelname, data_signal):
-		super().__init__(symdict)
+		ExprCompiler.__init__(self, symdict)
 		self.modelname = modelname
 		self.data_signal = data_signal
 	

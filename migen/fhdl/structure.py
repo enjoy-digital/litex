@@ -105,35 +105,35 @@ class Value(HUID):
 		return _Assign(self, r)
 	
 	def __hash__(self):
-		return super().__hash__()
+		return HUID.__hash__(self)
 
 class _Operator(Value):
 	def __init__(self, op, operands):
-		super().__init__()
+		Value.__init__(self)
 		self.op = op
 		self.operands = operands
 
 class _Slice(Value):
 	def __init__(self, value, start, stop):
-		super().__init__()
+		Value.__init__(self)
 		self.value = value
 		self.start = start
 		self.stop = stop
 
 class Cat(Value):
 	def __init__(self, *args):
-		super().__init__()
+		Value.__init__(self)
 		self.l = args
 
 class Replicate(Value):
 	def __init__(self, v, n):
-		super().__init__()
+		Value.__init__(self)
 		self.v = v
 		self.n = n
 
 class Signal(Value):
 	def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None):
-		super().__init__()
+		Value.__init__(self)
 		
 		# determine number of bits and signedness
 		if bits_sign is None:
@@ -227,13 +227,13 @@ class Array(list):
 		if isinstance(key, Value):
 			return _ArrayProxy(self, key)
 		else:
-			return super().__getitem__(key)
+			return list.__getitem__(self, key)
 
 # extras
 
 class Instance(HUID):
 	def __init__(self, of, *items, name=""):
-		super().__init__()
+		HUID.__init__(self)
 		self.of = of
 		if name:
 			self.name_override = name
@@ -292,7 +292,7 @@ class _MemoryPort:
 
 class Memory(HUID):
 	def __init__(self, width, depth, init=None):
-		super().__init__()
+		HUID.__init__(self)
 		self.width = width
 		self.depth = depth
 		self.ports = []

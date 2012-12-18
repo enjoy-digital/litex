@@ -12,7 +12,7 @@ from migen.flow.isd import DFGReporter
 
 class AbstractActor(HUID):
 	def __init__(self, actor_class, parameters=dict(), name=None):
-		super().__init__()
+		HUID.__init__(self)
 		self.actor_class = actor_class
 		self.parameters = parameters
 		self.name = name
@@ -29,7 +29,7 @@ class AbstractActor(HUID):
 
 class DataFlowGraph(MultiDiGraph):
 	def __init__(self):
-		super().__init__()
+		MultiDiGraph.__init__(self)
 		self.elaborated = False
 	
 	def add_connection(self, source_node, sink_node,
@@ -209,7 +209,7 @@ class CompositeActor(Actor):
 		self.dfg = dfg
 		if debugger:
 			self.debugger = DFGReporter(self.dfg, debugger_nbits)
-		super().__init__()
+		Actor.__init__(self)
 	
 	def get_registers(self):
 		if hasattr(self, "debugger"):

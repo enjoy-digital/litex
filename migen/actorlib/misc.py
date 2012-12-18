@@ -14,7 +14,7 @@ class IntSequence(Actor):
 		if self.offsetbits:
 			parameters_layout.append(("offset", self.offsetbits))
 		
-		super().__init__(
+		Actor.__init__(self,
 			("parameters", Sink, parameters_layout),
 			("source", Source, [("value", max(self.nbits, self.offsetbits))]))
 	

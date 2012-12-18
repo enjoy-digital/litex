@@ -9,7 +9,7 @@ from migen.uio.trampoline import Trampoline
 class UnifiedIOObject(Actor):
 	def __init__(self, dataflow=None, buses={}):
 		if dataflow is not None:
-			super().__init__(*dataflow)
+			Actor.__init__(self, *dataflow)
 		self.buses = buses
 		self._memories = set(v for v in self.buses.values() if isinstance(v, Memory))
 	
@@ -21,7 +21,7 @@ class UnifiedIOObject(Actor):
 class UnifiedIOSimulation(UnifiedIOObject):
 	def __init__(self, generator, dataflow=None, buses={}):
 		self.generator = Trampoline(generator)
-		super().__init__(dataflow, buses)
+		UnifiedIOObject.__init__(self, dataflow, buses)
 		
 		self.callers = []
 		self.busname_to_caller_id = {}
@@ -76,5 +76,5 @@ class UnifiedIOSimulation(UnifiedIOObject):
 				yield None
 	
 	def get_fragment(self):
-		f = super().get_fragment()
+		f = UnifiedIOObject.get_fragment(self)
 		return sum([c.get_fragment() for c in self.callers], f)

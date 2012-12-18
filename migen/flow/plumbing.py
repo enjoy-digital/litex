@@ -5,7 +5,7 @@ from migen.corelogic.misc import optree
 
 class Buffer(PipelinedActor):
 	def __init__(self, layout):
-		super().__init__(1,
+		PipelinedActor.__init__(self, 1,
 			("d", Sink, layout), ("q", Source, layout))
 	
 	def get_process_fragment(self):
@@ -22,7 +22,7 @@ class Combinator(Actor):
 			for n, r in enumerate(subrecords)]
 		ep_source = ("source", Source, source)
 		eps.append(ep_source)
-		super().__init__(*eps)
+		Actor.__init__(self, *eps)
 
 	def get_fragment(self):
 		source = self.endpoints["source"]
@@ -45,7 +45,7 @@ class Splitter(Actor):
 			for n, r in enumerate(subr)]
 		ep_sink = ("sink", Sink, sink)
 		eps.append(ep_sink)
-		super().__init__(*eps)
+		Actor.__init__(self, *eps)
 		
 	def get_fragment(self):
 		sources = [self.endpoints[e] for e in self.sources()]

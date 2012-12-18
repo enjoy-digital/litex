@@ -50,7 +50,7 @@ def _create_registers_assign(layout, target, atomic, prefix=""):
 class SingleGenerator(Actor):
 	def __init__(self, layout, mode):
 		self._mode = mode
-		super().__init__(("source", Source, _convert_layout(layout)))
+		Actor.__init__(self, ("source", Source, _convert_layout(layout)))
 		self._registers, self._assigns = _create_registers_assign(layout,
 			self.token("source"), self._mode != MODE_SINGLE_SHOT)
 		if mode == MODE_EXTERNAL:
@@ -81,7 +81,7 @@ class SingleGenerator(Actor):
 
 class Collector(Actor):
 	def __init__(self, layout, depth=1024):
-		super().__init__(("sink", Sink, layout))
+		Actor.__init__(self, ("sink", Sink, layout))
 		self._depth = depth
 		self._dw = sum(len(s) for s in self.token("sink").flatten())
 		

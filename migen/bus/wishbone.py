@@ -21,11 +21,11 @@ _desc = Description(
 
 class Interface(SimpleInterface):
 	def __init__(self):
-		super().__init__(_desc)
+		SimpleInterface.__init__(self, _desc)
 
 class InterconnectPointToPoint(SimpleInterconnect):
 	def __init__(self, master, slave):
-		super().__init__(master, [slave])
+		SimpleInterconnect.__init__(self, master, [slave])
 
 class Arbiter:
 	def __init__(self, masters, target):

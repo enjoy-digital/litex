@@ -9,7 +9,7 @@ def _rawbits_layout(l):
 
 class Cast(CombinatorialActor):
 	def __init__(self, layout_from, layout_to):
-		super().__init__(
+		CombinatorialActor.__init__(self,
 			("sink", Sink, _rawbits_layout(layout_from)),
 			("source", Source, _rawbits_layout(layout_to)))
 	
@@ -28,7 +28,7 @@ def pack_layout(l, n):
 class Unpack(Actor):
 	def __init__(self, n, layout_to):
 		self.n = n
-		super().__init__(
+		Actor.__init__(self,
 			("sink", Sink, pack_layout(layout_to, n)),
 			("source", Source, layout_to))
 	
@@ -58,7 +58,7 @@ class Unpack(Actor):
 class Pack(Actor):
 	def __init__(self, layout_from, n):
 		self.n = n
-		super().__init__(
+		Actor.__init__(self,
 			("sink", Sink, layout_from),
 			("source", Source, pack_layout(layout_from, n)))
 	

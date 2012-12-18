@@ -8,7 +8,7 @@ data_width = 8
 
 class Interface(SimpleInterface):
 	def __init__(self):
-		super().__init__(Description(
+		SimpleInterface.__init__(self, Description(
 			(M_TO_S,	"adr",		14),
 			(M_TO_S,	"we",		1),
 			(M_TO_S,	"dat_w",	data_width),

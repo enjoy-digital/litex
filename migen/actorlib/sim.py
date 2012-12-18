@@ -72,7 +72,7 @@ class TokenExchanger(PureSimulable):
 
 class SimActor(Actor):
 	def __init__(self, generator, *endpoint_descriptions, **misc):
-		super().__init__(*endpoint_descriptions, **misc)
+		Actor.__init__(self, *endpoint_descriptions, **misc)
 		self.token_exchanger = TokenExchanger(generator, self)
 	
 	def update_busy(self, s):
@@ -92,5 +92,5 @@ class Dumper(SimActor):
 				else:
 					s = str(list(t.value.values())[0])
 				print(prefix + s)
-		super().__init__(dumper_gen(),
+		SimActor.__init__(self, dumper_gen(),
 			("result", Sink, layout))

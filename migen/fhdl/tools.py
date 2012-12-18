@@ -191,7 +191,7 @@ class _ArrayLowerer(NodeTransformer):
 				cases[n] = [assign]
 			return Case(k, cases).makedefault()
 		else:
-			return super().visit_Assign(node)
+			return NodeTransformer.visit_Assign(self, node)
 	
 	def visit_ArrayProxy(self, node):
 		array_muxed = Signal(value_bits_sign(node))

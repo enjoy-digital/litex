@@ -64,7 +64,7 @@ class DFGReporter(DFGHook):
 		self._r_reset = RegisterRaw("reset", 1)
 		
 		self.order = []
-		super().__init__(dfg, self._create)
+		DFGHook.__init__(self, dfg, self._create)
 	
 	def _create(self, u, ep, v):
 		self.order.append((u, ep, v))
@@ -92,4 +92,4 @@ class DFGReporter(DFGHook):
 				h.freeze.eq(self._r_freeze.field.r),
 				h.reset.eq(self._r_reset.re)
 			]
-		return Fragment(comb) + super().get_fragment()
+		return Fragment(comb) + DFGHook.get_fragment(self)

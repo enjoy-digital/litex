@@ -34,7 +34,7 @@ class Source(Endpoint):
 
 class Actor(HUID):
 	def __init__(self, *endpoint_descriptions, endpoints=None):
-		super().__init__()
+		HUID.__init__(self)
 		if endpoints is None:
 			self.endpoints = {}
 			for desc in endpoint_descriptions:
@@ -109,7 +109,7 @@ class SequentialActor(BinaryActor):
 	def __init__(self, delay, *endpoint_descriptions, **misc):
 		self.delay = delay
 		self.trigger = Signal()
-		super().__init__(*endpoint_descriptions, **misc)
+		BinaryActor.__init__(self, *endpoint_descriptions, **misc)
 
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
 		ready = Signal()
@@ -141,7 +141,7 @@ class PipelinedActor(BinaryActor):
 	def __init__(self, latency, *endpoint_descriptions, **misc):
 		self.latency = latency
 		self.pipe_ce = Signal()
-		super().__init__(*endpoint_descriptions, **misc)
+		BinaryActor.__init__(self, *endpoint_descriptions, **misc)
 
 	def get_binary_control_fragment(self, stb_i, ack_o, stb_o, ack_i):
 		valid = Signal(self.latency)

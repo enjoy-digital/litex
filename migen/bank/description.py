@@ -40,7 +40,7 @@ class RegisterFields:
 class RegisterField(RegisterFields):
 	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False):
 		self.field = Field(name, size, access_bus, access_dev, reset, atomic_write)
-		super().__init__(name, [self.field])
+		RegisterFields.__init__(self, name, [self.field])
 
 (ALIAS_NON_ATOMIC, ALIAS_ATOMIC_HOLD, ALIAS_ATOMIC_COMMIT) = range(3)
 

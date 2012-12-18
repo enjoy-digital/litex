@@ -5,7 +5,7 @@ from migen.flow.actor import *
 class Reader(Actor):
 	def __init__(self):
 		self.bus = wishbone.Interface()
-		super().__init__(
+		Actor.__init__(self,
 			("address", Sink, [("a", 30)]),
 			("data", Source, [("d", 32)]))
 	
@@ -41,7 +41,7 @@ class Reader(Actor):
 class Writer(Actor):
 	def __init__(self):
 		self.bus = wishbone.Interface()
-		super().__init__(
+		Actor.__init__(self,
 			("address_data", Sink, [("a", 30), ("d", 32)]))
 
 	def get_fragment(self):

@@ -6,7 +6,7 @@ class SequentialReader(Actor):
 	def __init__(self, port):
 		self.port = port
 		assert(len(self.port.slots) == 1)
-		super().__init__(
+		Actor.__init__(self,
 			("address", Sink, [("a", self.port.hub.aw)]),
 			("data", Source, [("d", self.port.hub.dw)]))
 	
@@ -48,7 +48,7 @@ class OOOReader(Actor):
 	def __init__(self, port):
 		self.port = port
 		assert(len(self.port.slots) > 1)
-		super().__init__(
+		Actor.__init__(self,
 			("address", Sink, [("a", self.port.hub.aw)]),
 			("data", Source, [("d", self.port.hub.dw)]))
 	
