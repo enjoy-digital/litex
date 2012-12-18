@@ -79,7 +79,7 @@ class _SimpleSelector(_Selector):
 				(slot.state == SLOT_PENDING)
 			))
 	
-		return Fragment(comb) + super().get_fragment()
+		return Fragment(comb) + _Selector.get_fragment(self)
 
 class _FullSelector(_Selector):
 	def get_fragment(self):
@@ -149,7 +149,7 @@ class _FullSelector(_Selector):
 			select_stmt = If(has_mature, *best_mature).Else(select_stmt)
 		comb.append(select_stmt)
 		
-		return Fragment(comb, sync) + super().get_fragment()
+		return Fragment(comb, sync) + _Selector.get_fragment(self)
 
 class _Buffer:
 	def __init__(self, source):

@@ -44,11 +44,11 @@ class _FrameInitiator(spi.SingleGenerator):
 			("base", asmi_bits, 0, alignment_bits),
 			("length", length_bits, 640*480*4, alignment_bits)
 		]
-		super().__init__(layout, spi.MODE_CONTINUOUS)
+		spi.SingleGenerator.__init__(self, layout, spi.MODE_CONTINUOUS)
 
 class VTG(Actor):
 	def __init__(self):
-		super().__init__(
+		Actor.__init__(self,
 			("timing", Sink, [
 				("hres", _hbits),
 				("hsync_start", _hbits),
@@ -115,7 +115,7 @@ class VTG(Actor):
 
 class FIFO(Actor):
 	def __init__(self):
-		super().__init__(("dac", Sink, _dac_layout))
+		Actor.__init__(self, ("dac", Sink, _dac_layout))
 		
 		self.vga_hsync_n = Signal()
 		self.vga_vsync_n = Signal()
