@@ -70,7 +70,7 @@ class _Compiler:
 				return self.visit_assign_special(sa, node, statements)
 		else:
 			value = self.ec.visit_expr(node.value)
-		if isinstance(value, Value):
+		if isinstance(value, (int, bool, Value)):
 			r = []
 			for target in node.targets:
 				if isinstance(target, ast.Attribute) and target.attr == "store":
