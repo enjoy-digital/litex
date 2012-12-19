@@ -237,8 +237,9 @@ def make_pytholite(func, **ioresources):
 	
 	regf = Fragment()
 	for register in registers:
-		register.finalize()
-		regf += register.get_fragment()
+		if register.source_encoding:
+			register.finalize()
+			regf += register.get_fragment()
 	
 	fsm = implement_fsm(states)
 	fsmf = LowerAbstractLoad().visit(fsm.get_fragment())
