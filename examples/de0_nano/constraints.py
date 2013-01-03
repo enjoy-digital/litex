@@ -4,7 +4,7 @@ class Constraints:
 		def add(signal, pin, vec=-1, iostandard="3.3-V LVTTL", extra="", sch=""):
 			self.constraints.append((signal, vec, pin, iostandard, extra,sch))
 		def add_vec(signal, pins, iostandard="3.3-V LVTTL", extra="", sch=""):
-			assert(signal.bv.width == len(pins)), "%s size : %d / qsf size : %d" %(signal,signal.bv.width,len(pins))
+			assert(signal.nbits == len(pins)), "%s size : %d / qsf size : %d" %(signal,signal.bv.width,len(pins))
 			i = 0
 			for p in pins:
 				add(signal, p, i, iostandard, extra)

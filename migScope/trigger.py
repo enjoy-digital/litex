@@ -18,9 +18,9 @@ class Term:
 		self.reg_size = 2*width
 		self.words = int(2**bits_for(width-1)/8)
 		
-		self.i = Signal(BV(self.width))
-		self.t = Signal(BV(self.width))
-		self.m = Signal(BV(self.width))
+		self.i = Signal(self.width)
+		self.t = Signal(self.width)
+		self.m = Signal(self.width)
 		self.o = Signal()
 		
 	def get_fragment(self):
@@ -60,9 +60,9 @@ class RangeDetector:
 		self.reg_size = 2*width
 		self.words = int(2**bits_for(width-1)/8)
 		
-		self.i = Signal(BV(self.width))
-		self.low = Signal(BV(self.width))
-		self.high = Signal(BV(self.width))
+		self.i = Signal(self.width)
+		self.low = Signal(self.width)
+		self.high = Signal(self.width)
 		self.o = Signal()
 		
 	def get_fragment(self):
@@ -102,16 +102,16 @@ class EdgeDetector:
 		self.reg_base = 0
 		self.reg_size = len(self.mode)*width
 		
-		self.i = Signal(BV(self.width))
-		self.i_d = Signal(BV(self.width))
+		self.i = Signal(self.width)
+		self.i_d = Signal(self.width)
 		if "R" in self.mode:
-			self.r_mask = Signal(BV(self.width))
+			self.r_mask = Signal(self.width)
 			self.ro = Signal()
 		if "F" in self.mode:
-			self.f_mask = Signal(BV(self.width))
+			self.f_mask = Signal(self.width)
 			self.fo = Signal()
 		if "B" in self.mode:
-			self.b_mask = Signal(BV(self.width))
+			self.b_mask = Signal(self.width)
 			self.bo = Signal()
 		self.o = Signal()
 		
@@ -206,8 +206,8 @@ class Timer:
 		self.clear = Signal()
 		
 		self.enable = Signal()
-		self.cnt = Signal(BV(self.width))
-		self.cnt_max = Signal(BV(self.width))
+		self.cnt = Signal(self.width)
+		self.cnt_max = Signal(self.width)
 		
 		self.o = Signal()
 	
@@ -253,26 +253,37 @@ class Sum:
 		self.pipe = pipe
 		self.interface = None
 		
-		self.i = Signal(BV(self.width))
+		self._mem = Memory(1, 2**self.width)
+		
+		self.i = Signal(self.width)
 		self._o = Signal()
 		self.o = Signal()
-		self._lut_port = MemoryPort(adr=self.i, dat_r=self._o)
+		self._lut_port = self._mem.get_port()
 		
 		self.reg_name = "sum_reg"
 		self.reg_base = 0
 		self.reg_size = 32
 		
 		self.prog = Signal()
-		self.prog_adr = Signal(BV(width))
+		self.prog_adr = Signal(width)
 		self.prog_dat = Signal()
-		self._prog_port = MemoryPort(adr=self.prog_adr, we=self.prog, dat_w=self.prog_dat)
+		self._prog_port = self._mem.get_port(write_capable=True)
 		
-		self._mem = Memory(1, 2**self.width, self._lut_port, self._prog_port)
 		
 	def get_fragment(self):
 		comb = []
 		sync = []
 		memories = [self._mem]
+		comb += [
+				self._lut_port.adr.eq(self.i),
+				self._o.eq(self._lut_port.dat_r),
+				
+				self._prog_port.adr.eq(self.prog_adr),
+				self._prog_port.we.eq(self.prog),
+				self._prog_port.dat_w.eq(self.prog_dat)
+		]
+		
+		
 		if self.pipe:
 			sync += [self.o.eq(self._o)]
 		else:
@@ -311,7 +322,7 @@ class Trigger:
 		self.interface = interface
 		self.sum = Sum(len(self.ports))
 		
-		self.in_trig = Signal(BV(self.trig_width))
+		self.in_trig = Signal(self.trig_width)
 		
 		self.hit = Signal()
 		

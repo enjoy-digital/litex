@@ -125,7 +125,7 @@ def main():
 				recorder0.bank.interface
 			])
 
-	trig_sig = Signal(BV(32))
+	trig_sig = Signal(32)
 	comb = []
 	comb +=[
 		trigger0.in_trig.eq(trig_sig)

@@ -102,11 +102,11 @@ def get():
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
 			[
-				migIo0.bank.interface,
-				migLa0.trig.bank.interface,
-				migLa0.rec.bank.interface,
-				migLa1.trig.bank.interface,
-				migLa1.rec.bank.interface,
+				migIo0.bank.bus,
+				migLa0.trig.bank.bus,
+				migLa0.rec.bank.bus,
+				migLa1.trig.bank.bus,
+				migLa1.rec.bank.bus,
 				
 			])
 	comb = []
@@ -117,13 +117,13 @@ def get():
 	#
 	
 	# Counter
-	cnt_gen = Signal(BV(8))
+	cnt_gen = Signal(8)
 	sync += [
 		cnt_gen.eq(cnt_gen+1)
 	]
 	
 	# Square
-	square_gen = Signal(BV(8))
+	square_gen = Signal(8)
 	sync += [
 		If(cnt_gen[7],
 			square_gen.eq(255)
@@ -134,13 +134,18 @@ def get():
 	
 	sinus = [int(128*sin((2*3.1415)/256*(x+1)))+128 for x in range(256)]
 	sinus_re = Signal()
-	sinus_gen = Signal(BV(8))
+	sinus_gen = Signal(8)
 	comb +=[sinus_re.eq(1)]
-	sinus_port = MemoryPort(adr=cnt_gen, re=sinus_re, dat_r=sinus_gen)
-	sinus_mem = Memory(8, 256, sinus_port, init = sinus)
+	sinus_mem = Memory(8, 256, init = sinus)
+	sinus_port = sinus_mem.get_port(has_re=True)
+	comb += [
+		sinus_port.adr.eq(cnt_gen),
+		sinus_port.re.eq(sinus_re),
+		sinus_gen.eq(sinus_port.dat_r)
+	]
 	
 	# Signal Selection
-	sig_gen = Signal(BV(8))
+	sig_gen = Signal(8)
 	comb += [
 		If(migIo0.o == 0,
 			sig_gen.eq(cnt_gen)
@@ -154,7 +159,7 @@ def get():
 	]
 	
 	# Led
-	led0 = Signal(BV(8))
+	led0 = Signal(8)
 	comb += [led0.eq(migIo0.o[:8])]
 	
 	
@@ -187,7 +192,7 @@ def get():
 	cst = Constraints(in_rst_n, cd_in, spi2csr0, led0)
 	src_verilog, vns = verilog.convert(frag,
 		cst.get_ios(),
-		name="de1",
+		name="de0_nano",
 		clock_domains={
 			"sys": cd_in
 		},

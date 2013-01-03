@@ -15,11 +15,11 @@ class MigIo:
 		self.interface = interface
 		self.words = int(2**bits_for(width-1)/8)
 		if "I" in self.mode:
-			self.i = Signal(BV(self.width))
+			self.i = Signal(self.width)
 			self.ireg = description.RegisterField("i", self.width, READ_ONLY, WRITE_ONLY)
 			self.ireg.field.w.name_override = "inputs"
 		if "O" in self.mode:
-			self.o = Signal(BV(self.width))
+			self.o = Signal(self.width)
 			self.oreg = description.RegisterField("o", self.width)
 			self.oreg.field.r.name_override = "ouptuts"
 		self.bank = csrgen.Bank([self.oreg, self.ireg], address=self.address)

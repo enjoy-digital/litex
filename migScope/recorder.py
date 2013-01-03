@@ -15,30 +15,43 @@ class Storage:
 		#Control
 		self.rst = Signal()
 		self.start = Signal()
-		self.offset = Signal(BV(self.depth_width))
-		self.size = Signal(BV(self.depth_width))
+		self.offset = Signal(self.depth_width)
+		self.size = Signal(self.depth_width)
 		self.done = Signal()
 		self.run = Signal()
+		
+		#Others
+		self._mem = Memory(self.width, self.depth)
+		
 		#Write Path
 		self.put = Signal()
-		self.put_dat = Signal(BV(self.width))
-		self._put_ptr = Signal(BV(self.depth_width))
-		self._put_ptr_stop = Signal(BV(self.depth_width))
-		self._put_port = MemoryPort(adr=self._put_ptr, we=self.put, dat_w=self.put_dat)
+		self.put_dat = Signal(self.width)
+		self._put_ptr = Signal(self.depth_width)
+		self._put_ptr_stop = Signal(self.depth_width)
+		self._put_port = self._mem.get_port(write_capable=True)
+		
 		#Read Path
 		self.get = Signal()
-		self.get_dat = Signal(BV(self.width))
-		self._get_ptr = Signal(BV(self.depth_width))
-		self._get_port = MemoryPort(adr=self._get_ptr, re=self.get, dat_r=self.get_dat)
-		#Others
-		self._mem = Memory(self.width, self.depth, self._put_port, self._get_port)
+		self.get_dat = Signal(self.width)
+		self._get_ptr = Signal(self.depth_width)
+		self._get_port = self._mem.get_port(has_re=True)
 		
 		
 	def get_fragment(self):
 		comb = []
 		sync = []
 		memories = [self._mem]
-		size_minus_offset = Signal(BV(self.depth_width))
+		comb += [
+				self._get_port.adr.eq(self._get_ptr),
+				self._get_port.re.eq(self.get),
+				self.get_dat.eq(self._get_port.dat_r),
+				
+				self._put_port.adr.eq(self._put_ptr),
+				self._put_port.we.eq(self.put),
+				self._put_port.dat_w.eq(self.put_dat)
+		]
+		
+		size_minus_offset = Signal(self.depth_width)
 		comb += [size_minus_offset.eq(self.size-self.offset)]
 		
 		#Control
@@ -82,8 +95,8 @@ class Sequencer:
 		self.depth_width = bits_for(self.depth)
 		# Controller interface
 		self.ctl_rst = Signal()
-		self.ctl_offset = Signal(BV(self.depth_width))
-		self.ctl_size = Signal(BV(self.depth_width))
+		self.ctl_offset = Signal(self.depth_width)
+		self.ctl_size = Signal(self.depth_width)
 		self.ctl_arm = Signal()
 		self.ctl_done = Signal()
 		self._ctl_arm_d = Signal()
@@ -91,8 +104,8 @@ class Sequencer:
 		self.trig_hit  = Signal()
 		self._trig_hit_d = Signal()
 		# Recorder interface
-		self.rec_offset = Signal(BV(self.depth_width))
-		self.rec_size = Signal(BV(self.depth_width))
+		self.rec_offset = Signal(self.depth_width)
+		self.rec_size = Signal(self.depth_width)
 		self.rec_start = Signal()
 		self.rec_done  = Signal()
 		# Others
@@ -154,7 +167,7 @@ class Recorder:
 		
 		# Trigger Interface
 		self.trig_hit = Signal()
-		self.trig_dat = Signal(BV(self.width))
+		self.trig_dat = Signal(self.width)
 	
 	def set_address(self, address):
 		self.address = address

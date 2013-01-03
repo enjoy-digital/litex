@@ -15,8 +15,8 @@ class MigLa:
 		self.rec = rec
 		self.interface = interface
 		
-		self.in_trig = Signal(BV(self.trig.trig_width))
-		self.in_dat  = Signal(BV(self.trig.trig_width))
+		self.in_trig = Signal(self.trig.trig_width)
+		self.in_dat  = Signal(self.trig.trig_width)
 		
 		self.trig.set_address(self.address)
 		self.rec.set_address(self.address + 0x0200)

@@ -68,10 +68,10 @@ class Spi2Csr :
 		#
 		# Spi --> Csr
 		#
-		spi_cnt = Signal(BV(bits_for(self.a_width+self.max_burst*self.d_width)))
-		spi_addr = Signal(BV(self.a_width))
-		spi_w_dat = Signal(BV(self.d_width))
-		spi_r_dat = Signal(BV(self.d_width))
+		spi_cnt = Signal(bits_for(self.a_width+self.max_burst*self.d_width))
+		spi_addr = Signal(self.a_width)
+		spi_w_dat = Signal(self.d_width)
+		spi_r_dat = Signal(self.d_width)
 		spi_we = Signal()
 		spi_re = Signal()
 		spi_we_re_done = Signal(reset = 1)
@@ -126,7 +126,7 @@ class Spi2Csr :
 		#
 		# Csr --> Spi
 		#
-		spi_r_dat_shift = Signal(BV(self.d_width))
+		spi_r_dat_shift = Signal(self.d_width)
 		sync +=[
 			If(spi_re,
 				spi_r_dat_shift.eq(spi_r_dat)
