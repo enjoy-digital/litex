@@ -2,6 +2,14 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
 from migen.fhdl.visit import NodeVisitor, NodeTransformer
 
+def flat_iteration(l):
+	for element in l:
+		if isinstance(element, (list, tuple)):
+			for element2 in flat_iteration(element):
+				yield element2
+		else:
+			yield element
+
 class _SignalLister(NodeVisitor):
 	def __init__(self):
 		self.output_list = set()
@@ -35,7 +43,7 @@ def list_targets(node):
 
 def group_by_targets(sl):
 	groups = []
-	for statement in sl:
+	for statement in flat_iteration(sl):
 		targets = list_targets(statement)
 		processed = False
 		for g in groups:

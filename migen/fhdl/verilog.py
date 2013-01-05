@@ -97,7 +97,7 @@ def _printnode(ns, at, level, node):
 		else:
 			assignment = " <= "
 		return "\t"*level + _printexpr(ns, node.l)[0] + assignment + _printexpr(ns, node.r)[0] + ";\n"
-	elif isinstance(node, list):
+	elif isinstance(node, (list, tuple)):
 		return "".join(list(map(partial(_printnode, ns, at, level), node)))
 	elif isinstance(node, If):
 		r = "\t"*level + "if (" + _printexpr(ns, node.cond)[0] + ") begin\n"

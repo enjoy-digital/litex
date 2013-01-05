@@ -25,7 +25,7 @@ class NodeVisitor:
 			self.visit_Case(node)
 		elif isinstance(node, Fragment):
 			self.visit_Fragment(node)
-		elif isinstance(node, list):
+		elif isinstance(node, (list, tuple)):
 			self.visit_statements(node)
 		elif isinstance(node, dict):
 			self.visit_clock_domains(node)
@@ -115,7 +115,7 @@ class NodeTransformer:
 			return self.visit_Case(node)
 		elif isinstance(node, Fragment):
 			return self.visit_Fragment(node)
-		elif isinstance(node, list):
+		elif isinstance(node, (list, tuple)):
 			return self.visit_statements(node)
 		elif isinstance(node, dict):
 			return self.visit_clock_domains(node)
@@ -164,6 +164,7 @@ class NodeTransformer:
 		r.sync = self.visit(node.sync)
 		return r
 	
+	# NOTE: this will always return a list, even if node is a tuple
 	def visit_statements(self, node):
 		return [self.visit(statement) for statement in node]
 	
