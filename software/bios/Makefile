@@ -27,6 +27,9 @@ bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 %.o: %.c
 	$(compile-dep)
 
+%.o: %.S
+	$(assemble)
+
 libs:
 	make -C $(M2DIR)/software/libbase
 

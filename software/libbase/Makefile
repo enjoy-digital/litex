@@ -15,6 +15,9 @@ libbase.a: $(OBJECTS)
 %.o: %.c
 	$(compile-dep)
 
+%.o: %.S
+	$(assemble)
+
 .PHONY: clean
 
 clean:
