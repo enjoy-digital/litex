@@ -21,4 +21,4 @@ libcompiler-rt.a: $(OBJECTS)
 .PHONY: clean
 
 clean:
-	rm -f $(OBJECTS) $(OBJECTS:.o=.d) libcompiler-rt.a .*~ *~
+	rm -f $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libcompiler-rt.a .*~ *~

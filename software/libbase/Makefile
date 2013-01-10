@@ -21,4 +21,4 @@ libbase.a: $(OBJECTS)
 .PHONY: clean
 
 clean:
-	rm -f $(OBJECTS) $(OBJECTS:.o=.d) libbase.a .*~ *~
+	rm -f $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libbase.a .*~ *~

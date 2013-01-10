@@ -38,6 +38,6 @@ flash: bios.bin
 	m1nor bios.bin
 
 clean:
-	rm -f $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
+	rm -f $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
 
 .PHONY: clean libs flash
