@@ -7,7 +7,7 @@ introducing two key innovations:
  * Increased system memory performance thanks to a new architecture
    (ASMI) containing a transaction-reordering and superscalar controller.
 
-The Milkymist-NG SoC supports the Milkymist One board. Obtain yours from:
+The Milkymist-NG SoC supports the Milkymist One board. Obtain yours at:
   http://milkymist.org
 
 Note that the -NG version is still experimental work in progress. For the
@@ -31,15 +31,12 @@ production version of Milkymist SoC, visit:
   make
   make install
 
-3. Build compiler-rt.
-  git clone git://github.com/milkymist/compiler-rt-lm32.git
-  cd compiler-rt-lm32
-  make lm32
+3. Obtain compiler-rt and set the CRTDIR environment variable to the root of 
+   its source tree.
+  svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt
+  export CRTDIR=/path_to/compiler-rt
 
-4. Set the CRTDIR environment variable to where libcompiler_rt.a is.
-  export CRTDIR=/path_to/compiler-rt-lm32/lm32/lm32
-
-5. Build and flash the BIOS (part of this source distribution).
+4. Build and flash the BIOS (part of this source distribution).
   cd software/bios
   make
   make flash

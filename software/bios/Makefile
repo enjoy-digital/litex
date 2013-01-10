@@ -20,8 +20,8 @@ bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 %.elf:
 	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) \
 		-L$(M2DIR)/software/libbase \
-		-L$(CRTDIR) \
-		-lbase -lcompiler_rt
+		-L$(M2DIR)/software/libcompiler-rt \
+		-lbase -lcompiler-rt
 	chmod -x $@
 
 %.o: %.c
@@ -31,6 +31,7 @@ bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 	$(assemble)
 
 libs:
+	make -C $(M2DIR)/software/libcompiler-rt
 	make -C $(M2DIR)/software/libbase
 
 flash: bios.bin
