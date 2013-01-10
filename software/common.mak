@@ -30,8 +30,8 @@ endif
 # Toolchain options
 #
 INCLUDES = -I$(M2DIR)/software/include/base -I$(M2DIR)/software/include -I$(M2DIR)/common
-CFLAGS = -O9 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
-	 -Wmissing-prototypes -fsigned-char -nostdinc $(INCLUDES)
+CFLAGS = -O3 -Wall -Wstrict-prototypes -Wold-style-definition -Wshadow \
+	 -Wmissing-prototypes -nostdinc $(INCLUDES)
 LDFLAGS = -nostdlib -nodefaultlibs
 
 # compile and generate dependencies, based on
