@@ -19,5 +19,7 @@ typedef char int8_t;
 
 #define INT64_C(v) __int_c(v, LL)
 #define UINT64_C(v) __uint_c(v, LL)
+#define INT32_C(v) v
+#define UINT32_C(v) v##U
 
 #endif /* __STDINT_H */
