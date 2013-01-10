@@ -1,5 +1,5 @@
 TARGET_PREFIX=lm32-elf
-CLANG=clang -ccc-host-triple $(TARGET_PREFIX)
+CLANG=clang -target lm32
 
 CC_normal := $(CLANG)
 AR_normal := $(TARGET_PREFIX)-ar
