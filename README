@@ -1,45 +1,25 @@
-             _____       _            ____  _     _ _       _ 
-            |   __|___  |_|___ _ _   |    \|_|___|_| |_ ___| |
-            |   __|   | | | . | | |  |  |  | | . | |  _| .'| |
-            |_____|_|_|_| |___|_  |  |____/|_|_  |_|_| |__,|_|
-                      |___|   |___|          |___|
- 
-       Copyright 2012 / Florent Kermarrec / florent@enjoy-digital.fr
- 
-                               migScope
---------------------------------------------------------------------------------
-
 [> migScope
 ------------
 
-migScope is a small logic analyzer to be embedded in an FPGA.
-
-While free vendor toolchains are generally used by beginners or for prototyping 
-(situations   where   having a logic  analyser  in  the design is generally very 
-helpful) free  toolchains are  always  provided  without  the proprietary logic 
-analyzer solution... :(
-
-Based on   Migen,   migScope   aims  to  provide a free, portable and flexible 
-alternative to vendor's solutions!
-
-[> Specification:
-
-migScope provides Migen cores to be embedded in the design and Python drivers to 
-control the logic  analyzer  from the Host. migScope automatically interconnects 
-all cores  tothe CSR bus. When using Python on the Host, no needs to worry about
-cores register mapping, importing migScope project gives you direct access to 
-all the cores!
-
-migScope 	produces.vcd output files to be  analyzed  in your favorite waveform 
-viewer.
+This is a small Logic Analyser to be embedded in a Fpga design to debug internal
+or external signals.
 
 [> Status:
-Complete flow tested on board with a classic Term. RangeDetector, EdgeDetector 
-still not tested.
+Early development phase
 
-[> Examples:
-test_MigIo : Led & Switch Test controlled by Python Host.
-test_MigLa : Logic Analyzer controlled by Python Host.
+Simulation:
+-tb_spi2Csr      :   Test Spi <--> Csr Bridge : [Ok]
+-tb_TriggerCsr   :   Test Trigger with Csr    : [Ok]
+-tb_RecorderCsr  :   Test Recorder with Csr   : [Ok]
+-tb_MigScope     :   Global Test with Csr     : [Ok]
+
+Example Design:
+-de0_nano        :   Generate Signals in FPGA and probe them with migScope : [Ok]
+                     Toolchain [Ok]
+-de1             :   Generate Signals in FPGA and probe them with migScope : [Ok]
+                     Toolchain [Ok]
+                     - test_MigIo : Led & Switch Test controlled by Python [Ok]
+                     - test_MigLa : Logic Analyzer controlled by Python [Ok]
 
 [> Contact
 E-mail: florent@enjoy-digital.fr
