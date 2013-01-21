@@ -5,7 +5,7 @@ Introduction
 
 MigScope is a small logic analyzer to be embedded in an FPGA.
 
-While free vendor toolchains are generally used by beginners or for prototyping ( situations where having a logic analyser in the design is generally very helpfull) free toolchains are always provided without the proprietary logic analyzer solution. . . :(
+While free vendor toolchains are generally used by beginners or for prototyping (situations where having a logic analyser in the design is generally very helpful) free toolchains are always provided without the proprietary logic analyzer solution. . . :(
 
 Based on Migen, MigScope aims to provide a free and portable / flexible alternative to vendor's solutions.
 
