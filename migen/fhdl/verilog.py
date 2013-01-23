@@ -279,11 +279,13 @@ def _printinit(f, ios, ns):
 		r += "end\n\n"
 	return r
 
-def convert(f, ios=set(), name="top",
+def convert(f, ios=None, name="top",
   clock_domains=None,
   return_ns=False,
   memory_handler=verilog_mem_behavioral.handler,
   display_run=False):
+	if ios is None:
+		ios = set()
 	if clock_domains is None:
 		clock_domains = dict()
 		for d in f.get_clock_domains():
