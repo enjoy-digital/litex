@@ -384,6 +384,7 @@ class Fragment:
 
 class ClockDomain:
 	def __init__(self, n1, n2=None):
+		self.name = n1
 		if n2 is None:
 			n_clk = n1 + "_clk"
 			n_rst = n1 + "_rst"
