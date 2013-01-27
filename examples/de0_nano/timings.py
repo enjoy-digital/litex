@@ -13,8 +13,8 @@ ns  = 1/GHz
 class t2n:
 	def __init__(self, clk_period_ns):
 		self.clk_period_ns = clk_period_ns
-		self.clk_period_us = clk_period_ns*(GHz/MHz)
-		self.clk_period_ms = clk_period_ns*(GHz/KHz)
+		self.clk_period_us = clk_period_ns*(MHz/GHz)
+		self.clk_period_ms = clk_period_ns*(KHz/GHz)
 	def ns(self,t,margin=True):
 		if margin:
 			t += self.clk_period_ns/2
