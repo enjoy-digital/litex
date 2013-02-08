@@ -60,7 +60,7 @@ def _build_ucf(named_sc, named_pc):
 		r += "\n" + "\n\n".join(named_pc)
 	return r
 
-def _build(device, sources, named_sc, named_pc, build_name, xilinx_install_path):
+def _build_files(device, sources, named_sc, named_pc, build_name):
 	tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
 
 	prj_contents = ""
@@ -78,6 +78,7 @@ def _build(device, sources, named_sc, named_pc, build_name, xilinx_install_path)
 -p %s""" % (build_name, build_name, device)
 	tools.write_to_file(build_name + ".xst", xst_contents)
 
+def _run_ise(build_name, xilinx_install_path):
 	def is_valid_version(v):
 		try: 
 			Decimal(v)
@@ -109,7 +110,7 @@ bitgen -g Binary:Yes -w {build_name}-routed.ncd {build_name}.bit
 
 class XilinxISEPlatform(GenericPlatform):
 	def build(self, fragment, clock_domains=None, build_dir="build", build_name="top",
-			xilinx_install_path="/opt/Xilinx"):
+			xilinx_install_path="/opt/Xilinx", run=True):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
@@ -117,6 +118,8 @@ class XilinxISEPlatform(GenericPlatform):
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
-		_build(self.device, sources, named_sc, named_pc, build_name, xilinx_install_path)
+		_build_files(self.device, sources, named_sc, named_pc, build_name)
+		if run:
+			_run_ise(build_name, xilinx_install_path)
 		
 		os.chdir("..")
