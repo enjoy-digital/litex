@@ -87,6 +87,12 @@ _io = [
 	("fmc150_ext_trigger", 0, Pins("U26")),
 	
 	# Vermeer radar testbed
+	# Switch controller
+	("pca9555", 0,
+		Subsignal("sda", Pins("C13")),
+		Subsignal("scl", Pins("G8")),
+		IOStandard("LVCMOS33")
+	),
 	# TX path
 	("pe43602", 0,
 		Subsignal("d", Pins("H8")),
