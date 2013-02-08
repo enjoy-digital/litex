@@ -32,7 +32,7 @@ def _lookup(description, name, number):
 	for resource in description:
 		if resource[0] == name and (number is None or resource[1] == number):
 			return resource
-	return ConstraintError("Resource not found")
+	raise ConstraintError("Resource not found")
 		
 def _resource_type(resource):
 	t = None
