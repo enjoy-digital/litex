@@ -1,8 +1,11 @@
 from copy import copy
+import os
 
 from migen.fhdl.structure import *
 from migen.corelogic.record import Record
 from migen.fhdl import verilog
+
+from mibuild import tools
 
 class ConstraintError(Exception):
 	pass
@@ -166,12 +169,31 @@ class GenericPlatform:
 		self.device = device
 		self.constraint_manager = ConstraintManager(io)
 		self.default_crg_factory = default_crg_factory
+		self.sources = []
 
 	def request(self, *args, **kwargs):
 		return self.constraint_manager.request(*args, **kwargs)
 
 	def add_platform_command(self, *args, **kwargs):
 		return self.constraint_manager.add_platform_command(*args, **kwargs)
+
+	def add_source(self, filename, language=None):
+		if language is None:
+			language = tools.language_by_filename(filename)
+		if language is None:
+			language = "verilog" # default to Verilog
+		self.sources.append((filename, language))
+
+	def add_sources(self, path, *filenames, language=None):
+		for f in filenames:
+			self.add_source(os.path.join(path, f), language)
+
+	def add_source_dir(self, path):
+		for root, dirs, files in os.walk(path):
+			for filename in files:
+				language = tools.language_by_filename(filename)
+				if language is not None:
+					self.add_source(os.path.join(root, filename), language)
 
 	def get_verilog(self, fragment, clock_domains=None):
 		# We may create a temporary clock/reset generator that would request pins.

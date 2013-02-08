@@ -64,8 +64,8 @@ def _build(device, sources, named_sc, named_pc, build_name, xilinx_install_path)
 	tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
 
 	prj_contents = ""
-	for s in sources:
-		prj_contents += s["type"] + " work " + s["path"] + "\n"
+	for filename, language in sources:
+		prj_contents += language + " work " + filename + "\n"
 	tools.write_to_file(build_name + ".prj", prj_contents)
 
 	xst_contents = """run
@@ -116,7 +116,7 @@ class XilinxISEPlatform(GenericPlatform):
 		v_src, named_sc, named_pc = self.get_verilog(fragment, clock_domains)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
-		sources = [{"type": "verilog", "path": v_file}]
+		sources = self.sources + [(v_file, "verilog")]
 		_build(self.device, sources, named_sc, named_pc, build_name, xilinx_install_path)
 		
 		os.chdir("..")
