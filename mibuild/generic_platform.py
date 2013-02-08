@@ -1,5 +1,5 @@
 from copy import copy
-import os
+import os, argparse
 
 from migen.fhdl.structure import *
 from migen.corelogic.record import Record
@@ -228,3 +228,15 @@ class GenericPlatform:
 		
 	def build(self, fragment, clock_domains=None):
 		raise NotImplementedError("GenericPlatform.build must be overloaded")
+
+	def add_arguments(self, parser):
+		pass # default: no arguments
+
+	def build_arg_ns(self, ns, *args, **kwargs):
+		self.build(*args, **kwargs)
+
+	def build_cmdline(self, *args, **kwargs):
+		parser = argparse.ArgumentParser(description="FPGA bitstream build system")
+		self.add_arguments(parser)
+		ns = parser.parse_args()
+		self.build_arg_ns(ns, *args, **kwargs)
