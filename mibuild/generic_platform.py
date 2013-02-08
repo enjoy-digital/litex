@@ -34,7 +34,7 @@ def _lookup(description, name, number):
 			return resource
 	raise ConstraintError("Resource not found")
 		
-def _resource_type(resource):
+def _resource_type(resource, name_map):
 	t = None
 	for element in resource[2:]:
 		if isinstance(element, Pins):
@@ -49,7 +49,7 @@ def _resource_type(resource):
 				if isinstance(c, Pins):
 					assert(n_bits is None)
 					n_bits = len(c.identifiers)
-			t.append((element.name, n_bits))
+			t.append((name_map(element.name), n_bits))
 	return t
 
 def _match(description, requests):
@@ -61,14 +61,14 @@ def _match(description, requests):
 		if request[1] is not None:
 			resource = _lookup(available, request[0], request[1])
 			available.remove(resource)
-			matched.append((resource, request[2]))
+			matched.append((resource, request[2], request[3]))
 			
 	# 2. Match requests for no specific number
 	for request in requests:
 		if request[1] is None:
 			resource = _lookup(available, request[0], request[1])
 			available.remove(resource)
-			matched.append((resource, request[2]))
+			matched.append((resource, request[2], request[3]))
 	
 	return matched
 
@@ -89,27 +89,27 @@ class ConstraintManager:
 		self.requests = []
 		self.platform_commands = []
 		
-	def request(self, name, number=None, obj=None):
+	def request(self, name, number=None, obj=None, name_map=lambda s: s):
 		r = _lookup(self.description, name, number)
-		t = _resource_type(r)
+		t = _resource_type(r, name_map)
 		
 		# If obj is None, then create it.
 		# If it already exists, do some sanity checking.
 		if obj is None:
 			if isinstance(t, int):
-				obj = Signal(t, name_override=r[0])
+				obj = Signal(t, name_override=name_map(r[0]))
 			else:
 				obj = Record(t)
 		else:
 			if isinstance(t, int):
 				assert(isinstance(obj, Signal) and obj.nbits == t)
 			else:
-				for e in t:
-					sig = getattr(obj, e[0])
-					assert(isinstance(sig, Signal) and sig.nbits == e[1])
+				for name, nbits in t:
+					sig = getattr(obj, name)
+					assert(isinstance(sig, Signal) and sig.nbits == nbits)
 
 		# Register the request
-		self.requests.append((name, number, obj))
+		self.requests.append((name, number, obj, name_map))
 		
 		return obj
 	
@@ -123,8 +123,7 @@ class ConstraintManager:
 			if isinstance(obj, Signal):
 				s.add(obj)
 			else:
-				for k in obj.__dict__:
-					p = getattr(obj, k)
+				for p in obj.__dict__.values():
 					if isinstance(p, Signal):
 						s.add(p)
 		return s
@@ -132,7 +131,7 @@ class ConstraintManager:
 	def get_sig_constraints(self):
 		r = []
 		matched = _match(self.description, self.requests)
-		for resource, obj in matched:
+		for resource, obj, name_map in matched:
 			name = resource[0]
 			number = resource[1]
 			has_subsignals = False
@@ -145,7 +144,7 @@ class ConstraintManager:
 			if has_subsignals:
 				for element in resource[2:]:
 					if isinstance(element, Subsignal):
-						sig = getattr(obj, element.name)
+						sig = getattr(obj, name_map(element.name))
 						pins, others = _separate_pins(top_constraints + element.constraints)
 						r.append((sig, pins, others, (name, number, element.name)))
 			else:
