@@ -1,7 +1,6 @@
 from migen.fhdl.structure import *
 from migen.bus.asmibus import *
 from migen.sim.generic import Simulator, TopLevel
-from migen.sim.icarus import Runner
 
 from milkymist.asmicon.bankmachine import *
 
@@ -42,7 +41,7 @@ def main():
 	fragment = hub.get_fragment() + initiator.get_fragment() + \
 		dut.get_fragment() + logger.get_fragment() + completer.get_fragment() + \
 		Fragment(sim=[end_simulation])
-	sim = Simulator(fragment, Runner(), TopLevel("my.vcd"))
+	sim = Simulator(fragment, TopLevel("my.vcd"))
 	sim.run()
 
 main()

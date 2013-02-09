@@ -2,7 +2,6 @@ from random import Random
 
 from migen.fhdl.structure import *
 from migen.sim.generic import Simulator, TopLevel
-from migen.sim.icarus import Runner
 
 from milkymist.asmicon.refresher import *
 
@@ -44,7 +43,7 @@ def main():
 	logger = CommandLogger(dut.cmd)
 	granter = Granter(dut.req, dut.ack)
 	fragment = dut.get_fragment() + logger.get_fragment() + granter.get_fragment()
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run(400)
 
 main()
