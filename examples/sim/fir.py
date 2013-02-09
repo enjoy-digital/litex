@@ -10,7 +10,6 @@ from migen.fhdl import verilog
 from migen.corelogic.misc import optree
 from migen.fhdl import autofragment
 from migen.sim.generic import Simulator, PureSimulable
-from migen.sim.icarus import Runner
 
 # A synthesizable FIR filter.
 class FIR:
@@ -63,7 +62,7 @@ def main():
 	for frequency in [0.05, 0.07, 0.1, 0.15, 0.2]:
 		tb = TB(fir, frequency)
 		fragment = autofragment.from_local()
-		sim = Simulator(fragment, Runner())
+		sim = Simulator(fragment)
 		sim.run(100)
 		del sim
 		in_signals += tb.inputs

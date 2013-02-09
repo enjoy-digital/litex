@@ -36,8 +36,8 @@ Creating a simulator object
 The constructor of the ``Simulator`` object takes the following parameters:
 
 #. The fragment to simulate. The fragment can (and generally does) contain both synthesizable code and a non-synthesizable list of simulation functions.
-#. A simulator runner object (see :ref:`simrunner`).
 #. A top-level object (see :ref:`toplevel`). With the default value of ``None``, the simulator creates a default top-level object itself.
+#. A simulator runner object (see :ref:`simrunner`). With the default value of ``None``, Icarus Verilog is used with the default parameters.
 #. The name of the UNIX domain socket used to communicate with the external simulator through the VPI plug-in (default: "simsocket").
 #. Additional keyword arguments (if any) are passed to the Verilog conversion function.
 

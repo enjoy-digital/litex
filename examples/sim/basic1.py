@@ -3,7 +3,6 @@
 
 from migen.fhdl.structure import *
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 
 # Our simple counter, which increments at every cycle
 # and prints its current value in simulation.
@@ -31,9 +30,8 @@ class Counter:
 
 def main():
 	dut = Counter()
-	# Use the Icarus Verilog runner.
-	# We do not specify a top-level object, and use the default.
-	sim = Simulator(dut.get_fragment(), Runner())
+	# We do not specify a top-level nor runner object, and use the defaults.
+	sim = Simulator(dut.get_fragment())
 	# Since we do not use sim.interrupt, limit the simulation
 	# to some number of cycles.
 	sim.run(20)

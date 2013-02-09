@@ -6,7 +6,6 @@ from migen.actorlib import dma_wishbone, dma_asmi
 from migen.actorlib.sim import *
 from migen.bus import wishbone, asmibus
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 
 class MyModel:
 	def read(self, address):
@@ -51,7 +50,7 @@ def wishbone_sim(efragment, master, end_simulation):
 		+ tap.get_fragment() \
 		+ interconnect.get_fragment() \
 		+ Fragment(sim=[_end_simulation])
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run()
 
 def asmi_sim(efragment, hub, end_simulation):
@@ -65,7 +64,7 @@ def asmi_sim(efragment, hub, end_simulation):
 		+ peripheral.get_fragment() \
 		+ tap.get_fragment() \
 		+ Fragment(sim=[_end_simulation])
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run()
 
 def test_wb_reader():

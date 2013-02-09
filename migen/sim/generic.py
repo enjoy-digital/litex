@@ -4,6 +4,7 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
 from migen.sim.ipc import *
+from migen.sim import icarus
 
 class TopLevel:
 	def __init__(self, vcd_name=None, vcd_level=1,
@@ -73,13 +74,15 @@ end
 		return r
 
 class Simulator:
-	def __init__(self, fragment, sim_runner, top_level=None, sockaddr="simsocket", **vopts):
-		self.fragment = fragment
+	def __init__(self, fragment, top_level=None, sim_runner=None, sockaddr="simsocket", **vopts):
 		if top_level is None:
-			self.top_level = TopLevel()
-		else:
-			self.top_level = top_level
+			top_level = TopLevel()
+		if sim_runner is None:
+			sim_runner = icarus.Runner()		
+		self.fragment = fragment
+		self.top_level = top_level
 		self.ipc = Initiator(sockaddr)
+		self.sim_runner = sim_runner
 		
 		c_top = self.top_level.get(sockaddr)
 		

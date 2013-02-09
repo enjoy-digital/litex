@@ -4,7 +4,6 @@ from migen.flow.transactions import *
 from migen.flow.network import *
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 
 def source_gen():
 	for i in range(10):
@@ -26,7 +25,7 @@ def main():
 	def end_simulation(s):
 		s.interrupt = source.token_exchanger.done
 	fragment = comp.get_fragment() + Fragment(sim=[end_simulation])
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run()
 
 main()
