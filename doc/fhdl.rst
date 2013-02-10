@@ -2,7 +2,9 @@ The FHDL layer
 ##############
 
 The Fragmented Hardware Description Language (FHDL) is the lowest layer of Migen. It consists of a formal system to describe signals, and combinatorial and synchronous statements operating on them. The formal system itself is low level and close to the synthesizable subset of Verilog, and we then rely on Python algorithms to build complex structures by combining FHDL elements and encapsulating them in "fragments".
-The FHDL module also contains a back-end to produce synthesizable Verilog, and some basic analysis functions. It would be possible to develop a VHDL back-end as well, though more difficult than for Verilog - we are "cheating" a bit now as Verilog provides most of the FHDL semantics.
+The FHDL module also contains a back-end to produce synthesizable Verilog, and some structure analysis and manipulation functionality. A VHDL back-end [vhdlbe]_ is in development.
+
+.. [vhdlbe] https://github.com/peteut/migen
 
 FHDL differs from MyHDL [myhdl]_ in fundamental ways. MyHDL follows the event-driven paradigm of traditional HDLs (see :ref:`background`) while FHDL separates the code into combinatorial statements, synchronous statements, and reset values. In MyHDL, the logic is described directly in the Python AST. The converter to Verilog or VHDL then examines the Python AST and recognizes a subset of Python that it translates into V*HDL statements. This seriously impedes the capability of MyHDL to generate logic procedurally. With FHDL, you manipulate a custom AST from Python, and you can more easily design algorithms that operate on it.
 
@@ -13,22 +15,14 @@ FHDL is made of several elements, which are briefly explained below.
 Expressions
 ***********
 
-.. _bv:
+Integers and booleans
+=====================
 
-Bit vector (BV)
-===============
-The bit vector (BV) object defines if a constant or signal is signed or unsigned, and how many bits it has. This is useful e.g. to:
+Python integers and booleans can appear in FHDL expressions to represent constant values in a circuit. ``True`` and ``False`` are interpreted as 1 and 0, respectively.
 
-* Determine when to perform sign extension (FHDL uses the same rules as Verilog).
-* Determine the size of registers.
-* Determine how many bits should be used by each value in concatenations.
+Negative integers are explicitly supported. As with MyHDL [countin]_, arithmetic operations return the natural results.
 
-Constant
-========
-This object should be self-explanatory. All constant objects contain a BV object and a value. If no BV object is specified, one will be made up using the following rules:
-
-* If the value is positive, the BV is unsigned and has the minimum number of bits needed to represent the constant's value in the canonical base-2 system.
-* If the value is negative, the BV is signed, and has the minimum number of bits needed to represent the constant's value in the canonical two's complement, base-2 system.
+.. [countin] http://www.jandecaluwe.com/hdldesign/counting.html
 
 Signal
 ======
@@ -38,7 +32,8 @@ The main point of the signal object is that it is identified by its Python ID (a
 
 The properties of a signal object are:
 
-* A bit vector description
+* An integer or a (integer, boolean) pair that defines the number of bits and whether the bit of higher index of the signal is a sign bit (i.e. the signal is signed). The defaults are one bit and unsigned.
+Alternatively, the ``min`` and ``max`` parameters can be specified to define the range of the signal and determine its bit width and signedness. As with Python ranges, ``min`` is inclusive and defaults to 0, ``max`` is exclusive and defaults to 2.
 * A name, used as a hint for the V*HDL back-end name mangler.
 * A boolean "variable". If true, the signal will behave like a VHDL variable, or a Verilog reg that uses blocking assignment. This parameter only has an effect when the signal's value is modified in a synchronous statement.
 * The signal's reset value. It must be an integer, and defaults to 0. When the signal's value is modified with a synchronous statement, the reset value is the initialization value of the associated register. When the signal is assigned to in a conditional combinatorial statement (``If`` or ``Case``), the reset value is the value that the signal has when no condition that causes the signal to be driven is verified. This enforces the absence of latches in designs. If the signal is permanently driven using a combinatorial statement, the reset value has no effect.
@@ -114,13 +109,11 @@ Example: ::
 
 Case
 ====
-The ``Case`` object constructor takes as first parameter the expression to be tested, then a variable number of lists describing the various cases.
-
-Each list contains an expression (typically a constant) describing the value to be matched, followed by the statements to be executed when there is a match. The head of the list can be the an instance of the ``Default`` object.
+The ``Case`` object constructor takes as first parameter the expression to be tested, and a dictionary whose keys are the values to be matched, and values the statements to be executed in the case of a match. The special value ``"default"`` can be used as match value, which means the statements should be executed whenever there is no other match.
 
 Arrays
 ======
-The ``Array`` object represents lists of other objects that can be indexed by FHDL expressions. It is explicitely possible to:
+The ``Array`` object represents lists of other objects that can be indexed by FHDL expressions. It is explicitly possible to:
 
 * nest ``Array`` objects to create multidimensional tables.
 * list any Python object in a ``Array`` as long as every expression appearing in a fragment ultimately evaluates to a ``Signal`` for all possible values of the indices. This allows the creation of lists of structured data.
@@ -149,18 +142,16 @@ Instance objects represent the parametrized instantiation of a V*HDL module, and
 
 * Reusing legacy or third-party V*HDL code.
 * Using special FPGA features (DCM, ICAP, ...).
-* Implementing logic that cannot be expressed with FHDL (asynchronous circuits, ...).
-* Breaking down a Migen system into multiple sub-systems, possibly using different clock domains.
+* Implementing logic that cannot be expressed with FHDL (e.g. latches).
+* Breaking down a Migen system into multiple sub-systems.
 
-The properties of the instance object are:
+The instance object constructor takes the type (i.e. name of the instantiated module) of the instance, then multiple parameters describing how to connect and parametrize the instance.
 
-* The type of the instance (i.e. name of the instantiated module).
-* A list of output ports of the instantiated module. Each element of the list is a pair containing a string, which is the name of the module's port, and either an existing signal (on which the port will be connected to) or a BV (which will cause the creation of a new signal).
-* A list of input ports (likewise).
-* A list of (name, value) pairs for the parameters ("generics" in VHDL) of the module.
-* The name of the clock port of the module (if any). If this is specified, the port will be connected to the system clock.
-* The name of the reset port of the module (likewise).
-* The name of the instance (can be mangled like signal names).
+These parameters can be:
+
+* ``Instance.Input``, ``Instance.Output`` or ``Instance.InOut`` to describe signal connections with the instance. The parameters are the name of the port at the instance, and the FHDL expression it should be connected to.
+* ``Instance.Parameter`` sets a parameter (with a name and value) of the instance.
+* ``Instance.ClockPort`` and ``Instance.ResetPort`` are used to connect clock and reset signals to the instance. The only mandatory parameter is the name of the port at the instance. Optionally, a clock domain name can be specified, and the ``invert`` option can be used to interface to those modules that require a 180-degree clock or a active-low reset.
 
 Memories
 ========
@@ -171,22 +162,22 @@ A memory object has the following parameters:
 * The width, which is the number of bits in each word.
 * The depth, which represents the number of words in the memory.
 * An optional list of integers used to initialize the memory.
-* A list of port descriptions.
 
-Each port description contains:
+To access the memory in hardware, ports can be obtained by calling the ``get_port`` method. A port always has an address signal ``a`` and a data read signal ``dat_r``. Other signals may be available depending on the port's configuration.
 
-* The address signal (mandatory).
-* The data read signal (mandatory).
-* The write enable signal (optional). If the port is using masked writes, the width of the write enable signal should match the number of sub-words.
-* The data write signal (iff there is a write enable signal).
-* Whether reads are synchronous (default) or asynchronous.
-* The read enable port (optional, ignored for asynchronous ports).
-* The write granularity (default 0), which defines the number of bits in each sub-word. If it is set to 0, the port is using whole-word writes only and the width of the write enable signal must be 1. This parameter is ignored if there is no write enable signal.
-* The mode of the port (default ``WRITE_FIRST``, ignored for asynchronous ports). It can be:
+Options to ``get_port`` are:
+
+* ``write_capable`` (default: ``False``): if the port can be used to write to the memory. This creates an additional ``we`` signal.
+* ``async_read`` (default: ``False``): whether reads are asychronous (combinatorial) or synchronous (registered).
+* ``has_re`` (default: ``False``): adds a read clock-enable signal ``re`` (ignored for asychronous ports).
+* ``we_granularity`` (default: ``0``): if non-zero, writes of less than a memory word can occur. The width of the ``we`` signal is increased to act as a selection signal for the sub-words.
+* ``mode`` (default: ``WRITE_FIRST``, ignored for aynchronous ports).  It can be:
 
   * ``READ_FIRST``: during a write, the previous value is read.
   * ``WRITE_FIRST``: the written value is returned.
   * ``NO_CHANGE``: the data read signal keeps its previous value on a write.
+
+* ``clock_domain`` (default: ``"sys"``): the clock domain used for reading and writing from this port.
 
 Migen generates behavioural V*HDL code that should be compatible with all simulators and, if the number of ports is <= 2, most FPGA synthesizers. If a specific code is needed, the memory generator function can be overriden using the ``memory_handler`` parameter of the conversion function.
 
@@ -200,7 +191,7 @@ A "fragment" is a unit of logic, which is composed of:
 * A list of memories.
 * A list of simulation functions (see :ref:`simulating`).
 
-Fragments can reference arbitrary signals, including signals that are referenced in other fragments. Fragments can be combined using the "+" operator, which returns a new fragment containing the concatenation of each pair of lists.
+Fragments can reference arbitrary signals, including signals that are referenced in other fragments. Fragments can be combined using the "+" operator, which returns a new fragment containing the concatenation of each matched pair of lists.
 
 Fragments can be passed to the back-end for conversion to Verilog.
 
@@ -212,3 +203,5 @@ Conversion for synthesis
 Any FHDL fragment (except, of course, its simulation functions) can be converted into synthesizable Verilog HDL. This is accomplished by using the ``convert`` function in the ``verilog`` module.
 
 Migen does not provide support for any specific synthesis tools or ASIC/FPGA technologies. Users must run themselves the generated code through the appropriate tool flow for hardware implementation.
+
+The Mibuild package, available separately from the Migen website, provides scripts to interface third-party FPGA tools to Migen and a database of boards for the easy deployment of designs.

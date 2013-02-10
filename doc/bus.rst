@@ -15,10 +15,11 @@ It also provides interconnect components for these buses, such as arbiters and a
 
   wbcon = wishbone.InterconnectShared(
       [cpu.ibus, cpu.dbus, ethernet.dma, audio.dma],
-      [(0, norflash.bus), (1, wishbone2asmi.wishbone),
-      (3, wishbone2csr.wishbone)])
+      [(lambda a: a[27:] == 0, norflash.bus),
+       (lambda a: a[27:] == 1, wishbone2asmi.wishbone),
+       (lambda a: a[27:] == 3, wishbone2csr.wishbone)])
 
-In this example, the interconnect component generates a 4-way round-robin arbiter, multiplexes the master bus signals into a shared bus, determines that the address decoding must occur on 2 bits, and connects all slave interfaces to the shared bus, inserting the address decoder logic in the bus cycle qualification signals and multiplexing the data return path. It can recognize the signals in each core's bus interface thanks to the common structure mandated by Migen Bus. All this happens automatically, using only that much user code. The resulting interconnect logic can be retrieved using ``wbcon.get_fragment()``, and combined with the fragments from the rest of the system.
+In this example, the interconnect component generates a 4-way round-robin arbiter, multiplexes the master bus signals into a shared bus, and connects all slave interfaces to the shared bus, inserting the address decoder logic in the bus cycle qualification signals and multiplexing the data return path. It can recognize the signals in each core's bus interface thanks to the common structure mandated by Migen Bus. All this happens automatically, using only that much user code. The resulting interconnect logic can be retrieved using ``wbcon.get_fragment()``, and combined with the fragments from the rest of the system.
 
 
 Configuration and Status Registers

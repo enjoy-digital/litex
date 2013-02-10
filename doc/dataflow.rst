@@ -52,13 +52,13 @@ An endpoint description is a triple consisting of:
 Record layouts are a list of fields. Each field is described by a pair consisting of:
 
 * The field's name.
-* Either a BV object (see :ref:`bv`) if the field is a bit vector, or another record layout if the field is a lower-level record.
+* Either a bit width or a (bit width, signedness) pair if the field is a bit vector, or another record layout if the field is a lower-level record.
 
 For example, this code: ::
 
   Actor(
-    ("operands", Sink, [("a", BV(16)), ("b", BV(16))]),
-    ("result", Source, [("r", BV(17))]))
+    ("operands", Sink, [("a", 16), ("b", 16)]),
+    ("result", Source, [("r", 17)]))
 
 creates an actor with:
 
@@ -349,12 +349,4 @@ The ``DFGReporter`` contains a dictionary ``nodepair_to_ep`` that is keyed by ``
 High-level actor description
 ****************************
 
-.. WARNING::
-   Not implemented yet, just an idea.
-
-It is conceivable that a CAL [cal]_ to FHDL compiler be implemented at some point, to support higher level descriptions of some actors and reuse of third-party RVC-CAL applications. [orcc]_ [orcapps]_ [opendf]_
-
-.. [cal] http://opendf.svn.sourceforge.net/viewvc/opendf/trunk/doc/GentleIntro/GentleIntro.pdf
-.. [orcc] http://orcc.sourceforge.net/
-.. [orcapps] http://orc-apps.sourceforge.net/
-.. [opendf] http://opendf.sourceforge.net/
+Actors can be written in a subset of Python and automatically compiled into FHDL by using the Pytholite component. This functionality is still very limited for now.
