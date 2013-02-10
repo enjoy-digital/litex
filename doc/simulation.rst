@@ -131,38 +131,3 @@ The generic top-level object
 Migen comes with a ``migen.sim.generic.TopLevel`` object that implements the above behaviour. It should be usable in the majority of cases.
 
 The main parameters of its constructor are the output VCD file (default: ``None``) and the levels of hierarchy that must be present in the VCD (default: 1).
-
-Simulation examples
-*******************
-
-Most basic
-==========
-.. include:: ../examples/sim/basic1.py
-   :code: python
-
-A few more features
-===================
-.. include:: ../examples/sim/basic2.py
-   :code: python
-
-Memory access
-=============
-.. include:: ../examples/sim/memory.py
-   :code: python
-
-A FIR filter
-============
-.. include:: ../examples/sim/fir.py
-   :code: python
-   
-Abstract bus transactions
-=========================
-.. include:: ../examples/sim/abstract_transactions.py
-   :code: python
-
-.. _dfsimexample:
-   
-Dataflow simulation actors
-==========================
-.. include:: ../examples/sim/dataflow.py
-   :code: python
