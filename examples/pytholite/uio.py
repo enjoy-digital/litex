@@ -7,7 +7,6 @@ from migen.uio.ioo import UnifiedIOSimulation
 from migen.pytholite.transel import Register
 from migen.pytholite.compiler import make_pytholite
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 from migen.fhdl import verilog
 
 layout = [("r", 32)]
@@ -40,7 +39,7 @@ def run_sim(ng):
 	c = CompositeActor(g)
 	fragment = slave.get_fragment() + intercon.get_fragment() + c.get_fragment()
 	
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run(50)
 	del sim
 

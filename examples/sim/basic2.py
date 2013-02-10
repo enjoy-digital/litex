@@ -3,7 +3,6 @@
 
 from migen.fhdl.structure import *
 from migen.sim.generic import Simulator, TopLevel
-from migen.sim.icarus import Runner
 
 # A slightly improved counter.
 # Has a clock enable (CE) signal, counts on more bits
@@ -46,7 +45,7 @@ def main():
 	dut = Counter()
 	# Instantiating the generic top-level ourselves lets us
 	# specify a VCD output file.
-	sim = Simulator(dut.get_fragment(), Runner(), TopLevel("my.vcd"))
+	sim = Simulator(dut.get_fragment(), TopLevel("my.vcd"))
 	sim.run(20)
 
 main()

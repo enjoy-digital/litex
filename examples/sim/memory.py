@@ -3,7 +3,6 @@
 
 from migen.fhdl.structure import *
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 
 class Mem:
 	def __init__(self):
@@ -29,7 +28,7 @@ class Mem:
 
 def main():
 	dut = Mem()
-	sim = Simulator(dut.get_fragment(), Runner())
+	sim = Simulator(dut.get_fragment())
 	# No need for a cycle limit here, we use sim.interrupt instead.
 	sim.run()
 

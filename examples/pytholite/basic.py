@@ -3,7 +3,6 @@ from migen.flow.transactions import *
 from migen.actorlib.sim import *
 from migen.pytholite.compiler import make_pytholite
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 from migen.fhdl import verilog
 
 layout = [("r", 32)]
@@ -19,7 +18,7 @@ def run_sim(ng):
 	
 	c = CompositeActor(g)
 	fragment = c.get_fragment()
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run(30)
 	del sim
 

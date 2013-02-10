@@ -39,7 +39,7 @@ class EndpointReporter(EndpointSimHook):
 
 class DFGReporter(DFGHook):
 	def __init__(self, dfg):
-		DFGHook.__init__(self, dfg, lambda u, ep, v: EndpointReporter(u.actor.endpoints[ep]))
+		DFGHook.__init__(self, dfg, lambda u, ep, v: EndpointReporter(u.endpoints[ep]))
 
 	def get_edge_labels(self):
 		d = dict()

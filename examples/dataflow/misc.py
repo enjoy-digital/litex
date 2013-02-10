@@ -3,7 +3,6 @@ from migen.flow.transactions import *
 from migen.actorlib import misc
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 
 def source_gen():
 	for i in range(10):
@@ -26,7 +25,7 @@ def main():
 	g.add_connection(loop, sink)
 	comp = CompositeActor(g)
 	fragment = comp.get_fragment()
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run(500)
 
 main()

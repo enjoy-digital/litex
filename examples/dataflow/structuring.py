@@ -8,7 +8,6 @@ from migen.flow.transactions import *
 from migen.actorlib import structuring
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 from migen.flow import perftools
 
 pack_factor = 5
@@ -47,7 +46,7 @@ def main():
 	reporter = perftools.DFGReporter(g)
 	
 	fragment = comp.get_fragment() + reporter.get_fragment()
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run(1000)
 	
 	g_layout = nx.spectral_layout(g)

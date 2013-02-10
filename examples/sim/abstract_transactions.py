@@ -8,7 +8,6 @@ from migen.fhdl import autofragment
 from migen.bus.transactions import *
 from migen.bus import wishbone, asmibus
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 
 # Our bus master.
 # Python generators let us program bus transactions in an elegant sequential style.
@@ -67,7 +66,7 @@ def test_wishbone():
 	def end_simulation(s):
 		s.interrupt = master.done
 	fragment = autofragment.from_local() + Fragment(sim=[end_simulation])
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run()
 
 def test_asmi():
@@ -85,7 +84,7 @@ def test_asmi():
 	def end_simulation(s):
 		s.interrupt = master.done
 	fragment = autofragment.from_local() + Fragment(sim=[end_simulation])
-	sim = Simulator(fragment, Runner())
+	sim = Simulator(fragment)
 	sim.run()
 	
 test_wishbone()
