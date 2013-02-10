@@ -254,10 +254,10 @@ Migen represents an actor network using the ``migen.flow.network.DataFlowGraph``
 
 .. [networkx] http://networkx.lanl.gov/
 
-Nodes of the graph are instances of the ``migen.flow.network.ActorNode`` class. The latter can represent actors in two ways:
+Nodes of the graph are either:
 
-* A reference to an existing actor (*physical actor*).
-* An class and a dictionary (*abstract actor*), meaning that the actor class should be instantiated with the parameters from the dictionary. This form is needed to enable optimizations such as actor duplication or sharing during elaboration.
+* An existing actor (*physical actor*).
+* An instance of ``migen.flow.network.AbstractActor``, containing the actor class and a dictionary (*abstract actor*). It means that the actor class should be instantiated with the parameters from the dictionary. This form is needed to enable optimizations such as actor duplication or sharing during elaboration.
 
 Edges of the graph represent the flow of data between actors. They have the following data properties:
 
