@@ -186,7 +186,7 @@ Fragments
 A "fragment" is a unit of logic, which is composed of:
 
 * A list of combinatorial statements.
-* A list of synchronous statements.
+* A list of synchronous statements, or a clock domain name -> synchronous statements dictionary.
 * A list of instances.
 * A list of memories.
 * A list of simulation functions (see :ref:`simulating`).
@@ -205,3 +205,11 @@ Any FHDL fragment (except, of course, its simulation functions) can be converted
 Migen does not provide support for any specific synthesis tools or ASIC/FPGA technologies. Users must run themselves the generated code through the appropriate tool flow for hardware implementation.
 
 The Mibuild package, available separately from the Migen website, provides scripts to interface third-party FPGA tools to Migen and a database of boards for the easy deployment of designs.
+
+
+Multi-clock-domain designs
+**************************
+
+A clock domain is identified by its name (a string). A design with multiple clock domains passes a dictionary instead of a list of synchronous statements in the ``Fragment`` constructor. Keys of that dictionary are the names of the clock domains, and the associated values are the statements that should be executed at each cycle of the clock in that domain.
+
+Mapping clock domain names to clock signals is done during conversion. The ``clock_domain`` parameter of the conversion function accepts a dictionary keyed by clock domain names that contains ``ClockDomain`` objects. ``ClockDomain`` objects are containers for a clock signal and a optional reset signal. Those signals can be driven like other FHDL signals.
