@@ -35,7 +35,7 @@ def _lookup(description, name, number):
 	for resource in description:
 		if resource[0] == name and (number is None or resource[1] == number):
 			return resource
-	raise ConstraintError("Resource not found")
+	raise ConstraintError("Resource not found: " + name + "." + str(number))
 		
 def _resource_type(resource, name_map):
 	t = None
@@ -107,8 +107,8 @@ class ConstraintManager:
 			if isinstance(t, int):
 				assert(isinstance(obj, Signal) and obj.nbits == t)
 			else:
-				for name, nbits in t:
-					sig = getattr(obj, name)
+				for attr, nbits in t:
+					sig = getattr(obj, attr)
 					assert(isinstance(sig, Signal) and sig.nbits == nbits)
 
 		# Register the request
