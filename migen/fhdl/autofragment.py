@@ -11,3 +11,10 @@ def from_local():
 		if hasattr(obj, "get_fragment"):
 			f += obj.get_fragment()
 	return f
+
+def from_attributes(obj):
+	f = Fragment()
+	for x in obj.__dict__.values():
+		if hasattr(x, "get_fragment"):
+			f += x.get_fragment()
+	return f
