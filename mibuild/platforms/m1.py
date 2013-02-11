@@ -27,11 +27,10 @@ _io = [
 	),
 	
 	("serial", 0,
-		Subsignal("tx", IOStandard("LVCMOS33"), Misc("SLEW=SLOW")),
-		Subsignal("rx", IOStandard("LVCMOS33"), Misc("PULLUP"))
+		Subsignal("tx", Pins("L17"), IOStandard("LVCMOS33"), Misc("SLEW=SLOW")),
+		Subsignal("rx", Pins("K18"), IOStandard("LVCMOS33"), Misc("PULLUP"))
 	),
 	
-
 	("ddram_clock", 0,
 		Subsignal("p", Pins("M3")),
 		Subsignal("n", Pins("L4")),
