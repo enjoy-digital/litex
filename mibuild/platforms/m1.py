@@ -13,7 +13,7 @@ _io = [
 
 	# When executing softcore code in-place from the flash, we want
 	# the flash reset to be released before the system reset.
-	("norflash_reset", 0, Pins("P22"), IOStandard("LVCMOS33"), Misc("SLEW=FAST"), Drive(8)),
+	("norflash_rst_n", 0, Pins("P22"), IOStandard("LVCMOS33"), Misc("SLEW=FAST"), Drive(8)),
 	("norflash", 0,
 		Subsignal("adr", Pins("L22", "L20", "K22", "K21", "J19", "H20", "F22",
 			"F21", "K17", "J17", "E22", "E20", "H18", "H19", "F20",
