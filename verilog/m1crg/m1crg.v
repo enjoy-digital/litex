@@ -4,16 +4,14 @@ module m1crg #(
 	parameter f_div = 0,
 	parameter clk2x_period = (in_period*f_div)/(2.0*f_mult)
 ) (
-	input clkin,
+	input clk50_pad,
 	input trigger_reset,
 	
 	output sys_clk,
 	output reg sys_rst,
 	
-	/* Reset off-chip devices */
-	output ac97_rst_n,
-	output videoin_rst_n,
-	output flash_rst_n,
+	/* Reset NOR flash */
+	output norflash_rst_n,
 	
 	/* DDR PHY clocks */
 	output clk2x_270,
@@ -21,9 +19,17 @@ module m1crg #(
 	output clk4x_wr_strb,
 	output clk4x_rd,
 	output clk4x_rd_strb,
+
+	/* DDR off-chip clocking */
+	output ddr_clk_pad_p,
+	output ddr_clk_pad_n,
 	
-	/* Ethernet PHY clock */
-	output reg eth_clk_pad,	/* < unbuffered, to I/O */
+	/* Ethernet PHY clocks */
+	output reg eth_phy_clk_pad,
+	input eth_rx_clk_pad,
+	input eth_tx_clk_pad,
+	output eth_rx_clk,
+	output eth_tx_clk,
 	
 	/* VGA clock */
 	output vga_clk,		/* < buffered, to internal clock network */
@@ -43,9 +49,6 @@ always @(posedge sys_clk) begin
 	sys_rst <= rst_debounce != 20'd0;
 end
 
-assign ac97_rst_n = ~sys_rst;
-assign videoin_rst_n = ~sys_rst;
-
 /*
  * We must release the Flash reset before the system reset
  * because the Flash needs some time to come out of reset
@@ -64,20 +67,20 @@ always @(posedge sys_clk) begin
 		flash_rstcounter <= flash_rstcounter + 8'd1;
 end
 
-assign flash_rst_n = flash_rstcounter[7];
+assign norflash_rst_n = flash_rstcounter[7];
 
 /*
  * Clock management. Inspired by the NWL reference design.
  */
 
-wire sdr_clkin;
+wire sdr_clk50;
 wire clkdiv;
 
 IBUF #(
 	.IOSTANDARD("DEFAULT")
 ) clk2_iob (
-	.I(clkin),
-	.O(sdr_clkin)
+	.I(clk50_pad),
+	.O(sdr_clk50)
 );
 
 BUFIO2 #(
@@ -85,7 +88,7 @@ BUFIO2 #(
 	.DIVIDE_BYPASS("FALSE"),
 	.I_INVERT("FALSE")
 ) bufio2_inst2 (
-	.I(sdr_clkin),
+	.I(sdr_clk50),
 	.IOCLK(),
 	.DIVCLK(clkdiv),
 	.SERDESSTROBE()
@@ -135,7 +138,7 @@ PLL_ADV #(
 	.CLKOUT1(pllout1), /* < x4 clock for reads */
 	.CLKOUT2(pllout2), /* < x2 90 clock to generate memory clock, clock DQS and memory address and control signals. */
 	.CLKOUT3(pllout3), /* < x1 clock for system and memory controller */
-	.CLKOUT4(pllout4), /* < buffered clkin */
+	.CLKOUT4(pllout4), /* < buffered clk50 */
 	.CLKOUT5(),
 	.CLKOUTDCM0(),
 	.CLKOUTDCM1(),
@@ -191,11 +194,55 @@ BUFG bufg_x1(
 	.O(sys_clk)
 );
 
-/* Ethernet PHY */
+
+/* 
+ * SDRAM clock
+ */
+
+ODDR2 #(
+	.DDR_ALIGNMENT("NONE"),
+	.INIT(1'b0),
+	.SRTYPE("SYNC")
+) sd_clk_forward_p (
+	.Q(sd_clk_out_p),
+	.C0(clk2x_270),
+	.C1(~clk2x_270),
+	.CE(1'b1),
+	.D0(1'b1),
+	.D1(1'b0),
+	.R(1'b0),
+	.S(1'b0)
+);
+ODDR2 #(
+	.DDR_ALIGNMENT("NONE"),
+	.INIT(1'b0),
+	.SRTYPE("SYNC")
+) sd_clk_forward_n (
+	.Q(sd_clk_out_n),
+	.C0(clk2x_270),
+	.C1(~clk2x_270),
+	.CE(1'b1),
+	.D0(1'b0),
+	.D1(1'b1),
+	.R(1'b0),
+	.S(1'b0)
+);
+
+/*
+ * Ethernet PHY 
+ */
+
 always @(posedge pllout4)
 	eth_clk_pad <= ~eth_clk_pad;
 
-/* VGA clock */
+/* Let the synthesizer insert the appropriate buffers */
+assign eth_rx_clk = eth_rx_clk_pad;
+assign eth_tx_clk = eth_tx_clk_pad;
+
+/*
+ * VGA clock
+ */
+
 // TODO: hook up the reprogramming interface
 DCM_CLKGEN #(
 	.CLKFXDV_DIVIDE(2),

@@ -8,7 +8,6 @@ from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
 	identifier, timer, minimac3, framebuffer, asmiprobe
 from cmacros import get_macros
-from constraints import Constraints
 
 MHz = 1000000
 clk_freq = (83 + Fraction(1, 3))*MHz
@@ -58,103 +57,90 @@ def interrupt_n(name):
 
 version = get_macros("common/version.h")["VERSION"][1:-1]
 
-def get():
-	#
-	# ASMI
-	#
-	asmicon0 = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
-	asmiport_wb = asmicon0.hub.get_port()
-	asmiport_fb = asmicon0.hub.get_port(2)
-	asmicon0.finalize()
-	
-	#
-	# DFI
-	#
-	ddrphy0 = s6ddrphy.S6DDRPHY(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d)
-	dfii0 = dfii.DFIInjector(csr_offset("DFII"),
-		sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d, sdram_phy.nphases)
-	dficon0 = dfi.Interconnect(dfii0.master, ddrphy0.dfi)
-	dficon1 = dfi.Interconnect(asmicon0.dfi, dfii0.slave)
+class SoC:
+	def __init__(self):
+		#
+		# ASMI
+		#
+		self.asmicon = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
+		asmiport_wb = self.asmicon.hub.get_port()
+		asmiport_fb = self.asmicon.hub.get_port(2)
+		self.asmicon.finalize()
+		
+		#
+		# DFI
+		#
+		self.ddrphy = s6ddrphy.S6DDRPHY(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d)
+		self.dfii = dfii.DFIInjector(csr_offset("DFII"),
+			sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d, sdram_phy.nphases)
+		self.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)
+		self.dficon1 = dfi.Interconnect(self.asmicon.dfi, self.dfii.slave)
 
-	#
-	# WISHBONE
-	#
-	cpu0 = lm32.LM32()
-	norflash0 = norflash.NorFlash(25, 12)
-	sram0 = wishbone.SRAM(sram_size)
-	minimac0 = minimac3.MiniMAC(csr_offset("MINIMAC"))
-	wishbone2asmi0 = wishbone2asmi.WB2ASMI(l2_size//4, asmiport_wb)
-	wishbone2csr0 = wishbone2csr.WB2CSR()
-	
-	# norflash     0x00000000 (shadow @0x80000000)
-	# SRAM/debug   0x10000000 (shadow @0x90000000)
-	# USB          0x20000000 (shadow @0xa0000000)
-	# Ethernet     0x30000000 (shadow @0xb0000000)
-	# SDRAM        0x40000000 (shadow @0xc0000000)
-	# CSR bridge   0x60000000 (shadow @0xe0000000)
-	wishbonecon0 = wishbone.InterconnectShared(
-		[
-			cpu0.ibus,
-			cpu0.dbus
-		], [
-			(lambda a: a[26:29] == 0, norflash0.bus),
-			(lambda a: a[26:29] == 1, sram0.bus),
-			(lambda a: a[26:29] == 3, minimac0.membus),
-			(lambda a: a[27:29] == 2, wishbone2asmi0.wishbone),
-			(lambda a: a[27:29] == 3, wishbone2csr0.wishbone)
-		],
-		register=True)
-	
-	#
-	# CSR
-	#
-	uart0 = uart.UART(csr_offset("UART"), clk_freq, baud=115200)
-	identifier0 = identifier.Identifier(csr_offset("ID"), 0x4D31, version, int(clk_freq))
-	timer0 = timer.Timer(csr_offset("TIMER0"))
-	fb0 = framebuffer.Framebuffer(csr_offset("FB"), asmiport_fb)
-	asmiprobe0 = asmiprobe.ASMIprobe(csr_offset("ASMIPROBE"), asmicon0.hub)
-	csrcon0 = csr.Interconnect(wishbone2csr0.csr, [
-		uart0.bank.bus,
-		dfii0.bank.bus,
-		identifier0.bank.bus,
-		timer0.bank.bus,
-		minimac0.bank.bus,
-		fb0.bank.bus,
-		asmiprobe0.bank.bus
-	])
-	
-	#
-	# Interrupts
-	#
-	interrupts = Fragment([
-		cpu0.interrupt[interrupt_n("UART")].eq(uart0.events.irq),
-		cpu0.interrupt[interrupt_n("TIMER0")].eq(timer0.events.irq),
-		cpu0.interrupt[interrupt_n("MINIMAC")].eq(minimac0.events.irq)
-	])
-	
-	#
-	# Housekeeping
-	#
-	crg0 = m1crg.M1CRG(50*MHz, clk_freq)
-	
-	ddrphy_strobes = Fragment([
-		ddrphy0.clk4x_wr_strb.eq(crg0.clk4x_wr_strb),
-		ddrphy0.clk4x_rd_strb.eq(crg0.clk4x_rd_strb)
-	])
-	frag = autofragment.from_local() \
-		+ interrupts \
-		+ ddrphy_strobes
-	cst = Constraints(crg0, norflash0, uart0, ddrphy0, minimac0, fb0)
-	src_verilog, vns = verilog.convert(frag,
-		cst.get_ios(),
-		name="soc",
-		clock_domains={
-			"sys": crg0.cd_sys,
-			"sys2x_270": crg0.cd_sys2x_270,
-			"sys4x_wr": crg0.cd_sys4x_wr,
-			"sys4x_rd": crg0.cd_sys4x_rd,
-			"vga": crg0.cd_vga
-		},
-		return_ns=True)
-	src_ucf = cst.get_ucf(vns)
-	return (src_verilog, src_ucf)
+		#
+		# WISHBONE
+		#
+		self.cpu = lm32.LM32()
+		self.norflash = norflash.NorFlash(25, 12)
+		self.sram = wishbone.SRAM(sram_size)
+		self.minimac = minimac3.MiniMAC(csr_offset("MINIMAC"))
+		self.wishbone2asmi = wishbone2asmi.WB2ASMI(l2_size//4, asmiport_wb)
+		self.wishbone2csr = wishbone2csr.WB2CSR()
+		
+		# norflash     0x00000000 (shadow @0x80000000)
+		# SRAM/debug   0x10000000 (shadow @0x90000000)
+		# USB          0x20000000 (shadow @0xa0000000)
+		# Ethernet     0x30000000 (shadow @0xb0000000)
+		# SDRAM        0x40000000 (shadow @0xc0000000)
+		# CSR bridge   0x60000000 (shadow @0xe0000000)
+		self.wishbonecon = wishbone.InterconnectShared(
+			[
+				self.cpu.ibus,
+				self.cpu.dbus
+			], [
+				(lambda a: a[26:29] == 0, self.norflash.bus),
+				(lambda a: a[26:29] == 1, self.sram.bus),
+				(lambda a: a[26:29] == 3, self.minimac.membus),
+				(lambda a: a[27:29] == 2, self.wishbone2asmi.wishbone),
+				(lambda a: a[27:29] == 3, self.wishbone2csr.wishbone)
+			],
+			register=True)
+		
+		#
+		# CSR
+		#
+		self.uart = uart.UART(csr_offset("UART"), clk_freq, baud=115200)
+		self.identifier = identifier.Identifier(csr_offset("ID"), 0x4D31, version, int(clk_freq))
+		self.timer = timer.Timer(csr_offset("TIMER0"))
+		self.fb = framebuffer.Framebuffer(csr_offset("FB"), asmiport_fb)
+		self.asmiprobe = asmiprobe.ASMIprobe(csr_offset("ASMIPROBE"), self.asmicon.hub)
+		self.csrcon = csr.Interconnect(self.wishbone2csr.csr, [
+			self.uart.bank.bus,
+			self.dfii.bank.bus,
+			self.identifier.bank.bus,
+			self.timer.bank.bus,
+			self.minimac.bank.bus,
+			self.fb.bank.bus,
+			self.asmiprobe.bank.bus
+		])
+		
+		#
+		# Clocking
+		#
+		self.crg = m1crg.M1CRG(50*MHz, clk_freq)
+
+	def get_fragment(self):
+		comb = [
+			#
+			# Interrupts
+			#
+			self.cpu.interrupt[interrupt_n("UART")].eq(self.uart.events.irq),
+			self.cpu.interrupt[interrupt_n("TIMER0")].eq(self.timer.events.irq),
+			self.cpu.interrupt[interrupt_n("MINIMAC")].eq(self.minimac.events.irq),
+			#
+			# DDR PHY strobes
+			#
+			self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
+			self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
+		]
+		glue = Fragment(comb)
+		return glue + autofragment.from_attributes(self)

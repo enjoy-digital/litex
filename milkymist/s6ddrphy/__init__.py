@@ -16,8 +16,6 @@ class S6DDRPHY:
 			("clk4x_wr_strb", 1, Instance.Input),
 			("clk4x_rd_strb", 1, Instance.Input),
 			
-			("sd_clk_out_p", 1, Instance.Output),
-			("sd_clk_out_n", 1, Instance.Output),
 			("sd_a", a, Instance.Output),
 			("sd_ba", ba, Instance.Output),
 			("sd_cs_n", 1, Instance.Output),

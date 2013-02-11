@@ -59,8 +59,6 @@ module s6ddrphy #(
 	output dfi_rddata_valid_w1,
 	
 	/* DDR SDRAM pads */
-	output sd_clk_out_p,
-	output sd_clk_out_n,
 	output reg [NUM_AD-1:0] sd_a,
 	output reg [NUM_BA-1:0] sd_ba,
 	output reg sd_cs_n,
@@ -71,38 +69,6 @@ module s6ddrphy #(
 	inout [NUM_D/2-1:0] sd_dq,
 	output [NUM_D/16-1:0] sd_dm,
 	inout [NUM_D/16-1:0] sd_dqs
-);
-
-/* 
- * SDRAM clock
- */
-ODDR2 #(
-	.DDR_ALIGNMENT("NONE"),
-	.INIT(1'b0),
-	.SRTYPE("SYNC")
-) sd_clk_forward_p (
-	.Q(sd_clk_out_p),
-	.C0(clk2x_270),
-	.C1(~clk2x_270),
-	.CE(1'b1),
-	.D0(1'b1),
-	.D1(1'b0),
-	.R(1'b0),
-	.S(1'b0)
-);
-ODDR2 #(
-	.DDR_ALIGNMENT("NONE"),
-	.INIT(1'b0),
-	.SRTYPE("SYNC")
-) sd_clk_forward_n (
-	.Q(sd_clk_out_n),
-	.C0(clk2x_270),
-	.C1(~clk2x_270),
-	.CE(1'b1),
-	.D0(1'b0),
-	.D1(1'b1),
-	.R(1'b0),
-	.S(1'b0)
 );
 
 /* 
