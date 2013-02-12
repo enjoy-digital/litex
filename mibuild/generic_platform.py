@@ -182,6 +182,7 @@ class GenericPlatform:
 			language = tools.language_by_filename(filename)
 		if language is None:
 			language = "verilog" # default to Verilog
+		filename = os.path.abspath(filename)
 		self.sources.append((filename, language))
 
 	def add_sources(self, path, *filenames, language=None):
