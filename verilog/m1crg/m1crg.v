@@ -204,7 +204,7 @@ ODDR2 #(
 	.INIT(1'b0),
 	.SRTYPE("SYNC")
 ) sd_clk_forward_p (
-	.Q(sd_clk_out_p),
+	.Q(ddr_clk_pad_p),
 	.C0(clk2x_270),
 	.C1(~clk2x_270),
 	.CE(1'b1),
@@ -218,7 +218,7 @@ ODDR2 #(
 	.INIT(1'b0),
 	.SRTYPE("SYNC")
 ) sd_clk_forward_n (
-	.Q(sd_clk_out_n),
+	.Q(ddr_clk_pad_n),
 	.C0(clk2x_270),
 	.C1(~clk2x_270),
 	.CE(1'b1),
@@ -233,7 +233,7 @@ ODDR2 #(
  */
 
 always @(posedge pllout4)
-	eth_clk_pad <= ~eth_clk_pad;
+	eth_phy_clk_pad <= ~eth_phy_clk_pad;
 
 /* Let the synthesizer insert the appropriate buffers */
 assign eth_rx_clk = eth_rx_clk_pad;
