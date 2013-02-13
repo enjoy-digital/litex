@@ -35,7 +35,7 @@ def _lookup(description, name, number):
 	for resource in description:
 		if resource[0] == name and (number is None or resource[1] == number):
 			return resource
-	raise ConstraintError("Resource not found: " + name + "." + str(number))
+	raise ConstraintError("Resource not found: " + name + ":" + str(number))
 		
 def _resource_type(resource, name_map):
 	t = None
@@ -91,6 +91,7 @@ class ConstraintManager:
 		self.description = description
 		self.requests = []
 		self.platform_commands = []
+		self.io_signals = set()
 		
 	def request(self, name, number=None, obj=None, name_map=lambda s: s):
 		r = _lookup(self.description, name, number)
@@ -98,18 +99,24 @@ class ConstraintManager:
 		
 		# If obj is None, then create it.
 		# If it already exists, do some sanity checking.
+		# Update io_signals at the same time.
 		if obj is None:
 			if isinstance(t, int):
 				obj = Signal(t, name_override=name_map(r[0]))
+				self.io_signals.add(obj)
 			else:
 				obj = Record(t)
+				for sig in obj.flatten():
+					self.io_signals.add(sig)
 		else:
 			if isinstance(t, int):
 				assert(isinstance(obj, Signal) and obj.nbits == t)
+				self.io_signals.add(obj)
 			else:
 				for attr, nbits in t:
 					sig = getattr(obj, attr)
 					assert(isinstance(sig, Signal) and sig.nbits == nbits)
+					self.io_signals.add(sig)
 
 		# Register the request
 		self.requests.append((name, number, obj, name_map))
@@ -120,16 +127,7 @@ class ConstraintManager:
 		self.platform_commands.append((command, signals))
 	
 	def get_io_signals(self):
-		s = set()
-		for req in self.requests:
-			obj = req[2]
-			if isinstance(obj, Signal):
-				s.add(obj)
-			else:
-				for p in obj.__dict__.values():
-					if isinstance(p, Signal):
-						s.add(p)
-		return s
+		return self.io_signals
 	
 	def get_sig_constraints(self):
 		r = []
@@ -159,10 +157,10 @@ class ConstraintManager:
 		return self.platform_commands
 
 	def save(self):
-		return copy(self.requests), copy(self.platform_commands)
+		return copy(self.requests), copy(self.platform_commands), copy(self.io_signals)
 
 	def restore(self, backup):
-		self.request, self.platform_commands = backup
+		self.request, self.platform_commands, self.io_signals = backup
 
 class GenericPlatform:
 	def __init__(self, device, io, default_crg_factory=None):
