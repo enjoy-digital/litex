@@ -163,10 +163,13 @@ class ConstraintManager:
 		self.request, self.platform_commands, self.io_signals = backup
 
 class GenericPlatform:
-	def __init__(self, device, io, default_crg_factory=None):
+	def __init__(self, device, io, default_crg_factory=None, name=None):
 		self.device = device
 		self.constraint_manager = ConstraintManager(io)
 		self.default_crg_factory = default_crg_factory
+		if name is None:
+			name = self.__module__.split(".")[-1]
+		self.name = name
 		self.sources = []
 
 	def request(self, *args, **kwargs):
