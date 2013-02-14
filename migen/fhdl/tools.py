@@ -64,7 +64,7 @@ def list_inst_ios(i, ins, outs, inouts):
 			return set.union(*(list_inst_ios(e, ins, outs, inouts) for e in i))
 		else:
 			return set()
-	else:
+	elif isinstance(i, Instance):
 		subsets = [list_signals(item.expr) for item in filter(lambda x:
 			(ins and isinstance(x, Instance.Input))
 			or (outs and isinstance(x, Instance.Output))
@@ -74,6 +74,33 @@ def list_inst_ios(i, ins, outs, inouts):
 			return set.union(*subsets)
 		else:
 			return set()
+	else:
+		return set()
+
+def list_tristate_ios(i, ins, outs, inouts):
+	if isinstance(i, Fragment):
+		return list_tristate_ios(i.tristates, ins, outs, inouts)
+	elif isinstance(i, set):
+		if i:
+			return set.union(*(list_tristate_ios(e, ins, outs, inouts) for e in i))
+		else:
+			return set()
+	elif isinstance(i, Tristate):
+		r = set()
+		if inouts:
+			r.update(list_signals(i.target))
+		if ins:
+			r.update(list_signals(i.o))
+			r.update(list_signals(i.oe))
+		if outs:
+			r.update(list_signals(i.i))
+		return r
+	else:
+		return set()
+
+def list_it_ios(i, ins, outs, inouts):
+	return list_inst_ios(i, ins, outs, inouts) \
+		| list_tristate_ios(i, ins, outs, inouts)
 
 def list_mem_ios(m, ins, outs):
 	if isinstance(m, Fragment):

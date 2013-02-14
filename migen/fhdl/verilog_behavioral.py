@@ -1,6 +1,7 @@
 from migen.fhdl.structure import *
+from migen.fhdl.tools import *
 
-def handler(memory, ns, clock_domains):
+def mem_handler(memory, ns, clock_domains):
 	r = ""
 	gn = ns.get_name
 	adrbits = bits_for(memory.depth-1)
@@ -71,4 +72,15 @@ def handler(memory, ns, clock_domains):
 			r += "\t" + gn(memory) + "[" + str(i) + "] <= " + str(memory.width) + "'d" + str(c) + ";\n"
 		r += "end\n\n"
 	
+	return r
+
+def tristate_handler(tristate, ns):
+	gn = ns.get_name
+	w, s = value_bits_sign(tristate.target)
+	r = "assign " + gn(tristate.target) + " = " \
+		+ gn(tristate.oe) + " ? " + gn(tristate.o) \
+		+ " : " + str(w) + "'bz;\n"
+	if tristate.i is not None:
+		r += "assign " + gn(tristate.i) + " = " + gn(tristate.target) + ";\n"
+	r += "\n"
 	return r

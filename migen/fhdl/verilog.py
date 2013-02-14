@@ -5,7 +5,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign
 from migen.fhdl.tools import *
 from migen.fhdl.namer import Namespace, build_namespace
-from migen.fhdl import verilog_mem_behavioral
+from migen.fhdl import verilog_behavioral as behavioral
 
 def _printsig(ns, s):
 	if s.signed:
@@ -135,11 +135,11 @@ def _list_comb_wires(f):
 	return r
 
 def _printheader(f, ios, name, ns):
-	sigs = list_signals(f) | list_inst_ios(f, True, True, True) | list_mem_ios(f, True, True)
-	inst_mem_outs = list_inst_ios(f, False, True, False) | list_mem_ios(f, False, True)
-	inouts = list_inst_ios(f, False, False, True)
-	targets = list_targets(f) | inst_mem_outs
-	wires = _list_comb_wires(f) | inst_mem_outs
+	sigs = list_signals(f) | list_it_ios(f, True, True, True) | list_mem_ios(f, True, True)
+	it_mem_outs = list_it_ios(f, False, True, False) | list_mem_ios(f, False, True)
+	inouts = list_it_ios(f, False, False, True)
+	targets = list_targets(f) | it_mem_outs
+	wires = _list_comb_wires(f) | it_mem_outs
 	r = "module " + name + "(\n"
 	firstp = True
 	for sig in sorted(ios, key=lambda x: x.huid):
@@ -259,6 +259,12 @@ def _printinstances(f, ns, clock_domains):
 		r += ");\n\n"
 	return r
 
+def _printtristates(f, ns, handler):
+	r = ""
+	for tristate in f.tristates:
+		r += handler(tristate, ns)
+	return r
+
 def _printmemories(f, ns, handler, clock_domains):
 	r = ""
 	for memory in f.memories:
@@ -270,7 +276,7 @@ def _printinit(f, ios, ns):
 	signals = list_signals(f) \
 		- ios \
 		- list_targets(f) \
-		- list_inst_ios(f, False, True, False) \
+		- list_it_ios(f, False, True, False) \
 		- list_mem_ios(f, False, True)
 	if signals:
 		r += "initial begin\n"
@@ -282,7 +288,8 @@ def _printinit(f, ios, ns):
 def convert(f, ios=None, name="top",
   clock_domains=None,
   return_ns=False,
-  memory_handler=verilog_mem_behavioral.handler,
+  memory_handler=behavioral.mem_handler,
+  tristate_handler=behavioral.tristate_handler,
   display_run=False):
 	if ios is None:
 		ios = set()
@@ -297,7 +304,7 @@ def convert(f, ios=None, name="top",
 	f = lower_arrays(f)
 
 	ns = build_namespace(list_signals(f) \
-		| list_inst_ios(f, True, True, True) \
+		| list_it_ios(f, True, True, True) \
 		| list_mem_ios(f, True, True) \
 		| ios)
 
@@ -306,6 +313,7 @@ def convert(f, ios=None, name="top",
 	r += _printcomb(f, ns, display_run)
 	r += _printsync(f, ns, clock_domains)
 	r += _printinstances(f, ns, clock_domains)
+	r += _printtristates(f, ns, tristate_handler)
 	r += _printmemories(f, ns, memory_handler, clock_domains)
 	r += _printinit(f, ios, ns)
 	r += "endmodule\n"

@@ -229,6 +229,13 @@ class Array(list):
 		else:
 			return list.__getitem__(self, key)
 
+class Tristate:
+	def __init__(self, target, o, oe, i=None):
+		self.target = target
+		self.o = o
+		self.oe = oe
+		self.i = i
+
 # extras
 
 class Instance(HUID):
@@ -327,10 +334,11 @@ class Memory(HUID):
 #
 
 class Fragment:
-	def __init__(self, comb=None, sync=None, instances=None, memories=None, sim=None):
+	def __init__(self, comb=None, sync=None, instances=None, tristates=None, memories=None, sim=None):
 		if comb is None: comb = []
 		if sync is None: sync = dict()
 		if instances is None: instances = set()
+		if tristates is None: tristates = set()
 		if memories is None: memories = set()
 		if sim is None: sim = []
 		
@@ -340,9 +348,9 @@ class Fragment:
 		self.comb = comb
 		self.sync = sync
 		self.instances = set(instances)
+		self.tristates = set(tristates)
 		self.memories = set(memories)
 		self.sim = sim
-		
 	
 	def __add__(self, other):
 		newsync = defaultdict(list)
@@ -352,6 +360,7 @@ class Fragment:
 			newsync[k].extend(v)
 		return Fragment(self.comb + other.comb, newsync,
 			self.instances | other.instances,
+			self.tristates | other.tristates,
 			self.memories | other.memories,
 			self.sim + other.sim)
 	
