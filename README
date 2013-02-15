@@ -1,0 +1,26 @@
+Mibuild (Milkymist Build system)
+  a build system and board database for Migen-based FPGA designs
+
+6-ligne intro:
+
+from migen.fhdl.structure import *
+from mibuild.platforms import m1
+plat = m1.Platform()
+led = plat.request("user_led")
+f = Fragment([led.eq(counter[25])], [counter.eq(counter + 1)])
+plat.build_cmdline(f)
+
+Code repository:
+https://github.com/milkymist/mibuild
+Migen:
+https://github.com/milkymist/migen
+Experimental version of the Milkymist SoC based on Migen:
+https://github.com/milkymist/milkymist-ng
+
+Mibuild is designed for Python 3.
+
+Send questions, comments and patches to devel [AT] lists.milkymist.org
+Description files for new boards welcome.
+We are also on IRC: #milkymist on the Freenode network.
+
+Mibuild is (c) 2013 Sebastien Bourdeauducq and GPLv3 (see LICENSE file).
