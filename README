@@ -17,17 +17,15 @@ production version of Milkymist SoC, visit:
 [> Instructions (software)
 --------------------------
 1. Compile and install binutils. Take the latest version from GNU.
-  ./configure --target=lm32-elf
+  mkdir build && cd build
+  ../configure --target=lm32-elf
   make
   make install
   
-2. Compile and install LLVM and Clang.
-  git clone git://github.com/milkymist/llvm-lm32.git
-  cd llvm-lm32/tools
-  git clone git://github.com/milkymist/clang-lm32.git clang
-  cd ..
-  mkdir build
-  cmake ..
+2. Compile and install GCC 4.5. Take gcc-core and gcc-g++ from GNU.
+  rm -rf libstdc++-v3
+  mkdir build && cd build
+  ../configure --target=lm32-elf --enable-languages="c,c++" --disable-libgcc --disable-libssp
   make
   make install
 
@@ -42,8 +40,7 @@ production version of Milkymist SoC, visit:
   make flash
 
 The second command requires m1nor, FJMEM and UrJTAG.
-These tools can be found respectively at:
-  http://projects.qi-hardware.com/index.php/p/wernermisc/
+These tools can be found at:
   https://github.com/milkymist/fjmem-m1
   http://urjtag.org
   
@@ -84,7 +81,7 @@ The authors grant the additional permissions that the code can be used in
 conjunction with the LatticeMico32 CPU core from Lattice.
 
 Unless otherwise noted, Milkymist-NG's source code is copyright (C)
-2011-2012 Sebastien Bourdeauducq. Other authors retain ownership of their
+2011-2013 Sebastien Bourdeauducq. Other authors retain ownership of their
 contributions. If a submission can reasonably be considered independently
 copyrightable, it's yours and I encourage you to claim it with
 appropriate copyright notices. This submission then falls under the

@@ -1,7 +1,6 @@
 __pycache__
 build/*
 *.o
-*.ts
 *.d
 *.a
 *.bin
