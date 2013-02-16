@@ -1,9 +1,9 @@
-all: build/soc.bit
+all: build/top.bit
 
-build/soc.bit build/soc.bin:
+build/top.bit build/top.bin:
 	./build.py
 
-load: build/soc.bit
+load: build/top.bit
 	jtag -n load.jtag
 
 clean:
