@@ -24,6 +24,9 @@ bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 		-lbase -lcompiler-rt
 	chmod -x $@
 
+main.o: main.c
+	$(compile-dep)
+
 %.o: %.c
 	$(compile-dep)
 
@@ -38,6 +41,6 @@ flash: bios.bin
 	m1nor bios.bin
 
 clean:
-	rm -f $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
+	rm -f $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
 
-.PHONY: clean libs flash
+.PHONY: main.o clean libs flash
