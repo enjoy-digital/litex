@@ -427,7 +427,7 @@ static const char banner[] =
 	"Built "__DATE__" "__TIME__"\n\n"
 	"This program is free software: you can redistribute it and/or modify\n"
 	"it under the terms of the GNU General Public License as published by\n"
-	"the Free Software Foundation, version 3 of the License.\n";
+	"the Free Software Foundation, version 3 of the License.";
 
 static void readstr(char *s, int size)
 {
@@ -520,7 +520,7 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
-	printf(banner);
+	puts(banner);
 	crcbios();
 	if(rescue)
 		printf("Rescue mode\n");
