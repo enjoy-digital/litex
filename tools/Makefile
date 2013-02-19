@@ -1,5 +1,5 @@
-TARGETS=mkmmimg flterm
-CC=clang
+TARGETS=mkmmimg flterm byteswap
+CC=gcc
 
 all: $(TARGETS)
 

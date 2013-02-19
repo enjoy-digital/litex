@@ -8,3 +8,4 @@ build/*
 tools/bin2hex
 tools/flterm
 tools/mkmmimg
+tools/byteswap
