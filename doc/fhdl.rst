@@ -180,6 +180,25 @@ Options to ``get_port`` are:
 
 Migen generates behavioural V*HDL code that should be compatible with all simulators and, if the number of ports is <= 2, most FPGA synthesizers. If a specific code is needed, the memory generator function can be overriden using the ``memory_handler`` parameter of the conversion function.
 
+Tri-state I/O
+=============
+A triplet (O, OE, I) of one-way signals defining a tri-state I/O port is represented by the ``TSTriple`` object. Such objects are only containers for signals that are intended to be later connected to a tri-state I/O buffer, and cannot be used in fragments. Such objects, however, should be kept in the design as long as possible as they allow the individual one-way signals to be manipulated in a non-ambiguous way.
+
+The object that can be used in a ``Fragment`` is ``Tristate``, and it behaves exactly like an instance of a tri-state I/O buffer that would be defined as follows: ::
+
+  Instance("Tristate",
+    Instance.Inout("target", target),
+    Instance.Input("o", o),
+    Instance.Input("oe", oe),
+    Instance.Output("i", i)
+  )
+
+Signals ``target``, ``o`` and ``i`` can have any width, while ``oe`` is 1-bit wide. The ``target`` signal should go to a port and not be used elsewhere in the design. Like modern FPGA architectures, Migen does not support internal tri-states.
+
+A ``Tristate`` object can be created from a ``TSTriple`` object by calling the ``get_tristate`` method.
+
+By default, Migen emits technology-independent behavioral code for a tri-state buffer. If a specific code is needed, the tristate generator function can be overriden using the ``tristate_handler`` parameter of the conversion function.
+
 Fragments
 *********
 A "fragment" is a unit of logic, which is composed of:
@@ -187,6 +206,7 @@ A "fragment" is a unit of logic, which is composed of:
 * A list of combinatorial statements.
 * A list of synchronous statements, or a clock domain name -> synchronous statements dictionary.
 * A list of instances.
+* A list of tri-states.
 * A list of memories.
 * A list of simulation functions (see :ref:`simulating`).
 
