@@ -236,6 +236,15 @@ class Tristate:
 		self.oe = oe
 		self.i = i
 
+class TSTriple:
+	def __init__(self, bits_sign=None, min=None, max=None, reset_o=0, reset_oe=0):
+		self.o = Signal(bits_sign, min=min, max=max, reset=reset_o)
+		self.oe = Signal(reset=reset_oe)
+		self.i = Signal(bits_sign, min=min, max=max)
+
+	def get_tristate(self, target):
+		return Tristate(target, self.o, self.oe, self.i)
+
 # extras
 
 class Instance(HUID):
