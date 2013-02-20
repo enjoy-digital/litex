@@ -105,7 +105,7 @@ class ConstraintManager:
 				obj = Signal(t, name_override=name_map(r[0]))
 				self.io_signals.add(obj)
 			else:
-				obj = Record(t)
+				obj = Record(t, name=r[0])
 				for sig in obj.flatten():
 					self.io_signals.add(sig)
 		else:
