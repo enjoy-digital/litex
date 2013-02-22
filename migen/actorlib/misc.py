@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
-from migen.corelogic.record import *
-from migen.corelogic.fsm import *
+from migen.genlib.record import *
+from migen.genlib.fsm import *
 from migen.flow.actor import *
 
 # Generates integers from start to maximum-1

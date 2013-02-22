@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.corelogic.record import *
+from migen.genlib.record import *
 
 L = [
 	("x", 10, 8),

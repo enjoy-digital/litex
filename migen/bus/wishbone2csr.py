@@ -1,7 +1,7 @@
 from migen.bus import wishbone
 from migen.bus import csr
 from migen.fhdl.structure import *
-from migen.corelogic.misc import timeline
+from migen.genlib.misc import timeline
 
 class WB2CSR:
 	def __init__(self):

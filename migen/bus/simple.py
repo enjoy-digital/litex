@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.corelogic.misc import optree
+from migen.genlib.misc import optree
 
 (S_TO_M, M_TO_S) = range(2)
 

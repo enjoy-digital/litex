@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
-from migen.corelogic.fsm import FSM
+from migen.genlib.fsm import FSM
 
 s = Signal()
 myfsm = FSM("FOO", "BAR")

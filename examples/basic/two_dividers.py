@@ -1,5 +1,5 @@
 from migen.fhdl import verilog
-from migen.corelogic import divider
+from migen.genlib import divider
 
 d1 = divider.Divider(16)
 d2 = divider.Divider(16)

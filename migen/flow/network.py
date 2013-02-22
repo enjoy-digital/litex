@@ -1,7 +1,7 @@
 from networkx import MultiDiGraph
 
 from migen.fhdl.structure import *
-from migen.corelogic.misc import optree
+from migen.genlib.misc import optree
 from migen.flow.actor import *
 from migen.flow import plumbing
 from migen.flow.isd import DFGReporter

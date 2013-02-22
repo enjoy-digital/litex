@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.corelogic.misc import optree
+from migen.genlib.misc import optree
 from migen.bus.transactions import *
 from migen.sim.generic import Proxy, PureSimulable
 

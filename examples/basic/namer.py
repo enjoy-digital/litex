@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
-from migen.corelogic.misc import optree
+from migen.genlib.misc import optree
 
 def gen_list(n):
 	s = [Signal() for i in range(n)]

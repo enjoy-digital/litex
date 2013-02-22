@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
-from migen.corelogic import roundrobin
-from migen.corelogic.misc import optree
+from migen.genlib import roundrobin
+from migen.genlib.misc import optree
 from migen.bus.simple import *
 from migen.bus.transactions import *
 from migen.sim.generic import Proxy, PureSimulable

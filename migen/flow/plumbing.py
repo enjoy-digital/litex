@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
-from migen.corelogic.record import *
-from migen.corelogic.misc import optree
+from migen.genlib.record import *
+from migen.genlib.misc import optree
 
 class Buffer(PipelinedActor):
 	def __init__(self, layout):

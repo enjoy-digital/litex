@@ -1,5 +1,5 @@
 from migen.fhdl import visit as fhdl
-from migen.corelogic.fsm import FSM
+from migen.genlib.fsm import FSM
 
 class AbstractNextState:
 	def __init__(self, target_state):

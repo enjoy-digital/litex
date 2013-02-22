@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
-from migen.corelogic.misc import optree
+from migen.genlib.misc import optree
 from migen.fhdl import autofragment
 from migen.sim.generic import Simulator, PureSimulable
 

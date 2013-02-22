@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.bank.description import *
-from migen.corelogic.misc import optree
+from migen.genlib.misc import optree
 
 class EventSource:
 	def __init__(self):

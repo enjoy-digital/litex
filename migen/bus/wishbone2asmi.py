@@ -1,9 +1,9 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 from migen.bus import wishbone
-from migen.corelogic.fsm import FSM
-from migen.corelogic.misc import split, displacer, chooser
-from migen.corelogic.record import Record
+from migen.genlib.fsm import FSM
+from migen.genlib.misc import split, displacer, chooser
+from migen.genlib.record import Record
 
 # cachesize (in 32-bit words) is the size of the data store, must be a power of 2
 class WB2ASMI:

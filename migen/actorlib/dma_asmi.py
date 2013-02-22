@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
-from migen.corelogic.buffers import ReorderBuffer
+from migen.genlib.buffers import ReorderBuffer
 
 class SequentialReader(Actor):
 	def __init__(self, port):

@@ -1,4 +1,4 @@
-from migen.corelogic.complex import *
+from migen.genlib.complex import *
 from migen.fhdl import verilog
 
 w = Complex(32, 42)
