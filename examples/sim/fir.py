@@ -52,18 +52,18 @@ class TB(PureSimulable):
 
 def main():
 	# Compute filter coefficients with SciPy.
-	coef = signal.remez(80, [0, 0.1, 0.1, 0.5], [1, 0])
+	coef = signal.remez(30, [0, 0.1, 0.2, 0.4, 0.45, 0.5], [0, 1, 0])
 	fir = FIR(coef)
 	
 	# Simulate for different frequencies and concatenate
 	# the results.
 	in_signals = []
 	out_signals = []
-	for frequency in [0.05, 0.07, 0.1, 0.15, 0.2]:
+	for frequency in [0.05, 0.1, 0.25]:
 		tb = TB(fir, frequency)
 		fragment = autofragment.from_local()
 		sim = Simulator(fragment)
-		sim.run(100)
+		sim.run(200)
 		del sim
 		in_signals += tb.inputs
 		out_signals += tb.outputs
