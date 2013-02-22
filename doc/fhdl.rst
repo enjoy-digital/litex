@@ -132,8 +132,27 @@ and write it with: ::
 
 Since they have no direct equivalent in Verilog, ``Array`` objects are lowered into multiplexers and conditional statements before the actual conversion takes place. Such lowering happens automatically without any user intervention.
 
-Special elements
-****************
+Specials
+********
+
+Tri-state I/O
+=============
+A triplet (O, OE, I) of one-way signals defining a tri-state I/O port is represented by the ``TSTriple`` object. Such objects are only containers for signals that are intended to be later connected to a tri-state I/O buffer, and cannot be used in fragments. Such objects, however, should be kept in the design as long as possible as they allow the individual one-way signals to be manipulated in a non-ambiguous way.
+
+The object that can be used in a ``Fragment`` is ``Tristate``, and it behaves exactly like an instance of a tri-state I/O buffer that would be defined as follows: ::
+
+  Instance("Tristate",
+    Instance.Inout("target", target),
+    Instance.Input("o", o),
+    Instance.Input("oe", oe),
+    Instance.Output("i", i)
+  )
+
+Signals ``target``, ``o`` and ``i`` can have any width, while ``oe`` is 1-bit wide. The ``target`` signal should go to a port and not be used elsewhere in the design. Like modern FPGA architectures, Migen does not support internal tri-states.
+
+A ``Tristate`` object can be created from a ``TSTriple`` object by calling the ``get_tristate`` method.
+
+By default, Migen emits technology-independent behavioral code for a tri-state buffer. If a specific code is needed, the tristate handler can be overriden using the appropriate parameter of the V*HDL conversion function.
 
 Instances
 =========
@@ -178,26 +197,7 @@ Options to ``get_port`` are:
 
 * ``clock_domain`` (default: ``"sys"``): the clock domain used for reading and writing from this port.
 
-Migen generates behavioural V*HDL code that should be compatible with all simulators and, if the number of ports is <= 2, most FPGA synthesizers. If a specific code is needed, the memory generator function can be overriden using the ``memory_handler`` parameter of the conversion function.
-
-Tri-state I/O
-=============
-A triplet (O, OE, I) of one-way signals defining a tri-state I/O port is represented by the ``TSTriple`` object. Such objects are only containers for signals that are intended to be later connected to a tri-state I/O buffer, and cannot be used in fragments. Such objects, however, should be kept in the design as long as possible as they allow the individual one-way signals to be manipulated in a non-ambiguous way.
-
-The object that can be used in a ``Fragment`` is ``Tristate``, and it behaves exactly like an instance of a tri-state I/O buffer that would be defined as follows: ::
-
-  Instance("Tristate",
-    Instance.Inout("target", target),
-    Instance.Input("o", o),
-    Instance.Input("oe", oe),
-    Instance.Output("i", i)
-  )
-
-Signals ``target``, ``o`` and ``i`` can have any width, while ``oe`` is 1-bit wide. The ``target`` signal should go to a port and not be used elsewhere in the design. Like modern FPGA architectures, Migen does not support internal tri-states.
-
-A ``Tristate`` object can be created from a ``TSTriple`` object by calling the ``get_tristate`` method.
-
-By default, Migen emits technology-independent behavioral code for a tri-state buffer. If a specific code is needed, the tristate generator function can be overriden using the ``tristate_handler`` parameter of the conversion function.
+Migen generates behavioural V*HDL code that should be compatible with all simulators and, if the number of ports is <= 2, most FPGA synthesizers. If a specific code is needed, the memory handler can be overriden using the appropriate parameter of the V*HDL conversion function.
 
 Fragments
 *********
@@ -205,14 +205,14 @@ A "fragment" is a unit of logic, which is composed of:
 
 * A list of combinatorial statements.
 * A list of synchronous statements, or a clock domain name -> synchronous statements dictionary.
-* A list of instances.
-* A list of tri-states.
-* A list of memories.
+* A set of specials (memories, instances, etc.)
 * A list of simulation functions (see :ref:`simulating`).
 
 Fragments can reference arbitrary signals, including signals that are referenced in other fragments. Fragments can be combined using the "+" operator, which returns a new fragment containing the concatenation of each matched pair of lists.
 
 Fragments can be passed to the back-end for conversion to Verilog.
+
+Specials are using a set, not a list, to facilitate sharing of certain elements by different components of a design. For example, one component may use a static memory buffer that another component would map onto a bus, using another port to that memory. Both components should reference the memory object in their fragments, but that memory should appear only once in the final design. The Python ``set`` provides this functionality.
 
 By convention, classes that generate logic implement a method called ``get_fragment``. When called, this method builds a new fragment implementing the desired functionality of the class, and returns it. This convention allows fragments to be built automatically by combining the fragments from all relevant objects in the local scope, by using the autofragment module.
 
@@ -224,7 +224,6 @@ Any FHDL fragment (except, of course, its simulation functions) can be converted
 Migen does not provide support for any specific synthesis tools or ASIC/FPGA technologies. Users must run themselves the generated code through the appropriate tool flow for hardware implementation.
 
 The Mibuild package, available separately from the Migen website, provides scripts to interface third-party FPGA tools to Migen and a database of boards for the easy deployment of designs.
-
 
 Multi-clock-domain designs
 **************************
