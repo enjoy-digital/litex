@@ -199,6 +199,13 @@ Options to ``get_port`` are:
 
 Migen generates behavioural V*HDL code that should be compatible with all simulators and, if the number of ports is <= 2, most FPGA synthesizers. If a specific code is needed, the memory handler can be overriden using the appropriate parameter of the V*HDL conversion function.
 
+Inline synthesis directives
+===========================
+
+Inline synthesis directives (pseudo-comments such as ``// synthesis attribute keep of clock_signal_name is true``) are supported using the ``SynthesisDirective`` object. Its constructor takes as parameters a string containing the body of the directive, and optional keyword parameters that are used to replace signal names similarly to the Python string method ``format``. The above example could be represented as follows: ::
+
+  SynthesisDirective("attribute keep of {clksig} is true", clksig=clock_domain.clk)
+
 Fragments
 *********
 A "fragment" is a unit of logic, which is composed of:

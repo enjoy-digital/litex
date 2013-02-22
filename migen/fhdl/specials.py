@@ -309,3 +309,18 @@ class Memory(Special):
 			r += "end\n\n"
 		
 		return r
+
+class SynthesisDirective(Special):
+	def __init__(self, template, **signals):
+		Special.__init__(self)
+		self.template = template
+		self.signals = signals
+
+	def list_ios(self, ins, outs, inouts):
+		return set()
+
+	@staticmethod
+	def emit_verilog(directive, ns, clock_domains):
+		name_dict = dict((k, ns.get_name(sig)) for k, sig in directive.signals.items())
+		formatted = directive.template.format(**name_dict)
+		return "// synthesis " + formatted + "\n"
