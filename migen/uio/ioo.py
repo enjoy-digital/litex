@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.flow.actor import *
 from migen.flow.transactions import *
 from migen.actorlib.sim import TokenExchanger
@@ -14,7 +15,7 @@ class UnifiedIOObject(Actor):
 		self._memories = set(v for v in self.buses.values() if isinstance(v, Memory))
 	
 	def get_fragment(self):
-		return Fragment(memories=self._memories)
+		return Fragment(specials={self._memories})
 
 (_WAIT_COMPLETE, _WAIT_POLL) = range(2)
 

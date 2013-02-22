@@ -2,6 +2,7 @@
 # License: GPLv3 with additional permissions (see README).
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.fhdl import verilog
 from migen.sim.ipc import *
 from migen.sim import icarus

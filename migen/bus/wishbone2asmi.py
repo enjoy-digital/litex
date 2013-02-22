@@ -1,5 +1,6 @@
-from migen.bus import wishbone
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
+from migen.bus import wishbone
 from migen.corelogic.fsm import FSM
 from migen.corelogic.misc import split, displacer, chooser
 from migen.corelogic.record import Record
@@ -136,5 +137,5 @@ class WB2ASMI:
 			fsm.next_state(fsm.TEST_HIT)
 		)
 		
-		return Fragment(comb, sync, memories=[data_mem, tag_mem]) \
+		return Fragment(comb, sync, specials={data_mem, tag_mem}) \
 			+ fsm.get_fragment()

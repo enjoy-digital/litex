@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.corelogic import roundrobin
 from migen.corelogic.misc import optree
 from migen.bus.simple import *
@@ -228,4 +229,4 @@ class SRAM:
 				self.bus.ack.eq(1)
 			)
 		]
-		return Fragment(comb, sync, memories=[self.mem])
+		return Fragment(comb, sync, specials={self.mem})

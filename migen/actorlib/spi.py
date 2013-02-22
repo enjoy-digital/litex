@@ -1,6 +1,7 @@
 # Simple Processor Interface
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.bank.description import *
 from migen.flow.actor import *
 
@@ -117,4 +118,4 @@ class Collector(Actor):
 			self._reg_rd.field.w.eq(rp.dat_r)
 		]
 		
-		return Fragment(comb, memories=[mem])
+		return Fragment(comb, specials={mem})

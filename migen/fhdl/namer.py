@@ -131,13 +131,10 @@ class Namespace:
 		self.pnd = pnd
 	
 	def get_name(self, sig):
-		if isinstance(sig, Memory):
-			sig_name = "mem"
+		if sig.name_override is not None:
+			sig_name = sig.name_override
 		else:
-			if sig.name_override is not None:
-				sig_name = sig.name_override
-			else:
-				sig_name = self.pnd[sig]
+			sig_name = self.pnd[sig]
 		try:
 			n = self.sigs[sig]
 		except KeyError:

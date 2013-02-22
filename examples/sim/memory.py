@@ -2,6 +2,7 @@
 # License: GPLv3 with additional permissions (see README).
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.sim.generic import Simulator
 
 class Mem:
@@ -24,7 +25,7 @@ class Mem:
 			s.interrupt = True
 	
 	def get_fragment(self):
-		return Fragment(memories=[self.mem], sim=[self.do_simulation])
+		return Fragment(specials={self.mem}, sim=[self.do_simulation])
 
 def main():
 	dut = Mem()

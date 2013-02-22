@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.bus.simple import *
 from migen.bus.transactions import *
 from migen.sim.generic import PureSimulable
@@ -97,4 +98,4 @@ class SRAM:
 			pv = self._page.field.r
 			comb.append(port.adr.eq(Cat(self.bus.adr[:len(port.adr)-len(pv)], pv)))
 		
-		return Fragment(comb, sync, memories=[self.mem])
+		return Fragment(comb, sync, specials={self.mem})

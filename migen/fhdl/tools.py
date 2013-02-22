@@ -56,68 +56,17 @@ def group_by_targets(sl):
 			groups.append((targets, [statement]))
 	return groups
 
-def list_inst_ios(i, ins, outs, inouts):
-	if isinstance(i, Fragment):
-		return list_inst_ios(i.instances, ins, outs, inouts)
-	elif isinstance(i, set):
-		if i:
-			return set.union(*(list_inst_ios(e, ins, outs, inouts) for e in i))
-		else:
-			return set()
-	elif isinstance(i, Instance):
-		subsets = [list_signals(item.expr) for item in filter(lambda x:
-			(ins and isinstance(x, Instance.Input))
-			or (outs and isinstance(x, Instance.Output))
-			or (inouts and isinstance(x, Instance.InOut)),
-			i.items)]
-		if subsets:
-			return set.union(*subsets)
-		else:
-			return set()
-	else:
-		return set()
+def list_special_ios(f, ins, outs, inouts):
+	r = set()
+	for special in f.specials:
+		r |= special.list_ios(ins, outs, inouts)
+	return r
 
-def list_tristate_ios(i, ins, outs, inouts):
-	if isinstance(i, Fragment):
-		return list_tristate_ios(i.tristates, ins, outs, inouts)
-	elif isinstance(i, set):
-		if i:
-			return set.union(*(list_tristate_ios(e, ins, outs, inouts) for e in i))
-		else:
-			return set()
-	elif isinstance(i, Tristate):
-		r = set()
-		if inouts:
-			r.update(list_signals(i.target))
-		if ins:
-			r.update(list_signals(i.o))
-			r.update(list_signals(i.oe))
-		if outs:
-			r.update(list_signals(i.i))
-		return r
-	else:
-		return set()
-
-def list_it_ios(i, ins, outs, inouts):
-	return list_inst_ios(i, ins, outs, inouts) \
-		| list_tristate_ios(i, ins, outs, inouts)
-
-def list_mem_ios(m, ins, outs):
-	if isinstance(m, Fragment):
-		return list_mem_ios(m.memories, ins, outs)
-	else:
-		s = set()
-		def add(*sigs):
-			for sig in sigs:
-				if sig is not None:
-					s.add(sig)
-		for x in m:
-			for p in x.ports:
-				if ins:
-					add(p.adr, p.we, p.dat_w, p.re)
-				if outs:
-					add(p.dat_r)
-		return s
+def list_clock_domains(f):
+	r = set(f.sync.keys())
+	for special in f.specials:
+		r |= special.get_clock_domains()
+	return r
 
 def is_variable(node):
 	if isinstance(node, Signal):

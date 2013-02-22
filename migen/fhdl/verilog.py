@@ -5,7 +5,6 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign
 from migen.fhdl.tools import *
 from migen.fhdl.namer import Namespace, build_namespace
-from migen.fhdl import verilog_behavioral as behavioral
 
 def _printsig(ns, s):
 	if s.signed:
@@ -135,9 +134,9 @@ def _list_comb_wires(f):
 	return r
 
 def _printheader(f, ios, name, ns):
-	sigs = list_signals(f) | list_it_ios(f, True, True, True) | list_mem_ios(f, True, True)
-	it_mem_outs = list_it_ios(f, False, True, False) | list_mem_ios(f, False, True)
-	inouts = list_it_ios(f, False, False, True)
+	sigs = list_signals(f) | list_special_ios(f, True, True, True)
+	it_mem_outs = list_special_ios(f, False, True, False)
+	inouts = list_special_ios(f, False, False, True)
 	targets = list_targets(f) | it_mem_outs
 	wires = _list_comb_wires(f) | it_mem_outs
 	r = "module " + name + "(\n"
@@ -209,66 +208,10 @@ def _printsync(f, ns, clock_domains):
 		r += "end\n\n"
 	return r
 
-def _printinstances(f, ns, clock_domains):
+def _printspecials(f, ns, clock_domains):
 	r = ""
-	for x in f.instances:
-		parameters = list(filter(lambda i: isinstance(i, Instance.Parameter), x.items))
-		r += x.of + " "
-		if parameters:
-			r += "#(\n"
-			firstp = True
-			for p in parameters:
-				if not firstp:
-					r += ",\n"
-				firstp = False
-				r += "\t." + p.name + "("
-				if isinstance(p.value, (int, bool)):
-					r += _printintbool(p.value)[0]
-				elif isinstance(p.value, float):
-					r += str(p.value)
-				elif isinstance(p.value, str):
-					r += "\"" + p.value + "\""
-				else:
-					raise TypeError
-				r += ")"
-			r += "\n) "
-		r += ns.get_name(x) 
-		if parameters: r += " "
-		r += "(\n"
-		firstp = True
-		for p in x.items:
-			if isinstance(p, Instance._IO):
-				name_inst = p.name
-				name_design = _printexpr(ns, p.expr)[0]
-			elif isinstance(p, Instance.ClockPort):
-				name_inst = p.name_inst
-				name_design = ns.get_name(clock_domains[p.domain].clk)
-				if p.invert:
-					name_design = "~" + name_design
-			elif isinstance(p, Instance.ResetPort):
-				name_inst = p.name_inst
-				name_design = ns.get_name(clock_domains[p.domain].rst)
-			else:
-				continue
-			if not firstp:
-				r += ",\n"
-			firstp = False
-			r += "\t." + name_inst + "(" + name_design + ")"
-		if not firstp:
-			r += "\n"
-		r += ");\n\n"
-	return r
-
-def _printtristates(f, ns, handler):
-	r = ""
-	for tristate in f.tristates:
-		r += handler(tristate, ns)
-	return r
-
-def _printmemories(f, ns, handler, clock_domains):
-	r = ""
-	for memory in f.memories:
-		r += handler(memory, ns, clock_domains)
+	for special in sorted(f.specials, key=lambda x: x.huid):
+		r += special.emit_verilog(special, ns, clock_domains)
 	return r
 
 def _printinit(f, ios, ns):
@@ -276,8 +219,7 @@ def _printinit(f, ios, ns):
 	signals = list_signals(f) \
 		- ios \
 		- list_targets(f) \
-		- list_it_ios(f, False, True, False) \
-		- list_mem_ios(f, False, True)
+		- list_special_ios(f, False, True, False)
 	if signals:
 		r += "initial begin\n"
 		for s in sorted(signals, key=lambda x: x.huid):
@@ -288,14 +230,12 @@ def _printinit(f, ios, ns):
 def convert(f, ios=None, name="top",
   clock_domains=None,
   return_ns=False,
-  memory_handler=behavioral.mem_handler,
-  tristate_handler=behavioral.tristate_handler,
   display_run=False):
 	if ios is None:
 		ios = set()
 	if clock_domains is None:
 		clock_domains = dict()
-		for d in f.get_clock_domains():
+		for d in list_clock_domains(f):
 			cd = ClockDomain(d)
 			clock_domains[d] = cd
 			ios.add(cd.clk)
@@ -304,17 +244,14 @@ def convert(f, ios=None, name="top",
 	f = lower_arrays(f)
 
 	ns = build_namespace(list_signals(f) \
-		| list_it_ios(f, True, True, True) \
-		| list_mem_ios(f, True, True) \
+		| list_special_ios(f, True, True, True) \
 		| ios)
 
 	r = "/* Machine-generated using Migen */\n"
 	r += _printheader(f, ios, name, ns)
 	r += _printcomb(f, ns, display_run)
 	r += _printsync(f, ns, clock_domains)
-	r += _printinstances(f, ns, clock_domains)
-	r += _printtristates(f, ns, tristate_handler)
-	r += _printmemories(f, ns, memory_handler, clock_domains)
+	r += _printspecials(f, ns, clock_domains)
 	r += _printinit(f, ios, ns)
 	r += "endmodule\n"
 

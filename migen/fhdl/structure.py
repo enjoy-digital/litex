@@ -229,126 +229,11 @@ class Array(list):
 		else:
 			return list.__getitem__(self, key)
 
-class Tristate:
-	def __init__(self, target, o, oe, i=None):
-		self.target = target
-		self.o = o
-		self.oe = oe
-		self.i = i
-
-class TSTriple:
-	def __init__(self, bits_sign=None, min=None, max=None, reset_o=0, reset_oe=0):
-		self.o = Signal(bits_sign, min=min, max=max, reset=reset_o)
-		self.oe = Signal(reset=reset_oe)
-		self.i = Signal(bits_sign, min=min, max=max)
-
-	def get_tristate(self, target):
-		return Tristate(target, self.o, self.oe, self.i)
-
-# extras
-
-class Instance(HUID):
-	def __init__(self, of, *items, name=""):
-		HUID.__init__(self)
-		self.of = of
-		if name:
-			self.name_override = name
-		else:
-			self.name_override = of
-		self.items = items
-	
-	class _IO:
-		def __init__(self, name, expr=None):
-			self.name = name
-			if expr is None:
-				expr = Signal()
-			self.expr = expr
-	class Input(_IO):
-		pass	
-	class Output(_IO):
-		pass
-	class InOut(_IO):
-		pass
-
-	class Parameter:
-		def __init__(self, name, value):
-			self.name = name
-			self.value = value
-	
-	class _CR:
-		def __init__(self, name_inst, domain="sys", invert=False):
-			self.name_inst = name_inst
-			self.domain = domain
-			self.invert = invert
-	class ClockPort(_CR):
-		pass
-	class ResetPort(_CR):
-		pass
-	
-	def get_io(self, name):
-		for item in self.items:
-			if isinstance(item, Instance._IO) and item.name == name:
-				return item.expr
-
-(READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
-
-class _MemoryPort:
-	def __init__(self, adr, dat_r, we=None, dat_w=None,
-	  async_read=False, re=None, we_granularity=0, mode=WRITE_FIRST,
-	  clock_domain="sys"):
-		self.adr = adr
-		self.dat_r = dat_r
-		self.we = we
-		self.dat_w = dat_w
-		self.async_read = async_read
-		self.re = re
-		self.we_granularity = we_granularity
-		self.mode = mode
-		self.clock_domain = clock_domain
-
-class Memory(HUID):
-	def __init__(self, width, depth, init=None):
-		HUID.__init__(self)
-		self.width = width
-		self.depth = depth
-		self.ports = []
-		self.init = init
-	
-	def get_port(self, write_capable=False, async_read=False,
-	  has_re=False, we_granularity=0, mode=WRITE_FIRST,
-	  clock_domain="sys"):
-		if we_granularity >= self.width:
-			we_granularity = 0
-		adr = Signal(max=self.depth)
-		dat_r = Signal(self.width)
-		if write_capable:
-			if we_granularity:
-				we = Signal(self.width//we_granularity)
-			else:
-				we = Signal()
-			dat_w = Signal(self.width)
-		else:
-			we = None
-			dat_w = None
-		if has_re:
-			re = Signal()
-		else:
-			re = None
-		mp = _MemoryPort(adr, dat_r, we, dat_w,
-		  async_read, re, we_granularity, mode,
-		  clock_domain)
-		self.ports.append(mp)
-		return mp
-
-#
-
 class Fragment:
-	def __init__(self, comb=None, sync=None, instances=None, tristates=None, memories=None, sim=None):
+	def __init__(self, comb=None, sync=None, specials=None, sim=None):
 		if comb is None: comb = []
 		if sync is None: sync = dict()
-		if instances is None: instances = set()
-		if tristates is None: tristates = set()
-		if memories is None: memories = set()
+		if specials is None: specials = set()
 		if sim is None: sim = []
 		
 		if isinstance(sync, list):
@@ -356,9 +241,7 @@ class Fragment:
 		
 		self.comb = comb
 		self.sync = sync
-		self.instances = set(instances)
-		self.tristates = set(tristates)
-		self.memories = set(memories)
+		self.specials = set(specials)
 		self.sim = sim
 	
 	def __add__(self, other):
@@ -368,32 +251,14 @@ class Fragment:
 		for k, v in other.sync.items():
 			newsync[k].extend(v)
 		return Fragment(self.comb + other.comb, newsync,
-			self.instances | other.instances,
-			self.tristates | other.tristates,
-			self.memories | other.memories,
+			self.specials | other.specials,
 			self.sim + other.sim)
 	
 	def rename_clock_domain(self, old, new):
 		self.sync["new"] = self.sync["old"]
 		del self.sync["old"]
-		for inst in self.instances:
-			for cr in filter(lambda x: isinstance(x, Instance._CR), inst.items):
-				if cr.domain == old:
-					cr.domain = new
-		for mem in self.memories:
-			for port in mem.ports:
-				if port.clock_domain == old:
-					port.clock_domain = new
-
-	def get_clock_domains(self):
-		r = set(self.sync.keys())
-		r |= set(cr.domain 
-			for inst in self.instances
-			for cr in filter(lambda x: isinstance(x, Instance._CR), inst.items))
-		r |= set(port.clock_domain
-			for mem in self.memories
-			for port in mem.ports)
-		return r
+		for special in self.specials:
+			special.rename_clock_domain(old, new)
 	
 	def call_sim(self, simulator):
 		for s in self.sim:

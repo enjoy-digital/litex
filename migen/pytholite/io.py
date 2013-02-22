@@ -2,6 +2,7 @@ import ast
 from itertools import zip_longest
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.uio.ioo import UnifiedIOObject
 from migen.flow.actor import Source, Sink
 from migen.flow.transactions import *
