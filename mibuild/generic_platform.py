@@ -197,7 +197,7 @@ class GenericPlatform:
 				if language is not None:
 					self.add_source(os.path.join(root, filename), language)
 
-	def get_verilog(self, fragment, clock_domains=None):
+	def get_verilog(self, fragment, clock_domains=None, **kwargs):
 		# We may create a temporary clock/reset generator that would request pins.
 		# Save the constraint manager state so that such pin requests disappear
 		# at the end of this function.
@@ -214,7 +214,7 @@ class GenericPlatform:
 				frag = fragment
 			# generate Verilog
 			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(),
-				clock_domains=clock_domains, return_ns=True)
+				clock_domains=clock_domains, return_ns=True, **kwargs)
 			# resolve signal names in constraints
 			sc = self.constraint_manager.get_sig_constraints()
 			named_sc = [(vns.get_name(sig), pins, others, resource) for sig, pins, others, resource in sc]
