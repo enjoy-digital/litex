@@ -9,7 +9,7 @@ class XilinxMultiRegImpl(MultiRegImpl):
 			for r in self.regs)
 		return MultiRegImpl.get_fragment(self) + Fragment(specials=disable_srl)
 
-class XilinxMultiReg(Special):
+class XilinxMultiReg:
 	@staticmethod
 	def lower(dr):
 		return XilinxMultiRegImpl(dr.i, dr.idomain, dr.o, dr.odomain, dr.n)
