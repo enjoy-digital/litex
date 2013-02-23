@@ -2,6 +2,8 @@ import os, struct, subprocess
 from decimal import Decimal
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import SynthesisDirective
+from migen.genlib.cdc import *
 
 from mibuild.generic_platform import *
 from mibuild.crg import CRG, SimpleCRG
@@ -108,7 +110,23 @@ bitgen -g Binary:Yes -w {build_name}-routed.ncd {build_name}.bit
 	if r != 0:
 		raise OSError("Subprocess failed")
 
+class XilinxMultiRegImpl(MultiRegImpl):
+	def get_fragment(self):
+		disable_srl = set(SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
+			for r in self.regs)
+		return MultiRegImpl.get_fragment(self) + Fragment(specials=disable_srl)
+
+class XilinxMultiReg:
+	@staticmethod
+	def lower(dr):
+		return XilinxMultiRegImpl(dr.i, dr.idomain, dr.o, dr.odomain, dr.n)
+
 class XilinxISEPlatform(GenericPlatform):
+	def get_verilog(self, *args, special_overrides=dict(), **kwargs):
+		so = {MultiReg: XilinxMultiReg}
+		so.update(special_overrides)
+		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
+
 	def build(self, fragment, clock_domains=None, build_dir="build", build_name="top",
 			ise_path="/opt/Xilinx", run=True):
 		tools.mkdir_noerror(build_dir)
