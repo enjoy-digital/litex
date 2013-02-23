@@ -1,30 +1,20 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.fhdl import verilog
+from migen.genlib.cdc import *
 
-# convert pulse into level change
-i = Signal()
-level = Signal()
-isync = [If(i, level.eq(~level))]
+class XilinxMultiRegImpl(MultiRegImpl):
+	def get_fragment(self):
+		disable_srl = set(SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
+			for r in self.regs)
+		return MultiRegImpl.get_fragment(self) + Fragment(specials=disable_srl)
 
-# synchronize level to oclk domain
-slevel = [Signal() for i in range(3)]
-osync = [
-	slevel[0].eq(level),
-	slevel[1].eq(slevel[0]),
-	slevel[2].eq(slevel[1])
-]
+class XilinxMultiReg(Special):
+	@staticmethod
+	def lower(dr):
+		return XilinxMultiRegImpl(dr.i, dr.idomain, dr.o, dr.odomain, dr.n)
 
-# disable shift register extraction
-disable_srl = {
-	SynthesisDirective("attribute shreg_extract of {signal} is no", signal=slevel[0]),
-	SynthesisDirective("attribute shreg_extract of {signal} is no", signal=slevel[1])
-}
-
-# regenerate pulse
-o = Signal()
-comb = [o.eq(slevel[1] ^ slevel[2])]
-
-f = Fragment(comb, {"i": isync, "o": osync}, specials=disable_srl)
-v = verilog.convert(f, {i, o})
+ps = PulseSynchronizer("from", "to")
+f = ps.get_fragment()
+v = verilog.convert(f, {ps.i, ps.o}, special_overrides={MultiReg: XilinxMultiReg})
 print(v)
