@@ -208,10 +208,32 @@ def _printsync(f, ns, clock_domains):
 		r += "end\n\n"
 	return r
 
-def _printspecials(f, ns, clock_domains):
+def _call_special_classmethod(overrides, obj, method, *args, **kwargs):
+	cl = obj.__class__
+	if cl in overrides:
+		cl = overrides[cl]
+	if hasattr(cl, method):
+		return getattr(cl, method)(obj, *args, **kwargs)
+	else:
+		return None
+
+def _lower_specials(overrides, specials):
+	f = Fragment()
+	lowered_specials = set()
+	for special in sorted(specials, key=lambda x: x.huid):
+		impl = _call_special_classmethod(overrides, special, "lower")
+		if impl is not None:
+			f += impl.get_fragment()
+			lowered_specials.add(special)
+	return f, lowered_specials
+
+def _printspecials(overrides, specials, ns, clock_domains):
 	r = ""
-	for special in sorted(f.specials, key=lambda x: x.huid):
-		r += special.emit_verilog(special, ns, clock_domains)
+	for special in sorted(specials, key=lambda x: x.huid):
+		pr = _call_special_classmethod(overrides, special, "emit_verilog", ns, clock_domains)
+		if pr is None:
+			raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
+		r += pr
 	return r
 
 def _printinit(f, ios, ns):
@@ -230,6 +252,7 @@ def _printinit(f, ios, ns):
 def convert(f, ios=None, name="top",
   clock_domains=None,
   return_ns=False,
+  special_overrides=dict(),
   display_run=False):
 	if ios is None:
 		ios = set()
@@ -242,6 +265,8 @@ def convert(f, ios=None, name="top",
 			ios.add(cd.rst)
 		
 	f = lower_arrays(f)
+	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
+	f += fs
 
 	ns = build_namespace(list_signals(f) \
 		| list_special_ios(f, True, True, True) \
@@ -251,7 +276,7 @@ def convert(f, ios=None, name="top",
 	r += _printheader(f, ios, name, ns)
 	r += _printcomb(f, ns, display_run)
 	r += _printsync(f, ns, clock_domains)
-	r += _printspecials(f, ns, clock_domains)
+	r += _printspecials(special_overrides, f.specials - lowered_specials, ns, clock_domains)
 	r += _printinit(f, ios, ns)
 	r += "endmodule\n"
 
