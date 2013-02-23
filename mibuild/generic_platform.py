@@ -2,7 +2,7 @@ from copy import copy
 import os, argparse
 
 from migen.fhdl.structure import *
-from migen.corelogic.record import Record
+from migen.genlib.record import Record
 from migen.fhdl import verilog
 
 from mibuild import tools
