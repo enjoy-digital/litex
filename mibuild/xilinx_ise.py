@@ -31,7 +31,7 @@ class CRG_DS(CRG):
 			Instance.Input("IB", self._clk.n),
 			Instance.Output("O", self.cd.clk)
 		)
-		return Fragment(instances=[ibufg])
+		return Fragment(specials={ibufg})
 
 def _format_constraint(c):
 	if isinstance(c, Pins):
