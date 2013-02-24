@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from migen.bus import wishbone
 
 class LM32:
@@ -49,4 +50,4 @@ class LM32:
 			self.ibus.adr.eq(self._i_adr_o[2:]),
 			self.dbus.adr.eq(self._d_adr_o[2:])
 		]
-		return Fragment(comb=comb, instances=[self._inst])
+		return Fragment(comb, specials={self._inst})

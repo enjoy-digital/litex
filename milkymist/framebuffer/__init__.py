@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow.transactions import *
@@ -155,7 +156,7 @@ class FIFO(Actor):
 				
 				self.busy.eq(0)
 			],
-			instances=[asfifo])
+			specials={asfifo})
 
 def sim_fifo_gen():
 	while True:

@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from migen.bus import dfi
 
 class S6DDRPHY:
@@ -41,4 +42,4 @@ class S6DDRPHY:
 		self._inst = Instance("s6ddrphy", *inst_items)
 
 	def get_fragment(self):
-		return Fragment(instances=[self._inst])
+		return Fragment(specials={self._inst})

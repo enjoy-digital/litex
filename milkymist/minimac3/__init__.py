@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 from migen.bank import csrgen
@@ -59,8 +60,7 @@ class MiniMAC:
 			rx_pending_0_r.eq(rx_pending_0),
 			rx_pending_1_r.eq(rx_pending_1)
 		]
-		inst = [
-			Instance("minimac3",
+		inst = Instance("minimac3",
 				Instance.ClockPort("sys_clk"),
 				Instance.ResetPort("sys_rst"),
 
@@ -94,7 +94,6 @@ class MiniMAC:
 				Instance.Input("phy_rx_er", self.phy_rx_er),
 				Instance.Input("phy_col", self.phy_col),
 				Instance.Input("phy_crs", self.phy_crs))
-		]
-		return Fragment(comb, sync, instances=inst) \
+		return Fragment(comb, sync, specials={inst}) \
 			+ self.events.get_fragment() \
 			+ self.bank.get_fragment()

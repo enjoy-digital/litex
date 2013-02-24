@@ -1,6 +1,7 @@
 from fractions import Fraction
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from mibuild.crg import CRG
 
 class M1CRG(CRG):
@@ -58,4 +59,4 @@ class M1CRG(CRG):
 		self._inst = Instance("m1crg", *inst_items)
 
 	def get_fragment(self):
-		return Fragment(instances=[self._inst])
+		return Fragment(specials={self._inst})
