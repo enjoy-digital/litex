@@ -7,7 +7,7 @@ void ddrrow(char *_row);
 void ddrrd(char *startaddr);
 void ddrwr(char *startaddr);
 int memtest_silent(void);
-void memtest(void);
+int memtest(void);
 int ddrinit(void);
 
 void asmiprobe(void);

@@ -174,6 +174,7 @@ int memtest_silent(void)
 	volatile unsigned int *array = (unsigned int *)SDRAM_BASE;
 	int i;
 	unsigned int prv;
+	unsigned int error_cnt;
 	
 	prv = 0;
 	for(i=0;i<TEST_SIZE/4;i++) {
@@ -182,20 +183,27 @@ int memtest_silent(void)
 	}
 	
 	prv = 0;
+	error_cnt = 0;
 	for(i=0;i<TEST_SIZE/4;i++) {
 		prv = 1664525*prv + 1013904223;
 		if(array[i] != prv)
-			return 0;
+			error_cnt++;
 	}
-	return 1;
+	return error_cnt;
 }
 
-void memtest(void)
+int memtest(void)
 {
-	if(memtest_silent())
-		printf("OK\n");
-	else
-		printf("Failed\n");
+	unsigned int e;
+
+	e = memtest_silent();
+	if(e != 0) {
+		printf("Memtest failed: %d/%d words incorrect\n", e, TEST_SIZE/4);
+		return 0;
+	} else {
+		printf("Memtest OK\n");
+		return 1;
+	}
 }
 
 int ddrinit(void)
@@ -204,7 +212,7 @@ int ddrinit(void)
 	
 	init_sequence();
 	CSR_DFII_CONTROL = DFII_CONTROL_SEL|DFII_CONTROL_CKE;
-	if(!memtest_silent())
+	if(!memtest())
 		return 0;
 	
 	return 1;
