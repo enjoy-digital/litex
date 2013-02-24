@@ -55,7 +55,7 @@ NET "asfifo*/preset_empty*" TIG;
 		"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
 		"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
 		"lm32_dcache.v", "lm32_top.v", "lm32_debug.v", "lm32_jtag.v", "jtag_cores.v",
-		"jtag_tap_spartan6.v")
+		"jtag_tap_spartan6.v", "lm32_itlb.v", "lm32_dtlb.v")
 	plat.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
 	
 	plat.build_cmdline(soc.get_fragment(), clock_domains=soc.crg.get_clock_domains())
