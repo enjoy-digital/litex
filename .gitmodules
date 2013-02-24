@@ -1,0 +1,3 @@
+[submodule "verilog/lm32/submodule"]
+	path = verilog/lm32/submodule
+	url = git://github.com/milkymist/lm32.git

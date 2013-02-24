@@ -49,13 +49,14 @@ NET "asfifo*/preset_empty*" TIG;
 	# add Verilog sources
 	for d in ["generic", "m1crg", "s6ddrphy", "minimac3"]:
 		plat.add_source_dir(os.path.join("verilog", d))
-	plat.add_sources(os.path.join("verilog", "lm32"), 
+	plat.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"), 
 		"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
 		"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
-		"lm32_shifter.v", "lm32_multiplier_spartan6.v", "lm32_mc_arithmetic.v",
+		"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
 		"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
 		"lm32_dcache.v", "lm32_top.v", "lm32_debug.v", "lm32_jtag.v", "jtag_cores.v",
 		"jtag_tap_spartan6.v")
+	plat.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
 	
 	plat.build_cmdline(soc.get_fragment(), clock_domains=soc.crg.get_clock_domains())
 
