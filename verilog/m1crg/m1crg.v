@@ -101,6 +101,7 @@ wire pllout1;
 wire pllout2;
 wire pllout3;
 wire pllout4;
+wire pllout5;
 
 PLL_ADV #(
 	.BANDWIDTH("OPTIMIZED"),
@@ -108,24 +109,31 @@ PLL_ADV #(
 	.CLKFBOUT_PHASE(0.0),
 	.CLKIN1_PERIOD(in_period),
 	.CLKIN2_PERIOD(in_period),
+
 	.CLKOUT0_DIVIDE(f_div),
 	.CLKOUT0_DUTY_CYCLE(0.5),
-	.CLKOUT0_PHASE(0),
+	.CLKOUT0_PHASE(0.0),
+	
 	.CLKOUT1_DIVIDE(f_div),
 	.CLKOUT1_DUTY_CYCLE(0.5),
-	.CLKOUT1_PHASE(0),
+	.CLKOUT1_PHASE(0.0),
+	
 	.CLKOUT2_DIVIDE(2*f_div),
 	.CLKOUT2_DUTY_CYCLE(0.5),
 	.CLKOUT2_PHASE(270.0),
+	
 	.CLKOUT3_DIVIDE(4*f_div),
 	.CLKOUT3_DUTY_CYCLE(0.5),
 	.CLKOUT3_PHASE(0.0),
+	
 	.CLKOUT4_DIVIDE(4*f_mult),
 	.CLKOUT4_DUTY_CYCLE(0.5),
-	.CLKOUT4_PHASE(0),
-	.CLKOUT5_DIVIDE(7),
+	.CLKOUT4_PHASE(0.0),
+	
+	.CLKOUT5_DIVIDE(2*f_div),
 	.CLKOUT5_DUTY_CYCLE(0.5),
-	.CLKOUT5_PHASE(0.0),
+	.CLKOUT5_PHASE(250.0),
+	
 	.COMPENSATION("INTERNAL"),
 	.DIVCLK_DIVIDE(1),
 	.REF_JITTER(0.100),
@@ -136,10 +144,10 @@ PLL_ADV #(
 	.CLKFBOUT(buf_pll_fb_out),
 	.CLKOUT0(pllout0), /* < x4 clock for writes */
 	.CLKOUT1(pllout1), /* < x4 clock for reads */
-	.CLKOUT2(pllout2), /* < x2 90 clock to generate memory clock, clock DQS and memory address and control signals. */
+	.CLKOUT2(pllout2), /* < x2 270 clock for DQS, memory address and control signals */
 	.CLKOUT3(pllout3), /* < x1 clock for system and memory controller */
 	.CLKOUT4(pllout4), /* < buffered clk50 */
-	.CLKOUT5(),
+	.CLKOUT5(pllout5), /* < x2 clock to off-chip DDR */
 	.CLKOUTDCM0(),
 	.CLKOUTDCM1(),
 	.CLKOUTDCM2(),
@@ -194,6 +202,12 @@ BUFG bufg_x1(
 	.O(sys_clk)
 );
 
+wire clk2x_off;
+BUFG bufg_x2_offclk(
+	.I(pllout5),
+	.O(clk2x_off)
+);
+
 
 /* 
  * SDRAM clock
@@ -205,8 +219,8 @@ ODDR2 #(
 	.SRTYPE("SYNC")
 ) sd_clk_forward_p (
 	.Q(ddr_clk_pad_p),
-	.C0(clk2x_270),
-	.C1(~clk2x_270),
+	.C0(clk2x_off),
+	.C1(~clk2x_off),
 	.CE(1'b1),
 	.D0(1'b1),
 	.D1(1'b0),
@@ -219,8 +233,8 @@ ODDR2 #(
 	.SRTYPE("SYNC")
 ) sd_clk_forward_n (
 	.Q(ddr_clk_pad_n),
-	.C0(clk2x_270),
-	.C1(~clk2x_270),
+	.C0(clk2x_off),
+	.C1(~clk2x_off),
 	.CE(1'b1),
 	.D0(1'b0),
 	.D1(1'b1),
