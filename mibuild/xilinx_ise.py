@@ -2,7 +2,7 @@ import os, struct, subprocess
 from decimal import Decimal
 
 from migen.fhdl.structure import *
-from migen.fhdl.specials import SynthesisDirective
+from migen.fhdl.specials import Instance, SynthesisDirective
 from migen.genlib.cdc import *
 
 from mibuild.generic_platform import *
