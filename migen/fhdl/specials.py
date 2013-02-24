@@ -127,7 +127,7 @@ class Instance(Special):
 				firstp = False
 				r += "\t." + p.name + "("
 				if isinstance(p.value, (int, bool)):
-					r += _printintbool(p.value)[0]
+					r += verilog_printexpr(ns, p.value)[0]
 				elif isinstance(p.value, float):
 					r += str(p.value)
 				elif isinstance(p.value, str):
