@@ -1,8 +1,8 @@
 from migen.fhdl.structure import *
 from migen.bus.asmibus import *
-from migen.corelogic.roundrobin import *
-from migen.corelogic.fsm import FSM
-from migen.corelogic.misc import optree
+from migen.genlib.roundrobin import *
+from migen.genlib.fsm import FSM
+from migen.genlib.misc import optree
 
 from milkymist.asmicon.multiplexer import *
 

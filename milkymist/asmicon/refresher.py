@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
-from migen.corelogic.misc import timeline
-from migen.corelogic.fsm import FSM
+from migen.genlib.misc import timeline
+from migen.genlib.fsm import FSM
 
 from milkymist.asmicon.multiplexer import *
 

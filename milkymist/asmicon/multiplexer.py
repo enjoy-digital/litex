@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
-from migen.corelogic.roundrobin import *
-from migen.corelogic.misc import optree
-from migen.corelogic.fsm import FSM
+from migen.genlib.roundrobin import *
+from migen.genlib.misc import optree
+from migen.genlib.fsm import FSM
 
 class CommandRequest:
 	def __init__(self, a, ba):

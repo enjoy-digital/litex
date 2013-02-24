@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.bus import wishbone
-from migen.corelogic.misc import timeline
+from migen.genlib.misc import timeline
 
 class NorFlash:
 	def __init__(self, adr_width, rd_timing):
