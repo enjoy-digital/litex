@@ -5,6 +5,11 @@ def regprefix(prefix, registers):
 		register.name = prefix + register.name
 	return registers
 
+def memprefix(prefix, memories):
+	for memory in memories:
+		memory.name_override = prefix + memory.name_override
+	return memories
+
 class RegisterRaw:
 	def __init__(self, name, size=1):
 		self.name = name
