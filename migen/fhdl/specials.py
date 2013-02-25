@@ -180,12 +180,13 @@ class _MemoryPort:
 		self.clock_domain = clock_domain
 
 class Memory(Special):
-	def __init__(self, width, depth, init=None):
+	def __init__(self, width, depth, init=None, name="mem"):
 		Special.__init__(self)
 		self.width = width
 		self.depth = depth
 		self.ports = []
 		self.init = init
+		self.name_override = name
 	
 	def get_port(self, write_capable=False, async_read=False,
 	  has_re=False, we_granularity=0, mode=WRITE_FIRST,
@@ -233,8 +234,6 @@ class Memory(Special):
 			if outs:
 				add(p.dat_r)
 		return s
-
-	name_override = "mem"
 
 	@staticmethod
 	def emit_verilog(memory, ns, clock_domains):
