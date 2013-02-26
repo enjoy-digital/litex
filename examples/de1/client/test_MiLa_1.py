@@ -1,11 +1,7 @@
 from miscope import trigger, recorder, miIo, miLa
 from miscope.tools.truthtable import *
 from miscope.tools.vcd import *
-
-import sys
-sys.path.append("../../../")
-
-from spi2Csr.tools.uart2Spi import *
+from miscope.bridges.spi2csr.tools.uart2Spi import *
 
 #==============================================================================
 #	P A R A M E T E R S

@@ -1,9 +1,5 @@
-from migScope import trigger, recorder, migIo
-
-import sys
-sys.path.append("../../../")
-
-from spi2Csr.tools.uart2Spi import *
+from miscope import trigger, recorder, miIo
+from miscope.bridges.spi2csr.tools.uart2Spi import *
 
 #==============================================================================
 #	P A R A M E T E R S
