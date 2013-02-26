@@ -33,8 +33,7 @@ all the cores!
 miscope produces.vcd output files to be analyzed in your favorite waveform viewer.
 
 [> Status:
-Complete flow tested on board with a classic Term. RangeDetector, EdgeDetector 
-still not tested.
+Refactoring in progress...
 
 [> Examples:
 test_MigIo : Led & Switch Test controlled by Python Host.

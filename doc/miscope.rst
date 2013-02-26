@@ -1,13 +1,13 @@
-.. image:: Illustrations/migscope_logo.png
+.. image:: Illustrations/miscope_logo.png
 
 Introduction
 ############
 
-MigScope is a small logic analyzer to be embedded in an FPGA.
+Miscope is a small logic analyzer to be embedded in an FPGA.
 
 While free vendor toolchains are generally used by beginners or for prototyping (situations where having a logic analyser in the design is generally very helpful) free toolchains are always provided without the proprietary logic analyzer solution. . . :(
 
-Based on Migen, MigScope aims to provide a free and portable / flexible alternative to vendor's solutions.
+Based on Migen, Miscope aims to provide a free and portable / flexible alternative to vendor's solutions.
 
 About Migen
 ***********
@@ -17,59 +17,59 @@ Migen is a Python-based tool that aims at automating further the VLSI design pro
 
 Migen makes it possible to apply modern software concepts such as object-oriented programming and metaprogramming to design hardware. This results in more elegant and easily maintained designs and reduces the incidence of human errors.
 
-Installing MigScope
+Installing Miscope
 *******************
 Either run the setup.py installation script or simply set PYTHONPATH to the root of the source directory.
 
 Feedback
 ********
-Feedback concerning MigScope or this manual should be sent to florent@enjoy-digital.fr
+Feedback concerning Miscope or this manual should be sent to florent@enjoy-digital.fr
 
 
-The MigScope Structure
+The Miscope Structure
 ######################
 
-Migscope provides two kinds of cores:
+Miscope provides two kinds of cores:
 
-  - MigIo : the virtual Input / Output core
-  - MigLa : the virtual Logic Analyser core
+  - MiIo : the virtual Input / Output core
+  - MiLa : the virtual Logic Analyser core
 
-A CSR bus controls the MigIo and MigLa cores. The CSR bus is a very simple bus originally used to control peripheral registers in milkymist Soc.[*]_
+A CSR bus controls the MiIo and MiLa cores. The CSR bus is a very simple bus originally used to control peripheral registers in milkymist Soc.[*]_
 
 .. [*] More information on Milkymist on : http://github.com/milkymist/milkymist-ng
 
 Because of its simplicity, it can be adapted very easily to a wide range of interfaces: Wishbone, Uart, Spi, I2C, Ethernet...
 
-MigScope uses CSR library from Migen to inter-connect the cores. MigScope provides a Spi2Csr Bridge and is tested with an external Spi Interface. Support for others externals interfaces will be added in future versions.
+Miscope uses CSR library from Migen to inter-connect the cores. Miscope provides a Spi2Csr Bridge and is tested with an external Spi Interface. Support for others externals interfaces will be added in future versions.
 
-Because Migen is a Python-based tool, using Python to control MigScope gives lot's of advantages : Python classes can provide the HDL description **AND** driver functions!
+Because Migen is a Python-based tool, using Python to control Miscope gives lot's of advantages : Python classes can provide the HDL description **AND** driver functions!
 
-.. image:: Illustrations/migscope_structure.png
+.. image:: Illustrations/Miscope_structure.png
 
-MigIo
+MiIo
 #####
 
 Description
 -----------
 
-The MigIo is simply an internal GPIO equivalent. It provides N (configurable) inputs and/or outputs and can be used for lots of purposes:
+The MiIo is simply an internal GPIO equivalent. It provides N (configurable) inputs and/or outputs and can be used for lots of purposes:
 
   - stimulation of a core's parameters in a design where external control interface is not yet developped or still under developpement.
   - update of a Look-Up-Table or a Ram.
   - read an internal / external bus.
   - ...
 
-.. image:: Illustrations/migIo.png
+.. image:: Illustrations/MiIo.png
 
 
 Instanciation
 -------------
 ::
 
-  MIGIO_ADDR = 0x0000
-  migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO")
+  MIIO_ADDR = 0x0000
+  MiIo0 = MiIo.MiIo(MiIo_ADDR, 8, "IO")
 
-MigIo parameters are:
+MiIo parameters are:
 
   - CSR address : core base Address
   - Bus width : size of input / output buses. **(a power of two)**
@@ -80,13 +80,13 @@ Driver
 To use drivers functions, an interface is defined::
 
   csr = Uart2Spi(1,115200)
-  migIo0 = migIo.MigIo(MIGIO_ADDR, 8, "IO", csr)
+  MiIo0 = MiIo.MiIo(MIIO_ADDR, 8, "IO", csr)
 
-MigIo drivers functions will now use our csr interface. Note that it's only useful to define the migIo interface in the Python code that will be executed on the Host, the code that will be translated in HDL don't need it.
+MiIo drivers functions will now use our csr interface. Note that it's only useful to define the MiIo interface in the Python code that will be executed on the Host, the code that will be translated in HDL don't need it.
 
 Write Method::
 
-  migIo0.write(0x1234, 0x5A)
+  MiIo0.write(0x1234, 0x5A)
 Write parameters are:
 
   - CSR Address
@@ -94,7 +94,7 @@ Write parameters are:
 
 Read Method::
 
-  migIo0.read(0x1234)
+  MiIo0.read(0x1234)
 
 Read parameters are:
 
@@ -103,25 +103,25 @@ Read parameters are:
 Examples Design
 ---------------
 
-de0_nano and de1 examples instanciate a MigIo Core.
+de0_nano and de1 examples instanciate a MiIo Core.
 
 The HDL Code is in examples/deX/top.py
 
-The Host Code is in examples/deX/client/test_MigIo.py
+The Host Code is in examples/deX/client/test_MiIo.py
 
-MigLa
+MiLa
 #####
 
 Description
 -----------
 
-The MigLa is the Logic Analyser core, it provides N (configurable) Trigger bits and M (Configurable) Data bits:
+The MiLa is the Logic Analyser core, it provides N (configurable) Trigger bits and M (Configurable) Data bits:
 
-.. image:: Illustrations/migLa.png
+.. image:: Illustrations/MiLa.png
 
-Each MigLa instance is composed of a Trigger and a Recorder controlled by the CSR Bus:
+Each MiLa instance is composed of a Trigger and a Recorder controlled by the CSR Bus:
 
-.. image:: Illustrations/migLa_structure.png
+.. image:: Illustrations/MiLa_structure.png
 
 The Trigger is configured by the user to detect particular events on the N Trigger bits. Once detected, the hit signal rise.
 
@@ -166,9 +166,9 @@ Instanciation
   trigger0 = trigger.Trigger(trig0_width, [term0])
   recorder0 = recorder.Recorder(dat0_width, record_size)
   
-  migLa0 = migLa.MigLa(MIGLA0_ADDR, trigger0, recorder0)
+  MiLa0 = MiLa.MiLa(MILA0_ADDR, trigger0, recorder0)
 
-This example above describes a MigLa instance with 1 trig element (Term term0)
+This example above describes a MiLa instance with 1 trig element (Term term0)
 
 Term parameters are:
 
@@ -184,7 +184,7 @@ Recorder parameters are:
   - Data Width
   - Maximum size of Record
 
-MigLa parameters are:
+MiLa parameters are:
 
   - CSR address : core base Address
   - Trigger object to use
@@ -199,18 +199,18 @@ To use drivers functions, an interface is defined::
   
   [...]
   
-  migLa0 = migLa.MigLa(MIGLA_ADDR, trigger0, recorder0, csr)
+  MiLa0 = MiLa.MiLa(MiLa_ADDR, trigger0, recorder0, csr)
   
-MigLa drivers functions will now use our csr interface. Note that it's only useful to define the migLa interface in the Python code that will be executed on the Host, the code that will be translated in HDL don't need it
+MiLa drivers functions will now use our csr interface. Note that it's only useful to define the MiLa interface in the Python code that will be executed on the Host, the code that will be translated in HDL don't need it
 
 Examples Design
 ---------------
 
-de0_nano and de1 examples instanciate a MigLa Core.
+de0_nano and de1 examples instanciate a MiLa Core.
 
 The HDL Code is in examples/deX/top.py
 
-The Host Code is in examples/deX/client/test_MigLa_0.py and test_MigLa_1.py
+The Host Code is in examples/deX/client/test_MiLa_0.py and test_MiLa_1.py
 
 Examples Design
 ###############
