@@ -5,12 +5,8 @@ from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
 from migen.bus.transactions import *
 
-import sys
-sys.path.append("../")
-
-from migScope import trigger
-
-from migScope.tools.truthtable import *
+from miscope import trigger
+from miscope.tools.truthtable import *
 
 def term_prog(off, dat):
 	for i in range(4):

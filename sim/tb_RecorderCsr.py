@@ -5,11 +5,7 @@ from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
 from migen.bus.transactions import *
 
-import sys
-sys.path.append("../")
-
-from migScope import recorder
-
+from miscope import recorder
 
 arm_done = False
 trig_dat = 0

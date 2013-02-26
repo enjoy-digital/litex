@@ -5,12 +5,9 @@ from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
 from migen.bus.transactions import *
 
-import sys
-sys.path.append("../")
-
-from migScope import trigger, recorder
-from migScope.tools.truthtable import *
-from migScope.tools.vcd import *
+from miscope import trigger, recorder
+from miscope.tools.truthtable import *
+from miscope.tools.vcd import *
 
 TRIGGER_ADDR  = 0x0000
 RECORDER_ADDR = 0x0200

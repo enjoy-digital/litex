@@ -7,9 +7,7 @@ from migen.bus.transactions import *
 from migen.bank import description, csrgen
 from migen.bank.description import *
 
-import sys
-sys.path.append("../")
-import spi2Csr
+import miscope.bridges.spi2csr
 
 def get_bit(dat, bit):
 	return int(dat & (1<<bit) != 0)
@@ -144,7 +142,7 @@ def main():
 	bank0 = csrgen.Bank(regs,address=0x0000)
 	
 	# Spi2Csr
-	spi2csr0 = spi2Csr.Spi2Csr(16,8)
+	spi2csr0 = spi2csr.Spi2Csr(16,8)
 	
 	
 	# Csr Interconnect
