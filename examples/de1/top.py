@@ -39,11 +39,8 @@ from migen.bus.transactions import *
 from migen.bank import description, csrgen
 from migen.bank.description import *
 
-from miscope import trigger, recorder, miIo, miLa
-
-import sys
-sys.path.append("../../")
-import spi2Csr
+from miscope import trigger, recorder, miio, mila
+from miscope.bridges import spi2csr
 
 from timings import *
 from constraints import Constraints
@@ -80,33 +77,33 @@ MILA1_ADDR  = 0x0600
 def get():
 
 	# migIo0
-	miIo0 = miIo.MiIo(MIIO0_ADDR, 8, "IO")
+	miIo0 = miio.MiIo(MIIO0_ADDR, 8, "IO")
 	
 	# migLa0
 	term0 = trigger.Term(trig0_width)
 	trigger0 = trigger.Trigger(trig0_width, [term0])
 	recorder0 = recorder.Recorder(dat0_width, record_size)
 	
-	miLa0 = miLa.MiLa(MILA0_ADDR, trigger0, recorder0)
+	miLa0 = mila.MiLa(MILA0_ADDR, trigger0, recorder0)
 	
 	# migLa1
 	term1 = trigger.Term(trig1_width)
 	trigger1 = trigger.Trigger(trig1_width, [term1])
 	recorder1 = recorder.Recorder(dat1_width, record_size)
 	
-	miLa1 = miLa.MiLa(MILA1_ADDR, trigger1, recorder1)
+	miLa1 = mila.MiLa(MILA1_ADDR, trigger1, recorder1)
 	
 	# Spi2Csr
-	spi2csr0 = spi2Csr.Spi2Csr(16,8)
+	spi2csr0 = spi2csr.Spi2Csr(16,8)
 	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(spi2csr0.csr, 
 			[
 				miIo0.bank.bus,
-				miLa0.trig.bank.bus,
-				miLa0.rec.bank.bus,
-				miLa1.trig.bank.bus,
-				miLa1.rec.bank.bus,
+				miLa0.trigger.bank.bus,
+				miLa0.recorder.bank.bus,
+				miLa1.trigger.bank.bus,
+				miLa1.recorder.bank.bus,
 				
 			])
 	comb = []
@@ -168,18 +165,18 @@ def get():
 	
 	# MigLa0 input
 	comb += [
-		miLa0.in_trig.eq(sig_gen),
-		miLa0.in_dat.eq(sig_gen)
+		miLa0.trig.eq(sig_gen),
+		miLa0.dat.eq(sig_gen)
 	]
 	
 	# MigLa1 input
 	comb += [
-		miLa1.in_trig[:8].eq(spi2csr0.csr.dat_w),
-		miLa1.in_trig[8:24].eq(spi2csr0.csr.adr),
-		miLa1.in_trig[24].eq(spi2csr0.csr.we),
-		miLa1.in_dat[:8].eq(spi2csr0.csr.dat_w),
-		miLa1.in_dat[8:24].eq(spi2csr0.csr.adr),
-		miLa1.in_dat[24].eq(spi2csr0.csr.we)
+		miLa1.trig[:8].eq(spi2csr0.csr.dat_w),
+		miLa1.trig[8:24].eq(spi2csr0.csr.adr),
+		miLa1.trig[24].eq(spi2csr0.csr.we),
+		miLa1.dat[:8].eq(spi2csr0.csr.dat_w),
+		miLa1.dat[8:24].eq(spi2csr0.csr.adr),
+		miLa1.dat[24].eq(spi2csr0.csr.we)
 	]
 	
 	

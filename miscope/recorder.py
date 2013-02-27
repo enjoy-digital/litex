@@ -3,6 +3,7 @@ from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
 from migen.corelogic.misc import optree
+from migen.corelogic.fsm import *
 
 class Storage:
 	# 
@@ -39,7 +40,7 @@ class Storage:
 	def get_fragment(self):
 		comb = [
 					self._push_port.adr.eq(self._push_ptr),
-					self._push_port.we.eq(self.push),
+					self._push_port.we.eq(self.push_stb),
 					self._push_port.dat_w.eq(self.push_dat),
 		
 					self._pull_port.adr.eq(self._pull_ptr),
@@ -61,7 +62,7 @@ class Storage:
 		# Idle
 		fsm.act(fsm.IDLE, 
 			If(self.start, 
-				fsm.next_state(fsm.PUSH),
+				fsm.next_state(fsm.ACTIVE),
 				active_rising.eq(1)
 			),
 			idle_ongoing.eq(1)
@@ -76,7 +77,7 @@ class Storage:
 			active_ongoing.eq(1)
 		)
 		
-		sync +=[ 
+		sync =[ 
 			If(active_rising,
 				self._push_ptr_stop.eq(self._push_ptr + self.size - self.offset),
 				self._pull_ptr.eq(self._push_ptr-self.offset-1)	
@@ -85,9 +86,9 @@ class Storage:
 			),
 			If(self.push_stb, self._push_ptr.eq(self._push_ptr+1)),
 		]
-		comb +=[self.done.eq((self._put_ptr == self._put_ptr_stop) & active_ongoing)]
+		comb +=[self.done.eq((self._push_ptr == self._push_ptr_stop) & active_ongoing)]
 		
-		return Fragment(comb, sync, memories=self._mem)
+		return Fragment(comb, sync, memories=[self._mem])
 
 class Sequencer:
 	# 
@@ -119,7 +120,7 @@ class Sequencer:
 		
 	def get_fragment(self):
 	
-	  idle_rising = Signal()
+		idle_rising = Signal()
 		idle_ongoing = Signal()
 		active_rising = Signal()
 		active_ongoing = Signal()
@@ -130,7 +131,7 @@ class Sequencer:
 		# Idle
 		fsm.act(fsm.IDLE, 
 			If(self.ctl_arm, 
-				fsm.next_state(fsm.PUSH),
+				fsm.next_state(fsm.ACTIVE),
 				active_rising.eq(1)
 			),
 			idle_ongoing.eq(1)
@@ -138,19 +139,19 @@ class Sequencer:
 		
 		# Active
 		fsm.act(fsm.ACTIVE,
-			If(self.rec_done | self.rst,
+			If(self.rec_done,
 				fsm.next_state(fsm.IDLE),
 				idle_rising.eq(1)
 			),
 			active_ongoing.eq(1)
 		)
-		comb +=[self.enable.eq(active_ongoing)]
+		comb =[self.enable.eq(active_ongoing)]
 		
 		# trig_hit rising_edge
 		_hit_d = Signal()
 		_hit_rising = Signal()
-		sync +=[_hit_d.eq(self.hit)]
-		comb +=[_hit_rising.eq(self.hit & ~_hit_d]
+		sync =[_hit_d.eq(self.hit)]
+		comb +=[_hit_rising.eq(self.hit & ~_hit_d)]
 		
 		# connexion
 		comb = [
@@ -196,7 +197,7 @@ class Recorder:
 																	 access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		
 		self.regs = [self._rst, self._arm, self._done, self._size, self._offset,
-								 self._get, self._get_dat]
+								 self._pull_stb, self._pull_dat]
 			
 		self.bank = csrgen.Bank(self.regs, address=address)
 		
@@ -215,13 +216,13 @@ class Recorder:
 	def set_interface(self, interface):
 		self.interface = interface
 		
-	def get_fragment(self):		
-		_pull_d = Signal()
-		_pull_rising = Signal()
+	def get_fragment(self):
+		_pull_stb_d = Signal()
+		_pull_stb_rising = Signal()
 		
 		sync = [
-			_pull_d.eq(self._pull.field.r),
-			_pull_rising.eq(self._pull.field.r & ~_pull_d)
+			_pull_stb_d.eq(self._pull_stb.field.r),
+			_pull_stb_rising.eq(self._pull_stb.field.r & ~_pull_stb_d)
 		]
 
 		# Bank <--> Storage / Sequencer
@@ -235,7 +236,7 @@ class Recorder:
 			
 			self._done.field.w.eq(self.sequencer.ctl_done),
 			
-			self.storage.pull_stb.eq(_pull_rising),
+			self.storage.pull_stb.eq(_pull_stb_rising),
 			self._pull_dat.field.w.eq(self.storage.pull_dat)
 			]
 		
@@ -248,8 +249,8 @@ class Recorder:
 			self.sequencer.rec_done.eq(self.storage.done),
 			self.sequencer.hit.eq(self.hit),
 			
-			self.storage.put_stb.eq(self.sequencer.enable),
-			self.storage.put_dat.eq(self.dat)
+			self.storage.push_stb.eq(self.sequencer.enable),
+			self.storage.push_dat.eq(self.dat)
 			]
 		
 		return self.bank.get_fragment() + Fragment(comb, sync) +\

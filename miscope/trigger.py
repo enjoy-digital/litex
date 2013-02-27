@@ -36,15 +36,16 @@ class Term:
 		self.o = Signal()
 		
 		self.reg_p = RegParams("term_reg", 0, width, 2)
+		self.reg = None
 	
-	def get_registers(self, reg):
-		comb = [self.t.eq(reg.field.r[0*self.width:1*self.width])]
-		comb += [self.m.eq(reg.field.r[1*self.width:2*self.width])]
+	def get_registers(self):
+		comb = [self.t.eq(self.reg.field.r[0*self.width:1*self.width])]
+		comb += [self.m.eq(self.reg.field.r[1*self.width:2*self.width])]
 		return comb
 	
-	def get_fragment(self, reg):
+	def get_fragment(self):
 		comb = [self.o.eq((self.m & self.i) == self.t)]
-		comb += self.get_registers(reg)
+		comb += self.get_registers()
 		return Fragment(comb)
 	
 	#
@@ -66,20 +67,21 @@ class RangeDetector:
 		self.interface = None
 		
 		self.reg_p = RegParams("range_reg", 0, width, 2)
+		self.reg = None
 		
 		self.i = Signal(width)
 		self.low = Signal(width)
 		self.high = Signal(width)
 		self.o = Signal()
 		
-	def get_registers(self, reg):
-		comb = [self.low.eq(reg.field.r[0*self.width:1*self.width])]
-		comb += [self.low.eq(reg.field.r[1*self.width:2*self.width])]
+	def get_registers(self):
+		comb = [self.low.eq(self.reg.field.r[0*self.width:1*self.width])]
+		comb += [self.low.eq(self.reg.field.r[1*self.width:2*self.width])]
 		return comb
 		
-	def get_fragment(self, reg):
+	def get_fragment(self):
 		comb = [self.o.eq((self.i >= self.low) & (self.i <= self.high))]
-		comb += self.get_registers(reg)
+		comb += self.get_registers()
 		return Fragment(comb)
 	#
 	# Driver
@@ -99,7 +101,8 @@ class EdgeDetector:
 		self.mode = mode
 		self.interface = None
 		
-		self.reg_p = RegParams("edge_reg", 0, width, len(self.mode)
+		self.reg_p = RegParams("edge_reg", 0, width, len(self.mode))
+		self.reg = None
 		
 		self.i = Signal(self.width)
 		self.i_d = Signal(self.width)
@@ -114,21 +117,21 @@ class EdgeDetector:
 			self.bo = Signal()
 		self.o = Signal()
 	
-	def get_registers(self, reg):
+	def get_registers(self):
 		comb = []
 		i = 0
 		if "R" in self.mode:
-			comb += [self.r_mask.eq(reg.field.r[i*self.width:(i+1)*self.width])]
+			comb += [self.r_mask.eq(self.reg.field.r[i*self.width:(i+1)*self.width])]
 			i += 1
 		if "F" in self.mode:
-			comb += [self.f_mask.eq(reg.field.r[i*self.width:(i+1)*self.width])]
+			comb += [self.f_mask.eq(self.reg.field.r[i*self.width:(i+1)*self.width])]
 			i += 1
 		if "B" in self.mode:
-			comb += [self.b_mask.eq(reg.field.r[i*self.width:(i+1)*self.width])]
+			comb += [self.b_mask.eq(self.reg.field.r[i*self.width:(i+1)*self.width])]
 			i += 1
 		return comb
 	
-	def get_fragment(self, reg):
+	def get_fragment(self):
 		comb = []
 		sync = [self.i_d.eq(self.i)]
 		
@@ -154,7 +157,7 @@ class EdgeDetector:
 		comb += [self.o.eq(self.ro | self.fo | self.bo)]
 		
 		# Registers
-		comb += self.get_registers(reg)
+		comb += self.get_registers()
 		
 		return Fragment(comb, sync)
 		
@@ -200,6 +203,7 @@ class Sum:
 		self.o = Signal()
 		
 		self.reg_p = RegParams("sum_reg", 0, 8, 4)
+		self.reg = None
 		
 		self.prog_stb = Signal()
 		self.prog_adr = Signal(width)
@@ -209,27 +213,27 @@ class Sum:
 		self._lut_port = self._mem.get_port()
 		self._prog_port = self._mem.get_port(write_capable=True)
 	
-	def get_registers(self, reg):
+	def get_registers(self):
 		comb = [
-			self.prog_adr.eq(reg.field.r[0:16]),
-			self.prog_dat.eq(reg.field.r[16]),
-			self.prog_stb.eq(reg.field.r[17])
+			self.prog_adr.eq(self.reg.field.r[0:16]),
+			self.prog_dat.eq(self.reg.field.r[16]),
+			self.prog_stb.eq(self.reg.field.r[17])
 			]
 		return comb
 	
-	def get_fragment(self, reg):
+	def get_fragment(self):
 		comb = [
 				self._lut_port.adr.eq(self.i),
 				self._o.eq(self._lut_port.dat_r),
 				
 				self._prog_port.adr.eq(self.prog_adr),
 				self._prog_port.we.eq(self.prog_stb),
-				self._prog_port.dat_w.eq(self.prog_dat)
+				self._prog_port.dat_w.eq(self.prog_dat),
 				
 				self.o.eq(self._o)
 		]
-		comb += get_registers(reg)
-		return Fragment(comb, sync, memories=self._mem)
+		comb += self.get_registers()
+		return Fragment(comb, memories=[self._mem])
 	
 	#
 	#Driver
@@ -263,7 +267,7 @@ class Trigger:
 		for port in self.ports:
 			rf = RegisterField(port.reg_p.name, port.reg_p.size, reset=0,
 												 access_bus=WRITE_ONLY, access_dev=READ_ONLY)
-			setattr(self, port.reg_name, rf)
+			setattr(self, port.reg_p.name, rf)
 		
 		# generate sum csr registers fields
 		self.sum_reg = RegisterField(self.sum.reg_p.name, self.sum.reg_p.size, reset=0,
@@ -274,8 +278,9 @@ class Trigger:
 		self.bank = csrgen.Bank(self.regs, address=address)
 		
 		# update base addr & interface
-		self.set_address(self.address)
-		self.set_interface(self.interface)
+		self.set_address(address)
+		self.set_interface(interface)
+		self.set_registers()
 		
 	def set_address(self, address):
 		self.address = address
@@ -289,10 +294,15 @@ class Trigger:
 		for port in self.ports:
 			port.interface = self.interface
 		self.sum.interface = self.interface
+	
+	def set_registers(self):
+		self.sum.reg=self.sum_reg
+		for port in self.ports:
+			port.reg=getattr(self, port.reg_p.name)
 		
 	def get_fragment(self):
 		# connect trig to input of each trig element
-		comb = [port.i.eq(self.in_trig) for port in self.ports]
+		comb = [port.i.eq(self.trig) for port in self.ports]
 		
 		# connect output of trig elements to sum
 		comb += [self.sum.i[j].eq(self.ports[j].o) for j in range(len(self.ports))]
@@ -301,9 +311,9 @@ class Trigger:
 		comb += [self.hit.eq(self.sum.o)]
 		
 		# add ports & sum to frag
-		frag = self.bank.get_fragment() 
-		frag += self.sum.get_fragment(self.sum_reg)
+		frag = self.bank.get_fragment()
+		frag += self.sum.get_fragment()
 		for port in self.ports:
-			frag += port.get_fragment(getattr(self, port.reg_name))
+			frag += port.get_fragment()
 			
 		return frag + Fragment(comb)

@@ -16,7 +16,7 @@ miscope is a small logic analyzer to be embedded in an FPGA.
 
 While free vendor toolchains are generally used by beginners or for prototyping 
 (situations where having a logic analyser in the design is generally very 
-helpful) free toolchains are  always  provided  without  the proprietary logic 
+helpful) free toolchains are always provided without the proprietary logic 
 analyzer solution... :(
 
 Based on Migen, miscope aims to provide a free, portable and flexible 
@@ -30,7 +30,7 @@ all cores to the CSR bus. When using Python on the Host, no needs to worry about
 cores register mapping, importing miscope project gives you direct access to 
 all the cores!
 
-miscope produces.vcd output files to be analyzed in your favorite waveform viewer.
+miscope produces .vcd output files to be analyzed in your favorite waveform viewer.
 
 [> Status:
 Refactoring in progress...
