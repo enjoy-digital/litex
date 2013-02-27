@@ -200,11 +200,17 @@ def _printcomb(f, ns, display_run):
 	r += "\n"
 	return r
 
+def _insert_resets(f, clock_domains):
+	newsync = dict()
+	for k, v in f.sync.items():
+		newsync[k] = insert_reset(clock_domains[k].rst, v)
+	f.sync = newsync
+
 def _printsync(f, ns, clock_domains):
 	r = ""
 	for k, v in sorted(f.sync.items(), key=itemgetter(0)):
 		r += "always @(posedge " + ns.get_name(clock_domains[k].clk) + ") begin\n"
-		r += _printnode(ns, _AT_SIGNAL, 1, insert_reset(clock_domains[k].rst, v))
+		r += _printnode(ns, _AT_SIGNAL, 1, v)
 		r += "end\n\n"
 	return r
 
@@ -267,6 +273,7 @@ def convert(f, ios=None, name="top",
 	f = lower_arrays(f)
 	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
 	f += fs
+	_insert_resets(f, clock_domains)
 
 	ns = build_namespace(list_signals(f) \
 		| list_special_ios(f, True, True, True) \
