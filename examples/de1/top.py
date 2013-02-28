@@ -43,7 +43,6 @@ from miscope import trigger, recorder, miio, mila
 from miscope.bridges import spi2csr
 
 from timings import *
-from constraints import Constraints
 
 from math import sin
 
@@ -74,128 +73,128 @@ MILA1_ADDR  = 0x0600
 #==============================================================================
 #       M I S C O P E    E X A M P L E
 #==============================================================================
-def get():
+class SoC:
+	def __init__(self):
+		# migIo0
+		self.miIo0 = miio.MiIo(MIIO0_ADDR, 8, "IO")
+	
+		# migLa0
+		self.term0 = trigger.Term(trig0_width)
+		self.trigger0 = trigger.Trigger(trig0_width, [self.term0])
+		self.recorder0 = recorder.Recorder(dat0_width, record_size)
+	
+		self.miLa0 = mila.MiLa(MILA0_ADDR, self.trigger0, self.recorder0)
+	
+		# migLa1
+		self.term1 = trigger.Term(trig1_width)
+		self.trigger1 = trigger.Trigger(trig1_width, [self.term1])
+		self.recorder1 = recorder.Recorder(dat1_width, record_size)
+	
+		self.miLa1 = mila.MiLa(MILA1_ADDR, self.trigger1, self.recorder1)
+	
+		# Spi2Csr
+		self.spi2csr0 = spi2csr.Spi2Csr(16,8)
+	
+		# Csr Interconnect
+		self.csrcon0 = csr.Interconnect(self.spi2csr0.csr, 
+				[
+					self.miIo0.bank.bus,
+					self.miLa0.trigger.bank.bus,
+					self.miLa0.recorder.bank.bus,
+					self.miLa1.trigger.bank.bus,
+					self.miLa1.recorder.bank.bus		
+				])
+		
+		self.clk50 = Signal()
+		self.led = Signal(8)		
+		self.gpio_0 = Signal(36)
+		self.key = Signal(4)
+		self.cd_sys = ClockDomain("sys")
+		
+	def get_fragment(self):			
+		comb = []
+		sync = []
+	
+		#
+		# Signal Generator
+		#
+	
+		# Counter
+		cnt_gen = Signal(8)
+		sync += [
+			cnt_gen.eq(cnt_gen+1)
+		]
+	
+		# Square
+		square_gen = Signal(8)
+		sync += [
+			If(cnt_gen[7],
+				square_gen.eq(255)
+			).Else(
+				square_gen.eq(0)
+			)
+		]
+	
+		sinus = [int(128*sin((2*3.1415)/256*(x+1)))+128 for x in range(256)]
+		sinus_re = Signal()
+		sinus_gen = Signal(8)
+		comb +=[sinus_re.eq(1)]
+		sinus_mem = Memory(8, 256, init = sinus)
+		sinus_port = sinus_mem.get_port(has_re=True)
+		comb += [
+			sinus_port.adr.eq(cnt_gen),
+			sinus_port.re.eq(sinus_re),
+			sinus_gen.eq(sinus_port.dat_r)
+		]
+	
+		# Signal Selection
+		sig_gen = Signal(8)
+		comb += [
+			If(self.miIo0.o == 0,
+				sig_gen.eq(cnt_gen)
+			).Elif(self.miIo0.o == 1,
+				sig_gen.eq(square_gen)
+			).Elif(self.miIo0.o == 2,
+				sig_gen.eq(sinus_gen)
+			).Else(
+				sig_gen.eq(0)
+			)
+		]
+	
+		# Led
+		comb += [self.led.eq(self.miIo0.o[:8])]
+	
+	
+		# MigLa0 input
+		comb += [
+			self.miLa0.trig.eq(sig_gen),
+			self.miLa0.dat.eq(sig_gen)
+		]
+	
+		# MigLa1 input
+		comb += [
+			self.miLa1.trig[:8].eq(self.spi2csr0.csr.dat_w),
+			self.miLa1.trig[8:24].eq(self.spi2csr0.csr.adr),
+			self.miLa1.trig[24].eq(self.spi2csr0.csr.we),
+			self.miLa1.dat[:8].eq(self.spi2csr0.csr.dat_w),
+			self.miLa1.dat[8:24].eq(self.spi2csr0.csr.adr),
+			self.miLa1.dat[24].eq(self.spi2csr0.csr.we)
+		]
+		
+		# Spi2Csr
+		self.spi2csr0.spi_clk = self.gpio_0[0]
+		self.spi2csr0.spi_cs_n = self.gpio_0[1]
+		self.spi2csr0.spi_mosi = self.gpio_0[2]
+		self.spi2csr0.spi_miso = self.gpio_0[3]
+		
+	  #
+		# Clocking / Reset
+		#
+		comb += [
+			self.cd_sys.clk.eq(self.clk50),
+			self.cd_sys.rst.eq(~self.key[0])
+			]
 
-	# migIo0
-	miIo0 = miio.MiIo(MIIO0_ADDR, 8, "IO")
-	
-	# migLa0
-	term0 = trigger.Term(trig0_width)
-	trigger0 = trigger.Trigger(trig0_width, [term0])
-	recorder0 = recorder.Recorder(dat0_width, record_size)
-	
-	miLa0 = mila.MiLa(MILA0_ADDR, trigger0, recorder0)
-	
-	# migLa1
-	term1 = trigger.Term(trig1_width)
-	trigger1 = trigger.Trigger(trig1_width, [term1])
-	recorder1 = recorder.Recorder(dat1_width, record_size)
-	
-	miLa1 = mila.MiLa(MILA1_ADDR, trigger1, recorder1)
-	
-	# Spi2Csr
-	spi2csr0 = spi2csr.Spi2Csr(16,8)
-	
-	# Csr Interconnect
-	csrcon0 = csr.Interconnect(spi2csr0.csr, 
-			[
-				miIo0.bank.bus,
-				miLa0.trigger.bank.bus,
-				miLa0.recorder.bank.bus,
-				miLa1.trigger.bank.bus,
-				miLa1.recorder.bank.bus,
-				
-			])
-	comb = []
-	sync = []
-	
-	#
-	# Signal Generator
-	#
-	
-	# Counter
-	cnt_gen = Signal(8)
-	sync += [
-		cnt_gen.eq(cnt_gen+1)
-	]
-	
-	# Square
-	square_gen = Signal(8)
-	sync += [
-		If(cnt_gen[7],
-			square_gen.eq(255)
-		).Else(
-			square_gen.eq(0)
-		)
-	]
-	
-	sinus = [int(128*sin((2*3.1415)/256*(x+1)))+128 for x in range(256)]
-	sinus_re = Signal()
-	sinus_gen = Signal(8)
-	comb +=[sinus_re.eq(1)]
-	sinus_mem = Memory(8, 256, init = sinus)
-	sinus_port = sinus_mem.get_port(has_re=True)
-	comb += [
-		sinus_port.adr.eq(cnt_gen),
-		sinus_port.re.eq(sinus_re),
-		sinus_gen.eq(sinus_port.dat_r)
-	]
-	
-	# Signal Selection
-	sig_gen = Signal(8)
-	comb += [
-		If(miIo0.o == 0,
-			sig_gen.eq(cnt_gen)
-		).Elif(miIo0.o == 1,
-			sig_gen.eq(square_gen)
-		).Elif(miIo0.o == 2,
-			sig_gen.eq(sinus_gen)
-		).Else(
-			sig_gen.eq(0)
-		)
-	]
-	
-	# Led
-	led0 = Signal(8)
-	comb += [led0.eq(miIo0.o[:8])]
-	
-	#Switch
-	sw0 = Signal(8)
-	comb += [miIo0.i.eq(sw0)]
-	
-	# MigLa0 input
-	comb += [
-		miLa0.trig.eq(sig_gen),
-		miLa0.dat.eq(sig_gen)
-	]
-	
-	# MigLa1 input
-	comb += [
-		miLa1.trig[:8].eq(spi2csr0.csr.dat_w),
-		miLa1.trig[8:24].eq(spi2csr0.csr.adr),
-		miLa1.trig[24].eq(spi2csr0.csr.we),
-		miLa1.dat[:8].eq(spi2csr0.csr.dat_w),
-		miLa1.dat[8:24].eq(spi2csr0.csr.adr),
-		miLa1.dat[24].eq(spi2csr0.csr.we)
-	]
-	
-	
-	# HouseKeeping
-	cd_in = ClockDomain("in")
-	in_rst_n = Signal()
-	comb += [
-		cd_in.rst.eq(~in_rst_n)
-	]
-
-	frag = autofragment.from_local()
-	frag += Fragment(sync=sync,comb=comb,memories=[sinus_mem])
-	cst = Constraints(in_rst_n, cd_in, spi2csr0, led0, sw0)
-	src_verilog, vns = verilog.convert(frag,
-		cst.get_ios(),
-		name="de1",
-		clock_domains={
-			"sys": cd_in
-		},
-		return_ns=True)
-	src_qsf = cst.get_qsf(vns)
-	return (src_verilog, src_qsf)
+		frag = autofragment.from_attributes(self)
+		frag += Fragment(comb, sync)
+		return frag
