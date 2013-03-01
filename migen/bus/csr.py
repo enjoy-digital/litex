@@ -62,7 +62,7 @@ class SRAM:
 		self.address = address
 		page_bits = _compute_page_bits(self.mem.depth)
 		if page_bits:
-			self._page = RegisterField("page", page_bits)
+			self._page = RegisterField(self.mem.name_override + "_page", page_bits)
 		else:
 			self._page = None
 		if bus is None:
