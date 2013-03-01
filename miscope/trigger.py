@@ -1,8 +1,9 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
-from migen.corelogic.misc import optree
+from migen.genlib.misc import optree
 
 
 class RegParams:
@@ -233,7 +234,7 @@ class Sum:
 				self.o.eq(self._o)
 		]
 		comb += self.get_registers()
-		return Fragment(comb, memories=[self._mem])
+		return Fragment(comb, specials={self._mem})
 	
 	#
 	#Driver

@@ -1,9 +1,10 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
-from migen.corelogic.misc import optree
-from migen.corelogic.fsm import *
+from migen.genlib.misc import optree
+from migen.genlib.fsm import *
 
 class Storage:
 	# 
@@ -88,7 +89,7 @@ class Storage:
 		]
 		comb +=[self.done.eq((self._push_ptr == self._push_ptr_stop) & active_ongoing)]
 		
-		return Fragment(comb, sync, memories=[self._mem])
+		return Fragment(comb, sync, specials={self._mem})
 
 class Sequencer:
 	# 

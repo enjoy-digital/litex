@@ -1,8 +1,7 @@
 import sys
 import datetime
 
-sys.path.append("../../")
-from migScope.tools.conv import *
+from miscope.tools.conv import *
 
 def get_bits(values, width, low, high =None):
 	r = []

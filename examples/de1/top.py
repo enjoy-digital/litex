@@ -33,6 +33,7 @@
 #	I M P O R T 
 #==============================================================================
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.fhdl import verilog, autofragment
 from migen.bus import csr
 from migen.bus.transactions import *
