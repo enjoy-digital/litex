@@ -1,6 +1,7 @@
 import inspect
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Special
 
 def from_local():
 	f = Fragment()
@@ -38,7 +39,7 @@ def _cd_append(d, key, statements):
 		l = []
 		d[key] = l
 	if isinstance(statements, (list, tuple)):
-		l += other
+		l += statements
 	else:
 		l.append(statements)
 
@@ -71,15 +72,32 @@ class _FModuleSpecials(_FModuleProxy):
 			self._fm._fragment.specials.add(other)
 		return self
 
+class _FModuleSubmodules(_FModuleProxy):
+	def __iadd__(self, other):
+		if isinstance(other, (list, tuple)):
+			self._fm._submodules += other
+		else:
+			self._fm._submodules.append(other)
+		return self
+
 class FModule:
-	def do_simulation(self, s):
-		pass
+	auto_attr = True
 
 	def get_fragment(self):
 		assert(not hasattr(self, "_fragment"))
-		self._fragment = Fragment(sim=[self.do_simulation])
+		self._fragment = Fragment()
+		self._submodules = []
 		self.build_fragment()
-		self._fragment += from_attributes(self)
+		if hasattr(self, "do_simulation"):
+			self._fragment.sim.append(self.do_simulation)
+		for submodule in self._submodules:
+			f += submodule.get_fragment()
+		if self.auto_attr:
+			for x in self.__dict__.values():
+				if isinstance(x, Special):
+					self._fragment.specials.add(x)
+				elif hasattr(x, "get_fragment"):
+					self._fragment += x.get_fragment()
 		return self._fragment
 
 	def __getattr__(self, name):
@@ -89,11 +107,13 @@ class FModule:
 			return _FModuleSync(self)
 		elif name == "specials":
 			return _FModuleSpecials(self)
+		elif name == "submodules":
+			return _FModuleSubmodules(self)
 		else:
-			raise AttributeError
+			raise AttributeError("'"+self.__class__.__name__+"' object has no attribute '"+name+"'")
 
 	def __setattr__(self, name, value):
-		if name in ["comb", "sync", "specials"]:
+		if name in ["comb", "sync", "specials", "submodules"]:
 			if not isinstance(value, _FModuleProxy):
 				raise AttributeError("Attempted to assign special FModule property - use += instead")
 		else:
