@@ -4,6 +4,7 @@ from migen.bus.simple import *
 from migen.bus.transactions import *
 from migen.sim.generic import PureSimulable
 from migen.bank.description import RegisterField
+from migen.genlib.misc import chooser
 
 data_width = 8
 
@@ -55,12 +56,17 @@ def _compute_page_bits(nwords):
 class SRAM:
 	def __init__(self, mem_or_size, address, bus=None):
 		if isinstance(mem_or_size, Memory):
-			assert(mem_or_size.width <= data_width)
 			self.mem = mem_or_size
 		else:
 			self.mem = Memory(data_width, mem_or_size//(data_width//8))
 		self.address = address
-		page_bits = _compute_page_bits(self.mem.depth)
+		if self.mem.width > data_width:
+			self.csrw_per_memw = (self.mem.width + data_width - 1)//data_width
+			self.word_bits = bits_for(self.csrw_per_memw-1)
+		else:
+			self.csrw_per_memw = 1
+			self.word_bits = 0
+		page_bits = _compute_page_bits(self.mem.depth + self.word_bits)
 		if page_bits:
 			self._page = RegisterField(self.mem.name_override + "_page", page_bits)
 		else:
@@ -76,26 +82,36 @@ class SRAM:
 			return [self._page]
 	
 	def get_fragment(self):
-		port = self.mem.get_port(write_capable=True)
+		port = self.mem.get_port(write_capable=not self.word_bits)
 		
 		sel = Signal()
 		sel_r = Signal()
 		sync = [sel_r.eq(sel)]
-		
-		comb = [
-			sel.eq(self.bus.adr[9:] == self.address),
-			port.we.eq(sel & self.bus.we),
-			
-			port.dat_w.eq(self.bus.dat_w),
-			If(sel_r,
-				self.bus.dat_r.eq(port.dat_r)
-			)
-		]
+		comb = [sel.eq(self.bus.adr[9:] == self.address)]
+
+		if self.word_bits:
+			word_index = Signal(self.word_bits)
+			word_expanded = Signal(self.csrw_per_memw*data_width)
+			sync.append(word_index.eq(self.bus.adr[:self.word_bits]))
+			comb += [
+				word_expanded.eq(port.dat_r),
+				If(sel_r,
+					chooser(word_expanded, word_index, self.bus.dat_r, n=self.csrw_per_memw, reverse=True)
+				)
+			]
+		else:
+			comb += [
+				port.we.eq(sel & self.bus.we),
+				port.dat_w.eq(self.bus.dat_w),
+				If(sel_r,
+					self.bus.dat_r.eq(port.dat_r)
+				)
+			]
 		
 		if self._page is None:
-			comb.append(port.adr.eq(self.bus.adr[:len(port.adr)]))
+			comb.append(port.adr.eq(self.bus.adr[self.word_bits:len(port.adr)]))
 		else:
 			pv = self._page.field.r
-			comb.append(port.adr.eq(Cat(self.bus.adr[:len(port.adr)-len(pv)], pv)))
+			comb.append(port.adr.eq(Cat(self.bus.adr[self.word_bits:len(port.adr)-len(pv)], pv)))
 		
 		return Fragment(comb, sync, specials={self.mem})
