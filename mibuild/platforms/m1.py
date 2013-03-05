@@ -82,6 +82,26 @@ _io = [
 		Subsignal("psave_n", Pins("B14")),
 		IOStandard("LVCMOS33")
 	),
+
+	# Digital video mixer extension board
+	("dvi_in", 0,
+		Subsignal("clk", Pins("A20")),
+		Subsignal("data0_n", Pins("A21")),
+		Subsignal("data1", Pins("B21")),
+		Subsignal("data2_n", Pins("B22")),
+		Subsignal("scl", Pins("G16")),
+		Subsignal("sda", Pins("G17")),
+		IOStandard("LVCMOS33")
+	),
+	("dvi_in", 1,
+		Subsignal("clk", Pins("H17")),
+		Subsignal("data0_n", Pins("H16")),
+		Subsignal("data1", Pins("F17")),
+		Subsignal("data2_n", Pins("F16")),
+		Subsignal("scl", Pins("J16")),
+		Subsignal("sda", Pins("K16")),
+		IOStandard("LVCMOS33")
+	)
 ]
 
 class Platform(XilinxISEPlatform):
