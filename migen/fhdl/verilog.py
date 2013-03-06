@@ -135,10 +135,10 @@ def _list_comb_wires(f):
 
 def _printheader(f, ios, name, ns):
 	sigs = list_signals(f) | list_special_ios(f, True, True, True)
-	it_mem_outs = list_special_ios(f, False, True, False)
+	special_outs = list_special_ios(f, False, True, True)
 	inouts = list_special_ios(f, False, False, True)
-	targets = list_targets(f) | it_mem_outs
-	wires = _list_comb_wires(f) | it_mem_outs
+	targets = list_targets(f) | special_outs
+	wires = _list_comb_wires(f) | special_outs
 	r = "module " + name + "(\n"
 	firstp = True
 	for sig in sorted(ios, key=lambda x: x.huid):
