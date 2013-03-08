@@ -54,7 +54,7 @@ def _compute_page_bits(nwords):
 		return 0
 
 class SRAM:
-	def __init__(self, mem_or_size, address, bus=None):
+	def __init__(self, mem_or_size, address, read_only=None, bus=None):
 		if isinstance(mem_or_size, Memory):
 			self.mem = mem_or_size
 		else:
@@ -71,6 +71,12 @@ class SRAM:
 			self._page = RegisterField(self.mem.name_override + "_page", page_bits)
 		else:
 			self._page = None
+		if read_only is None:
+			if hasattr(self.mem, "bus_read_only"):
+				read_only = self.mem.bus_read_only
+			else:
+				read_only = False
+		self.read_only = read_only
 		if bus is None:
 			bus = Interface()
 		self.bus = bus
@@ -82,7 +88,8 @@ class SRAM:
 			return [self._page]
 	
 	def get_fragment(self):
-		port = self.mem.get_port(write_capable=not self.word_bits)
+		port = self.mem.get_port(write_capable=not self.read_only,
+			we_granularity=data_width if not self.read_only and self.word_bits else 0)
 		
 		sel = Signal()
 		sel_r = Signal()
@@ -99,14 +106,22 @@ class SRAM:
 					chooser(word_expanded, word_index, self.bus.dat_r, n=self.csrw_per_memw, reverse=True)
 				)
 			]
+			if not self.read_only:
+				comb += [
+					If(sel & self.bus.we, port.we.eq((1 << self.word_bits) >> self.bus.adr[:self.word_bits])),
+					port.dat_w.eq(Replicate(self.bus.dat_w, self.csrw_per_memw))
+				]
 		else:
 			comb += [
-				port.we.eq(sel & self.bus.we),
-				port.dat_w.eq(self.bus.dat_w),
 				If(sel_r,
 					self.bus.dat_r.eq(port.dat_r)
 				)
 			]
+			if not self.read_only:
+				comb += [
+					port.we.eq(sel & self.bus.we),
+					port.dat_w.eq(self.bus.dat_w)
+				]
 		
 		if self._page is None:
 			comb.append(port.adr.eq(self.bus.adr[self.word_bits:len(port.adr)]))
