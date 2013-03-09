@@ -1,17 +1,14 @@
+from copy import copy
+
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 
-def regprefix(prefix, registers):
-	for register in registers:
-		register.name = prefix + register.name
-	return registers
+class Register(HUID):
+	pass
 
-def memprefix(prefix, memories):
-	for memory in memories:
-		memory.name_override = prefix + memory.name_override
-	return memories
-
-class RegisterRaw:
+class RegisterRaw(Register):
 	def __init__(self, name, size=1):
+		Register.__init__(self)
 		self.name = name
 		self.size = size
 		self.re = Signal()
@@ -37,8 +34,9 @@ class Field:
 				self.w = Signal(self.size)
 				self.we = Signal()
 
-class RegisterFields:
+class RegisterFields(Register):
 	def __init__(self, name, fields):
+		Register.__init__(self)
 		self.name = name
 		self.fields = fields
 
@@ -46,6 +44,41 @@ class RegisterField(RegisterFields):
 	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False):
 		self.field = Field(name, size, access_bus, access_dev, reset, atomic_write)
 		RegisterFields.__init__(self, name, [self.field])
+
+def regprefix(prefix, registers):
+	r = []
+	for register in registers:
+		c = copy(register)
+		c.name = prefix + c.name
+		r.append(c)
+	return r
+
+def memprefix(prefix, memories):
+	r = []
+	for memory in memories:
+		c = copy(memory)
+		c.name_override = prefix + c.name_override
+		r.append(c)
+	return memories
+
+class AutoReg:
+	def get_memories(self):
+		r = []
+		for k, v in self.__dict__.items():
+			if isinstance(v, Memory):
+				r.append(v)
+			elif hasattr(v, "get_memories"):
+				r += memprefix(k + "_", v.get_memories())
+		return sorted(r, key=lambda x: x.huid)
+
+	def get_registers(self):
+		r = []
+		for k, v in self.__dict__.items():
+			if isinstance(v, Register):
+				r.append(v)
+			elif hasattr(v, "get_registers"):
+				r += regprefix(k + "_", v.get_registers())
+		return sorted(r, key=lambda x: x.huid)
 
 (ALIAS_NON_ATOMIC, ALIAS_ATOMIC_HOLD, ALIAS_ATOMIC_COMMIT) = range(3)
 
