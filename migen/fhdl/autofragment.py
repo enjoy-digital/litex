@@ -91,7 +91,7 @@ class FModule:
 		if hasattr(self, "do_simulation"):
 			self._fragment.sim.append(self.do_simulation)
 		for submodule in self._submodules:
-			f += submodule.get_fragment()
+			self._fragment += submodule.get_fragment()
 		if self.auto_attr:
 			for x in self.__dict__.values():
 				if isinstance(x, Special):
