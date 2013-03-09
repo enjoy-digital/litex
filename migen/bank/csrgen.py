@@ -84,3 +84,47 @@ class Bank:
 							sync.append(If(field.we, field.storage.eq(field.w)))
 		
 		return Fragment(comb, sync)
+
+# address_map(name, memory) returns the CSR offset at which to map
+# the CSR object (register bank or memory).
+# If memory=None, the object is the register bank of object source.name.
+# Otherwise, it is a memory object belonging to source.name.
+# address_map is called exactly once for each object at each call to
+# scan(), so it can have side effects.
+class BankArray:
+	def __init__(self, source, address_map):
+		self.source = source
+		self.address_map = address_map
+		self.scan()
+
+	def scan(self):
+		self.banks = []
+		self.srams = []
+		for name, obj in self.source.__dict__.items():
+			if hasattr(obj, "get_registers"):
+				registers = obj.get_registers()
+			else:
+				registers = []
+			if hasattr(obj, "get_memories"):
+				memories = obj.get_memories()
+				for memory in memories:
+					mapaddr = self.address_map(name, memory)
+					mmap = csr.SRAM(memory, mapaddr)
+					registers += mmap.get_registers()
+					self.srams.append(mmap)
+			if registers:
+				mapaddr = self.address_map(name, None)
+				rmap = Bank(registers, mapaddr)
+				self.banks.append(rmap)
+
+	def get_banks(self):
+		return self.banks
+
+	def get_srams(self):
+		return self.srams
+
+	def get_buses(self):
+		return [i.bus for i in self.banks + self.srams]
+
+	def get_fragment(self):
+		return sum([i.get_fragment() for i in self.banks + self.srams], Fragment())
