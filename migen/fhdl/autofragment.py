@@ -120,4 +120,4 @@ class FModule:
 			object.__setattr__(self, name, value)
 
 	def build_fragment(self):
-		raise NotImplementedError("FModule.build_fragment needs to be overloaded")
+		pass # do nothing (e.g. module has only submodules)
