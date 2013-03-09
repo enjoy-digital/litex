@@ -1,10 +1,12 @@
+import collections
+
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
 from migen.fhdl.visit import NodeVisitor, NodeTransformer
 
 def flat_iteration(l):
 	for element in l:
-		if isinstance(element, (list, tuple)):
+		if isinstance(element, collections.Iterable):
 			for element2 in flat_iteration(element):
 				yield element2
 		else:
