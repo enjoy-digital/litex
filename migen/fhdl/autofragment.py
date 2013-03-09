@@ -1,5 +1,14 @@
+import collections
+
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Special
+from migen.fhdl.tools import flat_iteration
+
+def flat_list(e):
+	if isinstance(e, collections.Iterable):
+		return flat_iteration(e)
+	else:
+		return [e]
 
 class _FModuleProxy:
 	def __init__(self, fm):
@@ -7,10 +16,7 @@ class _FModuleProxy:
 
 class _FModuleComb(_FModuleProxy):
 	def __iadd__(self, other):
-		if isinstance(other, (list, tuple)):
-			self._fm._fragment.comb += other
-		else:
-			self._fm._fragment.comb.append(other)
+		self._fm._fragment.comb += flat_list(other)
 		return self
 
 def _cd_append(d, key, statements):
@@ -19,10 +25,7 @@ def _cd_append(d, key, statements):
 	except KeyError:
 		l = []
 		d[key] = l
-	if isinstance(statements, (list, tuple)):
-		l += statements
-	else:
-		l.append(statements)
+	l += flat_list(statements)
 
 class _FModuleSyncCD:
 	def __init__(self, fm, cd):
@@ -47,18 +50,12 @@ class _FModuleSync(_FModuleProxy):
 
 class _FModuleSpecials(_FModuleProxy):
 	def __iadd__(self, other):
-		if isinstance(other, (set, list, tuple)):
-			self._fm._fragment.specials |= set(other)
-		else:
-			self._fm._fragment.specials.add(other)
+		self._fm._fragment.specials |= set(flat_list(other))
 		return self
 
 class _FModuleSubmodules(_FModuleProxy):
 	def __iadd__(self, other):
-		if isinstance(other, (list, tuple)):
-			self._fm._submodules += other
-		else:
-			self._fm._submodules.append(other)
+		self._fm._submodules += flat_list(other)
 		return self
 
 class FModule:
