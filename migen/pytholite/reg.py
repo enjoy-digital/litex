@@ -3,9 +3,6 @@ from operator import itemgetter
 from migen.fhdl.structure import *
 from migen.fhdl import visit as fhdl
 
-class FinalizeError(Exception):
-	pass
-
 class AbstractLoad:
 	def __init__(self, target, source):
 		self.target = target

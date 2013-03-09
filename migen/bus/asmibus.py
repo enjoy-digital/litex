@@ -3,9 +3,6 @@ from migen.genlib.misc import optree
 from migen.bus.transactions import *
 from migen.sim.generic import Proxy, PureSimulable
 
-class FinalizeError(Exception):
-	pass
-
 (SLOT_EMPTY, SLOT_PENDING, SLOT_PROCESSING) = range(3)
 
 class Slot:
