@@ -3,12 +3,12 @@ from copy import copy
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 
-class Register(HUID):
+class _Register(HUID):
 	pass
 
-class RegisterRaw(Register):
+class RegisterRaw(_Register):
 	def __init__(self, name, size=1):
-		Register.__init__(self)
+		_Register.__init__(self)
 		self.name = name
 		self.size = size
 		self.re = Signal()
@@ -34,9 +34,9 @@ class Field:
 				self.w = Signal(self.size)
 				self.we = Signal()
 
-class RegisterFields(Register):
+class RegisterFields(_Register):
 	def __init__(self, name, fields):
-		Register.__init__(self)
+		_Register.__init__(self)
 		self.name = name
 		self.fields = fields
 
@@ -74,7 +74,7 @@ class AutoReg:
 	def get_registers(self):
 		r = []
 		for k, v in self.__dict__.items():
-			if isinstance(v, Register):
+			if isinstance(v, _Register):
 				r.append(v)
 			elif hasattr(v, "get_registers") and callable(v.get_registers):
 				r += regprefix(k + "_", v.get_registers())

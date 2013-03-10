@@ -3,16 +3,16 @@ from migen.fhdl.module import Module
 from migen.bank.description import *
 from migen.genlib.misc import optree
 
-class EventSource(HUID):
+class _EventSource(HUID):
 	def __init__(self):
 		HUID.__init__(self)
 		self.trigger = Signal()
 		self.pending = Signal()
 
-class EventSourcePulse(EventSource):
+class EventSourcePulse(_EventSource):
 	pass
 
-class EventSourceLevel(EventSource):
+class EventSourceLevel(_EventSource):
 	pass
 
 class EventManager(Module, AutoReg):
@@ -20,7 +20,7 @@ class EventManager(Module, AutoReg):
 		self.irq = Signal()
 	
 	def do_finalize(self):
-		sources_u = [v for v in self.__dict__.values() if isinstance(v, EventSource)]
+		sources_u = [v for v in self.__dict__.values() if isinstance(v, _EventSource)]
 		sources = sorted(sources_u, key=lambda x: x.huid)
 		n = len(sources)
 		self.status = RegisterRaw("status", n)
@@ -60,6 +60,6 @@ class EventManager(Module, AutoReg):
 		self.comb += self.irq.eq(optree("|", irqs))
 
 	def __setattr__(self, name, value):
-		if isinstance(value, EventSource) and self.finalized:
+		if isinstance(value, _EventSource) and self.finalized:
 			raise FinalizeError
 		object.__setattr__(self, name, value)
