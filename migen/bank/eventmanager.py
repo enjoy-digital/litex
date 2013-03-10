@@ -1,9 +1,11 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.bank.description import *
 from migen.genlib.misc import optree
 
-class EventSource:
+class EventSource(HUID):
 	def __init__(self):
+		HUID.__init__(self)
 		self.trigger = Signal()
 		self.pending = Signal()
 
@@ -13,52 +15,51 @@ class EventSourcePulse(EventSource):
 class EventSourceLevel(EventSource):
 	pass
 
-class EventManager:
-	def __init__(self, *sources):
-		self.sources = sources
+class EventManager(Module, AutoReg):
+	def __init__(self):
 		self.irq = Signal()
-		n = len(self.sources)
+	
+	def do_finalize(self):
+		sources_u = [v for v in self.__dict__.values() if isinstance(v, EventSource)]
+		sources = sorted(sources_u, key=lambda x: x.huid)
+		n = len(sources)
 		self.status = RegisterRaw("status", n)
 		self.pending = RegisterRaw("pending", n)
 		self.enable = RegisterFields("enable",
 		  [Field("s" + str(i), access_bus=READ_WRITE, access_dev=READ_ONLY) for i in range(n)])
-	
-	def get_registers(self):
-		return [self.status, self.pending, self.enable]
-	
-	def get_fragment(self):
-		comb = []
-		sync = []
-		
+
 		# status
-		for i, source in enumerate(self.sources):
+		for i, source in enumerate(sources):
 			if isinstance(source, EventSourcePulse):
-				comb.append(self.status.w[i].eq(0))
+				self.comb += self.status.w[i].eq(0)
 			elif isinstance(source, EventSourceLevel):
-				comb.append(self.status.w[i].eq(source.trigger))
+				self.comb += self.status.w[i].eq(source.trigger)
 			else:
 				raise TypeError
 		
 		# pending
-		for i, source in enumerate(self.sources):
+		for i, source in enumerate(sources):
 			# W1C
-			sync.append(If(self.pending.re & self.pending.r[i], source.pending.eq(0)))
+			self.sync += If(self.pending.re & self.pending.r[i], source.pending.eq(0))
 			if isinstance(source, EventSourcePulse):
 				# set on a positive trigger pulse
-				sync.append(If(source.trigger, source.pending.eq(1)))
+				self.sync += If(source.trigger, source.pending.eq(1))
 			elif isinstance(source, EventSourceLevel):
 				# set on the falling edge of the trigger
 				old_trigger = Signal()
-				sync += [
+				self.sync += [
 					old_trigger.eq(source.trigger),
 					If(~source.trigger & old_trigger, source.pending.eq(1))
 				]
 			else:
 				raise TypeError
-			comb.append(self.pending.w[i].eq(source.pending))
+			self.comb += self.pending.w[i].eq(source.pending)
 		
 		# IRQ
 		irqs = [self.pending.w[i] & field.r for i, field in enumerate(self.enable.fields)]
-		comb.append(self.irq.eq(optree("|", irqs)))
-		
-		return Fragment(comb, sync)
+		self.comb += self.irq.eq(optree("|", irqs))
+
+	def __setattr__(self, name, value):
+		if isinstance(value, EventSource) and self.finalized:
+			raise FinalizeError
+		object.__setattr__(self, name, value)
