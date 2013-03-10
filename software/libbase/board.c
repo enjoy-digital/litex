@@ -1,4 +1,4 @@
-#include <hw/id.h>
+#include <hw/identifier.h>
 #include <hw/gpio.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@ static const struct board_desc *get_board_desc_id(unsigned short int id)
 
 static const struct board_desc *get_board_desc(void)
 {
-	return get_board_desc_id((CSR_ID_SYSTEMH << 8) | CSR_ID_SYSTEML);
+	return get_board_desc_id((CSR_IDENTIFIER_SYSTEMH << 8) | CSR_IDENTIFIER_SYSTEML);
 }
 
 int get_pcb_revision(void)
@@ -54,10 +54,10 @@ void get_soc_version(unsigned int *major, unsigned int *minor, unsigned int *sub
 {
 	unsigned int id;
 
-	id = CSR_ID_VERSIONH;
+	id = CSR_IDENTIFIER_VERSIONH;
 	*major = (id & 0xf0) >> 4;
 	*minor = id & 0x0f;
-	id = CSR_ID_VERSIONL;
+	id = CSR_IDENTIFIER_VERSIONL;
 	*subminor = (id & 0xf0) >> 4;
 	*rc = id & 0x0f;
 }

@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.bus import dfi, asmibus
 
 from milkymist.asmicon.refresher import *
@@ -34,13 +35,12 @@ class TimingSettings:
 		self.write_time = write_time
 		self.slot_time = slot_time
 
-class ASMIcon:
+class ASMIcon(Module):
 	def __init__(self, phy_settings, geom_settings, timing_settings, full_selector=False):
 		self.phy_settings = phy_settings
 		self.geom_settings = geom_settings
 		self.timing_settings = timing_settings
 		self.full_selector = full_selector
-		self.finalized = False
 		
 		self.dfi = dfi.Interface(self.geom_settings.mux_a,
 			self.geom_settings.bank_a,
@@ -50,26 +50,14 @@ class ASMIcon:
 		self.address_align = log2_int(burst_length)
 		aw = self.geom_settings.bank_a + self.geom_settings.row_a + self.geom_settings.col_a - self.address_align
 		dw = self.phy_settings.dfi_d*self.phy_settings.nphases
-		self.hub = asmibus.Hub(aw, dw, self.timing_settings.slot_time)
+		self.submodules.hub = asmibus.Hub(aw, dw, self.timing_settings.slot_time)
 	
-	def finalize(self):
-		if self.finalized:
-			raise FinalizeError
-		self.finalized = True
-		self.hub.finalize()
+	def do_finalize(self):
 		slots = self.hub.get_slots()
-		self.refresher = Refresher(self.geom_settings.mux_a, self.geom_settings.bank_a,
+		self.submodules.refresher = Refresher(self.geom_settings.mux_a, self.geom_settings.bank_a,
 			self.timing_settings.tRP, self.timing_settings.tREFI, self.timing_settings.tRFC)
-		self.bank_machines = [BankMachine(self.geom_settings, self.timing_settings, self.address_align, i, slots, self.full_selector)
+		self.submodules.bank_machines = [BankMachine(self.geom_settings, self.timing_settings, self.address_align, i, slots, self.full_selector)
 			for i in range(2**self.geom_settings.bank_a)]
-		self.multiplexer = Multiplexer(self.phy_settings, self.geom_settings, self.timing_settings,
+		self.submodules.multiplexer = Multiplexer(self.phy_settings, self.geom_settings, self.timing_settings,
 			self.bank_machines, self.refresher,
 			self.dfi, self.hub)
-	
-	def get_fragment(self):
-		if not self.finalized:
-			raise FinalizeError
-		return self.hub.get_fragment() + \
-			self.refresher.get_fragment() + \
-			sum([bm.get_fragment() for bm in self.bank_machines], Fragment()) + \
-			self.multiplexer.get_fragment()

@@ -2,9 +2,10 @@ from fractions import Fraction
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
+from migen.fhdl.module import Module
 from mibuild.crg import CRG
 
-class M1CRG(CRG):
+class M1CRG(Module, CRG):
 	def __init__(self, infreq, outfreq1x):
 		self.clk50_pad = Signal()
 		self.trigger_reset = Signal()
@@ -56,7 +57,4 @@ class M1CRG(CRG):
 			setattr(self, name, s)
 			inst_items.append(Instance.Output(name, s))  
 		
-		self._inst = Instance("m1crg", *inst_items)
-
-	def get_fragment(self):
-		return Fragment(specials={self._inst})
+		self.specials += Instance("m1crg", *inst_items)

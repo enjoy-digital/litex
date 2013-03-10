@@ -1,8 +1,8 @@
-from migen.fhdl.structure import *
-from migen.bank.description import *
-from migen.bank import csrgen
-
 import re
+
+from migen.fhdl.structure import *
+from migen.fhdl.module import Module
+from migen.bank.description import *
 
 def encode_version(version):
 	match = re.match("(\d+)\.(\d+)(\.(\d+))?(rc(\d+))?", version, re.IGNORECASE)
@@ -15,22 +15,16 @@ def encode_version(version):
 		r |= int(rc)
 	return r
 
-class Identifier:
-	def __init__(self, address, sysid, version, frequency):
-		self.sysid = sysid
-		self.version = encode_version(version)
-		self.frequency = frequency
-		
+class Identifier(Module, AutoReg):
+	def __init__(self, sysid, version, frequency):
 		self._r_sysid = RegisterField("sysid", 16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._r_version = RegisterField("version", 16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._r_frequency = RegisterField("frequency", 32, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		regs = [self._r_sysid, self._r_version, self._r_frequency]
-		self.bank = csrgen.Bank(regs, address=address)
 		
-	def get_fragment(self):
-		comb = [
-			self._r_sysid.field.w.eq(self.sysid),
-			self._r_version.field.w.eq(self.version),
-			self._r_frequency.field.w.eq(self.frequency)
+		###
+
+		self.comb += [
+			self._r_sysid.field.w.eq(sysid),
+			self._r_version.field.w.eq(encode_version(version)),
+			self._r_frequency.field.w.eq(frequency)
 		]
-		return self.bank.get_fragment() + Fragment(comb)

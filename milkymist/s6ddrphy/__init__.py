@@ -1,8 +1,9 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
+from migen.fhdl.module import Module
 from migen.bus import dfi
 
-class S6DDRPHY:
+class S6DDRPHY(Module):
 	def __init__(self, a, ba, d):
 		inst_items = [
 			Instance.Parameter("NUM_AD", a),
@@ -39,7 +40,4 @@ class S6DDRPHY:
 		inst_items += [Instance.Output(name, signal)
 			for name, signal in self.dfi.get_standard_names(False, True)]
 		
-		self._inst = Instance("s6ddrphy", *inst_items)
-
-	def get_fragment(self):
-		return Fragment(specials={self._inst})
+		self.specials += Instance("s6ddrphy", *inst_items)

@@ -1,23 +1,27 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
+from migen.fhdl.module import Module
 from migen.bus import wishbone
 
-class LM32:
+class LM32(Module):
 	def __init__(self):
 		self.ibus = i = wishbone.Interface()
 		self.dbus = d = wishbone.Interface()
 		self.interrupt = Signal(32)
 		self.ext_break = Signal()
-		self._i_adr_o = Signal(32)
-		self._d_adr_o = Signal(32)
-		self._inst = Instance("lm32_top",
+
+		###
+
+		i_adr_o = Signal(32)
+		d_adr_o = Signal(32)
+		self.specials += Instance("lm32_top",
 			Instance.ClockPort("clk_i"),
 			Instance.ResetPort("rst_i"),
 			
 			Instance.Input("interrupt", self.interrupt),
 			#Instance.Input("ext_break", self.ext_break),
 		
-			Instance.Output("I_ADR_O", self._i_adr_o),
+			Instance.Output("I_ADR_O", i_adr_o),
 			Instance.Output("I_DAT_O", i.dat_w),
 			Instance.Output("I_SEL_O", i.sel),
 			Instance.Output("I_CYC_O", i.cyc),
@@ -31,7 +35,7 @@ class LM32:
 			Instance.Input("I_ERR_I", i.err),
 			Instance.Input("I_RTY_I", 0),
 			
-			Instance.Output("D_ADR_O", self._d_adr_o),
+			Instance.Output("D_ADR_O", d_adr_o),
 			Instance.Output("D_DAT_O", d.dat_w),
 			Instance.Output("D_SEL_O", d.sel),
 			Instance.Output("D_CYC_O", d.cyc),
@@ -45,9 +49,7 @@ class LM32:
 			Instance.Input("D_ERR_I", d.err),
 			Instance.Input("D_RTY_I", 0))
 
-	def get_fragment(self):
-		comb = [
-			self.ibus.adr.eq(self._i_adr_o[2:]),
-			self.dbus.adr.eq(self._d_adr_o[2:])
+		self.comb += [
+			self.ibus.adr.eq(i_adr_o[2:]),
+			self.dbus.adr.eq(d_adr_o[2:])
 		]
-		return Fragment(comb, specials={self._inst})

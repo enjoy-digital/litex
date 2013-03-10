@@ -1,12 +1,12 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
+from migen.fhdl.module import Module
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.flow import plumbing
 from migen.actorlib import misc, dma_asmi, structuring, sim, spi
 from migen.bank.description import *
-from migen.bank import csrgen
 
 _hbits = 11
 _vbits = 11
@@ -47,7 +47,7 @@ class _FrameInitiator(spi.SingleGenerator):
 		]
 		spi.SingleGenerator.__init__(self, layout, spi.MODE_CONTINUOUS)
 
-class VTG(Actor):
+class VTG(Module, Actor):
 	def __init__(self):
 		Actor.__init__(self,
 			("timing", Sink, [
@@ -62,8 +62,7 @@ class VTG(Actor):
 			("pixels", Sink, _pixel_layout),
 			("dac", Source, _dac_layout)
 		)
-	
-	def get_fragment(self):
+
 		hactive = Signal()
 		vactive = Signal()
 		active = Signal()
@@ -73,7 +72,7 @@ class VTG(Actor):
 		vcounter = Signal(_vbits)
 		
 		skip = _bpc - _bpc_dac
-		comb = [
+		self.comb += [
 			active.eq(hactive & vactive),
 			If(active,
 				self.token("dac").r.eq(self.token("pixels").r[skip:]),
@@ -86,7 +85,7 @@ class VTG(Actor):
 			self.endpoints["dac"].stb.eq(generate_en)
 		]
 		tp = self.token("timing")
-		sync = [
+		self.sync += [
 			self.endpoints["timing"].ack.eq(0),
 			If(generate_en & self.endpoints["dac"].ack,
 				hcounter.eq(hcounter + 1),
@@ -111,10 +110,8 @@ class VTG(Actor):
 				If(vcounter == tp.vsync_end, self.token("dac").vsync.eq(0))
 			)
 		]
-		
-		return Fragment(comb, sync)
 
-class FIFO(Actor):
+class FIFO(Module, Actor):
 	def __init__(self):
 		Actor.__init__(self, ("dac", Sink, _dac_layout))
 		
@@ -124,13 +121,14 @@ class FIFO(Actor):
 		self.vga_g = Signal(_bpc_dac)
 		self.vga_b = Signal(_bpc_dac)
 	
-	def get_fragment(self):
+		###
+
 		data_width = 2+3*_bpc_dac
 		fifo_full = Signal()
 		fifo_write_en = Signal()
 		fifo_data_out = Signal(data_width)
 		fifo_data_in = Signal(data_width)
-		asfifo = Instance("asfifo",
+		self.specials += Instance("asfifo",
 			Instance.Parameter("data_width", data_width),
 			Instance.Parameter("address_width", 8),
 	
@@ -146,17 +144,15 @@ class FIFO(Actor):
 			
 			Instance.Input("rst", 0))
 		t = self.token("dac")
-		return Fragment(
-			[
-				Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(asfifo.get_io("data_out")),
-				
-				self.endpoints["dac"].ack.eq(~fifo_full),
-				fifo_write_en.eq(self.endpoints["dac"].stb),
-				fifo_data_in.eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
-				
-				self.busy.eq(0)
-			],
-			specials={asfifo})
+		self.comb += [
+			Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(fifo_data_out),
+			
+			self.endpoints["dac"].ack.eq(~fifo_full),
+			fifo_write_en.eq(self.endpoints["dac"].stb),
+			fifo_data_in.eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
+			
+			self.busy.eq(0)
+		]
 
 def sim_fifo_gen():
 	while True:
@@ -165,9 +161,8 @@ def sim_fifo_gen():
 		print("H/V:" + str(t.value["hsync"]) + str(t.value["vsync"])
 			+ " " + str(t.value["r"]) + " " + str(t.value["g"]) + " " + str(t.value["b"]))
 
-
-class Framebuffer:
-	def __init__(self, address, asmiport, simulation=False):
+class Framebuffer(Module):
+	def __init__(self, asmiport, simulation=False):
 		asmi_bits = asmiport.hub.aw
 		alignment_bits = bits_for(asmiport.hub.dw//8) - 1
 		length_bits = _hbits + _vbits + 2 - alignment_bits
@@ -199,10 +194,9 @@ class Framebuffer:
 			"hres", "hsync_start", "hsync_end", "hscan", 
 			"vres", "vsync_start", "vsync_end", "vscan"])
 		g.add_connection(vtg, fifo)
-		self._comp_actor = CompositeActor(g, debugger=False)
+		self.submodules._comp_actor = CompositeActor(g, debugger=False)
 		
-		self.bank = csrgen.Bank(fi.get_registers() + self._comp_actor.get_registers(),
-			address=address)
+		self._registers = fi.get_registers() + self._comp_actor.get_registers()
 		
 		# Pads
 		self.vga_psave_n = Signal()
@@ -216,12 +210,11 @@ class Framebuffer:
 			self.vga_g = fifo.vga_g
 			self.vga_b = fifo.vga_b
 
-	def get_fragment(self):
-		comb = [
+		self.comb += [
 			self.vga_sync_n.eq(0),
 			self.vga_psave_n.eq(1),
 			self.vga_blank_n.eq(1)
 		]
-		return self.bank.get_fragment() \
-			+ self._comp_actor.get_fragment() \
-			+ Fragment(comb)
+
+	def get_registers(self):
+		return self._registers

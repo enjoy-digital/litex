@@ -1,14 +1,14 @@
 #include <hw/timer.h>
-#include <hw/id.h>
+#include <hw/identifier.h>
 
 #include "timer.h"
 
 unsigned int get_system_frequency(void)
 {
-	return (CSR_ID_FREQ3 << 24)
-		|(CSR_ID_FREQ2 << 16)
-		|(CSR_ID_FREQ1 << 8)
-		|CSR_ID_FREQ0;
+	return (CSR_IDENTIFIER_FREQ3 << 24)
+		|(CSR_IDENTIFIER_FREQ2 << 16)
+		|(CSR_IDENTIFIER_FREQ1 << 8)
+		|CSR_IDENTIFIER_FREQ0;
 }
 
 void timer_enable(int en)

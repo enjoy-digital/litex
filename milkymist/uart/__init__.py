@@ -1,29 +1,28 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
+from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 from migen.bank.eventmanager import *
-from migen.bank import csrgen
 
-class UART:
-	def __init__(self, address, clk_freq, baud=115200):
+class UART(Module, AutoReg):
+	def __init__(self, clk_freq, baud=115200):
 		self._rxtx = RegisterRaw("rxtx", 8)
 		self._divisor = RegisterField("divisor", 16, reset=int(clk_freq/baud/16))
 		
-		self._tx_event = EventSourceLevel()
-		self._rx_event = EventSourcePulse()
-		self.events = EventManager(self._tx_event, self._rx_event)
-		self.bank = csrgen.Bank([self._rxtx, self._divisor] + self.events.get_registers(),
-			address=address)
+		self.submodules.ev = EventManager()
+		self.ev.tx = EventSourceLevel()
+		self.ev.rx = EventSourcePulse()
+		self.ev.finalize()
 
 		self.tx = Signal(reset=1)
 		self.rx = Signal()
 	
-	def get_fragment(self):
+		###
+
 		enable16 = Signal()
 		enable16_counter = Signal(16)
-		comb = [
-			enable16.eq(enable16_counter == 0)
-		]
-		sync = [
+		self.comb += enable16.eq(enable16_counter == 0)
+		self.sync += [
 			enable16_counter.eq(enable16_counter - 1),
 			If(enable16,
 				enable16_counter.eq(self._divisor.field.r - 1))
@@ -33,8 +32,8 @@ class UART:
 		tx_reg = Signal(8)
 		tx_bitcount = Signal(4)
 		tx_count16 = Signal(4)
-		tx_busy = self._tx_event.trigger
-		sync += [
+		tx_busy = self.ev.tx.trigger
+		self.sync += [
 			If(self._rxtx.re,
 				tx_reg.eq(self._rxtx.r),
 				tx_bitcount.eq(0),
@@ -59,20 +58,16 @@ class UART:
 		]
 		
 		# RX
-		rx0 = Signal() # sychronize
 		rx = Signal()
-		sync += [
-			rx0.eq(self.rx),
-			rx.eq(rx0)
-		]
+		self.specials += MultiReg(self.rx, "ext", rx, "sys")
 		rx_r = Signal()
 		rx_reg = Signal(8)
 		rx_bitcount = Signal(4)
 		rx_count16 = Signal(4)
 		rx_busy = Signal()
-		rx_done = self._rx_event.trigger
+		rx_done = self.ev.rx.trigger
 		rx_data = self._rxtx.w
-		sync += [
+		self.sync += [
 			rx_done.eq(0),
 			If(enable16,
 				rx_r.eq(rx),
@@ -104,7 +99,3 @@ class UART:
 				)
 			)
 		]
-		
-		return self.bank.get_fragment() \
-			+ self.events.get_fragment() \
-			+ Fragment(comb, sync)
