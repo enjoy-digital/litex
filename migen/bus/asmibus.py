@@ -1,18 +1,17 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module, FinalizeError
 from migen.genlib.misc import optree
 from migen.bus.transactions import *
-from migen.sim.generic import Proxy, PureSimulable
+from migen.sim.generic import Proxy
 
 (SLOT_EMPTY, SLOT_PENDING, SLOT_PROCESSING) = range(3)
 
-class Slot:
+class Slot(Module):
 	def __init__(self, aw, time):
 		self.state = Signal(2)
 		self.we = Signal()
 		self.adr = Signal(aw)
-		self.time = time
-		if self.time:
-			self._counter = Signal(max=time+1)
+		if time:
 			self.mature = Signal()
 		
 		self.allocate = Signal()
@@ -21,9 +20,9 @@ class Slot:
 		self.process = Signal()
 		self.call = Signal()
 	
-	def get_fragment(self):
-		comb = []
-		sync = [
+		###
+
+		self.sync += [
 			If(self.allocate,
 				self.state.eq(SLOT_PENDING),
 				self.we.eq(self.allocate_we),
@@ -32,24 +31,21 @@ class Slot:
 			If(self.process, self.state.eq(SLOT_PROCESSING)),
 			If(self.call, self.state.eq(SLOT_EMPTY))
 		]
-		if self.time:
-			comb += [
-				self.mature.eq(self._counter == 0)
-			]
-			sync += [
+		if time:
+			_counter = Signal(max=time+1)
+			self.comb += self.mature.eq(self._counter == 0)
+			self.sync += [
 				If(self.allocate,
 					self._counter.eq(self.time)
 				).Elif(self._counter != 0,
 					self._counter.eq(self._counter - 1)
 				)
 			]
-		return Fragment(comb, sync)
 
-class Port:
+class Port(Module):
 	def __init__(self, hub, nslots):
 		self.hub = hub
-		self.slots = [Slot(self.hub.aw, self.hub.time) for i in range(nslots)]
-		self.finalized = False
+		self.submodules.slots = [Slot(self.hub.aw, self.hub.time) for i in range(nslots)]
 		
 		# request issuance
 		self.adr = Signal(self.hub.aw)
@@ -64,36 +60,20 @@ class Port:
 		self.dat_r = Signal(self.hub.dw)
 		self.dat_w = Signal(self.hub.dw)
 		self.dat_wm = Signal(self.hub.dw//8)
-	
-	def finalize(self, tagbits, base):
-		if self.finalized:
-			raise FinalizeError
-		self.finalized = True
+
+	def set_position(self, tagbits, base):
 		self.tagbits = tagbits
 		self.base = base
+
+	def do_finalize(self):
 		nslots = len(self.slots)
 		if nslots > 1:
 			self.tag_issue = Signal(max=nslots)
-		self.tag_call = Signal(tagbits)
-	
-	def get_call_expression(self, slotn=0):
-		if not self.finalized:
-			raise FinalizeError
-		return self.call \
-			& (self.tag_call == (self.base + slotn))
-		
-	def get_fragment(self):
-		if not self.finalized:
-			raise FinalizeError
-		
-		slots_fragment = sum([s.get_fragment() for s in self.slots], Fragment())
-		
-		comb = []
-		sync = []
-		
+		self.tag_call = Signal(self.tagbits)
+
 		# allocate
 		for s in self.slots:
-			comb += [
+			self.comb += [
 				s.allocate_we.eq(self.we),
 				s.allocate_adr.eq(self.adr)
 			]
@@ -104,26 +84,29 @@ class Port:
 				s.allocate.eq(self.stb),
 				self.tag_issue.eq(n) if needs_tags else None
 			).Else(choose_slot)
-		comb.append(choose_slot)
-		comb.append(self.ack.eq(optree("|", 
-			[s.state == SLOT_EMPTY for s in self.slots])))
-		
-		# call
-		comb += [s.call.eq(self.get_call_expression(n))
-			for n, s in enumerate(self.slots)]
-		
-		return slots_fragment + Fragment(comb, sync)
+		self.comb += choose_slot
+		self.comb += self.ack.eq(optree("|", 
+			[s.state == SLOT_EMPTY for s in self.slots]))
 
-class Hub:
+		# call
+		self.comb += [s.call.eq(self.get_call_expression(n))
+			for n, s in enumerate(self.slots)]
+	
+	def get_call_expression(self, slotn=0):
+		if not self.finalized:
+			raise FinalizeError
+		return self.call \
+			& (self.tag_call == (self.base + slotn))
+
+class Hub(Module):
 	def __init__(self, aw, dw, time=0):
 		self.aw = aw
 		self.dw = dw
 		self.time = time
 		self.ports = []
-		self.finalized = False
 		
 		self.call = Signal()
-		# tag_call is created by finalize()
+		# tag_call is created by do_finalize()
 		self.dat_r = Signal(self.dw)
 		self.dat_w = Signal(self.dw)
 		self.dat_wm = Signal(self.dw//8)
@@ -135,41 +118,34 @@ class Hub:
 		self.ports.append(new_port)
 		return new_port
 	
-	def finalize(self):
-		if self.finalized:
-			raise FinalizeError
-		self.finalized = True
+	def do_finalize(self):
 		nslots = sum([len(port.slots) for port in self.ports])
 		tagbits = bits_for(nslots-1)
 		base = 0
 		for port in self.ports:
-			port.finalize(tagbits, base)
+			port.set_position(tagbits, base)
+			port.finalize()
 			base += len(port.slots)
+		self.submodules += self.ports
 		self.tag_call = Signal(tagbits)
+		
+		for port in self.ports:
+			self.comb += [
+				port.call.eq(self.call),
+				port.tag_call.eq(self.tag_call),
+				port.dat_r.eq(self.dat_r)
+			]
+		self.comb += [
+			self.dat_w.eq(optree("|", [port.dat_w for port in self.ports])),
+			self.dat_wm.eq(optree("|", [port.dat_wm for port in self.ports]))
+		]
 	
 	def get_slots(self):
 		if not self.finalized:
 			raise FinalizeError
 		return sum([port.slots for port in self.ports], [])
-	
-	def get_fragment(self):
-		if not self.finalized:
-			raise FinalizeError
-		ports = sum([port.get_fragment() for port in self.ports], Fragment())
-		comb = []
-		for port in self.ports:
-			comb += [
-				port.call.eq(self.call),
-				port.tag_call.eq(self.tag_call),
-				port.dat_r.eq(self.dat_r)
-			]
-		comb += [
-			self.dat_w.eq(optree("|", [port.dat_w for port in self.ports])),
-			self.dat_wm.eq(optree("|", [port.dat_wm for port in self.ports]))
-		]
-		return ports + Fragment(comb)
 
-class Tap(PureSimulable):
+class Tap(Module):
 	def __init__(self, hub, handler=print):
 		self.hub = hub
 		self.handler = handler
@@ -209,7 +185,7 @@ class Tap(PureSimulable):
 			transaction.latency = s.cycle_counter - transaction.latency + 1
 			self.transaction = transaction
 
-class Initiator(PureSimulable):
+class Initiator(Module):
 	def __init__(self, generator, port):
 		self.generator = generator
 		self.port = port
@@ -284,7 +260,7 @@ class TargetModel:
 			self.last_slot += 1
 		return self.last_slot
 
-class Target(PureSimulable):
+class Target(Module):
 	def __init__(self, model, hub):
 		self.model = model
 		self.hub = hub
