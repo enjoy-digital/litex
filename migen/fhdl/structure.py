@@ -276,6 +276,3 @@ class ClockDomain:
 			n_rst = n2
 		self.clk = Signal(name_override=n_clk)
 		self.rst = Signal(name_override=n_rst)
-
-class FinalizeError(Exception):
-	pass
