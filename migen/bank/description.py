@@ -67,7 +67,7 @@ class AutoReg:
 		for k, v in self.__dict__.items():
 			if isinstance(v, Memory):
 				r.append(v)
-			elif hasattr(v, "get_memories"):
+			elif hasattr(v, "get_memories") and callable(v.get_memories):
 				r += memprefix(k + "_", v.get_memories())
 		return sorted(r, key=lambda x: x.huid)
 
@@ -76,7 +76,7 @@ class AutoReg:
 		for k, v in self.__dict__.items():
 			if isinstance(v, Register):
 				r.append(v)
-			elif hasattr(v, "get_registers"):
+			elif hasattr(v, "get_registers") and callable(v.get_registers):
 				r += regprefix(k + "_", v.get_registers())
 		return sorted(r, key=lambda x: x.huid)
 
