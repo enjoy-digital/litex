@@ -43,8 +43,9 @@ class Slot(Module):
 			]
 
 class Port(Module):
-	def __init__(self, hub, nslots):
+	def __init__(self, hub, base, nslots):
 		self.hub = hub
+		self.base = base
 		self.submodules.slots = [Slot(self.hub.aw, self.hub.time) for i in range(nslots)]
 		
 		# request issuance
@@ -61,15 +62,11 @@ class Port(Module):
 		self.dat_w = Signal(self.hub.dw)
 		self.dat_wm = Signal(self.hub.dw//8)
 
-	def set_position(self, tagbits, base):
-		self.tagbits = tagbits
-		self.base = base
-
 	def do_finalize(self):
 		nslots = len(self.slots)
 		if nslots > 1:
 			self.tag_issue = Signal(max=nslots)
-		self.tag_call = Signal(self.tagbits)
+		self.tag_call = Signal(self.hub.tagbits)
 
 		# allocate
 		for s in self.slots:
@@ -103,7 +100,10 @@ class Hub(Module):
 		self.aw = aw
 		self.dw = dw
 		self.time = time
+
 		self.ports = []
+		self._next_base = 0
+		self.tagbits = 0
 		
 		self.call = Signal()
 		# tag_call is created by do_finalize()
@@ -114,21 +114,15 @@ class Hub(Module):
 	def get_port(self, nslots=1):
 		if self.finalized:
 			raise FinalizeError
-		new_port = Port(self, nslots)
+		new_port = Port(self, self._next_base, nslots)
+		self._next_base += nslots
+		self.tagbits = bits_for(self._next_base-1)
 		self.ports.append(new_port)
+		self.submodules += new_port
 		return new_port
 	
 	def do_finalize(self):
-		nslots = sum([len(port.slots) for port in self.ports])
-		tagbits = bits_for(nslots-1)
-		base = 0
-		for port in self.ports:
-			port.set_position(tagbits, base)
-			port.finalize()
-			base += len(port.slots)
-		self.submodules += self.ports
-		self.tag_call = Signal(tagbits)
-		
+		self.tag_call = Signal(self.tagbits)
 		for port in self.ports:
 			self.comb += [
 				port.call.eq(self.call),
