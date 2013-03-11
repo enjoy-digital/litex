@@ -103,7 +103,7 @@ class SoC:
 					self.miLa0.trigger.bank.bus,
 					self.miLa0.recorder.bank.bus,
 					self.miLa1.trigger.bank.bus,
-					self.miLa1.recorder.bank.bus		
+					self.miLa1.recorder.bank.bus
 				])
 		
 		self.clk50 = Signal()

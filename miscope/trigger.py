@@ -39,14 +39,14 @@ class Term:
 		self.reg_p = RegParams("term_reg", 0, width, 2)
 		self.reg = None
 	
-	def get_registers(self):
+	def get_registers_glue(self):
 		comb = [self.t.eq(self.reg.field.r[0*self.width:1*self.width])]
 		comb += [self.m.eq(self.reg.field.r[1*self.width:2*self.width])]
 		return comb
 	
 	def get_fragment(self):
 		comb = [self.o.eq((self.m & self.i) == self.t)]
-		comb += self.get_registers()
+		comb += self.get_registers_glue()
 		return Fragment(comb)
 	
 	#
@@ -75,14 +75,14 @@ class RangeDetector:
 		self.high = Signal(width)
 		self.o = Signal()
 		
-	def get_registers(self):
+	def get_registers_glue(self):
 		comb = [self.low.eq(self.reg.field.r[0*self.width:1*self.width])]
 		comb += [self.low.eq(self.reg.field.r[1*self.width:2*self.width])]
 		return comb
 		
 	def get_fragment(self):
 		comb = [self.o.eq((self.i >= self.low) & (self.i <= self.high))]
-		comb += self.get_registers()
+		comb += self.get_registers_glue()
 		return Fragment(comb)
 	#
 	# Driver
@@ -118,7 +118,7 @@ class EdgeDetector:
 			self.bo = Signal()
 		self.o = Signal()
 	
-	def get_registers(self):
+	def get_registers_glue(self):
 		comb = []
 		i = 0
 		if "R" in self.mode:
@@ -158,7 +158,7 @@ class EdgeDetector:
 		comb += [self.o.eq(self.ro | self.fo | self.bo)]
 		
 		# Registers
-		comb += self.get_registers()
+		comb += self.get_registers_glue()
 		
 		return Fragment(comb, sync)
 		
@@ -197,8 +197,6 @@ class Sum:
 		self.width = width
 		self.interface = None
 		
-		
-		
 		self.i = Signal(self.width)
 		self._o = Signal()
 		self.o = Signal()
@@ -214,7 +212,7 @@ class Sum:
 		self._lut_port = self._mem.get_port()
 		self._prog_port = self._mem.get_port(write_capable=True)
 	
-	def get_registers(self):
+	def get_registers_glue(self):
 		comb = [
 			self.prog_adr.eq(self.reg.field.r[0:16]),
 			self.prog_dat.eq(self.reg.field.r[16]),
@@ -233,7 +231,7 @@ class Sum:
 				
 				self.o.eq(self._o)
 		]
-		comb += self.get_registers()
+		comb += self.get_registers_glue()
 		return Fragment(comb, specials={self._mem})
 	
 	#
@@ -267,12 +265,12 @@ class Trigger:
 		# generate ports csr registers fields
 		for port in self.ports:
 			rf = RegisterField(port.reg_p.name, port.reg_p.size, reset=0,
-												 access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+							   access_bus=WRITE_ONLY, access_dev=READ_ONLY)
 			setattr(self, port.reg_p.name, rf)
 		
 		# generate sum csr registers fields
 		self.sum_reg = RegisterField(self.sum.reg_p.name, self.sum.reg_p.size, reset=0,
-																 access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+									 access_bus=WRITE_ONLY, access_dev=READ_ONLY)
 
 		# generate registers
 		self.regs = list_regs(self.__dict__)
