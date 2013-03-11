@@ -28,6 +28,11 @@ def get_var_name(frame):
 		else:
 			return None
 
+def remove_underscore(s):
+	if len(s) > 2 and s[0] == "_" and s[1] != "_":
+		s = s[1:]
+	return s
+
 name_to_idx = defaultdict(int)
 classname_to_objs = dict()
 
@@ -44,6 +49,7 @@ def trace_back(varname=None):
 		if varname is None:
 			varname = get_var_name(frame)
 		if varname is not None:
+			varname = remove_underscore(varname)
 			l.insert(0, (varname, name_to_idx[varname]))
 			name_to_idx[varname] += 1
 		
@@ -61,6 +67,7 @@ def trace_back(varname=None):
 					modules = frame.f_globals["__name__"]
 					modules = modules.split(".")
 					coname = modules[len(modules)-1]
+				coname = remove_underscore(coname)
 				l.insert(0, (coname, name_to_idx[coname]))
 				name_to_idx[coname] += 1
 		else:
@@ -76,6 +83,7 @@ def trace_back(varname=None):
 				except ValueError:
 					idx = len(objs)
 					objs.append(obj)
+			classname = remove_underscore(classname)
 			l.insert(0, (classname, idx))
 		
 		varname = None
