@@ -1,25 +1,43 @@
 Migen (Milkymist Generator)
   a Python toolbox for building complex digital hardware
 
-Migen aims at automating further the VLSI design process. Migen makes it
-possible to apply modern software concepts such as object-oriented
-programming and metaprogramming to design hardware. This results in more
-elegant and easily maintained designs and reduces the incidence of human
-errors. Built on these principles, it also provides tools to build
-synchronous designs more productively, integrate system-on-chips, design
-dataflow systems, and more. Migen will become the foundation for the
-next-generation Milkymist SoC.
+Despite being faster than schematics entry, hardware design with Verilog and
+VHDL remains tedious and inefficient for several reasons. The event-driven
+model introduces issues and manual coding that are unnecessary for synchronous
+circuits, which represent the lion's share of today's logic designs. Counter-
+intuitive arithmetic rules result in steeper learning curves and provide a
+fertile ground for subtle bugs in designs. Finally, support for procedural
+generation of logic (metaprogramming) through "generate" statements is very
+limited and restricts the ways code can be made generic, reused and organized.
+
+To address those issues, we have developed the Migen FHDL library that
+replaces the event-driven paradigm with the notions of combinatorial and
+synchronous statements, has arithmetic rules that make integers always behave
+like mathematical integers, and most importantly allows the design's logic to
+be constructed by a Python program. This last point enables hardware designers
+to take advantage of the richness of the Python language - object oriented
+programming, function parameters, generators, operator overloading, libraries,
+etc. - to build well organized, reusable and elegant designs.
+
+Other Migen libraries are built on FHDL and provide various tools such as a
+system-on-chip interconnect infrastructure, a dataflow programming system, a
+more traditional high-level synthesizer that compiles Python routines into
+state machines with datapaths, and a simulator that allows test benches to be
+written in Python.
+
+Migen is the foundation of the next-generation Milkymist SoC.
 
 See the doc/ folder for a more complete description.
 
 Code repository:
 https://github.com/milkymist/migen
-Experimental version of the Milkymist SoC based on Migen:
+New Milkymist SoC based on Migen:
 https://github.com/milkymist/milkymist-ng
 
-Migen is designed for Python 3.2.
+Migen is designed for Python 3.
 
 Send questions, comments and patches to devel [AT] lists.milkymist.org
+There is a lot of room for improvement in many areas, contributions welcome.
 We are also on IRC: #milkymist on the Freenode network.
 
 See LICENSE file for copyright and license info.
