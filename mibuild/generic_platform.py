@@ -198,6 +198,8 @@ class GenericPlatform:
 					self.add_source(os.path.join(root, filename), language)
 
 	def get_verilog(self, fragment, clock_domains=None, **kwargs):
+		if not isinstance(fragment, Fragment):
+			fragment = fragment.get_fragment()
 		# We may create a temporary clock/reset generator that would request pins.
 		# Save the constraint manager state so that such pin requests disappear
 		# at the end of this function.
