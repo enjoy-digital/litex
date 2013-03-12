@@ -1,9 +1,15 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.fhdl import verilog
 from migen.genlib.fsm import FSM
 
-s = Signal()
-myfsm = FSM("FOO", "BAR")
-myfsm.act(myfsm.FOO, s.eq(1), myfsm.next_state(myfsm.BAR))
-myfsm.act(myfsm.BAR, s.eq(0), myfsm.next_state(myfsm.FOO))
-print(verilog.convert(myfsm.get_fragment(), {s}))
+class Example(Module):
+	def __init__(self):
+		self.s = Signal()
+		myfsm = FSM("FOO", "BAR")
+		self.submodules += myfsm
+		myfsm.act(myfsm.FOO, self.s.eq(1), myfsm.next_state(myfsm.BAR))
+		myfsm.act(myfsm.BAR, self.s.eq(0), myfsm.next_state(myfsm.FOO))
+
+example = Example()
+print(verilog.convert(example, {example.s}))

@@ -15,6 +15,5 @@ class XilinxMultiReg:
 		return XilinxMultiRegImpl(dr.i, dr.idomain, dr.o, dr.odomain, dr.n)
 
 ps = PulseSynchronizer("from", "to")
-f = ps.get_fragment()
-v = verilog.convert(f, {ps.i, ps.o}, special_overrides={MultiReg: XilinxMultiReg})
+v = verilog.convert(ps, {ps.i, ps.o}, special_overrides={MultiReg: XilinxMultiReg})
 print(v)

@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
+from migen.fhdl.module import Module
 from migen.genlib.misc import optree
 
 def gen_list(n):
@@ -24,17 +25,18 @@ class Toto:
 	def __init__(self):
 		self.sigs = gen_list(2)
 
-a = [Bar() for x in range(3)]
-b = [Foo() for x in range(3)]
-c = b
-b = [Bar() for x in range(2)]
+class Example(Module):
+	def __init__(self):
+		a = [Bar() for x in range(3)]
+		b = [Foo() for x in range(3)]
+		c = b
+		b = [Bar() for x in range(2)]
 
-output = Signal()
-allsigs = []
-for lst in [a, b, c]:
-	for obj in lst:
-		allsigs.extend(obj.sigs)
-comb = [output.eq(optree("|", allsigs))]
+		output = Signal()
+		allsigs = []
+		for lst in [a, b, c]:
+			for obj in lst:
+				allsigs.extend(obj.sigs)
+		self.comb += output.eq(optree("|", allsigs))
 
-f = Fragment(comb)
-print(verilog.convert(f))
+print(verilog.convert(Example()))

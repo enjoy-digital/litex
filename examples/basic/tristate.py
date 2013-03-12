@@ -1,12 +1,16 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Tristate
+from migen.fhdl.module import Module
 from migen.fhdl import verilog
 
-n = 6
-pad = Signal(n)
-o = Signal(n)
-oe = Signal()
-i = Signal(n)
+class Example(Module):
+	def __init__(self, n=6):
+		self.pad = Signal(n)
+		self.o = Signal(n)
+		self.oe = Signal()
+		self.i = Signal(n)
 
-f = Fragment(specials={Tristate(pad, o, oe, i)})
-print(verilog.convert(f, ios={pad, o, oe, i}))
+		self.specials += Tristate(self.pad, self.o, self.oe, self.i)
+
+e = Example()
+print(verilog.convert(e, ios={e.pad, e.o, e.oe, e.i}))
