@@ -76,6 +76,8 @@ end
 
 class Simulator:
 	def __init__(self, fragment, top_level=None, sim_runner=None, sockaddr="simsocket", **vopts):
+		if not isinstance(fragment, Fragment):
+			fragment = fragment.get_fragment()
 		if top_level is None:
 			top_level = TopLevel()
 		if sim_runner is None:
