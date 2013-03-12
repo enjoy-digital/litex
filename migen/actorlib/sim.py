@@ -22,27 +22,31 @@ class TokenExchanger(PureSimulable):
 		for token in self.active:
 			ep = self.actor.endpoints[token.endpoint]
 			if isinstance(ep, Sink):
-				if s.rd(ep.ack):
-					if s.rd(ep.stb):
-						token.value = s.multiread(ep.token)
-						completed.add(token)
-						s.wr(ep.ack, 0)
-				else:
-					s.wr(ep.ack, 1)
+				if s.rd(ep.ack) and s.rd(ep.stb):
+					token.value = s.multiread(ep.token)
+					completed.add(token)
+					s.wr(ep.ack, 0)
 			elif isinstance(ep, Source):
-				if s.rd(ep.stb):
-					if s.rd(ep.ack):
-						completed.add(token)
-						s.wr(ep.stb, 0)
-				else:
-					s.wr(ep.stb, 1)
-					s.multiwrite(ep.token, token.value)
+				if s.rd(ep.ack) and s.rd(ep.stb):
+					completed.add(token)
+					s.wr(ep.stb, 0)
 			else:
 				raise TypeError
 		self.active -= completed
 		if not self.active:
 			self.busy = True
-	
+
+	def _update_control_signals(self, s):
+		for token in self.active:
+			ep = self.actor.endpoints[token.endpoint]
+			if isinstance(ep, Sink):
+				s.wr(ep.ack, 1)
+			elif isinstance(ep, Source):
+				s.multiwrite(ep.token, token.value)
+				s.wr(ep.stb, 1)
+			else:
+				raise TypeError
+
 	def _next_transactions(self):
 		try:
 			transactions = next(self.generator)
@@ -62,13 +66,16 @@ class TokenExchanger(PureSimulable):
 			raise TypeError
 		if self.active and all(transaction.idle_wait for transaction in self.active):
 			self.busy = False
-	
+
 	def do_simulation(self, s):
 		if not self.done:
-			if not self.active:
-				self._next_transactions()
 			if self.active:
 				self._process_transactions(s)
+			if not self.active:
+				self._next_transactions()
+				self._update_control_signals(s)
+
+	do_simulation.initialize = True
 
 class SimActor(Actor):
 	def __init__(self, generator, *endpoint_descriptions, **misc):
