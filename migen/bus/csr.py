@@ -68,7 +68,7 @@ class SRAM:
 			self.word_bits = 0
 		page_bits = _compute_page_bits(self.mem.depth + self.word_bits)
 		if page_bits:
-			self._page = RegisterField(self.mem.name_override + "_page", page_bits)
+			self._page = RegisterField(page_bits, name=self.mem.name_override + "_page")
 		else:
 			self._page = None
 		if read_only is None:

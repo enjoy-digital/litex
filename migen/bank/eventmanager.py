@@ -23,10 +23,9 @@ class EventManager(Module, AutoReg):
 		sources_u = [v for v in self.__dict__.values() if isinstance(v, _EventSource)]
 		sources = sorted(sources_u, key=lambda x: x.huid)
 		n = len(sources)
-		self.status = RegisterRaw("status", n)
-		self.pending = RegisterRaw("pending", n)
-		self.enable = RegisterFields("enable",
-		  [Field("s" + str(i), access_bus=READ_WRITE, access_dev=READ_ONLY) for i in range(n)])
+		self.status = RegisterRaw(n)
+		self.pending = RegisterRaw(n)
+		self.enable = RegisterFields(*(Field(1, READ_WRITE, READ_ONLY, name="e" + str(i)) for i in range(n)))
 
 		# status
 		for i, source in enumerate(sources):

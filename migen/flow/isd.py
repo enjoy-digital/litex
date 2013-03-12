@@ -11,11 +11,11 @@ class EndpointReporter:
 		self.reset = Signal()
 		self.freeze = Signal()
 		
-		self._ack_count = RegisterField("ack_count", self.nbits, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._nack_count = RegisterField("nack_count", self.nbits, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._cur_stb = Field("cur_stb", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._cur_ack = Field("cur_ack", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._cur_status = RegisterFields("cur_status", [self._cur_stb, self._cur_ack])
+		self._ack_count = RegisterField(self.nbits, READ_ONLY, WRITE_ONLY)
+		self._nack_count = RegisterField(self.nbits, READ_ONLY, WRITE_ONLY)
+		self._cur_stb = Field(1, READ_ONLY, WRITE_ONLY)
+		self._cur_ack = Field(1, READ_ONLY, WRITE_ONLY)
+		self._cur_status = RegisterFields(self._cur_stb, self._cur_ack)
 	
 	def get_registers(self):
 		return [self._ack_count, self._nack_count, self._cur_status]
@@ -57,11 +57,11 @@ class DFGReporter(DFGHook):
 	def __init__(self, dfg, nbits):
 		self._nbits = nbits
 		
-		self._r_magic = RegisterField("magic", 16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_neps = RegisterField("neps", 8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_nbits = RegisterField("nbits", 8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_freeze = RegisterField("freeze", 1)
-		self._r_reset = RegisterRaw("reset", 1)
+		self._r_magic = RegisterField(16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_neps = RegisterField(8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_nbits = RegisterField(8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_freeze = RegisterField()
+		self._r_reset = RegisterRaw()
 		
 		self.order = []
 		DFGHook.__init__(self, dfg, self._create)

@@ -2,14 +2,20 @@ from copy import copy
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
+from migen.fhdl.tracer import get_obj_var_name
 
 class _Register(HUID):
-	pass
+	def __init__(self, name):
+		HUID.__init__(self)
+		self.name = get_obj_var_name(name)
+		if self.name is None:
+			raise ValueError("Cannot extract register name from code, need to specify.")
+		if len(self.name) > 2 and self.name[:2] == "r_":
+			self.name = self.name[2:]
 
 class RegisterRaw(_Register):
-	def __init__(self, name, size=1):
-		_Register.__init__(self)
-		self.name = name
+	def __init__(self, size=1, name=None):
+		_Register.__init__(self, name)
 		self.size = size
 		self.re = Signal()
 		self.r = Signal(self.size)
@@ -18,8 +24,10 @@ class RegisterRaw(_Register):
 (READ_ONLY, WRITE_ONLY, READ_WRITE) = range(3)
 
 class Field:
-	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False):
-		self.name = name
+	def __init__(self, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False, name=None):
+		self.name = get_obj_var_name(name)
+		if self.name is None:
+			raise ValueError("Cannot extract field name from code, need to specify.")
 		self.size = size
 		self.access_bus = access_bus
 		self.access_dev = access_dev
@@ -35,15 +43,14 @@ class Field:
 				self.we = Signal()
 
 class RegisterFields(_Register):
-	def __init__(self, name, fields):
-		_Register.__init__(self)
-		self.name = name
+	def __init__(self, *fields, name=None):
+		_Register.__init__(self, name)
 		self.fields = fields
 
 class RegisterField(RegisterFields):
-	def __init__(self, name, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False):
-		self.field = Field(name, size, access_bus, access_dev, reset, atomic_write)
-		RegisterFields.__init__(self, name, [self.field])
+	def __init__(self, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False, name=None):
+		self.field = Field(size, access_bus, access_dev, reset, atomic_write, name="")
+		RegisterFields.__init__(self, self.field, name=name)
 
 def regprefix(prefix, registers):
 	r = []
@@ -140,7 +147,7 @@ def expand_description(description, busword):
 							if mode == ALIAS_ATOMIC_HOLD:
 								commit_list.append(alias)
 							top -= slice1
-						d.append(RegisterFields(reg.name, f))
+						d.append(RegisterFields(*f, name=reg.name))
 						alias = FieldAlias(mode, field, top - slice2, top, commit_list)
 						f = [alias]
 						if mode == ALIAS_ATOMIC_HOLD:
@@ -150,7 +157,7 @@ def expand_description(description, busword):
 				else:
 					f.append(field)
 			if f:
-				d.append(RegisterFields(reg.name, f))
+				d.append(RegisterFields(*f, name=reg.name))
 		else:
 			raise TypeError
 	return d

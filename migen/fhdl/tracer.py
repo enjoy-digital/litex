@@ -34,6 +34,24 @@ def remove_underscore(s):
 		s = s[1:]
 	return s
 
+def get_obj_var_name(override=None, default=None):
+	if override:
+		return override
+
+	frame = inspect.currentframe().f_back
+	# We can be called via derived classes. Go back the stack frames
+	# until we reach the first class that does not inherit from us.
+	ourclass = frame.f_locals["self"].__class__
+	while "self" in frame.f_locals and isinstance(frame.f_locals["self"], ourclass):
+		frame = frame.f_back
+
+	vn = get_var_name(frame)
+	if vn is None:
+		vn = default
+	else:
+		vn = remove_underscore(vn)
+	return vn
+
 name_to_idx = defaultdict(int)
 classname_to_objs = dict()
 

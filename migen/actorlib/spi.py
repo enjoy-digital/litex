@@ -40,8 +40,7 @@ def _create_registers_assign(layout, target, atomic, prefix=""):
 				alignment = element[3]
 			else:
 				alignment = 0
-			reg = RegisterField(prefix + name, nbits + alignment,
-				reset=reset, atomic_write=atomic)
+			reg = RegisterField(nbits + alignment, reset=reset, atomic_write=atomic, name=prefix + name)
 			registers.append(reg)
 			assigns.append(getattr(target, name).eq(reg.field.r[alignment:]))
 	return registers, assigns
@@ -57,11 +56,11 @@ class SingleGenerator(Actor):
 		if mode == MODE_EXTERNAL:
 			self.trigger = Signal()
 		elif mode == MODE_SINGLE_SHOT:
-			shoot = RegisterRaw("shoot")
+			shoot = RegisterRaw()
 			self._registers.insert(0, shoot)
 			self.trigger = shoot.re
 		elif mode == MODE_CONTINUOUS:
-			enable = RegisterField("enable")
+			enable = RegisterField()
 			self._registers.insert(0, enable)
 			self.trigger = enable.field.r
 		else:
@@ -86,13 +85,13 @@ class Collector(Actor):
 		self._depth = depth
 		self._dw = sum(len(s) for s in self.token("sink").flatten())
 		
-		self._reg_wa = RegisterField("write_address", bits_for(self._depth-1), access_bus=READ_WRITE, access_dev=READ_WRITE)
-		self._reg_wc = RegisterField("write_count", bits_for(self._depth), access_bus=READ_WRITE, access_dev=READ_WRITE, atomic_write=True)
-		self._reg_ra = RegisterField("read_address", bits_for(self._depth-1), access_bus=READ_WRITE, access_dev=READ_ONLY)
-		self._reg_rd = RegisterField("read_data", self._dw, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_wa = RegisterField(bits_for(self._depth-1), READ_WRITE, READ_WRITE)
+		self._r_wc = RegisterField(bits_for(self._depth), READ_WRITE, READ_WRITE, atomic_write=True)
+		self._r_ra = RegisterField(bits_for(self._depth-1), READ_WRITE, READ_ONLY)
+		self._r_rd = RegisterField(self._dw, READ_ONLY, WRITE_ONLY)
 	
 	def get_registers(self):
-		return [self._reg_wa, self._reg_wc, self._reg_ra, self._reg_rd]
+		return [self._r_wa, self._r_wc, self._r_ra, self._r_rd]
 	
 	def get_fragment(self):
 		mem = Memory(self._dw, self._depth)
@@ -100,22 +99,22 @@ class Collector(Actor):
 		rp = mem.get_port()
 		
 		comb = [
-			If(self._reg_wc.field.r != 0,
+			If(self._r_wc.field.r != 0,
 				self.endpoints["sink"].ack.eq(1),
 				If(self.endpoints["sink"].stb,
-					self._reg_wa.field.we.eq(1),
-					self._reg_wc.field.we.eq(1),
+					self._r_wa.field.we.eq(1),
+					self._r_wc.field.we.eq(1),
 					wp.we.eq(1)
 				)
 			),
-			self._reg_wa.field.w.eq(self._reg_wa.field.r + 1),
-			self._reg_wc.field.w.eq(self._reg_wc.field.r - 1),
+			self._r_wa.field.w.eq(self._r_wa.field.r + 1),
+			self._r_wc.field.w.eq(self._r_wc.field.r - 1),
 			
-			wp.adr.eq(self._reg_wa.field.r),
+			wp.adr.eq(self._r_wa.field.r),
 			wp.dat_w.eq(Cat(*self.token("sink").flatten())),
 			
-			rp.adr.eq(self._reg_ra.field.r),
-			self._reg_rd.field.w.eq(rp.dat_r)
+			rp.adr.eq(self._r_ra.field.r),
+			self._r_rd.field.w.eq(rp.dat_r)
 		]
 		
 		return Fragment(comb, specials={mem})
