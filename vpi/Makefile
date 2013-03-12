@@ -1,6 +1,5 @@
-CC=clang
 INSTDIR=/usr/lib/ivl
-INCDIRS=
+INCDIRS=-I/usr/include/iverilog
 
 OBJ=ipc.o main.o
 
