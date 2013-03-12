@@ -5,7 +5,8 @@ from collections import defaultdict
 def get_var_name(frame):
 	code = frame.f_code
 	call_index = frame.f_lasti
-	if opname[code.co_code[call_index]] != "CALL_FUNCTION":
+	call_opc = opname[code.co_code[call_index]]
+	if call_opc != "CALL_FUNCTION" and call_opc != "CALL_FUNCTION_VAR":
 		return None
 	index = call_index+3
 	while True:
