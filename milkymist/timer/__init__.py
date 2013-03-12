@@ -5,9 +5,9 @@ from migen.bank.eventmanager import *
 
 class Timer(Module, AutoReg):
 	def __init__(self, width=32):
-		self._en = RegisterField("en")
-		self._value = RegisterField("value", width, access_dev=READ_WRITE)
-		self._reload = RegisterField("reload", width)
+		self._en = RegisterField()
+		self._value = RegisterField(width, access_dev=READ_WRITE)
+		self._reload = RegisterField(width)
 		
 		self.submodules.ev = EventManager()
 		self.ev.zero = EventSourceLevel()

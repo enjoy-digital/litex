@@ -5,21 +5,20 @@ from migen.bank.description import *
 
 class PhaseInjector(Module, AutoReg):
 	def __init__(self, phase):
-		self._cs = Field("cs", 1, WRITE_ONLY, READ_ONLY)
-		self._we = Field("we", 1, WRITE_ONLY, READ_ONLY)
-		self._cas = Field("cas", 1, WRITE_ONLY, READ_ONLY)
-		self._ras = Field("ras", 1, WRITE_ONLY, READ_ONLY)
-		self._wren = Field("wren", 1, WRITE_ONLY, READ_ONLY)
-		self._rden = Field("rden", 1, WRITE_ONLY, READ_ONLY)
-		self._command = RegisterFields("command",
-			[self._cs, self._we, self._cas, self._ras, self._wren, self._rden])
-		self._command_issue = RegisterRaw("command_issue")
+		self._cs = Field(1, WRITE_ONLY, READ_ONLY)
+		self._we = Field(1, WRITE_ONLY, READ_ONLY)
+		self._cas = Field(1, WRITE_ONLY, READ_ONLY)
+		self._ras = Field(1, WRITE_ONLY, READ_ONLY)
+		self._wren = Field(1, WRITE_ONLY, READ_ONLY)
+		self._rden = Field(1, WRITE_ONLY, READ_ONLY)
+		self._command = RegisterFields(self._cs, self._we, self._cas, self._ras, self._wren, self._rden)
+		self._command_issue = RegisterRaw()
 		
-		self._address = RegisterField("address", len(phase.address))
-		self._baddress = RegisterField("baddress", len(phase.bank))
+		self._address = RegisterField(len(phase.address))
+		self._baddress = RegisterField(len(phase.bank))
 		
-		self._wrdata = RegisterField("wrdata", len(phase.wrdata))
-		self._rddata = RegisterField("rddata", len(phase.rddata), READ_ONLY, WRITE_ONLY)
+		self._wrdata = RegisterField(len(phase.wrdata))
+		self._rddata = RegisterField(len(phase.rddata), READ_ONLY, WRITE_ONLY)
 	
 		###
 
@@ -50,9 +49,9 @@ class DFIInjector(Module, AutoReg):
 		self.slave = dfi.Interface(a, ba, d, nphases)
 		self.master = dfi.Interface(a, ba, d, nphases)
 		
-		self._sel = Field("sel")
-		self._cke = Field("cke")
-		self._control = RegisterFields("control", [self._sel, self._cke])
+		self._sel = Field()
+		self._cke = Field()
+		self._control = RegisterFields(self._sel, self._cke)
 		
 		for n, phase in enumerate(inti.phases):
 			setattr(self.submodules, "pi" + str(n), PhaseInjector(phase))

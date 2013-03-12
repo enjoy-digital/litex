@@ -9,12 +9,10 @@ class ASMIprobe(Module):
 		assert(trace_depth < 256)
 		assert(slot_count < 256)
 		
-		self._slot_count = RegisterField("slot_count", 8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._trace_depth = RegisterField("trace_depth", 8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._slot_status = [RegisterField("slot_status" + str(i), 2, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-			for i in range(slot_count)]
-		self._trace = [RegisterField("trace" + str(i), 8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-			for i in range(trace_depth)]
+		self._slot_count = RegisterField(8, READ_ONLY, WRITE_ONLY)
+		self._trace_depth = RegisterField(8, READ_ONLY, WRITE_ONLY)
+		self._slot_status = [RegisterField(2, READ_ONLY, WRITE_ONLY, name="slot_status" + str(i)) for i in range(slot_count)]
+		self._trace = [RegisterField(8, READ_ONLY, WRITE_ONLY, name="trace" + str(i)) for i in range(trace_depth)]
 
 		###
 		

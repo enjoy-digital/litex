@@ -6,8 +6,8 @@ from migen.bank.eventmanager import *
 
 class UART(Module, AutoReg):
 	def __init__(self, clk_freq, baud=115200):
-		self._rxtx = RegisterRaw("rxtx", 8)
-		self._divisor = RegisterField("divisor", 16, reset=int(clk_freq/baud/16))
+		self._rxtx = RegisterRaw(8)
+		self._divisor = RegisterField(16, reset=int(clk_freq/baud/16))
 		
 		self.submodules.ev = EventManager()
 		self.ev.tx = EventSourceLevel()

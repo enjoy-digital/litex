@@ -17,9 +17,9 @@ def encode_version(version):
 
 class Identifier(Module, AutoReg):
 	def __init__(self, sysid, version, frequency):
-		self._r_sysid = RegisterField("sysid", 16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_version = RegisterField("version", 16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_frequency = RegisterField("frequency", 32, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_sysid = RegisterField(16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_version = RegisterField(16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_frequency = RegisterField(32, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		
 		###
 

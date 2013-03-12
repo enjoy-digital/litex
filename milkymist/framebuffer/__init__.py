@@ -6,7 +6,6 @@ from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.flow import plumbing
 from migen.actorlib import misc, dma_asmi, structuring, sim, spi
-from migen.bank.description import *
 
 _hbits = 11
 _vbits = 11

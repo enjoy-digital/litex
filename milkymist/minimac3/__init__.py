@@ -23,11 +23,11 @@ class MiniMAC(Module, AutoReg):
 		self.phy_rst_n = Signal()
 		
 		# CPU interface
-		self._phy_reset = RegisterField("phy_reset", reset=1)
-		self._rx_count_0 = RegisterField("rx_count_0", _count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._rx_count_1 = RegisterField("rx_count_1", _count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._tx_count = RegisterField("tx_count", _count_width, access_dev=READ_WRITE)
-		self._tx_start = RegisterRaw("tx_start")
+		self._phy_reset = RegisterField(reset=1)
+		self._rx_count_0 = RegisterField(_count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._rx_count_1 = RegisterField(_count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._tx_count = RegisterField(_count_width, access_dev=READ_WRITE)
+		self._tx_start = RegisterRaw()
 		
 		self.submodules.ev = EventManager()
 		self.ev.rx0 = EventSourcePulse()
