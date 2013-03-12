@@ -19,7 +19,7 @@ def get_var_name(frame):
 		elif opc == "STORE_DEREF":
 			name_index = int(code.co_code[index+1])
 			return code.co_cellvars[name_index]
-		elif opc == "LOAD_GLOBAL" or opc == "LOAD_ATTR" or opc == "LOAD_FAST":
+		elif opc == "LOAD_GLOBAL" or opc == "LOAD_ATTR" or opc == "LOAD_FAST" or opc == "LOAD_DEREF":
 			index += 3
 		elif opc == "DUP_TOP":
 			index += 1
