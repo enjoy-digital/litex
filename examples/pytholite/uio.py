@@ -7,6 +7,7 @@ from migen.uio.ioo import UnifiedIOSimulation
 from migen.pytholite.transel import Register
 from migen.pytholite.compiler import make_pytholite
 from migen.sim.generic import Simulator
+from migen.fhdl.module import Module
 from migen.fhdl.specials import Memory
 from migen.fhdl import verilog
 
@@ -29,18 +30,18 @@ class SlaveModel(wishbone.TargetModel):
 	def read(self, address):
 		return address + 4
 
+class TestBench(Module):
+	def __init__(self, ng):
+		g = DataFlowGraph()
+		d = Dumper(layout)
+		g.add_connection(ng, d)
+		
+		self.submodules.slave = wishbone.Target(SlaveModel())
+		self.submodules.intercon = wishbone.InterconnectPointToPoint(ng.buses["wb"], self.slave.bus)
+		self.submodules.ca = CompositeActor(g)
+
 def run_sim(ng):
-	g = DataFlowGraph()
-	d = Dumper(layout)
-	g.add_connection(ng, d)
-	
-	slave = wishbone.Target(SlaveModel())
-	intercon = wishbone.InterconnectPointToPoint(ng.buses["wb"], slave.bus)
-	
-	c = CompositeActor(g)
-	fragment = slave.get_fragment() + intercon.get_fragment() + c.get_fragment()
-	
-	sim = Simulator(fragment)
+	sim = Simulator(TestBench(ng))
 	sim.run(50)
 	del sim
 

@@ -17,8 +17,7 @@ def run_sim(ng):
 	g.add_connection(ng, d)
 	
 	c = CompositeActor(g)
-	fragment = c.get_fragment()
-	sim = Simulator(fragment)
+	sim = Simulator(c)
 	sim.run(30)
 	del sim
 
@@ -32,6 +31,6 @@ def main():
 	run_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
-	print(verilog.convert(ng_pytholite.get_fragment()))
+	print(verilog.convert(ng_pytholite))
 
 main()
