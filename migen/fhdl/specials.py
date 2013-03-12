@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl.tools import list_signals, value_bits_sign
-
+from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 
 class Special(HUID):
@@ -180,13 +180,13 @@ class _MemoryPort:
 		self.clock_domain = clock_domain
 
 class Memory(Special):
-	def __init__(self, width, depth, init=None, name="mem"):
+	def __init__(self, width, depth, init=None, name=None):
 		Special.__init__(self)
 		self.width = width
 		self.depth = depth
 		self.ports = []
 		self.init = init
-		self.name_override = name
+		self.name_override = get_obj_var_name(name, "mem")
 	
 	def get_port(self, write_capable=False, async_read=False,
 	  has_re=False, we_granularity=0, mode=WRITE_FIRST,
