@@ -260,6 +260,8 @@ def convert(f, ios=None, name="top",
   return_ns=False,
   special_overrides=dict(),
   display_run=False):
+	if not isinstance(f, Fragment):
+		f = f.get_fragment()
 	if ios is None:
 		ios = set()
 	if clock_domains is None:
