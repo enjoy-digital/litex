@@ -1,3 +1,5 @@
+from operator import itemgetter
+
 from migen.fhdl.structure import *
 from migen.bus import csr
 from migen.bank.description import *
@@ -100,7 +102,7 @@ class BankArray:
 	def scan(self):
 		self.banks = []
 		self.srams = []
-		for name, obj in self.source.__dict__.items():
+		for name, obj in sorted(self.source.__dict__.items(), key=itemgetter(0)):
 			if hasattr(obj, "get_registers"):
 				registers = obj.get_registers()
 			else:
