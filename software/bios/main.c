@@ -79,7 +79,7 @@ static void mr(char *startaddr, char *len)
 		return;
 	}
 	if(*len == 0) {
-		length = 1;
+		length = 4;
 	} else {
 		length = strtoul(len, &c, 0);
 		if(*c != 0) {
