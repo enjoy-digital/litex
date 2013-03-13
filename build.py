@@ -21,6 +21,8 @@ def main():
 	plat.request("ddram", obj=soc.ddrphy, name_map=lambda s: "sd_" + s)
 	plat.request("eth", obj=soc.minimac, name_map=lambda s: "phy_" + s)
 	plat.request("vga", obj=soc.fb, name_map=lambda s: "vga_" + s)
+	plat.request("dvi_in", 0, obj=soc.dvisampler0)
+	plat.request("dvi_in", 1, obj=soc.dvisampler1)
 	
 	# set extra constraints
 	plat.add_platform_command("""

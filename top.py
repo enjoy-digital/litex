@@ -7,7 +7,7 @@ from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 from migen.bank import csrgen
 
 from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
-	identifier, timer, minimac3, framebuffer, asmiprobe
+	identifier, timer, minimac3, framebuffer, asmiprobe, dvisampler
 from cmacros import get_macros
 
 MHz = 1000000
@@ -119,6 +119,8 @@ class SoC(Module):
 		self.submodules.timer0 = timer.Timer()
 		self.submodules.fb = framebuffer.Framebuffer(asmiport_fb)
 		self.submodules.asmiprobe = asmiprobe.ASMIprobe(self.asmicon.hub)
+		self.submodules.dvisampler0 = dvisampler.DVISampler("02")
+		self.submodules.dvisampler1 = dvisampler.DVISampler("02")
 
 		self.submodules.csrbankarray = csrgen.BankArray(self, csr_address_map)
 		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
