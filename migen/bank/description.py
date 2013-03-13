@@ -1,5 +1,3 @@
-from copy import copy
-
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 from migen.fhdl.tracer import get_obj_var_name
@@ -53,20 +51,12 @@ class RegisterField(RegisterFields):
 		RegisterFields.__init__(self, self.field, name=name)
 
 def regprefix(prefix, registers):
-	r = []
 	for register in registers:
-		c = copy(register)
-		c.name = prefix + c.name
-		r.append(c)
-	return r
+		register.name = prefix + register.name
 
 def memprefix(prefix, memories):
-	r = []
 	for memory in memories:
-		c = copy(memory)
-		c.name_override = prefix + c.name_override
-		r.append(c)
-	return memories
+		memory.name_override = prefix + memory.name_override
 
 class AutoReg:
 	def get_memories(self):
@@ -75,7 +65,9 @@ class AutoReg:
 			if isinstance(v, Memory):
 				r.append(v)
 			elif hasattr(v, "get_memories") and callable(v.get_memories):
-				r += memprefix(k + "_", v.get_memories())
+				memories = v.get_memories()
+				memprefix(k + "_", memories)
+				r += memories
 		return sorted(r, key=lambda x: x.huid)
 
 	def get_registers(self):
@@ -84,7 +76,9 @@ class AutoReg:
 			if isinstance(v, _Register):
 				r.append(v)
 			elif hasattr(v, "get_registers") and callable(v.get_registers):
-				r += regprefix(k + "_", v.get_registers())
+				registers = v.get_registers()
+				regprefix(k + "_", registers)
+				r += registers
 		return sorted(r, key=lambda x: x.huid)
 
 (ALIAS_NON_ATOMIC, ALIAS_ATOMIC_HOLD, ALIAS_ATOMIC_COMMIT) = range(3)
