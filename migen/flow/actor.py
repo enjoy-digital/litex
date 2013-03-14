@@ -54,7 +54,7 @@ class Actor(HUID):
 		return self.endpoints[ep].token
 	
 	def filter_endpoints(self, cl):
-		return [k for k, v in self.endpoints.items() if isinstance(v, cl)]
+		return sorted(k for k, v in self.endpoints.items() if isinstance(v, cl))
 
 	def sinks(self):
 		return self.filter_endpoints(Sink)
