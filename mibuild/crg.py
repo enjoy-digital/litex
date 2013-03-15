@@ -10,7 +10,11 @@ class CRG(Module):
 		return r
 
 class SimpleCRG(CRG):
-	def __init__(self, platform, clk_name, rst_name):
+	def __init__(self, platform, clk_name, rst_name, rst_invert=False):
 			self.cd = ClockDomain("sys")
 			platform.request(clk_name, None, self.cd.clk)
-			platform.request(rst_name, None, self.cd.rst)
+			if rst_invert:
+				rst_n = platform.request(rst_name)
+				self.comb += self.cd.rst.eq(~rst_n)
+			else:
+				platform.request(rst_name, None, self.cd.rst)
