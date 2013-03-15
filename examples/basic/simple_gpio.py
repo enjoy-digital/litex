@@ -17,7 +17,7 @@ class Example(Module):
 		###
 
 		gpio_in_s = Signal(ninputs)
-		self.specials += MultiReg(self.gpio_in, "ext", gpio_in_s, "sys")
+		self.specials += MultiReg(self.gpio_in, gpio_in_s, "sys")
 		self.comb += [
 			r_i.field.w.eq(gpio_in_s),
 			self.gpio_out.eq(r_o.field.r)

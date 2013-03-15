@@ -12,7 +12,7 @@ class XilinxMultiRegImpl(MultiRegImpl):
 class XilinxMultiReg:
 	@staticmethod
 	def lower(dr):
-		return XilinxMultiRegImpl(dr.i, dr.idomain, dr.o, dr.odomain, dr.n)
+		return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
 ps = PulseSynchronizer("from", "to")
 v = verilog.convert(ps, {ps.i, ps.o}, special_overrides={MultiReg: XilinxMultiReg})

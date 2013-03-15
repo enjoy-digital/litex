@@ -3,9 +3,8 @@ from migen.fhdl.specials import Special
 from migen.fhdl.tools import value_bits_sign, list_signals
 
 class MultiRegImpl:
-	def __init__(self, i, idomain, o, odomain, n):
+	def __init__(self, i, o, odomain, n):
 		self.i = i
-		self.idomain = idomain
 		self.o = o
 		self.odomain = odomain
 
@@ -24,10 +23,9 @@ class MultiRegImpl:
 		return Fragment(comb, {self.odomain: o_sync})
 
 class MultiReg(Special):
-	def __init__(self, i, idomain, o, odomain, n=2):
+	def __init__(self, i, o, odomain, n=2):
 		Special.__init__(self)
 		self.i = i
-		self.idomain = idomain
 		self.o = o
 		self.odomain = odomain
 		self.n = n
@@ -42,7 +40,7 @@ class MultiReg(Special):
 
 	@staticmethod
 	def lower(dr):
-		return MultiRegImpl(dr.i, dr.idomain, dr.o, dr.odomain, dr.n)
+		return MultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
 class PulseSynchronizer:
 	def __init__(self, idomain, odomain):
@@ -66,4 +64,4 @@ class PulseSynchronizer:
 		]
 		return Fragment(comb, 
 			{self.idomain: sync_i, self.odomain: sync_o},
-			specials={MultiReg(toggle_i, self.idomain, toggle_o, self.odomain)})
+			specials={MultiReg(toggle_i, toggle_o, self.odomain)})
