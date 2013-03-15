@@ -197,7 +197,7 @@ class GenericPlatform:
 				if language is not None:
 					self.add_source(os.path.join(root, filename), language)
 
-	def get_verilog(self, fragment, clock_domains=None, **kwargs):
+	def get_verilog(self, fragment, **kwargs):
 		if not isinstance(fragment, Fragment):
 			fragment = fragment.get_fragment()
 		# We may create a temporary clock/reset generator that would request pins.
@@ -206,17 +206,15 @@ class GenericPlatform:
 		backup = self.constraint_manager.save()
 		try:
 			# if none exists, create a default clock domain and drive it
-			if clock_domains is None:
+			if not fragment.clock_domains:
 				if self.default_crg_factory is None:
 					raise NotImplementedError("No clock/reset generator defined by either platform or user")
 				crg = self.default_crg_factory(self)
 				frag = fragment + crg.get_fragment()
-				clock_domains = crg.get_clock_domains()
 			else:
 				frag = fragment
 			# generate Verilog
-			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(),
-				clock_domains=clock_domains, return_ns=True, **kwargs)
+			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(), return_ns=True, **kwargs)
 			# resolve signal names in constraints
 			sc = self.constraint_manager.get_sig_constraints()
 			named_sc = [(vns.get_name(sig), pins, others, resource) for sig, pins, others, resource in sc]
@@ -230,7 +228,7 @@ class GenericPlatform:
 			self.constraint_manager.restore(backup)
 		return src, named_sc, named_pc
 		
-	def build(self, fragment, clock_domains=None):
+	def build(self, fragment):
 		raise NotImplementedError("GenericPlatform.build must be overloaded")
 
 	def add_arguments(self, parser):

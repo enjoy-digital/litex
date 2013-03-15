@@ -72,12 +72,12 @@ quartus_sta {build_name}.qpf
 		raise OSError("Subprocess failed")
 
 class AlteraQuartusPlatform(GenericPlatform):
-	def build(self, fragment, clock_domains=None, build_dir="build", build_name="top",
+	def build(self, fragment, build_dir="build", build_name="top",
 			quartus_path="/opt/Altera", run=True):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
-		v_src, named_sc, named_pc = self.get_verilog(fragment, clock_domains)
+		v_src, named_sc, named_pc = self.get_verilog(fragment)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]

@@ -3,10 +3,11 @@ from decimal import Decimal
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance, SynthesisDirective
+from migen.fhdl.module import Module
 from migen.genlib.cdc import *
 
 from mibuild.generic_platform import *
-from mibuild.crg import CRG, SimpleCRG
+from mibuild.crg import SimpleCRG
 from mibuild import tools
 
 def _add_period_constraint(platform, clk, period):
@@ -18,20 +19,21 @@ class CRG_SE(SimpleCRG):
 		SimpleCRG.__init__(self, platform, clk_name, rst_name, rst_invert)
 		_add_period_constraint(platform, self.cd.clk, period)
 
-class CRG_DS(CRG):
-	def __init__(self, platform, clk_name, rst_name, period):
-		self.cd = ClockDomain("sys")
+class CRG_DS(Module):
+	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
+		self.clock_domains.cd_sys = ClockDomain()
 		self._clk = platform.request(clk_name)
-		platform.request(rst_name, None, self.cd.rst)
+		if rst_invert:
+			rst_n = platform.request(rst_name)
+			self.comb += self.cd_sys.rst.eq(~rst_n)
+		else:
+			platform.request(rst_name, None, self.cd.rst)
 		_add_period_constraint(platform, self._clk.p, period)
-
-	def get_fragment(self):
-		ibufg = Instance("IBUFGDS",
+		self.specials += Instance("IBUFGDS",
 			Instance.Input("I", self._clk.p),
 			Instance.Input("IB", self._clk.n),
 			Instance.Output("O", self.cd.clk)
 		)
-		return Fragment(specials={ibufg})
 
 def _format_constraint(c):
 	if isinstance(c, Pins):
@@ -127,12 +129,12 @@ class XilinxISEPlatform(GenericPlatform):
 		so.update(special_overrides)
 		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
 
-	def build(self, fragment, clock_domains=None, build_dir="build", build_name="top",
+	def build(self, fragment, build_dir="build", build_name="top",
 			ise_path="/opt/Xilinx", run=True):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
-		v_src, named_sc, named_pc = self.get_verilog(fragment, clock_domains)
+		v_src, named_sc, named_pc = self.get_verilog(fragment)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
