@@ -4,7 +4,7 @@ from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 
 class Special(HUID):
-	def rename_clock_domain(self):
+	def rename_clock_domain(self, old, new):
 		pass
 
 	def get_clock_domains(self):
@@ -94,7 +94,7 @@ class Instance(Special):
 			if isinstance(item, Instance._IO) and item.name == name:
 				return item.expr
 
-	def rename_clock_domain(self):
+	def rename_clock_domain(self, old, new):
 		for cr in filter(lambda x: isinstance(x, Instance._CR), self.items):
 			if cr.domain == old:
 				cr.domain = new
@@ -214,7 +214,7 @@ class Memory(Special):
 		self.ports.append(mp)
 		return mp
 
-	def rename_clock_domain(self):
+	def rename_clock_domain(self, old, new):
 		for port in self.ports:
 			if port.clock_domain == old:
 				port.clock_domain = new
