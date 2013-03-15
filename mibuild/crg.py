@@ -1,15 +1,13 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 
-class CRG:
+class CRG(Module):
 	def get_clock_domains(self):
 		r = dict()
 		for k, v in self.__dict__.items():
 			if isinstance(v, ClockDomain):
 				r[v.name] = v
 		return r
-
-	def get_fragment(self):
-		return Fragment()
 
 class SimpleCRG(CRG):
 	def __init__(self, platform, clk_name, rst_name):
