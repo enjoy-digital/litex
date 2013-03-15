@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2013 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: GPLv3
+
 from mibuild.generic_platform import *
 from mibuild.altera_quartus import AlteraQuartusPlatform, CRG_SE
 

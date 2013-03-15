@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2013 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: GPLv3
+
 import os, subprocess
 
 from mibuild.generic_platform import *
