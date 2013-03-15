@@ -60,7 +60,7 @@ NET "asfifo*/preset_empty*" TIG;
 		"jtag_tap_spartan6.v", "lm32_itlb.v", "lm32_dtlb.v")
 	plat.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
 	
-	plat.build_cmdline(soc, clock_domains=soc.crg.get_clock_domains())
+	plat.build_cmdline(soc)
 
 if __name__ == "__main__":
 	main()

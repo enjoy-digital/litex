@@ -3,9 +3,8 @@ from fractions import Fraction
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
 from migen.fhdl.module import Module
-from mibuild.crg import CRG
 
-class M1CRG(Module, CRG):
+class M1CRG(Module):
 	def __init__(self, infreq, outfreq1x):
 		self.clk50_pad = Signal()
 		self.trigger_reset = Signal()
@@ -13,13 +12,13 @@ class M1CRG(Module, CRG):
 		self.eth_rx_clk_pad = Signal()
 		self.eth_tx_clk_pad = Signal()
 		
-		self.cd_sys = ClockDomain("sys")
-		self.cd_sys2x_270 = ClockDomain("sys2x_270")
-		self.cd_sys4x_wr = ClockDomain("sys4x_wr")
-		self.cd_sys4x_rd = ClockDomain("sys4x_rd")
-		self.cd_eth_rx = ClockDomain("eth_rx")
-		self.cd_eth_tx = ClockDomain("eth_tx")
-		self.cd_vga = ClockDomain("vga")
+		self.clock_domains.cd_sys = ClockDomain()
+		self.clock_domains.cd_sys2x_270 = ClockDomain()
+		self.clock_domains.cd_sys4x_wr = ClockDomain()
+		self.clock_domains.cd_sys4x_rd = ClockDomain()
+		self.clock_domains.cd_eth_rx = ClockDomain()
+		self.clock_domains.cd_eth_tx = ClockDomain()
+		self.clock_domains.cd_vga = ClockDomain()
 		
 		ratio = Fraction(outfreq1x)/Fraction(infreq)
 		in_period = float(Fraction(1000000000)/Fraction(infreq))
