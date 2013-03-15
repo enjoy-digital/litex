@@ -293,8 +293,3 @@ class Fragment:
 			pass
 		else:
 			cd.rename(new)
-	
-	def call_sim(self, simulator):
-		for s in self.sim:
-			if simulator.cycle_counter >= 0 or (hasattr(s, "initialize") and s.initialize):
-				s(simulator)

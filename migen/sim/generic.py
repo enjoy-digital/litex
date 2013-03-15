@@ -73,6 +73,11 @@ end
 		r += "\nendmodule"
 		return r
 
+def _call_sim(fragment, simulator):
+	for s in fragment.sim:
+		if simulator.cycle_counter >= 0 or (hasattr(s, "initialize") and s.initialize):
+			s(simulator)
+
 class Simulator:
 	def __init__(self, fragment, top_level=None, sim_runner=None, sockaddr="simsocket", **vopts):
 		if not isinstance(fragment, Fragment):
@@ -102,7 +107,7 @@ class Simulator:
 		self.ipc.accept()
 		reply = self.ipc.recv()
 		assert(isinstance(reply, MessageTick))
-		self.fragment.call_sim(self)
+		_call_sim(self.fragment, self)
 	
 	def run(self, ncycles=-1):
 		self.interrupt = False
@@ -113,7 +118,7 @@ class Simulator:
 			self.ipc.send(MessageGo())
 			reply = self.ipc.recv()
 			assert(isinstance(reply, MessageTick))
-			self.fragment.call_sim(self)
+			_call_sim(self.fragment, self)
 
 	def rd(self, item, index=0):
 		name = self.top_level.top_name + "." \
