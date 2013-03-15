@@ -10,19 +10,18 @@ from migen.sim import icarus
 class TopLevel:
 	def __init__(self, vcd_name=None, vcd_level=1,
 	  top_name="top", dut_type="dut", dut_name="dut",
-	  clk_name="sys_clk", clk_period=10, rst_name="sys_rst"):
+	  cd_name="sys", clk_period=10):
 		self.vcd_name = vcd_name
 		self.vcd_level = vcd_level
 		self.top_name = top_name
 		self.dut_type = dut_type
 		self.dut_name = dut_name
 		
-		self._clk_name = clk_name
+		self._cd_name = cd_name
 		self._clk_period = clk_period
-		self._rst_name = rst_name
 		
-		cd = ClockDomain(self._clk_name, self._rst_name)
-		self.clock_domains = {"sys": cd}
+		cd = ClockDomain(self._cd_name)
+		self.clock_domains = [cd]
 		self.ios = {cd.clk, cd.rst}
 	
 	def get(self, sockaddr):
@@ -63,9 +62,9 @@ end
 		r = template1.format(top_name=self.top_name,
 			dut_type=self.dut_type,
 			dut_name=self.dut_name,
-			clk_name=self._clk_name,
+			clk_name=self._cd_name + "_clk",
+			rst_name=self._cd_name + "_rst",
 			hclk_period=str(self._clk_period/2),
-			rst_name=self._rst_name,
 			sockaddr=sockaddr)
 		if self.vcd_name is not None:
 			r += template2.format(vcd_name=self.vcd_name,
@@ -82,17 +81,16 @@ class Simulator:
 			top_level = TopLevel()
 		if sim_runner is None:
 			sim_runner = icarus.Runner()		
-		self.fragment = fragment
+		self.fragment = fragment + Fragment(clock_domains=top_level.clock_domains)
 		self.top_level = top_level
 		self.ipc = Initiator(sockaddr)
 		self.sim_runner = sim_runner
 		
 		c_top = self.top_level.get(sockaddr)
 		
-		c_fragment, self.namespace = verilog.convert(fragment,
+		c_fragment, self.namespace = verilog.convert(self.fragment,
 			ios=self.top_level.ios,
 			name=self.top_level.dut_type,
-			clock_domains=self.top_level.clock_domains,
 			return_ns=True,
 			**vopts)
 		
