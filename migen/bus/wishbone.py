@@ -1,10 +1,11 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
+from migen.fhdl.module import Module
 from migen.genlib import roundrobin
 from migen.genlib.misc import optree
 from migen.bus.simple import *
 from migen.bus.transactions import *
-from migen.sim.generic import Proxy, PureSimulable
+from migen.sim.generic import Proxy
 
 _desc = Description(
 	(M_TO_S,	"adr",		30),
@@ -116,7 +117,7 @@ class InterconnectShared:
 	def get_fragment(self):
 		return self._arbiter.get_fragment() + self._decoder.get_fragment()
 
-class Tap(PureSimulable):
+class Tap(Module):
 	def __init__(self, bus, handler=print):
 		self.bus = bus
 		self.handler = handler
@@ -133,7 +134,7 @@ class Tap(PureSimulable):
 					s.rd(self.bus.dat_r))
 			self.handler(transaction)
 
-class Initiator(PureSimulable):
+class Initiator(Module):
 	def __init__(self, generator, bus=None):
 		self.generator = generator
 		if bus is None:
@@ -180,7 +181,7 @@ class TargetModel:
 	def can_ack(self, bus):
 		return True
 
-class Target(PureSimulable):
+class Target(Module):
 	def __init__(self, model, bus=None):
 		if bus is None:
 			bus = Interface()

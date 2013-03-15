@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.flow.actor import *
 from migen.flow.transactions import *
-from migen.sim.generic import PureSimulable
 
 # Generators yield None or a tuple of Tokens.
 # Tokens for Sink endpoints are pulled and the "value" field filled in.
@@ -9,7 +9,7 @@ from migen.sim.generic import PureSimulable
 #
 # NB: the possibility to push several tokens at once is important to interact
 # with actors that only accept a group of tokens when all of them are available.
-class TokenExchanger(PureSimulable):
+class TokenExchanger(Module):
 	def __init__(self, generator, actor):
 		self.generator = generator
 		self.actor = actor

@@ -1,5 +1,5 @@
+from migen.fhdl.module import Module
 from migen.bus.transactions import *
-from migen.sim.generic import PureSimulable
 
 def _byte_mask(orig, dat_w, sel):
 	r = 0
@@ -15,7 +15,7 @@ def _byte_mask(orig, dat_w, sel):
 		shift += 8
 	return r
 
-class Initiator(PureSimulable):
+class Initiator(Module):
 	def __init__(self, generator, mem):
 		self.generator = generator
 		self.mem = mem

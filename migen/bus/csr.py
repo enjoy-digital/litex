@@ -1,8 +1,8 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
+from migen.fhdl.module import Module
 from migen.bus.simple import *
 from migen.bus.transactions import *
-from migen.sim.generic import PureSimulable
 from migen.bank.description import RegisterField
 from migen.genlib.misc import chooser
 
@@ -19,7 +19,7 @@ class Interface(SimpleInterface):
 class Interconnect(SimpleInterconnect):
 	pass
 
-class Initiator(PureSimulable):
+class Initiator(Module):
 	def __init__(self, generator, bus=None):
 		self.generator = generator
 		if bus is None:

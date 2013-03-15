@@ -1,8 +1,8 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.flow.actor import *
-from migen.sim.generic import PureSimulable
 
-class EndpointSimHook(PureSimulable):
+class EndpointSimHook(Module):
 	def __init__(self, endpoint):
 		self.endpoint = endpoint
 	

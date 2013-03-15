@@ -6,10 +6,11 @@ from scipy import signal
 import matplotlib.pyplot as plt
 
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.fhdl import verilog
 from migen.genlib.misc import optree
 from migen.fhdl import autofragment
-from migen.sim.generic import Simulator, PureSimulable
+from migen.sim.generic import Simulator
 
 # A synthesizable FIR filter.
 class FIR:
@@ -36,7 +37,7 @@ class FIR:
 
 # A test bench for our FIR filter.
 # Generates a sine wave at the input and records the output.
-class TB(PureSimulable):
+class TB(Module):
 	def __init__(self, fir, frequency):
 		self.fir = fir
 		self.frequency = frequency
