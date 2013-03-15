@@ -30,6 +30,13 @@ class MultiReg(Special):
 		self.odomain = odomain
 		self.n = n
 
+	def rename_clock_domain(self, old, new):
+		if self.odomain == old:
+			self.odomain = new
+
+	def get_clock_domains(self):
+		return {self.odomain}
+
 	def list_ios(self, ins, outs, inouts):
 		r = set()
 		if ins:
