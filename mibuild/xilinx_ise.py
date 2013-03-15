@@ -14,8 +14,8 @@ def _add_period_constraint(platform, clk, period):
 TIMESPEC "TSclk" = PERIOD "GRPclk" """+str(period)+""" ns HIGH 50%;""", clk=clk)
 
 class CRG_SE(SimpleCRG):
-	def __init__(self, platform, clk_name, rst_name, period):
-		SimpleCRG.__init__(self, platform, clk_name, rst_name)
+	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
+		SimpleCRG.__init__(self, platform, clk_name, rst_name, rst_invert)
 		_add_period_constraint(platform, self.cd.clk, period)
 
 class CRG_DS(CRG):
