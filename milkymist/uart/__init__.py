@@ -59,7 +59,7 @@ class UART(Module, AutoReg):
 		
 		# RX
 		rx = Signal()
-		self.specials += MultiReg(self.rx, "ext", rx, "sys")
+		self.specials += MultiReg(self.rx, rx, "sys")
 		rx_r = Signal()
 		rx_reg = Signal(8)
 		rx_bitcount = Signal(4)

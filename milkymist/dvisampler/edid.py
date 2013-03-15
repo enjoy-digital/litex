@@ -33,9 +33,9 @@ class EDID(Module, AutoReg):
 		_sda_i_async = Signal()
 		self.sync += _sda_drv_reg.eq(sda_drv)
 		self.specials += [
-			MultiReg(self.scl, "ext", scl_i, "sys"),
+			MultiReg(self.scl, scl_i, "sys"),
 			Tristate(self.sda, 0, _sda_drv_reg, _sda_i_async),
-			MultiReg(_sda_i_async, "ext", sda_i, "sys")
+			MultiReg(_sda_i_async, sda_i, "sys")
 		]
 
 		# FIXME: understand what is really going on here and get rid of that workaround
