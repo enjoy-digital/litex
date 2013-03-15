@@ -121,7 +121,7 @@ class XilinxMultiRegImpl(MultiRegImpl):
 class XilinxMultiReg:
 	@staticmethod
 	def lower(dr):
-		return XilinxMultiRegImpl(dr.i, dr.idomain, dr.o, dr.odomain, dr.n)
+		return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
 class XilinxISEPlatform(GenericPlatform):
 	def get_verilog(self, *args, special_overrides=dict(), **kwargs):
