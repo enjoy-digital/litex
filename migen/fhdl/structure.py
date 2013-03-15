@@ -229,11 +229,37 @@ class Array(list):
 		else:
 			return list.__getitem__(self, key)
 
+class ClockDomain:
+	def __init__(self, name=None):
+		self.name = tracer.get_obj_var_name(name)
+		if self.name is None:
+			raise ValueError("Cannot extract clock domain name from code, need to specify.")
+		if len(self.name) > 3 and self.name[:3] == "cd_":
+			self.name = self.name[3:]
+		self.clk = Signal(name_override=self.name + "_clk")
+		self.rst = Signal(name_override=self.name + "_rst")
+
+	def rename(self, new_name):
+		self.name = new_name
+		self.clk.name_override = new_name + "_clk"
+		self.rst.name_override = new_name + "_rst"
+
+class _ClockDomainList(list):
+	def __getitem__(self, key):
+		if isinstance(key, str):
+			for cd in self:
+				if cd.name == key:
+					return cd
+			raise KeyError(key)
+		else:
+			return list.__getitem__(self, key)
+
 class Fragment:
-	def __init__(self, comb=None, sync=None, specials=None, sim=None):
+	def __init__(self, comb=None, sync=None, specials=None, clock_domains=None, sim=None):
 		if comb is None: comb = []
 		if sync is None: sync = dict()
 		if specials is None: specials = set()
+		if clock_domains is None: clock_domains = _ClockDomainList()
 		if sim is None: sim = []
 		
 		if isinstance(sync, list):
@@ -242,6 +268,7 @@ class Fragment:
 		self.comb = comb
 		self.sync = sync
 		self.specials = set(specials)
+		self.clock_domains = _ClockDomainList(clock_domains)
 		self.sim = sim
 	
 	def __add__(self, other):
@@ -252,27 +279,22 @@ class Fragment:
 			newsync[k].extend(v)
 		return Fragment(self.comb + other.comb, newsync,
 			self.specials | other.specials,
+			self.clock_domains + other.clock_domains,
 			self.sim + other.sim)
 	
 	def rename_clock_domain(self, old, new):
-		self.sync["new"] = self.sync["old"]
-		del self.sync["old"]
+		self.sync[new] = self.sync[old]
+		del self.sync[old]
 		for special in self.specials:
 			special.rename_clock_domain(old, new)
+		try:
+			cd = self.clock_domains[old]
+		except KeyError:
+			pass
+		else:
+			cd.rename(new)
 	
 	def call_sim(self, simulator):
 		for s in self.sim:
 			if simulator.cycle_counter >= 0 or (hasattr(s, "initialize") and s.initialize):
 				s(simulator)
-
-class ClockDomain:
-	def __init__(self, n1, n2=None):
-		self.name = n1
-		if n2 is None:
-			n_clk = n1 + "_clk"
-			n_rst = n1 + "_rst"
-		else:
-			n_clk = n1
-			n_rst = n2
-		self.clk = Signal(name_override=n_clk)
-		self.rst = Signal(name_override=n_rst)

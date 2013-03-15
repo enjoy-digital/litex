@@ -1,4 +1,5 @@
 import collections
+from itertools import combinations
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Special
@@ -64,9 +65,18 @@ class _ModuleSpecials(_ModuleProxy, _ModuleForwardAttr):
 		self._fm._fragment.specials |= set(_flat_list(other))
 		return self
 
-class _ModuleSubmodules(_ModuleProxy, _ModuleForwardAttr):
+class _ModuleSubmodules(_ModuleProxy):
+	def __setattr__(self, name, value):
+		self._fm._submodules += [(name, e) for e in _flat_list(value)]
+		setattr(self._fm, name, value)
+	
 	def __iadd__(self, other):
-		self._fm._submodules += _flat_list(other)
+		self._fm._submodules += [(None, e) for e in _flat_list(other)]
+		return self
+
+class _ModuleClockDomains(_ModuleProxy, _ModuleForwardAttr):
+	def __iadd__(self, other):
+		self._fm._fragment.clock_domains += _flat_list(other)
 		return self
 
 class Module:
@@ -85,6 +95,8 @@ class Module:
 			return _ModuleSpecials(self)
 		elif name == "submodules":
 			return _ModuleSubmodules(self)
+		elif name == "clock_domains":
+			return _ModuleClockDomains(self)
 
 		# hack to have initialized regular attributes without using __init__
 		# (which would require derived classes to call it)
@@ -101,6 +113,9 @@ class Module:
 		elif name == "_submodules":
 			self._submodules = []
 			return self._submodules
+		elif name == "_clock_domains":
+			self._clock_domains = []
+			return self._clock_domains
 		elif name == "_get_fragment_called":
 			self._get_fragment_called = False
 			return self._get_fragment_called
@@ -109,21 +124,44 @@ class Module:
 			raise AttributeError("'"+self.__class__.__name__+"' object has no attribute '"+name+"'")
 
 	def __setattr__(self, name, value):
-		if name in ["comb", "sync", "specials", "submodules"]:
+		if name in ["comb", "sync", "specials", "submodules", "clock_domains"]:
 			if not isinstance(value, _ModuleProxy):
 				raise AttributeError("Attempted to assign special Module property - use += instead")
 		else:
 			object.__setattr__(self, name, value)
 
+	def _collect_submodules(self):
+		r = [(name, submodule.get_fragment()) for name, submodule in self._submodules]
+		self._submodules = []
+		return r
+
 	def finalize(self):
 		if not self.finalized:
 			self.finalized = True
-			for submodule in self._submodules:
-				self._fragment += submodule.get_fragment()
-			self._submodules = []
+			# finalize existing submodules before finalizing us
+			subfragments = self._collect_submodules()
 			self.do_finalize()
-			for submodule in self._submodules:
-				self._fragment += submodule.get_fragment()
+			# finalize submodules created by do_finalize
+			subfragments += self._collect_submodules()
+			# resolve clock domain name conflicts
+			needs_renaming = set()
+			for (mod_name1, f1), (mod_name2, f2) in combinations(subfragments, 2):
+				f1_names = set(cd.name for cd in f1.clock_domains)
+				f2_names = set(cd.name for cd in f2.clock_domains)
+				common_names = f1_names & f2_names
+				if common_names:
+					if mod_name1 is None or mod_name2 is None:
+						raise ValueError("Multiple submodules with local clock domains cannot be anonymous")
+					if mod_name1 == mod_name2:
+						raise ValueError("Multiple submodules with local clock domains cannot have the same name")
+				needs_renaming |= common_names
+			for mod_name, f in subfragments:
+				for cd in f.clock_domains:
+					if cd.name in needs_renaming:
+						f.rename_clock_domain(cd.name, mod_name + "_" + cd.name)
+			# sum subfragments
+			for mod_name, f in subfragments:
+				self._fragment += f
 
 	def do_finalize(self):
 		pass

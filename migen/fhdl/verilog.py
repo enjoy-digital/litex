@@ -200,16 +200,16 @@ def _printcomb(f, ns, display_run):
 	r += "\n"
 	return r
 
-def _insert_resets(f, clock_domains):
+def _insert_resets(f):
 	newsync = dict()
 	for k, v in f.sync.items():
-		newsync[k] = insert_reset(clock_domains[k].rst, v)
+		newsync[k] = insert_reset(f.clock_domains[k].rst, v)
 	f.sync = newsync
 
-def _printsync(f, ns, clock_domains):
+def _printsync(f, ns):
 	r = ""
 	for k, v in sorted(f.sync.items(), key=itemgetter(0)):
-		r += "always @(posedge " + ns.get_name(clock_domains[k].clk) + ") begin\n"
+		r += "always @(posedge " + ns.get_name(f.clock_domains[k].clk) + ") begin\n"
 		r += _printnode(ns, _AT_SIGNAL, 1, v)
 		r += "end\n\n"
 	return r
@@ -256,7 +256,6 @@ def _printinit(f, ios, ns):
 	return r
 
 def convert(f, ios=None, name="top",
-  clock_domains=None,
   return_ns=False,
   special_overrides=dict(),
   display_run=False):
@@ -264,18 +263,18 @@ def convert(f, ios=None, name="top",
 		f = f.get_fragment()
 	if ios is None:
 		ios = set()
-	if clock_domains is None:
-		clock_domains = dict()
-		for d in list_clock_domains(f):
-			cd = ClockDomain(d)
-			clock_domains[d] = cd
-			ios.add(cd.clk)
-			ios.add(cd.rst)
 		
-	f = lower_arrays(f)
+	f = lower_arrays(f) # this also copies f
 	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
 	f += fs
-	_insert_resets(f, clock_domains)
+	for cd_name in list_clock_domains(f):
+		try:
+			f.clock_domains[cd_name]
+		except KeyError:
+			cd = ClockDomain(cd_name)
+			f.clock_domains.append(cd)
+			ios |= {cd.clk, cd.rst}
+	_insert_resets(f)
 
 	ns = build_namespace(list_signals(f) \
 		| list_special_ios(f, True, True, True) \
@@ -284,8 +283,8 @@ def convert(f, ios=None, name="top",
 	r = "/* Machine-generated using Migen */\n"
 	r += _printheader(f, ios, name, ns)
 	r += _printcomb(f, ns, display_run)
-	r += _printsync(f, ns, clock_domains)
-	r += _printspecials(special_overrides, f.specials - lowered_specials, ns, clock_domains)
+	r += _printsync(f, ns)
+	r += _printspecials(special_overrides, f.specials - lowered_specials, ns, f.clock_domains)
 	r += _printinit(f, ios, ns)
 	r += "endmodule\n"
 

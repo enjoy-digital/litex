@@ -68,6 +68,8 @@ def list_clock_domains(f):
 	r = set(f.sync.keys())
 	for special in f.specials:
 		r |= special.get_clock_domains()
+	for cd in f.clock_domains:
+		r.add(cd.name)
 	return r
 
 def is_variable(node):
