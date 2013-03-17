@@ -28,12 +28,14 @@ class DataCapture(Module, AutoReg):
 			Instance.Parameter("DELAY_SRC", "IDATAIN"),
 			Instance.Parameter("IDELAY_TYPE", "VARIABLE_FROM_ZERO"),
 			Instance.Parameter("COUNTER_WRAPAROUND", "STAY_AT_LIMIT"),
+			Instance.Parameter("DATA_RATE", "SDR"),
 			Instance.Input("IDATAIN", self.pad),
 			Instance.Output("DATAOUT", pad_delayed),
 			Instance.Input("INC", delay_inc | delay_init),
 			Instance.Input("CE", delay_ce | delay_init),
 			Instance.Input("RST", delay_rst),
 			Instance.ClockPort("CLK"),
+			Instance.ClockPort("IOCLK0", "pix20x"),
 			Instance.Input("CAL", 0),
 			Instance.Input("T", 1)
 		)
