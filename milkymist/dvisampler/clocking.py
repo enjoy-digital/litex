@@ -13,9 +13,9 @@ class Clocking(Module, AutoReg):
 
 		self.locked = Signal()
 		self.serdesstrobe = Signal()
-		self._cd_pix = ClockDomain()
-		self._cd_pix5x = ClockDomain()
-		self._cd_pix20x = ClockDomain()
+		self.clock_domains._cd_pix = ClockDomain()
+		self.clock_domains._cd_pix5x = ClockDomain()
+		self.clock_domains._cd_pix20x = ClockDomain()
 
 		###
 
@@ -27,9 +27,9 @@ class Clocking(Module, AutoReg):
 		self.specials += Instance("PLL_BASE",
 			Instance.Parameter("CLKIN_PERIOD", 22.0),
 			Instance.Parameter("CLKFBOUT_MULT", 20),
-			Instance.Parameter("CLKOUT0_DIVIDE", 20), # pix
+			Instance.Parameter("CLKOUT0_DIVIDE", 1),  # pix20x
 			Instance.Parameter("CLKOUT1_DIVIDE", 4),  # pix5x
-			Instance.Parameter("CLKOUT2_DIVIDE", 1),  # pix20x
+			Instance.Parameter("CLKOUT2_DIVIDE", 20), # pix
 			Instance.Parameter("COMPENSATION", "INTERNAL"),
 
 			Instance.Output("CLKFBOUT", clkfbout),
@@ -42,14 +42,10 @@ class Clocking(Module, AutoReg):
 			Instance.Input("RST", self._r_pll_reset.field.r)
 		)
 
-		self.specials += Instance("BUFG",
-			Instance.Input("I", pll_clk0), Instance.Output("O", self._cd_pix.clk))
-		self.specials += Instance("BUFG",
-			Instance.Input("I", pll_clk1), Instance.Output("O", self._cd_pix5x.clk))
 		locked_async = Signal()
 		self.specials += Instance("BUFPLL",
 			Instance.Parameter("DIVIDE", 4),
-			Instance.Input("PLLIN", pll_clk2),
+			Instance.Input("PLLIN", pll_clk0),
 			Instance.ClockPort("GCLK", "pix5x"),
 			Instance.Input("LOCKED", pll_locked),
 			Instance.Output("IOCLK", self._cd_pix20x.clk),
@@ -58,3 +54,7 @@ class Clocking(Module, AutoReg):
 		)
 		self.specials += MultiReg(locked_async, self.locked, "sys")
 		self.comb += self._r_locked.field.w.eq(self.locked)
+		self.specials += Instance("BUFG",
+			Instance.Input("I", pll_clk1), Instance.Output("O", self._cd_pix5x.clk))
+		self.specials += Instance("BUFG",
+			Instance.Input("I", pll_clk2), Instance.Output("O", self._cd_pix.clk))

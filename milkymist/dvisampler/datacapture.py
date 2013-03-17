@@ -24,10 +24,10 @@ class DataCapture(Module, AutoReg):
 		delay_ce = Signal()
 		delay_rst = Signal()
 		delay_init = Signal()
-		self.specials += Instance("IDELAY2",
+		self.specials += Instance("IODELAY2",
 			Instance.Parameter("DELAY_SRC", "IDATAIN"),
 			Instance.Parameter("IDELAY_TYPE", "VARIABLE_FROM_ZERO"),
-			Instance.Parameter("COUNTER_WRAP_AROUND", "STAY_AT_LIMIT"),
+			Instance.Parameter("COUNTER_WRAPAROUND", "STAY_AT_LIMIT"),
 			Instance.Input("IDATAIN", self.pad),
 			Instance.Output("DATAOUT", pad_delayed),
 			Instance.Input("INC", delay_inc | delay_init),
