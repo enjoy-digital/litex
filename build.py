@@ -43,10 +43,19 @@ TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
 NET "asfifo*/counter_read/gray_count*" TIG;
 NET "asfifo*/counter_write/gray_count*" TIG;
 NET "asfifo*/preset_empty*" TIG;
+
+NET "{dviclk0}" TNM_NET = "GRPdviclk0";
+NET "{dviclk0}" CLOCK_DEDICATED_ROUTE = FALSE;
+TIMESPEC "TSdviclk0" = PERIOD "GRPdviclk0" 22 ns HIGH 50%;
+NET "{dviclk1}" TNM_NET = "GRPdviclk1";
+NET "{dviclk1}" CLOCK_DEDICATED_ROUTE = FALSE;
+TIMESPEC "TSdviclk1" = PERIOD "GRPdviclk1" 22 ns HIGH 50%;
 """,
 		clk50=soc.crg.clk50_pad,
 		phy_rx_clk=soc.crg.eth_rx_clk_pad,
-		phy_tx_clk=soc.crg.eth_tx_clk_pad)
+		phy_tx_clk=soc.crg.eth_tx_clk_pad,
+		dviclk0=soc.dvisampler0.clk,
+		dviclk1=soc.dvisampler1.clk)
 	
 	# add Verilog sources
 	for d in ["generic", "m1crg", "s6ddrphy", "minimac3"]:
