@@ -89,15 +89,15 @@ class Value(HUID):
 	
 	def __getitem__(self, key):
 		if isinstance(key, int):
-			if (key < 0):
+			if key < 0:
 				key += len(self)
 			return _Slice(self, key, key+1)
 		elif isinstance(key, slice):
 			start = key.start or 0
 			stop = key.stop or len(self)
-			if (start < 0):
+			if start < 0:
 				start += len(self)
-			if (stop < 0):
+			if stop < 0:
 				stop += len(self)
 			if stop > len(self):
 				stop = len(self)
