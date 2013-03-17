@@ -119,7 +119,7 @@ class DataCapture(Module, AutoReg):
 		if debug:
 			self.comb += delay_rst.eq(self.delay_rst | self._r_delay_rst.re)
 			current_tap = self._r_current_tap.field.w
-			If(delay_rst,
+			self.sync += If(delay_rst,
 				current_tap.eq(0)
 			).Elif(delay_ce,
 				If(delay_inc,
