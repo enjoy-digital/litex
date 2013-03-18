@@ -30,19 +30,18 @@ class MultiReg(Special):
 		self.odomain = odomain
 		self.n = n
 
+	def iter_expressions(self):
+		yield self, "i", SPECIAL_INPUT
+		yield self, "o", SPECIAL_OUTPUT
+
 	def rename_clock_domain(self, old, new):
+		Special.rename_clock_domain(self, old, new)
 		if self.odomain == old:
 			self.odomain = new
 
-	def get_clock_domains(self):
-		return {self.odomain}
-
-	def list_ios(self, ins, outs, inouts):
-		r = set()
-		if ins:
-			r.update(list_signals(self.i))
-		if outs:
-			r.update(list_signals(self.o))
+	def list_clock_domains(self):
+		r = Special.list_clock_domains(self)
+		r.add(self.odomain)
 		return r
 
 	@staticmethod

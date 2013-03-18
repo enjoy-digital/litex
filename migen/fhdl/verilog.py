@@ -203,7 +203,7 @@ def _printcomb(f, ns, display_run):
 def _insert_resets(f):
 	newsync = dict()
 	for k, v in f.sync.items():
-		newsync[k] = insert_reset(f.clock_domains[k].rst, v)
+		newsync[k] = insert_reset(ResetSignal(k), v)
 	f.sync = newsync
 
 def _printsync(f, ns):
@@ -263,10 +263,7 @@ def convert(f, ios=None, name="top",
 		f = f.get_fragment()
 	if ios is None:
 		ios = set()
-		
-	f = lower_arrays(f) # this also copies f
-	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
-	f += fs
+
 	for cd_name in list_clock_domains(f):
 		try:
 			f.clock_domains[cd_name]
@@ -274,7 +271,11 @@ def convert(f, ios=None, name="top",
 			cd = ClockDomain(cd_name)
 			f.clock_domains.append(cd)
 			ios |= {cd.clk, cd.rst}
+	
 	_insert_resets(f)
+	f = lower_basics(f)
+	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
+	f += lower_basics(fs)
 
 	ns = build_namespace(list_signals(f) \
 		| list_special_ios(f, True, True, True) \

@@ -3,7 +3,7 @@ from itertools import combinations
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Special
-from migen.fhdl.tools import flat_iteration
+from migen.fhdl.tools import flat_iteration, rename_clock_domain
 
 class FinalizeError(Exception):
 	pass
@@ -158,7 +158,7 @@ class Module:
 			for mod_name, f in subfragments:
 				for cd in f.clock_domains:
 					if cd.name in needs_renaming:
-						f.rename_clock_domain(cd.name, mod_name + "_" + cd.name)
+						rename_clock_domain(f, cd.name, mod_name + "_" + cd.name)
 			# sum subfragments
 			for mod_name, f in subfragments:
 				self._fragment += f

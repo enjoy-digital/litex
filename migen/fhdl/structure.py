@@ -170,6 +170,16 @@ class Signal(Value):
 	def __repr__(self):
 		return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"
 
+class ClockSignal(Value):
+	def __init__(self, cd="sys"):
+		Value.__init__(self)
+		self.cd = cd
+	
+class ResetSignal(Value):
+	def __init__(self, cd="sys"):
+		Value.__init__(self)
+		self.cd = cd
+
 # statements
 
 class _Assign:
@@ -260,6 +270,8 @@ class _ClockDomainList(list):
 		else:
 			return list.__getitem__(self, key)
 
+(SPECIAL_INPUT, SPECIAL_OUTPUT, SPECIAL_INOUT) = range(3)
+
 class Fragment:
 	def __init__(self, comb=None, sync=None, specials=None, clock_domains=None, sim=None):
 		if comb is None: comb = []
@@ -287,15 +299,3 @@ class Fragment:
 			self.specials | other.specials,
 			self.clock_domains + other.clock_domains,
 			self.sim + other.sim)
-	
-	def rename_clock_domain(self, old, new):
-		self.sync[new] = self.sync[old]
-		del self.sync[old]
-		for special in self.specials:
-			special.rename_clock_domain(old, new)
-		try:
-			cd = self.clock_domains[old]
-		except KeyError:
-			pass
-		else:
-			cd.rename(new)

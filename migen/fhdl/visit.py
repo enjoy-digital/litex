@@ -9,6 +9,10 @@ class NodeVisitor:
 			self.visit_constant(node)
 		elif isinstance(node, Signal):
 			self.visit_Signal(node)
+		elif isinstance(node, ClockSignal):
+			self.visit_ClockSignal(node)
+		elif isinstance(node, ResetSignal):
+			self.visit_ResetSignal(node)
 		elif isinstance(node, _Operator):
 			self.visit_Operator(node)
 		elif isinstance(node, _Slice):
@@ -38,6 +42,12 @@ class NodeVisitor:
 		pass
 	
 	def visit_Signal(self, node):
+		pass
+
+	def visit_ClockSignal(self, node):
+		pass
+
+	def visit_ResetSignal(self, node):
 		pass
 	
 	def visit_Operator(self, node):
@@ -89,7 +99,7 @@ class NodeVisitor:
 		pass
 
 # Default methods always copy the node, except for:
-# - Signals
+# - Signals, ClockSignals and ResetSignals
 # - Unknown objects
 # - All fragment fields except comb and sync
 # In those cases, the original node is returned unchanged.
@@ -99,6 +109,10 @@ class NodeTransformer:
 			return self.visit_constant(node)
 		elif isinstance(node, Signal):
 			return self.visit_Signal(node)
+		elif isinstance(node, ClockSignal):
+			return self.visit_ClockSignal(node)
+		elif isinstance(node, ResetSignal):
+			return self.visit_ResetSignal(node)
 		elif isinstance(node, _Operator):
 			return self.visit_Operator(node)
 		elif isinstance(node, _Slice):
@@ -132,6 +146,12 @@ class NodeTransformer:
 	def visit_Signal(self, node):
 		return node
 	
+	def visit_ClockSignal(self, node):
+		return node
+
+	def visit_ResetSignal(self, node):
+		return node
+
 	def visit_Operator(self, node):
 		return _Operator(node.op, [self.visit(o) for o in node.operands])
 	

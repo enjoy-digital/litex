@@ -1,14 +1,32 @@
 from migen.fhdl.structure import *
-from migen.fhdl.tools import list_signals, value_bits_sign
+from migen.fhdl.tools import *
 from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 
 class Special(HUID):
-	def rename_clock_domain(self, old, new):
-		pass
+	def iter_expressions(self):
+		for x in []:
+			yield x
 
-	def get_clock_domains(self):
-		return set()
+	def rename_clock_domain(self, old, new):
+		for obj, attr, direction in self.iter_expressions():
+			rename_clock_domain_expr(getattr(obj, attr), old, new)
+
+	def list_clock_domains(self):
+		r = set()
+		for obj, attr, direction in self.iter_expressions():
+			r |= list_clock_domains_expr(getattr(obj, attr))
+		return r
+
+	def list_ios(self, ins, outs, inouts):
+		r = set()
+		for obj, attr, direction in self.iter_expressions():
+			if (direction == SPECIAL_INPUT and ins) \
+			  or (direction == SPECIAL_OUTPUT and outs) \
+			  or (direction == SPECIAL_INOUT and inouts):
+				signals = list_signals(getattr(obj, attr))
+				r.update(signals)
+		return r
 
 class Tristate(Special):
 	def __init__(self, target, o, oe, i=None):
@@ -18,16 +36,13 @@ class Tristate(Special):
 		self.oe = oe
 		self.i = i
 
-	def list_ios(self, ins, outs, inouts):
-		r = set()
-		if inouts:
-			r.update(list_signals(self.target))
-		if ins:
-			r.update(list_signals(self.o))
-			r.update(list_signals(self.oe))
-		if outs:
-			r.update(list_signals(self.i))
-		return r
+	def iter_expressions(self):
+		for attr, target_context in [
+		  ("target", SPECIAL_INOUT),
+		  ("o", SPECIAL_INPUT),
+		  ("oe", SPECIAL_INPUT),
+		  ("i", SPECIAL_OUTPUT)]:
+			yield self, attr, target_context
 
 	@staticmethod
 	def emit_verilog(tristate, ns, clock_domains):
@@ -79,40 +94,19 @@ class Instance(Special):
 			self.name = name
 			self.value = value
 	
-	class _CR:
-		def __init__(self, name_inst, domain="sys", invert=False):
-			self.name_inst = name_inst
-			self.domain = domain
-			self.invert = invert
-	class ClockPort(_CR):
-		pass
-	class ResetPort(_CR):
-		pass
-	
 	def get_io(self, name):
 		for item in self.items:
 			if isinstance(item, Instance._IO) and item.name == name:
 				return item.expr
 
-	def rename_clock_domain(self, old, new):
-		for cr in filter(lambda x: isinstance(x, Instance._CR), self.items):
-			if cr.domain == old:
-				cr.domain = new
-
-	def get_clock_domains(self):
-		return set(cr.domain 
-			for cr in filter(lambda x: isinstance(x, Instance._CR), self.items))
-
-	def list_ios(self, ins, outs, inouts):
-		subsets = [list_signals(item.expr) for item in filter(lambda x:
-			(ins and isinstance(x, Instance.Input))
-			or (outs and isinstance(x, Instance.Output))
-			or (inouts and isinstance(x, Instance.InOut)),
-			self.items)]
-		if subsets:
-			return set.union(*subsets)
-		else:
-			return set()
+	def iter_expressions(self):
+		for item in self.items:
+			if isinstance(item, Instance.Input):
+				yield item, "expr", SPECIAL_INPUT
+			elif isinstance(item, Instance.Output):
+				yield item, "expr", SPECIAL_OUTPUT
+			elif isinstance(item, Instance.InOut):
+				yield item, "expr", SPECIAL_INOUT
 
 	@staticmethod
 	def emit_verilog(instance, ns, clock_domains):
@@ -144,20 +138,10 @@ class Instance(Special):
 			if isinstance(p, Instance._IO):
 				name_inst = p.name
 				name_design = verilog_printexpr(ns, p.expr)[0]
-			elif isinstance(p, Instance.ClockPort):
-				name_inst = p.name_inst
-				name_design = ns.get_name(clock_domains[p.domain].clk)
-				if p.invert:
-					name_design = "~" + name_design
-			elif isinstance(p, Instance.ResetPort):
-				name_inst = p.name_inst
-				name_design = ns.get_name(clock_domains[p.domain].rst)
-			else:
-				continue
-			if not firstp:
-				r += ",\n"
-			firstp = False
-			r += "\t." + name_inst + "(" + name_design + ")"
+				if not firstp:
+					r += ",\n"
+				firstp = False
+				r += "\t." + name_inst + "(" + name_design + ")"
 		if not firstp:
 			r += "\n"
 		r += ");\n\n"
@@ -214,26 +198,25 @@ class Memory(Special):
 		self.ports.append(mp)
 		return mp
 
+	def iter_expressions(self):
+		for p in self.ports:
+			for attr, target_context in [
+			  ("adr", SPECIAL_INPUT),
+			  ("we", SPECIAL_INPUT),
+			  ("dat_w", SPECIAL_INPUT),
+			  ("re", SPECIAL_INPUT),
+			  ("dat_r", SPECIAL_OUTPUT)]:
+				yield p, attr, target_context
+
 	def rename_clock_domain(self, old, new):
+		# port expressions are always signals - no need to call Special.rename_clock_domain
 		for port in self.ports:
 			if port.clock_domain == old:
 				port.clock_domain = new
 
-	def get_clock_domains(self):
+	def list_clock_domains(self):
+		# port expressions are always signals - no need to call Special.list_clock_domains
 		return set(port.clock_domain for port in self.ports)
-
-	def list_ios(self, ins, outs, inouts):
-		s = set()
-		def add(*sigs):
-			for sig in sigs:
-				if sig is not None:
-					s.add(sig)
-		for p in self.ports:
-			if ins:
-				add(p.adr, p.we, p.dat_w, p.re)
-			if outs:
-				add(p.dat_r)
-		return s
 
 	@staticmethod
 	def emit_verilog(memory, ns, clock_domains):
@@ -314,9 +297,6 @@ class SynthesisDirective(Special):
 		Special.__init__(self)
 		self.template = template
 		self.signals = signals
-
-	def list_ios(self, ins, outs, inouts):
-		return set()
 
 	@staticmethod
 	def emit_verilog(directive, ns, clock_domains):
