@@ -7,8 +7,8 @@
 #
 #      Copyright 2013 / Florent Kermarrec / florent@enjoy-digital.fr
 #
-#                        miscope example on De0 Nano
-#                        ---------------------------
+#                        miscope miio example on De0 Nano
+#                        --------------------------------
 ################################################################################
 
 #==============================================================================
@@ -27,19 +27,19 @@ from timings import *
 #	P A R A M E T E R S
 #==============================================================================
 
-#Timings Param
+# Timings Param
 clk_freq	= 50*MHz
 
 # Csr Addr
 MIIO0_ADDR  = 0x0000
 
 #==============================================================================
-# M I S C O P E    E X A M P L E
+#   M I S C O P E    E X A M P L E
 #==============================================================================
 class SoC(Module):
 	def __init__(self):
-		# migIo0
-		self.submodules.miIo0 = miio.MiIo(MIIO0_ADDR, 8, "IO")
+		# MiIo
+		self.submodules.miio = miio.MiIo(MIIO0_ADDR, 8, "IO")
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
@@ -47,11 +47,15 @@ class SoC(Module):
 		# Csr Interconnect
 		self.submodules.csrcon = csr.Interconnect(self.uart2csr.csr,
 				[
-					self.miIo0.bank.bus
+					self.miio.bank.bus
 				])
-		self.led = Signal()
-	
-	###
-	
+		
 		# Led
-		self.comb += self.led.eq(self.miIo0.o[0])
+		self.led = Signal(8)
+		
+	###
+		# Output
+		self.comb += self.led.eq(self.miio.o)
+
+		# Input
+		self.comb += self.miio.i.eq(0x5A)

@@ -38,14 +38,14 @@ class Uart2Csr(Module):
 		addr = Signal(32)
 		data = Signal(8)
 
-	
 		# FSM
 		self.submodules.fsm = FSM("IDLE", 
 								  "GET_BL", "GET_ADDR", 
-				 				 "GET_DATA", "WRITE_CSR",
-				 				  "READ_CSR", "SEND_DATA")
+				 				  "GET_DATA", "WRITE_CSR",
+				 				  "READ_CSR0", "READ_CSR1", "SEND_DATA")
 
 		fsm = self.fsm
+
 		#
 		# Global
 		#
@@ -53,13 +53,13 @@ class Uart2Csr(Module):
 			If(fsm.ongoing(fsm.IDLE), cnt.eq(0)
 			).Elif(uart.rx_ev, cnt.eq(cnt + 1)),
 
-			sr.eq(Cat(uart.rx_dat, sr[0:24]))
+			If(uart.rx_ev, sr.eq(Cat(uart.rx_dat, sr[0:24])))
 		]
 
-
-		# State done
+		# State done signals
 		get_bl_done = Signal()
 		get_addr_done = Signal()
+		get_addr_done_d = Signal()
 		get_data_done = Signal()
 		send_data_done = Signal()
 
@@ -72,12 +72,7 @@ class Uart2Csr(Module):
 			)
 		)
 
-		self.sync +=[
-			If(fsm.ongoing(fsm.IDLE) & uart.rx_ev,
-				cmd.eq(uart.rx_dat)
-			)	
-
-		]
+		self.sync += If(fsm.ongoing(fsm.IDLE) & uart.rx_ev, cmd.eq(uart.rx_dat))
 
 		#
 	    # Get burst length
@@ -90,11 +85,7 @@ class Uart2Csr(Module):
 
 		self.comb += get_bl_done.eq(uart.rx_ev & fsm.ongoing(fsm.GET_BL))
 
-		self.sync +=[
-			If(get_bl_done,
-				burst_cnt.eq(uart.rx_dat)
-			)
-		]
+		self.sync += If(get_bl_done, burst_cnt.eq(uart.rx_dat))
 
 		#
 		# Get address
@@ -103,17 +94,18 @@ class Uart2Csr(Module):
 			If(get_addr_done & (cmd == WRITE_CMD),
 				fsm.next_state(fsm.GET_DATA)
 			).Elif(get_addr_done & (cmd == READ_CMD),
-				fsm.next_state(fsm.READ_CSR)
+				fsm.next_state(fsm.READ_CSR0)
 			)	
 		)
 
 		self.comb += get_addr_done.eq(uart.rx_ev & (cnt == 4) & fsm.ongoing(fsm.GET_ADDR))
+		self.sync += get_addr_done_d.eq(get_addr_done)
 		
-		self.sync +=[
-			If(get_addr_done,
+		self.sync += [
+			If(get_addr_done_d,
 				addr.eq(sr)
-			).Elif(get_data_done | send_data_done,
-				addr.eq(addr + 4)
+			).Elif(fsm.leaving(fsm.WRITE_CSR) | send_data_done,
+				addr.eq(addr + 1)
 			)
 		]
 
@@ -122,13 +114,12 @@ class Uart2Csr(Module):
 		#
 		fsm.act(fsm.GET_DATA,
 			If(get_data_done,
-				fsm.next_state(fsm.IDLE)
+				fsm.next_state(fsm.WRITE_CSR)
 			)
 		)
 
 		self.comb += get_data_done.eq(uart.rx_ev & fsm.ongoing(fsm.GET_DATA))	
-
-		self.sync +=[
+		self.sync += [
 			If(get_data_done,
 				burst_cnt.eq(burst_cnt-1),
 				data.eq(uart.rx_dat)
@@ -139,40 +130,53 @@ class Uart2Csr(Module):
 		# Write Csr
 		#
 		fsm.act(fsm.WRITE_CSR,
-			If((not burst_cnt), 
+			If((burst_cnt==0), 
 				fsm.next_state(fsm.IDLE)
 			).Else(fsm.next_state(fsm.GET_DATA))
 		)
 
+
 		#
-		# Read Csr
+		# Read Csr0
 		#
-		fsm.act(fsm.READ_CSR,
+		fsm.act(fsm.READ_CSR0,
+			fsm.next_state(fsm.READ_CSR1)
+		)
+
+		self.sync += If(fsm.entering(fsm.READ_CSR0), burst_cnt.eq(burst_cnt-1))
+
+		#
+		# Read Csr1
+		#
+		fsm.act(fsm.READ_CSR1,
 			fsm.next_state(fsm.SEND_DATA)
 		)
+
 
 		#
 		# Send Data
 		#
 		fsm.act(fsm.SEND_DATA,
-			If(send_data_done & (not burst_cnt),
+			If(send_data_done & (burst_cnt==0),
 				fsm.next_state(fsm.IDLE)
 			).Elif(send_data_done,
-				fsm.next_state(fsm.READ_CSR)
+				fsm.next_state(fsm.READ_CSR0)
 			)
 		)
 
-		self.comb += [
+		self.comb += send_data_done.eq(fsm.ongoing(fsm.SEND_DATA) & uart.tx_ev)
+
+		self.sync += [
 				uart.tx_dat.eq(self.csr.dat_r),
 				uart.tx_we.eq(fsm.entering(fsm.SEND_DATA)),
-				send_data_done.eq(~uart.tx_we | uart.tx_ev)
 		]
+
 
 		#
 		# Csr access
 		#
+		self.comb += self.csr.adr.eq(addr) 
 		self.sync +=[
-			self.csr.adr.eq(addr),
 			self.csr.dat_w.eq(data),
 			If(fsm.ongoing(fsm.WRITE_CSR),
 				self.csr.we.eq(1)
@@ -180,5 +184,3 @@ class Uart2Csr(Module):
 				self.csr.we.eq(0)	
 			)
 		]
-
-

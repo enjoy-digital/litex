@@ -18,6 +18,7 @@ class UART(Module):
 
 		self.tx = Signal(reset=1)
 		self.rx = Signal()
+
 	
 		###
 
@@ -34,8 +35,10 @@ class UART(Module):
 		tx_reg = Signal(8)
 		tx_bitcount = Signal(4)
 		tx_count16 = Signal(4)
-		tx_busy = self.tx_ev
+		tx_done = self.tx_ev
+		tx_busy = Signal()
 		self.sync += [
+			tx_done.eq(0),
 			If(self.tx_we,
 				tx_reg.eq(self.tx_dat),
 				tx_bitcount.eq(0),
@@ -50,7 +53,8 @@ class UART(Module):
 						self.tx.eq(1)
 					).Elif(tx_bitcount == 9,
 						self.tx.eq(1),
-						tx_busy.eq(0)
+						tx_busy.eq(0),
+						tx_done.eq(1)
 					).Else(
 						self.tx.eq(tx_reg[0]),
 						tx_reg.eq(Cat(tx_reg[1:], 0))

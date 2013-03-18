@@ -10,6 +10,10 @@ def main():
 	
 	# set pin constraints
 	plat.request("led", 0, obj=soc.led)
+	
+	#plat.request("led", 4, obj=soc.uart_rx_event.o)
+	#plat.request("led", 5, obj=soc.uart_tx_event.o)
+	#plat.request("led", 7, obj=soc.debug_event.o)
 	plat.request("serial", 0, obj=soc.uart2csr)
 	
 	# set extra constraints

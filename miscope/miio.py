@@ -38,8 +38,7 @@ class MiIo:
 	#Driver
 	#
 	def write(self, data):
-			self.interface.write(self.address, data, self.width)
+			self.interface.write(self.address, data)
 			
 	def read(self):
-		r = self.interface.read(self.address + self.words, self.width)
-		return r
+		return self.interface.read(self.address + self.words)
