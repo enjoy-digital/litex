@@ -152,6 +152,8 @@ def value_bits_sign(v):
 		elif v.op == "<" or v.op == "<=" or v.op == "==" or v.op == "!=" \
 		  or v.op == ">" or v.op == ">=":
 			  return 1, False
+		elif v.op == "~":
+			return obs[0]
 		else:
 			raise TypeError
 	elif isinstance(v, _Slice):
