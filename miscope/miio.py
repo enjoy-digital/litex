@@ -28,10 +28,10 @@ class MiIo:
 		comb = []
 		
 		if "I" in self.mode:
-			comb += self.ireg.field.w.eq(self.i)
+			comb += [self.ireg.field.w.eq(self.i)]
 			
 		if "O" in self.mode:
-			comb += self.o.eq(self.oreg.field.r)
+			comb += [self.o.eq(self.oreg.field.r)]
 			
 		return Fragment(comb) + self.bank.get_fragment()
 	#

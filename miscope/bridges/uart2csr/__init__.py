@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
-from migen.genlib.misc import *
-from migen.genlib.cdc import *
+from migen.fhdl.module import *
 from migen.bus import csr
+from migen.genlib.fsm import *
 
 from miscope.bridges.uart2csr.uart import *
 
@@ -20,8 +20,8 @@ class Uart2Csr(Module):
 		
 	###
 		
-		uart = Uart(clk_freq, baud)
-		self.specials +=uart
+		self.submodules.uart = UART(clk_freq, baud)
+		uart = self.uart
 
 		#
 		# In/Out
@@ -38,21 +38,24 @@ class Uart2Csr(Module):
 		addr = Signal(32)
 		data = Signal(8)
 
+	
+		# FSM
+		self.submodules.fsm = FSM("IDLE", 
+								  "GET_BL", "GET_ADDR", 
+				 				 "GET_DATA", "WRITE_CSR",
+				 				  "READ_CSR", "SEND_DATA")
+
+		fsm = self.fsm
 		#
 		# Global
 		#
 		self.sync +=[
 			If(fsm.ongoing(fsm.IDLE), cnt.eq(0)
-			).Elif(uart_rx_ev, cnt.eq(cnt + 1)),
+			).Elif(uart.rx_ev, cnt.eq(cnt + 1)),
 
 			sr.eq(Cat(uart.rx_dat, sr[0:24]))
 		]
 
-		# FSM
-		fsm = FSM("IDLE", 
-				  "GET_BL", "GET_ADDR", 
-				  "GET_DATA", "WRITE_CSR",
-				   "READ_CSR", "SEND_DATA")
 
 		# State done
 		get_bl_done = Signal()
@@ -64,13 +67,13 @@ class Uart2Csr(Module):
 		# Idle
 		#
 		fsm.act(fsm.IDLE,
-			If(uart.rx_ev and (uart.rx_dat == WRITE_CMD or uart.rx_dat == READ_CMD),
+			If(uart.rx_ev & ((uart.rx_dat == WRITE_CMD) | (uart.rx_dat == READ_CMD)),
 				fsm.next_state(fsm.GET_BL)
 			)
 		)
 
 		self.sync +=[
-			If(fsm.ongoing(fsm.IDLE) and uart_rx_env,
+			If(fsm.ongoing(fsm.IDLE) & uart.rx_ev,
 				cmd.eq(uart.rx_dat)
 			)	
 
@@ -85,7 +88,7 @@ class Uart2Csr(Module):
 			)
 		)
 
-		self.comb += get_bl_done.eq(uart_rx_ev and fsm.ongoing(fsm.GET_BL))
+		self.comb += get_bl_done.eq(uart.rx_ev & fsm.ongoing(fsm.GET_BL))
 
 		self.sync +=[
 			If(get_bl_done,
@@ -97,19 +100,19 @@ class Uart2Csr(Module):
 		# Get address
 		#
 		fsm.act(fsm.GET_ADDR,
-			If(get_addr_done and cmd == WRITE_CMD,
+			If(get_addr_done & (cmd == WRITE_CMD),
 				fsm.next_state(fsm.GET_DATA)
-			).Elif(get_addr_done and cmd == READ_CMD,
+			).Elif(get_addr_done & (cmd == READ_CMD),
 				fsm.next_state(fsm.READ_CSR)
 			)	
 		)
 
-		self.comb += get_addr_done.eq(uart_rx_ev and rx_cnt == 4 and fsm.ongoing(fsm.GET_ADDR))
+		self.comb += get_addr_done.eq(uart.rx_ev & (cnt == 4) & fsm.ongoing(fsm.GET_ADDR))
 		
 		self.sync +=[
 			If(get_addr_done,
 				addr.eq(sr)
-			).Elif(write_data_done or send_data_done,
+			).Elif(get_data_done | send_data_done,
 				addr.eq(addr + 4)
 			)
 		]
@@ -123,7 +126,7 @@ class Uart2Csr(Module):
 			)
 		)
 
-		self.comb += get_data_done.eq(uart_rx_ev and fsm.ongoing(fsm.GET_DATA))	
+		self.comb += get_data_done.eq(uart.rx_ev & fsm.ongoing(fsm.GET_DATA))	
 
 		self.sync +=[
 			If(get_data_done,
@@ -152,7 +155,7 @@ class Uart2Csr(Module):
 		# Send Data
 		#
 		fsm.act(fsm.SEND_DATA,
-			If(send_data_done and (not burst_cnt),
+			If(send_data_done & (not burst_cnt),
 				fsm.next_state(fsm.IDLE)
 			).Elif(send_data_done,
 				fsm.next_state(fsm.READ_CSR)
@@ -160,9 +163,9 @@ class Uart2Csr(Module):
 		)
 
 		self.comb += [
-				uart.tx_dat.eq(csr.dat_r),
-				uart.we.eq(fsm.entering(fsm.SEND_DATA)),
-				send_data_done.eq(~uart.we or uart.tx_ev)
+				uart.tx_dat.eq(self.csr.dat_r),
+				uart.tx_we.eq(fsm.entering(fsm.SEND_DATA)),
+				send_data_done.eq(~uart.tx_we | uart.tx_ev)
 		]
 
 		#
@@ -171,7 +174,7 @@ class Uart2Csr(Module):
 		self.sync +=[
 			self.csr.adr.eq(addr),
 			self.csr.dat_w.eq(data),
-			If(fsm.ongoing(fsm.WRITE_CSR,
+			If(fsm.ongoing(fsm.WRITE_CSR),
 				self.csr.we.eq(1)
 			).Else(
 				self.csr.we.eq(0)	
