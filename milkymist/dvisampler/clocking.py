@@ -8,7 +8,7 @@ class Clocking(Module, AutoReg):
 	def __init__(self):
 		self.clkin = Signal()
 
-		self._r_pll_reset = RegisterField(reset=1)
+		self._r_pll_reset = RegisterField()
 		self._r_locked = RegisterField(1, READ_ONLY, WRITE_ONLY)
 
 		self.locked = Signal()
@@ -46,15 +46,16 @@ class Clocking(Module, AutoReg):
 		self.specials += Instance("BUFPLL",
 			Instance.Parameter("DIVIDE", 4),
 			Instance.Input("PLLIN", pll_clk0),
-			Instance.ClockPort("GCLK", "pix5x"),
+			Instance.Input("GCLK", ClockSignal("pix5x")),
 			Instance.Input("LOCKED", pll_locked),
 			Instance.Output("IOCLK", self._cd_pix20x.clk),
 			Instance.Output("LOCK", locked_async),
 			Instance.Output("SERDESSTROBE", self.serdesstrobe)
 		)
-		self.specials += MultiReg(locked_async, self.locked, "sys")
-		self.comb += self._r_locked.field.w.eq(self.locked)
 		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_clk1), Instance.Output("O", self._cd_pix5x.clk))
 		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_clk2), Instance.Output("O", self._cd_pix.clk))
+		self.specials += MultiReg(locked_async, self.locked, "sys")
+		self.specials += MultiReg(~locked_async, self._cd_pix5x.rst, "pix5x")
+		self.comb += self._r_locked.field.w.eq(self.locked)

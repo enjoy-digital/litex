@@ -25,6 +25,5 @@ class DVISampler(Module, AutoReg):
 			setattr(self, name, s)
 			self.comb += [
 				cap.pad.eq(s),
-				cap.serdesstrobe.eq(self.clocking.serdesstrobe),
-				cap.delay_rst.eq(~self.clocking.locked)
+				cap.serdesstrobe.eq(self.clocking.serdesstrobe)
 			]
