@@ -214,7 +214,8 @@ class GenericPlatform:
 			else:
 				frag = fragment
 			# generate Verilog
-			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(), return_ns=True, **kwargs)
+			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(),
+				return_ns=True, create_clock_domains=False, **kwargs)
 			# resolve signal names in constraints
 			sc = self.constraint_manager.get_sig_constraints()
 			named_sc = [(vns.get_name(sig), pins, others, resource) for sig, pins, others, resource in sc]
