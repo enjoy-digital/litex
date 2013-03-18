@@ -258,6 +258,7 @@ def _printinit(f, ios, ns):
 def convert(f, ios=None, name="top",
   return_ns=False,
   special_overrides=dict(),
+  create_clock_domains=True,
   display_run=False):
 	if not isinstance(f, Fragment):
 		f = f.get_fragment()
@@ -268,9 +269,12 @@ def convert(f, ios=None, name="top",
 		try:
 			f.clock_domains[cd_name]
 		except KeyError:
-			cd = ClockDomain(cd_name)
-			f.clock_domains.append(cd)
-			ios |= {cd.clk, cd.rst}
+			if create_clock_domains:
+				cd = ClockDomain(cd_name)
+				f.clock_domains.append(cd)
+				ios |= {cd.clk, cd.rst}
+			else:
+				raise KeyError("Unresolved clock domain: '"+cd_name+"'")
 	
 	_insert_resets(f)
 	f = lower_basics(f)
