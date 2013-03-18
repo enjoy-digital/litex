@@ -1,6 +1,4 @@
-import os
 from mibuild.platforms import de0nano
-from mibuild.altera_quartus import _add_period_constraint
 import top
 
 def main():
@@ -8,8 +6,6 @@ def main():
 	soc = top.SoC()
 	
 	# set pin constraints
-	plat.request("clk50", obj=soc.clk50)
-	plat.request("key", obj=soc.key)
 	plat.request("led", obj=soc.led)
 	plat.request("gpio_2", obj=soc.gpio_2)
 	
@@ -25,10 +21,7 @@ set_global_assignment -name RESERVE_DATA1_AFTER_CONFIGURATION "USE AS REGULAR IO
 set_global_assignment -name RESERVE_DCLK_AFTER_CONFIGURATION "USE AS REGULAR IO"
 """)
 
-	_add_period_constraint(plat, "sys_clk", 20.0)
-	cd = dict()
-	cd["sys"] = soc.cd_sys
-	plat.build_cmdline(soc.get_fragment(), clock_domains=cd)
+	plat.build_cmdline(soc.get_fragment())
 
 if __name__ == "__main__":
 	main()
