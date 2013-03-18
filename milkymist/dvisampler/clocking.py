@@ -57,5 +57,20 @@ class Clocking(Module, AutoReg):
 		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_clk2), Instance.Output("O", self._cd_pix.clk))
 		self.specials += MultiReg(locked_async, self.locked, "sys")
-		self.specials += MultiReg(~locked_async, self._cd_pix5x.rst, "pix5x")
 		self.comb += self._r_locked.field.w.eq(self.locked)
+
+		# sychronize pix5x reset
+		# this reset is also sampled in the sys clock domain, also guarantee
+		# a sufficient minimum pulse width.
+		pix5x_rst_n = 1
+		for i in range(5):
+			new_pix5x_rst_n = Signal()
+			self.specials += Instance("FDCE",
+				Instance.Input("D", pix5x_rst_n),
+				Instance.Input("CE", 1),
+				Instance.Input("C", ClockSignal("pix5x")),
+				Instance.Input("CLR", ~locked_async),
+				Instance.Output("Q", new_pix5x_rst_n)
+			)
+			pix5x_rst_n = new_pix5x_rst_n
+		self.comb += self._cd_pix5x.rst.eq(~pix5x_rst_n)
