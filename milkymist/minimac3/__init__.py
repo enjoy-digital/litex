@@ -61,8 +61,8 @@ class MiniMAC(Module, AutoReg):
 			rx_pending_1_r.eq(rx_pending_1)
 		]
 		self.specials += Instance("minimac3",
-				Instance.ClockPort("sys_clk"),
-				Instance.ResetPort("sys_rst"),
+				Instance.Input("sys_clk", ClockSignal()),
+				Instance.Input("sys_rst", ResetSignal()),
 
 				Instance.Output("rx_done_0", self.ev.rx0.trigger),
 				Instance.Output("rx_count_0", self._rx_count_0.field.w),
@@ -84,11 +84,11 @@ class MiniMAC(Module, AutoReg):
 				Instance.Output("wb_dat_o", self.membus.dat_r),
 				Instance.Output("wb_ack_o", self.membus.ack),
 				
-				Instance.ClockPort("phy_tx_clk", "eth_tx"),
+				Instance.Input("phy_tx_clk", ClockSignal("eth_tx")),
 				Instance.Output("phy_tx_data", self.phy_tx_data),
 				Instance.Output("phy_tx_en", self.phy_tx_en),
 				Instance.Output("phy_tx_er", self.phy_tx_er),
-				Instance.ClockPort("phy_rx_clk", "eth_rx"),
+				Instance.Input("phy_rx_clk", ClockSignal("eth_rx")),
 				Instance.Input("phy_rx_data", self.phy_rx_data),
 				Instance.Input("phy_dv", self.phy_dv),
 				Instance.Input("phy_rx_er", self.phy_rx_er),

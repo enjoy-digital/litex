@@ -15,8 +15,8 @@ class LM32(Module):
 		i_adr_o = Signal(32)
 		d_adr_o = Signal(32)
 		self.specials += Instance("lm32_top",
-			Instance.ClockPort("clk_i"),
-			Instance.ResetPort("rst_i"),
+			Instance.Input("clk_i", ClockSignal()),
+			Instance.Input("rst_i", ResetSignal()),
 			
 			Instance.Input("interrupt", self.interrupt),
 			#Instance.Input("ext_break", self.ext_break),

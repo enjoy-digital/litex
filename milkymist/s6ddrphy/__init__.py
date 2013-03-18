@@ -9,10 +9,10 @@ class S6DDRPHY(Module):
 			Instance.Parameter("NUM_AD", a),
 			Instance.Parameter("NUM_BA", ba),
 			Instance.Parameter("NUM_D", d),
-			Instance.ClockPort("sys_clk"),
-			Instance.ClockPort("clk2x_270", "sys2x_270"),
-			Instance.ClockPort("clk4x_wr", "sys4x_wr"),
-			Instance.ClockPort("clk4x_rd", "sys4x_rd")
+			Instance.Input("sys_clk", ClockSignal()),
+			Instance.Input("clk2x_270", ClockSignal("sys2x_270")),
+			Instance.Input("clk4x_wr", ClockSignal("sys4x_wr")),
+			Instance.Input("clk4x_rd", ClockSignal("sys4x_rd"))
 		]
 		for name, width, cl in [
 			("clk4x_wr_strb", 1, Instance.Input),

@@ -134,12 +134,12 @@ class FIFO(Module, Actor):
 			Instance.Output("data_out", fifo_data_out),
 			Instance.Output("empty"),
 			Instance.Input("read_en", 1),
-			Instance.ClockPort("clk_read", "vga"),
+			Instance.Input("clk_read", ClockSignal("vga")),
 
 			Instance.Input("data_in", fifo_data_in),
 			Instance.Output("full", fifo_full),
 			Instance.Input("write_en", fifo_write_en),
-			Instance.ClockPort("clk_write"),
+			Instance.Input("clk_write", ClockSignal()),
 			
 			Instance.Input("rst", 0))
 		t = self.token("dac")
