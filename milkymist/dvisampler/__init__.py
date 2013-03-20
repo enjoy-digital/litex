@@ -7,7 +7,7 @@ from milkymist.dvisampler.clocking import Clocking
 from milkymist.dvisampler.datacapture import DataCapture
 
 class DVISampler(Module, AutoReg):
-	def __init__(self, inversions="", debug_data_capture=True):
+	def __init__(self, inversions=""):
 		self.submodules.edid = EDID()
 		self.sda = self.edid.sda
 		self.scl = self.edid.scl
@@ -17,7 +17,7 @@ class DVISampler(Module, AutoReg):
 
 		for datan in "012":
 			name = "data" + str(datan)
-			cap = DataCapture(8, debug_data_capture)
+			cap = DataCapture(8)
 			setattr(self.submodules, name + "_cap", cap)
 			if datan in inversions:
 				name += "_n"

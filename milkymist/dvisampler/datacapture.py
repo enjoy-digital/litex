@@ -5,14 +5,16 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.bank.description import *
 
 class DataCapture(Module, AutoReg):
-	def __init__(self, ntbits, debug=False):
+	def __init__(self, ntbits):
 		self.pad = Signal()
 		self.serdesstrobe = Signal()
 		self.d0 = Signal() # pix5x clock domain
 		self.d1 = Signal() # pix5x clock domain
 
-		if debug:
-			self._r_current_tap = RegisterField(8, READ_ONLY, WRITE_ONLY)
+		self._r_dly_ctl = RegisterRaw(4)
+		self._r_dly_busy = RegisterField(1, READ_ONLY, WRITE_ONLY)
+		self._r_phase = RegisterField(2, READ_ONLY, WRITE_ONLY)
+		self._r_phase_reset = RegisterRaw()
 
 		###
 
@@ -20,19 +22,23 @@ class DataCapture(Module, AutoReg):
 		pad_delayed = Signal()
 		delay_inc = Signal()
 		delay_ce = Signal()
+		delay_cal = Signal()
+		delay_rst = Signal()
+		delay_busy = Signal()
 		self.specials += Instance("IODELAY2",
 			Instance.Parameter("DELAY_SRC", "IDATAIN"),
-			Instance.Parameter("IDELAY_TYPE", "VARIABLE_FROM_ZERO"),
+			Instance.Parameter("IDELAY_TYPE", "VARIABLE_FROM_HALF_MAX"),
 			Instance.Parameter("COUNTER_WRAPAROUND", "STAY_AT_LIMIT"),
 			Instance.Parameter("DATA_RATE", "SDR"),
 			Instance.Input("IDATAIN", self.pad),
 			Instance.Output("DATAOUT", pad_delayed),
+			Instance.Input("CLK", ClockSignal("pix5x")),
+			Instance.Input("IOCLK0", ClockSignal("pix10x")),
 			Instance.Input("INC", delay_inc),
 			Instance.Input("CE", delay_ce),
-			Instance.Input("RST", ResetSignal("pix5x")),
-			Instance.Input("CLK", ClockSignal("pix5x")),
-			Instance.Input("IOCLK0", ClockSignal("pix20x")),
-			Instance.Input("CAL", 0),
+			Instance.Input("CAL", delay_cal),
+			Instance.Input("RST", delay_rst),
+			Instance.Output("BUSY", delay_busy),
 			Instance.Input("T", 1)
 		)
 
@@ -57,23 +63,19 @@ class DataCapture(Module, AutoReg):
 			Instance.Input("RST", 0)
 		)
 
-		# Transition counter
-		transitions = Signal(ntbits)
-		lateness = Signal((ntbits + 1, True))
-		pulse_inc = Signal()
-		pulse_dec = Signal()
+		# Phase detector
+		lateness = Signal(ntbits, reset=2**(ntbits - 1))
+		too_late = Signal()
+		too_early = Signal()
+		reset_lateness = Signal()
+		self.comb += [
+			too_late.eq(lateness == (2**ntbits - 1)),
+			too_early.eq(lateness == 0)
+		]
 		self.sync.pix5x += [
-			pulse_inc.eq(0),
-			pulse_dec.eq(0),
-			If(transitions ==  2**ntbits - 1,
-				If(lateness[ntbits],
-					pulse_inc.eq(1)
-				).Else(
-					pulse_dec.eq(1)
-				),
-				lateness.eq(0),
-				transitions.eq(0)
-			).Elif(self.d0 != self.d1,
+			If(reset_lateness,
+				lateness.eq(2**(ntbits - 1))
+			).Elif(~delay_busy & ~too_late & ~too_early & (self.d0 != self.d1),
 				If(self.d0,
 					# 1 -----> 0
 					#    d0p
@@ -90,39 +92,57 @@ class DataCapture(Module, AutoReg):
 					).Else(
 						lateness.eq(lateness - 1)
 					)
-				),
-				transitions.eq(transitions + 1)
+				)
 			)
 		]
 
-		# Drive IODELAY controls
-		delay_init = Signal()
-		delay_init_count = Signal(7, reset=127)
-		self.comb += delay_init.eq(delay_init_count != 0)
-		self.sync.pix5x += If(delay_init, delay_init_count.eq(delay_init_count - 1))
-		self.comb += [
-			delay_ce.eq(delay_init | pulse_inc | pulse_dec),
-			delay_inc.eq(delay_init | pulse_inc)
+		# Delay control
+		self.submodules.delay_done = PulseSynchronizer("pix5x", "sys")
+		delay_pending = Signal()
+		self.sync.pix5x += [
+			self.delay_done.i.eq(0),
+			If(~delay_pending,
+				If(delay_cal | delay_ce, delay_pending.eq(1))
+			).Else(
+				If(~delay_busy,
+					self.delay_done.i.eq(1),
+					delay_pending.eq(0)
+				)
+			)
 		]
 
-		# Debug
-		if debug:
-			# Transfer delay update commands to system clock domain
-			pix5x_reset_sys = Signal()
-			self.specials += MultiReg(ResetSignal("pix5x"), pix5x_reset_sys, "sys")
-			self.submodules.xf_inc = PulseSynchronizer("pix5x", "sys")
-			self.submodules.xf_dec = PulseSynchronizer("pix5x", "sys")
-			self.comb += [
-				self.xf_inc.i.eq(pulse_inc),
-				self.xf_dec.i.eq(pulse_dec)
-			]
-			# Update tap count in system clock domain
-			current_tap = Signal(8, reset=127)
-			self.comb += self._r_current_tap.field.w.eq(current_tap)
-			self.sync += If(pix5x_reset_sys,
-					current_tap.eq(127)
-				).Elif(self.xf_inc.o & (current_tap != 0xff),
-					current_tap.eq(current_tap + 1)
-				).Elif(self.xf_dec.o & (current_tap != 0),
-					current_tap.eq(current_tap - 1)
-				)
+		self.submodules.do_delay_cal = PulseSynchronizer("sys", "pix5x")
+		self.submodules.do_delay_rst = PulseSynchronizer("sys", "pix5x")
+		self.submodules.do_delay_inc = PulseSynchronizer("sys", "pix5x")
+		self.submodules.do_delay_dec = PulseSynchronizer("sys", "pix5x")
+		self.comb += [
+			delay_cal.eq(self.do_delay_cal.o),
+			delay_rst.eq(self.do_delay_rst.o),
+			delay_inc.eq(self.do_delay_inc.o),
+			delay_ce.eq(self.do_delay_inc.o | self.do_delay_dec.o),
+		]
+
+		sys_delay_pending = Signal()
+		self.sync += [
+			If(self.do_delay_cal.i | self.do_delay_inc.i | self.do_delay_dec.i,
+				sys_delay_pending.eq(1)
+			).Elif(self.delay_done.o,
+				sys_delay_pending.eq(0)
+			)
+		]
+
+		self.comb += [
+			self.do_delay_cal.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[0]),
+			self.do_delay_rst.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[1]),
+			self.do_delay_inc.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[2]),
+			self.do_delay_dec.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[3]),
+			self._r_dly_busy.field.w.eq(sys_delay_pending)
+		]
+
+		# Phase detector control
+		self.specials += MultiReg(Cat(too_late, too_early), self._r_phase.field.w)
+		self.submodules.do_reset_lateness = PulseSynchronizer("sys", "pix5x")
+		self.comb += [
+			reset_lateness.eq(self.do_reset_lateness.o),
+			self.do_reset_lateness.i.eq(self._r_phase_reset.re)
+		]

@@ -15,6 +15,7 @@ class Clocking(Module, AutoReg):
 		self.serdesstrobe = Signal()
 		self.clock_domains._cd_pix = ClockDomain()
 		self.clock_domains._cd_pix5x = ClockDomain()
+		self.clock_domains._cd_pix10x = ClockDomain()
 		self.clock_domains._cd_pix20x = ClockDomain()
 
 		###
@@ -24,18 +25,22 @@ class Clocking(Module, AutoReg):
 		pll_clk0 = Signal()
 		pll_clk1 = Signal()
 		pll_clk2 = Signal()
+		pll_clk3 = Signal()
 		self.specials += Instance("PLL_BASE",
-			Instance.Parameter("CLKIN_PERIOD", 22.0),
+			Instance.Parameter("CLKIN_PERIOD", 26.7),
 			Instance.Parameter("CLKFBOUT_MULT", 20),
 			Instance.Parameter("CLKOUT0_DIVIDE", 1),  # pix20x
 			Instance.Parameter("CLKOUT1_DIVIDE", 4),  # pix5x
 			Instance.Parameter("CLKOUT2_DIVIDE", 20), # pix
+			Instance.Parameter("CLKOUT3_DIVIDE", 2),  # pix10x
 			Instance.Parameter("COMPENSATION", "INTERNAL"),
 
 			Instance.Output("CLKFBOUT", clkfbout),
+			# WARNING: Do not touch the order of those clocks, or PAR fails.
 			Instance.Output("CLKOUT0", pll_clk0),
 			Instance.Output("CLKOUT1", pll_clk1),
 			Instance.Output("CLKOUT2", pll_clk2),
+			Instance.Output("CLKOUT3", pll_clk3),
 			Instance.Output("LOCKED", pll_locked),
 			Instance.Input("CLKFBIN", clkfbout),
 			Instance.Input("CLKIN", self.clkin),
@@ -56,6 +61,8 @@ class Clocking(Module, AutoReg):
 			Instance.Input("I", pll_clk1), Instance.Output("O", self._cd_pix5x.clk))
 		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_clk2), Instance.Output("O", self._cd_pix.clk))
+		self.specials += Instance("BUFG",
+			Instance.Input("I", pll_clk3), Instance.Output("O", self._cd_pix10x.clk))
 		self.specials += MultiReg(locked_async, self.locked, "sys")
 		self.comb += self._r_locked.field.w.eq(self.locked)
 

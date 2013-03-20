@@ -46,10 +46,10 @@ NET "asfifo*/preset_empty*" TIG;
 
 NET "{dviclk0}" TNM_NET = "GRPdviclk0";
 NET "{dviclk0}" CLOCK_DEDICATED_ROUTE = FALSE;
-TIMESPEC "TSdviclk0" = PERIOD "GRPdviclk0" 22 ns HIGH 50%;
+TIMESPEC "TSdviclk0" = PERIOD "GRPdviclk0" 26.7 ns HIGH 50%;
 NET "{dviclk1}" TNM_NET = "GRPdviclk1";
 NET "{dviclk1}" CLOCK_DEDICATED_ROUTE = FALSE;
-TIMESPEC "TSdviclk1" = PERIOD "GRPdviclk1" 22 ns HIGH 50%;
+TIMESPEC "TSdviclk1" = PERIOD "GRPdviclk1" 26.7 ns HIGH 50%;
 """,
 		clk50=soc.crg.clk50_pad,
 		phy_rx_clk=soc.crg.eth_rx_clk_pad,
