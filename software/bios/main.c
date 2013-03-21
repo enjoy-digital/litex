@@ -498,13 +498,13 @@ static void boot_sequence(void)
 {
 	if(test_user_abort()) {
 		if(rescue) {
-			netboot();
 			serialboot();
+			netboot();
 			flashboot();
 		} else {
 			flashboot();
-			netboot();
 			serialboot();
+			netboot();
 		}
 		printf("No boot medium found\n");
 	}
