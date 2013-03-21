@@ -60,7 +60,10 @@ static void adjust_phase(void)
 			CSR_DVISAMPLER0_D2_PHASE_RESET = 1;
 			break;
 	}
-	//printf("Ph: %4d %4d %4d\n", d0, d1, d2);
+	printf("Ph: %4d %4d %4d // %d%d%d\n", d0, d1, d2,
+		CSR_DVISAMPLER0_D0_CHAR_SYNCED,
+		CSR_DVISAMPLER0_D1_CHAR_SYNCED,
+		CSR_DVISAMPLER0_D2_CHAR_SYNCED);
 }
 
 static void vmix(void)
