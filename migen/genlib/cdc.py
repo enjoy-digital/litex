@@ -23,7 +23,7 @@ class MultiRegImpl:
 		return Fragment(comb, {self.odomain: o_sync})
 
 class MultiReg(Special):
-	def __init__(self, i, o, odomain, n=2):
+	def __init__(self, i, o, odomain="sys", n=2):
 		Special.__init__(self)
 		self.i = i
 		self.o = o
