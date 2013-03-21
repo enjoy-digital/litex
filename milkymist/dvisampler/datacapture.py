@@ -5,11 +5,10 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.bank.description import *
 
 class DataCapture(Module, AutoReg):
-	def __init__(self, ntbits):
+	def __init__(self, ntbits, invert):
 		self.pad = Signal()
 		self.serdesstrobe = Signal()
-		self.d0 = Signal() # pix5x clock domain
-		self.d1 = Signal() # pix5x clock domain
+		self.d = Signal(10)
 
 		self._r_dly_ctl = RegisterRaw(4)
 		self._r_dly_busy = RegisterField(1, READ_ONLY, WRITE_ONLY)
@@ -42,7 +41,9 @@ class DataCapture(Module, AutoReg):
 			Instance.Input("T", 1)
 		)
 
+		d0 = Signal()
 		d0p = Signal()
+		d1 = Signal()
 		d1p = Signal()
 		self.specials += Instance("ISERDES2",
 			Instance.Parameter("BITSLIP_ENABLE", "FALSE"),
@@ -50,9 +51,9 @@ class DataCapture(Module, AutoReg):
 			Instance.Parameter("DATA_WIDTH", 4),
 			Instance.Parameter("INTERFACE_TYPE", "RETIMED"),
 			Instance.Parameter("SERDES_MODE", "NONE"),
-			Instance.Output("Q4", self.d0),
+			Instance.Output("Q4", d0),
 			Instance.Output("Q3", d0p),
-			Instance.Output("Q2", self.d1),
+			Instance.Output("Q2", d1),
 			Instance.Output("Q1", d1p),
 			Instance.Input("BITSLIP", 0),
 			Instance.Input("CE0", 1),
@@ -75,8 +76,8 @@ class DataCapture(Module, AutoReg):
 		self.sync.pix5x += [
 			If(reset_lateness,
 				lateness.eq(2**(ntbits - 1))
-			).Elif(~delay_busy & ~too_late & ~too_early & (self.d0 != self.d1),
-				If(self.d0,
+			).Elif(~delay_busy & ~too_late & ~too_early & (d0 != d1),
+				If(d0,
 					# 1 -----> 0
 					#    d0p
 					If(d0p,
@@ -146,3 +147,14 @@ class DataCapture(Module, AutoReg):
 			reset_lateness.eq(self.do_reset_lateness.o),
 			self.do_reset_lateness.i.eq(self._r_phase_reset.re)
 		]
+
+		# 2:10 deserialization
+		d0i = Signal()
+		d1i = Signal()
+		self.comb += [
+			d0i.eq(d0 ^ invert),
+			d1i.eq(d1 ^ invert)
+		]
+		dsr = Signal(10)
+		self.sync.pix5x += dsr.eq(Cat(dsr[2:], d0i, d1i))
+		self.sync.pix += self.d.eq(dsr)

@@ -17,9 +17,10 @@ class DVISampler(Module, AutoReg):
 
 		for datan in "012":
 			name = "data" + str(datan)
-			cap = DataCapture(8)
+			invert = datan in inversions
+			cap = DataCapture(8, invert)
 			setattr(self.submodules, name + "_cap", cap)
-			if datan in inversions:
+			if invert:
 				name += "_n"
 			s = Signal(name=name)
 			setattr(self, name, s)
