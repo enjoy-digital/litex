@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl import verilog, autofragment
+from migen.fhdl import verilog
 from migen.bus import csr
 from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
@@ -8,7 +8,7 @@ from migen.bus.transactions import *
 from miscope import recorder
 
 arm_done = False
-trig_dat = 0
+dat = 0
 
 rec_done = False
 
@@ -30,6 +30,7 @@ def csr_transactions():
 	
 	#Arm
 	yield TWrite(1, 1)
+	yield TWrite(1, 0)
 	
 	for t in range(10):
 		yield None
@@ -62,42 +63,45 @@ def main():
 	csr_master0 = csr.Initiator(csr_transactions())
 
 	# Recorder
-	recorder0 = recorder.Recorder(0, 32, 1024)
+	recorder0 = recorder.Recorder(32, 1024)
 	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(csr_master0.bus,
 			[
-				recorder0.bank.interface
+				recorder0.bank.bus
 			])
 
 	# Recorder Data
 	def recorder_data(s):
 		global arm_done
 		if arm_done:
-			s.wr(recorder0.trig_hit, 1)
+			s.wr(recorder0.hit, 1)
 			arm_done = False
 
-		global trig_dat
-		s.wr(recorder0.trig_dat,trig_dat)
-		trig_dat += 1
+		global dat
+		s.wr(recorder0.dat,dat)
+		dat += 1
 			
 		global rec_done
 		if s.rd(recorder0.sequencer.rec_done) == 1:
 			rec_done = True
 		
 		if dat_rdy:
-			print("%08X" %s.rd(recorder0._get_dat.field.w))
+			print("%08X" %s.rd(recorder0._pull_dat.field.w))
 		
 
 	# Simulation
 	def end_simulation(s):
 		s.interrupt = csr_master0.done
 
-	fragment = autofragment.from_local()
+	fragment = csr_master0.get_fragment()
+	fragment += recorder0.get_fragment()
+	fragment += csrcon0.get_fragment()
 	fragment += Fragment(sim=[end_simulation])
 	fragment += Fragment(sim=[recorder_data])
-	sim = Simulator(fragment, Runner(), TopLevel("tb_RecorderCsr.vcd"))
+	sim = Simulator(fragment, TopLevel("tb_RecorderCsr.vcd"))
 	sim.run(10000)
 
 main()
+print("Sim Done")
 input()

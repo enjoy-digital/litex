@@ -54,12 +54,3 @@ class Uart2Spi:
 				self.write(addr+words-1-i, (data>>(8*i)) & 0xFF)
 		if self.debug:
 			print("WR %08X @ %04X" %(data, addr))
-
-def main():
-	csr = Uart2Spi(1,115200)
-	for i in range(100):
-		csr.write(0x0000,i)
-		print(csr.read(0x0000))
-
-if __name__ == '__main__':
-  main()

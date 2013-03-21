@@ -8,7 +8,7 @@ from miscope.bridges.uart2csr.tools.uart2Csr import *
 csr = Uart2Csr(3,115200)
 
 # Csr Addr
-MIIO_ADDR  = 0x0000
+MIIO_ADDR  = 0x00
 
 # Miscope Configuration
 miio = miio.MiIo(MIIO_ADDR, 8, "IO", csr)

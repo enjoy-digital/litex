@@ -55,8 +55,8 @@ class Term:
 	def write(self, dat, mask=None):
 		if mask is None:
 			mask = (2**self.width)-1
+		self.interface.write_n(self.reg_p.base, mask, self.width)	
 		self.interface.write_n(self.reg_p.base + self.reg_p.words, dat, self.width)
-		self.interface.write_n(self.reg_p.base, mask, self.width)
 		
 class RangeDetector:
 	# 
@@ -144,13 +144,13 @@ class EdgeDetector:
 			
 		# Falling Edge
 		if "F" in self.mode:
-			comb += [self.fo.eq(self.f_mask & (~ self.i) & self.i_d)]
+			comb += [self.fo.eq(self.f_mask & (~self.i) & self.i_d)]
 		else:
 			comb += [self.fo.eq(0)]
 			
 		# Both
 		if "B" in self.mode:
-			comb += [self.bo.eq(self.b_mask & self.i != self.i_d)]
+			comb += [self.bo.eq((self.b_mask & self.i) != self.i_d)]
 		else:
 			comb += [self.bo.eq(0)]
 			
@@ -243,8 +243,8 @@ class Sum:
 			we = 1<<17
 			dat = val<<16
 			addr = i
-			self.interface.write_n(self.reg_p.base, we + dat + addr, self.reg_size)
-			self.interface.write_n(self.reg_p.base, dat + addr, self.reg_size)
+			self.interface.write_n(self.reg_p.base, we + dat + addr, self.reg_p.size)
+			self.interface.write_n(self.reg_p.base, dat + addr, self.reg_p.size)
 		
 class Trigger:
 	# 
@@ -283,11 +283,11 @@ class Trigger:
 		
 	def set_address(self, address):
 		self.address = address
-		self.bank = csrgen.Bank(self.regs,address=self.address)
+		self.bank = csrgen.Bank(self.regs, address=self.address)
 		for port in self.ports:
 			port.reg_p.base = self.bank.get_base(port.reg_p.name)
 		self.sum.reg_p.base = self.bank.get_base(self.sum.reg_p.name)
-		
+
 	def set_interface(self, interface):
 		self.interface = interface
 		for port in self.ports:

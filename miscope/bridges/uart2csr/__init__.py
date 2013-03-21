@@ -75,8 +75,8 @@ class Uart2Csr(Module):
 		self.sync += If(fsm.ongoing(fsm.IDLE) & uart.rx_ev, cmd.eq(uart.rx_dat))
 
 		#
-	    # Get burst length
-	    #
+		# Get burst length
+		#
 		fsm.act(fsm.GET_BL,
 			If(get_bl_done,
 				fsm.next_state(fsm.GET_ADDR)

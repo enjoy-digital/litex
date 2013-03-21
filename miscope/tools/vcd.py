@@ -3,10 +3,10 @@ import datetime
 
 from miscope.tools.conv import *
 
-def get_bits(values, width, low, high =None):
+def get_bits(values, width, low, high=None):
 	r = []
 	for val in values:
-		t = dec2bin(val,width)[::-1]
+		t = dec2bin(val, width)[::-1]
 		if high == None:
 			t = t[low]
 		else:
@@ -16,8 +16,32 @@ def get_bits(values, width, low, high =None):
 		r.append(t)
 	return r
 
+class VcdDat(list):
+	def __init__(self, width):
+		self.width = width
+
+	def __getitem__(self, key):
+		if isinstance(key, int):
+			return get_bits(self, self.width, key)
+		elif isinstance(key, slice):
+			if key.start != None:
+				start = key.start
+			else:
+				start = 0
+			if key.stop != None:
+				stop = key.stop
+			else:
+				stop = self.width
+			if stop > self.width:
+				stop = self.width
+			if key.step != None:
+				raise KeyError
+			return get_bits(self, self.width, start, stop)
+		else:
+			raise KeyError
+
 class Var:
-	def __init__(self,type , width , name, values=[], default="x"):
+	def __init__(self, name, width, values=[], type="wire", default="x"):
 		self.type = type
 		self.width = width
 		self.name = name
@@ -36,7 +60,7 @@ class Var:
 		try : 
 			if self.values[cnt+1] != self.val:
 				r += "b"
-				r += dec2bin(self.values[cnt+1], self.width)
+				r += dec2bin(self.values[cnt+1], self.width)[::-1]
 				r += " "
 				r += self.vcd_id
 				r += "\n"
@@ -44,10 +68,9 @@ class Var:
 		except :
 			return r
 		return r
-	
-		
+
 class Vcd:
-	def __init__(self,timescale = "1ps", comment = ""):
+	def __init__(self, timescale="1ps", comment=""):
 		self.timescale = timescale
 		self.comment = comment
 		self.vars = []
@@ -58,6 +81,12 @@ class Vcd:
 		var.set_vcd_id(self.vcd_id)
 		self.vcd_id = chr(ord(self.vcd_id)+1)
 		self.vars.append(var)
+
+	def add_from_layout(self, layout, var):
+		i=0
+		for s, n in layout:
+			self.add(Var(s, n, var[i:i+n]))
+			i += n
 	
 	def __len__(self):
 		l = 0
@@ -77,7 +106,6 @@ class Vcd:
 			r += c
 		return r
 
-	
 	def p_date(self):
 		now = datetime.datetime.now()
 		r = "$date\n"
@@ -110,6 +138,7 @@ class Vcd:
 		r += self.timescale
 		r += " $end\n"
 		return r
+
 	def  p_vars(self):
 		r = ""
 		for var in self.vars:
@@ -151,7 +180,6 @@ class Vcd:
 			r += self.change()
 			self.cnt += 1
 		return r
-		
 
 	def __repr__(self):
 		r = ""
@@ -174,12 +202,12 @@ class Vcd:
 
 def main():
 	myvcd = Vcd()
-	myvcd.add(Var("wire", 1, "foo1", [0,1,0,1,0,1]))
-	myvcd.add(Var("wire", 2, "foo2", [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
-	myvcd.add(Var("wire", 3, "foo3"))
-	myvcd.add(Var("wire", 4, "foo4"))
+	myvcd.add(Var(1, "foo1", [0,1,0,1,0,1]))
+	myvcd.add(Var(2, "foo2", [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
+	myvcd.add(Var(3, "foo3"))
+	myvcd.add(Var(4, "foo4"))
 	ramp = [i%128 for i in range(1024)]
-	myvcd.add(Var("wire", 16, "ramp", ramp))
+	myvcd.add(Var(16, "ramp", ramp))
 	print(myvcd)
 	
 if __name__ == '__main__':

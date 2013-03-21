@@ -17,16 +17,18 @@ class MiLa:
 		
 		self.set_address(address)
 		self.set_interface(interface)
-		
+
+	def set_address(self, address):
+		self.address = address
+		self.trigger.set_address(self.address)
+		self.recorder.set_address(self.address + 0x01)
+
 	def set_interface(self, interface):
 		self.interface = interface
 		self.trigger.set_interface(interface)
 		self.recorder.set_interface(interface)
 		
-	def set_address(self, address):
-		self.address = address
-		self.trigger.set_address(self.address)
-		self.recorder.set_address(self.address + 0x0200)
+
 	
 	def get_fragment(self):
 		comb =[

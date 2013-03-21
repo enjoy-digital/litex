@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl import verilog, autofragment
+from migen.fhdl import verilog
 from migen.bus import csr
 from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
@@ -38,10 +38,14 @@ def csr_transactions(trigger0, recorder0):
 
 	# Term Prog
 	term_trans = []
-	term_trans += [term_prog(trigger0.ports[0].reg_base, 0x00000000)]
-	term_trans += [term_prog(trigger0.ports[1].reg_base, 0x00000004)]
-	term_trans += [term_prog(trigger0.ports[2].reg_base, 0x00000008)]
-	term_trans += [term_prog(trigger0.ports[3].reg_base, 0x0000000C)]
+	term_trans += [term_prog(trigger0.ports[0].reg_p.base+0, 0xFFFFFFFF)]
+	term_trans += [term_prog(trigger0.ports[0].reg_p.base+4, 0x00000000)]
+	term_trans += [term_prog(trigger0.ports[1].reg_p.base+0, 0xFFFFFFFF)]
+	term_trans += [term_prog(trigger0.ports[1].reg_p.base+4, 0x00000004)]
+	term_trans += [term_prog(trigger0.ports[2].reg_p.base+0, 0xFFFFFFFF)]	
+	term_trans += [term_prog(trigger0.ports[2].reg_p.base+4, 0x00000008)]
+	term_trans += [term_prog(trigger0.ports[3].reg_p.base+0, 0xFFFFFFFF)]	
+	term_trans += [term_prog(trigger0.ports[3].reg_p.base+4, 0x0000000C)]
 	for t in term_trans:
 		for r in t:
 			yield r
@@ -50,7 +54,7 @@ def csr_transactions(trigger0, recorder0):
 	sum_tt = gen_truth_table("term0 | term1 | term2 | term3")
 	sum_trans = []
 	for i in range(len(sum_tt)):
-		sum_trans.append(sum_prog(trigger0.sum.reg_base, i, sum_tt[i]))
+		sum_trans.append(sum_prog(trigger0.sum.reg_p.base, i, sum_tt[i]))
 	for t in sum_trans:
 		for r in t:
 			yield r
@@ -71,6 +75,7 @@ def csr_transactions(trigger0, recorder0):
 
 	#Arm
 	yield TWrite(recorder0.address + 1,  1)
+	yield TWrite(recorder0.address + 1,  0)
 
 	# Wait Record to be done
 	##############################
@@ -107,10 +112,10 @@ def main():
 	term1 = trigger.Term(32)
 	term2 = trigger.Term(32)
 	term3 = trigger.Term(32)
-	trigger0 = trigger.Trigger(TRIGGER_ADDR, 32, 64, [term0, term1, term2, term3])
+	trigger0 = trigger.Trigger(32, [term0, term1, term2, term3], address=TRIGGER_ADDR)
 	
 	# Recorder
-	recorder0 = recorder.Recorder(RECORDER_ADDR, 32, 1024)
+	recorder0 = recorder.Recorder(32, 1024, address=RECORDER_ADDR)
 	
 	# Csr Master
 	csr_master0 = csr.Initiator(csr_transactions(trigger0, recorder0))
@@ -118,19 +123,18 @@ def main():
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(csr_master0.bus, 
 			[
-				trigger0.bank.interface,
-				recorder0.bank.interface
+				trigger0.bank.bus,
+				recorder0.bank.bus
 			])
 
 	trig_sig = Signal(32)
-	comb = []
-	comb +=[
-		trigger0.in_trig.eq(trig_sig)
+	comb =[
+		trigger0.trig.eq(trig_sig)
 	]
 	
 	comb += [
-		recorder0.trig_dat.eq(trig_sig),
-		recorder0.trig_hit.eq(trigger0.hit)
+		recorder0.dat.eq(trig_sig),
+		recorder0.hit.eq(trigger0.hit)
 	]
 	# Term Test
 	def term_stimuli(s):
@@ -147,9 +151,9 @@ def main():
 		
 		global dat_rdy
 		if dat_rdy:
-			print("%08X" %s.rd(recorder0._get_dat.field.w))
+			print("%08X" %s.rd(recorder0._pull_dat.field.w))
 			global dat_vcd
-			dat_vcd.append(s.rd(recorder0._get_dat.field.w))
+			dat_vcd.append(s.rd(recorder0._pull_dat.field.w))
 
 	
 	# Simulation
@@ -157,19 +161,27 @@ def main():
 		s.interrupt = csr_master0.done
 		myvcd = Vcd()
 		myvcd.add(Var("wire", 32, "trig_dat", dat_vcd))
-		f = open("tb_Miscope_Out.vcd", "w")
+		f = open("tb_miscope_out.vcd", "w")
 		f.write(str(myvcd))
 		f.close()
 	
-	
-	fragment = autofragment.from_local()
+	fragment = term0.get_fragment()
+	fragment += term1.get_fragment()
+	fragment += term2.get_fragment()
+	fragment += term3.get_fragment()
+	fragment += trigger0.get_fragment()
+	fragment += recorder0.get_fragment()
+	fragment += csr_master0.get_fragment()
+	fragment += csrcon0.get_fragment()
+
 	fragment += Fragment(comb=comb)
 	fragment += Fragment(sim=[term_stimuli])
 	fragment += Fragment(sim=[recorder_data])
 	fragment += Fragment(sim=[end_simulation])
 
-	sim = Simulator(fragment, Runner(),TopLevel("tb_MigScope.vcd"))
+	sim = Simulator(fragment, TopLevel("tb_miscope.vcd"))
 	sim.run(2000)
 
 main()
+print("Sim Done")
 input()

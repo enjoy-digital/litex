@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl import verilog, autofragment
+from migen.fhdl import verilog
 from migen.bus import csr
 from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
@@ -27,10 +27,14 @@ csr_done = False
 def csr_transactions():
 
 	term_trans = []
-	term_trans += [term_prog(0x04  ,0xDEADBEEF)]
-	term_trans += [term_prog(0x08  ,0xCAFEFADE)]
-	term_trans += [term_prog(0x0C  ,0xDEADBEEF)]
-	term_trans += [term_prog(0x10  ,0xCAFEFADE)]
+	term_trans += [term_prog(0x04+0  ,0xFFFFFFFF)]
+	term_trans += [term_prog(0x04+4  ,0xDEADBEEF)]
+	term_trans += [term_prog(0x04+8  ,0xFFFFFFFF)]
+	term_trans += [term_prog(0x04+12 ,0xCAFEFADE)]
+	term_trans += [term_prog(0x04+16 ,0xFFFFFFFF)]
+	term_trans += [term_prog(0x04+20 ,0xDEADBEEF)]
+	term_trans += [term_prog(0x04+24 ,0xFFFFFFFF)]
+	term_trans += [term_prog(0x04+28 ,0xCAFEFADE)]
 	for t in term_trans:
 		for r in t:
 			yield r
@@ -67,12 +71,12 @@ def main():
 	term1 = trigger.Term(32)
 	term2 = trigger.Term(32)
 	term3 = trigger.Term(32)
-	trigger0 = trigger.Trigger(0, 32, 64, [term0, term1, term2, term3])
+	trigger0 = trigger.Trigger(32, [term0, term1, term2, term3])
 	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(csr_master0.bus, 
 			[
-				trigger0.bank.interface
+				trigger0.bank.bus
 			])
 	
 	# Term Test
@@ -88,13 +92,20 @@ def main():
 	def end_simulation(s):
 		s.interrupt = csr_master0.done
 	
-	fragment = autofragment.from_local()
+	fragment = csr_master0.get_fragment()
+	fragment += term0.get_fragment()
+	fragment += term1.get_fragment()
+	fragment += term2.get_fragment()
+	fragment += term3.get_fragment()
+	fragment += trigger0.get_fragment()
+	fragment += csrcon0.get_fragment()
 	fragment += Fragment(sim=[end_simulation])
 	fragment += Fragment(sim=[term_stimuli])
-	sim = Simulator(fragment, Runner(), TopLevel("tb_TriggerCsr.vcd"))
+	sim = Simulator(fragment, TopLevel("tb_TriggerCsr.vcd"))
 	sim.run(2000)
 
 main()
+print("Sim Done")
 input()
 
 

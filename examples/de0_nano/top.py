@@ -7,7 +7,7 @@
 #
 #      Copyright 2013 / Florent Kermarrec / florent@enjoy-digital.fr
 #
-#                        miscope miio example on De0 Nano
+#                           miscope example on De0 Nano
 #                        --------------------------------
 ################################################################################
 
@@ -18,8 +18,9 @@ from migen.fhdl.structure import *
 from migen.fhdl.module import *
 from migen.bus import csr
 
-from miscope import miio
+from miscope import trigger, recorder, miio, mila
 from miscope.bridges import uart2csr
+from miscope.tools.misc import *
 
 from timings import *
 
@@ -31,7 +32,13 @@ from timings import *
 clk_freq	= 50*MHz
 
 # Csr Addr
-MIIO0_ADDR  = 0x0000
+MIIO_ADDR 	= 0x00
+MILA_ADDR 	= 0x01
+
+# Mila Param
+trig_w		= 16
+dat_w		= 16
+rec_size	= 4096
 
 #==============================================================================
 #   M I S C O P E    E X A M P L E
@@ -39,7 +46,14 @@ MIIO0_ADDR  = 0x0000
 class SoC(Module):
 	def __init__(self):
 		# MiIo
-		self.submodules.miio = miio.MiIo(MIIO0_ADDR, 8, "IO")
+		self.submodules.miio = miio.MiIo(MIIO_ADDR, 8, "IO")
+
+		# MiLa
+		self.submodules.term = trigger.Term(trig_w)
+		self.submodules.trigger = trigger.Trigger(trig_w, [self.term])
+		self.submodules.recorder = recorder.Recorder(dat_w, rec_size)
+
+		self.submodules.mila = mila.MiLa(MILA_ADDR, self.trigger, self.recorder)
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
@@ -47,15 +61,43 @@ class SoC(Module):
 		# Csr Interconnect
 		self.submodules.csrcon = csr.Interconnect(self.uart2csr.csr,
 				[
-					self.miio.bank.bus
+					self.miio.bank.bus,
+					self.trigger.bank.bus,
+					self.recorder.bank.bus
 				])
 		
 		# Led
 		self.led = Signal(8)
-		
+
+		# Misc
+		self.cnt = Signal(9)
+		self.submodules.freqgen = FreqGen(clk_freq, 500*KHz)
+		self.submodules.eventgen_rising = EventGen(self.freqgen.o, RISING_EDGE, clk_freq, 100*ns)
+		self.submodules.eventgen_falling = EventGen(self.freqgen.o, FALLING_EDGE, clk_freq, 100*ns)
+
 	###
+
+		#
+		# Miio
+		#
+
 		# Output
 		self.comb += self.led.eq(self.miio.o)
-
+		
 		# Input
-		self.comb += self.miio.i.eq(0x5A)
+		self.comb += self.miio.i.eq(self.miio.o)
+
+		#
+		# Mila
+		#
+		self.comb +=[
+			self.mila.trig[0].eq(self.freqgen.o),
+			self.mila.trig[1].eq(self.eventgen_rising.o),
+			self.mila.trig[2].eq(self.eventgen_falling.o),
+			self.mila.trig[3:11].eq(self.cnt),
+			self.mila.dat[0].eq(self.freqgen.o),
+			self.mila.dat[1].eq(self.eventgen_rising.o),
+			self.mila.dat[2].eq(self.eventgen_falling.o),
+			self.mila.dat[3:11].eq(self.cnt),
+		]
+		self.sync += self.cnt.eq(self.cnt+1)

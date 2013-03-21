@@ -3,6 +3,7 @@ import time
 import serial
 from struct import *
 import time
+from migen.fhdl.structure import *
 
 WRITE_CMD  = 0x01
 READ_CMD   = 0x02
@@ -36,7 +37,19 @@ class Uart2Csr:
 			return values[0]
 		else:
 			return values
-	
+
+	def read_n(self, addr, n, endianess = "LE"):
+		r = 0
+		words = int(2**bits_for(n-1)/8)
+		for i in range(words):
+			if endianess == "BE":
+				r += self.read(addr+i)<<(8*i)
+			elif endianess == "LE":
+				r += self.read(addr+words-1-i)<<(8*i)
+		if self.debug:
+			print("RD @ %04X" %addr)
+		return r		
+		
 	def write(self, addr, data):
 		if isinstance(data, list):
 			burst_length = len(data)
@@ -45,9 +58,9 @@ class Uart2Csr:
 		write_b(self.uart, WRITE_CMD)
 		write_b(self.uart, burst_length)
 		self.uart.write([(addr & 0xff000000) >> 24,
-										 (addr & 0x00ff0000) >> 16,
-										 (addr & 0x0000ff00) >> 8,
-										 (addr & 0x000000ff)])
+						(addr & 0x00ff0000) >> 16,
+						(addr & 0x0000ff00) >> 8,
+						(addr & 0x000000ff)])
 		if isinstance(data, list):
 			for i in range(len(data)):
 				write_b(self.uart, data[i])
@@ -57,3 +70,13 @@ class Uart2Csr:
 			write_b(self.uart, data)
 			if self.debug:
 				print("WR %02X @ %08X" %(data, addr))
+
+	def write_n(self, addr, data, n, endianess = "LE"):
+		words = int(2**bits_for(n-1)/8)
+		for i in range(words):
+			if endianess == "BE":
+				self.write(addr+i, (data>>(8*i)) & 0xFF)
+			elif endianess == "LE":
+				self.write(addr+words-1-i, (data>>(8*i)) & 0xFF)
+		if self.debug:
+			print("WR %08X @ %04X" %(data, addr))
