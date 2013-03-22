@@ -129,7 +129,6 @@ class Sequencer:
 			self.enable.eq(1)
 		)
 		
-		# trig_hit rising_edge
 		hit_rising = RisingEdge(self.hit)
 		
 		# connexion
@@ -230,7 +229,7 @@ class Recorder:
 			_pull_stb_rising.get_fragment()
 			
 	#
-	#Driver
+	# Driver
 	#
 	def reset(self):
 		self.interface.write(self.bank.get_base() + REC_RST_BASE, 1)
@@ -243,13 +242,13 @@ class Recorder:
 	def is_done(self):
 		return self.interface.read(self.bank.get_base() + REC_DONE_BASE) == 1
 		
-	def size(self, dat):
+	def set_size(self, dat):
 		self.interface.write_n(self.bank.get_base() + REC_SIZE_BASE, dat, 16)
 		
-	def offset(self, dat):
+	def set_offset(self, dat):
 		self.interface.write_n(self.bank.get_base() + REC_OFFSET_BASE, dat, 16)
 		
-	def read(self, size):
+	def pull(self, size):
 		r = []
 		for i in range(size):
 			self.interface.write(self.bank.get_base() + REC_READ_BASE, 1)

@@ -28,8 +28,6 @@ class MiLa:
 		self.trigger.set_interface(interface)
 		self.recorder.set_interface(interface)
 		
-
-	
 	def get_fragment(self):
 		comb =[
 			self.trigger.trig.eq(self.trig),

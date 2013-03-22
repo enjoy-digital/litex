@@ -39,20 +39,20 @@ class Term:
 		self.reg_p = RegParams("term_reg", 0, width, 2)
 		self.reg = None
 	
-	def get_registers_glue(self):
+	def get_registers_comb(self):
 		comb = [self.t.eq(self.reg.field.r[0*self.width:1*self.width])]
 		comb += [self.m.eq(self.reg.field.r[1*self.width:2*self.width])]
 		return comb
 	
 	def get_fragment(self):
 		comb = [self.o.eq((self.m & self.i) == self.t)]
-		comb += self.get_registers_glue()
+		comb += self.get_registers_comb()
 		return Fragment(comb)
 	
 	#
 	# Driver
 	#
-	def write(self, dat, mask=None):
+	def set(self, dat, mask=None):
 		if mask is None:
 			mask = (2**self.width)-1
 		self.interface.write_n(self.reg_p.base, mask, self.width)	
@@ -75,22 +75,22 @@ class RangeDetector:
 		self.high = Signal(width)
 		self.o = Signal()
 		
-	def get_registers_glue(self):
+	def get_registers_comb(self):
 		comb = [self.low.eq(self.reg.field.r[0*self.width:1*self.width])]
 		comb += [self.low.eq(self.reg.field.r[1*self.width:2*self.width])]
 		return comb
 		
 	def get_fragment(self):
 		comb = [self.o.eq((self.i >= self.low) & (self.i <= self.high))]
-		comb += self.get_registers_glue()
+		comb += self.get_registers_comb()
 		return Fragment(comb)
 	#
 	# Driver
 	#
-	def write_low(self, dat):
+	def set_low(self, dat):
 		self.interface.write_n(self.reg_p.base, dat ,self.width)
 	
-	def write_high(self, dat):
+	def set_high(self, dat):
 		self.interface.write_n(self.reg_p.base + self.reg_p.words, dat ,self.width)
 
 class EdgeDetector:
@@ -118,7 +118,7 @@ class EdgeDetector:
 			self.bo = Signal()
 		self.o = Signal()
 	
-	def get_registers_glue(self):
+	def get_registers_comb(self):
 		comb = []
 		i = 0
 		if "R" in self.mode:
@@ -158,7 +158,7 @@ class EdgeDetector:
 		comb += [self.o.eq(self.ro | self.fo | self.bo)]
 		
 		# Registers
-		comb += self.get_registers_glue()
+		comb += self.get_registers_comb()
 		
 		return Fragment(comb, sync)
 		
@@ -180,13 +180,13 @@ class EdgeDetector:
 			return r
 		return 0
 			
-	def write_r(self, dat):
+	def set_r(self, dat):
 		self.interface.write_n(self.reg_p.base + self.get_offset("R"), dat ,self.width)
 	
-	def write_f(self, dat):
+	def set_f(self, dat):
 		self.interface.write_n(self.reg_p.base + self.get_offset("F"), dat ,self.width)
 		
-	def write_b(self, dat):
+	def set_b(self, dat):
 		self.interface.write_n(self.reg_p.base + self.get_offset("B"), dat ,self.width)
 
 class Sum:
@@ -212,7 +212,7 @@ class Sum:
 		self._lut_port = self._mem.get_port()
 		self._prog_port = self._mem.get_port(write_capable=True)
 	
-	def get_registers_glue(self):
+	def get_registers_comb(self):
 		comb = [
 			self.prog_adr.eq(self.reg.field.r[0:16]),
 			self.prog_dat.eq(self.reg.field.r[16]),
@@ -231,13 +231,13 @@ class Sum:
 				
 				self.o.eq(self._o)
 		]
-		comb += self.get_registers_glue()
+		comb += self.get_registers_comb()
 		return Fragment(comb, specials={self._mem})
 	
 	#
-	#Driver
+	# Driver
 	#
-	def write(self, truth_table):
+	def set(self, truth_table):
 		for i in range(len(truth_table)):
 			val = truth_table[i]
 			we = 1<<17

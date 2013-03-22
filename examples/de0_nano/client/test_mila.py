@@ -35,10 +35,10 @@ def capture(size):
 	global recorder
 	global dat_vcd
 	sum_tt = gen_truth_table("term")
-	mila.trigger.sum.write(sum_tt)
+	mila.trigger.sum.set(sum_tt)
 	mila.recorder.reset()
-	recorder.size(rec_size)	
-	mila.recorder.offset(rec_offset)
+	recorder.set_size(rec_size)	
+	mila.recorder.set_offset(rec_offset)
 	mila.recorder.arm()
 	print("-Recorder [Armed]")
 	print("-Waiting Trigger...", end=' ')
@@ -48,12 +48,12 @@ def capture(size):
 	
 	print("-Receiving Data...", end=' ')
 	sys.stdout.flush()
-	dat_vcd += mila.recorder.read(size)
+	dat_vcd += mila.recorder.pull(size)
 	print("[Done]")
 
 print("Capturing ...")
 print("----------------------")
-term.write(0x0000, 0xFFFF)
+term.set(0x0000, 0xFFFF)
 capture(rec_size)
 
 mila_layout = [

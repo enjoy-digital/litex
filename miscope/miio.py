@@ -35,10 +35,10 @@ class MiIo:
 			
 		return Fragment(comb) + self.bank.get_fragment()
 	#
-	#Driver
+	# Driver
 	#
-	def write(self, data):
+	def set(self, data):
 			self.interface.write(self.bank.get_base(), data)
 			
-	def read(self):
+	def get(self):
 		return self.interface.read(self.bank.get_base() + self.words)
