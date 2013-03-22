@@ -9,7 +9,7 @@ _control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
 class CharSync(Module, AutoReg):
 	def __init__(self, required_controls=8):
 		self.raw_data = Signal(10)
-		self.char_synced = Signal()
+		self.synced = Signal()
 		self.data = Signal(10)
 
 		self._r_char_synced = RegisterField(1, READ_ONLY, WRITE_ONLY)
@@ -36,7 +36,7 @@ class CharSync(Module, AutoReg):
 			If(found_control & (control_position == previous_control_position),
 				If(control_counter == (required_controls - 1),
 					control_counter.eq(0),
-					self.char_synced.eq(1),
+					self.synced.eq(1),
 					word_sel.eq(control_position)
 				).Else(
 					control_counter.eq(control_counter + 1)
@@ -46,6 +46,6 @@ class CharSync(Module, AutoReg):
 			),
 			previous_control_position.eq(control_position)
 		]
-		self.specials += MultiReg(self.char_synced, self._r_char_synced.field.w)
+		self.specials += MultiReg(self.synced, self._r_char_synced.field.w)
 
 		self.sync.pix += self.data.eq(raw >> word_sel)

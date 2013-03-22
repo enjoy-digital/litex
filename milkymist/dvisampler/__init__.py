@@ -6,6 +6,7 @@ from milkymist.dvisampler.edid import EDID
 from milkymist.dvisampler.clocking import Clocking
 from milkymist.dvisampler.datacapture import DataCapture
 from milkymist.dvisampler.charsync import CharSync
+from milkymist.dvisampler.chansync import ChanSync
 
 class DVISampler(Module, AutoReg):
 	def __init__(self, inversions=""):
@@ -34,3 +35,12 @@ class DVISampler(Module, AutoReg):
 			charsync = CharSync()
 			setattr(self.submodules, name + "_charsync", charsync)
 			self.comb += charsync.raw_data.eq(cap.d)
+
+		self.submodules.chansync = ChanSync()
+		self.comb += [
+			self.chansync.char_synced.eq(self.data0_charsync.synced & \
+			  self.data1_charsync.synced & self.data2_charsync.synced),
+			self.chansync.data_in0.eq(self.data0_charsync.data),
+			self.chansync.data_in1.eq(self.data1_charsync.data),
+			self.chansync.data_in2.eq(self.data2_charsync.data),
+		]
