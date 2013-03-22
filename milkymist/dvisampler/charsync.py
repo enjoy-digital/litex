@@ -4,7 +4,7 @@ from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import optree
 from migen.bank.description import *
 
-_control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
+from milkymist.dvisampler.common import control_tokens
 
 class CharSync(Module, AutoReg):
 	def __init__(self, required_controls=8):
@@ -24,7 +24,7 @@ class CharSync(Module, AutoReg):
 		found_control = Signal()
 		control_position = Signal(max=10)
 		for i in range(10):
-			self.sync.pix += If(optree("|", [raw[i:i+10] == t for t in _control_tokens]),
+			self.sync.pix += If(optree("|", [raw[i:i+10] == t for t in control_tokens]),
 			  	found_control.eq(1),
 			  	control_position.eq(i)
 			)
