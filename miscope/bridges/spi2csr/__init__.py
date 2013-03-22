@@ -4,13 +4,13 @@ from migen.genlib.cdc import *
 from migen.bus import csr
 
 class Spi2Csr(Module):
-	def __init__(self, a_w, d_w, burst_length=8):
-		self.a_w = a_w
-		self.d_w = d_w
+	def __init__(self, burst_length=8):
+		self.a_w = 14
+		self.d_w = 8
 		self.burst_length = 8
 		
 		# Csr interface
-		self.csr = csr.Interface(self.a_w, self.d_w)
+		self.csr = csr.Interface()
 		
 		# Spi interface
 		self.spi_clk = Signal()

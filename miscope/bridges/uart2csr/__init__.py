@@ -16,7 +16,7 @@ class Uart2Csr(Module):
 		self.tx = Signal()
 		
 		# Csr interface
-		self.csr = csr.Interface(32, 8)
+		self.csr = csr.Interface()
 		
 	###
 		

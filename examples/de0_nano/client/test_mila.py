@@ -31,8 +31,6 @@ mila = mila.MiLa(MILA_ADDR, trigger, recorder, csr)
 dat_vcd = VcdDat(dat_w)
 
 def capture(size):
-	global trigger
-	global recorder
 	global dat_vcd
 	sum_tt = gen_truth_table("term")
 	mila.trigger.sum.set(sum_tt)
