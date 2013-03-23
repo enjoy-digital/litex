@@ -34,7 +34,7 @@ class Record:
 	def layout(self):
 		l = []
 		for key, alignment in self.field_order:
-			e = self.__dict__[key]
+			e = getattr(self, key)
 			if isinstance(e, Signal):
 				l.append((key, (e.nbits, e.signed), alignment))
 			elif isinstance(e, Record):
@@ -84,7 +84,7 @@ class Record:
 					l.append(Replicate(0, pad_size))
 					offset += pad_size
 			
-			e = self.__dict__[key]
+			e = getattr(self, key)
 			if isinstance(e, Signal):
 				added = [e]
 			elif isinstance(e, Record):
