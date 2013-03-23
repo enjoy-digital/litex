@@ -17,7 +17,7 @@ TIMESPEC "TSclk" = PERIOD "GRPclk" """+str(period)+""" ns HIGH 50%;""", clk=clk)
 class CRG_SE(SimpleCRG):
 	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
 		SimpleCRG.__init__(self, platform, clk_name, rst_name, rst_invert)
-		_add_period_constraint(platform, self.cd.clk, period)
+		_add_period_constraint(platform, self.cd_sys.clk, period)
 
 class CRG_DS(Module):
 	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
@@ -27,12 +27,12 @@ class CRG_DS(Module):
 			rst_n = platform.request(rst_name)
 			self.comb += self.cd_sys.rst.eq(~rst_n)
 		else:
-			platform.request(rst_name, None, self.cd.rst)
+			platform.request(rst_name, None, self.cd_sys.rst)
 		_add_period_constraint(platform, self._clk.p, period)
 		self.specials += Instance("IBUFGDS",
 			Instance.Input("I", self._clk.p),
 			Instance.Input("IB", self._clk.n),
-			Instance.Output("O", self.cd.clk)
+			Instance.Output("O", self.cd_sys.clk)
 		)
 
 def _format_constraint(c):
