@@ -13,6 +13,7 @@ class CharSync(Module, AutoReg):
 		self.data = Signal(10)
 
 		self._r_char_synced = RegisterField(1, READ_ONLY, WRITE_ONLY)
+		self._r_ctl_pos = RegisterField(bits_for(9), READ_ONLY, WRITE_ONLY)
 
 		###
 
@@ -48,5 +49,6 @@ class CharSync(Module, AutoReg):
 			previous_control_position.eq(control_position)
 		]
 		self.specials += MultiReg(self.synced, self._r_char_synced.field.w)
+		self.specials += MultiReg(word_sel, self._r_ctl_pos.field.w)
 
 		self.sync.pix += self.data.eq(raw >> word_sel)
