@@ -23,6 +23,7 @@ class CharSync(Module, AutoReg):
 
 		found_control = Signal()
 		control_position = Signal(max=10)
+		self.sync.pix += found_control.eq(0)
 		for i in range(10):
 			self.sync.pix += If(optree("|", [raw[i:i+10] == t for t in control_tokens]),
 			  	found_control.eq(1),
