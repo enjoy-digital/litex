@@ -13,7 +13,10 @@ class Decoding(Module):
 
 		###
 
-		self.sync.pix += self.output.de.eq(1)
+		self.sync.pix += [
+			self.output.de.eq(1),
+			self.output.c.eq(0)
+		]
 		for i, t in enumerate(control_tokens):
 			self.sync.pix += If(self.input == t,
 				self.output.de.eq(0),
