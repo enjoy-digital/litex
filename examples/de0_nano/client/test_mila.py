@@ -16,6 +16,7 @@ trig_w		= 16
 dat_w		= 16
 rec_size	= 512
 rec_offset	= 32
+enable_rle  = True
 
 # Miscope Configuration
 # MiLa
@@ -35,6 +36,8 @@ def capture(size):
 	sum_tt = gen_truth_table("term")
 	mila.trigger.sum.set(sum_tt)
 	mila.recorder.reset()
+	if enable_rle:
+		mila.recorder.enable_rle()
 	recorder.set_size(rec_size)	
 	mila.recorder.set_offset(rec_offset)
 	mila.recorder.arm()
@@ -46,7 +49,7 @@ def capture(size):
 	
 	print("-Receiving Data...", end=' ')
 	sys.stdout.flush()
-	dat_vcd += mila.recorder.pull(size)
+	dat_vcd += mila.recorder.pull(rec_size)
 	print("[Done]")
 
 print("Capturing ...")
@@ -60,6 +63,9 @@ mila_layout = [
 	("event_falling", 1),
 	("cnt", 8),
 	]
+
+if enable_rle:
+	dat_vcd = dat_vcd.decode_rle()
 
 myvcd = Vcd()
 myvcd.add_from_layout(mila_layout, dat_vcd)

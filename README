@@ -36,6 +36,7 @@ to be ready to debug!
 
 [> Status:
 Miio & Mila working on board with standard term.
+RLE working on board.
 RangeDetector and EdgeDector terms not tested.
 
 [> Examples:

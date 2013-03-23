@@ -40,6 +40,25 @@ class VcdDat(list):
 		else:
 			raise KeyError
 
+	def decode_rle(self):
+		rle_bit = self[-1]
+		rle_dat = self[:self.width-1]
+
+		dat = VcdDat(self.width)
+		i=0
+		last = 0
+		for d in self:
+			if rle_bit[i]:
+				if len(dat) >= 1:
+					# FIX ME... why is rle_dat in reverse orderd...
+					for j in range(int(dec2bin(rle_dat[i])[::-1],2)):
+						dat.append(last)
+			else:
+				dat.append(d)
+				last = d
+			i +=1
+		return dat 
+
 class Var:
 	def __init__(self, name, width, values=[], type="wire", default="x"):
 		self.type = type

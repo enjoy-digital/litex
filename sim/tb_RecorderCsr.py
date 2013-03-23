@@ -5,7 +5,7 @@ from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
 from migen.bus.transactions import *
 
-from miscope import recorder
+from miscope.recorder import *
 
 arm_done = False
 dat = 0
@@ -14,23 +14,28 @@ rec_done = False
 
 dat_rdy = False
 
+rec_size = 128
+
 def csr_transactions():
 
-	#Reset
-	yield TWrite(0, 1)
-	yield TWrite(0, 0)
+	# Reset
+	yield TWrite(REC_RST_BASE, 1)
+	yield TWrite(REC_RST_BASE, 0)
+
+	# RLE
+	yield TWrite(REC_RLE_BASE, 1)
 	
-	#Size
-	yield TWrite(3, 0)
-	yield TWrite(4, 32)
+	# Size
+	yield TWrite(REC_SIZE_BASE + 0, 0)
+	yield TWrite(REC_SIZE_BASE + 1, rec_size)
 	
-	#Offset
-	yield TWrite(5, 0)
-	yield TWrite(6, 0)
+	# Offset
+	yield TWrite(REC_OFFSET_BASE + 0, 0)
+	yield TWrite(REC_OFFSET_BASE + 1, 0)
 	
-	#Arm
-	yield TWrite(1, 1)
-	yield TWrite(1, 0)
+	# Arm
+	yield TWrite(REC_ARM_BASE, 1)
+	yield TWrite(REC_ARM_BASE, 0)
 	
 	for t in range(10):
 		yield None
@@ -43,14 +48,14 @@ def csr_transactions():
 		yield None
 
 	global dat_rdy
-	for t in range(32):
-		yield TWrite(7, 1)
+	for t in range(rec_size):
+		yield TWrite(REC_READ_BASE, 1)
 		dat_rdy = False
-		yield TWrite(7, 0)
-		yield TRead(8)
-		yield TRead(9)
-		yield TRead(10)
-		yield TRead(11)
+		yield TWrite(REC_READ_BASE, 0)
+		yield TRead(REC_READ_DATA_BASE + 0)
+		yield TRead(REC_READ_DATA_BASE + 1)
+		yield TRead(REC_READ_DATA_BASE + 2)
+		yield TRead(REC_READ_DATA_BASE + 3)
 		dat_rdy = True
 
 	dat_rdy = False
@@ -63,7 +68,7 @@ def main():
 	csr_master0 = csr.Initiator(csr_transactions())
 
 	# Recorder
-	recorder0 = recorder.Recorder(32, 1024)
+	recorder0 = Recorder(32, 1024)
 	
 	# Csr Interconnect
 	csrcon0 = csr.Interconnect(csr_master0.bus,
@@ -79,16 +84,15 @@ def main():
 			arm_done = False
 
 		global dat
-		s.wr(recorder0.dat,dat)
+		s.wr(recorder0.dat, dat//5)
 		dat += 1
 			
 		global rec_done
-		if s.rd(recorder0.sequencer.rec_done) == 1:
+		if s.rd(recorder0.sequencer.enable) == 0:
 			rec_done = True
 		
 		if dat_rdy:
 			print("%08X" %s.rd(recorder0._pull_dat.field.w))
-		
 
 	# Simulation
 	def end_simulation(s):

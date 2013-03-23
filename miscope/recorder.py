@@ -81,24 +81,88 @@ class Storage:
 		
 		return Fragment(comb, sync, specials={self._mem}) + fsm.get_fragment()
 
+class RLE:
+
+	# 
+	# Definition
+	#
+	def __init__(self, width, length):
+		self.width = width
+		self.length = length
+
+		# Control
+		self.enable = Signal()
+
+		# Input
+		self.dat_i = Signal(width)
+
+		# Output
+		self.stb_o = Signal()
+		self.dat_o = Signal(width)
+		
+	def get_fragment(self):
+
+		# Register Input		
+		dat_i_d = Signal(self.width)
+
+		sync =[dat_i_d.eq(self.dat_i)]
+
+		# Detect diff
+		diff = Signal()
+		comb = [diff.eq(~self.enable | (dat_i_d != self.dat_i))]
+
+		diff_rising = RisingEdge(diff)
+		diff_d = Signal()
+		sync +=[diff_d.eq(diff)]
+
+		# Generate RLE word
+		rle_cnt  = Signal(max=self.length)
+		rle_max  = Signal()
+
+		comb +=[If(rle_cnt == self.length, rle_max.eq(self.enable))]
+
+		sync +=[
+			If(diff | rle_max,
+				rle_cnt.eq(0)
+			).Else(
+				rle_cnt.eq(rle_cnt + 1)
+			)
+		]
+
+		# Mux RLE word and data
+		comb +=[
+			If(diff_rising.o & (~rle_max),
+				self.stb_o.eq(1),
+				self.dat_o[self.width-1].eq(1),
+				self.dat_o[:len(rle_cnt)].eq(rle_cnt)
+			).Elif(diff_d | rle_max,
+				self.stb_o.eq(1),
+				self.dat_o.eq(dat_i_d)
+			).Else(
+				self.stb_o.eq(0),
+			)
+		]
+
+		return Fragment(comb, sync) + diff_rising.get_fragment()
+
 class Sequencer:
 	# 
 	# Definition
 	#
 	def __init__(self):
 		
-		# Controller interface
+		# Control
 		self.rst = Signal()
 		self.arm = Signal()
 		
-		# Trigger interface
+		# Trigger
 		self.hit  = Signal()
 		
-		# Recorder interface
+		# Recorder
 		self.start = Signal()
 		self.done = Signal()
 		
-		# Others
+		# Internal
 		self.enable = Signal()
 		
 	def get_fragment(self):
@@ -129,12 +193,13 @@ class Sequencer:
 
 
 REC_RST_BASE		= 0x00
-REC_ARM_BASE		= 0x01
-REC_DONE_BASE		= 0x02
-REC_SIZE_BASE		= 0x03
-REC_OFFSET_BASE		= 0x05
-REC_READ_BASE		= 0x07
-REC_READ_DATA_BASE	= 0x08
+REC_RLE_BASE        = 0x01
+REC_ARM_BASE		= 0x02
+REC_DONE_BASE		= 0x03
+REC_SIZE_BASE		= 0x04
+REC_OFFSET_BASE		= 0x06
+REC_READ_BASE		= 0x08
+REC_READ_DATA_BASE	= 0x09
 
 class Recorder:
 	# 
@@ -147,9 +212,11 @@ class Recorder:
 		
 		self.storage = Storage(self.width, self.depth)
 		self.sequencer = Sequencer()
+		self.rle = RLE(self.width, (2**(width-2)))
 		
 		# csr interface
 		self._rst = RegisterField("rst", reset=1)
+		self._rle = RegisterField("rle", reset=0)
 		self._arm = RegisterField("arm", reset=0)
 		self._done = RegisterField("done", reset=0, access_bus=READ_ONLY, 
 									access_dev=WRITE_ONLY)
@@ -161,7 +228,7 @@ class Recorder:
 		self._pull_dat = RegisterField("pull_dat", self.width, reset=1, 
 										access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		
-		self.regs = [self._rst, self._arm, self._done, self._size, self._offset,
+		self.regs = [self._rst, self._rle, self._arm, self._done, self._size, self._offset,
 					self._pull_stb, self._pull_dat]
 		
 		# set address / interface
@@ -188,6 +255,7 @@ class Recorder:
 			self.sequencer.rst.eq(self._rst.field.r),
 			self.storage.rst.eq(self._rst.field.r),
 			
+			self.rle.enable.eq(self._rle.field.r),
 			self.sequencer.arm.eq(self._arm.field.r),
 			self.storage.offset.eq(self._offset.field.r),
 			self.storage.size.eq(self._size.field.r),
@@ -204,13 +272,17 @@ class Recorder:
 			self.sequencer.done.eq(self.storage.done),
 			self.sequencer.hit.eq(self.hit),
 			
-			self.storage.push_stb.eq(self.sequencer.enable),
-			self.storage.push_dat.eq(self.dat)
+			self.rle.dat_i.eq(self.dat),
+
+			self.storage.push_stb.eq(self.sequencer.enable & self.rle.stb_o),
+			self.storage.push_dat.eq(self.rle.dat_o)
 			]
 		
 		return self.bank.get_fragment() + Fragment(comb) +\
 			self.storage.get_fragment() + self.sequencer.get_fragment() +\
-			_pull_stb_rising.get_fragment()
+			_pull_stb_rising.get_fragment() + self.rle.get_fragment()
+
+			
 			
 	#
 	# Driver
@@ -218,7 +290,13 @@ class Recorder:
 	def reset(self):
 		self.interface.write(self.bank.get_base() + REC_RST_BASE, 1)
 		self.interface.write(self.bank.get_base() + REC_RST_BASE, 0)
-	
+
+	def enable_rle(self):
+		self.interface.write(self.bank.get_base() + REC_RLE_BASE, 1)
+
+	def disable_rle(self):
+		self.interface.write(self.bank.get_base() + REC_RLE_BASE, 0)
+
 	def arm(self):
 		self.interface.write(self.bank.get_base() + REC_ARM_BASE, 1)
 		self.interface.write(self.bank.get_base() + REC_ARM_BASE, 0)

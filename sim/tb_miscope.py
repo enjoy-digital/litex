@@ -5,7 +5,8 @@ from migen.sim.generic import Simulator, PureSimulable, TopLevel
 from migen.sim.icarus import Runner
 from migen.bus.transactions import *
 
-from miscope import trigger, recorder
+from miscope.trigger import *
+from miscope.recorder import *
 from miscope.tools.truthtable import *
 from miscope.tools.vcd import *
 
@@ -15,7 +16,8 @@ RECORDER_ADDR = 0x0200
 rec_done = False
 dat_rdy  = False
 
-dat_vcd = []
+dat_vcd = VcdDat(32)
+rec_size = 64
 
 def term_prog(off, dat):
 	for i in range(4):
@@ -62,20 +64,23 @@ def csr_transactions(trigger0, recorder0):
 	# Recorder Prog
 	##############################
 	#Reset
-	yield TWrite(recorder0.address + 0,  1)
-	yield TWrite(recorder0.address + 0,  0)
+	yield TWrite(recorder0.address + REC_RST_BASE,  1)
+	yield TWrite(recorder0.address + REC_RST_BASE,  0)
+
+	# RLE
+	yield TWrite(REC_RLE_BASE, 0)
 	
 	#Size
-	yield TWrite(recorder0.address + 3,  0)
-	yield TWrite(recorder0.address + 4, 64)
+	yield TWrite(recorder0.address + REC_SIZE_BASE + 0,  0)
+	yield TWrite(recorder0.address + REC_OFFSET_BASE + 1, rec_size)
 	
 	#Offset
-	yield TWrite(recorder0.address + 5,   0)
-	yield TWrite(recorder0.address + 6,  16)
+	yield TWrite(recorder0.address + REC_OFFSET_BASE + 0,   0)
+	yield TWrite(recorder0.address + REC_OFFSET_BASE + 1,  16)
 
 	#Arm
-	yield TWrite(recorder0.address + 1,  1)
-	yield TWrite(recorder0.address + 1,  0)
+	yield TWrite(recorder0.address + REC_ARM_BASE,  1)
+	yield TWrite(recorder0.address + REC_ARM_BASE,  0)
 
 	# Wait Record to be done
 	##############################
@@ -86,14 +91,14 @@ def csr_transactions(trigger0, recorder0):
 	# Read recorded data
 	##############################
 	global dat_rdy	
-	for t in range(64):
-		yield TWrite(recorder0.address + 7, 1)
+	for t in range(rec_size):
+		yield TWrite(recorder0.address + REC_READ_BASE, 1)
 		dat_rdy = False
-		yield TWrite(recorder0.address + 7, 0)
-		yield TRead(recorder0.address + 8)
-		yield TRead(recorder0.address + 9)
-		yield TRead(recorder0.address + 10)
-		yield TRead(recorder0.address + 11)
+		yield TWrite(recorder0.address + REC_READ_BASE, 0)
+		yield TRead(recorder0.address + REC_READ_DATA_BASE + 0)
+		yield TRead(recorder0.address + REC_READ_DATA_BASE + 1)
+		yield TRead(recorder0.address + REC_READ_DATA_BASE + 2)
+		yield TRead(recorder0.address + REC_READ_DATA_BASE + 3)
 		dat_rdy = True
 
 	dat_rdy = False
@@ -108,14 +113,14 @@ trig_sig_val = 0
 def main():
 
 	# Trigger
-	term0 = trigger.Term(32)
-	term1 = trigger.Term(32)
-	term2 = trigger.Term(32)
-	term3 = trigger.Term(32)
-	trigger0 = trigger.Trigger(32, [term0, term1, term2, term3], address=TRIGGER_ADDR)
+	term0 = Term(32)
+	term1 = Term(32)
+	term2 = Term(32)
+	term3 = Term(32)
+	trigger0 = Trigger(32, [term0, term1, term2, term3], address=TRIGGER_ADDR)
 	
 	# Recorder
-	recorder0 = recorder.Recorder(32, 1024, address=RECORDER_ADDR)
+	recorder0 = Recorder(32, 1024, address=RECORDER_ADDR)
 	
 	# Csr Master
 	csr_master0 = csr.Initiator(csr_transactions(trigger0, recorder0))
@@ -146,7 +151,7 @@ def main():
 	# Recorder Data
 	def recorder_data(s):
 		global rec_done
-		if s.rd(recorder0.sequencer.rec_done) == 1:
+		if s.rd(recorder0.sequencer.done) == 1:
 			rec_done = True
 		
 		global dat_rdy
@@ -160,7 +165,7 @@ def main():
 	def end_simulation(s):
 		s.interrupt = csr_master0.done
 		myvcd = Vcd()
-		myvcd.add(Var("wire", 32, "trig_dat", dat_vcd))
+		myvcd.add(Var("trig_dat", 32, dat_vcd))
 		f = open("tb_miscope_out.vcd", "w")
 		f.write(str(myvcd))
 		f.close()
