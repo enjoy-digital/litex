@@ -8,6 +8,7 @@ from milkymist.dvisampler.datacapture import DataCapture
 from milkymist.dvisampler.charsync import CharSync
 from milkymist.dvisampler.decoding import Decoding
 from milkymist.dvisampler.chansync import ChanSync
+from milkymist.dvisampler.resdetection import ResolutionDetection
 
 class DVISampler(Module, AutoReg):
 	def __init__(self, inversions=""):
@@ -59,3 +60,10 @@ class DVISampler(Module, AutoReg):
 		b = self.chansync.data_out0.d
 		hsync = self.chansync.data_out0.c[0]
 		vsync = self.chansync.data_out0.c[1]
+
+		self.submodules.resdetection = ResolutionDetection()
+		self.comb += [
+			self.resdetection.de.eq(de),
+			self.resdetection.hsync.eq(hsync),
+			self.resdetection.vsync.eq(vsync)
+		]
