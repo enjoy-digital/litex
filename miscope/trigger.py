@@ -97,7 +97,7 @@ class EdgeDetector:
 	# 
 	# Definition
 	#
-	def __init__(self, width, mode = "RFB"):
+	def __init__(self, width, mode="RFB"):
 		self.width = width
 		self.mode = mode
 		self.interface = None
@@ -198,7 +198,6 @@ class Sum:
 		self.interface = None
 		
 		self.i = Signal(self.width)
-		self._o = Signal()
 		self.o = Signal()
 		
 		self.reg_p = RegParams("sum_reg", 0, 8, 4)
@@ -223,13 +222,12 @@ class Sum:
 	def get_fragment(self):
 		comb = [
 				self._lut_port.adr.eq(self.i),
-				self._o.eq(self._lut_port.dat_r),
 				
 				self._prog_port.adr.eq(self.prog_adr),
 				self._prog_port.we.eq(self.prog_stb),
 				self._prog_port.dat_w.eq(self.prog_dat),
-				
-				self.o.eq(self._o)
+
+				self.o.eq(self._lut_port.dat_r),				
 		]
 		comb += self.get_registers_comb()
 		return Fragment(comb, specials={self._mem})

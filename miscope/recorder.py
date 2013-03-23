@@ -71,7 +71,7 @@ class Storage:
 		sync =[ 
 			If(fsm.entering(fsm.ACTIVE),
 				self._push_ptr_stop.eq(self._push_ptr + self.size - self.offset),
-				self._pull_ptr.eq(self._push_ptr-self.offset - 1)	
+				self._pull_ptr.eq(self._push_ptr - self.offset - 1)	
 			).Else(
 				If(self.pull_stb, self._pull_ptr.eq(self._pull_ptr + 1))
 			),
@@ -85,26 +85,18 @@ class Sequencer:
 	# 
 	# Definition
 	#
-	def __init__(self,depth):
-		self.depth = depth
-		self.depth_width = bits_for(self.depth)
+	def __init__(self):
 		
 		# Controller interface
-		self.ctl_rst = Signal()
-		self.ctl_offset = Signal(self.depth_width)
-		self.ctl_size = Signal(self.depth_width)
-		self.ctl_arm = Signal()
-		self.ctl_done = Signal()
-		self._ctl_arm_d = Signal()
+		self.rst = Signal()
+		self.arm = Signal()
 		
 		# Trigger interface
 		self.hit  = Signal()
 		
 		# Recorder interface
-		self.rec_offset = Signal(self.depth_width)
-		self.rec_size = Signal(self.depth_width)
-		self.rec_start = Signal()
-		self.rec_done  = Signal()
+		self.start = Signal()
+		self.done = Signal()
 		
 		# Others
 		self.enable = Signal()
@@ -116,28 +108,23 @@ class Sequencer:
 		
 		# Idle
 		fsm.act(fsm.IDLE, 
-			If(self.ctl_arm, 
+			If(self.arm, 
 				fsm.next_state(fsm.ACTIVE),
 			)
 		)
 		
 		# Active
 		fsm.act(fsm.ACTIVE,
-			If(self.rec_done | self.ctl_rst,
+			If(self.done | self.rst,
 				fsm.next_state(fsm.IDLE),
 			),
 			self.enable.eq(1)
 		)
 		
+		# Start
 		hit_rising = RisingEdge(self.hit)
-		
-		# connexion
-		comb = [
-			self.rec_offset.eq(self.ctl_offset),
-			self.rec_size.eq(self.ctl_size),
-			self.rec_start.eq(self.enable & hit_rising.o),
-			self.ctl_done.eq(~self.enable),
-			]
+		comb =[self.start.eq(self.enable & hit_rising.o)]
+
 		return Fragment(comb) + fsm.get_fragment() + hit_rising.get_fragment()
 
 
@@ -159,7 +146,7 @@ class Recorder:
 		self.depth_width = bits_for(self.depth-1)
 		
 		self.storage = Storage(self.width, self.depth)
-		self.sequencer = Sequencer(self.depth)
+		self.sequencer = Sequencer()
 		
 		# csr interface
 		self._rst = RegisterField("rst", reset=1)
@@ -198,14 +185,14 @@ class Recorder:
 
 		# Bank <--> Storage / Sequencer
 		comb = [
-			self.sequencer.ctl_rst.eq(self._rst.field.r),
+			self.sequencer.rst.eq(self._rst.field.r),
 			self.storage.rst.eq(self._rst.field.r),
 			
-			self.sequencer.ctl_offset.eq(self._offset.field.r),
-			self.sequencer.ctl_size.eq(self._size.field.r),
-			self.sequencer.ctl_arm.eq(self._arm.field.r),
-			
-			self._done.field.w.eq(self.sequencer.ctl_done),
+			self.sequencer.arm.eq(self._arm.field.r),
+			self.storage.offset.eq(self._offset.field.r),
+			self.storage.size.eq(self._size.field.r),
+
+			self._done.field.w.eq(~self.sequencer.enable),
 			
 			self.storage.pull_stb.eq(_pull_stb_rising.o),
 			self._pull_dat.field.w.eq(self.storage.pull_dat)
@@ -213,11 +200,8 @@ class Recorder:
 		
 		# Storage <--> Sequencer <--> Trigger
 		comb += [
-			self.storage.offset.eq(self.sequencer.rec_offset),
-			self.storage.size.eq(self.sequencer.rec_size),
-			self.storage.start.eq(self.sequencer.rec_start),
-			
-			self.sequencer.rec_done.eq(self.storage.done),
+			self.storage.start.eq(self.sequencer.start),
+			self.sequencer.done.eq(self.storage.done),
 			self.sequencer.hit.eq(self.hit),
 			
 			self.storage.push_stb.eq(self.sequencer.enable),
