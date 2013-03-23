@@ -27,6 +27,10 @@ class Record:
 				setattr(self, f, Signal(1, prefix + f))
 				self.field_order.append((f, 1))
 
+	def eq(self, other):
+		return [getattr(self, key).eq(getattr(other, key))
+		  for key, a in self.field_order]
+
 	def layout(self):
 		l = []
 		for key, alignment in self.field_order:
