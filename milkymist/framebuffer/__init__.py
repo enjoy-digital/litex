@@ -13,9 +13,9 @@ _vbits = 11
 _bpp = 32
 _bpc = 10
 _pixel_layout = [
-	("b", _bpc),
-	("g", _bpc),
 	("r", _bpc),
+	("g", _bpc),
+	("b", _bpc),
 	("pad", _bpp-3*_bpc)
 ]
 
@@ -23,9 +23,9 @@ _bpc_dac = 8
 _dac_layout = [
 	("hsync", 1),
 	("vsync", 1),
-	("b", _bpc_dac),
+	("r", _bpc_dac),
 	("g", _bpc_dac),
-	("r", _bpc_dac)
+	("b", _bpc_dac)	
 ]
 
 class _FrameInitiator(spi.SingleGenerator):
@@ -173,7 +173,7 @@ class Framebuffer(Module):
 		adrbuffer = AbstractActor(plumbing.Buffer)
 		dma = dma_asmi.Reader(asmiport)
 		datbuffer = AbstractActor(plumbing.Buffer)
-		cast = structuring.Cast(asmiport.hub.dw, packed_pixels)
+		cast = structuring.Cast(asmiport.hub.dw, packed_pixels, reverse_to=True)
 		unpack = structuring.Unpack(pack_factor, _pixel_layout)
 		vtg = VTG()
 		if simulation:
