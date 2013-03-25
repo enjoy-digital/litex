@@ -21,6 +21,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PRINTF_ZEROPAD	1		/* pad with zero */
 #define PRINTF_SIGN	2		/* unsigned/signed long */
 #define PRINTF_PLUS	4		/* show plus */
@@ -71,5 +75,9 @@ char *getenv(const char *name);
 void *malloc(size_t size);
 void free(void *ptr);
 void *realloc(void *ptr, size_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __STDLIB_H */

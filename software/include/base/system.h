@@ -1,9 +1,15 @@
 #ifndef __SYSTEM_H
 #define __SYSTEM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void flush_cpu_icache(void);
 void flush_cpu_dcache(void);
-__attribute__((noreturn)) void reboot(void);
-__attribute__((noreturn)) void reconf(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SYSTEM_H */

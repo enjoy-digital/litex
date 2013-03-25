@@ -3,6 +3,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int putchar(int c);
 int puts(const char *s);
 
@@ -66,5 +70,8 @@ int fclose(FILE *fp);
 int fseek(FILE *stream, long offset, int whence);
 long ftell(FILE *stream);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __STDIO_H */

@@ -1,6 +1,10 @@
 #ifndef __FLOAT_H
 #define __FLOAT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FLT_EVAL_METHOD __FLT_EVAL_METHOD__
 #define FLT_ROUNDS (__builtin_flt_rounds())
 #define FLT_RADIX __FLT_RADIX__
@@ -46,5 +50,9 @@
 #define FLT_TRUE_MIN __FLT_DENORM_MIN__
 #define DBL_TRUE_MIN __DBL_DENORM_MIN__
 #define LDBL_TRUE_MIN __LDBL_DENORM_MIN__
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __FLOAT_H */

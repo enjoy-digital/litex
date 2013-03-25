@@ -1,6 +1,10 @@
 #ifndef __LIMITS_H
 #define __LIMITS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ULONG_MAX 0xffffffff
 
 #define UINT_MAX 0xffffffff
@@ -14,5 +18,9 @@
 #define UCHAR_MAX 0xff
 
 #define CHAR_BIT 8
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __LIMITS_H */

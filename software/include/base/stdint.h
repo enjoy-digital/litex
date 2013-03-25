@@ -1,6 +1,10 @@
 #ifndef __STDINT_H
 #define __STDINT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef unsigned int uintptr_t;
 
 typedef unsigned long long uint64_t;
@@ -21,5 +25,9 @@ typedef char int8_t;
 #define UINT64_C(v) __uint_c(v, LL)
 #define INT32_C(v) v
 #define UINT32_C(v) v##U
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __STDINT_H */

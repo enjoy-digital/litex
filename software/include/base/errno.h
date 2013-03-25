@@ -1,6 +1,10 @@
 #ifndef __ERRNO_H
 #define __ERRNO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int errno;
 
 #define EPERM               1
@@ -249,5 +253,9 @@ extern int errno;
 #define ENOMEDIUM_STR       "No medium found"
 #define EMEDIUMTYPE         124
 #define EMEDIUMTYPE_STR     "Wrong medium type"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __ERRNO_H */

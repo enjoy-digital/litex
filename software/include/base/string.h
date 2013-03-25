@@ -21,6 +21,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 char *strchr(const char *s, int c);
 char *strpbrk(const char *,const char *);
 char *strrchr(const char *s, int c);
@@ -42,5 +46,9 @@ char *strstr(const char *s1, const char *s2);
 void *memchr(const void *s, int c, size_t n);
 
 char *strerror(int errnum);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __STRING_H */

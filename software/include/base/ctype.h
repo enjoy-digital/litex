@@ -1,6 +1,10 @@
 #ifndef __CTYPE_H
 #define __CTYPE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * NOTE! This ctype does not handle EOF like the standard C
  * library is required to.
@@ -51,5 +55,9 @@ static inline unsigned char __toupper(unsigned char c)
 
 #define tolower(c) __tolower(c)
 #define toupper(c) __toupper(c)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __CTYPE_H */

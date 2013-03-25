@@ -1,6 +1,10 @@
 #ifndef __IRQ_H
 #define __IRQ_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline unsigned int irq_getie(void)
 {
        unsigned int ie;
@@ -31,5 +35,9 @@ static inline unsigned int irq_pending(void)
        __asm__ __volatile__("rcsr %0, IP" : "=r" (pending));
        return pending;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __IRQ_H */
