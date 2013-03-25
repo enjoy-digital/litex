@@ -113,20 +113,20 @@ class BankArray:
 					mapaddr = self.address_map(name, memory)
 					mmap = csr.SRAM(memory, mapaddr)
 					registers += mmap.get_registers()
-					self.srams.append(mmap)
+					self.srams.append((name, memory, mmap))
 			if registers:
 				mapaddr = self.address_map(name, None)
 				rmap = Bank(registers, mapaddr)
-				self.banks.append(rmap)
+				self.banks.append((name, rmap))
 
-	def get_banks(self):
-		return self.banks
+	def get_rmaps(self):
+		return [rmap for name, rmap in self.banks]
 
-	def get_srams(self):
-		return self.srams
+	def get_mmaps(self):
+		return [mmap for name, memory, mmap in self.srams]
 
 	def get_buses(self):
-		return [i.bus for i in self.banks + self.srams]
+		return [i.bus for i in self.get_rmaps() + self.get_mmaps()]
 
 	def get_fragment(self):
-		return sum([i.get_fragment() for i in self.banks + self.srams], Fragment())
+		return sum([i.get_fragment() for i in self.get_rmaps() + self.get_mmaps()], Fragment())
