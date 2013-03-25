@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <system.h>
 #include <crc.h>
-#include <hw/minimac.h>
+#include <timer.h>
+#include <hw/csr.h>
+#include <hw/flags.h>
+#include <hw/mem.h>
 
 #include "microudp.h"
 
@@ -93,11 +96,11 @@ typedef union {
 } ethernet_buffer;
 
 
-static int rxlen;
+static unsigned int rxlen;
 static ethernet_buffer *rxbuffer;
 static ethernet_buffer *rxbuffer0;
 static ethernet_buffer *rxbuffer1;
-static int txlen;
+static unsigned int txlen;
 static ethernet_buffer *txbuffer;
 
 static void send_packet(void)
@@ -110,11 +113,10 @@ static void send_packet(void)
 	txbuffer->raw[txlen+2] = (crc & 0xff0000) >> 16;
 	txbuffer->raw[txlen+3] = (crc & 0xff000000) >> 24;
 	txlen += 4;
-	CSR_MINIMAC_TXCOUNTH = (txlen & 0xff00) >> 8;
-	CSR_MINIMAC_TXCOUNTL = txlen & 0x00ff;
-	CSR_MINIMAC_TXSTART = 1;
-	while(!(CSR_MINIMAC_EV_PENDING & MINIMAC_EV_TX));
-	CSR_MINIMAC_EV_PENDING = MINIMAC_EV_TX;
+	minimac_tx_count_write(txlen);
+	minimac_tx_start_write(1);
+	while(!(minimac_ev_pending_read() & MINIMAC_EV_TX));
+	minimac_ev_pending_write(MINIMAC_EV_TX);
 }
 
 static unsigned char my_mac[6];
@@ -215,7 +217,7 @@ int microudp_arp_resolve(unsigned int ip)
 static unsigned short ip_checksum(unsigned int r, void *buffer, unsigned int length, int complete)
 {
 	unsigned char *ptr;
-	int i;
+	unsigned int i;
 
 	ptr = (unsigned char *)buffer;
 	length >>= 1;
@@ -349,7 +351,7 @@ void microudp_start(unsigned char *macaddr, unsigned int ip)
 {
 	int i;
 
-	CSR_MINIMAC_EV_PENDING = MINIMAC_EV_RX0 | MINIMAC_EV_RX1 | MINIMAC_EV_TX;
+	minimac_ev_pending_write(MINIMAC_EV_RX0 | MINIMAC_EV_RX1 | MINIMAC_EV_TX);
 	
 	rxbuffer0 = (ethernet_buffer *)MINIMAC_RX0_BASE;
 	rxbuffer1 = (ethernet_buffer *)MINIMAC_RX1_BASE;
@@ -368,16 +370,27 @@ void microudp_start(unsigned char *macaddr, unsigned int ip)
 
 void microudp_service(void)
 {
-	if(CSR_MINIMAC_EV_PENDING & MINIMAC_EV_RX0) {
-		rxlen = (CSR_MINIMAC_RXCOUNT0H << 8) | CSR_MINIMAC_RXCOUNT0L;
+	if(minimac_ev_pending_read() & MINIMAC_EV_RX0) {
+		rxlen = minimac_rx_count_0_read();
 		rxbuffer = rxbuffer0;
 		process_frame();
-		CSR_MINIMAC_EV_PENDING = MINIMAC_EV_RX0;
+		minimac_ev_pending_write(MINIMAC_EV_RX0);
 	}
-	if(CSR_MINIMAC_EV_PENDING & MINIMAC_EV_RX1) {
-		rxlen = (CSR_MINIMAC_RXCOUNT1H << 8) | CSR_MINIMAC_RXCOUNT1L;
+	if(minimac_ev_pending_read() & MINIMAC_EV_RX1) {
+		rxlen = minimac_rx_count_1_read();
 		rxbuffer = rxbuffer1;
 		process_frame();
-		CSR_MINIMAC_EV_PENDING = MINIMAC_EV_RX1;
+		minimac_ev_pending_write(MINIMAC_EV_RX1);
 	}
+}
+
+void ethreset(void)
+{
+	minimac_phy_reset_write(0);
+	busy_wait(2);
+	/* that pesky ethernet PHY needs two resets at times... */
+	minimac_phy_reset_write(1);
+	busy_wait(2);
+	minimac_phy_reset_write(0);
+	busy_wait(2);
 }

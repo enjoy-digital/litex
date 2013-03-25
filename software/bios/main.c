@@ -11,11 +11,11 @@
 #include <timer.h>
 
 #include <hw/mem.h>
-#include <hw/minimac.h>
 
 #include "sdram.h"
 #include "dataflow.h"
 #include "boot.h"
+#include "microudp.h"
 
 enum {
 	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,
@@ -401,17 +401,6 @@ static void crcbios(void)
 		printf("BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
 		printf("The system will continue, but expect problems.\n");
 	}
-}
-
-static void ethreset(void)
-{
-	CSR_MINIMAC_PHYRST = 0;
-	busy_wait(2);
-	/* that pesky ethernet PHY needs two resets at times... */
-	CSR_MINIMAC_PHYRST = 1;
-	busy_wait(2);
-	CSR_MINIMAC_PHYRST = 0;
-	busy_wait(2);
 }
 
 static void print_mac(void)

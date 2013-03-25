@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <hw/dfii.h>
+#include <hw/csr.h>
+#include <hw/flags.h>
 #include <hw/mem.h>
-#include <csrbase.h>
 
 #include "sdram.h"
 
@@ -15,24 +15,16 @@ static void cdelay(int i)
 	}
 }
 
-static void setaddr(int a)
-{
-	CSR_DFII_AH_P0 = (a & 0xff00) >> 8;
-	CSR_DFII_AL_P0 = a & 0x00ff;
-	CSR_DFII_AH_P1 = (a & 0xff00) >> 8;
-	CSR_DFII_AL_P1 = a & 0x00ff;
-}
-
 static void command_p0(int cmd)
 {
-	CSR_DFII_COMMAND_P0 = cmd;
-	CSR_DFII_COMMAND_ISSUE_P0 = 1;
+	dfii_pi0_command_write(cmd);
+	dfii_pi0_command_issue_write(1);
 }
 
 static void command_p1(int cmd)
 {
-	CSR_DFII_COMMAND_P1 = cmd;
-	CSR_DFII_COMMAND_ISSUE_P1 = 1;
+	dfii_pi1_command_write(cmd);
+	dfii_pi1_command_issue_write(1);
 }
 
 static void init_sequence(void)
@@ -40,51 +32,51 @@ static void init_sequence(void)
 	int i;
 	
 	/* Bring CKE high */
-	setaddr(0x0000);
-	CSR_DFII_BA_P0 = 0;
-	CSR_DFII_CONTROL = DFII_CONTROL_CKE;
+	dfii_pi0_address_write(0x0000);
+	dfii_pi0_baddress_write(0);
+	dfii_control_write(DFII_CONTROL_CKE);
 	
 	/* Precharge All */
-	setaddr(0x0400);
+	dfii_pi0_address_write(0x0400);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	
 	/* Load Extended Mode Register */
-	CSR_DFII_BA_P0 = 1;
-	setaddr(0x0000);
+	dfii_pi0_baddress_write(1);
+	dfii_pi0_address_write(0x0000);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	CSR_DFII_BA_P0 = 0;
+	dfii_pi0_baddress_write(0);
 	
 	/* Load Mode Register */
-	setaddr(0x0132); /* Reset DLL, CL=3, BL=4 */
+	dfii_pi0_address_write(0x0132); /* Reset DLL, CL=3, BL=4 */
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(200);
 	
 	/* Precharge All */
-	setaddr(0x0400);
+	dfii_pi0_address_write(0x0400);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	
 	/* 2x Auto Refresh */
 	for(i=0;i<2;i++) {
-		setaddr(0);
+		dfii_pi0_address_write(0);
 		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_CS);
 		cdelay(4);
 	}
 	
 	/* Load Mode Register */
-	setaddr(0x0032); /* CL=3, BL=4 */
+	dfii_pi0_address_write(0x0032); /* CL=3, BL=4 */
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(200);
 }
 
 void ddrsw(void)
 {
-	CSR_DFII_CONTROL = DFII_CONTROL_CKE;
+	dfii_control_write(DFII_CONTROL_CKE);
 	printf("DDR now under software control\n");
 }
 
 void ddrhw(void)
 {
-	CSR_DFII_CONTROL = DFII_CONTROL_SEL|DFII_CONTROL_CKE;
+	dfii_control_write(DFII_CONTROL_SEL|DFII_CONTROL_CKE);
 	printf("DDR now under hardware control\n");
 }
 
@@ -94,8 +86,8 @@ void ddrrow(char *_row)
 	unsigned int row;
 	
 	if(*_row == 0) {
-		setaddr(0x0000);
-		CSR_DFII_BA_P0 = 0;
+		dfii_pi0_address_write(0x0000);
+		dfii_pi0_baddress_write(0);
 		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 		cdelay(15);
 		printf("Precharged\n");
@@ -105,8 +97,8 @@ void ddrrow(char *_row)
 			printf("incorrect row\n");
 			return;
 		}
-		setaddr(row);
-		CSR_DFII_BA_P0 = 0;
+		dfii_pi0_address_write(row);
+		dfii_pi0_baddress_write(0);
 		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
 		cdelay(15);
 		printf("Activated row %d\n", row);
@@ -129,8 +121,8 @@ void ddrrd(char *startaddr)
 		return;
 	}
 	
-	setaddr(addr);
-	CSR_DFII_BA_P0 = 0;
+	dfii_pi0_address_write(addr);
+	dfii_pi0_baddress_write(0);
 	command_p0(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
 	
@@ -162,8 +154,8 @@ void ddrwr(char *startaddr)
 		MMPTR(0xe0000864+4*i) = 0xf0 + i;
 	}
 	
-	setaddr(addr);
-	CSR_DFII_BA_P1 = 0;
+	dfii_pi1_address_write(addr);
+	dfii_pi1_baddress_write(0);
 	command_p1(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
 }
 
@@ -211,7 +203,7 @@ int ddrinit(void)
 	printf("Initializing DDR SDRAM...\n");
 	
 	init_sequence();
-	CSR_DFII_CONTROL = DFII_CONTROL_SEL|DFII_CONTROL_CKE;
+	dfii_control_write(DFII_CONTROL_SEL|DFII_CONTROL_CKE);
 	if(!memtest())
 		return 0;
 	

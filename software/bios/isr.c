@@ -1,5 +1,4 @@
-#include <hw/uart.h>
-#include <interrupt.h>
+#include <hw/csr.h>
 #include <irq.h>
 #include <uart.h>
 

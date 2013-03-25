@@ -1,5 +1,6 @@
 from fractions import Fraction
 from math import ceil
+from operator import itemgetter
 
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
@@ -8,7 +9,7 @@ from migen.bank import csrgen
 
 from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
 	identifier, timer, minimac3, framebuffer, asmiprobe, dvisampler
-from cmacros import get_macros
+from cif import get_macros
 
 MHz = 1000000
 clk_freq = (83 + Fraction(1, 3))*MHz
@@ -46,24 +47,30 @@ sdram_timing = asmicon.TimingSettings(
 	write_time=16
 )
 
-csr_macros = get_macros("common/csrbase.h")
-def csr_offset(name):
-	base = int(csr_macros[name + "_BASE"], 0)
-	assert((base >= 0xe0000000) and (base <= 0xe0010000))
-	return (base - 0xe0000000)//0x800
-
-interrupt_macros = get_macros("common/interrupt.h")
-def interrupt_n(name):
-	return int(interrupt_macros[name + "_INTERRUPT"], 0)
-
 version = get_macros("common/version.h")["VERSION"][1:-1]
 
-def csr_address_map(name, memory):
-	if memory is not None:
-		name += "_" + memory.name_override
-	return csr_offset(name.upper())
-
 class SoC(Module):
+	csr_base = 0xe0000000
+	csr_map = {
+		"uart":					0,
+		"dfii":					1,
+		"identifier":			2,
+		"timer0":				3,
+		"minimac":				4,
+		"fb":					5,
+		"asmiprobe":			6,
+		"dvisampler0":			7,
+		"dvisampler0_edid_mem":	8,
+		"dvisampler1":			9,
+		"dvisampler1_edid_mem":	10,
+	}
+
+	interrupt_map = {
+		"uart":			0,
+		"timer0":		1,
+		"minimac":		2,
+	}
+
 	def __init__(self):
 		#
 		# ASMI
@@ -122,17 +129,15 @@ class SoC(Module):
 		self.submodules.dvisampler0 = dvisampler.DVISampler("02")
 		self.submodules.dvisampler1 = dvisampler.DVISampler("02")
 
-		self.submodules.csrbankarray = csrgen.BankArray(self, csr_address_map)
+		self.submodules.csrbankarray = csrgen.BankArray(self,
+			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
 		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
 
 		#
 		# Interrupts
 		#
-		self.comb += [
-			self.cpu.interrupt[interrupt_n("UART")].eq(self.uart.ev.irq),
-			self.cpu.interrupt[interrupt_n("TIMER0")].eq(self.timer0.ev.irq),
-			self.cpu.interrupt[interrupt_n("MINIMAC")].eq(self.minimac.ev.irq)
-		]
+		for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
+			self.comb += self.cpu.interrupt[v].eq(getattr(self, k).ev.irq)
 		
 		#
 		# Clocking

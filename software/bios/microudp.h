@@ -14,4 +14,6 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 void microudp_set_callback(udp_callback callback);
 void microudp_service(void);
 
+void ethreset(void);
+
 #endif /* __MICROUDP_H */

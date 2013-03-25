@@ -9,3 +9,4 @@ tools/bin2hex
 tools/flterm
 tools/mkmmimg
 tools/byteswap
+software/include/hw/csr.h

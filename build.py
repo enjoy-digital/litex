@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
 import os
+
 from mibuild.platforms import m1
+from mibuild.tools import write_to_file
+
 import top
+import cif
 
 def main():
 	plat = m1.Platform()
@@ -68,8 +72,10 @@ TIMESPEC "TSdviclk1" = PERIOD "GRPdviclk1" 26.7 ns HIGH 50%;
 		"lm32_dcache.v", "lm32_top.v", "lm32_debug.v", "lm32_jtag.v", "jtag_cores.v",
 		"jtag_tap_spartan6.v", "lm32_itlb.v", "lm32_dtlb.v")
 	plat.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
-	
+
 	plat.build_cmdline(soc)
+	csr_header = cif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
+	write_to_file("software/include/hw/csr.h", csr_header)
 
 if __name__ == "__main__":
 	main()

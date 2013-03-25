@@ -1,7 +1,7 @@
 #include <uart.h>
 #include <irq.h>
-#include <hw/uart.h>
-#include <interrupt.h>
+#include <hw/csr.h>
+#include <hw/flags.h>
 
 /*
  * Buffer sizes must be a power of 2 so that modulos can be computed
@@ -28,23 +28,23 @@ void uart_isr(void)
 {
 	unsigned int stat;
 	
-	stat = CSR_UART_EV_PENDING;
+	stat = uart_ev_pending_read();
 
 	if(stat & UART_EV_RX) {
-		rx_buf[rx_produce] = CSR_UART_RXTX;
+		rx_buf[rx_produce] = uart_rxtx_read();
 		rx_produce = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
 	}
 
 	if(stat & UART_EV_TX) {
 		if(tx_level > 0) {
-			CSR_UART_RXTX = tx_buf[tx_consume];
+			uart_rxtx_write(tx_buf[tx_consume]);
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
 			tx_level--;
 		} else
 			tx_cts = 1;
 	}
 
-	CSR_UART_EV_PENDING = stat;
+	uart_ev_pending_write(stat);
 }
 
 /* Do not use in interrupt handlers! */
@@ -76,7 +76,7 @@ void uart_write(char c)
 
 	if(tx_cts) {
 		tx_cts = 0;
-		CSR_UART_RXTX = c;
+		uart_rxtx_write(c);
 	} else {
 		tx_buf[tx_produce] = c;
 		tx_produce = (tx_produce + 1) & UART_RINGBUFFER_MASK_TX;
@@ -97,12 +97,8 @@ void uart_init(void)
 	tx_cts = 1;
 	tx_level = 0;
 
-	/* ack any events */
-	CSR_UART_EV_PENDING = CSR_UART_EV_PENDING;
-
-	/* enable interrupts */
-	CSR_UART_EV_ENABLE = UART_EV_TX | UART_EV_RX;
-
+	uart_ev_pending_write(uart_ev_pending_read());
+	uart_ev_enable_write(UART_EV_TX | UART_EV_RX);
 	mask = irq_getmask();
 	mask |= 1 << UART_INTERRUPT;
 	irq_setmask(mask);

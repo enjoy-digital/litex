@@ -17,4 +17,8 @@
 
 #define SDRAM_BASE			0x40000000
 
+#define MINIMAC_RX0_BASE	0xb0000000
+#define MINIMAC_RX1_BASE	0xb0000800
+#define MINIMAC_TX_BASE		0xb0001000
+
 #endif /* __HW_MEM_H */
