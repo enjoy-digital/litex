@@ -19,6 +19,9 @@ class RegisterRaw(_Register):
 		self.r = Signal(self.size)
 		self.w = Signal(self.size)
 
+	def get_size(self):
+		return self.size
+
 (READ_ONLY, WRITE_ONLY, READ_WRITE) = range(3)
 
 class Field:
@@ -44,6 +47,9 @@ class RegisterFields(_Register):
 	def __init__(self, *fields, name=None):
 		_Register.__init__(self, name)
 		self.fields = fields
+
+	def get_size(self):
+		return sum(field.size for field in self.fields)
 
 class RegisterField(RegisterFields):
 	def __init__(self, size=1, access_bus=READ_WRITE, access_dev=READ_ONLY, reset=0, atomic_write=False, name=None):
