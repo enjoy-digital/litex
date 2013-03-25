@@ -13,10 +13,10 @@ _vbits = 11
 _bpp = 32
 _bpc = 10
 _pixel_layout = [
+	("pad", _bpp-3*_bpc),
 	("r", _bpc),
 	("g", _bpc),
-	("b", _bpc),
-	("pad", _bpp-3*_bpc)
+	("b", _bpc)
 ]
 
 _bpc_dac = 8
