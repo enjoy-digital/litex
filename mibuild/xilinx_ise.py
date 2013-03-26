@@ -24,10 +24,9 @@ class CRG_DS(Module):
 		self.clock_domains.cd_sys = ClockDomain()
 		self._clk = platform.request(clk_name)
 		if rst_invert:
-			rst_n = platform.request(rst_name)
-			self.comb += self.cd_sys.rst.eq(~rst_n)
+			self.comb += self.cd_sys.rst.eq(~platform.request(rst_name))
 		else:
-			platform.request(rst_name, None, self.cd_sys.rst)
+			self.comb += self.cd_sys.rst.eq(platform.request(rst_name))
 		_add_period_constraint(platform, self._clk.p, period)
 		self.specials += Instance("IBUFGDS",
 			Instance.Input("I", self._clk.p),
