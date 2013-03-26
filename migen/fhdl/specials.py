@@ -45,7 +45,7 @@ class Tristate(Special):
 			yield self, attr, target_context
 
 	@staticmethod
-	def emit_verilog(tristate, ns, clock_domains):
+	def emit_verilog(tristate, ns):
 		def pe(e):
 			return verilog_printexpr(ns, e)[0]
 		w, s = value_bits_sign(tristate.target)
@@ -109,7 +109,7 @@ class Instance(Special):
 				yield item, "expr", SPECIAL_INOUT
 
 	@staticmethod
-	def emit_verilog(instance, ns, clock_domains):
+	def emit_verilog(instance, ns):
 		r = instance.of + " "
 		parameters = list(filter(lambda i: isinstance(i, Instance.Parameter), instance.items))
 		if parameters:
@@ -161,7 +161,7 @@ class _MemoryPort:
 		self.re = re
 		self.we_granularity = we_granularity
 		self.mode = mode
-		self.clock_domain = clock_domain
+		self.clock = ClockSignal(clock_domain)
 
 class Memory(Special):
 	def __init__(self, width, depth, init=None, name=None):
@@ -205,21 +205,12 @@ class Memory(Special):
 			  ("we", SPECIAL_INPUT),
 			  ("dat_w", SPECIAL_INPUT),
 			  ("re", SPECIAL_INPUT),
-			  ("dat_r", SPECIAL_OUTPUT)]:
+			  ("dat_r", SPECIAL_OUTPUT),
+			  ("clock", SPECIAL_INPUT)]:
 				yield p, attr, target_context
 
-	def rename_clock_domain(self, old, new):
-		# port expressions are always signals - no need to call Special.rename_clock_domain
-		for port in self.ports:
-			if port.clock_domain == old:
-				port.clock_domain = new
-
-	def list_clock_domains(self):
-		# port expressions are always signals - no need to call Special.list_clock_domains
-		return set(port.clock_domain for port in self.ports)
-
 	@staticmethod
-	def emit_verilog(memory, ns, clock_domains):
+	def emit_verilog(memory, ns):
 		r = ""
 		gn = ns.get_name # usable instead of verilog_printexpr as ports contain only signals
 		adrbits = bits_for(memory.depth-1)
@@ -244,7 +235,7 @@ class Memory(Special):
 					data_regs[id(port)] = data_reg
 
 		for port in memory.ports:
-			r += "always @(posedge " + gn(clock_domains[port.clock_domain].clk) + ") begin\n"
+			r += "always @(posedge " + gn(port.clock) + ") begin\n"
 			if port.we is not None:
 				if port.we_granularity:
 					n = memory.width//port.we_granularity
@@ -299,7 +290,7 @@ class SynthesisDirective(Special):
 		self.signals = signals
 
 	@staticmethod
-	def emit_verilog(directive, ns, clock_domains):
+	def emit_verilog(directive, ns):
 		name_dict = dict((k, ns.get_name(sig)) for k, sig in directive.signals.items())
 		formatted = directive.template.format(**name_dict)
 		return "// synthesis " + formatted + "\n"

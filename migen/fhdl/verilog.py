@@ -233,10 +233,10 @@ def _lower_specials(overrides, specials):
 			lowered_specials.add(special)
 	return f, lowered_specials
 
-def _printspecials(overrides, specials, ns, clock_domains):
+def _printspecials(overrides, specials, ns):
 	r = ""
 	for special in sorted(specials, key=lambda x: x.huid):
-		pr = _call_special_classmethod(overrides, special, "emit_verilog", ns, clock_domains)
+		pr = _call_special_classmethod(overrides, special, "emit_verilog", ns)
 		if pr is None:
 			raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
 		r += pr
@@ -289,7 +289,7 @@ def convert(f, ios=None, name="top",
 	r += _printheader(f, ios, name, ns)
 	r += _printcomb(f, ns, display_run)
 	r += _printsync(f, ns)
-	r += _printspecials(special_overrides, f.specials - lowered_specials, ns, f.clock_domains)
+	r += _printspecials(special_overrides, f.specials - lowered_specials, ns)
 	r += _printinit(f, ios, ns)
 	r += "endmodule\n"
 
