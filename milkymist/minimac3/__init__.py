@@ -8,20 +8,7 @@ from migen.bus import wishbone
 _count_width = 11
 
 class MiniMAC(Module, AutoReg):
-	def __init__(self):
-		# PHY signals
-		self.phy_tx_clk = Signal()
-		self.phy_tx_data = Signal(4)
-		self.phy_tx_en = Signal()
-		self.phy_tx_er = Signal()
-		self.phy_rx_clk = Signal()
-		self.phy_rx_data = Signal(4)
-		self.phy_dv = Signal()
-		self.phy_rx_er = Signal()
-		self.phy_col = Signal()
-		self.phy_crs = Signal()
-		self.phy_rst_n = Signal()
-		
+	def __init__(self, pads):
 		# CPU interface
 		self._phy_reset = RegisterField(reset=1)
 		self._rx_count_0 = RegisterField(_count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
@@ -48,7 +35,7 @@ class MiniMAC(Module, AutoReg):
 		rx_pending_0_r = Signal()
 		rx_pending_1_r = Signal()
 		self.comb += [
-			self.phy_rst_n.eq(~self._phy_reset.field.r),
+			pads.rst_n.eq(~self._phy_reset.field.r),
 			
 			rx_ready_0.eq(init | (rx_pending_0_r & ~rx_pending_0)),
 			rx_ready_1.eq(init | (rx_pending_1_r & ~rx_pending_1)),
@@ -85,12 +72,12 @@ class MiniMAC(Module, AutoReg):
 				Instance.Output("wb_ack_o", self.membus.ack),
 				
 				Instance.Input("phy_tx_clk", ClockSignal("eth_tx")),
-				Instance.Output("phy_tx_data", self.phy_tx_data),
-				Instance.Output("phy_tx_en", self.phy_tx_en),
-				Instance.Output("phy_tx_er", self.phy_tx_er),
+				Instance.Output("phy_tx_data", pads.tx_data),
+				Instance.Output("phy_tx_en", pads.tx_en),
+				Instance.Output("phy_tx_er", pads.tx_er),
 				Instance.Input("phy_rx_clk", ClockSignal("eth_rx")),
-				Instance.Input("phy_rx_data", self.phy_rx_data),
-				Instance.Input("phy_dv", self.phy_dv),
-				Instance.Input("phy_rx_er", self.phy_rx_er),
-				Instance.Input("phy_col", self.phy_col),
-				Instance.Input("phy_crs", self.phy_crs))
+				Instance.Input("phy_rx_data", pads.rx_data),
+				Instance.Input("phy_dv", pads.dv),
+				Instance.Input("phy_rx_er", pads.rx_er),
+				Instance.Input("phy_col", pads.col),
+				Instance.Input("phy_crs", pads.crs))

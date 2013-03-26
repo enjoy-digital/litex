@@ -11,8 +11,9 @@ from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
 	identifier, timer, minimac3, framebuffer, asmiprobe, dvisampler
 from cif import get_macros
 
-MHz = 1000000
-clk_freq = (83 + Fraction(1, 3))*MHz
+version = get_macros("common/version.h")["VERSION"][1:-1]
+
+clk_freq = (83 + Fraction(1, 3))*1000000
 sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
 
@@ -47,7 +48,19 @@ sdram_timing = asmicon.TimingSettings(
 	write_time=16
 )
 
-version = get_macros("common/version.h")["VERSION"][1:-1]
+class M1ClockPads:
+	def __init__(self, platform):
+		self.clk50 = platform.request("clk50")
+		self.trigger_reset = platform.request("user_btn", 1)
+		self.norflash_rst_n = platform.request("norflash_rst_n")
+		self.vga_clk = platform.request("vga_clock")
+		ddram_clock = platform.request("ddram_clock")
+		self.ddr_clk_p = ddram_clock.p
+		self.ddr_clk_n = ddram_clock.n
+		eth_clocks = platform.request("eth_clocks")
+		self.eth_phy_clk = eth_clocks.phy
+		self.eth_rx_clk = eth_clocks.rx
+		self.eth_tx_clk = eth_clocks.tx
 
 class SoC(Module):
 	csr_base = 0xe0000000
@@ -71,7 +84,7 @@ class SoC(Module):
 		"minimac":		2,
 	}
 
-	def __init__(self):
+	def __init__(self, platform):
 		#
 		# ASMI
 		#
@@ -83,7 +96,7 @@ class SoC(Module):
 		#
 		# DFI
 		#
-		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d)
+		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"))
 		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d,
 			sdram_phy.nphases)
 		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)
@@ -93,9 +106,9 @@ class SoC(Module):
 		# WISHBONE
 		#
 		self.submodules.cpu = lm32.LM32()
-		self.submodules.norflash = norflash.NorFlash(25, 12)
+		self.submodules.norflash = norflash.NorFlash(platform.request("norflash"), 12)
 		self.submodules.sram = wishbone.SRAM(sram_size)
-		self.submodules.minimac = minimac3.MiniMAC()
+		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
 		self.submodules.wishbone2asmi = wishbone2asmi.WB2ASMI(l2_size//4, asmiport_wb)
 		self.submodules.wishbone2csr = wishbone2csr.WB2CSR()
 		
@@ -121,13 +134,13 @@ class SoC(Module):
 		#
 		# CSR
 		#
-		self.submodules.uart = uart.UART(clk_freq, baud=115200)
+		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(0x4D31, version, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
-		self.submodules.fb = framebuffer.Framebuffer(asmiport_fb)
+		self.submodules.fb = framebuffer.Framebuffer(platform.request("vga"), asmiport_fb)
 		self.submodules.asmiprobe = asmiprobe.ASMIprobe(self.asmicon.hub)
-		self.submodules.dvisampler0 = dvisampler.DVISampler("02")
-		self.submodules.dvisampler1 = dvisampler.DVISampler("02")
+		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0))
+		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1))
 
 		self.submodules.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
@@ -142,7 +155,7 @@ class SoC(Module):
 		#
 		# Clocking
 		#
-		self.submodules.crg = m1crg.M1CRG(50*MHz, clk_freq)
+		self.submodules.crg = m1crg.M1CRG(M1ClockPads(platform), clk_freq)
 		self.comb += [
 			self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
 			self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)

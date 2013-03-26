@@ -18,10 +18,7 @@ _default_edid = [
 ]
 
 class EDID(Module, AutoReg):
-	def __init__(self, default=_default_edid):
-		self.scl = Signal()
-		self.sda = Signal()
-
+	def __init__(self, pads, default=_default_edid):
 		self.specials.mem = Memory(8, 128, init=default)
 
 		###
@@ -33,9 +30,9 @@ class EDID(Module, AutoReg):
 		_sda_i_async = Signal()
 		self.sync += _sda_drv_reg.eq(sda_drv)
 		self.specials += [
-			MultiReg(self.scl, scl_i, "sys"),
-			Tristate(self.sda, 0, _sda_drv_reg, _sda_i_async),
-			MultiReg(_sda_i_async, sda_i, "sys")
+			MultiReg(pads.scl, scl_i),
+			Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
+			MultiReg(_sda_i_async, sda_i)
 		]
 
 		# FIXME: understand what is really going on here and get rid of that workaround

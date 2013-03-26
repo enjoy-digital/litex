@@ -5,7 +5,7 @@ from migen.bank.description import *
 from migen.bank.eventmanager import *
 
 class UART(Module, AutoReg):
-	def __init__(self, clk_freq, baud=115200):
+	def __init__(self, pads, clk_freq, baud=115200):
 		self._rxtx = RegisterRaw(8)
 		self._divisor = RegisterField(16, reset=int(clk_freq/baud/16))
 		
@@ -13,11 +13,10 @@ class UART(Module, AutoReg):
 		self.ev.tx = EventSourceLevel()
 		self.ev.rx = EventSourcePulse()
 		self.ev.finalize()
-
-		self.tx = Signal(reset=1)
-		self.rx = Signal()
 	
 		###
+
+		pads.tx.reset = 1
 
 		enable16 = Signal()
 		enable16_counter = Signal(16)
@@ -39,18 +38,18 @@ class UART(Module, AutoReg):
 				tx_bitcount.eq(0),
 				tx_count16.eq(1),
 				tx_busy.eq(1),
-				self.tx.eq(0)
+				pads.tx.eq(0)
 			).Elif(enable16 & tx_busy,
 				tx_count16.eq(tx_count16 + 1),
 				If(tx_count16 == 0,
 					tx_bitcount.eq(tx_bitcount + 1),
 					If(tx_bitcount == 8,
-						self.tx.eq(1)
+						pads.tx.eq(1)
 					).Elif(tx_bitcount == 9,
-						self.tx.eq(1),
+						pads.tx.eq(1),
 						tx_busy.eq(0)
 					).Else(
-						self.tx.eq(tx_reg[0]),
+						pads.tx.eq(tx_reg[0]),
 						tx_reg.eq(Cat(tx_reg[1:], 0))
 					)
 				)
@@ -59,7 +58,7 @@ class UART(Module, AutoReg):
 		
 		# RX
 		rx = Signal()
-		self.specials += MultiReg(self.rx, rx, "sys")
+		self.specials += MultiReg(pads.rx, rx)
 		rx_r = Signal()
 		rx_reg = Signal(8)
 		rx_bitcount = Signal(4)

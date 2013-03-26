@@ -161,7 +161,7 @@ def sim_fifo_gen():
 			+ " " + str(t.value["r"]) + " " + str(t.value["g"]) + " " + str(t.value["b"]))
 
 class Framebuffer(Module):
-	def __init__(self, asmiport, simulation=False):
+	def __init__(self, pads, asmiport, simulation=False):
 		asmi_bits = asmiport.hub.aw
 		alignment_bits = bits_for(asmiport.hub.dw//8) - 1
 		length_bits = _hbits + _vbits + 2 - alignment_bits
@@ -197,23 +197,16 @@ class Framebuffer(Module):
 		
 		self._registers = fi.get_registers() + self._comp_actor.get_registers()
 		
-		# Pads
-		self.vga_psave_n = Signal()
+		# Drive pads
 		if not simulation:
-			self.vga_hsync_n = fifo.vga_hsync_n
-			self.vga_vsync_n = fifo.vga_vsync_n
-		self.vga_sync_n = Signal()
-		self.vga_blank_n = Signal()
-		if not simulation:
-			self.vga_r = fifo.vga_r
-			self.vga_g = fifo.vga_g
-			self.vga_b = fifo.vga_b
-
-		self.comb += [
-			self.vga_sync_n.eq(0),
-			self.vga_psave_n.eq(1),
-			self.vga_blank_n.eq(1)
-		]
+			self.comb += [
+				pads.hsync_n.eq(fifo.vga_hsync_n),
+				pads.vsync_n.eq(fifo.vga_vsync_n),
+				pads.r.eq(fifo.vga_r),
+				pads.g.eq(fifo.vga_g),
+				pads.b.eq(fifo.vga_b)
+			]
+		self.comb += pads.psave_n.eq(1)
 
 	def get_registers(self):
 		return self._registers

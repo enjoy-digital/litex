@@ -5,9 +5,7 @@ from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 
 class Clocking(Module, AutoReg):
-	def __init__(self):
-		self.clkin = Signal()
-
+	def __init__(self, pads):
 		self._r_pll_reset = RegisterField()
 		self._r_locked = RegisterField(1, READ_ONLY, WRITE_ONLY)
 
@@ -43,7 +41,7 @@ class Clocking(Module, AutoReg):
 			Instance.Output("CLKOUT3", pll_clk3),
 			Instance.Output("LOCKED", pll_locked),
 			Instance.Input("CLKFBIN", clkfbout),
-			Instance.Input("CLKIN", self.clkin),
+			Instance.Input("CLKIN", pads.clk),
 			Instance.Input("RST", self._r_pll_reset.field.r)
 		)
 
