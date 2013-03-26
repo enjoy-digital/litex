@@ -37,7 +37,7 @@ def _lookup(description, name, number):
 			return resource
 	raise ConstraintError("Resource not found: " + name + ":" + str(number))
 		
-def _resource_type(resource, name_map):
+def _resource_type(resource):
 	t = None
 	for element in resource[2:]:
 		if isinstance(element, Pins):
@@ -52,28 +52,8 @@ def _resource_type(resource, name_map):
 				if isinstance(c, Pins):
 					assert(n_bits is None)
 					n_bits = len(c.identifiers)
-			t.append((name_map(element.name), n_bits))
+			t.append((element.name, n_bits))
 	return t
-
-def _match(description, requests):
-	available = list(description)
-	matched = []
-	
-	# 1. Match requests for a specific number
-	for request in requests:
-		if request[1] is not None:
-			resource = _lookup(available, request[0], request[1])
-			available.remove(resource)
-			matched.append((resource, request[2], request[3]))
-			
-	# 2. Match requests for no specific number
-	for request in requests:
-		if request[1] is None:
-			resource = _lookup(available, request[0], request[1])
-			available.remove(resource)
-			matched.append((resource, request[2], request[3]))
-	
-	return matched
 
 def _separate_pins(constraints):
 	pins = None
@@ -88,51 +68,42 @@ def _separate_pins(constraints):
 	
 class ConstraintManager:
 	def __init__(self, description):
-		self.description = description
-		self.requests = []
+		self.available = list(description)
+		self.matched = []
 		self.platform_commands = []
-		self.io_signals = set()
 		
-	def request(self, name, number=None, obj=None, name_map=lambda s: s):
-		r = _lookup(self.description, name, number)
-		t = _resource_type(r, name_map)
-		
-		# If obj is None, then create it.
-		# If it already exists, do some sanity checking.
-		# Update io_signals at the same time.
-		if obj is None:
-			if isinstance(t, int):
-				obj = Signal(t, name_override=name_map(r[0]))
-				self.io_signals.add(obj)
-			else:
-				obj = Record(t, name=r[0])
-				for sig in obj.flatten():
-					self.io_signals.add(sig)
+	def request(self, name, number=None):
+		resource = _lookup(self.available, name, number)
+		rt = _resource_type(resource)		
+		if isinstance(rt, int):
+			obj = Signal(rt, name_override=resource[0])
 		else:
-			if isinstance(t, int):
-				assert(isinstance(obj, Signal) and obj.nbits == t)
-				self.io_signals.add(obj)
-			else:
-				for attr, nbits in t:
-					sig = getattr(obj, attr)
-					assert(isinstance(sig, Signal) and sig.nbits == nbits)
-					self.io_signals.add(sig)
-
-		# Register the request
-		self.requests.append((name, number, obj, name_map))
-		
+			obj = Record(rt, name=resource[0])
+		self.available.remove(resource)
+		self.matched.append((resource, obj))
 		return obj
+
+	def lookup_request(self, name, number=None):
+		for resource, obj in self.matched:
+			if resource[0] == name and (number is None or resource[1] == number):
+				return obj
+		raise ConstraintError("Resource not found: " + name + ":" + str(number))
 	
 	def add_platform_command(self, command, **signals):
 		self.platform_commands.append((command, signals))
 	
 	def get_io_signals(self):
-		return self.io_signals
+		r = set()
+		for resource, obj in self.matched:
+			if isinstance(obj, Signal):
+				r.add(obj)
+			else:
+				r.update(obj.flatten())
+		return r
 	
 	def get_sig_constraints(self):
 		r = []
-		matched = _match(self.description, self.requests)
-		for resource, obj, name_map in matched:
+		for resource, obj in self.matched:
 			name = resource[0]
 			number = resource[1]
 			has_subsignals = False
@@ -145,7 +116,7 @@ class ConstraintManager:
 			if has_subsignals:
 				for element in resource[2:]:
 					if isinstance(element, Subsignal):
-						sig = getattr(obj, name_map(element.name))
+						sig = getattr(obj, element.name)
 						pins, others = _separate_pins(top_constraints + element.constraints)
 						r.append((sig, pins, others, (name, number, element.name)))
 			else:
@@ -157,10 +128,10 @@ class ConstraintManager:
 		return self.platform_commands
 
 	def save(self):
-		return copy(self.requests), copy(self.platform_commands), copy(self.io_signals)
+		return copy(self.available), copy(self.matched), copy(self.platform_commands)
 
 	def restore(self, backup):
-		self.request, self.platform_commands, self.io_signals = backup
+		self.available, self.matched, self.platform_commands = backup
 
 class GenericPlatform:
 	def __init__(self, device, io, default_crg_factory=None, name=None):
@@ -174,6 +145,9 @@ class GenericPlatform:
 
 	def request(self, *args, **kwargs):
 		return self.constraint_manager.request(*args, **kwargs)
+
+	def lookup_request(self, *args, **kwargs):
+		return self.constraint_manager.lookup_request(*args, **kwargs)
 
 	def add_platform_command(self, *args, **kwargs):
 		return self.constraint_manager.add_platform_command(*args, **kwargs)
