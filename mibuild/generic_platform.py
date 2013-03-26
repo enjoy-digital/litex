@@ -31,6 +31,10 @@ class Subsignal:
 		self.name = name
 		self.constraints = list(constraints)
 
+class PlatformInfo:
+	def __init__(self, info):
+		self.info = info
+
 def _lookup(description, name, number):
 	for resource in description:
 		if resource[0] == name and (number is None or resource[1] == number):
@@ -79,6 +83,10 @@ class ConstraintManager:
 			obj = Signal(rt, name_override=resource[0])
 		else:
 			obj = Record(rt, name=resource[0])
+		for element in resource[2:]:
+			if isinstance(element, PlatformInfo):
+				obj.platform_info = element.info
+				break
 		self.available.remove(resource)
 		self.matched.append((resource, obj))
 		return obj

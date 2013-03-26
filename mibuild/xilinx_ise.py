@@ -46,7 +46,11 @@ def _format_constraint(c):
 		return c.misc
 
 def _format_ucf(signame, pin, others, resname):
-	fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
+	fmt_c = []
+	for c in [Pins(pin)] + others:
+		fc = _format_constraint(c)
+		if fc is not None:
+			fmt_c.append(fc)
 	fmt_r = resname[0] + ":" + str(resname[1])
 	if resname[2] is not None:
 		fmt_r += "." + resname[2]
