@@ -215,21 +215,20 @@ class Recorder:
 		self.rle = RLE(self.width, (2**(width-2)))
 		
 		# csr interface
-		self._rst = RegisterField("rst", reset=1)
-		self._rle = RegisterField("rle", reset=0)
-		self._arm = RegisterField("arm", reset=0)
-		self._done = RegisterField("done", reset=0, access_bus=READ_ONLY, 
+		self._r_rst = RegisterField(reset=1)
+		self._r_rle = RegisterField(reset=0)
+		self._r_arm = RegisterField(reset=0)
+		self._r_done = RegisterField(reset=0, access_bus=READ_ONLY, 
 									access_dev=WRITE_ONLY)
 		
-		self._size = RegisterField("size", self.depth_width, reset=1)
-		self._offset = RegisterField("offset", self.depth_width, reset=1)
+		self._r_size = RegisterField(self.depth_width, reset=1)
+		self._r_offset = RegisterField(self.depth_width, reset=1)
 		
-		self._pull_stb = RegisterField("pull_stb", reset=0)
-		self._pull_dat = RegisterField("pull_dat", self.width, reset=1, 
-										access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_pull_stb = RegisterField(reset=0)
+		self._r_pull_dat = RegisterField(self.width, reset=1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		
-		self.regs = [self._rst, self._rle, self._arm, self._done, self._size, self._offset,
-					self._pull_stb, self._pull_dat]
+		self.regs = [self._r_rst, self._r_rle, self._r_arm, self._r_done, self._r_size, self._r_offset,
+					self._r_pull_stb, self._r_pull_dat]
 		
 		# set address / interface
 		self.set_address(address)
@@ -248,22 +247,22 @@ class Recorder:
 		
 	def get_fragment(self):
 
-		_pull_stb_rising = RisingEdge(self._pull_stb.field.r)
+		_pull_stb_rising = RisingEdge(self._r_pull_stb.field.r)
 
 		# Bank <--> Storage / Sequencer
 		comb = [
-			self.sequencer.rst.eq(self._rst.field.r),
-			self.storage.rst.eq(self._rst.field.r),
+			self.sequencer.rst.eq(self._r_rst.field.r),
+			self.storage.rst.eq(self._r_rst.field.r),
 			
-			self.rle.enable.eq(self._rle.field.r),
-			self.sequencer.arm.eq(self._arm.field.r),
-			self.storage.offset.eq(self._offset.field.r),
-			self.storage.size.eq(self._size.field.r),
+			self.rle.enable.eq(self._r_rle.field.r),
+			self.sequencer.arm.eq(self._r_arm.field.r),
+			self.storage.offset.eq(self._r_offset.field.r),
+			self.storage.size.eq(self._r_size.field.r),
 
-			self._done.field.w.eq(~self.sequencer.enable),
+			self._r_done.field.w.eq(~self.sequencer.enable),
 			
 			self.storage.pull_stb.eq(_pull_stb_rising.o),
-			self._pull_dat.field.w.eq(self.storage.pull_dat)
+			self._r_pull_dat.field.w.eq(self.storage.pull_dat)
 			]
 		
 		# Storage <--> Sequencer <--> Trigger

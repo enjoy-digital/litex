@@ -16,22 +16,22 @@ class MiIo:
 		
 		if "I" in self.mode:
 			self.i = Signal(self.width)
-			self.ireg = description.RegisterField("i", self.width, READ_ONLY, WRITE_ONLY)
+			self._r_i = description.RegisterField(self.width, READ_ONLY, WRITE_ONLY)
 			
 		if "O" in self.mode:
 			self.o = Signal(self.width)
-			self.oreg = description.RegisterField("o", self.width)
+			self._r_o = description.RegisterField(self.width)
 			
-		self.bank = csrgen.Bank([self.oreg, self.ireg], address=self.address)
+		self.bank = csrgen.Bank([self._r_o, self._r_i], address=self.address)
 		
 	def get_fragment(self):
 		comb = []
 		
 		if "I" in self.mode:
-			comb += [self.ireg.field.w.eq(self.i)]
+			comb += [self._r_i.field.w.eq(self.i)]
 			
 		if "O" in self.mode:
-			comb += [self.o.eq(self.oreg.field.r)]
+			comb += [self.o.eq(self._r_o.field.r)]
 			
 		return Fragment(comb) + self.bank.get_fragment()
 	#

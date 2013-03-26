@@ -262,13 +262,13 @@ class Trigger:
 		
 		# generate ports csr registers fields
 		for port in self.ports:
-			rf = RegisterField(port.reg_p.name, port.reg_p.size, reset=0,
-							   access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+			rf = RegisterField(port.reg_p.size, reset=0, access_bus=WRITE_ONLY,
+								access_dev=READ_ONLY, name=port.reg_p.name)
 			setattr(self, port.reg_p.name, rf)
 		
 		# generate sum csr registers fields
-		self.sum_reg = RegisterField(self.sum.reg_p.name, self.sum.reg_p.size, reset=0,
-									 access_bus=WRITE_ONLY, access_dev=READ_ONLY)
+		self.sum_reg = RegisterField(self.sum.reg_p.size, reset=0, access_bus=WRITE_ONLY,
+								access_dev=READ_ONLY, name=self.sum.reg_p.name)
 
 		# generate registers
 		self.regs = list_regs(self.__dict__)

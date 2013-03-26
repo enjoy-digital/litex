@@ -44,7 +44,7 @@ rec_size	= 4096
 #   M I S C O P E    E X A M P L E
 #==============================================================================
 class SoC(Module):
-	def __init__(self):
+	def __init__(self, platform):
 		# MiIo
 		self.submodules.miio = miio.MiIo(MIIO_ADDR, 8, "IO")
 
@@ -57,6 +57,9 @@ class SoC(Module):
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
+		uart_pads = platform.request("serial")
+		self.comb += uart_pads.tx.eq(self.uart2csr.tx)
+		self.comb += self.uart2csr.rx.eq(uart_pads.rx)
 	
 		# Csr Interconnect
 		self.submodules.csrcon = csr.Interconnect(self.uart2csr.csr,
@@ -67,7 +70,7 @@ class SoC(Module):
 				])
 		
 		# Led
-		self.led = Signal(8)
+		self.led = platform.request("user_led", 0, 8)
 
 		# Misc
 		self.cnt = Signal(9)
