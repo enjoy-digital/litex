@@ -3,8 +3,9 @@ from fractions import Fraction
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
 from migen.fhdl.module import Module
+from migen.bank.description import *
 
-class M1CRG(Module):
+class M1CRG(Module, AutoReg):
 	def __init__(self, pads, outfreq1x):
 		self.clock_domains.cd_sys = ClockDomain()
 		self.clock_domains.cd_sys2x_270 = ClockDomain()
@@ -17,11 +18,21 @@ class M1CRG(Module):
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()
 
+		self._r_cmd_data = RegisterField(10)
+		self._r_send_cmd_data = RegisterRaw()
+		self._r_send_go = RegisterRaw()
+		self._r_status = RegisterField(3, READ_ONLY, WRITE_ONLY)
+
 		###
 		
 		infreq = 50*1000000
 		ratio = Fraction(outfreq1x)/Fraction(infreq)
 		in_period = float(Fraction(1000000000)/Fraction(infreq))
+
+		vga_progdata = Signal()
+		vga_progen = Signal()
+		vga_progdone = Signal()
+		vga_locked = Signal()
 
 		self.specials += Instance("m1crg",
 			Instance.Parameter("in_period", in_period),
@@ -48,4 +59,40 @@ class M1CRG(Module):
 			Instance.Output("ddr_clk_pad_p", pads.ddr_clk_p),
 			Instance.Output("ddr_clk_pad_n", pads.ddr_clk_n),
 			Instance.Output("eth_phy_clk_pad", pads.eth_phy_clk),
-			Instance.Output("vga_clk_pad", pads.vga_clk))
+			Instance.Output("vga_clk_pad", pads.vga_clk),
+
+			Instance.Input("vga_progclk", ClockSignal()),
+			Instance.Input("vga_progdata", vga_progdata),
+			Instance.Input("vga_progen", vga_progen),
+			Instance.Output("vga_progdone", vga_progdone),
+			Instance.Output("vga_locked", vga_locked))
+
+		remaining_bits = Signal(max=11)
+		transmitting = Signal()
+		self.comb += transmitting.eq(remaining_bits != 0)
+		sr = Signal(10)
+		self.sync += [
+			If(self._r_send_cmd_data.re,
+				remaining_bits.eq(10),
+				sr.eq(self._r_cmd_data.field.r)
+			).Elif(transmitting,
+				remaining_bits.eq(remaining_bits - 1),
+				sr.eq(sr[1:])
+			)
+		]
+		self.comb += [
+			vga_progdata.eq(transmitting & sr[0]),
+			vga_progen.eq(transmitting | self._r_send_go.re)
+		]
+
+		# enforce gap between commands
+		busy_counter = Signal(max=14)
+		busy = Signal()
+		self.comb += busy.eq(busy_counter != 0)
+		self.sync += If(self._r_send_cmd_data.re,
+				busy_counter.eq(13)
+			).Elif(busy,
+				busy_counter.eq(busy_counter - 1)
+			)
+
+		self.comb += self._r_status.field.w.eq(Cat(busy, vga_progdone, vga_locked))

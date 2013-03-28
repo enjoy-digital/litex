@@ -33,7 +33,14 @@ module m1crg #(
 	
 	/* VGA clock */
 	output vga_clk,		/* < buffered, to internal clock network */
-	output vga_clk_pad	/* < forwarded through ODDR2, to I/O */
+	output vga_clk_pad,	/* < forwarded through ODDR2, to I/O */
+
+	/* VGA clock control */
+	input vga_progclk,
+	input vga_progdata,
+	input vga_progen,
+	output vga_progdone,
+	output vga_locked
 );
 
 /*
@@ -257,7 +264,6 @@ assign eth_tx_clk = eth_tx_clk_pad;
  * VGA clock
  */
 
-// TODO: hook up the reprogramming interface
 DCM_CLKGEN #(
 	.CLKFXDV_DIVIDE(2),
 	.CLKFX_DIVIDE(4),
@@ -270,15 +276,15 @@ DCM_CLKGEN #(
 	.CLKFX(vga_clk),
 	.CLKFX180(),
 	.CLKFXDV(),
-	.LOCKED(),
-	.PROGDONE(),
 	.STATUS(),
 	.CLKIN(pllout4),
 	.FREEZEDCM(1'b0),
-	.PROGCLK(1'b0),
-	.PROGDATA(),
-	.PROGEN(1'b0),
-	.RST(1'b0)
+	.PROGCLK(vga_progclk),
+	.PROGDATA(vga_progdata),
+	.PROGEN(vga_progen),
+	.PROGDONE(vga_progdone),
+	.LOCKED(vga_locked),
+	.RST(~pll_lckd)
 );
 
 ODDR2 #(

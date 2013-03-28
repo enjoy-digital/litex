@@ -18,4 +18,8 @@
 #define MINIMAC_EV_RX1	0x2
 #define MINIMAC_EV_TX	0x4
 
+#define CLKGEN_STATUS_BUSY		0x1
+#define CLKGEN_STATUS_PROGDONE	0x2
+#define CLKGEN_STATUS_LOCKED	0x4
+
 #endif /* __HW_FLAGS_H */

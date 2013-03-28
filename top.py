@@ -65,17 +65,18 @@ class M1ClockPads:
 class SoC(Module):
 	csr_base = 0xe0000000
 	csr_map = {
-		"uart":					0,
-		"dfii":					1,
-		"identifier":			2,
-		"timer0":				3,
-		"minimac":				4,
-		"fb":					5,
-		"asmiprobe":			6,
-		"dvisampler0":			7,
-		"dvisampler0_edid_mem":	8,
-		"dvisampler1":			9,
-		"dvisampler1_edid_mem":	10,
+		"crg":					0,
+		"uart":					1,
+		"dfii":					2,
+		"identifier":			3,
+		"timer0":				4,
+		"minimac":				5,
+		"fb":					6,
+		"asmiprobe":			7,
+		"dvisampler0":			8,
+		"dvisampler0_edid_mem":	9,
+		"dvisampler1":			10,
+		"dvisampler1_edid_mem":	11,
 	}
 
 	interrupt_map = {
@@ -134,6 +135,7 @@ class SoC(Module):
 		#
 		# CSR
 		#
+		self.submodules.crg = m1crg.M1CRG(M1ClockPads(platform), clk_freq)
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(0x4D31, version, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
@@ -151,11 +153,10 @@ class SoC(Module):
 		#
 		for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
 			self.comb += self.cpu.interrupt[v].eq(getattr(self, k).ev.irq)
-		
+
 		#
 		# Clocking
 		#
-		self.submodules.crg = m1crg.M1CRG(M1ClockPads(platform), clk_freq)
 		self.comb += [
 			self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
 			self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
