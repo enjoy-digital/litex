@@ -267,7 +267,7 @@ assign eth_tx_clk = eth_tx_clk_pad;
 DCM_CLKGEN #(
 	.CLKFXDV_DIVIDE(2),
 	.CLKFX_DIVIDE(4),
-	.CLKFX_MD_MAX(2.0),
+	.CLKFX_MD_MAX(3.0),
 	.CLKFX_MULTIPLY(2),
 	.CLKIN_PERIOD(20.0),
 	.SPREAD_SPECTRUM("NONE"),
