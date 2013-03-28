@@ -91,7 +91,7 @@ class SoC(Module):
 		#
 		self.submodules.asmicon = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
 		asmiport_wb = self.asmicon.hub.get_port()
-		asmiport_fb = self.asmicon.hub.get_port(2)
+		asmiport_fb = self.asmicon.hub.get_port(3)
 		self.asmicon.finalize()
 		
 		#
