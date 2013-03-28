@@ -1,45 +1,54 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
 from migen.fhdl.module import Module
+from migen.genlib.record import Record
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.flow import plumbing
 from migen.actorlib import misc, dma_asmi, structuring, sim, spi
 
-_hbits = 11
+_hbits = 10
 _vbits = 11
 
 _bpp = 32
 _bpc = 10
-_pixel_layout = [
+_pixel_layout_s = [
 	("pad", _bpp-3*_bpc),
 	("r", _bpc),
 	("g", _bpc),
 	("b", _bpc)
 ]
+_pixel_layout = [
+	("p0", _pixel_layout_s),
+	("p1", _pixel_layout_s)
+]
 
 _bpc_dac = 8
+_dac_layout_s = [
+	("r", _bpc_dac),
+	("g", _bpc_dac),
+	("b", _bpc_dac)
+]
 _dac_layout = [
 	("hsync", 1),
 	("vsync", 1),
-	("r", _bpc_dac),
-	("g", _bpc_dac),
-	("b", _bpc_dac)	
+	("p0", _dac_layout_s),
+	("p1", _dac_layout_s)
 ]
 
 class _FrameInitiator(spi.SingleGenerator):
 	def __init__(self, asmi_bits, length_bits, alignment_bits):
 		layout = [
-			("hres", _hbits, 640),
-			("hsync_start", _hbits, 656),
-			("hsync_end", _hbits, 752),
-			("hscan", _hbits, 799),
+			("hres", _hbits, 640, 1),
+			("hsync_start", _hbits, 656, 1),
+			("hsync_end", _hbits, 752, 1),
+			("hscan", _hbits, 800, 1),
 			
 			("vres", _vbits, 480),
 			("vsync_start", _vbits, 492),
 			("vsync_end", _vbits, 494),
-			("vscan", _vbits, 524),
+			("vscan", _vbits, 525),
 			
 			("base", asmi_bits, 0, alignment_bits),
 			("length", length_bits, 640*480*4, alignment_bits)
@@ -74,9 +83,8 @@ class VTG(Module, Actor):
 		self.comb += [
 			active.eq(hactive & vactive),
 			If(active,
-				self.token("dac").r.eq(self.token("pixels").r[skip:]),
-				self.token("dac").g.eq(self.token("pixels").g[skip:]),
-				self.token("dac").b.eq(self.token("pixels").b[skip:])
+				[getattr(getattr(self.token("dac"), p), c).eq(getattr(getattr(self.token("pixels"), p), c)[skip:])
+					for p in ["p0", "p1"] for c in ["r", "g", "b"]]
 			),
 			
 			generate_en.eq(self.endpoints["timing"].stb & (~active | self.endpoints["pixels"].stb)),
@@ -122,9 +130,10 @@ class FIFO(Module, Actor):
 	
 		###
 
-		data_width = 2+3*_bpc_dac
+		data_width = 2+2*3*_bpc_dac
 		fifo_full = Signal()
 		fifo_write_en = Signal()
+		fifo_read_en = Signal()
 		fifo_data_out = Signal(data_width)
 		fifo_data_in = Signal(data_width)
 		self.specials += Instance("asfifo",
@@ -133,7 +142,7 @@ class FIFO(Module, Actor):
 	
 			Instance.Output("data_out", fifo_data_out),
 			Instance.Output("empty"),
-			Instance.Input("read_en", 1),
+			Instance.Input("read_en", fifo_read_en),
 			Instance.Input("clk_read", ClockSignal("vga")),
 
 			Instance.Input("data_in", fifo_data_in),
@@ -142,16 +151,32 @@ class FIFO(Module, Actor):
 			Instance.Input("clk_write", ClockSignal()),
 			
 			Instance.Input("rst", 0))
-		t = self.token("dac")
+		fifo_in = self.token("dac")
+		fifo_out = Record(_dac_layout)
 		self.comb += [
-			Cat(self.vga_hsync_n, self.vga_vsync_n, self.vga_r, self.vga_g, self.vga_b).eq(fifo_data_out),
-			
 			self.endpoints["dac"].ack.eq(~fifo_full),
 			fifo_write_en.eq(self.endpoints["dac"].stb),
-			fifo_data_in.eq(Cat(~t.hsync, ~t.vsync, t.r, t.g, t.b)),
-			
+			fifo_data_in.eq(Cat(*fifo_in.flatten())),
+			Cat(*fifo_out.flatten()).eq(fifo_data_out),
 			self.busy.eq(0)
 		]
+
+		pix_parity = Signal()
+		self.sync.vga += [
+			pix_parity.eq(~pix_parity),
+			self.vga_hsync_n.eq(~fifo_out.hsync),
+			self.vga_vsync_n.eq(~fifo_out.vsync),
+			If(pix_parity,
+				self.vga_r.eq(fifo_out.p1.r),
+				self.vga_g.eq(fifo_out.p1.g),
+				self.vga_b.eq(fifo_out.p1.b)
+			).Else(
+				self.vga_r.eq(fifo_out.p0.r),
+				self.vga_g.eq(fifo_out.p0.g),
+				self.vga_b.eq(fifo_out.p0.b)
+			)
+		]
+		self.comb += fifo_read_en.eq(pix_parity)
 
 def sim_fifo_gen():
 	while True:
@@ -165,7 +190,7 @@ class Framebuffer(Module):
 		asmi_bits = asmiport.hub.aw
 		alignment_bits = bits_for(asmiport.hub.dw//8) - 1
 		length_bits = _hbits + _vbits + 2 - alignment_bits
-		pack_factor = asmiport.hub.dw//_bpp
+		pack_factor = asmiport.hub.dw//(2*_bpp)
 		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
 		
 		fi = _FrameInitiator(asmi_bits, length_bits, alignment_bits)
