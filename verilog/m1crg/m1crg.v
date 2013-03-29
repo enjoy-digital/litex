@@ -284,7 +284,7 @@ DCM_CLKGEN #(
 	.PROGEN(vga_progen),
 	.PROGDONE(vga_progdone),
 	.LOCKED(vga_locked),
-	.RST(~pll_lckd)
+	.RST(~pll_lckd | sys_rst)
 );
 
 ODDR2 #(
