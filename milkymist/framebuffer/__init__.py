@@ -8,8 +8,8 @@ from migen.flow.transactions import *
 from migen.flow import plumbing
 from migen.actorlib import misc, dma_asmi, structuring, sim, spi
 
-_hbits = 10
-_vbits = 11
+_hbits = 11
+_vbits = 12
 
 _bpp = 32
 _bpc = 10
