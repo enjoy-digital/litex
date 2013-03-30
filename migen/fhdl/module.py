@@ -147,12 +147,12 @@ class Module:
 		self._submodules = []
 		return r
 
-	def finalize(self):
+	def finalize(self, *args, **kwargs):
 		if not self.finalized:
 			self.finalized = True
 			# finalize existing submodules before finalizing us
 			subfragments = self._collect_submodules()
-			self.do_finalize()
+			self.do_finalize(*args, **kwargs)
 			# finalize submodules created by do_finalize
 			subfragments += self._collect_submodules()
 			# resolve clock domain name conflicts
