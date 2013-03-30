@@ -8,12 +8,12 @@ from migen.bank.description import *
 
 from milkymist.dvisampler.common import channel_layout
 
-class ChanSync(Module, AutoReg):
+class ChanSync(Module, AutoCSR):
 	def __init__(self, nchan=3, depth=8):
 		self.valid_i = Signal()
 		self.chan_synced = Signal()
 
-		self._r_channels_synced = RegisterField(1, READ_ONLY, WRITE_ONLY)
+		self._r_channels_synced = CSRStatus()
 
 		lst_control_starts = []
 		all_control_starts = Signal()
@@ -49,4 +49,4 @@ class ChanSync(Module, AutoReg):
 		self.sync.pix += If(~self.valid_i,
 				self.chan_synced.eq(0)
 			).Elif(all_control_starts, self.chan_synced.eq(1))
-		self.specials += MultiReg(self.chan_synced, self._r_channels_synced.field.w)
+		self.specials += MultiReg(self.chan_synced, self._r_channels_synced.status)

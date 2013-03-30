@@ -15,16 +15,16 @@ def encode_version(version):
 		r |= int(rc)
 	return r
 
-class Identifier(Module, AutoReg):
+class Identifier(Module, AutoCSR):
 	def __init__(self, sysid, version, frequency):
-		self._r_sysid = RegisterField(16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_version = RegisterField(16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_frequency = RegisterField(32, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_sysid = CSRStatus(16)
+		self._r_version = CSRStatus(16)
+		self._r_frequency = CSRStatus(32)
 		
 		###
 
 		self.comb += [
-			self._r_sysid.field.w.eq(sysid),
-			self._r_version.field.w.eq(encode_version(version)),
-			self._r_frequency.field.w.eq(frequency)
+			self._r_sysid.status.eq(sysid),
+			self._r_version.status.eq(encode_version(version)),
+			self._r_frequency.status.eq(frequency)
 		]

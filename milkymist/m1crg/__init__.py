@@ -5,7 +5,7 @@ from migen.fhdl.specials import Instance
 from migen.fhdl.module import Module
 from migen.bank.description import *
 
-class M1CRG(Module, AutoReg):
+class M1CRG(Module, AutoCSR):
 	def __init__(self, pads, outfreq1x):
 		self.clock_domains.cd_sys = ClockDomain()
 		self.clock_domains.cd_sys2x_270 = ClockDomain()
@@ -18,10 +18,10 @@ class M1CRG(Module, AutoReg):
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()
 
-		self._r_cmd_data = RegisterField(10)
-		self._r_send_cmd_data = RegisterRaw()
-		self._r_send_go = RegisterRaw()
-		self._r_status = RegisterField(3, READ_ONLY, WRITE_ONLY)
+		self._r_cmd_data = CSRStorage(10)
+		self._r_send_cmd_data = CSR()
+		self._r_send_go = CSR()
+		self._r_status = CSRStatus(3)
 
 		###
 		
@@ -74,7 +74,7 @@ class M1CRG(Module, AutoReg):
 		self.sync += [
 			If(self._r_send_cmd_data.re,
 				remaining_bits.eq(10),
-				sr.eq(self._r_cmd_data.field.r)
+				sr.eq(self._r_cmd_data.storage)
 			).Elif(transmitting,
 				remaining_bits.eq(remaining_bits - 1),
 				sr.eq(sr[1:])
@@ -95,4 +95,4 @@ class M1CRG(Module, AutoReg):
 				busy_counter.eq(busy_counter - 1)
 			)
 
-		self.comb += self._r_status.field.w.eq(Cat(busy, vga_progdone, vga_locked))
+		self.comb += self._r_status.status.eq(Cat(busy, vga_progdone, vga_locked))

@@ -45,13 +45,13 @@ def _get_rw_functions(reg_name, reg_base, size):
 
 def get_csr_header(csr_base, bank_array, interrupt_map):
 	r = "#ifndef __HW_CSR_H\n#define __HW_CSR_H\n#include <hw/common.h>\n"
-	for name, rmap in bank_array.banks:
+	for name, csrs, mapaddr, rmap in bank_array.banks:
 		r += "\n/* "+name+" */\n"
-		reg_base = csr_base + 0x800*rmap.address
+		reg_base = csr_base + 0x800*mapaddr
 		r += "#define "+name.upper()+"_BASE "+hex(reg_base)+"\n"
-		for register in rmap.description:
-			nr = (register.get_size() + 7)//8
-			r += _get_rw_functions(name + "_" + register.name, reg_base, nr)
+		for csr in csrs:
+			nr = (csr.size + 7)//8
+			r += _get_rw_functions(name + "_" + csr.name, reg_base, nr)
 			reg_base += 4*nr
 		try:
 			interrupt_nr = interrupt_map[name]

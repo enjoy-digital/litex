@@ -4,7 +4,7 @@ from migen.fhdl.module import Module
 from migen.genlib.cdc import MultiReg
 from migen.genlib.fsm import FSM
 from migen.genlib.misc import chooser
-from migen.bank.description import AutoReg
+from migen.bank.description import AutoCSR
 
 _default_edid = [
 	0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x3D, 0x17, 0x32, 0x12, 0x2A, 0x6A, 0xBF, 0x00,
@@ -17,7 +17,7 @@ _default_edid = [
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
 ]
 
-class EDID(Module, AutoReg):
+class EDID(Module, AutoCSR):
 	def __init__(self, pads, default=_default_edid):
 		self.specials.mem = Memory(8, 128, init=default)
 

@@ -7,14 +7,14 @@ from migen.bus import wishbone
 
 _count_width = 11
 
-class MiniMAC(Module, AutoReg):
+class MiniMAC(Module, AutoCSR):
 	def __init__(self, pads):
 		# CPU interface
-		self._phy_reset = RegisterField(reset=1)
-		self._rx_count_0 = RegisterField(_count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._rx_count_1 = RegisterField(_count_width, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._tx_count = RegisterField(_count_width, access_dev=READ_WRITE)
-		self._tx_start = RegisterRaw()
+		self._phy_reset = CSRStorage(reset=1)
+		self._rx_count_0 = CSRStatus(_count_width)
+		self._rx_count_1 = CSRStatus(_count_width)
+		self._tx_count = CSRStorage(_count_width, write_from_dev=True)
+		self._tx_start = CSR()
 		
 		self.submodules.ev = EventManager()
 		self.ev.rx0 = EventSourcePulse()
@@ -35,13 +35,13 @@ class MiniMAC(Module, AutoReg):
 		rx_pending_0_r = Signal()
 		rx_pending_1_r = Signal()
 		self.comb += [
-			pads.rst_n.eq(~self._phy_reset.field.r),
+			pads.rst_n.eq(~self._phy_reset.storage),
 			
 			rx_ready_0.eq(init | (rx_pending_0_r & ~rx_pending_0)),
 			rx_ready_1.eq(init | (rx_pending_1_r & ~rx_pending_1)),
 			
-			self._tx_count.field.w.eq(0),
-			self._tx_count.field.we.eq(self.ev.tx.trigger)
+			self._tx_count.dat_w.eq(0),
+			self._tx_count.we.eq(self.ev.tx.trigger)
 		]
 		self.sync += [
 			rx_pending_0_r.eq(rx_pending_0),
@@ -52,14 +52,14 @@ class MiniMAC(Module, AutoReg):
 				Instance.Input("sys_rst", ResetSignal()),
 
 				Instance.Output("rx_done_0", self.ev.rx0.trigger),
-				Instance.Output("rx_count_0", self._rx_count_0.field.w),
+				Instance.Output("rx_count_0", self._rx_count_0.status),
 				Instance.Output("rx_done_1", self.ev.rx1.trigger),
-				Instance.Output("rx_count_1", self._rx_count_1.field.w),
+				Instance.Output("rx_count_1", self._rx_count_1.status),
 				Instance.Input("rx_ready_0", rx_ready_0),
 				Instance.Input("rx_ready_1", rx_ready_1),
 
 				Instance.Input("tx_start", self._tx_start.re),
-				Instance.Input("tx_count", self._tx_count.field.r),
+				Instance.Input("tx_count", self._tx_count.storage),
 				Instance.Output("tx_done", self.ev.tx.trigger),
 				
 				Instance.Input("wb_adr_i", self.membus.adr),

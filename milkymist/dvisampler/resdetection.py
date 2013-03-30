@@ -3,15 +3,15 @@ from migen.fhdl.module import Module
 from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 
-class ResolutionDetection(Module, AutoReg):
+class ResolutionDetection(Module, AutoCSR):
 	def __init__(self, nbits=10):
 		self.hsync = Signal()
 		self.vsync = Signal()
 		self.de = Signal()
 
-		self._hres = RegisterField(nbits, READ_ONLY, WRITE_ONLY)
-		self._vres = RegisterField(nbits, READ_ONLY, WRITE_ONLY)
-		self._de_cycles = RegisterField(2*nbits, READ_ONLY, WRITE_ONLY)
+		self._hres = CSRStatus(nbits)
+		self._vres = CSRStatus(nbits)
+		self._de_cycles = CSRStatus(2*nbits)
 
 		###
 
@@ -50,8 +50,8 @@ class ResolutionDetection(Module, AutoReg):
 			If(p_hsync & (hcounter != 0), hcounter_st.eq(hcounter)),
 			If(p_vsync & (vcounter != 0), vcounter_st.eq(vcounter))
 		]
-		self.specials += MultiReg(hcounter_st, self._hres.field.w)
-		self.specials += MultiReg(vcounter_st, self._vres.field.w)
+		self.specials += MultiReg(hcounter_st, self._hres.status)
+		self.specials += MultiReg(vcounter_st, self._vres.status)
 
 		# DE
 		de_r = Signal()
@@ -68,4 +68,4 @@ class ResolutionDetection(Module, AutoReg):
 
 		decounter_st = Signal(2*nbits)
 		self.sync.pix += If(pn_de, decounter_st.eq(decounter))
-		self.specials += MultiReg(decounter_st, self._de_cycles.field.w)
+		self.specials += MultiReg(decounter_st, self._de_cycles.status)

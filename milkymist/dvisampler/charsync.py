@@ -6,14 +6,14 @@ from migen.bank.description import *
 
 from milkymist.dvisampler.common import control_tokens
 
-class CharSync(Module, AutoReg):
+class CharSync(Module, AutoCSR):
 	def __init__(self, required_controls=8):
 		self.raw_data = Signal(10)
 		self.synced = Signal()
 		self.data = Signal(10)
 
-		self._r_char_synced = RegisterField(1, READ_ONLY, WRITE_ONLY)
-		self._r_ctl_pos = RegisterField(bits_for(9), READ_ONLY, WRITE_ONLY)
+		self._r_char_synced = CSRStatus()
+		self._r_ctl_pos = CSRStatus(bits_for(9))
 
 		###
 
@@ -48,7 +48,7 @@ class CharSync(Module, AutoReg):
 			),
 			previous_control_position.eq(control_position)
 		]
-		self.specials += MultiReg(self.synced, self._r_char_synced.field.w)
-		self.specials += MultiReg(word_sel, self._r_ctl_pos.field.w)
+		self.specials += MultiReg(self.synced, self._r_char_synced.status)
+		self.specials += MultiReg(word_sel, self._r_ctl_pos.status)
 
 		self.sync.pix += self.data.eq(raw >> word_sel)

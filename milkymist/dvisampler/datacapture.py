@@ -4,16 +4,16 @@ from migen.fhdl.specials import Instance
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.bank.description import *
 
-class DataCapture(Module, AutoReg):
+class DataCapture(Module, AutoCSR):
 	def __init__(self, ntbits, invert):
 		self.pad = Signal()
 		self.serdesstrobe = Signal()
 		self.d = Signal(10)
 
-		self._r_dly_ctl = RegisterRaw(4)
-		self._r_dly_busy = RegisterField(1, READ_ONLY, WRITE_ONLY)
-		self._r_phase = RegisterField(2, READ_ONLY, WRITE_ONLY)
-		self._r_phase_reset = RegisterRaw()
+		self._r_dly_ctl = CSR(4)
+		self._r_dly_busy = CSRStatus()
+		self._r_phase = CSRStatus(2)
+		self._r_phase_reset = CSR()
 
 		###
 
@@ -137,11 +137,11 @@ class DataCapture(Module, AutoReg):
 			self.do_delay_rst.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[1]),
 			self.do_delay_inc.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[2]),
 			self.do_delay_dec.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[3]),
-			self._r_dly_busy.field.w.eq(sys_delay_pending)
+			self._r_dly_busy.status.eq(sys_delay_pending)
 		]
 
 		# Phase detector control
-		self.specials += MultiReg(Cat(too_late, too_early), self._r_phase.field.w)
+		self.specials += MultiReg(Cat(too_late, too_early), self._r_phase.status)
 		self.submodules.do_reset_lateness = PulseSynchronizer("sys", "pix5x")
 		self.comb += [
 			reset_lateness.eq(self.do_reset_lateness.o),

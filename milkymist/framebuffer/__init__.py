@@ -220,7 +220,7 @@ class Framebuffer(Module):
 		g.add_connection(vtg, fifo)
 		self.submodules._comp_actor = CompositeActor(g, debugger=False)
 		
-		self._registers = fi.get_registers() + self._comp_actor.get_registers()
+		self._csrs = fi.get_csrs() + self._comp_actor.get_csrs()
 		
 		# Drive pads
 		if not simulation:
@@ -233,5 +233,5 @@ class Framebuffer(Module):
 			]
 		self.comb += pads.psave_n.eq(1)
 
-	def get_registers(self):
-		return self._registers
+	def get_csrs(self):
+		return self._csrs

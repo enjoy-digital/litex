@@ -4,10 +4,10 @@ from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 
-class UART(Module, AutoReg):
+class UART(Module, AutoCSR):
 	def __init__(self, pads, clk_freq, baud=115200):
-		self._rxtx = RegisterRaw(8)
-		self._divisor = RegisterField(16, reset=int(clk_freq/baud/16))
+		self._rxtx = CSR(8)
+		self._divisor = CSRStorage(16, reset=int(clk_freq/baud/16))
 		
 		self.submodules.ev = EventManager()
 		self.ev.tx = EventSourceLevel()
@@ -24,7 +24,7 @@ class UART(Module, AutoReg):
 		self.sync += [
 			enable16_counter.eq(enable16_counter - 1),
 			If(enable16,
-				enable16_counter.eq(self._divisor.field.r - 1))
+				enable16_counter.eq(self._divisor.storage - 1))
 		]
 		
 		# TX

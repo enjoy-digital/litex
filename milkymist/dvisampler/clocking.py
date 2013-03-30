@@ -4,10 +4,10 @@ from migen.fhdl.specials import Instance
 from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 
-class Clocking(Module, AutoReg):
+class Clocking(Module, AutoCSR):
 	def __init__(self, pads):
-		self._r_pll_reset = RegisterField()
-		self._r_locked = RegisterField(1, READ_ONLY, WRITE_ONLY)
+		self._r_pll_reset = CSRStorage()
+		self._r_locked = CSRStatus()
 
 		self.locked = Signal()
 		self.serdesstrobe = Signal()
@@ -42,7 +42,7 @@ class Clocking(Module, AutoReg):
 			Instance.Output("LOCKED", pll_locked),
 			Instance.Input("CLKFBIN", clkfbout),
 			Instance.Input("CLKIN", pads.clk),
-			Instance.Input("RST", self._r_pll_reset.field.r)
+			Instance.Input("RST", self._r_pll_reset.storage)
 		)
 
 		locked_async = Signal()
@@ -62,7 +62,7 @@ class Clocking(Module, AutoReg):
 		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_clk3), Instance.Output("O", self._cd_pix10x.clk))
 		self.specials += MultiReg(locked_async, self.locked, "sys")
-		self.comb += self._r_locked.field.w.eq(self.locked)
+		self.comb += self._r_locked.status.eq(self.locked)
 
 		# sychronize pix+pix5x reset
 		pix_rst_n = 1

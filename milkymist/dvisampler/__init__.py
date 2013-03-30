@@ -10,7 +10,7 @@ from milkymist.dvisampler.decoding import Decoding
 from milkymist.dvisampler.chansync import ChanSync
 from milkymist.dvisampler.resdetection import ResolutionDetection
 
-class DVISampler(Module, AutoReg):
+class DVISampler(Module, AutoCSR):
 	def __init__(self, pads):
 		self.submodules.edid = EDID(pads)
 		self.submodules.clocking = Clocking(pads)
