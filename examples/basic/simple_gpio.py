@@ -3,12 +3,11 @@ from migen.fhdl.module import Module
 from migen.fhdl import verilog
 from migen.genlib.cdc import MultiReg
 from migen.bank import description, csrgen
-from migen.bank.description import READ_ONLY, WRITE_ONLY
 
 class Example(Module):
 	def __init__(self, ninputs=32, noutputs=32):
-		r_o = description.RegisterField(noutputs, atomic_write=True)
-		r_i = description.RegisterField(ninputs, READ_ONLY, WRITE_ONLY)
+		r_o = description.CSRStorage(noutputs, atomic_write=True)
+		r_i = description.CSRStatus(ninputs)
 
 		self.submodules.bank = csrgen.Bank([r_o, r_i])
 		self.gpio_in = Signal(ninputs)
@@ -17,10 +16,10 @@ class Example(Module):
 		###
 
 		gpio_in_s = Signal(ninputs)
-		self.specials += MultiReg(self.gpio_in, gpio_in_s, "sys")
+		self.specials += MultiReg(self.gpio_in, gpio_in_s)
 		self.comb += [
-			r_i.field.w.eq(gpio_in_s),
-			self.gpio_out.eq(r_o.field.r)
+			self.gpio_out.eq(r_o.storage),
+			r_i.status.eq(gpio_in_s)
 		]
 
 example = Example()

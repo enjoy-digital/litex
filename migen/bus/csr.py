@@ -3,7 +3,7 @@ from migen.fhdl.specials import Memory
 from migen.fhdl.module import Module
 from migen.bus.simple import *
 from migen.bus.transactions import *
-from migen.bank.description import RegisterField
+from migen.bank.description import CSRStorage
 from migen.genlib.misc import chooser
 
 data_width = 8
@@ -68,7 +68,7 @@ class SRAM:
 			self.word_bits = 0
 		page_bits = _compute_page_bits(self.mem.depth + self.word_bits)
 		if page_bits:
-			self._page = RegisterField(page_bits, name=self.mem.name_override + "_page")
+			self._page = CSRStorage(page_bits, name=self.mem.name_override + "_page")
 		else:
 			self._page = None
 		if read_only is None:
@@ -81,7 +81,7 @@ class SRAM:
 			bus = Interface()
 		self.bus = bus
 	
-	def get_registers(self):
+	def get_csrs(self):
 		if self._page is None:
 			return []
 		else:
@@ -126,7 +126,7 @@ class SRAM:
 		if self._page is None:
 			comb.append(port.adr.eq(self.bus.adr[self.word_bits:len(port.adr)]))
 		else:
-			pv = self._page.field.r
+			pv = self._page.storage
 			comb.append(port.adr.eq(Cat(self.bus.adr[self.word_bits:len(port.adr)-len(pv)], pv)))
 		
 		return Fragment(comb, sync, specials={self.mem})

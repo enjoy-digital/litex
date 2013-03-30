@@ -15,7 +15,7 @@ class EventSourcePulse(_EventSource):
 class EventSourceLevel(_EventSource):
 	pass
 
-class EventManager(Module, AutoReg):
+class EventManager(Module, AutoCSR):
 	def __init__(self):
 		self.irq = Signal()
 	
@@ -23,9 +23,9 @@ class EventManager(Module, AutoReg):
 		sources_u = [v for v in self.__dict__.values() if isinstance(v, _EventSource)]
 		sources = sorted(sources_u, key=lambda x: x.huid)
 		n = len(sources)
-		self.status = RegisterRaw(n)
-		self.pending = RegisterRaw(n)
-		self.enable = RegisterFields(*(Field(1, READ_WRITE, READ_ONLY, name="e" + str(i)) for i in range(n)))
+		self.status = CSR(n)
+		self.pending = CSR(n)
+		self.enable = CSRStorage(n)
 
 		# status
 		for i, source in enumerate(sources):
@@ -55,7 +55,7 @@ class EventManager(Module, AutoReg):
 			self.comb += self.pending.w[i].eq(source.pending)
 		
 		# IRQ
-		irqs = [self.pending.w[i] & field.r for i, field in enumerate(self.enable.fields)]
+		irqs = [self.pending.w[i] & self.enable.storage[i] for i in range(n)]
 		self.comb += self.irq.eq(optree("|", irqs))
 
 	def __setattr__(self, name, value):

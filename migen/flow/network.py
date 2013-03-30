@@ -211,9 +211,9 @@ class CompositeActor(Actor):
 			self.debugger = DFGReporter(self.dfg, debugger_nbits)
 		Actor.__init__(self)
 	
-	def get_registers(self):
+	def get_csrs(self):
 		if hasattr(self, "debugger"):
-			return self.debugger.get_registers()
+			return self.debugger.get_csrs()
 		else:
 			return []
 	

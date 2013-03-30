@@ -1,38 +1,30 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.bank.description import *
 from migen.flow.hooks import DFGHook
 
 ISD_MAGIC = 0x6ab4
 
-class EndpointReporter:
+class EndpointReporter(Module, AutoCSR):
 	def __init__(self, endpoint, nbits):
-		self.endpoint = endpoint
-		self.nbits = nbits
 		self.reset = Signal()
 		self.freeze = Signal()
 		
-		self._ack_count = RegisterField(self.nbits, READ_ONLY, WRITE_ONLY)
-		self._nack_count = RegisterField(self.nbits, READ_ONLY, WRITE_ONLY)
-		self._cur_stb = Field(1, READ_ONLY, WRITE_ONLY)
-		self._cur_ack = Field(1, READ_ONLY, WRITE_ONLY)
-		self._cur_status = RegisterFields(self._cur_stb, self._cur_ack)
+		self._ack_count = CSRStatus(nbits)
+		self._nack_count = CSRStatus(nbits)
+		self._cur_status = CSRStatus(2)
 	
-	def get_registers(self):
-		return [self._ack_count, self._nack_count, self._cur_status]
-	
-	def get_fragment(self):
+		###
+
 		stb = Signal()
 		ack = Signal()
-		ack_count = Signal(self.nbits)
-		nack_count = Signal(self.nbits)
-		comb = [
-			self._cur_stb.w.eq(stb),
-			self._cur_ack.w.eq(ack)
-		]
-		sync = [
+		self.comb += self._cur_status.status.eq(Cat(stb, ack))
+		ack_count = Signal(nbits)
+		nack_count = Signal(nbits)
+		self.sync += [
 			# register monitored signals
-			stb.eq(self.endpoint.stb),
-			ack.eq(self.endpoint.ack),
+			stb.eq(endpoint.stb),
+			ack.eq(endpoint.ack),
 			# count operations
 			If(self.reset,
 				ack_count.eq(0),
@@ -47,49 +39,31 @@ class EndpointReporter:
 				)
 			),
 			If(~self.freeze,
-				self._ack_count.field.w.eq(ack_count),
-				self._nack_count.field.w.eq(nack_count)
+				self._ack_count.status.eq(ack_count),
+				self._nack_count.status.eq(nack_count)
 			)
 		]
-		return Fragment(comb, sync)
 
-class DFGReporter(DFGHook):
+class DFGReporter(DFGHook, AutoCSR):
 	def __init__(self, dfg, nbits):
-		self._nbits = nbits
+		self._r_magic = CSRStatus(16)
+		self._r_neps = CSRStatus(8)
+		self._r_nbits = CSRStatus(8)
+		self._r_freeze = CSRStorage()
+		self._r_reset = CSR()
 		
-		self._r_magic = RegisterField(16, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_neps = RegisterField(8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_nbits = RegisterField(8, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_freeze = RegisterField()
-		self._r_reset = RegisterRaw()
-		
-		self.order = []
-		DFGHook.__init__(self, dfg, self._create)
-	
-	def _create(self, u, ep, v):
-		self.order.append((u, ep, v))
-		return EndpointReporter(u.actor.endpoints[ep], self._nbits)
-	
-	def print_map(self):
-		for n, (u, ep, v) in enumerate(self.order):
-			print("#" + str(n) + ": " + str(u) + ":" + ep + "  ->  " + str(v))
-	
-	def get_registers(self):
-		registers = [self._r_magic, self._r_neps, self._r_nbits,
-			self._r_freeze, self._r_reset]
-		for u, ep, v in self.order:
-			registers += self.nodepair_to_ep[(u, v)][ep].get_registers()
-		return registers
-	
-	def get_fragment(self):
-		comb = [
-			self._r_magic.field.w.eq(ISD_MAGIC),
-			self._r_neps.field.w.eq(len(self.order)),
-			self._r_nbits.field.w.eq(self._nbits)
+		###
+
+		DFGHook.__init__(self, dfg,
+			lambda u, ep, v: EndpointReporter(u.endpoints[ep], nbits))
+
+		self.comb += [
+			self._r_magic.status.eq(ISD_MAGIC),
+			self._r_neps.status.eq(len(self.hooks_iter())),
+			self._r_nbits.status.eq(nbits)
 		]
 		for h in self.hooks_iter():
-			comb += [
-				h.freeze.eq(self._r_freeze.field.r),
+			self.comb += [
+				h.freeze.eq(self._r_freeze.storage),
 				h.reset.eq(self._r_reset.re)
 			]
-		return Fragment(comb) + DFGHook.get_fragment(self)
