@@ -48,7 +48,9 @@ class DFIInjector(Module, AutoCSR):
 	
 		###
 	
-		connect_inti = dfi.interconnect_stmts(inti, self.master)
-		connect_slave = dfi.interconnect_stmts(self.slave, self.master)
-		self.comb += If(self._control.storage[0], *connect_slave).Else(*connect_inti)
+		self.comb += If(self._control.storage[0],
+				self.slave.connect(self.master)
+			).Else(
+				inti.connect(self.master)
+			)
 		self.comb += [phase.cke.eq(self._control.storage[1]) for phase in inti.phases]
