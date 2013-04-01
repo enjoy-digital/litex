@@ -1,112 +1,121 @@
 from migen.fhdl.structure import *
-from migen.fhdl.tools import value_bits_sign
+from migen.fhdl.tracer import get_obj_var_name
+from migen.genlib.misc import optree
+
+(DIR_NONE, DIR_S_TO_M, DIR_M_TO_S) = range(3)
+
+# Possible layout elements:
+#   1. (name, size)
+#   2. (name, size, direction)
+#   3. (name, sublayout)
+# size can be an int, or a (int, bool) tuple for signed numbers
+# sublayout must be a list
+
+def layout_len(layout):
+	r = 0
+	for f in layout:
+		if isinstance(f[1], (int, tuple)): # cases 1/2
+			if(len(f) == 3):
+				fname, fsize, fdirection = f
+			else:
+				fname, fsize = f
+		elif isinstance(f[1], list): # case 3
+			fname, fsublayout = f
+			fsize = layout_len(fsublayout)
+		else:
+			raise TypeError
+		if isinstance(fsize, tuple):
+			r += fsize[0]
+		else:
+			r += fsize
+	return r
+
+def layout_get(layout, name):
+	for f in layout:
+		if f[0] == name:
+			return f
+	raise KeyError
+
+def layout_partial(layout, *elements):
+	r = []
+	for path in elements:
+		path_s = path.split("/")
+		last = path_s.pop()
+		copy_ref = layout
+		insert_ref = r
+		for hop in path_s:
+			name, copy_ref = layout_get(copy_ref, hop)
+			try:
+				name, insert_ref = layout_get(insert_ref, hop)
+			except KeyError:
+				new_insert_ref = []
+				insert_ref.append((hop, new_insert_ref))
+				insert_ref = new_insert_ref
+		insert_ref.append(layout_get(copy_ref, last))
+	return r
 
 class Record:
-	def __init__(self, layout, name=""):
-		self.name = name
-		self.field_order = []
+	def __init__(self, layout, name=None):
+		self.name = get_obj_var_name(name, "")
+		self.layout = layout
+
 		if self.name:
 			prefix = self.name + "_"
 		else:
 			prefix = ""
-		for f in layout:
-			if isinstance(f, tuple):
-				if isinstance(f[1], (int, tuple)):
-					setattr(self, f[0], Signal(f[1], prefix + f[0]))
-				elif isinstance(f[1], Signal) or isinstance(f[1], Record):
-					setattr(self, f[0], f[1])
-				elif isinstance(f[1], list):
-					setattr(self, f[0], Record(f[1], prefix + f[0]))
+		for f in self.layout:
+			if isinstance(f[1], (int, tuple)): # cases 1/2
+				if(len(f) == 3):
+					fname, fsize, fdirection = f
 				else:
-					raise TypeError
-				if len(f) == 3:
-					self.field_order.append((f[0], f[2]))
-				else:
-					self.field_order.append((f[0], 1))
-			else:
-				setattr(self, f, Signal(1, prefix + f))
-				self.field_order.append((f, 1))
-
-	def eq(self, other):
-		return [getattr(self, key).eq(getattr(other, key))
-		  for key, a in self.field_order]
-
-	def layout(self):
-		l = []
-		for key, alignment in self.field_order:
-			e = getattr(self, key)
-			if isinstance(e, Signal):
-				l.append((key, (e.nbits, e.signed), alignment))
-			elif isinstance(e, Record):
-				l.append((key, e.layout(), alignment))
-		return l
-	
-	def copy(self, name=None):
-		return Record(self.layout(), name)
-	
-	def get_alignment(self, name):
-		return list(filter(lambda x: x[0] == name, self.field_order))[0][1]
-	
-	def subrecord(self, *descr):
-		fields = []
-		for item in descr:
-			path = item.split("/")
-			last = path.pop()
-			pos_self = self
-			pos_fields = fields
-			for hop in path:
-				pos_self = getattr(pos_self, hop)
-				lu = list(filter(lambda x: x[0] == hop, pos_fields))
-				try:
-					pos_fields = lu[0][1]
-				except IndexError:
-					n = []
-					pos_fields.append((hop, n))
-					pos_fields = n
-				if not isinstance(pos_fields, list):
-					raise ValueError
-			if len(list(filter(lambda x: x[0] == last, pos_fields))) > 0:
-				raise ValueError
-			pos_fields.append((last, getattr(pos_self, last), pos_self.get_alignment(last)))
-		return Record(fields, "subrecord")
-	
-	def compatible(self, other):
-		tpl1 = self.flatten()
-		tpl2 = other.flatten()
-		return len(tpl1) == len(tpl2)
-	
-	def flatten(self, align=False, offset=0, return_offset=False):
-		l = []
-		for key, alignment in self.field_order:
-			if align:
-				pad_size = alignment - (offset % alignment)
-				if pad_size < alignment:
-					l.append(Replicate(0, pad_size))
-					offset += pad_size
-			
-			e = getattr(self, key)
-			if isinstance(e, Signal):
-				added = [e]
-			elif isinstance(e, Record):
-				added = e.flatten(align, offset)
+					fname, fsize = f
+				finst = Signal(fsize, name=prefix + fname)
+			elif isinstance(f[1], list): # case 3
+				fname, fsublayout = f
+				finst = Record(fsublayout, prefix + fname)
 			else:
 				raise TypeError
-			for x in added:
-				offset += value_bits_sign(x)[0]
-			l += added
-		if return_offset:
-			return (l, offset)
-		else:
-			return l
+			setattr(self, fname, finst)
+
+	def eq(self, other):
+		return [getattr(self, f[0]).eq(getattr(other, f[0]))
+		  for f in self.layout if hasattr(other, f[0])]
 	
-	def to_signal(self, assignment_list, sig_out, align=False):
-		flattened, length = self.flatten(align, return_offset=True)
-		raw = Signal(length)
-		if sig_out:
-			assignment_list.append(raw.eq(Cat(*flattened)))
-		else:
-			assignment_list.append(Cat(*flattened).eq(raw))
-		return raw
+	def flatten(self):
+		r = []
+		for f in self.layout:			
+			e = getattr(self, f[0])
+			if isinstance(e, Signal):
+				r.append(e)
+			elif isinstance(e, Record):
+				r += e.flatten()
+			else:
+				raise TypeError
+		return r
+
+	def raw_bits(self):
+		return Cat(*self.flatten())
 	
+	def connect(self, *slaves):
+		r = []
+		for f in self.layout:
+			field = f[0]
+			self_e = getattr(self, field)
+			if isinstance(self_e, Signal):
+				direction = f[2]
+				if direction == DIR_M_TO_S:
+					r += [getattr(slave, field).eq(self_e) for slave in slaves]
+				elif direction == DIR_S_TO_M:
+					r.append(self_e.eq(optree("|", [getattr(slave, field) for slave in slaves])))
+				else:
+					raise TypeError
+			else:
+				for slave in slaves:
+					r += self_e.connect(getattr(slave, field))
+		return r
+
+	def __len__(self):
+		return layout_len(self.layout)
+
 	def __repr__(self):
-		return "<Record " + repr(self.layout()) + ">"
+		return "<Record " + ":".join(f[0] for f in self.layout) + " at " + hex(id(self)) + ">"
