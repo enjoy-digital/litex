@@ -2,64 +2,59 @@ from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 from migen.fhdl.module import Module
 from migen.genlib import roundrobin
+from migen.genlib.record import *
 from migen.genlib.misc import optree
-from migen.bus.simple import *
 from migen.bus.transactions import *
 from migen.sim.generic import Proxy
 
-_desc = Description(
-	(M_TO_S,	"adr",		30),
-	(M_TO_S,	"dat_w",	32),
-	(S_TO_M,	"dat_r",	32),
-	(M_TO_S,	"sel",		4),
-	(M_TO_S,	"cyc",		1),
-	(M_TO_S,	"stb",		1),
-	(S_TO_M,	"ack",		1),
-	(M_TO_S,	"we",		1),
-	(M_TO_S,	"cti",		3),
-	(M_TO_S,	"bte",		2),
-	(S_TO_M,	"err",		1)
-)
+_layout = [
+	("adr",		30,		DIR_M_TO_S),
+	("dat_w",	32, 	DIR_M_TO_S),
+	("dat_r",	32, 	DIR_S_TO_M),
+	("sel",		4,		DIR_M_TO_S),
+	("cyc",		1,		DIR_M_TO_S),
+	("stb",		1,		DIR_M_TO_S),
+	("ack",		1,		DIR_S_TO_M),
+	("we",		1,		DIR_M_TO_S),
+	("cti",		3,		DIR_M_TO_S),
+	("bte",		2,		DIR_M_TO_S),
+	("err",		1,		DIR_S_TO_M)
+]
 
-class Interface(SimpleInterface):
+class Interface(Record):
 	def __init__(self):
-		SimpleInterface.__init__(self, _desc)
+		Record.__init__(self, _layout)
 
-class InterconnectPointToPoint(SimpleInterconnect):
+class InterconnectPointToPoint(Module):
 	def __init__(self, master, slave):
-		SimpleInterconnect.__init__(self, master, [slave])
+		self.comb += master.connect(slave)
 
-class Arbiter:
+class Arbiter(Module):
 	def __init__(self, masters, target):
-		self.masters = masters
-		self.target = target
-		self.rr = roundrobin.RoundRobin(len(self.masters))
-
-	def get_fragment(self):
-		comb = []
+		self.submodules.rr = roundrobin.RoundRobin(len(masters))
 		
 		# mux master->slave signals
-		for name in _desc.get_names(M_TO_S):
-			choices = Array(getattr(m, name) for m in self.masters)
-			comb.append(getattr(self.target, name).eq(choices[self.rr.grant]))
+		for name, size, direction in _layout:
+			if direction == DIR_M_TO_S:
+				choices = Array(getattr(m, name) for m in masters)
+				self.comb += getattr(target, name).eq(choices[self.rr.grant])
 		
 		# connect slave->master signals
-		for name in _desc.get_names(S_TO_M):
-			source = getattr(self.target, name)
-			for i, m in enumerate(self.masters):
-				dest = getattr(m, name)
-				if name == "ack" or name == "err":
-					comb.append(dest.eq(source & (self.rr.grant == i)))
-				else:
-					comb.append(dest.eq(source))
+		for name, size, direction in _layout:
+			if direction == DIR_S_TO_M:
+				source = getattr(target, name)
+				for i, m in enumerate(masters):
+					dest = getattr(m, name)
+					if name == "ack" or name == "err":
+						self.comb += dest.eq(source & (self.rr.grant == i))
+					else:
+						self.comb += dest.eq(source)
 		
 		# connect bus requests to round-robin selector
-		reqs = [m.cyc for m in self.masters]
-		comb.append(self.rr.request.eq(Cat(*reqs)))
-		
-		return Fragment(comb) + self.rr.get_fragment()
+		reqs = [m.cyc for m in masters]
+		self.comb += self.rr.request.eq(Cat(*reqs))
 
-class Decoder:
+class Decoder(Module):
 	# slaves is a list of pairs:
 	# 0) function that takes the address signal and returns a FHDL expression
 	#    that evaluates to 1 when the slave is selected and 0 otherwise.
@@ -67,55 +62,43 @@ class Decoder:
 	# register adds flip-flops after the address comparators. Improves timing,
 	# but breaks Wishbone combinatorial feedback.
 	def __init__(self, master, slaves, register=False):
-		self.master = master
-		self.slaves = slaves
-		self.register = register
-
-	def get_fragment(self):
-		comb = []
-		sync = []
-		
-		ns = len(self.slaves)
+		ns = len(slaves)
 		slave_sel = Signal(ns)
 		slave_sel_r = Signal(ns)
 		
 		# decode slave addresses
-		comb += [slave_sel[i].eq(fun(self.master.adr))
-			for i, (fun, bus) in enumerate(self.slaves)]
-		if self.register:
-			sync.append(slave_sel_r.eq(slave_sel))
+		self.comb += [slave_sel[i].eq(fun(master.adr))
+			for i, (fun, bus) in enumerate(slaves)]
+		if register:
+			self.sync += slave_sel_r.eq(slave_sel)
 		else:
-			comb.append(slave_sel_r.eq(slave_sel))
+			self.comb += slave_sel_r.eq(slave_sel)
 		
 		# connect master->slaves signals except cyc
-		m2s_names = _desc.get_names(M_TO_S, "cyc")
-		comb += [getattr(slave[1], name).eq(getattr(self.master, name))
-			for name in m2s_names for slave in self.slaves]
+		for slave in slaves:
+			for name, size, direction in _layout:
+				if direction == DIR_M_TO_S and name != "cyc":
+					self.comb += getattr(slave[1], name).eq(getattr(master, name))
 		
 		# combine cyc with slave selection signals
-		comb += [slave[1].cyc.eq(self.master.cyc & slave_sel[i])
-			for i, slave in enumerate(self.slaves)]
+		self.comb += [slave[1].cyc.eq(master.cyc & slave_sel[i])
+			for i, slave in enumerate(slaves)]
 		
 		# generate master ack (resp. err) by ORing all slave acks (resp. errs)
-		comb += [
-			self.master.ack.eq(optree("|", [slave[1].ack for slave in self.slaves])),
-			self.master.err.eq(optree("|", [slave[1].err for slave in self.slaves]))
+		self.comb += [
+			master.ack.eq(optree("|", [slave[1].ack for slave in slaves])),
+			master.err.eq(optree("|", [slave[1].err for slave in slaves]))
 		]
 		
 		# mux (1-hot) slave data return
-		masked = [Replicate(slave_sel_r[i], len(self.master.dat_r)) & self.slaves[i][1].dat_r for i in range(len(self.slaves))]
-		comb.append(self.master.dat_r.eq(optree("|", masked)))
-		
-		return Fragment(comb, sync)
+		masked = [Replicate(slave_sel_r[i], len(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
+		self.comb += master.dat_r.eq(optree("|", masked))
 
-class InterconnectShared:
+class InterconnectShared(Module):
 	def __init__(self, masters, slaves, register=False):
-		self._shared = Interface()
-		self._arbiter = Arbiter(masters, self._shared)
-		self._decoder = Decoder(self._shared, slaves, register)
-	
-	def get_fragment(self):
-		return self._arbiter.get_fragment() + self._decoder.get_fragment()
+		shared = Interface()
+		self.submodules += Arbiter(masters, shared)
+		self.submodules += Decoder(shared, slaves, register)
 
 class Tap(Module):
 	def __init__(self, bus, handler=print):
@@ -200,34 +183,33 @@ class Target(Module):
 		else:
 			bus.ack = 0
 
-class SRAM:
+class SRAM(Module):
 	def __init__(self, mem_or_size, bus=None):
 		if isinstance(mem_or_size, Memory):
 			assert(mem_or_size.width <= 32)
-			self.mem = mem_or_size
+			mem = mem_or_size
 		else:
-			self.mem = Memory(32, mem_or_size//4)
+			mem = Memory(32, mem_or_size//4)
 		if bus is None:
 			bus = Interface()
 		self.bus = bus
 	
-	def get_fragment(self):
+		###
+	
 		# memory
-		port = self.mem.get_port(write_capable=True, we_granularity=8)
+		self.specials += mem
+		port = mem.get_port(write_capable=True, we_granularity=8)
 		# generate write enable signal
-		comb = [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
+		self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
 			for i in range(4)]
 		# address and data
-		comb += [
+		self.comb += [
 			port.adr.eq(self.bus.adr[:len(port.adr)]),
 			port.dat_w.eq(self.bus.dat_w),
 			self.bus.dat_r.eq(port.dat_r)
 		]
 		# generate ack
-		sync = [
+		self.sync += [
 			self.bus.ack.eq(0),
-			If(self.bus.cyc & self.bus.stb & ~self.bus.ack,
-				self.bus.ack.eq(1)
-			)
+			If(self.bus.cyc & self.bus.stb & ~self.bus.ack,	self.bus.ack.eq(1))
 		]
-		return Fragment(comb, sync, specials={self.mem})

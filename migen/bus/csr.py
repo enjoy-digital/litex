@@ -1,23 +1,24 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 from migen.fhdl.module import Module
-from migen.bus.simple import *
 from migen.bus.transactions import *
 from migen.bank.description import CSRStorage
+from migen.genlib.record import *
 from migen.genlib.misc import chooser
 
 data_width = 8
 
-class Interface(SimpleInterface):
+class Interface(Record):
 	def __init__(self):
-		SimpleInterface.__init__(self, Description(
-			(M_TO_S,	"adr",		14),
-			(M_TO_S,	"we",		1),
-			(M_TO_S,	"dat_w",	data_width),
-			(S_TO_M,	"dat_r",	data_width)))
+		Record.__init__(self, [
+			("adr",		14,			DIR_M_TO_S),
+			("we",		1,			DIR_M_TO_S),
+			("dat_w",	data_width,	DIR_M_TO_S),
+			("dat_r",	data_width,	DIR_S_TO_M)])
 
-class Interconnect(SimpleInterconnect):
-	pass
+class Interconnect(Module):
+	def __init__(self, master, slaves):
+		self.comb += master.connect(*slaves)
 
 class Initiator(Module):
 	def __init__(self, generator, bus=None):
@@ -53,80 +54,74 @@ def _compute_page_bits(nwords):
 	else:
 		return 0
 
-class SRAM:
+class SRAM(Module):
 	def __init__(self, mem_or_size, address, read_only=None, bus=None):
 		if isinstance(mem_or_size, Memory):
-			self.mem = mem_or_size
+			mem = mem_or_size
 		else:
-			self.mem = Memory(data_width, mem_or_size//(data_width//8))
-		self.address = address
-		if self.mem.width > data_width:
-			self.csrw_per_memw = (self.mem.width + data_width - 1)//data_width
-			self.word_bits = bits_for(self.csrw_per_memw-1)
+			mem = Memory(data_width, mem_or_size//(data_width//8))
+		if mem.width > data_width:
+			csrw_per_memw = (self.mem.width + data_width - 1)//data_width
+			word_bits = bits_for(csrw_per_memw-1)
 		else:
-			self.csrw_per_memw = 1
-			self.word_bits = 0
-		page_bits = _compute_page_bits(self.mem.depth + self.word_bits)
+			csrw_per_memw = 1
+			word_bits = 0
+		page_bits = _compute_page_bits(mem.depth + word_bits)
 		if page_bits:
 			self._page = CSRStorage(page_bits, name=self.mem.name_override + "_page")
 		else:
 			self._page = None
 		if read_only is None:
-			if hasattr(self.mem, "bus_read_only"):
-				read_only = self.mem.bus_read_only
+			if hasattr(mem, "bus_read_only"):
+				read_only = mem.bus_read_only
 			else:
 				read_only = False
-		self.read_only = read_only
 		if bus is None:
 			bus = Interface()
 		self.bus = bus
 	
-	def get_csrs(self):
-		if self._page is None:
-			return []
-		else:
-			return [self._page]
-	
-	def get_fragment(self):
-		port = self.mem.get_port(write_capable=not self.read_only,
-			we_granularity=data_width if not self.read_only and self.word_bits else 0)
+		###
+
+		self.specials += mem
+		port = mem.get_port(write_capable=not read_only,
+			we_granularity=data_width if not read_only and word_bits else 0)
 		
 		sel = Signal()
 		sel_r = Signal()
-		sync = [sel_r.eq(sel)]
-		comb = [sel.eq(self.bus.adr[9:] == self.address)]
+		self.sync += sel_r.eq(sel)
+		self.comb += sel.eq(self.bus.adr[9:] == address)
 
-		if self.word_bits:
-			word_index = Signal(self.word_bits)
-			word_expanded = Signal(self.csrw_per_memw*data_width)
-			sync.append(word_index.eq(self.bus.adr[:self.word_bits]))
-			comb += [
+		if word_bits:
+			word_index = Signal(word_bits)
+			word_expanded = Signal(csrw_per_memw*data_width)
+			sync.append(word_index.eq(self.bus.adr[:word_bits]))
+			self.comb += [
 				word_expanded.eq(port.dat_r),
 				If(sel_r,
-					chooser(word_expanded, word_index, self.bus.dat_r, n=self.csrw_per_memw, reverse=True)
+					chooser(word_expanded, word_index, self.bus.dat_r, n=csrw_per_memw, reverse=True)
 				)
 			]
-			if not self.read_only:
-				comb += [
-					If(sel & self.bus.we, port.we.eq((1 << self.word_bits) >> self.bus.adr[:self.word_bits])),
-					port.dat_w.eq(Replicate(self.bus.dat_w, self.csrw_per_memw))
+			if not read_only:
+				self.comb += [
+					If(sel & self.bus.we, port.we.eq((1 << word_bits) >> self.bus.adr[:self.word_bits])),
+					port.dat_w.eq(Replicate(self.bus.dat_w, csrw_per_memw))
 				]
 		else:
-			comb += [
-				If(sel_r,
-					self.bus.dat_r.eq(port.dat_r)
-				)
-			]
-			if not self.read_only:
-				comb += [
+			self.comb += If(sel_r, self.bus.dat_r.eq(port.dat_r))
+			if not read_only:
+				self.comb += [
 					port.we.eq(sel & self.bus.we),
 					port.dat_w.eq(self.bus.dat_w)
 				]
 		
 		if self._page is None:
-			comb.append(port.adr.eq(self.bus.adr[self.word_bits:len(port.adr)]))
+			self.comb += port.adr.eq(self.bus.adr[word_bits:len(port.adr)])
 		else:
 			pv = self._page.storage
-			comb.append(port.adr.eq(Cat(self.bus.adr[self.word_bits:len(port.adr)-len(pv)], pv)))
-		
-		return Fragment(comb, sync, specials={self.mem})
+			self.comb += port.adr.eq(Cat(self.bus.adr[word_bits:len(port.adr)-len(pv)], pv))
+
+	def get_csrs(self):
+		if self._page is None:
+			return []
+		else:
+			return [self._page]

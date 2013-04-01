@@ -3,7 +3,7 @@ from migen.fhdl.specials import Memory
 from migen.bus import wishbone
 from migen.genlib.fsm import FSM
 from migen.genlib.misc import split, displacer, chooser
-from migen.genlib.record import Record
+from migen.genlib.record import Record, layout_len
 
 # cachesize (in 32-bit words) is the size of the data store, must be a power of 2
 class WB2ASMI:
@@ -60,15 +60,14 @@ class WB2ASMI:
 		]
 		
 		# Tag memory
-		tag_mem = Memory(tagbits+1, 2**linebits)
-		tag_port = tag_mem.get_port(write_capable=True)
-		
 		tag_layout = [("tag", tagbits), ("dirty", 1)]
+		tag_mem = Memory(layout_len(tag_layout), 2**linebits)
+		tag_port = tag_mem.get_port(write_capable=True)
 		tag_do = Record(tag_layout)
 		tag_di = Record(tag_layout)
 		comb += [
-			Cat(*tag_do.flatten()).eq(tag_port.dat_r),
-			tag_port.dat_w.eq(Cat(*tag_di.flatten()))
+			tag_do.raw_bits().eq(tag_port.dat_r),
+			tag_port.dat_w.eq(tag_di.raw_bits())
 		]
 			
 		comb += [
