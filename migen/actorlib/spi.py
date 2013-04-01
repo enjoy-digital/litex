@@ -108,7 +108,7 @@ class Collector(Actor, AutoCSR):
 			self._r_wc.dat_w.eq(self._r_wc.storage - 1),
 			
 			wp.adr.eq(self._r_wa.storage),
-			wp.dat_w.eq(Cat(*self.token("sink").flatten())),
+			wp.dat_w.eq(self.token("sink").raw_bits()),
 			
 			rp.adr.eq(self._r_ra.storage),
 			self._r_rd.status.eq(rp.dat_r)

@@ -170,7 +170,7 @@ class DataFlowGraph(MultiDiGraph):
 						other_ep = other.single_sink()
 				else:
 					raise AssertionError
-				layout = other.token(other_ep).layout()
+				layout = other.token(other_ep).layout
 				a.parameters["layout"] = layout
 				self.instantiate(a)
 	

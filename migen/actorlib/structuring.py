@@ -29,7 +29,7 @@ class Cast(CombinatorialActor):
 		])
 
 def pack_layout(l, n):
-	return [("chunk{0}".format(i), l) for i in range(n)]
+	return [("chunk"+str(i), l) for i in range(n)]
 
 class Unpack(Actor):
 	def __init__(self, n, layout_to):
@@ -57,7 +57,7 @@ class Unpack(Actor):
 		]
 		cases = {}
 		for i in range(self.n):
-			cases[i] = [Cat(*self.token("source").flatten()).eq(Cat(*self.token("sink").subrecord("chunk{0}".format(i)).flatten()))]
+			cases[i] = [self.token("source").raw_bits().eq(getattr(self.token("sink"), "chunk"+str(i)).raw_bits())]
 		comb.append(Case(mux, cases).makedefault())
 		return Fragment(comb, sync)
 
@@ -75,7 +75,7 @@ class Pack(Actor):
 		strobe_all = Signal()
 		cases = {}
 		for i in range(self.n):
-			cases[i] = [Cat(*self.token("source").subrecord("chunk{0}".format(i)).flatten()).eq(*self.token("sink").flatten())]
+			cases[i] = [getattr(self.token("source"), "chunk"+str(i)).raw_bits().eq(self.token("sink").raw_bits())]
 		comb = [
 			self.busy.eq(strobe_all),
 			self.endpoints["sink"].ack.eq(~strobe_all | self.endpoints["source"].ack),

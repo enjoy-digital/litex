@@ -163,7 +163,6 @@ class PipelinedActor(BinaryActor):
 def get_conn_fragment(source, sink):
 	assert isinstance(source, Source)
 	assert isinstance(sink, Sink)
-	assert sink.token.compatible(source.token)
 	sigs_source = source.token.flatten()
 	sigs_sink = sink.token.flatten()
 	comb = [
