@@ -94,6 +94,7 @@ class RLE:
 		self.enable = Signal()
 
 		# Input
+		self.stb_i = Signal()
 		self.dat_i = Signal(width)
 
 		# Output
@@ -102,14 +103,16 @@ class RLE:
 		
 	def get_fragment(self):
 
-		# Register Input		
+		# Register Input
+		stb_i_d = Signal()
 		dat_i_d = Signal(self.width)
 
 		sync =[dat_i_d.eq(self.dat_i)]
-
+		sync +=[stb_i_d.eq(self.stb_i)]
+		
 		# Detect diff
 		diff = Signal()
-		comb = [diff.eq(~self.enable | (dat_i_d != self.dat_i))]
+		comb = [diff.eq(self.stb_i & (~self.enable | (dat_i_d != self.dat_i)))]
 
 		diff_rising = RisingEdge(diff)
 		diff_d = Signal()
@@ -136,7 +139,7 @@ class RLE:
 				self.dat_o[self.width-1].eq(1),
 				self.dat_o[:len(rle_cnt)].eq(rle_cnt)
 			).Elif(diff_d | rle_max,
-				self.stb_o.eq(1),
+				self.stb_o.eq(stb_i_d),
 				self.dat_o.eq(dat_i_d)
 			).Else(
 				self.stb_o.eq(0),
@@ -236,6 +239,7 @@ class Recorder:
 		
 		# trigger Interface
 		self.hit = Signal()
+		self.stb = Signal()
 		self.dat = Signal(self.width)
 	
 	def set_address(self, address):
@@ -271,6 +275,7 @@ class Recorder:
 			self.sequencer.done.eq(self.storage.done),
 			self.sequencer.hit.eq(self.hit),
 			
+			self.rle.stb_i.eq(self.stb),
 			self.rle.dat_i.eq(self.dat),
 
 			self.storage.push_stb.eq(self.sequencer.enable & self.rle.stb_o),

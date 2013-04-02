@@ -12,8 +12,9 @@ class MiLa:
 		self.recorder = recorder
 		self.interface = interface
 		
-		self.trig = Signal(self.trigger.trig_w)
-		self.dat  = Signal(self.trigger.trig_w)
+		self.stb = Signal(reset=1)
+		self.trig = Signal(self.trigger.width)
+		self.dat  = Signal(self.recorder.width)
 		
 		self.set_address(address)
 		self.set_interface(interface)
@@ -30,6 +31,7 @@ class MiLa:
 		
 	def get_fragment(self):
 		comb =[
+			self.recorder.stb.eq(self.stb),
 			self.trigger.trig.eq(self.trig),
 			
 			self.recorder.dat.eq(self.dat),

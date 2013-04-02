@@ -227,7 +227,7 @@ class Sum:
 				self._prog_port.we.eq(self.prog_stb),
 				self._prog_port.dat_w.eq(self.prog_dat),
 
-				self.o.eq(self._lut_port.dat_r),				
+				self.o.eq(self._lut_port.dat_r),
 		]
 		comb += self.get_registers_comb()
 		return Fragment(comb, specials={self._mem})
@@ -248,12 +248,12 @@ class Trigger:
 	# 
 	# Definition
 	#
-	def __init__(self, trig_w, ports, address=0x0000, interface=None):
-		self.trig_w = trig_w
+	def __init__(self, width, ports, address=0x0000, interface=None):
+		self.width = width
 		self.ports = ports
 		
 		self.sum = Sum(len(ports))
-		self.trig = Signal(self.trig_w)
+		self.trig = Signal(self.width)
 		self.hit = Signal()
 		
 		# insert port number in port reg name
