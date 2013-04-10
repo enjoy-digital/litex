@@ -55,10 +55,9 @@ class _FrameInitiator(spi.SingleGenerator):
 		]
 		spi.SingleGenerator.__init__(self, layout, spi.MODE_CONTINUOUS)
 
-class VTG(Module, Actor):
+class VTG(Module):
 	def __init__(self):
-		Actor.__init__(self,
-			("timing", Sink, [
+		self.timing = Sink([
 				("hres", _hbits),
 				("hsync_start", _hbits),
 				("hsync_end", _hbits),
@@ -66,10 +65,10 @@ class VTG(Module, Actor):
 				("vres", _vbits),
 				("vsync_start", _vbits),
 				("vsync_end", _vbits),
-				("vscan", _vbits)]),
-			("pixels", Sink, _pixel_layout),
-			("dac", Source, _dac_layout)
-		)
+				("vscan", _vbits)])
+		self.pixels = Sink(_pixel_layout)
+		self.dac = Source(_dac_layout)
+		self.busy = Signal()
 
 		hactive = Signal()
 		vactive = Signal()
@@ -83,29 +82,30 @@ class VTG(Module, Actor):
 		self.comb += [
 			active.eq(hactive & vactive),
 			If(active,
-				[getattr(getattr(self.token("dac"), p), c).eq(getattr(getattr(self.token("pixels"), p), c)[skip:])
+				[getattr(getattr(self.dac.payload, p), c).eq(getattr(getattr(self.pixels.payload, p), c)[skip:])
 					for p in ["p0", "p1"] for c in ["r", "g", "b"]]
 			),
 			
-			generate_en.eq(self.endpoints["timing"].stb & (~active | self.endpoints["pixels"].stb)),
-			self.endpoints["pixels"].ack.eq(self.endpoints["dac"].ack & active),
-			self.endpoints["dac"].stb.eq(generate_en)
+			generate_en.eq(self.timing.stb & (~active | self.pixels.stb)),
+			self.pixels.ack.eq(self.dac.ack & active),
+			self.dac.stb.eq(generate_en),
+			self.busy.eq(generate_en)
 		]
-		tp = self.token("timing")
+		tp = self.timing.payload
 		self.sync += [
-			self.endpoints["timing"].ack.eq(0),
-			If(generate_en & self.endpoints["dac"].ack,
+			self.timing.ack.eq(0),
+			If(generate_en & self.dac.ack,
 				hcounter.eq(hcounter + 1),
 			
 				If(hcounter == 0, hactive.eq(1)),
 				If(hcounter == tp.hres, hactive.eq(0)),
-				If(hcounter == tp.hsync_start, self.token("dac").hsync.eq(1)),
-				If(hcounter == tp.hsync_end, self.token("dac").hsync.eq(0)),
+				If(hcounter == tp.hsync_start, self.dac.payload.hsync.eq(1)),
+				If(hcounter == tp.hsync_end, self.dac.payload.hsync.eq(0)),
 				If(hcounter == tp.hscan,
 					hcounter.eq(0),
 					If(vcounter == tp.vscan,
 						vcounter.eq(0),
-						self.endpoints["timing"].ack.eq(1)
+						self.timing.ack.eq(1)
 					).Else(
 						vcounter.eq(vcounter + 1)
 					)
@@ -113,14 +113,15 @@ class VTG(Module, Actor):
 				
 				If(vcounter == 0, vactive.eq(1)),
 				If(vcounter == tp.vres, vactive.eq(0)),
-				If(vcounter == tp.vsync_start, self.token("dac").vsync.eq(1)),
-				If(vcounter == tp.vsync_end, self.token("dac").vsync.eq(0))
+				If(vcounter == tp.vsync_start, self.dac.payload.vsync.eq(1)),
+				If(vcounter == tp.vsync_end, self.dac.payload.vsync.eq(0))
 			)
 		]
 
-class FIFO(Module, Actor):
+class FIFO(Module):
 	def __init__(self):
-		Actor.__init__(self, ("dac", Sink, _dac_layout))
+		self.dac = Sink(_dac_layout)
+		self.busy = Signal()
 		
 		self.vga_hsync_n = Signal()
 		self.vga_vsync_n = Signal()
@@ -151,13 +152,13 @@ class FIFO(Module, Actor):
 			Instance.Input("clk_write", ClockSignal()),
 			
 			Instance.Input("rst", 0))
-		fifo_in = self.token("dac")
+		fifo_in = self.dac.payload
 		fifo_out = Record(_dac_layout)
 		self.comb += [
-			self.endpoints["dac"].ack.eq(~fifo_full),
-			fifo_write_en.eq(self.endpoints["dac"].stb),
-			fifo_data_in.eq(Cat(*fifo_in.flatten())),
-			Cat(*fifo_out.flatten()).eq(fifo_data_out),
+			self.dac.ack.eq(~fifo_full),
+			fifo_write_en.eq(self.dac.stb),
+			fifo_data_in.eq(fifo_in.raw_bits()),
+			fifo_out.raw_bits().eq(fifo_data_out),
 			self.busy.eq(0)
 		]
 
@@ -193,7 +194,7 @@ class Framebuffer(Module):
 		pack_factor = asmiport.hub.dw//(2*_bpp)
 		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
 		
-		fi = _FrameInitiator(asmi_bits, length_bits, alignment_bits)
+		self._fi = fi = _FrameInitiator(asmi_bits, length_bits, alignment_bits)
 		adrloop = misc.IntSequence(length_bits, asmi_bits)
 		adrbuffer = AbstractActor(plumbing.Buffer)
 		dma = dma_asmi.Reader(asmiport)
@@ -218,9 +219,7 @@ class Framebuffer(Module):
 			"hres", "hsync_start", "hsync_end", "hscan", 
 			"vres", "vsync_start", "vsync_end", "vscan"])
 		g.add_connection(vtg, fifo)
-		self.submodules._comp_actor = CompositeActor(g, debugger=False)
-		
-		self._csrs = fi.get_csrs() + self._comp_actor.get_csrs()
+		self.submodules._comp_actor = CompositeActor(g)
 		
 		# Drive pads
 		if not simulation:
@@ -234,4 +233,4 @@ class Framebuffer(Module):
 		self.comb += pads.psave_n.eq(1)
 
 	def get_csrs(self):
-		return self._csrs
+		return self._fi.get_csrs()
