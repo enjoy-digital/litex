@@ -197,3 +197,11 @@ class NodeTransformer:
 	
 	def visit_unknown(self, node):
 		return node
+
+class TransformModule:
+	def __init__(self, transform, module):
+		self.transform = transform
+		self.module = module
+
+	def get_fragment(self):
+		return self.transform(self.module.get_fragment())
