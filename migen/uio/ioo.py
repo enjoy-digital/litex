@@ -5,7 +5,6 @@ from migen.flow.transactions import *
 from migen.actorlib.sim import TokenExchanger
 from migen.bus import wishbone, memory
 from migen.bus.transactions import *
-from migen.uio.trampoline import Trampoline
 
 class UnifiedIOObject(Module):
 	def __init__(self, dataflow=None, buses={}):
@@ -20,7 +19,7 @@ class UnifiedIOObject(Module):
 
 class UnifiedIOSimulation(UnifiedIOObject):
 	def __init__(self, generator, dataflow=None, buses={}):
-		self.generator = Trampoline(generator)
+		self.generator = generator
 		UnifiedIOObject.__init__(self, dataflow, buses)
 		
 		callers = []
