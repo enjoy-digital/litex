@@ -210,4 +210,4 @@ class CompositeActor(Module):
 		for u, v, d in dfg.edges_iter(data=True):
 			ep_src = getattr(u, d["source"])
 			ep_dst = getattr(v, d["sink"])
-			self.comb += ep_src.connect(ep_dst)
+			self.comb += ep_src.connect(ep_dst, match_by_position=True)

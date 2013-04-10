@@ -22,12 +22,12 @@ class _Endpoint(Record):
 		Record.__init__(self, full_layout)
 
 class Source(_Endpoint):
-	def connect(self, sink):
-		return Record.connect(self, sink)
+	def connect(self, sink, **kwargs):
+		return Record.connect(self, sink, **kwargs)
 
 class Sink(_Endpoint):
-	def connect(self, source):
-		return source.connect(self)
+	def connect(self, source, **kwargs):
+		return source.connect(self, **kwargs)
 
 def get_endpoints(obj, filt=_Endpoint):
 	if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
