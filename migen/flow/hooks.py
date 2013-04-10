@@ -30,7 +30,7 @@ class DFGHook(Module):
 	def __init__(self, dfg, create):
 		assert(not dfg.is_abstract())
 		self.nodepair_to_ep = defaultdict(dict)
-		for hookn, (u, v, data) in dfg.edges_iter(data=True):
+		for hookn, (u, v, data) in enumerate(dfg.edges_iter(data=True)):
 			ep_to_hook = self.nodepair_to_ep[(u, v)]
 			ep = data["source"]
 			h = create(u, ep, v)

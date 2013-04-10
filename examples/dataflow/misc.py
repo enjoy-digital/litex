@@ -8,7 +8,12 @@ def source_gen():
 	for i in range(10):
 		v = i + 5
 		print("==> " + str(v))
-		yield Token("source", {"value": v})
+		yield Token("source", {"maximum": v})
+
+class SimSource(SimActor):
+	def __init__(self):
+		self.source = Source([("maximum", 32)])
+		SimActor.__init__(self, source_gen())
 
 def sink_gen():
 	while True:
@@ -16,16 +21,20 @@ def sink_gen():
 		yield t
 		print(t.value["value"])
 
+class SimSink(SimActor):
+	def __init__(self):
+		self.sink = Sink([("value", 32)])
+		SimActor.__init__(self, sink_gen())
+
 def main():
-	source = SimActor(source_gen(), ("source", Source, [("value", 32)]))
+	source = SimSource()
 	loop = misc.IntSequence(32)
-	sink = SimActor(sink_gen(), ("sink", Sink, [("value", 32)]))
+	sink = SimSink()
 	g = DataFlowGraph()
 	g.add_connection(source, loop)
 	g.add_connection(loop, sink)
 	comp = CompositeActor(g)
-	fragment = comp.get_fragment()
-	sim = Simulator(fragment)
+	sim = Simulator(comp)
 	sim.run(500)
 
 main()

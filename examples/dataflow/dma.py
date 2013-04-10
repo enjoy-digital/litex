@@ -1,5 +1,6 @@
 from random import Random
 
+from migen.fhdl.module import Module
 from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.actorlib import dma_wishbone, dma_asmi
@@ -26,11 +27,21 @@ def adrgen_gen():
 		print("Address:  " + str(i))
 		yield Token("address", {"a": i})
 
+class SimAdrGen(SimActor):
+	def __init__(self, nbits):
+		self.address = Source([("a", nbits)])
+		SimActor.__init__(self, adrgen_gen())
+
 def dumper_gen():
 	while True:
 		t = Token("data", idle_wait=True)
 		yield t
 		print("Received: " + str(t.value["d"]))
+
+class SimDumper(SimActor):
+	def __init__(self):
+		self.data = Sink([("d", 32)])
+		SimActor.__init__(self, dumper_gen())		
 
 def trgen_gen():
 	for i in range(10):
@@ -39,75 +50,78 @@ def trgen_gen():
 		print("Address: " + str(a) + " Data: " + str(d))
 		yield Token("address_data", {"a": a, "d": d})
 
-def wishbone_sim(efragment, master, end_simulation):
-	peripheral = wishbone.Target(MyModelWB())
-	tap = wishbone.Tap(peripheral.bus)
-	interconnect = wishbone.InterconnectPointToPoint(master.bus, peripheral.bus)
-	def _end_simulation(s):
-		s.interrupt = end_simulation(s)
-	fragment = efragment \
-		+ peripheral.get_fragment() \
-		+ tap.get_fragment() \
-		+ interconnect.get_fragment() \
-		+ Fragment(sim=[_end_simulation])
-	sim = Simulator(fragment)
-	sim.run()
+class SimTrGen(SimActor):
+	def __init__(self):
+		self.address_data = Source([("a", 30), ("d", 32)])
+		SimActor.__init__(self, trgen_gen())
 
-def asmi_sim(efragment, hub, end_simulation):
-	def _end_simulation(s):
-		s.interrupt = end_simulation(s)
-	peripheral = asmibus.Target(MyModelASMI(), hub)
-	tap = asmibus.Tap(hub)
-	def _end_simulation(s):
-		s.interrupt = end_simulation(s)
-	fragment = efragment \
-		+ peripheral.get_fragment() \
-		+ tap.get_fragment() \
-		+ Fragment(sim=[_end_simulation])
-	sim = Simulator(fragment)
-	sim.run()
+class TBWishbone(Module):
+	def __init__(self, master):
+		self.submodules.peripheral = wishbone.Target(MyModelWB())
+		self.submodules.tap = wishbone.Tap(self.peripheral.bus)
+		self.submodules.interconnect = wishbone.InterconnectPointToPoint(master.bus,
+		  self.peripheral.bus)
+
+class TBWishboneReader(TBWishbone):
+	def __init__(self):
+		self.adrgen = SimAdrGen(30)
+		self.reader = dma_wishbone.Reader()
+		self.dumper = SimDumper()
+		g = DataFlowGraph()
+		g.add_connection(self.adrgen, self.reader)
+		g.add_connection(self.reader, self.dumper)
+		self.submodules.comp = CompositeActor(g)
+		TBWishbone.__init__(self, self.reader)
+
+	def do_simulation(self, s):
+		s.interrupt = self.adrgen.token_exchanger.done and not s.rd(self.comp.busy)
+
+class TBWishboneWriter(TBWishbone):
+	def __init__(self):
+		self.trgen = SimTrGen()
+		self.writer = dma_wishbone.Writer()
+		g = DataFlowGraph()
+		g.add_connection(self.trgen, self.writer)
+		self.submodules.comp = CompositeActor(g)
+		TBWishbone.__init__(self, self.writer)
+
+	def do_simulation(self, s):
+		s.interrupt = self.trgen.token_exchanger.done and not s.rd(self.comp.busy)
+
+class TBAsmi(Module):
+	def __init__(self, hub):
+		self.submodules.peripheral = asmibus.Target(MyModelASMI(), hub)
+		self.submodules.tap = asmibus.Tap(hub)
+
+class TBAsmiReader(TBAsmi):
+	def __init__(self, nslots):
+		self.submodules.hub = asmibus.Hub(32, 32)
+		port = self.hub.get_port(nslots)
+		self.hub.finalize()
+		
+		self.adrgen = SimAdrGen(32)
+		self.reader = dma_asmi.Reader(port)
+		self.dumper = SimDumper()
+		g = DataFlowGraph()
+		g.add_connection(self.adrgen, self.reader)
+		g.add_connection(self.reader, self.dumper)
+		self.submodules.comp = CompositeActor(g)
+		TBAsmi.__init__(self, self.hub)
+
+	def do_simulation(self, s):
+		s.interrupt = self.adrgen.token_exchanger.done and not s.rd(self.comp.busy)
 
 def test_wb_reader():
 	print("*** Testing Wishbone reader")
-	adrgen = SimActor(adrgen_gen(), ("address", Source, [("a", 30)]))
-	reader = dma_wishbone.Reader()
-	dumper = SimActor(dumper_gen(), ("data", Sink, [("d", 32)]))
-	g = DataFlowGraph()
-	g.add_connection(adrgen, reader)
-	g.add_connection(reader, dumper)
-	comp = CompositeActor(g)
-	
-	wishbone_sim(comp.get_fragment(), reader,
-		lambda s: adrgen.token_exchanger.done and not s.rd(comp.busy))
+	Simulator(TBWishboneReader()).run()
 
 def test_wb_writer():
 	print("*** Testing Wishbone writer")
-	trgen = SimActor(trgen_gen(), ("address_data", Source, [("a", 30), ("d", 32)]))
-	writer = dma_wishbone.Writer()
-	g = DataFlowGraph()
-	g.add_connection(trgen, writer)
-	comp = CompositeActor(g)
-	
-	wishbone_sim(comp.get_fragment(), writer,
-		lambda s: trgen.token_exchanger.done and not s.rd(comp.busy))
+	Simulator(TBWishboneWriter()).run()
 
 def test_asmi_reader(nslots):
 	print("*** Testing ASMI reader (nslots={})".format(nslots))
-	
-	hub = asmibus.Hub(32, 32)
-	port = hub.get_port(nslots)
-	hub.finalize()
-	
-	adrgen = SimActor(adrgen_gen(), ("address", Source, [("a", 32)]))
-	reader = dma_asmi.Reader(port)
-	dumper = SimActor(dumper_gen(), ("data", Sink, [("d", 32)]))
-	g = DataFlowGraph()
-	g.add_connection(adrgen, reader)
-	g.add_connection(reader, dumper)
-	comp = CompositeActor(g)
-	
-	asmi_sim(hub.get_fragment() + comp.get_fragment(), hub,
-		lambda s: adrgen.token_exchanger.done and not s.rd(comp.busy))
+	Simulator(TBAsmiReader(nslots)).run()
 
 test_wb_reader()
 test_wb_writer()

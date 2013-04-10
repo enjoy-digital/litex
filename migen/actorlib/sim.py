@@ -20,10 +20,10 @@ class TokenExchanger(Module):
 	def _process_transactions(self, s):
 		completed = set()
 		for token in self.active:
-			ep = self.actor.endpoints[token.endpoint]
+			ep = getattr(self.actor, token.endpoint)
 			if isinstance(ep, Sink):
 				if s.rd(ep.ack) and s.rd(ep.stb):
-					token.value = s.multiread(ep.token)
+					token.value = s.multiread(ep.payload)
 					completed.add(token)
 					s.wr(ep.ack, 0)
 			elif isinstance(ep, Source):
@@ -38,11 +38,11 @@ class TokenExchanger(Module):
 
 	def _update_control_signals(self, s):
 		for token in self.active:
-			ep = self.actor.endpoints[token.endpoint]
+			ep = getattr(self.actor, token.endpoint)
 			if isinstance(ep, Sink):
 				s.wr(ep.ack, 1)
 			elif isinstance(ep, Source):
-				s.multiwrite(ep.token, token.value)
+				s.multiwrite(ep.payload, token.value)
 				s.wr(ep.stb, 1)
 			else:
 				raise TypeError
@@ -56,9 +56,7 @@ class TokenExchanger(Module):
 			transactions = None
 		if isinstance(transactions, Token):
 			self.active = {transactions}
-		elif isinstance(transactions, tuple) \
-			or isinstance(transactions, list) \
-			or isinstance(transactions, set):
+		elif isinstance(transactions, (tuple, list, set)):
 			self.active = set(transactions)
 		elif transactions is None:
 			self.active = set()
@@ -77,27 +75,25 @@ class TokenExchanger(Module):
 
 	do_simulation.initialize = True
 
-class SimActor(Actor):
-	def __init__(self, generator, *endpoint_descriptions, **misc):
-		Actor.__init__(self, *endpoint_descriptions, **misc)
-		self.token_exchanger = TokenExchanger(generator, self)
+class SimActor(Module):
+	def __init__(self, generator):
+		self.busy = Signal()
+		self.submodules.token_exchanger = TokenExchanger(generator, self)
 	
-	def update_busy(self, s):
+	def do_simulation(self, s):
 		s.wr(self.busy, self.token_exchanger.busy)
-	
-	def get_fragment(self):
-		return self.token_exchanger.get_fragment() + Fragment(sim=[self.update_busy])
+
+def _dumper_gen(prefix):
+	while True:
+		t = Token("result")
+		yield t
+		if len(t.value) > 1:
+			s = str(t.value)
+		else:
+			s = str(list(t.value.values())[0])
+		print(prefix + s)
 
 class Dumper(SimActor):
 	def __init__(self, layout, prefix=""):
-		def dumper_gen():
-			while True:
-				t = Token("result")
-				yield t
-				if len(t.value) > 1:
-					s = str(t.value)
-				else:
-					s = str(list(t.value.values())[0])
-				print(prefix + s)
-		SimActor.__init__(self, dumper_gen(),
-			("result", Sink, layout))
+		self.result = Sink(layout)
+		SimActor.__init__(self, _dumper_gen(prefix))

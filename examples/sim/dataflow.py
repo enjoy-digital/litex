@@ -10,22 +10,31 @@ def source_gen():
 		print("Sending:  " + str(i))
 		yield Token("source", {"value": i})
 
+class SimSource(SimActor):
+	def __init__(self):
+		self.source = Source([("value", 32)])
+		SimActor.__init__(self, source_gen())
+
 def sink_gen():
 	while True:
 		t = Token("sink")
 		yield t
 		print("Received: " + str(t.value["value"]))
 
-def main():
-	source = SimActor(source_gen(), ("source", Source, [("value", 32)]))
-	sink = SimActor(sink_gen(), ("sink", Sink, [("value", 32)]))
-	g = DataFlowGraph()
-	g.add_connection(source, sink)
-	comp = CompositeActor(g)
-	def end_simulation(s):
-		s.interrupt = source.token_exchanger.done
-	fragment = comp.get_fragment() + Fragment(sim=[end_simulation])
-	sim = Simulator(fragment)
-	sim.run()
+class SimSink(SimActor):
+	def __init__(self):
+		self.sink = Sink([("value", 32)])
+		SimActor.__init__(self, sink_gen())
 
-main()
+class TB(Module):
+	def __init__(self):
+		self.source = SimSource()
+		self.sink = SimSink()
+		g = DataFlowGraph()
+		g.add_connection(self.source, self.sink)
+		self.submodules.comp = CompositeActor(g)
+
+	def do_simulation(self, s):
+		s.interrupt = self.source.token_exchanger.done
+
+Simulator(TB()).run()

@@ -34,7 +34,7 @@ def layout_get(layout, name):
 	for f in layout:
 		if f[0] == name:
 			return f
-	raise KeyError
+	raise KeyError(name)
 
 def layout_partial(layout, *elements):
 	r = []

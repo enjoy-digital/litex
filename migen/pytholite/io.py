@@ -17,7 +17,7 @@ class Pytholite(UnifiedIOObject):
 		if dataflow is not None:
 			self.busy.reset = 1
 		self.memory_ports = dict((mem, mem.get_port(write_capable=True, we_granularity=8))
-			for mem in self._memories)
+			for mem in self.buses.values() if isinstance(mem, Memory))
 	
 	def get_fragment(self):
 		return UnifiedIOObject.get_fragment(self) + self.fragment
@@ -39,7 +39,7 @@ class _TokenPullExprCompiler(ExprCompiler):
 		if not isinstance(node.slice, ast.Index):
 			raise NotImplementedError
 		field = ast.literal_eval(node.slice.value)
-		signal = getattr(self.ep.token, field)
+		signal = getattr(self.ep.payload, field)
 		
 		return signal
 
@@ -47,7 +47,7 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 	epname = ast.literal_eval(to_model["endpoint"])
 	values = to_model["value"]
 	idle_wait = ast.literal_eval(to_model["idle_wait"])
-	ep = compiler.ioo.endpoints[epname]
+	ep = getattr(compiler.ioo, epname)
 	if idle_wait:
 		state = [compiler.ioo.busy.eq(0)]
 	else:
@@ -76,7 +76,7 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 			raise NotImplementedError
 		for akey, value in zip(values.keys, values.values):
 			key = ast.literal_eval(akey)
-			signal = getattr(ep.token, key)
+			signal = getattr(ep.payload, key)
 			state.append(signal.eq(compiler.ec.visit_expr(value)))
 		state += [
 			ep.stb.eq(1),

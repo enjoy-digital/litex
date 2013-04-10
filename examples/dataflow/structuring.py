@@ -11,10 +11,18 @@ from migen.sim.generic import Simulator
 from migen.flow import perftools
 
 pack_factor = 5
+base_layout = [("value", 32)]
+packed_layout = structuring.pack_layout(base_layout, pack_factor)
+rawbits_layout = [("value", 32*pack_factor)]
 
 def source_gen():
 	for i in count(0):
 		yield Token("source", {"value": i})
+
+class SimSource(SimActor):
+	def __init__(self):
+		self.source = Source(base_layout)
+		SimActor.__init__(self, source_gen())
 
 def sink_gen():
 	while True:
@@ -22,37 +30,38 @@ def sink_gen():
 		yield t
 		print(t.value["value"])
 
-def main():
-	base_layout = [("value", 32)]
-	packed_layout = structuring.pack_layout(base_layout, pack_factor)
-	rawbits_layout = [("value", 32*pack_factor)]
-	
-	source = SimActor(source_gen(), ("source", Source, base_layout))
-	sink = SimActor(sink_gen(), ("sink", Sink, base_layout))
-	
-	# A tortuous way of passing integer tokens.
-	packer = structuring.Pack(base_layout, pack_factor)
-	to_raw = structuring.Cast(packed_layout, rawbits_layout)
-	from_raw = structuring.Cast(rawbits_layout, packed_layout)
-	unpacker = structuring.Unpack(pack_factor, base_layout)
-	
-	g = DataFlowGraph()
-	g.add_connection(source, packer)
-	g.add_connection(packer, to_raw)
-	g.add_connection(to_raw, from_raw)
-	g.add_connection(from_raw, unpacker)
-	g.add_connection(unpacker, sink)
-	comp = CompositeActor(g)
-	reporter = perftools.DFGReporter(g)
-	
-	fragment = comp.get_fragment() + reporter.get_fragment()
-	sim = Simulator(fragment)
-	sim.run(1000)
-	
-	g_layout = nx.spectral_layout(g)
-	nx.draw(g, g_layout)
-	nx.draw_networkx_edge_labels(g, g_layout, reporter.get_edge_labels())
-	plt.show()
+class SimSink(SimActor):
+	def __init__(self):
+		self.sink = Sink(base_layout)
+		SimActor.__init__(self, sink_gen())
 
+class TB(Module):
+	def __init__(self):
+		source = SimSource()
+		sink = SimSink()
+		
+		# A tortuous way of passing integer tokens.
+		packer = structuring.Pack(base_layout, pack_factor)
+		to_raw = structuring.Cast(packed_layout, rawbits_layout)
+		from_raw = structuring.Cast(rawbits_layout, packed_layout)
+		unpacker = structuring.Unpack(pack_factor, base_layout)
+		
+		self.g = DataFlowGraph()
+		self.g.add_connection(source, packer)
+		self.g.add_connection(packer, to_raw)
+		self.g.add_connection(to_raw, from_raw)
+		self.g.add_connection(from_raw, unpacker)
+		self.g.add_connection(unpacker, sink)
+		self.submodules.comp = CompositeActor(self.g)
+		self.submodules.reporter = perftools.DFGReporter(self.g)
+
+def main():
+	tb = TB()
+	sim = Simulator(tb).run(1000)
+	
+	g_layout = nx.spectral_layout(tb.g)
+	nx.draw(tb.g, g_layout)
+	nx.draw_networkx_edge_labels(tb.g, g_layout, tb.reporter.get_edge_labels())
+	plt.show()
 
 main()

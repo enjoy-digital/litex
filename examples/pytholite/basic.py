@@ -11,6 +11,11 @@ def number_gen():
 	for i in range(10):
 		yield Token("result", {"r": i})
 
+class SimNumberGen(SimActor):
+	def __init__(self):
+		self.result = Source(layout)
+		SimActor.__init__(self, number_gen())
+
 def run_sim(ng):
 	g = DataFlowGraph()
 	d = Dumper(layout)
@@ -23,7 +28,7 @@ def run_sim(ng):
 
 def main():
 	print("Simulating native Python:")
-	ng_native = SimActor(number_gen(), ("result", Source, layout))
+	ng_native = SimNumberGen()
 	run_sim(ng_native)
 	
 	print("Simulating Pytholite:")
@@ -31,6 +36,7 @@ def main():
 	run_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
+	ng_pytholite = make_pytholite(number_gen, dataflow=[("result", Source, layout)])
 	print(verilog.convert(ng_pytholite))
 
 main()

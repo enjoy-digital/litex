@@ -4,15 +4,13 @@ from migen.fhdl.structure import *
 from migen.genlib.misc import optree
 from migen.flow.actor import *
 from migen.flow import plumbing
-from migen.flow.isd import DFGReporter
 
 # Abstract actors mean that the actor class should be instantiated with the parameters 
 # from the dictionary. They are needed to enable actor duplication or sharing during
 # elaboration, and automatic parametrization of plumbing actors.
 
-class AbstractActor(HUID):
+class AbstractActor:
 	def __init__(self, actor_class, parameters=dict(), name=None):
-		HUID.__init__(self)
 		self.actor_class = actor_class
 		self.parameters = parameters
 		self.name = name
@@ -27,6 +25,7 @@ class AbstractActor(HUID):
 		r += ">"
 		return r
 
+# TODO: rewrite this without networkx and without non-determinism
 class DataFlowGraph(MultiDiGraph):
 	def __init__(self):
 		MultiDiGraph.__init__(self)
@@ -35,8 +34,6 @@ class DataFlowGraph(MultiDiGraph):
 	def add_connection(self, source_node, sink_node,
 	  source_ep=None, sink_ep=None,		# default: assume nodes have 1 source/sink and use that one
 	  source_subr=None, sink_subr=None):	# default: use whole record
-		assert(isinstance(source_node, (Actor, AbstractActor)))
-		assert(isinstance(sink_node, (Actor, AbstractActor)))
 		self.add_edge(source_node, sink_node,
 			source=source_ep, sink=sink_ep,
 			source_subr=source_subr, sink_subr=sink_subr)
@@ -158,7 +155,7 @@ class DataFlowGraph(MultiDiGraph):
 						continue
 					other_ep = data["source"]
 					if other_ep is None:
-						other_ep = other.single_source()
+						other_ep = get_single_ep(other, Source)[1]
 				elif a.actor_class in plumbing.layout_source:
 					edges = self.out_edges(a, data=True)
 					assert(len(edges) == 1)
@@ -167,10 +164,10 @@ class DataFlowGraph(MultiDiGraph):
 						continue
 					other_ep = data["sink"]
 					if other_ep is None:
-						other_ep = other.single_sink()
+						other_ep = get_single_ep(other, Sink)[1]
 				else:
 					raise AssertionError
-				layout = other.token(other_ep).layout
+				layout = other_ep.payload.layout
 				a.parameters["layout"] = layout
 				self.instantiate(a)
 	
@@ -184,9 +181,9 @@ class DataFlowGraph(MultiDiGraph):
 		# 3. resolve default eps
 		for u, v, d in self.edges_iter(data=True):
 			if d["source"] is None:
-				d["source"] = u.single_source()
+				d["source"] = get_single_ep(u, Source)[0]
 			if d["sink"] is None:
-				d["sink"] = v.single_sink()
+				d["sink"] = get_single_ep(v, Sink)[0]
 	
 	# Elaboration turns an abstract DFG into a physical one.
 	#   Pass 1: eliminate subrecords and divergences
@@ -203,29 +200,14 @@ class DataFlowGraph(MultiDiGraph):
 			optimizer(self)
 		self._instantiate_actors()
 
-class CompositeActor(Actor):
-	def __init__(self, dfg, debugger=False, debugger_nbits=48):
+class CompositeActor(Module):
+	def __init__(self, dfg):
 		dfg.elaborate()
-		self.dfg = dfg
-		if debugger:
-			self.debugger = DFGReporter(self.dfg, debugger_nbits)
-		Actor.__init__(self)
-	
-	def get_csrs(self):
-		if hasattr(self, "debugger"):
-			return self.debugger.get_csrs()
-		else:
-			return []
-	
-	def get_fragment(self):
-		comb = [self.busy.eq(optree("|", [node.busy for node in self.dfg]))]
-		fragment = Fragment(comb)
-		for node in self.dfg:
-			fragment += node.get_fragment()
-		for u, v, d in self.dfg.edges_iter(data=True):
-			ep_src = u.endpoints[d["source"]]
-			ep_dst = v.endpoints[d["sink"]]
-			fragment += get_conn_fragment(ep_src, ep_dst)
-		if hasattr(self, "debugger"):
-			fragment += self.debugger.get_fragment()
-		return fragment
+		self.busy = Signal()
+		self.comb += [self.busy.eq(optree("|", [node.busy for node in dfg]))]
+		for node in dfg:
+			self.submodules += node
+		for u, v, d in dfg.edges_iter(data=True):
+			ep_src = getattr(u, d["source"])
+			ep_dst = getattr(v, d["sink"])
+			self.comb += ep_src.connect(ep_dst)

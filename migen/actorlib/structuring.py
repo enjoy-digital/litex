@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.flow.actor import *
 
 def _rawbits_layout(l):
@@ -9,45 +10,42 @@ def _rawbits_layout(l):
 
 class Cast(CombinatorialActor):
 	def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
-		self.reverse_from = reverse_from
-		self.reverse_to = reverse_to
-		CombinatorialActor.__init__(self,
-			("sink", Sink, _rawbits_layout(layout_from)),
-			("source", Source, _rawbits_layout(layout_to)))
+		self.sink = Sink(_rawbits_layout(layout_from))
+		self.source = Source(_rawbits_layout(layout_to))
+		CombinatorialActor.__init__(self)
 	
-	def get_process_fragment(self):
-		sigs_from = self.token("sink").flatten()
-		if self.reverse_from:
+		###
+
+		sigs_from = self.sink.payload.flatten()
+		if reverse_from:
 			sigs_from = list(reversed(sigs_from))
-		sigs_to = self.token("source").flatten()
-		if self.reverse_to:
+		sigs_to = self.source.payload.flatten()
+		if reverse_to:
 			sigs_to = list(reversed(sigs_to))
 		if sum(len(s) for s in sigs_from) != sum(len(s) for s in sigs_to):
 			raise TypeError
-		return Fragment([
-			Cat(*sigs_to).eq(Cat(*sigs_from))
-		])
+		self.comb += Cat(*sigs_to).eq(Cat(*sigs_from))
 
 def pack_layout(l, n):
 	return [("chunk"+str(i), l) for i in range(n)]
 
-class Unpack(Actor):
+class Unpack(Module):
 	def __init__(self, n, layout_to):
-		self.n = n
-		Actor.__init__(self,
-			("sink", Sink, pack_layout(layout_to, n)),
-			("source", Source, layout_to))
+		self.sink = Sink(pack_layout(layout_to, n))
+		self.source = Source(layout_to)
+		self.busy = Signal()
 	
-	def get_fragment(self):
-		mux = Signal(max=self.n)
+		###
+
+		mux = Signal(max=n)
 		last = Signal()
-		comb = [
-			last.eq(mux == (self.n-1)),
-			self.endpoints["source"].stb.eq(self.endpoints["sink"].stb),
-			self.endpoints["sink"].ack.eq(last & self.endpoints["source"].ack)
+		self.comb += [
+			last.eq(mux == (n-1)),
+			self.source.stb.eq(self.sink.stb),
+			self.sink.ack.eq(last & self.source.ack)
 		]
-		sync = [
-			If(self.endpoints["source"].stb & self.endpoints["source"].ack,
+		self.sync += [
+			If(self.source.stb & self.source.ack,
 				If(last,
 					mux.eq(0)
 				).Else(
@@ -56,39 +54,36 @@ class Unpack(Actor):
 			)
 		]
 		cases = {}
-		for i in range(self.n):
-			cases[i] = [self.token("source").raw_bits().eq(getattr(self.token("sink"), "chunk"+str(i)).raw_bits())]
-		comb.append(Case(mux, cases).makedefault())
-		return Fragment(comb, sync)
+		for i in range(n):
+			cases[i] = [self.source.payload.raw_bits().eq(getattr(self.sink.payload, "chunk"+str(i)).raw_bits())]
+		self.comb += Case(mux, cases).makedefault()
 
-class Pack(Actor):
+class Pack(Module):
 	def __init__(self, layout_from, n):
-		self.n = n
-		Actor.__init__(self,
-			("sink", Sink, layout_from),
-			("source", Source, pack_layout(layout_from, n)))
+		self.sink = Sink(layout_from)
+		self.source = Source(pack_layout(layout_from, n))
+		self.busy = Signal()
 	
-	def get_fragment(self):
-		demux = Signal(max=self.n)
+		###
+
+		demux = Signal(max=n)
 		
 		load_part = Signal()
 		strobe_all = Signal()
 		cases = {}
-		for i in range(self.n):
-			cases[i] = [getattr(self.token("source"), "chunk"+str(i)).raw_bits().eq(self.token("sink").raw_bits())]
-		comb = [
+		for i in range(n):
+			cases[i] = [getattr(self.source.payload, "chunk"+str(i)).raw_bits().eq(self.sink.payload.raw_bits())]
+		self.comb += [
 			self.busy.eq(strobe_all),
-			self.endpoints["sink"].ack.eq(~strobe_all | self.endpoints["source"].ack),
-			self.endpoints["source"].stb.eq(strobe_all),
-			load_part.eq(self.endpoints["sink"].stb & self.endpoints["sink"].ack)
+			self.sink.ack.eq(~strobe_all | self.source.ack),
+			self.source.stb.eq(strobe_all),
+			load_part.eq(self.sink.stb & self.sink.ack)
 		]
-		sync = [
-			If(self.endpoints["source"].ack,
-				strobe_all.eq(0)
-			),
+		self.sync += [
+			If(self.source.ack, strobe_all.eq(0)),
 			If(load_part,
 				Case(demux, cases),
-				If(demux == (self.n - 1),
+				If(demux == (n - 1),
 					demux.eq(0),
 					strobe_all.eq(1)
 				).Else(
@@ -96,4 +91,3 @@ class Pack(Actor):
 				)
 			)
 		]
-		return Fragment(comb, sync)

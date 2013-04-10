@@ -6,54 +6,52 @@ from migen.genlib.misc import optree
 
 class Buffer(PipelinedActor):
 	def __init__(self, layout):
-		PipelinedActor.__init__(self, 1,
-			("d", Sink, layout), ("q", Source, layout))
-	
-	def get_process_fragment(self):
-		sigs_d = self.token("d").flatten()
-		sigs_q = self.token("q").flatten()
-		sync = [If(self.pipe_ce, Cat(*sigs_q).eq(Cat(*sigs_d)))]
-		return Fragment(sync=sync)
+		self.d = Sink(layout)
+		self.q = Source(layout)
+		PipelinedActor.__init__(self, 1)
+		self.sync += If(self.pipe_ce, self.q.payload.eq(self.d.payload))
 
-class Combinator(Module, Actor):
+class Combinator(Module):
 	def __init__(self, layout, subrecords):
-		eps = [("source", Source, layout)]
-		eps += [("sink"+str(n), Sink, layout_partial(layout, r))
-			for n, r in enumerate(subrecords)]
-		Actor.__init__(self, *eps)
+		self.source = Source(layout)
+		sinks = []
+		for n, r in enumerate(subrecords):
+			s = Sink(layout_partial(layout, *r))
+			setattr(self, "sink"+str(n), s)
+			sinks.append(s)
+		self.busy = Signal()
 
 		###
 	
-		source = self.endpoints["source"]
-		sinks = [self.endpoints["sink"+str(n)]
-			for n in range(len(self.endpoints)-1)]
-		self.comb += [source.stb.eq(optree("&", [sink.stb for sink in sinks]))]
-		self.comb += [sink.ack.eq(source.ack & source.stb) for sink in sinks]
-		self.comb += [source.token.eq(sink.token) for sink in sinks]
+		self.comb += [
+			self.busy.eq(0),
+			self.source.stb.eq(optree("&", [sink.stb for sink in sinks]))
+		]
+		self.comb += [sink.ack.eq(self.source.ack & self.source.stb) for sink in sinks]
+		self.comb += [self.source.payload.eq(sink.payload) for sink in sinks]
 
-class Splitter(Module, Actor):
+class Splitter(Module):
 	def __init__(self, layout, subrecords):
-		eps = [("sink", Sink, layout)]
-		eps += [("source"+str(n), Source, layout_partial(layout, *r))
-			for n, r in enumerate(subrecords)]
-		Actor.__init__(self, *eps)
+		self.sink = Sink(layout)
+		sources = []
+		for n, r in enumerate(subrecords):
+			s = Source(layout_partial(layout, *r))
+			setattr(self, "source"+str(n), s)
+			sources.append(s)
+		self.busy = Signal()
 		
 		###
 
-		sources = [self.endpoints[e] for e in self.sources()]
-		sink = self.endpoints[self.sinks()[0]]
-
-		self.comb += [source.token.eq(sink.token) for source in sources]
-		
+		self.comb += [source.payload.eq(self.sink.payload) for source in sources]
 		already_acked = Signal(len(sources))
-		self.sync += If(sink.stb,
+		self.sync += If(self.sink.stb,
 				already_acked.eq(already_acked | Cat(*[s.ack for s in sources])),
-				If(sink.ack, already_acked.eq(0))
+				If(self.sink.ack, already_acked.eq(0))
 			)
-		self.comb += sink.ack.eq(optree("&",
+		self.comb += self.sink.ack.eq(optree("&",
 				[s.ack | already_acked[n] for n, s in enumerate(sources)]))
 		for n, s in enumerate(sources):
-			self.comb += s.stb.eq(sink.stb & ~already_acked[n])
+			self.comb += s.stb.eq(self.sink.stb & ~already_acked[n])
 
 # Actors whose layout should be inferred from what their single sink is connected to.
 layout_sink = {Buffer, Splitter}

@@ -7,15 +7,14 @@ from migen.bus import wishbone, memory
 from migen.bus.transactions import *
 from migen.uio.trampoline import Trampoline
 
-class UnifiedIOObject(Actor):
+class UnifiedIOObject(Module):
 	def __init__(self, dataflow=None, buses={}):
 		if dataflow is not None:
-			Actor.__init__(self, *dataflow)
+			self.busy = Signal()
+			for name, cl, layout in dataflow:
+				setattr(self, name, cl(layout))
 		self.buses = buses
-		self._memories = set(v for v in self.buses.values() if isinstance(v, Memory))
-	
-	def get_fragment(self):
-		return Fragment(specials=self._memories)
+		self.specials += set(v for v in self.buses.values() if isinstance(v, Memory))
 
 (_WAIT_COMPLETE, _WAIT_POLL) = range(2)
 
@@ -24,12 +23,12 @@ class UnifiedIOSimulation(UnifiedIOObject):
 		self.generator = Trampoline(generator)
 		UnifiedIOObject.__init__(self, dataflow, buses)
 		
-		self.callers = []
+		callers = []
 		self.busname_to_caller_id = {}
 		if dataflow is not None:
-			self.callers.append(TokenExchanger(self.dispatch_g(0), self))
+			callers.append(TokenExchanger(self.dispatch_g(0), self))
 		for k, v in self.buses.items():
-			caller_id = len(self.callers)
+			caller_id = len(callers)
 			self.busname_to_caller_id[k] = caller_id
 			g = self.dispatch_g(caller_id)
 			if isinstance(v, wishbone.Interface):
@@ -38,7 +37,8 @@ class UnifiedIOSimulation(UnifiedIOObject):
 				caller = memory.Initiator(g, v)
 			else:
 				raise NotImplementedError
-			self.callers.append(caller)
+			callers.append(caller)
+		self.submodules += callers
 		
 		self.dispatch_state = _WAIT_COMPLETE
 		self.dispatch_caller = 0
@@ -75,7 +75,3 @@ class UnifiedIOSimulation(UnifiedIOObject):
 				yield self.pending_transaction
 			else:
 				yield None
-	
-	def get_fragment(self):
-		f = UnifiedIOObject.get_fragment(self)
-		return sum([c.get_fragment() for c in self.callers], f)

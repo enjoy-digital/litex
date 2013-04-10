@@ -66,6 +66,9 @@ def main():
 	run_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
+	ng_pytholite = make_pytholite(gen,
+		dataflow=dataflow,
+		buses=buses)
 	print(verilog.convert(ng_pytholite.get_fragment()))
 
 main()
