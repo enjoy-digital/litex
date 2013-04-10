@@ -96,7 +96,11 @@ class Record:
 	def raw_bits(self):
 		return Cat(*self.flatten())
 	
-	def connect(self, *slaves):
+	def connect(self, *slaves, match_by_position=False):
+		if match_by_position:
+			iters = [iter(slave.layout) for slave in slaves]
+		else:
+			iters = [iter(self.layout) for slave in slaves]
 		r = []
 		for f in self.layout:
 			field = f[0]
@@ -104,14 +108,16 @@ class Record:
 			if isinstance(self_e, Signal):
 				direction = f[2]
 				if direction == DIR_M_TO_S:
-					r += [getattr(slave, field).eq(self_e) for slave in slaves]
+					r += [getattr(slave, next(it)[0]).eq(self_e) for slave, it in zip(slaves, iters)]
 				elif direction == DIR_S_TO_M:
-					r.append(self_e.eq(optree("|", [getattr(slave, field) for slave in slaves])))
+					r.append(self_e.eq(optree("|", [getattr(slave, next(it)[0])
+					  for slave, it in zip(slaves, iters)])))
 				else:
 					raise TypeError
 			else:
-				for slave in slaves:
-					r += self_e.connect(getattr(slave, field))
+				for slave, it in zip(slaves, iters):
+					r += self_e.connect(getattr(slave, next(it)[0]),
+					  match_by_position=match_by_position)
 		return r
 
 	def __len__(self):
