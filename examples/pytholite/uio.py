@@ -3,7 +3,7 @@ from migen.flow.transactions import *
 from migen.actorlib.sim import Dumper
 from migen.bus import wishbone
 from migen.bus.transactions import *
-from migen.uio.ioo import UnifiedIOSimulation
+from migen.genlib.ioo import UnifiedIOSimulation
 from migen.pytholite.transel import Register
 from migen.pytholite.compiler import make_pytholite
 from migen.sim.generic import Simulator
