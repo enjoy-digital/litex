@@ -5,7 +5,7 @@ from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.genlib.ioo import UnifiedIOSimulation
 from migen.pytholite.transel import Register
-from migen.pytholite.compiler import make_pytholite
+from migen.pytholite.compiler import Pytholite
 from migen.sim.generic import Simulator
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Memory
@@ -37,7 +37,7 @@ class TestBench(Module):
 		g.add_connection(ng, d)
 		
 		self.submodules.slave = wishbone.Target(SlaveModel())
-		self.submodules.intercon = wishbone.InterconnectPointToPoint(ng.buses["wb"], self.slave.bus)
+		self.submodules.intercon = wishbone.InterconnectPointToPoint(ng.wb, self.slave.bus)
 		self.submodules.ca = CompositeActor(g)
 
 def run_sim(ng):
@@ -45,30 +45,26 @@ def run_sim(ng):
 	sim.run(50)
 	del sim
 
+def add_interfaces(obj):
+	obj.result = Source(layout)
+	obj.wb = wishbone.Interface()
+	obj.mem = Memory(32, 3, init=[42, 37, 81])
+	obj.finalize()
+
 def main():
-	mem = Memory(32, 3, init=[42, 37, 81])
-	dataflow = [("result", Source, layout)]
-	buses = {
-		"wb":	wishbone.Interface(),
-		"mem":	mem
-	}
-	
 	print("Simulating native Python:")
-	ng_native = UnifiedIOSimulation(gen(), 
-		dataflow=dataflow,
-		buses=buses)
+	ng_native = UnifiedIOSimulation(gen())
+	add_interfaces(ng_native) 
 	run_sim(ng_native)
 	
 	print("Simulating Pytholite:")
-	ng_pytholite = make_pytholite(gen,
-		dataflow=dataflow,
-		buses=buses)
+	ng_pytholite = Pytholite(gen)
+	add_interfaces(ng_pytholite)
 	run_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
-	ng_pytholite = make_pytholite(gen,
-		dataflow=dataflow,
-		buses=buses)
-	print(verilog.convert(ng_pytholite.get_fragment()))
+	ng_pytholite = Pytholite(gen)
+	add_interfaces(ng_pytholite)
+	print(verilog.convert(ng_pytholite))
 
 main()

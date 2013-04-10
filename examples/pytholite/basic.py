@@ -1,7 +1,7 @@
 from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.actorlib.sim import *
-from migen.pytholite.compiler import make_pytholite
+from migen.pytholite.compiler import Pytholite
 from migen.sim.generic import Simulator
 from migen.fhdl import verilog
 
@@ -26,17 +26,23 @@ def run_sim(ng):
 	sim.run(30)
 	del sim
 
+def make_ng_pytholite():
+	ng_pytholite = Pytholite(number_gen)
+	ng_pytholite.result = Source(layout)
+	ng_pytholite.finalize()
+	return ng_pytholite
+
 def main():
 	print("Simulating native Python:")
 	ng_native = SimNumberGen()
 	run_sim(ng_native)
 	
 	print("Simulating Pytholite:")
-	ng_pytholite = make_pytholite(number_gen, dataflow=[("result", Source, layout)])
+	ng_pytholite = make_ng_pytholite()
 	run_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
-	ng_pytholite = make_pytholite(number_gen, dataflow=[("result", Source, layout)])
+	ng_pytholite = make_ng_pytholite()
 	print(verilog.convert(ng_pytholite))
 
 main()

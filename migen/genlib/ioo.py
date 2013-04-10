@@ -1,32 +1,37 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 from migen.flow.actor import *
+from migen.flow.actor import _Endpoint
 from migen.flow.transactions import *
 from migen.actorlib.sim import TokenExchanger
 from migen.bus import wishbone, memory
 from migen.bus.transactions import *
 
 class UnifiedIOObject(Module):
-	def __init__(self, dataflow=None, buses={}):
-		if dataflow is not None:
+	def do_finalize(self):
+		if self.get_dataflow():
 			self.busy = Signal()
-			for name, cl, layout in dataflow:
-				setattr(self, name, cl(layout))
-		self.buses = buses
-		self.specials += set(v for v in self.buses.values() if isinstance(v, Memory))
+		self.specials += set(v for v in self.__dict__.values() if isinstance(v, Memory))
+
+	def get_dataflow(self):
+		return dict((k, v) for k, v in self.__dict__.items() if isinstance(v, _Endpoint))
+
+	def get_buses(self):
+		return dict((k, v) for k, v in self.__dict__.items() if isinstance(v, (wishbone.Interface, Memory)))
 
 (_WAIT_COMPLETE, _WAIT_POLL) = range(2)
 
 class UnifiedIOSimulation(UnifiedIOObject):
-	def __init__(self, generator, dataflow=None, buses={}):
+	def __init__(self, generator):
 		self.generator = generator
-		UnifiedIOObject.__init__(self, dataflow, buses)
-		
+
+	def do_finalize(self):
+		UnifiedIOObject.do_finalize(self)
 		callers = []
 		self.busname_to_caller_id = {}
-		if dataflow is not None:
+		if self.get_dataflow():
 			callers.append(TokenExchanger(self.dispatch_g(0), self))
-		for k, v in self.buses.items():
+		for k, v in self.get_buses().items():
 			caller_id = len(callers)
 			self.busname_to_caller_id[k] = caller_id
 			g = self.dispatch_g(caller_id)
@@ -34,8 +39,6 @@ class UnifiedIOSimulation(UnifiedIOObject):
 				caller = wishbone.Initiator(g, v)
 			elif isinstance(v, Memory):
 				caller = memory.Initiator(g, v)
-			else:
-				raise NotImplementedError
 			callers.append(caller)
 		self.submodules += callers
 		

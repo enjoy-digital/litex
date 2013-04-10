@@ -1,6 +1,7 @@
 from operator import itemgetter
 
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.fhdl import visit as fhdl
 
 class AbstractLoad:
@@ -20,13 +21,12 @@ class LowerAbstractLoad(fhdl.NodeTransformer):
 		else:
 			return node
 
-class ImplRegister:
+class ImplRegister(Module):
 	def __init__(self, name, bits_sign):
 		self.name = name
 		self.storage = Signal(bits_sign, name=self.name)
 		self.source_encoding = {}
 		self.id_to_source = {}
-		self.finalized = False
 	
 	def load(self, source):
 		if id(source) not in self.source_encoding:
@@ -34,17 +34,9 @@ class ImplRegister:
 			self.id_to_source[id(source)] = source
 		return AbstractLoad(self, source)
 	
-	def finalize(self):
-		if self.finalized:
-			raise FinalizeError
+	def do_finalize(self):
 		self.sel = Signal(max=len(self.source_encoding)+1, name="pl_regsel_"+self.name)
-		self.finalized = True
-	
-	def get_fragment(self):
-		if not self.finalized:
-			raise FinalizeError
 		# do nothing when sel == 0
 		items = sorted(self.source_encoding.items(), key=itemgetter(1))
 		cases = dict((v, self.storage.eq(self.id_to_source[k])) for k, v in items)
-		sync = [Case(self.sel, cases)]
-		return Fragment(sync=sync)
+		self.sync += Case(self.sel, cases)

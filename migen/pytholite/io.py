@@ -3,24 +3,12 @@ from itertools import zip_longest
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
-from migen.genlib.ioo import UnifiedIOObject
 from migen.flow.actor import Source, Sink
 from migen.flow.transactions import *
 from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.pytholite.fsm import *
 from migen.pytholite.expr import ExprCompiler
-
-class Pytholite(UnifiedIOObject):
-	def __init__(self, dataflow=None, buses={}):
-		UnifiedIOObject.__init__(self, dataflow, buses)
-		if dataflow is not None:
-			self.busy.reset = 1
-		self.memory_ports = dict((mem, mem.get_port(write_capable=True, we_granularity=8))
-			for mem in self.buses.values() if isinstance(mem, Memory))
-	
-	def get_fragment(self):
-		return UnifiedIOObject.get_fragment(self) + self.fragment
 
 class _TokenPullExprCompiler(ExprCompiler):
 	def __init__(self, symdict, modelname, ep):
@@ -151,11 +139,12 @@ def _gen_memory_io(compiler, modelname, model, to_model, from_model, port):
 def _gen_bus_io(compiler, modelname, model, to_model, from_model):
 	busname = ast.literal_eval(to_model["busname"])
 	if busname is None:
-		if len(compiler.ioo.buses) != 1:
+		buses = compiler.ioo.get_buses()
+		if len(buses) != 1:
 			raise TypeError("Bus name not specified")
-		bus = list(compiler.ioo.buses.values())[0]
+		bus = list(buses.values())[0]
 	else:
-		bus = compiler.ioo.buses[busname]
+		bus = getattr(compiler.ioo, busname)
 	if isinstance(bus, wishbone.Interface):
 		return _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus)
 	elif isinstance(bus, Memory):

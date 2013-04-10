@@ -2,10 +2,13 @@ import inspect
 import ast
 
 from migen.fhdl.structure import *
+from migen.fhdl.visit import TransformModule
+from migen.fhdl.specials import Memory
+from migen.genlib.ioo import UnifiedIOObject
 from migen.pytholite.reg import *
 from migen.pytholite.expr import *
 from migen.pytholite import transel
-from migen.pytholite.io import Pytholite, gen_io
+from migen.pytholite.io import gen_io
 from migen.pytholite.fsm import *
 
 def _is_name_used(node, name):
@@ -226,23 +229,29 @@ class _Compiler:
 		else:
 			raise NotImplementedError
 
-def make_pytholite(func, **ioresources):
-	ioo = Pytholite(**ioresources)
-	
-	tree = ast.parse(inspect.getsource(func))
-	symdict = func.__globals__.copy()
-	registers = []
-	
-	states = _Compiler(ioo, symdict, registers).visit_top(tree)
-	
-	regf = Fragment()
-	for register in registers:
-		if register.source_encoding:
-			register.finalize()
-			regf += register.get_fragment()
-	
-	fsm = implement_fsm(states)
-	fsmf = LowerAbstractLoad().visit(fsm.get_fragment())
-	
-	ioo.fragment = regf + fsmf
-	return ioo
+class Pytholite(UnifiedIOObject):
+	def __init__(self, func):
+		self.func = func
+
+	def do_finalize(self):
+		UnifiedIOObject.do_finalize(self)
+		if self.get_dataflow():
+			self.busy.reset = 1
+		self.memory_ports = dict((mem, mem.get_port(write_capable=True, we_granularity=8))
+			for mem in self.__dict__.values() if isinstance(mem, Memory))
+		self._compile()
+
+	def _compile(self):
+		tree = ast.parse(inspect.getsource(self.func))
+		symdict = self.func.__globals__.copy()
+		registers = []
+		
+		states = _Compiler(self, symdict, registers).visit_top(tree)
+		
+		for register in registers:
+			if register.source_encoding:
+				register.finalize()
+				self.submodules += register
+		
+		fsm = implement_fsm(states)
+		self.submodules += TransformModule(LowerAbstractLoad().visit, fsm)
