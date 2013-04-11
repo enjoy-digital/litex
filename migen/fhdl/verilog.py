@@ -244,7 +244,7 @@ def _printspecials(overrides, specials, ns):
 
 def _printinit(f, ios, ns):
 	r = ""
-	signals = list_signals(f) \
+	signals = (list_signals(f) | list_special_ios(f, True, False, False)) \
 		- ios \
 		- list_targets(f) \
 		- list_special_ios(f, False, True, False)
