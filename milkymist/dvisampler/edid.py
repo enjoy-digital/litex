@@ -23,24 +23,25 @@ class EDID(Module, AutoCSR):
 
 		###
 
-		scl_i = Signal()
+		scl_raw = Signal()
 		sda_i = Signal()
 		sda_drv = Signal()
 		_sda_drv_reg = Signal()
 		_sda_i_async = Signal()
 		self.sync += _sda_drv_reg.eq(sda_drv)
 		self.specials += [
-			MultiReg(pads.scl, scl_i),
+			MultiReg(pads.scl, scl_raw),
 			Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
 			MultiReg(_sda_i_async, sda_i)
 		]
 
-		# FIXME: understand what is really going on here and get rid of that workaround
-		for x in range(20):
-			new_scl = Signal()
-			self.sync += new_scl.eq(scl_i)
-			scl_i = new_scl
-		#
+		scl_i = Signal()
+		samp_count = Signal(6)
+		samp_carry = Signal()
+		self.sync += [
+			Cat(samp_count, samp_carry).eq(samp_count + 1),
+			If(samp_carry, scl_i.eq(scl_raw))
+		]
 
 		scl_r = Signal()
 		sda_r = Signal()
