@@ -83,6 +83,13 @@ _io = [
 		IOStandard("LVCMOS33")
 	),
 
+	("mmc", 0,
+		Subsignal("clk", Pins("A10")),
+		Subsignal("cmd", Pins("B18")),
+		Subsignal("dat", Pins("A18", "E16", "C17", "A17")),
+		IOStandard("LVCMOS33")
+	),
+
 	# Digital video mixer extension board
 	("dvi_in", 0,
 		Subsignal("clk", Pins("A20")),
