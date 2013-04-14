@@ -61,14 +61,14 @@ class SRAM(Module):
 		else:
 			mem = Memory(data_width, mem_or_size//(data_width//8))
 		if mem.width > data_width:
-			csrw_per_memw = (self.mem.width + data_width - 1)//data_width
+			csrw_per_memw = (mem.width + data_width - 1)//data_width
 			word_bits = bits_for(csrw_per_memw-1)
 		else:
 			csrw_per_memw = 1
 			word_bits = 0
 		page_bits = _compute_page_bits(mem.depth + word_bits)
 		if page_bits:
-			self._page = CSRStorage(page_bits, name=self.mem.name_override + "_page")
+			self._page = CSRStorage(page_bits, name=mem.name_override + "_page")
 		else:
 			self._page = None
 		if read_only is None:
@@ -94,7 +94,7 @@ class SRAM(Module):
 		if word_bits:
 			word_index = Signal(word_bits)
 			word_expanded = Signal(csrw_per_memw*data_width)
-			sync.append(word_index.eq(self.bus.adr[:word_bits]))
+			self.sync += word_index.eq(self.bus.adr[:word_bits])
 			self.comb += [
 				word_expanded.eq(port.dat_r),
 				If(sel_r,
