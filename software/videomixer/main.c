@@ -3,77 +3,80 @@
 
 #include <irq.h>
 #include <uart.h>
-#include <hw/dvisampler.h>
+#include <hw/csr.h>
+#include <hw/flags.h>
 
 static int d0, d1, d2;
 
 static void print_status(void)
 {
 	printf("Ph: %4d %4d %4d // %d%d%d [%d %d %d] // %d // %dx%d // %d\n", d0, d1, d2,
-		CSR_DVISAMPLER0_D0_CHAR_SYNCED,
-		CSR_DVISAMPLER0_D1_CHAR_SYNCED,
-		CSR_DVISAMPLER0_D2_CHAR_SYNCED,
-		CSR_DVISAMPLER0_D0_CTL_POS,
-		CSR_DVISAMPLER0_D1_CTL_POS,
-		CSR_DVISAMPLER0_D2_CTL_POS,
-		CSR_DVISAMPLER0_CHAN_SYNCED,
-		(CSR_DVISAMPLER0_HRESH << 8) | CSR_DVISAMPLER0_HRESL,
-		(CSR_DVISAMPLER0_VRESH << 8) | CSR_DVISAMPLER0_VRESL,
-		(CSR_DVISAMPLER0_DECNT2 << 16) | (CSR_DVISAMPLER0_DECNT1 << 8) |  CSR_DVISAMPLER0_DECNT0);
+		dvisampler0_data0_charsync_char_synced_read(),
+		dvisampler0_data1_charsync_char_synced_read(),
+		dvisampler0_data2_charsync_char_synced_read(),
+		dvisampler0_data0_charsync_ctl_pos_read(),
+		dvisampler0_data1_charsync_ctl_pos_read(),
+		dvisampler0_data2_charsync_ctl_pos_read(),
+		dvisampler0_chansync_channels_synced_read(),
+		dvisampler0_resdetection_hres_read(),
+		dvisampler0_resdetection_vres_read(),
+		dvisampler0_resdetection_de_cycles_read());
 }
 
 static void calibrate_delays(void)
 {
-	CSR_DVISAMPLER0_D0_DELAY_CTL = DVISAMPLER_DELAY_CAL;
-	CSR_DVISAMPLER0_D1_DELAY_CTL = DVISAMPLER_DELAY_CAL;
-	CSR_DVISAMPLER0_D2_DELAY_CTL = DVISAMPLER_DELAY_CAL;
-	while(CSR_DVISAMPLER0_D0_DELAY_BUSY || CSR_DVISAMPLER0_D1_DELAY_BUSY || CSR_DVISAMPLER0_D2_DELAY_BUSY);
-	CSR_DVISAMPLER0_D0_DELAY_CTL = DVISAMPLER_DELAY_RST;
-	CSR_DVISAMPLER0_D1_DELAY_CTL = DVISAMPLER_DELAY_RST;
-	CSR_DVISAMPLER0_D2_DELAY_CTL = DVISAMPLER_DELAY_RST;
-	CSR_DVISAMPLER0_D0_PHASE_RESET = 1;
-	CSR_DVISAMPLER0_D1_PHASE_RESET = 1;
-	CSR_DVISAMPLER0_D2_PHASE_RESET = 1;
+	dvisampler0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
+	dvisampler0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
+	dvisampler0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
+	while(dvisampler0_data0_cap_dly_busy_read()
+		|| dvisampler0_data1_cap_dly_busy_read()
+		|| dvisampler0_data2_cap_dly_busy_read());
+	dvisampler0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
+	dvisampler0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
+	dvisampler0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
+	dvisampler0_data0_cap_phase_reset_write(1);
+	dvisampler0_data1_cap_phase_reset_write(1);
+	dvisampler0_data2_cap_phase_reset_write(1);
 	d0 = d1 = d2 = 0;
 	printf("Delays calibrated\n");
 }
 
 static void adjust_phase(void)
 {
-	switch(CSR_DVISAMPLER0_D0_PHASE) {
+	switch(dvisampler0_data0_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
-			CSR_DVISAMPLER0_D0_DELAY_CTL = DVISAMPLER_DELAY_DEC;
+			dvisampler0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
 			d0--;
-			CSR_DVISAMPLER0_D0_PHASE_RESET = 1;
+			dvisampler0_data0_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
-			CSR_DVISAMPLER0_D0_DELAY_CTL = DVISAMPLER_DELAY_INC;
+			dvisampler0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
 			d0++;
-			CSR_DVISAMPLER0_D0_PHASE_RESET = 1;
+			dvisampler0_data0_cap_phase_reset_write(1);
 			break;
 	}
-	switch(CSR_DVISAMPLER0_D1_PHASE) {
+	switch(dvisampler0_data1_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
-			CSR_DVISAMPLER0_D1_DELAY_CTL = DVISAMPLER_DELAY_DEC;
+			dvisampler0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
 			d1--;
-			CSR_DVISAMPLER0_D1_PHASE_RESET = 1;
+			dvisampler0_data1_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
-			CSR_DVISAMPLER0_D1_DELAY_CTL = DVISAMPLER_DELAY_INC;
+			dvisampler0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
 			d1++;
-			CSR_DVISAMPLER0_D1_PHASE_RESET = 1;
+			dvisampler0_data1_cap_phase_reset_write(1);
 			break;
 	}
-	switch(CSR_DVISAMPLER0_D2_PHASE) {
+	switch(dvisampler0_data2_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
-			CSR_DVISAMPLER0_D2_DELAY_CTL = DVISAMPLER_DELAY_DEC;
+			dvisampler0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
 			d2--;
-			CSR_DVISAMPLER0_D2_PHASE_RESET = 1;
+			dvisampler0_data2_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
-			CSR_DVISAMPLER0_D2_DELAY_CTL = DVISAMPLER_DELAY_INC;
+			dvisampler0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
 			d2++;
-			CSR_DVISAMPLER0_D2_PHASE_RESET = 1;
+			dvisampler0_data2_cap_phase_reset_write(1);
 			break;
 	}
 }
@@ -101,7 +104,7 @@ static void vmix(void)
 	unsigned int counter;
 
 	while(1) {
-		while(!CSR_DVISAMPLER0_PLL_LOCKED);
+		while(!dvisampler0_clocking_locked_read());
 		printf("PLL locked\n");
 		calibrate_delays();
 		if(init_phase())
@@ -111,7 +114,7 @@ static void vmix(void)
 		print_status();
 
 		counter = 0;
-		while(CSR_DVISAMPLER0_PLL_LOCKED) {
+		while(dvisampler0_clocking_locked_read()) {
 			counter++;
 			if(counter == 2000000) {
 				print_status();
