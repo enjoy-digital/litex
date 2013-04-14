@@ -1,6 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Special
-from migen.fhdl.tools import value_bits_sign, list_signals
+from migen.fhdl.tools import list_signals
 
 class MultiRegImpl:
 	def __init__(self, i, o, odomain, n):

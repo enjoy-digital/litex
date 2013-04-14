@@ -109,6 +109,9 @@ class Value(HUID):
 	
 	def eq(self, r):
 		return _Assign(self, r)
+
+	def __len__(self):
+		return value_bits_sign(self)[0]
 	
 	def __hash__(self):
 		return HUID.__hash__(self)
@@ -163,9 +166,6 @@ class Signal(Value):
 		self.reset = reset
 		self.name_override = name_override
 		self.backtrace = tracer.trace_back(name)
-
-	def __len__(self): # TODO: remove (use tools.value_bits_sign instead)
-		return self.nbits
 
 	def __repr__(self):
 		return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"
@@ -299,3 +299,81 @@ class Fragment:
 			self.specials | other.specials,
 			self.clock_domains + other.clock_domains,
 			self.sim + other.sim)
+
+def value_bits_sign(v):
+	if isinstance(v, bool):
+		return 1, False
+	elif isinstance(v, int):
+		return bits_for(v), v < 0
+	elif isinstance(v, Signal):
+		return v.nbits, v.signed
+	elif isinstance(v, (ClockSignal, ResetSignal)):
+		return 1, False
+	elif isinstance(v, _Operator):
+		obs = list(map(value_bits_sign, v.operands))
+		if v.op == "+" or v.op == "-":
+			if not obs[0][1] and not obs[1][1]:
+				# both operands unsigned
+				return max(obs[0][0], obs[1][0]) + 1, False
+			elif obs[0][1] and obs[1][1]:
+				# both operands signed
+				return max(obs[0][0], obs[1][0]) + 1, True
+			elif not obs[0][1] and obs[1][1]:
+				# first operand unsigned (add sign bit), second operand signed
+				return max(obs[0][0] + 1, obs[1][0]) + 1, True
+			else:
+				# first signed, second operand unsigned (add sign bit)
+				return max(obs[0][0], obs[1][0] + 1) + 1, True
+		elif v.op == "*":
+			if not obs[0][1] and not obs[1][1]:
+				# both operands unsigned
+				return obs[0][0] + obs[1][0]
+			elif obs[0][1] and obs[1][1]:
+				# both operands signed
+				return obs[0][0] + obs[1][0] - 1
+			else:
+				# one operand signed, the other unsigned (add sign bit)
+				return obs[0][0] + obs[1][0] + 1 - 1
+		elif v.op == "<<<":
+			if obs[1][1]:
+				extra = 2**(obs[1][0] - 1) - 1
+			else:
+				extra = 2**obs[1][0] - 1
+			return obs[0][0] + extra, obs[0][1]
+		elif v.op == ">>>":
+			if obs[1][1]:
+				extra = 2**(obs[1][0] - 1)
+			else:
+				extra = 0
+			return obs[0][0] + extra, obs[0][1]
+		elif v.op == "&" or v.op == "^" or v.op == "|":
+			if not obs[0][1] and not obs[1][1]:
+				# both operands unsigned
+				return max(obs[0][0], obs[1][0]), False
+			elif obs[0][1] and obs[1][1]:
+				# both operands signed
+				return max(obs[0][0], obs[1][0]), True
+			elif not obs[0][1] and obs[1][1]:
+				# first operand unsigned (add sign bit), second operand signed
+				return max(obs[0][0] + 1, obs[1][0]), True
+			else:
+				# first signed, second operand unsigned (add sign bit)
+				return max(obs[0][0], obs[1][0] + 1), True
+		elif v.op == "<" or v.op == "<=" or v.op == "==" or v.op == "!=" \
+		  or v.op == ">" or v.op == ">=":
+			  return 1, False
+		elif v.op == "~":
+			return obs[0]
+		else:
+			raise TypeError
+	elif isinstance(v, _Slice):
+		return v.stop - v.start, value_bits_sign(v.value)[1]
+	elif isinstance(v, Cat):
+		return sum(value_bits_sign(sv)[0] for sv in v.l), False
+	elif isinstance(v, Replicate):
+		return (value_bits_sign(v.v)[0])*v.n, False
+	elif isinstance(v, _ArrayProxy):
+		bsc = map(value_bits_sign, v.choices)
+		return max(bs[0] for bs in bsc), any(bs[1] for bs in bsc)
+	else:
+		raise TypeError
