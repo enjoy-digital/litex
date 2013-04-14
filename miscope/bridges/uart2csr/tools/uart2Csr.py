@@ -65,7 +65,7 @@ class Uart2Csr:
 			for i in range(len(data)):
 				write_b(self.uart, data[i])
 				if self.debug:
-					print("WR %02X @ %08X" %(elt, addr + 4*i))
+					print("WR %02X @ %08X" %(data[i], addr + 4*i))
 		else:
 			write_b(self.uart, data)
 			if self.debug:

@@ -40,8 +40,8 @@ class Term:
 		self.reg = None
 	
 	def get_registers_comb(self):
-		comb = [self.t.eq(self.reg.field.r[0*self.width:1*self.width])]
-		comb += [self.m.eq(self.reg.field.r[1*self.width:2*self.width])]
+		comb = [self.t.eq(self.reg.storage[0*self.width:1*self.width])]
+		comb += [self.m.eq(self.reg.storage[1*self.width:2*self.width])]
 		return comb
 	
 	def get_fragment(self):
@@ -76,8 +76,8 @@ class RangeDetector:
 		self.o = Signal()
 		
 	def get_registers_comb(self):
-		comb = [self.low.eq(self.reg.field.r[0*self.width:1*self.width])]
-		comb += [self.low.eq(self.reg.field.r[1*self.width:2*self.width])]
+		comb = [self.low.eq(self.reg.storage[0*self.width:1*self.width])]
+		comb += [self.low.eq(self.reg.storage[1*self.width:2*self.width])]
 		return comb
 		
 	def get_fragment(self):
@@ -122,13 +122,13 @@ class EdgeDetector:
 		comb = []
 		i = 0
 		if "R" in self.mode:
-			comb += [self.r_mask.eq(self.reg.field.r[i*self.width:(i+1)*self.width])]
+			comb += [self.r_mask.eq(self.reg.storage[i*self.width:(i+1)*self.width])]
 			i += 1
 		if "F" in self.mode:
-			comb += [self.f_mask.eq(self.reg.field.r[i*self.width:(i+1)*self.width])]
+			comb += [self.f_mask.eq(self.reg.storage[i*self.width:(i+1)*self.width])]
 			i += 1
 		if "B" in self.mode:
-			comb += [self.b_mask.eq(self.reg.field.r[i*self.width:(i+1)*self.width])]
+			comb += [self.b_mask.eq(self.reg.storage[i*self.width:(i+1)*self.width])]
 			i += 1
 		return comb
 	
@@ -213,9 +213,9 @@ class Sum:
 	
 	def get_registers_comb(self):
 		comb = [
-			self.prog_adr.eq(self.reg.field.r[0:16]),
-			self.prog_dat.eq(self.reg.field.r[16]),
-			self.prog_stb.eq(self.reg.field.r[17])
+			self.prog_adr.eq(self.reg.storage[0:16]),
+			self.prog_dat.eq(self.reg.storage[16]),
+			self.prog_stb.eq(self.reg.storage[17])
 			]
 		return comb
 	
@@ -262,13 +262,11 @@ class Trigger:
 		
 		# generate ports csr registers fields
 		for port in self.ports:
-			rf = RegisterField(port.reg_p.size, reset=0, access_bus=WRITE_ONLY,
-								access_dev=READ_ONLY, name=port.reg_p.name)
+			rf = CSRStorage(port.reg_p.size, reset=0, name=port.reg_p.name)
 			setattr(self, port.reg_p.name, rf)
 		
 		# generate sum csr registers fields
-		self.sum_reg = RegisterField(self.sum.reg_p.size, reset=0, access_bus=WRITE_ONLY,
-								access_dev=READ_ONLY, name=self.sum.reg_p.name)
+		self.sum_reg = CSRStorage(self.sum.reg_p.size, reset=0, name=self.sum.reg_p.name)
 
 		# generate registers
 		self.regs = list_regs(self.__dict__)

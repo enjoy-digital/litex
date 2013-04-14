@@ -218,17 +218,16 @@ class Recorder:
 		self.rle = RLE(self.width, (2**(width-2)))
 		
 		# csr interface
-		self._r_rst = RegisterField(reset=1)
-		self._r_rle = RegisterField(reset=0)
-		self._r_arm = RegisterField(reset=0)
-		self._r_done = RegisterField(reset=0, access_bus=READ_ONLY, 
-									access_dev=WRITE_ONLY)
+		self._r_rst = CSRStorage(reset=1)
+		self._r_rle = CSRStorage(reset=0)
+		self._r_arm = CSRStorage(reset=0)
+		self._r_done = CSRStatus()
 		
-		self._r_size = RegisterField(self.depth_width, reset=1)
-		self._r_offset = RegisterField(self.depth_width, reset=1)
+		self._r_size = CSRStorage(self.depth_width, reset=1)
+		self._r_offset = CSRStorage(self.depth_width, reset=1)
 		
-		self._r_pull_stb = RegisterField(reset=0)
-		self._r_pull_dat = RegisterField(self.width, reset=1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self._r_pull_stb = CSRStorage(reset=0)
+		self._r_pull_dat = CSRStatus(self.width)
 		
 		self.regs = [self._r_rst, self._r_rle, self._r_arm, self._r_done, self._r_size, self._r_offset,
 					self._r_pull_stb, self._r_pull_dat]
@@ -251,22 +250,22 @@ class Recorder:
 		
 	def get_fragment(self):
 
-		_pull_stb_rising = RisingEdge(self._r_pull_stb.field.r)
+		_pull_stb_rising = RisingEdge(self._r_pull_stb.storage)
 
 		# Bank <--> Storage / Sequencer
 		comb = [
-			self.sequencer.rst.eq(self._r_rst.field.r),
-			self.storage.rst.eq(self._r_rst.field.r),
+			self.sequencer.rst.eq(self._r_rst.storage),
+			self.storage.rst.eq(self._r_rst.storage),
 			
-			self.rle.enable.eq(self._r_rle.field.r),
-			self.sequencer.arm.eq(self._r_arm.field.r),
-			self.storage.offset.eq(self._r_offset.field.r),
-			self.storage.size.eq(self._r_size.field.r),
+			self.rle.enable.eq(self._r_rle.storage),
+			self.sequencer.arm.eq(self._r_arm.storage),
+			self.storage.offset.eq(self._r_offset.storage),
+			self.storage.size.eq(self._r_size.storage),
 
-			self._r_done.field.w.eq(~self.sequencer.enable),
+			self._r_done.status.eq(~self.sequencer.enable),
 			
 			self.storage.pull_stb.eq(_pull_stb_rising.o),
-			self._r_pull_dat.field.w.eq(self.storage.pull_dat)
+			self._r_pull_dat.status.eq(self.storage.pull_dat)
 			]
 		
 		# Storage <--> Sequencer <--> Trigger
@@ -320,4 +319,6 @@ class Recorder:
 			self.interface.write(self.bank.get_base() + REC_READ_BASE, 1)
 			self.interface.write(self.bank.get_base() + REC_READ_BASE, 0)
 			r.append(self.interface.read_n(self.bank.get_base() + REC_READ_DATA_BASE, self.width))
+			if i%128 == 0:
+				print(i)
 		return r
