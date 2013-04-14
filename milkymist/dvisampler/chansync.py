@@ -31,8 +31,8 @@ class ChanSync(Module, AutoCSR):
 			self.add_submodule(fifo, "pix")
 			self.comb += [
 				fifo.we.eq(self.valid_i),
-				fifo.din.eq(Cat(*data_in.flatten())),
-				Cat(*data_out.flatten()).eq(fifo.dout)
+				fifo.din.eq(data_in.raw_bits()),
+				data_out.raw_bits().eq(fifo.dout)
 			]
 			is_control = Signal()
 			is_control_r = Signal()
