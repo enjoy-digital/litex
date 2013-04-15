@@ -34,6 +34,9 @@ Miscope produces .vcd output files to be analyzed in your favorite waveform view
 Since Miscope also provides an Uart2Csr bridge, you only need 2 external Rx/Tx pins
 to be ready to debug!
 
+You should use the current Migen fork:
+(http://github.com/Florent-Kermarrec/migen)
+
 [> Status:
 Miio & Mila working on board with standard term.
 RLE working on board.
