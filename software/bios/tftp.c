@@ -14,12 +14,14 @@ enum {
 	TFTP_ERROR	= 5,	/* Error */
 };
 
-static int format_request(char *buf, const char *filename)
+static int format_request(unsigned char *buf, const char *filename)
 {
+	int len = strlen(filename);
+
 	*buf++ = 0x00; /* Opcode: Request */
 	*buf++ = TFTP_RRQ;
-	strcpy(buf, filename);
-	buf += strlen(filename);
+	memcpy(buf, filename, len);
+	buf += len;
 	*buf++ = 0x00;
 	*buf++ = 'o';
 	*buf++ = 'c';
@@ -30,7 +32,7 @@ static int format_request(char *buf, const char *filename)
 	return 9+strlen(filename);
 }
 
-static int format_ack(char *buf, unsigned short block)
+static int format_ack(unsigned char *buf, unsigned short block)
 {
 	*buf++ = 0x00; /* Opcode: Ack */
 	*buf++ = TFTP_ACK;
@@ -39,7 +41,7 @@ static int format_ack(char *buf, unsigned short block)
 	return 4;
 }
 
-static char *packet_data;
+static unsigned char *packet_data;
 static int total_length;
 static int transfer_finished;
 static char *dst_buffer;
