@@ -128,39 +128,42 @@ static unsigned int cached_ip;
 
 static void process_arp(void)
 {
+	const struct arp_frame *rx_arp = &rxbuffer->frame.contents.arp;
+	struct arp_frame *tx_arp = &txbuffer->frame.contents.arp;
+
 	if(rxlen < 68) return;
-	if(rxbuffer->frame.contents.arp.hwtype != ARP_HWTYPE_ETHERNET) return;
-	if(rxbuffer->frame.contents.arp.proto != ARP_PROTO_IP) return;
-	if(rxbuffer->frame.contents.arp.hwsize != 6) return;
-	if(rxbuffer->frame.contents.arp.protosize != 4) return;
-	if(rxbuffer->frame.contents.arp.opcode == ARP_OPCODE_REPLY) {
-		if(rxbuffer->frame.contents.arp.sender_ip == cached_ip) {
+	if(rx_arp->hwtype != ARP_HWTYPE_ETHERNET) return;
+	if(rx_arp->proto != ARP_PROTO_IP) return;
+	if(rx_arp->hwsize != 6) return;
+	if(rx_arp->protosize != 4) return;
+	if(rx_arp->opcode == ARP_OPCODE_REPLY) {
+		if(rx_arp->sender_ip == cached_ip) {
 			int i;
 			for(i=0;i<6;i++)
-				cached_mac[i] = rxbuffer->frame.contents.arp.sender_mac[i];
+				cached_mac[i] = rx_arp->sender_mac[i];
 		}
 		return;
 	}
-	if(rxbuffer->frame.contents.arp.opcode == ARP_OPCODE_REQUEST) {
-		if(rxbuffer->frame.contents.arp.target_ip == my_ip) {
+	if(rx_arp->opcode == ARP_OPCODE_REQUEST) {
+		if(rx_arp->target_ip == my_ip) {
 			int i;
 			
 			fill_eth_header(&txbuffer->frame.eth_header,
-				rxbuffer->frame.contents.arp.sender_mac,
+				rx_arp->sender_mac,
 				my_mac,
 				ETHERTYPE_ARP);
 			txlen = 68;
-			txbuffer->frame.contents.arp.hwtype = ARP_HWTYPE_ETHERNET;
-			txbuffer->frame.contents.arp.proto = ARP_PROTO_IP;
-			txbuffer->frame.contents.arp.hwsize = 6;
-			txbuffer->frame.contents.arp.protosize = 4;
-			txbuffer->frame.contents.arp.opcode = ARP_OPCODE_REPLY;
-			txbuffer->frame.contents.arp.sender_ip = my_ip;
+			tx_arp->hwtype = ARP_HWTYPE_ETHERNET;
+			tx_arp->proto = ARP_PROTO_IP;
+			tx_arp->hwsize = 6;
+			tx_arp->protosize = 4;
+			tx_arp->opcode = ARP_OPCODE_REPLY;
+			tx_arp->sender_ip = my_ip;
 			for(i=0;i<6;i++)
-				txbuffer->frame.contents.arp.sender_mac[i] = my_mac[i];
-			txbuffer->frame.contents.arp.target_ip = rxbuffer->frame.contents.arp.sender_ip;
+				tx_arp->sender_mac[i] = my_mac[i];
+			tx_arp->target_ip = rx_arp->sender_ip;
 			for(i=0;i<6;i++)
-				txbuffer->frame.contents.arp.target_mac[i] = rxbuffer->frame.contents.arp.sender_mac[i];
+				tx_arp->target_mac[i] = rx_arp->sender_mac[i];
 			send_packet();
 		}
 		return;
@@ -171,6 +174,7 @@ static const unsigned char broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 int microudp_arp_resolve(unsigned int ip)
 {
+	struct arp_frame *arp = &txbuffer->frame.contents.arp;
 	int i;
 	int tries;
 	int timeout;
@@ -190,17 +194,17 @@ int microudp_arp_resolve(unsigned int ip)
 				my_mac,
 				ETHERTYPE_ARP);
 		txlen = 68;
-		txbuffer->frame.contents.arp.hwtype = ARP_HWTYPE_ETHERNET;
-		txbuffer->frame.contents.arp.proto = ARP_PROTO_IP;
-		txbuffer->frame.contents.arp.hwsize = 6;
-		txbuffer->frame.contents.arp.protosize = 4;
-		txbuffer->frame.contents.arp.opcode = ARP_OPCODE_REQUEST;
-		txbuffer->frame.contents.arp.sender_ip = my_ip;
+		arp->hwtype = ARP_HWTYPE_ETHERNET;
+		arp->proto = ARP_PROTO_IP;
+		arp->hwsize = 6;
+		arp->protosize = 4;
+		arp->opcode = ARP_OPCODE_REQUEST;
+		arp->sender_ip = my_ip;
 		for(i=0;i<6;i++)
-			txbuffer->frame.contents.arp.sender_mac[i] = my_mac[i];
-		txbuffer->frame.contents.arp.target_ip = ip;
+			arp->sender_mac[i] = my_mac[i];
+		arp->target_ip = ip;
 		for(i=0;i<6;i++)
-			txbuffer->frame.contents.arp.target_mac[i] = 0;
+			arp->target_mac[i] = 0;
 		send_packet();
 
 		/* Do we get a reply ? */
