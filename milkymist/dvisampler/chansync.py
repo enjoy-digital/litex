@@ -45,8 +45,20 @@ class ChanSync(Module, AutoCSR):
 			]
 			lst_control_starts.append(control_starts)
 
-		self.comb += all_control_starts.eq(optree("&", lst_control_starts))
+		some_control_starts = Signal()
+		self.comb += [
+			all_control_starts.eq(optree("&", lst_control_starts)),
+			some_control_starts.eq(optree("|", lst_control_starts))
+		]
 		self.sync.pix += If(~self.valid_i,
 				self.chan_synced.eq(0)
-			).Elif(all_control_starts, self.chan_synced.eq(1))
+			).Else(
+				If(some_control_starts,
+					If(all_control_starts,
+						self.chan_synced.eq(1)
+					).Else(
+						self.chan_synced.eq(0)
+					)
+				)
+			)
 		self.specials += MultiReg(self.chan_synced, self._r_channels_synced.status)
