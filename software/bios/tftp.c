@@ -6,10 +6,18 @@
 #define PORT_OUT	69
 #define PORT_IN		7642
 
+enum {
+	TFTP_RRQ	= 1,	/* Read request */
+	TFTP_WRQ	= 2, 	/* Write request */
+	TFTP_DATA	= 3,	/* Data */
+	TFTP_ACK	= 4,	/* Acknowledgment */
+	TFTP_ERROR	= 5,	/* Error */
+};
+
 static int format_request(char *buf, const char *filename)
 {
 	*buf++ = 0x00; /* Opcode: Request */
-	*buf++ = 0x01;
+	*buf++ = TFTP_RRQ;
 	strcpy(buf, filename);
 	buf += strlen(filename);
 	*buf++ = 0x00;
@@ -25,7 +33,7 @@ static int format_request(char *buf, const char *filename)
 static int format_ack(char *buf, unsigned short block)
 {
 	*buf++ = 0x00; /* Opcode: Ack */
-	*buf++ = 0x04;
+	*buf++ = TFTP_ACK;
 	*buf++ = (block & 0xff00) >> 8;
 	*buf++ = (block & 0x00ff);
 	return 4;
@@ -36,7 +44,8 @@ static int total_length;
 static int transfer_finished;
 static char *dst_buffer;
 
-static void rx_callback(unsigned int src_ip, unsigned short src_port, unsigned short dst_port, void *_data, unsigned int length)
+static void rx_callback(unsigned int src_ip, unsigned short src_port,
+    unsigned short dst_port, void *_data, unsigned int length)
 {
 	unsigned char *data = (unsigned char *)_data;
 	unsigned short opcode;
@@ -49,7 +58,7 @@ static void rx_callback(unsigned int src_ip, unsigned short src_port, unsigned s
 	opcode = ((unsigned short)(data[0]) << 8)|((unsigned short)(data[1]));
 	block = ((unsigned short)(data[2]) << 8)|((unsigned short)(data[3]));
 	if(block < 1) return;
-	if(opcode == 3) { /* Data */
+	if(opcode == TFTP_DATA) { /* Data */
 		length -= 4;
 		offset = (block-1)*512;
 		for(i=0;i<length;i++)
@@ -61,7 +70,7 @@ static void rx_callback(unsigned int src_ip, unsigned short src_port, unsigned s
 		length = format_ack(packet_data, block);
 		microudp_send(PORT_IN, src_port, length);
 	}
-	if(opcode == 5) { /* Error */
+	if(opcode == TFTP_ERROR) { /* Error */
 		total_length = -1;
 		transfer_finished = 1;
 	}
