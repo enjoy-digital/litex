@@ -44,7 +44,7 @@ static int format_ack(unsigned char *buf, unsigned short block)
 static unsigned char *packet_data;
 static int total_length;
 static int transfer_finished;
-static char *dst_buffer;
+static unsigned char *dst_buffer;
 
 static void rx_callback(unsigned int src_ip, unsigned short src_port,
     unsigned short dst_port, void *_data, unsigned int length)
@@ -78,7 +78,7 @@ static void rx_callback(unsigned int src_ip, unsigned short src_port,
 	}
 }
 
-int tftp_get(unsigned int ip, const char *filename, char *buffer)
+int tftp_get(unsigned int ip, const char *filename, void *buffer)
 {
 	int len;
 	int tries;
