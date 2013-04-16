@@ -15,12 +15,12 @@ enum {
 	TFTP_ERROR	= 5,	/* Error */
 };
 
-static int format_request(uint8_t *buf, const char *filename)
+static int format_request(uint8_t *buf, uint16_t op, const char *filename)
 {
 	int len = strlen(filename);
 
-	*buf++ = 0x00; /* Opcode: Request */
-	*buf++ = TFTP_RRQ;
+	*buf++ = op >> 8; /* Opcode */
+	*buf++ = op;
 	memcpy(buf, filename, len);
 	buf += len;
 	*buf++ = 0x00;
@@ -98,7 +98,7 @@ int tftp_get(uint32_t ip, const char *filename, void *buffer)
 	transfer_finished = 0;
 	tries = 5;
 	while(1) {
-		len = format_request(packet_data, filename);
+		len = format_request(packet_data, TFTP_RRQ, filename);
 		microudp_send(PORT_IN, PORT_OUT, len);
 		for(i=0;i<2000000;i++) {
 			microudp_service();
