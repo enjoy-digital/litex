@@ -55,8 +55,8 @@ static void rx_callback(unsigned int src_ip, unsigned short src_port,
 	
 	if(length < 4) return;
 	if(dst_port != PORT_IN) return;
-	opcode = ((unsigned short)(data[0]) << 8)|((unsigned short)(data[1]));
-	block = ((unsigned short)(data[2]) << 8)|((unsigned short)(data[3]));
+	opcode = data[0] << 8 | data[1];
+	block = data[2] << 8 | data[3];
 	if(block < 1) return;
 	if(opcode == TFTP_DATA) { /* Data */
 		length -= 4;
