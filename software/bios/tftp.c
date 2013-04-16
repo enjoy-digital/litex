@@ -15,6 +15,9 @@ enum {
 	TFTP_ERROR	= 5,	/* Error */
 };
 
+#define	BLOCK_SIZE	512	/* block size in bytes */
+
+
 static int format_request(uint8_t *buf, uint16_t op, const char *filename)
 {
 	int len = strlen(filename);
@@ -63,11 +66,11 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	if(block < 1) return;
 	if(opcode == TFTP_DATA) { /* Data */
 		length -= 4;
-		offset = (block-1)*512;
+		offset = (block-1)*BLOCK_SIZE;
 		for(i=0;i<length;i++)
 			dst_buffer[offset+i] = data[i+4];
 		total_length += length;
-		if(length < 512)
+		if(length < BLOCK_SIZE)
 			transfer_finished = 1;
 		
 		length = format_ack(packet_data, block);
