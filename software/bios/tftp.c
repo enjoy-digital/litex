@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <string.h>
 
 #include "microudp.h"
@@ -14,7 +15,7 @@ enum {
 	TFTP_ERROR	= 5,	/* Error */
 };
 
-static int format_request(unsigned char *buf, const char *filename)
+static int format_request(uint8_t *buf, const char *filename)
 {
 	int len = strlen(filename);
 
@@ -32,7 +33,7 @@ static int format_request(unsigned char *buf, const char *filename)
 	return 9+strlen(filename);
 }
 
-static int format_ack(unsigned char *buf, unsigned short block)
+static int format_ack(uint8_t *buf, uint16_t block)
 {
 	*buf++ = 0x00; /* Opcode: Ack */
 	*buf++ = TFTP_ACK;
@@ -41,17 +42,17 @@ static int format_ack(unsigned char *buf, unsigned short block)
 	return 4;
 }
 
-static unsigned char *packet_data;
+static uint8_t *packet_data;
 static int total_length;
 static int transfer_finished;
-static unsigned char *dst_buffer;
+static uint8_t *dst_buffer;
 
-static void rx_callback(unsigned int src_ip, unsigned short src_port,
-    unsigned short dst_port, void *_data, unsigned int length)
+static void rx_callback(uint32_t src_ip, uint16_t src_port,
+    uint16_t dst_port, void *_data, unsigned int length)
 {
-	unsigned char *data = (unsigned char *)_data;
-	unsigned short opcode;
-	unsigned short block;
+	uint8_t *data = _data;
+	uint16_t opcode;
+	uint16_t block;
 	int i;
 	int offset;
 	
@@ -78,7 +79,7 @@ static void rx_callback(unsigned int src_ip, unsigned short src_port,
 	}
 }
 
-int tftp_get(unsigned int ip, const char *filename, void *buffer)
+int tftp_get(uint32_t ip, const char *filename, void *buffer)
 {
 	int len;
 	int tries;
