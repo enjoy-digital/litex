@@ -2,9 +2,10 @@ from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.bank.description import *
 from migen.genlib.misc import optree
+from migen.genlib.cdc import MultiReg
 
 class CounterADC(Module, AutoCSR):
-	def __init__(self, charge, sense, width = 24):
+	def __init__(self, charge, sense, width=24):
 		if not isinstance(sense, collections.Iterable):
 			sense = [sense]
 
@@ -36,7 +37,7 @@ class CounterADC(Module, AutoCSR):
 				count.eq(0),
 				busy.eq((1 << channels)-1),
 				self._overflow.status.eq(0),
-			    	charge.eq(~self._polarity.storage)
+				charge.eq(~self._polarity.storage)
 			).Elif(any_busy,
 				Cat(count, carry).eq(count + 1),
 				If(carry,
@@ -49,8 +50,10 @@ class CounterADC(Module, AutoCSR):
 		]
 
 		for i in range(channels):
+			sense_synced = Signal()
+			self.specials += MultiReg(sense[i], sense_synced)
 			self.sync += If(busy[i],
-				If(sense[i] != self._polarity.storage,
+				If(sense_synced != self._polarity.storage,
 					res[i].status.eq(count),
 					busy[i].eq(0)
 				)
