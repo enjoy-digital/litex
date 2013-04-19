@@ -1,14 +1,18 @@
 Mibuild (Milkymist Build system)
   a build system and board database for Migen-based FPGA designs
 
-6-ligne intro:
+Quick intro:
 
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from mibuild.platforms import m1
 plat = m1.Platform()
 led = plat.request("user_led")
-f = Fragment([led.eq(counter[25])], [counter.eq(counter + 1)])
-plat.build_cmdline(f)
+m = Module()
+counter = Signal(26)
+m.comb += led.eq(counter[25])
+m.sync += counter.eq(counter + 1)
+plat.build_cmdline(m)
 
 Code repository:
 https://github.com/milkymist/mibuild
