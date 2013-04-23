@@ -203,12 +203,19 @@ def _printcomb(f, ns, display_run):
 def _insert_resets(f):
 	newsync = dict()
 	for k, v in f.sync.items():
-		newsync[k] = insert_reset(ResetSignal(k), v)
+		if f.clock_domains[k].rst is not None:
+			newsync[k] = insert_reset(ResetSignal(k), v)
+		else:
+			newsync[k] = v
 	f.sync = newsync
 
 def _printsync(f, ns):
 	r = ""
 	for k, v in sorted(f.sync.items(), key=itemgetter(0)):
+		if f.clock_domains[k].rst is None:
+			r += "initial begin\n"
+			r += _printnode(ns, _AT_SIGNAL, 1, generate_reset(ResetSignal(k), v))
+			r += "end\n\n"
 		r += "always @(posedge " + ns.get_name(f.clock_domains[k].clk) + ") begin\n"
 		r += _printnode(ns, _AT_SIGNAL, 1, v)
 		r += "end\n\n"

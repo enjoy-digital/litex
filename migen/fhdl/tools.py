@@ -112,10 +112,12 @@ def is_variable(node):
 	else:
 		raise TypeError
 
-def insert_reset(rst, sl):
+def generate_reset(rst, sl):
 	targets = list_targets(sl)
-	resetcode = [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.huid)]
-	return [If(rst, *resetcode).Else(*sl)]
+	return [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.huid)]
+
+def insert_reset(rst, sl):
+	return [If(rst, *generate_reset(rst, sl)).Else(*sl)]
 
 # Basics are FHDL structure elements that back-ends are not required to support
 # but can be expressed in terms of other elements (lowered) before conversion.

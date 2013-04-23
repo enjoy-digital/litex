@@ -246,19 +246,23 @@ class Array(list):
 			return list.__getitem__(self, key)
 
 class ClockDomain:
-	def __init__(self, name=None):
+	def __init__(self, name=None, reset_less=False):
 		self.name = tracer.get_obj_var_name(name)
 		if self.name is None:
 			raise ValueError("Cannot extract clock domain name from code, need to specify.")
 		if len(self.name) > 3 and self.name[:3] == "cd_":
 			self.name = self.name[3:]
 		self.clk = Signal(name_override=self.name + "_clk")
-		self.rst = Signal(name_override=self.name + "_rst")
+		if reset_less:
+			self.rst = None
+		else:
+			self.rst = Signal(name_override=self.name + "_rst")
 
 	def rename(self, new_name):
 		self.name = new_name
 		self.clk.name_override = new_name + "_clk"
-		self.rst.name_override = new_name + "_rst"
+		if self.rst is not None:
+			self.rst.name_override = new_name + "_rst"
 
 class _ClockDomainList(list):
 	def __getitem__(self, key):
