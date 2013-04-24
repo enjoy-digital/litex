@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.fhdl.specials import Special
 from migen.fhdl.tools import list_signals
 
@@ -71,3 +72,26 @@ class PulseSynchronizer:
 		return Fragment(comb, 
 			{self.idomain: sync_i, self.odomain: sync_o},
 			specials={MultiReg(toggle_i, toggle_o, self.odomain)})
+
+class GrayCounter(Module):
+	def __init__(self, width):
+		self.ce = Signal()
+		self.q = Signal(width)
+		self.q_next = Signal(width)
+
+		###
+
+		q_binary = Signal(width)
+		q_next_binary = Signal(width)
+		self.comb += [
+			If(self.ce,
+				q_next_binary.eq(q_binary + 1)
+			).Else(
+				q_next_binary.eq(q_binary)
+			),
+			self.q_next.eq(q_next_binary ^ q_next_binary[1:])
+		]
+		self.sync += [
+			q_binary.eq(q_next_binary),
+			self.q.eq(self.q_next)
+		]
