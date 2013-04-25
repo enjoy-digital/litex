@@ -117,11 +117,20 @@ bitgen -g LCK_cycle:6 -g Binary:Yes -w {build_name}-routed.ncd {build_name}.bit
 	if r != 0:
 		raise OSError("Subprocess failed")
 
+class XilinxNoRetimingImpl(Module):
+	def __init__(self, reg):
+		self.specials += SynthesisDirective("attribute register_balancing of {r} is no", r=reg)
+
+class XilinxNoRetiming:
+	@staticmethod
+	def lower(dr):
+		return XilinxNoRetimingImpl(dr.reg)
+
 class XilinxMultiRegImpl(MultiRegImpl):
-	def get_fragment(self):
-		disable_srl = set(SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
-			for r in self.regs)
-		return MultiRegImpl.get_fragment(self) + Fragment(specials=disable_srl)
+	def __init__(self, *args, **kwargs):
+		MultiRegImpl.__init__(self, *args, **kwargs)
+		self.specials += [SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
+			for r in self.regs]
 
 class XilinxMultiReg:
 	@staticmethod
@@ -130,7 +139,10 @@ class XilinxMultiReg:
 
 class XilinxISEPlatform(GenericPlatform):
 	def get_verilog(self, *args, special_overrides=dict(), **kwargs):
-		so = {MultiReg: XilinxMultiReg}
+		so = {
+			NoRetiming: XilinxNoRetiming,
+			MultiReg:   XilinxMultiReg
+		}
 		so.update(special_overrides)
 		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
 
