@@ -3,7 +3,17 @@ from migen.fhdl.module import Module
 from migen.fhdl.specials import Special
 from migen.fhdl.tools import list_signals
 
-class MultiRegImpl:
+class NoRetiming(Special):
+	def __init__(self, reg):
+		Special.__init__(self)
+		self.reg = reg
+
+	# do nothing
+	@staticmethod
+	def lower(dr):
+		return Module()
+
+class MultiRegImpl(Module):
 	def __init__(self, i, o, odomain, n):
 		self.i = i
 		self.o = o
@@ -12,16 +22,15 @@ class MultiRegImpl:
 		w, signed = value_bits_sign(self.i)
 		self.regs = [Signal((w, signed)) for i in range(n)]
 
-	def get_fragment(self):
+		###
+	
 		src = self.i
-		o_sync = []
 		for reg in self.regs:
-			o_sync.append(reg.eq(src))
+			sd = getattr(self.sync, self.odomain)
+			sd += reg.eq(src)
 			src = reg
-		comb = [
-			self.o.eq(src)
-		]
-		return Fragment(comb, {self.odomain: o_sync})
+		self.comb += self.o.eq(src)
+		self.specials += [NoRetiming(reg) for reg in self.regs]
 
 class MultiReg(Special):
 	def __init__(self, i, o, odomain="sys", n=2):
