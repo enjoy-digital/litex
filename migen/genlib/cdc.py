@@ -78,20 +78,20 @@ class GrayCounter(Module):
 		self.ce = Signal()
 		self.q = Signal(width)
 		self.q_next = Signal(width)
+		self.q_binary = Signal(width)
+		self.q_next_binary = Signal(width)
 
 		###
 
-		q_binary = Signal(width)
-		q_next_binary = Signal(width)
 		self.comb += [
 			If(self.ce,
-				q_next_binary.eq(q_binary + 1)
+				self.q_next_binary.eq(self.q_binary + 1)
 			).Else(
-				q_next_binary.eq(q_binary)
+				self.q_next_binary.eq(self.q_binary)
 			),
-			self.q_next.eq(q_next_binary ^ q_next_binary[1:])
+			self.q_next.eq(self.q_next_binary ^ self.q_next_binary[1:])
 		]
 		self.sync += [
-			q_binary.eq(q_next_binary),
+			self.q_binary.eq(self.q_next_binary),
 			self.q.eq(self.q_next)
 		]

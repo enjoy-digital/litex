@@ -11,8 +11,8 @@ class TB(Module):
 		self.prng = Random(7345)
 
 	def do_simulation(self, s):
-		print("{0:0{1}b} CE={2}".format(s.rd(self.gc.q),
-			self.width, s.rd(self.gc.ce)))
+		print("{0:0{1}b} CE={2} bin={3}".format(s.rd(self.gc.q),
+			self.width, s.rd(self.gc.ce), s.rd(self.gc.q_binary)))
 		s.wr(self.gc.ce, self.prng.getrandbits(1))
 
 sim = Simulator(TB())
