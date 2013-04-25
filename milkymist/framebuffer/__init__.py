@@ -2,6 +2,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
 from migen.fhdl.module import Module
 from migen.genlib.record import Record
+from migen.genlib.fifo import AsyncFIFO
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow.transactions import *
@@ -132,33 +133,15 @@ class FIFO(Module):
 		###
 
 		data_width = 2+2*3*_bpc_dac
-		fifo_full = Signal()
-		fifo_write_en = Signal()
-		fifo_read_en = Signal()
-		fifo_data_out = Signal(data_width)
-		fifo_data_in = Signal(data_width)
-		self.specials += Instance("asfifo",
-			Instance.Parameter("data_width", data_width),
-			Instance.Parameter("address_width", 8),
-	
-			Instance.Output("data_out", fifo_data_out),
-			Instance.Output("empty"),
-			Instance.Input("read_en", fifo_read_en),
-			Instance.Input("clk_read", ClockSignal("vga")),
-
-			Instance.Input("data_in", fifo_data_in),
-			Instance.Output("full", fifo_full),
-			Instance.Input("write_en", fifo_write_en),
-			Instance.Input("clk_write", ClockSignal()),
-			
-			Instance.Input("rst", 0))
+		fifo = AsyncFIFO(data_width, 256)
+		self.add_submodule(fifo, {"write": "sys", "read": "vga"})
 		fifo_in = self.dac.payload
 		fifo_out = Record(_dac_layout)
 		self.comb += [
-			self.dac.ack.eq(~fifo_full),
-			fifo_write_en.eq(self.dac.stb),
-			fifo_data_in.eq(fifo_in.raw_bits()),
-			fifo_out.raw_bits().eq(fifo_data_out),
+			self.dac.ack.eq(fifo.writable),
+			fifo.we.eq(self.dac.stb),
+			fifo.din.eq(fifo_in.raw_bits()),
+			fifo_out.raw_bits().eq(fifo.dout),
 			self.busy.eq(0)
 		]
 
@@ -177,7 +160,7 @@ class FIFO(Module):
 				self.vga_b.eq(fifo_out.p0.b)
 			)
 		]
-		self.comb += fifo_read_en.eq(pix_parity)
+		self.comb += fifo.re.eq(pix_parity)
 
 def sim_fifo_gen():
 	while True:

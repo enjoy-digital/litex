@@ -27,10 +27,6 @@ TIMESPEC "TSphy_tx_clk" = PERIOD "GRPphy_tx_clk" 40 ns HIGH 50%;
 TIMESPEC "TSphy_tx_clk_io" = FROM "GRPphy_tx_clk" TO "PADS" 10 ns;
 TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
 
-NET "asfifo*/counter_read/gray_count*" TIG;
-NET "asfifo*/counter_write/gray_count*" TIG;
-NET "asfifo*/preset_empty*" TIG;
-
 NET "{dviclk0}" TNM_NET = "GRPdviclk0";
 NET "{dviclk0}" CLOCK_DEDICATED_ROUTE = FALSE;
 TIMESPEC "TSdviclk0" = PERIOD "GRPdviclk0" 26.7 ns HIGH 50%;
@@ -44,7 +40,7 @@ TIMESPEC "TSdviclk1" = PERIOD "GRPdviclk1" 26.7 ns HIGH 50%;
 		dviclk0=platform.lookup_request("dvi_in", 0).clk,
 		dviclk1=platform.lookup_request("dvi_in", 1).clk)
 	
-	for d in ["generic", "m1crg", "s6ddrphy", "minimac3"]:
+	for d in ["m1crg", "s6ddrphy", "minimac3"]:
 		platform.add_source_dir(os.path.join("verilog", d))
 	platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"), 
 		"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
