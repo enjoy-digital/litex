@@ -258,11 +258,11 @@ class Memory(Special):
 					elif port.mode == NO_CHANGE:
 						rd = "\tif (!" + gn(port.we) + ")\n" \
 						  + "\t\t" + bassign
-			if port.re is None:
-				r += rd
-			else:
-				r += "\tif (" + gn(port.re) + ")\n"
-				r += "\t" + rd.replace("\n\t", "\n\t\t")
+				if port.re is None:
+					r += rd
+				else:
+					r += "\tif (" + gn(port.re) + ")\n"
+					r += "\t" + rd.replace("\n\t", "\n\t\t")
 			r += "end\n\n"
 		
 		for port in memory.ports:
