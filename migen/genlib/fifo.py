@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 from migen.fhdl.module import Module
-from migen.genlib.cdc import MultiReg, GrayCounter
+from migen.genlib.cdc import NoRetiming, MultiReg, GrayCounter
 
 def _inc(signal, modulo):
 	if modulo == 2**len(signal):
@@ -85,12 +85,16 @@ class AsyncFIFO(Module, _FIFOInterface):
 			consume.ce.eq(self.readable & self.re)
 		]
 
-		# TODO: disable retiming on produce.q and consume.q
-
 		produce_rdomain = Signal(depth_bits+1)
-		self.specials += MultiReg(produce.q, produce_rdomain, "read")
+		self.specials += [
+			NoRetiming(produce.q),
+			MultiReg(produce.q, produce_rdomain, "read")
+		]
 		consume_wdomain = Signal(depth_bits+1)
-		self.specials += MultiReg(consume.q, consume_wdomain, "write")
+		self.specials += [
+			NoRetiming(consume.q),
+			MultiReg(consume.q, consume_wdomain, "write")
+		]
 		self.comb += [
 			self.writable.eq((produce.q[-1] == consume_wdomain[-1])
 			 | (produce.q[-2] == consume_wdomain[-2])
