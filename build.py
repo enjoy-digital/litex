@@ -20,6 +20,11 @@ INST "m1crg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
 PIN "m1crg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 
+NET "vga_clk" TNM_NET = "GRPvga_clk";
+NET "sys_clk" TNM_NET = "GRPsys_clk";
+TIMESPEC "TSise_sucks1" = FROM "GRPvga_clk" TO "GRPsys_clk" TIG;
+TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
+
 NET "{phy_rx_clk}" TNM_NET = "GRPphy_rx_clk";
 NET "{phy_tx_clk}" TNM_NET = "GRPphy_tx_clk";
 TIMESPEC "TSphy_rx_clk" = PERIOD "GRPphy_rx_clk" 40 ns HIGH 50%;
