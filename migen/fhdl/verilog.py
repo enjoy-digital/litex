@@ -230,7 +230,7 @@ def _call_special_classmethod(overrides, obj, method, *args, **kwargs):
 	else:
 		return None
 
-def _lower_specials(overrides, specials):
+def _lower_specials_step(overrides, specials):
 	f = Fragment()
 	lowered_specials = set()
 	for special in sorted(specials, key=lambda x: x.huid):
@@ -238,6 +238,24 @@ def _lower_specials(overrides, specials):
 		if impl is not None:
 			f += impl.get_fragment()
 			lowered_specials.add(special)
+	return f, lowered_specials
+
+def _can_lower(overrides, specials):
+	for special in specials:
+		cl = special.__class__
+		if cl in overrides:
+			cl = overrides[cl]
+		if hasattr(cl, "lower"):
+			return True
+	return False
+
+def _lower_specials(overrides, specials):
+	f, lowered_specials = _lower_specials_step(overrides, specials)
+	while _can_lower(overrides, f.specials):
+		f2, lowered_specials2 = _lower_specials_step(overrides, f.specials)
+		f += f2
+		lowered_specials |= lowered_specials2
+		f.specials -= lowered_specials2
 	return f, lowered_specials
 
 def _printspecials(overrides, specials, ns):
