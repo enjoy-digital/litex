@@ -13,7 +13,7 @@ class M1CRG(Module, AutoCSR):
 		self.clock_domains.cd_sys4x_rd = ClockDomain()
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
-		self.clock_domains.cd_vga = ClockDomain()
+		self.clock_domains.cd_vga = ClockDomain(reset_less=True)
 
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()

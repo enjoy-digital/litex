@@ -13,8 +13,8 @@ class Clocking(Module, AutoCSR):
 		self.serdesstrobe = Signal()
 		self.clock_domains._cd_pix = ClockDomain()
 		self.clock_domains._cd_pix5x = ClockDomain()
-		self.clock_domains._cd_pix10x = ClockDomain()
-		self.clock_domains._cd_pix20x = ClockDomain()
+		self.clock_domains._cd_pix10x = ClockDomain(reset_less=True)
+		self.clock_domains._cd_pix20x = ClockDomain(reset_less=True)
 
 		###
 
