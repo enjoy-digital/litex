@@ -76,8 +76,87 @@ class OOOReader(Module):
 			rob.tag_call.eq(port.tag_call)
 		]
 
+class SequentialWriter(Module):
+	def __init__(self, port):
+		assert(len(port.slots) == 1)
+		self.address_data = Sink([("a", port.hub.aw), ("d", port.hub.dw)])
+		self.busy = Signal()
+
+		###
+
+		data_reg = Signal(port.hub.dw)
+		self.comb += [
+			port.adr.eq(self.address_data.payload.a),
+			port.we.eq(1),
+			port.stb.eq(self.address_data.stb),
+			self.address_data.ack.eq(port.ack)
+		]
+		self.sync += [
+			port.dat_w.eq(0),
+			If(port.get_call_expression(),
+				self.busy.eq(0),
+				port.dat_w.eq(data_reg)
+			),
+			If(self.address_data.stb & self.address_data.ack,
+				self.busy.eq(1),
+				data_reg.eq(self.address_data.payload.d)
+			)
+		]
+
+class _WriteSlot(Module):
+	def __init__(self, port, n):
+		self.load_data = Signal(port.hub.dw)
+		self.busy = Signal()
+
+		###
+
+		drive_data = Signal()
+		data_reg = Signal(port.hub.dw)
+		self.comb += If(drive_data, port.dat_w.eq(data_reg))
+
+		self.sync += [
+			If(port.stb & port.ack & (port.tag_issue == (port.base + n)),
+				self.busy.eq(1),
+				data_reg.eq(self.load_data)
+			),
+			drive_data.eq(0),
+			If(port.get_call_expression(n),
+				self.busy.eq(0),
+				drive_data.eq(1)
+			)
+		]
+
+class OOOWriter(Module):
+	def __init__(self, port):
+		assert(len(port.slots) > 1)
+		self.address_data = Sink([("a", port.hub.aw), ("d", port.hub.dw)])
+		self.busy = Signal()
+
+		###
+
+		self.comb += [
+			port.adr.eq(self.address_data.payload.a),
+			port.we.eq(1),
+			port.stb.eq(self.address_data.stb),
+			self.address_data.ack.eq(port.ack)
+		]
+
+		busy = 0
+		for i in range(len(port.slots)):
+			write_slot = _WriteSlot(port, i)
+			self.submodules += write_slot
+			self.comb += write_slot.load_data.eq(self.address_data.payload.d)
+			busy = busy | write_slot.busy
+		self.comb += self.busy.eq(busy)
+
 def Reader(port):
 	if len(port.slots) == 1:
 		return SequentialReader(port)
 	else:
 		return OOOReader(port)
+
+def Writer(port):
+	if len(port.slots) == 1:
+		return SequentialWriter(port)
+	else:
+		return OOOWriter(port)

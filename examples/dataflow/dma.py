@@ -24,7 +24,7 @@ class MyModelASMI(MyModel, asmibus.TargetModel):
 
 def adrgen_gen():
 	for i in range(10):
-		print("Address:  " + str(i))
+		print("Address:  " + hex(i))
 		yield Token("address", {"a": i})
 
 class SimAdrGen(SimActor):
@@ -36,7 +36,7 @@ def dumper_gen():
 	while True:
 		t = Token("data", idle_wait=True)
 		yield t
-		print("Received: " + str(t.value["d"]))
+		print("Received: " + hex(t.value["d"]))
 
 class SimDumper(SimActor):
 	def __init__(self):
@@ -47,12 +47,12 @@ def trgen_gen():
 	for i in range(10):
 		a = i
 		d = i+10
-		print("Address: " + str(a) + " Data: " + str(d))
+		print("Address: " + hex(a) + " Data: " + hex(d))
 		yield Token("address_data", {"a": a, "d": d})
 
 class SimTrGen(SimActor):
-	def __init__(self):
-		self.address_data = Source([("a", 30), ("d", 32)])
+	def __init__(self, a_nbits):
+		self.address_data = Source([("a", a_nbits), ("d", 32)])
 		SimActor.__init__(self, trgen_gen())
 
 class TBWishbone(Module):
@@ -78,7 +78,7 @@ class TBWishboneReader(TBWishbone):
 
 class TBWishboneWriter(TBWishbone):
 	def __init__(self):
-		self.trgen = SimTrGen()
+		self.trgen = SimTrGen(30)
 		self.writer = dma_wishbone.Writer()
 		g = DataFlowGraph()
 		g.add_connection(self.trgen, self.writer)
@@ -89,27 +89,41 @@ class TBWishboneWriter(TBWishbone):
 		s.interrupt = self.trgen.token_exchanger.done and not s.rd(self.comp.busy)
 
 class TBAsmi(Module):
-	def __init__(self, hub):
-		self.submodules.peripheral = asmibus.Target(MyModelASMI(), hub)
-		self.submodules.tap = asmibus.Tap(hub)
+	def __init__(self, nslots):
+		self.submodules.hub = asmibus.Hub(32, 32)
+		self.port = self.hub.get_port(nslots)
+		self.hub.finalize()
+
+		self.submodules.peripheral = asmibus.Target(MyModelASMI(), self.hub)
+		self.submodules.tap = asmibus.Tap(self.hub)
 
 class TBAsmiReader(TBAsmi):
 	def __init__(self, nslots):
-		self.submodules.hub = asmibus.Hub(32, 32)
-		port = self.hub.get_port(nslots)
-		self.hub.finalize()
+		TBAsmi.__init__(self, nslots)
 		
 		self.adrgen = SimAdrGen(32)
-		self.reader = dma_asmi.Reader(port)
+		self.reader = dma_asmi.Reader(self.port)
 		self.dumper = SimDumper()
 		g = DataFlowGraph()
 		g.add_connection(self.adrgen, self.reader)
 		g.add_connection(self.reader, self.dumper)
 		self.submodules.comp = CompositeActor(g)
-		TBAsmi.__init__(self, self.hub)
 
 	def do_simulation(self, s):
 		s.interrupt = self.adrgen.token_exchanger.done and not s.rd(self.comp.busy)
+
+class TBAsmiWriter(TBAsmi):
+	def __init__(self, nslots):
+		TBAsmi.__init__(self, nslots)
+		
+		self.trgen = SimTrGen(32)
+		self.writer = dma_asmi.Writer(self.port)
+		g = DataFlowGraph()
+		g.add_connection(self.trgen, self.writer)
+		self.submodules.comp = CompositeActor(g)
+		
+	def do_simulation(self, s):
+		s.interrupt = self.trgen.token_exchanger.done and not s.rd(self.comp.busy)
 
 def test_wb_reader():
 	print("*** Testing Wishbone reader")
@@ -123,7 +137,13 @@ def test_asmi_reader(nslots):
 	print("*** Testing ASMI reader (nslots={})".format(nslots))
 	Simulator(TBAsmiReader(nslots)).run()
 
+def test_asmi_writer(nslots):
+	print("*** Testing ASMI writer (nslots={})".format(nslots))
+	Simulator(TBAsmiWriter(nslots)).run()
+
 test_wb_reader()
 test_wb_writer()
 test_asmi_reader(1)
 test_asmi_reader(2)
+test_asmi_writer(1)
+test_asmi_writer(2)
