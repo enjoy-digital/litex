@@ -76,17 +76,16 @@ class Collector(Module, AutoCSR):
 	def __init__(self, layout, depth=1024):
 		self.sink = Sink(layout)
 		self.busy = Signal()
-		self._depth = depth
-		self._dw = sum(len(s) for s in self.token("sink").flatten())
-		
-		self._r_wa = CSRStorage(bits_for(self._depth-1), write_from_dev=True)
-		self._r_wc = CSRStorage(bits_for(self._depth), write_from_dev=True, atomic_write=True)
-		self._r_ra = CSRStorage(bits_for(self._depth-1))
-		self._r_rd = CSRStatus(self._dw)
+		dw = sum(len(s) for s in self.sink.payload.flatten())
+
+		self._r_wa = CSRStorage(bits_for(depth-1), write_from_dev=True)
+		self._r_wc = CSRStorage(bits_for(depth), write_from_dev=True, atomic_write=True)
+		self._r_ra = CSRStorage(bits_for(depth-1))
+		self._r_rd = CSRStatus(dw)
 		
 		###
 	
-		mem = Memory(self._dw, self._depth)
+		mem = Memory(dw, depth)
 		self.specials += mem
 		wp = mem.get_port(write_capable=True)
 		rp = mem.get_port()
@@ -95,8 +94,8 @@ class Collector(Module, AutoCSR):
 			self.busy.eq(0),
 
 			If(self._r_wc.r != 0,
-				self.endpoints["sink"].ack.eq(1),
-				If(self.endpoints["sink"].stb,
+				self.sink.ack.eq(1),
+				If(self.sink.stb,
 					self._r_wa.we.eq(1),
 					self._r_wc.we.eq(1),
 					wp.we.eq(1)
@@ -106,7 +105,7 @@ class Collector(Module, AutoCSR):
 			self._r_wc.dat_w.eq(self._r_wc.storage - 1),
 			
 			wp.adr.eq(self._r_wa.storage),
-			wp.dat_w.eq(self.token("sink").raw_bits()),
+			wp.dat_w.eq(self.sink.payload.raw_bits()),
 			
 			rp.adr.eq(self._r_ra.storage),
 			self._r_rd.status.eq(rp.dat_r)
