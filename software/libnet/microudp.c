@@ -6,7 +6,7 @@
 #include <hw/flags.h>
 #include <hw/mem.h>
 
-#include "microudp.h"
+#include <net/microudp.h>
 
 #define ETHERTYPE_ARP 0x0806
 #define ETHERTYPE_IP  0x0800

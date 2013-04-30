@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "microudp.h"
-#include "tftp.h"
+#include <net/microudp.h>
+#include <net/tftp.h>
 
 #define PORT_OUT	69
 #define PORT_IN		7642

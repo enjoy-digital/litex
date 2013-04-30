@@ -11,11 +11,11 @@
 #include <timer.h>
 
 #include <hw/mem.h>
+#include <net/microudp.h>
 
 #include "sdram.h"
 #include "dataflow.h"
 #include "boot.h"
-#include "microudp.h"
 
 enum {
 	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,

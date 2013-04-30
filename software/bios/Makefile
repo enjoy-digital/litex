@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/common.mak
 
-OBJECTS=crt0.o isr.o sdram.o main.o microudp.o tftp.o boot-helper.o boot.o dataflow.o
+OBJECTS=crt0.o isr.o sdram.o main.o boot-helper.o boot.o dataflow.o
 
 all: bios.bin
 
@@ -19,9 +19,10 @@ bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 
 %.elf:
 	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) \
+		-L$(M2DIR)/software/libnet \
 		-L$(M2DIR)/software/libbase \
 		-L$(M2DIR)/software/libcompiler-rt \
-		-lbase -lcompiler-rt
+		-lnet -lbase -lcompiler-rt
 	chmod -x $@
 
 main.o: main.c
@@ -36,6 +37,7 @@ main.o: main.c
 libs:
 	make -C $(M2DIR)/software/libcompiler-rt
 	make -C $(M2DIR)/software/libbase
+	make -C $(M2DIR)/software/libnet
 
 flash: bios.bin
 	m1nor bios.bin

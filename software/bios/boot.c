@@ -11,8 +11,8 @@
 
 #include <hw/mem.h>
 
-#include "microudp.h"
-#include "tftp.h"
+#include <net/microudp.h>
+#include <net/tftp.h>
 #include "boot.h"
 
 extern int rescue;
