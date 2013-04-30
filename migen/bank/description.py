@@ -47,14 +47,17 @@ class CSRStatus(_CompoundCSR):
 			self.simple_csrs.append(sc)
 
 class CSRStorage(_CompoundCSR):
-	def __init__(self, size=1, reset=0, atomic_write=False, write_from_dev=False, name=None):
+	def __init__(self, size=1, reset=0, atomic_write=False, write_from_dev=False, alignment_bits=0, name=None):
 		_CompoundCSR.__init__(self, size, name)
-		self.storage = Signal(self.size, reset=reset)
+		self.alignment_bits = alignment_bits
+		self.storage_full = Signal(self.size, reset=reset)
+		self.storage = Signal(self.size - self.alignment_bits)
+		self.comb += self.storage.eq(self.storage_full[self.alignment_bits:])
 		self.atomic_write = atomic_write
 		if write_from_dev:
 			self.we = Signal()
-			self.dat_w = Signal(self.size)
-			self.sync += If(self.we, self.storage.eq(self.dat_w))
+			self.dat_w = Signal(self.size - self.alignment_bits)
+			self.sync += If(self.we, self.storage_full.eq(self.dat_w << self.alignment_bits))
 
 	def do_finalize(self, busword):
 		nwords = (self.size + busword - 1)//busword
@@ -63,20 +66,25 @@ class CSRStorage(_CompoundCSR):
 		for i in reversed(range(nwords)):
 			nbits = min(self.size - i*busword, busword)
 			sc = CSR(nbits, self.name + str(i) if nwords else self.name)
+			self.simple_csrs.append(sc)
 			lo = i*busword
 			hi = lo+nbits
 			# read
-			self.comb += sc.w.eq(self.storage[lo:hi])
+			if lo >= self.alignment_bits:
+				self.comb += sc.w.eq(self.storage_full[lo:hi])
+			elif hi > self.alignment_bits:
+				self.comb += sc.w.eq(Cat(Replicate(0, hi - self.alignment_bits),
+					self.storage_full[self.alignment_bits:hi]))
+			else:
+				self.comb += sc.w.eq(0)
 			# write
 			if nwords > 1 and self.atomic_write:
 				if i:
 					self.sync += If(sc.re, backstore[lo-busword:hi-busword].eq(sc.r))
 				else:
-					self.sync += If(sc.re, self.storage.eq(Cat(sc.r, backstore)))
+					self.sync += If(sc.re, self.storage_full.eq(Cat(sc.r, backstore)))
 			else:
-				self.sync += If(sc.re, self.storage[lo:hi].eq(sc.r))
-
-			self.simple_csrs.append(sc)
+				self.sync += If(sc.re, self.storage_full[lo:hi].eq(sc.r))
 
 def csrprefix(prefix, csrs):
 	for csr in csrs:
