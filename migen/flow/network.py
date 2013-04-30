@@ -207,8 +207,32 @@ class DataFlowGraph(MultiDiGraph):
 class CompositeActor(Module):
 	def __init__(self, dfg):
 		dfg.elaborate()
+
+		# expose unconnected endpoints
+		uc_eps_by_node = dict((node, get_endpoints(node)) for node in dfg)
+		for u, v, d in dfg.edges_iter(data=True):
+			uc_eps_u = uc_eps_by_node[u]
+			source = d["source"]
+			try:
+				del uc_eps_u[source]
+			except KeyError:
+				pass
+			uc_eps_v = uc_eps_by_node[v]
+			sink = d["sink"]
+			try:
+				del uc_eps_v[sink]
+			except KeyError:
+				pass
+		for node, uc_eps in uc_eps_by_node.items():
+			for k, v in uc_eps.items():
+				assert(not hasattr(self, k))
+				setattr(self, k, v)
+
+		# generate busy signal
 		self.busy = Signal()
-		self.comb += [self.busy.eq(optree("|", [node.busy for node in dfg]))]
+		self.comb += self.busy.eq(optree("|", [node.busy for node in dfg]))
+
+		# claim ownership of sub-actors and establish connections
 		for node in dfg:
 			self.submodules += node
 		for u, v, d in dfg.edges_iter(data=True):
