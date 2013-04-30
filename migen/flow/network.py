@@ -37,6 +37,10 @@ class DataFlowGraph(MultiDiGraph):
 		self.add_edge(source_node, sink_node,
 			source=source_ep, sink=sink_ep,
 			source_subr=source_subr, sink_subr=sink_subr)
+
+	def add_pipeline(self, *nodes):
+		for n1, n2 in zip(nodes, nodes[1:]):
+			self.add_connection(n1, n2)
 	
 	def del_connections(self, source_node, sink_node, data_requirements):
 		edges_to_delete = []
