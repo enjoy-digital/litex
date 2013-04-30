@@ -6,8 +6,8 @@ from migen.genlib.fifo import AsyncFIFO
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow.transactions import *
-from migen.flow import plumbing
-from migen.actorlib import misc, dma_asmi, structuring, sim, spi
+from migen.bank.description import CSRStorage
+from migen.actorlib import dma_asmi, structuring, sim, spi
 
 _hbits = 11
 _vbits = 12
@@ -39,7 +39,7 @@ _dac_layout = [
 ]
 
 class _FrameInitiator(spi.SingleGenerator):
-	def __init__(self, asmi_bits, length_bits, alignment_bits):
+	def __init__(self):
 		layout = [
 			("hres", _hbits, 640, 1),
 			("hsync_start", _hbits, 656, 1),
@@ -49,12 +49,9 @@ class _FrameInitiator(spi.SingleGenerator):
 			("vres", _vbits, 480),
 			("vsync_start", _vbits, 492),
 			("vsync_end", _vbits, 494),
-			("vscan", _vbits, 525),
-			
-			("base", asmi_bits, 0, alignment_bits),
-			("length", length_bits, 640*480*4, alignment_bits)
+			("vscan", _vbits, 525)
 		]
-		spi.SingleGenerator.__init__(self, layout, spi.MODE_CONTINUOUS)
+		spi.SingleGenerator.__init__(self, layout, spi.MODE_EXTERNAL)
 
 class VTG(Module):
 	def __init__(self):
@@ -171,17 +168,11 @@ def sim_fifo_gen():
 
 class Framebuffer(Module):
 	def __init__(self, pads, asmiport, simulation=False):
-		asmi_bits = asmiport.hub.aw
-		alignment_bits = bits_for(asmiport.hub.dw//8) - 1
-		length_bits = _hbits + _vbits + 2 - alignment_bits
 		pack_factor = asmiport.hub.dw//(2*_bpp)
 		packed_pixels = structuring.pack_layout(_pixel_layout, pack_factor)
 		
-		self._fi = fi = _FrameInitiator(asmi_bits, length_bits, alignment_bits)
-		adrloop = misc.IntSequence(length_bits, asmi_bits)
-		adrbuffer = AbstractActor(plumbing.Buffer)
-		dma = dma_asmi.Reader(asmiport)
-		datbuffer = AbstractActor(plumbing.Buffer)
+		fi = _FrameInitiator()
+		dma = spi.DMAReadController(dma_asmi.Reader(asmiport), spi.MODE_EXTERNAL, length_reset=640*480*4)
 		cast = structuring.Cast(asmiport.hub.dw, packed_pixels, reverse_to=True)
 		unpack = structuring.Unpack(pack_factor, _pixel_layout)
 		vtg = VTG()
@@ -191,18 +182,20 @@ class Framebuffer(Module):
 			fifo = FIFO()
 		
 		g = DataFlowGraph()
-		g.add_connection(fi, adrloop, source_subr=["length", "base"])
-		g.add_connection(adrloop, adrbuffer)
-		g.add_connection(adrbuffer, dma)
-		g.add_connection(dma, datbuffer)
-		g.add_connection(datbuffer, cast)
+		g.add_connection(fi, vtg, sink_ep="timing")
+		g.add_connection(dma, cast)
 		g.add_connection(cast, unpack)
 		g.add_connection(unpack, vtg, sink_ep="pixels")
-		g.add_connection(fi, vtg, sink_ep="timing", source_subr=[
-			"hres", "hsync_start", "hsync_end", "hscan", 
-			"vres", "vsync_start", "vsync_end", "vscan"])
 		g.add_connection(vtg, fifo)
-		self.submodules._comp_actor = CompositeActor(g)
+		self.submodules += CompositeActor(g)
+
+		self._enable = CSRStorage()
+		self.comb += [
+			fi.trigger.eq(self._enable.storage),
+			dma.generator.trigger.eq(self._enable.storage),
+		]
+		self._fi = fi
+		self._dma = dma
 		
 		# Drive pads
 		if not simulation:
@@ -216,4 +209,4 @@ class Framebuffer(Module):
 		self.comb += pads.psave_n.eq(1)
 
 	def get_csrs(self):
-		return self._fi.get_csrs()
+		return [self._enable] + self._fi.get_csrs() + self._dma.get_csrs()
