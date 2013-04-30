@@ -4,6 +4,9 @@ from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
 from migen.bank.description import *
 from migen.flow.actor import *
+from migen.flow.network import *
+from migen.flow import plumbing
+from migen.actorlib import misc
 
 # layout is a list of tuples, either:
 # - (name, nbits, [reset value], [alignment bits])
@@ -111,3 +114,29 @@ class Collector(Module, AutoCSR):
 			rp.adr.eq(self._r_ra.storage),
 			self._r_rd.status.eq(rp.dat_r)
 		]
+
+class DMAReadController(Module):
+	def __init__(self, bus_accessor, mode, base_reset=0, length_reset=0):
+		bus_aw = len(bus_accessor.address.payload.a)
+		bus_dw = len(bus_accessor.data.payload.d)
+		alignment_bits = bits_for(bus_dw//8) - 1
+
+		layout = [
+			("length", bus_aw + alignment_bits, length_reset, alignment_bits),
+			("base", bus_aw + alignment_bits, base_reset, alignment_bits)
+		]
+		self.generator = SingleGenerator(layout, mode)
+		g = DataFlowGraph()
+		g.add_pipeline(self.generator,
+			misc.IntSequence(bus_aw, bus_aw),
+			AbstractActor(plumbing.Buffer),
+			bus_accessor,
+			AbstractActor(plumbing.Buffer))
+		comp_actor = CompositeActor(g)
+		self.submodules += comp_actor
+
+		self.data = comp_actor.q
+		self.busy = comp_actor.busy
+		
+	def get_csrs(self):
+		return self.generator.get_csrs()
