@@ -151,24 +151,26 @@ class DataFlowGraph(MultiDiGraph):
 			if not ap:
 				break
 			for a in ap:
-				if a.actor_class in plumbing.layout_sink:
-					edges = self.in_edges(a, data=True)
-					assert(len(edges) == 1)
-					other, me, data = edges[0]
+				in_edges = self.in_edges(a, data=True)
+				out_edges = self.out_edges(a, data=True)
+				if a.actor_class in plumbing.layout_sink and len(in_edges) == 1:
+					other, me, data = in_edges[0]
 					if isinstance(other, AbstractActor):
 						continue
 					other_ep = data["source"]
 					if other_ep is None:
 						other_ep = get_single_ep(other, Source)[1]
-				elif a.actor_class in plumbing.layout_source:
-					edges = self.out_edges(a, data=True)
-					assert(len(edges) == 1)
-					me, other, data = edges[0]
+					else:
+						other_ep = getattr(other, other_ep)
+				elif a.actor_class in plumbing.layout_source and len(out_edges) == 1:
+					me, other, data = out_edges[0]
 					if isinstance(other, AbstractActor):
 						continue
 					other_ep = data["sink"]
 					if other_ep is None:
 						other_ep = get_single_ep(other, Sink)[1]
+					else:
+						other_ep = getattr(other, other_ep)
 				else:
 					raise AssertionError
 				layout = other_ep.payload.layout
