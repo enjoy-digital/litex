@@ -89,7 +89,8 @@ class SequentialWriter(Module):
 			port.adr.eq(self.address_data.payload.a),
 			port.we.eq(1),
 			port.stb.eq(self.address_data.stb),
-			self.address_data.ack.eq(port.ack)
+			self.address_data.ack.eq(port.ack),
+			port.dat_wm.eq(0)
 		]
 		self.sync += [
 			port.dat_w.eq(0),
@@ -112,7 +113,10 @@ class _WriteSlot(Module):
 
 		drive_data = Signal()
 		data_reg = Signal(port.hub.dw)
-		self.comb += If(drive_data, port.dat_w.eq(data_reg))
+		self.comb += [
+			If(drive_data, port.dat_w.eq(data_reg)),
+			port.dat_wm.eq(0)
+		]
 
 		self.sync += [
 			If(port.stb & port.ack & (port.tag_issue == (port.base + n)),
