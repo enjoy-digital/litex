@@ -15,35 +15,46 @@ def main():
 	platform.add_platform_command("""
 NET "{clk50}" TNM_NET = "GRPclk50";
 TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
+""", clk50=platform.lookup_request("clk50"))
+
+	platform.add_platform_command("""
 INST "m1crg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "m1crg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
 PIN "m1crg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
+""")
 
+	if hasattr(soc, "fb"):
+		platform.add_platform_command("""
 NET "vga_clk" TNM_NET = "GRPvga_clk";
 NET "sys_clk" TNM_NET = "GRPsys_clk";
 TIMESPEC "TSise_sucks1" = FROM "GRPvga_clk" TO "GRPsys_clk" TIG;
 TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
+""")
 
+	if hasattr(soc, "minimac"):
+		platform.add_platform_command("""
 NET "{phy_rx_clk}" TNM_NET = "GRPphy_rx_clk";
 NET "{phy_tx_clk}" TNM_NET = "GRPphy_tx_clk";
 TIMESPEC "TSphy_rx_clk" = PERIOD "GRPphy_rx_clk" 40 ns HIGH 50%;
 TIMESPEC "TSphy_tx_clk" = PERIOD "GRPphy_tx_clk" 40 ns HIGH 50%;
 TIMESPEC "TSphy_tx_clk_io" = FROM "GRPphy_tx_clk" TO "PADS" 10 ns;
 TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
+""",
+		phy_rx_clk=platform.lookup_request("eth_clocks").rx,
+		phy_tx_clk=platform.lookup_request("eth_clocks").tx,)
 
+	if hasattr(soc, "dvisampler0"):
+		platform.add_platform_command("""
 NET "{dviclk0}" TNM_NET = "GRPdviclk0";
 NET "{dviclk0}" CLOCK_DEDICATED_ROUTE = FALSE;
 TIMESPEC "TSdviclk0" = PERIOD "GRPdviclk0" 26.7 ns HIGH 50%;
+""", dviclk0=platform.lookup_request("dvi_in", 0).clk)
+		platform.add_platform_command("""
 NET "{dviclk1}" TNM_NET = "GRPdviclk1";
 NET "{dviclk1}" CLOCK_DEDICATED_ROUTE = FALSE;
 TIMESPEC "TSdviclk1" = PERIOD "GRPdviclk1" 26.7 ns HIGH 50%;
-""",
-		clk50=platform.lookup_request("clk50"),
-		phy_rx_clk=platform.lookup_request("eth_clocks").rx,
-		phy_tx_clk=platform.lookup_request("eth_clocks").tx,
-		dviclk0=platform.lookup_request("dvi_in", 0).clk,
-		dviclk1=platform.lookup_request("dvi_in", 1).clk)
+""", dviclk1=platform.lookup_request("dvi_in", 1).clk)
 	
 	for d in ["m1crg", "s6ddrphy", "minimac3"]:
 		platform.add_source_dir(os.path.join("verilog", d))
