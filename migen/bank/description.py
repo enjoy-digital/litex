@@ -51,7 +51,7 @@ class CSRStorage(_CompoundCSR):
 		_CompoundCSR.__init__(self, size, name)
 		self.alignment_bits = alignment_bits
 		self.storage_full = Signal(self.size, reset=reset)
-		self.storage = Signal(self.size - self.alignment_bits)
+		self.storage = Signal(self.size - self.alignment_bits, reset=reset >> alignment_bits)
 		self.comb += self.storage.eq(self.storage_full[self.alignment_bits:])
 		self.atomic_write = atomic_write
 		if write_from_dev:
