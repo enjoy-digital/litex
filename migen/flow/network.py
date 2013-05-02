@@ -38,6 +38,13 @@ class DataFlowGraph(MultiDiGraph):
 			source=source_ep, sink=sink_ep,
 			source_subr=source_subr, sink_subr=sink_subr)
 
+	def add_buffered_connection(self, source_node, sink_node,
+	  source_ep=None, sink_ep=None,
+	  source_subr=None, sink_subr=None):
+		buf = AbstractActor(plumbing.Buffer)
+		self.add_connection(source_node, buf, source_ep=source_ep, source_subr=source_subr)
+		self.add_connection(buf, sink_node, sink_ep=sink_ep, sink_subr=sink_subr)
+
 	def add_pipeline(self, *nodes):
 		for n1, n2 in zip(nodes, nodes[1:]):
 			self.add_connection(n1, n2)
