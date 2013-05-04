@@ -105,8 +105,7 @@ class SequentialWriter(Module):
 		]
 
 class _WriteSlot(Module):
-	def __init__(self, port, n):
-		self.load_data = Signal(port.hub.dw)
+	def __init__(self, port, load_data, n):
 		self.busy = Signal()
 
 		###
@@ -119,15 +118,15 @@ class _WriteSlot(Module):
 		]
 
 		self.sync += [
-			If(port.stb & port.ack & (port.tag_issue == (port.base + n)),
-				self.busy.eq(1),
-				data_reg.eq(self.load_data)
-			),
 			drive_data.eq(0),
 			If(port.get_call_expression(n),
 				self.busy.eq(0),
 				drive_data.eq(1)
-			)
+			),
+			If(port.stb & port.ack & (port.tag_issue == n),
+				self.busy.eq(1),
+				data_reg.eq(load_data)
+			),
 		]
 
 class OOOWriter(Module):
@@ -147,9 +146,9 @@ class OOOWriter(Module):
 
 		busy = 0
 		for i in range(len(port.slots)):
-			write_slot = _WriteSlot(port, i)
+			write_slot = _WriteSlot(port, self.address_data.payload.d, i)
+			#write_slot = _WriteSlot(port, 0x12345678abad1deacafebabedeadbeef, i)
 			self.submodules += write_slot
-			self.comb += write_slot.load_data.eq(self.address_data.payload.d)
 			busy = busy | write_slot.busy
 		self.comb += self.busy.eq(busy)
 
