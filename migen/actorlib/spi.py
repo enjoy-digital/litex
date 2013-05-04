@@ -115,17 +115,25 @@ class Collector(Module, AutoCSR):
 			self._r_rd.status.eq(rp.dat_r)
 		]
 
-class DMAReadController(Module):
-	def __init__(self, bus_accessor, mode, base_reset=0, length_reset=0):
-		bus_aw = len(bus_accessor.address.payload.a)
-		bus_dw = len(bus_accessor.data.payload.d)
-		alignment_bits = bits_for(bus_dw//8) - 1
-
+class _DMAController(Module):
+	def __init__(self, bus_accessor, bus_aw, bus_dw, mode, base_reset=0, length_reset=0):
+		self.alignment_bits = bits_for(bus_dw//8) - 1
 		layout = [
-			("length", bus_aw + alignment_bits, length_reset, alignment_bits),
-			("base", bus_aw + alignment_bits, base_reset, alignment_bits)
+			("length", bus_aw + self.alignment_bits, length_reset, self.alignment_bits),
+			("base", bus_aw + self.alignment_bits, base_reset, self.alignment_bits)
 		]
 		self.generator = SingleGenerator(layout, mode)
+		self.r_busy = CSRStatus()
+
+	def get_csrs(self):
+		return self.generator.get_csrs() + [self.r_busy]
+
+class DMAReadController(_DMAController):
+	def __init__(self, bus_accessor, *args, **kwargs):
+		bus_aw = len(bus_accessor.address.payload.a)
+		bus_dw = len(bus_accessor.data.payload.d)
+		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
+		
 		g = DataFlowGraph()
 		g.add_pipeline(self.generator,
 			misc.IntSequence(bus_aw, bus_aw),
@@ -137,6 +145,24 @@ class DMAReadController(Module):
 
 		self.data = comp_actor.q
 		self.busy = comp_actor.busy
+		self.comb += self.r_busy.status.eq(self.busy)
+
+class DMAWriteController(_DMAController):
+	def __init__(self, bus_accessor, *args, **kwargs):
+		bus_aw = len(bus_accessor.address_data.payload.a)
+		bus_dw = len(bus_accessor.address_data.payload.d)
+		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
 		
-	def get_csrs(self):
-		return self.generator.get_csrs()
+		g = DataFlowGraph()
+		adr_buffer = AbstractActor(plumbing.Buffer)
+		g.add_pipeline(self.generator,
+			misc.IntSequence(bus_aw, bus_aw),
+			adr_buffer)
+		g.add_connection(adr_buffer, bus_accessor, sink_subr=["a"])
+		g.add_connection(AbstractActor(plumbing.Buffer), bus_accessor, sink_subr=["d"])
+		comp_actor = CompositeActor(g)
+		self.submodules += comp_actor
+
+		self.data = comp_actor.d
+		self.busy = comp_actor.busy
+		self.comb += self.r_busy.status.eq(self.busy)
