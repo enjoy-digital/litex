@@ -156,5 +156,5 @@ class DataCapture(Module, AutoCSR):
 			d1i.eq(d1 ^ invert)
 		]
 		dsr = Signal(10)
-		self.sync.pix5x += dsr.eq(Cat(dsr[2:], d0i, d1i))
+		self.sync.pix5x += dsr.eq(Cat(dsr[2:], d1i, d0i))
 		self.sync.pix += self.d.eq(dsr)
