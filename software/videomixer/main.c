@@ -10,7 +10,7 @@ static int d0, d1, d2;
 
 static void print_status(void)
 {
-	printf("Ph: %4d %4d %4d // %d%d%d [%d %d %d] // %d // %dx%d // %d\n", d0, d1, d2,
+	printf("Ph: %4d %4d %4d // %d%d%d [%d %d %d] // %d // %dx%d\n", d0, d1, d2,
 		dvisampler0_data0_charsync_char_synced_read(),
 		dvisampler0_data1_charsync_char_synced_read(),
 		dvisampler0_data2_charsync_char_synced_read(),
@@ -19,8 +19,7 @@ static void print_status(void)
 		dvisampler0_data2_charsync_ctl_pos_read(),
 		dvisampler0_chansync_channels_synced_read(),
 		dvisampler0_resdetection_hres_read(),
-		dvisampler0_resdetection_vres_read(),
-		dvisampler0_resdetection_de_cycles_read());
+		dvisampler0_resdetection_vres_read());
 }
 
 static void calibrate_delays(void)
@@ -100,7 +99,6 @@ static int init_phase(void)
 
 static void vmix(void)
 {
-	int i;
 	unsigned int counter;
 
 	while(1) {
@@ -118,7 +116,7 @@ static void vmix(void)
 			counter++;
 			if(counter == 2000000) {
 				print_status();
-				//adjust_phase();
+				adjust_phase();
 				counter = 0;
 			}
 		}
