@@ -50,6 +50,7 @@ NET "{dviclk0}" TNM_NET = "GRPdviclk0";
 NET "{dviclk0}" CLOCK_DEDICATED_ROUTE = FALSE;
 TIMESPEC "TSdviclk0" = PERIOD "GRPdviclk0" 26.7 ns HIGH 50%;
 """, dviclk0=platform.lookup_request("dvi_in", 0).clk)
+	if hasattr(soc, "dvisampler1"):
 		platform.add_platform_command("""
 NET "{dviclk1}" TNM_NET = "GRPdviclk1";
 NET "{dviclk1}" CLOCK_DEDICATED_ROUTE = FALSE;
