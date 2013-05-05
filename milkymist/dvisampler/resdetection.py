@@ -4,68 +4,46 @@ from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 
 class ResolutionDetection(Module, AutoCSR):
-	def __init__(self, nbits=10):
-		self.hsync = Signal()
+	def __init__(self, nbits=11):
 		self.vsync = Signal()
 		self.de = Signal()
 
 		self._hres = CSRStatus(nbits)
 		self._vres = CSRStatus(nbits)
-		self._de_cycles = CSRStatus(2*nbits)
 
 		###
 
-		# HRES/VRES
-		hsync_r = Signal()
-		vsync_r = Signal()
-		p_hsync = Signal()
-		p_vsync = Signal()
-		self.sync.pix += [
-			hsync_r.eq(self.hsync),
-			vsync_r.eq(self.vsync),
-		]
-		self.comb += [
-			p_hsync.eq(self.hsync & ~hsync_r),
-			p_vsync.eq(self.vsync & ~vsync_r)
-		]
-
-		hcounter = Signal(nbits)
-		vcounter = Signal(nbits)
-		self.sync.pix += [
-			If(p_hsync,
-				hcounter.eq(0)
-			).Elif(self.de,
-				hcounter.eq(hcounter + 1)
-			),
-			If(p_vsync,
-				vcounter.eq(0)
-			).Elif(p_hsync,
-				vcounter.eq(vcounter + 1)
-			)
-		]
-
-		hcounter_st = Signal(nbits)
-		vcounter_st = Signal(nbits)
-		self.sync.pix += [
-			If(p_hsync & (hcounter != 0), hcounter_st.eq(hcounter)),
-			If(p_vsync & (vcounter != 0), vcounter_st.eq(vcounter))
-		]
-		self.specials += MultiReg(hcounter_st, self._hres.status)
-		self.specials += MultiReg(vcounter_st, self._vres.status)
-
-		# DE
+		# Detect DE transitions
 		de_r = Signal()
 		pn_de = Signal()
 		self.sync.pix += de_r.eq(self.de)
 		self.comb += pn_de.eq(~self.de & de_r)
 
-		decounter = Signal(2*nbits)
+		# HRES
+		hcounter = Signal(nbits)
 		self.sync.pix += If(self.de,
-				decounter.eq(decounter + 1)
+				hcounter.eq(hcounter + 1)
 			).Else(
-				decounter.eq(0)
+				hcounter.eq(0)
 			)
 
-		decounter_st = Signal(2*nbits)
-		self.sync.pix += If(pn_de, decounter_st.eq(decounter))
-		self.specials += MultiReg(decounter_st, self._de_cycles.status)
+		hcounter_st = Signal(nbits)
+		self.sync.pix += If(pn_de, hcounter_st.eq(hcounter))
+		self.specials += MultiReg(hcounter_st, self._hres.status)
+
+		# VRES
+		vsync_r = Signal()
+		p_vsync = Signal()
+		self.sync.pix += vsync_r.eq(self.vsync),
+		self.comb += p_vsync.eq(self.vsync & ~vsync_r)
+
+		vcounter = Signal(nbits)
+		self.sync.pix += If(p_vsync,
+				vcounter.eq(0)
+			).Elif(pn_de,
+				vcounter.eq(vcounter + 1)
+			)
+
+		vcounter_st = Signal(nbits)
+		self.sync.pix += If(p_vsync, vcounter_st.eq(vcounter))
+		self.specials += MultiReg(vcounter_st, self._vres.status)
