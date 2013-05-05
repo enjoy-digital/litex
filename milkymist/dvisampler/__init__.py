@@ -10,6 +10,7 @@ from milkymist.dvisampler.datacapture import DataCapture
 from milkymist.dvisampler.charsync import CharSync
 from milkymist.dvisampler.decoding import Decoding
 from milkymist.dvisampler.chansync import ChanSync
+from milkymist.dvisampler.syncpol import SyncPolarity
 from milkymist.dvisampler.resdetection import ResolutionDetection
 
 class DVISampler(Module, AutoCSR):
@@ -53,18 +54,18 @@ class DVISampler(Module, AutoCSR):
 			self.chansync.data_in2.eq(self.data2_decod.output),
 		]
 
-		de = self.chansync.data_out0.de
-		r = self.chansync.data_out2.d
-		g = self.chansync.data_out1.d
-		b = self.chansync.data_out0.d
-		hsync = self.chansync.data_out0.c[0]
-		vsync = self.chansync.data_out0.c[1]
+		self.submodules.syncpol = SyncPolarity()
+		self.comb += [
+			self.syncpol.valid_i.eq(self.chansync.chan_synced),
+			self.syncpol.data_in0.eq(self.chansync.data_out0),
+			self.syncpol.data_in1.eq(self.chansync.data_out1),
+			self.syncpol.data_in2.eq(self.chansync.data_out2)
+		]
 
 		self.submodules.resdetection = ResolutionDetection()
 		self.comb += [
-			self.resdetection.de.eq(de),
-			self.resdetection.hsync.eq(hsync),
-			self.resdetection.vsync.eq(vsync)
+			self.resdetection.de.eq(self.syncpol.de),
+			self.resdetection.vsync.eq(self.syncpol.vsync)
 		]
 
 class RawDVISampler(Module, AutoCSR):
