@@ -1,12 +1,41 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Memory
 from migen.fhdl.module import Module
 from migen.genlib.cdc import MultiReg
-from migen.genlib.fifo import SyncFIFO
+from migen.genlib.fifo import _inc
 from migen.genlib.record import Record, layout_len
 from migen.genlib.misc import optree
 from migen.bank.description import *
 
 from milkymist.dvisampler.common import channel_layout
+
+class _SyncBuffer(Module):
+	def __init__(self, width, depth):
+		self.din = Signal(width)
+		self.dout = Signal(width)
+		self.re = Signal()
+
+		###
+
+		produce = Signal(max=depth)
+		consume = Signal(max=depth)
+		storage = Memory(width, depth)
+		self.specials += storage
+
+		wrport = storage.get_port(write_capable=True)
+		self.comb += [
+			wrport.adr.eq(produce),
+			wrport.dat_w.eq(self.din),
+			wrport.we.eq(1)
+		]
+		self.sync += _inc(produce, depth)
+
+		rdport = storage.get_port(async_read=True)
+		self.comb += [
+			rdport.adr.eq(consume),
+			self.dout.eq(rdport.dat_r)
+		]
+		self.sync += If(self.re, _inc(consume, depth))
 
 class ChanSync(Module, AutoCSR):
 	def __init__(self, nchan=3, depth=8):
@@ -15,8 +44,8 @@ class ChanSync(Module, AutoCSR):
 
 		self._r_channels_synced = CSRStatus()
 
-		lst_control_starts = []
-		all_control_starts = Signal()
+		lst_control = []
+		all_control = Signal()
 		for i in range(nchan):
 			name = "data_in" + str(i)
 			data_in = Record(channel_layout, name=name)
@@ -27,34 +56,29 @@ class ChanSync(Module, AutoCSR):
 
 			###
 		
-			fifo = SyncFIFO(layout_len(channel_layout), depth)
-			self.add_submodule(fifo, "pix")
+			syncbuffer = _SyncBuffer(layout_len(channel_layout), depth)
+			self.add_submodule(syncbuffer, "pix")
 			self.comb += [
-				fifo.we.eq(self.valid_i),
-				fifo.din.eq(data_in.raw_bits()),
-				data_out.raw_bits().eq(fifo.dout)
+				syncbuffer.din.eq(data_in.raw_bits()),
+				data_out.raw_bits().eq(syncbuffer.dout)
 			]
 			is_control = Signal()
-			is_control_r = Signal()
-			self.sync.pix += If(fifo.readable & fifo.re, is_control_r.eq(is_control))
-			control_starts = Signal()
 			self.comb += [
 				is_control.eq(~data_out.de),
-				control_starts.eq(is_control & ~is_control_r),
-				fifo.re.eq(~is_control | all_control_starts)
+				syncbuffer.re.eq(~is_control | all_control)
 			]
-			lst_control_starts.append(control_starts)
+			lst_control.append(is_control)
 
-		some_control_starts = Signal()
+		some_control = Signal()
 		self.comb += [
-			all_control_starts.eq(optree("&", lst_control_starts)),
-			some_control_starts.eq(optree("|", lst_control_starts))
+			all_control.eq(optree("&", lst_control)),
+			some_control.eq(optree("|", lst_control))
 		]
 		self.sync.pix += If(~self.valid_i,
 				self.chan_synced.eq(0)
 			).Else(
-				If(some_control_starts,
-					If(all_control_starts,
+				If(some_control,
+					If(all_control,
 						self.chan_synced.eq(1)
 					).Else(
 						self.chan_synced.eq(0)
