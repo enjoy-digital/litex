@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.genlib.cdc import MultiReg
 from migen.genlib.fifo import SyncFIFO
-from migen.genlib.record import Record
+from migen.genlib.record import Record, layout_len
 from migen.genlib.misc import optree
 from migen.bank.description import *
 
@@ -27,7 +27,7 @@ class ChanSync(Module, AutoCSR):
 
 			###
 		
-			fifo = SyncFIFO(10, depth)
+			fifo = SyncFIFO(layout_len(channel_layout), depth)
 			self.add_submodule(fifo, "pix")
 			self.comb += [
 				fifo.we.eq(self.valid_i),
