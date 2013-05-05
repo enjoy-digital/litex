@@ -18,6 +18,8 @@ TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
 """, clk50=platform.lookup_request("clk50"))
 
 	platform.add_platform_command("""
+INST "m1crg/pll" LOC="PLL_ADV_X0Y1";
+INST "m1crg/vga_clock_gen" LOC="DCM_X0Y6";
 INST "m1crg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "m1crg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
