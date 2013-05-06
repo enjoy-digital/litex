@@ -209,6 +209,12 @@ BUFG bufg_x1(
 	.O(sys_clk)
 );
 
+wire clk50g;
+BUFG bufg_50(
+	.I(pllout4),
+	.O(clk50g)
+);
+
 wire clk2x_off;
 BUFG bufg_x2_offclk(
 	.I(pllout5),
@@ -253,7 +259,7 @@ ODDR2 #(
  * Ethernet PHY 
  */
 
-always @(posedge pllout4)
+always @(posedge clk50g)
 	eth_phy_clk_pad <= ~eth_phy_clk_pad;
 
 /* Let the synthesizer insert the appropriate buffers */
@@ -277,7 +283,7 @@ DCM_CLKGEN #(
 	.CLKFX180(),
 	.CLKFXDV(),
 	.STATUS(),
-	.CLKIN(pllout4),
+	.CLKIN(clk50g),
 	.FREEZEDCM(1'b0),
 	.PROGCLK(vga_progclk),
 	.PROGDATA(vga_progdata),
