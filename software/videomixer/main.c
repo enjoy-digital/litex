@@ -3,10 +3,12 @@
 
 #include <irq.h>
 #include <uart.h>
+#include <console.h>
 #include <hw/csr.h>
 #include <hw/flags.h>
 
 static int d0, d1, d2;
+static unsigned int framebuffer[640*480] __attribute__((aligned(16)));
 
 static void print_status(void)
 {
@@ -20,6 +22,17 @@ static void print_status(void)
 		dvisampler0_chansync_channels_synced_read(),
 		dvisampler0_resdetection_hres_read(),
 		dvisampler0_resdetection_vres_read());
+}
+
+static void capture_fb(void)
+{
+	dvisampler0_dma_base_write((unsigned int)framebuffer);
+	dvisampler0_dma_length_write(sizeof(framebuffer));
+	dvisampler0_dma_shoot_write(1);
+
+	printf("waiting for DMA...");
+	while(dvisampler0_dma_busy_read());
+	printf("done\n");
 }
 
 static void calibrate_delays(void)
@@ -119,6 +132,8 @@ static void vmix(void)
 				adjust_phase();
 				counter = 0;
 			}
+			if(readchar_nonblock() && (readchar() == 'c'))
+				capture_fb();
 		}
 		printf("PLL unlocked\n");
 	}
@@ -132,6 +147,8 @@ int main(void)
 	
 	puts("Minimal video mixer software built "__DATE__" "__TIME__"\n");
 	
+	fb_base_write((unsigned int)framebuffer);
+	fb_enable_write(1);
 	vmix();
 	
 	return 0;
