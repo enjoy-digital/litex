@@ -81,6 +81,7 @@ def _build_files(device, sources, named_sc, named_pc, build_name):
 -ifmt MIXED
 -opt_mode SPEED
 -reduce_control_sets auto
+-register_balancing yes
 -ofn %s.ngc
 -p %s""" % (build_name, build_name, device)
 	tools.write_to_file(build_name + ".xst", xst_contents)
