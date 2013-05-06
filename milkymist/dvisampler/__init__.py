@@ -1,8 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
-from migen.bank.description import *
-from migen.genlib.fifo import AsyncFIFO
-from migen.actorlib import structuring, dma_asmi, spi
+from migen.bank.description import AutoCSR
 
 from milkymist.dvisampler.edid import EDID
 from milkymist.dvisampler.clocking import Clocking
@@ -10,11 +8,11 @@ from milkymist.dvisampler.datacapture import DataCapture
 from milkymist.dvisampler.charsync import CharSync
 from milkymist.dvisampler.decoding import Decoding
 from milkymist.dvisampler.chansync import ChanSync
-from milkymist.dvisampler.syncpol import SyncPolarity
-from milkymist.dvisampler.resdetection import ResolutionDetection
+from milkymist.dvisampler.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
+from milkymist.dvisampler.dma import DMA
 
 class DVISampler(Module, AutoCSR):
-	def __init__(self, pads):
+	def __init__(self, pads, asmiport):
 		self.submodules.edid = EDID(pads)
 		self.submodules.clocking = Clocking(pads)
 
@@ -54,6 +52,8 @@ class DVISampler(Module, AutoCSR):
 			self.chansync.data_in2.eq(self.data2_decod.output),
 		]
 
+		###
+
 		self.submodules.syncpol = SyncPolarity()
 		self.comb += [
 			self.syncpol.valid_i.eq(self.chansync.chan_synced),
@@ -64,42 +64,20 @@ class DVISampler(Module, AutoCSR):
 
 		self.submodules.resdetection = ResolutionDetection()
 		self.comb += [
+			self.resdetection.valid_i.eq(self.syncpol.valid_o),
 			self.resdetection.de.eq(self.syncpol.de),
 			self.resdetection.vsync.eq(self.syncpol.vsync)
 		]
 
-class RawDVISampler(Module, AutoCSR):
-	def __init__(self, pads, asmiport):
-		self.submodules.edid = EDID(pads)
-		self.submodules.clocking = Clocking(pads)
-
-		invert = False
-		try:
-			s = getattr(pads, "data0")
-		except AttributeError:
-			s = getattr(pads, "data0_n")
-			invert = True
-		self.submodules.data0_cap = DataCapture(8, invert)
+		self.submodules.frame = FrameExtraction()
 		self.comb += [
-			self.data0_cap.pad.eq(s),
-			self.data0_cap.serdesstrobe.eq(self.clocking.serdesstrobe)
+			self.frame.valid_i.eq(self.syncpol.valid_o),
+			self.frame.de.eq(self.syncpol.de),
+			self.frame.vsync.eq(self.syncpol.vsync),
+			self.frame.r.eq(self.syncpol.r),
+			self.frame.g.eq(self.syncpol.g),
+			self.frame.b.eq(self.syncpol.b)
 		]
 
-		fifo = AsyncFIFO(10, 1024)
-		self.add_submodule(fifo, {"write": "pix", "read": "sys"})
-		self.comb += [
-			fifo.din.eq(self.data0_cap.d),
-			fifo.we.eq(1)
-		]
-
-		pack_factor = asmiport.hub.dw//16
-		self.submodules.packer = structuring.Pack([("word", 10), ("pad", 6)], pack_factor)
-		self.submodules.cast = structuring.Cast(self.packer.source.payload.layout, asmiport.hub.dw)
-		self.submodules.dma = spi.DMAWriteController(dma_asmi.Writer(asmiport), spi.MODE_SINGLE_SHOT)
-		self.comb += [
-			self.packer.sink.stb.eq(fifo.readable),
-			fifo.re.eq(self.packer.sink.ack),
-			self.packer.sink.payload.word.eq(fifo.dout),
-			self.packer.source.connect(self.cast.sink, match_by_position=True),
-			self.cast.source.connect(self.dma.data, match_by_position=True)
-		]
+		self.submodules.dma = DMA(asmiport)
+		self.comb += self.frame.frame.connect(self.dma.frame)
