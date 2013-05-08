@@ -1,48 +1,160 @@
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
+from migen.genlib.fsm import FSM
 from migen.bank.description import *
+from migen.bank.eventmanager import *
 from migen.flow.actor import *
-from migen.actorlib import structuring, dma_asmi, spi
+from migen.actorlib import dma_asmi
 
 from milkymist.dvisampler.common import frame_layout
 
-class DMA(Module):
-	def __init__(self, asmiport):
-		self.frame = Sink(frame_layout)
-		self.shoot = CSR()
+# Slot status: EMPTY=0 LOADED=1 PENDING=2
+class _Slot(Module, AutoCSR):
+	def __init__(self, addr_bits, alignment_bits):
+		self.ev_source = EventSourceLevel()
+		self.address = Signal(addr_bits)
+		self.address_valid = Signal()
+		self.address_done = Signal()
+
+		self._r_status = CSRStorage(2, write_from_dev=True)
+		self._r_address = CSRStorage(addr_bits + alignment_bits, alignment_bits=alignment_bits)
 
 		###
 
+		self.comb += [
+			self.address.eq(self._r_address.storage),
+			self.address_valid.eq(self._r_status.storage[0]),
+			self._r_status.dat_w.eq(2),
+			self._r_status.we.eq(self.address_done),
+			self.ev_source.trigger.eq(self._r_status.storage[1])
+		]
+
+class _SlotArray(Module, AutoCSR):
+	def __init__(self, nslots, addr_bits, alignment_bits):
+		self.ev = EventManager()
+		self.address = Signal(addr_bits)
+		self.address_valid = Signal()
+		self.address_done = Signal()
+
+		###
+
+		slots = [_Slot(addr_bits, alignment_bits) for i in range(nslots)]
+		for n, slot in enumerate(slots):
+			setattr(self.submodules, "slot"+str(n), slot)
+			setattr(self.ev, "slot"+str(n), slot.ev_source)
+		self.ev.finalize()
+
+		change_slot = Signal()
+		current_slot = Signal(max=nslots)
+		self.sync += If(change_slot, [If(slot.address_valid, current_slot.eq(n)) for n, slot in enumerate(slots)])
+		self.comb += change_slot.eq(~self.address_valid | self.address_done)
+
+		self.comb += [
+			self.address.eq(Array(slot.address for slot in slots)[current_slot]),
+			self.address_valid.eq(Array(slot.address_valid for slot in slots)[current_slot])
+		]
+		self.comb += [slot.address_done.eq(self.address_done & (current_slot == n)) for n, slot in enumerate(slots)]
+
+class DMA(Module):
+	def __init__(self, asmiport, nslots):
+		bus_aw = asmiport.hub.aw
+		bus_dw = asmiport.hub.dw
+		alignment_bits = bits_for(bus_dw//8) - 1
+
+		self.frame = Sink(frame_layout)
+		self._r_frame_size = CSRStorage(bus_aw + alignment_bits, alignment_bits=alignment_bits)
+		self.submodules._slot_array = _SlotArray(nslots, bus_aw, alignment_bits)
+		self.ev = self._slot_array.ev
+
+		###
+
+		# start of frame detection
 		sof = Signal()
 		parity_r = Signal()
-		self.comb += sof.eq(self.frame.stb & (parity_r ^ self.frame.payload.parity))
 		self.sync += If(self.frame.stb & self.frame.ack, parity_r.eq(self.frame.payload.parity))
+		self.comb += sof.eq(parity_r ^ self.frame.payload.parity)
 
-		pending = Signal()
-		frame_en = Signal()
+		# address generator + maximum memory word count to prevent DMA buffer overrun
+		reset_words = Signal()
+		count_word = Signal()
+		last_word = Signal()
+		current_address = Signal(bus_aw)
+		mwords_remaining = Signal(bus_aw)
+		self.comb += last_word.eq(mwords_remaining == 1)
 		self.sync += [
-			If(sof,
-				frame_en.eq(0),
-				If(pending, frame_en.eq(1)),
-				pending.eq(0)
-			),
-			If(self.shoot.re, pending.eq(1))
+			If(reset_words,
+				current_address.eq(self._slot_array.address),
+				mwords_remaining.eq(self._r_frame_size.storage)
+			).Elif(count_word,
+				current_address.eq(current_address + 1),
+				mwords_remaining.eq(mwords_remaining - 1)
+			)
 		]
 
-		pack_factor = asmiport.hub.dw//32
-		self.submodules.packer = structuring.Pack(list(reversed([("pad", 2), ("r", 10), ("g", 10), ("b", 10)])), pack_factor)
-		self.submodules.cast = structuring.Cast(self.packer.source.payload.layout, asmiport.hub.dw, reverse_from=False)
-		self.submodules.dma = spi.DMAWriteController(dma_asmi.Writer(asmiport), spi.MODE_EXTERNAL)
+		# pack pixels into memory words
+		write_pixel = Signal()
+		last_pixel = Signal()
+		cur_memory_word = Signal(bus_dw)
+		encoded_pixel = Signal(32)
 		self.comb += [
-			self.dma.generator.trigger.eq(self.shoot.re),
-			self.packer.sink.stb.eq(self.frame.stb & frame_en),
-			self.frame.ack.eq(self.packer.sink.ack | (~frame_en & ~(pending & sof))),
-			self.packer.sink.payload.r.eq(self.frame.payload.r << 2),
-			self.packer.sink.payload.g.eq(self.frame.payload.g << 2),
-			self.packer.sink.payload.b.eq(self.frame.payload.b << 2),
-			self.packer.source.connect(self.cast.sink, match_by_position=True),
-			self.cast.source.connect(self.dma.data, match_by_position=True)
+			encoded_pixel.eq(Cat(
+				Replicate(0, 2), self.frame.payload.b,
+				Replicate(0, 2), self.frame.payload.g,
+				Replicate(0, 2), self.frame.payload.r))
 		]
+		pack_factor = bus_dw//32
+		assert(pack_factor & (pack_factor - 1) == 0) # only support powers of 2
+		pack_counter = Signal(max=pack_factor)
+		self.comb += last_pixel.eq(pack_counter == (pack_factor - 1))
+		self.sync += If(write_pixel,
+				[If(pack_counter == i, cur_memory_word[32*i:32*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
+				pack_counter.eq(pack_counter + 1)
+			)
+
+		# bus accessor
+		self.submodules._bus_accessor = dma_asmi.Writer(asmiport)
+		self.comb += [
+			self._bus_accessor.address_data.payload.a.eq(current_address),
+			self._bus_accessor.address_data.payload.d.eq(cur_memory_word)
+		]
+
+		# control FSM
+		fsm = FSM("WAIT_SOF", "TRANSFER_PIXEL", "TO_MEMORY", "EOF")
+		self.submodules += fsm
+
+		fsm.act(fsm.WAIT_SOF,
+			self.frame.ack.eq(~sof),
+			reset_words.eq(1),
+			If(self._slot_array.address_valid,
+				If(self.frame.stb & sof, fsm.next_state(fsm.TRANSFER_PIXEL))
+			)
+		)
+		fsm.act(fsm.TRANSFER_PIXEL,
+			self.frame.ack.eq(1),
+			If(self.frame.stb,
+				write_pixel.eq(1),
+				If(last_pixel,
+					fsm.next_state(fsm.TO_MEMORY)
+				)
+			)
+		)
+		fsm.act(fsm.TO_MEMORY,
+			self._bus_accessor.address_data.stb.eq(1),
+			If(self._bus_accessor.address_data.ack,
+				count_word.eq(1),
+				If(last_word,
+					fsm.next_state(fsm.EOF)
+				).Else(
+					fsm.next_state(fsm.TRANSFER_PIXEL)
+				)
+			)
+		)
+		fsm.act(fsm.EOF,
+			If(~self._bus_accessor.busy,
+				self._slot_array.address_done.eq(1),
+				fsm.next_state(fsm.WAIT_SOF)
+			)
+		)
 
 	def get_csrs(self):
-		return [self.shoot] + self.dma.get_csrs()
+		return [self._r_frame_size] + self._slot_array.get_csrs()

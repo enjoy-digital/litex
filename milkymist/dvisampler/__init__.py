@@ -12,7 +12,7 @@ from milkymist.dvisampler.analysis import SyncPolarity, ResolutionDetection, Fra
 from milkymist.dvisampler.dma import DMA
 
 class DVISampler(Module, AutoCSR):
-	def __init__(self, pads, asmiport):
+	def __init__(self, pads, asmiport, n_dma_slots=2):
 		self.submodules.edid = EDID(pads)
 		self.submodules.clocking = Clocking(pads)
 
@@ -79,5 +79,8 @@ class DVISampler(Module, AutoCSR):
 			self.frame.b.eq(self.syncpol.b)
 		]
 
-		self.submodules.dma = DMA(asmiport)
+		self.submodules.dma = DMA(asmiport, n_dma_slots)
 		self.comb += self.frame.frame.connect(self.dma.frame)
+		self.ev = self.dma.ev
+
+	autocsr_exclude = {"ev"}
