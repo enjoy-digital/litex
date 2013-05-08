@@ -96,23 +96,33 @@ def memprefix(prefix, memories):
 
 class AutoCSR:
 	def get_memories(self):
+		try:
+			exclude = self.autocsr_exclude
+		except AttributeError:
+			exclude = {}
 		r = []
 		for k, v in self.__dict__.items():
-			if isinstance(v, Memory):
-				r.append(v)
-			elif hasattr(v, "get_memories") and callable(v.get_memories):
-				memories = v.get_memories()
-				memprefix(k + "_", memories)
-				r += memories
+			if k not in exclude:
+				if isinstance(v, Memory):
+					r.append(v)
+				elif hasattr(v, "get_memories") and callable(v.get_memories):
+					memories = v.get_memories()
+					memprefix(k + "_", memories)
+					r += memories
 		return sorted(r, key=lambda x: x.huid)
 
 	def get_csrs(self):
+		try:
+			exclude = self.autocsr_exclude
+		except AttributeError:
+			exclude = {}
 		r = []
 		for k, v in self.__dict__.items():
-			if isinstance(v, _CSRBase):
-				r.append(v)
-			elif hasattr(v, "get_csrs") and callable(v.get_csrs):
-				csrs = v.get_csrs()
-				csrprefix(k + "_", csrs)
-				r += csrs
+			if k not in exclude:
+				if isinstance(v, _CSRBase):
+					r.append(v)
+				elif hasattr(v, "get_csrs") and callable(v.get_csrs):
+					csrs = v.get_csrs()
+					csrprefix(k + "_", csrs)
+					r += csrs
 		return sorted(r, key=lambda x: x.huid)
