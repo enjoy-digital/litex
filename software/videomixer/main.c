@@ -26,12 +26,12 @@ static void print_status(void)
 
 static void capture_fb(void)
 {
-	dvisampler0_dma_base_write((unsigned int)framebuffer);
-	dvisampler0_dma_length_write(sizeof(framebuffer));
-	dvisampler0_dma_shoot_write(1);
+	dvisampler0_dma_frame_size_write(sizeof(framebuffer));
+	dvisampler0_dma_slot0_address_write((unsigned int)framebuffer);
+	dvisampler0_dma_slot0_status_write(1);
 
 	printf("waiting for DMA...");
-	while(dvisampler0_dma_busy_read());
+	while(dvisampler0_dma_slot0_status_read() != 2);
 	printf("done\n");
 }
 
