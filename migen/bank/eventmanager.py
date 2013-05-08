@@ -6,14 +6,41 @@ from migen.genlib.misc import optree
 class _EventSource(HUID):
 	def __init__(self):
 		HUID.__init__(self)
-		self.trigger = Signal()
-		self.pending = Signal()
+		self.status = Signal() # value in the status register
+		self.pending = Signal() # value in the pending register + assert irq if unmasked
+		self.trigger = Signal() # trigger signal interface to the user design
+		self.clear = Signal() # clearing attempt by W1C to pending register, ignored by some event sources
 
-class EventSourcePulse(_EventSource):
-	pass
+# set on a positive trigger pulse
+class EventSourcePulse(Module, _EventSource):
+	def __init__(self):
+		_EventSource.__init__(self)
+		self.comb += self.status.eq(0)
+		self.sync += [
+			If(self.clear, self.pending.eq(0)),
+			If(self.trigger, self.pending.eq(1))
+		]
 
-class EventSourceLevel(_EventSource):
-	pass
+# set on the falling edge of the trigger, status = trigger
+class EventSourceProcess(Module, _EventSource):
+	def __init__(self):
+		_EventSource.__init__(self)
+		self.comb += self.status.eq(self.trigger)
+		old_trigger = Signal()
+		self.sync += [
+			If(self.clear, self.pending.eq(0)),
+			old_trigger.eq(self.trigger),
+			If(~self.trigger & old_trigger, self.pending.eq(1))
+		]
+
+# all status set by external trigger
+class EventSourceLevel(Module, _EventSource):
+	def __init__(self):
+		_EventSource.__init__(self)
+		self.comb += [
+			self.status.eq(self.trigger),
+			self.pending.eq(self.trigger)
+		]
 
 class EventManager(Module, AutoCSR):
 	def __init__(self):
@@ -27,38 +54,19 @@ class EventManager(Module, AutoCSR):
 		self.pending = CSR(n)
 		self.enable = CSRStorage(n)
 
-		# status
 		for i, source in enumerate(sources):
-			if isinstance(source, EventSourcePulse):
-				self.comb += self.status.w[i].eq(0)
-			elif isinstance(source, EventSourceLevel):
-				self.comb += self.status.w[i].eq(source.trigger)
-			else:
-				raise TypeError
+			self.comb += [
+				self.status.w[i].eq(source.status),
+				If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
+				self.pending.w[i].eq(source.pending)
+			]
 		
-		# pending
-		for i, source in enumerate(sources):
-			# W1C
-			self.sync += If(self.pending.re & self.pending.r[i], source.pending.eq(0))
-			if isinstance(source, EventSourcePulse):
-				# set on a positive trigger pulse
-				self.sync += If(source.trigger, source.pending.eq(1))
-			elif isinstance(source, EventSourceLevel):
-				# set on the falling edge of the trigger
-				old_trigger = Signal()
-				self.sync += [
-					old_trigger.eq(source.trigger),
-					If(~source.trigger & old_trigger, source.pending.eq(1))
-				]
-			else:
-				raise TypeError
-			self.comb += self.pending.w[i].eq(source.pending)
-		
-		# IRQ
 		irqs = [self.pending.w[i] & self.enable.storage[i] for i in range(n)]
 		self.comb += self.irq.eq(optree("|", irqs))
 
 	def __setattr__(self, name, value):
-		if isinstance(value, _EventSource) and self.finalized:
-			raise FinalizeError
 		object.__setattr__(self, name, value)
+		if isinstance(value, _EventSource):
+			if self.finalized:
+				raise FinalizeError
+			self.submodules += value
