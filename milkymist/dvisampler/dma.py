@@ -107,7 +107,8 @@ class DMA(Module):
 		pack_counter = Signal(max=pack_factor)
 		self.comb += last_pixel.eq(pack_counter == (pack_factor - 1))
 		self.sync += If(write_pixel,
-				[If(pack_counter == i, cur_memory_word[32*i:32*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
+				[If(pack_counter == (pack_factor-i-1),
+					cur_memory_word[32*i:32*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
 				pack_counter.eq(pack_counter + 1)
 			)
 
@@ -123,11 +124,9 @@ class DMA(Module):
 		self.submodules += fsm
 
 		fsm.act(fsm.WAIT_SOF,
-			self.frame.ack.eq(~sof),
 			reset_words.eq(1),
-			If(self._slot_array.address_valid,
-				If(self.frame.stb & sof, fsm.next_state(fsm.TRANSFER_PIXEL))
-			)
+			self.frame.ack.eq(~self._slot_array.address_valid | ~sof),
+			If(self._slot_array.address_valid & sof & self.frame.stb, fsm.next_state(fsm.TRANSFER_PIXEL))
 		)
 		fsm.act(fsm.TRANSFER_PIXEL,
 			self.frame.ack.eq(1),
