@@ -10,7 +10,7 @@ class UART(Module, AutoCSR):
 		self._divisor = CSRStorage(16, reset=int(clk_freq/baud/16))
 		
 		self.submodules.ev = EventManager()
-		self.ev.tx = EventSourceLevel()
+		self.ev.tx = EventSourceProcess()
 		self.ev.rx = EventSourcePulse()
 		self.ev.finalize()
 	

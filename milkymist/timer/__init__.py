@@ -10,7 +10,7 @@ class Timer(Module, AutoCSR):
 		self._reload = CSRStorage(width)
 		
 		self.submodules.ev = EventManager()
-		self.ev.zero = EventSourceLevel()
+		self.ev.zero = EventSourceProcess()
 		self.ev.finalize()
 
 		###
