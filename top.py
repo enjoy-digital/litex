@@ -83,6 +83,8 @@ class SoC(Module):
 		"uart":			0,
 		"timer0":		1,
 		"minimac":		2,
+		"dvisampler0":  3,
+		"dvisampler1":  4,
 	}
 
 	def __init__(self, platform):
@@ -153,7 +155,8 @@ class SoC(Module):
 		# Interrupts
 		#
 		for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
-			self.comb += self.cpu.interrupt[v].eq(getattr(self, k).ev.irq)
+			if hasattr(self, k):
+				self.comb += self.cpu.interrupt[v].eq(getattr(self, k).ev.irq)
 
 		#
 		# Clocking
