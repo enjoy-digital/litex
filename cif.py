@@ -1,6 +1,8 @@
 from operator import itemgetter
 import re
 
+from migen.bank.description import CSRStatus
+
 def get_macros(filename):
 	f = open(filename, "r")
 	r = {}
@@ -10,7 +12,7 @@ def get_macros(filename):
 			r[match.group(1)] = match.group(2)
 	return r
 
-def _get_rw_functions(reg_name, reg_base, size):
+def _get_rw_functions(reg_name, reg_base, size, read_only):
 	r = ""
 	if size > 8:
 		raise NotImplementedError("Register too large")
@@ -32,15 +34,16 @@ def _get_rw_functions(reg_name, reg_base, size):
 	else:
 		r += "\treturn MMPTR("+hex(reg_base)+");\n}\n"
 
-	r += "static inline void "+reg_name+"_write("+ctype+" value) {\n"
-	for byte in range(size):
-		shift = (size-byte-1)*8
-		if shift:
-			value_shifted = "value >> "+str(shift)
-		else:
-			value_shifted = "value"
-		r += "\tMMPTR("+hex(reg_base+4*byte)+") = "+value_shifted+";\n"
-	r += "}\n"
+	if not read_only:
+		r += "static inline void "+reg_name+"_write("+ctype+" value) {\n"
+		for byte in range(size):
+			shift = (size-byte-1)*8
+			if shift:
+				value_shifted = "value >> "+str(shift)
+			else:
+				value_shifted = "value"
+			r += "\tMMPTR("+hex(reg_base+4*byte)+") = "+value_shifted+";\n"
+		r += "}\n"
 	return r
 
 def get_csr_header(csr_base, bank_array, interrupt_map):
@@ -51,7 +54,7 @@ def get_csr_header(csr_base, bank_array, interrupt_map):
 		r += "#define "+name.upper()+"_BASE "+hex(reg_base)+"\n"
 		for csr in csrs:
 			nr = (csr.size + 7)//8
-			r += _get_rw_functions(name + "_" + csr.name, reg_base, nr)
+			r += _get_rw_functions(name + "_" + csr.name, reg_base, nr, isinstance(csr, CSRStatus))
 			reg_base += 4*nr
 		try:
 			interrupt_nr = interrupt_map[name]
