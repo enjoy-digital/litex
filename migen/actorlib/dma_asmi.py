@@ -147,7 +147,6 @@ class OOOWriter(Module):
 		busy = 0
 		for i in range(len(port.slots)):
 			write_slot = _WriteSlot(port, self.address_data.payload.d, i)
-			#write_slot = _WriteSlot(port, 0x12345678abad1deacafebabedeadbeef, i)
 			self.submodules += write_slot
 			busy = busy | write_slot.busy
 		self.comb += self.busy.eq(busy)
