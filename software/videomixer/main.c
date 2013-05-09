@@ -17,6 +17,9 @@ int main(void)
 	
 	puts("Minimal video mixer software built "__DATE__" "__TIME__"\n");
 	
+	timer0_reload_write(2*identifier_frequency_read());
+	timer0_en_write(1);
+
 	dvisampler0_init_video();
 	fb_enable_write(1);
 	while(1) dvisampler0_service();

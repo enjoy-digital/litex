@@ -64,7 +64,7 @@ static int dvisamplerX_d0, dvisamplerX_d1, dvisamplerX_d2;
 
 void dvisamplerX_print_status(void)
 {
-	printf("dvisamplerX ph:%4d %4d %4d // charsync:%d%d%d [%d %d %d] // chansync:%d // res:%dx%d\n",
+	printf("dvisamplerX: ph:%4d %4d %4d // charsync:%d%d%d [%d %d %d] // chansync:%d // res:%dx%d\n",
 		dvisamplerX_d0, dvisamplerX_d1, dvisamplerX_d2,
 		dvisamplerX_data0_charsync_char_synced_read(),
 		dvisamplerX_data1_charsync_char_synced_read(),
@@ -153,14 +153,32 @@ int dvisamplerX_init_phase(void)
 
 static int dvisamplerX_locked;
 
+static int elapsed(int period)
+{
+	static int last_event;
+	int t, dt;
+
+	t = timer0_reload_read() - timer0_value_read(); // TODO: atomic read
+	dt = t - last_event;
+	if(dt < 0)
+		dt += timer0_reload_read();
+	if((dt > period) || (dt < 0)) {
+		last_event = t;
+		return 1;
+	} else
+		return 0;
+}
+
 void dvisamplerX_service(void)
 {
 	int ret;
 
 	if(dvisamplerX_locked) {
 		if(dvisamplerX_clocking_locked_read()) {
-			dvisamplerX_adjust_phase();
-			dvisamplerX_print_status();
+			if(elapsed(identifier_frequency_read())) {
+				dvisamplerX_adjust_phase();
+				dvisamplerX_print_status();
+			}
 		} else {
 			printf("dvisamplerX: lost PLL lock\n");
 			dvisamplerX_locked = 0;
@@ -177,6 +195,12 @@ void dvisamplerX_service(void)
 				printf("dvisamplerX: phase did not settle\n");
 			dvisamplerX_print_status();
 			dvisamplerX_locked = 1;
+		} else {
+			if(elapsed(identifier_frequency_read()/4)) {
+				dvisamplerX_clocking_pll_reset_write(1);
+				while(!elapsed(identifier_frequency_read()/16));
+				dvisamplerX_clocking_pll_reset_write(0);
+			}
 		}
 	}
 }
