@@ -46,7 +46,7 @@ class _SlotArray(Module, AutoCSR):
 
 		change_slot = Signal()
 		current_slot = Signal(max=nslots)
-		self.sync += If(change_slot, [If(slot.address_valid, current_slot.eq(n)) for n, slot in enumerate(slots)])
+		self.sync += If(change_slot, [If(slot.address_valid, current_slot.eq(n)) for n, slot in reversed(list(enumerate(slots)))])
 		self.comb += change_slot.eq(~self.address_valid | self.address_done)
 
 		self.comb += [
