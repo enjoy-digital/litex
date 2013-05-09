@@ -2,7 +2,8 @@
 #include <irq.h>
 #include <uart.h>
 
-void dvisampler0_isr(void); // FIXME
+#include "dvisampler0.h"
+#include "dvisampler1.h"
 
 void isr(void);
 void isr(void)
@@ -15,4 +16,6 @@ void isr(void)
 		uart_isr();
 	if(irqs & (1 << DVISAMPLER0_INTERRUPT))
 		dvisampler0_isr();
+	if(irqs & (1 << DVISAMPLER1_INTERRUPT))
+		dvisampler1_isr();
 }

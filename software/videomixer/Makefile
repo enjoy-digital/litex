@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/common.mak
 
-OBJECTS=crt0.o isr.o main.o
+OBJECTS=crt0.o isr.o dvisampler0.o dvisampler1.o main.o
 
 all: videomixer.bin
 
@@ -30,6 +30,30 @@ main.o: main.c
 %.o: %.S
 	$(assemble)
 
+define gen0
+@echo " GEN " $@
+@sed -e "s/dvisamplerX/dvisampler0/g;s/DVISAMPLERX/DVISAMPLER0/g" $< > $@
+endef
+
+define gen1
+@echo " GEN " $@
+@sed -e "s/dvisamplerX/dvisampler1/g;s/DVISAMPLERX/DVISAMPLER1/g" $< > $@
+endef
+
+dvisampler0.c: dvisamplerX.c
+	$(gen0)
+dvisampler0.h: dvisamplerX.h
+	$(gen0)
+dvisampler1.c: dvisamplerX.c
+	$(gen1)
+dvisampler1.h: dvisamplerX.h
+	$(gen1)
+
+isr.o: dvisampler0.h dvisampler1.h
+main.o: dvisampler0.h dvisampler1.h
+dvisampler0.o: dvisampler0.h
+dvisampler1.o: dvisampler1.h
+
 libs:
 	make -C $(M2DIR)/software/libcompiler-rt
 	make -C $(M2DIR)/software/libbase
@@ -40,5 +64,6 @@ load: videomixer.bin
 
 clean:
 	rm -f $(OBJECTS) $(OBJECTS:.o=.d) videomixer.elf videomixer.bin .*~ *~
+	rm -f dvisampler0.h dvisampler0.c dvisampler1.h dvisampler1.c
 
 .PHONY: main.o clean libs load
