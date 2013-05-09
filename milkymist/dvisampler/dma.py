@@ -98,9 +98,9 @@ class DMA(Module):
 		encoded_pixel = Signal(32)
 		self.comb += [
 			encoded_pixel.eq(Cat(
-				Replicate(0, 2), self.frame.payload.b,
-				Replicate(0, 2), self.frame.payload.g,
-				Replicate(0, 2), self.frame.payload.r))
+				self.frame.payload.b[6:], self.frame.payload.b,
+				self.frame.payload.g[6:], self.frame.payload.g,
+				self.frame.payload.r[6:], self.frame.payload.r))
 		]
 		pack_factor = bus_dw//32
 		assert(pack_factor & (pack_factor - 1) == 0) # only support powers of 2
