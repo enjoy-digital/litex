@@ -31,7 +31,7 @@ class _Slot(Module, AutoCSR):
 
 class _SlotArray(Module, AutoCSR):
 	def __init__(self, nslots, addr_bits, alignment_bits):
-		self.ev = EventManager()
+		self.submodules.ev = EventManager()
 		self.address = Signal(addr_bits)
 		self.address_valid = Signal()
 		self.address_done = Signal()
