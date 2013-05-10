@@ -55,15 +55,15 @@ dvisampler0.o: dvisampler0.h
 dvisampler1.o: dvisampler1.h
 
 libs:
-	make -C $(M2DIR)/software/libcompiler-rt
-	make -C $(M2DIR)/software/libbase
+	$(MAKE) -C $(M2DIR)/software/libcompiler-rt
+	$(MAKE) -C $(M2DIR)/software/libbase
 
 load: videomixer.bin
-	make -C $(M2DIR)/tools
+	$(MAKE) -C $(M2DIR)/tools
 	$(M2DIR)/tools/flterm --port /dev/ttyUSB0 --kernel videomixer.bin
 
 clean:
-	rm -f $(OBJECTS) $(OBJECTS:.o=.d) videomixer.elf videomixer.bin .*~ *~
-	rm -f dvisampler0.h dvisampler0.c dvisampler1.h dvisampler1.c
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) videomixer.elf videomixer.bin .*~ *~
+	$(RM) dvisampler0.h dvisampler0.c dvisampler1.h dvisampler1.c
 
-.PHONY: main.o clean libs load
+.PHONY: all main.o clean libs load

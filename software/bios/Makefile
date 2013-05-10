@@ -35,14 +35,14 @@ main.o: main.c
 	$(assemble)
 
 libs:
-	make -C $(M2DIR)/software/libcompiler-rt
-	make -C $(M2DIR)/software/libbase
-	make -C $(M2DIR)/software/libnet
+	$(MAKE) -C $(M2DIR)/software/libcompiler-rt
+	$(MAKE) -C $(M2DIR)/software/libbase
+	$(MAKE) -C $(M2DIR)/software/libnet
 
 flash: bios.bin
 	m1nor bios.bin
 
 clean:
-	rm -f $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
 
-.PHONY: main.o clean libs flash
+.PHONY: all main.o clean libs flash
