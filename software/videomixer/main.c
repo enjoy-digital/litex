@@ -21,8 +21,14 @@ int main(void)
 	timer0_en_write(1);
 
 	dvisampler0_init_video();
+	dvisampler1_init_video();
 	fb_enable_write(1);
-	while(1) dvisampler0_service();
+	fb_blender_f0_write(127);
+	fb_blender_f1_write(127);
+	while(1) {
+		dvisampler0_service();
+		dvisampler1_service();
+	}
 	
 	return 0;
 }

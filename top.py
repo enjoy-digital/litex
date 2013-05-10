@@ -93,8 +93,10 @@ class SoC(Module):
 		#
 		self.submodules.asmicon = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
 		asmiport_wb = self.asmicon.hub.get_port()
-		asmiport_fb = self.asmicon.hub.get_port(3)
+		asmiport_fb0 = self.asmicon.hub.get_port(2)
+		asmiport_fb1 = self.asmicon.hub.get_port(2)
 		asmiport_dvi0 = self.asmicon.hub.get_port(2)
+		asmiport_dvi1 = self.asmicon.hub.get_port(2)
 		self.asmicon.finalize()
 		
 		#
@@ -142,10 +144,10 @@ class SoC(Module):
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(0x4D31, version, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
-		self.submodules.fb = framebuffer.Framebuffer(platform.request("vga"), asmiport_fb)
+		self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga"), asmiport_fb0, asmiport_fb1)
 		self.submodules.asmiprobe = asmiprobe.ASMIprobe(self.asmicon.hub)
 		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), asmiport_dvi0)
-		#self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1))
+		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), asmiport_dvi1)
 
 		self.submodules.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])

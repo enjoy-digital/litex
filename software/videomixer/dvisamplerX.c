@@ -35,7 +35,7 @@ void dvisamplerX_isr(void)
 	}
 
 	if(fb_index != -1)
-		fb_base_write((unsigned int)dvisamplerX_framebuffers[fb_index]);
+		fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[fb_index]);
 }
 
 void dvisamplerX_init_video(void)
@@ -57,7 +57,7 @@ void dvisamplerX_init_video(void)
 	dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
 	dvisamplerX_next_fb_index = 2;
 
-	fb_base_write((unsigned int)dvisamplerX_framebuffers[3]);
+	fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[3]);
 }
 
 static int dvisamplerX_d0, dvisamplerX_d1, dvisamplerX_d2;

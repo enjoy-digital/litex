@@ -32,12 +32,12 @@ main.o: main.c
 
 define gen0
 @echo " GEN " $@
-@sed -e "s/dvisamplerX/dvisampler0/g;s/DVISAMPLERX/DVISAMPLER0/g" $< > $@
+@sed -e "s/dvisamplerX/dvisampler0/g;s/DVISAMPLERX/DVISAMPLER0/g;s/fb_dmaX/fb_dma0/g" $< > $@
 endef
 
 define gen1
 @echo " GEN " $@
-@sed -e "s/dvisamplerX/dvisampler1/g;s/DVISAMPLERX/DVISAMPLER1/g" $< > $@
+@sed -e "s/dvisamplerX/dvisampler1/g;s/DVISAMPLERX/DVISAMPLER1/g;s/fb_dmaX/fb_dma1/g" $< > $@
 endef
 
 dvisampler0.c: dvisamplerX.c
