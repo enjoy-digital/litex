@@ -37,6 +37,10 @@ class _TargetLister(NodeVisitor):
 		self.target_context = True
 		self.visit(node.l)
 		self.target_context = False
+
+	def visit_ArrayProxy(self, node):
+		for choice in node.choices:
+			self.visit(choice)
 	
 def list_signals(node):
 	lister = _SignalLister()
