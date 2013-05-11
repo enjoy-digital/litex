@@ -127,4 +127,3 @@ class MixFramebuffer(Module, AutoCSR):
 			pads.b.eq(fifo.vga_b),
 			pads.psave_n.eq(1)
 		]
-	

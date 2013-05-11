@@ -10,3 +10,7 @@ tools/flterm
 tools/mkmmimg
 tools/byteswap
 software/include/hw/csr.h
+software/videomixer/dvisampler0.c
+software/videomixer/dvisampler0.h
+software/videomixer/dvisampler1.c
+software/videomixer/dvisampler1.h
