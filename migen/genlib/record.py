@@ -80,18 +80,22 @@ class Record:
 	def eq(self, other):
 		return [getattr(self, f[0]).eq(getattr(other, f[0]))
 		  for f in self.layout if hasattr(other, f[0])]
-	
-	def flatten(self):
-		r = []
-		for f in self.layout:			
+
+	def iter_flat(self):
+		for f in self.layout:
 			e = getattr(self, f[0])
 			if isinstance(e, Signal):
-				r.append(e)
+				if len(f) == 3:
+					yield e, f[2]
+				else:
+					yield e, DIR_NONE
 			elif isinstance(e, Record):
-				r += e.flatten()
+				yield from e.iter_flat()
 			else:
 				raise TypeError
-		return r
+	
+	def flatten(self):
+		return [signal for signal, direction in self.iter_flat()]
 
 	def raw_bits(self):
 		return Cat(*self.flatten())
@@ -112,6 +116,26 @@ class Record:
 			else:
 				for slave in slaves:
 					r += self_e.connect(getattr(slave, field))
+		return r
+
+	def connect_flat(self, *slaves):
+		r = []
+		iter_slaves = [slave.iter_flat() for slave in slaves]
+		for m_signal, m_direction in self.iter_flat():
+			if m_direction == DIR_M_TO_S:
+				for iter_slave in iter_slaves:
+					s_signal, s_direction = next(iter_slave)
+					assert(s_direction == DIR_M_TO_S)
+					r.append(s_signal.eq(m_signal))
+			elif m_direction == DIR_S_TO_M:
+				s_signals = []
+				for iter_slave in iter_slaves:
+					s_signal, s_direction = next(iter_slave)
+					assert(s_direction == DIR_S_TO_M)
+					s_signals.append(s_signal)
+				r.append(m_signal.eq(optree("|", s_signals)))
+			else:
+				raise TypeError
 		return r
 
 	def __len__(self):
