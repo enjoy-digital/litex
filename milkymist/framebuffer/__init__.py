@@ -75,7 +75,11 @@ class Blender(PipelinedActor, AutoCSR):
 			for component in ["r", "g", "b"]:
 				incomps = [getattr(pix, component) for pix in inpixs]
 				outcomp = getattr(outpix, component)
-				self.comb += outcomp.eq(sum(incomp*factor for incomp, factor in zip(incomps, factors)) >> 8)
+				outcomp_full = Signal(18)
+				self.comb += [
+					outcomp_full.eq(sum(incomp*factor for incomp, factor in zip(incomps, factors))),
+					outcomp.eq(outcomp_full[8:])
+				]
 
 		pipe_stmts = []
 		for i in range(latency):
@@ -86,7 +90,7 @@ class Blender(PipelinedActor, AutoCSR):
 		self.comb += self.source.payload.eq(outval)
 
 class MixFramebuffer(Module, AutoCSR):
-	def __init__(self, pads, *asmiports, blender_latency=3):
+	def __init__(self, pads, *asmiports, blender_latency=4):
 		pack_factor = asmiports[0].hub.dw//(2*bpp)
 		packed_pixels = structuring.pack_layout(pixel_layout, pack_factor)
 		
@@ -103,7 +107,7 @@ class MixFramebuffer(Module, AutoCSR):
 
 			g.add_connection(dma, cast)
 			g.add_connection(cast, unpack)
-			g.add_connection(unpack, self.blender, sink_subr=["i"+str(n)+"/p0", "i"+str(n)+"/p1"])
+			g.add_connection(unpack, self.blender, sink_subr=["i"+str(n)])
 
 			self.comb += dma.generator.trigger.eq(self._enable.storage)
 			setattr(self, "dma"+str(n), dma)
