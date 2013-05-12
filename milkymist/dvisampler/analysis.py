@@ -136,7 +136,7 @@ class FrameExtraction(Module):
 			vsync_r.eq(self.vsync)
 		]
 
-		fifo = AsyncFIFO(layout_len(frame_layout), 256)
+		fifo = AsyncFIFO(layout_len(frame_layout), 512)
 		self.add_submodule(fifo, {"write": "pix", "read": "sys"})
 		self.comb += [
 			fifo.we.eq(fifo_stb),

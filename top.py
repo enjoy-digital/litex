@@ -13,7 +13,7 @@ from cif import get_macros
 
 version = get_macros("common/version.h")["VERSION"][1:-1]
 
-clk_freq = (83 + Fraction(1, 3))*1000000
+clk_freq = (62 + Fraction(1, 2))*1000000
 sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
 
@@ -93,10 +93,10 @@ class SoC(Module):
 		#
 		self.submodules.asmicon = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
 		asmiport_wb = self.asmicon.hub.get_port()
-		asmiport_fb0 = self.asmicon.hub.get_port(2)
-		asmiport_fb1 = self.asmicon.hub.get_port(2)
-		asmiport_dvi0 = self.asmicon.hub.get_port(2)
-		asmiport_dvi1 = self.asmicon.hub.get_port(2)
+		asmiport_fb0 = self.asmicon.hub.get_port(4)
+		asmiport_fb1 = self.asmicon.hub.get_port(4)
+		asmiport_dvi0 = self.asmicon.hub.get_port(4)
+		asmiport_dvi1 = self.asmicon.hub.get_port(4)
 		self.asmicon.finalize()
 		
 		#
