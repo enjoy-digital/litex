@@ -8,7 +8,7 @@ from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 from migen.bank import csrgen
 
 from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
-	identifier, timer, minimac3, framebuffer, asmiprobe, dvisampler
+	identifier, timer, minimac3, framebuffer, asmiprobe, dvisampler, counteradc
 from cif import get_macros
 
 version = get_macros("common/version.h")["VERSION"][1:-1]
@@ -77,6 +77,7 @@ class SoC(Module):
 		"dvisampler0_edid_mem":	9,
 		"dvisampler1":			10,
 		"dvisampler1_edid_mem":	11,
+		"pots":					12,
 	}
 
 	interrupt_map = {
@@ -148,6 +149,9 @@ class SoC(Module):
 		self.submodules.asmiprobe = asmiprobe.ASMIprobe(self.asmicon.hub)
 		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), asmiport_dvi0)
 		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), asmiport_dvi1)
+		pots_pads = platform.request("dvi_pots")
+		self.submodules.pots = counteradc.CounterADC(pots_pads.charge,
+			[pots_pads.blackout, pots_pads.crossfade])
 
 		self.submodules.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
