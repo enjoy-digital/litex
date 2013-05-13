@@ -5,9 +5,11 @@ from migen.bank.eventmanager import *
 
 class Timer(Module, AutoCSR):
 	def __init__(self, width=32):
-		self._en = CSRStorage()
-		self._value = CSRStorage(width, write_from_dev=True)
+		self._load = CSRStorage(width)
 		self._reload = CSRStorage(width)
+		self._en = CSRStorage()
+		self._update_value = CSR()
+		self._value = CSRStatus(width)
 		
 		self.submodules.ev = EventManager()
 		self.ev.zero = EventSourceProcess()
@@ -15,12 +17,18 @@ class Timer(Module, AutoCSR):
 
 		###
 
-		self.comb += [
-			If(self._value.storage == 0,
-				self._value.dat_w.eq(self._reload.storage)
+		value = Signal(width)
+		self.sync += [
+			If(self._en.storage,
+				If(value == 0,
+					# set reload to 0 to disable reloading
+					value.eq(self._reload.storage)
+				).Else(
+					value.eq(value - 1)
+				)
 			).Else(
-				self._value.dat_w.eq(self._value.storage - 1)
+				value.eq(self._load.storage)
 			),
-			self._value.we.eq(self._en.storage),
-			self.ev.zero.trigger.eq(self._value.storage != 0)
+			If(self._update_value.re, self._value.status.eq(value))
 		]
+		self.comb += self.ev.zero.trigger.eq(value != 0)

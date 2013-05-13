@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <system.h>
 #include <crc.h>
-#include <timer.h>
 #include <hw/csr.h>
 #include <hw/flags.h>
 #include <hw/mem.h>
@@ -386,6 +385,16 @@ void microudp_service(void)
 		process_frame();
 		minimac_ev_pending_write(MINIMAC_EV_RX1);
 	}
+}
+
+static void busy_wait(unsigned int ds)
+{
+	timer0_en_write(0);
+	timer0_reload_write(0);
+	timer0_load_write(identifier_frequency_read()/10*ds);
+	timer0_en_write(1);
+	timer0_update_value_write(1);
+	while(timer0_value_read()) timer0_update_value_write(1);
 }
 
 void ethreset(void)

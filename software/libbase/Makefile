@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/common.mak
 
-OBJECTS=setjmp.o libc.o errno.o crc16.o crc32.o console.o timer.o system.o board.o uart.o vsnprintf.o strtod.o qsort.o
+OBJECTS=setjmp.o libc.o errno.o crc16.o crc32.o console.o system.o board.o uart.o vsnprintf.o strtod.o qsort.o
 
 all: libbase.a
 

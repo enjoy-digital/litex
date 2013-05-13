@@ -8,8 +8,8 @@
 #include <irq.h>
 #include <version.h>
 #include <crc.h>
-#include <timer.h>
 
+#include <hw/csr.h>
 #include <hw/mem.h>
 #include <net/microudp.h>
 
@@ -459,11 +459,12 @@ static int test_user_abort(void)
 	printf("Q/ESC: abort boot\n");
 	printf("F7:    boot from serial\n");
 	printf("F8:    boot from network\n");
-	timer_enable(0);
-	timer_set_reload(0);
-	timer_set_counter(get_system_frequency()*2);
-	timer_enable(1);
-	while(timer_get()) {
+	timer0_en_write(0);
+	timer0_reload_write(0);
+	timer0_load_write(identifier_frequency_read()*2);
+	timer0_en_write(1);
+	timer0_update_value_write(1);
+	while(timer0_value_read()) {
 		if(readchar_nonblock()) {
 			c = readchar();
 			if((c == 'Q')||(c == '\e')) {
@@ -479,6 +480,7 @@ static int test_user_abort(void)
 				return 0;
 			}
 		}
+		timer0_update_value_write(1);
 	}
 	return 1;
 }

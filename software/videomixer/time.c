@@ -4,7 +4,12 @@
 
 void time_init(void)
 {
-	timer0_reload_write(2*identifier_frequency_read());
+	int t;
+
+	timer0_en_write(0);
+	t = 2*identifier_frequency_read();
+	timer0_reload_write(t);
+	timer0_load_write(t);
 	timer0_en_write(1);
 }
 
@@ -12,7 +17,8 @@ int elapsed(int *last_event, int period)
 {
 	int t, dt;
 
-	t = timer0_reload_read() - timer0_value_read(); // TODO: atomic read
+	timer0_update_value_write(1);
+	t = timer0_reload_read() - timer0_value_read();
 	dt = t - *last_event;
 	if(dt < 0)
 		dt += timer0_reload_read();

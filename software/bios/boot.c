@@ -7,9 +7,9 @@
 #include <sfl.h>
 #include <string.h>
 #include <irq.h>
-#include <timer.h>
 
 #include <hw/mem.h>
+#include <hw/csr.h>
 
 #include <net/microudp.h>
 #include <net/tftp.h>
@@ -33,12 +33,13 @@ static int check_ack(void)
 	int recognized;
 	static const char str[SFL_MAGIC_LEN] = SFL_MAGIC_ACK;
 
-	timer_enable(0);
-	timer_set_reload(0);
-	timer_set_counter(get_system_frequency()/4);
-	timer_enable(1);
+	timer0_en_write(0);
+	timer0_reload_write(0);
+	timer0_load_write(identifier_frequency_read()/4);
+	timer0_en_write(1);
+	timer0_update_value_write(1);
 	recognized = 0;
-	while(timer_get()) {
+	while(timer0_value_read()) {
 		if(uart_read_nonblock()) {
 			char c;
 			c = uart_read();
@@ -53,6 +54,7 @@ static int check_ack(void)
 					recognized = 0;
 			}
 		}
+		timer0_update_value_write(1);
 	}
 	return 0;
 }
