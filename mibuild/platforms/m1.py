@@ -108,6 +108,12 @@ _io = [
 		Subsignal("scl", Pins("J16")),
 		Subsignal("sda", Pins("K16")),
 		IOStandard("LVCMOS33")
+	),
+	("dvi_pots", 0,
+		Subsignal("charge", Pins("A18")),		# SD_DAT0
+		Subsignal("blackout", Pins("C17")),		# SD_DAT2
+		Subsignal("crossfade", Pins("A17")),	# SD_DAT3
+		IOStandard("LVCMOS33")
 	)
 ]
 
