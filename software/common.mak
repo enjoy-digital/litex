@@ -1,5 +1,7 @@
 TARGET_PREFIX=lm32-elf-
 
+RM ?= rm -f
+
 CC_normal := $(TARGET_PREFIX)gcc
 CX_normal := $(TARGET_PREFIX)g++
 AS_normal := $(TARGET_PREFIX)as

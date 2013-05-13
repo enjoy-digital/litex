@@ -1,16 +1,18 @@
+RM ?= rm -f
+
 all: build/top.bit build/top.fpg
 
 build/top.bit build/top.bin:
 	./build.py
 
 build/top.fpg: build/top.bin
-	make -C tools
+	$(MAKE) -C tools
 	tools/byteswap $< $@
 
 load: build/top.bit
 	jtag -n load.jtag
 
 clean:
-	rm -rf build/*
+	$(RM) -r build/*
 
-.PHONY: load clean
+.PHONY: all load clean

@@ -21,4 +21,4 @@ libnet.a: $(OBJECTS)
 .PHONY: clean
 
 clean:
-	rm -f $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libnet.a .*~ *~
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libnet.a .*~ *~

@@ -1,5 +1,6 @@
 TARGETS=mkmmimg flterm byteswap
 CC=gcc
+RM ?= rm -f
 
 all: $(TARGETS)
 
@@ -10,7 +11,7 @@ install: mkmmimg flterm
 	install -d /usr/local/bin
 	install -m755 -t /usr/local/bin $^
 
-.PHONY: clean install
+.PHONY: all clean install
 
 clean:
-	rm -f $(TARGETS)
+	$(RM) $(TARGETS)
