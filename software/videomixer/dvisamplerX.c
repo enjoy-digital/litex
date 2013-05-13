@@ -6,6 +6,7 @@
 #include <hw/csr.h>
 #include <hw/flags.h>
 
+#include "time.h"
 #include "dvisamplerX.h"
 
 #define FRAMEBUFFER_COUNT 4
@@ -152,22 +153,7 @@ int dvisamplerX_init_phase(void)
 }
 
 static int dvisamplerX_locked;
-
-static int elapsed(int period)
-{
-	static int last_event;
-	int t, dt;
-
-	t = timer0_reload_read() - timer0_value_read(); // TODO: atomic read
-	dt = t - last_event;
-	if(dt < 0)
-		dt += timer0_reload_read();
-	if((dt > period) || (dt < 0)) {
-		last_event = t;
-		return 1;
-	} else
-		return 0;
-}
+static int dvisamplerX_last_event;
 
 void dvisamplerX_service(void)
 {
@@ -175,7 +161,7 @@ void dvisamplerX_service(void)
 
 	if(dvisamplerX_locked) {
 		if(dvisamplerX_clocking_locked_read()) {
-			if(elapsed(identifier_frequency_read())) {
+			if(elapsed(&dvisamplerX_last_event, identifier_frequency_read())) {
 				dvisamplerX_adjust_phase();
 				dvisamplerX_print_status();
 			}
@@ -196,9 +182,9 @@ void dvisamplerX_service(void)
 			dvisamplerX_print_status();
 			dvisamplerX_locked = 1;
 		} else {
-			if(elapsed(identifier_frequency_read()/4)) {
+			if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/4)) {
 				dvisamplerX_clocking_pll_reset_write(1);
-				while(!elapsed(identifier_frequency_read()/16));
+				while(!elapsed(&dvisamplerX_last_event, identifier_frequency_read()/16));
 				dvisamplerX_clocking_pll_reset_write(0);
 			}
 		}
