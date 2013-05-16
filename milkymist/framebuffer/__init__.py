@@ -75,10 +75,14 @@ class Blender(PipelinedActor, AutoCSR):
 			for component in ["r", "g", "b"]:
 				incomps = [getattr(pix, component) for pix in inpixs]
 				outcomp = getattr(outpix, component)
-				outcomp_full = Signal(18)
+				outcomp_full = Signal(19)
 				self.comb += [
 					outcomp_full.eq(sum(incomp*factor for incomp, factor in zip(incomps, factors))),
-					outcomp.eq(outcomp_full[8:])
+					If(outcomp_full[18],
+						outcomp.eq(2**10 - 1) # saturate on overflow
+					).Else(
+						outcomp.eq(outcomp_full[8:18])
+					)
 				]
 
 		pipe_stmts = []
@@ -90,7 +94,7 @@ class Blender(PipelinedActor, AutoCSR):
 		self.comb += self.source.payload.eq(outval)
 
 class MixFramebuffer(Module, AutoCSR):
-	def __init__(self, pads, *asmiports, blender_latency=4):
+	def __init__(self, pads, *asmiports, blender_latency=5):
 		pack_factor = asmiports[0].hub.dw//(2*bpp)
 		packed_pixels = structuring.pack_layout(pixel_layout, pack_factor)
 		
