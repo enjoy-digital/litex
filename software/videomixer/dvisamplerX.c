@@ -65,7 +65,10 @@ static int dvisamplerX_d0, dvisamplerX_d1, dvisamplerX_d2;
 
 void dvisamplerX_print_status(void)
 {
-	printf("dvisamplerX: ph:%4d %4d %4d // charsync:%d%d%d [%d %d %d] // chansync:%d // res:%dx%d\n",
+	dvisamplerX_data0_wer_update_write(1);
+	dvisamplerX_data1_wer_update_write(1);
+	dvisamplerX_data2_wer_update_write(1);
+	printf("dvisamplerX: ph:%4d %4d %4d // charsync:%d%d%d [%d %d %d] // WER:%3d %3d %3d // chansync:%d // res:%dx%d\n",
 		dvisamplerX_d0, dvisamplerX_d1, dvisamplerX_d2,
 		dvisamplerX_data0_charsync_char_synced_read(),
 		dvisamplerX_data1_charsync_char_synced_read(),
@@ -73,6 +76,9 @@ void dvisamplerX_print_status(void)
 		dvisamplerX_data0_charsync_ctl_pos_read(),
 		dvisamplerX_data1_charsync_ctl_pos_read(),
 		dvisamplerX_data2_charsync_ctl_pos_read(),
+		dvisamplerX_data0_wer_value_read(),
+		dvisamplerX_data1_wer_value_read(),
+		dvisamplerX_data2_wer_value_read(),
 		dvisamplerX_chansync_channels_synced_read(),
 		dvisamplerX_resdetection_hres_read(),
 		dvisamplerX_resdetection_vres_read());

@@ -6,6 +6,7 @@ from milkymist.dvisampler.edid import EDID
 from milkymist.dvisampler.clocking import Clocking
 from milkymist.dvisampler.datacapture import DataCapture
 from milkymist.dvisampler.charsync import CharSync
+from milkymist.dvisampler.wer import WER
 from milkymist.dvisampler.decoding import Decoding
 from milkymist.dvisampler.chansync import ChanSync
 from milkymist.dvisampler.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
@@ -35,6 +36,10 @@ class DVISampler(Module, AutoCSR):
 			charsync = CharSync()
 			setattr(self.submodules, name + "_charsync", charsync)
 			self.comb += charsync.raw_data.eq(cap.d)
+
+			wer = WER()
+			setattr(self.submodules, name + "_wer", wer)
+			self.comb += wer.data.eq(charsync.data)
 
 			decoding = Decoding()
 			setattr(self.submodules, name + "_decod", decoding)
