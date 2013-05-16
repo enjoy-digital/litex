@@ -13,8 +13,8 @@
 
 static int scale_pot(int raw, int range)
 {
-	int pot_min = 54000;
-	int pot_max = 105400;
+	int pot_min = 64000;
+	int pot_max = 103000;
 	int scaled;
 
 	scaled = range*(raw - pot_min)/(pot_max - pot_min);
