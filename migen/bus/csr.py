@@ -55,11 +55,11 @@ def _compute_page_bits(nwords):
 		return 0
 
 class SRAM(Module):
-	def __init__(self, mem_or_size, address, read_only=None, bus=None):
+	def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None):
 		if isinstance(mem_or_size, Memory):
 			mem = mem_or_size
 		else:
-			mem = Memory(data_width, mem_or_size//(data_width//8))
+			mem = Memory(data_width, mem_or_size//(data_width//8), init=init)
 		if mem.width > data_width:
 			csrw_per_memw = (mem.width + data_width - 1)//data_width
 			word_bits = bits_for(csrw_per_memw-1)
