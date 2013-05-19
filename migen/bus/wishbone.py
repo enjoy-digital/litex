@@ -184,12 +184,17 @@ class Target(Module):
 			bus.ack = 0
 
 class SRAM(Module):
-	def __init__(self, mem_or_size, bus=None):
+	def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
 		if isinstance(mem_or_size, Memory):
 			assert(mem_or_size.width <= 32)
 			mem = mem_or_size
 		else:
-			mem = Memory(32, mem_or_size//4)
+			mem = Memory(32, mem_or_size//4, init=init)
+		if read_only is None:
+			if hasattr(mem, "bus_read_only"):
+				read_only = mem.bus_read_only
+			else:
+				read_only = False
 		if bus is None:
 			bus = Interface()
 		self.bus = bus
@@ -198,16 +203,18 @@ class SRAM(Module):
 	
 		# memory
 		self.specials += mem
-		port = mem.get_port(write_capable=True, we_granularity=8)
+		port = mem.get_port(write_capable=not read_only, we_granularity=8)
 		# generate write enable signal
-		self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
-			for i in range(4)]
+		if not read_only:
+			self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
+				for i in range(4)]
 		# address and data
 		self.comb += [
 			port.adr.eq(self.bus.adr[:len(port.adr)]),
-			port.dat_w.eq(self.bus.dat_w),
 			self.bus.dat_r.eq(port.dat_r)
 		]
+		if not read_only:
+			self.comb += port.dat_w.eq(self.bus.dat_w),
 		# generate ack
 		self.sync += [
 			self.bus.ack.eq(0),
