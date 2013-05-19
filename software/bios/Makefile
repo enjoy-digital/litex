@@ -22,7 +22,7 @@ bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 		-L$(M2DIR)/software/libnet \
 		-L$(M2DIR)/software/libbase \
 		-L$(M2DIR)/software/libcompiler-rt \
-		-lnet -lbase -lcompiler-rt
+		-lnet -lbase-nofloat -lcompiler-rt
 	chmod -x $@
 
 main.o: main.c

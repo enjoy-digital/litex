@@ -192,6 +192,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 						16, field_width, precision, flags);
 				continue;
 
+#ifndef NO_FLOAT
 			case 'g':
 			case 'f': {
 				int m;
@@ -241,6 +242,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				
 				continue;
 			}
+#endif
 
 			case 'n':
 				/* FIXME:

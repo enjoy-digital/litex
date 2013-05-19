@@ -49,8 +49,8 @@ LDFLAGS = -nostdlib -nodefaultlibs
 # http://scottmcpeak.com/autodepend/autodepend.html
 
 define compilexx-dep
-$(CX) -c $(CXXFLAGS) $< -o $*.o
-@$(CX_normal) -MM $(CXXFLAGS) $< > $*.d
+$(CX) -c $(CXXFLAGS) $(1) $< -o $*.o
+@$(CX_normal) -MM $(CXXFLAGS) $(1) $< > $*.d
 @mv -f $*.d $*.d.tmp
 @sed -e 's|.*:|$*.o:|' < $*.d.tmp > $*.d
 @sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
@@ -59,8 +59,8 @@ $(CX) -c $(CXXFLAGS) $< -o $*.o
 endef
 
 define compile-dep
-$(CC) -c $(CFLAGS) $< -o $*.o
-@$(CC_normal) -MM $(CFLAGS) $< > $*.d
+$(CC) -c $(CFLAGS) $(1) $< -o $*.o
+@$(CC_normal) -MM $(CFLAGS) $(1) $< > $*.d
 @mv -f $*.d $*.d.tmp
 @sed -e 's|.*:|$*.o:|' < $*.d.tmp > $*.d
 @sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
