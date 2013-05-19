@@ -4,7 +4,7 @@
 #include <string.h>
 #include <uart.h>
 #include <system.h>
-#include <board.h>
+#include <id.h>
 #include <irq.h>
 #include <version.h>
 #include <crc.h>
@@ -515,7 +515,7 @@ int main(int i, char **c)
 	crcbios();
 	if(rescue)
 		printf("Rescue mode\n");
-	board_init();
+	id_print();
 	ethreset();
 	print_mac();
 	ddr_ok = ddrinit();

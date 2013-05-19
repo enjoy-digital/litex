@@ -2,7 +2,6 @@
 #include <console.h>
 #include <uart.h>
 #include <system.h>
-#include <board.h>
 #include <crc.h>
 #include <sfl.h>
 #include <string.h>
