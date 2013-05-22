@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib.record import Record
 from migen.genlib.fifo import AsyncFIFO
 from migen.flow.actor import *

@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bus import dfi
 from migen.bank.description import *
 
@@ -7,10 +6,10 @@ class PhaseInjector(Module, AutoCSR):
 	def __init__(self, phase):
 		self._command = CSRStorage(6) # cs, we, cas, ras, wren, rden
 		self._command_issue = CSR()
-		self._address = CSRStorage(len(phase.address))
-		self._baddress = CSRStorage(len(phase.bank))
-		self._wrdata = CSRStorage(len(phase.wrdata))
-		self._rddata = CSRStatus(len(phase.rddata))
+		self._address = CSRStorage(flen(phase.address))
+		self._baddress = CSRStorage(flen(phase.bank))
+		self._wrdata = CSRStorage(flen(phase.wrdata))
+		self._rddata = CSRStatus(flen(phase.rddata))
 	
 		###
 

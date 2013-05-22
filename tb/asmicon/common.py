@@ -1,7 +1,7 @@
 from fractions import Fraction
 from math import ceil
 
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.sim.generic import Proxy
 
 from milkymist import asmicon

@@ -1,16 +1,15 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 
 class GPIOIn(Module, AutoCSR):
 	def __init__(self, signal):
-		self._r_in = CSRStatus(len(signal))
+		self._r_in = CSRStatus(flen(signal))
 		self.specials += MultiReg(signal, self._r_in.status)
 
 class GPIOOut(Module, AutoCSR):
 	def __init__(self, signal):
-		self._r_out = CSRStorage(len(signal))
+		self._r_out = CSRStorage(flen(signal))
 		self.comb += signal.eq(self._r_out.storage)
 
 class Blinker(Module):

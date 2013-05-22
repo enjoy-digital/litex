@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib.roundrobin import *
 from migen.genlib.misc import optree
 from migen.genlib.fsm import FSM
@@ -26,7 +25,7 @@ class _CommandChooser(Module):
 		self.want_reads = Signal()
 		self.want_writes = Signal()
 		# NB: cas_n/ras_n/we_n are 1 when stb is inactive
-		self.cmd = CommandRequestRW(len(requests[0].a), len(requests[0].ba), tagbits)
+		self.cmd = CommandRequestRW(flen(requests[0].a), flen(requests[0].ba), tagbits)
 	
 		###
 
@@ -83,7 +82,7 @@ class _Steerer(Module):
 
 class _Datapath(Module):
 	def __init__(self, timing_settings, command, dfi, hub):
-		tagbits = len(hub.tag_call)
+		tagbits = flen(hub.tag_call)
 		
 		rd_valid = Signal()
 		rd_tag = Signal(tagbits)
@@ -136,7 +135,7 @@ class Multiplexer(Module):
 	
 		# Command choosing
 		requests = [bm.cmd for bm in bank_machines]
-		tagbits = len(hub.tag_call)
+		tagbits = flen(hub.tag_call)
 		choose_cmd = _CommandChooser(requests, tagbits)
 		choose_req = _CommandChooser(requests, tagbits)
 		self.comb += [

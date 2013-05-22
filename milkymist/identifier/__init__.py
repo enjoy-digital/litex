@@ -1,7 +1,6 @@
 import re
 
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bank.description import *
 
 def encode_version(version):

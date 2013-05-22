@@ -1,6 +1,6 @@
 from random import Random
 
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.sim.generic import Simulator, TopLevel
 
 from milkymist.asmicon.refresher import *

@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bus import dfi, asmibus
 
 from milkymist.asmicon.refresher import *

@@ -1,6 +1,5 @@
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory, Tristate
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
+from migen.fhdl.specials import Tristate
 from migen.genlib.cdc import MultiReg
 from migen.genlib.fsm import FSM
 from migen.genlib.misc import chooser

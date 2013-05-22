@@ -2,8 +2,7 @@ from fractions import Fraction
 from math import ceil
 from operator import itemgetter
 
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
 from migen.bank import csrgen
 

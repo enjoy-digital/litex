@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import optree
 from migen.bank.description import *

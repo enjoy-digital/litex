@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.misc import timeline
 
@@ -9,7 +8,7 @@ class NorFlash(Module):
 	
 		###
 
-		adr_width = len(pads.adr) + 1
+		adr_width = flen(pads.adr) + 1
 		self.comb += [pads.oe_n.eq(0), pads.we_n.eq(1),
 			pads.ce_n.eq(0)]
 		self.sync += timeline(self.bus.cyc & self.bus.stb, [

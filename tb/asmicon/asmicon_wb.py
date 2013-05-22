@@ -1,4 +1,4 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.bus import wishbone, wishbone2asmi, asmibus
 from migen.sim.generic import Simulator, TopLevel
 

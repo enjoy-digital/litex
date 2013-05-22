@@ -1,20 +1,18 @@
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Instance
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bus import dfi
 
 class S6DDRPHY(Module):
 	def __init__(self, pads):
-		self.dfi = dfi.Interface(len(pads.a), len(pads.ba), 2*len(pads.dq), 2)
+		self.dfi = dfi.Interface(flen(pads.a), flen(pads.ba), 2*flen(pads.dq), 2)
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()
 
 		###
 
 		inst_items = [
-			Instance.Parameter("NUM_AD", len(pads.a)),
-			Instance.Parameter("NUM_BA", len(pads.ba)),
-			Instance.Parameter("NUM_D", 2*len(pads.dq)),
+			Instance.Parameter("NUM_AD", flen(pads.a)),
+			Instance.Parameter("NUM_BA", flen(pads.ba)),
+			Instance.Parameter("NUM_D", 2*flen(pads.dq)),
 
 			Instance.Input("sys_clk", ClockSignal()),
 			Instance.Input("clk2x_270", ClockSignal("sys2x_270")),
