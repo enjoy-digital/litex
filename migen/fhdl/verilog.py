@@ -4,6 +4,7 @@ from operator import itemgetter
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign
 from migen.fhdl.tools import *
+from migen.fhdl.size import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
 
 def _printsig(ns, s):
@@ -11,8 +12,8 @@ def _printsig(ns, s):
 		n = "signed "
 	else:
 		n = ""
-	if len(s) > 1:
-		n += "[" + str(len(s)-1) + ":0] "
+	if flen(s) > 1:
+		n += "[" + str(flen(s)-1) + ":0] "
 	n += ns.get_name(s)
 	return n
 
@@ -63,7 +64,7 @@ def _printexpr(ns, node):
 	elif isinstance(node, _Slice):
 		# Verilog does not like us slicing non-array signals...
 		if isinstance(node.value, Signal) \
-		  and len(node.value) == 1 \
+		  and flen(node.value) == 1 \
 		  and node.start == 0 and node.stop == 1:
 			  return _printexpr(ns, node.value)
 

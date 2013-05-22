@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory
+from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.fsm import FSM
 from migen.genlib.misc import split, displacer, chooser

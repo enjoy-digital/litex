@@ -1,7 +1,6 @@
 from collections import defaultdict
 
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.flow.actor import *
 
 class EndpointSimHook(Module):

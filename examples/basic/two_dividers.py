@@ -1,5 +1,5 @@
+from migen.fhdl.std import *
 from migen.fhdl import verilog
-from migen.fhdl.module import Module
 from migen.genlib import divider
 
 class Example(Module):

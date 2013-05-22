@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.genlib.buffers import ReorderBuffer
 
@@ -49,7 +48,7 @@ class OOOReader(Module):
 	
 		###
 
-		tag_width = len(port.tag_call)
+		tag_width = flen(port.tag_call)
 		data_width = port.hub.dw
 		depth = len(port.slots)
 		rob = ReorderBuffer(tag_width, data_width, depth)

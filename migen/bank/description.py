@@ -1,6 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory
-from migen.fhdl.module import *
+from migen.fhdl.std import *
 from migen.fhdl.tracer import get_obj_var_name
 
 class _CSRBase(HUID):

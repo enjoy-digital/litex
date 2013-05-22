@@ -1,4 +1,4 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.fhdl import verilog
 from migen.genlib.cdc import *

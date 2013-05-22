@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.size import bits_for, value_bits_sign
 from migen.fhdl.tools import *
 from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr

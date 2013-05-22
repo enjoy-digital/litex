@@ -1,4 +1,4 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.flow.transactions import *
 from migen.flow.network import *

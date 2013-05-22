@@ -1,4 +1,4 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 
 class ReorderSlot:
 	def __init__(self, tag_width, data_width):

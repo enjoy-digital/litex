@@ -1,4 +1,4 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 
 class Complex:
 	def __init__(self, real, imag):

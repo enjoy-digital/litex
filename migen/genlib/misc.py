@@ -1,4 +1,4 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.fhdl.structure import _Operator
 
 def optree(op, operands, lb=None, ub=None, default=None):
@@ -30,8 +30,8 @@ def split(v, *counts):
 
 def displacer(signal, shift, output, n=None, reverse=False):
 	if n is None:
-		n = 2**len(shift)
-	w = len(signal)
+		n = 2**flen(shift)
+	w = flen(signal)
 	if reverse:
 		r = reversed(range(n))
 	else:
@@ -41,8 +41,8 @@ def displacer(signal, shift, output, n=None, reverse=False):
 
 def chooser(signal, shift, output, n=None, reverse=False):
 	if n is None:
-		n = 2**len(shift)
-	w = len(output)
+		n = 2**flen(shift)
+	w = flen(output)
 	cases = {}
 	for i in range(n):
 		if reverse:

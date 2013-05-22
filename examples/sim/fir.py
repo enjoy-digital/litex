@@ -5,8 +5,7 @@ from math import cos, pi
 from scipy import signal
 import matplotlib.pyplot as plt
 
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.genlib.misc import optree
 from migen.sim.generic import Simulator

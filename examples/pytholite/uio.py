@@ -7,8 +7,7 @@ from migen.genlib.ioo import UnifiedIOSimulation
 from migen.pytholite.transel import Register
 from migen.pytholite.compiler import Pytholite
 from migen.sim.generic import Simulator
-from migen.fhdl.module import Module
-from migen.fhdl.specials import Memory
+from migen.fhdl.std import *
 from migen.fhdl import verilog
 
 layout = [("r", 32)]

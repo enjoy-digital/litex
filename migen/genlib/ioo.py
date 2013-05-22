@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory
+from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.flow.actor import _Endpoint
 from migen.flow.transactions import *

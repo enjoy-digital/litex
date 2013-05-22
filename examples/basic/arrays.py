@@ -1,6 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Instance
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.fhdl import verilog
 
 class Example(Module):

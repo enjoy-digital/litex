@@ -1,4 +1,4 @@
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bus.transactions import *
 
 def _byte_mask(orig, dat_w, sel):

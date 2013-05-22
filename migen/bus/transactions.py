@@ -1,4 +1,4 @@
-from migen.fhdl.structure import bits_for
+from migen.fhdl.std import *
 
 class Transaction:
 	def __init__(self, address, data=0, sel=None, busname=None):

@@ -1,8 +1,7 @@
 # Copyright (C) 2012 Vermeer Manufacturing Co.
 # License: GPLv3 with additional permissions (see README).
 
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory
+from migen.fhdl.std import *
 from migen.sim.generic import Simulator
 
 class Mem:

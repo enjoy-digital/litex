@@ -1,7 +1,6 @@
 # Simple Processor Interface
 
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory
+from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.flow.actor import *
 from migen.flow.network import *
@@ -130,8 +129,8 @@ class _DMAController(Module):
 
 class DMAReadController(_DMAController):
 	def __init__(self, bus_accessor, *args, **kwargs):
-		bus_aw = len(bus_accessor.address.payload.a)
-		bus_dw = len(bus_accessor.data.payload.d)
+		bus_aw = flen(bus_accessor.address.payload.a)
+		bus_dw = flen(bus_accessor.data.payload.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
 		
 		g = DataFlowGraph()

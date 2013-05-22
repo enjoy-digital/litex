@@ -1,6 +1,6 @@
 from networkx import MultiDiGraph
 
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.genlib.misc import optree
 from migen.flow.actor import *
 from migen.flow import plumbing

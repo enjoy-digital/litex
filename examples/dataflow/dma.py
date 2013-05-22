@@ -1,6 +1,6 @@
 from random import Random
 
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.actorlib import dma_wishbone, dma_asmi

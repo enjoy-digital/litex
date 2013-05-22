@@ -1,5 +1,5 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
+from migen.fhdl.size import value_bits_sign
 from migen.fhdl.specials import Special
 from migen.fhdl.tools import list_signals
 

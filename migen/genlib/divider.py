@@ -1,9 +1,7 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 
-class Divider:
+class Divider(Module):
 	def __init__(self, w):
-		self.w = w
-		
 		self.start_i = Signal()
 		self.dividend_i = Signal(w)
 		self.divisor_i = Signal(w)
@@ -11,21 +9,20 @@ class Divider:
 		self.quotient_o = Signal(w)
 		self.remainder_o = Signal(w)
 	
-	def get_fragment(self):
-		w = self.w
+		###
 		
 		qr = Signal(2*w)
 		counter = Signal(max=w+1)
 		divisor_r = Signal(w)
 		diff = Signal(w+1)
 		
-		comb = [
+		self.comb += [
 			self.quotient_o.eq(qr[:w]),
 			self.remainder_o.eq(qr[w:]),
 			self.ready_o.eq(counter == 0),
 			diff.eq(self.remainder_o - divisor_r)
 		]
-		sync = [
+		self.sync += [
 			If(self.start_i,
 				counter.eq(w),
 				qr.eq(self.dividend_i),
@@ -39,4 +36,3 @@ class Divider:
 					counter.eq(counter - 1)
 			)
 		]
-		return Fragment(comb, sync)

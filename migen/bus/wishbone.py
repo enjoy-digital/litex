@@ -1,6 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import optree
@@ -91,7 +89,7 @@ class Decoder(Module):
 		]
 		
 		# mux (1-hot) slave data return
-		masked = [Replicate(slave_sel_r[i], len(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
+		masked = [Replicate(slave_sel_r[i], flen(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
 		self.comb += master.dat_r.eq(optree("|", masked))
 
 class InterconnectShared(Module):
@@ -210,7 +208,7 @@ class SRAM(Module):
 				for i in range(4)]
 		# address and data
 		self.comb += [
-			port.adr.eq(self.bus.adr[:len(port.adr)]),
+			port.adr.eq(self.bus.adr[:flen(port.adr)]),
 			self.bus.dat_r.eq(port.dat_r)
 		]
 		if not read_only:

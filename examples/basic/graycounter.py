@@ -1,6 +1,6 @@
 from random import Random
 
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib.cdc import GrayCounter
 from migen.sim.generic import Simulator
 

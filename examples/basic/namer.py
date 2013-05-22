@@ -1,6 +1,5 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.fhdl import verilog
-from migen.fhdl.module import Module
 from migen.genlib.misc import optree
 
 def gen_list(n):

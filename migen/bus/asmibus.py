@@ -1,5 +1,5 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module, FinalizeError
+from migen.fhdl.std import *
+from migen.fhdl.module import FinalizeError
 from migen.genlib.misc import optree
 from migen.genlib import roundrobin
 from migen.bus.transactions import *

@@ -5,26 +5,6 @@ from collections import defaultdict
 
 from migen.fhdl import tracer
 
-def log2_int(n, need_pow2=True):
-	l = 1
-	r = 0
-	while l < n:
-		l *= 2
-		r += 1
-	if need_pow2 and l != n:
-		raise ValueError("Not a power of 2")
-	return r
-
-def bits_for(n, require_sign_bit=False):
-	if n > 0:
-		r = log2_int(n + 1, False)
-	else:
-		require_sign_bit = True
-		r = log2_int(-n, False)
-	if require_sign_bit:
-		r += 1
-	return r
-
 class HUID:
 	__next_uid = 0
 	def __init__(self):
@@ -88,19 +68,21 @@ class Value(HUID):
 	
 	
 	def __getitem__(self, key):
+		from migen.fhdl.size import flen
+
 		if isinstance(key, int):
 			if key < 0:
-				key += len(self)
+				key += flen(self)
 			return _Slice(self, key, key+1)
 		elif isinstance(key, slice):
 			start = key.start or 0
-			stop = key.stop or len(self)
+			stop = key.stop or flen(self)
 			if start < 0:
-				start += len(self)
+				start += flen(self)
 			if stop < 0:
-				stop += len(self)
-			if stop > len(self):
-				stop = len(self)
+				stop += flen(self)
+			if stop > flen(self):
+				stop = flen(self)
 			if key.step != None:
 				raise KeyError
 			return _Slice(self, start, stop)
@@ -109,9 +91,6 @@ class Value(HUID):
 	
 	def eq(self, r):
 		return _Assign(self, r)
-
-	def __len__(self):
-		return value_bits_sign(self)[0]
 	
 	def __hash__(self):
 		return HUID.__hash__(self)
@@ -142,6 +121,8 @@ class Replicate(Value):
 
 class Signal(Value):
 	def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None):
+		from migen.fhdl.size import bits_for
+
 		Value.__init__(self)
 		
 		# determine number of bits and signedness
@@ -304,80 +285,3 @@ class Fragment:
 			self.clock_domains + other.clock_domains,
 			self.sim + other.sim)
 
-def value_bits_sign(v):
-	if isinstance(v, bool):
-		return 1, False
-	elif isinstance(v, int):
-		return bits_for(v), v < 0
-	elif isinstance(v, Signal):
-		return v.nbits, v.signed
-	elif isinstance(v, (ClockSignal, ResetSignal)):
-		return 1, False
-	elif isinstance(v, _Operator):
-		obs = list(map(value_bits_sign, v.operands))
-		if v.op == "+" or v.op == "-":
-			if not obs[0][1] and not obs[1][1]:
-				# both operands unsigned
-				return max(obs[0][0], obs[1][0]) + 1, False
-			elif obs[0][1] and obs[1][1]:
-				# both operands signed
-				return max(obs[0][0], obs[1][0]) + 1, True
-			elif not obs[0][1] and obs[1][1]:
-				# first operand unsigned (add sign bit), second operand signed
-				return max(obs[0][0] + 1, obs[1][0]) + 1, True
-			else:
-				# first signed, second operand unsigned (add sign bit)
-				return max(obs[0][0], obs[1][0] + 1) + 1, True
-		elif v.op == "*":
-			if not obs[0][1] and not obs[1][1]:
-				# both operands unsigned
-				return obs[0][0] + obs[1][0]
-			elif obs[0][1] and obs[1][1]:
-				# both operands signed
-				return obs[0][0] + obs[1][0] - 1
-			else:
-				# one operand signed, the other unsigned (add sign bit)
-				return obs[0][0] + obs[1][0] + 1 - 1
-		elif v.op == "<<<":
-			if obs[1][1]:
-				extra = 2**(obs[1][0] - 1) - 1
-			else:
-				extra = 2**obs[1][0] - 1
-			return obs[0][0] + extra, obs[0][1]
-		elif v.op == ">>>":
-			if obs[1][1]:
-				extra = 2**(obs[1][0] - 1)
-			else:
-				extra = 0
-			return obs[0][0] + extra, obs[0][1]
-		elif v.op == "&" or v.op == "^" or v.op == "|":
-			if not obs[0][1] and not obs[1][1]:
-				# both operands unsigned
-				return max(obs[0][0], obs[1][0]), False
-			elif obs[0][1] and obs[1][1]:
-				# both operands signed
-				return max(obs[0][0], obs[1][0]), True
-			elif not obs[0][1] and obs[1][1]:
-				# first operand unsigned (add sign bit), second operand signed
-				return max(obs[0][0] + 1, obs[1][0]), True
-			else:
-				# first signed, second operand unsigned (add sign bit)
-				return max(obs[0][0], obs[1][0] + 1), True
-		elif v.op == "<" or v.op == "<=" or v.op == "==" or v.op == "!=" \
-		  or v.op == ">" or v.op == ">=":
-			  return 1, False
-		elif v.op == "~":
-			return obs[0]
-		else:
-			raise TypeError
-	elif isinstance(v, _Slice):
-		return v.stop - v.start, value_bits_sign(v.value)[1]
-	elif isinstance(v, Cat):
-		return sum(value_bits_sign(sv)[0] for sv in v.l), False
-	elif isinstance(v, Replicate):
-		return (value_bits_sign(v.v)[0])*v.n, False
-	elif isinstance(v, _ArrayProxy):
-		bsc = map(value_bits_sign, v.choices)
-		return max(bs[0] for bs in bsc), any(bs[1] for bs in bsc)
-	else:
-		raise TypeError

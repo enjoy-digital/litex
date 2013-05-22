@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.genlib.fsm import *
 from migen.flow.actor import *

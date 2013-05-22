@@ -1,23 +1,23 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 
 (SP_WITHDRAW, SP_CE) = range(2)
 
-class RoundRobin:
+class RoundRobin(Module):
 	def __init__(self, n, switch_policy=SP_WITHDRAW):
-		self.n = n
-		self.request = Signal(self.n)
-		self.grant = Signal(max=self.n)
+		self.request = Signal(n)
+		self.grant = Signal(max=n)
 		self.switch_policy = switch_policy
 		if self.switch_policy == SP_CE:
 			self.ce = Signal()
 	
-	def get_fragment(self):
-		if self.n > 1:
+		###
+
+		if n > 1:
 			cases = {}
-			for i in range(self.n):
+			for i in range(n):
 				switch = []
-				for j in reversed(range(i+1,i+self.n)):
-					t = j % self.n
+				for j in reversed(range(i+1,i+n)):
+					t = j % n
 					switch = [
 						If(self.request[t],
 							self.grant.eq(t)
@@ -33,6 +33,6 @@ class RoundRobin:
 			statement = Case(self.grant, cases)
 			if self.switch_policy == SP_CE:
 				statement = If(self.ce, statement)
-			return Fragment(sync=[statement])
+			self.sync += statement
 		else:
-			return Fragment([self.grant.eq(0)])
+			self.comb += self.grant.eq(0)

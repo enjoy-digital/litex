@@ -1,8 +1,4 @@
-# Copyright (C) 2012 Vermeer Manufacturing Co.
-# License: GPLv3 with additional permissions (see README).
-
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Memory
+from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.sim.ipc import *
 from migen.sim import icarus
@@ -132,7 +128,7 @@ class Simulator:
 			nbits = item.width
 		else:
 			signed = item.signed
-			nbits = len(item)
+			nbits = flen(item)
 		value = reply.value & (2**nbits - 1)
 		if signed and (value & 2**(nbits - 1)):
 			value -= 2**nbits
@@ -145,7 +141,7 @@ class Simulator:
 		if isinstance(item, Memory):
 			nbits = item.width
 		else:
-			nbits = len(item)
+			nbits = flen(item)
 		if value < 0:
 			value += 2**nbits
 		assert(value >= 0 and value < 2**nbits)

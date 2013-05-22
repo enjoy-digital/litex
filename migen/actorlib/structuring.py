@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.flow.actor import *
 
 def _rawbits_layout(l):
@@ -22,7 +21,7 @@ class Cast(CombinatorialActor):
 		sigs_to = self.source.payload.flatten()
 		if reverse_to:
 			sigs_to = list(reversed(sigs_to))
-		if sum(len(s) for s in sigs_from) != sum(len(s) for s in sigs_to):
+		if sum(flen(s) for s in sigs_from) != sum(flen(s) for s in sigs_to):
 			raise TypeError
 		self.comb += Cat(*sigs_to).eq(Cat(*sigs_from))
 

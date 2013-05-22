@@ -1,4 +1,4 @@
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.genlib.complex import *
 from migen.fhdl import verilog
 

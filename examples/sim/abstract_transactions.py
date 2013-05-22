@@ -1,10 +1,6 @@
-# Copyright (C) 2012 Vermeer Manufacturing Co.
-# License: GPLv3 with additional permissions (see README).
-
 from random import Random
 
-from migen.fhdl.structure import *
-from migen.fhdl import autofragment
+from migen.fhdl.std import *
 from migen.bus.transactions import *
 from migen.bus import wishbone, asmibus
 from migen.sim.generic import Simulator

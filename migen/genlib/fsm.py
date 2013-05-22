@@ -1,4 +1,4 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 
 class FSM:
 	def __init__(self, *states, delayed_enters=[]):
