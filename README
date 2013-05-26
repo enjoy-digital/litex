@@ -21,7 +21,7 @@ https://github.com/milkymist/migen
 Experimental version of the Milkymist SoC based on Migen:
 https://github.com/milkymist/milkymist-ng
 
-Mibuild is designed for Python 3.
+Mibuild is designed for Python 3.3.
 
 Send questions, comments and patches to devel [AT] lists.milkymist.org
 Description files for new boards welcome.
