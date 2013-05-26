@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 
 class SimpleCRG(Module):
 	def __init__(self, platform, clk_name, rst_name, rst_invert=False):
