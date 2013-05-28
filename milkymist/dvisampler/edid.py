@@ -89,6 +89,7 @@ class EDID(Module, AutoCSR):
 			)
 		]
 		rdport = self.mem.get_port()
+		self.specials += rdport
 		self.comb += rdport.adr.eq(offset_counter)
 		data_bit = Signal()
 

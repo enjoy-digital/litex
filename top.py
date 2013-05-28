@@ -86,8 +86,8 @@ class SoC(Module):
 		"uart":			0,
 		"timer0":		1,
 		"minimac":		2,
-		"dvisampler0":  3,
-		"dvisampler1":  4,
+		"dvisampler0":	3,
+		"dvisampler1":	4,
 	}
 
 	def __init__(self, platform):

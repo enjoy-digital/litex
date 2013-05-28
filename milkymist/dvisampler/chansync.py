@@ -21,6 +21,7 @@ class _SyncBuffer(Module):
 		self.specials += storage
 
 		wrport = storage.get_port(write_capable=True)
+		self.specials += wrport
 		self.comb += [
 			wrport.adr.eq(produce),
 			wrport.dat_w.eq(self.din),
@@ -29,6 +30,7 @@ class _SyncBuffer(Module):
 		self.sync += _inc(produce, depth)
 
 		rdport = storage.get_port(async_read=True)
+		self.specials += rdport
 		self.comb += [
 			rdport.adr.eq(consume),
 			self.dout.eq(rdport.dat_r)
