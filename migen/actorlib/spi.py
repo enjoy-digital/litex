@@ -92,6 +92,7 @@ class Collector(Module, AutoCSR):
 		self.specials += mem
 		wp = mem.get_port(write_capable=True)
 		rp = mem.get_port()
+		self.specials += wp, rp
 		
 		self.comb += [
 			self.busy.eq(0),

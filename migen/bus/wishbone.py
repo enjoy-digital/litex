@@ -200,8 +200,8 @@ class SRAM(Module):
 		###
 	
 		# memory
-		self.specials += mem
 		port = mem.get_port(write_capable=not read_only, we_granularity=8)
+		self.specials += mem, port
 		# generate write enable signal
 		if not read_only:
 			self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])

@@ -40,6 +40,7 @@ class SyncFIFO(Module, _FIFOInterface):
 		self.specials += storage
 
 		wrport = storage.get_port(write_capable=True)
+		self.specials += wrport
 		self.comb += [
 			wrport.adr.eq(produce),
 			wrport.dat_w.eq(self.din),
@@ -48,6 +49,7 @@ class SyncFIFO(Module, _FIFOInterface):
 		self.sync += If(do_write, _inc(produce, depth))
 
 		rdport = storage.get_port(async_read=True)
+		self.specials += rdport
 		self.comb += [
 			rdport.adr.eq(consume),
 			self.dout.eq(rdport.dat_r)
@@ -103,12 +105,14 @@ class AsyncFIFO(Module, _FIFOInterface):
 		storage = Memory(width, depth)
 		self.specials += storage
 		wrport = storage.get_port(write_capable=True, clock_domain="write")
+		self.specials += wrport
 		self.comb += [
 			wrport.adr.eq(produce.q_binary[:-1]),
 			wrport.dat_w.eq(self.din),
 			wrport.we.eq(produce.ce)
 		]
 		rdport = storage.get_port(clock_domain="read")
+		self.specials += rdport
 		self.comb += [
 			rdport.adr.eq(consume.q_binary[:-1]),
 			self.dout.eq(rdport.dat_r)

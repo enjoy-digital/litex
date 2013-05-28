@@ -80,9 +80,9 @@ class SRAM(Module):
 	
 		###
 
-		self.specials += mem
 		port = mem.get_port(write_capable=not read_only,
 			we_granularity=data_width if not read_only and word_bits else 0)
+		self.specials += mem, port
 		
 		sel = Signal()
 		sel_r = Signal()

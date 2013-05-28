@@ -150,10 +150,11 @@ class Instance(Special):
 
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
 
-class _MemoryPort:
+class _MemoryPort(Special):
 	def __init__(self, adr, dat_r, we=None, dat_w=None,
 	  async_read=False, re=None, we_granularity=0, mode=WRITE_FIRST,
 	  clock_domain="sys"):
+		Special.__init__(self)
 		self.adr = adr
 		self.dat_r = dat_r
 		self.we = we
@@ -163,6 +164,20 @@ class _MemoryPort:
 		self.we_granularity = we_granularity
 		self.mode = mode
 		self.clock = ClockSignal(clock_domain)
+
+	def iter_expressions(self):
+		for attr, target_context in [
+		  ("adr", SPECIAL_INPUT),
+		  ("we", SPECIAL_INPUT),
+		  ("dat_w", SPECIAL_INPUT),
+		  ("re", SPECIAL_INPUT),
+		  ("dat_r", SPECIAL_OUTPUT),
+		  ("clock", SPECIAL_INPUT)]:
+			yield self, attr, target_context
+
+	@staticmethod
+	def emit_verilog(port, ns):
+		return "" # done by parent Memory object
 
 class Memory(Special):
 	def __init__(self, width, depth, init=None, name=None):
@@ -198,17 +213,6 @@ class Memory(Special):
 		  clock_domain)
 		self.ports.append(mp)
 		return mp
-
-	def iter_expressions(self):
-		for p in self.ports:
-			for attr, target_context in [
-			  ("adr", SPECIAL_INPUT),
-			  ("we", SPECIAL_INPUT),
-			  ("dat_w", SPECIAL_INPUT),
-			  ("re", SPECIAL_INPUT),
-			  ("dat_r", SPECIAL_OUTPUT),
-			  ("clock", SPECIAL_INPUT)]:
-				yield p, attr, target_context
 
 	@staticmethod
 	def emit_verilog(memory, ns):

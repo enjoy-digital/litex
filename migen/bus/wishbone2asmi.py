@@ -135,5 +135,5 @@ class WB2ASMI:
 			fsm.next_state(fsm.TEST_HIT)
 		)
 		
-		return Fragment(comb, sync, specials={data_mem, tag_mem}) \
+		return Fragment(comb, sync, specials={data_mem, tag_mem, data_port, tag_port}) \
 			+ fsm.get_fragment()

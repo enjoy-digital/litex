@@ -237,8 +237,12 @@ class Pytholite(UnifiedIOObject):
 		UnifiedIOObject.do_finalize(self)
 		if self.get_dataflow():
 			self.busy.reset = 1
-		self.memory_ports = dict((mem, mem.get_port(write_capable=True, we_granularity=8))
-			for mem in self.__dict__.values() if isinstance(mem, Memory))
+		self.memory_ports = dict()
+		for mem in self.__dict__.values():
+			if isinstance(mem, Memory):
+				port = mem.get_port(write_capable=True, we_granularity=8)
+				self.specials += port
+				self.memory_ports[mem] = port
 		self._compile()
 
 	def _compile(self):
