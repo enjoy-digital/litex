@@ -167,7 +167,7 @@ void dvisamplerX_service(void)
 
 	if(dvisamplerX_locked) {
 		if(dvisamplerX_clocking_locked_read()) {
-			if(elapsed(&dvisamplerX_last_event, identifier_frequency_read())) {
+			if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/2)) {
 				dvisamplerX_adjust_phase();
 				dvisamplerX_print_status();
 			}
