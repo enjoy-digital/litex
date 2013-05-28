@@ -15,7 +15,6 @@ all: bios.bin
 	$(M2DIR)/tools/mkmmimg $@ write
 
 bios.elf: linker.ld $(OBJECTS) libs
-bios-rescue.elf: linker-rescue.ld $(OBJECTS) libs
 
 %.elf:
 	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) \
@@ -43,6 +42,6 @@ flash: bios.bin
 	m1nor bios.bin
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin bios-rescue.elf bios-rescue.bin .*~ *~
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin .*~ *~
 
 .PHONY: all main.o clean libs flash

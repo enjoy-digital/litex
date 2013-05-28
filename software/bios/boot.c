@@ -14,16 +14,15 @@
 #include <net/tftp.h>
 #include "boot.h"
 
-extern int rescue;
-extern void boot_helper(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int r4, unsigned int addr);
+extern void boot_helper(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int addr);
 
-static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int r4, unsigned int addr)
+static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int addr)
 {
 	printf("Executing booted program.\n");
 	uart_sync();
 	irq_setmask(0);
 	irq_setie(0);
-	boot_helper(r1, r2, r3, r4, addr);
+	boot_helper(r1, r2, r3, addr);
 	while(1);
 }
 
@@ -137,7 +136,7 @@ void serialboot(void)
 					|((unsigned int)frame.payload[2] << 8)
 					|((unsigned int)frame.payload[3] << 0);
 				uart_write(SFL_ACK_SUCCESS);
-				boot(cmdline_adr, initrdstart_adr, initrdend_adr, rescue, addr);
+				boot(cmdline_adr, initrdstart_adr, initrdend_adr, addr);
 				break;
 			}
 			case SFL_CMD_CMDLINE:
@@ -234,7 +233,7 @@ void netboot(void)
 	} else
 		initrdend_adr = initrdstart_adr + size;
 
-	boot(cmdline_adr, initrdstart_adr, initrdend_adr, rescue, SDRAM_BASE);
+	boot(cmdline_adr, initrdstart_adr, initrdend_adr, SDRAM_BASE);
 }
 
 void flashboot(void)
@@ -245,10 +244,7 @@ void flashboot(void)
 	unsigned int got_crc;
 
 	printf("Booting from flash...\n");
-	if(rescue)
-		flashbase = (unsigned int *)FLASH_OFFSET_RESCUE_APP;
-	else
-		flashbase = (unsigned int *)FLASH_OFFSET_REGULAR_APP;
+	flashbase = (unsigned int *)FLASH_OFFSET_REGULAR_APP;
 	length = *flashbase++;
 	crc = *flashbase++;
 	if((length < 32) || (length > 4*1024*1024)) {
@@ -263,5 +259,5 @@ void flashboot(void)
 		printf("CRC failed (expected %08x, got %08x)\n", crc, got_crc);
 		return;
 	}
-	boot(0, 0, 0, rescue, SDRAM_BASE);
+	boot(0, 0, 0, SDRAM_BASE);
 }

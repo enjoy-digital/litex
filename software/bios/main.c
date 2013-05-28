@@ -375,7 +375,6 @@ static void do_command(char *c)
 		printf("Command not found\n");
 }
 
-int rescue;
 extern unsigned int _edata;
 
 static void crcbios(void)
@@ -391,7 +390,7 @@ static void crcbios(void)
 	 * We also use the address of _edata to know the length
 	 * of our code.
 	 */
-	offset_bios = rescue ? FLASH_OFFSET_RESCUE_BIOS : FLASH_OFFSET_REGULAR_BIOS;
+	offset_bios = FLASH_OFFSET_REGULAR_BIOS;
 	expected_crc = _edata;
 	length = (unsigned int)&_edata - offset_bios;
 	actual_crc = crc32((unsigned char *)offset_bios, length);
@@ -488,15 +487,9 @@ static int test_user_abort(void)
 static void boot_sequence(void)
 {
 	if(test_user_abort()) {
-		if(rescue) {
-			serialboot();
-			netboot();
-			flashboot();
-		} else {
-			flashboot();
-			serialboot();
-			netboot();
-		}
+		flashboot();
+		serialboot();
+		netboot();
 		printf("No boot medium found\n");
 	}
 }
@@ -506,15 +499,11 @@ int main(int i, char **c)
 	char buffer[64];
 	int ddr_ok;
 
-	rescue = !((unsigned int)main > FLASH_OFFSET_REGULAR_BIOS);
-
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
 	puts(banner);
 	crcbios();
-	if(rescue)
-		printf("Rescue mode\n");
 	id_print();
 	ethreset();
 	print_mac();
