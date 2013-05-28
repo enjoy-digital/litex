@@ -4,8 +4,8 @@ ENTRY(_start)
 __DYNAMIC = 0;
 
 MEMORY {
-	flash : ORIGIN = 0x00860000, LENGTH = 0x20000 /* 128K */
-	sram  : ORIGIN = 0x10000000, LENGTH = 0x01000 /* 4K */
+	rom  : ORIGIN = 0x00860000, LENGTH = 0x20000 /* 128K */
+	sram : ORIGIN = 0x10000000, LENGTH = 0x01000 /* 4K */
 }
 
 SECTIONS
@@ -15,7 +15,7 @@ SECTIONS
 		_ftext = .;
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 		_etext = .;
-	} > flash
+	} > rom
 
 	.rodata :
 	{
@@ -24,7 +24,7 @@ SECTIONS
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		_erodata = .;
-	} > flash
+	} > rom
 
 	/* We shouldn't have a .data section, but the GNU crapchain whines if we don't */
 	.data :
@@ -36,7 +36,7 @@ SECTIONS
 		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
 		_edata = .;
-	} > flash
+	} > rom
 
 	.bss :
 	{
