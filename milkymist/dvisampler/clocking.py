@@ -16,19 +16,6 @@ class Clocking(Module, AutoCSR):
 
 		###
 
-		clk_dejitter = Signal()
-		dcm_locked = Signal()
-		self.specials += Instance("DCM_CLKGEN",
-			Instance.Parameter("CLKIN_PERIOD", 26.7),
-			Instance.Parameter("CLKFX_DIVIDE", 2),
-			Instance.Parameter("CLKFX_MULTIPLY", 2),
-			Instance.Parameter("CLKFX_MD_MAX", 1.0),
-			Instance.Input("CLKIN", pads.clk),
-			Instance.Input("RST", self._r_pll_reset.storage),
-			Instance.Output("CLKFX", clk_dejitter),
-			Instance.Output("LOCKED", dcm_locked)
-		)
-
 		clkfbout = Signal()
 		pll_locked = Signal()
 		pll_clk0 = Signal()
@@ -52,8 +39,8 @@ class Clocking(Module, AutoCSR):
 			Instance.Output("CLKOUT3", pll_clk3),
 			Instance.Output("LOCKED", pll_locked),
 			Instance.Input("CLKFBIN", clkfbout),
-			Instance.Input("CLKIN", clk_dejitter),
-			Instance.Input("RST", ~dcm_locked)
+			Instance.Input("CLKIN", pads.clk),
+			Instance.Input("RST", self._r_pll_reset.storage)
 		)
 
 		locked_async = Signal()
