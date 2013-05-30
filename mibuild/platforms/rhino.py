@@ -104,7 +104,7 @@ _io = [
 		Subsignal("enx", Pins("E5")),
 		Subsignal("sclk", Pins("G6")),
 		Subsignal("sdata", Pins("F5")),
-		Subsignal("sdatao", Pins("E6")),
+		Subsignal("locked", Pins("E6")),
 		IOStandard("LVCMOS33")
 	),
 	# RX path
@@ -126,7 +126,7 @@ _io = [
 		Subsignal("enx", Pins("A2")),
 		Subsignal("sclk", Pins("G9")),
 		Subsignal("sdata", Pins("H9")),
-		Subsignal("sdatao", Pins("A3")),
+		Subsignal("locked", Pins("A3")),
 		IOStandard("LVCMOS33")
 	)
 ]
