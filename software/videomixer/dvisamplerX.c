@@ -106,11 +106,13 @@ void dvisamplerX_adjust_phase(void)
 	switch(dvisamplerX_data0_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
 			dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
+			while(dvisamplerX_data0_cap_dly_busy_read());
 			dvisamplerX_d0--;
 			dvisamplerX_data0_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
 			dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
+			while(dvisamplerX_data0_cap_dly_busy_read());
 			dvisamplerX_d0++;
 			dvisamplerX_data0_cap_phase_reset_write(1);
 			break;
@@ -118,11 +120,13 @@ void dvisamplerX_adjust_phase(void)
 	switch(dvisamplerX_data1_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
 			dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
+			while(dvisamplerX_data1_cap_dly_busy_read());
 			dvisamplerX_d1--;
 			dvisamplerX_data1_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
 			dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
+			while(dvisamplerX_data1_cap_dly_busy_read());
 			dvisamplerX_d1++;
 			dvisamplerX_data1_cap_phase_reset_write(1);
 			break;
@@ -130,11 +134,13 @@ void dvisamplerX_adjust_phase(void)
 	switch(dvisamplerX_data2_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
 			dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
+			while(dvisamplerX_data2_cap_dly_busy_read());
 			dvisamplerX_d2--;
 			dvisamplerX_data2_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
 			dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
+			while(dvisamplerX_data2_cap_dly_busy_read());
 			dvisamplerX_d2++;
 			dvisamplerX_data2_cap_phase_reset_write(1);
 			break;
@@ -158,13 +164,36 @@ int dvisamplerX_init_phase(void)
 	return 0;
 }
 
+int dvisamplerX_phase_startup(void)
+{
+	int ret;
+	int attempts;
+
+	attempts = 0;
+	while(1) {
+		attempts++;
+		dvisamplerX_calibrate_delays();
+		printf("dvisamplerX: delays calibrated\n");
+		ret = dvisamplerX_init_phase();
+		if(ret) {
+			printf("dvisamplerX: phase init OK\n");
+			return 1;
+		} else {
+			printf("dvisamplerX: phase did not settle\n");
+			if(attempts > 3) {
+				printf("dvisamplerX: giving up\n");
+				dvisamplerX_calibrate_delays();
+				return 0;
+			}
+		}
+	}
+}
+
 static int dvisamplerX_locked;
 static int dvisamplerX_last_event;
 
 void dvisamplerX_service(void)
 {
-	int ret;
-
 	if(dvisamplerX_locked) {
 		if(dvisamplerX_clocking_locked_read()) {
 			if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/2)) {
@@ -178,13 +207,7 @@ void dvisamplerX_service(void)
 	} else {
 		if(dvisamplerX_clocking_locked_read()) {
 			printf("dvisamplerX: PLL locked\n");
-			dvisamplerX_calibrate_delays();
-			printf("dvisamplerX: delays calibrated\n");
-			ret = dvisamplerX_init_phase();
-			if(ret)
-				printf("dvisamplerX: phase init OK\n");
-			else
-				printf("dvisamplerX: phase did not settle\n");
+			dvisamplerX_phase_startup();
 			dvisamplerX_print_status();
 			dvisamplerX_locked = 1;
 		}

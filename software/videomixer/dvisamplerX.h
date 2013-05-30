@@ -7,6 +7,7 @@ void dvisamplerX_print_status(void);
 void dvisamplerX_calibrate_delays(void);
 void dvisamplerX_adjust_phase(void);
 int dvisamplerX_init_phase(void);
+int dvisamplerX_phase_startup(void);
 void dvisamplerX_service(void);
 
 #endif
