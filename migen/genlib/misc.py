@@ -1,6 +1,11 @@
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Operator
 
+def bitreverse(s):
+	length, signed = value_bits_sign(s)
+	l = [s[i] for i in reversed(range(length))]
+	return Cat(*l)
+
 def optree(op, operands, lb=None, ub=None, default=None):
 	if lb is None:
 		lb = 0

@@ -5,11 +5,6 @@ from migen.fhdl.structure import _Slice, _Assign
 from migen.fhdl.visit import NodeVisitor, NodeTransformer
 from migen.fhdl.size import value_bits_sign
 
-def bitreverse(s):
-	length, signed = value_bits_sign(s)
-	l = [s[i] for i in reversed(range(length))]
-	return Cat(*l)
-
 def flat_iteration(l):
 	for element in l:
 		if isinstance(element, collections.Iterable):
