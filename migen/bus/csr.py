@@ -58,13 +58,9 @@ class SRAM(Module):
 			mem = mem_or_size
 		else:
 			mem = Memory(data_width, mem_or_size//(data_width//8), init=init)
-		if mem.width > data_width:
-			csrw_per_memw = (mem.width + data_width - 1)//data_width
-			word_bits = bits_for(csrw_per_memw-1)
-		else:
-			csrw_per_memw = 1
-			word_bits = 0
-		page_bits = _compute_page_bits(mem.depth + word_bits)
+		csrw_per_memw = (mem.width + data_width - 1)//data_width
+		word_bits = log2_int(csrw_per_memw)
+		page_bits = log2_int(mem.depth*csrw_per_memw, False)
 		if page_bits:
 			self._page = CSRStorage(page_bits, name=mem.name_override + "_page")
 		else:
@@ -80,8 +76,7 @@ class SRAM(Module):
 	
 		###
 
-		port = mem.get_port(write_capable=not read_only,
-			we_granularity=data_width if not read_only and word_bits else 0)
+		port = mem.get_port(write_capable=not read_only)
 		self.specials += mem, port
 		
 		sel = Signal()
@@ -100,9 +95,15 @@ class SRAM(Module):
 				)
 			]
 			if not read_only:
+				wregs = []
+				for i in range(csrw_per_memw-1):
+					wreg = Signal(data_width)
+					self.sync += If(sel & self.bus.we & (self.bus.adr[:word_bits] == i), wreg.eq(self.bus.dat_w))
+					wregs.append(wreg)
+				memword_chunks = [self.bus.dat_w] + list(reversed(wregs))
 				self.comb += [
-					If(sel & self.bus.we, port.we.eq((1 << word_bits) >> self.bus.adr[:self.word_bits])),
-					port.dat_w.eq(Replicate(self.bus.dat_w, csrw_per_memw))
+					port.we.eq(sel & self.bus.we & (self.bus.adr[:word_bits] == csrw_per_memw - 1)),
+					port.dat_w.eq(Cat(*memword_chunks))
 				]
 		else:
 			self.comb += If(sel_r, self.bus.dat_r.eq(port.dat_r))
