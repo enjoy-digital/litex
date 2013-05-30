@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.fhdl.tools import value_bits_sign
 from migen.fhdl.structure import _Operator
 
 def bitreverse(s):
