@@ -9,7 +9,7 @@ from migen.bank import csrgen
 from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
 	identifier, timer, minimac3, framebuffer, asmiprobe, dvisampler, \
 	counteradc, gpio
-from cif import get_macros
+from milkymist.cif import get_macros
 
 version = get_macros("common/version.h")["VERSION"][1:-1]
 

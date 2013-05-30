@@ -5,8 +5,9 @@ import os
 from mibuild.platforms import m1
 from mibuild.tools import write_to_file
 
+from milkymist import cif
+
 import top
-import cif
 
 def main():
 	platform = m1.Platform()
