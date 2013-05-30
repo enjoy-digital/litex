@@ -187,12 +187,6 @@ void dvisamplerX_service(void)
 				printf("dvisamplerX: phase did not settle\n");
 			dvisamplerX_print_status();
 			dvisamplerX_locked = 1;
-		} else {
-			if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/4)) {
-				dvisamplerX_clocking_pll_reset_write(1);
-				while(!elapsed(&dvisamplerX_last_event, identifier_frequency_read()/16));
-				dvisamplerX_clocking_pll_reset_write(0);
-			}
 		}
 	}
 }
