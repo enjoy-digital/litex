@@ -47,16 +47,17 @@ static inline long int labs(long int x)
 }
 
 unsigned long strtoul(const char *nptr, char **endptr, int base);
+long strtol(const char *nptr, char **endptr, int base);
+double strtod(const char *str, char **endptr);
+
 int skip_atoi(const char **s);
 static inline int atoi(const char *nptr) {
-	return strtoul(nptr, NULL, 0);
+	return strtol(nptr, NULL, 10);
 }
 static inline long atol(const char *nptr) {
 	return (long)atoi(nptr);
 }
 char *number(char *buf, char *end, unsigned long num, int base, int size, int precision, int type);
-long strtol(const char *nptr, char **endptr, int base);
-double strtod(const char *str, char **endptr);
 
 #define   RAND_MAX        2147483647
 
