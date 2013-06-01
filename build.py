@@ -69,7 +69,7 @@ TIMESPEC "TSdviclk1" = PERIOD "GRPdviclk1" 26.7 ns HIGH 50%;
 		"jtag_tap_spartan6.v", "lm32_itlb.v", "lm32_dtlb.v")
 	platform.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
 
-	platform.build_cmdline(soc)
+	platform.build_cmdline(soc, build_name="soc")
 	csr_header = cif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
 	write_to_file("software/include/hw/csr.h", csr_header)
 

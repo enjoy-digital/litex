@@ -3,8 +3,9 @@ build/*
 *.o
 *.d
 *.a
-*.bin
 *.elf
+*.bin
+*.fbi
 tools/bin2hex
 tools/flterm
 tools/mkmmimg

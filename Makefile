@@ -1,18 +1,21 @@
 RM ?= rm -f
 
-all: build/top.bit build/top.fpg
+all: build/soc.bit build/soc.fpg
 
-build/top.bit build/top.bin:
+build/soc.bit build/soc.bin:
 	./build.py
 
-build/top.fpg: build/top.bin
+build/soc.fpg: build/soc.bin
 	$(MAKE) -C tools
 	tools/byteswap $< $@
 
-load: build/top.bit
+load: build/soc.bit
 	jtag -n load.jtag
+
+flash: build/soc.fpg
+	m1nor-ng build/soc.fpg
 
 clean:
 	$(RM) -r build/*
 
-.PHONY: all load clean
+.PHONY: all load clean flash

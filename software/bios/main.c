@@ -390,7 +390,7 @@ static void crcbios(void)
 	 * We also use the address of _edata to know the length
 	 * of our code.
 	 */
-	offset_bios = FLASH_OFFSET_REGULAR_BIOS;
+	offset_bios = FLASH_OFFSET_BIOS;
 	expected_crc = _edata;
 	length = (unsigned int)&_edata - offset_bios;
 	actual_crc = crc32((unsigned char *)offset_bios, length);
@@ -400,13 +400,6 @@ static void crcbios(void)
 		printf("BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
 		printf("The system will continue, but expect problems.\n");
 	}
-}
-
-static void print_mac(void)
-{
-	unsigned char *macadr = (unsigned char *)FLASH_OFFSET_MAC_ADDRESS;
-
-	printf("MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
 }
 
 static const char banner[] =
@@ -506,7 +499,6 @@ int main(int i, char **c)
 	crcbios();
 	id_print();
 	ethreset();
-	print_mac();
 	ddr_ok = ddrinit();
 	if(ddr_ok)
 		boot_sequence();

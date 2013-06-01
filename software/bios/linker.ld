@@ -4,7 +4,7 @@ ENTRY(_start)
 __DYNAMIC = 0;
 
 MEMORY {
-	rom  : ORIGIN = 0x00860000, LENGTH = 0x20000 /* 128K */
+	rom  : ORIGIN = 0x00180000, LENGTH = 0x20000 /* 128K */
 	sram : ORIGIN = 0x10000000, LENGTH = 0x01000 /* 4K */
 }
 

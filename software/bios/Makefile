@@ -39,7 +39,7 @@ libs:
 	$(MAKE) -C $(M2DIR)/software/libnet
 
 flash: bios.bin
-	m1nor bios.bin
+	m1nor-ng bios.bin
 
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin .*~ *~

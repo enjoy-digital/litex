@@ -196,12 +196,13 @@ static int tftp_get_v(unsigned int ip, const char *filename, char *buffer)
 	return r;
 }
 
+static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
+
 void netboot(void)
 {
 	int size;
 	unsigned int cmdline_adr, initrdstart_adr, initrdend_adr;
 	unsigned int ip;
-	unsigned char *macadr = (unsigned char *)FLASH_OFFSET_MAC_ADDRESS;
 
 	printf("Booting from network...\n");
 	printf("Local IP : %d.%d.%d.%d\n", LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4);
@@ -244,11 +245,11 @@ void flashboot(void)
 	unsigned int got_crc;
 
 	printf("Booting from flash...\n");
-	flashbase = (unsigned int *)FLASH_OFFSET_REGULAR_APP;
+	flashbase = (unsigned int *)FLASH_OFFSET_APP;
 	length = *flashbase++;
 	crc = *flashbase++;
 	if((length < 32) || (length > 4*1024*1024)) {
-		printf("Error: Invalid flash boot image length\n");
+		printf("Error: Invalid flash boot image length 0x%08x\n", length);
 		return;
 	}
 	

@@ -3,7 +3,7 @@ include $(M2DIR)/software/common.mak
 
 OBJECTS=crt0.o isr.o time.o dvisampler0.o dvisampler1.o main.o
 
-all: videomixer.bin
+all: videomixer.bin videomixer.fbi
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
@@ -11,6 +11,9 @@ all: videomixer.bin
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
+
+%.fbi: %.bin
+	$(M2DIR)/tools/mkmmimg $< write $@
 
 videomixer.elf: linker.ld $(OBJECTS) libs
 
@@ -62,8 +65,12 @@ load: videomixer.bin
 	$(MAKE) -C $(M2DIR)/tools
 	$(M2DIR)/tools/flterm --port /dev/ttyUSB0 --kernel videomixer.bin
 
+flash: videomixer.fbi
+	m1nor-ng videomixer.fbi
+
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) videomixer.elf videomixer.bin .*~ *~
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) videomixer.elf videomixer.bin videomixer.fbi
+	$(RM) .*~ *~
 	$(RM) dvisampler0.h dvisampler0.c dvisampler1.h dvisampler1.c
 
 .PHONY: all main.o clean libs load
