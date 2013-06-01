@@ -165,14 +165,18 @@ class XilinxISEPlatform(GenericPlatform):
 
 	def build_arg_ns(self, ns, *args, **kwargs):
 		for n in ["build_dir", "build_name", "ise_path"]:
-			kwargs[n] = getattr(ns, n)
-		kwargs["source"] = not ns.no_source
-		kwargs["run"] = not ns.no_run
+			attr = getattr(ns, n)
+			if attr is not None:
+				kwargs[n] = attr
+		if ns.no_source:
+			kwargs["source"] = False
+		if ns.no_run:
+			kwargs["run"] = False
 		self.build(*args, **kwargs)
 
 	def add_arguments(self, parser):
-		parser.add_argument("--build-dir", default="build", help="Set the directory in which to generate files and run ISE")
-		parser.add_argument("--build-name", default="top", help="Base name for the generated files")
-		parser.add_argument("--ise-path", default="/opt/Xilinx", help="ISE installation path (without version directory)")
+		parser.add_argument("--build-dir", default=None, help="Set the directory in which to generate files and run ISE")
+		parser.add_argument("--build-name", default=None, help="Base name for the generated files")
+		parser.add_argument("--ise-path", default=None, help="ISE installation path (without version directory)")
 		parser.add_argument("--no-source", action="store_true", help="Do not source ISE settings file")
 		parser.add_argument("--no-run", action="store_true", help="Only generate files, do not run ISE")
