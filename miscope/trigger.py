@@ -5,6 +5,7 @@ from migen.bank import description, csrgen
 from migen.bank.description import *
 from migen.genlib.misc import optree
 
+from miscope.tools.misc import *
 
 class RegParams:
 	def __init__(self, name, base, width, nb):
@@ -281,8 +282,8 @@ class Trigger:
 		self.address = address
 		self.bank = csrgen.Bank(self.regs, address=self.address)
 		for port in self.ports:
-			port.reg_p.base = self.bank.get_base(port.reg_p.name)
-		self.sum.reg_p.base = self.bank.get_base(self.sum.reg_p.name)
+			port.reg_p.base = get_csr_base(self.bank, port.reg_p.name)
+		self.sum.reg_p.base = get_csr_base(self.bank, self.sum.reg_p.name)
 
 	def set_interface(self, interface):
 		self.interface = interface

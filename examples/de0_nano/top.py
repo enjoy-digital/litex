@@ -53,7 +53,7 @@ class SoC(Module):
 		self.submodules.trigger = trigger.Trigger(trig_w, [self.term])
 		self.submodules.recorder = recorder.Recorder(dat_w, rec_size)
 
-		self.submodules.mila = mila.MiLa(MILA_ADDR, self.trigger, self.recorder)
+		self.submodules.mila = mila.MiLa(MILA_ADDR, self.trigger, self.recorder, trig_is_dat=True)
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
@@ -94,13 +94,11 @@ class SoC(Module):
 		# Mila
 		#
 		self.comb +=[
-			self.mila.trig[0].eq(self.freqgen.o),
-			self.mila.trig[1].eq(self.eventgen_rising.o),
-			self.mila.trig[2].eq(self.eventgen_falling.o),
-			self.mila.trig[3:11].eq(self.cnt),
-			self.mila.dat[0].eq(self.freqgen.o),
-			self.mila.dat[1].eq(self.eventgen_rising.o),
-			self.mila.dat[2].eq(self.eventgen_falling.o),
-			self.mila.dat[3:11].eq(self.cnt),
+			self.mila.trig.eq(Cat(
+				self.freqgen.o,
+				self.eventgen_rising.o,
+				self.eventgen_falling.o,
+				self.cnt)
+			)
 		]
 		self.sync += self.cnt.eq(self.cnt+1)

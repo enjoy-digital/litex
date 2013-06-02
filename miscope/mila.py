@@ -4,13 +4,15 @@ from migen.bank import description, csrgen
 from migen.bank.description import *
 
 from miscope import trigger, recorder
+from miscope.tools.misc import *
 
 class MiLa:
-	def __init__(self, address, trigger, recorder, interface=None):
+	def __init__(self, address, trigger, recorder, interface=None, trig_is_dat=False):
 
 		self.trigger = trigger
 		self.recorder = recorder
 		self.interface = interface
+		self.trig_is_dat = trig_is_dat
 		
 		self.stb = Signal(reset=1)
 		self.trig = Signal(self.trigger.width)
@@ -34,7 +36,13 @@ class MiLa:
 			self.recorder.stb.eq(self.stb),
 			self.trigger.trig.eq(self.trig),
 			
-			self.recorder.dat.eq(self.dat),
 			self.recorder.hit.eq(self.trigger.hit)
 		]
+		if self.trig_is_dat:
+			comb +=[
+			self.recorder.dat.eq(self.trig),
+			]
+		else:
+			self.recorder.dat.eq(self.dat),
+		
 		return Fragment(comb)

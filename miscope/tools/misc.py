@@ -109,3 +109,15 @@ class PwrOnRst(Module):
 		else:
 			self.comb += self.rst.eq(0)
 		self._fragment += Fragment(sync={"sys_no_reset" : sync_no_reset})
+		
+def get_csr_base(bank, name=None):
+	base = 0
+	if name != None:
+		base = None
+		for i, c in enumerate(bank.simple_csrs):
+			if name in c.name:
+				if base == None:
+					base = i
+				elif base >= i:
+					base = i
+	return (bank.address<<9) + base

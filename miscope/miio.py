@@ -3,6 +3,8 @@ from migen.bus import csr
 from migen.bank import csrgen
 from migen.bank.description import *
 
+from miscope.tools.misc import *
+
 class MiIo:
 	# 
 	# Definition
@@ -38,7 +40,7 @@ class MiIo:
 	# Driver
 	#
 	def set(self, data):
-			self.interface.write(self.bank.get_base(), data)
+			self.interface.write(get_csr_base(self.bank), data)
 			
 	def get(self):
-		return self.interface.read(self.bank.get_base() + self.words)
+		return self.interface.read(get_csr_base(self.bank) + self.words)

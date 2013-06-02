@@ -6,7 +6,7 @@ from migen.bank.description import *
 from migen.genlib.misc import optree
 from migen.genlib.fsm import *
 
-from miscope.tools.misc import RisingEdge
+from miscope.tools.misc import *
 
 class Storage:
 	# 
@@ -291,34 +291,34 @@ class Recorder:
 	# Driver
 	#
 	def reset(self):
-		self.interface.write(self.bank.get_base() + REC_RST_BASE, 1)
-		self.interface.write(self.bank.get_base() + REC_RST_BASE, 0)
+		self.interface.write(get_csr_base(self.bank) + REC_RST_BASE, 1)
+		self.interface.write(get_csr_base(self.bank) + REC_RST_BASE, 0)
 
 	def enable_rle(self):
-		self.interface.write(self.bank.get_base() + REC_RLE_BASE, 1)
+		self.interface.write(get_csr_base(self.bank) + REC_RLE_BASE, 1)
 
 	def disable_rle(self):
-		self.interface.write(self.bank.get_base() + REC_RLE_BASE, 0)
+		self.interface.write(get_csr_base(self.bank) + REC_RLE_BASE, 0)
 
 	def arm(self):
-		self.interface.write(self.bank.get_base() + REC_ARM_BASE, 1)
-		self.interface.write(self.bank.get_base() + REC_ARM_BASE, 0)
+		self.interface.write(get_csr_base(self.bank) + REC_ARM_BASE, 1)
+		self.interface.write(get_csr_base(self.bank) + REC_ARM_BASE, 0)
 	
 	def is_done(self):
-		return self.interface.read(self.bank.get_base() + REC_DONE_BASE) == 1
+		return self.interface.read(get_csr_base(self.bank) + REC_DONE_BASE) == 1
 		
 	def set_size(self, dat):
-		self.interface.write_n(self.bank.get_base() + REC_SIZE_BASE, dat, 16)
+		self.interface.write_n(get_csr_base(self.bank) + REC_SIZE_BASE, dat, 16)
 		
 	def set_offset(self, dat):
-		self.interface.write_n(self.bank.get_base() + REC_OFFSET_BASE, dat, 16)
+		self.interface.write_n(get_csr_base(self.bank) + REC_OFFSET_BASE, dat, 16)
 		
 	def pull(self, size):
 		r = []
 		for i in range(size):
-			self.interface.write(self.bank.get_base() + REC_READ_BASE, 1)
-			self.interface.write(self.bank.get_base() + REC_READ_BASE, 0)
-			r.append(self.interface.read_n(self.bank.get_base() + REC_READ_DATA_BASE, self.width))
+			self.interface.write(get_csr_base(self.bank) + REC_READ_BASE, 1)
+			self.interface.write(get_csr_base(self.bank) + REC_READ_BASE, 0)
+			r.append(self.interface.read_n(get_csr_base(self.bank) + REC_READ_DATA_BASE, self.width))
 			if i%128 == 0:
 				print(i)
 		return r
