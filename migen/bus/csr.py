@@ -45,13 +45,6 @@ class Initiator(Module):
 					s.wr(self.bus.we, 1)
 					s.wr(self.bus.dat_w, self.transaction.data)
 
-def _compute_page_bits(nwords):
-	npages = (nwords - 1)//512
-	if npages > 0:
-		return bits_for(npages-1)
-	else:
-		return 0
-
 class SRAM(Module):
 	def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None):
 		if isinstance(mem_or_size, Memory):
@@ -60,7 +53,7 @@ class SRAM(Module):
 			mem = Memory(data_width, mem_or_size//(data_width//8), init=init)
 		csrw_per_memw = (mem.width + data_width - 1)//data_width
 		word_bits = log2_int(csrw_per_memw)
-		page_bits = log2_int(mem.depth*csrw_per_memw, False)
+		page_bits = log2_int((mem.depth*csrw_per_memw + 511)//512, False)
 		if page_bits:
 			self._page = CSRStorage(page_bits, name=mem.name_override + "_page")
 		else:
