@@ -107,10 +107,10 @@ class SRAM(Module):
 				]
 		
 		if self._page is None:
-			self.comb += port.adr.eq(self.bus.adr[word_bits:flen(port.adr)])
+			self.comb += port.adr.eq(self.bus.adr[word_bits:word_bits+flen(port.adr)])
 		else:
 			pv = self._page.storage
-			self.comb += port.adr.eq(Cat(self.bus.adr[word_bits:flen(port.adr)-flen(pv)], pv))
+			self.comb += port.adr.eq(Cat(self.bus.adr[word_bits:word_bits+flen(port.adr)-flen(pv)], pv))
 
 	def get_csrs(self):
 		if self._page is None:
