@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.bus.transactions import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import optree
@@ -145,3 +146,110 @@ class Crossbar(Module):
 			m_ba.append(ba)
 			m_rca.append(rca)
 		return m_ca, m_ba, m_rca
+
+class Initiator(Module):
+	def __init__(self, generator, bus):
+		self.generator = generator
+		self.bus = bus
+		self.transaction_start = 0
+		self.transaction = None
+		self.transaction_end = None
+		self.done = False
+	
+	def do_simulation(self, s):
+		s.wr(self.bus.dat_w, 0)
+		s.wr(self.bus.dat_we, 0)
+		if not self.done:
+			if self.transaction is not None and s.rd(self.bus.ack):
+				s.wr(self.bus.stb, 0)
+				if isinstance(self.transaction, TRead):
+					self.transaction_end = s.cycle_counter + self.bus.read_latency
+				else:
+					self.transaction_end = s.cycle_counter + self.bus.write_latency - 1
+
+			if self.transaction is None or s.cycle_counter == self.transaction_end:
+				if self.transaction is not None:
+					self.transaction.latency = s.cycle_counter - self.transaction_start - 1
+					if isinstance(self.transaction, TRead):
+						self.transaction.data = s.rd(self.bus.dat_r)
+					else:
+						s.wr(self.bus.dat_w, self.transaction.data)
+						s.wr(self.bus.dat_we, self.transaction.sel)
+				try:
+					self.transaction = next(self.generator)
+				except StopIteration:
+					self.done = True
+					self.transaction = None
+				if self.transaction is not None:
+					self.transaction_start = s.cycle_counter
+					s.wr(self.bus.stb, 1)
+					s.wr(self.bus.adr, self.transaction.address)
+					if isinstance(self.transaction, TRead):
+						s.wr(self.bus.we, 0)
+					else:
+						s.wr(self.bus.we, 1)
+
+class TargetModel:
+	def __init__(self):
+		self.last_bank = 0
+
+	def read(self, bank, address):
+		return 0
+	
+	def write(self, bank, address, data, we):
+		pass
+
+	# Round-robin scheduling
+	def select_bank(self, pending_banks):
+		if not pending_banks:
+			return -1
+		self.last_bank += 1
+		if self.last_bank > max(pending_banks):
+			self.last_bank = 0
+		while self.last_bank not in pending_banks:
+			self.last_bank += 1
+		return self.last_bank
+
+class Target(Module):
+	def __init__(self, model, *ifargs, **ifkwargs):
+		self.model = model
+		self.bus = Interface(*ifargs, **ifkwargs)
+		self.rd_pipeline = [None]*self.bus.read_latency
+		self.wr_pipeline = [None]*self.bus.write_latency
+
+	def do_simulation(self, s):
+		# determine banks with pending requests
+		pending_banks = set()
+		for nb in range(self.bus.nbanks):
+			bank = getattr(self.bus, "bank"+str(nb))
+			if s.rd(bank.stb) and not s.rd(bank.ack):
+				pending_banks.add(nb)
+
+		# issue new transactions
+		selected_bank_n = self.model.select_bank(pending_banks)
+		for nb in range(self.bus.nbanks):
+			bank = getattr(self.bus, "bank"+str(nb))
+			if nb == selected_bank_n:
+				s.wr(bank.ack, 1)
+			else:
+				s.wr(bank.ack, 0)
+		
+		rd_transaction = None
+		wr_transaction = None
+		if selected_bank_n >= 0:
+			selected_bank = getattr(self.bus, "bank"+str(selected_bank_n))
+			if s.rd(selected_bank.we):
+				wr_transaction = selected_bank_n, s.rd(selected_bank.adr)
+			else:
+				rd_transaction = selected_bank_n, s.rd(selected_bank.adr)
+
+		# data pipeline
+		self.rd_pipeline.append(rd_transaction)
+		self.wr_pipeline.append(wr_transaction)
+		done_rd_transaction = self.rd_pipeline.pop(0)
+		done_wr_transaction = self.wr_pipeline.pop(0)
+		if done_rd_transaction is not None:
+			s.wr(self.bus.dat_r, self.model.read(done_rd_transaction[0], done_rd_transaction[1]))
+		if done_wr_transaction is not None:
+			self.model.write(done_wr_transaction[0], done_wr_transaction[1],
+				s.rd(self.bus.dat_w), s.rd(self.bus.dat_we))
