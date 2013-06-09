@@ -50,7 +50,6 @@ class Crossbar(Module):
 		controller_bits = log2_int(ncontrollers, False)
 		self.masters = [Interface(rca_bits + bank_bits + controller_bits, dw, 1, read_latency, write_latency)
 			for i in range(nmasters)]
-		masters_a = Array(self.masters)
 
 		###
 
@@ -61,6 +60,7 @@ class Crossbar(Module):
 				controller_selected = [ca == nc for ca in m_ca]
 			else:
 				controller_selected = [1]*nmasters
+			master_acks = [0]*nmasters
 			for nb in range(nbanks):
 				bank = getattr(controller, "bank"+str(nb))
 
@@ -77,10 +77,13 @@ class Crossbar(Module):
 				# route requests
 				self.comb += [
 					bank.adr.eq(Array(m_rca)[rr.grant]),
-					bank.we.eq(masters_a[rr.grant].we),
-					bank.stb.eq(masters_a[rr.grant].stb),
-					masters_a[rr.grant].ack.eq(bank.ack)
+					bank.we.eq(Array(self.masters)[rr.grant].we),
+					bank.stb.eq(Array(bank_requested)[rr.grant])
 				]
+				master_acks = [master_ack | ((rr.grant == nm) & bank.ack)
+					for nm, master_ack in enumerate(master_acks)]
+
+			self.comb += [master.ack.eq(master_ack) for master, master_ack in zip(self.masters, master_acks)]
 
 			# route data writes
 			controller_selected_wl = controller_selected
@@ -215,7 +218,7 @@ class Target(Module):
 		self.model = model
 		self.bus = Interface(*ifargs, **ifkwargs)
 		self.rd_pipeline = [None]*self.bus.read_latency
-		self.wr_pipeline = [None]*self.bus.write_latency
+		self.wr_pipeline = [None]*(self.bus.write_latency + 1)
 
 	def do_simulation(self, s):
 		# determine banks with pending requests
