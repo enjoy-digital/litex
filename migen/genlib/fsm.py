@@ -20,7 +20,7 @@ class FSM:
 				self.actions.append([self.next_state(target_state)])
 			else:
 				# alias
-				setattr(self, name, getattr(self, target_state))
+				setattr(self, name, target_state)
 	
 	def reset_state(self, state):
 		self._state.reset = state
