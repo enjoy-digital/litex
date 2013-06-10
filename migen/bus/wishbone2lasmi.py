@@ -20,7 +20,7 @@ class WB2LASMI(Module):
 		# TAG | LINE NUMBER | LINE OFFSET
 		offsetbits = log2_int(lasmim.dw//32)
 		addressbits = lasmim.aw + offsetbits
-		linebits = log2_int(self.cachesize) - offsetbits
+		linebits = log2_int(cachesize) - offsetbits
 		tagbits = addressbits - linebits
 		adr_offset, adr_line, adr_tag = split(self.wishbone.adr, offsetbits, linebits, tagbits)
 		
@@ -93,7 +93,7 @@ class WB2LASMI(Module):
 				fsm.next_state(fsm.IDLE)
 			).Else(
 				If(tag_do.dirty,
-					fsm.next_state(fsm.EVICT_ISSUE)
+					fsm.next_state(fsm.EVICT_REQUEST)
 				).Else(
 					fsm.next_state(fsm.REFILL_WRTAG)
 				)
@@ -120,6 +120,6 @@ class WB2LASMI(Module):
 			If(lasmim.ack, fsm.next_state(fsm.REFILL_DATAD))
 		)
 		fsm.act(fsm.REFILL_DATA,
-			write_from_asmi.eq(1),
+			write_from_lasmi.eq(1),
 			fsm.next_state(fsm.TEST_HIT)
 		)

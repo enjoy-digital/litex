@@ -19,7 +19,7 @@ class Reader(Module):
 		request_issued = Signal()
 
 		self.comb += [
-			self.bus.we.eq(0),
+			lasmim.we.eq(0),
 			lasmim.stb.eq(self.address.stb & request_enable),
 			lasmim.adr.eq(self.address.payload.a),
 			self.address.ack.eq(lasmim.ack),
