@@ -3,6 +3,7 @@ from migen.genlib.fsm import FSM
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 from migen.flow.actor import *
+from migen.genlib.fifo import SyncFIFO
 from migen.actorlib import dma_lasmi
 
 from milkymist.dvisampler.common import frame_layout
@@ -53,6 +54,27 @@ class _SlotArray(Module, AutoCSR):
 			self.address_valid.eq(Array(slot.address_valid for slot in slots)[current_slot])
 		]
 		self.comb += [slot.address_done.eq(self.address_done & (current_slot == n)) for n, slot in enumerate(slots)]
+
+class _BufferedWriter(Module):
+	def __init__(self, lasmim, depth=4):
+		self.address_data = Sink([("a", lasmim.aw), ("d", lasmim.dw)])
+		self.busy = Signal()
+
+		###
+
+		self.submodules.writer = dma_lasmi.Writer(lasmim)
+		self.submodules.fifo = SyncFIFO(lasmim.aw + lasmim.dw, depth)
+		self.comb += [
+			self.fifo.din.eq(self.address_data.payload.raw_bits()),
+			self.fifo.we.eq(self.address_data.stb),
+			self.address_data.ack.eq(self.fifo.writable),
+
+			self.writer.address_data.payload.raw_bits().eq(self.fifo.dout),
+			self.fifo.re.eq(self.writer.address_data.ack),
+			self.writer.address_data.stb.eq(self.fifo.readable),
+			
+			self.busy.eq(self.writer.busy | self.fifo.readable)
+		]
 
 class DMA(Module):
 	def __init__(self, lasmim, nslots):
@@ -112,7 +134,7 @@ class DMA(Module):
 			)
 
 		# bus accessor
-		self.submodules._bus_accessor = dma_lasmi.Writer(lasmim)
+		self.submodules._bus_accessor = _BufferedWriter(lasmim)
 		self.comb += [
 			self._bus_accessor.address_data.payload.a.eq(current_address),
 			self._bus_accessor.address_data.payload.d.eq(cur_memory_word)
