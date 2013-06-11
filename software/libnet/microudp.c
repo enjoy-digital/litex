@@ -350,7 +350,7 @@ static void process_frame(void)
 	else if(rxbuffer->frame.eth_header.ethertype == ETHERTYPE_IP) process_ip();
 }
 
-void microudp_start(unsigned char *macaddr, unsigned int ip)
+void microudp_start(const unsigned char *macaddr, unsigned int ip)
 {
 	int i;
 
