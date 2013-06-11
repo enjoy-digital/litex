@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.record import layout_len
 from migen.bank.description import AutoCSR
-from migen.actorlib import structuring, dma_asmi, spi
+from migen.actorlib import structuring, dma_lasmi, spi
 
 from milkymist.dvisampler.edid import EDID
 from milkymist.dvisampler.clocking import Clocking
@@ -35,7 +35,7 @@ class RawDVISampler(Module, AutoCSR):
 		pack_factor = asmiport.hub.dw//16
 		self.submodules.packer = structuring.Pack([("word", 10), ("pad", 6)], pack_factor)
 		self.submodules.cast = structuring.Cast(self.packer.source.payload.layout, asmiport.hub.dw)
-		self.submodules.dma = spi.DMAWriteController(dma_asmi.Writer(asmiport), spi.MODE_SINGLE_SHOT, free_flow=True)
+		self.submodules.dma = spi.DMAWriteController(dma_lasmi.Writer(lasmim), spi.MODE_SINGLE_SHOT)
 		self.comb += [
 			self.packer.sink.stb.eq(fifo.readable),
 			fifo.re.eq(self.packer.sink.ack),

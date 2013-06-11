@@ -12,20 +12,19 @@ class CommandRequest:
 		self.we_n = Signal(reset=1)
 
 class CommandRequestRW(CommandRequest):
-	def __init__(self, a, ba, tagbits):
+	def __init__(self, a, ba):
 		CommandRequest.__init__(self, a, ba)
 		self.stb = Signal()
 		self.ack = Signal()
 		self.is_read = Signal()
 		self.is_write = Signal()
-		self.tag = Signal(tagbits)
 
 class _CommandChooser(Module):
-	def __init__(self, requests, tagbits):
+	def __init__(self, requests):
 		self.want_reads = Signal()
 		self.want_writes = Signal()
 		# NB: cas_n/ras_n/we_n are 1 when stb is inactive
-		self.cmd = CommandRequestRW(flen(requests[0].a), flen(requests[0].ba), tagbits)
+		self.cmd = CommandRequestRW(flen(requests[0].a), flen(requests[0].ba))
 	
 		###
 
@@ -37,7 +36,7 @@ class _CommandChooser(Module):
 		
 		stb = Signal()
 		self.comb += stb.eq(Array(req.stb for req in requests)[rr.grant])
-		for name in ["a", "ba", "is_read", "is_write", "tag"]:
+		for name in ["a", "ba", "is_read", "is_write"]:
 			choices = Array(getattr(req, name) for req in requests)
 			self.comb += getattr(self.cmd, name).eq(choices[rr.grant])
 		for name in ["cas_n", "ras_n", "we_n"]:
@@ -66,6 +65,7 @@ class _Steerer(Module):
 			else:
 				return cmd.stb & getattr(cmd, attr)
 		for phase, sel in zip(dfi.phases, self.sel):
+			wrdata_en_adv = Signal()
 			self.comb += [
 				phase.cke.eq(1),
 				phase.cs_n.eq(0)
@@ -77,67 +77,20 @@ class _Steerer(Module):
 				phase.ras_n.eq(Array(cmd.ras_n for cmd in commands)[sel]),
 				phase.we_n.eq(Array(cmd.we_n for cmd in commands)[sel]),
 				phase.rddata_en.eq(Array(stb_and(cmd, "is_read") for cmd in commands)[sel]),
-				phase.wrdata_en.eq(Array(stb_and(cmd, "is_write") for cmd in commands)[sel])
+				wrdata_en_adv.eq(Array(stb_and(cmd, "is_write") for cmd in commands)[sel]),
+				phase.wrdata_en.eq(wrdata_en_adv)
 			]
 
-class _Datapath(Module):
-	def __init__(self, timing_settings, command, dfi, hub):
-		tagbits = flen(hub.tag_call)
-		
-		rd_valid = Signal()
-		rd_tag = Signal(tagbits)
-		wr_valid = Signal()
-		wr_tag = Signal(tagbits)
-		self.comb += [
-			hub.call.eq(rd_valid | wr_valid),
-			If(wr_valid,
-				hub.tag_call.eq(wr_tag)
-			).Else(
-				hub.tag_call.eq(rd_tag)
-			)
-		]
-		
-		rd_delay = timing_settings.rd_delay + 1
-		rd_valid_d = [Signal() for i in range(rd_delay)]
-		rd_tag_d = [Signal(tagbits) for i in range(rd_delay)]
-		for i in range(rd_delay):
-			if i:
-				self.sync += [
-					rd_valid_d[i].eq(rd_valid_d[i-1]),
-					rd_tag_d[i].eq(rd_tag_d[i-1])
-				]
-			else:
-				self.sync += [
-					rd_valid_d[i].eq(command.stb & command.ack & command.is_read),
-					rd_tag_d[i].eq(command.tag)
-				]		
-		self.comb += [
-			rd_valid.eq(rd_valid_d[-1]),
-			rd_tag.eq(rd_tag_d[-1]),
-			wr_valid.eq(command.stb & command.ack & command.is_write),
-			wr_tag.eq(command.tag),
-		]
-		
-		all_rddata = [p.rddata for p in dfi.phases]
-		all_wrdata = [p.wrdata for p in dfi.phases]
-		all_wrdata_mask = [p.wrdata_mask for p in dfi.phases]
-		self.comb += [
-			hub.dat_r.eq(Cat(*all_rddata)),
-			Cat(*all_wrdata).eq(hub.dat_w),
-			Cat(*all_wrdata_mask).eq(hub.dat_wm)
-		]
-
 class Multiplexer(Module):
-	def __init__(self, phy_settings, geom_settings, timing_settings, bank_machines, refresher, dfi, hub):
+	def __init__(self, phy_settings, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic):
 		assert(phy_settings.nphases == len(dfi.phases))
 		if phy_settings.nphases != 2:
 			raise NotImplementedError("TODO: multiplexer only supports 2 phases")
 	
 		# Command choosing
 		requests = [bm.cmd for bm in bank_machines]
-		tagbits = flen(hub.tag_call)
-		choose_cmd = _CommandChooser(requests, tagbits)
-		choose_req = _CommandChooser(requests, tagbits)
+		choose_cmd = _CommandChooser(requests)
+		choose_req = _CommandChooser(requests)
 		self.comb += [
 			choose_cmd.want_reads.eq(0),
 			choose_cmd.want_writes.eq(0)
@@ -183,13 +136,19 @@ class Multiplexer(Module):
 		self.comb += go_to_refresh.eq(optree("&", [bm.refresh_gnt for bm in bank_machines]))
 		
 		# Datapath
-		datapath = _Datapath(timing_settings, choose_req.cmd, dfi, hub)
-		self.submodules += datapath
+		all_rddata = [p.rddata for p in dfi.phases]
+		all_wrdata = [p.wrdata for p in dfi.phases]
+		all_wrdata_mask = [p.wrdata_mask for p in dfi.phases]
+		self.comb += [
+			lasmic.dat_r.eq(Cat(*all_rddata)),
+			Cat(*all_wrdata).eq(lasmic.dat_w),
+			Cat(*all_wrdata_mask).eq(~lasmic.dat_we)
+		]
 		
 		# Control FSM
 		fsm = FSM("READ", "WRITE", "REFRESH", delayed_enters=[
-			("RTW", "WRITE", timing_settings.rd_delay),
-			("WTR", "READ", timing_settings.tWR)
+			("RTW", "WRITE", timing_settings.read_latency),
+			("WTR", "READ", timing_settings.tWTR)
 		])
 		self.submodules += fsm
 		fsm.act(fsm.READ,

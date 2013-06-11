@@ -3,11 +3,12 @@ from math import ceil
 from operator import itemgetter
 
 from migen.fhdl.std import *
-from migen.bus import wishbone, wishbone2asmi, csr, wishbone2csr, dfi
+from migen.bus import wishbone, csr, lasmibus, dfi
+from migen.bus import wishbone2lasmi, wishbone2csr
 from migen.bank import csrgen
 
-from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, asmicon, \
-	identifier, timer, minimac3, framebuffer, asmiprobe, dvisampler, \
+from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
+	identifier, timer, minimac3, framebuffer, dvisampler, \
 	counteradc, gpio
 from milkymist.cif import get_macros
 
@@ -23,26 +24,28 @@ def ns(t, margin=True):
 		t += clk_period_ns/2
 	return ceil(t/clk_period_ns)
 
-sdram_phy = asmicon.PhySettings(
+sdram_phy = lasmicon.PhySettings(
 	dfi_d=64, 
 	nphases=2,
 	rdphase=0,
 	wrphase=1
 )
-sdram_geom = asmicon.GeomSettings(
+sdram_geom = lasmicon.GeomSettings(
 	bank_a=2,
 	row_a=13,
 	col_a=10
 )
-sdram_timing = asmicon.TimingSettings(
+sdram_timing = lasmicon.TimingSettings(
 	tRP=ns(15),
 	tRCD=ns(15),
 	tWR=ns(15),
+	tWTR=2,
 	tREFI=ns(7800, False),
 	tRFC=ns(70),
 	
 	CL=3,
-	rd_delay=4,
+	read_latency=5,
+	write_latency=1,
 
 	read_time=32,
 	write_time=16
@@ -72,14 +75,13 @@ class SoC(Module):
 		"timer0":				4,
 		"minimac":				5,
 		"fb":					6,
-		"asmiprobe":			7,
-		"dvisampler0":			8,
-		"dvisampler0_edid_mem":	9,
-		"dvisampler1":			10,
-		"dvisampler1_edid_mem":	11,
-		"pots":					12,
-		"buttons":				13,
-		"leds":					14
+		"dvisampler0":			7,
+		"dvisampler0_edid_mem":	8,
+		"dvisampler1":			9,
+		"dvisampler1_edid_mem":	10,
+		"pots":					11,
+		"buttons":				12,
+		"leds":					13
 	}
 
 	interrupt_map = {
@@ -92,15 +94,11 @@ class SoC(Module):
 
 	def __init__(self, platform):
 		#
-		# ASMI
+		# LASMI
 		#
-		self.submodules.asmicon = asmicon.ASMIcon(sdram_phy, sdram_geom, sdram_timing)
-		asmiport_wb = self.asmicon.hub.get_port()
-		asmiport_fb0 = self.asmicon.hub.get_port(4)
-		asmiport_fb1 = self.asmicon.hub.get_port(4)
-		asmiport_dvi0 = self.asmicon.hub.get_port(4)
-		asmiport_dvi1 = self.asmicon.hub.get_port(4)
-		self.asmicon.finalize()
+		self.submodules.lasmicon = lasmicon.LASMIcon(sdram_phy, sdram_geom, sdram_timing)
+		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], 5, self.lasmicon.nrowbits)
+		lasmim_wb, lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = self.lasmixbar.masters
 		
 		#
 		# DFI
@@ -109,7 +107,7 @@ class SoC(Module):
 		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d,
 			sdram_phy.nphases)
 		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)
-		self.submodules.dficon1 = dfi.Interconnect(self.asmicon.dfi, self.dfii.slave)
+		self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
 
 		#
 		# WISHBONE
@@ -118,7 +116,7 @@ class SoC(Module):
 		self.submodules.norflash = norflash.NorFlash(platform.request("norflash"), 12)
 		self.submodules.sram = wishbone.SRAM(sram_size)
 		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
-		self.submodules.wishbone2asmi = wishbone2asmi.WB2ASMI(l2_size//4, asmiport_wb)
+		self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(l2_size//4, lasmim_wb)
 		self.submodules.wishbone2csr = wishbone2csr.WB2CSR()
 		
 		# norflash     0x00000000 (shadow @0x80000000)
@@ -135,7 +133,7 @@ class SoC(Module):
 				(lambda a: a[26:29] == 0, self.norflash.bus),
 				(lambda a: a[26:29] == 1, self.sram.bus),
 				(lambda a: a[26:29] == 3, self.minimac.membus),
-				(lambda a: a[27:29] == 2, self.wishbone2asmi.wishbone),
+				(lambda a: a[27:29] == 2, self.wishbone2lasmi.wishbone),
 				(lambda a: a[27:29] == 3, self.wishbone2csr.wishbone)
 			],
 			register=True)
@@ -147,10 +145,9 @@ class SoC(Module):
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(0x4D31, version, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
-		self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga"), asmiport_fb0, asmiport_fb1)
-		self.submodules.asmiprobe = asmiprobe.ASMIprobe(self.asmicon.hub)
-		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), asmiport_dvi0)
-		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), asmiport_dvi1)
+		self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga"), lasmim_fb0, lasmim_fb1)
+		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), lasmim_dvi0)
+		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), lasmim_dvi1)
 		pots_pads = platform.request("dvi_pots")
 		self.submodules.pots = counteradc.CounterADC(pots_pads.charge,
 			[pots_pads.blackout, pots_pads.crossfade])

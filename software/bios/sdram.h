@@ -10,6 +10,4 @@ int memtest_silent(void);
 int memtest(void);
 int ddrinit(void);
 
-void asmiprobe(void);
-
 #endif /* __SDRAM_H */

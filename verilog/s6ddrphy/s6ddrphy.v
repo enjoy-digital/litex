@@ -2,12 +2,12 @@
  * 1:2 frequency-ratio DDR PHY for Spartan-6
  *
  * Assert dfi_wrdata_en and present the data 
- * on dfi_wrdata_mask/dfi_wrdata in the same
- * cycle as the write command.
+ * on dfi_wrdata_mask/dfi_wrdata in the cycle
+ * immediately following the write command.
  *
  * Assert dfi_rddata_en in the same cycle as the read
  * command. The data will come back on dfi_rddata
- * 4 cycles later, along with the assertion of
+ * 5 cycles later, along with the assertion of
  * dfi_rddata_valid.
  *
  * This PHY only supports CAS Latency 3.
@@ -75,6 +75,39 @@ module s6ddrphy #(
  * Command/address
  */
 
+reg [NUM_AD-1:0] r0_dfi_address_p0;
+reg [NUM_BA-1:0] r0_dfi_bank_p0;
+reg r0_dfi_cs_n_p0;
+reg r0_dfi_cke_p0;
+reg r0_dfi_ras_n_p0;
+reg r0_dfi_cas_n_p0;
+reg r0_dfi_we_n_p0;
+reg [NUM_AD-1:0] r0_dfi_address_p1;
+reg [NUM_BA-1:0] r0_dfi_bank_p1;
+reg r0_dfi_cs_n_p1;
+reg r0_dfi_cke_p1;
+reg r0_dfi_ras_n_p1;
+reg r0_dfi_cas_n_p1;
+reg r0_dfi_we_n_p1;
+	
+always @(posedge sys_clk) begin
+	r0_dfi_address_p0 <= dfi_address_p0;
+	r0_dfi_bank_p0 <= dfi_bank_p0;
+	r0_dfi_cs_n_p0 <= dfi_cs_n_p0;
+	r0_dfi_cke_p0 <= dfi_cke_p0;
+	r0_dfi_ras_n_p0 <= dfi_ras_n_p0;
+	r0_dfi_cas_n_p0 <= dfi_cas_n_p0;
+	r0_dfi_we_n_p0 <= dfi_we_n_p0;
+	
+	r0_dfi_address_p1 <= dfi_address_p1;
+	r0_dfi_bank_p1 <= dfi_bank_p1;
+	r0_dfi_cs_n_p1 <= dfi_cs_n_p1;
+	r0_dfi_cke_p1 <= dfi_cke_p1;
+	r0_dfi_ras_n_p1 <= dfi_ras_n_p1;
+	r0_dfi_cas_n_p1 <= dfi_cas_n_p1;
+	r0_dfi_we_n_p1 <= dfi_we_n_p1;
+end
+
 reg phase_sel;
 always @(posedge clk2x_270)
 	phase_sel <= sys_clk;
@@ -95,21 +128,21 @@ reg r_dfi_cas_n_p1;
 reg r_dfi_we_n_p1;
 	
 always @(posedge clk2x_270) begin
-	r_dfi_address_p0 <= dfi_address_p0;
-	r_dfi_bank_p0 <= dfi_bank_p0;
-	r_dfi_cs_n_p0 <= dfi_cs_n_p0;
-	r_dfi_cke_p0 <= dfi_cke_p0;
-	r_dfi_ras_n_p0 <= dfi_ras_n_p0;
-	r_dfi_cas_n_p0 <= dfi_cas_n_p0;
-	r_dfi_we_n_p0 <= dfi_we_n_p0;
+	r_dfi_address_p0 <= r0_dfi_address_p0;
+	r_dfi_bank_p0 <= r0_dfi_bank_p0;
+	r_dfi_cs_n_p0 <= r0_dfi_cs_n_p0;
+	r_dfi_cke_p0 <= r0_dfi_cke_p0;
+	r_dfi_ras_n_p0 <= r0_dfi_ras_n_p0;
+	r_dfi_cas_n_p0 <= r0_dfi_cas_n_p0;
+	r_dfi_we_n_p0 <= r0_dfi_we_n_p0;
 	
-	r_dfi_address_p1 <= dfi_address_p1;
-	r_dfi_bank_p1 <= dfi_bank_p1;
-	r_dfi_cs_n_p1 <= dfi_cs_n_p1;
-	r_dfi_cke_p1 <= dfi_cke_p1;
-	r_dfi_ras_n_p1 <= dfi_ras_n_p1;
-	r_dfi_cas_n_p1 <= dfi_cas_n_p1;
-	r_dfi_we_n_p1 <= dfi_we_n_p1;
+	r_dfi_address_p1 <= r0_dfi_address_p1;
+	r_dfi_bank_p1 <= r0_dfi_bank_p1;
+	r_dfi_cs_n_p1 <= r0_dfi_cs_n_p1;
+	r_dfi_cke_p1 <= r0_dfi_cke_p1;
+	r_dfi_ras_n_p1 <= r0_dfi_ras_n_p1;
+	r_dfi_cas_n_p1 <= r0_dfi_cas_n_p1;
+	r_dfi_we_n_p1 <= r0_dfi_we_n_p1;
 end
 
 always @(posedge clk2x_270) begin
@@ -334,10 +367,10 @@ end
 assign drive_dqs = r2_dfi_wrdata_en;
 
 wire rddata_valid;
-reg [4:0] rddata_sr;
+reg [5:0] rddata_sr;
 assign dfi_rddata_valid_w0 = rddata_sr[0];
 assign dfi_rddata_valid_w1 = rddata_sr[0];
 always @(posedge sys_clk)
-	rddata_sr <= {dfi_rddata_en_p0, rddata_sr[4:1]};
+	rddata_sr <= {dfi_rddata_en_p0, rddata_sr[5:1]};
 
 endmodule

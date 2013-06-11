@@ -3,7 +3,7 @@ from migen.genlib.fsm import FSM
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 from migen.flow.actor import *
-from migen.actorlib import dma_asmi
+from migen.actorlib import dma_lasmi
 
 from milkymist.dvisampler.common import frame_layout
 
@@ -55,9 +55,9 @@ class _SlotArray(Module, AutoCSR):
 		self.comb += [slot.address_done.eq(self.address_done & (current_slot == n)) for n, slot in enumerate(slots)]
 
 class DMA(Module):
-	def __init__(self, asmiport, nslots):
-		bus_aw = asmiport.hub.aw
-		bus_dw = asmiport.hub.dw
+	def __init__(self, lasmim, nslots):
+		bus_aw = lasmim.aw
+		bus_dw = lasmim.dw
 		alignment_bits = bits_for(bus_dw//8) - 1
 
 		self.frame = Sink(frame_layout)
@@ -112,7 +112,7 @@ class DMA(Module):
 			)
 
 		# bus accessor
-		self.submodules._bus_accessor = dma_asmi.Writer(asmiport)
+		self.submodules._bus_accessor = dma_lasmi.Writer(lasmim)
 		self.comb += [
 			self._bus_accessor.address_data.payload.a.eq(current_address),
 			self._bus_accessor.address_data.payload.d.eq(cur_memory_word)

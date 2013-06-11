@@ -2,18 +2,18 @@ from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.flow.network import *
 from migen.bank.description import CSRStorage, AutoCSR
-from migen.actorlib import dma_asmi, structuring, sim, spi
+from migen.actorlib import dma_lasmi, structuring, sim, spi
 
 from milkymist.framebuffer.lib import bpp, pixel_layout, dac_layout, FrameInitiator, VTG, FIFO
 
 class Framebuffer(Module):
-	def __init__(self, pads, asmiport, simulation=False):
-		pack_factor = asmiport.hub.dw//(2*bpp)
+	def __init__(self, pads, lasmim, simulation=False):
+		pack_factor = lasmim.dw//(2*bpp)
 		packed_pixels = structuring.pack_layout(pixel_layout, pack_factor)
 		
 		fi = FrameInitiator()
-		dma = spi.DMAReadController(dma_asmi.Reader(asmiport), spi.MODE_EXTERNAL, length_reset=640*480*4)
-		cast = structuring.Cast(asmiport.hub.dw, packed_pixels, reverse_to=True)
+		dma = spi.DMAReadController(dma_lasmi.Reader(lasmim), spi.MODE_EXTERNAL, length_reset=640*480*4)
+		cast = structuring.Cast(lasmim.dw, packed_pixels, reverse_to=True)
 		unpack = structuring.Unpack(pack_factor, pixel_layout)
 		vtg = VTG()
 		if simulation:
@@ -93,19 +93,19 @@ class Blender(PipelinedActor, AutoCSR):
 		self.comb += self.source.payload.eq(outval)
 
 class MixFramebuffer(Module, AutoCSR):
-	def __init__(self, pads, *asmiports, blender_latency=5):
-		pack_factor = asmiports[0].hub.dw//(2*bpp)
+	def __init__(self, pads, *lasmims, blender_latency=5):
+		pack_factor = lasmims[0].dw//(2*bpp)
 		packed_pixels = structuring.pack_layout(pixel_layout, pack_factor)
 		
 		self._enable = CSRStorage()
 		self.fi = FrameInitiator()
-		self.blender = Blender(len(asmiports), blender_latency)
+		self.blender = Blender(len(lasmims), blender_latency)
 		self.comb += self.fi.trigger.eq(self._enable.storage)
 
 		g = DataFlowGraph()
-		for n, asmiport in enumerate(asmiports):
-			dma = spi.DMAReadController(dma_asmi.Reader(asmiport), spi.MODE_EXTERNAL, length_reset=640*480*4)
-			cast = structuring.Cast(asmiport.hub.dw, packed_pixels, reverse_to=True)
+		for n, lasmim in enumerate(lasmims):
+			dma = spi.DMAReadController(dma_lasmi.Reader(lasmim), spi.MODE_EXTERNAL, length_reset=640*480*4)
+			cast = structuring.Cast(lasmim.dw, packed_pixels, reverse_to=True)
 			unpack = structuring.Unpack(pack_factor, pixel_layout)
 
 			g.add_connection(dma, cast)

@@ -367,7 +367,6 @@ static void do_command(char *c)
 	else if(strcmp(token, "ddrwr") == 0) ddrwr(get_token(&c));
 	else if(strcmp(token, "memtest") == 0) memtest();
 	else if(strcmp(token, "ddrinit") == 0) ddrinit();
-	else if(strcmp(token, "asmiprobe") == 0) asmiprobe();
 	
 	else if(strcmp(token, "dfs") == 0) dfs(get_token(&c));
 

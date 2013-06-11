@@ -127,9 +127,9 @@ void ddrrd(char *startaddr)
 	cdelay(15);
 	
 	for(i=0;i<8;i++)
-		printf("%02x", MMPTR(0xe0000834+4*i));
+		printf("%02x", MMPTR(0xe0001038+4*i));
 	for(i=0;i<8;i++)
-		printf("%02x", MMPTR(0xe0000884+4*i));
+		printf("%02x", MMPTR(0xe000108c+4*i));
 	printf("\n");
 }
 
@@ -150,8 +150,8 @@ void ddrwr(char *startaddr)
 	}
 	
 	for(i=0;i<8;i++) {
-		MMPTR(0xe0000814+4*i) = i;
-		MMPTR(0xe0000864+4*i) = 0xf0 + i;
+		MMPTR(0xe0001018+4*i) = i;
+		MMPTR(0xe000106c+4*i) = 0xf0 + i;
 	}
 	
 	dfii_pi1_address_write(addr);
@@ -208,33 +208,4 @@ int ddrinit(void)
 		return 0;
 	
 	return 1;
-}
-
-static const char *format_slot_state(int state)
-{
-	switch(state) {
-		case 0: return "Empty";
-		case 1: return "Pending";
-		case 2: return "Processing";
-		default: return "UNEXPECTED VALUE";
-	}
-}
-
-void asmiprobe(void)
-{
-	volatile unsigned int *regs = (unsigned int *)ASMIPROBE_BASE;
-	int slot_count;
-	int trace_depth;
-	int i;
-	int offset;
-	
-	offset = 0;
-	slot_count = regs[offset++];
-	trace_depth = regs[offset++];
-	for(i=0;i<slot_count;i++)
-		printf("Slot #%d: %s\n", i, format_slot_state(regs[offset++]));
-	printf("Latest tags:\n");
-	for(i=0;i<trace_depth;i++)
-		printf("%d ", regs[offset++]);
-	printf("\n");
 }
