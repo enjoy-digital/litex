@@ -7,7 +7,7 @@
  *
  * Assert dfi_rddata_en in the same cycle as the read
  * command. The data will come back on dfi_rddata
- * 4 cycles later, along with the assertion of
+ * 5 cycles later, along with the assertion of
  * dfi_rddata_valid.
  *
  * This PHY only supports CAS Latency 3.
