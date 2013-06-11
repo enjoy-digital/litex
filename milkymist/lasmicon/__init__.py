@@ -48,8 +48,8 @@ class LASMIcon(Module):
 			aw=geom_settings.row_a + geom_settings.col_a - address_align,
 			dw=phy_settings.dfi_d*phy_settings.nphases,
 			nbanks=2**geom_settings.bank_a,
-			read_latency=timing_settings.read_latency,
-			write_latency=timing_settings.write_latency)
+			read_latency=timing_settings.read_latency+1,
+			write_latency=timing_settings.write_latency+1)
 		self.nrowbits = geom_settings.col_a - address_align
 	
 		###
