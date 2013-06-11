@@ -65,7 +65,6 @@ class _Steerer(Module):
 			else:
 				return cmd.stb & getattr(cmd, attr)
 		for phase, sel in zip(dfi.phases, self.sel):
-			wrdata_en_adv = Signal()
 			self.comb += [
 				phase.cke.eq(1),
 				phase.cs_n.eq(0)
@@ -77,8 +76,7 @@ class _Steerer(Module):
 				phase.ras_n.eq(Array(cmd.ras_n for cmd in commands)[sel]),
 				phase.we_n.eq(Array(cmd.we_n for cmd in commands)[sel]),
 				phase.rddata_en.eq(Array(stb_and(cmd, "is_read") for cmd in commands)[sel]),
-				wrdata_en_adv.eq(Array(stb_and(cmd, "is_write") for cmd in commands)[sel]),
-				phase.wrdata_en.eq(wrdata_en_adv)
+				phase.wrdata_en.eq(Array(stb_and(cmd, "is_write") for cmd in commands)[sel])
 			]
 
 class Multiplexer(Module):

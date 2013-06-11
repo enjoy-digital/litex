@@ -13,7 +13,6 @@ class PhaseInjector(Module, AutoCSR):
 	
 		###
 
-		wrdata_en_adv = Signal()
 		self.comb += [
 			If(self._command_issue.re,
 				phase.cs_n.eq(~self._command.storage[0]),
@@ -28,15 +27,12 @@ class PhaseInjector(Module, AutoCSR):
 			),
 			phase.address.eq(self._address.storage),
 			phase.bank.eq(self._baddress.storage),
-			wrdata_en_adv.eq(self._command_issue.re & self._command.storage[4]),
+			phase.wrdata_en.eq(self._command_issue.re & self._command.storage[4]),
 			phase.rddata_en.eq(self._command_issue.re & self._command.storage[5]),
 			phase.wrdata.eq(self._wrdata.storage),
 			phase.wrdata_mask.eq(0)
 		]
-		self.sync += [
-			phase.wrdata_en.eq(wrdata_en_adv),
-			If(phase.rddata_valid, self._rddata.status.eq(phase.rddata))
-		]
+		self.sync += If(phase.rddata_valid, self._rddata.status.eq(phase.rddata))
 
 class DFIInjector(Module, AutoCSR):
 	def __init__(self, a, ba, d, nphases=1):

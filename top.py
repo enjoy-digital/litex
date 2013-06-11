@@ -44,8 +44,8 @@ sdram_timing = lasmicon.TimingSettings(
 	tRFC=ns(70),
 	
 	CL=3,
-	read_latency=5,
-	write_latency=1,
+	read_latency=4,
+	write_latency=0,
 
 	read_time=32,
 	write_time=16
