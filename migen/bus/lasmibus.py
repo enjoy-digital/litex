@@ -133,7 +133,10 @@ class Crossbar(Module):
 			cba_upper = cba_shift + controller_bits + bank_bits
 			self.comb += cba.eq(master.adr[cba_shift:cba_upper])
 			if cba_shift < rca_bits:
-				self.comb += rca.eq(Cat(master.adr[:cba_shift], master.adr[cba_upper:]))
+				if cba_shift:
+					self.comb += rca.eq(Cat(master.adr[:cba_shift], master.adr[cba_upper:]))
+				else:
+					self.comb += rca.eq(master.adr[cba_upper:])
 			else:
 				self.comb += rca.eq(master.adr[:cba_shift])
 
