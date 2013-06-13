@@ -53,7 +53,8 @@ class Framebuffer(Module):
 
 class Blender(PipelinedActor, AutoCSR):
 	def __init__(self, nimages, latency):
-		self.sink = Sink([("i"+str(i), pixel_layout) for i in range(nimages)])
+		sink_layout = [("i"+str(i), pixel_layout) for i in range(nimages)]
+		self.sink = Sink(sink_layout)
 		self.source = Source(pixel_layout)
 		factors = []
 		for i in range(nimages):
@@ -65,7 +66,10 @@ class Blender(PipelinedActor, AutoCSR):
 
 		###
 
-		imgs = [getattr(self.sink.payload, "i"+str(i)) for i in range(nimages)]
+		sink_registered = Record(sink_layout)
+		self.sync += If(self.pipe_ce, sink_registered.eq(self.sink.payload))
+
+		imgs = [getattr(sink_registered, "i"+str(i)) for i in range(nimages)]
 		outval = Record(pixel_layout)
 		for e in pixel_layout:
 			name = e[0]
@@ -85,7 +89,7 @@ class Blender(PipelinedActor, AutoCSR):
 				]
 
 		pipe_stmts = []
-		for i in range(latency):
+		for i in range(latency-1):
 			new_outval = Record(pixel_layout)
 			pipe_stmts.append(new_outval.eq(outval))
 			outval = new_outval
