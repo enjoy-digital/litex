@@ -8,6 +8,7 @@
 #include <console.h>
 
 #include "time.h"
+#include "fb.h"
 #include "dvisampler0.h"
 #include "dvisampler1.h"
 
@@ -80,10 +81,10 @@ static void fb_service(void)
 	if(readchar_nonblock()) {
 		c = readchar();
 		if(c == '1') {
-			fb_enable_write(1);
+			fb_enable(1);
 			printf("Framebuffer is ON\n");
 		} else if(c == '0') {
-			fb_enable_write(0);
+			fb_enable(0);
 			printf("Framebuffer is OFF\n");
 		}
 	}
@@ -98,9 +99,10 @@ int main(void)
 	puts("Minimal video mixer software built "__DATE__" "__TIME__"\n");
 	
 	time_init();
+	fb_set_mode(FB_MODE_640_480);
 	dvisampler0_init_video();
 	dvisampler1_init_video();
-	fb_enable_write(1);
+	fb_enable(1);
 
 	while(1) {
 		dvisampler0_service();

@@ -7,12 +7,13 @@
 #include <hw/flags.h>
 
 #include "time.h"
+#include "fb.h"
 #include "dvisamplerX.h"
 
 #define FRAMEBUFFER_COUNT 4
 #define FRAMEBUFFER_MASK (FRAMEBUFFER_COUNT - 1)
 
-static unsigned int dvisamplerX_framebuffers[FRAMEBUFFER_COUNT][640*480] __attribute__((aligned(16)));
+static unsigned int dvisamplerX_framebuffers[FRAMEBUFFER_COUNT][800*600] __attribute__((aligned(16)));
 static int dvisamplerX_fb_slot_indexes[2];
 static int dvisamplerX_next_fb_index;
 
@@ -49,7 +50,7 @@ void dvisamplerX_init_video(void)
 	mask |= 1 << DVISAMPLERX_INTERRUPT;
 	irq_setmask(mask);
 
-	dvisamplerX_dma_frame_size_write(sizeof(dvisamplerX_framebuffers[0]));
+	dvisamplerX_dma_frame_size_write(fb_hres*fb_vres*4);
 	dvisamplerX_fb_slot_indexes[0] = 0;
 	dvisamplerX_dma_slot0_address_write((unsigned int)dvisamplerX_framebuffers[0]);
 	dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
