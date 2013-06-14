@@ -4,8 +4,8 @@
 void dvisamplerX_isr(void);
 void dvisamplerX_init_video(void);
 void dvisamplerX_print_status(void);
-void dvisamplerX_calibrate_delays(void);
-void dvisamplerX_adjust_phase(void);
+int dvisamplerX_calibrate_delays(void);
+int dvisamplerX_adjust_phase(void);
 int dvisamplerX_init_phase(void);
 int dvisamplerX_phase_startup(void);
 void dvisamplerX_service(void);

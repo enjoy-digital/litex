@@ -85,14 +85,30 @@ void dvisamplerX_print_status(void)
 		dvisamplerX_resdetection_vres_read());
 }
 
-void dvisamplerX_calibrate_delays(void)
+static int wait_idelays(void)
+{
+	int ev;
+
+	ev = 0;
+	elapsed(&ev, 1);
+	while(dvisamplerX_data0_cap_dly_busy_read()
+	  || dvisamplerX_data1_cap_dly_busy_read()
+	  || dvisamplerX_data2_cap_dly_busy_read()) {
+		if(elapsed(&ev, identifier_frequency_read() >> 6) == 0) {
+			printf("IDELAY busy timeout\n");
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int dvisamplerX_calibrate_delays(void)
 {
 	dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
 	dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
 	dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
-	while(dvisamplerX_data0_cap_dly_busy_read()
-		|| dvisamplerX_data1_cap_dly_busy_read()
-		|| dvisamplerX_data2_cap_dly_busy_read());
+	if(!wait_idelays())
+		return 0;
 	dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
 	dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
 	dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
@@ -100,20 +116,23 @@ void dvisamplerX_calibrate_delays(void)
 	dvisamplerX_data1_cap_phase_reset_write(1);
 	dvisamplerX_data2_cap_phase_reset_write(1);
 	dvisamplerX_d0 = dvisamplerX_d1 = dvisamplerX_d2 = 0;
+	return 1;
 }
 
-void dvisamplerX_adjust_phase(void)
+int dvisamplerX_adjust_phase(void)
 {
 	switch(dvisamplerX_data0_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
 			dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
-			while(dvisamplerX_data0_cap_dly_busy_read());
+			if(!wait_idelays())
+				return 0;
 			dvisamplerX_d0--;
 			dvisamplerX_data0_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
 			dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
-			while(dvisamplerX_data0_cap_dly_busy_read());
+			if(!wait_idelays())
+				return 0;
 			dvisamplerX_d0++;
 			dvisamplerX_data0_cap_phase_reset_write(1);
 			break;
@@ -121,13 +140,15 @@ void dvisamplerX_adjust_phase(void)
 	switch(dvisamplerX_data1_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
 			dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
-			while(dvisamplerX_data1_cap_dly_busy_read());
+			if(!wait_idelays())
+				return 0;
 			dvisamplerX_d1--;
 			dvisamplerX_data1_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
 			dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
-			while(dvisamplerX_data1_cap_dly_busy_read());
+			if(!wait_idelays())
+				return 0;
 			dvisamplerX_d1++;
 			dvisamplerX_data1_cap_phase_reset_write(1);
 			break;
@@ -135,17 +156,20 @@ void dvisamplerX_adjust_phase(void)
 	switch(dvisamplerX_data2_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
 			dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_DEC);
-			while(dvisamplerX_data2_cap_dly_busy_read());
+			if(!wait_idelays())
+				return 0;
 			dvisamplerX_d2--;
 			dvisamplerX_data2_cap_phase_reset_write(1);
 			break;
 		case DVISAMPLER_TOO_EARLY:
 			dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_INC);
-			while(dvisamplerX_data2_cap_dly_busy_read());
+			if(!wait_idelays())
+				return 0;
 			dvisamplerX_d2++;
 			dvisamplerX_data2_cap_phase_reset_write(1);
 			break;
 	}
+	return 1;
 }
 
 int dvisamplerX_init_phase(void)
@@ -157,8 +181,10 @@ int dvisamplerX_init_phase(void)
 		o_d0 = dvisamplerX_d0;
 		o_d1 = dvisamplerX_d1;
 		o_d2 = dvisamplerX_d2;
-		for(j=0;j<1000;j++)
-			dvisamplerX_adjust_phase();
+		for(j=0;j<1000;j++) {
+			if(!dvisamplerX_adjust_phase())
+				return 0;
+		}
 		if((abs(dvisamplerX_d0 - o_d0) < 4) && (abs(dvisamplerX_d1 - o_d1) < 4) && (abs(dvisamplerX_d2 - o_d2) < 4))
 			return 1;
 	}
@@ -180,7 +206,7 @@ int dvisamplerX_phase_startup(void)
 			printf("dvisamplerX: phase init OK\n");
 			return 1;
 		} else {
-			printf("dvisamplerX: phase did not settle\n");
+			printf("dvisamplerX: phase init failed\n");
 			if(attempts > 3) {
 				printf("dvisamplerX: giving up\n");
 				dvisamplerX_calibrate_delays();
