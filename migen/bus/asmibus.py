@@ -9,10 +9,11 @@ from migen.sim.generic import Proxy
 
 class Slot(Module):
 	def __init__(self, aw, time):
+		self.time = time
 		self.state = Signal(2)
 		self.we = Signal()
 		self.adr = Signal(aw)
-		if time:
+		if self.time:
 			self.mature = Signal()
 		
 		self.allocate = Signal()
@@ -32,14 +33,14 @@ class Slot(Module):
 			If(self.process, self.state.eq(SLOT_PROCESSING)),
 			If(self.call, self.state.eq(SLOT_EMPTY))
 		]
-		if time:
-			_counter = Signal(max=time+1)
-			self.comb += self.mature.eq(self._counter == 0)
+		if self.time:
+			counter = Signal(max=self.time+1)
+			self.comb += self.mature.eq(counter == 0)
 			self.sync += [
 				If(self.allocate,
-					self._counter.eq(self.time)
-				).Elif(self._counter != 0,
-					self._counter.eq(self._counter - 1)
+					counter.eq(self.time)
+				).Elif(counter != 0,
+					counter.eq(counter - 1)
 				)
 			]
 
