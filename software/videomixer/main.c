@@ -102,9 +102,9 @@ static void membw_service(void)
 		nr = lasmicon_bandwidth_nreads_read();
 		nw = lasmicon_bandwidth_nwrites_read();
 		f = identifier_frequency_read();
-		rdb = nr*f >> (24LL - 7ULL);
-		wrb = nw*f >> (24LL - 7ULL);
-		printf("read: %4dMbps write: %4dMbps\n", rdb/1000000, wrb/1000000);
+		rdb = nr*f >> (24 - 7);
+		wrb = nw*f >> (24 - 7);
+		printf("read:%4dMbps  write:%4dMbps  all:%4dMbps\n", rdb/1000000, wrb/1000000, (rdb + wrb)/1000000);
 	}
 }
 
