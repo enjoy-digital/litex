@@ -62,3 +62,6 @@ class LASMIcon(Module):
 		self.submodules.multiplexer = Multiplexer(phy_settings, geom_settings, timing_settings,
 			self.bank_machines, self.refresher,
 			self.dfi, self.lasmic)
+
+	def get_csrs(self):
+		return self.multiplexer.get_csrs()

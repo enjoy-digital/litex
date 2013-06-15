@@ -75,13 +75,14 @@ class SoC(Module):
 		"timer0":				4,
 		"minimac":				5,
 		"fb":					6,
-		"dvisampler0":			7,
-		"dvisampler0_edid_mem":	8,
-		"dvisampler1":			9,
-		"dvisampler1_edid_mem":	10,
-		"pots":					11,
-		"buttons":				12,
-		"leds":					13
+		"lasmicon":				7,
+		"dvisampler0":			8,
+		"dvisampler0_edid_mem":	9,
+		"dvisampler1":			10,
+		"dvisampler1_edid_mem":	11,
+		"pots":					12,
+		"buttons":				13,
+		"leds":					14
 	}
 
 	interrupt_map = {

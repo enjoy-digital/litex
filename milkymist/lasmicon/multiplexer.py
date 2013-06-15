@@ -2,6 +2,9 @@ from migen.fhdl.std import *
 from migen.genlib.roundrobin import *
 from migen.genlib.misc import optree
 from migen.genlib.fsm import FSM
+from migen.bank.description import AutoCSR
+
+from milkymist.lasmicon.perf import Bandwidth
 
 class CommandRequest:
 	def __init__(self, a, ba):
@@ -79,7 +82,7 @@ class _Steerer(Module):
 				phase.wrdata_en.eq(Array(stb_and(cmd, "is_write") for cmd in commands)[sel])
 			]
 
-class Multiplexer(Module):
+class Multiplexer(Module, AutoCSR):
 	def __init__(self, phy_settings, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic):
 		assert(phy_settings.nphases == len(dfi.phases))
 		if phy_settings.nphases != 2:
@@ -180,3 +183,5 @@ class Multiplexer(Module):
 		)
 		# FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
 		self.comb += refresher.ack.eq(fsm._state == fsm.REFRESH)
+
+		self.submodules.bandwidth = Bandwidth(choose_req.cmd)

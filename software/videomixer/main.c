@@ -90,6 +90,24 @@ static void fb_service(void)
 	}
 }
 
+static void membw_service(void)
+{
+	static int last_event;
+	unsigned long long int nr, nw;
+	unsigned long long int f;
+	unsigned int rdb, wrb;
+
+	if(elapsed(&last_event, identifier_frequency_read())) {
+		lasmicon_bandwidth_update_write(1);
+		nr = lasmicon_bandwidth_nreads_read();
+		nw = lasmicon_bandwidth_nwrites_read();
+		f = identifier_frequency_read();
+		rdb = nr*f >> (24LL - 7ULL);
+		wrb = nw*f >> (24LL - 7ULL);
+		printf("read: %4dMbps write: %4dMbps\n", rdb/1000000, wrb/1000000);
+	}
+}
+
 int main(void)
 {
 	irq_setmask(0);
@@ -109,6 +127,7 @@ int main(void)
 		dvisampler1_service();
 		pots_service();
 		fb_service();
+		membw_service();
 	}
 	
 	return 0;
