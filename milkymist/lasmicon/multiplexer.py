@@ -148,8 +148,8 @@ class Multiplexer(Module, AutoCSR):
 		
 		# Control FSM
 		fsm = FSM("READ", "WRITE", "REFRESH", delayed_enters=[
-			("RTW", "WRITE", timing_settings.read_latency),
-			("WTR", "READ", timing_settings.tWTR)
+			("RTW", "WRITE", timing_settings.read_latency-1),
+			("WTR", "READ", timing_settings.tWTR-1)
 		])
 		self.submodules += fsm
 		fsm.act(fsm.READ,
