@@ -65,14 +65,11 @@ class Crossbar(Module):
 				bank = getattr(controller, "bank"+str(nb))
 
 				# arbitrate
-				rr = roundrobin.RoundRobin(nmasters, roundrobin.SP_CE)
+				rr = roundrobin.RoundRobin(nmasters, roundrobin.SP_WITHDRAW)
 				self.submodules += rr
 				bank_selected = [cs & (ba == nb) for cs, ba in zip(controller_selected, m_ba)]
 				bank_requested = [bs & master.stb for bs, master in zip(bank_selected, self.masters)]
-				self.comb += [
-					rr.request.eq(Cat(*bank_requested)),
-					rr.ce.eq(~bank.stb | bank.ack)
-				]
+				self.comb += rr.request.eq(Cat(*bank_requested)),
 
 				# route requests
 				self.comb += [
