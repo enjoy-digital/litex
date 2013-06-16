@@ -137,7 +137,7 @@ class RLE:
 			If(diff_rising.o & (~rle_max),
 				self.stb_o.eq(1),
 				self.dat_o[self.width-1].eq(1),
-				self.dat_o[:len(rle_cnt)].eq(rle_cnt)
+				self.dat_o[:flen(rle_cnt)].eq(rle_cnt)
 			).Elif(diff_d | rle_max,
 				self.stb_o.eq(stb_i_d),
 				self.dat_o.eq(dat_i_d)
