@@ -14,7 +14,7 @@ from milkymist.cif import get_macros
 
 version = get_macros("common/version.h")["VERSION"][1:-1]
 
-clk_freq = (62 + Fraction(1, 2))*1000000
+clk_freq = (83 + Fraction(1, 3))*1000000
 sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
 
