@@ -72,8 +72,8 @@ class WB2LASMI(Module):
 		# Control FSM
 		assert(lasmim.write_latency >= 1 and lasmim.read_latency >= 1)
 		fsm = FSM("IDLE", "TEST_HIT",
-			"EVICT_REQUEST", "EVICT_DATA",
-			"REFILL_WRTAG", "REFILL_REQUEST", "REFILL_DATA",
+			"EVICT_REQUEST", "EVICT_WAIT_DATA_ACK", "EVICT_DATA",
+			"REFILL_WRTAG", "REFILL_REQUEST", "REFILL_WAIT_DATA_ACK", "REFILL_DATA",
 			delayed_enters=[
 				("EVICT_DATAD", "EVICT_DATA", lasmim.write_latency-1),
 				("REFILL_DATAD", "REFILL_DATA", lasmim.read_latency-1)
@@ -103,7 +103,10 @@ class WB2LASMI(Module):
 		fsm.act(fsm.EVICT_REQUEST,
 			lasmim.stb.eq(1),
 			lasmim.we.eq(1),
-			If(lasmim.ack, fsm.next_state(fsm.EVICT_DATAD))
+			If(lasmim.req_ack, fsm.next_state(fsm.EVICT_WAIT_DATA_ACK))
+		)
+		fsm.act(fsm.EVICT_WAIT_DATA_ACK,
+			If(lasmim.dat_ack, fsm.next_state(fsm.EVICT_DATAD))
 		)
 		fsm.act(fsm.EVICT_DATA,
 			write_to_lasmi.eq(1),
@@ -117,7 +120,10 @@ class WB2LASMI(Module):
 		)
 		fsm.act(fsm.REFILL_REQUEST,
 			lasmim.stb.eq(1),
-			If(lasmim.ack, fsm.next_state(fsm.REFILL_DATAD))
+			If(lasmim.req_ack, fsm.next_state(fsm.REFILL_WAIT_DATA_ACK))
+		)
+		fsm.act(fsm.REFILL_WAIT_DATA_ACK,
+			If(lasmim.dat_ack, fsm.next_state(fsm.REFILL_DATAD))
 		)
 		fsm.act(fsm.REFILL_DATA,
 			write_from_lasmi.eq(1),

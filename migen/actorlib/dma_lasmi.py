@@ -11,8 +11,7 @@ class Reader(Module):
 		###
 
 		if fifo_depth is None:
-			fifo_depth = lasmim.read_latency + 2
-		assert(fifo_depth >= lasmim.read_latency)
+			fifo_depth = lasmim.req_queue_size + lasmim.read_latency + 2
 	
 		# request issuance
 		request_enable = Signal()
@@ -22,8 +21,8 @@ class Reader(Module):
 			lasmim.we.eq(0),
 			lasmim.stb.eq(self.address.stb & request_enable),
 			lasmim.adr.eq(self.address.payload.a),
-			self.address.ack.eq(lasmim.ack),
-			request_issued.eq(lasmim.stb & lasmim.ack)
+			self.address.ack.eq(lasmim.req_ack),
+			request_issued.eq(lasmim.stb & lasmim.req_ack)
 		]
 
 		# FIFO reservation level counter
@@ -44,7 +43,7 @@ class Reader(Module):
 		]
 
 		# data available
-		data_available = request_issued
+		data_available = lasmim.dat_ack
 		for i in range(lasmim.read_latency):
 			new_data_available = Signal()
 			self.sync += new_data_available.eq(data_available)
@@ -66,42 +65,38 @@ class Reader(Module):
 
 
 class Writer(Module):
-	def __init__(self, lasmim):
+	def __init__(self, lasmim, fifo_depth=None):
 		self.address_data = Sink([("a", lasmim.aw), ("d", lasmim.dw)])
 		self.busy = Signal()
 
 		###
 
+		if fifo_depth is None:
+			fifo_depth = lasmim.req_queue_size + lasmim.read_latency + 2
+
+		fifo = SyncFIFO(lasmim.dw, fifo_depth)
+		self.submodules += fifo
+
 		self.comb += [
 			lasmim.we.eq(1),
-			lasmim.stb.eq(self.address_data.stb),
+			lasmim.stb.eq(fifo.writable & self.address_data.stb),
 			lasmim.adr.eq(self.address_data.payload.a),
-			self.address_data.ack.eq(lasmim.ack)
+			self.address_data.ack.eq(fifo.writable & lasmim.req_ack),
+			fifo.we.eq(self.address_data.stb & lasmim.req_ack),
+			fifo.din.eq(self.address_data.payload.d)
 		]
 
-		busy_expr = 0
-		data_valid = Signal()
-		data = Signal(lasmim.dw)
-		self.comb += [
-			data_valid.eq(lasmim.stb & lasmim.ack),
-			data.eq(self.address_data.payload.d)
-		]
-
+		data_valid = lasmim.dat_ack
 		for i in range(lasmim.write_latency):
 			new_data_valid = Signal()
-			new_data = Signal(lasmim.dw)
-			self.sync += [
-				new_data_valid.eq(data_valid),
-				new_data.eq(data)
-			]
-			busy_expr = busy_expr | new_data_valid
+			self.sync += new_data_valid.eq(data_valid),
 			data_valid = new_data_valid
-			data = new_data
 
 		self.comb += [
+			fifo.re.eq(data_valid),
 			If(data_valid,
 				lasmim.dat_we.eq(2**(lasmim.dw//8)-1),
-				lasmim.dat_w.eq(data)
+				lasmim.dat_w.eq(fifo.dout)
 			),
-			self.busy.eq(busy_expr)
+			self.busy.eq(fifo.readable)
 		]

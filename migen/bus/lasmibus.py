@@ -5,10 +5,11 @@ from migen.genlib.record import *
 from migen.genlib.misc import optree
 
 class Interface(Record):
-	def __init__(self, aw, dw, nbanks, read_latency, write_latency):
+	def __init__(self, aw, dw, nbanks, req_queue_size, read_latency, write_latency):
 		self.aw = aw
 		self.dw = dw
 		self.nbanks = nbanks
+		self.req_queue_size = req_queue_size
 		self.read_latency = read_latency
 		self.write_latency = write_latency
 
@@ -16,7 +17,9 @@ class Interface(Record):
 			("adr",		aw,		DIR_M_TO_S),
 			("we",		1,		DIR_M_TO_S),
 			("stb",		1,		DIR_M_TO_S),
-			("ack",		1,		DIR_S_TO_M)
+			("req_ack",	1,		DIR_S_TO_M),
+			("dat_ack",	1,		DIR_S_TO_M),
+			("lock",	1,		DIR_S_TO_M)
 		]
 		if nbanks > 1:
 			layout = [("bank"+str(i), bank_layout) for i in range(nbanks)]
@@ -43,12 +46,13 @@ class Crossbar(Module):
 		rca_bits = _getattr_all(controllers, "aw")
 		dw = _getattr_all(controllers, "dw")
 		nbanks = _getattr_all(controllers, "nbanks")
+		req_queue_size = _getattr_all(controllers, "req_queue_size")
 		read_latency = _getattr_all(controllers, "read_latency")
 		write_latency = _getattr_all(controllers, "write_latency")
 
 		bank_bits = log2_int(nbanks, False)
 		controller_bits = log2_int(ncontrollers, False)
-		self.masters = [Interface(rca_bits + bank_bits + controller_bits, dw, 1, read_latency, write_latency)
+		self.masters = [Interface(rca_bits + bank_bits + controller_bits, dw, 1, req_queue_size, read_latency, write_latency)
 			for i in range(nmasters)]
 
 		###
@@ -60,16 +64,20 @@ class Crossbar(Module):
 				controller_selected = [ca == nc for ca in m_ca]
 			else:
 				controller_selected = [1]*nmasters
-			master_acks = [0]*nmasters
+			master_req_acks = [0]*nmasters
+			master_dat_acks = [0]*nmasters
 			for nb in range(nbanks):
 				bank = getattr(controller, "bank"+str(nb))
 
 				# arbitrate
-				rr = roundrobin.RoundRobin(nmasters, roundrobin.SP_WITHDRAW)
+				rr = roundrobin.RoundRobin(nmasters, roundrobin.SP_CE)
 				self.submodules += rr
 				bank_selected = [cs & (ba == nb) for cs, ba in zip(controller_selected, m_ba)]
 				bank_requested = [bs & master.stb for bs, master in zip(bank_selected, self.masters)]
-				self.comb += rr.request.eq(Cat(*bank_requested)),
+				self.comb += [
+					rr.request.eq(Cat(*bank_requested)),
+					rr.ce.eq(~bank.stb & ~bank.lock)
+				]
 
 				# route requests
 				self.comb += [
@@ -77,10 +85,13 @@ class Crossbar(Module):
 					bank.we.eq(Array(self.masters)[rr.grant].we),
 					bank.stb.eq(Array(bank_requested)[rr.grant])
 				]
-				master_acks = [master_ack | ((rr.grant == nm) & bank.ack)
-					for nm, master_ack in enumerate(master_acks)]
+				master_req_acks = [master_req_ack | ((rr.grant == nm) & Array(bank_selected)[rr.grant] & bank.req_ack)
+					for nm, master_req_ack in enumerate(master_req_acks)]
+				master_dat_acks = [master_dat_ack | ((rr.grant == nm) & bank.dat_ack)
+					for nm, master_dat_ack in enumerate(master_dat_acks)]
 
-			self.comb += [master.ack.eq(master_ack) for master, master_ack in zip(self.masters, master_acks)]
+			self.comb += [master.req_ack.eq(master_req_ack) for master, master_req_ack in zip(self.masters, master_req_acks)]
+			self.comb += [master.dat_ack.eq(master_dat_ack) for master, master_dat_ack in zip(self.masters, master_dat_acks)]
 
 			# route data writes
 			controller_selected_wl = controller_selected
