@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 from migen.genlib.cdc import NoRetiming, MultiReg, GrayCounter
+from migen.genlib.record import layout_len, Record
 
 def _inc(signal, modulo):
 	if modulo == 2**flen(signal):
@@ -12,17 +13,28 @@ def _inc(signal, modulo):
 		)
 
 class _FIFOInterface:
-	def __init__(self, width, depth):
-		self.din = Signal(width)
+	def __init__(self, width_or_layout, depth):
 		self.we = Signal()
 		self.writable = Signal() # not full
-		self.dout = Signal(width)
 		self.re = Signal()
 		self.readable = Signal() # not empty
 
+		if isinstance(width_or_layout, list):
+			self.din = Record(width_or_layout)
+			self.dout = Record(width_or_layout)
+			self.din_bits = self.din.raw_bits()
+			self.dout_bits = self.dout.raw_bits()
+			self.width = layout_len(width_or_layout)
+		else:
+			self.din = Signal(width_or_layout)
+			self.dout = Signal(width_or_layout)
+			self.din_bits = self.din
+			self.dout_bits = self.dout
+			self.width = width_or_layout
+
 class SyncFIFO(Module, _FIFOInterface):
-	def __init__(self, width, depth):
-		_FIFOInterface.__init__(self, width, depth)
+	def __init__(self, width_or_layout, depth):
+		_FIFOInterface.__init__(self, width_or_layout, depth)
 
 		###
 
@@ -36,14 +48,14 @@ class SyncFIFO(Module, _FIFOInterface):
 		level = Signal(max=depth+1)
 		produce = Signal(max=depth)
 		consume = Signal(max=depth)
-		storage = Memory(width, depth)
+		storage = Memory(self.width, depth)
 		self.specials += storage
 
 		wrport = storage.get_port(write_capable=True)
 		self.specials += wrport
 		self.comb += [
 			wrport.adr.eq(produce),
-			wrport.dat_w.eq(self.din),
+			wrport.dat_w.eq(self.din_bits),
 			wrport.we.eq(do_write)
 		]
 		self.sync += If(do_write, _inc(produce, depth))
@@ -52,7 +64,7 @@ class SyncFIFO(Module, _FIFOInterface):
 		self.specials += rdport
 		self.comb += [
 			rdport.adr.eq(consume),
-			self.dout.eq(rdport.dat_r)
+			self.dout_bits.eq(rdport.dat_r)
 		]
 		self.sync += If(do_read, _inc(consume, depth))
 
@@ -69,8 +81,8 @@ class SyncFIFO(Module, _FIFOInterface):
 		]
 
 class AsyncFIFO(Module, _FIFOInterface):
-	def __init__(self, width, depth):
-		_FIFOInterface.__init__(self, width, depth)
+	def __init__(self, width_or_layout, depth):
+		_FIFOInterface.__init__(self, width_or_layout, depth)
 
 		###
 
@@ -102,18 +114,18 @@ class AsyncFIFO(Module, _FIFOInterface):
 			self.readable.eq(consume.q != produce_rdomain)
 		]
 
-		storage = Memory(width, depth)
+		storage = Memory(self.width, depth)
 		self.specials += storage
 		wrport = storage.get_port(write_capable=True, clock_domain="write")
 		self.specials += wrport
 		self.comb += [
 			wrport.adr.eq(produce.q_binary[:-1]),
-			wrport.dat_w.eq(self.din),
+			wrport.dat_w.eq(self.din_bits),
 			wrport.we.eq(produce.ce)
 		]
 		rdport = storage.get_port(clock_domain="read")
 		self.specials += rdport
 		self.comb += [
 			rdport.adr.eq(consume.q_binary[:-1]),
-			self.dout.eq(rdport.dat_r)
+			self.dout_bits.eq(rdport.dat_r)
 		]
