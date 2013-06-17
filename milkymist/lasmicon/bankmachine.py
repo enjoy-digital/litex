@@ -3,6 +3,7 @@ from migen.bus.asmibus import *
 from migen.genlib.roundrobin import *
 from migen.genlib.fsm import FSM
 from migen.genlib.misc import optree
+from migen.genlib.fifo import SyncFIFO
 
 from milkymist.lasmicon.multiplexer import *
 
@@ -33,19 +34,32 @@ class BankMachine(Module):
 
 		###
 
+		# Request FIFO
+		self.submodules.req_fifo = SyncFIFO([("we", 1), ("adr", flen(req.adr))], timing_settings.req_queue_size)
+		self.comb += [
+			self.req_fifo.din.we.eq(req.we),
+			self.req_fifo.din.adr.eq(req.adr),
+			self.req_fifo.we.eq(req.stb),
+			req.req_ack.eq(self.req_fifo.writable),
+
+			self.req_fifo.re.eq(req.dat_ack),
+			req.lock.eq(self.req_fifo.readable)
+		]
+		reqf = self.req_fifo.dout
+
 		slicer = _AddressSlicer(geom_settings.col_a, address_align)
 		
 		# Row tracking
 		has_openrow = Signal()
 		openrow = Signal(geom_settings.row_a)
 		hit = Signal()
-		self.comb += hit.eq(openrow == slicer.row(req.adr))
+		self.comb += hit.eq(openrow == slicer.row(reqf.adr))
 		track_open = Signal()
 		track_close = Signal()
 		self.sync += [
 			If(track_open,
 				has_openrow.eq(1),
-				openrow.eq(slicer.row(req.adr))
+				openrow.eq(slicer.row(reqf.adr))
 			),
 			If(track_close,
 				has_openrow.eq(0)
@@ -57,9 +71,9 @@ class BankMachine(Module):
 		self.comb += [
 			self.cmd.ba.eq(bankn),
 			If(s_row_adr,
-				self.cmd.a.eq(slicer.row(req.adr))
+				self.cmd.a.eq(slicer.row(reqf.adr))
 			).Else(
-				self.cmd.a.eq(slicer.col(req.adr))
+				self.cmd.a.eq(slicer.col(reqf.adr))
 			)
 		]
 		
@@ -85,16 +99,16 @@ class BankMachine(Module):
 		fsm.act(fsm.REGULAR,
 			If(self.refresh_req,
 				fsm.next_state(fsm.REFRESH)
-			).Elif(req.stb,
+			).Elif(self.req_fifo.readable,
 				If(has_openrow,
 					If(hit,
 						# NB: write-to-read specification is enforced by multiplexer
 						self.cmd.stb.eq(1),
-						req.ack.eq(self.cmd.ack),
-						self.cmd.is_read.eq(~req.we),
-						self.cmd.is_write.eq(req.we),
+						req.dat_ack.eq(self.cmd.ack),
+						self.cmd.is_read.eq(~reqf.we),
+						self.cmd.is_write.eq(reqf.we),
 						self.cmd.cas_n.eq(0),
-						self.cmd.we_n.eq(~req.we)
+						self.cmd.we_n.eq(~reqf.we)
 					).Else(
 						fsm.next_state(fsm.PRECHARGE)
 					)

@@ -20,7 +20,7 @@ class GeomSettings:
 		self.mux_a = max(row_a, col_a)
 
 class TimingSettings:
-	def __init__(self, tRP, tRCD, tWR, tWTR, tREFI, tRFC, CL, read_latency, write_latency, read_time, write_time):
+	def __init__(self, tRP, tRCD, tWR, tWTR, tREFI, tRFC, read_latency, write_latency, req_queue_size, read_time, write_time):
 		self.tRP = tRP
 		self.tRCD = tRCD
 		self.tWR = tWR
@@ -28,10 +28,10 @@ class TimingSettings:
 		self.tREFI = tREFI
 		self.tRFC = tRFC
 		
-		self.CL = CL
 		self.read_latency = read_latency
 		self.write_latency = write_latency
 		
+		self.req_queue_size = req_queue_size
 		self.read_time = read_time
 		self.write_time = write_time
 
@@ -48,6 +48,7 @@ class LASMIcon(Module):
 			aw=geom_settings.row_a + geom_settings.col_a - address_align,
 			dw=phy_settings.dfi_d*phy_settings.nphases,
 			nbanks=2**geom_settings.bank_a,
+			req_queue_size=timing_settings.req_queue_size,
 			read_latency=timing_settings.read_latency+1,
 			write_latency=timing_settings.write_latency+1)
 		self.nrowbits = geom_settings.col_a - address_align
