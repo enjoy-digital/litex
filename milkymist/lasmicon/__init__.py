@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from migen.fhdl.std import *
 from migen.bus import dfi, lasmibus
 
@@ -5,35 +7,15 @@ from milkymist.lasmicon.refresher import *
 from milkymist.lasmicon.bankmachine import *
 from milkymist.lasmicon.multiplexer import *
 
-class PhySettings:
-	def __init__(self, dfi_d, nphases, rdphase, wrphase):
-		self.dfi_d = dfi_d
-		self.nphases = nphases
-		self.rdphase = rdphase
-		self.wrphase = wrphase
+PhySettings = namedtuple("PhySettings", "dfi_d nphases rdphase wrphase")
 
-class GeomSettings:
-	def __init__(self, bank_a, row_a, col_a):
-		self.bank_a = bank_a
-		self.row_a = row_a
-		self.col_a = col_a
-		self.mux_a = max(row_a, col_a)
+class GeomSettings(namedtuple("_GeomSettings", "bank_a row_a col_a")):
+	def __init__(self, *args, **kwargs):
+		self.mux_a = max(self.row_a, self.col_a)
 
-class TimingSettings:
-	def __init__(self, tRP, tRCD, tWR, tWTR, tREFI, tRFC, read_latency, write_latency, req_queue_size, read_time, write_time):
-		self.tRP = tRP
-		self.tRCD = tRCD
-		self.tWR = tWR
-		self.tWTR = tWTR
-		self.tREFI = tREFI
-		self.tRFC = tRFC
-		
-		self.read_latency = read_latency
-		self.write_latency = write_latency
-		
-		self.req_queue_size = req_queue_size
-		self.read_time = read_time
-		self.write_time = write_time
+TimingSettings = namedtuple("TimingSettings", "tRP tRCD tWR tWTR tREFI tRFC" \
+	" read_latency write_latency" \
+	" req_queue_size read_time write_time")
 
 class LASMIcon(Module):
 	def __init__(self, phy_settings, geom_settings, timing_settings):
