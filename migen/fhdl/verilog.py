@@ -80,7 +80,7 @@ def _printexpr(ns, node):
 	elif isinstance(node, Replicate):
 		return "{" + str(node.n) + "{" + _printexpr(ns, node.v)[0] + "}}", False
 	else:
-		raise TypeError
+		raise TypeError("Expression of unrecognized type: "+str(type(node)))
 
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
@@ -124,7 +124,7 @@ def _printnode(ns, at, level, node):
 		else:
 			return ""
 	else:
-		raise TypeError
+		raise TypeError("Node of unrecognized type: "+str(type(node)))
 
 def _list_comb_wires(f):
 	r = set()
