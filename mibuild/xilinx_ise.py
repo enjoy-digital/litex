@@ -150,6 +150,7 @@ class XilinxISEPlatform(GenericPlatform):
 
 	def build(self, fragment, build_dir="build", build_name="top",
 			ise_path="/opt/Xilinx", source=True, run=True):
+		self.finalize(fragment)
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 

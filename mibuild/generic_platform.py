@@ -152,6 +152,7 @@ class GenericPlatform:
 			name = self.__module__.split(".")[-1]
 		self.name = name
 		self.sources = []
+		self.finalized = False
 
 	def request(self, *args, **kwargs):
 		return self.constraint_manager.request(*args, **kwargs)
@@ -161,6 +162,17 @@ class GenericPlatform:
 
 	def add_platform_command(self, *args, **kwargs):
 		return self.constraint_manager.add_platform_command(*args, **kwargs)
+
+	def finalize(self, fragment, *args, **kwargs):
+		if self.finalized:
+			raise ConstraintError("Already finalized")
+		self.do_finalize(fragment, *args, **kwargs)
+		self.finalized = True
+
+	def do_finalize(self, fragment, *args, **kwargs):
+		"""overload this and e.g. add_platform_command()'s after the
+		modules had their say"""
+		pass
 
 	def add_source(self, filename, language=None):
 		if language is None:
