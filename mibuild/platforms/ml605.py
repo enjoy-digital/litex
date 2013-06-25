@@ -40,10 +40,10 @@ _io = [
 		Subsignal("rst_n", Pins("AH13")),
 		Subsignal("dv", Pins("AM13")),
 		Subsignal("rx_er", Pins("AG12")),
-		Subsignal("rx_data", Pins("AN13", "AF14", "AE14", "AN12", "AM12", "AD11", "AC12", "AC13")),
+		Subsignal("rx_data", Pins("AN13 AF14 AE14 AN12 AM12 AD11 AC12 AC13")),
 		Subsignal("tx_en", Pins("AJ10")),
 		Subsignal("tx_er", Pins("AH10")),
-		Subsignal("tx_data", Pins("AM11", "AL11", "AG10", "AG11", "AL10", "AM10", "AE11", "AF11")),
+		Subsignal("tx_data", Pins("AM11 AL11 AG10 AG11 AL10 AM10 AE11 AF11")),
 		Subsignal("col", Pins("AK13")),
 		Subsignal("crs", Pins("AL13")),
 		IOStandard("LVCMOS25")

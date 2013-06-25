@@ -24,17 +24,16 @@ _io = [
 
 	("sdram_clock", 0, Pins("P32"), IOStandard("LVCMOS33"), Misc("SLEW=FAST")),
 	("sdram", 0,
-		Subsignal("a", Pins("P140", "P139", "P138", "P137", "P46", "P45", "P44",
-		  "P43", "P41", "P40", "P141", "P35", "P34")),
-		Subsignal("ba", Pins("P143", "P142")),
+		Subsignal("a", Pins("P140 P139 P138 P137 P46 P45 P44",
+		  "P43 P41 P40 P141 P35 P34")),
+		Subsignal("ba", Pins("P143 P142")),
 		Subsignal("cs_n", Pins("P1")),
 		Subsignal("cke", Pins("P33")),
 		Subsignal("ras_n", Pins("P2")),
 		Subsignal("cas_n", Pins("P5")),
 		Subsignal("we_n", Pins("P6")),
-		Subsignal("dq", Pins("P9", "P10", "P11", "P12", "P14", "P15", "P16", "P8",
-		  "P21", "P22", "P23", "P24", "P26", "P27", "P29", "P30")),
-		Subsignal("dm", Pins("P7", "P17")),
+		Subsignal("dq", Pins("P9 P10 P11 P12 P14 P15 P16 P8 P21 P22 P23 P24 P26 P27 P29 P30")),
+		Subsignal("dm", Pins("P7 P17")),
 		IOStandard("LVCMOS33"), Misc("SLEW=FAST")
 	),
 ]

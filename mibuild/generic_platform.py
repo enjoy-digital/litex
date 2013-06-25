@@ -12,7 +12,9 @@ class ConstraintError(Exception):
 	
 class Pins:
 	def __init__(self, *identifiers):
-		self.identifiers = identifiers
+		self.identifiers = []
+		for i in identifiers:
+			self.identifiers += i.split()
 
 class IOStandard:
 	def __init__(self, name):
