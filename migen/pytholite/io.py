@@ -50,7 +50,7 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 			state += [reg.load(cexpr) for reg in target_regs]
 		state += [
 			ep.ack.eq(1),
-			If(~ep.stb, AbstractNextState(state))
+			If(~ep.stb, id_next_state(state))
 		]
 		return [state], [state]
 	else:
@@ -67,7 +67,7 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 			state.append(signal.eq(compiler.ec.visit_expr(value)))
 		state += [
 			ep.stb.eq(1),
-			If(~ep.ack, AbstractNextState(state))
+			If(~ep.ack, id_next_state(state))
 		]
 		return [state], [state]
 
@@ -110,7 +110,7 @@ def _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus):
 		for target_regs, expr in from_model:
 			cexpr = ec.visit_expr(expr)
 			state += [reg.load(cexpr) for reg in target_regs]
-	state.append(If(~bus.ack, AbstractNextState(state)))
+	state.append(If(~bus.ack, id_next_state(state)))
 	return [state], [state]
 
 def _gen_memory_io(compiler, modelname, model, to_model, from_model, port):
@@ -128,7 +128,7 @@ def _gen_memory_io(compiler, modelname, model, to_model, from_model, port):
 		return [s1], [s1]
 	else:
 		s2 = []
-		s1.append(AbstractNextState(s2))
+		s1.append(id_next_state(s2))
 		ec = _BusReadExprCompiler(compiler.symdict, modelname, port.dat_r)
 		for target_regs, expr in from_model:
 			cexpr = ec.visit_expr(expr)

@@ -166,10 +166,10 @@ class _Compiler:
 		states_f, exit_states_f = self.visit_block(node.orelse)
 		exit_states = exit_states_t + exit_states_f
 		
-		test_state_stmt = If(test, AbstractNextState(states_t[0]))
+		test_state_stmt = If(test, id_next_state(states_t[0]))
 		test_state = [test_state_stmt]
 		if states_f:
-			test_state_stmt.Else(AbstractNextState(states_f[0]))
+			test_state_stmt.Else(id_next_state(states_f[0]))
 		else:
 			exit_states.append(test_state)
 		
@@ -180,9 +180,9 @@ class _Compiler:
 		test = self.ec.visit_expr(node.test)
 		states_b, exit_states_b = self.visit_block(node.body)
 
-		test_state = [If(test, AbstractNextState(states_b[0]))]
+		test_state = [If(test, id_next_state(states_b[0]))]
 		for exit_state in exit_states_b:
-			exit_state.insert(0, AbstractNextState(test_state))
+			exit_state.insert(0, id_next_state(test_state))
 		
 		sa.assemble([test_state] + states_b, [test_state])
 	
@@ -199,7 +199,7 @@ class _Compiler:
 			self.symdict[target] = iteration
 			states_b, exit_states_b = self.visit_block(node.body)
 			for exit_state in last_exit_states:
-				exit_state.insert(0, AbstractNextState(states_b[0]))
+				exit_state.insert(0, id_next_state(states_b[0]))
 			last_exit_states = exit_states_b
 			states += states_b
 		del self.symdict[target]

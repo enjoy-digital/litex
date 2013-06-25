@@ -47,18 +47,18 @@ class IntSequence(Module):
 		else:
 			self.comb += self.source.payload.value.eq(counter)
 		
-		fsm = FSM("IDLE", "ACTIVE")
+		fsm = FSM()
 		self.submodules += fsm
-		fsm.act(fsm.IDLE,
+		fsm.act("IDLE",
 			load.eq(1),
 			self.parameters.ack.eq(1),
-			If(self.parameters.stb, fsm.next_state(fsm.ACTIVE))
+			If(self.parameters.stb, NextState("ACTIVE"))
 		)
-		fsm.act(fsm.ACTIVE,
+		fsm.act("ACTIVE",
 			self.busy.eq(1),
 			self.source.stb.eq(1),
 			If(self.source.ack,
 				ce.eq(1),
-				If(last, fsm.next_state(fsm.IDLE))
+				If(last, NextState("IDLE"))
 			)
 		)

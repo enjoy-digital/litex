@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
-from migen.genlib.fsm import FSM
+from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import split, displacer, chooser
 from migen.genlib.record import Record, layout_len
 
@@ -71,61 +71,58 @@ class WB2LASMI(Module):
 		
 		# Control FSM
 		assert(lasmim.write_latency >= 1 and lasmim.read_latency >= 1)
-		fsm = FSM("IDLE", "TEST_HIT",
-			"EVICT_REQUEST", "EVICT_WAIT_DATA_ACK", "EVICT_DATA",
-			"REFILL_WRTAG", "REFILL_REQUEST", "REFILL_WAIT_DATA_ACK", "REFILL_DATA",
-			delayed_enters=[
-				("EVICT_DATAD", "EVICT_DATA", lasmim.write_latency-1),
-				("REFILL_DATAD", "REFILL_DATA", lasmim.read_latency-1)
-			])
+		fsm = FSM()
 		self.submodules += fsm
 		
-		fsm.act(fsm.IDLE,
-			If(self.wishbone.cyc & self.wishbone.stb, fsm.next_state(fsm.TEST_HIT))
+		fsm.delayed_enter("EVICT_DATAD", "EVICT_DATA", lasmim.write_latency-1)
+		fsm.delayed_enter("REFILL_DATAD", "REFILL_DATA", lasmim.read_latency-1)
+
+		fsm.act("IDLE",
+			If(self.wishbone.cyc & self.wishbone.stb, NextState("TEST_HIT"))
 		)
-		fsm.act(fsm.TEST_HIT,
+		fsm.act("TEST_HIT",
 			If(tag_do.tag == adr_tag,
 				self.wishbone.ack.eq(1),
 				If(self.wishbone.we,
 					tag_di.dirty.eq(1),
 					tag_port.we.eq(1)
 				),
-				fsm.next_state(fsm.IDLE)
+				NextState("IDLE")
 			).Else(
 				If(tag_do.dirty,
-					fsm.next_state(fsm.EVICT_REQUEST)
+					NextState("EVICT_REQUEST")
 				).Else(
-					fsm.next_state(fsm.REFILL_WRTAG)
+					NextState("REFILL_WRTAG")
 				)
 			)
 		)
 		
-		fsm.act(fsm.EVICT_REQUEST,
+		fsm.act("EVICT_REQUEST",
 			lasmim.stb.eq(1),
 			lasmim.we.eq(1),
-			If(lasmim.req_ack, fsm.next_state(fsm.EVICT_WAIT_DATA_ACK))
+			If(lasmim.req_ack, NextState("EVICT_WAIT_DATA_ACK"))
 		)
-		fsm.act(fsm.EVICT_WAIT_DATA_ACK,
-			If(lasmim.dat_ack, fsm.next_state(fsm.EVICT_DATAD))
+		fsm.act("EVICT_WAIT_DATA_ACK",
+			If(lasmim.dat_ack, NextState("EVICT_DATAD"))
 		)
-		fsm.act(fsm.EVICT_DATA,
+		fsm.act("EVICT_DATA",
 			write_to_lasmi.eq(1),
-			fsm.next_state(fsm.REFILL_WRTAG)
+			NextState("REFILL_WRTAG")
 		)
 		
-		fsm.act(fsm.REFILL_WRTAG,
+		fsm.act("REFILL_WRTAG",
 			# Write the tag first to set the LASMI address
 			tag_port.we.eq(1),
-			fsm.next_state(fsm.REFILL_REQUEST)
+			NextState("REFILL_REQUEST")
 		)
-		fsm.act(fsm.REFILL_REQUEST,
+		fsm.act("REFILL_REQUEST",
 			lasmim.stb.eq(1),
-			If(lasmim.req_ack, fsm.next_state(fsm.REFILL_WAIT_DATA_ACK))
+			If(lasmim.req_ack, NextState("REFILL_WAIT_DATA_ACK"))
 		)
-		fsm.act(fsm.REFILL_WAIT_DATA_ACK,
-			If(lasmim.dat_ack, fsm.next_state(fsm.REFILL_DATAD))
+		fsm.act("REFILL_WAIT_DATA_ACK",
+			If(lasmim.dat_ack, NextState("REFILL_DATAD"))
 		)
-		fsm.act(fsm.REFILL_DATA,
+		fsm.act("REFILL_DATA",
 			write_from_lasmi.eq(1),
-			fsm.next_state(fsm.TEST_HIT)
+			NextState("TEST_HIT")
 		)

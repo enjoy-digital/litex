@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
-from migen.genlib.fsm import FSM
+from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import split, displacer, chooser
 from migen.genlib.record import Record, layout_len
 
@@ -79,60 +79,58 @@ class WB2ASMI:
 		write_to_asmi_pre = Signal()
 		sync.append(write_to_asmi.eq(write_to_asmi_pre))
 		
-		fsm = FSM("IDLE", "TEST_HIT",
-			"EVICT_ISSUE", "EVICT_WAIT",
-			"REFILL_WRTAG", "REFILL_ISSUE", "REFILL_WAIT", "REFILL_COMPLETE")
+		fsm = FSM()
 		
-		fsm.act(fsm.IDLE,
-			If(self.wishbone.cyc & self.wishbone.stb, fsm.next_state(fsm.TEST_HIT))
+		fsm.act("IDLE",
+			If(self.wishbone.cyc & self.wishbone.stb, NextState("TEST_HIT"))
 		)
-		fsm.act(fsm.TEST_HIT,
+		fsm.act("TEST_HIT",
 			If(tag_do.tag == adr_tag,
 				self.wishbone.ack.eq(1),
 				If(self.wishbone.we,
 					tag_di.dirty.eq(1),
 					tag_port.we.eq(1)
 				),
-				fsm.next_state(fsm.IDLE)
+				NextState("IDLE")
 			).Else(
 				If(tag_do.dirty,
-					fsm.next_state(fsm.EVICT_ISSUE)
+					NextState("EVICT_ISSUE")
 				).Else(
-					fsm.next_state(fsm.REFILL_WRTAG)
+					NextState("REFILL_WRTAG")
 				)
 			)
 		)
 		
-		fsm.act(fsm.EVICT_ISSUE,
+		fsm.act("EVICT_ISSUE",
 			self.asmiport.stb.eq(1),
 			self.asmiport.we.eq(1),
-			If(self.asmiport.ack, fsm.next_state(fsm.EVICT_WAIT))
+			If(self.asmiport.ack, NextState("EVICT_WAIT"))
 		)
-		fsm.act(fsm.EVICT_WAIT,
+		fsm.act("EVICT_WAIT",
 			# Data is actually sampled by the memory controller in the next state.
 			# But since the data memory has one cycle latency, it gets the data
 			# at the address given during this cycle.
 			If(self.asmiport.get_call_expression(),
 				write_to_asmi_pre.eq(1),
-				fsm.next_state(fsm.REFILL_WRTAG)
+				NextState("REFILL_WRTAG")
 			)
 		)
 		
-		fsm.act(fsm.REFILL_WRTAG,
+		fsm.act("REFILL_WRTAG",
 			# Write the tag first to set the ASMI address
 			tag_port.we.eq(1),
-			fsm.next_state(fsm.REFILL_ISSUE)
+			NextState("REFILL_ISSUE")
 		)
-		fsm.act(fsm.REFILL_ISSUE,
+		fsm.act("REFILL_ISSUE",
 			self.asmiport.stb.eq(1),
-			If(self.asmiport.ack, fsm.next_state(fsm.REFILL_WAIT))
+			If(self.asmiport.ack, NextState("REFILL_WAIT"))
 		)
-		fsm.act(fsm.REFILL_WAIT,
-			If(self.asmiport.get_call_expression(), fsm.next_state(fsm.REFILL_COMPLETE))
+		fsm.act("REFILL_WAIT",
+			If(self.asmiport.get_call_expression(), NextState("REFILL_COMPLETE"))
 		)
-		fsm.act(fsm.REFILL_COMPLETE,
+		fsm.act("REFILL_COMPLETE",
 			write_from_asmi.eq(1),
-			fsm.next_state(fsm.TEST_HIT)
+			NextState("TEST_HIT")
 		)
 		
 		return Fragment(comb, sync, specials={data_mem, tag_mem, data_port, tag_port}) \
