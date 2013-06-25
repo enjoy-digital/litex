@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus.asmibus import *
 from migen.genlib.roundrobin import *
-from migen.genlib.fsm import FSM
+from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import optree
 from migen.genlib.fifo import SyncFIFO
 
@@ -91,14 +91,13 @@ class BankMachine(Module):
 		]
 		
 		# Control and command generation FSM
-		fsm = FSM("REGULAR", "PRECHARGE", "ACTIVATE", "REFRESH", delayed_enters=[
-			("TRP", "ACTIVATE", timing_settings.tRP-1),
-			("TRCD", "REGULAR", timing_settings.tRCD-1)
-		])
+		fsm = FSM()
 		self.submodules += fsm
-		fsm.act(fsm.REGULAR,
+		fsm.delayed_enter("TRP", "ACTIVATE", timing_settings.tRP-1)
+		fsm.delayed_enter("TRCD", "REGULAR", timing_settings.tRCD-1)
+		fsm.act("REGULAR",
 			If(self.refresh_req,
-				fsm.next_state(fsm.REFRESH)
+				NextState("REFRESH")
 			).Elif(self.req_fifo.readable,
 				If(has_openrow,
 					If(hit,
@@ -110,34 +109,34 @@ class BankMachine(Module):
 						self.cmd.cas_n.eq(0),
 						self.cmd.we_n.eq(~reqf.we)
 					).Else(
-						fsm.next_state(fsm.PRECHARGE)
+						NextState("PRECHARGE")
 					)
 				).Else(
-					fsm.next_state(fsm.ACTIVATE)
+					NextState("ACTIVATE")
 				)
 			)
 		)
-		fsm.act(fsm.PRECHARGE,
+		fsm.act("PRECHARGE",
 			# Notes:
 			# 1. we are presenting the column address, A10 is always low
 			# 2. since we always go to the ACTIVATE state, we do not need
 			# to assert track_close.
 			If(precharge_ok,
 				self.cmd.stb.eq(1),
-				If(self.cmd.ack, fsm.next_state(fsm.TRP)),
+				If(self.cmd.ack, NextState("TRP")),
 				self.cmd.ras_n.eq(0),
 				self.cmd.we_n.eq(0)
 			)
 		)
-		fsm.act(fsm.ACTIVATE,
+		fsm.act("ACTIVATE",
 			s_row_adr.eq(1),
 			track_open.eq(1),
 			self.cmd.stb.eq(1),
-			If(self.cmd.ack, fsm.next_state(fsm.TRCD)),
+			If(self.cmd.ack, NextState("TRCD")),
 			self.cmd.ras_n.eq(0)
 		)
-		fsm.act(fsm.REFRESH,
+		fsm.act("REFRESH",
 			self.refresh_gnt.eq(precharge_ok),
 			track_close.eq(1),
-			If(~self.refresh_req, fsm.next_state(fsm.REGULAR))
+			If(~self.refresh_req, NextState("REGULAR"))
 		)

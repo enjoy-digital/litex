@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.roundrobin import *
 from migen.genlib.misc import optree
-from migen.genlib.fsm import FSM
+from migen.genlib.fsm import FSM, NextState
 from migen.bank.description import AutoCSR
 
 from milkymist.lasmicon.perf import Bandwidth
@@ -147,12 +147,11 @@ class Multiplexer(Module, AutoCSR):
 		]
 		
 		# Control FSM
-		fsm = FSM("READ", "WRITE", "REFRESH", delayed_enters=[
-			("RTW", "WRITE", timing_settings.read_latency-1),
-			("WTR", "READ", timing_settings.tWTR-1)
-		])
+		fsm = FSM()
 		self.submodules += fsm
-		fsm.act(fsm.READ,
+		fsm.delayed_enter("RTW", "WRITE", timing_settings.read_latency-1)
+		fsm.delayed_enter("WTR", "READ", timing_settings.tWTR-1)
+		fsm.act("READ",
 			read_time_en.eq(1),
 			choose_req.want_reads.eq(1),
 			choose_cmd.cmd.ack.eq(1),
@@ -161,11 +160,11 @@ class Multiplexer(Module, AutoCSR):
 			steerer.sel[phy_settings.rdphase].eq(STEER_REQ),
 			If(write_available,
 				# TODO: switch only after several cycles of ~read_available?
-				If(~read_available | max_read_time, fsm.next_state(fsm.RTW))
+				If(~read_available | max_read_time, NextState("RTW"))
 			),
-			If(go_to_refresh, fsm.next_state(fsm.REFRESH))
+			If(go_to_refresh, NextState("REFRESH"))
 		)
-		fsm.act(fsm.WRITE,
+		fsm.act("WRITE",
 			write_time_en.eq(1),
 			choose_req.want_writes.eq(1),
 			choose_cmd.cmd.ack.eq(1),
@@ -173,15 +172,16 @@ class Multiplexer(Module, AutoCSR):
 			steerer.sel[1-phy_settings.wrphase].eq(STEER_CMD),
 			steerer.sel[phy_settings.wrphase].eq(STEER_REQ),
 			If(read_available,
-				If(~write_available | max_write_time, fsm.next_state(fsm.WTR))
+				If(~write_available | max_write_time, NextState("WTR"))
 			),
-			If(go_to_refresh, fsm.next_state(fsm.REFRESH))
+			If(go_to_refresh, NextState("REFRESH"))
 		)
-		fsm.act(fsm.REFRESH,
+		fsm.act("REFRESH",
 			steerer.sel[0].eq(STEER_REFRESH),
-			If(~refresher.req, fsm.next_state(fsm.READ))
+			If(~refresher.req, NextState("READ"))
 		)
 		# FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
-		self.comb += refresher.ack.eq(fsm._state == fsm.REFRESH)
+		fsm.finalize()
+		self.comb += refresher.ack.eq(fsm.state == fsm.encoding["REFRESH"])
 
 		self.submodules.bandwidth = Bandwidth(choose_req.cmd)

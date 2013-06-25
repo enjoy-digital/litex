@@ -1,5 +1,5 @@
 from migen.fhdl.std import *
-from migen.genlib.fsm import FSM
+from migen.genlib.fsm import FSM, NextState
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 from migen.flow.actor import *
@@ -119,38 +119,36 @@ class DMA(Module):
 		]
 
 		# control FSM
-		fsm = FSM("WAIT_SOF", "TRANSFER_PIXEL", "TO_MEMORY", "EOF")
+		fsm = FSM()
 		self.submodules += fsm
 
-		fsm.act(fsm.WAIT_SOF,
+		fsm.act("WAIT_SOF",
 			reset_words.eq(1),
 			self.frame.ack.eq(~self._slot_array.address_valid | ~sof),
-			If(self._slot_array.address_valid & sof & self.frame.stb, fsm.next_state(fsm.TRANSFER_PIXEL))
+			If(self._slot_array.address_valid & sof & self.frame.stb, NextState("TRANSFER_PIXEL"))
 		)
-		fsm.act(fsm.TRANSFER_PIXEL,
+		fsm.act("TRANSFER_PIXEL",
 			self.frame.ack.eq(1),
 			If(self.frame.stb,
 				write_pixel.eq(1),
-				If(last_pixel,
-					fsm.next_state(fsm.TO_MEMORY)
-				)
+				If(last_pixel, NextState("TO_MEMORY"))
 			)
 		)
-		fsm.act(fsm.TO_MEMORY,
+		fsm.act("TO_MEMORY",
 			self._bus_accessor.address_data.stb.eq(1),
 			If(self._bus_accessor.address_data.ack,
 				count_word.eq(1),
 				If(last_word,
-					fsm.next_state(fsm.EOF)
+					NextState("EOF")
 				).Else(
-					fsm.next_state(fsm.TRANSFER_PIXEL)
+					NextState("TRANSFER_PIXEL")
 				)
 			)
 		)
-		fsm.act(fsm.EOF,
+		fsm.act("EOF",
 			If(~self._bus_accessor.busy,
 				self._slot_array.address_done.eq(1),
-				fsm.next_state(fsm.WAIT_SOF)
+				NextState("WAIT_SOF")
 			)
 		)
 

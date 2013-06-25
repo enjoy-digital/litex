@@ -52,17 +52,17 @@ class Refresher(Module):
 		]
 		
 		# Control FSM
-		fsm = FSM("IDLE", "WAIT_GRANT", "WAIT_SEQ")
+		fsm = FSM()
 		self.submodules += fsm
-		fsm.act(fsm.IDLE, If(start, fsm.next_state(fsm.WAIT_GRANT)))
-		fsm.act(fsm.WAIT_GRANT,
+		fsm.act("IDLE", If(start, NextState("WAIT_GRANT")))
+		fsm.act("WAIT_GRANT",
 			self.req.eq(1),
 			If(self.ack,
 				seq_start.eq(1),
-				fsm.next_state(fsm.WAIT_SEQ)
+				NextState("WAIT_SEQ")
 			)
 		)
-		fsm.act(fsm.WAIT_SEQ,
+		fsm.act("WAIT_SEQ",
 			self.req.eq(1),
-			If(seq_done, fsm.next_state(fsm.IDLE))
+			If(seq_done, NextState("IDLE"))
 		)

@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.fhdl.specials import Tristate
 from migen.genlib.cdc import MultiReg
-from migen.genlib.fsm import FSM
+from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import chooser
 from migen.bank.description import AutoCSR
 
@@ -102,79 +102,76 @@ class EDID(Module, AutoCSR):
 		self.sync += If(data_drv_en, data_drv.eq(1)).Elif(data_drv_stop, data_drv.eq(0))
 		self.sync += If(data_drv_en, chooser(rdport.dat_r, counter, data_bit, 8, reverse=True))
 
-		states = ["WAIT_START",
-			"RCV_ADDRESS", "ACK_ADDRESS0", "ACK_ADDRESS1", "ACK_ADDRESS2",
-			"RCV_OFFSET", "ACK_OFFSET0", "ACK_OFFSET1", "ACK_OFFSET2",
-			"READ", "ACK_READ"]
-		fsm = FSM(*states)
+		fsm = FSM()
 		self.submodules += fsm
 	
-		fsm.act(fsm.RCV_ADDRESS,
+		fsm.act("WAIT_START")
+		fsm.act("RCV_ADDRESS",
 			If(counter == 8,
 				If(din[1:] == 0x50,
 					update_is_read.eq(1),
-					fsm.next_state(fsm.ACK_ADDRESS0)
+					NextState("ACK_ADDRESS0")
 				).Else(
-					fsm.next_state(fsm.WAIT_START)
+					NextState("WAIT_START")
 				)
 			)
 		)
-		fsm.act(fsm.ACK_ADDRESS0,
-			If(~scl_i, fsm.next_state(fsm.ACK_ADDRESS1))
+		fsm.act("ACK_ADDRESS0",
+			If(~scl_i, NextState("ACK_ADDRESS1"))
 		)
-		fsm.act(fsm.ACK_ADDRESS1,
+		fsm.act("ACK_ADDRESS1",
 			zero_drv.eq(1),
-			If(scl_i, fsm.next_state(fsm.ACK_ADDRESS2))
+			If(scl_i, NextState("ACK_ADDRESS2"))
 		)
-		fsm.act(fsm.ACK_ADDRESS2,
+		fsm.act("ACK_ADDRESS2",
 			zero_drv.eq(1),
 			If(~scl_i,
 				If(is_read,
-					fsm.next_state(fsm.READ)
+					NextState("READ")
 				).Else(
-					fsm.next_state(fsm.RCV_OFFSET)
+					NextState("RCV_OFFSET")
 				)
 			)
 		)
 
-		fsm.act(fsm.RCV_OFFSET,
+		fsm.act("RCV_OFFSET",
 			If(counter == 8,
 				oc_load.eq(1),
-				fsm.next_state(fsm.ACK_OFFSET0)
+				NextState("ACK_OFFSET0")
 			)
 		)
-		fsm.act(fsm.ACK_OFFSET0,
-			If(~scl_i, fsm.next_state(fsm.ACK_OFFSET1))
+		fsm.act("ACK_OFFSET0",
+			If(~scl_i, NextState("ACK_OFFSET1"))
 		)
-		fsm.act(fsm.ACK_OFFSET1,
+		fsm.act("ACK_OFFSET1",
 			zero_drv.eq(1),
-			If(scl_i, fsm.next_state(fsm.ACK_OFFSET2))
+			If(scl_i, NextState("ACK_OFFSET2"))
 		)
-		fsm.act(fsm.ACK_OFFSET2,
+		fsm.act("ACK_OFFSET2",
 			zero_drv.eq(1),
-			If(~scl_i, fsm.next_state(fsm.RCV_ADDRESS))
+			If(~scl_i, NextState("RCV_ADDRESS"))
 		)
 
-		fsm.act(fsm.READ,
+		fsm.act("READ",
 			If(~scl_i,
 				If(counter == 8,
 					data_drv_stop.eq(1),
-					fsm.next_state(fsm.ACK_READ)
+					NextState("ACK_READ")
 				).Else(
 					data_drv_en.eq(1)
 				)
 			)
 		)
-		fsm.act(fsm.ACK_READ,
+		fsm.act("ACK_READ",
 			If(scl_rising,
 				oc_inc.eq(1),
 				If(sda_i,
-					fsm.next_state(fsm.WAIT_START)
+					NextState("WAIT_START")
 				).Else(
-					fsm.next_state(fsm.READ)
+					NextState("READ")
 				)
 			)
 		)
 
-		for state in states:
-			fsm.act(getattr(fsm, state), If(start, fsm.next_state(fsm.RCV_ADDRESS)))
+		for state in fsm.actions.keys():
+			fsm.act(state, If(start, NextState("RCV_ADDRESS")))
