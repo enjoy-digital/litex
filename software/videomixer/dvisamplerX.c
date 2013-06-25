@@ -13,7 +13,7 @@
 #define FRAMEBUFFER_COUNT 4
 #define FRAMEBUFFER_MASK (FRAMEBUFFER_COUNT - 1)
 
-static unsigned int dvisamplerX_framebuffers[FRAMEBUFFER_COUNT][800*600] __attribute__((aligned(16)));
+static unsigned int dvisamplerX_framebuffers[FRAMEBUFFER_COUNT][1024*768] __attribute__((aligned(16)));
 static int dvisamplerX_fb_slot_indexes[2];
 static int dvisamplerX_next_fb_index;
 
