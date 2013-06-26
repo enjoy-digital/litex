@@ -51,7 +51,7 @@ def _printexpr(ns, node):
 				s = s1
 		elif arity == 2:
 			r2, s2 = _printexpr(ns, node.operands[1])
-			if node.op in ["+", "-", "*", "&", "^", "|"]:
+			if node.op not in ["<<<", ">>>"]:
 				if s2 and not s1:
 					r1 = "$signed({1'd0, " + r1 + "})"
 				if s1 and not s2:
