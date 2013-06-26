@@ -2,7 +2,6 @@ from math import atan, atanh, log, sqrt, pi
 
 from migen.fhdl.std import *
 
-
 class TwoQuadrantCordic(Module):
 	"""
 	http://eprints.soton.ac.uk/267873/1/tcas1_cordic_review.pdf
@@ -10,7 +9,7 @@ class TwoQuadrantCordic(Module):
 	def __init__(self, width=16, stages=None, guard=0,
 			eval_mode="iterative", cordic_mode="rotate",
 			func_mode="circular"):
-		# validate paramters
+		# validate parameters
 		assert eval_mode in ("combinatorial", "pipelined", "iterative")
 		assert cordic_mode in ("rotate", "vector")
 		self.cordic_mode = cordic_mode
@@ -113,9 +112,7 @@ class TwoQuadrantCordic(Module):
 		a_{m,i}: elemetary rotation angle
 		"""
 		dx, dy, dz = xi>>i, yi>>i, a
-		# FIXME need 1'sd0 here, "Signal((n, True)) >= 0" is always true
-		# as 1'd0 makes the comparison unsigned
-		direction = {"rotate": zi[-1], "vector": ~yi[-1]}[self.cordic_mode]
+		direction = {"rotate": zi < 0, "vector": yi >= 0}[self.cordic_mode]
 		dy = {"circular": dy, "linear": 0, "hyperbolic": -dy}[self.func_mode]
 		ret = If(direction,
 					xo.eq(xi + dy),
@@ -127,8 +124,6 @@ class TwoQuadrantCordic(Module):
 					zo.eq(zi - dz),
 				)
 		return ret
-
-
 
 class Cordic(TwoQuadrantCordic):
 	def __init__(self, **kwargs):
@@ -165,7 +160,6 @@ class Cordic(TwoQuadrantCordic):
 					self.yo.eq(-cyo),
 				)]
 
-
 class TB(Module):
 	def __init__(self, n, **kwargs):
 		self.submodules.cordic = Cordic(**kwargs)
@@ -189,8 +183,7 @@ class TB(Module):
 					(self.xi, self.yi, self.zi)):
 				s.wr(r, int(v.pop(0)*c))
 
-
-def main():
+def _main():
 	from migen.fhdl import verilog
 	from migen.sim.generic import Simulator, TopLevel
 	from matplotlib import pyplot as plt
@@ -211,8 +204,7 @@ def main():
 	plt.plot(tb.zo)
 	plt.show()
 
-
-def rms_err(width, stages, n):
+def _rms_err(width, stages, n):
 	from migen.sim.generic import Simulator
 	import numpy as np
 	import matplotlib.pyplot as plt
@@ -228,8 +220,7 @@ def rms_err(width, stages, n):
 	dy = tb.yo[1:]-y*2**(width-1)
 	return ((dx**2+dy**2)**.5).sum()/n
 
-
-def test_err():
+def _test_err():
 	from matplotlib import pyplot as plt
 	import numpy as np
 
@@ -244,8 +235,7 @@ def test_err():
 	plt.grid("on")
 	plt.show()
 
-
 if __name__ == "__main__":
-	main()
-	#rms_err(16, 16, 345)
-	#test_err()
+	_main()
+	#_rms_err(16, 16, 345)
+	#_test_err()
