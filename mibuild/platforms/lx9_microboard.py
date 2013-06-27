@@ -5,6 +5,16 @@ _io = [
 		("user_btn", 0, Pins("V4"), IOStandard("LVCMOS33"),
 			Misc("PULLDOWN"), Misc("TIG")),
 
+		("user_led", 0, Pins("P4"), Misc("SLEW=QUIETIO"), IOStandard("LVCMOS18")),
+		("user_led", 1, Pins("L6"), Misc("SLEW=QUIETIO"), IOStandard("LVCMOS18")),
+		("user_led", 2, Pins("F5"), Misc("SLEW=QUIETIO"), IOStandard("LVCMOS18")),
+		("user_led", 3, Pins("C2"), Misc("SLEW=QUIETIO"), IOStandard("LVCMOS18")),
+
+		("user_dip", 0, Pins("B3"), Misc("PULLDOWN"), IOStandard("LVCMOS33")),
+		("user_dip", 1, Pins("A3"), Misc("PULLDOWN"), IOStandard("LVCMOS33")),
+		("user_dip", 2, Pins("B4"), Misc("PULLDOWN"), IOStandard("LVCMOS33")),
+		("user_dip", 3, Pins("A4"), Misc("PULLDOWN"), IOStandard("LVCMOS33")),
+
 		# TI CDCE913 programmable triple-output PLL
 		("clk_y1", 0, Pins("V10"), IOStandard("LVCMOS33")), # default: 40 MHz
 		("clk_y2", 0, Pins("K15"), IOStandard("LVCMOS33")), # default: 66 2/3 MHz
@@ -27,12 +37,6 @@ _io = [
 			Subsignal("dq", Pins("T13 R13 T14 V14")),
 			IOStandard("LVCMOS33")),
 
-		("user_dip", 0, Pins("B3 A3 B4 A4"), Misc("PULLDOWN"),
-				IOStandard("LVCMOS33")),
-
-		("user_led", 0, Pins("P4 L6 F5 C2"), Misc("SLEW=QUIETIO"),
-				IOStandard("LVCMOS18")),
-
 		# PMOD extension connectors
 		("pmod", 0,
 			Subsignal("d", Pins("F15 F16 C17 C18 F14 G14 D17 D18")),
@@ -41,7 +45,7 @@ _io = [
 			Subsignal("d", Pins("H12 G13 E16 E18 K12 K13 F17 F18")),
 			IOStandard("LVCMOS33")),
 
-		("uart", 0,
+		("serial", 0,
 			Subsignal("tx", Pins("T7"), Misc("SLEW=SLOW")),
 			Subsignal("rx", Pins("R7"), Misc("PULLUP")),
 			IOStandard("LVCMOS33")),
