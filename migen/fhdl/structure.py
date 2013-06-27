@@ -75,16 +75,9 @@ class Value(HUID):
 				key += flen(self)
 			return _Slice(self, key, key+1)
 		elif isinstance(key, slice):
-			start = key.start or 0
-			stop = key.stop or flen(self)
-			if start < 0:
-				start += flen(self)
-			if stop < 0:
-				stop += flen(self)
-			if stop > flen(self):
-				stop = flen(self)
-			if key.step != None:
-				raise KeyError
+			start, stop, step = key.indices(flen(self))
+			if step != 1:
+				return Cat(*(self[i] for i in range(start, stop, step)))
 			return _Slice(self, start, stop)
 		else:
 			raise KeyError

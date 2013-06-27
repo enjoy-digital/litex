@@ -163,6 +163,17 @@ class _BasicLowerer(NodeTransformer):
 	def visit_ResetSignal(self, node):
 		return self.clock_domains[node.cd].rst
 
+	def visit_Slice(self, node):
+		if not isinstance(node.value, Signal):
+			slice_proxy = Signal(value_bits_sign(node.value))
+			if self.target_context:
+				a = _Assign(node.value, slice_proxy)
+			else:
+				a = _Assign(slice_proxy, node.value)
+			self.comb.append(self.visit_Assign(a))
+			node = _Slice(slice_proxy, node.start, node.stop)
+		return NodeTransformer.visit_Slice(self, node)
+
 def lower_basics(f):
 	bl = _BasicLowerer(f.clock_domains)
 	f = bl.visit(f)
