@@ -1,3 +1,5 @@
+import ast
+
 from migen.genlib.fsm import FSM, NextState
 
 def id_next_state(l):
@@ -23,3 +25,9 @@ def implement_fsm(states):
 	for state in states:
 		fsm.act(id(state), state)
 	return fsm
+
+def eval_ast(expr, symdict):
+	if not isinstance(expr, ast.Expression):
+		expr = ast.Expression(expr)
+	code = compile(expr, "<ast>", "eval")
+	return eval(code, symdict)

@@ -9,7 +9,7 @@ from migen.pytholite.reg import *
 from migen.pytholite.expr import *
 from migen.pytholite import transel
 from migen.pytholite.io import gen_io
-from migen.pytholite.fsm import *
+from migen.pytholite.util import *
 
 def _is_name_used(node, name):
 	for n in ast.walk(node):
@@ -99,7 +99,7 @@ class _Compiler:
 		if callee == transel.Register:
 			if len(value.args) != 1:
 				raise TypeError("Register() takes exactly 1 argument")
-			bits_sign = ast.literal_eval(value.args[0])
+			bits_sign = eval_ast(value.args[0], self.symdict)
 			if isinstance(node.targets[0], ast.Name):
 				targetname = node.targets[0].id
 			else:
@@ -206,18 +206,8 @@ class _Compiler:
 		sa.assemble(states, last_exit_states)
 	
 	def visit_iterator(self, node):
-		if isinstance(node, ast.List):
-			return ast.literal_eval(node)
-		elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-			funcname = node.func.id
-			args = map(ast.literal_eval, node.args)
-			if funcname == "range":
-				return range(*args)
-			else:
-				raise NotImplementedError
-		else:
-			raise NotImplementedError
-	
+		return eval_ast(node, self.symdict)
+
 	def visit_expr_statement(self, sa, node):
 		if isinstance(node.value, ast.Yield):
 			yvalue = node.value.value

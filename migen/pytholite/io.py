@@ -6,7 +6,7 @@ from migen.flow.actor import Source, Sink
 from migen.flow.transactions import *
 from migen.bus import wishbone
 from migen.bus.transactions import *
-from migen.pytholite.fsm import *
+from migen.pytholite.util import *
 from migen.pytholite.expr import ExprCompiler
 
 class _TokenPullExprCompiler(ExprCompiler):
@@ -25,15 +25,15 @@ class _TokenPullExprCompiler(ExprCompiler):
 		
 		if not isinstance(node.slice, ast.Index):
 			raise NotImplementedError
-		field = ast.literal_eval(node.slice.value)
+		field = eval_ast(node.slice.value, self.symdict)
 		signal = getattr(self.ep.payload, field)
 		
 		return signal
 
 def _gen_df_io(compiler, modelname, to_model, from_model):
-	epname = ast.literal_eval(to_model["endpoint"])
+	epname = eval_ast(to_model["endpoint"], compiler.symdict)
 	values = to_model["value"]
-	idle_wait = ast.literal_eval(to_model["idle_wait"])
+	idle_wait = eval_ast(to_model["idle_wait"], compiler.symdict)
 	ep = getattr(compiler.ioo, epname)
 	if idle_wait:
 		state = [compiler.ioo.busy.eq(0)]
@@ -62,7 +62,7 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 		if not isinstance(values, ast.Dict):
 			raise NotImplementedError
 		for akey, value in zip(values.keys, values.values):
-			key = ast.literal_eval(akey)
+			key = eval_ast(akey, compiler.symdict)
 			signal = getattr(ep.payload, key)
 			state.append(signal.eq(compiler.ec.visit_expr(value)))
 		state += [
@@ -136,7 +136,7 @@ def _gen_memory_io(compiler, modelname, model, to_model, from_model, port):
 		return [s1, s2], [s2]
 
 def _gen_bus_io(compiler, modelname, model, to_model, from_model):
-	busname = ast.literal_eval(to_model["busname"])
+	busname = eval_ast(to_model["busname"], compiler.symdict)
 	if busname is None:
 		buses = compiler.ioo.get_buses()
 		if len(buses) != 1:
@@ -183,8 +183,8 @@ def gen_io(compiler, modelname, model, to_model, to_model_kw, from_model):
 	if model == Token:
 		desc = [
 			"endpoint",
-			("value", ast.Name("None", ast.Load())),
-			("idle_wait", ast.Name("False", ast.Load()))
+			("value", ast.Name("None", ast.Load(), lineno=0, col_offset=0)),
+			("idle_wait", ast.Name("False", ast.Load(), lineno=0, col_offset=0))
 		]
 		args = _decode_args(desc, to_model, to_model_kw)
 		return _gen_df_io(compiler, modelname, args, from_model)
@@ -192,8 +192,8 @@ def gen_io(compiler, modelname, model, to_model, to_model_kw, from_model):
 		desc = [
 			"address",
 			("data", ast.Num(0)),
-			("sel", ast.Name("None", ast.Load())),
-			("busname", ast.Name("None", ast.Load()))
+			("sel", ast.Name("None", ast.Load(), lineno=0, col_offset=0)),
+			("busname", ast.Name("None", ast.Load(), lineno=0, col_offset=0))
 		]
 		args = _decode_args(desc, to_model, to_model_kw)
 		return _gen_bus_io(compiler, modelname, model, args, from_model)

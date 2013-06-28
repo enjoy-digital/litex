@@ -4,6 +4,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import _Slice
 from migen.pytholite import transel
 from migen.pytholite.reg import *
+from migen.pytholite.util import eval_ast
 
 class ExprCompiler:
 	def __init__(self, symdict):
@@ -36,9 +37,9 @@ class ExprCompiler:
 			if len(node.args) != 2 and len(node.args) != 3:
 				raise TypeError("bitslice() takes 2 or 3 arguments")
 			val = self.visit_expr(node.args[0])
-			low = ast.literal_eval(node.args[1])
+			low = eval_ast(node.args[1], self.symdict)
 			if len(node.args) == 3:
-				up = ast.literal_eval(node.args[2])
+				up = eval_ast(node.args[2], self.symdict)
 			else:
 				up = low + 1
 			return _Slice(val, low, up)
@@ -111,4 +112,3 @@ class ExprCompiler:
 	
 	def visit_expr_subscript(self, node):
 		raise NotImplementedError
-	
