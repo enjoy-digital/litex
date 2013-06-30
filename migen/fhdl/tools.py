@@ -119,14 +119,11 @@ def generate_reset(rst, sl):
 def insert_reset(rst, sl):
 	return [If(rst, *generate_reset(rst, sl)).Else(*sl)]
 
-# Basics are FHDL structure elements that back-ends are not required to support
-# but can be expressed in terms of other elements (lowered) before conversion.
-class _BasicLowerer(NodeTransformer):
-	def __init__(self, clock_domains):
-		self.comb = []
+class _Lowerer(NodeTransformer):
+	def __init__(self):
 		self.target_context = False
 		self.extra_stmts = []
-		self.clock_domains = clock_domains
+		self.comb = []
 
 	def visit_Assign(self, node):
 		old_target_context, old_extra_stmts = self.target_context, self.extra_stmts
@@ -142,7 +139,14 @@ class _BasicLowerer(NodeTransformer):
 		
 		self.target_context, self.extra_stmts = old_target_context, old_extra_stmts
 		return r
-	
+
+# Basics are FHDL structure elements that back-ends are not required to support
+# but can be expressed in terms of other elements (lowered) before conversion.
+class _BasicLowerer(_Lowerer):
+	def __init__(self, clock_domains):
+		self.clock_domains = clock_domains
+		_Lowerer.__init__(self)
+
 	def visit_ArrayProxy(self, node):
 		array_muxed = Signal(value_bits_sign(node), variable=True)
 		if self.target_context:
@@ -163,6 +167,7 @@ class _BasicLowerer(NodeTransformer):
 	def visit_ResetSignal(self, node):
 		return self.clock_domains[node.cd].rst
 
+class _ComplexSliceLowerer(_Lowerer):
 	def visit_Slice(self, node):
 		if not isinstance(node.value, Signal):
 			slice_proxy = Signal(value_bits_sign(node.value))
@@ -174,25 +179,30 @@ class _BasicLowerer(NodeTransformer):
 			node = _Slice(slice_proxy, node.start, node.stop)
 		return NodeTransformer.visit_Slice(self, node)
 
-def lower_basics(f):
-	bl = _BasicLowerer(f.clock_domains)
-	f = bl.visit(f)
-	f.comb += bl.comb
+def _apply_lowerer(l, f):
+	f = l.visit(f)
+	f.comb += l.comb
 
 	for special in f.specials:
 		for obj, attr, direction in special.iter_expressions():
 			if direction != SPECIAL_INOUT:
 				# inouts are only supported by Migen when connected directly to top-level
 				# in this case, they are Signal and never need lowering
-				bl.comb = []
-				bl.target_context = direction != SPECIAL_INPUT
-				bl.extra_stmts = []
+				l.comb = []
+				l.target_context = direction != SPECIAL_INPUT
+				l.extra_stmts = []
 				expr = getattr(obj, attr)
-				expr = bl.visit(expr)
+				expr = l.visit(expr)
 				setattr(obj, attr, expr)
-				f.comb += bl.comb + bl.extra_stmts
+				f.comb += l.comb + l.extra_stmts
 
 	return f
+
+def lower_basics(f):
+	return _apply_lowerer(_BasicLowerer(f.clock_domains), f)
+
+def lower_complex_slices(f):
+	return _apply_lowerer(_ComplexSliceLowerer(), f)
 
 class _ClockDomainRenamer(NodeVisitor):
 	def __init__(self, old, new):
