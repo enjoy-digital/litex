@@ -136,7 +136,7 @@ class Signal(Value):
 				self.nbits, self.signed = bits_sign, False
 		assert(isinstance(self.nbits, int))
 		
-		self.variable = variable
+		self.variable = variable # deprecated
 		self.reset = reset
 		self.name_override = name_override
 		self.backtrace = tracer.trace_back(name)

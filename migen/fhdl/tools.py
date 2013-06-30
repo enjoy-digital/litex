@@ -148,6 +148,7 @@ class _BasicLowerer(_Lowerer):
 		_Lowerer.__init__(self)
 
 	def visit_ArrayProxy(self, node):
+		# TODO: rewrite without variables
 		array_muxed = Signal(value_bits_sign(node), variable=True)
 		if self.target_context:
 			k = self.visit(node.key)
