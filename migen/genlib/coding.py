@@ -22,10 +22,8 @@ class PriorityEncoder(Module):
 		self.i = Signal(width) # one-hot, lsb has priority
 		self.o = Signal(max=width) # binary
 		self.n = Signal() # none
-		act = If(0)
-		for j in range(width):
-			act = act.Elif(self.i[j], self.o.eq(j))
-		self.comb += act
+		for j in range(width)[::-1]: # last has priority
+			self.comb += If(self.i[j], self.o.eq(j))
 		self.comb += self.n.eq(self.i == 0)
 
 class Decoder(Module):
@@ -41,9 +39,7 @@ class PriorityDecoder(Decoder):
 	pass # same
 
 def _main():
-	from migen.sim.generic import Simulator, TopLevel
 	from migen.fhdl import verilog
-
 	e = Encoder(8)
 	print(verilog.convert(e, ios={e.i, e.o, e.n}))
 	pe = PriorityEncoder(8)
