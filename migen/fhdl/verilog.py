@@ -302,6 +302,7 @@ def convert(f, ios=None, name="top",
 			else:
 				raise KeyError("Unresolved clock domain: '"+cd_name+"'")
 	
+	f = lower_complex_slices(f)
 	_insert_resets(f)
 	f = lower_basics(f)
 	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
