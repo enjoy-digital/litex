@@ -45,8 +45,8 @@ def _process_function_args(symdict, function_def, args, kwargs):
 		pass
 	vararg = tuple(current_argvalue)
 
-	kwarg = OrderedDict()
-	for k, v in kwarg.items():
+	kwarg = dict()
+	for k, v in kwargs.items():
 		if k in ad_positional:
 			ad_positional[k] = v
 		elif k in ad_kwonly:
