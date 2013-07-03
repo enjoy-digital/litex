@@ -7,14 +7,14 @@ from migen.fhdl import verilog
 
 layout = [("r", 32)]
 
-def number_gen():
-	for i in range(10):
+def number_gen(n):
+	for i in range(n):
 		yield Token("result", {"r": i})
 
 class SimNumberGen(SimActor):
 	def __init__(self):
 		self.result = Source(layout)
-		SimActor.__init__(self, number_gen())
+		SimActor.__init__(self, number_gen(5))
 
 def run_sim(ng):
 	g = DataFlowGraph()
@@ -23,11 +23,11 @@ def run_sim(ng):
 	
 	c = CompositeActor(g)
 	sim = Simulator(c)
-	sim.run(30)
+	sim.run(20)
 	del sim
 
 def make_ng_pytholite():
-	ng_pytholite = Pytholite(number_gen)
+	ng_pytholite = Pytholite(number_gen, 5)
 	ng_pytholite.result = Source(layout)
 	ng_pytholite.finalize()
 	return ng_pytholite
