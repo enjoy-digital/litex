@@ -10,16 +10,17 @@ from mibuild.crg import SimpleCRG
 from mibuild import tools
 
 def _add_period_constraint(platform, clk, period):
-	platform.add_platform_command("""NET "{clk}" TNM_NET = "GRPclk";
+	if period is not None:
+		platform.add_platform_command("""NET "{clk}" TNM_NET = "GRPclk";
 TIMESPEC "TSclk" = PERIOD "GRPclk" """+str(period)+""" ns HIGH 50%;""", clk=clk)
 
 class CRG_SE(SimpleCRG):
-	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
+	def __init__(self, platform, clk_name, rst_name, period=None, rst_invert=False):
 		SimpleCRG.__init__(self, platform, clk_name, rst_name, rst_invert)
 		_add_period_constraint(platform, self._clk, period)
 
 class CRG_DS(Module):
-	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
+	def __init__(self, platform, clk_name, rst_name, period=None, rst_invert=False):
 		reset_less = rst_name is None
 		self.clock_domains.cd_sys = ClockDomain(reset_less=reset_less)
 		self._clk = platform.request(clk_name)
