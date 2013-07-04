@@ -209,6 +209,8 @@ class GenericPlatform:
 				frag = fragment + crg.get_fragment()
 			else:
 				frag = fragment
+			# finalize
+			self.finalize(fragment)
 			# generate Verilog
 			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(),
 				return_ns=True, create_clock_domains=False, **kwargs)
