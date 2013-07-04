@@ -83,34 +83,6 @@ _io = [
 	),
 
 	("dvi_in", 0,
-		Subsignal("clk_p", Pins("K5"), IOStandard("TMDS_33")),
-		Subsignal("clk_n", Pins("K4"), IOStandard("TMDS_33")),
-		Subsignal("data0_p", Pins("H4"), IOStandard("TMDS_33")),
-		Subsignal("data0_n", Pins("H3"), IOStandard("TMDS_33")),
-		Subsignal("data1_p", Pins("K6"), IOStandard("TMDS_33")),
-		Subsignal("data1_n", Pins("J6"), IOStandard("TMDS_33")),
-		Subsignal("data2_p", Pins("K3"), IOStandard("TMDS_33")),
-		Subsignal("data2_n", Pins("J4"), IOStandard("TMDS_33")),
-		Subsignal("scl", Pins("U6"), IOStandard("LVCMOS33")),
-		Subsignal("sda", Pins("V5"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_notif", Pins("AA8"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_en", Pins("Y6"), IOStandard("LVCMOS33"))
-	),
-	("dvi_in", 1,
-		Subsignal("clk_p", Pins("J3"), IOStandard("TMDS_33")),
-		Subsignal("clk_n", Pins("J1"), IOStandard("TMDS_33")),
-		Subsignal("data0_p", Pins("M2"), IOStandard("TMDS_33")),
-		Subsignal("data0_n", Pins("M1"), IOStandard("TMDS_33")),
-		Subsignal("data1_p", Pins("L3"), IOStandard("TMDS_33")),
-		Subsignal("data1_n", Pins("L1"), IOStandard("TMDS_33")),
-		Subsignal("data2_p", Pins("K2"), IOStandard("TMDS_33")),
-		Subsignal("data2_n", Pins("K1"), IOStandard("TMDS_33")),
-		Subsignal("scl", Pins("T7"), IOStandard("LVCMOS33")),
-		Subsignal("sda", Pins("R7"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_notif", Pins("AB9"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_en", Pins("Y5"), IOStandard("LVCMOS33"))
-	),
-	("dvi_in", 2,
 		Subsignal("clk_p", Pins("Y11"), IOStandard("TMDS_33")),
 		Subsignal("clk_n", Pins("AB11"), IOStandard("TMDS_33")),
 		Subsignal("data0_p", Pins("V11"), IOStandard("TMDS_33")),
@@ -124,7 +96,7 @@ _io = [
 		Subsignal("hpd_notif", Pins("AB8"), IOStandard("LVCMOS33")),
 		Subsignal("hpd_en", Pins("V9"), IOStandard("LVCMOS33"))
 	),
-	("dvi_in", 3,
+	("dvi_in", 1,
 		Subsignal("clk_p", Pins("J20"), IOStandard("TMDS_33")),
 		Subsignal("clk_n", Pins("J22"), IOStandard("TMDS_33")),
 		Subsignal("data0_p", Pins("P18"), IOStandard("TMDS_33")),
@@ -168,7 +140,7 @@ TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
 		except ConstraintError:
 			pass
 
-		for i in range(4):
+		for i in range(2):
 			si = "dviclk"+str(i)
 			try:
 				self.add_platform_command("""
