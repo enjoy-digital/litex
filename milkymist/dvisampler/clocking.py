@@ -16,6 +16,16 @@ class Clocking(Module, AutoCSR):
 
 		###
 
+		if hasattr(pads, "clk_p"):
+			clkin = Signal()
+			self.specials += Instance("IBUFDS",
+				Instance.Input("I", pads.clk_p),
+				Instance.Input("IB", pads.clk_n),
+				Instance.Output("O", clkin)		
+			)
+		else:
+			clkin = pads.clk
+
 		clkfbout = Signal()
 		pll_locked = Signal()
 		pll_clk0 = Signal()
@@ -39,7 +49,7 @@ class Clocking(Module, AutoCSR):
 			Instance.Output("CLKOUT3", pll_clk3),
 			Instance.Output("LOCKED", pll_locked),
 			Instance.Input("CLKFBIN", clkfbout),
-			Instance.Input("CLKIN", pads.clk),
+			Instance.Input("CLKIN", clkin),
 			Instance.Input("RST", self._r_pll_reset.storage)
 		)
 

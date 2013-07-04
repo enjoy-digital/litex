@@ -19,11 +19,19 @@ class DVISampler(Module, AutoCSR):
 		for datan in range(3):
 			name = "data" + str(datan)
 			invert = False
-			try:
-				s = getattr(pads, name)
-			except AttributeError:
-				s = getattr(pads, name + "_n")
-				invert = True
+			if hasattr(pads, name + "_p"):
+				s = Signal()
+				self.specials += Instance("IBUFDS",
+					Instance.Input("I", getattr(pads, name + "_p")),
+					Instance.Input("IB", getattr(pads, name + "_n")),
+					Instance.Output("O", s)		
+				)
+			else:
+				try:
+					s = getattr(pads, name)
+				except AttributeError:
+					s = getattr(pads, name + "_n")
+					invert = True
 			
 			cap = DataCapture(8, invert)
 			setattr(self.submodules, name + "_cap", cap)
