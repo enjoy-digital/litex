@@ -1,3 +1,0 @@
-cable milkymist
-detect
-pld load build/soc.bit

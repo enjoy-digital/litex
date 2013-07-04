@@ -6,8 +6,9 @@ from migen.fhdl.std import *
 from migen.bus import wishbone, csr, lasmibus, dfi
 from migen.bus import wishbone2lasmi, wishbone2csr
 from migen.bank import csrgen
+from mibuild.generic_platform import ConstraintError
 
-from milkymist import m1crg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
+from milkymist import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
 	identifier, timer, minimac3, framebuffer, dvisampler, \
 	counteradc, gpio
 from milkymist.cif import get_macros
@@ -51,10 +52,14 @@ sdram_timing = lasmicon.TimingSettings(
 	write_time=16
 )
 
-class M1ClockPads:
+class MXClockPads:
 	def __init__(self, platform):
 		self.clk50 = platform.request("clk50")
-		self.trigger_reset = platform.request("user_btn", 1)
+		self.trigger_reset = 0
+		try:
+			self.trigger_reset = platform.request("user_btn", 1)
+		except ConstraintError:
+			pass
 		self.norflash_rst_n = platform.request("norflash_rst_n")
 		self.vga_clk = platform.request("vga_clock")
 		ddram_clock = platform.request("ddram_clock")
@@ -93,7 +98,7 @@ class SoC(Module):
 		"dvisampler1":	4,
 	}
 
-	def __init__(self, platform):
+	def __init__(self, platform, platform_name):
 		#
 		# LASMI
 		#
@@ -142,18 +147,19 @@ class SoC(Module):
 		#
 		# CSR
 		#
-		self.submodules.crg = m1crg.M1CRG(M1ClockPads(platform), clk_freq)
+		self.submodules.crg = mxcrg.MXCRG(MXClockPads(platform), clk_freq)
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(0x4D31, version, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
 		self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga"), lasmim_fb0, lasmim_fb1)
 		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), lasmim_dvi0)
 		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), lasmim_dvi1)
-		pots_pads = platform.request("dvi_pots")
-		self.submodules.pots = counteradc.CounterADC(pots_pads.charge,
-			[pots_pads.blackout, pots_pads.crossfade])
-		self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
-		self.submodules.leds = gpio.GPIOOut(Cat(*[platform.request("user_led", i) for i in range(2)]))
+		if platform_name == "m1":
+			pots_pads = platform.request("dvi_pots")
+			self.submodules.pots = counteradc.CounterADC(pots_pads.charge,
+				[pots_pads.blackout, pots_pads.crossfade])
+			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
+			self.submodules.leds = gpio.GPIOOut(Cat(*[platform.request("user_led", i) for i in range(2)]))
 
 		self.submodules.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])

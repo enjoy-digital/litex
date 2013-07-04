@@ -1,4 +1,4 @@
-module m1crg #(
+module mxcrg #(
 	parameter in_period = 0.0,
 	parameter f_mult = 0,
 	parameter f_div = 0,
@@ -56,6 +56,8 @@ always @(posedge sys_clk) begin
 	sys_rst <= rst_debounce != 20'd0;
 end
 
+initial rst_debounce <= 20'hFFFFF;
+
 /*
  * We must release the Flash reset before the system reset
  * because the Flash needs some time to come out of reset
@@ -73,6 +75,8 @@ always @(posedge sys_clk) begin
 	else if(~flash_rstcounter[7])
 		flash_rstcounter <= flash_rstcounter + 8'd1;
 end
+
+initial flash_rstcounter <= 8'd0;
 
 assign norflash_rst_n = flash_rstcounter[7];
 

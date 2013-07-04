@@ -3,7 +3,7 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from migen.bank.description import *
 
-class M1CRG(Module, AutoCSR):
+class MXCRG(Module, AutoCSR):
 	def __init__(self, pads, outfreq1x):
 		self.clock_domains.cd_sys = ClockDomain()
 		self.clock_domains.cd_sys2x_270 = ClockDomain()
@@ -32,7 +32,7 @@ class M1CRG(Module, AutoCSR):
 		vga_progdone = Signal()
 		vga_locked = Signal()
 
-		self.specials += Instance("m1crg",
+		self.specials += Instance("mxcrg",
 			Instance.Parameter("in_period", in_period),
 			Instance.Parameter("f_mult", ratio.numerator),
 			Instance.Parameter("f_div", ratio.denominator),

@@ -2,17 +2,16 @@
 ------------------------------
 
 This is the next-generation Milkymist(tm) system-on-chip design,
-introducing two key innovations:
+introducing two key features:
  * Built on the powerful Migen VLSI logic design system.
- * Increased system memory performance thanks to a new architecture
-   (ASMI) containing a transaction-reordering and superscalar controller.
+ * Increased system memory performance thanks to LASMI.
 
-The Milkymist-NG SoC supports the Milkymist One board. Obtain yours at:
-  http://milkymist.org
+This translates to more development productivity, better video resolution
+and quality, ease of designing complex hardware accelerators, and much
+more flexibility in hardware designs.
 
-Note that the -NG version is still experimental work in progress. For the
-production version of Milkymist SoC, visit:
-  https://github.com/milkymist/milkymist
+The Milkymist-NG SoC supports the Mixxeo and the Milkymist One.
+Obtain yours at http://milkymist.org
 
 [> Instructions (software)
 --------------------------
@@ -50,15 +49,11 @@ First, download and install Migen from:
   https://github.com/milkymist/migen
 
 Once this is done, build the bitstream with:
-  make
-This will generate the build/soc.bit programming file.
-Use:
-  make load
-to load it with UrJTAG.
+  ./make.py [-p <platform>] -l
+This will generate the build/soc-<platform>.bit programming file
+and load it with UrJTAG.
 
-The SoC expects a bootloader to be located in flash at 0x860000, just
-like the legacy SoC did. However, there is no binary compatibility and a
-new BIOS needs to be built and flashed for the -NG SoC.
+A new BIOS needs to be built and flashed for the -NG SoC.
 
 Enjoy!
 
