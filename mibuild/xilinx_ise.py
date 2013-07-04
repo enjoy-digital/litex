@@ -108,10 +108,10 @@ def _run_ise(build_name, ise_path, source):
 
 	build_script_contents += """
 xst -ifn {build_name}.xst
-ngdbuild -uc {build_name}.ucf {build_name}.ngc
-map -ol high -w {build_name}.ngd
-par -ol high -w {build_name}.ncd {build_name}-routed.ncd
-bitgen -g LCK_cycle:6 -g Binary:Yes -w {build_name}-routed.ncd {build_name}.bit
+ngdbuild -uc {build_name}.ucf {build_name}.ngc {build_name}.ngd
+map -ol high -w -o {build_name}_map.ncd {build_name}.ngd {build_name}.pcf
+par -ol high -w {build_name}_map.ncd {build_name}.ncd {build_name}.pcf
+bitgen -g LCK_cycle:6 -g Binary:Yes -w {build_name}.ncd {build_name}.bit
 """.format(build_name=build_name)
 	build_script_file = "build_" + build_name + ".sh"
 	tools.write_to_file(build_script_file, build_script_contents)
