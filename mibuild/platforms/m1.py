@@ -120,3 +120,36 @@ class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
 			lambda p: CRG_SE(p, "clk50", "user_btn", 20.0))
+
+	def do_finalize(self, fragment):
+		try:
+			self.add_platform_command("""
+NET "{clk50}" TNM_NET = "GRPclk50";
+TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
+""", clk50=self.lookup_request("clk50"))
+		except ConstraintError:
+			pass
+
+		try:
+			eth_clocks = self.lookup_request("eth_clocks")
+			self.add_platform_command("""
+NET "{phy_rx_clk}" TNM_NET = "GRPphy_rx_clk";
+NET "{phy_tx_clk}" TNM_NET = "GRPphy_tx_clk";
+TIMESPEC "TSphy_rx_clk" = PERIOD "GRPphy_rx_clk" 40 ns HIGH 50%;
+TIMESPEC "TSphy_tx_clk" = PERIOD "GRPphy_tx_clk" 40 ns HIGH 50%;
+TIMESPEC "TSphy_tx_clk_io" = FROM "GRPphy_tx_clk" TO "PADS" 10 ns;
+TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
+""", phy_rx_clk=eth_clocks.rx, phy_tx_clk=eth_clocks.tx)
+		except ConstraintError:
+			pass
+
+		for i in range(2):
+			si = "dviclk"+str(i)
+			try:
+				self.add_platform_command("""
+NET "{dviclk}" TNM_NET = "GRP"""+si+"""";
+NET "{dviclk}" CLOCK_DEDICATED_ROUTE = FALSE;
+TIMESPEC "TS"""+si+"""" = PERIOD "GRP"""+si+"""" 26.7 ns HIGH 50%;
+""", dviclk=self.lookup_request("dvi_in", i).clk)
+			except ConstraintError:
+				pass
