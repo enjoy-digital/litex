@@ -21,7 +21,7 @@ class Reader(Module):
 			lasmim.we.eq(0),
 			lasmim.stb.eq(self.address.stb & request_enable),
 			lasmim.adr.eq(self.address.payload.a),
-			self.address.ack.eq(lasmim.req_ack),
+			self.address.ack.eq(lasmim.req_ack & request_enable),
 			request_issued.eq(lasmim.stb & lasmim.req_ack)
 		]
 
