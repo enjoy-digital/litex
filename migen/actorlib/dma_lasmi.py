@@ -72,7 +72,7 @@ class Writer(Module):
 		###
 
 		if fifo_depth is None:
-			fifo_depth = lasmim.req_queue_size + lasmim.read_latency + 2
+			fifo_depth = lasmim.req_queue_size + lasmim.write_latency + 2
 
 		fifo = SyncFIFO(lasmim.dw, fifo_depth)
 		self.submodules += fifo
