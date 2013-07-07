@@ -41,7 +41,7 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 	if build_bitstream:
 		build_name = "soc-"+platform_name
 		platform.build(soc, build_name=build_name)
-		subprocess.call(["tools/byteswap", build_name+".bin", build_name+".fpg"])
+		subprocess.call(["tools/byteswap", "build/"+build_name+".bin", "build/"+build_name+".fpg"])
 	else:
 		soc.finalize()
 	if build_header:
