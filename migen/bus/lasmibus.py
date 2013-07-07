@@ -85,7 +85,7 @@ class Crossbar(Module):
 					bank.we.eq(Array(self.masters)[rr.grant].we),
 					bank.stb.eq(Array(bank_requested)[rr.grant])
 				]
-				master_req_acks = [master_req_ack | ((rr.grant == nm) & Array(bank_selected)[rr.grant] & bank.req_ack)
+				master_req_acks = [master_req_ack | ((rr.grant == nm) & bank_selected[nm] & bank.req_ack)
 					for nm, master_req_ack in enumerate(master_req_acks)]
 				master_dat_acks = [master_dat_ack | ((rr.grant == nm) & bank.dat_ack)
 					for nm, master_dat_ack in enumerate(master_dat_acks)]
