@@ -7,7 +7,7 @@ from milkymist.lasmicon.refresher import *
 from milkymist.lasmicon.bankmachine import *
 from milkymist.lasmicon.multiplexer import *
 
-PhySettings = namedtuple("PhySettings", "dfi_d nphases rdphase wrphase")
+PhySettings = namedtuple("PhySettings", "type dfi_d nphases rdphase wrphase cl")
 
 class GeomSettings(namedtuple("_GeomSettings", "bank_a row_a col_a")):
 	def __init__(self, *args, **kwargs):

@@ -6,9 +6,9 @@ from migen.bank.description import *
 class MXCRG(Module, AutoCSR):
 	def __init__(self, pads, outfreq1x):
 		self.clock_domains.cd_sys = ClockDomain()
-		self.clock_domains.cd_sys2x_270 = ClockDomain()
-		self.clock_domains.cd_sys4x_wr = ClockDomain()
-		self.clock_domains.cd_sys4x_rd = ClockDomain()
+		self.clock_domains.cd_sdram_half = ClockDomain()
+		self.clock_domains.cd_sdram_full_wr = ClockDomain()
+		self.clock_domains.cd_sdram_full_rd = ClockDomain()
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
 		self.clock_domains.cd_vga = ClockDomain(reset_less=True)
@@ -44,9 +44,9 @@ class MXCRG(Module, AutoCSR):
 			
 			Instance.Output("sys_clk", self.cd_sys.clk),
 			Instance.Output("sys_rst", self.cd_sys.rst),
-			Instance.Output("clk2x_270", self.cd_sys2x_270.clk),
-			Instance.Output("clk4x_wr", self.cd_sys4x_wr.clk),
-			Instance.Output("clk4x_rd", self.cd_sys4x_rd.clk),
+			Instance.Output("clk2x_270", self.cd_sdram_half.clk),
+			Instance.Output("clk4x_wr", self.cd_sdram_full_wr.clk),
+			Instance.Output("clk4x_rd", self.cd_sdram_full_rd.clk),
 			Instance.Output("eth_rx_clk", self.cd_eth_rx.clk),
 			Instance.Output("eth_tx_clk", self.cd_eth_tx.clk),
 			Instance.Output("vga_clk", self.cd_vga.clk),

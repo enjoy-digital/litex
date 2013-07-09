@@ -2,70 +2,18 @@
 #include <stdlib.h>
 
 #include <hw/csr.h>
+#include <hw/sdram_phy.h>
 #include <hw/flags.h>
 #include <hw/mem.h>
 
 #include "sdram.h"
 
-static void cdelay(int i)
+void cdelay(int i)
 {
 	while(i > 0) {
 		__asm__ volatile("nop");
 		i--;
 	}
-}
-
-static void command_p0(int cmd)
-{
-	dfii_pi0_command_write(cmd);
-	dfii_pi0_command_issue_write(1);
-}
-
-static void command_p1(int cmd)
-{
-	dfii_pi1_command_write(cmd);
-	dfii_pi1_command_issue_write(1);
-}
-
-static void init_sequence(void)
-{
-	int i;
-	
-	/* Bring CKE high */
-	dfii_pi0_address_write(0x0000);
-	dfii_pi0_baddress_write(0);
-	dfii_control_write(DFII_CONTROL_CKE);
-	
-	/* Precharge All */
-	dfii_pi0_address_write(0x0400);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	
-	/* Load Extended Mode Register */
-	dfii_pi0_baddress_write(1);
-	dfii_pi0_address_write(0x0000);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	dfii_pi0_baddress_write(0);
-	
-	/* Load Mode Register */
-	dfii_pi0_address_write(0x0132); /* Reset DLL, CL=3, BL=4 */
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	cdelay(200);
-	
-	/* Precharge All */
-	dfii_pi0_address_write(0x0400);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	
-	/* 2x Auto Refresh */
-	for(i=0;i<2;i++) {
-		dfii_pi0_address_write(0);
-		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_CS);
-		cdelay(4);
-	}
-	
-	/* Load Mode Register */
-	dfii_pi0_address_write(0x0032); /* CL=3, BL=4 */
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-	cdelay(200);
 }
 
 void ddrsw(void)
@@ -121,9 +69,9 @@ void ddrrd(char *startaddr)
 		return;
 	}
 	
-	dfii_pi0_address_write(addr);
-	dfii_pi0_baddress_write(0);
-	command_p0(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+	dfii_pird_address_write(addr);
+	dfii_pird_baddress_write(0);
+	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
 	
 	for(i=0;i<8;i++)
@@ -154,9 +102,9 @@ void ddrwr(char *startaddr)
 		MMPTR(0xe000106c+4*i) = 0xf0 + i;
 	}
 	
-	dfii_pi1_address_write(addr);
-	dfii_pi1_baddress_write(0);
-	command_p1(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
+	dfii_piwr_address_write(addr);
+	dfii_piwr_baddress_write(0);
+	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
 }
 
 #define TEST_SIZE (4*1024*1024)

@@ -27,7 +27,7 @@ TIMESPEC "TSise_sucks1" = FROM "GRPvga_clk" TO "GRPsys_clk" TIG;
 TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 """)
 
-	for d in ["mxcrg", "s6ddrphy", "minimac3"]:
+	for d in ["mxcrg", "minimac3"]:
 		platform.add_source_dir(os.path.join("verilog", d))
 	platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"), 
 		"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
@@ -47,12 +47,16 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 	if build_header:
 		csr_header = cif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
 		write_to_file("software/include/hw/csr.h", csr_header)
+		
+		sdram_phy_header = cif.get_sdram_phy_header(soc.ddrphy)
+		write_to_file("software/include/hw/sdram_phy.h", sdram_phy_header)
+
 
 def main():
 	parser = argparse.ArgumentParser(description="milkymist-ng - a high performance SoC built on Migen technology.")
 	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-B", "--no-bitstream", default=False, action="store_true", help="do not build bitstream file")
-	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header file with CSR/IRQ defs")
+	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header file with CSR/IRQ/SDRAM_PHY defs")
 	parser.add_argument("-l", "--load", default=False, action="store_true", help="load bitstream to SRAM")
 	parser.add_argument("-f", "--flash", default=False, action="store_true", help="load bitstream to flash")
 	args = parser.parse_args()

@@ -26,10 +26,12 @@ def ns(t, margin=True):
 	return ceil(t/clk_period_ns)
 
 sdram_phy = lasmicon.PhySettings(
+	type="DDR",
 	dfi_d=64, 
 	nphases=2,
 	rdphase=0,
-	wrphase=1
+	wrphase=1,
+	cl=3
 )
 sdram_geom = lasmicon.GeomSettings(
 	bank_a=2,
@@ -109,7 +111,7 @@ class SoC(Module):
 		#
 		# DFI
 		#
-		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"))
+		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), sdram_phy, 0)
 		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d,
 			sdram_phy.nphases)
 		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)
