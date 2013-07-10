@@ -1,5 +1,5 @@
 from migen.fhdl.std import *
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.record import Record
 from migen.bank.description import *
@@ -105,7 +105,7 @@ class ResolutionDetection(Module, AutoCSR):
 			)
 		self.specials += MultiReg(vcounter_st, self._vres.status)
 
-class FrameExtraction(Module):
+class FrameExtraction(Module, AutoCSR):
 	def __init__(self):
 		# in pix clock domain
 		self.valid_i = Signal()
@@ -118,6 +118,8 @@ class FrameExtraction(Module):
 		# in sys clock domain
 		self.frame = Source(frame_layout)
 		self.busy = Signal()
+
+		self._r_overflow = CSR()
 
 		###
 
@@ -144,4 +146,37 @@ class FrameExtraction(Module):
 			self.frame.payload.raw_bits().eq(fifo.dout),
 			fifo.re.eq(self.frame.ack),
 			self.busy.eq(0)
+		]
+
+		# overflow detection
+		pix_overflow = Signal()
+		pix_overflow_reset = Signal()
+		self.sync.pix += [
+			If(fifo.we & ~fifo.writable,
+				pix_overflow.eq(1)
+			).Elif(pix_overflow_reset,
+				pix_overflow.eq(0)
+			)
+		]
+
+		sys_overflow = Signal()
+		self.specials += MultiReg(pix_overflow, sys_overflow)
+		self.submodules.overflow_reset = PulseSynchronizer("sys", "pix")
+		self.submodules.overflow_reset_ack = PulseSynchronizer("pix", "sys")
+		self.comb += [
+			pix_overflow_reset.eq(self.overflow_reset.o),
+			self.overflow_reset_ack.i.eq(pix_overflow_reset)
+		]
+
+		overflow_mask = Signal()
+		self.comb += [
+			self._r_overflow.w.eq(sys_overflow & ~overflow_mask),
+			self.overflow_reset.i.eq(self._r_overflow.re)
+		]
+		self.sync += [
+			If(self._r_overflow.re,
+				overflow_mask.eq(1)
+			).Elif(self.overflow_reset_ack.o,
+				overflow_mask.eq(0)
+			)
 		]

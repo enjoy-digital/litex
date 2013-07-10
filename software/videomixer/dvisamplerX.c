@@ -216,6 +216,14 @@ int dvisamplerX_phase_startup(void)
 	}
 }
 
+static void dvisamplerX_check_overflow(void)
+{
+	if(dvisamplerX_frame_overflow_read()) {
+		printf("dvisamplerX: FIFO overflow\n");
+		dvisamplerX_frame_overflow_write(1);
+	}
+}
+
 static int dvisamplerX_locked;
 static int dvisamplerX_last_event;
 
@@ -239,4 +247,5 @@ void dvisamplerX_service(void)
 			dvisamplerX_locked = 1;
 		}
 	}
+	dvisamplerX_check_overflow();
 }
