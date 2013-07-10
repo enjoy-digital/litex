@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
 
-def phase_description(a, ba, d):
+def phase_cmd_description(a, ba):
 	return [
 		("address",			a,		DIR_M_TO_S),	
 		("bank",			ba,		DIR_M_TO_S),
@@ -9,16 +9,28 @@ def phase_description(a, ba, d):
 		("cke",				1,		DIR_M_TO_S),
 		("cs_n",			1,		DIR_M_TO_S),
 		("ras_n",			1,		DIR_M_TO_S),
-		("we_n",			1,		DIR_M_TO_S),
-		
+		("we_n",			1,		DIR_M_TO_S)
+	]
+
+def phase_wrdata_description(d):
+	return [
 		("wrdata",			d,		DIR_M_TO_S),
 		("wrdata_en",		1,		DIR_M_TO_S),
 		("wrdata_mask",		d//8,	DIR_M_TO_S),
-		
+	]
+
+def phase_rddata_description(d):
+	return [
 		("rddata_en",		1,		DIR_M_TO_S),
 		("rddata",			d,		DIR_S_TO_M),
 		("rddata_valid",	1,		DIR_S_TO_M)
 	]
+
+def phase_description(a, ba, d):
+	r = phase_cmd_description(a, ba)
+	r += phase_wrdata_description(d)
+	r += phase_rddata_description(d)
+	return r
 
 class Interface(Record):
 	def __init__(self, a, ba, d, nphases=1):
