@@ -174,12 +174,14 @@ class Initiator(Module):
 		s.wr(self.bus.dat_w, 0)
 		s.wr(self.bus.dat_we, 0)
 		if not self.done:
-			if self.transaction is not None and s.rd(self.bus.ack):
-				s.wr(self.bus.stb, 0)
-				if isinstance(self.transaction, TRead):
-					self.transaction_end = s.cycle_counter + self.bus.read_latency
-				else:
-					self.transaction_end = s.cycle_counter + self.bus.write_latency - 1
+			if self.transaction is not None:
+				if s.rd(self.bus.req_ack):
+					s.wr(self.bus.stb, 0)
+				if s.rd(self.bus.dat_ack):
+					if isinstance(self.transaction, TRead):
+						self.transaction_end = s.cycle_counter + self.bus.read_latency
+					else:
+						self.transaction_end = s.cycle_counter + self.bus.write_latency - 1
 
 			if self.transaction is None or s.cycle_counter == self.transaction_end:
 				if self.transaction is not None:
@@ -224,38 +226,54 @@ class TargetModel:
 			self.last_bank += 1
 		return self.last_bank
 
+class _ReqFIFO(Module):
+	def __init__(self, req_queue_size, bank):
+		self.req_queue_size = req_queue_size
+		self.bank = bank
+		self.contents = []
+
+	def do_simulation(self, s):
+		if len(self.contents) < self.req_queue_size:
+			if s.rd(self.bank.stb):
+				self.contents.append((s.rd(self.bank.we), s.rd(self.bank.adr)))
+			s.wr(self.bank.req_ack, 1)
+		else:
+			s.wr(self.bank.req_ack, 0)
+		s.wr(self.bank.lock, bool(self.contents))
+
 class Target(Module):
 	def __init__(self, model, *ifargs, **ifkwargs):
 		self.model = model
 		self.bus = Interface(*ifargs, **ifkwargs)
+		self.req_fifos = [_ReqFIFO(self.bus.req_queue_size, getattr(self.bus, "bank"+str(nb)))
+			for nb in range(self.bus.nbanks)]
+		self.submodules += self.req_fifos
 		self.rd_pipeline = [None]*self.bus.read_latency
 		self.wr_pipeline = [None]*(self.bus.write_latency + 1)
 
 	def do_simulation(self, s):
 		# determine banks with pending requests
-		pending_banks = set()
-		for nb in range(self.bus.nbanks):
-			bank = getattr(self.bus, "bank"+str(nb))
-			if s.rd(bank.stb) and not s.rd(bank.ack):
-				pending_banks.add(nb)
+		pending_banks = set(nb for nb, rf in enumerate(self.req_fifos) if rf.contents)
 
 		# issue new transactions
 		selected_bank_n = self.model.select_bank(pending_banks)
+		selected_transaction = None
 		for nb in range(self.bus.nbanks):
 			bank = getattr(self.bus, "bank"+str(nb))
 			if nb == selected_bank_n:
-				s.wr(bank.ack, 1)
+				s.wr(bank.dat_ack, 1)
+				selected_transaction = self.req_fifos[nb].contents.pop(0)
 			else:
-				s.wr(bank.ack, 0)
+				s.wr(bank.dat_ack, 0)
 		
 		rd_transaction = None
 		wr_transaction = None
 		if selected_bank_n >= 0:
-			selected_bank = getattr(self.bus, "bank"+str(selected_bank_n))
-			if s.rd(selected_bank.we):
-				wr_transaction = selected_bank_n, s.rd(selected_bank.adr)
+			we, adr = selected_transaction
+			if we:
+				wr_transaction = selected_bank_n, adr
 			else:
-				rd_transaction = selected_bank_n, s.rd(selected_bank.adr)
+				rd_transaction = selected_bank_n, adr
 
 		# data pipeline
 		self.rd_pipeline.append(rd_transaction)
