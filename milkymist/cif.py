@@ -67,14 +67,13 @@ def get_csr_header(csr_base, bank_array, interrupt_map):
 	return r
 
 def get_sdram_phy_header(sdram_phy):
-
 		if sdram_phy.phy_settings.type not in ["SDR", "DDR", "LPDDR", "DDR2"]:
-			raise NotImplementedError("sdram phy header generator only supports SDR, DDR, LPDDR and DDR2")
+			raise NotImplementedError("The SDRAM PHY header generator only supports SDR, DDR, LPDDR and DDR2")
 
-		r = "#ifndef __HW_SDRAM_PHY_H\n#define __SDRAM_PHY_H\n"
+		r = "#ifndef __HW_SDRAM_PHY_H\n#define __HW_SDRAM_PHY_H\n"
 		r += "#include <hw/common.h>\n#include <hw/csr.h>\n#include <hw/flags.h>\n\n"
 
-		r += "extern void cdelay(int i);\n"
+		r += "static void cdelay(int i);\n"
 
 		#
 		# commands_px functions
@@ -126,7 +125,7 @@ static void command_p{n}(int cmd)
 			return r
 
 
-		r += "static void init_sequence(void) {\n"
+		r += "static void init_sequence(void)\n{\n"
 
 		cl = sdram_phy.phy_settings.cl
 		

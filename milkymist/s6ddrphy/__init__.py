@@ -18,7 +18,6 @@
 
 # Todo:
 #	- use CSR for bitslip?
-#   - move sdram clk generation to phy?
 
 from migen.fhdl.std import *
 from migen.bus.dfi import *
@@ -26,7 +25,6 @@ from migen.genlib.record import *
 
 class S6DDRPHY(Module):
 	def __init__(self, pads, phy_settings, bitslip):
-		
 		if phy_settings.type not in ["DDR", "LPDDR", "DDR2"]:
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
 
@@ -48,8 +46,6 @@ class S6DDRPHY(Module):
 		# sdram_full_rd_clk : full rate sdram write clk
 		sd_sys = getattr(self.sync, "sys")
 		sd_sdram_half = getattr(self.sync, "sdram_half")
-		sd_sdram_full_wr = getattr(self.sync, "sdram_full_wr")
-		sd_sdram_full_rd = getattr(self.sync, "sdram_full_rd")
 
 		sys_clk = ClockSignal("sys")
 		sdram_half_clk = ClockSignal("sdram_half")
@@ -102,10 +98,10 @@ class S6DDRPHY(Module):
 		# 
 		# Bitslip
 		#
-		bitslip_cnt   = Signal(4)
+		bitslip_cnt = Signal(4)
 		bitslip_inc = Signal()
 
-		sd_sys +=[
+		sd_sys += [
 			If(bitslip_cnt==bitslip, 
 				bitslip_inc.eq(0)
 			).Else(
@@ -120,7 +116,10 @@ class S6DDRPHY(Module):
 		sdram_half_clk_n = Signal()
 		self.comb += sdram_half_clk_n.eq(~sdram_half_clk)
 
-		postamble, drive_dqs, dqs_t_d0, dqs_t_d1 = (Signal() for i in range(4))
+		postamble = Signal()
+		drive_dqs = Signal()
+		dqs_t_d0 = Signal()
+		dqs_t_d1 = Signal()
 
 		dqs_o = Signal(d//8) 
 		dqs_t = Signal(d//8)
@@ -131,7 +130,6 @@ class S6DDRPHY(Module):
 		]
 
 		for i in range(d//8):
-
 			# DQS output
 			self.specials += Instance("ODDR2",
 				Instance.Parameter("DDR_ALIGNMENT", "C1"),
@@ -182,28 +180,32 @@ class S6DDRPHY(Module):
 			for i in range(2*nphases)]
 
 		for n, phase in enumerate(self.dfi.phases):
-			self.comb +=[
+			self.comb += [
 				d_dfi[n].wrdata.eq(phase.wrdata),
 				d_dfi[n].wrdata_mask.eq(phase.wrdata_mask),
 				d_dfi[n].wrdata_en.eq(phase.wrdata_en),
 				d_dfi[n].rddata_en.eq(phase.rddata_en),
 			]
-			sd_sys +=[
-					d_dfi[nphases+n].wrdata.eq(phase.wrdata),
-					d_dfi[nphases+n].wrdata_mask.eq(phase.wrdata_mask)
+			sd_sys += [
+				d_dfi[nphases+n].wrdata.eq(phase.wrdata),
+				d_dfi[nphases+n].wrdata_mask.eq(phase.wrdata_mask)
 			]
 
 
-		drive_dq, drive_dq_n, d_drive_dq, d_drive_dq_n = (Signal() for i in range(4))
-		self.comb +=[
+		drive_dq = Signal()
+		drive_dq_n = Signal()
+		d_drive_dq = Signal()
+		d_drive_dq_n = Signal()
+		self.comb += [
 			drive_dq_n.eq(~drive_dq),
 			d_drive_dq_n.eq(~d_drive_dq)
 		]
 
-		dq_t, dq_o, dq_i = (Signal(d) for i in range(3))
+		dq_t = Signal(d)
+		dq_o = Signal(d)
+		dq_i = Signal(d)
 
 		for i in range(d):
-
 			# Data serializer
 			self.specials += Instance("OSERDES2",
 				Instance.Parameter("DATA_WIDTH", 4),
@@ -240,7 +242,7 @@ class S6DDRPHY(Module):
 				Instance.Output("SHIFTOUT2"),
 				Instance.Output("SHIFTOUT3"),
 				Instance.Output("SHIFTOUT4"),
-				)
+			)
 
 			# Data deserializer
 			self.specials += Instance("ISERDES2",
@@ -272,7 +274,7 @@ class S6DDRPHY(Module):
 				Instance.Output("VALID"),
 				Instance.Output("INCDEC"),
 				Instance.Output("SHIFTOUT")
-				)
+			)
 
 			# Data buffer
 			self.specials += Instance("IOBUF",
@@ -280,10 +282,9 @@ class S6DDRPHY(Module):
 				Instance.Output("O", dq_i[i]),
 				Instance.Input("T", dq_t[i]),
 				Instance.InOut("IO", pads.dq[i])
-				)
+			)
 
 		for i in range(d//8):
-
 			# Mask serializer
 			self.specials += Instance("OSERDES2",
 				Instance.Parameter("DATA_WIDTH", 4),
@@ -320,7 +321,7 @@ class S6DDRPHY(Module):
 				Instance.Output("SHIFTOUT2"),
 				Instance.Output("SHIFTOUT3"),
 				Instance.Output("SHIFTOUT4"),
-				)
+			)
 
 
 		# 
@@ -328,7 +329,6 @@ class S6DDRPHY(Module):
 		#
 		self.comb += drive_dq.eq(d_dfi[phy_settings.wrphase].wrdata_en)
 		sd_sys += d_drive_dq.eq(drive_dq)
-
 
 		d_dfi_wrdata_en = Signal()
 		sd_sys += d_dfi_wrdata_en.eq(d_dfi[phy_settings.wrphase].wrdata_en)
