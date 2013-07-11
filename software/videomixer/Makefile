@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/common.mak
 
-OBJECTS=crt0.o isr.o time.o fb.o dvisampler0.o dvisampler1.o main.o
+OBJECTS=isr.o time.o fb.o dvisampler0.o dvisampler1.o main.o
 
 all: videomixer.bin videomixer.fbi
 
@@ -18,7 +18,9 @@ all: videomixer.bin videomixer.fbi
 videomixer.elf: linker.ld $(OBJECTS) libs
 
 %.elf:
-	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) \
+	$(LD) $(LDFLAGS) -T $< -N -o $@ \
+		$(M2DIR)/software/libbase/crt0.o \
+		$(OBJECTS) \
 		-L$(M2DIR)/software/libbase \
 		-L$(M2DIR)/software/libcompiler-rt \
 		-lbase -lcompiler-rt

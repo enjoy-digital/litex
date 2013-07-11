@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/common.mak
 
-OBJECTS=crt0.o isr.o sdram.o main.o boot-helper.o boot.o dataflow.o
+OBJECTS=isr.o sdram.o main.o boot-helper.o boot.o dataflow.o
 
 all: bios.bin
 
@@ -17,7 +17,9 @@ all: bios.bin
 bios.elf: linker.ld $(OBJECTS) libs
 
 %.elf:
-	$(LD) $(LDFLAGS) -T $< -N -o $@ $(OBJECTS) \
+	$(LD) $(LDFLAGS) -T $< -N -o $@ \
+		$(M2DIR)/software/libbase/crt0.o \
+		$(OBJECTS) \
 		-L$(M2DIR)/software/libnet \
 		-L$(M2DIR)/software/libbase \
 		-L$(M2DIR)/software/libcompiler-rt \

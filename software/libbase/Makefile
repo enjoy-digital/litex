@@ -3,7 +3,7 @@ include $(M2DIR)/software/common.mak
 
 OBJECTS=setjmp.o libc.o errno.o crc16.o crc32.o console.o system.o id.o uart.o qsort.o strtod.o
 
-all: libbase.a libbase-nofloat.a
+all: crt0.o libbase.a libbase-nofloat.a
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
