@@ -10,7 +10,7 @@ from mibuild.generic_platform import ConstraintError
 
 from milkymist import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
 	identifier, timer, minimac3, framebuffer, dvisampler, \
-	counteradc, gpio
+	counteradc, gpio, memtest
 from milkymist.cif import get_macros
 
 version = get_macros("common/version.h")["VERSION"][1:-1]
@@ -89,7 +89,9 @@ class SoC(Module):
 		"dvisampler1_edid_mem":	11,
 		"pots":					12,
 		"buttons":				13,
-		"leds":					14
+		"leds":					14,
+		"memtest_w":			15,
+		"memtest_r":			16
 	}
 
 	interrupt_map = {
@@ -100,13 +102,18 @@ class SoC(Module):
 		"dvisampler1":	4,
 	}
 
-	def __init__(self, platform, platform_name):
+	def __init__(self, platform, platform_name, with_memtest):
 		#
 		# LASMI
 		#
 		self.submodules.lasmicon = lasmicon.LASMIcon(sdram_phy, sdram_geom, sdram_timing)
-		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], 5, self.lasmicon.nrowbits)
-		lasmim_wb, lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = self.lasmixbar.masters
+		n_lasmims = 7 if with_memtest else 5
+		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], n_lasmims, self.lasmicon.nrowbits)
+		lasmims = list(self.lasmixbar.masters)
+		lasmim_wb, lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = (lasmims.pop() for i in range(5))
+		if with_memtest:
+			lasmim_mtw, lasmim_mtr = lasmims.pop(), lasmims.pop()
+		assert(not lasmims)
 		
 		#
 		# DFI
@@ -162,6 +169,9 @@ class SoC(Module):
 				[pots_pads.blackout, pots_pads.crossfade])
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
 			self.submodules.leds = gpio.GPIOOut(Cat(*[platform.request("user_led", i) for i in range(2)]))
+		if with_memtest:
+			self.submodules.memtest_w = memtest.MemtestWriter(lasmim_mtw)
+			self.submodules.memtest_r = memtest.MemtestReader(lasmim_mtr)
 
 		self.submodules.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
