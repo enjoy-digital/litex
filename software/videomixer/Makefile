@@ -1,7 +1,7 @@
 M2DIR=../..
 include $(M2DIR)/software/common.mak
 
-OBJECTS=isr.o time.o fb.o dvisampler0.o dvisampler1.o main.o
+OBJECTS=isr.o fb.o dvisampler0.o dvisampler1.o main.o
 
 all: videomixer.bin videomixer.fbi
 

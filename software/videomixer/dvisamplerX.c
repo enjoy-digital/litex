@@ -3,10 +3,10 @@
 
 #include <irq.h>
 #include <uart.h>
+#include <time.h>
 #include <hw/csr.h>
 #include <hw/flags.h>
 
-#include "time.h"
 #include "fb.h"
 #include "dvisamplerX.h"
 
