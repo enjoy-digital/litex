@@ -15,10 +15,12 @@ all: videomixer.bin videomixer.fbi
 %.fbi: %.bin
 	$(M2DIR)/tools/mkmmimg $< write $@
 
-videomixer.elf: linker.ld $(OBJECTS) libs
+videomixer.elf: $(OBJECTS) libs
 
 %.elf:
-	$(LD) $(LDFLAGS) -T $< -N -o $@ \
+	$(LD) $(LDFLAGS) \
+		-T $(M2DIR)/software/libbase/linker-sdram.ld \
+		-N -o $@ \
 		$(M2DIR)/software/libbase/crt0.o \
 		$(OBJECTS) \
 		-L$(M2DIR)/software/libbase \
