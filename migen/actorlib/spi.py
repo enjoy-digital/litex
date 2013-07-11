@@ -149,8 +149,8 @@ class DMAReadController(_DMAController):
 
 class DMAWriteController(_DMAController):
 	def __init__(self, bus_accessor, *args, **kwargs):
-		bus_aw = len(bus_accessor.address_data.payload.a)
-		bus_dw = len(bus_accessor.address_data.payload.d)
+		bus_aw = flen(bus_accessor.address_data.payload.a)
+		bus_dw = flen(bus_accessor.address_data.payload.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
 		
 		g = DataFlowGraph()
