@@ -13,7 +13,7 @@ class LFSR(Module):
 		curval = [state[i] for i in range(n_state)]
 		curval += [0]*(n_out - n_state)
 		for i in range(n_out):
-			nv = optree("^", [curval[tap] for tap in taps])
+			nv = ~optree("^", [curval[tap] for tap in taps])
 			curval.insert(0, nv)
 			curval.pop()
 
@@ -22,9 +22,24 @@ class LFSR(Module):
 				self.o.eq(Cat(*curval))
 			)
 
-def _printcode():
+def _print_lfsr_code():
 	dut = LFSR(3, 4, [3, 2])
 	print(verilog.convert(dut, ios={dut.ce, dut.o}))
 
+class _LFSRTB(Module):
+	def __init__(self, *args, **kwargs):
+		self.submodules.lfsr = LFSR(*args, **kwargs)
+		self.comb += self.lfsr.ce.eq(1)
+
+	def do_simulation(self, s):
+		print(s.rd(self.lfsr.o))
+
+def _sim_lfsr():
+	from migen.sim.generic import Simulator
+	tb = _LFSRTB(3, 4, [3, 2])
+	sim = Simulator(tb)
+	sim.run(20)
+
 if __name__ == "__main__":
-	_printcode()
+	_print_lfsr_code()
+	_sim_lfsr()
