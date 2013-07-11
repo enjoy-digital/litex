@@ -113,14 +113,14 @@ static void command_p{n}(int cmd)
 		}
 
 		def gen_cmd(comment, a, ba, cmd, delay):	
-			r = "\t/* %s */\n" %comment
-			r += "\tdfii_pi0_address_write(0x%04X);\n" %a
-			r += "\tdfii_pi0_baddress_write(%d);\n" %ba
+			r = "\t/* {0} */\n".format(comment)
+			r += "\tdfii_pi0_address_write({0:#x});\n".format(a)
+			r += "\tdfii_pi0_baddress_write({0:d});\n".format(ba)
 			if "CKE" in cmd:
-				r += "\tdfii_control_write(%s);\n" %cmd
+				r += "\tdfii_control_write({0});\n".format(cmd)
 			else:
-				r += "\tcommand_p0(%s);\n" %cmd
-			r += "\tcdelay(%d);\n" %delay
+				r += "\tcommand_p0({0});\n".format(cmd)
+			r += "\tcdelay({0:d});\n".format(delay)
 			r += "\n"
 			return r
 
@@ -137,10 +137,10 @@ static void command_p{n}(int cmd)
 			init_sequence = [
 				("Bring CKE high", 0x0000, 0, cmds["CKE"], 2000),
 				("Precharge All",  0x0400, 0, cmds["PRECHARGE_ALL"], 0),
-				("Load Mode Register / Reset DLL, CL=%d, BL=%d" %(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
+				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
-				("Load Mode Register / CL=%d, BL=%d" %(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
+				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
 
 		elif sdram_phy.phy_settings.type == "DDR":
@@ -153,10 +153,10 @@ static void command_p{n}(int cmd)
 				("Bring CKE high", 0x0000, 0, cmds["CKE"], 2000),
 				("Precharge All",  0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Load Extended Mode Register", emr, 1, cmds["MODE_REGISTER"], 0),
-				("Load Mode Register / Reset DLL, CL=%d, BL=%d" %(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
+				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
-				("Load Mode Register / CL=%d, BL=%d" %(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
+				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
 
 		elif sdram_phy.phy_settings.type == "LPDDR":
@@ -169,10 +169,10 @@ static void command_p{n}(int cmd)
 				("Bring CKE high", 0x0000, 0, cmds["CKE"], 2000),
 				("Precharge All",  0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Load Extended Mode Register", emr, 2, cmds["MODE_REGISTER"], 0),
-				("Load Mode Register / Reset DLL, CL=%d, BL=%d" %(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
+				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
-				("Load Mode Register / CL=%d, BL=%d" %(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
+				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
 
 		elif sdram_phy.phy_settings.type == "DDR2":
@@ -185,10 +185,10 @@ static void command_p{n}(int cmd)
 				("Bring CKE high", 0x0000, 0, cmds["CKE"], 2000),
 				("Precharge All",  0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Load Extended Mode Register", emr, 1, cmds["MODE_REGISTER"], 0),
-				("Load Mode Register / Reset DLL, CL=%d, BL=%d" %(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
+				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
-				("Load Mode Register / CL=%d, BL=%d" %(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
+				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
 
 		for comment, a, ba, cmd, delay in init_sequence:
