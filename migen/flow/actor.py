@@ -90,15 +90,17 @@ class PipelinedActor(BinaryActor):
 		BinaryActor.__init__(self, latency)
 
 	def build_binary_control(self, stb_i, ack_o, stb_o, ack_i, latency):
-		valid = Signal(latency)
-		if latency > 1:
-			self.sync += If(self.pipe_ce, valid.eq(Cat(stb_i, valid[:latency-1])))
-		else:
-			self.sync += If(self.pipe_ce, valid.eq(stb_i))
-		last_valid = valid[latency-1]
+		busy = 0
+		valid = stb_i
+		for i in range(latency):
+			valid_n = Signal()
+			self.sync += If(self.pipe_ce, valid_n.eq(valid))
+			valid = valid_n
+			busy = busy | valid
+
 		self.comb += [
-			self.pipe_ce.eq(ack_i | ~last_valid),
+			self.pipe_ce.eq(ack_i | ~valid),
 			ack_o.eq(self.pipe_ce),
-			stb_o.eq(last_valid),
-			self.busy.eq(optree("|", [valid[i] for i in range(latency)]))
+			stb_o.eq(valid),
+			self.busy.eq(busy)
 		]
