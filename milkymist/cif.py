@@ -140,6 +140,7 @@ static void command_p{n}(int cmd)
 				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
+				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
 				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
 
@@ -155,6 +156,7 @@ static void command_p{n}(int cmd)
 				("Load Extended Mode Register", emr, 1, cmds["MODE_REGISTER"], 0),
 				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
+				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
 				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
@@ -172,6 +174,7 @@ static void command_p{n}(int cmd)
 				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
+				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
 				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
 
@@ -187,6 +190,7 @@ static void command_p{n}(int cmd)
 				("Load Extended Mode Register", emr, 1, cmds["MODE_REGISTER"], 0),
 				("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 				("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
+				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
 				("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
 				("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 			]
