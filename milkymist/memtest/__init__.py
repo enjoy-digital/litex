@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.misc import optree
 from migen.bank.description import *
 from migen.actorlib import dma_lasmi
-from migen.actorlib.spi import MODE_SINGLE_SHOT, DMAReadController, DMAWriteController
+from migen.actorlib.spi import *
 
 class LFSR(Module):
 	def __init__(self, n_out, n_state=31, taps=[27, 30]):
@@ -53,7 +53,8 @@ class MemtestWriter(Module):
 	def __init__(self, lasmim):
 		self._r_magic = CSRStatus(16)
 		self._r_reset = CSR()
-		self.submodules._dma = DMAWriteController(dma_lasmi.Writer(lasmim), MODE_SINGLE_SHOT)
+		self._r_shoot = CSR()
+		self.submodules._dma = DMAWriteController(dma_lasmi.Writer(lasmim), MODE_EXTERNAL)
 
 		###
 
@@ -63,14 +64,26 @@ class MemtestWriter(Module):
 		self.submodules += lfsr
 		self.comb += lfsr.reset.eq(self._r_reset.re)
 
+		en = Signal()
+		en_counter = Signal(lasmim.aw)
+		self.comb += en.eq(en_counter != 0)
+		self.sync += [
+			If(self._r_shoot.re,
+				en_counter.eq(self._dma.length)
+			).Elif(lfsr.ce,
+				en_counter.eq(en_counter - 1)
+			)
+		]
+
 		self.comb += [
-			self._dma.data.stb.eq(1),
-			lfsr.ce.eq(self._dma.data.ack),
+			self._dma.trigger.eq(self._r_shoot.re),
+			self._dma.data.stb.eq(en),
+			lfsr.ce.eq(en & self._dma.data.ack),
 			self._dma.data.payload.d.eq(lfsr.o)
 		]
 
 	def get_csrs(self):
-		return [self._r_magic, self._r_reset] + self._dma.get_csrs()
+		return [self._r_magic, self._r_reset, self._r_shoot] + self._dma.get_csrs()
 
 class MemtestReader(Module):
 	def __init__(self, lasmim):
