@@ -26,6 +26,38 @@ static void membw_service(void)
 	}
 }
 
+static void memtest_service(void)
+{
+	static unsigned int test_buffer[64*1024*1024/4] __attribute__((aligned(16)));
+	static unsigned char reading;
+	//int i;
+
+	if(reading) {
+		if(!memtest_w_busy_read()) {
+			//printf("starting read\n");
+			/*for(i=0;i<64;i++) {
+				printf("%08x", test_buffer[i]);
+				if((i % 4) == 3)
+					printf("\n");
+			}*/
+			memtest_r_reset_write(1);
+			memtest_r_base_write((unsigned int)test_buffer);
+			memtest_r_length_write(sizeof(test_buffer));
+			memtest_r_shoot_write(1);
+			reading = 0;
+		}
+	} else {
+		if(!memtest_r_busy_read()) {
+			printf("err=%d\n", memtest_r_error_count_read());
+			memtest_w_reset_write(1);
+			memtest_w_base_write((unsigned int)test_buffer);
+			memtest_w_length_write(sizeof(test_buffer));
+			memtest_w_shoot_write(1);
+			reading = 1;
+		}
+	}
+}
+
 int main(void)
 {
 	irq_setmask(0);
@@ -33,10 +65,16 @@ int main(void)
 	uart_init();
 	
 	puts("Memory testing software built "__DATE__" "__TIME__"\n");
+
+	if((memtest_w_magic_read() != 0x361f) || (memtest_r_magic_read() != 0x361f)) {
+		printf("Memory test cores not detected\n");
+		while(1);
+	}
 	
 	time_init();
 
 	while(1) {
+		memtest_service();
 		membw_service();
 	}
 	
