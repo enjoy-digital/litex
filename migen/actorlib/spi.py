@@ -146,6 +146,11 @@ class _DMAController(Module):
 		self.generator = SingleGenerator(layout, mode)
 		self.r_busy = CSRStatus()
 
+		self.length = self.generator.r_length.storage
+		self.base = self.generator.r_base.storage
+		if hasattr(self.generator, "trigger"):
+			self.trigger = self.generator.trigger
+
 	def get_csrs(self):
 		return self.generator.get_csrs() + [self.r_busy]
 
