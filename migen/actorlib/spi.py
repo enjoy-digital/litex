@@ -50,30 +50,51 @@ def _create_csrs_assign(layout, target, atomic, prefix=""):
 
 (MODE_EXTERNAL, MODE_SINGLE_SHOT, MODE_CONTINUOUS) = range(3)
 
-class SingleGenerator(Module):
+class SingleGenerator(Module, AutoCSR):
 	def __init__(self, layout, mode):
 		self.source = Source(_convert_layout(layout))
 		self.busy = Signal()
-		self._csrs, assigns = _create_csrs_assign(layout, self.source.payload, mode != MODE_SINGLE_SHOT)
+		
+		self.comb += self.busy.eq(self.source.stb)
+
 		if mode == MODE_EXTERNAL:
 			self.trigger = Signal()
 			trigger = self.trigger
 		elif mode == MODE_SINGLE_SHOT:
-			shoot = CSR()
-			self._csrs.insert(0, shoot)
-			trigger = shoot.re
+			self._r_shoot = CSR()
+			trigger = self._r_shoot.re
 		elif mode == MODE_CONTINUOUS:
-			enable = CSRStorage()
-			self._csrs.insert(0, enable)
-			trigger = enable.storage
+			self._r_enable = CSRStorage()
+			trigger = self._r_enable.storage
 		else:
 			raise ValueError
-		self.comb += self.busy.eq(self.source.stb)
-		stmts = [self.source.stb.eq(trigger)] + assigns
-		self.sync += If(self.source.ack | ~self.source.stb, *stmts)
-	
-	def get_csrs(self):
-		return self._csrs
+		self.sync += If(self.source.ack | ~self.source.stb, self.source.stb.eq(trigger))
+
+		self._create_csrs(layout, self.source.payload, mode != MODE_SINGLE_SHOT)
+
+	def _create_csrs(self, layout, target, atomic, prefix=""):
+		for element in layout:
+			if isinstance(element[1], list):
+				self._create_csrs(element[1], atomic,
+					getattr(target, element[0]),
+					element[0] + "_")
+			else:
+				name = element[0]
+				nbits = element[1]
+				if len(element) > 2:
+					reset = element[2]
+				else:
+					reset = 0
+				if len(element) > 3:
+					alignment = element[3]
+				else:
+					alignment = 0
+				regname = prefix + name
+				reg = CSRStorage(nbits + alignment, reset=reset, atomic_write=atomic,
+					alignment_bits=alignment, name=regname)
+				setattr(self, "r_"+regname, reg)
+				self.sync += If(self.source.ack | ~self.source.stb,
+					getattr(target, name).eq(reg.storage))
 
 class Collector(Module, AutoCSR):
 	def __init__(self, layout, depth=1024):
