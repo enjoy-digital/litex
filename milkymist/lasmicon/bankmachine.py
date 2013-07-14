@@ -93,8 +93,6 @@ class BankMachine(Module):
 		# Control and command generation FSM
 		fsm = FSM()
 		self.submodules += fsm
-		fsm.delayed_enter("TRP", "ACTIVATE", timing_settings.tRP-1)
-		fsm.delayed_enter("TRCD", "REGULAR", timing_settings.tRCD-1)
 		fsm.act("REGULAR",
 			If(self.refresh_req,
 				NextState("REFRESH")
@@ -140,3 +138,5 @@ class BankMachine(Module):
 			track_close.eq(1),
 			If(~self.refresh_req, NextState("REGULAR"))
 		)
+		fsm.delayed_enter("TRP", "ACTIVATE", timing_settings.tRP-1)
+		fsm.delayed_enter("TRCD", "REGULAR", timing_settings.tRCD-1)

@@ -149,8 +149,6 @@ class Multiplexer(Module, AutoCSR):
 		# Control FSM
 		fsm = FSM()
 		self.submodules += fsm
-		fsm.delayed_enter("RTW", "WRITE", timing_settings.read_latency-1)
-		fsm.delayed_enter("WTR", "READ", timing_settings.tWTR-1)
 		fsm.act("READ",
 			read_time_en.eq(1),
 			choose_req.want_reads.eq(1),
@@ -180,6 +178,8 @@ class Multiplexer(Module, AutoCSR):
 			steerer.sel[0].eq(STEER_REFRESH),
 			If(~refresher.req, NextState("READ"))
 		)
+		fsm.delayed_enter("RTW", "WRITE", timing_settings.read_latency-1)
+		fsm.delayed_enter("WTR", "READ", timing_settings.tWTR-1)
 		# FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
 		fsm.finalize()
 		self.comb += refresher.ack.eq(fsm.state == fsm.encoding["REFRESH"])
