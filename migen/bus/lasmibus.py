@@ -66,13 +66,23 @@ class Crossbar(Module):
 				controller_selected = [1]*nmasters
 			master_req_acks = [0]*nmasters
 			master_dat_acks = [0]*nmasters
-			for nb in range(nbanks):
+			rrs = [roundrobin.RoundRobin(nmasters, roundrobin.SP_CE) for n in range(nbanks)]
+			self.submodules += rrs
+			for nb, rr in enumerate(rrs):
 				bank = getattr(controller, "bank"+str(nb))
 
+				# for each master, determine if another bank locks it
+				master_locked = []
+				for nm, master in enumerate(self.masters):
+					locked = 0
+					for other_nb, other_rr in enumerate(rrs):
+						if other_nb != nb:
+							other_bank = getattr(controller, "bank"+str(other_nb))
+							locked = locked | (other_bank.lock & (other_rr.grant == nm))
+					master_locked.append(locked)
+
 				# arbitrate
-				rr = roundrobin.RoundRobin(nmasters, roundrobin.SP_CE)
-				self.submodules += rr
-				bank_selected = [cs & (ba == nb) for cs, ba in zip(controller_selected, m_ba)]
+				bank_selected = [cs & (ba == nb) & ~locked for cs, ba, locked in zip(controller_selected, m_ba, master_locked)]
 				bank_requested = [bs & master.stb for bs, master in zip(bank_selected, self.masters)]
 				self.comb += [
 					rr.request.eq(Cat(*bank_requested)),
