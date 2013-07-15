@@ -39,11 +39,11 @@ class _LFSRTB(Module):
 		self.comb += self.lfsr.ce.eq(1)
 
 	def do_simulation(self, s):
-		print(s.rd(self.lfsr.o))
+		print("{0:032x}".format(s.rd(self.lfsr.o)))
 
 def _sim_lfsr():
 	from migen.sim.generic import Simulator
-	tb = _LFSRTB(3, 4, [3, 2])
+	tb = _LFSRTB(128)
 	sim = Simulator(tb)
 	sim.run(20)
 
