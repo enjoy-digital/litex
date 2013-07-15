@@ -3,11 +3,11 @@ from random import Random
 from migen.fhdl.std import *
 from migen.sim.generic import Simulator, TopLevel
 
-from milkymist.asmicon.refresher import *
+from milkymist.lasmicon.refresher import *
 
 from common import CommandLogger
 
-class Granter:
+class Granter(Module):
 	def __init__(self, req, ack):
 		self.req = req
 		self.ack = ack
@@ -34,16 +34,14 @@ class Granter:
 			
 		if len(elts) > 1:
 			print("\t".join(elts))
-	
-	def get_fragment(self):
-		return Fragment(sim=[self.do_simulation])
+
+class TB(Module):
+	def __init__(self):
+		self.submodules.dut = Refresher(13, 2, tRP=3, tREFI=100, tRFC=5)
+		self.submodules.logger = CommandLogger(self.dut.cmd)
+		self.submodules.granter = Granter(self.dut.req, self.dut.ack)
 
 def main():
-	dut = Refresher(13, 2, tRP=3, tREFI=100, tRFC=5)
-	logger = CommandLogger(dut.cmd)
-	granter = Granter(dut.req, dut.ack)
-	fragment = dut.get_fragment() + logger.get_fragment() + granter.get_fragment()
-	sim = Simulator(fragment)
-	sim.run(400)
+	Simulator(TB()).run(400)
 
 main()
