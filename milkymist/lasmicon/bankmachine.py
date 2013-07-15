@@ -1,5 +1,4 @@
 from migen.fhdl.std import *
-from migen.bus.asmibus import *
 from migen.genlib.roundrobin import *
 from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import optree
