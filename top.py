@@ -38,6 +38,7 @@ sdram_geom = lasmicon.GeomSettings(
 	row_a=13,
 	col_a=10
 )
+sdram_phy_read_latency, sdram_phy_write_latency = s6ddrphy.get_latencies(sdram_phy)
 sdram_timing = lasmicon.TimingSettings(
 	tRP=ns(15),
 	tRCD=ns(15),
@@ -46,8 +47,8 @@ sdram_timing = lasmicon.TimingSettings(
 	tREFI=ns(7800, False),
 	tRFC=ns(70),
 	
-	read_latency=5,
-	write_latency=0,
+	read_latency=sdram_phy_read_latency+0,
+	write_latency=sdram_phy_write_latency+0,
 
 	req_queue_size=8,
 	read_time=32,

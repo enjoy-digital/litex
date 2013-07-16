@@ -8,31 +8,41 @@
 #
 # Assert dfi_rddata_en in the same cycle as the read
 # command. The data will come back on dfi_rddata
-# CL + 2 cycles later, along with the assertion 
+# 5 cycles later, along with the assertion 
 # of dfi_rddata_valid.
 #
-# This PHY supports configurable CAS Latency.
+# This PHY only supports CAS Latency 3.
 # Read commands must be sent on phase RDPHASE.
 # Write commands must be sent on phase WRPHASE.
 #/
 
 # Todo:
 #	- use CSR for bitslip?
+#	- add configurable CAS Latency
+#	- automatically determines wrphase / rdphase / latencies according to phy_settings
 
 from migen.fhdl.std import *
 from migen.bus.dfi import *
 from migen.genlib.record import *
 
+def get_latencies(phy_settings):
+	read_latency=5
+	write_latency=0
+	return read_latency, write_latency
+	
 class S6DDRPHY(Module):
 	def __init__(self, pads, phy_settings, bitslip):
 		if phy_settings.type not in ["DDR", "LPDDR", "DDR2"]:
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
+		if phy_settings.cl != 3:
+			raise NotImplementedError("S6DDRPHY only supports CAS LATENCY 3 for now")
 
 		a = flen(pads.a)
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
 		nphases = phy_settings.nphases
 		self.phy_settings = phy_settings
+		read_latency, write_latency = get_latencies(phy_settings)
 
 		self.dfi = Interface(a, ba, nphases*d, nphases)
 		self.clk4x_wr_strb = Signal()
@@ -57,7 +67,7 @@ class S6DDRPHY(Module):
 		#
 
 		# select active phase
-		#             sys_clk   ____----____----
+		#             sys_clk   ----____----____
 		#  phase_sel(nphases=1) 0       0
 		#  phase_sel(nphases=2) 0   1   0   1
 		#  phase_sel(nphases=4) 0 1 2 3 0 1 2 3
@@ -338,8 +348,8 @@ class S6DDRPHY(Module):
 
 		self.comb += drive_dqs.eq(r_dfi_wrdata_en[1])
 
-		rddata_sr = Signal(phy_settings.cl+2)
-		sd_sys += rddata_sr.eq(Cat(rddata_sr[1:phy_settings.cl+2], d_dfi[phy_settings.rdphase].rddata_en))
+		rddata_sr = Signal(read_latency)
+		sd_sys += rddata_sr.eq(Cat(rddata_sr[1:read_latency], d_dfi[phy_settings.rdphase].rddata_en))
 		
 		for n, phase in enumerate(self.dfi.phases):
 			self.comb += [
