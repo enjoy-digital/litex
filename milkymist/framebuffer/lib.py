@@ -146,14 +146,13 @@ class FIFO(Module):
 			self.vga_hsync_n.eq(~fifo_out.hsync),
 			self.vga_vsync_n.eq(~fifo_out.vsync),
 			If(pix_parity,
-				# FIXME: p0/p1 should be the other way around. Clarify this.
-				self.vga_r.eq(fifo_out.p0.r),
-				self.vga_g.eq(fifo_out.p0.g),
-				self.vga_b.eq(fifo_out.p0.b)
-			).Else(
 				self.vga_r.eq(fifo_out.p1.r),
 				self.vga_g.eq(fifo_out.p1.g),
 				self.vga_b.eq(fifo_out.p1.b)
+			).Else(
+				self.vga_r.eq(fifo_out.p0.r),
+				self.vga_g.eq(fifo_out.p0.g),
+				self.vga_b.eq(fifo_out.p0.b)
 			)
 		]
 		self.comb += fifo.re.eq(pix_parity)
