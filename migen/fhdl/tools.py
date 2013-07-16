@@ -224,7 +224,10 @@ def rename_clock_domain_expr(f, old, new):
 
 def rename_clock_domain(f, old, new):
 	rename_clock_domain_expr(f, old, new)
-	f.sync[new] = f.sync[old]
+	if new in f.sync:
+		f.sync[new].extend(f.sync[old])
+	else:
+		f.sync[new] = f.sync[old]
 	del f.sync[old]
 	for special in f.specials:
 		special.rename_clock_domain(old, new)
