@@ -1,4 +1,3 @@
-#
 # 1:2 frequency-ratio DDR / LPDDR / DDR2 PHY for 
 # Spartan-6
 # 
@@ -12,37 +11,42 @@
 # of dfi_rddata_valid.
 #
 # This PHY only supports CAS Latency 3.
-# Read commands must be sent on phase RDPHASE.
-# Write commands must be sent on phase WRPHASE.
-#/
+# Read commands must be sent on phase 0.
+# Write commands must be sent on phase 1.
+#
 
 # Todo:
 #	- use CSR for bitslip?
 #	- add configurable CAS Latency
-#	- automatically determines wrphase / rdphase / latencies according to phy_settings
+#	- automatically determines wrphase / rdphase / latencies
 
 from migen.fhdl.std import *
 from migen.bus.dfi import *
 from migen.genlib.record import *
 
-def get_latencies(phy_settings):
-	read_latency=5
-	write_latency=0
-	return read_latency, write_latency
-	
+from milkymist import lasmicon
+
 class S6DDRPHY(Module):
-	def __init__(self, pads, phy_settings, bitslip):
-		if phy_settings.type not in ["DDR", "LPDDR", "DDR2"]:
+	def __init__(self, pads, memtype, nphases, cl, bitslip):
+		if memtype not in ["DDR", "LPDDR", "DDR2"]:
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
-		if phy_settings.cl != 3:
-			raise NotImplementedError("S6DDRPHY only supports CAS LATENCY 3 for now")
+		if cl != 3:
+			raise NotImplementedError("S6DDRPHY only supports CAS LATENCY 3")
 
 		a = flen(pads.a)
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
-		nphases = phy_settings.nphases
-		self.phy_settings = phy_settings
-		read_latency, write_latency = get_latencies(phy_settings)
+
+		self.phy_settings = lasmicon.PhySettings(
+			memtype=memtype,
+			dfi_d=2*d,
+			nphases=nphases,
+			rdphase=0,
+			wrphase=1,
+			cl=cl,
+			read_latency=5,
+			write_latency=0
+		)
 
 		self.dfi = Interface(a, ba, nphases*d, nphases)
 		self.clk4x_wr_strb = Signal()
@@ -112,7 +116,7 @@ class S6DDRPHY(Module):
 		bitslip_inc = Signal()
 
 		sd_sys += [
-			If(bitslip_cnt==bitslip, 
+			If(bitslip_cnt == bitslip, 
 				bitslip_inc.eq(0)
 			).Else(
 				bitslip_cnt.eq(bitslip_cnt+1),
@@ -156,7 +160,7 @@ class S6DDRPHY(Module):
 				Instance.Input("S", 0),
 
 				Instance.Output("Q", dqs_o[i])
-				)
+			)
 
 			# DQS tristate cmd
 			self.specials += Instance("ODDR2",
@@ -174,7 +178,7 @@ class S6DDRPHY(Module):
 				Instance.Input("S", 0),
 
 				Instance.Output("Q", dqs_t[i])
-				)
+			)
 
 			# DQS tristate buffer
 			self.specials += Instance("OBUFT",
@@ -182,7 +186,7 @@ class S6DDRPHY(Module):
 				Instance.Input("T", dqs_t[i]),
 
 				Instance.Output("O", pads.dqs[i])
-				)
+			)
 
 		sd_sdram_half += postamble.eq(drive_dqs)
 
@@ -333,23 +337,23 @@ class S6DDRPHY(Module):
 				Instance.Output("SHIFTOUT4"),
 			)
 
-
 		# 
 		# DQ/DQS/DM control
 		#
-		self.comb += drive_dq.eq(d_dfi[phy_settings.wrphase].wrdata_en)
+		self.comb += drive_dq.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
 		sd_sys += d_drive_dq.eq(drive_dq)
 
 		d_dfi_wrdata_en = Signal()
-		sd_sys += d_dfi_wrdata_en.eq(d_dfi[phy_settings.wrphase].wrdata_en)
+		sd_sys += d_dfi_wrdata_en.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
 		
 		r_dfi_wrdata_en = Signal(2)
 		sd_sdram_half += r_dfi_wrdata_en.eq(Cat(d_dfi_wrdata_en, r_dfi_wrdata_en[0])) 
 
 		self.comb += drive_dqs.eq(r_dfi_wrdata_en[1])
 
-		rddata_sr = Signal(read_latency)
-		sd_sys += rddata_sr.eq(Cat(rddata_sr[1:read_latency], d_dfi[phy_settings.rdphase].rddata_en))
+		rddata_sr = Signal(self.phy_settings.read_latency)
+		sd_sys += rddata_sr.eq(Cat(rddata_sr[1:self.phy_settings.read_latency],
+			d_dfi[self.phy_settings.rdphase].rddata_en))
 		
 		for n, phase in enumerate(self.dfi.phases):
 			self.comb += [

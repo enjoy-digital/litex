@@ -7,14 +7,13 @@ from milkymist.lasmicon.refresher import *
 from milkymist.lasmicon.bankmachine import *
 from milkymist.lasmicon.multiplexer import *
 
-PhySettings = namedtuple("PhySettings", "type dfi_d nphases rdphase wrphase cl")
+PhySettings = namedtuple("PhySettings", "memtype dfi_d nphases rdphase wrphase cl read_latency write_latency")
 
 class GeomSettings(namedtuple("_GeomSettings", "bank_a row_a col_a")):
 	def __init__(self, *args, **kwargs):
 		self.mux_a = max(self.row_a, self.col_a)
 
 TimingSettings = namedtuple("TimingSettings", "tRP tRCD tWR tWTR tREFI tRFC" \
-	" read_latency write_latency" \
 	" req_queue_size read_time write_time")
 
 class LASMIcon(Module):
@@ -31,8 +30,8 @@ class LASMIcon(Module):
 			dw=phy_settings.dfi_d*phy_settings.nphases,
 			nbanks=2**geom_settings.bank_a,
 			req_queue_size=timing_settings.req_queue_size,
-			read_latency=timing_settings.read_latency+1,
-			write_latency=timing_settings.write_latency+1)
+			read_latency=phy_settings.read_latency+1,
+			write_latency=phy_settings.write_latency+1)
 		self.nrowbits = geom_settings.col_a - address_align
 	
 		###

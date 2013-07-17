@@ -178,7 +178,7 @@ class Multiplexer(Module, AutoCSR):
 			steerer.sel[0].eq(STEER_REFRESH),
 			If(~refresher.req, NextState("READ"))
 		)
-		fsm.delayed_enter("RTW", "WRITE", timing_settings.read_latency-1)
+		fsm.delayed_enter("RTW", "WRITE", phy_settings.read_latency-1) # FIXME: reduce this, actual limit is around (cl+1)/nphases
 		fsm.delayed_enter("WTR", "READ", timing_settings.tWTR-1)
 		# FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
 		fsm.finalize()

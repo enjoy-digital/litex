@@ -67,7 +67,7 @@ def get_csr_header(csr_base, bank_array, interrupt_map):
 	return r
 
 def get_sdram_phy_header(sdram_phy):
-	if sdram_phy.phy_settings.type not in ["SDR", "DDR", "LPDDR", "DDR2"]:
+	if sdram_phy.phy_settings.memtype not in ["SDR", "DDR", "LPDDR", "DDR2"]:
 		raise NotImplementedError("The SDRAM PHY header generator only supports SDR, DDR, LPDDR and DDR2")
 
 	r = "#ifndef __HW_SDRAM_PHY_H\n#define __HW_SDRAM_PHY_H\n"
@@ -129,7 +129,7 @@ static void command_p{n}(int cmd)
 
 	cl = sdram_phy.phy_settings.cl
 	
-	if sdram_phy.phy_settings.type == "SDR":
+	if sdram_phy.phy_settings.memtype == "SDR":
 		bl = 1*sdram_phy.phy_settings.nphases
 		mr  = log2_int(bl) + (cl << 4)
 		reset_dll = 1 << 8
@@ -144,7 +144,7 @@ static void command_p{n}(int cmd)
 			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 		]
 
-	elif sdram_phy.phy_settings.type == "DDR":
+	elif sdram_phy.phy_settings.memtype == "DDR":
 		bl = 2*sdram_phy.phy_settings.nphases
 		mr  = log2_int(bl) + (cl << 4)
 		emr = 0
@@ -161,7 +161,7 @@ static void command_p{n}(int cmd)
 			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 		]
 
-	elif sdram_phy.phy_settings.type == "LPDDR":
+	elif sdram_phy.phy_settings.memtype == "LPDDR":
 		bl = 2*sdram_phy.phy_settings.nphases
 		mr  = log2_int(bl) + (cl << 4)
 		emr = 0
@@ -178,7 +178,7 @@ static void command_p{n}(int cmd)
 			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 		]
 
-	elif sdram_phy.phy_settings.type == "DDR2":
+	elif sdram_phy.phy_settings.memtype == "DDR2":
 		bl = 2*sdram_phy.phy_settings.nphases
 		mr  = log2_int(bl) + (cl << 4)
 		emr = 0

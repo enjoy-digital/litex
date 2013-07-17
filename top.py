@@ -25,20 +25,11 @@ def ns(t, margin=True):
 		t += clk_period_ns/2
 	return ceil(t/clk_period_ns)
 
-sdram_phy = lasmicon.PhySettings(
-	type="DDR",
-	dfi_d=64, 
-	nphases=2,
-	rdphase=0,
-	wrphase=1,
-	cl=3
-)
 sdram_geom = lasmicon.GeomSettings(
 	bank_a=2,
 	row_a=13,
 	col_a=10
 )
-sdram_phy_read_latency, sdram_phy_write_latency = s6ddrphy.get_latencies(sdram_phy)
 sdram_timing = lasmicon.TimingSettings(
 	tRP=ns(15),
 	tRCD=ns(15),
@@ -46,9 +37,6 @@ sdram_timing = lasmicon.TimingSettings(
 	tWTR=2,
 	tREFI=ns(7800, False),
 	tRFC=ns(70),
-	
-	read_latency=sdram_phy_read_latency+0,
-	write_latency=sdram_phy_write_latency+0,
 
 	req_queue_size=8,
 	read_time=32,
@@ -105,9 +93,19 @@ class SoC(Module):
 
 	def __init__(self, platform, platform_name, with_memtest):
 		#
+		# DFI
+		#
+		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR", nphases=2, cl=3, bitslip=0)
+		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a,
+			self.ddrphy.phy_settings.dfi_d, self.ddrphy.phy_settings.nphases)
+		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)
+
+		#
 		# LASMI
 		#
-		self.submodules.lasmicon = lasmicon.LASMIcon(sdram_phy, sdram_geom, sdram_timing)
+		self.submodules.lasmicon = lasmicon.LASMIcon(self.ddrphy.phy_settings, sdram_geom, sdram_timing)
+		self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
+
 		n_lasmims = 7 if with_memtest else 5
 		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], n_lasmims, self.lasmicon.nrowbits)
 		lasmims = list(self.lasmixbar.masters)
@@ -115,15 +113,6 @@ class SoC(Module):
 		if with_memtest:
 			lasmim_mtw, lasmim_mtr = lasmims.pop(), lasmims.pop()
 		assert(not lasmims)
-		
-		#
-		# DFI
-		#
-		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), sdram_phy, 0)
-		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a, sdram_phy.dfi_d,
-			sdram_phy.nphases)
-		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)
-		self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
 
 		#
 		# WISHBONE
