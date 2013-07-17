@@ -48,7 +48,7 @@ def list_targets(node):
 	lister.visit(node)
 	return lister.output_list
 
-def resort_statements(ol):
+def _resort_statements(ol):
 	return [statement for i, statement in
 			sorted(ol, key=lambda x: x[0])]
 
@@ -69,7 +69,7 @@ def group_by_targets(sl):
 
 		groups.append(new_group)
 
-	return [(target, resort_statements(stmts))
+	return [(target, _resort_statements(stmts))
 		for target, stmts in groups]
 
 def list_special_ios(f, ins, outs, inouts):
