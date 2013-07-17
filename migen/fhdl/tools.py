@@ -48,24 +48,29 @@ def list_targets(node):
 	lister.visit(node)
 	return lister.output_list
 
+def resort_statements(ol):
+	return [statement for i, statement in
+			sorted(ol, key=lambda x: x[0])]
+
 def group_by_targets(sl):
 	groups = []
-	for statement in flat_iteration(sl):
+	for statement_order, statement in enumerate(flat_iteration(sl)):
 		targets = list_targets(statement)
 
 		chk_groups = [(targets.isdisjoint(g[0]), g) for g in groups]
 		merge_groups = [g for dj, g in chk_groups if not dj]
 		groups = [g for dj, g in chk_groups if dj]
 
-		new_group = (set(targets), [])
+		new_group = (set(targets), [(statement_order, statement)])
+
 		for g in merge_groups:
 			new_group[0].update(g[0])
 			new_group[1].extend(g[1])
-		new_group[1].append(statement)
 
 		groups.append(new_group)
 
-	return groups
+	return [(target, resort_statements(stmts))
+		for target, stmts in groups]
 
 def list_special_ios(f, ins, outs, inouts):
 	r = set()
