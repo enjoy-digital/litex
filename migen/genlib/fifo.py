@@ -126,7 +126,7 @@ class AsyncFIFO(Module, _FIFOInterface):
 		rdport = storage.get_port(clock_domain="read")
 		self.specials += rdport
 		self.comb += [
-			rdport.adr.eq(consume.q_binary[:-1]),
+			rdport.adr.eq(consume.q_next_binary[:-1]),
 			self.dout_bits.eq(rdport.dat_r)
 		]
 
