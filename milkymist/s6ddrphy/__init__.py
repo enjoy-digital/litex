@@ -101,13 +101,13 @@ class S6DDRPHY(Module):
 		sd_sdram_half += [
 			pads.a.eq(r_dfi[phase_sel].address),
 			pads.ba.eq(r_dfi[phase_sel].bank),
-			pads.cs_n.eq(r_dfi[phase_sel].cs_n),
 			pads.cke.eq(r_dfi[phase_sel].cke),
 			pads.ras_n.eq(r_dfi[phase_sel].ras_n),
 			pads.cas_n.eq(r_dfi[phase_sel].cas_n),
 			pads.we_n.eq(r_dfi[phase_sel].we_n)
 		]
-
+		if hasattr(pads, "cs_n"):
+			sd_sdram_half += pads.cs_n.eq(r_dfi[phase_sel].cs_n)
 
 		# 
 		# Bitslip
@@ -181,12 +181,21 @@ class S6DDRPHY(Module):
 			)
 
 			# DQS tristate buffer
-			self.specials += Instance("OBUFT",
-				Instance.Input("I", dqs_o[i]),
-				Instance.Input("T", dqs_t[i]),
+			if hasattr(pads, "dqs_n"):
+				self.specials += Instance("OBUFTDS",
+					Instance.Input("I", dqs_o[i]),
+					Instance.Input("T", dqs_t[i]),
 
-				Instance.Output("O", pads.dqs[i])
-			)
+					Instance.Output("O", pads.dqs[i]),
+					Instance.Output("OB", pads.dqs_n[i]),
+				)
+			else:
+				self.specials += Instance("OBUFT",
+					Instance.Input("I", dqs_o[i]),
+					Instance.Input("T", dqs_t[i]),
+
+					Instance.Output("O", pads.dqs[i])
+				)
 
 		sd_sdram_half += postamble.eq(drive_dqs)
 
