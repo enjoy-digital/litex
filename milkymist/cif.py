@@ -180,19 +180,27 @@ static void command_p{n}(int cmd)
 
 	elif sdram_phy.phy_settings.memtype == "DDR2":
 		bl = 2*sdram_phy.phy_settings.nphases
-		mr  = log2_int(bl) + (cl << 4)
+		wr = 2
+		mr  = log2_int(bl) + (cl << 4) + (wr << 9)
 		emr = 0
+		emr2 = 0
+		emr3 = 0
 		reset_dll = 1 << 8
+		ocd = 7 << 7
 
 		init_sequence = [
 			("Bring CKE high", 0x0000, 0, cmds["CKE"], 2000),
 			("Precharge All",  0x0400, 0, cmds["PRECHARGE_ALL"], 0),
+			("Load Extended Mode Register 3", emr3, 3, cmds["MODE_REGISTER"], 0),
+			("Load Extended Mode Register 2", emr2, 2, cmds["MODE_REGISTER"], 0),
 			("Load Extended Mode Register", emr, 1, cmds["MODE_REGISTER"], 0),
 			("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
 			("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
 			("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
 			("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
-			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
+			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200),
+			("Load Extended Mode Register / OCD Default", emr+ocd, 1, cmds["MODE_REGISTER"], 0),
+			("Load Extended Mode Register / OCD Exit", emr, 1, cmds["MODE_REGISTER"], 0),
 		]
 
 	for comment, a, ba, cmd, delay in init_sequence:
