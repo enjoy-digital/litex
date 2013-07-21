@@ -64,7 +64,7 @@ _io = [
 		IOStandard("LVCMOS33")
 	),
 
-	("vga_clock", 0, Pins("A11"), IOStandard("LVCMOS33")),
+	("vga_clock", 0, Pins("A10"), IOStandard("LVCMOS33")),
 	("vga", 0,
 		Subsignal("r", Pins("C6 B6 A6 C7 A7 B8 A8 D9")),
 		Subsignal("g", Pins("C8 C9 A9 D7 D8 D10 C10 B10")),
@@ -76,13 +76,41 @@ _io = [
 	),
 
 	("mmc", 0,
-		Subsignal("clk", Pins("A10")),
-		Subsignal("cmd", Pins("B18")),
-		Subsignal("dat", Pins("A18 E16 C17 A17")),
+		Subsignal("clk", Pins("J3")),
+		Subsignal("cmd", Pins("L3")),
+		Subsignal("dat", Pins("L1 K2 M2 M1")),
 		IOStandard("LVCMOS33")
 	),
 
 	("dvi_in", 0,
+		Subsignal("clk_p", Pins("K20"), IOStandard("TMDS_33")),
+		Subsignal("clk_n", Pins("K19"), IOStandard("TMDS_33")),
+		Subsignal("data0_p", Pins("B21"), IOStandard("TMDS_33")),
+		Subsignal("data0_n", Pins("B22"), IOStandard("TMDS_33")),
+		Subsignal("data1_p", Pins("A20"), IOStandard("TMDS_33")),
+		Subsignal("data1_n", Pins("A21"), IOStandard("TMDS_33")),
+		Subsignal("data2_p", Pins("K16"), IOStandard("TMDS_33")),
+		Subsignal("data2_n", Pins("J16"), IOStandard("TMDS_33")),
+		Subsignal("scl", Pins("U6"), IOStandard("LVCMOS33")),
+		Subsignal("sda", Pins("V5"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_notif", Pins("AA8"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_en", Pins("Y6"), IOStandard("LVCMOS33"))
+	),
+	("dvi_in", 1,
+		Subsignal("clk_p", Pins("C11"), IOStandard("TMDS_33")),
+		Subsignal("clk_n", Pins("A11"), IOStandard("TMDS_33")),
+		Subsignal("data0_p", Pins("C17"), IOStandard("TMDS_33")),
+		Subsignal("data0_n", Pins("A17"), IOStandard("TMDS_33")),
+		Subsignal("data1_p", Pins("B18"), IOStandard("TMDS_33")),
+		Subsignal("data1_n", Pins("A18"), IOStandard("TMDS_33")),
+		Subsignal("data2_p", Pins("E16"), IOStandard("TMDS_33")),
+		Subsignal("data2_n", Pins("D17"), IOStandard("TMDS_33")),
+		Subsignal("scl", Pins("T7"), IOStandard("LVCMOS33")),
+		Subsignal("sda", Pins("R7"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_notif", Pins("AB9"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_en", Pins("Y5"), IOStandard("LVCMOS33"))
+	),
+	("dvi_in", 2,
 		Subsignal("clk_p", Pins("Y11"), IOStandard("TMDS_33")),
 		Subsignal("clk_n", Pins("AB11"), IOStandard("TMDS_33")),
 		Subsignal("data0_p", Pins("V11"), IOStandard("TMDS_33")),
@@ -96,7 +124,7 @@ _io = [
 		Subsignal("hpd_notif", Pins("AB8"), IOStandard("LVCMOS33")),
 		Subsignal("hpd_en", Pins("V9"), IOStandard("LVCMOS33"))
 	),
-	("dvi_in", 1,
+	("dvi_in", 3,
 		Subsignal("clk_p", Pins("J20"), IOStandard("TMDS_33")),
 		Subsignal("clk_n", Pins("J22"), IOStandard("TMDS_33")),
 		Subsignal("data0_p", Pins("P18"), IOStandard("TMDS_33")),
@@ -140,7 +168,7 @@ TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
 		except ConstraintError:
 			pass
 
-		for i in range(2):
+		for i in range(4):
 			si = "dviclk"+str(i)
 			try:
 				self.add_platform_command("""
