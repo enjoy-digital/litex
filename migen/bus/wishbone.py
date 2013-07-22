@@ -98,6 +98,18 @@ class InterconnectShared(Module):
 		self.submodules += Arbiter(masters, shared)
 		self.submodules += Decoder(shared, slaves, register)
 
+class Crossbar(Module):
+	def __init__(self, masters, slaves, register=False):
+		matches, busses = zip(*slaves)
+		access = [[Interface() for j in slaves] for i in masters]
+		# decode each master into its access row
+		for row, master in zip(access, masters):
+			row = list(zip(matches, row))
+			self.submodules += Decoder(master, row, register)
+		# arbitrate each access column onto its slave
+		for column, bus in zip(zip(*access), busses):
+			self.submodules += Arbiter(column, bus)
+
 class Tap(Module):
 	def __init__(self, bus, handler=print):
 		self.bus = bus
