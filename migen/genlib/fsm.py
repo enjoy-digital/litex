@@ -30,10 +30,10 @@ class _LowerNextState(NodeTransformer):
 			return node
 
 class FSM(Module):
-	def __init__(self):
+	def __init__(self, reset_state=None):
 		self.actions = OrderedDict()
 		self.state_aliases = dict()
-		self.reset_state = None
+		self.reset_state = reset_state
 
 	def act(self, state, *statements):
 		if self.finalized:
@@ -62,6 +62,8 @@ class FSM(Module):
 
 		self.encoding = dict((s, n) for n, s in enumerate(self.actions.keys()))
 		self.state = Signal(max=nstates)
+		if self.reset_state is not None:
+			self.state.reset = self.encoding[self.reset_state]
 		self.next_state = Signal(max=nstates)
 
 		lns = _LowerNextState(self.next_state, self.encoding, self.state_aliases)
