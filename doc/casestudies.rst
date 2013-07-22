@@ -39,13 +39,13 @@ To interface with the CPU, the frame initiator uses Migen to provide a CSR bank 
 Pixel fetcher
 =============
 
-The pixel fetcher is made up of the address generator, the ASMI reader and the unpacker.
+The pixel fetcher is made up of the address generator, the LASMI reader and the unpacker.
 
 The address generator is a simple counter that takes one token containing the pair ``(base, length)`` and generates ``length`` tokens containing ``base``, ..., ``base+length-1``. It is implemented using a Migen library component (see :ref:`intsequence`).
 
-Those addresses are fed into the ASMI reader (see :ref:`busactors`) that fetches the corresponding locations from the system memory. The ASMI reader design supports an arbitrary number of outstanding requests (which is equal to the number of slots in its ASMI port), which enables it to sustain a high throughput in spite of memory latency. The ASMI reader also contains a reorder buffer and generates memory word tokens in the order of the supplied address tokens, even if the memory system completes the transactions in a different order (see see :ref:`asmi` for information about reordering). These features make it possible to utilize the available memory bandwidth to the full extent, and reduce the need for on-chip buffering.
+Those addresses are fed into the LASMI reader (see :ref:`busactors`) that fetches the corresponding locations from the system memory. The LASMI reader design supports several outstanding requests, which enables it to sustain a high throughput in spite of memory latency. This feature makes it possible to utilize the available memory bandwidth to the full extent, and reduces the need for on-chip buffering.
 
-ASMI memory words are wide and contain several pixels. The unpacking actor (see :ref:`structuring`) takes a token containing a memory word and "chops" it into multiple tokens containing one pixel each.
+LASMI memory words are wide and contain several pixels. The unpacking actor (see :ref:`structuring`) takes a token containing a memory word and "chops" it into multiple tokens containing one pixel each.
 
 Video timing generator
 ======================

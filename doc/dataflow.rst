@@ -208,19 +208,17 @@ The ``migen.actorlib.dma_wishbone.Writer`` takes a token containing a 30-bit Wis
 
 Only Wishbone classic cycles are supported. The throughput is limited by the Wishbone stall cycles only.
 
-ASMI reader
+LASMI reader
+------------
+
+The ``migen.actorlib.dma_lasmi.Reader`` requires a LASMI master port at instantiation time. This port defines the address and data widths of the actor and how many outstanding transactions are supported.
+
+Input tokens contain the raw LASMI address, and output tokens are wide LASMI data words.
+
+LASMI writer
 -----------
 
-The ``migen.actorlib.dma_asmi.Reader`` requires a ASMI port at instantiation time. This port defines the address and data widths of the actor and how many outstanding transactions are supported.
-
-Input tokens contain the raw ASMI address, and output tokens are wide ASMI data words.
-
-If more than one slot are assigned to the port, the reader actor implements a reorder buffer (so that the order of the output tokens matches that of the input tokens even if the memory system completes transactions out-of-order) and is capable of supporting as many outstanding transactions as there are slots.
-
-ASMI writer
------------
-
-TODO
+Similarly, Migen provides a LASMI writer actor that accepts tokens containing an address and write data (in the same format as a LASMI word).
 
 Miscellaneous actors
 ====================
