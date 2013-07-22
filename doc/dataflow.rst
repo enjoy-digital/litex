@@ -41,13 +41,9 @@ The flow of tokens is controlled using two handshake signals (strobe and acknowl
 
 It is permitted to generate an ``ack`` signal combinatorially from one or several ``stb`` signals. However, there should not be any combinatorial path from an ``ack`` to a ``stb`` signal.
 
-Actors are derived from the the ``migen.flow.actor.Actor`` base class. The constructor of this base class takes a variable number of parameters, each describing one endpoint of the actor.
+Actors are FHDL modules that have one or several endpoint attributes of the ``migen.flow.actor.Sink`` or ``migen.flow.actor.Source`` type, and a ``busy`` signal.
 
-An endpoint description is a triple consisting of:
-
-* The endpoint's name.
-* A reference to the ``migen.flow.actor.Sink`` or the ``migen.flow.actor.Source`` class, defining the token direction of the endpoint.
-* The layout of the data record that the endpoint is dealing with.
+Endpoint constructors take as parameter the layout of the data record that the endpoint is dealing with.
 
 Record layouts are a list of fields. Each field is described by a pair consisting of:
 
@@ -56,25 +52,22 @@ Record layouts are a list of fields. Each field is described by a pair consistin
 
 For example, this code: ::
 
-  Actor(
-    ("operands", Sink, [("a", 16), ("b", 16)]),
-    ("result", Source, [("r", 17)]))
+  class MyActor(Module):
+    def __init__(self):
+      self.busy = Signal()
+      self.operands = Sink([("a", 16), ("b", 16)])
+      self.result = Source([("r", 17)])
 
 creates an actor with:
 
 * One sink named ``operands`` accepting data structured as a 16-bit field ``a`` and a 16-bit field ``b``. Note that this is functionally different from having two endpoints ``a`` and ``b``, each accepting a single 16-bit field. With a single endpoint, the data is strobed when *both* ``a`` and ``b`` are valid, and ``a`` and ``b`` are *both* acknowledged *atomically*. With two endpoints, the actor has to deal with accepting ``a`` and ``b`` independently. Plumbing actors (see :ref:`plumbing`) and abstract networks (see :ref:`actornetworks`) provide a systematic way of converting between these two behaviours, so user actors should implement the behaviour that results in the simplest or highest performance design.
 * One source named ``result`` transmitting a single 17-bit field named ``r``.
 
-Implementing the functionality of the actor can be done in two ways:
-
-* Overloading the ``get_fragment`` method.
-* Overloading both the ``get_control_fragment`` and ``get_process_fragment`` methods. The ``get_control_fragment`` method should return a fragment that manipulates the control signals (strobes, acknowledgements and the actor's busy signal) while ``get_process_fragment`` should return a fragment that manipulates the token payload. Overloading ``get_control_fragment`` alone allows you to define abstract actor classes implementing a given scheduling model. Migen comes with a library of such abstract classes for the most common schedules (see :ref:`schedmod`).
-
-Accessing the endpoints is done via the ``endpoints`` dictionary, which is keyed by endpoint names and contains instances of the ``migen.flow.actor.Endpoint`` class. The latter holds:
+Accessing the endpoints is done by manipulating the signals inside the ``Source`` and ``Sink`` objects. They hold:
 
 * A signal object ``stb``.
 * A signal object ``ack``.
-* The data payload ``token``. The individual fields are the items (in the Python sense) of this object.
+* The data payload ``payload``, which is a record with the layout given to the endpoint constructor.
 
 Busy signal
 ===========
@@ -92,7 +85,7 @@ This signal represents whether the actor's state holds information that will cau
 Common scheduling models
 ========================
 
-For the simplest and most common scheduling cases, Migen provides logic to generate the handshake signals and the busy signal. This is done through abstract actor classes that overload ``get_control_fragment`` only, and the user should overload ``get_process_fragment`` to implement the actor's payload.
+For the simplest and most common scheduling cases, Migen provides logic to generate the handshake signals and the busy signal. This is done through abstract actor classes that examine the endpoints defined by the user and add logic to drive their control signals (i.e. everything except the payload). The ``__init__`` method of the abstract scheduling class must be called after the user has created the endpoints. The ``busy`` signal is created by the abstract scheduling class.
 
 These classes are usable only when the actor has exactly one sink and one source (but those endpoints can contain an arbitrary data structure), and in the cases listed below.
 
@@ -174,7 +167,7 @@ Simulation actors
 
 When hardware implementation is not desired, Migen lets you program actor behaviour in "regular" Python.
 
-For this purpose, it provides a ``migen.actorlib.sim.SimActor`` class. The constructor takes a generator as parameter, and a list of endpoints (similarly to the base ``migen.flow.actor.Actor`` class). The generator implements the actor's behaviour.
+For this purpose, it provides a ``migen.actorlib.sim.SimActor`` class. The constructor takes a generator as parameter, which implements the actor's behaviour. The user must derive the ``SimActor`` class and add endpoint attributes. The ``busy`` signal is provided by the ``SimActor`` class.
 
 Generators can yield ``None`` (in which case, the actor does no transfer for one cycle) or one or a tuple of instances of the ``Token`` class. Tokens for sink endpoints are pulled and the "value" field filled in. Tokens for source endpoints are pushed according to their "value" field. The generator is run again after all transactions are completed.
 
@@ -216,7 +209,7 @@ The ``migen.actorlib.dma_lasmi.Reader`` requires a LASMI master port at instanti
 Input tokens contain the raw LASMI address, and output tokens are wide LASMI data words.
 
 LASMI writer
------------
+------------
 
 Similarly, Migen provides a LASMI writer actor that accepts tokens containing an address and write data (in the same format as a LASMI word).
 
