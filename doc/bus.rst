@@ -52,6 +52,8 @@ The lowest-level description of a register is provided by the ``CSR`` class, whi
 * ``re``, which is the strobe signal for ``r``. It is active for one cycle, after or during a write from the bus. ``r`` is only valid when ``re`` is high.
 * ``w``, which must provide at all times the value to be read from the bus.
 
+Names of CSRs can be omitted if they can be extracted from the variable name. When using this automatic naming feature, prefixes ``_``, ``r_`` and ``_r_`` are removed.
+
 Compound CSRs (which are transformed into ``CSR`` plus additional logic for implementation) provide additional features optimized for common applications.
 
 The ``CSRStatus`` class is meant to be used as a status register that is read-only from the CPU. The user design is expected to drive its ``status`` signal. The advantage of using ``CSRStatus`` instead of using ``CSR`` and driving ``w`` is that the width of ``CSRStatus`` can be arbitrary. Status registers larger than the bus word width are automatically broken down into several ``CSR`` registers to span several addresses. Be careful that the atomicity of reads is not guaranteed.
