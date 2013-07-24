@@ -58,29 +58,24 @@ class MultiReg(Special):
 	def lower(dr):
 		return MultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
-class PulseSynchronizer:
+class PulseSynchronizer(Module):
 	def __init__(self, idomain, odomain):
-		self.idomain = idomain
-		self.odomain = odomain
 		self.i = Signal()
 		self.o = Signal()
 
-	def get_fragment(self):
+		###
+
 		toggle_i = Signal()
 		toggle_o = Signal()
 		toggle_o_r = Signal()
-		sync_i = [
-			If(self.i, toggle_i.eq(~toggle_i))
-		]
-		sync_o = [
-			toggle_o_r.eq(toggle_o)
-		]
-		comb = [
-			self.o.eq(toggle_o ^ toggle_o_r)
-		]
-		return Fragment(comb, 
-			{self.idomain: sync_i, self.odomain: sync_o},
-			specials={MultiReg(toggle_i, toggle_o, self.odomain)})
+
+		sync_i = getattr(self.sync, idomain)
+		sync_o = getattr(self.sync, odomain)
+		
+		sync_i += If(self.i, toggle_i.eq(~toggle_i))
+		self.specials += MultiReg(toggle_i, toggle_o, odomain)
+		sync_o += toggle_o_r.eq(toggle_o)
+		self.comb += self.o.eq(toggle_o ^ toggle_o_r)
 
 class GrayCounter(Module):
 	def __init__(self, width):
