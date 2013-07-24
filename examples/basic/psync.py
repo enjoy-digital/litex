@@ -4,10 +4,10 @@ from migen.fhdl import verilog
 from migen.genlib.cdc import *
 
 class XilinxMultiRegImpl(MultiRegImpl):
-	def get_fragment(self):
-		disable_srl = set(SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
+	def __init__(self, *args, **kwargs):
+		MultiRegImpl.__init__(self, *args, **kwargs)
+		self.specials += set(SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
 			for r in self.regs)
-		return MultiRegImpl.get_fragment(self) + Fragment(specials=disable_srl)
 
 class XilinxMultiReg:
 	@staticmethod

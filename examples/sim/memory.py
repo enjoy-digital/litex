@@ -4,11 +4,11 @@
 from migen.fhdl.std import *
 from migen.sim.generic import Simulator
 
-class Mem:
+class Mem(Module):
 	def __init__(self):
 		# Initialize the beginning of the memory with integers
 		# from 0 to 19.
-		self.mem = Memory(16, 2**12, init=list(range(20)))
+		self.specials.mem = Memory(16, 2**12, init=list(range(20)))
 	
 	def do_simulation(self, s):
 		# Read the memory. Use the cycle counter as address.
@@ -22,13 +22,10 @@ class Mem:
 		# Demonstrate how to interrupt the simulator.
 		if value == 10:
 			s.interrupt = True
-	
-	def get_fragment(self):
-		return Fragment(specials={self.mem}, sim=[self.do_simulation])
 
 def main():
 	dut = Mem()
-	sim = Simulator(dut.get_fragment())
+	sim = Simulator(dut)
 	# No need for a cycle limit here, we use sim.interrupt instead.
 	sim.run()
 
