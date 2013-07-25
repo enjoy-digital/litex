@@ -21,6 +21,6 @@ class Example(Module):
 
 		ina = Array(Signal() for a in range(dx))
 		outa = Array(Signal() for a in range(dy))
-		self.specials += Instance("test", Instance.Output("O", outa[y]), Instance.Input("I", ina[x]))
+		self.specials += Instance("test", o_O=outa[y], i_I=ina[x])
 
 print(verilog.convert(Example()))

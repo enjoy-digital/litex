@@ -139,10 +139,10 @@ A triplet (O, OE, I) of one-way signals defining a tri-state I/O port is represe
 The object that can be used in as a module special is ``Tristate``, and it behaves exactly like an instance of a tri-state I/O buffer that would be defined as follows: ::
 
   Instance("Tristate",
-    Instance.Inout("target", target),
-    Instance.Input("o", o),
-    Instance.Input("oe", oe),
-    Instance.Output("i", i)
+    io_target=target,
+    i_o=o,
+    i_oe=oe,
+    o_i=i
   )
 
 Signals ``target``, ``o`` and ``i`` can have any width, while ``oe`` is 1-bit wide. The ``target`` signal should go to a port and not be used elsewhere in the design. Like modern FPGA architectures, Migen does not support internal tri-states.

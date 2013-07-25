@@ -1,3 +1,5 @@
+from operator import itemgetter
+
 from migen.fhdl.structure import *
 from migen.fhdl.size import bits_for, value_bits_sign
 from migen.fhdl.tools import *
@@ -68,15 +70,6 @@ class TSTriple:
 		return Tristate(target, self.o, self.oe, self.i)
 
 class Instance(Special):
-	def __init__(self, of, *items, name=""):
-		Special.__init__(self)
-		self.of = of
-		if name:
-			self.name_override = name
-		else:
-			self.name_override = of
-		self.items = items
-	
 	class _IO:
 		def __init__(self, name, expr=None):
 			self.name = name
@@ -89,11 +82,28 @@ class Instance(Special):
 		pass
 	class InOut(_IO):
 		pass
-
 	class Parameter:
 		def __init__(self, name, value):
 			self.name = name
 			self.value = value
+
+	def __init__(self, of, *items, name="", **kwargs):
+		Special.__init__(self)
+		self.of = of
+		if name:
+			self.name_override = name
+		else:
+			self.name_override = of
+		self.items = list(items)
+		for k, v in sorted(kwargs.items(), key=itemgetter(1)):
+			item_type, item_name = k.split("_", maxsplit=1)
+			item_class = {
+				"i": Instance.Input,
+				"o": Instance.Output,
+				"io": Instance.InOut,
+				"p": Instance.Parameter
+			}[item_type]
+			self.items.append(item_class(item_name, v))
 	
 	def get_io(self, name):
 		for item in self.items:
