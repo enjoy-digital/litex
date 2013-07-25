@@ -2,7 +2,7 @@ from functools import partial
 from operator import itemgetter
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Slice, _Assign
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.tools import *
 from migen.fhdl.size import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
@@ -232,7 +232,7 @@ def _call_special_classmethod(overrides, obj, method, *args, **kwargs):
 		return None
 
 def _lower_specials_step(overrides, specials):
-	f = Fragment()
+	f = _Fragment()
 	lowered_specials = set()
 	for special in sorted(specials, key=lambda x: x.huid):
 		impl = _call_special_classmethod(overrides, special, "lower")
@@ -286,7 +286,7 @@ def convert(f, ios=None, name="top",
   special_overrides=dict(),
   create_clock_domains=True,
   display_run=False):
-	if not isinstance(f, Fragment):
+	if not isinstance(f, _Fragment):
 		f = f.get_fragment()
 	if ios is None:
 		ios = set()

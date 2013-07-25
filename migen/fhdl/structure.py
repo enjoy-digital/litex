@@ -250,7 +250,7 @@ class _ClockDomainList(list):
 
 (SPECIAL_INPUT, SPECIAL_OUTPUT, SPECIAL_INOUT) = range(3)
 
-class Fragment:
+class _Fragment:
 	def __init__(self, comb=None, sync=None, specials=None, clock_domains=None, sim=None):
 		if comb is None: comb = []
 		if sync is None: sync = dict()
@@ -258,12 +258,9 @@ class Fragment:
 		if clock_domains is None: clock_domains = _ClockDomainList()
 		if sim is None: sim = []
 		
-		if isinstance(sync, list):
-			sync = {"sys": sync}
-		
 		self.comb = comb
 		self.sync = sync
-		self.specials = set(specials)
+		self.specials = specials
 		self.clock_domains = _ClockDomainList(clock_domains)
 		self.sim = sim
 	
@@ -273,8 +270,7 @@ class Fragment:
 			newsync[k] = v[:]
 		for k, v in other.sync.items():
 			newsync[k].extend(v)
-		return Fragment(self.comb + other.comb, newsync,
+		return _Fragment(self.comb + other.comb, newsync,
 			self.specials | other.specials,
 			self.clock_domains + other.clock_domains,
 			self.sim + other.sim)
-

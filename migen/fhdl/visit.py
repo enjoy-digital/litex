@@ -1,7 +1,7 @@
 from copy import copy
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy, _Fragment
 
 class NodeVisitor:
 	def visit(self, node):
@@ -27,7 +27,7 @@ class NodeVisitor:
 			self.visit_If(node)
 		elif isinstance(node, Case):
 			self.visit_Case(node)
-		elif isinstance(node, Fragment):
+		elif isinstance(node, _Fragment):
 			self.visit_Fragment(node)
 		elif isinstance(node, (list, tuple)):
 			self.visit_statements(node)
@@ -127,7 +127,7 @@ class NodeTransformer:
 			return self.visit_If(node)
 		elif isinstance(node, Case):
 			return self.visit_Case(node)
-		elif isinstance(node, Fragment):
+		elif isinstance(node, _Fragment):
 			return self.visit_Fragment(node)
 		elif isinstance(node, (list, tuple)):
 			return self.visit_statements(node)

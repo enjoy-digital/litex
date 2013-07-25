@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.fhdl.structure import _Fragment
 from migen.fhdl import verilog
 from migen.sim.ipc import *
 from migen.sim import icarus
@@ -76,13 +77,13 @@ def _call_sim(fragment, simulator):
 
 class Simulator:
 	def __init__(self, fragment, top_level=None, sim_runner=None, sockaddr="simsocket", **vopts):
-		if not isinstance(fragment, Fragment):
+		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
 		if top_level is None:
 			top_level = TopLevel()
 		if sim_runner is None:
 			sim_runner = icarus.Runner()		
-		self.fragment = fragment + Fragment(clock_domains=top_level.clock_domains)
+		self.fragment = fragment + _Fragment(clock_domains=top_level.clock_domains)
 		self.top_level = top_level
 		self.ipc = Initiator(sockaddr)
 		self.sim_runner = sim_runner

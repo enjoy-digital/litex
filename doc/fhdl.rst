@@ -112,7 +112,7 @@ Arrays
 The ``Array`` object represents lists of other objects that can be indexed by FHDL expressions. It is explicitly possible to:
 
 * nest ``Array`` objects to create multidimensional tables.
-* list any Python object in a ``Array`` as long as every expression appearing in a fragment ultimately evaluates to a ``Signal`` for all possible values of the indices. This allows the creation of lists of structured data.
+* list any Python object in a ``Array`` as long as every expression appearing in a module ultimately evaluates to a ``Signal`` for all possible values of the indices. This allows the creation of lists of structured data.
 * use expressions involving ``Array`` objects in both directions (assignment and reading).
 
 For example, this creates a 4x4 matrix of 1-bit signals: ::
@@ -134,9 +134,9 @@ Specials
 
 Tri-state I/O
 =============
-A triplet (O, OE, I) of one-way signals defining a tri-state I/O port is represented by the ``TSTriple`` object. Such objects are only containers for signals that are intended to be later connected to a tri-state I/O buffer, and cannot be used in fragments. Such objects, however, should be kept in the design as long as possible as they allow the individual one-way signals to be manipulated in a non-ambiguous way.
+A triplet (O, OE, I) of one-way signals defining a tri-state I/O port is represented by the ``TSTriple`` object. Such objects are only containers for signals that are intended to be later connected to a tri-state I/O buffer, and cannot be used as module specials. Such objects, however, should be kept in the design as long as possible as they allow the individual one-way signals to be manipulated in a non-ambiguous way.
 
-The object that can be used in a ``Fragment`` is ``Tristate``, and it behaves exactly like an instance of a tri-state I/O buffer that would be defined as follows: ::
+The object that can be used in as a module special is ``Tristate``, and it behaves exactly like an instance of a tri-state I/O buffer that would be defined as follows: ::
 
   Instance("Tristate",
     Instance.Inout("target", target),

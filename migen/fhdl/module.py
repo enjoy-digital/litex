@@ -2,6 +2,7 @@ import collections
 from itertools import combinations
 
 from migen.fhdl.structure import *
+from migen.fhdl.structure import _Fragment
 from migen.fhdl.specials import Special
 from migen.fhdl.tools import flat_iteration, rename_clock_domain
 
@@ -108,7 +109,7 @@ class Module:
 				sim = [self.do_simulation]
 			except AttributeError:
 				sim = []
-			self._fragment = Fragment(sim=sim)
+			self._fragment = _Fragment(sim=sim)
 			return self._fragment
 		elif name == "_submodules":
 			self._submodules = []
