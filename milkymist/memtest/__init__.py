@@ -4,10 +4,10 @@ from migen.bank.description import *
 from migen.actorlib import dma_lasmi
 from migen.actorlib.spi import *
 
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
 class LFSR(Module):
 	def __init__(self, n_out, n_state=31, taps=[27, 30]):
-		self.ce = Signal()
-		self.reset = Signal()
 		self.o = Signal(n_out)
 
 		###
@@ -20,18 +20,15 @@ class LFSR(Module):
 			curval.insert(0, nv)
 			curval.pop()
 
-		self.sync += If(self.reset,
-				state.eq(0),
-				self.o.eq(0)
-			).Elif(self.ce,
-				state.eq(Cat(*curval[:n_state])),
-				self.o.eq(Cat(*curval))
-			)
+		self.sync += [
+			state.eq(Cat(*curval[:n_state])),
+			self.o.eq(Cat(*curval))
+		]
 
 def _print_lfsr_code():
 	from migen.fhdl import verilog
 	dut = LFSR(3, 4, [3, 2])
-	print(verilog.convert(dut, ios={dut.ce, dut.o}))
+	print(verilog.convert(dut, ios={dut.ce, dut.reset, dut.o}))
 
 class _LFSRTB(Module):
 	def __init__(self, *args, **kwargs):
