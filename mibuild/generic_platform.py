@@ -2,6 +2,7 @@ from copy import copy
 import os, argparse
 
 from migen.fhdl.std import *
+from migen.fhdl.structure import _Fragment
 from migen.genlib.record import Record
 from migen.fhdl import verilog
 
@@ -194,7 +195,7 @@ class GenericPlatform:
 					self.add_source(os.path.join(root, filename), language)
 
 	def get_verilog(self, fragment, **kwargs):
-		if not isinstance(fragment, Fragment):
+		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
 		# We may create a temporary clock/reset generator that would request pins.
 		# Save the constraint manager state so that such pin requests disappear
