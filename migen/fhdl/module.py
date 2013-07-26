@@ -68,11 +68,11 @@ class _ModuleSpecials(_ModuleProxy, _ModuleForwardAttr):
 
 class _ModuleSubmodules(_ModuleProxy):
 	def __setattr__(self, name, value):
-		self._fm._submodules += [(name, e, dict()) for e in _flat_list(value)]
+		self._fm._submodules += [(name, e) for e in _flat_list(value)]
 		setattr(self._fm, name, value)
 	
 	def __iadd__(self, other):
-		self._fm._submodules += [(None, e, dict()) for e in _flat_list(other)]
+		self._fm._submodules += [(None, e) for e in _flat_list(other)]
 		return self
 
 class _ModuleClockDomains(_ModuleProxy, _ModuleForwardAttr):
@@ -131,20 +131,8 @@ class Module:
 		else:
 			object.__setattr__(self, name, value)
 
-	def add_submodule(self, submodule, cd_remapping=dict(), name=None):
-		if isinstance(cd_remapping, str):
-			cd_remapping = {"sys": cd_remapping}
-		if name is not None:
-			setattr(self, name, submodule)
-		self._submodules.append((name, submodule, cd_remapping))
-
 	def _collect_submodules(self):
-		r = []
-		for name, submodule, cd_remapping in self._submodules:
-			f = submodule.get_fragment()
-			for old, new in cd_remapping.items():
-				rename_clock_domain(f, old, new)
-			r.append((name, f))
+		r = [(name, submodule.get_fragment()) for name, submodule in self._submodules]
 		self._submodules = []
 		return r
 

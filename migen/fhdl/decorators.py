@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl.tools import insert_reset
+from migen.fhdl.tools import insert_reset, rename_clock_domain
 
 class ModuleDecorator:
 	def __init__(self, decorated):
@@ -78,3 +78,14 @@ class InsertReset(InsertControl):
 	def transform_fragment_insert(self, f, to_insert):
 		for reset, cdn in to_insert:
 			f.sync[cdn] = insert_reset(reset, f.sync[cdn])
+
+class RenameClockDomains(ModuleDecorator):
+	def __init__(self, decorated, cd_remapping):
+		ModuleDecorator.__init__(self, decorated)
+		if isinstance(cd_remapping, str):
+			cd_remapping = {"sys": cd_remapping}
+		object.__setattr__(self, "_rc_cd_remapping", cd_remapping)
+
+	def transform_fragment(self, f):
+		for old, new in self._rc_cd_remapping.items():
+			rename_clock_domain(f, old, new)

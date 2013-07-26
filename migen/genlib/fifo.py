@@ -88,10 +88,9 @@ class AsyncFIFO(Module, _FIFOInterface):
 
 		depth_bits = log2_int(depth, True)
 
-		produce = GrayCounter(depth_bits+1)
-		self.add_submodule(produce, "write")
-		consume = GrayCounter(depth_bits+1)
-		self.add_submodule(consume, "read")
+		produce = RenameClockDomains(GrayCounter(depth_bits+1), "write")
+		consume = RenameClockDomains(GrayCounter(depth_bits+1), "read")
+		self.submodules += produce, consume
 		self.comb += [
 			produce.ce.eq(self.writable & self.we),
 			consume.ce.eq(self.readable & self.re)
