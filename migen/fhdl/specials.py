@@ -95,7 +95,7 @@ class Instance(Special):
 		else:
 			self.name_override = of
 		self.items = list(items)
-		for k, v in sorted(kwargs.items(), key=itemgetter(1)):
+		for k, v in sorted(kwargs.items(), key=itemgetter(0)):
 			item_type, item_name = k.split("_", maxsplit=1)
 			item_class = {
 				"i": Instance.Input,
