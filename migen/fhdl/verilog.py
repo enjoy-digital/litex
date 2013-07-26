@@ -169,8 +169,8 @@ def _printcomb(f, ns, display_run):
 	if f.comb:
 		# Generate a dummy event to get the simulator
 		# to run the combinatorial process once at the beginning.
-		syn_off = "// synthesis translate off\n"
-		syn_on = "// synthesis translate on\n"
+		syn_off = "// synthesis translate_off\n"
+		syn_on = "// synthesis translate_on\n"
 		dummy_s = Signal(name_override="dummy_s")
 		r += syn_off
 		r += "reg " + _printsig(ns, dummy_s) + ";\n"
