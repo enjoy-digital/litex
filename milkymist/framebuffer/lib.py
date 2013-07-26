@@ -128,8 +128,9 @@ class FIFO(Module):
 		###
 
 		data_width = 2+2*3*bpc_dac
-		fifo = AsyncFIFO(data_width, 512)
-		self.add_submodule(fifo, {"write": "sys", "read": "vga"})
+		fifo = RenameClockDomains(AsyncFIFO(data_width, 512),
+			{"write": "sys", "read": "vga"})
+		self.submodules += fifo
 		fifo_in = self.dac.payload
 		fifo_out = Record(dac_layout)
 		self.comb += [

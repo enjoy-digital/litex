@@ -7,8 +7,7 @@ class TB(Module):
 	def __init__(self, test_seq_it):
 		self.test_seq_it = test_seq_it
 
-		self.chansync = ChanSync()
-		self.add_submodule(self.chansync, {"pix": "sys"})
+		self.submodules.chansync = RenameClockDomains(ChanSync(), {"pix": "sys"})
 		self.comb += self.chansync.valid_i.eq(1)
 
 	def do_simulation(self, s):

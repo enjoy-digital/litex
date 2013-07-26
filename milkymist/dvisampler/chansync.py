@@ -56,8 +56,8 @@ class ChanSync(Module, AutoCSR):
 
 			###
 		
-			syncbuffer = _SyncBuffer(layout_len(channel_layout), depth)
-			self.add_submodule(syncbuffer, "pix")
+			syncbuffer = RenameClockDomains(_SyncBuffer(layout_len(channel_layout), depth), "pix")
+			self.submodules += syncbuffer
 			self.comb += [
 				syncbuffer.din.eq(data_in.raw_bits()),
 				data_out.raw_bits().eq(syncbuffer.dout)

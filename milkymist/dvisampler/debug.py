@@ -25,8 +25,9 @@ class RawDVISampler(Module, AutoCSR):
 			self.data0_cap.serdesstrobe.eq(self.clocking.serdesstrobe)
 		]
 
-		fifo = AsyncFIFO(10, 256)
-		self.add_submodule(fifo, {"write": "pix", "read": "sys"})
+		fifo = RenameClockDomains(AsyncFIFO(10, 256),
+			{"write": "pix", "read": "sys"})
+		self.submodules += fifo
 		self.comb += [
 			fifo.din.eq(self.data0_cap.d),
 			fifo.we.eq(1)

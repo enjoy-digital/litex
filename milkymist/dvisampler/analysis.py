@@ -137,8 +137,9 @@ class FrameExtraction(Module, AutoCSR):
 			vsync_r.eq(self.vsync)
 		]
 
-		fifo = AsyncFIFO(layout_len(frame_layout), 512)
-		self.add_submodule(fifo, {"write": "pix", "read": "sys"})
+		fifo = RenameClockDomains(AsyncFIFO(layout_len(frame_layout), 512),
+			{"write": "pix", "read": "sys"})
+		self.submodules += fifo
 		self.comb += [
 			fifo.we.eq(fifo_stb),
 			fifo.din.eq(fifo_in.raw_bits()),
