@@ -101,7 +101,7 @@ def _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus):
 		]
 		sel = to_model["sel"]
 		if isinstance(sel, ast.Name) and sel.id == "None":
-			nbytes = (len(bus.dat_w) + 7)//8
+			nbytes = (flen(bus.dat_w) + 7)//8
 			state.append(bus.sel.eq(2**nbytes-1))
 		else:
 			state.append(bus.sel.eq(compiler.ec.visit_expr(sel)))
@@ -121,7 +121,7 @@ def _gen_memory_io(compiler, modelname, model, to_model, from_model, port):
 		s1.append(port.dat_w.eq(compiler.ec.visit_expr(to_model["data"])))
 		sel = to_model["sel"]
 		if isinstance(sel, ast.Name) and sel.id == "None":
-			nbytes = (len(port.dat_w) + 7)//8
+			nbytes = (flen(port.dat_w) + 7)//8
 			s1.append(port.we.eq(2**nbytes-1))
 		else:
 			s1.append(port.we.eq(compiler.ec.visit_expr(sel)))
