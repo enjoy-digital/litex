@@ -6,22 +6,23 @@ from migen.bus.transactions import *
 from migen.sim.generic import Proxy
 
 _layout = [
-	("adr",		30,		DIR_M_TO_S),
-	("dat_w",	32, 	DIR_M_TO_S),
-	("dat_r",	32, 	DIR_S_TO_M),
-	("sel",		4,		DIR_M_TO_S),
-	("cyc",		1,		DIR_M_TO_S),
-	("stb",		1,		DIR_M_TO_S),
-	("ack",		1,		DIR_S_TO_M),
-	("we",		1,		DIR_M_TO_S),
-	("cti",		3,		DIR_M_TO_S),
-	("bte",		2,		DIR_M_TO_S),
-	("err",		1,		DIR_S_TO_M)
+	("adr",		30,				DIR_M_TO_S),
+	("dat_w",	"data_width", 	DIR_M_TO_S),
+	("dat_r",	"data_width", 	DIR_S_TO_M),
+	("sel",		"sel_width",	DIR_M_TO_S),
+	("cyc",		1,				DIR_M_TO_S),
+	("stb",		1,				DIR_M_TO_S),
+	("ack",		1,				DIR_S_TO_M),
+	("we",		1,				DIR_M_TO_S),
+	("cti",		3,				DIR_M_TO_S),
+	("bte",		2,				DIR_M_TO_S),
+	("err",		1,				DIR_S_TO_M)
 ]
 
 class Interface(Record):
-	def __init__(self):
-		Record.__init__(self, _layout)
+	def __init__(self, data_width=32):
+		Record.__init__(self, _layout, data_width=data_width,
+			sel_width=data_width//8)
 
 class InterconnectPointToPoint(Module):
 	def __init__(self, master, slave):
