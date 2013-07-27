@@ -20,34 +20,6 @@ def _convert_layout(layout):
 			r.append((element[0], element[1]))
 	return r
 
-def _create_csrs_assign(layout, target, atomic, prefix=""):
-	csrs = []
-	assigns = []
-	for element in layout:
-		if isinstance(element[1], list):
-			r_csrs, r_assigns = _create_csrs_assign(element[1],
-				atomic,
-				getattr(target, element[0]),
-				element[0] + "_")
-			csrs += r_csrs
-			assigns += r_assigns
-		else:
-			name = element[0]
-			nbits = element[1]
-			if len(element) > 2:
-				reset = element[2]
-			else:
-				reset = 0
-			if len(element) > 3:
-				alignment = element[3]
-			else:
-				alignment = 0
-			reg = CSRStorage(nbits + alignment, reset=reset, atomic_write=atomic,
-				alignment_bits=alignment, name=prefix + name)
-			csrs.append(reg)
-			assigns.append(getattr(target, name).eq(reg.storage))
-	return csrs, assigns
-
 (MODE_EXTERNAL, MODE_SINGLE_SHOT, MODE_CONTINUOUS) = range(3)
 
 class SingleGenerator(Module, AutoCSR):
