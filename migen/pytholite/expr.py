@@ -11,6 +11,14 @@ class ExprCompiler:
 		self.symdict = symdict
 	
 	def visit_expr(self, node):
+		# Attempt compile-time evaluation first
+		try:
+			result = eval_ast(node, self.symdict)
+		except:
+			result = None
+		if isinstance(result, int):
+			return result
+
 		if isinstance(node, ast.Call):
 			return self.visit_expr_call(node)
 		elif isinstance(node, ast.BinOp):
