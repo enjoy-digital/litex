@@ -4,15 +4,16 @@ from migen.bank.description import CSRStorage
 from migen.genlib.record import *
 from migen.genlib.misc import chooser
 
-data_width = 8
+_layout = [
+	("adr",		14,				DIR_M_TO_S),
+	("we",		1,				DIR_M_TO_S),
+	("dat_w",	"data_width",	DIR_M_TO_S),
+	("dat_r",	"data_width",	DIR_S_TO_M)
+]
 
 class Interface(Record):
-	def __init__(self):
-		Record.__init__(self, [
-			("adr",		14,			DIR_M_TO_S),
-			("we",		1,			DIR_M_TO_S),
-			("dat_w",	data_width,	DIR_M_TO_S),
-			("dat_r",	data_width,	DIR_S_TO_M)])
+	def __init__(self, data_width=8):
+		Record.__init__(self, _layout, data_width=data_width)
 
 class Interconnect(Module):
 	def __init__(self, master, slaves):
@@ -55,6 +56,10 @@ class Initiator(Module):
 
 class SRAM(Module):
 	def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None):
+		if bus is None:
+			bus = Interface()
+		self.bus = bus
+		data_width = flen(self.bus.dat_w)
 		if isinstance(mem_or_size, Memory):
 			mem = mem_or_size
 		else:
@@ -71,9 +76,6 @@ class SRAM(Module):
 				read_only = mem.bus_read_only
 			else:
 				read_only = False
-		if bus is None:
-			bus = Interface()
-		self.bus = bus
 	
 		###
 
