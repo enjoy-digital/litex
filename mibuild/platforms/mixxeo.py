@@ -77,8 +77,8 @@ _io = [
 
 	("mmc", 0,
 		Subsignal("clk", Pins("J3")),
-		Subsignal("cmd", Pins("L3")),
-		Subsignal("dat", Pins("L1 K2 M2 M1")),
+		Subsignal("cmd", Pins("K1")),
+		Subsignal("dat", Pins("J6 K6 N1 K5")),
 		IOStandard("LVCMOS33")
 	),
 
@@ -91,10 +91,10 @@ _io = [
 		Subsignal("data1_n", Pins("A21"), IOStandard("TMDS_33")),
 		Subsignal("data2_p", Pins("K16"), IOStandard("TMDS_33")),
 		Subsignal("data2_n", Pins("J16"), IOStandard("TMDS_33")),
-		Subsignal("scl", Pins("U6"), IOStandard("LVCMOS33")),
-		Subsignal("sda", Pins("V5"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_notif", Pins("AA8"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_en", Pins("Y6"), IOStandard("LVCMOS33"))
+		Subsignal("scl", Pins("G20"), IOStandard("LVCMOS33")),
+		Subsignal("sda", Pins("H16"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_notif", Pins("G22"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_en", Pins("G17"), IOStandard("LVCMOS33"))
 	),
 	("dvi_in", 1,
 		Subsignal("clk_p", Pins("C11"), IOStandard("TMDS_33")),
@@ -105,10 +105,10 @@ _io = [
 		Subsignal("data1_n", Pins("A18"), IOStandard("TMDS_33")),
 		Subsignal("data2_p", Pins("E16"), IOStandard("TMDS_33")),
 		Subsignal("data2_n", Pins("D17"), IOStandard("TMDS_33")),
-		Subsignal("scl", Pins("T7"), IOStandard("LVCMOS33")),
-		Subsignal("sda", Pins("R7"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_notif", Pins("AB9"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_en", Pins("Y5"), IOStandard("LVCMOS33"))
+		Subsignal("scl", Pins("F17"), IOStandard("LVCMOS33")),
+		Subsignal("sda", Pins("F16"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_notif", Pins("G16"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_en", Pins("B20"), IOStandard("LVCMOS33"))
 	),
 	("dvi_in", 2,
 		Subsignal("clk_p", Pins("Y11"), IOStandard("TMDS_33")),
@@ -119,10 +119,10 @@ _io = [
 		Subsignal("data1_n", Pins("AB10"), IOStandard("TMDS_33")),
 		Subsignal("data2_p", Pins("R11"), IOStandard("TMDS_33")),
 		Subsignal("data2_n", Pins("T11"), IOStandard("TMDS_33")),
-		Subsignal("scl", Pins("U9"), IOStandard("LVCMOS33")),
-		Subsignal("sda", Pins("AB7"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_notif", Pins("AB8"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_en", Pins("V9"), IOStandard("LVCMOS33"))
+		Subsignal("scl", Pins("C16"), IOStandard("LVCMOS33")),
+		Subsignal("sda", Pins("B16"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_notif", Pins("D6"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_en", Pins("A4"), IOStandard("LVCMOS33"))
 	),
 	("dvi_in", 3,
 		Subsignal("clk_p", Pins("J20"), IOStandard("TMDS_33")),
@@ -133,10 +133,10 @@ _io = [
 		Subsignal("data1_n", Pins("N16"), IOStandard("TMDS_33")),
 		Subsignal("data2_p", Pins("M17"), IOStandard("TMDS_33")),
 		Subsignal("data2_n", Pins("M18"), IOStandard("TMDS_33")),
-		Subsignal("scl", Pins("AA14"), IOStandard("LVCMOS33")),
-		Subsignal("sda", Pins("AB17"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_notif", Pins("T19"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_en", Pins("Y17"), IOStandard("LVCMOS33"))
+		Subsignal("scl", Pins("P21"), IOStandard("LVCMOS33")),
+		Subsignal("sda", Pins("N22"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_notif", Pins("H17"), IOStandard("LVCMOS33")),
+		Subsignal("hpd_en", Pins("C19"), IOStandard("LVCMOS33"))
 	),
 ]
 
