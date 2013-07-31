@@ -38,7 +38,7 @@ Obtain yours at http://milkymist.org
   make
   make flash
 
-The second command requires m1nor, FJMEM and UrJTAG.
+The second command requires m1nor-ng, FJMEM and UrJTAG.
 These tools can be found at:
   https://github.com/milkymist/fjmem-m1
   http://urjtag.org
