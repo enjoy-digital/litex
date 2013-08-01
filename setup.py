@@ -22,7 +22,7 @@ setup(
 	url="http://www.milkymist.org",
 	download_url="https://github.com/milkymist/mibuild",
 	packages=find_packages(here),
-	license="GPL",
+	license="BSD",
 	platforms=["Any"],
 	keywords="HDL ASIC FPGA hardware design",
 	classifiers=[
@@ -30,7 +30,7 @@ setup(
 		"Environment :: Console",
 		"Development Status :: Alpha",
 		"Intended Audience :: Developers",
-		"License :: OSI Approved :: GNU General Public License (GPL)",
+		"License :: OSI Approved :: BSD License",
 		"Operating System :: OS Independent",
 		"Programming Language :: Python",
 	],

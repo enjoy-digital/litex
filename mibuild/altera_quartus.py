@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2013 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: GPLv3
+# License: BSD
 
 import os, subprocess
 

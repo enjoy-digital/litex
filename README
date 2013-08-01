@@ -25,5 +25,3 @@ Mibuild is designed for Python 3.3.
 Send questions, comments and patches to devel [AT] lists.milkymist.org
 Description files for new boards welcome.
 We are also on IRC: #milkymist on the Freenode network.
-
-Mibuild is (c) 2013 Sebastien Bourdeauducq and GPLv3 (see LICENSE file).
