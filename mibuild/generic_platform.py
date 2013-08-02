@@ -4,7 +4,7 @@ import os, argparse
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
 from migen.genlib.record import Record
-from migen.fhdl import verilog
+from migen.fhdl import verilog, edif
 
 from mibuild import tools
 
@@ -194,6 +194,18 @@ class GenericPlatform:
 				if language is not None:
 					self.add_source(os.path.join(root, filename), language)
 
+	def _resolve_signals(self, vns):
+		# resolve signal names in constraints
+		sc = self.constraint_manager.get_sig_constraints()
+		named_sc = [(vns.get_name(sig), pins, others, resource) for sig, pins, others, resource in sc]
+		# resolve signal names in platform commands
+		pc = self.constraint_manager.get_platform_commands()
+		named_pc = []
+		for template, args in pc:
+			name_dict = dict((k, vns.get_name(sig)) for k, sig in args.items())
+			named_pc.append(template.format(**name_dict))
+		return named_sc, named_pc
+
 	def get_verilog(self, fragment, **kwargs):
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
@@ -215,19 +227,21 @@ class GenericPlatform:
 			# generate Verilog
 			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(),
 				return_ns=True, create_clock_domains=False, **kwargs)
-			# resolve signal names in constraints
-			sc = self.constraint_manager.get_sig_constraints()
-			named_sc = [(vns.get_name(sig), pins, others, resource) for sig, pins, others, resource in sc]
-			# resolve signal names in platform commands
-			pc = self.constraint_manager.get_platform_commands()
-			named_pc = []
-			for template, args in pc:
-				name_dict = dict((k, vns.get_name(sig)) for k, sig in args.items())
-				named_pc.append(template.format(**name_dict))
+			named_sc, named_pc = self._resolve_signals(vns)
 		finally:
 			self.constraint_manager.restore(backup)
 		return src, named_sc, named_pc
 		
+	def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
+		if not isinstance(fragment, _Fragment):
+			fragment = fragment.get_fragment()
+		# finalize
+		self.finalize(fragment)
+		# generate EDIF
+		src, vns = edif.convert(fragment, self.constraint_manager.get_io_signals(), cell_library, vendor, device, return_ns=True, **kwargs)
+		named_sc, named_pc = self._resolve_signals(vns)
+		return src, named_sc, named_pc
+
 	def build(self, fragment):
 		raise NotImplementedError("GenericPlatform.build must be overloaded")
 
