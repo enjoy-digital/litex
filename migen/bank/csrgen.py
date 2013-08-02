@@ -4,6 +4,14 @@ from migen.fhdl.std import *
 from migen.bus import csr
 from migen.bank.description import *
 
+def get_offset(description, name, csr_data_width=8):
+	offset = 0
+	for c in description:
+		if c.name == name:
+			return offset
+		offset += (c.size + csr_data_width - 1)//csr_data_width
+	raise KeyError("CSR not found: "+name)
+
 class Bank(Module):
 	def __init__(self, description, address=0, bus=None):
 		if bus is None:
