@@ -84,13 +84,17 @@ class CSRStorage(_CompoundCSR):
 			else:
 				self.sync += If(sc.re, self.storage_full[lo:hi].eq(sc.r))
 
-def csrprefix(prefix, csrs):
+def csrprefix(prefix, csrs, done):
 	for csr in csrs:
-		csr.name = prefix + csr.name
+		if csr.huid not in done:
+			csr.name = prefix + csr.name
+			done.add(csr.huid)
 
-def memprefix(prefix, memories):
+def memprefix(prefix, memories, done):
 	for memory in memories:
-		memory.name_override = prefix + memory.name_override
+		if memory.huid not in done:
+			memory.name_override = prefix + memory.name_override
+			done.add(memory.huid)
 
 class AutoCSR:
 	def get_memories(self):
@@ -98,6 +102,10 @@ class AutoCSR:
 			exclude = self.autocsr_exclude
 		except AttributeError:
 			exclude = {}
+		try:
+			prefixed = self.__prefixed
+		except AttributeError:
+			prefixed = self.__prefixed = set()
 		r = []
 		for k, v in self.__dict__.items():
 			if k not in exclude:
@@ -105,7 +113,7 @@ class AutoCSR:
 					r.append(v)
 				elif hasattr(v, "get_memories") and callable(v.get_memories):
 					memories = v.get_memories()
-					memprefix(k + "_", memories)
+					memprefix(k + "_", memories, prefixed)
 					r += memories
 		return sorted(r, key=lambda x: x.huid)
 
@@ -114,6 +122,10 @@ class AutoCSR:
 			exclude = self.autocsr_exclude
 		except AttributeError:
 			exclude = {}
+		try:
+			prefixed = self.__prefixed
+		except AttributeError:
+			prefixed = self.__prefixed = set()
 		r = []
 		for k, v in self.__dict__.items():
 			if k not in exclude:
@@ -121,6 +133,6 @@ class AutoCSR:
 					r.append(v)
 				elif hasattr(v, "get_csrs") and callable(v.get_csrs):
 					csrs = v.get_csrs()
-					csrprefix(k + "_", csrs)
+					csrprefix(k + "_", csrs, prefixed)
 					r += csrs
 		return sorted(r, key=lambda x: x.huid)
