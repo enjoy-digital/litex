@@ -164,7 +164,7 @@ def _generate_connections(f, ios, ns):
 		if isinstance(special, Instance):
 			instname = ns.get_name(special)
 			for port in special.items:
-				if isinstance(port, Instance.Input) or isinstance(port, Instance.Output) or isinstance(port, Instance.InOut):
+				if isinstance(port, Instance._IO):
 					s = ns.get_name(port.expr)
 					if s not in r:
 						r[s] = []
@@ -182,7 +182,7 @@ def _generate_connections(f, ios, ns):
 		r[io].append(_NetBranch(portname=io, instancename=""))
 	return r
 
-def convert(f, ios, name, cell_library, part, vendor):
+def convert(f, ios, cell_library, vendor, device, name="top", return_ns=False):
 	if not isinstance(f, _Fragment):
 		f = f.get_fragment()
 	if f.comb != [] or f.sync != {}:
@@ -194,4 +194,8 @@ def convert(f, ios, name, cell_library, part, vendor):
 	instances = _generate_instances(f, ns)
 	inouts = _generate_ios(f, ios, ns)
 	connections = _generate_connections(f, ios, ns)
-	return _write_edif(cells, inouts, instances, connections, cell_library, name, part, vendor)
+	r =  _write_edif(cells, inouts, instances, connections, cell_library, name, device, vendor)
+	if return_ns:
+		return r, ns
+	else:
+		return r
