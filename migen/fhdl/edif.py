@@ -113,6 +113,8 @@ def _generate_cells(f):
 					port_list.append(_Port(port.name, "INPUT"))
 				elif isinstance(port, Instance.Output):
 					port_list.append(_Port(port.name, "OUTPUT"))
+				elif isinstance(port, Instance.InOut):
+					port_list.append(_Port(port.name, "INOUT"))
 				elif isinstance(port, Instance.Parameter):
 					pass
 				else:
@@ -136,6 +138,8 @@ def _generate_instances(f,ns):
 					pass
 				elif isinstance(prop, Instance.Output):
 					pass
+				elif isinstance(prop, Instance.InOut):
+					pass
 				elif isinstance(prop, Instance.Parameter):
 					props.append(_Property(name=prop.name, value=prop.value))
 				else:
@@ -147,9 +151,10 @@ def _generate_instances(f,ns):
 
 def _generate_ios(f, ios, ns):
 	outs = list_special_ios(f, False, True, False)
+	inouts = list_special_ios(f, False, False, True)
 	r = []
 	for io in ios:
-		direction = "OUTPUT" if io in outs else "INPUT"
+		direction = "OUTPUT" if io in outs else "INOUT" if io in inouts else "INPUT"
 		r.append(_Port(name=ns.get_name(io), direction=direction))
 	return r
 
@@ -159,7 +164,7 @@ def _generate_connections(f, ios, ns):
 		if isinstance(special, Instance):
 			instname = ns.get_name(special)
 			for port in special.items:
-				if isinstance(port, Instance.Input) or isinstance(port, Instance.Output):
+				if isinstance(port, Instance.Input) or isinstance(port, Instance.Output) or isinstance(port, Instance.InOut):
 					s = ns.get_name(port.expr)
 					if s not in r:
 						r[s] = []
