@@ -103,7 +103,11 @@ def _run_ise(build_name, ise_path, source, mode="verilog"):
 		vers = [ver for ver in os.listdir(ise_path) if _is_valid_version(ise_path, ver)]
 		tools_version = max(vers)
 		bits = struct.calcsize("P")*8
-		xilinx_settings_file = '%s/%s/ISE_DS/settings%d.sh' % (ise_path, tools_version, bits) 
+		
+		xilinx_settings_file = '%s/%s/ISE_DS/settings%d.sh' % (ise_path, tools_version, bits)
+		if not os.path.exists(xilinx_settings_file) and bits == 64:
+			# if we are on 64-bit system but the toolchain isn't, try the 32-bit env.
+			xilinx_settings_file = '%s/%s/ISE_DS/settings%d.sh' % (ise_path, tools_version, 32)
 		build_script_contents += "source " + xilinx_settings_file + "\n"
 	if mode == "edif":
 		build_script_contents += """
@@ -111,7 +115,7 @@ ngdbuild -uc {build_name}.ucf {build_name}.edif {build_name}.ngd""".format(build
 	else:
 		build_script_contents += """
 xst -ifn {build_name}.xst
-ngdbuild -uc {build_name}.ucf {build_name}.ngc {build_name}.ngd"""
+ngdbuild -uc {build_name}.ucf {build_name}.ngc {build_name}.ngd""".format(build_name=build_name)
 	
 	build_script_contents += """
 map -ol high -w -o {build_name}_map.ncd {build_name}.ngd {build_name}.pcf
