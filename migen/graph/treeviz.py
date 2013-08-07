@@ -14,10 +14,20 @@ def _cairo_draw_node(ctx, dx, radius, color, outer_color, s):
 	ctx.arc(0, 0, radius, 0, 2*math.pi)
 	ctx.fill()
 
-	ctx.set_source_rgb(0, 0, 0)
-	x_bearing, y_bearing, textw, texth, x_advance, y_advance = ctx.text_extents(s)
-	ctx.translate(-textw/2, texth/2)
-	ctx.show_text(s)
+	lines = s.split("\n")
+	textws = []
+	texths = []
+	for line in lines:
+		x_bearing, y_bearing, w, h, x_advance, y_advance = ctx.text_extents(line)
+		textws.append(w)
+		texths.append(h + 2)
+	ctx.translate(0, -sum(texths[1:])/2)
+	for line, w, h in zip(lines, textws, texths):
+		ctx.translate(-w/2, h/2)
+		ctx.move_to(0, 0)
+		ctx.set_source_rgb(0, 0, 0)
+		ctx.show_text(line)
+		ctx.translate(w/2, h/2)
 
 	ctx.restore()
 
