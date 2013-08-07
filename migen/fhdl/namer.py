@@ -1,122 +1,77 @@
+from collections import OrderedDict
 from itertools import combinations
-from collections import defaultdict
 
 from migen.fhdl.structure import *
-from migen.fhdl.tracer import index_id
 
-def _bin(sig_iters):
-	# advance by one in the trace of each signal
-	status = []
-	for signal, it in sig_iters:
-		step, last = next(it)
-		status.append((signal, it, step, last))
-	
-	# build bins accordingly
-	bins = defaultdict(lambda: defaultdict(list))
-	for signal, it, (stepname, stepidx), last in status:
-		if last:
-			it = None
-		bins[stepname][stepidx].append((signal, it))
+class _Node:
+	def __init__(self):
+		self.use_name = False
+		self.children = OrderedDict()
 
-	r = []
-	# merge bins when all step indices differ
-	for stepname, stepname_d in bins.items():
-		if all(len(content) == 1 for content in stepname_d.values()):
-			r.append((stepname, [(stepidx, signal, it)
-				for stepidx, stepidx_d in stepname_d.items()
-				for signal, it in stepidx_d]))
-		else:
-			for stepidx, stepidx_d in stepname_d.items():
-				r.append((stepname, [(stepidx, signal, it)
-					for signal, it in stepidx_d]))
-	
-	#for stepname, content in r:
-		#print("Bin: " + stepname)
-		#for stepidx, signal, it in content:
-			#print("   stepidx:" + str(stepidx) + " " + str(signal) + " " + str(it))
-	#print("++++++++++")
-	
-	return r
+def _build_tree(signals):
+	root = _Node()
+	for signal in signals:
+		current = root
+		for name, number in signal.backtrace:
+			try:
+				current = current.children[name]
+			except KeyError:
+				new = _Node()
+				current.children[name] = new
+				current = new
+	return root
 
-def _sets_disjoint(l):
-	for s1, s2 in combinations(l, 2):
-		if not s1.isdisjoint(s2):
-			return False
-	return True
-
-# sig_iters contains a list of tuples (signal, iterator on the current trace position)
-def _r_build_pnd(sig_iters):
-	bins = _bin(sig_iters)
-	
-	subnames = {}
-	mentions = defaultdict(list)
-	bins_named = []
-	stepindices = {}
-	
-	for stepname, next_steps in bins:
-		bin_content = []
-		for stepidx, signal, it in next_steps:
-			if it is None:
-				mentions[stepname].append(signal)
-			else:
-				bin_content.append((signal, it))
-			stepindices[signal] = stepidx
-		if bin_content:
-			bins_named.append((stepname, _r_build_pnd(bin_content)))
-	
-	name_sets = [set(sub_pnd.values()) for prefix, sub_pnd in bins_named]
-	if not _sets_disjoint(name_sets):
-		for prefix, sub_pnd in bins_named:
-			for signal, subname in sub_pnd.items():
-				subname = (prefix, subname)
-				subnames[signal] = subname
-				mentions[subname].append(signal)
+def _set_use_name(node, node_name=""):
+	if not node.children:
+		node.use_name = True
+		return {(node_name, )}
 	else:
-		for prefix, sub_pnd in bins_named:
-			for signal, subname in sub_pnd.items():
-				subname = ("", subname)
-				subnames[signal] = subname
-				mentions[subname].append(signal)
-	
-	# Sort lists of mentions by step indices
-	for v in mentions.values():
-		v.sort(key=lambda x: stepindices[x])
-	
-	r = {}
-	for stepname, next_steps in bins:
-		for stepidx, signal, it in next_steps:
-			if it is None:
-				name = stepname
-				prefix = ""
+		cnames = [(k, _set_use_name(v, k)) for k, v in node.children.items()]
+		for (c1_prefix, c1_names), (c2_prefix, c2_names) in combinations(cnames, 2):
+			if not c1_names.isdisjoint(c2_names):
+				node.children[c1_prefix].use_name = True
+				node.children[c2_prefix].use_name = True
+		r = set()
+		for c_prefix, c_names in cnames:
+			if node.children[c_prefix].use_name:
+				for c_name in c_names:
+					r.add((c_prefix, ) + c_name)
 			else:
-				prefix = subnames[signal][0]
-				name = subnames[signal][1]
-			mention = mentions[(prefix, name)]
-			if prefix:
-				if len(mention) > 1:
-					r[signal] = prefix + str(index_id(mention, signal)) + "_" + name
-				else:
-					r[signal] = prefix + "_" + name
-			else:
-				if len(mention) > 1:
-					r[signal] = name + str(index_id(mention, signal))
-				else:
-					r[signal] = name
+				r |= c_names
+		return r
+
+def _display_tree(tree):
+	from migen.graph.treeviz import RenderNode
 	
-	return r
+	def _to_render_node(name, node):
+		children = [_to_render_node(k, v) for k, v in node.children.items()]
+		if node.use_name:
+			color = (0.8, 0.5, 0.9)
+		else:
+			color = (0.8, 0.8, 0.8)
+		return RenderNode(name, children, color=color)
 
-def last_flagged(seq):
-	seq = iter(seq)
-	a = next(seq)
-	for b in seq:
-		yield a, False
-		a = b
-	yield a, True
+	top = _to_render_node("top", tree)
+	top.to_svg("names.svg")
 
+def _name_signal(tree, signal):
+	elements = []
+	treepos = tree
+	for step_name, step_n in signal.backtrace:
+		treepos = treepos.children[step_name]
+		if treepos.use_name:
+			elements.append(step_name)
+	return "_".join(elements)
+
+def _build_pnd(tree, signals):
+	return dict((signal, _name_signal(tree, signal)) for signal in signals)
+	
 def build_namespace(signals):
-	sig_iters = [(signal, last_flagged(signal.backtrace))
-	  for signal in signals if signal.name_override is None]
-	pnd = _r_build_pnd(sig_iters)
+	tree = _build_tree(signals)
+	_set_use_name(tree)
+	_display_tree(tree)
+	pnd = _build_pnd(tree, signals)
+	
 	ns = Namespace(pnd)
 	# register signals with name_override
 	for signal in signals:
