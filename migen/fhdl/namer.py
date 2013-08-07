@@ -99,11 +99,15 @@ def _name_signal(tree, signal):
 def _build_pnd(tree, signals):
 	return dict((signal, _name_signal(tree, signal)) for signal in signals)
 
-def _list_conflicting_signals(pnd):
+def _invert_pnd(pnd):
 	inv_pnd = dict()
 	for k, v in pnd.items():
 		inv_pnd[v] = inv_pnd.get(v, [])
 		inv_pnd[v].append(k)
+	return inv_pnd
+
+def _list_conflicting_signals(pnd):
+	inv_pnd = _invert_pnd(pnd)
 	r = set()
 	for k, v in inv_pnd.items():
 		if len(v) > 1:
@@ -117,7 +121,7 @@ def _set_use_number(tree, signals):
 			current = current.children[step_name]
 			current.use_number = current.signal_count > len(current.numbers) and len(current.numbers) > 1
 
-_debug = True
+_debug = False
 
 def build_namespace(signals):
 	basic_tree = _build_tree(signals)
@@ -143,6 +147,17 @@ def build_namespace(signals):
 		if _debug:
 			print("namer: using basic strategy")
 	
+	# ...then add number suffixes by HUID
+	inv_pnd = _invert_pnd(pnd)
+	huid_suffixed = False
+	for name, signals in inv_pnd.items():
+		if len(signals) > 1:
+			huid_suffixed = True
+			for n, signal in enumerate(sorted(signals, key=lambda x: x.huid)):
+				pnd[signal] += str(n)
+	if _debug and huid_suffixed:
+		print("namer: using HUID suffixes")
+
 	ns = Namespace(pnd)
 	# register signals with name_override
 	for signal in signals:
