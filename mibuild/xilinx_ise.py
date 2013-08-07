@@ -104,24 +104,25 @@ def _run_ise(build_name, ise_path, source, mode="verilog"):
 		tools_version = max(vers)
 		bits = struct.calcsize("P")*8
 		
-		xilinx_settings_file = '%s/%s/ISE_DS/settings%d.sh' % (ise_path, tools_version, bits)
+		xilinx_settings_file = os.path.join(ise_path, tools_version, "ISE_DS", "settings{0}.sh".format(bits))
 		if not os.path.exists(xilinx_settings_file) and bits == 64:
 			# if we are on 64-bit system but the toolchain isn't, try the 32-bit env.
-			xilinx_settings_file = '%s/%s/ISE_DS/settings%d.sh' % (ise_path, tools_version, 32)
+			xilinx_settings_file = os.path.join(ise_path, tools_version, "ISE_DS", "settings32.sh")
 		build_script_contents += "source " + xilinx_settings_file + "\n"
 	if mode == "edif":
 		build_script_contents += """
-ngdbuild -uc {build_name}.ucf {build_name}.edif {build_name}.ngd""".format(build_name=build_name)
+ngdbuild -uc {build_name}.ucf {build_name}.edif {build_name}.ngd"""
 	else:
 		build_script_contents += """
 xst -ifn {build_name}.xst
-ngdbuild -uc {build_name}.ucf {build_name}.ngc {build_name}.ngd""".format(build_name=build_name)
+ngdbuild -uc {build_name}.ucf {build_name}.ngc {build_name}.ngd"""
 	
 	build_script_contents += """
 map -ol high -w -o {build_name}_map.ncd {build_name}.ngd {build_name}.pcf
 par -ol high -w {build_name}_map.ncd {build_name}.ncd {build_name}.pcf
 bitgen -g LCK_cycle:6 -g Binary:Yes -w {build_name}.ncd {build_name}.bit
-""".format(build_name=build_name)
+"""
+	build_script_contents = build_script_contents.format(build_name=build_name)
 	build_script_file = "build_" + build_name + ".sh"
 	tools.write_to_file(build_script_file, build_script_contents)
 
