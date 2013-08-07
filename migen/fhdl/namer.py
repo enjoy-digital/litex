@@ -5,20 +5,59 @@ from migen.fhdl.structure import *
 
 class _Node:
 	def __init__(self):
+		self.signal_count = 0
+		self.numbers = set()
 		self.use_name = False
+		self.use_number = False
 		self.children = OrderedDict()
 
-def _build_tree(signals):
+def _display_tree(filename, tree):
+	from migen.graph.treeviz import RenderNode
+	
+	def _to_render_node(name, node):
+		children = [_to_render_node(k, v) for k, v in node.children.items()]
+		if node.use_name:
+			if node.use_number:
+				color = (0.5, 0.9, 0.8)
+			else:
+				color = (0.8, 0.5, 0.9)
+		else:
+			if node.use_number:
+				color = (0.9, 0.8, 0.5)
+			else:
+				color = (0.8, 0.8, 0.8)
+		label = "{0}\n{1} signals\n{2}".format(name, node.signal_count, node.numbers)
+		return RenderNode(label, children, color=color)
+
+	top = _to_render_node("top", tree)
+	top.to_svg(filename)
+
+def _build_tree(signals, basic_tree=None):
 	root = _Node()
 	for signal in signals:
+		current_b = basic_tree
 		current = root
+		current.signal_count += 1
 		for name, number in signal.backtrace:
+			if basic_tree is None:
+				use_number = False
+			else:
+				current_b = current_b.children[name]
+				use_number = current_b.use_number
+			if use_number:
+				key = (name, number)
+			else:
+				key = name
 			try:
-				current = current.children[name]
+				current = current.children[key]
 			except KeyError:
 				new = _Node()
-				current.children[name] = new
+				current.children[key] = new
 				current = new
+			current.numbers.add(number)
+			if use_number:
+				current.all_numbers = sorted(current_b.numbers)
+			current.signal_count += 1
 	return root
 
 def _set_use_name(node, node_name=""):
@@ -40,37 +79,69 @@ def _set_use_name(node, node_name=""):
 				r |= c_names
 		return r
 
-def _display_tree(tree):
-	from migen.graph.treeviz import RenderNode
-	
-	def _to_render_node(name, node):
-		children = [_to_render_node(k, v) for k, v in node.children.items()]
-		if node.use_name:
-			color = (0.8, 0.5, 0.9)
-		else:
-			color = (0.8, 0.8, 0.8)
-		return RenderNode(name, children, color=color)
-
-	top = _to_render_node("top", tree)
-	top.to_svg("names.svg")
-
 def _name_signal(tree, signal):
 	elements = []
 	treepos = tree
 	for step_name, step_n in signal.backtrace:
-		treepos = treepos.children[step_name]
+		try:
+			treepos = treepos.children[(step_name, step_n)]
+			use_number = True
+		except KeyError:
+			treepos = treepos.children[step_name]
+			use_number = False
 		if treepos.use_name:
-			elements.append(step_name)
+			elname = step_name
+			if use_number:
+				elname += str(treepos.all_numbers.index(step_n))
+			elements.append(elname)
 	return "_".join(elements)
 
 def _build_pnd(tree, signals):
 	return dict((signal, _name_signal(tree, signal)) for signal in signals)
-	
+
+def _list_conflicting_signals(pnd):
+	inv_pnd = dict()
+	for k, v in pnd.items():
+		inv_pnd[v] = inv_pnd.get(v, [])
+		inv_pnd[v].append(k)
+	r = set()
+	for k, v in inv_pnd.items():
+		if len(v) > 1:
+			r.update(v)
+	return r
+
+def _set_use_number(tree, signals):
+	for signal in signals:
+		current = tree
+		for step_name, step_n in signal.backtrace:
+			current = current.children[step_name]
+			current.use_number = current.signal_count > len(current.numbers) and len(current.numbers) > 1
+
+_debug = True
+
 def build_namespace(signals):
-	tree = _build_tree(signals)
-	_set_use_name(tree)
-	_display_tree(tree)
-	pnd = _build_pnd(tree, signals)
+	basic_tree = _build_tree(signals)
+	_set_use_name(basic_tree)
+	if _debug:
+		_display_tree("tree_basic.svg", basic_tree)
+	pnd = _build_pnd(basic_tree, signals)
+
+	# If there are conflicts, try splitting the tree by numbers
+	# on paths taken by conflicting signals.
+	conflicting_signals = _list_conflicting_signals(pnd)
+	if conflicting_signals:
+		_set_use_number(basic_tree, conflicting_signals)
+		if _debug:
+			print("namer: using split-by-number strategy")
+			_display_tree("tree_marked.svg", basic_tree)
+		numbered_tree = _build_tree(signals, basic_tree)
+		_set_use_name(numbered_tree)
+		if _debug:
+			_display_tree("tree_numbered.svg", numbered_tree)
+		pnd = _build_pnd(numbered_tree, signals)
+	else:
+		if _debug:
+			print("namer: using basic strategy")
 	
 	ns = Namespace(pnd)
 	# register signals with name_override
