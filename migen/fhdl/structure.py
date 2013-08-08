@@ -139,10 +139,8 @@ class Signal(Value):
 		self.variable = variable # deprecated
 		self.reset = reset
 		self.name_override = name_override
-		self.backtrace = []
-		if related is not None:
-			self.backtrace += related.backtrace
-		self.backtrace += tracer.trace_back(name)
+		self.backtrace = tracer.trace_back(name)
+		self.related = related
 
 	def __repr__(self):
 		return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"

@@ -97,7 +97,7 @@ def _name_signal(tree, signal):
 			elements.append(elname)
 	return "_".join(elements)
 
-def _build_pnd(tree, signals):
+def _build_pnd_from_tree(tree, signals):
 	return dict((signal, _name_signal(tree, signal)) for signal in signals)
 
 def _invert_pnd(pnd):
@@ -124,12 +124,12 @@ def _set_use_number(tree, signals):
 
 _debug = False
 
-def build_namespace(signals):
+def _build_pnd_for_group(group_n, signals):
 	basic_tree = _build_tree(signals)
 	_set_use_name(basic_tree)
 	if _debug:
-		_display_tree("tree_basic.svg", basic_tree)
-	pnd = _build_pnd(basic_tree, signals)
+		_display_tree("tree{0}_basic.svg".format(group_n), basic_tree)
+	pnd = _build_pnd_from_tree(basic_tree, signals)
 
 	# If there are conflicts, try splitting the tree by numbers
 	# on paths taken by conflicting signals.
@@ -137,16 +137,16 @@ def build_namespace(signals):
 	if conflicting_signals:
 		_set_use_number(basic_tree, conflicting_signals)
 		if _debug:
-			print("namer: using split-by-number strategy")
-			_display_tree("tree_marked.svg", basic_tree)
+			print("namer: using split-by-number strategy (group {0})".format(group_n))
+			_display_tree("tree{0}_marked.svg".format(group_n), basic_tree)
 		numbered_tree = _build_tree(signals, basic_tree)
 		_set_use_name(numbered_tree)
 		if _debug:
-			_display_tree("tree_numbered.svg", numbered_tree)
-		pnd = _build_pnd(numbered_tree, signals)
+			_display_tree("tree{0}_numbered.svg".format(group_n), numbered_tree)
+		pnd = _build_pnd_from_tree(numbered_tree, signals)
 	else:
 		if _debug:
-			print("namer: using basic strategy")
+			print("namer: using basic strategy (group {0})".format(group_n))
 	
 	# ...then add number suffixes by HUID
 	inv_pnd = _invert_pnd(pnd)
@@ -157,8 +157,50 @@ def build_namespace(signals):
 			for n, signal in enumerate(sorted(signals, key=lambda x: x.huid)):
 				pnd[signal] += str(n)
 	if _debug and huid_suffixed:
-		print("namer: using HUID suffixes")
+		print("namer: using HUID suffixes (group {0})".format(group_n))
 
+	return pnd
+
+def _build_signal_groups(signals):
+	r = []
+	for signal in signals:
+		# build chain of related signals
+		related_list = []
+		cur_signal = signal
+		while cur_signal is not None:
+			related_list.insert(0, cur_signal)
+			cur_signal = cur_signal.related
+		# add to groups
+		r += [set()]*(len(related_list) - len(r))
+		for target_set, source_set in zip(r, related_list):
+			target_set.add(source_set)
+	# with the algorithm above and a list of all signals,
+	# a signal appears in all groups of a lower number than its.
+	# make signals appear only in their group of highest number.
+	for s1, s2 in zip(r, r[1:]):
+		s1 -= s2
+	return r
+
+def _build_pnd(signals):
+	groups = _build_signal_groups(signals)
+	gpnds = [_build_pnd_for_group(n, gsignals) for n, gsignals in enumerate(groups)]
+
+	pnd = dict()
+	for gn, gpnd in enumerate(gpnds):
+		for signal, name in gpnd.items():
+			result = name
+			cur_gn = gn
+			cur_signal = signal
+			while cur_signal.related is not None:
+				cur_signal = cur_signal.related
+				cur_gn -= 1
+				result = gpnds[cur_gn][cur_signal] + "_" + result
+			pnd[signal] = result
+
+	return pnd
+
+def build_namespace(signals):
+	pnd = _build_pnd(signals)
 	ns = Namespace(pnd)
 	# register signals with name_override
 	for signal in signals:
