@@ -61,24 +61,25 @@ def _build_tree(signals, basic_tree=None):
 	return root
 
 def _set_use_name(node, node_name=""):
-	if not node.children:
+	cnames = [(k, _set_use_name(v, k)) for k, v in node.children.items()]
+	for (c1_prefix, c1_names), (c2_prefix, c2_names) in combinations(cnames, 2):
+		if not c1_names.isdisjoint(c2_names):
+			node.children[c1_prefix].use_name = True
+			node.children[c2_prefix].use_name = True
+	r = set()
+	for c_prefix, c_names in cnames:
+		if node.children[c_prefix].use_name:
+			for c_name in c_names:
+				r.add((c_prefix, ) + c_name)
+		else:
+			r |= c_names
+	
+	if node.signal_count > sum(c.signal_count for c in node.children.values()):
 		node.use_name = True
-		return {(node_name, )}
-	else:
-		cnames = [(k, _set_use_name(v, k)) for k, v in node.children.items()]
-		for (c1_prefix, c1_names), (c2_prefix, c2_names) in combinations(cnames, 2):
-			if not c1_names.isdisjoint(c2_names):
-				node.children[c1_prefix].use_name = True
-				node.children[c2_prefix].use_name = True
-		r = set()
-		for c_prefix, c_names in cnames:
-			if node.children[c_prefix].use_name:
-				for c_name in c_names:
-					r.add((c_prefix, ) + c_name)
-			else:
-				r |= c_names
-		return r
+		r.add((node_name, ))
 
+	return r
+		
 def _name_signal(tree, signal):
 	elements = []
 	treepos = tree
