@@ -128,6 +128,15 @@ def generate_reset(rst, sl):
 def insert_reset(rst, sl):
 	return [If(rst, *generate_reset(rst, sl)).Else(*sl)]
 
+def insert_resets(f):
+	newsync = dict()
+	for k, v in f.sync.items():
+		if f.clock_domains[k].rst is not None:
+			newsync[k] = insert_reset(ResetSignal(k), v)
+		else:
+			newsync[k] = v
+	f.sync = newsync
+
 class _Lowerer(NodeTransformer):
 	def __init__(self):
 		self.target_context = False

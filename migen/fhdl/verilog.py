@@ -201,15 +201,6 @@ def _printcomb(f, ns, display_run):
 	r += "\n"
 	return r
 
-def _insert_resets(f):
-	newsync = dict()
-	for k, v in f.sync.items():
-		if f.clock_domains[k].rst is not None:
-			newsync[k] = insert_reset(ResetSignal(k), v)
-		else:
-			newsync[k] = v
-	f.sync = newsync
-
 def _printsync(f, ns):
 	r = ""
 	for k, v in sorted(f.sync.items(), key=itemgetter(0)):
@@ -303,7 +294,7 @@ def convert(f, ios=None, name="top",
 				raise KeyError("Unresolved clock domain: '"+cd_name+"'")
 	
 	f = lower_complex_slices(f)
-	_insert_resets(f)
+	insert_resets(f)
 	f = lower_basics(f)
 	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
 	f += lower_basics(fs)
