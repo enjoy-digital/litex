@@ -113,7 +113,7 @@ class Replicate(Value):
 		self.n = n
 
 class Signal(Value):
-	def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None):
+	def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None, related=None):
 		from migen.fhdl.size import bits_for
 
 		Value.__init__(self)
@@ -139,7 +139,10 @@ class Signal(Value):
 		self.variable = variable # deprecated
 		self.reset = reset
 		self.name_override = name_override
-		self.backtrace = tracer.trace_back(name)
+		self.backtrace = []
+		if related is not None:
+			self.backtrace += related.backtrace
+		self.backtrace += tracer.trace_back(name)
 
 	def __repr__(self):
 		return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"
