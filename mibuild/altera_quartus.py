@@ -77,6 +77,10 @@ class AlteraQuartusPlatform(GenericPlatform):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
+		if not isinstance(fragment, _Fragment):
+			fragment = fragment.get_fragment()
+		self.finalize(fragment)
+		
 		v_src, named_sc, named_pc = self.get_verilog(fragment)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)

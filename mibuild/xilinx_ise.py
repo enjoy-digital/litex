@@ -4,6 +4,7 @@ from decimal import Decimal
 from migen.fhdl.std import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.genlib.cdc import *
+from migen.fhdl.structure import _Fragment
 
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
@@ -167,6 +168,10 @@ class XilinxISEPlatform(GenericPlatform):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
+		if not isinstance(fragment, _Fragment):
+			fragment = fragment.get_fragment()
+		self.finalize(fragment)
+
 		if mode == "verilog":
 			v_src, named_sc, named_pc = self.get_verilog(fragment)
 			v_file = build_name + ".v"
@@ -176,7 +181,11 @@ class XilinxISEPlatform(GenericPlatform):
 			if run:
 				_run_ise(build_name, ise_path, source, mode="verilog")
 
-		if mode == "edif":
+		if mode == "mist":
+			from mist import synthesize
+			synthesize(fragment, self.constraint_manager.get_io_signals())
+
+		if mode == "edif" or mode == "mist":
 			e_src, named_sc, named_pc = self.get_edif(fragment)
 			e_file = build_name + ".edif"
 			tools.write_to_file(e_file, e_src)
@@ -184,6 +193,7 @@ class XilinxISEPlatform(GenericPlatform):
 			tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
 			if run:
 				_run_ise(build_name, ise_path, source, mode="edif")
+
 		os.chdir("..")
 
 	def build_arg_ns(self, ns, *args, **kwargs):

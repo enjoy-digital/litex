@@ -1,4 +1,3 @@
-from copy import copy
 import os, argparse
 
 from migen.fhdl.std import *
@@ -138,11 +137,6 @@ class ConstraintManager:
 	def get_platform_commands(self):
 		return self.platform_commands
 
-	def save(self):
-		return copy(self.available), copy(self.matched), copy(self.platform_commands)
-
-	def restore(self, backup):
-		self.available, self.matched, self.platform_commands = backup
 
 class GenericPlatform:
 	def __init__(self, device, io, default_crg_factory=None, name=None):
@@ -167,6 +161,12 @@ class GenericPlatform:
 	def finalize(self, fragment, *args, **kwargs):
 		if self.finalized:
 			raise ConstraintError("Already finalized")
+		# if none exists, create a default clock domain and drive it
+		if not fragment.clock_domains:
+			if self.default_crg_factory is None:
+				raise NotImplementedError("No clock/reset generator defined by either platform or user")
+			crg = self.default_crg_factory(self)
+			fragment += crg.get_fragment()
 		self.do_finalize(fragment, *args, **kwargs)
 		self.finalized = True
 
@@ -206,41 +206,21 @@ class GenericPlatform:
 			named_pc.append(template.format(**name_dict))
 		return named_sc, named_pc
 
-	def get_verilog(self, fragment, **kwargs):
+	def _get_source(self, fragment, gen_fn):
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
-		# We may create a temporary clock/reset generator that would request pins.
-		# Save the constraint manager state so that such pin requests disappear
-		# at the end of this function.
-		backup = self.constraint_manager.save()
-		try:
-			# if none exists, create a default clock domain and drive it
-			if not fragment.clock_domains:
-				if self.default_crg_factory is None:
-					raise NotImplementedError("No clock/reset generator defined by either platform or user")
-				crg = self.default_crg_factory(self)
-				frag = fragment + crg.get_fragment()
-			else:
-				frag = fragment
-			# finalize
-			self.finalize(fragment)
-			# generate Verilog
-			src, vns = verilog.convert(frag, self.constraint_manager.get_io_signals(),
-				return_ns=True, create_clock_domains=False, **kwargs)
-			named_sc, named_pc = self._resolve_signals(vns)
-		finally:
-			self.constraint_manager.restore(backup)
-		return src, named_sc, named_pc
-		
-	def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
-		if not isinstance(fragment, _Fragment):
-			fragment = fragment.get_fragment()
-		# finalize
-		self.finalize(fragment)
-		# generate EDIF
-		src, vns = edif.convert(fragment, self.constraint_manager.get_io_signals(), cell_library, vendor, device, return_ns=True, **kwargs)
+		# generate source
+		src, vns = gen_fn(fragment)
 		named_sc, named_pc = self._resolve_signals(vns)
 		return src, named_sc, named_pc
+
+	def get_verilog(self, fragment, **kwargs):
+		return self._get_source(fragment, lambda f: verilog.convert(f, self.constraint_manager.get_io_signals(),
+				return_ns=True, create_clock_domains=False, **kwargs))
+		
+	def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
+		return self._get_source(fragment, lambda f: edif.convert(f, self.constraint_manager.get_io_signals(),
+				cell_library, vendor, device, return_ns=True, **kwargs))
 
 	def build(self, fragment):
 		raise NotImplementedError("GenericPlatform.build must be overloaded")
