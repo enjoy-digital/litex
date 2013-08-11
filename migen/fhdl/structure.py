@@ -275,3 +275,16 @@ class _Fragment:
 			self.specials | other.specials,
 			self.clock_domains + other.clock_domains,
 			self.sim + other.sim)
+
+	def __iadd__(self, other):
+		newsync = defaultdict(list)
+		for k, v in self.sync.items():
+			newsync[k] = v[:]
+		for k, v in other.sync.items():
+			newsync[k].extend(v)
+		self.comb += other.comb
+		self.sync = newsync
+		self.specials |= other.specials
+		self.clock_domains += other.clock_domains
+		self.sim += other.sim
+		return self
