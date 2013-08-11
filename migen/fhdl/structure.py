@@ -94,6 +94,9 @@ class _Operator(Value):
 		self.op = op
 		self.operands = operands
 
+def Mux(sel, val1, val0):
+	return _Operator("m", [sel, val1, val0])
+
 class _Slice(Value):
 	def __init__(self, value, start, stop):
 		Value.__init__(self)

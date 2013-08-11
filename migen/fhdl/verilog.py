@@ -58,6 +58,16 @@ def _printexpr(ns, node):
 					r2 = "$signed({1'd0, " + r2 + "})"
 			r = r1 + " " + node.op + " " + r2
 			s = s1 or s2
+		elif arity == 3:
+			assert node.op == "m"
+			r2, s2 = _printexpr(ns, node.operands[1])
+			r3, s3 = _printexpr(ns, node.operands[2])
+			if s2 and not s3:
+				r3 = "$signed({1'd0, " + r3 + "})"
+			if s3 and not s2:
+				r2 = "$signed({1'd0, " + r2 + "})"
+			r = r1 + " ? " + r2 + " : " + r3
+			s = s2 or s3
 		else:
 			raise TypeError
 		return "(" + r + ")", s
