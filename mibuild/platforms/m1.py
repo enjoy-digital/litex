@@ -119,7 +119,7 @@ _io = [
 class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
-			lambda p: CRG_SE(p, "clk50", "user_btn"))
+			lambda p: CRG_SE(p, "clk50", None))
 
 	def do_finalize(self, fragment):
 		try:
