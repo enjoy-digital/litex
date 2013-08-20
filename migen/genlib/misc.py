@@ -24,11 +24,16 @@ def split(v, *counts):
 	r = []
 	offset = 0
 	for n in counts:
-		r.append(v[offset:offset+n])
+		if n != 0:
+			r.append(v[offset:offset+n])
+		else:
+			r.append(None)
 		offset += n
 	return tuple(r)
 
 def displacer(signal, shift, output, n=None, reverse=False):
+	if shift is None:
+		return output.eq(signal)
 	if n is None:
 		n = 2**flen(shift)
 	w = flen(signal)
@@ -40,6 +45,8 @@ def displacer(signal, shift, output, n=None, reverse=False):
 	return output.eq(Cat(*l))
 
 def chooser(signal, shift, output, n=None, reverse=False):
+	if shift is None:
+		return output.eq(signal)
 	if n is None:
 		n = 2**flen(shift)
 	w = flen(output)
