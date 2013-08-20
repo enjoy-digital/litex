@@ -11,8 +11,8 @@ class WB2LASMI(Module):
 
 		###
 
-		if lasmim.dw <= 32:
-			raise ValueError("LASMI data width must be strictly larger than 32")
+		if lasmim.dw < 32:
+			raise ValueError("LASMI data width must be >= 32")
 		if (lasmim.dw % 32) != 0:
 			raise ValueError("LASMI data width must be a multiple of 32")
 
@@ -31,7 +31,12 @@ class WB2LASMI(Module):
 		
 		write_from_lasmi = Signal()
 		write_to_lasmi = Signal()
-		adr_offset_r = Signal(offsetbits)
+		if adr_offset is None:
+			adr_offset_r = None
+		else:
+			adr_offset_r = Signal(offsetbits)
+			self.sync += adr_offset_r.eq(adr_offset)
+
 		self.comb += [
 			data_port.adr.eq(adr_line),
 			If(write_from_lasmi,
@@ -49,7 +54,7 @@ class WB2LASMI(Module):
 			),
 			chooser(data_port.dat_r, adr_offset_r, self.wishbone.dat_r, reverse=True)
 		]
-		self.sync += adr_offset_r.eq(adr_offset)
+
 		
 		# Tag memory
 		tag_layout = [("tag", tagbits), ("dirty", 1)]
