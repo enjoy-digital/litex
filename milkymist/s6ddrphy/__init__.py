@@ -346,6 +346,13 @@ class S6DDRPHY(Module):
 				Instance.Output("SHIFTOUT4"),
 			)
 
+		#
+		# ODT
+		#
+		# ODT not yet supported
+		if hasattr(pads, "odt"):
+			self.comb += pads.odt.eq(0)
+
 		# 
 		# DQ/DQS/DM control
 		#
