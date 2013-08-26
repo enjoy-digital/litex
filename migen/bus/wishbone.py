@@ -286,19 +286,20 @@ class Target(Module):
 
 class SRAM(Module):
 	def __init__(self, mem_or_size, read_only=None, init=None, bus=None):
+		if bus is None:
+			bus = Interface()
+		self.bus = bus
+		bus_data_width = flen(self.bus.dat_r)
 		if isinstance(mem_or_size, Memory):
-			assert(mem_or_size.width <= 32)
+			assert(mem_or_size.width <= bus_data_width)
 			mem = mem_or_size
 		else:
-			mem = Memory(32, mem_or_size//4, init=init)
+			mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
 		if read_only is None:
 			if hasattr(mem, "bus_read_only"):
 				read_only = mem.bus_read_only
 			else:
 				read_only = False
-		if bus is None:
-			bus = Interface()
-		self.bus = bus
 	
 		###
 	
