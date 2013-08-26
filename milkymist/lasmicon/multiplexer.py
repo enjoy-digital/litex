@@ -153,32 +153,33 @@ class Multiplexer(Module, AutoCSR):
 		
 		# Control FSM
 		fsm = FSM()
-		(STEER_WRITE, STEER_READ) = range(2)
+		self.submodules += fsm
 		
 		def steerer_sel(steerer, phy_settings, r_w_n):
 			r = []
 			for i in range(phy_settings.nphases):
 				s = steerer.sel[i].eq(STEER_NOP)
-				if r_w_n:
+				if r_w_n == "read":
 					if i == phy_settings.rdphase:
 						s = steerer.sel[i].eq(STEER_REQ)
 					elif i == phy_settings.wrcmdphase:
 						s = steerer.sel[i].eq(STEER_CMD)
-				else:
+				elif r_w_n == "write":
 					if i == phy_settings.wrphase:
 						s = steerer.sel[i].eq(STEER_REQ)
 					elif i == phy_settings.rdcmdphase:
 						s = steerer.sel[i].eq(STEER_CMD)
+				else:
+					raise ValueError
 				r.append(s)
 			return r
 
-		self.submodules += fsm
 		fsm.act("READ",
 			read_time_en.eq(1),
 			choose_req.want_reads.eq(1),
 			choose_cmd.cmd.ack.eq(1),
 			choose_req.cmd.ack.eq(1),
-			steerer_sel(steerer, phy_settings, STEER_READ),
+			steerer_sel(steerer, phy_settings, "read"),
 			If(write_available,
 				# TODO: switch only after several cycles of ~read_available?
 				If(~read_available | max_read_time, NextState("RTW"))
@@ -190,7 +191,7 @@ class Multiplexer(Module, AutoCSR):
 			choose_req.want_writes.eq(1),
 			choose_cmd.cmd.ack.eq(1),
 			choose_req.cmd.ack.eq(1),
-			steerer_sel(steerer, phy_settings, STEER_WRITE),
+			steerer_sel(steerer, phy_settings, "write"),
 			If(read_available,
 				If(~write_available | max_write_time, NextState("WTR"))
 			),
