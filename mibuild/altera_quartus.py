@@ -3,6 +3,7 @@
 
 import os, subprocess
 
+from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
 from mibuild import tools
