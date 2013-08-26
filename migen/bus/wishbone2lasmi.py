@@ -6,19 +6,19 @@ from migen.genlib.record import Record, layout_len
 
 # cachesize (in 32-bit words) is the size of the data store, must be a power of 2
 class WB2LASMI(Module):
-	def __init__(self, cachesize, lasmim):
+	def __init__(self, cachesize, lasmim, data_width=32):
 		self.wishbone = wishbone.Interface()
 
 		###
 
-		if lasmim.dw < 32:
-			raise ValueError("LASMI data width must be >= 32")
-		if (lasmim.dw % 32) != 0:
-			raise ValueError("LASMI data width must be a multiple of 32")
+		if lasmim.dw < data_width:
+			raise ValueError("LASMI data width must be >= {dw}".format(dw=data_width))
+		if (lasmim.dw % data_width) != 0:
+			raise ValueError("LASMI data width must be a multiple of {dw}".format(dw=data_width))
 
 		# Split address:
 		# TAG | LINE NUMBER | LINE OFFSET
-		offsetbits = log2_int(lasmim.dw//32)
+		offsetbits = log2_int(lasmim.dw//data_width)
 		addressbits = lasmim.aw + offsetbits
 		linebits = log2_int(cachesize) - offsetbits
 		tagbits = addressbits - linebits
@@ -43,7 +43,7 @@ class WB2LASMI(Module):
 				data_port.dat_w.eq(lasmim.dat_r),
 				data_port.we.eq(Replicate(1, lasmim.dw//8))
 			).Else(
-				data_port.dat_w.eq(Replicate(self.wishbone.dat_w, lasmim.dw//32)),
+				data_port.dat_w.eq(Replicate(self.wishbone.dat_w, lasmim.dw//data_width)),
 				If(self.wishbone.cyc & self.wishbone.stb & self.wishbone.we & self.wishbone.ack,
 					displacer(self.wishbone.sel, adr_offset, data_port.we, 2**offsetbits, reverse=True)
 				)
