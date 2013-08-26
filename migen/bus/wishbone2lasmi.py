@@ -6,11 +6,14 @@ from migen.genlib.record import Record, layout_len
 
 # cachesize (in 32-bit words) is the size of the data store, must be a power of 2
 class WB2LASMI(Module):
-	def __init__(self, cachesize, lasmim, data_width=32):
-		self.wishbone = wishbone.Interface()
+	def __init__(self, cachesize, lasmim, wbm=None):
+		if wbm is None:
+			wbm = wishbone.Interface()
+		self.wishbone = wbm
 
 		###
 
+		data_width = flen(self.wishbone.dat_r)
 		if lasmim.dw < data_width:
 			raise ValueError("LASMI data width must be >= {dw}".format(dw=data_width))
 		if (lasmim.dw % data_width) != 0:
