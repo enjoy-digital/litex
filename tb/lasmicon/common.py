@@ -16,13 +16,16 @@ def ns(t, margin=True):
 	return ceil(t/clk_period_ns)
 
 sdram_phy = lasmicon.PhySettings(
-	type="DDR",
+	memtype="DDR",
 	dfi_d=64, 
 	nphases=2,
 	rdphase=0,
 	wrphase=1,
-	cl=3
+	cl=3,
+	read_latency=5,
+	write_latency=0
 )
+
 sdram_geom = lasmicon.GeomSettings(
 	bank_a=2,
 	row_a=13,
@@ -36,9 +39,6 @@ sdram_timing = lasmicon.TimingSettings(
 	tREFI=ns(7800, False),
 	tRFC=ns(70),
 	
-	read_latency=5,
-	write_latency=0,
-
 	req_queue_size=8,
 	read_time=32,
 	write_time=16
