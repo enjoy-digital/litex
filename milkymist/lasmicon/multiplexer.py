@@ -19,6 +19,7 @@ class CommandRequestRW(CommandRequest):
 		CommandRequest.__init__(self, a, ba)
 		self.stb = Signal()
 		self.ack = Signal()
+		self.is_cmd = Signal()
 		self.is_read = Signal()
 		self.is_write = Signal()
 
@@ -26,6 +27,7 @@ class _CommandChooser(Module):
 	def __init__(self, requests):
 		self.want_reads = Signal()
 		self.want_writes = Signal()
+		self.want_cmds = Signal()
 		# NB: cas_n/ras_n/we_n are 1 when stb is inactive
 		self.cmd = CommandRequestRW(flen(requests[0].a), flen(requests[0].ba))
 	
@@ -34,12 +36,12 @@ class _CommandChooser(Module):
 		rr = RoundRobin(len(requests), SP_CE)
 		self.submodules += rr
 		
-		self.comb += [rr.request[i].eq(req.stb & ((req.is_read == self.want_reads) | (req.is_write == self.want_writes)))
+		self.comb += [rr.request[i].eq(req.stb & ((req.is_cmd & self.want_cmds) | ((req.is_read == self.want_reads) | (req.is_write == self.want_writes))))
 			for i, req in enumerate(requests)]
 		
 		stb = Signal()
 		self.comb += stb.eq(Array(req.stb for req in requests)[rr.grant])
-		for name in ["a", "ba", "is_read", "is_write"]:
+		for name in ["a", "ba", "is_read", "is_write", "is_cmd"]:
 			choices = Array(getattr(req, name) for req in requests)
 			self.comb += getattr(self.cmd, name).eq(choices[rr.grant])
 		for name in ["cas_n", "ras_n", "we_n"]:
@@ -47,8 +49,8 @@ class _CommandChooser(Module):
 			choices = Array(getattr(req, name) for req in requests)
 			self.comb += If(self.cmd.stb, getattr(self.cmd, name).eq(choices[rr.grant]))
 		self.comb += self.cmd.stb.eq(stb \
-			& (self.cmd.is_read == self.want_reads) \
-			& (self.cmd.is_write == self.want_writes))
+			& ((self.cmd.is_cmd & self.want_cmds) | ((self.cmd.is_read == self.want_reads) \
+			& (self.cmd.is_write == self.want_writes))))
 		
 		self.comb += [If(self.cmd.stb & self.cmd.ack & (rr.grant == i), req.ack.eq(1))
 			for i, req in enumerate(requests)]
@@ -85,8 +87,6 @@ class _Steerer(Module):
 class Multiplexer(Module, AutoCSR):
 	def __init__(self, phy_settings, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic):
 		assert(phy_settings.nphases == len(dfi.phases))
-		if phy_settings.nphases != 2:
-			raise NotImplementedError("TODO: multiplexer only supports 2 phases")
 	
 		# Command choosing
 		requests = [bm.cmd for bm in bank_machines]
@@ -96,6 +96,11 @@ class Multiplexer(Module, AutoCSR):
 			choose_cmd.want_reads.eq(0),
 			choose_cmd.want_writes.eq(0)
 		]
+		if phy_settings.nphases == 1:
+			self.comb += [
+				choose_cmd.want_cmds.eq(1),
+				choose_req.want_cmds.eq(1)
+			]	
 		self.submodules += choose_cmd, choose_req
 		
 		# Command steering
@@ -148,14 +153,32 @@ class Multiplexer(Module, AutoCSR):
 		
 		# Control FSM
 		fsm = FSM()
+		(STEER_WRITE, STEER_READ) = range(2)
+		
+		def steerer_sel(steerer, phy_settings, r_w_n):
+			r = []
+			for i in range(phy_settings.nphases):
+				s = steerer.sel[i].eq(STEER_NOP)
+				if r_w_n:
+					if i == phy_settings.rdphase:
+						s = steerer.sel[i].eq(STEER_REQ)
+					elif i == phy_settings.wrcmdphase:
+						s = steerer.sel[i].eq(STEER_CMD)
+				else:
+					if i == phy_settings.wrphase:
+						s = steerer.sel[i].eq(STEER_REQ)
+					elif i == phy_settings.rdcmdphase:
+						s = steerer.sel[i].eq(STEER_CMD)
+				r.append(s)
+			return r
+
 		self.submodules += fsm
 		fsm.act("READ",
 			read_time_en.eq(1),
 			choose_req.want_reads.eq(1),
 			choose_cmd.cmd.ack.eq(1),
 			choose_req.cmd.ack.eq(1),
-			steerer.sel[1-phy_settings.rdphase].eq(STEER_CMD),
-			steerer.sel[phy_settings.rdphase].eq(STEER_REQ),
+			steerer_sel(steerer, phy_settings, STEER_READ),
 			If(write_available,
 				# TODO: switch only after several cycles of ~read_available?
 				If(~read_available | max_read_time, NextState("RTW"))
@@ -167,8 +190,7 @@ class Multiplexer(Module, AutoCSR):
 			choose_req.want_writes.eq(1),
 			choose_cmd.cmd.ack.eq(1),
 			choose_req.cmd.ack.eq(1),
-			steerer.sel[1-phy_settings.wrphase].eq(STEER_CMD),
-			steerer.sel[phy_settings.wrphase].eq(STEER_REQ),
+			steerer_sel(steerer, phy_settings, STEER_WRITE),
 			If(read_available,
 				If(~write_available | max_write_time, NextState("WTR"))
 			),

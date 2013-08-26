@@ -122,19 +122,22 @@ class BankMachine(Module):
 				self.cmd.stb.eq(1),
 				If(self.cmd.ack, NextState("TRP")),
 				self.cmd.ras_n.eq(0),
-				self.cmd.we_n.eq(0)
+				self.cmd.we_n.eq(0),
+				self.cmd.is_cmd.eq(1)
 			)
 		)
 		fsm.act("ACTIVATE",
 			s_row_adr.eq(1),
 			track_open.eq(1),
 			self.cmd.stb.eq(1),
+			self.cmd.is_cmd.eq(1),
 			If(self.cmd.ack, NextState("TRCD")),
 			self.cmd.ras_n.eq(0)
 		)
 		fsm.act("REFRESH",
 			self.refresh_gnt.eq(precharge_ok),
 			track_close.eq(1),
+			self.cmd.is_cmd.eq(1),
 			If(~self.refresh_req, NextState("REGULAR"))
 		)
 		fsm.delayed_enter("TRP", "ACTIVATE", timing_settings.tRP-1)

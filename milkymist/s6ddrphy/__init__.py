@@ -43,6 +43,8 @@ class S6DDRPHY(Module):
 			nphases=nphases,
 			rdphase=0,
 			wrphase=1,
+			rdcmdphase=1,
+			wrcmdphase=0,
 			cl=cl,
 			read_latency=5,
 			write_latency=0
