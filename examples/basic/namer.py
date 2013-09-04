@@ -19,10 +19,6 @@ class Foo:
 class Bar:
 	def __init__(self):
 		self.sigs = gen_list(2)
-		
-class Toto:
-	def __init__(self):
-		self.sigs = gen_list(2)
 
 class Example(Module):
 	def __init__(self):
