@@ -127,14 +127,9 @@ class _DMAController(Module):
 		self.generate_irq = generate_irq
 		if generate_irq:
 			self.submodules.ev = EventManager()
-			self.ev.done = EventSourcePulse()
+			self.ev.done = EventSourceProcess()
 			self.ev.finalize()
-
-			r_busy_d = Signal()
-
-			self.sync += r_busy_d.eq(self.r_busy.status)
-			self.comb += self.ev.done.trigger.eq(~self.r_busy.status & r_busy_d)
-
+			self.comb += self.ev.done.trigger.eq(self.r_busy.status)
 
 	def get_csrs(self):
 		csrs = self.generator.get_csrs() + [self.r_busy]
