@@ -14,14 +14,13 @@ class _FIFOActor(Module):
 
 		self.comb += [
 			self.sink.ack.eq(self.fifo.writable),
-			self.fifo.we.eq(self.sink.stb & self.sink.ack),
+			self.fifo.we.eq(self.sink.stb),
 			self.fifo.din.eq(self.sink.payload),
 
 			self.source.stb.eq(self.fifo.readable),
 			self.source.payload.eq(self.fifo.dout),
 			self.fifo.re.eq(self.source.ack)
 		]
-
 
 class SyncFIFO(_FIFOActor):
 	def __init__(self, layout, depth):
