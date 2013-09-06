@@ -35,6 +35,9 @@ class FSM(Module):
 		self.state_aliases = dict()
 		self.reset_state = reset_state
 
+		self.entering_signals = OrderedDict()
+		self.leaving_signals = OrderedDict()
+
 	def act(self, state, *statements):
 		if self.finalized:
 			raise FinalizeError
@@ -56,14 +59,37 @@ class FSM(Module):
 				state = next_state
 		else:
 			self.state_aliases[name] = target
+
+	def ongoing(self, state):
+		is_ongoing = Signal()
+		self.act(state, is_ongoing.eq(1))
+		return is_ongoing
+
+	def _entering_leaving(self, d, state):
+		if state not in self.actions:
+			self.actions[state] = []
+		try:
+			return d[state]
+		except KeyError:
+			is_el = Signal()
+			d[state] = is_el
+			return is_el
+
+	def entering(self, state):
+		return self._entering_leaving(self.entering_signals, state)
+
+	def leaving(self, state):
+		return self._entering_leaving(self.leaving_signals, state)
 	
 	def do_finalize(self):
 		nstates = len(self.actions)
+		if self.reset_state is None:
+			reset_state = next(iter(self.actions.keys()))
+		else:
+			reset_state = self.reset_state
 
 		self.encoding = dict((s, n) for n, s in enumerate(self.actions.keys()))
-		self.state = Signal(max=nstates)
-		if self.reset_state is not None:
-			self.state.reset = self.encoding[self.reset_state]
+		self.state = Signal(max=nstates, reset=self.encoding[reset_state])
 		self.next_state = Signal(max=nstates)
 
 		lns = _LowerNextState(self.next_state, self.encoding, self.state_aliases)
@@ -73,3 +99,13 @@ class FSM(Module):
 			Case(self.state, cases)
 		]
 		self.sync += self.state.eq(self.next_state)
+
+		# drive entering/leaving signals
+		for state, is_entering in self.entering_signals.items():
+			encoded = self.encoding[state]
+			self.sync += is_entering.eq((self.next_state == encoded) & (self.state != encoded))
+		if reset_state in self.entering_signals:
+			self.entering_signals[reset_state].reset = 1
+		for state, is_leaving in self.leaving_signals.items():
+			encoded = self.encoding[state]
+			self.sync += is_leaving.eq((self.next_state != encoded) & (self.state == encoded))
