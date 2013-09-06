@@ -2,6 +2,8 @@ from mibuild.generic_platform import *
 from mibuild.xilinx_ise import XilinxISEPlatform, CRG_SE
 
 _io = [
+	("user_led", 0, Pins("V5"), IOStandard("LVCMOS33"), Drive(24), Misc("SLEW=QUIETIO")),
+
 	("clk50", 0, Pins("AB13"), IOStandard("LVCMOS33")),
 
 	# When executing softcore code in-place from the flash, we want
