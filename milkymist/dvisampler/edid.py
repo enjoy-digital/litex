@@ -3,7 +3,7 @@ from migen.fhdl.specials import Tristate
 from migen.genlib.cdc import MultiReg
 from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import chooser
-from migen.bank.description import AutoCSR
+from migen.bank.description import CSRStorage, CSRStatus, AutoCSR
 
 _default_edid = [
 	0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x3D, 0x17, 0x32, 0x12, 0x2A, 0x6A, 0xBF, 0x00,
@@ -18,10 +18,21 @@ _default_edid = [
 
 class EDID(Module, AutoCSR):
 	def __init__(self, pads, default=_default_edid):
+		self._r_hpd_notif = CSRStatus()
+		self._r_hpd_en = CSRStorage()
 		self.specials.mem = Memory(8, 128, init=default)
 
 		###
 
+		# HPD
+		if hasattr(pads, "hpd_notif"):
+			self.specials += MultiReg(pads.hpd_notif, self._r_hpd_notif.status)
+		else:
+			self.comb += self._r_hpd_notif.status.eq(1)
+		if hasattr(pads, "hpd_en"):
+			self.comb += pads.hpd_en.eq(self._r_hpd_en.storage)
+
+		# EDID
 		scl_raw = Signal()
 		sda_i = Signal()
 		sda_drv = Signal()
