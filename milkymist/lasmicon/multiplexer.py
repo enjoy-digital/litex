@@ -162,12 +162,12 @@ class Multiplexer(Module, AutoCSR):
 				if r_w_n == "read":
 					if i == phy_settings.rdphase:
 						s = steerer.sel[i].eq(STEER_REQ)
-					elif i == phy_settings.wrcmdphase:
+					elif i == phy_settings.rdcmdphase:
 						s = steerer.sel[i].eq(STEER_CMD)
 				elif r_w_n == "write":
 					if i == phy_settings.wrphase:
 						s = steerer.sel[i].eq(STEER_REQ)
-					elif i == phy_settings.rdcmdphase:
+					elif i == phy_settings.wrcmdphase:
 						s = steerer.sel[i].eq(STEER_CMD)
 				else:
 					raise ValueError
