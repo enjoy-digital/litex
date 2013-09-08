@@ -44,6 +44,8 @@ void dvisamplerX_init_video(void)
 {
 	unsigned int mask;
 
+	dvisamplerX_clocking_pll_reset_write(1);
+
 	dvisamplerX_dma_ev_pending_write(dvisamplerX_dma_ev_pending_read());
 	dvisamplerX_dma_ev_enable_write(0x3);
 	mask = irq_getmask();
@@ -224,27 +226,45 @@ static void dvisamplerX_check_overflow(void)
 	}
 }
 
+static int dvisamplerX_connected;
 static int dvisamplerX_locked;
 static int dvisamplerX_last_event;
 
 void dvisamplerX_service(void)
 {
-	if(dvisamplerX_locked) {
-		if(dvisamplerX_clocking_locked_read()) {
-			if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/2)) {
-				dvisamplerX_adjust_phase();
-				dvisamplerX_print_status();
-			}
-		} else {
-			printf("dvisamplerX: lost PLL lock\n");
+	if(dvisamplerX_connected) {
+		if(!dvisamplerX_edid_hpd_notif_read()) {
+			printf("dvisamplerX: disconnected\n");
+			dvisamplerX_connected = 0;
 			dvisamplerX_locked = 0;
+			dvisamplerX_clocking_pll_reset_write(1);
+			dvisamplerX_edid_hpd_en_write(0);
+		} else {
+			if(dvisamplerX_locked) {
+				if(dvisamplerX_clocking_locked_read()) {
+					if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/2)) {
+						dvisamplerX_adjust_phase();
+						dvisamplerX_print_status();
+					}
+				} else {
+					printf("dvisamplerX: lost PLL lock\n");
+					dvisamplerX_locked = 0;
+				}
+			} else {
+				if(dvisamplerX_clocking_locked_read()) {
+					printf("dvisamplerX: PLL locked\n");
+					dvisamplerX_phase_startup();
+					dvisamplerX_print_status();
+					dvisamplerX_locked = 1;
+				}
+			}
 		}
 	} else {
-		if(dvisamplerX_clocking_locked_read()) {
-			printf("dvisamplerX: PLL locked\n");
-			dvisamplerX_phase_startup();
-			dvisamplerX_print_status();
-			dvisamplerX_locked = 1;
+		if(dvisamplerX_edid_hpd_notif_read()) {
+			printf("dvisamplerX: connected\n");
+			dvisamplerX_connected = 1;
+			dvisamplerX_edid_hpd_en_write(1);
+			dvisamplerX_clocking_pll_reset_write(0);
 		}
 	}
 	dvisamplerX_check_overflow();
