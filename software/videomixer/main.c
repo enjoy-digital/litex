@@ -12,6 +12,7 @@
 #include "dvisampler0.h"
 #include "dvisampler1.h"
 
+#ifdef POTS_BASE
 static int scale_pot(int raw, int range)
 {
 	int pot_min = 64000;
@@ -44,7 +45,7 @@ static void additive_blend(int p0, int p1)
 	fb_blender_f1_write(scale_pot(p1, 255));
 }
 
-static void pots_service(void)
+static void ui_service(void)
 {
 	static int last_event;
 	static int additive_blend_enabled;
@@ -73,6 +74,16 @@ static void pots_service(void)
 			additive_blend(p0, p1);
 	}
 }
+
+#else
+
+static void ui_service(void)
+{
+	fb_blender_f0_write(0xff);
+	fb_blender_f1_write(0xff);
+}
+
+#endif
 
 static void fb_service(void)
 {
@@ -125,7 +136,7 @@ int main(void)
 	while(1) {
 		dvisampler0_service();
 		dvisampler1_service();
-		pots_service();
+		ui_service();
 		fb_service();
 		membw_service();
 	}
