@@ -186,3 +186,4 @@ class EDID(Module, AutoCSR):
 
 		for state in fsm.actions.keys():
 			fsm.act(state, If(start, NextState("RCV_ADDRESS")))
+			fsm.act(state, If(~self._r_hpd_en.storage, NextState("WAIT_START")))
