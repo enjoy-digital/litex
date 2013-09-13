@@ -9,8 +9,7 @@ from migen.bank import csrgen
 from mibuild.generic_platform import ConstraintError
 
 from milkymist import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
-	identifier, timer, minimac3, framebuffer, dvisampler, \
-	counteradc, gpio, memtest
+	identifier, timer, minimac3, framebuffer, dvisampler, gpio, memtest
 from milkymist.cif import get_macros
 
 version = get_macros("common/version.h")["VERSION"][1:-1]
@@ -106,10 +105,21 @@ class SoC(Module):
 		self.submodules.lasmicon = lasmicon.LASMIcon(self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 		self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
 
-		n_lasmims = 7 if with_memtest else 5
+		n_lasmims = 1 # wishbone bridging
+		if platform_name == "mixxeo":
+			n_lasmims += 4 # framebuffer (2-channel mixing) + 2 DVI samplers
+		if platform_name == "m1":
+			n_lasmims += 1 # framebuffer (single channel)
+		if with_memtest:
+			n_lasmims += 2 # writer + reader
 		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], n_lasmims, self.lasmicon.nrowbits)
+
 		lasmims = list(self.lasmixbar.masters)
-		lasmim_wb, lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = (lasmims.pop() for i in range(5))
+		lasmim_wb = lasmims.pop()
+		if platform_name == "mixxeo":
+			lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = (lasmims.pop() for i in range(4))
+		if platform_name == "m1":
+			lasmim_fb = lasmims.pop()
 		if with_memtest:
 			lasmim_mtw, lasmim_mtr = lasmims.pop(), lasmims.pop()
 		assert(not lasmims)
@@ -150,15 +160,15 @@ class SoC(Module):
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(0x4D31, version, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
-		self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga"), lasmim_fb0, lasmim_fb1)
-		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), lasmim_dvi0)
-		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), lasmim_dvi1)
+		if platform_name == "mixxeo":
+			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
+			self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga"), lasmim_fb0, lasmim_fb1)
+			self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 2), lasmim_dvi0)
+			self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 3), lasmim_dvi1)
 		if platform_name == "m1":
-			pots_pads = platform.request("dvi_pots")
-			self.submodules.pots = counteradc.CounterADC(pots_pads.charge,
-				[pots_pads.blackout, pots_pads.crossfade])
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
 			self.submodules.leds = gpio.GPIOOut(Cat(*[platform.request("user_led", i) for i in range(2)]))
+			self.submodules.fb = framebuffer.Framebuffer(platform.request("vga"), lasmim_fb)
 		if with_memtest:
 			self.submodules.memtest_w = memtest.MemtestWriter(lasmim_mtw)
 			self.submodules.memtest_r = memtest.MemtestReader(lasmim_mtr)
