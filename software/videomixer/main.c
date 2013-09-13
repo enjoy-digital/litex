@@ -128,7 +128,7 @@ int main(void)
 	puts("Minimal video mixer software built "__DATE__" "__TIME__"\n");
 	
 	time_init();
-	fb_set_mode(FB_MODE_640_480);
+	fb_set_mode(FB_MODE_1024_768);
 	dvisampler0_init_video();
 	dvisampler1_init_video();
 	fb_enable(1);
