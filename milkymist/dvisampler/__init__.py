@@ -18,27 +18,10 @@ class DVISampler(Module, AutoCSR):
 
 		for datan in range(3):
 			name = "data" + str(datan)
-			invert = False
-			if hasattr(pads, name + "_p"):
-				s = Signal()
-				self.specials += Instance("IBUFDS",
-					Instance.Input("I", getattr(pads, name + "_p")),
-					Instance.Input("IB", getattr(pads, name + "_n")),
-					Instance.Output("O", s)		
-				)
-			else:
-				try:
-					s = getattr(pads, name)
-				except AttributeError:
-					s = getattr(pads, name + "_n")
-					invert = True
 			
-			cap = DataCapture(8, invert)
+			cap = DataCapture(getattr(pads, name + "_p"), getattr(pads, name + "_n"), 8)
 			setattr(self.submodules, name + "_cap", cap)
-			self.comb += [
-				cap.pad.eq(s),
-				cap.serdesstrobe.eq(self.clocking.serdesstrobe)
-			]
+			self.comb += cap.serdesstrobe.eq(self.clocking.serdesstrobe)
 
 			charsync = CharSync()
 			setattr(self.submodules, name + "_charsync", charsync)
@@ -63,8 +46,6 @@ class DVISampler(Module, AutoCSR):
 			self.chansync.data_in1.eq(self.data1_decod.output),
 			self.chansync.data_in2.eq(self.data2_decod.output),
 		]
-
-		###
 
 		self.submodules.syncpol = SyncPolarity()
 		self.comb += [

@@ -106,14 +106,14 @@ static int wait_idelays(void)
 
 int dvisamplerX_calibrate_delays(void)
 {
-	dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
-	dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
-	dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_CAL);
+	dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_CAL|DVISAMPLER_DELAY_SLAVE_CAL);
+	dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_CAL|DVISAMPLER_DELAY_SLAVE_CAL);
+	dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_CAL|DVISAMPLER_DELAY_SLAVE_CAL);
 	if(!wait_idelays())
 		return 0;
-	dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
-	dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
-	dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
+	dvisamplerX_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_RST|DVISAMPLER_DELAY_SLAVE_RST);
+	dvisamplerX_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_RST|DVISAMPLER_DELAY_SLAVE_RST);
+	dvisamplerX_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_RST|DVISAMPLER_DELAY_SLAVE_RST);
 	dvisamplerX_data0_cap_phase_reset_write(1);
 	dvisamplerX_data1_cap_phase_reset_write(1);
 	dvisamplerX_data2_cap_phase_reset_write(1);
