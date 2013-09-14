@@ -10,7 +10,7 @@ class Clocking(Module, AutoCSR):
 		self.locked = Signal()
 		self.serdesstrobe = Signal()
 		self.clock_domains._cd_pix = ClockDomain()
-		self.clock_domains._cd_pix5x = ClockDomain()
+		self.clock_domains._cd_pix2x = ClockDomain()
 		self.clock_domains._cd_pix10x = ClockDomain(reset_less=True)
 
 		###
@@ -27,7 +27,7 @@ class Clocking(Module, AutoCSR):
 			p_CLKIN_PERIOD=26.7,
 			p_CLKFBOUT_MULT=20,
 			p_CLKOUT0_DIVIDE=2,  # pix10x
-			p_CLKOUT1_DIVIDE=4,  # pix5x
+			p_CLKOUT1_DIVIDE=10, # pix2x
 			p_CLKOUT2_DIVIDE=20, # pix
 			p_COMPENSATION="INTERNAL",
 			
@@ -38,20 +38,20 @@ class Clocking(Module, AutoCSR):
 
 		locked_async = Signal()
 		self.specials += [
-			Instance("BUFPLL", p_DIVIDE=2,
-				i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix5x"), i_LOCKED=pll_locked,
+			Instance("BUFPLL", p_DIVIDE=5,
+				i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
 				o_IOCLK=self._cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
-			Instance("BUFG", i_I=pll_clk1, o_O=self._cd_pix5x.clk),
+			Instance("BUFG", i_I=pll_clk1, o_O=self._cd_pix2x.clk),
 			Instance("BUFG", i_I=pll_clk2, o_O=self._cd_pix.clk),
 			MultiReg(locked_async, self.locked, "sys")
 		]
 		self.comb += self._r_locked.status.eq(self.locked)
 
-		# sychronize pix+pix5x reset
+		# sychronize pix+pix2x reset
 		pix_rst_n = 1
 		for i in range(2):
 			new_pix_rst_n = Signal()
 			self.specials += Instance("FDCE", i_D=pix_rst_n, i_CE=1, i_C=ClockSignal("pix"),
 				i_CLR=~locked_async, o_Q=new_pix_rst_n)
 			pix_rst_n = new_pix_rst_n
-		self.comb += self._cd_pix.rst.eq(~pix_rst_n), self._cd_pix5x.rst.eq(~pix_rst_n)
+		self.comb += self._cd_pix.rst.eq(~pix_rst_n), self._cd_pix2x.rst.eq(~pix_rst_n)

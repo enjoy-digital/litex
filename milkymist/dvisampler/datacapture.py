@@ -34,7 +34,7 @@ class DataCapture(Module, AutoCSR):
 			p_COUNTER_WRAPAROUND="STAY_AT_LIMIT", p_DATA_RATE="SDR",
 
 			i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_master,
-			i_CLK=ClockSignal("pix5x"), i_IOCLK0=ClockSignal("pix10x"),
+			i_CLK=ClockSignal("pix2x"), i_IOCLK0=ClockSignal("pix10x"),
 
 			i_INC=delay_inc, i_CE=delay_ce,
 			i_CAL=delay_master_cal, i_RST=delay_master_rst, o_BUSY=delay_master_busy,
@@ -42,44 +42,44 @@ class DataCapture(Module, AutoCSR):
 		self.specials += Instance("IODELAY2",
 			p_SERDES_MODE="SLAVE",
 			p_DELAY_SRC="IDATAIN", p_IDELAY_TYPE="DIFF_PHASE_DETECTOR",
-			p_COUNTER_WRAPAROUND="STAY_AT_LIMIT", p_DATA_RATE="SDR",
+			p_COUNTER_WRAPAROUND="WRAPAROUND", p_DATA_RATE="SDR",
 
 			i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_slave,
-			i_CLK=ClockSignal("pix5x"), i_IOCLK0=ClockSignal("pix10x"),
+			i_CLK=ClockSignal("pix2x"), i_IOCLK0=ClockSignal("pix10x"),
 
 			i_INC=delay_inc, i_CE=delay_ce,
 			i_CAL=delay_slave_cal, i_RST=delay_slave_rst, o_BUSY=delay_slave_busy,
 			i_T=1)
 
-		d0 = Signal()
-		d1 = Signal()
+		dsr2 = Signal(5)
 		pd_valid = Signal()
 		pd_incdec = Signal()
 		pd_edge = Signal()
 		pd_cascade = Signal()
 		self.specials += Instance("ISERDES2",
 			p_SERDES_MODE="MASTER",
-			p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=2,
+			p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=5,
 			p_INTERFACE_TYPE="RETIMED",
 
 			i_D=pad_delayed_master,
-			o_Q4=d0, o_Q3=d1,
+			o_Q4=dsr2[4], o_Q3=dsr2[3], o_Q2=dsr2[2], o_Q1=dsr2[1],
 
 			i_BITSLIP=0, i_CE0=1, i_RST=0,
-			i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix5x"),
+			i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix2x"),
 			i_IOCE=self.serdesstrobe,
 
 			o_VALID=pd_valid, o_INCDEC=pd_incdec,
 			i_SHIFTIN=pd_edge, o_SHIFTOUT=pd_cascade)
 		self.specials += Instance("ISERDES2",
 			p_SERDES_MODE="SLAVE",
-			p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=2,
+			p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=5,
 			p_INTERFACE_TYPE="RETIMED",
 
 			i_D=pad_delayed_slave,
+			o_Q4=dsr2[0],
 
 			i_BITSLIP=0, i_CE0=1, i_RST=0,
-			i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix5x"),
+			i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix2x"),
 			i_IOCE=self.serdesstrobe,
 
 			i_SHIFTIN=pd_cascade, o_SHIFTOUT=pd_edge)
@@ -93,7 +93,7 @@ class DataCapture(Module, AutoCSR):
 			too_late.eq(lateness == (2**ntbits - 1)),
 			too_early.eq(lateness == 0)
 		]
-		self.sync.pix5x += [
+		self.sync.pix2x += [
 			If(reset_lateness,
 				lateness.eq(2**(ntbits - 1))
 			).Elif(~delay_master_busy & ~delay_slave_busy & ~too_late & ~too_early,
@@ -103,9 +103,9 @@ class DataCapture(Module, AutoCSR):
 		]
 
 		# Delay control
-		self.submodules.delay_master_done = PulseSynchronizer("pix5x", "sys")
+		self.submodules.delay_master_done = PulseSynchronizer("pix2x", "sys")
 		delay_master_pending = Signal()
-		self.sync.pix5x += [
+		self.sync.pix2x += [
 			self.delay_master_done.i.eq(0),
 			If(~delay_master_pending,
 				If(delay_master_cal | delay_ce, delay_master_pending.eq(1))
@@ -116,9 +116,9 @@ class DataCapture(Module, AutoCSR):
 				)
 			)
 		]
-		self.submodules.delay_slave_done = PulseSynchronizer("pix5x", "sys")
+		self.submodules.delay_slave_done = PulseSynchronizer("pix2x", "sys")
 		delay_slave_pending = Signal()
-		self.sync.pix5x += [
+		self.sync.pix2x += [
 			self.delay_slave_done.i.eq(0),
 			If(~delay_slave_pending,
 				If(delay_slave_cal | delay_ce, delay_slave_pending.eq(1))
@@ -130,12 +130,12 @@ class DataCapture(Module, AutoCSR):
 			)
 		]
 
-		self.submodules.do_delay_master_cal = PulseSynchronizer("sys", "pix5x")
-		self.submodules.do_delay_master_rst = PulseSynchronizer("sys", "pix5x")
-		self.submodules.do_delay_slave_cal = PulseSynchronizer("sys", "pix5x")
-		self.submodules.do_delay_slave_rst = PulseSynchronizer("sys", "pix5x")
-		self.submodules.do_delay_inc = PulseSynchronizer("sys", "pix5x")
-		self.submodules.do_delay_dec = PulseSynchronizer("sys", "pix5x")
+		self.submodules.do_delay_master_cal = PulseSynchronizer("sys", "pix2x")
+		self.submodules.do_delay_master_rst = PulseSynchronizer("sys", "pix2x")
+		self.submodules.do_delay_slave_cal = PulseSynchronizer("sys", "pix2x")
+		self.submodules.do_delay_slave_rst = PulseSynchronizer("sys", "pix2x")
+		self.submodules.do_delay_inc = PulseSynchronizer("sys", "pix2x")
+		self.submodules.do_delay_dec = PulseSynchronizer("sys", "pix2x")
 		self.comb += [
 			delay_master_cal.eq(self.do_delay_master_cal.o),
 			delay_master_rst.eq(self.do_delay_master_rst.o),
@@ -174,13 +174,13 @@ class DataCapture(Module, AutoCSR):
 
 		# Phase detector control
 		self.specials += MultiReg(Cat(too_late, too_early), self._r_phase.status)
-		self.submodules.do_reset_lateness = PulseSynchronizer("sys", "pix5x")
+		self.submodules.do_reset_lateness = PulseSynchronizer("sys", "pix2x")
 		self.comb += [
 			reset_lateness.eq(self.do_reset_lateness.o),
 			self.do_reset_lateness.i.eq(self._r_phase_reset.re)
 		]
 
-		# 2:10 deserialization
+		# 5:10 deserialization
 		dsr = Signal(10)
-		self.sync.pix5x += dsr.eq(Cat(dsr[2:], d1, d0))
+		self.sync.pix2x += dsr.eq(Cat(dsr[5:], dsr2))
 		self.sync.pix += self.d.eq(dsr)
