@@ -144,7 +144,7 @@ _io = [
 
 class Platform(XilinxISEPlatform):
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-3", _io,
+		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
 			lambda p: CRG_SE(p, "clk50", None))
 		self.add_platform_command("CONFIG VCCAUX=\"3.3\";\n")
 
