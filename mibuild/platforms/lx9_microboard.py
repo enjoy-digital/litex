@@ -45,6 +45,11 @@ _io = [
 			Subsignal("d", Pins("H12 G13 E16 E18 K12 K13 F17 F18")),
 			IOStandard("LVCMOS33")),
 
+		("pmod_diff", 0,
+			Subsignal("io", Pins("F15 C17 F14 D17 H12 E16 K12 F17")),
+			Subsignal("iob", Pins("F16 C18 G14 D18 G13 E18 K13 F18")),
+			IOStandard("LVCMOS33")),
+
 		("serial", 0,
 			Subsignal("tx", Pins("T7"), Misc("SLEW=SLOW")),
 			Subsignal("rx", Pins("R7"), Misc("PULLUP")),
@@ -73,7 +78,7 @@ _io = [
 			IOStandard("MOBILE_DDR")),
 
 		# Nat Semi DP83848J 10/100 Ethernet PHY
-		# pull-ups on rx_data set phy addr to 11110b
+		# pull-ups on col and rx_data set phy addr to 11111b
 		# and prevent isolate mode (addr 00000b)
 		("eth_clocks", 0,
 			Subsignal("rx", Pins("L15")),
@@ -81,14 +86,14 @@ _io = [
 			IOStandard("LVCMOS33")),
 
 		("eth", 0,
-			Subsignal("col", Pins("M18"), Misc("PULLDOWN")),
+			Subsignal("col", Pins("M18"), Misc("PULLUP")),
 			Subsignal("crs", Pins("N17"), Misc("PULLDOWN")),
-			Subsignal("mdc", Pins("M16")),
-			Subsignal("mdio", Pins("L18")),
+			Subsignal("mdc", Pins("M16"), Misc("PULLDOWN")),
+			Subsignal("mdio", Pins("L18"), Misc("PULLUP")), # 1k5 ext PULLUP
 			Subsignal("rst_n", Pins("T18"), Misc("TIG")),
 			Subsignal("rx_data", Pins("T17 N16 N15 P18"), Misc("PULLUP")),
-			Subsignal("dv", Pins("P17")),
-			Subsignal("rx_er", Pins("N18")),
+			Subsignal("dv", Pins("P17"), Misc("PULLDOWN")), # MII
+			Subsignal("rx_er", Pins("N18"), Misc("PULLUP")), # auto MDIX
 			Subsignal("tx_data", Pins("K18 K17 J18 J16")),
 			Subsignal("tx_en", Pins("L17")),
 			Subsignal("tx_er", Pins("L16")), # NC!
@@ -99,12 +104,20 @@ _io = [
 class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx9-2csg324", _io,
-				lambda p: CRG_SE(p, "clk_y3", "user_btn", 10.))
+				lambda p: CRG_SE(p, "clk_y3", "user_btn"))
 		self.add_platform_command("""
 CONFIG VCCAUX = "3.3";
 """)
 
 	def do_finalize(self, fragment):
+		try:
+			self.add_platform_command("""
+NET "{clk_y3}" TNM_NET = "GRPclky3";
+TIMESPEC "TSclky3" = PERIOD "GRPclky3" 10 ns HIGH 50%;
+""", clk_y3=self.lookup_request("clk_y3"))
+		except ConstraintError:
+			pass
+
 		try:
 			eth_clocks = self.lookup_request("eth_clocks")
 			self.add_platform_command("""
