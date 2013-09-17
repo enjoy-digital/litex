@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.record import Record
 from migen.genlib.fifo import AsyncFIFO
+from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 from migen.flow.actor import *
 
@@ -73,7 +74,7 @@ class _Clocking(Module, AutoCSR):
 		pix_progdone = Signal()
 		pix_locked = Signal()
 		self.specials += Instance("DCM_CLKGEN",
-			p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=3.0, p_CLKFX_MULTIPLY=2,
+			p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=1.0, p_CLKFX_MULTIPLY=2,
 			p_CLKIN_PERIOD=20.0, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
 		
 			i_CLKIN=ClockSignal("base50"), o_CLKFX=clk_pix_unbuffered,
@@ -148,19 +149,25 @@ class _Clocking(Module, AutoCSR):
 			]
 
 		# Drive VGA/DVI clock pads
-		pix_clk_io = Signal()
-		self.specials += Instance("ODDR2",
-			p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
-			o_Q=pix_clk_io,
-			i_C0=ClockSignal("pix"),
-			i_C1=~ClockSignal("pix"),
-			i_CE=1, i_D0=1, i_D1=0,
-			i_R=0, i_S=0)
 		if pads_vga is not None:
-			self.comb += pads_vga.clk.eq(pix_clk_io)
+			self.specials += Instance("ODDR2",
+				p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
+				o_Q=pads_vga.clk,
+				i_C0=ClockSignal("pix"),
+				i_C1=~ClockSignal("pix"),
+				i_CE=1, i_D0=1, i_D1=0,
+				i_R=0, i_S=0)
 		if pads_dvi is not None:
-			self.specials += Instance("OBUFDS", i_I=pix_clk_io,
-				o_O=pads.clk_p, o_OB=pads.clk_n)
+			dvi_clk_se = Signal()
+			self.specials += Instance("ODDR2",
+				p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
+				o_Q=dvi_clk_se,
+				i_C0=ClockSignal("pix"),
+				i_C1=~ClockSignal("pix"),
+				i_CE=1, i_D0=1, i_D1=0,
+				i_R=0, i_S=0)
+			self.specials += Instance("OBUFTDS", i_I=dvi_clk_se,
+				o_O=pads_dvi.clk_p, o_OB=pads_dvi.clk_n)
 
 class Driver(Module, AutoCSR):
 	def __init__(self, pads_vga, pads_dvi):
