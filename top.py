@@ -51,7 +51,6 @@ class MXClockPads:
 		except ConstraintError:
 			pass
 		self.norflash_rst_n = platform.request("norflash_rst_n")
-		self.vga_clk = platform.request("vga_clock")
 		ddram_clock = platform.request("ddram_clock")
 		self.ddr_clk_p = ddram_clock.p
 		self.ddr_clk_n = ddram_clock.n
@@ -162,7 +161,7 @@ class SoC(Module):
 		self.submodules.timer0 = timer.Timer()
 		if platform_name == "mixxeo":
 			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
-			self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga"), lasmim_fb0, lasmim_fb1)
+			self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga_out"), None, lasmim_fb0, lasmim_fb1)
 			self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), lasmim_dvi0)
 			self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), lasmim_dvi1)
 		if platform_name == "m1":

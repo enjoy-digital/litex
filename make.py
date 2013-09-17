@@ -21,11 +21,11 @@ PIN "mxcrg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 
 	if hasattr(soc, "fb"):
 		platform.add_platform_command("""
-NET "vga_clk" TNM_NET = "GRPvga_clk";
+NET "{vga_clk}" TNM_NET = "GRPvga_clk";
 NET "sys_clk" TNM_NET = "GRPsys_clk";
 TIMESPEC "TSise_sucks1" = FROM "GRPvga_clk" TO "GRPsys_clk" TIG;
 TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
-""")
+""", vga_clk=soc.fb.driver.clocking.cd_pix.clk)
 
 	for d in ["mxcrg", "minimac3"]:
 		platform.add_source_dir(os.path.join("verilog", d))

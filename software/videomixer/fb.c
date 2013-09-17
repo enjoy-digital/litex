@@ -13,9 +13,9 @@ static void fb_clkgen_write(int cmd, int data)
 	int word;
 
 	word = (data << 2) | cmd;
-	crg_cmd_data_write(word);
-	crg_send_cmd_data_write(1);
-	while(crg_status_read() & CLKGEN_STATUS_BUSY);
+	fb_driver_clocking_cmd_data_write(word);
+	fb_driver_clocking_send_cmd_data_write(1);
+	while(fb_driver_clocking_status_read() & CLKGEN_STATUS_BUSY);
 }
 
 void fb_set_mode(int mode)
@@ -86,12 +86,12 @@ void fb_set_mode(int mode)
 
 	fb_clkgen_write(0x1, clock_d-1);
 	fb_clkgen_write(0x3, clock_m-1);
-	crg_send_go_write(1);
+	fb_driver_clocking_send_go_write(1);
 	printf("waiting for PROGDONE...");
-	while(!(crg_status_read() & CLKGEN_STATUS_PROGDONE));
+	while(!(fb_driver_clocking_status_read() & CLKGEN_STATUS_PROGDONE));
 	printf("ok\n");
 	printf("waiting for LOCKED...");
-	while(!(crg_status_read() & CLKGEN_STATUS_LOCKED));
+	while(!(fb_driver_clocking_status_read() & CLKGEN_STATUS_LOCKED));
 	printf("ok\n");
 
 	printf("VGA: mode set to %dx%d\n", fb_hres, fb_vres);

@@ -31,16 +31,8 @@ module mxcrg #(
 	output eth_rx_clk,
 	output eth_tx_clk,
 	
-	/* VGA clock */
-	output vga_clk,		/* < buffered, to internal clock network */
-	output vga_clk_pad,	/* < forwarded through ODDR2, to I/O */
-
-	/* VGA clock control */
-	input vga_progclk,
-	input vga_progdata,
-	input vga_progen,
-	output vga_progdone,
-	output vga_locked
+	/* Base clock, buffered */
+	output base50_clk
 );
 
 /*
@@ -213,10 +205,10 @@ BUFG bufg_x1(
 	.O(sys_clk)
 );
 
-wire clk50g;
+wire base50_clk;
 BUFG bufg_50(
 	.I(pllout4),
-	.O(clk50g)
+	.O(base50_clk)
 );
 
 wire clk2x_off;
@@ -263,53 +255,11 @@ ODDR2 #(
  * Ethernet PHY 
  */
 
-always @(posedge clk50g)
+always @(posedge base50_clk)
 	eth_phy_clk_pad <= ~eth_phy_clk_pad;
 
 /* Let the synthesizer insert the appropriate buffers */
 assign eth_rx_clk = eth_rx_clk_pad;
 assign eth_tx_clk = eth_tx_clk_pad;
-
-/*
- * VGA clock
- */
-
-DCM_CLKGEN #(
-	.CLKFXDV_DIVIDE(2),
-	.CLKFX_DIVIDE(4),
-	.CLKFX_MD_MAX(3.0),
-	.CLKFX_MULTIPLY(2),
-	.CLKIN_PERIOD(20.0),
-	.SPREAD_SPECTRUM("NONE"),
-	.STARTUP_WAIT("FALSE")
-) vga_clock_gen (
-	.CLKFX(vga_clk),
-	.CLKFX180(),
-	.CLKFXDV(),
-	.STATUS(),
-	.CLKIN(clk50g),
-	.FREEZEDCM(1'b0),
-	.PROGCLK(vga_progclk),
-	.PROGDATA(vga_progdata),
-	.PROGEN(vga_progen),
-	.PROGDONE(vga_progdone),
-	.LOCKED(vga_locked),
-	.RST(~pll_lckd | sys_rst)
-);
-
-ODDR2 #(
-	.DDR_ALIGNMENT("NONE"),
-	.INIT(1'b0),
-	.SRTYPE("SYNC")
-) vga_clock_forward (
-	.Q(vga_clk_pad),
-	.C0(vga_clk),
-	.C1(~vga_clk),
-	.CE(1'b1),
-	.D0(1'b1),
-	.D1(1'b0),
-	.R(1'b0),
-	.S(1'b0)
-);
  
 endmodule
