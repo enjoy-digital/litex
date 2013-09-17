@@ -66,8 +66,8 @@ _io = [
 		IOStandard("LVCMOS33")
 	),
 
-	("vga_clock", 0, Pins("A10"), IOStandard("LVCMOS33")),
-	("vga", 0,
+	("vga_out", 0,
+		Subsignal("clk", Pins("A10")),
 		Subsignal("r", Pins("C6 B6 A6 C7 A7 B8 A8 D9")),
 		Subsignal("g", Pins("C8 C9 A9 D7 D8 D10 C10 B10")),
 		Subsignal("b", Pins("D11 C12 B12 A12 C13 A13 D14 C14")),
@@ -75,6 +75,16 @@ _io = [
 		Subsignal("vsync_n", Pins("C15")),
 		Subsignal("psave_n", Pins("B14")),
 		IOStandard("LVCMOS33")
+	),
+	("dvi_out", 0,
+		Subsignal("clk_p", Pins("W12"), IOStandard("TMDS_33")),
+		Subsignal("clk_n", Pins("Y12"), IOStandard("TMDS_33")),
+		Subsignal("data0_p", Pins("Y16"), IOStandard("TMDS_33")),
+		Subsignal("data0_n", Pins("W15"), IOStandard("TMDS_33")),
+		Subsignal("data1_p", Pins("AA16"), IOStandard("TMDS_33")),
+		Subsignal("data1_n", Pins("AB16"), IOStandard("TMDS_33")),
+		Subsignal("data2_p", Pins("Y15"), IOStandard("TMDS_33")),
+		Subsignal("data2_n", Pins("AB15"), IOStandard("TMDS_33")),
 	),
 
 	("mmc", 0,
