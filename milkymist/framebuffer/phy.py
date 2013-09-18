@@ -141,8 +141,8 @@ class _Clocking(Module, AutoCSR):
 				Instance("BUFPLL", p_DIVIDE=5,
 					i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
 					o_IOCLK=self.cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
-				Instance("BUFG", name="pix2x_bufg", i_I=pll_clk1, o_O=self.cd_pix2x.clk),
-				Instance("BUFG", i_I=pll_clk2, o_O=self.cd_pix.clk),
+				Instance("BUFG", i_I=pll_clk1, o_O=self.cd_pix2x.clk),
+				Instance("BUFG", name="dviout_pix_bufg", i_I=pll_clk2, o_O=self.cd_pix.clk),
 				MultiReg(locked_async, mult_locked, "sys")
 			]
 

@@ -145,6 +145,9 @@ class PHY(Module):
 		self.submodules.es1 = _EncoderSerializer(serdesstrobe, pads.data1_p, pads.data1_n)
 		self.submodules.es2 = _EncoderSerializer(serdesstrobe, pads.data2_p, pads.data2_n)
 		self.comb += [
+			self.es0.d.eq(self.r),
+			self.es1.d.eq(self.g),
+			self.es2.d.eq(self.b),
 			self.es0.c.eq(Cat(self.hsync, self.vsync)),
 			self.es1.c.eq(0),
 			self.es2.c.eq(0),
