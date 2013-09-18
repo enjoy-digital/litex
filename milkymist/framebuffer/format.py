@@ -28,6 +28,7 @@ phy_layout_s = [
 phy_layout = [
 	("hsync", 1),
 	("vsync", 1),
+	("de", 1),
 	("p0", phy_layout_s),
 	("p1", phy_layout_s)
 ]
@@ -75,7 +76,8 @@ class VTG(Module):
 			active.eq(hactive & vactive),
 			If(active,
 				[getattr(getattr(self.phy.payload, p), c).eq(getattr(getattr(self.pixels.payload, p), c)[skip:])
-					for p in ["p0", "p1"] for c in ["r", "g", "b"]]
+					for p in ["p0", "p1"] for c in ["r", "g", "b"]],
+				self.phy.payload.de.eq(1)
 			),
 			
 			generate_en.eq(self.timing.stb & (~active | self.pixels.stb)),

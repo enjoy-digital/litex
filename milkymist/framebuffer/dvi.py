@@ -83,6 +83,76 @@ class Encoder(Module):
 				cnt.eq(0)
 			)
 
+class _EncoderSerializer(Module):
+	def __init__(self, serdesstrobe, pad_p, pad_n):
+		self.submodules.encoder = RenameClockDomains(Encoder(), "pix")
+		self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
+
+		###
+
+		# 2X soft serialization
+		ed_2x = Signal(5)
+		self.sync.pix2x += ed_2x.eq(Mux(ClockSignal("pix"), self.encoder.out[:5], self.encoder.out[5:]))
+
+		# 5X hard serialization
+		cascade_di = Signal()
+		cascade_do = Signal()
+		cascade_ti = Signal()
+		cascade_to = Signal()
+		pad_se = Signal()
+		self.specials += [
+			Instance("OSERDES2",
+				p_DATA_WIDTH=5, p_DATA_RATE_OQ="SDR", p_DATA_RATE_OT="SDR",
+				p_SERDES_MODE="MASTER", p_OUTPUT_MODE="DIFFERENTIAL",
+
+				o_OQ=pad_se,
+				i_OCE=1, i_IOCE=serdesstrobe, i_RST=0,
+				i_CLK0=ClockSignal("pix10x"), i_CLK1=0, i_CLKDIV=ClockSignal("pix2x"),
+				i_D1=ed_2x[4], i_D2=0, i_D3=0, i_D4=0,
+				i_T1=0, i_T2=0, i_T3=0, i_T4=0,
+				i_TRAIN=0, i_TCE=1,
+				i_SHIFTIN1=1, i_SHIFTIN2=1,
+				i_SHIFTIN3=cascade_do, i_SHIFTIN4=cascade_to,
+				o_SHIFTOUT1=cascade_di, o_SHIFTOUT2=cascade_ti),
+			Instance("OSERDES2",
+				p_DATA_WIDTH=5, p_DATA_RATE_OQ="SDR", p_DATA_RATE_OT="SDR",
+				p_SERDES_MODE="SLAVE", p_OUTPUT_MODE="DIFFERENTIAL",
+
+				i_OCE=1, i_IOCE=serdesstrobe, i_RST=0,
+				i_CLK0=ClockSignal("pix10x"), i_CLK1=0, i_CLKDIV=ClockSignal("pix2x"),
+				i_D1=ed_2x[0], i_D2=ed_2x[1], i_D3=ed_2x[2], i_D4=ed_2x[3],
+				i_T1=0, i_T2=0, i_T3=0, i_T4=0,
+				i_TRAIN=0, i_TCE=1,
+				i_SHIFTIN1=cascade_di, i_SHIFTIN2=cascade_ti,
+				i_SHIFTIN3=1, i_SHIFTIN4=1,
+				o_SHIFTOUT3=cascade_do, o_SHIFTOUT4=cascade_to),
+			Instance("OBUFDS", i_I=pad_se, o_O=pad_p, o_OB=pad_n)
+		]
+
+
+class PHY(Module):
+	def __init__(self, serdesstrobe, pads):
+		self.hsync = Signal()
+		self.vsync = Signal()
+		self.de = Signal()
+		self.r = Signal(8)
+		self.g = Signal(8)
+		self.b = Signal(8)
+
+		###
+
+		self.submodules.es0 = _EncoderSerializer(serdesstrobe, pads.data0_p, pads.data0_n)
+		self.submodules.es1 = _EncoderSerializer(serdesstrobe, pads.data1_p, pads.data1_n)
+		self.submodules.es2 = _EncoderSerializer(serdesstrobe, pads.data2_p, pads.data2_n)
+		self.comb += [
+			self.es0.c.eq(Cat(self.hsync, self.vsync)),
+			self.es1.c.eq(0),
+			self.es2.c.eq(0),
+			self.es0.de.eq(self.de),
+			self.es1.de.eq(self.de),
+			self.es2.de.eq(self.de),
+		]
+
 class _EncoderTB(Module):
 	def __init__(self, inputs):
 		self.outs = []

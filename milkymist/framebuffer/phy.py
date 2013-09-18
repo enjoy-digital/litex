@@ -1,11 +1,11 @@
 from migen.fhdl.std import *
-from migen.genlib.record import Record
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 from migen.flow.actor import *
 
 from milkymist.framebuffer.format import bpc_phy, phy_layout
+from milkymist.framebuffer import dvi
 
 class _FIFO(Module):
 	def __init__(self):
@@ -14,39 +14,37 @@ class _FIFO(Module):
 		
 		self.pix_hsync = Signal()
 		self.pix_vsync = Signal()
+		self.pix_de = Signal()
 		self.pix_r = Signal(bpc_phy)
 		self.pix_g = Signal(bpc_phy)
 		self.pix_b = Signal(bpc_phy)
 	
 		###
 
-		data_width = 2+2*3*bpc_phy
-		fifo = RenameClockDomains(AsyncFIFO(data_width, 512),
+		fifo = RenameClockDomains(AsyncFIFO(phy_layout, 512),
 			{"write": "sys", "read": "pix"})
 		self.submodules += fifo
-		fifo_in = self.phy.payload
-		fifo_out = Record(phy_layout)
 		self.comb += [
 			self.phy.ack.eq(fifo.writable),
 			fifo.we.eq(self.phy.stb),
-			fifo.din.eq(fifo_in.raw_bits()),
-			fifo_out.raw_bits().eq(fifo.dout),
+			fifo.din.eq(self.phy.payload),
 			self.busy.eq(0)
 		]
 
 		pix_parity = Signal()
 		self.sync.pix += [
 			pix_parity.eq(~pix_parity),
-			self.pix_hsync.eq(fifo_out.hsync),
-			self.pix_vsync.eq(fifo_out.vsync),
+			self.pix_hsync.eq(fifo.dout.hsync),
+			self.pix_vsync.eq(fifo.dout.vsync),
+			self.pix_de.eq(fifo.dout.de),
 			If(pix_parity,
-				self.pix_r.eq(fifo_out.p1.r),
-				self.pix_g.eq(fifo_out.p1.g),
-				self.pix_b.eq(fifo_out.p1.b)
+				self.pix_r.eq(fifo.dout.p1.r),
+				self.pix_g.eq(fifo.dout.p1.g),
+				self.pix_b.eq(fifo.dout.p1.b)
 			).Else(
-				self.pix_r.eq(fifo_out.p0.r),
-				self.pix_g.eq(fifo_out.p0.g),
-				self.pix_b.eq(fifo_out.p0.b)
+				self.pix_r.eq(fifo.dout.p0.r),
+				self.pix_g.eq(fifo.dout.p0.g),
+				self.pix_b.eq(fifo.dout.p0.b)
 			)
 		]
 		self.comb += fifo.re.eq(pix_parity)
@@ -143,7 +141,7 @@ class _Clocking(Module, AutoCSR):
 				Instance("BUFPLL", p_DIVIDE=5,
 					i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
 					o_IOCLK=self.cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
-				Instance("BUFG", i_I=pll_clk1, o_O=self.cd_pix2x.clk),
+				Instance("BUFG", name="pix2x_bufg", i_I=pll_clk1, o_O=self.cd_pix2x.clk),
 				Instance("BUFG", i_I=pll_clk2, o_O=self.cd_pix.clk),
 				MultiReg(locked_async, mult_locked, "sys")
 			]
@@ -166,7 +164,7 @@ class _Clocking(Module, AutoCSR):
 				i_C1=~ClockSignal("pix"),
 				i_CE=1, i_D0=1, i_D1=0,
 				i_R=0, i_S=0)
-			self.specials += Instance("OBUFTDS", i_I=dvi_clk_se,
+			self.specials += Instance("OBUFDS", i_I=dvi_clk_se,
 				o_O=pads_dvi.clk_p, o_OB=pads_dvi.clk_n)
 
 class Driver(Module, AutoCSR):
@@ -186,4 +184,14 @@ class Driver(Module, AutoCSR):
 				pads_vga.g.eq(fifo.pix_g),
 				pads_vga.b.eq(fifo.pix_b),
 				pads_vga.psave_n.eq(1)
+			]
+		if pads_dvi is not None:
+			self.submodules.dvi_phy = dvi.PHY(self.clocking.serdesstrobe, pads_dvi)
+			self.comb += [
+				self.dvi_phy.hsync.eq(fifo.pix_hsync),
+				self.dvi_phy.vsync.eq(fifo.pix_vsync),
+				self.dvi_phy.de.eq(fifo.pix_de),
+				self.dvi_phy.r.eq(fifo.pix_r),
+				self.dvi_phy.g.eq(fifo.pix_g),
+				self.dvi_phy.b.eq(fifo.pix_b)
 			]

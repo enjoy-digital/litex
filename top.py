@@ -161,13 +161,14 @@ class SoC(Module):
 		self.submodules.timer0 = timer.Timer()
 		if platform_name == "mixxeo":
 			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
-			self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga_out"), None, lasmim_fb0, lasmim_fb1)
+			self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga_out"), platform.request("dvi_out"),
+				lasmim_fb0, lasmim_fb1)
 			self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), lasmim_dvi0)
 			self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), lasmim_dvi1)
 		if platform_name == "m1":
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
 			self.submodules.leds = gpio.GPIOOut(Cat(*[platform.request("user_led", i) for i in range(2)]))
-			self.submodules.fb = framebuffer.Framebuffer(platform.request("vga"), lasmim_fb)
+			self.submodules.fb = framebuffer.Framebuffer(platform.request("vga"), None, lasmim_fb)
 		if with_memtest:
 			self.submodules.memtest_w = memtest.MemtestWriter(lasmim_mtw)
 			self.submodules.memtest_r = memtest.MemtestReader(lasmim_mtr)
