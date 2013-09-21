@@ -1,15 +1,19 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
+
+def ifthenelse(cond, r1, r2):
+	if cond != False and cond is not None:
+		return r1
+	else:
+		return r2
 
 class RisingEdge(Module):
-	def __init__(self, i=None, o=None, domain="sys"):
+	def __init__(self, i=None, o=None):
 		self.i = ifthenelse(i, i, Signal())
 		self.o = ifthenelse(o, o, Signal())
 	####
 		i_d = Signal()
-		sync =[i_d.eq(self.i)]
-		self.comb +=[self.o.eq(self.i & ~i_d)]
-		self._fragment += Fragment(sync={domain : sync})
+		self.sync += i_d.eq(self.i)
+		self.comb += self.o.eq(self.i & ~i_d)
 
 class FallingEdge(Module):
 	def __init__(self, i=None, o=None, domain="sys"):
@@ -17,9 +21,8 @@ class FallingEdge(Module):
 		self.o = ifthenelse(o, o, Signal())
 	####
 		i_d = Signal()
-		sync =[i_d.eq(self.i)]
-		self.comb +=[self.o.eq(~self.i & i_d)]
-		self._fragment += Fragment(sync={domain : sync})
+		self.sync += i_d.eq(self.i)
+		self.comb += self.o.eq(~self.i & i_d)
 
 class FreqGen(Module):
 	def __init__(self, clk_freq, freq, o=None):

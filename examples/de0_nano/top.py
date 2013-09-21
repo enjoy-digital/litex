@@ -14,13 +14,16 @@
 #==============================================================================
 #	I M P O R T 
 #==============================================================================
-from migen.fhdl.structure import *
-from migen.fhdl.module import *
+from migen.fhdl.std import *
 from migen.bus import csr
+from migen.bank import csrgen
+from miscope.std.misc import *
 
-from miscope import trigger, recorder, miio, mila
-from miscope.bridges import uart2csr
-from miscope.tools.misc import *
+from miscope.triggering import *
+from miscope.recording import *
+from miscope import miio, mila
+
+from miscope.com import uart2csr
 
 from timings import *
 
@@ -31,10 +34,6 @@ from timings import *
 # Timings Param
 clk_freq	= 50*MHz
 
-# Csr Addr
-MIIO_ADDR 	= 0x00
-MILA_ADDR 	= 0x01
-
 # Mila Param
 trig_w		= 16
 dat_w		= 16
@@ -44,16 +43,23 @@ rec_size	= 4096
 #   M I S C O P E    E X A M P L E
 #==============================================================================
 class SoC(Module):
+	csr_base = 0xe0000000
+	csr_map = {
+		"miio":					1,
+		"mila":					2,
+	}
+
+
 	def __init__(self, platform):
 		# MiIo
-		self.submodules.miio = miio.MiIo(MIIO_ADDR, 8, "IO")
+		self.submodules.miio = miio.MiIo(8)
 
 		# MiLa
-		self.submodules.term = trigger.Term(trig_w)
-		self.submodules.trigger = trigger.Trigger(trig_w, [self.term])
-		self.submodules.recorder = recorder.Recorder(dat_w, rec_size)
+		term = Term(trig_w)
+		trigger = Trigger(trig_w, [term])
+		recorder = Recorder(dat_w, rec_size)
 
-		self.submodules.mila = mila.MiLa(MILA_ADDR, self.trigger, self.recorder, trig_is_dat=True)
+		self.submodules.mila = mila.MiLa(trigger, recorder)
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
@@ -62,15 +68,12 @@ class SoC(Module):
 		self.comb += self.uart2csr.rx.eq(uart_pads.rx)
 	
 		# Csr Interconnect
-		self.submodules.csrcon = csr.Interconnect(self.uart2csr.csr,
-				[
-					self.miio.bank.bus,
-					self.trigger.bank.bus,
-					self.recorder.bank.bus
-				])
+		self.submodules.csrbankarray = csrgen.BankArray(self,
+			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
+		self.submodules.csrcon = csr.Interconnect(self.uart2csr.csr, self.csrbankarray.get_buses())
 		
 		# Led
-		self.led = platform.request("user_led", 0, 8)
+		self.led = Cat(*[platform.request("user_led", i) for i in range(8)])
 
 		# Misc
 		self.cnt = Signal(9)
@@ -94,7 +97,8 @@ class SoC(Module):
 		# Mila
 		#
 		self.comb +=[
-			self.mila.trig.eq(Cat(
+			self.mila.sink.stb.eq(1),
+			self.mila.sink.payload.d.eq(Cat(
 				self.freqgen.o,
 				self.eventgen_rising.o,
 				self.eventgen_falling.o,

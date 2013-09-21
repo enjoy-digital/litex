@@ -1,11 +1,10 @@
-all: build/top.sta
+all: build/soc-de0nano.sta
 
-build/top.sta:
-	./build.py
+build/soc-de0nano.sta:
+	./make.py
 
 load:
-	cd build && quartus_pgm -m jtag -c USB-Blaster[USB-0] -o "p;top.sof"
-
+	cd build && quartus_pgm -m jtag -c USB-Blaster[USB-0] -o "p;soc-de0nano.sof"
 
 clean:
 	rm -rf build/*

@@ -18,10 +18,18 @@ class Uart2Csr:
 		self.baudrate = baudrate
 		self.debug = debug
 		self.uart = serial.Serial(port, baudrate, timeout=0.25)
-			
-	def read(self, addr, burst_length=1):
+	
+	def open(self):
+		self.uart.close()
+		self.uart.open()
+		
+	def close(self):
+		self.uart.close()
+
+	def read_csr(self, addr, burst_length=1):
 		write_b(self.uart, READ_CMD)
 		write_b(self.uart, burst_length)
+		addr = addr//4
 		write_b(self.uart, (addr & 0xff000000) >> 24)
 		write_b(self.uart, (addr & 0x00ff0000) >> 16)
 		write_b(self.uart, (addr & 0x0000ff00) >> 8)
@@ -50,13 +58,14 @@ class Uart2Csr:
 			print("RD @ %04X" %addr)
 		return r		
 		
-	def write(self, addr, data):
+	def write_csr(self, addr, data):
 		if isinstance(data, list):
 			burst_length = len(data)
 		else:
 			burst_length = 1
 		write_b(self.uart, WRITE_CMD)
 		write_b(self.uart, burst_length)
+		addr = addr//4
 		self.uart.write([(addr & 0xff000000) >> 24,
 						(addr & 0x00ff0000) >> 16,
 						(addr & 0x0000ff00) >> 8,
