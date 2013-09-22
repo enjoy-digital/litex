@@ -22,14 +22,73 @@ class Term(Module, AutoCSR):
 
 		trig = self._r_trig.storage
 		mask = self._r_mask.storage
-
-		hit = Signal()
+		dat = self.sink.payload.d
+		hit = self.source.payload.hit
 
 		self.comb +=[
-			hit.eq((self.sink.payload.d & mask) == trig),
+			hit.eq((dat & mask) == trig),
 			self.source.stb.eq(self.sink.stb),
 			self.sink.ack.eq(self.sink.ack),
 			self.source.payload.hit.eq(hit)
+		]
+
+class RangeDetector(Module, AutoCSR):
+	def __init__(self, width):
+		self.width = width
+
+		self.sink = Sink([("d", width)])
+		self.source = Source([("hit", 1)])
+		
+		self.busy = Signal()
+
+		self._r_low = CSRStorage(width)
+		self._r_high = CSRStorage(width)
+
+	###
+		low = self._r_low.storage
+		high = self._r_high.storage
+		dat = self.sink.payload.d
+		hit = self.source.payload.hit
+
+		self.comb +=[
+			hit.eq((dat >= low) & (dat <= high)),
+			self.source.stb.eq(self.sink.stb),
+			self.sink.ack.eq(self.sink.ack),
+		]
+
+
+class EdgeDetector(Module, AutoCSR):
+	def __init__(self, width):
+		self.width = width
+		
+		self.sink = Sink([("d", width)])
+		self.source = Source([("hit", 1)])
+
+		self._r_rising_mask = CSRStorage(width)
+		self._r_falling_mask = CSRStorage(width)
+		self._r_both_mask = CSRStorage(width)
+
+	###
+		rising_mask = self._r_rising_mask.storage
+		falling_mask = self._r_falling_mask.storage
+		both_mask = self._r_both_mask.storage
+
+		dat = self.sink.payload.d
+		dat_d = Signal(width)
+		rising_hit = Signal()
+		falling_hit = Signal()
+		both_hit = Signal()
+		hit = self.source.payload.hit
+
+		self.sync += dat_d.eq(dat)
+
+		self.comb +=[
+			rising_hit.eq(rising_mask & dat & ~dat_d),
+			falling_hit.eq(rising_mask & ~dat & dat_d),
+			both_hit.eq((both_mask & dat) != (both_mask & dat_d)),
+			hit.eq(rising_hit | falling_hit | both_hit),
+			self.source.stb.eq(self.sink.stb),
+			self.sink.ack.eq(self.sink.ack),
 		]
 
 class Sum(Module, AutoCSR):

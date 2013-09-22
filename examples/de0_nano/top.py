@@ -20,7 +20,7 @@ from migen.bank import csrgen
 
 from miscope.std.misc import *
 
-from miscope.trigger import Term, Sum, Trigger
+from miscope.trigger import Term, RangeDetector, EdgeDetector, Sum, Trigger
 from miscope.storage import Recorder
 from miscope.miio import MiIo
 from miscope.mila import MiLa
@@ -58,7 +58,10 @@ class SoC(Module):
 
 		# MiLa
 		term = Term(trig_w)
-		trigger = Trigger(trig_w, [term])
+		range_detector = RangeDetector(trig_w)
+		edge_detector = EdgeDetector(trig_w)
+
+		trigger = Trigger(trig_w, [term, range_detector, edge_detector])
 		recorder = Recorder(dat_w, rec_size)
 
 		self.submodules.mila = MiLa(trigger, recorder)
