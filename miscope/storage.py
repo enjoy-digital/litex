@@ -7,6 +7,75 @@ from migen.bank import description, csrgen
 from migen.bank.description import *
 from migen.actorlib.fifo import SyncFIFO
 
+class RunLenghEncoder(Module, AutoCSR):
+	def __init__(self, width, length):
+		self.width = width
+		self.length = length
+
+		self.sink = Sink([("d", width)])
+		self.source = Source([("d", width)])
+
+		self._r_enable = CSRStorage()
+		
+	###
+		enable = self._r_enable.storage 
+		stb_i = self.sink.stb
+		dat_i = self.sink.payload.d
+		ack_i = self.sink.ack
+
+		# Register Input
+		stb_i_d = Signal()
+		dat_i_d = Signal(width)
+
+		self.sync += [
+			dat_i_d.eq(dat_i),
+			stb_i_d.eq(stb_i)
+		]
+		
+		# Detect change
+		change = Signal()
+		comb = [diff.eq(stb_i & (~enable | (dat_i_d != dat_i)))]
+
+		change_d = Signal()
+		change_rising = Signal()
+		self.sync += change_d.eq(change)
+		self.comb += change_rising.eq(change & ~change_d)
+
+		# Generate RLE word
+		rle_cnt  = Signal(max=length)
+		rle_max  = Signal()
+
+		comb +=[If(rle_cnt == length, rle_max.eq(enable))]
+
+		sync +=[
+			If(change | rle_max,
+				rle_cnt.eq(0)
+			).Else(
+				rle_cnt.eq(rle_cnt + 1)
+			)
+		]
+
+		# Mux RLE word and data
+		stb_o = self.source.stb
+		dat_o = self.source.payload.d
+		ack_o = self.source.ack
+
+		comb +=[
+			If(change_rising & ~rle_max,
+				stb_o.eq(1),
+				dat_o[width-1].eq(1),
+				dat_o[:flen(rle_cnt)].eq(rle_cnt)
+			).Elif(change_d | rle_max,
+				stb_o.eq(stb_i_d),
+				dat_o.eq(dat_i_d)
+			).Else(
+				stb_o.eq(0),
+			),
+			ack_i.eq(1) #FIXME
+		]
+
+
+
 class Recorder(Module, AutoCSR):
 	def __init__(self, width, depth):
 		self.width = width
