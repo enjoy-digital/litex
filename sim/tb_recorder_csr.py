@@ -5,10 +5,9 @@ from migen.sim.generic import Simulator, TopLevel
 from migen.sim.icarus import Runner
 from migen.bus.transactions import *
 
-from miscope.recording import *
-from miscope.std.truthtable import *
-
 from miscope.std import cif
+from miscope.std.truthtable import *
+from miscope.storage import *
 
 from mibuild.tools import write_to_file
 

@@ -19,9 +19,11 @@ from migen.bus import csr
 from migen.bank import csrgen
 
 from miscope.std.misc import *
-from miscope.triggering import *
-from miscope.recording import *
-from miscope import miio, mila
+
+from miscope.trigger import Term, Sum, Trigger
+from miscope.storage import Recorder
+from miscope.miio import MiIo
+from miscope.mila import MiLa
 
 from miscope.com import uart2csr
 
@@ -52,14 +54,14 @@ class SoC(Module):
 
 	def __init__(self, platform):
 		# MiIo
-		self.submodules.miio = miio.MiIo(8)
+		self.submodules.miio = MiIo(8)
 
 		# MiLa
 		term = Term(trig_w)
 		trigger = Trigger(trig_w, [term])
 		recorder = Recorder(dat_w, rec_size)
 
-		self.submodules.mila = mila.MiLa(trigger, recorder)
+		self.submodules.mila = MiLa(trigger, recorder)
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
