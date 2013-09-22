@@ -17,8 +17,8 @@
 from migen.fhdl.std import *
 from migen.bus import csr
 from migen.bank import csrgen
-from miscope.std.misc import *
 
+from miscope.std.misc import *
 from miscope.triggering import *
 from miscope.recording import *
 from miscope import miio, mila
@@ -78,8 +78,13 @@ class SoC(Module):
 		# Misc
 		self.cnt = Signal(9)
 		self.submodules.freqgen = FreqGen(clk_freq, 500*KHz)
-		self.submodules.eventgen_rising = EventGen(self.freqgen.o, RISING_EDGE, clk_freq, 100*ns)
-		self.submodules.eventgen_falling = EventGen(self.freqgen.o, FALLING_EDGE, clk_freq, 100*ns)
+		self.submodules.eventgen_rising = EventGen(RISING_EDGE, clk_freq, 100*ns)
+		self.submodules.eventgen_falling = EventGen(FALLING_EDGE, clk_freq, 100*ns)
+		self.comb += [
+			self.eventgen_rising.i.eq(self.freqgen.o),
+			self.eventgen_falling.i.eq(self.freqgen.o)
+		]
+
 
 	###
 

@@ -1,37 +1,41 @@
 from migen.fhdl.std import *
 
-def ifthenelse(cond, r1, r2):
-	if cond != False and cond is not None:
-		return r1
+def dec2bin(d, nb=0):
+	if d=="x":
+		return "x"*nb
+	elif d==0:
+		b="0"
 	else:
-		return r2
+		b=""
+		while d!=0:
+			b="01"[d&1]+b
+			d=d>>1
+	return b.zfill(nb)
 
 class RisingEdge(Module):
-	def __init__(self, i=None, o=None):
-		self.i = ifthenelse(i, i, Signal())
-		self.o = ifthenelse(o, o, Signal())
+	def __init__(self):
+		self.i = Signal()
+		self.o = Signal()
 	####
 		i_d = Signal()
 		self.sync += i_d.eq(self.i)
 		self.comb += self.o.eq(self.i & ~i_d)
 
 class FallingEdge(Module):
-	def __init__(self, i=None, o=None, domain="sys"):
-		self.i = ifthenelse(i, i, Signal())
-		self.o = ifthenelse(o, o, Signal())
+	def __init__(self):
+		self.i = Signal()
+		self.o = Signal()
 	####
 		i_d = Signal()
 		self.sync += i_d.eq(self.i)
 		self.comb += self.o.eq(~self.i & i_d)
 
 class FreqGen(Module):
-	def __init__(self, clk_freq, freq, o=None):
+	def __init__(self, clk_freq, freq):
 		cnt_max = int(clk_freq/freq/2)
-		width = bits_for(cnt_max)
-		
-		self.o = ifthenelse(o, o, Signal())
+		self.o = Signal()
 	####
-		cnt = Signal(width)
+		cnt = Signal(max=cnt_max)
 		self.sync += [
 			If(cnt >= cnt_max,
 				cnt.eq(0),
@@ -39,30 +43,27 @@ class FreqGen(Module):
 			).Else(
 				cnt.eq(cnt+1)
 				)
-			]
+		]
 
 RISING_EDGE  = 1
 FALLING_EDGE = 0
 
 class EventGen(Module):
-	def __init__(self, i=None, level=1, clk_freq=0, length=1, o=None):
-		
+	def __init__(self, level=RISING_EDGE, clk_freq=0, length=1):
 		cnt_max = int(length*clk_freq)
-		width = bits_for(cnt_max)
-		
-		self.i = ifthenelse(i, i, Signal())
-		self.o = ifthenelse(o, o, Signal())
+		self.o = Signal()
 	###
-		cnt = Signal(width)
-		i_edge = Signal()
+		cnt = Signal(max=cnt_max)
 		
 		if level == RISING_EDGE:
-			self.submodules += RisingEdge(self.i, i_edge)
+			self.submodules.edge_detect = RisingEdge()
 		elif level == FALLING_EDGE:
-			self.submodules += FallingEdge(self.i, i_edge)
+			self.submodules.edge_detect = FallingEdge()
+		
+		self.i = self.edge_detect.i
 		
 		self.sync += [
-			If(i_edge == 1,
+			If(self.edge_detect.o == 1,
 				cnt.eq(0),
 				self.o.eq(1)
 			).Elif(cnt >= cnt_max,
@@ -73,9 +74,9 @@ class EventGen(Module):
 			]
 		
 class PwmGen(Module):
-	def __init__(self, width, o=None):
+	def __init__(self, width):
 		self.ratio = Signal(width)
-		self.o     = ifthenelse(o, o, Signal())
+		self.o     = Signal()
 	###
 		cnt = Signal(width)
 		self.sync += [
@@ -86,29 +87,3 @@ class PwmGen(Module):
 			),
 			cnt.eq(cnt+1)
 			]
-		
-class Cascade(Module):
-	def __init__(self, i=None, elements=None, o=None):
-		self.i = ifthenelse(i, i, Signal())
-		self.o = ifthenelse(o, o, Signal())
-		self.comb +=[elements[0].i.eq(self.i)]
-		self.comb +=[elements[i+1].i.eq(elements[i].o) for i in range(len(elements)-1)]
-		self.comb +=[self.o.eq(elements[len(elements)-1].o)]
-
-class PwrOnRst(Module):
-	def __init__(self, width, rst=None, simulation=False):
-		self.rst = ifthenelse(rst, rst, Signal())
-	###
-		cnt = Signal(width)
-		sync_no_reset = [If(self.rst, cnt.eq(cnt+1))]
-		if not simulation:
-			self.comb +=[
-				If(cnt >= (2**width-1),
-					self.rst.eq(0)
-				).Else(
-					self.rst.eq(1)
-				)
-			]
-		else:
-			self.comb += self.rst.eq(0)
-		self._fragment += Fragment(sync={"sys_no_reset" : sync_no_reset})

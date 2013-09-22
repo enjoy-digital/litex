@@ -1,7 +1,7 @@
 import sys
 import datetime
 
-from miscope.tools.conv import *
+from miscope.tools.misc import *
 
 def get_bits(values, width, low, high=None):
 	r = []
