@@ -55,7 +55,7 @@ class SoC(Module):
 
 		# MiLa
 		term = Term(mila_width)
-		self.submodules.mila = MiLa(mila_width, mila_depth, [term])
+		self.submodules.mila = MiLa(mila_width, mila_depth, [term], rle=True)
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
@@ -72,7 +72,7 @@ class SoC(Module):
 		self.led = Cat(*[platform.request("user_led", i) for i in range(8)])
 
 		# Misc
-		self.cnt = Signal(9)
+		self.cnt = Signal(16)
 		self.submodules.freqgen = FreqGen(clk_freq, 500*KHz)
 		self.submodules.eventgen_rising = EventGen(RISING_EDGE, clk_freq, 100*ns)
 		self.submodules.eventgen_falling = EventGen(FALLING_EDGE, clk_freq, 100*ns)
@@ -103,7 +103,7 @@ class SoC(Module):
 				self.freqgen.o,
 				self.eventgen_rising.o,
 				self.eventgen_falling.o,
-				self.cnt)
+				self.cnt[8:12])
 			)
 		]
 		self.sync += self.cnt.eq(self.cnt+1)

@@ -50,7 +50,7 @@ class VcdDat(list):
 		for d in self:
 			if rle_bit[i]:
 				if len(dat) >= 1:
-					# FIX ME... why is rle_dat in reverse orderd...
+					# FIX ME... why is rle_dat in reverse order...
 					for j in range(int(dec2bin(rle_dat[i])[::-1],2)):
 						dat.append(last)
 			else:

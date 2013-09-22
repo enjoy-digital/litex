@@ -18,7 +18,7 @@ class Term(Module, AutoCSR):
 		self._r_trig = CSRStorage(width)
 		self._r_mask = CSRStorage(width)
 
-		###
+	###
 
 		trig = self._r_trig.storage
 		mask = self._r_mask.storage

@@ -9,7 +9,7 @@ from migen.genlib.fifo import SyncFIFO
 
 from miscope.std import *
 
-class RunLenghEncoder(Module, AutoCSR):
+class RunLengthEncoder(Module, AutoCSR):
 	def __init__(self, width, length):
 		self.width = width
 		self.length = length
@@ -30,26 +30,28 @@ class RunLenghEncoder(Module, AutoCSR):
 		dat_i_d = Signal(width)
 
 		self.sync += [
-			dat_i_d.eq(dat_i),
-			stb_i_d.eq(stb_i)
+			If(stb_i,
+				dat_i_d.eq(dat_i),
+				stb_i_d.eq(stb_i)
+			)
 		]
 		
 		# Detect change
 		change = Signal()
-		comb = [diff.eq(stb_i & (~enable | (dat_i_d != dat_i)))]
+		self.comb += [change.eq(stb_i & (~enable | (dat_i_d != dat_i)))]
 
 		change_d = Signal()
 		change_rising = Signal()
-		self.sync += change_d.eq(change)
-		self.comb += change_rising.eq(change & ~change_d)
+		self.sync += If(stb_i, change_d.eq(change))
+		self.comb += change_rising.eq(stb_i & (change & ~change_d))
 
 		# Generate RLE word
 		rle_cnt  = Signal(max=length)
 		rle_max  = Signal()
 
-		comb +=[If(rle_cnt == length, rle_max.eq(enable))]
+		self.comb +=[If(rle_cnt == length, rle_max.eq(enable))]
 
-		sync +=[
+		self.sync +=[
 			If(change | rle_max,
 				rle_cnt.eq(0)
 			).Else(
@@ -62,7 +64,7 @@ class RunLenghEncoder(Module, AutoCSR):
 		dat_o = self.source.dat
 		ack_o = self.source.ack
 
-		comb +=[
+		self.comb +=[
 			If(change_rising & ~rle_max,
 				stb_o.eq(1),
 				dat_o[width-1].eq(1),
@@ -80,7 +82,8 @@ class Recorder(Module, AutoCSR):
 	def __init__(self, width, depth):
 		self.width = width
 
-		self.sink = rec_dat_hit(width)
+		self.trig_sink = rec_hit()
+		self.dat_sink = rec_dat(width)
 
 		self._r_trigger = CSR()
 		self._r_length = CSRStorage(bits_for(depth))
@@ -107,9 +110,9 @@ class Recorder(Module, AutoCSR):
 		# Fifo must always be pulled by software between
 		# acquisition (Todo: add a flush funtionnality)
 		self.comb +=[
-			fifo.we.eq(self.sink.stb & ~done),
-			fifo.din.eq(self.sink.dat),
-			self.sink.ack.eq(1)
+			fifo.we.eq(self.dat_sink.stb & ~done),
+			fifo.din.eq(self.dat_sink.dat),
+			self.dat_sink.ack.eq(fifo.writable)
 		]
 
 		# Done, Ongoing:
@@ -132,8 +135,9 @@ class Recorder(Module, AutoCSR):
 			If(self._r_trigger.re & self._r_trigger.r, done.eq(0)
 			).Elif(cnt==length, done.eq(1)),
 			
-			If(self.sink.stb & self.sink.hit & ~done, ongoing.eq(1)
+			If(self.trig_sink.stb & self.trig_sink.hit & ~done, ongoing.eq(1)
 			).Elif(done, ongoing.eq(0)),
+			self.trig_sink.ack.eq(1)
 		]
 
 		# fifo ack & csr connection

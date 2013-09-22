@@ -23,6 +23,12 @@ class MiLaCtrl():
 			mila_trigger_sum_prog_adr_write(self.bus, adr)
 			mila_trigger_sum_prog_dat_write(self.bus, dat)
 			mila_trigger_sum_prog_we_write(self.bus, 1)
+			
+	def enable_rle(self):
+		mila_rle_enable_write(self.bus, 1)
+	
+	def disable_rle(self):
+		mila_rle_enable_write(self.bus, 0)
 
 	def is_done(self):
 		return mila_recorder_done_read(self.bus)
@@ -46,6 +52,7 @@ trig_w		= 16
 dat_w		= 16
 rec_length	= 512
 rec_offset	= 0
+rle = True
 	
 #==============================================================================
 #                  T E S T  M I L A 
@@ -72,6 +79,8 @@ def capture():
 
 print("Capturing ...")
 print("----------------------")
+if rle:
+	mila.enable_rle()
 mila.prog_term(0x0000, 0xFFFF)
 capture()
 
@@ -81,6 +90,9 @@ mila_layout = [
 	("event_falling", 1),
 	("cnt", 8),
 	]
+
+if rle:
+	dat_vcd = dat_vcd.decode_rle()
 
 myvcd = Vcd()
 myvcd.add_from_layout(mila_layout, dat_vcd)
