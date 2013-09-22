@@ -5,13 +5,20 @@ from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
 
+from miscope.trigger import Trigger
+from miscope.storage import Recorder
+
 class MiLa(Module, AutoCSR):
-	def __init__(self, trigger, recorder):
-		self.trigger = trigger
-		self.recorder = recorder
+	def __init__(self, width, depth, ports):
+		self.width = width
+
+		trigger = Trigger(width, ports)
+		recorder = Recorder(width, depth)
+
+		self.submodules.trigger = trigger
+		self.submodules.recorder = recorder
 
 		self.sink = trigger.sink
-		self.submodules += trigger, recorder
 
 		self.comb +=[
 			recorder.sink.stb.eq(trigger.source.stb),

@@ -20,8 +20,7 @@ from migen.bank import csrgen
 
 from miscope.std.misc import *
 
-from miscope.trigger import Term, RangeDetector, EdgeDetector, Sum, Trigger
-from miscope.storage import Recorder
+from miscope.trigger import Term
 from miscope.miio import MiIo
 from miscope.mila import MiLa
 
@@ -37,9 +36,8 @@ from timings import *
 clk_freq	= 50*MHz
 
 # Mila Param
-trig_w		= 16
-dat_w		= 16
-rec_size	= 4096
+mila_width	= 16
+mila_depth  = 4096
 
 #==============================================================================
 #   M I S C O P E    E X A M P L E
@@ -51,17 +49,13 @@ class SoC(Module):
 		"mila":					2,
 	}
 
-
 	def __init__(self, platform):
 		# MiIo
 		self.submodules.miio = MiIo(8)
 
 		# MiLa
-		term = Term(trig_w)
-		trigger = Trigger(trig_w, [term])
-		recorder = Recorder(dat_w, rec_size)
-
-		self.submodules.mila = MiLa(trigger, recorder)
+		term = Term(mila_width)
+		self.submodules.mila = MiLa(mila_width, mila_depth, [term])
 	
 		# Uart2Csr
 		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
