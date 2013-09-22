@@ -16,12 +16,12 @@ class MiLa(Module, AutoCSR):
 		self.comb +=[
 			recorder.sink.stb.eq(trigger.source.stb),
 			
-			recorder.sink.payload.hit.eq(trigger.source.payload.hit),
+			recorder.sink.hit.eq(trigger.source.hit),
 			trigger.source.ack.eq(recorder.sink.ack)
 		]
 
 		# Todo; Insert configurable delay to support pipelined
 		# triggers elements
 		self.comb +=[
-			recorder.sink.payload.d.eq(self.sink.payload.d),
+			recorder.sink.dat.eq(self.sink.dat),
 		]

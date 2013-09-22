@@ -58,10 +58,7 @@ class SoC(Module):
 
 		# MiLa
 		term = Term(trig_w)
-		range_detector = RangeDetector(trig_w)
-		edge_detector = EdgeDetector(trig_w)
-
-		trigger = Trigger(trig_w, [term, range_detector, edge_detector])
+		trigger = Trigger(trig_w, [term])
 		recorder = Recorder(dat_w, rec_size)
 
 		self.submodules.mila = MiLa(trigger, recorder)
@@ -108,7 +105,7 @@ class SoC(Module):
 		#
 		self.comb +=[
 			self.mila.sink.stb.eq(1),
-			self.mila.sink.payload.d.eq(Cat(
+			self.mila.sink.dat.eq(Cat(
 				self.freqgen.o,
 				self.eventgen_rising.o,
 				self.eventgen_falling.o,

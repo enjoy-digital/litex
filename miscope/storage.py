@@ -5,22 +5,24 @@ from migen.fhdl.specials import Memory
 from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
-from migen.actorlib.fifo import SyncFIFO
+from migen.genlib.fifo import SyncFIFO
+
+from miscope.std import *
 
 class RunLenghEncoder(Module, AutoCSR):
 	def __init__(self, width, length):
 		self.width = width
 		self.length = length
 
-		self.sink = Sink([("d", width)])
-		self.source = Source([("d", width)])
+		self.sink = rec_dat(width)
+		self.source = rec_dat(width)		
 
 		self._r_enable = CSRStorage()
 		
 	###
 		enable = self._r_enable.storage 
 		stb_i = self.sink.stb
-		dat_i = self.sink.payload.d
+		dat_i = self.sink.dat
 		ack_i = self.sink.ack
 
 		# Register Input
@@ -57,7 +59,7 @@ class RunLenghEncoder(Module, AutoCSR):
 
 		# Mux RLE word and data
 		stb_o = self.source.stb
-		dat_o = self.source.payload.d
+		dat_o = self.source.dat
 		ack_o = self.source.ack
 
 		comb +=[
@@ -74,13 +76,11 @@ class RunLenghEncoder(Module, AutoCSR):
 			ack_i.eq(1) #FIXME
 		]
 
-
-
 class Recorder(Module, AutoCSR):
 	def __init__(self, width, depth):
 		self.width = width
 
-		self.sink = Sink([("hit", 1), ("d", width)])
+		self.sink = rec_dat_hit(width)
 
 		self._r_trigger = CSR()
 		self._r_length = CSRStorage(bits_for(depth))
@@ -100,15 +100,15 @@ class Recorder(Module, AutoCSR):
 
 		cnt = Signal(max=depth)
 
-		fifo = SyncFIFO([("d", width)], depth)
+		fifo = SyncFIFO(width, depth)
 		self.submodules += fifo
 	
 		# Write fifo is done only when done = 0
 		# Fifo must always be pulled by software between
 		# acquisition (Todo: add a flush funtionnality)
 		self.comb +=[
-			fifo.sink.stb.eq(self.sink.stb & ~done),
-			fifo.sink.payload.d.eq(self.sink.payload.d),
+			fifo.we.eq(self.sink.stb & ~done),
+			fifo.din.eq(self.sink.dat),
 			self.sink.ack.eq(1)
 		]
 
@@ -132,16 +132,16 @@ class Recorder(Module, AutoCSR):
 			If(self._r_trigger.re & self._r_trigger.r, done.eq(0)
 			).Elif(cnt==length, done.eq(1)),
 			
-			If(self.sink.stb & self.sink.payload.hit & ~done, ongoing.eq(1)
+			If(self.sink.stb & self.sink.hit & ~done, ongoing.eq(1)
 			).Elif(done, ongoing.eq(0)),
 		]
 
 		# fifo ack & csr connection
 		self.comb += [
-			If(~done & ~ongoing & (cnt >= offset), fifo.source.ack.eq(1)
-			).Else(fifo.source.ack.eq(self._r_read_en.re & self._r_read_en.r)),
-			self._r_read_empty.status.eq(~fifo.source.stb),
-			self._r_read_dat.status.eq(fifo.source.payload.d),
+			If(~done & ~ongoing & (cnt >= offset), fifo.re.eq(1)
+			).Else(fifo.re.eq(self._r_read_en.re & self._r_read_en.r)),
+			self._r_read_empty.status.eq(~fifo.readable),
+			self._r_read_dat.status.eq(fifo.dout),
 			self._r_done.status.eq(done)
 		]
 
@@ -149,7 +149,7 @@ class Recorder(Module, AutoCSR):
 		self.sync += [
 			If(done == 1,
 				cnt.eq(0)
-			).Elif(fifo.sink.stb & fifo.sink.ack & ~(fifo.source.stb & fifo.source.ack),
+			).Elif(fifo.we & fifo.writable & ~(fifo.re & fifo.readable),
 				cnt.eq(cnt+1), 
 			)
 		]

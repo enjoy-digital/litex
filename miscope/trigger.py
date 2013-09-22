@@ -6,14 +6,14 @@ from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
 
+from miscope.std import *
+
 class Term(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 
-		self.sink = Sink([("d", width)])
-		self.source = Source([("hit", 1)])
-
-		self.busy = Signal()
+		self.sink = rec_dat(width)
+		self.source = rec_hit()
 
 		self._r_trig = CSRStorage(width)
 		self._r_mask = CSRStorage(width)
@@ -22,24 +22,21 @@ class Term(Module, AutoCSR):
 
 		trig = self._r_trig.storage
 		mask = self._r_mask.storage
-		dat = self.sink.payload.d
-		hit = self.source.payload.hit
+		dat = self.sink.dat
+		hit = self.source.hit
 
 		self.comb +=[
 			hit.eq((dat & mask) == trig),
 			self.source.stb.eq(self.sink.stb),
 			self.sink.ack.eq(self.sink.ack),
-			self.source.payload.hit.eq(hit)
 		]
 
 class RangeDetector(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 
-		self.sink = Sink([("d", width)])
-		self.source = Source([("hit", 1)])
-		
-		self.busy = Signal()
+		self.sink = rec_dat(width)
+		self.source = rec_hit()
 
 		self._r_low = CSRStorage(width)
 		self._r_high = CSRStorage(width)
@@ -47,8 +44,8 @@ class RangeDetector(Module, AutoCSR):
 	###
 		low = self._r_low.storage
 		high = self._r_high.storage
-		dat = self.sink.payload.d
-		hit = self.source.payload.hit
+		dat = self.sink.dat
+		hit = self.source.hit
 
 		self.comb +=[
 			hit.eq((dat >= low) & (dat <= high)),
@@ -61,8 +58,8 @@ class EdgeDetector(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 		
-		self.sink = Sink([("d", width)])
-		self.source = Source([("hit", 1)])
+		self.sink = rec_dat(width)
+		self.source = rec_hit()
 
 		self._r_rising_mask = CSRStorage(width)
 		self._r_falling_mask = CSRStorage(width)
@@ -73,12 +70,12 @@ class EdgeDetector(Module, AutoCSR):
 		falling_mask = self._r_falling_mask.storage
 		both_mask = self._r_both_mask.storage
 
-		dat = self.sink.payload.d
+		dat = self.sink.dat
 		dat_d = Signal(width)
 		rising_hit = Signal()
 		falling_hit = Signal()
 		both_hit = Signal()
-		hit = self.source.payload.hit
+		hit = self.source.hit
 
 		self.sync += dat_d.eq(dat)
 
@@ -94,8 +91,8 @@ class EdgeDetector(Module, AutoCSR):
 class Sum(Module, AutoCSR):
 	def __init__(self, ports=4):
 		
-		self.sinks = [Sink([("hit", 1)]) for p in range(ports)]
-		self.source = Source([("hit", 1)])
+		self.sinks = [rec_hit() for p in range(ports)]
+		self.source = rec_hit()
 		
 		self._r_prog_we = CSRStorage()
 		self._r_prog_adr = CSRStorage(ports) #FIXME
@@ -118,12 +115,12 @@ class Sum(Module, AutoCSR):
 
 		# Lut read
 		for i, sink in enumerate(self.sinks):
-			self.comb += lut_port.adr[i].eq(sink.payload.hit)
+			self.comb += lut_port.adr[i].eq(sink.hit)
 
 		# Drive source
 		self.comb +=[
 			self.source.stb.eq(optree("&", [sink.stb for sink in self.sinks])),
-			self.source.payload.hit.eq(lut_port.dat_r),
+			self.source.hit.eq(lut_port.dat_r),
 			[sink.ack.eq(self.source.ack) for sink in self.sinks]
 		]
 
@@ -141,7 +138,7 @@ class Trigger(Module, AutoCSR):
 			tmp = "self.submodules.port"+str(i)+" = port"
 			exec(tmp)
 
-		self.sink   = Sink([("d", width)])
+		self.sink   = rec_dat(width)
 		self.source = self.sum.source
 		self.busy = Signal()
 
@@ -149,6 +146,6 @@ class Trigger(Module, AutoCSR):
 		for i, port in enumerate(ports):
 			self.comb +=[
 				port.sink.stb.eq(self.sink.stb),
-				port.sink.payload.d.eq(self.sink.payload.d),
+				port.sink.dat.eq(self.sink.dat),
 				port.source.connect(self.sum.sinks[i])
 			]
