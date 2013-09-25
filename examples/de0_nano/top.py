@@ -58,10 +58,7 @@ class SoC(Module):
 		self.submodules.mila = MiLa(mila_width, mila_depth, [term], rle=True)
 	
 		# Uart2Csr
-		self.submodules.uart2csr = uart2csr.Uart2Csr(clk_freq, 115200)
-		uart_pads = platform.request("serial")
-		self.comb += uart_pads.tx.eq(self.uart2csr.tx)
-		self.comb += self.uart2csr.rx.eq(uart_pads.rx)
+		self.submodules.uart2csr = uart2csr.Uart2Csr(platform.request("serial"), clk_freq, 115200)
 	
 		# Csr Interconnect
 		self.submodules.csrbankarray = csrgen.BankArray(self,

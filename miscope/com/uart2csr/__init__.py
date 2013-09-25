@@ -10,10 +10,7 @@ READ_CMD = 0x02
 CLOSE_CMD = 0x03
 
 class Uart2Csr(Module):
-	def __init__(self, clk_freq, baud):
-		# Uart interface
-		self.rx = Signal()
-		self.tx = Signal()
+	def __init__(self, pads, clk_freq, baud):
 		
 		# Csr interface
 		self.csr = csr.Interface()
@@ -27,8 +24,8 @@ class Uart2Csr(Module):
 		# In/Out
 		#
 		self.comb +=[
-			uart.rx.eq(self.rx),
-			self.tx.eq(uart.tx)
+			uart.rx.eq(pads.rx),
+			pads.tx.eq(uart.tx)
 		]
 
 		cmd = Signal(8)
