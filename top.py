@@ -10,9 +10,8 @@ from mibuild.generic_platform import ConstraintError
 
 from milkymist import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
 	identifier, timer, minimac3, framebuffer, dvisampler, gpio, memtest
-from milkymist.cif import get_macros
 
-version = get_macros("common/version.h")["VERSION"][1:-1]
+version = "2.0"
 
 clk_freq = (83 + Fraction(1, 3))*1000000
 sram_size = 4096 # in bytes

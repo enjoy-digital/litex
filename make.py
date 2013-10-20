@@ -4,10 +4,11 @@ import argparse, os, importlib, subprocess
 
 from mibuild.tools import write_to_file
 
-from milkymist import cif
+from milkymist import cpuif
+from milkymist.s6ddrphy import initsequence
 import top, jtag
 
-def build(platform_name, build_bitstream, build_header, *soc_args, **soc_kwargs):
+def build(platform_name, build_bitstream, build_header, csr_csv_filename, *soc_args, **soc_kwargs):
 	platform_module = importlib.import_module("mibuild.platforms."+platform_name)
 	platform = platform_module.Platform()
 	soc = top.SoC(platform, platform_name, *soc_args, **soc_kwargs)
@@ -46,24 +47,27 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 	else:
 		soc.finalize()
 	if build_header:
-		csr_header = cif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
+		csr_header = cpuif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
 		write_to_file("software/include/hw/csr.h", csr_header)
 		
-		sdram_phy_header = cif.get_sdram_phy_header(soc.ddrphy)
+		sdram_phy_header = initsequence.get_sdram_phy_header(soc.ddrphy)
 		write_to_file("software/include/hw/sdram_phy.h", sdram_phy_header)
-
+	if csr_csv_filename:
+		csr_csv = cpuif.get_csr_csv(soc.csr_base, soc.csrbankarray)
+		write_to_file(csr_csv_filename, csr_csv)
 
 def main():
 	parser = argparse.ArgumentParser(description="milkymist-ng - a high performance SoC built on Migen technology.")
 	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-B", "--no-bitstream", default=False, action="store_true", help="do not build bitstream file")
 	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header files with CSR/IRQ/SDRAM_PHY defs")
+	parser.add_argument("-c", "--csr-csv", default="", help="save CSR map in CSV file")
 	parser.add_argument("-l", "--load", default=False, action="store_true", help="load bitstream to SRAM")
 	parser.add_argument("-f", "--flash", default=False, action="store_true", help="load bitstream to flash")
 	parser.add_argument("-m", "--with-memtest", default=False, action="store_true", help="include memtest cores")
 	args = parser.parse_args()
 
-	build(args.platform, not args.no_bitstream, not args.no_header, args.with_memtest)
+	build(args.platform, not args.no_bitstream, not args.no_header, args.csr_csv, args.with_memtest)
 	if args.load:
 		jtag.load("build/soc-"+args.platform+".bit")
 	if args.flash:
