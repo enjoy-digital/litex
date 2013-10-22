@@ -33,9 +33,11 @@ void uart_isr(void)
 	if(stat & UART_EV_RX) {
 		rx_buf[rx_produce] = uart_rxtx_read();
 		rx_produce = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
+		uart_ev_pending_write(UART_EV_RX);
 	}
 
 	if(stat & UART_EV_TX) {
+		uart_ev_pending_write(UART_EV_TX);
 		if(tx_level > 0) {
 			uart_rxtx_write(tx_buf[tx_consume]);
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
@@ -43,8 +45,6 @@ void uart_isr(void)
 		} else
 			tx_cts = 1;
 	}
-
-	uart_ev_pending_write(stat);
 }
 
 /* Do not use in interrupt handlers! */
