@@ -19,18 +19,18 @@ class _FIFOInterface:
 		self.re = Signal()
 		self.readable = Signal() # not empty
 
-		if isinstance(width_or_layout, (int, tuple)):
-			self.din = Signal(width_or_layout)
-			self.dout = Signal(width_or_layout)
-			self.din_bits = self.din
-			self.dout_bits = self.dout
-			self.width = width_or_layout
-		else:
+		if isinstance(width_or_layout, list):
 			self.din = Record(width_or_layout)
 			self.dout = Record(width_or_layout)
 			self.din_bits = self.din.raw_bits()
 			self.dout_bits = self.dout.raw_bits()
 			self.width = layout_len(width_or_layout)
+		else:
+			self.din = Signal(width_or_layout)
+			self.dout = Signal(width_or_layout)
+			self.din_bits = self.din
+			self.dout_bits = self.dout
+			self.width = width_or_layout
 
 class SyncFIFO(Module, _FIFOInterface):
 	def __init__(self, width_or_layout, depth):
