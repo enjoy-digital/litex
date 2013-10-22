@@ -56,21 +56,11 @@ def layout_partial(layout, *elements):
 		insert_ref.append(layout_get(copy_ref, last))
 	return r
 
-class LayoutP:
-	def __init__(self, layout, **layout_dict):
-		self.layout = layout
-		self.layout_dict = layout_dict
-
 class Record:
 	def __init__(self, layout, name=None, **layout_dict):
 		self.name = get_obj_var_name(name, "")
-		if isinstance(layout, LayoutP):
-			self.layout = layout.layout
-			self.layout_dict = layout.layout_dict
-			assert(not layout_dict)
-		else:
-			self.layout = layout
-			self.layout_dict = layout_dict
+		self.layout = layout
+		self.layout_dict = layout_dict
 
 		if self.name:
 			prefix = self.name + "_"
