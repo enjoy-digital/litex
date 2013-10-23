@@ -11,21 +11,42 @@ from migen.genlib.misc import optree
 # size can be an int, or a (int, bool) tuple for signed numbers
 # sublayout must be a list
 
-def layout_len(layout, **layout_dict):
-	r = 0
+def set_layout_parameters(layout, **layout_dict):
+	def resolve(p):
+		if isinstance(p, str):
+			try:
+				return layout_dict[p]
+			except KeyError:
+				return p
+		else:
+			return p
+
+	r = []
 	for f in layout:
 		if isinstance(f[1], (int, tuple, str)): # cases 1/2
-			if(len(f) == 3):
+			if len(f) == 3:
+				r.append((f[0], resolve(f[1]), f[2]))
+			else:
+				r.append((f[0], resolve(f[1])))
+		elif isinstance(f[1], list): # case 3
+			r.append((f[0], set_layout_parameters(f[1], **layout_dict)))
+		else:
+			raise TypeError
+	return r
+
+def layout_len(layout):
+	r = 0
+	for f in layout:
+		if isinstance(f[1], (int, tuple)): # cases 1/2
+			if len(f) == 3:
 				fname, fsize, fdirection = f
 			else:
 				fname, fsize = f
 		elif isinstance(f[1], list): # case 3
 			fname, fsublayout = f
-			fsize = layout_len(fsublayout, **layout_dict)
+			fsize = layout_len(fsublayout)
 		else:
 			raise TypeError
-		if isinstance(fsize, str):
-			fsize = layout_dict[fsize]
 		if isinstance(fsize, tuple):
 			r += fsize[0]
 		else:
@@ -57,23 +78,20 @@ def layout_partial(layout, *elements):
 	return r
 
 class Record:
-	def __init__(self, layout, name=None, **layout_dict):
+	def __init__(self, layout, name=None):
 		self.name = get_obj_var_name(name, "")
 		self.layout = layout
-		self.layout_dict = layout_dict
 
 		if self.name:
 			prefix = self.name + "_"
 		else:
 			prefix = ""
 		for f in self.layout:
-			if isinstance(f[1], (int, tuple, str)): # cases 1/2
+			if isinstance(f[1], (int, tuple)): # cases 1/2
 				if(len(f) == 3):
 					fname, fsize, fdirection = f
 				else:
 					fname, fsize = f
-				if isinstance(fsize, str):
-					fsize = layout_dict[fsize]
 				finst = Signal(fsize, name=prefix + fname)
 			elif isinstance(f[1], list): # case 3
 				fname, fsublayout = f
@@ -144,7 +162,7 @@ class Record:
 		return r
 
 	def __len__(self):
-		return layout_len(self.layout, **self.layout_dict)
+		return layout_len(self.layout)
 
 	def __repr__(self):
 		return "<Record " + ":".join(f[0] for f in self.layout) + " at " + hex(id(self)) + ">"

@@ -22,8 +22,9 @@ _layout = [
 
 class Interface(Record):
 	def __init__(self, data_width=32):
-		Record.__init__(self, _layout, data_width=data_width,
-			sel_width=data_width//8)
+		Record.__init__(self, set_layout_parameters(_layout,
+			data_width=data_width,
+			sel_width=data_width//8))
 
 class InterconnectPointToPoint(Module):
 	def __init__(self, master, slave):

@@ -13,7 +13,8 @@ _layout = [
 
 class Interface(Record):
 	def __init__(self, data_width=8):
-		Record.__init__(self, _layout, data_width=data_width)
+		Record.__init__(self, set_layout_parameters(_layout,
+			data_width=data_width))
 
 class Interconnect(Module):
 	def __init__(self, master, slaves):
