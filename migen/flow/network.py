@@ -14,6 +14,7 @@ class AbstractActor:
 		self.actor_class = actor_class
 		self.parameters = parameters
 		self.name = name
+		self.busy = Signal()
 	
 	def create_instance(self):
 		return self.actor_class(**self.parameters)
@@ -30,6 +31,7 @@ class DataFlowGraph(MultiDiGraph):
 	def __init__(self):
 		MultiDiGraph.__init__(self)
 		self.elaborated = False
+		self.abstract_busy_signals = dict()
 	
 	def add_connection(self, source_node, sink_node,
 	  source_ep=None, sink_ep=None,		# default: assume nodes have 1 source/sink and use that one
@@ -71,7 +73,9 @@ class DataFlowGraph(MultiDiGraph):
 		self.remove_node(old)
 		
 	def instantiate(self, actor):
-		self.replace_actor(actor, actor.create_instance())
+		inst = actor.create_instance()
+		self.abstract_busy_signals[id(inst)] = actor.busy
+		self.replace_actor(actor, inst)
 	
 	# Returns a dictionary
 	#   source -> [sink1, ..., sinkn]
@@ -236,6 +240,15 @@ class CompositeActor(Module):
 			for k, v in uc_eps.items():
 				assert(not hasattr(self, k))
 				setattr(self, k, v)
+
+		# connect abstract busy signals
+		for node in dfg:
+			try:
+				abstract_busy_signal = dfg.abstract_busy_signals[id(node)]
+			except KeyError:
+				pass
+			else:
+				self.comb += abstract_busy_signal.eq(node.busy)
 
 		# generate busy signal
 		self.busy = Signal()
