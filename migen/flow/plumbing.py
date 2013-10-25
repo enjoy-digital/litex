@@ -3,6 +3,14 @@ from migen.flow.actor import *
 from migen.genlib.record import *
 from migen.genlib.misc import optree
 
+def pipe(s1, s2):
+	r = [
+		s2.stb.eq(s1.stb),
+		s2.payload.eq(s1.payload),
+		s1.ack.eq(s2.ack)
+	]
+	return r
+
 class Buffer(PipelinedActor):
 	def __init__(self, layout):
 		self.d = Sink(layout)
@@ -51,6 +59,42 @@ class Splitter(Module):
 				[s.ack | already_acked[n] for n, s in enumerate(sources)]))
 		for n, s in enumerate(sources):
 			self.comb += s.stb.eq(self.sink.stb & ~already_acked[n])
+
+class Multiplexer(Module):
+	def __init__(self, n, layout):
+		self.source = Source(layout)
+		sinks = []
+		for i in range(n):
+			sink = Sink(layout)
+			setattr(self, "sink"+str(i), sink)
+			sinks.append(sink)
+		self.busy = Signal()
+		self.sel = Signal(max=n)
+		
+		###
+
+		case = {}
+		for i, sink in enumerate(sinks):
+			cases[i] = [pipe(sink, self.source)]
+		self.comb += Case(self.sel, cases)
+
+class Demultiplexer(Module):
+	def __init__(self, layout, n):
+		self.sink = Sink(layout)
+		sources = []
+		for i in range(n):
+			source = Source(layout)
+			setattr(self, "source"+str(i), source)
+			sources.append(source)
+		self.busy = Signal()
+		self.sel = Signal(max=n)
+		
+		###
+
+		cases = {}
+		for i, source in enumerate(sources):
+			cases[i] = [pipe(self.sink, source)]
+		self.comb += Case(self.sel, cases)
 
 # Actors whose layout should be inferred from what their single sink is connected to.
 layout_sink = {Buffer, Splitter}
