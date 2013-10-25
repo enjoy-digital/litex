@@ -157,21 +157,33 @@ class DMAReadController(_DMAController):
 		self.comb += self.r_busy.status.eq(self.busy)
 
 class DMAWriteController(_DMAController):
-	def __init__(self, bus_accessor, *args, **kwargs):
+	def __init__(self, bus_accessor, ack_when_inactive=False, *args, **kwargs):
 		bus_aw = flen(bus_accessor.address_data.payload.a)
 		bus_dw = flen(bus_accessor.address_data.payload.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
 		
 		g = DataFlowGraph()
 		adr_buffer = AbstractActor(plumbing.Buffer)
+		int_sequence = misc.IntSequence(bus_aw, bus_aw)
 		g.add_pipeline(self.generator,
-			misc.IntSequence(bus_aw, bus_aw),
+			int_sequence,
 			adr_buffer)
 		g.add_connection(adr_buffer, bus_accessor, sink_subr=["a"])
 		g.add_connection(AbstractActor(plumbing.Buffer), bus_accessor, sink_subr=["d"])
 		comp_actor = CompositeActor(g)
 		self.submodules += comp_actor
 
-		self.data = comp_actor.d
+		if ack_when_inactive:
+			demultiplexer = plumbing.Demultiplexer(comp_actor.d.payload.layout, 2)
+			self.comb +=[
+				demultiplexer.sel.eq(~adr_buffer.busy),
+				demultiplexer.source0.connect(comp_actor.d),
+				demultiplexer.source1.ack.eq(1),
+			]
+			self.submodules += demultiplexer
+			self.data = demultiplexer.sink
+		else:
+			self.data = comp_actor.d
+
 		self.busy = comp_actor.busy
 		self.comb += self.r_busy.status.eq(self.busy)
