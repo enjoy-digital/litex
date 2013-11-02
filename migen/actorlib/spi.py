@@ -157,7 +157,7 @@ class DMAReadController(_DMAController):
 		self.comb += self.r_busy.status.eq(self.busy)
 
 class DMAWriteController(_DMAController):
-	def __init__(self, bus_accessor, ack_when_inactive=False, *args, **kwargs):
+	def __init__(self, bus_accessor, *args, ack_when_inactive=False, **kwargs):
 		bus_aw = flen(bus_accessor.address_data.payload.a)
 		bus_dw = flen(bus_accessor.address_data.payload.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
