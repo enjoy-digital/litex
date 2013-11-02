@@ -3,14 +3,6 @@ from migen.flow.actor import *
 from migen.genlib.record import *
 from migen.genlib.misc import optree
 
-def pipe(s1, s2):
-	r = [
-		s2.stb.eq(s1.stb),
-		s2.payload.eq(s1.payload),
-		s1.ack.eq(s2.ack)
-	]
-	return r
-
 class Buffer(PipelinedActor):
 	def __init__(self, layout):
 		self.d = Sink(layout)
@@ -75,7 +67,7 @@ class Multiplexer(Module):
 
 		case = {}
 		for i, sink in enumerate(sinks):
-			cases[i] = [pipe(sink, self.source)]
+			cases[i] = self.source.connect(sink)
 		self.comb += Case(self.sel, cases)
 
 class Demultiplexer(Module):
@@ -93,7 +85,7 @@ class Demultiplexer(Module):
 
 		cases = {}
 		for i, source in enumerate(sources):
-			cases[i] = [pipe(self.sink, source)]
+			cases[i] = source.connect(self.sink)
 		self.comb += Case(self.sel, cases)
 
 # Actors whose layout should be inferred from what their single sink is connected to.
