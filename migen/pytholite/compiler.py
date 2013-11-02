@@ -2,6 +2,7 @@ import inspect
 import ast
 from collections import OrderedDict
 
+from migen.util.misc import xdir
 from migen.fhdl.structure import *
 from migen.fhdl.visit import TransformModule
 from migen.fhdl.specials import Memory
@@ -293,7 +294,8 @@ class Pytholite(UnifiedIOObject):
 		if self.get_dataflow():
 			self.busy.reset = 1
 		self.memory_ports = dict()
-		for mem in self.__dict__.values():
+		for key in xdir(self):
+			mem = getattr(self, key)
 			if isinstance(mem, Memory):
 				port = mem.get_port(write_capable=True, we_granularity=8)
 				self.specials += port

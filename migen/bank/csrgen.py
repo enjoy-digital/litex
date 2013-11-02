@@ -1,5 +1,4 @@
-from operator import itemgetter
-
+from migen.util.misc import xdir
 from migen.fhdl.std import *
 from migen.bus import csr
 from migen.bank.description import *
@@ -69,7 +68,7 @@ class BankArray(Module):
 	def scan(self, ifargs, ifkwargs):
 		self.banks = []
 		self.srams = []
-		for name, obj in sorted(self.source.__dict__.items(), key=itemgetter(0)):
+		for name, obj in xdir(self.source, True):
 			if hasattr(obj, "get_csrs"):
 				csrs = obj.get_csrs()
 			else:

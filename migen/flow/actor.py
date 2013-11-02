@@ -1,3 +1,4 @@
+from migen.util.misc import xdir
 from migen.fhdl.std import *
 from migen.genlib.misc import optree
 from migen.genlib.record import *
@@ -32,7 +33,7 @@ def get_endpoints(obj, filt=_Endpoint):
 	if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
 		return obj.get_endpoints(filt)
 	r = dict()
-	for k, v in obj.__dict__.items():
+	for k, v in xdir(obj, True):
 		if isinstance(v, filt):
 			r[k] = v
 	return r

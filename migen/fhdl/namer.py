@@ -12,7 +12,7 @@ class _Node:
 		self.children = OrderedDict()
 
 def _display_tree(filename, tree):
-	from migen.graph.treeviz import RenderNode
+	from migen.util.treeviz import RenderNode
 	
 	def _to_render_node(name, node):
 		children = [_to_render_node(k, v) for k, v in node.children.items()]

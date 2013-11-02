@@ -1,3 +1,4 @@
+from migen.util.misc import xdir
 from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.flow.actor import _Endpoint
@@ -10,13 +11,13 @@ class UnifiedIOObject(Module):
 	def do_finalize(self):
 		if self.get_dataflow():
 			self.busy = Signal()
-		self.specials += set(v for v in self.__dict__.values() if isinstance(v, Memory))
+		self.specials += set(v for k, v in xdir(self, True) if isinstance(v, Memory))
 
 	def get_dataflow(self):
-		return dict((k, v) for k, v in self.__dict__.items() if isinstance(v, _Endpoint))
+		return dict((k, v) for k, v in xdir(self, True) if isinstance(v, _Endpoint))
 
 	def get_buses(self):
-		return dict((k, v) for k, v in self.__dict__.items() if isinstance(v, (wishbone.Interface, Memory)))
+		return dict((k, v) for k, v in xdir(self, True) if isinstance(v, (wishbone.Interface, Memory)))
 
 (_WAIT_COMPLETE, _WAIT_POLL) = range(2)
 

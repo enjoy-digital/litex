@@ -1,3 +1,4 @@
+from migen.util.misc import xdir
 from migen.fhdl.std import *
 from migen.fhdl.tracer import get_obj_var_name
 
@@ -107,7 +108,7 @@ class AutoCSR:
 		except AttributeError:
 			prefixed = self.__prefixed = set()
 		r = []
-		for k, v in self.__dict__.items():
+		for k, v in xdir(self, True):
 			if k not in exclude:
 				if isinstance(v, Memory):
 					r.append(v)
@@ -127,7 +128,7 @@ class AutoCSR:
 		except AttributeError:
 			prefixed = self.__prefixed = set()
 		r = []
-		for k, v in self.__dict__.items():
+		for k, v in xdir(self, True):
 			if k not in exclude:
 				if isinstance(v, _CSRBase):
 					r.append(v)

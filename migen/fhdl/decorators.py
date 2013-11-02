@@ -20,6 +20,9 @@ class ModuleDecorator:
 		self.transform_fragment(f)
 		return f
 
+	def __dir__(self):
+		return dir(self._md_decorated)
+
 class DecorateModule:
 	def __init__(self, decorator, *dec_args, **dec_kwargs):
 		self.decorator = decorator

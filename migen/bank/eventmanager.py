@@ -1,3 +1,4 @@
+from migen.util.misc import xdir
 from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.misc import optree
@@ -46,7 +47,7 @@ class EventManager(Module, AutoCSR):
 		self.irq = Signal()
 	
 	def do_finalize(self):
-		sources_u = [v for v in self.__dict__.values() if isinstance(v, _EventSource)]
+		sources_u = [v for k, v in xdir(self, True) if isinstance(v, _EventSource)]
 		sources = sorted(sources_u, key=lambda x: x.huid)
 		n = len(sources)
 		self.status = CSR(n)
