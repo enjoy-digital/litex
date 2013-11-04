@@ -67,7 +67,7 @@ class Multiplexer(Module):
 
 		case = {}
 		for i, sink in enumerate(sinks):
-			cases[i] = self.source.connect(sink)
+			cases[i] = Record.connect(sink, self.source)
 		self.comb += Case(self.sel, cases)
 
 class Demultiplexer(Module):
@@ -85,7 +85,7 @@ class Demultiplexer(Module):
 
 		cases = {}
 		for i, source in enumerate(sources):
-			cases[i] = source.connect(self.sink)
+			cases[i] = Record.connect(self.sink, source)
 		self.comb += Case(self.sel, cases)
 
 # Actors whose layout should be inferred from what their single sink is connected to.
