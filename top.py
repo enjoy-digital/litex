@@ -92,7 +92,7 @@ class SoC(Module):
 		#
 		# DFI
 		#
-		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR", nphases=2, cl=3, bitslip=0)
+		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR", nphases=2, cl=3, rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
 		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a,
 			self.ddrphy.phy_settings.dfi_d, self.ddrphy.phy_settings.nphases)
 		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)

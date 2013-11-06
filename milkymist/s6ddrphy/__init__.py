@@ -27,12 +27,11 @@ from migen.genlib.record import *
 from milkymist import lasmicon
 
 class S6DDRPHY(Module):
-	def __init__(self, pads, memtype, nphases, cl, bitslip):
+	def __init__(self, pads, memtype, nphases, cl, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
 		if memtype not in ["DDR", "LPDDR", "DDR2"]:
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
 		if cl != 3:
 			raise NotImplementedError("S6DDRPHY only supports CAS LATENCY 3")
-
 		a = flen(pads.a)
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
@@ -118,7 +117,7 @@ class S6DDRPHY(Module):
 		bitslip_inc = Signal()
 
 		sd_sys += [
-			If(bitslip_cnt == bitslip, 
+			If(bitslip_cnt == rd_bitslip,
 				bitslip_inc.eq(0)
 			).Else(
 				bitslip_cnt.eq(bitslip_cnt+1),
@@ -148,7 +147,7 @@ class S6DDRPHY(Module):
 		for i in range(d//8):
 			# DQS output
 			self.specials += Instance("ODDR2",
-				Instance.Parameter("DDR_ALIGNMENT", "C1"),
+				Instance.Parameter("DDR_ALIGNMENT", dqs_ddr_alignment),
 				Instance.Parameter("INIT", 0),
 				Instance.Parameter("SRTYPE", "ASYNC"),
 
@@ -166,7 +165,7 @@ class S6DDRPHY(Module):
 
 			# DQS tristate cmd
 			self.specials += Instance("ODDR2",
-				Instance.Parameter("DDR_ALIGNMENT", "C1"),
+				Instance.Parameter("DDR_ALIGNMENT", dqs_ddr_alignment),
 				Instance.Parameter("INIT", 0),
 				Instance.Parameter("SRTYPE", "ASYNC"),
 
@@ -218,17 +217,19 @@ class S6DDRPHY(Module):
 
 
 		drive_dq = Signal()
-		drive_dq_n = Signal()
-		d_drive_dq = Signal()
-		d_drive_dq_n = Signal()
-		self.comb += [
-			drive_dq_n.eq(~drive_dq),
-			d_drive_dq_n.eq(~d_drive_dq)
-		]
+		drive_dq_n = [Signal() for i in range(2)]
+		self.comb += drive_dq_n[0].eq(~drive_dq)
+		sd_sys += drive_dq_n[1].eq(drive_dq_n[0])
 
 		dq_t = Signal(d)
 		dq_o = Signal(d)
 		dq_i = Signal(d)
+
+		dq_wrdata = []
+		for i in range(2):
+			for j in reversed(range(nphases)):
+				dq_wrdata.append(d_dfi[i*nphases+j].wrdata[:d])
+				dq_wrdata.append(d_dfi[i*nphases+j].wrdata[d:])
 
 		for i in range(d):
 			# Data serializer
@@ -247,15 +248,16 @@ class S6DDRPHY(Module):
 				Instance.Input("RST", 0),
 				Instance.Input("CLKDIV", sys_clk),
 
-				Instance.Input("D1", d_dfi[1*nphases+0].wrdata[i]),
-				Instance.Input("D2", d_dfi[1*nphases+1].wrdata[i+d]),
-				Instance.Input("D3", d_dfi[1*nphases+1].wrdata[i]),
-				Instance.Input("D4", d_dfi[0*nphases+0].wrdata[i+d]),
+				Instance.Input("D1", dq_wrdata[wr_bitslip+3][i]),
+				Instance.Input("D2", dq_wrdata[wr_bitslip+2][i]),
+				Instance.Input("D3", dq_wrdata[wr_bitslip+1][i]),
+				Instance.Input("D4", dq_wrdata[wr_bitslip+0][i]),
+
 				Instance.Output("TQ", dq_t[i]),
-				Instance.Input("T1", d_drive_dq_n),
-				Instance.Input("T2", d_drive_dq_n),
-				Instance.Input("T3", d_drive_dq_n),
-				Instance.Input("T4", drive_dq_n),
+				Instance.Input("T1", drive_dq_n[(wr_bitslip+3)//4]),
+				Instance.Input("T2", drive_dq_n[(wr_bitslip+2)//4]),
+				Instance.Input("T3", drive_dq_n[(wr_bitslip+1)//4]),
+				Instance.Input("T4", drive_dq_n[(wr_bitslip+0)//4]),
 				Instance.Input("TRAIN", 0),
 				Instance.Input("TCE", 1),
 				Instance.Input("SHIFTIN1", 0),
@@ -309,6 +311,12 @@ class S6DDRPHY(Module):
 				Instance.InOut("IO", pads.dq[i])
 			)
 
+		dq_wrdata_mask = []
+		for i in range(2):
+			for j in reversed(range(nphases)):
+				dq_wrdata_mask.append(d_dfi[i*nphases+j].wrdata_mask[:d//8])
+				dq_wrdata_mask.append(d_dfi[i*nphases+j].wrdata_mask[d//8:])
+
 		for i in range(d//8):
 			# Mask serializer
 			self.specials += Instance("OSERDES2",
@@ -326,10 +334,11 @@ class S6DDRPHY(Module):
 				Instance.Input("RST", 0),
 				Instance.Input("CLKDIV", sys_clk),
 
-				Instance.Input("D1", d_dfi[1*nphases+0].wrdata_mask[i]),
-				Instance.Input("D2", d_dfi[1*nphases+1].wrdata_mask[i+d//8]),
-				Instance.Input("D3", d_dfi[1*nphases+1].wrdata_mask[i]),
-				Instance.Input("D4", d_dfi[0*nphases+0].wrdata_mask[i+d//8]),
+				Instance.Input("D1", dq_wrdata_mask[wr_bitslip+3][i]),
+				Instance.Input("D2", dq_wrdata_mask[wr_bitslip+2][i]),
+				Instance.Input("D3", dq_wrdata_mask[wr_bitslip+1][i]),
+				Instance.Input("D4", dq_wrdata_mask[wr_bitslip+0][i]),
+
 				Instance.Output("TQ"),
 				Instance.Input("T1"),
 				Instance.Input("T2"),
@@ -359,7 +368,6 @@ class S6DDRPHY(Module):
 		# DQ/DQS/DM control
 		#
 		self.comb += drive_dq.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
-		sd_sys += d_drive_dq.eq(drive_dq)
 
 		d_dfi_wrdata_en = Signal()
 		sd_sys += d_dfi_wrdata_en.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
