@@ -264,11 +264,6 @@ class S6DDRPHY(Module):
 				Instance.Input("SHIFTIN2", 0),
 				Instance.Input("SHIFTIN3", 0),
 				Instance.Input("SHIFTIN4", 0),
-
-				Instance.Output("SHIFTOUT1"),
-				Instance.Output("SHIFTOUT2"),
-				Instance.Output("SHIFTOUT3"),
-				Instance.Output("SHIFTOUT4"),
 			)
 
 			# Data deserializer
@@ -286,21 +281,13 @@ class S6DDRPHY(Module):
 				Instance.Input("IOCE", self.clk4x_rd_strb),
 				Instance.Input("RST", ResetSignal()),
 				Instance.Input("CLKDIV", sys_clk),
-				Instance.Output("SHIFTIN"),
 				Instance.Input("BITSLIP", bitslip_inc),
-				Instance.Output("FABRICOUT"),
 
 				Instance.Output("Q1", d_dfi[0*nphases+0].rddata[i+d]),
 				Instance.Output("Q2", d_dfi[0*nphases+0].rddata[i]),
 				Instance.Output("Q3", d_dfi[0*nphases+1].rddata[i+d]),
 				Instance.Output("Q4", d_dfi[0*nphases+1].rddata[i]),
 
-				Instance.Output("DFB"),
-				Instance.Output("CFB0"),
-				Instance.Output("CFB1"),
-				Instance.Output("VALID"),
-				Instance.Output("INCDEC"),
-				Instance.Output("SHIFTOUT")
 			)
 
 			# Data buffer
@@ -339,22 +326,12 @@ class S6DDRPHY(Module):
 				Instance.Input("D3", dq_wrdata_mask[wr_bitslip+1][i]),
 				Instance.Input("D4", dq_wrdata_mask[wr_bitslip+0][i]),
 
-				Instance.Output("TQ"),
-				Instance.Input("T1"),
-				Instance.Input("T2"),
-				Instance.Input("T3"),
-				Instance.Input("T4"),
 				Instance.Input("TRAIN", 0),
 				Instance.Input("TCE", 0),
 				Instance.Input("SHIFTIN1", 0),
 				Instance.Input("SHIFTIN2", 0),
 				Instance.Input("SHIFTIN3", 0),
 				Instance.Input("SHIFTIN4", 0),
-
-				Instance.Output("SHIFTOUT1"),
-				Instance.Output("SHIFTOUT2"),
-				Instance.Output("SHIFTOUT3"),
-				Instance.Output("SHIFTOUT4"),
 			)
 
 		#
