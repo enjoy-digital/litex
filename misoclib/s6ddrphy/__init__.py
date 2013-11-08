@@ -147,55 +147,55 @@ class S6DDRPHY(Module):
 		for i in range(d//8):
 			# DQS output
 			self.specials += Instance("ODDR2",
-				Instance.Parameter("DDR_ALIGNMENT", dqs_ddr_alignment),
-				Instance.Parameter("INIT", 0),
-				Instance.Parameter("SRTYPE", "ASYNC"),
+				p_DDR_ALIGNMENT=dqs_ddr_alignment,
+				p_INIT=0,
+				p_SRTYPE="ASYNC",
 
-				Instance.Input("C0", sdram_half_clk),
-				Instance.Input("C1", sdram_half_clk_n),
+				i_C0=sdram_half_clk,
+				i_C1=sdram_half_clk_n,
 
-				Instance.Input("CE", 1),
-				Instance.Input("D0", 0),
-				Instance.Input("D1", 1),
-				Instance.Input("R", 0),
-				Instance.Input("S", 0),
+				i_CE=1,
+				i_D0=0,
+				i_D1=1,
+				i_R=0,
+				i_S=0,
 
-				Instance.Output("Q", dqs_o[i])
+				o_Q=dqs_o[i]
 			)
 
 			# DQS tristate cmd
 			self.specials += Instance("ODDR2",
-				Instance.Parameter("DDR_ALIGNMENT", dqs_ddr_alignment),
-				Instance.Parameter("INIT", 0),
-				Instance.Parameter("SRTYPE", "ASYNC"),
+				p_DDR_ALIGNMENT=dqs_ddr_alignment,
+				p_INIT=0,
+				p_SRTYPE="ASYNC",
 
-				Instance.Input("C0", sdram_half_clk),
-				Instance.Input("C1", sdram_half_clk_n),
+				i_C0=sdram_half_clk,
+				i_C1=sdram_half_clk_n,
 
-				Instance.Input("CE", 1),
-				Instance.Input("D0", dqs_t_d0),
-				Instance.Input("D1", dqs_t_d1),
-				Instance.Input("R", 0),
-				Instance.Input("S", 0),
+				i_CE=1,
+				i_D0=dqs_t_d0,
+				i_D1=dqs_t_d1,
+				i_R=0,
+				i_S=0,
 
-				Instance.Output("Q", dqs_t[i])
+				o_Q=dqs_t[i]
 			)
 
 			# DQS tristate buffer
 			if hasattr(pads, "dqs_n"):
 				self.specials += Instance("OBUFTDS",
-					Instance.Input("I", dqs_o[i]),
-					Instance.Input("T", dqs_t[i]),
+					i_I=dqs_o[i],
+					i_T=dqs_t[i],
 
-					Instance.Output("O", pads.dqs[i]),
-					Instance.Output("OB", pads.dqs_n[i]),
+					o_O=pads.dqs[i],
+					o_OB=pads.dqs_n[i],
 				)
 			else:
 				self.specials += Instance("OBUFT",
-					Instance.Input("I", dqs_o[i]),
-					Instance.Input("T", dqs_t[i]),
+					i_I=dqs_o[i],
+					i_T=dqs_t[i],
 
-					Instance.Output("O", pads.dqs[i])
+					o_O=pads.dqs[i]
 				)
 
 		sd_sdram_half += postamble.eq(drive_dqs)
@@ -234,68 +234,68 @@ class S6DDRPHY(Module):
 		for i in range(d):
 			# Data serializer
 			self.specials += Instance("OSERDES2",
-				Instance.Parameter("DATA_WIDTH", 4),
-				Instance.Parameter("DATA_RATE_OQ", "SDR"),
-				Instance.Parameter("DATA_RATE_OT", "SDR"),
-				Instance.Parameter("SERDES_MODE", "NONE"),
-				Instance.Parameter("OUTPUT_MODE", "SINGLE_ENDED"),
+				p_DATA_WIDTH=4,
+				p_DATA_RATE_OQ="SDR",
+				p_DATA_RATE_OT="SDR",
+				p_SERDES_MODE="NONE",
+				p_OUTPUT_MODE="SINGLE_ENDED",
 
-				Instance.Output("OQ", dq_o[i]),
-				Instance.Input("OCE", 1),
-				Instance.Input("CLK0", sdram_full_wr_clk),
-				Instance.Input("CLK1", 0),
-				Instance.Input("IOCE", self.clk4x_wr_strb),
-				Instance.Input("RST", 0),
-				Instance.Input("CLKDIV", sys_clk),
+				o_OQ=dq_o[i],
+				i_OCE=1,
+				i_CLK0=sdram_full_wr_clk,
+				i_CLK1=0,
+				i_IOCE=self.clk4x_wr_strb,
+				i_RST=0,
+				i_CLKDIV=sys_clk,
 
-				Instance.Input("D1", dq_wrdata[wr_bitslip+3][i]),
-				Instance.Input("D2", dq_wrdata[wr_bitslip+2][i]),
-				Instance.Input("D3", dq_wrdata[wr_bitslip+1][i]),
-				Instance.Input("D4", dq_wrdata[wr_bitslip+0][i]),
+				i_D1=dq_wrdata[wr_bitslip+3][i],
+				i_D2=dq_wrdata[wr_bitslip+2][i],
+				i_D3=dq_wrdata[wr_bitslip+1][i],
+				i_D4=dq_wrdata[wr_bitslip+0][i],
 
-				Instance.Output("TQ", dq_t[i]),
-				Instance.Input("T1", drive_dq_n[(wr_bitslip+3)//4]),
-				Instance.Input("T2", drive_dq_n[(wr_bitslip+2)//4]),
-				Instance.Input("T3", drive_dq_n[(wr_bitslip+1)//4]),
-				Instance.Input("T4", drive_dq_n[(wr_bitslip+0)//4]),
-				Instance.Input("TRAIN", 0),
-				Instance.Input("TCE", 1),
-				Instance.Input("SHIFTIN1", 0),
-				Instance.Input("SHIFTIN2", 0),
-				Instance.Input("SHIFTIN3", 0),
-				Instance.Input("SHIFTIN4", 0),
+				o_TQ=dq_t[i],
+				i_T1=drive_dq_n[(wr_bitslip+3)//4],
+				i_T2=drive_dq_n[(wr_bitslip+2)//4],
+				i_T3=drive_dq_n[(wr_bitslip+1)//4],
+				i_T4=drive_dq_n[(wr_bitslip+0)//4],
+				i_TRAIN=0,
+				i_TCE=1,
+				i_SHIFTIN1=0,
+				i_SHIFTIN2=0,
+				i_SHIFTIN3=0,
+				i_SHIFTIN4=0,
 			)
 
 			# Data deserializer
 			self.specials += Instance("ISERDES2",
-				Instance.Parameter("DATA_WIDTH", 4),
-				Instance.Parameter("DATA_RATE", "SDR"),
-				Instance.Parameter("BITSLIP_ENABLE", "TRUE"),
-				Instance.Parameter("SERDES_MODE", "NONE"),
-				Instance.Parameter("INTERFACE_TYPE", "RETIMED"),
+				p_DATA_WIDTH=4,
+				p_DATA_RATE="SDR",
+				p_BITSLIP_ENABLE="TRUE",
+				p_SERDES_MODE="NONE",
+				p_INTERFACE_TYPE="RETIMED",
 
-				Instance.Input("D", dq_i[i]),
-				Instance.Input("CE0", 1),
-				Instance.Input("CLK0", sdram_full_rd_clk),
-				Instance.Input("CLK1", 0),
-				Instance.Input("IOCE", self.clk4x_rd_strb),
-				Instance.Input("RST", ResetSignal()),
-				Instance.Input("CLKDIV", sys_clk),
-				Instance.Input("BITSLIP", bitslip_inc),
+				i_D=dq_i[i],
+				i_CE0=1,
+				i_CLK0=sdram_full_rd_clk,
+				i_CLK1=0,
+				i_IOCE=self.clk4x_rd_strb,
+				i_RST=ResetSignal(),
+				i_CLKDIV=sys_clk,
+				i_BITSLIP=bitslip_inc,
 
-				Instance.Output("Q1", d_dfi[0*nphases+0].rddata[i+d]),
-				Instance.Output("Q2", d_dfi[0*nphases+0].rddata[i]),
-				Instance.Output("Q3", d_dfi[0*nphases+1].rddata[i+d]),
-				Instance.Output("Q4", d_dfi[0*nphases+1].rddata[i]),
+				o_Q1=d_dfi[0*nphases+0].rddata[i+d],
+				o_Q2=d_dfi[0*nphases+0].rddata[i],
+				o_Q3=d_dfi[0*nphases+1].rddata[i+d],
+				o_Q4=d_dfi[0*nphases+1].rddata[i],
 
 			)
 
 			# Data buffer
 			self.specials += Instance("IOBUF",
-				Instance.Input("I", dq_o[i]),
-				Instance.Output("O", dq_i[i]),
-				Instance.Input("T", dq_t[i]),
-				Instance.InOut("IO", pads.dq[i])
+				i_I=dq_o[i],
+				o_O=dq_i[i],
+				i_T=dq_t[i],
+				io_IO=pads.dq[i]
 			)
 
 		dq_wrdata_mask = []
@@ -307,31 +307,31 @@ class S6DDRPHY(Module):
 		for i in range(d//8):
 			# Mask serializer
 			self.specials += Instance("OSERDES2",
-				Instance.Parameter("DATA_WIDTH", 4),
-				Instance.Parameter("DATA_RATE_OQ", "SDR"),
-				Instance.Parameter("DATA_RATE_OT", "SDR"),
-				Instance.Parameter("SERDES_MODE", "NONE"),
-				Instance.Parameter("OUTPUT_MODE", "SINGLE_ENDED"),
+				p_DATA_WIDTH=4,
+				p_DATA_RATE_OQ="SDR",
+				p_DATA_RATE_OT="SDR",
+				p_SERDES_MODE="NONE",
+				p_OUTPUT_MODE="SINGLE_ENDED",
 
-				Instance.Output("OQ", pads.dm[i]),
-				Instance.Input("OCE", 1),
-				Instance.Input("CLK0", sdram_full_wr_clk),
-				Instance.Input("CLK1", 0),
-				Instance.Input("IOCE", self.clk4x_wr_strb),
-				Instance.Input("RST", 0),
-				Instance.Input("CLKDIV", sys_clk),
+				o_OQ=pads.dm[i],
+				i_OCE=1,
+				i_CLK0=sdram_full_wr_clk,
+				i_CLK1=0,
+				i_IOCE=self.clk4x_wr_strb,
+				i_RST=0,
+				i_CLKDIV=sys_clk,
 
-				Instance.Input("D1", dq_wrdata_mask[wr_bitslip+3][i]),
-				Instance.Input("D2", dq_wrdata_mask[wr_bitslip+2][i]),
-				Instance.Input("D3", dq_wrdata_mask[wr_bitslip+1][i]),
-				Instance.Input("D4", dq_wrdata_mask[wr_bitslip+0][i]),
+				i_D1=dq_wrdata_mask[wr_bitslip+3][i],
+				i_D2=dq_wrdata_mask[wr_bitslip+2][i],
+				i_D3=dq_wrdata_mask[wr_bitslip+1][i],
+				i_D4=dq_wrdata_mask[wr_bitslip+0][i],
 
-				Instance.Input("TRAIN", 0),
-				Instance.Input("TCE", 0),
-				Instance.Input("SHIFTIN1", 0),
-				Instance.Input("SHIFTIN2", 0),
-				Instance.Input("SHIFTIN3", 0),
-				Instance.Input("SHIFTIN4", 0),
+				i_TRAIN=0,
+				i_TCE=0,
+				i_SHIFTIN1=0,
+				i_SHIFTIN2=0,
+				i_SHIFTIN3=0,
+				i_SHIFTIN4=0,
 			)
 
 		#
