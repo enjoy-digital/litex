@@ -2,6 +2,10 @@ from migen.bank.description import CSRStatus
 
 def _get_rw_functions(reg_name, reg_base, size, read_only):
 	r = ""
+
+	r += "#define CSR_"+reg_name.upper()+"_ADDR "+hex(reg_base)+"\n"
+	r += "#define CSR_"+reg_name.upper()+"_SIZE "+str(size)+"\n"
+
 	if size > 8:
 		raise NotImplementedError("Register too large")
 	elif size > 4:
