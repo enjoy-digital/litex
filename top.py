@@ -11,8 +11,6 @@ from mibuild.generic_platform import ConstraintError
 from misoclib import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
 	identifier, timer, minimac3, framebuffer, dvisampler, gpio, memtest
 
-version = "2.0"
-
 clk_freq = (83 + Fraction(1, 3))*1000000
 sram_size = 4096 # in bytes
 l2_size = 8192 # in bytes
@@ -156,7 +154,7 @@ class SoC(Module):
 		#
 		self.submodules.crg = mxcrg.MXCRG(MXClockPads(platform), clk_freq)
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
-		self.submodules.identifier = identifier.Identifier(0x4D31, version, int(clk_freq))
+		self.submodules.identifier = identifier.Identifier(0x4D31, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
 		if platform_name == "mixxeo":
 			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))

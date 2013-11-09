@@ -6,7 +6,6 @@
 #include <system.h>
 #include <id.h>
 #include <irq.h>
-#include <version.h>
 #include <crc.h>
 
 #include <hw/csr.h>
@@ -319,7 +318,7 @@ static void help(void)
 	puts("netboot    - boot via TFTP");
 	puts("serialboot - boot via SFL");
 	puts("flashboot  - boot from flash");
-	puts("version    - display version");
+	puts("revision   - display revision");
 }
 
 static char *get_token(char **str)
@@ -353,7 +352,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "serialboot") == 0) serialboot();
 	else if(strcmp(token, "netboot") == 0) netboot();
 	
-	else if(strcmp(token, "version") == 0) puts(VERSION);
+	else if(strcmp(token, "revision") == 0) printf("%08x\n", GIT_ID);
 
 	else if(strcmp(token, "help") == 0) help();
 
@@ -400,14 +399,6 @@ static void crcbios(void)
 		printf("The system will continue, but expect problems.\n");
 	}
 }
-
-static const char banner[] =
-	"\nMiSoC(tm) v"VERSION" BIOS   http://www.milkymist.org\n"
-	"(c) Copyright 2007-2013 Sebastien Bourdeauducq\n"
-	"Built "__DATE__" "__TIME__"\n\n"
-	"This program is free software: you can redistribute it and/or modify\n"
-	"it under the terms of the GNU General Public License as published by\n"
-	"the Free Software Foundation, version 3 of the License.";
 
 static void readstr(char *s, int size)
 {
@@ -494,7 +485,9 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
-	puts(banner);
+	puts("\nMiSoC BIOS   http://www.milkymist.org\n"
+	"(c) Copyright 2007-2013 Sebastien Bourdeauducq");
+	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
 	crcbios();
 	id_print();
 	ethreset();

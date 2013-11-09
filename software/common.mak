@@ -18,6 +18,8 @@ LD_quiet = @echo " LD " $@ && $(TARGET_PREFIX)ld
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(TARGET_PREFIX)objcopy
 RANLIB_quiet = @echo " RANLIB  " $@ && $(TARGET_PREFIX)ranlib
 
+GIT_ID:=$(shell echo -e "from misoclib.identifier.git import get_id\nprint(hex(get_id()), end='')" | python)
+
 ifeq ($(V),1)
 	CC = $(CC_normal)
 	CX = $(CX_normal)
@@ -40,7 +42,7 @@ endif
 #
 INCLUDES = -I$(MSCDIR)/software/include/base -I$(MSCDIR)/software/include -I$(MSCDIR)/common
 COMMONFLAGS = -O3 -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled \
-	-Wall -fno-builtin -nostdinc $(INCLUDES)
+	-Wall -fno-builtin -nostdinc -DGIT_ID=$(GIT_ID) $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -fno-exceptions -ffreestanding
 LDFLAGS = -nostdlib -nodefaultlibs
