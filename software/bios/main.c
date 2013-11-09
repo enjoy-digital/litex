@@ -307,7 +307,7 @@ static void dfs(char *baseaddr)
 
 static void help(void)
 {
-	puts("Milkymist(tm) BIOS");
+	puts("MiSoC BIOS");
 	puts("Don't know what to do? Try 'flashboot'.\n");
 	puts("Available commands:");
 	puts("mr         - read address space");
@@ -402,7 +402,7 @@ static void crcbios(void)
 }
 
 static const char banner[] =
-	"\nMILKYMIST(tm) v"VERSION" BIOS   http://www.milkymist.org\n"
+	"\nMiSoC(tm) v"VERSION" BIOS   http://www.milkymist.org\n"
 	"(c) Copyright 2007-2013 Sebastien Bourdeauducq\n"
 	"Built "__DATE__" "__TIME__"\n\n"
 	"This program is free software: you can redistribute it and/or modify\n"

@@ -1,5 +1,5 @@
-M2DIR=../..
-include $(M2DIR)/software/common.mak
+MSCDIR=../..
+include $(MSCDIR)/software/common.mak
 
 CFLAGS+=-D_YUGA_LITTLE_ENDIAN=0 -D_YUGA_BIG_ENDIAN=1 -Wno-missing-prototypes
 

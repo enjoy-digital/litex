@@ -4,8 +4,8 @@ import argparse, os, importlib, subprocess
 
 from mibuild.tools import write_to_file
 
-from milkymist import cpuif
-from milkymist.s6ddrphy import initsequence
+from misoclib import cpuif
+from misoclib.s6ddrphy import initsequence
 import top, jtag
 
 def build(platform_name, build_bitstream, build_header, csr_csv_filename, *soc_args, **soc_kwargs):
@@ -57,7 +57,7 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 		write_to_file(csr_csv_filename, csr_csv)
 
 def main():
-	parser = argparse.ArgumentParser(description="milkymist-ng - a high performance SoC built on Migen technology.")
+	parser = argparse.ArgumentParser(description="MiSoC - a high performance SoC based on Migen.")
 	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-B", "--no-bitstream", default=False, action="store_true", help="do not build bitstream file")
 	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header files with CSR/IRQ/SDRAM_PHY defs")

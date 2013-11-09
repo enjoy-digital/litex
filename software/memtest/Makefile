@@ -1,5 +1,5 @@
-M2DIR=../..
-include $(M2DIR)/software/common.mak
+MSCDIR=../..
+include $(MSCDIR)/software/common.mak
 
 OBJECTS=isr.o main.o
 
@@ -16,12 +16,12 @@ memtest.elf: $(OBJECTS) libs
 
 %.elf:
 	$(LD) $(LDFLAGS) \
-		-T $(M2DIR)/software/libbase/linker-sdram.ld \
+		-T $(MSCDIR)/software/libbase/linker-sdram.ld \
 		-N -o $@ \
-		$(M2DIR)/software/libbase/crt0.o \
+		$(MSCDIR)/software/libbase/crt0.o \
 		$(OBJECTS) \
-		-L$(M2DIR)/software/libbase \
-		-L$(M2DIR)/software/libcompiler-rt \
+		-L$(MSCDIR)/software/libbase \
+		-L$(MSCDIR)/software/libcompiler-rt \
 		-lbase -lcompiler-rt
 	chmod -x $@
 
@@ -35,12 +35,12 @@ main.o: main.c
 	$(assemble)
 
 libs:
-	$(MAKE) -C $(M2DIR)/software/libcompiler-rt
-	$(MAKE) -C $(M2DIR)/software/libbase
+	$(MAKE) -C $(MSCDIR)/software/libcompiler-rt
+	$(MAKE) -C $(MSCDIR)/software/libbase
 
 load: memtest.bin
-	$(MAKE) -C $(M2DIR)/tools
-	$(M2DIR)/tools/flterm --port /dev/ttyUSB0 --kernel memtest.bin
+	$(MAKE) -C $(MSCDIR)/tools
+	$(MSCDIR)/tools/flterm --port /dev/ttyUSB0 --kernel memtest.bin
 
 
 clean:

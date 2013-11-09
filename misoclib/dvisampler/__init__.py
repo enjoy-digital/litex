@@ -1,15 +1,15 @@
 from migen.fhdl.std import *
 from migen.bank.description import AutoCSR
 
-from milkymist.dvisampler.edid import EDID
-from milkymist.dvisampler.clocking import Clocking
-from milkymist.dvisampler.datacapture import DataCapture
-from milkymist.dvisampler.charsync import CharSync
-from milkymist.dvisampler.wer import WER
-from milkymist.dvisampler.decoding import Decoding
-from milkymist.dvisampler.chansync import ChanSync
-from milkymist.dvisampler.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
-from milkymist.dvisampler.dma import DMA
+from misoclib.dvisampler.edid import EDID
+from misoclib.dvisampler.clocking import Clocking
+from misoclib.dvisampler.datacapture import DataCapture
+from misoclib.dvisampler.charsync import CharSync
+from misoclib.dvisampler.wer import WER
+from misoclib.dvisampler.decoding import Decoding
+from misoclib.dvisampler.chansync import ChanSync
+from misoclib.dvisampler.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
+from misoclib.dvisampler.dma import DMA
 
 class DVISampler(Module, AutoCSR):
 	def __init__(self, pads, asmiport, n_dma_slots=2):

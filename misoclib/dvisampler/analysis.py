@@ -5,7 +5,7 @@ from migen.genlib.record import Record
 from migen.bank.description import *
 from migen.flow.actor import *
 
-from milkymist.dvisampler.common import channel_layout, frame_layout
+from misoclib.dvisampler.common import channel_layout, frame_layout
 
 class SyncPolarity(Module):
 	def __init__(self):

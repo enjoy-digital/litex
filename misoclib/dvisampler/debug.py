@@ -4,9 +4,9 @@ from migen.genlib.record import layout_len
 from migen.bank.description import AutoCSR
 from migen.actorlib import structuring, dma_lasmi, spi
 
-from milkymist.dvisampler.edid import EDID
-from milkymist.dvisampler.clocking import Clocking
-from milkymist.dvisampler.datacapture import DataCapture
+from misoclib.dvisampler.edid import EDID
+from misoclib.dvisampler.clocking import Clocking
+from misoclib.dvisampler.datacapture import DataCapture
 
 class RawDVISampler(Module, AutoCSR):
 	def __init__(self, pads, asmiport):

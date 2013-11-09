@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.record import Record
 
-from milkymist.dvisampler.common import control_tokens, channel_layout
+from misoclib.dvisampler.common import control_tokens, channel_layout
 
 class Decoding(Module):
 	def __init__(self):

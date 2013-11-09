@@ -3,7 +3,7 @@ from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import optree
 from migen.bank.description import *
 
-from milkymist.dvisampler.common import control_tokens
+from misoclib.dvisampler.common import control_tokens
 
 class CharSync(Module, AutoCSR):
 	def __init__(self, required_controls=8):

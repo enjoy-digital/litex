@@ -1,5 +1,5 @@
-M2DIR=../..
-include $(M2DIR)/software/common.mak
+MSCDIR=../..
+include $(MSCDIR)/software/common.mak
 
 OBJECTS=microudp.o tftp.o
 

@@ -3,9 +3,9 @@ from collections import namedtuple
 from migen.fhdl.std import *
 from migen.bus import dfi, lasmibus
 
-from milkymist.lasmicon.refresher import *
-from milkymist.lasmicon.bankmachine import *
-from milkymist.lasmicon.multiplexer import *
+from misoclib.lasmicon.refresher import *
+from misoclib.lasmicon.bankmachine import *
+from misoclib.lasmicon.multiplexer import *
 
 PhySettings = namedtuple("PhySettings", "memtype dfi_d nphases rdphase wrphase rdcmdphase wrcmdphase cl read_latency write_latency")
 

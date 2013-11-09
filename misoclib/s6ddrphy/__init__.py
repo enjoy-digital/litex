@@ -24,7 +24,7 @@ from migen.fhdl.std import *
 from migen.bus.dfi import *
 from migen.genlib.record import *
 
-from milkymist import lasmicon
+from misoclib import lasmicon
 
 class S6DDRPHY(Module):
 	def __init__(self, pads, memtype, nphases, cl, rd_bitslip, wr_bitslip, dqs_ddr_alignment):

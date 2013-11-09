@@ -4,8 +4,8 @@ from migen.flow.network import *
 from migen.bank.description import CSRStorage, AutoCSR
 from migen.actorlib import dma_lasmi, structuring, sim, spi
 
-from milkymist.framebuffer.format import bpp, pixel_layout, FrameInitiator, VTG
-from milkymist.framebuffer.phy import Driver
+from misoclib.framebuffer.format import bpp, pixel_layout, FrameInitiator, VTG
+from misoclib.framebuffer.phy import Driver
 
 class Framebuffer(Module, AutoCSR):
 	def __init__(self, pads_vga, pads_dvi, lasmim, simulation=False):

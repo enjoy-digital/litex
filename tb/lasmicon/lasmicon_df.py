@@ -3,7 +3,7 @@ from migen.bus import lasmibus
 from migen.actorlib import dma_lasmi
 from migen.sim.generic import Simulator, TopLevel, Proxy
 
-from milkymist.lasmicon import *
+from misoclib.lasmicon import *
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 

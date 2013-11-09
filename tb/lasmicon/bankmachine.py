@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.bus.lasmibus import *
 from migen.sim.generic import Simulator, TopLevel
 
-from milkymist.lasmicon.bankmachine import *
+from misoclib.lasmicon.bankmachine import *
 
 from common import sdram_geom, sdram_timing, CommandLogger
 

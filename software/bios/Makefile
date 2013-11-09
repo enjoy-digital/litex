@@ -1,5 +1,5 @@
-M2DIR=../..
-include $(M2DIR)/software/common.mak
+MSCDIR=../..
+include $(MSCDIR)/software/common.mak
 
 OBJECTS=isr.o sdram.o main.o boot-helper.o boot.o dataflow.o
 
@@ -9,20 +9,20 @@ all: bios.bin
 -include $(OBJECTS:.o=.d)
 
 %.bin: %.elf
-	$(MAKE) -C $(M2DIR)/tools
+	$(MAKE) -C $(MSCDIR)/tools
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
-	$(M2DIR)/tools/mkmmimg $@ write
+	$(MSCDIR)/tools/mkmscimg $@ write
 
 bios.elf: linker.ld $(OBJECTS) libs
 
 %.elf:
 	$(LD) $(LDFLAGS) -T $< -N -o $@ \
-		$(M2DIR)/software/libbase/crt0.o \
+		$(MSCDIR)/software/libbase/crt0.o \
 		$(OBJECTS) \
-		-L$(M2DIR)/software/libnet \
-		-L$(M2DIR)/software/libbase \
-		-L$(M2DIR)/software/libcompiler-rt \
+		-L$(MSCDIR)/software/libnet \
+		-L$(MSCDIR)/software/libbase \
+		-L$(MSCDIR)/software/libcompiler-rt \
 		-lnet -lbase-nofloat -lcompiler-rt
 	chmod -x $@
 
@@ -36,9 +36,9 @@ main.o: main.c
 	$(assemble)
 
 libs:
-	$(MAKE) -C $(M2DIR)/software/libcompiler-rt
-	$(MAKE) -C $(M2DIR)/software/libbase
-	$(MAKE) -C $(M2DIR)/software/libnet
+	$(MAKE) -C $(MSCDIR)/software/libcompiler-rt
+	$(MAKE) -C $(MSCDIR)/software/libbase
+	$(MAKE) -C $(MSCDIR)/software/libnet
 
 flash: bios.bin
 	m1nor-ng bios.bin

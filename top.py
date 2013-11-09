@@ -8,7 +8,7 @@ from migen.bus import wishbone2lasmi, wishbone2csr
 from migen.bank import csrgen
 from mibuild.generic_platform import ConstraintError
 
-from milkymist import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
+from misoclib import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
 	identifier, timer, minimac3, framebuffer, dvisampler, gpio, memtest
 
 version = "2.0"

@@ -1,5 +1,5 @@
-M2DIR=../..
-include $(M2DIR)/software/common.mak
+MSCDIR=../..
+include $(MSCDIR)/software/common.mak
 
 OBJECTS=isr.o fb.o dvisampler0.o dvisampler1.o main.o
 
@@ -13,18 +13,18 @@ all: videomixer.bin videomixer.fbi
 	chmod -x $@
 
 %.fbi: %.bin
-	$(M2DIR)/tools/mkmmimg $< write $@
+	$(MSCDIR)/tools/mkmscimg $< write $@
 
 videomixer.elf: $(OBJECTS) libs
 
 %.elf:
 	$(LD) $(LDFLAGS) \
-		-T $(M2DIR)/software/libbase/linker-sdram.ld \
+		-T $(MSCDIR)/software/libbase/linker-sdram.ld \
 		-N -o $@ \
-		$(M2DIR)/software/libbase/crt0.o \
+		$(MSCDIR)/software/libbase/crt0.o \
 		$(OBJECTS) \
-		-L$(M2DIR)/software/libbase \
-		-L$(M2DIR)/software/libcompiler-rt \
+		-L$(MSCDIR)/software/libbase \
+		-L$(MSCDIR)/software/libcompiler-rt \
 		-lbase -lcompiler-rt
 	chmod -x $@
 
@@ -62,12 +62,12 @@ dvisampler0.o: dvisampler0.h
 dvisampler1.o: dvisampler1.h
 
 libs:
-	$(MAKE) -C $(M2DIR)/software/libcompiler-rt
-	$(MAKE) -C $(M2DIR)/software/libbase
+	$(MAKE) -C $(MSCDIR)/software/libcompiler-rt
+	$(MAKE) -C $(MSCDIR)/software/libbase
 
 load: videomixer.bin
-	$(MAKE) -C $(M2DIR)/tools
-	$(M2DIR)/tools/flterm --port /dev/ttyUSB0 --kernel videomixer.bin
+	$(MAKE) -C $(MSCDIR)/tools
+	$(MSCDIR)/tools/flterm --port /dev/ttyUSB0 --kernel videomixer.bin
 
 flash: videomixer.fbi
 	m1nor-ng videomixer.fbi

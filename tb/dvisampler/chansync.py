@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.sim.generic import *
 
-from milkymist.dvisampler.chansync import ChanSync
+from misoclib.dvisampler.chansync import ChanSync
 
 class TB(Module):
 	def __init__(self, test_seq_it):

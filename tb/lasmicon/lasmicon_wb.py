@@ -3,7 +3,7 @@ from migen.bus import wishbone, wishbone2lasmi, lasmibus
 from migen.bus.transactions import *
 from migen.sim.generic import Simulator, TopLevel
 
-from milkymist.lasmicon import *
+from misoclib.lasmicon import *
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 

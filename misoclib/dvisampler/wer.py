@@ -3,7 +3,7 @@ from migen.bank.description import *
 from migen.genlib.misc import optree
 from migen.genlib.cdc import PulseSynchronizer
 
-from milkymist.dvisampler.common import control_tokens
+from misoclib.dvisampler.common import control_tokens
 
 class WER(Module, AutoCSR):
 	def __init__(self, period_bits=24):

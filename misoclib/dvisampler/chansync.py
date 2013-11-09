@@ -5,7 +5,7 @@ from migen.genlib.record import Record, layout_len
 from migen.genlib.misc import optree
 from migen.bank.description import *
 
-from milkymist.dvisampler.common import channel_layout
+from misoclib.dvisampler.common import channel_layout
 
 class _SyncBuffer(Module):
 	def __init__(self, width, depth):

@@ -3,7 +3,7 @@ from random import Random
 from migen.fhdl.std import *
 from migen.sim.generic import Simulator, TopLevel
 
-from milkymist.lasmicon.refresher import *
+from misoclib.lasmicon.refresher import *
 
 from common import CommandLogger
 

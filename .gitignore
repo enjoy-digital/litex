@@ -6,9 +6,8 @@ build/*
 *.elf
 *.bin
 *.fbi
-tools/bin2hex
 tools/flterm
-tools/mkmmimg
+tools/mkmscimg
 tools/byteswap
 software/include/hw/csr.h
 software/include/hw/sdram_phy.h

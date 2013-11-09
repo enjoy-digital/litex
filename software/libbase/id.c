@@ -43,5 +43,5 @@ void id_print(void)
 
 	get_soc_version_formatted(soc_version);
 	get_sysid_formatted(sysid);
-	printf("Running on Milkymist-ng SoC %s (sysid:%s) at %dMHz\n", soc_version, sysid, identifier_frequency_read()/1000000);
+	printf("Running on MiSoC %s (sysid:%s) at %dMHz\n", soc_version, sysid, identifier_frequency_read()/1000000);
 }

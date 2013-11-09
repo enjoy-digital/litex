@@ -4,7 +4,7 @@ from math import ceil
 from migen.fhdl.std import *
 from migen.sim.generic import Proxy
 
-from milkymist import lasmicon
+from misoclib import lasmicon
 
 MHz = 1000000
 clk_freq = (83 + Fraction(1, 3))*MHz

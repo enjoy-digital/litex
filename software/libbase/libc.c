@@ -1,5 +1,5 @@
 /*
- * Milkymist SoC (Software)
+ * MiSoC
  * Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq
  * Copyright (C) Linus Torvalds and Linux kernel developers
  *
