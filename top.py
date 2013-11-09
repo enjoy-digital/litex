@@ -1,6 +1,7 @@
 from fractions import Fraction
 from math import ceil
 from operator import itemgetter
+from collections import defaultdict
 
 from migen.fhdl.std import *
 from migen.bus import wishbone, csr, lasmibus, dfi
@@ -77,7 +78,6 @@ class SoC(Module):
 		"memtest_w":			15,
 		"memtest_r":			16
 	}
-
 	interrupt_map = {
 		"uart":			0,
 		"timer0":		1,
@@ -85,6 +85,10 @@ class SoC(Module):
 		"dvisampler0":	3,
 		"dvisampler1":	4,
 	}
+	known_platform_id = defaultdict(lambda: 0x554E, {
+		"mixxeo":	0x4D58,
+		"m1":		0x4D31
+	})
 
 	def __init__(self, platform, platform_name, with_memtest):
 		#
@@ -154,7 +158,7 @@ class SoC(Module):
 		#
 		self.submodules.crg = mxcrg.MXCRG(MXClockPads(platform), clk_freq)
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
-		self.submodules.identifier = identifier.Identifier(0x4D31, int(clk_freq))
+		self.submodules.identifier = identifier.Identifier(self.known_platform_id[platform_name], int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
 		if platform_name == "mixxeo":
 			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
