@@ -107,11 +107,11 @@ The first two techniques are explained with more details in [drreorder]_.
 
 .. [drreorder] http://www.xilinx.com/txpatches/pub/documentation/misc/improving%20ddr%20sdram%20efficiency.pdf
 
-Migen and milkymist-ng implement their own bus, called LASMIbus, that features the last two techniques. Grouping by row had been previously explored with ASMI, but difficulties in achieving timing closure at reasonable latencies in FPGA combined with uncertain performance pay-off for some applications discouraged work in that direction.
+Migen and MiSoC implement their own bus, called LASMIbus, that features the last two techniques. Grouping by row had been previously explored with ASMI, but difficulties in achieving timing closure at reasonable latencies in FPGA combined with uncertain performance pay-off for some applications discouraged work in that direction.
 
 Topology and transactions
 =========================
-The LASMI consists of one or several memory controllers (e.g. LASMIcon from milkymist-ng), multiple masters, and crossbar interconnect.
+The LASMI consists of one or several memory controllers (e.g. LASMIcon from MiSoC), multiple masters, and crossbar interconnect.
 
 Each memory controller can expose several bank machines to the crossbar. This way, requests to different SDRAM banks can be processed in parallel.
 

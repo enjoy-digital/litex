@@ -25,14 +25,12 @@ more traditional high-level synthesizer that compiles Python routines into
 state machines with datapaths, and a simulator that allows test benches to be
 written in Python.
 
-Migen is the foundation of the next-generation Milkymist SoC.
-
 See the doc/ folder for more technical information.
 
 Code repository:
 https://github.com/milkymist/migen
-New Milkymist SoC based on Migen:
-https://github.com/milkymist/milkymist-ng
+System-on-chip design based on Migen:
+https://github.com/milkymist/misoc
 
 Migen is designed for Python 3.3.
 
