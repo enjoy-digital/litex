@@ -18,7 +18,7 @@ LD_quiet = @echo " LD " $@ && $(TARGET_PREFIX)ld
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(TARGET_PREFIX)objcopy
 RANLIB_quiet = @echo " RANLIB  " $@ && $(TARGET_PREFIX)ranlib
 
-GIT_ID:=$(shell echo -e "from misoclib.identifier.git import get_id\nprint(hex(get_id()), end='')" | python)
+GIT_ID:=$(shell echo -e "from misoclib.identifier.git import get_id\nprint(hex(get_id()), end='')" | python3)
 
 ifeq ($(V),1)
 	CC = $(CC_normal)
