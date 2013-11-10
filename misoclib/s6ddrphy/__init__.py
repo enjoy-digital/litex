@@ -56,9 +56,9 @@ class S6DDRPHY(Module):
 		###
 
 		# sys_clk           : system clk, used for dfi interface
-		# sdram_half_clk    : half rate sdram clk 
+		# sdram_half_clk    : half rate sdram clk
 		# sdram_full_wr_clk : full rate sdram write clk
-		# sdram_full_rd_clk : full rate sdram write clk
+		# sdram_full_rd_clk : full rate sdram read clk
 		sd_sys = getattr(self.sync, "sys")
 		sd_sdram_half = getattr(self.sync, "sdram_half")
 
@@ -80,8 +80,11 @@ class S6DDRPHY(Module):
 		sys_clk_d = Signal()
 
 		sd_sdram_half += [
-			If(sys_clk & ~sys_clk_d, phase_sel.eq(0)
-			).Else(phase_sel.eq(phase_sel+1)),
+			If(sys_clk & ~sys_clk_d,
+				phase_sel.eq(0)
+			).Else(
+				phase_sel.eq(phase_sel+1)
+			),
 			sys_clk_d.eq(sys_clk)
 		]
 
@@ -287,7 +290,6 @@ class S6DDRPHY(Module):
 				o_Q2=d_dfi[0*nphases+0].rddata[i],
 				o_Q3=d_dfi[0*nphases+1].rddata[i+d],
 				o_Q4=d_dfi[0*nphases+1].rddata[i],
-
 			)
 
 			# Data buffer
