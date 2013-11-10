@@ -41,7 +41,7 @@ endif
 # Toolchain options
 #
 INCLUDES = -I$(MSCDIR)/software/include/base -I$(MSCDIR)/software/include -I$(MSCDIR)/common
-COMMONFLAGS = -O3 -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled \
+COMMONFLAGS = -Os -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled \
 	-Wall -fno-builtin -nostdinc -DGIT_ID=$(GIT_ID) $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -fno-exceptions -ffreestanding
