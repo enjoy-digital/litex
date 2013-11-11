@@ -232,8 +232,8 @@ void generate_edid(void *out,
 	e->cc_wx_h = 0;
 	e->cc_wy_h = 0;
 
-	e->est_timings_1 = 0;
-	e->est_timings_2 = 0;
+	e->est_timings_1 = timing->established_timing >> 8;
+	e->est_timings_2 = timing->established_timing & 0xff;
 	e->rsv_timings = 0;
 	memset(e->timings_std, 0x01, 16);
 

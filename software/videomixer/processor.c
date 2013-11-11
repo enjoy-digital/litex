@@ -20,7 +20,9 @@ static const struct video_timing video_modes[PROCESSOR_MODE_COUNT] = {
 		.v_active = 768,
 		.v_blanking = 38,
 		.v_sync_offset = 3,
-		.v_sync_width = 6
+		.v_sync_width = 6,
+
+		.established_timing = 0x0008
 	}, {
 		.pixel_clock = 7425,
 
