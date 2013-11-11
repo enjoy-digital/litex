@@ -9,6 +9,8 @@
 
 #include "dvisamplerX.h"
 
+int dvisamplerX_debug;
+
 #define FRAMEBUFFER_COUNT 4
 #define FRAMEBUFFER_MASK (FRAMEBUFFER_COUNT - 1)
 
@@ -39,11 +41,15 @@ void dvisamplerX_isr(void)
 		fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[fb_index]);
 }
 
+static int dvisamplerX_connected;
+static int dvisamplerX_locked;
+
 void dvisamplerX_init_video(int hres, int vres)
 {
 	unsigned int mask;
 
 	dvisamplerX_clocking_pll_reset_write(1);
+	dvisamplerX_connected = dvisamplerX_locked = 0;
 
 	dvisamplerX_dma_ev_pending_write(dvisamplerX_dma_ev_pending_read());
 	dvisamplerX_dma_ev_enable_write(0x3);
@@ -96,7 +102,7 @@ static int wait_idelays(void)
 	  || dvisamplerX_data1_cap_dly_busy_read()
 	  || dvisamplerX_data2_cap_dly_busy_read()) {
 		if(elapsed(&ev, identifier_frequency_read() >> 6) == 0) {
-			printf("IDELAY busy timeout\n");
+			printf("dvisamplerX: IDELAY busy timeout\n");
 			return 0;
 		}
 	}
@@ -201,10 +207,12 @@ int dvisamplerX_phase_startup(void)
 	while(1) {
 		attempts++;
 		dvisamplerX_calibrate_delays();
-		printf("dvisamplerX: delays calibrated\n");
+		if(dvisamplerX_debug)
+			printf("dvisamplerX: delays calibrated\n");
 		ret = dvisamplerX_init_phase();
 		if(ret) {
-			printf("dvisamplerX: phase init OK\n");
+			if(dvisamplerX_debug)
+				printf("dvisamplerX: phase init OK\n");
 			return 1;
 		} else {
 			printf("dvisamplerX: phase init failed\n");
@@ -225,15 +233,14 @@ static void dvisamplerX_check_overflow(void)
 	}
 }
 
-static int dvisamplerX_connected;
-static int dvisamplerX_locked;
 static int dvisamplerX_last_event;
 
 void dvisamplerX_service(void)
 {
 	if(dvisamplerX_connected) {
 		if(!dvisamplerX_edid_hpd_notif_read()) {
-			printf("dvisamplerX: disconnected\n");
+			if(dvisamplerX_debug)
+				printf("dvisamplerX: disconnected\n");
 			dvisamplerX_connected = 0;
 			dvisamplerX_locked = 0;
 			dvisamplerX_clocking_pll_reset_write(1);
@@ -242,24 +249,29 @@ void dvisamplerX_service(void)
 				if(dvisamplerX_clocking_locked_read()) {
 					if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/2)) {
 						dvisamplerX_adjust_phase();
-						dvisamplerX_print_status();
+						if(dvisamplerX_debug)
+							dvisamplerX_print_status();
 					}
 				} else {
-					printf("dvisamplerX: lost PLL lock\n");
+					if(dvisamplerX_debug)
+						printf("dvisamplerX: lost PLL lock\n");
 					dvisamplerX_locked = 0;
 				}
 			} else {
 				if(dvisamplerX_clocking_locked_read()) {
-					printf("dvisamplerX: PLL locked\n");
+					if(dvisamplerX_debug)
+						printf("dvisamplerX: PLL locked\n");
 					dvisamplerX_phase_startup();
-					dvisamplerX_print_status();
+					if(dvisamplerX_debug)
+						dvisamplerX_print_status();
 					dvisamplerX_locked = 1;
 				}
 			}
 		}
 	} else {
 		if(dvisamplerX_edid_hpd_notif_read()) {
-			printf("dvisamplerX: connected\n");
+			if(dvisamplerX_debug)
+				printf("dvisamplerX: connected\n");
 			dvisamplerX_connected = 1;
 			dvisamplerX_clocking_pll_reset_write(0);
 		}
