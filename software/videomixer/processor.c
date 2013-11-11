@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <hw/csr.h>
 #include <hw/flags.h>
@@ -62,11 +63,31 @@ static void fb_clkgen_write(int cmd, int data)
 	while(fb_driver_clocking_status_read() & CLKGEN_STATUS_BUSY);
 }
 
-static void fb_get_clock_md(unsigned int pixel_clock, unsigned int *m, unsigned int *d)
+static void fb_get_clock_md(unsigned int pixel_clock, unsigned int *best_m, unsigned int *best_d)
 {
-	// TODO
-	*m = 13;
-	*d = 10;
+	unsigned int ideal_m, ideal_d;
+	unsigned int bm, bd;
+	unsigned int m, d;
+	unsigned int diff_current;
+	unsigned int diff_tested;
+
+	ideal_m = pixel_clock;
+	ideal_d = 5000;
+
+	bm = 1;
+	bd = 0;
+	for(d=1;d<=256;d++)
+		for(m=2;m<=256;m++) {
+			/* common denominator is d*bd*ideal_d */
+			diff_current = abs(d*ideal_d*bm - d*bd*ideal_m);
+			diff_tested = abs(bd*ideal_d*m - d*bd*ideal_m);
+			if(diff_tested < diff_current) {
+				bm = m;
+				bd = d;
+			}
+		}
+	*best_m = bm;
+	*best_d = bd;
 }
 
 static void fb_set_mode(const struct video_timing *mode)
