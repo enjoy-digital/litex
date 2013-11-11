@@ -54,6 +54,10 @@ def get_csr_header(csr_base, bank_array, interrupt_map):
 			pass
 		else:
 			r += "#define "+name.upper()+"_INTERRUPT "+str(interrupt_nr)+"\n"
+	for name, memory, mapaddr, mmap in bank_array.srams:
+		mem_base = csr_base + 0x800*mapaddr
+		fullname = name + "_" + memory.name_override
+		r += "#define "+fullname.upper()+"_BASE "+hex(mem_base)+"\n"
 	r += "\n#endif\n"
 	return r
 
