@@ -193,7 +193,7 @@ static void generate_unused(uint8_t *data_block)
 }
 
 void generate_edid(void *out,
-	const char mfg_name[3], uint8_t product_code[2], int year,
+	const char mfg_name[3], const char product_code[2], int year,
 	const char *name,
 	const struct video_timing *timing)
 {

@@ -8,9 +8,7 @@
 #include <hw/flags.h>
 #include <console.h>
 
-#include "fb.h"
-#include "dvisampler0.h"
-#include "dvisampler1.h"
+#include "processor.h"
 
 #ifdef POTS_BASE
 static int scale_pot(int raw, int range)
@@ -92,10 +90,10 @@ static void fb_service(void)
 	if(readchar_nonblock()) {
 		c = readchar();
 		if(c == '1') {
-			fb_enable(1);
+			fb_enable_write(1);
 			printf("Framebuffer is ON\n");
 		} else if(c == '0') {
-			fb_enable(0);
+			fb_enable_write(0);
 			printf("Framebuffer is OFF\n");
 		}
 	}
@@ -119,23 +117,30 @@ static void membw_service(void)
 	}
 }
 
+static void list_video_modes(void)
+{
+	char mode_descriptors[PROCESSOR_MODE_COUNT*PROCESSOR_MODE_DESCLEN];
+	int i;
+
+	processor_list_modes(mode_descriptors);
+	for(i=0;i<PROCESSOR_MODE_COUNT;i++)
+		printf("%d: %s\n", i, &mode_descriptors[i*PROCESSOR_MODE_DESCLEN]);
+}
+
 int main(void)
 {
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
 	
-	puts("Minimal video mixer software built "__DATE__" "__TIME__"\n");
+	printf("Mixxeo software rev. %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
 	
 	time_init();
-	fb_set_mode(FB_MODE_1024_768);
-	dvisampler0_init_video();
-	dvisampler1_init_video();
-	fb_enable(1);
+	list_video_modes();
+	processor_start(0);
 
 	while(1) {
-		dvisampler0_service();
-		dvisampler1_service();
+		processor_service();
 		ui_service();
 		fb_service();
 		membw_service();

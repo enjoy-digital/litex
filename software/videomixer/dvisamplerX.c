@@ -7,13 +7,12 @@
 #include <hw/csr.h>
 #include <hw/flags.h>
 
-#include "fb.h"
 #include "dvisamplerX.h"
 
 #define FRAMEBUFFER_COUNT 4
 #define FRAMEBUFFER_MASK (FRAMEBUFFER_COUNT - 1)
 
-static unsigned int dvisamplerX_framebuffers[FRAMEBUFFER_COUNT][1024*768] __attribute__((aligned(16)));
+static unsigned int dvisamplerX_framebuffers[FRAMEBUFFER_COUNT][1280*720] __attribute__((aligned(16)));
 static int dvisamplerX_fb_slot_indexes[2];
 static int dvisamplerX_next_fb_index;
 
@@ -40,7 +39,7 @@ void dvisamplerX_isr(void)
 		fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[fb_index]);
 }
 
-void dvisamplerX_init_video(void)
+void dvisamplerX_init_video(int hres, int vres)
 {
 	unsigned int mask;
 
@@ -52,7 +51,7 @@ void dvisamplerX_init_video(void)
 	mask |= 1 << DVISAMPLERX_INTERRUPT;
 	irq_setmask(mask);
 
-	dvisamplerX_dma_frame_size_write(fb_hres*fb_vres*4);
+	dvisamplerX_dma_frame_size_write(hres*vres*4);
 	dvisamplerX_fb_slot_indexes[0] = 0;
 	dvisamplerX_dma_slot0_address_write((unsigned int)dvisamplerX_framebuffers[0]);
 	dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
@@ -238,7 +237,6 @@ void dvisamplerX_service(void)
 			dvisamplerX_connected = 0;
 			dvisamplerX_locked = 0;
 			dvisamplerX_clocking_pll_reset_write(1);
-			dvisamplerX_edid_hpd_en_write(0);
 		} else {
 			if(dvisamplerX_locked) {
 				if(dvisamplerX_clocking_locked_read()) {
@@ -263,7 +261,6 @@ void dvisamplerX_service(void)
 		if(dvisamplerX_edid_hpd_notif_read()) {
 			printf("dvisamplerX: connected\n");
 			dvisamplerX_connected = 1;
-			dvisamplerX_edid_hpd_en_write(1);
 			dvisamplerX_clocking_pll_reset_write(0);
 		}
 	}

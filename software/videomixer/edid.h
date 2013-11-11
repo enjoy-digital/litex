@@ -20,7 +20,7 @@ struct video_timing {
 int validate_edid(const void *buf);
 void get_monitor_name(const void *buf, char *name);
 void generate_edid(void *out,
-	const char mfg_name[3], uint8_t product_code[2], int year,
+	const char mfg_name[3], const char product_code[2], int year,
 	const char *name,
 	const struct video_timing *timing);
 
