@@ -262,8 +262,8 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 		&& (cached_mac[3] == 0) && (cached_mac[4] == 0) && (cached_mac[5] == 0))
 		return 0;
 
-	txlen = length + sizeof(struct ethernet_header) + sizeof(struct udp_frame) + 8;
-	if(txlen < 72) txlen = 72;
+	txlen = length + sizeof(struct ethernet_header) + sizeof(struct udp_frame);
+	if(txlen < 68) txlen = 68;
 	
 	fill_eth_header(&txbuffer->frame.eth_header,
 		cached_mac,
