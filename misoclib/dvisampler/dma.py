@@ -12,11 +12,12 @@ class _Slot(Module, AutoCSR):
 	def __init__(self, addr_bits, alignment_bits):
 		self.ev_source = EventSourceLevel()
 		self.address = Signal(addr_bits)
+		self.address_reached = Signal(addr_bits)
 		self.address_valid = Signal()
 		self.address_done = Signal()
 
 		self._r_status = CSRStorage(2, write_from_dev=True)
-		self._r_address = CSRStorage(addr_bits + alignment_bits, alignment_bits=alignment_bits)
+		self._r_address = CSRStorage(addr_bits + alignment_bits, alignment_bits=alignment_bits, write_from_dev=True)
 
 		###
 
@@ -25,6 +26,8 @@ class _Slot(Module, AutoCSR):
 			self.address_valid.eq(self._r_status.storage[0]),
 			self._r_status.dat_w.eq(2),
 			self._r_status.we.eq(self.address_done),
+			self._r_address.dat_w.eq(self.address_reached),
+			self._r_address.we.eq(self.address_done),
 			self.ev_source.trigger.eq(self._r_status.storage[1])
 		]
 
@@ -32,6 +35,7 @@ class _SlotArray(Module, AutoCSR):
 	def __init__(self, nslots, addr_bits, alignment_bits):
 		self.submodules.ev = EventManager()
 		self.address = Signal(addr_bits)
+		self.address_reached = Signal(addr_bits)
 		self.address_valid = Signal()
 		self.address_done = Signal()
 
@@ -52,6 +56,7 @@ class _SlotArray(Module, AutoCSR):
 			self.address.eq(Array(slot.address for slot in slots)[current_slot]),
 			self.address_valid.eq(Array(slot.address_valid for slot in slots)[current_slot])
 		]
+		self.comb += [slot.address_reached.eq(self.address_reached) for slot in slots]
 		self.comb += [slot.address_done.eq(self.address_done & (current_slot == n)) for n, slot in enumerate(slots)]
 
 class DMA(Module):
@@ -79,7 +84,10 @@ class DMA(Module):
 		last_word = Signal()
 		current_address = Signal(bus_aw)
 		mwords_remaining = Signal(bus_aw)
-		self.comb += last_word.eq(mwords_remaining == 1)
+		self.comb += [
+			self._slot_array.address_reached.eq(current_address),
+			last_word.eq(mwords_remaining == 1)
+		]
 		self.sync += [
 			If(reset_words,
 				current_address.eq(self._slot_array.address),
