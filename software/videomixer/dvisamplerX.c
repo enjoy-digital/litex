@@ -233,10 +233,33 @@ static void dvisamplerX_check_overflow(void)
 	}
 }
 
-static int dvisamplerX_last_event;
+static int dvisamplerX_clocking_locked_filtered(void)
+{
+	static int lock_start_time;
+	static int lock_status;
+
+	if(dvisamplerX_clocking_locked_read()) {
+		switch(lock_status) {
+			case 0:
+				elapsed(&lock_start_time, -1);
+				lock_status = 1;
+				break;
+			case 1:
+				if(elapsed(&lock_start_time, identifier_frequency_read()/4))
+					lock_status = 2;
+				break;
+			case 2:
+				return 1;
+		}
+	} else
+		lock_status = 0;
+	return 0;
+}
 
 void dvisamplerX_service(void)
 {
+	static int last_event;
+
 	if(dvisamplerX_connected) {
 		if(!dvisamplerX_edid_hpd_notif_read()) {
 			if(dvisamplerX_debug)
@@ -246,8 +269,8 @@ void dvisamplerX_service(void)
 			dvisamplerX_clocking_pll_reset_write(1);
 		} else {
 			if(dvisamplerX_locked) {
-				if(dvisamplerX_clocking_locked_read()) {
-					if(elapsed(&dvisamplerX_last_event, identifier_frequency_read()/2)) {
+				if(dvisamplerX_clocking_locked_filtered()) {
+					if(elapsed(&last_event, identifier_frequency_read()/2)) {
 						dvisamplerX_adjust_phase();
 						if(dvisamplerX_debug)
 							dvisamplerX_print_status();
@@ -258,7 +281,7 @@ void dvisamplerX_service(void)
 					dvisamplerX_locked = 0;
 				}
 			} else {
-				if(dvisamplerX_clocking_locked_read()) {
+				if(dvisamplerX_clocking_locked_filtered()) {
 					if(dvisamplerX_debug)
 						printf("dvisamplerX: PLL locked\n");
 					dvisamplerX_phase_startup();
