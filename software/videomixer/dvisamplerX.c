@@ -17,24 +17,60 @@ int dvisamplerX_debug;
 static unsigned int dvisamplerX_framebuffers[FRAMEBUFFER_COUNT][1280*720] __attribute__((aligned(16)));
 static int dvisamplerX_fb_slot_indexes[2];
 static int dvisamplerX_next_fb_index;
+static int dvisamplerX_hres, dvisamplerX_vres;
 
 void dvisamplerX_isr(void)
 {
 	int fb_index = -1;
+	int length;
+	int expected_length;
+	unsigned int address_min, address_max;
 
+	if((dvisamplerX_resdetection_hres_read() != dvisamplerX_hres)
+	  || (dvisamplerX_resdetection_vres_read() != dvisamplerX_vres)) {
+		/* Dump frames until we get the expected resolution */
+		if(dvisamplerX_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING) {
+			dvisamplerX_dma_slot0_address_write((unsigned int)dvisamplerX_framebuffers[dvisamplerX_fb_slot_indexes[0]]);
+			dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
+		}
+		if(dvisamplerX_dma_slot1_status_read() == DVISAMPLER_SLOT_PENDING) {
+			dvisamplerX_dma_slot1_address_write((unsigned int)dvisamplerX_framebuffers[dvisamplerX_fb_slot_indexes[1]]);
+			dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
+		}
+		return;
+	}
+
+	address_min = (unsigned int)dvisamplerX_framebuffers & 0x0fffffff;
+	address_max = address_min + sizeof(dvisamplerX_framebuffers);
+	if((dvisamplerX_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING)
+		&& ((dvisamplerX_dma_slot0_address_read() < address_min) || (dvisamplerX_dma_slot0_address_read() >= address_max)))
+		printf("dvisamplerX: stray DMA on slot 0\n");
+	if((dvisamplerX_dma_slot1_status_read() == DVISAMPLER_SLOT_PENDING)
+		&& ((dvisamplerX_dma_slot1_address_read() < address_min) || (dvisamplerX_dma_slot1_address_read() >= address_max)))
+		printf("dvisamplerX: stray DMA on slot 1\n");
+
+	expected_length = dvisamplerX_hres*dvisamplerX_vres*4;
 	if(dvisamplerX_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING) {
-		fb_index = dvisamplerX_fb_slot_indexes[0];
-		dvisamplerX_fb_slot_indexes[0] = dvisamplerX_next_fb_index;
-		dvisamplerX_dma_slot0_address_write((unsigned int)dvisamplerX_framebuffers[dvisamplerX_next_fb_index]);
+		length = dvisamplerX_dma_slot0_address_read() - ((unsigned int)dvisamplerX_framebuffers[dvisamplerX_fb_slot_indexes[0]] & 0x0fffffff);
+		if(length == expected_length) {
+			fb_index = dvisamplerX_fb_slot_indexes[0];
+			dvisamplerX_fb_slot_indexes[0] = dvisamplerX_next_fb_index;
+			dvisamplerX_next_fb_index = (dvisamplerX_next_fb_index + 1) & FRAMEBUFFER_MASK;
+		} else
+			printf("dvisamplerX: slot0: unexpected frame length: %d\n", length);
+		dvisamplerX_dma_slot0_address_write((unsigned int)dvisamplerX_framebuffers[dvisamplerX_fb_slot_indexes[0]]);
 		dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
-		dvisamplerX_next_fb_index = (dvisamplerX_next_fb_index + 1) & FRAMEBUFFER_MASK;
 	}
 	if(dvisamplerX_dma_slot1_status_read() == DVISAMPLER_SLOT_PENDING) {
-		fb_index = dvisamplerX_fb_slot_indexes[1];
-		dvisamplerX_fb_slot_indexes[1] = dvisamplerX_next_fb_index;
-		dvisamplerX_dma_slot1_address_write((unsigned int)dvisamplerX_framebuffers[dvisamplerX_next_fb_index]);
+		length = dvisamplerX_dma_slot1_address_read() - ((unsigned int)dvisamplerX_framebuffers[dvisamplerX_fb_slot_indexes[1]] & 0x0fffffff);
+		if(length == expected_length) {
+			fb_index = dvisamplerX_fb_slot_indexes[1];
+			dvisamplerX_fb_slot_indexes[1] = dvisamplerX_next_fb_index;
+			dvisamplerX_next_fb_index = (dvisamplerX_next_fb_index + 1) & FRAMEBUFFER_MASK;
+		} else
+			printf("dvisamplerX: slot1: unexpected frame length: %d\n", length);
+		dvisamplerX_dma_slot1_address_write((unsigned int)dvisamplerX_framebuffers[dvisamplerX_fb_slot_indexes[1]]);
 		dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
-		dvisamplerX_next_fb_index = (dvisamplerX_next_fb_index + 1) & FRAMEBUFFER_MASK;
 	}
 
 	if(fb_index != -1)
@@ -50,12 +86,14 @@ void dvisamplerX_init_video(int hres, int vres)
 
 	dvisamplerX_clocking_pll_reset_write(1);
 	dvisamplerX_connected = dvisamplerX_locked = 0;
+	dvisamplerX_hres = hres; dvisamplerX_vres = vres;
 
-	dvisamplerX_dma_ev_pending_write(dvisamplerX_dma_ev_pending_read());
-	dvisamplerX_dma_ev_enable_write(0x3);
 	mask = irq_getmask();
-	mask |= 1 << DVISAMPLERX_INTERRUPT;
+	mask &= ~(1 << DVISAMPLERX_INTERRUPT);
 	irq_setmask(mask);
+
+	dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_EMPTY);
+	dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_EMPTY);
 
 	dvisamplerX_dma_frame_size_write(hres*vres*4);
 	dvisamplerX_fb_slot_indexes[0] = 0;
@@ -65,6 +103,11 @@ void dvisamplerX_init_video(int hres, int vres)
 	dvisamplerX_dma_slot1_address_write((unsigned int)dvisamplerX_framebuffers[1]);
 	dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
 	dvisamplerX_next_fb_index = 2;
+
+	dvisamplerX_dma_ev_pending_write(dvisamplerX_dma_ev_pending_read());
+	dvisamplerX_dma_ev_enable_write(0x3);
+	mask |= 1 << DVISAMPLERX_INTERRUPT;
+	irq_setmask(mask);
 
 	fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[3]);
 }
