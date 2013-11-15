@@ -5,6 +5,8 @@ extern int dvisamplerX_debug;
 
 void dvisamplerX_isr(void);
 void dvisamplerX_init_video(int hres, int vres);
+void dvisamplerX_disable(void);
+void dvisamplerX_clear_framebuffers(void);
 void dvisamplerX_print_status(void);
 int dvisamplerX_calibrate_delays(void);
 int dvisamplerX_adjust_phase(void);

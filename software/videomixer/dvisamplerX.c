@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <irq.h>
 #include <uart.h>
@@ -26,6 +27,15 @@ void dvisamplerX_isr(void)
 	int expected_length;
 	unsigned int address_min, address_max;
 
+	address_min = (unsigned int)dvisamplerX_framebuffers & 0x0fffffff;
+	address_max = address_min + sizeof(dvisamplerX_framebuffers);
+	if((dvisamplerX_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING)
+		&& ((dvisamplerX_dma_slot0_address_read() < address_min) || (dvisamplerX_dma_slot0_address_read() >= address_max)))
+		printf("dvisamplerX: slot0: stray DMA\n");
+	if((dvisamplerX_dma_slot1_status_read() == DVISAMPLER_SLOT_PENDING)
+		&& ((dvisamplerX_dma_slot1_address_read() < address_min) || (dvisamplerX_dma_slot1_address_read() >= address_max)))
+		printf("dvisamplerX: slot1: stray DMA\n");
+
 	if((dvisamplerX_resdetection_hres_read() != dvisamplerX_hres)
 	  || (dvisamplerX_resdetection_vres_read() != dvisamplerX_vres)) {
 		/* Dump frames until we get the expected resolution */
@@ -39,15 +49,6 @@ void dvisamplerX_isr(void)
 		}
 		return;
 	}
-
-	address_min = (unsigned int)dvisamplerX_framebuffers & 0x0fffffff;
-	address_max = address_min + sizeof(dvisamplerX_framebuffers);
-	if((dvisamplerX_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING)
-		&& ((dvisamplerX_dma_slot0_address_read() < address_min) || (dvisamplerX_dma_slot0_address_read() >= address_max)))
-		printf("dvisamplerX: stray DMA on slot 0\n");
-	if((dvisamplerX_dma_slot1_status_read() == DVISAMPLER_SLOT_PENDING)
-		&& ((dvisamplerX_dma_slot1_address_read() < address_min) || (dvisamplerX_dma_slot1_address_read() >= address_max)))
-		printf("dvisamplerX: stray DMA on slot 1\n");
 
 	expected_length = dvisamplerX_hres*dvisamplerX_vres*4;
 	if(dvisamplerX_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING) {
@@ -88,13 +89,6 @@ void dvisamplerX_init_video(int hres, int vres)
 	dvisamplerX_connected = dvisamplerX_locked = 0;
 	dvisamplerX_hres = hres; dvisamplerX_vres = vres;
 
-	mask = irq_getmask();
-	mask &= ~(1 << DVISAMPLERX_INTERRUPT);
-	irq_setmask(mask);
-
-	dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_EMPTY);
-	dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_EMPTY);
-
 	dvisamplerX_dma_frame_size_write(hres*vres*4);
 	dvisamplerX_fb_slot_indexes[0] = 0;
 	dvisamplerX_dma_slot0_address_write((unsigned int)dvisamplerX_framebuffers[0]);
@@ -106,10 +100,29 @@ void dvisamplerX_init_video(int hres, int vres)
 
 	dvisamplerX_dma_ev_pending_write(dvisamplerX_dma_ev_pending_read());
 	dvisamplerX_dma_ev_enable_write(0x3);
+	mask = irq_getmask();
 	mask |= 1 << DVISAMPLERX_INTERRUPT;
 	irq_setmask(mask);
 
 	fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[3]);
+}
+
+void dvisamplerX_disable(void)
+{
+	unsigned int mask;
+
+	mask = irq_getmask();
+	mask &= ~(1 << DVISAMPLERX_INTERRUPT);
+	irq_setmask(mask);
+
+	dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_EMPTY);
+	dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_EMPTY);
+}
+
+void dvisamplerX_clear_framebuffers(void)
+{
+	memset(&dvisamplerX_framebuffers, 0, sizeof(dvisamplerX_framebuffers));
+	// TODO: empty bridge cache
 }
 
 static int dvisamplerX_d0, dvisamplerX_d1, dvisamplerX_d2;
@@ -310,6 +323,7 @@ void dvisamplerX_service(void)
 			dvisamplerX_connected = 0;
 			dvisamplerX_locked = 0;
 			dvisamplerX_clocking_pll_reset_write(1);
+			dvisamplerX_clear_framebuffers();
 		} else {
 			if(dvisamplerX_locked) {
 				if(dvisamplerX_clocking_locked_filtered()) {
@@ -322,6 +336,7 @@ void dvisamplerX_service(void)
 					if(dvisamplerX_debug)
 						printf("dvisamplerX: lost PLL lock\n");
 					dvisamplerX_locked = 0;
+					dvisamplerX_clear_framebuffers();
 				}
 			} else {
 				if(dvisamplerX_clocking_locked_filtered()) {

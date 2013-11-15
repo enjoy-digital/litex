@@ -172,6 +172,11 @@ void processor_start(int mode)
 	dvisampler0_edid_hpd_en_write(0);
 	dvisampler1_edid_hpd_en_write(0);
 
+	dvisampler0_disable();
+	dvisampler1_disable();
+	dvisampler0_clear_framebuffers();
+	dvisampler1_clear_framebuffers();
+
 	fb_set_mode(m);
 	edid_set_mode(m);
 	dvisampler0_init_video(m->h_active, m->v_active);
