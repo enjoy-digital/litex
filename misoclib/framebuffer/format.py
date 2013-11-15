@@ -50,6 +50,7 @@ class FrameInitiator(spi.SingleGenerator):
 
 class VTG(Module):
 	def __init__(self):
+		self.enable = Signal()
 		self.timing = Sink([
 				("hres", _hbits),
 				("hsync_start", _hbits),
@@ -62,6 +63,8 @@ class VTG(Module):
 		self.pixels = Sink(pixel_layout)
 		self.phy = Source(phy_layout)
 		self.busy = Signal()
+
+		###
 
 		hactive = Signal()
 		vactive = Signal()
@@ -81,33 +84,39 @@ class VTG(Module):
 			),
 			
 			generate_en.eq(self.timing.stb & (~active | self.pixels.stb)),
-			self.pixels.ack.eq(self.phy.ack & active),
+			self.pixels.ack.eq(~self.enable | (self.phy.ack & active)),
 			self.phy.stb.eq(generate_en),
 			self.busy.eq(generate_en)
 		]
 		tp = self.timing.payload
 		self.sync += [
-			self.timing.ack.eq(0),
-			If(generate_en & self.phy.ack,
-				hcounter.eq(hcounter + 1),
-			
-				If(hcounter == 0, hactive.eq(1)),
-				If(hcounter == tp.hres, hactive.eq(0)),
-				If(hcounter == tp.hsync_start, self.phy.payload.hsync.eq(1)),
-				If(hcounter == tp.hsync_end, self.phy.payload.hsync.eq(0)),
-				If(hcounter == tp.hscan,
-					hcounter.eq(0),
-					If(vcounter == tp.vscan,
-						vcounter.eq(0),
-						self.timing.ack.eq(1)
-					).Else(
-						vcounter.eq(vcounter + 1)
-					)
-				),
+			If(self.enable,
+				self.timing.ack.eq(0),
+				If(generate_en & self.phy.ack,
+					hcounter.eq(hcounter + 1),
 				
-				If(vcounter == 0, vactive.eq(1)),
-				If(vcounter == tp.vres, vactive.eq(0)),
-				If(vcounter == tp.vsync_start, self.phy.payload.vsync.eq(1)),
-				If(vcounter == tp.vsync_end, self.phy.payload.vsync.eq(0))
+					If(hcounter == 0, hactive.eq(1)),
+					If(hcounter == tp.hres, hactive.eq(0)),
+					If(hcounter == tp.hsync_start, self.phy.payload.hsync.eq(1)),
+					If(hcounter == tp.hsync_end, self.phy.payload.hsync.eq(0)),
+					If(hcounter == tp.hscan,
+						hcounter.eq(0),
+						If(vcounter == tp.vscan,
+							vcounter.eq(0),
+							self.timing.ack.eq(1)
+						).Else(
+							vcounter.eq(vcounter + 1)
+						)
+					),
+					
+					If(vcounter == 0, vactive.eq(1)),
+					If(vcounter == tp.vres, vactive.eq(0)),
+					If(vcounter == tp.vsync_start, self.phy.payload.vsync.eq(1)),
+					If(vcounter == tp.vsync_end, self.phy.payload.vsync.eq(0))
+				)
+			).Else(
+				self.timing.ack.eq(1),
+				hcounter.eq(0),
+				vcounter.eq(0)
 			)
 		]

@@ -32,6 +32,7 @@ class Framebuffer(Module, AutoCSR):
 		self.comb += [
 			self.fi.trigger.eq(self._enable.storage),
 			self.dma.generator.trigger.eq(self._enable.storage),
+			vtg.enable.eq(self._enable.storage)
 		]
 
 class Blender(PipelinedActor, AutoCSR):
@@ -104,6 +105,7 @@ class MixFramebuffer(Module, AutoCSR):
 			setattr(self, "dma"+str(n), dma)
 
 		vtg = VTG()
+		self.comb += vtg.enable.eq(self._enable.storage)
 		g.add_connection(self.fi, vtg, sink_ep="timing")
 		g.add_connection(self.blender, vtg, sink_ep="pixels")
 		g.add_connection(vtg, self.driver)
