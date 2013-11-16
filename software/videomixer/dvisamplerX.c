@@ -5,6 +5,7 @@
 #include <irq.h>
 #include <uart.h>
 #include <time.h>
+#include <system.h>
 #include <hw/csr.h>
 #include <hw/flags.h>
 
@@ -122,7 +123,7 @@ void dvisamplerX_disable(void)
 void dvisamplerX_clear_framebuffers(void)
 {
 	memset(&dvisamplerX_framebuffers, 0, sizeof(dvisamplerX_framebuffers));
-	// TODO: empty bridge cache
+	flush_l2_cache();
 }
 
 static int dvisamplerX_d0, dvisamplerX_d1, dvisamplerX_d2;
