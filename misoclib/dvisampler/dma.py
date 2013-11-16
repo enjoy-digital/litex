@@ -5,8 +5,6 @@ from migen.bank.eventmanager import *
 from migen.flow.actor import *
 from migen.actorlib import dma_lasmi
 
-from misoclib.dvisampler.common import frame_layout
-
 # Slot status: EMPTY=0 LOADED=1 PENDING=2
 class _Slot(Module, AutoCSR):
 	def __init__(self, addr_bits, alignment_bits):
@@ -65,7 +63,8 @@ class DMA(Module):
 		bus_dw = lasmim.dw
 		alignment_bits = bits_for(bus_dw//8) - 1
 
-		self.frame = Sink(frame_layout)
+		fifo_word_width = 24*bus_dw//32
+		self.frame = Sink([("parity", 1), ("pixels", fifo_word_width)])
 		self._r_frame_size = CSRStorage(bus_aw + alignment_bits, alignment_bits=alignment_bits)
 		self.submodules._slot_array = _SlotArray(nslots, bus_aw, alignment_bits)
 		self.ev = self._slot_array.ev
@@ -98,32 +97,23 @@ class DMA(Module):
 			)
 		]
 
-		# pack pixels into memory words
-		write_pixel = Signal()
-		last_pixel = Signal()
-		cur_memory_word = Signal(bus_dw)
-		encoded_pixel = Signal(32)
-		self.comb += [
-			encoded_pixel.eq(Cat(
-				self.frame.payload.b[6:], self.frame.payload.b,
-				self.frame.payload.g[6:], self.frame.payload.g,
-				self.frame.payload.r[6:], self.frame.payload.r))
-		]
-		pack_factor = bus_dw//32
-		assert(pack_factor & (pack_factor - 1) == 0) # only support powers of 2
-		pack_counter = Signal(max=pack_factor)
-		self.comb += last_pixel.eq(pack_counter == (pack_factor - 1))
-		self.sync += If(write_pixel,
-				[If(pack_counter == (pack_factor-i-1),
-					cur_memory_word[32*i:32*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
-				pack_counter.eq(pack_counter + 1)
-			)
+		# 24bpp -> 32bpp
+		memory_word = Signal(bus_dw)
+		pixbits = []
+		for i in range(bus_dw//32):
+			for j in range(3):
+				b = (i*3+j)*8
+				pixbits.append(self.frame.payload.pixels[b+6:b+8])
+				pixbits.append(self.frame.payload.pixels[b:b+8])
+			pixbits.append(0)
+			pixbits.append(0)
+		self.comb += memory_word.eq(Cat(*pixbits))
 
 		# bus accessor
 		self.submodules._bus_accessor = dma_lasmi.Writer(lasmim)
 		self.comb += [
 			self._bus_accessor.address_data.payload.a.eq(current_address),
-			self._bus_accessor.address_data.payload.d.eq(cur_memory_word)
+			self._bus_accessor.address_data.payload.d.eq(memory_word)
 		]
 
 		# control FSM
@@ -133,23 +123,15 @@ class DMA(Module):
 		fsm.act("WAIT_SOF",
 			reset_words.eq(1),
 			self.frame.ack.eq(~self._slot_array.address_valid | ~sof),
-			If(self._slot_array.address_valid & sof & self.frame.stb, NextState("TRANSFER_PIXEL"))
+			If(self._slot_array.address_valid & sof & self.frame.stb, NextState("TRANSFER_PIXELS"))
 		)
-		fsm.act("TRANSFER_PIXEL",
-			self.frame.ack.eq(1),
+		fsm.act("TRANSFER_PIXELS",
+			self.frame.ack.eq(self._bus_accessor.address_data.ack),
 			If(self.frame.stb,
-				write_pixel.eq(1),
-				If(last_pixel, NextState("TO_MEMORY"))
-			)
-		)
-		fsm.act("TO_MEMORY",
-			self._bus_accessor.address_data.stb.eq(1),
-			If(self._bus_accessor.address_data.ack,
-				count_word.eq(1),
-				If(last_word,
-					NextState("EOF")
-				).Else(
-					NextState("TRANSFER_PIXEL")
+				self._bus_accessor.address_data.stb.eq(1),
+				If(self._bus_accessor.address_data.ack,
+					count_word.eq(1),
+					If(last_word, NextState("EOF"))
 				)
 			)
 		)

@@ -5,7 +5,7 @@ from migen.genlib.record import Record
 from migen.bank.description import *
 from migen.flow.actor import *
 
-from misoclib.dvisampler.common import channel_layout, frame_layout
+from misoclib.dvisampler.common import channel_layout
 
 class SyncPolarity(Module):
 	def __init__(self):
@@ -106,7 +106,7 @@ class ResolutionDetection(Module, AutoCSR):
 		self.specials += MultiReg(vcounter_st, self._vres.status)
 
 class FrameExtraction(Module, AutoCSR):
-	def __init__(self):
+	def __init__(self, word_width):
 		# in pix clock domain
 		self.valid_i = Signal()
 		self.vsync = Signal()
@@ -116,39 +116,55 @@ class FrameExtraction(Module, AutoCSR):
 		self.b = Signal(8)
 
 		# in sys clock domain
-		self.frame = Source(frame_layout)
+		word_layout = [("parity", 1), ("pixels", word_width)]
+		self.frame = Source(word_layout)
 		self.busy = Signal()
 
 		self._r_overflow = CSR()
 
 		###
 
-		fifo_stb = Signal()
-		fifo_in = Record(frame_layout)
-		self.comb += [
-			fifo_stb.eq(self.valid_i & self.de),
-			fifo_in.r.eq(self.r),
-			fifo_in.g.eq(self.g),
-			fifo_in.b.eq(self.b),
-		]
+		# start of frame detection
 		vsync_r = Signal()
+		new_frame = Signal()
+		self.comb += new_frame.eq(self.vsync & ~vsync_r)
+		self.sync.pix += vsync_r.eq(self.vsync)
+
+		# pack pixels into words
+		cur_word = Signal(word_width)
+		cur_word_valid = Signal()
+		encoded_pixel = Signal(24)
+		self.comb += encoded_pixel.eq(Cat(self.b, self.g, self.r))
+		pack_factor = word_width//24
+		assert(pack_factor & (pack_factor - 1) == 0) # only support powers of 2
+		pack_counter = Signal(max=pack_factor)
 		self.sync.pix += [
-			If(self.vsync & ~vsync_r, fifo_in.parity.eq(~fifo_in.parity)),
-			vsync_r.eq(self.vsync)
+			cur_word_valid.eq(0),
+			If(new_frame, 
+				pack_counter.eq(0)
+			).Elif(self.valid_i & self.de,
+				[If(pack_counter == (pack_factor-i-1),
+					cur_word[24*i:24*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
+				Cat(pack_counter, cur_word_valid).eq(pack_counter + 1)
+			)
 		]
 
-		fifo = RenameClockDomains(AsyncFIFO(layout_len(frame_layout), 512),
+		# FIFO
+		fifo = RenameClockDomains(AsyncFIFO(word_layout, 512),
 			{"write": "pix", "read": "sys"})
 		self.submodules += fifo
 		self.comb += [
-			fifo.we.eq(fifo_stb),
-			fifo.din.eq(fifo_in.raw_bits()),
+			fifo.din.pixels.eq(cur_word),
+			fifo.we.eq(cur_word_valid)
+		]
+		self.sync.pix += If(new_frame, fifo.din.parity.eq(~fifo.din.parity))
+		self.comb += [
 			self.frame.stb.eq(fifo.readable),
-			self.frame.payload.raw_bits().eq(fifo.dout),
+			self.frame.payload.eq(fifo.dout),
 			fifo.re.eq(self.frame.ack),
 			self.busy.eq(0)
 		]
-
+		
 		# overflow detection
 		pix_overflow = Signal()
 		pix_overflow_reset = Signal()

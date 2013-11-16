@@ -12,7 +12,7 @@ from misoclib.dvisampler.analysis import SyncPolarity, ResolutionDetection, Fram
 from misoclib.dvisampler.dma import DMA
 
 class DVISampler(Module, AutoCSR):
-	def __init__(self, pads, asmiport, n_dma_slots=2):
+	def __init__(self, pads, lasmim, n_dma_slots=2):
 		self.submodules.edid = EDID(pads)
 		self.submodules.clocking = Clocking(pads)
 
@@ -62,7 +62,7 @@ class DVISampler(Module, AutoCSR):
 			self.resdetection.vsync.eq(self.syncpol.vsync)
 		]
 
-		self.submodules.frame = FrameExtraction()
+		self.submodules.frame = FrameExtraction(24*lasmim.dw//32)
 		self.comb += [
 			self.frame.valid_i.eq(self.syncpol.valid_o),
 			self.frame.de.eq(self.syncpol.de),
@@ -72,7 +72,7 @@ class DVISampler(Module, AutoCSR):
 			self.frame.b.eq(self.syncpol.b)
 		]
 
-		self.submodules.dma = DMA(asmiport, n_dma_slots)
+		self.submodules.dma = DMA(lasmim, n_dma_slots)
 		self.comb += self.frame.frame.connect(self.dma.frame)
 		self.ev = self.dma.ev
 
