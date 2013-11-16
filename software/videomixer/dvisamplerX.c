@@ -30,10 +30,10 @@ void dvisamplerX_isr(void)
 	address_min = (unsigned int)dvisamplerX_framebuffers & 0x0fffffff;
 	address_max = address_min + sizeof(dvisamplerX_framebuffers);
 	if((dvisamplerX_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING)
-		&& ((dvisamplerX_dma_slot0_address_read() < address_min) || (dvisamplerX_dma_slot0_address_read() >= address_max)))
+		&& ((dvisamplerX_dma_slot0_address_read() < address_min) || (dvisamplerX_dma_slot0_address_read() > address_max)))
 		printf("dvisamplerX: slot0: stray DMA\n");
 	if((dvisamplerX_dma_slot1_status_read() == DVISAMPLER_SLOT_PENDING)
-		&& ((dvisamplerX_dma_slot1_address_read() < address_min) || (dvisamplerX_dma_slot1_address_read() >= address_max)))
+		&& ((dvisamplerX_dma_slot1_address_read() < address_min) || (dvisamplerX_dma_slot1_address_read() > address_max)))
 		printf("dvisamplerX: slot1: stray DMA\n");
 
 	if((dvisamplerX_resdetection_hres_read() != dvisamplerX_hres)
