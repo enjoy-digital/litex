@@ -7,6 +7,7 @@ extern "C" {
 
 void flush_cpu_icache(void);
 void flush_cpu_dcache(void);
+void flush_l2_cache(void);
 
 #ifdef __cplusplus
 }

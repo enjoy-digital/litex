@@ -158,7 +158,8 @@ class SoC(Module):
 		#
 		self.submodules.crg = mxcrg.MXCRG(MXClockPads(platform), clk_freq)
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
-		self.submodules.identifier = identifier.Identifier(self.known_platform_id[platform_name], int(clk_freq))
+		self.submodules.identifier = identifier.Identifier(self.known_platform_id[platform_name], int(clk_freq),
+			log2_int(l2_size))
 		self.submodules.timer0 = timer.Timer()
 		if platform_name == "mixxeo":
 			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
