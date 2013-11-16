@@ -1,7 +1,7 @@
 #ifndef __PROCESSOR_H
 #define __PROCESSOR_H
 
-#define PROCESSOR_MODE_COUNT 4
+#define PROCESSOR_MODE_COUNT 10
 #define PROCESSOR_MODE_DESCLEN 32
 
 void processor_list_modes(char *mode_descriptors);

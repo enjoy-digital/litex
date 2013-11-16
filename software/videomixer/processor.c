@@ -9,6 +9,7 @@
 #include "edid.h"
 #include "processor.h"
 
+/* reference: http://martin.hinner.info/vga/timing.html */
 static const struct video_timing video_modes[PROCESSOR_MODE_COUNT] = {
 	{
 		.pixel_clock = 3150,
@@ -26,19 +27,79 @@ static const struct video_timing video_modes[PROCESSOR_MODE_COUNT] = {
 		.established_timing = 0x0800
 	},
 	{
+		.pixel_clock = 3150,
+
+		.h_active = 640,
+		.h_blanking = 200,
+		.h_sync_offset = 16,
+		.h_sync_width = 64,
+
+		.v_active = 480,
+		.v_blanking = 20,
+		.v_sync_offset = 1,
+		.v_sync_width = 3,
+
+		.established_timing = 0x0400
+	},
+	{
+		.pixel_clock = 3600,
+
+		.h_active = 800,
+		.h_blanking = 224,
+		.h_sync_offset = 24,
+		.h_sync_width = 72,
+
+		.v_active = 600,
+		.v_blanking = 25,
+		.v_sync_offset = 1,
+		.v_sync_width = 2,
+
+		.established_timing = 0x0200
+	},
+	{
 		.pixel_clock = 4000,
 
 		.h_active = 800,
 		.h_blanking = 256,
-		.h_sync_offset = 32,
+		.h_sync_offset = 40,
 		.h_sync_width = 128,
 
 		.v_active = 600,
 		.v_blanking = 28,
 		.v_sync_offset = 1,
-		.v_sync_width = 6,
+		.v_sync_width = 4,
 
 		.established_timing = 0x0100
+	},
+	{
+		.pixel_clock = 5000,
+
+		.h_active = 800,
+		.h_blanking = 240,
+		.h_sync_offset = 56,
+		.h_sync_width = 120,
+
+		.v_active = 600,
+		.v_blanking = 66,
+		.v_sync_offset = 37,
+		.v_sync_width = 6,
+
+		.established_timing = 0x0080
+	},
+	{
+		.pixel_clock = 4950,
+
+		.h_active = 800,
+		.h_blanking = 256,
+		.h_sync_offset = 16,
+		.h_sync_width = 80,
+
+		.v_active = 600,
+		.v_blanking = 25,
+		.v_sync_offset = 1,
+		.v_sync_width = 3,
+
+		.established_timing = 0x0040
 	},
 	{
 		.pixel_clock = 6500,
@@ -54,7 +115,38 @@ static const struct video_timing video_modes[PROCESSOR_MODE_COUNT] = {
 		.v_sync_width = 6,
 
 		.established_timing = 0x0008
-	}, {
+	},
+	{
+		.pixel_clock = 7500,
+
+		.h_active = 1024,
+		.h_blanking = 304,
+		.h_sync_offset = 24,
+		.h_sync_width = 136,
+
+		.v_active = 768,
+		.v_blanking = 38,
+		.v_sync_offset = 3,
+		.v_sync_width = 6,
+
+		.established_timing = 0x0004
+	},
+	{
+		.pixel_clock = 7880,
+
+		.h_active = 1024,
+		.h_blanking = 288,
+		.h_sync_offset = 16,
+		.h_sync_width = 96,
+
+		.v_active = 768,
+		.v_blanking = 32,
+		.v_sync_offset = 1,
+		.v_sync_width = 3,
+
+		.established_timing = 0x0002
+	},
+	{
 		.pixel_clock = 7425,
 
 		.h_active = 1280,
