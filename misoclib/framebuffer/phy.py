@@ -8,8 +8,8 @@ from misoclib.framebuffer.format import bpc_phy, phy_layout
 from misoclib.framebuffer import dvi
 
 class _FIFO(Module):
-	def __init__(self):
-		self.phy = Sink(phy_layout)
+	def __init__(self, pack_factor):
+		self.phy = Sink(phy_layout(pack_factor))
 		self.busy = Signal()
 		
 		self.pix_hsync = Signal()
@@ -21,7 +21,7 @@ class _FIFO(Module):
 	
 		###
 
-		fifo = RenameClockDomains(AsyncFIFO(phy_layout, 512),
+		fifo = RenameClockDomains(AsyncFIFO(phy_layout(pack_factor), 512),
 			{"write": "sys", "read": "pix"})
 		self.submodules += fifo
 		self.comb += [
@@ -31,23 +31,22 @@ class _FIFO(Module):
 			self.busy.eq(0)
 		]
 
-		pix_parity = Signal()
+		unpack_counter = Signal(max=pack_factor)
+		assert(pack_factor & (pack_factor - 1) == 0) # only support powers of 2
 		self.sync.pix += [
-			pix_parity.eq(~pix_parity),
+			unpack_counter.eq(unpack_counter + 1),
 			self.pix_hsync.eq(fifo.dout.hsync),
 			self.pix_vsync.eq(fifo.dout.vsync),
-			self.pix_de.eq(fifo.dout.de),
-			If(pix_parity,
-				self.pix_r.eq(fifo.dout.p1.r),
-				self.pix_g.eq(fifo.dout.p1.g),
-				self.pix_b.eq(fifo.dout.p1.b)
-			).Else(
-				self.pix_r.eq(fifo.dout.p0.r),
-				self.pix_g.eq(fifo.dout.p0.g),
-				self.pix_b.eq(fifo.dout.p0.b)
-			)
+			self.pix_de.eq(fifo.dout.de)
 		]
-		self.comb += fifo.re.eq(pix_parity)
+		for i in range(pack_factor):
+			pixel = getattr(fifo.dout, "p"+str(i))
+			self.sync.pix += If(unpack_counter == i,
+				self.pix_r.eq(pixel.r),
+				self.pix_g.eq(pixel.g),
+				self.pix_b.eq(pixel.b)
+			)
+		self.comb += fifo.re.eq(unpack_counter == (pack_factor - 1))
 
 # This assumes a 50MHz base clock
 class _Clocking(Module, AutoCSR):
@@ -168,8 +167,8 @@ class _Clocking(Module, AutoCSR):
 				o_O=pads_dvi.clk_p, o_OB=pads_dvi.clk_n)
 
 class Driver(Module, AutoCSR):
-	def __init__(self, pads_vga, pads_dvi):
-		fifo = _FIFO()
+	def __init__(self, pack_factor, pads_vga, pads_dvi):
+		fifo = _FIFO(pack_factor)
 		self.submodules += fifo
 		self.phy = fifo.phy
 		self.busy = fifo.busy

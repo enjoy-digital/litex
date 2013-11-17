@@ -3,7 +3,7 @@ from migen.flow.actor import *
 from migen.bank.description import CSRStorage
 from migen.actorlib import spi
 
-_hbits = 11
+_hbits = 12
 _vbits = 12
 
 bpp = 32
@@ -14,10 +14,8 @@ pixel_layout_s = [
 	("g", bpc),
 	("b", bpc)
 ]
-pixel_layout = [
-	("p0", pixel_layout_s),
-	("p1", pixel_layout_s)
-]
+def pixel_layout(pack_factor):
+	return [("p"+str(i), pixel_layout_s) for i in range(pack_factor)]
 
 bpc_phy = 8
 phy_layout_s = [
@@ -25,21 +23,21 @@ phy_layout_s = [
 	("g", bpc_phy),
 	("b", bpc_phy)
 ]
-phy_layout = [
-	("hsync", 1),
-	("vsync", 1),
-	("de", 1),
-	("p0", phy_layout_s),
-	("p1", phy_layout_s)
-]
+def phy_layout(pack_factor):
+	r = [("hsync", 1), ("vsync", 1), ("de", 1)]
+	for i in range(pack_factor):
+		r.append(("p"+str(i), phy_layout_s))
+	return r
 
 class FrameInitiator(spi.SingleGenerator):
-	def __init__(self):
+	def __init__(self, pack_factor):
+		h_alignment_bits = log2_int(pack_factor)
+		hbits_dyn = _hbits - h_alignment_bits
 		layout = [
-			("hres", _hbits, 640, 1),
-			("hsync_start", _hbits, 656, 1),
-			("hsync_end", _hbits, 752, 1),
-			("hscan", _hbits, 800, 1),
+			("hres", hbits_dyn, 640, h_alignment_bits),
+			("hsync_start", hbits_dyn, 656, h_alignment_bits),
+			("hsync_end", hbits_dyn, 752, h_alignment_bits),
+			("hscan", hbits_dyn, 800, h_alignment_bits),
 			
 			("vres", _vbits, 480),
 			("vsync_start", _vbits, 492),
@@ -49,19 +47,20 @@ class FrameInitiator(spi.SingleGenerator):
 		spi.SingleGenerator.__init__(self, layout, spi.MODE_EXTERNAL)
 
 class VTG(Module):
-	def __init__(self):
+	def __init__(self, pack_factor):
+		hbits_dyn = _hbits - log2_int(pack_factor)
 		self.enable = Signal()
 		self.timing = Sink([
-				("hres", _hbits),
-				("hsync_start", _hbits),
-				("hsync_end", _hbits),
-				("hscan", _hbits),
+				("hres", hbits_dyn),
+				("hsync_start", hbits_dyn),
+				("hsync_end", hbits_dyn),
+				("hscan", hbits_dyn),
 				("vres", _vbits),
 				("vsync_start", _vbits),
 				("vsync_end", _vbits),
 				("vscan", _vbits)])
-		self.pixels = Sink(pixel_layout)
-		self.phy = Source(phy_layout)
+		self.pixels = Sink(pixel_layout(pack_factor))
+		self.phy = Source(phy_layout(pack_factor))
 		self.busy = Signal()
 
 		###
@@ -71,7 +70,7 @@ class VTG(Module):
 		active = Signal()
 		
 		generate_en = Signal()
-		hcounter = Signal(_hbits)
+		hcounter = Signal(hbits_dyn)
 		vcounter = Signal(_vbits)
 		
 		skip = bpc - bpc_phy
@@ -79,7 +78,7 @@ class VTG(Module):
 			active.eq(hactive & vactive),
 			If(active,
 				[getattr(getattr(self.phy.payload, p), c).eq(getattr(getattr(self.pixels.payload, p), c)[skip:])
-					for p in ["p0", "p1"] for c in ["r", "g", "b"]],
+					for p in ["p"+str(i) for i in range(pack_factor)] for c in ["r", "g", "b"]],
 				self.phy.payload.de.eq(1)
 			),
 			
