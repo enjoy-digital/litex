@@ -216,8 +216,6 @@ static void fb_set_mode(const struct video_timing *mode)
 {
 	unsigned int clock_m, clock_d;
 
-	printf("setting video mode %dx%d\n", mode->h_active, mode->v_active);
-
 	fb_get_clock_md(mode->pixel_clock, &clock_m, &clock_d);
 
 	fb_fi_hres_write(mode->h_active);
@@ -235,12 +233,8 @@ static void fb_set_mode(const struct video_timing *mode)
 	fb_clkgen_write(0x1, clock_d-1);
 	fb_clkgen_write(0x3, clock_m-1);
 	fb_driver_clocking_send_go_write(1);
-	printf("waiting for PROGDONE...");
 	while(!(fb_driver_clocking_status_read() & CLKGEN_STATUS_PROGDONE));
-	printf("ok\n");
-	printf("waiting for LOCKED...");
 	while(!(fb_driver_clocking_status_read() & CLKGEN_STATUS_LOCKED));
-	printf("ok\n");
 }
 
 static void edid_set_mode(const struct video_timing *mode)
