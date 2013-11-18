@@ -7,6 +7,7 @@
 #include "dvisampler0.h"
 #include "dvisampler1.h"
 #include "edid.h"
+#include "pll.h"
 #include "processor.h"
 
 /* reference: http://martin.hinner.info/vga/timing.html */
@@ -255,6 +256,7 @@ void processor_start(int mode)
 	const struct video_timing *m = &video_modes[mode];
 
 	fb_enable_write(0);
+	fb_driver_clocking_pll_reset_write(1);
 	dvisampler0_edid_hpd_en_write(0);
 	dvisampler1_edid_hpd_en_write(0);
 
@@ -263,11 +265,13 @@ void processor_start(int mode)
 	dvisampler0_clear_framebuffers();
 	dvisampler1_clear_framebuffers();
 
+	pll_config_for_clock(m->pixel_clock);
 	fb_set_mode(m);
 	edid_set_mode(m);
 	dvisampler0_init_video(m->h_active, m->v_active);
 	dvisampler1_init_video(m->h_active, m->v_active);
 
+	fb_driver_clocking_pll_reset_write(0);
 	fb_enable_write(1);
 	dvisampler0_edid_hpd_en_write(1);
 	dvisampler1_edid_hpd_en_write(1);
