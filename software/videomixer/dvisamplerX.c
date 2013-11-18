@@ -118,6 +118,7 @@ void dvisamplerX_disable(void)
 
 	dvisamplerX_dma_slot0_status_write(DVISAMPLER_SLOT_EMPTY);
 	dvisamplerX_dma_slot1_status_write(DVISAMPLER_SLOT_EMPTY);
+	dvisamplerX_clocking_pll_reset_write(1);
 }
 
 void dvisamplerX_clear_framebuffers(void)
