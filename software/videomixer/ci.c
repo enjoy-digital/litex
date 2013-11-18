@@ -6,6 +6,7 @@
 #include "dvisampler0.h"
 #include "dvisampler1.h"
 #include "processor.h"
+#include "pll.h"
 #include "ci.h"
 
 static void print_mem_bandwidth(void)
@@ -71,6 +72,9 @@ void ci_service(void)
 			case 'm':
 				print_mem_bandwidth();
 				break;
-		}	
+			case 'p':
+				pll_dump();
+				break;
+		}
 	}
 }
