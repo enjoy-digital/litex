@@ -7,6 +7,14 @@ class Clocking(Module, AutoCSR):
 		self._r_pll_reset = CSRStorage(reset=1)
 		self._r_locked = CSRStatus()
 
+		# DRP
+		self._r_pll_adr = CSRStorage(5)
+		self._r_pll_dat_r = CSRStatus(16)
+		self._r_pll_dat_w = CSRStorage(16)
+		self._r_pll_read = CSR()
+		self._r_pll_write = CSR()
+		self._r_pll_drdy = CSRStatus()
+
 		self.locked = Signal()
 		self.serdesstrobe = Signal()
 		self.clock_domains._cd_pix = ClockDomain()
@@ -23,18 +31,32 @@ class Clocking(Module, AutoCSR):
 		pll_clk0 = Signal()
 		pll_clk1 = Signal()
 		pll_clk2 = Signal()
-		self.specials += Instance("PLL_BASE",
-			p_CLKIN_PERIOD=26.7,
-			p_CLKFBOUT_MULT=20,
-			p_CLKOUT0_DIVIDE=2,  # pix10x
-			p_CLKOUT1_DIVIDE=10, # pix2x
-			p_CLKOUT2_DIVIDE=20, # pix
+		pll_drdy = Signal()
+		self.sync += If(self._r_pll_read.re | self._r_pll_write.re,
+			self._r_pll_drdy.status.eq(0)
+		).Elif(pll_drdy,
+			self._r_pll_drdy.status.eq(1)
+		)
+		self.specials += Instance("PLL_ADV",
+			p_CLKFBOUT_MULT=10,
+			p_CLKOUT0_DIVIDE=1,  # pix10x
+			p_CLKOUT1_DIVIDE=5,  # pix2x
+			p_CLKOUT2_DIVIDE=10, # pix
 			p_COMPENSATION="INTERNAL",
 			
-			i_CLKIN=clk_se,
+			i_CLKINSEL=1,
+			i_CLKIN1=clk_se,
 			o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
 			o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
-			o_LOCKED=pll_locked, i_RST=self._r_pll_reset.storage)
+			o_LOCKED=pll_locked, i_RST=self._r_pll_reset.storage,
+
+			i_DADDR=self._r_pll_adr.storage,
+			o_DO=self._r_pll_dat_r.status,
+			i_DI=self._r_pll_dat_w.storage,
+			i_DEN=self._r_pll_read.re | self._r_pll_write.re,
+			i_DWE=self._r_pll_write.re,
+			o_DRDY=pll_drdy,
+			i_DCLK=ClockSignal())
 
 		locked_async = Signal()
 		self.specials += [
