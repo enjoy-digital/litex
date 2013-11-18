@@ -58,6 +58,14 @@ class _Clocking(Module, AutoCSR):
 
 		self.clock_domains.cd_pix = ClockDomain(reset_less=True)
 		if pads_dvi is not None:
+			self._r_pll_reset = CSRStorage()
+			self._r_pll_adr = CSRStorage(5)
+			self._r_pll_dat_r = CSRStatus(16)
+			self._r_pll_dat_w = CSRStorage(16)
+			self._r_pll_read = CSR()
+			self._r_pll_write = CSR()
+			self._r_pll_drdy = CSRStatus()
+
 			self.clock_domains.cd_pix2x = ClockDomain(reset_less=True)
 			self.clock_domains.cd_pix10x = ClockDomain(reset_less=True)
 			self.serdesstrobe = Signal()
@@ -124,19 +132,34 @@ class _Clocking(Module, AutoCSR):
 			pll_clk1 = Signal()
 			pll_clk2 = Signal()
 			locked_async = Signal()
+			pll_drdy = Signal()
+			self.sync += If(self._r_pll_read.re | self._r_pll_write.re,
+				self._r_pll_drdy.status.eq(0)
+			).Elif(pll_drdy,
+				self._r_pll_drdy.status.eq(1)
+			)
 			self.specials += [
-				Instance("PLL_BASE",
-					p_CLKIN_PERIOD=26.7,
-					p_CLKFBOUT_MULT=20,
-					p_CLKOUT0_DIVIDE=2,  # pix10x
-					p_CLKOUT1_DIVIDE=10, # pix2x
-					p_CLKOUT2_DIVIDE=20, # pix
+				Instance("PLL_ADV",
+					p_CLKFBOUT_MULT=10,
+					p_CLKOUT0_DIVIDE=1,  # pix10x
+					p_CLKOUT1_DIVIDE=5,  # pix2x
+					p_CLKOUT2_DIVIDE=10, # pix
 					p_COMPENSATION="INTERNAL",
 					
-					i_CLKIN=clk_pix_unbuffered,
+					i_CLKINSEL=1,
+					i_CLKIN1=clk_pix_unbuffered,
 					o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
 					o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
-					o_LOCKED=pll_locked, i_RST=~pix_locked),
+					o_LOCKED=pll_locked, 
+					i_RST=~pix_locked | self._r_pll_reset.storage,
+
+					i_DADDR=self._r_pll_adr.storage,
+					o_DO=self._r_pll_dat_r.status,
+					i_DI=self._r_pll_dat_w.storage,
+					i_DEN=self._r_pll_read.re | self._r_pll_write.re,
+					i_DWE=self._r_pll_write.re,
+					o_DRDY=pll_drdy,
+					i_DCLK=ClockSignal()),
 				Instance("BUFPLL", p_DIVIDE=5,
 					i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
 					o_IOCLK=self.cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
