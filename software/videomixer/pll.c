@@ -56,6 +56,15 @@ static void program_data(const unsigned short *data)
 
 void pll_config_for_clock(int freq)
 {
+	/*
+	 * FIXME:
+	 * 10x configuration causes random IDELAY lockups (at high frequencies it seems)
+	 * 20x configuration seems to always work, even with overclocked VCO
+	 * Reproducible both with DRP and initial reconfiguration.
+	 * Until this spartan6 weirdness is sorted out, just stick to 20x.
+	 */
+	program_data(pll_config_20x);
+#ifdef XILINX_SPARTAN6_WORKS_AMAZINGLY_WELL
 	if(freq < 2000)
 		printf("Frequency too low for PLLs\n");
 	else if(freq < 4500)
@@ -64,6 +73,7 @@ void pll_config_for_clock(int freq)
 		program_data(pll_config_10x);
 	else
 		printf("Frequency too high for PLLs\n");
+#endif
 }
 
 void pll_dump(void)
