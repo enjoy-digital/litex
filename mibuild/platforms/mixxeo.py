@@ -185,7 +185,7 @@ TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
 			try:
 				self.add_platform_command("""
 NET "{dviclk}" TNM_NET = "GRP"""+si+"""";
-TIMESPEC "TS"""+si+"""" = PERIOD "GRP"""+si+"""" 26.7 ns HIGH 50%;
+TIMESPEC "TS"""+si+"""" = PERIOD "GRP"""+si+"""" 12.00 ns HIGH 50%;
 """, dviclk=self.lookup_request("dvi_in", i).clk_p)
 			except ConstraintError:
 				pass
