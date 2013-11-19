@@ -141,11 +141,13 @@ class FrameExtraction(Module, AutoCSR):
 		self.sync.pix += [
 			cur_word_valid.eq(0),
 			If(new_frame, 
-				pack_counter.eq(0)
+				cur_word_valid.eq(pack_counter == (pack_factor - 1)),
+				pack_counter.eq(0),
 			).Elif(self.valid_i & self.de,
 				[If(pack_counter == (pack_factor-i-1),
 					cur_word[24*i:24*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
-				Cat(pack_counter, cur_word_valid).eq(pack_counter + 1)
+				cur_word_valid.eq(pack_counter == (pack_factor - 1)),
+				pack_counter.eq(pack_counter + 1)
 			)
 		]
 
@@ -157,7 +159,11 @@ class FrameExtraction(Module, AutoCSR):
 			fifo.din.pixels.eq(cur_word),
 			fifo.we.eq(cur_word_valid)
 		]
-		self.sync.pix += If(new_frame, fifo.din.parity.eq(~fifo.din.parity))
+		new_frame_r = Signal()
+		self.sync.pix += [
+			If(new_frame_r, fifo.din.parity.eq(~fifo.din.parity)),
+			new_frame_r.eq(new_frame)
+		]
 		self.comb += [
 			self.frame.stb.eq(fifo.readable),
 			self.frame.payload.eq(fifo.dout),
