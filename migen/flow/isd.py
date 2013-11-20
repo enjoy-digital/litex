@@ -54,14 +54,15 @@ class DFGReporter(DFGHook, AutoCSR):
 		###
 
 		DFGHook.__init__(self, dfg,
-			lambda u, ep, v: EndpointReporter(u.endpoints[ep], nbits))
+			lambda u, ep, v: EndpointReporter(getattr(u, ep), nbits))
+		hooks = list(self.hooks_iter())
 
 		self.comb += [
 			self._r_magic.status.eq(ISD_MAGIC),
-			self._r_neps.status.eq(len(self.hooks_iter())),
+			self._r_neps.status.eq(len(hooks)),
 			self._r_nbits.status.eq(nbits)
 		]
-		for h in self.hooks_iter():
+		for h in hooks:
 			self.comb += [
 				h.freeze.eq(self._r_freeze.storage),
 				h.reset.eq(self._r_reset.re)
