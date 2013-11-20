@@ -76,7 +76,7 @@ void dvisamplerX_isr(void)
 	}
 
 	if(fb_index != -1)
-		fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[fb_index]);
+		fb_fi_baseX_write((unsigned int)dvisamplerX_framebuffers[fb_index]);
 }
 
 static int dvisamplerX_connected;
@@ -105,7 +105,7 @@ void dvisamplerX_init_video(int hres, int vres)
 	mask |= 1 << DVISAMPLERX_INTERRUPT;
 	irq_setmask(mask);
 
-	fb_dmaX_base_write((unsigned int)dvisamplerX_framebuffers[3]);
+	fb_fi_baseX_write((unsigned int)dvisamplerX_framebuffers[3]);
 }
 
 void dvisamplerX_disable(void)

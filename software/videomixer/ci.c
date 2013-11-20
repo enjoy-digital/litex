@@ -62,11 +62,11 @@ void ci_service(void)
 				printf("DVI sampler debug is OFF\n");
 				break;
 			case 'F':
-				fb_enable_write(1);
+				fb_fi_enable_write(1);
 				printf("framebuffer is ON\n");
 				break;
 			case 'f':
-				fb_enable_write(0);
+				fb_fi_enable_write(0);
 				printf("framebuffer is OFF\n");
 				break;
 			case 'm':

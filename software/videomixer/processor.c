@@ -228,8 +228,7 @@ static void fb_set_mode(const struct video_timing *mode)
 	fb_fi_vsync_end_write(mode->v_active + mode->v_sync_offset + mode->v_sync_width);
 	fb_fi_vscan_write(mode->v_active + mode->v_blanking);
 	
-	fb_dma0_length_write(mode->h_active*mode->v_active*4);
-	fb_dma1_length_write(mode->h_active*mode->v_active*4);
+	fb_fi_length_write(mode->h_active*mode->v_active*4);
 
 	fb_clkgen_write(0x1, clock_d-1);
 	fb_clkgen_write(0x3, clock_m-1);
@@ -255,7 +254,7 @@ void processor_start(int mode)
 {
 	const struct video_timing *m = &video_modes[mode];
 
-	fb_enable_write(0);
+	fb_fi_enable_write(0);
 	fb_driver_clocking_pll_reset_write(1);
 	dvisampler0_edid_hpd_en_write(0);
 	dvisampler1_edid_hpd_en_write(0);
@@ -272,7 +271,7 @@ void processor_start(int mode)
 	dvisampler1_init_video(m->h_active, m->v_active);
 
 	fb_driver_clocking_pll_reset_write(0);
-	fb_enable_write(1);
+	fb_fi_enable_write(1);
 	dvisampler0_edid_hpd_en_write(1);
 	dvisampler1_edid_hpd_en_write(1);
 }

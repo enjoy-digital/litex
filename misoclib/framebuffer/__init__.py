@@ -1,8 +1,9 @@
 from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.flow.network import *
+from migen.flow import plumbing
 from migen.bank.description import CSRStorage, AutoCSR
-from migen.actorlib import dma_lasmi, structuring, sim, spi
+from migen.actorlib import dma_lasmi, structuring, sim, misc
 
 from misoclib.framebuffer.format import bpp, pixel_layout, FrameInitiator, VTG
 from misoclib.framebuffer.phy import Driver
@@ -11,25 +12,24 @@ class Framebuffer(Module, AutoCSR):
 	def __init__(self, pads_vga, pads_dvi, lasmim, simulation=False):
 		pack_factor = lasmim.dw//bpp
 		
-		self._enable = CSRStorage()
-		self.fi = FrameInitiator(pack_factor)
-		self.dma = spi.DMAReadController(dma_lasmi.Reader(lasmim), spi.MODE_EXTERNAL, length_reset=640*480*4)
-		self.driver = Driver(pack_factor, pads_vga, pads_dvi)
+		g = DataFlowGraph()
+
+		self.fi = FrameInitiator(lasmim.aw, pack_factor)
+
+		intseq = misc.IntSequence(lasmim.aw, lasmim.aw)
+		dma_out = AbstractActor(plumbing.Buffer)
+		g.add_connection(self.fi, intseq, source_subr=self.fi.dma_subr())
+		g.add_pipeline(intseq, AbstractActor(plumbing.Buffer), dma_lasmi.Reader(lasmim), dma_out)
 
 		cast = structuring.Cast(lasmim.dw, pixel_layout(pack_factor), reverse_to=True)
 		vtg = VTG(pack_factor)
+		self.driver = Driver(pack_factor, pads_vga, pads_dvi)
 		
-		g = DataFlowGraph()
-		g.add_connection(self.fi, vtg, sink_ep="timing")
-		g.add_connection(self.dma, cast)
+		g.add_connection(self.fi, vtg, source_subr=self.fi.timing_subr, sink_ep="timing")
+		g.add_connection(dma_out, cast)
 		g.add_connection(cast, vtg, sink_ep="pixels")
 		g.add_connection(vtg, self.driver)
 		self.submodules += CompositeActor(g)
-
-		self.comb += [
-			self.fi.trigger.eq(self._enable.storage),
-			self.dma.generator.trigger.eq(self._enable.storage),
-		]
 
 class Blender(PipelinedActor, AutoCSR):
 	def __init__(self, nimages, pack_factor, latency):
@@ -79,26 +79,28 @@ class Blender(PipelinedActor, AutoCSR):
 
 class MixFramebuffer(Module, AutoCSR):
 	def __init__(self, pads_vga, pads_dvi, *lasmims, blender_latency=5):
+		assert(all(lasmim.aw == lasmims[0].aw and lasmim.dw == lasmims[0].dw
+			for lasmim in lasmims))
 		pack_factor = lasmims[0].dw//bpp
 		
-		self._enable = CSRStorage()
-		self.fi = FrameInitiator(pack_factor)
+		self.fi = FrameInitiator(lasmims[0].aw, pack_factor, len(lasmims))
 		self.blender = Blender(len(lasmims), pack_factor, blender_latency)
 		self.driver = Driver(pack_factor, pads_vga, pads_dvi)
-		self.comb += self.fi.trigger.eq(self._enable.storage)
 
 		g = DataFlowGraph()
 		epixel_layout = pixel_layout(pack_factor)
 		for n, lasmim in enumerate(lasmims):
-			dma = spi.DMAReadController(dma_lasmi.Reader(lasmim), spi.MODE_EXTERNAL, length_reset=640*480*4)
+			intseq = misc.IntSequence(lasmim.aw, lasmim.aw)
+			dma_out = AbstractActor(plumbing.Buffer)
+			g.add_connection(self.fi, intseq, source_subr=self.fi.dma_subr(n))
+			g.add_pipeline(intseq, AbstractActor(plumbing.Buffer), dma_lasmi.Reader(lasmim), dma_out)
+
 			cast = structuring.Cast(lasmim.dw, epixel_layout, reverse_to=True)
-			g.add_connection(dma, cast)
+			g.add_connection(dma_out, cast)
 			g.add_connection(cast, self.blender, sink_subr=["i"+str(n)])
-			self.comb += dma.generator.trigger.eq(self._enable.storage)
-			setattr(self, "dma"+str(n), dma)
 
 		vtg = VTG(pack_factor)
-		g.add_connection(self.fi, vtg, sink_ep="timing")
+		g.add_connection(self.fi, vtg, source_subr=self.fi.timing_subr, sink_ep="timing")
 		g.add_connection(self.blender, vtg, sink_ep="pixels")
 		g.add_connection(vtg, self.driver)
 		self.submodules += CompositeActor(g)

@@ -1,6 +1,8 @@
 from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.bank.description import CSRStorage
+from migen.genlib.record import Record
+from migen.genlib.fsm import FSM, NextState
 from migen.actorlib import spi
 
 _hbits = 12
@@ -30,9 +32,10 @@ def phy_layout(pack_factor):
 	return r
 
 class FrameInitiator(spi.SingleGenerator):
-	def __init__(self, pack_factor):
+	def __init__(self, bus_aw, pack_factor, ndmas=1):
 		h_alignment_bits = log2_int(pack_factor)
 		hbits_dyn = _hbits - h_alignment_bits
+		bus_alignment_bits = h_alignment_bits + log2_int(bpp//8)
 		layout = [
 			("hres", hbits_dyn, 640, h_alignment_bits),
 			("hsync_start", hbits_dyn, 656, h_alignment_bits),
@@ -42,31 +45,43 @@ class FrameInitiator(spi.SingleGenerator):
 			("vres", _vbits, 480),
 			("vsync_start", _vbits, 492),
 			("vsync_end", _vbits, 494),
-			("vscan", _vbits, 525)
+			("vscan", _vbits, 525),
+
+			("length", bus_aw + bus_alignment_bits, 640*480*bpp//8, bus_alignment_bits)
 		]
-		spi.SingleGenerator.__init__(self, layout, spi.MODE_EXTERNAL)
+		layout += [("base"+str(i), bus_aw + bus_alignment_bits, 0, bus_alignment_bits)
+			for i in range(ndmas)]
+		spi.SingleGenerator.__init__(self, layout, spi.MODE_CONTINUOUS)
+
+	timing_subr = ["hres", "hsync_start", "hsync_end", "hscan",
+		"vres", "vsync_start", "vsync_end", "vscan"]
+
+	def dma_subr(self, i=0):
+		return ["length", "base"+str(i)]
 
 class VTG(Module):
 	def __init__(self, pack_factor):
 		hbits_dyn = _hbits - log2_int(pack_factor)
-		self.timing = Sink([
-				("hres", hbits_dyn),
-				("hsync_start", hbits_dyn),
-				("hsync_end", hbits_dyn),
-				("hscan", hbits_dyn),
-				("vres", _vbits),
-				("vsync_start", _vbits),
-				("vsync_end", _vbits),
-				("vscan", _vbits)])
+		timing_layout = [
+			("hres", hbits_dyn),
+			("hsync_start", hbits_dyn),
+			("hsync_end", hbits_dyn),
+			("hscan", hbits_dyn),
+			("vres", _vbits),
+			("vsync_start", _vbits),
+			("vsync_end", _vbits),
+			("vscan", _vbits)]
+		self.timing = Sink(timing_layout)
 		self.pixels = Sink(pixel_layout(pack_factor))
 		self.phy = Source(phy_layout(pack_factor))
 		self.busy = Signal()
+
+		###
 
 		hactive = Signal()
 		vactive = Signal()
 		active = Signal()
 		
-		generate_en = Signal()
 		hcounter = Signal(hbits_dyn)
 		vcounter = Signal(_vbits)
 		
@@ -78,35 +93,52 @@ class VTG(Module):
 					for p in ["p"+str(i) for i in range(pack_factor)] for c in ["r", "g", "b"]],
 				self.phy.payload.de.eq(1)
 			),
-			
-			generate_en.eq(self.timing.stb & (~active | self.pixels.stb)),
-			self.pixels.ack.eq(self.phy.ack & active),
-			self.phy.stb.eq(generate_en),
-			self.busy.eq(generate_en)
+			self.pixels.ack.eq(self.phy.ack & active)
 		]
-		tp = self.timing.payload
+
+		load_timing = Signal()
+		tr = Record(timing_layout)
+		self.sync += If(load_timing, tr.eq(self.timing.payload))
+
+		generate_en = Signal()
+		generate_frame_done = Signal()
 		self.sync += [
-			self.timing.ack.eq(0),
-			If(generate_en & self.phy.ack,
+			generate_frame_done.eq(0),
+			If(generate_en,
 				hcounter.eq(hcounter + 1),
 			
 				If(hcounter == 0, hactive.eq(1)),
-				If(hcounter == tp.hres, hactive.eq(0)),
-				If(hcounter == tp.hsync_start, self.phy.payload.hsync.eq(1)),
-				If(hcounter == tp.hsync_end, self.phy.payload.hsync.eq(0)),
-				If(hcounter == tp.hscan,
+				If(hcounter == tr.hres, hactive.eq(0)),
+				If(hcounter == tr.hsync_start, self.phy.payload.hsync.eq(1)),
+				If(hcounter == tr.hsync_end, self.phy.payload.hsync.eq(0)),
+				If(hcounter == tr.hscan,
 					hcounter.eq(0),
-					If(vcounter == tp.vscan,
+					If(vcounter == tr.vscan,
 						vcounter.eq(0),
-						self.timing.ack.eq(1)
+						generate_frame_done.eq(1)
 					).Else(
 						vcounter.eq(vcounter + 1)
 					)
 				),
 				
 				If(vcounter == 0, vactive.eq(1)),
-				If(vcounter == tp.vres, vactive.eq(0)),
-				If(vcounter == tp.vsync_start, self.phy.payload.vsync.eq(1)),
-				If(vcounter == tp.vsync_end, self.phy.payload.vsync.eq(0))
+				If(vcounter == tr.vres, vactive.eq(0)),
+				If(vcounter == tr.vsync_start, self.phy.payload.vsync.eq(1)),
+				If(vcounter == tr.vsync_end, self.phy.payload.vsync.eq(0))
 			)
 		]
+
+		self.submodules.fsm = FSM()
+		self.fsm.act("GET_TIMING",
+			self.timing.ack.eq(1),
+			load_timing.eq(1),
+			If(self.timing.stb, NextState("GENERATE"))
+		)
+		self.fsm.act("GENERATE",
+			self.busy.eq(1),
+			If(~active | self.pixels.stb,
+				self.phy.stb.eq(1),
+				If(self.phy.ack, generate_en.eq(1))
+			),
+			If(generate_frame_done,	NextState("GET_TIMING"))
+		)
