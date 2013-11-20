@@ -93,7 +93,7 @@ int main(void)
 	printf("Mixxeo software rev. %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
 	
 	time_init();
-	processor_start(2);
+	processor_start(6);
 
 	while(1) {
 		processor_service();
