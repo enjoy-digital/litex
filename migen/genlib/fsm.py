@@ -35,8 +35,10 @@ class FSM(Module):
 		self.state_aliases = dict()
 		self.reset_state = reset_state
 
-		self.entering_signals = OrderedDict()
-		self.leaving_signals = OrderedDict()
+		self.before_entering_signals = OrderedDict()
+		self.before_leaving_signals = OrderedDict()
+		self.after_entering_signals = OrderedDict()
+		self.after_leaving_signals = OrderedDict()
 
 	def act(self, state, *statements):
 		if self.finalized:
@@ -65,7 +67,7 @@ class FSM(Module):
 		self.act(state, is_ongoing.eq(1))
 		return is_ongoing
 
-	def _entering_leaving(self, d, state):
+	def _get_signal(self, d, state):
 		if state not in self.actions:
 			self.actions[state] = []
 		try:
@@ -75,12 +77,22 @@ class FSM(Module):
 			d[state] = is_el
 			return is_el
 
-	def entering(self, state):
-		return self._entering_leaving(self.entering_signals, state)
+	def before_entering(self, state):
+		return self._get_signal(self.before_entering_signals, state)
 
-	def leaving(self, state):
-		return self._entering_leaving(self.leaving_signals, state)
-	
+	def before_leaving(self, state):
+		return self._get_signal(self.before_leaving_signals, state)
+
+	def after_entering(self, state):
+		signal = self._get_signal(self.after_entering_signals, state)
+		self.sync += signal.eq(self.before_entering(state))
+		return signal
+
+	def after_leaving(self, state):
+		signal = self._get_signal(self.after_leaving_signals, state)
+		self.sync += signal.eq(self.before_leaving(state))
+		return signal
+
 	def do_finalize(self):
 		nstates = len(self.actions)
 		if self.reset_state is None:
@@ -101,11 +113,11 @@ class FSM(Module):
 		self.sync += self.state.eq(self.next_state)
 
 		# drive entering/leaving signals
-		for state, is_entering in self.entering_signals.items():
+		for state, signal in self.before_leaving_signals.items():
 			encoded = self.encoding[state]
-			self.sync += is_entering.eq((self.next_state == encoded) & (self.state != encoded))
-		if reset_state in self.entering_signals:
-			self.entering_signals[reset_state].reset = 1
-		for state, is_leaving in self.leaving_signals.items():
+			self.comb += signal.eq((self.state == encoded) & ~(self.next_state == encoded))
+		if reset_state in self.after_entering_signals:
+			self.after_entering_signals[reset_state].reset = 1
+		for state, signal in self.before_entering_signals.items():
 			encoded = self.encoding[state]
-			self.sync += is_leaving.eq((self.next_state != encoded) & (self.state == encoded))
+			self.comb += signal.eq(~(self.state == encoded) & (self.next_state == encoded))
