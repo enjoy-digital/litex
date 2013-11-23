@@ -27,6 +27,18 @@ written in Python.
 
 See the doc/ folder for more technical information.
 
+Quick intro:
+
+from migen.fhdl.std import *
+from mibuild.platforms import m1
+plat = m1.Platform()
+led = plat.request("user_led")
+m = Module()
+counter = Signal(26)
+m.comb += led.eq(counter[25])
+m.sync += counter.eq(counter + 1)
+plat.build_cmdline(m)
+
 Code repository:
 https://github.com/milkymist/migen
 System-on-chip design based on Migen:
