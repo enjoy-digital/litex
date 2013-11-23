@@ -27,11 +27,12 @@ def my_generator(n):
 class TB(Module):
 	def __init__(self):
 		self.submodules.dut = LASMIcon(sdram_phy, sdram_geom, sdram_timing)
-		self.submodules.xbar = lasmibus.Crossbar([self.dut.lasmic], 6, self.dut.nrowbits)
+		self.submodules.xbar = lasmibus.Crossbar([self.dut.lasmic], self.dut.nrowbits)
 		self.submodules.logger = DFILogger(self.dut.dfi)
 
+		masters = [self.xbar.get_master() for i in range(6)]
 		self.initiators = [Initiator(my_generator(n), master)
-			for n, master in enumerate(self.xbar.masters)]
+			for n, master in enumerate(masters)]
 		self.submodules += self.initiators
 
 	def do_simulation(self, s):

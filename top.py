@@ -105,24 +105,14 @@ class SoC(Module):
 		self.submodules.lasmicon = lasmicon.LASMIcon(self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 		self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
 
-		n_lasmims = 1 # wishbone bridging
+		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], self.lasmicon.nrowbits)
+		lasmim_wb = self.lasmixbar.get_master()
 		if platform_name == "mixxeo":
-			n_lasmims += 4 # framebuffer (2-channel mixing) + 2 DVI samplers
+			lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = (self.lasmixbar.get_master() for i in range(4))
 		if platform_name == "m1":
-			n_lasmims += 1 # framebuffer (single channel)
+			lasmim_fb = self.lasmixbar.get_master()
 		if with_memtest:
-			n_lasmims += 2 # writer + reader
-		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], n_lasmims, self.lasmicon.nrowbits)
-
-		lasmims = list(self.lasmixbar.masters)
-		lasmim_wb = lasmims.pop()
-		if platform_name == "mixxeo":
-			lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = (lasmims.pop() for i in range(4))
-		if platform_name == "m1":
-			lasmim_fb = lasmims.pop()
-		if with_memtest:
-			lasmim_mtw, lasmim_mtr = lasmims.pop(), lasmims.pop()
-		assert(not lasmims)
+			lasmim_mtw, lasmim_mtr = self.lasmixbar.get_master(), self.lasmixbar.get_master()
 
 		#
 		# WISHBONE

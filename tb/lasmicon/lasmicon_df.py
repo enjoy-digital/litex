@@ -10,10 +10,10 @@ from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 class TB(Module):
 	def __init__(self):
 		self.submodules.ctler = LASMIcon(sdram_phy, sdram_geom, sdram_timing)
-		# FIXME: remove dummy master
-		self.submodules.xbar = lasmibus.Crossbar([self.ctler.lasmic], 2, self.ctler.nrowbits)
+		self.submodules.xbar = lasmibus.Crossbar([self.ctler.lasmic], self.ctler.nrowbits)
+		self.xbar.get_master() # FIXME: remove dummy master
 		self.submodules.logger = DFILogger(self.ctler.dfi)
-		self.submodules.writer = dma_lasmi.Writer(self.xbar.masters[0])
+		self.submodules.writer = dma_lasmi.Writer(self.xbar.get_master())
 
 		self.comb += self.writer.address_data.stb.eq(1)
 		pl = self.writer.address_data.payload
