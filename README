@@ -40,9 +40,9 @@ m.sync += counter.eq(counter + 1)
 plat.build_cmdline(m)
 
 Code repository:
-https://github.com/milkymist/migen
+https://github.com/m-labs/migen
 System-on-chip design based on Migen:
-https://github.com/milkymist/misoc
+https://github.com/m-labs/misoc
 
 Migen is designed for Python 3.3.
 
@@ -60,7 +60,7 @@ do them if possible:
  * send us the modifications and improvements you have done to Migen. The use
    of "git format-patch" is recommended. If your submission is large and
    complex and/or you are not sure how to proceed, feel free to discuss it on
-   the mailing list or IRC (#milkymist on Freenode) beforehand.
+   the mailing list or IRC (#m-labs on Freenode) beforehand.
 
 See LICENSE file for full copyright and license info. You can contact us on the
 public mailing list devel [AT] lists.milkymist.org.
