@@ -33,13 +33,13 @@ Obtain your development system at http://milkymist.org
 
 The second command requires m1nor-ng, FJMEM and UrJTAG.
 These tools can be found at:
-  https://github.com/milkymist/fjmem-m1
+  https://github.com/m-labs/fjmem-m1
   http://urjtag.org
   
 [> Instructions (gateware)
 --------------------------
 First, download and install Migen from:
-  https://github.com/milkymist/migen
+  https://github.com/m-labs/migen
 
 Once this is done, build the bitstream with:
   ./make.py [-p <platform>] -l
@@ -54,10 +54,7 @@ Enjoy!
 [> Misc
 -------
 Code repository:
-  https://github.com/milkymist/misoc
-
-Send questions, comments and patches to devel [AT] lists.milkymist.org
-We are also on IRC: #milkymist on the Freenode network.
+  https://github.com/m-labs/misoc
 
 MiSoC is released under the very permissive two-clause BSD license. Under
 the terms of this license, you are authorized to use MiSoC for
@@ -71,7 +68,7 @@ do them if possible:
  * send us the modifications and improvements you have done to MiSoC.
    The use of "git format-patch" is recommended. If your submission is large and
    complex and/or you are not sure how to proceed, feel free to discuss it on
-   the mailing list or IRC (#milkymist on Freenode) beforehand.
+   the mailing list or IRC (#m-labs on Freenode) beforehand.
 
 See LICENSE file for full copyright and license info. You can contact us on the
 public mailing list devel [AT] lists.milkymist.org.
