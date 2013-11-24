@@ -69,12 +69,12 @@ class MiniSoC(SDRAMSoC):
 		)
 		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
 			nphases=2, cl=3, rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
-		self.create_sdram_modules(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
+		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 
 		# Wishbone
 		self.submodules.norflash = norflash.NorFlash(platform.request("norflash"), 12)
 		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
-		self.add_wb_slave(lambda a: a[26:29] == 0, self.norflash.bus)
+		self.register_rom(self.norflash.bus)
 		self.add_wb_slave(lambda a: a[26:29] == 3, self.minimac.membus)
 		
 		# CSR

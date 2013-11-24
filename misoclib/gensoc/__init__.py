@@ -31,16 +31,18 @@ class GenSoC(Module):
 
 	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size=0):
 		self.clk_freq = clk_freq
+		self.cpu_reset_address = cpu_reset_address
 		self.sram_size = sram_size
 		self.l2_size = l2_size
 		self.cpu_memory_regions = []
+		self._rom_registered = False
 
 		# Wishbone
 		self.submodules.cpu = lm32.LM32() # TODO: cpu_reset_address
 		self.submodules.sram = wishbone.SRAM(sram_size)
 		self.submodules.wishbone2csr = wishbone2csr.WB2CSR()
 
-		# rom          0x00000000 (shadow @0x80000000) user
+		# rom          0x00000000 (shadow @0x80000000) from register_rom
 		# SRAM/debug   0x10000000 (shadow @0x90000000) provided
 		# CSR bridge   0x60000000 (shadow @0xe0000000) provided
 		self._wb_masters = [self.cpu.ibus, self.cpu.dbus]
@@ -48,7 +50,6 @@ class GenSoC(Module):
 			(lambda a: a[26:29] == 1, self.sram.bus),
 			(lambda a: a[27:29] == 3, self.wishbone2csr.wishbone)
 		]
-		self.add_cpu_memory_region("rom", cpu_reset_address, 0x8000) # 32KB for BIOS
 		self.add_cpu_memory_region("sram", 0x10000000, sram_size)
 
 		# CSR
@@ -67,6 +68,14 @@ class GenSoC(Module):
 			"jtag_tap_spartan6.v", "lm32_itlb.v", "lm32_dtlb.v")
 		platform.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
 
+	def register_rom(self, rom_wb_if):
+		if self._rom_registered:
+			raise FinalizeError
+		self._rom_registered = True
+
+		self.add_wb_slave(lambda a: a[26:29] == 0, rom_wb_if)
+		self.add_cpu_memory_region("rom", self.cpu_reset_address, 0x8000) # 32KB for BIOS
+
 	def add_wb_master(self, wbm):
 		if self.finalized:
 			raise FinalizeError
@@ -81,6 +90,9 @@ class GenSoC(Module):
 		self.cpu_memory_regions.append((name, origin, length))
 
 	def do_finalize(self):
+		if not self._rom_registered:
+			raise FinalizeError("Need to call GenSoC.register_rom()")
+
 		# Wishbone
 		self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
 			self._wb_slaves, register=True)
@@ -113,12 +125,12 @@ class SDRAMSoC(GenSoC):
 	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_memtest):
 		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size)
 		self.with_memtest = with_memtest
-		self._sdram_modules_created = False
+		self._sdram_phy_registered = False
 
-	def create_sdram_modules(self, phy_dfi, phy_settings, sdram_geom, sdram_timing):
-		if self._sdram_modules_created:
+	def register_sdram_phy(self, phy_dfi, phy_settings, sdram_geom, sdram_timing):
+		if self._sdram_phy_registered:
 			raise FinalizeError
-		self._sdram_modules_created = True
+		self._sdram_phy_registered = True
 
 		# DFI
 		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a,
@@ -142,6 +154,6 @@ class SDRAMSoC(GenSoC):
 			2**self.lasmicon.lasmic.aw*self.lasmicon.lasmic.dw*self.lasmicon.lasmic.nbanks//8)
 
 	def do_finalize(self):
-		if not self._sdram_modules_created:
-			raise FinalizeError("Need to call SDRAMSoC.create_sdram_modules()")
-		GenSoC.do_finalize(self)		
+		if not self._sdram_phy_registered:
+			raise FinalizeError("Need to call SDRAMSoC.register_sdram_phy()")
+		GenSoC.do_finalize(self)
