@@ -14,6 +14,7 @@ def _get_args():
 	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-t", "--target", default="mlabs_video", help="SoC type to build")
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the SoC type to build")
+	parser.add_argument("-o", "--option", default=[], nargs=2, action="append")
 	
 	parser.add_argument("-B", "--no-bitstream", default=False, action="store_true", help="do not build bitstream file")
 	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header files with CSR/IRQ/SDRAM_PHY definitions")
@@ -35,7 +36,8 @@ def main():
 	else:
 		top_class = target_module.get_default_subtarget(platform)
 	build_name = top_class.__name__.lower() + "-" + args.platform
-	soc = top_class(platform)
+	top_kwargs = dict((k, eval(v)) for k, v in args.option)
+	soc = top_class(platform, **top_kwargs)
 
 	if not args.no_bitstream:
 		platform.build(soc, build_name=build_name)
