@@ -64,8 +64,9 @@ def main():
 		write_to_file("software/include/generated/regions.ld", boilerplate + linker_header)
 		csr_header = cpuif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
 		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
-		sdram_phy_header = initsequence.get_sdram_phy_header(soc.ddrphy)
-		write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
+		if hasattr(soc, "ddrphy"):
+			sdram_phy_header = initsequence.get_sdram_phy_header(soc.ddrphy)
+			write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
 	if args.csr_csv:
 		csr_csv = cpuif.get_csr_csv(soc.csr_base, soc.csrbankarray)
 		write_to_file(args.csr_csv, csr_csv)
