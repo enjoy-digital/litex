@@ -119,7 +119,6 @@ class DownConverter(Module):
 	# L is the target data-width
 	# M = N/L
 	def __init__(self, dw_i, dw_o):
-
 		self.wishbone_i = Interface(dw_i)
 		self.wishbone_o = Interface(dw_o)
 		self.ratio = dw_i//dw_o
@@ -172,12 +171,8 @@ class DownConverter(Module):
 		self.submodules += fsm
 		
 		fsm.act("IDLE",
-			If(write_ack,
-				NextState("WRITE_ADAPT")
-			),
-			If(read_ack,
-				NextState("READ_ADAPT")
-			)
+			If(write_ack, NextState("WRITE_ADAPT")),
+			If(read_ack, NextState("READ_ADAPT"))
 		)
 		
 		fsm.act("WRITE_ADAPT",
