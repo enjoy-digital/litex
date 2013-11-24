@@ -14,7 +14,9 @@ def _get_args():
 	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-t", "--target", default="mlabs_video", help="SoC type to build")
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the SoC type to build")
-	parser.add_argument("-o", "--option", default=[], nargs=2, action="append")
+	parser.add_argument("-o", "--option", default=[], nargs=2, action="append", help="set target-specific option")
+	parser.add_argument("-Xp", "--external-platform", default="", help="use external platform file in the specified path")
+	parser.add_argument("-Xt", "--external-target", default="", help="use external target file in the specified path")
 	
 	parser.add_argument("-B", "--no-bitstream", default=False, action="store_true", help="do not build bitstream file")
 	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header files with CSR/IRQ/SDRAM_PHY definitions")
@@ -25,11 +27,20 @@ def _get_args():
 
 	return parser.parse_args()
 
+def _misoc_import(default, external, name):
+	if external:
+		loader = importlib.find_loader(name, [external])
+		if loader is None:
+			raise ImportError("Module not found: "+name)
+		return loader.load_module()
+	else:
+		return importlib.import_module(default + "." + name)
+
 def main():
 	args = _get_args()
 
-	platform_module = importlib.import_module("mibuild.platforms." + args.platform)
-	target_module = importlib.import_module("targets." + args.target)
+	platform_module = _misoc_import("mibuild.platforms", args.external_platform, args.platform)
+	target_module = _misoc_import("targets", args.external_target, args.target)
 	platform = platform_module.Platform()
 	if args.sub_target:
 		top_class = getattr(target_module, args.sub_target)
