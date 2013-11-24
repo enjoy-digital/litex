@@ -8,7 +8,7 @@
 #include <irq.h>
 
 #include <hw/mem.h>
-#include <hw/csr.h>
+#include <generated/csr.h>
 
 #include <net/microudp.h>
 #include <net/tftp.h>

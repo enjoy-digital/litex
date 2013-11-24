@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <system.h>
 #include <crc.h>
-#include <hw/csr.h>
+#include <generated/csr.h>
 #include <hw/flags.h>
 #include <hw/mem.h>
 

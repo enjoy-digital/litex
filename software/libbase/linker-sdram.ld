@@ -3,9 +3,7 @@ ENTRY(_start)
 
 __DYNAMIC = 0;
 
-MEMORY {
-	sdram  : ORIGIN = 0x40000000, LENGTH = 0x08000000 /* 128M */
-}
+INCLUDE generated/regions.ld
 
 SECTIONS
 {

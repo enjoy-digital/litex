@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include <console.h>
-#include <hw/csr.h>
+#include <generated/csr.h>
 
 #include "dvisampler0.h"
 #include "dvisampler1.h"

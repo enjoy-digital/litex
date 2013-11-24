@@ -45,7 +45,7 @@ COMMONFLAGS = -Os -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -ms
 	-Wall -fno-builtin -nostdinc -DGIT_ID=$(GIT_ID) $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -fno-exceptions -ffreestanding
-LDFLAGS = -nostdlib -nodefaultlibs
+LDFLAGS = -nostdlib -nodefaultlibs -L$(MSCDIR)/software/include
 
 # compile and generate dependencies, based on
 # http://scottmcpeak.com/autodepend/autodepend.html

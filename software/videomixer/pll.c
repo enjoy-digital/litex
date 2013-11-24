@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <hw/csr.h>
+#include <generated/csr.h>
 
 #include "pll.h"
 

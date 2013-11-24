@@ -6,7 +6,7 @@
 #include <uart.h>
 #include <time.h>
 #include <system.h>
-#include <hw/csr.h>
+#include <generated/csr.h>
 #include <hw/flags.h>
 
 #include "dvisamplerX.h"

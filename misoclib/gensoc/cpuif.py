@@ -1,5 +1,12 @@
 from migen.bank.description import CSRStatus
 
+def get_linker_regions(regions):
+	r = "MEMORY {\n"
+	for name, origin, length in regions:
+		r += "\t{} : ORIGIN = 0x{:08x}, LENGTH = 0x{:08x}\n".format(name, origin, length)
+	r += "}\n"
+	return r
+
 def _get_rw_functions(reg_name, reg_base, size, read_only):
 	r = ""
 
@@ -39,7 +46,7 @@ def _get_rw_functions(reg_name, reg_base, size, read_only):
 	return r
 
 def get_csr_header(csr_base, bank_array, interrupt_map):
-	r = "#ifndef __HW_CSR_H\n#define __HW_CSR_H\n#include <hw/common.h>\n"
+	r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n#include <hw/common.h>\n"
 	for name, csrs, mapaddr, rmap in bank_array.banks:
 		r += "\n/* "+name+" */\n"
 		reg_base = csr_base + 0x800*mapaddr

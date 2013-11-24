@@ -4,8 +4,8 @@ def get_sdram_phy_header(sdram_phy):
 	if sdram_phy.phy_settings.memtype not in ["SDR", "DDR", "LPDDR", "DDR2"]:
 		raise NotImplementedError("The SDRAM PHY header generator only supports SDR, DDR, LPDDR and DDR2")
 
-	r = "#ifndef __HW_SDRAM_PHY_H\n#define __HW_SDRAM_PHY_H\n"
-	r += "#include <hw/common.h>\n#include <hw/csr.h>\n#include <hw/flags.h>\n\n"
+	r = "#ifndef __GENERATED_SDRAM_PHY_H\n#define __GENERATED_SDRAM_PHY_H\n"
+	r += "#include <hw/common.h>\n#include <generated/csr.h>\n#include <hw/flags.h>\n\n"
 
 	r += "static void cdelay(int i);\n"
 

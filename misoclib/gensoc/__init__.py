@@ -29,13 +29,14 @@ class GenSoC(Module):
 		"m1":		0x4D31
 	})
 
-	def __init__(self, platform, clk_freq, sram_size, l2_size=0):
+	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size=0):
 		self.clk_freq = clk_freq
 		self.sram_size = sram_size
 		self.l2_size = l2_size
+		self.cpu_memory_regions = []
 
 		# Wishbone
-		self.submodules.cpu = lm32.LM32()
+		self.submodules.cpu = lm32.LM32() # TODO: cpu_reset_address
 		self.submodules.sram = wishbone.SRAM(sram_size)
 		self.submodules.wishbone2csr = wishbone2csr.WB2CSR()
 
@@ -47,6 +48,8 @@ class GenSoC(Module):
 			(lambda a: a[26:29] == 1, self.sram.bus),
 			(lambda a: a[27:29] == 3, self.wishbone2csr.wishbone)
 		]
+		self.add_cpu_memory_region("rom", cpu_reset_address, 0x8000) # 32KB for BIOS
+		self.add_cpu_memory_region("sram", 0x10000000, sram_size)
 
 		# CSR
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
@@ -73,6 +76,9 @@ class GenSoC(Module):
 		if self.finalized:
 			raise FinalizeError
 		self._wb_slaves.append((address_decoder, interface))
+
+	def add_cpu_memory_region(self, name, origin, length):
+		self.cpu_memory_regions.append((name, origin, length))
 
 	def do_finalize(self):
 		# Wishbone
@@ -104,8 +110,8 @@ class SDRAMSoC(GenSoC):
 	}
 	csr_map.update(GenSoC.csr_map)
 
-	def __init__(self, platform, clk_freq, sram_size, l2_size, with_memtest):
-		GenSoC.__init__(self, platform, clk_freq, sram_size, l2_size)
+	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_memtest):
+		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size)
 		self.with_memtest = with_memtest
 		self._sdram_modules_created = False
 
@@ -132,6 +138,8 @@ class SDRAMSoC(GenSoC):
 		# Wishbone bridge: map SDRAM at 0x40000000 (shadow @0xc0000000)
 		self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_size//4, self.lasmixbar.get_master())
 		self.add_wb_slave(lambda a: a[27:29] == 2, self.wishbone2lasmi.wishbone)
+		self.add_cpu_memory_region("sdram", 0x40000000,
+			2**self.lasmicon.lasmic.aw*self.lasmicon.lasmic.dw*self.lasmicon.lasmic.nbanks//8)
 
 	def do_finalize(self):
 		if not self._sdram_modules_created:

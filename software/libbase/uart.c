@@ -1,6 +1,6 @@
 #include <uart.h>
 #include <irq.h>
-#include <hw/csr.h>
+#include <generated/csr.h>
 #include <hw/flags.h>
 
 /*

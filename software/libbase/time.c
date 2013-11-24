@@ -1,4 +1,4 @@
-#include <hw/csr.h>
+#include <generated/csr.h>
 #include <time.h>
 
 void time_init(void)

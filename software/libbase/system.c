@@ -3,7 +3,7 @@
 
 #include <system.h>
 #include <hw/mem.h>
-#include <hw/csr.h>
+#include <generated/csr.h>
 
 void flush_cpu_icache(void)
 {
