@@ -7,6 +7,7 @@
 #include <hw/csr.h>
 #include <hw/flags.h>
 #include <console.h>
+#include <system.h>
 
 static void membw_service(void)
 {
@@ -26,20 +27,29 @@ static void membw_service(void)
 	}
 }
 
+//#define DEBUG
+
 static void memtest_service(void)
 {
 	static unsigned int test_buffer[64*1024*1024/4] __attribute__((aligned(16)));
 	static unsigned char reading;
-	//int i;
+	static unsigned int err, total_err;
+#ifdef DEBUG
+	int i;
+#endif
 
 	if(reading) {
 		if(!memtest_w_busy_read()) {
-			//printf("starting read\n");
-			/*for(i=0;i<64;i++) {
+#ifdef DEBUG
+			flush_l2_cache();
+			flush_cpu_dcache();
+			printf("starting read\n");
+			for(i=0;i<64;i++) {
 				printf("%08x", test_buffer[i]);
 				if((i % 4) == 3)
 					printf("\n");
-			}*/
+			}
+#endif
 			memtest_r_reset_write(1);
 			memtest_r_base_write((unsigned int)test_buffer);
 			memtest_r_length_write(sizeof(test_buffer));
@@ -48,7 +58,9 @@ static void memtest_service(void)
 		}
 	} else {
 		if(!memtest_r_busy_read()) {
-			printf("err=%d\n", memtest_r_error_count_read());
+			err = memtest_r_error_count_read();
+			total_err += err;
+			printf("err=%d\t\ttotal=%d\n", err, total_err);
 			memtest_w_reset_write(1);
 			memtest_w_base_write((unsigned int)test_buffer);
 			memtest_w_length_write(sizeof(test_buffer));
@@ -73,6 +85,7 @@ int main(void)
 	
 	time_init();
 
+	flush_l2_cache();
 	while(1) {
 		memtest_service();
 		membw_service();
