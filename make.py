@@ -4,14 +4,14 @@ import argparse, os, importlib, subprocess
 
 from mibuild.tools import write_to_file
 
-from misoclib import cpuif
+from misoclib.gensoc import cpuif
 from misoclib.s6ddrphy import initsequence
 import top, jtag
 
 def build(platform_name, build_bitstream, build_header, csr_csv_filename, *soc_args, **soc_kwargs):
 	platform_module = importlib.import_module("mibuild.platforms."+platform_name)
 	platform = platform_module.Platform()
-	soc = top.SoC(platform, platform_name, *soc_args, **soc_kwargs)
+	soc = top.SoC(platform, *soc_args, **soc_kwargs)
 	
 	platform.add_platform_command("""
 INST "mxcrg/wr_bufpll" LOC = "BUFPLL_X0Y2";

@@ -1,46 +1,12 @@
 from fractions import Fraction
-from math import ceil
-from operator import itemgetter
-from collections import defaultdict
 
 from migen.fhdl.std import *
-from migen.bus import wishbone, csr, lasmibus, dfi
-from migen.bus import wishbone2lasmi, wishbone2csr
-from migen.bank import csrgen
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import mxcrg, lm32, norflash, uart, s6ddrphy, dfii, lasmicon, \
-	identifier, timer, minimac3, framebuffer, dvisampler, gpio, memtest
+from misoclib import lasmicon, mxcrg, norflash, s6ddrphy, minimac3, framebuffer, dvisampler, gpio
+from misoclib.gensoc import SDRAMSoC
 
-clk_freq = (83 + Fraction(1, 3))*1000000
-sram_size = 4096 # in bytes
-l2_size = 8192 # in bytes
-
-clk_period_ns = 1000000000/clk_freq
-def ns(t, margin=True):
-	if margin:
-		t += clk_period_ns/2
-	return ceil(t/clk_period_ns)
-
-sdram_geom = lasmicon.GeomSettings(
-	bank_a=2,
-	row_a=13,
-	col_a=10
-)
-sdram_timing = lasmicon.TimingSettings(
-	tRP=ns(15),
-	tRCD=ns(15),
-	tWR=ns(15),
-	tWTR=2,
-	tREFI=ns(7800, False),
-	tRFC=ns(70),
-
-	req_queue_size=8,
-	read_time=32,
-	write_time=16
-)
-
-class MXClockPads:
+class _MXClockPads:
 	def __init__(self, platform):
 		self.clk50 = platform.request("clk50")
 		self.trigger_reset = 0
@@ -57,129 +23,96 @@ class MXClockPads:
 		self.eth_rx_clk = eth_clocks.rx
 		self.eth_tx_clk = eth_clocks.tx
 
-class SoC(Module):
-	csr_base = 0xe0000000
+class MiniSoC(SDRAMSoC):
 	csr_map = {
-		"crg":					0,
-		"uart":					1,
-		"dfii":					2,
-		"identifier":			3,
-		"timer0":				4,
-		"minimac":				5,
-		"fb":					6,
-		"lasmicon":				7,
-		"dvisampler0":			8,
-		"dvisampler0_edid_mem":	9,
-		"dvisampler1":			10,
-		"dvisampler1_edid_mem":	11,
-		"pots":					12,
-		"buttons":				13,
-		"leds":					14,
-		"memtest_w":			15,
-		"memtest_r":			16
+		"minimac":				10,
+		"fb":					11,
+		"dvisampler0":			12,
+		"dvisampler0_edid_mem":	13,
+		"dvisampler1":			14,
+		"dvisampler1_edid_mem":	15,
 	}
+	csr_map.update(SDRAMSoC.csr_map)
+
 	interrupt_map = {
-		"uart":			0,
-		"timer0":		1,
 		"minimac":		2,
 		"dvisampler0":	3,
 		"dvisampler1":	4,
 	}
-	known_platform_id = defaultdict(lambda: 0x554E, {
-		"mixxeo":	0x4D58,
-		"m1":		0x4D31
-	})
+	interrupt_map.update(SDRAMSoC.interrupt_map)
 
-	def __init__(self, platform, platform_name, with_memtest):
-		#
-		# DFI
-		#
-		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR", nphases=2, cl=3, rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
-		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a,
-			self.ddrphy.phy_settings.dfi_d, self.ddrphy.phy_settings.nphases)
-		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, self.ddrphy.dfi)
+	def __init__(self, platform, with_memtest):
+		SDRAMSoC.__init__(self, platform,
+			clk_freq=(83 + Fraction(1, 3))*1000000,
+			sram_size=4096,
+			l2_size=8192,
+			with_memtest=with_memtest)
 
-		#
-		# LASMI
-		#
-		self.submodules.lasmicon = lasmicon.LASMIcon(self.ddrphy.phy_settings, sdram_geom, sdram_timing)
-		self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
+		sdram_geom = lasmicon.GeomSettings(
+			bank_a=2,
+			row_a=13,
+			col_a=10
+		)
+		sdram_timing = lasmicon.TimingSettings(
+			tRP=self.ns(15),
+			tRCD=self.ns(15),
+			tWR=self.ns(15),
+			tWTR=2,
+			tREFI=self.ns(7800, False),
+			tRFC=self.ns(70),
 
-		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], self.lasmicon.nrowbits)
-		lasmim_wb = self.lasmixbar.get_master()
-		if platform_name == "mixxeo":
-			lasmim_fb0, lasmim_fb1, lasmim_dvi0, lasmim_dvi1 = (self.lasmixbar.get_master() for i in range(4))
-		if platform_name == "m1":
-			lasmim_fb = self.lasmixbar.get_master()
-		if with_memtest:
-			lasmim_mtw, lasmim_mtr = self.lasmixbar.get_master(), self.lasmixbar.get_master()
+			req_queue_size=8,
+			read_time=32,
+			write_time=16
+		)
+		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
+			nphases=2, cl=3, rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
+		self.create_sdram_modules(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 
-		#
-		# WISHBONE
-		#
-		self.submodules.cpu = lm32.LM32()
+		# Wishbone
 		self.submodules.norflash = norflash.NorFlash(platform.request("norflash"), 12)
-		self.submodules.sram = wishbone.SRAM(sram_size)
 		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
-		self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(l2_size//4, lasmim_wb)
-		self.submodules.wishbone2csr = wishbone2csr.WB2CSR()
+		self.add_wb_slave(lambda a: a[26:29] == 0, self.norflash.bus)
+		self.add_wb_slave(lambda a: a[26:29] == 3, self.minimac.membus)
 		
-		# norflash     0x00000000 (shadow @0x80000000)
-		# SRAM/debug   0x10000000 (shadow @0x90000000)
-		# USB          0x20000000 (shadow @0xa0000000)
-		# Ethernet     0x30000000 (shadow @0xb0000000)
-		# SDRAM        0x40000000 (shadow @0xc0000000)
-		# CSR bridge   0x60000000 (shadow @0xe0000000)
-		self.submodules.wishbonecon = wishbone.InterconnectShared(
-			[
-				self.cpu.ibus,
-				self.cpu.dbus
-			], [
-				(lambda a: a[26:29] == 0, self.norflash.bus),
-				(lambda a: a[26:29] == 1, self.sram.bus),
-				(lambda a: a[26:29] == 3, self.minimac.membus),
-				(lambda a: a[27:29] == 2, self.wishbone2lasmi.wishbone),
-				(lambda a: a[27:29] == 3, self.wishbone2csr.wishbone)
-			],
-			register=True)
-		
-		#
 		# CSR
-		#
-		self.submodules.crg = mxcrg.MXCRG(MXClockPads(platform), clk_freq)
-		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
-		self.submodules.identifier = identifier.Identifier(self.known_platform_id[platform_name], int(clk_freq),
-			log2_int(l2_size))
-		self.submodules.timer0 = timer.Timer()
-		if platform_name == "mixxeo":
+		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
+		if platform.name == "mixxeo":
 			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
-			self.submodules.fb = framebuffer.MixFramebuffer(platform.request("vga_out"), platform.request("dvi_out"),
-				lasmim_fb0, lasmim_fb1)
-			self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), lasmim_dvi0)
-			self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), lasmim_dvi1)
-		if platform_name == "m1":
+		if platform.name == "m1":
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
 			self.submodules.leds = gpio.GPIOOut(Cat(*[platform.request("user_led", i) for i in range(2)]))
-			self.submodules.fb = framebuffer.Framebuffer(platform.request("vga"), None, lasmim_fb)
-		if with_memtest:
-			self.submodules.memtest_w = memtest.MemtestWriter(lasmim_mtw)
-			self.submodules.memtest_r = memtest.MemtestReader(lasmim_mtr)
 
-		self.submodules.csrbankarray = csrgen.BankArray(self,
-			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
-		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
-
-		#
-		# Interrupts
-		#
-		for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
-			if hasattr(self, k):
-				self.comb += self.cpu.interrupt[v].eq(getattr(self, k).ev.irq)
-
-		#
-		# Clocking
-		#
+		# Clock glue
 		self.comb += [
 			self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
 			self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
 		]
+		
+def _get_vga_dvi(platform):
+	try:
+		pads_vga = platform.request("vga_out")
+	except ConstraintError:
+		pads_vga = None
+	try:
+		pads_dvi = platform.request("dvi_out")
+	except ConstraintError:
+		pads_dvi = None
+	return pads_vga, pads_dvi
+
+class FramebufferSoC(MiniSoC):
+	def __init__(self, platform, with_memtest):
+		MiniSoC.__init__(self, platform, with_memtest)
+		pads_vga, pads_dvi = _get_vga_dvi(platform)
+		self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi, self.lasmixbar.get_master())
+
+class VideomixerSoC(MiniSoC):
+	def __init__(self, platform, with_memtest):
+		MiniSoC.__init__(self, platform, with_memtest)
+		pads_vga, pads_dvi = _get_vga_dvi(platform)
+		self.submodules.fb = framebuffer.MixFramebuffer(pads_vga, pads_dvi,
+			self.lasmixbar.get_master(), self.lasmixbar.get_master())
+		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), self.lasmixbar.get_master())
+		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), self.lasmixbar.get_master())
+
+SoC = VideomixerSoC
