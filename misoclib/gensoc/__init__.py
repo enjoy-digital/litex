@@ -25,8 +25,9 @@ class GenSoC(Module):
 		"timer0":		1,
 	}
 	known_platform_id = defaultdict(lambda: 0x554E, {
-		"mixxeo":	0x4D58,
-		"m1":		0x4D31
+		"mixxeo":		0x4D58,
+		"m1":			0x4D31,
+		"papilio_pro":	0x5050
 	})
 
 	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size=0):
