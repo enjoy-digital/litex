@@ -1,11 +1,17 @@
 import subprocess
 
-def load(bitstream):
-	cmds = """cable milkymist
+cables = {
+	"mixxeo":		"milkymist",
+	"m1":			"milkymist",
+	"papilio_pro":	"Flyswatter"
+}
+
+def load(platform_name, bitstream):
+	cmds = """cable {cable}
 detect
 pld load {bitstream}
 quit
-""".format(bitstream=bitstream)
+""".format(cable=cables[platform_name], bitstream=bitstream)
 	process = subprocess.Popen("jtag", stdin=subprocess.PIPE)
 	process.stdin.write(cmds.encode("ASCII"))
 	process.communicate()

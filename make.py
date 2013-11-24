@@ -92,7 +92,7 @@ def main():
 			"build/" + build_name + ".fpg"])
 
 	if args.load:
-		jtag.load("build/" + build_name + ".bit")
+		jtag.load(platform.name, "build/" + build_name + ".bit")
 	if args.flash:
 		jtag.flash("build/" + build_name + ".fpg")
 
