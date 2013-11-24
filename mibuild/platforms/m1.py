@@ -71,8 +71,8 @@ _io = [
 		IOStandard("LVCMOS33")
 	),
 
-	("vga_clock", 0, Pins("A11"), IOStandard("LVCMOS33")),
-	("vga", 0,
+	("vga_out", 0,
+		Subsignal("clk", Pins("A11")),
 		Subsignal("r", Pins("C6 B6 A6 C7 A7 B8 A8 D9")),
 		Subsignal("g", Pins("C8 C9 A9 D7 D8 D10 C10 B10")),
 		Subsignal("b", Pins("D11 C12 B12 A12 C13 A13 D14 C14")),
