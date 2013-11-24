@@ -41,4 +41,13 @@ _io = [
 class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx9-tqg144-2", _io,
-			lambda p: CRG_SE(p, "clk32", None, 31.25))
+			lambda p: CRG_SE(p, "clk32", None))
+
+	def do_finalize(self, fragment):
+		try:
+			self.add_platform_command("""
+NET "{clk32}" TNM_NET = "GRPclk32";
+TIMESPEC "TSclk32" = PERIOD "GRPclk32" 31.25 ns HIGH 50%;
+""", clk32=self.lookup_request("clk32"))
+		except ConstraintError:
+			pass
