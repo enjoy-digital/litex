@@ -1,3 +1,4 @@
+import os
 from operator import itemgetter
 from collections import defaultdict
 from math import ceil
@@ -51,7 +52,17 @@ class GenSoC(Module):
 		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(self.known_platform_id[platform.name], int(clk_freq),
 			log2_int(l2_size) if l2_size else 0)
-		self.submodules.timer0 = timer.Timer()		
+		self.submodules.timer0 = timer.Timer()
+
+		# add LM32 verilog sources
+		platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"), 
+			"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
+			"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
+			"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
+			"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
+			"lm32_dcache.v", "lm32_top.v", "lm32_debug.v", "lm32_jtag.v", "jtag_cores.v",
+			"jtag_tap_spartan6.v", "lm32_itlb.v", "lm32_dtlb.v")
+		platform.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
 
 	def add_wb_master(self, wbm):
 		if self.finalized:
