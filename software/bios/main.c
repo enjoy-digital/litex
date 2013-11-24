@@ -9,7 +9,6 @@
 #include <crc.h>
 
 #include <generated/csr.h>
-#include <hw/mem.h>
 #include <net/microudp.h>
 
 #include "sdram.h"
@@ -374,7 +373,7 @@ static void do_command(char *c)
 		printf("Command not found\n");
 }
 
-extern unsigned int _edata;
+extern unsigned int _ftext, _edata;
 
 static void crcbios(void)
 {
@@ -389,7 +388,7 @@ static void crcbios(void)
 	 * We also use the address of _edata to know the length
 	 * of our code.
 	 */
-	offset_bios = FLASH_OFFSET_BIOS;
+	offset_bios = (unsigned int)&_ftext;
 	expected_crc = _edata;
 	length = (unsigned int)&_edata - offset_bios;
 	actual_crc = crc32((unsigned char *)offset_bios, length);
