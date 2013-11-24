@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse, importlib, subprocess
+import argparse, importlib, subprocess, struct
 
 from mibuild.tools import write_to_file
 
@@ -50,13 +50,8 @@ def main():
 	top_kwargs = dict((k, eval(v)) for k, v in args.option)
 	soc = top_class(platform, **top_kwargs)
 
-	if not args.no_bitstream:
-		platform.build(soc, build_name=build_name)
-		subprocess.call(["tools/byteswap",
-			"build/" + build_name + ".bin",
-			"build/" + build_name + ".fpg"])
-	else:
-		soc.finalize()
+	soc.finalize()
+
 	if not args.no_header:
 		boilerplate = """/*
  * Platform: {}
@@ -74,6 +69,26 @@ def main():
 	if args.csr_csv:
 		csr_csv = cpuif.get_csr_csv(soc.csr_base, soc.csrbankarray)
 		write_to_file(args.csr_csv, csr_csv)
+
+	if hasattr(soc, "init_bios_memory"):
+		ret = subprocess.call(["make", "-C", "software/bios"])
+		if ret:
+			raise OSError("BIOS build failed")
+		bios_file = open("software/bios/bios.bin", "rb")
+		bios_data = []
+		while True:
+			w = bios_file.read(4)
+			if not w:
+				break
+			bios_data.append(struct.unpack(">I", w)[0])
+		bios_file.close()
+		soc.init_bios_memory(bios_data)
+
+	if not args.no_bitstream:
+		platform.build(soc, build_name=build_name)
+		subprocess.call(["tools/byteswap",
+			"build/" + build_name + ".bin",
+			"build/" + build_name + ".fpg"])
 
 	if args.load:
 		jtag.load("build/" + build_name + ".bit")
