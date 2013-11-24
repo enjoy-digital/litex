@@ -288,20 +288,20 @@ class SRAM(Module):
 		bus_data_width = flen(self.bus.dat_r)
 		if isinstance(mem_or_size, Memory):
 			assert(mem_or_size.width <= bus_data_width)
-			mem = mem_or_size
+			self.mem = mem_or_size
 		else:
-			mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
+			self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init)
 		if read_only is None:
-			if hasattr(mem, "bus_read_only"):
-				read_only = mem.bus_read_only
+			if hasattr(self.mem, "bus_read_only"):
+				read_only = self.mem.bus_read_only
 			else:
 				read_only = False
 	
 		###
 	
 		# memory
-		port = mem.get_port(write_capable=not read_only, we_granularity=8)
-		self.specials += mem, port
+		port = self.mem.get_port(write_capable=not read_only, we_granularity=8)
+		self.specials += self.mem, port
 		# generate write enable signal
 		if not read_only:
 			self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
