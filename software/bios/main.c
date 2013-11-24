@@ -306,7 +306,6 @@ static void dfs(char *baseaddr)
 static void help(void)
 {
 	puts("MiSoC BIOS");
-	puts("Don't know what to do? Try 'flashboot'.\n");
 	puts("Available commands:");
 	puts("mr         - read address space");
 	puts("mw         - write address space");
@@ -314,7 +313,9 @@ static void help(void)
 	puts("crc        - compute CRC32 of a part of the address space");
 	puts("rcsr       - read processor CSR");
 	puts("wcsr       - write processor CSR");
+#ifdef MINIMAC_BASE
 	puts("netboot    - boot via TFTP");
+#endif
 	puts("serialboot - boot via SFL");
 	puts("flashboot  - boot from flash");
 	puts("revision   - display revision");
@@ -350,7 +351,9 @@ static void do_command(char *c)
 
 	else if(strcmp(token, "flashboot") == 0) flashboot();
 	else if(strcmp(token, "serialboot") == 0) serialboot();
+#ifdef MINIMAC_BASE
 	else if(strcmp(token, "netboot") == 0) netboot();
+#endif
 	
 	else if(strcmp(token, "revision") == 0) printf("%08x\n", GIT_ID);
 
@@ -359,6 +362,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "rcsr") == 0) rcsr(get_token(&c));
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
 	
+#ifdef DFII_BASE
 	else if(strcmp(token, "ddrrow") == 0) ddrrow(get_token(&c));
 	else if(strcmp(token, "ddrsw") == 0) ddrsw();
 	else if(strcmp(token, "ddrhw") == 0) ddrhw();
@@ -366,6 +370,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "ddrwr") == 0) ddrwr(get_token(&c));
 	else if(strcmp(token, "memtest") == 0) memtest();
 	else if(strcmp(token, "ddrinit") == 0) ddrinit();
+#endif
 	
 	else if(strcmp(token, "dfs") == 0) dfs(get_token(&c));
 
@@ -440,7 +445,9 @@ static int test_user_abort(void)
 	printf("Automatic boot in 2 seconds...\n");
 	printf("Q/ESC: abort boot\n");
 	printf("F7:    boot from serial\n");
+#ifdef MINIMAC_BASE
 	printf("F8:    boot from network\n");
+#endif
 	timer0_en_write(0);
 	timer0_reload_write(0);
 	timer0_load_write(identifier_frequency_read()*2);
@@ -457,10 +464,12 @@ static int test_user_abort(void)
 				serialboot();
 				return 0;
 			}
+#ifdef MINIMAC_BASE
 			if(c == 0x07) {
 				netboot();
 				return 0;
 			}
+#endif
 		}
 		timer0_update_value_write(1);
 	}
@@ -472,7 +481,9 @@ static void boot_sequence(void)
 	if(test_user_abort()) {
 		flashboot();
 		serialboot();
+#ifdef MINIMAC_BASE
 		netboot();
+#endif
 		printf("No boot medium found\n");
 	}
 }
@@ -490,8 +501,14 @@ int main(int i, char **c)
 	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
 	crcbios();
 	id_print();
+#ifdef MINIMAC_BASE
 	ethreset();
+#endif
+#ifdef DFII_BASE
 	ddr_ok = ddrinit();
+#else
+	ddr_ok = 1;
+#endif
 	if(ddr_ok)
 		boot_sequence();
 	else

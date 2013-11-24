@@ -175,6 +175,8 @@ void serialboot(void)
 	}
 }
 
+#ifdef MINIMAC_BASE
+
 #define LOCALIP1 192
 #define LOCALIP2 168
 #define LOCALIP3 0
@@ -236,6 +238,8 @@ void netboot(void)
 
 	boot(cmdline_adr, initrdstart_adr, initrdend_adr, SDRAM_BASE);
 }
+
+#endif
 
 void flashboot(void)
 {

@@ -1,7 +1,9 @@
+#include <generated/csr.h>
+#ifdef MINIMAC_BASE
+
 #include <stdio.h>
 #include <system.h>
 #include <crc.h>
-#include <generated/csr.h>
 #include <hw/flags.h>
 #include <hw/mem.h>
 
@@ -407,3 +409,5 @@ void ethreset(void)
 	minimac_phy_reset_write(0);
 	busy_wait(2);
 }
+
+#endif

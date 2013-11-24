@@ -1,7 +1,9 @@
+#include <generated/csr.h>
+#ifdef DFII_BASE
+
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <generated/csr.h>
 #include <generated/sdram_phy.h>
 #include <hw/flags.h>
 #include <hw/mem.h>
@@ -157,3 +159,5 @@ int ddrinit(void)
 	
 	return 1;
 }
+
+#endif
