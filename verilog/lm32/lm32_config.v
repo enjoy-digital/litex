@@ -7,7 +7,7 @@
 //
 
 // Base address for exception vectors
-`define CFG_EBA_RESET 32'h00180000
+`define CFG_EBA_RESET 32'h00000000
 
 // Base address for the debug exception vectors. If the DC_RE flag is
 // set or the at_debug signal is asserted (see CFG_ALTERNATE_EBA) this
