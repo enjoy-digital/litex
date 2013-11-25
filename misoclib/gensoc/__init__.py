@@ -69,13 +69,13 @@ class GenSoC(Module):
 			"jtag_tap_spartan6.v", "lm32_itlb.v", "lm32_dtlb.v")
 		platform.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
 
-	def register_rom(self, rom_wb_if):
+	def register_rom(self, rom_wb_if, bios_size=0x8000):
 		if self._rom_registered:
 			raise FinalizeError
 		self._rom_registered = True
 
 		self.add_wb_slave(lambda a: a[26:29] == 0, rom_wb_if)
-		self.add_cpu_memory_region("rom", self.cpu_reset_address, 0x8000) # 32KB for BIOS
+		self.add_cpu_memory_region("rom", self.cpu_reset_address, bios_size)
 
 	def add_wb_master(self, wbm):
 		if self.finalized:
@@ -113,6 +113,14 @@ class GenSoC(Module):
 		if margin:
 			t += clk_period_ns/2
 		return ceil(t/clk_period_ns)
+
+class IntegratedBIOS:
+	def __init__(self, bios_size=0x8000):
+		self.submodules.rom = wishbone.SRAM(bios_size)
+		self.register_rom(self.rom.bus, bios_size)
+
+	def init_bios_memory(self, data):
+		self.rom.mem.init = data
 
 class SDRAMSoC(GenSoC):
 	csr_map = {
