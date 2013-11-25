@@ -86,6 +86,8 @@ class Instance(Special):
 		def __init__(self, name, value):
 			self.name = name
 			self.value = value
+	class PreformattedParam(str):
+		pass
 
 	def __init__(self, of, *items, name="", **kwargs):
 		Special.__init__(self)
@@ -135,6 +137,8 @@ class Instance(Special):
 					r += verilog_printexpr(ns, p.value)[0]
 				elif isinstance(p.value, float):
 					r += str(p.value)
+				elif isinstance(p.value, Instance.PreformattedParam):
+					r += p.value
 				elif isinstance(p.value, str):
 					r += "\"" + p.value + "\""
 				else:
