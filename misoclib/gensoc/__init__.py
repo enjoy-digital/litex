@@ -116,7 +116,7 @@ class GenSoC(Module):
 
 class IntegratedBIOS:
 	def __init__(self, bios_size=0x8000):
-		self.submodules.rom = wishbone.SRAM(bios_size)
+		self.submodules.rom = wishbone.SRAM(bios_size, read_only=True)
 		self.register_rom(self.rom.bus, bios_size)
 
 	def init_bios_memory(self, data):
