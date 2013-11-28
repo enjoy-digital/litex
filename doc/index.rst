@@ -10,3 +10,4 @@ Migen manual
    dataflow
    simulation
    casestudies
+   api

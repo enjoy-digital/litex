@@ -13,6 +13,37 @@ def _inc(signal, modulo):
 		)
 
 class _FIFOInterface:
+	"""
+	Data written to the input interface (`din`, `we`, `writable`) is
+	buffered and can be read at the output interface (`dout`, `re`,
+	`readable`). The data entry written first to the input 
+	also appears first on the output.
+
+	Parameters
+	==========
+	width_or_layout : int, layout
+		Bit width or `Record` layout for the data.
+	depth : int
+		Depth of the FIFO.
+
+	Attributes
+	==========
+	din : in, width_or_layout
+		Input data either flat or Record structured.
+	writable : out
+		There is space in the FIFO and `we` can be asserted.
+	we : in
+		Write enable signal to latch `din` into the FIFO. Only assert if
+		`writable` is asserted.
+	dout : out, width_or_layout
+		Output data, same type as `din`. Only valid if `readable` is
+		asserted.
+	readable : out
+		Output data `dout` valid, FIFO not empty.
+	re : in
+		Acknowledge `dout`. If asserted, the next entry will be
+		available on the next cycle (if `readable` is high then).
+	"""
 	def __init__(self, width_or_layout, depth):
 		self.we = Signal()
 		self.writable = Signal() # not full
@@ -33,6 +64,15 @@ class _FIFOInterface:
 			self.width = width_or_layout
 
 class SyncFIFO(Module, _FIFOInterface):
+	"""Synchronous FIFO (first in, first out)
+
+	Read and write interfaces are accessed from the same clock domain.
+	If different clock domains are needed, use :class:`AsyncFIFO`.
+
+	{interface}
+	"""
+	__doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
+
 	def __init__(self, width_or_layout, depth):
 		_FIFOInterface.__init__(self, width_or_layout, depth)
 
@@ -81,6 +121,16 @@ class SyncFIFO(Module, _FIFOInterface):
 		]
 
 class AsyncFIFO(Module, _FIFOInterface):
+	"""Asynchronous FIFO (first in, first out)
+
+	Read and write interfaces are accessed from different clock domains,
+	named `read` and `write`. Use `RenameClockDomains` to rename to
+	other names.
+
+	{interface}
+	"""
+	__doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
+
 	def __init__(self, width_or_layout, depth):
 		_FIFOInterface.__init__(self, width_or_layout, depth)
 
