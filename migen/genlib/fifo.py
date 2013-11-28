@@ -31,10 +31,10 @@ class _FIFOInterface:
 	din : in, width_or_layout
 		Input data either flat or Record structured.
 	writable : out
-		There is space in the FIFO and `we` can be asserted.
+		There is space in the FIFO and `we` can be asserted to load new data.
 	we : in
-		Write enable signal to latch `din` into the FIFO. Only assert if
-		`writable` is asserted.
+		Write enable signal to latch `din` into the FIFO. Does nothing if
+		`writable` is not asserted.
 	dout : out, width_or_layout
 		Output data, same type as `din`. Only valid if `readable` is
 		asserted.
