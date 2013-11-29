@@ -20,7 +20,7 @@ setup(
 	author="Sebastien Bourdeauducq",
 	author_email="sebastien@milkymist.org",
 	url="http://www.milkymist.org",
-	download_url="https://github.com/milkymist/migen",
+	download_url="https://github.com/m-labs/migen",
 	packages=find_packages(here),
 	test_suite="migen.test",
 	license="BSD",
