@@ -22,6 +22,7 @@ setup(
 	url="http://www.milkymist.org",
 	download_url="https://github.com/milkymist/migen",
 	packages=find_packages(here),
+	test_suite="migen.test",
 	license="BSD",
 	platforms=["Any"],
 	keywords="HDL ASIC FPGA hardware design",
