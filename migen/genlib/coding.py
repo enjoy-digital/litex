@@ -37,15 +37,3 @@ class Decoder(Module):
 
 class PriorityDecoder(Decoder):
 	pass # same
-
-def _main():
-	from migen.fhdl import verilog
-	e = Encoder(8)
-	print(verilog.convert(e, ios={e.i, e.o, e.n}))
-	pe = PriorityEncoder(8)
-	print(verilog.convert(pe, ios={pe.i, pe.o, pe.n}))
-	d = Decoder(8)
-	print(verilog.convert(d, ios={d.i, d.n, d.o}))
-
-if __name__ == "__main__":
-	_main()
