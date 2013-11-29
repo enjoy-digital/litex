@@ -11,3 +11,11 @@ Migen manual
    simulation
    casestudies
    api
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`search`
+
+.. * :ref:`modindex`
