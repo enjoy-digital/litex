@@ -151,7 +151,8 @@ class Cat(Value):
 	The return value can be used on either side of an assignment, that
 	is, the concatenated value can be used as an argument on the RHS or
 	as a target on the LHS. If it is used on the LHS, it must solely
-	consist of `Signal` s. The bit length of the return value is the sum of
+	consist of `Signal` s, slices of `Signal` s, and other concatenations
+	meeting these properties. The bit length of the return value is the sum of
 	the bit lengths of the arguments::
 
 		flen(Cat(*args)) == sum(flen(arg) for arg in args)
