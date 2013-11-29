@@ -178,28 +178,3 @@ class AsyncFIFO(Module, _FIFOInterface):
 			rdport.adr.eq(consume.q_next_binary[:-1]),
 			self.dout_bits.eq(rdport.dat_r)
 		]
-
-class _SyncFIFOTB(Module):
-	def __init__(self):
-		self.submodules.dut = SyncFIFO([("a", 32), ("b", 32)], 2)
-
-		self.sync += [
-			If(self.dut.we & self.dut.writable, 
-				self.dut.din.a.eq(self.dut.din.a + 1),
-				self.dut.din.b.eq(self.dut.din.b + 2)
-			)
-		]
-		
-	def do_simulation(self, s):
-		s.wr(self.dut.we, s.cycle_counter % 4 == 0)
-		s.wr(self.dut.re, s.cycle_counter % 3 == 0)
-		print("readable: {0} re: {1} data: {2}/{3}".format(s.rd(self.dut.readable),
-			s.rd(self.dut.re),
-			s.rd(self.dut.dout.a), s.rd(self.dut.dout.b)))
-
-def _main():
-	from migen.sim.generic import Simulator
-	Simulator(_SyncFIFOTB()).run(20)
-
-if __name__ == "__main__":
-	_main()
