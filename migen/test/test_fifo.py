@@ -3,7 +3,7 @@ import unittest
 from migen.fhdl.std import *
 from migen.genlib.fifo import SyncFIFO, AsyncFIFO
 
-from .support import SimCase, SimBench
+from migen.test.support import SimCase, SimBench
 
 class SyncFIFOCase(SimCase):
 	class TestBench(SimBench):
