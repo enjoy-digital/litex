@@ -20,14 +20,14 @@ class _FIFOInterface:
 	also appears first on the output.
 
 	Parameters
-	==========
+	----------
 	width_or_layout : int, layout
 		Bit width or `Record` layout for the data.
 	depth : int
 		Depth of the FIFO.
 
 	Attributes
-	==========
+	----------
 	din : in, width_or_layout
 		Input data either flat or Record structured.
 	writable : out
