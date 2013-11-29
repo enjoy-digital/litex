@@ -90,8 +90,9 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 
 # A list of ignored prefixes for module index sorting.
-#modindex_common_prefix = []
+modindex_common_prefix = ['migen.', 'mibuild.']
 
+numpydoc_show_class_members = False
 
 # -- Options for HTML output ---------------------------------------------------
 
@@ -172,6 +173,7 @@ html_static_path = ['_static']
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'Migendoc'
 
+html_use_modindex = False
 
 # -- Options for LaTeX output --------------------------------------------------
 
@@ -211,6 +213,7 @@ latex_preamble = '\setcounter{tocdepth}{3}'
 # If false, no module index is generated.
 #latex_domain_indices = True
 
+latex_use_modindex = False
 
 # -- Options for manual page output --------------------------------------------
 
