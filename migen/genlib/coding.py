@@ -2,13 +2,28 @@ from migen.fhdl.std import *
 
 """
 Encoders and decoders between binary and one-hot representation
-
-i: input (binary or one-hot)
-o: output (one-hot or binary)
-n: "none" signal (in/out), binary value is invalid
 """
 
 class Encoder(Module):
+	"""Encode one-hot to binary
+
+	If `n` is low, the `o` th bit in `i` is asserted, else none or
+	multiple bits are asserted.
+
+	Parameters
+	----------
+	width : int
+		Bit width of the input
+
+	Attributes
+	----------
+	i : Signal(width), in
+		One-hot input
+	o : Signal(max=width), out
+		Encoded binary
+	n : Signal(1), out
+		Invalid, either none or multiple input bits are asserted
+	"""
 	def __init__(self, width):
 		self.i = Signal(width) # one-hot
 		self.o = Signal(max=width) # binary
@@ -18,6 +33,25 @@ class Encoder(Module):
 		self.comb += Case(self.i, act)
 
 class PriorityEncoder(Module):
+	"""Priority encode requests to binary
+
+	If `n` is low, the `o` th bit in `i` is asserted and the bits below
+	`o` are unasserted, else `o == 0`. The LSB has priority.
+
+	Parameters
+	----------
+	width : int
+		Bit width of the input
+
+	Attributes
+	----------
+	i : Signal(width), in
+		Input requests
+	o : Signal(max=width), out
+		Encoded binary
+	n : Signal(1), out
+		Invalid, no input bits are asserted
+	"""
 	def __init__(self, width):
 		self.i = Signal(width) # one-hot, lsb has priority
 		self.o = Signal(max=width) # binary
@@ -27,6 +61,26 @@ class PriorityEncoder(Module):
 		self.comb += self.n.eq(self.i == 0)
 
 class Decoder(Module):
+	"""Decode binary to one-hot
+
+	If `n` is low, the `i` th bit in `o` is asserted, the others are
+	not, else `o == 0`.
+
+	Parameters
+	----------
+	width : int
+		Bit width of the output
+
+	Attributes
+	----------
+	i : Signal(max=width), in
+		Input binary
+	o : Signal(width), out
+		Decoded one-hot
+	n : Signal(1), in
+		Invalid, no output bits are to be asserted
+	"""
+
 	def __init__(self, width):
 		self.i = Signal(max=width) # binary
 		self.n = Signal() # none/invalid

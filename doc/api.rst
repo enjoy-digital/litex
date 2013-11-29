@@ -14,3 +14,10 @@ migen API Documentation
 .. automodule:: migen.genlib.fifo
         :members:
         :show-inheritance:
+
+:mod:`genlib.coding` Module
+------------------------------
+
+.. automodule:: migen.genlib.coding
+        :members:
+        :show-inheritance:
