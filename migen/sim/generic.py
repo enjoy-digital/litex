@@ -1,3 +1,5 @@
+import warnings
+
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
 from migen.fhdl import verilog
@@ -177,8 +179,22 @@ class Simulator:
 				self.multiwrite(getattr(obj, k), v)
 
 	def __del__(self):
+		if hasattr(self, "ipc"):
+			warnings.warn("call Simulator.close() to clean up "
+					"or use it as a contextmanager", DeprecationWarning)
+			self.close()
+
+	def close(self):
+		self.ipc.close()
+		self.sim_runner.close()
 		del self.ipc
 		del self.sim_runner
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self,  type, value, traceback):
+		self.close()
 
 # Contrary to multiread/multiwrite, Proxy fetches the necessary signals only and
 # immediately forwards writes into the simulation.

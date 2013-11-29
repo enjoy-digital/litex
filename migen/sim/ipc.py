@@ -166,7 +166,7 @@ class Initiator:
 			raise PacketTooLarge
 		return _unpack(packet)
 
-	def __del__(self):
+	def close(self):
 		if hasattr(self, "conn"):
 			self.conn.shutdown(socket.SHUT_RDWR)
 			self.conn.close()
