@@ -4,7 +4,7 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import lasmicon, mxcrg, norflash, s6ddrphy, minimac3, framebuffer, dvisampler, gpio
+from misoclib import lasmicon, mxcrg, norflash16, s6ddrphy, minimac3, framebuffer, dvisampler, gpio
 from misoclib.gensoc import SDRAMSoC
 
 class _MXClockPads:
@@ -72,7 +72,8 @@ class MiniSoC(SDRAMSoC):
 		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 
 		# Wishbone
-		self.submodules.norflash = norflash.NorFlash(platform.request("norflash"), 12)
+		self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
+			self.ns(110), self.ns(50))
 		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
 		self.register_rom(self.norflash.bus)
 		self.add_wb_slave(lambda a: a[26:29] == 3, self.minimac.membus)
