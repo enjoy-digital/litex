@@ -21,3 +21,10 @@ migen API Documentation
 .. automodule:: migen.genlib.coding
         :members:
         :show-inheritance:
+
+:mod:`genlib.cordic` Module
+------------------------------
+
+.. automodule:: migen.genlib.cordic
+        :members:
+        :show-inheritance:
