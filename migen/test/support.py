@@ -12,8 +12,8 @@ class SimBench(Module):
 class SimCase(unittest.TestCase):
 	TestBench = SimBench
 
-	def setUp(self):
-		self.tb = self.TestBench()
+	def setUp(self, *args, **kwargs):
+		self.tb = self.TestBench(*args, **kwargs)
 
 	def test_to_verilog(self):
 		verilog.convert(self.tb)
