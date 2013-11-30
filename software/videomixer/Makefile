@@ -1,7 +1,7 @@
 MSCDIR=../..
 include $(MSCDIR)/software/common.mak
 
-OBJECTS=isr.o processor.o dvisampler0.o dvisampler1.o edid.o pll.o ci.o main.o
+OBJECTS=isr.o processor.o dvisampler0.o dvisampler1.o edid.o pll.o ci.o config.o main.o
 
 all: videomixer.bin videomixer.fbi
 

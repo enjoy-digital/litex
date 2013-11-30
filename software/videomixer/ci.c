@@ -3,6 +3,7 @@
 #include <console.h>
 #include <generated/csr.h>
 
+#include "config.h"
 #include "dvisampler0.h"
 #include "dvisampler1.h"
 #include "processor.h"
@@ -46,8 +47,10 @@ void ci_service(void)
 			int m;
 
 			m = c - '0';
-			if(m < PROCESSOR_MODE_COUNT)
+			if(m < PROCESSOR_MODE_COUNT) {
+				config_set(CONFIG_KEY_RESOLUTION, m);
 				processor_start(m);
+			}
 		}
 		switch(c) {
 			case 'l':

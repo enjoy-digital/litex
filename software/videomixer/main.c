@@ -8,6 +8,7 @@
 #include <hw/flags.h>
 #include <console.h>
 
+#include "config.h"
 #include "ci.h"
 #include "processor.h"
 
@@ -92,8 +93,9 @@ int main(void)
 	
 	printf("Mixxeo software rev. %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
 	
+	config_init();
 	time_init();
-	processor_start(6);
+	processor_start(config_get(CONFIG_KEY_RESOLUTION));
 
 	while(1) {
 		processor_service();
