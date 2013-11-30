@@ -8,14 +8,11 @@ class NorFlash16(Module):
 
 		###
 
-		adr_width = flen(pads.adr) + 1
-		adr_r = Signal(adr_width) # in 16-bit memory words
 		data = TSTriple(16)
 		lsb = Signal()
 
 		self.specials += data.get_tristate(pads.d)
 		self.comb += [
-			pads.adr.eq(Cat(lsb, adr_r[1:])),
 			data.oe.eq(pads.oe_n),
 			pads.ce_n.eq(0)
 		]
@@ -31,7 +28,7 @@ class NorFlash16(Module):
 
 			# Register data/address to avoid off-chip glitches
 			If(self.bus.cyc & self.bus.stb,
-				adr_r.eq(Cat(0, self.bus.adr)),
+				pads.adr.eq(Cat(lsb, self.bus.adr)),
 				If(self.bus.we,
 					# Only 16-bit writes are supported. Assume sel=0011 or 1100.
 					If(self.bus.sel[0],
