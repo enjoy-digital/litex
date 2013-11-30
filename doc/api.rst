@@ -28,3 +28,10 @@ migen API Documentation
 .. automodule:: migen.genlib.cordic
         :members:
         :show-inheritance:
+
+:mod:`genlib.sort` Module
+------------------------------
+
+.. automodule:: migen.genlib.sort
+        :members:
+        :show-inheritance:
