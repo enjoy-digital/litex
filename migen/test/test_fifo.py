@@ -5,7 +5,7 @@ from migen.genlib.fifo import SyncFIFO, AsyncFIFO
 
 from migen.test.support import SimCase, SimBench
 
-class SyncFIFOCase(SimCase):
+class SyncFIFOCase(SimCase, unittest.TestCase):
 	class TestBench(SimBench):
 		def __init__(self):
 			self.submodules.dut = SyncFIFO([("a", 32), ("b", 32)], 2)

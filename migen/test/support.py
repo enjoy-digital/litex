@@ -9,7 +9,7 @@ class SimBench(Module):
 		if self.callback is not None:
 			return self.callback(self, s)
 
-class SimCase(unittest.TestCase):
+class SimCase:
 	TestBench = SimBench
 
 	def setUp(self, *args, **kwargs):

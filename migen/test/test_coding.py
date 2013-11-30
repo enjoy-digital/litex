@@ -5,7 +5,7 @@ from migen.genlib.coding import *
 
 from migen.test.support import SimCase, SimBench
 
-class EncCase(SimCase):
+class EncCase(SimCase, unittest.TestCase):
 	class TestBench(SimBench):
 		def __init__(self):
 			self.submodules.dut = Encoder(8)
@@ -29,7 +29,7 @@ class EncCase(SimCase):
 				self.assertEqual(i, 1<<o)
 		self.run_with(cb, 256)
 
-class PrioEncCase(SimCase):
+class PrioEncCase(SimCase, unittest.TestCase):
 	class TestBench(SimBench):
 		def __init__(self):
 			self.submodules.dut = PriorityEncoder(8)
@@ -55,7 +55,7 @@ class PrioEncCase(SimCase):
 				self.assertGreaterEqual(i, 1<<o)
 		self.run_with(cb, 256)
 
-class DecCase(SimCase):
+class DecCase(SimCase, unittest.TestCase):
 	class TestBench(SimBench):
 		def __init__(self):
 			self.submodules.dut = Decoder(8)
