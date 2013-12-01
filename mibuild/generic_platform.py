@@ -1,9 +1,10 @@
-import os, argparse
+import os, sys
 
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
 from migen.genlib.record import Record
 from migen.fhdl import verilog, edif
+from migen.util.misc import autotype
 
 from mibuild import tools
 
@@ -225,14 +226,11 @@ class GenericPlatform:
 	def build(self, fragment):
 		raise NotImplementedError("GenericPlatform.build must be overloaded")
 
-	def add_arguments(self, parser):
-		pass # default: no arguments
-
-	def build_arg_ns(self, ns, *args, **kwargs):
-		self.build(*args, **kwargs)
-
 	def build_cmdline(self, *args, **kwargs):
-		parser = argparse.ArgumentParser(description="FPGA bitstream build system")
-		self.add_arguments(parser)
-		ns = parser.parse_args()
-		self.build_arg_ns(ns, *args, **kwargs)
+		arg = sys.argv[1:]
+		if len(arg) % 2:
+			print("Missing value for option: "+sys.argv[-1])
+			sys.exit(1)
+		argdict = dict((k, autotype(v)) for k, v in zip(*[iter(arg)]*2))
+		kwargs.update(argdict)
+		self.build(*args, **kwargs)
