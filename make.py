@@ -3,6 +3,7 @@
 import argparse, importlib, subprocess, struct
 
 from mibuild.tools import write_to_file
+from migen.util.misc import autotype
 
 from misoclib.gensoc import cpuif
 from misoclib.s6ddrphy import initsequence
@@ -14,10 +15,11 @@ def _get_args():
 	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-t", "--target", default="mlabs_video", help="SoC type to build")
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the SoC type to build")
-	parser.add_argument("-o", "--option", default=[], nargs=2, action="append", help="set target-specific option")
+	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
 	parser.add_argument("-Xp", "--external-platform", default="", help="use external platform file in the specified path")
 	parser.add_argument("-Xt", "--external-target", default="", help="use external target file in the specified path")
 	
+	parser.add_argument("-Ob", "--build-option", default=[], nargs=2, action="append", help="set build option")
 	parser.add_argument("-B", "--no-bitstream", default=False, action="store_true", help="do not build bitstream file")
 	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header files with CSR/IRQ/SDRAM_PHY definitions")
 	parser.add_argument("-c", "--csr-csv", default="", help="save CSR map into CSV file")
@@ -47,7 +49,7 @@ def main():
 	else:
 		top_class = target_module.get_default_subtarget(platform)
 	build_name = top_class.__name__.lower() + "-" + args.platform
-	top_kwargs = dict((k, eval(v)) for k, v in args.option)
+	top_kwargs = dict((k, autotype(v)) for k, v in args.target_option)
 	soc = top_class(platform, **top_kwargs)
 
 	soc.finalize()
@@ -86,7 +88,8 @@ def main():
 		soc.init_bios_memory(bios_data)
 
 	if not args.no_bitstream:
-		platform.build(soc, build_name=build_name)
+		build_kwargs = dict((k, autotype(v)) for k, v in args.build_option)
+		platform.build(soc, build_name=build_name, **build_kwargs)
 		subprocess.call(["tools/byteswap",
 			"build/" + build_name + ".bin",
 			"build/" + build_name + ".fpg"])
