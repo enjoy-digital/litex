@@ -20,7 +20,7 @@ class Divider(Module):
 			self.quotient_o.eq(qr[:w]),
 			self.remainder_o.eq(qr[w:]),
 			self.ready_o.eq(counter == 0),
-			diff.eq(self.remainder_o - divisor_r)
+			diff.eq(qr[w-1:] - divisor_r)
 		]
 		self.sync += [
 			If(self.start_i,
