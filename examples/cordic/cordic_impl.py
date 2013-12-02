@@ -3,13 +3,14 @@ import json
 
 from migen.fhdl.std import *
 from migen.genlib.cordic import Cordic
+from mibuild.tools import mkdir_noerror
 from mibuild.generic_platform import *
 from mibuild.xilinx_ise import XilinxISEPlatform, CRG_SE
-
 
 class CordicImpl(Module):
 	def __init__(self, name, **kwargs):
 		self.name = name
+		mkdir_noerror("build")
 		json.dump(kwargs, open("build/{}.json".format(name), "w"))
 		self.platform = platform = Platform()
 		self.submodules.cordic = Cordic(**kwargs)
