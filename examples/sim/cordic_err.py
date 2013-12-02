@@ -8,7 +8,6 @@ from migen.fhdl import verilog
 from migen.genlib.cordic import Cordic
 from migen.sim.generic import Simulator
 
-
 class TestBench(Module):
 	def __init__(self, n=None, xmax=.98, i=None, **kwargs):
 		self.submodules.cordic = Cordic(**kwargs)
@@ -69,7 +68,7 @@ def rms_err(width, guard=None, stages=None, n=None):
 
 def rms_err_map():
 	widths, stages = np.mgrid[8:33:1, 8:37:1]
-	errf = np.vectorize(lambda w, s: _rms_err(int(w), None, int(s), n=333))
+	errf = np.vectorize(lambda w, s: rms_err(int(w), None, int(s), n=333))
 	err = errf(widths, stages)
 	print(err)
 	lev = np.arange(10)
