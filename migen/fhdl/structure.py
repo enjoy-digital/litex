@@ -4,6 +4,7 @@ import builtins
 from collections import defaultdict
 
 from migen.fhdl import tracer
+from migen.util.misc import flat_iteration
 
 class HUID:
 	__next_uid = 0
@@ -87,7 +88,7 @@ class Value(HUID):
 		elif isinstance(key, slice):
 			start, stop, step = key.indices(flen(self))
 			if step != 1:
-				return Cat(*(self[i] for i in range(start, stop, step)))
+				return Cat(self[i] for i in range(start, stop, step))
 			return _Slice(self, start, stop)
 		else:
 			raise KeyError
@@ -155,11 +156,11 @@ class Cat(Value):
 	meeting these properties. The bit length of the return value is the sum of
 	the bit lengths of the arguments::
 
-		flen(Cat(*args)) == sum(flen(arg) for arg in args)
+		flen(Cat(args)) == sum(flen(arg) for arg in args)
 
 	Parameters
 	----------
-	*args : Value, inout
+	*args : Values or iterables of Values, inout
 		`Value` s to be concatenated.
 
 	Returns
@@ -169,7 +170,7 @@ class Cat(Value):
 	"""
 	def __init__(self, *args):
 		Value.__init__(self)
-		self.l = args
+		self.l = list(flat_iteration(args))
 
 class Replicate(Value):
 	"""Replicate a value
