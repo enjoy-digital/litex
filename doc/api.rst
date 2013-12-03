@@ -8,6 +8,13 @@ migen API Documentation
         :members:
         :show-inheritance:
 
+:mod:`fhdl.size` Module
+------------------------------
+
+.. automodule:: migen.fhdl.size
+        :members:
+        :show-inheritance:
+
 :mod:`genlib.fifo` Module
 ------------------------------
 

@@ -96,7 +96,103 @@ def value_bits_sign(v):
 		bsc = map(value_bits_sign, v.choices)
 		return max(bs[0] for bs in bsc), any(bs[1] for bs in bsc)
 	else:
-		raise TypeError
+		raise TypeError("Can not calculate bit length of {} {}".format(
+			type(v), v))
 
 def flen(v):
+	"""Bit length of an expression
+
+	Parameters
+	----------
+	v : int, bool or Value
+
+	Returns
+	-------
+	int
+		Number of bits required to store `v` or available in `v`
+
+	Examples
+	--------
+	>>> flen(f.Signal(8))
+	8
+	>>> flen(0xaa)
+	8
+	"""
 	return value_bits_sign(v)[0]
+
+def fiter(v):
+	"""Bit iterator
+
+	Parameters
+	----------
+	v : int, bool or Value
+
+	Returns
+	-------
+	iter
+		Iterator over the bits in `v`
+
+	Examples
+	--------
+	>>> list(fiter(f.Signal(2))) #doctest: +ELLIPSIS
+	[<migen.fhdl.structure._Slice object at 0x...>, <migen.fhdl.structure._Slice object at 0x...>]
+	>>> list(fiter(4))
+	[0, 0, 1]
+	"""
+	if isinstance(v, (bool, int)):
+		return ((v >> i) & 1 for i in range(bits_for(v)))
+	elif isinstance(v, f.Value):
+		return (v[i] for i in range(flen(v)))
+	else:
+		raise TypeError("Can not bit-iterate {} {}".format(type(v), v))
+
+def fslice(v, s):
+	"""Bit slice
+
+	Parameters
+	----------
+	v : int, bool or Value
+	s : slice or int
+
+	Returns
+	-------
+	int or Value
+		Expression for the slice `s` of `v`.
+
+	Examples
+	--------
+	>>> fslice(Signal(2), 1) #doctest: +ELLIPSIS
+	<migen.fhdl.structure._Slice object at 0x...>
+	>>> bin(fslice(0b1101, slice(1, None, 2)))
+	'0b10'
+	"""
+	if isinstance(v, (bool, int)):
+		if isinstance(s, int):
+			s = slice(s)
+		idx = range(*s.indices(flen(v)))
+		return sum(((v>>i) & 1) << j for j, i in enumerate(idx))
+	elif isinstance(v, f.Value):
+		return v[s]
+	else:
+		raise TypeError("Can not bit-slice {} {}".format(type(v), v))
+
+def freversed(v):
+	"""Bit reverse
+
+	Parameters
+	----------
+	v : int, bool or Value
+
+	Returns
+	-------
+	int or Value
+		Expression containing the bit reversed input.
+
+	Examples
+	--------
+	>>> freversed(Signal(2)) #doctest: +ELLIPSIS
+	<migen.fhdl.structure._Slice object at 0x...>
+	>>> bin(freversed(0b1011))
+	'0b1101'
+	"""
+	return fslice(v, slice(None, None, -1))
