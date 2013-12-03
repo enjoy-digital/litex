@@ -8,10 +8,10 @@ migen API Documentation
         :members:
         :show-inheritance:
 
-:mod:`fhdl.size` Module
+:mod:`fhdl.bitcontainer` Module
 ------------------------------
 
-.. automodule:: migen.fhdl.size
+.. automodule:: migen.fhdl.bitcontainer
         :members:
         :show-inheritance:
 

@@ -79,7 +79,7 @@ class Value(HUID):
 	
 	
 	def __getitem__(self, key):
-		from migen.fhdl.size import flen
+		from migen.fhdl.bitcontainer import flen
 
 		if isinstance(key, int):
 			if key < 0:
@@ -242,7 +242,7 @@ class Signal(Value):
 	related : Signal or None
 	"""
 	def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None, related=None):
-		from migen.fhdl.size import bits_for
+		from migen.fhdl.bitcontainer import bits_for
 
 		Value.__init__(self)
 		

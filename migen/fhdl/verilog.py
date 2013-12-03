@@ -4,7 +4,7 @@ from operator import itemgetter
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.tools import *
-from migen.fhdl.size import bits_for, flen
+from migen.fhdl.bitcontainer import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
 
 def _printsig(ns, s):

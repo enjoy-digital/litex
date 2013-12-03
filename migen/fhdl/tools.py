@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Slice, _Assign
 from migen.fhdl.visit import NodeVisitor, NodeTransformer
-from migen.fhdl.size import value_bits_sign
+from migen.fhdl.bitcontainer import value_bits_sign
 from migen.util.misc import flat_iteration
 
 class _SignalLister(NodeVisitor):
