@@ -161,16 +161,20 @@ def fslice(v, s):
 
 	Examples
 	--------
-	>>> fslice(Signal(2), 1) #doctest: +ELLIPSIS
+	>>> fslice(f.Signal(2), 1) #doctest: +ELLIPSIS
 	<migen.fhdl.structure._Slice object at 0x...>
 	>>> bin(fslice(0b1101, slice(1, None, 2)))
 	'0b10'
+	>>> fslice(-1, slice(0, 4))
+	1
+	>>> fslice(-7, slice(None))
+	9
 	"""
 	if isinstance(v, (bool, int)):
 		if isinstance(s, int):
 			s = slice(s)
-		idx = range(*s.indices(flen(v)))
-		return sum(((v>>i) & 1) << j for j, i in enumerate(idx))
+		idx = range(*s.indices(bits_for(v)))
+		return sum(((v >> i) & 1) << j for j, i in enumerate(idx))
 	elif isinstance(v, f.Value):
 		return v[s]
 	else:
@@ -190,8 +194,8 @@ def freversed(v):
 
 	Examples
 	--------
-	>>> freversed(Signal(2)) #doctest: +ELLIPSIS
-	<migen.fhdl.structure._Slice object at 0x...>
+	>>> freversed(f.Signal(2)) #doctest: +ELLIPSIS
+	<migen.fhdl.structure.Cat object at 0x...>
 	>>> bin(freversed(0b1011))
 	'0b1101'
 	"""

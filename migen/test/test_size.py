@@ -32,6 +32,9 @@ class SignalSizeCase(unittest.TestCase):
 		fslice(self.s, sl)
 		self.assertEqual(fslice(self.i, sl), 15)
 		self.assertEqual(fslice(self.j, sl), 8)
+		self.assertEqual(fslice(-1, 9), 1)
+		self.assertEqual(fslice(-1, slice(0, 4)), 0b1)
+		self.assertEqual(fslice(-7, slice(0, None, 1)), 0b1001)
 
 	def test_fslice_type(self):
 		self.assertRaises(TypeError, fslice, [], 3)
