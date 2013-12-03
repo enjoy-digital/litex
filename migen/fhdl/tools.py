@@ -1,17 +1,8 @@
-import collections
-
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Slice, _Assign
 from migen.fhdl.visit import NodeVisitor, NodeTransformer
 from migen.fhdl.size import value_bits_sign
-
-def flat_iteration(l):
-	for element in l:
-		if isinstance(element, collections.Iterable):
-			for element2 in flat_iteration(element):
-				yield element2
-		else:
-			yield element
+from migen.util.misc import flat_iteration
 
 class _SignalLister(NodeVisitor):
 	def __init__(self):

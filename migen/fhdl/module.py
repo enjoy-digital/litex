@@ -4,7 +4,8 @@ from itertools import combinations
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Fragment
 from migen.fhdl.specials import Special
-from migen.fhdl.tools import flat_iteration, rename_clock_domain
+from migen.fhdl.tools import rename_clock_domain
+from migen.util.misc import flat_iteration
 
 class FinalizeError(Exception):
 	pass
