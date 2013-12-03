@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse, importlib, subprocess, struct
+import sys, argparse, importlib, subprocess, struct
 
 from mibuild.tools import write_to_file
 from migen.util.misc import autotype
@@ -31,6 +31,10 @@ def _get_args():
 
 def _misoc_import(default, external, name):
 	if external:
+		try:
+			del sys.modules[name] # force external path search
+		except KeyError:
+			pass
 		loader = importlib.find_loader(name, [external])
 		if loader is None:
 			raise ImportError("Module not found: "+name)
