@@ -84,7 +84,7 @@ class MiniSoC(SDRAMSoC):
 			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
 		if platform.name == "m1":
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
-			self.submodules.leds = gpio.GPIOOut(Cat(*[platform.request("user_led", i) for i in range(2)]))
+			self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", i) for i in range(2)))
 
 		# Clock glue
 		self.comb += [
