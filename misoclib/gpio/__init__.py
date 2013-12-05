@@ -12,6 +12,14 @@ class GPIOOut(Module, AutoCSR):
 		self._r_out = CSRStorage(flen(signal))
 		self.comb += signal.eq(self._r_out.storage)
 
+class GPIOInOut(Module):
+	def __init__(self, in_signal, out_signal):
+		self.submodules.gpio_in = GPIOIn(in_signal)
+		self.submodules.gpio_out = GPIOOut(out_signal)
+
+	def get_csrs(self):
+		return self.gpio_in.get_csrs() + self.gpio_out.get_csrs()
+
 class Blinker(Module):
 	def __init__(self, signal, divbits=26):
 		counter = Signal(divbits)
