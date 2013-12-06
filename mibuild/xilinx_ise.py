@@ -134,20 +134,20 @@ def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
 			xilinx_settings_file = os.path.join(ise_path, tools_version, "ISE_DS", "settings32.sh")
 		build_script_contents += "source " + xilinx_settings_file + "\n"
 	if mode == "edif":
-		build_script_contents += """
-ngdbuild {ngdbuild_opt} -uc {build_name}.ucf {build_name}.edif {build_name}.ngd"""
+		ext = "edif"
 	else:
+		ext = "ngc"
 		build_script_contents += """
-xst -ifn {build_name}.xst
-ngdbuild -uc {build_name}.ucf {build_name}.ngc {build_name}.ngd"""
-	
+xst -ifn {build_name}.xst"""
+
 	build_script_contents += """
+ngdbuild {ngdbuild_opt} -uc {build_name}.ucf {build_name}.{ext} {build_name}.ngd
 map -ol high -w -o {build_name}_map.ncd {build_name}.ngd {build_name}.pcf
 par -ol high -w {build_name}_map.ncd {build_name}.ncd {build_name}.pcf
 bitgen {bitgen_opt} -w {build_name}.ncd {build_name}.bit
 """
 	build_script_contents = build_script_contents.format(build_name=build_name,
-			ngdbuild_opt=ngdbuild_opt, bitgen_opt=bitgen_opt)
+			ngdbuild_opt=ngdbuild_opt, bitgen_opt=bitgen_opt, ext=ext)
 	build_script_contents += ise_commands.format(build_name=build_name)
 	build_script_file = "build_" + build_name + ".sh"
 	tools.write_to_file(build_script_file, build_script_contents)
