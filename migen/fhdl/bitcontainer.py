@@ -93,7 +93,7 @@ def value_bits_sign(v):
 	elif isinstance(v, f.Replicate):
 		return (value_bits_sign(v.v)[0])*v.n, False
 	elif isinstance(v, f._ArrayProxy):
-		bsc = map(value_bits_sign, v.choices)
+		bsc = list(map(value_bits_sign, v.choices))
 		return max(bs[0] for bs in bsc), any(bs[1] for bs in bsc)
 	else:
 		raise TypeError("Can not calculate bit length of {} {}".format(
