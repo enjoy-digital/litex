@@ -27,7 +27,8 @@ def _printintbool(node):
 		if node >= 0:
 			return str(bits_for(node)) + "'d" + str(node), False
 		else:
-			return "-" + str(bits_for(node)) + "'sd" + str(-node), True
+			nbits = bits_for(node)
+			return str(nbits) + "'sd" + str(2**nbits + node), True
 	else:
 		raise TypeError
 
