@@ -66,7 +66,7 @@ class GenSoC(Module):
 			"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
 			"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
 			"lm32_dcache.v", "lm32_debug.v", "lm32_itlb.v", "lm32_dtlb.v")
-		platform.add_sources(os.path.join("verilog", "lm32"), "lm32_config.v")
+		platform.add_verilog_include_path(os.path.join("verilog", "lm32"))
 
 	def register_rom(self, rom_wb_if, bios_size=0x8000):
 		if self._rom_registered:
