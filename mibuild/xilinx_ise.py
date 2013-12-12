@@ -70,7 +70,7 @@ def _build_ucf(named_sc, named_pc):
 		r += "\n" + "\n\n".join(named_pc)
 	return r
 
-def _build_xst_files(device, sources, build_name, xst_opt):
+def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
 	prj_contents = ""
 	for filename, language in sources:
 		prj_contents += language + " work " + filename + "\n"
@@ -81,13 +81,19 @@ def _build_xst_files(device, sources, build_name, xst_opt):
 -top top
 {xst_opt}
 -ofn {build_name}.ngc
--p {device}""".format(build_name=build_name, xst_opt=xst_opt, device=device)
+-p {device}
+""".format(build_name=build_name, xst_opt=xst_opt, device=device)
+	for path in vincpaths:
+		xst_contents += "-vlgincdir " + path + "\n"
 	tools.write_to_file(build_name + ".xst", xst_contents)
 
-def _run_yosys(device, sources, build_name):
+def _run_yosys(device, sources, vincpaths, build_name):
 	ys_contents = ""
+	incflags = ""
+	for path in vincpaths:
+		incflags += " -I" + path
 	for filename, language in sources:
-		ys_contents += "read_{} {}\n".format(language, filename)
+		ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 	
 	if device[:2] == "xc":
 		archcode = device[2:4]
@@ -212,10 +218,10 @@ class XilinxISEPlatform(GenericPlatform):
 			tools.write_to_file(v_file, v_src)
 			sources = self.sources + [(v_file, "verilog")]
 			if mode == "xst":
-				_build_xst_files(self.device, sources, build_name, self.xst_opt)
+				_build_xst_files(self.device, sources, self.verilog_include_paths, build_name, self.xst_opt)
 				isemode = "xst"
 			else:
-				_run_yosys(self.device, sources, build_name)
+				_run_yosys(self.device, sources, self.verilog_include_paths, build_name)
 				isemode = "edif"
 				ngdbuild_opt += "-p " + self.device
 
