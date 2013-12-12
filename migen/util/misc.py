@@ -1,3 +1,4 @@
+from fractions import gcd
 import collections
 
 def flat_iteration(l):
@@ -26,3 +27,11 @@ def autotype(s):
 	except ValueError:
 		pass
 	return s
+
+def gcd_multiple(numbers):
+	l = len(numbers)
+	if l == 1:
+		return numbers[0]
+	else:
+		s = l//2
+		return gcd(gcd_multiple(numbers[:s]), gcd_multiple(numbers[s:]))
