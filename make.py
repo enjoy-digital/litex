@@ -11,7 +11,7 @@ from misoclib.s6ddrphy import initsequence
 import jtag
 
 def _get_args():
-	parser = argparse.ArgumentParser(description="MiSoC - a high performance SoC based on Migen.")
+	parser = argparse.ArgumentParser(description="MiSoC - a high performance and small footprint SoC based on Migen.")
 
 	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-t", "--target", default="mlabs_video", help="SoC type to build")
