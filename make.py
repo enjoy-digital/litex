@@ -4,6 +4,7 @@ import sys, argparse, importlib, subprocess, struct
 
 from mibuild.tools import write_to_file
 from migen.util.misc import autotype
+from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
 from misoclib.s6ddrphy import initsequence
@@ -18,7 +19,8 @@ def _get_args():
 	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
 	parser.add_argument("-Xp", "--external-platform", default="", help="use external platform file in the specified path")
 	parser.add_argument("-Xt", "--external-target", default="", help="use external target file in the specified path")
-	
+
+	parser.add_argument("-d", "--decorate", default=[], action="append", help="apply simplification decorator to top-level")
 	parser.add_argument("-Ob", "--build-option", default=[], nargs=2, action="append", help="set build option")
 	parser.add_argument("-B", "--no-bitstream", default=False, action="store_true", help="do not build bitstream file")
 	parser.add_argument("-H", "--no-header", default=False, action="store_true", help="do not build C header files with CSR/IRQ/SDRAM_PHY definitions")
@@ -90,6 +92,9 @@ def main():
 			bios_data.append(struct.unpack(">I", w)[0])
 		bios_file.close()
 		soc.init_bios_memory(bios_data)
+
+	for decorator in args.decorate:
+		soc = getattr(simplify, decorator)(soc)
 
 	if not args.no_bitstream:
 		build_kwargs = dict((k, autotype(v)) for k, v in args.build_option)
