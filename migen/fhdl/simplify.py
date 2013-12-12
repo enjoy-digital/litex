@@ -27,7 +27,7 @@ class FullMemoryWE(ModuleDecorator):
 						newport = _MemoryPort(adr=port.adr,
 							
 							dat_r=port.dat_r[i*global_granularity:(i+1)*global_granularity] if port.dat_r is not None else None,
-							we=port.we[i*port_granularity//global_granularity] if port.we is not None else None,
+							we=port.we[i*global_granularity//port_granularity] if port.we is not None else None,
 							dat_w=port.dat_w[i*global_granularity:(i+1)*global_granularity] if port.dat_w is not None else None,
 
 	  						async_read=port.async_read,
