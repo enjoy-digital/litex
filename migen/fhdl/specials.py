@@ -177,7 +177,10 @@ class _MemoryPort(Special):
 		self.re = re
 		self.we_granularity = we_granularity
 		self.mode = mode
-		self.clock = ClockSignal(clock_domain)
+		if isinstance(clock_domain, str):
+			self.clock = ClockSignal(clock_domain)
+		else:
+			self.clock = clock_domain
 
 	def iter_expressions(self):
 		for attr, target_context in [
@@ -231,7 +234,11 @@ class Memory(Special):
 	@staticmethod
 	def emit_verilog(memory, ns):
 		r = ""
-		gn = ns.get_name # usable instead of verilog_printexpr as ports contain only signals
+		def gn(e):
+			if isinstance(e, Memory):
+				return ns.get_name(e)
+			else:
+				return verilog_printexpr(ns, e)[0]
 		adrbits = bits_for(memory.depth-1)
 		
 		r += "reg [" + str(memory.width-1) + ":0] " \
