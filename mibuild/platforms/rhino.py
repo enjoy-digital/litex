@@ -25,6 +25,7 @@ _io = [
 		Subsignal("we_n", Pins("W26")),
 		Subsignal("oe_n", Pins("AA25")),
 		Subsignal("ale_n", Pins("AA26")),
+		Subsignal("wait", Pins("AD26")), # WAIT1/BUSY0
 		IOStandard("LVCMOS33")),
 	# Warning: CS are numbered 1-7 on ARM side and 0-6 on FPGA side.
 	# Numbers here are given on the FPGA side.
