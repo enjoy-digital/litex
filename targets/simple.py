@@ -7,8 +7,7 @@ class SimpleSoC(GenSoC, IntegratedBIOS):
 	def __init__(self, platform):
 		GenSoC.__init__(self, platform,
 			clk_freq=32*1000000,
-			cpu_reset_address=0,
-			sram_size=4096)
+			cpu_reset_address=0)
 		IntegratedBIOS.__init__(self)
 
 		# We can't use reset_less as LM32 does require a reset signal

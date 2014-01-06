@@ -46,8 +46,6 @@ class MiniSoC(SDRAMSoC):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=(83 + Fraction(1, 3))*1000000,
 			cpu_reset_address=0x00180000,
-			sram_size=4096,
-			l2_size=8192,
 			with_memtest=with_memtest)
 
 		sdram_geom = lasmicon.GeomSettings(

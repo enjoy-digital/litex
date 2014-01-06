@@ -14,7 +14,7 @@ class GenSoC(Module):
 	csr_base = 0xe0000000
 	csr_map = {
 		"crg":					0, # user
-		"uart":					1, # provided
+		"uart":					1, # provided by default
 		"identifier":			2, # provided
 		"timer0":				3, # provided
 		"buttons":				4, # user
@@ -30,7 +30,7 @@ class GenSoC(Module):
 		"papilio_pro":	0x5050
 	})
 
-	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size=0):
+	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, l2_size=0, with_uart=True):
 		self.clk_freq = clk_freq
 		self.cpu_reset_address = cpu_reset_address
 		self.sram_size = sram_size
@@ -54,7 +54,8 @@ class GenSoC(Module):
 		self.add_cpu_memory_region("sram", 0x10000000, sram_size)
 
 		# CSR
-		self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
+		if with_uart:
+			self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		self.submodules.identifier = identifier.Identifier(self.known_platform_id[platform.name], int(clk_freq),
 			log2_int(l2_size) if l2_size else 0)
 		self.submodules.timer0 = timer.Timer()
@@ -130,8 +131,8 @@ class SDRAMSoC(GenSoC):
 	}
 	csr_map.update(GenSoC.csr_map)
 
-	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_memtest):
-		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size)
+	def __init__(self, platform, clk_freq, cpu_reset_address, with_memtest=False, sram_size=4096, l2_size=8192, with_uart=True):
+		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_uart)
 		self.with_memtest = with_memtest
 		self._sdram_phy_registered = False
 
