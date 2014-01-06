@@ -70,3 +70,8 @@ class EventManager(Module, AutoCSR):
 			if self.finalized:
 				raise FinalizeError
 			self.submodules += value
+
+class SharedIRQ(Module):
+	def __init__(self, *event_managers):
+		self.irq = Signal()
+		self.comb += self.irq.eq(optree("|", [ev.irq for ev in event_managers]))
