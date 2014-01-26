@@ -4,7 +4,6 @@ from migen.genlib.record import *
 from migen.genlib.misc import optree, chooser
 from migen.genlib.fsm import FSM, NextState
 from migen.bus.transactions import *
-from migen.sim.generic import Proxy
 
 _layout = [
 	("adr",		30,				DIR_M_TO_S),
@@ -202,16 +201,16 @@ class Tap(Module):
 		self.bus = bus
 		self.handler = handler
 	
-	def do_simulation(self, s):
-		if s.rd(self.bus.ack):
-			assert(s.rd(self.bus.cyc) and s.rd(self.bus.stb))
-			if s.rd(self.bus.we):
-				transaction = TWrite(s.rd(self.bus.adr),
-					s.rd(self.bus.dat_w),
-					s.rd(self.bus.sel))
+	def do_simulation(self, selfp):
+		if selfp.bus.ack:
+			assert(selfp.bus.cyc and selfp.bus.stb)
+			if selfp.bus.we:
+				transaction = TWrite(selfp.bus.adr,
+					selfp.bus.dat_w,
+					selfp.bus.sel)
 			else:
-				transaction = TRead(s.rd(self.bus.adr),
-					s.rd(self.bus.dat_r))
+				transaction = TRead(selfp.bus.adr,
+					selfp.bus.dat_r)
 			self.handler(transaction)
 
 class Initiator(Module):
@@ -222,34 +221,33 @@ class Initiator(Module):
 		self.bus = bus
 		self.transaction_start = 0
 		self.transaction = None
-		self.done = False
 	
-	def do_simulation(self, s):
-		if not self.done:
-			if self.transaction is None or s.rd(self.bus.ack):
-				if self.transaction is not None:
-					self.transaction.latency = s.cycle_counter - self.transaction_start - 1
-					if isinstance(self.transaction, TRead):
-						self.transaction.data = s.rd(self.bus.dat_r)
-				try:
-					self.transaction = next(self.generator)
-				except StopIteration:
-					self.done = True
-					self.transaction = None
-				if self.transaction is not None:
-					self.transaction_start = s.cycle_counter
-					s.wr(self.bus.cyc, 1)
-					s.wr(self.bus.stb, 1)
-					s.wr(self.bus.adr, self.transaction.address)
-					if isinstance(self.transaction, TWrite):
-						s.wr(self.bus.we, 1)
-						s.wr(self.bus.sel, self.transaction.sel)
-						s.wr(self.bus.dat_w, self.transaction.data)
-					else:
-						s.wr(self.bus.we, 0)
+	def do_simulation(self, selfp):
+		if self.transaction is None or selfp.bus.ack:
+			if self.transaction is not None:
+				self.transaction.latency = selfp.simulator.cycle_counter - self.transaction_start - 1
+				if isinstance(self.transaction, TRead):
+					self.transaction.data = selfp.bus.dat_r
+			try:
+				self.transaction = next(self.generator)
+			except StopIteration:
+				selfp.bus.cyc = 0
+				selfp.bus.stb = 0
+				raise StopSimulation
+			if self.transaction is not None:
+				self.transaction_start = selfp.simulator.cycle_counter
+				selfp.bus.cyc = 1
+				selfp.bus.stb = 1
+				selfp.bus.adr = self.transaction.address
+				if isinstance(self.transaction, TWrite):
+					selfp.bus.we = 1
+					selfp.bus.sel = self.transaction.sel
+					selfp.bus.dat_w = self.transaction.data
 				else:
-					s.wr(self.bus.cyc, 0)
-					s.wr(self.bus.stb, 0)
+					selfp.bus.we = 0
+			else:
+				selfp.bus.cyc = 0
+				selfp.bus.stb = 0
 
 class TargetModel:
 	def read(self, address):
@@ -268,8 +266,8 @@ class Target(Module):
 		self.bus = bus
 		self.model = model
 	
-	def do_simulation(self, s):
-		bus = Proxy(s, self.bus)
+	def do_simulation(self, selfp):
+		bus = selfp.bus
 		if not bus.ack:
 			if self.model.can_ack(bus) and bus.cyc and bus.stb:
 				if bus.we:

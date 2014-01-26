@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.genlib.cordic import Cordic
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 
 class TestBench(Module):
 	def __init__(self, n=None, xmax=.98, i=None, **kwargs):
@@ -23,25 +23,17 @@ class TestBench(Module):
 		self.ii = iter(self.i)
 		self.o = []
 
-	def do_simulation(self, s):
-		if s.rd(self.cordic.new_in):
+	def do_simulation(self, selfp):
+		if selfp.cordic.new_in:
 			try:
-				xi, yi, zi = next(self.ii)
+				selfp.cordic.xi, selfp.cordic.yi, selfp.cordic.zi = next(self.ii)
 			except StopIteration:
-				s.interrupt = True
-				return
-			s.wr(self.cordic.xi, xi)
-			s.wr(self.cordic.yi, yi)
-			s.wr(self.cordic.zi, zi)
-		if s.rd(self.cordic.new_out):
-			xo = s.rd(self.cordic.xo)
-			yo = s.rd(self.cordic.yo)
-			zo = s.rd(self.cordic.zo)
-			self.o.append((xo, yo, zo))
+				raise StopSimulation
+		if selfp.cordic.new_out:
+			self.o.append((selfp.cordic.xo, selfp.cordic.yo, selfp.cordic.zo))
 
-	def run_io(self): 
-		with Simulator(self) as sim:
-			sim.run()
+	def run_io(self):
+		run_simulation(self)
 		del self.i[-1], self.o[0]
 		if self.i[0] != (0, 0, 0):
 			assert self.o[0] != (0, 0, 0)

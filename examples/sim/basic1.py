@@ -1,8 +1,5 @@
-# Copyright (C) 2012 Vermeer Manufacturing Co.
-# License: GPLv3 with additional permissions (see README).
-
 from migen.fhdl.std import *
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 
 # Our simple counter, which increments at every cycle
 # and prints its current value in simulation.
@@ -15,21 +12,17 @@ class Counter(Module):
 		self.sync += self.count.eq(self.count + 1)
 	
 	# This function will be called at every cycle.
-	def do_simulation(self, s):
+	def do_simulation(self, selfp):
 		# Simply read the count signal and print it.
 		# The output is:
 		# Count: 0 
 		# Count: 1
 		# Count: 2
 		# ...
-		print("Count: " + str(s.rd(self.count)))
+		print("Count: " + str(selfp.count))
 
-def main():
+if __name__ == "__main__":
 	dut = Counter()
-	# We do not specify a top-level nor runner object, and use the defaults.
-	sim = Simulator(dut)
-	# Since we do not use sim.interrupt, limit the simulation
+	# Since we do not use StopSimulation, limit the simulation
 	# to some number of cycles.
-	sim.run(20)
-
-main()
+	run_simulation(dut, ncycles=20)

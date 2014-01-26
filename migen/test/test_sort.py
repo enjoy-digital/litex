@@ -19,10 +19,8 @@ class BitonicCase(SimCase, unittest.TestCase):
 			self.assertEqual(flen(self.tb.dut.o[i]), 4)
 
 	def test_sort(self):
-		def cb(tb, s):
+		def cb(tb, tbp):
 			for i in tb.dut.i:
-				s.wr(i, randrange(1<<flen(i)))
-			i = [s.rd(i) for i in tb.dut.i]
-			o = [s.rd(o) for o in tb.dut.o]
-			self.assertEqual(sorted(i), o)
+				tbp.simulator.wr(i, randrange(1<<flen(i)))
+			self.assertEqual(sorted(list(tbp.dut.i)), list(tbp.dut.o))
 		self.run_with(cb, 20)

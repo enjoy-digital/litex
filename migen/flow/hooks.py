@@ -16,9 +16,9 @@ class EndpointSimHook(Module):
 	def on_inactive(self):
 		pass
 	
-	def do_simulation(self, s):
-		if s.rd(self.endpoint.stb):
-			if s.rd(self.endpoint.ack):
+	def do_simulation(self, selfp):
+		if selfp.endpoint.stb:
+			if selfp.endpoint.ack:
 				self.on_ack()
 			else:
 				self.on_nack()

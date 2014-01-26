@@ -19,18 +19,16 @@ class Initiator(Module):
 	def __init__(self, generator, mem):
 		self.generator = generator
 		self.mem = mem
-		self.done = False
 
-	def do_simulation(self, s):
-		if not self.done:
-			try:
-				transaction = next(self.generator)
-			except StopIteration:
-				self.done = True
-				transaction = None
-			if isinstance(transaction, TRead):
-				transaction.data = s.rd(self.mem, transaction.address)
-			elif isinstance(transaction, TWrite):
-				d = s.rd(self.mem, transaction.address)
-				d_mask = _byte_mask(d, transaction.data, transaction.sel)
-				s.wr(s.mem, d_mask, transaction.address)
+	def do_simulation(self, selfp):
+		try:
+			transaction = next(self.generator)
+		except StopIteration:
+			transaction = None
+			raise StopSimulation
+		if isinstance(transaction, TRead):
+			transaction.data = selfp.mem[transaction.address]
+		elif isinstance(transaction, TWrite):
+			d = selfp.mem[transaction.address]
+			d_mask = _byte_mask(d, transaction.data, transaction.sel)
+			selfp.mem[transaction.address] = d_mask

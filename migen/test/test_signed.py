@@ -9,13 +9,13 @@ class SignedCase(SimCase, unittest.TestCase):
 			self.a = Signal((3, True))
 			self.b = Signal((4, True))
 			comps = [
-					lambda p, q: p > q,
-					lambda p, q: p >= q,
-					lambda p, q: p < q,
-					lambda p, q: p <= q,
-					lambda p, q: p == q,
-					lambda p, q: p != q,
-					]
+				lambda p, q: p > q,
+				lambda p, q: p >= q,
+				lambda p, q: p < q,
+				lambda p, q: p <= q,
+				lambda p, q: p == q,
+				lambda p, q: p != q,
+			]
 			self.vals = []
 			for asign in 1, -1:
 				for bsign in 1, -1:
@@ -29,16 +29,16 @@ class SignedCase(SimCase, unittest.TestCase):
 		values = range(-4, 4)
 		agen = iter(values)
 		bgen = iter(values)
-		def cb(tb, s):
+		def cb(tb, tbp):
 			try:
-				s.wr(self.tb.a, next(agen))
-				s.wr(self.tb.b, next(bgen))
+				tbp.a = next(agen)
+				tbp.b = next(bgen)
 			except StopIteration:
-				s.interrupt = True
-			a = s.rd(self.tb.a)
-			b = s.rd(self.tb.b)
+				raise StopSimulation
+			a = tbp.a
+			b = tbp.b
 			for asign, bsign, f, r, op in self.tb.vals:
-				r, r0 = s.rd(r), f(asign*a, bsign*b)
+				r, r0 = tbp.simulator.rd(r), f(asign*a, bsign*b)
 				self.assertEqual(r, int(r0),
 						"got {}, want {}*{} {} {}*{} = {}".format(
 							r, asign, a, op, bsign, b, r0))

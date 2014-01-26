@@ -3,7 +3,7 @@ from migen.flow.actor import *
 from migen.flow.transactions import *
 from migen.flow.network import *
 from migen.actorlib.sim import *
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 
 def source_gen():
 	for i in range(10):
@@ -34,7 +34,5 @@ class TB(Module):
 		g.add_connection(self.source, self.sink)
 		self.submodules.comp = CompositeActor(g)
 
-	def do_simulation(self, s):
-		s.interrupt = self.source.token_exchanger.done
-
-Simulator(TB()).run()
+if __name__ == "__main__":
+	run_simulation(TB())

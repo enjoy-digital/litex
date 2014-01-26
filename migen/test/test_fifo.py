@@ -1,7 +1,7 @@
 import unittest
 
 from migen.fhdl.std import *
-from migen.genlib.fifo import SyncFIFO, AsyncFIFO
+from migen.genlib.fifo import SyncFIFO
 
 from migen.test.support import SimCase, SimBench
 
@@ -23,13 +23,13 @@ class SyncFIFOCase(SimCase, unittest.TestCase):
 
 	def test_run_sequence(self):
 		seq = list(range(20))
-		def cb(tb, s):
+		def cb(tb, tbp):
 			# fire re and we at "random"
-			s.wr(tb.dut.we, s.cycle_counter % 2 == 0)
-			s.wr(tb.dut.re, s.cycle_counter % 3 == 0)
+			tbp.dut.we = tbp.simulator.cycle_counter % 2 == 0
+			tbp.dut.re = tbp.simulator.cycle_counter % 3 == 0
 			# the output if valid must be correct
-			if s.rd(tb.dut.readable) and s.rd(tb.dut.re):
+			if tbp.dut.readable and tbp.dut.re:
 				i = seq.pop(0)
-				self.assertEqual(s.rd(tb.dut.dout.a), i)
-				self.assertEqual(s.rd(tb.dut.dout.b), i*2)
+				self.assertEqual(tbp.dut.dout.a, i)
+				self.assertEqual(tbp.dut.dout.b, i*2)
 		self.run_with(cb, 20)

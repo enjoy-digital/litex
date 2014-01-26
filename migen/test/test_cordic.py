@@ -7,7 +7,6 @@ from migen.genlib.cordic import *
 
 from migen.test.support import SimCase, SimBench
 
-
 class CordicCase(SimCase, unittest.TestCase):
 	class TestBench(SimBench):
 		def __init__(self, **kwargs):
@@ -23,22 +22,21 @@ class CordicCase(SimCase, unittest.TestCase):
 		zm = self.tb.dut.zmax
 		pipe = {}
 		genn = [gen() for i in range(n)]
-		def cb(tb, s):
-			if s.rd(tb.dut.new_in):
+		def cb(tb, tbp):
+			if tbp.dut.new_in:
 				if genn:
 					xi, yi, zi = genn.pop(0)
 				else:
-					s.interrupt = True
-					return
+					raise StopSimulation
 				xi = floor(xi*c/g)
 				yi = floor(yi*c/g)
 				zi = floor(zi*c/zm)
-				s.wr(tb.dut.xi, xi)
-				s.wr(tb.dut.yi, yi)
-				s.wr(tb.dut.zi, zi)
-				pipe[s.cycle_counter] = xi, yi, zi
-			if s.rd(tb.dut.new_out):
-				t = s.cycle_counter - tb.dut.latency - 1
+				tbp.dut.xi = xi
+				tbp.dut.yi = yi
+				tbp.dut.zi = zi
+				pipe[tbp.simulator.cycle_counter] = xi, yi, zi
+			if tbp.dut.new_out:
+				t = tbp.simulator.cycle_counter - tb.dut.latency - 1
 				if t < 1:
 					return
 				xi, yi, zi = pipe.pop(t)

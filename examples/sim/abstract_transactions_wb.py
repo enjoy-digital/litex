@@ -3,7 +3,7 @@ from random import Random
 from migen.fhdl.std import *
 from migen.bus.transactions import *
 from migen.bus import wishbone
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 
 # Our bus master.
 # Python generators let us program bus transactions in an elegant sequential style.
@@ -53,16 +53,8 @@ class TB(Module):
 		# Connect the master to the slave.
 		self.submodules.intercon = wishbone.InterconnectPointToPoint(self.master.bus, self.slave.bus)
 
-	def do_simulation(self, s):
-		# Terminate the simulation when the initiator is done (i.e. our generator is exhausted).
-		s.interrupt = self.master.done
-
-def main():
-	tb = TB()
-	sim = Simulator(tb)
-	sim.run()
-	
-main()
+if __name__ == "__main__":
+	run_simulation(TB())
 
 # Output:
 # <TWrite adr:0x0 dat:0x0>

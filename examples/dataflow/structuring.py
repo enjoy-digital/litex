@@ -7,8 +7,8 @@ from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.actorlib import structuring
 from migen.actorlib.sim import *
-from migen.sim.generic import Simulator
 from migen.flow import perftools
+from migen.sim.generic import run_simulation
 
 pack_factor = 5
 base_layout = [("value", 32)]
@@ -55,13 +55,11 @@ class TB(Module):
 		self.submodules.comp = CompositeActor(self.g)
 		self.submodules.reporter = perftools.DFGReporter(self.g)
 
-def main():
+if __name__ == "__main__":
 	tb = TB()
-	sim = Simulator(tb).run(1000)
+	run_simulation(tb, ncycles=1000)
 	
 	g_layout = nx.spectral_layout(tb.g)
 	nx.draw(tb.g, g_layout)
 	nx.draw_networkx_edge_labels(tb.g, g_layout, tb.reporter.get_edge_labels())
 	plt.show()
-
-main()

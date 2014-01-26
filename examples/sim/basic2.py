@@ -1,10 +1,7 @@
-# Copyright (C) 2012 Vermeer Manufacturing Co.
-# License: GPLv3 with additional permissions (see README).
-
 from migen.fhdl.std import *
-from migen.sim.generic import Simulator, TopLevel
+from migen.sim.generic import run_simulation
 
-# A slightly improved counter.
+# A slightly more elaborate counter.
 # Has a clock enable (CE) signal, counts on more bits
 # and resets with a negative number.
 class Counter(Module):
@@ -15,34 +12,25 @@ class Counter(Module):
 
 		self.sync += If(self.ce, self.count.eq(self.count + 1))
 	
-	def do_simulation(self, s):
+	def do_simulation(self, selfp):
 		# Only assert CE every second cycle.
 		# => each counter value is held for two cycles.
-		if s.cycle_counter % 2:
-			s.wr(self.ce, 0) # This is how you write to a signal.
+		if selfp.simulator.cycle_counter % 2:
+			selfp.ce = 0 # This is how you write to a signal.
 		else:
-			s.wr(self.ce, 1)
-		print("Cycle: " + str(s.cycle_counter) + " Count: " + \
-			str(s.rd(self.count)))
-	# Set the "initialize" property on our simulation function.
-	# The simulator will call it during the reset cycle,
-	# with s.cycle_counter == -1.
-	do_simulation.initialize = True
+			selfp.ce = 1
+		print("Cycle: " + str(selfp.simulator.cycle_counter) + " Count: " + \
+			str(selfp.count))
 	
-	# Output is:
-	# Cycle: -1 Count: 0
-	# Cycle: 0 Count: -5
-	# Cycle: 1 Count: -5
-	# Cycle: 2 Count: -4
-	# Cycle: 3 Count: -4
-	# Cycle: 4 Count: -3
-	# ...
+# Output is:
+# Cycle: 0 Count: -5
+# Cycle: 1 Count: -5
+# Cycle: 2 Count: -4
+# Cycle: 3 Count: -4
+# Cycle: 4 Count: -3
+# ...
 
-def main():
+if __name__ == "__main__":
 	dut = Counter()
-	# Instantiating the generic top-level ourselves lets us
-	# specify a VCD output file.
-	sim = Simulator(dut, TopLevel("my.vcd"))
-	sim.run(20)
-
-main()
+	# Demonstrate VCD output
+	run_simulation(dut, vcd_name="my.vcd", ncycles=20)

@@ -6,7 +6,7 @@ from migen.bus.transactions import *
 from migen.genlib.ioo import UnifiedIOSimulation
 from migen.pytholite.transel import Register
 from migen.pytholite.compiler import Pytholite
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 from migen.fhdl.std import *
 from migen.fhdl import verilog
 
@@ -39,10 +39,8 @@ class TestBench(Module):
 		self.submodules.intercon = wishbone.InterconnectPointToPoint(ng.wb, self.slave.bus)
 		self.submodules.ca = CompositeActor(g)
 
-def run_sim(ng):
-	sim = Simulator(TestBench(ng))
-	sim.run(50)
-	del sim
+def run_ng_sim(ng):
+	run_simulation(TestBench(ng), ncycles=50)
 
 def add_interfaces(obj):
 	obj.result = Source(layout)
@@ -54,12 +52,12 @@ def main():
 	print("Simulating native Python:")
 	ng_native = UnifiedIOSimulation(gen())
 	add_interfaces(ng_native) 
-	run_sim(ng_native)
+	run_ng_sim(ng_native)
 	
 	print("Simulating Pytholite:")
 	ng_pytholite = Pytholite(gen)
 	add_interfaces(ng_pytholite)
-	run_sim(ng_pytholite)
+	run_ng_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
 	ng_pytholite = Pytholite(gen)

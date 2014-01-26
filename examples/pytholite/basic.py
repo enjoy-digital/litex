@@ -2,7 +2,7 @@ from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.actorlib.sim import *
 from migen.pytholite.compiler import Pytholite
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 from migen.fhdl import verilog
 
 layout = [("r", 32)]
@@ -16,15 +16,13 @@ class SimNumberGen(SimActor):
 		self.result = Source(layout)
 		SimActor.__init__(self, number_gen(5))
 
-def run_sim(ng):
+def run_ng_sim(ng):
 	g = DataFlowGraph()
 	d = Dumper(layout)
 	g.add_connection(ng, d)
 	
 	c = CompositeActor(g)
-	sim = Simulator(c)
-	sim.run(20)
-	del sim
+	run_simulation(c, ncycles=20)
 
 def make_ng_pytholite():
 	ng_pytholite = Pytholite(number_gen, 5)
@@ -35,11 +33,11 @@ def make_ng_pytholite():
 def main():
 	print("Simulating native Python:")
 	ng_native = SimNumberGen()
-	run_sim(ng_native)
+	run_ng_sim(ng_native)
 	
 	print("Simulating Pytholite:")
 	ng_pytholite = make_ng_pytholite()
-	run_sim(ng_pytholite)
+	run_ng_sim(ng_pytholite)
 	
 	print("Converting Pytholite to Verilog:")
 	ng_pytholite = make_ng_pytholite()

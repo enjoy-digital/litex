@@ -1,11 +1,11 @@
 import collections
 from itertools import combinations
 
+from migen.util.misc import flat_iteration
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Fragment
-from migen.fhdl.specials import Special
 from migen.fhdl.tools import rename_clock_domain
-from migen.util.misc import flat_iteration
+from migen.sim.upper import GenSim, ProxySim
 
 class FinalizeError(Exception):
 	pass
@@ -106,10 +106,21 @@ class Module:
 			self.finalized = False
 			return self.finalized
 		elif name == "_fragment":
+			simf = None
 			try:
-				sim = [self.do_simulation]
+				simf = self.do_simulation
 			except AttributeError:
-				sim = []
+				try:
+					simg = self.gen_simulation
+				except AttributeError:
+					pass
+				else:
+					gs = GenSim(simg)
+					simf = gs.do_simulation
+			if simf is not None:
+				ps = ProxySim(self, simf)
+				simf = ps.do_simulation
+			sim = [] if simf is None else [simf]
 			self._fragment = _Fragment(sim=sim)
 			return self._fragment
 		elif name == "_submodules":

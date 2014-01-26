@@ -3,10 +3,10 @@ from random import Random
 from migen.fhdl.std import *
 from migen.flow.network import *
 from migen.flow.transactions import *
-from migen.actorlib import dma_wishbone, dma_asmi
+from migen.actorlib import dma_wishbone
 from migen.actorlib.sim import *
-from migen.bus import wishbone, asmibus
-from migen.sim.generic import Simulator
+from migen.bus import wishbone
+from migen.sim.generic import run_simulation
 
 class MyModel:
 	def read(self, address):
@@ -18,9 +18,6 @@ class MyModelWB(MyModel, wishbone.TargetModel):
 
 	def can_ack(self, bus):
 		return self.prng.randrange(0, 2)
-
-class MyModelASMI(MyModel, asmibus.TargetModel):
-	pass
 
 def adrgen_gen():
 	for i in range(10):
@@ -73,9 +70,6 @@ class TBWishboneReader(TBWishbone):
 		self.submodules.comp = CompositeActor(g)
 		TBWishbone.__init__(self, self.reader)
 
-	def do_simulation(self, s):
-		s.interrupt = self.adrgen.token_exchanger.done and not s.rd(self.comp.busy)
-
 class TBWishboneWriter(TBWishbone):
 	def __init__(self):
 		self.trgen = SimTrGen(30)
@@ -85,65 +79,14 @@ class TBWishboneWriter(TBWishbone):
 		self.submodules.comp = CompositeActor(g)
 		TBWishbone.__init__(self, self.writer)
 
-	def do_simulation(self, s):
-		s.interrupt = self.trgen.token_exchanger.done and not s.rd(self.comp.busy)
-
-class TBAsmi(Module):
-	def __init__(self, nslots):
-		self.submodules.hub = asmibus.Hub(32, 32)
-		self.port = self.hub.get_port(nslots)
-		self.hub.finalize()
-
-		self.submodules.peripheral = asmibus.Target(MyModelASMI(), self.hub)
-		self.submodules.tap = asmibus.Tap(self.hub)
-
-class TBAsmiReader(TBAsmi):
-	def __init__(self, nslots):
-		TBAsmi.__init__(self, nslots)
-		
-		self.adrgen = SimAdrGen(32)
-		self.reader = dma_asmi.Reader(self.port)
-		self.dumper = SimDumper()
-		g = DataFlowGraph()
-		g.add_connection(self.adrgen, self.reader)
-		g.add_connection(self.reader, self.dumper)
-		self.submodules.comp = CompositeActor(g)
-
-	def do_simulation(self, s):
-		s.interrupt = self.adrgen.token_exchanger.done and not s.rd(self.comp.busy)
-
-class TBAsmiWriter(TBAsmi):
-	def __init__(self, nslots):
-		TBAsmi.__init__(self, nslots)
-		
-		self.trgen = SimTrGen(32)
-		self.writer = dma_asmi.Writer(self.port)
-		g = DataFlowGraph()
-		g.add_connection(self.trgen, self.writer)
-		self.submodules.comp = CompositeActor(g)
-		
-	def do_simulation(self, s):
-		s.interrupt = self.trgen.token_exchanger.done and not s.rd(self.comp.busy)
-
 def test_wb_reader():
 	print("*** Testing Wishbone reader")
-	Simulator(TBWishboneReader()).run()
+	run_simulation(TBWishboneReader())
 
 def test_wb_writer():
 	print("*** Testing Wishbone writer")
-	Simulator(TBWishboneWriter()).run()
+	run_simulation(TBWishboneWriter())
 
-def test_asmi_reader(nslots):
-	print("*** Testing ASMI reader (nslots={})".format(nslots))
-	Simulator(TBAsmiReader(nslots)).run()
-
-def test_asmi_writer(nslots):
-	print("*** Testing ASMI writer (nslots={})".format(nslots))
-	Simulator(TBAsmiWriter(nslots)).run()
-
-test_wb_reader()
-test_wb_writer()
-test_asmi_reader(1)
-test_asmi_reader(2)
-test_asmi_writer(1)
-test_asmi_writer(2)
+if __name__ == "__main__":
+	test_wb_reader()
+	test_wb_writer()

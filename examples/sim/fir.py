@@ -1,6 +1,3 @@
-# Copyright (C) 2012 Vermeer Manufacturing Co.
-# License: GPLv3 with additional permissions (see README).
-
 from math import cos, pi
 from scipy import signal
 import matplotlib.pyplot as plt
@@ -8,7 +5,7 @@ import matplotlib.pyplot as plt
 from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.genlib.misc import optree
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 
 # A synthesizable FIR filter.
 class FIR(Module):
@@ -41,14 +38,14 @@ class TB(Module):
 		self.inputs = []
 		self.outputs = []
 	
-	def do_simulation(self, s):
+	def do_simulation(self, selfp):
 		f = 2**(self.fir.wsize - 1)
-		v = 0.1*cos(2*pi*self.frequency*s.cycle_counter)
-		s.wr(self.fir.i, int(f*v))
+		v = 0.1*cos(2*pi*self.frequency*selfp.simulator.cycle_counter)
+		selfp.fir.i = int(f*v)
 		self.inputs.append(v)
-		self.outputs.append(s.rd(self.fir.o)/f)
+		self.outputs.append(selfp.fir.o/f)
 
-def main():
+if __name__ == "__main__":
 	# Compute filter coefficients with SciPy.
 	coef = signal.remez(30, [0, 0.1, 0.2, 0.4, 0.45, 0.5], [0, 1, 0])
 	
@@ -58,9 +55,7 @@ def main():
 	out_signals = []
 	for frequency in [0.05, 0.1, 0.25]:
 		tb = TB(coef, frequency)
-		sim = Simulator(tb)
-		sim.run(200)
-		del sim
+		run_simulation(tb, ncycles=200)
 		in_signals += tb.inputs
 		out_signals += tb.outputs
 	
@@ -72,5 +67,3 @@ def main():
 	# Print the Verilog source for the filter.
 	fir = FIR(coef)
 	print(verilog.convert(fir, ios={fir.i, fir.o}))
-
-main()

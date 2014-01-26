@@ -528,6 +528,9 @@ class _ClockDomainList(list):
 
 (SPECIAL_INPUT, SPECIAL_OUTPUT, SPECIAL_INOUT) = range(3)
 
+class StopSimulation(Exception):
+	pass
+
 class _Fragment:
 	def __init__(self, comb=None, sync=None, specials=None, clock_domains=None, sim=None):
 		if comb is None: comb = []

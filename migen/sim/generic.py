@@ -73,9 +73,14 @@ end
 		return r
 
 def _call_sim(fragment, simulator):
+	del_list = []
 	for s in fragment.sim:
-		if simulator.cycle_counter >= 0 or (hasattr(s, "initialize") and s.initialize):
+		try:
 			s(simulator)
+		except StopSimulation:
+			del_list.append(s)
+	for s in del_list:
+		fragment.sim.remove(s)
 
 class Simulator:
 	def __init__(self, fragment, top_level=None, sim_runner=None, sockaddr="simsocket", **vopts):
@@ -99,19 +104,16 @@ class Simulator:
 			**vopts)
 		
 		self.cycle_counter = -1
-		self.interrupt = False
 
 		self.sim_runner = sim_runner
 		self.sim_runner.start(c_top, c_fragment)
 		self.ipc.accept()
 		reply = self.ipc.recv()
 		assert(isinstance(reply, MessageTick))
-		_call_sim(self.fragment, self)
 	
-	def run(self, ncycles=-1):
-		self.interrupt = False
+	def run(self, ncycles=None):
 		counter = 0
-		while not self.interrupt and (ncycles < 0 or counter < ncycles):
+		while self.fragment.sim and (ncycles is None or counter < ncycles):
 			self.cycle_counter += 1
 			counter += 1
 			self.ipc.send(MessageGo())
@@ -150,34 +152,6 @@ class Simulator:
 		assert(value >= 0 and value < 2**nbits)
 		self.ipc.send(MessageWrite(name, Int32(index), value))
 	
-	def multiread(self, obj):
-		if isinstance(obj, Signal):
-			return self.rd(obj)
-		elif isinstance(obj, list):
-			r = []
-			for item in obj:
-				rd = self.multiread(item)
-				if isinstance(item, Signal) or rd:
-					r.append(rd)
-			return r
-		elif hasattr(obj, "__dict__"):
-			r = {}
-			for k, v in obj.__dict__.items():
-				rd = self.multiread(v)
-				if isinstance(v, Signal) or rd:
-					r[k] = rd
-			return r
-	
-	def multiwrite(self, obj, value):
-		if isinstance(obj, Signal):
-			self.wr(obj, value)
-		elif isinstance(obj, list):
-			for target, source in zip(obj, value):
-				self.multiwrite(target, source)
-		else:
-			for k, v in value.items():
-				self.multiwrite(getattr(obj, k), v)
-
 	def __del__(self):
 		if hasattr(self, "ipc"):
 			warnings.warn("call Simulator.close() to clean up "
@@ -193,26 +167,9 @@ class Simulator:
 	def __enter__(self):
 		return self
 
-	def __exit__(self,  type, value, traceback):
+	def __exit__(self, type, value, traceback):
 		self.close()
 
-# Contrary to multiread/multiwrite, Proxy fetches the necessary signals only and
-# immediately forwards writes into the simulation.
-class Proxy:
-	def __init__(self, sim, obj):
-		self.__dict__["_sim"] = sim
-		self.__dict__["_obj"] = obj
-	
-	def __getattr__(self, name):
-		item = getattr(self._obj, name)
-		if isinstance(item, Signal):
-			return self._sim.rd(item)
-		elif isinstance(item, list):
-			return [Proxy(self._sim, si) for si in item]
-		else:
-			return Proxy(self._sim, item)
-
-	def __setattr__(self, name, value):
-		item = getattr(self._obj, name)
-		assert(isinstance(item, Signal))
-		self._sim.wr(item, value)
+def run_simulation(fragment, ncycles=None, vcd_name=None, keep_files=False):
+	with Simulator(fragment, TopLevel(vcd_name), icarus.Runner(keep_files=keep_files)) as s:
+		s.run(ncycles)

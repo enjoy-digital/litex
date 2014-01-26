@@ -190,42 +190,40 @@ class Initiator(Module):
 		self.transaction_start = 0
 		self.transaction = None
 		self.transaction_end = None
-		self.done = False
 	
-	def do_simulation(self, s):
-		s.wr(self.bus.dat_w, 0)
-		s.wr(self.bus.dat_we, 0)
-		if not self.done:
-			if self.transaction is not None:
-				if s.rd(self.bus.req_ack):
-					s.wr(self.bus.stb, 0)
-				if s.rd(self.bus.dat_ack):
-					if isinstance(self.transaction, TRead):
-						self.transaction_end = s.cycle_counter + self.bus.read_latency
-					else:
-						self.transaction_end = s.cycle_counter + self.bus.write_latency - 1
+	def do_simulation(self, selfp):
+		selfp.bus.dat_w = 0
+		selfp.bus.dat_we = 0
 
-			if self.transaction is None or s.cycle_counter == self.transaction_end:
-				if self.transaction is not None:
-					self.transaction.latency = s.cycle_counter - self.transaction_start - 1
-					if isinstance(self.transaction, TRead):
-						self.transaction.data = s.rd(self.bus.dat_r)
-					else:
-						s.wr(self.bus.dat_w, self.transaction.data)
-						s.wr(self.bus.dat_we, self.transaction.sel)
-				try:
-					self.transaction = next(self.generator)
-				except StopIteration:
-					self.done = True
-					self.transaction = None
-				if self.transaction is not None:
-					self.transaction_start = s.cycle_counter
-					s.wr(self.bus.stb, 1)
-					s.wr(self.bus.adr, self.transaction.address)
-					if isinstance(self.transaction, TRead):
-						s.wr(self.bus.we, 0)
-					else:
-						s.wr(self.bus.we, 1)
+		if self.transaction is not None:
+			if selfp.bus.req_ack:
+				selfp.bus.stb = 0
+			if selfp.bus.dat_ack:
+				if isinstance(self.transaction, TRead):
+					self.transaction_end = selfp.simulator.cycle_counter + self.bus.read_latency
+				else:
+					self.transaction_end = selfp.simulator.cycle_counter + self.bus.write_latency - 1
+
+		if self.transaction is None or selfp.simulator.cycle_counter == self.transaction_end:
+			if self.transaction is not None:
+				self.transaction.latency = selfp.simulator.cycle_counter - self.transaction_start - 1
+				if isinstance(self.transaction, TRead):
+					self.transaction.data = selfp.bus.dat_r
+				else:
+					selfp.bus.dat_w = self.transaction.data
+					selfp.bus.dat_we = self.transaction.sel
+			try:
+				self.transaction = next(self.generator)
+			except StopIteration:
+				raise StopSimulation
+			if self.transaction is not None:
+				self.transaction_start = selfp.simulator.cycle_counter
+				selfp.bus.stb = 1
+				selfp.bus.adr = self.transaction.address
+				if isinstance(self.transaction, TRead):
+					selfp.bus.we = 0
+				else:
+					selfp.bus.we = 1
 
 class TargetModel:
 	def __init__(self):
@@ -254,14 +252,14 @@ class _ReqFIFO(Module):
 		self.bank = bank
 		self.contents = []
 
-	def do_simulation(self, s):
+	def do_simulation(self, selfp):
 		if len(self.contents) < self.req_queue_size:
-			if s.rd(self.bank.stb):
-				self.contents.append((s.rd(self.bank.we), s.rd(self.bank.adr)))
-			s.wr(self.bank.req_ack, 1)
+			if selfp.bank.stb:
+				self.contents.append((selfp.bank.we, selfp.bank.adr))
+			selfp.bank.req_ack = 1
 		else:
-			s.wr(self.bank.req_ack, 0)
-		s.wr(self.bank.lock, bool(self.contents))
+			selfp.bank.req_ack = 0
+		selfp.bank.lock = bool(self.contents)
 
 class Target(Module):
 	def __init__(self, model, *ifargs, **ifkwargs):
@@ -273,7 +271,7 @@ class Target(Module):
 		self.rd_pipeline = [None]*self.bus.read_latency
 		self.wr_pipeline = [None]*(self.bus.write_latency + 1)
 
-	def do_simulation(self, s):
+	def do_simulation(self, selfp):
 		# determine banks with pending requests
 		pending_banks = set(nb for nb, rf in enumerate(self.req_fifos) if rf.contents)
 
@@ -281,12 +279,12 @@ class Target(Module):
 		selected_bank_n = self.model.select_bank(pending_banks)
 		selected_transaction = None
 		for nb in range(self.bus.nbanks):
-			bank = getattr(self.bus, "bank"+str(nb))
+			bank = getattr(selfp.bus, "bank"+str(nb))
 			if nb == selected_bank_n:
-				s.wr(bank.dat_ack, 1)
+				bank.dat_ack = 1
 				selected_transaction = self.req_fifos[nb].contents.pop(0)
 			else:
-				s.wr(bank.dat_ack, 0)
+				bank.dat_ack = 0
 		
 		rd_transaction = None
 		wr_transaction = None
@@ -303,7 +301,7 @@ class Target(Module):
 		done_rd_transaction = self.rd_pipeline.pop(0)
 		done_wr_transaction = self.wr_pipeline.pop(0)
 		if done_rd_transaction is not None:
-			s.wr(self.bus.dat_r, self.model.read(done_rd_transaction[0], done_rd_transaction[1]))
+			selfp.bus.dat_r = self.model.read(done_rd_transaction[0], done_rd_transaction[1])
 		if done_wr_transaction is not None:
 			self.model.write(done_wr_transaction[0], done_wr_transaction[1],
-				s.rd(self.bus.dat_w), s.rd(self.bus.dat_we))
+				selfp.bus.dat_w, selfp.bus.dat_we)

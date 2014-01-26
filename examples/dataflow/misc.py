@@ -2,7 +2,7 @@ from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.actorlib import misc
 from migen.actorlib.sim import *
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 
 def source_gen():
 	for i in range(10):
@@ -26,7 +26,7 @@ class SimSink(SimActor):
 		self.sink = Sink([("value", 32)])
 		SimActor.__init__(self, sink_gen())
 
-def main():
+if __name__ == "__main__":
 	source = SimSource()
 	loop = misc.IntSequence(32)
 	sink = SimSink()
@@ -34,7 +34,4 @@ def main():
 	g.add_connection(source, loop)
 	g.add_connection(loop, sink)
 	comp = CompositeActor(g)
-	sim = Simulator(comp)
-	sim.run(500)
-
-main()
+	run_simulation(comp, ncycles=500)

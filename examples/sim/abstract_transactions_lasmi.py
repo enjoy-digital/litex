@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus.transactions import *
 from migen.bus import lasmibus
-from migen.sim.generic import Simulator
+from migen.sim.generic import run_simulation
 
 def my_generator(n):
 	bank = n % 4
@@ -30,16 +30,9 @@ class TB(Module):
 	def __init__(self):
 		self.submodules.controller = lasmibus.Target(MyModel(), aw=4, dw=32, nbanks=4, req_queue_size=4,
 			read_latency=4, write_latency=1)
-		self.submodules.xbar = lasmibus.Crossbar([self.controller.bus], 4, 2)
-		self.initiators = [lasmibus.Initiator(my_generator(n), bus) for n, bus in enumerate(self.xbar.masters)]
+		self.submodules.xbar = lasmibus.Crossbar([self.controller.bus], 2)
+		self.initiators = [lasmibus.Initiator(my_generator(n), self.xbar.get_master()) for n in range(4)]
 		self.submodules += self.initiators
 
-	def do_simulation(self, s):
-		s.interrupt = all(m.done for m in self.initiators)
-
-def main():
-	tb = TB()
-	sim = Simulator(tb)
-	sim.run()
-	
-main()
+if __name__ == "__main__":
+	run_simulation(TB())
