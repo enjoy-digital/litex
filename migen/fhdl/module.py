@@ -5,7 +5,7 @@ from migen.util.misc import flat_iteration
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Fragment
 from migen.fhdl.tools import rename_clock_domain
-from migen.sim.upper import GenSim, ProxySim
+from migen.sim.upper import gen_sim, proxy_sim
 
 class FinalizeError(Exception):
 	pass
@@ -115,11 +115,9 @@ class Module:
 				except AttributeError:
 					pass
 				else:
-					gs = GenSim(simg)
-					simf = gs.do_simulation
+					simf = gen_sim(simg)
 			if simf is not None:
-				ps = ProxySim(self, simf)
-				simf = ps.do_simulation
+				simf = proxy_sim(self, simf)
 			sim = [] if simf is None else [simf]
 			self._fragment = _Fragment(sim=sim)
 			return self._fragment

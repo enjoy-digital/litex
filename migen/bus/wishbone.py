@@ -212,6 +212,7 @@ class Tap(Module):
 				transaction = TRead(selfp.bus.adr,
 					selfp.bus.dat_r)
 			self.handler(transaction)
+	do_simulation.passive = True
 
 class Initiator(Module):
 	def __init__(self, generator, bus=None):
@@ -277,6 +278,7 @@ class Target(Module):
 				bus.ack = 1
 		else:
 			bus.ack = 0
+	do_simulation.passive = True
 
 class SRAM(Module):
 	def __init__(self, mem_or_size, read_only=None, init=None, bus=None):

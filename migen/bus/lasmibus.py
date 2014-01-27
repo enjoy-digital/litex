@@ -260,6 +260,7 @@ class _ReqFIFO(Module):
 		else:
 			selfp.bank.req_ack = 0
 		selfp.bank.lock = bool(self.contents)
+	do_simulation.passive = True
 
 class Target(Module):
 	def __init__(self, model, *ifargs, **ifkwargs):
@@ -305,3 +306,4 @@ class Target(Module):
 		if done_wr_transaction is not None:
 			self.model.write(done_wr_transaction[0], done_wr_transaction[1],
 				selfp.bus.dat_w, selfp.bus.dat_we)
+	do_simulation.passive = True

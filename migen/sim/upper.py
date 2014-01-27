@@ -52,48 +52,58 @@ class Proxy:
 		assert(isinstance(item, Signal))
 		self.simulator.wr(item, value)
 
-class GenSim:
-	def __init__(self, simg):
-		self.simg = simg
-		self.gens = dict()
-		self.resume_cycle = 0
+def gen_sim(simg):
+	gens = dict()
+	resume_cycle = 0
 
-	def do_simulation(self, s):
+	def do_simulation(s):
+		nonlocal resume_cycle, gens
+
 		if isinstance(s, Proxy):
 			simulator = s.simulator
 		else:
 			simulator = s
 
-		if simulator.cycle_counter >= self.resume_cycle:
+		if simulator.cycle_counter >= resume_cycle:
 			try:
-				gen = self.gens[simulator]
+				gen = gens[simulator]
 			except KeyError:
-				gen = self.simg(s)
-				self.gens[simulator] = gen
+				gen = simg(s)
+				gens[simulator] = gen
 			try:
 				n = next(gen)
 			except StopIteration:
-				del self.gens[simulator]
+				del gens[simulator]
 				raise StopSimulation
 			else:
 				if n is None:
 					n = 1
-				self.resume_cycle = simulator.cycle_counter + n
+				resume_cycle = simulator.cycle_counter + n
 
-class ProxySim:
-	def __init__(self, target, simf):
-		self.target = target
-		self.simf = simf
-		self.proxies = dict()
+	if hasattr(simg, "passive"):
+		do_simulation.passive = simg.passive
 
-	def do_simulation(self, simulator):
+	return do_simulation
+
+
+def proxy_sim(target, simf):
+	proxies = dict()
+
+	def do_simulation(simulator):
+		nonlocal proxies
+
 		try:
-			proxy = self.proxies[simulator]
+			proxy = proxies[simulator]
 		except KeyError:
-			proxy = Proxy(simulator, self.target)
-			self.proxies[simulator] = proxy
+			proxy = Proxy(simulator, target)
+			proxies[simulator] = proxy
 		try:
-			self.simf(proxy)
+			simf(proxy)
 		except StopSimulation:
-			del self.proxies[simulator]
+			del proxies[simulator]
 			raise
+
+	if hasattr(simf, "passive"):
+		do_simulation.passive = simf.passive
+
+	return do_simulation

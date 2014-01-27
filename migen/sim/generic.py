@@ -72,16 +72,6 @@ end
 		r += "\nendmodule"
 		return r
 
-def _call_sim(fragment, simulator):
-	del_list = []
-	for s in fragment.sim:
-		try:
-			s(simulator)
-		except StopSimulation:
-			del_list.append(s)
-	for s in del_list:
-		fragment.sim.remove(s)
-
 class Simulator:
 	def __init__(self, fragment, top_level=None, sim_runner=None, sockaddr="simsocket", **vopts):
 		if not isinstance(fragment, _Fragment):
@@ -89,15 +79,15 @@ class Simulator:
 		if top_level is None:
 			top_level = TopLevel()
 		if sim_runner is None:
-			sim_runner = icarus.Runner()		
-		self.fragment = fragment + _Fragment(clock_domains=top_level.clock_domains)
+			sim_runner = icarus.Runner()
 		self.top_level = top_level
 		self.ipc = Initiator(sockaddr)
 		self.sim_runner = sim_runner
 		
 		c_top = self.top_level.get(sockaddr)
 		
-		c_fragment, self.namespace = verilog.convert(self.fragment,
+		fragment = fragment + _Fragment(clock_domains=top_level.clock_domains)
+		c_fragment, self.namespace = verilog.convert(fragment,
 			ios=self.top_level.ios,
 			name=self.top_level.dut_type,
 			return_ns=True,
@@ -110,16 +100,31 @@ class Simulator:
 		self.ipc.accept()
 		reply = self.ipc.recv()
 		assert(isinstance(reply, MessageTick))
+
+		self.sim_functions = fragment.sim
+		self.active_sim_functions = set(f for f in fragment.sim if not hasattr(f, "passive") or not f.passive)
 	
 	def run(self, ncycles=None):
 		counter = 0
-		while self.fragment.sim and (ncycles is None or counter < ncycles):
+		while self.active_sim_functions and (ncycles is None or counter < ncycles):
 			self.cycle_counter += 1
 			counter += 1
 			self.ipc.send(MessageGo())
 			reply = self.ipc.recv()
 			assert(isinstance(reply, MessageTick))
-			_call_sim(self.fragment, self)
+
+			del_list = []
+			for s in self.sim_functions:
+				try:
+					s(self)
+				except StopSimulation:
+					del_list.append(s)
+			for s in del_list:
+				self.sim_functions.remove(s)
+				try:
+					self.active_sim_functions.remove(s)
+				except KeyError:
+					pass
 
 	def rd(self, item, index=0):
 		name = self.top_level.top_name + "." \
