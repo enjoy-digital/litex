@@ -33,6 +33,7 @@ class TokenExchanger(Module):
 		self.actor = actor
 		self.active = set()
 		self.busy = True
+		self.done = False
 
 	def _process_transactions(self, selfp):
 		completed = set()
@@ -69,6 +70,7 @@ class TokenExchanger(Module):
 			transactions = next(self.generator)
 		except StopIteration:
 			self.busy = False
+			self.done = True
 			raise StopSimulation
 		if isinstance(transactions, Token):
 			self.active = {transactions}
@@ -87,6 +89,7 @@ class TokenExchanger(Module):
 		if not self.active:
 			self._next_transactions()
 			self._update_control_signals(selfp)
+	do_simulation.passive = True
 
 class SimActor(Module):
 	def __init__(self, generator):
@@ -95,6 +98,7 @@ class SimActor(Module):
 	
 	def do_simulation(self, selfp):
 		selfp.busy = self.token_exchanger.busy
+	do_simulation.passive = True
 
 def _dumper_gen(prefix):
 	while True:

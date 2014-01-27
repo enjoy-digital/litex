@@ -34,5 +34,9 @@ class TB(Module):
 		g.add_connection(self.source, self.sink)
 		self.submodules.comp = CompositeActor(g)
 
+	def do_simulation(self, selfp):
+		if self.source.token_exchanger.done:
+			raise StopSimulation
+
 if __name__ == "__main__":
 	run_simulation(TB())
