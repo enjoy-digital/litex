@@ -164,18 +164,18 @@ class _EncoderTB(Module):
 		self.submodules.dut = Encoder()
 		self.comb += self.dut.de.eq(1)
 
-	def do_simulation(self, s):
+	def do_simulation(self, selfp):
 		if self._end_cycle is None:
 			try:
 				nv = next(self._iter_inputs)
 			except StopIteration:
-				self._end_cycle = s.cycle_counter + 4
+				self._end_cycle = selfp.simulator.cycle_counter + 4
 			else:
-				s.wr(self.dut.d, nv)
-		if s.cycle_counter == self._end_cycle:
-			s.interrupt = True
-		if s.cycle_counter > 4:
-			self.outs.append(s.rd(self.dut.out))
+				selfp.dut.d = nv
+		if selfp.simulator.cycle_counter == self._end_cycle:
+			raise StopSimulation
+		if selfp.simulator.cycle_counter > 4:
+			self.outs.append(selfp.dut.out)
 
 def _bit(i, n):
 	return (i >> n) & 1
@@ -197,13 +197,13 @@ def _decode_tmds(b):
 	return de, hsync, vsync, value
 
 if __name__ == "__main__":
-	from migen.sim.generic import Simulator
+	from migen.sim.generic import run_simulation
 	from random import Random
 	
 	rng = Random(788)
 	test_list = [rng.randrange(256) for i in range(500)]
 	tb = _EncoderTB(test_list)
-	Simulator(tb).run()
+	run_simulation(tb)
 
 	check = [_decode_tmds(out)[3] for out in tb.outs]
 	assert(check == test_list)

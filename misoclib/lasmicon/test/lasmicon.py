@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 from migen.bus.lasmibus import *
-from migen.sim.generic import Simulator, TopLevel
+from migen.sim.generic import run_simulation
 
 from misoclib.lasmicon import *
 
@@ -35,12 +35,5 @@ class TB(Module):
 			for n, master in enumerate(masters)]
 		self.submodules += self.initiators
 
-	def do_simulation(self, s):
-		s.interrupt = all(initiator.done for initiator in self.initiators)
-
-
-def main():
-	sim = Simulator(TB(), TopLevel("my.vcd"))
-	sim.run()
-
-main()
+if __name__ == "__main__":
+	run_simulation(TB(), vcd_name="my.vcd")

@@ -1,10 +1,10 @@
 from migen.fhdl.std import *
 from migen.bus.lasmibus import *
-from migen.sim.generic import Simulator, TopLevel
+from migen.sim.generic import run_simulation
 
 from misoclib.lasmicon.bankmachine import *
 
-from common import sdram_geom, sdram_timing, CommandLogger
+from common import sdram_phy, sdram_geom, sdram_timing, CommandLogger
 
 def my_generator():
 	for x in range(10):
@@ -15,30 +15,27 @@ def my_generator():
 class TB(Module):
 	def __init__(self):
 		self.req = Interface(32, 32, 1,
-			sdram_timing.req_queue_size, sdram_timing.read_latency, sdram_timing.write_latency)
+			sdram_timing.req_queue_size, sdram_phy.read_latency, sdram_phy.write_latency)
 		self.submodules.dut = BankMachine(sdram_geom, sdram_timing, 2, 0, self.req)
 		self.submodules.logger = CommandLogger(self.dut.cmd, True)
 		self.generator = my_generator()
 		self.dat_ack_cnt = 0
 
-	def do_simulation(self, s):
-		if s.rd(self.req.dat_ack):
+	def do_simulation(self, selfp):
+		if selfp.req.dat_ack:
 			self.dat_ack_cnt += 1
-		if s.rd(self.req.req_ack):
+		if selfp.req.req_ack:
 			try:
 				we, adr = next(self.generator)
 			except StopIteration:
-				s.wr(self.req.stb, 0)
-				if not s.rd(self.req.lock):
-					s.interrupt = True
+				selfp.req.stb = 0
+				if not selfp.req.lock:
 					print("data ack count: {0}".format(self.dat_ack_cnt))
+					raise StopSimulation
 				return
-			s.wr(self.req.adr, adr)
-			s.wr(self.req.we, we)
-			s.wr(self.req.stb, 1)
+			selfp.req.adr = adr
+			selfp.req.we = we
+			selfp.req.stb = 1
 
-def main():	
-	sim = Simulator(TB(), TopLevel("my.vcd"))
-	sim.run()
-
-main()
+if __name__ == "__main__":
+	run_simulation(TB(), vcd_name="my.vcd")

@@ -1,7 +1,7 @@
 from random import Random
 
 from migen.fhdl.std import *
-from migen.sim.generic import Simulator, TopLevel
+from migen.sim.generic import run_simulation
 
 from misoclib.lasmicon.refresher import *
 
@@ -14,22 +14,22 @@ class Granter(Module):
 		self.state = 0
 		self.prng = Random(92837)
 	
-	def do_simulation(self, s):
-		elts = ["@" + str(s.cycle_counter)]
+	def do_simulation(self, selfp):
+		elts = ["@" + str(selfp.simulator.cycle_counter)]
 		
 		if self.state == 0:
-			if s.rd(self.req):
+			if selfp.req:
 				elts.append("Refresher requested access")
 				self.state = 1
 		elif self.state == 1:
 			if self.prng.randrange(0, 5) == 0:
 				elts.append("Granted access to refresher")
-				s.wr(self.ack, 1)
+				selfp.ack = 1
 				self.state = 2
 		elif self.state == 2:
-			if not s.rd(self.req):
+			if not selfp.req:
 				elts.append("Refresher released access")
-				s.wr(self.ack, 0)
+				selfp.ack = 0
 				self.state = 0
 			
 		if len(elts) > 1:
@@ -41,7 +41,5 @@ class TB(Module):
 		self.submodules.logger = CommandLogger(self.dut.cmd)
 		self.submodules.granter = Granter(self.dut.req, self.dut.ack)
 
-def main():
-	Simulator(TB()).run(400)
-
-main()
+if __name__ == "__main__":
+	run_simulation(TB(), ncycles=400)

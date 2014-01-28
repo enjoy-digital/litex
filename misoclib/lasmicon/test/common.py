@@ -2,7 +2,6 @@ from fractions import Fraction
 from math import ceil
 
 from migen.fhdl.std import *
-from migen.sim.generic import Proxy
 
 from misoclib import lasmicon
 
@@ -80,22 +79,23 @@ class CommandLogger(Module):
 		if rw:
 			self.comb += self.cmd.ack.eq(1)
 	
-	def do_simulation(self, s):
-		elts = ["@" + str(s.cycle_counter)]
-		cmdp = Proxy(s, self.cmd)
+	def do_simulation(self, selfp):
+		elts = ["@" + str(selfp.simulator.cycle_counter)]
+		cmdp = selfp.cmd
 		elts += decode_sdram(cmdp.ras_n, cmdp.cas_n, cmdp.we_n, cmdp.ba, cmdp.a)
 		if len(elts) > 1:
 			print("\t".join(elts))
+	do_simulation.passive = True
 
 class DFILogger(Module):
 	def __init__(self, dfi):
 		self.dfi = dfi
 	
-	def do_simulation(self, s):
-		dfip = Proxy(s, self.dfi)
-		
+	def do_simulation(self, selfp):
+		dfip = selfp.dfi
 		for i, p in enumerate(dfip.phases):
-			elts = ["@" + str(s.cycle_counter) + ":" + str(i)]
+			elts = ["@" + str(selfp.simulator.cycle_counter) + ":" + str(i)]
 			elts += decode_sdram(p.ras_n, p.cas_n, p.we_n, p.bank, p.address)
 			if len(elts) > 1:
 				print("\t".join(elts))
+	do_simulation.passive = True

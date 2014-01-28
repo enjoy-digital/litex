@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 from migen.genlib.fsm import *
+from migen.sim.generic import run_simulation
 
 class Chopper(Module):
 	def __init__(self, N, frac_bits):
@@ -104,9 +105,8 @@ class _ChopperTB(Module):
 	def __init__(self):
 		self.submodules.dut = Chopper(4, 16)
 
-	def gen_simulation(self, s):
-		from migen.sim.generic import Proxy
-		dut = Proxy(s, self.dut)
+	def gen_simulation(self, selfp):
+		dut = selfp.dut
 
 		dut.init = 1
 		dut.p = 320
@@ -130,6 +130,4 @@ class _ChopperTB(Module):
 		print("Ones: {} (expected: {})".format(ones, dut.p*niter*4//dut.q))
 
 if __name__ == "__main__":
-	from migen.sim.generic import Simulator
-	with Simulator(_ChopperTB()) as s:
-		s.run(1000)
+	run_simulation(_ChopperTB())

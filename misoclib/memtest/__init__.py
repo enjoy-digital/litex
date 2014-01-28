@@ -25,25 +25,6 @@ class LFSR(Module):
 			self.o.eq(Cat(*curval))
 		]
 
-def _print_lfsr_code():
-	from migen.fhdl import verilog
-	dut = LFSR(3, 4, [3, 2])
-	print(verilog.convert(dut, ios={dut.ce, dut.reset, dut.o}))
-
-class _LFSRTB(Module):
-	def __init__(self, *args, **kwargs):
-		self.submodules.lfsr = LFSR(*args, **kwargs)
-		self.comb += self.lfsr.ce.eq(1)
-
-	def do_simulation(self, s):
-		print("{0:032x}".format(s.rd(self.lfsr.o)))
-
-def _sim_lfsr():
-	from migen.sim.generic import Simulator
-	tb = _LFSRTB(128)
-	sim = Simulator(tb)
-	sim.run(20)
-
 memtest_magic = 0x361f
 
 class MemtestWriter(Module):
@@ -113,6 +94,19 @@ class MemtestReader(Module):
 	def get_csrs(self):
 		return [self._r_magic, self._r_reset, self._r_error_count] + self._dma.get_csrs()
 
+class _LFSRTB(Module):
+	def __init__(self, *args, **kwargs):
+		self.submodules.dut = LFSR(*args, **kwargs)
+		self.comb += self.dut.ce.eq(1)
+
+	def do_simulation(self, selfp):
+		print("{0:032x}".format(selfp.dut.o))
+
 if __name__ == "__main__":
-	_print_lfsr_code()
-	_sim_lfsr()
+	from migen.fhdl import verilog
+	from migen.sim.generic import run_simulation
+
+	lfsr = LFSR(3, 4, [3, 2])
+	print(verilog.convert(lfsr, ios={lfsr.ce, lfsr.reset, lfsr.o}))
+
+	run_simulation(_LFSRTB(128), ncycles=20)

@@ -4,7 +4,6 @@ from migen.bus import wishbone
 from migen.genlib.misc import timeline
 from migen.genlib.record import Record
 
-
 class SpiFlash(Module):
 	def __init__(self, pads, cmd=0xfffefeff, cmd_width=32, addr_width=24,
 			dummy=15, div=2):
@@ -85,8 +84,6 @@ class SpiFlash(Module):
 
 		self.sync += timeline(bus.cyc & bus.stb & (i == div - 1), tseq)
 
-
-
 class SpiFlashTB(Module):
 	def __init__(self):
 		self.submodules.master = wishbone.Initiator(self.gen_reads())
@@ -103,18 +100,17 @@ class SpiFlashTB(Module):
 			yield t
 			print("read {} in {} cycles(s)".format(t.data, t.latency))
 
-	def do_simulation(self, s):
-		if s.rd(self.pads.cs_n):
+	def do_simulation(self, selfp):
+		if selfp.pads.cs_n:
 			self.cycle = 0
 		else:
 			self.cycle += 1
-			if not s.rd(self.slave.dq.oe):
-				s.wr(self.slave.dq.i, self.cycle & 0xf)
-		s.interrupt = self.master.done
+			if not selfp.slave.dq.oe:
+				selfp.slave.dq.i = self.cycle & 0xf
+	do_simulation.passive = True
 
-
-def _main():
-	from migen.sim.generic import Simulator, TopLevel
+if __name__ == "__main__":
+	from migen.sim.generic import run_simulation
 	from migen.fhdl import verilog
 
 	pads = Record([("cs_n", 1), ("clk", 1), ("dq", 4)])
@@ -122,10 +118,4 @@ def _main():
 	print(verilog.convert(s, ios={pads.clk, pads.cs_n, pads.dq, s.bus.adr,
 		s.bus.dat_r, s.bus.cyc, s.bus.ack, s.bus.stb}))
 
-	tb = SpiFlashTB()
-	sim = Simulator(tb, TopLevel("spiflash.vcd"))
-	sim.run()
-
-
-if __name__ == "__main__":
-	_main()
+	run_simulation(SpiFlashTB(), vcd_name="spiflash.vcd")

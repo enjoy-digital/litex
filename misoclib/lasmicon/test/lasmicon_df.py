@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus import lasmibus
 from migen.actorlib import dma_lasmi
-from migen.sim.generic import Simulator, TopLevel, Proxy
+from migen.sim.generic import run_simulation
 
 from misoclib.lasmicon import *
 
@@ -11,7 +11,6 @@ class TB(Module):
 	def __init__(self):
 		self.submodules.ctler = LASMIcon(sdram_phy, sdram_geom, sdram_timing)
 		self.submodules.xbar = lasmibus.Crossbar([self.ctler.lasmic], self.ctler.nrowbits)
-		self.xbar.get_master() # FIXME: remove dummy master
 		self.submodules.logger = DFILogger(self.ctler.dfi)
 		self.submodules.writer = dma_lasmi.Writer(self.xbar.get_master())
 
@@ -25,8 +24,8 @@ class TB(Module):
 		)
 		self.open_row = None
 
-	def do_simulation(self, s):
-		dfip = Proxy(s, self.ctler.dfi)
+	def do_simulation(self, selfp):
+		dfip = selfp.ctler.dfi
 		for p in dfip.phases:
 			if p.ras_n and not p.cas_n and not p.we_n: # write
 				d = dfip.phases[0].wrdata | (dfip.phases[1].wrdata << 64)
@@ -36,8 +35,5 @@ class TB(Module):
 			elif not p.ras_n and p.cas_n and p.we_n: # activate
 				self.open_row = p.address
 
-def main():
-	sim = Simulator(TB(), TopLevel("my.vcd"))
-	sim.run(3500)
-
-main()
+if __name__ == "__main__":
+	run_simulation(TB(), ncycles=3500, vcd_name="my.vcd")
