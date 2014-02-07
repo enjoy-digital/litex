@@ -341,7 +341,7 @@ The clock domain management mechanism explained above happens during finalizatio
 Simulation
 ==========
 
-The ``do_simulation`` method of the ``Module`` class can be overloaded and will be executed at each clock cycle. See :ref:`simulating` for more information on using the simulator.
+The ``do_simulation`` method of the ``Module`` class can be defined and will be executed at each clock cycle, or the generator-style API can be used by defining ``gen_simulation`` instead. The generator yields the number of cycles it wants to wait for. See :ref:`simulating` for more information on using the simulator.
 
 Simulation of designs with several clock domains is not supported yet.
 
@@ -350,6 +350,4 @@ Conversion for synthesis
 
 Any FHDL module (except, of course, its simulation functions) can be converted into synthesizable Verilog HDL. This is accomplished by using the ``convert`` function in the ``verilog`` module.
 
-Migen does not provide support for any specific synthesis tools or ASIC/FPGA technologies. Users must run themselves the generated code through the appropriate tool flow for hardware implementation.
-
-The Mibuild package, available separately from the Migen website, provides scripts to interface third-party FPGA tools to Migen and a database of boards for the easy deployment of designs.
+The Mibuild component provides scripts to interface third-party FPGA tools to Migen and a database of boards for the easy deployment of designs.

@@ -1,4 +1,4 @@
-Migen (Milkymist Generator)
+Migen (Milkymist generator)
   a Python toolbox for building complex digital hardware
 
 Despite being faster than schematics entry, hardware design with Verilog and
@@ -53,7 +53,7 @@ Even though we do not require you to do so, those things are awesome, so please
 do them if possible:
  * tell us that you are using Migen
  * put the Migen logo (doc/migen_logo.svg) on the page of a product using it,
-   with a link to milkymist.org
+   with a link to m-labs.hk
  * cite Migen in publications related to research it has helped
  * send us feedback and suggestions for improvements
  * send us bug reports when something goes wrong
@@ -62,7 +62,9 @@ do them if possible:
    complex and/or you are not sure how to proceed, feel free to discuss it on
    the mailing list or IRC (#m-labs on Freenode) beforehand.
 
+Note that Migen is not spelled MiGen.
+
 See LICENSE file for full copyright and license info. You can contact us on the
-public mailing list devel [AT] lists.milkymist.org.
+public mailing list devel [AT] lists.m-labs.hk.
 
   "Electricity! It's like magic!"
