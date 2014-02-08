@@ -1,5 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.fsm import *
+from migen.genlib.record import Record
+from migen.genlib.misc import optree
 from migen.sim.generic import run_simulation
 
 class Chopper(Module):
@@ -93,6 +95,59 @@ class Chopper(Module):
 		# initialize Np
 		fsm.act(N, load_np.eq(1))
 
+class Compacter(Module):
+	def __init__(self, base_layout, N):
+		self.i = Record([("w"+str(i), base_layout) for i in range(N)])
+		self.sel = Signal(N)
+
+		self.o = Record([("w"+str(i), base_layout) for i in range(N)])
+		self.count = Signal(max=N+1)
+
+		###
+
+		def set_word(wn, selstart):
+			if wn >= N or selstart >= N:
+				return
+			r = None
+			for i in reversed(range(selstart, N)):
+				r = If(self.sel[i],
+					getattr(self.o, "w"+str(wn)).eq(getattr(self.i, "w"+str(i))),
+					set_word(wn+1, i+1)
+				).Else(r)
+			return r
+		self.sync += set_word(0, 0)
+		self.sync += self.count.eq(optree("+", [self.sel[i] for i in range(N)]))
+
+class Packer(Module):
+	def __init__(self, base_layout, N):
+		assert(N & (N - 1) == 0) # only support powers of 2
+
+		self.i = Record([("w"+str(i), base_layout) for i in range(N)])
+		self.count = Signal(max=N+1)
+
+		self.o = Record([("w"+str(i), base_layout) for i in range(N)])
+		self.stb = Signal()
+
+		###
+
+		buf = Record([("w"+str(i), base_layout) for i in range(2*N)])
+		
+		wrp = Signal(max=2*N)
+		wrp_next = Signal(max=2*N)
+		self.comb += wrp_next.eq(wrp + self.count)
+		self.sync += [
+			wrp.eq(wrp_next), self.stb.eq(wrp_next[-1] ^ wrp[-1]),
+			Case(wrp, {i: [getattr(buf, "w"+str(j + i & 2*N - 1)).eq(getattr(self.i, "w"+str(j))) for j in range(N)] for i in range(2*N)})
+		]
+
+		rdp = Signal()
+		self.sync += If(self.stb, rdp.eq(~rdp))
+		self.comb += If(rdp, 
+				[getattr(self.o, "w"+str(i)).eq(getattr(buf, "w"+str(i+N))) for i in range(N)]
+			).Else(
+				[getattr(self.o, "w"+str(i)).eq(getattr(buf, "w"+str(i))) for i in range(N)]
+			)
+
 def _count_ones(n):
 	r = 0
 	while n:
@@ -108,6 +163,7 @@ class _ChopperTB(Module):
 	def gen_simulation(self, selfp):
 		dut = selfp.dut
 
+		print("initializing chopper...")
 		dut.init = 1
 		dut.p = 320
 		dut.q = 681
@@ -115,7 +171,6 @@ class _ChopperTB(Module):
 		dut.init = 0
 		yield
 		while not dut.ready:
-			print("waiting")
 			yield
 		print("done")
 
@@ -124,10 +179,57 @@ class _ChopperTB(Module):
 		ones = 0
 		niter = 681
 		for i in range(niter):
-			print("{:04b}".format(dut.chopper))
+			#print("{:04b}".format(dut.chopper))
 			ones += _count_ones(dut.chopper)
 			yield
 		print("Ones: {} (expected: {})".format(ones, dut.p*niter*4//dut.q))
 
+class _CompacterPackerTB(Module):
+	def __init__(self, input_it):
+		self.input_it = input_it
+		self.output = []
+		self.end_cycle = -1
+
+		self.submodules.compacter = Compacter(16, 4)
+		self.submodules.packer = Packer(16, 4)
+		self.comb += self.packer.i.eq(self.compacter.o), self.packer.count.eq(self.compacter.count)
+
+	def do_simulation(self, selfp):
+		if selfp.simulator.cycle_counter == self.end_cycle:
+			raise StopSimulation
+
+		# push values
+		sel = 0
+		for i in range(4):
+			try:
+				value, keep = next(self.input_it)
+			except StopIteration:
+				value, keep = 0, 0
+				if self.end_cycle == -1:
+					self.end_cycle = selfp.simulator.cycle_counter + 3
+			sel |= int(keep) << i
+			setattr(selfp.compacter.i, "w"+str(i), value)
+		selfp.compacter.sel = sel
+
+		# pull values
+		if selfp.packer.stb:
+			for i in range(4):
+				self.output.append(getattr(selfp.packer.o, "w"+str(i)))
+
+
 if __name__ == "__main__":
+	print("*** Testing chopper ***")
 	run_simulation(_ChopperTB())
+
+	print("*** Testing compacter and packer ***")
+	test_seq = [
+		(42, 0), (32, 1), ( 4, 1), (21, 0),
+		(43, 1), (11, 1), ( 5, 1), (18, 0),
+		(71, 0), (70, 1), (30, 1), (12, 1),
+		( 3, 1), (12, 1), (21, 1), (10, 0),
+		( 1, 1), (87, 0), (72, 0), (12, 0)
+	]
+	tb = _CompacterPackerTB(iter(test_seq))
+	run_simulation(tb)
+	print("got:      " + str(tb.output))
+	print("expected: " + str([value for value, keep in test_seq if keep]))
