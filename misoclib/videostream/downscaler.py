@@ -5,6 +5,37 @@ from migen.genlib.misc import optree
 from migen.sim.generic import run_simulation
 
 class Chopper(Module):
+	def __init__(self, frac_bits):
+		self.p = Signal(frac_bits)
+		self.q = Signal(frac_bits)
+		self.chopper = Signal()
+
+		###
+
+		acc = Signal(frac_bits)
+		self.sync += If(acc + self.p >= Cat(self.q, 0), # FIXME
+				acc.eq(acc + self.p - self.q),
+				self.chopper.eq(1)
+			).Else(
+				acc.eq(acc + self.p),
+				self.chopper.eq(0)
+			)
+
+class _ChopperTB(Module):
+	def __init__(self):
+		self.submodules.dut = Chopper(16)
+		self.comb += self.dut.p.eq(320), self.dut.q.eq(681)
+
+	def gen_simulation(self, selfp):
+		yield
+		ones = 0
+		niter = 681
+		for i in range(niter):
+			ones += selfp.dut.chopper
+			yield
+		print("Ones: {} (expected: {})".format(ones, selfp.dut.p*niter//selfp.dut.q))
+
+class MultiChopper(Module):
 	def __init__(self, N, frac_bits):
 		self.init = Signal()
 		self.ready = Signal()
@@ -95,6 +126,42 @@ class Chopper(Module):
 		# initialize Np
 		fsm.act(N, load_np.eq(1))
 
+def _count_ones(n):
+	r = 0
+	while n:
+		if n & 1:
+			r += 1
+		n >>= 1
+	return r
+
+class _MultiChopperTB(Module):
+	def __init__(self):
+		self.submodules.dut = MultiChopper(4, 16)
+
+	def gen_simulation(self, selfp):
+		dut = selfp.dut
+
+		print("initializing chopper...")
+		dut.init = 1
+		dut.p = 320
+		dut.q = 681
+		yield
+		dut.init = 0
+		yield
+		while not dut.ready:
+			yield
+		print("done")
+
+		dut.next = 1
+		yield
+		ones = 0
+		niter = 681
+		for i in range(niter):
+			#print("{:04b}".format(dut.chopper))
+			ones += _count_ones(dut.chopper)
+			yield
+		print("Ones: {} (expected: {})".format(ones, dut.p*niter*4//dut.q))
+
 class Compacter(Module):
 	def __init__(self, base_layout, N):
 		self.i = Record([("w"+str(i), base_layout) for i in range(N)])
@@ -148,42 +215,6 @@ class Packer(Module):
 				[getattr(self.o, "w"+str(i)).eq(getattr(buf, "w"+str(i))) for i in range(N)]
 			)
 
-def _count_ones(n):
-	r = 0
-	while n:
-		if n & 1:
-			r += 1
-		n >>= 1
-	return r
-
-class _ChopperTB(Module):
-	def __init__(self):
-		self.submodules.dut = Chopper(4, 16)
-
-	def gen_simulation(self, selfp):
-		dut = selfp.dut
-
-		print("initializing chopper...")
-		dut.init = 1
-		dut.p = 320
-		dut.q = 681
-		yield
-		dut.init = 0
-		yield
-		while not dut.ready:
-			yield
-		print("done")
-
-		dut.next = 1
-		yield
-		ones = 0
-		niter = 681
-		for i in range(niter):
-			#print("{:04b}".format(dut.chopper))
-			ones += _count_ones(dut.chopper)
-			yield
-		print("Ones: {} (expected: {})".format(ones, dut.p*niter*4//dut.q))
-
 class _CompacterPackerTB(Module):
 	def __init__(self, input_it):
 		self.input_it = input_it
@@ -220,6 +251,9 @@ class _CompacterPackerTB(Module):
 if __name__ == "__main__":
 	print("*** Testing chopper ***")
 	run_simulation(_ChopperTB())
+
+	print("*** Testing multichopper ***")
+	run_simulation(_MultiChopperTB())
 
 	print("*** Testing compacter and packer ***")
 	test_seq = [
