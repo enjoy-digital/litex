@@ -64,18 +64,12 @@ class DMA(Module):
 		alignment_bits = bits_for(bus_dw//8) - 1
 
 		fifo_word_width = 24*bus_dw//32
-		self.frame = Sink([("parity", 1), ("pixels", fifo_word_width)])
+		self.frame = Sink([("sof", 1), ("pixels", fifo_word_width)])
 		self._r_frame_size = CSRStorage(bus_aw + alignment_bits, alignment_bits=alignment_bits)
 		self.submodules._slot_array = _SlotArray(nslots, bus_aw, alignment_bits)
 		self.ev = self._slot_array.ev
 
 		###
-
-		# start of frame detection
-		sof = Signal()
-		parity_r = Signal()
-		self.sync += If(self.frame.stb & self.frame.ack, parity_r.eq(self.frame.payload.parity))
-		self.comb += sof.eq(parity_r ^ self.frame.payload.parity)
 
 		# address generator + maximum memory word count to prevent DMA buffer overrun
 		reset_words = Signal()
@@ -122,8 +116,8 @@ class DMA(Module):
 
 		fsm.act("WAIT_SOF",
 			reset_words.eq(1),
-			self.frame.ack.eq(~self._slot_array.address_valid | ~sof),
-			If(self._slot_array.address_valid & sof & self.frame.stb, NextState("TRANSFER_PIXELS"))
+			self.frame.ack.eq(~self._slot_array.address_valid | ~self.frame.payload.sof),
+			If(self._slot_array.address_valid & self.frame.payload.sof & self.frame.stb, NextState("TRANSFER_PIXELS"))
 		)
 		fsm.act("TRANSFER_PIXELS",
 			self.frame.ack.eq(self._bus_accessor.address_data.ack),

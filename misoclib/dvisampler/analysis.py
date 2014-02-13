@@ -116,7 +116,7 @@ class FrameExtraction(Module, AutoCSR):
 		self.b = Signal(8)
 
 		# in sys clock domain
-		word_layout = [("parity", 1), ("pixels", word_width)]
+		word_layout = [("sof", 1), ("pixels", word_width)]
 		self.frame = Source(word_layout)
 		self.busy = Signal()
 
@@ -159,11 +159,12 @@ class FrameExtraction(Module, AutoCSR):
 			fifo.din.pixels.eq(cur_word),
 			fifo.we.eq(cur_word_valid)
 		]
-		new_frame_r = Signal()
-		self.sync.pix += [
-			If(new_frame_r, fifo.din.parity.eq(~fifo.din.parity)),
-			new_frame_r.eq(new_frame)
-		]
+		self.sync.pix += \
+			If(new_frame,
+				fifo.din.sof.eq(1)
+			).Elif(cur_word_valid,
+				fifo.din.sof.eq(0)
+			)
 		self.comb += [
 			self.frame.stb.eq(fifo.readable),
 			self.frame.payload.eq(fifo.dout),
@@ -196,10 +197,9 @@ class FrameExtraction(Module, AutoCSR):
 			self._r_overflow.w.eq(sys_overflow & ~overflow_mask),
 			self.overflow_reset.i.eq(self._r_overflow.re)
 		]
-		self.sync += [
+		self.sync += \
 			If(self._r_overflow.re,
 				overflow_mask.eq(1)
 			).Elif(self.overflow_reset_ack.o,
 				overflow_mask.eq(0)
 			)
-		]
