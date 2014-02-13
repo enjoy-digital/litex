@@ -137,8 +137,8 @@ class VideomixerSoC(MiniSoC):
 		self.submodules.fb = framebuffer.MixFramebuffer(pads_vga, pads_dvi,
 			self.lasmixbar.get_master(), self.lasmixbar.get_master())
 		_add_vga_tig(platform, self.fb)
-		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 0), self.lasmixbar.get_master())
-		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 1), self.lasmixbar.get_master())
+		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 2), self.lasmixbar.get_master())
+		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 3), self.lasmixbar.get_master())
 
 def get_default_subtarget(platform):
 	if platform.name == "mixxeo":
