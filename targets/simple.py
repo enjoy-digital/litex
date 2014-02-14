@@ -1,14 +1,13 @@
 from migen.fhdl.std import *
 
 from misoclib import gpio, spiflash
-from misoclib.gensoc import GenSoC, IntegratedBIOS
+from misoclib.gensoc import GenSoC
 
-class SimpleSoC(GenSoC, IntegratedBIOS):
+class SimpleSoC(GenSoC):
 	def __init__(self, platform):
 		GenSoC.__init__(self, platform,
 			clk_freq=32*1000000,
-			cpu_reset_address=0)
-		IntegratedBIOS.__init__(self)
+			cpu_reset_address=0x60000)
 
 		# We can't use reset_less as LM32 does require a reset signal
 		self.clock_domains.cd_sys = ClockDomain()
@@ -17,10 +16,9 @@ class SimpleSoC(GenSoC, IntegratedBIOS):
 
 		self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
 
-		# Map the SPI flash at 0xb0000000 for demo purposes. Later, we'll want to store the BIOS there.
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"),
 			cmd=0xefef, cmd_width=16, addr_width=24, dummy=4)
-		self.add_wb_slave(lambda a: a[26:29] == 3, self.spiflash.bus)
+		self.register_rom(self.spiflash.bus)
 
 def get_default_subtarget(platform):
 	return SimpleSoC
