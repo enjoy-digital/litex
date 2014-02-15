@@ -496,8 +496,8 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
-	puts("\nMiSoC BIOS   http://www.milkymist.org\n"
-	"(c) Copyright 2007-2013 Sebastien Bourdeauducq");
+	puts("\nMiSoC BIOS   http://m-labs.hk\n"
+	"(c) Copyright 2007-2014 Sebastien Bourdeauducq");
 	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
 	crcbios();
 	id_print();
