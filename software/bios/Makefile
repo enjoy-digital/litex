@@ -40,10 +40,7 @@ libs:
 	$(MAKE) -C $(MSCDIR)/software/libbase
 	$(MAKE) -C $(MSCDIR)/software/libnet
 
-flash: bios.bin
-	m1nor-ng bios.bin
-
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin .*~ *~
 
-.PHONY: all main.o clean libs flash
+.PHONY: all main.o clean libs
