@@ -42,6 +42,7 @@ Load/flash actions use the existing outputs, and do not trigger new builds.
 
 	parser.add_argument("-d", "--decorate", default=[], action="append", help="apply simplification decorator to top-level")
 	parser.add_argument("-Ob", "--build-option", default=[], nargs=2, action="append", help="set build option")
+	parser.add_argument("-f", "--flash-proxy-dir", default=None, help="set search directory for flash proxy bitstreams")
 
 	parser.add_argument("action", nargs="+", help="specify an action")
 
@@ -142,7 +143,7 @@ if __name__ == "__main__":
 		platform.build(soc, build_name=build_name, **build_kwargs)
 
 	if actions["load-bitstream"] or actions["flash-bitstream"] or actions["flash-bios"]:
-		prog = programmer.create_programmer(platform.name, None)
+		prog = programmer.create_programmer(platform.name, args.flash_proxy_dir)
 		if actions["load-bitstream"]:
 			prog.load_bitstream("build/" + build_name + ".bit")
 		if actions["flash-bitstream"]:
