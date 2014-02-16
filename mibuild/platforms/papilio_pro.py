@@ -4,9 +4,6 @@ from mibuild.xilinx_ise import XilinxISEPlatform, CRG_SE
 _io = [
 	("user_led", 0, Pins("P112"), IOStandard("LVCMOS33"), Drive(24), Misc("SLEW=QUIETIO")),
 
-	("user_btn", 0, Pins("P114"), IOStandard("LVCMOS33")), # C0
-	("user_btn", 1, Pins("P115"), IOStandard("LVCMOS33")), # C1
-
 	("clk32", 0, Pins("P94"), IOStandard("LVCMOS33")),
 
 	("serial", 0,
@@ -41,13 +38,19 @@ _io = [
 		Subsignal("dq", Pins("P9 P10 P11 P12 P14 P15 P16 P8 P21 P22 P23 P24 P26 P27 P29 P30")),
 		Subsignal("dm", Pins("P7 P17")),
 		IOStandard("LVCMOS33"), Misc("SLEW=FAST")
-	),
+	)
+]
+
+_connectors = [
+	("A", "P48 P51 P56 P58 P61 P66 P67 P75 P79 P81 P83 P85 P88 P93 P98 P100"),
+	("B", "P99 P97 P92 P87 P84 P82 P80 P78 P74 P95 P62 P59 P57 P55 P50 P47"),
+	("C", "P114 P115 P116 P117 P118 P119 P120 P121 P123 P124 P126 P127 P131 P132 P133 P134")
 ]
 
 class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx9-tqg144-2", _io,
-			lambda p: CRG_SE(p, "clk32", None))
+			lambda p: CRG_SE(p, "clk32", None), _connectors)
 
 	def do_finalize(self, fragment):
 		try:
