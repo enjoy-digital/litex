@@ -91,7 +91,7 @@ int main(void)
 	irq_setie(1);
 	uart_init();
 	
-	printf("Mixxeo software rev. %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
+	printf("Mixxeo software rev. %08x built "__DATE__" "__TIME__"\n\n", MSC_GIT_ID);
 	
 	config_init();
 	time_init();

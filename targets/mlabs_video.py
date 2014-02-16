@@ -25,6 +25,8 @@ class _MXClockPads:
 		self.eth_tx_clk = eth_clocks.tx
 
 class MiniSoC(SDRAMSoC):
+	default_platform = "mixxeo" # also supports m1
+
 	csr_map = {
 		"minimac":				10,
 		"fb":					11,
@@ -140,8 +142,4 @@ class VideomixerSoC(MiniSoC):
 		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 2), self.lasmixbar.get_master())
 		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 3), self.lasmixbar.get_master())
 
-def get_default_subtarget(platform):
-	if platform.name == "mixxeo":
-		return VideomixerSoC
-	else:
-		return FramebufferSoC
+default_subtarget = VideomixerSoC

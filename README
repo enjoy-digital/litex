@@ -1,10 +1,10 @@
 [> MiSoC system-on-chip
 ------------------------------
 
-A high performance system-on-chip design based on Migen.
+A high performance and small footprint system-on-chip design based on Migen.
 
 MiSoC supports the Mixxeo and the Milkymist One.
-Obtain your development system at http://milkymist.org
+Obtain your development system at http://m-labs.hk
 
 [> Instructions (software)
 --------------------------
@@ -71,4 +71,4 @@ do them if possible:
    the mailing list or IRC (#m-labs on Freenode) beforehand.
 
 See LICENSE file for full copyright and license info. You can contact us on the
-public mailing list devel [AT] lists.milkymist.org.
+public mailing list devel [AT] lists.m-labs.hk.

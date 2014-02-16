@@ -355,7 +355,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "netboot") == 0) netboot();
 #endif
 	
-	else if(strcmp(token, "revision") == 0) printf("%08x\n", GIT_ID);
+	else if(strcmp(token, "revision") == 0) printf("%08x\n", MSC_GIT_ID);
 
 	else if(strcmp(token, "help") == 0) help();
 
@@ -498,7 +498,7 @@ int main(int i, char **c)
 	uart_init();
 	puts("\nMiSoC BIOS   http://m-labs.hk\n"
 	"(c) Copyright 2007-2014 Sebastien Bourdeauducq");
-	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", GIT_ID);
+	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", MSC_GIT_ID);
 	crcbios();
 	id_print();
 #ifdef MINIMAC_BASE

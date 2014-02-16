@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, argparse, importlib, subprocess, struct
+import sys, os, argparse, importlib, subprocess, struct
 
 from mibuild.tools import write_to_file
 from migen.util.misc import autotype
@@ -33,12 +33,11 @@ all             build-bitstream, build-bios, flash-bitstream, flash-bios.
 Load/flash actions use the existing outputs, and do not trigger new builds.
 """)
 
-	parser.add_argument("-p", "--platform", default="mixxeo", help="platform to build for")
 	parser.add_argument("-t", "--target", default="mlabs_video", help="SoC type to build")
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the SoC type to build")
+	parser.add_argument("-p", "--platform", default=None, help="platform to build for")
 	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
-	parser.add_argument("-Xp", "--external-platform", default="", help="use external platform file in the specified path")
-	parser.add_argument("-Xt", "--external-target", default="", help="use external target file in the specified path")
+	parser.add_argument("-X", "--external", default="", help="use external directory for targets, platforms and imports")
 
 	parser.add_argument("-d", "--decorate", default=[], action="append", help="apply simplification decorator to top-level")
 	parser.add_argument("-Ob", "--build-option", default=[], nargs=2, action="append", help="set build option")
@@ -56,7 +55,8 @@ def _misoc_import(default, external, name):
 			pass
 		loader = importlib.find_loader(name, [external])
 		if loader is None:
-			raise ImportError("Module not found: "+name)
+			# try internal import
+			return importlib.import_module(default + "." + name)
 		return loader.load_module()
 	else:
 		return importlib.import_module(default + "." + name)
@@ -64,15 +64,28 @@ def _misoc_import(default, external, name):
 if __name__ == "__main__":
 	args = _get_args()
 
+	external_target = ""
+	external_platform = ""
+	if args.external:
+		external_target = os.path.join(args.external, "targets")
+		external_platform = os.path.join(args.external, "platforms")
+		sys.path.insert(1, os.path.abspath(args.external))
+
 	# create top-level SoC object
-	platform_module = _misoc_import("mibuild.platforms", args.external_platform, args.platform)
-	target_module = _misoc_import("targets", args.external_target, args.target)
-	platform = platform_module.Platform()
+	target_module = _misoc_import("targets", external_target, args.target)
 	if args.sub_target:
 		top_class = getattr(target_module, args.sub_target)
 	else:
-		top_class = target_module.get_default_subtarget(platform)
-	build_name = top_class.__name__.lower() + "-" + args.platform
+		top_class = target_module.default_subtarget
+
+	if args.platform is None:
+		platform_name = top_class.default_platform
+	else:
+		platform_name = args.platform
+	platform_module = _misoc_import("mibuild.platforms", external_platform, platform_name)
+	platform = platform_module.Platform()
+
+	build_name = top_class.__name__.lower() + "-" + platform_name
 	top_kwargs = dict((k, autotype(v)) for k, v in args.target_option)
 	soc = top_class(platform, **top_kwargs)
 	soc.finalize()
@@ -90,6 +103,20 @@ if __name__ == "__main__":
 				print("  "+a)
 			sys.exit(1)
 
+	print("""\
+                __  ___  _   ____     _____
+               /  |/  / (_) / __/__  / ___/
+              / /|_/ / / / _\ \/ _ \/ /__
+             /_/  /_/ /_/ /___/\___/\___/
+
+a high performance and small footprint SoC based on Migen
+
+====== Building for: ======
+Platform:  {}
+Target:    {}
+Subtarget: {}
+===========================""".format(platform_name, args.target, top_class.__name__))
+
 	# dependencies
 	if actions["all"]:
 		actions["build-bitstream"] = True
@@ -103,12 +130,12 @@ if __name__ == "__main__":
 
 	if actions["build-headers"]:
 		boilerplate = """/*
- * Platform: {}
- * Target: {}
+ * Platform:  {}
+ * Target:    {}
  * Subtarget: {}
  */
 
-""".format(args.platform, args.target, top_class.__name__)
+""".format(platform_name, args.target, top_class.__name__)
 		linker_header = cpuif.get_linker_regions(soc.cpu_memory_regions)
 		write_to_file("software/include/generated/regions.ld", boilerplate + linker_header)
 		csr_header = cpuif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
