@@ -62,6 +62,30 @@ def _resource_type(resource):
 			t.append((element.name, n_bits))
 	return t
 
+class ConnectorManager:
+	def __init__(self, connectors):
+		self.connector_table = dict()
+		for connector in connectors:
+			cit = iter(connector)
+			conn_name = next(cit)
+			pin_list = []
+			for pins in cit:
+				pin_list += pins.split()
+			if conn_name in self.connector_table:
+				raise ValueError("Connector specified more than once: "+conn_name)
+			self.connector_table[conn_name] = pin_list
+
+	def resolve_identifiers(self, identifiers):
+		r = []
+		for identifier in identifiers:
+			if ":" in identifier:
+				conn, pn = identifier.split(":")
+				pn = int(pn)
+				r.append(self.connector_table[conn][pn])
+			else:
+				r.append(identifier)
+		return r
+
 def _separate_pins(constraints):
 	pins = None
 	others = []
@@ -72,12 +96,16 @@ def _separate_pins(constraints):
 		else:
 			others.append(c)
 	return pins, others
-	
+
 class ConstraintManager:
-	def __init__(self, description):
-		self.available = list(description)
+	def __init__(self, io, connectors):
+		self.available = list(io)
 		self.matched = []
 		self.platform_commands = []
+		self.connector_manager = ConnectorManager(connectors)
+
+	def add_extension(self, io):
+		self.available.extend(io)
 		
 	def request(self, name, number=None):
 		resource = _lookup(self.available, name, number)
@@ -129,20 +157,21 @@ class ConstraintManager:
 					if isinstance(element, Subsignal):
 						sig = getattr(obj, element.name)
 						pins, others = _separate_pins(top_constraints + element.constraints)
+						pins = self.connector_manager.resolve_identifiers(pins)
 						r.append((sig, pins, others, (name, number, element.name)))
 			else:
 				pins, others = _separate_pins(top_constraints)
+				pins = self.connector_manager.resolve_identifiers(pins)
 				r.append((obj, pins, others, (name, number, None)))
 		return r
 
 	def get_platform_commands(self):
 		return self.platform_commands
 
-
 class GenericPlatform:
-	def __init__(self, device, io, default_crg_factory=None, name=None):
+	def __init__(self, device, io, default_crg_factory=None, connectors=None, name=None):
 		self.device = device
-		self.constraint_manager = ConstraintManager(io)
+		self.constraint_manager = ConstraintManager(io, connectors)
 		self.default_crg_factory = default_crg_factory
 		if name is None:
 			name = self.__module__.split(".")[-1]
@@ -159,6 +188,9 @@ class GenericPlatform:
 
 	def add_platform_command(self, *args, **kwargs):
 		return self.constraint_manager.add_platform_command(*args, **kwargs)
+
+	def add_extension(self, *args, **kwargs):
+		return self.constraint_manager.add_extension(*args, **kwargs)
 
 	def finalize(self, fragment, *args, **kwargs):
 		if self.finalized:
