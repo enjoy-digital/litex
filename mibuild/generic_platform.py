@@ -169,7 +169,7 @@ class ConstraintManager:
 		return self.platform_commands
 
 class GenericPlatform:
-	def __init__(self, device, io, default_crg_factory=None, connectors=None, name=None):
+	def __init__(self, device, io, default_crg_factory=None, connectors=[], name=None):
 		self.device = device
 		self.constraint_manager = ConstraintManager(io, connectors)
 		self.default_crg_factory = default_crg_factory
