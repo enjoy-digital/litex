@@ -9,6 +9,7 @@
 #include <crc.h>
 
 #include <generated/csr.h>
+#include <generated/mem.h>
 #include <net/microudp.h>
 
 #include "sdram.h"
@@ -317,7 +318,9 @@ static void help(void)
 	puts("netboot    - boot via TFTP");
 #endif
 	puts("serialboot - boot via SFL");
+#ifdef FLASH_BOOT_ADDRESS
 	puts("flashboot  - boot from flash");
+#endif
 	puts("revision   - display revision");
 }
 
@@ -349,7 +352,9 @@ static void do_command(char *c)
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
 	else if(strcmp(token, "flushl2") == 0) flush_l2_cache();
 
+#ifdef FLASH_BOOT_ADDRESS
 	else if(strcmp(token, "flashboot") == 0) flashboot();
+#endif
 	else if(strcmp(token, "serialboot") == 0) serialboot();
 #ifdef MINIMAC_BASE
 	else if(strcmp(token, "netboot") == 0) netboot();
@@ -479,7 +484,9 @@ static int test_user_abort(void)
 static void boot_sequence(void)
 {
 	if(test_user_abort()) {
+#ifdef FLASH_BOOT_ADDRESS
 		flashboot();
+#endif
 		serialboot();
 #ifdef MINIMAC_BASE
 		netboot();

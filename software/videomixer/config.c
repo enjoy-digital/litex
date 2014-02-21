@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-#include <hw/mem.h>
+#include <generated/mem.h>
 
 #include "config.h"
 
-#define FLASH_OFFSET_CONFIG (FLASH_OFFSET_APP + FLASH_BLOCK_SIZE)
+#define FLASH_BLOCK_SIZE	(128*1024)
+#define FLASH_OFFSET_CONFIG (FLASH_BOOT_ADDRESS + FLASH_BLOCK_SIZE)
 
 static volatile unsigned short *flash_config = (unsigned short *)(0x80000000 | FLASH_OFFSET_CONFIG);
 

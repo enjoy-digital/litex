@@ -74,9 +74,12 @@ class MiniSoC(SDRAMSoC):
 		# Wishbone
 		self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
 			self.ns(110), self.ns(50))
-		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
+		self.flash_boot_address = 0x001a0000
 		self.register_rom(self.norflash.bus)
+
+		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
 		self.add_wb_slave(lambda a: a[26:29] == 3, self.minimac.membus)
+		self.add_cpu_memory_region("minimac_mem", 0xb0000000, 0x1800)
 		
 		# CSR
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)

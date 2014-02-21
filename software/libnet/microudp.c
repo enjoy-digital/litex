@@ -5,7 +5,7 @@
 #include <system.h>
 #include <crc.h>
 #include <hw/flags.h>
-#include <hw/mem.h>
+#include <hw/minimac_mem.h>
 
 #include <net/microudp.h>
 

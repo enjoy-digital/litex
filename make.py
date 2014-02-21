@@ -138,6 +138,12 @@ Subtarget: {}
 """.format(platform_name, args.target, top_class.__name__)
 		linker_header = cpuif.get_linker_regions(soc.cpu_memory_regions)
 		write_to_file("software/include/generated/regions.ld", boilerplate + linker_header)
+		try:
+			flash_boot_address = soc.flash_boot_address
+		except AttributeError:
+			flash_boot_address = None
+		mem_header = cpuif.get_mem_header(soc.cpu_memory_regions, flash_boot_address)
+		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
 		csr_header = cpuif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
 		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
 		if hasattr(soc, "ddrphy"):

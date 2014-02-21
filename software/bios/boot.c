@@ -7,7 +7,7 @@
 #include <string.h>
 #include <irq.h>
 
-#include <hw/mem.h>
+#include <generated/mem.h>
 #include <generated/csr.h>
 
 #include <net/microudp.h>
@@ -241,6 +241,7 @@ void netboot(void)
 
 #endif
 
+#ifdef FLASH_BOOT_ADDRESS
 void flashboot(void)
 {
 	unsigned int *flashbase;
@@ -249,7 +250,7 @@ void flashboot(void)
 	unsigned int got_crc;
 
 	printf("Booting from flash...\n");
-	flashbase = (unsigned int *)FLASH_OFFSET_APP;
+	flashbase = (unsigned int *)FLASH_BOOT_ADDRESS;
 	length = *flashbase++;
 	crc = *flashbase++;
 	if((length < 32) || (length > 4*1024*1024)) {
@@ -266,3 +267,4 @@ void flashboot(void)
 	}
 	boot(0, 0, 0, SDRAM_BASE);
 }
+#endif

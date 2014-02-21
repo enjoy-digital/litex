@@ -7,6 +7,15 @@ def get_linker_regions(regions):
 	r += "}\n"
 	return r
 
+def get_mem_header(regions, flash_boot_address):
+	r = "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
+	for name, base, size in regions:
+		r += "#define {name}_BASE 0x{base:08x}\n#define {name}_SIZE 0x{size:08x}\n\n".format(name=name.upper(), base=base, size=size)
+	if flash_boot_address is not None:
+		r += "#define FLASH_BOOT_ADDRESS 0x{:08x}\n\n".format(flash_boot_address)
+	r += "#endif\n"
+	return r
+
 def _get_rw_functions(reg_name, reg_base, size, read_only):
 	r = ""
 

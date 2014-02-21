@@ -5,8 +5,8 @@
 #include <stdlib.h>
 
 #include <generated/sdram_phy.h>
+#include <generated/mem.h>
 #include <hw/flags.h>
-#include <hw/mem.h>
 
 #include "sdram.h"
 
