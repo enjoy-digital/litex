@@ -70,7 +70,7 @@ load: videomixer.bin
 	$(MSCDIR)/tools/flterm --port /dev/ttyUSB0 --kernel videomixer.bin
 
 flash: videomixer.fbi
-	m1nor-ng videomixer.fbi
+	$(MSCDIR)/flash_extra.py mixxeo videomixer.fbi 0x001a0000
 
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) videomixer.elf videomixer.bin videomixer.fbi
