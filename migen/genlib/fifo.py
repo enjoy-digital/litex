@@ -70,11 +70,20 @@ class SyncFIFO(Module, _FIFOInterface):
 	If different clock domains are needed, use :class:`AsyncFIFO`.
 
 	{interface}
+	level : out
+		Number of unread entries.
+	flush : in
+		Flush the FIFO discarding pending write.
+		In the next cycle `readable` will be deasserted
+		and `writable` will be asserted, `level` will be zero.
 	"""
 	__doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
 
 	def __init__(self, width_or_layout, depth):
 		_FIFOInterface.__init__(self, width_or_layout, depth)
+
+		self.flush = Signal()
+		self.level = Signal(max=depth+1)
 
 		###
 
@@ -85,7 +94,6 @@ class SyncFIFO(Module, _FIFOInterface):
 			do_read.eq(self.readable & self.re)
 		]
 
-		level = Signal(max=depth+1)
 		produce = Signal(max=depth)
 		consume = Signal(max=depth)
 		storage = Memory(self.width, depth)
@@ -109,15 +117,19 @@ class SyncFIFO(Module, _FIFOInterface):
 		self.sync += If(do_read, _inc(consume, depth))
 
 		self.sync += [
-			If(do_write,
-				If(~do_read, level.eq(level + 1))
+			If(self.flush,
+				produce.eq(0),
+				consume.eq(0),
+				self.level.eq(0),
+			).Elif(do_write,
+				If(~do_read, self.level.eq(self.level + 1))
 			).Elif(do_read,
-				level.eq(level - 1)
+				self.level.eq(self.level - 1)
 			)
 		]
 		self.comb += [
-			self.writable.eq(level != depth),
-			self.readable.eq(level != 0)
+			self.writable.eq(self.level != depth),
+			self.readable.eq(self.level != 0)
 		]
 
 class AsyncFIFO(Module, _FIFOInterface):
