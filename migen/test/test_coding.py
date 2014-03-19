@@ -75,3 +75,28 @@ class DecCase(SimCase, unittest.TestCase):
 			else:
 				self.assertEqual(o, 1<<i)
 		self.run_with(cb, 256)
+
+class SmallPrioEncCase(SimCase, unittest.TestCase):
+	class TestBench(SimBench):
+		def __init__(self):
+			self.submodules.dut = PriorityEncoder(1)
+
+	def test_sizes(self):
+		self.assertEqual(flen(self.tb.dut.i), 1)
+		self.assertEqual(flen(self.tb.dut.o), 1)
+		self.assertEqual(flen(self.tb.dut.n), 1)
+
+	def test_run_sequence(self):
+		seq = list(range(1))
+		def cb(tb, tbp):
+			if seq:
+				tbp.dut.i = seq.pop(0)
+			i = tbp.dut.i
+			if tbp.dut.n:
+				self.assertEqual(i, 0)
+			else:
+				o = tbp.dut.o
+				if o > 0:
+					self.assertEqual(i & 1<<(o - 1), 0)
+				self.assertGreaterEqual(i, 1<<o)
+		self.run_with(cb, 5)
