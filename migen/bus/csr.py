@@ -30,30 +30,30 @@ class Initiator(Module):
 		self.read_data_ready = False
 		self.done = False
 		
-	def do_simulation(self, s):
+	def do_simulation(self, selfp):
 		if not self.done:
 			if self.transaction is not None:
 				if isinstance(self.transaction, TRead):
 					if self.read_data_ready:
-						self.transaction.data = s.rd(self.bus.dat_r)
+						self.transaction.data = selfp.bus.dat_r
 						self.transaction = None
 						self.read_data_ready = False
 					else:
 						self.read_data_ready = True
 				else:
-					s.wr(self.bus.we, 0)
+					selfp.bus.we = 0
 					self.transaction = None
 			if self.transaction is None:
 				try:
 					self.transaction = next(self.generator)
 				except StopIteration:
 					self.transaction = None
-					self.done = True
+					raise StopSimulation
 				if self.transaction is not None:
-					s.wr(self.bus.adr, self.transaction.address)
+					selfp.bus.adr = self.transaction.address
 					if isinstance(self.transaction, TWrite):
-						s.wr(self.bus.we, 1)
-						s.wr(self.bus.dat_w, self.transaction.data)
+						selfp.bus.we = 1
+						selfp.bus.dat_w = self.transaction.data
 
 class SRAM(Module):
 	def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None):
