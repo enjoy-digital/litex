@@ -17,6 +17,6 @@ class SimCase:
 	def test_to_verilog(self):
 		verilog.convert(self.tb)
 
-	def run_with(self, cb, ncycles=-1):
+	def run_with(self, cb, ncycles=None):
 		self.tb.callback = cb
 		run_simulation(self.tb, ncycles=ncycles)
