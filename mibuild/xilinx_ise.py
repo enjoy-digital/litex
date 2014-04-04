@@ -148,9 +148,9 @@ xst -ifn {build_name}.xst"""
 
 	build_script_contents += """
 ngdbuild {ngdbuild_opt} -uc {build_name}.ucf {build_name}.{ext} {build_name}.ngd
-map {map_opt} -w -o {build_name}_map.ncd {build_name}.ngd {build_name}.pcf
-par {par_opt} -w {build_name}_map.ncd {build_name}.ncd {build_name}.pcf
-bitgen {bitgen_opt} -w {build_name}.ncd {build_name}.bit
+map {map_opt} -o {build_name}_map.ncd {build_name}.ngd {build_name}.pcf
+par {par_opt} {build_name}_map.ncd {build_name}.ncd {build_name}.pcf
+bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit
 """
 	build_script_contents = build_script_contents.format(build_name=build_name,
 			ngdbuild_opt=ngdbuild_opt, bitgen_opt=bitgen_opt, ext=ext,
@@ -188,10 +188,10 @@ class XilinxISEPlatform(GenericPlatform):
 -opt_mode SPEED
 -reduce_control_sets auto
 -register_balancing yes"""
-	map_opt = "-ol high"
-	par_opt = "-ol high"
+	map_opt = "-ol high -w"
+	par_opt = "-ol high -w"
 	ngdbuild_opt = ""
-	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes"
+	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w"
 	ise_commands = ""
 	def get_verilog(self, *args, special_overrides=dict(), **kwargs):
 		so = {
