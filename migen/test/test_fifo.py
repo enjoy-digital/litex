@@ -29,7 +29,11 @@ class SyncFIFOCase(SimCase, unittest.TestCase):
 			tbp.dut.re = tbp.simulator.cycle_counter % 3 == 0
 			# the output if valid must be correct
 			if tbp.dut.readable and tbp.dut.re:
-				i = seq.pop(0)
+				try:
+					i = seq.pop(0)
+				except IndexError:
+					print(tbp.dut.level)
+					raise StopSimulation
 				self.assertEqual(tbp.dut.dout.a, i)
 				self.assertEqual(tbp.dut.dout.b, i*2)
-		self.run_with(cb, 20)
+		self.run_with(cb)
