@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.bus import wishbone
 
 from misoclib import gpio, spiflash
 from misoclib.gensoc import GenSoC
@@ -19,7 +20,14 @@ class SimpleSoC(GenSoC):
 		# BIOS is in SPI flash
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"),
 			cmd=0xefef, cmd_width=16, addr_width=24, dummy=4)
+		self.flash_boot_address = 0x70000
 		self.register_rom(self.spiflash.bus)
+
+		# TODO: use on-board SDRAM instead of block RAM
+		sys_ram_size = 32*1024
+		self.submodules.sys_ram = wishbone.SRAM(sys_ram_size)
+		self.add_wb_slave(lambda a: a[27:29] == 2, self.sys_ram.bus)
+		self.add_cpu_memory_region("sdram", 0x40000000, sys_ram_size)
 
 		self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
 
