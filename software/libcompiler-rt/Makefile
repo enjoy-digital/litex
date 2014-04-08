@@ -16,7 +16,7 @@ libcompiler-rt.a: $(OBJECTS)
 	$(AR) clr libcompiler-rt.a $(OBJECTS)
 	$(RANLIB) libcompiler-rt.a
 
-%.o: $(CRTDIR)/lib/%.c
+%.o: $(CRTDIR)/lib/builtins/%.c
 	$(compile-dep)
 
 .PHONY: clean
