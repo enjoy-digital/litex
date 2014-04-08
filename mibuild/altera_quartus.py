@@ -77,6 +77,7 @@ quartus_sta {build_name}.qpf
 		raise OSError("Subprocess failed")
 
 class AlteraQuartusPlatform(GenericPlatform):
+	bitstream_ext = ".sof"
 	def build(self, fragment, build_dir="build", build_name="top",
 			quartus_path="/opt/Altera", run=True):
 		tools.mkdir_noerror(build_dir)

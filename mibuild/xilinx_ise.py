@@ -184,6 +184,7 @@ class XilinxMultiReg:
 		return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
 class XilinxISEPlatform(GenericPlatform):
+	bitstream_ext = ".bit"
 	xst_opt = """-ifmt MIXED
 -opt_mode SPEED
 -reduce_control_sets auto
