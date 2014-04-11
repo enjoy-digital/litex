@@ -47,10 +47,13 @@ def _build_qsf(named_sc, named_pc):
 		r += "\n" + "\n\n".join(named_pc)
 	return r
 
-def _build_files(device, sources, named_sc, named_pc, build_name):
+def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
 	qsf_contents = ""
 	for filename, language in sources:
 		qsf_contents += "set_global_assignment -name "+language.upper()+"_FILE " + filename.replace("\\","/") + "\n"
+
+	for path in vincpaths:
+		qsf_contents += "set_global_assignment -name SEARCH_PATH " + path.replace("\\","/") + "\n"
 
 	qsf_contents += _build_qsf(named_sc, named_pc)
 	qsf_contents += "set_global_assignment -name DEVICE " + device
@@ -86,7 +89,7 @@ class AlteraQuartusPlatform(GenericPlatform):
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
-		_build_files(self.device, sources, named_sc, named_pc, build_name)
+		_build_files(self.device, sources, self.verilog_include_paths, named_sc, named_pc, build_name)
 		if run:
 			_run_quartus(build_name, quartus_path)
 		
