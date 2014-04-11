@@ -45,6 +45,7 @@ def _build_qsf(named_sc, named_pc):
 			r += _format_qsf(sig, pins[0], others, resname)
 	if named_pc:
 		r += "\n" + "\n\n".join(named_pc)
+	r += "set_global_assignment -name top_level_entity top\n"
 	return r
 
 def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
