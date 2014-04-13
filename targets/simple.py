@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
-from misoclib import gpio, spiflash
+from misoclib import spiflash
 from misoclib.gensoc import GenSoC
 
 class SimpleSoC(GenSoC):
@@ -28,7 +28,5 @@ class SimpleSoC(GenSoC):
 		self.submodules.sys_ram = wishbone.SRAM(sys_ram_size)
 		self.add_wb_slave(lambda a: a[27:29] == 2, self.sys_ram.bus)
 		self.add_cpu_memory_region("sdram", 0x40000000, sys_ram_size)
-
-		self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
 
 default_subtarget = SimpleSoC
