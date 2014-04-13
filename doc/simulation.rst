@@ -55,7 +55,7 @@ Running the simulation
 
 Running the simulation is achieved by calling the ``run`` method of the ``Simulator`` object.
 
-It takes an optional parameter that defines the maximum number of clock cycles that this call simulates. The default value of ``None`` sets no cycle limit.
+It takes an optional parameter ``ncycles`` that defines the maximum number of clock cycles that this call simulates. The default value of ``None`` sets no cycle limit.
 
 The cycle counter
 =================
@@ -110,6 +110,8 @@ Simulation termination management
 Simulation functions and generators can raise the ``StopSimulation`` exception. It is automatically raised when a simulation generator is exhausted. This exception disables the current simulation function, i.e. it is no longer run by the simulator. The simulation is over when all simulation functions are disabled (or the specified maximum number of cycles, if any, has been reached - whichever comes first).
 
 Some simulation modules only respond to external stimuli - e.g. the ``bus.wishbone.Tap`` that snoops on bus transactions and prints them on the console - and have simulation functions that never end. To deal with those, the new API introduces "passive" simulation functions that are not taken into account when deciding to continue to run the simulation. A simulation function is declared passive by setting a "passive" attribute on it that evaluates to True. Raising ``StopSimulation`` in such a function still makes the simulator stop running it for the rest of the simulation.
+
+When starting the simulation of a design that contains no simulation functions or only passive simulation functions, the simulation will continue until the specified number of cycles is reached. The ``ncycles`` parameter is mandatory in this case.
 
 .. _simrunner:
 

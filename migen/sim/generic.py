@@ -106,7 +106,21 @@ class Simulator:
 	
 	def run(self, ncycles=None):
 		counter = 0
-		while self.active_sim_functions and (ncycles is None or counter < ncycles):
+
+		if self.active_sim_functions:
+			if ncycles is None:
+				def continue_simulation():
+					return bool(self.active_sim_functions)
+			else:
+				def continue_simulation():
+					return self.active_sim_functions and counter < ncycles
+		else:
+			if ncycles is None:
+				raise ValueError("No active simulation function present - must specify ncycles to end simulation")
+			def continue_simulation():
+				return counter < ncycles
+
+		while continue_simulation():
 			self.cycle_counter += 1
 			counter += 1
 			self.ipc.send(MessageGo())
