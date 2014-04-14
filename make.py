@@ -18,6 +18,7 @@ MiSoC - a high performance and small footprint SoC based on Migen.
 This program builds and/or loads MiSoC components.
 One or several actions can be specified:
 
+clean           delete previous build(s).
 build-bitstream build FPGA bitstream. Implies build-bios on targets with
                 integrated BIOS.
 build-headers   build software header files with CSR/IRQ/SDRAM_PHY definitions.
@@ -28,7 +29,7 @@ load-bitstream  load bitstream into volatile storage.
 flash-bitstream load bitstream into non-volatile storage.
 flash-bios      load BIOS into non-volatile storage.
 
-all             build-bitstream, build-bios, flash-bitstream, flash-bios.
+all             clean, build-bitstream, build-bios, flash-bitstream, flash-bios.
 
 Load/flash actions use the existing outputs, and do not trigger new builds.
 """)
@@ -91,7 +92,7 @@ if __name__ == "__main__":
 	soc.finalize()
 
 	# decode actions
-	action_list = ["build-bitstream", "build-headers", "build-csr-csv", "build-bios",
+	action_list = ["clean", "build-bitstream", "build-headers", "build-csr-csv", "build-bios",
 		"load-bitstream", "flash-bitstream", "flash-bios", "all"]
 	actions = {k: False for k in action_list}
 	for action in args.action:
@@ -119,6 +120,7 @@ Subtarget: {}
 
 	# dependencies
 	if actions["all"]:
+		actions["clean"] = True
 		actions["build-bitstream"] = True
 		actions["build-bios"] = True
 		actions["flash-bitstream"] = True
@@ -127,6 +129,9 @@ Subtarget: {}
 		actions["build-bios"] = True
 	if actions["build-bios"]:
 		actions["build-headers"] = True
+
+	if actions["clean"]:
+		subprocess.call(["rm", "-rf", "build/*"])
 
 	if actions["build-headers"]:
 		boilerplate = """/*
