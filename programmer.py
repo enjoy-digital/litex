@@ -57,9 +57,20 @@ class XC3SProg(Programmer):
 		flash_proxy = self.find_flash_proxy("bscan_spi_lx9_papilio.bit")
 		subprocess.call(["xc3sprog", "-c", "papilio", "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
 
+class USBBlaster(Programmer):
+	needs_bitreverse = False
+
+	def load_bitstream(self, bitstream_file, port=0):
+		usb_port = "[USB-"+str(port)+"]"
+		subprocess.call(["quartus_pgm", "-m", "jtag", "-c", "USB-Blaster"+usb_port, "-o", "p;"+bitstream_file])
+
+	def flash(self, address, data_file):
+		raise NotImplementedError
+
 def create_programmer(platform_name, *args, **kwargs):
 	return {
 		"mixxeo":		UrJTAG,
 		"m1":			UrJTAG,
-		"papilio_pro":	XC3SProg
+		"papilio_pro":	XC3SProg,
+		"de0nano":		USBBlaster
 	}[platform_name](platform_name, *args, **kwargs)

@@ -183,7 +183,7 @@ Subtarget: {}
 	if actions["load-bitstream"] or actions["flash-bitstream"] or actions["flash-bios"]:
 		prog = programmer.create_programmer(platform.name, args.flash_proxy_dir)
 		if actions["load-bitstream"]:
-			prog.load_bitstream("build/" + build_name + ".bit")
+			prog.load_bitstream("build/" + build_name + platform.bitstream_ext)
 		if actions["flash-bitstream"]:
 			if prog.needs_bitreverse:
 				flashbit = "build/" + build_name + ".fpg"
