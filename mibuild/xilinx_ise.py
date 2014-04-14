@@ -157,7 +157,7 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit
 			par_opt=par_opt, map_opt=map_opt)
 	build_script_contents += ise_commands.format(build_name=build_name)
 	build_script_file = "build_" + build_name + ".sh"
-	tools.write_to_file(build_script_file, build_script_contents)
+	tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
 	r = subprocess.call(["bash", build_script_file])
 	if r != 0:

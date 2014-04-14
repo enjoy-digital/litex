@@ -14,7 +14,10 @@ def language_by_filename(name):
 		return "vhdl"
 	return None
 
-def write_to_file(filename, contents):
-	f = open(filename, "w")
+def write_to_file(filename, contents, force_unix=False):
+	newline = None
+	if force_unix:
+		newline = "\n"
+	f = open(filename, "w", newline=newline)
 	f.write(contents)
 	f.close()
