@@ -51,6 +51,9 @@ def _build_qsf(named_sc, named_pc):
 def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
 	qsf_contents = ""
 	for filename, language in sources:
+		# Enforce use of SystemVerilog (Quartus does not support global parameters in Verilog)
+		if language == "verilog":
+			language = "systemverilog"
 		qsf_contents += "set_global_assignment -name "+language.upper()+"_FILE " + filename.replace("\\","/") + "\n"
 
 	for path in vincpaths:
