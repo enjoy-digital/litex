@@ -4,6 +4,19 @@ from migen.bus import wishbone
 from misoclib import spiflash
 from misoclib.gensoc import GenSoC
 
+class PowerOnRst(Module):
+	def __init__(self, cd, overwrite_cd_rst=True):
+		self.clock_domains.cd_pwr_on = ClockDomain(reset_less=True)
+		self.cd_pwr_on.clk = cd.clk
+		self.pwr_on_rst = Signal()
+
+		rst_n = Signal()
+		self.sync.pwr_on += rst_n.eq(1)
+		self.comb += self.pwr_on_rst.eq(~rst_n)
+
+		if overwrite_cd_rst:
+			self.comb += cd.rst.eq(self.pwr_on_rst)
+
 class SimpleSoC(GenSoC):
 	default_platform = "papilio_pro"
 
@@ -14,8 +27,8 @@ class SimpleSoC(GenSoC):
 
 		# We can't use reset_less as LM32 does require a reset signal
 		self.clock_domains.cd_sys = ClockDomain()
+		self.submodules += PowerOnRst(self.cd_sys)
 		self.comb += self.cd_sys.clk.eq(platform.request("clk32"))
-		self.specials += Instance("FD", p_INIT=1, i_D=0, o_Q=self.cd_sys.rst, i_C=ClockSignal())
 
 		# BIOS is in SPI flash
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"),
