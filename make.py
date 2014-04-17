@@ -7,7 +7,7 @@ from migen.util.misc import autotype
 from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
-from misoclib.s6ddrphy import initsequence
+from misoclib.sdramphy import initsequence
 import programmer
 
 def _get_args():
@@ -151,9 +151,10 @@ Subtarget: {}
 		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
 		csr_header = cpuif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
 		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
-		if hasattr(soc, "ddrphy"):
-			sdram_phy_header = initsequence.get_sdram_phy_header(soc.ddrphy)
-			write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
+		for sdram_phy in ["sdrphy", "ddrphy"]:
+			if hasattr(soc, sdram_phy):
+				sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy))
+				write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
 
 	if actions["build-csr-csv"]:
 		csr_csv = cpuif.get_csr_csv(soc.csr_base, soc.csrbankarray)

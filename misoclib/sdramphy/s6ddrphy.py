@@ -1,5 +1,4 @@
-# 1:2 frequency-ratio DDR / LPDDR / DDR2 PHY for 
-# Spartan-6
+# 1:2 frequency-ratio DDR / LPDDR / DDR2 PHY for Spartan-6
 # 
 # Assert dfi_wrdata_en and present the data 
 # on dfi_wrdata_mask/dfi_wrdata in the same
@@ -15,11 +14,6 @@
 # Write commands must be sent on phase 1.
 #
 
-# Todo:
-#	- use CSR for bitslip?
-#	- add configurable CAS Latency
-#	- automatically determines wrphase / rdphase / latencies
-
 from migen.fhdl.std import *
 from migen.bus.dfi import *
 from migen.genlib.record import *
@@ -32,6 +26,8 @@ class S6DDRPHY(Module):
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
 		if cl != 3:
 			raise NotImplementedError("S6DDRPHY only supports CAS LATENCY 3")
+		if nphases != 2:
+			raise NotImplementedError("S6DDRPHY only supports Half Rate (nphases=2)")
 		a = flen(pads.a)
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
@@ -73,9 +69,7 @@ class S6DDRPHY(Module):
 
 		# select active phase
 		#             sys_clk   ----____----____
-		#  phase_sel(nphases=1) 0       0
-		#  phase_sel(nphases=2) 0   1   0   1
-		#  phase_sel(nphases=4) 0 1 2 3 0 1 2 3
+		#  phase_sel(nphases=2) 0   1   0   1     Half Rate
 		phase_sel = Signal(log2_int(nphases))
 		sys_clk_d = Signal()
 
