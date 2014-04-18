@@ -7,7 +7,7 @@ from migen.bank.description import *
 
 from miscope.std import *
 from miscope.trigger import Trigger
-from miscope.storage import RunLengthEncoder, Recorder
+from miscope.storage import Recorder, RunLengthEncoder
 
 class MiLa(Module, AutoCSR):
 	def __init__(self, width, depth, ports, rle=False):

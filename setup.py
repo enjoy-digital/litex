@@ -7,7 +7,7 @@ from setuptools import find_packages
 here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, "README")).read()
 
-required_version = (3, 1)
+required_version = (3, 3)
 if sys.version_info < required_version:
 	raise SystemExit("Migscope requires python {0} or greater".format(
 		".".join(map(str, required_version))))

@@ -1,10 +1,7 @@
 from migen.fhdl.std import *
-from migen.fhdl import verilog
-from migen.sim.generic import Simulator, TopLevel
-from migen.sim.icarus import Runner
+from migen.sim.generic import run_simulation
 
-from miscope.storage import RunLengthEncoder
-
+from miscope import storage
 
 rle_test_seq = iter(
 	[	0x00AA,
@@ -29,20 +26,19 @@ class TB(Module):
 	def __init__(self):
 		
 		# Rle
-		self.submodules.rle = RunLengthEncoder(16, 32)
+		self.submodules.rle = storage.RunLengthEncoder(16, 32)
 
-	def do_simulation(self, s):
-		s.wr(self.rle._r_enable.storage, 1)
-		s.wr(self.rle.sink.stb, 1)
+	def do_simulation(self, selfp):
+		selfp.rle._r_enable.storage = 1
+		selfp.rle.sink.stb = 1
 		try:
-			s.wr(self.rle.sink.dat, next(rle_test_seq))
+			selfp.rle.sink.dat = next(rle_test_seq)
 		except:
 			pass
 
 def main():
 	tb = TB()
-	sim = Simulator(tb, TopLevel("tb_rle.vcd"))
-	sim.run(2000)
+	run_simulation(tb, ncycles=8000, vcd_name="tb_rle.vcd")
 	print("Sim Done")
 	input()
 

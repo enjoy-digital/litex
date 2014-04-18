@@ -1,21 +1,17 @@
 from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.bus import csr
-from migen.sim.generic import Simulator, TopLevel
-from migen.sim.icarus import Runner
+from migen.sim.generic import run_simulation
 from migen.bus.transactions import *
 
-from miscope.std import cif
-from miscope.std.truthtable import *
+from miscope.std import *
 from miscope.storage import *
 
 from mibuild.tools import write_to_file
+from miscope.tools.regs import *
+from miscope.tools.truthtable import *
 
-try:
-	from csr_header import *
-	print("csr_header imported")
-except:
-	print("csr_header not found")
+from cpuif import *
 
 class Csr2Trans():
 	def __init__(self):
@@ -38,30 +34,26 @@ dat_rdy = False
 
 rec_length = 128
 
-def csr_configure():
-	bus = Csr2Trans()
-
+def csr_configure(bus, regs):
 	# Length
-	recorder_length_write(bus, rec_length)
+	regs.recorder_length.write(rec_length)
 
 	# Offset
-	recorder_offset_write(bus, 0)
+	regs.recorder_offset.write(0)
 	
 	# Trigger
-	recorder_trigger_write(bus, 1)
+	regs.recorder_trigger.write(1)
 
 	return bus.t
 
-def csr_read_data():
-	bus = Csr2Trans()
-
+def csr_read_data(bus, regs):
 	for i in range(rec_length+100):
-		recorder_read_dat_read(bus)
-		recorder_read_en_write(bus, 1)
+		regs.recorder_read_dat.read()
+		regs.recorder_read_en.write(1)
 	return bus.t
 
-def csr_transactions():
-	for t in csr_configure():
+def csr_transactions(bus, regs):
+	for t in csr_configure(bus, regs):
 		yield t
 
 	for t in range(100):
@@ -73,7 +65,7 @@ def csr_transactions():
 	for t in range(512):
 		yield None
 
-	for t in csr_read_data():
+	for t in csr_read_data(bus, regs):
 		yield t
 
 	for t in range(100):
@@ -85,56 +77,57 @@ class TB(Module):
 	csr_map = {
 		"recorder": 1,
 	}
-	def __init__(self, first_run=False):
+	def __init__(self, addrmap=None):
 		self.csr_base = 0
 
-		# Csr Master
-		if not first_run:
-			self.submodules.master = csr.Initiator(csr_transactions())
-	
 		# Recorder
 		self.submodules.recorder = Recorder(32, 1024)
 	
 		# Csr
 		self.submodules.csrbankarray = csrgen.BankArray(self, 
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
-		if not first_run:
-			self.submodules.csrcon = csr.Interconnect(self.master.bus,	self.csrbankarray.get_buses())
+
+		# Csr Master
+		csr_header = get_csr_csv(self.csr_base, self.csrbankarray)
+		write_to_file("csr.csv", csr_header)
+
+		bus = Csr2Trans()
+		regs = build_map(addrmap, bus.read_csr, bus.write_csr)
+		self.submodules.master = csr.Initiator(csr_transactions(bus, regs))
+
+		self.submodules.csrcon = csr.Interconnect(self.master.bus,	self.csrbankarray.get_buses())
 
 	# Recorder Data
-	def recorder_data(self, s):
-		s.wr(self.recorder.sink.stb, 1)
+	def recorder_data(self, selfp):
+		selfp.recorder.dat_sink.stb = 1
 		if not hasattr(self, "cnt"):
 			self.cnt = 0
 		self.cnt += 1	
 
-		s.wr(self.recorder.sink.payload.d, self.cnt)
+		selfp.recorder.dat_sink.dat =  self.cnt
 
 		global triggered
 		if triggered:
-			s.wr(self.recorder.sink.payload.hit, 1)
+			selfp.recorder.trig_sink.stb = 1
+			selfp.recorder.trig_sink.hit = 1
 			triggered = False
 		else:
-			s.wr(self.recorder.sink.payload.hit, 0)
+			selfp.recorder.trig_sink.stb = 0
+			selfp.recorder.trig_sink.hit = 0
 
 	# Simulation
-	def end_simulation(self, s):
-		s.interrupt = self.master.done
+	def end_simulation(self, selfp):
+		if self.master.done:
+			raise StopSimulation
 
-
-	def do_simulation(self, s):
-		self.recorder_data(s)
-		self.end_simulation(s)
+	def do_simulation(self, selfp):
+		self.recorder_data(selfp)
+		self.end_simulation(selfp)
 
 
 def main():
-	tb = TB(first_run=True)
-	csr_py_header = cif.get_py_csr_header(tb.csr_base, tb.csrbankarray)
-	write_to_file("csr_header.py", csr_py_header)
-
-	tb = TB()
-	sim = Simulator(tb, TopLevel("tb_recorder_csr.vcd"))
-	sim.run(2000)
+	tb = TB(addrmap="csr.csv")
+	run_simulation(tb, ncycles=2000, vcd_name="tb_recorder_csr.vcd")
 	print("Sim Done")
 	input()
 
