@@ -85,6 +85,8 @@ if __name__ == "__main__":
 		platform_name = args.platform
 	platform_module = _misoc_import("mibuild.platforms", external_platform, platform_name)
 	platform = platform_module.Platform()
+	if args.external:
+		platform.soc_ext_path = os.path.abspath(args.external)
 
 	build_name = top_class.__name__.lower() + "-" + platform_name
 	top_kwargs = dict((k, autotype(v)) for k, v in args.target_option)
