@@ -1,5 +1,6 @@
 MSCDIR=../..
 include $(MSCDIR)/software/common.mak
+PYTHON = python3
 
 OBJECTS=isr.o sdram.o main.o boot-helper.o boot.o dataflow.o
 
@@ -9,10 +10,9 @@ all: bios.bin
 -include $(OBJECTS:.o=.d)
 
 %.bin: %.elf
-	$(MAKE) -C $(MSCDIR)/tools
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
-	$(MSCDIR)/tools/mkmscimg $@ write
+	$(PYTHON) $(MSCDIR)/mkmscimg.py -i $@
 
 bios.elf: linker.ld $(OBJECTS) libs
 
