@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 
-import sys, argparse
+import argparse
 import crc
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="CRC32 computation tool and MiSoC image file writer.")
-	parser.add_argument("-i", default=None, help="input file")
-	parser.add_argument("-o", default=None, help="output file (if not specified = input file)")
+	parser.add_argument("input", help="input file")
+	parser.add_argument("-o", "--output", default=None, help="output file (if not specified, use input file)")
+	parser.add_argument("-f", "--fbi", default=False, action="store_true", help="build flash boot image (FBI) file")
 	args = parser.parse_args()
-
-	i_filename = args.i
-	o_filename = args.o
-
-	crc.insert_crc(i_filename, o_filename)
+	crc.insert_crc(args.input, args.fbi, args.output)

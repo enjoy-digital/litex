@@ -1,6 +1,5 @@
 MSCDIR=../..
 include $(MSCDIR)/software/common.mak
-PYTHON = python3
 
 OBJECTS=isr.o processor.o dvisampler0.o dvisampler1.o edid.o pll.o ci.o config.o main.o
 
@@ -14,7 +13,7 @@ all: videomixer.bin videomixer.fbi
 	chmod -x $@
 
 %.fbi: %.bin
-	$(PYTHON) $(MSCDIR)/mkmscimg.py -i $< -o $@
+	$(MSCDIR)/mkmscimg.py -f -o $@ $<
 
 videomixer.elf: $(OBJECTS) libs
 
