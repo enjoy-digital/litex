@@ -262,7 +262,8 @@ class Signal(Value):
 				self.nbits, self.signed = bits_sign
 			else:
 				self.nbits, self.signed = bits_sign, False
-		assert(isinstance(self.nbits, int))
+		if not isinstance(self.nbits, int) or self.nbits <= 0:
+			raise ValueError("Signal width must be a strictly positive integer")
 		
 		self.variable = variable # deprecated
 		self.reset = reset
