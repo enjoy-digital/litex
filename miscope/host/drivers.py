@@ -29,10 +29,26 @@ class MiLaDriver():
 				key.replace(self.name, "mila")
 				setattr(self, key, value)	
 
-	def prog_term(self, trigger, mask):
-		self.mila_trigger_port0_trig.write(trigger)
-		self.mila_trigger_port0_mask.write(mask)
+	def prog_term(self, port, trigger, mask):
+		t = getattr(self, "mila_trigger_port{d}_trig".format(d=int(port)))
+		m = getattr(self, "mila_trigger_port{d}_mask".format(d=int(port)))
+		t.write(trigger)
+		m.write(mask)
 
+	def prog_range_detector(self, port, low, high):
+		l = getattr(self, "mila_trigger_port{d}_low".format(d=int(port)))
+		h = getattr(self, "mila_trigger_port{d}_high".format(d=int(port)))
+		l.write(low)
+		h.write(high)
+
+	def prog_edge_detector(self, port, rising_mask, falling_mask, both_mask):
+		rm = getattr(self, "mila_trigger_port{d}_rising_mask".format(d=int(port)))
+		fm = getattr(self, "mila_trigger_port{d}_falling_mask".format(d=int(port)))
+		bm = getattr(self, "mila_trigger_port{d}_both_mask".format(d=int(port)))
+		rm.write(rising_mask)
+		fm.write(falling_mask)
+		bm.write(both_mask)
+		
 	def prog_sum(self, datas):
 		for adr, dat in enumerate(datas):
 			self.mila_trigger_sum_prog_adr.write(adr)
