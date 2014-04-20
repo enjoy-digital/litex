@@ -4,7 +4,7 @@
             |_____|_|_|_| |___|_  |  |____/|_|_  |_|_| |__,|_|
                       |___|   |___|          |___|
  
-       Copyright 2012 / Florent Kermarrec / florent@enjoy-digital.fr
+       Copyright 2012-2014 / Florent Kermarrec / florent@enjoy-digital.fr
  
                                  Miscope
 --------------------------------------------------------------------------------
@@ -31,11 +31,8 @@ mapping, importing miscope project gives you direct access to all the cores!
 
 Miscope produces .vcd output files to be analyzed in your favorite waveform viewer.
 
-Since Miscope also provides an Uart2Csr bridge, you only need 2 external Rx/Tx pins
-to be ready to debug!
-
-You should use the current Migen fork:
-(http://github.com/Florent-Kermarrec/migen)
+Since Miscope also provides an Uart2Wishbone bridge, you only need 2 external Rx/Tx
+pins to be ready to debug!
 
 [> Status:
 Miio & Mila working on board with standard term.
@@ -43,8 +40,9 @@ RLE working on board.
 RangeDetector and EdgeDector terms not tested.
 
 [> Examples:
-test_Miio : Led & Switch Test controlled by Python Host.
-test_Miia : Logic Analyzer controlled by Python Host.
+Have a look at http://github.com/Florent-Kermarrec/misoc-de0nano
+miscope_miio.py : Led & Switch Test controlled by Python Host.
+miscope_mila.py : Logic Analyzer controlled by Python Host.
 
 [> Contact
 E-mail: florent@enjoy-digital.fr
