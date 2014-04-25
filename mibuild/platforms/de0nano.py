@@ -39,7 +39,7 @@ _io = [
 		Subsignal("cas_n", Pins("L1")),
 		Subsignal("we_n", Pins("C2")),
 		Subsignal("dq", Pins("G2 G1 L8 K5 K2 J2 J1 R7 T4 T2 T3 R3 R5 P3 N3 K1")),
-		Subsignal("dqm", Pins("R6","T5")),
+		Subsignal("dm", Pins("R6","T5")),
 		IOStandard("3.3-V LVTTL")
 	),
 	
