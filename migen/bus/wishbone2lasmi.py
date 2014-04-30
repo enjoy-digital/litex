@@ -23,7 +23,7 @@ class WB2LASMI(Module):
 		addressbits = lasmim.aw + offsetbits
 		linebits = log2_int(cachesize) - offsetbits
 		tagbits = addressbits - linebits
-		wordbits = data_width//lasmim.dw
+		wordbits = log2_int(max(data_width//lasmim.dw, 1))
 		adr_offset, adr_line, adr_tag = split(self.wishbone.adr, offsetbits, linebits, tagbits)
 		word = Signal(wordbits) if wordbits else None
 		
