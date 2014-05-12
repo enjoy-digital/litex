@@ -113,9 +113,6 @@ _io = [
 
 
 class Platform(XilinxISEPlatform):
-	xst_opt = """-ifmt MIXED
--opt_mode SPEED
--register_balancing yes"""
 	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -g UnusedPin:PullUp"
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc3s1400a-ft256-4", _io,

@@ -187,7 +187,6 @@ class XilinxISEPlatform(GenericPlatform):
 	bitstream_ext = ".bit"
 	xst_opt = """-ifmt MIXED
 -opt_mode SPEED
--reduce_control_sets auto
 -register_balancing yes"""
 	map_opt = "-ol high -w"
 	par_opt = "-ol high -w"
