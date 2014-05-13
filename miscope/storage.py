@@ -6,6 +6,7 @@ from migen.bus import csr
 from migen.bank import description, csrgen
 from migen.bank.description import *
 from migen.genlib.fifo import SyncFIFO
+from migen.genlib.fsm import FSM, NextState
 
 from miscope.std import *
 
@@ -19,7 +20,8 @@ class RunLengthEncoder(Module, AutoCSR):
 
 		self._r_enable = CSRStorage()
 		
-	###
+		###
+
 		enable = self._r_enable.storage 
 		stb_i = self.sink.stb
 		dat_i = self.sink.dat
@@ -96,64 +98,41 @@ class Recorder(Module, AutoCSR):
 
 		###
 
-		length = self._r_length.storage
-		offset = self._r_offset.storage
-		done = Signal(reset=1)
-		ongoing = Signal()
-
-		cnt = Signal(max=depth)
-
 		fifo = SyncFIFO(width, depth)
 		self.submodules += fifo
-	
-		# Write fifo is done only when done = 0
-		# Fifo must always be pulled by software between
-		# acquisition (Todo: add a flush funtionnality)
-		self.comb +=[
-			fifo.we.eq(self.dat_sink.stb & ~done),
-			fifo.din.eq(self.dat_sink.dat),
-			self.dat_sink.ack.eq(fifo.writable)
-		]
 
-		# Done, Ongoing:
-		# 0, 0 : Storage triggered but hit was not yet seen
-		#        Data are recorded to fifo, if "offset" datas 
-		#        in the fifo, ack is set on fifo.source to
-		#        store only "offset" datas.
-		#
-		# 0, 1 : Hit was seen, ack is no longer set on fifo.source
-		#        we are storing "length"-"offset" data in this
-		#        phase
-		#
-		# 1, 0 : We have stored "length" datas in fifo. Write to
-		#        fifo is disabled.
-		#        Software must now read data from the fifo until
-		#        it is empty
-		
-		# done & ongoing
-		self.sync += [
-			If(self._r_trigger.re & self._r_trigger.r, done.eq(0)
-			).Elif(cnt==length, done.eq(1)),
-			
-			If(self.trig_sink.stb & self.trig_sink.hit & ~done, ongoing.eq(1)
-			).Elif(done, ongoing.eq(0)),
-			self.trig_sink.ack.eq(1)
-		]
+		fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 
-		# fifo ack & csr connection
+
 		self.comb += [
-			If(~done & ~ongoing & (cnt >= offset), fifo.re.eq(1)
-			).Else(fifo.re.eq(self._r_read_en.re & self._r_read_en.r)),
 			self._r_read_empty.status.eq(~fifo.readable),
 			self._r_read_dat.status.eq(fifo.dout),
-			self._r_done.status.eq(done)
 		]
 
-		# cnt
-		self.sync += [
-			If(done == 1,
-				cnt.eq(0)
-			).Elif(fifo.we & fifo.writable & ~(fifo.re & fifo.readable),
-				cnt.eq(cnt+1), 
-			)
-		]
+		fsm.act("IDLE",
+			If(self._r_trigger.re & self._r_trigger.r,
+				NextState("PRE_HIT_RECORDING"),
+				fifo.flush.eq(1),
+			),
+			fifo.re.eq(self._r_read_en.re & self._r_read_en.r),
+			self._r_done.status.eq(1)
+		)
+		
+		fsm.act("PRE_HIT_RECORDING",
+			fifo.we.eq(self.dat_sink.stb),
+			fifo.din.eq(self.dat_sink.dat),
+			self.dat_sink.ack.eq(fifo.writable),
+
+			fifo.re.eq(fifo.level >= self._r_offset.storage),
+
+			If(self.trig_sink.stb & self.trig_sink.hit, NextState("POST_HIT_RECORDING"))
+		)
+
+		fsm.act("POST_HIT_RECORDING",
+			fifo.we.eq(self.dat_sink.stb),
+			fifo.din.eq(self.dat_sink.dat),
+			self.dat_sink.ack.eq(fifo.writable),
+
+			If(~fifo.writable | (fifo.level >= self._r_length.storage), NextState("IDLE"))
+		)
