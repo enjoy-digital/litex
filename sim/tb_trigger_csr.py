@@ -27,10 +27,11 @@ def csr_prog_mila(bus, regs):
 	regs.trigger_port0_mask.write(0xFFFFFFFF)
 	regs.trigger_port0_trig.write(0xDEADBEEF)
 	regs.trigger_port1_mask.write(0xFFFFFFFF)
-	regs.trigger_port1_trig.write(0xDEADBEEF)
-	regs.trigger_port1_mask.write(0xFFFFFFFF)
-	regs.trigger_port1_mask.write(0xFFFFFFFF)
-	regs.trigger_port1_trig.write(0xDEADBEEF)
+	regs.trigger_port1_trig.write(0xCAFEFADE)
+	regs.trigger_port2_mask.write(0xFFFFFFFF)
+	regs.trigger_port2_trig.write(0xDEADBEEF)
+	regs.trigger_port3_mask.write(0xFFFFFFFF)
+	regs.trigger_port3_trig.write(0xCAFEFADE)
 
 	sum_tt = gen_truth_table("i1 & i2 & i3 & i4")
 	sum_trans = []
@@ -91,7 +92,6 @@ class TB(Module):
 			selfp.terms[1].sink.dat = 0xCAFEFADE
 			selfp.terms[2].sink.dat = 0xDEADBEEF
 			selfp.terms[3].sink.dat = 0xCAFEFADE
-		raise StopSimulation
 
 def main():
 	tb = TB(addrmap="csr.csv")
