@@ -29,14 +29,7 @@ from migen.fhdl.specials import *
 from misoclib import lasmicon
 
 class GENSDRPHY(Module):
-	def __init__(self, pads, memtype, nphases, cl):
-		if memtype not in ["SDR"]:
-			raise NotImplementedError("GENSDRPHY only supports SDR")
-		if cl != 2:
-			raise NotImplementedError("GENSDRPHY only supports CAS LATENCY 2")
-		if nphases > 1:
-			raise NotImplementedError("GENSDRPHY only supports Full Rate (nphases=1)")
-
+	def __init__(self, pads):
 		a = flen(pads.a)
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
@@ -44,17 +37,17 @@ class GENSDRPHY(Module):
 		self.phy_settings = lasmicon.PhySettings(
 			memtype=memtype,
 			dfi_d=d,
-			nphases=nphases,
+			nphases=1,
 			rdphase=0,
 			wrphase=0,
 			rdcmdphase=0,
 			wrcmdphase=0,
-			cl=cl,
+			cl=2,
 			read_latency=4,
 			write_latency=0
 		)
 		
-		self.dfi = Interface(a, ba, nphases*d, nphases)
+		self.dfi = Interface(a, ba, d)
 
 		###
 

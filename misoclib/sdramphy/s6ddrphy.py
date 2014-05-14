@@ -21,16 +21,13 @@ from migen.genlib.record import *
 from misoclib import lasmicon
 
 class S6DDRPHY(Module):
-	def __init__(self, pads, memtype, nphases, cl, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
+	def __init__(self, pads, memtype, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
 		if memtype not in ["DDR", "LPDDR", "DDR2"]:
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
-		if cl != 3:
-			raise NotImplementedError("S6DDRPHY only supports CAS LATENCY 3")
-		if nphases != 2:
-			raise NotImplementedError("S6DDRPHY only supports Half Rate (nphases=2)")
 		a = flen(pads.a)
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
+		nphases = 2
 
 		self.phy_settings = lasmicon.PhySettings(
 			memtype=memtype,
@@ -40,7 +37,7 @@ class S6DDRPHY(Module):
 			wrphase=1,
 			rdcmdphase=1,
 			wrcmdphase=0,
-			cl=cl,
+			cl=3,
 			read_latency=5,
 			write_latency=0
 		)

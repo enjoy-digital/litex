@@ -69,7 +69,7 @@ class MiniSoC(SDRAMSoC):
 			write_time=16
 		)
 		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
-			nphases=2, cl=3, rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
+			rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
 		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 
 		# Wishbone
