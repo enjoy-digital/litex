@@ -20,12 +20,13 @@ class PowerOnRst(Module):
 class SimpleSoC(GenSoC):
 	default_platform = "papilio_pro"
 
-	def __init__(self, platform):
+	def __init__(self, platform, **kwargs):
 		GenSoC.__init__(self, platform,
 			clk_freq=32*1000000,
-			cpu_reset_address=0x60000)
+			cpu_reset_address=0x60000,
+			**kwargs)
 
-		# We can't use reset_less as LM32 does require a reset signal
+		# We can't use reset_less as CPU does require a reset signal
 		self.clock_domains.cd_sys = ClockDomain()
 		self.submodules += PowerOnRst(self.cd_sys)
 		self.comb += self.cd_sys.clk.eq(platform.request("clk32"))

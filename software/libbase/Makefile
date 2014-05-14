@@ -1,9 +1,9 @@
 MSCDIR=../..
 include $(MSCDIR)/software/common.mak
 
-OBJECTS=setjmp.o libc.o errno.o crc16.o crc32.o console.o system.o id.o uart.o time.o qsort.o strtod.o
+OBJECTS=setjmp-$(CPU).o libc.o errno.o crc16.o crc32.o console.o system.o id.o uart.o time.o qsort.o strtod.o
 
-all: crt0.o libbase.a libbase-nofloat.a
+all: crt0-$(CPU).o libbase.a libbase-nofloat.a
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)

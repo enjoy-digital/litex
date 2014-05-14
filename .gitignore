@@ -11,6 +11,7 @@ tools/mkmscimg
 tools/byteswap
 software/include/generated/*.h
 software/include/generated/*.ld
+software/include/generated/*.mak
 software/videomixer/dvisampler0.c
 software/videomixer/dvisampler0.h
 software/videomixer/dvisampler1.c

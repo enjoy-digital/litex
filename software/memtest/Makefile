@@ -18,7 +18,7 @@ memtest.elf: $(OBJECTS) libs
 	$(LD) $(LDFLAGS) \
 		-T $(MSCDIR)/software/libbase/linker-sdram.ld \
 		-N -o $@ \
-		$(MSCDIR)/software/libbase/crt0.o \
+		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
 		-L$(MSCDIR)/software/libbase \
 		-L$(MSCDIR)/software/libcompiler-rt \

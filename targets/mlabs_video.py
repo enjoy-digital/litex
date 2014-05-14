@@ -45,11 +45,12 @@ class MiniSoC(SDRAMSoC):
 	}
 	interrupt_map.update(SDRAMSoC.interrupt_map)
 
-	def __init__(self, platform, with_memtest=False):
+	def __init__(self, platform, with_memtest=False, **kwargs):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=(83 + Fraction(1, 3))*1000000,
 			cpu_reset_address=0x00180000,
-			with_memtest=with_memtest)
+			with_memtest=with_memtest,
+			**kwargs)
 
 		sdram_geom = lasmicon.GeomSettings(
 			bank_a=2,
@@ -130,15 +131,15 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 """, vga_clk=fb.driver.clocking.cd_pix.clk)
 
 class FramebufferSoC(MiniSoC):
-	def __init__(self, platform, with_memtest=False):
-		MiniSoC.__init__(self, platform, with_memtest)
+	def __init__(self, platform, with_memtest=False, **kwargs):
+		MiniSoC.__init__(self, platform, with_memtest, **kwargs)
 		pads_vga, pads_dvi = _get_vga_dvi(platform)
 		self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi, self.lasmixbar.get_master())
 		_add_vga_tig(platform, self.fb)
 
 class VideomixerSoC(MiniSoC):
-	def __init__(self, platform, with_memtest=False):
-		MiniSoC.__init__(self, platform, with_memtest)
+	def __init__(self, platform, with_memtest=False, **kwargs):
+		MiniSoC.__init__(self, platform, with_memtest, **kwargs)
 		pads_vga, pads_dvi = _get_vga_dvi(platform)
 		self.submodules.fb = framebuffer.MixFramebuffer(pads_vga, pads_dvi,
 			self.lasmixbar.get_master(), self.lasmixbar.get_master())

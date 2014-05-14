@@ -13,7 +13,13 @@
 static void cdelay(int i)
 {
 	while(i > 0) {
+#if defined (__lm32__)
 		__asm__ volatile("nop");
+#elif defined (__or1k__)
+		__asm__ volatile("l.nop");
+#else
+#error Unsupported architecture
+#endif
 		i--;
 	}
 }

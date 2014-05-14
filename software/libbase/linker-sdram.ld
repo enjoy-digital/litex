@@ -1,4 +1,4 @@
-OUTPUT_FORMAT("elf32-lm32")
+INCLUDE generated/output_format.ld
 ENTRY(_start)
 
 __DYNAMIC = 0;

@@ -1,4 +1,5 @@
-TARGET_PREFIX=lm32-elf-
+include $(MSCDIR)/software/include/generated/cpu.mak
+TARGET_PREFIX=$(CPU)-elf-
 
 RM ?= rm -f
 
@@ -41,8 +42,7 @@ endif
 # Toolchain options
 #
 INCLUDES = -I$(MSCDIR)/software/include/base -I$(MSCDIR)/software/include -I$(MSCDIR)/common
-COMMONFLAGS = -Os -mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled \
-	-Wall -fno-builtin -nostdinc -DMSC_GIT_ID=$(MSC_GIT_ID) $(INCLUDES)
+COMMONFLAGS = -Os $(CPUFLAGS) -Wall -fno-builtin -nostdinc -DMSC_GIT_ID=$(MSC_GIT_ID) $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -fno-exceptions -ffreestanding
 LDFLAGS = -nostdlib -nodefaultlibs -L$(MSCDIR)/software/include
@@ -71,5 +71,5 @@ $(CC) -c $(CFLAGS) $(1) $< -o $*.o
 endef
 
 define assemble
-$(AS) -o $*.o $<
+$(CC) -c $(CFLAGS) -o $*.o $<
 endef

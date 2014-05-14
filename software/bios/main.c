@@ -16,12 +16,6 @@
 #include "dataflow.h"
 #include "boot.h"
 
-enum {
-	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,
-	CSR_DC, CSR_DEBA, CSR_JTX, CSR_JRX, CSR_BP0, CSR_BP1, CSR_BP2, CSR_BP3,
-	CSR_WP0, CSR_WP1, CSR_WP2, CSR_WP3,
-};
-
 /* General address space functions */
 
 #define NUMBER_OF_BYTES_ON_A_LINE 16
@@ -182,6 +176,13 @@ static void crc(char *startaddr, char *len)
 	printf("CRC32: %08x\n", crc32((unsigned char *)addr, length));
 }
 
+#ifdef __lm32__
+enum {
+	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,
+	CSR_DC, CSR_DEBA, CSR_JTX, CSR_JRX, CSR_BP0, CSR_BP1, CSR_BP2, CSR_BP3,
+	CSR_WP0, CSR_WP1, CSR_WP2, CSR_WP3,
+};
+
 /* processor registers */
 static int parse_csr(const char *csr)
 {
@@ -285,6 +286,8 @@ static void wcsr(char *csr, char *value)
 	}
 }
 
+#endif /* __lm32__ */
+
 static void dfs(char *baseaddr)
 {
 	char *c;
@@ -312,8 +315,10 @@ static void help(void)
 	puts("mw         - write address space");
 	puts("mc         - copy address space");
 	puts("crc        - compute CRC32 of a part of the address space");
+#ifdef __lm32__
 	puts("rcsr       - read processor CSR");
 	puts("wcsr       - write processor CSR");
+#endif
 #ifdef MINIMAC_BASE
 	puts("netboot    - boot via TFTP");
 #endif
@@ -364,8 +369,10 @@ static void do_command(char *c)
 
 	else if(strcmp(token, "help") == 0) help();
 
+#ifdef __lm32__
 	else if(strcmp(token, "rcsr") == 0) rcsr(get_token(&c));
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
+#endif
 	
 #ifdef DFII_BASE
 	else if(strcmp(token, "ddrrow") == 0) ddrrow(get_token(&c));

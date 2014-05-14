@@ -5,35 +5,72 @@
 extern "C" {
 #endif
 
+#ifdef __or1k__
+#include <system.h>
+#endif
+
 static inline unsigned int irq_getie(void)
 {
-       unsigned int ie;
-       __asm__ __volatile__("rcsr %0, IE" : "=r" (ie));
-       return ie;
+#if defined (__lm32__)
+	unsigned int ie;
+	__asm__ __volatile__("rcsr %0, IE" : "=r" (ie));
+	return ie;
+#elif defined (__or1k__)
+	return !!(mfspr(SPR_SR) & SPR_SR_IEE);
+#else
+#error Unsupported architecture
+#endif
 }
 
 static inline void irq_setie(unsigned int ie)
 {
-       __asm__ __volatile__("wcsr IE, %0" : : "r" (ie));
+#if defined (__lm32__)
+	__asm__ __volatile__("wcsr IE, %0" : : "r" (ie));
+#elif defined (__or1k__)
+	if (ie & 0x1)
+		mtspr(SPR_SR, mfspr(SPR_SR) | SPR_SR_IEE);
+	else
+		mtspr(SPR_SR, mfspr(SPR_SR) & ~SPR_SR_IEE);
+#else
+#error Unsupported architecture
+#endif
 }
 
 static inline unsigned int irq_getmask(void)
 {
-       unsigned int mask;
-       __asm__ __volatile__("rcsr %0, IM" : "=r" (mask));
-       return mask;
+#if defined (__lm32__)
+	unsigned int mask;
+	__asm__ __volatile__("rcsr %0, IM" : "=r" (mask));
+	return mask;
+#elif defined (__or1k__)
+	return mfspr(SPR_PICMR);
+#else
+#error Unsupported architecture
+#endif
 }
 
 static inline void irq_setmask(unsigned int mask)
 {
-       __asm__ __volatile__("wcsr IM, %0" : : "r" (mask));
+#if defined (__lm32__)
+	__asm__ __volatile__("wcsr IM, %0" : : "r" (mask));
+#elif defined (__or1k__)
+	mtspr(SPR_PICMR, mask);
+#else
+#error Unsupported architecture
+#endif
 }
 
 static inline unsigned int irq_pending(void)
 {
-       unsigned int pending;
-       __asm__ __volatile__("rcsr %0, IP" : "=r" (pending));
-       return pending;
+#if defined (__lm32__)
+	unsigned int pending;
+	__asm__ __volatile__("rcsr %0, IP" : "=r" (pending));
+	return pending;
+#elif defined (__or1k__)
+	return mfspr(SPR_PICSR);
+#else
+#error Unsupported architecture
+#endif
 }
 
 #ifdef __cplusplus

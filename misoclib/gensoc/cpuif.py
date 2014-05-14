@@ -1,5 +1,17 @@
 from migen.bank.description import CSRStatus
 
+def get_cpu_mak(cpu_type):
+	if cpu_type == "lm32":
+		cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
+	elif cpu_type == "or1k":
+		cpuflags = "-mhard-mul -mhard-div"
+	else:
+		raise ValueError("Unsupported CPU type: "+cpu_type)
+	return "CPU={}\nCPUFLAGS={}\n".format(cpu_type, cpuflags)
+
+def get_linker_output_format(cpu_type):
+	return "OUTPUT_FORMAT(\"elf32-{}\")\n".format(cpu_type)
+
 def get_linker_regions(regions):
 	r = "MEMORY {\n"
 	for name, origin, length in regions:

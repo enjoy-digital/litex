@@ -8,7 +8,7 @@ from migen.bank import csrgen
 from migen.bus import wishbone, csr, lasmibus, dfi
 from migen.bus import wishbone2lasmi, wishbone2csr
 
-from misoclib import lm32, uart, dfii, lasmicon, identifier, timer, memtest
+from misoclib import lm32, mor1kx, uart, dfii, lasmicon, identifier, timer, memtest
 
 class GenSoC(Module):
 	csr_base = 0xe0000000
@@ -30,16 +30,22 @@ class GenSoC(Module):
 		"papilio_pro":	0x5050
 	})
 
-	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, l2_size=0, with_uart=True):
+	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, l2_size=0, with_uart=True, cpu_type="lm32"):
 		self.clk_freq = clk_freq
 		self.cpu_reset_address = cpu_reset_address
 		self.sram_size = sram_size
 		self.l2_size = l2_size
+		self.cpu_type = cpu_type
 		self.cpu_memory_regions = []
 		self._rom_registered = False
 
 		# Wishbone
-		self.submodules.cpu = lm32.LM32(cpu_reset_address)
+		if cpu_type == "lm32":
+			self.submodules.cpu = lm32.LM32(cpu_reset_address)
+		elif cpu_type == "or1k":
+			self.submodules.cpu = mor1kx.MOR1KX(cpu_reset_address)
+		else:
+			raise ValueError("Unsupported CPU type: "+cpu_type)
 		self.submodules.sram = wishbone.SRAM(sram_size)
 		self.submodules.wishbone2csr = wishbone2csr.WB2CSR()
 
@@ -60,16 +66,19 @@ class GenSoC(Module):
 			log2_int(l2_size) if l2_size else 0)
 		self.submodules.timer0 = timer.Timer()
 
-		# add LM32 verilog sources
-		platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"), 
-			"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
-			"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
-			"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
-			"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
-			"lm32_dcache.v", "lm32_debug.v", "lm32_itlb.v", "lm32_dtlb.v")
-		platform.add_verilog_include_path(os.path.join("verilog", "lm32"))
+		# add CPU Verilog sources
+		if cpu_type == "lm32":
+			platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"), 
+				"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
+				"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
+				"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
+				"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
+				"lm32_dcache.v", "lm32_debug.v", "lm32_itlb.v", "lm32_dtlb.v")
+			platform.add_verilog_include_path(os.path.join("verilog", "lm32"))
+		if cpu_type == "or1k":
+			platform.add_source_dir(os.path.join("verilog", "mor1kx", "submodule", "rtl", "verilog"))
 
-	def register_rom(self, rom_wb_if, bios_size=0x8000):
+	def register_rom(self, rom_wb_if, bios_size=0xa000):
 		if self._rom_registered:
 			raise FinalizeError
 		self._rom_registered = True
@@ -131,8 +140,8 @@ class SDRAMSoC(GenSoC):
 	}
 	csr_map.update(GenSoC.csr_map)
 
-	def __init__(self, platform, clk_freq, cpu_reset_address, with_memtest=False, sram_size=4096, l2_size=8192, with_uart=True):
-		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_uart)
+	def __init__(self, platform, clk_freq, cpu_reset_address, with_memtest=False, sram_size=4096, l2_size=8192, with_uart=True, **kwargs):
+		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_uart, **kwargs)
 		self.with_memtest = with_memtest
 		self._sdram_phy_registered = False
 

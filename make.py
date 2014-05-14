@@ -21,7 +21,7 @@ One or several actions can be specified:
 clean           delete previous build(s).
 build-bitstream build FPGA bitstream. Implies build-bios on targets with
                 integrated BIOS.
-build-headers   build software header files with CSR/IRQ/SDRAM_PHY definitions.
+build-headers   build software header files with CPU/CSR/IRQ/SDRAM_PHY definitions.
 build-csr-csv   save CSR map into CSV file.
 build-bios      build BIOS. Implies build-header.
 
@@ -119,7 +119,8 @@ a high performance and small footprint SoC based on Migen
 Platform:  {}
 Target:    {}
 Subtarget: {}
-===========================""".format(platform_name, args.target, top_class.__name__))
+CPU type:  {}
+===========================""".format(platform_name, args.target, top_class.__name__, soc.cpu_type))
 
 	# dependencies
 	if actions["all"]:
@@ -135,17 +136,27 @@ Subtarget: {}
 
 	if actions["clean"]:
 		subprocess.call(["rm", "-rf", "build/*"])
+		subprocess.call(["make", "-C", "software/libcompiler-rt", "clean"])
+		subprocess.call(["make", "-C", "software/libbase", "clean"])
+		subprocess.call(["make", "-C", "software/libnet", "clean"])
+		subprocess.call(["make", "-C", "software/bios", "clean"])
 
 	if actions["build-headers"]:
 		boilerplate = """/*
  * Platform:  {}
  * Target:    {}
  * Subtarget: {}
+ * CPU type:  {}
  */
 
-""".format(platform_name, args.target, top_class.__name__)
-		linker_header = cpuif.get_linker_regions(soc.cpu_memory_regions)
-		write_to_file("software/include/generated/regions.ld", boilerplate + linker_header)
+""".format(platform_name, args.target, top_class.__name__, soc.cpu_type)
+		cpu_mak = cpuif.get_cpu_mak(soc.cpu_type)
+		write_to_file("software/include/generated/cpu.mak", cpu_mak)
+		linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
+		write_to_file("software/include/generated/output_format.ld", linker_output_format)
+
+		linker_regions = cpuif.get_linker_regions(soc.cpu_memory_regions)
+		write_to_file("software/include/generated/regions.ld", boilerplate + linker_regions)
 		try:
 			flash_boot_address = soc.flash_boot_address
 		except AttributeError:

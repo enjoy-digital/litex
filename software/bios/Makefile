@@ -1,7 +1,7 @@
 MSCDIR=../..
 include $(MSCDIR)/software/common.mak
 
-OBJECTS=isr.o sdram.o main.o boot-helper.o boot.o dataflow.o
+OBJECTS=isr.o sdram.o main.o boot-helper-$(CPU).o boot.o dataflow.o
 
 all: bios.bin
 
@@ -17,7 +17,7 @@ bios.elf: linker.ld $(OBJECTS) libs
 
 %.elf:
 	$(LD) $(LDFLAGS) -T $< -N -o $@ \
-		$(MSCDIR)/software/libbase/crt0.o \
+		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
 		-L$(MSCDIR)/software/libnet \
 		-L$(MSCDIR)/software/libbase \
