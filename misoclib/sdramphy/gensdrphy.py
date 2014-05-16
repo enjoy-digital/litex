@@ -7,7 +7,7 @@
 # The PHY needs 2 Clock domains:
 #  - sys_clk    : The System Clock domain
 #  - sys_clk_ps : The System Clock domain with its phase shifted 
-#                 (-0.75ns on C4@100MHz)
+#                 (-3ns on C4@100MHz)
 #
 # Assert dfi_wrdata_en and present the data 
 # on dfi_wrdata_mask/dfi_wrdata in the same
@@ -35,7 +35,7 @@ class GENSDRPHY(Module):
 		d = flen(pads.dq)
 
 		self.phy_settings = lasmicon.PhySettings(
-			memtype=memtype,
+			memtype="SDR",
 			dfi_d=d,
 			nphases=1,
 			rdphase=0,
