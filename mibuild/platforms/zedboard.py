@@ -143,9 +143,6 @@ class Platform(XilinxISEPlatform):
 
 	def do_finalize(self, fragment):
 		try:
-			self.add_platform_command("""
-NET "{clk100}" TNM_NET = "GRPclk100";
-TIMESPEC "TSclk100" = PERIOD "GRPclk100" 10 ns HIGH 50%;
-""", clk100=self.lookup_request("clk100"))
+			self.add_period_constraint(self.lookup_request("clk100"), 10)
 		except ConstraintError:
 			pass

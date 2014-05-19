@@ -115,22 +115,17 @@ CONFIG VCCAUX = "3.3";
 
 	def do_finalize(self, fragment):
 		try:
-			self.add_platform_command("""
-NET "{clk_y3}" TNM_NET = "GRPclky3";
-TIMESPEC "TSclky3" = PERIOD "GRPclky3" 10 ns HIGH 50%;
-""", clk_y3=self.lookup_request("clk_y3"))
+			self.add_period_constraint(self.lookup_request("clk_y3"), 10)
 		except ConstraintError:
 			pass
 
 		try:
 			eth_clocks = self.lookup_request("eth_clocks")
+			self.add_period_constraint(eth_clocks.rx, 40)
+			self.add_period_constraint(eth_clocks.tx, 40)
 			self.add_platform_command("""
-NET "{phy_rx_clk}" TNM_NET = "GRPphy_rx_clk";
-NET "{phy_tx_clk}" TNM_NET = "GRPphy_tx_clk";
-TIMESPEC "TSphy_rx_clk" = PERIOD "GRPphy_rx_clk" 40 ns HIGH 50%;
-TIMESPEC "TSphy_tx_clk" = PERIOD "GRPphy_tx_clk" 40 ns HIGH 50%;
-TIMESPEC "TSphy_tx_clk_io" = FROM "GRPphy_tx_clk" TO "PADS" 10 ns;
-TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
+TIMESPEC "TS{phy_tx_clk}_io" = FROM "GRP{phy_tx_clk}" TO "PADS" 10 ns;
+TIMESPEC "TS{phy_rx_clk}_io" = FROM "PADS" TO "GRP{phy_rx_clk}" 10 ns;
 """, phy_rx_clk=eth_clocks.rx, phy_tx_clk=eth_clocks.tx)
 		except ContraintError:
 			pass

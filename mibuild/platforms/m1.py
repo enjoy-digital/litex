@@ -123,22 +123,17 @@ class Platform(XilinxISEPlatform):
 
 	def do_finalize(self, fragment):
 		try:
-			self.add_platform_command("""
-NET "{clk50}" TNM_NET = "GRPclk50";
-TIMESPEC "TSclk50" = PERIOD "GRPclk50" 20 ns HIGH 50%;
-""", clk50=self.lookup_request("clk50"))
+			self.add_period_constraint(self.lookup_request("clk50"), 20)
 		except ConstraintError:
 			pass
 
 		try:
 			eth_clocks = self.lookup_request("eth_clocks")
+			self.add_period_constraint(eth_clocks.rx, 40)
+			self.add_period_constraint(eth_clocks.tx, 40)
 			self.add_platform_command("""
-NET "{phy_rx_clk}" TNM_NET = "GRPphy_rx_clk";
-NET "{phy_tx_clk}" TNM_NET = "GRPphy_tx_clk";
-TIMESPEC "TSphy_rx_clk" = PERIOD "GRPphy_rx_clk" 40 ns HIGH 50%;
-TIMESPEC "TSphy_tx_clk" = PERIOD "GRPphy_tx_clk" 40 ns HIGH 50%;
-TIMESPEC "TSphy_tx_clk_io" = FROM "GRPphy_tx_clk" TO "PADS" 10 ns;
-TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
+TIMESPEC "TS{phy_tx_clk}_io" = FROM "GRP{phy_tx_clk}" TO "PADS" 10 ns;
+TIMESPEC "TS{phy_rx_clk}_io" = FROM "PADS" TO "GRP{phy_rx_clk}" 10 ns;
 """, phy_rx_clk=eth_clocks.rx, phy_tx_clk=eth_clocks.tx)
 		except ConstraintError:
 			pass
@@ -146,10 +141,6 @@ TIMESPEC "TSphy_rx_clk_io" = FROM "PADS" TO "GRPphy_rx_clk" 10 ns;
 		for i in range(2):
 			si = "dviclk"+str(i)
 			try:
-				self.add_platform_command("""
-NET "{dviclk}" TNM_NET = "GRP"""+si+"""";
-NET "{dviclk}" CLOCK_DEDICATED_ROUTE = FALSE;
-TIMESPEC "TS"""+si+"""" = PERIOD "GRP"""+si+"""" 26.7 ns HIGH 50%;
-""", dviclk=self.lookup_request("dvi_in", i).clk)
+				self.add_period_constraint(self.lookup_request("dvi_in", i).clk, 26.7)
 			except ConstraintError:
 				pass

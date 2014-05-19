@@ -54,9 +54,6 @@ class Platform(XilinxISEPlatform):
 
 	def do_finalize(self, fragment):
 		try:
-			self.add_platform_command("""
-NET "{clk32}" TNM_NET = "GRPclk32";
-TIMESPEC "TSclk32" = PERIOD "GRPclk32" 31.25 ns HIGH 50%;
-""", clk32=self.lookup_request("clk32"))
+			self.add_period_constraint(self.lookup_request("clk32"), 31.25)
 		except ConstraintError:
 			pass

@@ -92,4 +92,10 @@ _io = [
 class Platform(AlteraQuartusPlatform):
 	def __init__(self):
 		AlteraQuartusPlatform.__init__(self, "EP4CE22F17C6", _io,
-			lambda p: CRG_SE(p, "clk50", "key", 20.0, True))
+			lambda p: CRG_SE(p, "clk50", None))
+
+	def do_finalize(self, fragment):
+		try:
+			self.add_period_constraint(self.lookup_request("clk50"), 20)
+		except ConstraintError:
+			pass

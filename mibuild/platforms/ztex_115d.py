@@ -90,10 +90,7 @@ CONFIG VCCAUX = "2.5";
 
 	def do_finalize(self, fragment):
 		try:
-			self.add_platform_command("""
-NET "{clk_if}" TNM_NET = "GRPclkif";
-TIMESPEC "TSclkif" = PERIOD "GRPclkif" 20 ns HIGH 50%;
-""", clk_if=self.lookup_request("clk_if"))
+			self.add_period_constraint(self.lookup_request("clk_if"), 20)
 		except ConstraintError:
 			pass
 
