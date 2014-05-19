@@ -72,7 +72,11 @@ class GENSDRPHY(Module):
 		drive_dq = Signal()
 		self.sync += sd_dq_out.eq(self.dfi.p0.wrdata),
 		self.specials += Tristate(pads.dq, sd_dq_out, drive_dq)
-		self.sync += pads.dm.eq(~self.dfi.p0.wrdata_mask)
+		self.sync += If(self.dfi.p0.wrdata_en,
+			pads.dm.eq(self.dfi.p0.wrdata_mask)
+		).Else(
+			pads.dm.eq(0)
+		)
 		sd_dq_in_ps = Signal(d)
 		self.sync.sys_ps += sd_dq_in_ps.eq(pads.dq)
 		self.sync += self.dfi.p0.rddata.eq(sd_dq_in_ps)
