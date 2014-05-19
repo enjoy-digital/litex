@@ -179,17 +179,17 @@ CPU type:  {}
 		if ret:
 			raise OSError("BIOS build failed")
 
-	if hasattr(soc, "init_bios_memory"):
-		with open("software/bios/bios.bin", "rb") as bios_file:
-			bios_data = []
-			while True:
-				w = bios_file.read(4)
-				if not w:
-					break
-				bios_data.append(struct.unpack(">I", w)[0])
-		soc.init_bios_memory(bios_data)
-
 	if actions["build-bitstream"]:
+		if hasattr(soc, "init_bios_memory"):
+			with open("software/bios/bios.bin", "rb") as bios_file:
+				bios_data = []
+				while True:
+					w = bios_file.read(4)
+					if not w:
+						break
+					bios_data.append(struct.unpack(">I", w)[0])
+			soc.init_bios_memory(bios_data)
+
 		for decorator in args.decorate:
 			soc = getattr(simplify, decorator)(soc)
 		build_kwargs = dict((k, autotype(v)) for k, v in args.build_option)
