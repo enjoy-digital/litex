@@ -8,14 +8,10 @@ from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
 from mibuild import tools
 
-def _add_period_constraint(platform, clk, period):
-	platform.add_platform_command("""set_global_assignment -name DUTY_CYCLE 50 -section_id {clk}""", clk=clk)
-	platform.add_platform_command("""set_global_assignment -name FMAX_REQUIREMENT "{freq} MHz" -section_id {clk}\n""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
-
 class CRG_SE(SimpleCRG):
 	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
 		SimpleCRG.__init__(self, platform, clk_name, rst_name, rst_invert)
-		_add_period_constraint(platform, self.cd_sys.clk, period)
+		platform.add_period_constraint(platform, self.cd_sys.clk, period)
 
 def _format_constraint(c):
 	if isinstance(c, Pins):
@@ -99,3 +95,7 @@ class AlteraQuartusPlatform(GenericPlatform):
 			_run_quartus(build_name, quartus_path)
 		
 		os.chdir("..")
+
+	def add_period_constraint(self, clk, period):
+		self.add_platform_command("""set_global_assignment -name DUTY_CYCLE 50 -section_id {clk}""", clk=clk)
+		self.add_platform_command("""set_global_assignment -name FMAX_REQUIREMENT "{freq} MHz" -section_id {clk}\n""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
