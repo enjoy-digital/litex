@@ -29,3 +29,9 @@ class MiLa(Module, AutoCSR):
 			self.comb += self.sink.connect(self.rle.sink)
 			recorder_dat_source = self.rle.source
 		self.comb += recorder_dat_source.connect(recorder.dat_sink)
+
+	def get_csv(self, dat):
+		r = ""
+		for e in dat:
+			r += e.backtrace[-1][0] + "," + str(flen(e)) + "\n"
+		return r

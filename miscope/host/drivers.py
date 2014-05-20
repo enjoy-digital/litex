@@ -1,3 +1,5 @@
+import csv
+from miscope.host.vcd import *
 
 class MiIoDriver():
 	def __init__(self, regs, name):
@@ -18,16 +20,27 @@ class MiIoDriver():
 		return self.miio_i.read()
 
 class MiLaDriver():
-	def __init__(self, regs, name):
+	def __init__(self, width, regs, name, config_csv=None, use_rle=True):
 		self.regs = regs
 		self.name = name
 		self.build_mila()
+		if csv:
+			self.build_layout(config_csv)
+		self.dat = VcdDat(width)
+		self.use_rle = use_rle
 
 	def build_mila(self):
 		for key, value in self.regs.d.items():
 			if self.name in key:
 				key.replace(self.name, "mila")
-				setattr(self, key, value)	
+				setattr(self, key, value)
+	
+	def build_layout(self, config_csv):
+		self.layout = []
+		csv_reader = csv.reader(open(config_csv), delimiter=',', quotechar='#')
+		for item in csv_reader:
+			name, length = item
+			self.layout.append((name, int(length)))
 
 	def prog_term(self, port, trigger, mask):
 		t = getattr(self, "mila_trigger_port{d}_trig".format(d=int(port)))
@@ -65,15 +78,24 @@ class MiLaDriver():
 		return self.mila_recorder_done.read()
 
 	def trigger(self, offset, length):
+		print("T")
+		if self.use_rle:
+			self.enable_rle()
 		self.mila_recorder_offset.write(offset)
 		self.mila_recorder_length.write(length)
 		self.mila_recorder_trigger.write(1)
 
-	def read(self):
-		r = []
+	def read(self, vcd=None):
+		print("R")
 		empty = self.mila_recorder_read_empty.read()
 		while(not empty):
-			r.append(self.mila_recorder_read_dat.read())
+			self.dat.append(self.mila_recorder_read_dat.read())
 			empty = self.mila_recorder_read_empty.read()
 			self.mila_recorder_read_en.write(1)
-		return r
+		if self.use_rle:
+			self.dat = self.dat.decode_rle()
+		if vcd:
+			print("V")
+			_vcd = Vcd()
+			_vcd.add_from_layout(self.layout, self.dat)
+			_vcd.write(vcd)
