@@ -1,5 +1,8 @@
 import csv
+import time
+import sys
 from miscope.host.vcd import *
+from miscope.host.truthtable import *
 
 class MiIoDriver():
 	def __init__(self, regs, name):
@@ -20,27 +23,52 @@ class MiIoDriver():
 		return self.miio_i.read()
 
 class MiLaDriver():
-	def __init__(self, width, regs, name, config_csv=None, use_rle=True):
+	def __init__(self, regs, name, csv_name=None, use_rle=True):
 		self.regs = regs
 		self.name = name
-		self.build_mila()
-		if csv:
-			self.build_layout(config_csv)
-		self.dat = VcdDat(width)
 		self.use_rle = use_rle
+
+		if csv_name is None:
+			self.csv = name + ".csv"
+		self.get_config()
+		self.get_layout()
+		self.build_mila()
+		self.dat = VcdDat(self.width)
+		
+	def get_config(self):
+		csv_reader = csv.reader(open(self.csv), delimiter=',', quotechar='#')
+		for item in csv_reader:
+			t, n, v = item
+			if t == "config":
+				setattr(self, n, int(v))
+
+	def get_layout(self):
+		self.layout = []
+		csv_reader = csv.reader(open(self.csv), delimiter=',', quotechar='#')
+		for item in csv_reader:
+			t, n, v = item
+			if t == "layout":
+				self.layout.append((n, int(v)))
 
 	def build_mila(self):
 		for key, value in self.regs.d.items():
 			if self.name in key:
 				key.replace(self.name, "mila")
 				setattr(self, key, value)
-	
-	def build_layout(self, config_csv):
-		self.layout = []
-		csv_reader = csv.reader(open(config_csv), delimiter=',', quotechar='#')
-		for item in csv_reader:
-			name, length = item
-			self.layout.append((name, int(length)))
+		value = 1
+		for name, length in self.layout:
+			setattr(self, name+"_o", value)
+			value = value*(2**length)
+		value = 0
+		for name, length in self.layout:
+			setattr(self, name+"_m", (2**length-1) << value)
+			value += length
+
+	def show_state(self, s, last=False):
+		print(s, end="")
+		if not last:
+			print("-->", end="")
+		sys.stdout.flush()
 
 	def prog_term(self, port, trigger, mask):
 		t = getattr(self, "mila_trigger_port{d}_trig".format(d=int(port)))
@@ -62,7 +90,8 @@ class MiLaDriver():
 		fm.write(falling_mask)
 		bm.write(both_mask)
 		
-	def prog_sum(self, datas):
+	def prog_sum(self, equation):
+		datas = gen_truth_table(equation)
 		for adr, dat in enumerate(datas):
 			self.mila_trigger_sum_prog_adr.write(adr)
 			self.mila_trigger_sum_prog_dat.write(dat)
@@ -77,8 +106,13 @@ class MiLaDriver():
 	def is_done(self):
 		return self.mila_recorder_done.read()
 
+	def wait_done(self):
+		self.show_state("WAIT")
+		while(not self.is_done()):
+			time.sleep(0.1)
+
 	def trigger(self, offset, length):
-		print("T")
+		self.show_state("TRIG")
 		if self.use_rle:
 			self.enable_rle()
 		self.mila_recorder_offset.write(offset)
@@ -86,7 +120,7 @@ class MiLaDriver():
 		self.mila_recorder_trigger.write(1)
 
 	def read(self, vcd=None):
-		print("R")
+		self.show_state("READ", last=not vcd)
 		empty = self.mila_recorder_read_empty.read()
 		while(not empty):
 			self.dat.append(self.mila_recorder_read_dat.read())
@@ -95,7 +129,7 @@ class MiLaDriver():
 		if self.use_rle:
 			self.dat = self.dat.decode_rle()
 		if vcd:
-			print("V")
+			self.show_state("VCD", last=True)
 			_vcd = Vcd()
 			_vcd.add_from_layout(self.layout, self.dat)
 			_vcd.write(vcd)

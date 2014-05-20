@@ -161,7 +161,6 @@ class Vcd:
 	def  p_vars(self):
 		r = ""
 		for var in self.vars:
-			print(var.name)
 			r += "$var "
 			r += var.type
 			r += " "

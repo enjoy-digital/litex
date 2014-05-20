@@ -22,8 +22,16 @@ class Uart2Wishbone:
 		self.uart.close()
 		self.uart.open()
 		self.uart.flushInput()
+		try:
+			wb.regs.uart2wb_sel.write(1)
+		except:
+			pass
 		
 	def close(self):
+		try:
+			wb.regs.uart2wb_sel.write(0)
+		except:
+			pass
 		self.uart.close()
 
 	def read(self, addr, burst_length=1):
