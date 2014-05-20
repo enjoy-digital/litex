@@ -161,6 +161,7 @@ class Vcd:
 	def  p_vars(self):
 		r = ""
 		for var in self.vars:
+			print(var.name)
 			r += "$var "
 			r += var.type
 			r += " "
@@ -221,12 +222,12 @@ class Vcd:
 
 def main():
 	myvcd = Vcd()
-	myvcd.add(Var(1, "foo1", [0,1,0,1,0,1]))
-	myvcd.add(Var(2, "foo2", [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
-	myvcd.add(Var(3, "foo3"))
-	myvcd.add(Var(4, "foo4"))
+	myvcd.add(Var("foo1", 1, [0,1,0,1,0,1]))
+	myvcd.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
+	myvcd.add(Var("foo3", 3))
+	myvcd.add(Var("foo4", 4))
 	ramp = [i%128 for i in range(1024)]
-	myvcd.add(Var(16, "ramp", ramp))
+	myvcd.add(Var("ramp", 16, ramp))
 	print(myvcd)
 	
 if __name__ == '__main__':

@@ -1,9 +1,4 @@
 from migen.fhdl.std import *
-from migen.flow.actor import *
-from migen.flow.network import *
-from migen.fhdl.specials import Memory
-from migen.bus import csr
-from migen.bank import description, csrgen
 from migen.bank.description import *
 from migen.genlib.fifo import SyncFIFO
 from migen.genlib.fsm import FSM, NextState
@@ -11,36 +6,34 @@ from migen.genlib.fsm import FSM, NextState
 from miscope.std import *
 
 class RunLengthEncoder(Module, AutoCSR):
-	def __init__(self, width, length):
+	def __init__(self, width, length=1024):
 		self.width = width
 		self.length = length
 
 		self.sink = rec_dat(width)
-		self.source = rec_dat(width)		
+		self.source = rec_dat(width)
 
 		self._r_enable = CSRStorage()
 		
 		###
 
-		enable = self._r_enable.storage 
+		enable = self._r_enable.storage
 		stb_i = self.sink.stb
 		dat_i = self.sink.dat
-		ack_i = self.sink.ack
 
 		# Register Input
 		stb_i_d = Signal()
 		dat_i_d = Signal(width)
 
-		self.sync += [
+		self.sync += \
 			If(stb_i,
 				dat_i_d.eq(dat_i),
 				stb_i_d.eq(stb_i)
 			)
-		]
-		
+
 		# Detect change
 		change = Signal()
-		self.comb += [change.eq(stb_i & (~enable | (dat_i_d != dat_i)))]
+		self.comb += change.eq(stb_i & (~enable | (dat_i_d != dat_i)))
 
 		change_d = Signal()
 		change_rising = Signal()
@@ -51,22 +44,20 @@ class RunLengthEncoder(Module, AutoCSR):
 		rle_cnt  = Signal(max=length)
 		rle_max  = Signal()
 
-		self.comb +=[If(rle_cnt == length, rle_max.eq(enable))]
+		self.comb += If(rle_cnt == length, rle_max.eq(enable))
 
-		self.sync +=[
+		self.sync += \
 			If(change | rle_max,
 				rle_cnt.eq(0)
 			).Else(
 				rle_cnt.eq(rle_cnt + 1)
 			)
-		]
 
 		# Mux RLE word and data
 		stb_o = self.source.stb
 		dat_o = self.source.dat
-		ack_o = self.source.ack
 
-		self.comb +=[
+		self.comb += \
 			If(change_rising & ~rle_max,
 				stb_o.eq(1),
 				dat_o[width-1].eq(1),
@@ -76,9 +67,7 @@ class RunLengthEncoder(Module, AutoCSR):
 				dat_o.eq(dat_i_d)
 			).Else(
 				stb_o.eq(0),
-			),
-			ack_i.eq(1) #FIXME
-		]
+			)
 
 class Recorder(Module, AutoCSR):
 	def __init__(self, width, depth):
@@ -122,7 +111,6 @@ class Recorder(Module, AutoCSR):
 		fsm.act("PRE_HIT_RECORDING",
 			fifo.we.eq(self.dat_sink.stb),
 			fifo.din.eq(self.dat_sink.dat),
-			self.dat_sink.ack.eq(fifo.writable),
 
 			fifo.re.eq(fifo.level >= self._r_offset.storage),
 
@@ -132,7 +120,6 @@ class Recorder(Module, AutoCSR):
 		fsm.act("POST_HIT_RECORDING",
 			fifo.we.eq(self.dat_sink.stb),
 			fifo.din.eq(self.dat_sink.dat),
-			self.dat_sink.ack.eq(fifo.writable),
 
 			If(~fifo.writable | (fifo.level >= self._r_length.storage), NextState("IDLE"))
 		)

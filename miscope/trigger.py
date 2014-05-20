@@ -1,9 +1,5 @@
 from migen.fhdl.std import *
-from migen.flow.actor import *
-from migen.flow.network import *
 from migen.fhdl.specials import Memory
-from migen.bus import csr
-from migen.bank import description, csrgen
 from migen.bank.description import *
 
 from miscope.std import *
@@ -27,8 +23,7 @@ class Term(Module, AutoCSR):
 
 		self.comb +=[
 			hit.eq((dat & mask) == trig),
-			self.source.stb.eq(self.sink.stb),
-			self.sink.ack.eq(self.sink.ack),
+			self.source.stb.eq(self.sink.stb)
 		]
 
 class RangeDetector(Module, AutoCSR):
@@ -42,6 +37,7 @@ class RangeDetector(Module, AutoCSR):
 		self._r_high = CSRStorage(width)
 
 	###
+
 		low = self._r_low.storage
 		high = self._r_high.storage
 		dat = self.sink.dat
@@ -49,8 +45,7 @@ class RangeDetector(Module, AutoCSR):
 
 		self.comb +=[
 			hit.eq((dat >= low) & (dat <= high)),
-			self.source.stb.eq(self.sink.stb),
-			self.sink.ack.eq(self.sink.ack),
+			self.source.stb.eq(self.sink.stb)
 		]
 
 
@@ -66,6 +61,7 @@ class EdgeDetector(Module, AutoCSR):
 		self._r_both_mask = CSRStorage(width)
 
 	###
+
 		rising_mask = self._r_rising_mask.storage
 		falling_mask = self._r_falling_mask.storage
 		both_mask = self._r_both_mask.storage
@@ -84,8 +80,7 @@ class EdgeDetector(Module, AutoCSR):
 			falling_hit.eq(rising_mask & ~dat & dat_d),
 			both_hit.eq((both_mask & dat) != (both_mask & dat_d)),
 			hit.eq(rising_hit | falling_hit | both_hit),
-			self.source.stb.eq(self.sink.stb),
-			self.sink.ack.eq(self.sink.ack),
+			self.source.stb.eq(self.sink.stb)
 		]
 
 class Sum(Module, AutoCSR):
@@ -121,7 +116,6 @@ class Sum(Module, AutoCSR):
 		self.comb +=[
 			self.source.stb.eq(optree("&", [sink.stb for sink in self.sinks])),
 			self.source.hit.eq(lut_port.dat_r),
-			[sink.ack.eq(self.source.ack) for sink in self.sinks]
 		]
 
 
@@ -145,7 +139,6 @@ class Trigger(Module, AutoCSR):
 		###
 		for i, port in enumerate(ports):
 			self.comb +=[
-				port.sink.stb.eq(self.sink.stb),
-				port.sink.dat.eq(self.sink.dat),
+				self.sink.connect(port.sink),
 				port.source.connect(self.sum.sinks[i])
 			]
