@@ -18,9 +18,6 @@ class RunLengthEncoder(Module, AutoCSR):
 		###
 
 		enable = self._r_enable.storage
-			
-		fsm = FSM(reset_state="BYPASS")
-		self.submodules += fsm
 
 		sink_d = rec_dat(width)
 		self.sync += If(self.sink.stb, sink_d.eq(self.sink))
@@ -40,6 +37,9 @@ class RunLengthEncoder(Module, AutoCSR):
 
 		change = Signal()
 		self.comb += change.eq(self.sink.stb & (self.sink.dat != sink_d.dat))
+
+		fsm = FSM(reset_state="BYPASS")
+		self.submodules += fsm
 
 		fsm.act("BYPASS",
 			sink_d.connect(self.source),
