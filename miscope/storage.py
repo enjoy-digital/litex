@@ -18,56 +18,44 @@ class RunLengthEncoder(Module, AutoCSR):
 		###
 
 		enable = self._r_enable.storage
-		stb_i = self.sink.stb
-		dat_i = self.sink.dat
+			
+		fsm = FSM(reset_state="BYPASS")
+		self.submodules += fsm
 
-		# Register Input
-		stb_i_d = Signal()
-		dat_i_d = Signal(width)
+		sink_d = rec_dat(width)
+		self.sync += If(self.sink.stb, sink_d.eq(self.sink))
+
+		cnt = Signal(max=length)
+		cnt_inc = Signal()
+		cnt_reset = Signal()
+		cnt_max = Signal()
 
 		self.sync += \
-			If(stb_i,
-				dat_i_d.eq(dat_i),
-				stb_i_d.eq(stb_i)
+			If(cnt_reset,
+				cnt.eq(1),
+			).Elif(cnt_inc,
+				cnt.eq(cnt+1)
 			)
+		self.comb += cnt_max.eq(cnt == length)
 
-		# Detect change
 		change = Signal()
-		self.comb += change.eq(stb_i & (~enable | (dat_i_d != dat_i)))
+		self.comb += change.eq(self.sink.stb & (self.sink.dat != sink_d.dat))
 
-		change_d = Signal()
-		change_rising = Signal()
-		self.sync += If(stb_i, change_d.eq(change))
-		self.comb += change_rising.eq(stb_i & (change & ~change_d))
+		fsm.act("BYPASS",
+			sink_d.connect(self.source),
+			cnt_reset.eq(1),
+			If(enable & ~change & self.sink.stb, NextState("COUNT"))
+		)
 
-		# Generate RLE word
-		rle_cnt  = Signal(max=length)
-		rle_max  = Signal()
-
-		self.comb += If(rle_cnt == length, rle_max.eq(enable))
-
-		self.sync += \
-			If(change | rle_max,
-				rle_cnt.eq(0)
-			).Else(
-				rle_cnt.eq(rle_cnt + 1)
+		fsm.act("COUNT",
+			cnt_inc.eq(self.sink.stb),
+			If(change | cnt_max | ~enable,
+				self.source.stb.eq(1),
+				self.source.dat[width-1].eq(1), # Set RLE bit
+				self.source.dat[:flen(cnt)].eq(cnt),
+				NextState("BYPASS")
 			)
-
-		# Mux RLE word and data
-		stb_o = self.source.stb
-		dat_o = self.source.dat
-
-		self.comb += \
-			If(change_rising & ~rle_max,
-				stb_o.eq(1),
-				dat_o[width-1].eq(1),
-				dat_o[:flen(rle_cnt)].eq(rle_cnt)
-			).Elif(change_d | rle_max,
-				stb_o.eq(stb_i_d),
-				dat_o.eq(dat_i_d)
-			).Else(
-				stb_o.eq(0),
-			)
+		),
 
 class Recorder(Module, AutoCSR):
 	def __init__(self, width, depth):
