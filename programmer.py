@@ -51,11 +51,11 @@ class XC3SProg(Programmer):
 	needs_bitreverse = False
 
 	def load_bitstream(self, bitstream_file):
-		subprocess.call(["xc3sprog", "-c", "papilio", bitstream_file])
+		subprocess.call(["xc3sprog", "-v", "-c", "papilio", bitstream_file])
 
 	def flash(self, address, data_file):
 		flash_proxy = self.find_flash_proxy("bscan_spi_lx9_papilio.bit")
-		subprocess.call(["xc3sprog", "-c", "papilio", "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
+		subprocess.call(["xc3sprog", "-v", "-c", "papilio", "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
 
 class USBBlaster(Programmer):
 	needs_bitreverse = False
