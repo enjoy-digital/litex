@@ -24,19 +24,19 @@ static void cdelay(int i)
 	}
 }
 
-void ddrsw(void)
+void sdrsw(void)
 {
 	dfii_control_write(DFII_CONTROL_CKE);
-	printf("DDR now under software control\n");
+	printf("SDRAM now under software control\n");
 }
 
-void ddrhw(void)
+void sdrhw(void)
 {
 	dfii_control_write(DFII_CONTROL_SEL|DFII_CONTROL_CKE);
-	printf("DDR now under hardware control\n");
+	printf("SDRAM now under hardware control\n");
 }
 
-void ddrrow(char *_row)
+void sdrrow(char *_row)
 {
 	char *c;
 	unsigned int row;
@@ -61,14 +61,14 @@ void ddrrow(char *_row)
 	}
 }
 
-void ddrrd(char *startaddr)
+void sdrrd(char *startaddr)
 {
 	char *c;
 	unsigned int addr;
 	int i;
 
 	if(*startaddr == 0) {
-		printf("ddrrd <address>\n");
+		printf("sdrrd <address>\n");
 		return;
 	}
 	addr = strtoul(startaddr, &c, 0);
@@ -82,6 +82,7 @@ void ddrrd(char *startaddr)
 	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
 	
+	// FIXME
 	for(i=0;i<8;i++)
 		printf("%02x", MMPTR(0xe0001038+4*i));
 	for(i=0;i<8;i++)
@@ -89,14 +90,14 @@ void ddrrd(char *startaddr)
 	printf("\n");
 }
 
-void ddrwr(char *startaddr)
+void sdrwr(char *startaddr)
 {
 	char *c;
 	unsigned int addr;
 	int i;
 
 	if(*startaddr == 0) {
-		printf("ddrrd <address>\n");
+		printf("sdrrd <address>\n");
 		return;
 	}
 	addr = strtoul(startaddr, &c, 0);
@@ -105,6 +106,7 @@ void ddrwr(char *startaddr)
 		return;
 	}
 	
+	// FIXME
 	for(i=0;i<8;i++) {
 		MMPTR(0xe0001018+4*i) = i;
 		MMPTR(0xe000106c+4*i) = 0xf0 + i;
@@ -154,9 +156,9 @@ int memtest(void)
 	}
 }
 
-int ddrinit(void)
+int sdrinit(void)
 {
-	printf("Initializing DDR SDRAM...\n");
+	printf("Initializing SDRAM...\n");
 	
 	init_sequence();
 	dfii_control_write(DFII_CONTROL_SEL|DFII_CONTROL_CKE);

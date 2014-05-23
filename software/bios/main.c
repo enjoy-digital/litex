@@ -375,13 +375,13 @@ static void do_command(char *c)
 #endif
 	
 #ifdef DFII_BASE
-	else if(strcmp(token, "ddrrow") == 0) ddrrow(get_token(&c));
-	else if(strcmp(token, "ddrsw") == 0) ddrsw();
-	else if(strcmp(token, "ddrhw") == 0) ddrhw();
-	else if(strcmp(token, "ddrrd") == 0) ddrrd(get_token(&c));
-	else if(strcmp(token, "ddrwr") == 0) ddrwr(get_token(&c));
+	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
+	else if(strcmp(token, "sdrsw") == 0) sdrsw();
+	else if(strcmp(token, "sdrhw") == 0) sdrhw();
+	else if(strcmp(token, "sdrrd") == 0) sdrrd(get_token(&c));
+	else if(strcmp(token, "sdrwr") == 0) sdrwr(get_token(&c));
 	else if(strcmp(token, "memtest") == 0) memtest();
-	else if(strcmp(token, "ddrinit") == 0) ddrinit();
+	else if(strcmp(token, "sdrinit") == 0) sdrinit();
 #endif
 	
 	else if(strcmp(token, "dfs") == 0) dfs(get_token(&c));
@@ -505,7 +505,7 @@ static void boot_sequence(void)
 int main(int i, char **c)
 {
 	char buffer[64];
-	int ddr_ok;
+	int sdr_ok;
 
 	irq_setmask(0);
 	irq_setie(1);
@@ -519,11 +519,11 @@ int main(int i, char **c)
 	ethreset();
 #endif
 #ifdef DFII_BASE
-	ddr_ok = ddrinit();
+	sdr_ok = sdrinit();
 #else
-	ddr_ok = 1;
+	sdr_ok = 1;
 #endif
-	if(ddr_ok)
+	if(sdr_ok)
 		boot_sequence();
 	else
 		printf("Memory initialization failed\n");
