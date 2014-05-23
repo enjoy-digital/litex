@@ -97,17 +97,15 @@ _interrupt_handler:
 	nop
 	nop
 
-macaddress:
-	.byte 0x10
-	.byte 0xe2
-	.byte 0xd5
-	.byte 0x00
-	.byte 0x00
-	.byte 0x00
-
-	/* padding to align to a 32-bit boundary */
-	.byte 0x00
-	.byte 0x00
+_syscall_handler:
+	bi _syscall_handler
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 
 _crt0:
 	/* Setup stack and global pointer */
