@@ -33,7 +33,7 @@ class SpiFlash(Module):
 
 		sr = Signal(max(cmd_width, addr_width, wbone_width))
 		self.comb += [
-			bus.dat_r.eq(sr[:wbone_width]),
+			bus.dat_r.eq(sr),
 			dq.o.eq(sr[-spi_width:]),
 		]
 
