@@ -201,18 +201,6 @@ _reset_handler:
 	HANDLE_EXCEPTION
 
 	.org 0x2000
-macaddress:
-	.byte 0x10
-	.byte 0xe2
-	.byte 0xd5
-	.byte 0x00
-	.byte 0x00
-	.byte 0x00
-
-	/* padding to align to a 32-bit boundary */
-	.byte 0x00
-	.byte 0x00
-
 _crt0:
 	/* Setup stack and global pointer */
 	l.movhi    r1, hi(_fstack)
