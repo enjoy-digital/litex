@@ -108,7 +108,7 @@ class FSM(Module):
 		cases = dict((self.encoding[k], lns.visit(v)) for k, v in self.actions.items() if v)
 		self.comb += [
 			self.next_state.eq(self.state),
-			Case(self.state, cases)
+			Case(self.state, cases).makedefault(self.encoding[reset_state])
 		]
 		self.sync += self.state.eq(self.next_state)
 
