@@ -60,10 +60,10 @@ class _CRG(Module):
 class SimpleSoC(SDRAMSoC):
 	default_platform = "papilio_pro"
 
-	def __init__(self, platform):
+	def __init__(self, platform, **kwargs):
 		clk_freq = 80*1000*1000
 		SDRAMSoC.__init__(self, platform, clk_freq,
-				cpu_reset_address=0x160000)
+			cpu_reset_address=0x160000, **kwargs)
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
