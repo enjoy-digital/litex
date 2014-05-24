@@ -20,16 +20,18 @@ class MiLa(Module, AutoCSR):
 		self.submodules.trigger = trigger
 		self.submodules.recorder = recorder
 
+		sink_d = rec_dat(width)
+		self.sync += sink_d.eq(self.sink)
 
 		self.comb += [
-			self.sink.connect(trigger.sink),
+			sink_d.connect(trigger.sink),
 			trigger.source.connect(recorder.trig_sink)
 		]
 
 		recorder_dat_source = self.sink
 		if with_rle:
 			self.submodules.rle = RunLengthEncoder(width)
-			self.comb += self.sink.connect(self.rle.sink)
+			self.comb += sink_d.connect(self.rle.sink)
 			recorder_dat_source = self.rle.source
 		self.comb += recorder_dat_source.connect(recorder.dat_sink)
 
