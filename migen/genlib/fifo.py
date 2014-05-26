@@ -217,12 +217,16 @@ class AsyncFIFO(Module, _FIFOInterface):
 			NoRetiming(consume.q),
 			MultiReg(consume.q, consume_wdomain, "write")
 		]
-		self.comb += [
-			self.writable.eq((produce.q[-1] == consume_wdomain[-1])
-			 | (produce.q[-2] == consume_wdomain[-2])
-			 | (produce.q[:-2] != consume_wdomain[:-2])),
-			self.readable.eq(consume.q != produce_rdomain)
-		]
+		if depth_bits == 1:
+			self.comb += self.writable.eq((produce.q[-1] == consume_wdomain[-1])
+				| (produce.q[-2] == consume_wdomain[-2]))
+		else:
+			self.comb += [
+				self.writable.eq((produce.q[-1] == consume_wdomain[-1])
+				| (produce.q[-2] == consume_wdomain[-2])
+				| (produce.q[:-2] != consume_wdomain[:-2]))
+			]
+		self.comb += self.readable.eq(consume.q != produce_rdomain)
 
 		storage = Memory(self.width, depth)
 		self.specials += storage
