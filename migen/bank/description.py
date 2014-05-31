@@ -33,9 +33,9 @@ class _CompoundCSR(_CSRBase, Module):
 		raise NotImplementedError
 
 class CSRStatus(_CompoundCSR):
-	def __init__(self, size=1, name=None):
+	def __init__(self, size=1, reset=0, name=None):
 		_CompoundCSR.__init__(self, size, name)
-		self.status = Signal(self.size)
+		self.status = Signal(self.size, reset=reset)
 
 	def do_finalize(self, busword):
 		nwords = (self.size + busword - 1)//busword
