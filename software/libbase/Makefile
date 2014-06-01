@@ -28,5 +28,5 @@ vsnprintf-nofloat.o: vsnprintf.c
 .PHONY: clean
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) vsnprintf.o vsnprintf.d vsnprintf-nofloat.o vsnprintf-nofloat.d
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) crt0-$(CPU).o vsnprintf.o vsnprintf.d vsnprintf-nofloat.o vsnprintf-nofloat.d
 	$(RM) libbase.a libbase-nofloat.a .*~ *~
