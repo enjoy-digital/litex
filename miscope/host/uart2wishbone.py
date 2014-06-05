@@ -10,9 +10,9 @@ def write_b(uart, data):
 class Uart2Wishbone:
 	WRITE_CMD  = 0x01
 	READ_CMD   = 0x02
-	def __init__(self, port, baudrate, addrmap=None, debug=False):
+	def __init__(self, port, baudrate=115200, addrmap=None, debug=False):
 		self.port = port
-		self.baudrate = baudrate
+		self.baudrate = str(baudrate)
 		self.debug = debug
 		self.uart = serial.Serial(port, baudrate, timeout=0.25)
 		self.regs = build_map(addrmap, self.read, self.write)

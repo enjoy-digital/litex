@@ -161,7 +161,7 @@ class UARTMux(Module):
 class UART2Wishbone(Module, AutoCSR):
 	WRITE_CMD = 0x01
 	READ_CMD = 0x02
-	def __init__(self, pads, clk_freq, baud, share_uart=False):
+	def __init__(self, pads, clk_freq, baud=115200, share_uart=False):
 		
 		# Wishbone interface
 		self.wishbone = wishbone.Interface()
