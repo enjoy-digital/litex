@@ -1,5 +1,7 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_ise import XilinxISEPlatform, CRG_DS
+from mibuild.xilinx_common import CRG_SE, CRG_DS
+from mibuild.xilinx_ise import XilinxISEPlatform
+from mibuild.xilinx_vivado import XilinxVivadoPlatform
 
 _io = [
 	("user_led", 0, Pins("AB8"), IOStandard("LVCMOS15")),
@@ -79,6 +81,19 @@ _io = [
 		IOStandard("LVCMOS25")),
 ]
 
-class Platform(XilinxISEPlatform):
-	def __init__(self, crg_factory=lambda p: CRG_DS(p, "user_clk", "cpu_reset", 6.4)):
-		XilinxISEPlatform.__init__(self, "xc7k325t-ffg900-1", _io, crg_factory)
+def Platform(*args, toolchain=None, **kwargs):
+	if toolchain is None:
+		toolchain = "ise"
+
+	if toolchain == "ise":
+		xilinx_platform = XilinxISEPlatform
+	elif toolchain == "vivado":
+		xilinx_platform = XilinxVivadoPlatform
+	else:
+		raise ValueError
+
+	class RealPlatform(xilinx_platform):
+		def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset", 6.4)):
+			xilinx_platform.__init__(self, "xc7k325t-ffg900-1", _io, crg_factory)
+
+	return RealPlatform(*args, **kwargs)

@@ -1,5 +1,6 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_ise import XilinxISEPlatform, CRG_SE
+from mibuild.xilinx_common import CRG_SE
+from mibuild.xilinx_ise import XilinxISEPlatform
 
 # Bank 34 and 35 voltage depend on J18 jumper setting
 _io = [

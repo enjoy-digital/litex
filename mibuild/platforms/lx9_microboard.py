@@ -1,5 +1,6 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_ise import XilinxISEPlatform, CRG_SE
+from mibuild.xilinx_common import CRG_SE
+from mibuild.xilinx_ise import XilinxISEPlatform
 
 _io = [
 		("user_btn", 0, Pins("V4"), IOStandard("LVCMOS33"),

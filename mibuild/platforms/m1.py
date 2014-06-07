@@ -1,5 +1,6 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_ise import XilinxISEPlatform, CRG_SE
+from mibuild.xilinx_common import CRG_SE
+from mibuild.xilinx_ise import XilinxISEPlatform
 
 _io = [
 	("user_led", 0, Pins("B16"), IOStandard("LVCMOS33"), Drive(24), Misc("SLEW=QUIETIO")),

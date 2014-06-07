@@ -1,5 +1,6 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_ise import XilinxISEPlatform, CRG_DS
+from mibuild.xilinx_common import CRG_DS
+from mibuild.xilinx_ise import XilinxISEPlatform
 
 _io = [
 		("clk64", 0,
