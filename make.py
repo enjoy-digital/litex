@@ -38,6 +38,7 @@ Load/flash actions use the existing outputs, and do not trigger new builds.
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the SoC type to build")
 	parser.add_argument("-p", "--platform", default=None, help="platform to build for")
 	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
+	parser.add_argument("-Op", "--platform-option", default=[], nargs=2, action="append", help="set platform-specific option")
 	parser.add_argument("-X", "--external", default="", help="use external directory for targets, platforms and imports")
 	parser.add_argument("--csr_csv", default="csr.csv", help="CSV file to save the CSR map into")
 	
@@ -85,7 +86,8 @@ if __name__ == "__main__":
 	else:
 		platform_name = args.platform
 	platform_module = _misoc_import("mibuild.platforms", external_platform, platform_name)
-	platform = platform_module.Platform()
+	platform_kwargs = dict((k, autotype(v)) for k, v in args.platform_option)
+	platform = platform_module.Platform(**platform_kwargs)
 	if args.external:
 		platform.soc_ext_path = os.path.abspath(args.external)
 
