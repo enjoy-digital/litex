@@ -81,10 +81,7 @@ _io = [
 		IOStandard("LVCMOS25")),
 ]
 
-def Platform(*args, toolchain=None, **kwargs):
-	if toolchain is None:
-		toolchain = "ise"
-
+def Platform(*args, toolchain="ise", **kwargs):
 	if toolchain == "ise":
 		xilinx_platform = XilinxISEPlatform
 	elif toolchain == "vivado":
