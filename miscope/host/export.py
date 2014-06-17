@@ -26,7 +26,7 @@ def get_bits(values, width, low, high=None):
 		r.append(t)
 	return r
 
-class VcdDat(list):
+class Dat(list):
 	def __init__(self, width):
 		self.width = width
 
@@ -54,7 +54,7 @@ class VcdDat(list):
 		rle_bit = self[-1]
 		rle_dat = self[:self.width-1]
 
-		dat = VcdDat(self.width)
+		dat = Dat(self.width)
 		i=0
 		last = 0
 		for d in self:
@@ -98,7 +98,7 @@ class Var:
 			return r
 		return r
 
-class Vcd:
+class VCD:
 	def __init__(self, timescale="1ps", comment=""):
 		self.timescale = timescale
 		self.comment = comment
@@ -229,8 +229,67 @@ class Vcd:
 		f.write(str(self))
 		f.close()
 
+class CSV:
+	def __init__(self):
+		self.vars = []
+		self.cnt = -1
+		
+	def add(self, var):
+		self.vars.append(var)
+
+	def add_from_layout(self, layout, var):
+		i=0
+		for s, n in layout:
+			self.add(Var(s, n, var[i:i+n]))
+			i += n
+	
+	def __len__(self):
+		l = 0
+		for var in self.vars:
+			l = max(len(var),l)
+		return l
+
+	def  p_vars(self):
+		r = ""
+		for var in self.vars:
+			r += var.name
+			r += ","
+		r += "\n"
+		for var in self.vars:
+			r += str(var.width)
+			r += ","
+		r += "\n"
+		return r
+			
+	def p_dumpvars(self):
+		r  = ""
+		for i in range(len(self)):
+			for var in self.vars:
+				try:
+					var.val = var.values[i]
+				except:
+					pass
+				if var.val == "x":
+					r += "x"
+				else:
+					r += dec2bin(var.val, var.width)
+				r += ", "
+			r+= "\n"
+		return r
+
+	def __repr__(self):
+		r = ""
+		r += self.p_vars()
+		r += self.p_dumpvars()
+		return r
+		
+	def write(self, filename):
+		f = open(filename, "w")
+		f.write(str(self))
+		f.close()
+
 def main():
-	myvcd = Vcd()
+	myvcd = VCD()
 	myvcd.add(Var("foo1", 1, [0,1,0,1,0,1]))
 	myvcd.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
 	myvcd.add(Var("foo3", 3))
@@ -238,6 +297,16 @@ def main():
 	ramp = [i%128 for i in range(1024)]
 	myvcd.add(Var("ramp", 16, ramp))
 	print(myvcd)
+
+	mycsv = CSV()
+	mycsv.add(Var("foo1", 1, [0,1,0,1,0,1]))
+	mycsv.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
+	mycsv.add(Var("foo3", 3))
+	mycsv.add(Var("foo4", 4))
+	ramp = [i%128 for i in range(1024)]
+	mycsv.add(Var("ramp", 16, ramp))
+	print(mycsv)
+
 	
 if __name__ == '__main__':
   main()

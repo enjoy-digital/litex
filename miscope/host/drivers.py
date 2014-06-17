@@ -1,7 +1,7 @@
 import csv
 import time
 import sys
-from miscope.host.vcd import *
+from miscope.host.export import *
 from miscope.host.truthtable import *
 
 class MiIoDriver():
@@ -23,20 +23,19 @@ class MiIoDriver():
 		return self.miio_i.read()
 
 class MiLaDriver():
-	def __init__(self, regs, name, csv_name=None, use_rle=True):
+	def __init__(self, regs, name, config_csv=None, use_rle=True):
 		self.regs = regs
 		self.name = name
 		self.use_rle = use_rle
-
-		if csv_name is None:
-			self.csv = name + ".csv"
+		if config_csv is None:
+			self.config_csv = name + ".csv"
 		self.get_config()
 		self.get_layout()
 		self.build_mila()
-		self.dat = VcdDat(self.width)
+		self.dat = Dat(self.width)
 		
 	def get_config(self):
-		csv_reader = csv.reader(open(self.csv), delimiter=',', quotechar='#')
+		csv_reader = csv.reader(open(self.config_csv), delimiter=',', quotechar='#')
 		for item in csv_reader:
 			t, n, v = item
 			if t == "config":
@@ -44,7 +43,7 @@ class MiLaDriver():
 
 	def get_layout(self):
 		self.layout = []
-		csv_reader = csv.reader(open(self.csv), delimiter=',', quotechar='#')
+		csv_reader = csv.reader(open(self.config_csv), delimiter=',', quotechar='#')
 		for item in csv_reader:
 			t, n, v = item
 			if t == "layout":
@@ -64,10 +63,8 @@ class MiLaDriver():
 			setattr(self, name+"_m", (2**length-1) << value)
 			value += length
 
-	def show_state(self, s, last=False):
-		print(s, end="")
-		if not last:
-			print("-->", end="")
+	def show_state(self, s):
+		print(s, end="|")
 		sys.stdout.flush()
 
 	def prog_term(self, port, trigger, mask):
@@ -116,8 +113,8 @@ class MiLaDriver():
 		self.mila_recorder_length.write(length)
 		self.mila_recorder_trigger.write(1)
 
-	def read(self, vcd=None):
-		self.show_state("READ", last=not vcd)
+	def read(self):
+		self.show_state("READ")
 		empty = self.mila_recorder_read_empty.read()
 		while(not empty):
 			self.dat.append(self.mila_recorder_read_dat.read())
@@ -125,8 +122,17 @@ class MiLaDriver():
 			self.mila_recorder_read_en.write(1)
 		if self.use_rle:
 			self.dat = self.dat.decode_rle()
-		if vcd:
-			self.show_state("OUTPUT", last=True)
-			_vcd = Vcd()
-			_vcd.add_from_layout(self.layout, self.dat)
-			_vcd.write(vcd)
+		return self.dat
+
+	def export(self, export_fn=None):
+		self.show_state("EXPORT")
+		if ".vcd" in export_fn:
+			vcd = VCD()
+			vcd.add_from_layout(self.layout, self.dat)
+			vcd.write(export_fn)
+		elif ".csv" in export_fn:
+			csv = CSV()
+			csv.add_from_layout(self.layout, self.dat)
+			csv.write(export_fn)
+		else:
+				raise NotImplementedError
