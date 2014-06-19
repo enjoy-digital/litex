@@ -98,13 +98,10 @@ class Var:
 			return r
 		return r
 
-class VCD:
-	def __init__(self, timescale="1ps", comment=""):
-		self.timescale = timescale
-		self.comment = comment
+class Dump:
+	def __init__(self):
 		self.vars = []
 		self.vcd_id = "!"
-		self.cnt = -1
 		
 	def add(self, var):
 		var.set_vcd_id(self.vcd_id)
@@ -122,11 +119,18 @@ class VCD:
 		for var in self.vars:
 			l = max(len(var),l)
 		return l
-	
+
+class VCDExport():
+	def __init__(self, dump, timescale="1ps", comment=""):
+		self.dump = dump
+		self.timescale = timescale
+		self.comment = comment
+		self.cnt = -1
+
 	def change(self):
 		r = ""
 		c = ""
-		for var in self.vars:
+		for var in self.dump.vars:
 			c += var.change(self.cnt)
 		if c != "":
 			r += "#"
@@ -170,7 +174,7 @@ class VCD:
 
 	def  p_vars(self):
 		r = ""
-		for var in self.vars:
+		for var in self.dump.vars:
 			r += "$var "
 			r += var.type
 			r += " "
@@ -194,7 +198,7 @@ class VCD:
 	
 	def p_dumpvars(self):
 		r  = "$dumpvars\n"
-		for var in self.vars:
+		for var in self.dump.vars:
 			r += "b"
 			r += dec2bin(var.val, var.width)
 			r += " "
@@ -205,7 +209,7 @@ class VCD:
 		
 	def p_valuechange(self):
 		r = ""
-		for i in range(len(self)):
+		for i in range(len(self.dump)):
 			r += self.change()
 			self.cnt += 1
 		return r
@@ -223,39 +227,23 @@ class VCD:
 		r += self.p_dumpvars()
 		r += self.p_valuechange()
 		return r
-		
+
 	def write(self, filename):
 		f = open(filename, "w")
 		f.write(str(self))
 		f.close()
 
-class CSV:
-	def __init__(self):
-		self.vars = []
-		self.cnt = -1
-		
-	def add(self, var):
-		self.vars.append(var)
-
-	def add_from_layout(self, layout, var):
-		i=0
-		for s, n in layout:
-			self.add(Var(s, n, var[i:i+n]))
-			i += n
-	
-	def __len__(self):
-		l = 0
-		for var in self.vars:
-			l = max(len(var),l)
-		return l
+class CSVExport():
+	def __init__(self, dump):
+		self.dump = dump
 
 	def  p_vars(self):
 		r = ""
-		for var in self.vars:
+		for var in self.dump.vars:
 			r += var.name
 			r += ","
 		r += "\n"
-		for var in self.vars:
+		for var in self.dump.vars:
 			r += str(var.width)
 			r += ","
 		r += "\n"
@@ -263,8 +251,8 @@ class CSV:
 			
 	def p_dumpvars(self):
 		r  = ""
-		for i in range(len(self)):
-			for var in self.vars:
+		for i in range(len(self.dump)):
+			for var in self.dump.vars:
 				try:
 					var.val = var.values[i]
 				except:
@@ -282,31 +270,41 @@ class CSV:
 		r += self.p_vars()
 		r += self.p_dumpvars()
 		return r
-		
+
 	def write(self, filename):
 		f = open(filename, "w")
 		f.write(str(self))
 		f.close()
 
+class PYExport():
+	def __init__(self, dump):
+		self.dump = dump
+
+	def __repr__(self):
+		r = "dump = {\n"
+		for var in self.dump.vars:
+			r += "\"" + var.name + "\""
+			r += " : "
+			r += str(var.values)
+			r += ",\n"
+		r += "}"
+		return r
+
+	def write(self, filename):
+		f = open(filename, "w")
+		f.write(str(self))
+		f.close()		
+
 def main():
-	myvcd = VCD()
-	myvcd.add(Var("foo1", 1, [0,1,0,1,0,1]))
-	myvcd.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
-	myvcd.add(Var("foo3", 3))
-	myvcd.add(Var("foo4", 4))
+	dump = Dump()
+	dump.add(Var("foo1", 1, [0,1,0,1,0,1]))
+	dump.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
 	ramp = [i%128 for i in range(1024)]
-	myvcd.add(Var("ramp", 16, ramp))
-	print(myvcd)
-
-	mycsv = CSV()
-	mycsv.add(Var("foo1", 1, [0,1,0,1,0,1]))
-	mycsv.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
-	mycsv.add(Var("foo3", 3))
-	mycsv.add(Var("foo4", 4))
-	ramp = [i%128 for i in range(1024)]
-	mycsv.add(Var("ramp", 16, ramp))
-	print(mycsv)
-
+	dump.add(Var("ramp", 16, ramp))
+	
+	VCDExport(dump).write("mydump.vcd")
+	CSVExport(dump).write("mydump.csv")
+	PYExport(dump).write("mydump.py")
 	
 if __name__ == '__main__':
   main()

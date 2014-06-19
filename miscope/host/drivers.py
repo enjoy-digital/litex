@@ -1,7 +1,7 @@
 import csv
 import time
 import sys
-from miscope.host.export import *
+from miscope.host.dump import *
 from miscope.host.truthtable import *
 
 class MiIoDriver():
@@ -126,13 +126,13 @@ class MiLaDriver():
 
 	def export(self, export_fn=None):
 		self.show_state("EXPORT")
+		dump = Dump()
+		dump.add_from_layout(self.layout, self.dat)
 		if ".vcd" in export_fn:
-			vcd = VCD()
-			vcd.add_from_layout(self.layout, self.dat)
-			vcd.write(export_fn)
+			VCDExport(dump).write(export_fn)
 		elif ".csv" in export_fn:
-			csv = CSV()
-			csv.add_from_layout(self.layout, self.dat)
-			csv.write(export_fn)
+			CSVExport(dump).write(export_fn)
+		elif ".py" in export_fn:
+			PYExport(dump).write(export_fn)
 		else:
-				raise NotImplementedError
+			raise NotImplementedError
