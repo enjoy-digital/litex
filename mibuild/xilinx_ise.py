@@ -9,8 +9,6 @@ from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
 from mibuild import tools
 
-from mibuild.xilinx_common import CRG_SE, CRG_DS
-
 def _format_constraint(c):
 	if isinstance(c, Pins):
 		return "LOC=" + c.identifiers[0]
@@ -221,6 +219,5 @@ class XilinxISEPlatform(GenericPlatform):
 		os.chdir("..")
 
 	def add_period_constraint(self, clk, period):
-		if period is not None:
-			self.add_platform_command("""NET "{clk}" TNM_NET = "GRP{clk}";
+		self.add_platform_command("""NET "{clk}" TNM_NET = "GRP{clk}";
 TIMESPEC "TS{clk}" = PERIOD "GRP{clk}" """+str(period)+""" ns HIGH 50%;""", clk=clk)

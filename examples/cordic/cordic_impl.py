@@ -5,7 +5,8 @@ from migen.fhdl.std import *
 from migen.genlib.cordic import Cordic
 from mibuild.tools import mkdir_noerror
 from mibuild.generic_platform import *
-from mibuild.xilinx_ise import XilinxISEPlatform, CRG_SE
+from mibuild.crg import SimpleCRG
+from mibuild.xilinx_ise import XilinxISEPlatform
 
 class CordicImpl(Module):
 	def __init__(self, name, **kwargs):
@@ -38,7 +39,7 @@ class Platform(XilinxISEPlatform):
 	]
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", self._io,
-			lambda p: CRG_SE(p, "clk", "rst", 10.))
+			lambda p: SimpleCRG(p, "clk", "rst"))
 
 if __name__ == "__main__":
 	default = dict(width=16, guard=0, eval_mode="pipelined",

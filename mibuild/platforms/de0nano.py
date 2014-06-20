@@ -2,7 +2,8 @@
 # License: BSD
 
 from mibuild.generic_platform import *
-from mibuild.altera_quartus import AlteraQuartusPlatform, CRG_SE
+from mibuild.crg import SimpleCRG
+from mibuild.altera_quartus import AlteraQuartusPlatform
 
 _io = [
 	("clk50", 0, Pins("R8"), IOStandard("3.3-V LVTTL")),
@@ -92,7 +93,7 @@ _io = [
 class Platform(AlteraQuartusPlatform):
 	def __init__(self):
 		AlteraQuartusPlatform.__init__(self, "EP4CE22F17C6", _io,
-			lambda p: CRG_SE(p, "clk50", None))
+			lambda p: SimpleCRG(p, "clk50", None))
 
 	def do_finalize(self, fragment):
 		try:

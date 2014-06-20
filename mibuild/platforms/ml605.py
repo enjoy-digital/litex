@@ -54,4 +54,10 @@ _io = [
 class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6vlx240t-ff1156-1", _io,
-			lambda p: CRG_DS(p, "clk200", "user_btn", 5.0))
+			lambda p: CRG_DS(p, "clk200", "user_btn"))
+
+	def do_finalize(self, fragment):
+		try:
+			self.add_period_constraint(self.lookup_request("clk200").p, 5)
+		except ConstraintError:
+			pass

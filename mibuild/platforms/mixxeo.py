@@ -1,5 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_common import CRG_SE
+from mibuild.crg import SimpleCRG
 from mibuild.xilinx_ise import XilinxISEPlatform
 
 _io = [
@@ -156,7 +156,7 @@ _io = [
 class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
-			lambda p: CRG_SE(p, "clk50", None))
+			lambda p: SimpleCRG(p, "clk50", None))
 		self.add_platform_command("CONFIG VCCAUX=\"3.3\";\n")
 
 	def do_finalize(self, fragment):
