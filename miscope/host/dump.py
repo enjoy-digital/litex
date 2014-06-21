@@ -21,7 +21,7 @@ def get_bits(values, width, low, high=None):
 			t = t[low]
 		else:
 			t = t[low:high]
-		t = t[::1]
+		t = t[::-1]
 		t = int(t,2)
 		r.append(t)
 	return r
@@ -89,7 +89,7 @@ class Var:
 		try : 
 			if self.values[cnt+1] != self.val:
 				r += "b"
-				r += dec2bin(self.values[cnt+1], self.width)[::-1]
+				r += dec2bin(self.values[cnt+1], self.width)
 				r += " "
 				r += self.vcd_id
 				r += "\n"
