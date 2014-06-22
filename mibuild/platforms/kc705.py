@@ -1,5 +1,6 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_common import CRG_SE, CRG_DS
+from mibuild.crg import SimpleCRG
+from mibuild.xilinx_common import CRG_DS
 from mibuild.xilinx_ise import XilinxISEPlatform
 from mibuild.xilinx_vivado import XilinxVivadoPlatform
 
@@ -90,7 +91,12 @@ def Platform(*args, toolchain="ise", **kwargs):
 		raise ValueError
 
 	class RealPlatform(xilinx_platform):
-		def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset", 6.4)):
+		def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset")):
 			xilinx_platform.__init__(self, "xc7k325t-ffg900-1", _io, crg_factory)
 
+		def do_finalize(self, fragment):
+			try:
+				self.add_period_constraint(self.lookup_request("clk156").p, 6.4)
+			except ConstraintError:
+				pass
 	return RealPlatform(*args, **kwargs)

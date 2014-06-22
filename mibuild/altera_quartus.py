@@ -5,13 +5,7 @@ import os, subprocess
 
 from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild import tools
-
-class CRG_SE(SimpleCRG):
-	def __init__(self, platform, clk_name, rst_name, period, rst_invert=False):
-		SimpleCRG.__init__(self, platform, clk_name, rst_name, rst_invert)
-		platform.add_period_constraint(platform, self.cd_sys.clk, period)
 
 def _format_constraint(c):
 	if isinstance(c, Pins):

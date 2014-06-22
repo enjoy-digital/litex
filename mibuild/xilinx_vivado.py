@@ -9,8 +9,6 @@ from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
 from mibuild import tools
 
-from mibuild.xilinx_common import CRG_SE, CRG_DS
-
 def _format_constraint(c):
 	if isinstance(c, Pins):
 		return "set_property LOC " + c.identifiers[0]
@@ -101,6 +99,5 @@ class XilinxVivadoPlatform(GenericPlatform):
 		os.chdir("..")
 
 	def add_period_constraint(self, clk, period):
-		if period is not None:
-			self.add_platform_command("""create_clock -name {clk} -period """ +\
-				str(period) + """ [get_ports {clk}]""", clk=clk)
+		self.add_platform_command("""create_clock -name {clk} -period """ +\
+			str(period) + """ [get_ports {clk}]""", clk=clk)

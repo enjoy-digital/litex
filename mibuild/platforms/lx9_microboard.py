@@ -1,5 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_common import CRG_SE
+from mibuild.crg import SimpleCRG
 from mibuild.xilinx_ise import XilinxISEPlatform
 
 _io = [
@@ -109,7 +109,7 @@ promgen -w -spi -c FF -p mcs -o {build_name}.mcs -u 0 {build_name}.bit
 """
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx9-2csg324", _io,
-				lambda p: CRG_SE(p, "clk_y3", "user_btn"))
+				lambda p: SimpleCRG(p, "clk_y3", "user_btn"))
 		self.add_platform_command("""
 CONFIG VCCAUX = "3.3";
 """)
