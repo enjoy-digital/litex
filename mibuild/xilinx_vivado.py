@@ -15,9 +15,9 @@ def _format_constraint(c):
 	elif isinstance(c, IOStandard):
 		return "set_property IOSTANDARD " + c.name 
 	elif isinstance(c, Drive):
-		return "set property DRIVE " + + str(c.strength) 
+		return "set_property DRIVE " + str(c.strength)
 	elif isinstance(c, Misc):
-		return c.misc
+		return "set_property " + c.misc
 
 def _format_xdc(signame, pin, others, resname):
 	fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
