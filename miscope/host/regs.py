@@ -1,11 +1,12 @@
 import csv
 
 class MappedReg:
-	def __init__(self, readfn, writefn, name, addr, length, mode):
+	def __init__(self, readfn, writefn, name, addr, length, busword, mode):
 		self.readfn = readfn
 		self.writefn = writefn
 		self.addr = addr
 		self.length = length
+		self.busword = busword
 		self.mode = mode
 
 	def read(self):
@@ -15,14 +16,14 @@ class MappedReg:
 		for i in range(self.length):
 			r |= self.readfn(self.addr + 4*i)
 			if i != (self.length-1):
-				r <<= 8
+				r <<= self.busword
 		return r
 
 	def write(self, value):
 		if self.mode not in ["rw", "wo"]:
 			raise KeyError(name + "register not writable")
 		for i in range(self.length):
-			dat = (value >> ((self.length-1-i)*8)) & 0xff
+			dat = (value >> ((self.length-1-i)*self.busword)) & (2**self.busword-1)
 			self.writefn(self.addr + 4*i, dat)
 
 class MappedRegs:
@@ -37,12 +38,12 @@ class MappedRegs:
 
 		raise KeyError("No such register " + attr)
 
-def	build_map(addrmap, readfn, writefn):
+def	build_map(addrmap, busword, readfn, writefn):
 	csv_reader = csv.reader(open(addrmap), delimiter=',', quotechar='#')
 	d = {}
 	for item in csv_reader:
 		name, addr, length, mode = item
 		addr = int(addr.replace("0x", ""), 16)
 		length = int(length)
-		d[name] = MappedReg(readfn, writefn, name, addr, length, mode)
+		d[name] = MappedReg(readfn, writefn, name, addr, length, busword, mode)
 	return MappedRegs(d)
