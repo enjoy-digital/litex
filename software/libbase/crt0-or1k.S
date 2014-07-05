@@ -136,71 +136,7 @@ _reset_handler:
 	.org	0xf00
 	HANDLE_EXCEPTION
 
-	/* reserved */
-	.org	0x1000
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1100
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1200
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1300
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1400
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1500
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1600
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1700
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1800
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1900
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1a00
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1b00
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1c00
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1d00
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1e00
-	HANDLE_EXCEPTION
-
-	/* reserved */
-	.org	0x1f00
-	HANDLE_EXCEPTION
-
-	.org 0x2000
+	.org 0x1000
 _crt0:
 	/* Setup stack and global pointer */
 	l.movhi    r1, hi(_fstack)
