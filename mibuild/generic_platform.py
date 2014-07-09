@@ -71,6 +71,7 @@ class ConnectorManager:
 			pin_list = []
 			for pins in cit:
 				pin_list += pins.split()
+			pin_list = [None if pin == "None" else pin for pin in pin_list]
 			if conn_name in self.connector_table:
 				raise ValueError("Connector specified more than once: "+conn_name)
 			self.connector_table[conn_name] = pin_list
