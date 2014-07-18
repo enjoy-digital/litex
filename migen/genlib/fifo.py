@@ -72,17 +72,12 @@ class SyncFIFO(Module, _FIFOInterface):
 	{interface}
 	level : out
 		Number of unread entries.
-	flush : in
-		Flush the FIFO discarding pending write.
-		In the next cycle `readable` will be deasserted
-		and `writable` will be asserted, `level` will be zero.
 	"""
 	__doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
 
 	def __init__(self, width_or_layout, depth):
 		_FIFOInterface.__init__(self, width_or_layout, depth)
 
-		self.flush = Signal()
 		self.level = Signal(max=depth+1)
 
 		###
@@ -116,17 +111,12 @@ class SyncFIFO(Module, _FIFOInterface):
 		]
 		self.sync += If(do_read, _inc(consume, depth))
 
-		self.sync += [
-			If(self.flush,
-				produce.eq(0),
-				consume.eq(0),
-				self.level.eq(0),
-			).Elif(do_write,
+		self.sync += \
+			If(do_write,
 				If(~do_read, self.level.eq(self.level + 1))
 			).Elif(do_read,
 				self.level.eq(self.level - 1)
 			)
-		]
 		self.comb += [
 			self.writable.eq(self.level != depth),
 			self.readable.eq(self.level != 0)
@@ -143,15 +133,14 @@ class SyncFIFOClassic(Module, _FIFOInterface):
 		self.we = fifo.we
 		self.readable = fifo.readable
 		self.re = fifo.re
-		self.flush = fifo.flush
 		self.level = fifo.level
 
 		###
 
-		self.sync += [
-				If(self.re & self.readable,
-					self.dout_bits.eq(fifo.dout_bits),
-				)]
+		self.sync += \
+			If(self.re & self.readable,
+				self.dout_bits.eq(fifo.dout_bits),
+			)
 
 class SyncFIFOBuffered(Module, _FIFOInterface):
 	def __init__(self, width_or_layout, depth):
@@ -164,22 +153,17 @@ class SyncFIFOBuffered(Module, _FIFOInterface):
 		self.we = fifo.we
 		self.dout_bits = fifo.dout_bits
 		self.dout = fifo.dout
-		self.flush = fifo.flush
 		self.level = fifo.level
 
 		###
 
-		self.comb += [
-				fifo.re.eq(fifo.readable & (~self.readable | self.re)),
-				]
-		self.sync += [
-				If(self.flush,
-					self.readable.eq(0),
-				).Elif(fifo.re,
-					self.readable.eq(1),
-				).Elif(self.re,
-					self.readable.eq(0),
-				)]
+		self.comb += fifo.re.eq(fifo.readable & (~self.readable | self.re)),
+		self.sync += \
+			If(fifo.re,
+				self.readable.eq(1),
+			).Elif(self.re,
+				self.readable.eq(0),
+			)
 
 class AsyncFIFO(Module, _FIFOInterface):
 	"""Asynchronous FIFO (first in, first out)
