@@ -65,7 +65,7 @@ class Multiplexer(Module):
 		
 		###
 
-		case = {}
+		cases = {}
 		for i, sink in enumerate(sinks):
 			cases[i] = Record.connect(sink, self.source)
 		self.comb += Case(self.sel, cases)
