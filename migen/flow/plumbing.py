@@ -53,7 +53,7 @@ class Splitter(Module):
 			self.comb += s.stb.eq(self.sink.stb & ~already_acked[n])
 
 class Multiplexer(Module):
-	def __init__(self, n, layout):
+	def __init__(self, layout, n):
 		self.source = Source(layout)
 		sinks = []
 		for i in range(n):
