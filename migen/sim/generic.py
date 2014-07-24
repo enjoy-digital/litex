@@ -189,6 +189,6 @@ class Simulator:
 	def __exit__(self, type, value, traceback):
 		self.close()
 
-def run_simulation(fragment, ncycles=None, vcd_name=None, keep_files=False):
-	with Simulator(fragment, TopLevel(vcd_name), icarus.Runner(keep_files=keep_files)) as s:
+def run_simulation(fragment, ncycles=None, vcd_name=None, **kwargs):
+	with Simulator(fragment, TopLevel(vcd_name), icarus.Runner(**kwargs)) as s:
 		s.run(ncycles)
