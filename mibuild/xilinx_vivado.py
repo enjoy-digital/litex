@@ -17,7 +17,7 @@ def _format_constraint(c):
 	elif isinstance(c, Drive):
 		return "set_property DRIVE " + str(c.strength)
 	elif isinstance(c, Misc):
-		return "set_property " + c.misc
+		return "set_property " + c.misc.replace("=", " ")
 
 def _format_xdc(signame, pin, others, resname):
 	fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
