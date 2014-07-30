@@ -82,35 +82,28 @@ _io = [
 		IOStandard("LVCMOS25")),
 
 	("ddram", 0,
-		Subsignal("a", Pins("\
-			AH12 AG13 AG12 AF12 AJ12 AJ13 AJ14 AH14 \
-		 	AK13 AK14 AF13 AE13 AJ11 AH11 AK10 AK11"),
+		Subsignal("a", Pins(
+			"AH12 AG13 AG12 AF12 AJ12 AJ13 AJ14 AH14",
+			"AK13 AK14 AF13 AE13 AJ11 AH11 AK10 AK11"),
 			IOStandard("SSTL15")),
-		Subsignal("ba", Pins("AH9 AG9 AK9"),
-			IOStandard("SSTL15")),
-		Subsignal("cke", Pins("AF10 AE10"),
-			IOStandard("SSTL15")),
-		Subsignal("ras_n", Pins("AD9"),
-			IOStandard("SSTL15")),
-		Subsignal("cas_n", Pins("AC11"),
-			IOStandard("SSTL15")),
-		Subsignal("we_n", Pins("AE9"),
-			IOStandard("SSTL15")),
-		Subsignal("cs_n", Pins("AC12 AE8"),
-			IOStandard("SSTL15")),
-		Subsignal("odt", Pins("AD8 AC10"),
-			IOStandard("SSTL15")),
+		Subsignal("ba", Pins("AH9 AG9 AK9"), IOStandard("SSTL15")),
+		Subsignal("cke", Pins("AF10 AE10"), IOStandard("SSTL15")),
+		Subsignal("ras_n", Pins("AD9"), IOStandard("SSTL15")),
+		Subsignal("cas_n", Pins("AC11"), IOStandard("SSTL15")),
+		Subsignal("we_n", Pins("AE9"), IOStandard("SSTL15")),
+		Subsignal("cs_n", Pins("AC12 AE8"), IOStandard("SSTL15")),
+		Subsignal("odt", Pins("AD8 AC10"), IOStandard("SSTL15")),
 		Subsignal("dm", Pins("Y16 AB17 AF17 AE16 AK5 AJ3 AF6 AC7"),
 			IOStandard("SSTL15")),
-		Subsignal("dq", Pins("\
-			AA15 AA16 AC14 AD14 AA17 AB15 AE15 Y15 \
-			AB19 AD16 AC19 AD17 AA18 AB18 AE18 AD18 \
-			AG19 AK19 AG18 AF18 AH19 AJ19 AE19 AD19 \
-			AK16 AJ17 AG15 AF15 AH17 AG14 AH15 AK15 \
-			AK8 AK6 AG7 AF7 AF8 AK4 AJ8 AJ6 \
-			AH5 AH6 AJ2 AH2 AH4 AJ4 AK1 AJ1 \
-			AF1 AF2 AE4 AE3 AF3 AF5 AE1 AE5 \
-			AC1 AD3 AC4 AC5 AE6 AD6 AC2 AD4"),
+		Subsignal("dq", Pins(
+			"AA15 AA16 AC14 AD14 AA17 AB15 AE15 Y15",
+			"AB19 AD16 AC19 AD17 AA18 AB18 AE18 AD18",
+			"AG19 AK19 AG18 AF18 AH19 AJ19 AE19 AD19",
+			"AK16 AJ17 AG15 AF15 AH17 AG14 AH15 AK15",
+			"AK8 AK6 AG7 AF7 AF8 AK4 AJ8 AJ6",
+			"AH5 AH6 AJ2 AH2 AH4 AJ4 AK1 AJ1",
+			"AF1 AF2 AE4 AE3 AF3 AF5 AE1 AE5",
+			"AC1 AD3 AC4 AC5 AE6 AD6 AC2 AD4"),
 			IOStandard("SSTL15")),
 		Subsignal("dqs_p", Pins("AC16 Y19 AJ18 AH16 AH7 AG2 AG4 AD2"),
 			IOStandard("DIFF_SSTL15")),
