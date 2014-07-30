@@ -1,6 +1,7 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
 from mibuild.xilinx_ise import XilinxISEPlatform
+from mibuild.programmer import XC3SProg
 
 _io = [
 	("user_led", 0, Pins("P112"), IOStandard("LVCMOS33"), Drive(24), Misc("SLEW=QUIETIO")),
@@ -52,6 +53,9 @@ class Platform(XilinxISEPlatform):
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx9-tqg144-2", _io,
 			lambda p: SimpleCRG(p, "clk32", None), _connectors)
+
+	def create_programmer(self):
+		return XC3SProg("papilio", "bscan_spi_lx9_papilio.bit")
 
 	def do_finalize(self, fragment):
 		try:

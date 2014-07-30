@@ -1,6 +1,7 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
 from mibuild.xilinx_ise import XilinxISEPlatform
+from mibuild.programmer import UrJTAG
 
 _io = [
 	("user_led", 0, Pins("V5"), IOStandard("LVCMOS33"), Drive(24), Misc("SLEW=QUIETIO")),
@@ -158,6 +159,9 @@ class Platform(XilinxISEPlatform):
 		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
 			lambda p: SimpleCRG(p, "clk50", None))
 		self.add_platform_command("CONFIG VCCAUX=\"3.3\";\n")
+
+	def create_programmer(self):
+		return UrJTAG("fjmem-mixxeo.bit")
 
 	def do_finalize(self, fragment):
 		try:
