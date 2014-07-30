@@ -1,8 +1,8 @@
 from migen.fhdl.std import log2_int
 
 def get_sdram_phy_header(sdram_phy):
-	if sdram_phy.phy_settings.memtype not in ["SDR", "DDR", "LPDDR", "DDR2"]:
-		raise NotImplementedError("The SDRAM PHY header generator only supports SDR, DDR, LPDDR and DDR2")
+	if sdram_phy.phy_settings.memtype not in ["SDR", "DDR", "LPDDR", "DDR2", "DDR3"]:
+		raise NotImplementedError("The SDRAM PHY header generator only supports SDR, DDR, LPDDR, DDR2 and DDR3")
 
 	r = "#ifndef __GENERATED_SDRAM_PHY_H\n#define __GENERATED_SDRAM_PHY_H\n"
 	r += "#include <hw/common.h>\n#include <generated/csr.h>\n#include <hw/flags.h>\n\n"
@@ -135,6 +135,30 @@ static void command_p{n}(int cmd)
 			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200),
 			("Load Extended Mode Register / OCD Default", emr+ocd, 1, cmds["MODE_REGISTER"], 0),
 			("Load Extended Mode Register / OCD Exit", emr, 1, cmds["MODE_REGISTER"], 0),
+		]
+	elif sdram_phy.phy_settings.memtype == "DDR3":
+		bl = 2*sdram_phy.phy_settings.nphases
+		if bl is not 8:
+			raise NotImplementedError("DDR3 PHY header generator only supports BL of 8")
+		wr = cl
+		mr  = 0 + ((cl-4) << 4) + ((wr-4) << 9)
+		emr1 = 6 # Output Drive Strength RZQ/7(34 Ohms) / Rtt_nom RZQ/4
+		emr2 = 0 
+		emr3 = 0
+		reset_dll = 1 << 8
+
+		init_sequence = [
+			("Bring CKE high", 0x0000, 0, cmds["CKE"], 2000),
+			("Precharge All",  0x0400, 0, cmds["PRECHARGE_ALL"], 0),
+			("Load Extended Mode Register 3", emr3, 3, cmds["MODE_REGISTER"], 0),
+			("Load Extended Mode Register 2", emr2, 2, cmds["MODE_REGISTER"], 0),
+			("Load Extended Mode Register 1", emr1, 1, cmds["MODE_REGISTER"], 0),
+			("Load Mode Register / Reset DLL, CL={0:d}, BL={1:d}".format(cl, bl), mr + reset_dll, 0, cmds["MODE_REGISTER"], 200),
+			("Precharge All", 0x0400, 0, cmds["PRECHARGE_ALL"], 0),
+			("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
+			("Auto Refresh", 0x0, 0, cmds["AUTO_REFRESH"], 4),
+			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200),
+			("ZQ Calibration", 0x0400, 0, "DFII_COMMAND_WE|DFII_COMMAND_CS", 200),
 		]
 
 	for comment, a, ba, cmd, delay in init_sequence:
