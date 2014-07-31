@@ -2,55 +2,52 @@ from migen.fhdl.std import *
 from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 from migen.bank.eventmanager import *
+from migen.genlib.record import Record
+from migen.sim.generic import Simulator, TopLevel
+from migen.sim import icarus
 
 class UART(Module, AutoCSR):
 	def __init__(self, pads, clk_freq, baud=115200):
-		self._rxtx = CSR(8)
-		self._divisor = CSRStorage(16, reset=int(clk_freq/baud/16))
-		
+		self._r_rxtx = CSR(8)
+
 		self.submodules.ev = EventManager()
 		self.ev.tx = EventSourceProcess()
 		self.ev.rx = EventSourcePulse()
 		self.ev.finalize()
-	
+
+		# Tuning word value
+		tuning_word=int((baud/clk_freq)*2**32)
+		self._r_tuning_word = CSRStorage(32, reset=tuning_word)
+
 		###
+
+		uart_clk_rxen = Signal()
+		uart_clk_txen = Signal()
+		phase_accumulator_rx = Signal(32)
+		phase_accumulator_tx = Signal(32)
 
 		pads.tx.reset = 1
 
-		enable16 = Signal()
-		enable16_counter = Signal(16)
-		self.comb += enable16.eq(enable16_counter == 0)
-		self.sync += [
-			enable16_counter.eq(enable16_counter - 1),
-			If(enable16,
-				enable16_counter.eq(self._divisor.storage - 1))
-		]
-		
 		# TX
 		tx_reg = Signal(8)
 		tx_bitcount = Signal(4)
-		tx_count16 = Signal(4)
 		tx_busy = self.ev.tx.trigger
 		self.sync += [
-			If(self._rxtx.re,
-				tx_reg.eq(self._rxtx.r),
+			If(self._r_rxtx.re,
+				tx_reg.eq(self._r_rxtx.r),
 				tx_bitcount.eq(0),
-				tx_count16.eq(1),
 				tx_busy.eq(1),
 				pads.tx.eq(0)
-			).Elif(enable16 & tx_busy,
-				tx_count16.eq(tx_count16 + 1),
-				If(tx_count16 == 0,
-					tx_bitcount.eq(tx_bitcount + 1),
-					If(tx_bitcount == 8,
-						pads.tx.eq(1)
-					).Elif(tx_bitcount == 9,
-						pads.tx.eq(1),
-						tx_busy.eq(0)
-					).Else(
-						pads.tx.eq(tx_reg[0]),
-						tx_reg.eq(Cat(tx_reg[1:], 0))
-					)
+			).Elif(uart_clk_txen & tx_busy,
+				tx_bitcount.eq(tx_bitcount + 1),
+				If(tx_bitcount == 8,
+					pads.tx.eq(1)
+				).Elif(tx_bitcount == 9,
+					pads.tx.eq(1),
+					tx_busy.eq(0)
+				).Else(
+					pads.tx.eq(tx_reg[0]),
+					tx_reg.eq(Cat(tx_reg[1:], 0))
 				)
 			)
 		]
@@ -61,39 +58,144 @@ class UART(Module, AutoCSR):
 		rx_r = Signal()
 		rx_reg = Signal(8)
 		rx_bitcount = Signal(4)
-		rx_count16 = Signal(4)
 		rx_busy = Signal()
 		rx_done = self.ev.rx.trigger
-		rx_data = self._rxtx.w
+		rx_data = self._r_rxtx.w
 		self.sync += [
 			rx_done.eq(0),
-			If(enable16,
-				rx_r.eq(rx),
-				If(~rx_busy,
-					If(~rx & rx_r, # look for start bit
-						rx_busy.eq(1),
-						rx_count16.eq(7),
-						rx_bitcount.eq(0)
-					)
-				).Else(
-					rx_count16.eq(rx_count16 + 1),
-					If(rx_count16 == 0,
-						rx_bitcount.eq(rx_bitcount + 1),
-
-						If(rx_bitcount == 0,
-							If(rx, # verify start bit
-								rx_busy.eq(0)
-							)
-						).Elif(rx_bitcount == 9,
-							rx_busy.eq(0),
-							If(rx, # verify stop bit
-								rx_data.eq(rx_reg),
-								rx_done.eq(1)
-							)
-						).Else(
-							rx_reg.eq(Cat(rx_reg[1:], rx))
+			rx_r.eq(rx),
+			If(~rx_busy,
+				If(~rx & rx_r, # look for start bit
+					rx_busy.eq(1),
+					rx_bitcount.eq(0),
+				)
+			).Else(
+				If(uart_clk_rxen,
+					rx_bitcount.eq(rx_bitcount + 1),
+					If(rx_bitcount == 0,
+						If(rx, # verify start bit
+							rx_busy.eq(0)
 						)
+					).Elif(rx_bitcount == 9,
+						rx_busy.eq(0),
+						If(rx, # verify stop bit
+							rx_data.eq(rx_reg),
+							rx_done.eq(1)
+						)
+					).Else(
+						rx_reg.eq(Cat(rx_reg[1:], rx))
 					)
 				)
 			)
 		]
+
+
+		self.sync += [
+				If(rx_busy,
+					Cat(phase_accumulator_rx, uart_clk_rxen).eq(phase_accumulator_rx + self._r_tuning_word.storage)
+				).Else(
+					Cat(phase_accumulator_rx, uart_clk_rxen).eq(2**31)
+				),
+
+				If(tx_busy,
+					Cat(phase_accumulator_tx, uart_clk_txen).eq(phase_accumulator_tx + self._r_tuning_word.storage)
+				).Else(
+					Cat(phase_accumulator_tx, uart_clk_txen).eq(0)
+				)
+			     ]
+
+class UARTTB(Module):
+	def __init__(self):
+		MHz=1000000
+		self.clk_freq = 83333333
+		self.baud = 3*MHz
+		self.pads = Record([("rx", 1), ("tx", 1)])
+		self.submodules.slave = UART(self.pads, self.clk_freq, self.baud)
+
+	def wait_for(self, ns_time):
+		freq_in_ghz = self.clk_freq/(10**9)
+		period = 1/freq_in_ghz
+		num_loops = int(ns_time/period)
+		for i in range(num_loops+1):
+			yield
+
+	def gen_simulation(self, selfp):
+		baud_in_ghz = self.baud/(10**9)
+		uart_period = int(1/baud_in_ghz)
+		half_uart_period = int(1/(2*baud_in_ghz))
+
+		# Set TX an RX lines idle
+		selfp.pads.tx = 1
+		selfp.pads.rx = 1
+		yield
+
+		# First send a few characters
+
+		tx_string = "01234"
+		print("Sending string: " + tx_string)
+		for c in tx_string:
+			while selfp.slave.ev.tx.trigger == 1:
+				yield
+			selfp.slave._r_rxtx.r = ord(c)
+			selfp.slave._r_rxtx.re = 1
+			yield
+			selfp.slave._r_rxtx.re = 0
+
+			yield from self.wait_for(half_uart_period)
+
+			if selfp.pads.tx:
+				print("FAILURE: no start bit sent")
+
+			val = 0
+			for i in range(8):
+				yield from self.wait_for(uart_period)
+				val >>= 1
+				if selfp.pads.tx:
+					val |= 0x80
+
+			yield from self.wait_for(uart_period)
+
+			if selfp.pads.tx == 0:
+				print("FAILURE: no stop bit sent")
+
+			if ord(c) != val:
+				print("FAILURE: sent decimal value "+str(val)+" (char "+chr(val)+") instead of "+c)
+			else:
+				print("SUCCESS: sent "+c)
+
+		# Then receive a character
+
+		rx_string = '5'
+		print("Receiving character "+rx_string)
+		rx_value = ord(rx_string)
+		for i in range(11):
+			if (i == 0):
+				# start bit
+				selfp.pads.rx = 0
+			elif (i == 9):
+				# stop bit
+				selfp.pads.rx = 1
+			elif (i == 10):
+				selfp.pads.rx = 1
+				break
+			else:
+				selfp.pads.rx = 1 if (rx_value & 1) else 0
+				rx_value >>= 1
+			yield from self.wait_for(uart_period)
+
+		rx_value = ord(rx_string)
+		received_value = selfp.slave._r_rxtx.w
+		if (received_value == rx_value):
+			print("RX SUCCESS: ")
+		else:
+			print("RX FAILURE: ")
+
+		print("received "+chr(received_value))
+
+		while True:
+			yield
+
+
+if __name__ == "__main__":
+	with Simulator(UARTTB(), TopLevel("top.vcd", clk_period=int(1/0.08333333)), icarus.Runner(keep_files=False)) as s:
+		s.run(20000)
