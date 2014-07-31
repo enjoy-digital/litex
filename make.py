@@ -8,7 +8,6 @@ from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
 from misoclib.sdramphy import initsequence
-import programmer
 
 def _get_args():
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -198,10 +197,12 @@ CPU type:  {}
 		platform.build(soc, build_name=build_name, **build_kwargs)
 
 	if actions["load-bitstream"] or actions["flash-bitstream"] or actions["flash-bios"]:
-		prog = programmer.create_programmer(platform.name, args.flash_proxy_dir)
+		prog = platform.create_programmer()
 		if actions["load-bitstream"]:
 			prog.load_bitstream("build/" + build_name + platform.bitstream_ext)
 		if actions["flash-bitstream"]:
+			if prog.needs_flash_proxy:
+				prog.set_flash_proxy_dir(args.flash_proxy_dir)
 			if prog.needs_bitreverse:
 				flashbit = "build/" + build_name + ".fpg"
 				subprocess.call(["tools/byteswap",
