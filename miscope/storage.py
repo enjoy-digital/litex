@@ -75,7 +75,7 @@ class Recorder(Module, AutoCSR):
 
 		###
 
-		fifo = SyncFIFO(width, depth)
+		fifo = InsertReset(SyncFIFO(width, depth))
 		self.submodules += fifo
 
 		fsm = FSM(reset_state="IDLE")
@@ -90,7 +90,7 @@ class Recorder(Module, AutoCSR):
 		fsm.act("IDLE",
 			If(self._r_trigger.re & self._r_trigger.r,
 				NextState("PRE_HIT_RECORDING"),
-				fifo.flush.eq(1),
+				fifo.reset.eq(1),
 			),
 			fifo.re.eq(self._r_read_en.re & self._r_read_en.r),
 			self._r_done.status.eq(1)
