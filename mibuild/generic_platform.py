@@ -222,12 +222,20 @@ class GenericPlatform:
 		for f in filenames:
 			self.add_source(os.path.join(path, f), language)
 
-	def add_source_dir(self, path):
-		for root, dirs, files in os.walk(path):
-			for filename in files:
-				language = tools.language_by_filename(filename)
-				if language is not None:
-					self.add_source(os.path.join(root, filename), language)
+	def add_source_dir(self, path, recursive=True):
+		dir_files = []
+		if recursive:
+			for root, dirs, files in os.walk(path):
+				for filename in files:
+					dir_files.append(os.path.join(root, filename))
+		else:
+			for item in os.listdir(path):
+				if os.path.isfile(os.path.join(path, item)):
+					dir_files.append(os.path.join(path, item))
+		for filename in dir_files:
+			language = tools.language_by_filename(filename)
+			if language is not None:
+				self.add_source(filename, language)
 
 	def add_verilog_include_path(self, path):
 		self.verilog_include_paths.append(os.path.abspath(path))
