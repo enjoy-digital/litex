@@ -37,7 +37,7 @@ def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only):
 
 	size = nwords*busword
 	if size > 64:
-		raise NotImplementedError("Register too large")
+		return r
 	elif size > 32:
 		ctype = "unsigned long long int"
 	elif size > 16:
