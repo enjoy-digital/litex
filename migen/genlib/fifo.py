@@ -75,7 +75,7 @@ class SyncFIFO(Module, _FIFOInterface):
 	"""
 	__doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
 
-	def __init__(self, width_or_layout, depth):
+	def __init__(self, width_or_layout, depth, fwft=True):
 		_FIFOInterface.__init__(self, width_or_layout, depth)
 
 		self.level = Signal(max=depth+1)
@@ -103,12 +103,14 @@ class SyncFIFO(Module, _FIFOInterface):
 		]
 		self.sync += If(do_write, _inc(produce, depth))
 
-		rdport = storage.get_port(async_read=True)
+		rdport = storage.get_port(async_read=fwft, has_re=not fwft)
 		self.specials += rdport
 		self.comb += [
 			rdport.adr.eq(consume),
 			self.dout_bits.eq(rdport.dat_r)
 		]
+		if not fwft:
+			self.comb += rdport.re.eq(do_read)
 		self.sync += If(do_read, _inc(consume, depth))
 
 		self.sync += \
@@ -122,30 +124,10 @@ class SyncFIFO(Module, _FIFOInterface):
 			self.readable.eq(self.level != 0)
 		]
 
-class SyncFIFOClassic(Module, _FIFOInterface):
-	def __init__(self, width_or_layout, depth):
-		_FIFOInterface.__init__(self, width_or_layout, depth)
-		self.submodules.fifo = fifo = SyncFIFO(width_or_layout, depth)
-
-		self.writable = fifo.writable
-		self.din_bits = fifo.din_bits
-		self.din = fifo.din
-		self.we = fifo.we
-		self.readable = fifo.readable
-		self.re = fifo.re
-		self.level = fifo.level
-
-		###
-
-		self.sync += \
-			If(self.re & self.readable,
-				self.dout_bits.eq(fifo.dout_bits),
-			)
-
 class SyncFIFOBuffered(Module, _FIFOInterface):
 	def __init__(self, width_or_layout, depth):
 		_FIFOInterface.__init__(self, width_or_layout, depth)
-		self.submodules.fifo = fifo = SyncFIFOClassic(width_or_layout, depth)
+		self.submodules.fifo = fifo = SyncFIFO(width_or_layout, depth, False)
 
 		self.writable = fifo.writable
 		self.din_bits = fifo.din_bits
