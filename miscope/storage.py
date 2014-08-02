@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
-from migen.genlib.fifo import SyncFIFO
+from migen.genlib.fifo import SyncFIFOBuffered as SyncFIFO
 from migen.genlib.fsm import FSM, NextState
 
 from miscope.std import *
