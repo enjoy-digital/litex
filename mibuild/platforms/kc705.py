@@ -117,7 +117,7 @@ _io = [
 	),
 ]
 
-def Platform(*args, toolchain="ise", **kwargs):
+def Platform(*args, toolchain="vivado", **kwargs):
 	if toolchain == "ise":
 		xilinx_platform = XilinxISEPlatform
 	elif toolchain == "vivado":
