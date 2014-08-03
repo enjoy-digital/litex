@@ -36,7 +36,7 @@ class MiLa(Module, AutoCSR):
 			recorder_dat_source = self.rle.source
 		self.comb += recorder_dat_source.connect(recorder.dat_sink)
 
-	def get_csv(self, layout):
+	def get_csv(self, layout, ns):
 		r = ""
 		def format_line(*args):
 			return ",".join(args) + "\n"
@@ -46,5 +46,5 @@ class MiLa(Module, AutoCSR):
 		r += format_line("config", "with_rle", str(int(self.with_rle)))
 
 		for e in layout:
-			r += format_line("layout", e.backtrace[-1][0], str(flen(e)))
+			r += format_line("layout", ns.get_name(e), str(flen(e)))
 		return r

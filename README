@@ -41,8 +41,8 @@ RangeDetector and EdgeDector terms not tested.
 
 [> Examples:
 Have a look at http://github.com/Florent-Kermarrec/misoc-de0nano
-miio.py : Led & Switch Test controlled by Python Host.
-mila.py : Logic Analyzer controlled by Python Host.
+test_miio.py : Led & Switch Test controlled by Python Host.
+test_mila.py : Logic Analyzer controlled by Python Host.
 
 [> Contact
 E-mail: florent@enjoy-digital.fr
