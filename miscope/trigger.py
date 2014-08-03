@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.fhdl.specials import Memory
 from migen.bank.description import *
+from migen.genlib.record import *
 
 from miscope.std import *
 
@@ -8,8 +9,8 @@ class Term(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 
-		self.sink = rec_dat(width)
-		self.source = rec_hit()
+		self.sink = Record(dat_layout(width))
+		self.source = Record(hit_layout())
 
 		self._r_trig = CSRStorage(width)
 		self._r_mask = CSRStorage(width)
@@ -21,7 +22,7 @@ class Term(Module, AutoCSR):
 		dat = self.sink.dat
 		hit = self.source.hit
 
-		self.comb +=[
+		self.comb += [
 			hit.eq((dat & mask) == trig),
 			self.source.stb.eq(self.sink.stb)
 		]
@@ -30,8 +31,8 @@ class RangeDetector(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 
-		self.sink = rec_dat(width)
-		self.source = rec_hit()
+		self.sink = Record(dat_layout(width))
+		self.source = Record(hit_layout())
 
 		self._r_low = CSRStorage(width)
 		self._r_high = CSRStorage(width)
@@ -43,18 +44,17 @@ class RangeDetector(Module, AutoCSR):
 		dat = self.sink.dat
 		hit = self.source.hit
 
-		self.comb +=[
+		self.comb += [
 			hit.eq((dat >= low) & (dat <= high)),
 			self.source.stb.eq(self.sink.stb)
 		]
-
 
 class EdgeDetector(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 		
-		self.sink = rec_dat(width)
-		self.source = rec_hit()
+		self.sink = Record(dat_layout(width))
+		self.source = Record(hit_layout())
 
 		self._r_rising_mask = CSRStorage(width)
 		self._r_falling_mask = CSRStorage(width)
@@ -75,7 +75,7 @@ class EdgeDetector(Module, AutoCSR):
 
 		self.sync += dat_d.eq(dat)
 
-		self.comb +=[
+		self.comb += [
 			rising_hit.eq(rising_mask & dat & ~dat_d),
 			falling_hit.eq(rising_mask & ~dat & dat_d),
 			both_hit.eq((both_mask & dat) != (both_mask & dat_d)),
@@ -85,9 +85,9 @@ class EdgeDetector(Module, AutoCSR):
 
 class Sum(Module, AutoCSR):
 	def __init__(self, ports=4):
-		
-		self.sinks = [rec_hit() for p in range(ports)]
-		self.source = rec_hit()
+
+		self.sinks = [Record(hit_layout()) for p in range(ports)]
+		self.source = Record(hit_layout())
 		
 		self._r_prog_we = CSRStorage()
 		self._r_prog_adr = CSRStorage(ports) #FIXME
@@ -102,7 +102,7 @@ class Sum(Module, AutoCSR):
 		###
 
 		# Lut prog
-		self.comb +=[
+		self.comb += [
 			prog_port.we.eq(self._r_prog_we.storage),
 			prog_port.adr.eq(self._r_prog_adr.storage),
 			prog_port.dat_w.eq(self._r_prog_dat.storage)
@@ -113,7 +113,7 @@ class Sum(Module, AutoCSR):
 			self.comb += lut_port.adr[i].eq(sink.hit)
 
 		# Drive source
-		self.comb +=[
+		self.comb += [
 			self.source.stb.eq(optree("&", [sink.stb for sink in self.sinks])),
 			self.source.hit.eq(lut_port.dat_r),
 		]
@@ -123,22 +123,18 @@ class Trigger(Module, AutoCSR):
 	def __init__(self, width, ports):
 		self.width = width
 		self.ports = ports
-		
+
 		self.submodules.sum = Sum(len(ports))
-
-		# FIXME : when self.submodules +=  is used, 
-		# get_csrs() is not called
 		for i, port in enumerate(ports):
-			tmp = "self.submodules.port"+str(i)+" = port"
-			exec(tmp)
+			setattr(self.submodules, "port"+str(i), port)
 
-		self.sink   = rec_dat(width)
+		self.sink   = Record(dat_layout(width))
 		self.source = self.sum.source
-		self.busy = Signal()
 
 		###
+
 		for i, port in enumerate(ports):
-			self.comb +=[
+			self.comb += [
 				self.sink.connect(port.sink),
 				port.source.connect(self.sum.sinks[i])
 			]

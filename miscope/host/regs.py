@@ -35,7 +35,6 @@ class MappedRegs:
 			return self.__dict__['d'][attr]
 		except KeyError:
 			pass
-
 		raise KeyError("No such register " + attr)
 
 def	build_map(addrmap, busword, readfn, writefn):

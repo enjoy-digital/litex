@@ -11,7 +11,7 @@ class MiIo(Module, AutoCSR):
 		self._r_i = CSRStatus(width)
 		self._r_o = CSRStorage(width)
 
-		self.sync +=[
+		self.sync += [
 			self._r_i.status.eq(self.i),
 			self.o.eq(self._r_o.storage)
 		]

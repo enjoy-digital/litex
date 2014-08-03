@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.fifo import SyncFIFOBuffered as SyncFIFO
 from migen.genlib.fsm import FSM, NextState
+from migen.genlib.record import *
 
 from miscope.std import *
 
@@ -10,8 +11,8 @@ class RunLengthEncoder(Module, AutoCSR):
 		self.width = width
 		self.length = length
 
-		self.sink = rec_dat(width)
-		self.source = rec_dat(width)
+		self.sink = Record(dat_layout(width))
+		self.source = Record(dat_layout(width))
 
 		self._r_enable = CSRStorage()
 		
@@ -19,7 +20,7 @@ class RunLengthEncoder(Module, AutoCSR):
 
 		enable = self._r_enable.storage
 
-		sink_d = rec_dat(width)
+		sink_d = Record(dat_layout(width))
 		self.sync += If(self.sink.stb, sink_d.eq(self.sink))
 
 		cnt = Signal(max=length)
@@ -61,8 +62,8 @@ class Recorder(Module, AutoCSR):
 	def __init__(self, width, depth):
 		self.width = width
 
-		self.trig_sink = rec_hit()
-		self.dat_sink = rec_dat(width)
+		self.trig_sink = Record(hit_layout())
+		self.dat_sink = Record(dat_layout(width))
 
 		self._r_trigger = CSR()
 		self._r_length = CSRStorage(bits_for(depth))

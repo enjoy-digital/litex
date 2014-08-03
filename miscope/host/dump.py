@@ -67,7 +67,7 @@ class Dat(list):
 				dat.append(d)
 				last = d
 			i +=1
-		return dat 
+		return dat
 
 class Var:
 	def __init__(self, name, width, values=[], type="wire", default="x"):
@@ -147,25 +147,25 @@ class VCDExport():
 		r += "\n"
 		r += "$end\n"
 		return r
-		
+
 	def p_version(self):
 		r  = "$version\n"
 		r += "\tmiscope VCD dump\n"
 		r += "$end\n"
 		return r
-		
+
 	def p_comment(self):
 		r  = "$comment\n"
 		r += self.comment
 		r += "\n$end\n"
 		return r
-		
+
 	def p_timescale(self):
 		r  = "$timescale "
 		r += self.timescale
 		r += " $end\n"
 		return r
-		
+
 	def p_scope(self):
 		r  = "$scope "
 		r += self.timescale
@@ -185,17 +185,17 @@ class VCDExport():
 			r += var.name
 			r += " $end\n"
 		return r
-		
+
 	def p_unscope(self):
 		r  = "$unscope "
 		r += " $end\n"
 		return r
-	
+
 	def p_enddefinitions(self):
 		r  = "$enddefinitions "
 		r += " $end\n"
 		return r
-	
+
 	def p_dumpvars(self):
 		r  = "$dumpvars\n"
 		for var in self.dump.vars:
@@ -206,7 +206,7 @@ class VCDExport():
 			r+= "\n"
 		r += "$end\n"
 		return r
-		
+
 	def p_valuechange(self):
 		r = ""
 		for i in range(len(self.dump)):
@@ -248,7 +248,7 @@ class CSVExport():
 			r += ","
 		r += "\n"
 		return r
-			
+
 	def p_dumpvars(self):
 		r  = ""
 		for i in range(len(self.dump)):
@@ -293,7 +293,7 @@ class PYExport():
 	def write(self, filename):
 		f = open(filename, "w")
 		f.write(str(self))
-		f.close()		
+		f.close()
 
 def main():
 	dump = Dump()
@@ -305,7 +305,7 @@ def main():
 	VCDExport(dump).write("mydump.vcd")
 	CSVExport(dump).write("mydump.csv")
 	PYExport(dump).write("mydump.py")
-	
+
 if __name__ == '__main__':
   main()
 

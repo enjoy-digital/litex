@@ -3,19 +3,19 @@ import re
 import sys
 
 def is_number(x):
-    try:
-        _ = float(x)
-    except ValueError:
-        return False
-    return True
+	try:
+		_ = float(x)
+	except ValueError:
+		return False
+	return True
 
 def remove_numbers(seq):
-	return [ x for x in seq if not is_number(x)]
+	return [x for x in seq if not is_number(x)]
 
 def remove_duplicates(seq):
 	seen = set()
 	seen_add = seen.add
-	return [ x for x in seq if x not in seen and not seen_add(x)]
+	return [x for x in seq if x not in seen and not seen_add(x)]
 
 def get_operands(s):
 	operands = re.findall("[A-z0-9_]+", s)

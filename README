@@ -15,18 +15,18 @@
 Miscope is a small logic analyzer to embed in an FPGA.
 
 While free vendor toolchains are generally used by beginners or for prototyping 
-(situations where having a logic analyser in the design is generally helpful) 
+(situations where having a logic analyzer in the design is generally helpful) 
 free toolchains are always provided without the proprietary logic analyzer 
 solution... :(
 
-Based on Migen, Miscope aims to provide a free, portable and flexible 
-alternative to vendor's solutions!
+Baseid on Migen, Miscope aims to provide a free, portable and flexible 
+alternatve to vendor's solutions!
 
 [> Specification:
 
 Miscope provides Migen cores to embed in the design and Python drivers to control
 the logic analyzer from the Host. Miscope automatically interconnects all cores 
-to a CSR bus. When using Python on the Host, no needs to worry aboutcores register
+to a CSR bus. When using Python on the Host, no needs to worry about cores register
 mapping, importing miscope project gives you direct access to all the cores!
 
 Miscope produces .vcd output files to be analyzed in your favorite waveform viewer.
@@ -35,14 +35,14 @@ Since Miscope also provides an Uart2Wishbone bridge, you only need 2 external Rx
 pins to be ready to debug!
 
 [> Status:
-Miio & Mila working on board with standard term.
+MiIo & Mila working on board with standard term.
 RLE working on board.
 RangeDetector and EdgeDector terms not tested.
 
 [> Examples:
 Have a look at http://github.com/Florent-Kermarrec/misoc-de0nano
-miscope_miio.py : Led & Switch Test controlled by Python Host.
-miscope_mila.py : Logic Analyzer controlled by Python Host.
+miio.py : Led & Switch Test controlled by Python Host.
+mila.py : Logic Analyzer controlled by Python Host.
 
 [> Contact
 E-mail: florent@enjoy-digital.fr

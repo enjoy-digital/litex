@@ -7,36 +7,28 @@ from migen.genlib.misc import split, displacer, chooser
 from migen.bank.description import *
 from migen.bus import wishbone
 
-
-# Todo
-# ----
-# - implement timeout in fsm to prevent deadlocks
-
-def rec_rx():
-	layout = [
+def rx_layout():
+	return [
 			("stb", 1, DIR_M_TO_S),
 			("dat", 8, DIR_M_TO_S)
-		]
-	return Record(layout)
+	]
 
-def rec_tx():
-	layout = [
+def tx_layout():
+	return [
 			("stb", 1, DIR_M_TO_S),
 			("ack", 1, DIR_S_TO_M),
 			("dat", 8, DIR_M_TO_S)
-		]
-	return Record(layout)
+	]
 
 class UART(Module):
 	def __init__(self, pads, clk_freq, baud=115200):
-
-		self.rx = rec_rx()
-		self.tx = rec_tx()
+		self.rx = Record(rx_layout())
+		self.tx = Record(tx_layout())
 
 		self.divisor = Signal(16, reset=int(clk_freq/baud/16))
 
 		pads.tx.reset = 1
-	
+
 		###
 
 		enable16 = Signal()
@@ -47,7 +39,7 @@ class UART(Module):
 			If(enable16,
 				enable16_counter.eq(self.divisor - 1))
 		]
-		
+
 		# TX
 		tx_reg = Signal(8)
 		tx_bitcount = Signal(4)
@@ -81,7 +73,7 @@ class UART(Module):
 				)
 			)
 		]
-		
+
 		# RX
 		rx = Signal()
 		self.specials += MultiReg(pads.rx, rx, "sys")
@@ -156,7 +148,6 @@ class UARTMux(Module):
 		# Route only selected module to Tx pad
 		pads_tx = [self.pads[i].tx for i in range(nb)]
 		self.comb += chooser(Cat(pads_tx), self.sel, pads.tx, n=nb)
-
 
 class UART2Wishbone(Module, AutoCSR):
 	WRITE_CMD = 0x01
@@ -294,4 +285,3 @@ class UART2Wishbone(Module, AutoCSR):
 			).Elif(fsm.ongoing("READ_DATA") & self.wishbone.stb & self.wishbone.ack,
 				data.eq(self.wishbone.dat_r)
 			)
-

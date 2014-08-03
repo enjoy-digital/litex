@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
 from migen.bank.description import *
+from migen.genlib.record import *
 
 from miscope.std import *
 from miscope.trigger import Trigger
@@ -12,7 +13,7 @@ class MiLa(Module, AutoCSR):
 		self.with_rle = with_rle
 		self.ports = ports
 
-		self.sink = rec_dat(width)
+		self.sink = Record(dat_layout(width))
 
 		trigger = Trigger(width, ports)
 		recorder = Recorder(width, depth)
@@ -20,7 +21,7 @@ class MiLa(Module, AutoCSR):
 		self.submodules.trigger = trigger
 		self.submodules.recorder = recorder
 
-		sink_d = rec_dat(width)
+		sink_d = Record(dat_layout(width))
 		self.sync += sink_d.eq(self.sink)
 
 		self.comb += [

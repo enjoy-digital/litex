@@ -26,7 +26,7 @@ class Uart2Wishbone:
 			self.regs.uart2wb_sel.write(1)
 		except:
 			pass
-		
+
 	def close(self):
 		try:
 			self.regs.uart2wb_sel.write(0)
