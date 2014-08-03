@@ -57,7 +57,7 @@ class _CRG(Module):
 				i_C0=self.cd_sys.clk, i_C1=~self.cd_sys.clk,
 				o_Q=platform.request("sdram_clock"))
 
-class SimpleSoC(SDRAMSoC):
+class BaseSoC(SDRAMSoC):
 	default_platform = "papilio_pro"
 
 	def __init__(self, platform, **kwargs):
@@ -92,4 +92,4 @@ class SimpleSoC(SDRAMSoC):
 		self.flash_boot_address = 0x70000
 		self.register_rom(self.spiflash.bus)
 
-default_subtarget = SimpleSoC
+default_subtarget = BaseSoC

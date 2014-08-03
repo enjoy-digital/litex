@@ -4,7 +4,7 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import lasmicon, mxcrg, norflash16, minimac3, framebuffer, dvisampler, gpio
+from misoclib import lasmicon, mxcrg, norflash16, minimac3, framebuffer, gpio
 from misoclib.sdramphy import s6ddrphy
 from misoclib.gensoc import SDRAMSoC
 
@@ -25,25 +25,8 @@ class _MXClockPads:
 		self.eth_rx_clk = eth_clocks.rx
 		self.eth_tx_clk = eth_clocks.tx
 
-class MiniSoC(SDRAMSoC):
+class BaseSoC(SDRAMSoC):
 	default_platform = "mixxeo" # also supports m1
-
-	csr_map = {
-		"minimac":				10,
-		"fb":					11,
-		"dvisampler0":			12,
-		"dvisampler0_edid_mem":	13,
-		"dvisampler1":			14,
-		"dvisampler1_edid_mem":	15,
-	}
-	csr_map.update(SDRAMSoC.csr_map)
-
-	interrupt_map = {
-		"minimac":		2,
-		"dvisampler0":	3,
-		"dvisampler1":	4,
-	}
-	interrupt_map.update(SDRAMSoC.interrupt_map)
 
 	def __init__(self, platform, **kwargs):
 		SDRAMSoC.__init__(self, platform,
@@ -72,25 +55,12 @@ class MiniSoC(SDRAMSoC):
 			rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
 		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 
-		# Wishbone
 		self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
 			self.ns(110), self.ns(50))
 		self.flash_boot_address = 0x001a0000
 		self.register_rom(self.norflash.bus)
 
-		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
-		self.add_wb_slave(lambda a: a[26:29] == 3, self.minimac.membus)
-		self.add_cpu_memory_region("minimac_mem", 0xb0000000, 0x1800)
-		
-		# CSR
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
-		if platform.name == "mixxeo":
-			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
-		if platform.name == "m1":
-			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
-			self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", i) for i in range(2)))
-
-		# Clock glue
 		self.comb += [
 			self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
 			self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
@@ -101,12 +71,34 @@ INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
 PIN "mxcrg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 """)
+		platform.add_source_dir(os.path.join("verilog", "mxcrg"))
 
-		# add Verilog sources
-		for d in ["mxcrg", "minimac3"]:
-			platform.add_source_dir(os.path.join("verilog", d))
-		
-def _get_vga_dvi(platform):
+class MiniSoC(BaseSoC):
+	csr_map = {
+		"minimac":		10,
+	}
+	csr_map.update(BaseSoC.csr_map)
+
+	interrupt_map = {
+		"minimac":		2,
+	}
+	interrupt_map.update(BaseSoC.interrupt_map)
+
+	def __init__(self, platform, **kwargs):
+		BaseSoC.__init__(self, platform, **kwargs)
+
+		if platform.name == "mixxeo":
+			self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
+		if platform.name == "m1":
+			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
+			self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", i) for i in range(2)))
+
+		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
+		self.add_wb_slave(lambda a: a[26:29] == 3, self.minimac.membus)
+		self.add_cpu_memory_region("minimac_mem", 0xb0000000, 0x1800)
+		platform.add_source_dir(os.path.join("verilog", "minimac3"))
+
+def get_vga_dvi(platform):
 	try:
 		pads_vga = platform.request("vga_out")
 	except ConstraintError:
@@ -121,7 +113,7 @@ PIN "dviout_pix_bufg.O" CLOCK_DEDICATED_ROUTE = FALSE;
 """)
 	return pads_vga, pads_dvi
 
-def _add_vga_tig(platform, fb):
+def add_vga_tig(platform, fb):
 	platform.add_platform_command("""
 NET "{vga_clk}" TNM_NET = "GRPvga_clk";
 NET "sys_clk" TNM_NET = "GRPsys_clk";
@@ -130,20 +122,15 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 """, vga_clk=fb.driver.clocking.cd_pix.clk)
 
 class FramebufferSoC(MiniSoC):
+	csr_map = {
+		"fb":					11,
+	}
+	csr_map.update(MiniSoC.csr_map)
+
 	def __init__(self, platform, **kwargs):
 		MiniSoC.__init__(self, platform, **kwargs)
-		pads_vga, pads_dvi = _get_vga_dvi(platform)
+		pads_vga, pads_dvi = get_vga_dvi(platform)
 		self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi, self.lasmixbar.get_master())
-		_add_vga_tig(platform, self.fb)
+		add_vga_tig(platform, self.fb)
 
-class VideomixerSoC(MiniSoC):
-	def __init__(self, platform, **kwargs):
-		MiniSoC.__init__(self, platform, **kwargs)
-		pads_vga, pads_dvi = _get_vga_dvi(platform)
-		self.submodules.fb = framebuffer.MixFramebuffer(pads_vga, pads_dvi,
-			self.lasmixbar.get_master(), self.lasmixbar.get_master())
-		_add_vga_tig(platform, self.fb)
-		self.submodules.dvisampler0 = dvisampler.DVISampler(platform.request("dvi_in", 2), self.lasmixbar.get_master())
-		self.submodules.dvisampler1 = dvisampler.DVISampler(platform.request("dvi_in", 3), self.lasmixbar.get_master())
-
-default_subtarget = VideomixerSoC
+default_subtarget = FramebufferSoC
