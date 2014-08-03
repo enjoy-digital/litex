@@ -32,6 +32,7 @@ class Uart2Wishbone:
 			self.regs.uart2wb_sel.write(0)
 		except:
 			pass
+		self.uart.flushOutput()
 		self.uart.close()
 
 	def read(self, addr, burst_length=1):

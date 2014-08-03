@@ -136,18 +136,32 @@ class UARTPads:
 		self.tx = Signal()
 
 class UARTMux(Module):
-	def __init__(self, pads, nb):
-		self.sel = Signal(max=nb)
-		self.pads = [UARTPads() for i in range(nb)]
+	def __init__(self, pads):
+		self.sel = Signal(max=2)
+		self.shared_pads = UARTPads()
+		self.bridge_pads = UARTPads()
 
 	###	
-		# Route Rx pad to all modules
-		for i in range(nb):
-			self.comb += self.pads[i].rx.eq(pads.rx)
+		# Route rx pad:
+		# when sel==0, route it to shared rx and bridge rx
+		# when sel==1, route it only to bridge rx
+		self.comb += \
+			If(self.sel==0,
+				self.shared_pads.rx.eq(pads.rx),
+				self.bridge_pads.rx.eq(pads.rx)
+			).Else(
+				self.bridge_pads.rx.eq(pads.rx)
+			)
 
-		# Route only selected module to Tx pad
-		pads_tx = [self.pads[i].tx for i in range(nb)]
-		self.comb += chooser(Cat(pads_tx), self.sel, pads.tx, n=nb)
+		# Route tx:
+		# when sel==0, route shared tx to pads tx
+		# when sel==1, route bridge tx to pads tx
+		self.comb += \
+			If(self.sel==0,
+				pads.tx.eq(self.shared_pads.tx)
+			).Else(
+				pads.tx.eq(self.bridge_pads.tx)
+			)
 
 class UART2Wishbone(Module, AutoCSR):
 	WRITE_CMD = 0x01
@@ -161,9 +175,9 @@ class UART2Wishbone(Module, AutoCSR):
 
 	###
 		if share_uart:
-			self.submodules.uart_mux = UARTMux(pads, 2)
-			self.submodules.uart = UART(self.uart_mux.pads[1], clk_freq, baud)
-			self.shared_pads = self.uart_mux.pads[0]
+			self.submodules.uart_mux = UARTMux(pads)
+			self.submodules.uart = UART(self.uart_mux.bridge_pads, clk_freq, baud)
+			self.shared_pads = self.uart_mux.shared_pads
 			self.comb += self.uart_mux.sel.eq(self._sel.storage)
 		else:
 			self.submodules.uart = UART(pads, clk_freq, baud)
