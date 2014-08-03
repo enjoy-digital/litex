@@ -138,4 +138,8 @@ def Platform(*args, toolchain="vivado", **kwargs):
 				self.add_period_constraint(self.lookup_request("clk156").p, 6.4)
 			except ConstraintError:
 				pass
+			try:
+				self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
+			except ConstraintError:
+				pass
 	return RealPlatform(*args, **kwargs)
