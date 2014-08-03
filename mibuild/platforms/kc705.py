@@ -128,7 +128,7 @@ def Platform(*args, toolchain="vivado", **kwargs):
 
 	class RealPlatform(xilinx_platform):
 		def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset")):
-			xilinx_platform.__init__(self, "xc7k325t-ffg900-1", _io, crg_factory)
+			xilinx_platform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory)
 
 		def create_programmer(self):
 			return XC3SProg("jtaghs1", "bscan_spi_kc705.bit")
