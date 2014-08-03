@@ -53,7 +53,7 @@ class XC3SProg(Programmer):
 	needs_flash_proxy = True
 
 	def __init__(self, cable, flash_proxy_basename=None):
-		Programmer.__init__(flash_proxy_basename)
+		Programmer.__init__(self, flash_proxy_basename)
 		self.cable = cable
 
 	def load_bitstream(self, bitstream_file):
