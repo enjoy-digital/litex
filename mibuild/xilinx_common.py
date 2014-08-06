@@ -78,7 +78,7 @@ class XilinxAsyncResetSynchronizerImpl(Module):
 		]
 
 class XilinxAsyncResetSynchronizer:
-	staticmethod
+	@staticmethod
 	def lower(dr):
 		return XilinxAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
