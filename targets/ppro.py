@@ -1,6 +1,7 @@
 from fractions import Fraction
 
 from migen.fhdl.std import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoclib import lasmicon, spiflash
 from misoclib.sdramphy import gensdrphy
@@ -48,8 +49,7 @@ class _CRG(Module):
 			)
 		self.specials += Instance("BUFG", i_I=pll[4], o_O=self.cd_sys.clk)
 		self.specials += Instance("BUFG", i_I=pll[5], o_O=self.cd_sys_ps.clk)
-		self.specials += Instance("FD", p_INIT=1, i_D=~pll_lckd,
-				i_C=self.cd_sys.clk, o_Q=self.cd_sys.rst)
+		self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll_lckd)
 
 		self.specials += Instance("ODDR2", p_DDR_ALIGNMENT="NONE",
 				p_INIT=0, p_SRTYPE="SYNC",
