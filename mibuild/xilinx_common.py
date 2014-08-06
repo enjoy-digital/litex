@@ -72,9 +72,9 @@ class XilinxAsyncResetSynchronizerImpl(Module):
 		rst1 = Signal()
 		self.specials += [
 			Instance("FDPE", p_INIT=1, i_D=0, i_PRE=async_reset,
-				i_C=cd.clk, o_Q=rst1),
+				i_CE=1, i_C=cd.clk, o_Q=rst1),
 			Instance("FDPE", p_INIT=1, i_D=rst1, i_PRE=async_reset,
-				i_C=cd.clk, o_Q=cd.rst)
+				i_CE=1, i_C=cd.clk, o_Q=cd.rst)
 		]
 
 class XilinxAsyncResetSynchronizer:
