@@ -4,6 +4,7 @@ from distutils.version import StrictVersion
 from migen.fhdl.std import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.genlib.cdc import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 from mibuild.generic_platform import GenericPlatform
 from mibuild import tools
 
@@ -66,13 +67,29 @@ class XilinxMultiReg:
 	def lower(dr):
 		return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
+class XilinxAsyncResetSynchronizerImpl(Module):
+	def __init__(self, cd, async_reset):
+		rst1 = Signal()
+		self.specials += [
+			Instance("FDPE", p_INIT=1, i_D=0, i_PRE=async_reset,
+				i_C=cd.clk, o_Q=rst1),
+			Instance("FDPE", p_INIT=1, i_D=rst1, i_PRE=async_reset,
+				i_C=cd.clk, o_Q=cd.rst)
+		]
+
+class XilinxAsyncResetSynchronizer:
+	staticmethod
+	def lower(dr):
+		return XilinxAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+
 class XilinxGenericPlatform(GenericPlatform):
 	bitstream_ext = ".bit"
 
 	def get_verilog(self, *args, special_overrides=dict(), **kwargs):
 		so = {
-			NoRetiming: XilinxNoRetiming,
-			MultiReg:   XilinxMultiReg
+			NoRetiming:					XilinxNoRetiming,
+			MultiReg:					XilinxMultiReg,
+			AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer
 		}
 		so.update(special_overrides)
 		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
