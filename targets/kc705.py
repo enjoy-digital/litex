@@ -1,8 +1,9 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.bus import wishbone
 
-from misoclib.gensoc import GenSoC, IntegratedBIOS
+from misoclib import lasmicon
+from misoclib.sdramphy import k7ddrphy
+from misoclib.gensoc import SDRAMSoC, IntegratedBIOS
 
 class _CRG(Module):
 	def __init__(self, platform):
@@ -58,19 +59,35 @@ class _CRG(Module):
 			)
 		self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
 
-class BaseSoC(GenSoC, IntegratedBIOS):
+class BaseSoC(SDRAMSoC, IntegratedBIOS):
 	default_platform = "kc705"
 
 	def __init__(self, platform, **kwargs):
-		GenSoC.__init__(self, platform,
+		SDRAMSoC.__init__(self, platform,
 			clk_freq=125*1000000, cpu_reset_address=0,
 			**kwargs)
 		IntegratedBIOS.__init__(self)
 
-		self.submodules.crg = _CRG(platform)
+		sdram_geom = lasmicon.GeomSettings(
+			bank_a=3,
+			row_a=16,
+			col_a=10
+		)
+		sdram_timing = lasmicon.TimingSettings(
+			tRP=self.ns(15),
+			tRCD=self.ns(15),
+			tWR=self.ns(15),
+			tWTR=2,
+			tREFI=self.ns(7800, False),
+			tRFC=self.ns(70),
 
-		self.submodules.usermem = wishbone.SRAM(64*1024)
-		self.add_wb_slave(lambda a: a[27:29] == 2, self.usermem.bus)
-		self.add_cpu_memory_region("sdram", 0x40000000, 64*1024)
+			req_queue_size=8,
+			read_time=32,
+			write_time=16
+		)
+		self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), memtype="DDR3")
+		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
+
+		self.submodules.crg = _CRG(platform)
 
 default_subtarget = BaseSoC
