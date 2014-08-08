@@ -4,8 +4,10 @@
 #define UART_EV_TX	0x1
 #define UART_EV_RX	0x2
 
-#define DFII_CONTROL_SEL	0x01
-#define DFII_CONTROL_CKE	0x02
+#define DFII_CONTROL_SEL		0x01
+#define DFII_CONTROL_CKE		0x02
+#define DFII_CONTROL_ODT		0x04
+#define DFII_CONTROL_RESET_N	0x08
 
 #define DFII_COMMAND_CS		0x01
 #define DFII_COMMAND_WE		0x02

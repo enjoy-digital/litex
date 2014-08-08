@@ -40,7 +40,7 @@ class DFIInjector(Module, AutoCSR):
 		self.slave = dfi.Interface(a, ba, d, nphases)
 		self.master = dfi.Interface(a, ba, d, nphases)
 		
-		self._control = CSRStorage(2) # sel, cke
+		self._control = CSRStorage(4) # sel, cke, odt, reset_n
 		
 		for n, phase in enumerate(inti.phases):
 			setattr(self.submodules, "pi" + str(n), PhaseInjector(phase))
@@ -53,3 +53,5 @@ class DFIInjector(Module, AutoCSR):
 				inti.connect(self.master)
 			)
 		self.comb += [phase.cke.eq(self._control.storage[1]) for phase in inti.phases]
+		self.comb += [phase.odt.eq(self._control.storage[2]) for phase in inti.phases if hasattr(phase, "odt")]
+		self.comb += [phase.reset_n.eq(self._control.storage[3]) for phase in inti.phases if hasattr(phase, "reset_n")]
