@@ -66,6 +66,7 @@ void sdrrd(char *startaddr)
 	char *c;
 	unsigned int addr;
 	int i;
+	int p;
 
 	if(*startaddr == 0) {
 		printf("sdrrd <address>\n");
@@ -82,11 +83,11 @@ void sdrrd(char *startaddr)
 	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
 	
-	// FIXME
-	for(i=0;i<8;i++)
-		printf("%02x", MMPTR(0xe0001038+4*i));
-	for(i=0;i<8;i++)
-		printf("%02x", MMPTR(0xe000108c+4*i));
+	for(p=0;p<DFII_NPHASES;p++) {
+		for(i=0;i<DFII_PIX_RDDATA_SIZE;i++) {
+			printf("%02x", MMPTR(dfii_pix_rddata_addr[p]+4*i));
+		}
+	}
 	printf("\n");
 }
 
@@ -95,6 +96,7 @@ void sdrwr(char *startaddr)
 	char *c;
 	unsigned int addr;
 	int i;
+	int p;
 
 	if(*startaddr == 0) {
 		printf("sdrrd <address>\n");
@@ -105,11 +107,11 @@ void sdrwr(char *startaddr)
 		printf("incorrect address\n");
 		return;
 	}
-	
-	// FIXME
-	for(i=0;i<8;i++) {
-		MMPTR(0xe0001018+4*i) = i;
-		MMPTR(0xe000106c+4*i) = 0xf0 + i;
+
+	for(p=0;p<DFII_NPHASES;p++) {
+		for(i=0;i<DFII_PIX_WRDATA_SIZE;i++) {
+			MMPTR(dfii_pix_wrdata_addr[p]+4*i) = 0x10*p + i;
+		}
 	}
 	
 	dfii_piwr_address_write(addr);

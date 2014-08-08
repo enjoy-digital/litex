@@ -3,11 +3,14 @@ from migen.fhdl.std import log2_int
 def get_sdram_phy_header(sdram_phy):
 	r = "#ifndef __GENERATED_SDRAM_PHY_H\n#define __GENERATED_SDRAM_PHY_H\n"
 	r += "#include <hw/common.h>\n#include <generated/csr.h>\n#include <hw/flags.h>\n\n"
+	
+	nphases = sdram_phy.phy_settings.nphases
+	r += "#define DFII_NPHASES "+str(nphases)+"\n\n"
 
 	r += "static void cdelay(int i);\n"
 
 	# commands_px functions
-	for n in range(sdram_phy.phy_settings.nphases):
+	for n in range(nphases):
 		r += """
 static void command_p{n}(int cmd)
 {{
@@ -28,7 +31,32 @@ static void command_p{n}(int cmd)
 #define command_pwr(X) command_p{wrphase}(X)
 """.format(rdphase=str(sdram_phy.phy_settings.rdphase), wrphase=str(sdram_phy.phy_settings.wrphase)) 
 	r +="\n"
-	
+
+	#
+	# sdrrd/sdrwr functions utilities
+	#
+	r += "#define DFII_PIX_WRDATA_SIZE CSR_DFII_PI0_WRDATA_SIZE\n"
+	dfii_pix_wrdata_addr = []
+	for n in range(nphases):
+		dfii_pix_wrdata_addr.append("CSR_DFII_PI{n}_WRDATA_ADDR".format(n=n))
+	r += """
+const unsigned int dfii_pix_wrdata_addr[{n}] = {{
+	{dfii_pix_wrdata_addr}
+}};
+""".format(n=nphases, dfii_pix_wrdata_addr=",\n\t".join(dfii_pix_wrdata_addr))
+	r +="\n"
+
+	r += "#define DFII_PIX_RDDATA_SIZE CSR_DFII_PI0_RDDATA_SIZE\n"
+	dfii_pix_rddata_addr = []
+	for n in range(nphases):
+		dfii_pix_rddata_addr.append("CSR_DFII_PI{n}_RDDATA_ADDR".format(n=n))
+	r += """
+const unsigned int dfii_pix_rddata_addr[{n}] = {{
+	{dfii_pix_rddata_addr}
+}};
+""".format(n=nphases, dfii_pix_rddata_addr=",\n\t".join(dfii_pix_rddata_addr))
+	r +="\n"
+
 	# init sequence
 	cmds = {
 		"PRECHARGE_ALL" : "DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS",
