@@ -74,6 +74,10 @@ class _Steerer(Module):
 				phase.cke.eq(1),
 				phase.cs_n.eq(0)
 			]
+			if hasattr(phase, "odt"):
+				self.comb += phase.odt.eq(1)
+			if hasattr(phase, "reset_n"):
+				self.comb += phase.reset_n.eq(0)
 			self.sync += [
 				phase.address.eq(Array(cmd.a for cmd in commands)[sel]),
 				phase.bank.eq(Array(cmd.ba for cmd in commands)[sel]),
