@@ -72,11 +72,12 @@ class GENSDRPHY(Module):
 		drive_dq = Signal()
 		self.sync += sd_dq_out.eq(self.dfi.p0.wrdata),
 		self.specials += Tristate(pads.dq, sd_dq_out, drive_dq)
-		self.sync += If(self.dfi.p0.wrdata_en,
-			pads.dm.eq(self.dfi.p0.wrdata_mask)
-		).Else(
-			pads.dm.eq(0)
-		)
+		self.sync += \
+			If(self.dfi.p0.wrdata_en,
+				pads.dm.eq(self.dfi.p0.wrdata_mask)
+			).Else(
+				pads.dm.eq(0)
+			)
 		sd_dq_in_ps = Signal(d)
 		self.sync.sys_ps += sd_dq_in_ps.eq(pads.dq)
 		self.sync += self.dfi.p0.rddata.eq(sd_dq_in_ps)
@@ -89,5 +90,5 @@ class GENSDRPHY(Module):
 		self.comb += drive_dq.eq(d_dfi_wrdata_en)
 
 		rddata_sr = Signal(4)
-		self.comb += self.dfi.p0.rddata_valid.eq(rddata_sr[0])
-		self.sync += rddata_sr.eq(Cat(self.dfi.p0.rddata_en, rddata_sr[1:]))
+		self.comb += self.dfi.p0.rddata_valid.eq(rddata_sr[3])
+		self.sync += rddata_sr.eq(Cat(self.dfi.p0.rddata_en, rddata_sr[:3]))
