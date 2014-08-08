@@ -26,13 +26,13 @@ static void cdelay(int i)
 
 void sdrsw(void)
 {
-	dfii_control_write(DFII_CONTROL_CKE);
+	dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
 	printf("SDRAM now under software control\n");
 }
 
 void sdrhw(void)
 {
-	dfii_control_write(DFII_CONTROL_SEL|DFII_CONTROL_CKE);
+	dfii_control_write(DFII_CONTROL_SEL);
 	printf("SDRAM now under hardware control\n");
 }
 
@@ -163,7 +163,7 @@ int sdrinit(void)
 	printf("Initializing SDRAM...\n");
 	
 	init_sequence();
-	dfii_control_write(DFII_CONTROL_SEL|DFII_CONTROL_CKE);
+	dfii_control_write(DFII_CONTROL_SEL);
 	if(!memtest())
 		return 0;
 	
