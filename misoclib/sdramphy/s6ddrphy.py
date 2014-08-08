@@ -42,7 +42,7 @@ class S6DDRPHY(Module):
 			write_latency=0
 		)
 
-		self.dfi = Interface(a, ba, nphases*d, nphases)
+		self.dfi = Interface(a, ba, self.phy_settings.dfi_d, nphases)
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()
 
