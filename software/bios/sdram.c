@@ -83,11 +83,9 @@ void sdrrd(char *startaddr)
 	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
 	
-	for(p=0;p<DFII_NPHASES;p++) {
-		for(i=0;i<DFII_PIX_RDDATA_SIZE;i++) {
+	for(p=0;p<DFII_NPHASES;p++)
+		for(i=0;i<DFII_PIX_RDDATA_SIZE;i++)
 			printf("%02x", MMPTR(dfii_pix_rddata_addr[p]+4*i));
-		}
-	}
 	printf("\n");
 }
 
@@ -108,11 +106,9 @@ void sdrwr(char *startaddr)
 		return;
 	}
 
-	for(p=0;p<DFII_NPHASES;p++) {
-		for(i=0;i<DFII_PIX_WRDATA_SIZE;i++) {
+	for(p=0;p<DFII_NPHASES;p++)
+		for(i=0;i<DFII_PIX_WRDATA_SIZE;i++)
 			MMPTR(dfii_pix_wrdata_addr[p]+4*i) = 0x10*p + i;
-		}
-	}
 	
 	dfii_piwr_address_write(addr);
 	dfii_piwr_baddress_write(0);
