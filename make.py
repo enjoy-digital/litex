@@ -201,8 +201,7 @@ CPU type:  {}
 		if actions["load-bitstream"]:
 			prog.load_bitstream("build/" + build_name + platform.bitstream_ext)
 		if actions["flash-bitstream"]:
-			if prog.needs_flash_proxy:
-				prog.set_flash_proxy_dir(args.flash_proxy_dir)
+			prog.set_flash_proxy_dir(args.flash_proxy_dir)
 			if prog.needs_bitreverse:
 				flashbit = "build/" + build_name + ".fpg"
 				subprocess.call(["tools/byteswap",
