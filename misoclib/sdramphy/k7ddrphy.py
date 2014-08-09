@@ -197,13 +197,12 @@ class K7DDRPHY(Module):
 		#  2 cycles through OSERDESE2
 		#  4 cycles CAS
 		#  2 cycles through ISERDESE2
-		for phase in self.dfi.phases:
-			rddata_valid = phase.rddata_valid
-			for i in range(7):
-				n_rddata_valid = Signal()
-				self.sync += rddata_valid.eq(n_rddata_valid)
-				rddata_valid = n_rddata_valid
-			self.sync += rddata_valid.eq(phase.rddata_en)
+		rddata_en = self.dfi.phases[self.phy_settings.rdphase].rddata_en
+		for i in range(7):
+			n_rddata_en = Signal()
+			self.sync += n_rddata_en.eq(rddata_en)
+			rddata_en = n_rddata_en
+		self.sync += [phase.rddata_valid.eq(rddata_en) for phase in self.dfi.phases]
 
 		last_wrdata_en = Signal(3)
 		wrphase = self.dfi.phases[self.phy_settings.wrphase]
