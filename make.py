@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, os, argparse, importlib, subprocess, struct
+import sys, os, argparse, subprocess, struct
 
 from mibuild.tools import write_to_file
 from migen.util.misc import autotype
@@ -8,6 +8,8 @@ from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
 from misoclib.sdramphy import initsequence
+
+from misoc_import import misoc_import
 
 def _get_args():
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -49,20 +51,6 @@ Load/flash actions use the existing outputs, and do not trigger new builds.
 
 	return parser.parse_args()
 
-def _misoc_import(default, external, name):
-	if external:
-		try:
-			del sys.modules[name] # force external path search
-		except KeyError:
-			pass
-		loader = importlib.find_loader(name, [external])
-		if loader is None:
-			# try internal import
-			return importlib.import_module(default + "." + name)
-		return loader.load_module()
-	else:
-		return importlib.import_module(default + "." + name)
-
 if __name__ == "__main__":
 	args = _get_args()
 
@@ -74,7 +62,7 @@ if __name__ == "__main__":
 		sys.path.insert(1, os.path.abspath(args.external))
 
 	# create top-level SoC object
-	target_module = _misoc_import("targets", external_target, args.target)
+	target_module = misoc_import("targets", external_target, args.target)
 	if args.sub_target:
 		top_class = getattr(target_module, args.sub_target)
 	else:
@@ -84,7 +72,7 @@ if __name__ == "__main__":
 		platform_name = top_class.default_platform
 	else:
 		platform_name = args.platform
-	platform_module = _misoc_import("mibuild.platforms", external_platform, platform_name)
+	platform_module = misoc_import("mibuild.platforms", external_platform, platform_name)
 	platform_kwargs = dict((k, autotype(v)) for k, v in args.platform_option)
 	platform = platform_module.Platform(**platform_kwargs)
 	if args.external:
