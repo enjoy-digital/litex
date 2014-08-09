@@ -25,7 +25,6 @@ def _run_urjtag(cmds):
 
 class UrJTAG(Programmer):
 	needs_bitreverse = True
-	needs_flash_proxy = True
 
 	def load_bitstream(self, bitstream_file):
 		cmds = """cable milkymist
@@ -50,7 +49,6 @@ flashmem "{address}" "{data_file}" noverify
 
 class XC3SProg(Programmer):
 	needs_bitreverse = False
-	needs_flash_proxy = True
 
 	def __init__(self, cable, flash_proxy_basename=None):
 		Programmer.__init__(self, flash_proxy_basename)
@@ -65,7 +63,6 @@ class XC3SProg(Programmer):
 
 class USBBlaster(Programmer):
 	needs_bitreverse = False
-	needs_flash_proxy = False
 
 	def load_bitstream(self, bitstream_file, port=0):
 		usb_port = "[USB-"+str(port)+"]"
