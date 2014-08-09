@@ -6,17 +6,19 @@ def phase_cmd_description(a, ba):
 		("address",			a,		DIR_M_TO_S),	
 		("bank",			ba,		DIR_M_TO_S),
 		("cas_n",			1,		DIR_M_TO_S),
-		("cke",				1,		DIR_M_TO_S),
 		("cs_n",			1,		DIR_M_TO_S),
 		("ras_n",			1,		DIR_M_TO_S),
-		("we_n",			1,		DIR_M_TO_S)
+		("we_n",			1,		DIR_M_TO_S),
+		("cke",				1,		DIR_M_TO_S),
+		("odt",				1,		DIR_M_TO_S),
+		("reset_n",			1,		DIR_M_TO_S)
 	]
 
 def phase_wrdata_description(d):
 	return [
 		("wrdata",			d,		DIR_M_TO_S),
 		("wrdata_en",		1,		DIR_M_TO_S),
-		("wrdata_mask",		d//8,	DIR_M_TO_S),
+		("wrdata_mask",		d//8,	DIR_M_TO_S)
 	]
 
 def phase_rddata_description(d):
