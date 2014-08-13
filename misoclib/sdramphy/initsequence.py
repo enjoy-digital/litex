@@ -161,29 +161,37 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 		bl = 2*sdram_phy.phy_settings.nphases
 		if bl != 8:
 			raise NotImplementedError("DDR3 PHY header generator only supports BL of 8")
-		cl_to_mr0 = {
-			5 : 0b0010,
-			6 : 0b0100,
-			7 : 0b0110,
-			8 : 0b1000,
-			9 : 0b1010,
-			10: 0b1100,
-			11: 0b1110,
-			12: 0b0001,
-			13: 0b0011,
-			14: 0b0101
-		}
-		wr_to_mr0 = {
-			16: 0b000,
-			5 : 0b001,
-			6 : 0b010,
-			7 : 0b011,
-			8 : 0b100,
-			10: 0b101,
-			12: 0b110,
-			14: 0b111
-		}
-		mr0 = cl_to_mr0[cl] << 4 | 1 << 8 | wr_to_mr0[8] # FIXME: this should be ceiling(tWR/tCK)
+		
+		def format_mr0(cl, wr, dll_reset):
+			cl_to_mr0 = {
+				5 : 0b0010,
+				6 : 0b0100,
+				7 : 0b0110,
+				8 : 0b1000,
+				9 : 0b1010,
+				10: 0b1100,
+				11: 0b1110,
+				12: 0b0001,
+				13: 0b0011,
+				14: 0b0101
+			}
+			wr_to_mr0 = {
+				16: 0b000,
+				5 : 0b001,
+				6 : 0b010,
+				7 : 0b011,
+				8 : 0b100,
+				10: 0b101,
+				12: 0b110,
+				14: 0b111
+			}
+			mr0 = (cl_to_mr0[cl] & 1) << 2
+			mr0 |= ((cl_to_mr0[cl] >> 1) & 0b111) << 4
+			mr0 |= dll_reset << 8
+			mr0 |= wr_to_mr0[wr] << 9
+			return mr0
+
+		mr0 = format_mr0(cl, 8, 1) # wr=8 FIXME: this should be ceiling(tWR/tCK)
 		mr1 = 6 # Output Drive Strength RZQ/7 (34 ohm) / Rtt RZQ/4 (60 ohm)
 		mr2 = (sdram_phy.phy_settings.cwl-5) << 3
 		mr3 = 0
