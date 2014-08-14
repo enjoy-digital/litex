@@ -23,7 +23,7 @@ class K7DDRPHY(Module):
 			cl=8,
 			cwl=6,
 			read_latency=8,
-			write_latency=1
+			write_latency=2
 		)
 
 		self.dfi = Interface(a, ba, self.phy_settings.dfi_d, nphases)
@@ -212,7 +212,7 @@ class K7DDRPHY(Module):
 			rddata_en = n_rddata_en
 		self.sync += [phase.rddata_valid.eq(rddata_en) for phase in self.dfi.phases]
 
-		last_wrdata_en = Signal(3)
+		last_wrdata_en = Signal(5)
 		wrphase = self.dfi.phases[self.phy_settings.wrphase]
-		self.sync += last_wrdata_en.eq(Cat(wrphase.wrdata_en, last_wrdata_en[:2]))
-		self.comb += oe.eq(last_wrdata_en[0] | last_wrdata_en[1] | last_wrdata_en[2])
+		self.sync += last_wrdata_en.eq(Cat(wrphase.wrdata_en, last_wrdata_en[:4]))
+		self.comb += oe.eq(last_wrdata_en[2+0] | last_wrdata_en[2+1] | last_wrdata_en[2+2])
