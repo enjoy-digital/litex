@@ -22,7 +22,7 @@ class K7DDRPHY(Module):
 			wrcmdphase=0,
 			cl=8,
 			cwl=6,
-			read_latency=8,
+			read_latency=6,
 			write_latency=2
 		)
 
@@ -211,12 +211,12 @@ class K7DDRPHY(Module):
 				)
 			]
 
-		# total read latency = 8:
+		# total read latency = 6:
 		#  2 cycles through OSERDESE2
-		#  4 cycles CAS
+		#  2 cycles CAS
 		#  2 cycles through ISERDESE2
 		rddata_en = self.dfi.phases[self.phy_settings.rdphase].rddata_en
-		for i in range(7):
+		for i in range(5):
 			n_rddata_en = Signal()
 			self.sync += n_rddata_en.eq(rddata_en)
 			rddata_en = n_rddata_en
