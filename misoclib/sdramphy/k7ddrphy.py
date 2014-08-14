@@ -37,6 +37,7 @@ class K7DDRPHY(Module):
 
 				o_OQ=sd_clk_se,
 				i_OCE=1,
+				i_RST=ResetSignal(),
 				i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 				i_D1=0, i_D2=1, i_D3=0, i_D4=1,
 				i_D5=0, i_D6=1, i_D7=0, i_D8=1
@@ -57,6 +58,7 @@ class K7DDRPHY(Module):
 
 					o_OQ=pads.a[i],
 					i_OCE=1,
+					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					i_D1=self.dfi.phases[0].address[i], i_D2=self.dfi.phases[0].address[i],
 					i_D3=self.dfi.phases[1].address[i], i_D4=self.dfi.phases[1].address[i],
@@ -72,6 +74,7 @@ class K7DDRPHY(Module):
 
 					o_OQ=pads.ba[i],
 					i_OCE=1,
+					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					i_D1=self.dfi.phases[0].bank[i], i_D2=self.dfi.phases[0].bank[i],
 					i_D3=self.dfi.phases[1].bank[i], i_D4=self.dfi.phases[1].bank[i],
@@ -87,6 +90,7 @@ class K7DDRPHY(Module):
 
 					o_OQ=getattr(pads, name),
 					i_OCE=1,
+					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					i_D1=getattr(self.dfi.phases[0], name), i_D2=getattr(self.dfi.phases[0], name),
 					i_D3=getattr(self.dfi.phases[1], name), i_D4=getattr(self.dfi.phases[1], name),
@@ -104,6 +108,7 @@ class K7DDRPHY(Module):
 
 					o_OQ=pads.dm[i],
 					i_OCE=1,
+					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					i_D1=self.dfi.phases[0].wrdata_mask[i], i_D2=self.dfi.phases[0].wrdata_mask[d//8+i],
 					i_D3=self.dfi.phases[1].wrdata_mask[i], i_D4=self.dfi.phases[1].wrdata_mask[d//8+i],
@@ -121,6 +126,7 @@ class K7DDRPHY(Module):
 
 					o_OFB=dqs_nodelay, o_TQ=dqs_t,
 					i_OCE=1, i_TCE=1,
+					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					i_D1=1, i_D2=0, i_D3=1, i_D4=0,
 					i_D5=1, i_D6=0, i_D7=1, i_D8=0,
@@ -153,6 +159,7 @@ class K7DDRPHY(Module):
 
 					o_OQ=dq_o_nodelay, o_TQ=dq_t,
 					i_OCE=1, i_TCE=1,
+					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					i_D1=self.dfi.phases[0].wrdata[i], i_D2=self.dfi.phases[0].wrdata[d+i],
 					i_D3=self.dfi.phases[1].wrdata[i], i_D4=self.dfi.phases[1].wrdata[d+i],
@@ -167,6 +174,7 @@ class K7DDRPHY(Module):
 
 					i_DDLY=dq_i_delayed,
 					i_CE1=1,
+					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKB=~ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					o_Q8=self.dfi.phases[0].rddata[i], o_Q7=self.dfi.phases[0].rddata[d+i],
 					o_Q6=self.dfi.phases[1].rddata[i], o_Q5=self.dfi.phases[1].rddata[d+i],
