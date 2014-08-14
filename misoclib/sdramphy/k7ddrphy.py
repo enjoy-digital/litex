@@ -100,13 +100,14 @@ class K7DDRPHY(Module):
 
 		oe = Signal()
 		for i in range(d//8):
+			dm_o_nodelay = Signal()
 			self.specials += \
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
 					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
 					p_SERDES_MODE="MASTER",
 
-					o_OQ=pads.dm[i],
+					o_OQ=dm_o_nodelay,
 					i_OCE=1,
 					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
@@ -115,6 +116,14 @@ class K7DDRPHY(Module):
 					i_D5=self.dfi.phases[2].wrdata_mask[i], i_D6=self.dfi.phases[2].wrdata_mask[d//8+i],
 					i_D7=self.dfi.phases[3].wrdata_mask[i], i_D8=self.dfi.phases[3].wrdata_mask[d//8+i]
 				)
+			self.specials += \
+				Instance("ODELAYE2",
+					p_DELAY_SRC="ODATAIN", p_SIGNAL_PATTERN="DATA",
+					p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
+					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="FIXED", p_ODELAY_VALUE=0,
+
+					o_ODATAIN=dm_o_nodelay, o_DATAOUT=pads.dm[i]
+				)			
 			dqs_nodelay = Signal()
 			dqs_delayed = Signal()
 			dqs_t = Signal()
