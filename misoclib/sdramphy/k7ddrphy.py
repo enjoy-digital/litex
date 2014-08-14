@@ -185,6 +185,7 @@ class K7DDRPHY(Module):
 					i_CE1=1,
 					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKB=~ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
+					i_BITSLIP=0,
 					o_Q8=self.dfi.phases[0].rddata[i], o_Q7=self.dfi.phases[0].rddata[d+i],
 					o_Q6=self.dfi.phases[1].rddata[i], o_Q5=self.dfi.phases[1].rddata[d+i],
 					o_Q4=self.dfi.phases[2].rddata[i], o_Q3=self.dfi.phases[2].rddata[d+i],
