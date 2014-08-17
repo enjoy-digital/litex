@@ -42,19 +42,26 @@ def _build_xdc(named_sc, named_pc):
 	return r
 
 def _build_files(device, sources, vincpaths, build_name):
-	tcl_contents = ""
+	tcl = []
 	for filename, language in sources:
-		tcl_contents += "add_files " + filename.replace("\\", "/") + "\n"
+		tcl.append("add_files " + filename.replace("\\", "/"))
 
-	tcl_contents += "read_xdc %s.xdc\n" %build_name
-	tcl_contents += "synth_design -top top -part %s -include_dirs {%s}\n" %(device, " ".join(vincpaths))
-	tcl_contents += "place_design\n"
-	tcl_contents += "route_design\n"
-	tcl_contents += "report_timing_summary -file %s_timing.rpt\n" %(build_name)
-	tcl_contents += "report_utilization -file %s_utilization.rpt\n" %(build_name)
-	tcl_contents += "write_bitstream -force %s.bit \n" %build_name
-	tcl_contents += "quit\n"	
-	tools.write_to_file(build_name + ".tcl", tcl_contents)
+	tcl.append("read_xdc %s.xdc" %build_name)
+	tcl.append("synth_design -top top -part %s -include_dirs {%s}" %(device, " ".join(vincpaths)))
+	tcl.append("report_utilization -file %s_utilization_synth.rpt" %(build_name))
+	tcl.append("place_design")
+	tcl.append("report_utilization -file %s_utilization_place.rpt" %(build_name))
+	tcl.append("report_io -file %s_io.rpt" %(build_name))
+	tcl.append("report_control_sets -verbose -file %s_control_sets.rpt" %(build_name))
+	tcl.append("report_clock_utilization -file %s_clock_utilization.rpt" %(build_name))
+	tcl.append("route_design")
+	tcl.append("report_route_status -file %s_route_status.rpt" %(build_name))
+	tcl.append("report_drc -file %s_drc.rpt" %(build_name))
+	tcl.append("report_timing_summary -file %s_timing.rpt" %(build_name))
+	tcl.append("report_power -file %s_power.rpt" %(build_name))
+	tcl.append("write_bitstream -force %s.bit " %build_name)
+	tcl.append("quit")
+	tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
 def _run_vivado(build_name, vivado_path, source, ver=None):
 	if sys.platform == "win32" or sys.platform == "cygwin":
