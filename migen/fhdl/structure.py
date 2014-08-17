@@ -1,5 +1,3 @@
-import inspect
-import re
 import builtins
 from collections import defaultdict
 
