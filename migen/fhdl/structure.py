@@ -511,8 +511,10 @@ class ClockDomain:
 		self.name = tracer.get_obj_var_name(name)
 		if self.name is None:
 			raise ValueError("Cannot extract clock domain name from code, need to specify.")
-		if len(self.name) > 3 and self.name[:3] == "cd_":
+		if self.name.startswith("cd_"):
 			self.name = self.name[3:]
+		if self.name[0].isdigit():
+			raise ValueError("Clock domain name cannot start with a number.")
 		self.clk = Signal(name_override=self.name + "_clk")
 		if reset_less:
 			self.rst = None
