@@ -81,17 +81,20 @@ class Value(HUID):
 	def __getitem__(self, key):
 		from migen.fhdl.bitcontainer import flen
 
+		n = flen(self)
 		if isinstance(key, int):
+			if key >= n:
+				raise IndexError
 			if key < 0:
-				key += flen(self)
+				key += n
 			return _Slice(self, key, key+1)
 		elif isinstance(key, slice):
-			start, stop, step = key.indices(flen(self))
+			start, stop, step = key.indices(n)
 			if step != 1:
 				return Cat(self[i] for i in range(start, stop, step))
 			return _Slice(self, start, stop)
 		else:
-			raise KeyError
+			raise TypeError
 	
 	def eq(self, r):
 		"""Assignment
