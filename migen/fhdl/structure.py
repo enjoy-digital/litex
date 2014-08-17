@@ -275,7 +275,7 @@ class Signal(Value):
 		return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"
 
 	@classmethod
-	def like(cls, other):
+	def like(cls, other, **kwargs):
 		"""Create Signal based on another.
 
 		Parameters
@@ -286,7 +286,7 @@ class Signal(Value):
 		See `migen.fhdl.bitcontainer.value_bits_sign`() for details.
 		"""
 		from migen.fhdl.bitcontainer import value_bits_sign
-		return cls(value_bits_sign(other))
+		return cls(bits_sign=value_bits_sign(other), **kwargs)
 
 class ClockSignal(Value):
 	"""Clock signal for a given clock domain
