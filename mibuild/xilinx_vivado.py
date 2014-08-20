@@ -41,7 +41,7 @@ def _build_xdc(named_sc, named_pc):
 		r += "\n" + "\n\n".join(named_pc)
 	return r
 
-def _build_files(device, sources, vincpaths, build_name):
+def _build_files(device, sources, vincpaths, build_name, bitstream_compression):
 	tcl = []
 	for filename, language in sources:
 		tcl.append("add_files " + filename.replace("\\", "/"))
@@ -59,6 +59,8 @@ def _build_files(device, sources, vincpaths, build_name):
 	tcl.append("report_drc -file %s_drc.rpt" %(build_name))
 	tcl.append("report_timing_summary -file %s_timing.rpt" %(build_name))
 	tcl.append("report_power -file %s_power.rpt" %(build_name))
+	if bitstream_compression:
+		tcl.append("set_property BITSTREAM.GENERAL.COMPRESS True [current_design]")
 	tcl.append("write_bitstream -force %s.bit " %build_name)
 	tcl.append("quit")
 	tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
@@ -80,7 +82,8 @@ def _run_vivado(build_name, vivado_path, source, ver=None):
 
 class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
 	def build(self, fragment, build_dir="build", build_name="top",
-			vivado_path="/opt/Xilinx/Vivado", source=True, run=True):
+			vivado_path="/opt/Xilinx/Vivado", source=True, run=True,
+			bitstream_compression=False):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
@@ -91,7 +94,7 @@ class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
-		_build_files(self.device, sources, self.verilog_include_paths, build_name)
+		_build_files(self.device, sources, self.verilog_include_paths, build_name, bitstream_compression)
 		tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
 		if run:
 			_run_vivado(build_name, vivado_path, source)
