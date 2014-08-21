@@ -199,4 +199,5 @@ CPU type:  {}
 				flashbit = "build/" + build_name + ".bin"
 			prog.flash(0, flashbit)
 		if actions["flash-bios"]:
+			prog.set_flash_proxy_dir(args.flash_proxy_dir)
 			prog.flash(soc.cpu_reset_address, "software/bios/bios.bin")
