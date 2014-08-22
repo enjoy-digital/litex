@@ -1,4 +1,4 @@
-# tCK=5ns CL=8 CWL=6
+# tCK=5ns CL=7 CWL=6
 
 from migen.fhdl.std import *
 from migen.bus.dfi import *
