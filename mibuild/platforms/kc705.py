@@ -133,6 +133,8 @@ def Platform(*args, toolchain="vivado", **kwargs):
 		raise ValueError
 
 	class RealPlatform(xilinx_platform):
+		bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
+
 		def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset")):
 			xilinx_platform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory)
 
