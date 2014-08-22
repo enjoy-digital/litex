@@ -1,9 +1,9 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib import lasmicon
+from misoclib import lasmicon, spiflash
 from misoclib.sdramphy import k7ddrphy
-from misoclib.gensoc import SDRAMSoC, IntegratedBIOS
+from misoclib.gensoc import SDRAMSoC
 
 class _CRG(Module):
 	def __init__(self, platform):
@@ -59,14 +59,15 @@ class _CRG(Module):
 			)
 		self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
 
-class BaseSoC(SDRAMSoC, IntegratedBIOS):
+class BaseSoC(SDRAMSoC):
 	default_platform = "kc705"
 
 	def __init__(self, platform, **kwargs):
 		SDRAMSoC.__init__(self, platform,
-			clk_freq=125*1000000, cpu_reset_address=0,
+			clk_freq=125*1000000, cpu_reset_address=0xaf0000,
 			**kwargs)
-		IntegratedBIOS.__init__(self)
+
+		self.submodules.crg = _CRG(platform)
 
 		sdram_geom = lasmicon.GeomSettings(
 			bank_a=3,
@@ -88,6 +89,15 @@ class BaseSoC(SDRAMSoC, IntegratedBIOS):
 		self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), memtype="DDR3")
 		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 
-		self.submodules.crg = _CRG(platform)
+		# BIOS is in SPI flash
+		spiflash_pads = platform.request("spiflash")
+		spiflash_pads.clk = Signal()
+		self.specials += Instance("STARTUPE2",
+			i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
+			i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
+		self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads,
+			cmd=0xfffefeff, cmd_width=32, addr_width=24, dummy=11, div=2)
+		self.flash_boot_address = 0xb00000
+		self.register_rom(self.spiflash.bus)
 
 default_subtarget = BaseSoC
