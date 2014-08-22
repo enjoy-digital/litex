@@ -103,7 +103,7 @@ _io = [
 
 
 class Platform(XilinxISEPlatform):
-	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -g SPI_buswidth:4"
+	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g SPI_buswidth:4"
 	ise_commands = """
 promgen -w -spi -c FF -p mcs -o {build_name}.mcs -u 0 {build_name}.bit
 """

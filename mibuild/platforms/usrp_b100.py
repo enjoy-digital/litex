@@ -114,7 +114,7 @@ _io = [
 
 
 class Platform(XilinxISEPlatform):
-	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -g UnusedPin:PullUp"
+	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g UnusedPin:PullUp"
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc3s1400a-ft256-4", _io,
 			lambda p: CRG_DS(p, "clk64", "reset_n", rst_invert=True))
