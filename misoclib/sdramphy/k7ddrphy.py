@@ -179,7 +179,7 @@ class K7DDRPHY(Module):
 				Instance("ISERDESE2",
 					p_DATA_WIDTH=8, p_DATA_RATE="DDR",
 					p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
-					p_NUM_CE=1, p_IOBDELAY="BOTH",
+					p_NUM_CE=1, p_IOBDELAY="IFD",
 
 					i_DDLY=dq_i_delayed,
 					i_CE1=1,
