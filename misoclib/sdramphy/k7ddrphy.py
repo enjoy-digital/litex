@@ -20,7 +20,7 @@ class K7DDRPHY(Module):
 			wrphase=2,
 			rdcmdphase=1,
 			wrcmdphase=0,
-			cl=8,
+			cl=7,
 			cwl=6,
 			read_latency=6,
 			write_latency=2
