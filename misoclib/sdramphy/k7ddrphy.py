@@ -32,7 +32,7 @@ class K7DDRPHY(Module):
 		self.specials += [
 			Instance("OSERDESE2",
 				p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-				p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
+				p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
 				p_SERDES_MODE="MASTER",
 
 				o_OQ=sd_clk_se,
@@ -53,7 +53,7 @@ class K7DDRPHY(Module):
 			self.specials += \
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
+					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
 					p_SERDES_MODE="MASTER",
 
 					o_OQ=pads.a[i],
@@ -69,7 +69,7 @@ class K7DDRPHY(Module):
 			self.specials += \
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
+					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
 					p_SERDES_MODE="MASTER",
 
 					o_OQ=pads.ba[i],
@@ -85,7 +85,7 @@ class K7DDRPHY(Module):
 			self.specials += \
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
+					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
 					p_SERDES_MODE="MASTER",
 
 					o_OQ=getattr(pads, name),
@@ -104,7 +104,7 @@ class K7DDRPHY(Module):
 			self.specials += \
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
+					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
 					p_SERDES_MODE="MASTER",
 
 					o_OQ=dm_o_nodelay,
@@ -130,7 +130,7 @@ class K7DDRPHY(Module):
 			self.specials += [
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
+					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
 					p_SERDES_MODE="MASTER",
 
 					o_OFB=dqs_nodelay, o_TQ=dqs_t,
@@ -163,7 +163,7 @@ class K7DDRPHY(Module):
 			self.specials += [
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
-					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="SDR",
+					p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
 					p_SERDES_MODE="MASTER",
 
 					o_OQ=dq_o_nodelay, o_TQ=dq_t,
