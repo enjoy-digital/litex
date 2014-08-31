@@ -2,15 +2,26 @@
 
 from migen.fhdl.std import *
 from migen.bus.dfi import *
+from migen.bank.description import *
 
 from misoclib import lasmicon
 
-class K7DDRPHY(Module):
+class K7DDRPHY(Module, AutoCSR):
 	def __init__(self, pads, memtype):
 		a = flen(pads.a)
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
 		nphases = 4
+
+		self._r_wlevel_en = CSRStorage()
+		self._r_wlevel_strobe = CSR()
+		self._r_dly_sel = CSRStorage(d//8)
+		self._r_rdly_dq_rst = CSR()
+		self._r_rdly_dq_inc = CSR()
+		self._r_wdly_dq_rst = CSR()
+		self._r_wdly_dq_inc = CSR()
+		self._r_wdly_dqs_rst = CSR()
+		self._r_wdly_dqs_inc = CSR()
 
 		self.phy_settings = lasmicon.PhySettings(
 			memtype=memtype,
@@ -28,6 +39,9 @@ class K7DDRPHY(Module):
 
 		self.dfi = Interface(a, ba, self.phy_settings.dfi_d, nphases)
 
+		###
+
+		# Clock
 		sd_clk_se = Signal()
 		self.specials += [
 			Instance("OSERDESE2",
@@ -49,6 +63,7 @@ class K7DDRPHY(Module):
 			)
 		]
 
+		# Addresses and commands
 		for i in range(a):
 			self.specials += \
 				Instance("OSERDESE2",
@@ -98,7 +113,19 @@ class K7DDRPHY(Module):
 					i_D7=getattr(self.dfi.phases[3], name), i_D8=getattr(self.dfi.phases[3], name)
 				)
 
-		oe = Signal()
+		# DQS and DM
+		oe_dqs = Signal()
+		dqs_serdes_pattern = Signal(8)
+		self.comb += \
+			If(self._r_wlevel_en.storage,
+				If(self._r_wlevel_strobe.re,
+					dqs_serdes_pattern.eq(0b00000001)
+				).Else(
+					dqs_serdes_pattern.eq(0b00000000)
+				)
+			).Else(
+				dqs_serdes_pattern.eq(0b01010101)
+			)
 		for i in range(d//8):
 			dm_o_nodelay = Signal()
 			self.specials += \
@@ -120,10 +147,16 @@ class K7DDRPHY(Module):
 				Instance("ODELAYE2",
 					p_DELAY_SRC="ODATAIN", p_SIGNAL_PATTERN="DATA",
 					p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
-					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="FIXED", p_ODELAY_VALUE=0,
+					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="VARIABLE", p_ODELAY_VALUE=0,
+
+					i_C=ClockSignal(),
+					i_LD=self._r_dly_sel.storage[i] & self._r_wdly_dq_rst.re,
+					i_CE=self._r_dly_sel.storage[i] & self._r_wdly_dq_inc.re,
+					i_LDPIPEEN=0, i_INC=1,
 
 					o_ODATAIN=dm_o_nodelay, o_DATAOUT=pads.dm[i]
-				)			
+				)
+
 			dqs_nodelay = Signal()
 			dqs_delayed = Signal()
 			dqs_t = Signal()
@@ -137,14 +170,21 @@ class K7DDRPHY(Module):
 					i_OCE=1, i_TCE=1,
 					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
-					i_D1=1, i_D2=0, i_D3=1, i_D4=0,
-					i_D5=1, i_D6=0, i_D7=1, i_D8=0,
-					i_T1=~oe
+					i_D1=dqs_serdes_pattern[0], i_D2=dqs_serdes_pattern[1],
+					i_D3=dqs_serdes_pattern[2], i_D4=dqs_serdes_pattern[3],
+					i_D5=dqs_serdes_pattern[4], i_D6=dqs_serdes_pattern[5],
+					i_D7=dqs_serdes_pattern[6], i_D8=dqs_serdes_pattern[7],
+					i_T1=~oe_dqs
 				),
 				Instance("ODELAYE2",
 					p_DELAY_SRC="ODATAIN", p_SIGNAL_PATTERN="DATA",
 					p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
-					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="FIXED", p_ODELAY_VALUE=6,
+					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="VARIABLE", p_ODELAY_VALUE=6,
+
+					i_C=ClockSignal(),
+					i_LD=self._r_dly_sel.storage[i] & self._r_wdly_dqs_rst.re,
+					i_CE=self._r_dly_sel.storage[i] & self._r_wdly_dqs_inc.re,
+					i_LDPIPEEN=0, i_INC=1,
 
 					o_ODATAIN=dqs_nodelay, o_DATAOUT=dqs_delayed
 				),
@@ -154,6 +194,8 @@ class K7DDRPHY(Module):
 				)
 			]
 
+		# DQ
+		oe_dq = Signal()
 		for i in range(d):
 			dq_o_nodelay = Signal()
 			dq_o_delayed = Signal()
@@ -174,7 +216,7 @@ class K7DDRPHY(Module):
 					i_D3=self.dfi.phases[1].wrdata[i], i_D4=self.dfi.phases[1].wrdata[d+i],
 					i_D5=self.dfi.phases[2].wrdata[i], i_D6=self.dfi.phases[2].wrdata[d+i],
 					i_D7=self.dfi.phases[3].wrdata[i], i_D8=self.dfi.phases[3].wrdata[d+i],
-					i_T1=~oe
+					i_T1=~oe_dq
 				),
 				Instance("ISERDESE2",
 					p_DATA_WIDTH=8, p_DATA_RATE="DDR",
@@ -194,14 +236,24 @@ class K7DDRPHY(Module):
 				Instance("ODELAYE2",
 					p_DELAY_SRC="ODATAIN", p_SIGNAL_PATTERN="DATA",
 					p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
-					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="FIXED", p_ODELAY_VALUE=0,
+					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="VARIABLE", p_ODELAY_VALUE=0,
+
+					i_C=ClockSignal(),
+					i_LD=self._r_dly_sel.storage[i//8] & self._r_wdly_dq_rst.re,
+					i_CE=self._r_dly_sel.storage[i//8] & self._r_wdly_dq_inc.re,
+					i_LDPIPEEN=0, i_INC=1,
 
 					o_ODATAIN=dq_o_nodelay, o_DATAOUT=dq_o_delayed
 				),
 				Instance("IDELAYE2",
 					p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
 					p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
-					p_PIPE_SEL="FALSE", p_IDELAY_TYPE="FIXED", p_IDELAY_VALUE=6,
+					p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=6,
+
+					i_C=ClockSignal(),
+					i_LD=self._r_dly_sel.storage[i//8] & self._r_rdly_dq_rst.re,
+					i_CE=self._r_dly_sel.storage[i//8] & self._r_rdly_dq_inc.re,
+					i_LDPIPEEN=0, i_INC=1,
 
 					i_IDATAIN=dq_i_nodelay, o_DATAOUT=dq_i_delayed
 				),
@@ -211,6 +263,8 @@ class K7DDRPHY(Module):
 				)
 			]
 
+		# Flow control
+		#
 		# total read latency = 6:
 		#  2 cycles through OSERDESE2
 		#  2 cycles CAS
@@ -220,9 +274,17 @@ class K7DDRPHY(Module):
 			n_rddata_en = Signal()
 			self.sync += n_rddata_en.eq(rddata_en)
 			rddata_en = n_rddata_en
-		self.sync += [phase.rddata_valid.eq(rddata_en) for phase in self.dfi.phases]
+		self.sync += [phase.rddata_valid.eq(rddata_en | self._r_wlevel_en.storage)
+			for phase in self.dfi.phases]
 
-		last_wrdata_en = Signal(5)
+		oe = Signal()
+		last_wrdata_en = Signal(4)
 		wrphase = self.dfi.phases[self.phy_settings.wrphase]
-		self.sync += last_wrdata_en.eq(Cat(wrphase.wrdata_en, last_wrdata_en[:4]))
-		self.comb += oe.eq(last_wrdata_en[2+0] | last_wrdata_en[2+1] | last_wrdata_en[2+2])
+		self.sync += last_wrdata_en.eq(Cat(wrphase.wrdata_en, last_wrdata_en[:3]))
+		self.comb += oe.eq(last_wrdata_en[1] | last_wrdata_en[2] | last_wrdata_en[3])
+		self.sync += \
+			If(self._r_wlevel_en.storage,
+				oe_dqs.eq(1), oe_dq.eq(0)
+			).Else(
+				oe_dqs.eq(oe), oe_dq.eq(oe)
+			)
