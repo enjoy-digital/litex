@@ -62,6 +62,11 @@ class _CRG(Module):
 class BaseSoC(SDRAMSoC):
 	default_platform = "kc705"
 
+	csr_map = {
+		"ddrphy":	10,
+	}
+	csr_map.update(SDRAMSoC.csr_map)
+
 	def __init__(self, platform, **kwargs):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=125*1000000, cpu_reset_address=0xaf0000,
