@@ -191,9 +191,22 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 			mr0 |= wr_to_mr0[wr] << 9
 			return mr0
 
+		def format_mr1(output_drive_strength, rtt_nom):
+			mr1 = ((output_drive_strength >> 0) & 1) << 1
+			mr1 |= ((output_drive_strength >> 1) & 1) << 5
+			mr1 |= ((rtt_nom >> 0) & 1) << 2
+			mr1 |= ((rtt_nom >> 1) & 1) << 6
+			mr1 |= ((rtt_nom >> 2) & 1) << 9
+			return mr1
+
+		def format_mr2(cwl, rtt_wr):
+			mr2 = (cwl-5) << 3
+			mr2 |= rtt_wr << 9
+			return mr2
+
 		mr0 = format_mr0(cl, 8, 1) # wr=8 FIXME: this should be ceiling(tWR/tCK)
-		mr1 = 6 # Output Drive Strength RZQ/7 (34 ohm) / Rtt RZQ/4 (60 ohm)
-		mr2 = (sdram_phy.phy_settings.cwl-5) << 3
+		mr1 = format_mr1(1, 1) # Output Drive Strength RZQ/7 (34 ohm) / Rtt RZQ/4 (60 ohm)
+		mr2 = format_mr2(sdram_phy.phy_settings.cwl, 2) # Rtt(WR) RZQ/4
 		mr3 = 0
 
 		init_sequence = [
