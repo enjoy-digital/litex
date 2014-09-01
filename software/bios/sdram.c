@@ -112,6 +112,51 @@ void sdrrd(char *startaddr, char *dq)
 	sdrrdbuf(_dq);
 }
 
+void sdrrderr(char *count)
+{
+	char *c;
+	int _count;
+	int i, j, p;
+	unsigned char prev_data[DFII_NPHASES*DFII_PIX_RDDATA_SIZE];
+	unsigned char errs[DFII_PIX_RDDATA_SIZE/2];
+
+	if(*count == 0) {
+		printf("sdrrderr <count>\n");
+		return;
+	}
+	_count = strtoul(count, &c, 0);
+	if(*c != 0) {
+		printf("incorrect count\n");
+		return;
+	}
+
+	dfii_pird_address_write(0);
+	dfii_pird_baddress_write(0);
+	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+	cdelay(15);
+	for(p=0;p<DFII_NPHASES;p++)
+		for(i=0;i<DFII_PIX_RDDATA_SIZE;i++)
+			prev_data[p*DFII_PIX_RDDATA_SIZE+i] = MMPTR(dfii_pix_rddata_addr[p]+4*i);
+	for(i=0;i<DFII_PIX_RDDATA_SIZE/2;i++)
+		errs[i] = 0;
+
+	for(j=0;j<_count;j++) {
+		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+		cdelay(15);
+		for(p=0;p<DFII_NPHASES;p++)
+			for(i=0;i<DFII_PIX_RDDATA_SIZE;i++) {
+				unsigned char new_data;
+
+				new_data = MMPTR(dfii_pix_rddata_addr[p]+4*i);
+				errs[i%(DFII_PIX_RDDATA_SIZE/2)] |= prev_data[p*DFII_PIX_RDDATA_SIZE+i] ^ new_data;
+				prev_data[p*DFII_PIX_RDDATA_SIZE+i] = new_data;
+			}
+	}
+	for(i=0;i<DFII_PIX_RDDATA_SIZE/2;i++)
+		printf("%02x ", errs[i]);
+	printf("\n");
+}
+
 void sdrwr(char *startaddr)
 {
 	char *c;
