@@ -87,8 +87,7 @@ class BaseSoC(SDRAMSoC):
 		self.register_sdram_phy(self.sdrphy.dfi, self.sdrphy.phy_settings, sdram_geom, sdram_timing)
 
 		# BIOS is in SPI flash
-		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"),
-			cmd=0xefef, cmd_width=16, addr_width=24, dummy=4, div=6)
+		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"), dummy=4, div=6)
 		self.flash_boot_address = 0x70000
 		self.register_rom(self.spiflash.bus)
 

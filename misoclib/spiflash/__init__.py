@@ -4,20 +4,31 @@ from migen.bus import wishbone
 from migen.genlib.misc import timeline
 from migen.genlib.record import Record
 
+_FAST_READ = 0x0b
+_DIOFR = 0xbb
+_QIOFR = 0xeb
+
+def _format_cmd(cmd, spi_width):
+	"""
+	`cmd` is the read instruction. Since everything is transmitted on all
+	dq lines (cmd, adr and data), extend/interleave cmd to full pads.dq
+	width even if dq1-dq3 are don't care during the command phase:
+	For example, for N25Q128, 0xeb is the quad i/o fast read, and
+	extended to 4 bits (dq1,dq2,dq3 high) is: 0xfffefeff
+	"""
+	c = 2**(8*spi_width)-1
+	for b in range(8):
+		if not (cmd>>b)%2:
+			c &= ~(1<<(b*spi_width))
+	return c
+
 class SpiFlash(Module):
-	def __init__(self, pads, cmd=0xfffefeff, cmd_width=32, addr_width=24,
-			dummy=15, div=2):
+	def __init__(self, pads, dummy=15, div=2):
 		"""
 		Simple read-only SPI flash, e.g. N25Q128 on the LX9 Microboard.
 
 		Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
 		Read). Only supports mode0 (cpol=0, cpha=0).
-
-		`cmd` is the read instruction. Since everything is transmitted on all
-		dq lines (cmd, adr and data), extend/interleave cmd to full pads.dq
-		width even if dq1-dq3 are don't care during the command phase:
-		For example, for N25Q128, 0xeb is the quad i/o fast read, and
-		extended to 4 bits (dq1,dq2,dq3 high) is: 0xfffefeff
 		"""
 		self.bus = bus = wishbone.Interface()
 
@@ -25,6 +36,14 @@ class SpiFlash(Module):
 
 		wbone_width = flen(bus.dat_r)
 		spi_width = flen(pads.dq)
+
+		cmd_params = {
+			4: (_format_cmd(_QIOFR, 4), 4*8),
+			2: (_format_cmd(_DIOFR, 2), 2*8),
+			1: (_format_cmd(_FAST_READ, 1), 1*8)
+		}
+		cmd, cmd_width = cmd_params[spi_width]
+		addr_width = 24
 
 		pads.cs_n.reset = 1
 
