@@ -35,7 +35,7 @@ static void command_p{n}(int cmd)
 	#
 	# sdrrd/sdrwr functions utilities
 	#
-	r += "#define DFII_PIX_WRDATA_SIZE CSR_DFII_PI0_WRDATA_SIZE\n"
+	r += "#define DFII_PIX_DATA_SIZE CSR_DFII_PI0_WRDATA_SIZE\n"
 	dfii_pix_wrdata_addr = []
 	for n in range(nphases):
 		dfii_pix_wrdata_addr.append("CSR_DFII_PI{n}_WRDATA_ADDR".format(n=n))
@@ -44,9 +44,7 @@ const unsigned int dfii_pix_wrdata_addr[{n}] = {{
 	{dfii_pix_wrdata_addr}
 }};
 """.format(n=nphases, dfii_pix_wrdata_addr=",\n\t".join(dfii_pix_wrdata_addr))
-	r +="\n"
 
-	r += "#define DFII_PIX_RDDATA_SIZE CSR_DFII_PI0_RDDATA_SIZE\n"
 	dfii_pix_rddata_addr = []
 	for n in range(nphases):
 		dfii_pix_rddata_addr.append("CSR_DFII_PI{n}_RDDATA_ADDR".format(n=n))

@@ -70,12 +70,12 @@ void sdrrdbuf(int dq)
 		first_byte = 0;
 		step = 1;
 	} else {
-		first_byte = DFII_PIX_RDDATA_SIZE/2 - 1 - dq;
-		step = DFII_PIX_RDDATA_SIZE/2;
+		first_byte = DFII_PIX_DATA_SIZE/2 - 1 - dq;
+		step = DFII_PIX_DATA_SIZE/2;
 	}
 
 	for(p=0;p<DFII_NPHASES;p++)
-		for(i=first_byte;i<DFII_PIX_RDDATA_SIZE;i+=step)
+		for(i=first_byte;i<DFII_PIX_DATA_SIZE;i+=step)
 			printf("%02x", MMPTR(dfii_pix_rddata_addr[p]+4*i));
 	printf("\n");
 }
@@ -118,8 +118,8 @@ void sdrrderr(char *count)
 	char *c;
 	int _count;
 	int i, j, p;
-	unsigned char prev_data[DFII_NPHASES*DFII_PIX_RDDATA_SIZE];
-	unsigned char errs[DFII_NPHASES*DFII_PIX_RDDATA_SIZE];
+	unsigned char prev_data[DFII_NPHASES*DFII_PIX_DATA_SIZE];
+	unsigned char errs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
 
 	if(*count == 0) {
 		printf("sdrrderr <count>\n");
@@ -131,7 +131,7 @@ void sdrrderr(char *count)
 		return;
 	}
 
-	for(i=0;i<DFII_NPHASES*DFII_PIX_RDDATA_SIZE;i++)
+	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++)
 			errs[i] = 0;
 	for(addr=0;addr<16;addr++) {
 		dfii_pird_address_write(addr*8);
@@ -139,29 +139,29 @@ void sdrrderr(char *count)
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
 		for(p=0;p<DFII_NPHASES;p++)
-			for(i=0;i<DFII_PIX_RDDATA_SIZE;i++)
-				prev_data[p*DFII_PIX_RDDATA_SIZE+i] = MMPTR(dfii_pix_rddata_addr[p]+4*i);
+			for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+				prev_data[p*DFII_PIX_DATA_SIZE+i] = MMPTR(dfii_pix_rddata_addr[p]+4*i);
 
 		for(j=0;j<_count;j++) {
 			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 			cdelay(15);
 			for(p=0;p<DFII_NPHASES;p++)
-				for(i=0;i<DFII_PIX_RDDATA_SIZE;i++) {
+				for(i=0;i<DFII_PIX_DATA_SIZE;i++) {
 					unsigned char new_data;
 
 					new_data = MMPTR(dfii_pix_rddata_addr[p]+4*i);
-					errs[p*DFII_PIX_RDDATA_SIZE+i] |= prev_data[p*DFII_PIX_RDDATA_SIZE+i] ^ new_data;
-					prev_data[p*DFII_PIX_RDDATA_SIZE+i] = new_data;
+					errs[p*DFII_PIX_DATA_SIZE+i] |= prev_data[p*DFII_PIX_DATA_SIZE+i] ^ new_data;
+					prev_data[p*DFII_PIX_DATA_SIZE+i] = new_data;
 				}
 		}
 	}
 
-	for(i=0;i<DFII_NPHASES*DFII_PIX_RDDATA_SIZE;i++)
+	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++)
 		printf("%02x", errs[i]);
 	printf("\n");
 	for(p=0;p<DFII_NPHASES;p++)
-		for(i=0;i<DFII_PIX_RDDATA_SIZE;i++)
-			printf("%2x", DFII_PIX_RDDATA_SIZE/2 - 1 - (i % (DFII_PIX_RDDATA_SIZE/2)));
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+			printf("%2x", DFII_PIX_DATA_SIZE/2 - 1 - (i % (DFII_PIX_DATA_SIZE/2)));
 	printf("\n");
 }
 
@@ -183,7 +183,7 @@ void sdrwr(char *startaddr)
 	}
 
 	for(p=0;p<DFII_NPHASES;p++)
-		for(i=0;i<DFII_PIX_WRDATA_SIZE;i++)
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
 			MMPTR(dfii_pix_wrdata_addr[p]+4*i) = 0x10*p + i;
 	
 	dfii_piwr_address_write(addr);
@@ -222,8 +222,8 @@ static int write_level(int *delay, int *high_skew)
 
 	sdrwlon();
 	cdelay(100);
-	for(i=0;i<DFII_PIX_RDDATA_SIZE/2;i++) {
-		dq_address = dfii_pix_rddata_addr[0]+4*(DFII_PIX_RDDATA_SIZE/2-1-i);
+	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
+		dq_address = dfii_pix_rddata_addr[0]+4*(DFII_PIX_DATA_SIZE/2-1-i);
 		ddrphy_dly_sel_write(1 << i);
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
@@ -267,7 +267,7 @@ static int write_level(int *delay, int *high_skew)
 	sdrwloff();
 
 	ok = 1;
-	for(i=DFII_PIX_RDDATA_SIZE/2-1;i>=0;i--) {
+	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
 		printf("%2d%c ", delay[i], high_skew[i] ? '*' : ' ');
 		if(delay[i] >= ERR_DDRPHY_DELAY)
 			ok = 0;
@@ -287,7 +287,7 @@ static void read_bitslip(int *delay, int *high_skew)
 	int i;
 
 	bitslip_thr = 0x7fffffff;
-	for(i=0;i<DFII_PIX_RDDATA_SIZE/2;i++)
+	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++)
 		if(high_skew[i] && (delay[i] < bitslip_thr))
 			bitslip_thr = delay[i];
 	if(bitslip_thr == 0x7fffffff)
@@ -295,7 +295,7 @@ static void read_bitslip(int *delay, int *high_skew)
 	bitslip_thr = bitslip_thr/2;
 
 	printf("Read bitslip: ");
-	for(i=DFII_PIX_RDDATA_SIZE/2-1;i>=0;i--)
+	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--)
 		if(delay[i] > bitslip_thr) {
 			ddrphy_dly_sel_write(1 << i);
 			/* 7-series SERDES in DDR mode needs 3 pulses for 1 bitslip */
@@ -310,7 +310,7 @@ static void read_bitslip(int *delay, int *high_skew)
 static void read_delays(void)
 {
 	unsigned int prv;
-	unsigned char prs[DFII_NPHASES*DFII_PIX_WRDATA_SIZE];
+	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
 	int p, i, j;
 	int working;
 	int delay, delay_min, delay_max;
@@ -319,7 +319,7 @@ static void read_delays(void)
 
 	/* Generate pseudo-random sequence */
 	prv = 42;
-	for(i=0;i<DFII_NPHASES*DFII_PIX_WRDATA_SIZE;i++) {
+	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++) {
 		prv = 1664525*prv + 1013904223;
 		prs[i] = prv;
 	}
@@ -332,8 +332,8 @@ static void read_delays(void)
 
 	/* Write test pattern */
 	for(p=0;p<DFII_NPHASES;p++)
-		for(i=0;i<DFII_PIX_WRDATA_SIZE;i++)
-			MMPTR(dfii_pix_wrdata_addr[p]+4*i) = prs[DFII_PIX_WRDATA_SIZE*p+i];
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+			MMPTR(dfii_pix_wrdata_addr[p]+4*i) = prs[DFII_PIX_DATA_SIZE*p+i];
 	dfii_piwr_address_write(0);
 	dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -341,8 +341,8 @@ static void read_delays(void)
 	/* Calibrate each DQ in turn */
 	dfii_pird_address_write(0);
 	dfii_pird_baddress_write(0);
-	for(i=0;i<DFII_PIX_WRDATA_SIZE/2;i++) {
-		ddrphy_dly_sel_write(1 << (DFII_PIX_WRDATA_SIZE/2-i-1));
+	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
+		ddrphy_dly_sel_write(1 << (DFII_PIX_DATA_SIZE/2-i-1));
 		delay = 0;
 
 		/* Find smallest working delay */
@@ -352,9 +352,9 @@ static void read_delays(void)
 			cdelay(15);
 			working = 1;
 			for(p=0;p<DFII_NPHASES;p++) {
-				if(MMPTR(dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_WRDATA_SIZE*p+i])
+				if(MMPTR(dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_DATA_SIZE*p+i])
 					working = 0;
-				if(MMPTR(dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_WRDATA_SIZE/2)) != prs[DFII_PIX_WRDATA_SIZE*p+i+DFII_PIX_WRDATA_SIZE/2])
+				if(MMPTR(dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
 					working = 0;
 			}
 			if(working)
@@ -376,9 +376,9 @@ static void read_delays(void)
 			cdelay(15);
 			working = 1;
 			for(p=0;p<DFII_NPHASES;p++) {
-				if(MMPTR(dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_WRDATA_SIZE*p+i])
+				if(MMPTR(dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_DATA_SIZE*p+i])
 					working = 0;
-				if(MMPTR(dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_WRDATA_SIZE/2)) != prs[DFII_PIX_WRDATA_SIZE*p+i+DFII_PIX_WRDATA_SIZE/2])
+				if(MMPTR(dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
 					working = 0;
 			}
 			if(!working)
@@ -390,7 +390,7 @@ static void read_delays(void)
 		}
 		delay_max = delay;
 
-		printf("%d:%02d-%02d  ", DFII_PIX_WRDATA_SIZE/2-i-1, delay_min, delay_max);
+		printf("%d:%02d-%02d  ", DFII_PIX_DATA_SIZE/2-i-1, delay_min, delay_max);
 
 		/* Set delay to the middle */
 		ddrphy_rdly_dq_rst_write(1);
@@ -409,8 +409,8 @@ static void read_delays(void)
 
 int sdrlevel(void)
 {
-	int delay[DFII_PIX_RDDATA_SIZE/2];
-	int high_skew[DFII_PIX_RDDATA_SIZE/2];
+	int delay[DFII_PIX_DATA_SIZE/2];
+	int high_skew[DFII_PIX_DATA_SIZE/2];
 
 	if(!write_level(delay, high_skew))
 		return 0;
