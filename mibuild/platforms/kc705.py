@@ -139,7 +139,7 @@ def Platform(*args, toolchain="vivado", **kwargs):
 			xilinx_platform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory)
 
 		def create_programmer(self):
-			return XC3SProg("jtaghs1", "bscan_spi_kc705.bit")
+			return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
 
 		def do_finalize(self, fragment):
 			try:
