@@ -66,22 +66,6 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 		"CKE"           : "DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N"
 	}
 
-	def gen_cmd(comment, a, ba, cmd, delay):	
-		r = "\t/* {0} */\n".format(comment)
-		r += "\tdfii_pi0_address_write({0:#x});\n".format(a)
-		r += "\tdfii_pi0_baddress_write({0:d});\n".format(ba)
-		if cmd[:12] == "DFII_CONTROL":
-			r += "\tdfii_control_write({0});\n".format(cmd)
-		else:
-			r += "\tcommand_p0({0});\n".format(cmd)
-		if delay:
-			r += "\tcdelay({0:d});\n".format(delay)
-		r += "\n"
-		return r
-
-
-	r += "static void init_sequence(void)\n{\n"
-
 	cl = sdram_phy.phy_settings.cl
 	
 	if sdram_phy.phy_settings.memtype == "SDR":
@@ -136,7 +120,7 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 	elif sdram_phy.phy_settings.memtype == "DDR2":
 		bl = 2*sdram_phy.phy_settings.nphases
 		wr = 2
-		mr  = log2_int(bl) + (cl << 4) + (wr << 9)
+		mr = log2_int(bl) + (cl << 4) + (wr << 9)
 		emr = 0
 		emr2 = 0
 		emr3 = 0
@@ -218,13 +202,26 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 			("Load Mode Register 0, CL={0:d}, BL={1:d}".format(cl, bl), mr0, 0, cmds["MODE_REGISTER"], 200),
 			("ZQ Calibration", 0x0400, 0, "DFII_COMMAND_WE|DFII_COMMAND_CS", 200),
 		]
+
+		# the value of MR1 needs to be modified during write leveling
+		r += "#define DDR3_MR1 {}\n\n".format(mr1)
 	else:
 		raise NotImplementedError("Unsupported memory type: "+sdram_phy.phy_settings.memtype)
 
+	r += "static void init_sequence(void)\n{\n"
 	for comment, a, ba, cmd, delay in init_sequence:
-		r += gen_cmd(comment, a, ba, cmd, delay)
-
+		r += "\t/* {0} */\n".format(comment)
+		r += "\tdfii_pi0_address_write({0:#x});\n".format(a)
+		r += "\tdfii_pi0_baddress_write({0:d});\n".format(ba)
+		if cmd[:12] == "DFII_CONTROL":
+			r += "\tdfii_control_write({0});\n".format(cmd)
+		else:
+			r += "\tcommand_p0({0});\n".format(cmd)
+		if delay:
+			r += "\tcdelay({0:d});\n".format(delay)
+		r += "\n"
 	r += "}\n"
+
 	r += "#endif\n"
 
 	return r
