@@ -57,7 +57,7 @@ def _build_files(device, sources, vincpaths, build_name, bitstream_compression):
 	tcl.append("route_design")
 	tcl.append("report_route_status -file %s_route_status.rpt" %(build_name))
 	tcl.append("report_drc -file %s_drc.rpt" %(build_name))
-	tcl.append("report_timing_summary -file %s_timing.rpt" %(build_name))
+	tcl.append("report_timing_summary -max_paths 10 -file %s_timing.rpt" %(build_name))
 	tcl.append("report_power -file %s_power.rpt" %(build_name))
 	if bitstream_compression:
 		tcl.append("set_property BITSTREAM.GENERAL.COMPRESS True [current_design]")
