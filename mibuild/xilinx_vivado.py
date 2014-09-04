@@ -72,7 +72,7 @@ def _run_vivado(build_name, vivado_path, source, ver=None):
 	if source:
 		settings = xilinx_common.settings(vivado_path, ver)
 		build_script_contents += "source " + settings + "\n"
-	build_script_contents += "vivado -mode tcl -source " + build_name + ".tcl\n"
+	build_script_contents += "vivado -mode batch -source " + build_name + ".tcl\n"
 	build_script_file = "build_" + build_name + ".sh"
 	tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
