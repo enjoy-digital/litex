@@ -285,10 +285,11 @@ class TwoQuadrantCordic(Module):
 		return a, s, zmax, gain
 
 	def _stage(self, xi, yi, zi, xo, yo, zo, i, ai):
+		dir = Signal()
 		if self.cordic_mode == "rotate":
-			direction = zi < 0
+			self.comb += dir.eq(zi < 0)
 		else: # vector
-			direction = yi >= 0
+			self.comb += dir.eq(yi >= 0)
 		dx = yi>>i
 		dy = xi>>i
 		dz = ai
@@ -296,15 +297,11 @@ class TwoQuadrantCordic(Module):
 			dx = 0
 		elif self.func_mode == "hyperbolic":
 			dx = -dx
-		stmt = If(direction,
-					xo.eq(xi + dx),
-					yo.eq(yi - dy),
-					zo.eq(zi + dz),
-				).Else(
-					xo.eq(xi - dx),
-					yo.eq(yi + dy),
-					zo.eq(zi - dz),
-				)
+		stmt = [
+				xo.eq(xi + Mux(dir, dx, -dx)),
+				yo.eq(yi + Mux(dir, -dy, dy)),
+				zo.eq(zi + Mux(dir, dz, -dz))
+		]
 		return stmt
 
 class Cordic(TwoQuadrantCordic):
