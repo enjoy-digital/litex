@@ -110,7 +110,7 @@ class Collector(Module, AutoCSR):
 		]
 
 class _DMAController(Module):
-	def __init__(self, bus_accessor, bus_aw, bus_dw, mode, base_reset=0, length_reset=0, generate_irq=False):
+	def __init__(self, bus_accessor, bus_aw, bus_dw, mode, base_reset=0, length_reset=0):
 		self.alignment_bits = bits_for(bus_dw//8) - 1
 		layout = [
 			("length", bus_aw + self.alignment_bits, length_reset, self.alignment_bits),
@@ -124,18 +124,8 @@ class _DMAController(Module):
 		if hasattr(self.generator, "trigger"):
 			self.trigger = self.generator.trigger
 
-		self.generate_irq = generate_irq
-		if generate_irq:
-			self.submodules.ev = EventManager()
-			self.ev.done = EventSourceProcess()
-			self.ev.finalize()
-			self.comb += self.ev.done.trigger.eq(self.r_busy.status)
-
 	def get_csrs(self):
-		csrs = self.generator.get_csrs() + [self.r_busy]
-		if self.generate_irq:
-			csrs += self.ev.get_csrs()
-		return csrs
+		return self.generator.get_csrs() + [self.r_busy]
 
 class DMAReadController(_DMAController):
 	def __init__(self, bus_accessor, *args, **kwargs):
