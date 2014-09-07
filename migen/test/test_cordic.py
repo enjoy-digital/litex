@@ -47,7 +47,6 @@ class CordicCase(SimCase, unittest.TestCase):
 				xo1 = tbp.dut.xo
 				yo1 = tbp.dut.yo
 				zo1 = tbp.dut.zo
-				print((xi, yi, zi), (xo, yo, zo), (xo1, yo1, zo1))
 				self.assertAlmostEqual(xo, xo1, delta=delta)
 				self.assertAlmostEqual(yo, yo1, delta=delta)
 				self.assertAlmostEqual(abs(zo - zo1) % (2*c), 0, delta=deltaz)
