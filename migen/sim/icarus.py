@@ -26,7 +26,7 @@ class Runner:
 		_str2file(self.top_file, c_top)
 		_str2file(self.dut_file, c_dut)
 		subprocess.check_call(["iverilog", "-o", self.vvp_file] + self.options + [self.top_file, self.dut_file] + self.extra_files)
-		self.process = subprocess.Popen(["vvp", "-mmigensim", self.vvp_file])
+		self.process = subprocess.Popen(["vvp", "-mmigensim", "-Mvpi", self.vvp_file])
 
 	def close(self):
 		if hasattr(self, "process"):
