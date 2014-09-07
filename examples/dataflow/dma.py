@@ -81,11 +81,11 @@ class TBWishboneWriter(TBWishbone):
 
 def test_wb_reader():
 	print("*** Testing Wishbone reader")
-	run_simulation(TBWishboneReader())
+	run_simulation(TBWishboneReader(), 100)
 
 def test_wb_writer():
 	print("*** Testing Wishbone writer")
-	run_simulation(TBWishboneWriter())
+	run_simulation(TBWishboneWriter(), 100)
 
 if __name__ == "__main__":
 	test_wb_reader()
