@@ -1,4 +1,4 @@
-from networkx import MultiDiGraph
+from collections import defaultdict
 
 from migen.fhdl.std import *
 from migen.genlib.misc import optree
@@ -26,7 +26,70 @@ class AbstractActor:
 		r += ">"
 		return r
 
-# TODO: rewrite this without networkx and without non-determinism
+class MultiDiGraph:
+	def __init__(self):
+		self.edges = defaultdict(list)
+		self.incoming = defaultdict(set)
+		self.outgoing = defaultdict(set)
+		self.nodes = set()
+
+	def add_edge(self, a, b, **edge):
+		self.edges[(a, b)].append(edge)
+		self.incoming[b].add(a)
+		self.outgoing[a].add(b)
+		self.nodes |= {a, b}
+
+	def __iter__(self):
+		return iter(self.nodes)
+
+	def __len__(self):
+		return len(self.nodes)
+
+	def edges_iter(self, data=True):
+		assert data
+		for (a, b), edges in self.edges.items():
+			for edge in edges:
+				yield a, b, edge
+
+	def get_edge_data(self, a, b):
+		return dict(enumerate(self.edges[(a, b)]))
+
+	def add_node(self, node):
+		self.nodes.add(node)
+
+	def remove_node(self, node):
+		for i in self.incoming.pop(node):
+			del self.edges[(i, node)]
+			self.outgoing[i].remove(node)
+		for i in self.outgoing.pop(node):
+			del self.edges[(node, i)]
+			self.incoming[i].remove(node)
+		self.nodes.remove(node)
+
+	def remove_edge(self, a, b, key):
+		e = self.edges[(a, b)]
+		del e[key]
+		if not e:
+			self.incoming[b].remove(a)
+			self.outgoing[a].remove(b)
+
+	def in_edges(self, sink, data=True):
+		assert data
+		e = []
+		for source in self.incoming[sink]:
+			for edge in self.edges[(source, sink)]:
+				e.append((source, sink, edge))
+		return e
+
+	def out_edges(self, source, data=True):
+		assert data
+		e = []
+		for sink in self.outgoing[source]:
+			for edge in self.edges[(source, sink)]:
+				e.append((source, sink, edge))
+		return e
+
+# TODO: rewrite this without non-determinism
 class DataFlowGraph(MultiDiGraph):
 	def __init__(self):
 		MultiDiGraph.__init__(self)
@@ -76,7 +139,7 @@ class DataFlowGraph(MultiDiGraph):
 		inst = actor.create_instance()
 		self.abstract_busy_signals[id(inst)] = actor.busy
 		self.replace_actor(actor, inst)
-	
+
 	# Returns a dictionary
 	#   source -> [sink1, ..., sinkn]
 	# source element is a (node, endpoint) pair.
@@ -91,7 +154,7 @@ class DataFlowGraph(MultiDiGraph):
 			else:
 				d[el_src] = [el_dst]
 		return d
-	
+
 	# Returns a dictionary
 	#   sink -> [source1, ... sourcen]
 	# sink element is a (node, endpoint) pair.
