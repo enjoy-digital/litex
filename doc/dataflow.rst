@@ -241,9 +241,7 @@ Actor networks
 Graph definition
 ================
 
-Migen represents an actor network using the ``migen.flow.network.DataFlowGraph`` class. It is derived from ``MultiDiGraph`` from the NetworkX [networkx]_ library.
-
-.. [networkx] http://networkx.lanl.gov/
+Migen represents an actor network using the ``migen.flow.network.DataFlowGraph`` class (a directed graph with self-loops and parallel edges).
 
 Nodes of the graph are either:
 
@@ -257,7 +255,7 @@ Edges of the graph represent the flow of data between actors. They have the foll
 * ``source_subr``: if only certain fields (a subrecord) of the source endpoint should be included in the connection, their names are listed in this parameter. The ``None`` value connects all fields.
 * ``sink_subr``: if the connection should only drive certain fields (a subrecord) of the sink endpoint, they are listed here. The ``None`` value connects all fields.
 
-Compared to NetworkX's ``MultiDiGraph`` it is based on, Migen's ``DataFlowGraph`` class implements an additional method that makes it easier to add actor connections to a graph: ::
+Migen's ``DataFlowGraph`` class implements a method that makes it easy to add actor connections to a graph: ::
 
   add_connection(source_node, sink_node,
     source_ep=None, sink_ep=None, # default: assume nodes have 1 source/sink
@@ -318,7 +316,9 @@ In the case of an actor network, the ``DFGReporter`` simulation object attaches 
 
 The ``DFGReporter`` contains a dictionary ``nodepair_to_ep`` that is keyed by ``(source actor, destination actor)`` pairs. Entries are other dictionaries that are keyed with the name of the source endpoint and return the associated ``EndpointReporter`` objects.
 
-``DFGReporter`` also provides a method ``get_edge_labels`` that can be used in conjunction with NetworkX's ``draw_networkx_edge_labels`` function to draw the performance report on a graphical representation of the graph (for an example, see :ref:`get_edge_labels`).
+``DFGReporter`` also provides a method ``get_edge_labels`` that can be used in conjunction with NetworkX's [networkx]_ ``draw_networkx_edge_labels`` function to draw the performance report on a graphical representation of the graph (for an example, see :ref:`get_edge_labels`).
+
+.. [networkx] http://networkx.lanl.gov/
 
 .. _get_edge_labels:
 
