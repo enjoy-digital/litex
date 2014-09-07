@@ -59,7 +59,10 @@ if __name__ == "__main__":
 	tb = TB()
 	run_simulation(tb, ncycles=1000)
 	
-	g_layout = nx.spectral_layout(tb.g)
-	nx.draw(tb.g, g_layout)
-	nx.draw_networkx_edge_labels(tb.g, g_layout, tb.reporter.get_edge_labels())
+	g = nx.MultiDiGraph()
+	for u, v, edge in tb.g.edges_iter():
+		g.add_edge(u, v, **edge)
+	g_layout = nx.spectral_layout(g)
+	nx.draw(g, g_layout)
+	nx.draw_networkx_edge_labels(g, g_layout, tb.reporter.get_edge_labels())
 	plt.show()
