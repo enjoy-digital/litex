@@ -15,30 +15,30 @@ class TestBench(Module):
 			n = 1<<flen(self.cordic.xi)
 		self.c = c = 2**(flen(self.cordic.xi) - 1)
 		self.cz = cz = 2**(flen(self.cordic.zi) - 1)
+		x = int(xmax*c/self.cordic.gain)
 		if i is None:
-			i = [(int(xmax*c/self.cordic.gain), 0, int(cz*(i/n - .5)))
-					for i in range(n)]
+			i = [(x, 0, int(cz*(2.*ii/n - 1))) for ii in range(n)]
 		self.i = i
 		random.shuffle(self.i)
 		self.ii = iter(self.i)
 		self.o = []
 
 	def do_simulation(self, selfp):
+		if selfp.cordic.new_out:
+			self.o.append((selfp.cordic.xo, selfp.cordic.yo, selfp.cordic.zo))
 		if selfp.cordic.new_in:
 			try:
 				selfp.cordic.xi, selfp.cordic.yi, selfp.cordic.zi = next(self.ii)
 			except StopIteration:
 				raise StopSimulation
-		if selfp.cordic.new_out:
-			self.o.append((selfp.cordic.xo, selfp.cordic.yo, selfp.cordic.zo))
 
 	def run_io(self):
 		run_simulation(self)
-		del self.i[-1], self.o[0]
+		del self.o[0]
 		if self.i[0] != (0, 0, 0):
 			assert self.o[0] != (0, 0, 0)
-		if self.i[-1] != self.i[-2]:
-			assert self.o[-1] != self.o[-2], self.o[-2:]
+		#if self.i[-1] != self.i[-2]:
+		#	assert self.o[-1] != self.o[-2], self.o[-2:]
 
 def rms_err(width, guard=None, stages=None, n=None):
 	tb = TestBench(width=width, guard=guard, stages=stages,
@@ -87,9 +87,10 @@ def plot_function(**kwargs):
 	xi, yi, zi = np.array(tb.i).T
 	xo, yo, zo = np.array(tb.o).T
 	fig, ax = plt.subplots()
+	#ax.plot(zi, xo-np.around(xi[0]*g*np.cos(zi/cz*np.pi)), "k-")
 	ax.plot(zi, xo, "r,")
 	ax.plot(zi, yo, "g,")
-	ax.plot(zi, zo, "g,")
+	ax.plot(zi, zo, "b,")
 
 
 if __name__ == "__main__":
@@ -101,6 +102,8 @@ if __name__ == "__main__":
 	#plot_function(func_mode="hyperbolic", xmax=.3, width=16, n=333)
 	#plot_function(func_mode="circular", width=16, n=333)
 	#plot_function(func_mode="hyperbolic", cordic_mode="vector",
-    #        xmax=.3, width=16, n=333)
-	#plot_function(func_mode="circular", width=16, n=333)
+	#        xmax=.3, width=16, n=333)
+	plot_function(func_mode="circular",
+			width=16, stages=15, guard=0,
+			n=1000, xmax=.98)
 	plt.show()

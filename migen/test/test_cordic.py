@@ -121,7 +121,7 @@ class CordicCase(SimCase, unittest.TestCase):
 			return xi, yi, 0
 		def proc(xi, yi, zi):
 			return sqrt(xi**2 - yi**2), 0, atanh(yi/xi)
-		self._run_io(50, gen, proc)
+		self._run_io(50, gen, proc, deltaz=2)
 
 	def test_vec_hyp(self):
 		self.setUp(cordic_mode="vector", func_mode="hyperbolic")

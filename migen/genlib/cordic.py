@@ -1,4 +1,4 @@
-from math import atan, atanh, log, sqrt, pi, ceil
+from math import atan, atanh, log, sqrt, pi
 
 from migen.fhdl.std import *
 
@@ -276,9 +276,12 @@ class TwoQuadrantCordic(Module):
 			a = [atanh(2**-i) for i in s]
 			g = [sqrt(1 - 2**(-2*i)) for i in s]
 			zmax = sum(a)*2
-		a = [int(ai*2**(bits - 1)/zmax) for ai in a]
 		# round here helps the width=2**i - 1 case but hurts the
 		# important width=2**i case
+		cast = int
+		if log(bits)/log(2) % 1:
+			cast = round
+		a = [cast(ai*2**(bits - 1)/zmax) for ai in a]
 		gain = 1.
 		for gi in g:
 			gain *= gi
@@ -316,30 +319,23 @@ class Cordic(TwoQuadrantCordic):
 		if self.func_mode != "circular":
 			return # no need to remap quadrants
 
-		width = flen(self.xi)
-		widthz = flen(self.zi)
 		cxi, cyi, czi = self.xi, self.yi, self.zi
-		self.xi = Signal((width, True))
-		self.yi = Signal((width, True))
-		self.zi = Signal((widthz, True))
+		self.xi = xi = Signal.like(cxi)
+		self.yi = yi = Signal.like(cyi)
+		self.zi = zi = Signal.like(czi)
 
 		###
 
-		pi2 = 1<<(widthz - 2)
+		q = Signal()
 		if self.cordic_mode == "rotate":
-			#rot = self.zi + pi2 < 0
-			rot = self.zi[-1] ^ self.zi[-2]
+			self.comb += q.eq(zi[-2] ^ zi[-1])
 		else: # vector
-			rot = self.xi < 0
-			#rot = self.xi[-1]
+			self.comb += q.eq(xi < 0)
 		self.comb += [
-				cxi.eq(self.xi),
-				cyi.eq(self.yi),
-				czi.eq(self.zi),
-				If(rot,
-					cxi.eq(-self.xi),
-					cyi.eq(-self.yi),
-					czi.eq(self.zi + 2*pi2),
-					#czi.eq(self.zi ^ (2*pi2)),
-				),
-				]
+				If(q,
+					Cat(cxi, cyi, czi).eq(Cat(-xi, -yi,
+						zi + (1 << flen(zi) - 1)))
+				).Else(
+					Cat(cxi, cyi, czi).eq(Cat(xi, yi, zi))
+				)
+		]
