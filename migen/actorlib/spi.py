@@ -6,7 +6,6 @@ from migen.flow.actor import *
 from migen.flow.network import *
 from migen.flow import plumbing
 from migen.actorlib import misc
-from migen.bank.eventmanager import *
 
 # layout is a list of tuples, either:
 # - (name, nbits, [reset value], [alignment bits])
