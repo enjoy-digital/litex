@@ -72,6 +72,10 @@ class SyncFIFO(Module, _FIFOInterface):
 	{interface}
 	level : out
 		Number of unread entries.
+	replace : in
+		Replaces the last entry written into the FIFO with `din`. Does nothing
+		if that entry has already been read (i.e. the FIFO is empty).
+		Assert in conjunction with `we`.
 	"""
 	__doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
 
@@ -79,15 +83,9 @@ class SyncFIFO(Module, _FIFOInterface):
 		_FIFOInterface.__init__(self, width_or_layout, depth)
 
 		self.level = Signal(max=depth+1)
+		self.replace = Signal()
 
 		###
-
-		do_write = Signal()
-		do_read = Signal()
-		self.comb += [
-			do_write.eq(self.writable & self.we),
-			do_read.eq(self.readable & self.re)
-		]
 
 		produce = Signal(max=depth)
 		consume = Signal(max=depth)
@@ -97,11 +95,19 @@ class SyncFIFO(Module, _FIFOInterface):
 		wrport = storage.get_port(write_capable=True)
 		self.specials += wrport
 		self.comb += [
-			wrport.adr.eq(produce),
+			If(self.replace,
+				wrport.adr.eq(produce-1)
+			).Else(
+				wrport.adr.eq(produce)
+			),
 			wrport.dat_w.eq(self.din_bits),
-			wrport.we.eq(do_write)
+			wrport.we.eq(self.we & (self.writable | self.replace))
 		]
-		self.sync += If(do_write, _inc(produce, depth))
+		self.sync += If(self.we & self.writable & ~self.replace,
+			_inc(produce, depth))
+
+		do_read = Signal()
+		self.comb += do_read.eq(self.readable & self.re)
 
 		rdport = storage.get_port(async_read=fwft, has_re=not fwft)
 		self.specials += rdport
@@ -114,7 +120,7 @@ class SyncFIFO(Module, _FIFOInterface):
 		self.sync += If(do_read, _inc(consume, depth))
 
 		self.sync += \
-			If(do_write,
+			If(self.we & self.writable & ~self.replace,
 				If(~do_read, self.level.eq(self.level + 1))
 			).Elif(do_read,
 				self.level.eq(self.level - 1)
@@ -136,6 +142,7 @@ class SyncFIFOBuffered(Module, _FIFOInterface):
 		self.dout_bits = fifo.dout_bits
 		self.dout = fifo.dout
 		self.level = fifo.level
+		self.replace = fifo.replace
 
 		###
 
