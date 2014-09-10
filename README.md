@@ -1,5 +1,5 @@
-## Migen (Milkymist generator)
-### a Python toolbox for building complex digital hardware
+### Migen (Milkymist generator)
+#### A Python toolbox for building complex digital hardware
 
 Despite being faster than schematics entry, hardware design with Verilog and
 VHDL remains tedious and inefficient for several reasons. The event-driven
@@ -34,7 +34,7 @@ https://github.com/m-labs/misoc
 
 Migen is designed for Python 3.3. Note that Migen is **not** spelled MiGen.
 
-### Quick intro
+#### Quick intro
 ```python
 from migen.fhdl.std import *
 from mibuild.platforms import m1
@@ -47,7 +47,7 @@ m.sync += counter.eq(counter + 1)
 plat.build_cmdline(m)
 ```
 
-### License
+#### License
 Migen is released under the very permissive two-clause BSD license. Under the
 terms of this license, you are authorized to use Migen for closed-source
 proprietary designs.
@@ -55,11 +55,11 @@ Even though we do not require you to do so, those things are awesome, so please
 do them if possible:
 * tell us that you are using Migen
 * put the Migen logo (doc/migen_logo.svg) on the page of a product using it,
-   with a link to http://m-labs.hk
- * cite Migen in publications related to research it has helped
- * send us feedback and suggestions for improvements
- * send us bug reports when something goes wrong
- * send us the modifications and improvements you have done to Migen. The use
+  with a link to http://m-labs.hk
+* cite Migen in publications related to research it has helped
+* send us feedback and suggestions for improvements
+* send us bug reports when something goes wrong
+* send us the modifications and improvements you have done to Migen. The use
    of "git format-patch" is recommended. If your submission is large and
    complex and/or you are not sure how to proceed, feel free to discuss it on
    the mailing list or IRC (#m-labs on Freenode) beforehand.
