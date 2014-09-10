@@ -29,6 +29,7 @@ See the doc/ folder for more technical information.
 
 Code repository:
 https://github.com/m-labs/migen
+
 System-on-chip design based on Migen:
 https://github.com/m-labs/misoc
 
