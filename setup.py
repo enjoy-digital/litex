@@ -5,7 +5,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
-README = open(os.path.join(here, "README")).read()
+README = open(os.path.join(here, "README.md")).read()
 
 required_version = (3, 3)
 if sys.version_info < required_version:
