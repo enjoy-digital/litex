@@ -141,18 +141,19 @@ class SyncFIFOBuffered(Module, _FIFOInterface):
 		self.we = fifo.we
 		self.dout_bits = fifo.dout_bits
 		self.dout = fifo.dout
-		self.level = fifo.level
+		self.level = Signal(max=depth+2)
 		self.replace = fifo.replace
 
 		###
 
-		self.comb += fifo.re.eq(fifo.readable & (~self.readable | self.re)),
+		self.comb += fifo.re.eq(fifo.readable & (~self.readable | self.re))
 		self.sync += \
 			If(fifo.re,
 				self.readable.eq(1),
 			).Elif(self.re,
 				self.readable.eq(0),
 			)
+		self.comb += self.level.eq(fifo.level + self.readable)
 
 class AsyncFIFO(Module, _FIFOInterface):
 	"""Asynchronous FIFO (first in, first out)
