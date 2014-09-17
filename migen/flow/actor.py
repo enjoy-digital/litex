@@ -13,13 +13,18 @@ def _make_m2s(layout):
 	return r
 
 class _Endpoint(Record):
-	def __init__(self, layout):
-		full_layout = [
+	def __init__(self, layout, packetized=False):
+		endpoint_layout = [
 			("payload", _make_m2s(layout)),
 			("stb", 1, DIR_M_TO_S),
 			("ack", 1, DIR_S_TO_M)
 		]
-		Record.__init__(self, full_layout)
+		if packetized:
+			endpoint_layout += [
+				("sop", 1, DIR_M_TO_S),
+				("eop", 1, DIR_S_TO_M)
+			]
+		Record.__init__(self, endpoint_layout)
 
 class Source(_Endpoint):
 	def connect(self, sink):
@@ -72,7 +77,7 @@ class SequentialActor(BinaryActor):
 			).Elif(~ready,
 				timer.eq(timer - 1)
 			)
-		
+
 		mask = Signal()
 		self.comb += [
 			stb_o.eq(ready & mask),
