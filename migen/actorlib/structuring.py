@@ -12,7 +12,7 @@ class Cast(CombinatorialActor):
 		self.sink = Sink(_rawbits_layout(layout_from))
 		self.source = Source(_rawbits_layout(layout_to))
 		CombinatorialActor.__init__(self)
-	
+
 		###
 
 		sigs_from = self.sink.payload.flatten()
@@ -29,11 +29,11 @@ def pack_layout(l, n):
 	return [("chunk"+str(i), l) for i in range(n)]
 
 class Unpack(Module):
-	def __init__(self, n, layout_to):
+	def __init__(self, n, layout_to, reverse=False):
 		self.sink = Sink(pack_layout(layout_to, n))
 		self.source = Source(layout_to)
 		self.busy = Signal()
-	
+
 		###
 
 		mux = Signal(max=n)
@@ -54,24 +54,26 @@ class Unpack(Module):
 		]
 		cases = {}
 		for i in range(n):
-			cases[i] = [self.source.payload.raw_bits().eq(getattr(self.sink.payload, "chunk"+str(i)).raw_bits())]
+			chunk = n-i-1 if reverse else i
+			cases[i] = [self.source.payload.raw_bits().eq(getattr(self.sink.payload, "chunk"+str(chunk)).raw_bits())]
 		self.comb += Case(mux, cases).makedefault()
 
 class Pack(Module):
-	def __init__(self, layout_from, n):
+	def __init__(self, layout_from, n, reverse=False):
 		self.sink = Sink(layout_from)
 		self.source = Source(pack_layout(layout_from, n))
 		self.busy = Signal()
-	
+
 		###
 
 		demux = Signal(max=n)
-		
+
 		load_part = Signal()
 		strobe_all = Signal()
 		cases = {}
 		for i in range(n):
-			cases[i] = [getattr(self.source.payload, "chunk"+str(i)).raw_bits().eq(self.sink.payload.raw_bits())]
+			chunk = n-i-1 if reverse else i
+			cases[i] = [getattr(self.source.payload, "chunk"+str(chunk)).raw_bits().eq(self.sink.payload.raw_bits())]
 		self.comb += [
 			self.busy.eq(strobe_all),
 			self.sink.ack.eq(~strobe_all | self.source.ack),
