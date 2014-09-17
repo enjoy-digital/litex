@@ -142,7 +142,6 @@ class SyncFIFOBuffered(Module, _FIFOInterface):
 		self.dout_bits = fifo.dout_bits
 		self.dout = fifo.dout
 		self.level = Signal(max=depth+2)
-		self.replace = fifo.replace
 
 		###
 
