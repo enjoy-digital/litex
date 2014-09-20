@@ -12,11 +12,14 @@ a high performance and small footprint SoC based on Migen
  * mor1kx (a better OpenRISC implementation) as alternative CPU option.
  * High performance memory controller capable of issuing several SDRAM commands
    per FPGA cycle.
- * Supports SDR, DDR, LPDDR and DDR2.
+ * Supports SDR, DDR, LPDDR, DDR2 and DDR3.
  * Provided peripherals: UART, GPIO, timer, GPIO, NOR flash controller, SPI
    flash controller, Ethernet MAC, and more.
- * High performance: on Spartan-6, 83MHz system clock frequencies, 10+Gbps DDR
+ * High performance:
+   - on Spartan-6, 83MHz system clock frequencies, 10+Gbps DDR
    SDRAM bandwidth, 1080p 32bpp framebuffer, etc.
+   - on Kintex-7, 125MHz system clock frequencies (up to 200MHz without DDR3),
+   64Gbps DDR3 SDRAM bandwidth.
  * Low resource usage: basic implementation fits easily in Spartan-6 LX9.
  * Portable and easy to customize thanks to Python- and Migen-based
    architecture.
@@ -46,13 +49,14 @@ modules.
   For Mixxeo and M1: https://github.com/m-labs/fjmem-m1
   For Papilio Pro:   https://github.com/GadgetFactory/Papilio-Loader
     (xc3sprog/trunk/bscan_spi/bscan_spi_lx9_papilio.bit)
+  For KC705: https://github.com/m-labs/bscan_spi_kc705
 
 4. Compile and install binutils. Take the latest version from GNU.
   mkdir build && cd build
   ../configure --target=lm32-elf
   make
   make install
-  
+
 5. Compile and install GCC. Take gcc-core and gcc-g++ from GNU (version 4.5 or >=4.9).
   rm -rf libstdc++-v3
   mkdir build && cd build
@@ -60,7 +64,7 @@ modules.
   make
   make install
 
-6. Obtain compiler-rt and set the CRTDIR environment variable to the root of 
+6. Obtain compiler-rt and set the CRTDIR environment variable to the root of
   its source tree.
   svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt
   export CRTDIR=/path_to/compiler-rt
