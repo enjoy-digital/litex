@@ -5,12 +5,10 @@
 extern "C" {
 #endif
 
-#define _JBLEN 19
+typedef	void *jmp_buf[5];
 
-typedef	int jmp_buf[_JBLEN];
-
-int setjmp(jmp_buf env);
-void longjmp(jmp_buf env, int val);
+#define setjmp __builtin_setjmp
+#define longjmp __builtin_longjmp
 
 #ifdef __cplusplus
 }
