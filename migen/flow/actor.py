@@ -22,7 +22,7 @@ class _Endpoint(Record):
 		if packetized:
 			endpoint_layout += [
 				("sop", 1, DIR_M_TO_S),
-				("eop", 1, DIR_S_TO_M)
+				("eop", 1, DIR_M_TO_S)
 			]
 		Record.__init__(self, endpoint_layout)
 
