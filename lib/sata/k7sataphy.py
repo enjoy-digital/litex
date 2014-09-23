@@ -1,6 +1,6 @@
 class K7SATAPHY(Module):
 	def __init__(self):
-	self.specials += [
+	self.specials += \
 		Instance("GTXE2_CHANNEL",
 			# Simulation-Only Attributes
 				p_SIM_RECEIVER_DETECT_PASS=,
@@ -656,4 +656,73 @@ class K7SATAPHY(Module):
 			# Tx Configurable Driver  Ports
 				o_TXQPISENN=,
 				o_TXQPISENP=
+		)
+
+	self.specials += \
+		Instance("GTXE2_COMMON",
+			# Simulation attributes
+				p_SIM_RESET_SPEEDUP=,
+				p_SIM_QPLLREFCLK_SEL=,
+				p_SIM_VERSION=,
+
+			# Common block attributes
+				p_BIAS_CFG=,
+				p_COMMON_CFG=,
+				p_QPLL_CFG=,
+				p_QPLL_CLKOUT_CFG=,
+				p_QPLL_COARSE_FREQ_OVRD=,
+				p_QPLL_COARSE_FREQ_OVRD_EN=,
+				p_QPLL_CP=,
+				p_QPLL_CP_MONITOR_EN=,
+				p_QPLL_DMONITOR_SEL=,
+				p_QPLL_FBDIV=,
+				p_QPLL_FBDIV_MONITOR_EN=,
+				p_QPLL_FBDIV_RATIO=,
+				p_QPLL_INIT_CFG=,
+				p_QPLL_LOCK_CFG=,
+				p_QPLL_LPF=,
+				p_QPLL_REFCLK_DIV=,
+
+			# Common block - Dynamic Reconfiguration Port (DRP)
+				i_DRPADDR=,
+				i_DRPCLK=,
+				i_DRPDI=,
+				o_DRPDO=,
+				i_DRPEN=,
+				o_DRPRDY=,
+				i_DRPWE=,
+
+			# Common block  - Ref Clock Ports
+				i_GTGREFCLK=,
+				i_GTNORTHREFCLK0=,
+				i_GTNORTHREFCLK1=,
+				i_GTREFCLK0=,
+				i_GTREFCLK1=,
+				i_GTSOUTHREFCLK0=,
+				i_GTSOUTHREFCLK1=,
+
+			# Common block - QPLL Ports
+				o_QPLLDMONITOR=,
+				o_QPLLFBCLKLOST=,
+				o_QPLLLOCK=,
+				i_QPLLLOCKDETCLK=,
+				i_QPLLLOCKEN=,
+				o_QPLLOUTCLK=,
+				o_QPLLOUTREFCLK=,
+				i_QPLLOUTRESET=,
+				i_QPLLPD=,
+				o_QPLLREFCLKLOST=,
+				i_QPLLREFCLKSEL=,
+				i_QPLLRESET=,
+				i_QPLLRSVD1=,
+				i_QPLLRSVD2=,
+				o_REFCLKOUTMONITOR=,
+
+			# Common block Ports
+				i_BGBYPASSB=,
+				i_BGMONITORENB=,
+				i_BGPDB=,
+				i_BGRCALOVRD=,
+				i_PMARSVD=,
+				i_RCALENB=
 		)
