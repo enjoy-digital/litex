@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 _K28_5 = 0b1010000011
 
@@ -43,9 +44,10 @@ class GTXE2_CHANNEL(Module):
 		self.rxuserrdy = Signal()
 
 		# Receive Ports - 8b10b Decoder
-		self.rxcharisk_out = Signal(2)
-		self.rxdisperr_out = Signal(2)
-		self.rxnotintable_out = Signal(2)
+		self.rxchariscomma = Signal(2)
+		self.rxcharisk = Signal(2)
+		self.rxdisperr = Signal(2)
+		self.rxnotintable = Signal(2)
 
 		# Receive Ports - Comma Detection and Alignment
 		self.rxmcommaalignen = Signal()
@@ -74,53 +76,53 @@ class GTXE2_CHANNEL(Module):
 		self.rxphslipmonitor = Signal(5)
 
 		# Receive Ports - RX PLL Ports
-		self.rxresetdone_out = Signal()
+		self.rxresetdone = Signal()
 
 		# Receive Ports - RX Ports for SATA
-		self.rxcominitdet_out = Signal()
-		self.rxcomwakedet_out = Signal()
+		self.rxcominitdet = Signal()
+		self.rxcomwakedet = Signal()
 
 		# Transmit Ports
-		self.txuserrdy_in = Signal()
+		self.txuserrdy = Signal()
 
 		# Transmit Ports - 8b10b Encoder Control Ports
-		self.txcharisk_in = Signal(2)
+		self.txcharisk = Signal(2)
 
 		# Transmit Ports - TX Buffer and Phase Alignment Ports
-		self.txdlyen_in = Signal()
-		self.txdlysreset_in = Signal()
-		self.txdlysresetdone_out = Signal()
-		self.txphalign_in = Signal()
-		self.txphaligndone_out = Signal()
-		self.txphalignen_in = Signal()
-		self.txphdlyreset_in = Signal()
-		self.txphinit_in = Signal()
-		self.txphinitdone_out = Signal()
+		self.txdlyen = Signal()
+		self.txdlysreset = Signal()
+		self.txdlysresetdone = Signal()
+		self.txphalign = Signal()
+		self.txphaligndone = Signal()
+		self.txphalignen = Signal()
+		self.txphdlyreset = Signal()
+		self.txphinit = Signal()
+		self.txphinitdone = Signal()
 
 		# Transmit Ports - TX Data Path interface
-		self.gttxreset_in = Signal()
-		self.txdata_in = Signal()
-		self.txoutclk_out = Signal()
-		self.txoutclkfabric_out = Signal()
-		self.txoutclkpcs_out = Signal()
-		self.txusrclk_in = Signal()
-		self.txusrclk2_in = Signal()
+		self.gttxreset = Signal()
+		self.txdata = Signal()
+		self.txoutclk = Signal()
+		self.txoutclkfabric = Signal()
+		self.txoutclkpcs = Signal()
+		self.txusrclk = Signal()
+		self.txusrclk2 = Signal()
 
 		# Transmit Ports - TX PLL Ports
-		self.txresetdone_out = Signal()
+		self.txresetdone = Signal()
 
 		# Transmit Ports - TX Ports for PCI Express
-		self.txelecidle_in = Signal()
+		self.txelecidle = Signal()
 
 		# Transmit Ports - TX Ports for SATA
-		self.txcomfinish_out = Signal()
-		self.txcominit_in = Signal()
-		self.txcomwake_in = Signal()
-		self.rxrate_in = Signal(3)
-		self.rxratedone_out = Signal()
-		self.txrate_in = Signal(3)
-		self.txratedone_out = Signal()
-		self.rxcdrreseT = Signal()
+		self.txcomfinish = Signal()
+		self.txcominit = Signal()
+		self.txcomwake = Signal()
+		self.rxrate = Signal(3)
+		self.rxratedone = Signal()
+		self.txrate = Signal(3)
+		self.txratedone = Signal()
+		self.rxcdrreset = Signal()
 		self.rxlpme = Signal()
 
 		# startup config
@@ -644,7 +646,7 @@ class GTXE2_CHANNEL(Module):
 					i_RXSLIDE=0,
 
 				# Receive Ports - RX8B/10B Decoder Ports
-					#o_RXCHARISCOMMA=,
+					o_RXCHARISCOMMA=self.rxchariscomma,
 					o_RXCHARISK=self.rxcharisk,
 
 				# Receive Ports - Rx Channel Bonding Ports
