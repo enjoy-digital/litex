@@ -125,17 +125,17 @@ class GTXE2_CHANNEL(Module):
 
 		# startup config
 		div_config = {
-			"SATA_I" : 	4,
-			"SATA_II":	2,
-			"SATA_III": 1
+			"SATA_I" : 		4,
+			"SATA_II" :		2,
+			"SATA_III" : 	1
 			}
 		rxout_div = div_config[start_speed]
 		txout_div = div_config[start_speed]
 
 		cdr_config = {
-			"SATA_I" :  0x0380008BFF40100008
-			"SATA_II":	0x0380008BFF40200008
-			"SATA_III": 0X0380008BFF20200010
+			"SATA_I" :  	0x0380008BFF40100008
+			"SATA_II" :		0x0380008BFF40200008
+			"SATA_III" : 	0X0380008BFF20200010
 		}
 		rxcdr_cfg = cdr_config[start_speed]
 
@@ -776,7 +776,7 @@ class GTXE2_CHANNEL(Module):
 			)
 
 class GTXE2_COMMON(Module):
-	def __init__(self, fbdiv_in, fb_div_ratio):
+	def __init__(self, fbdiv):
 		self.drp = DRP()
 
 		self.refclk0 = Signal()
@@ -784,6 +784,31 @@ class GTXE2_COMMON(Module):
 
 		self.qplloutclk = Signal()
 		self.qplloutrefclk = Signal()
+
+		# fbdiv config
+		fbdiv_in_config = {
+			16 :	0b0000100000,
+			20 :	0b0000110000,
+			32 :	0b0001100000,
+			40 :	0b0010000000,
+			64 :	0b0011100000,
+			66 :	0b0101000000,
+			80 :	0b0100100000,
+			100 :	0b0101110000
+		}
+		fbdiv_in = fbdiv_in_config[fbdiv]
+
+		fbdiv_ratio_config = {
+			16 :	0b1,
+			20 :	0b1,
+			32 :	0b1,
+			40 :	0b1,
+			64 :	0b1,
+			66 :	0b0,
+			80 :	0b1,
+			100 :	0b1
+		}
+		fbdiv_ratio = fbdiv_ratio_config[fbdiv]
 
 		self.specials += \
 			Instance("GTXE2_COMMON",
