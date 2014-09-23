@@ -777,110 +777,6 @@ class GTXE2_CHANNEL(Module):
 					#o_TXQPISENP=
 			)
 
-class GTXE2_COMMON(Module):
-	def __init__(self, fbdiv):
-		self.drp = DRP()
-
-		self.refclk0 = Signal()
-		self.refclk1 = Signal()
-
-		self.qplloutclk = Signal()
-		self.qplloutrefclk = Signal()
-
-		# fbdiv config
-		fbdiv_in_config = {
-			16 :	0b0000100000,
-			20 :	0b0000110000,
-			32 :	0b0001100000,
-			40 :	0b0010000000,
-			64 :	0b0011100000,
-			66 :	0b0101000000,
-			80 :	0b0100100000,
-			100 :	0b0101110000
-		}
-		fbdiv_in = fbdiv_in_config[fbdiv]
-
-		fbdiv_ratio_config = {
-			16 :	0b1,
-			20 :	0b1,
-			32 :	0b1,
-			40 :	0b1,
-			64 :	0b1,
-			66 :	0b0,
-			80 :	0b1,
-			100 :	0b1
-		}
-		fbdiv_ratio = fbdiv_ratio_config[fbdiv]
-
-		self.specials += \
-			Instance("GTXE2_COMMON",
-				# Simulation attributes
-					p_SIM_RESET_SPEEDUP="TRUE",
-					p_SIM_QPLLREFCLK_SEL=0b001,
-					p_SIM_VERSION="4.0",
-
-				# Common block attributes
-					p_BIAS_CFG=0x0000040000001000,
-					p_COMMON_CFG=0,
-					p_QPLL_CFG=0x06801c1,
-					p_QPLL_CLKOUT_CFG=0,
-					p_QPLL_COARSE_FREQ_OVRD=0b010000,
-					p_QPLL_COARSE_FREQ_OVRD_EN=0,
-					p_QPLL_CP=0b0000011111,
-					p_QPLL_CP_MONITOR_EN=0,
-					p_QPLL_DMONITOR_SEL=0,
-					p_QPLL_FBDIV=fbdiv_in,
-					p_QPLL_FBDIV_MONITOR_EN=0,
-					p_QPLL_FBDIV_RATIO=fb_div_ratio,
-					p_QPLL_INIT_CFG=0x000006,
-					p_QPLL_LOCK_CFG=0x21e9,
-					p_QPLL_LPF=0b1111,
-					p_QPLL_REFCLK_DIV=1,
-
-				# Common block - Dynamic Reconfiguration Port (DRP)
-					i_DRPADDR=self.drp.addr,
-					i_DRPCLK=self.drp.clk,
-					i_DRPDI=self.drp.di,
-					o_DRPDO=self.drp.do,
-					i_DRPEN=self.drp.en,
-					o_DRPRDY=self.drp.rdy,
-					i_DRPWE=self.drp.we,
-
-				# Common block  - Ref Clock Ports
-					i_GTGREFCLK=0,
-					i_GTNORTHREFCLK0=0,
-					i_GTNORTHREFCLK1=0,
-					i_GTREFCLK0=self.refclk0,
-					i_GTREFCLK1=self.refclk1,
-					i_GTSOUTHREFCLK0=0,
-					i_GTSOUTHREFCLK1=0,
-
-				# Common block - QPLL Ports
-					#o_QPLLDMONITOR=,
-					#o_QPLLFBCLKLOST=,
-					#o_QPLLLOCK=,
-					i_QPLLLOCKDETCLK=0,
-					i_QPLLLOCKEN=1,
-					o_QPLLOUTCLK=self.qplloutclk,
-					o_QPLLOUTREFCLK=self.qplloutrefclk,
-					i_QPLLOUTRESET=0,
-					i_QPLLPD=0,
-					#o_QPLLREFCLKLOST=,
-					i_QPLLREFCLKSEL=0b001,
-					i_QPLLRESET=0,
-					i_QPLLRSVD1=0,
-					i_QPLLRSVD2=_ones(5),
-					#o_REFCLKOUTMONITOR=,
-
-				# Common block Ports
-					i_BGBYPASSB=1,
-					i_BGMONITORENB=1,
-					i_BGPDB=1,
-					i_BGRCALOVRD=0,
-					i_PMARSVD=0,
-					i_RCALENB=1
-			)
-
 class SATAGTX(Module):
 	def __init__(self, pads):
 		self.reset = Signal()
@@ -890,7 +786,6 @@ class SATAGTX(Module):
 		self.cd_sata_rx = ClockDomain()
 
 		self.channel = GTXE2_CHANNEL(pads, "SATA_III")
-		self.common = GTXE2_COMMON(16)
 
 	# TX clocking
 		refclk = Signal()
@@ -925,13 +820,6 @@ class SATAGTX(Module):
 				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk_o,
 			),
 			Instance("BUFG", i_I=mmcm_clk, o_O=self.cd_sata_tx.clk),
-		]
-
-		# refclk --> GTXE2_COMMON(QPLL)-->GTXE2_CHANNEL-->transceiver clock
-		self.comb += [
-			self.common.refclk0.eq(refclk),
-			self.channel.qpllclk.eq(self.common.qplloutclk),
-			self.channel.qpllrefclk.eq(self.common.qplloutrefclk),
 		]
 
 	# RX clocking
