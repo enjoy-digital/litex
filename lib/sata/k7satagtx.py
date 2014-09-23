@@ -848,8 +848,8 @@ class GTXE2_COMMON(Module):
 					i_GTGREFCLK=0,
 					i_GTNORTHREFCLK0=0,
 					i_GTNORTHREFCLK1=0,
-					i_GTREFCLK0=,
-					i_GTREFCLK1=0,
+					i_GTREFCLK0=self.refclk0,
+					i_GTREFCLK1=self.refclk1,
 					i_GTSOUTHREFCLK0=0,
 					i_GTSOUTHREFCLK1=0,
 
@@ -859,8 +859,8 @@ class GTXE2_COMMON(Module):
 					#o_QPLLLOCK=,
 					i_QPLLLOCKDETCLK=0,
 					i_QPLLLOCKEN=1,
-					o_QPLLOUTCLK=,
-					o_QPLLOUTREFCLK=,
+					o_QPLLOUTCLK=self.qplloutclk,
+					o_QPLLOUTREFCLK=self.qplloutrefclk,
 					i_QPLLOUTRESET=0,
 					i_QPLLPD=0,
 					#o_QPLLREFCLKLOST=,
@@ -878,3 +878,134 @@ class GTXE2_COMMON(Module):
 					i_PMARSVD=0,
 					i_RCALENB=1
 			)
+
+class SATAGTX(Module):
+	def __init__(self, pads):
+		self.reset = Signal()
+		self.transceiver_reset = Signal()
+
+		self.cd_sata_tx = ClockDomain()
+		self.cd_sata_rx = ClockDomain()
+
+		self.channel = GTXE2_CHANNEL(pads, "SATA_III")
+		self.common = GTXE2_COMMON(16)
+
+	# TX clocking
+		refclk = Signal()
+		self.specials += Instance("IBUFDS_GTE2",
+			i_I=pads.refclk_p,
+			i_IB=pads.refclk_n,
+			o_O=refclk
+		)
+
+		# refclk--> BUFG-->MMCM-->BUFG-->SATA TX clock
+		mmcm_reset = Signal()
+		mmcm_locked = Signal()
+		mmcm_drp = DRP()
+		mmcm_fb = Signal()
+		mmcm_clk_i = Signal()
+		mmcm_clk_o = Signal()
+		self.specials += [
+			Instance("BUFG", i_I=refclk, o_O=mmcm_clk_i),
+			Instance("MMCME2_ADV",
+				p_BANDWIDTH="HIGH", p_COMPENSATION="ZHOLD", i_RST=mmcm_reset, o_LOCKED=mmcm_locked,
+
+				# DRP
+				i_DCLK=mmcm_drp.clk, i_DEN=mmcm_drp.den, o_DRDY=mmcm_drp.rdy, i_DWE=mmcm_drp.we,
+				i_DADDR=mmcm_drp.addr, i_DI=mmcm_drp.di, i_DO=mmcm_drp.do,
+
+				# VCO
+				p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=5.0,
+				p_CLKFBOUT_MULT_F=8.000, CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=2,
+				i_CLKIN1=mmcm_clk_i, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+
+				# CLK0
+				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk_o,
+			),
+			Instance("BUFG", i_I=mmcm_clk, o_O=self.cd_sata_tx.clk),
+		]
+
+		# refclk --> GTXE2_COMMON(QPLL)-->GTXE2_CHANNEL-->transceiver clock
+		self.comb += [
+			self.common.refclk0.eq(refclk),
+			self.channel.qpllclk.eq(self.common.qplloutclk),
+			self.channel.qpllrefclk.eq(self.common.qplloutrefclk),
+		]
+
+	# RX clocking
+		self.specials += [
+			Instance("BUFG", i_I=self.channel.rxoutclk, o_O=self.cd_sata_rx.clk),
+		]
+		self.comb += [
+			self.channel.RXUSRCLK.eq(self.cd_sata_rx.clk),
+			self.channel.RXUSRCLK2.eq(self.cd_sata_rx.clk)
+		]
+
+	# TX buffer bypass logic
+		self.comb += [
+			self.txphdlyreset.eq(0),
+			self.txphalignen.eq(0),
+			self.txdlyen.eq(0),
+			self.txphalign.eq(0),
+			self.txphinit.eq(0)
+		]
+
+		# once channel TX is reseted, reset TX buffer
+		txbuffer_reseted = Signal()
+		self.sync += \
+			If(self.channel.txresetdone,
+				If(~txbuffer_reseted,
+					self.channel.txdlyreset.eq(1),
+					txbuffer_reseted.eq(1)
+				).Else(
+					self.channel.txdlyreset.eq(0)
+				)
+			)
+
+	# RX buffer bypass logic
+		self.comb += [
+			self.channel.rxphdlyreset.eq(0),
+			self.channel.rxdlyen.eq(0),
+			self.channel.rxphalign.eq(0),
+			self.channel.rxphalignen.eq(0),
+		]
+
+		# wait till CDR is locked
+		cdr_cnt = Signal(14, reset=0b10011100010000)
+		cdr_locked = Signal()
+		self.sync += \
+			If(cdr_cnt != 0,
+				cdr_cnt.eq(cdr_cnt - 1)
+			).Else(
+				cdr_locked.eq(1)
+			)
+
+		# once CDR is locked and channel RX reseted, reset RX buffer
+		rxbuffer_reseted = Signal()
+		self.sync += \
+			If(cdr_locked & self.channel.rxresetdone,
+				If(~rxbuffer_reseted,
+					self.channel.rxdlyreset.eq(1),
+					rxbuffer_reseted.eq(1)
+				).Else(
+					self.channel.rxdlyreset.eq(0)
+				)
+			)
+
+	# Reset
+		self.comb += [
+		# GTXE2
+			self.channel.rxuserrdy.eq(self.channel.cplllock),
+			self.channel.txuserrdy.eq(self.channel.cplllock),
+		# TX
+			self.channel.gttxreset.eq(self.reset | self.transceiver_reset | ~self.channel.cplllock),
+		# RX
+			self.channel.gtrxreset.eq(self.reset | self.transceiver_reset | ~self.channel.cplllock),
+		# PLL
+			self.channel.pllreset.eq(self.reset)
+		]
+		# SATA TX/RX clock domains
+		self.specials += [
+			AsyncResetSynchronizer(self.cd_sata_tx, ~mmcm_locked | ~self.channel.txresetdone),
+			AsyncResetSynchronizer(self.cd_sata_rx, ~self.channel.cplllock | ~self.channel.rxphaligndone),
+		]
