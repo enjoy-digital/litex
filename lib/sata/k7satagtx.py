@@ -1,26 +1,29 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.record import *
+from migen.genlib.fsm import FSM, NextState
+from migen.flow.actor import Sink, Source
 
 _K28_5 = 0b1010000011
 
 def _ones(width):
 	return 2**width-1
 
-class DRP(Record):
+class DRPBus(Record):
 	def __init__(self):
 		layout = [
-			("clk", 1),
-			("en", 1),
-			("rdy", 1),
-			("we", 1)
-			("addr", 8),
-			("di", 16),
-			("do", 16)
+			("clk",  1, DIR_M_TO_S),
+			("en",   1, DIR_M_TO_S),
+			("rdy",  1, DIR_S_TO_M),
+			("we",   1, DIR_M_TO_S)
+			("addr", 8, DIR_M_TO_S),
+			("di",  16, DIR_M_TO_S),
+			("do",  16, DIR_S_TO_M)
 		]
 		Record.__init__(self, layout)
 
 class GTXE2_CHANNEL(Module):
-	def __init__(self, pads, start_speed="SATA_III"):
+	def __init__(self, pads, default_speed="SATA3"):
 		self.drp = DRP()
 
 		# Channel
@@ -127,17 +130,17 @@ class GTXE2_CHANNEL(Module):
 
 		# startup config
 		div_config = {
-			"SATA_I" : 		4,
-			"SATA_II" :		2,
-			"SATA_III" : 	1
+			"SATA1" : 	4,
+			"SATA2" :	2,
+			"SATA3" : 	1
 			}
-		rxout_div = div_config[start_speed]
-		txout_div = div_config[start_speed]
+		rxout_div = div_config[default_speed]
+		txout_div = div_config[default_speed]
 
 		cdr_config = {
-			"SATA_I" :  	0x0380008BFF40100008
-			"SATA_II" :		0x0380008BFF40200008
-			"SATA_III" : 	0X0380008BFF20200010
+			"SATA1" :	0x0380008BFF40100008
+			"SATA2" :	0x0380008BFF40200008
+			"SATA3" :	0X0380008BFF20200010
 		}
 		rxcdr_cfg = cdr_config[start_speed]
 
@@ -777,7 +780,33 @@ class GTXE2_CHANNEL(Module):
 					#o_TXQPISENP=
 			)
 
-class SATAGTX(Module):
+class K7SATAGTXReconfig(Module):
+	def __init__(self, channel_drp, mmcm_drp):
+		self.speed = Signal(3)
+		###
+		speed_r = Signal(3)
+		speed_change = Signal()
+		self.sync += speed_r.eq(speed)
+		self.comb += speed_change.eq(speed != speed_r)
+
+		drp_sel = Signal()
+		drp = DRPBus()
+		self.comb += \
+			If(sel,
+				Record.connect(drp, mmcm_drp),
+			).Else(
+				Record.connect(drp, channel_drp)
+			)
+
+		fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
+
+		# Todo
+		fsm.act("IDLE",
+			sel.eq(0),
+		)
+
+class K7SATAGTX(Module):
 	def __init__(self, pads):
 		self.reset = Signal()
 		self.transceiver_reset = Signal()
@@ -785,7 +814,7 @@ class SATAGTX(Module):
 		self.cd_sata_tx = ClockDomain()
 		self.cd_sata_rx = ClockDomain()
 
-		self.channel = GTXE2_CHANNEL(pads, "SATA_III")
+		self.submodules.channel = GTXE2_CHANNEL(pads, "SATA3")
 
 	# TX clocking
 		refclk = Signal()
@@ -794,8 +823,6 @@ class SATAGTX(Module):
 			i_IB=pads.refclk_n,
 			o_O=refclk
 		)
-
-		# refclk--> BUFG-->MMCM-->BUFG-->SATA TX clock
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
 		mmcm_drp = DRP()
@@ -819,7 +846,7 @@ class SATAGTX(Module):
 				# CLK0
 				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk_o,
 			),
-			Instance("BUFG", i_I=mmcm_clk, o_O=self.cd_sata_tx.clk),
+			Instance("BUFG", i_I=mmcm_clk_o, o_O=self.cd_sata_tx.clk),
 		]
 
 	# RX clocking
@@ -899,3 +926,7 @@ class SATAGTX(Module):
 			AsyncResetSynchronizer(self.cd_sata_tx, ~mmcm_locked | ~self.channel.txresetdone),
 			AsyncResetSynchronizer(self.cd_sata_rx, ~self.channel.cplllock | ~self.channel.rxphaligndone),
 		]
+
+
+	# Dynamic Reconfiguration
+		self.submodules.reconfig = K7SATAGTXReconfig(mmcm_drp, self.channel.drp)
