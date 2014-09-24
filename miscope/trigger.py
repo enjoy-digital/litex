@@ -12,13 +12,13 @@ class Term(Module, AutoCSR):
 		self.sink = Record(dat_layout(width))
 		self.source = Record(hit_layout())
 
-		self._r_trig = CSRStorage(width)
-		self._r_mask = CSRStorage(width)
+		self._trig = CSRStorage(width)
+		self._mask = CSRStorage(width)
 
 	###
 
-		trig = self._r_trig.storage
-		mask = self._r_mask.storage
+		trig = self._trig.storage
+		mask = self._mask.storage
 		dat = self.sink.dat
 		hit = self.source.hit
 
@@ -34,13 +34,13 @@ class RangeDetector(Module, AutoCSR):
 		self.sink = Record(dat_layout(width))
 		self.source = Record(hit_layout())
 
-		self._r_low = CSRStorage(width)
-		self._r_high = CSRStorage(width)
+		self._low = CSRStorage(width)
+		self._high = CSRStorage(width)
 
 	###
 
-		low = self._r_low.storage
-		high = self._r_high.storage
+		low = self._low.storage
+		high = self._high.storage
 		dat = self.sink.dat
 		hit = self.source.hit
 
@@ -52,19 +52,19 @@ class RangeDetector(Module, AutoCSR):
 class EdgeDetector(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
-		
+
 		self.sink = Record(dat_layout(width))
 		self.source = Record(hit_layout())
 
-		self._r_rising_mask = CSRStorage(width)
-		self._r_falling_mask = CSRStorage(width)
-		self._r_both_mask = CSRStorage(width)
+		self._rising_mask = CSRStorage(width)
+		self._falling_mask = CSRStorage(width)
+		self._both_mask = CSRStorage(width)
 
 	###
 
-		rising_mask = self._r_rising_mask.storage
-		falling_mask = self._r_falling_mask.storage
-		both_mask = self._r_both_mask.storage
+		rising_mask = self._rising_mask.storage
+		falling_mask = self._falling_mask.storage
+		both_mask = self._both_mask.storage
 
 		dat = self.sink.dat
 		dat_d = Signal(width)
@@ -88,10 +88,10 @@ class Sum(Module, AutoCSR):
 
 		self.sinks = [Record(hit_layout()) for p in range(ports)]
 		self.source = Record(hit_layout())
-		
-		self._r_prog_we = CSRStorage()
-		self._r_prog_adr = CSRStorage(ports) #FIXME
-		self._r_prog_dat = CSRStorage()
+
+		self._prog_we = CSRStorage()
+		self._prog_adr = CSRStorage(ports) #FIXME
+		self._prog_dat = CSRStorage()
 
 		mem = Memory(1, 2**ports)
 		lut_port = mem.get_port()
@@ -103,9 +103,9 @@ class Sum(Module, AutoCSR):
 
 		# Lut prog
 		self.comb += [
-			prog_port.we.eq(self._r_prog_we.storage),
-			prog_port.adr.eq(self._r_prog_adr.storage),
-			prog_port.dat_w.eq(self._r_prog_dat.storage)
+			prog_port.we.eq(self._prog_we.storage),
+			prog_port.adr.eq(self._prog_adr.storage),
+			prog_port.dat_w.eq(self._prog_dat.storage)
 		]
 
 		# Lut read

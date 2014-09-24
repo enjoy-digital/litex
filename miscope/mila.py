@@ -1,6 +1,5 @@
 from migen.fhdl.structure import *
 from migen.bank.description import *
-from migen.genlib.record import *
 
 from miscope.std import *
 from miscope.trigger import Trigger
@@ -15,26 +14,23 @@ class MiLa(Module, AutoCSR):
 
 		self.sink = Record(dat_layout(width))
 
-		trigger = Trigger(width, ports)
-		recorder = Recorder(width, depth)
-
-		self.submodules.trigger = trigger
-		self.submodules.recorder = recorder
-
-		sink_d = Record(dat_layout(width))
-		self.sync += sink_d.eq(self.sink)
+		self.submodules.trigger = trigger = Trigger(width, ports)
+		self.submodules.recorder = recorder = Recorder(width, depth)
 
 		self.comb += [
-			sink_d.connect(trigger.sink),
+			self.sink.connect(trigger.sink),
 			trigger.source.connect(recorder.trig_sink)
 		]
 
 		recorder_dat_source = self.sink
 		if with_rle:
-			self.submodules.rle = RunLengthEncoder(width)
-			self.comb += sink_d.connect(self.rle.sink)
-			recorder_dat_source = self.rle.source
-		self.comb += recorder_dat_source.connect(recorder.dat_sink)
+			self.submodules.rle = rle = RunLengthEncoder(width)
+			self.comb += [
+				self.sink.connect(rle.sink),
+				rle.source.connect(recorder.dat_sink)
+			]
+		else:
+			self.sink.connect(recorder.dat_sink)
 
 	def get_csv(self, layout, ns):
 		r = ""

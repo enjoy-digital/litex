@@ -14,11 +14,11 @@ class RunLengthEncoder(Module, AutoCSR):
 		self.sink = Record(dat_layout(width))
 		self.source = Record(dat_layout(width))
 
-		self._r_enable = CSRStorage()
-		
+		self._enable = CSRStorage()
+
 		###
 
-		enable = self._r_enable.storage
+		enable = self._enable.storage
 
 		sink_d = Record(dat_layout(width))
 		self.sync += If(self.sink.stb, sink_d.eq(self.sink))
@@ -65,14 +65,14 @@ class Recorder(Module, AutoCSR):
 		self.trig_sink = Record(hit_layout())
 		self.dat_sink = Record(dat_layout(width))
 
-		self._r_trigger = CSR()
-		self._r_length = CSRStorage(bits_for(depth))
-		self._r_offset = CSRStorage(bits_for(depth))
-		self._r_done = CSRStatus()
+		self._trigger = CSR()
+		self._length = CSRStorage(bits_for(depth))
+		self._offset = CSRStorage(bits_for(depth))
+		self._done = CSRStatus()
 
-		self._r_read_en = CSR()
-		self._r_read_empty = CSRStatus()
-		self._r_read_dat = CSRStatus(width)
+		self._read_en = CSR()
+		self._read_empty = CSRStatus()
+		self._read_dat = CSRStatus(width)
 
 		###
 
@@ -84,24 +84,24 @@ class Recorder(Module, AutoCSR):
 
 
 		self.comb += [
-			self._r_read_empty.status.eq(~fifo.readable),
-			self._r_read_dat.status.eq(fifo.dout),
+			self._read_empty.status.eq(~fifo.readable),
+			self._read_dat.status.eq(fifo.dout),
 		]
 
 		fsm.act("IDLE",
-			If(self._r_trigger.re & self._r_trigger.r,
+			If(self._trigger.re & self._trigger.r,
 				NextState("PRE_HIT_RECORDING"),
 				fifo.reset.eq(1),
 			),
-			fifo.re.eq(self._r_read_en.re & self._r_read_en.r),
-			self._r_done.status.eq(1)
+			fifo.re.eq(self._read_en.re & self._read_en.r),
+			self._done.status.eq(1)
 		)
-		
+
 		fsm.act("PRE_HIT_RECORDING",
 			fifo.we.eq(self.dat_sink.stb),
 			fifo.din.eq(self.dat_sink.dat),
 
-			fifo.re.eq(fifo.level >= self._r_offset.storage),
+			fifo.re.eq(fifo.level >= self._offset.storage),
 
 			If(self.trig_sink.stb & self.trig_sink.hit, NextState("POST_HIT_RECORDING"))
 		)
@@ -110,5 +110,5 @@ class Recorder(Module, AutoCSR):
 			fifo.we.eq(self.dat_sink.stb),
 			fifo.din.eq(self.dat_sink.dat),
 
-			If(~fifo.writable | (fifo.level >= self._r_length.storage), NextState("IDLE"))
+			If(~fifo.writable | (fifo.level >= self._length.storage), NextState("IDLE"))
 		)
