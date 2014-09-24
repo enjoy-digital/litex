@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.genlib.record import *
 
 K28_5 = 0b1010000011
 
@@ -21,7 +22,7 @@ SYNC_VAL    = 0xB5B5957C
 WTRM_VAL    = 0x5858B57C
 X_RDY_VAL   = 0x5757B57C
 
-def _ones(width):
+def ones(width):
 	return 2**width-1
 
 class DRPBus(Record):
@@ -30,7 +31,7 @@ class DRPBus(Record):
 			("clk",  1, DIR_M_TO_S),
 			("en",   1, DIR_M_TO_S),
 			("rdy",  1, DIR_S_TO_M),
-			("we",   1, DIR_M_TO_S)
+			("we",   1, DIR_M_TO_S),
 			("addr", 8, DIR_M_TO_S),
 			("di",  16, DIR_M_TO_S),
 			("do",  16, DIR_S_TO_M)

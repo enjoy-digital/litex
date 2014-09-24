@@ -64,9 +64,17 @@ _io = [
 		Subsignal("rts", Pins("K23")),
 		Subsignal("tx", Pins("K24")),
 		Subsignal("rx", Pins("M19")),
-		IOStandard("LVCMOS25")),
-
-
+		IOStandard("LVCMOS25")
+	),
+	
+	("sata", 0,
+		Subsignal("refclk_p", Pins("YYY")),
+		Subsignal("refclk_n", Pins("YYY")),
+		Subsignal("txp", Pins("YYY")),
+		Subsignal("txn", Pins("YYY")),
+		Subsignal("rxp", Pins("YYY")),
+		Subsignal("rxn", Pins("YYY")),
+	),
 ]
 
 def Platform(*args, toolchain="vivado", **kwargs):

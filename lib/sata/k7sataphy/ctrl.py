@@ -1,17 +1,21 @@
+from math import ceil
+
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 
+from lib.sata.k7sataphy.std import *
+
 # Todo:
 # rx does not use the same clock, need to resynchronize signals.
 
-def us(self, t, speed="SATA3", margin=True):
+def us(t, speed="SATA3", margin=True):
 	clk_freq = {
 		"SATA3" :	300*1000000,
 		"SATA2" :	150*1000000,
 		"SATA1" :	 75*1000000
 	}
-	clk_period_us = 1000000/clk_freq
+	clk_period_us = 1000000/clk_freq[speed]
 	if margin:
 		t += clk_period_us/2
 	return ceil(t/clk_period_us)
@@ -28,17 +32,19 @@ class K7SATAPHYHostCtrl(Module):
 
 		align_timeout = Signal()
 		align_detect = Signal()
+		retry_cnt = Signal(4)
+		non_align_cnt = Signal(4)
 
 		txcominit = Signal()
-		txcomwake = Signa()
+		txcomwake = Signal()
 
-		fsm = FSM(reset_state="IDLE")
+		fsm = FSM(reset_state="RESET")
 		self.submodules += fsm
 
 		fsm.act("RESET",
 			txcominit.eq(1),
 			gtx.txelecidle.eq(1),
-			If(gtx.txcomfinish & ~gtx.rxcominitdet),
+			If(gtx.txcomfinish & ~gtx.rxcominitdet,
 				NextState("AWAIT_COMINIT")
 			)
 		)
@@ -124,9 +130,9 @@ class K7SATAPHYHostCtrl(Module):
 		align_timeout_cnt = Signal(16)
 		self.sync.sata += \
 			If(fsm.ongoing("RESET"),
-				If(speed == 0b100,
+				If(self.speed == 0b100,
 					align_timeout_cnt.eq(us(873, "SATA3"))
-				).Elif(speed == 0b010,
+				).Elif(self.speed == 0b010,
 					align_timeout_cnt.eq(us(873, "SATA2"))
 				).Else(
 					align_timeout_cnt.eq(us(873, "SATA1"))
@@ -136,21 +142,19 @@ class K7SATAPHYHostCtrl(Module):
 			)
 		self.comb += align_timeout.eq(align_timeout_cnt == 0)
 
-		retry_cnt = Signal(16)
 		self.sync.sata += \
 			If(fsm.ongoing("RESET") | fsm.ongoing("AWAIT_NO_COMINIT"),
-				If(speed == 0b100,
+				If(self.speed == 0b100,
 					retry_cnt.eq(us(10000, "SATA3"))
-				).Elif(speed == 0b010,
+				).Elif(self.speed == 0b010,
 					retry_cnt.eq(us(10000, "SATA2"))
 				).Else(
 					retry_cnt.eq(us(10000, "SATA1"))
 				)
-			).Elif(fsm.ongoing("AWAIT_COMINIT") | fsm.ongoing("AWAIT_COMWAKE")
+			).Elif(fsm.ongoing("AWAIT_COMINIT") | fsm.ongoing("AWAIT_COMWAKE"),
 				retry_cnt.eq(retry_cnt-1)
 			)
 
-		non_align_cnt = Signal(4)
 		self.sync.sata += \
 			If(fsm.ongoing("SEND_ALIGN"),
 				If(self.rxdata[7:0] == K28_5,
@@ -172,17 +176,18 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		align_timeout = Signal()
 		align_detect = Signal()
+		retry_cnt = Signal(4)
 
 		txcominit = Signal()
-		txcomwake = Signa()
+		txcomwake = Signal()
 
-		fsm = FSM(reset_state="IDLE")
+		fsm = FSM(reset_state="RESET")
 		self.submodules += fsm
 
 		fsm.act("RESET",
 			gtx.txelecidle.eq(1),
 			If(gtx.rxcominitdet,
-				NextState("AWAIT_COMINIT")
+				NextState("COMINIT")
 			)
 		)
 		fsm.act("COMINIT",
@@ -193,7 +198,7 @@ class K7SATAPHYDeviceCtrl(Module):
 		)
 		fsm.act("AWAIT_COMWAKE",
 			gtx.txelecidle.eq(1),
-			If(gtx.rxcomwake,
+			If(gtx.rxcomwakedet,
 				NextState("AWAIT_NO_COMWAKE")
 			).Else(
 				If(retry_cnt == 0,
@@ -203,7 +208,7 @@ class K7SATAPHYDeviceCtrl(Module):
 		)
 		fsm.act("AWAIT_NO_COMWAKE",
 			gtx.txelecidle.eq(1),
-			If(~gtx.rxcomwake,
+			If(~gtx.rxcomwakedet,
 				NextState("CALIBRATE")
 			)
 		)
@@ -213,10 +218,9 @@ class K7SATAPHYDeviceCtrl(Module):
 		)
 		fsm.act("COMWAKE",
 			gtx.txelecidle.eq(1),
+			gtx.txcomwake.eq(1),
 			If(gtx.txcomfinish,
 				NextState("SEND_ALIGN")
-			).Elif(align_timeout,
-				NextState("ERROR")
 			)
 		)
 		fsm.act("SEND_ALIGN",
@@ -225,7 +229,7 @@ class K7SATAPHYDeviceCtrl(Module):
 			self.txcharisk.eq(0b0001),
 			If(align_detect,
 				NextState("READY")
-			).Elsif(align_timeout,
+			).Elif(align_timeout,
 				NextState("ERROR")
 			)
 		)
@@ -255,9 +259,9 @@ class K7SATAPHYDeviceCtrl(Module):
 		align_timeout_cnt = Signal(16)
 		self.sync.sata += \
 			If(fsm.ongoing("RESET"),
-				If(speed == 0b100,
+				If(self.speed == 0b100,
 					align_timeout_cnt.eq(us(55, "SATA3"))
-				).Elif(speed == 0b010,
+				).Elif(self.speed == 0b010,
 					align_timeout_cnt.eq(us(55, "SATA2"))
 				).Else(
 					align_timeout_cnt.eq(us(55, "SATA1"))

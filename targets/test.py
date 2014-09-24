@@ -7,6 +7,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from miscope.uart2wishbone import UART2Wishbone
 
 from misoclib import identifier
+from lib.sata.k7sataphy import K7SATAPHY
 
 class _CRG(Module):
 	def __init__(self, platform):
@@ -51,7 +52,7 @@ class UART2WB(Module):
 		"uart2wb":			0,
 		"identifier":		2,
 	}
-	interrupt_map = {}	
+	interrupt_map = {}
 	cpu_type = None
 	def __init__(self, platform, clk_freq):
 		self.submodules.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq)
@@ -92,5 +93,7 @@ class TestDesign(UART2WB):
 		clk_freq = 125*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
+
+		self.submodules.sataphy = K7SATAPHY(platform.request("sata"))
 
 default_subtarget = TestDesign

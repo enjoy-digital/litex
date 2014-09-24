@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.actorlib.fifo import AsyncFIFO
 from migen.actorlib.structuring import Converter
+from migen.flow.actor import Sink, Source
 
 from lib.sata.k7sataphy.std import *
 
@@ -12,18 +13,18 @@ class GTXE2_CHANNEL(Module):
 		self.qpllclk = Signal()
 		self.qpllrefclk = Signal()
 
-    	# Channel - Ref Clock Ports
-    	self.gtrefclk0 = Signal()
+		# Channel - Ref Clock Ports
+		self.gtrefclk0 = Signal()
 
-    	# Channel PLL
+		# Channel PLL
 		self.cpllfbclklost = Signal()
 		self.cplllock = Signal()
 		self.cplllockdetclk = Signal()
 		self.cpllrefclklost = Signal()
 		self.cpllreset = Signal()
 
-    	# Eye Scan Ports
-    	self.eyescandataerror = Signal()
+		# Eye Scan Ports
+		self.eyescandataerror = Signal()
 
 		# Receive Ports
 		self.rxuserrdy = Signal()
@@ -115,11 +116,11 @@ class GTXE2_CHANNEL(Module):
 		txout_div = div_config[default_speed]
 
 		cdr_config = {
-			"SATA1" :	0x0380008BFF40100008
-			"SATA2" :	0x0380008BFF40200008
+			"SATA1" :	0x0380008BFF40100008,
+			"SATA2" :	0x0380008BFF40200008,
 			"SATA3" :	0X0380008BFF20200010
 		}
-		rxcdr_cfg = cdr_config[start_speed]
+		rxcdr_cfg = cdr_config[default_speed]
 
 		rxdata = Signal(16)
 		rxcharisk = Signal(2)
@@ -127,278 +128,280 @@ class GTXE2_CHANNEL(Module):
 		txdata = Signal(16)
 		txcharisk = Signal(2)
 
-		self.specials += \
-			Instance("GTXE2_CHANNEL",
+		gtxe2_channel_parameters = {
 				# Simulation-Only Attributes
-					p_SIM_RECEIVER_DETECT_PASS="TRUE",
-					p_SIM_TX_EIDLE_DRIVE_LEVEL="X",
-					p_SIM_RESET_SPEEDUP="TRUE",
-					p_SIM_CPLLREFCLK_SEL=0b001,
-					p_SIM_VERSION="4.0",
+					"p_SIM_RECEIVER_DETECT_PASS":"TRUE",
+					"p_SIM_TX_EIDLE_DRIVE_LEVEL":"X",
+					"p_SIM_RESET_SPEEDUP":"TRUE",
+					"p_SIM_CPLLREFCLK_SEL":0b001,
+					"p_SIM_VERSION":"4.0",
 
 				# RX Byte and Word Alignment Attributes
-					p_ALIGN_COMMA_DOUBLE="FALSE",
-					p_ALIGN_COMMA_ENABLE=_ones(10),
-					p_ALIGN_COMMA_WORD=2,
-					p_ALIGN_MCOMMA_DET="TRUE",
-					p_ALIGN_MCOMMA_VALUE=K28_5,
-					p_ALIGN_PCOMMA_DET="TRUE",
-					p_ALIGN_PCOMMA_VALUE=~K28_5,
-					p_SHOW_REALIGN_COMMA="FALSE",
-					p_RXSLIDE_AUTO_WAIT=7,
-					p_RXSLIDE_MODE="OFF",
-					p_RX_SIG_VALID_DLY=10,
+					"p_ALIGN_COMMA_DOUBLE":"FALSE",
+					"p_ALIGN_COMMA_ENABLE":ones(10),
+					"p_ALIGN_COMMA_WORD":2,
+					"p_ALIGN_MCOMMA_DET":"TRUE",
+					"p_ALIGN_MCOMMA_VALUE":K28_5,
+					"p_ALIGN_PCOMMA_DET":"TRUE",
+					"p_ALIGN_PCOMMA_VALUE":~K28_5,
+					"p_SHOW_REALIGN_COMMA":"FALSE",
+					"p_RXSLIDE_AUTO_WAIT":7,
+					"p_RXSLIDE_MODE":"OFF",
+					"p_RX_SIG_VALID_DLY":10,
 
 				# RX 8B/10B Decoder Attributes
-					p_RX_DISPERR_SEQ_MATCH="TRUE",
-					p_DEC_MCOMMA_DETECT="TRUE",
-					p_DEC_PCOMMA_DETECT="TRUE",
-					p_DEC_VALID_COMMA_ONLY="FALSE",
+					"p_RX_DISPERR_SEQ_MATCH":"TRUE",
+					"p_DEC_MCOMMA_DETECT":"TRUE",
+					"p_DEC_PCOMMA_DETECT":"TRUE",
+					"p_DEC_VALID_COMMA_ONLY":"FALSE",
 
 				# RX Clock Correction Attributes
-					p_CBCC_DATA_SOURCE_SEL="DECODED",
-					p_CLK_COR_SEQ_2_USE="FALSE",
-					p_CLK_COR_KEEP_IDLE="FALSE",
-					p_CLK_COR_MAX_LAT=9,
-					p_CLK_COR_MIN_LAT=7,
-					p_CLK_COR_PRECEDENCE="TRUE",
-					p_CLK_COR_REPEAT_WAIT=0,
-					p_CLK_COR_SEQ_LEN=1,
-					p_CLK_COR_SEQ_1_ENABLE=_ones(4),
-					p_CLK_COR_SEQ_1_ENABLE=0,
-					p_CLK_COR_SEQ_1_1=0,
-					p_CLK_COR_SEQ_1_1=0,
-					p_CLK_COR_SEQ_1_2=0,
-					p_CLK_COR_SEQ_1_3=0,
-					p_CLK_COR_SEQ_1_4=0,
-					p_CLK_CORRECT_USE="FALSE",
-					p_CLK_COR_SEQ_2_ENABLE=_ones(4),
-					p_CLK_COR_SEQ_2_1=0,
-					p_CLK_COR_SEQ_2_2=0,
-					p_CLK_COR_SEQ_2_3=0,
-					p_CLK_COR_SEQ_2_4=0,
+					"p_CBCC_DATA_SOURCE_SEL":"DECODED",
+					"p_CLK_COR_SEQ_2_USE":"FALSE",
+					"p_CLK_COR_KEEP_IDLE":"FALSE",
+					"p_CLK_COR_MAX_LAT":9,
+					"p_CLK_COR_MIN_LAT":7,
+					"p_CLK_COR_PRECEDENCE":"TRUE",
+					"p_CLK_COR_REPEAT_WAIT":0,
+					"p_CLK_COR_SEQ_LEN":1,
+					"p_CLK_COR_SEQ_1_ENABLE":ones(4),
+					"p_CLK_COR_SEQ_1_ENABLE":0,
+					"p_CLK_COR_SEQ_1_1":0,
+					"p_CLK_COR_SEQ_1_1":0,
+					"p_CLK_COR_SEQ_1_2":0,
+					"p_CLK_COR_SEQ_1_3":0,
+					"p_CLK_COR_SEQ_1_4":0,
+					"p_CLK_CORRECT_USE":"FALSE",
+					"p_CLK_COR_SEQ_2_ENABLE":ones(4),
+					"p_CLK_COR_SEQ_2_1":0,
+					"p_CLK_COR_SEQ_2_2":0,
+					"p_CLK_COR_SEQ_2_3":0,
+					"p_CLK_COR_SEQ_2_4":0,
 
 				# RX Channel Bonding Attributes
-					p_CHAN_BOND_KEEP_ALIGN="FALSE",
-					p_CHAN_BOND_MAX_SKEW=1,
-					p_CHAN_BOND_SEQ_LEN=1,
-					p_CHAN_BOND_SEQ_1_1=0,
-					p_CHAN_BOND_SEQ_1_1=0,
-					p_CHAN_BOND_SEQ_1_2=0,
-					p_CHAN_BOND_SEQ_1_3=0,
-					p_CHAN_BOND_SEQ_1_4=0,
-					p_CHAN_BOND_SEQ_1_ENABLE=_ones(4),
-					p_CHAN_BOND_SEQ_2_1=0,
-					p_CHAN_BOND_SEQ_2_2=0,
-					p_CHAN_BOND_SEQ_2_3=0,
-					p_CHAN_BOND_SEQ_2_4=0,
-					p_CHAN_BOND_SEQ_2_ENABLE=_ones(4),
-					p_CHAN_BOND_SEQ_2_USE="FALSE",
-					p_FTS_DESKEW_SEQ_ENABLE=_ones(4),
-					p_FTS_LANE_DESKEW_CFG=_ones(4),
-					p_FTS_LANE_DESKEW_EN="FALSE",
+					"p_CHAN_BOND_KEEP_ALIGN":"FALSE",
+					"p_CHAN_BOND_MAX_SKEW":1,
+					"p_CHAN_BOND_SEQ_LEN":1,
+					"p_CHAN_BOND_SEQ_1_1":0,
+					"p_CHAN_BOND_SEQ_1_1":0,
+					"p_CHAN_BOND_SEQ_1_2":0,
+					"p_CHAN_BOND_SEQ_1_3":0,
+					"p_CHAN_BOND_SEQ_1_4":0,
+					"p_CHAN_BOND_SEQ_1_ENABLE":ones(4),
+					"p_CHAN_BOND_SEQ_2_1":0,
+					"p_CHAN_BOND_SEQ_2_2":0,
+					"p_CHAN_BOND_SEQ_2_3":0,
+					"p_CHAN_BOND_SEQ_2_4":0,
+					"p_CHAN_BOND_SEQ_2_ENABLE":ones(4),
+					"p_CHAN_BOND_SEQ_2_USE":"FALSE",
+					"p_FTS_DESKEW_SEQ_ENABLE":ones(4),
+					"p_FTS_LANE_DESKEW_CFG":ones(4),
+					"p_FTS_LANE_DESKEW_EN":"FALSE",
 
 				# RX Margin Analysis Attributes
-					p_ES_CONTROL=0,
-					p_ES_ERRDET_EN="FALSE",
-					p_ES_EYE_SCAN_EN="TRUE",
-					p_ES_HORZ_OFFSET=0,
-					p_ES_PMA_CFG=0,
-					p_ES_PRESCALE=0,
-					p_ES_QUALIFIER=0,
-					p_ES_QUAL_MASK=0,
-					p_ES_SDATA_MASK=0,
-					p_ES_VERT_OFFSET=0,
+					"p_ES_CONTROL":0,
+					"p_ES_ERRDET_EN":"FALSE",
+					"p_ES_EYE_SCAN_EN":"TRUE",
+					"p_ES_HORZ_OFFSET":0,
+					"p_ES_PMA_CFG":0,
+					"p_ES_PRESCALE":0,
+					"p_ES_QUALIFIER":0,
+					"p_ES_QUAL_MASK":0,
+					"p_ES_SDATA_MASK":0,
+					"p_ES_VERT_OFFSET":0,
 
 				# FPGA RX Interface Attributes
-					p_RX_DATA_WIDTH=20,
+					"p_RX_DATA_WIDTH":20,
 
 				# PMA Attributes
-					p_OUTREFCLK_SEL_INV=0b11,
-					p_PMA_RSV=0,
-					p_PMA_RSV2=0x2050,
-					p_PMA_RSV3=0,
-					p_PMA_RSV4=0,
-					p_RX_BIAS_CFG=0b100,
-					p_DMONITOR_CFG=0xA00,
-					p_RX_CM_SEL=0b11,
-					p_RX_CM_TRIM=0b010,
-					p_RX_DEBUG_CFG=0,
-					p_RX_OS_CFG=0b10000000,
-					p_TERM_RCAL_CFG=0,
-					p_TERM_RCAL_OVRD=0,
-					p_TST_RSV=0,
-					p_RX_CLK25_DIV=6,
-					p_TX_CLK25_DIV=6,
-					p_UCODEER_CLR=0,
+					"p_OUTREFCLK_SEL_INV":0b11,
+					"p_PMA_RSV":0,
+					"p_PMA_RSV2":0x2050,
+					"p_PMA_RSV3":0,
+					"p_PMA_RSV4":0,
+					"p_RX_BIAS_CFG":0b100,
+					"p_DMONITOR_CFG":0xA00,
+					"p_RX_CM_SEL":0b11,
+					"p_RX_CM_TRIM":0b010,
+					"p_RX_DEBUG_CFG":0,
+					"p_RX_OS_CFG":0b10000000,
+					"p_TERM_RCAL_CFG":0,
+					"p_TERM_RCAL_OVRD":0,
+					"p_TST_RSV":0,
+					"p_RX_CLK25_DIV":6,
+					"p_TX_CLK25_DIV":6,
+					"p_UCODEER_CLR":0,
 
 				# PCI Express Attributes
-					p_PCS_PCIE_EN="FALSE",
+					"p_PCS_PCIE_EN":"FALSE",
 
 				# PCS Attributes
-					p_PCS_RSVD_ATTR=0,
+					"p_PCS_RSVD_ATTR":0,
 
 				# RX Buffer Attributes
-					p_RXBUF_ADDR_MODE="FAST",
-					p_RXBUF_EIDLE_HI_CNT=0b1000,
-					p_RXBUF_EIDLE_LO_CNT=0,
-					p_RXBUF_EN="FALSE",
-					p_RX_BUFFER_CFG=0,
-					p_RXBUF_RESET_ON_CB_CHANGE="TRUE",
-					p_RXBUF_RESET_ON_COMMAALIGN="FALSE",
-					p_RXBUF_RESET_ON_EIDLE="FALSE",
-					p_RXBUF_RESET_ON_RATE_CHANGE="TRUE",
-					p_RXBUFRESET_TIME=1,
-					p_RXBUF_THRESH_OVFLW=61,
-					p_RXBUF_THRESH_OVRD="FALSE",
-					p_RXBUF_THRESH_UNDFLW=4,
-					p_RXDLY_CFG=0x1f,
-					p_RXDLY_LCFG=0x30,
-					p_RXDLY_TAP_CFG=0,
-					p_RXPH_CFG=0,
-					p_RXPHDLY_CFG=0x084820,
-					p_RXPH_MONITOR_SEL=0,
-					p_RX_XCLK_SEL="RXUSR",
-					p_RX_DDI_SEL=0,
-					p_RX_DEFER_RESET_BUF_EN="TRUE",
+					"p_RXBUF_ADDR_MODE":"FAST",
+					"p_RXBUF_EIDLE_HI_CNT":0b1000,
+					"p_RXBUF_EIDLE_LO_CNT":0,
+					"p_RXBUF_EN":"FALSE",
+					"p_RX_BUFFER_CFG":0,
+					"p_RXBUF_RESET_ON_CB_CHANGE":"TRUE",
+					"p_RXBUF_RESET_ON_COMMAALIGN":"FALSE",
+					"p_RXBUF_RESET_ON_EIDLE":"FALSE",
+					"p_RXBUF_RESET_ON_RATE_CHANGE":"TRUE",
+					"p_RXBUFRESET_TIME":1,
+					"p_RXBUF_THRESH_OVFLW":61,
+					"p_RXBUF_THRESH_OVRD":"FALSE",
+					"p_RXBUF_THRESH_UNDFLW":4,
+					"p_RXDLY_CFG":0x1f,
+					"p_RXDLY_LCFG":0x30,
+					"p_RXDLY_TAP_CFG":0,
+					"p_RXPH_CFG":0,
+					"p_RXPHDLY_CFG":0x084820,
+					"p_RXPH_MONITOR_SEL":0,
+					"p_RX_XCLK_SEL":"RXUSR",
+					"p_RX_DDI_SEL":0,
+					"p_RX_DEFER_RESET_BUF_EN":"TRUE",
 
 				#CDR Attributes
-					p_RXCDR_CFG=rxcdr_cfg,
-					p_RXCDR_FR_RESET_ON_EIDLE=0,
-					p_RXCDR_HOLD_DURING_EIDLE=0,
-					p_RXCDR_PH_RESET_ON_EIDLE=0,
-					p_RXCDR_LOCK_CFG=0b010101,
+					"p_RXCDR_CFG":rxcdr_cfg,
+					"p_RXCDR_FR_RESET_ON_EIDLE":0,
+					"p_RXCDR_HOLD_DURING_EIDLE":0,
+					"p_RXCDR_PH_RESET_ON_EIDLE":0,
+					"p_RXCDR_LOCK_CFG":0b010101,
 
 				# RX Initialization and Reset Attributes
-					p_RXCDRFREQRESET_TIME=1,
-					p_RXCDRPHRESET_TIME=1,
-					p_RXISCANRESET_TIME=1,
-					p_RXPCSRESET_TIME=1,
-					p_RXPMARESET_TIME=3,
+					"p_RXCDRFREQRESET_TIME":1,
+					"p_RXCDRPHRESET_TIME":1,
+					"p_RXISCANRESET_TIME":1,
+					"p_RXPCSRESET_TIME":1,
+					"p_RXPMARESET_TIME":3,
 
 				# RX OOB Signaling Attributes
-					p_RXOOB_CFG=0b0000110,
+					"p_RXOOB_CFG":0b0000110,
 
 				# RX Gearbox Attributes
-					p_RXGEARBOX_EN="FALSE",
-					p_GEARBOX_MODE=0,
+					"p_RXGEARBOX_EN":"FALSE",
+					"p_GEARBOX_MODE":0,
 
 				# PRBS Detection Attribute
-					p_RXPRBS_ERR_LOOPBACK=0,
+					"p_RXPRBS_ERR_LOOPBACK":0,
 
 				# Power-Down Attributes
-					p_PD_TRANS_TIME_FROM_P2=0x03c,
-					p_PD_TRANS_TIME_NONE_P2=0x3c,
-					p_PD_TRANS_TIME_TO_P2=0x64,
+					"p_PD_TRANS_TIME_FROM_P2":0x03c,
+					"p_PD_TRANS_TIME_NONE_P2":0x3c,
+					"p_PD_TRANS_TIME_TO_P2":0x64,
 
 				# RX OOB Signaling Attributes
-					p_SAS_MAX_COM=64,
-					p_SAS_MIN_COM=36,
-					p_SATA_BURST_SEQ_LEN=0b0101,
-					p_SATA_BURST_VAL=0b100,
-					p_SATA_EIDLE_VAL=0b100,
-					p_SATA_MAX_BURST=8,
-					p_SATA_MAX_INIT=21,
-					p_SATA_MAX_WAKE=7,
-					p_SATA_MIN_BURST=4,
-					p_SATA_MIN_INIT=12,
-					p_SATA_MIN_WAKE=4,
+					"p_SAS_MAX_COM":64,
+					"p_SAS_MIN_COM":36,
+					"p_SATA_BURST_SEQ_LEN":0b0101,
+					"p_SATA_BURST_VAL":0b100,
+					"p_SATA_EIDLE_VAL":0b100,
+					"p_SATA_MAX_BURST":8,
+					"p_SATA_MAX_INIT":21,
+					"p_SATA_MAX_WAKE":7,
+					"p_SATA_MIN_BURST":4,
+					"p_SATA_MIN_INIT":12,
+					"p_SATA_MIN_WAKE":4,
 
 				# RX Fabric Clock Output Control Attributes
-					p_TRANS_TIME_RATE=0x0e,
+					"p_TRANS_TIME_RATE":0x0e,
 
 				# TX Buffer Attributes
-					p_TXBUF_EN="FALSE",
-					p_TXBUF_RESET_ON_RATE_CHANGE="FALSE",
-					p_TXDLY_CFG=0x1f,
-					p_TXDLY_LCFG=0x030,
-					p_TXDLY_TAP_CFG=0,
-					p_TXPH_CFG=0x0780,
-					p_TXPHDLY_CFG=0x084020,
-					p_TXPH_MONITOR_SEL=0,
-					p_TX_XCLK_SEL="TXUSR",
+					"p_TXBUF_EN":"FALSE",
+					"p_TXBUF_RESET_ON_RATE_CHANGE":"FALSE",
+					"p_TXDLY_CFG":0x1f,
+					"p_TXDLY_LCFG":0x030,
+					"p_TXDLY_TAP_CFG":0,
+					"p_TXPH_CFG":0x0780,
+					"p_TXPHDLY_CFG":0x084020,
+					"p_TXPH_MONITOR_SEL":0,
+					"p_TX_XCLK_SEL":"TXUSR",
 
 				# FPGA TX Interface Attributes
-					p_TX_DATA_WIDTH=20,
+					"p_TX_DATA_WIDTH":20,
 
 				# TX Configurable Driver Attributes
-					p_TX_DEEMPH0=0,
-					p_TX_DEEMPH1=0,
-					p_TX_EIDLE_ASSERT_DELAY=0b110,
-					p_TX_EIDLE_DEASSERT_DELAY=0b100,
-					p_TX_LOOPBACK_DRIVE_HIZ="FALSE",
-					p_TX_MAINCURSOR_SEL=0,
-					p_TX_DRIVE_MODE="DIRECT",
-					p_TX_MARGIN_FULL_0=0b1001110,
-					p_TX_MARGIN_FULL_1=0b1001001,
-					p_TX_MARGIN_FULL_2=0b1000101,
-					p_TX_MARGIN_FULL_3=0b1000010,
-					p_TX_MARGIN_FULL_4=0b1000000,
-					p_TX_MARGIN_LOW_0=0b1000110,
-					p_TX_MARGIN_LOW_1=0b1000100,
-					p_TX_MARGIN_LOW_2=0b1000010,
-					p_TX_MARGIN_LOW_3=0b1000000,
-					p_TX_MARGIN_LOW_4=0b1000000,
+					"p_TX_DEEMPH0":0,
+					"p_TX_DEEMPH1":0,
+					"p_TX_EIDLE_ASSERT_DELAY":0b110,
+					"p_TX_EIDLE_DEASSERT_DELAY":0b100,
+					"p_TX_LOOPBACK_DRIVE_HIZ":"FALSE",
+					"p_TX_MAINCURSOR_SEL":0,
+					"p_TX_DRIVE_MODE":"DIRECT",
+					"p_TX_MARGIN_FULL_0":0b1001110,
+					"p_TX_MARGIN_FULL_1":0b1001001,
+					"p_TX_MARGIN_FULL_2":0b1000101,
+					"p_TX_MARGIN_FULL_3":0b1000010,
+					"p_TX_MARGIN_FULL_4":0b1000000,
+					"p_TX_MARGIN_LOW_0":0b1000110,
+					"p_TX_MARGIN_LOW_1":0b1000100,
+					"p_TX_MARGIN_LOW_2":0b1000010,
+					"p_TX_MARGIN_LOW_3":0b1000000,
+					"p_TX_MARGIN_LOW_4":0b1000000,
 
 				# TX Gearbox Attributes
-					p_TXGEARBOX_EN="FALSE",
+					"p_TXGEARBOX_EN":"FALSE",
 
 				# TX Initialization and Reset Attributes
-					p_TXPCSRESET_TIME=1,
-					p_TXPMARESET_TIME=1,
+					"p_TXPCSRESET_TIME":1,
+					"p_TXPMARESET_TIME":1,
 
 				# TX Receiver Detection Attributes
-					p_TX_RXDETECT_CFG=0x1832,
-					p_TX_RXDETECT_REF=0b100,
+					"p_TX_RXDETECT_CFG":0x1832,
+					"p_TX_RXDETECT_REF":0b100,
 
 				# CPLL Attributes
-					p_CPLL_CFG=0xBC07DC,
-					p_CPLL_FBDIV=4,
-					p_CPLL_FBDIV_45=5,
-					p_CPLL_INIT_CFG=0x00001E
-					p_CPLL_LOCK_CFG=0x01e8,
-					p_CPLL_REFCLK_DIV=1,
-					p_RXOUT_DIV=rxout_div,
-					p_TXOUT_DIV=txout_div,
-					p_SATA_CPLL_CFG="VCO_3000MHZ",
+					"p_CPLL_CFG":0xBC07DC,
+					"p_CPLL_FBDIV":4,
+					"p_CPLL_FBDIV_45":5,
+					"p_CPLL_INIT_CFG":0x00001e,
+					"p_CPLL_LOCK_CFG":0x01e8,
+					"p_CPLL_REFCLK_DIV":1,
+					"p_RXOUT_DIV":rxout_div,
+					"p_TXOUT_DIV":txout_div,
+					"p_SATA_CPLL_CFG":"VCO_3000MHZ",
 
 				# RX Initialization and Reset Attributes
-					p_RXDFELPMRESET_TIME=0b0001111,
+					"p_RXDFELPMRESET_TIME":0b0001111,
 
 				# RX Equalizer Attributes
-					p_RXLPM_HF_CFG=0b00000011110000,
-					p_RXLPM_LF_CFG=0b00000011110000,
-					p_RX_DFE_GAIN_CFG=0b020FEA,
-					p_RX_DFE_H2_CFG=0b000000000000,
-					p_RX_DFE_H3_CFG=0b000001000000,
-					p_RX_DFE_H4_CFG=0b00011110000,
-					p_RX_DFE_H5_CFG=0b00011100000,
-					p_RX_DFE_KL_CFG=0b0000011111110,
-					p_RX_DFE_LPM_CFG=0x0954,
-					p_RX_DFE_LPM_HOLD_DURING_EIDLE=1,
-					p_RX_DFE_UT_CFG=0b10001111000000000,
-					p_RX_DFE_VP_CFG=0b00011111100000011,
+					"p_RXLPM_HF_CFG":0b00000011110000,
+					"p_RXLPM_LF_CFG":0b00000011110000,
+					"p_RX_DFE_GAIN_CFG":0x020fea,
+					"p_RX_DFE_H2_CFG":0b000000000000,
+					"p_RX_DFE_H3_CFG":0b000001000000,
+					"p_RX_DFE_H4_CFG":0b00011110000,
+					"p_RX_DFE_H5_CFG":0b00011100000,
+					"p_RX_DFE_KL_CFG":0b0000011111110,
+					"p_RX_DFE_LPM_CFG":0x0954,
+					"p_RX_DFE_LPM_HOLD_DURING_EIDLE":1,
+					"p_RX_DFE_UT_CFG":0b10001111000000000,
+					"p_RX_DFE_VP_CFG":0b00011111100000011,
 
 				# Power-Down Attributes
-					p_RX_CLKMUX_PD=1,
-					p_TX_CLKMUX_PD=1,
+					"p_RX_CLKMUX_PD":1,
+					"p_TX_CLKMUX_PD":1,
 
 				# FPGA RX Interface Attribute
-					p_RX_INT_DATAWIDTH=0,
+					"p_RX_INT_DATAWIDTH":0,
 
 				# FPGA TX Interface Attribute
-					p_TX_INT_DATAWIDTH=0,
+					"p_TX_INT_DATAWIDTH":0,
 
 				# TX Configurable Driver Attributes
-					p_TX_QPI_STATUS_EN=0,
+					"p_TX_QPI_STATUS_EN":0,
 
 				# RX Equalizer Attributes
-					p_RX_DFE_KL_CFG2=0b00110011000100000001100000001100
-					p_RX_DFE_XYD_CFG=0bb0000000000000,
+					"p_RX_DFE_KL_CFG2":0b00110011000100000001100000001100,
+					"p_RX_DFE_XYD_CFG":0b0000000000000,
 
 				# TX Configurable Driver Attributes
-					p_TX_PREDRIVER_MODE=0,
+					"p_TX_PREDRIVER_MODE":0,
+			}
 
+		self.specials += \
+			Instance("GTXE2_CHANNEL",
 				# CPLL Ports
 					o_CPLLFBCLKLOST=self.cpllfbclklost,
 					o_CPLLLOCK=self.cplllock,
@@ -413,7 +416,7 @@ class GTXE2_CHANNEL(Module):
 					i_PCSRSVDIN2=0,
 					i_PMARSVDIN=0,
 					i_PMARSVDIN2=0,
-					i_TSTIN=_ones(20),
+					i_TSTIN=ones(20),
 					#o_TSTOUT=,
 
 				# Channel
@@ -439,9 +442,7 @@ class GTXE2_CHANNEL(Module):
 
 				# Clocking Ports
 					#o_GTREFCLKMONITOR=,
-					i_QPLLCLK=self.qpllclk
 					i_QPLLCLK=self.qpllclk,
-					i_QPLLREFCLK=self.qpllrefclk,
 					i_QPLLREFCLK=self.qpllrefclk,
 					i_RXSYSCLKSEL=0b00,
 					i_TXSYSCLKSEL=0b00,
@@ -457,7 +458,7 @@ class GTXE2_CHANNEL(Module):
 
 				# PCI Express Ports
 					#o_PHYSTATUS=,
-					i_RXRATE=self.RXRATE,
+					i_RXRATE=self.rxrate,
 					#o_RXVALID=,
 
 				# Power-Down Ports
@@ -477,11 +478,11 @@ class GTXE2_CHANNEL(Module):
 					i_EYESCANTRIGGER=0,
 
 				# Receive Ports - CDR Ports
-					i_RXCDRFREQRESET=self.rxcdrfreqreset,
+					i_RXCDRFREQRESET=0,
 					i_RXCDRHOLD=0,
-					o_RXCDRLOCK=self.rxcrdlock,
+					o_RXCDRLOCK=self.rxcdrlock,
 					i_RXCDROVRDEN=0,
-					i_RXCDRRESET=0,
+					i_RXCDRRESET=self.rxcdrreset,
 					i_RXCDRRESETRSV=0,
 
 				# Receive Ports - Clock Correction Ports
@@ -511,10 +512,10 @@ class GTXE2_CHANNEL(Module):
 
 				# Receive Ports - RX 8B/10B Decoder Ports
 					i_RXDISPERR=self.rxdisperr,
-					o_RXNOTINTABLE=self.RXNOTINTABLE,
+					o_RXNOTINTABLE=self.rxnotintable,
 
 				# Receive Ports - RX AFE
-					i_GTXRXP=pads.rxp
+					i_GTXRXP=pads.rxp,
 					i_GTXRXN=pads.rxn,
 
 				# Receive Ports - RX Buffer Bypass Ports
@@ -612,7 +613,7 @@ class GTXE2_CHANNEL(Module):
 					i_RXPMARESET=0,
 
 				# Receive Ports - RX Margin Analysis ports
-					i_RXLPMEN=self.rxlpmen,
+					i_RXLPMEN=0,
 
 				# Receive Ports - RX OOB Signaling ports
 					#o_RXCOMSASDET=,
@@ -659,14 +660,14 @@ class GTXE2_CHANNEL(Module):
 					i_TXQPIWEAKPUP=0,
 
 				# TX Initialization and Reset Ports
-					i_CFGRESET=self.cfgreset,
+					i_CFGRESET=0,
 					i_GTTXRESET=self.gttxreset,
 					#o_PCSRSVDOUT=,
 					i_TXUSERRDY=self.txuserrdy,
 
 				# Transceiver Reset Mode Operation
-					i_GTRESETSEL=self.gtresetsel,
-					i_RESETOVRD=self.resetovrd,
+					i_GTRESETSEL=0,
+					i_RESETOVRD=0,
 
 				# Transmit Ports - 8b10b Encoder Control Ports
 					i_TXCHARDISPMODE=0,
@@ -715,7 +716,7 @@ class GTXE2_CHANNEL(Module):
 					i_TXPISOPD=0,
 
 				# Transmit Ports - TX Data Path interface
-					i_TXDATA=self.txdata,
+					i_TXDATA=txdata,
 
 				# Transmit Ports - TX Driver and OOB signaling
 					o_GTXTXP=pads.txp,
@@ -728,7 +729,7 @@ class GTXE2_CHANNEL(Module):
 					i_TXOUTCLKSEL=0b11,
 					o_TXRATEDONE=self.txratedone,
 				# Transmit Ports - TX Gearbox Ports
-					i_TXCHARISK=self.txcharisk,
+					i_TXCHARISK=txcharisk,
 					#o_TXGEARBOXREADY=,
 					i_TXHEADER=0,
 					i_TXSEQUENCE=0,
@@ -760,10 +761,13 @@ class GTXE2_CHANNEL(Module):
 
 				# Tx Configurable Driver  Ports
 					#o_TXQPISENN=,
-					#o_TXQPISENP=
+					#o_TXQPISENP=,
+
+					**gtxe2_channel_parameters
 			)
 
 		# realign rxdata / rxcharisk
+		dw = 16
 		rxdata_r = Signal(dw)
 		rxcharisk_r = Signal(dw//8)
 		rxdata_aligned = Signal(dw)
@@ -774,15 +778,15 @@ class GTXE2_CHANNEL(Module):
 		]
 		cases = {}
 		cases[1<<0] = [
-				rxdata_aligned .eq(rx_data_r[0:dw]),
-				rxcharisk_aligned .eq(rx_charisk_r[0:dw//8])
+				rxdata_aligned .eq(rxdata_r[0:dw]),
+				rxcharisk_aligned .eq(rxcharisk_r[0:dw//8])
 		]
 		for i in range(1, dw//8):
 			cases[1<<i] = [
 				rxdata_aligned .eq(Cat(rxdata[8*i:dw], rxdata_r[0:8*i])),
-				rxcharisk_aligned .eq(Cat(self.gtx.rxcharisk[i:dw//8], rxcharisk_r[0:i]))
+				rxcharisk_aligned .eq(Cat(rxcharisk[i:dw//8], rxcharisk_r[0:i]))
 			]
-		self.comb += Case(rxcharisk_d, cases)
+		self.comb += Case(rxcharisk_r, cases)
 
 
 		# convert data widths
@@ -802,9 +806,9 @@ class GTXE2_CHANNEL(Module):
 		# SATA device is supposed to lock its tx frequency to its received rx frequency, so this
 		# ensure that sata_rx and sata_tx clock have the same frequency with only not the same
 		# phase and thus ensute the rx_fifo will never be full.
-		rx_fifo = AsyncFIFO(("raw", 36), 16)
+		rx_fifo = AsyncFIFO([("raw", 36)], 16)
 		self.submodules.rx_fifo = RenameClockDomains(rx_fifo, {"write": "sata_rx", "read": "sata"})
-		tx_fifo = AsyncFIFO(("raw", 36), 16)
+		tx_fifo = AsyncFIFO([("raw", 36)], 16)
 		self.submodules.tx_fifo = RenameClockDomains(tx_fifo, {"write": "sata", "read": "sata_tx"})
 		self.comb += [
 			Record.connect(rx_converter.source, self.rx_fifo.sink),
@@ -820,14 +824,14 @@ class GTXE2_CHANNEL(Module):
 		self.comb += [
 			self.source.stb.eq(self.rx_fifo.source.stb),
 			self.source.payload.data.eq(Cat(rx_fifo.source.raw[0:32], rx_fifo.source.raw[36:36+32])),
-			self.source.payload.charisk.eq(rx_fifo.source.raw[32:36], rx_fifo.source.raw[36+32:36+36]),
+			self.source.payload.charisk.eq(Cat(rx_fifo.source.raw[32:36], rx_fifo.source.raw[36+32:36+36])),
 			self.rx_fifo.source.ack.eq(self.source.ack),
 		]
 
-		self.sink = Sink(("data", 32), ("charisk", 4)])
+		self.sink = Sink([("data", 32), ("charisk", 4)])
 		self.comb += [
-			self.tx_fifo.stb.eq(self.sink.stb),
-			self.tx_fifo.raw.eq(Cat(self.sink.data[0:16],  self.sink.charisk[0:2],
-									self.sink.data[16:32], self.sink.charisk[2:4])),
-			self.sink.ack.eq(self.tx_fifo.ack),
+			self.tx_fifo.sink.stb.eq(self.sink.stb),
+			self.tx_fifo.sink.raw.eq(Cat(self.sink.data[0:16],  self.sink.charisk[0:2],
+										 self.sink.data[16:32], self.sink.charisk[2:4])),
+			self.sink.ack.eq(self.tx_fifo.sink.ack),
 		]

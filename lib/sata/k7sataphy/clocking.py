@@ -2,40 +2,34 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 
+from lib.sata.k7sataphy.std import *
+
 class K7SATAPHYReconfig(Module):
 	def __init__(self, channel_drp, mmcm_drp):
 		self.speed = Signal(3)
 		###
 		speed_r = Signal(3)
 		speed_change = Signal()
-		self.sync += speed_r.eq(speed)
-		self.comb += speed_change.eq(speed != speed_r)
+		self.sync += speed_r.eq(self.speed)
+		self.comb += speed_change.eq(self.speed != speed_r)
 
 		drp_sel = Signal()
 		drp = DRPBus()
 		self.comb += \
-			If(sel,
+			If(drp_sel,
 				Record.connect(drp, mmcm_drp),
 			).Else(
 				Record.connect(drp, channel_drp)
 			)
-
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-
-		# Todo
-		fsm.act("IDLE",
-			sel.eq(0),
-		)
 
 class K7SATAPHYClocking(Module):
 	def __init__(self, pads, gtx):
 		self.reset = Signal()
 		self.transceiver_reset = Signal()
 
-		self.cd_sata = ClockDomain()
-		self.cd_sata_tx = ClockDomain()
-		self.cd_sata_rx = ClockDomain()
+		self.clock_domains.cd_sata = ClockDomain()
+		self.clock_domains.cd_sata_tx = ClockDomain()
+		self.clock_domains.cd_sata_rx = ClockDomain()
 
 	# TX clocking
 		refclk = Signal()
@@ -46,22 +40,23 @@ class K7SATAPHYClocking(Module):
 		)
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
-		mmcm_drp = DRP()
+		mmcm_drp = DRPBus()
 		mmcm_fb = Signal()
 		mmcm_clk_i = Signal()
 		mmcm_clk0_o = Signal()
+		mmcm_clk1_o = Signal()
 		self.specials += [
 			Instance("BUFG", i_I=refclk, o_O=mmcm_clk_i),
 			Instance("MMCME2_ADV",
 				p_BANDWIDTH="HIGH", p_COMPENSATION="ZHOLD", i_RST=mmcm_reset, o_LOCKED=mmcm_locked,
 
 				# DRP
-				i_DCLK=mmcm_drp.clk, i_DEN=mmcm_drp.den, o_DRDY=mmcm_drp.rdy, i_DWE=mmcm_drp.we,
+				i_DCLK=mmcm_drp.clk, i_DEN=mmcm_drp.en, o_DRDY=mmcm_drp.rdy, i_DWE=mmcm_drp.we,
 				i_DADDR=mmcm_drp.addr, i_DI=mmcm_drp.di, i_DO=mmcm_drp.do,
 
 				# VCO
 				p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=5.0,
-				p_CLKFBOUT_MULT_F=8.000, CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=2,
+				p_CLKFBOUT_MULT_F=8.000, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=2,
 				i_CLKIN1=mmcm_clk_i, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
 				# CLK0
@@ -85,11 +80,11 @@ class K7SATAPHYClocking(Module):
 
 	# TX buffer bypass logic
 		self.comb += [
-			self.txphdlyreset.eq(0),
-			self.txphalignen.eq(0),
-			self.txdlyen.eq(0),
-			self.txphalign.eq(0),
-			self.txphinit.eq(0)
+			gtx.txphdlyreset.eq(0),
+			gtx.txphalignen.eq(0),
+			gtx.txdlyen.eq(0),
+			gtx.txphalign.eq(0),
+			gtx.txphinit.eq(0)
 		]
 
 		# once channel TX is reseted, reset TX buffer
@@ -97,10 +92,10 @@ class K7SATAPHYClocking(Module):
 		self.sync += \
 			If(gtx.txresetdone,
 				If(~txbuffer_reseted,
-					gtx.txdlyreset.eq(1),
+					gtx.txdlysreset.eq(1),
 					txbuffer_reseted.eq(1)
 				).Else(
-					gtx.txdlyreset.eq(0)
+					gtx.txdlysreset.eq(0)
 				)
 			)
 
@@ -127,10 +122,10 @@ class K7SATAPHYClocking(Module):
 		self.sync += \
 			If(cdr_locked & gtx.rxresetdone,
 				If(~rxbuffer_reseted,
-					gtx.rxdlyreset.eq(1),
+					gtx.rxdlysreset.eq(1),
 					rxbuffer_reseted.eq(1)
 				).Else(
-					gtx.rxdlyreset.eq(0)
+					gtx.rxdlysreset.eq(0)
 				)
 			)
 
@@ -144,7 +139,7 @@ class K7SATAPHYClocking(Module):
 		# RX
 			gtx.gtrxreset.eq(self.reset | self.transceiver_reset | ~gtx.cplllock),
 		# PLL
-			gtx.pllreset.eq(self.reset)
+			gtx.cpllreset.eq(self.reset)
 		]
 		# SATA TX/RX clock domains
 		self.specials += [
