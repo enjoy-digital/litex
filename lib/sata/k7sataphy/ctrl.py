@@ -2,6 +2,12 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 
+# Todo:
+# it's maybe better to run this module at half the frequency?
+#  (to have txdata/rxdata on 32 bits)
+# direct control of txdata/txcharisk, need mux for user data
+# rx does not use the same clock, need to resynchronize signals.
+
 def us(self, t, speed="SATA3", margin=True):
 	clk_freq = {
 		"SATA3" :	300*1000000,
@@ -16,18 +22,23 @@ def us(self, t, speed="SATA3", margin=True):
 class K7SATAPHYHostCtrl(Module):
 	def __init__(self, gtx):
 		self.link_up = Signal()
+		self.speed = Signal(3)
 
-		tx_com_done = Signal()
 		align_timeout = Signal()
 		align_detect = Signal()
+
+		txcominit = Signal()
+		txcomwake = Signa()
+		txdata = Signal(32)
+		txcharisk = Signal(4)
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 
 		fsm.act("RESET",
-			gtx.txcominit.eq(1),
+			txcominit.eq(1),
 			gtx.txelecidle.eq(1),
-			If(tx_com_done & ~gtx.rxcominitdet),
+			If(gtx.txcomfinish & ~gtx.rxcominitdet),
 				NextState("AWAIT_COMINIT")
 			)
 		)
@@ -53,8 +64,8 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("COMWAKE",
 			gtx.txelecidle.eq(1),
-			gtx.txcomwake.eq(1),
-			If(tx_com_done,
+			txcomwake.eq(1),
+			If(gtx.txcomfinish,
 				NextState("AWAIT_COMWAKE")
 			)
 		)
@@ -76,8 +87,8 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("AWAIT_ALIGN",
 			gtx.txelecidle.eq(0),
-			gtx.txdata.eq(0x4A4A), #D10.2
-			gtx.txcharisk.eq(0b0000),
+			txdata.eq(0x4A4A4A4A), #D10.2
+			txcharisk.eq(0b0000),
 			If(align_detect & ~align_timeout,
 				NextState("SEND_ALIGN")
 			).Elif(~align_detect & align_timeout,
@@ -86,21 +97,78 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
-			gtx.txdata.eq(ALIGN_VAL),
-			gtx.txcharisk.eq(0b0001),
+			txdata.eq(ALIGN_VAL),
+			txcharisk.eq(0b0001),
 			If(non_align_cnt == 3,
 				NextState("READY")
 			)
 		)
 		fsm.act("READY",
 			gtx.txelecidle.eq(0),
-			gtx.txdata.eq(SYNC_VAL),
-			gtx.txcharisk.eq(0b0001),
+			txdata.eq(SYNC_VAL),
+			txcharisk.eq(0b0001),
 			If(gtx.rxelecidle,
 				NextState("RESET")
 			),
 			self.link_up.eq(1)
 		)
+
+		sel = Signal()
+		self.sync += sel.eq(~sel)
+		self.comb += [
+			If(sel,
+				gtx.txdata.eq(txdata[:16]),
+				gtx.txcharisk.eq(txcharisk[:2])
+			).Else(
+				gtx.txdata.eq(txdata[16:]),
+				gtx.txcharisk.eq(txcharisk[2:])
+			)
+		]
+
+		txcominit_d = Signal()
+		txcomwake_d = Signa()
+		self.sync += [
+			gtx.txcominit.eq(txcominit & ~txcominit_d),
+			gtx.txcomwake.eq(txcomwake & ~txcomwake),
+		]
+
+		align_timeout_cnt = Signal(16)
+		self.sync += \
+			If(fsm.ongoing("RESET"),
+				If(speed == 0b100,
+					align_timeout_cnt.eq(us(873, "SATA3"))
+				).Elif(speed == 0b010,
+					align_timeout_cnt.eq(us(873, "SATA2"))
+				).Else(
+					align_timeout_cnt.eq(us(873, "SATA1"))
+				)
+			).Elif(fsm.ongoing("AWAIT_ALIGN"),
+				align_timeout_cnt.eq(align_timeout_cnt-1)
+			)
+		self.comb += align_timeout.eq(align_timeout_cnt == 0)
+
+		retry_cnt = Signal(16)
+		self.sync += \
+			If(fsm.ongoing("RESET") | fsm.ongoing("AWAIT_NO_COMINIT"),
+				If(speed == 0b100,
+					retry_cnt.eq(us(10000, "SATA3"))
+				).Elif(speed == 0b010,
+					retry_cnt.eq(us(10000, "SATA2"))
+				).Else(
+					retry_cnt.eq(us(10000, "SATA1"))
+				)
+			).Elif(fsm.ongoing("AWAIT_COMINIT") | fsm.ongoing("AWAIT_COMWAKE")
+				retry_cnt.eq(retry_cnt-1)
+			)
+
+		non_align_cnt = Signal(4)
+		self.sync += \
+			If(fsm.ongoing("SEND_ALIGN"),
+				If(gtx.rxdata[7:0] == K28_5,
+					non_align_cnt.eq(non_align_cnt + 1)
+				).Else(
+					non_align_cnt.eq(0)
+				)
 
 class K7SATAPHYDeviceCtrl(Module):
 	def __init__(self, gtx):
