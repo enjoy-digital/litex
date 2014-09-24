@@ -33,6 +33,7 @@ class K7SATAPHYClocking(Module):
 		self.reset = Signal()
 		self.transceiver_reset = Signal()
 
+		self.cd_sata = ClockDomain()
 		self.cd_sata_tx = ClockDomain()
 		self.cd_sata_rx = ClockDomain()
 
@@ -48,7 +49,7 @@ class K7SATAPHYClocking(Module):
 		mmcm_drp = DRP()
 		mmcm_fb = Signal()
 		mmcm_clk_i = Signal()
-		mmcm_clk_o = Signal()
+		mmcm_clk0_o = Signal()
 		self.specials += [
 			Instance("BUFG", i_I=refclk, o_O=mmcm_clk_i),
 			Instance("MMCME2_ADV",
@@ -64,9 +65,13 @@ class K7SATAPHYClocking(Module):
 				i_CLKIN1=mmcm_clk_i, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
 				# CLK0
-				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk_o,
+				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
+
+				# CLK1
+				p_CLKOUT0_DIVIDE_F=8.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk1_o,
 			),
-			Instance("BUFG", i_I=mmcm_clk_o, o_O=self.cd_sata_tx.clk),
+			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
+			Instance("BUFG", i_I=mmcm_clk1_o, o_O=self.cd_sata.clk),
 		]
 
 	# RX clocking
@@ -145,6 +150,7 @@ class K7SATAPHYClocking(Module):
 		self.specials += [
 			AsyncResetSynchronizer(self.cd_sata_tx, ~mmcm_locked | ~gtx.txresetdone),
 			AsyncResetSynchronizer(self.cd_sata_rx, ~gtx.cplllock | ~gtx.rxphaligndone),
+			AsyncResetSynchronizer(self.cd_sata, ResetSignal("sata_tx") | ResetSignal("sata_rx")),
 		]
 
 	# Dynamic Reconfiguration
