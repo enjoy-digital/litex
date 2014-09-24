@@ -1,4 +1,6 @@
 from migen.fhdl.std import *
+from migen.actorlib.fifo import AsyncFIFO
+from migen.actorlib.structuring import Converter
 
 from lib.sata.k7sataphy.std import *
 
@@ -27,7 +29,6 @@ class GTXE2_CHANNEL(Module):
 		self.rxuserrdy = Signal()
 
 		# Receive Ports - 8b10b Decoder
-		self.rxcharisk = Signal(2)
 		self.rxdisperr = Signal(2)
 		self.rxnotintable = Signal(2)
 
@@ -37,7 +38,6 @@ class GTXE2_CHANNEL(Module):
 
 		# Receive Ports - RX Data Path interface
 		self.gtrxreset = Signal()
-		self.rxdata = Signal(16)
 		self.rxoutclk = Signal()
 		self.rxusrclk = Signal()
 		self.rxusrclk2 = Signal()
@@ -68,7 +68,6 @@ class GTXE2_CHANNEL(Module):
 		self.txuserrdy = Signal()
 
 		# Transmit Ports - 8b10b Encoder Control Ports
-		self.txcharisk = Signal(2)
 
 		# Transmit Ports - TX Buffer and Phase Alignment Ports
 		self.txdlyen = Signal()
@@ -83,7 +82,6 @@ class GTXE2_CHANNEL(Module):
 
 		# Transmit Ports - TX Data Path interface
 		self.gttxreset = Signal()
-		self.txdata = Signal()
 		self.txoutclk = Signal()
 		self.txoutclkfabric = Signal()
 		self.txoutclkpcs = Signal()
@@ -125,6 +123,9 @@ class GTXE2_CHANNEL(Module):
 
 		rxdata = Signal(16)
 		rxcharisk = Signal(2)
+
+		txdata = Signal(16)
+		txcharisk = Signal(2)
 
 		self.specials += \
 			Instance("GTXE2_CHANNEL",
@@ -765,18 +766,68 @@ class GTXE2_CHANNEL(Module):
 		# realign rxdata / rxcharisk
 		rxdata_r = Signal(dw)
 		rxcharisk_r = Signal(dw//8)
+		rxdata_aligned = Signal(dw)
+		rxcharisk_aligned = Signal(dw//8)
 		self.sync.sata_rx += [
 			rxdata_r.eq(rxdata),
 			rxcharisk_r.eq(rxcharisk)
 		]
 		cases = {}
 		cases[1<<0] = [
-				self.rxdata.eq(rx_data_r[0:dw]),
-				self.rxcharisk.eq(rx_charisk_r[0:dw//8])
+				rxdata_aligned .eq(rx_data_r[0:dw]),
+				rxcharisk_aligned .eq(rx_charisk_r[0:dw//8])
 		]
 		for i in range(1, dw//8):
 			cases[1<<i] = [
-				self.rxdata.eq(Cat(self.gtx.rxdata[8*i:dw], rxdata_r[0:8*i])),
-				self.rxcharisk.eq(Cat(self.gtx.rxcharisk[i:dw//8], rxcharisk_r[0:i]))
+				rxdata_aligned .eq(Cat(rxdata[8*i:dw], rxdata_r[0:8*i])),
+				rxcharisk_aligned .eq(Cat(self.gtx.rxcharisk[i:dw//8], rxcharisk_r[0:i]))
 			]
 		self.comb += Case(rxcharisk_d, cases)
+
+
+		# convert data widths
+		rx_converter = RenameClockDomains(Converter([("raw", 16+2)], [("raw", 32+4)]), "sata_rx")
+		tx_converter = RenameClockDomains(Converter([("raw", 32+4)], [("raw", 16+2)]), "sata_tx")
+		self.submodules += rx_converter, tx_converter
+		self.comb += [
+			rx_converter.sink.stb.eq(1),
+			rx_converter.sink.raw.eq(Cat(rxdata_aligned , rxcharisk_aligned)),
+			rx_converter.source.ack.eq(1),
+
+			Cat(txdata, txcharisk).eq(tx_converter.source.raw),
+			tx_converter.source.ack.eq(1),
+		]
+
+		# clock domain crossing
+		# SATA device is supposed to lock its tx frequency to its received rx frequency, so this
+		# ensure that sata_rx and sata_tx clock have the same frequency with only not the same
+		# phase and thus ensute the rx_fifo will never be full.
+		rx_fifo = AsyncFIFO(("raw", 36), 16)
+		self.submodules.rx_fifo = RenameClockDomains(rx_fifo, {"write": "sata_rx", "read": "sata"})
+		tx_fifo = AsyncFIFO(("raw", 36), 16)
+		self.submodules.tx_fifo = RenameClockDomains(tx_fifo, {"write": "sata", "read": "sata_tx"})
+		self.comb += [
+			Record.connect(rx_converter.source, self.rx_fifo.sink),
+			self.rx_fifo.source.ack.eq(1),
+			Record.connect(tx_fifo.source, tx_converter.sink),
+			self.tx_fifo.sink.stb.eq(1),
+		]
+
+		# Todo:
+		# we can add support to Converter to generate non raw connection (ie keep here convert from
+		# [("data", 16), ("charisk", 2)] to [("data", 32), ("charisk", 4)]
+		self.source = Source([("data", 32), ("charisk", 4)])
+		self.comb += [
+			self.source.stb.eq(self.rx_fifo.source.stb),
+			self.source.payload.data.eq(Cat(rx_fifo.source.raw[0:32], rx_fifo.source.raw[36:36+32])),
+			self.source.payload.charisk.eq(rx_fifo.source.raw[32:36], rx_fifo.source.raw[36+32:36+36]),
+			self.rx_fifo.source.ack.eq(self.source.ack),
+		]
+
+		self.sink = Sink(("data", 32), ("charisk", 4)])
+		self.comb += [
+			self.tx_fifo.stb.eq(self.sink.stb),
+			self.tx_fifo.raw.eq(Cat(self.sink.data[0:16],  self.sink.charisk[0:2],
+									self.sink.data[16:32], self.sink.charisk[2:4])),
+			self.sink.ack.eq(self.tx_fifo.ack),
+		]
