@@ -27,7 +27,6 @@ class GTXE2_CHANNEL(Module):
 		self.rxuserrdy = Signal()
 
 		# Receive Ports - 8b10b Decoder
-		self.rxchariscomma = Signal(2)
 		self.rxcharisk = Signal(2)
 		self.rxdisperr = Signal(2)
 		self.rxnotintable = Signal(2)
@@ -123,6 +122,9 @@ class GTXE2_CHANNEL(Module):
 			"SATA3" :	0X0380008BFF20200010
 		}
 		rxcdr_cfg = cdr_config[start_speed]
+
+		rxdata = Signal(16)
+		rxcharisk = Signal(2)
 
 		self.specials += \
 			Instance("GTXE2_CHANNEL",
@@ -492,7 +494,7 @@ class GTXE2_CHANNEL(Module):
 					i_RXUSRCLK2=self.rxusrclk2,
 
 				# Receive Ports - FPGA RX interface Ports
-					i_RXDATA=self.rxdata,
+					i_RXDATA=rxdata,
 
 				# Receive Ports - Pattern Checker Ports
 					#o_RXPRBSERR=,
@@ -629,8 +631,8 @@ class GTXE2_CHANNEL(Module):
 					i_RXSLIDE=0,
 
 				# Receive Ports - RX8B/10B Decoder Ports
-					o_RXCHARISCOMMA=self.rxchariscomma,
-					o_RXCHARISK=self.rxcharisk,
+					#o_RXCHARISCOMMA=,
+					o_RXCHARISK=rxcharisk,
 
 				# Receive Ports - Rx Channel Bonding Ports
 					i_RXCHBONDI=0,
@@ -759,3 +761,22 @@ class GTXE2_CHANNEL(Module):
 					#o_TXQPISENN=,
 					#o_TXQPISENP=
 			)
+
+		# realign rxdata / rxcharisk
+		rxdata_r = Signal(dw)
+		rxcharisk_r = Signal(dw//8)
+		self.sync.sata_rx += [
+			rxdata_r.eq(rxdata),
+			rxcharisk_r.eq(rxcharisk)
+		]
+		cases = {}
+		cases[1<<0] = [
+				self.rxdata.eq(rx_data_r[0:dw]),
+				self.rxcharisk.eq(rx_charisk_r[0:dw//8])
+		]
+		for i in range(1, dw//8):
+			cases[1<<i] = [
+				self.rxdata.eq(Cat(self.gtx.rxdata[8*i:dw], rxdata_r[0:8*i])),
+				self.rxcharisk.eq(Cat(self.gtx.rxcharisk[i:dw//8], rxcharisk_r[0:i]))
+			]
+		self.comb += Case(rxcharisk_d, cases)
