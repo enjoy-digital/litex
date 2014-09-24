@@ -3,9 +3,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 
 # Todo:
-# it's maybe better to run this module at half the frequency?
-#  (to have txdata/rxdata on 32 bits)
-# direct control of txdata/txcharisk, need mux for user data
 # rx does not use the same clock, need to resynchronize signals.
 
 def us(self, t, speed="SATA3", margin=True):
@@ -24,13 +21,16 @@ class K7SATAPHYHostCtrl(Module):
 		self.link_up = Signal()
 		self.speed = Signal(3)
 
+		self.txdata = Signal(32)
+		self.txcharisk = Signal(4)
+
+		self.rxdata = Signal(32)
+
 		align_timeout = Signal()
 		align_detect = Signal()
 
 		txcominit = Signal()
 		txcomwake = Signa()
-		txdata = Signal(32)
-		txcharisk = Signal(4)
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
@@ -87,8 +87,8 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("AWAIT_ALIGN",
 			gtx.txelecidle.eq(0),
-			txdata.eq(0x4A4A4A4A), #D10.2
-			txcharisk.eq(0b0000),
+			self.txdata.eq(0x4A4A4A4A), #D10.2
+			self.txcharisk.eq(0b0000),
 			If(align_detect & ~align_timeout,
 				NextState("SEND_ALIGN")
 			).Elif(~align_detect & align_timeout,
@@ -97,44 +97,32 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
-			txdata.eq(ALIGN_VAL),
-			txcharisk.eq(0b0001),
+			self.txdata.eq(ALIGN_VAL),
+			self.txcharisk.eq(0b0001),
 			If(non_align_cnt == 3,
 				NextState("READY")
 			)
 		)
 		fsm.act("READY",
 			gtx.txelecidle.eq(0),
-			txdata.eq(SYNC_VAL),
-			txcharisk.eq(0b0001),
+			self.txdata.eq(SYNC_VAL),
+			self.txcharisk.eq(0b0001),
 			If(gtx.rxelecidle,
 				NextState("RESET")
 			),
 			self.link_up.eq(1)
 		)
 
-		sel = Signal()
-		self.sync += sel.eq(~sel)
-		self.comb += [
-			If(sel,
-				gtx.txdata.eq(txdata[:16]),
-				gtx.txcharisk.eq(txcharisk[:2])
-			).Else(
-				gtx.txdata.eq(txdata[16:]),
-				gtx.txcharisk.eq(txcharisk[2:])
-			)
-		]
-
 		txcominit_d = Signal()
 		txcomwake_d = Signal()
-		self.sync += [
+		self.sync.sata += [
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
 			gtx.txcomwake.eq(txcomwake & ~txcomwake),
 		]
-		self.comb +=  align_detect.eq(gtx.rxdata == ALIGN_VAL);
+		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 
 		align_timeout_cnt = Signal(16)
-		self.sync += \
+		self.sync.sata += \
 			If(fsm.ongoing("RESET"),
 				If(speed == 0b100,
 					align_timeout_cnt.eq(us(873, "SATA3"))
@@ -149,7 +137,7 @@ class K7SATAPHYHostCtrl(Module):
 		self.comb += align_timeout.eq(align_timeout_cnt == 0)
 
 		retry_cnt = Signal(16)
-		self.sync += \
+		self.sync.sata += \
 			If(fsm.ongoing("RESET") | fsm.ongoing("AWAIT_NO_COMINIT"),
 				If(speed == 0b100,
 					retry_cnt.eq(us(10000, "SATA3"))
@@ -163,9 +151,9 @@ class K7SATAPHYHostCtrl(Module):
 			)
 
 		non_align_cnt = Signal(4)
-		self.sync += \
+		self.sync.sata += \
 			If(fsm.ongoing("SEND_ALIGN"),
-				If(gtx.rxdata[7:0] == K28_5,
+				If(self.rxdata[7:0] == K28_5,
 					non_align_cnt.eq(non_align_cnt + 1)
 				).Else(
 					non_align_cnt.eq(0)
@@ -177,13 +165,16 @@ class K7SATAPHYDeviceCtrl(Module):
 		self.link_up = Signal()
 		self.speed = Signal(3)
 
+		self.txdata = Signal(32)
+		self.txcharisk = Signal(4)
+
+		self.rxdata = Signal(32)
+
 		align_timeout = Signal()
 		align_detect = Signal()
 
 		txcominit = Signal()
 		txcomwake = Signa()
-		txdata = Signal(32)
-		txcharisk = Signal(4)
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
@@ -230,8 +221,8 @@ class K7SATAPHYDeviceCtrl(Module):
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
-			txdata.eq(ALIGN_VAL),
-			txcharisk.eq(0b0001),
+			self.txdata.eq(ALIGN_VAL),
+			self.txcharisk.eq(0b0001),
 			If(align_detect,
 				NextState("READY")
 			).Elsif(align_timeout,
@@ -239,8 +230,8 @@ class K7SATAPHYDeviceCtrl(Module):
 			)
 		)
 		fsm.act("READY",
-			txdata.eq(SYNC_VAL),
-			txcharisk.eq(0b0001),
+			self.txdata.eq(SYNC_VAL),
+			self.txcharisk.eq(0b0001),
 			gtx.txelecidle.eq(0),
 			NextState("READY"),
 			If(gtx.rxelecidle,
@@ -255,14 +246,14 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		txcominit_d = Signal()
 		txcomwake_d = Signal()
-		self.sync += [
+		self.sync.sata += [
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
 			gtx.txcomwake.eq(txcomwake & ~txcomwake),
 		]
-		self.comb +=  align_detect.eq(gtx.rxdata == ALIGN_VAL);
+		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 
 		align_timeout_cnt = Signal(16)
-		self.sync += \
+		self.sync.sata += \
 			If(fsm.ongoing("RESET"),
 				If(speed == 0b100,
 					align_timeout_cnt.eq(us(55, "SATA3"))

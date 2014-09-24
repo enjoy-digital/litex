@@ -68,7 +68,7 @@ class K7SATAPHYClocking(Module):
 				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
 
 				# CLK1
-				p_CLKOUT0_DIVIDE_F=8.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk1_o,
+				p_CLKOUT1_DIVIDE_F=8.000, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
 			),
 			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
 			Instance("BUFG", i_I=mmcm_clk1_o, o_O=self.cd_sata.clk),
