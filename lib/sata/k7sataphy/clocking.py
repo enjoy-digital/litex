@@ -17,9 +17,9 @@ class K7SATAPHYReconfig(Module):
 		drp = DRPBus()
 		self.comb += \
 			If(drp_sel,
-				Record.connect(drp, mmcm_drp),
+				drp.connect(mmcm_drp)
 			).Else(
-				Record.connect(drp, channel_drp)
+				drp.connect(channel_drp)
 			)
 
 class K7SATAPHYClocking(Module):

@@ -9,15 +9,13 @@ from lib.sata.k7sataphy.std import *
 # Todo:
 # rx does not use the same clock, need to resynchronize signals.
 
-def us(t, speed="SATA3", margin=True):
+def us(t, speed="SATA3"):
 	clk_freq = {
 		"SATA3" :	300*1000000,
 		"SATA2" :	150*1000000,
 		"SATA1" :	 75*1000000
 	}
 	clk_period_us = 1000000/clk_freq[speed]
-	if margin:
-		t += clk_period_us/2
 	return ceil(t/clk_period_us)
 
 class K7SATAPHYHostCtrl(Module):
