@@ -34,31 +34,31 @@ _io = [
 	("user_led", 5, Pins("G19"), IOStandard("LVCMOS25")),
 	("user_led", 6, Pins("E18"), IOStandard("LVCMOS25")),
 	("user_led", 7, Pins("F16"), IOStandard("LVCMOS25")),
-	
+
 	("cpu_reset", 0, Pins("AB7"), IOStandard("LVCMOS15")),
-	
+
 	("user_btn_c", 0, Pins("G12"), IOStandard("LVCMOS25")),
 	("user_btn_n", 0, Pins("AA12"), IOStandard("LVCMOS15")),
 	("user_btn_s", 0, Pins("AB12"), IOStandard("LVCMOS15")),
 	("user_btn_w", 0, Pins("AC6"), IOStandard("LVCMOS15")),
 	("user_btn_e", 0, Pins("AG5"), IOStandard("LVCMOS15")),
-	
+
 	("user_dip_btn", 0, Pins("Y29"), IOStandard("LVCMOS25")),
 	("user_dip_btn", 1, Pins("W29"), IOStandard("LVCMOS25")),
 	("user_dip_btn", 2, Pins("AA28"), IOStandard("LVCMOS25")),
 	("user_dip_btn", 3, Pins("Y28"), IOStandard("LVCMOS25")),
-	
+
 	("clk200", 0,
 		Subsignal("p", Pins("AD12"), IOStandard("LVDS")),
 		Subsignal("n", Pins("AD11"), IOStandard("LVDS"))
 	),
-	
+
 	("clk156", 0,
 		Subsignal("p", Pins("K28"), IOStandard("LVDS_25")),
 		Subsignal("n", Pins("K29"), IOStandard("LVDS_25"))
 	),
-	
-	
+
+
 	("serial", 0,
 		Subsignal("cts", Pins("L27")),
 		Subsignal("rts", Pins("K23")),
@@ -66,8 +66,17 @@ _io = [
 		Subsignal("rx", Pins("M19")),
 		IOStandard("LVCMOS25")
 	),
-	
-	("sata", 0,
+
+	("sata_host", 0,
+		Subsignal("refclk_p", Pins("YYY")),
+		Subsignal("refclk_n", Pins("YYY")),
+		Subsignal("txp", Pins("YYY")),
+		Subsignal("txn", Pins("YYY")),
+		Subsignal("rxp", Pins("YYY")),
+		Subsignal("rxn", Pins("YYY")),
+	),
+
+	("sata_device", 0,
 		Subsignal("refclk_p", Pins("YYY")),
 		Subsignal("refclk_n", Pins("YYY")),
 		Subsignal("txp", Pins("YYY")),
@@ -102,5 +111,5 @@ def Platform(*args, toolchain="vivado", **kwargs):
 			try:
 				self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
 			except ConstraintError:
-				pass			
+				pass
 	return RealPlatform(*args, **kwargs)
