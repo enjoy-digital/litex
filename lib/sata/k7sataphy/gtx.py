@@ -5,13 +5,9 @@ from migen.flow.actor import Sink, Source
 
 from lib.sata.k7sataphy.std import *
 
-class GTXE2_CHANNEL(Module):
+class K7SATAPHYGTX(Module):
 	def __init__(self, pads, default_speed="SATA3"):
 		self.drp = DRPBus()
-
-		# Channel
-		self.qpllclk = Signal()
-		self.qpllrefclk = Signal()
 
 		# Channel - Ref Clock Ports
 		self.gtrefclk0 = Signal()
@@ -30,6 +26,7 @@ class GTXE2_CHANNEL(Module):
 		self.rxuserrdy = Signal()
 
 		# Receive Ports - 8b10b Decoder
+		self.rxcharisk = Signal(2)
 		self.rxdisperr = Signal(2)
 		self.rxnotintable = Signal(2)
 
@@ -39,6 +36,7 @@ class GTXE2_CHANNEL(Module):
 
 		# Receive Ports - RX Data Path interface
 		self.gtrxreset = Signal()
+		self.rxdata = Signal(16)
 		self.rxoutclk = Signal()
 		self.rxusrclk = Signal()
 		self.rxusrclk2 = Signal()
@@ -69,6 +67,7 @@ class GTXE2_CHANNEL(Module):
 		self.txuserrdy = Signal()
 
 		# Transmit Ports - 8b10b Encoder Control Ports
+		self.txcharisk = Signal(2)
 
 		# Transmit Ports - TX Buffer and Phase Alignment Ports
 		self.txdlyen = Signal()
@@ -83,6 +82,7 @@ class GTXE2_CHANNEL(Module):
 
 		# Transmit Ports - TX Data Path interface
 		self.gttxreset = Signal()
+		self.txdata = Signal()
 		self.txoutclk = Signal()
 		self.txoutclkfabric = Signal()
 		self.txoutclkpcs = Signal()
@@ -121,12 +121,6 @@ class GTXE2_CHANNEL(Module):
 			"SATA3" :	0X0380008BFF20200010
 		}
 		rxcdr_cfg = cdr_config[default_speed]
-
-		rxdata = Signal(16)
-		rxcharisk = Signal(2)
-
-		txdata = Signal(16)
-		txcharisk = Signal(2)
 
 		gtxe2_channel_parameters = {
 				# Simulation-Only Attributes
@@ -442,8 +436,8 @@ class GTXE2_CHANNEL(Module):
 
 				# Clocking Ports
 					#o_GTREFCLKMONITOR=,
-					i_QPLLCLK=self.qpllclk,
-					i_QPLLREFCLK=self.qpllrefclk,
+					i_QPLLCLK=0,
+					i_QPLLREFCLK=0,
 					i_RXSYSCLKSEL=0b00,
 					i_TXSYSCLKSEL=0b00,
 
@@ -496,7 +490,7 @@ class GTXE2_CHANNEL(Module):
 					i_RXUSRCLK2=self.rxusrclk2,
 
 				# Receive Ports - FPGA RX interface Ports
-					i_RXDATA=rxdata,
+					i_RXDATA=self.rxdata,
 
 				# Receive Ports - Pattern Checker Ports
 					#o_RXPRBSERR=,
@@ -634,7 +628,7 @@ class GTXE2_CHANNEL(Module):
 
 				# Receive Ports - RX8B/10B Decoder Ports
 					#o_RXCHARISCOMMA=,
-					o_RXCHARISK=rxcharisk,
+					o_RXCHARISK=self.rxcharisk,
 
 				# Receive Ports - Rx Channel Bonding Ports
 					i_RXCHBONDI=0,
@@ -716,7 +710,7 @@ class GTXE2_CHANNEL(Module):
 					i_TXPISOPD=0,
 
 				# Transmit Ports - TX Data Path interface
-					i_TXDATA=txdata,
+					i_TXDATA=self.txdata,
 
 				# Transmit Ports - TX Driver and OOB signaling
 					o_GTXTXP=pads.txp,
@@ -729,7 +723,7 @@ class GTXE2_CHANNEL(Module):
 					i_TXOUTCLKSEL=0b11,
 					o_TXRATEDONE=self.txratedone,
 				# Transmit Ports - TX Gearbox Ports
-					i_TXCHARISK=txcharisk,
+					i_TXCHARISK=self.txcharisk,
 					#o_TXGEARBOXREADY=,
 					i_TXHEADER=0,
 					i_TXSEQUENCE=0,
@@ -766,41 +760,51 @@ class GTXE2_CHANNEL(Module):
 					**gtxe2_channel_parameters
 			)
 
-		# realign rxdata / rxcharisk
-		dw = 16
+class K7SATAPHYRXAlign(Module):
+	def __init__(self, dw=16):
+		self.rxdata_i = Signal(dw)
+		self.rxcharisk_i = Signal(dw//8)
+
+		self.rxdata_o = Signal(dw)
+		self.rxcharisk_o = Signal(dw//8)
+
+		###
+
 		rxdata_r = Signal(dw)
 		rxcharisk_r = Signal(dw//8)
-		rxdata_aligned = Signal(dw)
-		rxcharisk_aligned = Signal(dw//8)
 		self.sync.sata_rx += [
-			rxdata_r.eq(rxdata),
-			rxcharisk_r.eq(rxcharisk)
+			rxdata_r.eq(self.rxdata_i),
+			rxcharisk_r.eq(self.rxcharisk_i)
 		]
 		cases = {}
 		cases[1<<0] = [
-				rxdata_aligned .eq(rxdata_r[0:dw]),
-				rxcharisk_aligned .eq(rxcharisk_r[0:dw//8])
+				self.rxdata_o.eq(rxdata_r[0:dw]),
+				self.rxcharisk_o.eq(rxcharisk_r[0:dw//8])
 		]
 		for i in range(1, dw//8):
 			cases[1<<i] = [
-				rxdata_aligned .eq(Cat(rxdata[8*i:dw], rxdata_r[0:8*i])),
-				rxcharisk_aligned .eq(Cat(rxcharisk[i:dw//8], rxcharisk_r[0:i]))
+				self.rxdata_o.eq(Cat(self.rxdata_i[8*i:dw], rxdata_r[0:8*i])),
+				self.rxcharisk_o.eq(Cat(self.rxcharisk_i[i:dw//8], rxcharisk_r[0:i]))
 			]
 		self.comb += Case(rxcharisk_r, cases)
 
+class K7SATAPHYRXConvert(Module):
+	def __init__(self):
+		self.rxdata = Signal(16)
+		self.rxcharisk = Signal(2)
+
+		self.source = Source([("data", 32), ("charisk", 4)])
+		###
 
 		# convert data widths
 		rx_converter = RenameClockDomains(Converter([("raw", 16+2)], [("raw", 32+4)]), "sata_rx")
-		tx_converter = RenameClockDomains(Converter([("raw", 32+4)], [("raw", 16+2)]), "sata_tx")
-		self.submodules += rx_converter, tx_converter
+		self.submodules += rx_converter
 		self.comb += [
 			rx_converter.sink.stb.eq(1),
-			rx_converter.sink.raw.eq(Cat(rxdata_aligned , rxcharisk_aligned)),
-			rx_converter.source.ack.eq(1),
-
-			Cat(txdata, txcharisk).eq(tx_converter.source.raw),
-			tx_converter.source.ack.eq(1),
+			rx_converter.sink.raw.eq(Cat(self.rxdata , self.rxcharisk)),
+			rx_converter.source.ack.eq(1)
 		]
+
 
 		# clock domain crossing
 		# SATA device is supposed to lock its tx frequency to its received rx frequency, so this
@@ -808,19 +812,12 @@ class GTXE2_CHANNEL(Module):
 		# phase and thus ensute the rx_fifo will never be full.
 		rx_fifo = AsyncFIFO([("raw", 36)], 16)
 		self.submodules.rx_fifo = RenameClockDomains(rx_fifo, {"write": "sata_rx", "read": "sata"})
-		tx_fifo = AsyncFIFO([("raw", 36)], 16)
-		self.submodules.tx_fifo = RenameClockDomains(tx_fifo, {"write": "sata", "read": "sata_tx"})
 		self.comb += [
-			Record.connect(rx_converter.source, self.rx_fifo.sink),
+			rx_converter.source.connect(self.rx_fifo.sink),
 			self.rx_fifo.source.ack.eq(1),
-			Record.connect(tx_fifo.source, tx_converter.sink),
-			self.tx_fifo.sink.stb.eq(1),
 		]
 
-		# Todo:
-		# we can add support to Converter to generate non raw connection (ie keep here convert from
-		# [("data", 16), ("charisk", 2)] to [("data", 32), ("charisk", 4)]
-		self.source = Source([("data", 32), ("charisk", 4)])
+		# rearrange data
 		self.comb += [
 			self.source.stb.eq(self.rx_fifo.source.stb),
 			self.source.payload.data.eq(Cat(rx_fifo.source.raw[0:32], rx_fifo.source.raw[36:36+32])),
@@ -828,7 +825,31 @@ class GTXE2_CHANNEL(Module):
 			self.rx_fifo.source.ack.eq(self.source.ack),
 		]
 
+class K7SATAPHYTXConvert(Module):
+	def __init__(self):
 		self.sink = Sink([("data", 32), ("charisk", 4)])
+
+		self.txdata = Signal(16)
+		self.txcharisk = Signal(2)
+		###
+
+		# convert data widths
+		tx_converter = RenameClockDomains(Converter([("raw", 32+4)], [("raw", 16+2)]), "sata_tx")
+		self.submodules += tx_converter
+		self.comb += [
+			Cat(self.txdata, self.txcharisk).eq(tx_converter.source.raw),
+			tx_converter.source.ack.eq(1),
+		]
+
+		# clock domain crossing
+		tx_fifo = AsyncFIFO([("raw", 36)], 16)
+		self.submodules.tx_fifo = RenameClockDomains(tx_fifo, {"write": "sata", "read": "sata_tx"})
+		self.comb += [
+			tx_fifo.source.connect(tx_converter.sink),
+			self.tx_fifo.sink.stb.eq(1),
+		]
+
+		# rearrange data
 		self.comb += [
 			self.tx_fifo.sink.stb.eq(self.sink.stb),
 			self.tx_fifo.sink.raw.eq(Cat(self.sink.data[0:16],  self.sink.charisk[0:2],

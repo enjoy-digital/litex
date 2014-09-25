@@ -120,8 +120,10 @@ class K7SATAPHYHostCtrl(Module):
 		txcominit_d = Signal()
 		txcomwake_d = Signal()
 		self.sync.sata += [
+			txcominit_d.eq(txcominit),
+			txcomwake_d.eq(txcomwake),
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
-			gtx.txcomwake.eq(txcomwake & ~txcomwake),
+			gtx.txcomwake.eq(txcomwake & ~txcomwake_d),
 		]
 		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 
@@ -249,6 +251,8 @@ class K7SATAPHYDeviceCtrl(Module):
 		txcominit_d = Signal()
 		txcomwake_d = Signal()
 		self.sync.sata += [
+			txcominit_d.eq(txcominit),
+			txcomwake_d.eq(txcomwake),
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
 			gtx.txcomwake.eq(txcomwake & ~txcomwake),
 		]
