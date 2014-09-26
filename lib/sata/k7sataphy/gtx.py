@@ -82,8 +82,6 @@ class K7SATAPHYGTX(Module):
 
 		# Transmit Ports - TX Data Path interface
 		self.gttxreset = Signal()
-		self.txpcsreset = Signal()
-		self.txpmareset = Signal()
 		self.txdata = Signal()
 		self.txoutclk = Signal()
 		self.txoutclkfabric = Signal()
@@ -130,7 +128,7 @@ class K7SATAPHYGTX(Module):
 					"p_SIM_TX_EIDLE_DRIVE_LEVEL":"X",
 					"p_SIM_RESET_SPEEDUP":"TRUE",
 					"p_SIM_CPLLREFCLK_SEL":0b001,
-					"p_SIM_VERSION":"3.0",
+					"p_SIM_VERSION":"4.0",
 
 				# RX Byte and Word Alignment Attributes
 					"p_ALIGN_COMMA_DOUBLE":"FALSE",
@@ -140,9 +138,9 @@ class K7SATAPHYGTX(Module):
 					"p_ALIGN_MCOMMA_VALUE":K28_5,
 					"p_ALIGN_PCOMMA_DET":"TRUE",
 					"p_ALIGN_PCOMMA_VALUE":~K28_5,
-					"p_SHOW_REALIGN_COMMA":"TRUE",
+					"p_SHOW_REALIGN_COMMA":"FALSE",
 					"p_RXSLIDE_AUTO_WAIT":7,
-					"p_RXSLIDE_MODE":"PCS",
+					"p_RXSLIDE_MODE":"OFF",
 					"p_RX_SIG_VALID_DLY":10,
 
 				# RX 8B/10B Decoder Attributes
@@ -305,7 +303,7 @@ class K7SATAPHYGTX(Module):
 
 				# TX Buffer Attributes
 					"p_TXBUF_EN":"FALSE",
-					"p_TXBUF_RESET_ON_RATE_CHANGE":"TRUE",
+					"p_TXBUF_RESET_ON_RATE_CHANGE":"FALSE",
 					"p_TXDLY_CFG":0x1f,
 					"p_TXDLY_LCFG":0x030,
 					"p_TXDLY_TAP_CFG":0,
@@ -732,8 +730,8 @@ class K7SATAPHYGTX(Module):
 					i_TXSTARTSEQ=0,
 
 				# Transmit Ports - TX Initialization and Reset Ports
-					i_TXPCSRESET=self.txpcsreset,
-					i_TXPMARESET=self.txpmareset,
+					i_TXPCSRESET=0,
+					i_TXPMARESET=0,
 					o_TXRESETDONE=self.txresetdone,
 
 				# Transmit Ports - TX OOB signalling Ports

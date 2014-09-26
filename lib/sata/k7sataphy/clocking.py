@@ -25,7 +25,7 @@ class K7SATAPHYReconfig(Module):
 class K7SATAPHYClocking(Module):
 	def __init__(self, pads, gtx):
 		self.reset = Signal()
-		self.transceiver_reset = Signal()
+		self.gtx_reset = Signal()
 
 		self.clock_domains.cd_sata = ClockDomain()
 		self.clock_domains.cd_sata_tx = ClockDomain()
@@ -71,10 +71,14 @@ class K7SATAPHYClocking(Module):
 			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
 			Instance("BUFG", i_I=mmcm_clk1_o, o_O=self.cd_sata.clk),
 		]
+		self.comb += [
+			gtx.txusrclk.eq(self.cd_sata_tx.clk),
+			gtx.txusrclk2.eq(self.cd_sata_tx.clk)
+		]
 
 	# RX clocking
 		self.specials += [
-			Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
+			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_rx.clk),
 		]
 		self.comb += [
 			gtx.rxusrclk.eq(self.cd_sata_rx.clk),
@@ -111,7 +115,8 @@ class K7SATAPHYClocking(Module):
 		]
 
 		# wait till CDR is locked
-		cdr_cnt = Signal(14, reset=0b10011100010000)
+#		cdr_cnt = Signal(14, reset=0b10011100010000)
+		cdr_cnt = Signal(14, reset=1024)		
 		cdr_locked = Signal()
 		self.sync += \
 			If(cdr_cnt != 0,
@@ -147,11 +152,11 @@ class K7SATAPHYClocking(Module):
 			gtx.rxuserrdy.eq(gtx.cplllock),
 			gtx.txuserrdy.eq(gtx.cplllock),
 		# TX
-			gtx.gttxreset.eq(rst_cnt_done & (self.reset | self.transceiver_reset | ~gtx.cplllock)),
+			gtx.gttxreset.eq(rst_cnt_done & (self.reset | self.gtx_reset | ~gtx.cplllock )),
 		# RX
-			gtx.gtrxreset.eq(rst_cnt_done & (self.reset | self.transceiver_reset | ~gtx.cplllock)),
+			gtx.gtrxreset.eq(rst_cnt_done & (self.reset | self.gtx_reset | ~gtx.cplllock)),
 		# PLL
-			gtx.cpllreset.eq(rst_cnt_done & self.reset)
+			gtx.cpllreset.eq(rst_cnt_done & (self.reset | ~cdr_locked))
 		]
 		# SATA TX/RX clock domains
 		self.specials += [
