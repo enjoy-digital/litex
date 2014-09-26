@@ -82,6 +82,8 @@ class K7SATAPHYGTX(Module):
 
 		# Transmit Ports - TX Data Path interface
 		self.gttxreset = Signal()
+		self.txpcsreset = Signal()
+		self.txpmareset = Signal()
 		self.txdata = Signal()
 		self.txoutclk = Signal()
 		self.txoutclkfabric = Signal()
@@ -93,7 +95,7 @@ class K7SATAPHYGTX(Module):
 		self.txresetdone = Signal()
 
 		# Transmit Ports - TX Ports for PCI Express
-		self.txelecidle = Signal()
+		self.txelecidle = Signal(reset=1)
 
 		# Transmit Ports - TX Ports for SATA
 		self.txcomfinish = Signal()
@@ -128,7 +130,7 @@ class K7SATAPHYGTX(Module):
 					"p_SIM_TX_EIDLE_DRIVE_LEVEL":"X",
 					"p_SIM_RESET_SPEEDUP":"TRUE",
 					"p_SIM_CPLLREFCLK_SEL":0b001,
-					"p_SIM_VERSION":"4.0",
+					"p_SIM_VERSION":"3.0",
 
 				# RX Byte and Word Alignment Attributes
 					"p_ALIGN_COMMA_DOUBLE":"FALSE",
@@ -138,9 +140,9 @@ class K7SATAPHYGTX(Module):
 					"p_ALIGN_MCOMMA_VALUE":K28_5,
 					"p_ALIGN_PCOMMA_DET":"TRUE",
 					"p_ALIGN_PCOMMA_VALUE":~K28_5,
-					"p_SHOW_REALIGN_COMMA":"FALSE",
+					"p_SHOW_REALIGN_COMMA":"TRUE",
 					"p_RXSLIDE_AUTO_WAIT":7,
-					"p_RXSLIDE_MODE":"OFF",
+					"p_RXSLIDE_MODE":"PCS",
 					"p_RX_SIG_VALID_DLY":10,
 
 				# RX 8B/10B Decoder Attributes
@@ -303,7 +305,7 @@ class K7SATAPHYGTX(Module):
 
 				# TX Buffer Attributes
 					"p_TXBUF_EN":"FALSE",
-					"p_TXBUF_RESET_ON_RATE_CHANGE":"FALSE",
+					"p_TXBUF_RESET_ON_RATE_CHANGE":"TRUE",
 					"p_TXDLY_CFG":0x1f,
 					"p_TXDLY_LCFG":0x030,
 					"p_TXDLY_TAP_CFG":0,
@@ -429,7 +431,7 @@ class K7SATAPHYGTX(Module):
 					i_DRPADDR=self.drp.addr,
 					i_DRPCLK=self.drp.clk,
 					i_DRPDI=self.drp.di,
-					i_DRPDO=self.drp.do,
+					o_DRPDO=self.drp.do,
 					i_DRPEN=self.drp.en,
 					o_DRPRDY=self.drp.rdy,
 					i_DRPWE=self.drp.we,
@@ -490,7 +492,7 @@ class K7SATAPHYGTX(Module):
 					i_RXUSRCLK2=self.rxusrclk2,
 
 				# Receive Ports - FPGA RX interface Ports
-					i_RXDATA=self.rxdata,
+					o_RXDATA=self.rxdata,
 
 				# Receive Ports - Pattern Checker Ports
 					#o_RXPRBSERR=,
@@ -505,7 +507,7 @@ class K7SATAPHYGTX(Module):
 					i_RXDFEXYDOVRDEN=0,
 
 				# Receive Ports - RX 8B/10B Decoder Ports
-					i_RXDISPERR=self.rxdisperr,
+					o_RXDISPERR=self.rxdisperr,
 					o_RXNOTINTABLE=self.rxnotintable,
 
 				# Receive Ports - RX AFE
@@ -730,8 +732,8 @@ class K7SATAPHYGTX(Module):
 					i_TXSTARTSEQ=0,
 
 				# Transmit Ports - TX Initialization and Reset Ports
-					i_TXPCSRESET=0,
-					i_TXPMARESET=0,
+					i_TXPCSRESET=self.txpcsreset,
+					i_TXPMARESET=self.txpmareset,
 					o_TXRESETDONE=self.txresetdone,
 
 				# Transmit Ports - TX OOB signalling Ports
@@ -820,8 +822,8 @@ class K7SATAPHYRXConvert(Module):
 		# rearrange data
 		self.comb += [
 			self.source.stb.eq(self.rx_fifo.source.stb),
-			self.source.payload.data.eq(Cat(rx_fifo.source.raw[0:32], rx_fifo.source.raw[36:36+32])),
-			self.source.payload.charisk.eq(Cat(rx_fifo.source.raw[32:36], rx_fifo.source.raw[36+32:36+36])),
+			self.source.payload.data.eq(Cat(rx_fifo.source.raw[0:16], rx_fifo.source.raw[18:18+16])),
+			self.source.payload.charisk.eq(Cat(rx_fifo.source.raw[16:18], rx_fifo.source.raw[18+16:18+18])),
 			self.rx_fifo.source.ack.eq(self.source.ack),
 		]
 

@@ -13,6 +13,12 @@ class K7SATAPHY(Module):
 		self.source = Source([("d", 32)], True)
 
 		gtx = K7SATAPHYGTX(pads, "SATA3")
+		self.comb += [
+			#gtx.rxrate.eq(0b001),
+			#gtx.txrate.eq(0b001),
+			gtx.rxrate.eq(0b0),
+			gtx.txrate.eq(0b0),			
+		]
 		clocking = K7SATAPHYClocking(pads, gtx)
 		rxalign = K7SATAPHYRXAlign()
 		rxconvert = K7SATAPHYRXConvert()

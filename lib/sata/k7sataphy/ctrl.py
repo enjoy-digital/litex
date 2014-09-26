@@ -157,7 +157,7 @@ class K7SATAPHYHostCtrl(Module):
 
 		self.sync.sata += \
 			If(fsm.ongoing("SEND_ALIGN"),
-				If(self.rxdata[7:0] == K28_5,
+				If(self.rxdata[0:8] == K28_5,
 					non_align_cnt.eq(non_align_cnt + 1)
 				).Else(
 					non_align_cnt.eq(0)

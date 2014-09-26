@@ -34,10 +34,13 @@ class K7SATAPHYClocking(Module):
 	# TX clocking
 		refclk = Signal()
 		self.specials += Instance("IBUFDS_GTE2",
+			i_CEB=0,
 			i_I=pads.refclk_p,
 			i_IB=pads.refclk_n,
 			o_O=refclk
 		)
+		self.comb += gtx.gtrefclk0.eq(refclk)
+
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
 		mmcm_drp = DRPBus()
@@ -52,10 +55,10 @@ class K7SATAPHYClocking(Module):
 
 				# DRP
 				i_DCLK=mmcm_drp.clk, i_DEN=mmcm_drp.en, o_DRDY=mmcm_drp.rdy, i_DWE=mmcm_drp.we,
-				i_DADDR=mmcm_drp.addr, i_DI=mmcm_drp.di, i_DO=mmcm_drp.do,
+				i_DADDR=mmcm_drp.addr, i_DI=mmcm_drp.di, o_DO=mmcm_drp.do,
 
 				# VCO
-				p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=5.0,
+				p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.666,
 				p_CLKFBOUT_MULT_F=8.000, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=2,
 				i_CLKIN1=mmcm_clk_i, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
@@ -63,7 +66,7 @@ class K7SATAPHYClocking(Module):
 				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
 
 				# CLK1
-				p_CLKOUT1_DIVIDE_F=8.000, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
+				p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
 			),
 			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
 			Instance("BUFG", i_I=mmcm_clk1_o, o_O=self.cd_sata.clk),
@@ -130,16 +133,25 @@ class K7SATAPHYClocking(Module):
 			)
 
 	# Reset
+		# initial reset generation
+		rst_cnt = Signal(8)
+		rst_cnt_done = Signal()
+		self.sync += \
+			If(~rst_cnt_done,
+				rst_cnt.eq(rst_cnt+1)
+			)
+		self.comb += rst_cnt_done.eq(rst_cnt==255)
+
 		self.comb += [
 		# GTXE2
 			gtx.rxuserrdy.eq(gtx.cplllock),
 			gtx.txuserrdy.eq(gtx.cplllock),
 		# TX
-			gtx.gttxreset.eq(self.reset | self.transceiver_reset | ~gtx.cplllock),
+			gtx.gttxreset.eq(rst_cnt_done & (self.reset | self.transceiver_reset | ~gtx.cplllock)),
 		# RX
-			gtx.gtrxreset.eq(self.reset | self.transceiver_reset | ~gtx.cplllock),
+			gtx.gtrxreset.eq(rst_cnt_done & (self.reset | self.transceiver_reset | ~gtx.cplllock)),
 		# PLL
-			gtx.cpllreset.eq(self.reset)
+			gtx.cpllreset.eq(rst_cnt_done & self.reset)
 		]
 		# SATA TX/RX clock domains
 		self.specials += [
