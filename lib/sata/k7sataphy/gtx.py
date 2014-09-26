@@ -209,7 +209,7 @@ class K7SATAPHYGTX(Module):
 
 				# PMA Attributes
 					"p_OUTREFCLK_SEL_INV":0b11,
-					"p_PMA_RSV":0,
+					"p_PMA_RSV":0x00018480,
 					"p_PMA_RSV2":0x2050,
 					"p_PMA_RSV3":0,
 					"p_PMA_RSV4":0,
@@ -230,7 +230,7 @@ class K7SATAPHYGTX(Module):
 					"p_PCS_PCIE_EN":"FALSE",
 
 				# PCS Attributes
-					"p_PCS_RSVD_ATTR":0,
+					"p_PCS_RSVD_ATTR":0x100,
 
 				# RX Buffer Attributes
 					"p_RXBUF_ADDR_MODE":"FAST",
