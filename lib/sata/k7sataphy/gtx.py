@@ -6,7 +6,7 @@ from migen.flow.actor import Sink, Source
 from lib.sata.k7sataphy.std import *
 
 class K7SATAPHYGTX(Module):
-	def __init__(self, pads, default_speed="SATA3"):
+	def __init__(self, pads, default_speed):
 		self.drp = DRPBus()
 
 		# Channel - Ref Clock Ports

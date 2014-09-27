@@ -25,7 +25,7 @@ class K7SATAPHYReconfig(Module):
 			)
 
 class K7SATAPHYCRG(Module):
-	def __init__(self, pads, gtx, clk_freq):
+	def __init__(self, pads, gtx, clk_freq, default_speed):
 		self.reset = Signal()
 		self.ready = Signal()
 
@@ -59,6 +59,12 @@ class K7SATAPHYCRG(Module):
 		mmcm_clk_i = Signal()
 		mmcm_clk0_o = Signal()
 		mmcm_clk1_o = Signal()
+		mmcm_div_config = {
+			"SATA1" : 	16,
+			"SATA2" :	8,
+			"SATA3" : 	4
+			}
+		mmcm_div = mmcm_div_config[default_speed]
 		self.specials += [
 			Instance("BUFG", i_I=gtx.txoutclk, o_O=mmcm_clk_i),
 			Instance("MMCME2_ADV",
@@ -74,10 +80,10 @@ class K7SATAPHYCRG(Module):
 				i_CLKIN1=mmcm_clk_i, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
 				# CLK0
-				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
+				p_CLKOUT0_DIVIDE_F=mmcm_div, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
 
 				# CLK1
-				p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
+				p_CLKOUT1_DIVIDE=mmcm_div*2, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
 			),
 			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
 		]
