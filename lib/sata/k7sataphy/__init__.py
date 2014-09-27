@@ -10,23 +10,19 @@ from lib.sata.k7sataphy.datapath import K7SATAPHYRXConvert, K7SATAPHYTXConvert
 
 class K7SATAPHY(Module):
 	def __init__(self, pads, clk_freq, host=True, default_speed="SATA3"):
-		self.sink = Sink([("d", 32)], True)
-		self.source = Source([("d", 32)], True)
+		self.sink = Sink([("d", 32)])
+		self.source = Source([("d", 32)])
 
 	# GTX
 		gtx = K7SATAPHYGTX(pads, default_speed)
-		self.comb += [
-			gtx.rxrate.eq(0b000),
-			gtx.txrate.eq(0b000),			
-		]
 		self.submodules += gtx
 
 	# CRG / CTRL
 		crg = K7SATAPHYCRG(pads, gtx, clk_freq, default_speed)
 		if host:
-			ctrl = K7SATAPHYHostCtrl(gtx)
+			ctrl = K7SATAPHYHostCtrl(gtx, clk_freq)
 		else:
-			ctrl = K7SATAPHYDeviceCtrl(gtx)
+			ctrl = K7SATAPHYDeviceCtrl(gtx, clk_freq)
 		self.submodules += crg, ctrl
 		self.comb += ctrl.start.eq(crg.ready)
 

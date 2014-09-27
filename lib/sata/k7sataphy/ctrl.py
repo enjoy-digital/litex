@@ -6,23 +6,14 @@ from migen.genlib.fsm import FSM, NextState
 
 from lib.sata.k7sataphy.std import *
 
-# Todo:
-# rx does not use the same clock, need to resynchronize signals.
-
-def us(t, speed="SATA3"):
-	clk_freq = {
-		"SATA3" :	300*1000000,
-		"SATA2" :	150*1000000,
-		"SATA1" :	 75*1000000
-	}
-	clk_period_us = 1000000/clk_freq[speed]
+def us(t, clk_freq):
+	clk_period_us = 1000000/clk_freq
 	return ceil(t/clk_period_us)
 
 class K7SATAPHYHostCtrl(Module):
-	def __init__(self, gtx):
+	def __init__(self, gtx, clk_freq):
 		self.start = Signal()
 		self.ready = Signal()
-		self.speed = Signal(3)
 
 		self.txdata = Signal(32)
 		self.txcharisk = Signal(4)
@@ -31,7 +22,7 @@ class K7SATAPHYHostCtrl(Module):
 
 		align_timeout = Signal()
 		align_detect = Signal()
-		retry_cnt = Signal(4)
+		retry_cnt = Signal(32)
 		non_align_cnt = Signal(4)
 
 		txcominit = Signal()
@@ -47,8 +38,8 @@ class K7SATAPHYHostCtrl(Module):
 			)
 		)
 		fsm.act("COMINIT",
-			txcominit.eq(1),
 			gtx.txelecidle.eq(1),
+			txcominit.eq(1),
 			If(gtx.txcomfinish & ~gtx.rxcominitdet,
 				NextState("AWAIT_COMINIT")
 			)
@@ -137,13 +128,7 @@ class K7SATAPHYHostCtrl(Module):
 		align_timeout_cnt = Signal(16)
 		self.sync += \
 			If(fsm.ongoing("RESET"),
-				If(self.speed == 0b100,
-					align_timeout_cnt.eq(us(873, "SATA3"))
-				).Elif(self.speed == 0b010,
-					align_timeout_cnt.eq(us(873, "SATA2"))
-				).Else(
-					align_timeout_cnt.eq(us(873, "SATA1"))
-				)
+				align_timeout_cnt.eq(us(873, clk_freq))
 			).Elif(fsm.ongoing("AWAIT_ALIGN"),
 				align_timeout_cnt.eq(align_timeout_cnt-1)
 			)
@@ -151,13 +136,7 @@ class K7SATAPHYHostCtrl(Module):
 
 		self.sync += \
 			If(fsm.ongoing("RESET") | fsm.ongoing("AWAIT_NO_COMINIT"),
-				If(self.speed == 0b100,
-					retry_cnt.eq(us(10000, "SATA3"))
-				).Elif(self.speed == 0b010,
-					retry_cnt.eq(us(10000, "SATA2"))
-				).Else(
-					retry_cnt.eq(us(10000, "SATA1"))
-				)
+				retry_cnt.eq(us(10000, clk_freq))
 			).Elif(fsm.ongoing("AWAIT_COMINIT") | fsm.ongoing("AWAIT_COMWAKE"),
 				retry_cnt.eq(retry_cnt-1)
 			)
@@ -172,10 +151,9 @@ class K7SATAPHYHostCtrl(Module):
 			)
 
 class K7SATAPHYDeviceCtrl(Module):
-	def __init__(self, gtx):
+	def __init__(self, gtx, clk_freq):
 		self.start = Signal()
 		self.ready = Signal()
-		self.speed = Signal(3)
 
 		self.txdata = Signal(32)
 		self.txcharisk = Signal(4)
@@ -184,7 +162,7 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		align_timeout = Signal()
 		align_detect = Signal()
-		retry_cnt = Signal(4)
+		retry_cnt = Signal(32)
 
 		txcominit = Signal()
 		txcomwake = Signal()
@@ -206,6 +184,7 @@ class K7SATAPHYDeviceCtrl(Module):
 		)	
 		fsm.act("COMINIT",
 			gtx.txelecidle.eq(1),
+			txcominit.eq(1),
 			If(gtx.txcomfinish,
 				NextState("AWAIT_COMWAKE")
 			)
@@ -275,14 +254,15 @@ class K7SATAPHYDeviceCtrl(Module):
 		align_timeout_cnt = Signal(16)
 		self.sync += \
 			If(fsm.ongoing("RESET"),
-				If(self.speed == 0b100,
-					align_timeout_cnt.eq(us(55, "SATA3"))
-				).Elif(self.speed == 0b010,
-					align_timeout_cnt.eq(us(55, "SATA2"))
-				).Else(
-					align_timeout_cnt.eq(us(55, "SATA1"))
-				)
+				align_timeout_cnt.eq(us(55, clk_freq))
 			).Elif(fsm.ongoing("AWAIT_ALIGN"),
 				align_timeout_cnt.eq(align_timeout_cnt-1)
 			)
 		self.comb += align_timeout.eq(align_timeout_cnt == 0)
+
+		self.sync += \
+			If(fsm.ongoing("RESET"),
+				retry_cnt.eq(us(10000, clk_freq))
+			).Elif(fsm.ongoing("AWAIT_COMWAKE"),
+				retry_cnt.eq(retry_cnt-1)
+			)
