@@ -2,10 +2,11 @@ from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source
 
 from lib.sata.k7sataphy.std import *
-from lib.sata.k7sataphy.gtx import K7SATAPHYGTX, K7SATAPHYRXAlign
-from lib.sata.k7sataphy.gtx import K7SATAPHYRXConvert, K7SATAPHYTXConvert
-from lib.sata.k7sataphy.clocking import K7SATAPHYClocking
+from lib.sata.k7sataphy.gtx import K7SATAPHYGTX
+from lib.sata.k7sataphy.crg import K7SATAPHYCRG
 from lib.sata.k7sataphy.ctrl import K7SATAPHYHostCtrl, K7SATAPHYDeviceCtrl
+from lib.sata.k7sataphy.datapath import K7SATAPHYRXAlign
+from lib.sata.k7sataphy.datapath import K7SATAPHYRXConvert, K7SATAPHYTXConvert
 
 class K7SATAPHY(Module):
 	def __init__(self, pads, clk_freq, host=True,):
@@ -17,7 +18,7 @@ class K7SATAPHY(Module):
 			gtx.rxrate.eq(0b000),
 			gtx.txrate.eq(0b000),			
 		]
-		clocking = K7SATAPHYClocking(pads, gtx, clk_freq)
+		clocking = K7SATAPHYCRG(pads, gtx, clk_freq)
 		rxalign = K7SATAPHYRXAlign()
 		rxconvert = K7SATAPHYRXConvert()
 		txconvert = K7SATAPHYTXConvert()

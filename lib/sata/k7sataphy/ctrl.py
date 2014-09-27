@@ -119,7 +119,7 @@ class K7SATAPHYHostCtrl(Module):
 
 		txcominit_d = Signal()
 		txcomwake_d = Signal()
-		self.sync.sata += [
+		self.sync += [
 			txcominit_d.eq(txcominit),
 			txcomwake_d.eq(txcomwake),
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
@@ -128,7 +128,7 @@ class K7SATAPHYHostCtrl(Module):
 		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 
 		align_timeout_cnt = Signal(16)
-		self.sync.sata += \
+		self.sync += \
 			If(fsm.ongoing("RESET"),
 				If(self.speed == 0b100,
 					align_timeout_cnt.eq(us(873, "SATA3"))
@@ -142,7 +142,7 @@ class K7SATAPHYHostCtrl(Module):
 			)
 		self.comb += align_timeout.eq(align_timeout_cnt == 0)
 
-		self.sync.sata += \
+		self.sync += \
 			If(fsm.ongoing("RESET") | fsm.ongoing("AWAIT_NO_COMINIT"),
 				If(self.speed == 0b100,
 					retry_cnt.eq(us(10000, "SATA3"))
@@ -155,7 +155,7 @@ class K7SATAPHYHostCtrl(Module):
 				retry_cnt.eq(retry_cnt-1)
 			)
 
-		self.sync.sata += \
+		self.sync += \
 			If(fsm.ongoing("SEND_ALIGN"),
 				If(self.rxdata[0:8] == K28_5,
 					non_align_cnt.eq(non_align_cnt + 1)
@@ -250,7 +250,7 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		txcominit_d = Signal()
 		txcomwake_d = Signal()
-		self.sync.sata += [
+		self.sync += [
 			txcominit_d.eq(txcominit),
 			txcomwake_d.eq(txcomwake),
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
@@ -259,7 +259,7 @@ class K7SATAPHYDeviceCtrl(Module):
 		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 
 		align_timeout_cnt = Signal(16)
-		self.sync.sata += \
+		self.sync += \
 			If(fsm.ongoing("RESET"),
 				If(self.speed == 0b100,
 					align_timeout_cnt.eq(us(55, "SATA3"))

@@ -30,8 +30,8 @@ class _CRG(Module):
 				p_CLKFBOUT_MULT=5, p_DIVCLK_DIVIDE=1,
 				i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-				# 125MHz
-				p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
+				# 166.66MHz
+				p_CLKOUT0_DIVIDE=6, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
 
 				p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, #o_CLKOUT1=,
 
@@ -90,7 +90,7 @@ class TestDesign(UART2WB):
 	default_platform = "kc705"
 
 	def __init__(self, platform):
-		clk_freq = 125*1000000
+		clk_freq = 166666*1000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 

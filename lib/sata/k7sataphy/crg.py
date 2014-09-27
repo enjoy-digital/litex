@@ -24,11 +24,10 @@ class K7SATAPHYReconfig(Module):
 				drp.connect(channel_drp)
 			)
 
-class K7SATAPHYClocking(Module):
+class K7SATAPHYCRG(Module):
 	def __init__(self, pads, gtx, clk_freq):
 		self.reset = Signal()
 
-		self.clock_domains.cd_sata = ClockDomain()
 		self.clock_domains.cd_sata_tx = ClockDomain()
 		self.clock_domains.cd_sata_rx = ClockDomain()
 
@@ -118,7 +117,7 @@ class K7SATAPHYClocking(Module):
 
 
 	# Configuration Reset
-		# After configuration, GTX resets can not be asserted for 500ns
+		# After configuration, GTX resets have to stay low for at least 500ns
 		# See AR43482
 		reset_en = Signal()
 		clk_period_ns = 1000000000/clk_freq
