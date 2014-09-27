@@ -94,7 +94,7 @@ class TestDesign(UART2WB):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
-		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), host=True)
-		self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), host=False)
+		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True)
+		self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
 
 default_subtarget = TestDesign

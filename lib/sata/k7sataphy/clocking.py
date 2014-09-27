@@ -1,3 +1,5 @@
+from math import ceil
+
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
@@ -23,15 +25,19 @@ class K7SATAPHYReconfig(Module):
 			)
 
 class K7SATAPHYClocking(Module):
-	def __init__(self, pads, gtx):
+	def __init__(self, pads, gtx, clk_freq):
 		self.reset = Signal()
-		self.gtx_reset = Signal()
 
 		self.clock_domains.cd_sata = ClockDomain()
 		self.clock_domains.cd_sata_tx = ClockDomain()
 		self.clock_domains.cd_sata_rx = ClockDomain()
 
-	# TX clocking
+	# CPLL
+		# (SATA3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
+		# (SATA2 & SATA1) VCO still @ 3 GHz, Line rate is decreased with output divivers.
+		# When changing rate, reconfiguration of the CPLL over DRP is needed to:
+		#  - update the output divider
+		#  - update the equalizer configuration (specific for each line rate).
 		refclk = Signal()
 		self.specials += Instance("IBUFDS_GTE2",
 			i_CEB=0,
@@ -41,6 +47,11 @@ class K7SATAPHYClocking(Module):
 		)
 		self.comb += gtx.gtrefclk0.eq(refclk)
 
+	# TX clocking
+		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits), sata clk @ 150MHz (32-bits)
+		# (SATA2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits), sata clk @ 75MHz (32-bits)
+		# (SATA1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits), sata clk @ 37.5MHz (32-bits)
+		# When changing rate, reconfiguration of the MMCM is needed to update the output divider.		
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
 		mmcm_drp = DRPBus()
@@ -49,7 +60,7 @@ class K7SATAPHYClocking(Module):
 		mmcm_clk0_o = Signal()
 		mmcm_clk1_o = Signal()
 		self.specials += [
-			Instance("BUFG", i_I=refclk, o_O=mmcm_clk_i),
+			Instance("BUFG", i_I=gtx.txoutclk, o_O=mmcm_clk_i),
 			Instance("MMCME2_ADV",
 				p_BANDWIDTH="HIGH", p_COMPENSATION="ZHOLD", i_RST=mmcm_reset, o_LOCKED=mmcm_locked,
 
@@ -59,14 +70,14 @@ class K7SATAPHYClocking(Module):
 
 				# VCO
 				p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.666,
-				p_CLKFBOUT_MULT_F=8.000, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=2,
+				p_CLKFBOUT_MULT_F=8.000, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
 				i_CLKIN1=mmcm_clk_i, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
 				# CLK0
-				p_CLKOUT0_DIVIDE_F=2.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
+				p_CLKOUT0_DIVIDE_F=4.000, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
 
 				# CLK1
-				p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
+				p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
 			),
 			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
 			Instance("BUFG", i_I=mmcm_clk1_o, o_O=self.cd_sata.clk),
@@ -77,8 +88,11 @@ class K7SATAPHYClocking(Module):
 		]
 
 	# RX clocking
+		# (SATA3) sata_rx recovered clk @ 300MHz from CPLL RXOUTCLK
+		# (SATA2) sata_rx recovered clk @ 150MHz from CPLL RXOUTCLK
+		# (SATA1) sata_rx recovered clk @ 150MHz from CPLL RXOUTCLK		
 		self.specials += [
-			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_rx.clk),
+			Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
 		]
 		self.comb += [
 			gtx.rxusrclk.eq(self.cd_sata_rx.clk),
@@ -94,6 +108,26 @@ class K7SATAPHYClocking(Module):
 			gtx.txphinit.eq(0)
 		]
 
+	# RX buffer bypass logic
+		self.comb += [
+			gtx.rxphdlyreset.eq(0),
+			gtx.rxdlyen.eq(0),
+			gtx.rxphalign.eq(0),
+			gtx.rxphalignen.eq(0),
+		]
+
+
+	# Configuration Reset
+		# After configuration, GTX resets can not be asserted for 500ns
+		# See AR43482
+		reset_en = Signal()
+		clk_period_ns = 1000000000/clk_freq
+		reset_en_cnt_max = ceil(500/clk_period_ns)
+		reset_en_cnt = Signal(max=reset_en_cnt_max, reset=reset_en_cnt_max-1)
+		self.sync += If(~reset_en, reset_en_cnt.eq(reset_en_cnt-1))
+		self.comb += reset_en.eq(reset_en_cnt == 0)
+
+
 		# once channel TX is reseted, reset TX buffer
 		txbuffer_reseted = Signal()
 		self.sync += \
@@ -106,29 +140,10 @@ class K7SATAPHYClocking(Module):
 				)
 			)
 
-	# RX buffer bypass logic
-		self.comb += [
-			gtx.rxphdlyreset.eq(0),
-			gtx.rxdlyen.eq(0),
-			gtx.rxphalign.eq(0),
-			gtx.rxphalignen.eq(0),
-		]
-
-		# wait till CDR is locked
-#		cdr_cnt = Signal(14, reset=0b10011100010000)
-		cdr_cnt = Signal(14, reset=1024)		
-		cdr_locked = Signal()
-		self.sync += \
-			If(cdr_cnt != 0,
-				cdr_cnt.eq(cdr_cnt - 1)
-			).Else(
-				cdr_locked.eq(1)
-			)
-
-		# once CDR is locked and channel RX reseted, reset RX buffer
+		# once channel RX is reseted, reset RX buffer
 		rxbuffer_reseted = Signal()
 		self.sync += \
-			If(cdr_locked & gtx.rxresetdone,
+			If(gtx.rxresetdone,
 				If(~rxbuffer_reseted,
 					gtx.rxdlysreset.eq(1),
 					rxbuffer_reseted.eq(1)
@@ -152,11 +167,11 @@ class K7SATAPHYClocking(Module):
 			gtx.rxuserrdy.eq(gtx.cplllock),
 			gtx.txuserrdy.eq(gtx.cplllock),
 		# TX
-			gtx.gttxreset.eq(rst_cnt_done & (self.reset | self.gtx_reset | ~gtx.cplllock )),
+			gtx.gttxreset.eq(reset_en & (self.reset | ~gtx.cplllock)),
 		# RX
-			gtx.gtrxreset.eq(rst_cnt_done & (self.reset | self.gtx_reset | ~gtx.cplllock)),
+			gtx.gtrxreset.eq(reset_en & (self.reset | ~gtx.cplllock)),
 		# PLL
-			gtx.cpllreset.eq(rst_cnt_done & (self.reset | ~cdr_locked))
+			gtx.cpllreset.eq(self.reset | ~reset_en)
 		]
 		# SATA TX/RX clock domains
 		self.specials += [

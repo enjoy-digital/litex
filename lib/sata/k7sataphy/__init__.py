@@ -8,7 +8,7 @@ from lib.sata.k7sataphy.clocking import K7SATAPHYClocking
 from lib.sata.k7sataphy.ctrl import K7SATAPHYHostCtrl, K7SATAPHYDeviceCtrl
 
 class K7SATAPHY(Module):
-	def __init__(self, pads, host=True):
+	def __init__(self, pads, clk_freq, host=True,):
 		self.sink = Sink([("d", 32)], True)
 		self.source = Source([("d", 32)], True)
 
@@ -17,7 +17,7 @@ class K7SATAPHY(Module):
 			gtx.rxrate.eq(0b000),
 			gtx.txrate.eq(0b000),			
 		]
-		clocking = K7SATAPHYClocking(pads, gtx)
+		clocking = K7SATAPHYClocking(pads, gtx, clk_freq)
 		rxalign = K7SATAPHYRXAlign()
 		rxconvert = K7SATAPHYRXConvert()
 		txconvert = K7SATAPHYTXConvert()
