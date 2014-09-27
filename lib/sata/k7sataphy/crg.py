@@ -27,6 +27,7 @@ class K7SATAPHYReconfig(Module):
 class K7SATAPHYCRG(Module):
 	def __init__(self, pads, gtx, clk_freq):
 		self.reset = Signal()
+		self.ready = Signal()
 
 		self.clock_domains.cd_sata_tx = ClockDomain()
 		self.clock_domains.cd_sata_rx = ClockDomain()
@@ -79,7 +80,6 @@ class K7SATAPHYCRG(Module):
 				p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
 			),
 			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
-			Instance("BUFG", i_I=mmcm_clk1_o, o_O=self.cd_sata.clk),
 		]
 		self.comb += [
 			gtx.txusrclk.eq(self.cd_sata_tx.clk),
@@ -98,7 +98,7 @@ class K7SATAPHYCRG(Module):
 			gtx.rxusrclk2.eq(self.cd_sata_rx.clk)
 		]
 
-	# TX buffer bypass logic
+	# Bypass TX buffer
 		self.comb += [
 			gtx.txphdlyreset.eq(0),
 			gtx.txphalignen.eq(0),
@@ -107,14 +107,13 @@ class K7SATAPHYCRG(Module):
 			gtx.txphinit.eq(0)
 		]
 
-	# RX buffer bypass logic
+	# Bypass RX buffer
 		self.comb += [
 			gtx.rxphdlyreset.eq(0),
 			gtx.rxdlyen.eq(0),
 			gtx.rxphalign.eq(0),
 			gtx.rxphalignen.eq(0),
 		]
-
 
 	# Configuration Reset
 		# After configuration, GTX resets have to stay low for at least 500ns
@@ -126,57 +125,111 @@ class K7SATAPHYCRG(Module):
 		self.sync += If(~reset_en, reset_en_cnt.eq(reset_en_cnt-1))
 		self.comb += reset_en.eq(reset_en_cnt == 0)
 
-
-		# once channel TX is reseted, reset TX buffer
-		txbuffer_reseted = Signal()
-		self.sync += \
-			If(gtx.txresetdone,
-				If(~txbuffer_reseted,
-					gtx.txdlysreset.eq(1),
-					txbuffer_reseted.eq(1)
-				).Else(
-					gtx.txdlysreset.eq(0)
-				)
+	# TX Reset FSM
+		tx_reset_fsm = FSM(reset_state="IDLE")
+		self.submodules += tx_reset_fsm
+		tx_reset_fsm.act("IDLE",
+			gtx.txuserrdy.eq(0),
+			gtx.gttxreset.eq(0),
+			gtx.txdlysreset.eq(0),
+			If(reset_en,
+				NextState("RESET_ALL"),
 			)
-
-		# once channel RX is reseted, reset RX buffer
-		rxbuffer_reseted = Signal()
-		self.sync += \
-			If(gtx.rxresetdone,
-				If(~rxbuffer_reseted,
-					gtx.rxdlysreset.eq(1),
-					rxbuffer_reseted.eq(1)
-				).Else(
-					gtx.rxdlysreset.eq(0)
-				)
+		)
+		tx_reset_fsm.act("RESET_ALL",
+			gtx.txuserrdy.eq(0),
+			gtx.gttxreset.eq(1),
+			gtx.txdlysreset.eq(1),
+			If(gtx.cplllock & mmcm_locked,
+				NextState("RELEASE_GTXRESET")
 			)
-
-	# Reset
-		# initial reset generation
-		rst_cnt = Signal(8)
-		rst_cnt_done = Signal()
-		self.sync += \
-			If(~rst_cnt_done,
-				rst_cnt.eq(rst_cnt+1)
+		)
+		tx_reset_fsm.act("RELEASE_GTXRESET",
+			gtx.txuserrdy.eq(1),
+			gtx.gttxreset.eq(0),
+			gtx.txdlysreset.eq(1),
+			If(self.reset,
+				NextState("RESET_ALL")
+			).Elif(gtx.txresetdone,
+				NextState("RELEASE_DLYRESET")
 			)
-		self.comb += rst_cnt_done.eq(rst_cnt==255)
+		)
+		tx_reset_fsm.act("RELEASE_DLYRESET",
+			gtx.txuserrdy.eq(1),
+			gtx.gttxreset.eq(0),
+			gtx.txdlysreset.eq(0),
+			If(self.reset,
+				NextState("RESET_ALL")
+			).Elif(gtx.txdlysresetdone,
+				NextState("READY")
+			)
+		)
+		tx_reset_fsm.act("READY",
+			gtx.txuserrdy.eq(1),
+			gtx.gttxreset.eq(0),
+			gtx.txdlysreset.eq(0),
+			If(self.reset,
+				NextState("RESET_ALL")
+			)
+		)
 
-		self.comb += [
-		# GTXE2
-			gtx.rxuserrdy.eq(gtx.cplllock),
-			gtx.txuserrdy.eq(gtx.cplllock),
-		# TX
-			gtx.gttxreset.eq(reset_en & (self.reset | ~gtx.cplllock)),
-		# RX
-			gtx.gtrxreset.eq(reset_en & (self.reset | ~gtx.cplllock)),
-		# PLL
-			gtx.cpllreset.eq(self.reset | ~reset_en)
-		]
-		# SATA TX/RX clock domains
+	# RX Reset FSM
+		rx_reset_fsm = FSM(reset_state="IDLE")
+		self.submodules += rx_reset_fsm
+		rx_reset_fsm.act("IDLE",
+			gtx.rxuserrdy.eq(0),
+			gtx.gtrxreset.eq(0),
+			gtx.rxdlysreset.eq(0),
+			If(reset_en,
+				NextState("RESET_ALL"),
+			)
+		)
+		rx_reset_fsm.act("RESET_ALL",
+			gtx.rxuserrdy.eq(0),
+			gtx.gtrxreset.eq(1),
+			gtx.rxdlysreset.eq(1),
+			If(gtx.cplllock & mmcm_locked,
+				NextState("RELEASE_GTXRESET")
+			)
+		)
+		rx_reset_fsm.act("RELEASE_GTXRESET",
+			gtx.rxuserrdy.eq(1),
+			gtx.gtrxreset.eq(0),
+			gtx.rxdlysreset.eq(1),
+			If(self.reset,
+				NextState("RESET_ALL")
+			).Elif(gtx.rxresetdone,
+				NextState("RELEASE_DLYRESET")
+			)
+		)
+		rx_reset_fsm.act("RELEASE_DLYRESET",
+			gtx.rxuserrdy.eq(1),
+			gtx.gtrxreset.eq(0),
+			gtx.rxdlysreset.eq(0),
+			If(self.reset,
+				NextState("RESET_ALL")
+			).Elif(gtx.rxdlysresetdone,
+				NextState("READY")
+			)
+		)
+		rx_reset_fsm.act("READY",
+			gtx.rxuserrdy.eq(1),
+			gtx.gtrxreset.eq(0),
+			gtx.rxdlysreset.eq(0),
+			If(self.reset,
+				NextState("RESET_ALL")
+			)
+		)
+
+		self.comb += self.ready.eq(tx_reset_fsm.ongoing("READY") & rx_reset_fsm.ongoing("READY"))
+
+	# Reset PLL
+		self.comb += gtx.cpllreset.eq(self.reset | ~reset_en)
+
+	# Reset for SATA TX/RX clock domains
 		self.specials += [
-			AsyncResetSynchronizer(self.cd_sata_tx, ~mmcm_locked | ~gtx.txresetdone),
-			AsyncResetSynchronizer(self.cd_sata_rx, ~gtx.cplllock | ~gtx.rxphaligndone),
-			AsyncResetSynchronizer(self.cd_sata, ResetSignal("sata_tx") | ResetSignal("sata_rx")),
+			AsyncResetSynchronizer(self.cd_sata_tx, ~self.ready),
+			AsyncResetSynchronizer(self.cd_sata_rx, ~self.ready),
 		]
 
 	# Dynamic Reconfiguration

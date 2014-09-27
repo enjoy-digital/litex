@@ -20,7 +20,8 @@ def us(t, speed="SATA3"):
 
 class K7SATAPHYHostCtrl(Module):
 	def __init__(self, gtx):
-		self.link_up = Signal()
+		self.start = Signal()
+		self.ready = Signal()
 		self.speed = Signal(3)
 
 		self.txdata = Signal(32)
@@ -40,6 +41,12 @@ class K7SATAPHYHostCtrl(Module):
 		self.submodules += fsm
 
 		fsm.act("RESET",
+			gtx.txelecidle.eq(1),
+			If(self.start,
+				NextState("COMINIT")
+			)
+		)
+		fsm.act("COMINIT",
 			txcominit.eq(1),
 			gtx.txelecidle.eq(1),
 			If(gtx.txcomfinish & ~gtx.rxcominitdet,
@@ -114,7 +121,7 @@ class K7SATAPHYHostCtrl(Module):
 			If(gtx.rxelecidle,
 				NextState("RESET")
 			),
-			self.link_up.eq(1)
+			self.ready.eq(1)
 		)
 
 		txcominit_d = Signal()
@@ -166,7 +173,8 @@ class K7SATAPHYHostCtrl(Module):
 
 class K7SATAPHYDeviceCtrl(Module):
 	def __init__(self, gtx):
-		self.link_up = Signal()
+		self.start = Signal()
+		self.ready = Signal()
 		self.speed = Signal(3)
 
 		self.txdata = Signal(32)
@@ -186,10 +194,16 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		fsm.act("RESET",
 			gtx.txelecidle.eq(1),
+			If(self.start,
+				NextState("AWAIT_COMINIT")
+			)
+		)
+		fsm.act("AWAIT_COMINIT",
+			gtx.txelecidle.eq(1),
 			If(gtx.rxcominitdet,
 				NextState("COMINIT")
 			)
-		)
+		)	
 		fsm.act("COMINIT",
 			gtx.txelecidle.eq(1),
 			If(gtx.txcomfinish,
@@ -241,7 +255,7 @@ class K7SATAPHYDeviceCtrl(Module):
 			If(gtx.rxelecidle,
 				NextState("RESET")
 			),
-			self.link_up.eq(1)
+			self.ready.eq(1)
 		)
 		fsm.act("ERROR",
 			gtx.txelecidle.eq(1),

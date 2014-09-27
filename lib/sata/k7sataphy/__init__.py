@@ -13,16 +13,28 @@ class K7SATAPHY(Module):
 		self.sink = Sink([("d", 32)], True)
 		self.source = Source([("d", 32)], True)
 
+	# GTX
 		gtx = K7SATAPHYGTX(pads, "SATA3")
 		self.comb += [
 			gtx.rxrate.eq(0b000),
 			gtx.txrate.eq(0b000),			
 		]
-		clocking = K7SATAPHYCRG(pads, gtx, clk_freq)
+		self.submodules += gtx
+
+	# CRG / CTRL
+		crg = K7SATAPHYCRG(pads, gtx, clk_freq)
+		if host:
+			ctrl = K7SATAPHYHostCtrl(gtx)
+		else:
+			ctrl = K7SATAPHYDeviceCtrl(gtx)
+		self.submodules += crg, ctrl
+		self.comb += ctrl.start.eq(crg.ready)
+
+	# DATAPATH
 		rxalign = K7SATAPHYRXAlign()
 		rxconvert = K7SATAPHYRXConvert()
 		txconvert = K7SATAPHYTXConvert()
-		self.submodules += gtx, clocking, rxalign, rxconvert, txconvert
+		self.submodules += rxalign, rxconvert, txconvert
 		self.comb += [
 			rxalign.rxdata_i.eq(gtx.rxdata),
 			rxalign.rxcharisk_i.eq(gtx.rxcharisk),
@@ -33,13 +45,8 @@ class K7SATAPHY(Module):
 			gtx.txcharisk.eq(txconvert.txcharisk)
 		]
 
-		if host:
-			ctrl = K7SATAPHYHostCtrl(gtx)
-		else:
-			ctrl = K7SATAPHYDeviceCtrl(gtx)
-		self.submodules += ctrl
 		self.comb += [
-			If(ctrl.link_up,
+			If(ctrl.ready,
 				txconvert.sink.stb.eq(self.sink.stb),
 				txconvert.sink.data.eq(self.sink.d),
 				txconvert.sink.charisk.eq(0),
