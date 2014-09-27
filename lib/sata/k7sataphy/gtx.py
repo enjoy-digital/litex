@@ -1,26 +1,30 @@
 from migen.fhdl.std import *
+from migen.genlib.cdc import *
 from migen.actorlib.fifo import AsyncFIFO
 from migen.actorlib.structuring import Converter
 from migen.flow.actor import Sink, Source
 
 from lib.sata.k7sataphy.std import *
 
+class _PulseSynchronizer(PulseSynchronizer):
+	def __init__(self, i, idomain, o, odomain):
+		PulseSynchronizer.__init__(self, idomain, odomain)
+		self.comb += [
+			self.i.eq(i),
+			o.eq(self.o)
+		]
+
 class K7SATAPHYGTX(Module):
 	def __init__(self, pads, default_speed):
+	# Interface
 		self.drp = DRPBus()
 
 		# Channel - Ref Clock Ports
 		self.gtrefclk0 = Signal()
 
 		# Channel PLL
-		self.cpllfbclklost = Signal()
 		self.cplllock = Signal()
-		self.cplllockdetclk = Signal()
-		self.cpllrefclklost = Signal()
 		self.cpllreset = Signal()
-
-		# Eye Scan Ports
-		self.eyescandataerror = Signal()
 
 		# Receive Ports
 		self.rxuserrdy = Signal()
@@ -28,11 +32,6 @@ class K7SATAPHYGTX(Module):
 		# Receive Ports - 8b10b Decoder
 		self.rxcharisk = Signal(2)
 		self.rxdisperr = Signal(2)
-		self.rxnotintable = Signal(2)
-
-		# Receive Ports - Comma Detection and Alignment
-		self.rxmcommaalignen = Signal()
-		self.rxpcommaalignen = Signal()
 
 		# Receive Ports - RX Data Path interface
 		self.gtrxreset = Signal()
@@ -42,7 +41,6 @@ class K7SATAPHYGTX(Module):
 		self.rxusrclk2 = Signal()
 
 		# Receive Ports - RX Driver,OOB signalling,Coupling and Eq.,CDR
-		self.rxcdrlock = Signal()
 		self.rxelecidle = Signal()
 
 		# Receive Ports - RX Elastic Buffer and Phase Alignment Ports
@@ -53,8 +51,6 @@ class K7SATAPHYGTX(Module):
 		self.rxphaligndone = Signal()
 		self.rxphalignen = Signal()
 		self.rxphdlyreset = Signal()
-		self.rxphmonitor = Signal(5)
-		self.rxphslipmonitor = Signal(5)
 
 		# Receive Ports - RX PLL Ports
 		self.rxresetdone = Signal()
@@ -84,8 +80,6 @@ class K7SATAPHYGTX(Module):
 		self.gttxreset = Signal()
 		self.txdata = Signal()
 		self.txoutclk = Signal()
-		self.txoutclkfabric = Signal()
-		self.txoutclkpcs = Signal()
 		self.txusrclk = Signal()
 		self.txusrclk2 = Signal()
 
@@ -103,10 +97,8 @@ class K7SATAPHYGTX(Module):
 		self.rxratedone = Signal()
 		self.txrate = Signal(3)
 		self.txratedone = Signal()
-		self.rxcdrreset = Signal()
-		self.rxlpme = Signal()
 
-		# startup config
+	# Config at startup
 		div_config = {
 			"SATA1" : 	4,
 			"SATA2" :	2,
@@ -122,6 +114,98 @@ class K7SATAPHYGTX(Module):
 		}
 		rxcdr_cfg = cdr_config[default_speed]
 
+	# Internals and clock domain crossing
+		# sys_clk --> sata_tx clk
+		txuserrdy = Signal()
+		txdlyen = Signal()
+		txdlysreset = Signal()
+		txphalign = Signal()
+		txphalignen = Signal()
+		txphdlyreset = Signal()
+		txphinit = Signal()
+		txelecidle = Signal(reset=1)
+		txcominit = Signal()
+		txcomwake = Signal()
+		txrate = Signal(3)
+
+		self.specials += [
+			MultiReg(self.txuserrdy, txuserrdy, "sata_tx"),
+			MultiReg(self.txdlyen, txdlyen, "sata_tx"),
+			MultiReg(self.txdlysreset, txdlysreset, "sata_tx"),
+			MultiReg(self.txphalign, txphalign, "sata_tx"),
+			MultiReg(self.txphalignen, txphalignen, "sata_tx"),
+			MultiReg(self.txphdlyreset, txphdlyreset, "sata_tx"),
+			MultiReg(self.txelecidle, txelecidle, "sata_tx"),
+			MultiReg(self.txrate, txrate, "sata_tx")
+		]
+		self.submodules += [
+			_PulseSynchronizer(self.txcominit, "sys", txcominit, "sata_tx"),
+			_PulseSynchronizer(self.txcomwake, "sys", txcomwake, "sata_tx"),
+		]
+
+		# sata_tx clk --> sys clk
+		txdlysresetdone = Signal()
+		txphaligndone = Signal()
+		txphinitdone = Signal()
+		txresetdone = Signal()
+		txratedone = Signal()
+		txcomfinish = Signal()
+
+		self.specials += [
+			MultiReg(txdlysresetdone, self.txdlysresetdone, "sys"),
+			MultiReg(txphaligndone, self.txphaligndone, "sys"),
+			MultiReg(txphinitdone, self.txphinitdone, "sys"),
+			MultiReg(txresetdone, self.txresetdone, "sys"),
+			MultiReg(txratedone, self.txratedone, "sys"),
+		]
+
+		self.submodules += [
+			_PulseSynchronizer(txcomfinish, "sata_tx", self.txcomfinish, "sys"),
+		]	
+
+		# sys clk --> sata_rx clk
+		rxuserrdy = Signal()
+		rxelecidle = Signal()
+		rxdlyen = Signal()
+		rxdlysreset = Signal()
+		rxphalign = Signal()
+		rxphalignen = Signal()
+		rxphdlyreset = Signal()
+		rxrate = Signal(3)
+
+		self.specials += [
+			MultiReg(self.rxuserrdy, rxuserrdy, "sata_rx"),
+			MultiReg(self.rxelecidle, rxelecidle, "sata_rx"),
+			MultiReg(self.rxdlyen, rxdlyen, "sata_rx"),
+			MultiReg(self.rxdlysreset, rxdlysreset, "sata_rx"),
+			MultiReg(self.rxphalign, rxphalign, "sata_rx"),
+			MultiReg(self.rxphalignen, rxphalignen, "sata_rx"),
+			MultiReg(self.rxphdlyreset, rxphdlyreset, "sata_rx"),
+			MultiReg(self.rxrate, rxrate, "sata_rx")
+		]
+
+
+		# sata_rx clk --> sys clk
+		rxdlysresetdone = Signal()
+		rxphaligndone = Signal()
+		rxresetdone = Signal()
+		rxcominitdet = Signal()
+		rxcomwakedet = Signal()
+		rxratedone = Signal()
+
+		self.specials += [
+			MultiReg(rxdlysresetdone, self.rxdlysresetdone, "sys"),
+			MultiReg(rxphaligndone, self.rxphaligndone, "sys"),
+			MultiReg(rxresetdone, self.rxresetdone, "sys"),
+			MultiReg(rxratedone, self.rxratedone, "sys")
+		]
+
+		self.submodules += [
+			_PulseSynchronizer(rxcominitdet, "sata_rx", self.rxcominitdet, "sys"),
+			_PulseSynchronizer(rxcomwakedet, "sata_rx", self.rxcomwakedet, "sys"),
+		]	
+
+	# Instance
 		gtxe2_channel_parameters = {
 				# Simulation-Only Attributes
 					"p_SIM_RECEIVER_DETECT_PASS":"TRUE",
@@ -397,12 +481,12 @@ class K7SATAPHYGTX(Module):
 		self.specials += \
 			Instance("GTXE2_CHANNEL",
 				# CPLL Ports
-					o_CPLLFBCLKLOST=self.cpllfbclklost,
+					#o_CPLLFBCLKLOST=,
 					o_CPLLLOCK=self.cplllock,
-					i_CPLLLOCKDETCLK=self.cplllockdetclk,
+					i_CPLLLOCKDETCLK=0,
 					i_CPLLLOCKEN=1,
 					i_CPLLPD=0,
-					o_CPLLREFCLKLOST=self.cpllrefclklost,
+					#o_CPLLREFCLKLOST=0,
 					i_CPLLREFCLKSEL=0b001,
 					i_CPLLRESET=self.cpllreset,
 					i_GTRSVD=0,
@@ -452,7 +536,7 @@ class K7SATAPHYGTX(Module):
 
 				# PCI Express Ports
 					#o_PHYSTATUS=,
-					i_RXRATE=self.rxrate,
+					i_RXRATE=rxrate,
 					#o_RXVALID=,
 
 				# Power-Down Ports
@@ -464,19 +548,19 @@ class K7SATAPHYGTX(Module):
 
 				# RX Initialization and Reset Ports
 					i_EYESCANRESET=0,
-					i_RXUSERRDY=self.rxuserrdy,
+					i_RXUSERRDY=rxuserrdy,
 
 				# RX Margin Analysis Ports
-					o_EYESCANDATAERROR=self.eyescandataerror,
+					#o_EYESCANDATAERROR=,
 					i_EYESCANMODE=0,
 					i_EYESCANTRIGGER=0,
 
 				# Receive Ports - CDR Ports
 					i_RXCDRFREQRESET=0,
 					i_RXCDRHOLD=0,
-					o_RXCDRLOCK=self.rxcdrlock,
+					#o_RXCDRLOCK=,
 					i_RXCDROVRDEN=0,
-					i_RXCDRRESET=self.rxcdrreset,
+					i_RXCDRRESET=0,
 					i_RXCDRRESETRSV=0,
 
 				# Receive Ports - Clock Correction Ports
@@ -505,8 +589,8 @@ class K7SATAPHYGTX(Module):
 					i_RXDFEXYDOVRDEN=0,
 
 				# Receive Ports - RX 8B/10B Decoder Ports
-					o_RXDISPERR=self.rxdisperr,
-					o_RXNOTINTABLE=self.rxnotintable,
+					#o_RXDISPERR=,
+					#o_RXNOTINTABLE=,
 
 				# Receive Ports - RX AFE
 					i_GTXRXP=pads.rxp,
@@ -517,18 +601,18 @@ class K7SATAPHYGTX(Module):
 					#o_RXBUFSTATUS=,
 					i_RXDDIEN=1,
 					i_RXDLYBYPASS=0,
-					i_RXDLYEN=self.rxdlyen,
+					i_RXDLYEN=rxdlyen,
 					i_RXDLYOVRDEN=0,
-					i_RXDLYSRESET=self.rxdlysreset,
-					o_RXDLYSRESETDONE=self.rxdlysresetdone,
-					i_RXPHALIGN=self.rxphalign,
-					o_RXPHALIGNDONE=self.rxphaligndone,
-					i_RXPHALIGNEN=self.rxphalignen,
+					i_RXDLYSRESET=rxdlysreset,
+					o_RXDLYSRESETDONE=rxdlysresetdone,
+					i_RXPHALIGN=rxphalign,
+					o_RXPHALIGNDONE=rxphaligndone,
+					i_RXPHALIGNEN=rxphalignen,
 					i_RXPHDLYPD=0,
-					i_RXPHDLYRESET=self.rxphdlyreset,
-					o_RXPHMONITOR=self.rxphmonitor,
+					i_RXPHDLYRESET=rxphdlyreset,
+					#o_RXPHMONITOR=,
 					i_RXPHOVRDEN=0,
-					o_RXPHSLIPMONITOR=self.rxphslipmonitor,
+					#o_RXPHSLIPMONITOR=,
 					#o_RXSTATUS=,
 
 				# Receive Ports - RX Byte and Word Alignment Ports
@@ -536,8 +620,8 @@ class K7SATAPHYGTX(Module):
 					#o_RXBYTEREALIGN=,
 					#o_RXCOMMADET=,
 					i_RXCOMMADETEN=1,
-					i_RXMCOMMAALIGNEN=self.rxmcommaalignen,
-					i_RXPCOMMAALIGNEN=self.rxpcommaalignen,
+					i_RXMCOMMAALIGNEN=0,
+					i_RXPCOMMAALIGNEN=0,
 
 				# Receive Ports - RX Channel Bonding Ports
 					#o_RXCHANBONDSEQ=,
@@ -583,7 +667,7 @@ class K7SATAPHYGTX(Module):
 					i_RXLPMLFHOLD=0,
 
 				# Receive Ports - RX Fabric ClocK Output Control Ports
-					o_RXRATEDONE=self.rxratedone,
+					o_RXRATEDONE=rxratedone,
 
 				# Receive Ports - RX Fabric Output Control Ports
 					o_RXOUTCLK=self.rxoutclk,
@@ -611,13 +695,13 @@ class K7SATAPHYGTX(Module):
 
 				# Receive Ports - RX OOB Signaling ports
 					#o_RXCOMSASDET=,
-					o_RXCOMWAKEDET=self.rxcomwakedet,
+					o_RXCOMWAKEDET=rxcomwakedet,
 
 				# Receive Ports - RX OOB Signaling ports
-					o_RXCOMINITDET=self.rxcominitdet,
+					o_RXCOMINITDET=rxcominitdet,
 
 				# Receive Ports - RX OOB signalling Ports
-					o_RXELECIDLE=self.rxelecidle,
+					o_RXELECIDLE=rxelecidle,
 					i_RXELECIDLEMODE=0b00,
 
 				# Receive Ports - RX Polarity Control Ports
@@ -634,7 +718,7 @@ class K7SATAPHYGTX(Module):
 					i_RXCHBONDI=0,
 
 				# Receive Ports -RX Initialization and Reset Ports
-					o_RXRESETDONE=self.rxresetdone,
+					o_RXRESETDONE=rxresetdone,
 
 				# Rx AFE Ports
 					i_RXQPIEN=0,
@@ -657,7 +741,7 @@ class K7SATAPHYGTX(Module):
 					i_CFGRESET=0,
 					i_GTTXRESET=self.gttxreset,
 					#o_PCSRSVDOUT=,
-					i_TXUSERRDY=self.txuserrdy,
+					i_TXUSERRDY=txuserrdy,
 
 				# Transceiver Reset Mode Operation
 					i_GTRESETSEL=0,
@@ -672,9 +756,9 @@ class K7SATAPHYGTX(Module):
 					i_TXUSRCLK2=self.txusrclk2,
 
 				# Transmit Ports - PCI Express Ports
-					i_TXELECIDLE=self.txelecidle,
+					i_TXELECIDLE=txelecidle,
 					i_TXMARGIN=0,
-					i_TXRATE=self.txrate,
+					i_TXRATE=txrate,
 					i_TXSWING=0,
 
 				# Transmit Ports - Pattern Generator Ports
@@ -682,19 +766,19 @@ class K7SATAPHYGTX(Module):
 
 				# Transmit Ports - TX Buffer Bypass Ports
 					i_TXDLYBYPASS=0,
-					i_TXDLYEN=self.txdlyen,
+					i_TXDLYEN=txdlyen,
 					i_TXDLYHOLD=0,
 					i_TXDLYOVRDEN=0,
-					i_TXDLYSRESET=self.txdlysreset,
-					o_TXDLYSRESETDONE=self.txdlysresetdone,
+					i_TXDLYSRESET=txdlysreset,
+					o_TXDLYSRESETDONE=txdlysresetdone,
 					i_TXDLYUPDOWN=0,
-					i_TXPHALIGN=self.txphalign,
-					o_TXPHALIGNDONE=self.txphaligndone,
-					i_TXPHALIGNEN=self.txphalignen,
+					i_TXPHALIGN=txphalign,
+					o_TXPHALIGNDONE=txphaligndone,
+					i_TXPHALIGNEN=txphalignen,
 					i_TXPHDLYPD=0,
-					i_TXPHDLYRESET=self.txphdlyreset,
-					i_TXPHINIT=self.txphinit,
-					o_TXPHINITDONE=self.txphinitdone,
+					i_TXPHDLYRESET=txphdlyreset,
+					i_TXPHINIT=txphinit,
+					o_TXPHINITDONE=txphinitdone,
 					i_TXPHOVRDEN=0,
 
 				# Transmit Ports - TX Buffer Ports
@@ -718,10 +802,10 @@ class K7SATAPHYGTX(Module):
 
 				# Transmit Ports - TX Fabric Clock Output Control Ports
 					o_TXOUTCLK=self.txoutclk,
-					o_TXOUTCLKFABRIC=self.txoutclkfabric,
-					o_TXOUTCLKPCS=self.txoutclkpcs,
+					#o_TXOUTCLKFABRIC=,
+					#o_TXOUTCLKPCS=,
 					i_TXOUTCLKSEL=0b11,
-					o_TXRATEDONE=self.txratedone,
+					o_TXRATEDONE=txratedone,
 				# Transmit Ports - TX Gearbox Ports
 					i_TXCHARISK=self.txcharisk,
 					#o_TXGEARBOXREADY=,
@@ -732,13 +816,13 @@ class K7SATAPHYGTX(Module):
 				# Transmit Ports - TX Initialization and Reset Ports
 					i_TXPCSRESET=0,
 					i_TXPMARESET=0,
-					o_TXRESETDONE=self.txresetdone,
+					o_TXRESETDONE=txresetdone,
 
 				# Transmit Ports - TX OOB signalling Ports
-					o_TXCOMFINISH=self.txcomfinish,
-					i_TXCOMINIT=self.txcominit,
+					o_TXCOMFINISH=txcomfinish,
+					i_TXCOMINIT=txcominit,
 					i_TXCOMSAS=0,
-					i_TXCOMWAKE=self.txcomwake,
+					i_TXCOMWAKE=txcomwake,
 					i_TXPDELECIDLEMODE=0,
 
 				# Transmit Ports - TX Polarity Control Ports

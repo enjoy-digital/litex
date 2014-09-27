@@ -48,9 +48,9 @@ class K7SATAPHYCRG(Module):
 		self.comb += gtx.gtrefclk0.eq(refclk)
 
 	# TX clocking
-		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits), sata clk @ 150MHz (32-bits)
-		# (SATA2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits), sata clk @ 75MHz (32-bits)
-		# (SATA1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits), sata clk @ 37.5MHz (32-bits)
+		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
+		# (SATA2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits)
+		# (SATA1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits)
 		# When changing rate, reconfiguration of the MMCM is needed to update the output divider.		
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
