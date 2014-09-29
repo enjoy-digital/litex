@@ -43,6 +43,8 @@ class FSM(Module):
 	def act(self, state, *statements):
 		if self.finalized:
 			raise FinalizeError
+		if self.reset_state is None:
+			self.reset_state = state
 		if state not in self.actions:
 			self.actions[state] = []
 		self.actions[state] += statements
@@ -95,20 +97,16 @@ class FSM(Module):
 
 	def do_finalize(self):
 		nstates = len(self.actions)
-		if self.reset_state is None:
-			reset_state = next(iter(self.actions.keys()))
-		else:
-			reset_state = self.reset_state
 
 		self.encoding = dict((s, n) for n, s in enumerate(self.actions.keys()))
-		self.state = Signal(max=nstates, reset=self.encoding[reset_state])
+		self.state = Signal(max=nstates, reset=self.encoding[self.reset_state])
 		self.next_state = Signal(max=nstates)
 
 		lns = _LowerNextState(self.next_state, self.encoding, self.state_aliases)
 		cases = dict((self.encoding[k], lns.visit(v)) for k, v in self.actions.items() if v)
 		self.comb += [
 			self.next_state.eq(self.state),
-			Case(self.state, cases).makedefault(self.encoding[reset_state])
+			Case(self.state, cases).makedefault(self.encoding[self.reset_state])
 		]
 		self.sync += self.state.eq(self.next_state)
 
@@ -116,8 +114,8 @@ class FSM(Module):
 		for state, signal in self.before_leaving_signals.items():
 			encoded = self.encoding[state]
 			self.comb += signal.eq((self.state == encoded) & ~(self.next_state == encoded))
-		if reset_state in self.after_entering_signals:
-			self.after_entering_signals[reset_state].reset = 1
+		if self.reset_state in self.after_entering_signals:
+			self.after_entering_signals[self.reset_state].reset = 1
 		for state, signal in self.before_entering_signals.items():
 			encoded = self.encoding[state]
 			self.comb += signal.eq(~(self.state == encoded) & (self.next_state == encoded))
