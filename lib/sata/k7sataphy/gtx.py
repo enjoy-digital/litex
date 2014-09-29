@@ -1,8 +1,5 @@
 from migen.fhdl.std import *
 from migen.genlib.cdc import *
-from migen.actorlib.fifo import AsyncFIFO
-from migen.actorlib.structuring import Converter
-from migen.flow.actor import Sink, Source
 
 from lib.sata.k7sataphy.std import *
 
@@ -212,6 +209,23 @@ class K7SATAPHYGTX(Module):
 		self.rxbyteisaligned = Signal()
 		self.rxbyterealign = Signal()
 		self.rxcommadet = Signal()
+
+	# Bypass TX buffer
+		self.comb += [
+			self.txphdlyreset.eq(0),
+			self.txphalignen.eq(0),
+			self.txdlyen.eq(0),
+			self.txphalign.eq(0),
+			self.txphinit.eq(0)
+		]
+
+	# Bypass RX buffer
+		self.comb += [
+			self.rxphdlyreset.eq(0),
+			self.rxdlyen.eq(0),
+			self.rxphalign.eq(0),
+			self.rxphalignen.eq(0),
+		]
 
 	# Instance
 		gtxe2_channel_parameters = {

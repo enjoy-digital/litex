@@ -9,11 +9,8 @@ from lib.sata.k7sataphy.std import *
 class K7SATAPHYReconfig(Module):
 	def __init__(self, channel_drp, mmcm_drp):
 		self.speed = Signal(3)
+
 		###
-		speed_r = Signal(3)
-		speed_change = Signal()
-		self.sync += speed_r.eq(self.speed)
-		self.comb += speed_change.eq(self.speed != speed_r)
 
 		drp_sel = Signal()
 		drp = DRPBus()
@@ -23,6 +20,7 @@ class K7SATAPHYReconfig(Module):
 			).Else(
 				drp.connect(channel_drp)
 			)
+		# Todo
 
 class K7SATAPHYCRG(Module):
 	def __init__(self, pads, gtx, clk_freq, default_speed):
@@ -34,7 +32,7 @@ class K7SATAPHYCRG(Module):
 
 	# CPLL
 		# (SATA3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
-		# (SATA2 & SATA1) VCO still @ 3 GHz, Line rate is decreased with output divivers.
+		# (SATA2 & SATA1) VCO still @ 3 GHz, Line rate is decreased with output dividers.
 		# When changing rate, reconfiguration of the CPLL over DRP is needed to:
 		#  - update the output divider
 		#  - update the equalizer configuration (specific for each line rate).
@@ -93,9 +91,9 @@ class K7SATAPHYCRG(Module):
 		]
 
 	# RX clocking
-		# (SATA3) sata_rx recovered clk @ 300MHz from CPLL RXOUTCLK
-		# (SATA2) sata_rx recovered clk @ 150MHz from CPLL RXOUTCLK
-		# (SATA1) sata_rx recovered clk @ 150MHz from CPLL RXOUTCLK		
+		# (SATA3) sata_rx recovered clk @ 300MHz from GTX RXOUTCLK
+		# (SATA2) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
+		# (SATA1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK		
 		self.specials += [
 			Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
 		]
@@ -104,25 +102,8 @@ class K7SATAPHYCRG(Module):
 			gtx.rxusrclk2.eq(self.cd_sata_rx.clk)
 		]
 
-	# Bypass TX buffer
-		self.comb += [
-			gtx.txphdlyreset.eq(0),
-			gtx.txphalignen.eq(0),
-			gtx.txdlyen.eq(0),
-			gtx.txphalign.eq(0),
-			gtx.txphinit.eq(0)
-		]
-
-	# Bypass RX buffer
-		self.comb += [
-			gtx.rxphdlyreset.eq(0),
-			gtx.rxdlyen.eq(0),
-			gtx.rxphalign.eq(0),
-			gtx.rxphalignen.eq(0),
-		]
-
 	# Configuration Reset
-		# After configuration, GTX resets have to stay low for at least 500ns
+		# After configuration, GTX's resets have to stay low for at least 500ns
 		# See AR43482
 		reset_en = Signal()
 		clk_period_ns = 1000000000/clk_freq
@@ -227,6 +208,7 @@ class K7SATAPHYCRG(Module):
 			)
 		)
 
+	# Ready
 		self.comb += self.ready.eq(tx_reset_fsm.ongoing("READY") & rx_reset_fsm.ongoing("READY"))
 
 	# Reset PLL

@@ -19,9 +19,13 @@ class K7SATAPHYHostCtrl(Module):
 
 		self.rxdata = Signal(32)
 
-		align_timeout = Signal()
 		align_detect = Signal()
-		retry_cnt = Signal(32)
+		align_timeout_cnt = Signal(32)
+		align_timeout = Signal()
+
+		retry_timeout_cnt = Signal(32)
+		retry_timeout = Signal()
+
 		non_align_cnt = Signal(4)
 
 		txcominit = Signal()
@@ -48,7 +52,7 @@ class K7SATAPHYHostCtrl(Module):
 			If(gtx.rxcominitdet,
 				NextState("AWAIT_NO_COMINIT")
 			).Else(
-				If(retry_cnt == 0,
+				If(retry_timeout,
 					NextState("RESET")
 				)
 			)
@@ -75,7 +79,7 @@ class K7SATAPHYHostCtrl(Module):
 			If(gtx.rxcomwakedet,
 				NextState("AWAIT_NO_COMWAKE")
 			).Else(
-				If(retry_cnt == 0,
+				If(retry_timeout,
 					NextState("RESET")
 				)
 			)
@@ -93,6 +97,8 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("AWAIT_ALIGN",
 			gtx.txelecidle.eq(0),
+			self.txdata.eq(0x4A4A4A4A), #D10.2
+			self.txcharisk.eq(0b0000),
 			gtx.rxalign.eq(1),
 			If(align_detect & ~align_timeout,
 				NextState("SEND_ALIGN")
@@ -104,7 +110,7 @@ class K7SATAPHYHostCtrl(Module):
 			gtx.txelecidle.eq(0),
 			self.txdata.eq(ALIGN_VAL),
 			self.txcharisk.eq(0b0001),
-			If(non_align_cnt == 15,
+			If(non_align_cnt == 3,
 				NextState("READY")
 			)
 		)
@@ -124,9 +130,8 @@ class K7SATAPHYHostCtrl(Module):
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
 			gtx.txcomwake.eq(txcomwake & ~txcomwake_d),
 		]
-		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 
-		align_timeout_cnt = Signal(16)
+		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);	
 		self.sync += \
 			If(fsm.ongoing("RESET"),
 				align_timeout_cnt.eq(us(873, clk_freq))
@@ -137,10 +142,11 @@ class K7SATAPHYHostCtrl(Module):
 
 		self.sync += \
 			If(fsm.ongoing("RESET") | fsm.ongoing("AWAIT_NO_COMINIT"),
-				retry_cnt.eq(us(10000, clk_freq))
+				retry_timeout_cnt.eq(us(10000, clk_freq))
 			).Elif(fsm.ongoing("AWAIT_COMINIT") | fsm.ongoing("AWAIT_COMWAKE"),
-				retry_cnt.eq(retry_cnt-1)
+				retry_timeout_cnt.eq(retry_timeout_cnt-1)
 			)
+		self.comb += retry_timeout.eq(retry_timeout_cnt == 0)
 
 		self.sync += \
 			If(fsm.ongoing("SEND_ALIGN"),
@@ -160,9 +166,12 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		self.rxdata = Signal(32)
 
-		align_timeout = Signal()
 		align_detect = Signal()
-		retry_cnt = Signal(32)
+		align_timeout = Signal()
+		align_timeout_cnt = Signal(32)
+
+		retry_timeout_cnt = Signal(32)
+		retry_timeout = Signal()
 
 		txcominit = Signal()
 		txcomwake = Signal()
@@ -194,7 +203,7 @@ class K7SATAPHYDeviceCtrl(Module):
 			If(gtx.rxcomwakedet,
 				NextState("AWAIT_NO_COMWAKE")
 			).Else(
-				If(retry_cnt == 0,
+				If(retry_timeout,
 					NextState("RESET")
 				)
 			)
@@ -253,9 +262,8 @@ class K7SATAPHYDeviceCtrl(Module):
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
 			gtx.txcomwake.eq(txcomwake & ~txcomwake),
 		]
-		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 
-		align_timeout_cnt = Signal(16)
+		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 		self.sync += \
 			If(fsm.ongoing("RESET"),
 				align_timeout_cnt.eq(us(55, clk_freq))
@@ -266,7 +274,8 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		self.sync += \
 			If(fsm.ongoing("RESET"),
-				retry_cnt.eq(us(10000, clk_freq))
+				retry_timeout_cnt.eq(us(10000, clk_freq))
 			).Elif(fsm.ongoing("AWAIT_COMWAKE"),
-				retry_cnt.eq(retry_cnt-1)
+				retry_timeout_cnt.eq(retry_timeout_cnt-1)
 			)
+		self.comb += retry_timeout.eq(retry_timeout_cnt == 0)
