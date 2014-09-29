@@ -5,7 +5,6 @@ from lib.sata.k7sataphy.std import *
 from lib.sata.k7sataphy.gtx import K7SATAPHYGTX
 from lib.sata.k7sataphy.crg import K7SATAPHYCRG
 from lib.sata.k7sataphy.ctrl import K7SATAPHYHostCtrl, K7SATAPHYDeviceCtrl
-from lib.sata.k7sataphy.datapath import K7SATAPHYRXAlign
 from lib.sata.k7sataphy.datapath import K7SATAPHYRXConvert, K7SATAPHYTXConvert
 
 class K7SATAPHY(Module):
@@ -20,22 +19,18 @@ class K7SATAPHY(Module):
 	# CRG / CTRL
 		crg = K7SATAPHYCRG(pads, gtx, clk_freq, default_speed)
 		if host:
-			ctrl = K7SATAPHYHostCtrl(gtx, clk_freq)
+			ctrl = K7SATAPHYHostCtrl(gtx, crg, clk_freq)
 		else:
-			ctrl = K7SATAPHYDeviceCtrl(gtx, clk_freq)
+			ctrl = K7SATAPHYDeviceCtrl(gtx, crg, clk_freq)
 		self.submodules += crg, ctrl
-		self.comb += ctrl.start.eq(crg.ready)
 
 	# DATAPATH
-		rxalign = K7SATAPHYRXAlign()
 		rxconvert = K7SATAPHYRXConvert()
 		txconvert = K7SATAPHYTXConvert()
-		self.submodules += rxalign, rxconvert, txconvert
+		self.submodules += rxconvert, txconvert
 		self.comb += [
-			rxalign.rxdata_i.eq(gtx.rxdata),
-			rxalign.rxcharisk_i.eq(gtx.rxcharisk),
-			rxconvert.rxdata.eq(rxalign.rxdata_o),
-			rxconvert.rxcharisk.eq(rxalign.rxcharisk_o),
+			rxconvert.rxdata.eq(gtx.rxdata),
+			rxconvert.rxcharisk.eq(gtx.rxcharisk),
 
 			gtx.txdata.eq(txconvert.txdata),
 			gtx.txcharisk.eq(txconvert.txcharisk)
@@ -53,7 +48,7 @@ class K7SATAPHY(Module):
 				txconvert.sink.charisk.eq(ctrl.txcharisk)
 			),
 			self.source.stb.eq(rxconvert.source.stb),
-			self.source.payload.eq(rxconvert.source.payload),
-			rxconvert.source.ack.eq(self.source.ack),
+			self.source.payload.eq(rxconvert.source.data),
+			rxconvert.source.ack.eq(1),
 			ctrl.rxdata.eq(rxconvert.source.data)
 		]

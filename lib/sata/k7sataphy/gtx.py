@@ -28,6 +28,7 @@ class K7SATAPHYGTX(Module):
 
 		# Receive Ports
 		self.rxuserrdy = Signal()
+		self.rxalign = Signal()
 
 		# Receive Ports - 8b10b Decoder
 		self.rxcharisk = Signal(2)
@@ -78,7 +79,7 @@ class K7SATAPHYGTX(Module):
 
 		# Transmit Ports - TX Data Path interface
 		self.gttxreset = Signal()
-		self.txdata = Signal()
+		self.txdata = Signal(16)
 		self.txoutclk = Signal()
 		self.txusrclk = Signal()
 		self.txusrclk2 = Signal()
@@ -172,6 +173,7 @@ class K7SATAPHYGTX(Module):
 		rxphalignen = Signal()
 		rxphdlyreset = Signal()
 		rxrate = Signal(3)
+		rxalign = Signal()
 
 		self.specials += [
 			MultiReg(self.rxuserrdy, rxuserrdy, "sata_rx"),
@@ -181,7 +183,8 @@ class K7SATAPHYGTX(Module):
 			MultiReg(self.rxphalign, rxphalign, "sata_rx"),
 			MultiReg(self.rxphalignen, rxphalignen, "sata_rx"),
 			MultiReg(self.rxphdlyreset, rxphdlyreset, "sata_rx"),
-			MultiReg(self.rxrate, rxrate, "sata_rx")
+			MultiReg(self.rxrate, rxrate, "sata_rx"),
+			MultiReg(self.rxalign, rxalign, "sata_rx"),
 		]
 
 
@@ -205,6 +208,11 @@ class K7SATAPHYGTX(Module):
 			_PulseSynchronizer(rxcomwakedet, "sata_rx", self.rxcomwakedet, "sys"),
 		]	
 
+
+		self.rxbyteisaligned = Signal()
+		self.rxbyterealign = Signal()
+		self.rxcommadet = Signal()
+
 	# Instance
 		gtxe2_channel_parameters = {
 				# Simulation-Only Attributes
@@ -219,9 +227,9 @@ class K7SATAPHYGTX(Module):
 					"p_ALIGN_COMMA_ENABLE":ones(10),
 					"p_ALIGN_COMMA_WORD":2,
 					"p_ALIGN_MCOMMA_DET":"TRUE",
-					"p_ALIGN_MCOMMA_VALUE":K28_5,
+					"p_ALIGN_MCOMMA_VALUE":0b1010000011,
 					"p_ALIGN_PCOMMA_DET":"TRUE",
-					"p_ALIGN_PCOMMA_VALUE":~K28_5,
+					"p_ALIGN_PCOMMA_VALUE":0b0101111100,
 					"p_SHOW_REALIGN_COMMA":"FALSE",
 					"p_RXSLIDE_AUTO_WAIT":7,
 					"p_RXSLIDE_MODE":"OFF",
@@ -616,12 +624,12 @@ class K7SATAPHYGTX(Module):
 					#o_RXSTATUS=,
 
 				# Receive Ports - RX Byte and Word Alignment Ports
-					#o_RXBYTEISALIGNED=,
-					#o_RXBYTEREALIGN=,
-					#o_RXCOMMADET=,
+					o_RXBYTEISALIGNED=self.rxbyteisaligned,
+					o_RXBYTEREALIGN=self.rxbyterealign,
+					o_RXCOMMADET=self.rxcommadet,
 					i_RXCOMMADETEN=1,
-					i_RXMCOMMAALIGNEN=0,
-					i_RXPCOMMAALIGNEN=0,
+					i_RXMCOMMAALIGNEN=rxalign,
+					i_RXPCOMMAALIGNEN=rxalign,
 
 				# Receive Ports - RX Channel Bonding Ports
 					#o_RXCHANBONDSEQ=,

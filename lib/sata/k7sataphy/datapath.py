@@ -5,69 +5,57 @@ from migen.flow.actor import Sink, Source
 
 from lib.sata.k7sataphy.std import *
 
-class K7SATAPHYRXAlign(Module):
+class K7SATAPHYRXConvert(Module):
 	def __init__(self, dw=16):
-		self.rxdata_i = Signal(dw)
-		self.rxcharisk_i = Signal(dw//8)
+		self.rxdata = Signal(dw)
+		self.rxcharisk = Signal(dw//8)
 
-		self.rxdata_o = Signal(dw)
-		self.rxcharisk_o = Signal(dw//8)
+		self.source = Source([("data", 32), ("charisk", 4)])
 
 		###
 
-		rxdata_r = Signal(dw)
-		rxcharisk_r = Signal(dw//8)
+		# byte alignment
+		rxdata_r = Signal(2*dw)
+		rxcharisk_r = Signal((2*dw)//8)
+		rxalignment = Signal(dw//8)
+		rxvalid = Signal()
 		self.sync.sata_rx += [
-			rxdata_r.eq(self.rxdata_i),
-			rxcharisk_r.eq(self.rxcharisk_i)
+			rxdata_r.eq(Cat(self.rxdata, rxdata_r[0:dw])),
+			rxcharisk_r.eq(Cat(self.rxcharisk, rxcharisk_r[0:dw//8])),
+			If(self.rxcharisk != 0,
+				rxalignment.eq(self.rxcharisk),
+				rxvalid.eq(1)
+			).Else(
+				rxvalid.eq(~rxvalid)
+			)
 		]
+
+		rxdata = Signal(2*dw)
+		rxcharisk = Signal((2*dw)//8)
 		cases = {}
 		cases[1<<0] = [
-				self.rxdata_o.eq(rxdata_r[0:dw]),
-				self.rxcharisk_o.eq(rxcharisk_r[0:dw//8])
+				rxdata.eq(rxdata_r[0:]),
+				rxcharisk.eq(rxcharisk_r[0:])
 		]
 		for i in range(1, dw//8):
 			cases[1<<i] = [
-				self.rxdata_o.eq(Cat(self.rxdata_i[8*i:dw], rxdata_r[0:8*i])),
-				self.rxcharisk_o.eq(Cat(self.rxcharisk_i[i:dw//8], rxcharisk_r[0:i]))
+				rxdata.eq(Cat(self.rxdata[8*i:dw], rxdata_r[0:dw+8*i])),
+				rxcharisk.eq(Cat(self.rxcharisk[i:dw//8], rxcharisk_r[0:dw//8+i]))
 			]
-		self.comb += Case(rxcharisk_r, cases)
-
-class K7SATAPHYRXConvert(Module):
-	def __init__(self):
-		self.rxdata = Signal(16)
-		self.rxcharisk = Signal(2)
-
-		self.source = Source([("data", 32), ("charisk", 4)])
-		###
-
-		# convert data widths
-		rx_converter = RenameClockDomains(Converter([("raw", 16+2)], [("raw", 32+4)]), "sata_rx")
-		self.submodules += rx_converter
-		self.comb += [
-			rx_converter.sink.stb.eq(1),
-			rx_converter.sink.raw.eq(Cat(self.rxdata , self.rxcharisk)),
-			rx_converter.source.ack.eq(1)
-		]
-
+		self.comb += Case(rxalignment, cases)
 
 		# clock domain crossing
-		# SATA device is supposed to lock its tx frequency to its received rx frequency, so this
-		# ensure that sata_rx and sata_tx clock have the same frequency with only not the same
-		# phase and thus ensute the rx_fifo will never be full.
-		rx_fifo = AsyncFIFO([("raw", 36)], 16)
+		rx_fifo = AsyncFIFO([("data", 32), ("charisk", 4)], 16)
 		self.submodules.rx_fifo = RenameClockDomains(rx_fifo, {"write": "sata_rx", "read": "sys"})
 		self.comb += [
-			rx_converter.source.connect(self.rx_fifo.sink),
-			self.rx_fifo.source.ack.eq(1),
+			rx_fifo.sink.stb.eq(rxvalid),
+			rx_fifo.sink.data.eq(rxdata),
+			rx_fifo.sink.charisk.eq(rxcharisk),
 		]
 
-		# rearrange data
+		# connect source
 		self.comb += [
-			self.source.stb.eq(self.rx_fifo.source.stb),
-			self.source.payload.data.eq(Cat(rx_fifo.source.raw[0:16], rx_fifo.source.raw[18:18+16])),
-			self.source.payload.charisk.eq(Cat(rx_fifo.source.raw[16:18], rx_fifo.source.raw[18+16:18+18])),
-			self.rx_fifo.source.ack.eq(self.source.ack),
+			Record.connect(rx_fifo.source, self.source)
 		]
 
 class K7SATAPHYTXConvert(Module):

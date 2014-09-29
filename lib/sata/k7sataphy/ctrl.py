@@ -11,8 +11,7 @@ def us(t, clk_freq):
 	return ceil(t/clk_period_us)
 
 class K7SATAPHYHostCtrl(Module):
-	def __init__(self, gtx, clk_freq):
-		self.start = Signal()
+	def __init__(self, gtx, crg, clk_freq):
 		self.ready = Signal()
 
 		self.txdata = Signal(32)
@@ -33,7 +32,7 @@ class K7SATAPHYHostCtrl(Module):
 
 		fsm.act("RESET",
 			gtx.txelecidle.eq(1),
-			If(self.start,
+			If(crg.ready,
 				NextState("COMINIT")
 			)
 		)
@@ -89,8 +88,7 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("AWAIT_ALIGN",
 			gtx.txelecidle.eq(0),
-			self.txdata.eq(0x4A4A4A4A), #D10.2
-			self.txcharisk.eq(0b0000),
+			gtx.rxalign.eq(1),
 			If(align_detect & ~align_timeout,
 				NextState("SEND_ALIGN")
 			).Elif(~align_detect & align_timeout,
@@ -143,7 +141,7 @@ class K7SATAPHYHostCtrl(Module):
 
 		self.sync += \
 			If(fsm.ongoing("SEND_ALIGN"),
-				If(self.rxdata[0:8] == K28_5,
+				If(self.rxdata[0:8] == 0xBC,
 					non_align_cnt.eq(non_align_cnt + 1)
 				).Else(
 					non_align_cnt.eq(0)
@@ -151,8 +149,7 @@ class K7SATAPHYHostCtrl(Module):
 			)
 
 class K7SATAPHYDeviceCtrl(Module):
-	def __init__(self, gtx, clk_freq):
-		self.start = Signal()
+	def __init__(self, gtx, crg, clk_freq):
 		self.ready = Signal()
 
 		self.txdata = Signal(32)
@@ -172,7 +169,7 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		fsm.act("RESET",
 			gtx.txelecidle.eq(1),
-			If(self.start,
+			If(crg.ready,
 				NextState("AWAIT_COMINIT")
 			)
 		)
@@ -218,6 +215,7 @@ class K7SATAPHYDeviceCtrl(Module):
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
+			gtx.rxalign.eq(1),
 			self.txdata.eq(ALIGN_VAL),
 			self.txcharisk.eq(0b0001),
 			If(align_detect,
