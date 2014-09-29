@@ -83,8 +83,13 @@ class K7SATAPHYHostCtrl(Module):
 		fsm.act("AWAIT_NO_COMWAKE",
 			gtx.txelecidle.eq(1),
 			If(~gtx.rxcomwakedet,
-				NextState("AWAIT_ALIGN")
+				NextState("RESET_CRG")
 			)
+		)
+		fsm.act("RESET_CRG",
+			gtx.txelecidle.eq(0),
+			crg.reset.eq(1),
+			NextState("AWAIT_ALIGN")
 		)
 		fsm.act("AWAIT_ALIGN",
 			gtx.txelecidle.eq(0),
@@ -99,14 +104,12 @@ class K7SATAPHYHostCtrl(Module):
 			gtx.txelecidle.eq(0),
 			self.txdata.eq(ALIGN_VAL),
 			self.txcharisk.eq(0b0001),
-			If(non_align_cnt == 3,
+			If(non_align_cnt == 15,
 				NextState("READY")
 			)
 		)
 		fsm.act("READY",
 			gtx.txelecidle.eq(0),
-			self.txdata.eq(SYNC_VAL),
-			self.txcharisk.eq(0b0001),
 			If(gtx.rxelecidle,
 				NextState("RESET")
 			),
@@ -210,8 +213,13 @@ class K7SATAPHYDeviceCtrl(Module):
 			gtx.txelecidle.eq(1),
 			gtx.txcomwake.eq(1),
 			If(gtx.txcomfinish,
-				NextState("SEND_ALIGN")
+				NextState("RESET_CRG")
 			)
+		)
+		fsm.act("RESET_CRG",
+			gtx.txelecidle.eq(0),
+			crg.reset.eq(1),
+			NextState("SEND_ALIGN")
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
@@ -225,8 +233,6 @@ class K7SATAPHYDeviceCtrl(Module):
 			)
 		)
 		fsm.act("READY",
-			self.txdata.eq(SYNC_VAL),
-			self.txcharisk.eq(0b0001),
 			gtx.txelecidle.eq(0),
 			NextState("READY"),
 			If(gtx.rxelecidle,

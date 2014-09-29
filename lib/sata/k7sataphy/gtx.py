@@ -239,7 +239,7 @@ class K7SATAPHYGTX(Module):
 					"p_RX_DISPERR_SEQ_MATCH":"TRUE",
 					"p_DEC_MCOMMA_DETECT":"TRUE",
 					"p_DEC_PCOMMA_DETECT":"TRUE",
-					"p_DEC_VALID_COMMA_ONLY":"FALSE",
+					"p_DEC_VALID_COMMA_ONLY":"TRUE",
 
 				# RX Clock Correction Attributes
 					"p_CBCC_DATA_SOURCE_SEL":"DECODED",
