@@ -68,21 +68,21 @@ _io = [
 	),
 
 	("sata_host", 0,
-		Subsignal("refclk_p", Pins("YYY")),
-		Subsignal("refclk_n", Pins("YYY")),
-		Subsignal("txp", Pins("YYY")),
-		Subsignal("txn", Pins("YYY")),
-		Subsignal("rxp", Pins("YYY")),
-		Subsignal("rxn", Pins("YYY")),
+		Subsignal("refclk_p", Pins("G8")), # 125MHz SGMII
+		Subsignal("refclk_n", Pins("G7")), # 125MHz SGMII
+		Subsignal("txp", Pins("H2")), # SFP
+		Subsignal("txn", Pins("H1")), # SFP
+		Subsignal("rxp", Pins("G4")), # SFP
+		Subsignal("rxn", Pins("G3")), # SFP
 	),
 
 	("sata_device", 0,
-		Subsignal("refclk_p", Pins("YYY")),
-		Subsignal("refclk_n", Pins("YYY")),
-		Subsignal("txp", Pins("YYY")),
-		Subsignal("txn", Pins("YYY")),
-		Subsignal("rxp", Pins("YYY")),
-		Subsignal("rxn", Pins("YYY")),
+		Subsignal("refclk_p", Pins("G8")), # 125MHz SGMII
+		Subsignal("refclk_n", Pins("G7")), # 125MHz SGMII
+		Subsignal("txp", Pins("H2")), # SFP
+		Subsignal("txn", Pins("H1")), # SFP
+		Subsignal("rxp", Pins("G4")), # SFP
+		Subsignal("rxn", Pins("G3")), # SFP
 	),
 ]
 
