@@ -88,63 +88,21 @@ class UART2WB(Module):
 
 class TestDesign(UART2WB):
 	default_platform = "kc705"
-	csr_map = {
-		"mila":				10
-	}
-	csr_map.update(UART2WB.csr_map)
 
-	def __init__(self, platform, **kwargs):
+	def __init__(self, platform):
 		clk_freq = 166666*1000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
-		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, 
-			host=True, default_speed="SATA3")
+		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True)
 		self.comb += [
 			self.sataphy_host.sink.stb.eq(1),
 			self.sataphy_host.sink.payload.d.eq(0x12345678)
 		]
-
-		import os
-		from miscope import trigger, miio, mila
-		from mibuild.tools import write_to_file
-		from migen.fhdl import verilog
-
-		term = trigger.Term(width=64)
-		self.submodules.mila = mila.MiLa(width=64, depth=2048, ports=[term], with_rle=True)
-
-		gtx = self.sataphy_host.gtx
-		ctrl = self.sataphy_host.ctrl
-
-		mila_dat = (
-			gtx.rxresetdone,
-			gtx.txresetdone,
-
-			gtx.rxuserrdy,
-			gtx.txuserrdy,
-
-			gtx.rxcominitdet,
-			gtx.rxcomwakedet,
-
-			gtx.txcomfinish,
-			gtx.txcominit,
-			gtx.txcomwake,
-
-		)
-
+		self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
 		self.comb += [
-			self.mila.sink.stb.eq(1),
-			self.mila.sink.dat.eq(Cat(*mila_dat))
+			self.sataphy_device.sink.stb.eq(1),
+			self.sataphy_device.sink.payload.d.eq(0x12345678)
 		]
-
-		try:
-			gen_mila_csv = kwargs.pop('gen_mila_csv')
-		except:
-			gen_mila_csv = False
-
-		if gen_mila_csv: 
-			r, ns = verilog.convert(self, return_ns=True)
-			mila_csv = self.mila.get_csv(mila_dat, ns)
-			write_to_file(os.path.join(platform.soc_ext_path, "test", "mila.csv"), mila_csv)
 
 default_subtarget = TestDesign

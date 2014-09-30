@@ -7,7 +7,7 @@ PLATFORM = kc705_impact
 CMD = $(PYTHON) make.py -X $(CURDIR) -Op toolchain $(TOOLCHAIN) -p $(PLATFORM) -t test
 
 csv:
-	cd $(MSCDIR) && $(CMD) --csr_csv $(CURDIR)/test/csr.csv build-csr-csv -Ot gen_mila_csv True
+	cd $(MSCDIR) && $(CMD) --csr_csv $(CURDIR)/test/csr.csv build-csr-csv
 	cd $(CURDIR)
 
 bit:
