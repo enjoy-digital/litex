@@ -102,7 +102,7 @@ class TestDesign(UART2WB):
 			host=True, default_speed="SATA3")
 		self.comb += [
 			self.sataphy_host.sink.stb.eq(1),
-			self.sataphy_host.sink.d.eq(0x12345678)
+			self.sataphy_host.sink.payload.d.eq(0x12345678)
 		]
 
 		import os
