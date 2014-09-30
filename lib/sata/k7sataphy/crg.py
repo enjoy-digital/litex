@@ -5,6 +5,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 
 from lib.sata.k7sataphy.std import *
+from lib.sata.k7sataphy.gtx import GTXE2_COMMON
 
 class K7SATAPHYReconfig(Module):
 	def __init__(self, channel_drp, mmcm_drp):
@@ -44,6 +45,15 @@ class K7SATAPHYCRG(Module):
 			o_O=refclk
 		)
 		self.comb += gtx.gtrefclk0.eq(refclk)
+
+	# QPLL
+		# not used be need to be there... see AR43339...
+		gtx_common = GTXE2_COMMON()
+		self.comb += [
+			gtx_common.refclk0.eq(refclk),
+			gtx.qpllclk.eq(gtx_common.qpllclk),
+			gtx.qpllrefclk.eq(gtx_common.qpllrefclk),
+		]
 
 	# TX clocking
 		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)

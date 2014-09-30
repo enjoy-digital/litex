@@ -99,7 +99,7 @@ class TestDesign(UART2WB):
 		self.submodules.crg = _CRG(platform)
 
 		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, 
-			host=True, default_speed="SATA1")
+			host=True, default_speed="SATA3")
 		self.comb += [
 			self.sataphy_host.sink.stb.eq(1),
 			self.sataphy_host.sink.d.eq(0x12345678)
