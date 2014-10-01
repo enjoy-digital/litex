@@ -1,9 +1,12 @@
 from migen.fhdl.structure import *
+from migen.fhdl import verilog
 from migen.bank.description import *
 
 from miscope.std import *
 from miscope.trigger import Trigger
 from miscope.storage import Recorder, RunLengthEncoder
+
+from mibuild.tools import write_to_file
 
 class MiLa(Module, AutoCSR):
 	def __init__(self, width, depth, ports, with_rle=False):
@@ -32,7 +35,8 @@ class MiLa(Module, AutoCSR):
 		else:
 			self.sink.connect(recorder.dat_sink)
 
-	def get_csv(self, layout, ns):
+	def export(self, design, layout, filename):
+		ret, ns = verilog.convert(design, return_ns=True)
 		r = ""
 		def format_line(*args):
 			return ",".join(args) + "\n"
@@ -43,4 +47,4 @@ class MiLa(Module, AutoCSR):
 
 		for e in layout:
 			r += format_line("layout", ns.get_name(e), str(flen(e)))
-		return r
+		write_to_file(filename, r)
