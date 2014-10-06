@@ -3,13 +3,14 @@ from migen.fhdl import verilog
 from migen.bank.description import *
 
 from miscope.std import *
+from migen.actorlib.fifo import AsyncFIFO
 from miscope.trigger import Trigger
 from miscope.storage import Recorder, RunLengthEncoder
 
 from mibuild.tools import write_to_file
 
 class MiLa(Module, AutoCSR):
-	def __init__(self, width, depth, ports, with_rle=False):
+	def __init__(self, width, depth, ports, with_rle=False, clk_domain="sys"):
 		self.width = width
 		self.depth = depth
 		self.with_rle = with_rle
@@ -17,23 +18,38 @@ class MiLa(Module, AutoCSR):
 
 		self.sink = Record(dat_layout(width))
 
+		if clk_domain is not "sys":
+			fifo = AsyncFIFO([("dat", width)], 32) # FIXME: reduce this
+			self.submodules += RenameClockDomains(fifo, {"write": clk_domain, "read": "sys"})
+			self.comb += [
+				fifo.sink.stb.eq(self.sink.stb),
+				fifo.sink.dat.eq(self.sink.dat)
+			]
+			sink = Record(dat_layout(width))
+			self.comb += [
+				sink.stb.eq(fifo.source.stb),
+				sink.dat.eq(fifo.source.dat),
+				fifo.source.ack.eq(1)
+			]
+		else:
+			sink = self.sink
+
 		self.submodules.trigger = trigger = Trigger(width, ports)
 		self.submodules.recorder = recorder = Recorder(width, depth)
 
 		self.comb += [
-			self.sink.connect(trigger.sink),
+			sink.connect(trigger.sink),
 			trigger.source.connect(recorder.trig_sink)
 		]
 
-		recorder_dat_source = self.sink
 		if with_rle:
 			self.submodules.rle = rle = RunLengthEncoder(width)
 			self.comb += [
-				self.sink.connect(rle.sink),
+				sink.connect(rle.sink),
 				rle.source.connect(recorder.dat_sink)
 			]
 		else:
-			self.sink.connect(recorder.dat_sink)
+			sink.connect(recorder.dat_sink)
 
 	def export(self, design, layout, filename):
 		ret, ns = verilog.convert(design, return_ns=True)
