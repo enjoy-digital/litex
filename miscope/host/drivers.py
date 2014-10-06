@@ -23,7 +23,7 @@ class MiIoDriver():
 		return self.miio_i.read()
 
 class MiLaDriver():
-	def __init__(self, regs, name, config_csv=None, use_rle=True):
+	def __init__(self, regs, name, config_csv=None, use_rle=False):
 		self.regs = regs
 		self.name = name
 		self.use_rle = use_rle
@@ -33,7 +33,7 @@ class MiLaDriver():
 		self.get_layout()
 		self.build_mila()
 		self.dat = Dat(self.width)
-		
+
 	def get_config(self):
 		csv_reader = csv.reader(open(self.config_csv), delimiter=',', quotechar='#')
 		for item in csv_reader:
@@ -86,14 +86,14 @@ class MiLaDriver():
 		rm.write(rising_mask)
 		fm.write(falling_mask)
 		bm.write(both_mask)
-		
+
 	def prog_sum(self, equation):
 		datas = gen_truth_table(equation)
 		for adr, dat in enumerate(datas):
 			self.mila_trigger_sum_prog_adr.write(adr)
 			self.mila_trigger_sum_prog_dat.write(dat)
 			self.mila_trigger_sum_prog_we.write(1)
-			
+
 	def config_rle(self, v):
 		self.mila_rle_enable.write(v)
 
@@ -120,8 +120,9 @@ class MiLaDriver():
 			self.dat.append(self.mila_recorder_read_dat.read())
 			empty = self.mila_recorder_read_empty.read()
 			self.mila_recorder_read_en.write(1)
-		if self.use_rle:
-			self.dat = self.dat.decode_rle()
+		if self.with_rle:
+			if self.use_rle:
+				self.dat = self.dat.decode_rle()
 		return self.dat
 
 	def export(self, export_fn=None):

@@ -36,7 +36,6 @@ class MiLa(Module, AutoCSR):
 
 		self.submodules.trigger = trigger = Trigger(width, ports)
 		self.submodules.recorder = recorder = Recorder(width, depth)
-
 		self.comb += [
 			sink.connect(trigger.sink),
 			trigger.source.connect(recorder.trig_sink)
@@ -49,7 +48,7 @@ class MiLa(Module, AutoCSR):
 				rle.source.connect(recorder.dat_sink)
 			]
 		else:
-			sink.connect(recorder.dat_sink)
+			self.comb += sink.connect(recorder.dat_sink)
 
 	def export(self, design, layout, filename):
 		ret, ns = verilog.convert(design, return_ns=True)
