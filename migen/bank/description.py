@@ -53,6 +53,7 @@ class CSRStorage(_CompoundCSR):
 		self.storage = Signal(self.size - self.alignment_bits, reset=reset >> alignment_bits)
 		self.comb += self.storage.eq(self.storage_full[self.alignment_bits:])
 		self.atomic_write = atomic_write
+		self.re = Signal()
 		if write_from_dev:
 			self.we = Signal()
 			self.dat_w = Signal(self.size - self.alignment_bits)
@@ -84,6 +85,7 @@ class CSRStorage(_CompoundCSR):
 					self.sync += If(sc.re, self.storage_full.eq(Cat(sc.r, backstore)))
 			else:
 				self.sync += If(sc.re, self.storage_full[lo:hi].eq(sc.r))
+		self.sync += self.re.eq(sc.re)
 
 def csrprefix(prefix, csrs, done):
 	for csr in csrs:
