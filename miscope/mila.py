@@ -1,9 +1,9 @@
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.bank.description import *
+from migen.actorlib.fifo import AsyncFIFO
 
 from miscope.std import *
-from migen.actorlib.fifo import AsyncFIFO
 from miscope.trigger import Trigger
 from miscope.storage import Recorder, RunLengthEncoder
 
@@ -19,7 +19,7 @@ class MiLa(Module, AutoCSR):
 		self.sink = Record(dat_layout(width))
 
 		if clk_domain is not "sys":
-			fifo = AsyncFIFO([("dat", width)], 32) # FIXME: reduce this
+			fifo = AsyncFIFO([("dat", width)], 32)
 			self.submodules += RenameClockDomains(fifo, {"write": clk_domain, "read": "sys"})
 			self.comb += [
 				fifo.sink.stb.eq(self.sink.stb),
