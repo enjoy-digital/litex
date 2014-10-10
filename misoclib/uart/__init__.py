@@ -125,7 +125,7 @@ class UART(Module, AutoCSR):
 				self.tx.sink.stb.eq(0)
 			),
 			If(self.rx.source.stb,
-				self._r_rxtx.w.eq(self.rx.source.d)
+				self._r_rxtx.w.eq(self.rx.source.payload.d)
 			)
 		]
 		self.comb += [
@@ -135,9 +135,8 @@ class UART(Module, AutoCSR):
 
 class UARTTB(Module):
 	def __init__(self):
-		MHz=1000000
 		self.clk_freq = 83333333
-		self.baud = 3*MHz
+		self.baud = 3000000
 		self.pads = Record([("rx", 1), ("tx", 1)])
 		self.submodules.slave = UART(self.pads, self.clk_freq, self.baud)
 
