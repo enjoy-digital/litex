@@ -103,7 +103,7 @@ class UART2Wishbone(Module, AutoCSR):
 			burst_cnt.clr.eq(1)
 			)
 		)
-		self.sync += If(fsm.ongoing("WAIT_CMD") & uart.rx.source.stb, cmd.eq(uart.rx.source.d))
+		self.sync += If(fsm.ongoing("WAIT_CMD") & uart.rx.source.stb, cmd.eq(uart.rx.source.payload.d))
 
 		####
 		burst_length = Signal(8)
@@ -115,7 +115,7 @@ class UART2Wishbone(Module, AutoCSR):
 			)
 		)
 		self.sync += \
-			If(fsm.ongoing("RECEIVE_BURST_LENGTH") & uart.rx.source.stb, burst_length.eq(uart.rx.source.d))
+			If(fsm.ongoing("RECEIVE_BURST_LENGTH") & uart.rx.source.stb, burst_length.eq(uart.rx.source.payload.d))
 
 		####
 		address = Signal(32)
@@ -132,7 +132,7 @@ class UART2Wishbone(Module, AutoCSR):
 		)
 		self.sync += \
 			If(fsm.ongoing("RECEIVE_ADDRESS") & uart.rx.source.stb,
-					address.eq(Cat(uart.rx.source.d, address[0:24]))
+					address.eq(Cat(uart.rx.source.payload.d, address[0:24]))
 			)
 
 		###
@@ -195,7 +195,7 @@ class UART2Wishbone(Module, AutoCSR):
 		###
 		self.sync += \
 			If(fsm.ongoing("RECEIVE_DATA") & uart.rx.source.stb,
-				data.eq(Cat(uart.rx.source.d, data[0:24]))
+				data.eq(Cat(uart.rx.source.payload.d, data[0:24]))
 			).Elif(fsm.ongoing("READ_DATA") & self.wishbone.stb & self.wishbone.ack,
 				data.eq(self.wishbone.dat_r)
 			)
