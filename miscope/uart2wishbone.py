@@ -189,7 +189,7 @@ class UART2Wishbone(Module, AutoCSR):
 				)
 			),
 			uart.tx.sink.stb.eq(1),
-			chooser(data, word_cnt.value, uart.tx.sink.d, n=4, reverse=True)
+			chooser(data, word_cnt.value, uart.tx.sink.payload.d, n=4, reverse=True)
 		)
 
 		###
