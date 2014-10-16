@@ -131,7 +131,7 @@ class K7SATAPHYHostCtrl(Module):
 			gtx.txcomwake.eq(txcomwake & ~txcomwake_d),
 		]
 
-		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);	
+		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
 		self.sync += \
 			If(fsm.ongoing("RESET"),
 				align_timeout_cnt.eq(us(873, clk_freq))
@@ -190,7 +190,7 @@ class K7SATAPHYDeviceCtrl(Module):
 			If(gtx.rxcominitdet,
 				NextState("COMINIT")
 			)
-		)	
+		)
 		fsm.act("COMINIT",
 			gtx.txelecidle.eq(1),
 			txcominit.eq(1),
@@ -220,7 +220,7 @@ class K7SATAPHYDeviceCtrl(Module):
 		)
 		fsm.act("COMWAKE",
 			gtx.txelecidle.eq(1),
-			gtx.txcomwake.eq(1),
+			txcomwake.eq(1),
 			If(gtx.txcomfinish,
 				NextState("RESET_CRG")
 			)
