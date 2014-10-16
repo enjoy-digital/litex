@@ -95,15 +95,15 @@ class UART2Wishbone(Module, AutoCSR):
 		cmd = Signal(8)
 		fsm.act("WAIT_CMD",
 			If(uart.rx.source.stb,
-				If(	(uart.rx.source.payload.d == self.WRITE_CMD) |
-					(uart.rx.source.payload.d == self.READ_CMD),
+				If(	(uart.rx.source.d == self.WRITE_CMD) |
+					(uart.rx.source.d == self.READ_CMD),
 					NextState("RECEIVE_BURST_LENGTH")
 				),
 			word_cnt.clr.eq(1),
 			burst_cnt.clr.eq(1)
 			)
 		)
-		self.sync += If(fsm.ongoing("WAIT_CMD") & uart.rx.source.stb, cmd.eq(uart.rx.source.payload.d))
+		self.sync += If(fsm.ongoing("WAIT_CMD") & uart.rx.source.stb, cmd.eq(uart.rx.source.d))
 
 		####
 		burst_length = Signal(8)
@@ -115,7 +115,7 @@ class UART2Wishbone(Module, AutoCSR):
 			)
 		)
 		self.sync += \
-			If(fsm.ongoing("RECEIVE_BURST_LENGTH") & uart.rx.source.stb, burst_length.eq(uart.rx.source.payload.d))
+			If(fsm.ongoing("RECEIVE_BURST_LENGTH") & uart.rx.source.stb, burst_length.eq(uart.rx.source.d))
 
 		####
 		address = Signal(32)
@@ -132,7 +132,7 @@ class UART2Wishbone(Module, AutoCSR):
 		)
 		self.sync += \
 			If(fsm.ongoing("RECEIVE_ADDRESS") & uart.rx.source.stb,
-					address.eq(Cat(uart.rx.source.payload.d, address[0:24]))
+					address.eq(Cat(uart.rx.source.d, address[0:24]))
 			)
 
 		###
@@ -189,13 +189,13 @@ class UART2Wishbone(Module, AutoCSR):
 				)
 			),
 			uart.tx.sink.stb.eq(1),
-			chooser(data, word_cnt.value, uart.tx.sink.payload.d, n=4, reverse=True)
+			chooser(data, word_cnt.value, uart.tx.sink.d, n=4, reverse=True)
 		)
 
 		###
 		self.sync += \
 			If(fsm.ongoing("RECEIVE_DATA") & uart.rx.source.stb,
-				data.eq(Cat(uart.rx.source.payload.d, data[0:24]))
+				data.eq(Cat(uart.rx.source.d, data[0:24]))
 			).Elif(fsm.ongoing("READ_DATA") & self.wishbone.stb & self.wishbone.ack,
 				data.eq(self.wishbone.dat_r)
 			)
