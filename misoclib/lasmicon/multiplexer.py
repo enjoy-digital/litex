@@ -30,15 +30,15 @@ class _CommandChooser(Module):
 		self.want_cmds = Signal()
 		# NB: cas_n/ras_n/we_n are 1 when stb is inactive
 		self.cmd = CommandRequestRW(flen(requests[0].a), flen(requests[0].ba))
-	
+
 		###
 
 		rr = RoundRobin(len(requests), SP_CE)
 		self.submodules += rr
-		
+
 		self.comb += [rr.request[i].eq(req.stb & ((req.is_cmd & self.want_cmds) | ((req.is_read == self.want_reads) | (req.is_write == self.want_writes))))
 			for i, req in enumerate(requests)]
-		
+
 		stb = Signal()
 		self.comb += stb.eq(Array(req.stb for req in requests)[rr.grant])
 		for name in ["a", "ba", "is_read", "is_write", "is_cmd"]:
@@ -51,7 +51,7 @@ class _CommandChooser(Module):
 		self.comb += self.cmd.stb.eq(stb \
 			& ((self.cmd.is_cmd & self.want_cmds) | ((self.cmd.is_read == self.want_reads) \
 			& (self.cmd.is_write == self.want_writes))))
-		
+
 		self.comb += [If(self.cmd.stb & self.cmd.ack & (rr.grant == i), req.ack.eq(1))
 			for i, req in enumerate(requests)]
 		self.comb += rr.ce.eq(self.cmd.ack)
@@ -61,9 +61,9 @@ class _Steerer(Module):
 		ncmd = len(commands)
 		nph = len(dfi.phases)
 		self.sel = [Signal(max=ncmd) for i in range(nph)]
-	
+
 		###
-	
+
 		def stb_and(cmd, attr):
 			if not hasattr(cmd, "stb"):
 				return 0
@@ -91,7 +91,7 @@ class _Steerer(Module):
 class Multiplexer(Module, AutoCSR):
 	def __init__(self, phy_settings, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic):
 		assert(phy_settings.nphases == len(dfi.phases))
-	
+
 		# Command choosing
 		requests = [bm.cmd for bm in bank_machines]
 		choose_cmd = _CommandChooser(requests)
@@ -104,16 +104,16 @@ class Multiplexer(Module, AutoCSR):
 			self.comb += [
 				choose_cmd.want_cmds.eq(1),
 				choose_req.want_cmds.eq(1)
-			]	
+			]
 		self.submodules += choose_cmd, choose_req
-		
+
 		# Command steering
 		nop = CommandRequest(geom_settings.mux_a, geom_settings.bank_a)
 		commands = [nop, choose_cmd.cmd, choose_req.cmd, refresher.cmd] # nop must be 1st
 		(STEER_NOP, STEER_CMD, STEER_REQ, STEER_REFRESH) = range(4)
 		steerer = _Steerer(commands, dfi)
 		self.submodules += steerer
-		
+
 		# Read/write turnaround
 		read_available = Signal()
 		write_available = Signal()
@@ -121,7 +121,7 @@ class Multiplexer(Module, AutoCSR):
 			read_available.eq(optree("|", [req.stb & req.is_read for req in requests])),
 			write_available.eq(optree("|", [req.stb & req.is_write for req in requests]))
 		]
-		
+
 		def anti_starvation(timeout):
 			en = Signal()
 			max_time = Signal()
@@ -139,12 +139,12 @@ class Multiplexer(Module, AutoCSR):
 			return en, max_time
 		read_time_en, max_read_time = anti_starvation(timing_settings.read_time)
 		write_time_en, max_write_time = anti_starvation(timing_settings.write_time)
-		
+
 		# Refresh
 		self.comb += [bm.refresh_req.eq(refresher.req) for bm in bank_machines]
 		go_to_refresh = Signal()
 		self.comb += go_to_refresh.eq(optree("&", [bm.refresh_gnt for bm in bank_machines]))
-		
+
 		# Datapath
 		all_rddata = [p.rddata for p in dfi.phases]
 		all_wrdata = [p.wrdata for p in dfi.phases]
@@ -154,11 +154,11 @@ class Multiplexer(Module, AutoCSR):
 			Cat(*all_wrdata).eq(lasmic.dat_w),
 			Cat(*all_wrdata_mask).eq(~lasmic.dat_we)
 		]
-		
+
 		# Control FSM
 		fsm = FSM()
 		self.submodules += fsm
-		
+
 		def steerer_sel(steerer, phy_settings, r_w_n):
 			r = []
 			for i in range(phy_settings.nphases):

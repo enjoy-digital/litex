@@ -10,7 +10,7 @@ from misoclib.framebuffer.phy import Driver
 class Framebuffer(Module, AutoCSR):
 	def __init__(self, pads_vga, pads_dvi, lasmim):
 		pack_factor = lasmim.dw//bpp
-		
+
 		g = DataFlowGraph()
 
 		self.fi = FrameInitiator(lasmim.aw, pack_factor)
@@ -23,7 +23,7 @@ class Framebuffer(Module, AutoCSR):
 		cast = structuring.Cast(lasmim.dw, pixel_layout(pack_factor), reverse_to=True)
 		vtg = VTG(pack_factor)
 		self.driver = Driver(pack_factor, pads_vga, pads_dvi)
-		
+
 		g.add_connection(self.fi, vtg, source_subr=self.fi.timing_subr, sink_ep="timing")
 		g.add_connection(dma_out, cast)
 		g.add_connection(cast, vtg, sink_ep="pixels")

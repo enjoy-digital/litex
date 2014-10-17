@@ -13,10 +13,10 @@ class Granter(Module):
 		self.ack = ack
 		self.state = 0
 		self.prng = Random(92837)
-	
+
 	def do_simulation(self, selfp):
 		elts = ["@" + str(selfp.simulator.cycle_counter)]
-		
+
 		if self.state == 0:
 			if selfp.req:
 				elts.append("Refresher requested access")
@@ -31,7 +31,7 @@ class Granter(Module):
 				elts.append("Refresher released access")
 				selfp.ack = 0
 				self.state = 0
-			
+
 		if len(elts) > 1:
 			print("\t".join(elts))
 

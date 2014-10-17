@@ -69,7 +69,7 @@ class GenSoC(Module):
 
 		# add CPU Verilog sources
 		if cpu_type == "lm32":
-			platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"), 
+			platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"),
 				"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
 				"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
 				"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",

@@ -1,15 +1,15 @@
 #
-# 1:1 frequency-ratio Generic SDR PHY 
-# 
-# The GENSDRPHY is validated on CycloneIV (Altera) but since it does 
+# 1:1 frequency-ratio Generic SDR PHY
+#
+# The GENSDRPHY is validated on CycloneIV (Altera) but since it does
 # not use vendor-dependent code, it can also be used on other architectures.
 #
 # The PHY needs 2 Clock domains:
 #  - sys_clk    : The System Clock domain
-#  - sys_clk_ps : The System Clock domain with its phase shifted 
+#  - sys_clk_ps : The System Clock domain with its phase shifted
 #                 (-3ns on C4@100MHz)
 #
-# Assert dfi_wrdata_en and present the data 
+# Assert dfi_wrdata_en and present the data
 # on dfi_wrdata_mask/dfi_wrdata in the same
 # cycle as the write command.
 #
@@ -46,12 +46,12 @@ class GENSDRPHY(Module):
 			read_latency=4,
 			write_latency=0
 		)
-		
+
 		self.dfi = Interface(a, ba, d)
 
 		###
 
-		# 
+		#
 		# Command/address
 		#
 		self.sync += [
@@ -82,7 +82,7 @@ class GENSDRPHY(Module):
 		self.sync.sys_ps += sd_dq_in_ps.eq(pads.dq)
 		self.sync += self.dfi.p0.rddata.eq(sd_dq_in_ps)
 
-		# 
+		#
 		# DQ/DM control
 		#
 		d_dfi_wrdata_en = Signal()

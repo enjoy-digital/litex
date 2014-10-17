@@ -27,9 +27,9 @@ class Encoder(Module):
 		self.comb += q_m8_n.eq((n1d > 4) | ((n1d == 4) & ~d[0]))
 		for i in range(8):
 			if i:
-				curval = curval ^ d[i] ^ q_m8_n	
+				curval = curval ^ d[i] ^ q_m8_n
 			else:
-				curval = d[0]		
+				curval = d[0]
 			self.sync += q_m[i].eq(curval)
 		self.sync += q_m[8].eq(~q_m8_n)
 
@@ -199,7 +199,7 @@ def _decode_tmds(b):
 if __name__ == "__main__":
 	from migen.sim.generic import run_simulation
 	from random import Random
-	
+
 	rng = Random(788)
 	test_list = [rng.randrange(256) for i in range(500)]
 	tb = _EncoderTB(test_list)
@@ -207,7 +207,7 @@ if __name__ == "__main__":
 
 	check = [_decode_tmds(out)[3] for out in tb.outs]
 	assert(check == test_list)
-	
+
 	nb0 = 0
 	nb1 = 0
 	for out in tb.outs:

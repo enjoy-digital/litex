@@ -9,7 +9,7 @@ class Refresher(Module):
 		self.req = Signal()
 		self.ack = Signal() # 1st command 1 cycle after assertion of ack
 		self.cmd = CommandRequest(a, ba)
-	
+
 		###
 
 		# Refresh sequence generator:
@@ -37,7 +37,7 @@ class Refresher(Module):
 				seq_done.eq(1)
 			])
 		])
-		
+
 		# Periodic refresh counter
 		counter = Signal(max=tREFI)
 		start = Signal()
@@ -50,7 +50,7 @@ class Refresher(Module):
 				counter.eq(counter - 1)
 			)
 		]
-		
+
 		# Control FSM
 		fsm = FSM()
 		self.submodules += fsm

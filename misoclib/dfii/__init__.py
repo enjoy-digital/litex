@@ -10,7 +10,7 @@ class PhaseInjector(Module, AutoCSR):
 		self._baddress = CSRStorage(flen(phase.bank))
 		self._wrdata = CSRStorage(flen(phase.wrdata))
 		self._rddata = CSRStatus(flen(phase.rddata))
-	
+
 		###
 
 		self.comb += [
@@ -39,14 +39,14 @@ class DFIInjector(Module, AutoCSR):
 		inti = dfi.Interface(a, ba, d, nphases)
 		self.slave = dfi.Interface(a, ba, d, nphases)
 		self.master = dfi.Interface(a, ba, d, nphases)
-		
+
 		self._control = CSRStorage(4) # sel, cke, odt, reset_n
-		
+
 		for n, phase in enumerate(inti.phases):
 			setattr(self.submodules, "pi" + str(n), PhaseInjector(phase))
-	
+
 		###
-	
+
 		self.comb += If(self._control.storage[0],
 				self.slave.connect(self.master)
 			).Else(

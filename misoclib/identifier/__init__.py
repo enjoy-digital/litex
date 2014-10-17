@@ -9,7 +9,7 @@ class Identifier(Module, AutoCSR):
 		self._r_revision = CSRStatus(32)
 		self._r_frequency = CSRStatus(32)
 		self._r_l2_size = CSRStatus(8)
-		
+
 		###
 
 		if revision is None:

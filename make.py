@@ -42,7 +42,7 @@ Load/flash actions use the existing outputs, and do not trigger new builds.
 	parser.add_argument("-Op", "--platform-option", default=[], nargs=2, action="append", help="set platform-specific option")
 	parser.add_argument("-X", "--external", default="", help="use external directory for targets, platforms and imports")
 	parser.add_argument("--csr_csv", default="csr.csv", help="CSV file to save the CSR map into")
-	
+
 	parser.add_argument("-d", "--decorate", default=[], action="append", help="apply simplification decorator to top-level")
 	parser.add_argument("-Ob", "--build-option", default=[], nargs=2, action="append", help="set build option")
 	parser.add_argument("-f", "--flash-proxy-dir", default=None, help="set search directory for flash proxy bitstreams")

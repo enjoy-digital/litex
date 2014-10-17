@@ -16,7 +16,7 @@ class MXCRG(Module):
 		self.clk4x_rd_strb = Signal()
 
 		###
-		
+
 		infreq = 50*1000000
 		ratio = Fraction(outfreq1x)/Fraction(infreq)
 		in_period = float(Fraction(1000000000)/Fraction(infreq))
@@ -27,10 +27,10 @@ class MXCRG(Module):
 			Instance.Parameter("f_div", ratio.denominator),
 			Instance.Input("clk50_pad", pads.clk50),
 			Instance.Input("trigger_reset", pads.trigger_reset),
-			
+
 			Instance.Input("eth_rx_clk_pad", pads.eth_rx_clk),
 			Instance.Input("eth_tx_clk_pad", pads.eth_tx_clk),
-			
+
 			Instance.Output("sys_clk", self.cd_sys.clk),
 			Instance.Output("sys_rst", self.cd_sys.rst),
 			Instance.Output("clk2x_270", self.cd_sdram_half.clk),

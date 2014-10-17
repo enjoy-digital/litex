@@ -13,15 +13,15 @@ class MiniMAC(Module, AutoCSR):
 		self._rx_count_1 = CSRStatus(_count_width)
 		self._tx_count = CSRStorage(_count_width, write_from_dev=True)
 		self._tx_start = CSR()
-		
+
 		self.submodules.ev = EventManager()
 		self.ev.rx0 = EventSourcePulse()
 		self.ev.rx1 = EventSourcePulse()
 		self.ev.tx = EventSourcePulse()
 		self.ev.finalize()
-		
+
 		self.membus = wishbone.Interface()
-		
+
 		###
 
 		init = Signal(reset=1)
@@ -34,10 +34,10 @@ class MiniMAC(Module, AutoCSR):
 		rx_pending_1_r = Signal()
 		self.comb += [
 			pads.rst_n.eq(~self._phy_reset.storage),
-			
+
 			rx_ready_0.eq(init | (rx_pending_0_r & ~rx_pending_0)),
 			rx_ready_1.eq(init | (rx_pending_1_r & ~rx_pending_1)),
-			
+
 			self._tx_count.dat_w.eq(0),
 			self._tx_count.we.eq(self.ev.tx.trigger)
 		]
@@ -59,7 +59,7 @@ class MiniMAC(Module, AutoCSR):
 				Instance.Input("tx_start", self._tx_start.re),
 				Instance.Input("tx_count", self._tx_count.storage),
 				Instance.Output("tx_done", self.ev.tx.trigger),
-				
+
 				Instance.Input("wb_adr_i", self.membus.adr),
 				Instance.Input("wb_dat_i", self.membus.dat_w),
 				Instance.Input("wb_sel_i", self.membus.sel),
@@ -68,7 +68,7 @@ class MiniMAC(Module, AutoCSR):
 				Instance.Input("wb_we_i", self.membus.we),
 				Instance.Output("wb_dat_o", self.membus.dat_r),
 				Instance.Output("wb_ack_o", self.membus.ack),
-				
+
 				Instance.Input("phy_tx_clk", ClockSignal("eth_tx")),
 				Instance.Output("phy_tx_data", pads.tx_data),
 				Instance.Output("phy_tx_en", pads.tx_en),

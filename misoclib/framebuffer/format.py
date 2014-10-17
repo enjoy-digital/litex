@@ -41,7 +41,7 @@ class FrameInitiator(spi.SingleGenerator):
 			("hsync_start", hbits_dyn, 656, h_alignment_bits),
 			("hsync_end", hbits_dyn, 752, h_alignment_bits),
 			("hscan", hbits_dyn, 800, h_alignment_bits),
-			
+
 			("vres", _vbits, 480),
 			("vsync_start", _vbits, 492),
 			("vsync_end", _vbits, 494),
@@ -81,10 +81,10 @@ class VTG(Module):
 		hactive = Signal()
 		vactive = Signal()
 		active = Signal()
-		
+
 		hcounter = Signal(hbits_dyn)
 		vcounter = Signal(_vbits)
-		
+
 		skip = bpc - bpc_phy
 		self.comb += [
 			active.eq(hactive & vactive),
@@ -106,7 +106,7 @@ class VTG(Module):
 			generate_frame_done.eq(0),
 			If(generate_en,
 				hcounter.eq(hcounter + 1),
-			
+
 				If(hcounter == 0, hactive.eq(1)),
 				If(hcounter == tr.hres, hactive.eq(0)),
 				If(hcounter == tr.hsync_start, self.phy.payload.hsync.eq(1)),
@@ -120,7 +120,7 @@ class VTG(Module):
 						vcounter.eq(vcounter + 1)
 					)
 				),
-				
+
 				If(vcounter == 0, vactive.eq(1)),
 				If(vcounter == tr.vres, vactive.eq(0)),
 				If(vcounter == tr.vsync_start, self.phy.payload.vsync.eq(1)),

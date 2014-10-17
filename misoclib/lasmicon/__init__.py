@@ -38,7 +38,7 @@ class LASMIcon(Module):
 			read_latency=phy_settings.read_latency+1,
 			write_latency=phy_settings.write_latency+1)
 		self.nrowbits = geom_settings.col_a - address_align
-	
+
 		###
 
 		self.submodules.refresher = Refresher(geom_settings.mux_a, geom_settings.bank_a,

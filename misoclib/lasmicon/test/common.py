@@ -16,7 +16,7 @@ def ns(t, margin=True):
 
 sdram_phy = lasmicon.PhySettings(
 	memtype="DDR",
-	dfi_d=64, 
+	dfi_d=64,
 	nphases=2,
 	rdphase=0,
 	wrphase=1,
@@ -39,7 +39,7 @@ sdram_timing = lasmicon.TimingSettings(
 	tWTR=2,
 	tREFI=ns(7800, False),
 	tRFC=ns(70),
-	
+
 	req_queue_size=8,
 	read_time=32,
 	write_time=16
@@ -78,7 +78,7 @@ class CommandLogger(Module):
 		self.cmd = cmd
 		if rw:
 			self.comb += self.cmd.ack.eq(1)
-	
+
 	def do_simulation(self, selfp):
 		elts = ["@" + str(selfp.simulator.cycle_counter)]
 		cmdp = selfp.cmd
@@ -90,7 +90,7 @@ class CommandLogger(Module):
 class DFILogger(Module):
 	def __init__(self, dfi):
 		self.dfi = dfi
-	
+
 	def do_simulation(self, selfp):
 		dfip = selfp.dfi
 		for i, p in enumerate(dfip.phases):

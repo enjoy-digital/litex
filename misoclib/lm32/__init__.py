@@ -16,9 +16,9 @@ class LM32(Module):
 
 			i_clk_i=ClockSignal(),
 			i_rst_i=ResetSignal(),
-			
+
 			i_interrupt=self.interrupt,
-		
+
 			o_I_ADR_O=i_adr_o,
 			o_I_DAT_O=i.dat_w,
 			o_I_SEL_O=i.sel,
@@ -31,7 +31,7 @@ class LM32(Module):
 			i_I_ACK_I=i.ack,
 			i_I_ERR_I=i.err,
 			i_I_RTY_I=0,
-			
+
 			o_D_ADR_O=d_adr_o,
 			o_D_DAT_O=d.dat_w,
 			o_D_SEL_O=d.sel,

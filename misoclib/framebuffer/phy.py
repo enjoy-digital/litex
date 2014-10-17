@@ -11,14 +11,14 @@ class _FIFO(Module):
 	def __init__(self, pack_factor):
 		self.phy = Sink(phy_layout(pack_factor))
 		self.busy = Signal()
-		
+
 		self.pix_hsync = Signal()
 		self.pix_vsync = Signal()
 		self.pix_de = Signal()
 		self.pix_r = Signal(bpc_phy)
 		self.pix_g = Signal(bpc_phy)
 		self.pix_b = Signal(bpc_phy)
-	
+
 		###
 
 		fifo = RenameClockDomains(AsyncFIFO(phy_layout(pack_factor), 512),
@@ -81,7 +81,7 @@ class _Clocking(Module, AutoCSR):
 		self.specials += Instance("DCM_CLKGEN",
 			p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=1.0, p_CLKFX_MULTIPLY=2,
 			p_CLKIN_PERIOD=20.0, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
-		
+
 			i_CLKIN=ClockSignal("base50"), o_CLKFX=clk_pix_unbuffered,
 			i_PROGCLK=ClockSignal(), i_PROGDATA=pix_progdata, i_PROGEN=pix_progen,
 			o_PROGDONE=pix_progdone, o_LOCKED=pix_locked,
@@ -145,12 +145,12 @@ class _Clocking(Module, AutoCSR):
 					p_CLKOUT1_DIVIDE=5,  # pix2x
 					p_CLKOUT2_DIVIDE=10, # pix
 					p_COMPENSATION="INTERNAL",
-					
+
 					i_CLKINSEL=1,
 					i_CLKIN1=clk_pix_unbuffered,
 					o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
 					o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
-					o_LOCKED=pll_locked, 
+					o_LOCKED=pll_locked,
 					i_RST=~pix_locked | self._r_pll_reset.storage,
 
 					i_DADDR=self._r_pll_adr.storage,

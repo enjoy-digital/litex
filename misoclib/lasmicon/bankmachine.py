@@ -10,21 +10,21 @@ class _AddressSlicer:
 	def __init__(self, col_a, address_align):
 		self.col_a = col_a
 		self.address_align = address_align
-	
+
 	def row(self, address):
 		split = self.col_a - self.address_align
 		if isinstance(address, int):
 			return address >> split
 		else:
 			return address[split:]
-		
+
 	def col(self, address):
 		split = self.col_a - self.address_align
 		if isinstance(address, int):
 			return (address & (2**split - 1)) << self.address_align
 		else:
 			return Cat(Replicate(0, self.address_align), address[:split])
-	
+
 class BankMachine(Module):
 	def __init__(self, geom_settings, timing_settings, address_align, bankn, req):
 		self.refresh_req = Signal()
@@ -47,7 +47,7 @@ class BankMachine(Module):
 		reqf = self.req_fifo.dout
 
 		slicer = _AddressSlicer(geom_settings.col_a, address_align)
-		
+
 		# Row tracking
 		has_openrow = Signal()
 		openrow = Signal(geom_settings.row_a)
@@ -64,7 +64,7 @@ class BankMachine(Module):
 				has_openrow.eq(0)
 			)
 		]
-		
+
 		# Address generation
 		s_row_adr = Signal()
 		self.comb += [
@@ -75,7 +75,7 @@ class BankMachine(Module):
 				self.cmd.a.eq(slicer.col(reqf.adr))
 			)
 		]
-		
+
 		# Respect write-to-precharge specification
 		precharge_ok = Signal()
 		t_unsafe_precharge = 2 + timing_settings.tWR - 1
@@ -88,7 +88,7 @@ class BankMachine(Module):
 				unsafe_precharge_count.eq(unsafe_precharge_count-1)
 			)
 		]
-		
+
 		# Control and command generation FSM
 		fsm = FSM()
 		self.submodules += fsm

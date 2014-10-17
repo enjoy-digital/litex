@@ -9,7 +9,7 @@ class Timer(Module, AutoCSR):
 		self._en = CSRStorage()
 		self._update_value = CSR()
 		self._value = CSRStatus(width)
-		
+
 		self.submodules.ev = EventManager()
 		self.ev.zero = EventSourceProcess()
 		self.ev.finalize()

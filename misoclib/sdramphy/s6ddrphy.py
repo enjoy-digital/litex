@@ -1,12 +1,12 @@
 # 1:2 frequency-ratio DDR / LPDDR / DDR2 PHY for Spartan-6
-# 
-# Assert dfi_wrdata_en and present the data 
+#
+# Assert dfi_wrdata_en and present the data
 # on dfi_wrdata_mask/dfi_wrdata in the same
 # cycle as the write command.
 #
 # Assert dfi_rddata_en in the same cycle as the read
 # command. The data will come back on dfi_rddata
-# 5 cycles later, along with the assertion 
+# 5 cycles later, along with the assertion
 # of dfi_rddata_valid.
 #
 # This PHY only supports CAS Latency 3.
@@ -60,7 +60,7 @@ class S6DDRPHY(Module):
 		sdram_full_wr_clk = ClockSignal("sdram_full_wr")
 		sdram_full_rd_clk = ClockSignal("sdram_full_rd")
 
-		# 
+		#
 		# Command/address
 		#
 
@@ -104,7 +104,7 @@ class S6DDRPHY(Module):
 		if hasattr(pads, "cs_n"):
 			sd_sdram_half += pads.cs_n.eq(r_dfi[phase_sel].cs_n)
 
-		# 
+		#
 		# Bitslip
 		#
 		bitslip_cnt = Signal(4)
@@ -119,7 +119,7 @@ class S6DDRPHY(Module):
 			)
 		]
 
-		# 
+		#
 		# DQ/DQS/DM data
 		#
 		sdram_half_clk_n = Signal()
@@ -130,7 +130,7 @@ class S6DDRPHY(Module):
 		dqs_t_d0 = Signal()
 		dqs_t_d1 = Signal()
 
-		dqs_o = Signal(d//8) 
+		dqs_o = Signal(d//8)
 		dqs_t = Signal(d//8)
 
 		self.comb += [
@@ -194,7 +194,7 @@ class S6DDRPHY(Module):
 
 		sd_sdram_half += postamble.eq(drive_dqs)
 
-		d_dfi = [Record(phase_wrdata_description(nphases*d)+phase_rddata_description(nphases*d)) 
+		d_dfi = [Record(phase_wrdata_description(nphases*d)+phase_rddata_description(nphases*d))
 			for i in range(2*nphases)]
 
 		for n, phase in enumerate(self.dfi.phases):
@@ -334,23 +334,23 @@ class S6DDRPHY(Module):
 		if hasattr(pads, "odt"):
 			self.comb += pads.odt.eq(0)
 
-		# 
+		#
 		# DQ/DQS/DM control
 		#
 		self.comb += drive_dq.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
 
 		d_dfi_wrdata_en = Signal()
 		sd_sys += d_dfi_wrdata_en.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
-		
+
 		r_dfi_wrdata_en = Signal(2)
-		sd_sdram_half += r_dfi_wrdata_en.eq(Cat(d_dfi_wrdata_en, r_dfi_wrdata_en[0])) 
+		sd_sdram_half += r_dfi_wrdata_en.eq(Cat(d_dfi_wrdata_en, r_dfi_wrdata_en[0]))
 
 		self.comb += drive_dqs.eq(r_dfi_wrdata_en[1])
 
 		rddata_sr = Signal(self.phy_settings.read_latency)
 		sd_sys += rddata_sr.eq(Cat(rddata_sr[1:self.phy_settings.read_latency],
 			d_dfi[self.phy_settings.rdphase].rddata_en))
-		
+
 		for n, phase in enumerate(self.dfi.phases):
 			self.comb += [
 				phase.rddata.eq(d_dfi[n].rddata),

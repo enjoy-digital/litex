@@ -3,7 +3,7 @@ from migen.fhdl.std import log2_int
 def get_sdram_phy_header(sdram_phy):
 	r = "#ifndef __GENERATED_SDRAM_PHY_H\n#define __GENERATED_SDRAM_PHY_H\n"
 	r += "#include <hw/common.h>\n#include <generated/csr.h>\n#include <hw/flags.h>\n\n"
-	
+
 	nphases = sdram_phy.phy_settings.nphases
 	r += "#define DFII_NPHASES "+str(nphases)+"\n\n"
 
@@ -29,7 +29,7 @@ static void command_p{n}(int cmd)
 
 #define command_prd(X) command_p{rdphase}(X)
 #define command_pwr(X) command_p{wrphase}(X)
-""".format(rdphase=str(sdram_phy.phy_settings.rdphase), wrphase=str(sdram_phy.phy_settings.wrphase)) 
+""".format(rdphase=str(sdram_phy.phy_settings.rdphase), wrphase=str(sdram_phy.phy_settings.wrphase))
 	r +="\n"
 
 	#
@@ -65,7 +65,7 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 	}
 
 	cl = sdram_phy.phy_settings.cl
-	
+
 	if sdram_phy.phy_settings.memtype == "SDR":
 		bl = sdram_phy.phy_settings.nphases
 		mr = log2_int(bl) + (cl << 4)
@@ -143,7 +143,7 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 		bl = 2*sdram_phy.phy_settings.nphases
 		if bl != 8:
 			raise NotImplementedError("DDR3 PHY header generator only supports BL of 8")
-		
+
 		def format_mr0(cl, wr, dll_reset):
 			cl_to_mr0 = {
 				5 : 0b0010,
