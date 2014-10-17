@@ -9,7 +9,7 @@ from migen.pytholite.util import eval_ast
 class ExprCompiler:
 	def __init__(self, symdict):
 		self.symdict = symdict
-	
+
 	def visit_expr(self, node):
 		# Attempt compile-time evaluation first
 		try:
@@ -35,7 +35,7 @@ class ExprCompiler:
 			return self.visit_expr_subscript(node)
 		else:
 			raise NotImplementedError
-	
+
 	def visit_expr_call(self, node):
 		if isinstance(node.func, ast.Name):
 			callee = self.symdict[node.func.id]
@@ -53,7 +53,7 @@ class ExprCompiler:
 			return _Slice(val, low, up)
 		else:
 			raise NotImplementedError
-	
+
 	def visit_expr_binop(self, node):
 		left = self.visit_expr(node.left)
 		right = self.visit_expr(node.right)
@@ -75,7 +75,7 @@ class ExprCompiler:
 			return left & right
 		else:
 			raise NotImplementedError
-	
+
 	def visit_expr_compare(self, node):
 		test = self.visit_expr(node.left)
 		r = None
@@ -101,7 +101,7 @@ class ExprCompiler:
 				r = r & comparison
 			test = comparator
 		return r
-	
+
 	def visit_expr_name(self, node):
 		if node.id == "True":
 			return 1
@@ -111,12 +111,12 @@ class ExprCompiler:
 		if isinstance(r, ImplRegister):
 			r = r.storage
 		return r
-	
+
 	def visit_expr_num(self, node):
 		return node.n
-	
+
 	def visit_expr_attribute(self, node):
 		raise NotImplementedError
-	
+
 	def visit_expr_subscript(self, node):
 		raise NotImplementedError

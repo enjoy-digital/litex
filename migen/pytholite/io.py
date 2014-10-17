@@ -14,7 +14,7 @@ class _TokenPullExprCompiler(ExprCompiler):
 		ExprCompiler.__init__(self, symdict)
 		self.modelname = modelname
 		self.ep = ep
-	
+
 	def visit_expr_subscript(self, node):
 		# check that we are subscripting <modelname>.value
 		if not isinstance(node.value, ast.Attribute) \
@@ -22,12 +22,12 @@ class _TokenPullExprCompiler(ExprCompiler):
 		  or not isinstance(node.value.value, ast.Name) \
 		  or node.value.value.id != self.modelname:
 			raise NotImplementedError
-		
+
 		if not isinstance(node.slice, ast.Index):
 			raise NotImplementedError
 		field = eval_ast(node.slice.value, self.symdict)
 		signal = getattr(self.ep.payload, field)
-		
+
 		return signal
 
 def _gen_df_io(compiler, modelname, to_model, from_model):
@@ -39,7 +39,7 @@ def _gen_df_io(compiler, modelname, to_model, from_model):
 		state = [compiler.ioo.busy.eq(0)]
 	else:
 		state = []
-	
+
 	if isinstance(values, ast.Name) and values.id == "None":
 		# token pull from sink
 		if not isinstance(ep, Sink):
@@ -76,7 +76,7 @@ class _BusReadExprCompiler(ExprCompiler):
 		ExprCompiler.__init__(self, symdict)
 		self.modelname = modelname
 		self.data_signal = data_signal
-	
+
 	def visit_expr_attribute(self, node):
 		# recognize <modelname>.data as the bus read signal, raise exception otherwise
 		if not isinstance(node.value, ast.Name) \
@@ -91,7 +91,7 @@ def _gen_wishbone_io(compiler, modelname, model, to_model, from_model, bus):
 		bus.stb.eq(1),
 		bus.adr.eq(compiler.ec.visit_expr(to_model["address"])),
 	]
-	
+
 	if model == TWrite:
 		if from_model:
 			raise TypeError("Attempted to read from write transaction")
@@ -162,10 +162,10 @@ def _decode_args(desc, args, args_kw):
 			name, default = param
 		else:
 			name, default = param, None
-		
+
 		# build the set of argument names at the same time
 		argnames.add(name)
-		
+
 		if value is None:
 			if default is None:
 				raise TypeError("No default value for parameter " + name)

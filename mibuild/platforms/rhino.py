@@ -11,15 +11,15 @@ _io = [
 	("user_led", 5, Pins("V1")),
 	("user_led", 6, Pins("U2")),
 	("user_led", 7, Pins("U1")),
-	
+
 	("clk100", 0,
 		Subsignal("p", Pins("B14"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
 		Subsignal("n", Pins("A14"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE"))
 	),
-	
+
 	("gpio", 0, Pins("R8")),
-	
-	("gpmc", 0, 
+
+	("gpmc", 0,
 		Subsignal("clk", Pins("R26")),
 		Subsignal("a", Pins("N17 N18 L23 L24 N19 N20 N21 N22 P17 P19")),
 		Subsignal("d", Pins("N23 N24 R18 R19 P21 P22 R20 R21 P24 P26 R23 R24 T22 T23 U23 R25")),
@@ -37,31 +37,31 @@ _io = [
 	("gpmc_dmareq_n", 1, Pins("T26"), IOStandard("LVCMOS33")), # nCS3
 	("gpmc_dmareq_n", 2, Pins("V24"), IOStandard("LVCMOS33")), # nCS4
 	("gpmc_dmareq_n", 3, Pins("V26"), IOStandard("LVCMOS33")), # nCS5
-	
+
 	# FMC150
 	("fmc150_ctrl", 0,
 		Subsignal("spi_sclk", Pins("AE5")),
 		Subsignal("spi_data", Pins("AF5")),
-		
+
 		Subsignal("adc_sdo", Pins("U13")),
 		Subsignal("adc_en_n", Pins("AA15")),
 		Subsignal("adc_reset", Pins("V13")),
-		
+
 		Subsignal("cdce_sdo", Pins("AA8")),
 		Subsignal("cdce_en_n", Pins("Y9")),
 		Subsignal("cdce_reset_n", Pins("AB7")),
 		Subsignal("cdce_pd_n", Pins("AC6")),
 		Subsignal("cdce_pll_status", Pins("W7")),
 		Subsignal("cdce_ref_en", Pins("W8")),
-		
+
 		Subsignal("dac_sdo", Pins("W9")),
 		Subsignal("dac_en_n", Pins("W10")),
-		
+
 		Subsignal("mon_sdo", Pins("AC5")),
 		Subsignal("mon_en_n", Pins("AD6")),
 		Subsignal("mon_reset_n", Pins("AF6")),
 		Subsignal("mon_int_n", Pins("AD5")),
-		
+
 		Subsignal("pg_c2m", Pins("AA23"), IOStandard("LVCMOS33"))
 	),
 	("ti_dac", 0, # DAC3283
@@ -85,9 +85,9 @@ _io = [
 		Subsignal("adc_clk_n", Pins("AF15"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
 		Subsignal("clk_to_fpga", Pins("W24"), IOStandard("LVCMOS25"))
 	),
-	
+
 	("fmc150_ext_trigger", 0, Pins("U26")),
-	
+
 	# Vermeer radar testbed
 	# Switch controller
 	("pca9555", 0,

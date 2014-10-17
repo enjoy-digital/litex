@@ -45,7 +45,7 @@ class EventSourceLevel(Module, _EventSource):
 class EventManager(Module, AutoCSR):
 	def __init__(self):
 		self.irq = Signal()
-	
+
 	def do_finalize(self):
 		sources_u = [v for k, v in xdir(self, True) if isinstance(v, _EventSource)]
 		sources = sorted(sources_u, key=lambda x: x.huid)
@@ -60,7 +60,7 @@ class EventManager(Module, AutoCSR):
 				If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
 				self.pending.w[i].eq(source.pending)
 			]
-		
+
 		irqs = [self.pending.w[i] & self.enable.storage[i] for i in range(n)]
 		self.comb += self.irq.eq(optree("|", irqs))
 

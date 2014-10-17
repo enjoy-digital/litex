@@ -13,7 +13,7 @@ class _Node:
 
 def _display_tree(filename, tree):
 	from migen.util.treeviz import RenderNode
-	
+
 	def _to_render_node(name, node):
 		children = [_to_render_node(k, v) for k, v in node.children.items()]
 		if node.use_name:
@@ -73,13 +73,13 @@ def _set_use_name(node, node_name=""):
 				r.add((c_prefix, ) + c_name)
 		else:
 			r |= c_names
-	
+
 	if node.signal_count > sum(c.signal_count for c in node.children.values()):
 		node.use_name = True
 		r.add((node_name, ))
 
 	return r
-		
+
 def _name_signal(tree, signal):
 	elements = []
 	treepos = tree
@@ -147,7 +147,7 @@ def _build_pnd_for_group(group_n, signals):
 	else:
 		if _debug:
 			print("namer: using basic strategy (group {0})".format(group_n))
-	
+
 	# ...then add number suffixes by HUID
 	inv_pnd = _invert_pnd(pnd)
 	huid_suffixed = False
@@ -213,7 +213,7 @@ class Namespace:
 		self.counts = {}
 		self.sigs = {}
 		self.pnd = pnd
-	
+
 	def get_name(self, sig):
 		if sig.name_override is not None:
 			sig_name = sig.name_override

@@ -23,7 +23,7 @@ class MultiRegImpl(Module):
 		self.regs = [Signal((w, signed)) for i in range(n)]
 
 		###
-	
+
 		src = self.i
 		for reg in self.regs:
 			sd = getattr(self.sync, self.odomain)
@@ -71,7 +71,7 @@ class PulseSynchronizer(Module):
 
 		sync_i = getattr(self.sync, idomain)
 		sync_o = getattr(self.sync, odomain)
-		
+
 		sync_i += If(self.i, toggle_i.eq(~toggle_i))
 		self.specials += MultiReg(toggle_i, toggle_o, odomain)
 		sync_o += toggle_o_r.eq(toggle_o)

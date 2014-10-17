@@ -9,7 +9,7 @@ class HUID:
 	def __init__(self):
 		self.huid = HUID.__next_uid
 		HUID.__next_uid += 1
-	
+
 	def __hash__(self):
 		return self.huid
 
@@ -61,7 +61,7 @@ class Value(HUID):
 		return _Operator("|", [self, other])
 	def __ror__(self, other):
 		return _Operator("|", [other, self])
-	
+
 	def __lt__(self, other):
 		return _Operator("<", [self, other])
 	def __le__(self, other):
@@ -74,8 +74,8 @@ class Value(HUID):
 		return _Operator(">", [self, other])
 	def __ge__(self, other):
 		return _Operator(">=", [self, other])
-	
-	
+
+
 	def __getitem__(self, key):
 		from migen.fhdl.bitcontainer import flen
 
@@ -93,7 +93,7 @@ class Value(HUID):
 			return _Slice(self, start, stop)
 		else:
 			raise TypeError
-	
+
 	def eq(self, r):
 		"""Assignment
 
@@ -109,7 +109,7 @@ class Value(HUID):
 			synchronous context.
 		"""
 		return _Assign(self, r)
-	
+
 	def __hash__(self):
 		return HUID.__hash__(self)
 
@@ -246,7 +246,7 @@ class Signal(Value):
 		from migen.fhdl.bitcontainer import bits_for
 
 		Value.__init__(self)
-		
+
 		# determine number of bits and signedness
 		if bits_sign is None:
 			if min is None:
@@ -265,7 +265,7 @@ class Signal(Value):
 				self.nbits, self.signed = bits_sign, False
 		if not isinstance(self.nbits, int) or self.nbits <= 0:
 			raise ValueError("Signal width must be a strictly positive integer")
-		
+
 		self.variable = variable # deprecated
 		self.reset = reset
 		self.name_override = name_override
@@ -303,7 +303,7 @@ class ClockSignal(Value):
 	def __init__(self, cd="sys"):
 		Value.__init__(self)
 		self.cd = cd
-	
+
 class ResetSignal(Value):
 	"""Reset signal for a given clock domain
 
@@ -354,7 +354,7 @@ class If:
 		self.cond = cond
 		self.t = list(t)
 		self.f = []
-	
+
 	def Else(self, *f):
 		"""Add an `else` conditional block
 
@@ -365,7 +365,7 @@ class If:
 		"""
 		_insert_else(self, list(f))
 		return self
-	
+
 	def Elif(self, cond, *t):
 		"""Add an `else if` conditional block
 
@@ -415,7 +415,7 @@ class Case:
 	def __init__(self, test, cases):
 		self.test = test
 		self.cases = cases
-	
+
 	def makedefault(self, key=None):
 		"""Mark a key as the default case
 
@@ -441,11 +441,11 @@ class _ArrayProxy(Value):
 	def __init__(self, choices, key):
 		self.choices = choices
 		self.key = key
-	
+
 	def __getattr__(self, attr):
 		return _ArrayProxy([getattr(choice, attr) for choice in self.choices],
 			self.key)
-	
+
 	def __getitem__(self, key):
 		return _ArrayProxy([choice.__getitem__(key) for choice in self.choices],
 			self.key)
@@ -556,13 +556,13 @@ class _Fragment:
 		if specials is None: specials = set()
 		if clock_domains is None: clock_domains = _ClockDomainList()
 		if sim is None: sim = []
-		
+
 		self.comb = comb
 		self.sync = sync
 		self.specials = specials
 		self.clock_domains = _ClockDomainList(clock_domains)
 		self.sim = sim
-	
+
 	def __add__(self, other):
 		newsync = defaultdict(list)
 		for k, v in self.sync.items():

@@ -7,7 +7,7 @@ class AbstractLoad:
 	def __init__(self, target, source):
 		self.target = target
 		self.source = source
-	
+
 	def lower(self):
 		if not self.target.finalized:
 			raise FinalizeError
@@ -26,13 +26,13 @@ class ImplRegister(Module):
 		self.storage = Signal(bits_sign, name=self.name)
 		self.source_encoding = {}
 		self.id_to_source = {}
-	
+
 	def load(self, source):
 		if id(source) not in self.source_encoding:
 			self.source_encoding[id(source)] = len(self.source_encoding) + 1
 			self.id_to_source[id(source)] = source
 		return AbstractLoad(self, source)
-	
+
 	def do_finalize(self):
 		self.sel = Signal(max=len(self.source_encoding)+1, name="pl_regsel_"+self.name)
 		# do nothing when sel == 0

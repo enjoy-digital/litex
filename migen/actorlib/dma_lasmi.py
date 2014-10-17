@@ -7,12 +7,12 @@ class Reader(Module):
 		self.address = Sink([("a", lasmim.aw)])
 		self.data = Source([("d", lasmim.dw)])
 		self.busy = Signal()
-	
+
 		###
 
 		if fifo_depth is None:
 			fifo_depth = lasmim.req_queue_size + lasmim.read_latency + 2
-	
+
 		# request issuance
 		request_enable = Signal()
 		request_issued = Signal()

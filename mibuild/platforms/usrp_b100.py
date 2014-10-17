@@ -55,7 +55,7 @@ _io = [
 			"G16 F16 J12 J13 L14 L16 M15 M16 "
 			"L13 K13 P16 N16 R15 P15 N13 N14")),
 
-		("adc", 0, 
+		("adc", 0,
 			Subsignal("sync", Pins("D10")),
 			Subsignal("d", Pins("A4 B3 A3 D9 C10 A9 C9 D8 "
 								"C8 B8 A8 B15")),

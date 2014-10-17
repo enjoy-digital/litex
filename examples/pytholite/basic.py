@@ -20,7 +20,7 @@ def run_ng_sim(ng):
 	g = DataFlowGraph()
 	d = Dumper(layout)
 	g.add_connection(ng, d)
-	
+
 	c = CompositeActor(g)
 	run_simulation(c, ncycles=20)
 
@@ -34,11 +34,11 @@ def main():
 	print("Simulating native Python:")
 	ng_native = SimNumberGen()
 	run_ng_sim(ng_native)
-	
+
 	print("Simulating Pytholite:")
 	ng_pytholite = make_ng_pytholite()
 	run_ng_sim(ng_pytholite)
-	
+
 	print("Converting Pytholite to Verilog:")
 	ng_pytholite = make_ng_pytholite()
 	print(verilog.convert(ng_pytholite))

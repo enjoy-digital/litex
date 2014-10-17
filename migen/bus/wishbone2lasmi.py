@@ -26,12 +26,12 @@ class WB2LASMI(Module):
 		wordbits = log2_int(max(data_width//lasmim.dw, 1))
 		adr_offset, adr_line, adr_tag = split(self.wishbone.adr, offsetbits, linebits, tagbits)
 		word = Signal(wordbits) if wordbits else None
-		
+
 		# Data memory
 		data_mem = Memory(lasmim.dw*2**wordbits, 2**linebits)
 		data_port = data_mem.get_port(write_capable=True, we_granularity=8)
 		self.specials += data_mem, data_port
-		
+
 		write_from_lasmi = Signal()
 		write_to_lasmi = Signal()
 		if adr_offset is None:
@@ -51,14 +51,14 @@ class WB2LASMI(Module):
 					displacer(self.wishbone.sel, adr_offset, data_port.we, 2**offsetbits, reverse=True)
 				)
 			),
-			If(write_to_lasmi, 
+			If(write_to_lasmi,
 				chooser(data_port.dat_r, word, lasmim.dat_w),
 				lasmim.dat_we.eq(2**(lasmim.dw//8)-1)
 			),
 			chooser(data_port.dat_r, adr_offset_r, self.wishbone.dat_r, reverse=True)
 		]
 
-		
+
 		# Tag memory
 		tag_layout = [("tag", tagbits), ("dirty", 1)]
 		tag_mem = Memory(layout_len(tag_layout), 2**linebits)
@@ -70,7 +70,7 @@ class WB2LASMI(Module):
 			tag_do.raw_bits().eq(tag_port.dat_r),
 			tag_port.dat_w.eq(tag_di.raw_bits())
 		]
-			
+
 		self.comb += [
 			tag_port.adr.eq(adr_line),
 			tag_di.tag.eq(adr_tag)
@@ -78,8 +78,8 @@ class WB2LASMI(Module):
 		if word is not None:
 			self.comb += lasmim.adr.eq(Cat(word, adr_line, tag_do.tag))
 		else:
-			self.comb += lasmim.adr.eq(Cat(adr_line, tag_do.tag))		
-			
+			self.comb += lasmim.adr.eq(Cat(adr_line, tag_do.tag))
+
 		# Lasmim word computation, word_clr and word_inc will be simplified
 		# at synthesis when wordbits=0
 		word_clr = Signal()
@@ -102,7 +102,7 @@ class WB2LASMI(Module):
 		assert(lasmim.write_latency >= 1 and lasmim.read_latency >= 1)
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
-		
+
 		fsm.delayed_enter("EVICT_DATAD", "EVICT_DATA", lasmim.write_latency-1)
 		fsm.delayed_enter("REFILL_DATAD", "REFILL_DATA", lasmim.read_latency-1)
 
@@ -126,7 +126,7 @@ class WB2LASMI(Module):
 				)
 			)
 		)
-		
+
 		fsm.act("EVICT_REQUEST",
 			lasmim.stb.eq(1),
 			lasmim.we.eq(1),
@@ -144,7 +144,7 @@ class WB2LASMI(Module):
 				NextState("EVICT_REQUEST")
 			)
 		)
-		
+
 		fsm.act("REFILL_WRTAG",
 			# Write the tag first to set the LASMI address
 			tag_port.we.eq(1),

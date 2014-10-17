@@ -3,7 +3,7 @@ from migen.genlib.record import *
 
 def phase_cmd_description(a, ba):
 	return [
-		("address",			a,		DIR_M_TO_S),	
+		("address",			a,		DIR_M_TO_S),
 		("bank",			ba,		DIR_M_TO_S),
 		("cas_n",			1,		DIR_M_TO_S),
 		("cs_n",			1,		DIR_M_TO_S),
@@ -44,7 +44,7 @@ class Interface(Record):
 			p.cs_n.reset = 1
 			p.ras_n.reset = 1
 			p.we_n.reset = 1
-	
+
 	# Returns pairs (DFI-mandated signal name, Migen signal object)
 	def get_standard_names(self, m2s=True, s2m=True):
 		r = []

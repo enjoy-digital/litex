@@ -34,7 +34,7 @@ class TestBench(Module):
 		g = DataFlowGraph()
 		d = Dumper(layout)
 		g.add_connection(ng, d)
-		
+
 		self.submodules.slave = wishbone.Target(SlaveModel())
 		self.submodules.intercon = wishbone.InterconnectPointToPoint(ng.wb, self.slave.bus)
 		self.submodules.ca = CompositeActor(g)
@@ -51,14 +51,14 @@ def add_interfaces(obj):
 def main():
 	print("Simulating native Python:")
 	ng_native = UnifiedIOSimulation(gen())
-	add_interfaces(ng_native) 
+	add_interfaces(ng_native)
 	run_ng_sim(ng_native)
-	
+
 	print("Simulating Pytholite:")
 	ng_pytholite = Pytholite(gen)
 	add_interfaces(ng_pytholite)
 	run_ng_sim(ng_pytholite)
-	
+
 	print("Converting Pytholite to Verilog:")
 	ng_pytholite = Pytholite(gen)
 	add_interfaces(ng_pytholite)

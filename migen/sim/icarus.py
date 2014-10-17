@@ -21,7 +21,7 @@ class Runner:
 		self.dut_file = dut_file
 		self.vvp_file = vvp_file
 		self.keep_files = keep_files
-	
+
 	def start(self, c_top, c_dut):
 		_str2file(self.top_file, c_top)
 		_str2file(self.dut_file, c_dut)

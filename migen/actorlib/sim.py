@@ -95,7 +95,7 @@ class SimActor(Module):
 	def __init__(self, generator):
 		self.busy = Signal()
 		self.submodules.token_exchanger = TokenExchanger(generator, self)
-	
+
 	def do_simulation(self, selfp):
 		selfp.busy = self.token_exchanger.busy
 	do_simulation.passive = True

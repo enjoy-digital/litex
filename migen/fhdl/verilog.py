@@ -187,9 +187,9 @@ def _printcomb(f, ns, display_run):
 		r += "reg " + _printsig(ns, dummy_s) + ";\n"
 		r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
 		r += syn_on
-		
+
 		groups = group_by_targets(f.comb)
-		
+
 		for n, g in enumerate(groups):
 			if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
 				r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
@@ -198,7 +198,7 @@ def _printcomb(f, ns, display_run):
 				r += "\n" + syn_off
 				r += "reg " + _printsig(ns, dummy_d) + ";\n"
 				r += syn_on
-				
+
 				r += "always @(*) begin\n"
 				if display_run:
 					r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
@@ -303,7 +303,7 @@ def convert(f, ios=None, name="top",
 				ios |= {cd.clk, cd.rst}
 			else:
 				raise KeyError("Unresolved clock domain: '"+cd_name+"'")
-	
+
 	f = lower_complex_slices(f)
 	insert_resets(f)
 	f = lower_basics(f)

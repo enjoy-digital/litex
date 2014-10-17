@@ -8,13 +8,13 @@ class Reader(Module):
 		self.address = Sink([("a", 30)])
 		self.data = Source([("d", 32)])
 		self.busy = Signal()
-	
+
 		###
-	
+
 		bus_stb = Signal()
 		data_reg_loaded = Signal()
 		data_reg = Signal(32)
-		
+
 		self.comb += [
 			self.busy.eq(data_reg_loaded),
 			self.bus.we.eq(0),

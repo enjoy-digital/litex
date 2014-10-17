@@ -11,7 +11,7 @@ class WB2CSR(Module):
 		if bus_csr is None:
 			bus_csr = csr.Interface()
 		self.csr = bus_csr
-	
+
 		###
 
 		self.sync += [

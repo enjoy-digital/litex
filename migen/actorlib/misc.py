@@ -9,22 +9,22 @@ class IntSequence(Module):
 		parameters_layout = [("maximum", nbits)]
 		if offsetbits:
 			parameters_layout.append(("offset", offsetbits))
-		
+
 		self.parameters = Sink(parameters_layout)
 		self.source = Source([("value", max(nbits, offsetbits))])
 		self.busy = Signal()
-	
+
 		###
-	
+
 		load = Signal()
 		ce = Signal()
 		last = Signal()
-		
+
 		maximum = Signal(nbits)
 		if offsetbits:
 			offset = Signal(offsetbits)
 		counter = Signal(nbits)
-		
+
 		if step > 1:
 			self.comb += last.eq(counter + step >= maximum)
 		else:
@@ -46,7 +46,7 @@ class IntSequence(Module):
 			self.comb += self.source.payload.value.eq(counter + offset)
 		else:
 			self.comb += self.source.payload.value.eq(counter)
-		
+
 		fsm = FSM()
 		self.submodules += fsm
 		fsm.act("IDLE",

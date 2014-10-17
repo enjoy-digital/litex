@@ -10,7 +10,7 @@ from mibuild import tools
 
 class ConstraintError(Exception):
 	pass
-	
+
 class Pins:
 	def __init__(self, *identifiers):
 		self.identifiers = []
@@ -43,7 +43,7 @@ def _lookup(description, name, number):
 		if resource[0] == name and (number is None or resource[1] == number):
 			return resource
 	raise ConstraintError("Resource not found: " + name + ":" + str(number))
-		
+
 def _resource_type(resource):
 	t = None
 	for element in resource[2:]:
@@ -107,10 +107,10 @@ class ConstraintManager:
 
 	def add_extension(self, io):
 		self.available.extend(io)
-		
+
 	def request(self, name, number=None):
 		resource = _lookup(self.available, name, number)
-		rt = _resource_type(resource)		
+		rt = _resource_type(resource)
 		if isinstance(rt, int):
 			obj = Signal(rt, name_override=resource[0])
 		else:
@@ -128,10 +128,10 @@ class ConstraintManager:
 			if resource[0] == name and (number is None or resource[1] == number):
 				return obj
 		raise ConstraintError("Resource not found: " + name + ":" + str(number))
-	
+
 	def add_platform_command(self, command, **signals):
 		self.platform_commands.append((command, signals))
-	
+
 	def get_io_signals(self):
 		r = set()
 		for resource, obj in self.matched:
@@ -140,7 +140,7 @@ class ConstraintManager:
 			else:
 				r.update(obj.flatten())
 		return r
-	
+
 	def get_sig_constraints(self):
 		r = []
 		for resource, obj in self.matched:
@@ -263,7 +263,7 @@ class GenericPlatform:
 	def get_verilog(self, fragment, **kwargs):
 		return self._get_source(fragment, lambda f: verilog.convert(f, self.constraint_manager.get_io_signals(),
 				return_ns=True, create_clock_domains=False, **kwargs))
-		
+
 	def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
 		return self._get_source(fragment, lambda f: edif.convert(f, self.constraint_manager.get_io_signals(),
 				cell_library, vendor, device, return_ns=True, **kwargs))

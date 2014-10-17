@@ -5,7 +5,7 @@ from migen.genlib.misc import optree
 from migen.flow.actor import *
 from migen.flow import plumbing
 
-# Abstract actors mean that the actor class should be instantiated with the parameters 
+# Abstract actors mean that the actor class should be instantiated with the parameters
 # from the dictionary. They are needed to enable actor duplication or sharing during
 # elaboration, and automatic parametrization of plumbing actors.
 
@@ -15,10 +15,10 @@ class AbstractActor:
 		self.parameters = parameters
 		self.name = name
 		self.busy = Signal()
-	
+
 	def create_instance(self):
 		return self.actor_class(**self.parameters)
-	
+
 	def __repr__(self):
 		r = "<abstract " + self.actor_class.__name__
 		if self.name is not None:
@@ -95,7 +95,7 @@ class DataFlowGraph(MultiDiGraph):
 		MultiDiGraph.__init__(self)
 		self.elaborated = False
 		self.abstract_busy_signals = dict()
-	
+
 	def add_connection(self, source_node, sink_node,
 	  source_ep=None, sink_ep=None,		# default: assume nodes have 1 source/sink and use that one
 	  source_subr=None, sink_subr=None):	# default: use whole record
@@ -113,7 +113,7 @@ class DataFlowGraph(MultiDiGraph):
 	def add_pipeline(self, *nodes):
 		for n1, n2 in zip(nodes, nodes[1:]):
 			self.add_connection(n1, n2)
-	
+
 	def del_connections(self, source_node, sink_node, data_requirements):
 		edges_to_delete = []
 		edge_data = self.get_edge_data(source_node, sink_node)
@@ -126,7 +126,7 @@ class DataFlowGraph(MultiDiGraph):
 				edges_to_delete.append(key)
 		for key in edges_to_delete:
 			self.remove_edge(source_node, sink_node, key)
-	
+
 	def replace_actor(self, old, new):
 		self.add_node(new)
 		for xold, v, data in self.out_edges(old, data=True):
@@ -134,7 +134,7 @@ class DataFlowGraph(MultiDiGraph):
 		for u, xold, data in self.in_edges(old, data=True):
 			self.add_edge(u, new, **data)
 		self.remove_node(old)
-		
+
 	def instantiate(self, actor):
 		inst = actor.create_instance()
 		self.abstract_busy_signals[id(inst)] = actor.busy
@@ -169,7 +169,7 @@ class DataFlowGraph(MultiDiGraph):
 			else:
 				d[el_dst] = [el_src]
 		return d
-	
+
 	# List sources that feed more than one sink.
 	def _list_divergences(self):
 		d = self._source_to_sinks()
@@ -186,7 +186,7 @@ class DataFlowGraph(MultiDiGraph):
 			or any(d["source_subr"] is not None or d["sink_subr"] is not None
 				for u, v, d in self.edges_iter(data=True)) \
 			or bool(self._list_divergences())
-	
+
 	def _eliminate_subrecords_and_divergences(self):
 		# Insert combinators.
 		for (dst_node, dst_endpoint), sources in self._sink_to_sources().items():
@@ -218,7 +218,7 @@ class DataFlowGraph(MultiDiGraph):
 						"source{0}".format(n), dst_endpoint)
 				# connect source -> splitter_sink
 				self.add_connection(src_node, splitter, src_endpoint, "sink")
-	
+
 	def _infer_plumbing_layout(self):
 		while True:
 			ap = [a for a in self if isinstance(a, AbstractActor) and a.actor_class in plumbing.actors]
@@ -250,7 +250,7 @@ class DataFlowGraph(MultiDiGraph):
 				layout = other_ep.payload.layout
 				a.parameters["layout"] = layout
 				self.instantiate(a)
-	
+
 	def _instantiate_actors(self):
 		# 1. instantiate all abstract non-plumbing actors
 		for actor in list(self):
@@ -264,7 +264,7 @@ class DataFlowGraph(MultiDiGraph):
 				d["source"] = get_single_ep(u, Source)[0]
 			if d["sink"] is None:
 				d["sink"] = get_single_ep(v, Sink)[0]
-	
+
 	# Elaboration turns an abstract DFG into a physical one.
 	#   Pass 1: eliminate subrecords and divergences
 	#           by inserting Combinator/Splitter actors
@@ -274,7 +274,7 @@ class DataFlowGraph(MultiDiGraph):
 		if self.elaborated:
 			return
 		self.elaborated = True
-		
+
 		self._eliminate_subrecords_and_divergences()
 		if optimizer is not None:
 			optimizer(self)

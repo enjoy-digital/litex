@@ -38,7 +38,7 @@ def dumper_gen():
 class SimDumper(SimActor):
 	def __init__(self):
 		self.data = Sink([("d", 32)])
-		SimActor.__init__(self, dumper_gen())		
+		SimActor.__init__(self, dumper_gen())
 
 def trgen_gen():
 	for i in range(10):

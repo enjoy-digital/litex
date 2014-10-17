@@ -15,7 +15,7 @@ class Message:
 	def __init__(self, *pvalues):
 		for parameter, value in zip(self.parameters, pvalues):
 			setattr(self, parameter[1], parameter[0](value))
-	
+
 	def __str__(self):
 		p = []
 		for parameter in self.parameters:
@@ -136,7 +136,7 @@ def _unpack(message):
 
 class PacketTooLarge(Exception):
 	pass
-	
+
 class Initiator:
 	def __init__(self, sockaddr):
 		self.sockaddr = sockaddr
@@ -144,19 +144,19 @@ class Initiator:
 		self._cleanup_file()
 		self.socket.bind(self.sockaddr)
 		self.socket.listen(1)
-	
+
 	def _cleanup_file(self):
 		try:
 			os.remove(self.sockaddr)
 		except OSError:
 			pass
-	
+
 	def accept(self):
 		self.conn, addr = self.socket.accept()
-	
+
 	def send(self, message):
 		self.conn.send(_pack(message))
-	
+
 	def recv(self):
 		maxlen = 2048
 		packet = self.conn.recv(maxlen)

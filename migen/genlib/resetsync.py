@@ -7,7 +7,7 @@ class AsyncResetSynchronizer(Special):
 		Special.__init__(self)
 		self.cd = cd
 		self.async_reset = async_reset
-		
+
 	def iter_expressions(self):
 		yield self.cd, "clk", SPECIAL_INPUT
 		yield self.cd, "rst", SPECIAL_OUTPUT

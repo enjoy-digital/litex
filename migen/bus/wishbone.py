@@ -32,13 +32,13 @@ class InterconnectPointToPoint(Module):
 class Arbiter(Module):
 	def __init__(self, masters, target):
 		self.submodules.rr = roundrobin.RoundRobin(len(masters))
-		
+
 		# mux master->slave signals
 		for name, size, direction in _layout:
 			if direction == DIR_M_TO_S:
 				choices = Array(getattr(m, name) for m in masters)
 				self.comb += getattr(target, name).eq(choices[self.rr.grant])
-		
+
 		# connect slave->master signals
 		for name, size, direction in _layout:
 			if direction == DIR_S_TO_M:
@@ -49,7 +49,7 @@ class Arbiter(Module):
 						self.comb += dest.eq(source & (self.rr.grant == i))
 					else:
 						self.comb += dest.eq(source)
-		
+
 		# connect bus requests to round-robin selector
 		reqs = [m.cyc for m in masters]
 		self.comb += self.rr.request.eq(Cat(*reqs))
@@ -65,7 +65,7 @@ class Decoder(Module):
 		ns = len(slaves)
 		slave_sel = Signal(ns)
 		slave_sel_r = Signal(ns)
-		
+
 		# decode slave addresses
 		self.comb += [slave_sel[i].eq(fun(master.adr))
 			for i, (fun, bus) in enumerate(slaves)]
@@ -73,23 +73,23 @@ class Decoder(Module):
 			self.sync += slave_sel_r.eq(slave_sel)
 		else:
 			self.comb += slave_sel_r.eq(slave_sel)
-		
+
 		# connect master->slaves signals except cyc
 		for slave in slaves:
 			for name, size, direction in _layout:
 				if direction == DIR_M_TO_S and name != "cyc":
 					self.comb += getattr(slave[1], name).eq(getattr(master, name))
-		
+
 		# combine cyc with slave selection signals
 		self.comb += [slave[1].cyc.eq(master.cyc & slave_sel[i])
 			for i, slave in enumerate(slaves)]
-		
+
 		# generate master ack (resp. err) by ORing all slave acks (resp. errs)
 		self.comb += [
 			master.ack.eq(optree("|", [slave[1].ack for slave in slaves])),
 			master.err.eq(optree("|", [slave[1].err for slave in slaves]))
 		]
-		
+
 		# mux (1-hot) slave data return
 		masked = [Replicate(slave_sel_r[i], flen(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
 		self.comb += master.dat_r.eq(optree("|", masked))
@@ -123,7 +123,7 @@ class DownConverter(Module):
 		self.ratio = dw_i//dw_o
 
 		###
-		
+
 		rst = Signal()
 
 		# generate internal write and read ack
@@ -135,45 +135,45 @@ class DownConverter(Module):
 			write_ack.eq(ack & self.wishbone_o.we),
 			read_ack.eq(ack & ~self.wishbone_o.we)
 		]
-		
+
 		# accesses counter logic
 		cnt = Signal(max=self.ratio)
 		self.sync += If(rst, cnt.eq(0)).Elif(ack, cnt.eq(cnt + 1))
-		
+
 		# read data path
 		dat_r = Signal(dw_i)
 		self.sync += If(ack, dat_r.eq(Cat(self.wishbone_o.dat_r, dat_r[:dw_i-dw_o])))
-		
+
 		# write data path
 		dat_w = Signal(dw_i)
 		self.comb += dat_w.eq(self.wishbone_i.dat_w)
-		
+
 		# errors generation
 		err = Signal()
 		self.sync += If(ack, err.eq(self.wishbone_o.err))
-		
+
 		# direct connection of wishbone_i --> wishbone_o signals
 		for name, size, direction in self.wishbone_i.layout:
 			if direction == DIR_M_TO_S and name not in ["adr", "dat_w"]:
 				self.comb += getattr(self.wishbone_o, name).eq(getattr(self.wishbone_i, name))
-		
+
 		# adaptation of adr & dat signals
 		self.comb += [
 			self.wishbone_o.adr[0:flen(cnt)].eq(cnt),
 			self.wishbone_o.adr[flen(cnt):].eq(self.wishbone_i.adr)
 		]
-		
+
 		self.comb += chooser(dat_w, cnt, self.wishbone_o.dat_w, reverse=True)
-		
+
 		# fsm
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
-		
+
 		fsm.act("IDLE",
 			If(write_ack, NextState("WRITE_ADAPT")),
 			If(read_ack, NextState("READ_ADAPT"))
 		)
-		
+
 		fsm.act("WRITE_ADAPT",
 			If(write_ack & (cnt == self.ratio-1),
 				NextState("IDLE"),
@@ -182,7 +182,7 @@ class DownConverter(Module):
 				self.wishbone_i.ack.eq(1),
 			)
 		)
-		
+
 		master_i_dat_r = Signal(dw_i)
 		self.comb += master_i_dat_r.eq(Cat(self.wishbone_o.dat_r, dat_r[:dw_i-dw_o]))
 
@@ -200,7 +200,7 @@ class Tap(Module):
 	def __init__(self, bus, handler=print):
 		self.bus = bus
 		self.handler = handler
-	
+
 	def do_simulation(self, selfp):
 		if selfp.bus.ack:
 			assert(selfp.bus.cyc and selfp.bus.stb)
@@ -222,7 +222,7 @@ class Initiator(Module):
 		self.bus = bus
 		self.transaction_start = 0
 		self.transaction = None
-	
+
 	def do_simulation(self, selfp):
 		if self.transaction is None or selfp.bus.ack:
 			if self.transaction is not None:
@@ -253,10 +253,10 @@ class Initiator(Module):
 class TargetModel:
 	def read(self, address):
 		return 0
-	
+
 	def write(self, address, data, sel):
 		pass
-	
+
 	def can_ack(self, bus):
 		return True
 
@@ -266,7 +266,7 @@ class Target(Module):
 			bus = Interface()
 		self.bus = bus
 		self.model = model
-	
+
 	def do_simulation(self, selfp):
 		bus = selfp.bus
 		if not bus.ack:
@@ -296,9 +296,9 @@ class SRAM(Module):
 				read_only = self.mem.bus_read_only
 			else:
 				read_only = False
-	
+
 		###
-	
+
 		# memory
 		port = self.mem.get_port(write_capable=not read_only, we_granularity=8)
 		self.specials += self.mem, port

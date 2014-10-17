@@ -70,7 +70,7 @@ class Crossbar(Module):
 
 		m_ca, m_ba, m_rca = self._split_master_addresses(self._controller_bits,
 			self._bank_bits, self._rca_bits, self._cba_shift)
-		
+
 		for nc, controller in enumerate(self._controllers):
 			if self._controller_bits:
 				controller_selected = [ca == nc for ca in m_ca]
@@ -190,7 +190,7 @@ class Initiator(Module):
 		self.transaction_start = 0
 		self.transaction = None
 		self.transaction_end = None
-	
+
 	def do_simulation(self, selfp):
 		selfp.bus.dat_w = 0
 		selfp.bus.dat_we = 0
@@ -231,7 +231,7 @@ class TargetModel:
 
 	def read(self, bank, address):
 		return 0
-	
+
 	def write(self, bank, address, data, we):
 		pass
 
@@ -286,7 +286,7 @@ class Target(Module):
 				selected_transaction = self.req_fifos[nb].contents.pop(0)
 			else:
 				bank.dat_ack = 0
-		
+
 		rd_transaction = None
 		wr_transaction = None
 		if selected_bank_n >= 0:

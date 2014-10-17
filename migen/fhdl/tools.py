@@ -7,7 +7,7 @@ from migen.util.misc import flat_iteration
 class _SignalLister(NodeVisitor):
 	def __init__(self):
 		self.output_list = set()
-	
+
 	def visit_Signal(self, node):
 		self.output_list.add(node)
 
@@ -15,11 +15,11 @@ class _TargetLister(NodeVisitor):
 	def __init__(self):
 		self.output_list = set()
 		self.target_context = False
-	
+
 	def visit_Signal(self, node):
 		if self.target_context:
 			self.output_list.add(node)
-	
+
 	def visit_Assign(self, node):
 		self.target_context = True
 		self.visit(node.l)
@@ -28,7 +28,7 @@ class _TargetLister(NodeVisitor):
 	def visit_ArrayProxy(self, node):
 		for choice in node.choices:
 			self.visit(choice)
-	
+
 def list_signals(node):
 	lister = _SignalLister()
 	lister.visit(node)
@@ -145,7 +145,7 @@ class _Lowerer(NodeTransformer):
 		r = _Assign(lhs, rhs)
 		if self.extra_stmts:
 			r = [r] + self.extra_stmts
-		
+
 		self.target_context, self.extra_stmts = old_target_context, old_extra_stmts
 		return r
 

@@ -9,7 +9,7 @@ class RoundRobin(Module):
 		self.switch_policy = switch_policy
 		if self.switch_policy == SP_CE:
 			self.ce = Signal()
-	
+
 		###
 
 		if n > 1:

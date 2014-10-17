@@ -8,7 +8,7 @@ def mkdir_noerror(d):
 		pass
 
 def language_by_filename(name):
-	extension = name.rsplit(".")[-1] 
+	extension = name.rsplit(".")[-1]
 	if extension in ["v", "vh", "vo"]:
 		return "verilog"
 	if extension in ["vhd", "vhdl", "vho"]:

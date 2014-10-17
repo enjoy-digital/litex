@@ -13,7 +13,7 @@ def _format_constraint(c):
 	if isinstance(c, Pins):
 		return "set_property LOC " + c.identifiers[0]
 	elif isinstance(c, IOStandard):
-		return "set_property IOSTANDARD " + c.name 
+		return "set_property IOSTANDARD " + c.name
 	elif isinstance(c, Drive):
 		return "set_property DRIVE " + str(c.strength)
 	elif isinstance(c, Misc):
@@ -24,7 +24,7 @@ def _format_xdc(signame, pin, others, resname):
 	fmt_r = resname[0] + ":" + str(resname[1])
 	if resname[2] is not None:
 		fmt_r += "." + resname[2]
-	r = " ## %s\n" %fmt_r 
+	r = " ## %s\n" %fmt_r
 	for c in fmt_c:
 		r += c + " [get_ports " + signame + "]\n"
 	return r
@@ -98,7 +98,7 @@ class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
 		tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
 		if run:
 			_run_vivado(build_name, vivado_path, source)
-		
+
 		os.chdir("..")
 
 	def add_period_constraint(self, clk, period):

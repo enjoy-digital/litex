@@ -11,7 +11,7 @@ class Counter(Module):
 		self.count = Signal((37, True), reset=-5)
 
 		self.sync += If(self.ce, self.count.eq(self.count + 1))
-	
+
 	def do_simulation(self, selfp):
 		# Only assert CE every second cycle.
 		# => each counter value is held for two cycles.
@@ -21,7 +21,7 @@ class Counter(Module):
 			selfp.ce = 1
 		print("Cycle: " + str(selfp.simulator.cycle_counter) + " Count: " + \
 			str(selfp.count))
-	
+
 # Output is:
 # Cycle: 0 Count: -5
 # Cycle: 1 Count: -5

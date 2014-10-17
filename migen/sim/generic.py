@@ -15,14 +15,14 @@ class TopLevel:
 		self.top_name = top_name
 		self.dut_type = dut_type
 		self.dut_name = dut_name
-		
+
 		self._cd_name = cd_name
 		self._clk_period = clk_period
-		
+
 		cd = ClockDomain(self._cd_name)
 		self.clock_domains = [cd]
 		self.ios = {cd.clk, cd.rst}
-	
+
 	def get(self, sockaddr):
 		template1 = """`timescale 1ns / 1ps
 
@@ -83,16 +83,16 @@ class Simulator:
 		self.top_level = top_level
 		self.ipc = Initiator(sockaddr)
 		self.sim_runner = sim_runner
-		
+
 		c_top = self.top_level.get(sockaddr)
-		
+
 		fragment = fragment + _Fragment(clock_domains=top_level.clock_domains)
 		c_fragment, self.namespace = verilog.convert(fragment,
 			ios=self.top_level.ios,
 			name=self.top_level.dut_type,
 			return_ns=True,
 			**vopts)
-		
+
 		self.cycle_counter = -1
 
 		self.sim_runner = sim_runner
@@ -103,7 +103,7 @@ class Simulator:
 
 		self.sim_functions = fragment.sim
 		self.active_sim_functions = set(f for f in fragment.sim if not hasattr(f, "passive") or not f.passive)
-	
+
 	def run(self, ncycles=None):
 		counter = 0
 
@@ -157,7 +157,7 @@ class Simulator:
 		if signed and (value & 2**(nbits - 1)):
 			value -= 2**nbits
 		return value
-	
+
 	def wr(self, item, value, index=0):
 		name = self.top_level.top_name + "." \
 		  + self.top_level.dut_name + "." \
@@ -170,7 +170,7 @@ class Simulator:
 			value += 2**nbits
 		assert(value >= 0 and value < 2**nbits)
 		self.ipc.send(MessageWrite(name, Int32(index), value))
-	
+
 	def __del__(self):
 		if hasattr(self, "ipc"):
 			warnings.warn("call Simulator.close() to clean up "

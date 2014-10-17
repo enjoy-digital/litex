@@ -18,7 +18,7 @@ class _LowerNextState(NodeTransformer):
 		self.next_state_signal = next_state_signal
 		self.encoding = encoding
 		self.aliases = aliases
-		
+
 	def visit_unknown(self, node):
 		if isinstance(node, NextState):
 			try:

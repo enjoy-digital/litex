@@ -26,7 +26,7 @@ class SingleGenerator(Module, AutoCSR):
 	def __init__(self, layout, mode):
 		self.source = Source(_convert_layout(layout))
 		self.busy = Signal()
-		
+
 		self.comb += self.busy.eq(self.source.stb)
 
 		if mode == MODE_EXTERNAL:
@@ -78,15 +78,15 @@ class Collector(Module, AutoCSR):
 		self._r_wc = CSRStorage(bits_for(depth), write_from_dev=True, atomic_write=True)
 		self._r_ra = CSRStorage(bits_for(depth-1))
 		self._r_rd = CSRStatus(dw)
-		
+
 		###
-	
+
 		mem = Memory(dw, depth)
 		self.specials += mem
 		wp = mem.get_port(write_capable=True)
 		rp = mem.get_port()
 		self.specials += wp, rp
-		
+
 		self.comb += [
 			self.busy.eq(0),
 
@@ -100,10 +100,10 @@ class Collector(Module, AutoCSR):
 			),
 			self._r_wa.dat_w.eq(self._r_wa.storage + 1),
 			self._r_wc.dat_w.eq(self._r_wc.storage - 1),
-			
+
 			wp.adr.eq(self._r_wa.storage),
 			wp.dat_w.eq(self.sink.payload.raw_bits()),
-			
+
 			rp.adr.eq(self._r_ra.storage),
 			self._r_rd.status.eq(rp.dat_r)
 		]
@@ -131,7 +131,7 @@ class DMAReadController(_DMAController):
 		bus_aw = flen(bus_accessor.address.payload.a)
 		bus_dw = flen(bus_accessor.data.payload.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
-		
+
 		g = DataFlowGraph()
 		g.add_pipeline(self.generator,
 			misc.IntSequence(bus_aw, bus_aw),
@@ -150,7 +150,7 @@ class DMAWriteController(_DMAController):
 		bus_aw = flen(bus_accessor.address_data.payload.a)
 		bus_dw = flen(bus_accessor.address_data.payload.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
-		
+
 		g = DataFlowGraph()
 		adr_buffer = AbstractActor(plumbing.Buffer)
 		int_sequence = misc.IntSequence(bus_aw, bus_aw)

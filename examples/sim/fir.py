@@ -14,7 +14,7 @@ class FIR(Module):
 		self.wsize = wsize
 		self.i = Signal((self.wsize, True))
 		self.o = Signal((self.wsize, True))
-	
+
 		###
 
 		muls = []
@@ -37,7 +37,7 @@ class TB(Module):
 		self.frequency = frequency
 		self.inputs = []
 		self.outputs = []
-	
+
 	def do_simulation(self, selfp):
 		f = 2**(self.fir.wsize - 1)
 		v = 0.1*cos(2*pi*self.frequency*selfp.simulator.cycle_counter)
@@ -48,7 +48,7 @@ class TB(Module):
 if __name__ == "__main__":
 	# Compute filter coefficients with SciPy.
 	coef = signal.remez(30, [0, 0.1, 0.2, 0.4, 0.45, 0.5], [0, 1, 0])
-	
+
 	# Simulate for different frequencies and concatenate
 	# the results.
 	in_signals = []
@@ -58,12 +58,12 @@ if __name__ == "__main__":
 		run_simulation(tb, ncycles=200)
 		in_signals += tb.inputs
 		out_signals += tb.outputs
-	
+
 	# Plot data from the input and output waveforms.
 	plt.plot(in_signals)
 	plt.plot(out_signals)
 	plt.show()
-	
+
 	# Print the Verilog source for the filter.
 	fir = FIR(coef)
 	print(verilog.convert(fir, ios={fir.i, fir.o}))

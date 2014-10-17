@@ -4,10 +4,10 @@ class Complex:
 	def __init__(self, real, imag):
 		self.real = real
 		self.imag = imag
-	
+
 	def __neg__(self):
 		return Complex(-self.real, -self.imag)
-	
+
 	def __add__(self, other):
 		if isinstance(other, Complex):
 			return Complex(self.real + other.real, self.imag + other.imag)
@@ -31,7 +31,7 @@ class Complex:
 		else:
 			return Complex(self.real*other, self.imag*other)
 	__rmul__ = __mul__
-	
+
 	def __lshift__(self, other):
 		return Complex(self.real << other, self.imag << other)
 	def __rshift__(self, other):
@@ -39,7 +39,7 @@ class Complex:
 
 	def __repr__(self):
 		return repr(self.real) + " + " + repr(self.imag) + "j"
-	
+
 	def eq(self, r):
 		if isinstance(r, Complex):
 			return self.real.eq(r.real), self.imag.eq(r.imag)

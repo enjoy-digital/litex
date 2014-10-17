@@ -21,7 +21,7 @@ class Combinator(Module):
 		self.busy = Signal()
 
 		###
-	
+
 		self.comb += [
 			self.busy.eq(0),
 			self.source.stb.eq(optree("&", [sink.stb for sink in sinks]))
@@ -38,7 +38,7 @@ class Splitter(Module):
 			setattr(self, "source"+str(n), s)
 			sources.append(s)
 		self.busy = Signal()
-		
+
 		###
 
 		self.comb += [source.payload.eq(self.sink.payload) for source in sources]
@@ -62,7 +62,7 @@ class Multiplexer(Module):
 			sinks.append(sink)
 		self.busy = Signal()
 		self.sel = Signal(max=n)
-		
+
 		###
 
 		cases = {}
@@ -80,7 +80,7 @@ class Demultiplexer(Module):
 			sources.append(source)
 		self.busy = Signal()
 		self.sel = Signal(max=n)
-		
+
 		###
 
 		cases = {}

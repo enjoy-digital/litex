@@ -6,7 +6,7 @@ class Mem(Module):
 		# Initialize the beginning of the memory with integers
 		# from 0 to 19.
 		self.specials.mem = Memory(16, 2**12, init=list(range(20)))
-	
+
 	def do_simulation(self, selfp):
 		# Read the memory. Use the cycle counter as address.
 		value = selfp.mem[selfp.simulator.cycle_counter]

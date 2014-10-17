@@ -16,7 +16,7 @@ class _FIFOInterface:
 	"""
 	Data written to the input interface (`din`, `we`, `writable`) is
 	buffered and can be read at the output interface (`dout`, `re`,
-	`readable`). The data entry written first to the input 
+	`readable`). The data entry written first to the input
 	also appears first on the output.
 
 	Parameters

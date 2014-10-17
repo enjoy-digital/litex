@@ -37,10 +37,10 @@ class NodeVisitor:
 			self.visit_ArrayProxy(node)
 		elif node is not None:
 			self.visit_unknown(node)
-	
+
 	def visit_constant(self, node):
 		pass
-	
+
 	def visit_Signal(self, node):
 		pass
 
@@ -49,52 +49,52 @@ class NodeVisitor:
 
 	def visit_ResetSignal(self, node):
 		pass
-	
+
 	def visit_Operator(self, node):
 		for o in node.operands:
 			self.visit(o)
-	
+
 	def visit_Slice(self, node):
 		self.visit(node.value)
-	
+
 	def visit_Cat(self, node):
 		for e in node.l:
 			self.visit(e)
-	
+
 	def visit_Replicate(self, node):
 		self.visit(node.v)
-	
+
 	def visit_Assign(self, node):
 		self.visit(node.l)
 		self.visit(node.r)
-	
+
 	def visit_If(self, node):
 		self.visit(node.cond)
 		self.visit(node.t)
 		self.visit(node.f)
-	
+
 	def visit_Case(self, node):
 		self.visit(node.test)
 		for v, statements in node.cases.items():
 			self.visit(statements)
-	
+
 	def visit_Fragment(self, node):
 		self.visit(node.comb)
 		self.visit(node.sync)
-	
+
 	def visit_statements(self, node):
 		for statement in node:
 			self.visit(statement)
-	
+
 	def visit_clock_domains(self, node):
 		for clockname, statements in node.items():
 			self.visit(statements)
-	
+
 	def visit_ArrayProxy(self, node):
 		for choice in node.choices:
 			self.visit(choice)
 		self.visit(node.key)
-	
+
 	def visit_unknown(self, node):
 		pass
 
@@ -139,13 +139,13 @@ class NodeTransformer:
 			return self.visit_unknown(node)
 		else:
 			return None
-	
+
 	def visit_constant(self, node):
 		return node
-	
+
 	def visit_Signal(self, node):
 		return node
-	
+
 	def visit_ClockSignal(self, node):
 		return node
 
@@ -154,47 +154,47 @@ class NodeTransformer:
 
 	def visit_Operator(self, node):
 		return _Operator(node.op, [self.visit(o) for o in node.operands])
-	
+
 	def visit_Slice(self, node):
 		return _Slice(self.visit(node.value), node.start, node.stop)
-	
+
 	def visit_Cat(self, node):
 		return Cat(*[self.visit(e) for e in node.l])
-	
+
 	def visit_Replicate(self, node):
 		return Replicate(self.visit(node.v), node.n)
-	
+
 	def visit_Assign(self, node):
 		return _Assign(self.visit(node.l), self.visit(node.r))
-	
+
 	def visit_If(self, node):
 		r = If(self.visit(node.cond))
 		r.t = self.visit(node.t)
 		r.f = self.visit(node.f)
 		return r
-	
+
 	def visit_Case(self, node):
 		cases = dict((v, self.visit(statements)) for v, statements in node.cases.items())
 		r = Case(self.visit(node.test), cases)
 		return r
-	
+
 	def visit_Fragment(self, node):
 		r = copy(node)
 		r.comb = self.visit(node.comb)
 		r.sync = self.visit(node.sync)
 		return r
-	
+
 	# NOTE: this will always return a list, even if node is a tuple
 	def visit_statements(self, node):
 		return [self.visit(statement) for statement in node]
-	
+
 	def visit_clock_domains(self, node):
 		return dict((clockname, self.visit(statements)) for clockname, statements in node.items())
-	
+
 	def visit_ArrayProxy(self, node):
 		return _ArrayProxy([self.visit(choice) for choice in node.choices],
 			self.visit(node.key))
-	
+
 	def visit_unknown(self, node):
 		return node
 

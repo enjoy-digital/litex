@@ -9,7 +9,7 @@ def my_generator(n):
 		t = TWrite(4*bank+x, 0x1000*bank + 0x100*x)
 		yield t
 		print("{0}: Wrote in {1} cycle(s)".format(n, t.latency))
-		
+
 	for x in range(4):
 		t = TRead(4*bank+x)
 		yield t
@@ -21,7 +21,7 @@ class MyModel(lasmibus.TargetModel):
 		r = 0x1000*bank + 0x100*address
 		#print("read from bank {0} address {1} -> {2:x}".format(bank, address, r))
 		return r
-	
+
 	def write(self, bank, address, data, we):
 		print("write to bank {0} address {1:x} data {2:x}".format(bank, address, data))
 		assert(data == 0x1000*bank + 0x100*address)

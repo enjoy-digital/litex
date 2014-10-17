@@ -8,14 +8,14 @@ class Divider(Module):
 		self.ready_o = Signal()
 		self.quotient_o = Signal(w)
 		self.remainder_o = Signal(w)
-	
+
 		###
-		
+
 		qr = Signal(2*w)
 		counter = Signal(max=w+1)
 		divisor_r = Signal(w)
 		diff = Signal(w+1)
-		
+
 		self.comb += [
 			self.quotient_o.eq(qr[:w]),
 			self.remainder_o.eq(qr[w:]),

@@ -116,13 +116,13 @@ class Record:
 				yield from e.iter_flat()
 			else:
 				raise TypeError
-	
+
 	def flatten(self):
 		return [signal for signal, direction in self.iter_flat()]
 
 	def raw_bits(self):
 		return Cat(*self.flatten())
-	
+
 	def connect(self, *slaves):
 		r = []
 		for f in self.layout:

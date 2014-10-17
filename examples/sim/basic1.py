@@ -10,12 +10,12 @@ class Counter(Module):
 		# At each cycle, increase the value of the count signal.
 		# We do it with convertible/synthesizable FHDL code.
 		self.sync += self.count.eq(self.count + 1)
-	
+
 	# This function will be called at every cycle.
 	def do_simulation(self, selfp):
 		# Simply read the count signal and print it.
 		# The output is:
-		# Count: 0 
+		# Count: 0
 		# Count: 1
 		# Count: 2
 		# ...

@@ -63,7 +63,7 @@ def _run_yosys(device, sources, vincpaths, build_name):
 		incflags += " -I" + path
 	for filename, language in sources:
 		ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
-	
+
 	if device[:2] == "xc":
 		archcode = device[2:4]
 	else:
@@ -75,11 +75,11 @@ def _run_yosys(device, sources, vincpaths, build_name):
 		"7v": "virtex7",
 		"7z": "zynq7000"
 	}[archcode]
-	
+
 	ys_contents += """hierarchy -check -top top
 proc; memory; opt; fsm; opt
 synth_xilinx -arch {arch} -top top -edif {build_name}.edif""".format(arch=arch, build_name=build_name)
-	
+
 	ys_name = build_name + ".ys"
 	tools.write_to_file(ys_name, ys_contents)
 	r = subprocess.call(["yosys", ys_name])

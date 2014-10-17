@@ -42,7 +42,7 @@ class InsertControl(ModuleDecorator):
 
 		object.__setattr__(self, "_ic_control_name", control_name)
 		object.__setattr__(self, "_ic_clock_domains", clock_domains)
-		
+
 		if clock_domains is None:
 			ctl = Signal(name=control_name)
 			assert(not hasattr(decorated, control_name))
@@ -69,7 +69,7 @@ class InsertControl(ModuleDecorator):
 class InsertCE(InsertControl):
 	def __init__(self, *args, **kwargs):
 		InsertControl.__init__(self, "ce", *args, **kwargs)
-		
+
 	def transform_fragment_insert(self, f, to_insert):
 		for ce, cdn in to_insert:
 			f.sync[cdn] = [If(ce, *f.sync[cdn])]

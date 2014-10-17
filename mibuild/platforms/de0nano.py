@@ -20,9 +20,9 @@ _io = [
 
 	("key", 0, Pins("J15"), IOStandard("3.3-V LVTTL")),
 	("key", 1, Pins("E1"), IOStandard("3.3-V LVTTL")),
-	
+
 	("sw", 0, Pins("M1"), IOStandard("3.3-V LVTTL")),
-	("sw", 1, Pins("T9"), IOStandard("3.3-V LVTTL")),	
+	("sw", 1, Pins("T9"), IOStandard("3.3-V LVTTL")),
 	("sw", 2, Pins("B9"), IOStandard("3.3-V LVTTL")),
 	("sw", 3, Pins("M15"), IOStandard("3.3-V LVTTL")),
 
@@ -30,7 +30,7 @@ _io = [
 		Subsignal("tx", Pins("D3"), IOStandard("3.3-V LVTTL")),
 		Subsignal("rx", Pins("C3"), IOStandard("3.3-V LVTTL"))
 	),
-	
+
 	("sdram_clock", 0, Pins("R4"), IOStandard("3.3-V LVTTL")),
 	("sdram", 0,
 		Subsignal("a", Pins("P2 N5 N6 M8 P8 T7 N8 T6 R1 P1 N2 N1 L4")),
@@ -44,7 +44,7 @@ _io = [
 		Subsignal("dm", Pins("R6","T5")),
 		IOStandard("3.3-V LVTTL")
 	),
-	
+
 	("epcs", 0,
 		Subsignal("data0", Pins("H2")),
 		Subsignal("dclk", Pins("H1")),
@@ -52,7 +52,7 @@ _io = [
 		Subsignal("asd0", Pins("C1")),
 		IOStandard("3.3-V LVTTL")
 	),
-	
+
 	("i2c", 0,
 		Subsignal("sclk", Pins("F2")),
 		Subsignal("sdat", Pins("F1")),
@@ -64,7 +64,7 @@ _io = [
 		Subsignal("int", Pins("M2")),
 		IOStandard("3.3-V LVTTL")
 	),
-	
+
 	("adc", 0,
 		Subsignal("cs_n", Pins("A10")),
 		Subsignal("saddr", Pins("B10")),
@@ -72,7 +72,7 @@ _io = [
 		Subsignal("sdat", Pins("A9")),
 		IOStandard("3.3-V LVTTL")
 	),
-	
+
 	("gpio_0", 0,
 		Pins("D3 C3 A2 A3 B3 B4 A4 B5 A5 D5 B6 A6 B7 D6 A7 C6",
 			"C8 E6 E7 D8 E8 F8 F9 E9 C9 D9 E11 E10 C11 B11 A12 D11",

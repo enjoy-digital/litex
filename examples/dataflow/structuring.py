@@ -39,13 +39,13 @@ class TB(Module):
 	def __init__(self):
 		source = SimSource()
 		sink = SimSink()
-		
+
 		# A tortuous way of passing integer tokens.
 		packer = structuring.Pack(base_layout, pack_factor)
 		to_raw = structuring.Cast(packed_layout, rawbits_layout)
 		from_raw = structuring.Cast(rawbits_layout, packed_layout)
 		unpacker = structuring.Unpack(pack_factor, base_layout)
-		
+
 		self.g = DataFlowGraph()
 		self.g.add_connection(source, packer)
 		self.g.add_connection(packer, to_raw)
@@ -58,7 +58,7 @@ class TB(Module):
 if __name__ == "__main__":
 	tb = TB()
 	run_simulation(tb, ncycles=1000)
-	
+
 	g = nx.MultiDiGraph()
 	for u, v, edge in tb.g.edges_iter():
 		g.add_edge(u, v, **edge)

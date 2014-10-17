@@ -77,7 +77,7 @@ class Instance(Special):
 				expr = Signal()
 			self.expr = expr
 	class Input(_IO):
-		pass	
+		pass
 	class Output(_IO):
 		pass
 	class InOut(_IO):
@@ -106,7 +106,7 @@ class Instance(Special):
 				"p": Instance.Parameter
 			}[item_type]
 			self.items.append(item_class(item_name, v))
-	
+
 	def get_io(self, name):
 		for item in self.items:
 			if isinstance(item, Instance._IO) and item.name == name:
@@ -145,7 +145,7 @@ class Instance(Special):
 					raise TypeError
 				r += ")"
 			r += "\n) "
-		r += ns.get_name(instance) 
+		r += ns.get_name(instance)
 		if parameters: r += " "
 		r += "(\n"
 		firstp = True
@@ -204,7 +204,7 @@ class Memory(Special):
 		self.ports = []
 		self.init = init
 		self.name_override = get_obj_var_name(name, "mem")
-	
+
 	def get_port(self, write_capable=False, async_read=False,
 	  has_re=False, we_granularity=0, mode=WRITE_FIRST,
 	  clock_domain="sys"):
@@ -240,7 +240,7 @@ class Memory(Special):
 			else:
 				return verilog_printexpr(ns, e)[0]
 		adrbits = bits_for(memory.depth-1)
-		
+
 		r += "reg [" + str(memory.width-1) + ":0] " \
 			+ gn(memory) \
 			+ "[0:" + str(memory.depth-1) + "];\n"
@@ -290,7 +290,7 @@ class Memory(Special):
 					r += "\tif (" + gn(port.re) + ")\n"
 					r += "\t" + rd.replace("\n\t", "\n\t\t")
 			r += "end\n\n"
-		
+
 		for port in memory.ports:
 			if port.async_read:
 				r += "assign " + gn(port.dat_r) + " = " + gn(memory) + "[" + gn(port.adr) + "];\n"
@@ -300,13 +300,13 @@ class Memory(Special):
 				else:
 					r += "assign " + gn(port.dat_r) + " = " + gn(data_regs[id(port)]) + ";\n"
 		r += "\n"
-		
+
 		if memory.init is not None:
 			r += "initial begin\n"
 			for i, c in enumerate(memory.init):
 				r += "\t" + gn(memory) + "[" + str(i) + "] <= " + str(memory.width) + "'d" + str(c) + ";\n"
 			r += "end\n\n"
-		
+
 		return r
 
 class SynthesisDirective(Special):

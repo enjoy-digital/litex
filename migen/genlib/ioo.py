@@ -41,11 +41,11 @@ class UnifiedIOSimulation(UnifiedIOObject):
 				caller = memory.Initiator(g, v)
 			callers.append(caller)
 		self.submodules += callers
-		
+
 		self.dispatch_state = _WAIT_COMPLETE
 		self.dispatch_caller = 0
 		self.pending_transaction = None
-	
+
 	def identify_transaction(self, t):
 		if isinstance(t, Token):
 			return 0
@@ -59,7 +59,7 @@ class UnifiedIOSimulation(UnifiedIOObject):
 				return self.busname_to_caller_id[t.busname]
 		else:
 			raise TypeError
-	
+
 	def dispatch_g(self, caller_id):
 		while True:
 			if self.dispatch_state == _WAIT_COMPLETE and self.dispatch_caller == caller_id:

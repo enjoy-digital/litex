@@ -71,14 +71,14 @@ def trace_back(varname=None):
 			varname = remove_underscore(varname)
 			l.insert(0, (varname, name_to_idx[varname]))
 			name_to_idx[varname] += 1
-		
+
 		try:
 			obj = frame.f_locals["self"]
 		except KeyError:
 			obj = None
 		if hasattr(obj, "__del__"):
 			obj = None
-		
+
 		if obj is None:
 			if varname is not None:
 				coname = frame.f_code.co_name
@@ -104,7 +104,7 @@ def trace_back(varname=None):
 					objs.append(obj)
 			classname = remove_underscore(classname)
 			l.insert(0, (classname, idx))
-		
+
 		varname = None
 		frame = frame.f_back
 	return l

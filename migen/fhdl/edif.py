@@ -11,7 +11,7 @@ _Cell = namedtuple("_Cell", "name ports")
 _Property = namedtuple("_Property", "name value")
 _Instance = namedtuple("_Instance", "name cell properties")
 _NetBranch = namedtuple("_NetBranch", "portname instancename")
-  
+
 def _write_cells(cells):
 	r = ""
 	for cell in cells:
@@ -100,7 +100,7 @@ def _write_edif(cells, ios, instances, connections, cell_library, design_name, p
 		(property PART (string "{1}") (owner "{2}"))
 	)
 )""".format(design_name, part, vendor)
-	
+
 	return r
 
 def _generate_cells(f):
@@ -131,7 +131,7 @@ def _generate_cells(f):
 def _generate_instances(f,ns):
 	instances = []
 	for special in f.specials:
-		if isinstance(special, Instance):	
+		if isinstance(special, Instance):
 			props = []
 			for prop in special.items:
 				if isinstance(prop, Instance.Input):

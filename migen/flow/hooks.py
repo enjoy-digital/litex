@@ -6,16 +6,16 @@ from migen.flow.actor import *
 class EndpointSimHook(Module):
 	def __init__(self, endpoint):
 		self.endpoint = endpoint
-	
+
 	def on_ack(self):
 		pass
-	
+
 	def on_nack(self):
 		pass
-	
+
 	def on_inactive(self):
 		pass
-	
+
 	def do_simulation(self, selfp):
 		if selfp.endpoint.stb:
 			if selfp.endpoint.ack:
@@ -35,7 +35,7 @@ class DFGHook(Module):
 			h = create(u, ep, v)
 			ep_to_hook[ep] = h
 			setattr(self.submodules, "hook"+str(hookn), h)
-	
+
 	def hooks_iter(self):
 		for v1 in self.nodepair_to_ep.values():
 			for v2 in v1.values():

@@ -29,7 +29,7 @@ class Initiator(Module):
 		self.transaction = None
 		self.read_data_ready = False
 		self.done = False
-		
+
 	def do_simulation(self, selfp):
 		if not self.done:
 			if self.transaction is not None:
@@ -77,12 +77,12 @@ class SRAM(Module):
 				read_only = mem.bus_read_only
 			else:
 				read_only = False
-	
+
 		###
 
 		port = mem.get_port(write_capable=not read_only)
 		self.specials += mem, port
-		
+
 		sel = Signal()
 		sel_r = Signal()
 		self.sync += sel_r.eq(sel)
@@ -116,7 +116,7 @@ class SRAM(Module):
 					port.we.eq(sel & self.bus.we),
 					port.dat_w.eq(self.bus.dat_w)
 				]
-		
+
 		if self._page is None:
 			self.comb += port.adr.eq(self.bus.adr[word_bits:word_bits+flen(port.adr)])
 		else:

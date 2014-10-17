@@ -85,7 +85,7 @@ class _Compiler:
 		self.symdict = symdict
 		self.registers = registers
 		self.ec = ExprCompiler(self.symdict)
-	
+
 	def visit_top(self, node, args, kwargs):
 		if isinstance(node, ast.Module) \
 		  and len(node.body) == 1 \
@@ -96,7 +96,7 @@ class _Compiler:
 			return states
 		else:
 			raise NotImplementedError
-	
+
 	# blocks and statements
 	def visit_block(self, statements):
 		sa = StateAssembler()
@@ -125,7 +125,7 @@ class _Compiler:
 				else:
 					raise NotImplementedError
 				statement = None
-	
+
 	def visit_assign(self, sa, node, statements):
 		if isinstance(node.value, ast.Call):
 			is_special = False
@@ -151,7 +151,7 @@ class _Compiler:
 			sa.assemble([r], [r])
 		else:
 			raise NotImplementedError
-	
+
 	def visit_assign_special(self, sa, node, statements):
 		value = node.value
 		assert(isinstance(value, ast.Call))
@@ -159,7 +159,7 @@ class _Compiler:
 			callee = self.symdict[value.func.id]
 		else:
 			raise NotImplementedError
-		
+
 		if callee == transel.Register:
 			if len(value.args) != 1:
 				raise TypeError("Register() takes exactly 1 argument")
@@ -177,7 +177,7 @@ class _Compiler:
 					raise NotImplementedError
 		else:
 			return self.visit_io_pattern(sa, node.targets, callee, value.args, value.keywords, statements)
-	
+
 	def visit_io_pattern(self, sa, targets, model, args, keywords, statements):
 		# first statement is <modelname> = <model>(<args>)
 		if len(targets) != 1 or not isinstance(targets[0], ast.Name):
@@ -185,7 +185,7 @@ class _Compiler:
 		modelname = targets[0].id
 		if modelname in self.symdict:
 			raise NotImplementedError("I/O model name is not free")
-		
+
 		# second statement must be yield <modelname>
 		try:
 			ystatement = next(statements)
@@ -197,7 +197,7 @@ class _Compiler:
 		  or ystatement.value.value.id != modelname:
 			print(ast.dump(ystatement))
 			raise NotImplementedError("Unrecognized I/O pattern")
-		
+
 		# following optional statements are assignments to registers
 		# with <modelname> used in expressions.
 		from_model = []
@@ -219,27 +219,27 @@ class _Compiler:
 				else:
 					raise NotImplementedError
 			from_model.append((tregs, fstatement.value))
-		
+
 		states, exit_states = gen_io(self, modelname, model, args, keywords, from_model)
 		sa.assemble(states, exit_states)
 		return fstatement
-	
+
 	def visit_if(self, sa, node):
 		test = self.ec.visit_expr(node.test)
 		states_t, exit_states_t = self.visit_block(node.body)
 		states_f, exit_states_f = self.visit_block(node.orelse)
 		exit_states = exit_states_t + exit_states_f
-		
+
 		test_state_stmt = If(test, id_next_state(states_t[0]))
 		test_state = [test_state_stmt]
 		if states_f:
 			test_state_stmt.Else(id_next_state(states_f[0]))
 		else:
 			exit_states.append(test_state)
-		
+
 		sa.assemble([test_state] + states_t + states_f,
 			exit_states)
-	
+
 	def visit_while(self, sa, node):
 		test = self.ec.visit_expr(node.test)
 		states_b, exit_states_b = self.visit_block(node.body)
@@ -247,9 +247,9 @@ class _Compiler:
 		test_state = [If(test, id_next_state(states_b[0]))]
 		for exit_state in exit_states_b:
 			exit_state.insert(0, id_next_state(test_state))
-		
+
 		sa.assemble([test_state] + states_b, [test_state])
-	
+
 	def visit_for(self, sa, node):
 		if not isinstance(node.target, ast.Name):
 			raise NotImplementedError
@@ -268,7 +268,7 @@ class _Compiler:
 			states += states_b
 		del self.symdict[target]
 		sa.assemble(states, last_exit_states)
-	
+
 	def visit_iterator(self, node):
 		return eval_ast(node, self.symdict)
 
@@ -306,13 +306,13 @@ class Pytholite(UnifiedIOObject):
 		tree = ast.parse(inspect.getsource(self.func))
 		symdict = self.func.__globals__.copy()
 		registers = []
-		
+
 		states = _Compiler(self, symdict, registers).visit_top(tree, self.args, self.kwargs)
-		
+
 		for register in registers:
 			if register.source_encoding:
 				register.finalize()
 				self.submodules += register
-		
+
 		fsm = implement_fsm(states)
 		self.submodules += TransformModule(LowerAbstractLoad().visit, fsm)

@@ -14,7 +14,7 @@ class Register:
 		else:
 			self._nbits, self._signed = bits_sign, False
 		self._val = 0
-	
+
 	def _set_store(self, val):
 		if self._signed:
 			sbw = 2**(self._nbits - 1)
@@ -105,7 +105,7 @@ class Register:
 			return self._val << other
 	def __rlshift__(self, other):
 		return other << self._val
-		
+
 	def __rshift__(self, other):
 		if isinstance(other, Register):
 			return self._val >> other._val

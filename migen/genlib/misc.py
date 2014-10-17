@@ -62,7 +62,7 @@ def chooser(signal, shift, output, n=None, reverse=False):
 def timeline(trigger, events):
 	lastevent = max([e[0] for e in events])
 	counter = Signal(max=lastevent+1)
-	
+
 	counterlogic = If(counter != 0,
 		counter.eq(counter + 1)
 	).Elif(trigger,
@@ -76,7 +76,7 @@ def timeline(trigger, events):
 		).Else(
 			counterlogic
 		)
-	
+
 	def get_cond(e):
 		if e[0] == 0:
 			return trigger & (counter == 0)

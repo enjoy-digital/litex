@@ -11,7 +11,7 @@ def _format_constraint(c):
 	if isinstance(c, Pins):
 		return "set_location_assignment PIN_" + c.identifiers[0]
 	elif isinstance(c, IOStandard):
-		return "set_instance_assignment -name IO_STANDARD " + "\"" + c.name + "\"" 
+		return "set_instance_assignment -name IO_STANDARD " + "\"" + c.name + "\""
 	elif isinstance(c, Misc):
 		return c.misc
 
@@ -79,7 +79,7 @@ class AlteraQuartusPlatform(GenericPlatform):
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
 		self.finalize(fragment)
-		
+
 		v_src, named_sc, named_pc = self.get_verilog(fragment)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
@@ -87,7 +87,7 @@ class AlteraQuartusPlatform(GenericPlatform):
 		_build_files(self.device, sources, self.verilog_include_paths, named_sc, named_pc, build_name)
 		if run:
 			_run_quartus(build_name, quartus_path)
-		
+
 		os.chdir("..")
 
 	def add_period_constraint(self, clk, period):

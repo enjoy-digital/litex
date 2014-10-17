@@ -35,10 +35,10 @@ class Proxy:
 			return MemoryProxy(self.simulator, item)
 		else:
 			return Proxy(self.simulator, item)
-	
+
 	def __getattr__(self, name):
 		return self.__process_get(getattr(self._simproxy_obj, name))
-	
+
 	def __setattr__(self, name, value):
 		item = getattr(self._simproxy_obj, name)
 		assert(isinstance(item, Signal))

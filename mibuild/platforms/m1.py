@@ -10,7 +10,7 @@ _io = [
 	("user_btn", 0, Pins("AB4"), IOStandard("LVCMOS33")),
 	("user_btn", 1, Pins("AA4"), IOStandard("LVCMOS33")),
 	("user_btn", 2, Pins("AB5"), IOStandard("LVCMOS33")),
-	
+
 	("clk50", 0, Pins("AB11"), IOStandard("LVCMOS33")),
 
 	# When executing softcore code in-place from the flash, we want
@@ -27,17 +27,17 @@ _io = [
 		Subsignal("ce_n", Pins("M21")),
 		IOStandard("LVCMOS33"), Misc("SLEW=FAST"), Drive(8)
 	),
-	
+
 	("serial", 0,
 		Subsignal("tx", Pins("L17"), IOStandard("LVCMOS33"), Misc("SLEW=SLOW")),
 		Subsignal("rx", Pins("K18"), IOStandard("LVCMOS33"), Misc("PULLUP"))
 	),
-	
+
 	("ddram_clock", 0,
 		Subsignal("p", Pins("M3")),
 		Subsignal("n", Pins("L4")),
 		IOStandard("SSTL2_I")
-	),	
+	),
 	("ddram", 0,
 		Subsignal("a", Pins("B1 B2 H8 J7 E4 D5 K7 F5 G6 C1 C3 D1 D2")),
 		Subsignal("ba", Pins("A2 E6")),

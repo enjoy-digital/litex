@@ -16,12 +16,12 @@ class Bank(Module):
 		if bus is None:
 			bus = csr.Interface()
 		self.bus = bus
-		
+
 		###
 
 		if not description:
 			return
-		
+
 		# Turn description into simple CSRs and claim ownership of compound CSR modules
 		simple_csrs = []
 		for c in description:
@@ -36,7 +36,7 @@ class Bank(Module):
 		# Decode selection
 		sel = Signal()
 		self.comb += sel.eq(self.bus.adr[9:] == address)
-		
+
 		# Bus writes
 		for i, c in enumerate(simple_csrs):
 			self.comb += [
@@ -45,7 +45,7 @@ class Bank(Module):
 					self.bus.we & \
 					(self.bus.adr[:nbits] == i))
 			]
-		
+
 		# Bus reads
 		brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(simple_csrs))
 		self.sync += [

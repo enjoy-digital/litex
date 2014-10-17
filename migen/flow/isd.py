@@ -8,11 +8,11 @@ class EndpointReporter(Module, AutoCSR):
 	def __init__(self, endpoint, nbits):
 		self.reset = Signal()
 		self.freeze = Signal()
-		
+
 		self._ack_count = CSRStatus(nbits)
 		self._nack_count = CSRStatus(nbits)
 		self._cur_status = CSRStatus(2)
-	
+
 		###
 
 		stb = Signal()
@@ -50,7 +50,7 @@ class DFGReporter(DFGHook, AutoCSR):
 		self._r_nbits = CSRStatus(8)
 		self._r_freeze = CSRStorage()
 		self._r_reset = CSR()
-		
+
 		###
 
 		DFGHook.__init__(self, dfg,

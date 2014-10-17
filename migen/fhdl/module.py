@@ -71,7 +71,7 @@ class _ModuleSubmodules(_ModuleProxy):
 	def __setattr__(self, name, value):
 		self._fm._submodules += [(name, e) for e in _flat_list(value)]
 		setattr(self._fm, name, value)
-	
+
 	def __iadd__(self, other):
 		self._fm._submodules += [(None, e) for e in _flat_list(other)]
 		return self

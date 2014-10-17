@@ -10,7 +10,7 @@ class Transaction:
 		self.sel = sel
 		self.busname = busname
 		self.latency = 0
-	
+
 	def __str__(self):
 		return "<" + self.__class__.__name__ + " adr:" + hex(self.address) + " dat:" + hex(self.data) + ">"
 

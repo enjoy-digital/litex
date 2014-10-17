@@ -13,17 +13,17 @@ class ReorderBuffer(Module):
 		self.can_issue = Signal()
 		self.issue = Signal()
 		self.tag_issue = Signal(tag_width)
-		
+
 		# call
 		self.call = Signal()
 		self.tag_call = Signal(tag_width)
 		self.data_call = Signal(data_width)
-		
+
 		# readback
 		self.can_read = Signal()
 		self.read = Signal()
 		self.data_read = Signal(data_width)
-	
+
 		###
 
 		empty_count = Signal(max=depth+1, reset=depth)
@@ -44,7 +44,7 @@ class ReorderBuffer(Module):
 				slots[produce].wait_data.eq(1),
 				slots[produce].tag.eq(self.tag_issue)
 			)
-		
+
 		# call
 		for n, slot in enumerate(slots):
 			self.sync += If(self.call & slot.wait_data & (self.tag_call == slot.tag),
@@ -52,7 +52,7 @@ class ReorderBuffer(Module):
 					slot.has_data.eq(1),
 					slot.data.eq(self.data_call)
 				)
-		
+
 		# readback
 		self.comb += [
 			self.can_read.eq(slots[consume].has_data),
@@ -69,7 +69,7 @@ class ReorderBuffer(Module):
 				slots[consume].has_data.eq(0)
 			)
 		]
-		
+
 		# do not touch empty count when issuing and reading at the same time
 		self.sync += If(self.issue & self.can_issue & self.read & self.can_read,
 				empty_count.eq(empty_count)
