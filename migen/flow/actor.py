@@ -12,8 +12,17 @@ def _make_m2s(layout):
 			r.append((f[0], _make_m2s(f[1])))
 	return r
 
+def _check_layout(layout, packetized):
+	reserveds = ["stb", "ack", "payload"]
+	if packetized:
+		reserveds += ["sop", "eop"]
+	for f in layout:
+		if f[0] in reserveds:
+			raise ValueError(f[0] + " cannot be used in Sink/Source layout")
+
 class _Endpoint(Record):
 	def __init__(self, layout, packetized=False):
+		_check_layout(layout, packetized)
 		endpoint_layout = [
 			("payload", _make_m2s(layout)),
 			("stb", 1, DIR_M_TO_S),
@@ -25,6 +34,12 @@ class _Endpoint(Record):
 				("eop", 1, DIR_M_TO_S)
 			]
 		Record.__init__(self, endpoint_layout)
+
+	def __del__(self):
+		pass
+
+	def __getattr__(self, name):
+		return getattr(self.payload, name)
 
 class Source(_Endpoint):
 	def connect(self, sink):
