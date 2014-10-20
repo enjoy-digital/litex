@@ -32,8 +32,8 @@ class IntSequence(Module):
 		self.sync += [
 			If(load,
 				counter.eq(0),
-				maximum.eq(self.parameters.payload.maximum),
-				offset.eq(self.parameters.payload.offset) if offsetbits else None
+				maximum.eq(self.parameters.maximum),
+				offset.eq(self.parameters.offset) if offsetbits else None
 			).Elif(ce,
 				If(last,
 					counter.eq(0)
@@ -43,9 +43,9 @@ class IntSequence(Module):
 			)
 		]
 		if offsetbits:
-			self.comb += self.source.payload.value.eq(counter + offset)
+			self.comb += self.source.value.eq(counter + offset)
 		else:
-			self.comb += self.source.payload.value.eq(counter)
+			self.comb += self.source.value.eq(counter)
 
 		fsm = FSM()
 		self.submodules += fsm

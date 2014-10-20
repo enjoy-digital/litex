@@ -21,10 +21,10 @@ class Reader(Module):
 			bus_stb.eq(self.address.stb & (~data_reg_loaded | self.data.ack)),
 			self.bus.cyc.eq(bus_stb),
 			self.bus.stb.eq(bus_stb),
-			self.bus.adr.eq(self.address.payload.a),
+			self.bus.adr.eq(self.address.a),
 			self.address.ack.eq(self.bus.ack),
 			self.data.stb.eq(data_reg_loaded),
-			self.data.payload.d.eq(data_reg)
+			self.data.d.eq(data_reg)
 		]
 		self.sync += [
 			If(self.data.ack, data_reg_loaded.eq(0)),
@@ -47,8 +47,8 @@ class Writer(Module):
 			self.bus.we.eq(1),
 			self.bus.cyc.eq(self.address_data.stb),
 			self.bus.stb.eq(self.address_data.stb),
-			self.bus.adr.eq(self.address_data.payload.a),
+			self.bus.adr.eq(self.address_data.a),
 			self.bus.sel.eq(0xf),
-			self.bus.dat_w.eq(self.address_data.payload.d),
+			self.bus.dat_w.eq(self.address_data.d),
 			self.address_data.ack.eq(self.bus.ack)
 		]

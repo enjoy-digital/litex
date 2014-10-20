@@ -18,7 +18,7 @@ class _FIFOActor(Module):
 			self.fifo.din.eq(self.sink.payload),
 
 			self.source.stb.eq(self.fifo.readable),
-			self.source.payload.eq(self.fifo.dout),
+			self.source.eq(self.fifo.dout),
 			self.fifo.re.eq(self.source.ack)
 		]
 
@@ -28,4 +28,4 @@ class SyncFIFO(_FIFOActor):
 
 class AsyncFIFO(_FIFOActor):
 	def __init__(self, layout, depth):
-		_FIFOActor.__init__(self, fifo.AsyncFIFO, layout, depth)		
+		_FIFOActor.__init__(self, fifo.AsyncFIFO, layout, depth)

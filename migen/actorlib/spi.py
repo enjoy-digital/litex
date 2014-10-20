@@ -128,8 +128,8 @@ class _DMAController(Module):
 
 class DMAReadController(_DMAController):
 	def __init__(self, bus_accessor, *args, **kwargs):
-		bus_aw = flen(bus_accessor.address.payload.a)
-		bus_dw = flen(bus_accessor.data.payload.d)
+		bus_aw = flen(bus_accessor.address.a)
+		bus_dw = flen(bus_accessor.data.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
 
 		g = DataFlowGraph()
@@ -147,8 +147,8 @@ class DMAReadController(_DMAController):
 
 class DMAWriteController(_DMAController):
 	def __init__(self, bus_accessor, *args, ack_when_inactive=False, **kwargs):
-		bus_aw = flen(bus_accessor.address_data.payload.a)
-		bus_dw = flen(bus_accessor.address_data.payload.d)
+		bus_aw = flen(bus_accessor.address_data.a)
+		bus_dw = flen(bus_accessor.address_data.d)
 		_DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
 
 		g = DataFlowGraph()
