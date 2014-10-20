@@ -57,7 +57,7 @@ class MemtestWriter(Module):
 			self._dma.trigger.eq(self._r_shoot.re),
 			self._dma.data.stb.eq(en),
 			lfsr.ce.eq(en & self._dma.data.ack),
-			self._dma.data.payload.d.eq(lfsr.o)
+			self._dma.data.d.eq(lfsr.o)
 		]
 
 	def get_csrs(self):
@@ -87,7 +87,7 @@ class MemtestReader(Module):
 			If(self._r_reset.re,
 				err_cnt.eq(0)
 			).Elif(self._dma.data.stb,
-				If(self._dma.data.payload.d != lfsr.o, err_cnt.eq(err_cnt + 1))
+				If(self._dma.data.d != lfsr.o, err_cnt.eq(err_cnt + 1))
 			)
 		]
 

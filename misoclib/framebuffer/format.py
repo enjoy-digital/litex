@@ -91,7 +91,7 @@ class VTG(Module):
 			If(active,
 				[getattr(getattr(self.phy.payload, p), c).eq(getattr(getattr(self.pixels.payload, p), c)[skip:])
 					for p in ["p"+str(i) for i in range(pack_factor)] for c in ["r", "g", "b"]],
-				self.phy.payload.de.eq(1)
+				self.phy.de.eq(1)
 			),
 			self.pixels.ack.eq(self.phy.ack & active)
 		]
@@ -109,8 +109,8 @@ class VTG(Module):
 
 				If(hcounter == 0, hactive.eq(1)),
 				If(hcounter == tr.hres, hactive.eq(0)),
-				If(hcounter == tr.hsync_start, self.phy.payload.hsync.eq(1)),
-				If(hcounter == tr.hsync_end, self.phy.payload.hsync.eq(0)),
+				If(hcounter == tr.hsync_start, self.phy.hsync.eq(1)),
+				If(hcounter == tr.hsync_end, self.phy.hsync.eq(0)),
 				If(hcounter == tr.hscan,
 					hcounter.eq(0),
 					If(vcounter == tr.vscan,
@@ -123,8 +123,8 @@ class VTG(Module):
 
 				If(vcounter == 0, vactive.eq(1)),
 				If(vcounter == tr.vres, vactive.eq(0)),
-				If(vcounter == tr.vsync_start, self.phy.payload.vsync.eq(1)),
-				If(vcounter == tr.vsync_end, self.phy.payload.vsync.eq(0))
+				If(vcounter == tr.vsync_start, self.phy.vsync.eq(1)),
+				If(vcounter == tr.vsync_end, self.phy.vsync.eq(0))
 			)
 		]
 

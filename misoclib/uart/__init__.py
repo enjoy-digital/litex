@@ -21,7 +21,7 @@ class UARTRX(Module):
 		rx_bitcount = Signal(4)
 		rx_busy = Signal()
 		rx_done = self.source.stb
-		rx_data = self.source.payload.d
+		rx_data = self.source.d
 		self.sync += [
 			rx_done.eq(0),
 			rx_r.eq(rx),
@@ -73,7 +73,7 @@ class UARTTX(Module):
 		self.sync += [
 			self.sink.ack.eq(0),
 			If(self.sink.stb & ~tx_busy & ~self.sink.ack,
-				tx_reg.eq(self.sink.payload.d),
+				tx_reg.eq(self.sink.d),
 				tx_bitcount.eq(0),
 				tx_busy.eq(1),
 				pads.tx.eq(0)
@@ -120,12 +120,12 @@ class UART(Module, AutoCSR):
 		self.sync += [
 			If(self._r_rxtx.re,
 				self.tx.sink.stb.eq(1),
-				self.tx.sink.payload.d.eq(self._r_rxtx.r),
+				self.tx.sink.d.eq(self._r_rxtx.r),
 			).Elif(self.tx.sink.ack,
 				self.tx.sink.stb.eq(0)
 			),
 			If(self.rx.source.stb,
-				self._r_rxtx.w.eq(self.rx.source.payload.d)
+				self._r_rxtx.w.eq(self.rx.source.d)
 			)
 		]
 		self.comb += [
