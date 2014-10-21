@@ -35,11 +35,8 @@ class _Endpoint(Record):
 			]
 		Record.__init__(self, endpoint_layout)
 
-	def __del__(self):
-		pass
-
 	def __getattr__(self, name):
-		return getattr(self.payload, name)
+		return getattr(object.__getattribute__(self, "payload"), name)
 
 class Source(_Endpoint):
 	def connect(self, sink):
