@@ -3,11 +3,15 @@ from migen.bank import csrgen
 from migen.bus import wishbone, csr
 from migen.bus import wishbone2csr
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.bank.description import *
 
 from miscope.uart2wishbone import UART2Wishbone
 
 from misoclib import identifier
+from lib.sata.k7sataphy.std import *
 from lib.sata.k7sataphy import K7SATAPHY
+
+from migen.genlib.cdc import *
 
 class _CRG(Module):
 	def __init__(self, platform):
@@ -42,7 +46,7 @@ class _CRG(Module):
 				p_CLKOUT4_DIVIDE=2, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
 			),
 			Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
-			AsyncResetSynchronizer(self.cd_sys, ~pll_locked),
+			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset")),
 		]
 
 class UART2WB(Module):
@@ -86,10 +90,10 @@ class UART2WB(Module):
 			data_width=self.csr_data_width)
 		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
 
-class TestDesign(UART2WB):
+class SimDesign(UART2WB):
 	default_platform = "kc705"
 
-	def __init__(self, platform, simulation=False):
+	def __init__(self, platform, export_mila=False):
 		clk_freq = 166666*1000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
@@ -97,13 +101,104 @@ class TestDesign(UART2WB):
 		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True)
 		self.comb += [
 			self.sataphy_host.sink.stb.eq(1),
-			self.sataphy_host.sink.payload.d.eq(0x12345678)
+			self.sataphy_host.sink.data.eq(SYNC_VAL),
+			self.sataphy_host.sink.charisk.eq(0b0001)
 		]
-		if simulation:
-			self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
-			self.comb += [
-				self.sataphy_device.sink.stb.eq(1),
-				self.sataphy_device.sink.payload.d.eq(0x12345678)
-			]
+		self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
+		self.comb += [
+			self.sataphy_device.sink.stb.eq(1),
+			self.sataphy_device.sink.data.eq(SYNC_VAL),
+			self.sataphy_device.sink.charisk.eq(0b0001)
+		]
 
+
+class ClockLeds(Module):
+	def __init__(self, platform):
+		led_sata_rx = platform.request("user_led", 0)
+		led_sata_tx = platform.request("user_led", 1)
+
+		sata_rx_cnt = Signal(32)
+		sata_tx_cnt = Signal(32)
+
+		self.sync.sata_rx += \
+			If(sata_rx_cnt == 0,
+				led_sata_rx.eq(~led_sata_rx),
+				sata_rx_cnt.eq(150*1000*1000//2)
+			).Else(
+				sata_rx_cnt.eq(sata_rx_cnt-1)
+			)
+
+		self.sync.sata_tx += \
+			If(sata_tx_cnt == 0,
+				led_sata_tx.eq(~led_sata_tx),
+				sata_tx_cnt.eq(150*1000*1000//2)
+			).Else(
+				sata_tx_cnt.eq(sata_tx_cnt-1)
+			)
+
+class TestDesign(UART2WB, AutoCSR):
+	default_platform = "kc705"
+	csr_map = {
+		"mila":				10,
+	}
+	csr_map.update(UART2WB.csr_map)
+
+	def __init__(self, platform, mila=True, export_mila=False):
+		clk_freq = 166666*1000
+		UART2WB.__init__(self, platform, clk_freq)
+		self.submodules.crg = _CRG(platform)
+
+		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True, default_speed="SATA2")
+		self.comb += [
+			self.sataphy_host.sink.stb.eq(1),
+			self.sataphy_host.sink.data.eq(SYNC_VAL),
+			self.sataphy_host.sink.charisk.eq(0b0001)
+		]
+
+		self.submodules.clock_leds = ClockLeds(platform)
+
+		if mila:
+			import os
+			from miscope import MiLa, Term, UART2Wishbone
+
+			gtx = self.sataphy_host.gtx
+			ctrl = self.sataphy_host.ctrl
+			crg = self.sataphy_host.crg
+
+			debug = (
+				gtx.rxresetdone,
+				gtx.txresetdone,
+
+				gtx.rxuserrdy,
+				gtx.txuserrdy,
+
+				gtx.rxelecidle,
+				gtx.rxcominitdet,
+				gtx.rxcomwakedet,
+
+				gtx.txcomfinish,
+				gtx.txcominit,
+				gtx.txcomwake,
+
+				ctrl.sink.stb,
+				ctrl.sink.data,
+				ctrl.sink.charisk,
+				ctrl.align_detect,
+
+				self.sataphy_host.source.stb,
+				self.sataphy_host.source.data,
+				self.sataphy_host.source.charisk,
+			)
+
+			self.comb += platform.request("user_led", 2).eq(crg.ready)
+			self.comb += platform.request("user_led", 3).eq(ctrl.ready)
+
+			self.submodules.mila = MiLa(depth=512, dat=Cat(*debug))
+			self.mila.add_port(Term)
+
+			if export_mila:
+				mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
+				self.mila.export(self, debug, mila_filename)
+
+#default_subtarget = SimDesign
 default_subtarget = TestDesign

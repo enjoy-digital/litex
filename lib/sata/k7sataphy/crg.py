@@ -47,30 +47,30 @@ class K7SATAPHYCRG(Module):
 		self.comb += gtx.gtrefclk0.eq(refclk)
 
 	# QPLL
-		# not used be need to be there... see AR43339...
+		# not used but need to be there... see AR43339...
 		gtx_common = GTXE2_COMMON()
 		self.comb += [
 			gtx_common.refclk0.eq(refclk),
 			gtx.qpllclk.eq(gtx_common.qpllclk),
 			gtx.qpllrefclk.eq(gtx_common.qpllrefclk),
 		]
+		self.submodules += gtx_common
 
 	# TX clocking
 		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
 		# (SATA2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits)
 		# (SATA1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits)
-		# When changing rate, reconfiguration of the MMCM is needed to update the output divider.		
+		# When changing rate, reconfiguration of the MMCM is needed to update the output divider.
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
 		mmcm_drp = DRPBus()
 		mmcm_fb = Signal()
 		mmcm_clk_i = Signal()
 		mmcm_clk0_o = Signal()
-		mmcm_clk1_o = Signal()
 		mmcm_div_config = {
-			"SATA1" : 	16,
-			"SATA2" :	8,
-			"SATA3" : 	4
+			"SATA1" : 	16.0,
+			"SATA2" :	8.0,
+			"SATA3" : 	4.0
 			}
 		mmcm_div = mmcm_div_config[default_speed]
 		self.specials += [
@@ -89,9 +89,6 @@ class K7SATAPHYCRG(Module):
 
 				# CLK0
 				p_CLKOUT0_DIVIDE_F=mmcm_div, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
-
-				# CLK1
-				p_CLKOUT1_DIVIDE=mmcm_div*2, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1_o,
 			),
 			Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_sata_tx.clk),
 		]
@@ -103,7 +100,7 @@ class K7SATAPHYCRG(Module):
 	# RX clocking
 		# (SATA3) sata_rx recovered clk @ 300MHz from GTX RXOUTCLK
 		# (SATA2) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
-		# (SATA1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK		
+		# (SATA1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
 		self.specials += [
 			Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
 		]
@@ -119,115 +116,80 @@ class K7SATAPHYCRG(Module):
 		clk_period_ns = 1000000000/clk_freq
 		reset_en_cnt_max = ceil(500/clk_period_ns)
 		reset_en_cnt = Signal(max=reset_en_cnt_max, reset=reset_en_cnt_max-1)
-		self.sync += If(~reset_en, reset_en_cnt.eq(reset_en_cnt-1))
+		self.sync += \
+			If(self.reset,
+				reset_en_cnt.eq(reset_en_cnt.reset)
+			).Elif(~reset_en,
+				reset_en_cnt.eq(reset_en_cnt-1)
+			)
 		self.comb += reset_en.eq(reset_en_cnt == 0)
 
 	# TX Reset FSM
-		tx_reset_fsm = FSM(reset_state="IDLE")
+		tx_reset_fsm = InsertReset(FSM(reset_state="IDLE"))
 		self.submodules += tx_reset_fsm
+		self.comb += tx_reset_fsm.reset.eq(self.reset)
 		tx_reset_fsm.act("IDLE",
-			gtx.txuserrdy.eq(0),
-			gtx.gttxreset.eq(0),
-			gtx.txdlysreset.eq(0),
 			If(reset_en,
-				NextState("RESET_ALL"),
+				NextState("RESET_GTX"),
 			)
 		)
-		tx_reset_fsm.act("RESET_ALL",
-			gtx.txuserrdy.eq(0),
+		tx_reset_fsm.act("RESET_GTX",
 			gtx.gttxreset.eq(1),
-			gtx.txdlysreset.eq(1),
 			If(gtx.cplllock & mmcm_locked,
-				NextState("RELEASE_GTXRESET")
+				NextState("RELEASE_GTX")
 			)
 		)
-		tx_reset_fsm.act("RELEASE_GTXRESET",
+		tx_reset_fsm.act("RELEASE_GTX",
 			gtx.txuserrdy.eq(1),
-			gtx.gttxreset.eq(0),
-			gtx.txdlysreset.eq(1),
-			If(self.reset,
-				NextState("RESET_ALL")
-			).Elif(gtx.txresetdone,
-				NextState("RELEASE_DLYRESET")
-			)
-		)
-		tx_reset_fsm.act("RELEASE_DLYRESET",
-			gtx.txuserrdy.eq(1),
-			gtx.gttxreset.eq(0),
-			gtx.txdlysreset.eq(0),
-			If(self.reset,
-				NextState("RESET_ALL")
-			).Elif(gtx.txdlysresetdone,
+			If(gtx.txresetdone,
 				NextState("READY")
 			)
 		)
 		tx_reset_fsm.act("READY",
-			gtx.txuserrdy.eq(1),
-			gtx.gttxreset.eq(0),
-			gtx.txdlysreset.eq(0),
-			If(self.reset,
-				NextState("RESET_ALL")
-			)
+			gtx.txuserrdy.eq(1)
 		)
 
 	# RX Reset FSM
-		rx_reset_fsm = FSM(reset_state="IDLE")
+		rx_reset_fsm = InsertReset(FSM(reset_state="IDLE"))
 		self.submodules += rx_reset_fsm
+		self.comb += rx_reset_fsm.reset.eq(self.reset)
+
 		rx_reset_fsm.act("IDLE",
-			gtx.rxuserrdy.eq(0),
-			gtx.gtrxreset.eq(0),
-			gtx.rxdlysreset.eq(0),
 			If(reset_en,
-				NextState("RESET_ALL"),
+				NextState("RESET_GTX"),
 			)
 		)
-		rx_reset_fsm.act("RESET_ALL",
-			gtx.rxuserrdy.eq(0),
+		rx_reset_fsm.act("RESET_GTX",
 			gtx.gtrxreset.eq(1),
-			gtx.rxdlysreset.eq(1),
 			If(gtx.cplllock & mmcm_locked,
-				NextState("RELEASE_GTXRESET")
+				NextState("RELEASE_GTX")
 			)
 		)
-		rx_reset_fsm.act("RELEASE_GTXRESET",
+		rx_reset_fsm.act("RELEASE_GTX",
 			gtx.rxuserrdy.eq(1),
-			gtx.gtrxreset.eq(0),
-			gtx.rxdlysreset.eq(1),
-			If(self.reset,
-				NextState("RESET_ALL")
-			).Elif(gtx.rxresetdone,
-				NextState("RELEASE_DLYRESET")
-			)
-		)
-		rx_reset_fsm.act("RELEASE_DLYRESET",
-			gtx.rxuserrdy.eq(1),
-			gtx.gtrxreset.eq(0),
-			gtx.rxdlysreset.eq(0),
-			If(self.reset,
-				NextState("RESET_ALL")
-			).Elif(gtx.rxdlysresetdone,
+			If(gtx.rxresetdone,
 				NextState("READY")
 			)
 		)
 		rx_reset_fsm.act("READY",
-			gtx.rxuserrdy.eq(1),
-			gtx.gtrxreset.eq(0),
-			gtx.rxdlysreset.eq(0),
-			If(self.reset,
-				NextState("RESET_ALL")
-			)
+			gtx.rxuserrdy.eq(1)
 		)
 
 	# Ready
-		self.comb += self.ready.eq(tx_reset_fsm.ongoing("READY") & rx_reset_fsm.ongoing("READY"))
+		self.tx_ready = tx_reset_fsm.ongoing("READY")
+		self.rx_ready = rx_reset_fsm.ongoing("READY")
+		self.comb += self.ready.eq(self.tx_ready & self.rx_ready)
 
 	# Reset PLL
-		self.comb += gtx.cpllreset.eq(self.reset | ~reset_en)
+		self.comb += gtx.cpllreset.eq(ResetSignal() | self.reset | ~reset_en)
+
+	# Reset MMCM
+		self.comb += mmcm_reset.eq(ResetSignal() | self.reset | ~gtx.cplllock)
 
 	# Reset for SATA TX/RX clock domains
 		self.specials += [
-			AsyncResetSynchronizer(self.cd_sata_tx, ~self.ready),
-			AsyncResetSynchronizer(self.cd_sata_rx, ~self.ready),
+			AsyncResetSynchronizer(self.cd_sata_tx, ~self.tx_ready),
+			AsyncResetSynchronizer(self.cd_sata_rx, ~self.rx_ready),
 		]
 
 	# Dynamic Reconfiguration

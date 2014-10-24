@@ -3,6 +3,7 @@ from math import ceil
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
+from migen.flow.actor import Sink, Source
 
 from lib.sata.k7sataphy.std import *
 
@@ -14,12 +15,10 @@ class K7SATAPHYHostCtrl(Module):
 	def __init__(self, gtx, crg, clk_freq):
 		self.ready = Signal()
 
-		self.txdata = Signal(32)
-		self.txcharisk = Signal(4)
+		self.sink = Sink([("data", 32), ("charisk", 4)])
+		self.source = Source([("data", 32), ("charisk", 4)])
 
-		self.rxdata = Signal(32)
-
-		align_detect = Signal()
+		self.align_detect = align_detect = Signal()
 		align_timeout_cnt = Signal(32)
 		align_timeout = Signal()
 
@@ -31,6 +30,11 @@ class K7SATAPHYHostCtrl(Module):
 		txcominit = Signal()
 		txcomwake = Signal()
 
+		self.comb += [
+			self.source.stb.eq(1),
+			self.sink.ack.eq(1)
+		]
+
 		fsm = FSM(reset_state="RESET")
 		self.submodules += fsm
 
@@ -38,14 +42,14 @@ class K7SATAPHYHostCtrl(Module):
 			gtx.txelecidle.eq(1),
 			If(crg.ready,
 				NextState("COMINIT")
-			)
+			),
 		)
 		fsm.act("COMINIT",
 			gtx.txelecidle.eq(1),
 			txcominit.eq(1),
 			If(gtx.txcomfinish & ~gtx.rxcominitdet,
 				NextState("AWAIT_COMINIT")
-			)
+			),
 		)
 		fsm.act("AWAIT_COMINIT",
 			gtx.txelecidle.eq(1),
@@ -55,24 +59,24 @@ class K7SATAPHYHostCtrl(Module):
 				If(retry_timeout,
 					NextState("RESET")
 				)
-			)
+			),
 		)
 		fsm.act("AWAIT_NO_COMINIT",
 			gtx.txelecidle.eq(1),
 			If(~gtx.rxcominitdet,
 				NextState("CALIBRATE")
-			)
+			),
 		)
 		fsm.act("CALIBRATE",
 			gtx.txelecidle.eq(1),
-			NextState("COMWAKE")
+			NextState("COMWAKE"),
 		)
 		fsm.act("COMWAKE",
 			gtx.txelecidle.eq(1),
 			txcomwake.eq(1),
 			If(gtx.txcomfinish,
 				NextState("AWAIT_COMWAKE")
-			)
+			),
 		)
 		fsm.act("AWAIT_COMWAKE",
 			gtx.txelecidle.eq(1),
@@ -82,44 +86,48 @@ class K7SATAPHYHostCtrl(Module):
 				If(retry_timeout,
 					NextState("RESET")
 				)
-			)
+			),
 		)
 		fsm.act("AWAIT_NO_COMWAKE",
 			gtx.txelecidle.eq(1),
 			If(~gtx.rxcomwakedet,
-				NextState("RESET_CRG")
-			)
+				NextState("AWAIT_NO_RXELECIDLE")
+			),
 		)
-		fsm.act("RESET_CRG",
+		fsm.act("AWAIT_NO_RXELECIDLE",
 			gtx.txelecidle.eq(0),
-			crg.reset.eq(1),
-			NextState("AWAIT_ALIGN")
+			self.source.data.eq(0x4A4A4A4A), #D10.2
+			self.source.charisk.eq(0b0000),
+			If(~gtx.rxelecidle,
+				NextState("AWAIT_ALIGN"),
+				crg.reset.eq(1),
+				gtx.pmarxreset.eq(1)
+			),
 		)
 		fsm.act("AWAIT_ALIGN",
 			gtx.txelecidle.eq(0),
-			self.txdata.eq(0x4A4A4A4A), #D10.2
-			self.txcharisk.eq(0b0000),
+			self.source.data.eq(0x4A4A4A4A), #D10.2
+			self.source.charisk.eq(0b0000),
 			gtx.rxalign.eq(1),
-			If(align_detect & ~align_timeout,
+			If((align_detect & ~gtx.rxelecidle) & ~align_timeout,
 				NextState("SEND_ALIGN")
 			).Elif(~align_detect & align_timeout,
 				NextState("RESET")
-			)
+			),
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
-			self.txdata.eq(ALIGN_VAL),
-			self.txcharisk.eq(0b0001),
+			self.source.data.eq(ALIGN_VAL),
+			self.source.charisk.eq(0b0001),
 			If(non_align_cnt == 3,
 				NextState("READY")
-			)
+			),
 		)
 		fsm.act("READY",
 			gtx.txelecidle.eq(0),
-			If(gtx.rxelecidle,
-				NextState("RESET")
-			),
-			self.ready.eq(1)
+			self.source.data.eq(SYNC_VAL),
+			self.source.charisk.eq(0b0001),
+			self.ready.eq(1),
 		)
 
 		txcominit_d = Signal()
@@ -131,7 +139,7 @@ class K7SATAPHYHostCtrl(Module):
 			gtx.txcomwake.eq(txcomwake & ~txcomwake_d),
 		]
 
-		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
+		self.comb +=  align_detect.eq(self.sink.stb & (self.sink.data == ALIGN_VAL));
 		self.sync += \
 			If(fsm.ongoing("RESET"),
 				align_timeout_cnt.eq(us(873, clk_freq))
@@ -150,10 +158,12 @@ class K7SATAPHYHostCtrl(Module):
 
 		self.sync += \
 			If(fsm.ongoing("SEND_ALIGN"),
-				If(self.rxdata[0:8] == 0xBC,
-					non_align_cnt.eq(non_align_cnt + 1)
-				).Else(
-					non_align_cnt.eq(0)
+				If(self.sink.stb,
+					If(self.sink.data[0:8] == 0x7C,
+						non_align_cnt.eq(non_align_cnt + 1)
+					).Else(
+						non_align_cnt.eq(0)
+					)
 				)
 			)
 
@@ -161,10 +171,8 @@ class K7SATAPHYDeviceCtrl(Module):
 	def __init__(self, gtx, crg, clk_freq):
 		self.ready = Signal()
 
-		self.txdata = Signal(32)
-		self.txcharisk = Signal(4)
-
-		self.rxdata = Signal(32)
+		self.sink = Sink([("data", 32), ("charisk", 4)])
+		self.source = Source([("data", 32), ("charisk", 4)])
 
 		align_detect = Signal()
 		align_timeout = Signal()
@@ -175,6 +183,11 @@ class K7SATAPHYDeviceCtrl(Module):
 
 		txcominit = Signal()
 		txcomwake = Signal()
+
+		self.comb += [
+			self.source.stb.eq(1),
+			self.sink.ack.eq(1)
+		]
 
 		fsm = FSM(reset_state="RESET")
 		self.submodules += fsm
@@ -188,6 +201,12 @@ class K7SATAPHYDeviceCtrl(Module):
 		fsm.act("AWAIT_COMINIT",
 			gtx.txelecidle.eq(1),
 			If(gtx.rxcominitdet,
+				NextState("AWAIT_NO_COMINIT")
+			)
+		)
+		fsm.act("AWAIT_NO_COMINIT",
+			gtx.txelecidle.eq(1),
+			If(~gtx.rxcominitdet,
 				NextState("COMINIT")
 			)
 		)
@@ -222,19 +241,21 @@ class K7SATAPHYDeviceCtrl(Module):
 			gtx.txelecidle.eq(1),
 			txcomwake.eq(1),
 			If(gtx.txcomfinish,
-				NextState("RESET_CRG")
+				NextState("RESET_CRG"),
+				crg.reset.eq(1),
 			)
 		)
 		fsm.act("RESET_CRG",
 			gtx.txelecidle.eq(0),
-			crg.reset.eq(1),
-			NextState("SEND_ALIGN")
+			If(crg.ready,
+				NextState("SEND_ALIGN")
+			)
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
 			gtx.rxalign.eq(1),
-			self.txdata.eq(ALIGN_VAL),
-			self.txcharisk.eq(0b0001),
+			self.source.data.eq(ALIGN_VAL),
+			self.source.charisk.eq(0b0001),
 			If(align_detect,
 				NextState("READY")
 			).Elif(align_timeout,
@@ -260,10 +281,10 @@ class K7SATAPHYDeviceCtrl(Module):
 			txcominit_d.eq(txcominit),
 			txcomwake_d.eq(txcomwake),
 			gtx.txcominit.eq(txcominit & ~txcominit_d),
-			gtx.txcomwake.eq(txcomwake & ~txcomwake),
+			gtx.txcomwake.eq(txcomwake & ~txcomwake_d),
 		]
 
-		self.comb +=  align_detect.eq(self.rxdata == ALIGN_VAL);
+		self.comb +=  align_detect.eq(self.sink.stb & (self.sink.data == ALIGN_VAL));
 		self.sync += \
 			If(fsm.ongoing("RESET"),
 				align_timeout_cnt.eq(us(55, clk_freq))
