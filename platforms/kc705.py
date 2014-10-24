@@ -68,12 +68,12 @@ _io = [
 	),
 
 	("sata_host", 0,
-		Subsignal("refclk_p", Pins("G8")), # 125MHz SGMII
-		Subsignal("refclk_n", Pins("G7")), # 125MHz SGMII
-		Subsignal("txp", Pins("H2")), # SFP
-		Subsignal("txn", Pins("H1")), # SFP
-		Subsignal("rxp", Pins("G4")), # SFP
-		Subsignal("rxn", Pins("G3")), # SFP
+		Subsignal("refclk_p", Pins("C8")),
+		Subsignal("refclk_n", Pins("C7")),
+		Subsignal("txp", Pins("D2")),
+		Subsignal("txn", Pins("D1")),
+		Subsignal("rxp", Pins("E4")),
+		Subsignal("rxn", Pins("E3")),
 	),
 
 	("sata_device", 0,
@@ -86,7 +86,7 @@ _io = [
 	),
 ]
 
-def Platform(*args, toolchain="vivado", **kwargs):
+def Platform(*args, toolchain="vivado", programmer="xc3sprog", **kwargs):
 	if toolchain == "ise":
 		xilinx_platform = XilinxISEPlatform
 	elif toolchain == "vivado":
@@ -101,7 +101,12 @@ def Platform(*args, toolchain="vivado", **kwargs):
 			xilinx_platform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory)
 
 		def create_programmer(self):
-			return IMPACT()
+			if programmer == "xc3sprog":
+				return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
+			elif programmer == "impact":
+				return IMPACT()
+			else:
+				raise ValueError
 
 		def do_finalize(self, fragment):
 			try:
@@ -111,5 +116,5 @@ def Platform(*args, toolchain="vivado", **kwargs):
 			try:
 				self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
 			except ConstraintError:
-				pass
+				pass			
 	return RealPlatform(*args, **kwargs)

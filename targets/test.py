@@ -89,7 +89,7 @@ class UART2WB(Module):
 class TestDesign(UART2WB):
 	default_platform = "kc705"
 
-	def __init__(self, platform):
+	def __init__(self, platform, simulation=False):
 		clk_freq = 166666*1000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
@@ -99,10 +99,11 @@ class TestDesign(UART2WB):
 			self.sataphy_host.sink.stb.eq(1),
 			self.sataphy_host.sink.payload.d.eq(0x12345678)
 		]
-		self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
-		self.comb += [
-			self.sataphy_device.sink.stb.eq(1),
-			self.sataphy_device.sink.payload.d.eq(0x12345678)
-		]
+		if simulation:
+			self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
+			self.comb += [
+				self.sataphy_device.sink.stb.eq(1),
+				self.sataphy_device.sink.payload.d.eq(0x12345678)
+			]
 
 default_subtarget = TestDesign
