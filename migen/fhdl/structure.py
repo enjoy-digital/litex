@@ -24,6 +24,9 @@ class Value(HUID):
 	Values created from integers have the minimum bit width to necessary to
 	represent the integer.
 	"""
+	def __bool__(self):
+		raise NotImplementedError("For boolean operations between expressions: use '&'/'|' instead of 'and'/'or'")
+
 	def __invert__(self):
 		return _Operator("~", [self])
 	def __neg__(self):
