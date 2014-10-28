@@ -14,8 +14,6 @@ class _PulseSynchronizer(PulseSynchronizer):
 class K7SATAPHYGTX(Module):
 	def __init__(self, pads, default_speed):
 	# Interface
-		self.drp = DRPBus()
-
 		# Channel - Ref Clock Ports
 		self.gtrefclk0 = Signal()
 
@@ -468,13 +466,13 @@ class K7SATAPHYGTX(Module):
 					i_GTSOUTHREFCLK1=0,
 
 				# Channel - DRP Ports
-					i_DRPADDR=self.drp.addr,
-					i_DRPCLK=self.drp.clk,
-					i_DRPDI=self.drp.di,
-					o_DRPDO=self.drp.do,
-					i_DRPEN=self.drp.en,
-					o_DRPRDY=self.drp.rdy,
-					i_DRPWE=self.drp.we,
+					i_DRPADDR=0,
+					i_DRPCLK=0,
+					i_DRPDI=0,
+					#o_DRPDO=,
+					i_DRPEN=0,
+					#o_DRPRDY=,
+					i_DRPWE=0,
 
 				# Clocking Ports
 					#o_GTREFCLKMONITOR=,

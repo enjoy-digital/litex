@@ -7,22 +7,6 @@ from migen.genlib.fsm import FSM, NextState
 from lib.sata.k7sataphy.std import *
 from lib.sata.k7sataphy.gtx import GTXE2_COMMON
 
-class K7SATAPHYReconfig(Module):
-	def __init__(self, channel_drp, mmcm_drp):
-		self.speed = Signal(3)
-
-		###
-
-		drp_sel = Signal()
-		drp = DRPBus()
-		self.comb += \
-			If(drp_sel,
-				drp.connect(mmcm_drp)
-			).Else(
-				drp.connect(channel_drp)
-			)
-		# Todo
-
 class K7SATAPHYCRG(Module):
 	def __init__(self, pads, gtx, clk_freq, default_speed):
 		self.reset = Signal()
@@ -34,9 +18,6 @@ class K7SATAPHYCRG(Module):
 	# CPLL
 		# (SATA3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
 		# (SATA2 & SATA1) VCO still @ 3 GHz, Line rate is decreased with output dividers.
-		# When changing rate, reconfiguration of the CPLL over DRP is needed to:
-		#  - update the output divider
-		#  - update the equalizer configuration (specific for each line rate).
 		refclk = Signal()
 		self.specials += Instance("IBUFDS_GTE2",
 			i_CEB=0,
@@ -60,10 +41,8 @@ class K7SATAPHYCRG(Module):
 		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
 		# (SATA2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits)
 		# (SATA1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits)
-		# When changing rate, reconfiguration of the MMCM is needed to update the output divider.
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
-		mmcm_drp = DRPBus()
 		mmcm_fb = Signal()
 		mmcm_clk_i = Signal()
 		mmcm_clk0_o = Signal()
@@ -79,8 +58,8 @@ class K7SATAPHYCRG(Module):
 				p_BANDWIDTH="HIGH", p_COMPENSATION="ZHOLD", i_RST=mmcm_reset, o_LOCKED=mmcm_locked,
 
 				# DRP
-				i_DCLK=mmcm_drp.clk, i_DEN=mmcm_drp.en, o_DRDY=mmcm_drp.rdy, i_DWE=mmcm_drp.we,
-				i_DADDR=mmcm_drp.addr, i_DI=mmcm_drp.di, o_DO=mmcm_drp.do,
+				i_DCLK=0, i_DEN=0, i_DWE=0, #o_DRDY=, 
+				i_DADDR=0, i_DI=0, #o_DO=,
 
 				# VCO
 				p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.666,
@@ -191,6 +170,3 @@ class K7SATAPHYCRG(Module):
 			AsyncResetSynchronizer(self.cd_sata_tx, ~self.tx_ready),
 			AsyncResetSynchronizer(self.cd_sata_rx, ~self.rx_ready),
 		]
-
-	# Dynamic Reconfiguration
-		self.submodules.reconfig = K7SATAPHYReconfig(mmcm_drp, gtx.drp)
