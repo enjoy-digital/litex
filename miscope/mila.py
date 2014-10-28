@@ -18,10 +18,11 @@ def _getattr_all(l, attr):
 	return r
 
 class MiLa(Module, AutoCSR):
-	def __init__(self, depth, dat, with_rle=False, clk_domain="sys"):
+	def __init__(self, depth, dat, with_rle=False, clk_domain="sys", pipe=False):
 		self.depth = depth
 		self.with_rle = with_rle
 		self.clk_domain = clk_domain
+		self.pipe = pipe
 		self.ports = []
 		self.width = flen(dat)
 
@@ -33,12 +34,25 @@ class MiLa(Module, AutoCSR):
 		self.ports.append(port)
 
 	def do_finalize(self):
+		stb = self.stb
+		dat = self.dat
+		if self.pipe:
+			sync = getattr(self.sync, self.clk_domain)
+			stb_new = Signal()
+			dat_new = Signal(flen(dat))
+			sync += [
+				stb_new.eq(stb),
+				dat_new.eq(dat)
+			]
+			stb = stb_new
+			dat = dat_new
+
 		if self.clk_domain is not "sys":
 			fifo = AsyncFIFO([("dat", self.width)], 32)
 			self.submodules += RenameClockDomains(fifo, {"write": self.clk_domain, "read": "sys"})
 			self.comb += [
-				fifo.sink.stb.eq(self.stb),
-				fifo.sink.dat.eq(self.dat)
+				fifo.sink.stb.eq(stb),
+				fifo.sink.dat.eq(dat)
 			]
 			sink = Record(dat_layout(self.width))
 			self.comb += [
@@ -49,8 +63,8 @@ class MiLa(Module, AutoCSR):
 		else:
 			sink = Record(dat_layout(self.width))
 			self.comb += [
-				sink.stb.eq(self.stb),
-				sink.dat.eq(self.dat)
+				sink.stb.eq(stb),
+				sink.dat.eq(dat)
 			]
 
 		self.submodules.trigger = trigger = Trigger(self.width, self.ports)
