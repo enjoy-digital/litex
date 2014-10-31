@@ -108,5 +108,5 @@ class CRC32(Module):
 			self.engine.last.eq(reg),
 
 			self.value.eq(~reg[::-1]),
-			self.error.eq(reg != self.check)
+			self.error.eq(self.engine.next != self.check)
 		]
