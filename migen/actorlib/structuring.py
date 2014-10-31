@@ -197,3 +197,31 @@ class Converter(Module):
 		else:
 			self.comb += Record.connect(self.sink, self.source)
 
+class Pipeline(Module):
+	def __init__(self, *modules):
+		n = len(modules)
+		m = modules[0]
+		# expose sink of first module
+		# if available
+		if hasattr(m, "sink"):
+			self.sink = m.sink
+		# use of busy is encouraged
+		# but not mandatory
+		if hasattr(m, "busy"):
+			busy = m.busy
+		else:
+			busy = 0
+		for i in range(1, n):
+			m_n = modules[i]
+			if hasattr(m_n, "busy"):
+				busy_n = m_n.busy
+			else:
+				busy_n = 0
+			self.comb += m.source.connect(m_n.sink)
+			m = m_n
+			busy = busy | busy_n
+		# expose source of last module
+		# if available
+		if hasattr(m, "source"):
+			self.source = m.source
+		self.busy = busy
