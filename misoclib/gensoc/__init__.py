@@ -9,6 +9,7 @@ from migen.bus import wishbone, csr, lasmibus, dfi
 from migen.bus import wishbone2lasmi, wishbone2csr
 
 from misoclib import lm32, mor1kx, uart, dfii, lasmicon, identifier, timer, memtest
+from misoclib.lasmicon.minicon import Minicon
 
 class GenSoC(Module):
 	csr_base = 0xe0000000
@@ -136,14 +137,15 @@ class SDRAMSoC(GenSoC):
 	csr_map = {
 		"dfii":					6,
 		"lasmicon":				7,
-		"memtest_w":			8,
-		"memtest_r":			9
+		"memtest_w":				8,
+		"memtest_r":				9
 	}
 	csr_map.update(GenSoC.csr_map)
 
-	def __init__(self, platform, clk_freq, cpu_reset_address, with_memtest=False, sram_size=4096, l2_size=8192, with_uart=True, **kwargs):
+	def __init__(self, platform, clk_freq, cpu_reset_address, with_memtest=False, sram_size=4096, l2_size=8192, with_uart=True, ramcon_type="lasmicon", **kwargs):
 		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_uart, **kwargs)
 		self.with_memtest = with_memtest
+		self.ramcon_type = ramcon_type
 		self._sdram_phy_registered = False
 
 	def register_sdram_phy(self, phy_dfi, phy_settings, sdram_geom, sdram_timing):
@@ -156,21 +158,42 @@ class SDRAMSoC(GenSoC):
 			phy_settings.dfi_d, phy_settings.nphases)
 		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, phy_dfi)
 
-		# LASMI
-		self.submodules.lasmicon = lasmicon.LASMIcon(phy_settings, sdram_geom, sdram_timing)
-		self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
+		if self.ramcon_type == "lasmicon":
+			# LASMI
+			self.submodules.lasmicon = lasmicon.LASMIcon(phy_settings, sdram_geom, sdram_timing)
+			self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
 
-		self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], self.lasmicon.nrowbits)
+			self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], self.lasmicon.nrowbits)
 
-		if self.with_memtest:
-			self.submodules.memtest_w = memtest.MemtestWriter(self.lasmixbar.get_master())
-			self.submodules.memtest_r = memtest.MemtestReader(self.lasmixbar.get_master())
+			if self.with_memtest:
+				self.submodules.memtest_w = memtest.MemtestWriter(self.lasmixbar.get_master())
+				self.submodules.memtest_r = memtest.MemtestReader(self.lasmixbar.get_master())
 
-		# Wishbone bridge: map SDRAM at 0x40000000 (shadow @0xc0000000)
-		self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_size//4, self.lasmixbar.get_master())
-		self.add_wb_slave(lambda a: a[27:29] == 2, self.wishbone2lasmi.wishbone)
-		self.add_cpu_memory_region("sdram", 0x40000000,
-			2**self.lasmicon.lasmic.aw*self.lasmicon.lasmic.dw*self.lasmicon.lasmic.nbanks//8)
+			# Wishbone bridge: map SDRAM at 0x40000000 (shadow @0xc0000000)
+			self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_size//4, self.lasmixbar.get_master())
+			self.add_wb_slave(lambda a: a[27:29] == 2, self.wishbone2lasmi.wishbone)
+			self.add_cpu_memory_region("sdram", 0x40000000,
+				2**self.lasmicon.lasmic.aw*self.lasmicon.lasmic.dw*self.lasmicon.lasmic.nbanks//8)
+		elif self.ramcon_type == "minicon":
+			rdphase = phy_settings.rdphase
+			self.submodules.minicon = sdramcon = Minicon(phy_settings, sdram_geom, sdram_timing)
+			self.submodules.dficon1 = dfi.Interconnect(sdramcon.dfi, self.dfii.slave)
+			sdram_width = flen(sdramcon.bus.dat_r)
+
+			if (sdram_width == 32):
+				self.add_wb_slave(lambda a: a[27:29] == 2, sdramcon.bus)
+			elif (sdram_width < 32):
+				self.submodules.dc = dc = wishbone.DownConverter(32, sdram_width)
+				self.submodules.intercon = wishbone.InterconnectPointToPoint(dc.wishbone_o, sdramcon.bus)
+				self.add_wb_slave(lambda a: a[27:29] == 2, dc.wishbone_i)
+			else:
+				raise NotImplementedError("Unsupported SDRAM width of {} > 32".format(sdram_width))
+
+			# map SDRAM at 0x40000000 (shadow @0xc0000000)
+			self.add_cpu_memory_region("sdram", 0x40000000,
+				2**(sdram_geom.bank_a+sdram_geom.row_a+sdram_geom.col_a)*sdram_width//8)
+		else:
+			raise ValueError("Unsupported SDRAM controller type: {}".format(self.ramcon_type))
 
 	def do_finalize(self):
 		if not self._sdram_phy_registered:
