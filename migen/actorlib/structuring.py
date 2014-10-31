@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.genlib.record import *
 from migen.flow.actor import *
 
 def _rawbits_layout(l):
@@ -122,3 +123,77 @@ class Pack(Module):
 				source.sop.eq(source.stb & sop),
 				source.eop.eq(source.stb & eop),
 			]
+
+class Chunkerize(CombinatorialActor):
+	def __init__(self, layout_from, layout_to, n, reverse=False, packetized=False):
+		self.sink = Sink(layout_from, packetized)
+		self.source = Source(pack_layout(layout_to, n), packetized)
+		CombinatorialActor.__init__(self)
+
+		###
+
+		for i in range(n):
+			chunk = n-i-1 if reverse else i
+			for f in layout_from:
+				src = getattr(self.sink, f[0])
+				dst = getattr(getattr(self.source, "chunk"+str(chunk)), f[0])
+				self.comb += dst.eq(src[i*flen(src)//n:(i+1)*flen(src)//n])
+
+class Unchunkerize(CombinatorialActor):
+	def __init__(self, layout_from, n, layout_to, reverse=False, packetized=False):
+		self.sink = Sink(pack_layout(layout_from, n), packetized)
+		self.source = Source(layout_to, packetized)
+		CombinatorialActor.__init__(self)
+
+		###
+
+		for i in range(n):
+			chunk = n-i-1 if reverse else i
+			for f in layout_from:
+				src = getattr(getattr(self.sink, "chunk"+str(chunk)), f[0])
+				dst = getattr(self.source, f[0])
+				self.comb += dst[i*flen(dst)//n:(i+1)*flen(dst)//n].eq(src)
+
+class Converter(Module):
+	def __init__(self, layout_from, layout_to, packetized=False, reverse=False):
+		self.sink = Sink(layout_from, packetized)
+		self.source = Source(layout_to, packetized)
+		self.busy = Signal()
+
+		###
+
+		width_from = flen(self.sink.payload.raw_bits())
+		width_to = flen(self.source.payload.raw_bits())
+
+		# downconverter
+		if width_from > width_to:
+			if width_from % width_to:
+				raise ValueError
+			ratio = width_from//width_to
+			self.submodules.chunkerize = Chunkerize(layout_from, layout_to, ratio, reverse, packetized)
+			self.submodules.unpack = Unpack(ratio, layout_to, packetized=packetized)
+
+			self.comb += [
+				Record.connect(self.sink, self.chunkerize.sink),
+				Record.connect(self.chunkerize.source, self.unpack.sink),
+				Record.connect(self.unpack.source, self.source),
+				self.busy.eq(self.unpack.busy)
+			]
+		# upconverter
+		elif width_to > width_from:
+			if width_to % width_from:
+				raise ValueError
+			ratio = width_to//width_from
+			self.submodules.pack = Pack(layout_from, ratio, packetized=packetized)
+			self.submodules.unchunkerize = Unchunkerize(layout_from, ratio, layout_to, reverse, packetized)
+
+			self.comb += [
+				Record.connect(self.sink, self.pack.sink),
+				Record.connect(self.pack.source, self.unchunkerize.sink),
+				Record.connect(self.unchunkerize.source, self.source),
+				self.busy.eq(self.pack.busy)
+			]
+		# direct connection
+		else:
+			self.comb += Record.connect(self.sink, self.source)
+
