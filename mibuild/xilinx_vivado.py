@@ -48,8 +48,10 @@ def _build_files(device, sources, vincpaths, build_name, bitstream_compression):
 
 	tcl.append("read_xdc %s.xdc" %build_name)
 	tcl.append("synth_design -top top -part %s -include_dirs {%s}" %(device, " ".join(vincpaths)))
+	tcl.append("report_utilization -hierarchical -file %s_utilization_hierarchical_synth.rpt" %(build_name))
 	tcl.append("report_utilization -file %s_utilization_synth.rpt" %(build_name))
 	tcl.append("place_design")
+	tcl.append("report_utilization -hierarchical -file %s_utilization_hierarchical_place.rpt" %(build_name))
 	tcl.append("report_utilization -file %s_utilization_place.rpt" %(build_name))
 	tcl.append("report_io -file %s_io.rpt" %(build_name))
 	tcl.append("report_control_sets -verbose -file %s_control_sets.rpt" %(build_name))
