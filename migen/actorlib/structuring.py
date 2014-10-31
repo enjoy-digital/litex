@@ -8,9 +8,9 @@ def _rawbits_layout(l):
 		return l
 
 class Cast(CombinatorialActor):
-	def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
-		self.sink = Sink(_rawbits_layout(layout_from))
-		self.source = Source(_rawbits_layout(layout_to))
+	def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False, packetized=False):
+		self.sink = Sink(_rawbits_layout(layout_from), packetized)
+		self.source = Source(_rawbits_layout(layout_to), packetized)
 		CombinatorialActor.__init__(self)
 
 		###
@@ -29,16 +29,18 @@ def pack_layout(l, n):
 	return [("chunk"+str(i), l) for i in range(n)]
 
 class Unpack(Module):
-	def __init__(self, n, layout_to, reverse=False):
-		self.sink = Sink(pack_layout(layout_to, n))
-		self.source = Source(layout_to)
+	def __init__(self, n, layout_to, reverse=False, packetized=False):
+		self.sink = Sink(pack_layout(layout_to, n), packetized)
+		self.source = Source(layout_to, packetized)
 		self.busy = Signal()
 
 		###
 
 		mux = Signal(max=n)
+		first = Signal()
 		last = Signal()
 		self.comb += [
+			first.eq(mux == 0),
 			last.eq(mux == (n-1)),
 			self.source.stb.eq(self.sink.stb),
 			self.sink.ack.eq(last & self.source.ack)
@@ -58,10 +60,16 @@ class Unpack(Module):
 			cases[i] = [self.source.payload.raw_bits().eq(getattr(self.sink.payload, "chunk"+str(chunk)).raw_bits())]
 		self.comb += Case(mux, cases).makedefault()
 
+		if packetized:
+			self.comb += [
+				self.source.sop.eq(self.source.stb & self.sink.sop & first),
+				self.source.eop.eq(self.source.stb & self.sink.eop & last)
+			]
+
 class Pack(Module):
-	def __init__(self, layout_from, n, reverse=False):
-		self.sink = Sink(layout_from)
-		self.source = Source(pack_layout(layout_from, n))
+	def __init__(self, layout_from, n, reverse=False, packetized=False):
+		self.sink = sink = Sink(layout_from, packetized)
+		self.source = source = Source(pack_layout(layout_from, n), packetized)
 		self.busy = Signal()
 
 		###
@@ -73,18 +81,24 @@ class Pack(Module):
 		cases = {}
 		for i in range(n):
 			chunk = n-i-1 if reverse else i
-			cases[i] = [getattr(self.source.payload, "chunk"+str(chunk)).raw_bits().eq(self.sink.payload.raw_bits())]
+			cases[i] = [getattr(source.payload, "chunk"+str(chunk)).raw_bits().eq(sink.payload.raw_bits())]
 		self.comb += [
 			self.busy.eq(strobe_all),
-			self.sink.ack.eq(~strobe_all | self.source.ack),
-			self.source.stb.eq(strobe_all),
-			load_part.eq(self.sink.stb & self.sink.ack)
+			sink.ack.eq(~strobe_all | source.ack),
+			source.stb.eq(strobe_all),
+			load_part.eq(sink.stb & sink.ack)
 		]
+
+		if packetized:
+			demux_last = ((demux == (n - 1)) | sink.eop)
+		else:
+			demux_last = (demux == (n - 1))
+
 		self.sync += [
-			If(self.source.ack, strobe_all.eq(0)),
+			If(source.ack, strobe_all.eq(0)),
 			If(load_part,
 				Case(demux, cases),
-				If(demux == (n - 1),
+				If(demux_last,
 					demux.eq(0),
 					strobe_all.eq(1)
 				).Else(
@@ -92,3 +106,19 @@ class Pack(Module):
 				)
 			)
 		]
+
+		if packetized:
+			sop = Signal()
+			eop = Signal()
+			self.sync += [
+				If(source.stb & source.ack,
+					sop.eq(load_part & sink.sop)
+				).Else(
+					sop.eq((load_part & sink.sop) | sop)
+				),
+				eop.eq(load_part & sink.eop)
+			]
+			self.comb += [
+				source.sop.eq(source.stb & sop),
+				source.eop.eq(source.stb & eop),
+			]

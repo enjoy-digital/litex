@@ -22,6 +22,7 @@ def _check_layout(layout, packetized):
 
 class _Endpoint(Record):
 	def __init__(self, layout, packetized=False):
+		self.packetized = packetized
 		_check_layout(layout, packetized)
 		endpoint_layout = [
 			("payload", _make_m2s(layout)),
@@ -66,21 +67,30 @@ class BinaryActor(Module):
 		self.busy = Signal()
 		sink = get_single_ep(self, Sink)[1]
 		source = get_single_ep(self, Source)[1]
-		self.build_binary_control(sink.stb, sink.ack, source.stb, source.ack, *args, **kwargs)
+		self.build_binary_control(sink, source, *args, **kwargs)
 
-	def build_binary_control(self, stb_i, ack_o, stb_o, ack_i):
+	def build_binary_control(self, sink, source):
 		raise NotImplementedError("Binary actor classes must overload build_binary_control_fragment")
 
 class CombinatorialActor(BinaryActor):
-	def build_binary_control(self, stb_i, ack_o, stb_o, ack_i):
-		self.comb += [stb_o.eq(stb_i), ack_o.eq(ack_i), self.busy.eq(0)]
+	def build_binary_control(self, sink, source):
+		self.comb += [
+			source.stb.eq(sink.stb),
+			sink.ack.eq(source.ack),
+			self.busy.eq(0)
+		]
+		if sink.packetized:
+			self.comb += [
+				source.sop.eq(sink.sop),
+				source.eop.eq(sink.eop)
+			]
 
 class SequentialActor(BinaryActor):
 	def __init__(self, delay):
 		self.trigger = Signal()
 		BinaryActor.__init__(self, delay)
 
-	def build_binary_control(self, stb_i, ack_o, stb_o, ack_i, delay):
+	def build_binary_control(self, sink, source, delay):
 		ready = Signal()
 		timer = Signal(max=delay+1)
 		self.comb += ready.eq(timer == 0)
@@ -92,24 +102,29 @@ class SequentialActor(BinaryActor):
 
 		mask = Signal()
 		self.comb += [
-			stb_o.eq(ready & mask),
-			self.trigger.eq(stb_i & (ack_i | ~mask) & ready),
-			ack_o.eq(self.trigger),
+			source.stb.eq(ready & mask),
+			self.trigger.eq(sink.stb & (source.ack | ~mask) & ready),
+			sink.ack.eq(self.trigger),
 			self.busy.eq(~ready)
 		]
 		self.sync += [
 			If(self.trigger, mask.eq(1)),
-			If(stb_o & ack_i, mask.eq(0))
+			If(source.stb & source.ack, mask.eq(0))
 		]
+		if sink.packetized:
+			self.comb += [
+				source.sop.eq(sink.sop),
+				source.eop.eq(sink.eop)
+			]
 
 class PipelinedActor(BinaryActor):
 	def __init__(self, latency):
 		self.pipe_ce = Signal()
 		BinaryActor.__init__(self, latency)
 
-	def build_binary_control(self, stb_i, ack_o, stb_o, ack_i, latency):
+	def build_binary_control(self, sink, source, latency):
 		busy = 0
-		valid = stb_i
+		valid = sink.stb
 		for i in range(latency):
 			valid_n = Signal()
 			self.sync += If(self.pipe_ce, valid_n.eq(valid))
@@ -117,8 +132,26 @@ class PipelinedActor(BinaryActor):
 			busy = busy | valid
 
 		self.comb += [
-			self.pipe_ce.eq(ack_i | ~valid),
-			ack_o.eq(self.pipe_ce),
-			stb_o.eq(valid),
+			self.pipe_ce.eq(source.ack | ~valid),
+			sink.ack.eq(self.pipe_ce),
+			source.stb.eq(valid),
 			self.busy.eq(busy)
 		]
+		if sink.packetized:
+			sop = sink.sop
+			eop = sink.eop
+			for i in range(latency):
+				sop_n = Signal()
+				eop_n = Signal()
+				self.sync += \
+					If(self.pipe_ce,
+						sop_n.eq(sop),
+						eop_n.eq(eop)
+					)
+				sop = sop_n
+				eop = eop_n
+
+			self.comb += [
+				source.eop.eq(eop),
+				source.sop.eq(sop)
+			]
