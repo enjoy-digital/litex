@@ -122,6 +122,28 @@ _io = [
 		Misc("SLEW=FAST"),
 		Misc("VCCAUX_IO=HIGH")
 	),
+
+	("eth_clocks", 0,
+		Subsignal("tx", Pins("M28")),
+		Subsignal("gtx", Pins("K30")),
+		Subsignal("rx", Pins("U27")),
+		IOStandard("LVCMOS25")
+	),
+	("eth", 0,
+		Subsignal("rst_n", Pins("L20")),
+		Subsignal("int_n", Pins("N30")),
+		Subsignal("mdio", Pins("J21")),
+		Subsignal("mdc", Pins("R23")),
+		Subsignal("dv", Pins("R28")),
+		Subsignal("rx_er", Pins("V26")),
+		Subsignal("rx_data", Pins("U30 U25 T25 U28 R19 T27 T26 T28")),
+		Subsignal("tx_en", Pins("M27")),
+		Subsignal("tx_er", Pins("N29")),
+		Subsignal("tx_data", Pins("N27 N25 M29 L28 J26 K26 L30 J28")),
+		Subsignal("col", Pins("W19")),
+		Subsignal("crs", Pins("R30")),
+		IOStandard("LVCMOS25")
+	),
 ]
 
 def Platform(*args, toolchain="vivado", **kwargs):
@@ -148,6 +170,10 @@ def Platform(*args, toolchain="vivado", **kwargs):
 				pass
 			try:
 				self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
+			except ConstraintError:
+				pass
+			try:
+				self.add_period_constraint(self.lookup_request("eth_clocks").rx, 8.0)
 			except ConstraintError:
 				pass
 			if isinstance(self, XilinxISEPlatform):
