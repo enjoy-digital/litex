@@ -5,16 +5,16 @@ from migen.genlib.record import *
 from migen.genlib.misc import chooser
 
 _layout = [
-	("adr",		14,				DIR_M_TO_S),
-	("we",		1,				DIR_M_TO_S),
-	("dat_w",	"data_width",	DIR_M_TO_S),
-	("dat_r",	"data_width",	DIR_S_TO_M)
+	("adr",		"address_width",	DIR_M_TO_S),
+	("we",		1,					DIR_M_TO_S),
+	("dat_w",	"data_width",		DIR_M_TO_S),
+	("dat_r",	"data_width",		DIR_S_TO_M)
 ]
 
 class Interface(Record):
-	def __init__(self, data_width=8):
+	def __init__(self, data_width=8, address_width=14):
 		Record.__init__(self, set_layout_parameters(_layout,
-			data_width=data_width))
+			data_width=data_width, address_width=address_width))
 
 class Interconnect(Module):
 	def __init__(self, master, slaves):
