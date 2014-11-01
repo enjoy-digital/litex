@@ -199,14 +199,13 @@ class Converter(Module):
 
 class Pipeline(Module):
 	def __init__(self, *modules):
+		self.busy = Signal()
 		n = len(modules)
 		m = modules[0]
 		# expose sink of first module
 		# if available
 		if hasattr(m, "sink"):
 			self.sink = m.sink
-		# use of busy is encouraged
-		# but not mandatory
 		if hasattr(m, "busy"):
 			busy = m.busy
 		else:
@@ -224,4 +223,4 @@ class Pipeline(Module):
 		# if available
 		if hasattr(m, "source"):
 			self.source = m.source
-		self.busy = busy
+		self.comb += self.busy.eq(busy)
