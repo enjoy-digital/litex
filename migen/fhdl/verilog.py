@@ -275,7 +275,7 @@ def _printinit(f, ios, ns):
 	signals = (list_signals(f) | list_special_ios(f, True, False, False)) \
 		- ios \
 		- list_targets(f) \
-		- list_special_ios(f, False, True, False)
+		- list_special_ios(f, False, True, True)
 	if signals:
 		r += "initial begin\n"
 		for s in sorted(signals, key=lambda x: x.huid):
