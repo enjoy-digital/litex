@@ -8,8 +8,8 @@ from migen.bank.description import *
 from miscope.uart2wishbone import UART2Wishbone
 
 from misoclib import identifier
-from lib.sata.k7sataphy.std import *
-from lib.sata.k7sataphy import K7SATAPHY
+from lib.sata.phy.k7sataphy.std import *
+from lib.sata.phy.k7sataphy import K7SATAPHY
 
 from migen.genlib.cdc import *
 
