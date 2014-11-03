@@ -2,6 +2,9 @@ import unittest
 
 from migen.fhdl.std import *
 
+def _same_slices(a, b):
+	return a.value is b.value and a.start == b.start and a.stop == b.stop
+
 class SignalSizeCase(unittest.TestCase):
 	def setUp(self):
 		self.i = 0xaa
@@ -18,7 +21,7 @@ class SignalSizeCase(unittest.TestCase):
 
 	def test_fiter(self):
 		for i, si in enumerate(fiter(self.s)):
-			self.assertEqual(si, self.s[i])
+			self.assertTrue(_same_slices(si, self.s[i]))
 		self.assertEqual(list(fiter(self.i)),
 				[(self.i >> i) & 1 for i in range(8)])
 		self.assertEqual(list(fiter(self.j)),
