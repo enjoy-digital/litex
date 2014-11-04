@@ -1,28 +1,17 @@
-from subprocess import check_output
+import subprocess
 
 from migen.fhdl.std import *
 
 from lib.sata.std import *
 from lib.sata.link.crc import *
-
-def check(ref, res):
-	shift = 0
-	while((ref[0] != res[0]) and (len(res)>1)):
-		res.pop(0)
-		shift += 1
-	length = min(len(ref), len(res))
-	errors = 0
-	for i in range(length):
-		if ref.pop(0) != res.pop(0):
-			errors += 1
-	return shift, length, errors
+from lib.sata.link.test.common import check
 
 class TB(Module):
-	def __init__(self):
+	def __init__(self, length):
 		self.submodules.crc = SATACRC()
+		self.length = length
 
 	def gen_simulation(self, selfp):
-		
 	# init CRC
 		selfp.crc.d = 0x12345678
 		selfp.crc.ce = 1
@@ -31,15 +20,14 @@ class TB(Module):
 		selfp.crc.reset = 0
 
 	# get C code results
-		ref = []
-		f = open("crc_ref", "r")
-		for l in f:
-			ref.append(int(l, 16))
-		f.close()
+		p = subprocess.Popen(["./crc"], stdout=subprocess.PIPE)
+		out, err = p.communicate()
+		ref = [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
+
 
 	# log results
 		res = []
-		for i in range(256):
+		for i in range(self.length):
 			res.append(selfp.crc.value)
 			yield
 
@@ -49,4 +37,5 @@ class TB(Module):
 
 if __name__ == "__main__":
 	from migen.sim.generic import run_simulation
-	run_simulation(TB(), ncycles=1000, vcd_name="my.vcd", keep_files=True)
+	length = 8192
+	run_simulation(TB(length), ncycles=length+100, vcd_name="my.vcd", keep_files=True)

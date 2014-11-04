@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
    unsigned char     next[32];
    context = 0xF0F6;
 
-   for (i = 0; i < 256; ++i)  {
+   for (i = 0; i < 65536; ++i)  {
       for (j = 0; j < 16; ++j)  {
          now[j] = (context >> j) & 0x01;
       }

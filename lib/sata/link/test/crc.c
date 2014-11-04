@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
    crc = 0x52325032;
    data_count = 0;
 
-   while (data_count < 256)  {
+   while (data_count < 65536)  {
       data_count++;
 
       crc ^= data_in;
