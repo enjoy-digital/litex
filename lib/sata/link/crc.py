@@ -1,5 +1,8 @@
 from migen.fhdl.std import *
 from migen.genlib.misc import optree
+from migen.actorlib.crc import CRCInserter, CRCChecker
+
+from lib.sata.std import *
 
 class CRCEngine(Module):
 	"""Cyclic Redundancy Check Engine
@@ -54,7 +57,7 @@ class CRCEngine(Module):
 		# compute and optimize CRC's LFSR
 		curval = [[("new", i)] for i in range(width)]
 		for i in range(width):
-			feedback = curval.pop()		
+			feedback = curval.pop()
 			for j in range(width-1):
 				if (polynom & (1<<(j+1))):
 					curval[j] += feedback
@@ -104,3 +107,11 @@ class SATACRC(Module):
 			self.value.eq(reg_i),
 			self.error.eq(self.engine.next != self.check)
 		]
+
+class SATACRCInserter(CRCInserter):
+	def __init__(self, layout):
+		CRCInserter.__init__(self, SATACRC, layout)
+
+class SATACRCChecker(CRCChecker):
+	def __init__(self, layout):
+		CRCChecker.__init__(self, SATACRC, layout)
