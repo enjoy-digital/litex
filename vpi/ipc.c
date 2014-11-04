@@ -76,7 +76,7 @@ enum {
  */
 int ipc_receive(struct ipc_softc *sc)
 {
-	char buffer[MAX_LEN];
+	unsigned char buffer[MAX_LEN];
 	ssize_t l;
 	int i;
 	
@@ -97,7 +97,7 @@ int ipc_receive(struct ipc_softc *sc)
 			unsigned char *chunks;
 			unsigned int index;
 			
-			name = &buffer[i];
+			name = (char *)&buffer[i];
 			i += strlen(name) + 1;
 			assert((i+4) < l);
 			index = buffer[i] | buffer[i+1] << 8 | buffer[i+2] << 16 | buffer[i+3] << 24;
@@ -112,7 +112,7 @@ int ipc_receive(struct ipc_softc *sc)
 			char *name;
 			unsigned int index;
 			
-			name = &buffer[i];
+			name = (char *)&buffer[i];
 			i += strlen(name) + 1;
 			assert((i+4) == l);
 			index = buffer[i] | buffer[i+1] << 8 | buffer[i+2] << 16 | buffer[i+3] << 24;
