@@ -1,4 +1,50 @@
 // Adapted from SATA specification
+/****************************************************************************/
+/*                                                                          */
+/* scramble.c                                                               */
+/*                                                                          */
+/* This sample code generates the entire sequence of 65535 Dwords produced  */
+/* by the scrambler defined in the Serial ATA specification. The            */
+/* specification calls for an LFSR to generate a string of bits that will   */
+/* be packaged into 32 bit Dwords to be XORed with the data Dwords. The     */
+/* generator polynomial specified is:                                       */
+/*         16  15  13  4                                                    */
+/* G(x) = x + x + x + x + 1                                                 */
+/*                                                                          */
+/* Parallelized versions of the scrambler are initialized to a value        */
+/* derived from the initialization value of 0xFFFF defined in the           */
+/* specification. This implementation is initialized to 0xF0F6. Other       */
+/* parallel implementations will have different initial values. The         */
+/* important point is that the first Dword output of any implementation     */
+/* must equal 0xC2D2768D.                                                   */
+/* This code does not represent an elegant solution for a C implementation, */
+/* but it does demonstrate a method of generating the sequence that can be  */
+/* easily implemented in hardware. A block diagram of the circuit emulated  */
+/* by this code is shown below.                                             */
+/*                                                                          */
+/* +-----------------------------------+                                    */
+/* |                                   |                                    */
+/* |                                   |                                    */
+/* |     +---+                +---+    |                                    */
+/* |     | R |                | * |    |                                    */
+/* +---->| e |----------+---->| M |----+----> Output(31 downto 16)          */
+/*       | g |          |     | 1 |                                         */
+/*       +---+          |     +---+                                         */
+/*                      |                                                   */
+/*                      |     +---+                                         */
+/*                      |     | * |                                         */
+/*                      +---->| M |---------> Output(15 downto 0)           */
+/*                            | 2 |                                         */
+/*                            +---+                                         */
+/*                                                                          */
+/* The register shown in the block diagram is a 16 bit register. The two    */
+/* boxes, *M1 and *M2, each represent a multiply by a 16 by 16 binary       */
+/* matrix. A 16 by 16 matrix times a 16 bit vector yields a 16 bit vector.  */
+/* The two vectors are the two halves of the 32 bit scrambler value. The    */
+/* upper half of the scrambler value is stored back into the context        */
+/* register to be used to generate the next value in the scrambler          */
+/*                                                                          */
+/****************************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
 int main(int argc, char *argv[])

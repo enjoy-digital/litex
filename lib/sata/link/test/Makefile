@@ -14,6 +14,7 @@ crc_tb:
 scrambler_tb:
 	$(CC) $(CFLAGS) $(INC) -o scrambler scrambler.c
 	./scrambler /> scrambler_ref
+	$(CMD) scrambler_tb.py
 
 clean:
 	rm crc crc_ref scrambler scrambler_ref

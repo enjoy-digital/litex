@@ -54,12 +54,12 @@ class CRCEngine(Module):
 		# compute and optimize CRC's LFSR
 		curval = [[("new", i)] for i in range(width)]
 		for i in range(width):
-			feedback = curval.pop()
-			curval.insert(0, feedback)
-			for j in range(1, width-1):
-				if (polynom&(1<<j)):
+			feedback = curval.pop()		
+			for j in range(width-1):
+				if (polynom & (1<<(j+1))):
 					curval[j] += feedback
 				curval[j] = _optimize_eq(curval[j])
+			curval.insert(0, feedback)
 
 		# implement logic
 		for i in range(width):
