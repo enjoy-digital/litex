@@ -4,7 +4,9 @@ import os
 class Programmer:
 	def __init__(self, flash_proxy_basename=None):
 		self.flash_proxy_basename = flash_proxy_basename
-		self.flash_proxy_dirs = ["~/.mlabs", "/usr/local/share/mlabs", "/usr/share/mlabs"]
+		self.flash_proxy_dirs = [
+			"~/.migen", "/usr/local/share/migen", "/usr/share/migen",
+			"~/.mlabs", "/usr/local/share/mlabs", "/usr/share/mlabs"]
 
 	def set_flash_proxy_dir(self, flash_proxy_dir):
 		if flash_proxy_dir is not None:
