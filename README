@@ -64,21 +64,16 @@ modules.
   make
   make install
 
-6. Obtain compiler-rt and set the CRTDIR environment variable to the root of
-  its source tree.
-  svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt
-  export CRTDIR=/path_to/compiler-rt
-
-7. Build and flash the BIOS and bitstream. Run from MiSoC:
+6. Build and flash the BIOS and bitstream. Run from MiSoC:
   For Mixxeo:      ./make.py all
   For M1:          ./make.py -p m1 all
   For Papilio Pro: ./make.py -t ppro all
   For KC705:       ./make.py -t kc705 all
 
-8. Run a terminal program on the board's serial port at 115200 8-N-1.
+7. Run a terminal program on the board's serial port at 115200 8-N-1.
   You should get the BIOS prompt.
 
-9. Read and experiment with the source!
+8. Read and experiment with the source!
   Come to our IRC channel and mailing list!
 
 [> License
