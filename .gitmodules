@@ -4,3 +4,6 @@
 [submodule "verilog/mor1kx/submodule"]
 	path = verilog/mor1kx/submodule
 	url = https://github.com/openrisc/mor1kx.git
+[submodule "software/compiler-rt"]
+	path = software/compiler-rt
+	url = http://llvm.org/git/compiler-rt.git
