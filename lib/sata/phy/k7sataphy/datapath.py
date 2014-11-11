@@ -7,8 +7,8 @@ from lib.sata.std import *
 
 class K7SATAPHYDatapathRX(Module):
 	def __init__(self):
-		self.sink = Sink([("data", 16), ("charisk", 2)])
-		self.source = Source([("data", 32), ("charisk", 4)])
+		self.sink = Sink(phy_description(16))
+		self.source = Source(phy_description(32))
 
 		###
 
@@ -60,7 +60,7 @@ class K7SATAPHYDatapathRX(Module):
 		# requirements:
 		# due to the convertion ratio of 2, sys_clk need to be > sata_rx/2
 		# source destination is always able to accept data (ack always 1)
-		fifo = AsyncFIFO([("data", 32), ("charisk", 4)], 16)
+		fifo = AsyncFIFO(phy_description(32), 16)
 		self.submodules.fifo = RenameClockDomains(fifo, {"write": "sata_rx", "read": "sys"})
 		self.comb += [
 			fifo.sink.stb.eq(valid),
@@ -71,8 +71,8 @@ class K7SATAPHYDatapathRX(Module):
 
 class K7SATAPHYDatapathTX(Module):
 	def __init__(self):
-		self.sink = Sink([("data", 32), ("charisk", 4)])
-		self.source = Source([("data", 16), ("charisk", 2)])
+		self.sink = Sink(phy_description(32))
+		self.source = Source(phy_description(16))
 
 		###
 
@@ -82,7 +82,7 @@ class K7SATAPHYDatapathTX(Module):
 		# (SATA1) sys_clk to 75MHz sata_tx clk
 		# requirements:
 		# source destination is always able to accept data (ack always 1)
-		fifo = AsyncFIFO([("data", 32), ("charisk", 4)], 16)
+		fifo = AsyncFIFO(phy_description(32), 16)
 		self.submodules.fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
 		self.comb += Record.connect(self.sink, fifo.sink)
 
@@ -110,8 +110,8 @@ class K7SATAPHYDatapathTX(Module):
 
 class K7SATAPHYDatapath(Module):
 	def __init__(self, gtx, ctrl):
-		self.sink = Sink([("data", 32), ("charisk", 4)])
-		self.source = Source([("data", 32), ("charisk", 4)])
+		self.sink = Sink(phy_description(32))
+		self.source = Source(phy_description(32))
 
 		###
 

@@ -15,8 +15,8 @@ class K7SATAPHYHostCtrl(Module):
 	def __init__(self, gtx, crg, clk_freq):
 		self.ready = Signal()
 
-		self.sink = Sink([("data", 32), ("charisk", 4)])
-		self.source = Source([("data", 32), ("charisk", 4)])
+		self.sink = Sink(phy_description(32))
+		self.source = Source(phy_description(32))
 
 		self.align_detect = align_detect = Signal()
 		align_timeout_cnt = Signal(32)
@@ -171,8 +171,8 @@ class K7SATAPHYDeviceCtrl(Module):
 	def __init__(self, gtx, crg, clk_freq):
 		self.ready = Signal()
 
-		self.sink = Sink([("data", 32), ("charisk", 4)])
-		self.source = Source([("data", 32), ("charisk", 4)])
+		self.sink = Sink(phy_description(32))
+		self.source = Source(phy_description(32))
 
 		align_detect = Signal()
 		align_timeout = Signal()

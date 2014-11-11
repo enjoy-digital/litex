@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
+from migen.flow.actor import EndpointDescription
 
 primitives = {
 	"ALIGN"	:	0x7B4A4ABC,
@@ -20,16 +21,22 @@ primitives = {
 def ones(width):
 	return 2**width-1
 
-def phy_layout(dw):
+def phy_description(dw):
+	parameters = {
+		"packetized": False
+	}
 	layout = [
-		("p_packetized", True),
-		("d", dw)
+		("data", dw),
+		("charisk", dw//8),
 	]
-	return layout
+	return EndpointDescription(layout, parameters)
 
-def link_layout(dw):
+def link_description(dw):
+	parameters = {
+		"packetized": True
+	}
 	layout = [
-		("p_packetized", True),
-		("d", dw)
+		("d", dw),
+		("error", 1)
 	]
-	return layout
+	return EndpointDescription(layout, parameters)
