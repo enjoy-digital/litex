@@ -127,14 +127,31 @@ class K7SATAPHYDatapath(Module):
 			gtx.txcharisk.eq(tx.source.charisk),
 		]
 
+	# Align cnt (send 2 Align DWORDs every 256 DWORDs)
+		align_cnt = Signal(8)
+		self.sync += \
+			If(~ctrl.ready,
+				align_cnt.eq(0)
+			).Elsif(tx.sink.stb & tx.sink.ack,
+				align_cnt.eq(align_cnt+1)
+			)
+		send_align = (align_cnt < 2)
+
 	# user / ctrl mux
 		self.comb += [
 			# user
 			If(ctrl.ready,
-				tx.sink.stb.eq(self.sink.stb),
-				tx.sink.data.eq(self.sink.data),
-				tx.sink.charisk.eq(self.sink.charisk),
-				self.sink.ack.eq(tx.sink.ack),
+				If(send_align,
+					tx.sink.stb.eq(1),
+					tx.sink.data.eq(ALIGN_VAL),
+					tx.sink.charisk.eq(0b0001),
+					self.sink.ack.eq(0)
+				).Else(
+					tx.sink.stb.eq(self.sink.stb),
+					tx.sink.data.eq(self.sink.data),
+					tx.sink.charisk.eq(self.sink.charisk),
+					self.sink.ack.eq(tx.sink.ack)
+				)
 
 				self.source.stb.eq(rx.source.stb),
 				self.source.data.eq(rx.source.data),
