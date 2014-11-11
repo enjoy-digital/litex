@@ -1,34 +1,35 @@
 from migen.fhdl.std import *
+from migen.genlib.fsm import FSM, NextState
 
 from lib.sata.std import *
-from lib.sata.link import crc
-from lib.sata.link import scrambler
+from lib.sata.link.crc import SATACRCInserter, SATACRCChecker
+from lib.sata.link.scrambler import SATAScrambler
 
 # Todo:
 # - TX: (optional) insert COND and scramble between COND and primitives
 # - RX: manage COND, HOLD from device
 
 class SATALinkLayer(Module):
-	def __init__(self, phy, dw=32):
-		self.sink = Sink(link_layout(dw))
-		self.source = Source(link_layout(dw))
+	def __init__(self, phy):
+		self.sink = Sink(link_layout(32))
+		self.source = Source(link_layout(32))
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 
 	# TX
 		# insert CRC
-		crc_inserter = crc.SATACRCInserter(link_layout(dw))
+		crc_inserter = SATACRCInserter(link_layout(32))
 		self.submodules += crc_inserter
 
 		# scramble
-		scrambler = scrambler.SATAScrambler(link_layout(dw))
+		scrambler = SATAScrambler(link_layout(32))
 		self.submodules += scrambler
 
 		# graph
 		self.comb += [
 			Record.connect(self.sink, crc_inserter.sink),
-			Record.connect(crc_inserter, scrambler)
+			Record.connect(crc_inserter.source, scrambler.sink)
 		]
 
 		# datas / primitives mux
@@ -38,9 +39,9 @@ class SATALinkLayer(Module):
 				phy.sink.stb.eq(1),
 				phy.sink.data.eq(tx_insert),
 				phy.sink.charisk.eq(0x0001),
-			).Elsif(fsm.ongoing("H2D_COPY"),
+			).Elif(fsm.ongoing("H2D_COPY"),
 				phy.sink.stb.eq(scrambler.source.stb),
-				phy.sink.data.eq(scrambler.source.data),
+				phy.sink.data.eq(scrambler.source.d),
 				scrambler.source.ack.eq(phy.source.ack),
 				phy.sink.charisk.eq(0)
 			)
@@ -55,19 +56,20 @@ class SATALinkLayer(Module):
 			)
 
 		# descrambler
-		descrambler = descrambler.SATAScrambler(link_layout(dw))
+		descrambler = SATAScrambler(link_layout(32))
 		self.submodules += descrambler
 
 		# check CRC
-		crc_checker = crc.SATACRCChecker(link_layout(dw))
+		crc_checker = SATACRCChecker(link_layout(32))
 		self.submodules += crc_checker
 
 		# graph
 		self.comb += [
 			If(fsm.ongoing("H2D_COPY") & (rx_det == 0),
-				descrambler.sink.stb.eq(phy.source.stb & (phy.charisk == 0)),
-				descrambler.sink.d.eq(phy.source.d),
+				descrambler.sink.stb.eq(phy.source.stb & (phy.source.charisk == 0)),
+				descrambler.sink.d.eq(phy.source.data),
 			),
+			phy.source.ack.eq(1),
 			Record.connect(descrambler.source, crc_checker.sink),
 			Record.connect(crc_checker.source, self.source)
 		]
@@ -75,9 +77,9 @@ class SATALinkLayer(Module):
 	# FSM
 		fsm.act("IDLE",
 			tx_insert.eq(primitives["SYNC"]),
-			If(rx_primitive == "X_RDY",
+			If(rx_det == primitives["X_RDY"],
 				NextState("D2H_RDY")
-			).Elif(scrambler.stb & scrambler.sop,
+			).Elif(scrambler.source.stb & scrambler.source.sop,
 				NextState("H2D_RDY")
 			)
 		)
@@ -85,8 +87,9 @@ class SATALinkLayer(Module):
 		# Host to Device
 		fsm.act("H2D_RDY",
 			tx_insert.eq(primitives["X_RDY"]),
-			If(rx_primitive == primitives["R_RDY"]),
+			If(rx_det == primitives["R_RDY"],
 				NextState("H2D_SOF")
+			)
 		)
 		fsm.act("H2D_SOF",
 			tx_insert.eq(primitives["SOF"]),
@@ -95,7 +98,7 @@ class SATALinkLayer(Module):
 			)
 		)
 		fsm.act("H2D_COPY",
-			If(scrambler.stb & scrambler.ack & scramvbler.eop,
+			If(scrambler.source.stb & scrambler.source.eop & scrambler.source.ack,
 				NextState("H2D_EOF")
 			)
 		)

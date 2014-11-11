@@ -14,6 +14,9 @@ scrambler_tb:
 	$(CC) $(CFLAGS) $(INC) -o scrambler scrambler.c
 	$(CMD) scrambler_tb.py
 
+link_tb:
+	$(CMD) link_tb.py
+
 all: crc_tb scrambler_tb
 
 clean:

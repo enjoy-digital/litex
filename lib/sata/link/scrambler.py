@@ -1,6 +1,8 @@
 from migen.fhdl.std import *
 from migen.genlib.misc import optree
 
+from lib.sata.std import *
+
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class Scrambler(Module):
@@ -79,7 +81,7 @@ class SATAScrambler(Module):
 			If(sink.stb & sink.ack,
 				If(sink.eop,
 					ongoing.eq(0)
-				).Elsif(sink.sop,
+				).Elif(sink.sop,
 					ongoing.eq(1)
 				)
 			)
