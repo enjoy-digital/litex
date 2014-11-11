@@ -4,7 +4,7 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 
-from lib.sata.k7sataphy.std import *
+from lib.sata.std import *
 from lib.sata.k7sataphy.gtx import GTXE2_COMMON
 
 class K7SATAPHYCRG(Module):
@@ -58,7 +58,7 @@ class K7SATAPHYCRG(Module):
 				p_BANDWIDTH="HIGH", p_COMPENSATION="ZHOLD", i_RST=mmcm_reset, o_LOCKED=mmcm_locked,
 
 				# DRP
-				i_DCLK=0, i_DEN=0, i_DWE=0, #o_DRDY=, 
+				i_DCLK=0, i_DEN=0, i_DWE=0, #o_DRDY=,
 				i_DADDR=0, i_DI=0, #o_DO=,
 
 				# VCO

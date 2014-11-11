@@ -3,7 +3,7 @@ from migen.genlib.misc import chooser
 from migen.actorlib.fifo import AsyncFIFO
 from migen.flow.actor import Sink, Source
 
-from lib.sata.k7sataphy.std import *
+from lib.sata.std import *
 
 class K7SATAPHYDatapathRX(Module):
 	def __init__(self):
@@ -143,7 +143,7 @@ class K7SATAPHYDatapath(Module):
 			If(ctrl.ready,
 				If(send_align,
 					tx.sink.stb.eq(1),
-					tx.sink.data.eq(ALIGN_VAL),
+					tx.sink.data.eq(primitives["ALIGN"]),
 					tx.sink.charisk.eq(0b0001),
 					self.sink.ack.eq(0)
 				).Else(

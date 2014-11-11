@@ -5,7 +5,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 from migen.flow.actor import Sink, Source
 
-from lib.sata.k7sataphy.std import *
+from lib.sata.std import *
 
 def us(t, clk_freq):
 	clk_period_us = 1000000/clk_freq
@@ -117,7 +117,7 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
-			self.source.data.eq(ALIGN_VAL),
+			self.source.data.eq(primitives["ALIGN"]),
 			self.source.charisk.eq(0b0001),
 			If(non_align_cnt == 3,
 				NextState("READY")
@@ -125,7 +125,7 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("READY",
 			gtx.txelecidle.eq(0),
-			self.source.data.eq(SYNC_VAL),
+			self.source.data.eq(primitives["SYNC"]),
 			self.source.charisk.eq(0b0001),
 			self.ready.eq(1),
 		)
@@ -139,7 +139,7 @@ class K7SATAPHYHostCtrl(Module):
 			gtx.txcomwake.eq(txcomwake & ~txcomwake_d),
 		]
 
-		self.comb +=  align_detect.eq(self.sink.stb & (self.sink.data == ALIGN_VAL));
+		self.comb +=  align_detect.eq(self.sink.stb & (self.sink.data == primitives["ALIGN"]));
 		self.sync += \
 			If(fsm.ongoing("RESET"),
 				align_timeout_cnt.eq(us(873, clk_freq))
@@ -254,7 +254,7 @@ class K7SATAPHYDeviceCtrl(Module):
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
 			gtx.rxalign.eq(1),
-			self.source.data.eq(ALIGN_VAL),
+			self.source.data.eq(primitives["ALIGN"]),
 			self.source.charisk.eq(0b0001),
 			If(align_detect,
 				NextState("READY")
@@ -284,7 +284,7 @@ class K7SATAPHYDeviceCtrl(Module):
 			gtx.txcomwake.eq(txcomwake & ~txcomwake_d),
 		]
 
-		self.comb +=  align_detect.eq(self.sink.stb & (self.sink.data == ALIGN_VAL));
+		self.comb +=  align_detect.eq(self.sink.stb & (self.sink.data == primitives["ALIGN"]));
 		self.sync += \
 			If(fsm.ongoing("RESET"),
 				align_timeout_cnt.eq(us(55, clk_freq))

@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.cdc import *
 
-from lib.sata.k7sataphy.std import *
+from lib.sata.std import *
 
 class _PulseSynchronizer(PulseSynchronizer):
 	def __init__(self, i, idomain, o, odomain):
