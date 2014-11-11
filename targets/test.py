@@ -8,7 +8,7 @@ from migen.bank.description import *
 from miscope.uart2wishbone import UART2Wishbone
 
 from misoclib import identifier
-from lib.sata.phy.k7sataphy.std import *
+from lib.sata.std import *
 from lib.sata.phy.k7sataphy import K7SATAPHY
 
 from migen.genlib.cdc import *
@@ -101,13 +101,13 @@ class SimDesign(UART2WB):
 		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True)
 		self.comb += [
 			self.sataphy_host.sink.stb.eq(1),
-			self.sataphy_host.sink.data.eq(SYNC_VAL),
+			self.sataphy_host.sink.data.eq(primitives["SYNC"]),
 			self.sataphy_host.sink.charisk.eq(0b0001)
 		]
 		self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
 		self.comb += [
 			self.sataphy_device.sink.stb.eq(1),
-			self.sataphy_device.sink.data.eq(SYNC_VAL),
+			self.sataphy_device.sink.data.eq(primitives["SYNC"]),
 			self.sataphy_device.sink.charisk.eq(0b0001)
 		]
 
@@ -151,7 +151,7 @@ class TestDesign(UART2WB, AutoCSR):
 		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True, default_speed="SATA2")
 		self.comb += [
 			self.sataphy_host.sink.stb.eq(1),
-			self.sataphy_host.sink.data.eq(SYNC_VAL),
+			self.sataphy_host.sink.data.eq(primitives["SYNC"]),
 			self.sataphy_host.sink.charisk.eq(0b0001)
 		]
 

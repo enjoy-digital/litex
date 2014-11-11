@@ -8,7 +8,7 @@ from lib.sata.link.test.common import check
 
 class TB(Module):
 	def __init__(self, length):
-		self.submodules.scrambler = SATAScrambler()
+		self.submodules.scrambler = Scrambler()
 		self.length = length
 
 	def gen_simulation(self, selfp):

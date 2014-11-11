@@ -1,10 +1,10 @@
 from migen.fhdl.std import *
 
-from lib.sata.k7sataphy.std import *
-from lib.sata.k7sataphy.gtx import K7SATAPHYGTX
-from lib.sata.k7sataphy.crg import K7SATAPHYCRG
-from lib.sata.k7sataphy.ctrl import K7SATAPHYHostCtrl, K7SATAPHYDeviceCtrl
-from lib.sata.k7sataphy.datapath import K7SATAPHYDatapath
+from lib.sata.std import *
+from lib.sata.phy.k7sataphy.gtx import K7SATAPHYGTX
+from lib.sata.phy.k7sataphy.crg import K7SATAPHYCRG
+from lib.sata.phy.k7sataphy.ctrl import K7SATAPHYHostCtrl, K7SATAPHYDeviceCtrl
+from lib.sata.phy.k7sataphy.datapath import K7SATAPHYDatapath
 
 class K7SATAPHY(Module):
 	def __init__(self, pads, clk_freq, host=True, default_speed="SATA1"):

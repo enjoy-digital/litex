@@ -64,10 +64,10 @@ class SATALinkLayer(Module):
 
 		# graph
 		self.comb += [
-			If(fsm.ongoing("H2D_COPY" & (rx_det == 0),
+			If(fsm.ongoing("H2D_COPY") & (rx_det == 0),
 				descrambler.sink.stb.eq(phy.source.stb & (phy.charisk == 0)),
 				descrambler.sink.d.eq(phy.source.d),
-			)
+			),
 			Record.connect(descrambler.source, crc_checker.sink),
 			Record.connect(crc_checker.source, self.source)
 		]
@@ -107,7 +107,7 @@ class SATALinkLayer(Module):
 		)
 		fsm.act("H2D_WTRM",
 			tx_insert.eq(primitives["WTRM"]),
-			If(rx_det == primitives["R_OK"]),
+			If(rx_det == primitives["R_OK"],
 				NextState("IDLE")
 			).Elif(rx_det == primitives["R_ERR"],
 				NextState("IDLE")
@@ -133,7 +133,7 @@ class SATALinkLayer(Module):
 		)
 		fsm.act("D2H_WTRM",
 			tx_insert.eq(primitives["R_OK"]),
-			If(rx_det == primitives["SYNC"]),
+			If(rx_det == primitives["SYNC"],
 				NextState("IDLE")
 			)
 		)

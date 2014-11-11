@@ -132,7 +132,7 @@ class K7SATAPHYDatapath(Module):
 		self.sync += \
 			If(~ctrl.ready,
 				align_cnt.eq(0)
-			).Elsif(tx.sink.stb & tx.sink.ack,
+			).Elif(tx.sink.stb & tx.sink.ack,
 				align_cnt.eq(align_cnt+1)
 			)
 		send_align = (align_cnt < 2)
@@ -151,8 +151,7 @@ class K7SATAPHYDatapath(Module):
 					tx.sink.data.eq(self.sink.data),
 					tx.sink.charisk.eq(self.sink.charisk),
 					self.sink.ack.eq(tx.sink.ack)
-				)
-
+				),
 				self.source.stb.eq(rx.source.stb),
 				self.source.data.eq(rx.source.data),
 				self.source.charisk.eq(rx.source.charisk),

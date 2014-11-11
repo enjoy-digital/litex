@@ -5,7 +5,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 
 from lib.sata.std import *
-from lib.sata.k7sataphy.gtx import GTXE2_COMMON
+from lib.sata.phy.k7sataphy.gtx import GTXE2_COMMON
 
 class K7SATAPHYCRG(Module):
 	def __init__(self, pads, gtx, clk_freq, default_speed):
