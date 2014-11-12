@@ -76,15 +76,15 @@ class TB(Module):
 		self.submodules.streamer = LinkStreamer(32)
 		self.submodules.logger = LinkLogger(32)
 		self.comb += [
-			self.link_layer.sink.eq(self.streamer.source),
-			self.logger.sink.eq(self.link_layer.source)
+			Record.connect(self.streamer.source, self.link_layer.sink),
+			Record.connect(self.link_layer.source, self.logger.sink)
 		]
 
 	def gen_simulation(self, selfp):
 		for i in range(200):
 			yield
-		yield from self.bfm.phy.send(BFMDword(primitives["R_RDY"]), False)
-		yield from self.streamer.send(LinkPacket([0, 1, 2, 3]))
+		for i in range(8):
+			yield from self.streamer.send(LinkPacket([0, 1, 2, 3]))
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=5000, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=512, vcd_name="my.vcd", keep_files=True)

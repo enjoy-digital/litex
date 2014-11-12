@@ -77,7 +77,7 @@ class SATAScrambler(Module):
 
 		self.submodules.scrambler = Scrambler()
 		ongoing = Signal()
-		self.sync += [
+		self.sync += \
 			If(sink.stb & sink.ack,
 				If(sink.eop,
 					ongoing.eq(0)
@@ -85,10 +85,9 @@ class SATAScrambler(Module):
 					ongoing.eq(1)
 				)
 			)
-		]
 		self.comb += [
-			self.scrambler.ce.eq(sink.stb & (sink.sop | ongoing)),
-			self.scrambler.reset.eq(~ongoing),
+			self.scrambler.ce.eq(sink.stb & sink.ack & (sink.sop | ongoing)),
+			self.scrambler.reset.eq(~(sink.sop | ongoing)),
 			Record.connect(sink, source),
 			source.d.eq(sink.d ^ self.scrambler.value)
 		]

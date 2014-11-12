@@ -1,3 +1,5 @@
+import subprocess
+
 from migen.fhdl.std import *
 
 from lib.sata.std import *
@@ -32,7 +34,7 @@ class BFMSource(Module):
 				if v == self.dword.dat:
 					selfp.source.charisk = 0b0001
 			selfp.source.data = self.dword.dat
-		elif selfp.source.stb == 1 and selfp.source.ack == 1:
+		if selfp.source.stb == 1 and selfp.source.ack == 1:
 				self.dword.done = 1
 				selfp.source.stb = 0
 
@@ -81,8 +83,60 @@ class BFM(Module):
 		###
 
 		self.submodules.phy = BFMPHY(dw)
+		self.get_scrambler_ref()
+
+		self.rx_packet_ongoing = False
+		self.rx_packet = []
+
+	def get_scrambler_ref(self):
+		p = subprocess.Popen(["./scrambler"], stdout=subprocess.PIPE)
+		out, err = p.communicate()
+		self.scrambler_ref = [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
+
+	def descramble(self, packet):
+		p = []
+		for i in range(len(packet)):
+			v = packet[i] ^ self.scrambler_ref[i]
+			p.append(v)
+		return p
+
+	def check_crc(self, packet):
+		# Todo from C Code or Python Code
+		return packet[:-1]
+
+	def packet_callback(self, packet):
+		packet = self.descramble(packet)
+		packet = self.check_crc(packet)
+		for v in packet:
+			print("%08x" %v)
+
+	def dword_callback(self, dword):
+		print("%08x " %dword, end="")
+		for k, v in primitives.items():
+			if dword == v:
+				print(k, end="")
+		print("")
+
+		# X_RDY / WTRM response
+		if dword == primitives["X_RDY"]:
+			self.phy.bfm_source.dwords.append(BFMDword(primitives["R_RDY"]))
+		if dword == primitives["WTRM"]:
+			self.phy.bfm_source.dwords.append(BFMDword(primitives["R_OK"]))
+
+		# packet capture
+		if dword == primitives["EOF"]:
+			self.rx_packet_ongoing = False
+			self.packet_callback(self.rx_packet)
+
+		if self.rx_packet_ongoing:
+			self.rx_packet.append(dword)
+
+		if dword == primitives["SOF"]:
+			self.rx_packet_ongoing = True
+			self.rx_packet = []
 
 	def gen_simulation(self, selfp):
+		self.phy.bfm_source.dwords.append(BFMDword(primitives["SYNC"]))
 		while True:
 			yield from self.phy.receive()
-			print("%08x" %(self.phy.rx_dword))
+			self.dword_callback(self.phy.rx_dword)
