@@ -18,7 +18,7 @@ class _FIFOActor(Module):
 			self.fifo.din.eq(self.sink.payload),
 
 			self.source.stb.eq(self.fifo.readable),
-			self.source.eq(self.fifo.dout),
+			self.source.payload.eq(self.fifo.dout),
 			self.fifo.re.eq(self.source.ack)
 		]
 
