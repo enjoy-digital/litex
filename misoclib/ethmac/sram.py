@@ -6,7 +6,7 @@ from migen.flow.actor import Sink, Source
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 
 class SRAMWriter(Module, AutoCSR):
 	def __init__(self, depth, nslots=2):
@@ -25,10 +25,10 @@ class SRAMWriter(Module, AutoCSR):
 
 		###
 
-	# packet dropped if no slot available
+		# packet dropped if no slot available
 		sink.ack.reset = 1
 
-	# length computation
+		# length computation
 		cnt = Signal(lengthbits)
 		clr_cnt = Signal()
 		inc_cnt = Signal()
@@ -50,7 +50,7 @@ class SRAMWriter(Module, AutoCSR):
 				cnt.eq(cnt+inc_val)
 			)
 
-	# slot computation
+		# slot computation
 		slot = Signal(slotbits)
 		inc_slot = Signal()
 		self.sync += \
@@ -64,11 +64,11 @@ class SRAMWriter(Module, AutoCSR):
 		ongoing = Signal()
 		discard = Signal()
 
-	# status fifo
+		# status fifo
 		fifo = SyncFIFO([("slot", slotbits), ("length", lengthbits)], nslots)
 		self.submodules += fifo
 
-	# fsm
+		# fsm
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 
@@ -112,7 +112,7 @@ class SRAMWriter(Module, AutoCSR):
 			self._length.status.eq(fifo.dout.length),
 		]
 
-	# memory
+		# memory
 		mems = [None]*nslots
 		ports = [None]*nslots
 		for n in range(nslots):
@@ -152,7 +152,7 @@ class SRAMReader(Module, AutoCSR):
 
 		###
 
-	# command fifo
+		# command fifo
 		fifo = SyncFIFO([("slot", slotbits), ("length", lengthbits)], nslots)
 		self.submodules += fifo
 		self.comb += [
@@ -162,7 +162,7 @@ class SRAMReader(Module, AutoCSR):
 			self._ready.status.eq(fifo.writable)
 		]
 
-	# length computation
+		# length computation
 		cnt = Signal(lengthbits)
 		clr_cnt = Signal()
 		inc_cnt = Signal()
@@ -174,7 +174,7 @@ class SRAMReader(Module, AutoCSR):
 				cnt.eq(cnt+4)
 			)
 
-	# fsm
+		# fsm
 		first = Signal()
 		last  = Signal()
 		last_d = Signal()
@@ -222,7 +222,7 @@ class SRAMReader(Module, AutoCSR):
 			NextState("IDLE")
 		)
 
-	# first/last computation
+		# first/last computation
 		self.sync += [
 			If(fsm.ongoing("IDLE"),
 				first.eq(1)
@@ -230,10 +230,10 @@ class SRAMReader(Module, AutoCSR):
 				first.eq(0)
 			)
 		]
-		self.comb += last.eq(cnt+4 >= fifo.dout.length)
+		self.comb += last.eq(cnt + 4 >= fifo.dout.length)
 		self.sync += last_d.eq(last)
 
-	# memory
+		# memory
 		rd_slot = fifo.dout.slot
 
 		mems = [None]*nslots

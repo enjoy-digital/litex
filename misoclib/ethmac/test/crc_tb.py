@@ -1,8 +1,7 @@
 from migen.fhdl.std import *
 from migen.actorlib.crc import *
 
-from misoclib.ethmac.std import *
-
+from misoclib.ethmac.common import *
 from misoclib.ethmac.test import *
 
 frame_data = [
@@ -22,10 +21,9 @@ frame_crc = [
 
 class TB(Module):
 	def __init__(self):
-
 		sm = self.submodules
 
-	# Streamer (DATA) --> CRC32Inserter --> Logger (expect DATA + CRC)
+		# Streamer (DATA) --> CRC32Inserter --> Logger (expect DATA + CRC)
 		sm.inserter_streamer = PacketStreamer(frame_data)
 		sm.crc32_inserter = CRC32Inserter(eth_description(8))
 		sm.inserter_logger = PacketLogger()
@@ -34,8 +32,8 @@ class TB(Module):
 			self.crc32_inserter.source.connect(self.inserter_logger.sink),
 		]
 
-	# Streamer (DATA + CRC) --> CRC32Checher --> Logger (except DATA + CRC + check)
-		sm.checker_streamer = PacketStreamer(frame_data+frame_crc)
+		# Streamer (DATA + CRC) --> CRC32Checher --> Logger (except DATA + CRC + check)
+		sm.checker_streamer = PacketStreamer(frame_data + frame_crc)
 		sm.crc32_checker = CRC32Checker(eth_description(8))
 		sm.checker_logger = PacketLogger()
 		self.comb +=[
@@ -54,7 +52,6 @@ class TB(Module):
 
 		print_results("inserter", inserter_reference, inserter_generated)
 		print_results("checker", checker_reference, checker_generated)
-
 
 if __name__ == "__main__":
 	from migen.sim.generic import run_simulation

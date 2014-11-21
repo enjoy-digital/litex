@@ -1,8 +1,9 @@
 import random
+
 from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 
 class PacketStreamer(Module):
 	def __init__(self, data):
@@ -16,10 +17,10 @@ class PacketStreamer(Module):
 			selfp.source.eop = (n == len(self.data)-1)
 			selfp.source.payload.d = data
 			yield
-			while (selfp.source.ack == 0):
+			while selfp.source.ack == 0:
 				yield
 			selfp.source.stb = 0
-			while (bool(random.getrandbits(1)) == 0):
+			while random.getrandbits(1):
 				yield
 
 class PacketLogger(Module):
@@ -29,7 +30,7 @@ class PacketLogger(Module):
 
 	def do_simulation(self, selfp):
 		selfp.sink.ack = bool(random.getrandbits(1))
-		if selfp.sink.stb == 1 and selfp.sink.ack:
+		if selfp.sink.stb and selfp.sink.ack:
 			self.data.append(selfp.sink.payload.d)
 
 def print_results(s, l1, l2):
@@ -38,7 +39,7 @@ def print_results(s, l1, l2):
 		try:
 			for i, val in enumerate(l1):
 				if val != l2[i]:
-					print(s + " : val : %02X, exp : %02X" %(val, l2[i]))
+					print(s + " : val : {:02X}, exp : {:02X}".format(val, l2[i]))
 					r = False
 		except:
 			r = False

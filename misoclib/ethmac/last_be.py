@@ -2,13 +2,15 @@ from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.flow.actor import Sink, Source
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 
 class TXLastBE(Module):
 	def __init__(self, d_w):
 		self.sink = sink = Sink(eth_description(d_w))
 		self.source = source = Source(eth_description(d_w))
+
 		###
+
 		ongoing = Signal()
 		self.sync += \
 			If(self.sink.stb & self.sink.ack,
@@ -28,7 +30,10 @@ class RXLastBE(Module):
 	def __init__(self, d_w):
 		self.sink = sink = Sink(eth_description(d_w))
 		self.source = source = Source(eth_description(d_w))
+
 		###
+
+		# TODO/FIXME
 		fake = Signal() # to use RenameClockDomain
 		self.sync += fake.eq(1)
 		self.comb += [

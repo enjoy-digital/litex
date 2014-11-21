@@ -1,8 +1,7 @@
 from migen.fhdl.std import *
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 from misoclib.ethmac.preamble import *
-
 from misoclib.ethmac.test import *
 
 frame_preamble = [
@@ -22,10 +21,9 @@ frame_data = [
 
 class TB(Module):
 	def __init__(self):
-
 		sm = self.submodules
 
-	# Streamer (DATA) --> PreambleInserter --> Logger (expect PREAMBLE + DATA)
+		# Streamer (DATA) --> PreambleInserter --> Logger (expect PREAMBLE + DATA)
 		sm.inserter_streamer = PacketStreamer(frame_data)
 		sm.preamble_inserter = PreambleInserter(8)
 		sm.inserter_logger = PacketLogger()
@@ -34,7 +32,7 @@ class TB(Module):
 			self.preamble_inserter.source.connect(self.inserter_logger.sink),
 		]
 
-	# Streamer (PREAMBLE + DATA) --> CRC32Checher --> Logger (except DATA + check)
+		# Streamer (PREAMBLE + DATA) --> CRC32Checher --> Logger (except DATA + check)
 		sm.checker_streamer = PacketStreamer(frame_preamble + frame_data)		
 		sm.preamble_checker = PreambleChecker(8)
 		sm.checker_logger = PacketLogger()
@@ -42,7 +40,6 @@ class TB(Module):
 			self.checker_streamer.source.connect(self.preamble_checker.sink),
 			self.preamble_checker.source.connect(self.checker_logger.sink),
 		]
-
 
 	def gen_simulation(self, selfp):
 		for i in range(500):

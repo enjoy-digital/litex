@@ -4,7 +4,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoclib import lasmicon, spiflash, ethmac
 from misoclib.sdramphy import k7ddrphy
 from misoclib.gensoc import SDRAMSoC
-from misoclib.ethmac.phys import gmii
+from misoclib.ethmac.phy import gmii
 
 class _CRG(Module):
 	def __init__(self, platform):

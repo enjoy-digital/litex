@@ -4,7 +4,7 @@ from migen.genlib.misc import chooser
 from migen.genlib.record import *
 from migen.flow.actor import Sink, Source
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 
 class PreambleInserter(Module):
 	def __init__(self, d_w):
@@ -63,7 +63,7 @@ class PreambleChecker(Module):
 		###
 
 		preamble = Signal(64, reset=eth_preamble)
-		cnt_max = (64//d_w)-1
+		cnt_max = (64//d_w) - 1
 		cnt = Signal(max=cnt_max+1)
 		clr_cnt = Signal()
 		inc_cnt = Signal()

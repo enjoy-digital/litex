@@ -4,9 +4,9 @@ from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
 from misoclib.ethmac import EthMAC
-from misoclib.ethmac.phys import loopback
+from misoclib.ethmac.phy import loopback
 
-class WishboneMaster():
+class WishboneMaster:
 	def __init__(self, obj):
 		self.obj = obj
 		self.dat = 0
@@ -38,7 +38,7 @@ class WishboneMaster():
 		self.obj.stb = 0
 		yield
 
-class SRAMReaderDriver():
+class SRAMReaderDriver:
 	def __init__(self, obj):
 		self.obj = obj
 
@@ -53,6 +53,7 @@ class SRAMReaderDriver():
 	def wait_done(self):
 		while self.obj.ev.done.pending == 0:
 			yield
+
 	def clear_done(self):
 		self.obj.ev.done.clear = 1
 		yield
@@ -89,7 +90,7 @@ class TB(Module):
 
 		length = 1500-2
 
-		payload = [i%0xFF for i in range(length)] + [0, 0, 0, 0]
+		payload = [i % 0xFF for i in range(length)] + [0, 0, 0, 0]
 
 		errors = 0
 
@@ -120,7 +121,7 @@ class TB(Module):
 
 			# check rx data
 			for i in range(length):
-				#print("%02x / %02x" %(rx_dat[i], payload[i]))
+				#print("{:02x} / {:02x}".format(rx_dat[i], payload[i]))
 				if rx_dat[i] != payload[i]:
 					errors += 1
 
@@ -128,7 +129,7 @@ class TB(Module):
 			yield
 		#print(selfp.ethmac.sram_reader._length.storage)
 
-		print("Errors : %d" %errors)
+		print("Errors : {}".format(errors))
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=16000, vcd_name="my.vcd", keep_files=True)

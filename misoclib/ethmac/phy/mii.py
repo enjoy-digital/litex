@@ -4,12 +4,14 @@ from migen.flow.actor import Sink, Source
 from migen.bank.description import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 
 class MIIPHYTX(Module):
 	def __init__(self, pads):
 		self.sink = sink = Sink(eth_description(8))
+
 		###
+
 		tx_en_r = Signal()
 		tx_data_r = Signal(4)
 		self.sync += [
@@ -46,7 +48,9 @@ class MIIPHYTX(Module):
 class MIIPHYRX(Module):
 	def __init__(self, pads):
 		self.source = source = Source(eth_description(8))
+
 		###
+
 		sop = source.sop
 		set_sop = Signal()
 		clr_sop = Signal()
@@ -98,7 +102,9 @@ class MIIPHYRX(Module):
 class MIIPHYCRG(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self._reset = CSRStorage()
+
 		###
+
 		self.sync.base50 += clock_pads.phy.eq(~clock_pads.phy)
 
 		self.clock_domains.cd_eth_rx = ClockDomain()
@@ -116,7 +122,6 @@ class MIIPHYCRG(Module, AutoCSR):
 class MIIPHY(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self.dw = 8
-		###
 		self.submodules.crg = MIIPHYCRG(clock_pads, pads)
 		self.submodules.tx = RenameClockDomains(MIIPHYTX(pads), "eth_tx")
 		self.submodules.rx = RenameClockDomains(MIIPHYRX(pads), "eth_rx")

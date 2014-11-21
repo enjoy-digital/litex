@@ -10,7 +10,7 @@ from migen.bank.eventmanager import SharedIRQ
 from migen.bank.description import *
 from migen.fhdl.simplify import *
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 from misoclib.ethmac.preamble import PreambleInserter, PreambleChecker
 from migen.actorlib.crc import CRC32Inserter, CRC32Checker
 from misoclib.ethmac.last_be import TXLastBE, RXLastBE
@@ -63,8 +63,8 @@ class EthMAC(Module, AutoCSR):
 		self.submodules.tx_pipeline = Pipeline(*tx_pipeline)
 
 		if interface == "wishbone":
-			nrxslots=2
-			ntxslots=2
+			nrxslots = 2
+			ntxslots = 2
 
 			self.bus = wishbone.Interface()
 
@@ -83,6 +83,7 @@ class EthMAC(Module, AutoCSR):
 			# Interface
 			wb_rx_sram_ifs = [wishbone.SRAM(self.sram_writer.mems[n], read_only=True)
 				for n in range(nrxslots)]
+			# TODO: FullMemoryWE should move to Mibuild
 			wb_tx_sram_ifs = [FullMemoryWE(wishbone.SRAM(self.sram_reader.mems[n], read_only=False))
 				for n in range(ntxslots)]
 			wb_sram_ifs = wb_rx_sram_ifs + wb_tx_sram_ifs

@@ -3,12 +3,14 @@ from migen.flow.actor import Sink, Source
 from migen.bank.description import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.ethmac.std import *
+from misoclib.ethmac.common import *
 
 class GMIIPHYTX(Module):
 	def __init__(self, pads):
 		self.sink = sink = Sink(eth_description(8))
+
 		###
+
 		self.sync += [
 			pads.tx_er.eq(0),
 			pads.tx_en.eq(sink.stb),
@@ -19,7 +21,9 @@ class GMIIPHYTX(Module):
 class GMIIPHYRX(Module):
 	def __init__(self, pads):
 		self.source = source = Source(eth_description(8))
+
 		###
+
 		dv_d = Signal()
 		self.sync += dv_d.eq(pads.dv)
 
@@ -37,11 +41,13 @@ class GMIIPHYRX(Module):
 		self.comb += source.eop.eq(eop)
 
 # CRG is the only Xilinx specific module.
-# Todo: use generic code or add support for others vendors
+# TODO: use generic code or add support for others vendors
 class GMIIPHYCRG(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self._reset = CSRStorage()
+
 		###
+
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
 		self.specials += [
@@ -64,7 +70,6 @@ class GMIIPHYCRG(Module, AutoCSR):
 class GMIIPHY(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self.dw = 8
-		###
 		self.submodules.crg = GMIIPHYCRG(clock_pads, pads)
 		self.submodules.tx = RenameClockDomains(GMIIPHYTX(pads), "eth_tx")
 		self.submodules.rx = RenameClockDomains(GMIIPHYRX(pads), "eth_rx")

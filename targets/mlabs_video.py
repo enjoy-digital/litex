@@ -7,7 +7,7 @@ from mibuild.generic_platform import ConstraintError
 from misoclib import lasmicon, mxcrg, norflash16, ethmac, framebuffer, gpio
 from misoclib.sdramphy import s6ddrphy
 from misoclib.gensoc import SDRAMSoC
-from misoclib.ethmac.phys import mii
+from misoclib.ethmac.phy import mii
 
 class _MXClockPads:
 	def __init__(self, platform):
