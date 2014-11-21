@@ -1,3 +1,5 @@
+from copy import copy
+
 from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.flow.actor import *
@@ -9,9 +11,9 @@ def _rawbits_layout(l):
 		return l
 
 class Cast(CombinatorialActor):
-	def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False, packetized=False):
-		self.sink = Sink(_rawbits_layout(layout_from), packetized)
-		self.source = Source(_rawbits_layout(layout_to), packetized)
+	def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
+		self.sink = Sink(_rawbits_layout(layout_from))
+		self.source = Source(_rawbits_layout(layout_to))
 		CombinatorialActor.__init__(self)
 
 		###
@@ -30,9 +32,12 @@ def pack_layout(l, n):
 	return [("chunk"+str(i), l) for i in range(n)]
 
 class Unpack(Module):
-	def __init__(self, n, layout_to, reverse=False, packetized=False):
-		self.sink = Sink(pack_layout(layout_to, n), packetized)
-		self.source = Source(layout_to, packetized)
+	def __init__(self, n, layout_to, reverse=False):
+		self.source = source = Source(layout_to)
+		description_from = copy(source.description)
+		description_from.payload_layout = pack_layout(description_from.payload_layout, n)
+		self.sink = sink = Sink(description_from)
+		
 		self.busy = Signal()
 
 		###
@@ -43,11 +48,11 @@ class Unpack(Module):
 		self.comb += [
 			first.eq(mux == 0),
 			last.eq(mux == (n-1)),
-			self.source.stb.eq(self.sink.stb),
-			self.sink.ack.eq(last & self.source.ack)
+			source.stb.eq(sink.stb),
+			sink.ack.eq(last & source.ack)
 		]
 		self.sync += [
-			If(self.source.stb & self.source.ack,
+			If(source.stb & source.ack,
 				If(last,
 					mux.eq(0)
 				).Else(
@@ -58,19 +63,21 @@ class Unpack(Module):
 		cases = {}
 		for i in range(n):
 			chunk = n-i-1 if reverse else i
-			cases[i] = [self.source.payload.raw_bits().eq(getattr(self.sink.payload, "chunk"+str(chunk)).raw_bits())]
+			cases[i] = [source.payload.raw_bits().eq(getattr(sink.payload, "chunk"+str(chunk)).raw_bits())]
 		self.comb += Case(mux, cases).makedefault()
 
-		if packetized:
+		if description_from.packetized:
 			self.comb += [
-				self.source.sop.eq(self.source.stb & self.sink.sop & first),
-				self.source.eop.eq(self.source.stb & self.sink.eop & last)
+				source.sop.eq(sink.sop & first),
+				source.eop.eq(sink.eop & last)
 			]
 
 class Pack(Module):
-	def __init__(self, layout_from, n, reverse=False, packetized=False):
-		self.sink = sink = Sink(layout_from, packetized)
-		self.source = source = Source(pack_layout(layout_from, n), packetized)
+	def __init__(self, layout_from, n, reverse=False):
+		self.sink = sink = Sink(layout_from)
+		description_to = copy(sink.description)
+		description_to.payload_layout = pack_layout(description_to.payload_layout, n)
+		self.source = source = Source(description_to)
 		self.busy = Signal()
 
 		###
@@ -90,7 +97,7 @@ class Pack(Module):
 			load_part.eq(sink.stb & sink.ack)
 		]
 
-		if packetized:
+		if description_to.packetized:
 			demux_last = ((demux == (n - 1)) | sink.eop)
 		else:
 			demux_last = (demux == (n - 1))
@@ -108,56 +115,62 @@ class Pack(Module):
 			)
 		]
 
-		if packetized:
-			sop = Signal()
-			eop = Signal()
+		if description_to.packetized:
 			self.sync += [
 				If(source.stb & source.ack,
-					sop.eq(load_part & sink.sop)
+					source.sop.eq(load_part & sink.sop)
 				).Else(
-					sop.eq((load_part & sink.sop) | sop)
+					source.sop.eq((load_part & sink.sop) | source.sop)
 				),
-				eop.eq(load_part & sink.eop)
-			]
-			self.comb += [
-				source.sop.eq(source.stb & sop),
-				source.eop.eq(source.stb & eop),
+				source.eop.eq(load_part & sink.eop)
 			]
 
 class Chunkerize(CombinatorialActor):
-	def __init__(self, layout_from, layout_to, n, reverse=False, packetized=False):
-		self.sink = Sink(layout_from, packetized)
-		self.source = Source(pack_layout(layout_to, n), packetized)
+	def __init__(self, layout_from, layout_to, n, reverse=False):
+		self.sink = Sink(layout_from)
+		if isinstance(layout_to, EndpointDescription):
+			layout_to = copy(layout_to)
+			layout_to.payload_layout = pack_layout(layout_to.payload_layout, n)
+		else:
+			layout_to = pack_layout(layout_to, n)
+		self.source = Source(layout_to)
 		CombinatorialActor.__init__(self)
 
 		###
 
 		for i in range(n):
 			chunk = n-i-1 if reverse else i
-			for f in layout_from:
+			for f in self.sink.description.payload_layout:
 				src = getattr(self.sink, f[0])
 				dst = getattr(getattr(self.source, "chunk"+str(chunk)), f[0])
 				self.comb += dst.eq(src[i*flen(src)//n:(i+1)*flen(src)//n])
 
 class Unchunkerize(CombinatorialActor):
-	def __init__(self, layout_from, n, layout_to, reverse=False, packetized=False):
-		self.sink = Sink(pack_layout(layout_from, n), packetized)
-		self.source = Source(layout_to, packetized)
+	def __init__(self, layout_from, n, layout_to, reverse=False):
+		if isinstance(layout_from, EndpointDescription):
+			fields = layout_from.payload_layout
+			layout_from = copy(layout_from)
+			layout_from.payload_layout = pack_layout(layout_from.payload_layout, n)
+		else:
+			fields = layout_from
+			layout_from = pack_layout(layout_from, n)
+		self.sink = Sink(layout_from)
+		self.source = Source(layout_to)
 		CombinatorialActor.__init__(self)
 
 		###
 
 		for i in range(n):
 			chunk = n-i-1 if reverse else i
-			for f in layout_from:
+			for f in fields:
 				src = getattr(getattr(self.sink, "chunk"+str(chunk)), f[0])
 				dst = getattr(self.source, f[0])
 				self.comb += dst[i*flen(dst)//n:(i+1)*flen(dst)//n].eq(src)
 
 class Converter(Module):
-	def __init__(self, layout_from, layout_to, packetized=False, reverse=False):
-		self.sink = Sink(layout_from, packetized)
-		self.source = Source(layout_to, packetized)
+	def __init__(self, layout_from, layout_to, reverse=False):
+		self.sink = Sink(layout_from)
+		self.source = Source(layout_to)
 		self.busy = Signal()
 
 		###
@@ -170,8 +183,8 @@ class Converter(Module):
 			if width_from % width_to:
 				raise ValueError
 			ratio = width_from//width_to
-			self.submodules.chunkerize = Chunkerize(layout_from, layout_to, ratio, reverse, packetized)
-			self.submodules.unpack = Unpack(ratio, layout_to, packetized=packetized)
+			self.submodules.chunkerize = Chunkerize(layout_from, layout_to, ratio, reverse)
+			self.submodules.unpack = Unpack(ratio, layout_to)
 
 			self.comb += [
 				Record.connect(self.sink, self.chunkerize.sink),
@@ -184,8 +197,8 @@ class Converter(Module):
 			if width_to % width_from:
 				raise ValueError
 			ratio = width_to//width_from
-			self.submodules.pack = Pack(layout_from, ratio, packetized=packetized)
-			self.submodules.unchunkerize = Unchunkerize(layout_from, ratio, layout_to, reverse, packetized)
+			self.submodules.pack = Pack(layout_from, ratio)
+			self.submodules.unchunkerize = Unchunkerize(layout_from, ratio, layout_to, reverse)
 
 			self.comb += [
 				Record.connect(self.sink, self.pack.sink),

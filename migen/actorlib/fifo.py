@@ -10,17 +10,29 @@ class _FIFOActor(Module):
 
 		###
 
-		self.submodules.fifo = fifo_class(layout, depth)
+		description = self.sink.description
+		fifo_layout = [("payload", description.payload_layout)]
+		if description.packetized:
+			fifo_layout += [("sop", 1), ("eop", 1)]
+
+		self.submodules.fifo = fifo_class(fifo_layout, depth)
 
 		self.comb += [
 			self.sink.ack.eq(self.fifo.writable),
 			self.fifo.we.eq(self.sink.stb),
-			self.fifo.din.eq(self.sink.payload),
+			self.fifo.din.payload.eq(self.sink.payload),
 
 			self.source.stb.eq(self.fifo.readable),
-			self.source.payload.eq(self.fifo.dout),
+			self.source.payload.eq(self.fifo.dout.payload),
 			self.fifo.re.eq(self.source.ack)
 		]
+		if description.packetized:
+			self.comb += [
+				self.fifo.din.sop.eq(self.sink.sop),
+				self.fifo.din.eop.eq(self.sink.eop),
+				self.source.sop.eq(self.fifo.dout.sop),
+				self.source.eop.eq(self.fifo.dout.eop)
+			]
 
 class SyncFIFO(_FIFOActor):
 	def __init__(self, layout, depth, buffered=False):

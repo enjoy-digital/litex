@@ -12,29 +12,37 @@ def _make_m2s(layout):
 			r.append((f[0], _make_m2s(f[1])))
 	return r
 
-def _check_layout(layout, packetized):
-	reserveds = ["stb", "ack", "payload"]
-	if packetized:
-		reserveds += ["sop", "eop"]
-	for f in layout:
-		if f[0] in reserveds:
-			raise ValueError(f[0] + " cannot be used in Sink/Source layout")
-
-class _Endpoint(Record):
-	def __init__(self, layout, packetized=False):
+class EndpointDescription:
+	def __init__(self, payload_layout, packetized=False):
+		self.payload_layout = payload_layout
 		self.packetized = packetized
-		_check_layout(layout, packetized)
-		endpoint_layout = [
-			("payload", _make_m2s(layout)),
+
+	def get_full_layout(self):
+		reserved = {"stb", "ack", "payload", "sop", "eop", "description"}
+		for f in self.payload_layout:
+			if f[0] in reserved:
+				raise ValueError(f[0] + " cannot be used in endpoint layout")
+
+		full_layout = [
+			("payload", _make_m2s(self.payload_layout)),
 			("stb", 1, DIR_M_TO_S),
 			("ack", 1, DIR_S_TO_M)
 		]
-		if packetized:
-			endpoint_layout += [
+		if self.packetized:
+			full_layout += [
 				("sop", 1, DIR_M_TO_S),
 				("eop", 1, DIR_M_TO_S)
 			]
-		Record.__init__(self, endpoint_layout)
+		return full_layout
+
+
+class _Endpoint(Record):
+	def __init__(self, description_or_layout):
+		if isinstance(description_or_layout, EndpointDescription):
+			self.description = description_or_layout
+		else:
+			self.description = EndpointDescription(description_or_layout)
+		Record.__init__(self, self.description.get_full_layout())
 
 	def __getattr__(self, name):
 		return getattr(object.__getattribute__(self, "payload"), name)
@@ -79,7 +87,7 @@ class CombinatorialActor(BinaryActor):
 			sink.ack.eq(source.ack),
 			self.busy.eq(0)
 		]
-		if sink.packetized:
+		if sink.description.packetized:
 			self.comb += [
 				source.sop.eq(sink.sop),
 				source.eop.eq(sink.eop)
@@ -137,7 +145,7 @@ class PipelinedActor(BinaryActor):
 			source.stb.eq(valid),
 			self.busy.eq(busy)
 		]
-		if sink.packetized:
+		if sink.description.packetized:
 			sop = sink.sop
 			eop = sink.eop
 			for i in range(latency):

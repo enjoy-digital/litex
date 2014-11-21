@@ -23,8 +23,8 @@ class CRCInserter(Module):
 		Packets output with CRC.
 	"""
 	def __init__(self, crc_class, layout):
-		self.sink = sink = Sink(layout, True)
-		self.source = source = Source(layout, True)
+		self.sink = sink = Sink(layout)
+		self.source = source = Source(layout)
 		self.busy = Signal()
 
 		###
@@ -93,8 +93,8 @@ class CRCChecker(Module):
 		on eop when CRC OK / set to 1 when CRC KO.
 	"""
 	def __init__(self, crc_class, layout):
-		self.sink = sink = Sink(layout, True)
-		self.source = source = Source(layout, True)
+		self.sink = sink = Sink(layout)
+		self.source = source = Source(layout)
 		self.busy = Signal()
 
 		###
