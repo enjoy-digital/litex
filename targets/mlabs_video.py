@@ -4,9 +4,10 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import lasmicon, mxcrg, norflash16, minimac3, framebuffer, gpio
+from misoclib import lasmicon, mxcrg, norflash16, ethmac, framebuffer, gpio
 from misoclib.sdramphy import s6ddrphy
 from misoclib.gensoc import SDRAMSoC
+from misoclib.ethmac.phys import mii
 
 class _MXClockPads:
 	def __init__(self, platform):
@@ -20,10 +21,6 @@ class _MXClockPads:
 		ddram_clock = platform.request("ddram_clock")
 		self.ddr_clk_p = ddram_clock.p
 		self.ddr_clk_n = ddram_clock.n
-		eth_clocks = platform.request("eth_clocks")
-		self.eth_phy_clk = eth_clocks.phy
-		self.eth_rx_clk = eth_clocks.rx
-		self.eth_tx_clk = eth_clocks.tx
 
 class BaseSoC(SDRAMSoC):
 	default_platform = "mixxeo" # also supports m1
@@ -75,12 +72,13 @@ PIN "mxcrg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 
 class MiniSoC(BaseSoC):
 	csr_map = {
-		"minimac":		10,
+		"ethphy":		10,
+		"ethmac":		11,
 	}
 	csr_map.update(BaseSoC.csr_map)
 
 	interrupt_map = {
-		"minimac":		2,
+		"ethmac":		2,
 	}
 	interrupt_map.update(BaseSoC.interrupt_map)
 
@@ -93,10 +91,10 @@ class MiniSoC(BaseSoC):
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
 			self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", i) for i in range(2)))
 
-		self.submodules.minimac = minimac3.MiniMAC(platform.request("eth"))
-		self.add_wb_slave(lambda a: a[26:29] == 3, self.minimac.membus)
-		self.add_cpu_memory_region("minimac_mem", 0xb0000000, 0x1800)
-		platform.add_source_dir(os.path.join("verilog", "minimac3"))
+		self.submodules.ethphy = mii.MIIPHY(platform.request("eth_clocks"), platform.request("eth"))
+		self.submodules.ethmac = ethmac.EthMAC(phy=self.ethphy, with_hw_preamble_crc=False)
+		self.add_wb_slave(lambda a: a[26:29] == 3, self.ethmac.bus)
+		self.add_cpu_memory_region("ethmac_mem", 0xb0000000, 0x2000)
 
 def get_vga_dvi(platform):
 	try:

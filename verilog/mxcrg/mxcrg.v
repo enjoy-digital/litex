@@ -6,13 +6,13 @@ module mxcrg #(
 ) (
 	input clk50_pad,
 	input trigger_reset,
-	
+
 	output sys_clk,
 	output reg sys_rst,
-	
+
 	/* Reset NOR flash */
 	output norflash_rst_n,
-	
+
 	/* DDR PHY clocks */
 	output clk2x_270,
 	output clk4x_wr,
@@ -23,14 +23,7 @@ module mxcrg #(
 	/* DDR off-chip clocking */
 	output ddr_clk_pad_p,
 	output ddr_clk_pad_n,
-	
-	/* Ethernet PHY clocks */
-	output reg eth_phy_clk_pad,
-	input eth_rx_clk_pad,
-	input eth_tx_clk_pad,
-	output eth_rx_clk,
-	output eth_tx_clk,
-	
+
 	/* Base clock, buffered */
 	output base50_clk
 );
@@ -116,27 +109,27 @@ PLL_ADV #(
 	.CLKOUT0_DIVIDE(f_div),
 	.CLKOUT0_DUTY_CYCLE(0.5),
 	.CLKOUT0_PHASE(0.0),
-	
+
 	.CLKOUT1_DIVIDE(f_div),
 	.CLKOUT1_DUTY_CYCLE(0.5),
 	.CLKOUT1_PHASE(0.0),
-	
+
 	.CLKOUT2_DIVIDE(2*f_div),
 	.CLKOUT2_DUTY_CYCLE(0.5),
 	.CLKOUT2_PHASE(270.0),
-	
+
 	.CLKOUT3_DIVIDE(4*f_div),
 	.CLKOUT3_DUTY_CYCLE(0.5),
 	.CLKOUT3_PHASE(0.0),
-	
+
 	.CLKOUT4_DIVIDE(4*f_mult),
 	.CLKOUT4_DUTY_CYCLE(0.5),
 	.CLKOUT4_PHASE(0.0),
-	
+
 	.CLKOUT5_DIVIDE(2*f_div),
 	.CLKOUT5_DUTY_CYCLE(0.5),
 	.CLKOUT5_PHASE(250.0),
-	
+
 	.COMPENSATION("INTERNAL"),
 	.DIVCLK_DIVIDE(1),
 	.REF_JITTER(0.100),
@@ -218,7 +211,7 @@ BUFG bufg_x2_offclk(
 );
 
 
-/* 
+/*
  * SDRAM clock
  */
 
@@ -251,15 +244,4 @@ ODDR2 #(
 	.S(1'b0)
 );
 
-/*
- * Ethernet PHY 
- */
-
-always @(posedge base50_clk)
-	eth_phy_clk_pad <= ~eth_phy_clk_pad;
-
-/* Let the synthesizer insert the appropriate buffers */
-assign eth_rx_clk = eth_rx_clk_pad;
-assign eth_tx_clk = eth_tx_clk_pad;
- 
 endmodule

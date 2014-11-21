@@ -70,7 +70,7 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	uint16_t block;
 	int i;
 	int offset;
-	
+
 	if(length < 4) return;
 	if(dst_port != PORT_IN) return;
 	opcode = data[0] << 8 | data[1];
@@ -89,7 +89,8 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 		total_length += length;
 		if(length < BLOCK_SIZE)
 			transfer_finished = 1;
-		
+
+		packet_data = microudp_get_tx_buffer();
 		length = format_ack(packet_data, block);
 		microudp_send(PORT_IN, src_port, length);
 	}
@@ -105,19 +106,19 @@ int tftp_get(uint32_t ip, const char *filename, void *buffer)
 	int tries;
 	int i;
 	int length_before;
-	
+
 	if(!microudp_arp_resolve(ip))
 		return -1;
 
 	microudp_set_callback(rx_callback);
 
-	packet_data = microudp_get_tx_buffer();
 	dst_buffer = buffer;
 
 	total_length = 0;
 	transfer_finished = 0;
 	tries = 5;
 	while(1) {
+		packet_data = microudp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_RRQ, filename);
 		microudp_send(PORT_IN, PORT_OUT, len);
 		for(i=0;i<2000000;i++) {
@@ -156,7 +157,7 @@ int tftp_put(uint32_t ip, const char *filename, const void *buffer, int size)
 	int tries;
 	int i;
 	int block = 0, sent = 0;
-	
+
 	if(!microudp_arp_resolve(ip))
 		return -1;
 
@@ -168,6 +169,7 @@ int tftp_put(uint32_t ip, const char *filename, const void *buffer, int size)
 	transfer_finished = 0;
 	tries = 5;
 	while(1) {
+		packet_data = microudp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_WRQ, filename);
 		microudp_send(PORT_IN, PORT_OUT, len);
 		for(i=0;i<2000000;i++) {
@@ -189,6 +191,7 @@ send_data:
 		send = sent+BLOCK_SIZE > size ? size-sent : BLOCK_SIZE;
 		tries = 5;
 		while(1) {
+			packet_data = microudp_get_tx_buffer();
 			len = format_data(packet_data, block, buffer, send);
 			microudp_send(PORT_IN, data_port, len);
 			for(i=0;i<12000000;i++) {

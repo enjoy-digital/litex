@@ -176,7 +176,7 @@ void serialboot(void)
 	}
 }
 
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 
 #define LOCALIP1 192
 #define LOCALIP2 168
@@ -258,7 +258,7 @@ void flashboot(void)
 		printf("Error: Invalid flash boot image length 0x%08x\n", length);
 		return;
 	}
-	
+
 	printf("Loading %d bytes from flash...\n", length);
 	memcpy((void *)SDRAM_BASE, flashbase, length);
 	got_crc = crc32((unsigned char *)SDRAM_BASE, length);

@@ -1,9 +1,10 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib import lasmicon, spiflash
+from misoclib import lasmicon, spiflash, ethmac
 from misoclib.sdramphy import k7ddrphy
 from misoclib.gensoc import SDRAMSoC
+from misoclib.ethmac.phys import gmii
 
 class _CRG(Module):
 	def __init__(self, platform):
@@ -103,5 +104,25 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
 		self.flash_boot_address = 0xb00000
 		self.register_rom(self.spiflash.bus)
+
+class MiniSoC(BaseSoC):
+	csr_map = {
+		"ethphy":		10,
+		"ethmac":		11,
+	}
+	csr_map.update(BaseSoC.csr_map)
+
+	interrupt_map = {
+		"ethmac":		2,
+	}
+	interrupt_map.update(BaseSoC.interrupt_map)
+
+	def __init__(self, platform, **kwargs):
+		BaseSoC.__init__(self, platform, **kwargs)
+
+		self.submodules.ethphy = gmii.GMIIPHY(platform.request("eth_clocks"), platform.request("eth"))
+		self.submodules.ethmac = ethmac.EthMAC(phy=self.ethphy, with_hw_preamble_crc=True)
+		self.add_wb_slave(lambda a: a[26:29] == 3, self.ethmac.bus)
+		self.add_cpu_memory_region("ethmac_mem", 0xb0000000, 0x2000)
 
 default_subtarget = BaseSoC

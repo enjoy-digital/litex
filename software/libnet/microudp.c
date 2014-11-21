@@ -1,19 +1,25 @@
 #include <generated/csr.h>
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 
 #include <stdio.h>
 #include <system.h>
 #include <crc.h>
 #include <hw/flags.h>
-#include <hw/minimac_mem.h>
+#include <hw/ethmac_mem.h>
 
 #include <net/microudp.h>
 
 #define ETHERTYPE_ARP 0x0806
 #define ETHERTYPE_IP  0x0800
 
+#ifdef CSR_ETHMAC_HW_PREAMBLE_CRC_ADDR
+#define HW_PREAMBLE_CRC
+#endif
+
 struct ethernet_header {
+#ifndef HW_PREAMBLE_CRC
 	unsigned char preamble[8];
+#endif
 	unsigned char destmac[6];
 	unsigned char srcmac[6];
 	unsigned short ethertype;
@@ -23,9 +29,11 @@ static void fill_eth_header(struct ethernet_header *h, const unsigned char *dest
 {
 	int i;
 
+#ifndef HW_PREAMBLE_CRC
 	for(i=0;i<7;i++)
 		h->preamble[i] = 0x55;
 	h->preamble[7] = 0xd5;
+#endif
 	for(i=0;i<6;i++)
 		h->destmac[i] = destmac[i];
 	for(i=0;i<6;i++)
@@ -35,6 +43,11 @@ static void fill_eth_header(struct ethernet_header *h, const unsigned char *dest
 
 #define ARP_HWTYPE_ETHERNET 0x0001
 #define ARP_PROTO_IP        0x0800
+#ifndef HW_PREAMBLE_CRC
+#define ARP_PACKET_LENGTH 68
+#else
+#define ARP_PACKET_LENGTH 60
+#endif
 
 #define ARP_OPCODE_REQUEST  0x0001
 #define ARP_OPCODE_REPLY    0x0002
@@ -97,27 +110,37 @@ typedef union {
 } ethernet_buffer;
 
 
+static unsigned int rxslot;
 static unsigned int rxlen;
 static ethernet_buffer *rxbuffer;
 static ethernet_buffer *rxbuffer0;
 static ethernet_buffer *rxbuffer1;
+static unsigned int txslot;
 static unsigned int txlen;
 static ethernet_buffer *txbuffer;
+static ethernet_buffer *txbuffer0;
+static ethernet_buffer *txbuffer1;
 
 static void send_packet(void)
 {
+#ifndef HW_PREAMBLE_CRC
 	unsigned int crc;
-	
 	crc = crc32(&txbuffer->raw[8], txlen-8);
 	txbuffer->raw[txlen  ] = (crc & 0xff);
 	txbuffer->raw[txlen+1] = (crc & 0xff00) >> 8;
 	txbuffer->raw[txlen+2] = (crc & 0xff0000) >> 16;
 	txbuffer->raw[txlen+3] = (crc & 0xff000000) >> 24;
 	txlen += 4;
-	minimac_tx_count_write(txlen);
-	minimac_tx_start_write(1);
-	while(!(minimac_ev_pending_read() & MINIMAC_EV_TX));
-	minimac_ev_pending_write(MINIMAC_EV_TX);
+#endif
+	ethmac_sram_reader_slot_write(txslot);
+	ethmac_sram_reader_length_write(txlen);
+	while(!(ethmac_sram_reader_ready_read()));
+	ethmac_sram_reader_start_write(1);
+	txslot = (txslot+1)%2;
+	if (txslot)
+		txbuffer = txbuffer1;
+	else
+		txbuffer = txbuffer0;
 }
 
 static unsigned char my_mac[6];
@@ -132,7 +155,7 @@ static void process_arp(void)
 	const struct arp_frame *rx_arp = &rxbuffer->frame.contents.arp;
 	struct arp_frame *tx_arp = &txbuffer->frame.contents.arp;
 
-	if(rxlen < 68) return;
+	if(rxlen < ARP_PACKET_LENGTH) return;
 	if(rx_arp->hwtype != ARP_HWTYPE_ETHERNET) return;
 	if(rx_arp->proto != ARP_PROTO_IP) return;
 	if(rx_arp->hwsize != 6) return;
@@ -148,12 +171,12 @@ static void process_arp(void)
 	if(rx_arp->opcode == ARP_OPCODE_REQUEST) {
 		if(rx_arp->target_ip == my_ip) {
 			int i;
-			
+
 			fill_eth_header(&txbuffer->frame.eth_header,
 				rx_arp->sender_mac,
 				my_mac,
 				ETHERTYPE_ARP);
-			txlen = 68;
+			txlen = ARP_PACKET_LENGTH;
 			tx_arp->hwtype = ARP_HWTYPE_ETHERNET;
 			tx_arp->proto = ARP_PROTO_IP;
 			tx_arp->hwsize = 6;
@@ -194,7 +217,7 @@ int microudp_arp_resolve(unsigned int ip)
 				broadcast,
 				my_mac,
 				ETHERTYPE_ARP);
-		txlen = 68;
+		txlen = ARP_PACKET_LENGTH;
 		arp->hwtype = ARP_HWTYPE_ETHERNET;
 		arp->proto = ARP_PROTO_IP;
 		arp->hwsize = 6;
@@ -259,19 +282,19 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 {
 	struct pseudo_header h;
 	unsigned int r;
-	
+
 	if((cached_mac[0] == 0) && (cached_mac[1] == 0) && (cached_mac[2] == 0)
 		&& (cached_mac[3] == 0) && (cached_mac[4] == 0) && (cached_mac[5] == 0))
 		return 0;
 
 	txlen = length + sizeof(struct ethernet_header) + sizeof(struct udp_frame);
-	if(txlen < 68) txlen = 68;
-	
+	if(txlen < ARP_PACKET_LENGTH) txlen = ARP_PACKET_LENGTH;
+
 	fill_eth_header(&txbuffer->frame.eth_header,
 		cached_mac,
 		my_mac,
 		ETHERTYPE_IP);
-	
+
 	txbuffer->frame.contents.udp.ip.version = IP_IPV4;
 	txbuffer->frame.contents.udp.ip.diff_services = 0;
 	txbuffer->frame.contents.udp.ip.total_length = length + sizeof(struct udp_frame);
@@ -299,7 +322,7 @@ int microudp_send(unsigned short src_port, unsigned short dst_port, unsigned int
 	r = ip_checksum(r, &txbuffer->frame.contents.udp.udp,
 		sizeof(struct udp_header)+length, 1);
 	txbuffer->frame.contents.udp.udp.checksum = r;
-	
+
 	send_packet();
 
 	return 1;
@@ -332,14 +355,18 @@ void microudp_set_callback(udp_callback callback)
 
 static void process_frame(void)
 {
-	int i;
-	unsigned int received_crc;
-	unsigned int computed_crc;
-
 	flush_cpu_dcache();
+
+#ifndef HW_PREAMBLE_CRC
+	int i;
 	for(i=0;i<7;i++)
 		if(rxbuffer->frame.eth_header.preamble[i] != 0x55) return;
 	if(rxbuffer->frame.eth_header.preamble[7] != 0xd5) return;
+#endif
+
+#ifndef HW_PREAMBLE_CRC
+	unsigned int received_crc;
+	unsigned int computed_crc;
 	received_crc = ((unsigned int)rxbuffer->raw[rxlen-1] << 24)
 		|((unsigned int)rxbuffer->raw[rxlen-2] << 16)
 		|((unsigned int)rxbuffer->raw[rxlen-3] <<  8)
@@ -348,6 +375,8 @@ static void process_frame(void)
 	if(received_crc != computed_crc) return;
 
 	rxlen -= 4; /* strip CRC here to be consistent with TX */
+#endif
+
 	if(rxbuffer->frame.eth_header.ethertype == ETHERTYPE_ARP) process_arp();
 	else if(rxbuffer->frame.eth_header.ethertype == ETHERTYPE_IP) process_ip();
 }
@@ -355,12 +384,19 @@ static void process_frame(void)
 void microudp_start(const unsigned char *macaddr, unsigned int ip)
 {
 	int i;
+	ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
+	ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 
-	minimac_ev_pending_write(MINIMAC_EV_RX0 | MINIMAC_EV_RX1 | MINIMAC_EV_TX);
-	
-	rxbuffer0 = (ethernet_buffer *)MINIMAC_RX0_BASE;
-	rxbuffer1 = (ethernet_buffer *)MINIMAC_RX1_BASE;
-	txbuffer = (ethernet_buffer *)MINIMAC_TX_BASE;
+	rxbuffer0 = (ethernet_buffer *)ETHMAC_RX0_BASE;
+	rxbuffer1 = (ethernet_buffer *)ETHMAC_RX1_BASE;
+	txbuffer0 = (ethernet_buffer *)ETHMAC_TX0_BASE;
+	txbuffer1 = (ethernet_buffer *)ETHMAC_TX1_BASE;
+
+	rxslot = 0;
+	txslot = 0;
+
+	rxbuffer = rxbuffer0;
+	txbuffer = txbuffer0;
 
 	for(i=0;i<6;i++)
 		my_mac[i] = macaddr[i];
@@ -375,17 +411,15 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 
 void microudp_service(void)
 {
-	if(minimac_ev_pending_read() & MINIMAC_EV_RX0) {
-		rxlen = minimac_rx_count_0_read();
-		rxbuffer = rxbuffer0;
+	if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
+		rxslot = ethmac_sram_writer_slot_read();
+		rxlen = ethmac_sram_writer_length_read();
+		if (rxslot)
+			rxbuffer = rxbuffer1;
+		else
+			rxbuffer = rxbuffer0;
 		process_frame();
-		minimac_ev_pending_write(MINIMAC_EV_RX0);
-	}
-	if(minimac_ev_pending_read() & MINIMAC_EV_RX1) {
-		rxlen = minimac_rx_count_1_read();
-		rxbuffer = rxbuffer1;
-		process_frame();
-		minimac_ev_pending_write(MINIMAC_EV_RX1);
+		ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 	}
 }
 
@@ -401,12 +435,12 @@ static void busy_wait(unsigned int ds)
 
 void ethreset(void)
 {
-	minimac_phy_reset_write(0);
+	ethphy_crg_reset_write(0);
 	busy_wait(2);
 	/* that pesky ethernet PHY needs two resets at times... */
-	minimac_phy_reset_write(1);
+	ethphy_crg_reset_write(1);
 	busy_wait(2);
-	minimac_phy_reset_write(0);
+	ethphy_crg_reset_write(0);
 	busy_wait(2);
 }
 

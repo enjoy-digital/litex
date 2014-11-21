@@ -319,7 +319,7 @@ static void help(void)
 	puts("rcsr       - read processor CSR");
 	puts("wcsr       - write processor CSR");
 #endif
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 	puts("netboot    - boot via TFTP");
 #endif
 	puts("serialboot - boot via SFL");
@@ -361,10 +361,10 @@ static void do_command(char *c)
 	else if(strcmp(token, "flashboot") == 0) flashboot();
 #endif
 	else if(strcmp(token, "serialboot") == 0) serialboot();
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 	else if(strcmp(token, "netboot") == 0) netboot();
 #endif
-	
+
 	else if(strcmp(token, "revision") == 0) printf("%08x\n", MSC_GIT_ID);
 
 	else if(strcmp(token, "help") == 0) help();
@@ -373,7 +373,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "rcsr") == 0) rcsr(get_token(&c));
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
 #endif
-	
+
 #ifdef DFII_BASE
 	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
 	else if(strcmp(token, "sdrsw") == 0) sdrsw();
@@ -390,7 +390,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "memtest") == 0) memtest();
 	else if(strcmp(token, "sdrinit") == 0) sdrinit();
 #endif
-	
+
 	else if(strcmp(token, "dfs") == 0) dfs(get_token(&c));
 
 	else if(strcmp(token, "") != 0)
@@ -464,7 +464,7 @@ static int test_user_abort(void)
 	printf("Automatic boot in 2 seconds...\n");
 	printf("Q/ESC: abort boot\n");
 	printf("F7:    boot from serial\n");
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 	printf("F8:    boot from network\n");
 #endif
 	timer0_en_write(0);
@@ -483,7 +483,7 @@ static int test_user_abort(void)
 				serialboot();
 				return 0;
 			}
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 			if(c == 0x07) {
 				netboot();
 				return 0;
@@ -502,7 +502,7 @@ static void boot_sequence(void)
 		flashboot();
 #endif
 		serialboot();
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 		netboot();
 #endif
 		printf("No boot medium found\n");
@@ -522,7 +522,7 @@ int main(int i, char **c)
 	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", MSC_GIT_ID);
 	crcbios();
 	id_print();
-#ifdef MINIMAC_BASE
+#ifdef ETHMAC_BASE
 	ethreset();
 #endif
 #ifdef DFII_BASE
@@ -534,7 +534,7 @@ int main(int i, char **c)
 		boot_sequence();
 	else
 		printf("Memory initialization failed\n");
-	
+
 	while(1) {
 		putsnonl("\e[1mBIOS>\e[0m ");
 		readstr(buffer, 64);
