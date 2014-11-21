@@ -33,9 +33,6 @@ class RXLastBE(Module):
 
 		###
 
-		# TODO/FIXME
-		fake = Signal() # to use RenameClockDomain
-		self.sync += fake.eq(1)
 		self.comb += [
 			Record.connect(self.sink, self.source),
 			self.source.last_be.eq(self.sink.eop)
