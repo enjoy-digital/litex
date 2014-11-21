@@ -23,8 +23,11 @@ class _FIFOActor(Module):
 		]
 
 class SyncFIFO(_FIFOActor):
-	def __init__(self, layout, depth):
-		_FIFOActor.__init__(self, fifo.SyncFIFO, layout, depth)
+	def __init__(self, layout, depth, buffered=False):
+		_FIFOActor.__init__(
+			self,
+			fifo.SyncFIFOBuffered if buffered else fifo.SyncFIFO,
+			layout, depth)
 
 class AsyncFIFO(_FIFOActor):
 	def __init__(self, layout, depth):
