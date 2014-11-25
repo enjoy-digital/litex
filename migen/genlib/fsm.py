@@ -3,6 +3,7 @@ from collections import OrderedDict
 from migen.fhdl.std import *
 from migen.fhdl.module import FinalizeError
 from migen.fhdl.visit import NodeTransformer
+from migen.fhdl.bitcontainer import value_bits_sign
 
 class AnonymousState:
 	pass
@@ -13,11 +14,18 @@ class NextState:
 	def __init__(self, state):
 		self.state = state
 
-class _LowerNextState(NodeTransformer):
+class NextValue:
+	def __init__(self, register, value):
+		self.register = register
+		self.value = value
+
+class _LowerNext(NodeTransformer):
 	def __init__(self, next_state_signal, encoding, aliases):
 		self.next_state_signal = next_state_signal
 		self.encoding = encoding
 		self.aliases = aliases
+		# register -> next_value_ce, next_value
+		self.registers = OrderedDict()
 
 	def visit_unknown(self, node):
 		if isinstance(node, NextState):
@@ -26,6 +34,15 @@ class _LowerNextState(NodeTransformer):
 			except KeyError:
 				actual_state = node.state
 			return self.next_state_signal.eq(self.encoding[actual_state])
+		elif isinstance(node, NextValue):
+			try:
+				next_value_ce, next_value = self.registers[node.register]
+			except KeyError:
+				related = node.register if isinstance(node.register, Signal) else None
+				next_value = Signal(bits_sign=value_bits_sign(node.register), related=related)
+				next_value_ce = Signal(related=related)
+				self.registers[node.register] = next_value_ce, next_value
+			return next_value.eq(node.value), next_value_ce.eq(1)
 		else:
 			return node
 
@@ -97,18 +114,19 @@ class FSM(Module):
 
 	def do_finalize(self):
 		nstates = len(self.actions)
-
 		self.encoding = dict((s, n) for n, s in enumerate(self.actions.keys()))
 		self.state = Signal(max=nstates, reset=self.encoding[self.reset_state])
 		self.next_state = Signal(max=nstates)
 
-		lns = _LowerNextState(self.next_state, self.encoding, self.state_aliases)
-		cases = dict((self.encoding[k], lns.visit(v)) for k, v in self.actions.items() if v)
+		ln = _LowerNext(self.next_state, self.encoding, self.state_aliases)
+		cases = dict((self.encoding[k], ln.visit(v)) for k, v in self.actions.items() if v)
 		self.comb += [
 			self.next_state.eq(self.state),
 			Case(self.state, cases).makedefault(self.encoding[self.reset_state])
 		]
 		self.sync += self.state.eq(self.next_state)
+		for register, (next_value_ce, next_value) in ln.registers.items():
+			self.sync += If(next_value_ce, register.eq(next_value))
 
 		# drive entering/leaving signals
 		for state, signal in self.before_leaving_signals.items():
