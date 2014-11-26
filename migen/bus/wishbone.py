@@ -154,7 +154,7 @@ class DownConverter(Module):
 
 		# direct connection of wishbone_i --> wishbone_o signals
 		for name, size, direction in self.wishbone_i.layout:
-			if direction == DIR_M_TO_S and name not in ["adr", "dat_w"]:
+			if direction == DIR_M_TO_S and name not in ["adr", "dat_w", "sel"]:
 				self.comb += getattr(self.wishbone_o, name).eq(getattr(self.wishbone_i, name))
 
 		# adaptation of adr & dat signals
@@ -164,6 +164,7 @@ class DownConverter(Module):
 		]
 
 		self.comb += chooser(dat_w, cnt, self.wishbone_o.dat_w, reverse=True)
+		self.comb += chooser(self.wishbone_i.sel, cnt, self.wishbone_o.sel, reverse=True)
 
 		# fsm
 		fsm = FSM(reset_state="IDLE")
