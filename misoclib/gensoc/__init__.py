@@ -8,8 +8,10 @@ from migen.bank import csrgen
 from migen.bus import wishbone, csr, lasmibus, dfi
 from migen.bus import wishbone2lasmi, wishbone2csr
 
-from misoclib import lm32, mor1kx, uart, dfii, lasmicon, identifier, timer, memtest
-from misoclib.lasmicon.minicon import Minicon
+from misoclib import lm32, mor1kx, uart, identifier, timer, memtest
+from misoclib.sdram import lasmicon
+from misoclib.sdram import dfii
+from misoclib.sdram.minicon import Minicon
 
 class GenSoC(Module):
 	csr_base = 0xe0000000

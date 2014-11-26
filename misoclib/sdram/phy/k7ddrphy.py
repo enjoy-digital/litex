@@ -4,7 +4,7 @@ from migen.fhdl.std import *
 from migen.bus.dfi import *
 from migen.bank.description import *
 
-from misoclib import lasmicon
+from misoclib import sdram
 
 class K7DDRPHY(Module, AutoCSR):
 	def __init__(self, pads, memtype):
@@ -24,7 +24,7 @@ class K7DDRPHY(Module, AutoCSR):
 		self._r_wdly_dqs_rst = CSR()
 		self._r_wdly_dqs_inc = CSR()
 
-		self.phy_settings = lasmicon.PhySettings(
+		self.phy_settings = sdram.PhySettings(
 			memtype=memtype,
 			dfi_d=2*d,
 			nphases=nphases,

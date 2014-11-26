@@ -4,8 +4,8 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import lasmicon, mxcrg, norflash16, ethmac, framebuffer, gpio
-from misoclib.sdramphy import s6ddrphy
+from misoclib import sdram, mxcrg, norflash16, minimac3, framebuffer, gpio
+from misoclib.sdram.phy import s6ddrphy
 from misoclib.gensoc import SDRAMSoC
 from misoclib.ethmac.phy import mii
 
@@ -31,12 +31,12 @@ class BaseSoC(SDRAMSoC):
 			cpu_reset_address=0x00180000,
 			**kwargs)
 
-		sdram_geom = lasmicon.GeomSettings(
+		sdram_geom = sdram.GeomSettings(
 			bank_a=2,
 			row_a=13,
 			col_a=10
 		)
-		sdram_timing = lasmicon.TimingSettings(
+		sdram_timing = sdram.TimingSettings(
 			tRP=self.ns(15),
 			tRCD=self.ns(15),
 			tWR=self.ns(15),

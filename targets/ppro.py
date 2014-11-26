@@ -3,8 +3,8 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib import lasmicon, spiflash
-from misoclib.sdramphy import gensdrphy
+from misoclib import spiflash, sdram
+from misoclib.sdram.phy import gensdrphy
 from misoclib.gensoc import SDRAMSoC
 
 class _CRG(Module):
@@ -67,12 +67,12 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		sdram_geom = lasmicon.GeomSettings(
+		sdram_geom = sdram.GeomSettings(
 			bank_a=2,
 			row_a=12,
 			col_a=8
 		)
-		sdram_timing = lasmicon.TimingSettings(
+		sdram_timing = sdram.TimingSettings(
 			tRP=self.ns(15),
 			tRCD=self.ns(15),
 			tWR=self.ns(14),

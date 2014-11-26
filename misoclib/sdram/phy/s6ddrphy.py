@@ -18,7 +18,7 @@ from migen.fhdl.std import *
 from migen.bus.dfi import *
 from migen.genlib.record import *
 
-from misoclib import lasmicon
+from misoclib import sdram
 
 class S6DDRPHY(Module):
 	def __init__(self, pads, memtype, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
@@ -29,7 +29,7 @@ class S6DDRPHY(Module):
 		d = flen(pads.dq)
 		nphases = 2
 
-		self.phy_settings = lasmicon.PhySettings(
+		self.phy_settings = sdram.PhySettings(
 			memtype=memtype,
 			dfi_d=2*d,
 			nphases=nphases,

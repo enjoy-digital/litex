@@ -3,7 +3,7 @@ from math import ceil
 
 from migen.fhdl.std import *
 
-from misoclib import lasmicon
+from misoclib import sdram
 
 MHz = 1000000
 clk_freq = (83 + Fraction(1, 3))*MHz
@@ -14,7 +14,7 @@ def ns(t, margin=True):
 		t += clk_period_ns/2
 	return ceil(t/clk_period_ns)
 
-sdram_phy = lasmicon.PhySettings(
+sdram_phy = sdram.PhySettings(
 	memtype="DDR",
 	dfi_d=64,
 	nphases=2,
@@ -27,12 +27,12 @@ sdram_phy = lasmicon.PhySettings(
 	write_latency=0
 )
 
-sdram_geom = lasmicon.GeomSettings(
+sdram_geom = sdram.GeomSettings(
 	bank_a=2,
 	row_a=13,
 	col_a=10
 )
-sdram_timing = lasmicon.TimingSettings(
+sdram_timing = sdram.TimingSettings(
 	tRP=ns(15),
 	tRCD=ns(15),
 	tWR=ns(15),

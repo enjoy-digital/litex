@@ -4,9 +4,9 @@ from migen.bus import wishbone
 from migen.sim.generic import Simulator
 from migen.sim import icarus
 from mibuild.platforms import papilio_pro as board
-from misoclib import lasmicon
-from misoclib.lasmicon.minicon import Minicon
-from misoclib.sdramphy import gensdrphy
+from misoclib import sdram
+from misoclib.sdram.minicon import Minicon
+from misoclib.sdram.phy import gensdrphy
 from itertools import chain
 from os.path import isfile
 import sys
@@ -153,13 +153,13 @@ if __name__ == "__main__":
 
 	plat = board.Platform()
 
-	sdram_geom = lasmicon.GeomSettings(
+	sdram_geom = sdram.GeomSettings(
 		bank_a=2,
 		row_a=12,
 		col_a=8
 	)
 
-	sdram_timing = lasmicon.TimingSettings(
+	sdram_timing = sdram.TimingSettings(
 		tRP=ns(15),
 		tRCD=ns(15),
 		tWR=ns(14),

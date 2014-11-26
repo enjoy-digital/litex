@@ -1,8 +1,8 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib import lasmicon, spiflash, ethmac
-from misoclib.sdramphy import k7ddrphy
+from misoclib import sdram, spiflash, ethmac
+from misoclib.sdram.phy import k7ddrphy
 from misoclib.gensoc import SDRAMSoC
 from misoclib.ethmac.phy import gmii
 
@@ -75,12 +75,12 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform)
 
-		sdram_geom = lasmicon.GeomSettings(
+		sdram_geom = sdram.GeomSettings(
 			bank_a=3,
 			row_a=16,
 			col_a=10
 		)
-		sdram_timing = lasmicon.TimingSettings(
+		sdram_timing = sdram.TimingSettings(
 			tRP=self.ns(15),
 			tRCD=self.ns(15),
 			tWR=self.ns(15),

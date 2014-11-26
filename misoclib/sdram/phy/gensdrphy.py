@@ -26,7 +26,7 @@ from migen.bus.dfi import *
 from migen.genlib.record import *
 from migen.fhdl.specials import *
 
-from misoclib import lasmicon
+from misoclib import sdram
 
 class GENSDRPHY(Module):
 	def __init__(self, pads):
@@ -34,7 +34,7 @@ class GENSDRPHY(Module):
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
 
-		self.phy_settings = lasmicon.PhySettings(
+		self.phy_settings = sdram.PhySettings(
 			memtype="SDR",
 			dfi_d=d,
 			nphases=1,

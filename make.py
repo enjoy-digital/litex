@@ -7,7 +7,7 @@ from migen.util.misc import autotype
 from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
-from misoclib.sdramphy import initsequence
+from misoclib.sdram.phy import initsequence
 
 from misoc_import import misoc_import
 

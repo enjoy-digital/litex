@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.bus.lasmibus import *
 from migen.sim.generic import run_simulation
 
-from misoclib.lasmicon import *
+from misoclib.sdram.lasmicon import *
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 
