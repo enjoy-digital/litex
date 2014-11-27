@@ -57,7 +57,6 @@ class Minicon(Module):
 
 		self.bus = bus = wishbone.Interface(data_width=phy_settings.nphases*flen(dfi.phases[rdphase].rddata))
 		slicer = _AddressSlicer(geom_settings.col_a, geom_settings.bank_a, geom_settings.row_a, address_align)
-		req_addr = Signal(geom_settings.col_a + geom_settings.bank_a + geom_settings.row_a)
 		refresh_req = Signal()
 		refresh_ack = Signal()
 		wb_access = Signal()
@@ -67,7 +66,6 @@ class Minicon(Module):
 		row_closeall = Signal()
 		addr_sel = Signal(max=3, reset=A10_ENABLED)
 		has_curbank_openrow = Signal()
-		cl_counter = Signal(max=phy_settings.cl+1)
 
 		# Extra bit means row is active when asserted
 		self.openrow = openrow = Array(Signal(geom_settings.row_a + 1) for b in nbanks)
@@ -122,19 +120,19 @@ class Minicon(Module):
 			If(refresh_req,
 				NextState("PRECHARGEALL")
 			).Elif(wb_access,
-                                If(hit & bus.we,
-                                        NextState("WRITE"),
-                                ),
-                                If(hit & ~bus.we,
-                                        NextState("READ"),
-                                ),
-                                If(has_curbank_openrow & ~hit,
-                                        NextState("PRECHARGE")
-                                ),
-                                If(~has_curbank_openrow,
-                                        NextState("ACTIVATE")
-                                ),
-                        )
+				If(hit & bus.we,
+						NextState("WRITE"),
+				),
+				If(hit & ~bus.we,
+						NextState("READ"),
+				),
+				If(has_curbank_openrow & ~hit,
+						NextState("PRECHARGE")
+				),
+				If(~has_curbank_openrow,
+						NextState("ACTIVATE")
+				),
+			)
 		)
 		fsm.act("READ",
 			# We output Column bits at address pins so that A10 is 0

@@ -177,7 +177,6 @@ class SDRAMSoC(GenSoC):
 			self.add_cpu_memory_region("sdram", 0x40000000,
 				2**self.lasmicon.lasmic.aw*self.lasmicon.lasmic.dw*self.lasmicon.lasmic.nbanks//8)
 		elif self.ramcon_type == "minicon":
-			rdphase = phy_settings.rdphase
 			self.submodules.minicon = sdramcon = Minicon(phy_settings, sdram_geom, sdram_timing)
 			self.submodules.dficon1 = dfi.Interconnect(sdramcon.dfi, self.dfii.slave)
 			sdram_width = flen(sdramcon.bus.dat_r)
