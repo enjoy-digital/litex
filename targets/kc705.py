@@ -64,7 +64,8 @@ class BaseSoC(SDRAMSoC):
 	default_platform = "kc705"
 
 	csr_map = {
-		"ddrphy":	10,
+		"spiflash":	10,
+		"ddrphy":	11,
 	}
 	csr_map.update(SDRAMSoC.csr_map)
 

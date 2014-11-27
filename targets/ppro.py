@@ -60,6 +60,11 @@ class _CRG(Module):
 class BaseSoC(SDRAMSoC):
 	default_platform = "papilio_pro"
 
+	csr_map = {
+		"spiflash":	10,
+	}
+	csr_map.update(SDRAMSoC.csr_map)
+
 	def __init__(self, platform, **kwargs):
 		clk_freq = 80*1000*1000
 		SDRAMSoC.__init__(self, platform, clk_freq,
