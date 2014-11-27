@@ -139,8 +139,8 @@ class SDRAMSoC(GenSoC):
 	csr_map = {
 		"dfii":					6,
 		"lasmicon":				7,
-		"memtest_w":				8,
-		"memtest_r":				9
+		"memtest_w":			8,
+		"memtest_r":			9
 	}
 	csr_map.update(GenSoC.csr_map)
 
