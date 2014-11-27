@@ -47,13 +47,11 @@ class Minicon(Module):
 		ROW         = 2
 		rdphase = phy_settings.rdphase
 		wrphase = phy_settings.wrphase
-		rdcmdphase = phy_settings.rdcmdphase
-		wrcmdphase = phy_settings.wrcmdphase
 
 		self.dfi = dfi = dfibus.Interface(geom_settings.mux_a,
-				geom_settings.bank_a,
-				phy_settings.dfi_d,
-				phy_settings.nphases)
+			geom_settings.bank_a,
+			phy_settings.dfi_d,
+			phy_settings.nphases)
 
 		self.bus = bus = wishbone.Interface(data_width=phy_settings.nphases*flen(dfi.phases[rdphase].rddata))
 		slicer = _AddressSlicer(geom_settings.col_a, geom_settings.bank_a, geom_settings.row_a, address_align)
@@ -137,9 +135,9 @@ class Minicon(Module):
 		fsm.act("READ",
 			# We output Column bits at address pins so that A10 is 0
 			# to disable row Auto-Precharge
-			dfi.phases[rdcmdphase].ras_n.eq(1),
-			dfi.phases[rdcmdphase].cas_n.eq(0),
-			dfi.phases[rdcmdphase].we_n.eq(1),
+			dfi.phases[rdphase].ras_n.eq(1),
+			dfi.phases[rdphase].cas_n.eq(0),
+			dfi.phases[rdphase].we_n.eq(1),
 			dfi.phases[rdphase].rddata_en.eq(1),
 			addr_sel.eq(COLUMN),
 			NextState("READ-WAIT-ACK"),
@@ -153,9 +151,9 @@ class Minicon(Module):
 			)
 		)
 		fsm.act("WRITE",
-			dfi.phases[wrcmdphase].ras_n.eq(1),
-			dfi.phases[wrcmdphase].cas_n.eq(0),
-			dfi.phases[wrcmdphase].we_n.eq(0),
+			dfi.phases[wrphase].ras_n.eq(1),
+			dfi.phases[wrphase].cas_n.eq(0),
+			dfi.phases[wrphase].we_n.eq(0),
 			dfi.phases[wrphase].wrdata_en.eq(1),
 			addr_sel.eq(COLUMN),
 			bus.ack.eq(1),
