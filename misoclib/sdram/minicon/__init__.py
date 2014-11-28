@@ -57,7 +57,6 @@ class Minicon(Module):
 		slicer = _AddressSlicer(geom_settings.col_a, geom_settings.bank_a, geom_settings.row_a, address_align)
 		refresh_req = Signal()
 		refresh_ack = Signal()
-		wb_access = Signal()
 		refresh_counter = Signal(max=timing_settings.tREFI+1)
 		hit = Signal()
 		row_open = Signal()
@@ -71,24 +70,18 @@ class Minicon(Module):
 		self.comb += [
 			hit.eq(openrow[slicer.bank(bus.adr)] == Cat(slicer.row(bus.adr), 1)),
 			has_curbank_openrow.eq(openrow[slicer.bank(bus.adr)][-1]),
-			wb_access.eq(bus.stb & bus.cyc),
-			bus.dat_r.eq(Cat([phase.rddata for phase in dfi.phases])),
-			Cat([phase.wrdata for phase in dfi.phases]).eq(bus.dat_w),
-			Cat([phase.wrdata_mask for phase in dfi.phases]).eq(~bus.sel),
+			bus.dat_r.eq(Cat(phase.rddata for phase in dfi.phases)),
+			Cat(phase.wrdata for phase in dfi.phases).eq(bus.dat_w),
+			Cat(phase.wrdata_mask for phase in dfi.phases).eq(~bus.sel),
 		]
 
 		for phase in dfi.phases:
 			self.comb += [
 				phase.cke.eq(1),
+				phase.cs_n.eq(0),
 				phase.address.eq(Array([2**10, slicer.col(bus.adr), slicer.row(bus.adr)])[addr_sel]),
-				If(wb_access,
-					phase.bank.eq(slicer.bank(bus.adr))
-				)
+				phase.bank.eq(slicer.bank(bus.adr))
 			]
-			phase.cs_n.reset = 0
-			phase.ras_n.reset = 1
-			phase.cas_n.reset = 1
-			phase.we_n.reset = 1
 
 		for b in nbanks:
 			self.sync += [
@@ -117,23 +110,23 @@ class Minicon(Module):
 		fsm.act("IDLE",
 			If(refresh_req,
 				NextState("PRECHARGEALL")
-			).Elif(wb_access,
+			).Elif(bus.stb & bus.cyc,
 				If(hit & bus.we,
-						NextState("WRITE"),
+					NextState("WRITE")
 				),
 				If(hit & ~bus.we,
-						NextState("READ"),
+					NextState("READ")
 				),
 				If(has_curbank_openrow & ~hit,
-						NextState("PRECHARGE")
+					NextState("PRECHARGE")
 				),
 				If(~has_curbank_openrow,
-						NextState("ACTIVATE")
+					NextState("ACTIVATE")
 				),
 			)
 		)
 		fsm.act("READ",
-			# We output Column bits at address pins so that A10 is 0
+			# We output Column bits at address pins so A10 is 0
 			# to disable row Auto-Precharge
 			dfi.phases[rdphase].ras_n.eq(1),
 			dfi.phases[rdphase].cas_n.eq(0),
