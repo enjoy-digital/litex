@@ -59,7 +59,7 @@ class GenSoC(Module):
 		self._wb_masters = [self.cpu.ibus, self.cpu.dbus]
 		self._wb_slaves = [
 			(lambda a: a[26:29] == 1, self.sram.bus),
-			(lambda a: a[27:29] == 3, self.wishbone2csr.wishbone)
+			(lambda a: a[26:29] == 6, self.wishbone2csr.wishbone)
 		]
 		self.add_cpu_memory_region("sram", 0x10000000, sram_size)
 
@@ -173,7 +173,7 @@ class SDRAMSoC(GenSoC):
 
 			# Wishbone bridge: map SDRAM at 0x40000000 (shadow @0xc0000000)
 			self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_size//4, self.lasmixbar.get_master())
-			self.add_wb_slave(lambda a: a[27:29] == 2, self.wishbone2lasmi.wishbone)
+			self.add_wb_slave(lambda a: a[26:29] == 4, self.wishbone2lasmi.wishbone)
 			self.add_cpu_memory_region("sdram", 0x40000000,
 				2**self.lasmicon.lasmic.aw*self.lasmicon.lasmic.dw*self.lasmicon.lasmic.nbanks//8)
 		elif self.ramcon_type == "minicon":
@@ -182,11 +182,11 @@ class SDRAMSoC(GenSoC):
 			sdram_width = flen(sdramcon.bus.dat_r)
 
 			if (sdram_width == 32):
-				self.add_wb_slave(lambda a: a[27:29] == 2, sdramcon.bus)
+				self.add_wb_slave(lambda a: a[26:29] == 4, sdramcon.bus)
 			elif (sdram_width < 32):
 				self.submodules.dc = dc = wishbone.DownConverter(32, sdram_width)
 				self.submodules.intercon = wishbone.InterconnectPointToPoint(dc.wishbone_o, sdramcon.bus)
-				self.add_wb_slave(lambda a: a[27:29] == 2, dc.wishbone_i)
+				self.add_wb_slave(lambda a: a[26:29] == 4, dc.wishbone_i)
 			else:
 				raise NotImplementedError("Unsupported SDRAM width of {} > 32".format(sdram_width))
 
