@@ -68,37 +68,34 @@ def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only):
 		r += "}\n"
 	return r
 
-def get_csr_header(csr_base, bank_array, interrupt_map):
+def get_csr_header(regions, interrupt_map):
 	r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n#include <hw/common.h>\n"
-	for name, csrs, mapaddr, rmap in bank_array.banks:
-		r += "\n/* "+name+" */\n"
-		reg_base = csr_base + 0x800*mapaddr
-		r += "#define "+name.upper()+"_BASE "+hex(reg_base)+"\n"
-		busword = flen(rmap.bus.dat_w)
-		for csr in csrs:
-			nr = (csr.size + busword - 1)//busword
-			r += _get_rw_functions(name + "_" + csr.name, reg_base, nr, busword, isinstance(csr, CSRStatus))
-			reg_base += 4*nr
-		try:
-			interrupt_nr = interrupt_map[name]
-		except KeyError:
-			pass
+	for name, origin, busword, obj in regions:
+		if isinstance(obj, Memory):
+			fullname = name + "_" + memory.name_override
+			r += "#define "+fullname.upper()+"_BASE "+hex(origin)+"\n"
 		else:
-			r += "#define "+name.upper()+"_INTERRUPT "+str(interrupt_nr)+"\n"
-	for name, memory, mapaddr, mmap in bank_array.srams:
-		mem_base = csr_base + 0x800*mapaddr
-		fullname = name + "_" + memory.name_override
-		r += "#define "+fullname.upper()+"_BASE "+hex(mem_base)+"\n"
+			r += "\n/* "+name+" */\n"
+			r += "#define "+name.upper()+"_BASE "+hex(origin)+"\n"
+			for csr in obj:
+				nr = (csr.size + busword - 1)//busword
+				r += _get_rw_functions(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus))
+				origin += 4*nr
+			try:
+				interrupt_nr = interrupt_map[name]
+			except KeyError:
+				pass
+			else:
+				r += "#define "+name.upper()+"_INTERRUPT "+str(interrupt_nr)+"\n"
 	r += "\n#endif\n"
 	return r
 
-def get_csr_csv(csr_base, bank_array):
+def get_csr_csv(regions):
 	r = ""
-	for name, csrs, mapaddr, rmap in bank_array.banks:
-		reg_base = csr_base + 0x800*mapaddr
-		busword = flen(rmap.bus.dat_w)
-		for csr in csrs:
-			nr = (csr.size + busword - 1)//busword
-			r += "{}_{},0x{:08x},{},{}\n".format(name, csr.name, reg_base, nr, "ro" if isinstance(csr, CSRStatus) else "rw")
-			reg_base += 4*nr
+	for name, origin, busword, obj in regions:
+		if not isinstance(obj, Memory):
+			for csr in obj:
+				nr = (csr.size + busword - 1)//busword
+				r += "{}_{},0x{:08x},{},{}\n".format(name, csr.name, origin, nr, "ro" if isinstance(csr, CSRStatus) else "rw")
+				origin += 4*nr
 	return r

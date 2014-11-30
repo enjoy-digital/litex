@@ -152,7 +152,7 @@ CPU type:  {}
 			flash_boot_address = None
 		mem_header = cpuif.get_mem_header(soc.cpu_memory_regions, flash_boot_address)
 		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
-		csr_header = cpuif.get_csr_header(soc.csr_base, soc.csrbankarray, soc.interrupt_map)
+		csr_header = cpuif.get_csr_header(soc.cpu_csr_regions, soc.interrupt_map)
 		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
 		for sdram_phy in ["sdrphy", "ddrphy"]:
 			if hasattr(soc, sdram_phy):
@@ -160,7 +160,7 @@ CPU type:  {}
 				write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
 
 	if actions["build-csr-csv"]:
-		csr_csv = cpuif.get_csr_csv(soc.csr_base, soc.csrbankarray)
+		csr_csv = cpuif.get_csr_csv(soc.cpu_csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bios"]:

@@ -14,7 +14,6 @@ from misoclib.sdram import dfii
 from misoclib.sdram.minicon import Minicon
 
 class GenSoC(Module):
-	csr_base = 0xe0000000
 	csr_map = {
 		"crg":					0, # user
 		"uart":					1, # provided by default
@@ -41,6 +40,7 @@ class GenSoC(Module):
 		self.l2_size = l2_size
 		self.cpu_type = cpu_type
 		self.cpu_memory_regions = []
+		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 		self._rom_registered = False
 
 		# Wishbone
@@ -103,6 +103,9 @@ class GenSoC(Module):
 	def add_cpu_memory_region(self, name, origin, length):
 		self.cpu_memory_regions.append((name, origin, length))
 
+	def add_cpu_csr_region(self, name, origin, busword, obj):
+		self.cpu_csr_regions.append((name, origin, busword, obj))
+
 	def do_finalize(self):
 		if not self._rom_registered:
 			raise FinalizeError("Need to call GenSoC.register_rom()")
@@ -115,6 +118,10 @@ class GenSoC(Module):
 		self.submodules.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
 		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
+		for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), csrs)
+		for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), memory)
 
 		# Interrupts
 		for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
