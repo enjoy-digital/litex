@@ -1,17 +1,9 @@
 from migen.util.misc import xdir
 from migen.fhdl.std import *
 from migen.bus import csr
-from migen.bank.description import *
+from migen.bank.bank import GenericBank
 
-def get_offset(description, name, csr_data_width=8):
-	offset = 0
-	for c in description:
-		if c.name == name:
-			return offset
-		offset += (c.size + csr_data_width - 1)//csr_data_width
-	raise KeyError("CSR not found: "+name)
-
-class Bank(Module):
+class Bank(GenericBank):
 	def __init__(self, description, address=0, bus=None):
 		if bus is None:
 			bus = csr.Interface()
@@ -19,38 +11,23 @@ class Bank(Module):
 
 		###
 
-		if not description:
-			return
+		GenericBank.__init__(self, description, flen(self.bus.dat_w))
 
-		# Turn description into simple CSRs and claim ownership of compound CSR modules
-		simple_csrs = []
-		for c in description:
-			if isinstance(c, CSR):
-				simple_csrs.append(c)
-			else:
-				c.finalize(flen(self.bus.dat_w))
-				simple_csrs += c.get_simple_csrs()
-				self.submodules += c
-		nbits = bits_for(len(simple_csrs)-1)
-
-		# Decode selection
 		sel = Signal()
 		self.comb += sel.eq(self.bus.adr[9:] == address)
 
-		# Bus writes
-		for i, c in enumerate(simple_csrs):
+		for i, c in enumerate(self.simple_csrs):
 			self.comb += [
 				c.r.eq(self.bus.dat_w[:c.size]),
 				c.re.eq(sel & \
 					self.bus.we & \
-					(self.bus.adr[:nbits] == i))
+					(self.bus.adr[:self.decode_bits] == i))
 			]
 
-		# Bus reads
-		brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(simple_csrs))
+		brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
 		self.sync += [
 			self.bus.dat_r.eq(0),
-			If(sel, Case(self.bus.adr[:nbits], brcases))
+			If(sel, Case(self.bus.adr[:self.decode_bits], brcases))
 		]
 
 # address_map(name, memory) returns the CSR offset at which to map
@@ -77,6 +54,8 @@ class BankArray(Module):
 				memories = obj.get_memories()
 				for memory in memories:
 					mapaddr = self.address_map(name, memory)
+					if mapaddr is None:
+						continue
 					sram_bus = csr.Interface(*ifargs, **ifkwargs)
 					mmap = csr.SRAM(memory, mapaddr, bus=sram_bus)
 					self.submodules += mmap
@@ -84,6 +63,8 @@ class BankArray(Module):
 					self.srams.append((name, memory, mapaddr, mmap))
 			if csrs:
 				mapaddr = self.address_map(name, None)
+				if mapaddr is None:
+					continue
 				bank_bus = csr.Interface(*ifargs, **ifkwargs)
 				rmap = Bank(csrs, mapaddr, bus=bank_bus)
 				self.submodules += rmap
