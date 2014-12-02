@@ -15,7 +15,7 @@ primitives = {
 	"SOF"	:	0x3737B57C,
 	"EOF"	:	0xD5D5B57C,
 	"HOLD"	:	0xD5D5AA7C,
-	"HOLD"	: 	0X9595AA7C
+	"HOLDA"	: 	0X9595AA7C
 }
 
 def ones(width):

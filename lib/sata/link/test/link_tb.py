@@ -1,3 +1,5 @@
+import random
+
 from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.sim.generic import run_simulation
@@ -6,6 +8,7 @@ from lib.sata.std import *
 from lib.sata.link import SATALinkLayer
 
 from lib.sata.link.test.bfm import *
+from lib.sata.link.test.common import *
 
 class LinkPacket():
 	def __init__(self, d=[]):
@@ -70,13 +73,16 @@ class LinkLogger(Module):
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.bfm = BFM(32, debug=True)
+		self.submodules.bfm = BFM(32, debug=True, level=50)
 		self.submodules.link_layer = SATALinkLayer(self.bfm.phy)
 
 		self.submodules.streamer = LinkStreamer(32)
+		streamer_ack_randomizer = AckRandomizer(link_layout(32), level=50)
+		self.submodules += streamer_ack_randomizer
 		self.submodules.logger = LinkLogger(32)
 		self.comb += [
-			Record.connect(self.streamer.source, self.link_layer.sink),
+			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),
+			Record.connect(streamer_ack_randomizer.source, self.link_layer.sink),
 			Record.connect(self.link_layer.source, self.logger.sink)
 		]
 
@@ -84,7 +90,7 @@ class TB(Module):
 		for i in range(200):
 			yield
 		for i in range(8):
-			yield from self.streamer.send(LinkPacket([0, 1, 2, 3]))
+			yield from self.streamer.send(LinkPacket([i for i in range(16)]))
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=512, vcd_name="my.vcd", keep_files=True)

@@ -6,8 +6,8 @@ from lib.sata.link.crc import SATACRCInserter, SATACRCChecker
 from lib.sata.link.scrambler import SATAScrambler
 
 # Todo:
-# - TX: (optional) insert COND and scramble between COND and primitives
-# - RX: manage COND, HOLD from device
+# - TX: insert COND and scramble between COND and primitives
+# - RX: manage COND
 
 class SATALinkLayer(Module):
 	def __init__(self, phy):
@@ -65,7 +65,7 @@ class SATALinkLayer(Module):
 
 		# graph
 		self.comb += [
-			If(fsm.ongoing("H2D_COPY") & (rx_det == 0),
+			If(fsm.ongoing("D2H_COPY") & (rx_det == 0),
 				descrambler.sink.stb.eq(phy.source.stb & (phy.source.charisk == 0)),
 				descrambler.sink.d.eq(phy.source.data),
 			),
@@ -98,7 +98,11 @@ class SATALinkLayer(Module):
 			)
 		)
 		fsm.act("H2D_COPY",
-			If(scrambler.source.stb & scrambler.source.eop & scrambler.source.ack,
+			If(rx_det == primitives["HOLD"],
+				tx_insert.eq(primitives["HOLDA"]),
+			).Elif(~scrambler.source.stb,
+				tx_insert.eq(primitives["HOLD"]),
+			).Elif(scrambler.source.stb & scrambler.source.eop & scrambler.source.ack,
 				NextState("H2D_EOF")
 			)
 		)
@@ -125,7 +129,9 @@ class SATALinkLayer(Module):
 			)
 		)
 		fsm.act("D2H_COPY",
-			If(rx_det == primitives["EOF"],
+			If(rx_det == primitives["HOLD"],
+				tx_insert.eq(primitives["HOLDA"])
+			).Elif(rx_det == primitives["EOF"],
 				NextState("D2H_WTRM")
 			)
 		)

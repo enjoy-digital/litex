@@ -3,6 +3,7 @@ import subprocess
 from migen.fhdl.std import *
 
 from lib.sata.std import *
+from lib.sata.link.test.common import *
 
 class BFMDword():
 	def __init__(self, dat=0):
@@ -27,16 +28,14 @@ class BFMSource(Module):
 	def do_simulation(self, selfp):
 		if len(self.dwords) and self.dword.done:
 			self.dword = self.dwords.pop(0)
-		if not self.dword.done:
-			selfp.source.stb = 1
-			selfp.source.charisk = 0b0000
-			for k, v in primitives.items():
-				if v == self.dword.dat:
-					selfp.source.charisk = 0b0001
-			selfp.source.data = self.dword.dat
+		selfp.source.stb = 1
+		selfp.source.charisk = 0b0000
+		for k, v in primitives.items():
+			if v == self.dword.dat:
+				selfp.source.charisk = 0b0001
+		selfp.source.data = self.dword.dat
 		if selfp.source.stb == 1 and selfp.source.ack == 1:
 				self.dword.done = 1
-				selfp.source.stb = 0
 
 class BFMSink(Module):
 	def __init__(self, dw):
@@ -77,8 +76,9 @@ class BFMPHY(Module):
 		self.rx_dword = self.bfm_sink.dword.dat
 
 class BFM(Module):
-	def __init__(self, dw, debug=False):
+	def __init__(self, dw, debug=False, level=0):
 		self.debug = debug
+		self.level = level
 
 		###
 
@@ -118,31 +118,56 @@ class BFM(Module):
 	def packet_callback(self, packet):
 		packet = self.descramble(packet)
 		packet = self.check_crc(packet)
+		print("----")
 		for v in packet:
 			print("%08x" %v)
+		print("----")
 
 	def dword_callback(self, dword):
-		print("%08x " %dword, end="")
+		rx = "%08x " %dword
 		for k, v in primitives.items():
 			if dword == v:
-				print(k, end="")
+				rx += k
+		rx += " "*(16-len(rx))
+		print(rx, end="")
+
+		tx = "%08x " %self.phy.bfm_source.dword.dat
+		for k, v in primitives.items():
+			if self.phy.bfm_source.dword.dat == v:
+				tx += k
+		tx += " "*(16-len(tx))
+		print(tx, end="")
+
 		print("")
+
 
 		# X_RDY / WTRM response
 		if dword == primitives["X_RDY"]:
 			self.phy.bfm_source.dwords.append(BFMDword(primitives["R_RDY"]))
-		if dword == primitives["WTRM"]:
+
+		elif dword == primitives["WTRM"]:
 			self.phy.bfm_source.dwords.append(BFMDword(primitives["R_OK"]))
 
+		# HOLD response
+		elif dword == primitives["HOLD"]:
+			self.phy.bfm_source.dwords.append(BFMDword(primitives["HOLDA"]))
+
 		# packet capture
-		if dword == primitives["EOF"]:
+		elif dword == primitives["EOF"]:
 			self.rx_packet_ongoing = False
 			self.packet_callback(self.rx_packet)
 
-		if self.rx_packet_ongoing:
-			self.rx_packet.append(dword)
+		elif self.rx_packet_ongoing:
+			if dword != primitives["HOLD"]:
+				n = randn(100)
+				if n < self.level:
+					self.phy.bfm_source.dwords.append(BFMDword(primitives["HOLD"]))
+				else:
+					self.phy.bfm_source.dwords.append(BFMDword(primitives["R_RDY"]))
+				if dword != primitives["HOLDA"]:
+					self.rx_packet.append(dword)
 
-		if dword == primitives["SOF"]:
+		elif dword == primitives["SOF"]:
 			self.rx_packet_ongoing = True
 			self.rx_packet = []
 
