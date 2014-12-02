@@ -4,37 +4,47 @@ from migen.fhdl.std import *
 
 from lib.sata.std import *
 from lib.sata.link.scrambler import *
-from lib.sata.link.test.common import check
+from lib.sata.link.test.common import *
 
 class TB(Module):
 	def __init__(self, length):
 		self.submodules.scrambler = Scrambler()
 		self.length = length
 
+	def get_c_values(self, length):
+		stdin = "0x%08x" %length
+		with subprocess.Popen("./scrambler", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+			process.stdin.write(stdin.encode("UTF-8"))
+			out, err = process.communicate()
+		return [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
+
 	def gen_simulation(self, selfp):
-	# init CRC
+		# init CRC
 		selfp.scrambler.ce = 1
 		selfp.scrambler.reset = 1
 		yield
 		selfp.scrambler.reset = 0
 
-	# get C code results
-		p = subprocess.Popen(["./scrambler"], stdout=subprocess.PIPE)
-		out, err = p.communicate()
-		ref = [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
-
-	# log results
+		# log results
 		yield
-		res = []
+		sim_values = []
 		for i in range(self.length):
-			res.append(selfp.scrambler.value)
+			sim_values.append(selfp.scrambler.value)
 			yield
 
-	# check results
-		s, l, e = check(ref, res)
+		# stop
+		selfp.scrambler.ce = 0
+		for i in range(32):
+			yield
+
+		# get C code reference
+		c_values = self.get_c_values(self.length)
+
+		# check results
+		s, l, e = check(c_values, sim_values)
 		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
 	from migen.sim.generic import run_simulation
 	length = 8192
-	run_simulation(TB(length), ncycles=length+100, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(length), ncycles=length+100, vcd_name="my.vcd")

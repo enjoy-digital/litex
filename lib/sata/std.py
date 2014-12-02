@@ -22,21 +22,15 @@ def ones(width):
 	return 2**width-1
 
 def phy_layout(dw):
-	parameters = {
-		"packetized": False
-	}
 	layout = [
 		("data", dw),
 		("charisk", dw//8),
 	]
-	return EndpointDescription(layout, parameters)
+	return EndpointDescription(layout, packetized=False)
 
 def link_layout(dw):
-	parameters = {
-		"packetized": True
-	}
 	layout = [
 		("d", dw),
 		("error", 1)
 	]
-	return EndpointDescription(layout, parameters)
+	return EndpointDescription(layout, packetized=True)

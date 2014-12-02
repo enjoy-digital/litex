@@ -20,4 +20,4 @@ link_tb:
 all: crc_tb scrambler_tb
 
 clean:
-	rm crc scrambler
+	rm crc scrambler *.vcd

@@ -90,7 +90,7 @@ class SATACRC(Module):
 	polynom = 0x04C11DB7
 	init = 0x52325032
 	check = 0xC704DD7B
-	def __init__(self, dat_width):
+	def __init__(self):
 		self.d = Signal(self.width)
 		self.value = Signal(self.width)
 		self.error = Signal()

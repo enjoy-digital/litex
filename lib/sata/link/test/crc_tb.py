@@ -4,38 +4,57 @@ from migen.fhdl.std import *
 
 from lib.sata.std import *
 from lib.sata.link.crc import *
-from lib.sata.link.test.common import check
+from lib.sata.link.test.common import *
 
 class TB(Module):
-	def __init__(self, length):
+	def __init__(self, length, random):
 		self.submodules.crc = SATACRC()
 		self.length = length
+		self.random = random
+
+	def get_c_crc(self, datas):
+		stdin = ""
+		for data in datas:
+			stdin += "0x%08x " %data
+		stdin += "exit"
+		with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+			process.stdin.write(stdin.encode("UTF-8"))
+			out, err = process.communicate()
+		return int(out.decode("UTF-8"), 16)
 
 	def gen_simulation(self, selfp):
-	# init CRC
-		selfp.crc.d = 0x12345678
+		# init CRC
+		selfp.crc.d = 0
 		selfp.crc.ce = 1
 		selfp.crc.reset = 1
 		yield
 		selfp.crc.reset = 0
 
-	# get C code results
-		p = subprocess.Popen(["./crc"], stdout=subprocess.PIPE)
-		out, err = p.communicate()
-		ref = [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
-
-
-	# log results
-		res = []
+		# feed CRC with datas
+		datas = []
 		for i in range(self.length):
-			res.append(selfp.crc.value)
+			data = seed_to_data(i, self.random)
+			datas.append(data)
+			selfp.crc.d = data
 			yield
 
-	# check results
-		s, l, e = check(ref, res)
+		# log results
+		yield
+		sim_crc = selfp.crc.value
+
+		# stop
+		selfp.crc.ce = 0
+		for i in range(32):
+			yield
+
+		# get C core reference
+		c_crc = self.get_c_crc(datas)
+
+		# check results
+		s, l, e = check(c_crc, sim_crc)
 		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
 	from migen.sim.generic import run_simulation
 	length = 8192
-	run_simulation(TB(length), ncycles=length+100, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(length, True), ncycles=length+100, vcd_name="my.vcd")

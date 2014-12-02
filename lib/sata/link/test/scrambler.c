@@ -50,13 +50,16 @@
 int main(int argc, char *argv[])
 {
    int               i, j;
+   unsigned int      length;
    unsigned short    context;
    unsigned long     scrambler;
    unsigned char     now[16];
    unsigned char     next[32];
    context = 0xF0F6;
 
-   for (i = 0; i < 65536; ++i)  {
+   scanf("0x%8x", &length);
+
+   for (i = 0; i < length; ++i)  {
       for (j = 0; j < 16; ++j)  {
          now[j] = (context >> j) & 0x01;
       }
