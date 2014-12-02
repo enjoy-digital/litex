@@ -102,8 +102,18 @@ class BFM(Module):
 		return p
 
 	def check_crc(self, packet):
-		# Todo from C Code or Python Code
-		return packet[:-1]
+		stdin = ""
+		for v in packet[:-1]:
+			stdin += "0x%08x " %v
+		stdin += "exit"
+		with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+			process.stdin.write(stdin.encode("ASCII"))
+			out, err = process.communicate()
+		crc = int(out.decode("ASCII"), 16)
+		if packet[-1] != crc:
+			return []
+		else:
+			return packet[:-1]
 
 	def packet_callback(self, packet):
 		packet = self.descramble(packet)
