@@ -24,8 +24,8 @@ class Scrambler(Module):
 		next_value = Signal(32)
 		self.sync += context.eq(next_value[16:32])
 
-		# from SATA specification, if possible replace it
-		# with a generic implementation using polynoms.
+		# XXX: from SATA specification, replace it with
+		# a generic implementation using polynoms.
 		lfsr_coefs = (
 			(15, 13, 4, 0), #0
 			(15, 14, 13, 5, 4, 1, 0),

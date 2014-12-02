@@ -89,8 +89,9 @@ class BFM(Module):
 		self.rx_packet = []
 
 	def get_scrambler_ref(self):
-		p = subprocess.Popen(["./scrambler"], stdout=subprocess.PIPE)
-		out, err = p.communicate()
+		with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+			process.stdin.write("0x10000".encode("ASCII"))
+			out, err = process.communicate()
 		self.scrambler_ref = [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
 
 	def descramble(self, packet):

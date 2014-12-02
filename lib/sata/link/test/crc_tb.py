@@ -18,9 +18,9 @@ class TB(Module):
 			stdin += "0x%08x " %data
 		stdin += "exit"
 		with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
-			process.stdin.write(stdin.encode("UTF-8"))
+			process.stdin.write(stdin.encode("ASCII"))
 			out, err = process.communicate()
-		return int(out.decode("UTF-8"), 16)
+		return int(out.decode("ASCII"), 16)
 
 	def gen_simulation(self, selfp):
 		# init CRC

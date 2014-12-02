@@ -14,9 +14,9 @@ class TB(Module):
 	def get_c_values(self, length):
 		stdin = "0x%08x" %length
 		with subprocess.Popen("./scrambler", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
-			process.stdin.write(stdin.encode("UTF-8"))
+			process.stdin.write(stdin.encode("ASCII"))
 			out, err = process.communicate()
-		return [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
+		return [int(e, 16) for e in out.decode("ASCII").split("\n")[:-1]]
 
 	def gen_simulation(self, selfp):
 		# init CRC
