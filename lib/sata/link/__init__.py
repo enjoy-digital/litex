@@ -4,10 +4,10 @@ from migen.genlib.fsm import FSM, NextState
 from lib.sata.std import *
 from lib.sata.link.crc import SATACRCInserter, SATACRCChecker
 from lib.sata.link.scrambler import SATAScrambler
+from lib.sata.link.cont import SATACONTInserter
 
 # Todo:
-# - TX: insert COND and scramble between COND and primitives
-# - RX: manage COND
+# - RX: manage CONT
 
 class SATALinkLayer(Module):
 	def __init__(self, phy):
@@ -19,8 +19,8 @@ class SATALinkLayer(Module):
 
 	# TX
 		# insert CRC
-		crc_inserter = SATACRCInserter(link_layout(32))
-		self.submodules += crc_inserter
+		crc = SATACRCInserter(link_layout(32))
+		self.submodules += crc
 
 		# scramble
 		scrambler = SATAScrambler(link_layout(32))
@@ -28,24 +28,32 @@ class SATALinkLayer(Module):
 
 		# graph
 		self.comb += [
-			Record.connect(self.sink, crc_inserter.sink),
-			Record.connect(crc_inserter.source, scrambler.sink)
+			Record.connect(self.sink, crc.sink),
+			Record.connect(crc.source, scrambler.sink)
 		]
+
+		# inserter CONT and scrambled data between
+		# CONT and next primitive
+		cont  = SATACONTInserter(phy_layout(32))
+		self.submodules += cont
 
 		# datas / primitives mux
 		tx_insert = Signal(32)
 		self.comb += [
 			If(tx_insert != 0,
-				phy.sink.stb.eq(1),
-				phy.sink.data.eq(tx_insert),
-				phy.sink.charisk.eq(0x0001),
+				cont.sink.stb.eq(1),
+				cont.sink.data.eq(tx_insert),
+				cont.sink.charisk.eq(0x0001),
 			).Elif(fsm.ongoing("H2D_COPY"),
-				phy.sink.stb.eq(scrambler.source.stb),
-				phy.sink.data.eq(scrambler.source.d),
-				scrambler.source.ack.eq(phy.source.ack),
-				phy.sink.charisk.eq(0)
+				cont.sink.stb.eq(scrambler.source.stb),
+				cont.sink.data.eq(scrambler.source.d),
+				scrambler.source.ack.eq(cont.sink.ack),
+				cont.sink.charisk.eq(0)
 			)
 		]
+
+		# graph
+		self.comb += Record.connect(cont.source, phy.sink)
 
 	# RX
 		# datas / primitives detection

@@ -69,16 +69,12 @@ class BFMPHY(Module):
 	def __repr__(self):
 		# receive
 		receiving = "%08x " %self.rx_dword
-		for k, v in primitives.items():
-			if self.rx_dword == v:
-				receiving += k
+		receiving += decode_primitive(self.rx_dword)
 		receiving += " "*(16-len(receiving))
 
 		# send
 		sending = "%08x " %self.bfm_source.dword.dat
-		for k, v in primitives.items():
-			if self.bfm_source.dword.dat == v:
-				sending += k
+		sending += decode_primitive(self.bfm_source.dword.dat)
 		sending += " "*(16-len(sending))
 
 		return receiving + sending
@@ -94,6 +90,7 @@ class BFM(Module):
 		self.submodules.phy = BFMPHY(dw)
 		self.get_scrambler_ref()
 
+		self.rx_cont_ongoing = False
 		self.rx_packet_ongoing = False
 		self.rx_packet = []
 
@@ -135,6 +132,11 @@ class BFM(Module):
 		print("----")
 
 	def dword_callback(self, dword):
+		if dword == primitives["CONT"]:
+			self.rx_cont_ongoing = True
+		elif is_primitive(dword):
+			self.rx_cont_ongoing = False
+
 		# X_RDY / WTRM response
 		if dword == primitives["X_RDY"]:
 			self.phy.send(primitives["R_RDY"])
@@ -158,8 +160,9 @@ class BFM(Module):
 					self.phy.send(primitives["HOLD"])
 				else:
 					self.phy.send(primitives["R_RDY"])
-				if dword != primitives["HOLDA"]:
-					self.rx_packet.append(dword)
+				if not is_primitive(dword):
+					if not self.rx_cont_ongoing:
+						self.rx_packet.append(dword)
 
 		elif dword == primitives["SOF"]:
 			self.rx_packet_ongoing = True

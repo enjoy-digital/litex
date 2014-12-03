@@ -4,6 +4,7 @@ from migen.flow.actor import EndpointDescription, Sink, Source
 
 primitives = {
 	"ALIGN"	:	0x7B4A4ABC,
+	"CONT"	: 	0X9999AA7C,
 	"SYNC"	:	0xB5B5957C,
 	"R_RDY"	:	0x4A4A957C,
 	"R_OK"	:	0x3535B57C,
@@ -17,6 +18,18 @@ primitives = {
 	"HOLD"	:	0xD5D5AA7C,
 	"HOLDA"	: 	0X9595AA7C
 }
+
+def is_primitive(dword):
+	for k, v in primitives.items():
+		if dword == v:
+			return True
+	return False
+
+def decode_primitive(dword):
+	for k, v in primitives.items():
+		if dword == v:
+			return k
+	return ""
 
 def ones(width):
 	return 2**width-1
