@@ -47,18 +47,18 @@ class SATACONTInserter(Module):
 				)
 			)
 
-		# scranbler (between CONT and next primitive)
+		# scrambler (between CONT and next primitive)
 		scrambler = Scrambler()
 		self.submodules += scrambler
 		self.comb += [
-			scrambler.reset.eq(ResetSignal()), #XXX: should be on COMINIT / COMRESET
-			scrambler.ce.eq(scrambler_insert & self.source.stb & self.source.ack)
+			scrambler.reset.eq(ResetSignal()), #XXX: should be reseted on COMINIT / COMRESET
+			scrambler.ce.eq(scrambler_insert & source.stb & source.ack)
 		]
 
 		# Datapath
 		self.comb += [
 			Record.connect(sink, source),
-			If(self.sink.stb,
+			If(sink.stb,
 				If(cont_insert,
 					source.charisk.eq(0b0001),
 					source.data.eq(primitives["CONT"])
@@ -109,7 +109,7 @@ class SATACONTRemover(Module):
 		self.comb += [
 			Record.connect(sink, source),
 			If(cont_ongoing,
-				self.source.charisk.eq(0b0001),
-				self.source.data.eq(last_primitive)
+				source.charisk.eq(0b0001),
+				source.data.eq(last_primitive)
 			)
 		]

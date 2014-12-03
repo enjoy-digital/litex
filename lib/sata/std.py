@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
-from migen.flow.actor import EndpointDescription, Sink, Source
+from migen.flow.actor import *
 
 primitives = {
 	"ALIGN"	:	0x7B4A4ABC,
@@ -45,5 +45,17 @@ def link_layout(dw):
 	layout = [
 		("d", dw),
 		("error", 1)
+	]
+	return EndpointDescription(layout, packetized=True)
+
+def transport_tx_layout(dw):
+	layout = [
+		("d", dw)
+	]
+	return EndpointDescription(layout, packetized=True)
+
+def transport_rx_layout(dw):
+	layout = [
+		("d", dw)
 	]
 	return EndpointDescription(layout, packetized=True)
