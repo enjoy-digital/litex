@@ -4,10 +4,11 @@ from migen.genlib.fsm import FSM, NextState
 from lib.sata.std import *
 from lib.sata.link.crc import SATACRCInserter, SATACRCChecker
 from lib.sata.link.scrambler import SATAScrambler
-from lib.sata.link.cont import SATACONTInserter
+from lib.sata.link.cont import SATACONTInserter, SATACONTRemover
 
-# Todo:
-# - RX: manage CONT
+# TODO:
+# - Test D2H
+# - Do more tests
 
 class SATALinkLayer(Module):
 	def __init__(self, phy):
@@ -19,67 +20,75 @@ class SATALinkLayer(Module):
 
 	# TX
 		# insert CRC
-		crc = SATACRCInserter(link_layout(32))
-		self.submodules += crc
+		tx_crc = SATACRCInserter(link_layout(32))
+		self.submodules += tx_crc
 
 		# scramble
-		scrambler = SATAScrambler(link_layout(32))
-		self.submodules += scrambler
+		tx_scrambler = SATAScrambler(link_layout(32))
+		self.submodules += tx_scrambler
 
 		# graph
 		self.comb += [
-			Record.connect(self.sink, crc.sink),
-			Record.connect(crc.source, scrambler.sink)
+			Record.connect(self.sink, tx_crc.sink),
+			Record.connect(tx_crc.source, tx_scrambler.sink)
 		]
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		cont  = SATACONTInserter(phy_layout(32))
-		self.submodules += cont
+		tx_cont  = SATACONTInserter(phy_layout(32))
+		self.submodules += tx_cont
 
 		# datas / primitives mux
 		tx_insert = Signal(32)
 		self.comb += [
 			If(tx_insert != 0,
-				cont.sink.stb.eq(1),
-				cont.sink.data.eq(tx_insert),
-				cont.sink.charisk.eq(0x0001),
+				tx_cont.sink.stb.eq(1),
+				tx_cont.sink.data.eq(tx_insert),
+				tx_cont.sink.charisk.eq(0x0001),
 			).Elif(fsm.ongoing("H2D_COPY"),
-				cont.sink.stb.eq(scrambler.source.stb),
-				cont.sink.data.eq(scrambler.source.d),
-				scrambler.source.ack.eq(cont.sink.ack),
-				cont.sink.charisk.eq(0)
+				tx_cont.sink.stb.eq(tx_scrambler.source.stb),
+				tx_cont.sink.data.eq(tx_scrambler.source.d),
+				tx_scrambler.source.ack.eq(tx_cont.sink.ack),
+				tx_cont.sink.charisk.eq(0)
 			)
 		]
 
 		# graph
-		self.comb += Record.connect(cont.source, phy.sink)
+		self.comb += Record.connect(tx_cont.source, phy.sink)
 
 	# RX
+
+		# CONT remover
+		rx_cont = SATACONTRemover(phy_layout(32))
+		self.submodules += rx_cont
+
+		# graph
+		self.comb += Record.connect(phy.source, rx_cont.sink)
+
 		# datas / primitives detection
 		rx_det = Signal(32)
 		self.comb += \
-			If(phy.source.stb & (phy.source.charisk == 0b0001),
-				rx_det.eq(phy.source.data)
+			If(rx_cont.source.stb & (rx_cont.source.charisk == 0b0001),
+				rx_det.eq(rx_cont.source.data)
 			)
 
 		# descrambler
-		descrambler = SATAScrambler(link_layout(32))
-		self.submodules += descrambler
+		rx_scrambler = SATAScrambler(link_layout(32))
+		self.submodules += rx_scrambler
 
 		# check CRC
-		crc_checker = SATACRCChecker(link_layout(32))
-		self.submodules += crc_checker
+		rx_crc = SATACRCChecker(link_layout(32))
+		self.submodules += rx_crc
 
 		# graph
 		self.comb += [
 			If(fsm.ongoing("D2H_COPY") & (rx_det == 0),
-				descrambler.sink.stb.eq(phy.source.stb & (phy.source.charisk == 0)),
-				descrambler.sink.d.eq(phy.source.data),
+				rx_scrambler.sink.stb.eq(rx_cont.source.stb & (rx_cont.source.charisk == 0)),
+				rx_scrambler.sink.d.eq(rx_cont.source.data),
 			),
-			phy.source.ack.eq(1),
-			Record.connect(descrambler.source, crc_checker.sink),
-			Record.connect(crc_checker.source, self.source)
+			rx_cont.source.ack.eq(1),
+			Record.connect(rx_scrambler.source, rx_crc.sink),
+			Record.connect(rx_crc.source, self.source)
 		]
 
 	# FSM
@@ -87,7 +96,7 @@ class SATALinkLayer(Module):
 			tx_insert.eq(primitives["SYNC"]),
 			If(rx_det == primitives["X_RDY"],
 				NextState("D2H_RDY")
-			).Elif(scrambler.source.stb & scrambler.source.sop,
+			).Elif(tx_scrambler.source.stb & tx_scrambler.source.sop,
 				NextState("H2D_RDY")
 			)
 		)
@@ -108,9 +117,9 @@ class SATALinkLayer(Module):
 		fsm.act("H2D_COPY",
 			If(rx_det == primitives["HOLD"],
 				tx_insert.eq(primitives["HOLDA"]),
-			).Elif(~scrambler.source.stb,
+			).Elif(~tx_scrambler.source.stb,
 				tx_insert.eq(primitives["HOLD"]),
-			).Elif(scrambler.source.stb & scrambler.source.eop & scrambler.source.ack,
+			).Elif(tx_scrambler.source.stb & tx_scrambler.source.eop & tx_scrambler.source.ack,
 				NextState("H2D_EOF")
 			)
 		)

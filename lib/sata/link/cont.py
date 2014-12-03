@@ -12,6 +12,7 @@ class SATACONTInserter(Module):
 		###
 
 		# Detect consecutive primitives
+		# tn insert CONT
 		cnt = Signal(2)
 		is_primitive = Signal()
 		last_was_primitive = Signal()
@@ -46,7 +47,7 @@ class SATACONTInserter(Module):
 				)
 			)
 
-		# Repeated primitives scranbler
+		# scranbler (between CONT and next primitive)
 		scrambler = Scrambler()
 		self.submodules += scrambler
 		self.comb += [
@@ -70,5 +71,45 @@ class SATACONTInserter(Module):
 					source.charisk.eq(0b0001),
 					source.data.eq(last_primitive)
 				)
+			)
+		]
+
+class SATACONTRemover(Module):
+	def __init__(self, layout):
+		self.sink = sink = Sink(layout)
+		self.source = source = Source(layout)
+
+		###
+
+		# Detect CONT
+		is_primitive = Signal()
+		is_cont = Signal()
+		in_cont = Signal()
+		cont_ongoing = Signal()
+
+		self.comb += [
+			is_primitive.eq(sink.charisk != 0),
+			is_cont.eq(is_primitive & sink.data == primitives["CONT"])
+		]
+		self.sync += \
+			If(is_cont,
+				in_cont.eq(1)
+			).Elif(is_primitive,
+				in_cont.eq(0)
+			)
+		self.comb += cont_ongoing.eq(is_cont | (in_cont & ~is_primitive))
+
+		# Datapath
+		last_primitive = Signal()
+		self.sync += [
+			If(is_primitive & ~is_cont,
+				last_primitive.eq(sink.data)
+			)
+		]
+		self.comb += [
+			Record.connect(sink, source),
+			If(cont_ongoing,
+				self.source.charisk.eq(0b0001),
+				self.source.data.eq(last_primitive)
 			)
 		]

@@ -132,6 +132,7 @@ class BFM(Module):
 		print("----")
 
 	def dword_callback(self, dword):
+		# CONT detection
 		if dword == primitives["CONT"]:
 			self.rx_cont_ongoing = True
 		elif is_primitive(dword):
@@ -148,7 +149,7 @@ class BFM(Module):
 		elif dword == primitives["HOLD"]:
 			self.phy.send(primitives["HOLDA"])
 
-		# packet capture
+		# Packet capture
 		elif dword == primitives["EOF"]:
 			self.rx_packet_ongoing = False
 			self.packet_callback(self.rx_packet)
