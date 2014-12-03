@@ -73,7 +73,7 @@ class LinkLogger(Module):
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.bfm = BFM(32, debug=True, level=50)
+		self.submodules.bfm = BFM(32, debug=True, hold_random_level=50)
 		self.submodules.link_layer = SATALinkLayer(self.bfm.phy)
 
 		self.submodules.streamer = LinkStreamer(32)

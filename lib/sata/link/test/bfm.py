@@ -15,27 +15,18 @@ class BFMSource(Module):
 	def __init__(self, dw):
 		self.source = Source(phy_layout(dw))
 		###
-		self.dwords = []
 		self.dword = BFMDword()
-		self.dword.done = 1
 
-	def send(self, dword, blocking=True):
-		self.dwords.append(dword)
-		if blocking:
-			while dword.done == 0:
-				yield
+	def send(self, dword):
+		self.dword = dword
 
 	def do_simulation(self, selfp):
-		if len(self.dwords) and self.dword.done:
-			self.dword = self.dwords.pop(0)
 		selfp.source.stb = 1
 		selfp.source.charisk = 0b0000
 		for k, v in primitives.items():
 			if v == self.dword.dat:
 				selfp.source.charisk = 0b0001
 		selfp.source.data = self.dword.dat
-		if selfp.source.stb == 1 and selfp.source.ack == 1:
-				self.dword.done = 1
 
 class BFMSink(Module):
 	def __init__(self, dw):
@@ -67,18 +58,36 @@ class BFMPHY(Module):
 
 		self.dword = 0
 
-	def send(self, dword, blocking=True):
+	def send(self, dword):
 		packet = BFMDword(dword)
-		yield from self.bfm_source.send(dword, blocking)
+		self.bfm_source.send(packet)
 
 	def receive(self):
 		yield from self.bfm_sink.receive()
 		self.rx_dword = self.bfm_sink.dword.dat
 
+	def __repr__(self):
+		# receive
+		receiving = "%08x " %self.rx_dword
+		for k, v in primitives.items():
+			if self.rx_dword == v:
+				receiving += k
+		receiving += " "*(16-len(receiving))
+
+		# send
+		sending = "%08x " %self.bfm_source.dword.dat
+		for k, v in primitives.items():
+			if self.bfm_source.dword.dat == v:
+				sending += k
+		sending += " "*(16-len(sending))
+
+		return receiving + sending
+
+
 class BFM(Module):
-	def __init__(self, dw, debug=False, level=0):
+	def __init__(self, dw, debug=False, hold_random_level=0):
 		self.debug = debug
-		self.level = level
+		self.hold_random_level = hold_random_level
 
 		###
 
@@ -87,6 +96,8 @@ class BFM(Module):
 
 		self.rx_packet_ongoing = False
 		self.rx_packet = []
+
+		self.run = True
 
 	def get_scrambler_ref(self):
 		with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
@@ -124,33 +135,16 @@ class BFM(Module):
 		print("----")
 
 	def dword_callback(self, dword):
-		rx = "%08x " %dword
-		for k, v in primitives.items():
-			if dword == v:
-				rx += k
-		rx += " "*(16-len(rx))
-		print(rx, end="")
-
-		tx = "%08x " %self.phy.bfm_source.dword.dat
-		for k, v in primitives.items():
-			if self.phy.bfm_source.dword.dat == v:
-				tx += k
-		tx += " "*(16-len(tx))
-		print(tx, end="")
-
-		print("")
-
-
 		# X_RDY / WTRM response
 		if dword == primitives["X_RDY"]:
-			self.phy.bfm_source.dwords.append(BFMDword(primitives["R_RDY"]))
+			self.phy.send(primitives["R_RDY"])
 
 		elif dword == primitives["WTRM"]:
-			self.phy.bfm_source.dwords.append(BFMDword(primitives["R_OK"]))
+			self.phy.send(primitives["R_OK"])
 
 		# HOLD response
 		elif dword == primitives["HOLD"]:
-			self.phy.bfm_source.dwords.append(BFMDword(primitives["HOLDA"]))
+			self.phy.send(primitives["HOLDA"])
 
 		# packet capture
 		elif dword == primitives["EOF"]:
@@ -160,10 +154,10 @@ class BFM(Module):
 		elif self.rx_packet_ongoing:
 			if dword != primitives["HOLD"]:
 				n = randn(100)
-				if n < self.level:
-					self.phy.bfm_source.dwords.append(BFMDword(primitives["HOLD"]))
+				if n < self.hold_random_level:
+					self.phy.send(primitives["HOLD"])
 				else:
-					self.phy.bfm_source.dwords.append(BFMDword(primitives["R_RDY"]))
+					self.phy.send(primitives["R_RDY"])
 				if dword != primitives["HOLDA"]:
 					self.rx_packet.append(dword)
 
@@ -172,7 +166,9 @@ class BFM(Module):
 			self.rx_packet = []
 
 	def gen_simulation(self, selfp):
-		self.phy.bfm_source.dwords.append(BFMDword(primitives["SYNC"]))
+		self.phy.send(primitives["SYNC"])
 		while True:
 			yield from self.phy.receive()
+			if self.debug:
+				print(self.phy)
 			self.dword_callback(self.phy.rx_dword)
