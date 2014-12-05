@@ -4,6 +4,7 @@ from migen.fhdl.std import *
 
 from lib.sata.std import *
 from lib.sata.link.test.common import *
+from lib.sata.transport.std import *
 
 class PHYDword:
 	def __init__(self, dat=0):
@@ -129,12 +130,6 @@ class LinkTXPacket(LinkPacket):
 		crc = int(out.decode("ASCII"), 16)
 		self.append(crc)
 
-def transport_callback(packet):
-	print("----")
-	for v in packet:
-		print("%08x" %v)
-	print("----")
-
 class LinkLayer(Module):
 	def  __init__(self, phy, debug, hold_random_level=0):
 		self.phy = phy
@@ -143,6 +138,11 @@ class LinkLayer(Module):
 		self.tx_packet = LinkTXPacket()
 		self.rx_packet = LinkRXPacket()
 		self.rx_cont = False
+
+		self.transport_callback = None
+
+	def set_transport_callback(self, callback):
+		self.transport_callback = callback
 
 	def callback(self, dword):
 		if dword == primitives["CONT"]:
@@ -161,7 +161,8 @@ class LinkLayer(Module):
 
 		elif dword == primitives["EOF"]:
 			self.rx_packet.decode()
-			transport_callback(self.rx_packet)
+			if self.transport_callback is not None:
+				self.transport_callback(self.rx_packet)
 			self.rx_packet.ongoing = False
 
 		elif self.rx_packet.ongoing:
@@ -188,8 +189,120 @@ class LinkLayer(Module):
 			yield from self.phy.receive()
 			self.callback(self.phy.rx.dword.dat)
 
+def get_field_data(field, packet):
+	return (packet[field.dword] >> field.offset) & (2**field.width-1)
+
+class FIS:
+	def __init__(self, packet, layout):
+		self.packet = packet
+		self.layout = layout
+		self.decode()
+
+	def decode(self):
+		for k, v in self.layout.items():
+			setattr(self, k, get_field_data(v, self.packet))
+
+	def encode(self):
+		for k, v in self.layout.items():
+			self.packet[v.dword] |= (getattr(self, k) << v.offset)
+
+	def __repr__(self):
+		r = "--------\n"
+		for k in sorted(self.layout.keys()):
+			r += k + " : 0x%x" %getattr(self,k) + "\n"
+		return r
+
+class FIS_REG_H2D(FIS):
+	def __init__(self, packet=[0]*fis_reg_h2d_len):
+		FIS.__init__(self, packet,fis_reg_h2d_layout)
+
+	def __repr__(self):
+		r = "FIS_REG_H2D\n"
+		r += FIS.__repr__(self)
+		return r
+
+class FIS_REG_D2H(FIS):
+	def __init__(self, packet=[0]*fis_reg_d2h_len):
+		FIS.__init__(self, packet,fis_reg_d2h_layout)
+
+	def __repr__(self):
+		r = "FIS_REG_D2H\n"
+		r += FIS.__repr__(self)
+		return r
+
+class FIS_DMA_ACTIVATE_D2H(FIS):
+	def __init__(self, packet=[0]*fis_dma_activate_d2h_len):
+		FIS.__init__(self, packet,fis_dma_activate_d2h_layout)
+
+	def __repr__(self):
+		r = "FIS_DMA_ACTIVATE_D2H\n"
+		r += FIS.__repr__(self)
+		return r
+
+class FIS_DMA_SETUP(FIS):
+	def __init__(self, packet=[0]*fis_dma_setup_len):
+		FIS.__init__(self, packet,fis_dma_setup_layout)
+
+	def __repr__(self):
+		r = "FIS_DMA_SETUP\n"
+		r += FIS.__repr__(self)
+		return r
+
+class FIS_DATA(FIS):
+	def __init__(self, packet=[0]):
+		FIS.__init__(self, packet,fis_data_layout)
+
+	def __repr__(self):
+		r = "FIS_DATA\n"
+		r += FIS.__repr__(self)
+		return r
+
+class FIS_PIO_SETUP_D2H(FIS):
+	def __init__(self, packet=[0]*fis_pio_setup_d2h_len):
+		FIS.__init__(self, packet,fis_pio_setup_d2h_layout)
+
+	def __repr__(self):
+		r = "FIS_PIO_SETUP\n"
+		r += FIS.__repr__(self)
+		return r
+
+class FIS_UNKNOWN(FIS):
+	def __init__(self, packet=[0]):
+		FIS.__init__(self, packet, {})
+
+	def __repr__(self):
+		r = "UNKNOWN\n"
+		r += "--------\n"
+		for dword in self.packet:
+			r += "%08x\n" %dword
+		return r
+
+class TransportLayer(Module):
+	def __init__(self, link):
+		pass
+
+	def callback(self, packet):
+		fis_type = packet[0]
+		if fis_type == fis_types["REG_H2D"]:
+			fis = FIS_REG_H2D(packet)
+		elif fis_type == fis_types["REG_D2H"]:
+			fis = FIS_REG_D2H(packet)
+		elif fis_type == fis_types["DMA_ACTIVATE_D2H"]:
+			fis = FIS_DMA_ACTIVATE_D2H(packet)
+		elif fis_type == fis_types["DMA_SETUP"]:
+			fis = FIS_SETUP(packet)
+		elif fis_type == fis_types["DATA"]:
+			fis = FIS_DATA(packet)
+		elif fis_type == fis_types["PIO_SETUP_D2H"]:
+			fis = FIS_PIO_SETUP_D2H(packet)
+		else:
+			fis = FIS_UNKNOWN(packet)
+		print(fis)
+
 class BFM(Module):
 	def __init__(self, dw, debug=False, hold_random_level=0):
 		###
 		self.submodules.phy = PHYLayer(debug)
 		self.submodules.link = LinkLayer(self.phy, debug, hold_random_level)
+		self.submodules.transport = TransportLayer(self.link)
+		self.link.set_transport_callback(self.transport.callback)
