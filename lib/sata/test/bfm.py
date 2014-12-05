@@ -143,6 +143,8 @@ class LinkLayer(Module):
 		self.tx_packet = LinkTXPacket()
 		self.rx_packet = LinkRXPacket()
 		self.rx_cont = False
+		self.tx_cont = False
+		self.tx_cont_primitive = 0
 
 		self.transport_callback = None
 
@@ -186,6 +188,14 @@ class LinkLayer(Module):
 			self.rx_packet.ongoing = True
 
 	def send(self, dword):
+		if dword == primitives["CONT"]:
+			self.tx_cont = True
+		elif is_primitive(dword):
+			self.tx_cont = False
+			self.tx_cont_primitive = dword
+		if self.tx_cont:
+			dword = self.tx_cont_primitive
+
 		if self.send_state == "RDY":
 			self.phy.send(primitives["X_RDY"])
 			if dword == primitives["R_RDY"]:
@@ -194,9 +204,12 @@ class LinkLayer(Module):
 			self.phy.send(primitives["SOF"])
 			self.send_state = "DATA"
 		elif self.send_state == "DATA":
-			self.phy.send(self.tx_packet.pop(0))
-			if len(self.tx_packet) == 0:
-				self.send_state = "EOF"
+			if dword == primitives["HOLD"]:
+				self.phy.send(primitives["HOLDA"])
+			else:
+				self.phy.send(self.tx_packet.pop(0))
+				if len(self.tx_packet) == 0:
+					self.send_state = "EOF"
 		elif self.send_state == "EOF":
 			self.phy.send(primitives["EOF"])
 			self.send_state = "WTRM"
@@ -209,6 +222,7 @@ class LinkLayer(Module):
 
 	def gen_simulation(self, selfp):
 		self.tx_packet.done = True
+		self.phy.send(primitives["SYNC"])
 		while True:
 			yield from self.phy.receive()
 			self.phy.send(primitives["SYNC"])

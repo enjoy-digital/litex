@@ -1,13 +1,11 @@
 from migen.fhdl.std import *
 from migen.genlib.fsm import FSM, NextState
+from migen.actorlib.fifo import SyncFIFO
 
 from lib.sata.std import *
 from lib.sata.link.crc import SATACRCInserter, SATACRCChecker
 from lib.sata.link.scrambler import SATAScrambler
 from lib.sata.link.cont import SATACONTInserter, SATACONTRemover
-
-#TODO:
-# -Test HOLD on RX path
 
 from_rx = [
 	("idle", 1),
@@ -152,6 +150,9 @@ class SATALinkLayerRX(Module):
 				sop.eq(0)
 			)
 
+		# small fifo to manage HOLD
+		self.submodules.fifo = SyncFIFO(link_layout(32), 32)
+
 		# graph
 		self.sync += \
 			If(fsm.ongoing("COPY") & (det == 0),
@@ -165,7 +166,8 @@ class SATALinkLayerRX(Module):
 			scrambler.sink.eop.eq(det == primitives["EOF"]),
 			cont.source.ack.eq(1),
 			Record.connect(scrambler.source, crc.sink),
-			Record.connect(crc.source, self.source)
+			Record.connect(crc.source, self.fifo.sink),
+			Record.connect(self.fifo.source, self.source)
 		]
 
 		# FSM
@@ -187,6 +189,8 @@ class SATALinkLayerRX(Module):
 				insert.eq(primitives["HOLDA"])
 			).Elif(det == primitives["EOF"],
 				NextState("WTRM")
+			).Elif(self.fifo.fifo.level > 8,
+				insert.eq(primitives["HOLD"])
 			)
 		)
 		fsm.act("EOF",
