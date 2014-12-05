@@ -11,8 +11,8 @@ from lib.sata.test.bfm import *
 from lib.sata.test.common import *
 
 class LinkStreamer(Module):
-	def __init__(self, dw):
-		self.source = Source(link_layout(dw))
+	def __init__(self):
+		self.source = Source(link_layout(32))
 		###
 		self.packets = []
 		self.packet = LinkTXPacket()
@@ -43,8 +43,8 @@ class LinkStreamer(Module):
 				selfp.source.stb = 0
 
 class LinkLogger(Module):
-	def __init__(self, dw):
-		self.sink = Sink(link_layout(dw))
+	def __init__(self):
+		self.sink = Sink(link_layout(32))
 		###
 		self.packet = LinkRXPacket()
 
@@ -57,6 +57,7 @@ class LinkLogger(Module):
 		selfp.sink.ack = 1
 		if selfp.sink.stb == 1 and selfp.sink.sop == 1:
 			self.packet = LinkRXPacket()
+			print("rx : %08x" %selfp.sink.d)
 			self.packet.append(selfp.sink.d)
 		elif selfp.sink.stb:
 			self.packet.append(selfp.sink.d)
@@ -65,13 +66,14 @@ class LinkLogger(Module):
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.bfm = BFM(32, debug=True, hold_random_level=50)
+		self.submodules.bfm = BFM(phy_debug=False,
+				link_random_level=50, transport_debug=False, transport_loopback=True)
 		self.submodules.link_layer = SATALinkLayer(self.bfm.phy)
 
-		self.submodules.streamer = LinkStreamer(32)
+		self.submodules.streamer = LinkStreamer()
 		streamer_ack_randomizer = AckRandomizer(link_layout(32), level=50)
 		self.submodules += streamer_ack_randomizer
-		self.submodules.logger = LinkLogger(32)
+		self.submodules.logger = LinkLogger()
 		self.comb += [
 			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),
 			Record.connect(streamer_ack_randomizer.source, self.link_layer.sink),
@@ -79,10 +81,16 @@ class TB(Module):
 		]
 
 	def gen_simulation(self, selfp):
-		for i in range(200):
+		for i in range(24):
 			yield
 		for i in range(8):
 			yield from self.streamer.send(LinkTXPacket([i for i in range(16)]))
+			yield from self.logger.receive()
+			print("Logger:")
+			print("-------")
+			for v in self.logger.packet:
+				print("%08x" %v)
+
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=512, vcd_name="my.vcd", keep_files=True)

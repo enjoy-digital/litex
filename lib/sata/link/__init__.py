@@ -6,8 +6,8 @@ from lib.sata.link.crc import SATACRCInserter, SATACRCChecker
 from lib.sata.link.scrambler import SATAScrambler
 from lib.sata.link.cont import SATACONTInserter, SATACONTRemover
 
-# TODO:
-# - Do more tests
+#TODO:
+# -Test HOLD on RX path
 
 from_rx = [
 	("idle", 1),
@@ -67,16 +67,19 @@ class SATALinkLayerTX(Module):
 
 		# FSM
 		fsm.act("IDLE",
-			insert.eq(primitives["SYNC"]),
-			If(scrambler.source.stb & scrambler.source.sop,
-				If(self.from_rx.idle,
-					NextState("RDY")
+			scrambler.reset.eq(1),
+			If(self.from_rx.idle,
+				insert.eq(primitives["SYNC"]),
+				If(scrambler.source.stb & scrambler.source.sop,
+					NextState("RDY"),
 				)
 			)
 		)
 		fsm.act("RDY",
 			insert.eq(primitives["X_RDY"]),
-			If(self.from_rx.det == primitives["R_RDY"],
+			If(~self.from_rx.idle,
+				NextState("IDLE")
+			).Elif(self.from_rx.det == primitives["R_RDY"],
 				NextState("SOF")
 			)
 		)
@@ -141,12 +144,25 @@ class SATALinkLayerRX(Module):
 		crc = SATACRCChecker(link_layout(32))
 		self.submodules += crc
 
+		sop = Signal()
+		self.sync += \
+			If(fsm.ongoing("RDY"),
+				sop.eq(1)
+			).Elif(scrambler.sink.stb & scrambler.sink.ack,
+				sop.eq(0)
+			)
+
 		# graph
-		self.comb += [
+		self.sync += \
 			If(fsm.ongoing("COPY") & (det == 0),
 				scrambler.sink.stb.eq(cont.source.stb & (cont.source.charisk == 0)),
 				scrambler.sink.d.eq(cont.source.data),
-			),
+			).Else(
+				scrambler.sink.stb.eq(0)
+			)
+		self.comb += [
+			scrambler.sink.sop.eq(sop),
+			scrambler.sink.eop.eq(det == primitives["EOF"]),
 			cont.source.ack.eq(1),
 			Record.connect(scrambler.source, crc.sink),
 			Record.connect(crc.source, self.source)
@@ -154,6 +170,7 @@ class SATALinkLayerRX(Module):
 
 		# FSM
 		fsm.act("IDLE",
+			scrambler.reset.eq(1),
 			If(det == primitives["X_RDY"],
 				NextState("RDY")
 			)
@@ -165,6 +182,7 @@ class SATALinkLayerRX(Module):
 			)
 		)
 		fsm.act("COPY",
+			insert.eq(primitives["R_IP"]),
 			If(det == primitives["HOLD"],
 				insert.eq(primitives["HOLDA"])
 			).Elif(det == primitives["EOF"],

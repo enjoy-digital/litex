@@ -49,7 +49,7 @@ class PHYSink(Module):
 			self.dword.dat = selfp.sink.data
 
 class PHYLayer(Module):
-	def __init__(self, debug):
+	def __init__(self, debug=False):
 		self.debug = debug
 
 		self.submodules.rx = PHYSink()
@@ -116,8 +116,8 @@ class LinkRXPacket(LinkPacket):
 
 class LinkTXPacket(LinkPacket):
 	def encode(self):
-		self.scramble()
 		self.insert_crc()
+		self.scramble()
 
 	def scramble(self):
 		for i in range(len(self)):
@@ -125,7 +125,7 @@ class LinkTXPacket(LinkPacket):
 
 	def insert_crc(self):
 		stdin = ""
-		for v in self[:-1]:
+		for v in self:
 			stdin += "0x%08x " %v
 		stdin += "exit"
 		with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
@@ -135,15 +135,19 @@ class LinkTXPacket(LinkPacket):
 		self.append(crc)
 
 class LinkLayer(Module):
-	def  __init__(self, phy, debug, hold_random_level=0):
+	def  __init__(self, phy, debug=False, random_level=0):
 		self.phy = phy
 		self.debug = debug
-		self.hold_random_level = hold_random_level
+		self.random_level = random_level
+		self.tx_packets = []
 		self.tx_packet = LinkTXPacket()
 		self.rx_packet = LinkRXPacket()
 		self.rx_cont = False
 
 		self.transport_callback = None
+
+		self.send_state = ""
+		self.send_states = ["RDY", "SOF", "DATA", "EOF", "WTRM"]
 
 	def set_transport_callback(self, callback):
 		self.transport_callback = callback
@@ -156,42 +160,68 @@ class LinkLayer(Module):
 
 		if dword == primitives["X_RDY"]:
 			self.phy.send(primitives["R_RDY"])
-
 		elif dword == primitives["WTRM"]:
 			self.phy.send(primitives["R_OK"])
-
+			if self.rx_packet.ongoing:
+				self.rx_packet.decode()
+				if self.transport_callback is not None:
+					self.transport_callback(self.rx_packet)
+				self.rx_packet.ongoing = False
 		elif dword == primitives["HOLD"]:
 			self.phy.send(primitives["HOLDA"])
-
 		elif dword == primitives["EOF"]:
-			self.rx_packet.decode()
-			if self.transport_callback is not None:
-				self.transport_callback(self.rx_packet)
-			self.rx_packet.ongoing = False
-
+			pass
 		elif self.rx_packet.ongoing:
 			if dword != primitives["HOLD"]:
 				n = randn(100)
-				if n < self.hold_random_level:
+				if n < self.random_level:
 					self.phy.send(primitives["HOLD"])
 				else:
-					self.phy.send(primitives["R_RDY"])
+					self.phy.send(primitives["R_IP"])
 				if not is_primitive(dword):
 					if not self.rx_cont:
 						self.rx_packet.append(dword)
-
 		elif dword == primitives["SOF"]:
 			self.rx_packet = LinkRXPacket()
 			self.rx_packet.ongoing = True
 
-	def send(self, packet):
-		pass
+	def send(self, dword):
+		if self.send_state == "RDY":
+			self.phy.send(primitives["X_RDY"])
+			if dword == primitives["R_RDY"]:
+				self.send_state = "SOF"
+		elif self.send_state == "SOF":
+			self.phy.send(primitives["SOF"])
+			self.send_state = "DATA"
+		elif self.send_state == "DATA":
+			self.phy.send(self.tx_packet.pop(0))
+			if len(self.tx_packet) == 0:
+				self.send_state = "EOF"
+		elif self.send_state == "EOF":
+			self.phy.send(primitives["EOF"])
+			self.send_state = "WTRM"
+		elif self.send_state == "WTRM":
+			self.phy.send(primitives["WTRM"])
+			if dword == primitives["R_OK"]:
+				self.tx_packet.done = True
+			elif dword == primitives["R_ERR"]:
+				self.tx_packet.done = True
 
 	def gen_simulation(self, selfp):
-		self.phy.send(primitives["SYNC"])
+		self.tx_packet.done = True
 		while True:
 			yield from self.phy.receive()
-			self.callback(self.phy.rx.dword.dat)
+			self.phy.send(primitives["SYNC"])
+			rx_dword = self.phy.rx.dword.dat
+			if len(self.tx_packets) != 0:
+				if self.tx_packet.done:
+					self.tx_packet = self.tx_packets.pop(0)
+					self.tx_packet.encode()
+					self.send_state = "RDY"
+			if not self.tx_packet.done:
+				self.send(rx_dword)
+			else:
+				self.callback(self.phy.rx.dword.dat)
 
 def get_field_data(field, packet):
 	return (packet[field.dword] >> field.offset) & (2**field.width-1)
@@ -282,8 +312,11 @@ class FIS_UNKNOWN(FIS):
 		return r
 
 class TransportLayer(Module):
-	def __init__(self, link):
-		pass
+	def __init__(self, link, debug=False, loopback=False):
+		self.link = link
+		self.debug = debug
+		self.loopback = loopback
+		self.link.set_transport_callback(self.callback)
 
 	def callback(self, packet):
 		fis_type = packet[0]
@@ -301,12 +334,19 @@ class TransportLayer(Module):
 			fis = FIS_PIO_SETUP_D2H(packet)
 		else:
 			fis = FIS_UNKNOWN(packet)
-		print(fis)
+		if self.debug:
+			print(fis)
+		if self.loopback:
+			packet = LinkTXPacket(fis.packet)
+			self.link.tx_packets.append(packet)
 
 class BFM(Module):
-	def __init__(self, dw, debug=False, hold_random_level=0):
+	def __init__(self,
+			phy_debug=False,
+			link_debug=False, link_random_level=0,
+			transport_debug=False, transport_loopback=False
+			):
 		###
-		self.submodules.phy = PHYLayer(debug)
-		self.submodules.link = LinkLayer(self.phy, debug, hold_random_level)
-		self.submodules.transport = TransportLayer(self.link)
-		self.link.set_transport_callback(self.transport.callback)
+		self.submodules.phy = PHYLayer(phy_debug)
+		self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
+		self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)

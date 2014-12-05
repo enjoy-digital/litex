@@ -3,7 +3,6 @@ from migen.genlib.misc import optree
 
 from lib.sata.std import *
 
-@DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class Scrambler(Module):
 	"""SATA Scrambler
@@ -68,6 +67,7 @@ class Scrambler(Module):
 
 		self.comb += self.value.eq(next_value)
 
+@DecorateModule(InsertReset)
 class SATAScrambler(Module):
 	def __init__(self, layout):
 		self.sink = sink = Sink(layout)
@@ -76,18 +76,8 @@ class SATAScrambler(Module):
 		###
 
 		self.submodules.scrambler = Scrambler()
-		ongoing = Signal()
-		self.sync += \
-			If(sink.stb & sink.ack,
-				If(sink.eop,
-					ongoing.eq(0)
-				).Elif(sink.sop,
-					ongoing.eq(1)
-				)
-			)
 		self.comb += [
-			self.scrambler.ce.eq(sink.stb & sink.ack & (sink.sop | ongoing)),
-			self.scrambler.reset.eq(~(sink.sop | ongoing)),
+			self.scrambler.ce.eq(sink.stb & sink.ack),
 			Record.connect(sink, source),
 			source.d.eq(sink.d ^ self.scrambler.value)
 		]

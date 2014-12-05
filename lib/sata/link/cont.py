@@ -48,7 +48,7 @@ class SATACONTInserter(Module):
 			)
 
 		# scrambler (between CONT and next primitive)
-		scrambler = Scrambler()
+		scrambler = InsertReset(Scrambler())
 		self.submodules += scrambler
 		self.comb += [
 			scrambler.reset.eq(ResetSignal()), #XXX: should be reseted on COMINIT / COMRESET
