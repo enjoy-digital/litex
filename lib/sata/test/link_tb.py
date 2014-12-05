@@ -7,8 +7,8 @@ from migen.sim.generic import run_simulation
 from lib.sata.std import *
 from lib.sata.link import SATALinkLayer
 
-from lib.sata.link.test.bfm import *
-from lib.sata.link.test.common import *
+from lib.sata.test.bfm import *
+from lib.sata.test.common import *
 
 class LinkPacket():
 	def __init__(self, d=[]):

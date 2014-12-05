@@ -3,8 +3,9 @@ import subprocess
 from migen.fhdl.std import *
 
 from lib.sata.std import *
-from lib.sata.link.test.common import *
 from lib.sata.transport.std import *
+
+from lib.sata.test.common import *
 
 class PHYDword:
 	def __init__(self, dat=0):

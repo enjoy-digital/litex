@@ -1,4 +1,4 @@
-MSCDIR = ../../../../
+MSCDIR = ../../../
 PYTHON = python3
 
 CMD = PYTHONPATH=$(MSCDIR) $(PYTHON)
