@@ -79,9 +79,12 @@ class PHYLayer(Module):
 		return receiving + sending
 
 class LinkPacket(list):
-	def __init__(self):
+	def __init__(self, init=[]):
 		self.ongoing = False
+		self.done = False
 		self.scrambled_datas = self.import_scrambler_datas()
+		for dword in init:
+			self.append(dword)
 
 	def import_scrambler_datas(self):
 		with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
