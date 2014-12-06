@@ -66,14 +66,14 @@ class LinkLogger(Module):
 class TB(Module):
 	def __init__(self):
 		self.submodules.bfm = BFM(phy_debug=False,
-				link_random_level=50, transport_debug=True, transport_loopback=True)
+				link_random_level=50, transport_debug=False, transport_loopback=True)
 		self.submodules.link_layer = SATALinkLayer(self.bfm.phy)
 
 		self.submodules.streamer = LinkStreamer()
 		streamer_ack_randomizer = AckRandomizer(link_layout(32), level=50)
 		self.submodules += streamer_ack_randomizer
 		self.submodules.logger = LinkLogger()
-		logger_ack_randomizer = AckRandomizer(link_layout(32), level=80)
+		logger_ack_randomizer = AckRandomizer(link_layout(32), level=50)
 		self.submodules += logger_ack_randomizer
 		self.comb += [
 			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),
@@ -86,12 +86,13 @@ class TB(Module):
 		for i in range(24):
 			yield
 		for i in range(8):
+			streamer_packet = LinkTXPacket([i for i in range(64)])
 			yield from self.streamer.send(LinkTXPacket([i for i in range(64)]))
 			yield from self.logger.receive()
-			print("Logger:")
-			print("-------")
-			for v in self.logger.packet:
-				print("%08x" %v)
+
+			# check results
+			s, l, e = check(streamer_packet, self.logger.packet)
+			print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 
 if __name__ == "__main__":
