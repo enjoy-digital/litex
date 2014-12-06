@@ -63,9 +63,9 @@ class PHYLayer(Module):
 		self.tx.send(packet)
 
 	def receive(self):
-		yield from self.rx.receive()
 		if self.debug:
 				print(self)
+		yield from self.rx.receive()
 
 	def __repr__(self):
 		receiving = "%08x " %self.rx.dword.dat
@@ -78,19 +78,19 @@ class PHYLayer(Module):
 
 		return receiving + sending
 
+def import_scrambler_datas():
+	with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+		process.stdin.write("0x10000".encode("ASCII"))
+		out, err = process.communicate()
+	return [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
+
 class LinkPacket(list):
 	def __init__(self, init=[]):
 		self.ongoing = False
 		self.done = False
-		self.scrambled_datas = self.import_scrambler_datas()
+		self.scrambled_datas = import_scrambler_datas()
 		for dword in init:
 			self.append(dword)
-
-	def import_scrambler_datas(self):
-		with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
-			process.stdin.write("0x10000".encode("ASCII"))
-			out, err = process.communicate()
-		return [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
 
 class LinkRXPacket(LinkPacket):
 	def decode(self):
@@ -142,9 +142,14 @@ class LinkLayer(Module):
 		self.tx_packets = []
 		self.tx_packet = LinkTXPacket()
 		self.rx_packet = LinkRXPacket()
+
 		self.rx_cont = False
+		self.rx_last = 0
 		self.tx_cont = False
-		self.tx_cont_primitive = 0
+		self.tx_cont_nb = -1
+		self.tx_lasts = [0, 0, 0]
+
+		self.scrambled_datas = import_scrambler_datas()
 
 		self.transport_callback = None
 
@@ -154,12 +159,20 @@ class LinkLayer(Module):
 	def set_transport_callback(self, callback):
 		self.transport_callback = callback
 
-	def callback(self, dword):
+	def remove_cont(self, dword):
+		if dword == primitives["HOLD"]:
+			if self.rx_cont:
+				self.tx_lasts = [0, 0, 0]
 		if dword == primitives["CONT"]:
 			self.rx_cont = True
 		elif is_primitive(dword):
+			self.rx_last = dword
 			self.rx_cont = False
+		if self.rx_cont:
+			dword = self.rx_last
+		return dword
 
+	def callback(self, dword):
 		if dword == primitives["X_RDY"]:
 			self.phy.send(primitives["R_RDY"])
 		elif dword == primitives["WTRM"]:
@@ -181,21 +194,12 @@ class LinkLayer(Module):
 				else:
 					self.phy.send(primitives["R_IP"])
 				if not is_primitive(dword):
-					if not self.rx_cont:
 						self.rx_packet.append(dword)
 		elif dword == primitives["SOF"]:
 			self.rx_packet = LinkRXPacket()
 			self.rx_packet.ongoing = True
 
 	def send(self, dword):
-		if dword == primitives["CONT"]:
-			self.tx_cont = True
-		elif is_primitive(dword):
-			self.tx_cont = False
-			self.tx_cont_primitive = dword
-		if self.tx_cont:
-			dword = self.tx_cont_primitive
-
 		if self.send_state == "RDY":
 			self.phy.send(primitives["X_RDY"])
 			if dword == primitives["R_RDY"]:
@@ -220,6 +224,24 @@ class LinkLayer(Module):
 			elif dword == primitives["R_ERR"]:
 				self.tx_packet.done = True
 
+	def insert_cont(self):
+		self.tx_lasts.pop(0)
+		self.tx_lasts.append(self.phy.tx.dword.dat)
+		self.tx_cont = True
+		for i in range(3):
+			if not is_primitive(self.tx_lasts[i]):
+				self.tx_cont = False
+			if self.tx_lasts[i] != self.tx_lasts[0]:
+				self.tx_cont = False
+		if self.tx_cont:
+			if self.tx_cont_nb == 0:
+				self.phy.send(primitives["CONT"])
+			else:
+				self.phy.send(self.scrambled_datas[self.tx_cont_nb])
+			self.tx_cont_nb += 1
+		else:
+			self.tx_cont_nb = 0
+
 	def gen_simulation(self, selfp):
 		self.tx_packet.done = True
 		self.phy.send(primitives["SYNC"])
@@ -227,6 +249,7 @@ class LinkLayer(Module):
 			yield from self.phy.receive()
 			self.phy.send(primitives["SYNC"])
 			rx_dword = self.phy.rx.dword.dat
+			rx_dword = self.remove_cont(rx_dword)
 			if len(self.tx_packets) != 0:
 				if self.tx_packet.done:
 					self.tx_packet = self.tx_packets.pop(0)
@@ -235,7 +258,8 @@ class LinkLayer(Module):
 			if not self.tx_packet.done:
 				self.send(rx_dword)
 			else:
-				self.callback(self.phy.rx.dword.dat)
+				self.callback(rx_dword)
+			self.insert_cont()
 
 def get_field_data(field, packet):
 	return (packet[field.dword] >> field.offset) & (2**field.width-1)

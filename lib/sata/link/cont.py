@@ -22,23 +22,28 @@ class SATACONTInserter(Module):
 		cont_insert = Signal()
 		scrambler_insert = Signal()
 		last_primitive_insert = Signal()
+		last_primitive_insert_d = Signal()
 
 		self.comb += [
 			is_primitive.eq(sink.charisk != 0),
 			change.eq((sink.data != last_primitive) | ~is_primitive),
 			cont_insert.eq(~change & (cnt==1)),
 			scrambler_insert.eq(~change & (cnt==2)),
-			last_primitive_insert.eq(~is_primitive & last_was_primitive & (cnt==2))
+			last_primitive_insert.eq((cnt==2) & (
+				(~is_primitive & last_was_primitive) |
+				(is_primitive & (last_primitive == primitives["HOLD"]) & (last_primitive != sink.data))))
 		]
+
 		self.sync += \
 			If(sink.stb & source.ack,
+				last_primitive_insert_d.eq(last_primitive_insert),
 				If(is_primitive,
 					last_primitive.eq(sink.data),
 					last_was_primitive.eq(1)
 				).Else(
 					last_was_primitive.eq(0)
 				),
-				If(change,
+				If(change | last_primitive_insert_d,
 					cnt.eq(0)
 				).Else(
 					If(~scrambler_insert,
@@ -89,7 +94,7 @@ class SATACONTRemover(Module):
 
 		self.comb += [
 			is_primitive.eq(sink.charisk != 0),
-			is_cont.eq(is_primitive & sink.data == primitives["CONT"])
+			is_cont.eq(is_primitive & (sink.data == primitives["CONT"]))
 		]
 		self.sync += \
 			If(is_cont,
