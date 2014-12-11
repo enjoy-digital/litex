@@ -137,6 +137,11 @@ class K7SATAPHYDatapath(Module):
 			)
 		send_align = (align_cnt < 2)
 
+		receive_align = Signal()
+		self.comb += receive_align.eq(rx.source.stb &
+						(rx.source.charisk == 0b0001) &
+						(rx.source.data == primitives["ALIGN"])
+
 	# user / ctrl mux
 		self.comb += [
 			# user
@@ -152,10 +157,14 @@ class K7SATAPHYDatapath(Module):
 					tx.sink.charisk.eq(self.sink.charisk),
 					self.sink.ack.eq(tx.sink.ack)
 				),
-				self.source.stb.eq(rx.source.stb),
-				self.source.data.eq(rx.source.data),
-				self.source.charisk.eq(rx.source.charisk),
-				rx.source.ack.eq(1),
+				If(receive_align,
+					rx.source.ack.eq(1)
+				).Else(
+					self.source.stb.eq(rx.source.stb),
+					self.source.data.eq(rx.source.data),
+					self.source.charisk.eq(rx.source.charisk),
+					rx.source.ack.eq(1)
+				)
 			# ctrl
 			).Else(
 				tx.sink.stb.eq(ctrl.source.stb),
