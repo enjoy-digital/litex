@@ -13,7 +13,7 @@ class FISField():
 		self.offset = offset
 		self.width = width
 
-fis_reg_h2d_len = 5
+fis_reg_h2d_cmd_len = 5
 fis_reg_h2d_layout = {
 	"type":         FISField(0,  0, 8),
 	"pm_port":      FISField(0,  8, 4),
@@ -22,7 +22,7 @@ fis_reg_h2d_layout = {
 	"features_lsb": FISField(0, 24, 8),
 
 	"lba_lsb":      FISField(1, 0, 24),
-	"device":       FISField(1, 24, 0),
+	"device":       FISField(1, 24, 8),
 
 	"lba_msb":      FISField(2, 0, 24),
 	"features_msb": FISField(2, 24, 8),
@@ -32,7 +32,7 @@ fis_reg_h2d_layout = {
 	"control":      FISField(3, 24, 8)
 }
 
-fis_reg_d2h_len = 5
+fis_reg_d2h_cmd_len = 5
 fis_reg_d2h_layout = {
 	"type":    FISField(0,  0, 8),
 	"pm_port": FISField(0,  8, 4),
@@ -41,20 +41,20 @@ fis_reg_d2h_layout = {
 	"error":   FISField(0, 24, 8),
 
 	"lba_lsb": FISField(1, 0, 24),
-	"device":  FISField(1, 24, 0),
+	"device":  FISField(1, 24, 8),
 
 	"lba_msb": FISField(2, 0, 24),
 
 	"count":   FISField(3, 0, 16)
 }
 
-fis_dma_activate_d2h_len = 1
+fis_dma_activate_d2h_cmd_len = 1
 fis_dma_activate_d2h_layout = {
 	"type":    FISField(0,  0, 8),
 	"pm_port": FISField(0,  8, 4)
 }
 
-fis_dma_setup_len = 7
+fis_dma_setup_cmd_len = 7
 fis_dma_setup_layout = {
 	"type":               FISField(0,  0, 8),
 	"pm_port":            FISField(0,  8, 4),
@@ -71,6 +71,7 @@ fis_dma_setup_layout = {
 	"dma_transfer_count": FISField(4, 0, 32)
 }
 
+fis_data_cmd_len = 1
 fis_data_layout = {
 	"type": FISField(0,  0, 8)
 }
@@ -85,7 +86,7 @@ fis_pio_setup_d2h_layout = {
 	"error":          FISField(0, 24, 8),
 
 	"lba_lsb":        FISField(1, 0, 24),
-	"device":         FISField(1, 24, 0),
+	"device":         FISField(1, 24, 8),
 
 	"lba_msb":        FISField(2, 0, 24),
 
