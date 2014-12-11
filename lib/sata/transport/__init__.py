@@ -114,10 +114,163 @@ class SATATransportLayerTX(Module):
 				cnt.eq(cnt+1)
 			)
 
+def _decode_cmd(signal, layout, obj):
+	r = []
+	for k, v in sorted(layout.items()):
+		start = v.word*32+v.offset
+		end = start+v.width
+		r.append(getattr(obj, k).eq(signal[start:end]))
+	return r
+
 class SATATransportLayerRX(Module):
 	def __init__(self, link):
 		self.cmd = Source(transport_cmd_rx_layout())
 		self.data = Source(transport_data_layout(32))
+
+		###
+
+		cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len, fis_dma_setup_cmd_len,
+						fis_data_cmd_len, fis_pio_setup_d2h_len)
+		encoded_cmd = Signal(cmd_ndwords*32)
+
+		cnt = Signal(max=cmd_ndwords+1)
+		clr_cnt = Signal()
+		inc_cnt = Signal()
+
+		cmd_len = Signal(flen(cnt))
+
+		cmd_receive = Signal()
+		data_receive = Signal()
+		cmd_done = Signal()
+		data_done = Signal()
+
+		fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
+
+		def test_type(name):
+			return link.source.d[:8] == fis_types[name]
+
+		fsm.act("IDLE",
+			If(link.source.stb & link.source.sop,
+				If(test_type("REG_D2H"]),
+					NextState("RECEIVE_REG_D2H_CMD")
+				).Elif(test_type("DMA_ACTIVATE_D2H"),
+					NextState("RECEIVE_DMA_ACTIVATE_D2H_CMD")
+				).Elif(test_type("DMA_SETUP"),
+					NextState("RECEIVE_DMA_SETUP_CMD"),
+				).Elif(test_type("DATA"),
+					NextState("RECEIVE_DATA_CMD"),
+				).Elif(test_type("PIO_SETUP_D2H"),
+					NextState("RECEIVE_PIO_SETUP_D2H_CMD"),
+				).Else(
+					# XXX: Better to ack?
+					link.source.ack.eq(1)
+				)
+			).Else(
+				link.source.ack.eq(1)
+			)
+		)
+		fsm.act("RECEIVE_REG_D2H_CMD",
+			cmd_len.eq(fis_reg_d2h_cmd_len),
+			cmd_receive.eq(1),
+			If(cmd_done,
+				NextState("PRESENT_REG_D2H_CMD")
+			)
+		)
+		fsm.act("PRESENT_REG_D2H_CMD",
+			cmd.stb.eq(1),
+			_decode_cmd(encoded_cmd, fis_reg_d2h_layout ,cmd),
+			If(cmd.ack,
+				NextState("IDLE")
+			)
+		)
+		fsm.act("RECEIVE_DMA_ACTIVATE_D2H_CMD",
+			cmd_len.eq(fis_dma_activate_d2h_cmd_len),
+			cmd_receive.eq(1),
+			If(cmd_done,
+				NextState("PRESENT_DMA_ACTIVATE_D2H_CMD")
+			)
+		)
+		fsm.act("PRESENT_DMA_ACTIVATE_D2H_CMD",
+			cmd.stb.eq(1),
+			_decode_cmd(encoded_cmd, fis_dma_activate_d2h_layout ,cmd),
+			If(cmd.ack,
+				NextState("IDLE")
+			)
+		)
+		fsm.act("RECEIVE_DMA_SETUP_CMD",
+			cmd_len.eq(fis_dma_setup_cmd_len),
+			cmd_receive.eq(1),
+			If(cmd_done,
+				NextState("PRESENT_DMA_SETUP_CMD")
+			)
+		)
+		fsm.act("PRESENT_DMA_SETUP_CMD",
+			cmd.stb.eq(1),
+			_decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout ,cmd),
+			If(cmd.ack,
+				NextState("IDLE")
+			)
+		)
+		fsm.act("RECEIVE_DATA_CMD",
+			cmd_len.eq(fis_data_cmd_len),
+			cmd_receive.eq(1),
+			If(cmd_done,
+				NextState("RECEIVE_DATA")
+			)
+		)
+		fsm.act("RECEIVE_DATA",
+			data_receive.eq(1),
+			If(data_done,
+				NextState("PRESENT_DATA_CMD")
+			)
+		)
+		fsm.act("DECODE_DATA",
+			cmd.stb.eq(1),
+			_decode_cmd(encoded_cmd, fis_data_layout ,cmd),
+			If(cmd.ack,
+				NextState("IDLE")
+			)
+		)
+		fsm.act("RECEIVE_PIO_SETUP_D2H_CMD",
+			cmd_len.eq(fis_pio_setup_d2h_len),
+			cmd_receive.eq(1),
+			If(cmd_done,
+				NextState("PRESENT_PIO_SETUP_D2H_CMD")
+			)
+		)
+		fsm.act("PRESENT_PIO_SETUP_D2H_CMD",
+			cmd.stb.eq(1),
+			_decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout ,cmd),
+			If(cmd.ack,
+				NextState("IDLE")
+			)
+		)
+
+		cmd_cases = {}
+		for i in range(cmd_ndwords):
+			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)]).eq(link.source.d)]
+
+		self.sync += \
+			If(cmd_receive,
+				If(link.source.stb,
+					Case(cnt, cmd_cases),
+					inc_cnt.eq(1),
+				).Else(
+					inc_cnt.eq(0)
+				)
+			)
+		self.comb += cmd_done.eq(cnt==cmd_len)
+
+		self.comb += \
+			If(data_receive,
+				data.stb.eq(link.source.stb),
+				data.sop.eq(0), # XXX
+				data.eop.eq(link.source.eop),
+				data.d.eq(link.source.d),
+				data_done.eq(link.source.stb & link.source.eop)
+			)
+		self.comb += link.source.ack.eq(cmd_receive | (data_receive & data.ack))
 
 class SATATransportLayer(Module):
 	def __init__(self, link):

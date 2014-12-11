@@ -67,7 +67,7 @@ def transport_cmd_tx_layout():
 		("dma_buffer_offset", 32),
 		("dma_transfer_count", 32),
 	]
-	return EndpointDescription(layout, packetized=True)
+	return EndpointDescription(layout, packetized=False)
 
 def transport_cmd_rx_layout():
 	layout = [
@@ -87,7 +87,7 @@ def transport_cmd_rx_layout():
 		("dma_buffer_offset", 32),
 		("dma_transfer_count", 32)
 	]
-	return EndpointDescription(layout, packetized=True)
+	return EndpointDescription(layout, packetized=False)
 
 def transport_data_layout(dw):
 	layout = [
