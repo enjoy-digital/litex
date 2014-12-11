@@ -62,9 +62,9 @@ fis_dma_setup_layout = {
 	"i":                  FISField(0, 14, 1),
 	"a":                  FISField(0, 15, 1),
 
-	"dma_buffer_id_low":  FISField(1, 0, 32),
+	"dma_buffer_id_lsb":  FISField(1, 0, 32),
 
-	"dma_buffer_id_high": FISField(2, 0, 32),
+	"dma_buffer_id_msb": FISField(2, 0, 32),
 
 	"dma_buffer_offset":  FISField(4, 0, 32),
 
@@ -76,7 +76,7 @@ fis_data_layout = {
 	"type": FISField(0,  0, 8)
 }
 
-fis_pio_setup_d2h_len = 5
+fis_pio_setup_d2h_cmd_len = 5
 fis_pio_setup_d2h_layout = {
 	"type":           FISField(0,  0, 8),
 	"pm_port":        FISField(0,  8, 4),

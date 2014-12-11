@@ -17,6 +17,9 @@ scrambler_tb:
 link_tb:
 	$(CMD) link_tb.py
 
+transport_tb:
+	$(CMD) transport_tb.py
+
 all: crc_tb scrambler_tb
 
 clean:

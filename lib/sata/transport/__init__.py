@@ -1,12 +1,21 @@
+from migen.fhdl.std import *
+from migen.genlib.fsm import FSM, NextState
+
 from lib.sata.std import *
 from lib.sata.transport.std import *
 
 def _encode_cmd(obj, layout, signal):
 	r = []
 	for k, v in sorted(layout.items()):
-		start = v.word*32 + v.offset
+		start = v.dword*32 + v.offset
 		end = start + v.width
-		r.append(signal[start:end].eq(getattr(obj, k)))
+		if "_lsb" in k:
+			item = getattr(obj, k.replace("_lsb", ""))[:v.width]
+		elif "_msb" in k:
+			item = getattr(obj, k.replace("_msb", ""))[v.width:2*v.width]
+		else:
+			item = getattr(obj, k)
+		r.append(signal[start:end].eq(item))
 	return r
 
 class SATATransportLayerTX(Module):
@@ -31,19 +40,21 @@ class SATATransportLayerTX(Module):
 		cmd_done = Signal()
 		data_done = Signal()
 
+		def test_type(name):
+			return cmd.type == fis_types[name]
+
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 
-		# FSM
 		fsm.act("IDLE",
 			clr_cnt.eq(1),
 			If(cmd.stb,
-				If(cmd.type == fis_types["REG_H2D"],
+				If(test_type("REG_H2D"),
 					NextState("SEND_REG_H2D_CMD")
-				).Elif(cmd.type == "DMA_SETUP_CMD",
-					NextState("SEND_DMA_SETUP")
-				).Elif(cmd.type == "DATA_CMD"),
-					NextState("SEND_DATA")
+				).Elif(test_type("DMA_SETUP"),
+					NextState("SEND_DMA_SETUP_CMD")
+				).Elif(test_type("DATA"),
+					NextState("SEND_DATA_CMD")
 				).Else(
 					# XXX: Generate error to command layer?
 					cmd.ack.eq(1)
@@ -53,37 +64,37 @@ class SATATransportLayerTX(Module):
 		fsm.act("SEND_REG_H2D_CMD",
 			_encode_cmd(self.cmd, fis_reg_h2d_layout, encoded_cmd),
 			cmd_len.eq(fis_reg_h2d_cmd_len),
-			cmd_send.eq(1)
-			If(ack_cmd,
-				NextState.eq("ACK")
+			cmd_send.eq(1),
+			If(cmd_done,
+				NextState("ACK")
 			)
 		)
 		fsm.act("SEND_DMA_SETUP_CMD",
 			_encode_cmd(self.cmd, fis_dma_setup_layout, encoded_cmd),
 			cmd_len.eq(fis_dma_setup_cmd_len),
 			cmd_send.eq(1),
-			If(ack_cmd,
-				NextState.eq("ACK")
+			If(cmd_done,
+				NextState("ACK")
 			)
 		)
 		fsm.act("SEND_DATA_CMD",
 			_encode_cmd(self.cmd, fis_data_layout, encoded_cmd),
-			cmd_len.eq(fis_send_data_cmd_len),
-			cmd_width_data.eq(1),
+			cmd_len.eq(fis_data_cmd_len),
+			cmd_with_data.eq(1),
 			cmd_send.eq(1),
 			If(cmd_done,
-				NextState.eq("SEND_DATA")
+				NextState("SEND_DATA")
 			)
 		)
 		fsm.act("SEND_DATA",
 			data_send.eq(1),
 			If(data_done,
-				NextState.eq("ACK")
+				NextState("ACK")
 			)
 		)
 		fsm.act("ACK",
 			cmd.ack.eq(1),
-			NextState.eq("IDLE")
+			NextState("IDLE")
 		)
 
 		cmd_cases = {}
@@ -117,20 +128,26 @@ class SATATransportLayerTX(Module):
 def _decode_cmd(signal, layout, obj):
 	r = []
 	for k, v in sorted(layout.items()):
-		start = v.word*32+v.offset
+		start = v.dword*32+v.offset
 		end = start+v.width
-		r.append(getattr(obj, k).eq(signal[start:end]))
+		if "_lsb" in k:
+			item = getattr(obj, k.replace("_lsb", ""))[:v.width]
+		elif "_msb" in k:
+			item = getattr(obj, k.replace("_msb", ""))[v.width:2*v.width]
+		else:
+			item = getattr(obj, k)
+		r.append(item.eq(signal[start:end]))
 	return r
 
 class SATATransportLayerRX(Module):
 	def __init__(self, link):
-		self.cmd = Source(transport_cmd_rx_layout())
-		self.data = Source(transport_data_layout(32))
+		self.cmd = cmd = Source(transport_cmd_rx_layout())
+		self.data = data = Source(transport_data_layout(32))
 
 		###
 
 		cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len, fis_dma_setup_cmd_len,
-						fis_data_cmd_len, fis_pio_setup_d2h_len)
+						fis_data_cmd_len, fis_pio_setup_d2h_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
 		cnt = Signal(max=cmd_ndwords+1)
@@ -144,15 +161,15 @@ class SATATransportLayerRX(Module):
 		cmd_done = Signal()
 		data_done = Signal()
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-
 		def test_type(name):
 			return link.source.d[:8] == fis_types[name]
 
+		fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
+
 		fsm.act("IDLE",
 			If(link.source.stb & link.source.sop,
-				If(test_type("REG_D2H"]),
+				If(test_type("REG_D2H"),
 					NextState("RECEIVE_REG_D2H_CMD")
 				).Elif(test_type("DMA_ACTIVATE_D2H"),
 					NextState("RECEIVE_DMA_ACTIVATE_D2H_CMD")
@@ -225,7 +242,7 @@ class SATATransportLayerRX(Module):
 				NextState("PRESENT_DATA_CMD")
 			)
 		)
-		fsm.act("DECODE_DATA",
+		fsm.act("PRESENT_DATA_CMD",
 			cmd.stb.eq(1),
 			_decode_cmd(encoded_cmd, fis_data_layout ,cmd),
 			If(cmd.ack,
@@ -233,7 +250,7 @@ class SATATransportLayerRX(Module):
 			)
 		)
 		fsm.act("RECEIVE_PIO_SETUP_D2H_CMD",
-			cmd_len.eq(fis_pio_setup_d2h_len),
+			cmd_len.eq(fis_pio_setup_d2h_cmd_len),
 			cmd_receive.eq(1),
 			If(cmd_done,
 				NextState("PRESENT_PIO_SETUP_D2H_CMD")
@@ -249,7 +266,7 @@ class SATATransportLayerRX(Module):
 
 		cmd_cases = {}
 		for i in range(cmd_ndwords):
-			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)]).eq(link.source.d)]
+			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)].eq(link.source.d)]
 
 		self.sync += \
 			If(cmd_receive,

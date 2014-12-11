@@ -285,7 +285,7 @@ class FIS:
 		return r
 
 class FIS_REG_H2D(FIS):
-	def __init__(self, packet=[0]*fis_reg_h2d_len):
+	def __init__(self, packet=[0]*fis_reg_h2d_cmd_len):
 		FIS.__init__(self, packet,fis_reg_h2d_layout)
 
 	def __repr__(self):
@@ -294,7 +294,7 @@ class FIS_REG_H2D(FIS):
 		return r
 
 class FIS_REG_D2H(FIS):
-	def __init__(self, packet=[0]*fis_reg_d2h_len):
+	def __init__(self, packet=[0]*fis_reg_d2h_cmd_len):
 		FIS.__init__(self, packet,fis_reg_d2h_layout)
 
 	def __repr__(self):
@@ -303,7 +303,7 @@ class FIS_REG_D2H(FIS):
 		return r
 
 class FIS_DMA_ACTIVATE_D2H(FIS):
-	def __init__(self, packet=[0]*fis_dma_activate_d2h_len):
+	def __init__(self, packet=[0]*fis_dma_activate_d2h_cmd_len):
 		FIS.__init__(self, packet,fis_dma_activate_d2h_layout)
 
 	def __repr__(self):
@@ -312,7 +312,7 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
 		return r
 
 class FIS_DMA_SETUP(FIS):
-	def __init__(self, packet=[0]*fis_dma_setup_len):
+	def __init__(self, packet=[0]*fis_dma_setup_cmd_len):
 		FIS.__init__(self, packet,fis_dma_setup_layout)
 
 	def __repr__(self):
@@ -330,7 +330,7 @@ class FIS_DATA(FIS):
 		return r
 
 class FIS_PIO_SETUP_D2H(FIS):
-	def __init__(self, packet=[0]*fis_pio_setup_d2h_len):
+	def __init__(self, packet=[0]*fis_pio_setup_d2h_cmd_len):
 		FIS.__init__(self, packet,fis_pio_setup_d2h_layout)
 
 	def __repr__(self):
