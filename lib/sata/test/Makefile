@@ -20,6 +20,9 @@ link_tb:
 transport_tb:
 	$(CMD) transport_tb.py
 
+command_tb:
+	$(CMD) command_tb.py
+
 all: crc_tb scrambler_tb link_tb
 
 clean:

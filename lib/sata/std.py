@@ -82,6 +82,7 @@ def command_tx_layout(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
+		("identify", 1),
 		("address", 32),
 		("length", 32),
 		("data", dw)
@@ -92,6 +93,7 @@ def command_rx_layout(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
+		("identify", 1),
 		("success", 1),
 		("failed", 1),
 		("data", dw)

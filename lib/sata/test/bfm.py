@@ -287,6 +287,7 @@ class FIS:
 class FIS_REG_H2D(FIS):
 	def __init__(self, packet=[0]*fis_reg_h2d_cmd_len):
 		FIS.__init__(self, packet,fis_reg_h2d_layout)
+		self.type = fis_types["REG_H2D"]
 
 	def __repr__(self):
 		r = "FIS_REG_H2D\n"
@@ -296,6 +297,7 @@ class FIS_REG_H2D(FIS):
 class FIS_REG_D2H(FIS):
 	def __init__(self, packet=[0]*fis_reg_d2h_cmd_len):
 		FIS.__init__(self, packet,fis_reg_d2h_layout)
+		self.type = fis_types["REG_D2H"]
 
 	def __repr__(self):
 		r = "FIS_REG_D2H\n"
@@ -305,6 +307,7 @@ class FIS_REG_D2H(FIS):
 class FIS_DMA_ACTIVATE_D2H(FIS):
 	def __init__(self, packet=[0]*fis_dma_activate_d2h_cmd_len):
 		FIS.__init__(self, packet,fis_dma_activate_d2h_layout)
+		self.type = fis_types["DMA_ACTIVATE_D2H"]
 
 	def __repr__(self):
 		r = "FIS_DMA_ACTIVATE_D2H\n"
@@ -314,6 +317,7 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
 class FIS_DATA(FIS):
 	def __init__(self, packet=[0]):
 		FIS.__init__(self, packet,fis_data_layout)
+		self.type = fis_types["DATA"]
 
 	def __repr__(self):
 		r = "FIS_DATA\n"
@@ -340,8 +344,18 @@ class TransportLayer(Module):
 		self.loopback = loopback
 		self.link.set_transport_callback(self.callback)
 
+	def set_command_callback(self, callback):
+		self.command_callback = callback
+
+	def send(self, fis):
+		fis.encode()
+		packet = LinkTXPacket(fis.packet)
+		self.link.tx_packets.append(packet)
+		if self.debug and not self.loopback:
+			print(fis)
+
 	def callback(self, packet):
-		fis_type = packet[0]
+		fis_type = packet[0] & 0xff
 		if fis_type == fis_types["REG_H2D"]:
 			fis = FIS_REG_H2D(packet)
 		elif fis_type == fis_types["REG_D2H"]:
@@ -355,16 +369,39 @@ class TransportLayer(Module):
 		if self.debug:
 			print(fis)
 		if self.loopback:
-			packet = LinkTXPacket(fis.packet)
-			self.link.tx_packets.append(packet)
+			self.send(fis)
+		else:
+			self.command_callback(fis)
+
+regs = {
+	"WRITE_DMA_EXT"			: 0x35,
+	"READ_DMA_EXT"			: 0x25,
+	"IDENTIFY_DEVICE_DMA"	: 0xEE
+}
+
+class CommandLayer(Module):
+	def __init__(self, transport, debug=False):
+		self.transport = transport
+		self.debug = debug
+		self.transport.set_command_callback(self.callback)
+
+	def callback(self, fis):
+		if isinstance(fis, FIS_REG_H2D):
+			if fis.command == regs["WRITE_DMA_EXT"]:
+				# XXX add checks
+				dma_activate = FIS_DMA_ACTIVATE_D2H()
+				# XXX fill dma_activate
+				self.transport.send(dma_activate)
 
 class BFM(Module):
 	def __init__(self,
 			phy_debug=False,
 			link_debug=False, link_random_level=0,
-			transport_debug=False, transport_loopback=False
+			transport_debug=False, transport_loopback=False,
+			command_debug=False
 			):
 		###
 		self.submodules.phy = PHYLayer(phy_debug)
 		self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
 		self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)
+		self.submodules.command = CommandLayer(self.transport, command_debug)

@@ -218,14 +218,23 @@ class SATATransportRX(Module):
 		for i in range(cmd_ndwords):
 			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)].eq(link.source.d)]
 
-		self.sync += \
+		self.comb += \
 			If(cmd_receive,
 				If(link.source.stb,
-					Case(cnt, cmd_cases),
 					inc_cnt.eq(1),
 				).Else(
 					inc_cnt.eq(0)
 				)
+			)
+		self.sync += \
+			If(cmd_receive,
+				Case(cnt, cmd_cases),
+			)
+		self.sync += \
+			If(clr_cnt,
+				cnt.eq(0)
+			).Elif(inc_cnt,
+				cnt.eq(cnt+1)
 			)
 		self.comb += cmd_done.eq(cnt==cmd_len)
 		self.comb += link.source.ack.eq(cmd_receive | (data_receive & source.ack))
