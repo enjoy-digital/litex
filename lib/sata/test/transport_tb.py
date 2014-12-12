@@ -21,32 +21,35 @@ class TB(Module):
 	def gen_simulation(self, selfp):
 		for i in range(100):
 			yield
-		selfp.transport.tx.cmd.stb = 1
-		selfp.transport.tx.cmd.type = fis_types["REG_H2D"]
-		selfp.transport.tx.cmd.lba = 0x0123456789
+		selfp.transport.sink.stb = 1
+		selfp.transport.sink.sop = 1
+		selfp.transport.sink.eop = 1
+		selfp.transport.sink.type = fis_types["REG_H2D"]
+		selfp.transport.sink.lba = 0x0123456789
 		yield
-		while selfp.transport.tx.cmd.ack == 0:
+		while selfp.transport.sink.ack == 0:
 			yield
-		selfp.transport.tx.cmd.stb = 1
-		selfp.transport.tx.cmd.type = fis_types["DMA_SETUP"]
-		selfp.transport.tx.cmd.dma_buffer_id = 0x0123456789ABCDEF
+		selfp.transport.sink.stb = 1
+		selfp.transport.sink.sop = 1
+		selfp.transport.sink.eop = 1
+		selfp.transport.sink.type = fis_types["DMA_SETUP"]
+		selfp.transport.sink.dma_buffer_id = 0x0123456789ABCDEF
 		yield
-		while selfp.transport.tx.cmd.ack == 0:
+		while selfp.transport.sink.ack == 0:
 			yield
-		selfp.transport.tx.cmd.stb = 1
-		selfp.transport.tx.cmd.type = fis_types["DATA"]
-		yield
+
 		for i in range(32):
-			selfp.transport.tx.data.stb = 1
-			#selfp.transport.tx.data.sop = (i==0)
-			selfp.transport.tx.data.eop = (i==31)
-			selfp.transport.tx.data.d = i
-			if selfp.transport.tx.data.ack == 1:
+			selfp.transport.sink.stb = 1
+			selfp.transport.sink.sop = (i==0)
+			selfp.transport.sink.eop = (i==31)
+			selfp.transport.sink.type = fis_types["DATA"]
+			selfp.transport.sink.data = i
+			if selfp.transport.sink.ack == 1:
 				yield
 			else:
-				while selfp.transport.tx.data.ack == 0:
+				while selfp.transport.sink.ack == 0:
 					yield
-		selfp.transport.tx.cmd.stb = 0
+		selfp.transport.sink.stb = 0
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=512, vcd_name="my.vcd", keep_files=True)

@@ -48,7 +48,7 @@ def link_layout(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
-def transport_cmd_tx_layout():
+def transport_tx_layout(dw):
 	layout = [
 		("type", 8),
 		("pm_port", 4),
@@ -66,10 +66,11 @@ def transport_cmd_tx_layout():
 		("dma_buffer_id", 64),
 		("dma_buffer_offset", 32),
 		("dma_transfer_count", 32),
+		("data", dw)
 	]
-	return EndpointDescription(layout, packetized=False)
+	return EndpointDescription(layout, packetized=True)
 
-def transport_cmd_rx_layout():
+def transport_rx_layout(dw):
 	layout = [
 		("type", 8),
 		("pm_port", 4),
@@ -85,12 +86,7 @@ def transport_cmd_rx_layout():
 		("transfer_count", 16),
 		("dma_buffer_id", 64),
 		("dma_buffer_offset", 32),
-		("dma_transfer_count", 32)
-	]
-	return EndpointDescription(layout, packetized=False)
-
-def transport_data_layout(dw):
-	layout = [
-		("d", dw)
+		("dma_transfer_count", 32),
+		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)
