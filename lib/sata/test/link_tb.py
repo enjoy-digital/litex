@@ -5,7 +5,7 @@ from migen.genlib.record import *
 from migen.sim.generic import run_simulation
 
 from lib.sata.std import *
-from lib.sata.link import SATALinkLayer
+from lib.sata.link import SATALink
 
 from lib.sata.test.bfm import *
 from lib.sata.test.common import *
@@ -67,7 +67,7 @@ class TB(Module):
 	def __init__(self):
 		self.submodules.bfm = BFM(phy_debug=False,
 				link_random_level=50, transport_debug=False, transport_loopback=True)
-		self.submodules.link_layer = SATALinkLayer(self.bfm.phy)
+		self.submodules.link = SATALink(self.bfm.phy)
 
 		self.submodules.streamer = LinkStreamer()
 		streamer_ack_randomizer = AckRandomizer(link_layout(32), level=50)
@@ -77,8 +77,8 @@ class TB(Module):
 		self.submodules += logger_ack_randomizer
 		self.comb += [
 			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),
-			Record.connect(streamer_ack_randomizer.source, self.link_layer.sink),
-			Record.connect(self.link_layer.source, logger_ack_randomizer.sink),
+			Record.connect(streamer_ack_randomizer.source, self.link.sink),
+			Record.connect(self.link.source, logger_ack_randomizer.sink),
 			Record.connect(logger_ack_randomizer.source, self.logger.sink)
 		]
 

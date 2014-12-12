@@ -5,8 +5,8 @@ from migen.genlib.record import *
 from migen.sim.generic import run_simulation
 
 from lib.sata.std import *
-from lib.sata.link import SATALinkLayer
-from lib.sata.transport import SATATransportLayer
+from lib.sata.link import SATALink
+from lib.sata.transport import SATATransport
 
 from lib.sata.test.bfm import *
 from lib.sata.test.common import *
@@ -15,8 +15,8 @@ class TB(Module):
 	def __init__(self):
 		self.submodules.bfm = BFM(phy_debug=False,
 				link_random_level=0, transport_debug=True, transport_loopback=True)
-		self.submodules.link = SATALinkLayer(self.bfm.phy)
-		self.submodules.transport = SATATransportLayer(self.link)
+		self.submodules.link = SATALink(self.bfm.phy)
+		self.submodules.transport = SATATransport(self.link)
 
 	def gen_simulation(self, selfp):
 		for i in range(100):

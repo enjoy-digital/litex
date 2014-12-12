@@ -18,7 +18,7 @@ def _encode_cmd(obj, layout, signal):
 		r.append(signal[start:end].eq(item))
 	return r
 
-class SATATransportLayerTX(Module):
+class SATATransportTX(Module):
 	def __init__(self, link):
 		self.sink = sink = Sink(transport_tx_layout(32))
 
@@ -136,7 +136,7 @@ def _decode_cmd(signal, layout, obj):
 		r.append(item.eq(signal[start:end]))
 	return r
 
-class SATATransportLayerRX(Module):
+class SATATransportRX(Module):
 	def __init__(self, link):
 		self.source = source = Source(transport_rx_layout(32))
 
@@ -274,8 +274,8 @@ class SATATransportLayerRX(Module):
 		self.comb += cmd_done.eq(cnt==cmd_len)
 		self.comb += link.source.ack.eq(cmd_receive | (data_receive & source.ack))
 
-class SATATransportLayer(Module):
+class SATATransport(Module):
 	def __init__(self, link):
-		self.submodules.tx = SATATransportLayerTX(link)
-		self.submodules.rx = SATATransportLayerRX(link)
+		self.submodules.tx = SATATransportTX(link)
+		self.submodules.rx = SATATransportRX(link)
 		self.sink, self.source = self.tx.sink, self.rx.source

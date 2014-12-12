@@ -13,7 +13,7 @@ from_rx = [
 	("det", 32)
 ]
 
-class SATALinkLayerTX(Module):
+class SATALinkTX(Module):
 	def __init__(self, phy):
 		self.sink = Sink(link_layout(32))
 		self.from_rx = Sink(from_rx)
@@ -111,7 +111,7 @@ class SATALinkLayerTX(Module):
 			)
 		)
 
-class SATALinkLayerRX(Module):
+class SATALinkRX(Module):
 	def __init__(self, phy):
 		self.source = Source(link_layout(32))
 		self.to_tx = Source(from_rx)
@@ -212,9 +212,9 @@ class SATALinkLayerRX(Module):
 			self.to_tx.det.eq(det)
 		]
 
-class SATALinkLayer(Module):
+class SATALink(Module):
 	def __init__(self, phy):
-		self.submodules.tx = SATALinkLayerTX(phy)
-		self.submodules.rx = SATALinkLayerRX(phy)
+		self.submodules.tx = SATALinkTX(phy)
+		self.submodules.rx = SATALinkRX(phy)
 		self.comb += Record.connect(self.rx.to_tx, self.tx.from_rx)
 		self.sink, self.source = self.tx.sink, self.rx.source
