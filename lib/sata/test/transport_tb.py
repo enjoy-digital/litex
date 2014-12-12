@@ -29,14 +29,6 @@ class TB(Module):
 		yield
 		while selfp.transport.sink.ack == 0:
 			yield
-		selfp.transport.sink.stb = 1
-		selfp.transport.sink.sop = 1
-		selfp.transport.sink.eop = 1
-		selfp.transport.sink.type = fis_types["DMA_SETUP"]
-		selfp.transport.sink.dma_buffer_id = 0x0123456789ABCDEF
-		yield
-		while selfp.transport.sink.ack == 0:
-			yield
 
 		for i in range(32):
 			selfp.transport.sink.stb = 1

@@ -52,10 +52,7 @@ def transport_tx_layout(dw):
 	layout = [
 		("type", 8),
 		("pm_port", 4),
-		("a", 1),
 		("c", 1),
-		("d", 1),
-		("i", 1),
 		("command", 8),
 		("features", 16),
 		("lba", 48),
@@ -63,9 +60,6 @@ def transport_tx_layout(dw):
 		("count", 16),
 		("icc", 8),
 		("control", 8),
-		("dma_buffer_id", 64),
-		("dma_buffer_offset", 32),
-		("dma_transfer_count", 32),
 		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)
@@ -74,19 +68,32 @@ def transport_rx_layout(dw):
 	layout = [
 		("type", 8),
 		("pm_port", 4),
-		("a", 1),
-		("d", 1),
 		("i", 1),
 		("status", 8),
 		("error", 8),
 		("lba", 48),
 		("device", 8),
 		("count", 16),
-		("e_status", 8),
-		("transfer_count", 16),
-		("dma_buffer_id", 64),
-		("dma_buffer_offset", 32),
-		("dma_transfer_count", 32),
+		("data", dw)
+	]
+	return EndpointDescription(layout, packetized=True)
+
+def command_tx_layout(dw):
+	layout = [
+		("write", 1),
+		("read", 1),
+		("address", 32),
+		("length", 32),
+		("data", dw)
+	]
+	return EndpointDescription(layout, packetized=True)
+
+def command_rx_layout(dw):
+	layout = [
+		("write", 1),
+		("read", 1),
+		("success", 1),
+		("failed", 1),
 		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)

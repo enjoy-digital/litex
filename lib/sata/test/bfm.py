@@ -311,15 +311,6 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
 		r += FIS.__repr__(self)
 		return r
 
-class FIS_DMA_SETUP(FIS):
-	def __init__(self, packet=[0]*fis_dma_setup_cmd_len):
-		FIS.__init__(self, packet,fis_dma_setup_layout)
-
-	def __repr__(self):
-		r = "FIS_DMA_SETUP\n"
-		r += FIS.__repr__(self)
-		return r
-
 class FIS_DATA(FIS):
 	def __init__(self, packet=[0]):
 		FIS.__init__(self, packet,fis_data_layout)
@@ -329,15 +320,6 @@ class FIS_DATA(FIS):
 		r += FIS.__repr__(self)
 		for data in self.packet[1:]:
 			r += "%08x\n" %data
-		return r
-
-class FIS_PIO_SETUP_D2H(FIS):
-	def __init__(self, packet=[0]*fis_pio_setup_d2h_cmd_len):
-		FIS.__init__(self, packet,fis_pio_setup_d2h_layout)
-
-	def __repr__(self):
-		r = "FIS_PIO_SETUP\n"
-		r += FIS.__repr__(self)
 		return r
 
 class FIS_UNKNOWN(FIS):
@@ -366,12 +348,8 @@ class TransportLayer(Module):
 			fis = FIS_REG_D2H(packet)
 		elif fis_type == fis_types["DMA_ACTIVATE_D2H"]:
 			fis = FIS_DMA_ACTIVATE_D2H(packet)
-		elif fis_type == fis_types["DMA_SETUP"]:
-			fis = FIS_DMA_SETUP(packet)
 		elif fis_type == fis_types["DATA"]:
 			fis = FIS_DATA(packet)
-		elif fis_type == fis_types["PIO_SETUP_D2H"]:
-			fis = FIS_PIO_SETUP_D2H(packet)
 		else:
 			fis = FIS_UNKNOWN(packet)
 		if self.debug:

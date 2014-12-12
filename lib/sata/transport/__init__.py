@@ -24,7 +24,7 @@ class SATATransportTX(Module):
 
 		###
 
-		cmd_ndwords = max(fis_reg_h2d_cmd_len, fis_dma_setup_cmd_len, fis_data_cmd_len)
+		cmd_ndwords = max(fis_reg_h2d_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
 		cnt = Signal(max=cmd_ndwords+1)
@@ -49,8 +49,6 @@ class SATATransportTX(Module):
 			If(sink.stb & sink.sop,
 				If(test_type("REG_H2D"),
 					NextState("SEND_REG_H2D_CMD")
-				).Elif(test_type("DMA_SETUP"),
-					NextState("SEND_DMA_SETUP_CMD")
 				).Elif(test_type("DATA"),
 					NextState("SEND_DATA_CMD")
 				).Else(
@@ -63,15 +61,6 @@ class SATATransportTX(Module):
 		fsm.act("SEND_REG_H2D_CMD",
 			_encode_cmd(sink, fis_reg_h2d_layout, encoded_cmd),
 			cmd_len.eq(fis_reg_h2d_cmd_len),
-			cmd_send.eq(1),
-			If(cmd_done,
-				sink.ack.eq(1),
-				NextState("IDLE")
-			)
-		)
-		fsm.act("SEND_DMA_SETUP_CMD",
-			_encode_cmd(sink, fis_dma_setup_layout, encoded_cmd),
-			cmd_len.eq(fis_dma_setup_cmd_len),
 			cmd_send.eq(1),
 			If(cmd_done,
 				sink.ack.eq(1),
@@ -142,8 +131,7 @@ class SATATransportRX(Module):
 
 		###
 
-		cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len, fis_dma_setup_cmd_len,
-						fis_data_cmd_len, fis_pio_setup_d2h_cmd_len)
+		cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
 		cnt = Signal(max=cmd_ndwords+1)
@@ -169,12 +157,8 @@ class SATATransportRX(Module):
 					NextState("RECEIVE_REG_D2H_CMD")
 				).Elif(test_type("DMA_ACTIVATE_D2H"),
 					NextState("RECEIVE_DMA_ACTIVATE_D2H_CMD")
-				).Elif(test_type("DMA_SETUP"),
-					NextState("RECEIVE_DMA_SETUP_CMD"),
 				).Elif(test_type("DATA"),
 					NextState("RECEIVE_DATA_CMD"),
-				).Elif(test_type("PIO_SETUP_D2H"),
-					NextState("RECEIVE_PIO_SETUP_D2H_CMD"),
 				).Else(
 					# XXX: Better to ack?
 					link.source.ack.eq(1)
@@ -211,20 +195,6 @@ class SATATransportRX(Module):
 				NextState("IDLE")
 			)
 		)
-		fsm.act("RECEIVE_DMA_SETUP_CMD",
-			cmd_len.eq(fis_dma_setup_cmd_len),
-			cmd_receive.eq(1),
-			If(cmd_done,
-				NextState("PRESENT_DMA_SETUP_CMD")
-			)
-		)
-		fsm.act("PRESENT_DMA_SETUP_CMD",
-			source.stb.eq(1),
-			_decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout, source),
-			If(source.ack,
-				NextState("IDLE")
-			)
-		)
 		fsm.act("RECEIVE_DATA_CMD",
 			cmd_len.eq(fis_data_cmd_len),
 			cmd_receive.eq(1),
@@ -238,22 +208,8 @@ class SATATransportRX(Module):
 			_decode_cmd(encoded_cmd, fis_data_layout, source),
 			source.sop.eq(0), # XXX
 			source.eop.eq(link.source.eop),
-			source.d.eq(link.source.d),
+			source.data.eq(link.source.d),
 			If(source.stb & source.eop & source.ack,
-				NextState("IDLE")
-			)
-		)
-		fsm.act("RECEIVE_PIO_SETUP_D2H_CMD",
-			cmd_len.eq(fis_pio_setup_d2h_cmd_len),
-			cmd_receive.eq(1),
-			If(cmd_done,
-				NextState("PRESENT_PIO_SETUP_D2H_CMD")
-			)
-		)
-		fsm.act("PRESENT_PIO_SETUP_D2H_CMD",
-			source.stb.eq(1),
-			_decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout, source),
-			If(source.ack,
 				NextState("IDLE")
 			)
 		)
