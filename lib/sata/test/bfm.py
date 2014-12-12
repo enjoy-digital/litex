@@ -327,6 +327,8 @@ class FIS_DATA(FIS):
 	def __repr__(self):
 		r = "FIS_DATA\n"
 		r += FIS.__repr__(self)
+		for data in self.packet[1:]:
+			r += "%08x\n" %data
 		return r
 
 class FIS_PIO_SETUP_D2H(FIS):
@@ -365,7 +367,7 @@ class TransportLayer(Module):
 		elif fis_type == fis_types["DMA_ACTIVATE_D2H"]:
 			fis = FIS_DMA_ACTIVATE_D2H(packet)
 		elif fis_type == fis_types["DMA_SETUP"]:
-			fis = FIS_SETUP(packet)
+			fis = FIS_DMA_SETUP(packet)
 		elif fis_type == fis_types["DATA"]:
 			fis = FIS_DATA(packet)
 		elif fis_type == fis_types["PIO_SETUP_D2H"]:

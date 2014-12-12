@@ -20,7 +20,7 @@ link_tb:
 transport_tb:
 	$(CMD) transport_tb.py
 
-all: crc_tb scrambler_tb
+all: crc_tb scrambler_tb link_tb
 
 clean:
 	rm crc scrambler *.vcd
