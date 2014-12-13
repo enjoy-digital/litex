@@ -23,6 +23,7 @@ class TB(Module):
 	def gen_simulation(self, selfp):
 		self.bfm.command.allocate_dma(0x00000000, 64*1024*1024)
 		self.bfm.command.enable_dma()
+		selfp.command.source.ack = 1
 		for i in range(100):
 			yield
 		for i in range(32):
