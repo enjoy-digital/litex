@@ -110,8 +110,15 @@ class SATACommandRX(Module):
 
 		self.comb += [
 			transport.source.ack.eq(1),
+			# XXX for test
 			If(transport.source.stb & (transport.source.type == fis_types["DMA_ACTIVATE_D2H"]),
 				self.to_tx.dma_activate.eq(1)
+			),
+			If(transport.source.stb & (transport.source.type == fis_types["DATA"]),
+				source.stb.eq(1),
+				source.sop.eq(transport.source.sop),
+				source.eop.eq(transport.source.eop),
+				source.data.eq(transport.source.data),
 			)
 		]
 

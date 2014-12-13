@@ -60,7 +60,7 @@ class SATATransportTX(Module):
 		)
 		fsm.act("SEND_REG_H2D_CMD",
 			_encode_cmd(sink, fis_reg_h2d_layout, encoded_cmd),
-			cmd_len.eq(fis_reg_h2d_cmd_len),
+			cmd_len.eq(fis_reg_h2d_cmd_len-1),
 			cmd_send.eq(1),
 			If(cmd_done,
 				sink.ack.eq(1),
@@ -69,7 +69,7 @@ class SATATransportTX(Module):
 		)
 		fsm.act("SEND_DATA_CMD",
 			_encode_cmd(sink, fis_data_layout, encoded_cmd),
-			cmd_len.eq(fis_data_cmd_len),
+			cmd_len.eq(fis_data_cmd_len-1),
 			cmd_with_data.eq(1),
 			cmd_send.eq(1),
 			If(cmd_done,
@@ -84,7 +84,6 @@ class SATATransportTX(Module):
 			)
 		)
 
-
 		cmd_cases = {}
 		for i in range(cmd_ndwords):
 			cmd_cases[i] = [link.sink.d.eq(encoded_cmd[32*i:32*(i+1)])]
@@ -96,7 +95,7 @@ class SATATransportTX(Module):
 				link.sink.eop.eq((cnt==cmd_len) & ~cmd_with_data),
 				Case(cnt, cmd_cases),
 				inc_cnt.eq(link.sink.ack),
-				cmd_done.eq(cnt==cmd_len)
+				cmd_done.eq((cnt==cmd_len) & link.sink.ack)
 			).Elif(data_send,
 				link.sink.stb.eq(sink.stb),
 				link.sink.sop.eq(0),
@@ -152,6 +151,7 @@ class SATATransportRX(Module):
 		self.submodules += fsm
 
 		fsm.act("IDLE",
+			clr_cnt.eq(1),
 			If(link.source.stb & link.source.sop,
 				If(test_type("REG_D2H"),
 					NextState("RECEIVE_REG_D2H_CMD")
@@ -168,7 +168,7 @@ class SATATransportRX(Module):
 			)
 		)
 		fsm.act("RECEIVE_REG_D2H_CMD",
-			cmd_len.eq(fis_reg_d2h_cmd_len),
+			cmd_len.eq(fis_reg_d2h_cmd_len-1),
 			cmd_receive.eq(1),
 			If(cmd_done,
 				NextState("PRESENT_REG_D2H_CMD")
@@ -182,7 +182,7 @@ class SATATransportRX(Module):
 			)
 		)
 		fsm.act("RECEIVE_DMA_ACTIVATE_D2H_CMD",
-			cmd_len.eq(fis_dma_activate_d2h_cmd_len),
+			cmd_len.eq(fis_dma_activate_d2h_cmd_len-1),
 			cmd_receive.eq(1),
 			If(cmd_done,
 				NextState("PRESENT_DMA_ACTIVATE_D2H_CMD")
@@ -196,7 +196,7 @@ class SATATransportRX(Module):
 			)
 		)
 		fsm.act("RECEIVE_DATA_CMD",
-			cmd_len.eq(fis_data_cmd_len),
+			cmd_len.eq(fis_data_cmd_len-1),
 			cmd_receive.eq(1),
 			If(cmd_done,
 				NextState("PRESENT_DATA")
@@ -236,7 +236,7 @@ class SATATransportRX(Module):
 			).Elif(inc_cnt,
 				cnt.eq(cnt+1)
 			)
-		self.comb += cmd_done.eq(cnt==cmd_len)
+		self.comb += cmd_done.eq((cnt==cmd_len) & link.source.ack)
 		self.comb += link.source.ack.eq(cmd_receive | (data_receive & source.ack))
 
 class SATATransport(Module):

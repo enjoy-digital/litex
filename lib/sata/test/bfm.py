@@ -385,13 +385,50 @@ class CommandLayer(Module):
 		self.debug = debug
 		self.transport.set_command_callback(self.callback)
 
+		self.dma_enable = 0
+		self.dma_address = 0
+
+	def allocate_dma(self, base, length):
+		self.dma_base = base
+		self.dma_buffer = [0]*(length//4)
+
+	def enable_dma(self):
+		self.dma_enable = 1
+
+	def disable_dma(self):
+		self.dma_enable = 0
+
+	def dma_write(self, adr, data):
+		current_adr = (adr-self.dma_base)//4
+		for i in range(len(data)):
+			self.dma_buffer[current_adr+i] = data[i]
+
+	def dma_read(self, adr, length=1):
+		current_adr = (adr-self.dma_base)//4
+		data = []
+		for i in range(length//4):
+			data.append(self.dma_buffer[current_adr+i])
+		return data
+
 	def callback(self, fis):
+		# XXX maximum of 2048 DWORDS per DMA
 		if isinstance(fis, FIS_REG_H2D):
 			if fis.command == regs["WRITE_DMA_EXT"]:
-				# XXX add checks
+				self.dma_address = fis.lba_lsb
 				dma_activate = FIS_DMA_ACTIVATE_D2H()
-				# XXX fill dma_activate
 				self.transport.send(dma_activate)
+			elif fis.command == regs["READ_DMA_EXT"]:
+				self.dma_address = fis.lba_lsb
+				data = FIS_DATA(self.dma_read(fis.lba_lsb, fis.count*4))
+				self.transport.send(data)
+			elif fis.command == regs["IDENTIFY_DEVICE_DMA"]:
+				self.dma_address = fis.lba_lsb
+				data = FIS_DATA(self.dma_read(fis.lba_lsb, fis.count*4))
+				self.transport.send(data)
+		elif isinstance(fis, FIS_DATA):
+			if self.dma_enable:
+				self.dma_write(self.dma_address, fis.packet[1:])
+				self.dma_address += len(fis.packet[1:])
 
 class BFM(Module):
 	def __init__(self,
