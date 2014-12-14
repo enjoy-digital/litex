@@ -1,14 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.fsm import FSM, NextState
 
-from lib.sata.std import *
-from lib.sata.transport.std import *
-
-regs = {
-	"WRITE_DMA_EXT"			: 0x35,
-	"READ_DMA_EXT"			: 0x25,
-	"IDENTIFY_DEVICE_DMA"	: 0xEE
-}
+from lib.sata.common import *
 
 from_rx = [
 	("dma_activate", 1),

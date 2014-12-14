@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 
-from lib.sata.std import *
+from lib.sata.common import *
 from lib.sata.phy.k7sataphy.gtx import K7SATAPHYGTX
 from lib.sata.phy.k7sataphy.crg import K7SATAPHYCRG
 from lib.sata.phy.k7sataphy.ctrl import K7SATAPHYHostCtrl, K7SATAPHYDeviceCtrl

@@ -2,9 +2,7 @@ import subprocess
 
 from migen.fhdl.std import *
 
-from lib.sata.std import *
-from lib.sata.transport.std import *
-
+from lib.sata.common import *
 from lib.sata.test.common import *
 
 class PHYDword:
@@ -372,12 +370,6 @@ class TransportLayer(Module):
 			self.send(fis)
 		else:
 			self.command_callback(fis)
-
-regs = {
-	"WRITE_DMA_EXT"			: 0x35,
-	"READ_DMA_EXT"			: 0x25,
-	"IDENTIFY_DEVICE_DMA"	: 0xEE
-}
 
 class CommandLayer(Module):
 	def __init__(self, transport, debug=False):

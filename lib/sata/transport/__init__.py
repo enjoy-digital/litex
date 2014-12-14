@@ -1,8 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.fsm import FSM, NextState
 
-from lib.sata.std import *
-from lib.sata.transport.std import *
+from lib.sata.common import *
 
 def _encode_cmd(obj, layout, signal):
 	r = []

@@ -1,7 +1,10 @@
 from migen.fhdl.std import *
 from migen.genlib.cdc import *
 
-from lib.sata.std import *
+from lib.sata.common import *
+
+def ones(width):
+	return 2**width-1
 
 class _PulseSynchronizer(PulseSynchronizer):
 	def __init__(self, i, idomain, o, odomain):

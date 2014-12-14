@@ -1,6 +1,6 @@
 import random
 
-from lib.sata.std import *
+from lib.sata.common import *
 
 def seed_to_data(seed, random=True):
 	if random:

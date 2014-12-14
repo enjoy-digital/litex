@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.flow.actor import *
 
+# PHY / Link Layers
 primitives = {
 	"ALIGN"	:	0x7B4A4ABC,
 	"CONT"	: 	0X9999AA7C,
@@ -31,9 +32,6 @@ def decode_primitive(dword):
 			return k
 	return ""
 
-def ones(width):
-	return 2**width-1
-
 def phy_layout(dw):
 	layout = [
 		("data", dw),
@@ -47,6 +45,66 @@ def link_layout(dw):
 		("error", 1)
 	]
 	return EndpointDescription(layout, packetized=True)
+
+# Transport Layer
+fis_types = {
+	"REG_H2D":          0x27,
+	"REG_D2H":          0x34,
+	"DMA_ACTIVATE_D2H": 0x39,
+	"DATA":             0x46
+}
+
+class FISField():
+	def __init__(self, dword, offset, width):
+		self.dword = dword
+		self.offset = offset
+		self.width = width
+
+fis_reg_h2d_cmd_len = 5
+fis_reg_h2d_layout = {
+	"type":         FISField(0,  0, 8),
+	"pm_port":      FISField(0,  8, 4),
+	"c":            FISField(0, 15, 1),
+	"command":      FISField(0, 16, 8),
+	"features_lsb": FISField(0, 24, 8),
+
+	"lba_lsb":      FISField(1, 0, 24),
+	"device":       FISField(1, 24, 8),
+
+	"lba_msb":      FISField(2, 0, 24),
+	"features_msb": FISField(2, 24, 8),
+
+	"count":        FISField(3, 0, 16),
+	"icc":          FISField(3, 16, 8),
+	"control":      FISField(3, 24, 8)
+}
+
+fis_reg_d2h_cmd_len = 5
+fis_reg_d2h_layout = {
+	"type":    FISField(0,  0, 8),
+	"pm_port": FISField(0,  8, 4),
+	"i":       FISField(0, 14, 1),
+	"status":  FISField(0, 16, 8),
+	"error":   FISField(0, 24, 8),
+
+	"lba_lsb": FISField(1, 0, 24),
+	"device":  FISField(1, 24, 8),
+
+	"lba_msb": FISField(2, 0, 24),
+
+	"count":   FISField(3, 0, 16)
+}
+
+fis_dma_activate_d2h_cmd_len = 1
+fis_dma_activate_d2h_layout = {
+	"type":    FISField(0,  0, 8),
+	"pm_port": FISField(0,  8, 4)
+}
+
+fis_data_cmd_len = 1
+fis_data_layout = {
+	"type": FISField(0,  0, 8)
+}
 
 def transport_tx_layout(dw):
 	layout = [
@@ -77,6 +135,13 @@ def transport_rx_layout(dw):
 		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)
+
+# Command Layer constants / functions
+regs = {
+	"WRITE_DMA_EXT"			: 0x35,
+	"READ_DMA_EXT"			: 0x25,
+	"IDENTIFY_DEVICE_DMA"	: 0xEE
+}
 
 def command_tx_layout(dw):
 	layout = [

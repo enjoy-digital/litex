@@ -4,7 +4,7 @@ from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.sim.generic import run_simulation
 
-from lib.sata.std import *
+from lib.sata.common import *
 from lib.sata.link import SATALink
 
 from lib.sata.test.bfm import *

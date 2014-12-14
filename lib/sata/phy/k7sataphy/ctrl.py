@@ -5,7 +5,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.fsm import FSM, NextState
 from migen.flow.actor import Sink, Source
 
-from lib.sata.std import *
+from lib.sata.common import *
 
 def us(t, clk_freq):
 	clk_period_us = 1000000/clk_freq

@@ -3,7 +3,7 @@ from migen.genlib.misc import chooser
 from migen.actorlib.fifo import AsyncFIFO
 from migen.flow.actor import Sink, Source
 
-from lib.sata.std import *
+from lib.sata.common import *
 
 class K7SATAPHYDatapathRX(Module):
 	def __init__(self):
