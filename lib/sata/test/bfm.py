@@ -287,7 +287,7 @@ class FIS:
 
 class FIS_REG_H2D(FIS):
 	def __init__(self, packet=[0]*fis_reg_h2d_cmd_len):
-		FIS.__init__(self, packet,fis_reg_h2d_layout)
+		FIS.__init__(self, packet, fis_reg_h2d_layout)
 		self.type = fis_types["REG_H2D"]
 
 	def __repr__(self):
@@ -297,7 +297,7 @@ class FIS_REG_H2D(FIS):
 
 class FIS_REG_D2H(FIS):
 	def __init__(self, packet=[0]*fis_reg_d2h_cmd_len):
-		FIS.__init__(self, packet,fis_reg_d2h_layout)
+		FIS.__init__(self, packet, fis_reg_d2h_layout)
 		self.type = fis_types["REG_D2H"]
 
 	def __repr__(self):
@@ -307,7 +307,7 @@ class FIS_REG_D2H(FIS):
 
 class FIS_DMA_ACTIVATE_D2H(FIS):
 	def __init__(self, packet=[0]*fis_dma_activate_d2h_cmd_len):
-		FIS.__init__(self, packet,fis_dma_activate_d2h_layout)
+		FIS.__init__(self, packet, fis_dma_activate_d2h_layout)
 		self.type = fis_types["DMA_ACTIVATE_D2H"]
 
 	def __repr__(self):
@@ -317,7 +317,7 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
 
 class FIS_DATA(FIS):
 	def __init__(self, packet=[0]):
-		FIS.__init__(self, packet,fis_data_layout)
+		FIS.__init__(self, packet, fis_data_layout)
 		self.type = fis_types["DATA"]
 
 	def __repr__(self):
@@ -418,10 +418,14 @@ class HDD(Module):
 		return FIS_DMA_ACTIVATE_D2H()
 
 	def read_dma_cmd(self, fis):
-		return FIS_DATA(self.read_mem(fis.lba_lsb, fis.count*4))
+		packet = self.read_mem(fis.lba_lsb, fis.count*4)
+		packet.insert(0, 0)
+		return FIS_DATA(packet)
 
 	def identify_dma_cmd(self, fis):
-		return FIS_DATA([i for i in range(256)])
+		packet = [i for i in range(256)]
+		packet.insert(0, 0)
+		return FIS_DATA(packet)
 
 	def data_cmd(self, fis):
 		self.write_mem(self.wr_address, fis.packet[1:])
@@ -431,13 +435,13 @@ class HDD(Module):
 		self.mem = HDDMemRegion(base, length)
 
 	def write_mem(self, adr, data):
-		# XXX test if adr allocate in one memory region
+		# XXX test if adr allocated in one memory region
 		current_adr = (adr-self.mem.base)//4
 		for i in range(len(data)):
 			self.mem.data[current_adr+i] = data[i]
 
 	def read_mem(self, adr, length=1):
-		# XXX test if adr allocate in one memory region
+		# XXX test if adr allocated in one memory region
 		current_adr = (adr-self.mem.base)//4
 		data = []
 		for i in range(length//4):
