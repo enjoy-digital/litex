@@ -267,9 +267,10 @@ def get_field_data(field, packet):
 	return (packet[field.dword] >> field.offset) & (2**field.width-1)
 
 class FIS:
-	def __init__(self, packet, description):
+	def __init__(self, packet, description, direction="H2D"):
 		self.packet = packet
 		self.description = description
+		self.direction = direction
 		self.decode()
 
 	def decode(self):
@@ -281,7 +282,10 @@ class FIS:
 			self.packet[v.dword] |= (getattr(self, k) << v.offset)
 
 	def __repr__(self):
-		r = "--------\n"
+		if self.direction == "H2D":
+			r = ">>>>>>>>\n"
+		else:
+			r = "<<<<<<<<\n"
 		for k in sorted(self.description.keys()):
 			r += k + " : 0x%x" %getattr(self,k) + "\n"
 		return r
@@ -290,6 +294,7 @@ class FIS_REG_H2D(FIS):
 	def __init__(self, packet=[0]*fis_reg_h2d_cmd_len):
 		FIS.__init__(self, packet, fis_reg_h2d_layout)
 		self.type = fis_types["REG_H2D"]
+		self.direction = "H2D"
 
 	def __repr__(self):
 		r = "FIS_REG_H2D\n"
@@ -300,6 +305,7 @@ class FIS_REG_D2H(FIS):
 	def __init__(self, packet=[0]*fis_reg_d2h_cmd_len):
 		FIS.__init__(self, packet, fis_reg_d2h_layout)
 		self.type = fis_types["REG_D2H"]
+		self.direction = "D2H"
 
 	def __repr__(self):
 		r = "FIS_REG_D2H\n"
@@ -310,6 +316,7 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
 	def __init__(self, packet=[0]*fis_dma_activate_d2h_cmd_len):
 		FIS.__init__(self, packet, fis_dma_activate_d2h_layout)
 		self.type = fis_types["DMA_ACTIVATE_D2H"]
+		self.direction = "D2H"
 
 	def __repr__(self):
 		r = "FIS_DMA_ACTIVATE_D2H\n"
@@ -317,8 +324,8 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
 		return r
 
 class FIS_DATA(FIS):
-	def __init__(self, packet=[0]):
-		FIS.__init__(self, packet, fis_data_layout)
+	def __init__(self, packet=[0], direction="H2D"):
+		FIS.__init__(self, packet, fis_data_layout, direction)
 		self.type = fis_types["DATA"]
 
 	def __repr__(self):
@@ -329,12 +336,15 @@ class FIS_DATA(FIS):
 		return r
 
 class FIS_UNKNOWN(FIS):
-	def __init__(self, packet=[0]):
-		FIS.__init__(self, packet, {})
+	def __init__(self, packet=[0], direction="H2D"):
+		FIS.__init__(self, packet, {}, direction)
 
 	def __repr__(self):
 		r = "UNKNOWN\n"
-		r += "--------\n"
+		if self.direction == "H2D":
+			r += ">>>>>>>>\\n"
+		else:
+			r += "<<<<<<<<\n"
 		for dword in self.packet:
 			r += "%08x\n" %dword
 		return r
@@ -365,9 +375,9 @@ class TransportLayer(Module):
 		elif fis_type == fis_types["DMA_ACTIVATE_D2H"]:
 			fis = FIS_DMA_ACTIVATE_D2H(packet)
 		elif fis_type == fis_types["DATA"]:
-			fis = FIS_DATA(packet)
+			fis = FIS_DATA(packet, direction="H2D")
 		else:
-			fis = FIS_UNKNOWN(packet)
+			fis = FIS_UNKNOWN(packet, direction="H2D")
 		if self.debug:
 			print(fis)
 		if self.loopback:
@@ -412,10 +422,22 @@ class HDDMemRegion:
 		self.data = [0]*(length//4)
 
 class HDD(Module):
-	def __init__(self, command, debug=False):
-		self.command = command
-		command.set_hdd(self)
+	def __init__(self,
+			phy_debug=False,
+			link_debug=False, link_random_level=0,
+			transport_debug=False, transport_loopback=False,
+			command_debug=False,
+			mem_debug=False
+			):
+		###
+		self.submodules.phy = PHYLayer(phy_debug)
+		self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
+		self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)
+		self.submodules.command = CommandLayer(self.transport, command_debug)
 
+		self.command.set_hdd(self)
+
+		self.mem_debug = mem_debug
 		self.mem = None
 		self.wr_address = 0
 		self.wr_length = 0
@@ -430,12 +452,12 @@ class HDD(Module):
 	def read_dma_cmd(self, fis):
 		packet = self.read_mem(fis.lba_lsb, fis.count*4)
 		packet.insert(0, 0)
-		return [FIS_DATA(packet), FIS_REG_D2H()]
+		return [FIS_DATA(packet, direction="H2D"), FIS_REG_D2H()]
 
 	def identify_dma_cmd(self, fis):
 		packet = [i for i in range(256)]
 		packet.insert(0, 0)
-		return [FIS_DATA(packet), FIS_REG_D2H()]
+		return [FIS_DATA(packet, direction="H2D"), FIS_REG_D2H()]
 
 	def data_cmd(self, fis):
 		self.write_mem(self.wr_address, fis.packet[1:])
@@ -446,34 +468,22 @@ class HDD(Module):
 			return None
 
 	def allocate_mem(self, base, length):
-		# XXX add support for multiple memory regions
+		if self.mem_debug:
+			print("[HDD] : Allocating {n} bytes at 0x{a}".format(n=length, a=base))
 		self.mem = HDDMemRegion(base, length)
 
 	def write_mem(self, adr, data):
-		# XXX test if adr allocated in one memory region
+		if self.mem_debug:
+			print("[HDD] : Writing {n} bytes at 0x{a}".format(n=len(data)*4, a=adr))
 		current_adr = (adr-self.mem.base)//4
 		for i in range(len(data)):
 			self.mem.data[current_adr+i] = data[i]
 
 	def read_mem(self, adr, length=1):
-		# XXX test if adr allocated in one memory region
+		if self.mem_debug:
+			print("[HDD] : Reading {n} bytes at 0x{a}".format(n=length, a=adr))
 		current_adr = (adr-self.mem.base)//4
 		data = []
 		for i in range(length//4):
 			data.append(self.mem.data[current_adr+i])
 		return data
-
-class BFM(Module):
-	def __init__(self,
-			phy_debug=False,
-			link_debug=False, link_random_level=0,
-			transport_debug=False, transport_loopback=False,
-			command_debug=False,
-			hdd_debug=False
-			):
-		###
-		self.submodules.phy = PHYLayer(phy_debug)
-		self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
-		self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)
-		self.submodules.command = CommandLayer(self.transport, command_debug)
-		self.submodules.hdd = HDD(self.command, hdd_debug)

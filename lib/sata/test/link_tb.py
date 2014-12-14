@@ -1,4 +1,4 @@
-import random
+import random, copy
 
 from migen.fhdl.std import *
 from migen.genlib.record import *
@@ -7,7 +7,7 @@ from migen.sim.generic import run_simulation
 from lib.sata.common import *
 from lib.sata.link import SATALink
 
-from lib.sata.test.bfm import *
+from lib.sata.test.hdd import *
 from lib.sata.test.common import *
 
 class LinkStreamer(Module):
@@ -19,6 +19,7 @@ class LinkStreamer(Module):
 		self.packet.done = 1
 
 	def send(self, packet, blocking=True):
+		packet = copy.deepcopy(packet)
 		self.packets.append(packet)
 		if blocking:
 			while packet.done == 0:
@@ -65,9 +66,11 @@ class LinkLogger(Module):
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.bfm = BFM(phy_debug=False,
-				link_random_level=50, transport_debug=False, transport_loopback=True)
-		self.submodules.link = SATALink(self.bfm.phy)
+		self.submodules.hdd = HDD(
+				phy_debug=False,
+				link_random_level=50,
+				transport_debug=False, transport_loopback=True)
+		self.submodules.link = SATALink(self.hdd.phy)
 
 		self.submodules.streamer = LinkStreamer()
 		streamer_ack_randomizer = AckRandomizer(link_description(32), level=50)
@@ -83,11 +86,9 @@ class TB(Module):
 		]
 
 	def gen_simulation(self, selfp):
-		for i in range(24):
-			yield
 		for i in range(8):
 			streamer_packet = LinkTXPacket([i for i in range(64)])
-			yield from self.streamer.send(LinkTXPacket([i for i in range(64)]))
+			yield from self.streamer.send(streamer_packet)
 			yield from self.logger.receive()
 
 			# check results

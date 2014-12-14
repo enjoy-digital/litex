@@ -1,4 +1,4 @@
-import random
+import random, copy
 
 from migen.fhdl.std import *
 from migen.genlib.record import *
@@ -9,7 +9,7 @@ from lib.sata.link import SATALink
 from lib.sata.transport import SATATransport
 from lib.sata.command import SATACommand
 
-from lib.sata.test.bfm import *
+from lib.sata.test.hdd import *
 from lib.sata.test.common import *
 
 class CommandTXPacket(list):
@@ -34,6 +34,7 @@ class CommandStreamer(Module):
 		self.length = 0
 
 	def send(self, packet, blocking=True):
+		packet = copy.deepcopy(packet)
 		self.packets.append(packet)
 		if blocking:
 			while packet.done == 0:
@@ -103,12 +104,13 @@ class CommandLogger(Module):
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.bfm = BFM(phy_debug=False,
+		self.submodules.hdd = HDD(
+				phy_debug=False,
 				link_random_level=0, link_debug=False,
-				transport_debug=True, transport_loopback=False,
+				transport_debug=False, transport_loopback=False,
 				command_debug=False,
-				hdd_debug=False)
-		self.submodules.link = SATALink(self.bfm.phy)
+				mem_debug=True)
+		self.submodules.link = SATALink(self.hdd.phy)
 		self.submodules.transport = SATATransport(self.link)
 		self.submodules.command = SATACommand(self.transport)
 
@@ -120,25 +122,23 @@ class TB(Module):
 		]
 
 	def gen_simulation(self, selfp):
-		self.bfm.hdd.allocate_mem(0x00000000, 64*1024*1024)
+		self.hdd.allocate_mem(0x00000000, 64*1024*1024)
 		selfp.command.source.ack = 1
 		for i in range(100):
 			yield
-		streamer_packet = CommandTXPacket(write=1, address=1024, length=32, data=[i for i in range(32)])
-		yield from self.streamer.send(streamer_packet)
+		write_data = [i for i in range(128)]
+		write_packet = CommandTXPacket(write=1, address=1024, length=len(write_data), data=write_data)
+		yield from self.streamer.send(write_packet)
 		yield from self.logger.receive()
-		for d in self.logger.packet:
-			print("%08x" %d)
-		for i in range(32):
-			yield
-		streamer_packet = CommandTXPacket(read=1, address=1024, length=32)
-		yield from self.streamer.send(streamer_packet)
+		read_packet = CommandTXPacket(read=1, address=1024, length=len(write_data))
+		yield from self.streamer.send(read_packet)
 		yield from self.logger.receive()
-		for d in self.logger.packet:
-			print("%08x" %d)
+		read_data = self.logger.packet
 		yield from self.logger.receive()
-		for d in self.logger.packet:
-			print("%08x" %d)
+
+		# check results
+		s, l, e = check(write_data, read_data)
+		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=512, vcd_name="my.vcd", keep_files=True)
