@@ -109,7 +109,7 @@ class TB(Module):
 				link_random_level=25, link_debug=False,
 				transport_debug=False, transport_loopback=False,
 				command_debug=False,
-				mem_debug=True)
+				hdd_debug=True)
 		self.submodules.link = SATALink(self.hdd.phy)
 		self.submodules.transport = SATATransport(self.link)
 		self.submodules.command = SATACommand(self.transport)
@@ -129,11 +129,11 @@ class TB(Module):
 
 	def gen_simulation(self, selfp):
 		self.hdd.allocate_mem(0x00000000, 64*1024*1024)
-		write_data = [i for i in range(128)]
-		write_packet = CommandTXPacket(write=1, address=1024, length=len(write_data), data=write_data)
+		write_data = [i for i in range(512//4)]
+		write_packet = CommandTXPacket(write=1, address=0, length=len(write_data), data=write_data)
 		yield from self.streamer.send(write_packet)
 		yield from self.logger.receive()
-		read_packet = CommandTXPacket(read=1, address=1024, length=len(write_data))
+		read_packet = CommandTXPacket(read=1, address=0, length=len(write_data))
 		yield from self.streamer.send(read_packet)
 		yield from self.logger.receive()
 		read_data = self.logger.packet

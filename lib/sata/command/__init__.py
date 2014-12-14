@@ -16,19 +16,22 @@ rx_to_tx = [
 ]
 
 class SATACommandTX(Module):
-	def __init__(self, transport):
+	def __init__(self, transport, sector_size):
 		self.sink = sink = Sink(command_tx_description(32))
 		self.to_rx = to_rx = Source(tx_to_rx)
 		self.from_rx = from_rx = Sink(rx_to_tx)
 
 		###
 
+		sector_bits = log2_int(sector_size)
+		dwords_bits = 2
+
 		self.comb += [
 			transport.sink.pm_port.eq(0),
 			transport.sink.features.eq(0),
-			transport.sink.lba.eq(sink.address),  # XXX need adaptation?
+			transport.sink.lba.eq(sink.address[sector_bits-dwords_bits:]),
 			transport.sink.device.eq(0xe0),
-			transport.sink.count.eq(sink.length), # XXX need adaptation?
+			transport.sink.count.eq(sink.length[sector_bits-dwords_bits:]),
 			transport.sink.icc.eq(0),
 			transport.sink.control.eq(0),
 		]
@@ -113,7 +116,7 @@ class SATACommandTX(Module):
 		]
 
 class SATACommandRX(Module):
-	def __init__(self, transport):
+	def __init__(self, transport, sector_size):
 		self.source = source = Source(command_rx_description(32))
 		self.to_tx = to_tx = Source(rx_to_tx)
 		self.from_tx = from_tx = Sink(tx_to_rx)
@@ -214,9 +217,9 @@ class SATACommandRX(Module):
 		]
 
 class SATACommand(Module):
-	def __init__(self, transport):
-		self.submodules.tx = SATACommandTX(transport)
-		self.submodules.rx = SATACommandRX(transport)
+	def __init__(self, transport, sector_size=512):
+		self.submodules.tx = SATACommandTX(transport, sector_size)
+		self.submodules.rx = SATACommandRX(transport, sector_size)
 		self.comb += [
 			self.rx.to_tx.connect(self.tx.from_rx),
 			self.tx.to_rx.connect(self.rx.from_tx)
