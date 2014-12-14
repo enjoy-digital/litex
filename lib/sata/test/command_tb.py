@@ -106,7 +106,7 @@ class TB(Module):
 	def __init__(self):
 		self.submodules.hdd = HDD(
 				phy_debug=False,
-				link_random_level=0, link_debug=False,
+				link_random_level=25, link_debug=False,
 				transport_debug=False, transport_loopback=False,
 				command_debug=False,
 				mem_debug=True)
@@ -115,17 +115,20 @@ class TB(Module):
 		self.submodules.command = SATACommand(self.transport)
 
 		self.submodules.streamer = CommandStreamer()
+		streamer_ack_randomizer = AckRandomizer(command_tx_description(32), level=0)
+		self.submodules += streamer_ack_randomizer
 		self.submodules.logger = CommandLogger()
+		logger_ack_randomizer = AckRandomizer(command_rx_description(32), level=25)
+		self.submodules += logger_ack_randomizer
 		self.comb += [
-			Record.connect(self.streamer.source, self.command.sink),
-			Record.connect(self.command.source, self.logger.sink)
+			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),
+			Record.connect(streamer_ack_randomizer.source, self.command.sink),
+			Record.connect(self.command.source, logger_ack_randomizer.sink),
+			Record.connect(logger_ack_randomizer.source, self.logger.sink)
 		]
 
 	def gen_simulation(self, selfp):
 		self.hdd.allocate_mem(0x00000000, 64*1024*1024)
-		selfp.command.source.ack = 1
-		for i in range(100):
-			yield
 		write_data = [i for i in range(128)]
 		write_packet = CommandTXPacket(write=1, address=1024, length=len(write_data), data=write_data)
 		yield from self.streamer.send(write_packet)
@@ -141,4 +144,4 @@ class TB(Module):
 		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=512, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=1024, vcd_name="my.vcd", keep_files=True)

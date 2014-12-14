@@ -60,7 +60,7 @@ class SATATransportTX(Module):
 		fsm.act("SEND_REG_H2D_CMD",
 			_encode_cmd(sink, fis_reg_h2d_layout, encoded_cmd),
 			cmd_len.eq(fis_reg_h2d_cmd_len-1),
-			cmd_send.eq(1),
+			cmd_send.eq(sink.stb),
 			If(cmd_done,
 				sink.ack.eq(1),
 				NextState("IDLE")
@@ -70,7 +70,7 @@ class SATATransportTX(Module):
 			_encode_cmd(sink, fis_data_layout, encoded_cmd),
 			cmd_len.eq(fis_data_cmd_len-1),
 			cmd_with_data.eq(1),
-			cmd_send.eq(1),
+			cmd_send.eq(sink.stb),
 			If(cmd_done,
 				NextState("SEND_DATA")
 			)
