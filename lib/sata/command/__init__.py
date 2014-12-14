@@ -11,7 +11,7 @@ from_rx = [
 
 class SATACommandTX(Module):
 	def __init__(self, transport):
-		self.sink = sink = Sink(command_tx_layout(32))
+		self.sink = sink = Sink(command_tx_description(32))
 		self.from_rx = Sink(from_rx)
 
 		###
@@ -109,7 +109,7 @@ class SATACommandTX(Module):
 
 class SATACommandRX(Module):
 	def __init__(self, transport):
-		self.source = source = Source(command_tx_layout(32))
+		self.source = source = Source(command_tx_description(32))
 		self.to_tx = Source(from_rx)
 
 		###

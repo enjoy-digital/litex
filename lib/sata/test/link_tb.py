@@ -12,7 +12,7 @@ from lib.sata.test.common import *
 
 class LinkStreamer(Module):
 	def __init__(self):
-		self.source = Source(link_layout(32))
+		self.source = Source(link_description(32))
 		###
 		self.packets = []
 		self.packet = LinkTXPacket()
@@ -44,7 +44,7 @@ class LinkStreamer(Module):
 
 class LinkLogger(Module):
 	def __init__(self):
-		self.sink = Sink(link_layout(32))
+		self.sink = Sink(link_description(32))
 		###
 		self.packet = LinkRXPacket()
 
@@ -70,10 +70,10 @@ class TB(Module):
 		self.submodules.link = SATALink(self.bfm.phy)
 
 		self.submodules.streamer = LinkStreamer()
-		streamer_ack_randomizer = AckRandomizer(link_layout(32), level=50)
+		streamer_ack_randomizer = AckRandomizer(link_description(32), level=50)
 		self.submodules += streamer_ack_randomizer
 		self.submodules.logger = LinkLogger()
-		logger_ack_randomizer = AckRandomizer(link_layout(32), level=50)
+		logger_ack_randomizer = AckRandomizer(link_description(32), level=50)
 		self.submodules += logger_ack_randomizer
 		self.comb += [
 			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),

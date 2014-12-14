@@ -5,9 +5,9 @@ from lib.sata.common import *
 from lib.sata.link.scrambler import Scrambler
 
 class SATACONTInserter(Module):
-	def __init__(self, layout):
-		self.sink = sink = Sink(layout)
-		self.source = source = Source(layout)
+	def __init__(self, description):
+		self.sink = sink = Sink(description)
+		self.source = source = Source(description)
 
 		###
 
@@ -80,9 +80,9 @@ class SATACONTInserter(Module):
 		]
 
 class SATACONTRemover(Module):
-	def __init__(self, layout):
-		self.sink = sink = Sink(layout)
-		self.source = source = Source(layout)
+	def __init__(self, description):
+		self.sink = sink = Sink(description)
+		self.source = source = Source(description)
 
 		###
 

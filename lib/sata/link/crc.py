@@ -108,9 +108,9 @@ class SATACRC(Module):
 		]
 
 class SATACRCInserter(CRCInserter):
-	def __init__(self, layout):
-		CRCInserter.__init__(self, SATACRC, layout)
+	def __init__(self, description):
+		CRCInserter.__init__(self, SATACRC, description)
 
 class SATACRCChecker(CRCChecker):
-	def __init__(self, layout):
-		CRCChecker.__init__(self, SATACRC, layout)
+	def __init__(self, description):
+		CRCChecker.__init__(self, SATACRC, description)

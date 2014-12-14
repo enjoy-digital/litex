@@ -3,9 +3,9 @@ from migen.genlib.fsm import FSM, NextState
 
 from lib.sata.common import *
 
-def _encode_cmd(obj, layout, signal):
+def _encode_cmd(obj, description, signal):
 	r = []
-	for k, v in sorted(layout.items()):
+	for k, v in sorted(description.items()):
 		start = v.dword*32 + v.offset
 		end = start + v.width
 		if "_lsb" in k:
@@ -19,7 +19,7 @@ def _encode_cmd(obj, layout, signal):
 
 class SATATransportTX(Module):
 	def __init__(self, link):
-		self.sink = sink = Sink(transport_tx_layout(32))
+		self.sink = sink = Sink(transport_tx_description(32))
 
 		###
 
@@ -109,9 +109,9 @@ class SATATransportTX(Module):
 				cnt.eq(cnt+1)
 			)
 
-def _decode_cmd(signal, layout, obj):
+def _decode_cmd(signal, description, obj):
 	r = []
-	for k, v in sorted(layout.items()):
+	for k, v in sorted(description.items()):
 		start = v.dword*32+v.offset
 		end = start+v.width
 		if "_lsb" in k:
@@ -125,7 +125,7 @@ def _decode_cmd(signal, layout, obj):
 
 class SATATransportRX(Module):
 	def __init__(self, link):
-		self.source = source = Source(transport_rx_layout(32))
+		self.source = source = Source(transport_rx_description(32))
 
 		###
 

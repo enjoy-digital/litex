@@ -32,14 +32,14 @@ def decode_primitive(dword):
 			return k
 	return ""
 
-def phy_layout(dw):
+def phy_description(dw):
 	layout = [
 		("data", dw),
 		("charisk", dw//8),
 	]
 	return EndpointDescription(layout, packetized=False)
 
-def link_layout(dw):
+def link_description(dw):
 	layout = [
 		("d", dw),
 		("error", 1)
@@ -106,7 +106,7 @@ fis_data_layout = {
 	"type": FISField(0,  0, 8)
 }
 
-def transport_tx_layout(dw):
+def transport_tx_description(dw):
 	layout = [
 		("type", 8),
 		("pm_port", 4),
@@ -122,7 +122,7 @@ def transport_tx_layout(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
-def transport_rx_layout(dw):
+def transport_rx_description(dw):
 	layout = [
 		("type", 8),
 		("pm_port", 4),
@@ -143,7 +143,7 @@ regs = {
 	"IDENTIFY_DEVICE_DMA"	: 0xEE
 }
 
-def command_tx_layout(dw):
+def command_tx_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
@@ -154,7 +154,7 @@ def command_tx_layout(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
-def command_rx_layout(dw):
+def command_rx_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),

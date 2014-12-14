@@ -15,7 +15,7 @@ from_rx = [
 
 class SATALinkTX(Module):
 	def __init__(self, phy):
-		self.sink = Sink(link_layout(32))
+		self.sink = Sink(link_description(32))
 		self.from_rx = Sink(from_rx)
 
 		###
@@ -24,11 +24,11 @@ class SATALinkTX(Module):
 		self.submodules += fsm
 
 		# insert CRC
-		crc = SATACRCInserter(link_layout(32))
+		crc = SATACRCInserter(link_description(32))
 		self.submodules += crc
 
 		# scramble
-		scrambler = SATAScrambler(link_layout(32))
+		scrambler = SATAScrambler(link_description(32))
 		self.submodules += scrambler
 
 		# connect CRC / scrambler
@@ -39,7 +39,7 @@ class SATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		cont  = SATACONTInserter(phy_layout(32))
+		cont  = SATACONTInserter(phy_description(32))
 		self.submodules += cont
 
 		# datas / primitives mux
@@ -113,7 +113,7 @@ class SATALinkTX(Module):
 
 class SATALinkRX(Module):
 	def __init__(self, phy):
-		self.source = Source(link_layout(32))
+		self.source = Source(link_description(32))
 		self.to_tx = Source(from_rx)
 
 		###
@@ -122,7 +122,7 @@ class SATALinkRX(Module):
 		self.submodules += fsm
 
 		# CONT remover
-		cont = SATACONTRemover(phy_layout(32))
+		cont = SATACONTRemover(phy_description(32))
 		self.submodules += cont
 		self.comb += Record.connect(phy.source, cont.sink)
 
@@ -135,11 +135,11 @@ class SATALinkRX(Module):
 			)
 
 		# descrambler
-		scrambler = SATAScrambler(link_layout(32))
+		scrambler = SATAScrambler(link_description(32))
 		self.submodules += scrambler
 
 		# check CRC
-		crc = SATACRCChecker(link_layout(32))
+		crc = SATACRCChecker(link_description(32))
 		self.submodules += crc
 
 		sop = Signal()
@@ -151,7 +151,7 @@ class SATALinkRX(Module):
 			)
 
 		# small fifo to manage HOLD
-		self.submodules.fifo = SyncFIFO(link_layout(32), 32)
+		self.submodules.fifo = SyncFIFO(link_description(32), 32)
 
 		# graph
 		self.sync += \

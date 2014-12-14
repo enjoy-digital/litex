@@ -69,9 +69,9 @@ class Scrambler(Module):
 
 @DecorateModule(InsertReset)
 class SATAScrambler(Module):
-	def __init__(self, layout):
-		self.sink = sink = Sink(layout)
-		self.source = source = Source(layout)
+	def __init__(self, description):
+		self.sink = sink = Sink(description)
+		self.source = source = Source(description)
 
 		###
 

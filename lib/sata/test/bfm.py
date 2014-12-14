@@ -13,7 +13,7 @@ class PHYDword:
 
 class PHYSource(Module):
 	def __init__(self):
-		self.source = Source(phy_layout(32))
+		self.source = Source(phy_description(32))
 		###
 		self.dword = PHYDword()
 
@@ -30,7 +30,7 @@ class PHYSource(Module):
 
 class PHYSink(Module):
 	def __init__(self):
-		self.sink = Sink(phy_layout(32))
+		self.sink = Sink(phy_description(32))
 		###
 		self.dword = PHYDword()
 
@@ -263,22 +263,22 @@ def get_field_data(field, packet):
 	return (packet[field.dword] >> field.offset) & (2**field.width-1)
 
 class FIS:
-	def __init__(self, packet, layout):
+	def __init__(self, packet, description):
 		self.packet = packet
-		self.layout = layout
+		self.description = description
 		self.decode()
 
 	def decode(self):
-		for k, v in self.layout.items():
+		for k, v in self.description.items():
 			setattr(self, k, get_field_data(v, self.packet))
 
 	def encode(self):
-		for k, v in self.layout.items():
+		for k, v in self.description.items():
 			self.packet[v.dword] |= (getattr(self, k) << v.offset)
 
 	def __repr__(self):
 		r = "--------\n"
-		for k in sorted(self.layout.keys()):
+		for k in sorted(self.description.keys()):
 			r += k + " : 0x%x" %getattr(self,k) + "\n"
 		return r
 
