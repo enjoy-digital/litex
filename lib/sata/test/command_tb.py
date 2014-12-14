@@ -21,8 +21,7 @@ class TB(Module):
 		self.submodules.command = SATACommand(self.transport)
 
 	def gen_simulation(self, selfp):
-		self.bfm.command.allocate_dma(0x00000000, 64*1024*1024)
-		self.bfm.command.enable_dma()
+		self.bfm.hdd.allocate_mem(0x00000000, 64*1024*1024)
 		selfp.command.source.ack = 1
 		for i in range(100):
 			yield
