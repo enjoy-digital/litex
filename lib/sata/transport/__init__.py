@@ -54,13 +54,13 @@ class SATATransportTX(Module):
 					sink.ack.eq(1)
 				)
 			).Else(
-				sink.ack.eq(1)
+				sink.ack.eq(sink.stb)
 			)
 		)
 		fsm.act("SEND_REG_H2D_CMD",
 			_encode_cmd(sink, fis_reg_h2d_layout, encoded_cmd),
 			cmd_len.eq(fis_reg_h2d_cmd_len-1),
-			cmd_send.eq(sink.stb),
+			cmd_send.eq(1),
 			If(cmd_done,
 				sink.ack.eq(1),
 				NextState("IDLE")
@@ -70,7 +70,7 @@ class SATATransportTX(Module):
 			_encode_cmd(sink, fis_data_layout, encoded_cmd),
 			cmd_len.eq(fis_data_cmd_len-1),
 			cmd_with_data.eq(1),
-			cmd_send.eq(sink.stb),
+			cmd_send.eq(1),
 			If(cmd_done,
 				NextState("SEND_DATA")
 			)
@@ -89,12 +89,12 @@ class SATATransportTX(Module):
 
 		self.comb += \
 			If(cmd_send,
-				link.sink.stb.eq(1),
+				link.sink.stb.eq(sink.stb),
 				link.sink.sop.eq(cnt==0),
 				link.sink.eop.eq((cnt==cmd_len) & ~cmd_with_data),
 				Case(cnt, cmd_cases),
-				inc_cnt.eq(link.sink.ack),
-				cmd_done.eq((cnt==cmd_len) & link.sink.ack)
+				inc_cnt.eq(sink.stb & link.sink.ack),
+				cmd_done.eq((cnt==cmd_len) & link.sink.stb & link.sink.ack)
 			).Elif(data_send,
 				link.sink.stb.eq(sink.stb),
 				link.sink.sop.eq(0),

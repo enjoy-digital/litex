@@ -106,7 +106,7 @@ class TB(Module):
 	def __init__(self):
 		self.submodules.hdd = HDD(
 				phy_debug=False,
-				link_random_level=25, link_debug=False,
+				link_random_level=50, link_debug=False,
 				transport_debug=False, transport_loopback=False,
 				command_debug=False,
 				hdd_debug=True)
@@ -115,10 +115,10 @@ class TB(Module):
 		self.submodules.command = SATACommand(self.transport)
 
 		self.submodules.streamer = CommandStreamer()
-		streamer_ack_randomizer = AckRandomizer(command_tx_description(32), level=0)
+		streamer_ack_randomizer = AckRandomizer(command_tx_description(32), level=50)
 		self.submodules += streamer_ack_randomizer
 		self.submodules.logger = CommandLogger()
-		logger_ack_randomizer = AckRandomizer(command_rx_description(32), level=25)
+		logger_ack_randomizer = AckRandomizer(command_rx_description(32), level=50)
 		self.submodules += logger_ack_randomizer
 		self.comb += [
 			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),

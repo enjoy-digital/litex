@@ -55,7 +55,7 @@ class SATACommandTX(Module):
 			)
 		)
 		fsm.act("SEND_WRITE_DMA_CMD",
-			transport.sink.stb.eq(1),
+			transport.sink.stb.eq(sink.stb),
 			transport.sink.sop.eq(1),
 			transport.sink.eop.eq(1),
 			transport.sink.type.eq(fis_types["REG_H2D"]),
