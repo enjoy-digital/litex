@@ -149,6 +149,8 @@ class SATATransportRX(Module):
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 
+		data_sop = Signal()
+
 		fsm.act("IDLE",
 			clr_cnt.eq(1),
 			If(link.source.stb & link.source.sop,
@@ -175,6 +177,8 @@ class SATATransportRX(Module):
 		)
 		fsm.act("PRESENT_REG_D2H_CMD",
 			source.stb.eq(1),
+			source.sop.eq(1),
+			source.eop.eq(1),
 			_decode_cmd(encoded_cmd, fis_reg_d2h_layout, source),
 			If(source.ack,
 				NextState("IDLE")
@@ -189,6 +193,8 @@ class SATATransportRX(Module):
 		)
 		fsm.act("PRESENT_DMA_ACTIVATE_D2H_CMD",
 			source.stb.eq(1),
+			source.sop.eq(1),
+			source.eop.eq(1),
 			_decode_cmd(encoded_cmd, fis_dma_activate_d2h_layout, source),
 			If(source.ack,
 				NextState("IDLE")
@@ -205,13 +211,22 @@ class SATATransportRX(Module):
 			data_receive.eq(1),
 			source.stb.eq(link.source.stb),
 			_decode_cmd(encoded_cmd, fis_data_layout, source),
-			source.sop.eq(0), # XXX
+			source.sop.eq(data_sop),
 			source.eop.eq(link.source.eop),
 			source.data.eq(link.source.d),
 			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)
 		)
+
+		self.sync += \
+			If(fsm.ongoing("RECEIVE_DATA_CMD"),
+				data_sop.eq(1)
+			).Elif(fsm.ongoing("PRESENT_DATA"),
+				If(source.stb & source.ack,
+					data_sop.eq(0)
+				)
+			)
 
 		cmd_cases = {}
 		for i in range(cmd_ndwords):

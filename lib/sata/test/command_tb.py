@@ -94,7 +94,7 @@ class CommandLogger(Module):
 			self.packet.read = selfp.sink.read
 			self.packet.identify = selfp.sink.identify
 			self.packet.sucess = selfp.sink.success
-			self.paclet.failed = selfp.sink.failed
+			self.packet.failed = selfp.sink.failed
 			self.packet.append(selfp.sink.data)
 		elif selfp.sink.stb:
 			self.packet.append(selfp.sink.data)
