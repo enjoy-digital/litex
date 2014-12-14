@@ -109,7 +109,7 @@ class SATACommandTX(Module):
 
 class SATACommandRX(Module):
 	def __init__(self, transport):
-		self.source = source = Source(command_tx_description(32))
+		self.source = source = Source(command_rx_description(32))
 		self.to_tx = Source(from_rx)
 
 		###
