@@ -98,7 +98,7 @@ class CommandLogger(Module):
 			self.packet.append(selfp.sink.data)
 		elif selfp.sink.stb:
 			self.packet.append(selfp.sink.data)
-		if (selfp.sink.stb ==1 and selfp.sink.eop ==1):
+		if (selfp.sink.stb == 1 and selfp.sink.eop == 1):
 			self.packet.done = True
 
 class TB(Module):
@@ -126,10 +126,16 @@ class TB(Module):
 			yield
 		streamer_packet = CommandTXPacket(write=1, address=1024, length=32, data=[i for i in range(32)])
 		yield from self.streamer.send(streamer_packet)
+		yield from self.logger.receive()
+		for d in self.logger.packet:
+			print("%08x" %d)
 		for i in range(32):
 			yield
 		streamer_packet = CommandTXPacket(read=1, address=1024, length=32)
 		yield from self.streamer.send(streamer_packet)
+		yield from self.logger.receive()
+		for d in self.logger.packet:
+			print("%08x" %d)
 		yield from self.logger.receive()
 		for d in self.logger.packet:
 			print("%08x" %d)

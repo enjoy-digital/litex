@@ -223,6 +223,7 @@ class LinkLayer(Module):
 				self.tx_packet.done = True
 			elif dword == primitives["R_ERR"]:
 				self.tx_packet.done = True
+			self.phy.send(primitives["SYNC"])
 
 	def insert_cont(self):
 		self.tx_lasts.pop(0)
@@ -388,15 +389,20 @@ class CommandLayer(Module):
 
 	def callback(self, fis):
 		# XXX manage maximum of 2048 DWORDS per DMA
+		resp = None
 		if isinstance(fis, FIS_REG_H2D):
 			if fis.command == regs["WRITE_DMA_EXT"]:
-				self.transport.send(self.hdd.write_dma_cmd(fis))
+				resp =  self.hdd.write_dma_cmd(fis)
 			elif fis.command == regs["READ_DMA_EXT"]:
-				self.transport.send(self.hdd.read_dma_cmd(fis))
+				resp = self.hdd.read_dma_cmd(fis)
 			elif fis.command == regs["IDENTIFY_DEVICE_DMA"]:
-				self.transport.send(self.hdd.identify_device_dma_cmd(fis))
+				resp = self.hdd.identify_device_dma_cmd(fis)
 		elif isinstance(fis, FIS_DATA):
-			self.hdd.data_cmd(fis)
+			resp = self.hdd.data_cmd(fis)
+
+		if resp is not None:
+			for packet in resp:
+				self.transport.send(packet)
 
 # HDD model
 class HDDMemRegion:
@@ -412,23 +418,32 @@ class HDD(Module):
 
 		self.mem = None
 		self.wr_address = 0
+		self.wr_length = 0
+		self.wr_cnt = 0
 
 	def write_dma_cmd(self, fis):
 		self.wr_address = fis.lba_lsb
-		return FIS_DMA_ACTIVATE_D2H()
+		self.wr_length = fis.count
+		self.wr_cnt = 0
+		return [FIS_DMA_ACTIVATE_D2H()]
 
 	def read_dma_cmd(self, fis):
 		packet = self.read_mem(fis.lba_lsb, fis.count*4)
 		packet.insert(0, 0)
-		return FIS_DATA(packet)
+		return [FIS_DATA(packet), FIS_REG_D2H()]
 
 	def identify_dma_cmd(self, fis):
 		packet = [i for i in range(256)]
 		packet.insert(0, 0)
-		return FIS_DATA(packet)
+		return [FIS_DATA(packet), FIS_REG_D2H()]
 
 	def data_cmd(self, fis):
 		self.write_mem(self.wr_address, fis.packet[1:])
+		self.wr_cnt += len(fis.packet[1:])
+		if self.wr_length == self.wr_cnt:
+			return [FIS_REG_D2H()]
+		else:
+			return None
 
 	def allocate_mem(self, base, length):
 		# XXX add support for multiple memory regions
