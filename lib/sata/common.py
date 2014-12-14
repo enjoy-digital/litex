@@ -136,7 +136,7 @@ def transport_rx_description(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
-# Command Layer constants / functions
+# Command Layer
 regs = {
 	"WRITE_DMA_EXT"			: 0x35,
 	"READ_DMA_EXT"			: 0x25,

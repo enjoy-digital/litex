@@ -17,13 +17,10 @@ scrambler_tb:
 link_tb:
 	$(CMD) link_tb.py
 
-transport_tb:
-	$(CMD) transport_tb.py
-
 command_tb:
 	$(CMD) command_tb.py
 
-all: crc_tb scrambler_tb link_tb
+all: crc_tb scrambler_tb link_tb command_tb
 
 clean:
 	rm crc scrambler *.vcd
