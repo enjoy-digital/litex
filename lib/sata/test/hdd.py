@@ -1,4 +1,5 @@
 import subprocess
+import math
 
 from migen.fhdl.std import *
 
@@ -427,7 +428,7 @@ class HDD(Module):
 			link_debug=False, link_random_level=0,
 			transport_debug=False, transport_loopback=False,
 			command_debug=False,
-			mem_debug=False
+			hdd_debug=False, hdd_sector_size=512,
 			):
 		###
 		self.submodules.phy = PHYLayer(phy_debug)
@@ -437,26 +438,29 @@ class HDD(Module):
 
 		self.command.set_hdd(self)
 
-		self.mem_debug = mem_debug
+		self.hdd_debug = hdd_debug
+		self.hdd_sector_size = hdd_sector_size
 		self.mem = None
 		self.wr_address = 0
 		self.wr_length = 0
 		self.wr_cnt = 0
+		self.rd_address = 0
+		self.rd_length = 0
 
 	def allocate_mem(self, base, length):
-		if self.mem_debug:
+		if self.hdd_debug:
 			print("[HDD] : Allocating {n} bytes at 0x{a}".format(n=length, a=base))
 		self.mem = HDDMemRegion(base, length)
 
 	def write_mem(self, adr, data):
-		if self.mem_debug:
+		if self.hdd_debug:
 			print("[HDD] : Writing {n} bytes at 0x{a}".format(n=len(data)*4, a=adr))
 		current_adr = (adr-self.mem.base)//4
 		for i in range(len(data)):
 			self.mem.data[current_adr+i] = data[i]
 
 	def read_mem(self, adr, length=1):
-		if self.mem_debug:
+		if self.hdd_debug:
 			print("[HDD] : Reading {n} bytes at 0x{a}".format(n=length, a=adr))
 		current_adr = (adr-self.mem.base)//4
 		data = []
@@ -466,24 +470,32 @@ class HDD(Module):
 
 	def write_dma_cmd(self, fis):
 		self.wr_address = fis.lba_lsb
-		self.wr_length = fis.count
+		self.wr_length = fis.count*self.hdd_sector_size
 		self.wr_cnt = 0
 		return [FIS_DMA_ACTIVATE_D2H()]
 
 	def read_dma_cmd(self, fis):
-		packet = self.read_mem(fis.lba_lsb, fis.count*4)
-		packet.insert(0, 0)
-		return [FIS_DATA(packet, direction="H2D"), FIS_REG_D2H()]
+		self.rd_address = fis.lba_lsb
+		self.rd_length = fis.count*self.hdd_sector_size
+		self.rd_cnt = 0
+		n = math.ceil(self.rd_length/(2048*4))
+		packets = [FIS_REG_D2H()]
+		for i in range(n):
+			length = min(self.rd_length-self.rd_cnt, 2048)
+			packet = self.read_mem(self.rd_address, length)
+			packet.insert(0, 0)
+			packets.insert(0, FIS_DATA(packet, direction="D2H"))
+		return packets
 
 	def identify_dma_cmd(self, fis):
 		packet = [i for i in range(256)]
 		packet.insert(0, 0)
-		return [FIS_DATA(packet, direction="H2D"), FIS_REG_D2H()]
+		return [FIS_DATA(packet, direction="D2H"), FIS_REG_D2H()]
 
 	def data_cmd(self, fis):
 		self.write_mem(self.wr_address, fis.packet[1:])
-		self.wr_cnt += len(fis.packet[1:])
+		self.wr_cnt += len(fis.packet[1:])*4
 		if self.wr_length == self.wr_cnt:
 			return [FIS_REG_D2H()]
 		else:
-			return None
+			return [FIS_DMA_ACTIVATE_D2H()]
