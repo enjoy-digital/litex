@@ -20,6 +20,9 @@ link_tb:
 command_tb:
 	$(CMD) command_tb.py
 
+bist_tb:
+	$(CMD) bist_tb.py
+
 all: crc_tb scrambler_tb link_tb command_tb
 
 clean:
