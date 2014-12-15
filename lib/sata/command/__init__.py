@@ -274,7 +274,7 @@ class SATACommandRX(Module):
 class SATACommand(Module):
 	def __init__(self, transport, sector_size=512, max_count=4):
 		if max_count*sector_size > 8192:
-			raise ValueError("sector_size x max_count must be <= 2048")
+			raise ValueError("sector_size * max_count must be <= 8192")
 		self.submodules.tx = SATACommandTX(transport, sector_size)
 		self.submodules.rx = SATACommandRX(transport, sector_size, max_count)
 		self.comb += [
