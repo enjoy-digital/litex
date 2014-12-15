@@ -5,12 +5,13 @@ from lib.sata.common import *
 from lib.sata.link.scrambler import Scrambler
 
 class SATABIST(Module):
-	def __init__(self, sector_size=512, max_count=1):
+	def __init__(self, sector_size=512):
 		self.sink = sink = Sink(command_rx_description(32))
 		self.source = source = Source(command_tx_description(32))
 
 		self.start = Signal()
 		self.sector = Signal(48)
+		self.count = Signal(4)
 		self.done = Signal()
 		self.ctrl_errors = Signal(32)
 		self.data_errors = Signal(32)
@@ -42,10 +43,10 @@ class SATABIST(Module):
 		fsm.act("SEND_WRITE_CMD_AND_DATA",
 			source.stb.eq(1),
 			source.sop.eq((counter.value == 0)),
-			source.eop.eq((counter.value == (sector_size*max_count)//4-1)),
+			source.eop.eq((counter.value == (sector_size//4*self.count)-1)),
 			source.write.eq(1),
 			source.sector.eq(self.sector),
-			source.count.eq(max_count),
+			source.count.eq(self.count),
 			source.data.eq(scrambler.value),
 			counter.ce.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
@@ -67,7 +68,7 @@ class SATABIST(Module):
 			source.eop.eq(1),
 			source.read.eq(1),
 			source.sector.eq(self.sector),
-			source.count.eq(max_count),
+			source.count.eq(self.count),
 			If(source.ack,
 				NextState("WAIT_READ_ACK")
 			)

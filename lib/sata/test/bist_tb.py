@@ -18,7 +18,7 @@ class TB(Module):
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
 		self.submodules.controller = SATACON(self.hdd.phy)
-		self.submodules.bist = SATABIST(max_count=2)
+		self.submodules.bist = SATABIST()
 		self.comb += [
 			self.bist.source.connect(self.controller.sink),
 			self.controller.source.connect(self.bist.sink)
@@ -27,6 +27,8 @@ class TB(Module):
 	def gen_simulation(self, selfp):
 		hdd = self.hdd
 		hdd.malloc(0, 64)
+		selfp.bist.sector = 0
+		selfp.bist.count = 4
 		while True:
 			selfp.bist.start = 1
 			yield
@@ -36,6 +38,7 @@ class TB(Module):
 				yield
 			print("ctrl_errors: {} / data_errors {}".format(selfp.bist.ctrl_errors, selfp.bist.data_errors))
 			selfp.bist.sector += 1
+			selfp.bist.count = max((selfp.bist.count + 1)%8, 1)
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=4096, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=8192*2, vcd_name="my.vcd", keep_files=True)
