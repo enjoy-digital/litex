@@ -23,15 +23,12 @@ class SATACommandTX(Module):
 
 		###
 
-		sector_bits = log2_int(sector_size)
-		dwords_bits = 2
-
 		self.comb += [
 			transport.sink.pm_port.eq(0),
 			transport.sink.features.eq(0),
-			transport.sink.lba.eq(sink.address[sector_bits-dwords_bits:]),
+			transport.sink.lba.eq(sink.sector),
 			transport.sink.device.eq(0xe0),
-			transport.sink.count.eq(sink.length[sector_bits-dwords_bits:]),
+			transport.sink.count.eq(sink.count),
 			transport.sink.icc.eq(0),
 			transport.sink.control.eq(0),
 		]
@@ -61,11 +58,10 @@ class SATACommandTX(Module):
 			transport.sink.type.eq(fis_types["REG_H2D"]),
 			transport.sink.c.eq(1),
 			transport.sink.command.eq(regs["WRITE_DMA_EXT"]),
-			If(transport.sink.ack,
+			If(sink.stb & transport.sink.ack,
 				NextState("WAIT_DMA_ACTIVATE")
 			)
 		)
-		# XXX: split when length > 2048 dwords
 		fsm.act("WAIT_DMA_ACTIVATE",
 			If(from_rx.dma_activate,
 				NextState("SEND_DATA")
@@ -116,7 +112,7 @@ class SATACommandTX(Module):
 		]
 
 class SATACommandRX(Module):
-	def __init__(self, transport, sector_size):
+	def __init__(self, transport, sector_size, max_count):
 		self.source = source = Source(command_rx_description(32))
 		self.to_tx = to_tx = Source(rx_to_tx)
 		self.from_tx = from_tx = Sink(tx_to_rx)
@@ -167,7 +163,7 @@ class SATACommandRX(Module):
 			source.eop.eq(1),
 			source.write.eq(1),
 			source.success.eq(1),
-			If(source.ack,
+			If(source.stb & source.ack,
 				NextState("IDLE")
 			)
 		)
@@ -207,7 +203,7 @@ class SATACommandRX(Module):
 			source.read.eq(~identify),
 			source.identify.eq(identify),
 			source.success.eq(1),
-			If(source.ack,
+			If(source.stb & source.ack,
 				NextState("IDLE")
 			)
 		)
@@ -217,9 +213,11 @@ class SATACommandRX(Module):
 		]
 
 class SATACommand(Module):
-	def __init__(self, transport, sector_size=512):
+	def __init__(self, transport, sector_size=512, max_count=16):
+		if max_count*sector_size > 8192:
+			raise ValueError("sector_size x max_count must be <= 2048")
 		self.submodules.tx = SATACommandTX(transport, sector_size)
-		self.submodules.rx = SATACommandRX(transport, sector_size)
+		self.submodules.rx = SATACommandRX(transport, sector_size, max_count)
 		self.comb += [
 			self.rx.to_tx.connect(self.tx.from_rx),
 			self.tx.to_rx.connect(self.rx.from_tx)

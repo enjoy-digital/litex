@@ -148,8 +148,8 @@ def command_tx_description(dw):
 		("write", 1),
 		("read", 1),
 		("identify", 1),
-		("address", 32),
-		("length", 32),
+		("sector", 48),
+		("count", 4),
 		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)

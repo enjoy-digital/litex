@@ -13,14 +13,14 @@ from lib.sata.test.hdd import *
 from lib.sata.test.common import *
 
 class CommandTXPacket(list):
-	def __init__(self, write=0, read=0,  identify=0, address=0, length=0, data=[]):
+	def __init__(self, write=0, read=0,  identify=0, sector=0, count=0, data=[]):
 		self.ongoing = False
 		self.done = False
 		self.write = write
 		self.read = read
 		self.identify = identify
-		self.address = address
-		self.length = length
+		self.sector = sector
+		self.count = count
 		for d in data:
 			self.append(d)
 
@@ -47,8 +47,8 @@ class CommandStreamer(Module):
 		selfp.source.write = self.packet.write
 		selfp.source.read = self.packet.read
 		selfp.source.identify = self.packet.identify
-		selfp.source.address = self.packet.address
-		selfp.source.length = self.packet.length
+		selfp.source.sector = self.packet.sector
+		selfp.source.count = self.packet.count
 
 		if not self.packet.ongoing and not self.packet.done:
 			selfp.source.stb = 1
@@ -105,10 +105,8 @@ class CommandLogger(Module):
 class TB(Module):
 	def __init__(self):
 		self.submodules.hdd = HDD(
-				phy_debug=False,
-				link_random_level=50, link_debug=False,
+				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=False,
-				command_debug=False,
 				hdd_debug=True)
 		self.submodules.link = SATALink(self.hdd.phy)
 		self.submodules.transport = SATATransport(self.link)
@@ -128,12 +126,14 @@ class TB(Module):
 		]
 
 	def gen_simulation(self, selfp):
-		self.hdd.allocate_mem(0x00000000, 64*1024*1024)
-		write_data = [i for i in range(512//4)]
-		write_packet = CommandTXPacket(write=1, address=0, length=len(write_data), data=write_data)
+		hdd = self.hdd
+		hdd.malloc(0, 64)
+		write_data = [i for i in range(hdd.sectors2dwords(2))]
+		write_len = hdd.dwords2sectors(len(write_data))
+		write_packet = CommandTXPacket(write=1, sector=2, count=write_len, data=write_data)
 		yield from self.streamer.send(write_packet)
 		yield from self.logger.receive()
-		read_packet = CommandTXPacket(read=1, address=0, length=len(write_data))
+		read_packet = CommandTXPacket(read=1, sector=2, count=write_len)
 		yield from self.streamer.send(read_packet)
 		yield from self.logger.receive()
 		read_data = self.logger.packet
@@ -144,4 +144,4 @@ class TB(Module):
 		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=1024, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=2048, vcd_name="my.vcd", keep_files=True)

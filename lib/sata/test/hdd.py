@@ -6,6 +6,13 @@ from migen.fhdl.std import *
 from lib.sata.common import *
 from lib.sata.test.common import *
 
+def print_with_prefix(s, prefix=""):
+	if not isinstance(s, str):
+		s = s.__repr__()
+	s = s.split("\n")
+	for l in s:
+		print(prefix + l)
+
 # PHY Layer model
 class PHYDword:
 	def __init__(self, dat=0):
@@ -49,8 +56,7 @@ class PHYSink(Module):
 			self.dword.dat = selfp.sink.data
 
 class PHYLayer(Module):
-	def __init__(self, debug=False):
-		self.debug = debug
+	def __init__(self):
 
 		self.submodules.rx = PHYSink()
 		self.submodules.tx = PHYSource()
@@ -63,8 +69,6 @@ class PHYLayer(Module):
 		self.tx.send(packet)
 
 	def receive(self):
-		if self.debug:
-				print(self)
 		yield from self.rx.receive()
 
 	def __repr__(self):
@@ -79,6 +83,9 @@ class PHYLayer(Module):
 		return receiving + sending
 
 # Link Layer model
+def print_link(s):
+	print_with_prefix(s, "[LNK]: ")
+
 def import_scrambler_datas():
 	with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
 		process.stdin.write("0x10000".encode("ASCII"))
@@ -249,6 +256,8 @@ class LinkLayer(Module):
 		self.phy.send(primitives["SYNC"])
 		while True:
 			yield from self.phy.receive()
+			if self.debug:
+				print_link(self.phy)
 			self.phy.send(primitives["SYNC"])
 			rx_dword = self.phy.rx.dword.dat
 			rx_dword = self.remove_cont(rx_dword)
@@ -264,6 +273,9 @@ class LinkLayer(Module):
 			self.insert_cont()
 
 # Transport Layer model
+def print_transport(s):
+	print_with_prefix(s, "[TRN]: ")
+
 def get_field_data(field, packet):
 	return (packet[field.dword] >> field.offset) & (2**field.width-1)
 
@@ -365,7 +377,7 @@ class TransportLayer(Module):
 		packet = LinkTXPacket(fis.packet)
 		self.link.tx_packets.append(packet)
 		if self.debug and not self.loopback:
-			print(fis)
+			print_transport(fis)
 
 	def callback(self, packet):
 		fis_type = packet[0] & 0xff
@@ -380,7 +392,7 @@ class TransportLayer(Module):
 		else:
 			fis = FIS_UNKNOWN(packet, direction="H2D")
 		if self.debug:
-			print(fis)
+			print_transport(fis)
 		if self.loopback:
 			self.send(fis)
 		else:
@@ -388,9 +400,8 @@ class TransportLayer(Module):
 
 # Command Layer model
 class CommandLayer(Module):
-	def __init__(self, transport, debug=False):
+	def __init__(self, transport):
 		self.transport = transport
-		self.debug = debug
 		self.transport.set_command_callback(self.callback)
 
 		self.hdd = None
@@ -399,103 +410,100 @@ class CommandLayer(Module):
 		self.hdd = hdd
 
 	def callback(self, fis):
-		# XXX manage maximum of 2048 DWORDS per DMA
 		resp = None
 		if isinstance(fis, FIS_REG_H2D):
 			if fis.command == regs["WRITE_DMA_EXT"]:
-				resp =  self.hdd.write_dma_cmd(fis)
+				resp =  self.hdd.write_dma_callback(fis)
 			elif fis.command == regs["READ_DMA_EXT"]:
-				resp = self.hdd.read_dma_cmd(fis)
+				resp = self.hdd.read_dma_callback(fis)
 			elif fis.command == regs["IDENTIFY_DEVICE_DMA"]:
-				resp = self.hdd.identify_device_dma_cmd(fis)
+				resp = self.hdd.identify_device_dma_callback(fis)
 		elif isinstance(fis, FIS_DATA):
-			resp = self.hdd.data_cmd(fis)
+			resp = self.hdd.data_callback(fis)
 
 		if resp is not None:
 			for packet in resp:
 				self.transport.send(packet)
 
 # HDD model
+def print_hdd(s):
+	print_with_prefix(s, "[HDD]: ")
+
 class HDDMemRegion:
-	def __init__(self, base, length):
+	def __init__(self, base, count, sector_size):
 		self.base = base
-		self.length = length
-		self.data = [0]*(length//4)
+		self.count = count
+		self.data = [0]*(count*sector_size//4)
 
 class HDD(Module):
 	def __init__(self,
-			phy_debug=False,
 			link_debug=False, link_random_level=0,
 			transport_debug=False, transport_loopback=False,
-			command_debug=False,
 			hdd_debug=False, hdd_sector_size=512,
 			):
 		###
-		self.submodules.phy = PHYLayer(phy_debug)
+		self.submodules.phy = PHYLayer()
 		self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
 		self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)
-		self.submodules.command = CommandLayer(self.transport, command_debug)
+		self.submodules.command = CommandLayer(self.transport)
 
 		self.command.set_hdd(self)
 
-		self.hdd_debug = hdd_debug
-		self.hdd_sector_size = hdd_sector_size
+		self.debug = hdd_debug
+		self.sector_size = hdd_sector_size
 		self.mem = None
-		self.wr_address = 0
-		self.wr_length = 0
-		self.wr_cnt = 0
-		self.rd_address = 0
-		self.rd_length = 0
+		self.wr_sector = 0
+		self.wr_end_sector = 0
 
-	def allocate_mem(self, base, length):
-		if self.hdd_debug:
-			print("[HDD] : Allocating {n} bytes at 0x{a}".format(n=length, a=base))
-		self.mem = HDDMemRegion(base, length)
+	def dwords2sectors(self, n):
+		return math.ceil(n*4/self.sector_size)
 
-	def write_mem(self, adr, data):
-		if self.hdd_debug:
-			print("[HDD] : Writing {n} bytes at 0x{a}".format(n=len(data)*4, a=adr))
-		current_adr = (adr-self.mem.base)//4
+	def sectors2dwords(self, n):
+		return n*self.sector_size//4
+
+	def malloc(self, sector, count):
+		if self.debug:
+			s = "Allocating {n} sectors: {s} to {e}".format(n=count, s=sector, e=sector+count)
+			s += " ({} KB)".format(count*self.sector_size//1024)
+			print_hdd(s)
+		self.mem = HDDMemRegion(sector, count, self.sector_size)
+
+	def write(self, sector, data):
+		n = math.ceil(self.dwords2sectors(len(data)))
+		if self.debug:
+			print_hdd("Writing sector {s} to {e}".format(s=sector, e=sector+n-1))
 		for i in range(len(data)):
-			self.mem.data[current_adr+i] = data[i]
+			offset = self.sectors2dwords(sector)
+			self.mem.data[offset+i] = data[i]
 
-	def read_mem(self, adr, length=1):
-		if self.hdd_debug:
-			print("[HDD] : Reading {n} bytes at 0x{a}".format(n=length, a=adr))
-		current_adr = (adr-self.mem.base)//4
+	def read(self, sector, count):
+		if self.debug:
+			print_hdd("Reading sector {s} to {e}".format(s=sector, e=sector+count-1))
 		data = []
-		for i in range(length//4):
-			data.append(self.mem.data[current_adr+i])
+		for i in range(self.sectors2dwords(count)):
+			data.append(self.mem.data[self.sectors2dwords(sector)+i])
 		return data
 
-	def write_dma_cmd(self, fis):
-		self.wr_address = fis.lba_lsb
-		self.wr_length = fis.count*self.hdd_sector_size
-		self.wr_cnt = 0
+	def write_dma_callback(self, fis):
+		self.wr_sector = fis.lba_lsb + (fis.lba_msb << 32)
+		self.wr_end_sector = self.wr_sector + fis.count
 		return [FIS_DMA_ACTIVATE_D2H()]
 
-	def read_dma_cmd(self, fis):
-		self.rd_address = fis.lba_lsb
-		self.rd_length = fis.count*self.hdd_sector_size
-		self.rd_cnt = 0
-		n = math.ceil(self.rd_length/(2048*4))
-		packets = [FIS_REG_D2H()]
-		for i in range(n):
-			length = min(self.rd_length-self.rd_cnt, 2048)
-			packet = self.read_mem(self.rd_address, length)
-			packet.insert(0, 0)
-			packets.insert(0, FIS_DATA(packet, direction="D2H"))
-		return packets
+	def read_dma_callback(self, fis):
+		sector = fis.lba_lsb + (fis.lba_msb << 32)
+		packet = self.read(sector, fis.count)
+		packet.insert(0, 0)
+		return [FIS_DATA(packet, direction="D2H"), FIS_REG_D2H()]
 
-	def identify_dma_cmd(self, fis):
+	def identify_dma_callback(self, fis):
 		packet = [i for i in range(256)]
 		packet.insert(0, 0)
 		return [FIS_DATA(packet, direction="D2H"), FIS_REG_D2H()]
 
-	def data_cmd(self, fis):
-		self.write_mem(self.wr_address, fis.packet[1:])
-		self.wr_cnt += len(fis.packet[1:])*4
-		if self.wr_length == self.wr_cnt:
+	def data_callback(self, fis):
+		self.write(self.wr_sector, fis.packet[1:])
+		self.wr_sector += self.dwords2sectors(len(fis.packet[1:]))
+		if self.wr_sector == self.wr_end_sector:
 			return [FIS_REG_D2H()]
 		else:
 			return [FIS_DMA_ACTIVATE_D2H()]

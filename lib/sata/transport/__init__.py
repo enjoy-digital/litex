@@ -54,7 +54,7 @@ class SATATransportTX(Module):
 					sink.ack.eq(1)
 				)
 			).Else(
-				sink.ack.eq(sink.stb)
+				sink.ack.eq(1)
 			)
 		)
 		fsm.act("SEND_REG_H2D_CMD",
@@ -161,7 +161,6 @@ class SATATransportRX(Module):
 				).Elif(test_type("DATA"),
 					NextState("RECEIVE_DATA_CMD"),
 				).Else(
-					# XXX: Better to ack?
 					link.source.ack.eq(1)
 				)
 			).Else(
@@ -180,7 +179,7 @@ class SATATransportRX(Module):
 			source.sop.eq(1),
 			source.eop.eq(1),
 			_decode_cmd(encoded_cmd, fis_reg_d2h_layout, source),
-			If(source.ack,
+			If(source.stb & source.ack,
 				NextState("IDLE")
 			)
 		)
@@ -196,7 +195,7 @@ class SATATransportRX(Module):
 			source.sop.eq(1),
 			source.eop.eq(1),
 			_decode_cmd(encoded_cmd, fis_dma_activate_d2h_layout, source),
-			If(source.ack,
+			If(source.stb & source.ack,
 				NextState("IDLE")
 			)
 		)
