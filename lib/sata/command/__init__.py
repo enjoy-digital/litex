@@ -1,12 +1,14 @@
 from migen.fhdl.std import *
 from migen.genlib.fsm import FSM, NextState
+from migen.actorlib.fifo import SyncFIFO as FIFO
 
 from lib.sata.common import *
 
 tx_to_rx = [
 	("write", 1),
 	("read", 1),
-	("identify", 1)
+	("identify", 1),
+	("count", 4)
 ]
 
 rx_to_tx = [
@@ -108,6 +110,7 @@ class SATACommandTX(Module):
 				to_rx.write.eq(sink.write),
 				to_rx.read.eq(sink.read),
 				to_rx.identify.eq(sink.identify),
+				to_rx.count.eq(sink.count)
 			)
 		]
 
@@ -118,6 +121,10 @@ class SATACommandRX(Module):
 		self.from_tx = from_tx = Sink(tx_to_rx)
 
 		###
+
+		cmd_fifo = FIFO(command_rx_cmd_description(32), 2) # Note: ideally depth=1
+		data_fifo = InsertReset(FIFO(command_rx_data_description(32), sector_size*max_count//4, buffered=True))
+		self.submodules += cmd_fifo, data_fifo
 
 		def test_type(name):
 			return transport.source.type == fis_types[name]
@@ -158,12 +165,10 @@ class SATACommandRX(Module):
 			)
 		)
 		fsm.act("PRESENT_WRITE_RESPONSE",
-			source.stb.eq(1),
-			source.sop.eq(1),
-			source.eop.eq(1),
-			source.write.eq(1),
-			source.success.eq(1),
-			If(source.stb & source.ack,
+			cmd_fifo.sink.stb.eq(1),
+			cmd_fifo.sink.write.eq(1),
+			cmd_fifo.sink.success.eq(1),
+			If(cmd_fifo.sink.stb & cmd_fifo.sink.ack,
 				NextState("IDLE")
 			)
 		)
@@ -177,14 +182,12 @@ class SATACommandRX(Module):
 			)
 		)
 		fsm.act("PRESENT_READ_DATA",
-			source.stb.eq(transport.source.stb),
-			source.read.eq(~identify),
-			source.identify.eq(identify),
-			source.sop.eq(transport.source.sop),
-			source.eop.eq(transport.source.eop),
-			source.data.eq(transport.source.data),
-			transport.source.ack.eq(source.ack),
-			If(source.stb & source.eop & source.ack,
+			data_fifo.sink.stb.eq(transport.source.stb),
+			data_fifo.sink.sop.eq(transport.source.sop),
+			data_fifo.sink.eop.eq(transport.source.eop),
+			data_fifo.sink.data.eq(transport.source.data),
+			transport.source.ack.eq(data_fifo.sink.ack),
+			If(data_fifo.sink.stb & data_fifo.sink.eop & data_fifo.sink.ack,
 				NextState("WAIT_READ_REG_D2H")
 			)
 		)
@@ -197,13 +200,69 @@ class SATACommandRX(Module):
 			)
 		)
 		fsm.act("PRESENT_READ_RESPONSE",
+			cmd_fifo.sink.stb.eq(1),
+			cmd_fifo.sink.read.eq(~identify),
+			cmd_fifo.sink.identify.eq(identify),
+			cmd_fifo.sink.success.eq(1),
+			cmd_fifo.sink.failed.eq(0),
+			If(~cmd_fifo.fifo.readable, # Note: simulate a depth=1 fifo
+				If(cmd_fifo.sink.stb & cmd_fifo.sink.ack,
+					If(cmd_fifo.sink.failed,
+						data_fifo.reset.eq(1)
+					),
+					NextState("IDLE")
+				)
+			)
+		)
+
+		out_fsm = FSM(reset_state="IDLE")
+		self.submodules += out_fsm
+
+		out_fsm.act("IDLE",
+			If(cmd_fifo.source.stb & cmd_fifo.source.write,
+				NextState("PRESENT_WRITE_RESPONSE"),
+			).Elif(cmd_fifo.source.stb & (cmd_fifo.source.read | cmd_fifo.source.identify),
+				If(cmd_fifo.source.success,
+					NextState("PRESENT_READ_RESPONSE_SUCCESS"),
+				).Else(
+					NextState("PRESENT_READ_RESPONSE_FAILED"),
+				)
+			)
+		)
+		out_fsm.act("PRESENT_WRITE_RESPONSE",
 			source.stb.eq(1),
 			source.sop.eq(1),
 			source.eop.eq(1),
-			source.read.eq(~identify),
-			source.identify.eq(identify),
-			source.success.eq(1),
+			source.write.eq(1),
+			source.success.eq(cmd_fifo.source.success),
 			If(source.stb & source.ack,
+				cmd_fifo.source.ack.eq(1),
+				NextState("IDLE")
+			)
+		)
+		out_fsm.act("PRESENT_READ_RESPONSE_SUCCESS",
+			source.stb.eq(data_fifo.source.stb),
+			source.read.eq(cmd_fifo.source.read),
+			source.identify.eq(cmd_fifo.source.identify),
+			source.success.eq(1),
+			source.sop.eq(data_fifo.source.sop),
+			source.eop.eq(data_fifo.source.eop),
+			source.data.eq(data_fifo.source.data),
+			data_fifo.source.ack.eq(source.ack),
+			If(source.stb & source.eop & source.ack,
+				cmd_fifo.source.ack.eq(1),
+				NextState("IDLE")
+			)
+		)
+		out_fsm.act("PRESENT_READ_RESPONSE_FAILED",
+			source.stb.eq(1),
+			source.sop.eq(1),
+			source.eop.eq(1),
+			source.read.eq(cmd_fifo.source.read),
+			source.identify.eq(cmd_fifo.source.identify),
+			source.failed.eq(1),
+			If(source.stb & source.ack,
+				cmd_fifo.source.ack.eq(1),
 				NextState("IDLE")
 			)
 		)
@@ -213,7 +272,7 @@ class SATACommandRX(Module):
 		]
 
 class SATACommand(Module):
-	def __init__(self, transport, sector_size=512, max_count=16):
+	def __init__(self, transport, sector_size=512, max_count=4):
 		if max_count*sector_size > 8192:
 			raise ValueError("sector_size x max_count must be <= 2048")
 		self.submodules.tx = SATACommandTX(transport, sector_size)

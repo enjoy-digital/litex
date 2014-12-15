@@ -137,7 +137,6 @@ class TB(Module):
 		yield from self.streamer.send(read_packet)
 		yield from self.logger.receive()
 		read_data = self.logger.packet
-		yield from self.logger.receive()
 
 		# check results
 		s, l, e = check(write_data, read_data)

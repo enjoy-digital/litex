@@ -164,3 +164,19 @@ def command_rx_description(dw):
 		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)
+
+def command_rx_cmd_description(dw):
+	layout = [
+		("write", 1),
+		("read", 1),
+		("identify", 1),
+		("success", 1),
+		("failed", 1)
+	]
+	return EndpointDescription(layout, packetized=False)
+
+def command_rx_data_description(dw):
+	layout = [
+		("data", dw)
+	]
+	return EndpointDescription(layout, packetized=True)
