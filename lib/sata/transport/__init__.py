@@ -30,11 +30,10 @@ class SATATransportTX(Module):
 		cmd_ndwords = max(fis_reg_h2d_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
-		cnt = Signal(max=cmd_ndwords+1)
-		clr_cnt = Signal()
-		inc_cnt = Signal()
+		counter = Counter(max=cmd_ndwords+1)
+		self.submodules += counter
 
-		cmd_len = Signal(flen(cnt))
+		cmd_len = Signal(counter.width)
 		cmd_with_data = Signal()
 
 		cmd_send = Signal()
@@ -48,7 +47,7 @@ class SATATransportTX(Module):
 		self.submodules += fsm
 
 		fsm.act("IDLE",
-			clr_cnt.eq(1),
+			counter.reset.eq(1),
 			If(sink.stb & sink.sop,
 				If(test_type("REG_H2D"),
 					NextState("SEND_REG_H2D_CMD")
@@ -94,23 +93,16 @@ class SATATransportTX(Module):
 		self.comb += \
 			If(cmd_send,
 				link.sink.stb.eq(sink.stb),
-				link.sink.sop.eq(cnt==0),
-				link.sink.eop.eq((cnt==cmd_len) & ~cmd_with_data),
-				Case(cnt, cmd_cases),
-				inc_cnt.eq(sink.stb & link.sink.ack),
-				cmd_done.eq((cnt==cmd_len) & link.sink.stb & link.sink.ack)
+				link.sink.sop.eq(counter.value == 0),
+				link.sink.eop.eq((counter.value == cmd_len) & ~cmd_with_data),
+				Case(counter.value, cmd_cases),
+				counter.ce.eq(sink.stb & link.sink.ack),
+				cmd_done.eq((counter.value == cmd_len) & link.sink.stb & link.sink.ack)
 			).Elif(data_send,
 				link.sink.stb.eq(sink.stb),
 				link.sink.sop.eq(0),
 				link.sink.eop.eq(sink.eop),
 				link.sink.d.eq(sink.data),
-			)
-
-		self.sync += \
-			If(clr_cnt,
-				cnt.eq(0)
-			).Elif(inc_cnt,
-				cnt.eq(cnt+1)
 			)
 
 def _decode_cmd(signal, description, obj):
@@ -131,11 +123,10 @@ class SATATransportRX(Module):
 		cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
-		cnt = Signal(max=cmd_ndwords+1)
-		clr_cnt = Signal()
-		inc_cnt = Signal()
+		counter = Counter(max=cmd_ndwords+1)
+		self.submodules += counter
 
-		cmd_len = Signal(flen(cnt))
+		cmd_len = Signal(counter.width)
 
 		cmd_receive = Signal()
 		data_receive = Signal()
@@ -151,7 +142,7 @@ class SATATransportRX(Module):
 		data_sop = Signal()
 
 		fsm.act("IDLE",
-			clr_cnt.eq(1),
+			counter.reset.eq(1),
 			If(link.source.stb & link.source.sop,
 				If(test_type("REG_D2H"),
 					NextState("RECEIVE_REG_D2H_CMD")
@@ -231,24 +222,14 @@ class SATATransportRX(Module):
 			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)].eq(link.source.d)]
 
 		self.comb += \
-			If(cmd_receive,
-				If(link.source.stb,
-					inc_cnt.eq(1),
-				).Else(
-					inc_cnt.eq(0)
-				)
+			If(cmd_receive & link.source.stb,
+				counter.ce.eq(1)
 			)
 		self.sync += \
 			If(cmd_receive,
-				Case(cnt, cmd_cases),
+				Case(counter.value, cmd_cases),
 			)
-		self.sync += \
-			If(clr_cnt,
-				cnt.eq(0)
-			).Elif(inc_cnt,
-				cnt.eq(cnt+1)
-			)
-		self.comb += cmd_done.eq((cnt==cmd_len) & link.source.ack)
+		self.comb += cmd_done.eq((counter.value == cmd_len) & link.source.ack)
 		self.comb += link.source.ack.eq(cmd_receive | (data_receive & source.ack))
 
 class SATATransport(Module):

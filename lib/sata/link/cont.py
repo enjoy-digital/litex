@@ -13,7 +13,9 @@ class SATACONTInserter(Module):
 
 		# Detect consecutive primitives
 		# tn insert CONT
-		cnt = Signal(2)
+		counter = Counter(max=4)
+		self.submodules += counter
+
 		is_primitive = Signal()
 		last_was_primitive = Signal()
 		last_primitive = Signal(32)
@@ -27,9 +29,9 @@ class SATACONTInserter(Module):
 		self.comb += [
 			is_primitive.eq(sink.charisk != 0),
 			change.eq((sink.data != last_primitive) | ~is_primitive),
-			cont_insert.eq(~change & (cnt==1)),
-			scrambler_insert.eq(~change & (cnt==2)),
-			last_primitive_insert.eq((cnt==2) & (
+			cont_insert.eq(~change & (counter.value == 1)),
+			scrambler_insert.eq(~change & (counter.value == 2)),
+			last_primitive_insert.eq((counter.value == 2) & (
 				(~is_primitive & last_was_primitive) |
 				(is_primitive & (last_primitive == primitives["HOLD"]) & (last_primitive != sink.data))))
 		]
@@ -44,11 +46,9 @@ class SATACONTInserter(Module):
 					last_was_primitive.eq(0)
 				),
 				If(change | last_primitive_insert_d,
-					cnt.eq(0)
+					counter.reset.eq(1)
 				).Else(
-					If(~scrambler_insert,
-						cnt.eq(cnt+1)
-					)
+					counter.ce.eq(~scrambler_insert)
 				)
 			)
 

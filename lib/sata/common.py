@@ -180,3 +180,14 @@ def command_rx_data_description(dw):
 		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Counter(Module):
+	def __init__(self, signal=None, **kwargs):
+		if signal is None:
+			self.value = Signal(**kwargs)
+		else:
+			self.value = signal
+		self.width = flen(self.value)
+		self.sync += self.value.eq(self.value+1)

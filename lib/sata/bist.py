@@ -4,16 +4,6 @@ from migen.genlib.fsm import FSM, NextState
 from lib.sata.common import *
 from lib.sata.link.scrambler import Scrambler
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class Counter(Module):
-	def __init__(self, width, signal=None, reset=0):
-		if signal is None:
-			self.value = Signal(width, reset=reset)
-		else:
-			self.value = signal
-		self.sync += self.value.eq(self.value+1)
-
 class SATABIST(Module):
 	def __init__(self, sector_size=512, max_count=1):
 		self.sink = sink = Sink(command_rx_description(32))
@@ -25,10 +15,9 @@ class SATABIST(Module):
 		self.ctrl_errors = Signal(32)
 		self.data_errors = Signal(32)
 
-
-		counter = Counter(32)
-		ctrl_error_counter = Counter(32, self.ctrl_errors)
-		data_error_counter = Counter(32, self.data_errors)
+		counter = Counter(bits_sign=32)
+		ctrl_error_counter = Counter(self.ctrl_errors, bits_sign=32)
+		data_error_counter = Counter(self.data_errors, bits_sign=32)
 		self.submodules += counter, data_error_counter, ctrl_error_counter
 
 		scrambler = InsertReset(Scrambler())
