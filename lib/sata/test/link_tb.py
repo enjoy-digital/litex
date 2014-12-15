@@ -67,8 +67,7 @@ class LinkLogger(Module):
 class TB(Module):
 	def __init__(self):
 		self.submodules.hdd = HDD(
-				phy_debug=False,
-				link_random_level=50,
+				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=True)
 		self.submodules.link = SATALink(self.hdd.phy)
 

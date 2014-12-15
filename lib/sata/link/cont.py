@@ -44,7 +44,10 @@ class SATACONTInserter(Module):
 					last_was_primitive.eq(1)
 				).Else(
 					last_was_primitive.eq(0)
-				),
+				)
+			)
+		self.comb += \
+			If(sink.stb & source.ack,
 				If(change | last_primitive_insert_d,
 					counter.reset.eq(1)
 				).Else(
