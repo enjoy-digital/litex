@@ -3,17 +3,21 @@ from migen.genlib.fsm import FSM, NextState
 
 from lib.sata.common import *
 
+def _get_item(obj, name, width):
+	if "_lsb" in name:
+		item = getattr(obj, name.replace("_lsb", ""))[:width]
+	elif "_msb" in name:
+		item = getattr(obj, name.replace("_msb", ""))[width:2*width]
+	else:
+		item = getattr(obj, name)
+	return item
+
 def _encode_cmd(obj, description, signal):
 	r = []
 	for k, v in sorted(description.items()):
 		start = v.dword*32 + v.offset
 		end = start + v.width
-		if "_lsb" in k:
-			item = getattr(obj, k.replace("_lsb", ""))[:v.width]
-		elif "_msb" in k:
-			item = getattr(obj, k.replace("_msb", ""))[v.width:2*v.width]
-		else:
-			item = getattr(obj, k)
+		item = _get_item(obj, k, v.width)
 		r.append(signal[start:end].eq(item))
 	return r
 
@@ -114,12 +118,7 @@ def _decode_cmd(signal, description, obj):
 	for k, v in sorted(description.items()):
 		start = v.dword*32+v.offset
 		end = start+v.width
-		if "_lsb" in k:
-			item = getattr(obj, k.replace("_lsb", ""))[:v.width]
-		elif "_msb" in k:
-			item = getattr(obj, k.replace("_msb", ""))[v.width:2*v.width]
-		else:
-			item = getattr(obj, k)
+		item = _get_item(obj, k, v.width)
 		r.append(item.eq(signal[start:end]))
 	return r
 
