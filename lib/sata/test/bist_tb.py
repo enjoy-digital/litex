@@ -16,7 +16,7 @@ from lib.sata.test.common import *
 class TB(Module):
 	def __init__(self):
 		self.submodules.hdd = HDD(
-				link_debug=False, link_random_level=50,
+				link_debug=False, link_random_level=0,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
 		self.submodules.link = SATALink(self.hdd.phy)
@@ -39,7 +39,7 @@ class TB(Module):
 			yield
 			while selfp.bist.done == 0:
 				yield
-			print("errors: {}".format(selfp.bist.errors))
+			print("ctrl_errors: {} / data_errors {}".format(selfp.bist.ctrl_errors, selfp.bist.data_errors))
 			selfp.bist.sector += 1
 
 if __name__ == "__main__":

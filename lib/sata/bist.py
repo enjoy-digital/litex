@@ -2,6 +2,17 @@ from migen.fhdl.std import *
 from migen.genlib.fsm import FSM, NextState
 
 from lib.sata.common import *
+from lib.sata.link.scrambler import Scrambler
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Counter(Module):
+	def __init__(self, width, signal=None, reset=0):
+		if signal is None:
+			self.value = Signal(width, reset=reset)
+		else:
+			self.value = signal
+		self.sync += self.value.eq(self.value+1)
 
 class SATABIST(Module):
 	def __init__(self, sector_size=512, max_count=1):
@@ -11,54 +22,53 @@ class SATABIST(Module):
 		self.start = Signal()
 		self.sector = Signal(48)
 		self.done = Signal()
-		self.errors = Signal(32)
+		self.ctrl_errors = Signal(32)
+		self.data_errors = Signal(32)
 
-		errors = Signal(32)
-		inc_errors = Signal()
-		self.sync += \
-			If(self.start,
-				errors.eq(0),
-			).Elif(inc_errors,
-				errors.eq(errors+1)
-			)
-		self.comb += self.errors.eq(errors)
 
-		cnt = Signal(32)
-		inc_cnt = Signal()
-		clr_cnt = Signal()
-		self.sync += \
-			If(clr_cnt,
-				cnt.eq(0),
-			).Elif(inc_cnt,
-				cnt.eq(cnt+1)
-			)
+		counter = Counter(32)
+		ctrl_error_counter = Counter(32, self.ctrl_errors)
+		data_error_counter = Counter(32, self.data_errors)
+		self.submodules += counter, data_error_counter, ctrl_error_counter
+
+		scrambler = InsertReset(Scrambler())
+		self.submodules += scrambler
+		self.comb += [
+			scrambler.reset.eq(counter.reset),
+			scrambler.ce.eq(counter.ce)
+		]
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 
 		fsm.act("IDLE",
 			self.done.eq(1),
-			clr_cnt.eq(1),
+			counter.reset.eq(1),
+			ctrl_error_counter.reset.eq(1),
+			data_error_counter.reset.eq(1),
 			If(self.start,
 				NextState("SEND_WRITE_CMD_AND_DATA")
 			)
 		)
 		fsm.act("SEND_WRITE_CMD_AND_DATA",
 			source.stb.eq(1),
-			source.sop.eq((cnt==0)),
-			source.eop.eq((cnt==(sector_size*max_count)//4-1)),
+			source.sop.eq((counter.value == 0)),
+			source.eop.eq((counter.value == (sector_size*max_count)//4-1)),
 			source.write.eq(1),
 			source.sector.eq(self.sector),
 			source.count.eq(max_count),
-			source.data.eq(cnt), #XXX use LFSR
-			inc_cnt.eq(source.ack),
+			source.data.eq(scrambler.value),
+			counter.ce.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
 				NextState("WAIT_WRITE_ACK")
 			)
 		)
 		fsm.act("WAIT_WRITE_ACK",
 			sink.ack.eq(1),
-			If(sink.stb & sink.write,
+			If(sink.stb,
+				If(~sink.write | ~sink.success | sink.failed,
+					ctrl_error_counter.ce.eq(1)
+				),
 				NextState("SEND_READ_CMD")
 			)
 		)
@@ -74,18 +84,23 @@ class SATABIST(Module):
 			)
 		)
 		fsm.act("WAIT_READ_ACK",
-			clr_cnt.eq(1),
+			counter.reset.eq(1),
 			If(sink.stb & sink.read,
+				If(~sink.read | ~sink.success | sink.failed,
+					ctrl_error_counter.ce.eq(1)
+				),
 				NextState("RECEIVE_READ_DATA")
 			)
 		)
 		fsm.act("RECEIVE_READ_DATA",
 			sink.ack.eq(1),
-			inc_cnt.eq(sink.stb),
-			If(sink.stb & (sink.data != cnt), #XXX use LFSR
-				inc_errors.eq(1)
-			),
-			If(sink.stb & sink.eop,
-				NextState("IDLE")
+			If(sink.stb,
+				counter.ce.eq(1),
+				If(sink.data != scrambler.value,
+					data_error_counter.ce.eq(1)
+				),
+				If(sink.eop,
+					NextState("IDLE")
+				)
 			)
 		)
