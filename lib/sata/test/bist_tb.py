@@ -5,9 +5,7 @@ from migen.genlib.record import *
 from migen.sim.generic import run_simulation
 
 from lib.sata.common import *
-from lib.sata.link import SATALink
-from lib.sata.transport import SATATransport
-from lib.sata.command import SATACommand
+from lib.sata import SATACON
 from lib.sata.bist import SATABIST
 
 from lib.sata.test.hdd import *
@@ -19,14 +17,11 @@ class TB(Module):
 				link_debug=False, link_random_level=0,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.submodules.link = SATALink(self.hdd.phy)
-		self.submodules.transport = SATATransport(self.link)
-		self.submodules.command = SATACommand(self.transport)
-		self.submodules.bist = SATABIST(sector_size=512, max_count=1)
-
+		self.submodules.controller = SATACON(self.hdd.phy)
+		self.submodules.bist = SATABIST(max_count=2)
 		self.comb += [
-			self.bist.source.connect(self.command.sink),
-			self.command.source.connect(self.bist.sink)
+			self.bist.source.connect(self.controller.sink),
+			self.controller.source.connect(self.bist.sink)
 		]
 
 	def gen_simulation(self, selfp):
