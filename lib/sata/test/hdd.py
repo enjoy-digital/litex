@@ -471,14 +471,22 @@ class HDD(Module):
 	def write(self, sector, data):
 		n = math.ceil(self.dwords2sectors(len(data)))
 		if self.debug:
-			print_hdd("Writing sector {s} to {e}".format(s=sector, e=sector+n-1))
+			if n == 1:
+				s = "{}".format(sector)
+			else:
+				s = "{s} to {e}".format(s=sector, e=sector+n-1)
+			print_hdd("Writing sector " + s)
 		for i in range(len(data)):
 			offset = self.sectors2dwords(sector)
 			self.mem.data[offset+i] = data[i]
 
 	def read(self, sector, count):
 		if self.debug:
-			print_hdd("Reading sector {s} to {e}".format(s=sector, e=sector+count-1))
+			if count == 1:
+				s = "{}".format(sector)
+			else:
+				s = "{s} to {e}".format(s=sector, e=sector+count-1)
+			print_hdd("Reading sector " + s)
 		data = []
 		for i in range(self.sectors2dwords(count)):
 			data.append(self.mem.data[self.sectors2dwords(sector)+i])
