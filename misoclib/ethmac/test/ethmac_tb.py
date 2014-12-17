@@ -6,6 +6,8 @@ from migen.sim.generic import run_simulation
 from misoclib.ethmac import EthMAC
 from misoclib.ethmac.phy import loopback
 
+from misoclib.ethmac.test.common import *
+
 class WishboneMaster:
 	def __init__(self, obj):
 		self.obj = obj
@@ -90,46 +92,32 @@ class TB(Module):
 
 		length = 1500-2
 
-		payload = [i % 0xFF for i in range(length)] + [0, 0, 0, 0]
+		tx_payload = [seed_to_data(i, True) % 0xFF for i in range(length)] + [0, 0, 0, 0]
 
 		errors = 0
 
 		for slot in range(2):
+			print("slot {}:".format(slot))
 			# fill tx memory
 			for i in range(length//4+1):
-				dat = 0
-				dat |= payload[4*i+0] << 24
-				dat |= payload[4*i+1] << 16
-				dat |= payload[4*i+2] << 8
-				dat |= payload[4*i+3] << 0
+				dat = int.from_bytes(tx_payload[4*i:4*(i+1)], "big")
 				yield from wishbone_master.write(sram_reader_slots_offset[slot]+i, dat)
 
-			# send tx data & wait
+			# send tx payload & wait
 			yield from sram_reader_driver.start(slot, length)
 			yield from sram_reader_driver.wait_done()
 			yield from sram_reader_driver.clear_done()
 
-			# get rx data (loopback on PHY Model)
-			rx_dat = []
+			# get rx payload (loopback on PHY Model)
+			rx_payload = []
 			for i in range(length//4+1):
 				yield from wishbone_master.read(sram_writer_slots_offset[slot]+i)
 				dat = wishbone_master.dat
-				rx_dat.append((dat >> 24) & 0xFF)
-				rx_dat.append((dat >> 16) & 0xFF)
-				rx_dat.append((dat >> 8) & 0xFF)
-				rx_dat.append((dat >> 0) & 0xFF)
+				rx_payload += list(dat.to_bytes(4, byteorder='big'))
 
-			# check rx data
-			for i in range(length):
-				#print("{:02x} / {:02x}".format(rx_dat[i], payload[i]))
-				if rx_dat[i] != payload[i]:
-					errors += 1
-
-		for i in range(200):
-			yield
-		#print(selfp.ethmac.sram_reader._length.storage)
-
-		print("Errors : {}".format(errors))
+			# check results
+			s, l, e = check(tx_payload[:length], rx_payload[:min(length, len(rx_payload))])
+			print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=16000, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), vcd_name="my.vcd")

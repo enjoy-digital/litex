@@ -2,57 +2,81 @@ from migen.fhdl.std import *
 
 from misoclib.ethmac.common import *
 from misoclib.ethmac.preamble import *
-from misoclib.ethmac.test import *
+from misoclib.ethmac.test.common import *
 
-frame_preamble = [
+preamble = [
 	0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xD5
 ]
 
-frame_data = [
+payload = [
 	0x00, 0x0A, 0xE6, 0xF0, 0x05, 0xA3, 0x00, 0x12,
-    0x34, 0x56, 0x78, 0x90, 0x08, 0x00, 0x45, 0x00,
-    0x00, 0x30, 0xB3, 0xFE, 0x00, 0x00, 0x80, 0x11,
-    0x72, 0xBA, 0x0A, 0x00, 0x00, 0x03, 0x0A, 0x00,
-    0x00, 0x02, 0x04, 0x00, 0x04, 0x00, 0x00, 0x1C,
-    0x89, 0x4D, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
-    0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
-    0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13
+	0x34, 0x56, 0x78, 0x90, 0x08, 0x00, 0x45, 0x00,
+	0x00, 0x30, 0xB3, 0xFE, 0x00, 0x00, 0x80, 0x11,
+	0x72, 0xBA, 0x0A, 0x00, 0x00, 0x03, 0x0A, 0x00,
+	0x00, 0x02, 0x04, 0x00, 0x04, 0x00, 0x00, 0x1C,
+	0x89, 0x4D, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+	0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+	0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13
 ]
 
+mux = {
+	"inserter": 0,
+	"checker": 1,
+	"both": 2
+}
+
 class TB(Module):
-	def __init__(self):
+	def __init__(self, random_level=50):
 		sm = self.submodules
+		sm.streamer = PacketStreamer(eth_description(8))
+		sm.streamer_randomizer = AckRandomizer(eth_description(8), random_level)
+		sm.logger = PacketLogger(eth_description(8))
+		sm.logger_randomizer = AckRandomizer(eth_description(8), random_level)
 
-		# Streamer (DATA) --> PreambleInserter --> Logger (expect PREAMBLE + DATA)
-		sm.inserter_streamer = PacketStreamer(frame_data)
+		self.comb += [
+			self.streamer.source.connect(self.streamer_randomizer.sink),
+			self.logger_randomizer.source.connect(self.logger.sink)
+		]
+
 		sm.preamble_inserter = PreambleInserter(8)
-		sm.inserter_logger = PacketLogger()
-		self.comb +=[
-			self.inserter_streamer.source.connect(self.preamble_inserter.sink),
-			self.preamble_inserter.source.connect(self.inserter_logger.sink),
-		]
-
-		# Streamer (PREAMBLE + DATA) --> CRC32Checher --> Logger (except DATA + check)
-		sm.checker_streamer = PacketStreamer(frame_preamble + frame_data)		
 		sm.preamble_checker = PreambleChecker(8)
-		sm.checker_logger = PacketLogger()
-		self.comb +=[
-			self.checker_streamer.source.connect(self.preamble_checker.sink),
-			self.preamble_checker.source.connect(self.checker_logger.sink),
+
+		self.mux = Signal(2)
+		self.comb += [
+			If(self.mux == mux["inserter"],
+				self.streamer_randomizer.source.connect(self.preamble_inserter.sink),
+				self.preamble_inserter.source.connect(self.logger_randomizer.sink)
+			).Elif(self.mux == mux["checker"],
+				self.streamer_randomizer.source.connect(self.preamble_checker.sink),
+				self.preamble_checker.source.connect(self.logger_randomizer.sink)
+			).Elif(self.mux == mux["both"],
+				self.streamer_randomizer.source.connect(self.preamble_inserter.sink),
+				self.preamble_inserter.source.connect(self.preamble_checker.sink),
+				self.preamble_checker.source.connect(self.logger_randomizer.sink)
+			)
 		]
-
 	def gen_simulation(self, selfp):
-		for i in range(500):
-			yield
-		inserter_reference = frame_preamble + frame_data
-		inserter_generated = self.inserter_logger.data
+		selfp.mux = mux["inserter"]
+		print("streamer --> preamble_inserter --> logger:")
+		self.streamer.send(Packet(payload))
+		yield from self.logger.receive()
+		s, l, e = check(preamble+payload, self.logger.packet)
+		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
-		checker_reference = frame_data
-		checker_generated = self.checker_logger.data
+		selfp.mux = mux["checker"]
+		print("streamer --> preamble_checker --> logger:")
+		self.streamer.send(Packet(preamble+payload))
+		yield from self.logger.receive()
+		s, l, e = check(payload, self.logger.packet)
+		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
-		print_results("inserter", inserter_reference, inserter_generated)
-		print_results("checker", checker_reference, checker_generated)
+		selfp.mux = mux["both"]
+		print("streamer --> preamble_inserter --> preamble_checker --> logger:")
+		self.streamer.send(Packet(payload))
+		yield from self.logger.receive()
+		s, l, e = check(payload, self.logger.packet)
+		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
 	from migen.sim.generic import run_simulation
-	run_simulation(TB(), ncycles=1000, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=1000, vcd_name="my.vcd")
