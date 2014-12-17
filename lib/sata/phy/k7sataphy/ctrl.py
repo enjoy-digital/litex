@@ -117,6 +117,7 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("SEND_ALIGN",
 			gtx.txelecidle.eq(0),
+			gtx.rxalign.eq(1),
 			self.source.data.eq(primitives["ALIGN"]),
 			self.source.charisk.eq(0b0001),
 			If(non_align_cnt == 3,
@@ -125,8 +126,12 @@ class K7SATAPHYHostCtrl(Module):
 		)
 		fsm.act("READY",
 			gtx.txelecidle.eq(0),
+			gtx.rxalign.eq(1),
 			self.source.data.eq(primitives["SYNC"]),
 			self.source.charisk.eq(0b0001),
+			If(gtx.rxelecidle,
+				NextState("RESET")
+			),
 			self.ready.eq(1),
 		)
 

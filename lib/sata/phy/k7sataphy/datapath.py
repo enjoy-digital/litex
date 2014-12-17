@@ -60,7 +60,7 @@ class K7SATAPHYDatapathRX(Module):
 		# requirements:
 		# due to the convertion ratio of 2, sys_clk need to be > sata_rx/2
 		# source destination is always able to accept data (ack always 1)
-		fifo = AsyncFIFO(phy_description(32), 16)
+		fifo = AsyncFIFO(phy_description(32), 4)
 		self.submodules.fifo = RenameClockDomains(fifo, {"write": "sata_rx", "read": "sys"})
 		self.comb += [
 			fifo.sink.stb.eq(valid),
@@ -82,7 +82,7 @@ class K7SATAPHYDatapathTX(Module):
 		# (SATA1) sys_clk to 75MHz sata_tx clk
 		# requirements:
 		# source destination is always able to accept data (ack always 1)
-		fifo = AsyncFIFO(phy_description(32), 16)
+		fifo = AsyncFIFO(phy_description(32), 4)
 		self.submodules.fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
 		self.comb += Record.connect(self.sink, fifo.sink)
 

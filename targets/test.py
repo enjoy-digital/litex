@@ -10,6 +10,7 @@ from miscope.uart2wishbone import UART2Wishbone
 from misoclib import identifier
 from lib.sata.common import *
 from lib.sata.phy.k7sataphy import K7SATAPHY
+from lib.sata.link.cont import SATACONTInserter, SATACONTRemover
 
 from migen.genlib.cdc import *
 
@@ -34,8 +35,8 @@ class _CRG(Module):
 				p_CLKFBOUT_MULT=5, p_DIVCLK_DIVIDE=1,
 				i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-				# 166.66MHz
-				p_CLKOUT0_DIVIDE=6, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
+				# 100MHz
+				p_CLKOUT0_DIVIDE=10, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
 
 				p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, #o_CLKOUT1=,
 
@@ -106,7 +107,7 @@ class SimDesign(UART2WB):
 	default_platform = "kc705"
 
 	def __init__(self, platform, export_mila=False):
-		clk_freq = 166666*1000
+		clk_freq = 100*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
@@ -148,24 +149,44 @@ class ClockLeds(Module):
 				sata_tx_cnt.eq(sata_tx_cnt-1)
 			)
 
+class VeryBasicPHYStim(Module, AutoCSR):
+	def __init__(self, phy):
+		self._enable = CSRStorage()
+		self._tx_primitive = CSRStorage(32)
+		self._rx_primitive = CSRStatus(32)
+
+		self.submodules.cont_inserter = SATACONTInserter(phy_description(32))
+		self.submodules.cont_remover = SATACONTRemover(phy_description(32))
+		self.comb += [
+			self.cont_inserter.source.connect(phy.sink),
+			phy.source.connect(self.cont_remover.sink)
+		]
+		self.sync += [
+			self.cont_inserter.sink.stb.eq(1),
+			self.cont_inserter.sink.charisk.eq(0b0001),
+			If(self._enable.storage,
+				self.cont_inserter.sink.data.eq(self._tx_primitive.storage),
+				If(self.cont_remover.source.stb & (self.cont_remover.source.charisk == 0b0001),
+					self._rx_primitive.status.eq(self.cont_remover.source.data)
+				)
+			)
+		]
+
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
 		"mila":				10,
+		"stim":             11
 	}
 	csr_map.update(UART2WB.csr_map)
 
 	def __init__(self, platform, mila=True, export_mila=False):
-		clk_freq = 166666*1000
+		clk_freq = 100*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
-		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True, default_speed="SATA1")
-		self.comb += [
-			self.sataphy_host.sink.stb.eq(1),
-			self.sataphy_host.sink.data.eq(primitives["SYNC"]),
-			self.sataphy_host.sink.charisk.eq(0b0001)
-		]
+		self.submodules.sata_phy = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True, default_speed="SATA1")
+		self.submodules.stim = VeryBasicPHYStim(self.sata_phy)
 
 		self.submodules.clock_leds = ClockLeds(platform)
 
@@ -173,9 +194,9 @@ class TestDesign(UART2WB, AutoCSR):
 			import os
 			from miscope import MiLa, Term, UART2Wishbone
 
-			gtx = self.sataphy_host.gtx
-			ctrl = self.sataphy_host.ctrl
-			crg = self.sataphy_host.crg
+			gtx = self.sata_phy.gtx
+			ctrl = self.sata_phy.ctrl
+			crg = self.sata_phy.crg
 
 			debug = (
 				gtx.rxresetdone,
@@ -197,9 +218,13 @@ class TestDesign(UART2WB, AutoCSR):
 				ctrl.sink.charisk,
 				ctrl.align_detect,
 
-				self.sataphy_host.source.stb,
-				self.sataphy_host.source.data,
-				self.sataphy_host.source.charisk,
+				self.sata_phy.source.stb,
+				self.sata_phy.source.data,
+				self.sata_phy.source.charisk,
+
+				self.sata_phy.sink.stb,
+				self.sata_phy.sink.data,
+				self.sata_phy.sink.charisk,
 			)
 
 			self.comb += platform.request("user_led", 2).eq(crg.ready)
