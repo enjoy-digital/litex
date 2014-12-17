@@ -1,4 +1,4 @@
-import random
+import random, copy
 
 from lib.sata.common import *
 
@@ -8,10 +8,16 @@ def seed_to_data(seed, random=True):
 	else:
 		return seed
 
-def check(ref, res):
-	if isinstance(ref, int):
-		return 0, 1, int(ref != res)
+def check(p1, p2):
+	p1 = copy.deepcopy(p1)
+	p2 = copy.deepcopy(p2)
+	if isinstance(p1, int):
+		return 0, 1, int(p1 != p2)
 	else:
+		if len(p1) >= len(p2):
+			ref, res = p1, p2
+		else:
+			ref, res = p2, p1
 		shift = 0
 		while((ref[0] != res[0]) and (len(res)>1)):
 			res.pop(0)
