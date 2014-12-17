@@ -41,7 +41,7 @@ def _build_xdc(named_sc, named_pc):
 		r += "\n" + "\n\n".join(named_pc)
 	return r
 
-def _build_files(device, sources, vincpaths, build_name, bitstream_compression):
+def _build_files(device, sources, vincpaths, build_name, bitstream_commands, additional_commands):
 	tcl = []
 	for filename, language in sources:
 		tcl.append("add_files " + filename.replace("\\", "/"))
@@ -61,9 +61,11 @@ def _build_files(device, sources, vincpaths, build_name, bitstream_compression):
 	tcl.append("report_drc -file %s_drc.rpt" %(build_name))
 	tcl.append("report_timing_summary -max_paths 10 -file %s_timing.rpt" %(build_name))
 	tcl.append("report_power -file %s_power.rpt" %(build_name))
-	if bitstream_compression:
-		tcl.append("set_property BITSTREAM.GENERAL.COMPRESS True [current_design]")
+	for bitstream_command in bitstream_commands:
+		tcl.append(bitstream_command.format(build_name=build_name))
 	tcl.append("write_bitstream -force %s.bit " %build_name)
+	for additional_command in additional_commands:
+		tcl.append(additional_command.format(build_name=build_name))
 	tcl.append("quit")
 	tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
@@ -87,9 +89,10 @@ def _run_vivado(build_name, vivado_path, source, ver=None):
 		raise OSError("Subprocess failed")
 
 class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
+	bitstream_commands = []
+	additional_commands = []
 	def build(self, fragment, build_dir="build", build_name="top",
-			vivado_path="/opt/Xilinx/Vivado", source=True, run=True,
-			bitstream_compression=False):
+			vivado_path="/opt/Xilinx/Vivado", source=True, run=True):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
@@ -100,7 +103,8 @@ class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
-		_build_files(self.device, sources, self.verilog_include_paths, build_name, bitstream_compression)
+		_build_files(self.device, sources, self.verilog_include_paths, build_name,
+			self.bitstream_commands, self.additional_commands)
 		tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
 		if run:
 			_run_vivado(build_name, vivado_path, source)
