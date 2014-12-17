@@ -53,11 +53,11 @@ class CRCEngine(Module):
 		curval = [[("state", i)] for i in range(width)]
 		for i in range(dat_width):
 			feedback = curval.pop() + [("din", i)]
-			curval.insert(0, feedback)
-			for j in range(1, width-1):
-				if (polynom&(1<<j)):
+			for j in range(width-1):
+				if (polynom & (1<<(j+1))):
 					curval[j] += feedback
 				curval[j] = _optimize_eq(curval[j])
+			curval.insert(0, feedback)
 
 		# implement logic
 		for i in range(width):
@@ -92,6 +92,7 @@ class CRC32(Module):
 	"""
 	width = 32
 	polynom = 0x04C11DB7
+	init = 2**width-1
 	check = 0xC704DD7B
 	def __init__(self, dat_width):
 		self.d = Signal(dat_width)
@@ -101,7 +102,7 @@ class CRC32(Module):
 		###
 
 		self.submodules.engine = CRCEngine(dat_width, self.width, self.polynom)
-		reg = Signal(self.width, reset=2**self.width-1)
+		reg = Signal(self.width, reset=self.init)
 		self.sync += reg.eq(self.engine.next)
 		self.comb += [
 			self.engine.d.eq(self.d),
