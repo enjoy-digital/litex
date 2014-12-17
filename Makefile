@@ -3,7 +3,7 @@ CURDIR = ../sata-controller
 PYTHON = python3
 TOOLCHAIN = vivado
 PLATFORM = kc705
-PROGRAMMER = impact
+PROGRAMMER = vivado
 
 CMD = $(PYTHON) make.py -X $(CURDIR) -Op toolchain $(TOOLCHAIN) -Op programmer $(PROGRAMMER) -p $(PLATFORM) -t test
 

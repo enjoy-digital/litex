@@ -5,22 +5,28 @@ from mibuild.xilinx_ise import XilinxISEPlatform
 from mibuild.xilinx_vivado import XilinxVivadoPlatform
 from mibuild.programmer import *
 
-def _run_impact(cmds):
-	with subprocess.Popen("impact -batch", stdin=subprocess.PIPE) as process:
+def _run_vivado(cmds):
+	with subprocess.Popen("vivado -mode tcl", stdin=subprocess.PIPE, shell=True) as process:
 		process.stdin.write(cmds.encode("ASCII"))
 		process.communicate()
 
-class IMPACT(Programmer):
+class VivadoProgrammer(Programmer):
 	needs_bitreverse = False
 
 	def load_bitstream(self, bitstream_file):
-		cmds = """setMode -bs
-setCable -p auto
-addDevice -p 1 -file {bitstream}
-program -p 1
+		cmds = """open_hw
+connect_hw_server
+open_hw_target [lindex [get_hw_targets -of_objects [get_hw_servers localhost]] 0]
+
+set_property PROBES.FILE {{}} [lindex [get_hw_devices] 0]
+set_property PROGRAM.FILE {{{bitstream}}} [lindex [get_hw_devices] 0]
+
+program_hw_devices [lindex [get_hw_devices] 0]
+refresh_hw_device [lindex [get_hw_devices] 0]
+
 quit
 """.format(bitstream=bitstream_file)
-		_run_impact(cmds)
+		_run_vivado(cmds)
 
 	def flash(self, address, data_file):
 		raise NotImplementedError
@@ -103,8 +109,8 @@ def Platform(*args, toolchain="vivado", programmer="xc3sprog", **kwargs):
 		def create_programmer(self):
 			if programmer == "xc3sprog":
 				return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
-			elif programmer == "impact":
-				return IMPACT()
+			elif programmer == "vivado":
+				return VivadoProgrammer()
 			else:
 				raise ValueError
 
