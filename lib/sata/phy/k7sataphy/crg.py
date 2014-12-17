@@ -80,10 +80,9 @@ class K7SATAPHYCRG(Module):
 		# (SATA3) sata_rx recovered clk @ 300MHz from GTX RXOUTCLK
 		# (SATA2) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
 		# (SATA1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
-		#self.specials += [
-		#	Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
-		#]
-		self.comb += self.cd_sata_tx.clk.eq(self.cd_sata_tx.clk)
+		self.specials += [
+			Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
+		]
 		self.comb += [
 			gtx.rxusrclk.eq(self.cd_sata_rx.clk),
 			gtx.rxusrclk2.eq(self.cd_sata_rx.clk)
