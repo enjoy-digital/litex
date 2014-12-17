@@ -87,7 +87,7 @@ class K7SATAPHYGTX(Module):
 
 		cdr_config = {
 			"SATA1" :	0x0380008BFF40100008,
-			"SATA2" :	0x0380008BFF40200008,
+			"SATA2" :	0x0388008BFF40200008,
 			"SATA3" :	0X0380008BFF10200010
 		}
 		rxcdr_cfg = cdr_config[default_speed]
@@ -185,32 +185,32 @@ class K7SATAPHYGTX(Module):
 					"p_ALIGN_PCOMMA_VALUE":0b0101111100,
 					"p_SHOW_REALIGN_COMMA":"FALSE",
 					"p_RXSLIDE_AUTO_WAIT":7,
-					"p_RXSLIDE_MODE":"OFF",
+					"p_RXSLIDE_MODE":"PCS",
 					"p_RX_SIG_VALID_DLY":10,
 
 				# RX 8B/10B Decoder Attributes
 					"p_RX_DISPERR_SEQ_MATCH":"TRUE",
 					"p_DEC_MCOMMA_DETECT":"TRUE",
 					"p_DEC_PCOMMA_DETECT":"TRUE",
-					"p_DEC_VALID_COMMA_ONLY":"TRUE",
+					"p_DEC_VALID_COMMA_ONLY":"FALSE",
 
 				# RX Clock Correction Attributes
 					"p_CBCC_DATA_SOURCE_SEL":"DECODED",
 					"p_CLK_COR_SEQ_2_USE":"FALSE",
 					"p_CLK_COR_KEEP_IDLE":"FALSE",
-					"p_CLK_COR_MAX_LAT":35,
-					"p_CLK_COR_MIN_LAT":28,
+					"p_CLK_COR_MAX_LAT":9,
+					"p_CLK_COR_MIN_LAT":7,
 					"p_CLK_COR_PRECEDENCE":"TRUE",
 					"p_CLK_COR_REPEAT_WAIT":0,
-					"p_CLK_COR_SEQ_LEN":4,
+					"p_CLK_COR_SEQ_LEN":1,
 					"p_CLK_COR_SEQ_1_ENABLE":ones(4),
-					"p_CLK_COR_SEQ_1_1":0b0110111100,
-					"p_CLK_COR_SEQ_1_2":0b0001001010,
-					"p_CLK_COR_SEQ_1_3":0b0001001010,
-					"p_CLK_COR_SEQ_1_4":0b0001111011,
+					"p_CLK_COR_SEQ_1_1":0b0100000000,
+					"p_CLK_COR_SEQ_1_2":0b0000000000,
+					"p_CLK_COR_SEQ_1_3":0b0000000000,
+					"p_CLK_COR_SEQ_1_4":0b0000000000,
 					"p_CLK_CORRECT_USE":"FALSE",
 					"p_CLK_COR_SEQ_2_ENABLE":ones(4),
-					"p_CLK_COR_SEQ_2_1":0,
+					"p_CLK_COR_SEQ_2_1":0b0100000000,
 					"p_CLK_COR_SEQ_2_2":0,
 					"p_CLK_COR_SEQ_2_3":0,
 					"p_CLK_COR_SEQ_2_4":0,
@@ -295,7 +295,7 @@ class K7SATAPHYGTX(Module):
 					"p_RXPH_CFG":0,
 					"p_RXPHDLY_CFG":0x084820,
 					"p_RXPH_MONITOR_SEL":0,
-					"p_RX_XCLK_SEL":"RXREC",
+					"p_RX_XCLK_SEL":"RXUSR",
 					"p_RX_DDI_SEL":0,
 					"p_RX_DEFER_RESET_BUF_EN":"TRUE",
 

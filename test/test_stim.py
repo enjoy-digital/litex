@@ -33,7 +33,7 @@ for i in range(16):
 	rx = regs.stim_rx_primitive.read()
 	print("rx: %08x %s" %(rx, decode_primitive(rx)))
 	time.sleep(0.1)
-#regs.stim_tx_primitive.write(primitives["R_RDY"])
+#regs.stim_tx_primitive.write(primitives["X_RDY"])
 for i in range(16):
 	rx = regs.stim_rx_primitive.read()
 	print("rx: %08x %s" %(rx, decode_primitive(rx)))

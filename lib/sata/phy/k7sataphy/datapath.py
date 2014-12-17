@@ -20,8 +20,8 @@ class K7SATAPHYDatapathRX(Module):
 		data_sr_d = Signal(32+8)
 		charisk_sr_d = Signal(4+1)
 		self.comb += [
-			data_sr.eq(Cat(self.sink.data, data_sr_d)),
-			charisk_sr.eq(Cat(self.sink.charisk, charisk_sr_d))
+			data_sr.eq(Cat(data_sr_d[16:], self.sink.data)),
+			charisk_sr.eq(Cat(charisk_sr_d[2:], self.sink.charisk))
 		]
 		self.sync.sata_rx += [
 			data_sr_d.eq(data_sr),
@@ -44,7 +44,7 @@ class K7SATAPHYDatapathRX(Module):
 		data = Signal(32)
 		charisk = Signal(4)
 		self.comb += [
-			If(~alignment,
+			If(alignment,
 				data.eq(data_sr[0:32]),
 				charisk.eq(charisk_sr[0:4])
 			).Else(
