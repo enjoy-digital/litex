@@ -65,6 +65,8 @@ class UART2WB(Module):
 		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
 		self._wb_masters = [self.uart2wb.wishbone]
 		self._wb_slaves = [(lambda a: a[23:25] == 0, self.wishbone2csr.wishbone)]
+		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
+
 
 		# CSR
 		self.submodules.identifier = identifier.Identifier(0, int(clk_freq), 0)
@@ -79,6 +81,12 @@ class UART2WB(Module):
 			raise FinalizeError
 		self._wb_slaves.append((address_decoder, interface))
 
+	def add_cpu_memory_region(self, name, origin, length):
+		self.cpu_memory_regions.append((name, origin, length))
+
+	def add_cpu_csr_region(self, name, origin, busword, obj):
+		self.cpu_csr_regions.append((name, origin, busword, obj))
+
 	def do_finalize(self):
 		# Wishbone
 		self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
@@ -89,6 +97,10 @@ class UART2WB(Module):
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
 			data_width=self.csr_data_width)
 		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
+		for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), csrs)
+		for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), memory)
 
 class SimDesign(UART2WB):
 	default_platform = "kc705"
@@ -148,7 +160,7 @@ class TestDesign(UART2WB, AutoCSR):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
-		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True, default_speed="SATA2")
+		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True, default_speed="SATA1")
 		self.comb += [
 			self.sataphy_host.sink.stb.eq(1),
 			self.sataphy_host.sink.data.eq(primitives["SYNC"]),

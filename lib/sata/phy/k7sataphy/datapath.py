@@ -140,7 +140,7 @@ class K7SATAPHYDatapath(Module):
 		receive_align = Signal()
 		self.comb += receive_align.eq(rx.source.stb &
 						(rx.source.charisk == 0b0001) &
-						(rx.source.data == primitives["ALIGN"])
+						(rx.source.data == primitives["ALIGN"]))
 
 	# user / ctrl mux
 		self.comb += [
