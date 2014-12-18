@@ -1,9 +1,3 @@
-import random, copy
-
-from migen.fhdl.std import *
-from migen.genlib.record import *
-from migen.sim.generic import run_simulation
-
 from lib.sata.common import *
 from lib.sata import SATACON
 from lib.sata.bist import SATABIST

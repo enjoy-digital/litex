@@ -1,8 +1,6 @@
 import subprocess
 import math
 
-from migen.fhdl.std import *
-
 from lib.sata.common import *
 from lib.sata.test.common import *
 

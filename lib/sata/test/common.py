@@ -1,5 +1,9 @@
 import random, copy
 
+from migen.fhdl.std import *
+from migen.genlib.record import *
+from migen.sim.generic import run_simulation
+
 from lib.sata.common import *
 
 def seed_to_data(seed, random=True):
