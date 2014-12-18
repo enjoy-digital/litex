@@ -1,6 +1,3 @@
-from migen.fhdl.std import *
-from migen.genlib.fsm import FSM, NextState
-
 from lib.sata.common import *
 
 def _get_item(obj, name, width):

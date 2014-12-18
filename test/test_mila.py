@@ -4,8 +4,8 @@ from miscope.host.drivers import MiLaDriver
 mila = MiLaDriver(wb.regs, "mila", use_rle=False)
 wb.open()
 ###
-trigger0 = mila.gtx_rxelecidle0_o*0
-mask0 = mila.gtx_rxelecidle0_m
+trigger0 = mila.trx_rxelecidle0_o*0
+mask0 = mila.trx_rxelecidle0_m
 
 #trigger0 = mila.ctrl_align_detect_o
 #mask0 = mila.ctrl_align_detect_m

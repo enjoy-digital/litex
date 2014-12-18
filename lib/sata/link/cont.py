@@ -1,8 +1,7 @@
-from migen.fhdl.std import *
-from migen.genlib.misc import optree
-
 from lib.sata.common import *
 from lib.sata.link.scrambler import Scrambler
+
+from migen.genlib.misc import optree
 
 class SATACONTInserter(Module):
 	def __init__(self, description):

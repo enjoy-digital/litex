@@ -1,7 +1,3 @@
-from migen.fhdl.std import *
-from migen.genlib.fsm import FSM, NextState
-from migen.actorlib.fifo import SyncFIFO as FIFO
-
 from lib.sata.common import *
 
 tx_to_rx = [
@@ -122,7 +118,7 @@ class SATACommandRX(Module):
 
 		###
 
-		cmd_fifo = FIFO(command_rx_cmd_description(32), 2) # Note: ideally depth=1
+		cmd_fifo = SyncFIFO(command_rx_cmd_description(32), 2) # Note: ideally depth=1
 		data_fifo = InsertReset(FIFO(command_rx_data_description(32), sector_size*max_count//4, buffered=True))
 		self.submodules += cmd_fifo, data_fifo
 

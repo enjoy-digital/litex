@@ -1,6 +1,3 @@
-from migen.fhdl.std import *
-from migen.genlib.fsm import FSM, NextState
-
 from lib.sata.common import *
 from lib.sata.link.scrambler import Scrambler
 

@@ -1,6 +1,9 @@
 from migen.fhdl.std import *
+from migen.genlib.resetsync import *
+from migen.genlib.fsm import *
 from migen.genlib.record import *
 from migen.flow.actor import *
+from migen.actorlib.fifo import *
 
 # PHY / Link Layers
 primitives = {

@@ -1,14 +1,10 @@
 from math import ceil
 
-from migen.fhdl.std import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.fsm import FSM, NextState
-
 from lib.sata.common import *
-from lib.sata.phy.k7sataphy.gtx import GTXE2_COMMON
+from lib.sata.phy.k7.trx import GTXE2_COMMON
 
 class K7SATAPHYCRG(Module):
-	def __init__(self, pads, gtx, clk_freq, default_speed):
+	def __init__(self, pads, gtx, clk_freq, speed):
 		self.reset = Signal()
 		self.ready = Signal()
 
@@ -51,7 +47,7 @@ class K7SATAPHYCRG(Module):
 			"SATA2" :	8.0,
 			"SATA3" : 	4.0
 			}
-		mmcm_div = mmcm_div_config[default_speed]
+		mmcm_div = mmcm_div_config[speed]
 		self.specials += [
 			Instance("BUFG", i_I=gtx.txoutclk, o_O=mmcm_clk_i),
 			Instance("MMCME2_ADV",

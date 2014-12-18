@@ -1,7 +1,3 @@
-from migen.fhdl.std import *
-from migen.genlib.fsm import FSM, NextState
-from migen.actorlib.fifo import SyncFIFO
-
 from lib.sata.common import *
 from lib.sata.link.crc import SATACRCInserter, SATACRCChecker
 from lib.sata.link.scrambler import SATAScrambler

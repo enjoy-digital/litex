@@ -1,11 +1,8 @@
-from migen.fhdl.std import *
-from migen.genlib.misc import chooser
-from migen.actorlib.fifo import AsyncFIFO
-from migen.flow.actor import Sink, Source
-
 from lib.sata.common import *
 
-class K7SATAPHYDatapathRX(Module):
+from migen.genlib.misc import chooser
+
+class SATAPHYDatapathRX(Module):
 	def __init__(self):
 		self.sink = Sink(phy_description(16))
 		self.source = Source(phy_description(32))
@@ -69,7 +66,7 @@ class K7SATAPHYDatapathRX(Module):
 		]
 		self.comb += Record.connect(fifo.source, self.source)
 
-class K7SATAPHYDatapathTX(Module):
+class SATAPHYDatapathTX(Module):
 	def __init__(self):
 		self.sink = Sink(phy_description(32))
 		self.source = Source(phy_description(16))
@@ -108,23 +105,20 @@ class K7SATAPHYDatapathTX(Module):
 			chooser(fifo.source.charisk, mux, self.source.charisk)
 		]
 
-class K7SATAPHYDatapath(Module):
-	def __init__(self, gtx, ctrl):
+class SATAPHYDatapath(Module):
+	def __init__(self, trx, ctrl):
 		self.sink = Sink(phy_description(32))
 		self.source = Source(phy_description(32))
 
 		###
 
 	# change data width & cross domain crossing
-		rx = K7SATAPHYDatapathRX()
-		tx = K7SATAPHYDatapathTX()
+		rx = SATAPHYDatapathRX()
+		tx = SATAPHYDatapathTX()
 		self.submodules += rx, tx
 		self.comb += [
-			rx.sink.data.eq(gtx.rxdata),
-			rx.sink.charisk.eq(gtx.rxcharisk),
-
-			gtx.txdata.eq(tx.source.data),
-			gtx.txcharisk.eq(tx.source.charisk),
+			trx.source.connect(rx.sink),
+			tx.source.connect(trx.sink)
 		]
 
 	# Align cnt (send 2 Align DWORDs every 256 DWORDs)

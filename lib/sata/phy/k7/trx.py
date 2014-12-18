@@ -1,7 +1,6 @@
-from migen.fhdl.std import *
-from migen.genlib.cdc import *
-
 from lib.sata.common import *
+
+from migen.genlib.cdc import *
 
 def ones(width):
 	return 2**width-1
@@ -14,9 +13,35 @@ class _PulseSynchronizer(PulseSynchronizer):
 			o.eq(self.o)
 		]
 
-class K7SATAPHYGTX(Module):
-	def __init__(self, pads, default_speed):
-	# Interface
+class _RisingEdge(Module):
+	def __init__(self, i, o):
+		i_d = Signal()
+		self.sync += i_d.eq(i)
+		self.comb += o.eq(i & ~i_d)
+
+class K7SATAPHYTRX(Module):
+	def __init__(self, pads, speed):
+	# Common signals
+
+		# control
+		self.tx_idle = Signal()			#i
+
+		self.tx_cominit_stb = Signal()  #i
+		self.tx_cominit_ack = Signal()  #o
+		self.tx_comwake_stb = Signal()  #i
+		self.tx_comwake_ack = Signal()	#o
+
+		self.rx_idle = Signal()			#o
+		self.rx_align = Signal()		#i
+
+		self.rx_cominit_stb = Signal()	#o
+		self.rx_comwake_stb = Signal()	#o
+
+		# datapath
+		self.sink = Sink(phy_description(16))
+		self.source = Source(phy_description(16))
+
+	# K7 specific signals
 		# Channel - Ref Clock Ports
 		self.gtrefclk0 = Signal()
 
@@ -82,15 +107,40 @@ class K7SATAPHYGTX(Module):
 			"SATA2" :	2,
 			"SATA3" : 	1
 			}
-		rxout_div = div_config[default_speed]
-		txout_div = div_config[default_speed]
+		rxout_div = div_config[speed]
+		txout_div = div_config[speed]
 
 		cdr_config = {
 			"SATA1" :	0x0380008BFF40100008,
 			"SATA2" :	0x0388008BFF40200008,
 			"SATA3" :	0X0380008BFF10200010
 		}
-		rxcdr_cfg = cdr_config[default_speed]
+		rxcdr_cfg = cdr_config[speed]
+
+	# Specific / Generic signals encoding/decoding
+		self.comb += [
+			self.txelecidle.eq(self.tx_idle),
+			self.tx_cominit_ack.eq(self.tx_cominit_stb & self.txcomfinish),
+			self.tx_comwake_ack.eq(self.tx_comwake_stb & self.txcomfinish),
+			self.rx_idle.eq(self.rxelecidle),
+			self.rxalign.eq(self.rx_align),
+			self.rx_cominit_stb.eq(self.rxcominitdet),
+			self.rx_comwake_stb.eq(self.rxcomwakedet),
+		]
+		self.submodules += [
+			_RisingEdge(self.tx_cominit_stb, self.txcominit),
+			_RisingEdge(self.tx_comwake_stb, self.txcomwake),
+		]
+
+		self.comb += [
+			self.txcharisk.eq(self.sink.charisk),
+			self.txdata.eq(self.sink.data),
+			self.sink.ack.eq(1),
+
+			self.source.stb.eq(1),
+			self.source.charisk.eq(self.rxcharisk),
+			self.source.data.eq(self.rxdata)
+		]
 
 	# Internals and clock domain crossing
 		# sys_clk --> sata_tx clk

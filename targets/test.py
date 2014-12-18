@@ -9,7 +9,7 @@ from miscope.uart2wishbone import UART2Wishbone
 
 from misoclib import identifier
 from lib.sata.common import *
-from lib.sata.phy.k7sataphy import K7SATAPHY
+from lib.sata.phy import SATAPHY
 from lib.sata.link.cont import SATACONTInserter, SATACONTRemover
 
 from migen.genlib.cdc import *
@@ -111,17 +111,17 @@ class SimDesign(UART2WB):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
-		self.submodules.sataphy_host = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True)
+		self.submodules.sata_phy_host = SATAPHY(platform.request("sata_host"), clk_freq, host=True)
 		self.comb += [
-			self.sataphy_host.sink.stb.eq(1),
-			self.sataphy_host.sink.data.eq(primitives["SYNC"]),
-			self.sataphy_host.sink.charisk.eq(0b0001)
+			self.sata_phy_host.sink.stb.eq(1),
+			self.sata_phy_host.sink.data.eq(primitives["SYNC"]),
+			self.sata_phy_host.sink.charisk.eq(0b0001)
 		]
-		self.submodules.sataphy_device = K7SATAPHY(platform.request("sata_device"), clk_freq, host=False)
+		self.submodules.sata_phy_device = SATAPHY(platform.request("sata_device"), clk_freq, host=False)
 		self.comb += [
-			self.sataphy_device.sink.stb.eq(1),
-			self.sataphy_device.sink.data.eq(primitives["SYNC"]),
-			self.sataphy_device.sink.charisk.eq(0b0001)
+			self.sata_phy_device.sink.stb.eq(1),
+			self.sata_phy_device.sink.data.eq(primitives["SYNC"]),
+			self.sata_phy_device.sink.charisk.eq(0b0001)
 		]
 
 
@@ -187,7 +187,7 @@ class TestDesign(UART2WB, AutoCSR):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
-		self.submodules.sata_phy = K7SATAPHY(platform.request("sata_host"), clk_freq, host=True, default_speed="SATA1")
+		self.submodules.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA1")
 		self.submodules.stim = VeryBasicPHYStim(self.sata_phy)
 
 		self.submodules.clock_leds = ClockLeds(platform)
@@ -196,29 +196,28 @@ class TestDesign(UART2WB, AutoCSR):
 			import os
 			from miscope import MiLa, Term, UART2Wishbone
 
-			gtx = self.sata_phy.gtx
+			trx = self.sata_phy.trx
 			ctrl = self.sata_phy.ctrl
 			crg = self.sata_phy.crg
 
 			debug = (
-				gtx.rxresetdone,
-				gtx.txresetdone,
+				trx.rxresetdone,
+				trx.txresetdone,
 
-				gtx.rxuserrdy,
-				gtx.txuserrdy,
+				trx.rxuserrdy,
+				trx.txuserrdy,
 
-				gtx.rxelecidle,
-				gtx.rxcominitdet,
-				gtx.rxcomwakedet,
+				trx.rxelecidle,
+				trx.rxcominitdet,
+				trx.rxcomwakedet,
 
-				gtx.txcomfinish,
-				gtx.txcominit,
-				gtx.txcomwake,
+				trx.txcomfinish,
+				trx.txcominit,
+				trx.txcomwake,
 
-				ctrl.sink.stb,
+				ctrl.ready,
 				ctrl.sink.data,
 				ctrl.sink.charisk,
-				ctrl.align_detect,
 
 				self.sata_phy.source.stb,
 				self.sata_phy.source.data,

@@ -1,8 +1,7 @@
-from migen.fhdl.std import *
+from lib.sata.common import *
+
 from migen.genlib.misc import optree
 from migen.actorlib.crc import CRCInserter, CRCChecker
-
-from lib.sata.common import *
 
 class CRCEngine(Module):
 	"""Cyclic Redundancy Check Engine

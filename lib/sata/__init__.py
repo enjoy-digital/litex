@@ -1,5 +1,3 @@
-from migen.fhdl.std import *
-
 from lib.sata.common import *
 from lib.sata.link import SATALink
 from lib.sata.transport import SATATransport
