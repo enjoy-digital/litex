@@ -1,4 +1,4 @@
-import random, copy
+import random
 
 from migen.fhdl.std import *
 from migen.genlib.record import *
@@ -7,62 +7,16 @@ from migen.sim.generic import run_simulation
 from lib.sata.common import *
 from lib.sata.link import SATALink
 
-from lib.sata.test.hdd import *
 from lib.sata.test.common import *
+from lib.sata.test.hdd import *
 
-class LinkStreamer(Module):
+class LinkStreamer(PacketStreamer):
 	def __init__(self):
-		self.source = Source(link_description(32))
-		###
-		self.packets = []
-		self.packet = LinkTXPacket()
-		self.packet.done = 1
+		PacketStreamer.__init__(self, link_description(32), LinkTXPacket)
 
-	def send(self, packet, blocking=True):
-		packet = copy.deepcopy(packet)
-		self.packets.append(packet)
-		if blocking:
-			while packet.done == 0:
-				yield
-
-	def do_simulation(self, selfp):
-		if len(self.packets) and self.packet.done:
-			self.packet = self.packets.pop(0)
-		if not self.packet.ongoing and not self.packet.done:
-			selfp.source.stb = 1
-			selfp.source.sop = 1
-			selfp.source.d = self.packet.pop(0)
-			self.packet.ongoing = True
-		elif selfp.source.stb == 1 and selfp.source.ack == 1:
-			selfp.source.sop = 0
-			selfp.source.eop = (len(self.packet) == 1)
-			if len(self.packet) > 0:
-				selfp.source.stb = 1
-				selfp.source.d = self.packet.pop(0)
-			else:
-				self.packet.done = 1
-				selfp.source.stb = 0
-
-class LinkLogger(Module):
+class LinkLogger(PacketLogger):
 	def __init__(self):
-		self.sink = Sink(link_description(32))
-		###
-		self.packet = LinkRXPacket()
-
-	def receive(self):
-		self.packet.done = 0
-		while self.packet.done == 0:
-			yield
-
-	def do_simulation(self, selfp):
-		selfp.sink.ack = 1
-		if selfp.sink.stb == 1 and selfp.sink.sop == 1:
-			self.packet = LinkRXPacket()
-			self.packet.append(selfp.sink.d)
-		elif selfp.sink.stb:
-			self.packet.append(selfp.sink.d)
-		if (selfp.sink.stb ==1 and selfp.sink.eop ==1):
-			self.packet.done = True
+		PacketLogger.__init__(self, link_description(32), LinkRXPacket)
 
 class TB(Module):
 	def __init__(self):

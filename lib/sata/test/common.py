@@ -32,6 +32,70 @@ def check(p1, p2):
 def randn(max_n):
 	return random.randint(0, max_n-1)
 
+class PacketStreamer(Module):
+	def __init__(self, description, packet_class):
+		self.source = Source(description)
+		###
+		self.packets = []
+		self.packet = packet_class()
+		self.packet.done = 1
+
+	def send(self, packet, blocking=True):
+		packet = copy.deepcopy(packet)
+		self.packets.append(packet)
+		if blocking:
+			while packet.done == 0:
+				yield
+
+	def do_simulation(self, selfp):
+		if len(self.packets) and self.packet.done:
+			self.packet = self.packets.pop(0)
+		if not self.packet.ongoing and not self.packet.done:
+			selfp.source.stb = 1
+			selfp.source.sop = 1
+			if len(self.packet) > 0:
+				if hasattr(selfp.source, "data"):
+					selfp.source.data = self.packet.pop(0)
+				else:
+					selfp.source.d = self.packet.pop(0)
+			self.packet.ongoing = True
+		elif selfp.source.stb == 1 and selfp.source.ack == 1:
+			selfp.source.sop = 0
+			selfp.source.eop = (len(self.packet) == 1)
+			if len(self.packet) > 0:
+				selfp.source.stb = 1
+				if hasattr(selfp.source, "data"):
+					selfp.source.data = self.packet.pop(0)
+				else:
+					selfp.source.d = self.packet.pop(0)
+			else:
+				self.packet.done = 1
+				selfp.source.stb = 0
+
+class PacketLogger(Module):
+	def __init__(self, description, packet_class):
+		self.sink = Sink(description)
+		###
+		self.packet_class = packet_class
+		self.packet = packet_class()
+
+	def receive(self):
+		self.packet.done = 0
+		while self.packet.done == 0:
+			yield
+
+	def do_simulation(self, selfp):
+		selfp.sink.ack = 1
+		if selfp.sink.stb == 1 and selfp.sink.sop == 1:
+			self.packet = self.packet_class()
+		if selfp.sink.stb:
+			if hasattr(selfp.sink, "data"):
+				self.packet.append(selfp.sink.data)
+			else:
+				self.packet.append(selfp.sink.d)
+		if selfp.sink.stb == 1 and selfp.sink.eop == 1:
+			self.packet.done = True
+
 class AckRandomizer(Module):
 	def __init__(self, description, level=0):
 		self.level = level

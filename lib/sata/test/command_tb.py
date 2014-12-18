@@ -1,4 +1,4 @@
-import random, copy
+import random
 
 from migen.fhdl.std import *
 from migen.genlib.record import *
@@ -24,47 +24,17 @@ class CommandTXPacket(list):
 		for d in data:
 			self.append(d)
 
-class CommandStreamer(Module):
+class CommandStreamer(PacketStreamer):
 	def __init__(self):
-		self.source = Source(command_tx_description(32))
-		###
-		self.packets = []
-		self.packet = CommandTXPacket()
-		self.packet.done = 1
-		self.length = 0
-
-	def send(self, packet, blocking=True):
-		packet = copy.deepcopy(packet)
-		self.packets.append(packet)
-		if blocking:
-			while packet.done == 0:
-				yield
+		PacketStreamer.__init__(self, command_tx_description(32), CommandTXPacket)
 
 	def do_simulation(self, selfp):
-		if len(self.packets) and self.packet.done:
-			self.packet = self.packets.pop(0)
-
+		PacketStreamer.do_simulation(self, selfp)
 		selfp.source.write = self.packet.write
 		selfp.source.read = self.packet.read
 		selfp.source.identify = self.packet.identify
 		selfp.source.sector = self.packet.sector
 		selfp.source.count = self.packet.count
-
-		if not self.packet.ongoing and not self.packet.done:
-			selfp.source.stb = 1
-			selfp.source.sop = 1
-			if len(self.packet) > 0:
-				selfp.source.data = self.packet.pop(0)
-			self.packet.ongoing = True
-		elif selfp.source.stb == 1 and selfp.source.ack == 1:
-			selfp.source.sop = 0
-			selfp.source.eop = (len(self.packet) == 1)
-			if len(self.packet) > 0:
-				selfp.source.stb = 1
-				selfp.source.data = self.packet.pop(0)
-			else:
-				self.packet.done = 1
-				selfp.source.stb = 0
 
 class CommandRXPacket(list):
 	def __init__(self):
@@ -76,16 +46,9 @@ class CommandRXPacket(list):
 		self.success = 0
 		self.failed = 0
 
-class CommandLogger(Module):
+class CommandLogger(PacketLogger):
 	def __init__(self):
-		self.sink = Sink(command_rx_description(32))
-		###
-		self.packet = CommandRXPacket()
-
-	def receive(self):
-		self.packet.done = 0
-		while self.packet.done == 0:
-			yield
+		PacketLogger.__init__(self, command_rx_description(32), CommandRXPacket)
 
 	def do_simulation(self, selfp):
 		selfp.sink.ack = 1
@@ -99,7 +62,7 @@ class CommandLogger(Module):
 			self.packet.append(selfp.sink.data)
 		elif selfp.sink.stb:
 			self.packet.append(selfp.sink.data)
-		if (selfp.sink.stb == 1 and selfp.sink.eop == 1):
+		if selfp.sink.stb == 1 and selfp.sink.eop == 1:
 			self.packet.done = True
 
 class TB(Module):
