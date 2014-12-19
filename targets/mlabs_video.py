@@ -4,7 +4,7 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import sdram, mxcrg, norflash16, minimac3, framebuffer, gpio
+from misoclib import sdram, mxcrg, norflash16, ethmac, framebuffer, gpio
 from misoclib.sdram.phy import s6ddrphy
 from misoclib.gensoc import SDRAMSoC
 from misoclib.ethmac.phy import mii
