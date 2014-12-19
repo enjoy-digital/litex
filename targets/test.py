@@ -10,7 +10,7 @@ from miscope.uart2wishbone import UART2Wishbone
 from misoclib import identifier
 from lib.sata.common import *
 from lib.sata.phy import SATAPHY
-from lib.sata.link.cont import SATACONTInserter, SATACONTRemover
+from lib.sata import SATACON
 
 from migen.genlib.cdc import *
 
@@ -149,37 +149,28 @@ class ClockLeds(Module):
 				sata_tx_cnt.eq(sata_tx_cnt-1)
 			)
 
-class VeryBasicPHYStim(Module, AutoCSR):
-	def __init__(self, phy):
-		self._enable = CSRStorage()
-		self._tx_primitive = CSRStorage(32)
-		self._rx_primitive = CSRStatus(32)
+class IdentifyRequester(Module, AutoCSR):
+	def __init__(self, sata_con):
+		self._req = CSRStorage()
+		req = self._req.storage
 
-		self.cont_inserter = SATACONTInserter(phy_description(32))
-		self.cont_remover = SATACONTRemover(phy_description(32))
 		self.comb += [
-			self.cont_inserter.source.connect(phy.sink),
-			phy.source.connect(self.cont_remover.sink),
-			self.cont_remover.source.ack.eq(1)
-		]
-		self.sync += [
-			self.cont_inserter.sink.stb.eq(1),
-			self.cont_inserter.sink.charisk.eq(0b0001),
-			If(self._enable.storage,
-				self.cont_inserter.sink.data.eq(self._tx_primitive.storage),
-				If(self.cont_remover.source.stb & (self.cont_remover.source.charisk == 0b0001),
-					self._rx_primitive.status.eq(self.cont_remover.source.data)
-				)
-			).Else(
-				self.cont_inserter.sink.data.eq(primitives["SYNC"]),
-			)
+			sata_con.sink.stb.eq(req),
+			sata_con.sink.sop.eq(1),
+			sata_con.sink.eop.eq(1),
+			sata_con.sink.identify.eq(1),
+			sata_con.sink.sector.eq(0),
+			sata_con.sink.count.eq(1),
+			sata_con.sink.data.eq(0),
+
+			sata_con.sink.ack.eq(1),
 		]
 
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
-		"mila":				10,
-		"stim":             11
+		"mila":					10,
+		"identify_requester":	11
 	}
 	csr_map.update(UART2WB.csr_map)
 
@@ -189,7 +180,9 @@ class TestDesign(UART2WB, AutoCSR):
 		self.crg = _CRG(platform)
 
 		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA1")
-		self.stim = VeryBasicPHYStim(self.sata_phy)
+		self.sata_con = SATACON(self.sata_phy, sector_size=512, max_count=8)
+
+		self.identify_requester = IdentifyRequester(self.sata_con)
 
 		self.clock_leds = ClockLeds(platform)
 
@@ -214,9 +207,22 @@ class TestDesign(UART2WB, AutoCSR):
 				self.sata_phy.sink.data,
 				self.sata_phy.sink.charisk,
 
-				self.stim.cont_remover.source.stb,
-				self.stim.cont_remover.source.data,
-				self.stim.cont_remover.source.charisk
+				self.sata_con.sink.stb,
+				self.sata_con.sink.sop,
+				self.sata_con.sink.eop,
+				self.sata_con.sink.ack,
+				self.sata_con.sink.identify,
+
+				self.sata_con.source.stb,
+				self.sata_con.source.sop,
+				self.sata_con.source.eop,
+				self.sata_con.source.ack,
+				self.sata_con.source.write,
+				self.sata_con.source.read,
+				self.sata_con.source.identify,
+				self.sata_con.source.success,
+				self.sata_con.source.failed,
+				self.sata_con.source.data
 			)
 
 			self.comb += platform.request("user_led", 2).eq(crg.ready)
