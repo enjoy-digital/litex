@@ -35,7 +35,7 @@ class SATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		cont  = SATACONTInserter(phy_description(32))
+		cont  = SATACONTInserter(phy_description(32), disable=True)
 		self.submodules += cont
 
 		# datas / primitives mux
