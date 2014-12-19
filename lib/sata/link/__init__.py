@@ -147,7 +147,7 @@ class SATALinkRX(Module):
 			)
 
 		# small fifo to manage HOLD
-		self.submodules.fifo = SyncFIFO(link_description(32), 32)
+		self.fifo = SyncFIFO(link_description(32), 32)
 
 		# graph
 		self.sync += \
@@ -210,7 +210,7 @@ class SATALinkRX(Module):
 
 class SATALink(Module):
 	def __init__(self, phy):
-		self.submodules.tx = SATALinkTX(phy)
-		self.submodules.rx = SATALinkRX(phy)
+		self.tx = SATALinkTX(phy)
+		self.rx = SATALinkRX(phy)
 		self.comb += Record.connect(self.rx.to_tx, self.tx.from_rx)
 		self.sink, self.source = self.tx.sink, self.rx.source

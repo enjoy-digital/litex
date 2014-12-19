@@ -75,7 +75,7 @@ class SATAScrambler(Module):
 
 		###
 
-		self.submodules.scrambler = Scrambler()
+		self.scrambler = Scrambler()
 		self.comb += [
 			self.scrambler.ce.eq(sink.stb & sink.ack),
 			Record.connect(sink, source),

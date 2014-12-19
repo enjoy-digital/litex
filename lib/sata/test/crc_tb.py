@@ -7,7 +7,7 @@ from lib.sata.test.common import *
 
 class TB(Module):
 	def __init__(self, length, random):
-		self.submodules.crc = SATACRC()
+		self.crc = SATACRC()
 		self.length = length
 		self.random = random
 

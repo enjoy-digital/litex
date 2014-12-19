@@ -58,7 +58,7 @@ class SATAPHYDatapathRX(Module):
 		# due to the convertion ratio of 2, sys_clk need to be > sata_rx/2
 		# source destination is always able to accept data (ack always 1)
 		fifo = AsyncFIFO(phy_description(32), 4)
-		self.submodules.fifo = RenameClockDomains(fifo, {"write": "sata_rx", "read": "sys"})
+		self.fifo = RenameClockDomains(fifo, {"write": "sata_rx", "read": "sys"})
 		self.comb += [
 			fifo.sink.stb.eq(valid),
 			fifo.sink.data.eq(data),
@@ -80,7 +80,7 @@ class SATAPHYDatapathTX(Module):
 		# requirements:
 		# source destination is always able to accept data (ack always 1)
 		fifo = AsyncFIFO(phy_description(32), 4)
-		self.submodules.fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
+		self.fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
 		self.comb += Record.connect(self.sink, fifo.sink)
 
 		# 32 to 16

@@ -60,17 +60,17 @@ class UART2WB(Module):
 	interrupt_map = {}
 	cpu_type = None
 	def __init__(self, platform, clk_freq):
-		self.submodules.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq)
+		self.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq)
 
 		# CSR bridge   0x00000000 (shadow @0x00000000)
-		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
+		self.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
 		self._wb_masters = [self.uart2wb.wishbone]
 		self._wb_slaves = [(lambda a: a[23:25] == 0, self.wishbone2csr.wishbone)]
 		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 
 
 		# CSR
-		self.submodules.identifier = identifier.Identifier(0, int(clk_freq), 0)
+		self.identifier = identifier.Identifier(0, int(clk_freq), 0)
 
 	def add_wb_master(self, wbm):
 		if self.finalized:
@@ -90,14 +90,14 @@ class UART2WB(Module):
 
 	def do_finalize(self):
 		# Wishbone
-		self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
+		self.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
 			self._wb_slaves, register=True)
 
 		# CSR
-		self.submodules.csrbankarray = csrgen.BankArray(self,
+		self.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
 			data_width=self.csr_data_width)
-		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
+		self.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
 		for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
 			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), csrs)
 		for name, memory, mapaddr, mmap in self.csrbankarray.srams:
@@ -109,15 +109,15 @@ class SimDesign(UART2WB):
 	def __init__(self, platform, export_mila=False):
 		clk_freq = 200*1000000
 		UART2WB.__init__(self, platform, clk_freq)
-		self.submodules.crg = _CRG(platform)
+		self.crg = _CRG(platform)
 
-		self.submodules.sata_phy_host = SATAPHY(platform.request("sata_host"), clk_freq, host=True)
+		self.sata_phy_host = SATAPHY(platform.request("sata_host"), clk_freq, host=True)
 		self.comb += [
 			self.sata_phy_host.sink.stb.eq(1),
 			self.sata_phy_host.sink.data.eq(primitives["SYNC"]),
 			self.sata_phy_host.sink.charisk.eq(0b0001)
 		]
-		self.submodules.sata_phy_device = SATAPHY(platform.request("sata_device"), clk_freq, host=False)
+		self.sata_phy_device = SATAPHY(platform.request("sata_device"), clk_freq, host=False)
 		self.comb += [
 			self.sata_phy_device.sink.stb.eq(1),
 			self.sata_phy_device.sink.data.eq(primitives["SYNC"]),
@@ -155,8 +155,8 @@ class VeryBasicPHYStim(Module, AutoCSR):
 		self._tx_primitive = CSRStorage(32)
 		self._rx_primitive = CSRStatus(32)
 
-		self.submodules.cont_inserter = SATACONTInserter(phy_description(32))
-		self.submodules.cont_remover = SATACONTRemover(phy_description(32))
+		self.cont_inserter = SATACONTInserter(phy_description(32))
+		self.cont_remover = SATACONTRemover(phy_description(32))
 		self.comb += [
 			self.cont_inserter.source.connect(phy.sink),
 			phy.source.connect(self.cont_remover.sink)
@@ -185,12 +185,12 @@ class TestDesign(UART2WB, AutoCSR):
 	def __init__(self, platform, mila=True, export_mila=False):
 		clk_freq = 200*1000000
 		UART2WB.__init__(self, platform, clk_freq)
-		self.submodules.crg = _CRG(platform)
+		self.crg = _CRG(platform)
 
-		self.submodules.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA1")
-		self.submodules.stim = VeryBasicPHYStim(self.sata_phy)
+		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA1")
+		self.stim = VeryBasicPHYStim(self.sata_phy)
 
-		self.submodules.clock_leds = ClockLeds(platform)
+		self.clock_leds = ClockLeds(platform)
 
 		if mila:
 			import os
@@ -231,7 +231,7 @@ class TestDesign(UART2WB, AutoCSR):
 			self.comb += platform.request("user_led", 2).eq(crg.ready)
 			self.comb += platform.request("user_led", 3).eq(ctrl.ready)
 
-			self.submodules.mila = MiLa(depth=512, dat=Cat(*debug))
+			self.mila = MiLa(depth=512, dat=Cat(*debug))
 			self.mila.add_port(Term)
 
 			if export_mila:

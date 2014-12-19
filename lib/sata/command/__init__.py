@@ -119,7 +119,7 @@ class SATACommandRX(Module):
 		###
 
 		cmd_fifo = SyncFIFO(command_rx_cmd_description(32), 2) # Note: ideally depth=1
-		data_fifo = InsertReset(FIFO(command_rx_data_description(32), sector_size*max_count//4, buffered=True))
+		data_fifo = InsertReset(SyncFIFO(command_rx_data_description(32), sector_size*max_count//4, buffered=True))
 		self.submodules += cmd_fifo, data_fifo
 
 		def test_type(name):
@@ -271,8 +271,8 @@ class SATACommand(Module):
 	def __init__(self, transport, sector_size=512, max_count=4):
 		if max_count*sector_size > 8192:
 			raise ValueError("sector_size * max_count must be <= 8192")
-		self.submodules.tx = SATACommandTX(transport, sector_size)
-		self.submodules.rx = SATACommandRX(transport, sector_size, max_count)
+		self.tx = SATACommandTX(transport, sector_size)
+		self.rx = SATACommandRX(transport, sector_size, max_count)
 		self.comb += [
 			self.rx.to_tx.connect(self.tx.from_rx),
 			self.tx.to_rx.connect(self.rx.from_tx)

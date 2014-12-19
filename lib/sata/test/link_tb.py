@@ -4,8 +4,6 @@ from lib.sata.link import SATALink
 from lib.sata.test.common import *
 from lib.sata.test.hdd import *
 
-from migen.actorlib.structuring import *
-
 class LinkStreamer(PacketStreamer):
 	def __init__(self):
 		PacketStreamer.__init__(self, link_description(32), LinkTXPacket)

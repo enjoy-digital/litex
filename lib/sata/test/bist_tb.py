@@ -7,16 +7,18 @@ from lib.sata.test.common import *
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.hdd = HDD(
+		self.hdd = HDD(
 				link_debug=False, link_random_level=0,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.submodules.controller = SATACON(self.hdd.phy)
-		self.submodules.bist = SATABIST()
-		self.comb += [
-			self.bist.source.connect(self.controller.sink),
-			self.controller.source.connect(self.bist.sink)
-		]
+		self.controller = SATACON(self.hdd.phy)
+		self.bist = SATABIST()
+
+		self.pipeline = Pipeline(
+			self.bist,
+			self.controller,
+			self.bist
+		)
 
 	def gen_simulation(self, selfp):
 		hdd = self.hdd

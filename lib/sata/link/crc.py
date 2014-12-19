@@ -95,7 +95,7 @@ class SATACRC(Module):
 
 		###
 
-		self.submodules.engine = CRCEngine(self.width, self.polynom)
+		self.engine = CRCEngine(self.width, self.polynom)
 		reg_i = Signal(self.width, reset=self.init)
 		self.sync += reg_i.eq(self.engine.next)
 		self.comb += [

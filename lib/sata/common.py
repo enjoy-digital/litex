@@ -4,6 +4,7 @@ from migen.genlib.fsm import *
 from migen.genlib.record import *
 from migen.flow.actor import *
 from migen.actorlib.fifo import *
+from migen.actorlib.structuring import Pipeline
 
 # PHY / Link Layers
 primitives = {

@@ -8,17 +8,17 @@ class SATAPHY(Module):
 		if device_family == "k7":
 			from lib.sata.phy.k7.trx import K7SATAPHYTRX
 			from lib.sata.phy.k7.crg import K7SATAPHYCRG
-			self.submodules.trx = K7SATAPHYTRX(pads, speed)
-			self.submodules.crg = K7SATAPHYCRG(pads, self.trx, clk_freq, speed)
+			self.trx = K7SATAPHYTRX(pads, speed)
+			self.crg = K7SATAPHYCRG(pads, self.trx, clk_freq, speed)
 		else:
 			raise NotImplementedError(device_family + "device family not implemented")
 
 	# Control
 		if host:
-			self.submodules.ctrl = SATAPHYHostCtrl(self.trx, self.crg, clk_freq)
+			self.ctrl = SATAPHYHostCtrl(self.trx, self.crg, clk_freq)
 		else:
-			self.submodules.ctrl = SATAPHYDeviceCtrl(self.trx, self.crg, clk_freq)
+			self.ctrl = SATAPHYDeviceCtrl(self.trx, self.crg, clk_freq)
 
 	# Datapath
-		self.submodules.datapath = SATAPHYDatapath(self.trx, self.ctrl)
+		self.datapath = SATAPHYDatapath(self.trx, self.ctrl)
 		self.sink, self.source = self.datapath.sink, self.datapath.source

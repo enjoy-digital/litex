@@ -61,26 +61,27 @@ class CommandLogger(PacketLogger):
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.hdd = HDD(
+		self.hdd = HDD(
 				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.submodules.link = SATALink(self.hdd.phy)
-		self.submodules.transport = SATATransport(self.link)
-		self.submodules.command = SATACommand(self.transport)
+		self.link = SATALink(self.hdd.phy)
+		self.transport = SATATransport(self.link)
+		self.command = SATACommand(self.transport)
 
-		self.submodules.streamer = CommandStreamer()
-		streamer_ack_randomizer = AckRandomizer(command_tx_description(32), level=50)
-		self.submodules += streamer_ack_randomizer
-		self.submodules.logger = CommandLogger()
-		logger_ack_randomizer = AckRandomizer(command_rx_description(32), level=50)
-		self.submodules += logger_ack_randomizer
-		self.comb += [
-			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),
-			Record.connect(streamer_ack_randomizer.source, self.command.sink),
-			Record.connect(self.command.source, logger_ack_randomizer.sink),
-			Record.connect(logger_ack_randomizer.source, self.logger.sink)
-		]
+		self.streamer = CommandStreamer()
+		self.streamer_randomizer = Randomizer(command_tx_description(32), level=50)
+
+		self.logger = CommandLogger()
+		self.logger_randomizer = Randomizer(command_rx_description(32), level=50)
+
+		self.pipeline = Pipeline(
+			self.streamer,
+			self.streamer_randomizer,
+			self.command,
+			self.logger_randomizer,
+			self.logger
+		)
 
 	def gen_simulation(self, selfp):
 		hdd = self.hdd

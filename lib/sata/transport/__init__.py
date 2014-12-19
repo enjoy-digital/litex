@@ -231,6 +231,6 @@ class SATATransportRX(Module):
 
 class SATATransport(Module):
 	def __init__(self, link):
-		self.submodules.tx = SATATransportTX(link)
-		self.submodules.rx = SATATransportRX(link)
+		self.tx = SATATransportTX(link)
+		self.rx = SATATransportRX(link)
 		self.sink, self.source = self.tx.sink, self.rx.source
