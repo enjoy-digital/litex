@@ -2,6 +2,7 @@ from lib.sata.common import *
 
 from migen.genlib.misc import chooser
 from migen.flow.plumbing import Multiplexer, Demultiplexer
+from migen.actorlib.structuring import Converter
 
 class SATAPHYDatapathRX(Module):
 	def __init__(self):
@@ -64,6 +65,7 @@ class SATAPHYDatapathRX(Module):
 			fifo.sink.stb.eq(valid),
 			fifo.sink.data.eq(data),
 			fifo.sink.charisk.eq(charisk),
+			self.sink.ack.eq(fifo.sink.ack)
 		]
 		self.comb += Record.connect(fifo.source, self.source)
 
@@ -82,35 +84,22 @@ class SATAPHYDatapathTX(Module):
 		# source destination is always able to accept data (ack always 1)
 		fifo = AsyncFIFO(phy_description(32), 4)
 		self.fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
-		self.comb += Record.connect(self.sink, fifo.sink)
+		self.comb += Record.connect(self.sink, fifo.sink),
 
-		# 32 to 16
-		mux = Signal()
-		last = Signal()
+	# width convertion (32 to 16)
+		self.converter = Converter(phy_description(32), phy_description(16), reverse=True)
 		self.comb += [
-			last.eq(mux == 1),
-			self.source.stb.eq(fifo.source.stb),
-			fifo.source.ack.eq(last),
-		]
-		self.sync.sata_tx += [
-			If(self.source.stb,
-				If(last,
-					mux.eq(0)
-				).Else(
-					mux.eq(mux + 1)
-				)
-			)
-		]
-		self.comb += [
-			chooser(fifo.source.data, mux, self.source.data),
-			chooser(fifo.source.charisk, mux, self.source.charisk)
+			Record.connect(self.fifo.source, self.converter.sink),
+			Record.connect(self.converter.source, self.source)
 		]
 
 class SATAPHYAlignInserter(Module):
 	def __init__(self, ctrl):
 		self.sink = sink = Sink(phy_description(32))
 		self.source = source = Source(phy_description(32))
+
 		###
+
 		# send 2 ALIGN every 256 DWORDs
 		# used for clock compensation between
 		# HOST and device
@@ -141,7 +130,9 @@ class SATAPHYAlignRemover(Module):
 	def __init__(self):
 		self.sink = sink = Sink(phy_description(32))
 		self.source = source = Source(phy_description(32))
+
 		###
+
 		charisk_match = sink.charisk == 0b0001
 		data_match = sink.data == primitives["ALIGN"]
 
