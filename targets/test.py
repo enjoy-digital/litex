@@ -207,6 +207,11 @@ class TestDesign(UART2WB, AutoCSR):
 				self.sata_phy.sink.data,
 				self.sata_phy.sink.charisk,
 
+				self.sata_phy.datapath.tx.sink.stb,
+				self.sata_phy.datapath.tx.sink.data,
+				self.sata_phy.datapath.tx.sink.charisk,
+				self.sata_phy.datapath.tx.sink.ack,
+
 				self.sata_con.sink.stb,
 				self.sata_con.sink.sop,
 				self.sata_con.sink.eop,

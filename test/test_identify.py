@@ -1,8 +1,10 @@
+import time
 from config import *
 from miscope.host.drivers import MiLaDriver
 
 mila = MiLaDriver(wb.regs, "mila", use_rle=False)
 wb.open()
+regs = wb.regs
 ###
 trigger0 = mila.sata_con_sink_stb_o*1
 mask0 = mila.sata_con_sink_stb_m

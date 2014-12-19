@@ -12,25 +12,30 @@ class SATAPHYDatapathRX(Module):
 		###
 
 	# width convertion (16 to 32) and byte alignment
+		byte_alignment = Signal()
 		last_charisk = Signal(2)
 		last_data = Signal(16)
-		self.sync += \
+		self.sync.sata_rx += \
 			If(self.sink.stb & self.sink.ack,
 				If(self.sink.charisk != 0,
-					last_charisk.eq(self.sink.charisk)
+					byte_alignment.eq(self.sink.charisk[1])
 				),
+				last_charisk.eq(self.sink.charisk),
 				last_data.eq(self.sink.data)
 			)
-		self.converter = Converter(phy_description(16), phy_description(32), reverse=True)
+		converter = Converter(phy_description(16), phy_description(32), reverse=False)
+		self.converter = InsertReset(RenameClockDomains(converter, "sata_rx"))
 		self.comb += [
 			self.converter.sink.stb.eq(self.sink.stb),
-			self.converter.sink.charisk.eq(0b01),
-			If(last_charisk[1],
-				self.converter.sink.data.eq(Cat(self.sink.data[8:], last_data[:8]))
+			If(byte_alignment,
+				self.converter.sink.charisk.eq(Cat(last_charisk[1], self.sink.charisk[0])),
+				self.converter.sink.data.eq(Cat(last_data[8:], self.sink.data[:8]))
 			).Else(
+				self.converter.sink.charisk.eq(self.sink.charisk),
 				self.converter.sink.data.eq(self.sink.data)
 			),
-			self.sink.ack.eq(self.converter.sink.ack)
+			self.sink.ack.eq(self.converter.sink.ack),
+			self.converter.reset.eq(self.converter.source.charisk[2:] != 0)
 		]
 
 	# clock domain crossing
@@ -65,7 +70,8 @@ class SATAPHYDatapathTX(Module):
 		self.comb += Record.connect(self.sink, fifo.sink)
 
 	# width convertion (32 to 16)
-		self.converter = Converter(phy_description(32), phy_description(16), reverse=True)
+		converter = Converter(phy_description(32), phy_description(16), reverse=False)
+		self.converter =  RenameClockDomains(converter, "sata_tx")
 		self.comb += [
 			Record.connect(self.fifo.source, self.converter.sink),
 			Record.connect(self.converter.source, self.source)
