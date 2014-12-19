@@ -1,6 +1,7 @@
 from lib.sata.common import *
 
 from migen.genlib.misc import chooser
+from migen.flow.plumbing import Multiplexer, Demultiplexer
 
 class SATAPHYDatapathRX(Module):
 	def __init__(self):
@@ -105,6 +106,52 @@ class SATAPHYDatapathTX(Module):
 			chooser(fifo.source.charisk, mux, self.source.charisk)
 		]
 
+class SATAPHYAlignInserter(Module):
+	def __init__(self, ctrl):
+		self.sink = sink = Sink(phy_description(32))
+		self.source = source = Source(phy_description(32))
+		###
+		# send 2 ALIGN every 256 DWORDs
+		# used for clock compensation between
+		# HOST and device
+		cnt = Signal(8)
+		send = Signal()
+		self.sync += \
+			If(~ctrl.ready,
+				cnt.eq(0)
+			).Elif(source.stb & source.ack,
+				cnt.eq(cnt+1)
+			)
+		self.comb += [
+			send.eq(cnt < 2),
+			If(send,
+				source.stb.eq(1),
+				source.charisk.eq(0b0001),
+				source.data.eq(primitives["ALIGN"]),
+				sink.ack.eq(0)
+			).Else(
+				source.stb.eq(sink.stb),
+				source.data.eq(sink.data),
+				source.charisk.eq(sink.charisk),
+				sink.ack.eq(source.ack)
+			)
+		]
+
+class SATAPHYAlignRemover(Module):
+	def __init__(self):
+		self.sink = sink = Sink(phy_description(32))
+		self.source = source = Source(phy_description(32))
+		###
+		charisk_match = sink.charisk == 0b0001
+		data_match = sink.data == primitives["ALIGN"]
+
+		self.comb += \
+			If(sink.stb & charisk_match & data_match,
+				sink.ack.eq(1),
+			).Else(
+				Record.connect(sink, source)
+			)
+
 class SATAPHYDatapath(Module):
 	def __init__(self, trx, ctrl):
 		self.sink = Sink(phy_description(32))
@@ -112,61 +159,28 @@ class SATAPHYDatapath(Module):
 
 		###
 
-	# change data width & cross domain crossing
-		rx = SATAPHYDatapathRX()
-		tx = SATAPHYDatapathTX()
-		self.submodules += rx, tx
+	# TX path
+		self.align_inserter = SATAPHYAlignInserter(ctrl)
+		self.mux = Multiplexer(phy_description(32), 2)
+		self.tx = SATAPHYDatapathTX()
 		self.comb += [
-			trx.source.connect(rx.sink),
-			tx.source.connect(trx.sink)
+			self.mux.sel.eq(ctrl.ready),
+			Record.connect(self.sink, self.align_inserter.sink),
+			Record.connect(ctrl.source, self.mux.sink0),
+			Record.connect(self.align_inserter.source, self.mux.sink1),
+			Record.connect(self.mux.source, self.tx.sink),
+			Record.connect(self.tx.source, trx.sink)
 		]
 
-	# Align cnt (send 2 Align DWORDs every 256 DWORDs)
-		align_cnt = Signal(8)
-		self.sync += \
-			If(~ctrl.ready,
-				align_cnt.eq(0)
-			).Elif(tx.sink.stb & tx.sink.ack,
-				align_cnt.eq(align_cnt+1)
-			)
-		send_align = (align_cnt < 2)
-
-		receive_align = Signal()
-		self.comb += receive_align.eq(rx.source.stb &
-						(rx.source.charisk == 0b0001) &
-						(rx.source.data == primitives["ALIGN"]))
-
-	# user / ctrl mux
+	# RX path
+		self.rx = SATAPHYDatapathRX()
+		self.demux = Demultiplexer(phy_description(32), 2)
+		self.align_remover = SATAPHYAlignRemover()
 		self.comb += [
-			# user
-			If(ctrl.ready,
-				If(send_align,
-					tx.sink.stb.eq(1),
-					tx.sink.data.eq(primitives["ALIGN"]),
-					tx.sink.charisk.eq(0b0001),
-					self.sink.ack.eq(0)
-				).Else(
-					tx.sink.stb.eq(self.sink.stb),
-					tx.sink.data.eq(self.sink.data),
-					tx.sink.charisk.eq(self.sink.charisk),
-					self.sink.ack.eq(tx.sink.ack)
-				),
-				If(receive_align,
-					rx.source.ack.eq(1)
-				).Else(
-					self.source.stb.eq(rx.source.stb),
-					self.source.data.eq(rx.source.data),
-					self.source.charisk.eq(rx.source.charisk),
-					rx.source.ack.eq(1)
-				)
-			# ctrl
-			).Else(
-				tx.sink.stb.eq(ctrl.source.stb),
-				tx.sink.data.eq(ctrl.source.data),
-				tx.sink.charisk.eq(ctrl.source.charisk),
-
-				ctrl.sink.stb.eq(rx.source.stb),
-				ctrl.sink.data.eq(rx.source.data),
-				rx.source.ack.eq(1),
-			)
+			self.demux.sel.eq(ctrl.ready),
+			Record.connect(trx.source, self.rx.sink),
+			Record.connect(self.rx.source, self.demux.sink),
+			Record.connect(self.demux.source0, ctrl.sink),
+			Record.connect(self.demux.source1, self.align_remover.sink),
+			Record.connect(self.align_remover.source, self.source)
 		]

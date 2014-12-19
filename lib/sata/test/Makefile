@@ -6,6 +6,9 @@ CMD = PYTHONPATH=$(MSCDIR) $(PYTHON)
 CC=gcc
 CFLAGS =-Wall -O0
 
+phy_datapath_tb:
+	$(CMD) phy_datapath_tb.py
+
 crc_tb:
 	$(CC) $(CFLAGS) $(INC) -o crc crc.c
 	$(CMD) crc_tb.py
