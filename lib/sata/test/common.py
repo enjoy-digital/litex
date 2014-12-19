@@ -98,7 +98,7 @@ class PacketLogger(Module):
 		if selfp.sink.stb == 1 and selfp.sink.eop == 1:
 			self.packet.done = True
 
-class AckRandomizer(Module):
+class Randomizer(Module):
 	def __init__(self, description, level=0):
 		self.level = level
 

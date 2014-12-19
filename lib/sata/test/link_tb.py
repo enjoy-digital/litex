@@ -4,6 +4,8 @@ from lib.sata.link import SATALink
 from lib.sata.test.common import *
 from lib.sata.test.hdd import *
 
+from migen.actorlib.structuring import *
+
 class LinkStreamer(PacketStreamer):
 	def __init__(self):
 		PacketStreamer.__init__(self, link_description(32), LinkTXPacket)
@@ -14,23 +16,24 @@ class LinkLogger(PacketLogger):
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.hdd = HDD(
+		self.hdd = HDD(
 				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=True)
-		self.submodules.link = SATALink(self.hdd.phy)
+		self.link = InsertReset(SATALink(self.hdd.phy))
 
-		self.submodules.streamer = LinkStreamer()
-		streamer_ack_randomizer = AckRandomizer(link_description(32), level=50)
-		self.submodules += streamer_ack_randomizer
-		self.submodules.logger = LinkLogger()
-		logger_ack_randomizer = AckRandomizer(link_description(32), level=50)
-		self.submodules += logger_ack_randomizer
-		self.comb += [
-			Record.connect(self.streamer.source, streamer_ack_randomizer.sink),
-			Record.connect(streamer_ack_randomizer.source, self.link.sink),
-			Record.connect(self.link.source, logger_ack_randomizer.sink),
-			Record.connect(logger_ack_randomizer.source, self.logger.sink)
-		]
+		self.streamer = LinkStreamer()
+		self.streamer_randomizer = Randomizer(link_description(32), level=50)
+
+		self.logger_randomizer = Randomizer(link_description(32), level=50)
+		self.logger = LinkLogger()
+
+		self.pipeline = Pipeline(
+			self.streamer,
+			self.streamer_randomizer,
+			self.link,
+			self.logger_randomizer,
+			self.logger
+		)
 
 	def gen_simulation(self, selfp):
 		for i in range(8):
