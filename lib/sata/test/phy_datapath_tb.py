@@ -55,11 +55,11 @@ class TB(Module):
 		]
 
 		self.streamer = DataStreamer()
-		self.streamer_randomizer = Randomizer(phy_description(32), level=0)
+		self.streamer_randomizer = Randomizer(phy_description(32), level=10)
 		self.trx = TRX()
 		self.ctrl = CTRL()
 		self.datapath = SATAPHYDatapath(self.trx, self.ctrl)
-		self.logger_randomizer = Randomizer(phy_description(32), level=0)
+		self.logger_randomizer = Randomizer(phy_description(32), level=10)
 		self.logger = DataLogger()
 
 		self.pipeline = Pipeline(

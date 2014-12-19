@@ -11,45 +11,26 @@ class SATAPHYDatapathRX(Module):
 
 		###
 
-	# bytes alignment
-
-		# shift register
-		data_sr = Signal(32+8)
-		charisk_sr = Signal(4+1)
-		data_sr_d = Signal(32+8)
-		charisk_sr_d = Signal(4+1)
-		self.comb += [
-			data_sr.eq(Cat(data_sr_d[16:], self.sink.data)),
-			charisk_sr.eq(Cat(charisk_sr_d[2:], self.sink.charisk))
-		]
-		self.sync.sata_rx += [
-			data_sr_d.eq(data_sr),
-			charisk_sr_d.eq(charisk_sr)
-		]
-
-		# alignment
-		alignment = Signal()
-		valid = Signal()
-		self.sync.sata_rx += [
-			If(self.sink.charisk !=0,
-				alignment.eq(self.sink.charisk[1]),
-				valid.eq(0)
-			).Else(
-				valid.eq(~valid)
+	# width convertion (16 to 32) and byte alignment
+		last_charisk = Signal(2)
+		last_data = Signal(16)
+		self.sync += \
+			If(self.sink.stb & self.sink.ack,
+				If(self.sink.charisk != 0,
+					last_charisk.eq(self.sink.charisk)
+				),
+				last_data.eq(self.sink.data)
 			)
-		]
-
-		# 16 to 32
-		data = Signal(32)
-		charisk = Signal(4)
+		self.converter = Converter(phy_description(16), phy_description(32), reverse=True)
 		self.comb += [
-			If(alignment,
-				data.eq(data_sr[0:32]),
-				charisk.eq(charisk_sr[0:4])
+			self.converter.sink.stb.eq(self.sink.stb),
+			self.converter.sink.charisk.eq(0b01),
+			If(last_charisk[1],
+				self.converter.sink.data.eq(Cat(self.sink.data[8:], last_data[:8]))
 			).Else(
-				data.eq(data_sr[8:40]),
-				charisk.eq(charisk_sr[1:5])
-			)
+				self.converter.sink.data.eq(self.sink.data)
+			),
+			self.sink.ack.eq(self.converter.sink.ack)
 		]
 
 	# clock domain crossing
@@ -62,12 +43,9 @@ class SATAPHYDatapathRX(Module):
 		fifo = AsyncFIFO(phy_description(32), 4)
 		self.fifo = RenameClockDomains(fifo, {"write": "sata_rx", "read": "sys"})
 		self.comb += [
-			fifo.sink.stb.eq(valid),
-			fifo.sink.data.eq(data),
-			fifo.sink.charisk.eq(charisk),
-			self.sink.ack.eq(fifo.sink.ack)
+			Record.connect(self.converter.source, fifo.sink),
+			Record.connect(fifo.source, self.source)
 		]
-		self.comb += Record.connect(fifo.source, self.source)
 
 class SATAPHYDatapathTX(Module):
 	def __init__(self):
@@ -84,7 +62,7 @@ class SATAPHYDatapathTX(Module):
 		# source destination is always able to accept data (ack always 1)
 		fifo = AsyncFIFO(phy_description(32), 4)
 		self.fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
-		self.comb += Record.connect(self.sink, fifo.sink),
+		self.comb += Record.connect(self.sink, fifo.sink)
 
 	# width convertion (32 to 16)
 		self.converter = Converter(phy_description(32), phy_description(16), reverse=True)
