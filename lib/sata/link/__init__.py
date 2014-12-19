@@ -63,7 +63,9 @@ class SATALinkTX(Module):
 			If(self.from_rx.idle,
 				insert.eq(primitives["SYNC"]),
 				If(scrambler.source.stb & scrambler.source.sop,
-					NextState("RDY"),
+					If(self.from_rx.det == primitives["SYNC"],
+						NextState("RDY")
+					)
 				)
 			)
 		)

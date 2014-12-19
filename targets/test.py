@@ -1,3 +1,5 @@
+import os
+
 from migen.fhdl.std import *
 from migen.bank import csrgen
 from migen.bus import wishbone, csr
@@ -5,6 +7,7 @@ from migen.bus import wishbone2csr
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.bank.description import *
 
+from miscope import MiLa, Term, UART2Wishbone
 from miscope.uart2wishbone import UART2Wishbone
 
 from misoclib import identifier
@@ -174,7 +177,7 @@ class TestDesign(UART2WB, AutoCSR):
 	}
 	csr_map.update(UART2WB.csr_map)
 
-	def __init__(self, platform, mila=True, export_mila=False):
+	def __init__(self, platform, export_mila=False):
 		clk_freq = 200*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
@@ -186,59 +189,84 @@ class TestDesign(UART2WB, AutoCSR):
 
 		self.clock_leds = ClockLeds(platform)
 
-		if mila:
-			import os
-			from miscope import MiLa, Term, UART2Wishbone
+		self.comb += platform.request("user_led", 2).eq(self.sata_phy.crg.ready)
+		self.comb += platform.request("user_led", 3).eq(self.sata_phy.ctrl.ready)
 
-			trx = self.sata_phy.trx
-			ctrl = self.sata_phy.ctrl
-			crg = self.sata_phy.crg
+		ctrl = self.sata_phy.ctrl
 
-			debug = (
-				ctrl.ready,
-				ctrl.sink.data,
-				ctrl.sink.charisk,
+		self.command_tx_fsm_state = Signal(4)
+		self.transport_tx_fsm_state = Signal(4)
+		self.link_tx_fsm_state = Signal(4)
 
-				self.sata_phy.source.stb,
-				self.sata_phy.source.data,
-				self.sata_phy.source.charisk,
+		self.command_rx_fsm_state = Signal(4)
+		self.command_rx_out_fsm_state = Signal(4)
+		self.transport_rx_fsm_state = Signal(4)
+		self.link_rx_fsm_state = Signal(4)
 
-				self.sata_phy.sink.stb,
-				self.sata_phy.sink.data,
-				self.sata_phy.sink.charisk,
+		debug = (
+			ctrl.ready,
+			ctrl.sink.data,
+			ctrl.sink.charisk,
 
-				self.sata_phy.datapath.tx.sink.stb,
-				self.sata_phy.datapath.tx.sink.data,
-				self.sata_phy.datapath.tx.sink.charisk,
-				self.sata_phy.datapath.tx.sink.ack,
+			self.sata_phy.source.stb,
+			self.sata_phy.source.data,
+			self.sata_phy.source.charisk,
 
-				self.sata_con.sink.stb,
-				self.sata_con.sink.sop,
-				self.sata_con.sink.eop,
-				self.sata_con.sink.ack,
-				self.sata_con.sink.identify,
+			self.sata_phy.sink.stb,
+			self.sata_phy.sink.data,
+			self.sata_phy.sink.charisk,
 
-				self.sata_con.source.stb,
-				self.sata_con.source.sop,
-				self.sata_con.source.eop,
-				self.sata_con.source.ack,
-				self.sata_con.source.write,
-				self.sata_con.source.read,
-				self.sata_con.source.identify,
-				self.sata_con.source.success,
-				self.sata_con.source.failed,
-				self.sata_con.source.data
-			)
+			self.sata_phy.datapath.tx.sink.stb,
+			self.sata_phy.datapath.tx.sink.data,
+			self.sata_phy.datapath.tx.sink.charisk,
+			self.sata_phy.datapath.tx.sink.ack,
 
-			self.comb += platform.request("user_led", 2).eq(crg.ready)
-			self.comb += platform.request("user_led", 3).eq(ctrl.ready)
+			self.sata_con.sink.stb,
+			self.sata_con.sink.sop,
+			self.sata_con.sink.eop,
+			self.sata_con.sink.ack,
+			self.sata_con.sink.identify,
 
-			self.mila = MiLa(depth=2048, dat=Cat(*debug))
-			self.mila.add_port(Term)
+			self.sata_con.source.stb,
+			self.sata_con.source.sop,
+			self.sata_con.source.eop,
+			self.sata_con.source.ack,
+			self.sata_con.source.write,
+			self.sata_con.source.read,
+			self.sata_con.source.identify,
+			self.sata_con.source.success,
+			self.sata_con.source.failed,
+			self.sata_con.source.data,
 
-			if export_mila:
-				mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
-				self.mila.export(self, debug, mila_filename)
+			self.command_tx_fsm_state,
+			self.transport_tx_fsm_state,
+			self.link_tx_fsm_state,
+
+			self.command_rx_fsm_state,
+			self.command_rx_out_fsm_state,
+			self.transport_rx_fsm_state,
+			self.link_rx_fsm_state,
+		)
+
+		self.mila = MiLa(depth=2048, dat=Cat(*debug))
+		self.mila.add_port(Term)
+
+		if export_mila:
+			mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
+			self.mila.export(self, debug, mila_filename)
+
+	def do_finalize(self):
+		UART2WB.do_finalize(self)
+		self.comb += [
+			self.command_tx_fsm_state.eq(self.sata_con.command.tx.fsm.state),
+			self.transport_tx_fsm_state.eq(self.sata_con.transport.tx.fsm.state),
+			self.link_tx_fsm_state.eq(self.sata_con.link.tx.fsm.state),
+
+			self.command_rx_fsm_state.eq(self.sata_con.command.rx.fsm.state),
+			self.command_rx_out_fsm_state.eq(self.sata_con.command.rx.out_fsm.state),
+			self.transport_rx_fsm_state.eq(self.sata_con.transport.rx.fsm.state),
+			self.link_rx_fsm_state.eq(self.sata_con.link.rx.fsm.state)
+		]
 
 #default_subtarget = SimDesign
 default_subtarget = TestDesign
