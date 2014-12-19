@@ -5,5 +5,5 @@ busword = 8
 debug_wb = False
 
 com = 2
-baud = 115200
+baud = 921600
 wb = Uart2Wishbone(com, baud, csr_csv_file, busword, debug_wb)

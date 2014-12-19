@@ -60,7 +60,7 @@ class UART2WB(Module):
 	interrupt_map = {}
 	cpu_type = None
 	def __init__(self, platform, clk_freq):
-		self.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq)
+		self.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq, baud=921600)
 
 		# CSR bridge   0x00000000 (shadow @0x00000000)
 		self.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
@@ -159,7 +159,8 @@ class VeryBasicPHYStim(Module, AutoCSR):
 		self.cont_remover = SATACONTRemover(phy_description(32))
 		self.comb += [
 			self.cont_inserter.source.connect(phy.sink),
-			phy.source.connect(self.cont_remover.sink)
+			phy.source.connect(self.cont_remover.sink),
+			self.cont_remover.source.ack.eq(1)
 		]
 		self.sync += [
 			self.cont_inserter.sink.stb.eq(1),
@@ -201,20 +202,6 @@ class TestDesign(UART2WB, AutoCSR):
 			crg = self.sata_phy.crg
 
 			debug = (
-				trx.rxresetdone,
-				trx.txresetdone,
-
-				trx.rxuserrdy,
-				trx.txuserrdy,
-
-				trx.rxelecidle,
-				trx.rxcominitdet,
-				trx.rxcomwakedet,
-
-				trx.txcomfinish,
-				trx.txcominit,
-				trx.txcomwake,
-
 				ctrl.ready,
 				ctrl.sink.data,
 				ctrl.sink.charisk,
@@ -226,12 +213,16 @@ class TestDesign(UART2WB, AutoCSR):
 				self.sata_phy.sink.stb,
 				self.sata_phy.sink.data,
 				self.sata_phy.sink.charisk,
+
+				self.stim.cont_remover.source.stb,
+				self.stim.cont_remover.source.data,
+				self.stim.cont_remover.source.charisk
 			)
 
 			self.comb += platform.request("user_led", 2).eq(crg.ready)
 			self.comb += platform.request("user_led", 3).eq(ctrl.ready)
 
-			self.mila = MiLa(depth=512, dat=Cat(*debug))
+			self.mila = MiLa(depth=2048, dat=Cat(*debug))
 			self.mila.add_port(Term)
 
 			if export_mila:
