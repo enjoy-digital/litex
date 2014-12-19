@@ -13,26 +13,22 @@ class SATABIST(Module):
 		self.ctrl_errors = Signal(32)
 		self.data_errors = Signal(32)
 
-		counter = Counter(bits_sign=32)
-		ctrl_error_counter = Counter(self.ctrl_errors, bits_sign=32)
-		data_error_counter = Counter(self.data_errors, bits_sign=32)
-		self.submodules += counter, data_error_counter, ctrl_error_counter
+		self.counter = counter = Counter(bits_sign=32)
+		self.ctrl_error_counter = Counter(self.ctrl_errors, bits_sign=32)
+		self.data_error_counter = Counter(self.data_errors, bits_sign=32)
 
-		scrambler = InsertReset(Scrambler())
-		self.submodules += scrambler
+		self.scrambler = scrambler = InsertReset(Scrambler())
 		self.comb += [
 			scrambler.reset.eq(counter.reset),
 			scrambler.ce.eq(counter.ce)
 		]
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-
+		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			self.done.eq(1),
 			counter.reset.eq(1),
-			ctrl_error_counter.reset.eq(1),
-			data_error_counter.reset.eq(1),
+			self.ctrl_error_counter.reset.eq(1),
+			self.data_error_counter.reset.eq(1),
 			If(self.start,
 				NextState("SEND_WRITE_CMD_AND_DATA")
 			)
@@ -54,7 +50,7 @@ class SATABIST(Module):
 			sink.ack.eq(1),
 			If(sink.stb,
 				If(~sink.write | ~sink.success | sink.failed,
-					ctrl_error_counter.ce.eq(1)
+					self.ctrl_error_counter.ce.eq(1)
 				),
 				NextState("SEND_READ_CMD")
 			)
@@ -74,7 +70,7 @@ class SATABIST(Module):
 			counter.reset.eq(1),
 			If(sink.stb & sink.read,
 				If(~sink.read | ~sink.success | sink.failed,
-					ctrl_error_counter.ce.eq(1)
+					self.ctrl_error_counter.ce.eq(1)
 				),
 				NextState("RECEIVE_READ_DATA")
 			)
@@ -84,7 +80,7 @@ class SATABIST(Module):
 			If(sink.stb,
 				counter.ce.eq(1),
 				If(sink.data != scrambler.value,
-					data_error_counter.ce.eq(1)
+					self.data_error_counter.ce.eq(1)
 				),
 				If(sink.eop,
 					NextState("IDLE")

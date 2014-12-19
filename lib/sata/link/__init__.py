@@ -16,8 +16,7 @@ class SATALinkTX(Module):
 
 		###
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.fsm = fsm = FSM(reset_state="IDLE")
 
 		# insert CRC
 		crc = SATACRCInserter(link_description(32))
@@ -35,8 +34,7 @@ class SATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		cont  = SATACONTInserter(phy_description(32), disable=True)
-		self.submodules += cont
+		self.cont  = cont = SATACONTInserter(phy_description(32), disable=True)
 
 		# datas / primitives mux
 		insert = Signal(32)
@@ -114,12 +112,10 @@ class SATALinkRX(Module):
 
 		###
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.fsm = fsm = FSM(reset_state="IDLE")
 
 		# CONT remover
-		cont = SATACONTRemover(phy_description(32))
-		self.submodules += cont
+		self.cont = cont = SATACONTRemover(phy_description(32))
 		self.comb += Record.connect(phy.source, cont.sink)
 
 		# datas / primitives detection
@@ -131,12 +127,10 @@ class SATALinkRX(Module):
 			)
 
 		# descrambler
-		scrambler = SATAScrambler(link_description(32))
-		self.submodules += scrambler
+		self.scrambler = scrambler = SATAScrambler(link_description(32))
 
 		# check CRC
-		crc = SATACRCChecker(link_description(32))
-		self.submodules += crc
+		self.crc = crc = SATACRCChecker(link_description(32))
 
 		sop = Signal()
 		self.sync += \

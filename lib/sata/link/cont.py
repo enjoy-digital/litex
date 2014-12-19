@@ -13,8 +13,7 @@ class SATACONTInserter(Module):
 		if disable:
 			self.comb += Record.connect(self.sink, self.source)
 		else:
-			counter = Counter(max=4)
-			self.submodules += counter
+			self.counter = counter = Counter(max=4)
 
 			is_data = Signal()
 			was_data = Signal()
@@ -43,8 +42,7 @@ class SATACONTInserter(Module):
 			)
 
 			# scrambler
-			scrambler = InsertReset(Scrambler())
-			self.submodules += scrambler
+			self.scrambler = scrambler = InsertReset(Scrambler())
 
 			# Datapath
 			self.comb += [

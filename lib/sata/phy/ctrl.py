@@ -40,9 +40,7 @@ class SATAPHYHostCtrl(Module):
 		align_detect = Signal()
 		non_align_cnt = Signal(4)
 
-		fsm = FSM(reset_state="RESET")
-		self.submodules += fsm
-
+		self.fsm = fsm = FSM(reset_state="RESET")
 		fsm.act("RESET",
 			trx.tx_idle.eq(1),
 			retry_timeout.load.eq(1),
@@ -177,9 +175,7 @@ class SATAPHYDeviceCtrl(Module):
 		align_timeout = SATAPHYHostCtrlTimeout(us(873, clk_freq))
 		self.submodules += align_timeout, retry_timeout
 
-		fsm = FSM(reset_state="RESET")
-		self.submodules += fsm
-
+		self.fsm = fsm = FSM(reset_state="RESET")
 		fsm.act("RESET",
 			trx.tx_idle.eq(1),
 			retry_timeout.load.eq(1),

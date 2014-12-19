@@ -27,8 +27,7 @@ class SATATransportTX(Module):
 		cmd_ndwords = max(fis_reg_h2d_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
-		counter = Counter(max=cmd_ndwords+1)
-		self.submodules += counter
+		self.counter = counter = Counter(max=cmd_ndwords+1)
 
 		cmd_len = Signal(counter.width)
 		cmd_with_data = Signal()
@@ -40,9 +39,7 @@ class SATATransportTX(Module):
 		def test_type(name):
 			return sink.type == fis_types[name]
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-
+		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			counter.reset.eq(1),
 			If(sink.stb & sink.sop,
@@ -120,8 +117,7 @@ class SATATransportRX(Module):
 		cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
-		counter = Counter(max=cmd_ndwords+1)
-		self.submodules += counter
+		self.counter = counter = Counter(max=cmd_ndwords+1)
 
 		cmd_len = Signal(counter.width)
 
@@ -133,8 +129,7 @@ class SATATransportRX(Module):
 		def test_type(name):
 			return link.source.d[:8] == fis_types[name]
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.fsm = fsm = FSM(reset_state="IDLE")
 
 		data_sop = Signal()
 

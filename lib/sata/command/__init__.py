@@ -31,9 +31,7 @@ class SATACommandTX(Module):
 			transport.sink.control.eq(0),
 		]
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-
+		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			If(sink.stb & sink.sop,
 				If(sink.write,
@@ -127,9 +125,7 @@ class SATACommandRX(Module):
 
 		dma_activate = Signal()
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-
+		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			transport.source.ack.eq(1),
 			If(from_tx.write,
@@ -211,9 +207,7 @@ class SATACommandRX(Module):
 			)
 		)
 
-		out_fsm = FSM(reset_state="IDLE")
-		self.submodules += out_fsm
-
+		self.out_fsm = out_fsm = FSM(reset_state="IDLE")
 		out_fsm.act("IDLE",
 			If(cmd_fifo.source.stb & cmd_fifo.source.write,
 				NextState("PRESENT_WRITE_RESPONSE"),
