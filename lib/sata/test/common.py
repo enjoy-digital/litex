@@ -42,6 +42,8 @@ class PacketStreamer(Module):
 		self.packet = packet_class()
 		self.packet.done = 1
 
+		self.source_data = 0
+
 	def send(self, packet, blocking=True):
 		packet = copy.deepcopy(packet)
 		self.packets.append(packet)
@@ -54,22 +56,26 @@ class PacketStreamer(Module):
 			self.packet = self.packets.pop(0)
 		if not self.packet.ongoing and not self.packet.done:
 			selfp.source.stb = 1
-			selfp.source.sop = 1
+			if self.source.description.packetized:
+				selfp.source.sop = 1
+			self.source_data = self.packet.pop(0)
 			if len(self.packet) > 0:
 				if hasattr(selfp.source, "data"):
-					selfp.source.data = self.packet.pop(0)
+					selfp.source.data = self.source_data
 				else:
-					selfp.source.d = self.packet.pop(0)
+					selfp.source.d = self.source_data
 			self.packet.ongoing = True
 		elif selfp.source.stb == 1 and selfp.source.ack == 1:
-			selfp.source.sop = 0
-			selfp.source.eop = (len(self.packet) == 1)
+			if self.source.description.packetized:
+				selfp.source.sop = 0
+				selfp.source.eop = (len(self.packet) == 1)
 			if len(self.packet) > 0:
 				selfp.source.stb = 1
+				self.source_data = self.packet.pop(0)
 				if hasattr(selfp.source, "data"):
-					selfp.source.data = self.packet.pop(0)
+					selfp.source.data = self.source_data
 				else:
-					selfp.source.d = self.packet.pop(0)
+					selfp.source.d = self.source_data
 			else:
 				self.packet.done = 1
 				selfp.source.stb = 0
@@ -81,22 +87,28 @@ class PacketLogger(Module):
 		self.packet_class = packet_class
 		self.packet = packet_class()
 
-	def receive(self):
+	def receive(self, length=None):
 		self.packet.done = 0
-		while self.packet.done == 0:
-			yield
+		if length is None:
+			while self.packet.done == 0:
+				yield
+		else:
+			while length > len(self.packet):
+				yield
 
 	def do_simulation(self, selfp):
 		selfp.sink.ack = 1
-		if selfp.sink.stb == 1 and selfp.sink.sop == 1:
-			self.packet = self.packet_class()
+		if self.sink.description.packetized:
+			if selfp.sink.stb == 1 and selfp.sink.sop == 1:
+				self.packet = self.packet_class()
 		if selfp.sink.stb:
 			if hasattr(selfp.sink, "data"):
 				self.packet.append(selfp.sink.data)
 			else:
 				self.packet.append(selfp.sink.d)
-		if selfp.sink.stb == 1 and selfp.sink.eop == 1:
-			self.packet.done = True
+		if self.sink.description.packetized:
+			if selfp.sink.stb == 1 and selfp.sink.eop == 1:
+				self.packet.done = True
 
 class Randomizer(Module):
 	def __init__(self, description, level=0):

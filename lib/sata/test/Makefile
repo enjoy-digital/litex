@@ -14,6 +14,9 @@ scrambler_tb:
 	$(CC) $(CFLAGS) $(INC) -o scrambler scrambler.c
 	$(CMD) scrambler_tb.py
 
+cont_tb:
+	$(CMD) cont_tb.py
+
 link_tb:
 	$(CMD) link_tb.py
 
@@ -22,8 +25,6 @@ command_tb:
 
 bist_tb:
 	$(CMD) bist_tb.py
-
-all: crc_tb scrambler_tb link_tb command_tb
 
 clean:
 	rm crc scrambler *.vcd

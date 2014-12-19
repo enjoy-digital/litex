@@ -10,73 +10,66 @@ class SATACONTInserter(Module):
 
 		###
 
-		# Detect consecutive primitives
-		# tn insert CONT
 		counter = Counter(max=4)
 		self.submodules += counter
 
-		is_primitive = Signal()
-		last_was_primitive = Signal()
-		last_primitive = Signal(32)
+		is_data = Signal()
+		was_data = Signal()
 		change = Signal()
+		self.comb += is_data.eq(sink.charisk == 0)
 
-		cont_insert = Signal()
-		scrambler_insert = Signal()
-		last_primitive_insert = Signal()
-		last_primitive_insert_d = Signal()
-
-		self.comb += [
-			is_primitive.eq(sink.charisk != 0),
-			change.eq((sink.data != last_primitive) | ~is_primitive),
-			cont_insert.eq(~change & (counter.value == 1)),
-			scrambler_insert.eq(~change & (counter.value == 2)),
-			last_primitive_insert.eq((counter.value == 2) & (
-				(~is_primitive & last_was_primitive) |
-				(is_primitive & (last_primitive == primitives["HOLD"]) & (last_primitive != sink.data))))
-		]
-
-		self.sync += \
+		last_data = Signal(32)
+		last_primitive = Signal(32)
+		last_charisk = Signal(4)
+		self.sync += [
 			If(sink.stb & source.ack,
-				last_primitive_insert_d.eq(last_primitive_insert),
-				If(is_primitive,
+				last_data.eq(sink.data),
+				last_charisk.eq(sink.charisk),
+				If(~is_data,
 					last_primitive.eq(sink.data),
-					last_was_primitive.eq(1)
-				).Else(
-					last_was_primitive.eq(0)
-				)
+				),
+				was_data.eq(is_data)
 			)
-		self.comb += \
-			If(sink.stb & source.ack,
-				If(change | last_primitive_insert_d,
-					counter.reset.eq(1)
-				).Else(
-					counter.ce.eq(~scrambler_insert)
-				)
-			)
+		]
+		was_hold = last_primitive == primitives["HOLD"]
 
-		# scrambler (between CONT and next primitive)
+		self.comb += change.eq(
+			(sink.data != last_data) |
+			(sink.charisk != last_charisk) |
+			is_data
+		)
+
+		# scrambler
 		scrambler = InsertReset(Scrambler())
 		self.submodules += scrambler
-		self.comb += [
-			scrambler.reset.eq(ResetSignal()), #XXX: should be reseted on COMINIT / COMRESET
-			scrambler.ce.eq(scrambler_insert & source.stb & source.ack)
-		]
 
 		# Datapath
 		self.comb += [
 			Record.connect(sink, source),
 			If(sink.stb,
-				If(cont_insert,
-					source.charisk.eq(0b0001),
-					source.data.eq(primitives["CONT"])
-				).Elif(scrambler_insert,
-					source.charisk.eq(0b0000),
-					source.data.eq(scrambler.value)
-				).Elif(last_primitive_insert,
-					source.stb.eq(1),
-					sink.ack.eq(0),
-					source.charisk.eq(0b0001),
-					source.data.eq(last_primitive)
+				If(~change,
+					counter.ce.eq(sink.ack & (counter.value !=2)),
+					# insert CONT
+					If(counter.value == 1,
+						source.charisk.eq(0b0001),
+						source.data.eq(primitives["CONT"])
+					# insert scrambled data for EMI
+					).Elif(counter.value == 2,
+						scrambler.ce.eq(sink.ack),
+						source.charisk.eq(0b0000),
+						source.data.eq(scrambler.value)
+					)
+				).Else(
+					counter.reset.eq(source.ack),
+					If(counter.value == 2,
+						# Reinsert last primitive
+						If(is_data | (~is_data & was_hold),
+							source.stb.eq(1),
+							sink.ack.eq(0),
+							source.charisk.eq(0b0001),
+							source.data.eq(last_primitive)
+						)
+					)
 				)
 			)
 		]
@@ -88,29 +81,32 @@ class SATACONTRemover(Module):
 
 		###
 
-		# Detect CONT
-		is_primitive = Signal()
+		is_data = Signal()
 		is_cont = Signal()
 		in_cont = Signal()
 		cont_ongoing = Signal()
 
 		self.comb += [
-			is_primitive.eq(sink.charisk != 0),
-			is_cont.eq(is_primitive & (sink.data == primitives["CONT"]))
+			is_data.eq(sink.charisk == 0),
+			is_cont.eq(~is_data & (sink.data == primitives["CONT"]))
 		]
 		self.sync += \
-			If(is_cont,
-				in_cont.eq(1)
-			).Elif(is_primitive,
-				in_cont.eq(0)
+			If(sink.stb & sink.ack,
+				If(is_cont,
+					in_cont.eq(1)
+				).Elif(~is_data,
+					in_cont.eq(0)
+				)
 			)
-		self.comb += cont_ongoing.eq(is_cont | (in_cont & ~is_primitive))
+		self.comb += cont_ongoing.eq(is_cont | (in_cont & is_data))
 
 		# Datapath
-		last_primitive = Signal()
+		last_primitive = Signal(32)
 		self.sync += [
-			If(is_primitive & ~is_cont,
-				last_primitive.eq(sink.data)
+			If(sink.stb & sink.ack,
+				If(~is_data & ~is_cont,
+					last_primitive.eq(sink.data)
+				)
 			)
 		]
 		self.comb += [
