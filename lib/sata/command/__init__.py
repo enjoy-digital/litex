@@ -146,6 +146,8 @@ class SATACommandRX(Module):
 				If(test_type("DMA_ACTIVATE_D2H"),
 					dma_activate.eq(1),
 					NextState("WAIT_WRITE_REG_D2H")
+				).Else(
+					NextState("IDLE") # Generate an error
 				)
 			)
 		)
@@ -154,6 +156,8 @@ class SATACommandRX(Module):
 			If(transport.source.stb,
 				If(test_type("REG_D2H"),
 					NextState("PRESENT_WRITE_RESPONSE")
+				).Else(
+					NextState("IDLE") # Generate an error
 				)
 			)
 		)
@@ -171,6 +175,8 @@ class SATACommandRX(Module):
 				transport.source.ack.eq(0),
 				If(test_type("DATA"),
 					NextState("PRESENT_READ_DATA")
+				).Else(
+					NextState("IDLE") # Generate an error
 				)
 			)
 		)
@@ -189,6 +195,8 @@ class SATACommandRX(Module):
 			If(transport.source.stb,
 				If(test_type("REG_D2H"),
 					NextState("PRESENT_READ_RESPONSE")
+				).Else(
+					NextState("IDLE") # Generate an error
 				)
 			)
 		)
