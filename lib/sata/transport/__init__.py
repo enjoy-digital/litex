@@ -96,7 +96,7 @@ class SATATransportTX(Module):
 
 		cmd_cases = {}
 		for i in range(cmd_ndwords):
-			cmd_cases[i] = [link.sink.d.eq(_big2little(encoded_cmd[32*i:32*(i+1)]))]
+			cmd_cases[i] = [link.sink.d.eq(encoded_cmd[32*i:32*(i+1)])]
 
 		self.comb += \
 			If(cmd_send,
@@ -141,7 +141,7 @@ class SATATransportRX(Module):
 		data_done = Signal()
 
 		def test_type(name):
-			return link.source.d[24:] == fis_types[name]
+			return link.source.d[:8] == fis_types[name]
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 
@@ -230,7 +230,7 @@ class SATATransportRX(Module):
 
 		cmd_cases = {}
 		for i in range(cmd_ndwords):
-			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)].eq(_little2big(link.source.d))]
+			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)].eq(link.source.d)]
 
 		self.comb += \
 			If(cmd_receive & link.source.stb,

@@ -100,5 +100,8 @@ class TB(Module):
 		s, l, e = check(write_data, read_data)
 		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
+		identify_packet = CommandTXPacket(identify=1)
+		yield from self.streamer.send(identify_packet)
+
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=2048, vcd_name="my.vcd", keep_files=True)
