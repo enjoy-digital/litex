@@ -152,38 +152,116 @@ class ClockLeds(Module):
 				sata_tx_cnt.eq(sata_tx_cnt-1)
 			)
 
-class IdentifyRequester(Module, AutoCSR):
-	def __init__(self, sata_con):
-		self._req = CSRStorage()
-		req = self._req.storage
+class CommandGenerator(Module, AutoCSR):
+	def __init__(self, sata_con, sector_size):
+		self._write = CSR()
+		self._read = CSR()
+		self._identify = CSR()
+		self._sector = CSRStorage(48)
+		self._count = CSRStorage(4)
+		self._data = CSRStorage(32) # Note: fixed data, add a fifo later
 
-		req_d = Signal()
+		self._sucess = CSRStatus()
+		self._failed = CSRStatus()
 
+		self.fsm = fsm = FSM(reset_state="IDLE")
+
+		def new_command(csr):
+			return csr.r & csr.re
+
+		cnt = Signal(16)
+		sector = self._sector.storage
+		count = self._count.storage
+		data = self._data.storage
+
+		success = self._sucess.status
+		failed = self._failed.status
+		clr_status = Signal()
+		set_success = Signal()
+		set_failed = Signal()
 		self.sync += [
-			req_d.eq(req),
-			If(req & ~req_d,
-				sata_con.sink.stb.eq(1)
-			).Elif(sata_con.sink.ack,
-				sata_con.sink.stb.eq(0)
+			If(clr_status,
+				success.eq(0),
+				failed.eq(0),
+			).Elif(set_success,
+				success.eq(1)
+			).Elif(set_failed,
+				failed.eq(1)
 			)
 		]
 
-		self.comb += [
+		self.comb += sata_con.source.ack.eq(1)
+
+		# FSM
+		fsm.act("IDLE",
+			clr_status.eq(1),
+			If(new_command(self._write),
+				NextState("SEND_WRITE_CMD")
+			).Elif(new_command(self._read),
+				NextState("SEND_READ_CMD")
+			).Elif(new_command(self._identify),
+				NextState("SEND_IDENTIFY_CMD")
+			)
+		)
+		fsm.act("SEND_WRITE_CMD",
+			sata_con.sink.stb.eq(1),
+			sata_con.sink.sop.eq(cnt == 0),
+			sata_con.sink.eop.eq(cnt == (count*sector_size-1)),
+			sata_con.sink.write.eq(1),
+			sata_con.sink.sector.eq(sector),
+			sata_con.sink.count.eq(count),
+			sata_con.sink.data.eq(data),
+			If(sata_con.sink.eop & sata_con.sink.ack,
+				NextState("WAIT_WRITE_ACK")
+			)
+		)
+		fsm.act("WAIT_WRITE_ACK",
+			# XXX: add check of success / failed
+			If(sata_con.source.stb & sata_con.source.eop,
+				set_success.eq(1),
+				NextState("IDLE")
+			)
+		)
+		fsm.act("SEND_READ_CMD",
+			sata_con.sink.stb.eq(1),
+			sata_con.sink.sop.eq(1),
+			sata_con.sink.eop.eq(1),
+			sata_con.sink.read.eq(1),
+			sata_con.sink.sector.eq(sector),
+			sata_con.sink.count.eq(count),
+			If(sata_con.sink.ack,
+				NextState("WAIT_READ_ACK_AND_DATA")
+			)
+		)
+		fsm.act("WAIT_READ_ACK_AND_DATA",
+			# XXX: add check of success / failed and receive data
+			If(sata_con.source.stb & sata_con.source.eop,
+				set_success.eq(1),
+				NextState("IDLE")
+			)
+		)
+		fsm.act("SEND_IDENTIFY_CMD",
+			sata_con.sink.stb.eq(1),
 			sata_con.sink.sop.eq(1),
 			sata_con.sink.eop.eq(1),
 			sata_con.sink.identify.eq(1),
-			sata_con.sink.sector.eq(0),
-			sata_con.sink.count.eq(1),
-			sata_con.sink.data.eq(0),
-
-			sata_con.sink.ack.eq(1),
-		]
+			If(sata_con.sink.ack,
+				NextState("WAIT_IDENTIFY_ACK_AND_DATA")
+			)
+		)
+		fsm.act("WAIT_IDENTIFY_ACK_AND_DATA",
+			# XXX: add check of success / failed and receive data
+			If(sata_con.source.stb & sata_con.source.eop,
+				set_success.eq(1),
+				NextState("IDLE")
+			)
+		)
 
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
 		"mila":					10,
-		"identify_requester":	11
+		"command_generator":	11
 	}
 	csr_map.update(UART2WB.csr_map)
 
@@ -195,7 +273,7 @@ class TestDesign(UART2WB, AutoCSR):
 		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA2")
 		self.sata_con = SATACON(self.sata_phy, sector_size=512, max_count=8)
 
-		self.identify_requester = IdentifyRequester(self.sata_con)
+		self.command_generator = CommandGenerator(self.sata_con, sector_size=512)
 
 		self.clock_leds = ClockLeds(platform)
 
@@ -226,15 +304,12 @@ class TestDesign(UART2WB, AutoCSR):
 			self.sata_phy.sink.data,
 			self.sata_phy.sink.charisk,
 
-			self.sata_phy.datapath.tx.sink.stb,
-			self.sata_phy.datapath.tx.sink.data,
-			self.sata_phy.datapath.tx.sink.charisk,
-			self.sata_phy.datapath.tx.sink.ack,
-
 			self.sata_con.sink.stb,
 			self.sata_con.sink.sop,
 			self.sata_con.sink.eop,
 			self.sata_con.sink.ack,
+			self.sata_con.sink.write,
+			self.sata_con.sink.read,
 			self.sata_con.sink.identify,
 
 			self.sata_con.source.stb,
