@@ -58,8 +58,8 @@ class PacketStreamer(Module):
 			selfp.source.stb = 1
 			if self.source.description.packetized:
 				selfp.source.sop = 1
-			self.source_data = self.packet.pop(0)
 			if len(self.packet) > 0:
+				self.source_data = self.packet.pop(0)
 				if hasattr(selfp.source, "data"):
 					selfp.source.data = self.source_data
 				else:

@@ -18,6 +18,18 @@ def _encode_cmd(obj, description, signal):
 		r.append(signal[start:end].eq(item))
 	return r
 
+def _change_endianness(v):
+	r = []
+	for i in range(4):
+		r.append(v[8*(3-i):8*(3-i+1)])
+	return Cat(*r)
+
+def _big2little(v):
+	return _change_endianness(v)
+
+def _little2big(v):
+	return _change_endianness(v)
+
 class SATATransportTX(Module):
 	def __init__(self, link):
 		self.sink = sink = Sink(transport_tx_description(32))
@@ -84,7 +96,7 @@ class SATATransportTX(Module):
 
 		cmd_cases = {}
 		for i in range(cmd_ndwords):
-			cmd_cases[i] = [link.sink.d.eq(encoded_cmd[32*i:32*(i+1)])]
+			cmd_cases[i] = [link.sink.d.eq(_big2little(encoded_cmd[32*i:32*(i+1)]))]
 
 		self.comb += \
 			If(cmd_send,
@@ -129,7 +141,7 @@ class SATATransportRX(Module):
 		data_done = Signal()
 
 		def test_type(name):
-			return link.source.d[:8] == fis_types[name]
+			return link.source.d[24:] == fis_types[name]
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 
@@ -155,6 +167,7 @@ class SATATransportRX(Module):
 		fsm.act("RECEIVE_REG_D2H_CMD",
 			cmd_len.eq(fis_reg_d2h_cmd_len-1),
 			cmd_receive.eq(1),
+			link.source.ack.eq(1),
 			If(cmd_done,
 				NextState("PRESENT_REG_D2H_CMD")
 			)
@@ -171,6 +184,7 @@ class SATATransportRX(Module):
 		fsm.act("RECEIVE_DMA_ACTIVATE_D2H_CMD",
 			cmd_len.eq(fis_dma_activate_d2h_cmd_len-1),
 			cmd_receive.eq(1),
+			link.source.ack.eq(1),
 			If(cmd_done,
 				NextState("PRESENT_DMA_ACTIVATE_D2H_CMD")
 			)
@@ -187,6 +201,7 @@ class SATATransportRX(Module):
 		fsm.act("RECEIVE_DATA_CMD",
 			cmd_len.eq(fis_data_cmd_len-1),
 			cmd_receive.eq(1),
+			link.source.ack.eq(1),
 			If(cmd_done,
 				NextState("PRESENT_DATA")
 			)
@@ -198,6 +213,7 @@ class SATATransportRX(Module):
 			source.sop.eq(data_sop),
 			source.eop.eq(link.source.eop),
 			source.data.eq(link.source.d),
+			link.source.ack.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)
@@ -214,7 +230,7 @@ class SATATransportRX(Module):
 
 		cmd_cases = {}
 		for i in range(cmd_ndwords):
-			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)].eq(link.source.d)]
+			cmd_cases[i] = [encoded_cmd[32*i:32*(i+1)].eq(_little2big(link.source.d))]
 
 		self.comb += \
 			If(cmd_receive & link.source.stb,
@@ -225,7 +241,6 @@ class SATATransportRX(Module):
 				Case(counter.value, cmd_cases),
 			)
 		self.comb += cmd_done.eq((counter.value == cmd_len) & link.source.ack)
-		self.comb += link.source.ack.eq(cmd_receive | (data_receive & source.ack))
 
 class SATATransport(Module):
 	def __init__(self, link):

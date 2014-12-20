@@ -10,7 +10,7 @@ from_rx = [
 ]
 
 class SATALinkTX(Module):
-	def __init__(self, phy):
+	def __init__(self, phy, disable_cont=False):
 		self.sink = Sink(link_description(32))
 		self.from_rx = Sink(from_rx)
 
@@ -34,7 +34,7 @@ class SATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		self.cont  = cont = SATACONTInserter(phy_description(32), disable=True)
+		self.cont  = cont = SATACONTInserter(phy_description(32), disable=False)
 
 		# datas / primitives mux
 		insert = Signal(32)
@@ -205,8 +205,8 @@ class SATALinkRX(Module):
 		]
 
 class SATALink(Module):
-	def __init__(self, phy):
-		self.tx = SATALinkTX(phy)
+	def __init__(self, phy, disable_tx_cont=False):
+		self.tx = SATALinkTX(phy, disable_tx_cont)
 		self.rx = SATALinkRX(phy)
 		self.comb += Record.connect(self.rx.to_tx, self.tx.from_rx)
 		self.sink, self.source = self.tx.sink, self.rx.source

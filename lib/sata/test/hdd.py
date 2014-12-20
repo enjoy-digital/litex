@@ -274,8 +274,15 @@ class LinkLayer(Module):
 def print_transport(s):
 	print_with_prefix(s, "[TRN]: ")
 
+def _big2little(v):
+	return int.from_bytes(v.to_bytes(4, byteorder='big'), "little")
+
+def _little2big(v):
+	r = int.from_bytes(v.to_bytes(4, byteorder='little'), "big")
+	return r
+
 def get_field_data(field, packet):
-	return (packet[field.dword] >> field.offset) & (2**field.width-1)
+	return (_little2big(packet[field.dword]) >> field.offset) & (2**field.width-1)
 
 class FIS:
 	def __init__(self, packet, description, direction="H2D"):
@@ -290,7 +297,7 @@ class FIS:
 
 	def encode(self):
 		for k, v in self.description.items():
-			self.packet[v.dword] |= (getattr(self, k) << v.offset)
+			self.packet[v.dword] |= _big2little((getattr(self, k) << v.offset))
 
 	def __repr__(self):
 		if self.direction == "H2D":
@@ -353,7 +360,7 @@ class FIS_UNKNOWN(FIS):
 	def __repr__(self):
 		r = "UNKNOWN\n"
 		if self.direction == "H2D":
-			r += ">>>>>>>>\\n"
+			r += ">>>>>>>>\n"
 		else:
 			r += "<<<<<<<<\n"
 		for dword in self.packet:
@@ -378,7 +385,7 @@ class TransportLayer(Module):
 			print_transport(fis)
 
 	def callback(self, packet):
-		fis_type = packet[0] & 0xff
+		fis_type = _little2big(packet[0]) & 0xff
 		if fis_type == fis_types["REG_H2D"]:
 			fis = FIS_REG_H2D(packet)
 		elif fis_type == fis_types["REG_D2H"]:
