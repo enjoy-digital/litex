@@ -41,6 +41,7 @@ class SATATransportTX(Module):
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
+			sink.ack.eq(0),
 			counter.reset.eq(1),
 			If(sink.stb & sink.sop,
 				If(test_type("REG_H2D"),
@@ -64,6 +65,7 @@ class SATATransportTX(Module):
 			)
 		)
 		fsm.act("SEND_DATA_CMD",
+			sink.ack.eq(0),
 			_encode_cmd(sink, fis_data_layout, encoded_cmd),
 			cmd_len.eq(fis_data_cmd_len-1),
 			cmd_with_data.eq(1),
@@ -134,6 +136,7 @@ class SATATransportRX(Module):
 		data_sop = Signal()
 
 		fsm.act("IDLE",
+			link.source.ack.eq(0),
 			counter.reset.eq(1),
 			If(link.source.stb & link.source.sop,
 				If(test_type("REG_D2H"),

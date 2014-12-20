@@ -33,6 +33,7 @@ class SATACommandTX(Module):
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
+			sink.ack.eq(0),
 			If(sink.stb & sink.sop,
 				If(sink.write,
 					NextState("SEND_WRITE_DMA_CMD")
