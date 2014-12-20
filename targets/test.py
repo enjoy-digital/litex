@@ -157,8 +157,18 @@ class IdentifyRequester(Module, AutoCSR):
 		self._req = CSRStorage()
 		req = self._req.storage
 
+		req_d = Signal()
+
+		self.sync += [
+			req_d.eq(req),
+			If(req & ~req_d,
+				sata_con.sink.stb.eq(1)
+			).Elif(sata_con.sink.ack,
+				sata_con.sink.stb.eq(0)
+			)
+		]
+
 		self.comb += [
-			sata_con.sink.stb.eq(req),
 			sata_con.sink.sop.eq(1),
 			sata_con.sink.eop.eq(1),
 			sata_con.sink.identify.eq(1),
@@ -182,7 +192,7 @@ class TestDesign(UART2WB, AutoCSR):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
 
-		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA1")
+		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA2")
 		self.sata_con = SATACON(self.sata_phy, sector_size=512, max_count=8)
 
 		self.identify_requester = IdentifyRequester(self.sata_con)
