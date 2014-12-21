@@ -89,8 +89,11 @@ def _run_vivado(build_name, vivado_path, source, ver=None):
 		raise OSError("Subprocess failed")
 
 class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
-	bitstream_commands = []
-	additional_commands = []
+	def __init__(self, *args, **kwargs):
+		xilinx_common.XilinxGenericPlatform.__init__(self, *args, **kwargs)
+		self.bitstream_commands = []
+		self.additional_commands = []
+
 	def build(self, fragment, build_dir="build", build_name="top",
 			vivado_path="/opt/Xilinx/Vivado", source=True, run=True):
 		tools.mkdir_noerror(build_dir)
