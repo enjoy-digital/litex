@@ -8,16 +8,20 @@ wb.open()
 regs = wb.regs
 ###
 
-#trigger0 = mila.sata_con_sink_payload_write_o*1
-#mask0 = mila.sata_con_sink_payload_write_m
+cond = {
+	#"sata_phy_source_source_payload_data"		: primitives["R_RDY"],
+	#"sata_phy_source_source_payload_data"		: primitives["R_OK"],
+	#"sata_phy_source_source_payload_data"		: primitives["X_RDY"],
+	"sata_con_source_source_stb"				: 1,
+}
 
-#trigger0 = mila.sata_phy_source_source_payload_data_o*primitives["R_RDY"]
-#mask0 = mila.sata_phy_source_source_payload_data_m
+trigger = 0
+mask = 0
+for k, v in cond.items():
+	trigger |= getattr(mila, k+"_o")*v
+	mask |= getattr(mila, k+"_m")
 
-trigger0 = mila.sata_phy_source_source_payload_data_o*primitives["R_OK"]
-mask0 = mila.sata_phy_source_source_payload_data_m
-
-mila.prog_term(port=0, trigger=trigger0, mask=mask0)
+mila.prog_term(port=0, trigger=trigger, mask=mask)
 mila.prog_sum("term")
 
 # Trigger / wait / receive

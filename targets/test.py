@@ -215,6 +215,13 @@ class CommandGenerator(Module, AutoCSR):
 				NextState("WAIT_WRITE_ACK")
 			)
 		)
+		self.sync += [
+			If(fsm.ongoing("IDLE"),
+				cnt.eq(0)
+			).Elif(sata_con.sink.stb & sata_con.sink.stb,
+				cnt.eq(cnt+1)
+			)
+		]
 		fsm.act("WAIT_WRITE_ACK",
 			# XXX: add check of success / failed
 			If(sata_con.source.stb & sata_con.source.eop,
@@ -312,16 +319,16 @@ class TestDesign(UART2WB, AutoCSR):
 			self.sata_con.sink.read,
 			self.sata_con.sink.identify,
 
-			#self.sata_con.source.stb,
-			#self.sata_con.source.sop,
-			#self.sata_con.source.eop,
-			#self.sata_con.source.ack,
-			#self.sata_con.source.write,
-			#self.sata_con.source.read,
-			#self.sata_con.source.identify,
-			#self.sata_con.source.success,
-			#self.sata_con.source.failed,
-			#self.sata_con.source.data,
+			self.sata_con.source.stb,
+			self.sata_con.source.sop,
+			self.sata_con.source.eop,
+			self.sata_con.source.ack,
+			self.sata_con.source.write,
+			self.sata_con.source.read,
+			self.sata_con.source.identify,
+			self.sata_con.source.success,
+			self.sata_con.source.failed,
+			self.sata_con.source.data,
 
 			#self.sata_con.link.source.stb,
 			#self.sata_con.link.source.sop,
@@ -337,19 +344,19 @@ class TestDesign(UART2WB, AutoCSR):
 			#self.sata_con.link.rx.scrambler.sink.d,
 			#self.sata_con.link.rx.scrambler.sink.error,
 
-			self.sata_con.link.rx.scrambler.sink.stb,
-			self.sata_con.link.rx.scrambler.sink.sop,
-			self.sata_con.link.rx.scrambler.sink.eop,
-			self.sata_con.link.rx.scrambler.sink.ack,
-			self.sata_con.link.rx.scrambler.sink.d,
-			self.sata_con.link.rx.scrambler.sink.error,
+			#self.sata_con.link.rx.crc.sink.stb,
+			#self.sata_con.link.rx.crc.sink.sop,
+			#self.sata_con.link.rx.crc.sink.eop,
+			#self.sata_con.link.rx.crc.sink.ack,
+			#self.sata_con.link.rx.crc.sink.d,
+			#self.sata_con.link.rx.crc.sink.error,
 
-			self.sata_con.link.rx.scrambler.source.stb,
-			self.sata_con.link.rx.scrambler.source.sop,
-			self.sata_con.link.rx.scrambler.source.eop,
-			self.sata_con.link.rx.scrambler.source.ack,
-			self.sata_con.link.rx.scrambler.source.d,
-			self.sata_con.link.rx.scrambler.source.error,
+			self.sata_con.link.rx.crc.source.stb,
+			self.sata_con.link.rx.crc.source.sop,
+			self.sata_con.link.rx.crc.source.eop,
+			self.sata_con.link.rx.crc.source.ack,
+			self.sata_con.link.rx.crc.source.d,
+			self.sata_con.link.rx.crc.source.error,
 
 			self.command_tx_fsm_state,
 			self.transport_tx_fsm_state,
