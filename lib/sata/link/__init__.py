@@ -135,32 +135,32 @@ class SATALinkRX(Module):
 		self.crc = crc = SATACRCChecker(link_description(32))
 
 		sop = Signal()
+		eop = Signal()
 		self.sync += \
-			If(fsm.ongoing("RDY"),
-				sop.eq(1)
-			).Elif(scrambler.sink.stb & scrambler.sink.ack,
-				sop.eq(0)
+			If(fsm.ongoing("IDLE"),
+				sop.eq(1),
+			).Elif(fsm.ongoing("COPY"),
+				If(scrambler.sink.stb & scrambler.sink.ack,
+					sop.eq(0)
+				)
 			)
+		self.comb += eop.eq(det == primitives["EOF"])
 
 		# small fifo to manage HOLD
 		self.fifo = SyncFIFO(link_description(32), 32)
 
 		# graph
-		self.sync += \
-			If(fsm.ongoing("COPY") & (det == 0),
-				scrambler.sink.stb.eq(cont.source.stb & (cont.source.charisk == 0)),
-				scrambler.sink.d.eq(cont.source.data),
-			).Else(
-				scrambler.sink.stb.eq(0)
-			)
 		self.comb += [
-			scrambler.sink.sop.eq(sop),
-			scrambler.sink.eop.eq(det == primitives["EOF"]),
 			cont.source.ack.eq(1),
 			Record.connect(scrambler.source, crc.sink),
 			Record.connect(crc.source, self.fifo.sink),
 			Record.connect(self.fifo.source, self.source)
 		]
+		cont_source_data_d = Signal(32)
+		self.sync += \
+			If(cont.source.stb,
+				scrambler.sink.d.eq(cont.source.data)
+			)
 
 		# FSM
 		fsm.act("IDLE",
@@ -172,10 +172,19 @@ class SATALinkRX(Module):
 		fsm.act("RDY",
 			insert.eq(primitives["R_RDY"]),
 			If(det == primitives["SOF"],
+				NextState("WAIT_FIRST")
+			)
+		)
+		fsm.act("WAIT_FIRST",
+			insert.eq(primitives["R_IP"]),
+			If(cont.source.stb,
 				NextState("COPY")
 			)
 		)
 		fsm.act("COPY",
+			scrambler.sink.stb.eq(cont.source.stb),
+			scrambler.sink.sop.eq(sop),
+			scrambler.sink.eop.eq(eop),
 			insert.eq(primitives["R_IP"]),
 			If(det == primitives["HOLD"],
 				insert.eq(primitives["HOLDA"])
@@ -191,6 +200,7 @@ class SATALinkRX(Module):
 			)
 		)
 		fsm.act("WTRM",
+			# XXX: check CRC resutlt to return R_ERR or R_OK
 			insert.eq(primitives["R_OK"]),
 			If(det == primitives["SYNC"],
 				NextState("IDLE")
