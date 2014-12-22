@@ -14,6 +14,7 @@ from misoclib import identifier
 from lib.sata.common import *
 from lib.sata.phy import SATAPHY
 from lib.sata import SATACON
+from lib.sata.bist import SATABIST
 
 from migen.genlib.cdc import *
 
@@ -127,7 +128,6 @@ class SimDesign(UART2WB):
 			self.sata_phy_device.sink.charisk.eq(0b0001)
 		]
 
-
 class ClockLeds(Module):
 	def __init__(self, platform):
 		led_sata_rx = platform.request("user_led", 0)
@@ -151,6 +151,7 @@ class ClockLeds(Module):
 			).Else(
 				sata_tx_cnt.eq(sata_tx_cnt-1)
 			)
+
 
 class CommandGenerator(Module, AutoCSR):
 	def __init__(self, sata_con, sector_size):
@@ -264,11 +265,38 @@ class CommandGenerator(Module, AutoCSR):
 			)
 		)
 
+class BIST(Module, AutoCSR):
+	def __init__(self, sata_con, sector_size):
+		self._start = CSR()
+		self._sector = CSRStorage(48)
+		self._count = CSRStorage(4)
+		self._done = CSRStatus()
+
+		self._ctrl_errors = CSRStatus(32)
+		self._data_errors = CSRStatus(32)
+
+		###
+
+		self.sata_bist = SATABIST(sector_size)
+		self.comb += [
+			Record.connect(self.sata_bist.source, sata_con.sink),
+			Record.connect(sata_con.source, self.sata_bist.sink),
+
+			self.sata_bist.start.eq(self._start.r & self._start.re),
+			self.sata_bist.sector.eq(self._sector.storage),
+			self.sata_bist.count.eq(self._count.storage),
+			self._done.status.eq(self.sata_bist.done),
+
+			self._ctrl_errors.status.eq(self.sata_bist.ctrl_errors),
+			self._data_errors.status.eq(self.sata_bist.data_errors),
+		]
+
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
 		"mila":					10,
-		"command_generator":	11
+		"command_generator":	11,
+		"bist":					12
 	}
 	csr_map.update(UART2WB.csr_map)
 
@@ -280,7 +308,8 @@ class TestDesign(UART2WB, AutoCSR):
 		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA2")
 		self.sata_con = SATACON(self.sata_phy, sector_size=512, max_count=8)
 
-		self.command_generator = CommandGenerator(self.sata_con, sector_size=512)
+		#self.command_generator = CommandGenerator(self.sata_con, sector_size=512)
+		self.bist = BIST(self.sata_con, sector_size=512)
 
 		self.clock_leds = ClockLeds(platform)
 
@@ -328,44 +357,7 @@ class TestDesign(UART2WB, AutoCSR):
 			self.sata_con.source.identify,
 			self.sata_con.source.success,
 			self.sata_con.source.failed,
-			self.sata_con.source.data,
-
-			#self.sata_con.link.source.stb,
-			#self.sata_con.link.source.sop,
-			#self.sata_con.link.source.eop,
-			#self.sata_con.link.source.ack,
-			#self.sata_con.link.source.d,
-			#self.sata_con.link.source.error,
-
-			#self.sata_con.link.rx.scrambler.sink.stb,
-			#self.sata_con.link.rx.scrambler.sink.sop,
-			#self.sata_con.link.rx.scrambler.sink.eop,
-			#self.sata_con.link.rx.scrambler.sink.ack,
-			#self.sata_con.link.rx.scrambler.sink.d,
-			#self.sata_con.link.rx.scrambler.sink.error,
-
-			#self.sata_con.link.rx.crc.sink.stb,
-			#self.sata_con.link.rx.crc.sink.sop,
-			#self.sata_con.link.rx.crc.sink.eop,
-			#self.sata_con.link.rx.crc.sink.ack,
-			#self.sata_con.link.rx.crc.sink.d,
-			#self.sata_con.link.rx.crc.sink.error,
-
-			self.sata_con.link.rx.crc.source.stb,
-			self.sata_con.link.rx.crc.source.sop,
-			self.sata_con.link.rx.crc.source.eop,
-			self.sata_con.link.rx.crc.source.ack,
-			self.sata_con.link.rx.crc.source.d,
-			self.sata_con.link.rx.crc.source.error,
-
-			self.command_tx_fsm_state,
-			self.transport_tx_fsm_state,
-			self.link_tx_fsm_state,
-
-			self.command_rx_fsm_state,
-			self.command_rx_out_fsm_state,
-			self.transport_rx_fsm_state,
-			self.link_rx_fsm_state,
+			self.sata_con.source.data
 		)
 
 		self.mila = MiLa(depth=2048, dat=Cat(*debug))
@@ -374,19 +366,6 @@ class TestDesign(UART2WB, AutoCSR):
 		if export_mila:
 			mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
 			self.mila.export(self, debug, mila_filename)
-
-	def do_finalize(self):
-		UART2WB.do_finalize(self)
-		self.comb += [
-			self.command_tx_fsm_state.eq(self.sata_con.command.tx.fsm.state),
-			self.transport_tx_fsm_state.eq(self.sata_con.transport.tx.fsm.state),
-			self.link_tx_fsm_state.eq(self.sata_con.link.tx.fsm.state),
-
-			self.command_rx_fsm_state.eq(self.sata_con.command.rx.fsm.state),
-			self.command_rx_out_fsm_state.eq(self.sata_con.command.rx.out_fsm.state),
-			self.transport_rx_fsm_state.eq(self.sata_con.transport.rx.fsm.state),
-			self.link_rx_fsm_state.eq(self.sata_con.link.rx.fsm.state)
-		]
 
 #default_subtarget = SimDesign
 default_subtarget = TestDesign
