@@ -27,9 +27,9 @@ class SATABIST(Module):
 		fsm.act("IDLE",
 			self.done.eq(1),
 			counter.reset.eq(1),
-			self.ctrl_error_counter.reset.eq(1),
-			self.data_error_counter.reset.eq(1),
 			If(self.start,
+				self.ctrl_error_counter.reset.eq(1),
+				self.data_error_counter.reset.eq(1),
 				NextState("SEND_WRITE_CMD_AND_DATA")
 			)
 		)

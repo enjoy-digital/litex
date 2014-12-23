@@ -2,24 +2,21 @@ import time
 from config import *
 from tools import *
 
+sector_size = 512
+
 wb.open()
 regs = wb.regs
 ###
-i = 0
-data_errors = 0
-ctrl_errors = 0
+regs.bist_start.write(1)
+last_sector = 0
 while True:
-	regs.bist_sector.write(i)
-	regs.bist_count.write(4)
-	regs.bist_start.write(1)
-	while (regs.bist_done.read() != 1):
-		time.sleep(0.01)
-	data_errors += regs.bist_data_errors.read()
-	ctrl_errors += regs.bist_ctrl_errors.read()
-	if i%10 == 0:
-		print("sector %08d / data_errors %0d / ctrl_errors %d " %(i, data_errors, ctrl_errors))
-		data_errors = 0
-		ctrl_errors = 0
-	i += 1
+	time.sleep(1)
+	sector = regs.bist_sector.read()
+	n_sectors = sector - last_sector
+	last_sector = sector
+	n_bytes = n_sectors*sector_size*4*2
+	ctrl_errors = regs.bist_ctrl_errors.read()
+	data_errors = regs.bist_data_errors.read()
+	print("%04d MB/s / data_errors %08d / ctrl_errors %08d " %(n_bytes/(1024*1024), data_errors, ctrl_errors))
 ###
 wb.close()

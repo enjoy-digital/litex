@@ -268,28 +268,62 @@ class CommandGenerator(Module, AutoCSR):
 class BIST(Module, AutoCSR):
 	def __init__(self, sata_con, sector_size):
 		self._start = CSR()
-		self._sector = CSRStorage(48)
-		self._count = CSRStorage(4)
-		self._done = CSRStatus()
+		self._stop = CSR()
 
+		self._sector = CSRStatus(48)
 		self._ctrl_errors = CSRStatus(32)
 		self._data_errors = CSRStatus(32)
+
+		check_prepare = Signal()
+		sector = self._sector.status
+		ctrl_errors = self._ctrl_errors.status
+		data_errors = self._data_errors.status
 
 		###
 
 		self.sata_bist = SATABIST(sector_size)
 		self.comb += [
-			Record.connect(self.sata_bist.source, sata_con.sink),
 			Record.connect(sata_con.source, self.sata_bist.sink),
-
-			self.sata_bist.start.eq(self._start.r & self._start.re),
-			self.sata_bist.sector.eq(self._sector.storage),
-			self.sata_bist.count.eq(self._count.storage),
-			self._done.status.eq(self.sata_bist.done),
-
-			self._ctrl_errors.status.eq(self.sata_bist.ctrl_errors),
-			self._data_errors.status.eq(self.sata_bist.data_errors),
+			Record.connect(self.sata_bist.source, sata_con.sink)
 		]
+
+		self.fsm = fsm = FSM(reset_state="IDLE")
+
+		self.comb += [
+			self.sata_bist.sector.eq(sector),
+			self.sata_bist.count.eq(4)
+		]
+
+		# FSM
+		fsm.act("IDLE",
+			If(self._start.r & self._start.re,
+				NextState("START")
+			)
+		)
+		fsm.act("START",
+			self.sata_bist.start.eq(1),
+			NextState("WAIT_DONE")
+		)
+		fsm.act("WAIT_DONE",
+			If(self.sata_bist.done,
+				NextState("CHECK_PREPARE")
+			).Elif(self._stop.r & self._stop.re,
+				NextState("IDLE")
+			)
+		)
+		fsm.act("CHECK_PREPARE",
+			check_prepare.eq(1),
+			NextState("START")
+		)
+
+		self.sync += [
+			If(check_prepare,
+				ctrl_errors.eq(ctrl_errors + self.sata_bist.ctrl_errors),
+				data_errors.eq(data_errors + self.sata_bist.data_errors),
+				sector.eq(sector+4)
+			)
+		]
+
 
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
