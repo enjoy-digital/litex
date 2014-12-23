@@ -102,7 +102,7 @@ class SATACommandRX(Module):
 		###
 
 		cmd_fifo = SyncFIFO(command_rx_cmd_description(32), 2) # Note: ideally depth=1
-		data_fifo = InsertReset(SyncFIFO(command_rx_data_description(32), sector_size*max_count//4, buffered=True))
+		data_fifo = InsertReset(SyncFIFO(command_rx_data_description(32), (sector_size*max_count//4), buffered=True))
 		self.submodules += cmd_fifo, data_fifo
 
 		def test_type(name):

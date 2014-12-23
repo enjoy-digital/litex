@@ -166,8 +166,8 @@ class TestDesign(UART2WB, AutoCSR):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
 
-		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA2")
-		self.sata_con = SATACON(self.sata_phy, sector_size=512, max_count=8)
+		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA2")
+		self.sata_con = SATACON(self.sata_phy)
 
 		self.bist = SATABIST(self.sata_con)
 
