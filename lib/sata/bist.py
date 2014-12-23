@@ -8,6 +8,8 @@ class SATABISTUnit(Module):
 		source = sata_con.sink
 
 		self.start = Signal()
+		self.write_only = Signal()
+		self.read_only = Signal()
 		self.sector = Signal(48)
 		self.count = Signal(4)
 		self.done = Signal()
@@ -31,7 +33,11 @@ class SATABISTUnit(Module):
 			If(self.start,
 				self.ctrl_error_counter.reset.eq(1),
 				self.data_error_counter.reset.eq(1),
-				NextState("SEND_WRITE_CMD_AND_DATA")
+				If(self.read_only,
+					NextState("SEND_READ_CMD")
+				).Else(
+					NextState("SEND_WRITE_CMD_AND_DATA")
+				)
 			)
 		)
 		fsm.act("SEND_WRITE_CMD_AND_DATA",
@@ -53,7 +59,11 @@ class SATABISTUnit(Module):
 				If(~sink.write | ~sink.success | sink.failed,
 					self.ctrl_error_counter.ce.eq(1)
 				),
-				NextState("SEND_READ_CMD")
+				If(self.write_only,
+					NextState("IDLE")
+				).Else(
+					NextState("SEND_READ_CMD")
+				)
 			)
 		)
 		fsm.act("SEND_READ_CMD",
@@ -94,6 +104,9 @@ class SATABIST(Module, AutoCSR):
 		self._start = CSR()
 		self._start_sector = CSRStorage(48)
 		self._count = CSRStorage(4)
+		self._write_only = CSRStorage()
+		self._read_only = CSRStorage()
+
 		self._stop = CSRStorage()
 
 		self._sector = CSRStatus(48)
@@ -104,8 +117,10 @@ class SATABIST(Module, AutoCSR):
 		count = self._count.storage
 		stop = self._stop.storage
 
-		update = Signal()
+		compute = Signal()
 
+		write_only = self._write_only.storage
+		read_only = self._read_only.storage
 		sector = self._sector.status
 		errors = self._errors.status
 
@@ -113,6 +128,8 @@ class SATABIST(Module, AutoCSR):
 
 		self.unit = SATABISTUnit(sata_con)
 		self.comb += [
+			self.unit.write_only.eq(write_only),
+			self.unit.read_only.eq(read_only),
 			self.unit.sector.eq(sector),
 			self.unit.count.eq(count)
 		]
@@ -131,13 +148,13 @@ class SATABIST(Module, AutoCSR):
 		)
 		fsm.act("WAIT_DONE",
 			If(self.unit.done,
-				NextState("CHECK_PREPARE")
+				NextState("COMPUTE")
 			).Elif(stop,
 				NextState("IDLE")
 			)
 		)
-		fsm.act("CHECK_PREPARE",
-			update.eq(1),
+		fsm.act("COMPUTE",
+			compute.eq(1),
 			NextState("START")
 		)
 
@@ -145,7 +162,7 @@ class SATABIST(Module, AutoCSR):
 			If(start,
 				errors.eq(0),
 				sector.eq(start_sector)
-			).Elif(update,
+			).Elif(compute,
 				errors.eq(errors + self.unit.data_errors),
 				sector.eq(sector + count)
 			)
