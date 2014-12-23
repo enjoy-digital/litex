@@ -67,7 +67,11 @@ class MiLaDriver():
 		print(s, end="|")
 		sys.stdout.flush()
 
-	def prog_term(self, port, trigger, mask):
+	def prog_term(self, port, trigger=0, mask=0, cond=None):
+		if cond is not None:
+			for k, v in cond.items():
+				trigger |= getattr(self, k+"_o")*v
+				mask |= getattr(self, k+"_m")*v
 		t = getattr(self, "mila_trigger_port{d}_trig".format(d=int(port)))
 		m = getattr(self, "mila_trigger_port{d}_mask".format(d=int(port)))
 		t.write(trigger)
