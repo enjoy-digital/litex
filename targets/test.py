@@ -189,8 +189,6 @@ class TestDesign(UART2WB, AutoCSR):
 
 		debug = (
 			ctrl.ready,
-			ctrl.sink.data,
-			ctrl.sink.charisk,
 
 			self.sata_phy.source.stb,
 			self.sata_phy.source.data,
