@@ -7,12 +7,11 @@ from lib.sata.test.hdd import *
 from lib.sata.test.common import *
 
 class CommandTXPacket(list):
-	def __init__(self, write=0, read=0,  identify=0, sector=0, count=0, data=[]):
+	def __init__(self, write=0, read=0, sector=0, count=0, data=[]):
 		self.ongoing = False
 		self.done = False
 		self.write = write
 		self.read = read
-		self.identify = identify
 		self.sector = sector
 		self.count = count
 		for d in data:
@@ -26,7 +25,6 @@ class CommandStreamer(PacketStreamer):
 		PacketStreamer.do_simulation(self, selfp)
 		selfp.source.write = self.packet.write
 		selfp.source.read = self.packet.read
-		selfp.source.identify = self.packet.identify
 		selfp.source.sector = self.packet.sector
 		selfp.source.count = self.packet.count
 
@@ -36,7 +34,6 @@ class CommandRXPacket(list):
 		self.done = False
 		self.write = 0
 		self.read = 0
-		self.identify = 0
 		self.success = 0
 		self.failed = 0
 
@@ -50,7 +47,6 @@ class CommandLogger(PacketLogger):
 			self.packet = CommandRXPacket()
 			self.packet.write = selfp.sink.write
 			self.packet.read = selfp.sink.read
-			self.packet.identify = selfp.sink.identify
 			self.packet.sucess = selfp.sink.success
 			self.packet.failed = selfp.sink.failed
 			self.packet.append(selfp.sink.data)
@@ -99,9 +95,6 @@ class TB(Module):
 		# check results
 		s, l, e = check(write_data, read_data)
 		print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
-
-		identify_packet = CommandTXPacket(identify=1)
-		yield from self.streamer.send(identify_packet)
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=2048, vcd_name="my.vcd", keep_files=True)

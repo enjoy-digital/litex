@@ -143,15 +143,13 @@ def transport_rx_description(dw):
 # Command Layer
 regs = {
 	"WRITE_DMA_EXT"			: 0x35,
-	"READ_DMA_EXT"			: 0x25,
-	"IDENTIFY_DEVICE_DMA"	: 0xEE
+	"READ_DMA_EXT"			: 0x25
 }
 
 def command_tx_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
-		("identify", 1),
 		("sector", 48),
 		("count", 4),
 		("data", dw)
@@ -162,7 +160,6 @@ def command_rx_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
-		("identify", 1),
 		("success", 1),
 		("failed", 1),
 		("data", dw)
@@ -173,7 +170,6 @@ def command_rx_cmd_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
-		("identify", 1),
 		("success", 1),
 		("failed", 1)
 	]

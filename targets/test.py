@@ -152,179 +152,6 @@ class ClockLeds(Module):
 				sata_tx_cnt.eq(sata_tx_cnt-1)
 			)
 
-
-class CommandGenerator(Module, AutoCSR):
-	def __init__(self, sata_con, sector_size):
-		self._write = CSR()
-		self._read = CSR()
-		self._identify = CSR()
-		self._sector = CSRStorage(48)
-		self._count = CSRStorage(4)
-		self._data = CSRStorage(32) # Note: fixed data, add a fifo later
-
-		self._sucess = CSRStatus()
-		self._failed = CSRStatus()
-
-		self.fsm = fsm = FSM(reset_state="IDLE")
-
-		def new_command(csr):
-			return csr.r & csr.re
-
-		cnt = Signal(16)
-		sector = self._sector.storage
-		count = self._count.storage
-		data = self._data.storage
-
-		success = self._sucess.status
-		failed = self._failed.status
-		clr_status = Signal()
-		set_success = Signal()
-		set_failed = Signal()
-		self.sync += [
-			If(clr_status,
-				success.eq(0),
-				failed.eq(0),
-			).Elif(set_success,
-				success.eq(1)
-			).Elif(set_failed,
-				failed.eq(1)
-			)
-		]
-
-		self.comb += sata_con.source.ack.eq(1)
-
-		# FSM
-		fsm.act("IDLE",
-			clr_status.eq(1),
-			If(new_command(self._write),
-				NextState("SEND_WRITE_CMD")
-			).Elif(new_command(self._read),
-				NextState("SEND_READ_CMD")
-			).Elif(new_command(self._identify),
-				NextState("SEND_IDENTIFY_CMD")
-			)
-		)
-		fsm.act("SEND_WRITE_CMD",
-			sata_con.sink.stb.eq(1),
-			sata_con.sink.sop.eq(cnt == 0),
-			sata_con.sink.eop.eq(cnt == (count*sector_size-1)),
-			sata_con.sink.write.eq(1),
-			sata_con.sink.sector.eq(sector),
-			sata_con.sink.count.eq(count),
-			sata_con.sink.data.eq(data),
-			If(sata_con.sink.eop & sata_con.sink.ack,
-				NextState("WAIT_WRITE_ACK")
-			)
-		)
-		self.sync += [
-			If(fsm.ongoing("IDLE"),
-				cnt.eq(0)
-			).Elif(sata_con.sink.stb & sata_con.sink.stb,
-				cnt.eq(cnt+1)
-			)
-		]
-		fsm.act("WAIT_WRITE_ACK",
-			# XXX: add check of success / failed
-			If(sata_con.source.stb & sata_con.source.eop,
-				set_success.eq(1),
-				NextState("IDLE")
-			)
-		)
-		fsm.act("SEND_READ_CMD",
-			sata_con.sink.stb.eq(1),
-			sata_con.sink.sop.eq(1),
-			sata_con.sink.eop.eq(1),
-			sata_con.sink.read.eq(1),
-			sata_con.sink.sector.eq(sector),
-			sata_con.sink.count.eq(count),
-			If(sata_con.sink.ack,
-				NextState("WAIT_READ_ACK_AND_DATA")
-			)
-		)
-		fsm.act("WAIT_READ_ACK_AND_DATA",
-			# XXX: add check of success / failed and receive data
-			If(sata_con.source.stb & sata_con.source.eop,
-				set_success.eq(1),
-				NextState("IDLE")
-			)
-		)
-		fsm.act("SEND_IDENTIFY_CMD",
-			sata_con.sink.stb.eq(1),
-			sata_con.sink.sop.eq(1),
-			sata_con.sink.eop.eq(1),
-			sata_con.sink.identify.eq(1),
-			If(sata_con.sink.ack,
-				NextState("WAIT_IDENTIFY_ACK_AND_DATA")
-			)
-		)
-		fsm.act("WAIT_IDENTIFY_ACK_AND_DATA",
-			# XXX: add check of success / failed and receive data
-			If(sata_con.source.stb & sata_con.source.eop,
-				set_success.eq(1),
-				NextState("IDLE")
-			)
-		)
-
-class BIST(Module, AutoCSR):
-	def __init__(self, sata_con, sector_size):
-		self._start = CSR()
-		self._stop = CSR()
-
-		self._sector = CSRStatus(48)
-		self._ctrl_errors = CSRStatus(32)
-		self._data_errors = CSRStatus(32)
-
-		check_prepare = Signal()
-		sector = self._sector.status
-		ctrl_errors = self._ctrl_errors.status
-		data_errors = self._data_errors.status
-
-		###
-
-		self.sata_bist = SATABIST(sector_size)
-		self.comb += [
-			Record.connect(sata_con.source, self.sata_bist.sink),
-			Record.connect(self.sata_bist.source, sata_con.sink)
-		]
-
-		self.fsm = fsm = FSM(reset_state="IDLE")
-
-		self.comb += [
-			self.sata_bist.sector.eq(sector),
-			self.sata_bist.count.eq(4)
-		]
-
-		# FSM
-		fsm.act("IDLE",
-			If(self._start.r & self._start.re,
-				NextState("START")
-			)
-		)
-		fsm.act("START",
-			self.sata_bist.start.eq(1),
-			NextState("WAIT_DONE")
-		)
-		fsm.act("WAIT_DONE",
-			If(self.sata_bist.done,
-				NextState("CHECK_PREPARE")
-			).Elif(self._stop.r & self._stop.re,
-				NextState("IDLE")
-			)
-		)
-		fsm.act("CHECK_PREPARE",
-			check_prepare.eq(1),
-			NextState("START")
-		)
-
-		self.sync += [
-			If(check_prepare,
-				ctrl_errors.eq(ctrl_errors + self.sata_bist.ctrl_errors),
-				data_errors.eq(data_errors + self.sata_bist.data_errors),
-				sector.eq(sector+4)
-			)
-		]
-
-
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
@@ -342,8 +169,7 @@ class TestDesign(UART2WB, AutoCSR):
 		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, host=True, speed="SATA2")
 		self.sata_con = SATACON(self.sata_phy, sector_size=512, max_count=8)
 
-		#self.command_generator = CommandGenerator(self.sata_con, sector_size=512)
-		self.bist = BIST(self.sata_con, sector_size=512)
+		self.bist = SATABIST(self.sata_con)
 
 		self.clock_leds = ClockLeds(platform)
 
@@ -380,7 +206,6 @@ class TestDesign(UART2WB, AutoCSR):
 			self.sata_con.sink.ack,
 			self.sata_con.sink.write,
 			self.sata_con.sink.read,
-			self.sata_con.sink.identify,
 
 			self.sata_con.source.stb,
 			self.sata_con.source.sop,
@@ -388,7 +213,6 @@ class TestDesign(UART2WB, AutoCSR):
 			self.sata_con.source.ack,
 			self.sata_con.source.write,
 			self.sata_con.source.read,
-			self.sata_con.source.identify,
 			self.sata_con.source.success,
 			self.sata_con.source.failed,
 			self.sata_con.source.data

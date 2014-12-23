@@ -421,8 +421,6 @@ class CommandLayer(Module):
 				resp =  self.hdd.write_dma_callback(fis)
 			elif fis.command == regs["READ_DMA_EXT"]:
 				resp = self.hdd.read_dma_callback(fis)
-			elif fis.command == regs["IDENTIFY_DEVICE_DMA"]:
-				resp = self.hdd.identify_device_dma_callback(fis)
 		elif isinstance(fis, FIS_DATA):
 			resp = self.hdd.data_callback(fis)
 
@@ -505,12 +503,6 @@ class HDD(Module):
 	def read_dma_callback(self, fis):
 		sector = fis.lba_lsb + (fis.lba_msb << 32)
 		packet = self.read(sector, fis.count)
-		packet.insert(0, 0)
-		return [FIS_DATA(packet, direction="D2H"), FIS_REG_D2H()]
-
-	def identify_device_dma_callback(self, fis):
-		print_hdd("Identify device request")
-		packet = [i for i in range(256)]
 		packet.insert(0, 0)
 		return [FIS_DATA(packet, direction="D2H"), FIS_REG_D2H()]
 

@@ -3,7 +3,6 @@ from lib.sata.common import *
 tx_to_rx = [
 	("write", 1),
 	("read", 1),
-	("identify", 1),
 	("count", 4)
 ]
 
@@ -39,8 +38,6 @@ class SATACommandTX(Module):
 					NextState("SEND_WRITE_DMA_CMD")
 				).Elif(sink.read,
 					NextState("SEND_READ_DMA_CMD")
-				).Elif(sink.identify,
-					NextState("SEND_IDENTIFY_CMD")
 				).Else(
 					sink.ack.eq(1)
 				)
@@ -87,24 +84,11 @@ class SATACommandTX(Module):
 				NextState("IDLE")
 			)
 		)
-		fsm.act("SEND_IDENTIFY_CMD",
-			transport.sink.stb.eq(sink.stb),
-			transport.sink.sop.eq(1),
-			transport.sink.eop.eq(1),
-			transport.sink.type.eq(fis_types["REG_H2D"]),
-			transport.sink.c.eq(1),
-			transport.sink.command.eq(regs["IDENTIFY_DEVICE_DMA"]),
-			sink.ack.eq(transport.sink.ack),
-			If(sink.stb & sink.ack,
-				NextState("IDLE")
-			)
-		)
 
 		self.comb += [
 			If(sink.stb,
 				to_rx.write.eq(sink.write),
 				to_rx.read.eq(sink.read),
-				to_rx.identify.eq(sink.identify),
 				to_rx.count.eq(sink.count)
 			)
 		]
@@ -131,15 +115,10 @@ class SATACommandRX(Module):
 			transport.source.ack.eq(1),
 			If(from_tx.write,
 				NextState("WAIT_WRITE_ACTIVATE")
-			).Elif(from_tx.read | from_tx.identify,
+			).Elif(from_tx.read,
 				NextState("WAIT_READ_DATA")
 			)
 		)
-		identify = Signal()
-		self.sync += \
-			If(fsm.ongoing("IDLE"),
-				identify.eq(from_tx.identify)
-			)
 		fsm.act("WAIT_WRITE_ACTIVATE",
 			transport.source.ack.eq(1),
 			If(transport.source.stb,
@@ -202,11 +181,10 @@ class SATACommandRX(Module):
 		)
 		fsm.act("PRESENT_READ_RESPONSE",
 			cmd_fifo.sink.stb.eq(1),
-			cmd_fifo.sink.read.eq(~identify),
-			cmd_fifo.sink.identify.eq(identify),
+			cmd_fifo.sink.read.eq(1),
 			cmd_fifo.sink.success.eq(1),
 			cmd_fifo.sink.failed.eq(0),
-			If(~cmd_fifo.fifo.readable, # Note: simulate a depth=1 fifo
+			If(~cmd_fifo.fifo.readable, # Note: simulate a fifo with depth=1
 				If(cmd_fifo.sink.stb & cmd_fifo.sink.ack,
 					If(cmd_fifo.sink.failed,
 						data_fifo.reset.eq(1)
@@ -220,7 +198,7 @@ class SATACommandRX(Module):
 		out_fsm.act("IDLE",
 			If(cmd_fifo.source.stb & cmd_fifo.source.write,
 				NextState("PRESENT_WRITE_RESPONSE"),
-			).Elif(cmd_fifo.source.stb & (cmd_fifo.source.read | cmd_fifo.source.identify),
+			).Elif(cmd_fifo.source.stb & (cmd_fifo.source.read),
 				If(cmd_fifo.source.success,
 					NextState("PRESENT_READ_RESPONSE_SUCCESS"),
 				).Else(
@@ -242,7 +220,6 @@ class SATACommandRX(Module):
 		out_fsm.act("PRESENT_READ_RESPONSE_SUCCESS",
 			source.stb.eq(data_fifo.source.stb),
 			source.read.eq(cmd_fifo.source.read),
-			source.identify.eq(cmd_fifo.source.identify),
 			source.success.eq(1),
 			source.sop.eq(data_fifo.source.sop),
 			source.eop.eq(data_fifo.source.eop),
@@ -258,7 +235,6 @@ class SATACommandRX(Module):
 			source.sop.eq(1),
 			source.eop.eq(1),
 			source.read.eq(cmd_fifo.source.read),
-			source.identify.eq(cmd_fifo.source.identify),
 			source.failed.eq(1),
 			If(source.stb & source.ack,
 				cmd_fifo.source.ack.eq(1),

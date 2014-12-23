@@ -10,7 +10,7 @@ from_rx = [
 ]
 
 class SATALinkTX(Module):
-	def __init__(self, phy, disable_cont=False):
+	def __init__(self, phy):
 		self.sink = Sink(link_description(32))
 		self.from_rx = Sink(from_rx)
 
@@ -34,7 +34,7 @@ class SATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		self.cont  = cont = SATACONTInserter(phy_description(32), disable=False)
+		self.cont  = cont = SATACONTInserter(phy_description(32))
 
 		# datas / primitives mux
 		insert = Signal(32)
@@ -200,7 +200,7 @@ class SATALinkRX(Module):
 			)
 		)
 		fsm.act("WTRM",
-			# XXX: check CRC resutlt to return R_ERR or R_OK
+			# XXX: check CRC result to return R_ERR or R_OK
 			insert.eq(primitives["R_OK"]),
 			If(det == primitives["SYNC"],
 				NextState("IDLE")
@@ -215,8 +215,8 @@ class SATALinkRX(Module):
 		]
 
 class SATALink(Module):
-	def __init__(self, phy, disable_tx_cont=False):
-		self.tx = SATALinkTX(phy, disable_tx_cont)
+	def __init__(self, phy):
+		self.tx = SATALinkTX(phy)
 		self.rx = SATALinkRX(phy)
 		self.comb += Record.connect(self.rx.to_tx, self.tx.from_rx)
 		self.sink, self.source = self.tx.sink, self.rx.source

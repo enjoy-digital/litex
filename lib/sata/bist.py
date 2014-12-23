@@ -1,10 +1,11 @@
 from lib.sata.common import *
 from lib.sata.link.scrambler import Scrambler
+from migen.bank.description import *
 
-class SATABIST(Module):
-	def __init__(self, sector_size=512):
-		self.sink = sink = Sink(command_rx_description(32))
-		self.source = source = Source(command_tx_description(32))
+class SATABISTUnit(Module):
+	def __init__(self, sata_con):
+		sink = sata_con.source
+		source = sata_con.sink
 
 		self.start = Signal()
 		self.sector = Signal(48)
@@ -36,7 +37,7 @@ class SATABIST(Module):
 		fsm.act("SEND_WRITE_CMD_AND_DATA",
 			source.stb.eq(1),
 			source.sop.eq((counter.value == 0)),
-			source.eop.eq((counter.value == (sector_size//4*self.count)-1)),
+			source.eop.eq((counter.value == (sata_con.sector_size//4*self.count)-1)),
 			source.write.eq(1),
 			source.sector.eq(self.sector),
 			source.count.eq(self.count),
@@ -87,3 +88,65 @@ class SATABIST(Module):
 				)
 			)
 		)
+
+class SATABIST(Module, AutoCSR):
+	def __init__(self, sata_con):
+		self._start = CSR()
+		self._start_sector = CSRStorage(48)
+		self._count = CSRStorage(4)
+		self._stop = CSRStorage()
+
+		self._sector = CSRStatus(48)
+		self._errors = CSRStatus(32)
+
+		start = self._start.r & self._start.re
+		start_sector = self._start_sector.storage
+		count = self._count.storage
+		stop = self._stop.storage
+
+		update = Signal()
+
+		sector = self._sector.status
+		errors = self._errors.status
+
+		###
+
+		self.unit = SATABISTUnit(sata_con)
+		self.comb += [
+			self.unit.sector.eq(sector),
+			self.unit.count.eq(count)
+		]
+
+		self.fsm = fsm = FSM(reset_state="IDLE")
+
+		# FSM
+		fsm.act("IDLE",
+			If(start,
+				NextState("START")
+			)
+		)
+		fsm.act("START",
+			self.unit.start.eq(1),
+			NextState("WAIT_DONE")
+		)
+		fsm.act("WAIT_DONE",
+			If(self.unit.done,
+				NextState("CHECK_PREPARE")
+			).Elif(stop,
+				NextState("IDLE")
+			)
+		)
+		fsm.act("CHECK_PREPARE",
+			update.eq(1),
+			NextState("START")
+		)
+
+		self.sync += [
+			If(start,
+				errors.eq(0),
+				sector.eq(start_sector)
+			).Elif(update,
+				errors.eq(errors + self.unit.data_errors),
+				sector.eq(sector + count)
+			)
+		]

@@ -5,6 +5,11 @@ from lib.sata.command import SATACommand
 
 class SATACON(Module):
 	def __init__(self, phy, sector_size=512, max_count=8):
+		self.sector_size = sector_size
+		self.max_count = max_count
+
+		###
+
 		self.link = SATALink(phy)
 		self.transport = SATATransport(self.link)
 		self.command = SATACommand(self.transport, sector_size=sector_size, max_count=max_count)
