@@ -14,28 +14,28 @@ class SATABISTDriver:
 
 	def set_mode(self, mode):
 		self.mode = mode
-		self.regs.bist_write_only.write(0)
-		self.regs.bist_read_only.write(0)
+		self.regs.sata_bist_write_only.write(0)
+		self.regs.sata_bist_read_only.write(0)
 		if mode == "wr":
-			self.regs.bist_write_only.write(1)
+			self.regs.sata_bist_write_only.write(1)
 		if mode == "rd":
-			self.regs.bist_read_only.write(1)
+			self.regs.sata_bist_read_only.write(1)
 
 	def start(self, sector, count, mode):
 		self.set_mode(mode)
-		self.regs.bist_start_sector.write(sector)
-		self.regs.bist_count.write(count)
-		self.regs.bist_stop.write(0)
-		self.regs.bist_start.write(1)
+		self.regs.sata_bist_start_sector.write(sector)
+		self.regs.sata_bist_count.write(count)
+		self.regs.sata_bist_stop.write(0)
+		self.regs.sata_bist_start.write(1)
 
 	def stop(self):
-		self.regs.bist_stop.write(1)
+		self.regs.sata_bist_stop.write(1)
 
 	def show_status(self):
-		errors = self.regs.bist_errors.read() - self.last_errors
+		errors = self.regs.sata_bist_errors.read() - self.last_errors
 		self.last_errors += errors
 
-		sector = self.regs.bist_sector.read()
+		sector = self.regs.sata_bist_sector.read()
 		n = sector - self.last_sector
 		self.last_sector = sector
 

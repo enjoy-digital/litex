@@ -8,7 +8,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.bank.description import *
 
 from miscope import MiLa, Term, UART2Wishbone
-from miscope.uart2wishbone import UART2Wishbone
 
 from misoclib import identifier
 from lib.sata.common import *
@@ -128,17 +127,18 @@ class SimDesign(UART2WB):
 			self.sata_phy_device.sink.charisk.eq(0b0001)
 		]
 
-class ClockLeds(Module):
-	def __init__(self, platform):
-		led_sata_rx = platform.request("user_led", 0)
-		led_sata_tx = platform.request("user_led", 1)
+class DebugLeds(Module):
+	def __init__(self, platform, sata_phy):
+		# blinking leds (sata_rx and sata_tx clocks)
+		sata_rx_led = platform.request("user_led", 0)
+		sata_tx_led = platform.request("user_led", 1)
 
 		sata_rx_cnt = Signal(32)
 		sata_tx_cnt = Signal(32)
 
 		self.sync.sata_rx += \
 			If(sata_rx_cnt == 0,
-				led_sata_rx.eq(~led_sata_rx),
+				sata_rx_led.eq(~sata_rx_led),
 				sata_rx_cnt.eq(150*1000*1000//2)
 			).Else(
 				sata_rx_cnt.eq(sata_rx_cnt-1)
@@ -146,18 +146,21 @@ class ClockLeds(Module):
 
 		self.sync.sata_tx += \
 			If(sata_tx_cnt == 0,
-				led_sata_tx.eq(~led_sata_tx),
+				sata_tx_led.eq(~sata_tx_led),
 				sata_tx_cnt.eq(150*1000*1000//2)
 			).Else(
 				sata_tx_cnt.eq(sata_tx_cnt-1)
 			)
 
+		# ready leds (crg and ctrl)
+		self.comb += platform.request("user_led", 2).eq(sata_phy.crg.ready)
+		self.comb += platform.request("user_led", 3).eq(sata_phy.ctrl.ready)
+
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
-		"mila":					10,
-		"command_generator":	11,
-		"bist":					12
+		"sata_bist":	10,
+		"mila":			11
 	}
 	csr_map.update(UART2WB.csr_map)
 
@@ -168,27 +171,12 @@ class TestDesign(UART2WB, AutoCSR):
 
 		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA2")
 		self.sata_con = SATACON(self.sata_phy)
+		self.sata_bist = SATABIST(self.sata_con)
 
-		self.bist = SATABIST(self.sata_con)
-
-		self.clock_leds = ClockLeds(platform)
-
-		self.comb += platform.request("user_led", 2).eq(self.sata_phy.crg.ready)
-		self.comb += platform.request("user_led", 3).eq(self.sata_phy.ctrl.ready)
-
-		ctrl = self.sata_phy.ctrl
-
-		self.command_tx_fsm_state = Signal(4)
-		self.transport_tx_fsm_state = Signal(4)
-		self.link_tx_fsm_state = Signal(4)
-
-		self.command_rx_fsm_state = Signal(4)
-		self.command_rx_out_fsm_state = Signal(4)
-		self.transport_rx_fsm_state = Signal(4)
-		self.link_rx_fsm_state = Signal(4)
+		self.leds = DebugLeds(platform, self.sata_phy)
 
 		debug = (
-			ctrl.ready,
+			self.sata_phy.ctrl.ready,
 
 			self.sata_phy.source.stb,
 			self.sata_phy.source.data,
@@ -218,7 +206,6 @@ class TestDesign(UART2WB, AutoCSR):
 
 		self.mila = MiLa(depth=2048, dat=Cat(*debug))
 		self.mila.add_port(Term)
-
 		if export_mila:
 			mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
 			self.mila.export(self, debug, mila_filename)
