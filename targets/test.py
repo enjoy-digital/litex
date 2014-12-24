@@ -164,7 +164,7 @@ class TestDesign(UART2WB, AutoCSR):
 	}
 	csr_map.update(UART2WB.csr_map)
 
-	def __init__(self, platform, export_mila=False):
+	def __init__(self, platform, with_mila=True, export_mila=False):
 		clk_freq = 100*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
@@ -175,40 +175,41 @@ class TestDesign(UART2WB, AutoCSR):
 
 		self.leds = DebugLeds(platform, self.sata_phy)
 
-		debug = (
-			self.sata_phy.ctrl.ready,
+		if with_mila:
+			debug = (
+				self.sata_phy.ctrl.ready,
 
-			self.sata_phy.source.stb,
-			self.sata_phy.source.data,
-			self.sata_phy.source.charisk,
+				self.sata_phy.source.stb,
+				self.sata_phy.source.data,
+				self.sata_phy.source.charisk,
 
-			self.sata_phy.sink.stb,
-			self.sata_phy.sink.data,
-			self.sata_phy.sink.charisk,
+				self.sata_phy.sink.stb,
+				self.sata_phy.sink.data,
+				self.sata_phy.sink.charisk,
 
-			self.sata_con.sink.stb,
-			self.sata_con.sink.sop,
-			self.sata_con.sink.eop,
-			self.sata_con.sink.ack,
-			self.sata_con.sink.write,
-			self.sata_con.sink.read,
+				self.sata_con.sink.stb,
+				self.sata_con.sink.sop,
+				self.sata_con.sink.eop,
+				self.sata_con.sink.ack,
+				self.sata_con.sink.write,
+				self.sata_con.sink.read,
 
-			self.sata_con.source.stb,
-			self.sata_con.source.sop,
-			self.sata_con.source.eop,
-			self.sata_con.source.ack,
-			self.sata_con.source.write,
-			self.sata_con.source.read,
-			self.sata_con.source.success,
-			self.sata_con.source.failed,
-			self.sata_con.source.data
-		)
+				self.sata_con.source.stb,
+				self.sata_con.source.sop,
+				self.sata_con.source.eop,
+				self.sata_con.source.ack,
+				self.sata_con.source.write,
+				self.sata_con.source.read,
+				self.sata_con.source.success,
+				self.sata_con.source.failed,
+				self.sata_con.source.data
+			)
 
-		self.mila = MiLa(depth=2048, dat=Cat(*debug))
-		self.mila.add_port(Term)
-		if export_mila:
-			mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
-			self.mila.export(self, debug, mila_filename)
+			self.mila = MiLa(depth=2048, dat=Cat(*debug))
+			self.mila.add_port(Term)
+			if export_mila:
+				mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
+				self.mila.export(self, debug, mila_filename)
 
 #default_subtarget = SimDesign
 default_subtarget = TestDesign
