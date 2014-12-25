@@ -146,6 +146,12 @@ class SATALinkRX(Module):
 			)
 		self.comb += eop.eq(det == primitives["EOF"])
 
+		crc_error = Signal()
+		self.sync += \
+			If(crc.source.stb & crc.source.eop & crc.source.ack,
+				crc_error.eq(crc.source.error)
+			)
+
 		# small fifo to manage HOLD
 		self.fifo = SyncFIFO(link_description(32), 32)
 
@@ -195,13 +201,27 @@ class SATALinkRX(Module):
 			)
 		)
 		fsm.act("EOF",
+			insert.eq(primitives["R_IP"]),
 			If(det == primitives["WTRM"],
 				NextState("WTRM")
 			)
 		)
 		fsm.act("WTRM",
-			# XXX: check CRC result to return R_ERR or R_OK
+			insert.eq(primitives["R_IP"]),
+			If(~crc_error,
+				NextState("R_OK")
+			).Else(
+				NextState("R_ERR")
+			)
+		)
+		fsm.act("R_OK",
 			insert.eq(primitives["R_OK"]),
+			If(det == primitives["SYNC"],
+				NextState("IDLE")
+			)
+		)
+		fsm.act("R_ERR",
+			insert.eq(primitives["R_ERR"]),
 			If(det == primitives["SYNC"],
 				NextState("IDLE")
 			)

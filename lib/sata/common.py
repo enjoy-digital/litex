@@ -136,7 +136,8 @@ def transport_rx_description(dw):
 		("lba", 48),
 		("device", 8),
 		("count", 16),
-		("data", dw)
+		("data", dw),
+		("error", 1)
 	]
 	return EndpointDescription(layout, packetized=True)
 

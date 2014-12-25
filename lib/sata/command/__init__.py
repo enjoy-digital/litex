@@ -2,14 +2,11 @@ from lib.sata.common import *
 
 tx_to_rx = [
 	("write", 1),
-	("read", 1),
-	("count", 4)
+	("read", 1)
 ]
 
 rx_to_tx = [
-	("dma_activate", 1),
-	("data", 1),
-	("reg_d2h", 1)
+	("dma_activate", 1)
 ]
 
 class SATACommandTX(Module):
@@ -88,8 +85,7 @@ class SATACommandTX(Module):
 		self.comb += [
 			If(sink.stb,
 				to_rx.write.eq(sink.write),
-				to_rx.read.eq(sink.read),
-				to_rx.count.eq(sink.count)
+				to_rx.read.eq(sink.read)
 			)
 		]
 
@@ -139,7 +135,8 @@ class SATACommandRX(Module):
 		fsm.act("PRESENT_WRITE_RESPONSE",
 			cmd_fifo.sink.stb.eq(1),
 			cmd_fifo.sink.write.eq(1),
-			cmd_fifo.sink.success.eq(1),
+			cmd_fifo.sink.success.eq(~transport.source.error),
+			cmd_fifo.sink.failed.eq(transport.source.error),
 			If(cmd_fifo.sink.stb & cmd_fifo.sink.ack,
 				NextState("IDLE")
 			)
@@ -163,6 +160,13 @@ class SATACommandRX(Module):
 				NextState("WAIT_READ_REG_D2H")
 			)
 		)
+		read_error = Signal()
+		self.sync += \
+			If(fsm.ongoing("IDLE"),
+				read_error.eq(1)
+			).Elif(transport.source.stb & transport.source.ack & transport.source.eop,
+				read_error.eq(transport.source.error)
+			)
 		fsm.act("WAIT_READ_REG_D2H",
 			transport.source.ack.eq(1),
 			If(transport.source.stb,
@@ -174,8 +178,8 @@ class SATACommandRX(Module):
 		fsm.act("PRESENT_READ_RESPONSE",
 			cmd_fifo.sink.stb.eq(1),
 			cmd_fifo.sink.read.eq(1),
-			cmd_fifo.sink.success.eq(1),
-			cmd_fifo.sink.failed.eq(0),
+			cmd_fifo.sink.success.eq(~read_error),
+			cmd_fifo.sink.failed.eq(read_error),
 			If(~cmd_fifo.fifo.readable, # Note: simulate a fifo with depth=1
 				If(cmd_fifo.sink.stb & cmd_fifo.sink.ack,
 					If(cmd_fifo.sink.failed,

@@ -189,7 +189,8 @@ class LinkLayer(Module):
 				self.tx_packet.done = True
 			elif dword == primitives["R_ERR"]:
 				self.tx_packet.done = True
-			self.phy.send(primitives["SYNC"])
+			if self.tx_packet.done:
+				self.phy.send(primitives["SYNC"])
 
 	def insert_cont(self):
 		self.tx_lasts.pop(0)

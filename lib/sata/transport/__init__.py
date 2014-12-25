@@ -200,6 +200,7 @@ class SATATransportRX(Module):
 			_decode_cmd(encoded_cmd, fis_data_layout, source),
 			source.sop.eq(data_sop),
 			source.eop.eq(link.source.eop),
+			source.error.eq(link.source.error),
 			source.data.eq(link.source.d),
 			link.source.ack.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
