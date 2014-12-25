@@ -158,7 +158,7 @@ class SATALinkRX(Module):
 		]
 		cont_source_data_d = Signal(32)
 		self.sync += \
-			If(cont.source.stb,
+			If(cont.source.stb & (det == 0),
 				scrambler.sink.d.eq(cont.source.data)
 			)
 
@@ -177,12 +177,12 @@ class SATALinkRX(Module):
 		)
 		fsm.act("WAIT_FIRST",
 			insert.eq(primitives["R_IP"]),
-			If(cont.source.stb,
+			If(cont.source.stb & (det == 0),
 				NextState("COPY")
 			)
 		)
 		fsm.act("COPY",
-			scrambler.sink.stb.eq(cont.source.stb),
+			scrambler.sink.stb.eq(cont.source.stb & ((det == 0) | eop)),
 			scrambler.sink.sop.eq(sop),
 			scrambler.sink.eop.eq(eop),
 			insert.eq(primitives["R_IP"]),

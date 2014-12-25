@@ -18,18 +18,6 @@ def _encode_cmd(obj, description, signal):
 		r.append(signal[start:end].eq(item))
 	return r
 
-def _change_endianness(v):
-	r = []
-	for i in range(4):
-		r.append(v[8*(3-i):8*(3-i+1)])
-	return Cat(*r)
-
-def _big2little(v):
-	return _change_endianness(v)
-
-def _little2big(v):
-	return _change_endianness(v)
-
 class SATATransportTX(Module):
 	def __init__(self, link):
 		self.sink = sink = Sink(transport_tx_description(32))

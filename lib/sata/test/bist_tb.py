@@ -1,6 +1,6 @@
 from lib.sata.common import *
 from lib.sata import SATACON
-from lib.sata.bist import SATABIST
+from lib.sata.bist import SATABISTUnit
 
 from lib.sata.test.hdd import *
 from lib.sata.test.common import *
@@ -11,14 +11,8 @@ class TB(Module):
 				link_debug=False, link_random_level=0,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.controller = SATACON(self.hdd.phy)
-		self.bist = SATABIST()
-
-		self.pipeline = Pipeline(
-			self.bist,
-			self.controller,
-			self.bist
-		)
+		self.con = SATACON(self.hdd.phy)
+		self.bist = SATABISTUnit(self.con)
 
 	def gen_simulation(self, selfp):
 		hdd = self.hdd
