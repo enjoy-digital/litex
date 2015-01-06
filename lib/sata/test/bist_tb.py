@@ -18,7 +18,7 @@ class TB(Module):
 		hdd = self.hdd
 		hdd.malloc(0, 64)
 		selfp.bist.sector = 0
-		selfp.bist.count = 4
+		selfp.bist.count = 17
 		while True:
 			selfp.bist.start = 1
 			yield

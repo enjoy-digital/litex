@@ -11,7 +11,7 @@ class SATABISTUnit(Module):
 		self.write_only = Signal()
 		self.read_only = Signal()
 		self.sector = Signal(48)
-		self.count = Signal(4)
+		self.count = Signal(16)
 		self.done = Signal()
 		self.ctrl_errors = Signal(32)
 		self.data_errors = Signal(32)
@@ -43,7 +43,7 @@ class SATABISTUnit(Module):
 		fsm.act("SEND_WRITE_CMD_AND_DATA",
 			source.stb.eq(1),
 			source.sop.eq((counter.value == 0)),
-			source.eop.eq((counter.value == (sata_con.sector_size//4*self.count)-1)),
+			source.eop.eq((counter.value == (logical_sector_size//4*self.count)-1)),
 			source.write.eq(1),
 			source.sector.eq(self.sector),
 			source.count.eq(self.count),
@@ -74,11 +74,11 @@ class SATABISTUnit(Module):
 			source.sector.eq(self.sector),
 			source.count.eq(self.count),
 			If(source.ack,
+				counter.reset.eq(1),
 				NextState("WAIT_READ_ACK")
 			)
 		)
 		fsm.act("WAIT_READ_ACK",
-			counter.reset.eq(1),
 			If(sink.stb & sink.read,
 				If(~sink.read | ~sink.success | sink.failed,
 					self.ctrl_error_counter.ce.eq(1)
@@ -94,7 +94,11 @@ class SATABISTUnit(Module):
 					self.data_error_counter.ce.eq(1)
 				),
 				If(sink.eop,
-					NextState("IDLE")
+					If(sink.last,
+						NextState("IDLE")
+					).Else(
+						NextState("WAIT_READ_ACK")
+					)
 				)
 			)
 		)

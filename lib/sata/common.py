@@ -1,3 +1,5 @@
+import math
+
 from migen.fhdl.std import *
 from migen.genlib.resetsync import *
 from migen.genlib.fsm import *
@@ -51,6 +53,8 @@ def link_description(dw):
 	return EndpointDescription(layout, packetized=True)
 
 # Transport Layer
+fis_max_dwords = 2048
+
 fis_types = {
 	"REG_H2D":          0x27,
 	"REG_D2H":          0x34,
@@ -152,7 +156,7 @@ def command_tx_description(dw):
 		("write", 1),
 		("read", 1),
 		("sector", 48),
-		("count", 4),
+		("count", 16),
 		("data", dw)
 	]
 	return EndpointDescription(layout, packetized=True)
@@ -161,6 +165,7 @@ def command_rx_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
+		("last", 1),
 		("success", 1),
 		("failed", 1),
 		("data", dw)
@@ -171,8 +176,9 @@ def command_rx_cmd_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
+		("last", 1),
 		("success", 1),
-		("failed", 1)
+		("failed", 1),
 	]
 	return EndpointDescription(layout, packetized=False)
 
@@ -182,6 +188,16 @@ def command_rx_data_description(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
+# HDD
+logical_sector_size = 512 # constant since all HDDs use this
+
+def dwords2sectors(n):
+	return math.ceil(n*4/logical_sector_size)
+
+def sectors2dwords(n):
+	return n*logical_sector_size//4
+
+# Generic modules
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class Counter(Module):

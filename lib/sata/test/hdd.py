@@ -275,13 +275,6 @@ class LinkLayer(Module):
 def print_transport(s):
 	print_with_prefix(s, "[TRN]: ")
 
-def _big2little(v):
-	return int.from_bytes(v.to_bytes(4, byteorder='big'), "little")
-
-def _little2big(v):
-	r = int.from_bytes(v.to_bytes(4, byteorder='little'), "big")
-	return r
-
 def get_field_data(field, packet):
 	return (packet[field.dword] >> field.offset) & (2**field.width-1)
 
@@ -443,7 +436,7 @@ class HDD(Module):
 	def __init__(self,
 			link_debug=False, link_random_level=0,
 			transport_debug=False, transport_loopback=False,
-			hdd_debug=False, hdd_sector_size=512,
+			hdd_debug=False,
 			):
 		###
 		self.phy = PHYLayer()
@@ -454,26 +447,21 @@ class HDD(Module):
 		self.command.set_hdd(self)
 
 		self.debug = hdd_debug
-		self.sector_size = hdd_sector_size
 		self.mem = None
 		self.wr_sector = 0
 		self.wr_end_sector = 0
-
-	def dwords2sectors(self, n):
-		return math.ceil(n*4/self.sector_size)
-
-	def sectors2dwords(self, n):
-		return n*self.sector_size//4
+		self.rd_sector = 0
+		self.rx_end_sector = 0
 
 	def malloc(self, sector, count):
 		if self.debug:
 			s = "Allocating {n} sectors: {s} to {e}".format(n=count, s=sector, e=sector+count)
-			s += " ({} KB)".format(count*self.sector_size//1024)
+			s += " ({} KB)".format(count*logical_sector_size//1024)
 			print_hdd(s)
-		self.mem = HDDMemRegion(sector, count, self.sector_size)
+		self.mem = HDDMemRegion(sector, count, logical_sector_size)
 
 	def write(self, sector, data):
-		n = math.ceil(self.dwords2sectors(len(data)))
+		n = math.ceil(dwords2sectors(len(data)))
 		if self.debug:
 			if n == 1:
 				s = "{}".format(sector)
@@ -481,7 +469,7 @@ class HDD(Module):
 				s = "{s} to {e}".format(s=sector, e=sector+n-1)
 			print_hdd("Writing sector " + s)
 		for i in range(len(data)):
-			offset = self.sectors2dwords(sector)
+			offset = sectors2dwords(sector)
 			self.mem.data[offset+i] = data[i]
 
 	def read(self, sector, count):
@@ -492,8 +480,8 @@ class HDD(Module):
 				s = "{s} to {e}".format(s=sector, e=sector+count-1)
 			print_hdd("Reading sector " + s)
 		data = []
-		for i in range(self.sectors2dwords(count)):
-			data.append(self.mem.data[self.sectors2dwords(sector)+i])
+		for i in range(sectors2dwords(count)):
+			data.append(self.mem.data[sectors2dwords(sector)+i])
 		return data
 
 	def write_dma_callback(self, fis):
@@ -502,14 +490,21 @@ class HDD(Module):
 		return [FIS_DMA_ACTIVATE_D2H()]
 
 	def read_dma_callback(self, fis):
-		sector = fis.lba_lsb + (fis.lba_msb << 32)
-		packet = self.read(sector, fis.count)
-		packet.insert(0, 0)
-		return [FIS_DATA(packet, direction="D2H"), FIS_REG_D2H()]
+		self.rd_sector = fis.lba_lsb + (fis.lba_msb << 32)
+		self.rd_end_sector = self.rd_sector + fis.count
+		packets = []
+		while self.rd_sector != self.rd_end_sector:
+			count = min(self.rd_end_sector-self.rd_sector, (fis_max_dwords*4)//logical_sector_size)
+			packet = self.read(self.rd_sector, count)
+			packet.insert(0, 0)
+			packets.append(FIS_DATA(packet, direction="D2H"))
+			self.rd_sector += count
+		packets.append(FIS_REG_D2H())
+		return packets
 
 	def data_callback(self, fis):
 		self.write(self.wr_sector, fis.packet[1:])
-		self.wr_sector += self.dwords2sectors(len(fis.packet[1:]))
+		self.wr_sector += dwords2sectors(len(fis.packet[1:]))
 		if self.wr_sector == self.wr_end_sector:
 			return [FIS_REG_D2H()]
 		else:

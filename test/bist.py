@@ -2,7 +2,7 @@ import time
 import argparse
 from config import *
 
-sector_size = 512
+logical_sector_size = 512
 
 class SATABISTDriver:
 	def __init__(self, regs):
@@ -46,7 +46,7 @@ class SATABISTDriver:
 			speed_mult = 1
 		else:
 			speed_mult = 2
-		print("%4.2f MB/sec errors=%d sector=%d" %(n*sector_size*speed_mult/(1024*1024), errors, sector))
+		print("%4.2f MB/sec errors=%d sector=%d" %(n*logical_sector_size*speed_mult/(1024*1024), errors, sector))
 
 
 def _get_args():

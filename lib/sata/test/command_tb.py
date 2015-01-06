@@ -82,8 +82,8 @@ class TB(Module):
 	def gen_simulation(self, selfp):
 		hdd = self.hdd
 		hdd.malloc(0, 64)
-		write_data = [i for i in range(hdd.sectors2dwords(2))]
-		write_len = hdd.dwords2sectors(len(write_data))
+		write_data = [i for i in range(sectors2dwords(2))]
+		write_len = dwords2sectors(len(write_data))
 		write_packet = CommandTXPacket(write=1, sector=2, count=write_len, data=write_data)
 		yield from self.streamer.send(write_packet)
 		yield from self.logger.receive()
