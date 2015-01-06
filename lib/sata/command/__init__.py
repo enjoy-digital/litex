@@ -109,16 +109,10 @@ class SATACommandRX(Module):
 
 		###
 
-		cmd_fifo = SyncFIFO(command_rx_cmd_description(32), 2) # Note: ideally depth of 1
-		# XXX Simulate a fifo with depth of 1, FIXME
-		cmd_fifo_sink_stb = Signal()
-		cmd_fifo_sink_ack = Signal()
-		self.comb += [
-			cmd_fifo.sink.stb.eq(cmd_fifo_sink_stb & ~cmd_fifo.fifo.readable),
-			cmd_fifo_sink_ack.eq(~cmd_fifo.fifo.readable)
-		]
-		data_fifo = InsertReset(SyncFIFO(command_rx_data_description(32), fis_max_dwords, buffered=True))
-		self.submodules += cmd_fifo, data_fifo
+		cmd_buffer = Buffer(command_rx_cmd_description(32))
+		cmd_buffer.sink, cmd_buffer.source = cmd_buffer.d, cmd_buffer.q
+		data_buffer = InsertReset(SyncFIFO(command_rx_data_description(32), fis_max_dwords, buffered=True))
+		self.submodules += cmd_buffer, data_buffer
 
 		def test_type(name):
 			return transport.source.type == fis_types[name]
@@ -156,12 +150,12 @@ class SATACommandRX(Module):
 			)
 		)
 		fsm.act("PRESENT_WRITE_RESPONSE",
-			cmd_fifo_sink_stb.eq(1),
-			cmd_fifo.sink.write.eq(1),
-			cmd_fifo.sink.last.eq(1),
-			cmd_fifo.sink.success.eq(~transport.source.error),
-			cmd_fifo.sink.failed.eq(transport.source.error),
-			If(cmd_fifo_sink_stb & cmd_fifo_sink_ack,
+			cmd_buffer.sink.stb.eq(1),
+			cmd_buffer.sink.write.eq(1),
+			cmd_buffer.sink.last.eq(1),
+			cmd_buffer.sink.success.eq(~transport.source.error),
+			cmd_buffer.sink.failed.eq(transport.source.error),
+			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
 				NextState("IDLE")
 			)
 		)
@@ -175,14 +169,14 @@ class SATACommandRX(Module):
 			)
 		)
 		fsm.act("PRESENT_READ_DATA",
-			data_fifo.sink.stb.eq(transport.source.stb),
-			data_fifo.sink.sop.eq(transport.source.sop),
-			data_fifo.sink.eop.eq(transport.source.eop),
-			data_fifo.sink.data.eq(transport.source.data),
-			transport.source.ack.eq(data_fifo.sink.ack),
-			If(data_fifo.sink.stb & data_fifo.sink.ack,
+			data_buffer.sink.stb.eq(transport.source.stb),
+			data_buffer.sink.sop.eq(transport.source.sop),
+			data_buffer.sink.eop.eq(transport.source.eop),
+			data_buffer.sink.data.eq(transport.source.data),
+			transport.source.ack.eq(data_buffer.sink.ack),
+			If(data_buffer.sink.stb & data_buffer.sink.ack,
 				self.dwords_counter.ce.eq(~read_done),
-				If(data_fifo.sink.eop,
+				If(data_buffer.sink.eop,
 					If(read_done,
 						NextState("WAIT_READ_REG_D2H")
 					).Else(
@@ -208,14 +202,14 @@ class SATACommandRX(Module):
 			)
 		)
 		fsm.act("PRESENT_READ_RESPONSE",
-			cmd_fifo_sink_stb.eq(1),
-			cmd_fifo.sink.read.eq(1),
-			cmd_fifo.sink.last.eq(read_done),
-			cmd_fifo.sink.success.eq(~read_error),
-			cmd_fifo.sink.failed.eq(read_error),
-			If(cmd_fifo_sink_stb & cmd_fifo_sink_ack,
-				If(cmd_fifo.sink.failed,
-					data_fifo.reset.eq(1)
+			cmd_buffer.sink.stb.eq(1),
+			cmd_buffer.sink.read.eq(1),
+			cmd_buffer.sink.last.eq(read_done),
+			cmd_buffer.sink.success.eq(~read_error),
+			cmd_buffer.sink.failed.eq(read_error),
+			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
+				If(cmd_buffer.sink.failed,
+					data_buffer.reset.eq(1)
 				),
 				If(read_done,
 					NextState("IDLE")
@@ -227,10 +221,10 @@ class SATACommandRX(Module):
 
 		self.out_fsm = out_fsm = FSM(reset_state="IDLE")
 		out_fsm.act("IDLE",
-			If(cmd_fifo.source.stb & cmd_fifo.source.write,
+			If(cmd_buffer.source.stb & cmd_buffer.source.write,
 				NextState("PRESENT_WRITE_RESPONSE"),
-			).Elif(cmd_fifo.source.stb & (cmd_fifo.source.read),
-				If(cmd_fifo.source.success,
+			).Elif(cmd_buffer.source.stb & (cmd_buffer.source.read),
+				If(cmd_buffer.source.success,
 					NextState("PRESENT_READ_RESPONSE_SUCCESS"),
 				).Else(
 					NextState("PRESENT_READ_RESPONSE_FAILED"),
@@ -243,24 +237,24 @@ class SATACommandRX(Module):
 			source.sop.eq(1),
 			source.eop.eq(1),
 			source.write.eq(1),
-			source.last.eq(cmd_fifo.source.last),
-			source.success.eq(cmd_fifo.source.success),
+			source.last.eq(cmd_buffer.source.last),
+			source.success.eq(cmd_buffer.source.success),
 			If(source.stb & source.ack,
-				cmd_fifo.source.ack.eq(1),
+				cmd_buffer.source.ack.eq(1),
 				NextState("IDLE")
 			)
 		)
 		out_fsm.act("PRESENT_READ_RESPONSE_SUCCESS",
-			source.stb.eq(data_fifo.source.stb),
-			source.read.eq(cmd_fifo.source.read),
+			source.stb.eq(data_buffer.source.stb),
+			source.read.eq(cmd_buffer.source.read),
 			source.success.eq(1),
-			source.last.eq(cmd_fifo.source.last),
-			source.sop.eq(data_fifo.source.sop),
-			source.eop.eq(data_fifo.source.eop),
-			source.data.eq(data_fifo.source.data),
-			data_fifo.source.ack.eq(source.ack),
+			source.last.eq(cmd_buffer.source.last),
+			source.sop.eq(data_buffer.source.sop),
+			source.eop.eq(data_buffer.source.eop),
+			source.data.eq(data_buffer.source.data),
+			data_buffer.source.ack.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
-				cmd_fifo.source.ack.eq(1),
+				cmd_buffer.source.ack.eq(1),
 				NextState("IDLE")
 			)
 		)
@@ -268,11 +262,11 @@ class SATACommandRX(Module):
 			source.stb.eq(1),
 			source.sop.eq(1),
 			source.eop.eq(1),
-			source.read.eq(cmd_fifo.source.read),
-			source.last.eq(cmd_fifo.source.last),
+			source.read.eq(cmd_buffer.source.read),
+			source.last.eq(cmd_buffer.source.last),
 			source.failed.eq(1),
 			If(source.stb & source.ack,
-				cmd_fifo.source.ack.eq(1),
+				cmd_buffer.source.ack.eq(1),
 				NextState("IDLE")
 			)
 		)

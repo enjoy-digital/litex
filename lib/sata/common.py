@@ -5,6 +5,7 @@ from migen.genlib.resetsync import *
 from migen.genlib.fsm import *
 from migen.genlib.record import *
 from migen.flow.actor import *
+from migen.flow.plumbing import Buffer
 from migen.actorlib.fifo import *
 from migen.actorlib.structuring import Pipeline
 
