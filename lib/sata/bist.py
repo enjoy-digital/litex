@@ -107,7 +107,7 @@ class SATABIST(Module, AutoCSR):
 	def __init__(self, sata_con):
 		self._start = CSR()
 		self._start_sector = CSRStorage(48)
-		self._count = CSRStorage(4)
+		self._count = CSRStorage(16)
 		self._write_only = CSRStorage()
 		self._read_only = CSRStorage()
 

@@ -135,16 +135,16 @@ class SATACommandRX(Module):
 			If(from_tx.write,
 				NextState("WAIT_WRITE_ACTIVATE_OR_REG_D2H")
 			).Elif(from_tx.read,
-				NextState("WAIT_READ_DATA")
+				NextState("WAIT_READ_DATA_OR_REG_D2H")
 			)
 		)
 		fsm.act("WAIT_WRITE_ACTIVATE_OR_REG_D2H",
-			# XXX: use status and error fields of REG_D2H
 			transport.source.ack.eq(1),
 			If(transport.source.stb,
 				If(test_type("DMA_ACTIVATE_D2H"),
 					dma_activate.eq(1),
 				).Elif(test_type("REG_D2H"),
+					# XXX: use status and error fields of REG_D2H
 					NextState("PRESENT_WRITE_RESPONSE")
 				)
 			)
@@ -159,12 +159,15 @@ class SATACommandRX(Module):
 				NextState("IDLE")
 			)
 		)
-		fsm.act("WAIT_READ_DATA",
+		fsm.act("WAIT_READ_DATA_OR_REG_D2H",
 			transport.source.ack.eq(1),
 			If(transport.source.stb,
 				transport.source.ack.eq(0),
 				If(test_type("DATA"),
 					NextState("PRESENT_READ_DATA")
+				).Elif(test_type("REG_D2H"),
+					# XXX: use status and error fields of REG_D2H
+					NextState("PRESENT_READ_RESPONSE")
 				)
 			)
 		)
@@ -178,7 +181,7 @@ class SATACommandRX(Module):
 				self.dwords_counter.ce.eq(~read_done),
 				If(data_buffer.sink.eop,
 					If(read_done,
-						NextState("WAIT_READ_REG_D2H")
+						NextState("WAIT_READ_DATA_OR_REG_D2H")
 					).Else(
 						NextState("PRESENT_READ_RESPONSE")
 					)
@@ -187,20 +190,11 @@ class SATACommandRX(Module):
 		)
 		read_error = Signal()
 		self.sync += \
-			If(fsm.ongoing("WAIT_READ_DATA"),
+			If(fsm.before_entering("PRESENT_READ_DATA"),
 				read_error.eq(1)
 			).Elif(transport.source.stb & transport.source.ack & transport.source.eop,
 				read_error.eq(transport.source.error)
 			)
-		fsm.act("WAIT_READ_REG_D2H",
-			# XXX: use status and error fields of REG_D2H
-			transport.source.ack.eq(1),
-			If(transport.source.stb,
-				If(test_type("REG_D2H"),
-					NextState("PRESENT_READ_RESPONSE")
-				)
-			)
-		)
 		fsm.act("PRESENT_READ_RESPONSE",
 			cmd_buffer.sink.stb.eq(1),
 			cmd_buffer.sink.read.eq(1),
@@ -214,57 +208,47 @@ class SATACommandRX(Module):
 				If(read_done,
 					NextState("IDLE")
 				).Else(
-					NextState("WAIT_READ_DATA")
+					NextState("WAIT_READ_DATA_OR_REG_D2H")
 				)
 			)
 		)
 
 		self.out_fsm = out_fsm = FSM(reset_state="IDLE")
 		out_fsm.act("IDLE",
-			If(cmd_buffer.source.stb & cmd_buffer.source.write,
-				NextState("PRESENT_WRITE_RESPONSE"),
-			).Elif(cmd_buffer.source.stb & (cmd_buffer.source.read),
-				If(cmd_buffer.source.success,
-					NextState("PRESENT_READ_RESPONSE_SUCCESS"),
+			If(cmd_buffer.source.stb,
+				If(cmd_buffer.source.read & cmd_buffer.source.success,
+					NextState("PRESENT_RESPONSE_WITH_DATA"),
 				).Else(
-					NextState("PRESENT_READ_RESPONSE_FAILED"),
+					NextState("PRESENT_RESPONSE_WITHOUT_DATA"),
 				)
 			)
 		)
-		# XXX try to merge PRESENT_XXX states
-		out_fsm.act("PRESENT_WRITE_RESPONSE",
-			source.stb.eq(1),
-			source.sop.eq(1),
-			source.eop.eq(1),
-			source.write.eq(1),
+
+		self.comb += [
+			source.write.eq(cmd_buffer.source.write),
+			source.read.eq(cmd_buffer.source.read),
 			source.last.eq(cmd_buffer.source.last),
 			source.success.eq(cmd_buffer.source.success),
-			If(source.stb & source.ack,
-				cmd_buffer.source.ack.eq(1),
-				NextState("IDLE")
-			)
-		)
-		out_fsm.act("PRESENT_READ_RESPONSE_SUCCESS",
+			source.failed.eq(cmd_buffer.source.success),
+		]
+
+		out_fsm.act("PRESENT_RESPONSE_WITH_DATA",
 			source.stb.eq(data_buffer.source.stb),
-			source.read.eq(cmd_buffer.source.read),
-			source.success.eq(1),
-			source.last.eq(cmd_buffer.source.last),
 			source.sop.eq(data_buffer.source.sop),
 			source.eop.eq(data_buffer.source.eop),
+
 			source.data.eq(data_buffer.source.data),
 			data_buffer.source.ack.eq(source.ack),
+
 			If(source.stb & source.eop & source.ack,
 				cmd_buffer.source.ack.eq(1),
 				NextState("IDLE")
 			)
 		)
-		out_fsm.act("PRESENT_READ_RESPONSE_FAILED",
+		out_fsm.act("PRESENT_RESPONSE_WITHOUT_DATA",
 			source.stb.eq(1),
 			source.sop.eq(1),
 			source.eop.eq(1),
-			source.read.eq(cmd_buffer.source.read),
-			source.last.eq(cmd_buffer.source.last),
-			source.failed.eq(1),
 			If(source.stb & source.ack,
 				cmd_buffer.source.ack.eq(1),
 				NextState("IDLE")
