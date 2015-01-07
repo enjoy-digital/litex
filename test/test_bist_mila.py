@@ -27,9 +27,9 @@ mila.prog_sum("term")
 # Trigger / wait / receive
 mila.trigger(offset=32, length=1024)
 
-bist.start(0, 4, "rw")
+bist.write(0, 16, 1)
+bist.read(0, 16, 1)
 mila.wait_done()
-bist.stop()
 
 mila.read()
 mila.export("dump.vcd")

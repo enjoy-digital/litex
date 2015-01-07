@@ -1,6 +1,6 @@
 from lib.sata.common import *
 from lib.sata import SATACON
-from lib.sata.bist import SATABISTUnit
+from lib.sata.bist import SATABIST
 
 from lib.sata.test.hdd import *
 from lib.sata.test.common import *
@@ -12,21 +12,28 @@ class TB(Module):
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
 		self.con = SATACON(self.hdd.phy)
-		self.bist = SATABISTUnit(self.con)
+		self.bist = SATABIST(self.con)
 
 	def gen_simulation(self, selfp):
 		hdd = self.hdd
 		hdd.malloc(0, 64)
 		selfp.bist.sector = 0
 		selfp.bist.count = 17
+		selfp.bist.loops = 1
 		while True:
-			selfp.bist.start = 1
+			selfp.bist.write = 1
 			yield
-			selfp.bist.start = 0
+			selfp.bist.write = 0
 			yield
 			while selfp.bist.done == 0:
 				yield
-			print("ctrl_errors: {} / data_errors {}".format(selfp.bist.ctrl_errors, selfp.bist.data_errors))
+			selfp.bist.read = 1
+			yield
+			selfp.bist.read = 0
+			yield
+			while selfp.bist.done == 0:
+				yield
+			print("errors {}".format(selfp.bist.errors))
 			selfp.bist.sector += 1
 			selfp.bist.count = max((selfp.bist.count + 1)%8, 1)
 

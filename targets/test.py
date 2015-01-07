@@ -13,7 +13,7 @@ from misoclib import identifier
 from lib.sata.common import *
 from lib.sata.phy import SATAPHY
 from lib.sata import SATACON
-from lib.sata.bist import SATABIST
+from lib.sata.bist import SATABIST, SATABISTControl
 
 from migen.genlib.cdc import *
 
@@ -159,8 +159,8 @@ class DebugLeds(Module):
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
-		"sata_bist":	10,
-		"mila":			11
+		"sata_bist_ctrl":	10,
+		"mila":				11
 	}
 	csr_map.update(UART2WB.csr_map)
 
@@ -172,6 +172,8 @@ class TestDesign(UART2WB, AutoCSR):
 		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA2")
 		self.sata_con = SATACON(self.sata_phy)
 		self.sata_bist = SATABIST(self.sata_con)
+		self.sata_bist_ctrl = SATABISTControl(self.sata_bist)
+
 
 		self.leds = DebugLeds(platform, self.sata_phy)
 
