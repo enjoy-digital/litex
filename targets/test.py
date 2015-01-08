@@ -39,7 +39,7 @@ class _CRG(Module):
 				i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
 				# 100MHz
-				p_CLKOUT0_DIVIDE=10, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
+				p_CLKOUT0_DIVIDE=6, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
 
 				p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, #o_CLKOUT1=,
 
@@ -110,7 +110,7 @@ class SimDesign(UART2WB):
 	default_platform = "kc705"
 
 	def __init__(self, platform, export_mila=False):
-		clk_freq = 100*1000000
+		clk_freq = 166*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
 
@@ -165,7 +165,7 @@ class TestDesign(UART2WB, AutoCSR):
 	csr_map.update(UART2WB.csr_map)
 
 	def __init__(self, platform, with_mila=True, export_mila=False):
-		clk_freq = 100*1000000
+		clk_freq = 166*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
 

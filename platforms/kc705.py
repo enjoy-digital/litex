@@ -128,7 +128,7 @@ def Platform(*args, toolchain="vivado", programmer="xc3sprog", **kwargs):
 			except ConstraintError:
 				pass
 			self.add_platform_command("""
-create_clock -name sys_clk -period 10 [get_nets sys_clk]
+create_clock -name sys_clk -period 6 [get_nets sys_clk]
 create_clock -name sata_rx_clk -period 6.66 [get_nets sata_rx_clk]
 create_clock -name sata_tx_clk -period 6.66 [get_nets sata_tx_clk]
 
