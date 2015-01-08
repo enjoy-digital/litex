@@ -34,7 +34,7 @@ class SATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		self.cont  = cont = SATACONTInserter(phy_description(32))
+		self.cont  = cont = BufferizeEndpoints(SATACONTInserter(phy_description(32)), "source")
 
 		# datas / primitives mux
 		insert = Signal(32)
@@ -117,7 +117,7 @@ class SATALinkRX(Module):
 		self.fsm = fsm = FSM(reset_state="IDLE")
 
 		# CONT remover
-		self.cont = cont = SATACONTRemover(phy_description(32))
+		self.cont = cont = BufferizeEndpoints(SATACONTRemover(phy_description(32)), "source")
 		self.comb += Record.connect(phy.source, cont.sink)
 
 		# datas / primitives detection

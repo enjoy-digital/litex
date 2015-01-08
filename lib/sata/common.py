@@ -209,3 +209,37 @@ class Counter(Module):
 			self.value = signal
 		self.width = flen(self.value)
 		self.sync += self.value.eq(self.value+1)
+
+class BufferizeEndpoints(Module):
+	def __init__(self, decorated, *args):
+		self.decorated = decorated
+
+		endpoints = get_endpoints(decorated)
+		sinks = {}
+		sources = {}
+		for name, endpoint in endpoints.items():
+			if name in args or len(args) == 0:
+				if isinstance(endpoint, Sink):
+					sinks.update({name : endpoint})
+				elif isinstance(endpoint, Source):
+					sources.update({name : endpoint})
+
+		# add buffer on sinks
+		for name, sink in sinks.items():
+			buf = Buffer(sink.description)
+			self.submodules += buf
+			setattr(self, name, buf.d)
+			self.comb += Record.connect(buf.q, sink)
+
+		# add buffer on sources
+		for name, source in sources.items():
+			buf = Buffer(source.description)
+			self.submodules += buf
+			self.comb += Record.connect(source, buf.d)
+			setattr(self, name, buf.q)
+
+	def __getattr__(self, name):
+		return getattr(self.decorated, name)
+
+	def __dir__(self):
+		return dir(self.decorated)
