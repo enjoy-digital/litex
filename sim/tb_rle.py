@@ -24,9 +24,9 @@ rle_test_seq = iter(
 
 class TB(Module):
 	def __init__(self):
-		
+
 		# Rle
-		self.submodules.rle = storage.RunLengthEncoder(16, 32)
+		self.rle = storage.RunLengthEncoder(16, 32)
 
 	def do_simulation(self, selfp):
 		selfp.rle._r_enable.storage = 1

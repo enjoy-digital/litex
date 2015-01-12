@@ -14,8 +14,8 @@ class UART(Module, AutoCSR):
 
 		###
 
-		self.submodules.rx = UARTRX(pads, tuning_word)
-		self.submodules.tx = UARTTX(pads, tuning_word)
+		self.rx = UARTRX(pads, tuning_word)
+		self.tx = UARTTX(pads, tuning_word)
 
 class Counter(Module):
 	def __init__(self, width):
@@ -75,12 +75,12 @@ class UART2Wishbone(Module, AutoCSR):
 
 	###
 		if share_uart:
-			self.submodules.uart_mux = UARTMux(pads)
-			self.submodules.uart = UART(self.uart_mux.bridge_pads, clk_freq, baud)
+			self.uart_mux = UARTMux(pads)
+			self.uart = UART(self.uart_mux.bridge_pads, clk_freq, baud)
 			self.shared_pads = self.uart_mux.shared_pads
 			self.comb += self.uart_mux.sel.eq(self._sel.storage)
 		else:
-			self.submodules.uart = UART(pads, clk_freq, baud)
+			self.uart = UART(pads, clk_freq, baud)
 
 		uart = self.uart
 
