@@ -45,8 +45,8 @@ class CTRL(Module):
 class TB(Module):
 	def __init__(self):
 		# use sys_clk for each clock_domain
-		self.clock_domains.cd_sata_rx = ClockDomain()
-		self.clock_domains.cd_sata_tx = ClockDomain()
+		self.cd_sata_rx = ClockDomain()
+		self.cd_sata_tx = ClockDomain()
 		self.comb += [
 			self.cd_sata_rx.clk.eq(ClockSignal()),
 			self.cd_sata_rx.rst.eq(ResetSignal()),

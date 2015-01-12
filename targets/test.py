@@ -19,8 +19,8 @@ from migen.genlib.cdc import *
 
 class _CRG(Module):
 	def __init__(self, platform):
-		self.clock_domains.cd_sys = ClockDomain()
-		self.clock_domains.cd_por = ClockDomain(reset_less=True)
+		self.cd_sys = ClockDomain()
+		self.cd_por = ClockDomain(reset_less=True)
 
 		clk200 = platform.request("clk200")
 		clk200_se = Signal()
