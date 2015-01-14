@@ -7,6 +7,29 @@ from migen.bus import wishbone
 
 from misoclib.uart import UARTRX, UARTTX
 
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Counter(Module):
+	def __init__(self, signal=None, **kwargs):
+		if signal is None:
+			self.value = Signal(**kwargs)
+		else:
+			self.value = signal
+		self.width = flen(self.value)
+		self.sync += self.value.eq(self.value+1)
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Timeout(Module):
+	def __init__(self, length):
+		self.reached = Signal()
+		###
+		value = Signal(max=length)
+		self.sync += value.eq(value+1)
+		self.comb += [
+			self.reached.eq(value == length)
+		]
+
 class UART(Module, AutoCSR):
 	def __init__(self, pads, clk_freq, baud=115200):
 		self._tuning_word = CSRStorage(32, reset=int((baud/clk_freq)*2**32))
@@ -16,19 +39,6 @@ class UART(Module, AutoCSR):
 
 		self.rx = UARTRX(pads, tuning_word)
 		self.tx = UARTTX(pads, tuning_word)
-
-class Counter(Module):
-	def __init__(self, width):
-		self.value = Signal(width)
-		self.clr = Signal()
-		self.inc = Signal()
-		self.sync += [
-			If(self.clr,
-				self.value.eq(0)
-			).Elif(self.inc,
-				self.value.eq(self.value+1)
-			)
-		]
 
 class UARTPads:
 	def __init__(self):
@@ -64,16 +74,15 @@ class UARTMux(Module):
 			)
 
 class UART2Wishbone(Module, AutoCSR):
-	WRITE_CMD = 0x01
-	READ_CMD = 0x02
+	cmds = {
+		"write"	: 0x01,
+		"read"	: 0x02
+	}
 	def __init__(self, pads, clk_freq, baud=115200, share_uart=False):
-
-		# Wishbone interface
 		self.wishbone = wishbone.Interface()
 		if share_uart:
 			self._sel = CSRStorage()
-
-	###
+		###
 		if share_uart:
 			self.uart_mux = UARTMux(pads)
 			self.uart = UART(self.uart_mux.bridge_pads, clk_freq, baud)
@@ -84,118 +93,123 @@ class UART2Wishbone(Module, AutoCSR):
 
 		uart = self.uart
 
-		fsm = FSM()
-		self.submodules += fsm
+		self.byte_counter = Counter(bits_sign=3)
+		self.word_counter = Counter(bits_sign=8)
 
-		word_cnt = Counter(3)
-		burst_cnt = Counter(8)
-		self.submodules += word_cnt, burst_cnt
+		cmd = Signal(8)
+		cmd_ce = Signal()
+
+		length = Signal(8)
+		length_ce = Signal()
+
+		address = Signal(32)
+		address_ce = Signal()
+
+		data = Signal(32)
+		rx_data_ce = Signal()
+		tx_data_ce = Signal()
+
+		self.sync += [
+			If(cmd_ce, cmd.eq(uart.rx.source.d)),
+			If(length_ce, length.eq(uart.rx.source.d)),
+			If(address_ce, address.eq(Cat(uart.rx.source.d, address[0:24]))),
+			If(rx_data_ce,
+				data.eq(Cat(uart.rx.source.d, data[0:24]))
+			).Elif(tx_data_ce,
+				data.eq(self.wishbone.dat_r)
+			)
+		]
 
 		###
-		cmd = Signal(8)
-		fsm.act("WAIT_CMD",
+		self.fsm = fsm = InsertReset(FSM(reset_state="IDLE"))
+		self.timeout = Timeout(clk_freq//10)
+		self.comb += [
+			self.timeout.ce.eq(1),
+			self.fsm.reset.eq(self.timeout.reached)
+		]
+		fsm.act("IDLE",
+			self.timeout.reset.eq(1),
 			If(uart.rx.source.stb,
-				If(	(uart.rx.source.d == self.WRITE_CMD) |
-					(uart.rx.source.d == self.READ_CMD),
-					NextState("RECEIVE_BURST_LENGTH")
+				cmd_ce.eq(1),
+				If(	(uart.rx.source.d == self.cmds["write"]) |
+					(uart.rx.source.d == self.cmds["read"]),
+					NextState("RECEIVE_LENGTH")
 				),
-			word_cnt.clr.eq(1),
-			burst_cnt.clr.eq(1)
+				self.byte_counter.reset.eq(1),
+				self.word_counter.reset.eq(1)
 			)
 		)
-		self.sync += If(fsm.ongoing("WAIT_CMD") & uart.rx.source.stb, cmd.eq(uart.rx.source.d))
-
-		####
-		burst_length = Signal(8)
-		fsm.act("RECEIVE_BURST_LENGTH",
-			word_cnt.inc.eq(uart.rx.source.stb),
-			If(word_cnt.value == 1,
-				word_cnt.clr.eq(1),
+		fsm.act("RECEIVE_LENGTH",
+			If(uart.rx.source.stb,
+				length_ce.eq(1),
 				NextState("RECEIVE_ADDRESS")
 			)
 		)
-		self.sync += \
-			If(fsm.ongoing("RECEIVE_BURST_LENGTH") & uart.rx.source.stb, burst_length.eq(uart.rx.source.d))
-
-		####
-		address = Signal(32)
 		fsm.act("RECEIVE_ADDRESS",
-			word_cnt.inc.eq(uart.rx.source.stb),
-			If(word_cnt.value == 4,
-				word_cnt.clr.eq(1),
-				If(cmd == self.WRITE_CMD,
-					NextState("RECEIVE_DATA")
-				).Elif(cmd == self.READ_CMD,
-					NextState("READ_DATA")
+			If(uart.rx.source.stb,
+				address_ce.eq(1),
+				self.byte_counter.ce.eq(1),
+				If(self.byte_counter.value == 3,
+					If(cmd == self.cmds["write"],
+						NextState("RECEIVE_DATA")
+					).Elif(cmd == self.cmds["read"],
+						NextState("READ_DATA")
+					),
+					self.byte_counter.reset.eq(1),
 				)
 			)
 		)
-		self.sync += \
-			If(fsm.ongoing("RECEIVE_ADDRESS") & uart.rx.source.stb,
-					address.eq(Cat(uart.rx.source.d, address[0:24]))
-			)
-
-		###
-		data = Signal(32)
-
-		###
 		fsm.act("RECEIVE_DATA",
-			word_cnt.inc.eq(uart.rx.source.stb),
-			If(word_cnt.value == 4,
-				word_cnt.clr.eq(1),
-				NextState("WRITE_DATA")
+			If(uart.rx.source.stb,
+				rx_data_ce.eq(1),
+				self.byte_counter.ce.eq(1),
+				If(self.byte_counter.value == 3,
+					NextState("WRITE_DATA"),
+					self.byte_counter.reset.eq(1)
+				)
 			)
 		)
-
-		fsm.act("WRITE_DATA",
-			self.wishbone.adr.eq(address + burst_cnt.value),
+		self.comb += [
+			self.wishbone.adr.eq(address + self.word_counter.value),
 			self.wishbone.dat_w.eq(data),
-			self.wishbone.sel.eq(2**flen(self.wishbone.sel)-1),
+			self.wishbone.sel.eq(2**flen(self.wishbone.sel)-1)
+		]
+		fsm.act("WRITE_DATA",
 			self.wishbone.stb.eq(1),
 			self.wishbone.we.eq(1),
 			self.wishbone.cyc.eq(1),
 			If(self.wishbone.ack,
-				burst_cnt.inc.eq(1),
-				If(burst_cnt.value == (burst_length-1),
-					NextState("WAIT_CMD")
+				self.word_counter.ce.eq(1),
+				If(self.word_counter.value == (length-1),
+					NextState("IDLE")
 				).Else(
-					word_cnt.clr.eq(1),
 					NextState("RECEIVE_DATA")
 				)
 			)
 		)
-
-		###
 		fsm.act("READ_DATA",
-			self.wishbone.adr.eq(address + burst_cnt.value),
-			self.wishbone.sel.eq(2**flen(self.wishbone.sel)-1),
 			self.wishbone.stb.eq(1),
 			self.wishbone.we.eq(0),
 			self.wishbone.cyc.eq(1),
-			If(self.wishbone.stb & self.wishbone.ack,
-				word_cnt.clr.eq(1),
+			If(self.wishbone.ack,
+				tx_data_ce.eq(1),
 				NextState("SEND_DATA")
 			)
 		)
-
+		self.comb += \
+			chooser(data, self.byte_counter.value, uart.tx.sink.d, n=4, reverse=True)
 		fsm.act("SEND_DATA",
-			word_cnt.inc.eq(uart.tx.sink.ack),
-			If(word_cnt.value == 4,
-				burst_cnt.inc.eq(1),
-				If(burst_cnt.value == (burst_length-1),
-					NextState("WAIT_CMD")
-				).Else(
-					NextState("READ_DATA")
-				)
-			),
 			uart.tx.sink.stb.eq(1),
-			chooser(data, word_cnt.value, uart.tx.sink.d, n=4, reverse=True)
-		)
-
-		###
-		self.sync += \
-			If(fsm.ongoing("RECEIVE_DATA") & uart.rx.source.stb,
-				data.eq(Cat(uart.rx.source.d, data[0:24]))
-			).Elif(fsm.ongoing("READ_DATA") & self.wishbone.stb & self.wishbone.ack,
-				data.eq(self.wishbone.dat_r)
+			If(uart.tx.sink.ack,
+				self.byte_counter.ce.eq(1),
+				If(self.byte_counter.value == 3,
+					self.word_counter.ce.eq(1),
+					If(self.word_counter.value == (length-1),
+						NextState("IDLE")
+					).Else(
+						NextState("READ_DATA"),
+						self.byte_counter.reset.eq(1)
+					)
+				)
 			)
+		)
