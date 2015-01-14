@@ -159,8 +159,8 @@ class DebugLeds(Module):
 class TestDesign(UART2WB, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
-		"sata_bist_ctrl":	10,
-		"mila":				11
+		"sata_bist":	10,
+		"mila":			11
 	}
 	csr_map.update(UART2WB.csr_map)
 
@@ -171,9 +171,8 @@ class TestDesign(UART2WB, AutoCSR):
 
 		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA2")
 		self.sata_con = SATACON(self.sata_phy)
-		self.sata_bist = SATABIST(self.sata_con)
-		self.sata_bist_ctrl = SATABISTControl(self.sata_bist)
 
+		self.sata_bist = SATABIST(self.sata_con.crossbar.get_ports(2), with_control=True)
 
 		self.leds = DebugLeds(platform, self.sata_phy)
 
@@ -189,22 +188,22 @@ class TestDesign(UART2WB, AutoCSR):
 				self.sata_phy.sink.data,
 				self.sata_phy.sink.charisk,
 
-				self.sata_con.sink.stb,
-				self.sata_con.sink.sop,
-				self.sata_con.sink.eop,
-				self.sata_con.sink.ack,
-				self.sata_con.sink.write,
-				self.sata_con.sink.read,
+				self.sata_con.command.sink.stb,
+				self.sata_con.command.sink.sop,
+				self.sata_con.command.sink.eop,
+				self.sata_con.command.sink.ack,
+				self.sata_con.command.sink.write,
+				self.sata_con.command.sink.read,
 
-				self.sata_con.source.stb,
-				self.sata_con.source.sop,
-				self.sata_con.source.eop,
-				self.sata_con.source.ack,
-				self.sata_con.source.write,
-				self.sata_con.source.read,
-				self.sata_con.source.success,
-				self.sata_con.source.failed,
-				self.sata_con.source.data
+				self.sata_con.command.source.stb,
+				self.sata_con.command.source.sop,
+				self.sata_con.command.source.eop,
+				self.sata_con.command.source.ack,
+				self.sata_con.command.source.write,
+				self.sata_con.command.source.read,
+				self.sata_con.command.source.success,
+				self.sata_con.command.source.failed,
+				self.sata_con.command.source.data
 			)
 
 			self.mila = MiLa(depth=2048, dat=Cat(*debug))

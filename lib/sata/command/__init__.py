@@ -26,6 +26,7 @@ class SATACommandTX(Module):
 			transport.sink.count.eq(sink.count),
 			transport.sink.icc.eq(0),
 			transport.sink.control.eq(0),
+			transport.sink.data.eq(sink.data)
 		]
 
 		self.dwords_counter = dwords_counter = Counter(max=fis_max_dwords)
@@ -70,7 +71,6 @@ class SATACommandTX(Module):
 			transport.sink.eop.eq((dwords_counter.value == (fis_max_dwords-1)) | sink.eop),
 
 			transport.sink.type.eq(fis_types["DATA"]),
-			transport.sink.data.eq(sink.data),
 			sink.ack.eq(transport.sink.ack),
 			If(sink.stb & sink.ack,
 				If(sink.eop,
@@ -171,11 +171,13 @@ class SATACommandRX(Module):
 				)
 			)
 		)
-		fsm.act("PRESENT_READ_DATA",
-			data_buffer.sink.stb.eq(transport.source.stb),
+		self.comb += [
 			data_buffer.sink.sop.eq(transport.source.sop),
 			data_buffer.sink.eop.eq(transport.source.eop),
-			data_buffer.sink.data.eq(transport.source.data),
+			data_buffer.sink.data.eq(transport.source.data)
+		]
+		fsm.act("PRESENT_READ_DATA",
+			data_buffer.sink.stb.eq(transport.source.stb),
 			transport.source.ack.eq(data_buffer.sink.ack),
 			If(data_buffer.sink.stb & data_buffer.sink.ack,
 				self.dwords_counter.ce.eq(~read_done),
@@ -230,6 +232,7 @@ class SATACommandRX(Module):
 			source.last.eq(cmd_buffer.source.last),
 			source.success.eq(cmd_buffer.source.success),
 			source.failed.eq(cmd_buffer.source.success),
+			source.data.eq(data_buffer.source.data)
 		]
 
 		out_fsm.act("PRESENT_RESPONSE_WITH_DATA",
@@ -237,7 +240,6 @@ class SATACommandRX(Module):
 			source.sop.eq(data_buffer.source.sop),
 			source.eop.eq(data_buffer.source.eop),
 
-			source.data.eq(data_buffer.source.data),
 			data_buffer.source.ack.eq(source.ack),
 
 			If(source.stb & source.eop & source.ack,

@@ -210,6 +210,7 @@ class Counter(Module):
 		self.width = flen(self.value)
 		self.sync += self.value.eq(self.value+1)
 
+# XXX use ModuleDecorator
 class BufferizeEndpoints(Module):
 	def __init__(self, decorated, *args):
 		self.decorated = decorated

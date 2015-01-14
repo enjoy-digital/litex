@@ -187,10 +187,12 @@ class SATALinkRX(Module):
 				NextState("COPY")
 			)
 		)
+		self.comb += [
+			scrambler.sink.sop.eq(sop),
+			scrambler.sink.eop.eq(eop)
+		]
 		fsm.act("COPY",
 			scrambler.sink.stb.eq(cont.source.stb & ((det == 0) | eop)),
-			scrambler.sink.sop.eq(sop),
-			scrambler.sink.eop.eq(eop),
 			insert.eq(primitives["R_IP"]),
 			If(det == primitives["HOLD"],
 				insert.eq(primitives["HOLDA"])

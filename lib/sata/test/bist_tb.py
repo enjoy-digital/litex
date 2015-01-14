@@ -1,6 +1,6 @@
 from lib.sata.common import *
 from lib.sata import SATACON
-from lib.sata.bist import SATABIST
+from lib.sata.bist import SATABISTGenerator, SATABISTChecker
 
 from lib.sata.test.hdd import *
 from lib.sata.test.common import *
@@ -11,31 +11,35 @@ class TB(Module):
 				link_debug=False, link_random_level=0,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.con = SATACON(self.hdd.phy)
-		self.bist = SATABIST(self.con)
+		self.controller = SATACON(self.hdd.phy)
+		self.generator = SATABISTGenerator(self.controller.crossbar.get_port())
+		self.checker = SATABISTChecker(self.controller.crossbar.get_port())
 
 	def gen_simulation(self, selfp):
 		hdd = self.hdd
 		hdd.malloc(0, 64)
-		selfp.bist.sector = 0
-		selfp.bist.count = 17
-		selfp.bist.loops = 1
+		selfp.generator.sector = 0
+		selfp.generator.count = 17
+		selfp.checker.sector = 0
+		selfp.checker.count = 17
 		while True:
-			selfp.bist.write = 1
+			selfp.generator.start = 1
 			yield
-			selfp.bist.write = 0
+			selfp.generator.start = 0
 			yield
-			while selfp.bist.done == 0:
+			while selfp.generator.done == 0:
 				yield
-			selfp.bist.read = 1
+			selfp.checker.start = 1
 			yield
-			selfp.bist.read = 0
+			selfp.checker.start = 0
 			yield
-			while selfp.bist.done == 0:
+			while selfp.checker.done == 0:
 				yield
-			print("errors {}".format(selfp.bist.errors))
-			selfp.bist.sector += 1
-			selfp.bist.count = max((selfp.bist.count + 1)%8, 1)
+			print("errors {}".format(selfp.checker.errors))
+			selfp.generator.sector += 1
+			selfp.generator.count = max((selfp.generator.count + 1)%8, 1)
+			selfp.checker.sector += 1
+			selfp.checker.count = max((selfp.checker.count + 1)%8, 1)
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=8192*2, vcd_name="my.vcd", keep_files=True)
