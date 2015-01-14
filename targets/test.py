@@ -20,7 +20,7 @@ from migen.genlib.cdc import *
 class _CRG(Module):
 	def __init__(self, platform):
 		self.cd_sys = ClockDomain()
-		self.cd_por = ClockDomain(reset_less=True)
+		self.sata_reset = Signal()
 
 		clk200 = platform.request("clk200")
 		clk200_se = Signal()
@@ -50,7 +50,7 @@ class _CRG(Module):
 				p_CLKOUT4_DIVIDE=2, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
 			),
 			Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
-			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset")),
+			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.sata_reset),
 		]
 
 class UART2WB(Module):
@@ -114,7 +114,7 @@ class SimDesign(UART2WB):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
 
-		self.sata_phy_host = SATAPHY(platform.request("sata_host"), clk_freq, host=True)
+		sata_phy_host = SATAPHY(platform.request("sata_host"), clk_freq, host=True)
 		self.comb += [
 			self.sata_phy_host.sink.stb.eq(1),
 			self.sata_phy_host.sink.data.eq(primitives["SYNC"]),
@@ -169,7 +169,8 @@ class TestDesign(UART2WB, AutoCSR):
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
 
-		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA2")
+		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA3")
+		self.comb += self.crg.sata_reset.eq(self.sata_phy.ctrl.need_reset)
 		self.sata_con = SATACON(self.sata_phy)
 
 		self.sata_bist = SATABIST(self.sata_con.crossbar.get_ports(2), with_control=True)

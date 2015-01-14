@@ -210,6 +210,18 @@ class Counter(Module):
 		self.width = flen(self.value)
 		self.sync += self.value.eq(self.value+1)
 
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Timeout(Module):
+	def __init__(self, length):
+		self.reached = Signal()
+		###
+		value = Signal(max=length)
+		self.sync += value.eq(value+1)
+		self.comb += [
+			self.reached.eq(value == length)
+		]
+
 # XXX use ModuleDecorator
 class BufferizeEndpoints(Module):
 	def __init__(self, decorated, *args):

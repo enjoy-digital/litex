@@ -24,6 +24,7 @@ class SATAPHYHostCtrlTimeout(Module):
 class SATAPHYHostCtrl(Module):
 	def __init__(self, trx, crg, clk_freq):
 		self.ready = Signal()
+		self.need_reset = Signal()
 		self.sink = sink = Sink(phy_description(32))
 		self.source = source = Source(phy_description(32))
 
@@ -144,6 +145,12 @@ class SATAPHYHostCtrl(Module):
 			self.ready.eq(1),
 		)
 
+		self.reset_timeout = Timeout(clk_freq//16)
+		self.comb += [
+			self.reset_timeout.ce.eq(~self.ready),
+			self.need_reset.eq(self.reset_timeout.reached)
+		]
+
 		self.comb +=  \
 			align_detect.eq(self.sink.stb & (self.sink.data == primitives["ALIGN"]))
 		self.sync += \
@@ -157,6 +164,7 @@ class SATAPHYHostCtrl(Module):
 				)
 			)
 
+# Note : Tested only in simulation
 class SATAPHYDeviceCtrl(Module):
 	def __init__(self, trx, crg, clk_freq):
 		self.ready = Signal()

@@ -5,7 +5,8 @@ from bist import *
 from miscope.host.drivers import MiLaDriver
 
 mila = MiLaDriver(wb.regs, "mila")
-bist = SATABISTDriver(wb.regs)
+generator = SATABISTGeneratorDriver(wb.regs, "sata_bist")
+checker = SATABISTCheckerDriver(wb.regs, "sata_bist")
 wb.open()
 regs = wb.regs
 ###
@@ -27,8 +28,8 @@ mila.prog_sum("term")
 # Trigger / wait / receive
 mila.trigger(offset=32, length=1024)
 
-bist.write(0, 16, 1)
-bist.read(0, 16, 1)
+generator.run(0, 16, 1, 0)
+checker.run(0, 16, 1, 0)
 mila.wait_done()
 
 mila.read()
