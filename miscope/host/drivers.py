@@ -71,7 +71,7 @@ class MiLaDriver():
 		if cond is not None:
 			for k, v in cond.items():
 				trigger |= getattr(self, k+"_o")*v
-				mask |= getattr(self, k+"_m")*v
+				mask |= getattr(self, k+"_m")
 		t = getattr(self, "mila_trigger_port{d}_trig".format(d=int(port)))
 		m = getattr(self, "mila_trigger_port{d}_mask".format(d=int(port)))
 		t.write(trigger)
