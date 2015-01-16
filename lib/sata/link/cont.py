@@ -14,6 +14,7 @@ class SATACONTInserter(Module):
 
 		is_data = Signal()
 		was_data = Signal()
+		was_hold = Signal()
 		change = Signal()
 		self.comb += is_data.eq(sink.charisk == 0)
 
@@ -27,11 +28,10 @@ class SATACONTInserter(Module):
 				If(~is_data,
 					last_primitive.eq(sink.data),
 				),
-				was_data.eq(is_data)
+				was_data.eq(is_data),
+				was_hold.eq(last_primitive == primitives["HOLD"])
 			)
 		]
-		was_hold = last_primitive == primitives["HOLD"]
-
 		self.comb += change.eq(
 			(sink.data != last_data) |
 			(sink.charisk != last_charisk) |
