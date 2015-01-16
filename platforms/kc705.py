@@ -73,22 +73,13 @@ _io = [
 		IOStandard("LVCMOS25")
 	),
 
-	("sata_host", 0,
+	("sata0", 0,
 		Subsignal("refclk_p", Pins("C8")),
 		Subsignal("refclk_n", Pins("C7")),
 		Subsignal("txp", Pins("D2")),
 		Subsignal("txn", Pins("D1")),
 		Subsignal("rxp", Pins("E4")),
 		Subsignal("rxn", Pins("E3")),
-	),
-
-	("sata_device", 0,
-		Subsignal("refclk_p", Pins("G8")), # 125MHz SGMII
-		Subsignal("refclk_n", Pins("G7")), # 125MHz SGMII
-		Subsignal("txp", Pins("H2")), # SFP
-		Subsignal("txn", Pins("H1")), # SFP
-		Subsignal("rxp", Pins("G4")), # SFP
-		Subsignal("rxn", Pins("G3")), # SFP
 	),
 ]
 

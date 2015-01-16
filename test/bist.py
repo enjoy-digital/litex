@@ -4,7 +4,7 @@ from config import *
 
 logical_sector_size = 512
 
-class SATABISTUnitDriver:
+class LiteSATABISTUnitDriver:
 	def __init__(self, regs, name):
 		self.regs = regs
 		self.name = name
@@ -25,15 +25,15 @@ class SATABISTUnitDriver:
 		errors = self.errors.read()
 		return (speed, errors)
 
-class SATABISTGeneratorDriver(SATABISTUnitDriver):
+class LiteSATABISTGeneratorDriver(LiteSATABISTUnitDriver):
 	def __init__(self, regs, name):
-		SATABISTUnitDriver.__init__(self, regs, name + "_generator")
+		LiteSATABISTUnitDriver.__init__(self, regs, name + "_generator")
 
-class SATABISTCheckerDriver(SATABISTUnitDriver):
+class LiteSATABISTCheckerDriver(LiteSATABISTUnitDriver):
 	def __init__(self, regs, name):
-		SATABISTUnitDriver.__init__(self, regs, name + "_checker")
+		LiteSATABISTUnitDriver.__init__(self, regs, name + "_checker")
 
-class SATABISTIdentifyDriver:
+class LiteSATABISTIdentifyDriver:
 	def __init__(self, regs, name):
 		self.regs = regs
 		self.name = name
@@ -58,13 +58,16 @@ class SATABISTIdentifyDriver:
 	def decode(self):
 		self.serial_number = ""
 		for i, dword in enumerate(self.data[10:20]):
-			s = dword.to_bytes(4, byteorder='big').decode("utf-8")
-			self.serial_number += s[2:] + s[:2]
+			try:
+				s = dword.to_bytes(4, byteorder='big').decode("utf-8")
+				self.serial_number += s[2:] + s[:2]
+			except:
+				self.serial_number += "    "
 
-	def __repr__(self):
-		r = "Serial Number: " + self.serial_number
+	def hdd_info(self):
+		info = "Serial Number: " + self.serial_number
 		# XXX: enhance decode function
-		return r
+		print(info)
 
 KB = 1024
 MB = 1024*KB
@@ -88,12 +91,12 @@ if __name__ == "__main__":
 	args = _get_args()
 	wb.open()
 	###
-	identify = SATABISTIdentifyDriver(wb.regs, "sata_bist")
-	generator = SATABISTGeneratorDriver(wb.regs, "sata_bist")
-	checker = SATABISTCheckerDriver(wb.regs, "sata_bist")
+	identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")
+	generator = LiteSATABISTGeneratorDriver(wb.regs, "sata_bist")
+	checker = LiteSATABISTCheckerDriver(wb.regs, "sata_bist")
 
 	identify.run()
-	print(identify)
+	identify.hdd_info()
 
 	sector = 0
 	count = int(args.transfer_size)*MB//logical_sector_size

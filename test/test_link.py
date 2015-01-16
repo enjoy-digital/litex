@@ -5,9 +5,9 @@ from bist import *
 from miscope.host.drivers import MiLaDriver
 
 mila = MiLaDriver(wb.regs, "mila")
-identify = SATABISTIdentifyDriver(wb.regs, "sata_bist")
-generator = SATABISTGeneratorDriver(wb.regs, "sata_bist")
-checker = SATABISTCheckerDriver(wb.regs, "sata_bist")
+identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")
+generator = LiteSATABISTGeneratorDriver(wb.regs, "sata_bist")
+checker = LiteSATABISTCheckerDriver(wb.regs, "sata_bist")
 wb.open()
 regs = wb.regs
 ###
@@ -18,27 +18,27 @@ if len(sys.argv) < 2:
 
 conditions = {}
 conditions["wr_cmd"] = {
-	"bistsocdevel_sata_con_command_sink_stb"			: 1,
-	"bistsocdevel_sata_con_command_sink_payload_write"	: 1,
+	"bistsocdevel_core_sink_stb"			: 1,
+	"bistsocdevel_core_sink_payload_write"	: 1,
 }
 conditions["wr_dma_activate"] = {
-	"bistsocdevel_sata_con_command_source_source_stb"			: 1,
-	"bistsocdevel_sata_con_command_source_source_payload_write"	: 1,
+	"bistsocdevel_core_source_source_stb"			: 1,
+	"bistsocdevel_core_source_source_payload_write"	: 1,
 }
 conditions["rd_cmd"] = {
-	"bistsocdevel_sata_con_command_sink_stb"			: 1,
-	"bistsocdevel_sata_con_command_sink_payload_read"	: 1,
+	"bistsocdevel_core_sink_stb"			: 1,
+	"bistsocdevel_core_sink_payload_read"	: 1,
 }
 conditions["rd_data"] = {
-	"bistsocdevel_sata_con_command_source_source_stb"			: 1,
-	"bistsocdevel_sata_con_command_source_source_payload_read"	: 1,
+	"bistsocdevel_core_source_source_stb"			: 1,
+	"bistsocdevel_core_source_source_payload_read"	: 1,
 }
 conditions["id_cmd"] = {
-	"bistsocdevel_sata_con_command_sink_stb"				: 1,
-	"bistsocdevel_sata_con_command_sink_payload_identify"	: 1,
+	"bistsocdevel_core_sink_stb"				: 1,
+	"bistsocdevel_core_sink_payload_identify"	: 1,
 }
 conditions["id_pio_setup"] = {
-	"bistsocdevel_sata_phy_source_source_payload_data" : primitives["X_RDY"],
+	"bistsocdevel_source_source_payload_data" : primitives["X_RDY"],
 }
 
 mila.prog_term(port=0, cond=conditions[sys.argv[1]])
@@ -58,6 +58,6 @@ mila.export("dump.vcd")
 wb.close()
 
 print_link_trace(mila,
-	tx_data_name="bistsocdevel_sata_phy_sink_sink_payload_data",
-	rx_data_name="bistsocdevel_sata_phy_source_source_payload_data"
+	tx_data_name="bistsocdevel_sink_sink_payload_data",
+	rx_data_name="bistsocdevel_source_source_payload_data"
 )

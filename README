@@ -5,8 +5,35 @@
 
         Copyright 2014-2015 / Florent Kermarrec / florent@enjoy-digital.fr
 
-                A lite open-source SATA1/2/3 controller
-            developed in partnership with M-Labs Ltd & HKU
+                A generic and configurable SATA1/2/3 core
+              developed in partnership with M-Labs Ltd & HKU
+
+[> Features
+------------------
+PHY:
+  - OOB, COMWAKE, COMINIT.
+  - ALIGN inserter/remover and bytes alignment on K28.5.
+  - 8B/10B encoding/decoding in transceiver.
+  - Errors detection and reporting.
+  - 1.5  / 3.0 / 6.0GBPs supported speeds.
+  - 37.5 /  75 / 150MHz system clock.
+Core:
+  Link:
+    - CONT inserter/remover.
+    - Scrambling/Descrambling of data.
+    - CRC inserter/checker.
+    - HOLD insertion/detection.
+    - Errors detection and reporting.
+  Transport/Command:
+    - Easy to use user interface (Can be used with or without CPU).
+    - 48 bits sector addressing.
+    - 3 supported commands: READ_DMA(_EXT), WRITE_DMA(_EXT), IDENTIFY_DEVICE.
+    - Errors detection and reporting.
+
+Frontend:
+  - Configurable crossbar (simply use core.crossbar.get_port() to add a new port!)
+  - Ports arbitration transparent to the user.
+  - Synthetizable BIST.
 
 [> Getting started
 ------------------
@@ -33,11 +60,11 @@
   make all
 
 7. Test design:
-  go to test directory
+  go to test directory and run:
   python3 bist.py
 
 [> Simulations :
-  Simulation are avalaible in ./lib/sata/test:
+  Simulations are avalaible in ./lib/sata/test:
     - crc_tb
     - scrambler_tb
     - phy_datapath_tb
@@ -45,14 +72,14 @@
     - command_tb
     - bist_tb
   hdd.py is a HDD model implementing all SATA layers.
-  To run a simulation, move to the simulation directory and run:
+  To run a simulation, move to ./lib/sata/test and run:
     make simulation_name
 
 [> Tests :
-  A synthetisable BIST is provided. It can be controled with ./test/bist.py
-  Using Miscope and the provided example ./test/test_link.py you are able to
-  visualize every event of the design and even inject your data in the HDD
-  model!
+  A synthetisable BIST is provided and can be controlled with ./test/bist.py
+  By using Miscope and the provided ./test/test_link.py example you are able to
+  visualize the internal logic of the design and even inject the captured data in
+  the HDD model!
 
 [> Contact
 E-mail: florent@enjoy-digital.fr
