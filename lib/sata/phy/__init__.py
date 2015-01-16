@@ -1,5 +1,5 @@
 from lib.sata.common import *
-from lib.sata.phy.ctrl import SATAPHYHostCtrl, SATAPHYDeviceCtrl
+from lib.sata.phy.ctrl import SATAPHYHostCtrl
 from lib.sata.phy.datapath import SATAPHYDatapath
 
 class SATAPHY(Module):

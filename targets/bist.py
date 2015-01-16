@@ -54,7 +54,7 @@ class _CRG(Module):
 
 class GenSoC(Module):
 	csr_base = 0x00000000
-	csr_data_width = 8
+	csr_data_width = 32
 	csr_map = {
 		"uart2wb":			0,
 		"identifier":		2,
