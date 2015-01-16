@@ -5,7 +5,7 @@ TOOLCHAIN = vivado
 PLATFORM = kc705
 PROGRAMMER = vivado
 
-CMD = $(PYTHON) make.py -X $(CURDIR) -Op toolchain $(TOOLCHAIN) -Op programmer $(PROGRAMMER) -p $(PLATFORM) -t test
+CMD = $(PYTHON) make.py -X $(CURDIR) -Op toolchain $(TOOLCHAIN) -Op programmer $(PROGRAMMER) -p $(PLATFORM) -t bist
 
 csv:
 	cd $(MSCDIR) && $(CMD) --csr_csv $(CURDIR)/test/csr.csv build-csr-csv -Ot export_mila True

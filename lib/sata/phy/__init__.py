@@ -4,6 +4,7 @@ from lib.sata.phy.datapath import SATAPHYDatapath
 
 class SATAPHY(Module):
 	def __init__(self, pads, clk_freq, host=True, device_family="k7", speed="SATA1"):
+		self.speed = speed
 	# Transceiver / Clocks
 		if device_family == "k7":
 			from lib.sata.phy.k7.trx import K7SATAPHYTRX
