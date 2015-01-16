@@ -164,12 +164,12 @@ class TestDesign(UART2WB, AutoCSR):
 	}
 	csr_map.update(UART2WB.csr_map)
 
-	def __init__(self, platform, with_mila=True, export_mila=False):
+	def __init__(self, platform, with_mila=False, export_mila=False):
 		clk_freq = 166*1000000
 		UART2WB.__init__(self, platform, clk_freq)
 		self.crg = _CRG(platform)
 
-		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA3")
+		self.sata_phy = SATAPHY(platform.request("sata_host"), clk_freq, speed="SATA2")
 		self.comb += self.crg.sata_reset.eq(self.sata_phy.ctrl.need_reset)
 		self.sata_con = SATACON(self.sata_phy)
 

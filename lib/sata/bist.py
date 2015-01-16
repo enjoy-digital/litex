@@ -9,7 +9,6 @@ class SATABISTGenerator(Module):
 		self.start = Signal()
 		self.sector = Signal(48)
 		self.count = Signal(16)
-		self.loops = Signal(8)
 		self.random = Signal()
 
 		self.done = Signal()
@@ -20,7 +19,6 @@ class SATABISTGenerator(Module):
 		source, sink = sata_master_port.source, sata_master_port.sink
 
 		self.counter = counter = Counter(bits_sign=32)
-		self.loops_counter = loops_counter = Counter(bits_sign=8)
 
 		self.scrambler = scrambler = InsertReset(Scrambler())
 		self.comb += [
@@ -32,7 +30,6 @@ class SATABISTGenerator(Module):
 		fsm.act("IDLE",
 			self.done.eq(1),
 			counter.reset.eq(1),
-			loops_counter.reset.eq(1),
 			If(self.start,
 				NextState("SEND_CMD_AND_DATA")
 			)
@@ -61,13 +58,7 @@ class SATABISTGenerator(Module):
 		fsm.act("WAIT_ACK",
 			sink.ack.eq(1),
 			If(sink.stb,
-				loops_counter.ce.eq(1),
-				If(loops_counter.value == (self.loops-1),
-					NextState("IDLE")
-				).Else(
-					counter.reset.eq(1),
-					NextState("SEND_CMD_AND_DATA")
-				)
+				NextState("IDLE")
 			)
 		)
 
@@ -76,7 +67,6 @@ class SATABISTChecker(Module):
 		self.start = Signal()
 		self.sector = Signal(48)
 		self.count = Signal(16)
-		self.loops = Signal(8)
 		self.random = Signal()
 
 		self.done = Signal()
@@ -87,7 +77,6 @@ class SATABISTChecker(Module):
 		source, sink = sata_master_port.source, sata_master_port.sink
 
 		self.counter = counter = Counter(bits_sign=32)
-		self.loops_counter = loops_counter = Counter(bits_sign=8)
 		self.error_counter = Counter(self.errors, bits_sign=32)
 
 		self.scrambler = scrambler = InsertReset(Scrambler())
@@ -100,7 +89,6 @@ class SATABISTChecker(Module):
 		fsm.act("IDLE",
 			self.done.eq(1),
 			counter.reset.eq(1),
-			loops_counter.reset.eq(1),
 			If(self.start,
 				self.error_counter.reset.eq(1),
 				NextState("SEND_CMD")
@@ -141,12 +129,7 @@ class SATABISTChecker(Module):
 				),
 				If(sink.eop,
 					If(sink.last,
-						loops_counter.ce.eq(1),
-						If(loops_counter.value == (self.loops-1),
-							NextState("IDLE")
-						).Else(
-							NextState("SEND_CMD")
-						)
+						NextState("IDLE")
 					).Else(
 						NextState("WAIT_ACK")
 					)
@@ -160,9 +143,9 @@ class SATABISTControl(Module, AutoCSR):
 		self._sector = CSRStorage(48)
 		self._count = CSRStorage(16)
 		self._random = CSRStorage()
-		self._loops = CSRStorage(8)
 		self._done = CSRStatus()
 		self._errors = CSRStatus(32)
+		self._cycles = CSRStatus(32)
 
 		###
 		self.bist_unit = bist_unit
@@ -170,13 +153,17 @@ class SATABISTControl(Module, AutoCSR):
 			bist_unit.start.eq(self._start.r & self._start.re),
 			bist_unit.sector.eq(self._sector.storage),
 			bist_unit.count.eq(self._count.storage),
-			bist_unit.loops.eq(self._loops.storage),
 			bist_unit.random.eq(self._random.storage),
 
 			self._done.status.eq(bist_unit.done),
 			self._errors.status.eq(bist_unit.errors)
 		]
 
+		self.cycles_counter = Counter(self._cycles.status)
+		self.sync += [
+			self.cycles_counter.reset.eq(bist_unit.start),
+			self.cycles_counter.ce.eq(~bist_unit.done)
+		]
 class SATABIST(Module, AutoCSR):
 	def __init__(self, sata_master_ports, with_control=False):
 		generator = SATABISTGenerator(sata_master_ports[0])
