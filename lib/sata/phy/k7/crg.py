@@ -1,7 +1,6 @@
 from math import ceil
 
 from lib.sata.common import *
-from lib.sata.phy.k7.trx import GTXE2_COMMON
 
 class K7SATAPHYCRG(Module):
 	def __init__(self, pads, gtx, clk_freq, speed):
@@ -22,16 +21,6 @@ class K7SATAPHYCRG(Module):
 			o_O=refclk
 		)
 		self.comb += gtx.gtrefclk0.eq(refclk)
-
-	# QPLL
-		# not used but need to be there... see AR43339...
-		gtx_common = GTXE2_COMMON()
-		self.comb += [
-			gtx_common.refclk0.eq(refclk),
-			gtx.qpllclk.eq(gtx_common.qpllclk),
-			gtx.qpllrefclk.eq(gtx_common.qpllrefclk),
-		]
-		self.submodules += gtx_common
 
 	# TX clocking
 		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
