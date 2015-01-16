@@ -3,6 +3,7 @@ from lib.sata.common import *
 tx_to_rx = [
 	("write", 1),
 	("read", 1),
+	("identify", 1),
 	("count", 16)
 ]
 
@@ -39,6 +40,8 @@ class SATACommandTX(Module):
 					NextState("SEND_WRITE_DMA_CMD")
 				).Elif(sink.read,
 					NextState("SEND_READ_DMA_CMD")
+				).Elif(sink.identify,
+					NextState("SEND_IDENTIFY_CMD")
 				).Else(
 					sink.ack.eq(1)
 				)
@@ -92,11 +95,24 @@ class SATACommandTX(Module):
 				NextState("IDLE")
 			)
 		)
+		fsm.act("SEND_IDENTIFY_CMD",
+			transport.sink.stb.eq(sink.stb),
+			transport.sink.sop.eq(1),
+			transport.sink.eop.eq(1),
+			transport.sink.type.eq(fis_types["REG_H2D"]),
+			transport.sink.c.eq(1),
+			transport.sink.command.eq(regs["IDENTIFY_DEVICE"]),
+			sink.ack.eq(transport.sink.ack),
+			If(sink.stb & sink.ack,
+				NextState("IDLE")
+			)
+		)
 
 		self.comb += [
 			If(sink.stb,
 				to_rx.write.eq(sink.write),
 				to_rx.read.eq(sink.read),
+				to_rx.identify.eq(sink.identify),
 				to_rx.count.eq(sink.count)
 			)
 		]
@@ -117,6 +133,7 @@ class SATACommandRX(Module):
 		def test_type(name):
 			return transport.source.type == fis_types[name]
 
+		identify = Signal()
 		dma_activate = Signal()
 		read_ndwords = Signal(max=sectors2dwords(2**16))
 		self.dwords_counter = dwords_counter = Counter(max=sectors2dwords(2**16))
@@ -135,9 +152,15 @@ class SATACommandRX(Module):
 			If(from_tx.write,
 				NextState("WAIT_WRITE_ACTIVATE_OR_REG_D2H")
 			).Elif(from_tx.read,
-				NextState("WAIT_READ_DATA_OR_REG_D2H")
+				NextState("WAIT_READ_DATA_OR_REG_D2H"),
+			).Elif(from_tx.identify,
+				NextState("WAIT_PIO_SETUP_D2H"),
 			)
 		)
+		self.sync += \
+			If(fsm.ongoing("IDLE"),
+				identify.eq(from_tx.identify)
+			)
 		fsm.act("WAIT_WRITE_ACTIVATE_OR_REG_D2H",
 			transport.source.ack.eq(1),
 			If(transport.source.stb,
@@ -171,6 +194,23 @@ class SATACommandRX(Module):
 				)
 			)
 		)
+		fsm.act("WAIT_PIO_SETUP_D2H",
+			transport.source.ack.eq(1),
+			If(transport.source.stb,
+				transport.source.ack.eq(0),
+				If(test_type("PIO_SETUP_D2H"),
+					NextState("PRESENT_PIO_SETUP_D2H")
+				)
+			)
+		)
+		fsm.act("PRESENT_PIO_SETUP_D2H",
+			transport.source.ack.eq(1),
+			# XXX : Check error/ status
+			If(transport.source.stb & transport.source.eop,
+				NextState("WAIT_READ_DATA_OR_REG_D2H")
+			)
+		)
+
 		self.comb += [
 			data_buffer.sink.sop.eq(transport.source.sop),
 			data_buffer.sink.eop.eq(transport.source.eop),
@@ -182,7 +222,7 @@ class SATACommandRX(Module):
 			If(data_buffer.sink.stb & data_buffer.sink.ack,
 				self.dwords_counter.ce.eq(~read_done),
 				If(data_buffer.sink.eop,
-					If(read_done,
+					If(read_done & ~identify,
 						NextState("WAIT_READ_DATA_OR_REG_D2H")
 					).Else(
 						NextState("PRESENT_READ_RESPONSE")
@@ -199,15 +239,16 @@ class SATACommandRX(Module):
 			)
 		fsm.act("PRESENT_READ_RESPONSE",
 			cmd_buffer.sink.stb.eq(1),
-			cmd_buffer.sink.read.eq(1),
-			cmd_buffer.sink.last.eq(read_done),
+			cmd_buffer.sink.read.eq(~identify),
+			cmd_buffer.sink.identify.eq(identify),
+			cmd_buffer.sink.last.eq(read_done | identify),
 			cmd_buffer.sink.success.eq(~read_error),
 			cmd_buffer.sink.failed.eq(read_error),
 			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
 				If(cmd_buffer.sink.failed,
 					data_buffer.reset.eq(1)
 				),
-				If(read_done,
+				If(read_done | identify,
 					NextState("IDLE")
 				).Else(
 					NextState("WAIT_READ_DATA_OR_REG_D2H")
@@ -218,7 +259,7 @@ class SATACommandRX(Module):
 		self.out_fsm = out_fsm = FSM(reset_state="IDLE")
 		out_fsm.act("IDLE",
 			If(cmd_buffer.source.stb,
-				If(cmd_buffer.source.read & cmd_buffer.source.success,
+				If((cmd_buffer.source.read | cmd_buffer.source.identify) & cmd_buffer.source.success,
 					NextState("PRESENT_RESPONSE_WITH_DATA"),
 				).Else(
 					NextState("PRESENT_RESPONSE_WITHOUT_DATA"),
@@ -229,9 +270,10 @@ class SATACommandRX(Module):
 		self.comb += [
 			source.write.eq(cmd_buffer.source.write),
 			source.read.eq(cmd_buffer.source.read),
+			source.identify.eq(cmd_buffer.source.identify),
 			source.last.eq(cmd_buffer.source.last),
 			source.success.eq(cmd_buffer.source.success),
-			source.failed.eq(cmd_buffer.source.success),
+			source.failed.eq(cmd_buffer.source.failed),
 			source.data.eq(data_buffer.source.data)
 		]
 

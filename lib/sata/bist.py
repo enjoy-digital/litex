@@ -137,7 +137,7 @@ class SATABISTChecker(Module):
 			)
 		)
 
-class SATABISTControl(Module, AutoCSR):
+class SATABISTUnitControl(Module, AutoCSR):
 	def __init__(self, bist_unit):
 		self._start = CSR()
 		self._sector = CSRStorage(48)
@@ -164,13 +164,82 @@ class SATABISTControl(Module, AutoCSR):
 			self.cycles_counter.reset.eq(bist_unit.start),
 			self.cycles_counter.ce.eq(~bist_unit.done)
 		]
+
+class SATABISTIdentify(Module):
+	def __init__(self, sata_master_port):
+		self.start = Signal()
+		self.done  = Signal()
+
+		self.fifo = fifo = SyncFIFO([("data", 32)], 512, buffered=True)
+		self.source = self.fifo.source
+
+		###
+
+		source, sink = sata_master_port.source, sata_master_port.sink
+
+		self.fsm = fsm = FSM(reset_state="IDLE")
+		fsm.act("IDLE",
+			self.done.eq(1),
+			If(self.start,
+				NextState("SEND_CMD")
+			)
+		)
+		self.comb += [
+			source.sop.eq(1),
+			source.eop.eq(1),
+			source.identify.eq(1),
+		]
+		fsm.act("SEND_CMD",
+			source.stb.eq(1),
+			If(source.stb & source.ack,
+				NextState("WAIT_ACK")
+			)
+		)
+		fsm.act("WAIT_ACK",
+			If(sink.stb & sink.identify,
+				NextState("RECEIVE_DATA")
+			)
+		)
+		self.comb += fifo.sink.data.eq(sink.data)
+		fsm.act("RECEIVE_DATA",
+			sink.ack.eq(fifo.sink.ack),
+			If(sink.stb,
+				fifo.sink.stb.eq(1),
+				If(sink.eop,
+					NextState("IDLE")
+				)
+			)
+		)
+
+class SATABISTIdentifyControl(Module, AutoCSR):
+	def __init__(self, bist_identify):
+		self._start = CSR()
+		self._done = CSRStatus()
+		self._source_stb = CSRStatus()
+		self._source_ack = CSR()
+		self._source_data = CSRStatus(32)
+
+		###
+		self.bist_identify = bist_identify
+		self.comb += [
+			bist_identify.start.eq(self._start.r & self._start.re),
+			self._done.status.eq(bist_identify.done),
+
+			self._source_stb.status.eq(bist_identify.source.stb),
+			self._source_data.status.eq(bist_identify.source.data),
+			bist_identify.source.ack.eq(self._source_ack.r & self._source_ack.re)
+		]
+
 class SATABIST(Module, AutoCSR):
 	def __init__(self, sata_master_ports, with_control=False):
 		generator = SATABISTGenerator(sata_master_ports[0])
 		checker = SATABISTChecker(sata_master_ports[1])
+		identify = SATABISTIdentify(sata_master_ports[2])
 		if with_control:
-			self.generator = SATABISTControl(generator)
-			self.checker = SATABISTControl(checker)
+			self.generator = SATABISTUnitControl(generator)
+			self.checker = SATABISTUnitControl(checker)
+			self.identify = SATABISTIdentifyControl(identify)
 		else:
 			self.generator = generator
 			self.checker = checker
+			self.identify = identify

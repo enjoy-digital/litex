@@ -4,7 +4,7 @@ from config import *
 
 logical_sector_size = 512
 
-class SATABISTDriver:
+class SATABISTUnitDriver:
 	def __init__(self, regs, name):
 		self.regs = regs
 		self.name = name
@@ -25,13 +25,46 @@ class SATABISTDriver:
 		errors = self.errors.read()
 		return (speed, errors)
 
-class SATABISTGeneratorDriver(SATABISTDriver):
+class SATABISTGeneratorDriver(SATABISTUnitDriver):
 	def __init__(self, regs, name):
-		SATABISTDriver.__init__(self, regs, name + "_generator")
+		SATABISTUnitDriver.__init__(self, regs, name + "_generator")
 
-class SATABISTCheckerDriver(SATABISTDriver):
+class SATABISTCheckerDriver(SATABISTUnitDriver):
 	def __init__(self, regs, name):
-		SATABISTDriver.__init__(self, regs, name + "_checker")
+		SATABISTUnitDriver.__init__(self, regs, name + "_checker")
+
+class SATABISTIdentifyDriver:
+	def __init__(self, regs, name):
+		self.regs = regs
+		self.name = name
+		for s in ["start", "done", "source_stb", "source_ack", "source_data"]:
+			setattr(self, s, getattr(regs, name + "_identify_"+ s))
+		self.data = []
+
+	def read_fifo(self):
+		self.data = []
+		while self.source_stb.read():
+			self.data.append(self.source_data.read())
+			self.source_ack.write(1)
+
+	def run(self):
+		self.read_fifo() # flush the fifo before we start
+		self.start.write(1)
+		while (self.done.read() == 0):
+			pass
+		self.read_fifo()
+		self.decode()
+
+	def decode(self):
+		self.serial_number = ""
+		for i, dword in enumerate(self.data[10:20]):
+			s = dword.to_bytes(4, byteorder='big').decode("utf-8")
+			self.serial_number += s[2:] + s[:2]
+
+	def __repr__(self):
+		r = "Serial Number: " + self.serial_number
+		# XXX: enhance decode function
+		return r
 
 KB = 1024
 MB = 1024*KB
@@ -55,8 +88,12 @@ if __name__ == "__main__":
 	args = _get_args()
 	wb.open()
 	###
+	identify = SATABISTIdentifyDriver(wb.regs, "sata_bist")
 	generator = SATABISTGeneratorDriver(wb.regs, "sata_bist")
 	checker = SATABISTCheckerDriver(wb.regs, "sata_bist")
+
+	identify.run()
+	print(identify)
 
 	sector = 0
 	count = int(args.transfer_size)*MB//logical_sector_size

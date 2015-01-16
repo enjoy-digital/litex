@@ -60,6 +60,7 @@ fis_types = {
 	"REG_H2D":          0x27,
 	"REG_D2H":          0x34,
 	"DMA_ACTIVATE_D2H": 0x39,
+	"PIO_SETUP_D2H":	0x5F,
 	"DATA":             0x46
 }
 
@@ -110,6 +111,24 @@ fis_dma_activate_d2h_layout = {
 	"pm_port": FISField(0,  8, 4)
 }
 
+fis_pio_setup_d2h_cmd_len = 5
+fis_pio_setup_d2h_layout = {
+	"type":    FISField(0,  0, 8),
+	"pm_port": FISField(0,  8, 4),
+	"d":       FISField(0, 13, 1),
+	"i":       FISField(0, 14, 1),
+	"status":  FISField(0, 16, 8),
+	"error":   FISField(0, 24, 8),
+
+	"lba_lsb": FISField(1, 0, 24),
+
+	"lba_msb": FISField(2, 0, 24),
+
+	"count":   FISField(3, 0, 16),
+
+	"transfer_count":	FISField(4, 0, 16),
+}
+
 fis_data_cmd_len = 1
 fis_data_layout = {
 	"type": FISField(0,  0, 8)
@@ -135,12 +154,15 @@ def transport_rx_description(dw):
 	layout = [
 		("type", 8),
 		("pm_port", 4),
+		("r", 1),
+		("d", 1),
 		("i", 1),
 		("status", 8),
 		("error", 8),
 		("lba", 48),
 		("device", 8),
 		("count", 16),
+		("transfer_count", 16),
 		("data", dw),
 		("error", 1)
 	]
@@ -149,13 +171,15 @@ def transport_rx_description(dw):
 # Command Layer
 regs = {
 	"WRITE_DMA_EXT"			: 0x35,
-	"READ_DMA_EXT"			: 0x25
+	"READ_DMA_EXT"			: 0x25,
+	"IDENTIFY_DEVICE"		: 0xEC
 }
 
 def command_tx_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
+		("identify", 1),
 		("sector", 48),
 		("count", 16),
 		("data", dw)
@@ -166,6 +190,7 @@ def command_rx_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
+		("identify", 1),
 		("last", 1),
 		("success", 1),
 		("failed", 1),
@@ -177,9 +202,10 @@ def command_rx_cmd_description(dw):
 	layout = [
 		("write", 1),
 		("read", 1),
+		("identify", 1),
 		("last", 1),
 		("success", 1),
-		("failed", 1),
+		("failed", 1)
 	]
 	return EndpointDescription(layout, packetized=False)
 

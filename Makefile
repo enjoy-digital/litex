@@ -1,5 +1,5 @@
 MSCDIR = ../misoc
-CURDIR = ../sata-controller
+CURDIR = ../lite-sata
 PYTHON = python3
 TOOLCHAIN = vivado
 PLATFORM = kc705

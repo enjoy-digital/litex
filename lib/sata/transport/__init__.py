@@ -143,6 +143,8 @@ class SATATransportRX(Module):
 					NextState("RECEIVE_REG_D2H_CMD")
 				).Elif(test_type("DMA_ACTIVATE_D2H"),
 					NextState("RECEIVE_DMA_ACTIVATE_D2H_CMD")
+				).Elif(test_type("PIO_SETUP_D2H"),
+					NextState("RECEIVE_PIO_SETUP_D2H_CMD")
 				).Elif(test_type("DATA"),
 					NextState("RECEIVE_DATA_CMD"),
 				).Else(
@@ -182,6 +184,23 @@ class SATATransportRX(Module):
 			source.sop.eq(1),
 			source.eop.eq(1),
 			_decode_cmd(encoded_cmd, fis_dma_activate_d2h_layout, source),
+			If(source.stb & source.ack,
+				NextState("IDLE")
+			)
+		)
+		fsm.act("RECEIVE_PIO_SETUP_D2H_CMD",
+			cmd_len.eq(fis_pio_setup_d2h_cmd_len-1),
+			cmd_receive.eq(1),
+			link.source.ack.eq(1),
+			If(cmd_done,
+				NextState("PRESENT_PIO_SETUP_D2H_CMD")
+			)
+		)
+		fsm.act("PRESENT_PIO_SETUP_D2H_CMD",
+			source.stb.eq(1),
+			source.sop.eq(1),
+			source.eop.eq(1),
+			_decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout, source),
 			If(source.stb & source.ack,
 				NextState("IDLE")
 			)

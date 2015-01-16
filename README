@@ -1,4 +1,3 @@
---------------------------------------------------------------------------------
                       __   _ __      _______ _________
                      / /  (_) /____ / __/ _ /_  __/ _ |
                     / /__/ / __/ -_)\ \/ __ |/ / / __ |
@@ -7,8 +6,7 @@
         Copyright 2014-2015 / Florent Kermarrec / florent@enjoy-digital.fr
 
                 A lite open-source SATA1/2/3 controller
-            developed in partnership with M-Labs Ltd / HKU
---------------------------------------------------------------------------------
+            developed in partnership with M-Labs Ltd & HKU
 
 [> Getting started
 ------------------
@@ -46,12 +44,15 @@
     - link_tb
     - command_tb
     - bist_tb
-  hdd.py is a HDD model with implementing all SATA layers.
+  hdd.py is a HDD model implementing all SATA layers.
   To run a simulation, move to the simulation directory and run:
     make simulation_name
 
 [> Tests :
   A synthetisable BIST is provided. It can be controled with ./test/bist.py
+  Using Miscope and the provided example ./test/test_link.py you are able to
+  visualize every event of the design and even inject your data in the HDD
+  model!
 
 [> Contact
 E-mail: florent@enjoy-digital.fr

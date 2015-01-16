@@ -5,6 +5,7 @@ from bist import *
 from miscope.host.drivers import MiLaDriver
 
 mila = MiLaDriver(wb.regs, "mila")
+identify = SATABISTIdentifyDriver(wb.regs, "sata_bist")
 generator = SATABISTGeneratorDriver(wb.regs, "sata_bist")
 checker = SATABISTCheckerDriver(wb.regs, "sata_bist")
 wb.open()
@@ -32,6 +33,13 @@ conditions["rd_data"] = {
 	"bistsocdevel_sata_con_command_source_source_stb"			: 1,
 	"bistsocdevel_sata_con_command_source_source_payload_read"	: 1,
 }
+conditions["id_cmd"] = {
+	"bistsocdevel_sata_con_command_sink_stb"				: 1,
+	"bistsocdevel_sata_con_command_sink_payload_identify"	: 1,
+}
+conditions["id_pio_setup"] = {
+	"bistsocdevel_sata_phy_source_source_payload_data" : primitives["X_RDY"],
+}
 
 mila.prog_term(port=0, cond=conditions[sys.argv[1]])
 mila.prog_sum("term")
@@ -39,6 +47,7 @@ mila.prog_sum("term")
 # Trigger / wait / receive
 mila.trigger(offset=512, length=2000)
 
+identify.run()
 generator.run(0, 2, 0)
 checker.run(0, 2, 0)
 mila.wait_done()

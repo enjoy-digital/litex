@@ -14,7 +14,7 @@ from misoclib import identifier
 from lib.sata.common import *
 from lib.sata.phy import SATAPHY
 from lib.sata import SATACON
-from lib.sata.bist import SATABIST, SATABISTControl
+from lib.sata.bist import SATABIST
 
 class _CRG(Module):
 	def __init__(self, platform):
@@ -149,7 +149,7 @@ class BISTSoC(GenSoC, AutoCSR):
 		self.sata_con = SATACON(self.sata_phy)
 
 		# SATA BIST generator and checker
-		self.sata_bist = SATABIST(self.sata_con.crossbar.get_ports(2), with_control=True)
+		self.sata_bist = SATABIST(self.sata_con.crossbar.get_ports(3), with_control=True)
 
 		# Status Leds
 		self.leds = BISTLeds(platform, self.sata_phy)
@@ -161,6 +161,13 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 	csr_map.update(BISTSoC.csr_map)
 	def __init__(self, platform, export_mila=False):
 		BISTSoC.__init__(self, platform, export_mila)
+
+		self.sata_con_link_rx_fsm_state = Signal(4)
+		self.sata_con_link_tx_fsm_state = Signal(4)
+		self.sata_con_transport_rx_fsm_state = Signal(4)
+		self.sata_con_transport_tx_fsm_state = Signal(4)
+		self.sata_con_command_rx_fsm_state = Signal(4)
+		self.sata_con_command_tx_fsm_state = Signal(4)
 
 		debug = (
 			self.sata_phy.ctrl.ready,
@@ -179,6 +186,7 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_con.command.sink.ack,
 			self.sata_con.command.sink.write,
 			self.sata_con.command.sink.read,
+			self.sata_con.command.sink.identify,
 
 			self.sata_con.command.source.stb,
 			self.sata_con.command.source.sop,
@@ -186,9 +194,17 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_con.command.source.ack,
 			self.sata_con.command.source.write,
 			self.sata_con.command.source.read,
+			self.sata_con.command.source.identify,
 			self.sata_con.command.source.success,
 			self.sata_con.command.source.failed,
-			self.sata_con.command.source.data
+			self.sata_con.command.source.data,
+
+			self.sata_con_link_rx_fsm_state,
+			self.sata_con_link_tx_fsm_state,
+			self.sata_con_transport_rx_fsm_state,
+			self.sata_con_transport_tx_fsm_state,
+			self.sata_con_command_rx_fsm_state,
+			self.sata_con_command_tx_fsm_state,
 		)
 
 		self.mila = MiLa(depth=2048, dat=Cat(*debug))
@@ -196,6 +212,16 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 		if export_mila:
 			mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
 			self.mila.export(self, debug, mila_filename)
+	def do_finalize(self):
+		BISTSoC.do_finalize(self)
+		self.comb += [
+			self.sata_con_link_rx_fsm_state.eq(self.sata_con.link.rx.fsm.state),
+			self.sata_con_link_tx_fsm_state.eq(self.sata_con.link.tx.fsm.state),
+			self.sata_con_transport_rx_fsm_state.eq(self.sata_con.transport.rx.fsm.state),
+			self.sata_con_transport_tx_fsm_state.eq(self.sata_con.transport.tx.fsm.state),
+			self.sata_con_command_rx_fsm_state.eq(self.sata_con.command.rx.fsm.state),
+			self.sata_con_command_tx_fsm_state.eq(self.sata_con.command.tx.fsm.state)
+		]
 
-#default_subtarget = BISTSoC
-default_subtarget = BISTSoCDevel
+default_subtarget = BISTSoC
+#default_subtarget = BISTSoCDevel
