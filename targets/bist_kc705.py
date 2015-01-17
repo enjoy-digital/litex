@@ -221,5 +221,4 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_core_command_tx_fsm_state.eq(self.sata.core.command.tx.fsm.state)
 		]
 
-#default_subtarget = BISTSoC
-default_subtarget = BISTSoCDevel
+default_subtarget = BISTSoC

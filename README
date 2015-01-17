@@ -5,39 +5,82 @@
 
         Copyright 2014-2015 / Florent Kermarrec / florent@enjoy-digital.fr
 
-                A generic and configurable SATA1/2/3 core
+               A small footprint and configurable SATA core
               developed in partnership with M-Labs Ltd & HKU
+
+[> Intro
+-----------
+LiteSATA provides a small footprint and configurable SATA core supporting SATA
+revisions 1, 2 and 3.
+
+LiteSATA is part of LiteX libraries whose aims is to lower entry level of complex
+FPGA IP cores by providing simple, elegant and efficient implementations of
+components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
+
+The core uses simple and specific streaming buses and will provides in the future
+adapters to use standardized AXI or Avalon-ST streaming buses.
+
+Since Python is used to describe the HDL, the core is highly and easily
+configurable.
+
+The synthetizable BIST can be used as a starting point to integrate SATA in
+your own SoC.
+
+LiteSATA uses technologies developed in partnership with M-Labs Ltd:
+ - Migen enables generating HDL with Python in an efficient way.
+ - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
+
+LiteSATA can be used as a Migen/MiSoC library (by simply installing  it
+with the provided setup.py) or can be integrated with your standard design flow
+by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 ------------------
 PHY:
-  - OOB, COMWAKE, COMINIT.
-  - ALIGN inserter/remover and bytes alignment on K28.5.
-  - 8B/10B encoding/decoding in transceiver.
-  - Errors detection and reporting.
-  - 1.5  / 3.0 / 6.0GBPs supported speeds.
-  - 37.5 /  75 / 150MHz system clock.
+  - OOB, COMWAKE, COMINIT
+  - ALIGN inserter/remover and bytes alignment on K28.5
+  - 8B/10B encoding/decoding in transceiver
+  - Errors detection and reporting
+  - 32 bits interface
+  - 1.5/3.0/6.0GBps supported speeds (respectively 37.5/75/150MHz system clk)
 Core:
   Link:
-    - CONT inserter/remover.
-    - Scrambling/Descrambling of data.
-    - CRC inserter/checker.
-    - HOLD insertion/detection.
-    - Errors detection and reporting.
+    - CONT inserter/remover
+    - Scrambling/Descrambling of data
+    - CRC inserter/checker
+    - HOLD insertion/detection
+    - Errors detection and reporting
   Transport/Command:
-    - Easy to use user interface (Can be used with or without CPU).
-    - 48 bits sector addressing.
-    - 3 supported commands: READ_DMA(_EXT), WRITE_DMA(_EXT), IDENTIFY_DEVICE.
-    - Errors detection and reporting.
+    - Easy to use user interfaces (Can be used with or without CPU)
+    - 48 bits sector addressing
+    - 3 supported commands: READ_DMA(_EXT), WRITE_DMA(_EXT), IDENTIFY_DEVICE
+    - Errors detection and reporting
 
 Frontend:
   - Configurable crossbar (simply use core.crossbar.get_port() to add a new port!)
-  - Ports arbitration transparent to the user.
-  - Synthetizable BIST.
+  - Ports arbitration transparent to the user
+  - Synthetizable BIST
+
+[> Possibles improvements
+----------------------
+- add standardized adapters (AXI, Avalon-ST)
+- add NCQ support
+- add AES hardware encryption
+- add on-the-flow compression/decompression
+- add support for Altera PHYs.
+- add support for Lattice PHYs.
+- add support for Xilinx 7-Series GTP/GTH (currently only 7-Series GTX are
+  supported)
+- add Zynq Linux drivers.
+- ...
+
+If you want to support these features, please contact us at florent [AT]
+enjoy-digital.fr. You can also contact our partner on the public mailing list
+devel [AT] lists.m-labs.hk.
 
 [> Getting started
 ------------------
-1. Install Python3 and Xilinx's Vivado software.
+1. Install Python3 and Xilinx's Vivado software
 
 2. Obtain Migen and install it:
   git clone https://github.com/enjoy-digital/migen
@@ -57,13 +100,13 @@ Frontend:
 5. Copy lite-sata in working directory and move to it.
 
 6. Build and load design:
-  make all
+  python3 make.py all
 
 7. Test design:
   go to test directory and run:
   python3 bist.py
 
-[> Simulations :
+[> Simulations:
   Simulations are avalaible in ./lib/sata/test:
     - crc_tb
     - scrambler_tb
@@ -71,7 +114,7 @@ Frontend:
     - link_tb
     - command_tb
     - bist_tb
-  hdd.py is a HDD model implementing all SATA layers.
+  hdd.py is a simplified HDD model implementing all SATA layers.
   To run a simulation, move to ./lib/sata/test and run:
     make simulation_name
 
@@ -81,5 +124,32 @@ Frontend:
   visualize the internal logic of the design and even inject the captured data in
   the HDD model!
 
+[> License
+----------------------
+LiteSATA is released under the very permissive two-clause BSD license. Under the
+terms of this license, you are authorized to use Migen for closed-source
+proprietary designs.
+Even though we do not require you to do so, those things are awesome, so please
+do them if possible:
+ - tell us that you are using LiteSATA
+ - cite Migen in publications related to research it has helped
+ - send us feedback and suggestions for improvements
+ - send us bug reports when something goes wrong
+ - send us the modifications and improvements you have done to LiteSATA.
+
+[> Support
+----------------------
+We love open-source hardware and like sharing our designs with others. We think
+that providing this core with a BSD license will enable its easy reuse and
+customization without the usual restrictions of commercial cores.
+
+We also offer design services and can:
+- provide you commercial support for our cores.
+- customize our cores to fit your needs and help you to integrate it in your design.
+- create custom designs for you and provide our already proven cores for free.
+- ...
+
+So feel free to contact us, we'd love to work with you!
+
 [> Contact
-E-mail: florent@enjoy-digital.fr
+E-mail: florent [AT] enjoy-digital.fr
