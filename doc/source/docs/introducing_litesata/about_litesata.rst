@@ -55,3 +55,18 @@ Frontend:
   - Configurable crossbar (simply use core.crossbar.get_port() to add a new port!)
   - Ports arbitration transparent to the user
   - Synthetizable BIST
+
+
+Possibles improvements
+====================
+- add standardized interfaces (AXI, Avalon-ST)
+- add NCQ support
+- add AES hardware encryption
+- add on-the-flow compression/decompression
+- add support for Altera PHYs.
+- add support for Lattice PHYs.
+- add support for Xilinx 7-Series GTP/GTH (currently only 7-Series GTX are
+  supported)
+- add Zynq Linux drivers.
+- ...
+

@@ -62,7 +62,7 @@ Frontend:
 
 [> Possibles improvements
 ----------------------
-- add standardized adapters (AXI, Avalon-ST)
+- add standardized interfaces (AXI, Avalon-ST)
 - add NCQ support
 - add AES hardware encryption
 - add on-the-flow compression/decompression
