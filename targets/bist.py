@@ -139,7 +139,7 @@ class BISTSoC(GenSoC, AutoCSR):
 		self.crg = _CRG(platform)
 
 		# SATA PHY/Core/Frontend
-		self.sata_phy = LiteSATAPHY(platform.device, platform.request("sata0"), "SATA2", clk_freq)
+		self.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "SATA2", clk_freq)
 		self.comb += self.crg.reset.eq(self.sata_phy.ctrl.need_reset) # XXX FIXME
 		self.sata = LiteSATA(self.sata_phy, with_crossbar=True, with_bist=True, with_bist_csr=True)
 

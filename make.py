@@ -4,7 +4,9 @@ import sys, os, argparse, subprocess, struct, importlib
 
 from mibuild.tools import write_to_file
 from migen.util.misc import autotype
-from migen.fhdl import simplify
+from migen.fhdl import verilog, edif
+from migen.fhdl.structure import _Fragment
+from mibuild import tools
 
 from misoclib.gensoc import cpuif
 
@@ -68,7 +70,7 @@ if __name__ == "__main__":
 	soc.finalize()
 
 	# decode actions
-	action_list = ["clean", "build-csr-csv", "build-rtl", "build-bitstream", "load-bitstream", "all"]
+	action_list = ["clean", "build-csr-csv", "build-core", "build-bitstream", "load-bitstream", "all"]
 	actions = {k: False for k in action_list}
 	for action in args.action:
 		if action in actions:
@@ -115,9 +117,8 @@ Ports: {}
 		actions["build-bitstream"] = True
 		actions["load-bitstream"] = True
 
-	if actions["build-rtl"]:
+	if actions["build-core"]:
 		actions["clean"] = True
-		actions["build-csr-csv"] = True
 
 	if actions["build-bitstream"]:
 		actions["clean"] = True
@@ -132,8 +133,13 @@ Ports: {}
 		csr_csv = cpuif.get_csr_csv(soc.cpu_csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
-	if actions["build-rtl"]:
-		raise NotImplementedError()
+	if actions["build-core"]:
+		ios = soc.get_ios()
+		if not isinstance(soc, _Fragment):
+			soc = soc.get_fragment()
+		platform.finalize(soc)
+		src = verilog.convert(soc, ios)
+		tools.write_to_file("build/litesata.v", src)
 
 	if actions["build-bitstream"]:
 		platform.build(soc, build_name=build_name)

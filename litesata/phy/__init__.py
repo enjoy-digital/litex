@@ -4,6 +4,7 @@ from litesata.phy.datapath import *
 
 class LiteSATAPHY(Module):
 	def __init__(self, device, pads, revision, clk_freq):
+		self.pads = pads
 		self.revision = revision
 		# Transceiver / Clocks
 		if device[:3] == "xc7": # Kintex 7
