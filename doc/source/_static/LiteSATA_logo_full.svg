@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="logo.svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.70710678"
+     inkscape:cx="309.79428"
+     inkscape:cy="549.37114"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1680"
+     inkscape:window-height="1009"
+     inkscape:window-x="-4"
+     inkscape:window-y="-4"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Calque 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <text
+       xml:space="preserve"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Vermin Vibes Slant;-inkscape-font-specification:Vermin Vibes Slant"
+       x="102.85714"
+       y="571.79077"
+       id="text2989"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="C:\Documents and Settings\Administrateur\Bureau\rect3019.png"
+       inkscape:export-xdpi="299.89999"
+       inkscape:export-ydpi="299.89999"><tspan
+         sodipodi:role="line"
+         id="tspan2991"
+         x="102.85714"
+         y="571.79077">LITE</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:64px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Vermin Vibes Slant;-inkscape-font-specification:Vermin Vibes Slant"
+       x="298.32632"
+       y="573.13269"
+       id="text2993"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="C:\Documents and Settings\Administrateur\Bureau\rect3019.png"
+       inkscape:export-xdpi="299.89999"
+       inkscape:export-ydpi="299.89999"><tspan
+         sodipodi:role="line"
+         id="tspan2995"
+         x="298.32632"
+         y="573.13269">SATA</tspan></text>
+    <rect
+       style="fill:none;stroke:#0e3333;stroke-width:1;stroke-miterlimit:4;stroke-opacity:0;stroke-dasharray:1, 1;stroke-dashoffset:0"
+       id="rect3019"
+       width="666.70068"
+       height="144.45181"
+       x="61.619305"
+       y="477.08786"
+       inkscape:export-xdpi="299.89999"
+       inkscape:export-ydpi="299.89999" />
+  </g>
+</svg>
