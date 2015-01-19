@@ -104,12 +104,7 @@ class BISTLeds(Module):
 		sata_rx_cnt = Signal(32)
 		sata_tx_cnt = Signal(32)
 
-		sata_freqs_mhz = {
-			"SATA3"	:	150.0,
-			"SATA2"	:	75.0,
-			"SATA1"	:	37.5,
-		}
-		sata_freq = int(sata_freqs_mhz[sata_phy.speed]*1000*1000)
+		sata_freq = int(frequencies[sata_phy.revision]*1000*1000)
 
 		self.sync.sata_rx += \
 			If(sata_rx_cnt == 0,

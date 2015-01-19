@@ -8,6 +8,8 @@ from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
 
+from litesata.common import *
+
 def _import(default, name):
 	return importlib.import_module(default + "." + name)
 
@@ -29,7 +31,7 @@ load-bitstream  load bitstream into volatile storage.
 all             clean, build-csr-csv, build-bitstream, load-bitstream.
 """)
 
-	parser.add_argument("-t", "--target", default="bist_kc705", help="Core type to build")
+	parser.add_argument("-t", "--target", default="bist", help="Core type to build")
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the Core type to build")
 	parser.add_argument("-p", "--platform", default=None, help="platform to build for")
 	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
@@ -77,21 +79,34 @@ if __name__ == "__main__":
 				print("  "+a)
 			sys.exit(1)
 
-	print("""\
-#    __   _ __      _______ _________
-#   / /  (_) /____ / __/ _ /_  __/ _ |
-#  / /__/ / __/ -_)\ \/ __ |/ / / __ |
-# /____/_/\__/\__/___/_/ |_/_/ /_/ |_|
-#
-# a generic and configurable SATA core
-#       based on Migen/MiSoC
-#
-#====== Building options: ======
-# SATA revision: {}
-# Integrated BIST: {}
-# Integrated Logic Analyzer: {}
-# Crossbar ports: {}
-#===============================""".format(soc.sata_phy.speed, hasattr(soc.sata, "bist"), hasattr(soc, "mila"), len(soc.sata.crossbar.slaves)))
+
+	revision = soc.sata_phy.revision
+	frequency = frequencies[soc.sata_phy.revision]
+	has_bist = hasattr(soc.sata, "bist")
+	has_crossbar = hasattr(soc.sata, "crossbar")
+	ports = 1 if not has_crossbar else len(soc.sata.crossbar.slaves)
+
+	print("""
+       __   _ __      _______ _________
+      / /  (_) /____ / __/ _ /_  __/ _ |
+     / /__/ / __/ -_)\ \/ __ |/ / / __ |
+    /____/_/\__/\__/___/_/ |_/_/ /_/ |_|
+
+A small footprint and configurable SATA core
+          based on Migen/MiSoC
+
+====== Building options: ======
+SATA revision: {} / {} MHz
+BIST: {}
+Crossbar: {}
+Ports: {}
+===============================""".format(
+	revision, frequency,
+	has_bist,
+	has_crossbar,
+	ports
+	)
+)
 
 	# dependencies
 	if actions["all"]:

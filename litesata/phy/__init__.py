@@ -3,14 +3,14 @@ from litesata.phy.ctrl import *
 from litesata.phy.datapath import *
 
 class LiteSATAPHY(Module):
-	def __init__(self, device, pads, speed, clk_freq):
-		self.speed = speed
+	def __init__(self, device, pads, revision, clk_freq):
+		self.revision = revision
 		# Transceiver / Clocks
 		if device[:3] == "xc7": # Kintex 7
 			from litesata.phy.k7.trx import K7LiteSATAPHYTRX
 			from litesata.phy.k7.crg import K7LiteSATAPHYCRG
-			self.trx = K7LiteSATAPHYTRX(pads, speed)
-			self.crg = K7LiteSATAPHYCRG(pads, self.trx, speed, clk_freq)
+			self.trx = K7LiteSATAPHYTRX(pads, revision)
+			self.crg = K7LiteSATAPHYCRG(pads, self.trx, revision, clk_freq)
 		else:
 			msg = "Device" + device + "not (yet) supported."
 			raise NotImplementedError(msg)

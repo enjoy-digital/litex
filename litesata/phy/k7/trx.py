@@ -18,7 +18,7 @@ class _RisingEdge(Module):
 		self.comb += o.eq(i & ~i_d)
 
 class K7LiteSATAPHYTRX(Module):
-	def __init__(self, pads, speed):
+	def __init__(self, pads, revision):
 	# Common signals
 
 		# control
@@ -105,15 +105,15 @@ class K7LiteSATAPHYTRX(Module):
 			"SATA2" :	2,
 			"SATA3" : 	1
 			}
-		rxout_div = div_config[speed]
-		txout_div = div_config[speed]
+		rxout_div = div_config[revision]
+		txout_div = div_config[revision]
 
 		cdr_config = {
 			"SATA1" :	0x0380008BFF40100008,
 			"SATA2" :	0x0388008BFF40200008,
 			"SATA3" :	0X0380008BFF10200010
 		}
-		rxcdr_cfg = cdr_config[speed]
+		rxcdr_cfg = cdr_config[revision]
 
 	# Specific / Generic signals encoding/decoding
 		self.comb += [

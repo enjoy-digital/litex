@@ -1,7 +1,7 @@
 from litesata.common import *
 
 class K7LiteSATAPHYCRG(Module):
-	def __init__(self, pads, gtx, speed, clk_freq):
+	def __init__(self, pads, gtx, revision, clk_freq):
 		self.reset = Signal()
 		self.ready = Signal()
 
@@ -34,7 +34,7 @@ class K7LiteSATAPHYCRG(Module):
 			"SATA2" :	8.0,
 			"SATA3" : 	4.0
 			}
-		mmcm_div = mmcm_div_config[speed]
+		mmcm_div = mmcm_div_config[revision]
 		self.specials += [
 			Instance("BUFG", i_I=gtx.txoutclk, o_O=mmcm_clk_i),
 			Instance("MMCME2_ADV",

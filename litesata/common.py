@@ -13,6 +13,12 @@ from migen.actorlib.fifo import *
 from migen.actorlib.structuring import Pipeline, Converter
 
 # PHY / Link Layers
+frequencies = {
+	"SATA3"	:	150.0,
+	"SATA2"	:	75.0,
+	"SATA1"	:	37.5,
+}
+
 primitives = {
 	"ALIGN"	:	0x7B4A4ABC,
 	"CONT"	: 	0X9999AA7C,
