@@ -29,6 +29,7 @@ The full hierarchy of articles, opened to the second level, is shown below.
 
 	introducing_litesata/index
 	getting_started/index
+	sata/index
 	phy/index
 	core/index
 	frontend/index

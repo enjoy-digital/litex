@@ -18,6 +18,7 @@ News
 
 	docs/introducing_litesata/index
 	docs/getting_started/index
+	docs/sata/index
 	docs/phy/index
 	docs/core/index
 	docs/frontend/index
