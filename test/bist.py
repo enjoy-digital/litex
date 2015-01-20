@@ -95,7 +95,7 @@ class LiteSATABISTIdentifyDriver:
 		info += "Capacity: %3.2f GB\n" %((self.total_sectors*logical_sector_size)/GB)
 		for k, v in self.capabilities.items():
 			info += k + ": " + str(v) + "\n"
-		print(info)
+		print(info, end="")
 
 def _get_args():
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -134,7 +134,12 @@ if __name__ == "__main__":
 				# checker (read and check data from HDD)
 				read_speed, read_errors = checker.run(sector, count, random)
 
-				print("sector=%d write_speed=%4.2fMB/sec read_speed=%4.2fMB/sec errors=%d" %(sector, write_speed/MB, read_speed/MB, write_errors + read_errors))
+				print("sector=%d(%dMB) wr_speed=%4.2fMB/sec rd_speed=%4.2fMB/sec errors=%d" %(
+					sector,
+					sector*logical_sector_size/MB,
+					write_speed/MB,
+					read_speed/MB,
+					write_errors + read_errors))
 				sector += count
 
 		except KeyboardInterrupt:
