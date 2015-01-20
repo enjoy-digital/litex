@@ -2,6 +2,10 @@ import time
 import argparse
 from config import *
 
+KB = 1024
+MB = 1024*KB
+GB = 1024*MB
+
 logical_sector_size = 512
 
 class LiteSATABISTUnitDriver:
@@ -44,7 +48,10 @@ class LiteSATABISTIdentifyDriver:
 	def read_fifo(self):
 		self.data = []
 		while self.source_stb.read():
-			self.data.append(self.source_data.read())
+			dword = self.source_data.read()
+			word_lsb = dword & 0xffff
+			word_msb = (dword >> 16) & 0xffff
+			self.data += [word_lsb, word_msb]
 			self.source_ack.write(1)
 
 	def run(self):
@@ -57,24 +64,29 @@ class LiteSATABISTIdentifyDriver:
 
 	def decode(self):
 		self.serial_number = ""
-		for i, dword in enumerate(self.data[10:20]):
-			try:
-				s = dword.to_bytes(4, byteorder='big').decode("utf-8")
-				self.serial_number += s[2:] + s[:2]
-			except:
-				self.serial_number += "    "
+		for i, word in enumerate(self.data[10:20]):
+			s = word.to_bytes(2, byteorder='big').decode("utf-8")
+			self.serial_number += s
+		self.firmware_revision = ""
+		for i, word in enumerate(self.data[23:27]):
+			s = word.to_bytes(2, byteorder='big').decode("utf-8")
+			self.firmware_revision += s
+		self.model_number = ""
+		for i, word in enumerate(self.data[27:46]):
+			s = word.to_bytes(2, byteorder='big').decode("utf-8")
+			self.model_number += s
+
+		self.total_sectors = self.data[100]
+		self.total_sectors += (self.data[101] << 16)
+		self.total_sectors += (self.data[102] << 32)
+		self.total_sectors += (self.data[103] << 48)
 
 	def hdd_info(self):
-		info = "Serial Number: " + self.serial_number
-		# XXX: enhance decode function
+		info = "Serial Number: " + self.serial_number + "\n"
+		info += "Firmware Revision: " + self.firmware_revision + "\n"
+		info += "Model Number: " + self.model_number + "\n"
+		info += "Capacity: %3.2f GB\n" %((self.total_sectors*logical_sector_size)/GB)
 		print(info)
-
-KB = 1024
-MB = 1024*KB
-GB = 1024*MB
-
-# Note: use IDENTIFY command to find numbers of sectors
-hdd_max_sector = (32*MB)/logical_sector_size
 
 def _get_args():
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -104,7 +116,7 @@ if __name__ == "__main__":
 	random = int(args.random)
 	continuous = int(args.continuous)
 	try:
-		while (sector*logical_sector_size < length) or continuous:
+		while ((sector*logical_sector_size < length) or continuous) and (sector < identify.total_sectors):
 			# generator (write data to HDD)
 			write_speed, write_errors = generator.run(sector, count, random)
 
