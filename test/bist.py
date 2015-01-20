@@ -1,5 +1,6 @@
 import time
 import argparse
+from collections import OrderedDict
 from config import *
 
 KB = 1024
@@ -81,11 +82,19 @@ class LiteSATABISTIdentifyDriver:
 		self.total_sectors += (self.data[102] << 32)
 		self.total_sectors += (self.data[103] << 48)
 
+		self.capabilities = OrderedDict()
+		self.capabilities["SATA Gen1"] = (self.data[76] >> 1) & 0x1
+		self.capabilities["SATA Gen2"] = (self.data[76] >> 2) & 0x1
+		self.capabilities["SATA Gen3"] = (self.data[76] >> 3) & 0x1
+		self.capabilities["48 bits LBA supported"] = (self.data[83] >> 10) & 0x1
+
 	def hdd_info(self):
 		info = "Serial Number: " + self.serial_number + "\n"
 		info += "Firmware Revision: " + self.firmware_revision + "\n"
 		info += "Model Number: " + self.model_number + "\n"
 		info += "Capacity: %3.2f GB\n" %((self.total_sectors*logical_sector_size)/GB)
+		for k, v in self.capabilities.items():
+			info += k + ": " + str(v) + "\n"
 		print(info)
 
 def _get_args():
@@ -97,6 +106,7 @@ SATA BIST utility.
 	parser.add_argument("-l", "--total_length", default=256, help="total transfer length (in MB, up to HDD capacity)")
 	parser.add_argument("-r", "--random", action="store_true", help="use random data")
 	parser.add_argument("-c", "--continuous", action="store_true", help="continuous mode (Escape to exit)")
+	parser.add_argument("-i", "--identify", action="store_true", help="only run identify")
 	return parser.parse_args()
 
 if __name__ == "__main__":
@@ -110,23 +120,24 @@ if __name__ == "__main__":
 	identify.run()
 	identify.hdd_info()
 
-	sector = 0
-	count = int(args.transfer_size)*MB//logical_sector_size
-	length = int(args.total_length)*MB
-	random = int(args.random)
-	continuous = int(args.continuous)
-	try:
-		while ((sector*logical_sector_size < length) or continuous) and (sector < identify.total_sectors):
-			# generator (write data to HDD)
-			write_speed, write_errors = generator.run(sector, count, random)
+	if not int(args.identify):
+		sector = 0
+		count = int(args.transfer_size)*MB//logical_sector_size
+		length = int(args.total_length)*MB
+		random = int(args.random)
+		continuous = int(args.continuous)
+		try:
+			while ((sector*logical_sector_size < length) or continuous) and (sector < identify.total_sectors):
+				# generator (write data to HDD)
+				write_speed, write_errors = generator.run(sector, count, random)
 
-			# checker (read and check data from HDD)
-			read_speed, read_errors = checker.run(sector, count, random)
+				# checker (read and check data from HDD)
+				read_speed, read_errors = checker.run(sector, count, random)
 
-			print("sector=%d write_speed=%4.2fMB/sec read_speed=%4.2fMB/sec errors=%d" %(sector, write_speed/MB, read_speed/MB, write_errors + read_errors))
-			sector += count
+				print("sector=%d write_speed=%4.2fMB/sec read_speed=%4.2fMB/sec errors=%d" %(sector, write_speed/MB, read_speed/MB, write_errors + read_errors))
+				sector += count
 
-	except KeyboardInterrupt:
-		pass
+		except KeyboardInterrupt:
+			pass
 	###
 	wb.close()
