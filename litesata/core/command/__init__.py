@@ -8,7 +8,8 @@ tx_to_rx = [
 ]
 
 rx_to_tx = [
-	("dma_activate", 1)
+	("dma_activate", 1),
+	("d2h_error", 1)
 ]
 
 class LiteSATACommandTX(Module):
@@ -64,6 +65,9 @@ class LiteSATACommandTX(Module):
 			dwords_counter.reset.eq(1),
 			If(from_rx.dma_activate,
 				NextState("SEND_DATA")
+			).Elif(from_rx.d2h_error,
+				sink.ack.eq(1),
+				NextState("IDLE")
 			)
 		)
 		fsm.act("SEND_DATA",
@@ -145,10 +149,21 @@ class LiteSATACommandRX(Module):
 			)
 		self.comb += read_done.eq(self.dwords_counter.value == read_ndwords)
 
+		d2h_error = Signal()
+		clr_d2h_error = Signal()
+		set_d2h_error = Signal()
+		self.sync += \
+			If(clr_d2h_error,
+				d2h_error.eq(0)
+			).Elif(set_d2h_error,
+				d2h_error.eq(1)
+			)
+
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			self.dwords_counter.reset.eq(1),
 			transport.source.ack.eq(1),
+			clr_d2h_error.eq(1),
 			If(from_tx.write,
 				NextState("WAIT_WRITE_ACTIVATE_OR_REG_D2H")
 			).Elif(from_tx.read,
@@ -167,7 +182,7 @@ class LiteSATACommandRX(Module):
 				If(test_type("DMA_ACTIVATE_D2H"),
 					dma_activate.eq(1),
 				).Elif(test_type("REG_D2H"),
-					# XXX: use status and error fields of REG_D2H
+					set_d2h_error.eq(transport.source.status[reg_d2h_status["err"]]),
 					NextState("PRESENT_WRITE_RESPONSE")
 				)
 			)
@@ -176,8 +191,8 @@ class LiteSATACommandRX(Module):
 			cmd_buffer.sink.stb.eq(1),
 			cmd_buffer.sink.write.eq(1),
 			cmd_buffer.sink.last.eq(1),
-			cmd_buffer.sink.success.eq(~transport.source.error),
-			cmd_buffer.sink.failed.eq(transport.source.error),
+			cmd_buffer.sink.success.eq(~transport.source.error & ~d2h_error),
+			cmd_buffer.sink.failed.eq(transport.source.error | d2h_error),
 			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
 				NextState("IDLE")
 			)
@@ -189,7 +204,7 @@ class LiteSATACommandRX(Module):
 				If(test_type("DATA"),
 					NextState("PRESENT_READ_DATA")
 				).Elif(test_type("REG_D2H"),
-					# XXX: use status and error fields of REG_D2H
+					set_d2h_error.eq(transport.source.status[reg_d2h_status["err"]]),
 					NextState("PRESENT_READ_RESPONSE")
 				)
 			)
@@ -205,7 +220,6 @@ class LiteSATACommandRX(Module):
 		)
 		fsm.act("PRESENT_PIO_SETUP_D2H",
 			transport.source.ack.eq(1),
-			# XXX : Check error/ status
 			If(transport.source.stb & transport.source.eop,
 				NextState("WAIT_READ_DATA_OR_REG_D2H")
 			)
@@ -242,8 +256,8 @@ class LiteSATACommandRX(Module):
 			cmd_buffer.sink.read.eq(~identify),
 			cmd_buffer.sink.identify.eq(identify),
 			cmd_buffer.sink.last.eq(read_done | identify),
-			cmd_buffer.sink.success.eq(~read_error),
-			cmd_buffer.sink.failed.eq(read_error),
+			cmd_buffer.sink.success.eq(~read_error & ~d2h_error),
+			cmd_buffer.sink.failed.eq(read_error | d2h_error),
 			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
 				If(cmd_buffer.sink.failed,
 					data_buffer.reset.eq(1)
@@ -301,6 +315,7 @@ class LiteSATACommandRX(Module):
 
 		self.comb += [
 			to_tx.dma_activate.eq(dma_activate),
+			to_tx.d2h_error.eq(d2h_error)
 		]
 
 class LiteSATACommand(Module):

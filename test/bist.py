@@ -15,20 +15,26 @@ class LiteSATABISTUnitDriver:
 		self.name = name
 		self.frequency = regs.identifier_frequency.read()
 		self.time = 0
-		for s in ["start", "sector", "count", "random", "done", "errors", "cycles"]:
+		for s in ["start", "sector", "count", "random", "done", "aborted", "errors", "cycles"]:
 			setattr(self, s, getattr(regs, name + "_"+ s))
 
-	def run(self, sector, count, random):
+	def run(self, sector, count, random, blocking=True):
 		self.sector.write(sector)
 		self.count.write(count)
 		self.random.write(random)
 		self.start.write(1)
-		while (self.done.read() == 0):
-			pass
-		self.time = self.cycles.read()/self.frequency
-		speed = (count*logical_sector_size)/self.time
-		errors = self.errors.read()
-		return (speed, errors)
+		if blocking:
+			while (self.done.read() == 0):
+				pass
+		aborted = self.aborted.read()
+		if not aborted:
+			self.time = self.cycles.read()/self.frequency
+			speed = (count*logical_sector_size)/self.time
+			errors = self.errors.read()
+		else:
+			speed = 0
+			errors = -1
+		return (aborted, errors, speed)
 
 class LiteSATABISTGeneratorDriver(LiteSATABISTUnitDriver):
 	def __init__(self, regs, name):
@@ -55,13 +61,14 @@ class LiteSATABISTIdentifyDriver:
 			self.data += [word_lsb, word_msb]
 			self.source_ack.write(1)
 
-	def run(self):
+	def run(self, blocking=True):
 		self.read_fifo() # flush the fifo before we start
 		self.start.write(1)
-		while (self.done.read() == 0):
-			pass
-		self.read_fifo()
-		self.decode()
+		if blocking:
+			while (self.done.read() == 0):
+				pass
+			self.read_fifo()
+			self.decode()
 
 	def decode(self):
 		self.serial_number = ""
@@ -102,7 +109,7 @@ def _get_args():
 		description="""\
 SATA BIST utility.
 """)
-	parser.add_argument("-s", "--transfer_size", default=4, help="transfer sizes (in MB, up to 16MB)")
+	parser.add_argument("-s", "--transfer_size", default=1024, help="transfer sizes (in KB, up to 16MB)")
 	parser.add_argument("-l", "--total_length", default=256, help="total transfer length (in MB, up to HDD capacity)")
 	parser.add_argument("-r", "--random", action="store_true", help="use random data")
 	parser.add_argument("-c", "--continuous", action="store_true", help="continuous mode (Escape to exit)")
@@ -122,24 +129,36 @@ if __name__ == "__main__":
 
 	if not int(args.identify):
 		sector = 0
-		count = int(args.transfer_size)*MB//logical_sector_size
+		count = int(args.transfer_size)*KB//logical_sector_size
 		length = int(args.total_length)*MB
 		random = int(args.random)
 		continuous = int(args.continuous)
 		try:
 			while ((sector*logical_sector_size < length) or continuous) and (sector < identify.total_sectors):
+				retry = 0
 				# generator (write data to HDD)
-				write_speed, write_errors = generator.run(sector, count, random)
+				write_done = False
+				while not write_done:
+					write_aborted, write_errors, write_speed = generator.run(sector, count, random)
+					write_done = not write_aborted
+					if not write_done:
+						retry += 1
 
 				# checker (read and check data from HDD)
-				read_speed, read_errors = checker.run(sector, count, random)
+				read_done = False
+				while not read_done:
+					read_aborted, read_errors, read_speed = checker.run(sector, count, random)
+					read_done = not read_aborted
+					if not read_done:
+						retry += 1
 
-				print("sector=%d(%dMB) wr_speed=%4.2fMB/sec rd_speed=%4.2fMB/sec errors=%d" %(
+				print("sector=%d(%dMB) wr_speed=%4.2fMB/s rd_speed=%4.2fMB/s errors=%d retry=%d" %(
 					sector,
 					sector*logical_sector_size/MB,
 					write_speed/MB,
 					read_speed/MB,
-					write_errors + read_errors))
+					write_errors + read_errors,
+					retry))
 				sector += count
 
 		except KeyboardInterrupt:

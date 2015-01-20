@@ -12,6 +12,7 @@ class LiteSATABISTGenerator(Module):
 		self.random = Signal()
 
 		self.done = Signal()
+		self.aborted = Signal()
 		self.errors = Signal(32) # Note: Not used for writes
 
 		###
@@ -61,6 +62,7 @@ class LiteSATABISTGenerator(Module):
 				NextState("IDLE")
 			)
 		)
+		self.sync += If(sink.stb & sink.ack, self.aborted.eq(sink.failed))
 
 class LiteSATABISTChecker(Module):
 	def __init__(self, sata_master_port):
@@ -70,6 +72,7 @@ class LiteSATABISTChecker(Module):
 		self.random = Signal()
 
 		self.done = Signal()
+		self.aborted = Signal()
 		self.errors = Signal(32)
 
 		###
@@ -136,6 +139,7 @@ class LiteSATABISTChecker(Module):
 				)
 			)
 		)
+		self.sync += If(sink.stb & sink.ack, self.aborted.eq(sink.failed))
 
 class LiteSATABISTUnitCSR(Module, AutoCSR):
 	def __init__(self, bist_unit):
@@ -144,6 +148,7 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 		self._count = CSRStorage(16)
 		self._random = CSRStorage()
 		self._done = CSRStatus()
+		self._aborted = CSRStatus()
 		self._errors = CSRStatus(32)
 		self._cycles = CSRStatus(32)
 
@@ -157,6 +162,7 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 			bist_unit.random.eq(self._random.storage),
 
 			self._done.status.eq(bist_unit.done),
+			self._aborted.status.eq(bist_unit.aborted),
 			self._errors.status.eq(bist_unit.errors)
 		]
 

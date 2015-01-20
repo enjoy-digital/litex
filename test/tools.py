@@ -23,7 +23,8 @@ def decode_primitive(dword):
 			return k
 	return ""
 
-def print_link_trace(mila, tx_data_name, rx_data_name):
+def link_trace(mila, tx_data_name, rx_data_name):
+	r = ""
 	dump = Dump()
 	dump.add_from_layout(mila.layout, mila.dat)
 
@@ -33,7 +34,6 @@ def print_link_trace(mila, tx_data_name, rx_data_name):
 		if var.name == rx_data_name:
 			rx_data = var.values
 
-	print("")
 	for i in range(len(tx_data)):
 		tx = "%08x " %tx_data[i]
 		tx += decode_primitive(tx_data[i])
@@ -43,4 +43,6 @@ def print_link_trace(mila, tx_data_name, rx_data_name):
 		rx += decode_primitive(rx_data[i])
 		rx += " "*(16-len(rx))
 
-		print(tx + rx)
+		r += tx + rx + "\n"
+
+	return r

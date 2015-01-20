@@ -184,6 +184,19 @@ regs = {
 	"IDENTIFY_DEVICE"		: 0xEC
 }
 
+reg_d2h_status = {
+	"bsy"	:	7,
+	"drdy"	:	6,
+	"df"	:	5,
+	"se"	:	5,
+	"dwe"	:	4,
+	"drq"	:	3,
+	"ae"	:	2,
+	"sns"	:	1,
+	"cc"	: 	0,
+	"err"	:	0
+}
+
 def command_tx_description(dw):
 	layout = [
 		("write", 1),
