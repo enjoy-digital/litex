@@ -33,6 +33,8 @@ class LiteSATACommandTX(Module):
 
 		self.dwords_counter = dwords_counter = Counter(max=fis_max_dwords)
 
+		identify = Signal()
+
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(0),
@@ -40,9 +42,7 @@ class LiteSATACommandTX(Module):
 				If(sink.write,
 					NextState("SEND_WRITE_DMA_CMD")
 				).Elif(sink.read,
-					NextState("SEND_READ_DMA_CMD")
-				).Elif(sink.identify,
-					NextState("SEND_IDENTIFY_CMD")
+					NextState("SEND_READ_DMA_OR_IDENTIFY_CMD")
 				).Else(
 					sink.ack.eq(1)
 				)
@@ -50,6 +50,10 @@ class LiteSATACommandTX(Module):
 				sink.ack.eq(1)
 			)
 		)
+		self.sync += \
+			If(fsm.ongoing("IDLE"),
+				identify.eq(sink.identify)
+			)
 		fsm.act("SEND_WRITE_DMA_CMD",
 			transport.sink.stb.eq(sink.stb),
 			transport.sink.sop.eq(1),
@@ -87,31 +91,22 @@ class LiteSATACommandTX(Module):
 				)
 			)
 		)
-		fsm.act("SEND_READ_DMA_CMD",
+		fsm.act("SEND_READ_DMA_OR_IDENTIFY_CMD",
 			transport.sink.stb.eq(sink.stb),
 			transport.sink.sop.eq(1),
 			transport.sink.eop.eq(1),
 			transport.sink.type.eq(fis_types["REG_H2D"]),
 			transport.sink.c.eq(1),
-			transport.sink.command.eq(regs["READ_DMA_EXT"]),
+			If(identify,
+				transport.sink.command.eq(regs["IDENTIFY_DEVICE"]),
+			).Else(
+				transport.sink.command.eq(regs["READ_DMA_EXT"])
+			),
 			sink.ack.eq(transport.sink.ack),
 			If(sink.stb & sink.ack,
 				NextState("IDLE")
 			)
 		)
-		fsm.act("SEND_IDENTIFY_CMD",
-			transport.sink.stb.eq(sink.stb),
-			transport.sink.sop.eq(1),
-			transport.sink.eop.eq(1),
-			transport.sink.type.eq(fis_types["REG_H2D"]),
-			transport.sink.c.eq(1),
-			transport.sink.command.eq(regs["IDENTIFY_DEVICE"]),
-			sink.ack.eq(transport.sink.ack),
-			If(sink.stb & sink.ack,
-				NextState("IDLE")
-			)
-		)
-
 		self.comb += [
 			If(sink.stb,
 				to_rx.write.eq(sink.write),
