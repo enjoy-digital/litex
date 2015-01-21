@@ -17,7 +17,7 @@ class TB(Module):
 		self.hdd = HDD(
 				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=True)
-		self.link = InsertReset(LiteSATALink(self.hdd.phy))
+		self.link = InsertReset(LiteSATALink(self.hdd.phy, buffer_depth=512))
 
 		self.streamer = LinkStreamer()
 		self.streamer_randomizer = Randomizer(link_description(32), level=50)

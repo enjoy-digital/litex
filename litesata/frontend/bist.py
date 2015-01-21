@@ -128,7 +128,7 @@ class LiteSATABISTChecker(Module):
 			If(sink.stb,
 				counter.ce.eq(1),
 				If(sink.data != expected_data,
-					self.error_counter.ce.eq(1)
+					self.error_counter.ce.eq(~sink.last)
 				),
 				If(sink.eop,
 					If(sink.last,

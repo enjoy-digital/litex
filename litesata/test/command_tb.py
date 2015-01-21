@@ -59,7 +59,7 @@ class TB(Module):
 				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.core = LiteSATACore(self.hdd.phy)
+		self.core = LiteSATACore(self.hdd.phy, buffer_depth=512)
 
 		self.streamer = CommandStreamer()
 		self.streamer_randomizer = Randomizer(command_tx_description(32), level=50)

@@ -110,6 +110,7 @@ class LiteSATALinkTX(Module):
 class LiteSATALinkRX(Module):
 	def __init__(self, phy):
 		self.source = Source(link_description(32))
+		self.hold = Signal()
 		self.to_tx = Source(from_rx)
 
 		###
@@ -152,15 +153,11 @@ class LiteSATALinkRX(Module):
 				crc_error.eq(crc.source.error)
 			)
 
-		# small fifo to manage HOLD
-		self.fifo = SyncFIFO(link_description(32), 32)
-
 		# graph
 		self.comb += [
 			cont.source.ack.eq(1),
 			Record.connect(scrambler.source, crc.sink),
-			Record.connect(crc.source, self.fifo.sink),
-			Record.connect(self.fifo.source, self.source)
+			Record.connect(crc.source, self.source),
 		]
 		cont_source_data_d = Signal(32)
 		self.sync += \
@@ -198,7 +195,7 @@ class LiteSATALinkRX(Module):
 				insert.eq(primitives["HOLDA"])
 			).Elif(det == primitives["EOF"],
 				NextState("WTRM")
-			).Elif(self.fifo.fifo.level > 8,
+			).Elif(self.hold,
 				insert.eq(primitives["HOLD"])
 			)
 		)
@@ -237,8 +234,15 @@ class LiteSATALinkRX(Module):
 		]
 
 class LiteSATALink(Module):
-	def __init__(self, phy):
+	def __init__(self, phy, buffer_depth):
+		self.tx_buffer = PacketBuffer(link_description(32), buffer_depth)
 		self.tx = LiteSATALinkTX(phy)
 		self.rx = LiteSATALinkRX(phy)
-		self.comb += Record.connect(self.rx.to_tx, self.tx.from_rx)
-		self.sink, self.source = self.tx.sink, self.rx.source
+		self.rx_buffer = PacketBuffer(link_description(32), buffer_depth, almost_full=3*buffer_depth//4)
+		self.comb += [
+			Record.connect(self.tx_buffer.source, self.tx.sink),
+			Record.connect(self.rx.to_tx, self.tx.from_rx),
+			Record.connect(self.rx.source, self.rx_buffer.sink),
+			self.rx.hold.eq(self.rx_buffer.almost_full)
+		]
+		self.sink, self.source = self.tx_buffer.sink, self.rx_buffer.source

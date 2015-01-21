@@ -202,7 +202,7 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 		self.mila = MiLa(depth=2048, dat=Cat(*debug))
 		self.mila.add_port(Term)
 		if export_mila:
-			mila_filename = os.path.join(platform.soc_ext_path, "test", "mila.csv")
+			mila_filename = os.path.join("test", "mila.csv")
 			self.mila.export(self, debug, mila_filename)
 
 	def do_finalize(self):

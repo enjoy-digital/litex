@@ -62,6 +62,7 @@ class LiteSATACommandTX(Module):
 				If(is_write,
 					NextState("WAIT_DMA_ACTIVATE")
 				).Else(
+					sink.ack.eq(1),
 					NextState("IDLE")
 				)
 			)
@@ -121,11 +122,6 @@ class LiteSATACommandRX(Module):
 
 		###
 
-		cmd_buffer = Buffer(command_rx_cmd_description(32))
-		cmd_buffer.sink, cmd_buffer.source = cmd_buffer.d, cmd_buffer.q
-		data_buffer = InsertReset(SyncFIFO(command_rx_data_description(32), fis_max_dwords, buffered=True))
-		self.submodules += cmd_buffer, data_buffer
-
 		def test_type(name):
 			return transport.source.type == fis_types[name]
 
@@ -151,11 +147,22 @@ class LiteSATACommandRX(Module):
 				d2h_error.eq(1)
 			)
 
+		read_error = Signal()
+		clr_read_error = Signal()
+		set_read_error = Signal()
+		self.sync += \
+			If(clr_read_error,
+				read_error.eq(0)
+			).Elif(set_read_error,
+				read_error.eq(1)
+			)
+
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			self.dwords_counter.reset.eq(1),
 			transport.source.ack.eq(1),
 			clr_d2h_error.eq(1),
+			clr_read_error.eq(1),
 			If(from_tx.write,
 				NextState("WAIT_WRITE_ACTIVATE_OR_REG_D2H")
 			).Elif(from_tx.read,
@@ -180,12 +187,14 @@ class LiteSATACommandRX(Module):
 			)
 		)
 		fsm.act("PRESENT_WRITE_RESPONSE",
-			cmd_buffer.sink.stb.eq(1),
-			cmd_buffer.sink.write.eq(1),
-			cmd_buffer.sink.last.eq(1),
-			cmd_buffer.sink.success.eq(~transport.source.error & ~d2h_error),
-			cmd_buffer.sink.failed.eq(transport.source.error | d2h_error),
-			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
+			source.stb.eq(1),
+			source.sop.eq(1),
+			source.eop.eq(1),
+			source.write.eq(1),
+			source.last.eq(1),
+			source.success.eq(~transport.source.error & ~d2h_error),
+			source.failed.eq(transport.source.error | d2h_error),
+			If(source.stb & source.ack,
 				NextState("IDLE")
 			)
 		)
@@ -196,7 +205,6 @@ class LiteSATACommandRX(Module):
 				If(test_type("DATA"),
 					NextState("PRESENT_READ_DATA")
 				).Elif(test_type("REG_D2H"),
-					set_d2h_error.eq(transport.source.status[reg_d2h_status["err"]]),
 					NextState("PRESENT_READ_RESPONSE")
 				)
 			)
@@ -217,90 +225,39 @@ class LiteSATACommandRX(Module):
 			)
 		)
 
-		self.comb += [
-			data_buffer.sink.sop.eq(transport.source.sop),
-			data_buffer.sink.eop.eq(transport.source.eop),
-			data_buffer.sink.data.eq(transport.source.data)
-		]
 		fsm.act("PRESENT_READ_DATA",
-			data_buffer.sink.stb.eq(transport.source.stb),
-			transport.source.ack.eq(data_buffer.sink.ack),
-			If(data_buffer.sink.stb & data_buffer.sink.ack,
+			set_read_error.eq(transport.source.error),
+			source.stb.eq(transport.source.stb),
+			source.sop.eq(transport.source.sop),
+			source.eop.eq(transport.source.eop),
+			source.read.eq(~is_identify),
+			source.identify.eq(is_identify),
+			source.success.eq(~transport.source.error),
+			source.failed.eq(transport.source.error),
+			source.last.eq(is_identify),
+			source.data.eq(transport.source.data),
+			transport.source.ack.eq(source.ack),
+			If(source.stb & source.ack,
 				self.dwords_counter.ce.eq(~read_done),
-				If(data_buffer.sink.eop,
-					If(read_done & ~is_identify,
-						NextState("WAIT_READ_DATA_OR_REG_D2H")
+				If(source.eop,
+					If(is_identify,
+						NextState("IDLE")
 					).Else(
-						NextState("PRESENT_READ_RESPONSE")
+						NextState("WAIT_READ_DATA_OR_REG_D2H")
 					)
 				)
 			)
 		)
-		read_error = Signal()
-		self.sync += \
-			If(fsm.before_entering("PRESENT_READ_DATA"),
-				read_error.eq(1)
-			).Elif(transport.source.stb & transport.source.ack & transport.source.eop,
-				read_error.eq(transport.source.error)
-			)
+
 		fsm.act("PRESENT_READ_RESPONSE",
-			cmd_buffer.sink.stb.eq(1),
-			cmd_buffer.sink.read.eq(~is_identify),
-			cmd_buffer.sink.identify.eq(is_identify),
-			cmd_buffer.sink.last.eq(read_done | is_identify),
-			cmd_buffer.sink.success.eq(~read_error & ~d2h_error),
-			cmd_buffer.sink.failed.eq(read_error | d2h_error),
-			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
-				If(cmd_buffer.sink.failed,
-					data_buffer.reset.eq(1)
-				),
-				If(read_done | is_identify,
-					NextState("IDLE")
-				).Else(
-					NextState("WAIT_READ_DATA_OR_REG_D2H")
-				)
-			)
-		)
-
-		self.out_fsm = out_fsm = FSM(reset_state="IDLE")
-		out_fsm.act("IDLE",
-			If(cmd_buffer.source.stb,
-				If((cmd_buffer.source.read | cmd_buffer.source.identify) & cmd_buffer.source.success,
-					NextState("PRESENT_RESPONSE_WITH_DATA"),
-				).Else(
-					NextState("PRESENT_RESPONSE_WITHOUT_DATA"),
-				)
-			)
-		)
-
-		self.comb += [
-			source.write.eq(cmd_buffer.source.write),
-			source.read.eq(cmd_buffer.source.read),
-			source.identify.eq(cmd_buffer.source.identify),
-			source.last.eq(cmd_buffer.source.last),
-			source.success.eq(cmd_buffer.source.success),
-			source.failed.eq(cmd_buffer.source.failed),
-			source.data.eq(data_buffer.source.data)
-		]
-
-		out_fsm.act("PRESENT_RESPONSE_WITH_DATA",
-			source.stb.eq(data_buffer.source.stb),
-			source.sop.eq(data_buffer.source.sop),
-			source.eop.eq(data_buffer.source.eop),
-
-			data_buffer.source.ack.eq(source.ack),
-
-			If(source.stb & source.eop & source.ack,
-				cmd_buffer.source.ack.eq(1),
-				NextState("IDLE")
-			)
-		)
-		out_fsm.act("PRESENT_RESPONSE_WITHOUT_DATA",
 			source.stb.eq(1),
 			source.sop.eq(1),
 			source.eop.eq(1),
+			source.read.eq(1),
+			source.last.eq(1),
+			source.success.eq(read_done & ~read_error & ~d2h_error),
+			source.failed.eq(~read_done | read_error | d2h_error),
 			If(source.stb & source.ack,
-				cmd_buffer.source.ack.eq(1),
 				NextState("IDLE")
 			)
 		)
