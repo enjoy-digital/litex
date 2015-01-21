@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from litesata.common import *
 
 from migen.actorlib.crc import CRCInserter, CRCChecker
@@ -36,7 +37,7 @@ class CRCEngine(Module):
 			Replace even numbers of XORs in the equation
 			with an equivalent XOR
 			"""
-			d = {}
+			d = OrderedDict()
 			for e in l:
 				if e in d:
 					d[e] += 1
