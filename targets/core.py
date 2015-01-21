@@ -7,11 +7,6 @@ from litesata import LiteSATA
 class _CRG(Module):
 	def __init__(self, platform):
 		self.cd_sys = ClockDomain()
-		self.reset = Signal()
-		self.comb += self.cd_sys.clk.eq(platform.request("sys_clk"))
-		self.specials += [
-			AsyncResetSynchronizer(self.cd_sys, platform.request("sys_rst") | self.reset),
-		]
 
 class LiteSATACore(Module):
 	default_platform = "verilog_backend"
@@ -22,11 +17,10 @@ class LiteSATACore(Module):
 
 		# SATA PHY/Core/Frontend
 		self.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "SATA2", clk_freq)
-		self.comb += self.crg.reset.eq(self.sata_phy.ctrl.need_reset) # XXX FIXME
 		self.sata = LiteSATA(self.sata_phy, with_crossbar=True)
 
 		# Get user ports from crossbar
-		n = 4
+		n = 1
 		self.crossbar_ports = self.sata.crossbar.get_ports(n)
 
 	def get_ios(self):
