@@ -266,16 +266,13 @@ class Timeout(Module):
 		###
 		value = Signal(max=length)
 		self.sync += value.eq(value+1)
-		self.comb += [
-			self.reached.eq(value == length)
-		]
+		self.comb += self.reached.eq(value == length)
 
-# XXX use ModuleDecorator
 class BufferizeEndpoints(Module):
-	def __init__(self, decorated, *args):
-		self.decorated = decorated
+	def __init__(self, submodule, *args):
+		self.submodule = submodule
 
-		endpoints = get_endpoints(decorated)
+		endpoints = get_endpoints(submodule)
 		sinks = {}
 		sources = {}
 		for name, endpoint in endpoints.items():
@@ -300,7 +297,7 @@ class BufferizeEndpoints(Module):
 			setattr(self, name, buf.q)
 
 	def __getattr__(self, name):
-		return getattr(self.decorated, name)
+		return getattr(self.submodule, name)
 
 	def __dir__(self):
-		return dir(self.decorated)
+		return dir(self.submodule)
