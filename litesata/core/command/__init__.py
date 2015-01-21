@@ -33,36 +33,37 @@ class LiteSATACommandTX(Module):
 
 		self.dwords_counter = dwords_counter = Counter(max=fis_max_dwords)
 
-		identify = Signal()
+		is_write = Signal()
+		is_read = Signal()
+		is_identify = Signal()
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(0),
 			If(sink.stb & sink.sop,
-				If(sink.write,
-					NextState("SEND_WRITE_DMA_CMD")
-				).Elif(sink.read,
-					NextState("SEND_READ_DMA_OR_IDENTIFY_CMD")
-				).Else(
-					sink.ack.eq(1)
-				)
+				NextState("SEND_CMD")
 			).Else(
 				sink.ack.eq(1)
 			)
 		)
 		self.sync += \
 			If(fsm.ongoing("IDLE"),
-				identify.eq(sink.identify)
+				is_write.eq(sink.write),
+				is_read.eq(sink.read),
+				is_identify.eq(sink.identify),
 			)
-		fsm.act("SEND_WRITE_DMA_CMD",
+
+		fsm.act("SEND_CMD",
 			transport.sink.stb.eq(sink.stb),
 			transport.sink.sop.eq(1),
 			transport.sink.eop.eq(1),
-			transport.sink.type.eq(fis_types["REG_H2D"]),
 			transport.sink.c.eq(1),
-			transport.sink.command.eq(regs["WRITE_DMA_EXT"]),
-			If(sink.stb & transport.sink.ack,
-				NextState("WAIT_DMA_ACTIVATE")
+			If(transport.sink.stb & transport.sink.ack,
+				If(is_write,
+					NextState("WAIT_DMA_ACTIVATE")
+				).Else(
+					NextState("IDLE")
+				)
 			)
 		)
 		fsm.act("WAIT_DMA_ACTIVATE",
@@ -81,7 +82,6 @@ class LiteSATACommandTX(Module):
 			transport.sink.sop.eq(dwords_counter.value == 0),
 			transport.sink.eop.eq((dwords_counter.value == (fis_max_dwords-1)) | sink.eop),
 
-			transport.sink.type.eq(fis_types["DATA"]),
 			sink.ack.eq(transport.sink.ack),
 			If(sink.stb & sink.ack,
 				If(sink.eop,
@@ -91,22 +91,19 @@ class LiteSATACommandTX(Module):
 				)
 			)
 		)
-		fsm.act("SEND_READ_DMA_OR_IDENTIFY_CMD",
-			transport.sink.stb.eq(sink.stb),
-			transport.sink.sop.eq(1),
-			transport.sink.eop.eq(1),
-			transport.sink.type.eq(fis_types["REG_H2D"]),
-			transport.sink.c.eq(1),
-			If(identify,
-				transport.sink.command.eq(regs["IDENTIFY_DEVICE"]),
+		self.comb += \
+			If(fsm.ongoing("SEND_DATA"),
+				transport.sink.type.eq(fis_types["DATA"]),
 			).Else(
-				transport.sink.command.eq(regs["READ_DMA_EXT"])
-			),
-			sink.ack.eq(transport.sink.ack),
-			If(sink.stb & sink.ack,
-				NextState("IDLE")
+				transport.sink.type.eq(fis_types["REG_H2D"]),
+				If(is_write,
+					transport.sink.command.eq(regs["WRITE_DMA_EXT"])
+				).Elif(is_read,
+					transport.sink.command.eq(regs["READ_DMA_EXT"]),
+				).Else(
+					transport.sink.command.eq(regs["IDENTIFY_DEVICE"]),
+				)
 			)
-		)
 		self.comb += [
 			If(sink.stb,
 				to_rx.write.eq(sink.write),
@@ -132,8 +129,8 @@ class LiteSATACommandRX(Module):
 		def test_type(name):
 			return transport.source.type == fis_types[name]
 
-		identify = Signal()
-		dma_activate = Signal()
+		is_identify = Signal()
+		is_dma_activate = Signal()
 		read_ndwords = Signal(max=sectors2dwords(2**16))
 		self.dwords_counter = dwords_counter = Counter(max=sectors2dwords(2**16))
 		read_done = Signal()
@@ -169,13 +166,13 @@ class LiteSATACommandRX(Module):
 		)
 		self.sync += \
 			If(fsm.ongoing("IDLE"),
-				identify.eq(from_tx.identify)
+				is_identify.eq(from_tx.identify)
 			)
 		fsm.act("WAIT_WRITE_ACTIVATE_OR_REG_D2H",
 			transport.source.ack.eq(1),
 			If(transport.source.stb,
 				If(test_type("DMA_ACTIVATE_D2H"),
-					dma_activate.eq(1),
+					is_dma_activate.eq(1),
 				).Elif(test_type("REG_D2H"),
 					set_d2h_error.eq(transport.source.status[reg_d2h_status["err"]]),
 					NextState("PRESENT_WRITE_RESPONSE")
@@ -231,7 +228,7 @@ class LiteSATACommandRX(Module):
 			If(data_buffer.sink.stb & data_buffer.sink.ack,
 				self.dwords_counter.ce.eq(~read_done),
 				If(data_buffer.sink.eop,
-					If(read_done & ~identify,
+					If(read_done & ~is_identify,
 						NextState("WAIT_READ_DATA_OR_REG_D2H")
 					).Else(
 						NextState("PRESENT_READ_RESPONSE")
@@ -248,16 +245,16 @@ class LiteSATACommandRX(Module):
 			)
 		fsm.act("PRESENT_READ_RESPONSE",
 			cmd_buffer.sink.stb.eq(1),
-			cmd_buffer.sink.read.eq(~identify),
-			cmd_buffer.sink.identify.eq(identify),
-			cmd_buffer.sink.last.eq(read_done | identify),
+			cmd_buffer.sink.read.eq(~is_identify),
+			cmd_buffer.sink.identify.eq(is_identify),
+			cmd_buffer.sink.last.eq(read_done | is_identify),
 			cmd_buffer.sink.success.eq(~read_error & ~d2h_error),
 			cmd_buffer.sink.failed.eq(read_error | d2h_error),
 			If(cmd_buffer.sink.stb & cmd_buffer.sink.ack,
 				If(cmd_buffer.sink.failed,
 					data_buffer.reset.eq(1)
 				),
-				If(read_done | identify,
+				If(read_done | is_identify,
 					NextState("IDLE")
 				).Else(
 					NextState("WAIT_READ_DATA_OR_REG_D2H")
@@ -309,7 +306,7 @@ class LiteSATACommandRX(Module):
 		)
 
 		self.comb += [
-			to_tx.dma_activate.eq(dma_activate),
+			to_tx.dma_activate.eq(is_dma_activate),
 			to_tx.d2h_error.eq(d2h_error)
 		]
 
