@@ -187,7 +187,6 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata.core.command.source.write,
 			self.sata.core.command.source.read,
 			self.sata.core.command.source.identify,
-			self.sata.core.command.source.success,
 			self.sata.core.command.source.failed,
 			self.sata.core.command.source.data,
 

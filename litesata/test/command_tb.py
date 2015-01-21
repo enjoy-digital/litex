@@ -32,7 +32,6 @@ class CommandRXPacket(list):
 		self.done = False
 		self.write = 0
 		self.read = 0
-		self.success = 0
 		self.failed = 0
 
 class CommandLogger(PacketLogger):
@@ -45,7 +44,6 @@ class CommandLogger(PacketLogger):
 			self.packet = CommandRXPacket()
 			self.packet.write = selfp.sink.write
 			self.packet.read = selfp.sink.read
-			self.packet.sucess = selfp.sink.success
 			self.packet.failed = selfp.sink.failed
 			self.packet.append(selfp.sink.data)
 		elif selfp.sink.stb:

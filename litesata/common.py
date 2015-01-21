@@ -214,7 +214,6 @@ def command_rx_description(dw):
 		("read", 1),
 		("identify", 1),
 		("last", 1),
-		("success", 1),
 		("failed", 1),
 		("data", dw)
 	]
@@ -226,7 +225,6 @@ def command_rx_cmd_description(dw):
 		("read", 1),
 		("identify", 1),
 		("last", 1),
-		("success", 1),
 		("failed", 1)
 	]
 	return EndpointDescription(layout, packetized=False)

@@ -192,7 +192,6 @@ class LiteSATACommandRX(Module):
 			source.eop.eq(1),
 			source.write.eq(1),
 			source.last.eq(1),
-			source.success.eq(~transport.source.error & ~d2h_error),
 			source.failed.eq(transport.source.error | d2h_error),
 			If(source.stb & source.ack,
 				NextState("IDLE")
@@ -232,7 +231,6 @@ class LiteSATACommandRX(Module):
 			source.eop.eq(transport.source.eop),
 			source.read.eq(~is_identify),
 			source.identify.eq(is_identify),
-			source.success.eq(~transport.source.error),
 			source.failed.eq(transport.source.error),
 			source.last.eq(is_identify),
 			source.data.eq(transport.source.data),
@@ -255,7 +253,6 @@ class LiteSATACommandRX(Module):
 			source.eop.eq(1),
 			source.read.eq(1),
 			source.last.eq(1),
-			source.success.eq(read_done & ~read_error & ~d2h_error),
 			source.failed.eq(~read_done | read_error | d2h_error),
 			If(source.stb & source.ack,
 				NextState("IDLE")
