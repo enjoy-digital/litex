@@ -18,6 +18,9 @@ def _encode_cmd(obj, description, signal):
 		r.append(signal[start:end].eq(item))
 	return r
 
+def test_type(name, signal):
+	return signal == fis_types[name]
+
 class LiteSATATransportTX(Module):
 	def __init__(self, link):
 		self.sink = sink = Sink(transport_tx_description(32))
@@ -36,17 +39,21 @@ class LiteSATATransportTX(Module):
 		data_send = Signal()
 		cmd_done = Signal()
 
-		def test_type(name):
-			return sink.type == fis_types[name]
+		fis_type = Signal(8)
+		update_fis_type = Signal()
+
+		def test_type_tx(name):
+			return test_type(name, sink.type)
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(0),
 			counter.reset.eq(1),
+			update_fis_type.eq(1),
 			If(sink.stb & sink.sop,
-				If(test_type("REG_H2D"),
-					NextState("SEND_REG_H2D_CMD")
-				).Elif(test_type("DATA"),
+				If(test_type_tx("REG_H2D"),
+					NextState("SEND_CTRL_CMD")
+				).Elif(test_type_tx("DATA"),
 					NextState("SEND_DATA_CMD")
 				).Else(
 					sink.ack.eq(1)
@@ -55,7 +62,10 @@ class LiteSATATransportTX(Module):
 				sink.ack.eq(1)
 			)
 		)
-		fsm.act("SEND_REG_H2D_CMD",
+		self.sync += \
+			If(update_fis_type, fis_type.eq(link.source.d[:8]))
+
+		fsm.act("SEND_CTRL_CMD",
 			_encode_cmd(sink, fis_reg_h2d_layout, encoded_cmd),
 			cmd_len.eq(fis_reg_h2d_cmd_len-1),
 			cmd_send.eq(1),
@@ -86,20 +96,21 @@ class LiteSATATransportTX(Module):
 		for i in range(cmd_ndwords):
 			cmd_cases[i] = [link.sink.d.eq(encoded_cmd[32*i:32*(i+1)])]
 
-		self.comb += \
+		self.comb += [
+			counter.ce.eq(sink.stb & link.sink.ack),
+			cmd_done.eq((counter.value == cmd_len) & link.sink.stb & link.sink.ack),
 			If(cmd_send,
 				link.sink.stb.eq(sink.stb),
 				link.sink.sop.eq(counter.value == 0),
 				link.sink.eop.eq((counter.value == cmd_len) & ~cmd_with_data),
-				Case(counter.value, cmd_cases),
-				counter.ce.eq(sink.stb & link.sink.ack),
-				cmd_done.eq((counter.value == cmd_len) & link.sink.stb & link.sink.ack)
+				Case(counter.value, cmd_cases)
 			).Elif(data_send,
 				link.sink.stb.eq(sink.stb),
 				link.sink.sop.eq(0),
 				link.sink.eop.eq(sink.eop),
-				link.sink.d.eq(sink.data),
+				link.sink.d.eq(sink.data)
 			)
+		]
 
 def _decode_cmd(signal, description, obj):
 	r = []
@@ -129,24 +140,27 @@ class LiteSATATransportRX(Module):
 		cmd_done = Signal()
 		data_done = Signal()
 
-		def test_type(name):
-			return link.source.d[:8] == fis_types[name]
+		def test_type_rx(name):
+			return test_type(name, link.source.d[:8])
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 
 		data_sop = Signal()
+		fis_type = Signal(8)
+		update_fis_type = Signal()
 
 		fsm.act("IDLE",
 			link.source.ack.eq(0),
 			counter.reset.eq(1),
+			update_fis_type.eq(1),
 			If(link.source.stb & link.source.sop,
-				If(test_type("REG_D2H"),
-					NextState("RECEIVE_REG_D2H_CMD")
-				).Elif(test_type("DMA_ACTIVATE_D2H"),
-					NextState("RECEIVE_DMA_ACTIVATE_D2H_CMD")
-				).Elif(test_type("PIO_SETUP_D2H"),
-					NextState("RECEIVE_PIO_SETUP_D2H_CMD")
-				).Elif(test_type("DATA"),
+				If(test_type_rx("REG_D2H"),
+					NextState("RECEIVE_CTRL_CMD")
+				).Elif(test_type_rx("DMA_ACTIVATE_D2H"),
+					NextState("RECEIVE_CTRL_CMD")
+				).Elif(test_type_rx("PIO_SETUP_D2H"),
+					NextState("RECEIVE_CTRL_CMD")
+				).Elif(test_type_rx("DATA"),
 					NextState("RECEIVE_DATA_CMD"),
 				).Else(
 					link.source.ack.eq(1)
@@ -155,53 +169,34 @@ class LiteSATATransportRX(Module):
 				link.source.ack.eq(1)
 			)
 		)
-		fsm.act("RECEIVE_REG_D2H_CMD",
-			cmd_len.eq(fis_reg_d2h_cmd_len-1),
+		self.sync += \
+			If(update_fis_type, fis_type.eq(link.source.d[:8]))
+
+		fsm.act("RECEIVE_CTRL_CMD",
+			If(test_type("REG_D2H", fis_type),
+				cmd_len.eq(fis_reg_d2h_cmd_len-1)
+			).Elif(test_type("DMA_ACTIVATE_D2H", fis_type),
+				cmd_len.eq(fis_dma_activate_d2h_cmd_len-1)
+			).Else(
+				cmd_len.eq(fis_pio_setup_d2h_cmd_len-1)
+			),
 			cmd_receive.eq(1),
 			link.source.ack.eq(1),
 			If(cmd_done,
-				NextState("PRESENT_REG_D2H_CMD")
+				NextState("PRESENT_CTRL_CMD")
 			)
 		)
-		fsm.act("PRESENT_REG_D2H_CMD",
+		fsm.act("PRESENT_CTRL_CMD",
 			source.stb.eq(1),
 			source.sop.eq(1),
 			source.eop.eq(1),
-			_decode_cmd(encoded_cmd, fis_reg_d2h_layout, source),
-			If(source.stb & source.ack,
-				NextState("IDLE")
-			)
-		)
-		fsm.act("RECEIVE_DMA_ACTIVATE_D2H_CMD",
-			cmd_len.eq(fis_dma_activate_d2h_cmd_len-1),
-			cmd_receive.eq(1),
-			link.source.ack.eq(1),
-			If(cmd_done,
-				NextState("PRESENT_DMA_ACTIVATE_D2H_CMD")
-			)
-		)
-		fsm.act("PRESENT_DMA_ACTIVATE_D2H_CMD",
-			source.stb.eq(1),
-			source.sop.eq(1),
-			source.eop.eq(1),
-			_decode_cmd(encoded_cmd, fis_dma_activate_d2h_layout, source),
-			If(source.stb & source.ack,
-				NextState("IDLE")
-			)
-		)
-		fsm.act("RECEIVE_PIO_SETUP_D2H_CMD",
-			cmd_len.eq(fis_pio_setup_d2h_cmd_len-1),
-			cmd_receive.eq(1),
-			link.source.ack.eq(1),
-			If(cmd_done,
-				NextState("PRESENT_PIO_SETUP_D2H_CMD")
-			)
-		)
-		fsm.act("PRESENT_PIO_SETUP_D2H_CMD",
-			source.stb.eq(1),
-			source.sop.eq(1),
-			source.eop.eq(1),
-			_decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout, source),
+			If(test_type("REG_D2H", fis_type),
+				_decode_cmd(encoded_cmd, fis_reg_d2h_layout, source),
+			).Elif(test_type("DMA_ACTIVATE_D2H", fis_type),
+				_decode_cmd(encoded_cmd, fis_dma_activate_d2h_layout, source),
+			).Else(
+				_decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout, source),
+			),
 			If(source.stb & source.ack,
 				NextState("IDLE")
 			)
