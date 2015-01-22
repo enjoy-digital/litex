@@ -7,7 +7,6 @@ from migen.bank.description import *
 
 class LiteSATA(Module, AutoCSR):
 	def __init__(self, phy, buffer_depth=2*fis_max_dwords,
-			with_crossbar=False,
 			with_bist=False, with_bist_csr=False):
 		# phy
 		self.phy = phy
@@ -16,8 +15,7 @@ class LiteSATA(Module, AutoCSR):
 		self.core = LiteSATACore(self.phy, buffer_depth)
 
 		# frontend
-		if with_crossbar:
-			self.crossbar = LiteSATACrossbar(self.core)
+		self.crossbar = LiteSATACrossbar(self.core)
 		if with_bist:
 			self.bist = LiteSATABIST(self.crossbar, with_bist_csr)
 

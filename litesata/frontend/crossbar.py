@@ -4,7 +4,7 @@ from litesata.frontend.arbiter import LiteSATAArbiter
 
 class LiteSATACrossbar(Module):
 	def __init__(self, core):
-		self.slaves = []
+		self.users = []
 		self.master = LiteSATAMasterPort(32)
 		self.comb += [
 			self.master.source.connect(core.sink),
@@ -12,17 +12,15 @@ class LiteSATACrossbar(Module):
 		]
 
 	def get_port(self):
-		master = LiteSATAMasterPort(32)
-		slave = LiteSATASlavePort(32)
-		self.comb += master.connect(slave)
-		self.slaves.append(slave)
-		return master
+		port = LiteSATAUserPort(32)
+		self.users += [port]
+		return port
 
 	def get_ports(self, n):
-		masters = []
+		ports = []
 		for i in range(n):
-			masters.append(self.get_port())
-		return masters
+			ports.append(self.get_port())
+		return ports
 
 	def do_finalize(self):
-		self.arbiter = LiteSATAArbiter(self.slaves, self.master)
+		self.arbiter = LiteSATAArbiter(self.users, self.master)

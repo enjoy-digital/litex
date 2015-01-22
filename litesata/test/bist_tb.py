@@ -11,7 +11,7 @@ class TB(Module):
 				link_debug=False, link_random_level=0,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.controller = LiteSATA(self.hdd.phy, with_crossbar=True)
+		self.controller = LiteSATA(self.hdd.phy)
 		self.generator = LiteSATABISTGenerator(self.controller.crossbar.get_port())
 		self.checker = LiteSATABISTChecker(self.controller.crossbar.get_port())
 

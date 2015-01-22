@@ -85,8 +85,7 @@ if __name__ == "__main__":
 	revision = soc.sata_phy.revision
 	frequency = frequencies[soc.sata_phy.revision]
 	has_bist = hasattr(soc.sata, "bist")
-	has_crossbar = hasattr(soc.sata, "crossbar")
-	ports = 1 if not has_crossbar else len(soc.sata.crossbar.slaves)
+	user_ports = len(soc.sata.crossbar.users)
 
 	print("""
        __   _ __      _______ _________
@@ -99,14 +98,12 @@ A small footprint and configurable SATA core
 
 ====== Building options: ======
 SATA revision: {} / {} MHz
+User ports: {}
 BIST: {}
-Crossbar: {}
-Ports: {}
 ===============================""".format(
 	revision, frequency,
-	has_bist,
-	has_crossbar,
-	ports
+	user_ports,
+	has_bist
 	)
 )
 

@@ -5,7 +5,7 @@ from migen.fhdl.decorators import ModuleDecorator
 from migen.bank.description import *
 
 class LiteSATABISTGenerator(Module):
-	def __init__(self, sata_master_port):
+	def __init__(self, user_port):
 		self.start = Signal()
 		self.sector = Signal(48)
 		self.count = Signal(16)
@@ -17,7 +17,7 @@ class LiteSATABISTGenerator(Module):
 
 		###
 
-		source, sink = sata_master_port.source, sata_master_port.sink
+		source, sink = user_port.sink, user_port.source
 
 		self.counter = counter = Counter(bits_sign=32)
 
@@ -65,7 +65,7 @@ class LiteSATABISTGenerator(Module):
 		self.sync += If(sink.stb & sink.ack, self.aborted.eq(sink.failed))
 
 class LiteSATABISTChecker(Module):
-	def __init__(self, sata_master_port):
+	def __init__(self, user_port):
 		self.start = Signal()
 		self.sector = Signal(48)
 		self.count = Signal(16)
@@ -77,7 +77,7 @@ class LiteSATABISTChecker(Module):
 
 		###
 
-		source, sink = sata_master_port.source, sata_master_port.sink
+		source, sink = user_port.sink, user_port.source
 
 		self.counter = counter = Counter(bits_sign=32)
 		self.error_counter = Counter(self.errors, bits_sign=32)
@@ -204,7 +204,7 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 		]
 
 class LiteSATABISTIdentify(Module):
-	def __init__(self, sata_master_port):
+	def __init__(self, user_port):
 		self.start = Signal()
 		self.done  = Signal()
 
@@ -213,7 +213,7 @@ class LiteSATABISTIdentify(Module):
 
 		###
 
-		source, sink = sata_master_port.source, sata_master_port.sink
+		source, sink = user_port.sink, user_port.source
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",

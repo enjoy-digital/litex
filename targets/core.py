@@ -17,11 +17,10 @@ class LiteSATACore(Module):
 
 		# SATA PHY/Core/Frontend
 		self.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "SATA2", clk_freq)
-		self.sata = LiteSATA(self.sata_phy, with_crossbar=True)
+		self.sata = LiteSATA(self.sata_phy)
 
 		# Get user ports from crossbar
-		n = 1
-		self.crossbar_ports = self.sata.crossbar.get_ports(n)
+		self.user_ports = self.sata.crossbar.get_ports(4)
 
 	def get_ios(self):
 		# clock / reset
@@ -44,12 +43,12 @@ class LiteSATACore(Module):
 		sink_layout = command_tx_description(32).get_full_layout()
 		source_layout = command_rx_description(32).get_full_layout()
 
-		for crossbar_port in self.crossbar_ports:
+		for port in self.user_ports:
 			for e in _iter_layout(sink_layout):
-					obj = getattr(crossbar_port.source, e[0])
+					obj = getattr(port.sink, e[0])
 					ios = ios.union({obj})
 			for e in _iter_layout(source_layout):
-					obj = getattr(crossbar_port.sink, e[0])
+					obj = getattr(port.source, e[0])
 					ios = ios.union({obj})
 		return ios
 

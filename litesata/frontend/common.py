@@ -21,3 +21,7 @@ class LiteSATASlavePort:
 			Record.connect(self.sink, master.source),
 			Record.connect(master.sink, self.source)
 		]
+
+class LiteSATAUserPort(LiteSATASlavePort):
+	def __init__(self, dw):
+		LiteSATASlavePort.__init__(self, dw)
