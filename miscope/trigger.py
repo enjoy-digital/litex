@@ -124,9 +124,9 @@ class Trigger(Module, AutoCSR):
 		self.width = width
 		self.ports = ports
 
-		self.sum = Sum(len(ports))
+		self.submodules.sum = Sum(len(ports))
 		for i, port in enumerate(ports):
-			setattr(self, "port"+str(i), port)
+			setattr(self.submodules, "port"+str(i), port)
 
 		self.sink   = Record(dat_layout(width))
 		self.source = self.sum.source

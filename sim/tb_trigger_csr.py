@@ -66,10 +66,10 @@ class TB(Module):
 		term1 = Term(32)
 		term2 = Term(32)
 		term3 = Term(32)
-		self.trigger = Trigger(32, [term0, term1, term2, term3])
+		self.submodules.trigger = Trigger(32, [term0, term1, term2, term3])
 
 		# Csr
-		self.csrbankarray = csrgen.BankArray(self,
+		self.submodules.csrbankarray = csrgen.BankArray(self, 
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
 
 		# Csr Master
@@ -78,9 +78,9 @@ class TB(Module):
 
 		bus = Csr2Trans()
 		regs = build_map(addrmap, bus.read_csr, bus.write_csr)
-		self.master = csr.Initiator(csr_transactions(bus, regs))
+		self.submodules.master = csr.Initiator(csr_transactions(bus, regs))
 
-		self.csrcon = csr.Interconnect(self.master.bus,	self.csrbankarray.get_buses())
+		self.submodules.csrcon = csr.Interconnect(self.master.bus,	self.csrbankarray.get_buses())
 
 		self.terms = [term0, term1, term2, term3]
 

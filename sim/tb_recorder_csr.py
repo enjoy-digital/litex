@@ -81,10 +81,10 @@ class TB(Module):
 		self.csr_base = 0
 
 		# Recorder
-		self.recorder = Recorder(32, 1024)
-
+		self.submodules.recorder = Recorder(32, 1024)
+	
 		# Csr
-		self.csrbankarray = csrgen.BankArray(self,
+		self.submodules.csrbankarray = csrgen.BankArray(self, 
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
 
 		# Csr Master
@@ -93,16 +93,16 @@ class TB(Module):
 
 		bus = Csr2Trans()
 		regs = build_map(addrmap, bus.read_csr, bus.write_csr)
-		self.master = csr.Initiator(csr_transactions(bus, regs))
+		self.submodules.master = csr.Initiator(csr_transactions(bus, regs))
 
-		self.csrcon = csr.Interconnect(self.master.bus,	self.csrbankarray.get_buses())
+		self.submodules.csrcon = csr.Interconnect(self.master.bus,	self.csrbankarray.get_buses())
 
 	# Recorder Data
 	def recorder_data(self, selfp):
 		selfp.recorder.dat_sink.stb = 1
 		if not hasattr(self, "cnt"):
 			self.cnt = 0
-		self.cnt += 1
+		self.cnt += 1	
 
 		selfp.recorder.dat_sink.dat =  self.cnt
 

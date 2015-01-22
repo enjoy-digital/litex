@@ -39,6 +39,7 @@ class UART(Module, AutoCSR):
 
 		self.rx = UARTRX(pads, tuning_word)
 		self.tx = UARTTX(pads, tuning_word)
+		self.submodules += self.rx, self.tx
 
 class UARTPads:
 	def __init__(self):
@@ -85,16 +86,17 @@ class UART2Wishbone(Module, AutoCSR):
 		###
 		if share_uart:
 			self.uart_mux = UARTMux(pads)
-			self.uart = UART(self.uart_mux.bridge_pads, clk_freq, baud)
+			uart = UART(self.uart_mux.bridge_pads, clk_freq, baud)
 			self.shared_pads = self.uart_mux.shared_pads
 			self.comb += self.uart_mux.sel.eq(self._sel.storage)
 		else:
-			self.uart = UART(pads, clk_freq, baud)
+			uart = UART(pads, clk_freq, baud)
+		self.submodules += uart
 
-		uart = self.uart
+		byte_counter = Counter(bits_sign=3)
+		word_counter = Counter(bits_sign=8)
+		self.submodules += byte_counter, word_counter
 
-		self.byte_counter = Counter(bits_sign=3)
-		self.word_counter = Counter(bits_sign=8)
 
 		cmd = Signal(8)
 		cmd_ce = Signal()
@@ -121,22 +123,24 @@ class UART2Wishbone(Module, AutoCSR):
 		]
 
 		###
-		self.fsm = fsm = InsertReset(FSM(reset_state="IDLE"))
-		self.timeout = Timeout(clk_freq//10)
+		fsm = InsertReset(FSM(reset_state="IDLE"))
+		timeout = Timeout(clk_freq//10)
+		self.submodules += fsm, timeout
+
 		self.comb += [
-			self.timeout.ce.eq(1),
-			self.fsm.reset.eq(self.timeout.reached)
+			timeout.ce.eq(1),
+			fsm.reset.eq(timeout.reached)
 		]
 		fsm.act("IDLE",
-			self.timeout.reset.eq(1),
+			timeout.reset.eq(1),
 			If(uart.rx.source.stb,
 				cmd_ce.eq(1),
 				If(	(uart.rx.source.d == self.cmds["write"]) |
 					(uart.rx.source.d == self.cmds["read"]),
 					NextState("RECEIVE_LENGTH")
 				),
-				self.byte_counter.reset.eq(1),
-				self.word_counter.reset.eq(1)
+				byte_counter.reset.eq(1),
+				word_counter.reset.eq(1)
 			)
 		)
 		fsm.act("RECEIVE_LENGTH",
@@ -148,29 +152,29 @@ class UART2Wishbone(Module, AutoCSR):
 		fsm.act("RECEIVE_ADDRESS",
 			If(uart.rx.source.stb,
 				address_ce.eq(1),
-				self.byte_counter.ce.eq(1),
-				If(self.byte_counter.value == 3,
+				byte_counter.ce.eq(1),
+				If(byte_counter.value == 3,
 					If(cmd == self.cmds["write"],
 						NextState("RECEIVE_DATA")
 					).Elif(cmd == self.cmds["read"],
 						NextState("READ_DATA")
 					),
-					self.byte_counter.reset.eq(1),
+					byte_counter.reset.eq(1),
 				)
 			)
 		)
 		fsm.act("RECEIVE_DATA",
 			If(uart.rx.source.stb,
 				rx_data_ce.eq(1),
-				self.byte_counter.ce.eq(1),
-				If(self.byte_counter.value == 3,
+				byte_counter.ce.eq(1),
+				If(byte_counter.value == 3,
 					NextState("WRITE_DATA"),
-					self.byte_counter.reset.eq(1)
+					byte_counter.reset.eq(1)
 				)
 			)
 		)
 		self.comb += [
-			self.wishbone.adr.eq(address + self.word_counter.value),
+			self.wishbone.adr.eq(address + word_counter.value),
 			self.wishbone.dat_w.eq(data),
 			self.wishbone.sel.eq(2**flen(self.wishbone.sel)-1)
 		]
@@ -179,8 +183,8 @@ class UART2Wishbone(Module, AutoCSR):
 			self.wishbone.we.eq(1),
 			self.wishbone.cyc.eq(1),
 			If(self.wishbone.ack,
-				self.word_counter.ce.eq(1),
-				If(self.word_counter.value == (length-1),
+				word_counter.ce.eq(1),
+				If(word_counter.value == (length-1),
 					NextState("IDLE")
 				).Else(
 					NextState("RECEIVE_DATA")
@@ -197,18 +201,18 @@ class UART2Wishbone(Module, AutoCSR):
 			)
 		)
 		self.comb += \
-			chooser(data, self.byte_counter.value, uart.tx.sink.d, n=4, reverse=True)
+			chooser(data, byte_counter.value, uart.tx.sink.d, n=4, reverse=True)
 		fsm.act("SEND_DATA",
 			uart.tx.sink.stb.eq(1),
 			If(uart.tx.sink.ack,
-				self.byte_counter.ce.eq(1),
-				If(self.byte_counter.value == 3,
-					self.word_counter.ce.eq(1),
-					If(self.word_counter.value == (length-1),
+				byte_counter.ce.eq(1),
+				If(byte_counter.value == 3,
+					word_counter.ce.eq(1),
+					If(word_counter.value == (length-1),
 						NextState("IDLE")
 					).Else(
 						NextState("READ_DATA"),
-						self.byte_counter.reset.eq(1)
+						byte_counter.reset.eq(1)
 					)
 				)
 			)
