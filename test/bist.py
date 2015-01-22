@@ -1,5 +1,6 @@
 import time
 import argparse
+import random as rand
 from collections import OrderedDict
 from config import *
 
@@ -29,7 +30,7 @@ class LiteSATABISTUnitDriver:
 		for s in ["start", "sector", "count", "loops", "random", "done", "aborted", "errors", "cycles"]:
 			setattr(self, s, getattr(regs, name + "_"+ s))
 
-	def run(self, sector, count, loops, random, blocking=True, hw_timer=False):
+	def run(self, sector, count, loops, random, blocking=True, hw_timer=True):
 		self.sector.write(sector)
 		self.count.write(count)
 		self.loops.write(loops)
@@ -133,6 +134,8 @@ SATA BIST utility.
 	parser.add_argument("-r", "--random", action="store_true", help="use random data")
 	parser.add_argument("-c", "--continuous", action="store_true", help="continuous mode (Escape to exit)")
 	parser.add_argument("-i", "--identify", action="store_true", help="only run identify")
+	parser.add_argument("-t", "--software_timer", action="store_true", help="use software timer")
+	parser.add_argument("-a", "--random_addressing", action="store_true", help="use random addressing")
 	return parser.parse_args()
 
 if __name__ == "__main__":
@@ -153,13 +156,17 @@ if __name__ == "__main__":
 		length = int(args.total_length)*MB
 		random = int(args.random)
 		continuous = int(args.continuous)
+		sw_timer = int(args.software_timer)
+		random_addressing = int(args.random_addressing)
+
+		run_sectors = 0
 		try:
-			while ((sector*logical_sector_size < length) or continuous) and (sector < identify.total_sectors):
+			while ((run_sectors*logical_sector_size < length) or continuous) and (sector < identify.total_sectors):
 				retry = 0
 				# generator (write data to HDD)
 				write_done = False
 				while not write_done:
-					write_aborted, write_errors, write_speed = generator.run(sector, count, loops, random)
+					write_aborted, write_errors, write_speed = generator.run(sector, count, loops, random, True, not sw_timer)
 					write_done = not write_aborted
 					if not write_done:
 						retry += 1
@@ -167,19 +174,23 @@ if __name__ == "__main__":
 				# checker (read and check data from HDD)
 				read_done = False
 				while not read_done:
-					read_aborted, read_errors, read_speed = checker.run(sector, count, loops, random)
+					read_aborted, read_errors, read_speed = checker.run(sector, count, loops, random, True, not sw_timer)
 					read_done = not read_aborted
 					if not read_done:
 						retry += 1
 
 				print("sector=%d(%dMB) wr_speed=%4.2fMB/s rd_speed=%4.2fMB/s errors=%d retry=%d" %(
 					sector,
-					sector*logical_sector_size/MB,
+					 run_sectors*logical_sector_size/MB,
 					write_speed/MB,
 					read_speed/MB,
 					write_errors + read_errors,
 					retry))
-				sector += count
+				if random_addressing:
+					sector = rand.randint(0, identify.total_sectors//(256*2))*256
+				else:
+					sector += count
+				run_sectors += count
 
 		except KeyboardInterrupt:
 			pass
