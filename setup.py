@@ -9,18 +9,18 @@ README = open(os.path.join(here, "README")).read()
 
 required_version = (3, 3)
 if sys.version_info < required_version:
-	raise SystemExit("Migscope requires python {0} or greater".format(
+	raise SystemExit("LiteScope requires python {0} or greater".format(
 		".".join(map(str, required_version))))
 
 setup(
-	name="miscope",
+	name="litescope",
 	version="unknown",
-	description="Migen based Fpga logic analyzer",
+	description="small footprint and configurable embedded FPGA logic analyzer",
 	long_description=README,
 	author="Florent Kermarrec",
 	author_email="florent@enjoy-digital.fr",
 	url="http://enjoy-digital.fr",
-	download_url="https://github.com/Florent-Kermarrec/miscope",
+	download_url="https://github.com/Florent-Kermarrec/litescope",
 	packages=find_packages(here),
 	license="GPL",
 	platforms=["Any"],

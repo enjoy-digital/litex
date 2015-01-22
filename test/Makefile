@@ -1,0 +1,7 @@
+LSDIR = ../
+PYTHON = python3
+
+CMD = PYTHONPATH=$(LSDIR) $(PYTHON)
+
+test_regs:
+	$(CMD) test_regs.py

@@ -7,28 +7,7 @@ from migen.bus import wishbone
 
 from misoclib.uart import UARTRX, UARTTX
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class Counter(Module):
-	def __init__(self, signal=None, **kwargs):
-		if signal is None:
-			self.value = Signal(**kwargs)
-		else:
-			self.value = signal
-		self.width = flen(self.value)
-		self.sync += self.value.eq(self.value+1)
-
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class Timeout(Module):
-	def __init__(self, length):
-		self.reached = Signal()
-		###
-		value = Signal(max=length)
-		self.sync += value.eq(value+1)
-		self.comb += [
-			self.reached.eq(value == length)
-		]
+from litescope.common import *
 
 class UART(Module, AutoCSR):
 	def __init__(self, pads, clk_freq, baud=115200):
@@ -74,7 +53,7 @@ class UARTMux(Module):
 				pads.tx.eq(self.bridge_pads.tx)
 			)
 
-class UART2Wishbone(Module, AutoCSR):
+class LiteScopeUART2WB(Module, AutoCSR):
 	cmds = {
 		"write"	: 0x01,
 		"read"	: 0x02
@@ -85,18 +64,18 @@ class UART2Wishbone(Module, AutoCSR):
 			self._sel = CSRStorage()
 		###
 		if share_uart:
-			self.uart_mux = UARTMux(pads)
-			uart = UART(self.uart_mux.bridge_pads, clk_freq, baud)
-			self.shared_pads = self.uart_mux.shared_pads
-			self.comb += self.uart_mux.sel.eq(self._sel.storage)
+			uart_mux = UARTMux(pads)
+			uart = UART(uart_mux.bridge_pads, clk_freq, baud)
+			self.submodules += uart_mux, uart
+			self.shared_pads = uart_mux.shared_pads
+			self.comb += uart_mux.sel.eq(self._sel.storage)
 		else:
 			uart = UART(pads, clk_freq, baud)
-		self.submodules += uart
+			self.submodules += uart
 
 		byte_counter = Counter(bits_sign=3)
 		word_counter = Counter(bits_sign=8)
 		self.submodules += byte_counter, word_counter
-
 
 		cmd = Signal(8)
 		cmd_ce = Signal()
@@ -126,7 +105,6 @@ class UART2Wishbone(Module, AutoCSR):
 		fsm = InsertReset(FSM(reset_state="IDLE"))
 		timeout = Timeout(clk_freq//10)
 		self.submodules += fsm, timeout
-
 		self.comb += [
 			timeout.ce.eq(1),
 			fsm.reset.eq(timeout.reached)

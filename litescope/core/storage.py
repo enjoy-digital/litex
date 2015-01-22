@@ -4,9 +4,9 @@ from migen.genlib.fifo import SyncFIFOBuffered as SyncFIFO
 from migen.genlib.fsm import FSM, NextState
 from migen.genlib.record import *
 
-from miscope.std import *
+from litescope.common import *
 
-class RunLengthEncoder(Module, AutoCSR):
+class LiteScopeRunLengthEncoder(Module, AutoCSR):
 	def __init__(self, width, length=1024):
 		self.width = width
 		self.length = length
@@ -58,7 +58,7 @@ class RunLengthEncoder(Module, AutoCSR):
 			)
 		),
 
-class Recorder(Module, AutoCSR):
+class LiteScopeRecorder(Module, AutoCSR):
 	def __init__(self, width, depth):
 		self.width = width
 

@@ -3,9 +3,9 @@ from migen.fhdl import verilog
 from migen.bank.description import *
 from migen.actorlib.fifo import AsyncFIFO
 
-from miscope.std import *
-from miscope.trigger import Trigger
-from miscope.storage import Recorder, RunLengthEncoder
+from litescope.common import *
+from litescope.core.trigger import LiteScopeTrigger
+from litescope.core.storage import LiteScopeRecorder, LiteScopeRunLengthEncoder
 
 from mibuild.tools import write_to_file
 
@@ -17,7 +17,7 @@ def _getattr_all(l, attr):
 			raise ValueError
 	return r
 
-class MiLa(Module, AutoCSR):
+class LiteScopeLA(Module, AutoCSR):
 	def __init__(self, depth, dat, with_rle=False, clk_domain="sys", pipe=False):
 		self.depth = depth
 		self.with_rle = with_rle
@@ -67,15 +67,15 @@ class MiLa(Module, AutoCSR):
 				sink.dat.eq(dat)
 			]
 
-		self.submodules.trigger = trigger = Trigger(self.width, self.ports)
-		self.submodules.recorder = recorder = Recorder(self.width, self.depth)
+		self.submodules.trigger = trigger = LiteScopeTrigger(self.width, self.ports)
+		self.submodules.recorder = recorder = LiteScopeRecorder(self.width, self.depth)
 		self.comb += [
 			sink.connect(trigger.sink),
 			trigger.source.connect(recorder.trig_sink)
 		]
 
 		if self.with_rle:
-			self.submodules.rle = rle = RunLengthEncoder(self.width)
+			self.submodules.rle = rle = LiteScopeRunLengthEncoder(self.width)
 			self.comb += [
 				sink.connect(rle.sink),
 				rle.source.connect(recorder.dat_sink)

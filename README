@@ -1,48 +1,130 @@
-             _____       _            ____  _     _ _       _ 
-            |   __|___  |_|___ _ _   |    \|_|___|_| |_ ___| |
-            |   __|   | | | . | | |  |  |  | | . | |  _| .'| |
-            |_____|_|_|_| |___|_  |  |____/|_|_  |_|_| |__,|_|
-                      |___|   |___|          |___|
- 
-       Copyright 2012-2014 / Florent Kermarrec / florent@enjoy-digital.fr
- 
-                                 Miscope
---------------------------------------------------------------------------------
+             __   _ __      ____
+            / /  (_) /____ / __/______  ___  ___
+           / /__/ / __/ -_)\ \/ __/ _ \/ _ \/ -_)
+          /____/_/\__/\__/___/\__/\___/ .__/\__/
+                                     /_/
+           Copyright 2012-2015 / EnjoyDigital
+                florent@enjoy-digital.fr
 
-[> Miscope
-------------
+       A small footprint and configurable embedded FPGA
+             logic analyzer core by EnjoyDigital
 
-Miscope is a small logic analyzer to embed in an FPGA.
-
-While free vendor toolchains are generally used by beginners or for prototyping 
-(situations where having a logic analyzer in the design is generally helpful) 
-free toolchains are always provided without the proprietary logic analyzer 
-solution... :(
-
-Baseid on Migen, Miscope aims to provide a free, portable and flexible 
+[> Intro
+---------
+LiteScope small footprint and configurable embedded logic analyzer that you
+can use in your FPGA and aims to provide a a free, portable and flexible
 alternatve to vendor's solutions!
 
-[> Specification:
+LiteScope is part of LiteX libraries whose aims is to lower entry level of complex
+FPGA IP cores by providing simple, elegant and efficient implementations of
+components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
-Miscope provides Migen cores to embed in the design and Python drivers to control
-the logic analyzer from the Host. Miscope automatically interconnects all cores 
-to a CSR bus. When using Python on the Host, no needs to worry about cores register
-mapping, importing miscope project gives you direct access to all the cores!
+The core uses simple and specific streaming buses and will provides in the future
+adapters to use standardized AXI or Avalon-ST streaming buses.
 
-Miscope produces .vcd output files to be analyzed in your favorite waveform viewer.
+Since Python is used to describe the HDL, the core is highly and easily
+configurable.
 
-Since Miscope also provides an Uart2Wishbone bridge, you only need 2 external Rx/Tx
-pins to be ready to debug!
+LiteScope uses technologies developed in partnership with M-Labs Ltd:
+ - Migen enables generating HDL with Python in an efficient way.
+ - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
 
-[> Status:
-MiIo & Mila working on board with standard term.
-RLE working on board.
-RangeDetector and EdgeDector terms not tested.
+LiteScope can be used as a Migen/MiSoC library (by simply installing  it
+with the provided setup.py) or can be integrated with your standard design flow
+by generating the verilog rtl that you will use as a standard core.
 
-[> Examples:
-Have a look at http://github.com/Florent-Kermarrec/misoc-de0nano
-test_miio.py : Led & Switch Test controlled by Python Host.
-test_mila.py : Logic Analyzer controlled by Python Host.
+LiteScope produces "vcd" files that can be read in your regular waveforms viewer.
+
+Since LiteScope also provides an UART <--> Wishbone brige you only need 2 external
+Rx/Tx pins to be ready to debug or control all your Wishbone peripherals!
+
+[> Features
+-----------
+- IO peek and poke with LiteScopeIO.
+- Logic analyser with LiteScopeLA:
+  - Various triggering modules: Term, Range, Edge (add yours! :)
+  - Run Length Encoder to "compress" data and increase recording depth
+  - Data storage in block rams
+
+
+[> Possibles improvements
+-------------------------
+- add standardized interfaces (AXI, Avalon-ST)
+- add storage in DRAM
+- add storage in HDD with LiteSATA core (https://github.com/enjoy-digital/litesata)
+- add Ethernet Wishbone bridge
+- add PCIe Wishbone bridge with LitePCIe (to be released soon!)
+- ... See below Support and Consulting :)
+
+If you want to support these features, please contact us at florent [AT]
+enjoy-digital.fr. You can also contact our partner on the public mailing list
+devel [AT] lists.m-labs.hk.
+
+
+[> Getting started
+------------------
+1. Install Python3 and Xilinx's Vivado software
+
+2. Obtain Migen and install it:
+  git clone https://github.com/m-labs/migen
+  cd migen
+  python3 setup.py install
+  cd ..
+
+3. Obtain Miscope and install it:
+  git clone https://github.com/m-labs/miscope
+  cd miscope
+  python3 setup.py install
+  cd ..
+
+4. Obtain MiSoC:
+  git clone https://github.com/m-labs/misoc --recursive
+  XXX add setup.py to MiSoC for external use of misoclib?
+
+5. Obtain LiteScope
+  git clone https://github.com/enjoy-digital/litescope
+
+6. Build and load test design (only for KC705 for now):
+  python3 make.py -s [platform] all
+  Supported platform are the supported platform of Mibuild:
+  de0nano, m1, mixxeo, kc705, zedboard...
+
+7. Test design:
+  go to ./test directory and run:
+  python3 test_io.py
+  python3 test_la.py
+
+[> Simulations:
+	XXX convert simulations
+
+[> Tests :
+	XXX convert tests
+
+[> License
+-----------
+LiteScope is released under the very permissive two-clause BSD license. Under the
+terms of this license, you are authorized to use LiteScope for closed-source
+proprietary designs.
+Even though we do not require you to do so, those things are awesome, so please
+do them if possible:
+ - tell us that you are using LiteScope
+ - cite LiteScope in publications related to research it has helped
+ - send us feedback and suggestions for improvements
+ - send us bug reports when something goes wrong
+ - send us the modifications and improvements you have done to LiteScope.
+
+[> Support and Consulting
+--------------------------
+We love open-source hardware and like sharing our designs with others.
+
+LiteScope is developed and maintained by EnjoyDigital.
+
+If you would like to know more about LiteScope or if you are already a happy user
+and would like to extend it for your needs, EnjoyDigital can provide standard
+commercial support as well as consulting services.
+
+So feel free to contact us, we'd love to work with you! (and eventually shorten
+the list of the possible improvements :)
 
 [> Contact
-E-mail: florent@enjoy-digital.fr
+E-mail: florent [AT] enjoy-digital.fr

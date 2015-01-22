@@ -3,9 +3,9 @@ from migen.fhdl.specials import Memory
 from migen.bank.description import *
 from migen.genlib.record import *
 
-from miscope.std import *
+from litescope.common import *
 
-class Term(Module, AutoCSR):
+class LiteScopeTerm(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 
@@ -27,7 +27,7 @@ class Term(Module, AutoCSR):
 			self.source.stb.eq(self.sink.stb)
 		]
 
-class RangeDetector(Module, AutoCSR):
+class LiteScopeRangeDetector(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 
@@ -49,7 +49,7 @@ class RangeDetector(Module, AutoCSR):
 			self.source.stb.eq(self.sink.stb)
 		]
 
-class EdgeDetector(Module, AutoCSR):
+class LiteScopeEdgeDetector(Module, AutoCSR):
 	def __init__(self, width):
 		self.width = width
 
@@ -83,7 +83,7 @@ class EdgeDetector(Module, AutoCSR):
 			self.source.stb.eq(self.sink.stb)
 		]
 
-class Sum(Module, AutoCSR):
+class LiteScopeSum(Module, AutoCSR):
 	def __init__(self, ports=4):
 
 		self.sinks = [Record(hit_layout()) for p in range(ports)]
@@ -119,12 +119,12 @@ class Sum(Module, AutoCSR):
 		]
 
 
-class Trigger(Module, AutoCSR):
+class LiteScopeTrigger(Module, AutoCSR):
 	def __init__(self, width, ports):
 		self.width = width
 		self.ports = ports
 
-		self.submodules.sum = Sum(len(ports))
+		self.submodules.sum = LiteScopeSum(len(ports))
 		for i, port in enumerate(ports):
 			setattr(self.submodules, "port"+str(i), port)
 
