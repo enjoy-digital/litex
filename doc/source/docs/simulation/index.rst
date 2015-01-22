@@ -4,7 +4,7 @@
 Simulation
 ========================
 
-Simulations are avalaible in ./lib/sata/test:
+Simulations are available in ./lib/sata/test:
   - crc_tb
   - scrambler_tb
   - phy_datapath_tb
