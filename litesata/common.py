@@ -1,6 +1,7 @@
 import math
 
 from migen.fhdl.std import *
+from migen.fhdl.decorators import ModuleDecorator
 from migen.genlib.resetsync import *
 from migen.genlib.fsm import *
 from migen.genlib.record import *
@@ -266,9 +267,9 @@ class Timeout(Module):
 		self.sync += value.eq(value+1)
 		self.comb += self.reached.eq(value == length)
 
-class BufferizeEndpoints(Module):
+class BufferizeEndpoints(ModuleDecorator):
 	def __init__(self, submodule, *args):
-		self.submodule = submodule
+		ModuleDecorator.__init__(self, submodule)
 
 		endpoints = get_endpoints(submodule)
 		sinks = {}
@@ -293,12 +294,6 @@ class BufferizeEndpoints(Module):
 			self.submodules += buf
 			self.comb += Record.connect(source, buf.d)
 			setattr(self, name, buf.q)
-
-	def __getattr__(self, name):
-		return getattr(self.submodule, name)
-
-	def __dir__(self):
-		return dir(self.submodule)
 
 class EndpointPacketStatus(Module):
 	def __init__(self, endpoint):
@@ -334,14 +329,16 @@ class PacketBuffer(Module):
 		def cmd_description():
 			layout = [("error", 1)]
 			return EndpointDescription(layout)
-		self.cmd_fifo = cmd_fifo = SyncFIFO(cmd_description(), cmd_depth)
+		cmd_fifo = SyncFIFO(cmd_description(), cmd_depth)
+		self.submodules += cmd_fifo
 		self.comb += [
 			cmd_fifo.sink.stb.eq(sink_status.done),
 			cmd_fifo.sink.error.eq(sink.error)
 		]
 
 		# data
-		self.data_fifo =  data_fifo = SyncFIFO(description, data_depth, buffered=True)
+		data_fifo = SyncFIFO(description, data_depth, buffered=True)
+		self.submodules += data_fifo
 		self.comb += [
 			Record.connect(self.sink, data_fifo.sink),
 			data_fifo.sink.stb.eq(self.sink.stb & cmd_fifo.sink.ack),
@@ -350,6 +347,7 @@ class PacketBuffer(Module):
 
 		# output packets
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 		fsm.act("IDLE",
 			If(cmd_fifo.source.stb,
 				NextState("SEEK_SOP")

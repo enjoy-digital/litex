@@ -30,7 +30,8 @@ class LiteSATATransportTX(Module):
 		cmd_ndwords = max(fis_reg_h2d_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
-		self.counter = counter = Counter(max=cmd_ndwords+1)
+		counter = Counter(max=cmd_ndwords+1)
+		self.submodules += counter
 
 		cmd_len = Signal(counter.width)
 		cmd_with_data = Signal()
@@ -46,6 +47,7 @@ class LiteSATATransportTX(Module):
 			return test_type(name, sink.type)
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 		fsm.act("IDLE",
 			sink.ack.eq(0),
 			counter.reset.eq(1),
@@ -131,7 +133,8 @@ class LiteSATATransportRX(Module):
 						  fis_pio_setup_d2h_cmd_len, fis_data_cmd_len)
 		encoded_cmd = Signal(cmd_ndwords*32)
 
-		self.counter = counter = Counter(max=cmd_ndwords+1)
+		counter = Counter(max=cmd_ndwords+1)
+		self.submodules += counter
 
 		cmd_len = Signal(counter.width)
 
@@ -144,6 +147,7 @@ class LiteSATATransportRX(Module):
 			return test_type(name, link.source.d[:8])
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 
 		data_sop = Signal()
 		fis_type = Signal(8)
@@ -248,6 +252,6 @@ class LiteSATATransportRX(Module):
 
 class LiteSATATransport(Module):
 	def __init__(self, link):
-		self.tx = LiteSATATransportTX(link)
-		self.rx = LiteSATATransportRX(link)
+		self.submodules.tx = LiteSATATransportTX(link)
+		self.submodules.rx = LiteSATATransportRX(link)
 		self.sink, self.source = self.tx.sink, self.rx.source

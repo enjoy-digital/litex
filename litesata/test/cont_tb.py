@@ -32,14 +32,14 @@ class ContLogger(PacketLogger):
 
 class TB(Module):
 	def __init__(self):
-		self.streamer = ContStreamer()
-		self.streamer_randomizer = Randomizer(phy_description(32), level=50)
-		self.inserter = LiteSATACONTInserter(phy_description(32))
-		self.remover = LiteSATACONTRemover(phy_description(32))
-		self.logger_randomizer = Randomizer(phy_description(32), level=50)
-		self.logger = ContLogger()
+		self.submodules.streamer = ContStreamer()
+		self.submodules.streamer_randomizer = Randomizer(phy_description(32), level=50)
+		self.submodules.inserter = LiteSATACONTInserter(phy_description(32))
+		self.submodules.remover = LiteSATACONTRemover(phy_description(32))
+		self.submodules.logger_randomizer = Randomizer(phy_description(32), level=50)
+		self.submodules.logger = ContLogger()
 
-		self.pipeline = Pipeline(
+		self.submodules.pipeline = Pipeline(
 			self.streamer,
 			self.streamer_randomizer,
 			self.inserter,

@@ -18,7 +18,7 @@ from litesata import LiteSATA
 
 class _CRG(Module):
 	def __init__(self, platform):
-		self.cd_sys = ClockDomain()
+		self.clock_domains.cd_sys = ClockDomain()
 		self.reset = Signal()
 
 		clk200 = platform.request("clk200")
@@ -63,16 +63,16 @@ class GenSoC(Module):
 	cpu_type = None
 	def __init__(self, platform, clk_freq):
 		# UART <--> Wishbone bridge
-		self.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq, baud=921600)
+		self.submodules.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq, baud=921600)
 
 		# CSR bridge   0x00000000 (shadow @0x00000000)
-		self.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
+		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
 		self._wb_masters = [self.uart2wb.wishbone]
 		self._wb_slaves = [(lambda a: a[23:25] == 0, self.wishbone2csr.wishbone)]
 		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 
 		# CSR
-		self.identifier = identifier.Identifier(0, int(clk_freq), 0)
+		self.submodules.identifier = identifier.Identifier(0, int(clk_freq), 0)
 
 	def add_cpu_memory_region(self, name, origin, length):
 		self.cpu_memory_regions.append((name, origin, length))
@@ -82,14 +82,14 @@ class GenSoC(Module):
 
 	def do_finalize(self):
 		# Wishbone
-		self.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
+		self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
 			self._wb_slaves, register=True)
 
 		# CSR
-		self.csrbankarray = csrgen.BankArray(self,
+		self.submodules.csrbankarray = csrgen.BankArray(self,
 			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
 			data_width=self.csr_data_width)
-		self.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
+		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
 		for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
 			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), csrs)
 		for name, memory, mapaddr, mmap in self.csrbankarray.srams:
@@ -136,15 +136,15 @@ class BISTSoC(GenSoC, AutoCSR):
 	def __init__(self, platform, export_mila=False):
 		clk_freq = 166*1000000
 		GenSoC.__init__(self, platform, clk_freq)
-		self.crg = _CRG(platform)
+		self.submodules.crg = _CRG(platform)
 
 		# SATA PHY/Core/Frontend
-		self.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "SATA2", clk_freq)
+		self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "SATA2", clk_freq)
 		self.comb += self.crg.reset.eq(self.sata_phy.ctrl.need_reset) # XXX FIXME
-		self.sata = LiteSATA(self.sata_phy, with_bist=True, with_bist_csr=True)
+		self.submodules.sata = LiteSATA(self.sata_phy, with_bist=True, with_bist_csr=True)
 
 		# Status Leds
-		self.leds = BISTLeds(platform, self.sata_phy)
+		self.submodules.leds = BISTLeds(platform, self.sata_phy)
 
 class BISTSoCDevel(BISTSoC, AutoCSR):
 	csr_map = {
@@ -198,7 +198,7 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_core_command_tx_fsm_state,
 		)
 
-		self.mila = MiLa(depth=2048, dat=Cat(*debug))
+		self.submodules.mila = MiLa(depth=2048, dat=Cat(*debug))
 		self.mila.add_port(Term)
 		if export_mila:
 			mila_filename = os.path.join("test", "mila.csv")

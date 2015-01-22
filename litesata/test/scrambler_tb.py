@@ -7,7 +7,7 @@ from litesata.test.common import *
 
 class TB(Module):
 	def __init__(self, length):
-		self.scrambler = InsertReset(Scrambler())
+		self.submodules.scrambler = InsertReset(Scrambler())
 		self.length = length
 
 	def get_c_values(self, length):

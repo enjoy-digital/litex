@@ -5,8 +5,8 @@ class K7LiteSATAPHYCRG(Module):
 		self.reset = Signal()
 		self.ready = Signal()
 
-		self.cd_sata_tx = ClockDomain()
-		self.cd_sata_rx = ClockDomain()
+		self.clock_domains.cd_sata_tx = ClockDomain()
+		self.clock_domains.cd_sata_rx = ClockDomain()
 
 	# CPLL
 		# (SATA3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps

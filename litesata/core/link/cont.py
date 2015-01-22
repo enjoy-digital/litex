@@ -8,7 +8,8 @@ class LiteSATACONTInserter(Module):
 
 		###
 
-		self.counter = counter = Counter(max=4)
+		counter = Counter(max=4)
+		self.submodules += counter
 
 		is_data = Signal()
 		was_data = Signal()
@@ -37,7 +38,8 @@ class LiteSATACONTInserter(Module):
 		)
 
 		# scrambler
-		self.scrambler = scrambler = InsertReset(Scrambler())
+		scrambler = InsertReset(Scrambler())
+		self.submodules += scrambler
 
 		# Datapath
 		self.comb += [

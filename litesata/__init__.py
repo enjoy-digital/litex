@@ -12,10 +12,10 @@ class LiteSATA(Module, AutoCSR):
 		self.phy = phy
 
 		# core
-		self.core = LiteSATACore(self.phy, buffer_depth)
+		self.submodules.core = LiteSATACore(self.phy, buffer_depth)
 
 		# frontend
-		self.crossbar = LiteSATACrossbar(self.core)
+		self.submodules.crossbar = LiteSATACrossbar(self.core)
 		if with_bist:
-			self.bist = LiteSATABIST(self.crossbar, with_bist_csr)
+			self.submodules.bist = LiteSATABIST(self.crossbar, with_bist_csr)
 

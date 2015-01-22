@@ -19,15 +19,18 @@ class LiteSATABISTGenerator(Module):
 
 		source, sink = user_port.sink, user_port.source
 
-		self.counter = counter = Counter(bits_sign=32)
+		counter = Counter(bits_sign=32)
+		self.submodules += counter
 
-		self.scrambler = scrambler = InsertReset(Scrambler())
+		scrambler = scrambler = InsertReset(Scrambler())
+		self.submodules += scrambler
 		self.comb += [
 			scrambler.reset.eq(counter.reset),
 			scrambler.ce.eq(counter.ce)
 		]
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 		fsm.act("IDLE",
 			self.done.eq(1),
 			counter.reset.eq(1),
@@ -79,21 +82,24 @@ class LiteSATABISTChecker(Module):
 
 		source, sink = user_port.sink, user_port.source
 
-		self.counter = counter = Counter(bits_sign=32)
-		self.error_counter = Counter(self.errors, bits_sign=32)
+		counter = Counter(bits_sign=32)
+		error_counter = Counter(self.errors, bits_sign=32)
+		self.submodules += counter, error_counter
 
-		self.scrambler = scrambler = InsertReset(Scrambler())
+		scrambler = InsertReset(Scrambler())
+		self.submodules += scrambler
 		self.comb += [
 			scrambler.reset.eq(counter.reset),
 			scrambler.ce.eq(counter.ce)
 		]
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += self.fsm
 		fsm.act("IDLE",
 			self.done.eq(1),
 			counter.reset.eq(1),
 			If(self.start,
-				self.error_counter.reset.eq(1),
+				error_counter.reset.eq(1),
 				NextState("SEND_CMD")
 			)
 		)
@@ -128,7 +134,7 @@ class LiteSATABISTChecker(Module):
 			If(sink.stb,
 				counter.ce.eq(1),
 				If(sink.data != expected_data,
-					self.error_counter.ce.eq(~sink.last)
+					error_counter.ce.eq(~sink.last)
 				),
 				If(sink.eop,
 					If(sink.last,
@@ -156,7 +162,8 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 
 		###
 
-		self.bist_unit = bist_unit
+		self.submodules += bist_unit
+
 		start = self._start.r & self._start.re
 		done = self._done.status
 		loops = self._loops.storage
@@ -171,16 +178,17 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 		]
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
-		self.loop_counter = Counter(bits_sign=8)
+		loop_counter = Counter(bits_sign=8)
+		self.submodules += fsm, loop_counter
 		fsm.act("IDLE",
 			self._done.status.eq(1),
-			self.loop_counter.reset.eq(1),
+			loop_counter.reset.eq(1),
 			If(start,
 				NextState("CHECK")
 			)
 		)
 		fsm.act("CHECK",
-			If(self.loop_counter.value < loops,
+			If(loop_counter.value < loops,
 				NextState("START")
 			).Else(
 				NextState("IDLE")
@@ -192,15 +200,16 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 		)
 		fsm.act("WAIT_DONE",
 			If(bist_unit.done,
-				self.loop_counter.ce.eq(1),
+				loop_counter.ce.eq(1),
 				NextState("CHECK")
 			)
 		)
 
-		self.cycles_counter = Counter(self._cycles.status)
+		cycles_counter = Counter(self._cycles.status)
+		self.submodules += cycles_counter
 		self.sync += [
-			self.cycles_counter.reset.eq(start),
-			self.cycles_counter.ce.eq(~fsm.ongoing("IDLE"))
+			cycles_counter.reset.eq(start),
+			cycles_counter.ce.eq(~fsm.ongoing("IDLE"))
 		]
 
 class LiteSATABISTIdentify(Module):
@@ -208,8 +217,9 @@ class LiteSATABISTIdentify(Module):
 		self.start = Signal()
 		self.done  = Signal()
 
-		self.fifo = fifo = SyncFIFO([("data", 32)], 512, buffered=True)
-		self.source = self.fifo.source
+		fifo = SyncFIFO([("data", 32)], 512, buffered=True)
+		self.submodules += fifo
+		self.source = fifo.source
 
 		###
 
@@ -259,7 +269,7 @@ class LiteSATABISTIdentifyCSR(Module, AutoCSR):
 
 		###
 
-		self.bist_identify = bist_identify
+		self.submodules += bist_identify
 		self.comb += [
 			bist_identify.start.eq(self._start.r & self._start.re),
 			self._done.status.eq(bist_identify.done),
@@ -275,10 +285,7 @@ class LiteSATABIST(Module, AutoCSR):
 		checker = LiteSATABISTChecker(crossbar.get_port())
 		identify = LiteSATABISTIdentify(crossbar.get_port())
 		if with_csr:
-			self.generator = LiteSATABISTUnitCSR(generator)
-			self.checker = LiteSATABISTUnitCSR(checker)
-			self.identify = LiteSATABISTIdentifyCSR(identify)
-		else:
-			self.generator = generator
-			self.checker = checker
-			self.identify = identify
+			generator = LiteSATABISTUnitCSR(generator)
+			checker = LiteSATABISTUnitCSR(checker)
+			identify = LiteSATABISTIdentifyCSR(identify)
+		self.submodules += generator, checker, identify

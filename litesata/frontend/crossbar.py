@@ -23,4 +23,5 @@ class LiteSATACrossbar(Module):
 		return ports
 
 	def do_finalize(self):
-		self.arbiter = LiteSATAArbiter(self.users, self.master)
+		arbiter = LiteSATAArbiter(self.users, self.master)
+		self.submodules += arbiter

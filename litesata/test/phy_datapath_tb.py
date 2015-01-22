@@ -1,5 +1,5 @@
 from litesata.common import *
-from litesata.phy.datapath import liteSATAPHYDatapath
+from litesata.phy.datapath import LiteSATAPHYDatapath
 
 from litesata.test.common import *
 
@@ -45,8 +45,8 @@ class CTRL(Module):
 class TB(Module):
 	def __init__(self):
 		# use sys_clk for each clock_domain
-		self.cd_sata_rx = ClockDomain()
-		self.cd_sata_tx = ClockDomain()
+		self.clock_domains.cd_sata_rx = ClockDomain()
+		self.clock_domains.cd_sata_tx = ClockDomain()
 		self.comb += [
 			self.cd_sata_rx.clk.eq(ClockSignal()),
 			self.cd_sata_rx.rst.eq(ResetSignal()),
@@ -54,15 +54,15 @@ class TB(Module):
 			self.cd_sata_tx.rst.eq(ResetSignal()),
 		]
 
-		self.streamer = DataStreamer()
-		self.streamer_randomizer = Randomizer(phy_description(32), level=10)
-		self.trx = TRX()
-		self.ctrl = CTRL()
-		self.datapath = LiteSATAPHYDatapath(self.trx, self.ctrl)
-		self.logger_randomizer = Randomizer(phy_description(32), level=10)
-		self.logger = DataLogger()
+		self.submodules.streamer = DataStreamer()
+		self.submodules.streamer_randomizer = Randomizer(phy_description(32), level=10)
+		self.submodules.trx = TRX()
+		self.submodules.ctrl = CTRL()
+		self.submodules.datapath = LiteSATAPHYDatapath(self.trx, self.ctrl)
+		self.submodules.logger_randomizer = Randomizer(phy_description(32), level=10)
+		self.submodules.logger = DataLogger()
 
-		self.pipeline = Pipeline(
+		self.submodules.pipeline = Pipeline(
 			self.streamer,
 			self.streamer_randomizer,
 			self.datapath,

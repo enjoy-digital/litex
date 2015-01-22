@@ -56,8 +56,8 @@ class PHYSink(Module):
 class PHYLayer(Module):
 	def __init__(self):
 
-		self.rx = PHYSink()
-		self.tx = PHYSource()
+		self.submodules.rx = PHYSink()
+		self.submodules.tx = PHYSource()
 
 		self.source = self.tx.source
 		self.sink = self.rx.sink
@@ -439,10 +439,10 @@ class HDD(Module):
 			hdd_debug=False,
 			):
 		###
-		self.phy = PHYLayer()
-		self.link = LinkLayer(self.phy, link_debug, link_random_level)
-		self.transport = TransportLayer(self.link, transport_debug, transport_loopback)
-		self.command = CommandLayer(self.transport)
+		self.submodules.phy = PHYLayer()
+		self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
+		self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)
+		self.submodules.command = CommandLayer(self.transport)
 
 		self.command.set_hdd(self)
 

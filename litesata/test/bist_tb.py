@@ -7,13 +7,13 @@ from litesata.test.common import *
 
 class TB(Module):
 	def __init__(self):
-		self.hdd = HDD(
+		self.submodules.hdd = HDD(
 				link_debug=False, link_random_level=0,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.controller = LiteSATA(self.hdd.phy)
-		self.generator = LiteSATABISTGenerator(self.controller.crossbar.get_port())
-		self.checker = LiteSATABISTChecker(self.controller.crossbar.get_port())
+		self.submodules.controller = LiteSATA(self.hdd.phy)
+		self.submodules.generator = LiteSATABISTGenerator(self.controller.crossbar.get_port())
+		self.submodules.checker = LiteSATABISTChecker(self.controller.crossbar.get_port())
 
 	def gen_simulation(self, selfp):
 		hdd = self.hdd

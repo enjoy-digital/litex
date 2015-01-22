@@ -14,18 +14,18 @@ class LinkLogger(PacketLogger):
 
 class TB(Module):
 	def __init__(self):
-		self.hdd = HDD(
+		self.submodules.hdd = HDD(
 				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=True)
-		self.link = InsertReset(LiteSATALink(self.hdd.phy, buffer_depth=512))
+		self.submodules.link = InsertReset(LiteSATALink(self.hdd.phy, buffer_depth=512))
 
-		self.streamer = LinkStreamer()
-		self.streamer_randomizer = Randomizer(link_description(32), level=50)
+		self.submodules.streamer = LinkStreamer()
+		self.submodules.streamer_randomizer = Randomizer(link_description(32), level=50)
 
-		self.logger_randomizer = Randomizer(link_description(32), level=50)
-		self.logger = LinkLogger()
+		self.submodules.logger_randomizer = Randomizer(link_description(32), level=50)
+		self.submodules.logger = LinkLogger()
 
-		self.pipeline = Pipeline(
+		self.submodules.pipeline = Pipeline(
 			self.streamer,
 			self.streamer_randomizer,
 			self.link,

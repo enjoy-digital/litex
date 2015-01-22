@@ -2,8 +2,8 @@ from litesata.common import *
 
 class LiteSATAPHYDatapathRX(Module):
 	def __init__(self):
-		self.sink = Sink(phy_description(16))
-		self.source = Source(phy_description(32))
+		self.sink = sink = Sink(phy_description(16))
+		self.source = source = Source(phy_description(32))
 
 		###
 
@@ -12,26 +12,27 @@ class LiteSATAPHYDatapathRX(Module):
 		last_charisk = Signal(2)
 		last_data = Signal(16)
 		self.sync.sata_rx += \
-			If(self.sink.stb & self.sink.ack,
-				If(self.sink.charisk != 0,
-					byte_alignment.eq(self.sink.charisk[1])
+			If(sink.stb & sink.ack,
+				If(sink.charisk != 0,
+					byte_alignment.eq(sink.charisk[1])
 				),
-				last_charisk.eq(self.sink.charisk),
-				last_data.eq(self.sink.data)
+				last_charisk.eq(sink.charisk),
+				last_data.eq(sink.data)
 			)
 		converter = Converter(phy_description(16), phy_description(32), reverse=False)
-		self.converter = InsertReset(RenameClockDomains(converter, "sata_rx"))
+		converter = InsertReset(RenameClockDomains(converter, "sata_rx"))
+		self.submodules += converter
 		self.comb += [
-			self.converter.sink.stb.eq(self.sink.stb),
+			converter.sink.stb.eq(sink.stb),
 			If(byte_alignment,
-				self.converter.sink.charisk.eq(Cat(last_charisk[1], self.sink.charisk[0])),
-				self.converter.sink.data.eq(Cat(last_data[8:], self.sink.data[:8]))
+				converter.sink.charisk.eq(Cat(last_charisk[1], sink.charisk[0])),
+				converter.sink.data.eq(Cat(last_data[8:], sink.data[:8]))
 			).Else(
-				self.converter.sink.charisk.eq(self.sink.charisk),
-				self.converter.sink.data.eq(self.sink.data)
+				converter.sink.charisk.eq(sink.charisk),
+				converter.sink.data.eq(sink.data)
 			),
-			self.sink.ack.eq(self.converter.sink.ack),
-			self.converter.reset.eq(self.converter.source.charisk[2:] != 0)
+			sink.ack.eq(converter.sink.ack),
+			converter.reset.eq(converter.source.charisk[2:] != 0)
 		]
 
 	# clock domain crossing
@@ -42,16 +43,17 @@ class LiteSATAPHYDatapathRX(Module):
 		# due to the convertion ratio of 2, sys_clk need to be > sata_rx/2
 		# source destination is always able to accept data (ack always 1)
 		fifo = AsyncFIFO(phy_description(32), 4)
-		self.fifo = RenameClockDomains(fifo, {"write": "sata_rx", "read": "sys"})
+		fifo = RenameClockDomains(fifo, {"write": "sata_rx", "read": "sys"})
+		self.submodules += fifo
 		self.comb += [
-			Record.connect(self.converter.source, fifo.sink),
-			Record.connect(fifo.source, self.source)
+			Record.connect(converter.source, fifo.sink),
+			Record.connect(fifo.source, source)
 		]
 
 class LiteSATAPHYDatapathTX(Module):
 	def __init__(self):
-		self.sink = Sink(phy_description(32))
-		self.source = Source(phy_description(16))
+		self.sink = sink = Sink(phy_description(32))
+		self.source = source = Source(phy_description(16))
 
 		###
 
@@ -62,15 +64,17 @@ class LiteSATAPHYDatapathTX(Module):
 		# requirements:
 		# source destination is always able to accept data (ack always 1)
 		fifo = AsyncFIFO(phy_description(32), 4)
-		self.fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
-		self.comb += Record.connect(self.sink, fifo.sink)
+		fifo = RenameClockDomains(fifo, {"write": "sys", "read": "sata_tx"})
+		self.submodules += fifo
+		self.comb += Record.connect(sink, fifo.sink)
 
 	# width convertion (32 to 16)
 		converter = Converter(phy_description(32), phy_description(16), reverse=False)
-		self.converter =  RenameClockDomains(converter, "sata_tx")
+		converter = RenameClockDomains(converter, "sata_tx")
+		self.submodules += converter
 		self.comb += [
-			Record.connect(self.fifo.source, self.converter.sink),
-			Record.connect(self.converter.source, self.source)
+			Record.connect(fifo.source, converter.sink),
+			Record.connect(converter.source, source)
 		]
 
 class LiteSATAPHYAlignInserter(Module):
@@ -125,33 +129,35 @@ class LiteSATAPHYAlignRemover(Module):
 
 class LiteSATAPHYDatapath(Module):
 	def __init__(self, trx, ctrl):
-		self.sink = Sink(phy_description(32))
-		self.source = Source(phy_description(32))
+		self.sink = sink = Sink(phy_description(32))
+		self.source = source = Source(phy_description(32))
 
 		###
 
 	# TX path
-		self.align_inserter = LiteSATAPHYAlignInserter(ctrl)
-		self.mux = Multiplexer(phy_description(32), 2)
-		self.tx = LiteSATAPHYDatapathTX()
+		align_inserter = LiteSATAPHYAlignInserter(ctrl)
+		mux = Multiplexer(phy_description(32), 2)
+		tx = LiteSATAPHYDatapathTX()
+		self.submodules += align_inserter, mux, tx
 		self.comb += [
-			self.mux.sel.eq(ctrl.ready),
-			Record.connect(self.sink, self.align_inserter.sink),
-			Record.connect(ctrl.source, self.mux.sink0),
-			Record.connect(self.align_inserter.source, self.mux.sink1),
-			Record.connect(self.mux.source, self.tx.sink),
-			Record.connect(self.tx.source, trx.sink)
+			mux.sel.eq(ctrl.ready),
+			Record.connect(sink, align_inserter.sink),
+			Record.connect(ctrl.source, mux.sink0),
+			Record.connect(align_inserter.source, mux.sink1),
+			Record.connect(mux.source, tx.sink),
+			Record.connect(tx.source, trx.sink)
 		]
 
 	# RX path
-		self.rx = LiteSATAPHYDatapathRX()
-		self.demux = Demultiplexer(phy_description(32), 2)
-		self.align_remover = LiteSATAPHYAlignRemover()
+		rx = LiteSATAPHYDatapathRX()
+		demux = Demultiplexer(phy_description(32), 2)
+		align_remover = LiteSATAPHYAlignRemover()
+		self.submodules += rx, demux, align_remover
 		self.comb += [
-			self.demux.sel.eq(ctrl.ready),
-			Record.connect(trx.source, self.rx.sink),
-			Record.connect(self.rx.source, self.demux.sink),
-			Record.connect(self.demux.source0, ctrl.sink),
-			Record.connect(self.demux.source1, self.align_remover.sink),
-			Record.connect(self.align_remover.source, self.source)
+			demux.sel.eq(ctrl.ready),
+			Record.connect(trx.source, rx.sink),
+			Record.connect(rx.source, demux.sink),
+			Record.connect(demux.source0, ctrl.sink),
+			Record.connect(demux.source1, align_remover.sink),
+			Record.connect(align_remover.source, source)
 		]

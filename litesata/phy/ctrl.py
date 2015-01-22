@@ -25,6 +25,7 @@ class LiteSATAPHYCtrl(Module):
 		non_align_cnt = Signal(4)
 
 		self.fsm = fsm = FSM(reset_state="RESET")
+		self.submodules += fsm
 		fsm.act("RESET",
 			trx.tx_idle.eq(1),
 			retry_timeout.reset.eq(1),
@@ -128,10 +129,11 @@ class LiteSATAPHYCtrl(Module):
 			self.ready.eq(1),
 		)
 
-		self.reset_timeout = Timeout(clk_freq//16)
+		reset_timeout = Timeout(clk_freq//16)
+		self.submodules += reset_timeout
 		self.comb += [
-			self.reset_timeout.ce.eq(~self.ready),
-			self.need_reset.eq(self.reset_timeout.reached)
+			reset_timeout.ce.eq(~self.ready),
+			self.need_reset.eq(reset_timeout.reached)
 		]
 
 		self.comb +=  \

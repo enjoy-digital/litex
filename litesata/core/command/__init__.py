@@ -31,13 +31,15 @@ class LiteSATACommandTX(Module):
 			transport.sink.data.eq(sink.data)
 		]
 
-		self.dwords_counter = dwords_counter = Counter(max=fis_max_dwords)
+		dwords_counter = Counter(max=fis_max_dwords)
+		self.submodules += dwords_counter
 
 		is_write = Signal()
 		is_read = Signal()
 		is_identify = Signal()
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 		fsm.act("IDLE",
 			sink.ack.eq(0),
 			If(sink.stb & sink.sop,
@@ -128,14 +130,15 @@ class LiteSATACommandRX(Module):
 		is_identify = Signal()
 		is_dma_activate = Signal()
 		read_ndwords = Signal(max=sectors2dwords(2**16))
-		self.dwords_counter = dwords_counter = Counter(max=sectors2dwords(2**16))
+		dwords_counter = Counter(max=sectors2dwords(2**16))
+		self.submodules += dwords_counter
 		read_done = Signal()
 
 		self.sync += \
 			If(from_tx.read,
 				read_ndwords.eq(from_tx.count*sectors2dwords(1)-1)
 			)
-		self.comb += read_done.eq(self.dwords_counter.value == read_ndwords)
+		self.comb += read_done.eq(dwords_counter.value == read_ndwords)
 
 		d2h_error = Signal()
 		clr_d2h_error = Signal()
@@ -158,8 +161,9 @@ class LiteSATACommandRX(Module):
 			)
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 		fsm.act("IDLE",
-			self.dwords_counter.reset.eq(1),
+			dwords_counter.reset.eq(1),
 			transport.source.ack.eq(1),
 			clr_d2h_error.eq(1),
 			clr_read_error.eq(1),
@@ -236,7 +240,7 @@ class LiteSATACommandRX(Module):
 			source.data.eq(transport.source.data),
 			transport.source.ack.eq(source.ack),
 			If(source.stb & source.ack,
-				self.dwords_counter.ce.eq(~read_done),
+				dwords_counter.ce.eq(~read_done),
 				If(source.eop,
 					If(is_identify,
 						NextState("IDLE")
@@ -266,8 +270,8 @@ class LiteSATACommandRX(Module):
 
 class LiteSATACommand(Module):
 	def __init__(self, transport):
-		self.tx = LiteSATACommandTX(transport)
-		self.rx = LiteSATACommandRX(transport)
+		self.submodules.tx = LiteSATACommandTX(transport)
+		self.submodules.rx = LiteSATACommandRX(transport)
 		self.comb += [
 			self.rx.to_tx.connect(self.tx.from_rx),
 			self.tx.to_rx.connect(self.rx.from_tx)

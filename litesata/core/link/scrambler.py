@@ -72,9 +72,10 @@ class LiteSATAScrambler(Module):
 
 		###
 
-		self.scrambler = Scrambler()
+		scrambler = Scrambler()
+		self.submodules += scrambler
 		self.comb += [
-			self.scrambler.ce.eq(sink.stb & sink.ack),
+			scrambler.ce.eq(sink.stb & sink.ack),
 			Record.connect(sink, source),
-			source.d.eq(sink.d ^ self.scrambler.value)
+			source.d.eq(sink.d ^ scrambler.value)
 		]

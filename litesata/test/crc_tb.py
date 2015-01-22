@@ -7,7 +7,7 @@ from litesata.test.common import *
 
 class TB(Module):
 	def __init__(self, length, random):
-		self.crc = LiteSATACRC()
+		self.submodules.crc = LiteSATACRC()
 		self.length = length
 		self.random = random
 

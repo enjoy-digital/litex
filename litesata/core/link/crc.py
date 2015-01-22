@@ -95,15 +95,16 @@ class LiteSATACRC(Module):
 
 		###
 
-		self.engine = CRCEngine(self.width, self.polynom)
+		engine = CRCEngine(self.width, self.polynom)
+		self.submodules += engine
 		reg_i = Signal(self.width, reset=self.init)
-		self.sync += reg_i.eq(self.engine.next)
+		self.sync += reg_i.eq(engine.next)
 		self.comb += [
-			self.engine.d.eq(self.d),
-			self.engine.last.eq(reg_i),
+			engine.d.eq(self.d),
+			engine.last.eq(reg_i),
 
 			self.value.eq(reg_i),
-			self.error.eq(self.engine.next != self.check)
+			self.error.eq(engine.next != self.check)
 		]
 
 class LiteSATACRCInserter(CRCInserter):

@@ -53,19 +53,19 @@ class CommandLogger(PacketLogger):
 
 class TB(Module):
 	def __init__(self):
-		self.hdd = HDD(
+		self.submodules.hdd = HDD(
 				link_debug=False, link_random_level=50,
 				transport_debug=False, transport_loopback=False,
 				hdd_debug=True)
-		self.core = LiteSATACore(self.hdd.phy, buffer_depth=512)
+		self.submodules.core = LiteSATACore(self.hdd.phy, buffer_depth=512)
 
-		self.streamer = CommandStreamer()
-		self.streamer_randomizer = Randomizer(command_tx_description(32), level=50)
+		self.submodules.streamer = CommandStreamer()
+		self.submodules.streamer_randomizer = Randomizer(command_tx_description(32), level=50)
 
-		self.logger = CommandLogger()
-		self.logger_randomizer = Randomizer(command_rx_description(32), level=50)
+		self.submodules.logger = CommandLogger()
+		self.submodules.logger_randomizer = Randomizer(command_rx_description(32), level=50)
 
-		self.pipeline = Pipeline(
+		self.submodules.pipeline = Pipeline(
 			self.streamer,
 			self.streamer_randomizer,
 			self.core,

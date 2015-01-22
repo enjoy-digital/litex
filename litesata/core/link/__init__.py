@@ -17,6 +17,7 @@ class LiteSATALinkTX(Module):
 		###
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 
 		# insert CRC
 		crc = LiteSATACRCInserter(link_description(32))
@@ -34,7 +35,8 @@ class LiteSATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		self.cont  = cont = BufferizeEndpoints(LiteSATACONTInserter(phy_description(32)), "source")
+		cont = BufferizeEndpoints(LiteSATACONTInserter(phy_description(32)), "source")
+		self.submodules += cont
 
 		# datas / primitives mux
 		insert = Signal(32)
@@ -116,9 +118,11 @@ class LiteSATALinkRX(Module):
 		###
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 
 		# CONT remover
-		self.cont = cont = BufferizeEndpoints(LiteSATACONTRemover(phy_description(32)), "source")
+		cont = BufferizeEndpoints(LiteSATACONTRemover(phy_description(32)), "source")
+		self.submodules += cont
 		self.comb += Record.connect(phy.source, cont.sink)
 
 		# datas / primitives detection
@@ -130,10 +134,12 @@ class LiteSATALinkRX(Module):
 			)
 
 		# descrambler
-		self.scrambler = scrambler = LiteSATAScrambler(link_description(32))
+		scrambler = LiteSATAScrambler(link_description(32))
+		self.submodules += scrambler
 
 		# check CRC
-		self.crc = crc = LiteSATACRCChecker(link_description(32))
+		crc = LiteSATACRCChecker(link_description(32))
+		self.submodules += crc
 
 		sop = Signal()
 		eop = Signal()
@@ -235,10 +241,10 @@ class LiteSATALinkRX(Module):
 
 class LiteSATALink(Module):
 	def __init__(self, phy, buffer_depth):
-		self.tx_buffer = PacketBuffer(link_description(32), buffer_depth)
-		self.tx = LiteSATALinkTX(phy)
-		self.rx = LiteSATALinkRX(phy)
-		self.rx_buffer = PacketBuffer(link_description(32), buffer_depth, almost_full=3*buffer_depth//4)
+		self.submodules.tx_buffer = PacketBuffer(link_description(32), buffer_depth)
+		self.submodules.tx = LiteSATALinkTX(phy)
+		self.submodules.rx = LiteSATALinkRX(phy)
+		self.submodules.rx_buffer = PacketBuffer(link_description(32), buffer_depth, almost_full=3*buffer_depth//4)
 		self.comb += [
 			Record.connect(self.tx_buffer.source, self.tx.sink),
 			Record.connect(self.rx.to_tx, self.tx.from_rx),

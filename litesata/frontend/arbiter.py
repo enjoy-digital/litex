@@ -6,6 +6,7 @@ from migen.genlib.roundrobin import *
 class LiteSATAArbiter(Module):
 	def __init__(self, users, master):
 		self.rr = RoundRobin(len(users))
+		self.submodules += self.rr
 		self.grant = self.rr.grant
 		cases = {}
 		for i, slave in enumerate(users):
