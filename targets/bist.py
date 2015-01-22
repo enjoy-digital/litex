@@ -62,6 +62,7 @@ class GenSoC(Module):
 	interrupt_map = {}
 	cpu_type = None
 	def __init__(self, platform, clk_freq):
+		self.clk_freq = clk_freq
 		# UART <--> Wishbone bridge
 		self.submodules.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq, baud=921600)
 

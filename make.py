@@ -7,6 +7,7 @@ from migen.util.misc import autotype
 from migen.fhdl import verilog, edif
 from migen.fhdl.structure import _Fragment
 from mibuild import tools
+from mibuild.xilinx_common import *
 
 from misoclib.gensoc import cpuif
 
@@ -136,7 +137,12 @@ BIST: {}
 		if not isinstance(soc, _Fragment):
 			soc = soc.get_fragment()
 		platform.finalize(soc)
-		src = verilog.convert(soc, ios)
+		so = {
+			NoRetiming:					XilinxNoRetiming,
+			MultiReg:					XilinxMultiReg,
+			AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer
+		}
+		src = verilog.convert(soc, ios, special_overrides=so)
 		tools.write_to_file("build/litesata.v", src)
 
 	if actions["build-bitstream"]:
