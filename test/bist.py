@@ -9,27 +9,45 @@ GB = 1024*MB
 
 logical_sector_size = 512
 
+class Timer:
+	def __init__(self):
+		self.value = None
+
+	def start(self):
+		self._start = time.time()
+
+	def stop(self):
+		self._stop = time.time()
+		self.value = max(self._stop - self._start, 1/1000000)
+
 class LiteSATABISTUnitDriver:
 	def __init__(self, regs, name):
 		self.regs = regs
 		self.name = name
 		self.frequency = regs.identifier_frequency.read()
 		self.time = 0
-		for s in ["start", "sector", "count", "random", "done", "aborted", "errors", "cycles"]:
+		for s in ["start", "sector", "count", "loops", "random", "done", "aborted", "errors", "cycles"]:
 			setattr(self, s, getattr(regs, name + "_"+ s))
 
-	def run(self, sector, count, random, blocking=True):
+	def run(self, sector, count, loops, random, blocking=True, hw_timer=False):
 		self.sector.write(sector)
 		self.count.write(count)
+		self.loops.write(loops)
 		self.random.write(random)
+		timer = Timer()
+		timer.start()
 		self.start.write(1)
 		if blocking:
 			while (self.done.read() == 0):
 				pass
+		timer.stop()
 		aborted = self.aborted.read()
 		if not aborted:
-			self.time = self.cycles.read()/self.frequency
-			speed = (count*logical_sector_size)/self.time
+			if hw_timer:
+				self.time = self.cycles.read()/self.frequency
+			else:
+				self.time = timer.value
+			speed = (loops*count*logical_sector_size)/self.time
 			errors = self.errors.read()
 		else:
 			speed = 0
@@ -111,6 +129,7 @@ SATA BIST utility.
 """)
 	parser.add_argument("-s", "--transfer_size", default=1024, help="transfer sizes (in KB, up to 16MB)")
 	parser.add_argument("-l", "--total_length", default=256, help="total transfer length (in MB, up to HDD capacity)")
+	parser.add_argument("-n", "--loops", default=1, help="number of loop per transfer (allow more precision on speed calculation for small transfers)")
 	parser.add_argument("-r", "--random", action="store_true", help="use random data")
 	parser.add_argument("-c", "--continuous", action="store_true", help="continuous mode (Escape to exit)")
 	parser.add_argument("-i", "--identify", action="store_true", help="only run identify")
@@ -130,6 +149,7 @@ if __name__ == "__main__":
 	if not int(args.identify):
 		sector = 0
 		count = int(args.transfer_size)*KB//logical_sector_size
+		loops = int(args.loops)
 		length = int(args.total_length)*MB
 		random = int(args.random)
 		continuous = int(args.continuous)
@@ -139,7 +159,7 @@ if __name__ == "__main__":
 				# generator (write data to HDD)
 				write_done = False
 				while not write_done:
-					write_aborted, write_errors, write_speed = generator.run(sector, count, random)
+					write_aborted, write_errors, write_speed = generator.run(sector, count, loops, random)
 					write_done = not write_aborted
 					if not write_done:
 						retry += 1
@@ -147,7 +167,7 @@ if __name__ == "__main__":
 				# checker (read and check data from HDD)
 				read_done = False
 				while not read_done:
-					read_aborted, read_errors, read_speed = checker.run(sector, count, random)
+					read_aborted, read_errors, read_speed = checker.run(sector, count, loops, random)
 					read_done = not read_aborted
 					if not read_done:
 						retry += 1

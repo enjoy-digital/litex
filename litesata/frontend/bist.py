@@ -146,7 +146,9 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 		self._start = CSR()
 		self._sector = CSRStorage(48)
 		self._count = CSRStorage(16)
+		self._loops = CSRStorage(8)
 		self._random = CSRStorage()
+
 		self._done = CSRStatus()
 		self._aborted = CSRStatus()
 		self._errors = CSRStatus(32)
@@ -155,21 +157,50 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 		###
 
 		self.bist_unit = bist_unit
+		start = self._start.r & self._start.re
+		done = self._done.status
+		loops = self._loops.storage
+
 		self.comb += [
-			bist_unit.start.eq(self._start.r & self._start.re),
 			bist_unit.sector.eq(self._sector.storage),
 			bist_unit.count.eq(self._count.storage),
 			bist_unit.random.eq(self._random.storage),
 
-			self._done.status.eq(bist_unit.done),
 			self._aborted.status.eq(bist_unit.aborted),
 			self._errors.status.eq(bist_unit.errors)
 		]
 
+		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.loop_counter = Counter(bits_sign=8)
+		fsm.act("IDLE",
+			self._done.status.eq(1),
+			self.loop_counter.reset.eq(1),
+			If(start,
+				NextState("CHECK")
+			)
+		)
+		fsm.act("CHECK",
+			If(self.loop_counter.value < loops,
+				NextState("START")
+			).Else(
+				NextState("IDLE")
+			)
+		)
+		fsm.act("START",
+			bist_unit.start.eq(1),
+			NextState("WAIT_DONE")
+		)
+		fsm.act("WAIT_DONE",
+			If(bist_unit.done,
+				self.loop_counter.ce.eq(1),
+				NextState("CHECK")
+			)
+		)
+
 		self.cycles_counter = Counter(self._cycles.status)
 		self.sync += [
-			self.cycles_counter.reset.eq(bist_unit.start),
-			self.cycles_counter.ce.eq(~bist_unit.done)
+			self.cycles_counter.reset.eq(start),
+			self.cycles_counter.ce.eq(~fsm.ongoing("IDLE"))
 		]
 
 class LiteSATABISTIdentify(Module):

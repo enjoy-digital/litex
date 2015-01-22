@@ -48,8 +48,8 @@ mila.prog_sum("term")
 mila.trigger(offset=512, length=2000)
 
 #identify.run()
-generator.run(0, 2, 0)
-#checker.run(0, 2, 0)
+generator.run(0, 2, 1, 0)
+#checker.run(0, 2, 1, 0)
 mila.wait_done()
 
 mila.read()
