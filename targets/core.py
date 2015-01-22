@@ -39,15 +39,10 @@ class LiteSATACore(Module):
 				else:
 					yield e
 
-		sink_layout = command_tx_description(32).get_full_layout()
-		source_layout = command_rx_description(32).get_full_layout()
-
 		for port in self.user_ports:
-			for e in _iter_layout(sink_layout):
-					obj = getattr(port.sink, e[0])
-					ios = ios.union({obj})
-			for e in _iter_layout(source_layout):
-					obj = getattr(port.source, e[0])
+			for endpoint in [port.sink, port.source]:
+				for e in _iter_layout(endpoint.layout):
+					obj = getattr(endpoint, e[0])
 					ios = ios.union({obj})
 		return ios
 
