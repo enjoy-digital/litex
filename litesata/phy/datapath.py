@@ -36,9 +36,9 @@ class LiteSATAPHYDatapathRX(Module):
 		]
 
 	# clock domain crossing
-		# (SATA3) 300MHz sata_rx clk to sys_clk
-		# (SATA2) 150MHz sata_rx clk to sys_clk
-		# (SATA1) 75MHz sata_rx clk to sys_clk
+		# (sata_gen3) 300MHz sata_rx clk to sys_clk
+		# (sata_gen2) 150MHz sata_rx clk to sys_clk
+		# (sata_gen1) 75MHz sata_rx clk to sys_clk
 		# requirements:
 		# due to the convertion ratio of 2, sys_clk need to be > sata_rx/2
 		# source destination is always able to accept data (ack always 1)
@@ -58,9 +58,9 @@ class LiteSATAPHYDatapathTX(Module):
 		###
 
 	# clock domain crossing
-		# (SATA3) sys_clk to 300MHz sata_tx clk
-		# (SATA2) sys_clk to 150MHz sata_tx clk
-		# (SATA1) sys_clk to 75MHz sata_tx clk
+		# (sata_gen3) sys_clk to 300MHz sata_tx clk
+		# (sata_gen2) sys_clk to 150MHz sata_tx clk
+		# (sata_gen1) sys_clk to 75MHz sata_tx clk
 		# requirements:
 		# source destination is always able to accept data (ack always 1)
 		fifo = AsyncFIFO(phy_description(32), 4)

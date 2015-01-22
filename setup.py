@@ -15,7 +15,7 @@ if sys.version_info < required_version:
 setup(
 	name="litesata",
 	version="unknown",
-	description="Generic open-source SATA1/2/3 controller",
+	description="small footprint and configurable SATA gen1/2/3 core",
 	long_description=README,
 	author="Florent Kermarrec",
 	author_email="florent@enjoy-digital.fr",

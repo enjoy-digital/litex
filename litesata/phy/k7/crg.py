@@ -9,8 +9,8 @@ class K7LiteSATAPHYCRG(Module):
 		self.clock_domains.cd_sata_rx = ClockDomain()
 
 	# CPLL
-		# (SATA3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
-		# (SATA2 & SATA1) VCO still @ 3 GHz, Line rate is decreased with output dividers.
+		# (sata_gen3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
+		# (sata_gen2 & sata_gen1) VCO still @ 3 GHz, Line rate is decreased with output dividers.
 		refclk = Signal()
 		self.specials += Instance("IBUFDS_GTE2",
 			i_CEB=0,
@@ -21,18 +21,18 @@ class K7LiteSATAPHYCRG(Module):
 		self.comb += gtx.gtrefclk0.eq(refclk)
 
 	# TX clocking
-		# (SATA3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
-		# (SATA2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits)
-		# (SATA1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits)
+		# (sata_gen3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
+		# (sata_gen2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits)
+		# (sata_gen1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits)
 		mmcm_reset = Signal()
 		mmcm_locked = Signal()
 		mmcm_fb = Signal()
 		mmcm_clk_i = Signal()
 		mmcm_clk0_o = Signal()
 		mmcm_div_config = {
-			"SATA1" : 	16.0,
-			"SATA2" :	8.0,
-			"SATA3" : 	4.0
+			"sata_gen1" : 	16.0,
+			"sata_gen2" :	8.0,
+			"sata_gen3" : 	4.0
 			}
 		mmcm_div = mmcm_div_config[revision]
 		self.specials += [
@@ -60,9 +60,9 @@ class K7LiteSATAPHYCRG(Module):
 		]
 
 	# RX clocking
-		# (SATA3) sata_rx recovered clk @ 300MHz from GTX RXOUTCLK
-		# (SATA2) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
-		# (SATA1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
+		# (sata_gen3) sata_rx recovered clk @ 300MHz from GTX RXOUTCLK
+		# (sata_gen2) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
+		# (sata_gen1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
 		self.specials += [
 			Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
 		]

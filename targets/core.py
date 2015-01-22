@@ -4,23 +4,17 @@ from litesata.common import *
 from litesata.phy import LiteSATAPHY
 from litesata import LiteSATA
 
-class _CRG(Module):
-	def __init__(self, platform):
-		self.clock_domains.cd_sys = ClockDomain()
-
 class LiteSATACore(Module):
 	default_platform = "verilog_backend"
-
-	def __init__(self, platform):
-		clk_freq = 166*1000000
-		self.crg = _CRG(platform)
+	def __init__(self, platform, clk_freq=166*1000000, nports=4):
+		self.clk_freq = clk_freq
 
 		# SATA PHY/Core/Frontend
-		self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "SATA2", clk_freq)
+		self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "sata_gen2", clk_freq)
 		self.submodules.sata = LiteSATA(self.sata_phy)
 
 		# Get user ports from crossbar
-		self.user_ports = self.sata.crossbar.get_ports(4)
+		self.user_ports = self.sata.crossbar.get_ports(nports)
 
 	def get_ios(self):
 		ios = set()

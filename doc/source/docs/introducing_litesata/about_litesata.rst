@@ -4,7 +4,7 @@
 About LiteSATA
 ================
 
-LiteSATA provides a small footprint and configurable SATA1/2/3 core.
+LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
 
 LiteSATA is part of LiteX libraries whose aims is to lower entry level of complex
 FPGA IP cores by providing simple, elegant and efficient implementations of

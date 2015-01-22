@@ -13,13 +13,19 @@ from migen.flow.plumbing import Buffer
 from migen.actorlib.fifo import *
 from migen.actorlib.structuring import Pipeline, Converter
 
-# PHY / Link Layers
-frequencies = {
-	"SATA3"	:	150.0,
-	"SATA2"	:	75.0,
-	"SATA1"	:	37.5,
+bitrates = {
+	"sata_gen3"	:	6.0,
+	"sata_gen2"	:	3.0,
+	"sata_gen1"	:	1.5,
 }
 
+frequencies = {
+	"sata_gen3"	:	150.0,
+	"sata_gen2"	:	75.0,
+	"sata_gen1"	:	37.5,
+}
+
+# PHY / Link Layers
 primitives = {
 	"ALIGN"	:	0x7B4A4ABC,
 	"CONT"	: 	0X9999AA7C,

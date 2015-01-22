@@ -83,7 +83,6 @@ if __name__ == "__main__":
 
 
 	revision = soc.sata_phy.revision
-	frequency = frequencies[soc.sata_phy.revision]
 	has_bist = hasattr(soc.sata, "bist")
 	user_ports = len(soc.sata.crossbar.users)
 
@@ -97,11 +96,13 @@ A small footprint and configurable SATA core
           based on Migen/MiSoC
 
 ====== Building options: ======
-SATA revision: {} / {} MHz
+{} / {} Gbps
+System Clk: {} MHz (min: {} MHz)
 User ports: {}
 BIST: {}
 ===============================""".format(
-	revision, frequency,
+	revision.replace("sata_", "SATA "), bitrates[revision],
+	soc.clk_freq/1000000, frequencies[revision],
 	user_ports,
 	has_bist
 	)
