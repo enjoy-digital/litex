@@ -1,4 +1,4 @@
-.. _introducing-litesata-index:
+.. _intro-index:
 
 ======================
 Introducing LiteSATA
@@ -9,7 +9,7 @@ This section explains what LiteSATA does, why it is needed, its limitations and 
 .. toctree::
    :maxdepth: 1
 
-   about_litesata
-   litesata_license
+   about
+   license
    release_notes
-   Talks-and-Publications
+   talks_and_publications

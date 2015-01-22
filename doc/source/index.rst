@@ -16,9 +16,9 @@ News
 .. toctree::
 	:hidden:
 
-	docs/introducing_litesata/index
+	docs/intro/index
 	docs/getting_started/index
-	docs/sata/index
+	docs/specification/index
 	docs/phy/index
 	docs/core/index
 	docs/frontend/index

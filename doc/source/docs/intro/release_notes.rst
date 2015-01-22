@@ -8,3 +8,6 @@ Release Notes
 
 ChangeLog
 =========
+0.9.0:
+  - First release supporting Xilinx Kintex7.
+

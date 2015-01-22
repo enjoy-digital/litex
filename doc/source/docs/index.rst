@@ -8,7 +8,7 @@ This comprehensive documentation set contains everything you need to know to use
 
 **Getting started:**
 
-- :ref:`introducing-litesata-index` explains what LiteSATA does, why it is needed, its limitations and its licensing. It will help you understand whether LiteSATA is the right core for you.
+- :ref:`intro-index` explains what LiteSATA does, why it is needed, its limitations and its licensing. It will help you understand whether LiteSATA is the right core for you.
 - :ref:`getting-started-index` walks you through downloading, installing and using the LiteSATA core.
 
 **LiteSATA Internals:**
@@ -27,12 +27,10 @@ The full hierarchy of articles, opened to the second level, is shown below.
 .. toctree::
 	:maxdepth: 2
 
-	introducing_litesata/index
+	intro/index
 	getting_started/index
-	sata/index
+	specification/index
 	phy/index
 	core/index
 	frontend/index
 	simulation/index
-	test/index
-	site/index

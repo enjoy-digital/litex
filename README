@@ -9,7 +9,7 @@
        developed for HKU by M-Labs Ltd & EnjoyDigital
 
 [> Intro
------------
+---------
 LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
 
 LiteSATA is part of LiteX libraries whose aims is to lower entry level of complex
@@ -34,7 +34,7 @@ with the provided setup.py) or can be integrated with your standard design flow
 by generating the verilog rtl that you will use as a standard core.
 
 [> Features
-------------------
+-----------
 PHY:
   - OOB, COMWAKE, COMINIT
   - ALIGN inserter/remover and bytes alignment on K28.5
@@ -61,7 +61,7 @@ Frontend:
   - Synthetizable BIST
 
 [> Possibles improvements
-----------------------
+-------------------------
 - add standardized interfaces (AXI, Avalon-ST)
 - add NCQ support
 - add AES hardware encryption
@@ -71,7 +71,7 @@ Frontend:
 - add support for Xilinx 7-Series GTP/GTH (currently only 7-Series GTX are
   supported)
 - add Zynq Linux drivers.
-- ...
+- ... See below Support and Consulting :)
 
 If you want to support these features, please contact us at florent [AT]
 enjoy-digital.fr. You can also contact our partner on the public mailing list
@@ -82,28 +82,34 @@ devel [AT] lists.m-labs.hk.
 1. Install Python3 and Xilinx's Vivado software
 
 2. Obtain Migen and install it:
-  git clone https://github.com/enjoy-digital/migen
+  git clone https://github.com/m-labs/migen
   cd migen
   python3 setup.py install
   cd ..
 
 3. Obtain Miscope and install it:
-  git clone https://github.com/enjoy-digital/miscope
+  git clone https://github.com/m-labs/miscope
   cd miscope
   python3 setup.py install
   cd ..
 
 4. Obtain MiSoC:
-  git clone https://github.com/enjoy-digital/misoc --recursive
+  git clone https://github.com/m-labs/misoc --recursive
+  XXX add setup.py to MiSoC for external use of misoclib?
 
-5. Copy lite-sata in working directory and move to it.
+5. Obtain LiteSATA
+  git clone https://github.com/enjoy-digital/litesata
 
-6. Build and load design:
+6. Build and load BIST design (only for KC705 for now):
   python3 make.py all
 
-7. Test design:
-  go to test directory and run:
+7. Test design (only for KC705 for now):
+  go to ./test directory and run:
   python3 bist.py
+
+8. If you only want to build the core and use it with your
+  regular design flow:
+  python3 make.py -t core build-core
 
 [> Simulations:
   Simulations are available in ./lib/sata/test:
@@ -124,7 +130,7 @@ devel [AT] lists.m-labs.hk.
   the HDD model!
 
 [> License
-----------------------
+-----------
 LiteSATA is released under the very permissive two-clause BSD license. Under the
 terms of this license, you are authorized to use LiteSATA for closed-source
 proprietary designs.
@@ -136,19 +142,18 @@ do them if possible:
  - send us bug reports when something goes wrong
  - send us the modifications and improvements you have done to LiteSATA.
 
-[> Support
-----------------------
-We love open-source hardware and like sharing our designs with others. We think
-that providing this core with a BSD license will enable its easy reuse and
-customization without the usual restrictions of commercial cores.
+[> Support and Consulting
+--------------------------
+We love open-source hardware and like sharing our designs with others.
 
-We also offer design services and can:
-- provide you commercial support for our cores.
-- customize our cores to fit your needs and help you to integrate it in your design.
-- create custom designs for you and provide our already proven cores for free.
-- ...
+LiteSATA is developed and maintained by EnjoyDigital.
 
-So feel free to contact us, we'd love to work with you!
+If you would like to know more about LiteSATA or if you are already a happy user
+and would like to extend it for your needs, EnjoyDigital can provide standard
+commercial support as well as consulting services.
+
+So feel free to contact us, we'd love to work with you! (and eventually shorten
+the list of the possible improvements :)
 
 [> Contact
 E-mail: florent [AT] enjoy-digital.fr

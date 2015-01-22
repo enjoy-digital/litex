@@ -1,4 +1,4 @@
-.. _about-litesata:
+.. _about:
 
 ================
 About LiteSATA
@@ -27,10 +27,10 @@ LiteSATA can be used as a Migen/MiSoC library (by simply installing  it
 with the provided setup.py) or can be integrated with your standard design flow
 by generating the verilog rtl that you will use as a standard core.
 
-.. _about-litesata-toolchain:
+.. _about-toolchain:
 
 Features
-====================
+========
 PHY:
   - OOB, COMWAKE, COMINIT
   - ALIGN inserter/remover and bytes alignment on K28.5
@@ -58,7 +58,7 @@ Frontend:
 
 
 Possibles improvements
-====================
+======================
 - add standardized interfaces (AXI, Avalon-ST)
 - add NCQ support
 - add AES hardware encryption
@@ -68,5 +68,23 @@ Possibles improvements
 - add support for Xilinx 7-Series GTP/GTH (currently only 7-Series GTX are
   supported)
 - add Zynq Linux drivers.
-- ...
+- ... See below Support and Consulting :)
+
+Support and Consulting
+======================
+We love open-source hardware and like sharing our designs with others.
+
+LiteSATA is developed and maintained by EnjoyDigital.
+
+If you would like to know more about LiteSATA or if you are already a happy user
+and would like to extend it for your needs, EnjoyDigital can provide standard
+commercial support as well as consulting services.
+
+So feel free to contact us, we'd love to work with you! (and eventually shorten
+the list of the possible improvements :)
+
+Contact
+=======
+E-mail: florent [AT] enjoy-digital.fr
+
 

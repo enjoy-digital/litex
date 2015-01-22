@@ -4,6 +4,9 @@
 Simulation
 ========================
 
+.. note::
+	Please contribute to this document, or support us financially to write it.
+
 Simulations are available in ./lib/sata/test:
   - crc_tb
   - scrambler_tb

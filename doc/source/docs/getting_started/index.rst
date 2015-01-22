@@ -4,7 +4,7 @@
 Getting Started
 ===============
 
-Now you know why LiteSATA is :ref:`core for you <about-litesata>`, it's time to *get started*.
+Now you know why LiteSATA is :ref:`core for you <about>`, it's time to *get started*.
 
 This section provides a walk-through of :ref:`downloading and installing the tools`.
 
@@ -13,4 +13,5 @@ This section provides a walk-through of :ref:`downloading and installing the too
 
 	downloads
 	FAQ
+	bug_reports
 

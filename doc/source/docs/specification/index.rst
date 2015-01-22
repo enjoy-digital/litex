@@ -1,7 +1,7 @@
 .. _sata-index:
 
 ========================
-SATA
+SATA Specification
 ========================
 
 .. note::
@@ -14,9 +14,11 @@ and 8b/10b encoding. The link supports full duplex but the protocol only permits
 in one direction at a time. The other non-data direction is used for flow control of the
 data stream
 
-.. image:: sata_layers.png
+.. figure:: sata_layers.png
    :scale: 50 %
    :align: center
+
+   SATA layers.
 
 SATA’s architecture consists of four layers, Application, Transport, Link, and Physical.
 The Application layer is responsible for overall ATA commands and of controlling SATA
@@ -34,9 +36,11 @@ into four bytes. Where each pair of bytes represent a word and a pair of words
 represent a Dword. In this way it’s easy to see that odd number of bytes is not
 allowed in SATA communication.
 
-.. image:: byte_word_dword.png
+.. figure:: byte_word_dword.png
    :scale: 50 %
    :align: center
+
+   Byte, Word, Dword definitions.
 
 The Dwords can be represented by either a data Dword or a so called primitive. A
 primitive is a predefined Dword like for example start of frame (SOF) and end
@@ -78,9 +82,11 @@ drive their output pins to the same voltage, resulting in a reduced difference a
 when a preset threshold limit is reached the receiver can recognize the signal as
 OOB.
 
-.. image:: oob_signals.png
+.. figure:: oob_signals.png
    :scale: 50 %
    :align: center
+
+   OOB signals.
 
 As can be seen in the figure there are three types of (actually two
 since COMINIT and COMRESET are equal) valid OOB signals where bursts of
@@ -95,9 +101,11 @@ COMWAKE back. If this procedure is finished within a correct time the OOB signal
 ends and the differential communication can proceed with determining the link speed
 (right part of the figure).
 
-.. image:: oob_sequence.png
+.. figure:: oob_sequence.png
    :scale: 50 %
    :align: center
+
+   OOB init sequence.
 
 Physical Layer
 ==============
@@ -136,9 +144,11 @@ by applying the 32-bits generator polynomial G(x) in Equation on every bit in
 every non-primitive Dword in a FIS and then summarize (modulo 2) all these terms
 together with the Initial Value. The CRC is fixed to value of 0x52325032.
 
-.. image:: crc.png
+.. figure:: crc.png
    :scale: 50 %
    :align: center
+
+   CRC polynom.
 
 Scrambling a FIS reduces EMI by spreading the noise over a broader frequency
 spectrum. The scrambling algorithm can be expressed as a polynomial or as a linear
@@ -147,9 +157,11 @@ data that reduces EMI. The algorithm resets to a of value of 0xFFFF every time a
 is encountered at the scrambler. The de-scrambler uses the same algorithm on scrambled
 data so it retakes its original form.
 
-.. image:: scrambler.png
+.. figure:: scrambler.png
    :scale: 50 %
    :align: center
+
+   Scrambler LFSR polynom.
 
 It is important that the CRC calculations are made at original data and that
 the scrambling/de-scrambling are made between the CRC and the 8b/10b encoding/decoding.
@@ -192,7 +204,6 @@ Command Layer
 =================
 The command layer tells the transport layer what kind of FISes to send and receive
 for each specific command and in which order those FISes are expexted to be delivered.
-
 
 .. note::
 	This chapter is a lightly modified version of the excellent SATA summerization found in Chapter 2 of Erik Landström's Thesis_.
