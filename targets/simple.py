@@ -11,6 +11,8 @@ from misoclib import identifier
 
 from litescope.common import *
 from litescope.bridge.uart2wb import LiteScopeUART2WB
+from litescope.frontend.io import LiteScopeIO
+
 
 class _CRG(Module):
 	def __init__(self, clk_in):
@@ -72,12 +74,18 @@ class GenSoC(Module):
 
 class LiteScopeSoC(GenSoC, AutoCSR):
 	default_platform = "de0nano"
-	csr_map = {}
+	csr_map = {
+		"io":	10
+	}
 	csr_map.update(GenSoC.csr_map)
 
 	def __init__(self, platform, export_mila=False):
 		clk_freq = 50*1000000
 		GenSoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform.request("clk50"))
+
+		self.submodules.io = LiteScopeIO(8)
+		self.leds = Cat(*[platform.request("user_led", i) for i in range(8)])
+		self.comb += self.leds.eq(self.io.o)
 
 default_subtarget = LiteScopeSoC

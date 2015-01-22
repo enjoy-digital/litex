@@ -100,7 +100,7 @@ class LiteScopeIODriver():
 	def build(self):
 		for key, value in self.regs.d.items():
 			if self.name in key:
-				key.replace(self.name +"_")
+				key = key.replace(self.name +"_", "")
 				setattr(self, key, value)
 
 	def write(self, value):
@@ -139,7 +139,7 @@ class LiteScopeLADriver():
 	def build(self):
 		for key, value in self.regs.d.items():
 			if self.name == key[:len(self.name)]:
-				key.replace(self.name + "_")
+				key = key.replace(self.name + "_")
 				setattr(self, key, value)
 		value = 1
 		for name, length in self.layout:

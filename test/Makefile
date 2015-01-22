@@ -5,3 +5,6 @@ CMD = PYTHONPATH=$(LSDIR) $(PYTHON)
 
 test_regs:
 	$(CMD) test_regs.py
+
+test_io:
+	$(CMD) test_io.py
