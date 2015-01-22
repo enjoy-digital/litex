@@ -11,7 +11,7 @@
 
 [> Intro
 ---------
-LiteScope small footprint and configurable embedded logic analyzer that you
+LiteScope is small footprint and configurable embedded logic analyzer that you
 can use in your FPGA and aims to provide a a free, portable and flexible
 alternatve to vendor's solutions!
 
@@ -35,23 +35,22 @@ by generating the verilog rtl that you will use as a standard core.
 
 LiteScope produces "vcd" files that can be read in your regular waveforms viewer.
 
-Since LiteScope also provides an UART <--> Wishbone brige you only need 2 external
-Rx/Tx pins to be ready to debug or control all your Wishbone peripherals!
+Since LiteScope also provides a UART <--> Wishbone brige so you only need 2
+external Rx/Tx pins to be ready to debug or control all your Wishbone peripherals!
 
 [> Features
 -----------
-- IO peek and poke with LiteScopeIO.
+- IO peek and poke with LiteScopeIO
 - Logic analyser with LiteScopeLA:
   - Various triggering modules: Term, Range, Edge (add yours! :)
   - Run Length Encoder to "compress" data and increase recording depth
   - Data storage in block rams
 
-
 [> Possibles improvements
 -------------------------
 - add standardized interfaces (AXI, Avalon-ST)
 - add storage in DRAM
-- add storage in HDD with LiteSATA core (https://github.com/enjoy-digital/litesata)
+- add storage in HDD with LiteSATA core (to be released soon!)
 - add Ethernet Wishbone bridge
 - add PCIe Wishbone bridge with LitePCIe (to be released soon!)
 - ... See below Support and Consulting :)
@@ -63,7 +62,7 @@ devel [AT] lists.m-labs.hk.
 
 [> Getting started
 ------------------
-1. Install Python3 and Xilinx's Vivado software
+1. Install Python3 and your vendor's software
 
 2. Obtain Migen and install it:
   git clone https://github.com/m-labs/migen
@@ -71,25 +70,19 @@ devel [AT] lists.m-labs.hk.
   python3 setup.py install
   cd ..
 
-3. Obtain Miscope and install it:
-  git clone https://github.com/m-labs/miscope
-  cd miscope
-  python3 setup.py install
-  cd ..
-
-4. Obtain MiSoC:
+3. Obtain MiSoC:
   git clone https://github.com/m-labs/misoc --recursive
   XXX add setup.py to MiSoC for external use of misoclib?
 
-5. Obtain LiteScope
+4. Obtain LiteScope
   git clone https://github.com/enjoy-digital/litescope
 
-6. Build and load test design (only for KC705 for now):
+5. Build and load test design:
   python3 make.py -s [platform] all
-  Supported platform are the supported platform of Mibuild:
+  Supported platforms are the one altready supported by Mibuild:
   de0nano, m1, mixxeo, kc705, zedboard...
 
-7. Test design:
+6. Test design:
   go to ./test directory and run:
   python3 test_io.py
   python3 test_la.py
