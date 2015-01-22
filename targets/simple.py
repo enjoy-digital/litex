@@ -3,8 +3,6 @@ import os
 from migen.bank import csrgen
 from migen.bus import wishbone, csr
 from migen.bus import wishbone2csr
-from migen.genlib.cdc import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.bank.description import *
 
 from misoclib import identifier
@@ -12,7 +10,8 @@ from misoclib import identifier
 from litescope.common import *
 from litescope.bridge.uart2wb import LiteScopeUART2WB
 from litescope.frontend.io import LiteScopeIO
-
+from litescope.frontend.la import LiteScopeLA
+from litescope.core.trigger import LiteScopeTerm
 
 class _CRG(Module):
 	def __init__(self, clk_in):
@@ -75,11 +74,11 @@ class GenSoC(Module):
 class LiteScopeSoC(GenSoC, AutoCSR):
 	default_platform = "de0nano"
 	csr_map = {
-		"io":	10
+		"io":	10,
+		"la":	11
 	}
 	csr_map.update(GenSoC.csr_map)
-
-	def __init__(self, platform, export_mila=False):
+	def __init__(self, platform, export_conf=False):
 		clk_freq = 50*1000000
 		GenSoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform.request("clk50"))
@@ -87,5 +86,21 @@ class LiteScopeSoC(GenSoC, AutoCSR):
 		self.submodules.io = LiteScopeIO(8)
 		self.leds = Cat(*[platform.request("user_led", i) for i in range(8)])
 		self.comb += self.leds.eq(self.io.o)
+
+		cnt0 = Signal(8)
+		cnt1 = Signal(8)
+		self.sync += [
+			cnt0.eq(cnt0+1),
+			cnt1.eq(cnt1+2)
+		]
+		debug = (
+			cnt0,
+			cnt1
+		)
+		self.submodules.la = LiteScopeLA(depth=512, dat=Cat(*debug))
+		self.la.add_port(LiteScopeTerm)
+		if export_conf:
+			self.la.export(self, debug, "./test/la.csv")
+
 
 default_subtarget = LiteScopeSoC

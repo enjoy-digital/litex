@@ -8,3 +8,6 @@ test_regs:
 
 test_io:
 	$(CMD) test_io.py
+
+test_la:
+	$(CMD) test_la.py
