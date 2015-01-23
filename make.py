@@ -21,7 +21,7 @@ def _get_args():
 		description="""\
 LiteScope - based on Migen.
 
-This program builds and/or loads LiteSATA components.
+This program builds and/or loads LiteScope components.
 One or several actions can be specified:
 
 clean           delete previous build(s).
