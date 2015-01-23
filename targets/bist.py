@@ -136,7 +136,6 @@ class BISTSoC(GenSoC, AutoCSR):
 		"sata":		10,
 	}
 	csr_map.update(GenSoC.csr_map)
-
 	def __init__(self, platform):
 		clk_freq = 166*1000000
 		GenSoC.__init__(self, platform, clk_freq)
@@ -152,7 +151,7 @@ class BISTSoC(GenSoC, AutoCSR):
 
 class BISTSoCDevel(BISTSoC, AutoCSR):
 	csr_map = {
-		"la":			10
+		"la":			20
 	}
 	csr_map.update(BISTSoC.csr_map)
 	def __init__(self, platform):

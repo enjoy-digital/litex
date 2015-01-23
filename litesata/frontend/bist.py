@@ -226,6 +226,7 @@ class LiteSATABISTIdentify(Module):
 		source, sink = user_port.sink, user_port.source
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
 		fsm.act("IDLE",
 			self.done.eq(1),
 			If(self.start,
@@ -288,4 +289,6 @@ class LiteSATABIST(Module, AutoCSR):
 			generator = LiteSATABISTUnitCSR(generator)
 			checker = LiteSATABISTUnitCSR(checker)
 			identify = LiteSATABISTIdentifyCSR(identify)
-		self.submodules += generator, checker, identify
+		self.submodules.generator = generator
+		self.submodules.checker = checker
+		self.submodules.identify = identify

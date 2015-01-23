@@ -101,13 +101,19 @@ devel [AT] lists.m-labs.hk.
   git clone https://github.com/enjoy-digital/litesata
 
 6. Build and load BIST design (only for KC705 for now):
-  python3 make.py all
+  python3 make.py all (-s BISTSoCDevel to add LiteScopeLA)
 
 7. Test design (only for KC705 for now):
   go to ./test directory and run:
   python3 bist.py
 
-8. If you only want to build the core and use it with your
+8. Visualize Link Layer transactions (if BISTSoCDevel):
+  go to ./test directory and run:
+  python3 test_la.py [your_cond]
+  your_cond can be wr_cmd, id_cmd, rd_resp, ...
+  (open test_la.py to see all conditions or add yours)
+
+9. If you only want to build the core and use it with your
   regular design flow:
   python3 make.py -t core build-core
 

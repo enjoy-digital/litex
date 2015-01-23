@@ -12,16 +12,26 @@ wb.open()
 regs = wb.regs
 ###
 
+trig = "now"
 if len(sys.argv) < 2:
-	print("Need trigger condition!")
-	sys.exit(0)
+	print("No trigger condition, triggering immediately!")
+else:
+	trig = sys.argv[1]
 
 conditions = {}
+conditions["now"] = {}
+conditions["id_cmd"] = {
+	"sata_command_tx_sink_stb"				: 1,
+	"sata_command_tx_sink_payload_identify"	: 1,
+}
+conditions["id_resp"] = {
+	"source_source_payload_data" : primitives["X_RDY"],
+}
 conditions["wr_cmd"] = {
 	"sata_command_tx_sink_stb"			: 1,
 	"sata_command_tx_sink_payload_write"	: 1,
 }
-conditions["wr_dma_activate"] = {
+conditions["wr_resp"] = {
 	"sata_command_rx_source_stb"			: 1,
 	"sata_command_rx_source_payload_write"	: 1,
 }
@@ -29,27 +39,20 @@ conditions["rd_cmd"] = {
 	"sata_command_tx_sink_stb"			: 1,
 	"sata_command_tx_sink_payload_read"	: 1,
 }
-conditions["rd_data"] = {
+conditions["rd_resp"] = {
 	"sata_command_rx_source_stb"			: 1,
 	"sata_command_rx_source_payload_read"	: 1,
 }
-conditions["id_cmd"] = {
-	"sata_command_tx_sink_stb"				: 1,
-	"sata_command_tx_sink_payload_identify"	: 1,
-}
-conditions["id_pio_setup"] = {
-	"source_source_payload_data" : primitives["X_RDY"],
-}
 
-la.prog_term(port=0, cond=conditions[sys.argv[1]])
+la.prog_term(port=0, cond=conditions[trig])
 la.prog_sum("term")
 
 # Trigger / wait / receive
-la.trigger(offset=512, length=2000)
+la.trigger(offset=64, length=1024)
 
-#identify.run()
-generator.run(0, 2, 1, 0)
-#checker.run(0, 2, 1, 0)
+#identify.run(blocking=False)
+generator.run(0, 2, 1, 0, blocking=False)
+#checker.run(0, 2, 1, 0, blocking=False)
 la.wait_done()
 
 la.read()
