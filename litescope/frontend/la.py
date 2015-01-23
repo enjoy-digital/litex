@@ -1,7 +1,4 @@
 from migen.fhdl.std import *
-from migen.fhdl.specials import Special
-from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.fhdl import verilog
 from migen.bank.description import *
 from migen.actorlib.fifo import AsyncFIFO
 
@@ -88,14 +85,12 @@ class LiteScopeLA(Module, AutoCSR):
 			self.comb += sink.connect(recorder.dat_sink)
 
 	def export(self, layout, vns, filename):
-		r = ""
 		def format_line(*args):
 			return ",".join(args) + "\n"
-
+		r = ""
 		r += format_line("config", "width", str(self.width))
 		r += format_line("config", "depth", str(self.depth))
 		r += format_line("config", "with_rle", str(int(self.with_rle)))
-
 		for e in layout:
 			r += format_line("layout", vns.get_name(e), str(flen(e)))
 		write_to_file(filename, r)

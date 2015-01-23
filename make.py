@@ -11,7 +11,7 @@ from mibuild.xilinx_common import *
 
 from misoclib.gensoc import cpuif
 
-from litesata.common import *
+from litescope.common import *
 
 def _import(default, name):
 	return importlib.import_module(default + "." + name)

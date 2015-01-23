@@ -77,16 +77,16 @@ class Var:
 		self.val = default
 		self.values = values
 		self.vcd_id = None
-		
+
 	def set_vcd_id(self, s):
 		self.vcd_id = s
-	
+
 	def __len__(self):
 		return len(self.values)
 
 	def change(self, cnt):
 		r = ""
-		try : 
+		try :
 			if self.values[cnt+1] != self.val:
 				r += "b"
 				r += dec2bin(self.values[cnt+1], self.width)
@@ -102,7 +102,7 @@ class Dump:
 	def __init__(self):
 		self.vars = []
 		self.vcd_id = "!"
-		
+
 	def add(self, var):
 		var.set_vcd_id(self.vcd_id)
 		self.vcd_id = chr(ord(self.vcd_id)+1)
@@ -113,7 +113,7 @@ class Dump:
 		for s, n in layout:
 			self.add(Var(s, n, var[i:i+n]))
 			i += n
-	
+
 	def __len__(self):
 		l = 0
 		for var in self.vars:
@@ -301,7 +301,7 @@ def main():
 	dump.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
 	ramp = [i%128 for i in range(1024)]
 	dump.add(Var("ramp", 16, ramp))
-	
+
 	VCDExport(dump).write("mydump.vcd")
 	CSVExport(dump).write("mydump.csv")
 	PYExport(dump).write("mydump.py")

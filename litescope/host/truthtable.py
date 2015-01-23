@@ -1,5 +1,5 @@
 import os
-import re 
+import re
 import sys
 
 def is_number(x):
@@ -32,7 +32,7 @@ def gen_truth_table(s):
 		for j in range(2**width):
 			stim_op.append((int(j/(2**i)))%2)
 		stim.append(stim_op)
-	
+
 	truth_table = []
 	for i in range(2**width):
 		for j in range(width):
@@ -42,6 +42,6 @@ def gen_truth_table(s):
 
 def main():
 	print(gen_truth_table("(A&B&C)|D"))
-	
+
 if __name__ == '__main__':
 	main()

@@ -13,8 +13,10 @@ def write_b(uart, data):
 	uart.write(pack('B',data))
 
 class LiteScopeUART2WBDriver:
-	WRITE_CMD  = 0x01
-	READ_CMD   = 0x02
+	cmds = {
+		"write"	: 0x01,
+		"read"	: 0x02
+	}
 	def __init__(self, port, baudrate=115200, addrmap=None, busword=8, debug=False):
 		self.port = port
 		self.baudrate = str(baudrate)
@@ -42,7 +44,7 @@ class LiteScopeUART2WBDriver:
 
 	def read(self, addr, burst_length=1):
 		self.uart.flushInput()
-		write_b(self.uart, self.READ_CMD)
+		write_b(self.uart, self.cmds["read"])
 		write_b(self.uart, burst_length)
 		addr = addr//4
 		write_b(self.uart, (addr & 0xff000000) >> 24)
@@ -68,7 +70,7 @@ class LiteScopeUART2WBDriver:
 			burst_length = len(data)
 		else:
 			burst_length = 1
-		write_b(self.uart, self.WRITE_CMD)
+		write_b(self.uart, self.cmds["write"])
 		write_b(self.uart, burst_length)
 		addr = addr//4
 		write_b(self.uart, (addr & 0xff000000) >> 24)
