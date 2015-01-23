@@ -1,4 +1,4 @@
-import os
+import os, atexit
 
 from migen.bank import csrgen
 from migen.bus import wishbone, csr
@@ -78,7 +78,7 @@ class LiteScopeSoC(GenSoC, AutoCSR):
 		"la":	11
 	}
 	csr_map.update(GenSoC.csr_map)
-	def __init__(self, platform, export_conf=False):
+	def __init__(self, platform):
 		clk_freq = 50*1000000
 		GenSoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform.request("clk50"))
@@ -93,14 +93,16 @@ class LiteScopeSoC(GenSoC, AutoCSR):
 			cnt0.eq(cnt0+1),
 			cnt1.eq(cnt1+2)
 		]
-		debug = (
+		self.debug = (
 			cnt0,
 			cnt1
 		)
-		self.submodules.la = LiteScopeLA(depth=512, dat=Cat(*debug))
+		self.submodules.la = LiteScopeLA(512, self.debug)
 		self.la.add_port(LiteScopeTerm)
-		if export_conf:
-			self.la.export(self, debug, "./test/la.csv")
+		atexit.register(self.exit, platform)
 
+	def exit(self, platform):
+		if platform.vns is not None:
+			self.la.export(self.debug, platform.vns, "./test/la.csv")
 
 default_subtarget = LiteScopeSoC

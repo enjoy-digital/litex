@@ -22,6 +22,8 @@ def _getattr_all(l, attr):
 class LiteScopeLA(Module, AutoCSR):
 	def __init__(self, depth, dat, with_rle=False, clk_domain="sys", pipe=False):
 		self.depth = depth
+		if isinstance(dat, tuple):
+			dat = Cat(*dat)
 		self.with_rle = with_rle
 		self.clk_domain = clk_domain
 		self.pipe = pipe
@@ -85,26 +87,7 @@ class LiteScopeLA(Module, AutoCSR):
 		else:
 			self.comb += sink.connect(recorder.dat_sink)
 
-	def export(self, design, layout, filename):
-		# XXX FIXME
-		class SimAsyncResetSynchronizer(Special):
-			def __init__(self, cd, async_reset):
-				Special.__init__(self)
-				self.cd = cd
-				self.async_reset = async_reset
-
-			def iter_expressions(self):
-				yield self.cd, "clk", SPECIAL_INPUT
-				yield self.cd, "rst", SPECIAL_OUTPUT
-				yield self, "async_reset", SPECIAL_INPUT
-
-			@staticmethod
-			def lower(dr):
-				return Module()
-		so = {
-			AsyncResetSynchronizer:	SimAsyncResetSynchronizer
-		}
-		ret, ns = verilog.convert(design, return_ns=True, special_overrides=so)
+	def export(self, layout, vns, filename):
 		r = ""
 		def format_line(*args):
 			return ",".join(args) + "\n"
@@ -114,5 +97,5 @@ class LiteScopeLA(Module, AutoCSR):
 		r += format_line("config", "with_rle", str(int(self.with_rle)))
 
 		for e in layout:
-			r += format_line("layout", ns.get_name(e), str(flen(e)))
+			r += format_line("layout", vns.get_name(e), str(flen(e)))
 		write_to_file(filename, r)

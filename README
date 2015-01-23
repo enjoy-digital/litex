@@ -49,6 +49,8 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
 [> Possibles improvements
 -------------------------
 - add standardized interfaces (AXI, Avalon-ST)
+- add protocols analyzers
+- add signals injection/generation
 - add storage in DRAM
 - add storage in HDD with LiteSATA core (to be released soon!)
 - add Ethernet Wishbone bridge
