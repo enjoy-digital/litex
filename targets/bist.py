@@ -1,4 +1,4 @@
-import os
+import os, atexit
 
 from litesata.common import *
 from migen.bank import csrgen
@@ -137,7 +137,7 @@ class BISTSoC(GenSoC, AutoCSR):
 	}
 	csr_map.update(GenSoC.csr_map)
 
-	def __init__(self, platform, export_conf=False):
+	def __init__(self, platform):
 		clk_freq = 166*1000000
 		GenSoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
@@ -155,8 +155,8 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 		"la":			10
 	}
 	csr_map.update(BISTSoC.csr_map)
-	def __init__(self, platform, export_conf=False):
-		BISTSoC.__init__(self, platform, export_conf)
+	def __init__(self, platform):
+		BISTSoC.__init__(self, platform)
 
 		self.sata_core_link_rx_fsm_state = Signal(4)
 		self.sata_core_link_tx_fsm_state = Signal(4)
@@ -165,7 +165,7 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 		self.sata_core_command_rx_fsm_state = Signal(4)
 		self.sata_core_command_tx_fsm_state = Signal(4)
 
-		debug = (
+		self.debug = (
 			self.sata_phy.ctrl.ready,
 
 			self.sata_phy.source.stb,
@@ -202,10 +202,9 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_core_command_tx_fsm_state,
 		)
 
-		self.submodules.la = LiteScopeLA(depth=2048, dat=Cat(*debug))
+		self.submodules.la = LiteScopeLA(2048, self.debug)
 		self.la.add_port(LiteScopeTerm)
-		if export_conf:
-			self.la.export(self, debug,"./test/la.csv")
+		atexit.register(self.exit, platform)
 
 	def do_finalize(self):
 		BISTSoC.do_finalize(self)
@@ -217,5 +216,9 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_core_command_rx_fsm_state.eq(self.sata.core.command.rx.fsm.state),
 			self.sata_core_command_tx_fsm_state.eq(self.sata.core.command.tx.fsm.state)
 		]
+
+	def exit(self, platform):
+		if platform.vns is not None:
+			self.la.export(self.debug, platform.vns, "./test/la.csv")
 
 default_subtarget = BISTSoC
