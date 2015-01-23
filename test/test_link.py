@@ -2,9 +2,9 @@ import sys
 from config import *
 from tools import *
 from bist import *
-from miscope.host.drivers import MiLaDriver
+from litescope.host.driver import LiteScopeLADriver
 
-mila = MiLaDriver(wb.regs, "mila")
+la = LiteScopeLADriver(wb.regs, "la")
 identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")
 generator = LiteSATABISTGeneratorDriver(wb.regs, "sata_bist")
 checker = LiteSATABISTCheckerDriver(wb.regs, "sata_bist")
@@ -41,24 +41,24 @@ conditions["id_pio_setup"] = {
 	"source_source_payload_data" : primitives["X_RDY"],
 }
 
-mila.prog_term(port=0, cond=conditions[sys.argv[1]])
-mila.prog_sum("term")
+la.prog_term(port=0, cond=conditions[sys.argv[1]])
+la.prog_sum("term")
 
 # Trigger / wait / receive
-mila.trigger(offset=512, length=2000)
+la.trigger(offset=512, length=2000)
 
 #identify.run()
 generator.run(0, 2, 1, 0)
 #checker.run(0, 2, 1, 0)
-mila.wait_done()
+la.wait_done()
 
-mila.read()
-mila.export("dump.vcd")
+la.read()
+la.export("dump.vcd")
 ###
 wb.close()
 
 f = open("dump_link.txt", "w")
-data = link_trace(mila,
+data = link_trace(la,
 	tx_data_name="sink_sink_payload_data",
 	rx_data_name="source_source_payload_data"
 )

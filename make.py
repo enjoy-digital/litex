@@ -19,7 +19,7 @@ def _import(default, name):
 def _get_args():
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
 		description="""\
-LiteSATA verilog rtl generator - based on Migen.
+LiteSATA - based on Migen.
 
 This program builds and/or loads LiteSATA components.
 One or several actions can be specified:

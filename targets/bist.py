@@ -10,7 +10,10 @@ from migen.bank.description import *
 
 from misoclib import identifier
 
-from miscope import MiLa, Term, UART2Wishbone
+from litescope.common import *
+from litescope.bridge.uart2wb import LiteScopeUART2WB
+from litescope.frontend.la import LiteScopeLA
+from litescope.core.trigger import LiteScopeTerm
 
 from litesata.common import *
 from litesata.phy import LiteSATAPHY
@@ -56,19 +59,19 @@ class GenSoC(Module):
 	csr_base = 0x00000000
 	csr_data_width = 32
 	csr_map = {
-		"uart2wb":			0,
-		"identifier":		2,
+		"bridge":			0,
+		"identifier":		1,
 	}
 	interrupt_map = {}
 	cpu_type = None
 	def __init__(self, platform, clk_freq):
 		self.clk_freq = clk_freq
 		# UART <--> Wishbone bridge
-		self.submodules.uart2wb = UART2Wishbone(platform.request("serial"), clk_freq, baud=921600)
+		self.submodules.bridge = LiteScopeUART2WB(platform.request("serial"), clk_freq, baud=921600)
 
 		# CSR bridge   0x00000000 (shadow @0x00000000)
 		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
-		self._wb_masters = [self.uart2wb.wishbone]
+		self._wb_masters = [self.bridge.wishbone]
 		self._wb_slaves = [(lambda a: a[23:25] == 0, self.wishbone2csr.wishbone)]
 		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 
@@ -134,7 +137,7 @@ class BISTSoC(GenSoC, AutoCSR):
 	}
 	csr_map.update(GenSoC.csr_map)
 
-	def __init__(self, platform, export_mila=False):
+	def __init__(self, platform, export_conf=False):
 		clk_freq = 166*1000000
 		GenSoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
@@ -149,11 +152,11 @@ class BISTSoC(GenSoC, AutoCSR):
 
 class BISTSoCDevel(BISTSoC, AutoCSR):
 	csr_map = {
-		"mila":			11
+		"la":			10
 	}
 	csr_map.update(BISTSoC.csr_map)
-	def __init__(self, platform, export_mila=False):
-		BISTSoC.__init__(self, platform, export_mila)
+	def __init__(self, platform, export_conf=False):
+		BISTSoC.__init__(self, platform, export_conf)
 
 		self.sata_core_link_rx_fsm_state = Signal(4)
 		self.sata_core_link_tx_fsm_state = Signal(4)
@@ -199,11 +202,10 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_core_command_tx_fsm_state,
 		)
 
-		self.submodules.mila = MiLa(depth=2048, dat=Cat(*debug))
-		self.mila.add_port(Term)
-		if export_mila:
-			mila_filename = os.path.join("test", "mila.csv")
-			self.mila.export(self, debug, mila_filename)
+		self.submodules.la = LiteScopeLA(depth=2048, dat=Cat(*debug))
+		self.la.add_port(LiteScopeTerm)
+		if export_conf:
+			self.la.export(self, debug,"./test/la.csv")
 
 	def do_finalize(self):
 		BISTSoC.do_finalize(self)
