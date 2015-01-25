@@ -13,7 +13,7 @@ from misoclib import identifier
 from litescope.common import *
 from litescope.bridge.uart2wb import LiteScopeUART2WB
 from litescope.frontend.la import LiteScopeLA
-from litescope.core.trigger import LiteScopeTerm
+from litescope.core.port import LiteScopeTerm
 
 from litesata.common import *
 from litesata.phy import LiteSATAPHY
@@ -164,7 +164,7 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 		self.sata_core_command_rx_fsm_state = Signal(4)
 		self.sata_core_command_tx_fsm_state = Signal(4)
 
-		self.debug = (
+		debug = (
 			self.sata_phy.ctrl.ready,
 
 			self.sata_phy.source.stb,
@@ -201,8 +201,8 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_core_command_tx_fsm_state,
 		)
 
-		self.submodules.la = LiteScopeLA(2048, self.debug)
-		self.la.add_port(LiteScopeTerm)
+		self.submodules.la = LiteScopeLA(debug, 2048)
+		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
 		atexit.register(self.exit, platform)
 
 	def do_finalize(self):
@@ -218,6 +218,6 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 
 	def exit(self, platform):
 		if platform.vns is not None:
-			self.la.export(self.debug, platform.vns, "./test/la.csv")
+			self.la.export(platform.vns, "../test/la.csv")
 
 default_subtarget = BISTSoC

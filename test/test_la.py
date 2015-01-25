@@ -44,19 +44,21 @@ conditions["rd_resp"] = {
 	"sata_command_rx_source_payload_read"	: 1,
 }
 
-la.prog_term(port=0, cond=conditions[trig])
-la.prog_sum("term")
+la.configure_term(port=0, cond=conditions[trig])
+la.configure_sum("term")
 
-# Trigger / wait / receive
-la.trigger(offset=64, length=1024)
+# Run Logic Analyzer
+la.run(offset=64, length=1024)
 
 #identify.run(blocking=False)
 generator.run(0, 2, 1, 0, blocking=False)
 #checker.run(0, 2, 1, 0, blocking=False)
-la.wait_done()
 
-la.read()
-la.export("dump.vcd")
+while not la.done():
+	pass
+
+la.upload()
+la.save("dump.vcd")
 ###
 wb.close()
 
