@@ -1,16 +1,16 @@
-from migen.genlib.record import *
+from migen.fhdl.std import *
+from migen.bank.description import *
+from migen.genlib.fsm import FSM, NextState
+from migen.flow.actor import *
+from migen.actorlib.fifo import AsyncFIFO, SyncFIFO
+from migen.flow.plumbing import Buffer
+from migen.fhdl.specials import Memory
 
-def dat_layout(dw):
-	return [
-		("stb", 1, DIR_M_TO_S),
-		("dat", dw, DIR_M_TO_S)
-	]
+def data_layout(dw):
+	return [("data", dw, DIR_M_TO_S)]
 
 def hit_layout():
-	return [
-		("stb", 1, DIR_M_TO_S),
-		("hit", 1, DIR_M_TO_S)
-	]
+	return [("hit", 1, DIR_M_TO_S)]
 
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)

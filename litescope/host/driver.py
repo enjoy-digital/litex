@@ -121,7 +121,7 @@ class LiteScopeLADriver():
 		self.get_config()
 		self.get_layout()
 		self.build()
-		self.dat = Dat(self.width)
+		self.dat = Dat(self.dw)
 
 	def get_config(self):
 		csv_reader = csv.reader(open(self.config_csv), delimiter=',', quotechar='#')
@@ -208,11 +208,9 @@ class LiteScopeLADriver():
 
 	def read(self):
 		self.show_state("READ")
-		empty = self.recorder_read_empty.read()
-		while(not empty):
-			self.dat.append(self.recorder_read_dat.read())
-			empty = self.recorder_read_empty.read()
-			self.recorder_read_en.write(1)
+		while self.recorder_source_stb.read():
+			self.dat.append(self.recorder_source_data.read())
+			self.recorder_source_ack.write(1)
 		if self.with_rle:
 			if self.use_rle:
 				self.dat = self.dat.decode_rle()

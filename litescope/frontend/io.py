@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.bank.description import *
+from litescope.common import *
 
 class LiteScopeIO(Module, AutoCSR):
 	def __init__(self, width):

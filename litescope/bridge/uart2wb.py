@@ -1,13 +1,8 @@
-from migen.fhdl.std import *
-from migen.genlib.record import *
-from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import chooser
-from migen.bank.description import *
+from litescope.common import *
 from migen.bus import wishbone
+from migen.genlib.misc import chooser
 
 from misoclib.uart import UARTRX, UARTTX
-
-from litescope.common import *
 
 class UART(Module, AutoCSR):
 	def __init__(self, pads, clk_freq, baud=115200):

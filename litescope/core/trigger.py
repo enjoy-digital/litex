@@ -1,140 +1,73 @@
-from migen.fhdl.std import *
-from migen.fhdl.specials import Memory
-from migen.bank.description import *
-from migen.genlib.record import *
-
 from litescope.common import *
 
-class LiteScopeTerm(Module, AutoCSR):
-	def __init__(self, width):
-		self.width = width
-
-		self.sink = Record(dat_layout(width))
-		self.source = Record(hit_layout())
-
-		self._trig = CSRStorage(width)
-		self._mask = CSRStorage(width)
-
-	###
-
-		trig = self._trig.storage
-		mask = self._mask.storage
-		dat = self.sink.dat
-		hit = self.source.hit
-
-		self.comb += [
-			hit.eq((dat & mask) == trig),
-			self.source.stb.eq(self.sink.stb)
-		]
-
-class LiteScopeRangeDetector(Module, AutoCSR):
-	def __init__(self, width):
-		self.width = width
-
-		self.sink = Record(dat_layout(width))
-		self.source = Record(hit_layout())
-
-		self._low = CSRStorage(width)
-		self._high = CSRStorage(width)
-
-	###
-
-		low = self._low.storage
-		high = self._high.storage
-		dat = self.sink.dat
-		hit = self.source.hit
-
-		self.comb += [
-			hit.eq((dat >= low) & (dat <= high)),
-			self.source.stb.eq(self.sink.stb)
-		]
-
-class LiteScopeEdgeDetector(Module, AutoCSR):
-	def __init__(self, width):
-		self.width = width
-
-		self.sink = Record(dat_layout(width))
-		self.source = Record(hit_layout())
-
-		self._rising_mask = CSRStorage(width)
-		self._falling_mask = CSRStorage(width)
-		self._both_mask = CSRStorage(width)
-
-	###
-
-		rising_mask = self._rising_mask.storage
-		falling_mask = self._falling_mask.storage
-		both_mask = self._both_mask.storage
-
-		dat = self.sink.dat
-		dat_d = Signal(width)
-		rising_hit = Signal()
-		falling_hit = Signal()
-		both_hit = Signal()
-		hit = self.source.hit
-
-		self.sync += dat_d.eq(dat)
-
-		self.comb += [
-			rising_hit.eq(rising_mask & dat & ~dat_d),
-			falling_hit.eq(rising_mask & ~dat & dat_d),
-			both_hit.eq((both_mask & dat) != (both_mask & dat_d)),
-			hit.eq(rising_hit | falling_hit | both_hit),
-			self.source.stb.eq(self.sink.stb)
-		]
-
 class LiteScopeSum(Module, AutoCSR):
-	def __init__(self, ports=4):
+	def __init__(self, ports):
+		self.sinks = sinks = [Sink(hit_layout()) for i in range(ports)]
+		self.source = source = Source(hit_layout())
 
-		self.sinks = [Record(hit_layout()) for p in range(ports)]
-		self.source = Record(hit_layout())
-
-		self._prog_we = CSRStorage()
-		self._prog_adr = CSRStorage(ports) #FIXME
-		self._prog_dat = CSRStorage()
+		self.prog_we = Signal()
+		self.prog_adr = Signal(ports)
+		self.prog_dat = Signal()
 
 		mem = Memory(1, 2**ports)
-		lut_port = mem.get_port()
-		prog_port = mem.get_port(write_capable=True)
-
-		self.specials += mem, lut_port, prog_port
+		lut = mem.get_port()
+		prog = mem.get_port(write_capable=True)
+		self.specials += mem, lut, prog
 
 		###
 
-		# Lut prog
+		# program port
 		self.comb += [
-			prog_port.we.eq(self._prog_we.storage),
-			prog_port.adr.eq(self._prog_adr.storage),
-			prog_port.dat_w.eq(self._prog_dat.storage)
+			prog.we.eq(self.prog_we),
+			prog.adr.eq(self.prog_adr),
+			prog.dat_w.eq(self.prog_dat)
 		]
 
-		# Lut read
-		for i, sink in enumerate(self.sinks):
-			self.comb += lut_port.adr[i].eq(sink.hit)
+		# LUT port
+		for i, sink in enumerate(sinks):
+			self.comb += lut.adr[i].eq(sink.hit)
 
-		# Drive source
+		# drive source
 		self.comb += [
-			self.source.stb.eq(optree("&", [sink.stb for sink in self.sinks])),
-			self.source.hit.eq(lut_port.dat_r),
+			source.stb.eq(optree("&", [sink.stb for sink in sinks])),
+			source.hit.eq(lut.dat_r)
 		]
+		for i, sink in enumerate(sinks):
+			self.comb += sink.ack.eq(sink.stb & source.ack)
 
+class LiteScopeSumCSR(Module, AutoCSR):
+	def __init__(self, ports):
+		LiteScopeSum.__init__(self, ports)
+		self._prog_we = CSR()
+		self._prog_adr = CSRStorage(ports)
+		self._prog_dat = CSRStorage()
+		###
+		self.comb += [
+			self.prog_we.eq(self._prog_we.re & self._prog_we.r),
+			self.prog_adr.eq(self._prog_adr.storage),
+			self.prog_dat.eq(self._prog_dat.storage)
+		]
 
 class LiteScopeTrigger(Module, AutoCSR):
-	def __init__(self, width, ports):
-		self.width = width
-		self.ports = ports
+	def __init__(self, dw):
+		self.dw = dw
+		self.ports = []
+		self.sink = Sink(data_layout(dw))
+		self.source = Source(hit_layout())
 
-		self.submodules.sum = LiteScopeSum(len(ports))
-		for i, port in enumerate(ports):
-			setattr(self.submodules, "port"+str(i), port)
+	def add_port(self, port):
+		setattr(self.submodules, "port"+str(len(self.ports)), port)
+		self.ports.append(port)
 
-		self.sink   = Record(dat_layout(width))
-		self.source = self.sum.source
-
+	def do_finalize(self):
+		self.submodules.sum = LiteScopeSumCSR(len(self.ports))
 		###
-
-		for i, port in enumerate(ports):
+		for i, port in enumerate(self.ports):
+			# Note: port's ack is not used and supposed to be always 1
 			self.comb += [
-				self.sink.connect(port.sink),
-				port.source.connect(self.sum.sinks[i])
+				port.sink.stb.eq(self.sink.stb),
+				port.sink.data.eq(self.sink.data),
+				self.sink.ack.eq(1),
+				Record.connect(port.source, self.sum.sinks[i])
 			]
+		self.comb += Record.connect(self.sum.source, self.source)
