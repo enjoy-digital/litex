@@ -112,10 +112,11 @@ class LiteScopeIODriver():
 		return self.i.read()
 
 class LiteScopeLADriver():
-	def __init__(self, regs, name, config_csv=None, use_rle=False):
+	def __init__(self, regs, name, config_csv=None, use_rle=False, debug=False):
 		self.regs = regs
 		self.name = name
 		self.use_rle = use_rle
+		self.debug = debug
 		if config_csv is None:
 			self.config_csv = name + ".csv"
 		self.get_config()
@@ -152,11 +153,7 @@ class LiteScopeLADriver():
 			setattr(self, name + "_m", (2**length-1) << value)
 			value += length
 
-	def show_state(self, s):
-		print(s, end="|")
-		sys.stdout.flush()
-
-	def prog_term(self, port, trigger=0, mask=0, cond=None):
+	def configure_term(self, port, trigger=0, mask=0, cond=None):
 		if cond is not None:
 			for k, v in cond.items():
 				trigger |= getattr(self, k + "_o")*v
@@ -166,13 +163,13 @@ class LiteScopeLADriver():
 		t.write(trigger)
 		m.write(mask)
 
-	def prog_range_detector(self, port, low, high):
+	def configure_range_detector(self, port, low, high):
 		l = getattr(self, "trigger_port{d}_low".format(d=int(port)))
 		h = getattr(self, "trigger_port{d}_high".format(d=int(port)))
 		l.write(low)
 		h.write(high)
 
-	def prog_edge_detector(self, port, rising_mask, falling_mask, both_mask):
+	def configure_edge_detector(self, port, rising_mask, falling_mask, both_mask):
 		rm = getattr(self, "trigger_port{d}_rising_mask".format(d=int(port)))
 		fm = getattr(self, "trigger_port{d}_falling_mask".format(d=int(port)))
 		bm = getattr(self, "trigger_port{d}_both_mask".format(d=int(port)))
@@ -180,34 +177,31 @@ class LiteScopeLADriver():
 		fm.write(falling_mask)
 		bm.write(both_mask)
 
-	def prog_sum(self, equation):
+	def configure_sum(self, equation):
 		datas = gen_truth_table(equation)
 		for adr, dat in enumerate(datas):
 			self.trigger_sum_prog_adr.write(adr)
 			self.trigger_sum_prog_dat.write(dat)
 			self.trigger_sum_prog_we.write(1)
 
-	def config_rle(self, v):
+	def set_rle(self, v):
 		self.rle_enable.write(v)
 
-	def is_done(self):
+	def done(self):
 		return self.recorder_done.read()
 
-	def wait_done(self):
-		self.show_state("WAIT HIT")
-		while(not self.is_done()):
-			time.sleep(0.1)
-
-	def trigger(self, offset, length):
-		self.show_state("TRIG")
+	def run(self, offset, length):
+		if self.debug:
+			print("run")
 		if self.with_rle:
 			self.config_rle(self.use_rle)
 		self.recorder_offset.write(offset)
 		self.recorder_length.write(length)
 		self.recorder_trigger.write(1)
 
-	def read(self):
-		self.show_state("READ")
+	def upload(self):
+		if self.debug:
+			print("upload")
 		while self.recorder_source_stb.read():
 			self.dat.append(self.recorder_source_data.read())
 			self.recorder_source_ack.write(1)
@@ -216,15 +210,16 @@ class LiteScopeLADriver():
 				self.dat = self.dat.decode_rle()
 		return self.dat
 
-	def export(self, export_fn=None):
-		self.show_state("EXPORT")
+	def save(self, filename):
+		if self.debug:
+			print("save to " + filename)
 		dump = Dump()
 		dump.add_from_layout(self.layout, self.dat)
-		if ".vcd" in export_fn:
-			VCDExport(dump).write(export_fn)
-		elif ".csv" in export_fn:
-			CSVExport(dump).write(export_fn)
-		elif ".py" in export_fn:
-			PYExport(dump).write(export_fn)
+		if ".vcd" in filename:
+			VCDExport(dump).write(filename)
+		elif ".csv" in filename:
+			CSVExport(dump).write(filename)
+		elif ".py" in filename:
+			PYExport(dump).write(filename)
 		else:
 			raise NotImplementedError

@@ -3,18 +3,19 @@ from litescope.host.driver import LiteScopeLADriver
 
 wb.open()
 ###
-la = LiteScopeLADriver(wb.regs, "la")
+la = LiteScopeLADriver(wb.regs, "la", debug=True)
 
 cond = {"cnt0"	:	128} # trigger on cnt0 = 128
-la.prog_term(port=0, cond=cond)
-la.prog_sum("term")
-la.trigger(offset=128, length=256)
+la.configure_term(port=0, cond=cond)
+la.configure_sum("term")
+la.run(offset=128, length=256)
 
-la.wait_done()
-la.read()
+while not la.done():
+	pass
+la.upload()
 
-la.export("dump.vcd")
-la.export("dump.csv")
-la.export("dump.py")
+la.save("dump.vcd")
+la.save("dump.csv")
+la.save("dump.py")
 ###
 wb.close()
