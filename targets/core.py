@@ -11,7 +11,7 @@ class LiteSATACore(Module):
 
 		# SATA PHY/Core/Frontend
 		self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "sata_gen2", clk_freq)
-		self.submodules.sata = LiteSATA(self.sata_phy)
+		self.submodules.sata = LiteSATA(self.sata_phy, with_bist=True)
 
 		# Get user ports from crossbar
 		self.user_ports = self.sata.crossbar.get_ports(nports)
@@ -24,6 +24,25 @@ class LiteSATACore(Module):
 			obj = getattr(self.sata_phy.pads, e)
 			if isinstance(obj, Signal):
 				ios = ios.union({obj})
+
+		# Status
+		ios = ios.union({
+			self.sata_phy.crg.ready,
+			self.sata_phy.ctrl.ready
+		})
+
+		# BIST
+		if hasattr(self.sata, "bist"):
+			for bist_unit in ["generator", "checker"]:
+				for signal in ["start", "sector", "count", "random", "done", "aborted", "errors"]:
+					ios = ios.union({getattr(getattr(self.sata.bist, bist_unit), signal)})
+			ios = ios.union({
+				self.sata.bist.identify.start,
+				self.sata.bist.identify.done,
+				self.sata.bist.identify.source.stb,
+				self.sata.bist.identify.source.data,
+				self.sata.bist.identify.source.ack
+			})
 
 		# User ports
 		def _iter_layout(layout):
