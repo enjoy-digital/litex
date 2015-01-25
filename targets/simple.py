@@ -11,7 +11,7 @@ from litescope.common import *
 from litescope.bridge.uart2wb import LiteScopeUART2WB
 from litescope.frontend.io import LiteScopeIO
 from litescope.frontend.la import LiteScopeLA
-from litescope.core.port import LiteScopeTermCSR
+from litescope.core.port import LiteScopeTerm
 
 class _CRG(Module):
 	def __init__(self, clk_in):
@@ -98,7 +98,7 @@ class LiteScopeSoC(GenSoC, AutoCSR):
 			cnt1
 		)
 		self.submodules.la = LiteScopeLA(self.debug, 512)
-		self.la.trigger.add_port(LiteScopeTermCSR(self.la.dw))
+		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
 		atexit.register(self.exit, platform)
 
 	def exit(self, platform):

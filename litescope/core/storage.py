@@ -1,6 +1,6 @@
 from litescope.common import *
 
-class LiteScopeRunLengthEncoder(Module):
+class LiteScopeRunLengthEncoderUnit(Module):
 	def __init__(self, dw, length=1024):
 		self.dw = dw
 		self.length = length
@@ -46,12 +46,12 @@ class LiteScopeRunLengthEncoder(Module):
 			)
 		)
 
-class LiteScopeRunLengthEncoderCSR(Module, AutoCSR):
-	def __init__(self, rle):
-		self.submodules += rle
+class LiteScopeRunLengthEncoder(LiteScopeRunLengthEncoderUnit, AutoCSR):
+	def __init__(self, dw, length=1024):
+		LiteScopeRunLengthEncoderUnit.__init__(self, dw, length)
 		self._enable = CSRStorage()
 		###
-		self.comb += rle.enable.eq(self_enable.storage)
+		self.comb += self.enable.eq(self_enable.storage)
 
 class LiteScopeRecorder(Module, AutoCSR):
 	def __init__(self, dw, depth):

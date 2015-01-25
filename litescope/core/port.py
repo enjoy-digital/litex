@@ -1,6 +1,6 @@
 from litescope.common import *
 
-class LiteScopeTerm(Module):
+class LiteScopeTermUnit(Module):
 	def __init__(self, dw):
 		self.dw = dw
 		self.sink = sink = Sink(data_layout(dw))
@@ -15,9 +15,9 @@ class LiteScopeTerm(Module):
 			sink.ack.eq(source.ack)
 		]
 
-class LiteScopeTermCSR(LiteScopeTerm, AutoCSR):
+class LiteScopeTerm(LiteScopeTermUnit, AutoCSR):
 	def __init__(self, dw):
-		LiteScopeTerm.__init__(self, dw)
+		LiteScopeTermUnit.__init__(self, dw)
 		self._trig = CSRStorage(dw)
 		self._mask = CSRStorage(dw)
 		###
@@ -26,7 +26,7 @@ class LiteScopeTermCSR(LiteScopeTerm, AutoCSR):
 			self.mask.eq(self._mask.storage)
 		]
 
-class LiteScopeRangeDetector(Module):
+class LiteScopeRangeDetectorUnit(Module):
 	def __init__(self, dw):
 		self.dw = dw
 		self.sink = sink = Sink(data_layout(dw))
@@ -41,9 +41,9 @@ class LiteScopeRangeDetector(Module):
 			sink.ack.eq(source.ack)
 		]
 
-class LiteScopeRangeDetectorCSR(LiteScopeRangeDetector, AutoCSR):
+class LiteScopeRangeDetector(LiteScopeRangeDetectorUnit, AutoCSR):
 	def __init__(self, dw):
-		LiteScopeRangeDetector.__init__(self, dw)
+		LiteScopeRangeDetectorUnit.__init__(self, dw)
 		self._low = CSRStorage(dw)
 		self._high = CSRStorage(dw)
 		###
@@ -52,7 +52,7 @@ class LiteScopeRangeDetectorCSR(LiteScopeRangeDetector, AutoCSR):
 			self.high.eq(self._high.storage)
 		]
 
-class LiteScopeEdgeDetector(Module):
+class LiteScopeEdgeDetectorUnit(Module):
 	def __init__(self, dw):
 		self.dw = dw
 		self.sink = sink = Sink(data_layout(dw))
@@ -80,9 +80,9 @@ class LiteScopeEdgeDetector(Module):
 			source.hit.eq(rising | falling | both)
 		]
 
-class LiteScopeEdgeDetectorCSR(LiteScopeEdgeDetector, AutoCSR):
+class LiteScopeEdgeDetector(LiteScopeEdgeDetectorUnit, AutoCSR):
 	def __init__(self, dw):
-		LiteScopeEdgeDetector.__init__(self, dw)
+		LiteScopeEdgeDetectorUnit.__init__(self, dw)
 		self._rising = CSRStorage(dw)
 		self._falling = CSRStorage(dw)
 		self._both = CSRStorage(dw)

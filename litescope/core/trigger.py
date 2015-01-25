@@ -1,6 +1,6 @@
 from litescope.common import *
 
-class LiteScopeSum(Module, AutoCSR):
+class LiteScopeSumUnit(Module, AutoCSR):
 	def __init__(self, ports):
 		self.sinks = sinks = [Sink(hit_layout()) for i in range(ports)]
 		self.source = source = Source(hit_layout())
@@ -35,9 +35,9 @@ class LiteScopeSum(Module, AutoCSR):
 		for i, sink in enumerate(sinks):
 			self.comb += sink.ack.eq(sink.stb & source.ack)
 
-class LiteScopeSumCSR(Module, AutoCSR):
+class LiteScopeSum(LiteScopeSumUnit, AutoCSR):
 	def __init__(self, ports):
-		LiteScopeSum.__init__(self, ports)
+		LiteScopeSumUnit.__init__(self, ports)
 		self._prog_we = CSR()
 		self._prog_adr = CSRStorage(ports)
 		self._prog_dat = CSRStorage()
@@ -60,7 +60,7 @@ class LiteScopeTrigger(Module, AutoCSR):
 		self.ports.append(port)
 
 	def do_finalize(self):
-		self.submodules.sum = LiteScopeSumCSR(len(self.ports))
+		self.submodules.sum = LiteScopeSum(len(self.ports))
 		###
 		for i, port in enumerate(self.ports):
 			# Note: port's ack is not used and supposed to be always 1
