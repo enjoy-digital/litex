@@ -2,7 +2,8 @@ from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.flow.actor import Sink, Source
 
-from misoclib.ethmac.common import *
+from liteethernet.common import *
+from liteethernet.mac.common import *
 
 class TXLastBE(Module):
 	def __init__(self, d_w):

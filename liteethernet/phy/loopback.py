@@ -3,14 +3,12 @@ from migen.flow.actor import Sink, Source
 from migen.bank.description import *
 from migen.genlib.record import *
 
-from misoclib.ethmac.common import *
+from liteethernet.common import *
 
 class LoopbackPHYCRG(Module, AutoCSR):
 	def __init__(self):
 		self._reset = CSRStorage()
-
 		###
-
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
 		self.comb += [

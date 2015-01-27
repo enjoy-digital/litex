@@ -1,66 +1,9 @@
-# This file is Copyright (c) 2014 Florent Kermarrec <florent@enjoy-digital.fr>
-# License: BSD
+from liteethernet.common import *
+from liteethernet.mac import LiteEthernetMAC
 
-from migen.fhdl.std import *
-
-from migen.bus import wishbone
-from migen.actorlib.fifo import AsyncFIFO
-from migen.actorlib.structuring import Converter, Pipeline
-from migen.bank.eventmanager import SharedIRQ
-from migen.bank.description import *
-from migen.fhdl.simplify import *
-
-from misoclib.ethmac.common import *
-from misoclib.ethmac.preamble import PreambleInserter, PreambleChecker
-from migen.actorlib.crc import CRC32Inserter, CRC32Checker
-from misoclib.ethmac.last_be import TXLastBE, RXLastBE
-from misoclib.ethmac.sram import SRAMWriter, SRAMReader
-
-class EthMAC(Module, AutoCSR):
-	def __init__(self, phy, interface="wishbone", with_hw_preamble_crc=True, endianness="be"):
-		# Preamble / CRC (optional)
-		if with_hw_preamble_crc:
-			self._hw_preamble_crc = CSRStatus(reset=1)
-			# Preamble insert/check
-			preamble_inserter = PreambleInserter(phy.dw)
-			preamble_checker = PreambleChecker(phy.dw)
-			self.submodules += RenameClockDomains(preamble_inserter, "eth_tx")
-			self.submodules += RenameClockDomains(preamble_checker, "eth_rx")
-
-			# CRC insert/check
-			crc32_inserter = CRC32Inserter(eth_description(phy.dw))
-			crc32_checker = CRC32Checker(eth_description(phy.dw))
-			self.submodules += RenameClockDomains(crc32_inserter, "eth_tx")
-			self.submodules += RenameClockDomains(crc32_checker, "eth_rx")
-
-		# Delimiters
-		tx_last_be = TXLastBE(phy.dw)
-		rx_last_be = RXLastBE(phy.dw)
-		self.submodules += RenameClockDomains(tx_last_be, "eth_tx")
-		self.submodules += RenameClockDomains(rx_last_be, "eth_rx")
-
-		# Converters
-		reverse = endianness == "be"
-		tx_converter = Converter(eth_description(32), eth_description(phy.dw), reverse=reverse)
-		rx_converter = Converter(eth_description(phy.dw), eth_description(32), reverse=reverse)
-		self.submodules += RenameClockDomains(tx_converter, "eth_tx")
-		self.submodules += RenameClockDomains(rx_converter, "eth_rx")
-
-		# Cross Domain Crossing
-		tx_cdc = AsyncFIFO(eth_description(32), 4)
-		rx_cdc = AsyncFIFO(eth_description(32), 4)
-		self.submodules +=  RenameClockDomains(tx_cdc, {"write": "sys", "read": "eth_tx"})
-		self.submodules +=  RenameClockDomains(rx_cdc, {"write": "eth_rx", "read": "sys"})
-
-		# Graph
-		if with_hw_preamble_crc:
-			rx_pipeline = [phy, preamble_checker, crc32_checker, rx_last_be, rx_converter, rx_cdc]
-			tx_pipeline = [tx_cdc, tx_converter, tx_last_be, crc32_inserter, preamble_inserter, phy]
-		else:
-			rx_pipeline = [phy, rx_last_be, rx_converter, rx_cdc]
-			tx_pipeline = [tx_cdc, tx_converter, tx_last_be, phy]
-		self.submodules.rx_pipeline = Pipeline(*rx_pipeline)
-		self.submodules.tx_pipeline = Pipeline(*tx_pipeline)
+class LiteEthernetMAC(Module, AutoCSR):
+	def __init__(self, phy, frontend="wishbone", with_hw_preamble_crc=True, endianness="be"):
+		self.submodules.core = LiteEthernetMAC(phy, with_hw_preamble, endianness)
 
 		if interface == "wishbone":
 			nrxslots = 2

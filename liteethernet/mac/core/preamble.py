@@ -4,7 +4,8 @@ from migen.genlib.misc import chooser
 from migen.genlib.record import *
 from migen.flow.actor import Sink, Source
 
-from misoclib.ethmac.common import *
+from liteethernet.common import *
+from liteethernet.ethmac.common import *
 
 class PreambleInserter(Module):
 	def __init__(self, d_w):

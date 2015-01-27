@@ -3,14 +3,12 @@ from migen.flow.actor import Sink, Source
 from migen.bank.description import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.ethmac.common import *
+from liteethernet.common import *
 
 class GMIIPHYTX(Module):
 	def __init__(self, pads):
 		self.sink = sink = Sink(eth_description(8))
-
 		###
-
 		self.sync += [
 			pads.tx_er.eq(0),
 			pads.tx_en.eq(sink.stb),
@@ -21,9 +19,7 @@ class GMIIPHYTX(Module):
 class GMIIPHYRX(Module):
 	def __init__(self, pads):
 		self.source = source = Source(eth_description(8))
-
 		###
-
 		dv_d = Signal()
 		self.sync += dv_d.eq(pads.dv)
 
@@ -45,9 +41,7 @@ class GMIIPHYRX(Module):
 class GMIIPHYCRG(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self._reset = CSRStorage()
-
 		###
-
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
 		self.specials += [

@@ -6,7 +6,8 @@ from migen.flow.actor import Sink, Source
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 
-from misoclib.ethmac.common import *
+from liteethernet.common import *
+from liteethernet.mac.common import *
 
 class SRAMWriter(Module, AutoCSR):
 	def __init__(self, depth, nslots=2):
