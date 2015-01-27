@@ -1,16 +1,9 @@
-             __   _ __      ____
-            / /  (_) /____ / __/______  ___  ___
-           / /__/ / __/ -_)\ \/ __/ _ \/ _ \/ -_)
-          /____/_/\__/\__/___/\__/\___/ .__/\__/
-                                     /_/
-           Copyright 2012-2015 / EnjoyDigital
-                florent@enjoy-digital.fr
+.. _about:
 
-       A small footprint and configurable embedded FPGA
-         logic analyzer core developed by EnjoyDigital
+================
+About LiteScope
+================
 
-[> Intro
----------
 LiteScope is small footprint and configurable embedded logic analyzer that you
 can use in your FPGA and aims to provide a a free, portable and flexible
 alternatve to vendor's solutions!
@@ -38,8 +31,10 @@ LiteScope produces "vcd" files that can be read in your regular waveforms viewer
 Since LiteScope also provides a UART <--> Wishbone brige so you only need 2
 external Rx/Tx pins to be ready to debug or control all your Wishbone peripherals!
 
-[> Features
------------
+.. _about-toolchain:
+
+Features
+========
 - IO peek and poke with LiteScopeIO
 - Logic analyser with LiteScopeLA:
   - Various triggering modules: Term, Range, Edge (add yours! :)
@@ -48,8 +43,9 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
   - Storage qualifier
   - Data storage in block rams
 
-[> Possibles improvements
--------------------------
+
+Possibles improvements
+======================
 - add standardized interfaces (AXI, Avalon-ST)
 - add protocols analyzers
 - add signals injection/generation
@@ -59,59 +55,8 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
 - add PCIe Wishbone bridge with LitePCIe (to be released soon!)
 - ... See below Support and Consulting :)
 
-If you want to support these features, please contact us at florent [AT]
-enjoy-digital.fr. You can also contact our partner on the public mailing list
-devel [AT] lists.m-labs.hk.
-
-
-[> Getting started
-------------------
-1. Install Python3 and your vendor's software
-
-2. Obtain Migen and install it:
-  git clone https://github.com/m-labs/migen
-  cd migen
-  python3 setup.py install
-  cd ..
-
-3. Obtain MiSoC:
-  git clone https://github.com/m-labs/misoc --recursive
-  XXX add setup.py to MiSoC for external use of misoclib?
-
-4. Obtain LiteScope
-  git clone https://github.com/enjoy-digital/litescope
-
-5. Build and load test design:
-  python3 make.py -s [platform] all
-  Supported platforms are the one altready supported by Mibuild:
-  de0nano, m1, mixxeo, kc705, zedboard...
-
-6. Test design:
-  go to ./test directory and run:
-  python3 test_io.py
-  python3 test_la.py
-
-[> Simulations:
-	XXX convert simulations
-
-[> Tests :
-	XXX convert tests
-
-[> License
------------
-LiteScope is released under the very permissive two-clause BSD license. Under the
-terms of this license, you are authorized to use LiteScope for closed-source
-proprietary designs.
-Even though we do not require you to do so, those things are awesome, so please
-do them if possible:
- - tell us that you are using LiteScope
- - cite LiteScope in publications related to research it has helped
- - send us feedback and suggestions for improvements
- - send us bug reports when something goes wrong
- - send us the modifications and improvements you have done to LiteScope.
-
-[> Support and Consulting
---------------------------
+Support and Consulting
+======================
 We love open-source hardware and like sharing our designs with others.
 
 LiteScope is developed and maintained by EnjoyDigital.
@@ -123,5 +68,8 @@ commercial support as well as consulting services.
 So feel free to contact us, we'd love to work with you! (and eventually shorten
 the list of the possible improvements :)
 
-[> Contact
+Contact
+=======
 E-mail: florent [AT] enjoy-digital.fr
+
+

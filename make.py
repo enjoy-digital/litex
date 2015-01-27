@@ -104,7 +104,7 @@ Depth: {}
 Subsampler: {}
 RLE: {}
 ===============================""".format(
-	soc.io.width,
+	soc.io.dw,
 	soc.la.dw,
 	soc.la.depth,
 	str(soc.la.with_subsampler),
