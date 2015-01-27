@@ -9,18 +9,18 @@ README = open(os.path.join(here, "README")).read()
 
 required_version = (3, 3)
 if sys.version_info < required_version:
-	raise SystemExit("LiteEthernet requires python {0} or greater".format(
+	raise SystemExit("LiteEth requires python {0} or greater".format(
 		".".join(map(str, required_version))))
 
 setup(
 	name="liteethernet",
 	version="unknown",
-	description="small footprint and configurable embedded FPGA logic analyzer",
+	description="small footprint and configurable Ethernet core",
 	long_description=README,
 	author="Florent Kermarrec",
 	author_email="florent@enjoy-digital.fr",
 	url="http://enjoy-digital.fr",
-	download_url="https://github.com/enjoy-digital/liteethernet",
+	download_url="https://github.com/enjoy-digital/liteeth",
 	packages=find_packages(here),
 	license="GPL",
 	platforms=["Any"],
