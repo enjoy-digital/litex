@@ -53,12 +53,59 @@ class LiteScopeRunLengthEncoder(LiteScopeRunLengthEncoderUnit, AutoCSR):
 		###
 		self.comb += self.enable.eq(self_enable.storage)
 
-class LiteScopeRecorder(Module, AutoCSR):
+class LiteScopeRecorderUnit(Module):
 	def __init__(self, dw, depth):
 		self.dw = dw
+		self.depth = depth
 
 		self.trigger_sink = trigger_sink = Sink(hit_layout())
 		self.data_sink = data_sink = Sink(data_layout(dw))
+
+		self.trigger = Signal()
+		self.length = Signal(bits_for(depth))
+		self.offset = Signal(bits_for(depth))
+		self.done = Signal()
+
+		self.source = Source(data_layout(dw))
+
+		###
+
+		fifo = InsertReset(SyncFIFO(data_layout(dw), depth, buffered=True))
+		self.submodules += fifo
+
+		fsm = FSM(reset_state="IDLE")
+		self.submodules += fsm
+		self.comb += [
+			self.source.stb.eq(fifo.source.stb),
+			self.source.data.eq(fifo.source.data)
+		]
+		fsm.act("IDLE",
+			self.done.eq(1),
+			If(self.trigger,
+				NextState("PRE_HIT_RECORDING"),
+				fifo.reset.eq(1),
+			),
+			fifo.source.ack.eq(self.source.ack)
+		)
+		fsm.act("PRE_HIT_RECORDING",
+			fifo.sink.stb.eq(data_sink.stb),
+			fifo.sink.data.eq(data_sink.data),
+			data_sink.ack.eq(fifo.sink.ack),
+
+			fifo.source.ack.eq(fifo.fifo.level >= self.offset),
+			If(trigger_sink.stb & trigger_sink.hit, NextState("POST_HIT_RECORDING"))
+		)
+		fsm.act("POST_HIT_RECORDING",
+			fifo.sink.stb.eq(data_sink.stb),
+			fifo.sink.data.eq(data_sink.data),
+			data_sink.ack.eq(fifo.sink.ack),
+
+			If(~fifo.sink.ack | (fifo.fifo.level >= self.length), NextState("IDLE"))
+		)
+
+class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
+	def __init__(self, dw, depth):
+		LiteScopeRecorderUnit.__init__(self, dw, depth)
 
 		self._trigger = CSR()
 		self._length = CSRStorage(bits_for(depth))
@@ -71,35 +118,13 @@ class LiteScopeRecorder(Module, AutoCSR):
 
 		###
 
-		fifo = InsertReset(SyncFIFO(data_layout(dw), depth, buffered=True))
-		self.submodules += fifo
-
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
 		self.comb += [
-			self._source_stb.status.eq(fifo.source.stb),
-			self._source_data.status.eq(fifo.source.data)
+			self.trigger.eq(self._trigger.re),
+			self.length.eq(self._length.storage),
+			self.offset.eq(self._offset.storage),
+			self._done.status.eq(self.done),
+
+			self._source_stb.status.eq(self.source.stb),
+			self._source_data.status.eq(self.source.data),
+			self.source.ack.eq(self._source_ack.re)
 		]
-		fsm.act("IDLE",
-			self._done.status.eq(1),
-			If(self._trigger.re,
-				NextState("PRE_HIT_RECORDING"),
-				fifo.reset.eq(1),
-			),
-			fifo.source.ack.eq(self._source_ack.re)
-		)
-		fsm.act("PRE_HIT_RECORDING",
-			fifo.sink.stb.eq(data_sink.stb),
-			fifo.sink.data.eq(data_sink.data),
-			data_sink.ack.eq(fifo.sink.ack),
-
-			fifo.source.ack.eq(fifo.fifo.level >= self._offset.storage),
-			If(trigger_sink.stb & trigger_sink.hit, NextState("POST_HIT_RECORDING"))
-		)
-		fsm.act("POST_HIT_RECORDING",
-			fifo.sink.stb.eq(data_sink.stb),
-			fifo.sink.data.eq(data_sink.data),
-			data_sink.ack.eq(fifo.sink.ack),
-
-			If(~fifo.sink.ack | (fifo.fifo.level >= self._length.storage), NextState("IDLE"))
-		)
