@@ -1,5 +1,28 @@
 from litescope.common import *
 
+class LiteScopeSubSamplerUnit(Module):
+	def __init__(self, dw):
+		self.sink = sink = Sink(data_layout(dw))
+		self.source = source = Source(data_layout(dw))
+		self.value = Signal(32)
+		###
+		self.submodules.counter = Counter(bits_sign=32)
+		done = Signal()
+		self.comb += [
+			done.eq(self.counter.value >= self.value),
+			Record.connect(sink, source),
+			source.stb.eq(sink.stb & done),
+			self.counter.ce.eq(source.ack),
+			self.counter.reset.eq(source.stb & source.ack & done)
+		]
+
+class LiteScopeSubSampler(LiteScopeSubSamplerUnit, AutoCSR):
+	def __init__(self, dw):
+		LiteScopeSubSamplerUnit.__init__(self, dw)
+		self._value = CSRStorage(32)
+		###
+		self.comb += self.value.eq(self._value.storage)
+
 class LiteScopeRunLengthEncoderUnit(Module):
 	def __init__(self, dw, length=1024):
 		self.dw = dw

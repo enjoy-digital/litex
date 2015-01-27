@@ -184,7 +184,10 @@ class LiteScopeLADriver():
 			self.trigger_sum_prog_dat.write(dat)
 			self.trigger_sum_prog_we.write(1)
 
-	def set_rle(self, v):
+	def configure_subsampler(self, n):
+		self.subsampler_value.write(n-1)
+
+	def configure_rle(self, v):
 		self.rle_enable.write(v)
 
 	def done(self):

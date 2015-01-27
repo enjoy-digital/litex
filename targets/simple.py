@@ -97,7 +97,7 @@ class LiteScopeSoC(GenSoC, AutoCSR):
 			cnt0,
 			cnt1
 		)
-		self.submodules.la = LiteScopeLA(self.debug, 512)
+		self.submodules.la = LiteScopeLA(self.debug, 512, with_subsampler=True)
 		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
 		atexit.register(self.exit, platform)
 
