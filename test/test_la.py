@@ -8,7 +8,8 @@ la = LiteScopeLADriver(wb.regs, "la", debug=True)
 cond = {"cnt0"	:	128} # trigger on cnt0 = 128
 la.configure_term(port=0, cond=cond)
 la.configure_sum("term")
-la.configure_subsampler(16)
+la.configure_subsampler(1)
+la.configure_qualifier(1)
 la.run(offset=128, length=256)
 
 while not la.done():

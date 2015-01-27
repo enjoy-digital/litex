@@ -187,6 +187,9 @@ class LiteScopeLADriver():
 	def configure_subsampler(self, n):
 		self.subsampler_value.write(n-1)
 
+	def configure_qualifier(self, v):
+		self.recorder_qualifier.write(v)
+
 	def configure_rle(self, v):
 		self.rle_enable.write(v)
 

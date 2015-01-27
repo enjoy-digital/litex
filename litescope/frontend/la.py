@@ -63,7 +63,11 @@ class LiteScopeLA(Module, AutoCSR):
 				Record.connect(rle.source, self.recorder.data_sink)
 			]
 		else:
-			self.comb += Record.connect(sink, self.recorder.data_sink)
+			self.submodules.delay_buffer = Buffer(self.sink.description)
+			self.comb += [
+				Record.connect(sink, self.delay_buffer.d),
+				Record.connect(self.delay_buffer.q, self.recorder.data_sink)
+			]
 
 	def export(self, vns, filename):
 		def format_line(*args):

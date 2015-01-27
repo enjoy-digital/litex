@@ -85,6 +85,7 @@ class LiteScopeRecorderUnit(Module):
 		self.data_sink = data_sink = Sink(data_layout(dw))
 
 		self.trigger = Signal()
+		self.qualifier = Signal()
 		self.length = Signal(bits_for(depth))
 		self.offset = Signal(bits_for(depth))
 		self.done = Signal()
@@ -119,7 +120,11 @@ class LiteScopeRecorderUnit(Module):
 			If(trigger_sink.stb & trigger_sink.hit, NextState("POST_HIT_RECORDING"))
 		)
 		fsm.act("POST_HIT_RECORDING",
-			fifo.sink.stb.eq(data_sink.stb),
+			If(self.qualifier,
+				fifo.sink.stb.eq(trigger_sink.stb & trigger_sink.hit & data_sink.stb)
+			).Else(
+				fifo.sink.stb.eq(data_sink.stb)
+			),
 			fifo.sink.data.eq(data_sink.data),
 			data_sink.ack.eq(fifo.sink.ack),
 
@@ -131,6 +136,7 @@ class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
 		LiteScopeRecorderUnit.__init__(self, dw, depth)
 
 		self._trigger = CSR()
+		self._qualifier = CSRStorage()
 		self._length = CSRStorage(bits_for(depth))
 		self._offset = CSRStorage(bits_for(depth))
 		self._done = CSRStatus()
@@ -143,6 +149,7 @@ class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
 
 		self.comb += [
 			self.trigger.eq(self._trigger.re),
+			self.qualifier.eq(self._qualifier.storage),
 			self.length.eq(self._length.storage),
 			self.offset.eq(self._offset.storage),
 			self._done.status.eq(self.done),

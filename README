@@ -44,6 +44,8 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
 - Logic analyser with LiteScopeLA:
   - Various triggering modules: Term, Range, Edge (add yours! :)
   - Run Length Encoder to "compress" data and increase recording depth
+  - Subsampling
+  - Storage qualifier
   - Data storage in block rams
 
 [> Possibles improvements
