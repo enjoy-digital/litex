@@ -33,7 +33,7 @@ by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 -----------
-- Ethernet MAC with various internface and various PHYs (GMII, MII, Loopback)
+- Ethernet MAC with various interfaces and various PHYs (GMII, MII, Loopback)
 
 [> Possibles improvements
 -------------------------
