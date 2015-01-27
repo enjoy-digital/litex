@@ -20,7 +20,7 @@ setup(
 	author="Florent Kermarrec",
 	author_email="florent@enjoy-digital.fr",
 	url="http://enjoy-digital.fr",
-	download_url="https://github.com/Florent-Kermarrec/litesata",
+	download_url="https://github.com/enjoy-digital/litesata",
 	packages=find_packages(here),
 	license="GPL",
 	platforms=["Any"],
