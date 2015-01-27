@@ -92,10 +92,25 @@ if __name__ == "__main__":
    A small footprint and configurable embedded FPGA
             based in Migen/MiSoC
 
-====== Building options: ======
-===============================""".format()
-)
+====== Building parameters: ======
+LiscopeIO
+---------
+Width: {}
 
+LiscopeLA
+---------
+Width: {}
+Depth: {}
+Subsampler: {}
+RLE: {}
+===============================""".format(
+	soc.io.width,
+	soc.la.dw,
+	soc.la.depth,
+	str(soc.la.with_subsampler),
+	str(soc.la.with_rle)
+	)
+)
 	# dependencies
 	if actions["all"]:
 		actions["clean"] = True
