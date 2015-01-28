@@ -11,14 +11,14 @@ from liteeth.test.model import phy, mac
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.hostphy = phy.PHY(8, debug=True)
-		self.submodules.hostmac = mac.MAC(self.hostphy, debug=True, random_level=0)
+		self.submodules.hostphy = phy.PHY(8, debug=False)
+		self.submodules.hostmac = mac.MAC(self.hostphy, debug=False, loopback=True)
 		self.submodules.ethmac = LiteEthMAC(phy=self.hostphy, dw=32, interface="core", with_hw_preamble_crc=True)
 
 		self.submodules.streamer = PacketStreamer(eth_mac_description(32), last_be=1)
-		self.submodules.streamer_randomizer = AckRandomizer(eth_mac_description(32), level=0)
+		self.submodules.streamer_randomizer = AckRandomizer(eth_mac_description(32), level=50)
 
-		self.submodules.logger_randomizer = AckRandomizer(eth_mac_description(32), level=0)
+		self.submodules.logger_randomizer = AckRandomizer(eth_mac_description(32), level=50)
 		self.submodules.logger = PacketLogger(eth_mac_description(32))
 
 		# use sys_clk for each clock_domain
@@ -47,8 +47,12 @@ class TB(Module):
 
 		for i in range(8):
 			streamer_packet = Packet([i for i in range(64)])
-			print(streamer_packet)
 			yield from self.streamer.send(streamer_packet)
+			yield from self.logger.receive()
+
+			# check results
+			s, l, e = check(streamer_packet, self.logger.packet)
+			print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=1000, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=4000, vcd_name="my.vcd", keep_files=True)

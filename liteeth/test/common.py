@@ -88,7 +88,8 @@ class PacketStreamer(Module):
 					selfp.source.last_be = self.last_be
 			else:
 				selfp.source.eop = 0
-				selfp.source.last_be = 0
+				if self.last_be is not None:
+					selfp.source.last_be = 0
 			if len(self.packet) > 0:
 				selfp.source.stb = 1
 				selfp.source.data = self.packet.pop(0)
