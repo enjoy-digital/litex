@@ -6,7 +6,7 @@ from migen.bank.eventmanager import *
 
 class LiteEthMACSRAMWriter(Module, AutoCSR):
 	def __init__(self, dw, depth, nslots=2):
-		self.sink = sink = Sink(eth_mac_description(dw))
+		self.sink = sink = Sink(eth_phy_description(dw))
 		self.crc_error = Signal()
 
 		slotbits = max(log2_int(nslots), 1)
@@ -131,7 +131,7 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 
 class LiteEthMACSRAMReader(Module, AutoCSR):
 	def __init__(self, dw, depth, nslots=2):
-		self.source = source = Source(eth_mac_description(dw))
+		self.source = source = Source(eth_phy_description(dw))
 
 		slotbits = max(log2_int(nslots), 1)
 		lengthbits = log2_int(depth*4) # length in bytes

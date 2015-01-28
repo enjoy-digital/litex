@@ -29,14 +29,14 @@ class LiteEthMACCore(Module, AutoCSR):
 
 		# Converters
 		reverse = endianness == "be"
-		tx_converter = Converter(eth_mac_description(dw), eth_mac_description(phy.dw), reverse=reverse)
-		rx_converter = Converter(eth_mac_description(phy.dw), eth_mac_description(dw), reverse=reverse)
+		tx_converter = Converter(eth_phy_description(dw), eth_phy_description(phy.dw), reverse=reverse)
+		rx_converter = Converter(eth_phy_description(phy.dw), eth_phy_description(dw), reverse=reverse)
 		self.submodules += RenameClockDomains(tx_converter, "eth_tx")
 		self.submodules += RenameClockDomains(rx_converter, "eth_rx")
 
 		# Cross Domain Crossing
-		tx_cdc = AsyncFIFO(eth_mac_description(dw), 4)
-		rx_cdc = AsyncFIFO(eth_mac_description(dw), 4)
+		tx_cdc = AsyncFIFO(eth_phy_description(dw), 4)
+		rx_cdc = AsyncFIFO(eth_phy_description(dw), 4)
 		self.submodules +=  RenameClockDomains(tx_cdc, {"write": "sys", "read": "eth_tx"})
 		self.submodules +=  RenameClockDomains(rx_cdc, {"write": "eth_rx", "read": "sys"})
 

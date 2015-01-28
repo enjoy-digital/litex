@@ -7,8 +7,8 @@ from migen.fhdl.simplify import FullMemoryWE
 
 class LiteEthMACWishboneInterface(Module, AutoCSR):
 	def __init__(self, dw, nrxslots=2, ntxslots=2):
-		self.sink = Sink(eth_mac_description(dw))
-		self.source = Source(eth_mac_description(dw))
+		self.sink = Sink(eth_phy_description(dw))
+		self.source = Source(eth_phy_description(dw))
 		self.bus = wishbone.Interface()
 		###
 		# storage in SRAM

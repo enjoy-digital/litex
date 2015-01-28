@@ -3,7 +3,7 @@ from liteeth.mac.common import *
 
 class LiteEthMACTXLastBE(Module):
 	def __init__(self, dw):
-		self.sink = sink = Sink(eth_mac_description(dw))
+		self.sink = sink = Sink(eth_phy_description(dw))
 		self.source = source = Source(eth_phy_description(dw))
 		###
 		ongoing = Signal()
@@ -26,7 +26,7 @@ class LiteEthMACTXLastBE(Module):
 class LiteEthMACRXLastBE(Module):
 	def __init__(self, dw):
 		self.sink = sink = Sink(eth_phy_description(dw))
-		self.source = source = Source(eth_mac_description(dw))
+		self.source = source = Source(eth_phy_description(dw))
 		###
 		self.comb += [
 			source.stb.eq(sink.stb),
