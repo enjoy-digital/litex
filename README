@@ -105,6 +105,7 @@ devel [AT] lists.m-labs.hk.
 
 7. Test design (only for KC705 for now):
   go to ./test directory and run:
+  change com port in config.py to your com port
   python3 bist.py
 
 8. Visualize Link Layer transactions (if BISTSoCDevel):
