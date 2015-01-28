@@ -3,11 +3,8 @@ PYTHON = python3
 
 CMD = PYTHONPATH=$(MSCDIR) $(PYTHON)
 
-mac_crc_tb:
-	$(CMD) mac_crc_tb.py
+mac_core_tb:
+	$(CMD) mac_core_tb.py
 
-mac_preamble_tb:
-	$(CMD) mac_preamble_preamble_tb.py
-
-ethmac_tb:
-	$(CMD) ethmac_tb.py
+mac_wishbone_tb:
+	$(CMD) mac_wishbone_tb.py
