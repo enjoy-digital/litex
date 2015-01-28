@@ -15,11 +15,11 @@ class TB(Module):
 		self.submodules.hostmac = mac.MAC(self.hostphy, debug=False, loopback=True)
 		self.submodules.ethmac = LiteEthMAC(phy=self.hostphy, dw=32, interface="core", with_hw_preamble_crc=True)
 
-		self.submodules.streamer = PacketStreamer(eth_mac_description(32), last_be=1)
-		self.submodules.streamer_randomizer = AckRandomizer(eth_mac_description(32), level=50)
+		self.submodules.streamer = PacketStreamer(eth_phy_description(32), last_be=1)
+		self.submodules.streamer_randomizer = AckRandomizer(eth_phy_description(32), level=50)
 
-		self.submodules.logger_randomizer = AckRandomizer(eth_mac_description(32), level=50)
-		self.submodules.logger = PacketLogger(eth_mac_description(32))
+		self.submodules.logger_randomizer = AckRandomizer(eth_phy_description(32), level=50)
+		self.submodules.logger = PacketLogger(eth_phy_description(32))
 
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()

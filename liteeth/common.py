@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 from migen.fhdl.std import *
-from migen.fhdl.std import *
+from migen.fhdl.decorators import ModuleDecorator
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState
@@ -160,3 +160,4 @@ class BufferizeEndpoints(ModuleDecorator):
 			self.submodules += buf
 			self.comb += Record.connect(source, buf.d)
 			setattr(self, name, buf.q)
+

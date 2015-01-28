@@ -1,6 +1,24 @@
 from liteeth.common import *
 from liteeth.mac.core import LiteEthMACCore
 from liteeth.mac.frontend import wishbone
+from liteeth.generic.depacketizer import LiteEthDepacketizer
+from liteeth.generic.packetizer import LiteEthPacketizer
+
+class LiteEthMACDepacketizer(LiteEthDepacketizer):
+	def __init__(self):
+		LiteEthDepacketizer.__init__(self,
+			eth_phy_description(8),
+			eth_mac_description(8),
+			mac_header,
+			mac_header_length)
+
+class LiteEthMACPacketizer(LiteEthDepacketizer):
+	def __init__(self):
+		LiteEthDepacketizer.__init__(self,
+			eth_mac_description(8),
+			eth_phy_description(8),
+			mac_header,
+			mac_header_length)
 
 class LiteEthMAC(Module, AutoCSR):
 	def __init__(self, phy, dw, interface="core", endianness="be",

@@ -1,5 +1,3 @@
-import math
-
 from liteeth.common import *
 
 def _decode_header(h_dict, h_signal, obj):
@@ -10,14 +8,14 @@ def _decode_header(h_dict, h_signal, obj):
 		r.append(getattr(obj, k).eq(h_signal[start:end]))
 	return r
 
-class LiteEthMACDepacketizer(Module):
-	def __init__(self):
-		self.sink = sink = Sink(eth_mac_description(8))
-		self.source = source = Source(eth_phy_description(8))
+class LiteEthDepacketizer(Module):
+	def __init__(self, sink_description, source_description, header_type, header_length):
+		self.sink = sink = Sink(sink_description)
+		self.source = source = Source(source_description)
 		###
 		shift = Signal()
-		header = Signal(mac_header_length*8)
-		counter = Counter(max=mac_header_length)
+		header = Signal(header_length*8)
+		counter = Counter(max=header_length)
 		self.submodules += counter
 
 		fsm = FSM(reset_state="IDLE")
@@ -36,7 +34,7 @@ class LiteEthMACDepacketizer(Module):
 			If(sink.stb,
 				counter.ce.eq(1),
 				shift.eq(1),
-				If(counter.value == mac_header_length-2,
+				If(counter.value == header_length-2,
 					NextState("COPY")
 				)
 			)
@@ -52,7 +50,7 @@ class LiteEthMACDepacketizer(Module):
 			source.eop.eq(sink.eop),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error),
-			_decode_header(mac_header, header, source)
+			_decode_header(header_type, header, source)
 		]
 		fsm.act("COPY",
 			sink.ack.eq(source.ack),

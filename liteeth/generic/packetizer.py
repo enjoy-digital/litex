@@ -8,19 +8,19 @@ def _encode_header(h_dict, h_signal, obj):
 		r.append(h_signal[start:end].eq(getattr(obj, k)))
 	return r
 
-class LiteEthMACPacketizer(Module):
-	def __init__(self):
-		self.sink = sink = Sink(eth_phy_description(8))
-		self.source = source = Source(eth_mac_description(8))
+class LiteEthPacketizer(Module):
+	def __init__(self, sink_description, source_description, header_type, header_length):
+		self.sink = sink = Sink(sink_description)
+		self.source = source = Source(source_description)
 		###
-		header = Signal(mac_header_length*8)
-		header_reg = Signal(mac_header_length*8)
+		header = Signal(header_length*8)
+		header_reg = Signal(header_length*8)
 		load = Signal()
 		shift = Signal()
-		counter = Counter(max=mac_header_length)
+		counter = Counter(max=header_length)
 		self.submodules += counter
 
-		self.comb += header.eq(_encode_header(mac_header, header, sink))
+		self.comb += header.eq(_encode_header(header_type, header, sink))
 		self.sync += [
 			If(load,
 				header_reg.eq(header)
@@ -53,7 +53,7 @@ class LiteEthMACPacketizer(Module):
 			source.data.eq(header_reg[8:16]),
 			If(source.stb & source.ack,
 				sink.ack.eq(1),
-				If(counter == mac_header_length-2,
+				If(counter == header_length-2,
 					NextState("COPY")
 				)
 			)
