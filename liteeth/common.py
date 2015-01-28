@@ -5,6 +5,7 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState
+from migen.genlib.misc import chooser
 from migen.flow.actor import EndpointDescription
 from migen.flow.actor import Sink, Source
 from migen.actorlib.structuring import Converter, Pipeline

@@ -16,8 +16,8 @@ class LiteEthMACCore(Module, AutoCSR):
 			self.submodules += RenameClockDomains(preamble_checker, "eth_rx")
 
 			# CRC insert/check
-			crc32_inserter = crc.LiteEthMACCRC32Inserter(eth_description(phy.dw))
-			crc32_checker = crc.LiteEthMACCRC32Checker(eth_description(phy.dw))
+			crc32_inserter = crc.LiteEthMACCRC32Inserter(eth_phy_description(phy.dw))
+			crc32_checker = crc.LiteEthMACCRC32Checker(eth_phy_description(phy.dw))
 			self.submodules += RenameClockDomains(crc32_inserter, "eth_tx")
 			self.submodules += RenameClockDomains(crc32_checker, "eth_rx")
 

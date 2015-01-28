@@ -16,13 +16,18 @@ class PHY(Module):
 		self.dw = dw
 		self.debug = debug
 
-		self.phy_source = PHYSource(dw)
-		self.phy_sink = PHYSink(dw)
+		self.submodules.phy_source = PHYSource(dw)
+		self.submodules.phy_sink = PHYSink(dw)
 
 		self.source = self.phy_source.source
 		self.sink = self.phy_sink.sink
 
-	def send(self, datas, blocking=True):
+		self.mac_callback = None
+
+	def set_mac_callback(self, callback):
+		self.mac_callback = callback
+
+	def send(self, datas):
 		packet = Packet(datas)
 		yield from self.phy_source.send(packet, blocking)
 

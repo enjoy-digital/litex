@@ -4,7 +4,7 @@ from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source
 from migen.genlib.record import *
 
-from misoclib.ethmac.common import *
+from liteeth.common import *
 
 def print_with_prefix(s, prefix=""):
 	if not isinstance(s, str):
@@ -18,6 +18,13 @@ def seed_to_data(seed, random=True):
 		return (seed * 0x31415979 + 1) & 0xffffffff
 	else:
 		return seed
+
+def comp(p1, p2):
+	r = True
+	for x, y in zip(p1, p2):
+		if x != y:
+			r = False
+	return r
 
 def check(p1, p2):
 	p1 = copy.deepcopy(p1)
@@ -51,16 +58,19 @@ class Packet(list):
 			self.append(data)
 
 class PacketStreamer(Module):
-	def __init__(self, description):
+	def __init__(self, description, last_be=None):
 		self.source = Source(description)
+		self.last_be = last_be
 		###
 		self.packets = []
 		self.packet = Packet()
-		self.packet.done = 1
+		self.packet.done = True
 
 	def send(self, packet):
 		packet = copy.deepcopy(packet)
 		self.packets.append(packet)
+		while not packet.done:
+			yield
 
 	def do_simulation(self, selfp):
 		if len(self.packets) and self.packet.done:
@@ -68,16 +78,22 @@ class PacketStreamer(Module):
 		if not self.packet.ongoing and not self.packet.done:
 			selfp.source.stb = 1
 			selfp.source.sop = 1
-			selfp.source.d = self.packet.pop(0)
+			selfp.source.data = self.packet.pop(0)
 			self.packet.ongoing = True
 		elif selfp.source.stb == 1 and selfp.source.ack == 1:
 			selfp.source.sop = 0
-			selfp.source.eop = (len(self.packet) == 1)
+			if len(self.packet) == 1:
+				selfp.source.eop = 1
+				if self.last_be is not None:
+					selfp.source.last_be = self.last_be
+			else:
+				selfp.source.eop = 0
+				selfp.source.last_be = 0
 			if len(self.packet) > 0:
 				selfp.source.stb = 1
-				selfp.source.d = self.packet.pop(0)
+				selfp.source.data = self.packet.pop(0)
 			else:
-				self.packet.done = 1
+				self.packet.done = True
 				selfp.source.stb = 0
 
 class PacketLogger(Module):
@@ -87,17 +103,17 @@ class PacketLogger(Module):
 		self.packet = Packet()
 
 	def receive(self):
-		self.packet.done = 0
-		while self.packet.done == 0:
+		self.packet.done = False
+		while not self.packet.done:
 			yield
 
 	def do_simulation(self, selfp):
 		selfp.sink.ack = 1
 		if selfp.sink.stb == 1 and selfp.sink.sop == 1:
 			self.packet = Packet()
-			self.packet.append(selfp.sink.d)
+			self.packet.append(selfp.sink.data)
 		elif selfp.sink.stb:
-			self.packet.append(selfp.sink.d)
+			self.packet.append(selfp.sink.data)
 		if selfp.sink.stb == 1 and selfp.sink.eop == 1:
 			self.packet.done = True
 

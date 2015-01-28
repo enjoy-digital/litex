@@ -101,7 +101,7 @@ class LiteEthMACCRC32(Module):
 
 		###
 
-		self.submodules.engine = LiteEthCRCEngine(data_width, self.width, self.polynom)
+		self.submodules.engine = LiteEthMACCRCEngine(data_width, self.width, self.polynom)
 		reg = Signal(self.width, reset=self.init)
 		self.sync += reg.eq(self.engine.next)
 		self.comb += [
@@ -255,14 +255,14 @@ class LiteEthMACCRCChecker(Module):
 			NextState("IDLE"),
 		)
 		fsm.act("IDLE",
-			crc.d.eq(sink.data),
+			crc.data.eq(sink.data),
 			If(sink.stb & sink.sop & sink.ack,
 				crc.ce.eq(1),
 				NextState("COPY")
 			)
 		)
 		fsm.act("COPY",
-			crc.d.eq(sink.data),
+			crc.data.eq(sink.data),
 			If(sink.stb & sink.ack,
 				crc.ce.eq(1),
 				If(sink.eop,

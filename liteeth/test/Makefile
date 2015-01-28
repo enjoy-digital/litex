@@ -1,7 +1,7 @@
 LEDIR = ../../
 PYTHON = python3
 
-CMD = PYTHONPATH=$(MSCDIR) $(PYTHON)
+CMD = PYTHONPATH=$(LEDIR) $(PYTHON)
 
 mac_core_tb:
 	$(CMD) mac_core_tb.py
