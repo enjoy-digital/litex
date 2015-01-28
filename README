@@ -9,6 +9,11 @@
        A small footprint and configurable embedded FPGA
          logic analyzer core developed by EnjoyDigital
 
+[> Doc
+---------
+HTML : www.enjoy-digital.fr/litex/litescope/
+PDF  : www.enjoy-digital.fr/litex/litescope.pdf
+
 [> Intro
 ---------
 LiteScope is small footprint and configurable embedded logic analyzer that you
