@@ -92,10 +92,10 @@ devel [AT] lists.m-labs.hk.
   python3 test_la.py
 
 [> Simulations:
-	XXX convert simulations
+  XXX convert simulations
 
 [> Tests :
-	XXX convert tests
+  XXX convert tests
 
 [> License
 -----------
