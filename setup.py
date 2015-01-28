@@ -13,7 +13,7 @@ if sys.version_info < required_version:
 		".".join(map(str, required_version))))
 
 setup(
-	name="liteethernet",
+	name="liteeth",
 	version="unknown",
 	description="small footprint and configurable Ethernet core",
 	long_description=README,
