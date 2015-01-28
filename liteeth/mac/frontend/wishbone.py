@@ -2,10 +2,13 @@ from liteeth.common import *
 from liteeth.mac.common import *
 from liteeth.mac.frontend import sram
 
+from migen.bus import wishbone
+from migen.fhdl.simplify import FullMemoryWE
+
 class LiteEthMACWishboneInterface(Module, AutoCSR):
 	def __init__(self, dw, nrxslots=2, ntxslots=2):
-		self.sink = Sink(mac_description(dw))
-		self.source = Source(max_description(dw))
+		self.sink = Sink(eth_mac_description(dw))
+		self.source = Source(eth_mac_description(dw))
 		self.bus = wishbone.Interface()
 		###
 		# storage in SRAM
@@ -17,10 +20,10 @@ class LiteEthMACWishboneInterface(Module, AutoCSR):
 		]
 
 		# Wishbone interface
-		wb_rx_sram_ifs = [wishbone.SRAM(self.sram_writer.mems[n], read_only=True)
+		wb_rx_sram_ifs = [wishbone.SRAM(self.sram.writer.mems[n], read_only=True)
 			for n in range(nrxslots)]
 		# TODO: FullMemoryWE should move to Mibuild
-		wb_tx_sram_ifs = [FullMemoryWE(wishbone.SRAM(self.sram_reader.mems[n], read_only=False))
+		wb_tx_sram_ifs = [FullMemoryWE(wishbone.SRAM(self.sram.reader.mems[n], read_only=False))
 			for n in range(ntxslots)]
 		wb_sram_ifs = wb_rx_sram_ifs + wb_tx_sram_ifs
 

@@ -9,7 +9,7 @@ class LiteEthMACCRCEngine(Module):
 
 	Parameters
 	----------
-	dat_width : int
+	data_width : int
 		Width of the data bus.
 	width : int
 		Width of the CRC.
@@ -18,15 +18,15 @@ class LiteEthMACCRCEngine(Module):
 
 	Attributes
 	----------
-	d : in
+	data : in
 		Data input.
 	last : in
 		last CRC value.
 	next :
 		next CRC value.
 	"""
-	def __init__(self, dat_width, width, polynom):
-		self.d = Signal(dat_width)
+	def __init__(self, data_width, width, polynom):
+		self.data = Signal(data_width)
 		self.last = Signal(width)
 		self.next = Signal(width)
 
@@ -51,7 +51,7 @@ class LiteEthMACCRCEngine(Module):
 
 		# compute and optimize CRC's LFSR
 		curval = [[("state", i)] for i in range(width)]
-		for i in range(dat_width):
+		for i in range(data_width):
 			feedback = curval.pop() + [("din", i)]
 			for j in range(width-1):
 				if (polynom & (1<<(j+1))):
@@ -66,7 +66,7 @@ class LiteEthMACCRCEngine(Module):
 				if t == "state":
 					xors += [self.last[n]]
 				elif t == "din":
-					xors += [self.d[n]]
+					xors += [self.data[n]]
 			self.comb += self.next[i].eq(optree("^", xors))
 
 @DecorateModule(InsertReset)
@@ -78,7 +78,7 @@ class LiteEthMACCRC32(Module):
 
 	Parameters
 	----------
-	dat_width : int
+	data_width : int
 		Width of the data bus.
 
 	Attributes
@@ -94,18 +94,18 @@ class LiteEthMACCRC32(Module):
 	polynom = 0x04C11DB7
 	init = 2**width-1
 	check = 0xC704DD7B
-	def __init__(self, dat_width):
-		self.d = Signal(dat_width)
+	def __init__(self, data_width):
+		self.data = Signal(data_width)
 		self.value = Signal(self.width)
 		self.error = Signal()
 
 		###
 
-		self.submodules.engine = LiteEthCRCEngine(dat_width, self.width, self.polynom)
+		self.submodules.engine = LiteEthCRCEngine(data_width, self.width, self.polynom)
 		reg = Signal(self.width, reset=self.init)
 		self.sync += reg.eq(self.engine.next)
 		self.comb += [
-			self.engine.d.eq(self.d),
+			self.engine.data.eq(self.data),
 			self.engine.last.eq(reg),
 
 			self.value.eq(~reg[::-1]),
@@ -119,8 +119,8 @@ class LiteEthMACCRCInserter(Module):
 
 	Parameters
 	----------
-	layout : layout
-		Layout of the dataflow.
+	description : description
+		description of the dataflow.
 
 	Attributes
 	----------
@@ -129,14 +129,14 @@ class LiteEthMACCRCInserter(Module):
 	source : out
 		Packets output with CRC.
 	"""
-	def __init__(self, crc_class, layout):
-		self.sink = sink = Sink(layout)
-		self.source = source = Source(layout)
+	def __init__(self, crc_class, description):
+		self.sink = sink = Sink(description)
+		self.source = source = Source(description)
 		self.busy = Signal()
 
 		###
 
-		dw = flen(sink.d)
+		dw = flen(sink.data)
 		crc = crc_class(dw)
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += crc, fsm
@@ -151,7 +151,7 @@ class LiteEthMACCRCInserter(Module):
 		)
 		fsm.act("COPY",
 			crc.ce.eq(sink.stb & source.ack),
-			crc.d.eq(sink.d),
+			crc.data.eq(sink.data),
 			Record.connect(sink, source),
 			source.eop.eq(0),
 			If(sink.stb & sink.eop & source.ack,
@@ -164,7 +164,7 @@ class LiteEthMACCRCInserter(Module):
 			cnt_done = Signal()
 			fsm.act("INSERT",
 				source.stb.eq(1),
-				chooser(crc.value, cnt, source.d, reverse=True),
+				chooser(crc.value, cnt, source.data, reverse=True),
 				If(cnt_done,
 					source.eop.eq(1),
 					If(source.ack, NextState("IDLE"))
@@ -181,14 +181,14 @@ class LiteEthMACCRCInserter(Module):
 			fsm.act("INSERT",
 				source.stb.eq(1),
 				source.eop.eq(1),
-				source.d.eq(crc.value),
+				source.data.eq(crc.value),
 				If(source.ack, NextState("IDLE"))
 			)
 		self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
-class LiteEthMACCRC32Inserter(CRCInserter):
-	def __init__(self, layout):
-		LiteEthMACCRCInserter.__init__(self, LiteEthMACCRC32, layout)
+class LiteEthMACCRC32Inserter(LiteEthMACCRCInserter):
+	def __init__(self, description):
+		LiteEthMACCRCInserter.__init__(self, LiteEthMACCRC32, description)
 
 class LiteEthMACCRCChecker(Module):
 	"""CRC Checker
@@ -197,8 +197,8 @@ class LiteEthMACCRCChecker(Module):
 
 	Parameters
 	----------
-	layout : layout
-		Layout of the dataflow.
+	description : description
+		description of the dataflow.
 
 	Attributes
 	----------
@@ -208,20 +208,20 @@ class LiteEthMACCRCChecker(Module):
 		Packets output without CRC and "error" set to 0
 		on eop when CRC OK / set to 1 when CRC KO.
 	"""
-	def __init__(self, crc_class, layout):
-		self.sink = sink = Sink(layout)
-		self.source = source = Source(layout)
+	def __init__(self, crc_class, description):
+		self.sink = sink = Sink(description)
+		self.source = source = Source(description)
 		self.busy = Signal()
 
 		###
 
-		dw = flen(sink.d)
+		dw = flen(sink.data)
 		crc = crc_class(dw)
 		self.submodules += crc
 		ratio = crc.width//dw
 
 		error = Signal()
-		fifo = InsertReset(SyncFIFO(layout, ratio + 1))
+		fifo = InsertReset(SyncFIFO(description, ratio + 1))
 		self.submodules += fifo
 
 		fsm = FSM(reset_state="RESET")
@@ -255,14 +255,14 @@ class LiteEthMACCRCChecker(Module):
 			NextState("IDLE"),
 		)
 		fsm.act("IDLE",
-			crc.d.eq(sink.d),
+			crc.d.eq(sink.data),
 			If(sink.stb & sink.sop & sink.ack,
 				crc.ce.eq(1),
 				NextState("COPY")
 			)
 		)
 		fsm.act("COPY",
-			crc.d.eq(sink.d),
+			crc.d.eq(sink.data),
 			If(sink.stb & sink.ack,
 				crc.ce.eq(1),
 				If(sink.eop,
@@ -272,6 +272,6 @@ class LiteEthMACCRCChecker(Module):
 		)
 		self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
-class LiteEthMACCRC32Checker(CRCChecker):
-	def __init__(self, layout):
-		LiteEthMACCRCChecker.__init__(self, LiteEthMACCRC32, layout)
+class LiteEthMACCRC32Checker(LiteEthMACCRCChecker):
+	def __init__(self, description):
+		LiteEthMACCRCChecker.__init__(self, LiteEthMACCRC32, description)

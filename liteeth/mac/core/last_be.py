@@ -2,15 +2,13 @@ from liteeth.common import *
 from liteeth.mac.common import *
 
 class LiteEthMACTXLastBE(Module):
-	def __init__(self, d_w):
-		self.sink = sink = Sink(eth_description(d_w))
-		self.source = source = Source(eth_description(d_w))
-
+	def __init__(self, dw):
+		self.sink = sink = Sink(eth_mac_description(dw))
+		self.source = source = Source(eth_phy_description(dw))
 		###
-
 		ongoing = Signal()
 		self.sync += \
-			If(self.sink.stb & self.sink.ack,
+			If(sink.stb & sink.ack,
 				If(sink.sop,
 					ongoing.eq(1)
 				).Elif(sink.last_be,
@@ -18,19 +16,23 @@ class LiteEthMACTXLastBE(Module):
 				)
 			)
 		self.comb += [
-			Record.connect(self.sink, self.source),
-			self.source.eop.eq(self.sink.last_be),
-			self.source.stb.eq(self.sink.stb & (self.sink.sop | ongoing))
+			source.stb.eq(sink.stb & (sink.sop | ongoing)),
+			source.sop.eq(sink.sop),
+			source.eop.eq(sink.last_be),
+			source.data.eq(sink.data),
+			sink.ack.eq(source.ack)
 		]
 
 class LiteEthMACRXLastBE(Module):
-	def __init__(self, d_w):
-		self.sink = sink = Sink(eth_description(d_w))
-		self.source = source = Source(eth_description(d_w))
-
+	def __init__(self, dw):
+		self.sink = sink = Sink(eth_phy_description(dw))
+		self.source = source = Source(eth_mac_description(dw))
 		###
-
 		self.comb += [
-			Record.connect(self.sink, self.source),
-			self.source.last_be.eq(self.sink.eop)
+			source.stb.eq(sink.stb),
+			source.sop.eq(sink.sop),
+			source.eop.eq(sink.eop),
+			source.data.eq(sink.data),
+			source.last_be.eq(sink.eop),
+			sink.ack.eq(source.ack)
 		]

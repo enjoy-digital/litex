@@ -1,11 +1,11 @@
 from liteeth.common import *
 from liteeth.mac.common import *
-from liteeth.mac import preamble, crc, last_be
+from liteeth.mac.core import preamble, crc, last_be
 
 class LiteEthMACCore(Module, AutoCSR):
 	def __init__(self, phy, dw, endianness="be", with_hw_preamble_crc=True):
-		if dw > phy.dw:
-			raise ValueError("Core data width must be larger than PHY data width")
+		if dw < phy.dw:
+			raise ValueError("Core data width({}) must be larger than PHY data width({})".format(dw, phy.dw))
 		# Preamble / CRC (optional)
 		if with_hw_preamble_crc:
 			self._hw_preamble_crc = CSRStatus(reset=1)
@@ -29,14 +29,14 @@ class LiteEthMACCore(Module, AutoCSR):
 
 		# Converters
 		reverse = endianness == "be"
-		tx_converter = Converter(eth_description(dw), eth_description(phy.dw), reverse=reverse)
-		rx_converter = Converter(eth_description(phy.dw), eth_description(dw), reverse=reverse)
+		tx_converter = Converter(eth_mac_description(dw), eth_mac_description(phy.dw), reverse=reverse)
+		rx_converter = Converter(eth_mac_description(phy.dw), eth_mac_description(dw), reverse=reverse)
 		self.submodules += RenameClockDomains(tx_converter, "eth_tx")
 		self.submodules += RenameClockDomains(rx_converter, "eth_rx")
 
 		# Cross Domain Crossing
-		tx_cdc = AsyncFIFO(eth_description(dw), 4)
-		rx_cdc = AsyncFIFO(eth_description(dw), 4)
+		tx_cdc = AsyncFIFO(eth_mac_description(dw), 4)
+		rx_cdc = AsyncFIFO(eth_mac_description(dw), 4)
 		self.submodules +=  RenameClockDomains(tx_cdc, {"write": "sys", "read": "eth_tx"})
 		self.submodules +=  RenameClockDomains(rx_cdc, {"write": "eth_rx", "read": "sys"})
 

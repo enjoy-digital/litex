@@ -2,7 +2,7 @@ from liteeth.common import *
 
 class LiteEthPHYMIITX(Module):
 	def __init__(self, pads):
-		self.sink = sink = Sink(eth_description(8))
+		self.sink = sink = Sink(eth_phy_description(8))
 		###
 		tx_en_r = Signal()
 		tx_data_r = Signal(4)
@@ -22,12 +22,12 @@ class LiteEthPHYMIITX(Module):
 			)
 		)
 		fsm.act("SEND_LO",
-			tx_data_r.eq(sink.d[0:4]),
+			tx_data_r.eq(sink.data[0:4]),
 			tx_en_r.eq(1),
 			NextState("SEND_HI")
 		)
 		fsm.act("SEND_HI",
-			tx_data_r.eq(sink.d[4:8]),
+			tx_data_r.eq(sink.data[4:8]),
 			tx_en_r.eq(1),
 			sink.ack.eq(1),
 			If(sink.stb & sink.eop,
@@ -39,7 +39,7 @@ class LiteEthPHYMIITX(Module):
 
 class LiteEthPHYMIIRX(Module):
 	def __init__(self, pads):
-		self.source = source = Source(eth_description(8))
+		self.source = source = Source(eth_phy_description(8))
 		###
 		sop = source.sop
 		set_sop = Signal()
@@ -61,7 +61,7 @@ class LiteEthPHYMIIRX(Module):
 				hi.eq(pads.rx_data)
 			)
 		self.comb += [
-			source.d.eq(Cat(lo, hi))
+			source.data.eq(Cat(lo, hi))
 		]
 
 		fsm = FSM(reset_state="IDLE")

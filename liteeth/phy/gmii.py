@@ -2,18 +2,18 @@ from liteeth.common import *
 
 class LiteEthPHYGMIITX(Module):
 	def __init__(self, pads):
-		self.sink = sink = Sink(eth_description(8))
+		self.sink = sink = Sink(eth_phy_description(8))
 		###
 		self.sync += [
 			pads.tx_er.eq(0),
 			pads.tx_en.eq(sink.stb),
-			pads.tx_data.eq(sink.d)
+			pads.tx_data.eq(sink.data)
 		]
 		self.comb += sink.ack.eq(1)
 
 class LiteEthPHYGMIIRX(Module):
 	def __init__(self, pads):
-		self.source = source = Source(eth_description(8))
+		self.source = source = Source(eth_phy_description(8))
 		###
 		dv_d = Signal()
 		self.sync += dv_d.eq(pads.dv)
@@ -27,7 +27,7 @@ class LiteEthPHYGMIIRX(Module):
 		self.sync += [
 			source.stb.eq(pads.dv),
 			source.sop.eq(sop),
-			source.d.eq(pads.rx_data)
+			source.data.eq(pads.rx_data)
 		]
 		self.comb += source.eop.eq(eop)
 
@@ -56,7 +56,7 @@ class LiteEthPHYGMIICRG(Module, AutoCSR):
 			AsyncResetSynchronizer(self.cd_eth_rx, reset),
 		]
 
-class LiteEthPHYMII(Module, AutoCSR):
+class LiteEthPHYGMII(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self.dw = 8
 		self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads)

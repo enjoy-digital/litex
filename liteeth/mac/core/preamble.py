@@ -2,14 +2,14 @@ from liteeth.common import *
 from liteeth.mac.common import *
 
 class LiteEthMACPreambleInserter(Module):
-	def __init__(self, d_w):
-		self.sink = Sink(eth_description(d_w))
-		self.source = Source(eth_description(d_w))
+	def __init__(self, dw):
+		self.sink = Sink(eth_phy_description(dw))
+		self.source = Source(eth_phy_description(dw))
 
 		###
 
 		preamble = Signal(64, reset=eth_preamble)
-		cnt_max = (64//d_w)-1
+		cnt_max = (64//dw)-1
 		cnt = Signal(max=cnt_max+1)
 		clr_cnt = Signal()
 		inc_cnt = Signal()
@@ -34,7 +34,7 @@ class LiteEthMACPreambleInserter(Module):
 		fsm.act("INSERT",
 			self.source.stb.eq(1),
 			self.source.sop.eq(cnt==0),
-			chooser(preamble, cnt, self.source.d),
+			chooser(preamble, cnt, self.source.data),
 			If(cnt == cnt_max,
 				If(self.source.ack, NextState("COPY"))
 			).Else(
@@ -51,14 +51,14 @@ class LiteEthMACPreambleInserter(Module):
 		)
 
 class LiteEthMACPreambleChecker(Module):
-	def __init__(self, d_w):
-		self.sink = Sink(eth_description(d_w))
-		self.source = Source(eth_description(d_w))
+	def __init__(self, dw):
+		self.sink = Sink(eth_phy_description(dw))
+		self.source = Source(eth_phy_description(dw))
 
 		###
 
 		preamble = Signal(64, reset=eth_preamble)
-		cnt_max = (64//d_w) - 1
+		cnt_max = (64//dw) - 1
 		cnt = Signal(max=cnt_max+1)
 		clr_cnt = Signal()
 		inc_cnt = Signal()
@@ -91,11 +91,11 @@ class LiteEthMACPreambleChecker(Module):
 				sop.eq(1)
 			)
 
-		ref = Signal(d_w)
+		ref = Signal(dw)
 		match = Signal()
 		self.comb += [
 			chooser(preamble, cnt, ref),
-			match.eq(self.sink.d == ref)
+			match.eq(self.sink.data == ref)
 		]
 
 		fsm = FSM(reset_state="IDLE")

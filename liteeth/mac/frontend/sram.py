@@ -1,9 +1,12 @@
 from liteeth.common import *
 from liteeth.mac.common import *
 
+from migen.bank.description import *
+from migen.bank.eventmanager import *
+
 class LiteEthMACSRAMWriter(Module, AutoCSR):
 	def __init__(self, dw, depth, nslots=2):
-		self.sink = sink = Sink(eth_description(dw))
+		self.sink = sink = Sink(eth_mac_description(dw))
 		self.crc_error = Signal()
 
 		slotbits = max(log2_int(nslots), 1)
@@ -69,7 +72,7 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 			inc_cnt.eq(sink.stb),
 			If(sink.stb & sink.sop,
 				ongoing.eq(1),
-				If(fifo.writable,
+				If(fifo.sink.ack,
 					NextState("WRITE")
 				)
 			)
@@ -92,17 +95,17 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 		fsm.act("TERMINATE",
 			clr_cnt.eq(1),
 			inc_slot.eq(1),
-			fifo.we.eq(1),
-			fifo.din.slot.eq(slot),
-			fifo.din.length.eq(cnt),
+			fifo.sink.stb.eq(1),
+			fifo.sink.slot.eq(slot),
+			fifo.sink.length.eq(cnt),
 			NextState("IDLE")
 		)
 
 		self.comb += [
-			fifo.re.eq(self.ev.available.clear),
-			self.ev.available.trigger.eq(fifo.readable),
-			self._slot.status.eq(fifo.dout.slot),
-			self._length.status.eq(fifo.dout.length),
+			fifo.source.ack.eq(self.ev.available.clear),
+			self.ev.available.trigger.eq(fifo.source.stb),
+			self._slot.status.eq(fifo.source.slot),
+			self._length.status.eq(fifo.source.length),
 		]
 
 		# memory
@@ -118,7 +121,7 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 		for n, port in enumerate(ports):
 			cases[n] = [
 				ports[n].adr.eq(cnt[2:]),
-				ports[n].dat_w.eq(sink.d),
+				ports[n].dat_w.eq(sink.data),
 				If(sink.stb & ongoing,
 					ports[n].we.eq(0xf)
 				)
@@ -128,7 +131,7 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 
 class LiteEthMACSRAMReader(Module, AutoCSR):
 	def __init__(self, dw, depth, nslots=2):
-		self.source = source = Source(eth_description(dw))
+		self.source = source = Source(eth_mac_description(dw))
 
 		slotbits = max(log2_int(nslots), 1)
 		lengthbits = log2_int(depth*4) # length in bytes
@@ -149,10 +152,10 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 		fifo = SyncFIFO([("slot", slotbits), ("length", lengthbits)], nslots)
 		self.submodules += fifo
 		self.comb += [
-			fifo.we.eq(self._start.re),
-			fifo.din.slot.eq(self._slot.storage),
-			fifo.din.length.eq(self._length.storage),
-			self._ready.status.eq(fifo.writable)
+			fifo.sink.stb.eq(self._start.re),
+			fifo.sink.slot.eq(self._slot.storage),
+			fifo.sink.length.eq(self._length.storage),
+			self._ready.status.eq(fifo.sink.ack)
 		]
 
 		# length computation
@@ -177,7 +180,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 
 		fsm.act("IDLE",
 			clr_cnt.eq(1),
-			If(fifo.readable,
+			If(fifo.source.stb,
 				NextState("CHECK")
 			)
 		)
@@ -188,7 +191,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 				NextState("END"),
 			)
 		)
-		length_lsb = fifo.dout.length[0:2]
+		length_lsb = fifo.source.length[0:2]
 		fsm.act("SEND",
 			source.stb.eq(1),
 			source.sop.eq(first),
@@ -210,7 +213,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 			)
 		)
 		fsm.act("END",
-			fifo.re.eq(1),
+			fifo.source.ack.eq(1),
 			self.ev.done.trigger.eq(1),
 			NextState("IDLE")
 		)
@@ -223,11 +226,11 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 				first.eq(0)
 			)
 		]
-		self.comb += last.eq(cnt + 4 >= fifo.dout.length)
+		self.comb += last.eq(cnt + 4 >= fifo.source.length)
 		self.sync += last_d.eq(last)
 
 		# memory
-		rd_slot = fifo.dout.slot
+		rd_slot = fifo.source.slot
 
 		mems = [None]*nslots
 		ports = [None]*nslots
@@ -240,12 +243,12 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 		cases = {}
 		for n, port in enumerate(ports):
 			self.comb += ports[n].adr.eq(cnt[2:])
-			cases[n] = [source.d.eq(port.dat_r)]
+			cases[n] = [source.data.eq(port.dat_r)]
 		self.comb += Case(rd_slot, cases)
 
-class LiteMACEthMACSRAM(Module, AutoCSR):
+class LiteEthMACSRAM(Module, AutoCSR):
 	def __init__(self, dw, depth, nrxslots, ntxslots):
-		self.submodules.writer = LiteEthSRAMWriter(dw, depth, nrxslots)
-		self.submodules.reader = LiteEthSRAMReader(dw, depth, ntxslots)
+		self.submodules.writer = LiteEthMACSRAMWriter(dw, depth, nrxslots)
+		self.submodules.reader = LiteEthMACSRAMReader(dw, depth, ntxslots)
 		self.submodules.ev = SharedIRQ(self.writer.ev, self.reader.ev)
-		self.sink, self.source = self.witer.sink, self.reader.source
+		self.sink, self.source = self.writer.sink, self.reader.source
