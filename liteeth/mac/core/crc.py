@@ -1,14 +1,7 @@
-from migen.fhdl.std import *
-from migen.genlib.fsm import FSM, NextState
-from migen.genlib.record import *
-from migen.genlib.misc import optree, chooser
-from migen.genlib.crc import *
-from migen.flow.actor import Sink, Source
-from migen.actorlib.fifo import SyncFIFO
+from liteeth.common import *
+from liteeth.mac.common import *
 
-from collections import OrderedDict
-
-class CRCEngine(Module):
+class LiteEthMACCRCEngine(Module):
 	"""Cyclic Redundancy Check Engine
 
 	Compute next CRC value from last CRC value and data input using
@@ -78,7 +71,7 @@ class CRCEngine(Module):
 
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
-class CRC32(Module):
+class LiteEthMACCRC32(Module):
 	"""IEEE 802.3 CRC
 
 	Implement an IEEE 802.3 CRC generator/checker.
@@ -108,7 +101,7 @@ class CRC32(Module):
 
 		###
 
-		self.submodules.engine = CRCEngine(dat_width, self.width, self.polynom)
+		self.submodules.engine = LiteEthCRCEngine(dat_width, self.width, self.polynom)
 		reg = Signal(self.width, reset=self.init)
 		self.sync += reg.eq(self.engine.next)
 		self.comb += [
@@ -119,7 +112,7 @@ class CRC32(Module):
 			self.error.eq(self.engine.next != self.check)
 		]
 
-class CRCInserter(Module):
+class LiteEthMACCRCInserter(Module):
 	"""CRC Inserter
 
 	Append a CRC at the end of each packet.
@@ -193,11 +186,11 @@ class CRCInserter(Module):
 			)
 		self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
-class CRC32Inserter(CRCInserter):
+class LiteEthMACCRC32Inserter(CRCInserter):
 	def __init__(self, layout):
-		CRCInserter.__init__(self, CRC32, layout)
+		LiteEthMACCRCInserter.__init__(self, LiteEthMACCRC32, layout)
 
-class CRCChecker(Module):
+class LiteEthMACCRCChecker(Module):
 	"""CRC Checker
 
 	Check CRC at the end of each packet.
@@ -279,6 +272,6 @@ class CRCChecker(Module):
 		)
 		self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
-class CRC32Checker(CRCChecker):
+class LiteEthMACCRC32Checker(CRCChecker):
 	def __init__(self, layout):
-		CRCChecker.__init__(self, CRC32, layout)
+		LiteEthMACCRCChecker.__init__(self, LiteEthMACCRC32, layout)

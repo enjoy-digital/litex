@@ -1,11 +1,7 @@
-from migen.fhdl.std import *
-from migen.genlib.record import *
-from migen.flow.actor import Sink, Source
+from liteeth.common import *
+from liteeth.mac.common import *
 
-from liteethernet.common import *
-from liteethernet.mac.common import *
-
-class TXLastBE(Module):
+class LiteEthMACTXLastBE(Module):
 	def __init__(self, d_w):
 		self.sink = sink = Sink(eth_description(d_w))
 		self.source = source = Source(eth_description(d_w))
@@ -27,7 +23,7 @@ class TXLastBE(Module):
 			self.source.stb.eq(self.sink.stb & (self.sink.sop | ongoing))
 		]
 
-class RXLastBE(Module):
+class LiteEthMACRXLastBE(Module):
 	def __init__(self, d_w):
 		self.sink = sink = Sink(eth_description(d_w))
 		self.source = source = Source(eth_description(d_w))

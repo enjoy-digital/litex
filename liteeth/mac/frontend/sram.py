@@ -1,17 +1,9 @@
-from migen.fhdl.std import *
-from migen.genlib.fifo import SyncFIFO
-from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import chooser
-from migen.flow.actor import Sink, Source
-from migen.bank.description import *
-from migen.bank.eventmanager import *
+from liteeth.common import *
+from liteeth.mac.common import *
 
-from liteethernet.common import *
-from liteethernet.mac.common import *
-
-class SRAMWriter(Module, AutoCSR):
-	def __init__(self, depth, nslots=2):
-		self.sink = sink = Sink(eth_description(32))
+class LiteEthMACSRAMWriter(Module, AutoCSR):
+	def __init__(self, dw, depth, nslots=2):
+		self.sink = sink = Sink(eth_description(dw))
 		self.crc_error = Signal()
 
 		slotbits = max(log2_int(nslots), 1)
@@ -117,7 +109,7 @@ class SRAMWriter(Module, AutoCSR):
 		mems = [None]*nslots
 		ports = [None]*nslots
 		for n in range(nslots):
-			mems[n] = Memory(32, depth)
+			mems[n] = Memory(dw, depth)
 			ports[n] = mems[n].get_port(write_capable=True)
 			self.specials += ports[n]
 		self.mems = mems
@@ -134,9 +126,9 @@ class SRAMWriter(Module, AutoCSR):
 		self.comb += Case(slot, cases)
 
 
-class SRAMReader(Module, AutoCSR):
-	def __init__(self, depth, nslots=2):
-		self.source = source = Source(eth_description(32))
+class LiteEthMACSRAMReader(Module, AutoCSR):
+	def __init__(self, dw, depth, nslots=2):
+		self.source = source = Source(eth_description(dw))
 
 		slotbits = max(log2_int(nslots), 1)
 		lengthbits = log2_int(depth*4) # length in bytes
@@ -240,7 +232,7 @@ class SRAMReader(Module, AutoCSR):
 		mems = [None]*nslots
 		ports = [None]*nslots
 		for n in range(nslots):
-			mems[n] = Memory(32, depth)
+			mems[n] = Memory(dw, depth)
 			ports[n] = mems[n].get_port()
 			self.specials += ports[n]
 		self.mems = mems
@@ -250,3 +242,10 @@ class SRAMReader(Module, AutoCSR):
 			self.comb += ports[n].adr.eq(cnt[2:])
 			cases[n] = [source.d.eq(port.dat_r)]
 		self.comb += Case(rd_slot, cases)
+
+class LiteMACEthMACSRAM(Module, AutoCSR):
+	def __init__(self, dw, depth, nrxslots, ntxslots):
+		self.submodules.writer = LiteEthSRAMWriter(dw, depth, nrxslots)
+		self.submodules.reader = LiteEthSRAMReader(dw, depth, ntxslots)
+		self.submodules.ev = SharedIRQ(self.writer.ev, self.reader.ev)
+		self.sink, self.source = self.witer.sink, self.reader.source

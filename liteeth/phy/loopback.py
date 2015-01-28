@@ -1,11 +1,6 @@
-from migen.fhdl.std import *
-from migen.flow.actor import Sink, Source
-from migen.bank.description import *
-from migen.genlib.record import *
+from liteeth.common import *
 
-from liteethernet.common import *
-
-class LoopbackPHYCRG(Module, AutoCSR):
+class LiteEthPHYLoopbackCRG(Module, AutoCSR):
 	def __init__(self):
 		self._reset = CSRStorage()
 		###
@@ -22,10 +17,10 @@ class LoopbackPHYCRG(Module, AutoCSR):
 			self.cd_eth_tx.rst.eq(reset)
 		]
 
-class LoopbackPHY(Module, AutoCSR):
+class LiteEthPHYLoopback(Module, AutoCSR):
 	def __init__(self):
 		self.dw = 8
-		self.submodules.crg = LoopbackPHYCRG()
+		self.submodules.crg = LiteEthLoopbackPHYCRG()
 		self.sink = sink = Sink(eth_description(8))
 		self.source = source = Source(eth_description(8))
 		self.comb += Record.connect(self.sink, self.source)

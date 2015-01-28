@@ -1,4 +1,10 @@
+from collections import OrderedDict
+
 from migen.fhdl.std import *
+from migen.fhdl.std import *
+from migen.flow.actor import Sink, Source
+from migen.bank.description import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.flow.actor import EndpointDescription
 
 eth_mtu = 1532

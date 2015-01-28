@@ -1,12 +1,6 @@
-from migen.fhdl.std import *
-from migen.genlib.fsm import FSM, NextState
-from migen.flow.actor import Sink, Source
-from migen.bank.description import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
+from liteeth.common import *
 
-from liteethernet.common import *
-
-class MIIPHYTX(Module):
+class LiteEthPHYMIITX(Module):
 	def __init__(self, pads):
 		self.sink = sink = Sink(eth_description(8))
 		###
@@ -43,7 +37,7 @@ class MIIPHYTX(Module):
 			)
 		)
 
-class MIIPHYRX(Module):
+class LiteEthPHYMIIRX(Module):
 	def __init__(self, pads):
 		self.source = source = Source(eth_description(8))
 		###
@@ -95,7 +89,7 @@ class MIIPHYRX(Module):
 			NextState("LOAD_LO")
 		)
 
-class MIIPHYCRG(Module, AutoCSR):
+class LiteEthPHYMIICRG(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self._reset = CSRStorage()
 		###
@@ -113,10 +107,10 @@ class MIIPHYCRG(Module, AutoCSR):
 			AsyncResetSynchronizer(self.cd_eth_rx, reset),
 		]
 
-class MIIPHY(Module, AutoCSR):
+class LiteEthPHYMII(Module, AutoCSR):
 	def __init__(self, clock_pads, pads):
 		self.dw = 8
-		self.submodules.crg = MIIPHYCRG(clock_pads, pads)
-		self.submodules.tx = RenameClockDomains(MIIPHYTX(pads), "eth_tx")
-		self.submodules.rx = RenameClockDomains(MIIPHYRX(pads), "eth_rx")
+		self.submodules.crg = LiteEthPHYMIICRG(clock_pads, pads)
+		self.submodules.tx = RenameClockDomains(LiteEthPHYMIITX(pads), "eth_tx")
+		self.submodules.rx = RenameClockDomains(LiteEthPHYMIIRX(pads), "eth_rx")
 		self.sink, self.source = self.tx.sink, self.rx.source
