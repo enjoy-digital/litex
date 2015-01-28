@@ -11,9 +11,9 @@ Download and install
   - python3 setup.py install
   - cd ..
 
-3. Obtain Miscope and install it:
-  - git clone https://github.com/m-labs/miscope
-  - cd miscope
+3. Obtain LiteScope and install it:
+  - git clone https://github.com/enjoy-digital/litescope
+  - cd litescope
   - python3 setup.py install
   - cd ..
 

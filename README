@@ -8,6 +8,11 @@
         A small footprint and configurable SATA core
        developed for HKU by M-Labs Ltd & EnjoyDigital
 
+[> Doc
+---------
+HTML : www.enjoy-digital.fr/litex/litesata/
+PDF  : www.enjoy-digital.fr/litex/litesata.pdf
+
 [> Intro
 ---------
 LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
@@ -132,7 +137,7 @@ devel [AT] lists.m-labs.hk.
 
 [> Tests :
   A synthetizable BIST is provided and can be controlled with ./test/bist.py
-  By using Miscope and the provided ./test/test_link.py example you are able to
+  By using LiteScope and the provided ./test/test_link.py example you are able to
   visualize the internal logic of the design and even inject the captured data in
   the HDD model!
 

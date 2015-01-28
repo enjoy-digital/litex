@@ -1,4 +1,4 @@
-from miscope.host.dump import *
+from litescope.host.dump import *
 
 primitives = {
 	"ALIGN"	:	0x7B4A4ABC,
