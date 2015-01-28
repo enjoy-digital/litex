@@ -93,7 +93,6 @@ def eth_mac_description(dw):
 def eth_arp_description(dw):
 	layout = _layout_from_header(arp_header) + [
 		("data", dw),
-		("last_be", dw//8),
 		("error", dw//8)
 	]
 	return EndpointDescription(layout, packetized=True)
@@ -101,7 +100,6 @@ def eth_arp_description(dw):
 def eth_ipv4_description(dw):
 	layout = _layout_from_header(ipv4_header) + [
 		("data", dw),
-		("last_be", dw//8),
 		("error", dw//8)
 	]
 	return EndpointDescription(layout, packetized=True)
@@ -109,8 +107,56 @@ def eth_ipv4_description(dw):
 def eth_udp_description(dw):
 	layout = _layout_from_header(udp_header) + [
 		("data", dw),
-		("last_be", dw//8),
 		("error", dw//8)
 	]
 	return EndpointDescription(layout, packetized=True)
 
+# Generic modules
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Counter(Module):
+	def __init__(self, signal=None, **kwargs):
+		if signal is None:
+			self.value = Signal(**kwargs)
+		else:
+			self.value = signal
+		self.width = flen(self.value)
+		self.sync += self.value.eq(self.value+1)
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Timeout(Module):
+	def __init__(self, length):
+		self.reached = Signal()
+		###
+		value = Signal(max=length)
+		self.sync += value.eq(value+1)
+		self.comb += self.reached.eq(value == length)
+
+class BufferizeEndpoints(ModuleDecorator):
+	def __init__(self, submodule, *args):
+		ModuleDecorator.__init__(self, submodule)
+
+		endpoints = get_endpoints(submodule)
+		sinks = {}
+		sources = {}
+		for name, endpoint in endpoints.items():
+			if name in args or len(args) == 0:
+				if isinstance(endpoint, Sink):
+					sinks.update({name : endpoint})
+				elif isinstance(endpoint, Source):
+					sources.update({name : endpoint})
+
+		# add buffer on sinks
+		for name, sink in sinks.items():
+			buf = Buffer(sink.description)
+			self.submodules += buf
+			setattr(self, name, buf.d)
+			self.comb += Record.connect(buf.q, sink)
+
+		# add buffer on sources
+		for name, source in sources.items():
+			buf = Buffer(source.description)
+			self.submodules += buf
+			self.comb += Record.connect(source, buf.d)
+			setattr(self, name, buf.q)
