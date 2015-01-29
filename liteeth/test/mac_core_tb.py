@@ -11,15 +11,15 @@ from liteeth.test.model import phy, mac
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.hostphy = phy.PHY(8, debug=False)
-		self.submodules.hostmac = mac.MAC(self.hostphy, debug=False, loopback=True)
-		self.submodules.core = LiteEthMACCore(phy=self.hostphy, dw=32, with_hw_preamble_crc=True)
+		self.submodules.phy_model = phy.PHY(8, debug=False)
+		self.submodules.mac_model = mac.MAC(self.phy_model, debug=True, loopback=True)
+		self.submodules.core = LiteEthMACCore(phy=self.phy_model, dw=8, with_hw_preamble_crc=True)
 
-		self.submodules.streamer = PacketStreamer(eth_phy_description(32), last_be=1)
-		self.submodules.streamer_randomizer = AckRandomizer(eth_phy_description(32), level=50)
+		self.submodules.streamer = PacketStreamer(eth_phy_description(8), last_be=1)
+		self.submodules.streamer_randomizer = AckRandomizer(eth_phy_description(8), level=50)
 
-		self.submodules.logger_randomizer = AckRandomizer(eth_phy_description(32), level=50)
-		self.submodules.logger = PacketLogger(eth_phy_description(32))
+		self.submodules.logger_randomizer = AckRandomizer(eth_phy_description(8), level=50)
+		self.submodules.logger = PacketLogger(eth_phy_description(8))
 
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()
@@ -46,12 +46,16 @@ class TB(Module):
 		selfp.cd_eth_tx.rst = 0
 
 		for i in range(8):
-			streamer_packet = Packet([i for i in range(64)])
-			yield from self.streamer.send(streamer_packet)
+			packet = mac.MACPacket([i for i in range(64)])
+			packet.destination_mac_address = 0x010203040506
+			packet.source_mac_address = 0x090A0B0C0C0D
+			packet.ethernet_type = 0x0800
+			packet.encode_header()
+			yield from self.streamer.send(packet)
 			yield from self.logger.receive()
 
 			# check results
-			s, l, e = check(streamer_packet, self.logger.packet)
+			s, l, e = check(packet, self.logger.packet)
 			print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
