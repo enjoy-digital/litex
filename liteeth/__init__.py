@@ -11,16 +11,12 @@ class LiteEthIPStack(Module, AutoCSR):
 		self.submodules.ip = ip = LiteEthMACIP()
 
 		# MAC dispatch
-		self.submodules.unknown_sink = unknown_sink = Sink(eth_mac_description(8))
-		self.comb += unknown_sink.ack.eq(1)
-		self.submodules.mac_dispatcher = mac_dispatcher = Dispatcher(mac.source, [arp.sink, ip.sink, unknown_sink])
+		self.submodules.mac_dispatcher = mac_dispatcher = Dispatcher(mac.source, [arp.sink, ip.sink], one_hot=True)
 		self.comb += [
 			If(mac.source.eth_type == ethernet_type_arp,
-				mac_dispatcher.sel.eq(0)
-			).Elif(mac.source.eth_type == ethernet_type_ip,
 				mac_dispatcher.sel.eq(1)
-			).Else(
-				mac_dispatcher.sel.eq(2) # connect to unknown sink that always acknowledge data
+			).Elif(mac.source.eth_type == ethernet_type_ip,
+				mac_dispatcher.sel.eq(2)
 			)
 		]
 		# MAC arbitrate
