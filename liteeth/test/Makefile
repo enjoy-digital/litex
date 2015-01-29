@@ -3,6 +3,10 @@ PYTHON = python3
 
 CMD = PYTHONPATH=$(LEDIR) $(PYTHON)
 
+model_tb:
+	$(CMD) ./model/mac.py
+	$(CMD) ./model/arp.py
+
 mac_core_tb:
 	$(CMD) mac_core_tb.py
 

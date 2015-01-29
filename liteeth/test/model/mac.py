@@ -7,11 +7,11 @@ from liteeth.test.common import *
 def print_mac(s):
 	print_with_prefix(s, "[MAC]")
 
-preamble = split_bytes(eth_preamble, 8)
+preamble = split_bytes(eth_preamble, 8, "little")
 
 def crc32(l):
 	crc = []
-	crc_bytes = split_bytes(binascii.crc32(bytes(l)), 4)
+	crc_bytes = split_bytes(binascii.crc32(bytes(l)), 4, "little")
 	for byte in crc_bytes:
 		crc.append(int(byte))
 	return crc
@@ -57,8 +57,9 @@ class MACPacket(Packet):
 	def encode_header(self):
 		header = 0
 		for k, v in sorted(mac_header.items()):
-			header |= (getattr(self, k) << (v.byte*8+v.offset))
-		for d in reversed(split_bytes(header, mac_header_len)):
+			value = merge_bytes(split_bytes(getattr(self, k), math.ceil(v.width/8)), "little")
+			header += (value << v.offset+(v.byte*8))
+		for d in split_bytes(header, mac_header_len):
 			self.insert(0, d)
 
 	def insert_crc(self):
@@ -135,3 +136,26 @@ class MAC(Module):
 			if len(self.tx_packets) != 0:
 				tx_packet = self.tx_packets.pop(0)
 				yield from self.phy.send(tx_packet)
+
+if __name__ == "__main__":
+	from liteeth.test.model.dumps import *
+	errors = 0
+	packet = MACPacket(arp_request)
+	packet.decode_remove_header()
+	#print(packet)
+	errors += verify_packet(packet, arp_request_infos)
+	packet.encode_header()
+	packet.decode_remove_header()
+	#print(packet)
+	errors += verify_packet(packet, arp_request_infos)
+
+	#print(packet)
+	packet = MACPacket(arp_reply)
+	packet.decode_remove_header()
+	errors += verify_packet(packet, arp_reply_infos)
+	packet.encode_header()
+	packet.decode_remove_header()
+	#print(packet)
+	errors += verify_packet(packet, arp_reply_infos)
+
+	print("mac errors " + str(errors))

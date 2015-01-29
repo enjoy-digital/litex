@@ -3,7 +3,6 @@ import math, binascii
 from liteeth.common import *
 from liteeth.mac.common import *
 from liteeth.test.common import *
-from liteeth.test.mac import *
 
 def print_arp(s):
 	print_with_prefix(s, "[ARP]")
@@ -25,8 +24,9 @@ class ARPPacket(Packet):
 	def encode(self):
 		header = 0
 		for k, v in sorted(arp_header.items()):
-			header |= (getattr(self, k) << (v.byte*8+v.offset))
-		for d in reversed(split_bytes(header, arp_header_len)):
+			value = merge_bytes(split_bytes(getattr(self, k), math.ceil(v.width/8)), "little")
+			header += (value << v.offset+(v.byte*8))
+		for d in split_bytes(header, arp_header_len):
 			self.insert(0, d)
 
 	def __repr__(self):
@@ -84,7 +84,7 @@ class ARP(Module):
 			self.process_reply(packet)
 	
 	def process_request(self, request):
-		if request.destination_ip_address = self.ip_address:
+		if request.destination_ip_address == self.ip_address:
 			reply = ARPPacket([0]*(arp_packet_length-arp_header_length))
 			reply.hardware_type = arp_hwtype_ethernet
 			reply.protocol_type = arp_proto_ip
@@ -109,3 +109,37 @@ class ARP(Module):
 		request.source_ip_address = self.ip_address
 		request.destination_mac_address = 0xffffffffffff
 		request.destination_ip_address = ip_address
+
+if __name__ == "__main__":
+	from liteeth.test.model.dumps import *
+	from liteeth.test.model.mac import *
+	errors = 0
+	# ARP request
+	packet = MACPacket(arp_request)
+	packet.decode_remove_header()
+	packet = ARPPacket(packet)
+	# check decoding
+	packet.decode()
+	#print(packet)
+	errors += verify_packet(packet, arp_request_infos)
+	# check encoding
+	packet.encode()
+	packet.decode()
+	#print(packet)
+	errors += verify_packet(packet, arp_request_infos)
+
+	# ARP Reply
+	packet = MACPacket(arp_reply)
+	packet.decode_remove_header()
+	packet = ARPPacket(packet)
+	# check decoding
+	packet.decode()
+	#print(packet)
+	errors += verify_packet(packet, arp_reply_infos)
+	# check encoding
+	packet.encode()
+	packet.decode()
+	#print(packet)
+	errors += verify_packet(packet, arp_reply_infos)
+
+	print("arp errors " + str(errors))

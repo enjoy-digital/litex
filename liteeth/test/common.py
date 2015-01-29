@@ -19,15 +19,15 @@ def seed_to_data(seed, random=True):
 	else:
 		return seed
 
-def split_bytes(v, n):
+def split_bytes(v, n, endianness="big"):
 	r = []
-	r_bytes = v.to_bytes(n, byteorder="little")
+	r_bytes = v.to_bytes(n, byteorder=endianness)
 	for byte in r_bytes:
 		r.append(int(byte))
 	return r
 
-def merge_bytes(b):
-	return int.from_bytes(bytes(b), "little")
+def merge_bytes(b, endianness="big"):
+	return int.from_bytes(bytes(b), endianness)
 
 def get_field_data(field, datas):
 	v = merge_bytes(datas[field.byte:field.byte+math.ceil(field.width/8)])
