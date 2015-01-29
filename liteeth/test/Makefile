@@ -12,3 +12,6 @@ mac_core_tb:
 
 mac_wishbone_tb:
 	$(CMD) mac_wishbone_tb.py
+
+arp_tb:
+	$(CMD) arp_tb.py

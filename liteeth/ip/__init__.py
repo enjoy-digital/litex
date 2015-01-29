@@ -8,12 +8,12 @@ class LiteEthIPV4Depacketizer(LiteEthDepacketizer):
 			eth_mac_description(8),
 			eth_ipv4_description(8),
 			ipv4_header,
-			ipv4_header_length)
+			ipv4_header_len)
 
-class LiteEthIPV4Packetizer(LiteEthDepacketizer):
+class LiteEthIPV4Packetizer(LiteEthPacketizer):
 	def __init__(self):
-		LiteEthDepacketizer.__init__(self,
+		LiteEthPacketizer.__init__(self,
 			eth_ipv4_description(8),
 			eth_mac_description(8),
 			ipv4_header,
-			ipv4_header_length)
+			ipv4_header_len)

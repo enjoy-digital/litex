@@ -46,7 +46,6 @@ class LiteEthDepacketizer(Module):
 				source.sop.eq(0)
 			)
 		self.comb += [
-			source.sop.eq(sop),
 			source.eop.eq(sink.eop),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error),

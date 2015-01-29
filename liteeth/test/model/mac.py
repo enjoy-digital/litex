@@ -118,10 +118,10 @@ class MAC(Module):
 		if self.loopback:
 			self.send(packet)
 		else:
-			if self.ethernet_type == ethernet_type_ip:
+			if packet.ethernet_type == ethernet_type_ip:
 				if self.ip_callback is not None:
 					self.ip_callback(packet)
-			elif self.ethernet_type == ethernet_type_arp:
+			elif packet.ethernet_type == ethernet_type_arp:
 				if self.arp_callback is not None:
 					self.arp_callback(packet)
 			else:

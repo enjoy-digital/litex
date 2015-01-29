@@ -17,15 +17,15 @@ class LiteEthARPDepacketizer(LiteEthDepacketizer):
 			eth_mac_description(8),
 			eth_arp_description(8),
 			arp_header,
-			arp_header_length)
+			arp_header_len)
 
-class LiteEthARPPacketizer(LiteEthDepacketizer):
+class LiteEthARPPacketizer(LiteEthPacketizer):
 	def __init__(self):
-		LiteEthDepacketizer.__init__(self,
+		LiteEthPacketizer.__init__(self,
 			eth_arp_description(8),
 			eth_mac_description(8),
 			arp_header,
-			arp_header_length)
+			arp_header_len)
 
 class LiteSATACommandTX(Module):
 	def __init__(self, transport):
@@ -37,15 +37,20 @@ class LiteEthARPTX(Module):
 		self.sink = sink = Sink(_arp_table_description())
 		self.source = Source(eth_mac_description(8))
 		###
-		packetiser = LiteEthARPPacketizer()
+		packetizer = LiteEthARPPacketizer()
 		self.submodules += packetizer
 		source = packetizer.sink
+
+		counter = Counter(max=arp_packet_length)
+		self.submodules += counter
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 		fsm.act("IDLE",
 			sink.ack.eq(1),
-			If(sink.stb & sink.sop,
+			counter.reset.eq(1),
+			If(sink.stb,
+				sink.ack.eq(0),
 				NextState("SEND")
 			)
 		)
@@ -66,11 +71,20 @@ class LiteEthARPTX(Module):
 				source.destination_ip_address.eq(sink.ip_address)
 			)
 		]
-		fsm.act("SEND_REQUEST",
+		fsm.act("SEND",
 			source.stb.eq(1),
+			source.sop.eq(counter.value == 0),
+			source.eop.eq(counter.value == arp_packet_length-1),
 			Record.connect(packetizer.source, self.source),
-			If(self.source.stb & self.source.eop & self.source.ack,
-				NextState("IDLE")
+			self.source.destination_mac_address.eq(source.destination_mac_address),
+			self.source.source_mac_address.eq(mac_address),
+			self.source.ethernet_type.eq(ethernet_type_arp),
+			If(self.source.stb & self.source.ack,
+				sink.ack.eq(1),
+				counter.ce.eq(1),
+				If(self.source.eop,
+					NextState("IDLE")
+				)
 			)
 		)
 
@@ -79,7 +93,7 @@ class LiteEthARPRX(Module):
 		self.sink = Sink(eth_mac_description(8))
 		self.source = source = Source(_arp_table_description())
 		###
-		depacketiser = LiteEthARPDepacketizer()
+		depacketizer = LiteEthARPDepacketizer()
 		self.submodules += depacketizer
 		self.comb += Record.connect(self.sink, depacketizer.sink)
 		sink = depacketizer.source
@@ -118,11 +132,11 @@ class LiteEthARPRX(Module):
 				source.reply.eq(reply),
 				source.request.eq(request)
 			),
-			NextState.eq("TERMINATE")
+			NextState("TERMINATE")
 		),
 		fsm.act("TERMINATE",
 			sink.ack.eq(1),
-			If(sink.stb & sink.source.eop & sink.source.ack,
+			If(sink.stb & sink.eop,
 				NextState("IDLE")
 			)
 		)
@@ -173,9 +187,9 @@ class LiteEthARPTable(Module):
 		fsm.act("CHECK_TABLE",
 			# XXX add a kind of CAM?
 			If(found,
-				NexState.eq("PRESENT_RESPONSE")
+				NextState("PRESENT_RESPONSE")
 			).Else(
-				NextState.eq("SEND_REQUEST")
+				NextState("SEND_REQUEST")
 			)
 		)
 		fsm.act("SEND_REQUEST",

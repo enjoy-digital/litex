@@ -10,15 +10,15 @@ class LiteEthMACDepacketizer(LiteEthDepacketizer):
 			eth_phy_description(8),
 			eth_mac_description(8),
 			mac_header,
-			mac_header_length)
+			mac_header_len)
 
-class LiteEthMACPacketizer(LiteEthDepacketizer):
+class LiteEthMACPacketizer(LiteEthPacketizer):
 	def __init__(self):
-		LiteEthDepacketizer.__init__(self,
+		LiteEthPacketizer.__init__(self,
 			eth_mac_description(8),
 			eth_phy_description(8),
 			mac_header,
-			mac_header_length)
+			mac_header_len)
 
 class LiteEthMAC(Module, AutoCSR):
 	def __init__(self, phy, dw, interface="mac", endianness="be",
@@ -34,6 +34,7 @@ class LiteEthMAC(Module, AutoCSR):
 				Record.connect(self.core.source, depacketizer.sink)
 			]
 			self.sink, self.source = packetizer.sink, depacketizer.source
+			pass
 		elif interface == "wishbone":
 			self.submodules.interface = wishbone.LiteEthMACWishboneInterface(dw, 2, 2)
 			self.comb += [

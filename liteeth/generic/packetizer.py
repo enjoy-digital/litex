@@ -1,11 +1,19 @@
 from liteeth.common import *
+import math
+
+def reverse_bytes(v):
+	n = math.ceil(flen(v)//8)
+	r = []
+	for i in reversed(range(n)):
+		r.append(v[i*8:min((i+1)*8, flen(v))])
+	return Cat(iter(r))
 
 def _encode_header(h_dict, h_signal, obj):
 	r = []
 	for k, v in sorted(h_dict.items()):
-		start = v.word*32+v.offset
+		start = v.byte*8+v.offset
 		end = start+v.width
-		r.append(h_signal[start:end].eq(getattr(obj, k)))
+		r.append(h_signal[start:end].eq(reverse_bytes(getattr(obj, k))))
 	return r
 
 class LiteEthPacketizer(Module):
@@ -20,7 +28,7 @@ class LiteEthPacketizer(Module):
 		counter = Counter(max=header_length)
 		self.submodules += counter
 
-		self.comb += header.eq(_encode_header(header_type, header, sink))
+		self.comb += _encode_header(header_type, header, sink)
 		self.sync += [
 			If(load,
 				header_reg.eq(header)
@@ -34,14 +42,15 @@ class LiteEthPacketizer(Module):
 
 		fsm.act("IDLE",
 			sink.ack.eq(1),
+			counter.reset.eq(1),
 			If(sink.stb & sink.sop,
-				load.eq(1),
 				sink.ack.eq(0),
 				source.stb.eq(1),
 				source.sop.eq(1),
 				source.eop.eq(0),
 				source.data.eq(header[:8]),
 				If(source.stb & source.ack,
+					load.eq(1),
 					NextState("SEND_HEADER"),
 				)
 			)
@@ -52,8 +61,9 @@ class LiteEthPacketizer(Module):
 			source.eop.eq(sink.eop),
 			source.data.eq(header_reg[8:16]),
 			If(source.stb & source.ack,
-				sink.ack.eq(1),
-				If(counter == header_length-2,
+				shift.eq(1),
+				counter.ce.eq(1),
+				If(counter.value == header_length-2,
 					NextState("COPY")
 				)
 			)
@@ -61,7 +71,7 @@ class LiteEthPacketizer(Module):
 		fsm.act("COPY",
 			source.stb.eq(sink.stb),
 			source.sop.eq(0),
-			source.eop.eq(sink_eop),
+			source.eop.eq(sink.eop),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error),
 			If(source.stb & source.ack,
