@@ -4,20 +4,6 @@ from liteeth.common import *
 from liteeth.mac.common import *
 from liteeth.test.common import *
 
-def split_bytes(v, n):
-	r = []
-	r_bytes = v.to_bytes(n, byteorder="little")
-	for byte in r_bytes:
-		r.append(int(byte))
-	return r
-
-def merge_bytes(b):
-	return int.from_bytes(bytes(b), "little")
-
-def get_field_data(field, datas):
-	v = merge_bytes(datas[field.byte:field.byte+math.ceil(field.width/8)])
-	return (v >> field.offset) & (2**field.width-1)
-
 def print_mac(s):
 	print_with_prefix(s, "[MAC]")
 

@@ -19,6 +19,20 @@ def seed_to_data(seed, random=True):
 	else:
 		return seed
 
+def split_bytes(v, n):
+	r = []
+	r_bytes = v.to_bytes(n, byteorder="little")
+	for byte in r_bytes:
+		r.append(int(byte))
+	return r
+
+def merge_bytes(b):
+	return int.from_bytes(bytes(b), "little")
+
+def get_field_data(field, datas):
+	v = merge_bytes(datas[field.byte:field.byte+math.ceil(field.width/8)])
+	return (v >> field.offset) & (2**field.width-1)
+
 def comp(p1, p2):
 	r = True
 	for x, y in zip(p1, p2):
@@ -58,7 +72,7 @@ class Packet(list):
 			self.append(data)
 
 class PacketStreamer(Module):
-	def __init__(self, description, last_be=None):
+	def __init__(self, description, last_be=1):
 		self.source = Source(description)
 		self.last_be = last_be
 		###

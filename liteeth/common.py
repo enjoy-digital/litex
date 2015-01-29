@@ -1,3 +1,4 @@
+import math
 from collections import OrderedDict
 
 from migen.fhdl.std import *
@@ -22,6 +23,9 @@ class HField():
 		self.offset = offset
 		self.width = width
 
+ethernet_type_ip = 0x800
+ethernet_type_arp = 0x806
+
 mac_header_len = 14
 mac_header = {
 	"destination_mac_address":	HField(0,  0, 48),
@@ -29,8 +33,11 @@ mac_header = {
 	"ethernet_type":			HField(12, 0, 16)
 }
 
-ethernet_type_ip = 0x800
-ethernet_type_arp = 0x806
+arp_packet_length = 60
+arp_hwtype_ethernet = 0x0001
+arp_proto_ip = 0x0800
+arp_opcode_request = 0x0001
+arp_opcode_reply = 0x0002
 
 arp_header_len = 28
 arp_header = {
