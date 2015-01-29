@@ -29,6 +29,9 @@ mac_header = {
 	"ethernet_type":			HField(12, 0, 16)
 }
 
+ethernet_type_ip = 0x800
+ethernet_type_arp = 0x806
+
 arp_header_len = 28
 arp_header = {
 	"hardware_type":			HField( 0,  0, 16),

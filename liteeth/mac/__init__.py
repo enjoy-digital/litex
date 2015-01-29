@@ -21,12 +21,19 @@ class LiteEthMACPacketizer(LiteEthDepacketizer):
 			mac_header_length)
 
 class LiteEthMAC(Module, AutoCSR):
-	def __init__(self, phy, dw, interface="core", endianness="be",
+	def __init__(self, phy, dw, interface="mac", endianness="be",
 			with_hw_preamble_crc=True):
 		self.submodules.core = LiteEthMACCore(phy, dw, endianness, with_hw_preamble_crc)
 		self.csrs = None
-		if interface == "core":
-			self.sink, self.source = self.core.sink, self.core.source
+		if interface == "mac":
+			packetizer = LiteEthMACPacketizer()
+			depacketizer = LiteEthMACDepacketizer()
+			self.submodules += packetizer, depacketizer
+			self.comb += [
+				Record.connect(packetizer.source, self.core.sink),
+				Record.connect(self.core.source, depacketizer.sink)
+			]
+			self.sink, self.source = packetizer.sink, depacketizer.source
 		elif interface == "wishbone":
 			self.submodules.interface = wishbone.LiteEthMACWishboneInterface(dw, 2, 2)
 			self.comb += [
