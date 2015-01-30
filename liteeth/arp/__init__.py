@@ -96,6 +96,7 @@ class LiteEthARPRX(Module):
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			If(sink.stb & sink.sop,
+				sink.ack.eq(0),
 				NextState("CHECK")
 			)
 		)
@@ -133,15 +134,6 @@ class LiteEthARPRX(Module):
 				NextState("IDLE")
 			)
 		)
-
-arp_table_request_layout = [
-	("ip_address", 32)
-]
-
-arp_table_response_layout = [
-	("failed", 1),
-	("mac_address", 48)
-]
 
 class LiteEthARPTable(Module):
 	def __init__(self):

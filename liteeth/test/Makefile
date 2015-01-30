@@ -15,3 +15,6 @@ mac_wishbone_tb:
 
 arp_tb:
 	$(CMD) arp_tb.py
+
+ip_tb:
+	$(CMD) ip_tb.py	

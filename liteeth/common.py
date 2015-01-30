@@ -114,6 +114,15 @@ def eth_arp_description(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
+arp_table_request_layout = [
+	("ip_address", 32)
+]
+
+arp_table_response_layout = [
+	("failed", 1),
+	("mac_address", 48)
+]
+
 def eth_ipv4_description(dw):
 	layout = _layout_from_header(ipv4_header) + [
 		("data", dw),
