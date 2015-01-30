@@ -50,7 +50,7 @@ class LiteEthPacketizer(Module):
 		fsm.act("SEND_HEADER",
 			source.stb.eq(1),
 			source.sop.eq(0),
-			source.eop.eq(sink.eop),
+			source.eop.eq(sink.eop & (counter.value == header_length-2)),
 			source.data.eq(header_reg[8:16]),
 			If(source.stb & source.ack,
 				shift.eq(1),

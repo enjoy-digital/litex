@@ -10,5 +10,5 @@ class LiteEthIPStack(Module, AutoCSR):
 		self.phy = phy
 		self.submodules.mac = mac = LiteEthMAC(phy, 8, interface="crossbar", with_hw_preamble_crc=True)
 		self.submodules.arp = arp = LiteEthARP(mac, mac_address, ip_address)
-		self.submodules.ip = ip = LiteEthIP(mac, ip_address, arp.table)
+		self.submodules.ip = ip = LiteEthIP(mac, mac_address, ip_address, arp.table)
 		self.sink, self.source = self.ip.sink, self.ip.source

@@ -7,7 +7,7 @@ from liteeth.common import *
 from liteeth import LiteEthIPStack
 
 from liteeth.test.common import *
-from liteeth.test.model import phy, mac, arp
+from liteeth.test.model import phy, mac, arp, ip
 
 ip_address = 0x12345678
 mac_address = 0x12345678abcd
@@ -17,6 +17,7 @@ class TB(Module):
 		self.submodules.phy_model = phy.PHY(8, debug=True)
 		self.submodules.mac_model = mac.MAC(self.phy_model, debug=True, loopback=False)
 		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=True)
+		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=True)
 
 		self.submodules.ip = LiteEthIPStack(self.phy_model, mac_address, ip_address)
 

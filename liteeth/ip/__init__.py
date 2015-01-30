@@ -19,7 +19,7 @@ class LiteEthIPV4Packetizer(LiteEthPacketizer):
 			ipv4_header_len)
 
 class LiteEthIPTX(Module):
-	def __init__(self, ip_address, arp_table):
+	def __init__(self, mac_address, ip_address, arp_table):
 		self.sink = Sink(eth_ipv4_description(8))
 		self.source = Source(eth_mac_description(8))
 		###
@@ -27,6 +27,8 @@ class LiteEthIPTX(Module):
 		self.submodules += packetizer
 		self.comb += Record.connect(self.sink, packetizer.sink)
 		sink = packetizer.source
+
+		destination_mac_address = Signal(48)
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
@@ -52,19 +54,21 @@ class LiteEthIPTX(Module):
 				NextState("SEND")
 			)
 		)
+		self.sync += If(arp_table.response.stb, destination_mac_address.eq(arp_table.response.mac_address))
 		fsm.act("SEND",
 			Record.connect(packetizer.source, self.source),
+			self.source.ethernet_type.eq(ethernet_type_ip),
+			self.source.destination_mac_address.eq(destination_mac_address),
+			self.source.source_mac_address.eq(mac_address),
 			# XXX compute check sum
-
-			# XXX add timeout
-			If(arp_table.response.stb,
+			If(self.source.stb & self.source.eop & self.source.ack,
 				# XXX manage failed
-				NextState("SEND")
+				NextState("IDLE")
 			)
 		)
 
 class LiteEthIPRX(Module):
-	def __init__(self, ip_address):
+	def __init__(self, mac_address, ip_address):
 		self.sink = Sink(eth_mac_description(8))
 		self.source = source = Source(eth_ipv4_description(8))
 		###
@@ -105,9 +109,9 @@ class LiteEthIPRX(Module):
 		)
 
 class LiteEthIP(Module):
-	def __init__(self, mac, ip_address, arp_table):
-		self.submodules.tx = LiteEthIPTX(ip_address, arp_table)
-		self.submodules.rx = LiteEthIPRX(ip_address)
+	def __init__(self, mac, mac_address, ip_address, arp_table):
+		self.submodules.tx = LiteEthIPTX(mac_address, ip_address, arp_table)
+		self.submodules.rx = LiteEthIPRX(mac_address, ip_address)
 		mac_port = mac.crossbar.get_port(ethernet_type_ip)
 		self.comb += [
 			Record.connect(self.tx.source, mac_port.sink),
