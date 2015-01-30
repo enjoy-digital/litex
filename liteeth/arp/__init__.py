@@ -80,7 +80,7 @@ class LiteEthARPTX(Module):
 			self.source.source_mac_address.eq(mac_address),
 			self.source.ethernet_type.eq(ethernet_type_arp),
 			If(self.source.stb & self.source.ack,
-				sink.ack.eq(1),
+				sink.ack.eq(source.eop),
 				counter.ce.eq(1),
 				If(self.source.eop,
 					NextState("IDLE")
@@ -148,7 +148,6 @@ arp_table_request_layout = [
 arp_table_response_layout = [
 	("failed", 1),
 	("mac_address", 48)
-
 ]
 
 class LiteEthARPTable(Module):
@@ -159,15 +158,31 @@ class LiteEthARPTable(Module):
 		# Request/Response interface
 		self.request = request = Sink(arp_table_request_layout)
 		self.response = response = Source(arp_table_response_layout)
+		###
+		request_timeout = Timeout(512)	# XXX fix me 100ms?
+		request_pending = FlipFlop()
+		self.submodules += request_timeout, request_pending
+		self.comb += [
+			request_timeout.ce.eq(request_pending.q),
+			request_pending.d.eq(1)
+		]
+
+		# Note: Store only one ip/mac couple, replace this with
+		# a real ARP table
+		update = Signal()
+		cached_ip_address = Signal(32)
+		cached_mac_address = Signal(48)
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 		fsm.act("IDLE",
+			# Note: for simplicicy, if APR table is busy response from arp_rx
+			# is lost. This is compensated by the protocol (retrys)
 			If(sink.stb & sink.request,
 				NextState("SEND_REPLY")
-			).Elif(sink.stb & sink.reply,
+			).Elif(sink.stb & sink.reply & request_pending.q,
 				NextState("UPDATE_TABLE")
-			).Elif(request.stb,
+			).Elif(request.stb | (request_pending.q & request_timeout.reached),
 				NextState("CHECK_TABLE")
 			)
 		)
@@ -180,13 +195,21 @@ class LiteEthARPTable(Module):
 			)
 		)
 		fsm.act("UPDATE_TABLE",
-			# XXX update memory
-			NextState("IDLE")
+			request_pending.reset.eq(1),
+			update.eq(1),
+			NextState("CHECK_TABLE")
 		)
+		self.sync += [
+			If(update,
+				cached_ip_address.eq(sink.ip_address),
+				cached_mac_address.eq(sink.mac_address)
+			)
+		]
 		found = Signal()
 		fsm.act("CHECK_TABLE",
-			# XXX add a kind of CAM?
-			If(found,
+			# XXX: add a live time for cached_mac_address
+			If(request.ip_address == cached_ip_address,
+				request.ack.eq(request.stb),
 				NextState("PRESENT_RESPONSE")
 			).Else(
 				NextState("SEND_REQUEST")
@@ -197,13 +220,16 @@ class LiteEthARPTable(Module):
 			source.request.eq(1),
 			source.ip_address.eq(request.ip_address),
 			If(source.ack,
+				request_timeout.reset.eq(1),
+				request_pending.ce.eq(1),
+				request.ack.eq(1),
 				NextState("IDLE")
 			)
 		)
 		fsm.act("PRESENT_RESPONSE",
 			response.stb.eq(1),
 			response.failed.eq(0), # XXX add timeout to trigger failed
-			response.mac_address.eq(0x12345678abcd), # XXX get mac address from table
+			response.mac_address.eq(cached_mac_address),
 			If(response.ack,
 				NextState("IDLE")
 			)

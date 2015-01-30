@@ -47,8 +47,15 @@ class TB(Module):
 		for i in range(100):
 			yield
 
-		selfp.arp.table.request.ip_address = 0x12345678
-		selfp.arp.table.request.stb = 1
+		while selfp.arp.table.request.ack != 1:
+			selfp.arp.table.request.stb = 1
+			selfp.arp.table.request.ip_address = 0x12345678
+			yield
+		selfp.arp.table.request.stb = 0
+		while selfp.arp.table.response.stb != 1:
+			selfp.arp.table.response.ack = 1
+			yield
+
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=1024, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=2048, vcd_name="my.vcd", keep_files=True)

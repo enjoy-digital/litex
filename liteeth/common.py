@@ -131,6 +131,14 @@ def eth_udp_description(dw):
 # Generic modules
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
+class FlipFlop(Module):
+	def __init__(self, **kwargs):
+		self.d = Signal(**kwargs)
+		self.q = Signal(**kwargs)
+		self.sync += self.q.eq(self.d)
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
 class Counter(Module):
 	def __init__(self, signal=None, **kwargs):
 		if signal is None:
@@ -147,8 +155,8 @@ class Timeout(Module):
 		self.reached = Signal()
 		###
 		value = Signal(max=length)
-		self.sync += value.eq(value+1)
-		self.comb += self.reached.eq(value == length)
+		self.sync += If(~self.reached, value.eq(value+1))
+		self.comb += self.reached.eq(value == (length-1))
 
 class BufferizeEndpoints(ModuleDecorator):
 	def __init__(self, submodule, *args):

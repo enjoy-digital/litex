@@ -18,11 +18,10 @@ class LiteEthDepacketizer(Module):
 		counter = Counter(max=header_length)
 		self.submodules += counter
 
-		self.sync += [
+		self.sync += \
 			If(shift,
 				header.eq(Cat(header[8:], sink.data))
 			)
-		]
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
