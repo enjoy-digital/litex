@@ -5,7 +5,7 @@ def _decode_header(h_dict, h_signal, obj):
 	for k, v in sorted(h_dict.items()):
 		start = v.byte*8+v.offset
 		end = start+v.width
-		r.append(getattr(obj, k).eq(h_signal[start:end]))
+		r.append(getattr(obj, k).eq(reverse_bytes(h_signal[start:end])))
 	return r
 
 class LiteEthDepacketizer(Module):
@@ -17,6 +17,12 @@ class LiteEthDepacketizer(Module):
 		header = Signal(header_length*8)
 		counter = Counter(max=header_length)
 		self.submodules += counter
+
+		self.sync += [
+			If(shift,
+				header.eq(Cat(header[8:], sink.data))
+			)
+		]
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm

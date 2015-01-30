@@ -77,6 +77,13 @@ udp_header = {
 	"checksum":					HField( 6,  0, 16)
 }
 
+def reverse_bytes(v):
+	n = math.ceil(flen(v)//8)
+	r = []
+	for i in reversed(range(n)):
+		r.append(v[i*8:min((i+1)*8, flen(v))])
+	return Cat(iter(r))
+
 # layouts
 def _layout_from_header(header):
 	_layout = []

@@ -51,4 +51,4 @@ class TB(Module):
 		selfp.arp.table.request.stb = 1
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=256, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=1024, vcd_name="my.vcd", keep_files=True)

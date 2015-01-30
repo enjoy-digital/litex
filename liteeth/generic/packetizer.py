@@ -1,12 +1,4 @@
 from liteeth.common import *
-import math
-
-def reverse_bytes(v):
-	n = math.ceil(flen(v)//8)
-	r = []
-	for i in reversed(range(n)):
-		r.append(v[i*8:min((i+1)*8, flen(v))])
-	return Cat(iter(r))
 
 def _encode_header(h_dict, h_signal, obj):
 	r = []
