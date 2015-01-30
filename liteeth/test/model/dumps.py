@@ -48,24 +48,6 @@ arp_reply_infos = {
 	"destination_ip_address"	:	0xa9feff42
 }
 
-ping_request = format_dump("""
-ff 03 00 21 45 00 00 64 00 00 00 00 ff 01 a7 96
-0a 00 00 01 0a 00 00 02 08 00 d6 7f 00 00 00 00
-00 00 00 00 00 02 a7 c8 ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd""")
-
-icmp_echo = format_dump("""
-ff 03 00 21 45 00 00 64 00 00 00 00 ff 01 a7 96
-0a 00 00 02 0a 00 00 01 00 00 de 7f 00 00 00 00
-00 00 00 00 00 02 a7 c8 ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd ab cd ab cd ab cd ab cd
-ab cd ab cd ab cd ab cd""")
-
 udp = format_dump("""
 d0 7a b5 96 cd 0a 00 14 0b 33 33 27 08 00 45 00
 00 5f 31 16 00 00 80 11 87 77 c0 a8 01 65 b2 7b
@@ -74,3 +56,11 @@ d0 7a b5 96 cd 0a 00 14 0b 33 33 27 08 00 45 00
 aa 9b 4e 4d f9 2e 51 52 fe ff 65 31 3a 71 34 3a
 70 69 6e 67 31 3a 74 34 3a 85 72 00 00 31 3a 76
 34 3a 55 54 7e 62 31 3a 79 31 3a 71 65""")
+
+udp_infos = {
+	"source_mac_address"		:	0x00140b333327,
+	"destination_mac_address"	:	0xd07ab596cd0a,
+	"protocol"					:	0x11,
+	"source_ip_address"			:	0xc0a80165,
+	"destination_ip_address"	:	0xb27b0d78
+}

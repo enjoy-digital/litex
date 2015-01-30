@@ -6,6 +6,7 @@ CMD = PYTHONPATH=$(LEDIR) $(PYTHON)
 model_tb:
 	$(CMD) ./model/mac.py
 	$(CMD) ./model/arp.py
+	$(CMD) ./model/ip.py
 
 mac_core_tb:
 	$(CMD) mac_core_tb.py
