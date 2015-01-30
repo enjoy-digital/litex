@@ -2,14 +2,12 @@ from liteeth.common import *
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
 
-def _arp_table_description():
-	layout = [
+_arp_table_layout = [
 		("reply", 1),
 		("request", 1),
 		("ip_address", 32),
 		("mac_address", 48)
 	]
-	return EndpointDescription(layout, packetized=False)
 
 class LiteEthARPDepacketizer(LiteEthDepacketizer):
 	def __init__(self):
@@ -27,14 +25,9 @@ class LiteEthARPPacketizer(LiteEthPacketizer):
 			arp_header,
 			arp_header_len)
 
-class LiteSATACommandTX(Module):
-	def __init__(self, transport):
-		self.sink = sink = Sink(command_tx_description(32))
-
-
 class LiteEthARPTX(Module):
 	def __init__(self, mac_address, ip_address):
-		self.sink = sink = Sink(_arp_table_description())
+		self.sink = sink = Sink(_arp_table_layout)
 		self.source = Source(eth_mac_description(8))
 		###
 		packetizer = LiteEthARPPacketizer()
@@ -91,7 +84,7 @@ class LiteEthARPTX(Module):
 class LiteEthARPRX(Module):
 	def __init__(self, mac_address, ip_address):
 		self.sink = Sink(eth_mac_description(8))
-		self.source = source = Source(_arp_table_description())
+		self.source = source = Source(_arp_table_layout)
 		###
 		depacketizer = LiteEthARPDepacketizer()
 		self.submodules += depacketizer
@@ -152,8 +145,8 @@ arp_table_response_layout = [
 
 class LiteEthARPTable(Module):
 	def __init__(self):
-		self.sink = sink = Sink(_arp_table_description()) 		# from arp_rx
-		self.source = source = Source(_arp_table_description()) 	# to arp_tx
+		self.sink = sink = Sink(_arp_table_layout) 		# from arp_rx
+		self.source = source = Source(_arp_table_layout) 	# to arp_tx
 
 		# Request/Response interface
 		self.request = request = Sink(arp_table_request_layout)
