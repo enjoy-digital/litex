@@ -103,7 +103,12 @@ class LiteEthIPRX(Module):
 		)
 
 class LiteEthIP(Module):
-	def __init__(self, ip_address, arp_table):
+	def __init__(self, mac, ip_address, arp_table):
 		self.submodules.tx = LiteEthIPTX(ip_address, arp_table)
 		self.submodules.rx = LiteEthIPRX(ip_address)
-		self.sink, self.source = self.rx.sink, self.tx.source
+		mac_port = mac.crossbar.get_port(ethernet_type_ip)
+		self.comb += [
+			Record.connect(self.tx.source, mac_port.sink),
+			Record.connect(mac_port.source, self.rx.sink)
+		]
+		self.sink, self.source = self.tx.sink, self.rx.source

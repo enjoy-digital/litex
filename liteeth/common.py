@@ -78,7 +78,7 @@ udp_header = {
 }
 
 def reverse_bytes(v):
-	n = math.ceil(flen(v)//8)
+	n = math.ceil(flen(v)/8)
 	r = []
 	for i in reversed(range(n)):
 		r.append(v[i*8:min((i+1)*8, flen(v))])

@@ -19,8 +19,8 @@ class TB(Module):
 		self.submodules.mac_model = mac.MAC(self.phy_model, debug=True, loopback=False)
 		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=True)
 
-		self.submodules.core = LiteEthMAC(phy=self.phy_model, dw=8, with_hw_preamble_crc=True)
-		self.submodules.arp = LiteEthARP(mac_address, ip_address)
+		self.submodules.mac = LiteEthMAC(self.phy_model, dw=8, with_hw_preamble_crc=True)
+		self.submodules.arp = LiteEthARP(self.mac, mac_address, ip_address)
 
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()
@@ -30,11 +30,6 @@ class TB(Module):
 			self.cd_eth_rx.rst.eq(ResetSignal()),
 			self.cd_eth_tx.clk.eq(ClockSignal()),
 			self.cd_eth_tx.rst.eq(ResetSignal()),
-		]
-
-		self.comb += [
-			Record.connect(self.arp.source, self.core.sink),
-			Record.connect(self.core.source, self.arp.sink)
 		]
 
 	def gen_simulation(self, selfp):
@@ -55,6 +50,7 @@ class TB(Module):
 		while selfp.arp.table.response.stb != 1:
 			selfp.arp.table.response.ack = 1
 			yield
+		print("Model MAC : 0x%12x" %selfp.arp.table.response.mac_address)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 from liteeth.common import *
-from liteeth.mac.core import LiteEthMACCore
-from liteeth.mac.frontend import wishbone
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
+from liteeth.mac.core import LiteEthMACCore
+from liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterface
+from liteeth.mac.frontend.crossbar import LiteEthMACCrossbar
 
 class LiteEthMACDepacketizer(LiteEthDepacketizer):
 	def __init__(self):
@@ -21,20 +22,20 @@ class LiteEthMACPacketizer(LiteEthPacketizer):
 			mac_header_len)
 
 class LiteEthMAC(Module, AutoCSR):
-	def __init__(self, phy, dw, interface="mac", endianness="be",
+	def __init__(self, phy, dw, interface="crossbar", endianness="be",
 			with_hw_preamble_crc=True):
 		self.submodules.core = LiteEthMACCore(phy, dw, endianness, with_hw_preamble_crc)
 		self.csrs = None
-		if interface == "mac":
-			packetizer = LiteEthMACPacketizer()
-			depacketizer = LiteEthMACDepacketizer()
-			self.submodules += packetizer, depacketizer
+		if interface == "crossbar":
+			self.submodules.crossbar = LiteEthMACCrossbar()
+			self.submodules.packetizer = LiteEthMACPacketizer()
+			self.submodules.depacketizer = LiteEthMACDepacketizer()
 			self.comb += [
-				Record.connect(packetizer.source, self.core.sink),
-				Record.connect(self.core.source, depacketizer.sink)
+				Record.connect(self.crossbar.master.source, self.packetizer.sink),
+				Record.connect(self.packetizer.source, self.core.sink),
+				Record.connect(self.core.source, self.depacketizer.sink),
+				Record.connect(self.depacketizer.source, self.crossbar.master.sink)
 			]
-			self.sink, self.source = packetizer.sink, depacketizer.source
-			pass
 		elif interface == "wishbone":
 			self.submodules.interface = wishbone.LiteEthMACWishboneInterface(dw, 2, 2)
 			self.comb += [

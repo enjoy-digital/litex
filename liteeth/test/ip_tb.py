@@ -40,9 +40,9 @@ class TB(Module):
 		for i in range(100):
 			yield
 
-		#selfp.ip.sink.stb = 1
-		#selfp.ip.sink.destination_ip_address = 0x12345678
-		#selfp.ip.sink.source_ip_address = ip_address
+		selfp.ip.sink.stb = 1
+		selfp.ip.sink.destination_ip_address = 0x12345678
+		selfp.ip.sink.source_ip_address = ip_address
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=2048, vcd_name="my.vcd", keep_files=True)

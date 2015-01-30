@@ -221,7 +221,7 @@ class LiteEthARPTable(Module):
 		)
 
 class LiteEthARP(Module):
-	def __init__(self, mac_address, ip_address):
+	def __init__(self, mac, mac_address, ip_address):
 		self.submodules.tx = LiteEthARPTX(mac_address, ip_address)
 		self.submodules.rx = LiteEthARPRX(mac_address, ip_address)
 		self.submodules.table = LiteEthARPTable()
@@ -229,5 +229,8 @@ class LiteEthARP(Module):
 			Record.connect(self.rx.source, self.table.sink),
 			Record.connect(self.table.source, self.tx.sink)
 		]
-		self.sink, self.source = self.rx.sink, self.tx.source
-		self.request, self.response = self.table.request, self.table.response
+		mac_port = mac.crossbar.get_port(ethernet_type_arp)
+		self.comb += [
+			Record.connect(self.tx.source, mac_port.sink),
+			Record.connect(mac_port.source, self.rx.sink)
+		]
