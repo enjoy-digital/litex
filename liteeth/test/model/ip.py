@@ -41,11 +41,12 @@ class IPPacket(Packet):
 		return r
 
 class IP(Module):
-	def  __init__(self, mac, mac_address, ip_address, debug=False):
+	def  __init__(self, mac, mac_address, ip_address, debug=False, loopback=False):
 		self.mac = mac
 		self.mac_address = mac_address
 		self.ip_address = ip_address
 		self.debug = debug
+		self.loopback = loopback
 		self.tx_packets = []
 		self.tx_packet = IPPacket()
 		self.rx_packet = IPPacket()
@@ -60,8 +61,8 @@ class IP(Module):
 			print_ip(">>>>>>>>")
 			print_ip(packet)
 		mac_packet = mac.MACPacket(packet)
-		mac_packet.destination_mac_address = packet.destination_mac_address
-		mac_packet.source_mac_address = packet.source_mac_address
+		mac_packet.destination_mac_address = 0x12345678abcd # XXX
+		mac_packet.source_mac_address = self.mac_address
 		mac_packet.ethernet_type = ethernet_type_ip
 		self.mac.send(mac_packet)
 
@@ -71,7 +72,10 @@ class IP(Module):
 		if self.debug:
 			print_ip("<<<<<<<<")
 			print_ip(packet)
-		self.process(packet)
+		if self.loopback:
+			self.send(packet)
+		else:
+			self.process(packet)
 
 	def process(self, packet):
 		pass
@@ -87,7 +91,7 @@ if __name__ == "__main__":
 	packet = IPPacket(packet)
 	# check decoding
 	packet.decode()
-	#print(packet)
+	print(packet)
 	errors += verify_packet(packet, {})
 	# check encoding
 	packet.encode()

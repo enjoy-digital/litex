@@ -130,6 +130,16 @@ def eth_ipv4_description(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
+def eth_ipv4_user_description(dw):
+	layout = [
+		("total_length", 16),
+		("protocol", 8),
+		("destination_ip_address", 32),
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(layout, packetized=True)
+
 def eth_udp_description(dw):
 	layout = _layout_from_header(udp_header) + [
 		("data", dw),

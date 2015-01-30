@@ -20,12 +20,24 @@ class LiteEthIPV4Packetizer(LiteEthPacketizer):
 
 class LiteEthIPTX(Module):
 	def __init__(self, mac_address, ip_address, arp_table):
-		self.sink = Sink(eth_ipv4_description(8))
+		self.sink = Sink(eth_ipv4_user_description(8))
 		self.source = Source(eth_mac_description(8))
 		###
 		packetizer = LiteEthIPV4Packetizer()
 		self.submodules += packetizer
-		self.comb += Record.connect(self.sink, packetizer.sink)
+		self.comb += [
+			Record.connect(self.sink, packetizer.sink),
+			packetizer.sink.version.eq(0x5),
+			packetizer.sink.ihl.eq(0x4),
+			packetizer.sink.dscp.eq(0),
+			packetizer.sink.ecn.eq(0),
+			packetizer.sink.identification.eq(0),
+			packetizer.sink.flags.eq(0),
+			packetizer.sink.fragment_offset.eq(0),
+			packetizer.sink.time_to_live.eq(0x80),
+			packetizer.sink.source_ip_address.eq(ip_address),
+			packetizer.sink.options.eq(0)
+		]
 		sink = packetizer.source
 
 		destination_mac_address = Signal(48)
@@ -70,7 +82,7 @@ class LiteEthIPTX(Module):
 class LiteEthIPRX(Module):
 	def __init__(self, mac_address, ip_address):
 		self.sink = Sink(eth_mac_description(8))
-		self.source = source = Source(eth_ipv4_description(8))
+		self.source = source = Source(eth_ipv4_user_description(8))
 		###
 		depacketizer = LiteEthIPV4Depacketizer()
 		self.submodules += depacketizer
@@ -96,7 +108,15 @@ class LiteEthIPRX(Module):
 			)
 		),
 		fsm.act("PRESENT",
-			Record.connect(sink, source),
+			source.stb.eq(sink.stb),
+			source.sop.eq(sink.sop),
+			source.eop.eq(sink.eop),
+			sink.ack.eq(source.ack),
+			source.total_length.eq(sink.total_length),
+			source.protocol.eq(sink.protocol),
+			source.destination_ip_address.eq(sink.destination_ip_address),
+			source.data.eq(sink.data),
+			source.error.eq(sink.error),
 			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)
