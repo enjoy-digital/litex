@@ -47,7 +47,7 @@ class LiteEthMAC(Module, AutoCSR):
 		elif interface == "dma":
 			raise NotImplementedError
 		else:
-			raise ValueError(inteface + " not supported by LiteEthMac!")
+			raise ValueError(interface + " not supported by LiteEthMac!")
 
 	def get_csrs(self):
 		return self.csrs

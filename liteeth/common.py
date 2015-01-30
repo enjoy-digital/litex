@@ -141,9 +141,9 @@ def eth_udp_description(dw):
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class FlipFlop(Module):
-	def __init__(self, **kwargs):
-		self.d = Signal(**kwargs)
-		self.q = Signal(**kwargs)
+	def __init__(self, *args, **kwargs):
+		self.d = Signal(*args, **kwargs)
+		self.q = Signal(*args, **kwargs)
 		self.sync += self.q.eq(self.d)
 
 @DecorateModule(InsertReset)

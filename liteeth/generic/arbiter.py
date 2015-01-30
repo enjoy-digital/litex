@@ -10,7 +10,7 @@ class Arbiter(Module):
 			self.grant = Signal()
 			self.comb += Record.connect(sources[0], sink)
 		else:
-			self.rr = RoundRobin(len(sources))
+			self.submodules.rr = RoundRobin(len(sources))
 			self.grant = self.rr.grant
 			cases = {}
 			for i, source in enumerate(sources):

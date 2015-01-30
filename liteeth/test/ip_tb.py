@@ -41,6 +41,8 @@ class TB(Module):
 			yield
 
 		selfp.ip.sink.stb = 1
+		selfp.ip.sink.sop = 1
+		selfp.ip.sink.eop = 1
 		selfp.ip.sink.destination_ip_address = 0x12345678
 		selfp.ip.sink.source_ip_address = ip_address
 

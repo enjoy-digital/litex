@@ -146,10 +146,12 @@ class LiteEthARPTable(Module):
 		###
 		request_timeout = Timeout(512)	# XXX fix me 100ms?
 		request_pending = FlipFlop()
-		self.submodules += request_timeout, request_pending
+		request_ip_address = FlipFlop(32, reset=0xffffffff) # XXX add cached_valid?
+		self.submodules += request_timeout, request_pending, request_ip_address
 		self.comb += [
 			request_timeout.ce.eq(request_pending.q),
-			request_pending.d.eq(1)
+			request_pending.d.eq(1),
+			request_ip_address.d.eq(request.ip_address)
 		]
 
 		# Note: Store only one ip/mac couple, replace this with
@@ -166,7 +168,7 @@ class LiteEthARPTable(Module):
 			If(sink.stb & sink.request,
 				NextState("SEND_REPLY")
 			).Elif(sink.stb & sink.reply & request_pending.q,
-				NextState("UPDATE_TABLE")
+				NextState("UPDATE_TABLE"),
 			).Elif(request.stb | (request_pending.q & request_timeout.reached),
 				NextState("CHECK_TABLE")
 			)
@@ -193,10 +195,14 @@ class LiteEthARPTable(Module):
 		found = Signal()
 		fsm.act("CHECK_TABLE",
 			# XXX: add a live time for cached_mac_address
-			If(request.ip_address == cached_ip_address,
+			If(request_ip_address.q == cached_ip_address,
+				request_ip_address.reset.eq(1),
+				NextState("PRESENT_RESPONSE"),
+			).Elif(request.ip_address == cached_ip_address,
 				request.ack.eq(request.stb),
-				NextState("PRESENT_RESPONSE")
+				NextState("PRESENT_RESPONSE"),
 			).Else(
+				request_ip_address.ce.eq(1),
 				NextState("SEND_REQUEST")
 			)
 		)
