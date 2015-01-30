@@ -1,7 +1,6 @@
 import math, binascii
 
 from liteeth.common import *
-from liteeth.mac.common import *
 from liteeth.test.common import *
 
 def print_mac(s):

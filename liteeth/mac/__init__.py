@@ -37,7 +37,7 @@ class LiteEthMAC(Module, AutoCSR):
 				Record.connect(self.depacketizer.source, self.crossbar.master.sink)
 			]
 		elif interface == "wishbone":
-			self.submodules.interface = wishbone.LiteEthMACWishboneInterface(dw, 2, 2)
+			self.submodules.interface = LiteEthMACWishboneInterface(dw, 2, 2)
 			self.comb += [
 				Record.connect(self.interface.source, self.core.sink),
 				Record.connect(self.core.source, self.interface.sink)

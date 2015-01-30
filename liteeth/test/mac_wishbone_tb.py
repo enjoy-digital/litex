@@ -115,7 +115,7 @@ class TB(Module):
 
 		while True:
 			for slot in range(2):
-				print("slot {}:".format(slot))
+				print("slot {}: ".format(slot), end="")
 				# fill tx memory
 				for i in range(length//4+1):
 					dat = int.from_bytes(tx_payload[4*i:4*(i+1)], "big")

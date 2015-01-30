@@ -1,5 +1,4 @@
 from liteeth.common import *
-from liteeth.mac.common import *
 
 from migen.bank.description import *
 from migen.bank.eventmanager import *

@@ -1,7 +1,6 @@
-import math, binascii
+import math
 
 from liteeth.common import *
-from liteeth.mac.common import *
 from liteeth.test.common import *
 
 from liteeth.test.model import mac
@@ -91,7 +90,7 @@ if __name__ == "__main__":
 	packet = IPPacket(packet)
 	# check decoding
 	packet.decode()
-	print(packet)
+	#print(packet)
 	errors += verify_packet(packet, {})
 	# check encoding
 	packet.encode()

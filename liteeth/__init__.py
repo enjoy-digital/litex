@@ -1,6 +1,4 @@
 from liteeth.common import *
-from liteeth.generic.arbiter import Arbiter
-from liteeth.generic.dispatcher import Dispatcher
 from liteeth.mac import LiteEthMAC
 from liteeth.arp import LiteEthARP
 from liteeth.ip import LiteEthIP

@@ -15,9 +15,9 @@ mac_address = 0x12345678abcd
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.phy_model = phy.PHY(8, debug=True)
-		self.submodules.mac_model = mac.MAC(self.phy_model, debug=True, loopback=False)
-		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=True)
+		self.submodules.phy_model = phy.PHY(8, debug=False)
+		self.submodules.mac_model = mac.MAC(self.phy_model, debug=False, loopback=False)
+		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=False)
 
 		self.submodules.mac = LiteEthMAC(self.phy_model, dw=8, with_hw_preamble_crc=True)
 		self.submodules.arp = LiteEthARP(self.mac, mac_address, ip_address)

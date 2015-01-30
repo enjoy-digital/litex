@@ -1,5 +1,4 @@
 from liteeth.common import *
-from liteeth.mac.common import *
 
 class LiteEthMACPreambleInserter(Module):
 	def __init__(self, dw):

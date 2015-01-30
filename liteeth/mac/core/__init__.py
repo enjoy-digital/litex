@@ -1,5 +1,4 @@
 from liteeth.common import *
-from liteeth.mac.common import *
 from liteeth.mac.core import preamble, crc, last_be
 
 class LiteEthMACCore(Module, AutoCSR):

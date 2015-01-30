@@ -1,7 +1,6 @@
-import math, binascii
+import math
 
 from liteeth.common import *
-from liteeth.mac.common import *
 from liteeth.test.common import *
 
 from liteeth.test.model import mac

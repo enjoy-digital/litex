@@ -1,5 +1,4 @@
 from liteeth.common import *
-from liteeth.mac.common import *
 
 class LiteEthMACCRCEngine(Module):
 	"""Cyclic Redundancy Check Engine
