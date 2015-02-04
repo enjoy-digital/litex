@@ -18,6 +18,26 @@ class LiteEthIPV4Packetizer(LiteEthPacketizer):
 			ipv4_header,
 			ipv4_header_len)
 
+class LiteEthIPV4Checksum(Module):
+	def __init__(self, skip_header=False):
+		self.header = Signal(ipv4_header_len*8)
+		self.value = Signal(16)
+
+		s = Signal(17)
+		r = Signal(17)
+		for i in range(ipv4_header_len//2):
+			if skip_header and i == 5:
+				pass
+			else:
+				s_next = Signal(17)
+				r_next = Signal(17)
+				self.comb += [
+					s_next.eq(r + self.header[i*16:(i+1)*16]),
+					r_next.eq(Cat(s_next[:16]+s_next[16], Signal()))
+				]
+				s, r = s_next, r_next
+		self.comb += self.value.eq(~Cat(r[8:16], r[:8]))
+
 class LiteEthIPTX(Module):
 	def __init__(self, mac_address, ip_address, arp_table):
 		self.sink = Sink(eth_ipv4_user_description(8))
@@ -44,6 +64,13 @@ class LiteEthIPTX(Module):
 			packetizer.sink.source_ip_address.eq(ip_address)
 		]
 		sink = packetizer.source
+
+		checksum = LiteEthIPV4Checksum(skip_header=True)
+		self.submodules += checksum
+		self.comb += [
+			checksum.header.eq(packetizer.header),
+			packetizer.sink.header_checksum.eq(checksum.value)
+		]
 
 		destination_mac_address = Signal(48)
 

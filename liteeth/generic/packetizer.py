@@ -12,18 +12,18 @@ class LiteEthPacketizer(Module):
 	def __init__(self, sink_description, source_description, header_type, header_length):
 		self.sink = sink = Sink(sink_description)
 		self.source = source = Source(source_description)
+		self.header = Signal(header_length*8)
 		###
-		header = Signal(header_length*8)
 		header_reg = Signal(header_length*8)
 		load = Signal()
 		shift = Signal()
 		counter = Counter(max=header_length)
 		self.submodules += counter
 
-		self.comb += _encode_header(header_type, header, sink)
+		self.comb += _encode_header(header_type, self.header, sink)
 		self.sync += [
 			If(load,
-				header_reg.eq(header)
+				header_reg.eq(self.header)
 			).Elif(shift,
 				header_reg.eq(Cat(header_reg[8:], Signal(8)))
 			)
@@ -40,7 +40,7 @@ class LiteEthPacketizer(Module):
 				source.stb.eq(1),
 				source.sop.eq(1),
 				source.eop.eq(0),
-				source.data.eq(header[:8]),
+				source.data.eq(self.header[:8]),
 				If(source.stb & source.ack,
 					load.eq(1),
 					NextState("SEND_HEADER"),

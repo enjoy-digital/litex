@@ -12,15 +12,15 @@ class LiteEthDepacketizer(Module):
 	def __init__(self, sink_description, source_description, header_type, header_length):
 		self.sink = sink = Sink(sink_description)
 		self.source = source = Source(source_description)
+		self.header = Signal(header_length*8)
 		###
 		shift = Signal()
-		header = Signal(header_length*8)
 		counter = Counter(max=header_length)
 		self.submodules += counter
 
 		self.sync += \
 			If(shift,
-				header.eq(Cat(header[8:], sink.data))
+				self.header.eq(Cat(self.header[8:], sink.data))
 			)
 
 		fsm = FSM(reset_state="IDLE")
@@ -54,7 +54,7 @@ class LiteEthDepacketizer(Module):
 			source.eop.eq(sink.eop),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error),
-			_decode_header(header_type, header, source)
+			_decode_header(header_type, self.header, source)
 		]
 		fsm.act("COPY",
 			sink.ack.eq(source.ack),
