@@ -69,6 +69,7 @@ ipv4_header = {
 	"destination_ip_address":	HField(16,  0, 32),
 	"options":					HField(20,  0, 32)
 }
+
 udp_header_len = 8
 udp_header = {
 	"source_port":				HField( 0,  0, 16),
@@ -132,9 +133,9 @@ def eth_ipv4_description(dw):
 
 def eth_ipv4_user_description(dw):
 	layout = [
-		("total_length", 16),
+		("length", 16),
 		("protocol", 8),
-		("destination_ip_address", 32),
+		("ip_address", 32),
 		("data", dw),
 		("error", dw//8)
 	]

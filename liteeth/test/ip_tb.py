@@ -45,12 +45,12 @@ class TB(Module):
 			selfp.ip.sink.stb = 1
 			selfp.ip.sink.sop = 1
 			selfp.ip.sink.eop = 1
-			selfp.ip.sink.destination_ip_address = 0x12345678
+			selfp.ip.sink.ip_address = 0x12345678
 			selfp.ip.sink.protocol = 0x11
 
 			selfp.ip.source.ack = 1
 			if selfp.ip.source.stb == 1 and selfp.ip.source.sop == 1:
-				print("IP Packet / destination_ip_address %08x" %selfp.ip.sink.destination_ip_address)
+				print("IP Packet / from ip_address %08x" %selfp.ip.sink.ip_address)
 
 			yield
 

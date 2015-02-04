@@ -26,9 +26,15 @@ class LiteEthIPTX(Module):
 		packetizer = LiteEthIPV4Packetizer()
 		self.submodules += packetizer
 		self.comb += [
-			Record.connect(self.sink, packetizer.sink),
-			packetizer.sink.version.eq(0x5),
-			packetizer.sink.ihl.eq(0x4),
+			packetizer.sink.stb.eq(self.sink.stb),
+			packetizer.sink.sop.eq(self.sink.sop),
+			packetizer.sink.eop.eq(self.sink.eop),
+			self.sink.eq(packetizer.sink.ack),
+			packetizer.sink.destination_ip_address.eq(ip_address),
+			packetizer.sink.protocol.eq(self.sink.protocol),
+			packetizer.sink.total_length.eq(self.sink.length + (0x5*4)),
+			packetizer.sink.version.eq(0x4), 	# ipv4
+			packetizer.sink.ihl.eq(0x5), 		# 20 bytes
 			packetizer.sink.dscp.eq(0),
 			packetizer.sink.ecn.eq(0),
 			packetizer.sink.identification.eq(0),
@@ -53,7 +59,7 @@ class LiteEthIPTX(Module):
 		)
 		fsm.act("SEND_MAC_ADDRESS_REQUEST",
 			arp_table.request.stb.eq(1),
-			arp_table.request.ip_address.eq(self.sink.destination_ip_address),
+			arp_table.request.ip_address.eq(self.sink.ip_address),
 			If(arp_table.request.stb & arp_table.request.ack,
 				NextState("WAIT_MAC_ADDRESS_RESPONSE")
 			)
@@ -112,9 +118,9 @@ class LiteEthIPRX(Module):
 			source.sop.eq(sink.sop),
 			source.eop.eq(sink.eop),
 			sink.ack.eq(source.ack),
-			source.total_length.eq(sink.total_length),
+			source.length.eq(sink.total_length - (sink.ihl*4)),
 			source.protocol.eq(sink.protocol),
-			source.destination_ip_address.eq(sink.destination_ip_address),
+			source.ip_address.eq(sink.destination_ip_address),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error),
 			If(source.stb & source.eop & source.ack,

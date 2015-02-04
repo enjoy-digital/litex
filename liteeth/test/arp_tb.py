@@ -15,7 +15,7 @@ mac_address = 0x12345678abcd
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.phy_model = phy.PHY(8, debug=False)
+		self.submodules.phy_model = phy.PHY(8, debug=True)
 		self.submodules.mac_model = mac.MAC(self.phy_model, debug=False, loopback=False)
 		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=False)
 
@@ -50,7 +50,7 @@ class TB(Module):
 		while selfp.arp.table.response.stb != 1:
 			selfp.arp.table.response.ack = 1
 			yield
-		print("Model MAC : 0x%12x" %selfp.arp.table.response.mac_address)
+		print("Model's MAC : 0x%12x" %selfp.arp.table.response.mac_address)
 
 
 if __name__ == "__main__":
