@@ -59,8 +59,8 @@ class ARP(Module):
 			print_arp(">>>>>>>>")
 			print_arp(packet)
 		mac_packet = mac.MACPacket(packet)
-		mac_packet.destination_mac_address = packet.destination_mac_address
-		mac_packet.source_mac_address = packet.source_mac_address
+		mac_packet.target_mac = packet.target_mac
+		mac_packet.sender_mac = packet.sender_mac
 		mac_packet.ethernet_type = ethernet_type_arp
 		self.mac.send(mac_packet)
 
@@ -75,47 +75,47 @@ class ARP(Module):
 	def process(self, packet):
 		if len(packet) != arp_packet_length-arp_header_len:
 			raise ValueError
-		if packet.hardware_type != arp_hwtype_ethernet:
+		if packet.hwtype != arp_hwtype_ethernet:
 			raise ValueError
-		if packet.protocol_type != arp_proto_ip:
+		if packet.proto != arp_proto_ip:
 			raise ValueError
-		if packet.hardware_address_length != 6:
+		if packet.hwsize != 6:
 			raise ValueError
-		if packet.protocol_address_length != 4:
+		if packet.protosize != 4:
 			raise ValueError
-		if packet.operation == arp_opcode_request:
+		if packet.opcode == arp_opcode_request:
 			self.process_request(packet)
-		elif packet.operation == arp_opcode_reply:
+		elif packet.opcode == arp_opcode_reply:
 			self.process_reply(packet)
 
 	def process_request(self, request):
-		if request.destination_ip_address == self.ip_address:
+		if request.target_ip == self.ip_address:
 			reply = ARPPacket([0]*(arp_packet_length-arp_header_len))
-			reply.hardware_type = arp_hwtype_ethernet
-			reply.protocol_type = arp_proto_ip
-			reply.operation = arp_opcode_reply
-			reply.hardware_address_length = 6
-			reply.protocol_address_length = 4
-			reply.source_mac_address = self.mac_address
-			reply.source_ip_address = self.ip_address
-			reply.destination_mac_address = request.source_mac_address
-			reply.destination_ip_address = request.source_ip_address
+			reply.hwtype = arp_hwtype_ethernet
+			reply.proto = arp_proto_ip
+			reply.opcode = arp_opcode_reply
+			reply.hwsize = 6
+			reply.protosize = 4
+			reply.sender_mac = self.mac_address
+			reply.sender_ip = self.ip_address
+			reply.target_mac = request.sender_mac
+			reply.target_ip = request.sender_ip
 			self.send(reply)
 
 	def process_reply(self, reply):
-		self.table[reply.source_ip_address] = reply.source_mac_address
+		self.table[reply.sender_ip] = reply.sender_mac
 
 	def request(self, ip_address):
 		request = ARPPacket([0]*(arp_packet_length-arp_header_len))
-		request.hardware_type = arp_hwtype_ethernet
-		request.protocol_type = arp_proto_ip
-		request.operation = arp_opcode_request
-		request.hardware_address_length = 6
-		request.protocol_address_length = 4
-		request.source_mac_address = self.mac_address
-		request.source_ip_address = self.ip_address
-		request.destination_mac_address = 0xffffffffffff
-		request.destination_ip_address = ip_address
+		request.hwtype = arp_hwtype_ethernet
+		request.proto = arp_proto_ip
+		request.opcode = arp_opcode_request
+		request.hwsize = 6
+		request.protosize = 4
+		request.sender_mac = self.mac_address
+		request.sender_ip = self.ip_address
+		request.target_mac = 0xffffffffffff
+		request.target_ip = ip_address
 
 if __name__ == "__main__":
 	from liteeth.test.model.dumps import *

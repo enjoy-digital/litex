@@ -57,16 +57,16 @@ class UDP(Module):
 		ip_packet = ip.IPPacket(packet)
 		ip_packet.version = 0x4
 		ip_packet.ihl = 0x5
-		ip_packet.dscp = 0x0
+		ip_packet.diff_services = 0x0
 		ip_packet.ecn = 0x0
 		ip_packet.total_length = len(packet) + ip_packet.ihl
 		ip_packet.identification = 0
 		ip_packet.flags = 0
 		ip_packet.fragment_offset = 0
-		ip_packet.time_to_live = 0x80
-		ip_packet.source_ip_address = self.ip_address
-		ip_packet.destination_ip_address = 0x12345678 # XXX
-		ip_packet.header_checksum = 0
+		ip_packet.ttl = 0x80
+		ip_packet.sender_ip = self.ip_address
+		ip_packet.target_ip = 0x12345678 # XXX
+		ip_packet.checksum = 0
 		ip_packet.protocol = udp_protocol
 		self.ip.send(ip_packet)
 

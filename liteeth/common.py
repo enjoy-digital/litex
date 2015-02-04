@@ -28,9 +28,9 @@ ethernet_type_arp = 0x806
 
 mac_header_len = 14
 mac_header = {
-	"destination_mac_address":	HField(0,  0, 48),
-	"source_mac_address":		HField(6,  0, 48),
-	"ethernet_type":			HField(12, 0, 16)
+	"target_mac":		HField(0,  0, 48),
+	"sender_mac":		HField(6,  0, 48),
+	"ethernet_type":	HField(12, 0, 16)
 }
 
 arp_packet_length = 60
@@ -41,40 +41,40 @@ arp_opcode_reply = 0x0002
 
 arp_header_len = 28
 arp_header = {
-	"hardware_type":			HField( 0,  0, 16),
-	"protocol_type":			HField( 2,  0, 16),
-	"hardware_address_length":	HField( 4,  0, 8),
-	"protocol_address_length":	HField( 5,  0, 8),
-	"operation":				HField( 6,  0, 16),
-	"source_mac_address":		HField( 8,  0, 48),
-	"source_ip_address":		HField(14,  0, 32),
-	"destination_mac_address":	HField(18,  0, 48),
-	"destination_ip_address":	HField(24,  0, 32)
+	"hwtype":			HField( 0,  0, 16),
+	"proto":			HField( 2,  0, 16),
+	"hwsize":			HField( 4,  0, 8),
+	"protosize":		HField( 5,  0, 8),
+	"opcode":			HField( 6,  0, 16),
+	"sender_mac":		HField( 8,  0, 48),
+	"sender_ip":		HField(14,  0, 32),
+	"target_mac":		HField(18,  0, 48),
+	"target_ip":		HField(24,  0, 32)
 }
 
 ipv4_header_len = 20
 ipv4_header = {
-	"version":					HField(0,  0, 4),
-	"ihl":						HField(0,  4, 4),
-	"dscp":						HField(1,  0, 6),
-	"ecn":						HField(1,  6, 2),
-	"total_length":				HField(2,  0, 16),
-	"identification":			HField(4,  0, 16),
-	"flags":					HField(6,  0, 3),
-	"fragment_offset":			HField(6,  3, 13),
-	"time_to_live":				HField(8,  0, 8),
-	"protocol":					HField(9,  0, 8),
-	"header_checksum":			HField(10,  0, 16),
-	"source_ip_address":		HField(12,  0, 32),
-	"destination_ip_address":	HField(16,  0, 32)
+	"version":			HField(0,  0, 4),
+	"ihl":				HField(0,  4, 4),
+	"diff_services":	HField(1,  0, 6),
+	"ecn":				HField(1,  6, 2),
+	"total_length":		HField(2,  0, 16),
+	"identification":	HField(4,  0, 16),
+	"flags":			HField(6,  0, 3),
+	"fragment_offset":	HField(6,  3, 13),
+	"ttl":				HField(8,  0, 8),
+	"protocol":			HField(9,  0, 8),
+	"checksum":			HField(10,  0, 16),
+	"sender_ip":		HField(12,  0, 32),
+	"target_ip":		HField(16,  0, 32)
 }
 
 udp_header_len = 8
 udp_header = {
-	"source_port":				HField( 0,  0, 16),
-	"destination_port":			HField( 2,  0, 16),
-	"length":					HField( 4,  0, 16),
-	"checksum":					HField( 6,  0, 16)
+	"src_port":		HField( 0,  0, 16),
+	"dst_port":		HField( 2,  0, 16),
+	"length":		HField( 4,  0, 16),
+	"checksum":		HField( 6,  0, 16)
 }
 
 udp_protocol = 0x11
@@ -151,8 +151,8 @@ def eth_udp_description(dw):
 
 def eth_udp_user_description(dw):
 	layout = [
-		("source_port", 16),
-		("destination_port", 16),
+		("src_port", 16),
+		("dst_port", 16),
 		("ip_address", 32),
 		("length", 16),
 		("data", dw),

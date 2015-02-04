@@ -48,20 +48,20 @@ class LiteEthARPTX(Module):
 			)
 		)
 		self.comb += [
-			source.hardware_type.eq(arp_hwtype_ethernet),
-			source.protocol_type.eq(arp_proto_ip),
-			source.hardware_address_length.eq(6),
-			source.protocol_address_length.eq(4),
-			source.source_mac_address.eq(mac_address),
-			source.source_ip_address.eq(ip_address),
+			source.hwtype.eq(arp_hwtype_ethernet),
+			source.proto.eq(arp_proto_ip),
+			source.hwsize.eq(6),
+			source.protosize.eq(4),
+			source.sender_mac.eq(mac_address),
+			source.sender_ip.eq(ip_address),
 			If(sink.reply,
-				source.operation.eq(arp_opcode_reply),
-				source.destination_mac_address.eq(sink.mac_address),
-				source.destination_ip_address.eq(sink.ip_address)
+				source.opcode.eq(arp_opcode_reply),
+				source.target_mac.eq(sink.mac_address),
+				source.target_ip.eq(sink.ip_address)
 			).Elif(sink.request,
-				source.operation.eq(arp_opcode_request),
-				source.destination_mac_address.eq(0xffffffffffff),
-				source.destination_ip_address.eq(sink.ip_address)
+				source.opcode.eq(arp_opcode_request),
+				source.target_mac.eq(0xffffffffffff),
+				source.target_ip.eq(sink.ip_address)
 			)
 		]
 		fsm.act("SEND",
@@ -69,8 +69,8 @@ class LiteEthARPTX(Module):
 			source.sop.eq(counter.value == 0),
 			source.eop.eq(counter.value == arp_packet_length-1),
 			Record.connect(packetizer.source, self.source),
-			self.source.destination_mac_address.eq(source.destination_mac_address),
-			self.source.source_mac_address.eq(mac_address),
+			self.source.target_mac.eq(source.target_mac),
+			self.source.sender_mac.eq(mac_address),
 			self.source.ethernet_type.eq(ethernet_type_arp),
 			If(self.source.stb & self.source.ack,
 				sink.ack.eq(source.eop),
@@ -103,22 +103,22 @@ class LiteEthARPRX(Module):
 		valid = Signal()
 		self.comb += valid.eq(
 			sink.stb &
-			(sink.hardware_type == arp_hwtype_ethernet) &
-			(sink.protocol_type == arp_proto_ip) &
-			(sink.hardware_address_length == 6) &
-			(sink.protocol_address_length == 4) &
-			(sink.destination_ip_address == ip_address)
+			(sink.hwtype == arp_hwtype_ethernet) &
+			(sink.proto == arp_proto_ip) &
+			(sink.hwsize == 6) &
+			(sink.protosize == 4) &
+			(sink.target_ip == ip_address)
 		)
 		reply = Signal()
 		request = Signal()
-		self.comb += Case(sink.operation, {
+		self.comb += Case(sink.opcode, {
 			arp_opcode_request	:	[request.eq(1)],
 			arp_opcode_reply	:	[reply.eq(1)],
 			"default"			:	[]
 			})
 		self.comb += [
-			source.ip_address.eq(sink.source_ip_address),
-			source.mac_address.eq(sink.source_mac_address)
+			source.ip_address.eq(sink.sender_ip),
+			source.mac_address.eq(sink.sender_mac)
 		]
 		fsm.act("CHECK",
 			If(valid,

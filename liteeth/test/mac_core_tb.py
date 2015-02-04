@@ -47,8 +47,8 @@ class TB(Module):
 
 		for i in range(8):
 			packet = mac.MACPacket([i for i in range(64)])
-			packet.destination_mac_address = 0x010203040506
-			packet.source_mac_address = 0x090A0B0C0C0D
+			packet.target_mac = 0x010203040506
+			packet.sender_mac = 0x090A0B0C0C0D
 			packet.ethernet_type = 0x0800
 			packet.encode_header()
 			yield from self.streamer.send(packet)

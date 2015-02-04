@@ -50,18 +50,18 @@ class LiteEthIPTX(Module):
 			packetizer.sink.sop.eq(self.sink.sop),
 			packetizer.sink.eop.eq(self.sink.eop),
 			self.sink.ack.eq(packetizer.sink.ack),
-			packetizer.sink.destination_ip_address.eq(ip_address),
+			packetizer.sink.target_ip.eq(ip_address),
 			packetizer.sink.protocol.eq(self.sink.protocol),
 			packetizer.sink.total_length.eq(self.sink.length + (0x5*4)),
 			packetizer.sink.version.eq(0x4), 	# ipv4
 			packetizer.sink.ihl.eq(0x5), 		# 20 bytes
-			packetizer.sink.dscp.eq(0),
+			packetizer.sink.diff_services.eq(0),
 			packetizer.sink.ecn.eq(0),
 			packetizer.sink.identification.eq(0),
 			packetizer.sink.flags.eq(0),
 			packetizer.sink.fragment_offset.eq(0),
-			packetizer.sink.time_to_live.eq(0x80),
-			packetizer.sink.source_ip_address.eq(ip_address),
+			packetizer.sink.ttl.eq(0x80),
+			packetizer.sink.sender_ip.eq(ip_address),
 			packetizer.sink.data.eq(self.sink.data)
 		]
 		sink = packetizer.source
@@ -70,10 +70,10 @@ class LiteEthIPTX(Module):
 		self.submodules += checksum
 		self.comb += [
 			checksum.header.eq(packetizer.header),
-			packetizer.sink.header_checksum.eq(checksum.value)
+			packetizer.sink.checksum.eq(checksum.value)
 		]
 
-		destination_mac_address = Signal(48)
+		target_mac = Signal(48)
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
@@ -99,12 +99,12 @@ class LiteEthIPTX(Module):
 				NextState("SEND")
 			)
 		)
-		self.sync += If(arp_table.response.stb, destination_mac_address.eq(arp_table.response.mac_address))
+		self.sync += If(arp_table.response.stb, target_mac.eq(arp_table.response.mac_address))
 		fsm.act("SEND",
 			Record.connect(packetizer.source, self.source),
 			self.source.ethernet_type.eq(ethernet_type_ip),
-			self.source.destination_mac_address.eq(destination_mac_address),
-			self.source.source_mac_address.eq(mac_address),
+			self.source.target_mac.eq(target_mac),
+			self.source.sender_mac.eq(mac_address),
 			If(self.source.stb & self.source.eop & self.source.ack,
 				# XXX manage failed
 				NextState("IDLE")
@@ -137,7 +137,7 @@ class LiteEthIPRX(Module):
 		valid = Signal()
 		self.comb += valid.eq(
 			sink.stb &
-			(sink.destination_ip_address == ip_address) &
+			(sink.target_ip == ip_address) &
 			(sink.version == 0x4) &
 			(sink.ihl == 0x5) &
 			(checksum.value == 0)
@@ -157,7 +157,7 @@ class LiteEthIPRX(Module):
 			sink.ack.eq(source.ack),
 			source.length.eq(sink.total_length - (sink.ihl*4)),
 			source.protocol.eq(sink.protocol),
-			source.ip_address.eq(sink.destination_ip_address),
+			source.ip_address.eq(sink.target_ip),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error),
 			If(source.stb & source.eop & source.ack,

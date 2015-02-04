@@ -87,8 +87,8 @@ class IP(Module):
 			print_ip(">>>>>>>>")
 			print_ip(packet)
 		mac_packet = mac.MACPacket(packet)
-		mac_packet.destination_mac_address = 0x12345678abcd # XXX
-		mac_packet.source_mac_address = self.mac_address
+		mac_packet.target_mac = 0x12345678abcd # XXX
+		mac_packet.sender_mac = self.mac_address
 		mac_packet.ethernet_type = ethernet_type_ip
 		self.mac.send(mac_packet)
 

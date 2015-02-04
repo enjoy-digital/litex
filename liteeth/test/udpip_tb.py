@@ -26,8 +26,8 @@ class TB(Module):
 		self.comb += [
 			Record.connect(self.streamer.source, self.udp_ip.sink),
 			self.udp_ip.sink.ip_address.eq(0x12345678),
-			self.udp_ip.sink.source_port.eq(0x1234),
-			self.udp_ip.sink.destination_port.eq(0x5678),
+			self.udp_ip.sink.src_port.eq(0x1234),
+			self.udp_ip.sink.dst_port.eq(0x5678),
 			self.udp_ip.sink.length.eq(64),
 			Record.connect(self.udp_ip.source, self.logger.sink)
 		]
