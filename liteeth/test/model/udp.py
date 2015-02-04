@@ -40,6 +40,7 @@ class UDPPacket(Packet):
 class UDP(Module):
 	def  __init__(self, ip, ip_address, debug=False, loopback=False):
 		self.ip = ip
+		self.ip_address = ip_address
 		self.debug = debug
 		self.loopback = loopback
 		self.tx_packets = []
@@ -63,8 +64,10 @@ class UDP(Module):
 		ip_packet.flags = 0
 		ip_packet.fragment_offset = 0
 		ip_packet.time_to_live = 0x80
-		ip_packet.source_ip_address = ip_address,
+		ip_packet.source_ip_address = self.ip_address
 		ip_packet.destination_ip_address = 0x12345678 # XXX
+		ip_packet.header_checksum = 0
+		ip_packet.protocol = udp_protocol
 		self.ip.send(ip_packet)
 
 	def callback(self, packet):
