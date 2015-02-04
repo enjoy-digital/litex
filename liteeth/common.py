@@ -149,6 +149,17 @@ def eth_udp_description(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
+def eth_udp_user_description(dw):
+	layout = [
+		("source_port", 16),
+		("destination_port", 16),
+		("ip_address", 32),
+		("length", 16),
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(layout, packetized=True)
+
 # Generic modules
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)

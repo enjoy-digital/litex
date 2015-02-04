@@ -104,7 +104,6 @@ class LiteEthIPTX(Module):
 			self.source.ethernet_type.eq(ethernet_type_ip),
 			self.source.destination_mac_address.eq(destination_mac_address),
 			self.source.source_mac_address.eq(mac_address),
-			# XXX compute check sum
 			If(self.source.stb & self.source.eop & self.source.ack,
 				# XXX manage failed
 				NextState("IDLE")
