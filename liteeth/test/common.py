@@ -72,7 +72,7 @@ class Packet(list):
 			self.append(data)
 
 class PacketStreamer(Module):
-	def __init__(self, description, last_be=1):
+	def __init__(self, description, last_be=None):
 		self.source = Source(description)
 		self.last_be = last_be
 		###

@@ -29,11 +29,12 @@ class LiteEthUDPTX(Module):
 			packetizer.sink.stb.eq(self.sink.stb),
 			packetizer.sink.sop.eq(self.sink.sop),
 			packetizer.sink.eop.eq(self.sink.eop),
-			self.sink.eq(packetizer.sink.ack),
+			self.sink.ack.eq(packetizer.sink.ack),
 			packetizer.sink.source_port.eq(self.sink.source_port),
 			packetizer.sink.destination_port.eq(self.sink.destination_port),
 			packetizer.sink.length.eq(self.sink.length + udp_header_len),
 			packetizer.sink.checksum.eq(0),
+			packetizer.sink.data.eq(self.sink.data)
 		]
 		sink = packetizer.source
 
