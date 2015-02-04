@@ -121,6 +121,10 @@ class LiteEthIPRX(Module):
 		self.comb += Record.connect(self.sink, depacketizer.sink)
 		sink = depacketizer.source
 
+		checksum = LiteEthIPV4Checksum(skip_header=False)
+		self.submodules += checksum
+		self.comb += checksum.header.eq(depacketizer.header)
+
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 		fsm.act("IDLE",
@@ -131,7 +135,14 @@ class LiteEthIPRX(Module):
 			)
 		)
 		valid = Signal()
-		self.comb += valid.eq(1) # XXX FIXME
+		self.comb += valid.eq(
+			sink.stb &
+			(sink.destination_ip_address == ip_address) &
+			(sink.version == 0x4) &
+			(sink.ihl == 0x5) &
+			(checksum.value == 0)
+		)
+
 		fsm.act("CHECK",
 			If(valid,
 				NextState("PRESENT")
