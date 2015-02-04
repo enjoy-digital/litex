@@ -52,7 +52,7 @@ arp_header = {
 	"destination_ip_address":	HField(24,  0, 32)
 }
 
-ipv4_header_len = 24
+ipv4_header_len = 20
 ipv4_header = {
 	"version":					HField(0,  0, 4),
 	"ihl":						HField(0,  4, 4),
@@ -66,8 +66,7 @@ ipv4_header = {
 	"protocol":					HField(9,  0, 8),
 	"header_checksum":			HField(10,  0, 16),
 	"source_ip_address":		HField(12,  0, 32),
-	"destination_ip_address":	HField(16,  0, 32),
-	"options":					HField(20,  0, 32)
+	"destination_ip_address":	HField(16,  0, 32)
 }
 
 udp_header_len = 8

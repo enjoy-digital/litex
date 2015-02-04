@@ -87,7 +87,7 @@ class ARP(Module):
 			self.process_request(packet)
 		elif packet.operation == arp_opcode_reply:
 			self.process_reply(packet)
-	
+
 	def process_request(self, request):
 		if request.destination_ip_address == self.ip_address:
 			reply = ARPPacket([0]*(arp_packet_length-arp_header_len))

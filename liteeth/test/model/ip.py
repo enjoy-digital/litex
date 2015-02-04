@@ -10,10 +10,27 @@ def print_ip(s):
 
 preamble = split_bytes(eth_preamble, 8)
 
+def carry_around_add(a, b):
+    c = a + b
+    return (c & 0xffff) + (c >> 16)
+
+def checksum(msg):
+    s = 0
+    for i in range(0, len(msg), 2):
+        w = msg[i] + (msg[i+1] << 8)
+        s = carry_around_add(s, w)
+    return ~s & 0xffff
+
 # IP model
 class IPPacket(Packet):
 	def __init__(self, init=[]):
 		Packet.__init__(self, init)
+
+	def get_checksum(self):
+		return self[10] | (self[11] << 8)
+
+	def check_checksum(self):
+		return checksum(self[:ipv4_header_len]) == 0
 
 	def decode(self):
 		header = []
@@ -29,6 +46,13 @@ class IPPacket(Packet):
 			header += (value << v.offset+(v.byte*8))
 		for d in split_bytes(header, ipv4_header_len):
 			self.insert(0, d)
+
+	def insert_checksum(self):
+		self[10] = 0
+		self[11] = 0
+		c = checksum(self[:ipv4_header_len])
+		self[10] = c & 0xff
+		self[11] = (c >> 8) & 0xff
 
 	def __repr__(self):
 		r = "--------\n"
@@ -56,6 +80,7 @@ class IP(Module):
 
 	def send(self, packet):
 		packet.encode()
+		packet.insert_checksum()
 		if self.debug:
 			print_ip(">>>>>>>>")
 			print_ip(packet)
@@ -67,6 +92,11 @@ class IP(Module):
 
 	def callback(self, packet):
 		packet = IPPacket(packet)
+		if not packet.check_checksum():
+			received = packet.get_checksum()
+			packet.insert_checksum()
+			expected = packet.get_checksum()
+			raise ValueError("Checksum error received %04x / expected %04x" %(received, expected)) # XXX maybe too restrictive
 		packet.decode()
 		if self.debug:
 			print_ip("<<<<<<<<")
@@ -78,7 +108,7 @@ class IP(Module):
 
 	def process(self, packet):
 		pass
-	
+
 if __name__ == "__main__":
 	from liteeth.test.model.dumps import *
 	from liteeth.test.model.mac import *
@@ -89,11 +119,14 @@ if __name__ == "__main__":
 	#print(packet)
 	packet = IPPacket(packet)
 	# check decoding
+	errors += not packet.check_checksum()
 	packet.decode()
 	#print(packet)
 	errors += verify_packet(packet, {})
 	# check encoding
 	packet.encode()
+	packet.insert_checksum()
+	errors += not packet.check_checksum()
 	packet.decode()
 	#print(packet)
 	errors += verify_packet(packet, {})

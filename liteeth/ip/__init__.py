@@ -41,8 +41,7 @@ class LiteEthIPTX(Module):
 			packetizer.sink.flags.eq(0),
 			packetizer.sink.fragment_offset.eq(0),
 			packetizer.sink.time_to_live.eq(0x80),
-			packetizer.sink.source_ip_address.eq(ip_address),
-			packetizer.sink.options.eq(0)
+			packetizer.sink.source_ip_address.eq(ip_address)
 		]
 		sink = packetizer.source
 
