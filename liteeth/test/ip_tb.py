@@ -4,7 +4,7 @@ from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
 from liteeth.common import *
-from liteeth import LiteEthIPStack
+from liteeth.core import LiteEthIPCore
 
 from liteeth.test.common import *
 from liteeth.test.model import phy, mac, arp, ip
@@ -19,7 +19,7 @@ class TB(Module):
 		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=False)
 		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=False, loopback=True)
 
-		self.submodules.ip = LiteEthIPStack(self.phy_model, mac_address, ip_address)
+		self.submodules.ip = LiteEthIPCore(self.phy_model, mac_address, ip_address)
 
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()
