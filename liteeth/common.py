@@ -77,6 +77,8 @@ udp_header = {
 	"checksum":					HField( 6,  0, 16)
 }
 
+udp_protocol = 0x11
+
 def reverse_bytes(v):
 	n = math.ceil(flen(v)/8)
 	r = []

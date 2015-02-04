@@ -62,5 +62,7 @@ udp_infos = {
 	"destination_mac_address"	:	0xd07ab596cd0a,
 	"protocol"					:	0x11,
 	"source_ip_address"			:	0xc0a80165,
-	"destination_ip_address"	:	0xb27b0d78
+	"destination_ip_address"	:	0xb27b0d78,
+	"source_port"				:	0xa63f,
+	"destination_port"			:	0x690f
 }

@@ -8,8 +8,6 @@ from liteeth.test.model import mac
 def print_ip(s):
 	print_with_prefix(s, "[IP]")
 
-preamble = split_bytes(eth_preamble, 8)
-
 def carry_around_add(a, b):
     c = a + b
     return (c & 0xffff) + (c >> 16)
@@ -75,8 +73,12 @@ class IP(Module):
 		self.rx_packet = IPPacket()
 		self.table = {}
 		self.request_pending = False
+		self.udp_callback = None
 
 		self.mac.set_ip_callback(self.callback)
+
+	def set_udp_callback(self, callback):
+		self.udp_callback = callback
 
 	def send(self, packet):
 		packet.encode()
@@ -104,16 +106,22 @@ class IP(Module):
 		if self.loopback:
 			self.send(packet)
 		else:
+			if packet.version != 0x4:
+				raise ValueError
+			if packet.ihl != 0x5:
+				raise ValueError
 			self.process(packet)
 
 	def process(self, packet):
-		pass
+		if packet.protocol == udp_protocol:
+			if self.udp_callback is not None:
+				self.udp_callback(packet)
 
 if __name__ == "__main__":
 	from liteeth.test.model.dumps import *
 	from liteeth.test.model.mac import *
 	errors = 0
-	# ARP request
+	# UDP packet
 	packet = MACPacket(udp)
 	packet.decode_remove_header()
 	#print(packet)
