@@ -23,7 +23,7 @@ class LiteEthUDPTX(Module):
 		self.sink = Sink(eth_udp_user_description(8))
 		self.source = Source(eth_ipv4_user_description(8))
 		###
-		packetizer = LiteEthUDPV4Packetizer()
+		packetizer = LiteEthUDPPacketizer()
 		self.submodules += packetizer
 		self.comb += [
 			packetizer.sink.stb.eq(self.sink.stb),
@@ -48,7 +48,7 @@ class LiteEthUDPTX(Module):
 		)
 		fsm.act("SEND",
 			Record.connect(packetizer.source, self.source),
-			self.source.length.eq(),
+			self.source.length.eq(packetizer.sink.length + ipv4_header_len),
 			self.source.protocol.eq(udp_protocol),
 			self.source.ip_address.eq(self.sink.ip_address),
 			If(self.source.stb & self.source.eop & self.source.ack,
@@ -61,7 +61,7 @@ class LiteEthUDPRX(Module):
 		self.sink = Sink(eth_ipv4_user_description(8))
 		self.source = source = Source(eth_udp_user_description(8))
 		###
-		depacketizer = LiteEthUDPV4Depacketizer()
+		depacketizer = LiteEthUDPDepacketizer()
 		self.submodules += depacketizer
 		self.comb += Record.connect(self.sink, depacketizer.sink)
 		sink = depacketizer.source
@@ -78,8 +78,8 @@ class LiteEthUDPRX(Module):
 		valid = Signal()
 		self.comb += valid.eq(
 			sink.stb &
-			(sink.protocol == udp_protocol) &
-			(sink.ip_address == ip_address)
+			(self.sink.protocol == udp_protocol) &
+			(self.sink.ip_address == ip_address)
 		)
 
 		fsm.act("CHECK",
@@ -112,7 +112,11 @@ class LiteEthUDPRX(Module):
 		)
 
 class LiteEthUDP(Module):
-	def __init__(self, ip_address):
+	def __init__(self, ip, ip_address):
 		self.submodules.tx = LiteEthUDPTX(ip_address)
 		self.submodules.rx = LiteEthUDPRX(ip_address)
+		self.comb += [
+			Record.connect(self.tx.source, ip.sink),
+			Record.connect(ip.source, self.rx.sink)
+		]
 		self.sink, self.source = self.tx.sink, self.rx.source
