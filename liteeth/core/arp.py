@@ -34,7 +34,7 @@ class LiteEthARPTX(Module):
 		self.submodules += packetizer
 		source = packetizer.sink
 
-		counter = Counter(max=arp_header_len)
+		counter = Counter(max=max(arp_header_len, eth_min_len))
 		self.submodules += counter
 
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -66,7 +66,7 @@ class LiteEthARPTX(Module):
 		fsm.act("SEND",
 			source.stb.eq(1),
 			source.sop.eq(counter.value == 0),
-			source.eop.eq(counter.value == arp_header_len-1),
+			source.eop.eq(counter.value == max(arp_header_len, eth_min_len)-1),
 			Record.connect(packetizer.source, self.source),
 			self.source.target_mac.eq(source.target_mac),
 			self.source.sender_mac.eq(mac_address),

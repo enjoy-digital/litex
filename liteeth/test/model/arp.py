@@ -73,7 +73,7 @@ class ARP(Module):
 		self.process(packet)
 
 	def process(self, packet):
-		if len(packet) != arp_packet_length-arp_header_len:
+		if len(packet) != eth_min_len-arp_header_len:
 			raise ValueError
 		if packet.hwtype != arp_hwtype_ethernet:
 			raise ValueError
@@ -90,7 +90,7 @@ class ARP(Module):
 
 	def process_request(self, request):
 		if request.target_ip == self.ip_address:
-			reply = ARPPacket([0]*(arp_packet_length-arp_header_len))
+			reply = ARPPacket([0]*(eth_min_len-arp_header_len))
 			reply.hwtype = arp_hwtype_ethernet
 			reply.proto = arp_proto_ip
 			reply.opcode = arp_opcode_reply
@@ -106,7 +106,7 @@ class ARP(Module):
 		self.table[reply.sender_ip] = reply.sender_mac
 
 	def request(self, ip_address):
-		request = ARPPacket([0]*(arp_packet_length-arp_header_len))
+		request = ARPPacket([0]*(eth_min_len-arp_header_len))
 		request.hwtype = arp_hwtype_ethernet
 		request.proto = arp_proto_ip
 		request.opcode = arp_opcode_request

@@ -55,11 +55,7 @@ class LiteEthIPTX(Module):
 			packetizer.sink.total_length.eq(self.sink.length + (0x5*4)),
 			packetizer.sink.version.eq(0x4), 	# ipv4
 			packetizer.sink.ihl.eq(0x5), 		# 20 bytes
-			packetizer.sink.diff_services.eq(0),
-			packetizer.sink.ecn.eq(0),
 			packetizer.sink.identification.eq(0),
-			packetizer.sink.flags.eq(0),
-			packetizer.sink.fragment_offset.eq(0),
 			packetizer.sink.ttl.eq(0x80),
 			packetizer.sink.sender_ip.eq(ip_address),
 			packetizer.sink.data.eq(self.sink.data)

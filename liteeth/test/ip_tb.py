@@ -46,7 +46,7 @@ class TB(Module):
 			selfp.ip.sink.sop = 1
 			selfp.ip.sink.eop = 1
 			selfp.ip.sink.ip_address = 0x12345678
-			selfp.ip.sink.protocol = 0x11
+			selfp.ip.sink.protocol = udp_protocol
 
 			selfp.ip.source.ack = 1
 			if selfp.ip.source.stb == 1 and selfp.ip.source.sop == 1:

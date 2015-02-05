@@ -14,6 +14,7 @@ from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
 from migen.bank.description import *
 
 eth_mtu = 1532
+eth_min_len = 46
 eth_preamble = 0xD555555555555555
 buffer_depth = 2**log2_int(eth_mtu, need_pow2=False)
 
@@ -53,14 +54,10 @@ arp_header = {
 
 ipv4_header_len = 20
 ipv4_header = {
-	"version":			HField(0,  4, 4), # XXX works on hardware but need to fix
-	"ihl":				HField(0,  0, 4), # header encoding/decoding when not aligned
-	"diff_services":	HField(1,  0, 6), # on bytes
-	"ecn":				HField(1,  6, 2),
+	"ihl":				HField(0,  0, 4),
+	"version":			HField(0,  4, 4),
 	"total_length":		HField(2,  0, 16),
 	"identification":	HField(4,  0, 16),
-	"flags":			HField(6,  0, 3),
-	"fragment_offset":	HField(6,  3, 13),
 	"ttl":				HField(8,  0, 8),
 	"protocol":			HField(9,  0, 8),
 	"checksum":			HField(10,  0, 16),

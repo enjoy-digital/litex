@@ -2,14 +2,14 @@ from liteeth.common import *
 from liteeth.mac.core import preamble, crc, last_be
 
 class LiteEthMACCore(Module, AutoCSR):
-	def __init__(self, phy, dw, endianness="be", with_hw_preamble_crc=True):
+	def __init__(self, phy, dw, endianness="big", with_hw_preamble_crc=True):
 		if dw < phy.dw:
 			raise ValueError("Core data width({}) must be larger than PHY data width({})".format(dw, phy.dw))
 
 		rx_pipeline = [phy]
 		tx_pipeline = [phy]
 
-		# Preamble / CRC (optional)
+		# Preamble / CRC
 		if with_hw_preamble_crc:
 			self._hw_preamble_crc = CSRStatus(reset=1)
 			# Preamble insert/check
@@ -27,8 +27,8 @@ class LiteEthMACCore(Module, AutoCSR):
 			tx_pipeline += [preamble_inserter, crc32_inserter]
 			rx_pipeline += [preamble_checker, crc32_checker]
 
+		# Delimiters
 		if dw != 8:
-			# Delimiters
 			tx_last_be = last_be.LiteEthMACTXLastBE(phy.dw)
 			rx_last_be = last_be.LiteEthMACRXLastBE(phy.dw)
 			self.submodules += RenameClockDomains(tx_last_be, "eth_tx")
@@ -37,9 +37,9 @@ class LiteEthMACCore(Module, AutoCSR):
 			tx_pipeline += [tx_last_be]
 			rx_pipeline += [rx_last_be]
 
+		# Converters
 		if dw != phy.dw:
-			# Converters
-			reverse = endianness == "be"
+			reverse = endianness == "big"
 			tx_converter = Converter(eth_phy_description(dw), eth_phy_description(phy.dw), reverse=reverse)
 			rx_converter = Converter(eth_phy_description(phy.dw), eth_phy_description(dw), reverse=reverse)
 			self.submodules += RenameClockDomains(tx_converter, "eth_tx")
