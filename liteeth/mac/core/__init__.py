@@ -27,13 +27,17 @@ class LiteEthMACCore(Module, AutoCSR):
 			tx_pipeline += [preamble_inserter, crc32_inserter]
 			rx_pipeline += [preamble_checker, crc32_checker]
 
-		if dw != phy.dw:
+		if dw != 8:
 			# Delimiters
 			tx_last_be = last_be.LiteEthMACTXLastBE(phy.dw)
 			rx_last_be = last_be.LiteEthMACRXLastBE(phy.dw)
 			self.submodules += RenameClockDomains(tx_last_be, "eth_tx")
 			self.submodules += RenameClockDomains(rx_last_be, "eth_rx")
 
+			tx_pipeline += [tx_last_be]
+			rx_pipeline += [rx_last_be]
+
+		if dw != phy.dw:
 			# Converters
 			reverse = endianness == "be"
 			tx_converter = Converter(eth_phy_description(dw), eth_phy_description(phy.dw), reverse=reverse)
@@ -41,8 +45,8 @@ class LiteEthMACCore(Module, AutoCSR):
 			self.submodules += RenameClockDomains(tx_converter, "eth_tx")
 			self.submodules += RenameClockDomains(rx_converter, "eth_rx")
 
-			tx_pipeline += [tx_last_be, tx_converter]
-			rx_pipeline += [rx_last_be, rx_converter]
+			tx_pipeline += [tx_converter]
+			rx_pipeline += [rx_converter]
 
 		# Cross Domain Crossing
 		tx_cdc = AsyncFIFO(eth_phy_description(dw), 4)
