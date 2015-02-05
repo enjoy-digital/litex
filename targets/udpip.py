@@ -176,7 +176,7 @@ class UDPIPSoC(GenSoC, AutoCSR):
 
 		# Ethernet PHY and UDP/IP
 		self.submodules.ethphy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
-		self.submodules.udpip_core = LiteEthUDPIPCore(self.ethphy, 0x10e2d5000000, convert_ip("192.168.1.40"))
+		self.submodules.udpip_core = LiteEthUDPIPCore(self.ethphy, 0x10e2d5000000, convert_ip("192.168.1.40"), clk_freq)
 
 		# BIST
 		self.submodules.bist_generator = UDPIPBISTGenerator()

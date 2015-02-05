@@ -20,7 +20,7 @@ class TB(Module):
 		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=False, loopback=False)
 		self.submodules.udp_model = udp.UDP(self.ip_model, ip_address, debug=False, loopback=True)
 
-		self.submodules.udp_ip = LiteEthUDPIPCore(self.phy_model, mac_address, ip_address)
+		self.submodules.udp_ip = LiteEthUDPIPCore(self.phy_model, mac_address, ip_address, 100000)
 		self.submodules.streamer = PacketStreamer(eth_udp_user_description(8))
 		self.submodules.logger = PacketLogger(eth_udp_user_description(8))
 		self.comb += [

@@ -134,17 +134,17 @@ class LiteEthARPRX(Module):
 		)
 
 class LiteEthARPTable(Module):
-	def __init__(self):
-		self.sink = sink = Sink(_arp_table_layout) 		# from arp_rx
+	def __init__(self, clk_freq):
+		self.sink = sink = Sink(_arp_table_layout) 			# from arp_rx
 		self.source = source = Source(_arp_table_layout) 	# to arp_tx
 
 		# Request/Response interface
 		self.request = request = Sink(arp_table_request_layout)
 		self.response = response = Source(arp_table_response_layout)
 		###
-		request_timeout = Timeout(166000000//10)	# XXX use clk_freq
+		request_timeout = Timeout(clk_freq//10)
 		request_pending = FlipFlop()
-		request_ip_address = FlipFlop(32, reset=0xffffffff) # XXX add cached_valid?
+		request_ip_address = FlipFlop(32, reset=0xffffffff)
 		self.submodules += request_timeout, request_pending, request_ip_address
 		self.comb += [
 			request_timeout.ce.eq(request_pending.q),
@@ -152,12 +152,15 @@ class LiteEthARPTable(Module):
 			request_ip_address.d.eq(request.ip_address)
 		]
 
-		# Note: Store only one ip/mac couple, replace this with
-		# a real ARP table
+		# Note: Only store 1 IP/MAC couple, can be improved with a real
+		# table in the future to improve performance when packet are
+		# targeting multiple destinations.
 		update = Signal()
 		cached_valid = Signal()
 		cached_ip_address = Signal(32)
 		cached_mac_address = Signal(48)
+		cached_timeout = Timeout(clk_freq*10)
+		self.submodules += cached_timeout
 
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
@@ -188,12 +191,17 @@ class LiteEthARPTable(Module):
 			If(update,
 				cached_valid.eq(1),
 				cached_ip_address.eq(sink.ip_address),
-				cached_mac_address.eq(sink.mac_address)
+				cached_mac_address.eq(sink.mac_address),
+				cached_timeout.reset.eq(1)
+			).Else(
+				cached_timeout.ce.eq(1),
+				If(cached_timeout.reached,
+					cached_valid.eq(0)
+				)
 			)
 		]
 		found = Signal()
 		fsm.act("CHECK_TABLE",
-			# XXX: add a live time for cached_mac_address
 			If(cached_valid,
 				If(request_ip_address.q == cached_ip_address,
 					request_ip_address.reset.eq(1),
@@ -231,10 +239,10 @@ class LiteEthARPTable(Module):
 		)
 
 class LiteEthARP(Module):
-	def __init__(self, mac, mac_address, ip_address):
+	def __init__(self, mac, mac_address, ip_address, clk_freq):
 		self.submodules.tx = LiteEthARPTX(mac_address, ip_address)
 		self.submodules.rx = LiteEthARPRX(mac_address, ip_address)
-		self.submodules.table = LiteEthARPTable()
+		self.submodules.table = LiteEthARPTable(clk_freq)
 		self.comb += [
 			Record.connect(self.rx.source, self.table.sink),
 			Record.connect(self.table.source, self.tx.sink)

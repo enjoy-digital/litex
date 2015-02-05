@@ -19,7 +19,7 @@ class TB(Module):
 		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=False)
 		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=False, loopback=True)
 
-		self.submodules.ip = LiteEthIPCore(self.phy_model, mac_address, ip_address)
+		self.submodules.ip = LiteEthIPCore(self.phy_model, mac_address, ip_address, 100000)
 
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()
