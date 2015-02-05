@@ -37,8 +37,7 @@ class LiteEthARPTX(Module):
 		counter = Counter(max=arp_packet_length)
 		self.submodules += counter
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			counter.reset.eq(1),
@@ -91,8 +90,7 @@ class LiteEthARPRX(Module):
 		self.comb += Record.connect(self.sink, depacketizer.sink)
 		sink = depacketizer.source
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			If(sink.stb & sink.sop,
@@ -160,8 +158,7 @@ class LiteEthARPTable(Module):
 		cached_ip_address = Signal(32)
 		cached_mac_address = Signal(48)
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			# Note: for simplicicy, if APR table is busy response from arp_rx
 			# is lost. This is compensated by the protocol (retrys)

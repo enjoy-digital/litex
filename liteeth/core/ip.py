@@ -75,8 +75,7 @@ class LiteEthIPTX(Module):
 
 		target_mac = Signal(48)
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			If(sink.stb & sink.sop,
@@ -125,8 +124,7 @@ class LiteEthIPRX(Module):
 		self.submodules += checksum
 		self.comb += checksum.header.eq(depacketizer.header)
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			If(sink.stb & sink.sop,

@@ -38,8 +38,7 @@ class LiteEthUDPTX(Module):
 		]
 		sink = packetizer.source
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			If(sink.stb & sink.sop,
@@ -67,8 +66,7 @@ class LiteEthUDPRX(Module):
 		self.comb += Record.connect(self.sink, depacketizer.sink)
 		sink = depacketizer.source
 
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			If(sink.stb & sink.sop,

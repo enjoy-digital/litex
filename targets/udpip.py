@@ -164,7 +164,7 @@ class UDPIPSoC(GenSoC, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
 		"ethphy":			11,
-		"udpipcore":		12,
+		"udpip_core":		12,
 		"bist_generator": 	13
 	}
 	csr_map.update(GenSoC.csr_map)
@@ -175,13 +175,13 @@ class UDPIPSoC(GenSoC, AutoCSR):
 
 		# Ethernet PHY and UDP/IP
 		self.submodules.ethphy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
-		self.submodules.udpipcore = LiteEthUDPIPCore(self.ethphy, 0x12345678, 0x10e2d5000000)
+		self.submodules.udpip_core = LiteEthUDPIPCore(self.ethphy, 0x12345678, 0x10e2d5000000)
 
 		# BIST
 		self.submodules.bist_generator = UDPIPBISTGenerator()
 		self.comb += [
-			Record.connect(self.bist_generator.source, self.udpipcore.sink),
-			self.udpipcore.source.ack.eq(1)
+			Record.connect(self.bist_generator.source, self.udpip_core.sink),
+			self.udpip_core.source.ack.eq(1)
 		]
 
 class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
@@ -192,9 +192,32 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 	def __init__(self, platform):
 		UDPIPSoC.__init__(self, platform)
 
+		self.udpip_core_udp_rx_fsm_state = Signal(4)
+		self.udpip_core_udp_tx_fsm_state = Signal(4)
+		self.udpip_core_ip_rx_fsm_state = Signal(4)
+		self.udpip_core_ip_tx_fsm_state = Signal(4)
+		self.udpip_core_arp_rx_fsm_state = Signal(4)
+		self.udpip_core_arp_tx_fsm_state = Signal(4)
+
 		debug = (
-			Signal(),
-			Signal()
+			self.udpip_core.mac.core.sink.stb,
+			self.udpip_core.mac.core.sink.sop,
+			self.udpip_core.mac.core.sink.eop,
+			self.udpip_core.mac.core.sink.ack,
+			self.udpip_core.mac.core.sink.data,
+
+			self.udpip_core.mac.core.source.stb,
+			self.udpip_core.mac.core.source.sop,
+			self.udpip_core.mac.core.source.eop,
+			self.udpip_core.mac.core.source.ack,
+			self.udpip_core.mac.core.source.data,
+
+			self.udpip_core_udp_rx_fsm_state,
+			self.udpip_core_udp_tx_fsm_state,
+			self.udpip_core_ip_rx_fsm_state,
+			self.udpip_core_ip_tx_fsm_state,
+			self.udpip_core_arp_rx_fsm_state,
+			self.udpip_core_arp_tx_fsm_state
 		)
 
 		self.submodules.la = LiteScopeLA(debug, 2048)
@@ -203,6 +226,14 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 
 	def do_finalize(self):
 		UDPIPSoC.do_finalize(self)
+		self.comb += [
+			self.udpip_core_udp_rx_fsm_state.eq(self.udpip_core.udp.rx.fsm.state),
+			self.udpip_core_udp_tx_fsm_state.eq(self.udpip_core.udp.tx.fsm.state),
+			self.udpip_core_ip_rx_fsm_state.eq(self.udpip_core.ip.rx.fsm.state),
+			self.udpip_core_ip_tx_fsm_state.eq(self.udpip_core.ip.tx.fsm.state),
+			self.udpip_core_arp_rx_fsm_state.eq(self.udpip_core.arp.rx.fsm.state),
+			self.udpip_core_arp_tx_fsm_state.eq(self.udpip_core.arp.tx.fsm.state)
+		]
 
 	def exit(self, platform):
 		if platform.vns is not None:
