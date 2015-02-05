@@ -100,13 +100,11 @@ System Clk: {} MHz
 
 	# dependencies
 	if actions["all"]:
-		actions["clean"] = True
 		actions["build-csr-csv"] = True
 		actions["build-bitstream"] = True
 		actions["load-bitstream"] = True
 
 	if actions["build-bitstream"]:
-		actions["clean"] = True
 		actions["build-csr-csv"] = True
 		actions["build-bitstream"] = True
 		actions["load-bitstream"] = True
