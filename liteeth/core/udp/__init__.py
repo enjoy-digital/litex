@@ -116,8 +116,9 @@ class LiteEthUDP(Module):
 	def __init__(self, ip, ip_address):
 		self.submodules.tx = LiteEthUDPTX(ip_address)
 		self.submodules.rx = LiteEthUDPRX(ip_address)
+		ip_port = ip.crossbar.get_port(udp_protocol)
 		self.comb += [
-			Record.connect(self.tx.source, ip.sink),
-			Record.connect(ip.source, self.rx.sink)
+			Record.connect(self.tx.source, ip_port.sink),
+			Record.connect(ip_port.source, self.rx.sink)
 		]
 		self.sink, self.source = self.tx.sink, self.rx.source

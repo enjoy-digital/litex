@@ -20,6 +20,7 @@ class TB(Module):
 		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=False, loopback=True)
 
 		self.submodules.ip = LiteEthIPCore(self.phy_model, mac_address, ip_address, 100000)
+		self.ip_port = self.ip.ip.crossbar.get_port(udp_protocol)
 
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()
@@ -42,15 +43,15 @@ class TB(Module):
 			yield
 
 		while True:
-			selfp.ip.sink.stb = 1
-			selfp.ip.sink.sop = 1
-			selfp.ip.sink.eop = 1
-			selfp.ip.sink.ip_address = 0x12345678
-			selfp.ip.sink.protocol = udp_protocol
+			selfp.ip_port.sink.stb = 1
+			selfp.ip_port.sink.sop = 1
+			selfp.ip_port.sink.eop = 1
+			selfp.ip_port.sink.ip_address = 0x12345678
+			selfp.ip_port.sink.protocol = udp_protocol
 
-			selfp.ip.source.ack = 1
-			if selfp.ip.source.stb == 1 and selfp.ip.source.sop == 1:
-				print("IP Packet / from ip_address %08x" %selfp.ip.sink.ip_address)
+			selfp.ip_port.source.ack = 1
+			if selfp.ip_port.source.stb == 1 and selfp.ip_port.source.sop == 1:
+				print("IP Packet / from ip_address %08x" %selfp.ip_port.sink.ip_address)
 
 			yield
 

@@ -1,6 +1,7 @@
 from liteeth.common import *
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
+from liteeth.core.ip.crossbar import LiteEthIPV4Crossbar
 
 class LiteEthIPV4Depacketizer(LiteEthDepacketizer):
 	def __init__(self):
@@ -185,4 +186,8 @@ class LiteEthIP(Module):
 			Record.connect(self.tx.source, mac_port.sink),
 			Record.connect(mac_port.source, self.rx.sink)
 		]
-		self.sink, self.source = self.tx.sink, self.rx.source
+		self.submodules.crossbar = LiteEthIPV4Crossbar()
+		self.comb += [
+			Record.connect(self.crossbar.master.source, self.tx.sink),
+			Record.connect(self.rx.source, self.crossbar.master.sink)
+		]
