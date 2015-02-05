@@ -134,7 +134,7 @@ class LiteEthARPRX(Module):
 		)
 
 class LiteEthARPTable(Module):
-	def __init__(self, clk_freq):
+	def __init__(self, clk_freq, max_requests=8):
 		self.sink = sink = Sink(_arp_table_layout) 			# from arp_rx
 		self.source = source = Source(_arp_table_layout) 	# to arp_tx
 
@@ -143,9 +143,10 @@ class LiteEthARPTable(Module):
 		self.response = response = Source(arp_table_response_layout)
 		###
 		request_timeout = Timeout(clk_freq//10)
+		request_counter = Counter(max=max_requests)
 		request_pending = FlipFlop()
-		request_ip_address = FlipFlop(32, reset=0xffffffff)
-		self.submodules += request_timeout, request_pending, request_ip_address
+		request_ip_address = FlipFlop(32)
+		self.submodules += request_timeout, request_counter, request_pending, request_ip_address
 		self.comb += [
 			request_timeout.ce.eq(request_pending.q),
 			request_pending.d.eq(1),
@@ -165,11 +166,13 @@ class LiteEthARPTable(Module):
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			# Note: for simplicicy, if APR table is busy response from arp_rx
-			# is lost. This is compensated by the protocol (retrys)
+			# is lost. This is compensated by the protocol (retry)
 			If(sink.stb & sink.request,
 				NextState("SEND_REPLY")
 			).Elif(sink.stb & sink.reply & request_pending.q,
 				NextState("UPDATE_TABLE"),
+			).Elif(request_counter.value == max_requests-1,
+				NextState("PRESENT_RESPONSE")
 			).Elif(request.stb | (request_pending.q & request_timeout.reached),
 				NextState("CHECK_TABLE")
 			)
@@ -224,15 +227,23 @@ class LiteEthARPTable(Module):
 			source.ip_address.eq(request_ip_address.q),
 			If(source.ack,
 				request_timeout.reset.eq(1),
+				request_counter.reset.eq(request.stb),
+				request_counter.ce.eq(1),
 				request_pending.ce.eq(1),
 				request.ack.eq(1),
 				NextState("IDLE")
 			)
 		)
+		self.comb += [
+			If(request_counter == max_requests-1,
+				response.failed.eq(1),
+				request_counter.reset.eq(1),
+				request_pending.reset.eq(1)
+			),
+			response.mac_address.eq(cached_mac_address)
+		]
 		fsm.act("PRESENT_RESPONSE",
 			response.stb.eq(1),
-			response.failed.eq(0), # XXX add timeout to trigger failed
-			response.mac_address.eq(cached_mac_address),
 			If(response.ack,
 				NextState("IDLE")
 			)

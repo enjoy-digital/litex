@@ -42,6 +42,7 @@ class LiteEthIPTX(Module):
 	def __init__(self, mac_address, ip_address, arp_table):
 		self.sink = Sink(eth_ipv4_user_description(8))
 		self.source = Source(eth_mac_description(8))
+		self.target_unreachable = Signal()
 		###
 		packetizer = LiteEthIPV4Packetizer()
 		self.submodules += packetizer
@@ -87,11 +88,14 @@ class LiteEthIPTX(Module):
 			)
 		)
 		fsm.act("WAIT_MAC_ADDRESS_RESPONSE",
-			# XXX add timeout
 			If(arp_table.response.stb,
 				arp_table.response.ack.eq(1),
-				# XXX manage failed
-				NextState("SEND")
+				If(arp_table.response.failed,
+					self.target_unreachable.eq(1),
+					NextState("DROP"),
+				).Else(
+					NextState("SEND")
+				)
 			)
 		)
 		self.sync += If(arp_table.response.stb, target_mac.eq(arp_table.response.mac_address))
@@ -101,7 +105,12 @@ class LiteEthIPTX(Module):
 			self.source.target_mac.eq(target_mac),
 			self.source.sender_mac.eq(mac_address),
 			If(self.source.stb & self.source.eop & self.source.ack,
-				# XXX manage failed
+				NextState("IDLE")
+			)
+		)
+		fsm.act("DROP",
+			packetizer.source.ack.eq(1),
+			If(packetizer.source.stb & packetizer.source.eop & packetizer.source.ack,
 				NextState("IDLE")
 			)
 		)
