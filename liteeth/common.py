@@ -142,6 +142,13 @@ def eth_ipv4_user_description(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
+def convert_ip(s):
+	ip = 0
+	for e in s.split("."):
+		ip = ip << 8
+		ip += int(e)
+	return ip
+
 def eth_udp_description(dw):
 	layout = _layout_from_header(udp_header) + [
 		("data", dw),
