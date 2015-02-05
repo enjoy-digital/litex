@@ -142,7 +142,7 @@ class LiteEthARPTable(Module):
 		self.request = request = Sink(arp_table_request_layout)
 		self.response = response = Source(arp_table_response_layout)
 		###
-		request_timeout = Timeout(512)	# XXX fix me 100ms?
+		request_timeout = Timeout(166000000//10)	# XXX use clk_freq
 		request_pending = FlipFlop()
 		request_ip_address = FlipFlop(32, reset=0xffffffff) # XXX add cached_valid?
 		self.submodules += request_timeout, request_pending, request_ip_address
@@ -155,6 +155,7 @@ class LiteEthARPTable(Module):
 		# Note: Store only one ip/mac couple, replace this with
 		# a real ARP table
 		update = Signal()
+		cached_valid = Signal()
 		cached_ip_address = Signal(32)
 		cached_mac_address = Signal(48)
 
@@ -185,6 +186,7 @@ class LiteEthARPTable(Module):
 		)
 		self.sync += [
 			If(update,
+				cached_valid.eq(1),
 				cached_ip_address.eq(sink.ip_address),
 				cached_mac_address.eq(sink.mac_address)
 			)
@@ -192,21 +194,26 @@ class LiteEthARPTable(Module):
 		found = Signal()
 		fsm.act("CHECK_TABLE",
 			# XXX: add a live time for cached_mac_address
-			If(request_ip_address.q == cached_ip_address,
-				request_ip_address.reset.eq(1),
-				NextState("PRESENT_RESPONSE"),
-			).Elif(request.ip_address == cached_ip_address,
-				request.ack.eq(request.stb),
-				NextState("PRESENT_RESPONSE"),
+			If(cached_valid,
+				If(request_ip_address.q == cached_ip_address,
+					request_ip_address.reset.eq(1),
+					NextState("PRESENT_RESPONSE"),
+				).Elif(request.ip_address == cached_ip_address,
+					request.ack.eq(request.stb),
+					NextState("PRESENT_RESPONSE"),
+				).Else(
+					request_ip_address.ce.eq(request.stb),
+					NextState("SEND_REQUEST")
+				)
 			).Else(
-				request_ip_address.ce.eq(1),
+				request_ip_address.ce.eq(request.stb),
 				NextState("SEND_REQUEST")
 			)
 		)
 		fsm.act("SEND_REQUEST",
 			source.stb.eq(1),
 			source.request.eq(1),
-			source.ip_address.eq(request.ip_address),
+			source.ip_address.eq(request_ip_address.q),
 			If(source.ack,
 				request_timeout.reset.eq(1),
 				request_pending.ce.eq(1),

@@ -50,7 +50,7 @@ class _CRG(Module):
 
 				p_CLKOUT4_DIVIDE=2, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
 			),
-			Instance("BUFG", i_I=ClockSignal("eth_tx"), o_O=self.cd_sys.clk),
+			Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
 			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.reset),
 		]
 
@@ -170,7 +170,7 @@ class UDPIPSoC(GenSoC, AutoCSR):
 	}
 	csr_map.update(GenSoC.csr_map)
 	def __init__(self, platform):
-		clk_freq = 125*1000000
+		clk_freq = 166*1000000
 		GenSoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
@@ -199,6 +199,7 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 		self.udpip_core_ip_tx_fsm_state = Signal(4)
 		self.udpip_core_arp_rx_fsm_state = Signal(4)
 		self.udpip_core_arp_tx_fsm_state = Signal(4)
+		self.udpip_core_arp_table_fsm_state = Signal(4)
 
 		debug = (
 			self.udpip_core.mac.core.sink.stb,
@@ -230,7 +231,9 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 			self.udpip_core_ip_rx_fsm_state,
 			self.udpip_core_ip_tx_fsm_state,
 			self.udpip_core_arp_rx_fsm_state,
-			self.udpip_core_arp_tx_fsm_state
+			self.udpip_core_arp_tx_fsm_state,
+			self.udpip_core_arp_table_fsm_state,
+
 		)
 
 		self.submodules.la = LiteScopeLA(debug, 2048)
@@ -245,7 +248,8 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 			self.udpip_core_ip_rx_fsm_state.eq(self.udpip_core.ip.rx.fsm.state),
 			self.udpip_core_ip_tx_fsm_state.eq(self.udpip_core.ip.tx.fsm.state),
 			self.udpip_core_arp_rx_fsm_state.eq(self.udpip_core.arp.rx.fsm.state),
-			self.udpip_core_arp_tx_fsm_state.eq(self.udpip_core.arp.tx.fsm.state)
+			self.udpip_core_arp_tx_fsm_state.eq(self.udpip_core.arp.tx.fsm.state),
+			self.udpip_core_arp_table_fsm_state.eq(self.udpip_core.arp.table.fsm.state)
 		]
 
 	def exit(self, platform):

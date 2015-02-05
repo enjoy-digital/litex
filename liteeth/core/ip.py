@@ -50,7 +50,7 @@ class LiteEthIPTX(Module):
 			packetizer.sink.sop.eq(self.sink.sop),
 			packetizer.sink.eop.eq(self.sink.eop),
 			self.sink.ack.eq(packetizer.sink.ack),
-			packetizer.sink.target_ip.eq(ip_address),
+			packetizer.sink.target_ip.eq(self.sink.ip_address),
 			packetizer.sink.protocol.eq(self.sink.protocol),
 			packetizer.sink.total_length.eq(self.sink.length + (0x5*4)),
 			packetizer.sink.version.eq(0x4), 	# ipv4
