@@ -80,9 +80,9 @@ class LiteEthIPTX(Module):
 				NextState("SEND_MAC_ADDRESS_REQUEST")
 			)
 		)
+		self.comb += arp_table.request.ip_address.eq(self.sink.ip_address)
 		fsm.act("SEND_MAC_ADDRESS_REQUEST",
 			arp_table.request.stb.eq(1),
-			arp_table.request.ip_address.eq(self.sink.ip_address),
 			If(arp_table.request.stb & arp_table.request.ack,
 				NextState("WAIT_MAC_ADDRESS_RESPONSE")
 			)
@@ -152,24 +152,26 @@ class LiteEthIPRX(Module):
 			).Else(
 				NextState("DROP")
 			)
-		),
-		fsm.act("PRESENT",
-			source.stb.eq(sink.stb),
+		)
+		self.comb += [
 			source.sop.eq(sink.sop),
 			source.eop.eq(sink.eop),
-			sink.ack.eq(source.ack),
 			source.length.eq(sink.total_length - (sink.ihl*4)),
 			source.protocol.eq(sink.protocol),
 			source.ip_address.eq(sink.target_ip),
 			source.data.eq(sink.data),
-			source.error.eq(sink.error),
+			source.error.eq(sink.error)
+		]
+		fsm.act("PRESENT",
+			source.stb.eq(sink.stb),
+			sink.ack.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)
 		)
 		fsm.act("DROP",
 			sink.ack.eq(1),
-			If(source.stb & source.eop & source.ack,
+			If(sink.stb & sink.eop & sink.ack,
 				NextState("IDLE")
 			)
 		)

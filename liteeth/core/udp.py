@@ -87,18 +87,20 @@ class LiteEthUDPRX(Module):
 			).Else(
 				NextState("DROP")
 			)
-		),
-		fsm.act("PRESENT",
-			source.stb.eq(sink.stb),
+		)
+		self.comb += [
 			source.sop.eq(sink.sop),
 			source.eop.eq(sink.eop),
-			sink.ack.eq(source.ack),
 			source.src_port.eq(sink.src_port),
 			source.dst_port.eq(sink.dst_port),
 			source.ip_address.eq(0),
 			source.length.eq(sink.length - udp_header_len),
 			source.data.eq(sink.data),
-			source.error.eq(sink.error),
+			source.error.eq(sink.error)
+		]
+		fsm.act("PRESENT",
+			source.stb.eq(sink.stb),
+			sink.ack.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)

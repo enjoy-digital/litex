@@ -47,6 +47,8 @@ class LiteEthARPTX(Module):
 			)
 		)
 		self.comb += [
+			source.sop.eq(counter.value == 0),
+			source.eop.eq(counter.value == max(arp_header_len, eth_min_len)-1),
 			source.hwtype.eq(arp_hwtype_ethernet),
 			source.proto.eq(arp_proto_ip),
 			source.hwsize.eq(6),
@@ -65,8 +67,6 @@ class LiteEthARPTX(Module):
 		]
 		fsm.act("SEND",
 			source.stb.eq(1),
-			source.sop.eq(counter.value == 0),
-			source.eop.eq(counter.value == max(arp_header_len, eth_min_len)-1),
 			Record.connect(packetizer.source, self.source),
 			self.source.target_mac.eq(source.target_mac),
 			self.source.sender_mac.eq(mac_address),
