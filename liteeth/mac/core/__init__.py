@@ -49,8 +49,8 @@ class LiteEthMACCore(Module, AutoCSR):
 			rx_pipeline += [rx_converter]
 
 		# Cross Domain Crossing
-		tx_cdc = AsyncFIFO(eth_phy_description(dw), 4)
-		rx_cdc = AsyncFIFO(eth_phy_description(dw), 4)
+		tx_cdc = AsyncFIFO(eth_phy_description(dw), 8)
+		rx_cdc = AsyncFIFO(eth_phy_description(dw), 8)
 		self.submodules +=  RenameClockDomains(tx_cdc, {"write": "sys", "read": "eth_tx"})
 		self.submodules +=  RenameClockDomains(rx_cdc, {"write": "eth_rx", "read": "sys"})
 

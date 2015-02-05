@@ -33,7 +33,6 @@ mac_header = {
 	"ethernet_type":	HField(12, 0, 16)
 }
 
-arp_packet_length = 60
 arp_hwtype_ethernet = 0x0001
 arp_proto_ip = 0x0800
 arp_opcode_request = 0x0001
@@ -54,9 +53,9 @@ arp_header = {
 
 ipv4_header_len = 20
 ipv4_header = {
-	"version":			HField(0,  0, 4),
-	"ihl":				HField(0,  4, 4),
-	"diff_services":	HField(1,  0, 6),
+	"version":			HField(0,  4, 4), # XXX works on hardware but need to fix
+	"ihl":				HField(0,  0, 4), # header encoding/decoding when not aligned
+	"diff_services":	HField(1,  0, 6), # on bytes
 	"ecn":				HField(1,  6, 2),
 	"total_length":		HField(2,  0, 16),
 	"identification":	HField(4,  0, 16),

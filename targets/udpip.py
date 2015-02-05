@@ -50,7 +50,7 @@ class _CRG(Module):
 
 				p_CLKOUT4_DIVIDE=2, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
 			),
-			Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
+			Instance("BUFG", i_I=ClockSignal("eth_tx"), o_O=self.cd_sys.clk),
 			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.reset),
 		]
 
@@ -127,6 +127,7 @@ class UDPIPBISTGeneratorUnit(Module):
 			source.eop.eq(counter.value == (self.length-1)),
 			source.src_port.eq(self.src_port),
 			source.dst_port.eq(self.dst_port),
+			source.length.eq(self.length),
 			source.ip_address.eq(self.ip_address),
 			source.data.eq(counter.value)
 		]
@@ -169,13 +170,13 @@ class UDPIPSoC(GenSoC, AutoCSR):
 	}
 	csr_map.update(GenSoC.csr_map)
 	def __init__(self, platform):
-		clk_freq = 166*1000000
+		clk_freq = 125*1000000
 		GenSoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
 		# Ethernet PHY and UDP/IP
 		self.submodules.ethphy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
-		self.submodules.udpip_core = LiteEthUDPIPCore(self.ethphy, convert_ip("192.168.1.40"), 0x10e2d5000000)
+		self.submodules.udpip_core = LiteEthUDPIPCore(self.ethphy, 0x10e2d5000000, convert_ip("192.168.1.40"))
 
 		# BIST
 		self.submodules.bist_generator = UDPIPBISTGenerator()
@@ -211,6 +212,18 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 			self.udpip_core.mac.core.source.eop,
 			self.udpip_core.mac.core.source.ack,
 			self.udpip_core.mac.core.source.data,
+
+			self.ethphy.sink.stb,
+			self.ethphy.sink.sop,
+			self.ethphy.sink.eop,
+			self.ethphy.sink.ack,
+			self.ethphy.sink.data,
+
+			self.ethphy.source.stb,
+			self.ethphy.source.sop,
+			self.ethphy.source.eop,
+			self.ethphy.source.ack,
+			self.ethphy.source.data,
 
 			self.udpip_core_udp_rx_fsm_state,
 			self.udpip_core_udp_tx_fsm_state,
