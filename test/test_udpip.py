@@ -24,7 +24,7 @@ regs.bist_generator_length.write(64)
 
 conditions = {}
 conditions = {
-	"udpip_core_mac_tx_cdc_sink_stb"	: 1
+	"udpipsocdevel_mac_tx_cdc_sink_stb"	: 1
 }
 la.configure_term(port=0, cond=conditions)
 la.configure_sum("term")

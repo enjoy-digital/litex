@@ -121,4 +121,18 @@ def Platform(*args, toolchain="vivado", programmer="xc3sprog", **kwargs):
 				self.add_period_constraint(self.lookup_request("eth_clocks").rx, 8.0)
 			except ConstraintError:
 				pass
+			self.add_platform_command("""
+create_clock -name sys_clk -period 6 [get_nets sys_clk]
+create_clock -name eth_rx_clk -period 8 [get_nets eth_rx_clk]
+create_clock -name eth_tx_clk -period 8 [get_nets eth_tx_clk]
+
+set_false_path -from [get_clocks sys_clk] -to [get_clocks eth_rx_clk]
+set_false_path -from [get_clocks sys_clk] -to [get_clocks eth_tx_clk]
+set_false_path -from [get_clocks eth_rx_clk] -to [get_clocks sys_clk]
+set_false_path -from [get_clocks eth_tx_clk] -to [get_clocks sys_clk]
+
+set_property CFGBVS VCCO [current_design]
+set_property CONFIG_VOLTAGE 2.5 [current_design]
+""")
+
 	return RealPlatform(*args, **kwargs)
