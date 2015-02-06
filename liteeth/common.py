@@ -75,6 +75,15 @@ udp_header = {
 
 udp_protocol = 0x11
 
+icmp_header_len = 8
+icmp_header = {
+	"msgtype":		HField( 0,  0, 8),
+	"code":			HField( 1,  0, 8),
+	"checksum":		HField( 2,  0, 16),
+	"quench":		HField( 4,  0, 32)
+}
+icmp_protocol = 0x01
+
 def reverse_bytes(v):
 	n = math.ceil(flen(v)/8)
 	r = []
@@ -156,6 +165,22 @@ def eth_udp_user_description(dw):
 	layout = [
 		("src_port", 16),
 		("dst_port", 16),
+		("ip_address", 32),
+		("length", 16),
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(layout, packetized=True)
+
+def eth_icmp_description(dw):
+	layout = _layout_from_header(icmp_header) + [
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(layout, packetized=True)
+
+def eth_icmp_user_description(dw):
+	layout = _layout_from_header(icmp_header) + [
 		("ip_address", 32),
 		("length", 16),
 		("data", dw),
