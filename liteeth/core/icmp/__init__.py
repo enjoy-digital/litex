@@ -118,16 +118,23 @@ class LiteEthICMPEcho(Module):
 		self.sink = Sink(eth_icmp_user_description(8))
 		self.source = Source(eth_icmp_user_description(8))
 		###
+		self.submodules.fifo = SyncFIFO(eth_icmp_user_description(8), 1024)
 		self.comb += [
-			Record.connect(self.sink, self.source),
+			Record.connect(self.sink, self.fifo.sink),
+			Record.connect(self.fifo.source, self.source),
 			self.source.msgtype.eq(0x0),
-			self.source.checksum.eq(~((~self.sink.checksum)-0x0800))
+			self.source.checksum.eq(~((~self.fifo.source.checksum)-0x0800))
 		]
 
 class LiteEthICMP(Module):
 	def __init__(self, ip, ip_address):
 		self.submodules.tx = LiteEthICMPTX(ip_address)
 		self.submodules.rx = LiteEthICMPRX(ip_address)
+		self.submodules.echo = LiteEthICMPEcho()
+		self.comb += [
+			Record.connect(self.rx.source, self.echo.sink),
+			Record.connect(self.echo.source, self.tx.sink)
+		]
 		ip_port = ip.crossbar.get_port(icmp_protocol)
 		self.comb += [
 			Record.connect(self.tx.source, ip_port.sink),

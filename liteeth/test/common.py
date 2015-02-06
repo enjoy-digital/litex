@@ -83,6 +83,10 @@ class PacketStreamer(Module):
 	def send(self, packet):
 		packet = copy.deepcopy(packet)
 		self.packets.append(packet)
+		return packet
+
+	def send_blocking(self, packet):
+		packet = self.send(packet)
 		while not packet.done:
 			yield
 

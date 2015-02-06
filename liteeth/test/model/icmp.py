@@ -42,7 +42,6 @@ class ICMP(Module):
 		self.ip = ip
 		self.ip_address = ip_address
 		self.debug = debug
-		self.loopback = loopback
 		self.tx_packets = []
 		self.tx_packet = ICMPPacket()
 		self.rx_packet = ICMPPacket()
@@ -74,10 +73,7 @@ class ICMP(Module):
 		if self.debug:
 			print_icmp("<<<<<<<<")
 			print_icmp(packet)
-		if self.loopback:
-			self.send(packet)
-		else:
-			self.process(packet)
+		self.process(packet)
 
 	def process(self, packet):
 		pass

@@ -88,12 +88,12 @@ class MAC(Module):
 		self.phy = phy
 		self.debug = debug
 		self.loopback = loopback
-		self.tx_packets = []
-		self.tx_packet = MACPacket()
 		self.rx_packet = MACPacket()
 
 		self.ip_callback = None
 		self.arp_callback = None
+
+		phy.set_mac_callback(self.callback)
 
 	def set_ip_callback(self, callback):
 		self.ip_callback = callback
@@ -106,7 +106,7 @@ class MAC(Module):
 			print_mac(">>>>>>>>")
 			print_mac(packet)
 		packet.encode()
-		self.tx_packets.append(packet)
+		self.phy.send(packet)
 
 	def callback(self, datas):
 		packet = MACPacket(datas)
@@ -125,16 +125,6 @@ class MAC(Module):
 					self.arp_callback(packet)
 			else:
 				raise ValueError # XXX handle this properly
-
-	def gen_simulation(self, selfp):
-		self.tx_packet.done = True
-		while True:
-			yield from self.phy.receive()
-			self.callback(self.phy.packet)
-			# XXX add full duplex
-			if len(self.tx_packets) != 0:
-				tx_packet = self.tx_packets.pop(0)
-				yield from self.phy.send(tx_packet)
 
 if __name__ == "__main__":
 	from liteeth.test.model.dumps import *

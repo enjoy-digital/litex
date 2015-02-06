@@ -37,7 +37,7 @@ class PHY(Module):
 			for d in datas:
 				r += "%02x" %d
 			print_phy(r)
-		yield from self.phy_source.send(packet)
+		self.phy_source.send(packet)
 
 	def receive(self):
 		yield from self.phy_sink.receive()
@@ -48,3 +48,9 @@ class PHY(Module):
 				r += "%02x" %d
 			print_phy(r)
 		self.packet = self.phy_sink.packet
+
+	def gen_simulation(self, selfp):
+		while True:
+			yield from self.receive()
+			if self.mac_callback is not None:
+				self.mac_callback(self.packet)

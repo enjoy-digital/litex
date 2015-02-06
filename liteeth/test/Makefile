@@ -22,5 +22,8 @@ arp_tb:
 ip_tb:
 	$(CMD) ip_tb.py
 
-udpip_tb:
-	$(CMD) udpip_tb.py
+udp_tb:
+	$(CMD) udp_tb.py
+
+icmp_tb:
+	$(CMD) icmp_tb.py

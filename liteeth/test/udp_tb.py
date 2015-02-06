@@ -20,16 +20,16 @@ class TB(Module):
 		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=False, loopback=False)
 		self.submodules.udp_model = udp.UDP(self.ip_model, ip_address, debug=False, loopback=True)
 
-		self.submodules.udp_ip = LiteEthUDPIPCore(self.phy_model, mac_address, ip_address, 100000)
+		self.submodules.udp = LiteEthUDPIPCore(self.phy_model, mac_address, ip_address, 100000)
 		self.submodules.streamer = PacketStreamer(eth_udp_user_description(8))
 		self.submodules.logger = PacketLogger(eth_udp_user_description(8))
 		self.comb += [
-			Record.connect(self.streamer.source, self.udp_ip.sink),
-			self.udp_ip.sink.ip_address.eq(0x12345678),
-			self.udp_ip.sink.src_port.eq(0x1234),
-			self.udp_ip.sink.dst_port.eq(0x5678),
-			self.udp_ip.sink.length.eq(64),
-			Record.connect(self.udp_ip.source, self.logger.sink)
+			Record.connect(self.streamer.source, self.udp.sink),
+			self.udp.sink.ip_address.eq(0x12345678),
+			self.udp.sink.src_port.eq(0x1234),
+			self.udp.sink.dst_port.eq(0x5678),
+			self.udp.sink.length.eq(64),
+			Record.connect(self.udp.source, self.logger.sink)
 		]
 
 		# use sys_clk for each clock_domain

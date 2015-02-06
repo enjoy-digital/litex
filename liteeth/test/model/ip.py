@@ -68,11 +68,10 @@ class IP(Module):
 		self.ip_address = ip_address
 		self.debug = debug
 		self.loopback = loopback
-		self.tx_packets = []
-		self.tx_packet = IPPacket()
 		self.rx_packet = IPPacket()
 		self.table = {}
 		self.request_pending = False
+
 		self.udp_callback = None
 		self.icmp_callback = None
 
@@ -102,7 +101,7 @@ class IP(Module):
 			received = packet.get_checksum()
 			packet.insert_checksum()
 			expected = packet.get_checksum()
-			raise ValueError("Checksum error received %04x / expected %04x" %(received, expected)) # XXX maybe too restrictive
+			raise ValueError("Checksum error received %04x / expected %04x" %(received, expected))
 		packet.decode()
 		if self.debug:
 			print_ip("<<<<<<<<")
