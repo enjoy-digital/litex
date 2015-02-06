@@ -157,7 +157,7 @@ class LiteEthIPRX(Module):
 		self.comb += [
 			source.sop.eq(sink.sop),
 			source.eop.eq(sink.eop),
-			source.length.eq(sink.total_length - (sink.ihl*4)),
+			source.length.eq(sink.total_length - (0x5*4)),
 			source.protocol.eq(sink.protocol),
 			source.ip_address.eq(sink.sender_ip),
 			source.data.eq(sink.data),

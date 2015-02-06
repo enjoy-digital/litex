@@ -13,7 +13,8 @@ class LiteEthIPCore(Module, AutoCSR):
 		self.submodules.icmp = LiteEthICMP(self.ip, ip_address)
 
 class LiteEthUDPIPCore(LiteEthIPCore):
-	def __init__(self, phy, mac_address, ip_address, clk_freq):
+	def __init__(self, phy, mac_address, ip_address, clk_freq, with_loopback=False):
 		LiteEthIPCore.__init__(self, phy, mac_address, ip_address, clk_freq)
-		self.submodules.udp = LiteEthUDP(self.ip, ip_address)
-		self.sink, self.source = self.udp.sink, self.udp.source
+		self.submodules.udp = LiteEthUDP(self.ip, ip_address, with_loopback)
+		if not with_loopback:
+			self.sink, self.source = self.udp.sink, self.udp.source

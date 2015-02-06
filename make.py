@@ -34,7 +34,7 @@ load-bitstream  load bitstream into volatile storage.
 all             clean, build-csr-csv, build-bitstream, load-bitstream.
 """)
 
-	parser.add_argument("-t", "--target", default="udpip", help="Core type to build")
+	parser.add_argument("-t", "--target", default="udp", help="Core type to build")
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the Core type to build")
 	parser.add_argument("-p", "--platform", default=None, help="platform to build for")
 	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")

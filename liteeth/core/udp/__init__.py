@@ -48,7 +48,7 @@ class LiteEthUDPTX(Module):
 		)
 		fsm.act("SEND",
 			Record.connect(packetizer.source, self.source),
-			self.source.length.eq(packetizer.sink.length + ipv4_header_len),
+			self.source.length.eq(packetizer.sink.length),
 			self.source.protocol.eq(udp_protocol),
 			self.source.ip_address.eq(self.sink.ip_address),
 			If(self.source.stb & self.source.eop & self.source.ack,
@@ -92,7 +92,7 @@ class LiteEthUDPRX(Module):
 			source.eop.eq(sink.eop),
 			source.src_port.eq(sink.src_port),
 			source.dst_port.eq(sink.dst_port),
-			source.ip_address.eq(0),
+			source.ip_address.eq(self.sink.ip_address),
 			source.length.eq(sink.length - udp_header_len),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error)
@@ -112,7 +112,7 @@ class LiteEthUDPRX(Module):
 		)
 
 class LiteEthUDP(Module):
-	def __init__(self, ip, ip_address):
+	def __init__(self, ip, ip_address, with_loopback):
 		self.submodules.tx = LiteEthUDPTX(ip_address)
 		self.submodules.rx = LiteEthUDPRX(ip_address)
 		ip_port = ip.crossbar.get_port(udp_protocol)
@@ -120,4 +120,11 @@ class LiteEthUDP(Module):
 			Record.connect(self.tx.source, ip_port.sink),
 			Record.connect(ip_port.source, self.rx.sink)
 		]
-		self.sink, self.source = self.tx.sink, self.rx.source
+		if with_loopback:
+			self.submodules.fifo = SyncFIFO(eth_udp_user_description(8), 2048, buffered=True)
+			self.comb += [
+				Record.connect(self.rx.source, self.fifo.sink),
+				Record.connect(self.fifo.source, self.tx.sink)
+			]
+		else:
+			self.sink, self.source = self.tx.sink, self.rx.source
