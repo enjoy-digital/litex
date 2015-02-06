@@ -74,11 +74,15 @@ class IP(Module):
 		self.table = {}
 		self.request_pending = False
 		self.udp_callback = None
+		self.icmp_callback = None
 
 		self.mac.set_ip_callback(self.callback)
 
 	def set_udp_callback(self, callback):
 		self.udp_callback = callback
+
+	def set_icmp_callback(self, callback):
+		self.icmp_callback = callback
 
 	def send(self, packet):
 		packet.encode()
@@ -116,6 +120,9 @@ class IP(Module):
 		if packet.protocol == udp_protocol:
 			if self.udp_callback is not None:
 				self.udp_callback(packet)
+		elif packet.protocol == icmp_protocol:
+			if self.icmp_callback is not None:
+				self.icmp_callback(packet)
 
 if __name__ == "__main__":
 	from liteeth.test.model.dumps import *

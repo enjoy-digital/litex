@@ -19,14 +19,14 @@ arp_request = format_dump("""
 
 arp_request_infos = {
 	"sender_mac"		:	0x00123f979201,
-	"target_mac"	:	0x00221922549e,
-	"ethernet_type"				: 	0x806,
-	"hwtype"				: 	0x1,
-	"opcode"					:	0x1,
-	"protosize"	:	0x4,
+	"target_mac"		:	0x00221922549e,
+	"ethernet_type"		: 	0x806,
+	"hwtype"			: 	0x1,
+	"opcode"			:	0x1,
+	"protosize"			:	0x4,
 	"proto"				:	0x800,
 	"sender_ip"			:	0xa9feff42,
-	"target_ip"	:	0xa9fe6462
+	"target_ip"			:	0xa9fe6462
 
 }
 
@@ -38,14 +38,14 @@ arp_reply = format_dump("""
 
 arp_reply_infos = {
 	"sender_mac"		:	0x00221922549e,
-	"target_mac"	:	0x00123f979201,
-	"ethernet_type"				: 	0x806,
-	"hwtype"				: 	0x1,
-	"opcode"					:	0x2,
-	"protosize"	:	0x4,
+	"target_mac"		:	0x00123f979201,
+	"ethernet_type"		: 	0x806,
+	"hwtype"			: 	0x1,
+	"opcode"			:	0x2,
+	"protosize"			:	0x4,
 	"proto"				:	0x800,
 	"sender_ip"			:	0xa9fe6462,
-	"target_ip"	:	0xa9feff42
+	"target_ip"			:	0xa9feff42
 }
 
 udp = format_dump("""
@@ -59,10 +59,32 @@ aa 9b 4e 4d f9 2e 51 52 fe ff 65 31 3a 71 34 3a
 
 udp_infos = {
 	"sender_mac"		:	0x00140b333327,
-	"target_mac"	:	0xd07ab596cd0a,
-	"protocol"					:	0x11,
+	"target_mac"		:	0xd07ab596cd0a,
+	"protocol"			:	0x11,
 	"sender_ip"			:	0xc0a80165,
-	"target_ip"	:	0xb27b0d78,
-	"src_port"				:	0xa63f,
+	"target_ip"			:	0xb27b0d78,
+	"src_port"			:	0xa63f,
 	"dst_port"			:	0x690f
 }
+
+ping_request = format_dump("""
+00 50 56 e0 14 49 00 0c 29 34 0b de 08 00 45 00
+00 3c d7 43 00 00 80 01 2b 73 c0 a8 9e 8b ae 89
+2a 4d 08 00 2a 5c 02 00 21 00 61 62 63 64 65 66
+67 68 69 6a 6b 6c 6d 6e 6f 70 71 72 73 74 75 76
+77 61 62 63 64 65 66 67 68 69""")
+
+ping_request_infos = {
+	"code"		: 0x0,
+	"msgtype"	: 0x8,
+	"quench"	: 0x2002100
+}
+
+ping_reply = format_dump("""
+00 0c 29 34 0b de 00 50 56 e0 14 49 08 00 45 00
+00 3c 76 e1 00 00 80 01 8b d5 ae 89 2a 4d c0 a8
+9e 8b 00 00 32 5c 02 00 21 00 61 62 63 64 65 66
+67 68 69 6a 6b 6c 6d 6e 6f 70 71 72 73 74 75 76
+77 61 62 63 64 65 66 67 68 69""")
+
+ping_reply_infos = {}

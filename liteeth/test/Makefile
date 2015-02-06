@@ -8,6 +8,7 @@ model_tb:
 	$(CMD) ./model/arp.py
 	$(CMD) ./model/ip.py
 	$(CMD) ./model/udp.py
+	$(CMD) ./model/icmp.py
 
 mac_core_tb:
 	$(CMD) mac_core_tb.py
