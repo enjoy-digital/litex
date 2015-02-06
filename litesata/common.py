@@ -270,8 +270,8 @@ class Timeout(Module):
 		self.reached = Signal()
 		###
 		value = Signal(max=length)
-		self.sync += value.eq(value+1)
-		self.comb += self.reached.eq(value == length)
+		self.sync += If(~self.reached, value.eq(value+1))
+		self.comb += self.reached.eq(value == (length-1))
 
 class BufferizeEndpoints(ModuleDecorator):
 	def __init__(self, submodule, *args):
