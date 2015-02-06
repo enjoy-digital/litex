@@ -193,6 +193,8 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 	def __init__(self, platform):
 		UDPIPSoC.__init__(self, platform)
 
+		self.udpip_core_icmp_rx_fsm_state = Signal(4)
+		self.udpip_core_icmp_tx_fsm_state = Signal(4)
 		self.udpip_core_udp_rx_fsm_state = Signal(4)
 		self.udpip_core_udp_tx_fsm_state = Signal(4)
 		self.udpip_core_ip_rx_fsm_state = Signal(4)
@@ -214,6 +216,26 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 			self.udpip_core.mac.core.source.ack,
 			self.udpip_core.mac.core.source.data,
 
+			self.udpip_core.icmp.echo.sink.stb,
+			self.udpip_core.icmp.echo.sink.sop,
+			self.udpip_core.icmp.echo.sink.eop,
+			self.udpip_core.icmp.echo.sink.ack,
+			self.udpip_core.icmp.echo.sink.data,
+
+			self.udpip_core.icmp.echo.source.stb,
+			self.udpip_core.icmp.echo.source.sop,
+			self.udpip_core.icmp.echo.source.eop,
+			self.udpip_core.icmp.echo.source.ack,
+			self.udpip_core.icmp.echo.source.data,
+
+			self.udpip_core.ip.crossbar.master.sink.stb,
+			self.udpip_core.ip.crossbar.master.sink.sop,
+			self.udpip_core.ip.crossbar.master.sink.eop,
+			self.udpip_core.ip.crossbar.master.sink.ack,
+			self.udpip_core.ip.crossbar.master.sink.data,
+			self.udpip_core.ip.crossbar.master.sink.ip_address,
+			self.udpip_core.ip.crossbar.master.sink.protocol,
+
 			self.ethphy.sink.stb,
 			self.ethphy.sink.sop,
 			self.ethphy.sink.eop,
@@ -226,6 +248,8 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 			self.ethphy.source.ack,
 			self.ethphy.source.data,
 
+			self.udpip_core_icmp_rx_fsm_state,
+			self.udpip_core_icmp_tx_fsm_state,
 			self.udpip_core_udp_rx_fsm_state,
 			self.udpip_core_udp_tx_fsm_state,
 			self.udpip_core_ip_rx_fsm_state,
@@ -233,7 +257,6 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 			self.udpip_core_arp_rx_fsm_state,
 			self.udpip_core_arp_tx_fsm_state,
 			self.udpip_core_arp_table_fsm_state,
-
 		)
 
 		self.submodules.la = LiteScopeLA(debug, 2048)
@@ -243,6 +266,8 @@ class UDPIPSoCDevel(UDPIPSoC, AutoCSR):
 	def do_finalize(self):
 		UDPIPSoC.do_finalize(self)
 		self.comb += [
+			self.udpip_core_icmp_rx_fsm_state.eq(self.udpip_core.icmp.rx.fsm.state),
+			self.udpip_core_icmp_tx_fsm_state.eq(self.udpip_core.icmp.tx.fsm.state),
 			self.udpip_core_udp_rx_fsm_state.eq(self.udpip_core.udp.rx.fsm.state),
 			self.udpip_core_udp_tx_fsm_state.eq(self.udpip_core.udp.tx.fsm.state),
 			self.udpip_core_ip_rx_fsm_state.eq(self.udpip_core.ip.rx.fsm.state),

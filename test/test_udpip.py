@@ -23,16 +23,22 @@ regs.bist_generator_ip_address.write(convert_ip("192.168.1.10"))
 regs.bist_generator_length.write(64)
 
 conditions = {}
+#conditions = {
+#	"udpipsocdevel_mac_tx_cdc_sink_stb"	: 1
+#}
 conditions = {
-	"udpipsocdevel_mac_tx_cdc_sink_stb"	: 1
+	"udpipsocdevel_icmp_echo_sink_sink_stb"	: 1
+}
+conditions = {
+	"udpip_core_ip_rx_fsm_state"	: 1
 }
 la.configure_term(port=0, cond=conditions)
 la.configure_sum("term")
 # Run Logic Analyzer
 la.run(offset=64, length=1024)
 
-for i in range(64):
-	regs.bist_generator_start.write(1)
+#for i in range(64):
+#	regs.bist_generator_start.write(1)
 
 while not la.done():
 	pass

@@ -159,7 +159,7 @@ class LiteEthIPRX(Module):
 			source.eop.eq(sink.eop),
 			source.length.eq(sink.total_length - (sink.ihl*4)),
 			source.protocol.eq(sink.protocol),
-			source.ip_address.eq(sink.target_ip),
+			source.ip_address.eq(sink.sender_ip),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error)
 		]

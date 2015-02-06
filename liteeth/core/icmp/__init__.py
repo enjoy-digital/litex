@@ -77,8 +77,7 @@ class LiteEthICMPRX(Module):
 		valid = Signal()
 		self.comb += valid.eq(
 			sink.stb &
-			(self.sink.protocol == icmp_protocol) &
-			(self.sink.ip_address == ip_address)
+			(self.sink.protocol == icmp_protocol)
 		)
 		fsm.act("CHECK",
 			If(valid,
@@ -108,7 +107,7 @@ class LiteEthICMPRX(Module):
 		)
 		fsm.act("DROP",
 			sink.ack.eq(1),
-			If(source.stb & source.eop & source.ack,
+			If(sink.stb & sink.eop & sink.ack,
 				NextState("IDLE")
 			)
 		)
@@ -118,7 +117,7 @@ class LiteEthICMPEcho(Module):
 		self.sink = Sink(eth_icmp_user_description(8))
 		self.source = Source(eth_icmp_user_description(8))
 		###
-		self.submodules.fifo = SyncFIFO(eth_icmp_user_description(8), 1024)
+		self.submodules.fifo = SyncFIFO(eth_icmp_user_description(8), 512, buffered=True)
 		self.comb += [
 			Record.connect(self.sink, self.fifo.sink),
 			Record.connect(self.fifo.source, self.source),

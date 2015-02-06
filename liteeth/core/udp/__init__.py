@@ -77,8 +77,7 @@ class LiteEthUDPRX(Module):
 		valid = Signal()
 		self.comb += valid.eq(
 			sink.stb &
-			(self.sink.protocol == udp_protocol) &
-			(self.sink.ip_address == ip_address)
+			(self.sink.protocol == udp_protocol)
 		)
 
 		fsm.act("CHECK",
@@ -107,7 +106,7 @@ class LiteEthUDPRX(Module):
 		)
 		fsm.act("DROP",
 			sink.ack.eq(1),
-			If(source.stb & source.eop & source.ack,
+			If(sink.stb & sink.eop & sink.ack,
 				NextState("IDLE")
 			)
 		)
