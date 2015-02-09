@@ -1,5 +1,5 @@
 from liteeth.common import *
-from liteeth.mac.core import preamble, crc, last_be
+from liteeth.mac.core import gap, preamble, crc, last_be
 
 class LiteEthMACCore(Module, AutoCSR):
 	def __init__(self, phy, dw, endianness="big", with_hw_preamble_crc=True):
@@ -8,6 +8,14 @@ class LiteEthMACCore(Module, AutoCSR):
 
 		rx_pipeline = [phy]
 		tx_pipeline = [phy]
+
+		# Interpacket gap
+		tx_gap_inserter = gap.LiteEthMACGap(phy.dw)
+		rx_gap_checker = gap.LiteEthMACGap(phy.dw, ack_on_gap=True)
+		self.submodules += tx_gap_inserter, rx_gap_checker
+
+		tx_pipeline += [tx_gap_inserter]
+		rx_pipeline += [rx_gap_checker]
 
 		# Preamble / CRC
 		if with_hw_preamble_crc:

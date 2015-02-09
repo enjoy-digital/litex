@@ -22,7 +22,7 @@ class LiteEthMACPacketizer(LiteEthPacketizer):
 			mac_header_len)
 
 class LiteEthMAC(Module, AutoCSR):
-	def __init__(self, phy, dw, interface="crossbar", endianness="be",
+	def __init__(self, phy, dw, interface="crossbar", endianness="big",
 			with_hw_preamble_crc=True):
 		self.submodules.core = LiteEthMACCore(phy, dw, endianness, with_hw_preamble_crc)
 		self.csrs = []
