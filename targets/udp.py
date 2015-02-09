@@ -102,7 +102,7 @@ class UDPSoC(GenSoC, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
 		"phy":		11,
-		"udp":		12
+		"core":		12
 	}
 	csr_map.update(GenSoC.csr_map)
 	def __init__(self, platform):
@@ -112,7 +112,16 @@ class UDPSoC(GenSoC, AutoCSR):
 
 		# Ethernet PHY and UDP/IP
 		self.submodules.phy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
-		self.submodules.udp = LiteEthUDPIPCore(self.phy, 0x10e2d5000000, convert_ip("192.168.1.40"), clk_freq, with_loopback=True)
+		self.submodules.core = LiteEthUDPIPCore(self.phy, 0x10e2d5000000, convert_ip("192.168.1.40"), clk_freq)
+
+		# Create loopback on UDP port 6000
+		loopback_port = self.core.udp.crossbar.get_port(6000)
+		loopback_fifo = SyncFIFO(eth_udp_user_description(8), 2048, buffered=True)
+		self.submodules += loopback_fifo
+		self.comb += [
+			Record.connect(loopback_port.source, loopback_fifo.sink),
+			Record.connect(loopback_fifo.source, loopback_port.sink)
+		]
 
 class UDPSoCDevel(UDPSoC, AutoCSR):
 	csr_map = {
@@ -122,48 +131,48 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 	def __init__(self, platform):
 		UDPSoC.__init__(self, platform)
 
-		self.udp_icmp_rx_fsm_state = Signal(4)
-		self.udp_icmp_tx_fsm_state = Signal(4)
-		self.udp_udp_rx_fsm_state = Signal(4)
-		self.udp_udp_tx_fsm_state = Signal(4)
-		self.udp_ip_rx_fsm_state = Signal(4)
-		self.udp_ip_tx_fsm_state = Signal(4)
-		self.udp_arp_rx_fsm_state = Signal(4)
-		self.udp_arp_tx_fsm_state = Signal(4)
-		self.udp_arp_table_fsm_state = Signal(4)
+		self.core_icmp_rx_fsm_state = Signal(4)
+		self.core_icmp_tx_fsm_state = Signal(4)
+		self.core_udp_rx_fsm_state = Signal(4)
+		self.core_udp_tx_fsm_state = Signal(4)
+		self.core_ip_rx_fsm_state = Signal(4)
+		self.core_ip_tx_fsm_state = Signal(4)
+		self.core_arp_rx_fsm_state = Signal(4)
+		self.core_arp_tx_fsm_state = Signal(4)
+		self.core_arp_table_fsm_state = Signal(4)
 
 		debug = (
-			self.udp.mac.core.sink.stb,
-			self.udp.mac.core.sink.sop,
-			self.udp.mac.core.sink.eop,
-			self.udp.mac.core.sink.ack,
-			self.udp.mac.core.sink.data,
+			self.core.mac.core.sink.stb,
+			self.core.mac.core.sink.sop,
+			self.core.mac.core.sink.eop,
+			self.core.mac.core.sink.ack,
+			self.core.mac.core.sink.data,
 
-			self.udp.mac.core.source.stb,
-			self.udp.mac.core.source.sop,
-			self.udp.mac.core.source.eop,
-			self.udp.mac.core.source.ack,
-			self.udp.mac.core.source.data,
+			self.core.mac.core.source.stb,
+			self.core.mac.core.source.sop,
+			self.core.mac.core.source.eop,
+			self.core.mac.core.source.ack,
+			self.core.mac.core.source.data,
 
-			self.udp.icmp.echo.sink.stb,
-			self.udp.icmp.echo.sink.sop,
-			self.udp.icmp.echo.sink.eop,
-			self.udp.icmp.echo.sink.ack,
-			self.udp.icmp.echo.sink.data,
+			self.core.icmp.echo.sink.stb,
+			self.core.icmp.echo.sink.sop,
+			self.core.icmp.echo.sink.eop,
+			self.core.icmp.echo.sink.ack,
+			self.core.icmp.echo.sink.data,
 
-			self.udp.icmp.echo.source.stb,
-			self.udp.icmp.echo.source.sop,
-			self.udp.icmp.echo.source.eop,
-			self.udp.icmp.echo.source.ack,
-			self.udp.icmp.echo.source.data,
+			self.core.icmp.echo.source.stb,
+			self.core.icmp.echo.source.sop,
+			self.core.icmp.echo.source.eop,
+			self.core.icmp.echo.source.ack,
+			self.core.icmp.echo.source.data,
 
-			self.udp.ip.crossbar.master.sink.stb,
-			self.udp.ip.crossbar.master.sink.sop,
-			self.udp.ip.crossbar.master.sink.eop,
-			self.udp.ip.crossbar.master.sink.ack,
-			self.udp.ip.crossbar.master.sink.data,
-			self.udp.ip.crossbar.master.sink.ip_address,
-			self.udp.ip.crossbar.master.sink.protocol,
+			self.core.ip.crossbar.master.sink.stb,
+			self.core.ip.crossbar.master.sink.sop,
+			self.core.ip.crossbar.master.sink.eop,
+			self.core.ip.crossbar.master.sink.ack,
+			self.core.ip.crossbar.master.sink.data,
+			self.core.ip.crossbar.master.sink.ip_address,
+			self.core.ip.crossbar.master.sink.protocol,
 
 			self.phy.sink.stb,
 			self.phy.sink.sop,
@@ -177,15 +186,15 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 			self.phy.source.ack,
 			self.phy.source.data,
 
-			self.udp_icmp_rx_fsm_state,
-			self.udp_icmp_tx_fsm_state,
-			self.udp_udp_rx_fsm_state,
-			self.udp_udp_tx_fsm_state,
-			self.udp_ip_rx_fsm_state,
-			self.udp_ip_tx_fsm_state,
-			self.udp_arp_rx_fsm_state,
-			self.udp_arp_tx_fsm_state,
-			self.udp_arp_table_fsm_state,
+			self.core_icmp_rx_fsm_state,
+			self.core_icmp_tx_fsm_state,
+			self.core_udp_rx_fsm_state,
+			self.core_udp_tx_fsm_state,
+			self.core_ip_rx_fsm_state,
+			self.core_ip_tx_fsm_state,
+			self.core_arp_rx_fsm_state,
+			self.core_arp_tx_fsm_state,
+			self.core_arp_table_fsm_state,
 		)
 
 		self.submodules.la = LiteScopeLA(debug, 2048)
@@ -195,15 +204,15 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 	def do_finalize(self):
 		UDPSoC.do_finalize(self)
 		self.comb += [
-			self.udp_icmp_rx_fsm_state.eq(self.udp.icmp.rx.fsm.state),
-			self.udp_icmp_tx_fsm_state.eq(self.udp.icmp.tx.fsm.state),
-			self.udp_udp_rx_fsm_state.eq(self.udp.udp.rx.fsm.state),
-			self.udp_udp_tx_fsm_state.eq(self.udp.udp.tx.fsm.state),
-			self.udp_ip_rx_fsm_state.eq(self.udp.ip.rx.fsm.state),
-			self.udp_ip_tx_fsm_state.eq(self.udp.ip.tx.fsm.state),
-			self.udp_arp_rx_fsm_state.eq(self.udp.arp.rx.fsm.state),
-			self.udp_arp_tx_fsm_state.eq(self.udp.arp.tx.fsm.state),
-			self.udp_arp_table_fsm_state.eq(self.udp.arp.table.fsm.state)
+			self.core_icmp_rx_fsm_state.eq(self.core.icmp.rx.fsm.state),
+			self.core_icmp_tx_fsm_state.eq(self.core.icmp.tx.fsm.state),
+			self.core_udp_rx_fsm_state.eq(self.core.udp.rx.fsm.state),
+			self.core_udp_tx_fsm_state.eq(self.core.udp.tx.fsm.state),
+			self.core_ip_rx_fsm_state.eq(self.core.ip.rx.fsm.state),
+			self.core_ip_tx_fsm_state.eq(self.core.ip.tx.fsm.state),
+			self.core_arp_rx_fsm_state.eq(self.core.arp.rx.fsm.state),
+			self.core_arp_tx_fsm_state.eq(self.core.arp.tx.fsm.state),
+			self.core_arp_table_fsm_state.eq(self.core.arp.table.fsm.state)
 		]
 
 	def exit(self, platform):

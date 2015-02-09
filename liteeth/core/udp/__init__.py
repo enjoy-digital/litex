@@ -1,6 +1,7 @@
 from liteeth.common import *
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
+from liteeth.core.udp.crossbar import LiteEthUDPCrossbar
 
 class LiteEthUDPDepacketizer(LiteEthDepacketizer):
 	def __init__(self):
@@ -108,7 +109,7 @@ class LiteEthUDPRX(Module):
 		)
 
 class LiteEthUDP(Module):
-	def __init__(self, ip, ip_address, with_loopback):
+	def __init__(self, ip, ip_address):
 		self.submodules.tx = tx = LiteEthUDPTX(ip_address)
 		self.submodules.rx = rx = LiteEthUDPRX(ip_address)
 		ip_port = ip.crossbar.get_port(udp_protocol)
@@ -116,11 +117,8 @@ class LiteEthUDP(Module):
 			Record.connect(tx.source, ip_port.sink),
 			Record.connect(ip_port.source, rx.sink)
 		]
-		if with_loopback:
-			self.submodules.fifo = fifo = SyncFIFO(eth_udp_user_description(8), 2048, buffered=True)
-			self.comb += [
-				Record.connect(rx.source, fifo.sink),
-				Record.connect(fifo.source, tx.sink)
-			]
-		else:
-			self.sink, self.source = self.tx.sink, self.rx.source
+		self.submodules.crossbar = crossbar = LiteEthUDPCrossbar()
+		self.comb += [
+			Record.connect(crossbar.master.source, tx.sink),
+			Record.connect(rx.source, crossbar.master.sink)
+		]
