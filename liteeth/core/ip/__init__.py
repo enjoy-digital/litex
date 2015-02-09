@@ -20,24 +20,45 @@ class LiteEthIPV4Packetizer(LiteEthPacketizer):
 			ipv4_header_len)
 
 class LiteEthIPV4Checksum(Module):
-	def __init__(self, skip_checksum=False):
+	def __init__(self, words_per_clock_cycle=1, skip_checksum=False):
+		self.reset = Signal() # XXX FIXME InsertReset generates incorrect verilog
+		self.ce = Signal()    # XXX FIXME InsertCE generates incorrect verilog
 		self.header = Signal(ipv4_header_len*8)
 		self.value = Signal(16)
+		self.done = Signal()
 		###
 		s = Signal(17)
 		r = Signal(17)
+		n_cycles = 0
 		for i in range(ipv4_header_len//2):
 			if skip_checksum and (i == ipv4_header["checksum"].byte//2):
 				pass
 			else:
 				s_next = Signal(17)
 				r_next = Signal(17)
-				self.comb += [
-					s_next.eq(r + self.header[i*16:(i+1)*16]),
-					r_next.eq(Cat(s_next[:16]+s_next[16], Signal()))
-				]
+				self.comb += s_next.eq(r + self.header[i*16:(i+1)*16])
+				r_next_eq = r_next.eq(Cat(s_next[:16]+s_next[16], Signal()))
+				if (i%words_per_clock_cycle) != 0:
+					self.comb += r_next_eq
+				else:
+					self.sync += \
+						If(self.reset,
+							r_next.eq(0)
+						).Elif(self.ce & ~self.done,
+							r_next_eq
+						)
+					n_cycles += 1
 				s, r = s_next, r_next
 		self.comb += self.value.eq(~Cat(r[8:16], r[:8]))
+
+		if not skip_checksum:
+			n_cycles += 1
+		self.submodules.counter = counter = Counter(max=n_cycles+1)
+		self.comb += [
+			counter.reset.eq(self.reset),
+			counter.ce.eq(self.ce & ~self.done),
+			self.done.eq(counter.value == n_cycles)
+		]
 
 class LiteEthIPTX(Module):
 	def __init__(self, mac_address, ip_address, arp_table):
@@ -45,12 +66,18 @@ class LiteEthIPTX(Module):
 		self.source = source = Source(eth_mac_description(8))
 		self.target_unreachable = Signal()
 		###
+		self.submodules.checksum = checksum = LiteEthIPV4Checksum(skip_checksum=True)
+		self.comb += [
+			checksum.ce.eq(sink.stb & sink.sop),
+			checksum.reset.eq(source.stb & source.eop)
+		]
+
 		self.submodules.packetizer = packetizer = LiteEthIPV4Packetizer()
 		self.comb += [
-			packetizer.sink.stb.eq(sink.stb),
+			packetizer.sink.stb.eq(sink.stb & checksum.done),
 			packetizer.sink.sop.eq(sink.sop),
 			packetizer.sink.eop.eq(sink.eop),
-			sink.ack.eq(packetizer.sink.ack),
+			sink.ack.eq(packetizer.sink.ack & checksum.done),
 			packetizer.sink.target_ip.eq(sink.ip_address),
 			packetizer.sink.protocol.eq(sink.protocol),
 			packetizer.sink.total_length.eq(sink.length + (0x5*4)),
@@ -59,11 +86,7 @@ class LiteEthIPTX(Module):
 			packetizer.sink.identification.eq(0),
 			packetizer.sink.ttl.eq(0x80),
 			packetizer.sink.sender_ip.eq(ip_address),
-			packetizer.sink.data.eq(sink.data)
-		]
-
-		self.submodules.checksum = checksum = LiteEthIPV4Checksum(skip_checksum=True)
-		self.comb += [
+			packetizer.sink.data.eq(sink.data),
 			checksum.header.eq(packetizer.header),
 			packetizer.sink.checksum.eq(checksum.value)
 		]
@@ -125,7 +148,11 @@ class LiteEthIPRX(Module):
 		self.comb += Record.connect(sink, depacketizer.sink)
 
 		self.submodules.checksum = checksum = LiteEthIPV4Checksum(skip_checksum=False)
-		self.comb += checksum.header.eq(depacketizer.header)
+		self.comb += [
+			checksum.header.eq(depacketizer.header),
+			checksum.reset.eq(depacketizer.source.stb & depacketizer.source.eop),
+			checksum.ce.eq(depacketizer.source.stb & depacketizer.source.sop)
+		]
 
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
@@ -145,10 +172,12 @@ class LiteEthIPRX(Module):
 		)
 
 		fsm.act("CHECK",
-			If(valid,
-				NextState("PRESENT")
-			).Else(
-				NextState("DROP")
+			If(checksum.done,
+				If(valid,
+					NextState("PRESENT")
+				).Else(
+					NextState("DROP")
+				)
 			)
 		)
 		self.comb += [
