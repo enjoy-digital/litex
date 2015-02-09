@@ -113,12 +113,12 @@ class LiteEthICMPEcho(Module):
 		self.sink = sink = Sink(eth_icmp_user_description(8))
 		self.source = source = Source(eth_icmp_user_description(8))
 		###
-		self.submodules.fifo = fifo = SyncFIFO(eth_icmp_user_description(8), 512, buffered=True)
+		self.submodules.buffer = PacketBuffer(eth_icmp_user_description(8), 128, 2)
 		self.comb += [
-			Record.connect(sink, fifo.sink),
-			Record.connect(fifo.source, source),
+			Record.connect(sink, self.buffer.sink),
+			Record.connect(self.buffer.source, source),
 			self.source.msgtype.eq(0x0),
-			self.source.checksum.eq(~((~fifo.source.checksum)-0x0800))
+			self.source.checksum.eq(~((~self.buffer.source.checksum)-0x0800))
 		]
 
 class LiteEthICMP(Module):
