@@ -69,7 +69,7 @@ class LiteEthIPTX(Module):
 		self.submodules.checksum = checksum = LiteEthIPV4Checksum(skip_checksum=True)
 		self.comb += [
 			checksum.ce.eq(sink.stb & sink.sop),
-			checksum.reset.eq(source.stb & source.eop)
+			checksum.reset.eq(source.stb & source.eop & source.ack)
 		]
 
 		self.submodules.packetizer = packetizer = LiteEthIPV4Packetizer()

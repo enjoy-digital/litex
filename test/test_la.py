@@ -12,10 +12,13 @@ conditions = {}
 conditions = {
 	"udpsocdevel_mac_rx_cdc_source_stb"	: 1
 }
+conditions = {
+	"core_udp_tx_fsm_state"	: 1
+}
 la.configure_term(port=0, cond=conditions)
 la.configure_sum("term")
 # Run Logic Analyzer
-la.run(offset=64, length=1024)
+la.run(offset=2048, length=4000)
 
 while not la.done():
 	pass

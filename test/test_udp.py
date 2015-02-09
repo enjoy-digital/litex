@@ -51,7 +51,7 @@ rx_sock.bind(("", udp_port))
 def receive():
 	rx_seed = 0
 	while rx_seed < test_size:
-		data, addr = rx_sock.recvfrom(1024)
+		data, addr = rx_sock.recvfrom(8192)
 		rx_packet = []
 		for byte in data:
 			rx_packet.append(int(byte))
@@ -64,7 +64,7 @@ def send():
 	while tx_seed < test_size:
 		tx_packet, tx_seed = generate_packet(tx_seed, 1024)
 		tx_sock.sendto(bytes(tx_packet), (fpga_ip, udp_port))
-		time.sleep(0.001) # XXX: FIXME
+		time.sleep(0.001) # XXX: FIXME, Python limitation?
 
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
@@ -73,7 +73,7 @@ send_thread = threading.Thread(target=send)
 send_thread.start()
 
 try:
-	send_thread.join()
-	receive_thread.join()
+	send_thread.join(10)
+	receive_thread.join(0.1)
 except KeyboardInterrupt:
 	pass

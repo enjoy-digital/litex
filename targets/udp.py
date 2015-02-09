@@ -116,11 +116,10 @@ class UDPSoC(GenSoC, AutoCSR):
 
 		# Create loopback on UDP port 6000
 		loopback_port = self.core.udp.crossbar.get_port(6000)
-		loopback_fifo = SyncFIFO(eth_udp_user_description(8), 8192, buffered=True)
-		self.submodules += loopback_fifo
+		self.submodules.loopback_buffer = PacketBuffer(eth_udp_user_description(8), 8192, 8)
 		self.comb += [
-			Record.connect(loopback_port.source, loopback_fifo.sink),
-			Record.connect(loopback_fifo.source, loopback_port.sink)
+			Record.connect(loopback_port.source, self.loopback_buffer.sink),
+			Record.connect(self.loopback_buffer.source, loopback_port.sink)
 		]
 
 class UDPSoCDevel(UDPSoC, AutoCSR):
@@ -174,6 +173,18 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 			self.core.ip.crossbar.master.sink.ip_address,
 			self.core.ip.crossbar.master.sink.protocol,
 
+			self.loopback_buffer.sink.stb,
+			self.loopback_buffer.sink.sop,
+			self.loopback_buffer.sink.eop,
+			self.loopback_buffer.sink.ack,
+			self.loopback_buffer.sink.data,
+
+			self.loopback_buffer.source.stb,
+			self.loopback_buffer.source.sop,
+			self.loopback_buffer.source.eop,
+			self.loopback_buffer.source.ack,
+			self.loopback_buffer.source.data,
+
 			self.phy.sink.stb,
 			self.phy.sink.sop,
 			self.phy.sink.eop,
@@ -197,7 +208,7 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 			self.core_arp_table_fsm_state,
 		)
 
-		self.submodules.la = LiteScopeLA(debug, 2048)
+		self.submodules.la = LiteScopeLA(debug, 4096)
 		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
 		atexit.register(self.exit, platform)
 
