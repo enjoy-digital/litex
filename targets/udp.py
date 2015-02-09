@@ -116,7 +116,7 @@ class UDPSoC(GenSoC, AutoCSR):
 
 		# Create loopback on UDP port 6000
 		loopback_port = self.core.udp.crossbar.get_port(6000)
-		loopback_fifo = SyncFIFO(eth_udp_user_description(8), 2048, buffered=True)
+		loopback_fifo = SyncFIFO(eth_udp_user_description(8), 8192, buffered=True)
 		self.submodules += loopback_fifo
 		self.comb += [
 			Record.connect(loopback_port.source, loopback_fifo.sink),
