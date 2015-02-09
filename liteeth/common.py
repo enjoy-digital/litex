@@ -66,6 +66,15 @@ ipv4_header = {
 	"target_ip":		HField(16,  0, 32)
 }
 
+icmp_header_len = 8
+icmp_header = {
+	"msgtype":		HField( 0,  0, 8),
+	"code":			HField( 1,  0, 8),
+	"checksum":		HField( 2,  0, 16),
+	"quench":		HField( 4,  0, 32)
+}
+icmp_protocol = 0x01
+
 udp_header_len = 8
 udp_header = {
 	"src_port":		HField( 0,  0, 16),
@@ -76,14 +85,27 @@ udp_header = {
 
 udp_protocol = 0x11
 
-icmp_header_len = 8
-icmp_header = {
-	"msgtype":		HField( 0,  0, 8),
-	"code":			HField( 1,  0, 8),
-	"checksum":		HField( 2,  0, 16),
-	"quench":		HField( 4,  0, 32)
-}
-icmp_protocol = 0x01
+etherbone_magic = 0x4e6f
+etherbone_version = 1
+etherbone_header_len = 8
+etherbone_header = [
+	"magic":		HField( 0,  0, 16),
+	"portsize":		HField( 2,  0, 4),
+	"addrsize":		HField( 2,  4, 4),
+	"pf":			HField( 3,  0, 1),
+	"version":		HField( 4,  0, 4),
+
+	"wff":			HField( 5,  1, 1),
+	"wca":			HField( 5,  2, 1),
+	"cyc":			HField( 5,  3, 1),
+	"rff":			HField( 5,  5, 1),
+	"rca":			HField( 5,  6, 1),
+	"bca":			HField( 5,  7, 1),
+
+	"rcount":		HField( 6,  0, 8),
+
+	"wcount":		HField( 7,  0, 8)
+]
 
 def reverse_bytes(v):
 	n = math.ceil(flen(v)/8)
@@ -155,6 +177,22 @@ def convert_ip(s):
 		ip += int(e)
 	return ip
 
+def eth_icmp_description(dw):
+	layout = _layout_from_header(icmp_header) + [
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(layout, packetized=True)
+
+def eth_icmp_user_description(dw):
+	layout = _layout_from_header(icmp_header) + [
+		("ip_address", 32),
+		("length", 16),
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(layout, packetized=True)
+
 def eth_udp_description(dw):
 	layout = _layout_from_header(udp_header) + [
 		("data", dw),
@@ -173,21 +211,31 @@ def eth_udp_user_description(dw):
 	]
 	return EndpointDescription(layout, packetized=True)
 
-def eth_icmp_description(dw):
-	layout = _layout_from_header(icmp_header) + [
+def eth_etherbone_description(dw):
+	layout = _layout_from_header(etherbone_header) + [
 		("data", dw),
 		("error", dw//8)
 	]
 	return EndpointDescription(layout, packetized=True)
 
-def eth_icmp_user_description(dw):
-	layout = _layout_from_header(icmp_header) + [
-		("ip_address", 32),
-		("length", 16),
+def eth_etherbone_description(dw):
+	layout = _layout_from_header(etherbone_header) + [
 		("data", dw),
 		("error", dw//8)
 	]
 	return EndpointDescription(layout, packetized=True)
+
+def eth_etherbone_user_description(dw):
+	layout = [
+		("length", 16),
+		("ip_address", 32),
+		("wcount", 8),
+		("rcount", 8),
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(layout, packetized=True)
+
 
 # Generic modules
 @DecorateModule(InsertReset)
