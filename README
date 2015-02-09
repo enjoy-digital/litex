@@ -9,6 +9,11 @@
        A small footprint and configurable Ethernet core
                   developed by EnjoyDigital
 
+[> Doc
+---------
+HTML : www.enjoy-digital.fr/litex/liteeth/
+PDF  : www.enjoy-digital.fr/litex/liteeth.pdf
+
 [> Intro
 ---------
 LiteEth provides a small footprint and configurable Ethernet core.
@@ -34,6 +39,7 @@ by generating the verilog rtl that you will use as a standard core.
 [> Features
 -----------
 - Ethernet MAC with various interfaces and various PHYs (GMII, MII, Loopback)
+- Hardware UDP/IP stack with ARP and ICMP
 
 [> Possibles improvements
 -------------------------
