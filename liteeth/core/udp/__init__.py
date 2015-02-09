@@ -72,7 +72,7 @@ class LiteEthUDPRX(Module):
 			)
 		)
 		valid = Signal()
-		self.comb += valid.eq(
+		self.sync += valid.eq(
 			depacketizer.source.stb &
 			(sink.protocol == udp_protocol)
 		)

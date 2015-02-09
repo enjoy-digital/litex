@@ -7,8 +7,8 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import chooser
-from migen.flow.actor import EndpointDescription
-from migen.flow.actor import Sink, Source
+from migen.flow.actor import *
+from migen.flow.plumbing import Buffer
 from migen.actorlib.structuring import Converter, Pipeline
 from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
 from migen.bank.description import *

@@ -136,7 +136,7 @@ class LiteEthIPRX(Module):
 			)
 		)
 		valid = Signal()
-		self.comb += valid.eq(
+		self.sync += valid.eq(
 			depacketizer.source.stb &
 			(depacketizer.source.target_ip == ip_address) &
 			(depacketizer.source.version == 0x4) &

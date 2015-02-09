@@ -71,7 +71,7 @@ class LiteEthICMPRX(Module):
 			)
 		)
 		valid = Signal()
-		self.comb += valid.eq(
+		self.sync += valid.eq(
 			depacketizer.source.stb &
 			(sink.protocol == icmp_protocol)
 		)

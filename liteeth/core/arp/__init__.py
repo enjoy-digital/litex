@@ -96,7 +96,7 @@ class LiteEthARPRX(Module):
 			)
 		)
 		valid = Signal()
-		self.comb += valid.eq(
+		self.sync += valid.eq(
 			depacketizer.source.stb &
 			(depacketizer.source.hwtype == arp_hwtype_ethernet) &
 			(depacketizer.source.proto == arp_proto_ip) &
