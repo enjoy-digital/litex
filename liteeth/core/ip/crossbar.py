@@ -13,7 +13,7 @@ class LiteEthIPV4Crossbar(Module):
 	def get_port(self, protocol):
 		port = LiteEthIPV4UserPort(8)
 		if protocol in self.users.keys():
-			raise ValueError("Protocol {} already used".format(protocol))
+			raise ValueError("Protocol {0:#x} already assigned".format(protocol))
 		self.users[protocol] = port
 		return port
 

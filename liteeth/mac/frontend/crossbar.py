@@ -13,7 +13,7 @@ class LiteEthMACCrossbar(Module):
 	def get_port(self, ethernet_type):
 		port = LiteEthMACUserPort(8)
 		if ethernet_type in self.users.keys():
-			raise ValueError("Ethernet type {} already used".format(ethernet_type))
+			raise ValueError("Ethernet type {0:#x} already assigned".format(ethernet_type))
 		self.users[ethernet_type] = port
 		return port
 

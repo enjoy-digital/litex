@@ -20,64 +20,60 @@ class LiteEthUDPPacketizer(LiteEthPacketizer):
 
 class LiteEthUDPTX(Module):
 	def __init__(self, ip_address):
-		self.sink = Sink(eth_udp_user_description(8))
-		self.source = Source(eth_ipv4_user_description(8))
+		self.sink = sink = Sink(eth_udp_user_description(8))
+		self.source = source = Source(eth_ipv4_user_description(8))
 		###
-		packetizer = LiteEthUDPPacketizer()
-		self.submodules += packetizer
+		self.submodules.packetizer = packetizer = LiteEthUDPPacketizer()
 		self.comb += [
-			packetizer.sink.stb.eq(self.sink.stb),
-			packetizer.sink.sop.eq(self.sink.sop),
-			packetizer.sink.eop.eq(self.sink.eop),
-			self.sink.ack.eq(packetizer.sink.ack),
-			packetizer.sink.src_port.eq(self.sink.src_port),
-			packetizer.sink.dst_port.eq(self.sink.dst_port),
-			packetizer.sink.length.eq(self.sink.length + udp_header_len),
-			packetizer.sink.checksum.eq(0),
-			packetizer.sink.data.eq(self.sink.data)
+			packetizer.sink.stb.eq(sink.stb),
+			packetizer.sink.sop.eq(sink.sop),
+			packetizer.sink.eop.eq(sink.eop),
+			sink.ack.eq(packetizer.sink.ack),
+			packetizer.sink.src_port.eq(sink.src_port),
+			packetizer.sink.dst_port.eq(sink.dst_port),
+			packetizer.sink.length.eq(sink.length + udp_header_len),
+			packetizer.sink.checksum.eq(0), # Disabled (MAC CRC is enough)
+			packetizer.sink.data.eq(sink.data)
 		]
-		sink = packetizer.source
 
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
-			sink.ack.eq(1),
-			If(sink.stb & sink.sop,
-				sink.ack.eq(0),
+			packetizer.source.ack.eq(1),
+			If(packetizer.source.stb & packetizer.source.sop,
+				packetizer.source.ack.eq(0),
 				NextState("SEND")
 			)
 		)
 		fsm.act("SEND",
-			Record.connect(packetizer.source, self.source),
-			self.source.length.eq(packetizer.sink.length),
-			self.source.protocol.eq(udp_protocol),
-			self.source.ip_address.eq(self.sink.ip_address),
-			If(self.source.stb & self.source.eop & self.source.ack,
+			Record.connect(packetizer.source, source),
+			source.length.eq(packetizer.sink.length),
+			source.protocol.eq(udp_protocol),
+			source.ip_address.eq(sink.ip_address),
+			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)
 		)
 
 class LiteEthUDPRX(Module):
 	def __init__(self, ip_address):
-		self.sink = Sink(eth_ipv4_user_description(8))
+		self.sink = sink = Sink(eth_ipv4_user_description(8))
 		self.source = source = Source(eth_udp_user_description(8))
 		###
-		depacketizer = LiteEthUDPDepacketizer()
-		self.submodules += depacketizer
-		self.comb += Record.connect(self.sink, depacketizer.sink)
-		sink = depacketizer.source
+		self.submodules.depacketizer = depacketizer = LiteEthUDPDepacketizer()
+		self.comb += Record.connect(sink, depacketizer.sink)
 
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
-			sink.ack.eq(1),
-			If(sink.stb & sink.sop,
-				sink.ack.eq(0),
+			depacketizer.source.ack.eq(1),
+			If(depacketizer.source.stb & depacketizer.source.sop,
+				depacketizer.source.ack.eq(0),
 				NextState("CHECK")
 			)
 		)
 		valid = Signal()
 		self.comb += valid.eq(
-			sink.stb &
-			(self.sink.protocol == udp_protocol)
+			depacketizer.source.stb &
+			(sink.protocol == udp_protocol)
 		)
 
 		fsm.act("CHECK",
@@ -88,43 +84,43 @@ class LiteEthUDPRX(Module):
 			)
 		)
 		self.comb += [
-			source.sop.eq(sink.sop),
-			source.eop.eq(sink.eop),
-			source.src_port.eq(sink.src_port),
-			source.dst_port.eq(sink.dst_port),
-			source.ip_address.eq(self.sink.ip_address),
-			source.length.eq(sink.length - udp_header_len),
-			source.data.eq(sink.data),
-			source.error.eq(sink.error)
+			source.sop.eq(depacketizer.source.sop),
+			source.eop.eq(depacketizer.source.eop),
+			source.src_port.eq(depacketizer.source.src_port),
+			source.dst_port.eq(depacketizer.source.dst_port),
+			source.ip_address.eq(sink.ip_address),
+			source.length.eq(depacketizer.source.length - udp_header_len),
+			source.data.eq(depacketizer.source.data),
+			source.error.eq(depacketizer.source.error)
 		]
 		fsm.act("PRESENT",
-			source.stb.eq(sink.stb),
-			sink.ack.eq(source.ack),
+			source.stb.eq(depacketizer.source.stb),
+			depacketizer.source.ack.eq(source.ack),
 			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)
 		)
 		fsm.act("DROP",
-			sink.ack.eq(1),
-			If(sink.stb & sink.eop & sink.ack,
+			depacketizer.source.ack.eq(1),
+			If(depacketizer.source.stb & depacketizer.source.eop & depacketizer.source.ack,
 				NextState("IDLE")
 			)
 		)
 
 class LiteEthUDP(Module):
 	def __init__(self, ip, ip_address, with_loopback):
-		self.submodules.tx = LiteEthUDPTX(ip_address)
-		self.submodules.rx = LiteEthUDPRX(ip_address)
+		self.submodules.tx = tx = LiteEthUDPTX(ip_address)
+		self.submodules.rx = rx = LiteEthUDPRX(ip_address)
 		ip_port = ip.crossbar.get_port(udp_protocol)
 		self.comb += [
-			Record.connect(self.tx.source, ip_port.sink),
-			Record.connect(ip_port.source, self.rx.sink)
+			Record.connect(tx.source, ip_port.sink),
+			Record.connect(ip_port.source, rx.sink)
 		]
 		if with_loopback:
-			self.submodules.fifo = SyncFIFO(eth_udp_user_description(8), 2048, buffered=True)
+			self.submodules.fifo = fifo = SyncFIFO(eth_udp_user_description(8), 2048, buffered=True)
 			self.comb += [
-				Record.connect(self.rx.source, self.fifo.sink),
-				Record.connect(self.fifo.source, self.tx.sink)
+				Record.connect(rx.source, fifo.sink),
+				Record.connect(fifo.source, tx.sink)
 			]
 		else:
 			self.sink, self.source = self.tx.sink, self.rx.source

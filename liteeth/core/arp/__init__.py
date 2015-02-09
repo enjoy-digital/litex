@@ -28,11 +28,9 @@ class LiteEthARPPacketizer(LiteEthPacketizer):
 class LiteEthARPTX(Module):
 	def __init__(self, mac_address, ip_address):
 		self.sink = sink = Sink(_arp_table_layout)
-		self.source = Source(eth_mac_description(8))
+		self.source = source = Source(eth_mac_description(8))
 		###
-		packetizer = LiteEthARPPacketizer()
-		self.submodules += packetizer
-		source = packetizer.sink
+		self.submodules.packetizer = packetizer = LiteEthARPPacketizer()
 
 		counter = Counter(max=max(arp_header_len, eth_min_len))
 		self.submodules += counter
@@ -47,34 +45,35 @@ class LiteEthARPTX(Module):
 			)
 		)
 		self.comb += [
-			source.sop.eq(counter.value == 0),
-			source.eop.eq(counter.value == max(arp_header_len, eth_min_len)-1),
-			source.hwtype.eq(arp_hwtype_ethernet),
-			source.proto.eq(arp_proto_ip),
-			source.hwsize.eq(6),
-			source.protosize.eq(4),
-			source.sender_mac.eq(mac_address),
-			source.sender_ip.eq(ip_address),
+			packetizer.sink.sop.eq(counter.value == 0),
+			packetizer.sink.eop.eq(counter.value == max(arp_header_len, eth_min_len)-1),
+			packetizer.sink.hwtype.eq(arp_hwtype_ethernet),
+			packetizer.sink.proto.eq(arp_proto_ip),
+			packetizer.sink.hwsize.eq(6),
+			packetizer.sink.protosize.eq(4),
+			packetizer.sink.sender_mac.eq(mac_address),
+			packetizer.sink.sender_ip.eq(ip_address),
 			If(sink.reply,
-				source.opcode.eq(arp_opcode_reply),
-				source.target_mac.eq(sink.mac_address),
-				source.target_ip.eq(sink.ip_address)
+				packetizer.sink.opcode.eq(arp_opcode_reply),
+				packetizer.sink.target_mac.eq(sink.mac_address),
+				packetizer.sink.target_ip.eq(sink.ip_address)
 			).Elif(sink.request,
-				source.opcode.eq(arp_opcode_request),
-				source.target_mac.eq(0xffffffffffff),
-				source.target_ip.eq(sink.ip_address)
+
+				packetizer.sink.opcode.eq(arp_opcode_request),
+				packetizer.sink.target_mac.eq(0xffffffffffff),
+				packetizer.sink.target_ip.eq(sink.ip_address)
 			)
 		]
 		fsm.act("SEND",
-			source.stb.eq(1),
-			Record.connect(packetizer.source, self.source),
-			self.source.target_mac.eq(source.target_mac),
-			self.source.sender_mac.eq(mac_address),
-			self.source.ethernet_type.eq(ethernet_type_arp),
-			If(self.source.stb & self.source.ack,
-				sink.ack.eq(source.eop),
+			packetizer.sink.stb.eq(1),
+			Record.connect(packetizer.source, source),
+			source.target_mac.eq(packetizer.sink.target_mac),
+			source.sender_mac.eq(mac_address),
+			source.ethernet_type.eq(ethernet_type_arp),
+			If(source.stb & source.ack,
 				counter.ce.eq(1),
-				If(self.source.eop,
+				If(source.eop,
+					sink.ack.eq(1),
 					NextState("IDLE")
 				)
 			)
@@ -82,41 +81,39 @@ class LiteEthARPTX(Module):
 
 class LiteEthARPRX(Module):
 	def __init__(self, mac_address, ip_address):
-		self.sink = Sink(eth_mac_description(8))
+		self.sink = sink = Sink(eth_mac_description(8))
 		self.source = source = Source(_arp_table_layout)
 		###
-		depacketizer = LiteEthARPDepacketizer()
-		self.submodules += depacketizer
-		self.comb += Record.connect(self.sink, depacketizer.sink)
-		sink = depacketizer.source
+		self.submodules.depacketizer = depacketizer = LiteEthARPDepacketizer()
+		self.comb += Record.connect(sink, depacketizer.sink)
 
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
-			sink.ack.eq(1),
-			If(sink.stb & sink.sop,
-				sink.ack.eq(0),
+			depacketizer.source.ack.eq(1),
+			If(depacketizer.source.stb & depacketizer.source.sop,
+				depacketizer.source.ack.eq(0),
 				NextState("CHECK")
 			)
 		)
 		valid = Signal()
 		self.comb += valid.eq(
-			sink.stb &
-			(sink.hwtype == arp_hwtype_ethernet) &
-			(sink.proto == arp_proto_ip) &
-			(sink.hwsize == 6) &
-			(sink.protosize == 4) &
-			(sink.target_ip == ip_address)
+			depacketizer.source.stb &
+			(depacketizer.source.hwtype == arp_hwtype_ethernet) &
+			(depacketizer.source.proto == arp_proto_ip) &
+			(depacketizer.source.hwsize == 6) &
+			(depacketizer.source.protosize == 4) &
+			(depacketizer.source.target_ip == ip_address)
 		)
 		reply = Signal()
 		request = Signal()
-		self.comb += Case(sink.opcode, {
+		self.comb += Case(depacketizer.source.opcode, {
 			arp_opcode_request	:	[request.eq(1)],
 			arp_opcode_reply	:	[reply.eq(1)],
 			"default"			:	[]
 			})
 		self.comb += [
-			source.ip_address.eq(sink.sender_ip),
-			source.mac_address.eq(sink.sender_mac)
+			source.ip_address.eq(depacketizer.source.sender_ip),
+			source.mac_address.eq(depacketizer.source.sender_mac)
 		]
 		fsm.act("CHECK",
 			If(valid,
@@ -127,8 +124,8 @@ class LiteEthARPRX(Module):
 			NextState("TERMINATE")
 		),
 		fsm.act("TERMINATE",
-			sink.ack.eq(1),
-			If(sink.stb & sink.eop,
+			depacketizer.source.ack.eq(1),
+			If(depacketizer.source.stb & depacketizer.source.eop,
 				NextState("IDLE")
 			)
 		)
@@ -153,8 +150,8 @@ class LiteEthARPTable(Module):
 			request_ip_address.d.eq(request.ip_address)
 		]
 
-		# Note: Only store 1 IP/MAC couple, can be improved with a real
-		# table in the future to improve performance when packet are
+		# Note: Store only 1 IP/MAC couple, can be improved with a real
+		# table in the future to improve performance when packets are
 		# targeting multiple destinations.
 		update = Signal()
 		cached_valid = Signal()
@@ -166,7 +163,7 @@ class LiteEthARPTable(Module):
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			# Note: for simplicicy, if APR table is busy response from arp_rx
-			# is lost. This is compensated by the protocol (retry)
+			# is lost. This is compensated by the protocol (retries)
 			If(sink.stb & sink.request,
 				NextState("SEND_REPLY")
 			).Elif(sink.stb & sink.reply & request_pending.q,
@@ -251,15 +248,15 @@ class LiteEthARPTable(Module):
 
 class LiteEthARP(Module):
 	def __init__(self, mac, mac_address, ip_address, clk_freq):
-		self.submodules.tx = LiteEthARPTX(mac_address, ip_address)
-		self.submodules.rx = LiteEthARPRX(mac_address, ip_address)
-		self.submodules.table = LiteEthARPTable(clk_freq)
+		self.submodules.tx = tx = LiteEthARPTX(mac_address, ip_address)
+		self.submodules.rx = rx = LiteEthARPRX(mac_address, ip_address)
+		self.submodules.table = table = LiteEthARPTable(clk_freq)
 		self.comb += [
-			Record.connect(self.rx.source, self.table.sink),
-			Record.connect(self.table.source, self.tx.sink)
+			Record.connect(rx.source, table.sink),
+			Record.connect(table.source, tx.sink)
 		]
 		mac_port = mac.crossbar.get_port(ethernet_type_arp)
 		self.comb += [
-			Record.connect(self.tx.source, mac_port.sink),
-			Record.connect(mac_port.source, self.rx.sink)
+			Record.connect(tx.source, mac_port.sink),
+			Record.connect(mac_port.source, rx.sink)
 		]
