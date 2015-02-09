@@ -12,7 +12,8 @@ class LiteEthMACCore(Module, AutoCSR):
 		# Interpacket gap
 		tx_gap_inserter = gap.LiteEthMACGap(phy.dw)
 		rx_gap_checker = gap.LiteEthMACGap(phy.dw, ack_on_gap=True)
-		self.submodules += tx_gap_inserter, rx_gap_checker
+		self.submodules += RenameClockDomains(tx_gap_inserter, "eth_tx")
+		self.submodules += RenameClockDomains(rx_gap_checker, "eth_rx")
 
 		tx_pipeline += [tx_gap_inserter]
 		rx_pipeline += [rx_gap_checker]
@@ -57,8 +58,8 @@ class LiteEthMACCore(Module, AutoCSR):
 			rx_pipeline += [rx_converter]
 
 		# Cross Domain Crossing
-		tx_cdc = AsyncFIFO(eth_phy_description(dw), 8)
-		rx_cdc = AsyncFIFO(eth_phy_description(dw), 8)
+		tx_cdc = AsyncFIFO(eth_phy_description(dw), 64)
+		rx_cdc = AsyncFIFO(eth_phy_description(dw), 64)
 		self.submodules +=  RenameClockDomains(tx_cdc, {"write": "sys", "read": "eth_tx"})
 		self.submodules +=  RenameClockDomains(rx_cdc, {"write": "eth_rx", "read": "sys"})
 
