@@ -2,6 +2,7 @@ from liteeth.common import *
 
 class LiteEthUDPMasterPort:
 	def __init__(self, dw):
+		self.dw = dw
 		self.source = Source(eth_udp_user_description(dw))
 		self.sink = Sink(eth_udp_user_description(dw))
 
@@ -13,6 +14,7 @@ class LiteEthUDPMasterPort:
 
 class LiteEthUDPSlavePort:
 	def __init__(self, dw):
+		self.dw =dw
 		self.sink = Sink(eth_udp_user_description(dw))
 		self.source = Source(eth_udp_user_description(dw))
 
