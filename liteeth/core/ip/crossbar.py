@@ -11,9 +11,9 @@ class LiteEthIPV4Crossbar(Module):
 		self.master = LiteEthIPV4MasterPort(8)
 
 	def get_port(self, protocol):
-		port = LiteEthIPV4UserPort(8)
 		if protocol in self.users.keys():
 			raise ValueError("Protocol {0:#x} already assigned".format(protocol))
+		port = LiteEthIPV4UserPort(8)
 		self.users[protocol] = port
 		return port
 
