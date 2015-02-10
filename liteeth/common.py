@@ -90,23 +90,31 @@ etherbone_version = 1
 etherbone_header_len = 8
 etherbone_header = {
 	"magic":		HField( 0,  0, 16),
-	"portsize":		HField( 2,  0, 4),
-	"addrsize":		HField( 2,  4, 4),
-	"pf":			HField( 3,  0, 1),
-	"version":		HField( 4,  0, 4),
 
-	"wff":			HField( 5,  1, 1),
-	"wca":			HField( 5,  2, 1),
-	"cyc":			HField( 5,  3, 1),
-	"rff":			HField( 5,  5, 1),
-	"rca":			HField( 5,  6, 1),
-	"bca":			HField( 5,  7, 1),
+	"version":		HField( 2,  4, 4),
+	"nr":			HField( 2,  2, 1),
+	"pr":			HField( 2,  1, 1),
+	"pf":			HField( 2,  0, 1),
 
-	"rcount":		HField( 6,  0, 8),
-
-	"wcount":		HField( 7,  0, 8)
+	"addr_size":	HField( 3,  4, 4),
+	"port_size":	HField( 3,  0, 4)
 }
 
+etherbone_record_header_len = 4
+etherbone_record_header = {
+	"bca":			HField( 0,  0, 1),
+	"rca":			HField( 0,  1, 1),
+	"rff":			HField( 0,  2, 1),
+	"cyc":			HField( 0,  4, 1),
+	"wca":			HField( 0,  5, 1),
+	"wff":			HField( 0,  6, 1),
+
+	"byte_enable":	HField( 1,  0, 8),
+
+	"wcount":		HField( 2,  0, 8),
+
+	"rcount":		HField( 3,  0, 8)
+}
 
 def reverse_bytes(v):
 	n = math.ceil(flen(v)/8)

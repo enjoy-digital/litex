@@ -9,6 +9,7 @@ model_tb:
 	$(CMD) ./model/ip.py
 	$(CMD) ./model/udp.py
 	$(CMD) ./model/icmp.py
+	$(CMD) ./model/etherbone.py
 
 mac_core_tb:
 	$(CMD) mac_core_tb.py

@@ -47,7 +47,12 @@ class UDP(Module):
 		self.tx_packet = UDPPacket()
 		self.rx_packet = UDPPacket()
 
+		self.etherbone_callback = None
+
 		self.ip.set_udp_callback(self.callback)
+
+	def set_etherbone_callback(callback):
+		self.etherbone_callback = callback
 
 	def send(self, packet):
 		packet.encode()
@@ -80,7 +85,9 @@ class UDP(Module):
 			self.process(packet)
 
 	def process(self, packet):
-		pass
+		if packet.dst_port == 22000:
+			if self.etherbone_callback is not None:
+				self.etherbone_callback(packet)
 
 if __name__ == "__main__":
 	from liteeth.test.model.dumps import *
