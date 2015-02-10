@@ -252,6 +252,15 @@ def eth_etherbone_user_description(dw):
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 
+# Generic classes
+class Port:
+	def connect(self, port):
+		r = [
+			Record.connect(self.source, port.sink),
+			Record.connect(port.source, self.sink)
+		]
+		return r
+
 # Generic modules
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
