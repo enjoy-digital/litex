@@ -34,7 +34,7 @@ class LiteEthPHYGMIIRX(Module):
 # CRG is the only Xilinx specific module.
 # TODO: use generic code or add support for others vendors
 class LiteEthPHYGMIICRG(Module, AutoCSR):
-	def __init__(self, clock_pads, pads):
+	def __init__(self, clock_pads, pads, with_hw_init_reset):
 		self._reset = CSRStorage()
 		###
 		self.clock_domains.cd_eth_rx = ClockDomain()
@@ -49,7 +49,17 @@ class LiteEthPHYGMIICRG(Module, AutoCSR):
 		]
 		self.comb += self.cd_eth_tx.clk.eq(self.cd_eth_rx.clk)
 
-		reset = self._reset.storage
+		if with_hw_init_reset:
+			reset = Signal()
+			counter_done = Signal()
+			self.submodules.counter = counter = Counter(max=512)
+			self.comb += [
+				counter_done.eq(counter.value == 256),
+				counter.ce.eq(~counter_done),
+				reset.eq(~counter_done | self._reset.storage)
+			]
+		else:
+			reset = self._reset.storage
 		self.comb += pads.rst_n.eq(~reset)
 		self.specials += [
 			AsyncResetSynchronizer(self.cd_eth_tx, reset),
@@ -57,9 +67,9 @@ class LiteEthPHYGMIICRG(Module, AutoCSR):
 		]
 
 class LiteEthPHYGMII(Module, AutoCSR):
-	def __init__(self, clock_pads, pads):
+	def __init__(self, clock_pads, pads, with_hw_init_reset=True):
 		self.dw = 8
-		self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads)
+		self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset)
 		self.submodules.tx = RenameClockDomains(LiteEthPHYGMIITX(pads), "eth_tx")
 		self.submodules.rx = RenameClockDomains(LiteEthPHYGMIIRX(pads), "eth_rx")
 		self.sink, self.source = self.tx.sink, self.rx.source
