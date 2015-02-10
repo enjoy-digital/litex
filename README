@@ -58,8 +58,10 @@ devel [AT] lists.m-labs.hk.
 ------------------
 1. Install Python3 and Xilinx's Vivado software
 
-2. Obtain Migen and install it:
-  git clone https://github.com/m-labs/migen
+2. Obtain Migen and install it: 
+(we use EnjoyDigital fork for now until new features are merged
+into upstream Migen)
+  git clone https://github.com/enjoy-digital/migen
   cd migen
   python3 setup.py install
   cd ..
