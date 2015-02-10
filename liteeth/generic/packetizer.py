@@ -14,10 +14,12 @@ class LiteEthPacketizer(Module):
 		self.source = source = Source(source_description)
 		self.header = Signal(header_length*8)
 		###
+		dw = flen(self.sink.data)
+
 		header_reg = Signal(header_length*8)
 		load = Signal()
 		shift = Signal()
-		counter = Counter(max=header_length)
+		counter = Counter(max=header_length//(dw//8))
 		self.submodules += counter
 
 		self.comb += _encode_header(header_type, self.header, sink)
@@ -25,7 +27,7 @@ class LiteEthPacketizer(Module):
 			If(load,
 				header_reg.eq(self.header)
 			).Elif(shift,
-				header_reg.eq(Cat(header_reg[8:], Signal(8)))
+				header_reg.eq(Cat(header_reg[dw:], Signal(dw)))
 			)
 		]
 
@@ -40,7 +42,7 @@ class LiteEthPacketizer(Module):
 				source.stb.eq(1),
 				source.sop.eq(1),
 				source.eop.eq(0),
-				source.data.eq(self.header[:8]),
+				source.data.eq(self.header[:dw]),
 				If(source.stb & source.ack,
 					load.eq(1),
 					NextState("SEND_HEADER"),
@@ -50,12 +52,12 @@ class LiteEthPacketizer(Module):
 		fsm.act("SEND_HEADER",
 			source.stb.eq(1),
 			source.sop.eq(0),
-			source.eop.eq(sink.eop & (counter.value == header_length-2)),
-			source.data.eq(header_reg[8:16]),
+			source.eop.eq(sink.eop & (counter.value == header_length//(dw//8)-2)),
+			source.data.eq(header_reg[dw:2*dw]),
 			If(source.stb & source.ack,
 				shift.eq(1),
 				counter.ce.eq(1),
-				If(counter.value == header_length-2,
+				If(counter.value == header_length//(dw//8)-2,
 					NextState("COPY")
 				)
 			)

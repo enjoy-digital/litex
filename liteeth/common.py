@@ -88,7 +88,7 @@ udp_protocol = 0x11
 etherbone_magic = 0x4e6f
 etherbone_version = 1
 etherbone_header_len = 8
-etherbone_header = [
+etherbone_header = {
 	"magic":		HField( 0,  0, 16),
 	"portsize":		HField( 2,  0, 4),
 	"addrsize":		HField( 2,  4, 4),
@@ -105,7 +105,8 @@ etherbone_header = [
 	"rcount":		HField( 6,  0, 8),
 
 	"wcount":		HField( 7,  0, 8)
-]
+}
+
 
 def reverse_bytes(v):
 	n = math.ceil(flen(v)/8)

@@ -14,13 +14,15 @@ class LiteEthDepacketizer(Module):
 		self.source = source = Source(source_description)
 		self.header = Signal(header_length*8)
 		###
+		dw = flen(sink.data)
+
 		shift = Signal()
-		counter = Counter(max=header_length)
+		counter = Counter(max=header_length//(dw//8))
 		self.submodules += counter
 
 		self.sync += \
 			If(shift,
-				self.header.eq(Cat(self.header[8:], sink.data))
+				self.header.eq(Cat(self.header[dw:], sink.data))
 			)
 
 		fsm = FSM(reset_state="IDLE")
@@ -39,7 +41,7 @@ class LiteEthDepacketizer(Module):
 			If(sink.stb,
 				counter.ce.eq(1),
 				shift.eq(1),
-				If(counter.value == header_length-2,
+				If(counter.value == header_length//(dw//8)-2,
 					NextState("COPY")
 				)
 			)
