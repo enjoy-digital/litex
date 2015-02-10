@@ -262,7 +262,7 @@ if __name__ == "__main__":
 	# Send packet over UDP to check against Wireshark dissector
 	import socket
 	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	sock.sendto(bytes(packet), ("192.168.1.1", 60368))
+	sock.sendto(bytes(packet), ("192.168.1.1", 20000))
 
 	packet = EtherbonePacket(packet)
 	packet.decode()
