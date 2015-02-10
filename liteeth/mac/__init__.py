@@ -1,9 +1,10 @@
 from liteeth.common import *
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
+from liteeth.generic.crossbar import LiteEthCrossbar
 from liteeth.mac.core import LiteEthMACCore
+from liteeth.mac.frontend.common import *
 from liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterface
-from liteeth.mac.frontend.crossbar import LiteEthMACCrossbar
 
 class LiteEthMACDepacketizer(LiteEthDepacketizer):
 	def __init__(self):
@@ -20,6 +21,17 @@ class LiteEthMACPacketizer(LiteEthPacketizer):
 			eth_phy_description(8),
 			mac_header,
 			mac_header_len)
+
+class LiteEthMACCrossbar(LiteEthCrossbar):
+	def __init__(self):
+		LiteEthCrossbar.__init__(self, LiteEthMACMasterPort, "ethernet_type")
+
+	def get_port(self, ethernet_type):
+		port = LiteEthMACUserPort(8)
+		if ethernet_type in self.users.keys():
+			raise ValueError("Ethernet type {0:#x} already assigned".format(ethernet_type))
+		self.users[ethernet_type] = port
+		return port
 
 class LiteEthMAC(Module, AutoCSR):
 	def __init__(self, phy, dw, interface="crossbar", endianness="big",

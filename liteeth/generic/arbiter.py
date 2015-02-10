@@ -8,7 +8,7 @@ class Arbiter(Module):
 			pass
 		elif len(sources) == 1:
 			self.grant = Signal()
-			self.comb += Record.connect(sources[0], sink)
+			self.comb += Record.connect(sources.pop(), sink)
 		else:
 			self.submodules.rr = RoundRobin(len(sources))
 			self.grant = self.rr.grant

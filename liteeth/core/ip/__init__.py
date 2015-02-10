@@ -1,7 +1,8 @@
 from liteeth.common import *
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
-from liteeth.core.ip.crossbar import LiteEthIPV4Crossbar
+from liteeth.generic.crossbar import LiteEthCrossbar
+from liteeth.core.ip.common import *
 
 class LiteEthIPV4Depacketizer(LiteEthDepacketizer):
 	def __init__(self):
@@ -18,6 +19,17 @@ class LiteEthIPV4Packetizer(LiteEthPacketizer):
 			eth_mac_description(8),
 			ipv4_header,
 			ipv4_header_len)
+
+class LiteEthIPV4Crossbar(LiteEthCrossbar):
+	def __init__(self):
+		LiteEthCrossbar.__init__(self, LiteEthIPV4MasterPort, "protocol")
+
+	def get_port(self, protocol):
+		if protocol in self.users.keys():
+			raise ValueError("Protocol {0:#x} already assigned".format(protocol))
+		port = LiteEthIPV4UserPort(8)
+		self.users[protocol] = port
+		return port
 
 class LiteEthIPV4Checksum(Module):
 	def __init__(self, words_per_clock_cycle=1, skip_checksum=False):

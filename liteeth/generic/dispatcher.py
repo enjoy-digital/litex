@@ -6,7 +6,7 @@ class Dispatcher(Module):
 		if len(sinks) == 0:
 			self.sel = Signal()
 		elif len(sinks) == 1:
-			self.comb += Record.connect(source, sinks[0])
+			self.comb += Record.connect(source, sinks.pop())
 			self.sel = Signal()
 		else:
 			if one_hot:
