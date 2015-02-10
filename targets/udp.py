@@ -114,13 +114,17 @@ class UDPSoC(GenSoC, AutoCSR):
 		self.submodules.phy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
 		self.submodules.core = LiteEthUDPIPCore(self.phy, 0x10e2d5000000, convert_ip("192.168.1.40"), clk_freq)
 
-		# Create loopback on UDP port 6000
-		loopback_port = self.core.udp.crossbar.get_port(6000)
-		self.submodules.loopback_buffer = PacketBuffer(eth_udp_user_description(8), 8192, 8)
-		self.comb += [
-			Record.connect(loopback_port.source, self.loopback_buffer.sink),
-			Record.connect(self.loopback_buffer.source, loopback_port.sink)
-		]
+		# Create loopback on UDP port 6000 (dw=8)
+		loopback_port = self.core.udp.crossbar.get_port(6000, dw=8)
+		loopback_buffer = PacketBuffer(eth_udp_user_description(8), 8192, 8)
+		self.submodules += loopback_buffer
+		self.comb += Port.connect(loopback_port, loopback_buffer)
+
+		# Create loopback on UDP port 8000 (dw=32)
+		loopback_port = self.core.udp.crossbar.get_port(8000, dw=32)
+		loopback_buffer = PacketBuffer(eth_udp_user_description(32), 2048, 8)
+		self.submodules += loopback_buffer
+		self.comb += Port.connect(loopback_port, loopback_buffer)
 
 class UDPSoCDevel(UDPSoC, AutoCSR):
 	csr_map = {
