@@ -274,6 +274,17 @@ def eth_etherbone_record_description(dw):
 	param_layout = _layout_from_header(etherbone_record_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
+def eth_etherbone_mmap_description(dw):
+	payload_layout = [
+		("data_addr", max(32, dw)),
+	]
+	param_layout = [
+		("count", 8),
+		("base_addr", 32),
+		("be", dw//8)
+	]
+	return EndpointDescription(payload_layout, param_layout, packetized=True)
+
 # Generic classes
 class Port:
 	def connect(self, port):
@@ -377,10 +388,9 @@ class PacketBuffer(Module):
 			return EndpointDescription(layout)
 		cmd_fifo = SyncFIFO(cmd_description(), cmd_depth)
 		self.submodules += cmd_fifo
-		self.comb += [
-			cmd_fifo.sink.stb.eq(sink_status.done),
-			cmd_fifo.sink.error.eq(sink.error)
-		]
+		self.comb += cmd_fifo.sink.stb.eq(sink_status.done)
+		if hasattr(sink, "error"):
+			self.comb += cmd_fifo.sink.error.eq(sink.error)
 
 		# data
 		data_fifo = SyncFIFO(description, data_depth, buffered=True)
@@ -406,9 +416,14 @@ class PacketBuffer(Module):
 				NextState("OUTPUT")
 			)
 		)
+		if hasattr(source, "error"):
+			source_error = self.source.error
+		else:
+			source_error = Signal()
+
 		fsm.act("OUTPUT",
 			Record.connect(data_fifo.source, self.source),
-			self.source.error.eq(cmd_fifo.source.error),
+			source_error.eq(cmd_fifo.source.error),
 			If(source_status.done,
 				cmd_fifo.source.ack.eq(1),
 				NextState("IDLE")
