@@ -50,35 +50,70 @@ class TB(Module):
 		for i in range(100):
 			yield
 
+		test_probe = False
+		test_writes = False
+		test_reads = True
+
 		# test probe
-		#packet = etherbone.EtherbonePacket()
-		#packet.pf = 1
-		#self.etherbone_model.send(packet)
+		if test_probe:
+			packet = etherbone.EtherbonePacket()
+			packet.pf = 1
+			self.etherbone_model.send(packet)
+
+			for i in range(1024):
+				yield
 
 		# test writes
-		writes = etherbone.EtherboneWrites(base_addr=0x1000)
-		for i in range(16):
-			writes.add(etherbone.EtherboneWrite(i))
-		record = etherbone.EtherboneRecord()
-		record.writes = writes
-		record.reads = None
-		record.bca = 0
-		record.rca = 0
-		record.rff = 0
-		record.cyc = 0
-		record.wca = 0
-		record.wff = 0
-		record.byte_enable = 0
-		record.wcount = 16
-		record.rcount = 0
+		if test_writes:
+			writes = etherbone.EtherboneWrites(base_addr=0x1000)
+			for i in range(16):
+				writes.add(etherbone.EtherboneWrite(i))
+			record = etherbone.EtherboneRecord()
+			record.writes = writes
+			record.reads = None
+			record.bca = 0
+			record.rca = 0
+			record.rff = 0
+			record.cyc = 0
+			record.wca = 0
+			record.wff = 0
+			record.byte_enable = 0
+			record.wcount = 16
+			record.rcount = 0
 
-		packet = etherbone.EtherbonePacket()
-		packet.records = [record]
-		print(packet)
+			packet = etherbone.EtherbonePacket()
+			packet.records = [record]
+			print(packet)
+			self.etherbone_model.send(packet)
 
-		self.etherbone_model.send(packet)
+			for i in range(1024):
+				yield
 
+		# test reads
+		if test_reads:
+			reads = etherbone.EtherboneReads(base_ret_addr=0x2000)
+			for i in range(16):
+				reads.add(etherbone.EtherboneRead(i))
+			record = etherbone.EtherboneRecord()
+			record.writes = None
+			record.reads = reads
+			record.bca = 0
+			record.rca = 0
+			record.rff = 0
+			record.cyc = 0
+			record.wca = 0
+			record.wff = 0
+			record.byte_enable = 0
+			record.wcount = 0
+			record.rcount = 16
 
+			packet = etherbone.EtherbonePacket()
+			packet.records = [record]
+			print(packet)
+			self.etherbone_model.send(packet)
+
+			for i in range(1024):
+				yield
 
 if __name__ == "__main__":
-	run_simulation(TB(), ncycles=1024, vcd_name="my.vcd", keep_files=True)
+	run_simulation(TB(), ncycles=4096, vcd_name="my.vcd", keep_files=True)

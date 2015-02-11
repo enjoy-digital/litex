@@ -124,8 +124,11 @@ class LiteEthEtherboneRecordSender(Module):
 			source.sop.eq(0),
 			source.eop.eq(wr_buffer.source.eop),
 			source.data.eq(wr_buffer.source.data),
-			If(source.stb & source.eop & source.ack,
-				NextState("IDLE")
+			If(source.stb & source.ack,
+				wr_buffer.source.ack.eq(1),
+				If(source.eop,
+					NextState("IDLE")
+				)
 			)
 		)
 
@@ -143,10 +146,26 @@ class LiteEthEtherboneRecord(Module):
 			receiver.sink.data.eq(reverse_bytes(depacketizer.source.data)) # clarify this
 		]
 
+		last_ip_address = Signal(32) # XXX for test
+		last_src_port = Signal(16)   # XXX for test
+		last_dst_port = Signal(16)   # XXX for test
+
+		self.sync += [
+			If(sink.stb & sink.sop & sink.ack,
+				last_ip_address.eq(sink.ip_address),
+				last_src_port.eq(sink.src_port),
+				last_dst_port.eq(sink.dst_port)
+			)
+		]
+
 		self.submodules.sender = sender =  LiteEthEtherboneRecordSender()
 		self.submodules.packetizer = packetizer = LiteEthEtherboneRecordPacketizer()
 		self.comb += [
 			Record.connect(sender.source, packetizer.sink),
 			packetizer.sink.data.eq(reverse_bytes(sender.source.data)), # clarify this
 			Record.connect(packetizer.source, source),
+			source.length.eq(sender.source.wcount*4 + 4),
+			source.ip_address.eq(last_ip_address),
+			source.src_port.eq(last_src_port),
+			source.dst_port.eq(last_dst_port)
 		]

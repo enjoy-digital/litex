@@ -143,9 +143,11 @@ class EtherboneRecord(Packet):
 		for k, v in sorted(etherbone_record_header.items()):
 			setattr(self, k, get_field_data(v, header))
 		self.writes = self.get_writes()
-		self.writes.decode()
+		if self.writes is not None:
+			self.writes.decode()
 		self.reads = self.get_reads()
-		self.reads.decode()
+		if self.reads is not None:
+			self.reads.decode()
 		self.encoded = False
 
 	def set_writes(self, writes):
