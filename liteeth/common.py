@@ -141,6 +141,13 @@ def _remove_from_layout(layout, *args):
 			r.append(f)
 	return r
 
+def eth_raw_description(dw):
+	payload_layout = [
+		("data", dw),
+		("error", dw//8)
+	]
+	return EndpointDescription(payload_layout, packetized=True)
+
 def eth_phy_description(dw):
 	payload_layout = [
 		("data", dw),
@@ -250,14 +257,20 @@ def eth_etherbone_packet_description(dw):
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_etherbone_packet_user_description(dw):
-	payload_layout = [("data", dw)]
+	payload_layout = [
+		("data", dw),
+		("error", dw//8)
+	]
 	param_layout = _layout_from_header(etherbone_packet_header)
 	param_layout = _remove_from_layout(param_layout, "magic", "portsize", "addrsize", "version")
 	param_layout += eth_udp_user_description(dw).param_layout
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_etherbone_record_description(dw):
-	payload_layout = [("data", dw)]
+	payload_layout = [
+		("data", dw),
+		("error", dw//8)
+	]
 	param_layout = _layout_from_header(etherbone_record_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 

@@ -1,5 +1,4 @@
 from liteeth.common import *
-from liteeth.core.etherbone import common
 
 class LiteEthEtherboneWishboneMaster(Module):
 	def __init__(self):

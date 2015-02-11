@@ -16,36 +16,50 @@ class LiteEthDepacketizer(Module):
 		###
 		dw = flen(sink.data)
 
+		header_words = (header_length*8)//dw
+
 		shift = Signal()
-		counter = Counter(max=header_length//(dw//8))
+		counter = Counter(max=max(header_words, 2))
 		self.submodules += counter
 
-		self.sync += \
-			If(shift,
-				self.header.eq(Cat(self.header[dw:], sink.data))
-			)
+		if header_words == 1:
+			self.sync += \
+				If(shift,
+					self.header.eq(sink.data)
+				)
+		else:
+			self.sync += \
+				If(shift,
+					self.header.eq(Cat(self.header[dw:], sink.data))
+				)
 
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
+
+		if header_words == 1:
+			idle_next_state = "COPY"
+		else:
+			idle_next_state = "RECEIVE_HEADER"
 
 		fsm.act("IDLE",
 			sink.ack.eq(1),
 			counter.reset.eq(1),
 			If(sink.stb,
 				shift.eq(1),
-				NextState("RECEIVE_HEADER")
+				NextState(idle_next_state)
 			)
 		)
-		fsm.act("RECEIVE_HEADER",
-			sink.ack.eq(1),
-			If(sink.stb,
-				counter.ce.eq(1),
-				shift.eq(1),
-				If(counter.value == header_length//(dw//8)-2,
-					NextState("COPY")
+		if header_words != 1:
+			fsm.act("RECEIVE_HEADER",
+				sink.ack.eq(1),
+				If(sink.stb,
+					counter.ce.eq(1),
+					shift.eq(1),
+					If(counter.value == header_words-2,
+						NextState("COPY")
+					)
 				)
 			)
-		)
 		no_payload = Signal()
 		self.sync += \
 			If(fsm.before_entering("COPY"),
