@@ -51,7 +51,7 @@ class TB(Module):
 			yield
 
 		test_probe = False
-		test_writes = False
+		test_writes = True
 		test_reads = True
 
 		# test probe
@@ -77,13 +77,12 @@ class TB(Module):
 			record.cyc = 0
 			record.wca = 0
 			record.wff = 0
-			record.byte_enable = 0
+			record.byte_enable = 0xf
 			record.wcount = 16
 			record.rcount = 0
 
 			packet = etherbone.EtherbonePacket()
 			packet.records = [record]
-			print(packet)
 			self.etherbone_model.send(packet)
 
 			for i in range(1024):
@@ -91,7 +90,7 @@ class TB(Module):
 
 		# test reads
 		if test_reads:
-			reads = etherbone.EtherboneReads(base_ret_addr=0x2000)
+			reads = etherbone.EtherboneReads(base_ret_addr=0x1000)
 			for i in range(16):
 				reads.add(etherbone.EtherboneRead(i))
 			record = etherbone.EtherboneRecord()
@@ -103,13 +102,12 @@ class TB(Module):
 			record.cyc = 0
 			record.wca = 0
 			record.wff = 0
-			record.byte_enable = 0
+			record.byte_enable = 0xf
 			record.wcount = 0
 			record.rcount = 16
 
 			packet = etherbone.EtherbonePacket()
 			packet.records = [record]
-			print(packet)
 			self.etherbone_model.send(packet)
 
 			for i in range(1024):

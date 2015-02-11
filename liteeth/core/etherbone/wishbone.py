@@ -58,8 +58,7 @@ class LiteEthEtherboneWishboneMaster(Module):
 			wr_source.addr.eq(rd_sink.addr),
 			wr_source.count.eq(rd_sink.count),
 			wr_source.be.eq(rd_sink.be),
-			#wr_source.data.eq(data.q),
-			wr_source.data.eq(0x12345678), # XXX
+			wr_source.data.eq(data.q),
 			If(wr_source.stb & wr_source.ack,
 				rd_sink.ack.eq(1),
 				If(wr_source.eop,
