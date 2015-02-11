@@ -6,6 +6,7 @@ from liteeth.generic.dispatcher import Dispatcher
 from liteeth.core.etherbone.packet import *
 from liteeth.core.etherbone.probe import *
 from liteeth.core.etherbone.record import *
+from liteeth.core.etherbone.wishbone import *
 
 class LiteEthEtherbone(Module):
 	def __init__(self, udp, udp_port):
@@ -19,3 +20,12 @@ class LiteEthEtherbone(Module):
 
 		arbiter = Arbiter([probe.source, record.source], packet.sink)
 		self.submodules += arbiter
+
+		self.submodules.wishbone = wishbone = LiteEthEtherboneWishboneMaster()
+		self.comb += [
+			Record.connect(record.receiver.wr_source, wishbone.wr_sink),
+			Record.connect(record.receiver.rd_source, wishbone.rd_sink),
+			Record.connect(wishbone.wr_source, record.sender.wr_sink),
+			Record.connect(wishbone.rd_source, record.sender.rd_sink)
+		]
+

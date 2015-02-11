@@ -21,8 +21,8 @@ class LiteEthEtherboneRecordDepacketizer(LiteEthDepacketizer):
 class LiteEthEtherboneRecordReceiver(Module):
 	def __init__(self):
 		self.sink = sink = Sink(eth_etherbone_record_description(32))
-		self.write_source = write_source = Source(eth_etherbone_mmap_description(32))
-		self.read_source = read_source = Source(eth_etherbone_mmap_description(32))
+		self.wr_source = wr_source = Source(eth_etherbone_mmap_description(32))
+		self.rd_source = rd_source = Source(eth_etherbone_mmap_description(32))
 		###
 
 		self.submodules.base_addr = base_addr = FlipFlop(32)
@@ -44,16 +44,17 @@ class LiteEthEtherboneRecordReceiver(Module):
 			)
 		)
 		fsm.act("RECEIVE_WRITES",
-			write_source.stb.eq(sink.stb),
-			write_source.sop.eq(counter.value == 0),
-			write_source.eop.eq(counter.value == sink.wcount-1),
-			write_source.count.eq(sink.wcount),
-			write_source.base_addr.eq(base_addr.q),
-			write_source.data_addr.eq(sink.data),
-			sink.ack.eq(write_source.ack),
-			If(write_source.stb & write_source.ack,
+			wr_source.stb.eq(sink.stb),
+			wr_source.sop.eq(counter.value == 0),
+			wr_source.eop.eq(counter.value == sink.wcount-1),
+			wr_source.count.eq(sink.wcount),
+			wr_source.be.eq(sink.byte_enable),
+			wr_source.addr.eq(base_addr.q + counter.value),
+			wr_source.data.eq(sink.data),
+			sink.ack.eq(wr_source.ack),
+			If(wr_source.stb & wr_source.ack,
 				counter.ce.eq(1),
-				If(write_source.eop,
+				If(wr_source.eop,
 					If(sink.rcount,
 						NextState("RECEIVE_BASE_RET_ADDR")
 					).Else(
@@ -70,16 +71,16 @@ class LiteEthEtherboneRecordReceiver(Module):
 			)
 		)
 		fsm.act("RECEIVE_READS",
-			read_source.stb.eq(sink.stb),
-			read_source.sop.eq(counter.value == 0),
-			read_source.eop.eq(counter.value == sink.rcount-1),
-			read_source.count.eq(sink.rcount),
-			read_source.base_addr.eq(base_addr.q),
-			read_source.data_addr.eq(sink.data),
-			sink.ack.eq(read_source.ack),
-			If(read_source.stb & read_source.ack,
+			rd_source.stb.eq(sink.stb),
+			rd_source.sop.eq(counter.value == 0),
+			rd_source.eop.eq(counter.value == sink.rcount-1),
+			rd_source.count.eq(sink.rcount),
+			rd_source.base_addr.eq(base_addr.q),
+			rd_source.addr.eq(sink.data),
+			sink.ack.eq(rd_source.ack),
+			If(rd_source.stb & rd_source.ack,
 				counter.ce.eq(1),
-				If(read_source.eop,
+				If(rd_source.eop,
 					NextState("IDLE")
 				)
 			)
@@ -95,15 +96,11 @@ class LiteEthEtherboneRecordSender(Module):
 		self.submodules.wr_buffer = wr_buffer = PacketBuffer(eth_etherbone_mmap_description(32), 512)
 		self.comb += Record.connect(wr_sink, wr_buffer.sink)
 
-		self.submodules.base_addr = base_addr = FlipFlop(32)
-		self.comb += base_addr.d.eq(wr_buffer.source.data_addr)
-
 		self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 		fsm.act("IDLE",
 			wr_buffer.source.ack.eq(1),
 			If(wr_buffer.source.stb & wr_buffer.source.sop,
 				wr_buffer.source.ack.eq(0),
-				base_addr.ce.eq(1),
 				NextState("SEND_BASE_ADDRESS")
 			)
 		)
@@ -117,7 +114,7 @@ class LiteEthEtherboneRecordSender(Module):
 			source.stb.eq(wr_buffer.source.stb),
 			source.sop.eq(1),
 			source.eop.eq(0),
-			source.data.eq(base_addr.q),
+			source.data.eq(wr_buffer.source.base_addr),
 			If(source.ack,
 				NextState("SEND_DATA")
 			)
@@ -126,7 +123,7 @@ class LiteEthEtherboneRecordSender(Module):
 			source.stb.eq(wr_buffer.source.stb),
 			source.sop.eq(0),
 			source.eop.eq(wr_buffer.source.eop),
-			source.data.eq(wr_buffer.source.data_addr),
+			source.data.eq(wr_buffer.source.data),
 			If(source.stb & source.eop & source.ack,
 				NextState("IDLE")
 			)

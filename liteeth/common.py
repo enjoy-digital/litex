@@ -276,7 +276,8 @@ def eth_etherbone_record_description(dw):
 
 def eth_etherbone_mmap_description(dw):
 	payload_layout = [
-		("data_addr", max(32, dw)),
+		("addr", 32),
+		("data", dw)
 	]
 	param_layout = [
 		("count", 8),
