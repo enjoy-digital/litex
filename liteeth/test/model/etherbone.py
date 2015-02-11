@@ -194,6 +194,14 @@ class EtherbonePacket(Packet):
 		self.encoded = init != []
 		self.records = []
 
+		self.magic = etherbone_magic
+		self.version = etherbone_version
+		self.addr_size = 32//8
+		self.port_size = 32//8
+		self.nr = 0
+		self.pr = 0
+		self.pf = 0
+
 	def get_records(self):
 		records = []
 		done = False
@@ -209,9 +217,9 @@ class EtherbonePacket(Packet):
 		if not self.encoded:
 			raise ValueError
 		header = []
-		for byte in self[:etherbone_header_len]:
+		for byte in self[:etherbone_packet_header_len]:
 			header.append(self.pop(0))
-		for k, v in sorted(etherbone_header.items()):
+		for k, v in sorted(etherbone_packet_header.items()):
 			setattr(self, k, get_field_data(v, header))
 		self.records = self.get_records()
 		self.encoded = False
@@ -227,10 +235,10 @@ class EtherbonePacket(Packet):
 			raise ValueError
 		self.set_records(self.records)
 		header = 0
-		for k, v in sorted(etherbone_header.items()):
+		for k, v in sorted(etherbone_packet_header.items()):
 			value = merge_bytes(split_bytes(getattr(self, k), math.ceil(v.width/8)), "little")
 			header += (value << v.offset+(v.byte*8))
-		for d in split_bytes(header, etherbone_header_len):
+		for d in split_bytes(header, etherbone_packet_header_len):
 			self.insert(0, d)
 		self.encoded = True
 
@@ -241,7 +249,7 @@ class EtherbonePacket(Packet):
 			for d in self:
 				r += "{:02x}".format(d)
 		else:
-			for k in sorted(etherbone_header.keys()):
+			for k in sorted(etherbone_packet_header.keys()):
 				r += k + " : 0x{:0x}\n".format(getattr(self,k))
 			for i, record in enumerate(self.records):
 				r += record.__repr__(i)
@@ -255,7 +263,7 @@ class Etherbone(Module):
 		self.tx_packet = EtherbonePacket()
 		self.rx_packet = EtherbonePacket()
 
-		self.udp.set_etherbone_callback(self.callback)
+		udp.set_etherbone_callback(self.callback)
 
 	def send(self, packet):
 		packet.encode()
@@ -263,14 +271,14 @@ class Etherbone(Module):
 			print_etherbone(">>>>>>>>")
 			print_etherbone(packet)
 		udp_packet = udp.UDPPacket(packet)
-		udp_packet.src_port = 0x1234
-		udp_packet.dst_port = 0x5678
+		udp_packet.src_port = 0x1234  # XXX
+		udp_packet.dst_port = 20000 # XXX
 		udp_packet.length = len(packet)
 		udp_packet.checksum = 0
 		self.udp.send(udp_packet)
 
 	def callback(self, packet):
-		packet = Etherbone(packet)
+		packet = EtherbonePacket(packet)
 		packet.decode()
 		if self.debug:
 			print_etherbone("<<<<<<<<")
@@ -306,13 +314,9 @@ if __name__ == "__main__":
 	# Packet
 	packet = EtherbonePacket()
 	packet.records = [copy.deepcopy(record) for i in range(8)]
-	packet.magic = etherbone_magic
-	packet.version = etherbone_version
 	packet.nr = 0
 	packet.pr = 0
 	packet.pf = 0
-	packet.addr_size = 32//8
-	packet.port_size = 32//8
 	#print(packet)
 	packet.encode()
 	#print(packet)

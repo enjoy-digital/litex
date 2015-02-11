@@ -51,7 +51,7 @@ class UDP(Module):
 
 		self.ip.set_udp_callback(self.callback)
 
-	def set_etherbone_callback(callback):
+	def set_etherbone_callback(self, callback):
 		self.etherbone_callback = callback
 
 	def send(self, packet):
@@ -85,7 +85,7 @@ class UDP(Module):
 			self.process(packet)
 
 	def process(self, packet):
-		if packet.dst_port == 22000:
+		if packet.dst_port == 20000:
 			if self.etherbone_callback is not None:
 				self.etherbone_callback(packet)
 

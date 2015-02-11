@@ -46,21 +46,23 @@ class LiteEthDepacketizer(Module):
 				)
 			)
 		)
+		no_payload = Signal()
 		self.sync += \
 			If(fsm.before_entering("COPY"),
-				source.sop.eq(1)
+				source.sop.eq(1),
+				no_payload.eq(sink.eop)
 			).Elif(source.stb & source.ack,
 				source.sop.eq(0)
 			)
 		self.comb += [
-			source.eop.eq(sink.eop),
+			source.eop.eq(sink.eop | no_payload),
 			source.data.eq(sink.data),
 			source.error.eq(sink.error),
 			_decode_header(header_type, self.header, source)
 		]
 		fsm.act("COPY",
 			sink.ack.eq(source.ack),
-			source.stb.eq(sink.stb),
+			source.stb.eq(sink.stb | no_payload),
 			If(source.stb &  source.ack & source.eop,
 				NextState("IDLE")
 			)

@@ -87,8 +87,8 @@ udp_protocol = 0x11
 
 etherbone_magic = 0x4e6f
 etherbone_version = 1
-etherbone_header_len = 8
-etherbone_header = {
+etherbone_packet_header_len = 8
+etherbone_packet_header = {
 	"magic":		HField( 0,  0, 16),
 
 	"version":		HField( 2,  4, 4),
@@ -129,6 +129,17 @@ def _layout_from_header(header):
 	for k, v in sorted(header.items()):
 		_layout.append((k, v.width))
 	return _layout
+
+def _remove_from_layout(layout, *args):
+	r = []
+	for f in layout:
+		remove = False
+		for arg in args:
+			if f[0] == arg:
+				remove = True
+		if not remove:
+			r.append(f)
+	return r
 
 def eth_phy_description(dw):
 	payload_layout = [
@@ -230,35 +241,25 @@ def eth_udp_user_description(dw):
 	]
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
-def eth_etherbone_description(dw):
+def eth_etherbone_packet_description(dw):
 	payload_layout = [
 		("data", dw),
 		("error", dw//8)
 	]
-	param_layout = _layout_from_header(etherbone_header)
+	param_layout = _layout_from_header(etherbone_packet_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
-def eth_etherbone_description(dw):
-	payload_layout = [
-		("data", dw),
-		("error", dw//8)
-	]
-	param_layout = _layout_from_header(etherbone_header)
+def eth_etherbone_packet_user_description(dw):
+	payload_layout = [("data", dw)]
+	param_layout = _layout_from_header(etherbone_packet_header)
+	param_layout = _remove_from_layout(param_layout, "magic", "portsize", "addrsize", "version")
+	param_layout += eth_udp_user_description(dw).param_layout
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
-def eth_etherbone_user_description(dw):
-	payload_layout = [
-		("data", dw),
-		("error", dw//8)
-	]
-	param_layout = [
-		("length", 16),
-		("ip_address", 32),
-		("wcount", 8),
-		("rcount", 8)
-	]
+def eth_etherbone_record_description(dw):
+	payload_layout = [("data", dw)]
+	param_layout = _layout_from_header(etherbone_record_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
-
 
 # Generic classes
 class Port:

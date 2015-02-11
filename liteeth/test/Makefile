@@ -28,3 +28,6 @@ udp_tb:
 
 icmp_tb:
 	$(CMD) icmp_tb.py
+
+etherbone_tb:
+	$(CMD) etherbone_tb.py
