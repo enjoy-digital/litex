@@ -51,7 +51,7 @@ class TB(Module):
 
 			selfp.ip_port.source.ack = 1
 			if selfp.ip_port.source.stb == 1 and selfp.ip_port.source.sop == 1:
-				print("IP Packet / from ip_address %08x" %selfp.ip_port.sink.ip_address)
+				print("packet from from IP 0x{:08x}".format(selfp.ip_port.sink.ip_address))
 
 			yield
 

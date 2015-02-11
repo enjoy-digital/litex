@@ -35,7 +35,7 @@ class PHY(Module):
 			r = ">>>>>>>>\n"
 			r += "length " + str(len(datas)) + "\n"
 			for d in datas:
-				r += "%02x" %d
+				r += "{:02x}".format(d)
 			print_phy(r)
 		self.phy_source.send(packet)
 
@@ -45,7 +45,7 @@ class PHY(Module):
 			r = "<<<<<<<<\n"
 			r += "length " + str(len(self.phy_sink.packet)) + "\n"
 			for d in self.phy_sink.packet:
-				r += "%02x" %d
+				r += "{:02x}".format(d)
 			print_phy(r)
 		self.packet = self.phy_sink.packet
 

@@ -50,7 +50,7 @@ class TB(Module):
 		while selfp.arp.table.response.stb != 1:
 			selfp.arp.table.response.ack = 1
 			yield
-		print("Model's MAC : 0x%12x" %selfp.arp.table.response.mac_address)
+		print("Received MAC : 0x{:12x}".format(selfp.arp.table.response.mac_address))
 
 
 if __name__ == "__main__":

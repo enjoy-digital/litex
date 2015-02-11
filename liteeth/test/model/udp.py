@@ -31,10 +31,10 @@ class UDPPacket(Packet):
 	def __repr__(self):
 		r = "--------\n"
 		for k in sorted(udp_header.keys()):
-			r += k + " : 0x%x" %getattr(self,k) + "\n"
+			r += k + " : 0x{:0x}\n".format(getattr(self,k))
 		r += "payload: "
 		for d in self:
-			r += "%02x" %d
+			r += "{:02x}".format(d)
 		return r
 
 class UDP(Module):

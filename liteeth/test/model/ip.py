@@ -55,10 +55,10 @@ class IPPacket(Packet):
 	def __repr__(self):
 		r = "--------\n"
 		for k in sorted(ipv4_header.keys()):
-			r += k + " : 0x%x" %getattr(self,k) + "\n"
+			r += k + " : 0x{:0x}\n".format(getattr(self,k))
 		r += "payload: "
 		for d in self:
-			r += "%02x" %d
+			r += "{:02x}".format(d)
 		return r
 
 class IP(Module):
@@ -101,7 +101,7 @@ class IP(Module):
 			received = packet.get_checksum()
 			packet.insert_checksum()
 			expected = packet.get_checksum()
-			raise ValueError("Checksum error received %04x / expected %04x" %(received, expected))
+			raise ValueError("Checksum error received {:04x} / expected {:04x}".format(received, expected))
 		packet.decode()
 		if self.debug:
 			print_ip("<<<<<<<<")
