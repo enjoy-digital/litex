@@ -37,7 +37,7 @@ class LiteEthEtherboneRecordReceiver(Module):
 			If(sink.stb & sink.sop,
 				base_addr.ce.eq(1),
 				If(sink.wcount,
-					NextState("RECEIVE_READS")
+					NextState("RECEIVE_WRITES")
 				).Elif(sink.rcount,
 					NextState("RECEIVE_READS")
 				)
@@ -139,12 +139,14 @@ class LiteEthEtherboneRecord(Module):
 		self.submodules.receiver = receiver =  LiteEthEtherboneRecordReceiver()
 		self.comb += [
 			Record.connect(sink, depacketizer.sink),
-			Record.connect(depacketizer.source, receiver.sink)
+			Record.connect(depacketizer.source, receiver.sink),
+			receiver.sink.data.eq(reverse_bytes(depacketizer.source.data)) # clarify this
 		]
 
 		self.submodules.sender = sender =  LiteEthEtherboneRecordSender()
 		self.submodules.packetizer = packetizer = LiteEthEtherboneRecordPacketizer()
 		self.comb += [
 			Record.connect(sender.source, packetizer.sink),
-			Record.connect(packetizer.source, source)
+			packetizer.sink.data.eq(reverse_bytes(sender.source.data)), # clarify this
+			Record.connect(packetizer.source, source),
 		]

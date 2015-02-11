@@ -25,6 +25,11 @@ class TB(Module):
 		self.submodules.core = LiteEthUDPIPCore(self.phy_model, mac_address, ip_address, 100000)
 		self.submodules.etherbone = LiteEthEtherbone(self.core.udp, 20000)
 
+		self.submodules.sram = wishbone.SRAM(1024)
+		self.submodules.interconnect = wishbone.InterconnectPointToPoint(self.etherbone.wishbone.bus, self.sram.bus)
+
+
+
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
@@ -46,9 +51,34 @@ class TB(Module):
 			yield
 
 		# test probe
+		#packet = etherbone.EtherbonePacket()
+		#packet.pf = 1
+		#self.etherbone_model.send(packet)
+
+		# test writes
+		writes = etherbone.EtherboneWrites(base_addr=0x1000)
+		for i in range(16):
+			writes.add(etherbone.EtherboneWrite(i))
+		record = etherbone.EtherboneRecord()
+		record.writes = writes
+		record.reads = None
+		record.bca = 0
+		record.rca = 0
+		record.rff = 0
+		record.cyc = 0
+		record.wca = 0
+		record.wff = 0
+		record.byte_enable = 0
+		record.wcount = 16
+		record.rcount = 0
+
 		packet = etherbone.EtherbonePacket()
-		packet.pf = 1
+		packet.records = [record]
+		print(packet)
+
 		self.etherbone_model.send(packet)
+
+
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=1024, vcd_name="my.vcd", keep_files=True)

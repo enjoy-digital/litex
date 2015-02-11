@@ -163,8 +163,10 @@ class EtherboneRecord(Packet):
 	def encode(self):
 		if self.encoded:
 			raise ValueError
-		self.set_writes(self.writes)
-		self.set_reads(self.reads)
+		if self.writes is not None:
+			self.set_writes(self.writes)
+		if self.reads is not None:
+			self.set_reads(self.reads)
 		header = 0
 		for k, v in sorted(etherbone_record_header.items()):
 			value = merge_bytes(split_bytes(getattr(self, k), math.ceil(v.width/8)), "little")

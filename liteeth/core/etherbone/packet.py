@@ -95,6 +95,8 @@ class LiteEthEtherbonePacketRX(Module):
 			source.pr.eq(depacketizer.source.pr),
 			source.nr.eq(depacketizer.source.nr),
 
+			source.data.eq(depacketizer.source.data),
+
 			source.src_port.eq(sink.src_port),
 			source.dst_port.eq(sink.dst_port),
 			source.ip_address.eq(sink.ip_address),

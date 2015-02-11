@@ -28,4 +28,3 @@ class LiteEthEtherbone(Module):
 			Record.connect(wishbone.wr_source, record.sender.wr_sink),
 			Record.connect(wishbone.rd_source, record.sender.rd_sink)
 		]
-
