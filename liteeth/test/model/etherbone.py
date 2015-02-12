@@ -281,12 +281,19 @@ class Etherbone(Module):
 		udp_packet.checksum = 0
 		self.udp.send(udp_packet)
 
+	def receive(self):
+		self.rx_packet = EtherbonePacket()
+		while not self.rx_packet.done:
+			yield
+
 	def callback(self, packet):
 		packet = EtherbonePacket(packet)
 		packet.decode()
 		if self.debug:
 			print_etherbone("<<<<<<<<")
 			print_etherbone(packet)
+		self.rx_packet = packet
+		self.rx_packet.done = True
 		self.process(packet)
 
 	def process(self, packet):

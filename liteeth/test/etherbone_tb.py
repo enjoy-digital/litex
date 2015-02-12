@@ -15,12 +15,12 @@ mac_address = 0x12345678abcd
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.phy_model = phy.PHY(8, debug=True)
-		self.submodules.mac_model = mac.MAC(self.phy_model, debug=True, loopback=False)
+		self.submodules.phy_model = phy.PHY(8, debug=False)
+		self.submodules.mac_model = mac.MAC(self.phy_model, debug=False, loopback=False)
 		self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=False)
-		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=True, loopback=False)
-		self.submodules.udp_model = udp.UDP(self.ip_model, ip_address, debug=True, loopback=False)
-		self.submodules.etherbone_model = etherbone.Etherbone(self.udp_model, debug=True)
+		self.submodules.ip_model = ip.IP(self.mac_model, mac_address, ip_address, debug=False, loopback=False)
+		self.submodules.udp_model = udp.UDP(self.ip_model, ip_address, debug=False, loopback=False)
+		self.submodules.etherbone_model = etherbone.Etherbone(self.udp_model, debug=False)
 
 		self.submodules.core = LiteEthUDPIPCore(self.phy_model, mac_address, ip_address, 100000)
 		self.submodules.etherbone = LiteEthEtherbone(self.core.udp, 20000)
@@ -50,7 +50,7 @@ class TB(Module):
 		for i in range(100):
 			yield
 
-		test_probe = False
+		test_probe = True
 		test_writes = True
 		test_reads = True
 
@@ -59,59 +59,65 @@ class TB(Module):
 			packet = etherbone.EtherbonePacket()
 			packet.pf = 1
 			self.etherbone_model.send(packet)
+			yield from self.etherbone_model.receive()
+			print("probe: " + str(bool(self.etherbone_model.rx_packet.pr)))
 
-			for i in range(1024):
-				yield
+		for i in range(8):
+			# test writes
+			if test_writes:
+				writes = etherbone.EtherboneWrites(base_addr=0x1000)
+				writes_data = [j for j in range(16)]
+				for write_data in writes_data:
+					writes.add(etherbone.EtherboneWrite(write_data))
+				record = etherbone.EtherboneRecord()
+				record.writes = writes
+				record.reads = None
+				record.bca = 0
+				record.rca = 0
+				record.rff = 0
+				record.cyc = 0
+				record.wca = 0
+				record.wff = 0
+				record.byte_enable = 0xf
+				record.wcount = 16
+				record.rcount = 0
 
-		# test writes
-		if test_writes:
-			writes = etherbone.EtherboneWrites(base_addr=0x1000)
-			for i in range(16):
-				writes.add(etherbone.EtherboneWrite(i))
-			record = etherbone.EtherboneRecord()
-			record.writes = writes
-			record.reads = None
-			record.bca = 0
-			record.rca = 0
-			record.rff = 0
-			record.cyc = 0
-			record.wca = 0
-			record.wff = 0
-			record.byte_enable = 0xf
-			record.wcount = 16
-			record.rcount = 0
+				packet = etherbone.EtherbonePacket()
+				packet.records = [record]
+				self.etherbone_model.send(packet)
+				for i in range(256):
+					yield
 
-			packet = etherbone.EtherbonePacket()
-			packet.records = [record]
-			self.etherbone_model.send(packet)
+			# test reads
+			if test_reads:
+				reads = etherbone.EtherboneReads(base_ret_addr=0x1000)
+				reads_address = [j for j in range(16)]
+				for read_address in reads_address:
+					reads.add(etherbone.EtherboneRead(read_address))
+				record = etherbone.EtherboneRecord()
+				record.writes = None
+				record.reads = reads
+				record.bca = 0
+				record.rca = 0
+				record.rff = 0
+				record.cyc = 0
+				record.wca = 0
+				record.wff = 0
+				record.byte_enable = 0xf
+				record.wcount = 0
+				record.rcount = 16
 
-			for i in range(1024):
-				yield
+				packet = etherbone.EtherbonePacket()
+				packet.records = [record]
+				self.etherbone_model.send(packet)
+				yield from self.etherbone_model.receive()
+				loopback_writes_data = []
+				for write in self.etherbone_model.rx_packet.records.pop().writes.writes:
+					loopback_writes_data.append(write.data)
 
-		# test reads
-		if test_reads:
-			reads = etherbone.EtherboneReads(base_ret_addr=0x1000)
-			for i in range(16):
-				reads.add(etherbone.EtherboneRead(i))
-			record = etherbone.EtherboneRecord()
-			record.writes = None
-			record.reads = reads
-			record.bca = 0
-			record.rca = 0
-			record.rff = 0
-			record.cyc = 0
-			record.wca = 0
-			record.wff = 0
-			record.byte_enable = 0xf
-			record.wcount = 0
-			record.rcount = 16
-
-			packet = etherbone.EtherbonePacket()
-			packet.records = [record]
-			self.etherbone_model.send(packet)
-
-			for i in range(1024):
-				yield
+				# check results
+				s, l, e = check(writes_data, loopback_writes_data)
+				print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=4096, vcd_name="my.vcd", keep_files=True)
