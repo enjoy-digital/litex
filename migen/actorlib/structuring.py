@@ -118,11 +118,12 @@ class Pack(Module):
 		if description_to.packetized:
 			self.sync += [
 				If(source.stb & source.ack,
-					source.sop.eq(load_part & sink.sop)
-				).Else(
-					source.sop.eq((load_part & sink.sop) | source.sop)
-				),
-				source.eop.eq(load_part & sink.eop)
+					source.sop.eq(sink.sop),
+					source.eop.eq(sink.eop),
+				).Elif(sink.stb & sink.ack,
+					source.sop.eq(sink.sop | source.sop),
+					source.eop.eq(sink.eop | source.eop)
+				)
 			]
 
 class Chunkerize(CombinatorialActor):
