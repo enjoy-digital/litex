@@ -33,12 +33,15 @@ class GenSoC(Module):
 		"kc705":		0x4B37
 	})
 
-	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, l2_size=0, with_uart=True, cpu_type="lm32"):
+	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, l2_size=0, with_uart=True, cpu_type="lm32",
+				csr_data_width=8, csr_address_width=14):
 		self.clk_freq = clk_freq
 		self.cpu_reset_address = cpu_reset_address
 		self.sram_size = sram_size
 		self.l2_size = l2_size
 		self.cpu_type = cpu_type
+		self.csr_data_width = csr_data_width
+		self.csr_address_width = csr_address_width
 		self.cpu_memory_regions = []
 		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 		self._rom_registered = False
@@ -51,7 +54,7 @@ class GenSoC(Module):
 		else:
 			raise ValueError("Unsupported CPU type: "+cpu_type)
 		self.submodules.sram = wishbone.SRAM(sram_size)
-		self.submodules.wishbone2csr = wishbone2csr.WB2CSR()
+		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(csr_data_width, csr_address_width))
 
 		# rom          0x00000000 (shadow @0x80000000) from register_rom
 		# SRAM/debug   0x10000000 (shadow @0x90000000) provided
@@ -116,7 +119,8 @@ class GenSoC(Module):
 
 		# CSR
 		self.submodules.csrbankarray = csrgen.BankArray(self,
-			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override])
+			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
+			data_width=self.csr_data_width, address_width=self.csr_address_width)
 		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
 		for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
 			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), csrs)
