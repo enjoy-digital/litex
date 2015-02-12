@@ -15,6 +15,9 @@ conditions = {
 conditions = {
 	"core_udp_tx_fsm_state"	: 1
 }
+conditions = {
+	"etherbonesocdevel_master_bus_stb"	: 1
+}
 la.configure_term(port=0, cond=conditions)
 la.configure_sum("term")
 # Run Logic Analyzer
