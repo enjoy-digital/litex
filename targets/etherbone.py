@@ -136,7 +136,31 @@ class EtherboneSoCDevel(EtherboneSoC, AutoCSR):
 	def __init__(self, platform):
 		EtherboneSoC.__init__(self, platform)
 		debug = (
-			self.etherbone.master.bus.adr,
+			# mmap stream from HOST
+			self.etherbone.master.sink.stb,
+			self.etherbone.master.sink.sop,
+			self.etherbone.master.sink.eop,
+			self.etherbone.master.sink.ack,
+			self.etherbone.master.sink.we,
+			self.etherbone.master.sink.count,
+			self.etherbone.master.sink.base_addr,
+			self.etherbone.master.sink.be,
+			self.etherbone.master.sink.addr,
+			self.etherbone.master.sink.data,
+
+			# mmap stream to HOST
+			self.etherbone.master.source.stb,
+			self.etherbone.master.source.sop,
+			self.etherbone.master.source.eop,
+			self.etherbone.master.source.ack,
+			self.etherbone.master.source.we,
+			self.etherbone.master.source.count,
+			self.etherbone.master.source.base_addr,
+			self.etherbone.master.source.be,
+			self.etherbone.master.source.addr,
+			self.etherbone.master.source.data,
+
+			# etherbone wishbone master
 			self.etherbone.master.bus.dat_w,
 			self.etherbone.master.bus.dat_r,
 			self.etherbone.master.bus.sel,
