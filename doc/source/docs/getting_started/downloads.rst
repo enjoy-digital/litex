@@ -3,7 +3,7 @@
 ====================
 Download and install
 ====================
-1. Install Python3 and Xilinx's Vivado software
+1. Install Python3 and your vendor's software
 
 2. Obtain Migen and install it:
   - git clone https://github.com/m-labs/migen
@@ -17,9 +17,17 @@ Download and install
   - python3 setup.py install
   - cd ..
 
-4. Obtain MiSoC:
+4. Obtain MiSoC and install it:
   - git clone https://github.com/m-labs/misoc --recursive
-  XXX add setup.py to MiSoC for external use of misoclib?
+  - cd misoc
+  - python3 setup.py install
+  - cd ..
+
+.. note::
+	In case you have issues with Migen/MiSoC, please retry with our forks at:
+	https://github.com/enjoy-digital/misoc
+	https://github.com/enjoy-digital/migen
+	until new features are merged.
 
 5. Obtain LiteSATA
   - git clone https://github.com/enjoy-digital/litesata
