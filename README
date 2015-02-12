@@ -53,7 +53,7 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
   - Storage qualifier
   - Data storage in block rams
 
-[> Possibles improvements
+[> Possible improvements
 -------------------------
 - add standardized interfaces (AXI, Avalon-ST)
 - add protocols analyzers
@@ -62,7 +62,7 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
 - add storage in HDD with LiteSATA core (to be released soon!)
 - add Ethernet Wishbone bridge
 - add PCIe Wishbone bridge with LitePCIe (to be released soon!)
-- ... See below Support and Consulting :)
+- ... See below Support and consulting :)
 
 If you want to support these features, please contact us at florent [AT]
 enjoy-digital.fr. You can also contact our partner on the public mailing list
@@ -79,11 +79,19 @@ devel [AT] lists.m-labs.hk.
   python3 setup.py install
   cd ..
 
-3. Obtain MiSoC:
+3. Obtain MiSoC and install it:
   git clone https://github.com/m-labs/misoc --recursive
-  XXX add setup.py to MiSoC for external use of misoclib?
+  cd misoc
+  python3 setup.py install
+  cd ..
 
-4. Obtain LiteScope
+Note: in case you have issues with Migen/MiSoC, please retry
+with our forks at:
+  https://github.com/enjoy-digital/misoc
+  https://github.com/enjoy-digital/migen
+until new features are merged.
+
+4. Obtain LiteScope and install it:
   git clone https://github.com/enjoy-digital/litescope
 
 5. Build and load test design:
@@ -115,7 +123,7 @@ do them if possible:
  - send us bug reports when something goes wrong
  - send us the modifications and improvements you have done to LiteScope.
 
-[> Support and Consulting
+[> Support and consulting
 --------------------------
 We love open-source hardware and like sharing our designs with others.
 
