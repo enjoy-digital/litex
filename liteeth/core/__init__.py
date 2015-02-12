@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.mac import LiteEthMAC
 from liteeth.core.arp import LiteEthARP
 from liteeth.core.ip import LiteEthIP

@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.mac.frontend import sram
 
 from migen.bus import wishbone

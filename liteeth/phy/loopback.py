@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 
 class LiteEthPHYLoopbackCRG(Module, AutoCSR):
 	def __init__(self):

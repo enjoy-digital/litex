@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.core.udp.common import *
 
 class LiteEthUDPTX(Module):

@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.generic.arbiter import Arbiter
 from liteeth.generic.dispatcher import Dispatcher
 

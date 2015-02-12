@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.core.ip.common import *
 
 class LiteEthIPTX(Module):

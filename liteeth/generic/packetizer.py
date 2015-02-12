@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 
 def _encode_header(h_dict, h_signal, obj):
 	r = []

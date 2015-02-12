@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
 from liteeth.generic.crossbar import LiteEthCrossbar

@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.mac.common import *
 from liteeth.mac.core import LiteEthMACCore
 from liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterface

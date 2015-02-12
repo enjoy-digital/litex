@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.mac.core import gap, preamble, crc, last_be
 
 class LiteEthMACCore(Module, AutoCSR):

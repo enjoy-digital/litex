@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 
 class LiteEthPHYGMIITX(Module):
 	def __init__(self, pads):

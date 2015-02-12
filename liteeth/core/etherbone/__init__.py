@@ -1,8 +1,7 @@
 from liteeth.common import *
-
+from liteeth.generic import *
 from liteeth.generic.arbiter import Arbiter
 from liteeth.generic.dispatcher import Dispatcher
-
 from liteeth.core.etherbone.packet import *
 from liteeth.core.etherbone.probe import *
 from liteeth.core.etherbone.record import *

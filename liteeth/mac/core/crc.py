@@ -1,4 +1,5 @@
 from liteeth.common import *
+from liteeth.generic import *
 
 class LiteEthMACCRCEngine(Module):
 	"""Cyclic Redundancy Check Engine
