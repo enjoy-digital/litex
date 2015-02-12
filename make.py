@@ -111,15 +111,14 @@ RLE: {}
 	str(soc.la.with_rle)
 	)
 )
+
 	# dependencies
 	if actions["all"]:
-		actions["clean"] = True
 		actions["build-csr-csv"] = True
 		actions["build-bitstream"] = True
 		actions["load-bitstream"] = True
 
 	if actions["build-bitstream"]:
-		actions["clean"] = True
 		actions["build-csr-csv"] = True
 		actions["build-bitstream"] = True
 		actions["load-bitstream"] = True
@@ -132,7 +131,10 @@ RLE: {}
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bitstream"]:
-		platform.build(soc, build_name=build_name)
+		vns = platform.build(soc, build_name=build_name)
+		if hasattr(soc, "do_exit") and vns is not None:
+			if hasattr(soc.do_exit, '__call__'):
+				soc.do_exit(vns)
 
 	if actions["load-bitstream"]:
 		prog = platform.create_programmer()

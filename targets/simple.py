@@ -1,4 +1,4 @@
-import os, atexit
+import os
 
 from migen.bank import csrgen
 from migen.bus import wishbone, csr
@@ -99,10 +99,8 @@ class LiteScopeSoC(GenSoC, AutoCSR):
 		)
 		self.submodules.la = LiteScopeLA(self.debug, 512, with_subsampler=True)
 		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
-		atexit.register(self.exit, platform)
 
-	def exit(self, platform):
-		if platform.vns is not None:
-			self.la.export(platform.vns, "./test/la.csv")
+	def do_exit(self, vns):
+		self.la.export(vns, "test/la.csv")
 
 default_subtarget = LiteScopeSoC
