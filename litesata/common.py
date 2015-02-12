@@ -174,7 +174,7 @@ def transport_rx_description(dw):
 		("d", 1),
 		("i", 1),
 		("status", 8),
-		("error", 8),
+		("errors", 8),
 		("lba", 48),
 		("device", 8),
 		("count", 16),
