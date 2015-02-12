@@ -145,7 +145,7 @@ class LiteEthEtherboneRecord(Module):
 		self.source = source = Sink(eth_etherbone_packet_user_description(32))
 		###
 
-		# receive and decode records and generate mmap stream
+		# receive record, decode it and generate mmap stream
 		self.submodules.depacketizer = depacketizer = LiteEthEtherboneRecordDepacketizer()
 		self.submodules.receiver = receiver =  LiteEthEtherboneRecordReceiver()
 		self.comb += [
@@ -163,7 +163,7 @@ class LiteEthEtherboneRecord(Module):
 			)
 		]
 
-		# mmap stream and encode and send records
+		# receive mmap stream, encode it and send records
 		self.submodules.sender = sender =  LiteEthEtherboneRecordSender()
 		self.submodules.packetizer = packetizer = LiteEthEtherboneRecordPacketizer()
 		self.comb += [

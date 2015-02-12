@@ -28,8 +28,6 @@ class TB(Module):
 		self.submodules.sram = wishbone.SRAM(1024)
 		self.submodules.interconnect = wishbone.InterconnectPointToPoint(self.etherbone.master.bus, self.sram.bus)
 
-
-
 		# use sys_clk for each clock_domain
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
