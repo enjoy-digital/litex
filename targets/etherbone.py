@@ -1,4 +1,4 @@
-import os, atexit
+import os
 
 from migen.bank import csrgen
 from migen.bus import wishbone, csr
@@ -15,6 +15,7 @@ from litescope.frontend.la import LiteScopeLA
 from litescope.core.port import LiteScopeTerm
 
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.phy.gmii import LiteEthPHYGMII
 from liteeth.core import LiteEthUDPIPCore
 from liteeth.core.etherbone import LiteEthEtherbone
@@ -179,12 +180,10 @@ class EtherboneSoCDevel(EtherboneSoC, AutoCSR):
 
 		self.submodules.la = LiteScopeLA(debug, 4096)
 		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
-		atexit.register(self.exit, platform)
 
 	def do_finalize(self):
 		EtherboneSoC.do_finalize(self)
 
-	def exit(self, platform):
-		if platform.vns is not None:
-			self.la.export(platform.vns, "../test/la.csv")
+	def do_exit(self, vns):
+		self.la.export(vns, "test/la.csv")
 default_subtarget = EtherboneSoC

@@ -1,4 +1,4 @@
-import os, atexit
+import os
 
 from migen.bank import csrgen
 from migen.bus import wishbone, csr
@@ -15,6 +15,7 @@ from litescope.frontend.la import LiteScopeLA
 from litescope.core.port import LiteScopeTerm
 
 from liteeth.common import *
+from liteeth.generic import *
 from liteeth.phy.gmii import LiteEthPHYGMII
 from liteeth.core import LiteEthUDPIPCore
 
@@ -177,18 +178,6 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 			self.core.ip.crossbar.master.sink.ip_address,
 			self.core.ip.crossbar.master.sink.protocol,
 
-			self.loopback_buffer.sink.stb,
-			self.loopback_buffer.sink.sop,
-			self.loopback_buffer.sink.eop,
-			self.loopback_buffer.sink.ack,
-			self.loopback_buffer.sink.data,
-
-			self.loopback_buffer.source.stb,
-			self.loopback_buffer.source.sop,
-			self.loopback_buffer.source.eop,
-			self.loopback_buffer.source.ack,
-			self.loopback_buffer.source.data,
-
 			self.phy.sink.stb,
 			self.phy.sink.sop,
 			self.phy.sink.eop,
@@ -214,7 +203,6 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 
 		self.submodules.la = LiteScopeLA(debug, 4096)
 		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
-		atexit.register(self.exit, platform)
 
 	def do_finalize(self):
 		UDPSoC.do_finalize(self)
@@ -230,8 +218,7 @@ class UDPSoCDevel(UDPSoC, AutoCSR):
 			self.core_arp_table_fsm_state.eq(self.core.arp.table.fsm.state)
 		]
 
-	def exit(self, platform):
-		if platform.vns is not None:
-			self.la.export(platform.vns, "../test/la.csv")
+	def do_exit(self, vns):
+		self.la.export(vns, "test/la.csv")
 
 default_subtarget = UDPSoC
