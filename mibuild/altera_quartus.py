@@ -80,7 +80,8 @@ class AlteraQuartusPlatform(GenericPlatform):
 			fragment = fragment.get_fragment()
 		self.finalize(fragment)
 
-		v_src, named_sc, named_pc = self.get_verilog(fragment)
+		v_src, vns = self.get_verilog(fragment)
+		named_sc, named_pc = self._resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
@@ -89,6 +90,8 @@ class AlteraQuartusPlatform(GenericPlatform):
 			_run_quartus(build_name, quartus_path)
 
 		os.chdir("..")
+
+		return vns
 
 	def add_period_constraint(self, clk, period):
 		self.add_platform_command("""set_global_assignment -name DUTY_CYCLE 50 -section_id {clk}""", clk=clk)

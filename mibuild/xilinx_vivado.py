@@ -102,7 +102,8 @@ class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
 		self.finalize(fragment)
-		v_src, named_sc, named_pc = self.get_verilog(fragment)
+		v_src, vns = self.get_verilog(fragment)
+		named_sc, named_pc = self._resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
@@ -113,6 +114,8 @@ class XilinxVivadoPlatform(xilinx_common.XilinxGenericPlatform):
 			_run_vivado(build_name, vivado_path, source)
 
 		os.chdir("..")
+
+		return vns
 
 	def add_period_constraint(self, clk, period):
 		self.add_platform_command("""create_clock -name {clk} -period """ +\

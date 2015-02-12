@@ -140,8 +140,11 @@ class XilinxISEPlatform(xilinx_common.XilinxGenericPlatform):
 
 		ngdbuild_opt = self.ngdbuild_opt
 
+		vns = None
+
 		if mode == "xst" or mode == "yosys":
-			v_src, named_sc, named_pc = self.get_verilog(fragment)
+			v_src, vns = self.get_verilog(fragment)
+			named_sc, named_pc = self._resolve_signals(vns)
 			v_file = build_name + ".v"
 			tools.write_to_file(v_file, v_src)
 			sources = self.sources + [(v_file, "verilog")]
@@ -158,7 +161,8 @@ class XilinxISEPlatform(xilinx_common.XilinxGenericPlatform):
 			synthesize(fragment, self.constraint_manager.get_io_signals())
 
 		if mode == "edif" or mode == "mist":
-			e_src, named_sc, named_pc = self.get_edif(fragment)
+			e_src, vns = self.get_edif(fragment)
+			named_sc, named_pc = self._resolve_signals(vns)
 			e_file = build_name + ".edif"
 			tools.write_to_file(e_file, e_src)
 			isemode = "edif"
@@ -170,6 +174,8 @@ class XilinxISEPlatform(xilinx_common.XilinxGenericPlatform):
 					self.map_opt, self.par_opt)
 
 		os.chdir("..")
+
+		return vns
 
 	def add_period_constraint(self, clk, period):
 		self.add_platform_command("""NET "{clk}" TNM_NET = "GRP{clk}";

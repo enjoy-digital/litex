@@ -257,8 +257,7 @@ class GenericPlatform:
 			fragment = fragment.get_fragment()
 		# generate source
 		src, vns = gen_fn(fragment)
-		named_sc, named_pc = self._resolve_signals(vns)
-		return src, named_sc, named_pc
+		return src, vns
 
 	def get_verilog(self, fragment, **kwargs):
 		return self._get_source(fragment, lambda f: verilog.convert(f, self.constraint_manager.get_io_signals(),
