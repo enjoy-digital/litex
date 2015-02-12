@@ -1,4 +1,4 @@
-import os, atexit
+import os
 
 from litesata.common import *
 from migen.bank import csrgen
@@ -203,7 +203,6 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 
 		self.submodules.la = LiteScopeLA(debug, 2048)
 		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
-		atexit.register(self.exit, platform)
 
 	def do_finalize(self):
 		BISTSoC.do_finalize(self)
@@ -216,8 +215,7 @@ class BISTSoCDevel(BISTSoC, AutoCSR):
 			self.sata_core_command_tx_fsm_state.eq(self.sata.core.command.tx.fsm.state)
 		]
 
-	def exit(self, platform):
-		if platform.vns is not None:
-			self.la.export(platform.vns, "../test/la.csv")
+	def do_exit(self, vns):
+		self.la.export(vns, "test/la.csv")
 
 default_subtarget = BISTSoC
