@@ -127,6 +127,9 @@ class EtherboneSoC(GenSoC, AutoCSR):
 
 		# Etherbone
 		self.submodules.etherbone = LiteEthEtherbone(self.core.udp, 20000)
+		self.add_wb_master(self.etherbone.master.bus)
+		self.submodules.sram = wishbone.SRAM(1024)
+		self.add_wb_slave(lambda a: a[23:25] == 1, self.sram.bus)
 
 class EtherboneSoCDevel(EtherboneSoC, AutoCSR):
 	csr_map = {
@@ -163,6 +166,7 @@ class EtherboneSoCDevel(EtherboneSoC, AutoCSR):
 			# etherbone wishbone master
 			self.etherbone.master.bus.dat_w,
 			self.etherbone.master.bus.dat_r,
+			self.etherbone.master.bus.adr,
 			self.etherbone.master.bus.sel,
 			self.etherbone.master.bus.cyc,
 			self.etherbone.master.bus.stb,

@@ -29,7 +29,7 @@ class LiteEthEtherboneRecordReceiver(Module):
 		self.comb += Record.connect(sink, fifo.sink)
 
 		self.submodules.base_addr = base_addr = FlipFlop(32)
-		self.comb += base_addr.d.eq(sink.data)
+		self.comb += base_addr.d.eq(fifo.source.data)
 
 		self.submodules.counter = counter = Counter(max=512)
 

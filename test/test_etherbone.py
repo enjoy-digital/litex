@@ -11,3 +11,24 @@ packet = EtherbonePacket()
 packet.pf = 1
 packet.encode()
 sock.sendto(bytes(packet), ("192.168.1.40", 20000))
+
+# test writes
+writes_datas = [j for j in range(16)]
+writes = EtherboneWrites(base_addr=SRAM_BASE, datas=writes_datas)
+record = EtherboneRecord()
+record.writes = writes
+record.reads = None
+record.bca = 0
+record.rca = 0
+record.rff = 0
+record.cyc = 0
+record.wca = 0
+record.wff = 0
+record.byte_enable = 0xf
+record.wcount = len(writes_datas)
+record.rcount = 0
+
+packet = EtherbonePacket()
+packet.records = [record]
+packet.encode()
+sock.sendto(bytes(packet), ("192.168.1.40", 20000))
