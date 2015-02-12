@@ -11,7 +11,13 @@ class _FIFOActor(Module):
 		###
 
 		description = self.sink.description
-		fifo_layout = [("payload", description.payload_layout)]
+		fifo_layout = [
+			("payload", description.payload_layout),
+			# Note : Can be optimized by passing parameters
+			#        in another fifo. We will only have one
+			#        data per packet.
+			("param", description.param_layout)
+		]
 		if description.packetized:
 			fifo_layout += [("sop", 1), ("eop", 1)]
 
@@ -21,9 +27,11 @@ class _FIFOActor(Module):
 			self.sink.ack.eq(self.fifo.writable),
 			self.fifo.we.eq(self.sink.stb),
 			self.fifo.din.payload.eq(self.sink.payload),
+			self.fifo.din.param.eq(self.sink.param),
 
 			self.source.stb.eq(self.fifo.readable),
 			self.source.payload.eq(self.fifo.dout.payload),
+			self.source.param.eq(self.fifo.dout.param),
 			self.fifo.re.eq(self.source.ack)
 		]
 		if description.packetized:

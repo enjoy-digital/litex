@@ -66,6 +66,11 @@ class Unpack(Module):
 			cases[i] = [source.payload.raw_bits().eq(getattr(sink.payload, "chunk"+str(chunk)).raw_bits())]
 		self.comb += Case(mux, cases).makedefault()
 
+		for f in description_from.param_layout:
+			src = getattr(self.sink, f[0])
+			dst = getattr(self.source, f[0])
+			self.comb += dst.eq(src)
+
 		if description_from.packetized:
 			self.comb += [
 				source.sop.eq(sink.sop & first),
@@ -96,6 +101,11 @@ class Pack(Module):
 			source.stb.eq(strobe_all),
 			load_part.eq(sink.stb & sink.ack)
 		]
+
+		for f in description_to.param_layout:
+			src = getattr(self.sink, f[0])
+			dst = getattr(self.source, f[0])
+			self.comb += dst.eq(src)
 
 		if description_to.packetized:
 			demux_last = ((demux == (n - 1)) | sink.eop)
@@ -146,6 +156,11 @@ class Chunkerize(CombinatorialActor):
 				dst = getattr(getattr(self.source, "chunk"+str(chunk)), f[0])
 				self.comb += dst.eq(src[i*flen(src)//n:(i+1)*flen(src)//n])
 
+		for f in self.sink.description.param_layout:
+			src = getattr(self.sink, f[0])
+			dst = getattr(self.source, f[0])
+			self.comb += dst.eq(src)
+
 class Unchunkerize(CombinatorialActor):
 	def __init__(self, layout_from, n, layout_to, reverse=False):
 		if isinstance(layout_from, EndpointDescription):
@@ -167,6 +182,11 @@ class Unchunkerize(CombinatorialActor):
 				src = getattr(getattr(self.sink, "chunk"+str(chunk)), f[0])
 				dst = getattr(self.source, f[0])
 				self.comb += dst[i*flen(dst)//n:(i+1)*flen(dst)//n].eq(src)
+
+		for f in self.sink.description.param_layout:
+			src = getattr(self.sink, f[0])
+			dst = getattr(self.source, f[0])
+			self.comb += dst.eq(src)
 
 class Converter(Module):
 	def __init__(self, layout_from, layout_to, reverse=False):

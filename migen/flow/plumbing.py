@@ -8,7 +8,11 @@ class Buffer(PipelinedActor):
 		self.d = Sink(layout)
 		self.q = Source(layout)
 		PipelinedActor.__init__(self, 1)
-		self.sync += If(self.pipe_ce, self.q.payload.eq(self.d.payload))
+		self.sync += \
+			If(self.pipe_ce,
+				self.q.payload.eq(self.d.payload),
+				self.q.param.eq(self.d.param)
+			)
 
 class Combinator(Module):
 	def __init__(self, layout, subrecords):
@@ -28,6 +32,7 @@ class Combinator(Module):
 		]
 		self.comb += [sink.ack.eq(self.source.ack & self.source.stb) for sink in sinks]
 		self.comb += [self.source.payload.eq(sink.payload) for sink in sinks]
+		self.comb += [self.source.param.eq(sink.param) for sink in sinks]
 
 class Splitter(Module):
 	def __init__(self, layout, subrecords):
@@ -42,6 +47,7 @@ class Splitter(Module):
 		###
 
 		self.comb += [source.payload.eq(self.sink.payload) for source in sources]
+		self.comb += [source.param.eq(self.sink.param) for source in sources]
 		already_acked = Signal(len(sources))
 		self.sync += If(self.sink.stb,
 				already_acked.eq(already_acked | Cat(*[s.ack for s in sources])),

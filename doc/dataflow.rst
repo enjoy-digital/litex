@@ -69,6 +69,14 @@ Accessing the endpoints is done by manipulating the signals inside the ``Source`
 * A signal object ``ack``.
 * The data payload ``payload``, which is a record with the layout given to the endpoint constructor.
 
+Endpoints can also be used to manipulate packets, this is done by setting packetized parameter to True which adds:
+
+* A signal object ``sop`` (Start Of Packet).
+* A signal object ``eop`` (End Of Packet).
+
+When used in packetized mode, packet parameters (signals that do no change for the duration of a packet) should to be declared in
+param_layout. Declaring these signals in payload_layout will works in most cases but will prevent logic optimizations.
+
 Busy signal
 ===========
 
