@@ -1,6 +1,16 @@
 from liteeth.common import *
 from liteeth.generic import *
-from liteeth.core.udp.common import *
+from liteeth.core.udp.crossbar import *
+from liteeth.generic.depacketizer import LiteEthDepacketizer
+from liteeth.generic.packetizer import LiteEthPacketizer
+
+class LiteEthUDPPacketizer(LiteEthPacketizer):
+	def __init__(self):
+		LiteEthPacketizer.__init__(self,
+			eth_udp_description(8),
+			eth_ipv4_user_description(8),
+			udp_header,
+			udp_header_len)
 
 class LiteEthUDPTX(Module):
 	def __init__(self, ip_address):
@@ -37,6 +47,14 @@ class LiteEthUDPTX(Module):
 				NextState("IDLE")
 			)
 		)
+
+class LiteEthUDPDepacketizer(LiteEthDepacketizer):
+	def __init__(self):
+		LiteEthDepacketizer.__init__(self,
+			eth_ipv4_user_description(8),
+			eth_udp_description(8),
+			udp_header,
+			udp_header_len)
 
 class LiteEthUDPRX(Module):
 	def __init__(self, ip_address):

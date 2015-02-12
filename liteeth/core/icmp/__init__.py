@@ -3,14 +3,6 @@ from liteeth.generic import *
 from liteeth.generic.depacketizer import LiteEthDepacketizer
 from liteeth.generic.packetizer import LiteEthPacketizer
 
-class LiteEthICMPDepacketizer(LiteEthDepacketizer):
-	def __init__(self):
-		LiteEthDepacketizer.__init__(self,
-			eth_ipv4_user_description(8),
-			eth_icmp_description(8),
-			icmp_header,
-			icmp_header_len)
-
 class LiteEthICMPPacketizer(LiteEthPacketizer):
 	def __init__(self):
 		LiteEthPacketizer.__init__(self,
@@ -54,6 +46,14 @@ class LiteEthICMPTX(Module):
 				NextState("IDLE")
 			)
 		)
+
+class LiteEthICMPDepacketizer(LiteEthDepacketizer):
+	def __init__(self):
+		LiteEthDepacketizer.__init__(self,
+			eth_ipv4_user_description(8),
+			eth_icmp_description(8),
+			icmp_header,
+			icmp_header_len)
 
 class LiteEthICMPRX(Module):
 	def __init__(self, ip_address):
