@@ -63,10 +63,8 @@ class TB(Module):
 		for i in range(8):
 			# test writes
 			if test_writes:
-				writes = etherbone.EtherboneWrites(base_addr=0x1000)
-				writes_data = [j for j in range(16)]
-				for write_data in writes_data:
-					writes.add(etherbone.EtherboneWrite(write_data))
+				writes_datas = [j for j in range(16)]
+				writes = etherbone.EtherboneWrites(base_addr=0x1000, datas=writes_datas)
 				record = etherbone.EtherboneRecord()
 				record.writes = writes
 				record.reads = None
@@ -77,7 +75,7 @@ class TB(Module):
 				record.wca = 0
 				record.wff = 0
 				record.byte_enable = 0xf
-				record.wcount = 16
+				record.wcount = len(writes_datas)
 				record.rcount = 0
 
 				packet = etherbone.EtherbonePacket()
@@ -88,10 +86,8 @@ class TB(Module):
 
 			# test reads
 			if test_reads:
-				reads = etherbone.EtherboneReads(base_ret_addr=0x1000)
-				reads_address = [j for j in range(16)]
-				for read_address in reads_address:
-					reads.add(etherbone.EtherboneRead(read_address))
+				reads_addrs = [j for j in range(16)]
+				reads = etherbone.EtherboneReads(base_ret_addr=0x1000, addrs=reads_addrs)
 				record = etherbone.EtherboneRecord()
 				record.writes = None
 				record.reads = reads
@@ -103,18 +99,17 @@ class TB(Module):
 				record.wff = 0
 				record.byte_enable = 0xf
 				record.wcount = 0
-				record.rcount = 16
+				record.rcount = len(reads_addrs)
 
 				packet = etherbone.EtherbonePacket()
 				packet.records = [record]
 				self.etherbone_model.send(packet)
 				yield from self.etherbone_model.receive()
-				loopback_writes_data = []
-				for write in self.etherbone_model.rx_packet.records.pop().writes.writes:
-					loopback_writes_data.append(write.data)
+				loopback_writes_datas = []
+				loopback_writes_datas = self.etherbone_model.rx_packet.records.pop().writes.get_datas()
 
 				# check results
-				s, l, e = check(writes_data, loopback_writes_data)
+				s, l, e = check(writes_datas, loopback_writes_datas)
 				print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":

@@ -24,14 +24,22 @@ class EtherboneRead:
 		return "RD32 @ 0x{:08x}".format(self.addr)
 
 class EtherboneWrites(Packet):
-	def __init__(self, init=[], base_addr=0):
+	def __init__(self, init=[], base_addr=0, datas=[]):
 		Packet.__init__(self, init)
 		self.base_addr = base_addr
 		self.writes = []
 		self.encoded = init != []
+		for data in datas:
+			self.add(EtherboneWrite(data))
 
 	def add(self, write):
 		self.writes.append(write)
+
+	def get_datas(self):
+		datas = []
+		for write in self.writes:
+			datas.append(write.data)
+		return datas
 
 	def encode(self):
 		if self.encoded:
@@ -67,14 +75,22 @@ class EtherboneWrites(Packet):
 		return r
 
 class EtherboneReads(Packet):
-	def __init__(self, init=[], base_ret_addr=0):
+	def __init__(self, init=[], base_ret_addr=0, addrs=[]):
 		Packet.__init__(self, init)
 		self.base_ret_addr = base_ret_addr
 		self.reads = []
 		self.encoded = init != []
+		for addr in addrs:
+			self.add(EtherboneRead(addr))
 
 	def add(self, read):
 		self.reads.append(read)
+
+	def get_addrs(self):
+		addrs = []
+		for read in self.reads:
+			addrs.append(read.addr)
+		return addrs
 
 	def encode(self):
 		if self.encoded:
@@ -301,12 +317,8 @@ class Etherbone(Module):
 
 if __name__ == "__main__":
 	# Writes/Reads
-	writes = EtherboneWrites(base_addr=0x1000)
-	for i in range(16):
-		writes.add(EtherboneWrite(i))
-	reads = EtherboneReads(base_ret_addr=0x2000)
-	for i in range(16):
-		reads.add(EtherboneRead(i))
+	writes = EtherboneWrites(base_addr=0x1000, datas=[i for i in range(16)])
+	reads = EtherboneReads(base_ret_addr=0x2000, addrs=[i for i in range(16)])
 
 	# Record
 	record = EtherboneRecord()
@@ -319,8 +331,8 @@ if __name__ == "__main__":
 	record.wca = 0
 	record.wff = 0
 	record.byte_enable = 0
-	record.wcount = 16
-	record.rcount = 16
+	record.wcount = len(writes.get_datas())
+	record.rcount = len(reads.get_addrs())
 
 	# Packet
 	packet = EtherbonePacket()
