@@ -24,7 +24,7 @@ class LiteEthEtherbonePacketTX(Module):
 
 			packetizer.sink.magic.eq(etherbone_magic),
 			packetizer.sink.port_size.eq(32//8),
-			packetizer.sink.addr_size.eq(32//8), # XXX add a parameter?
+			packetizer.sink.addr_size.eq(32//8),
 			packetizer.sink.pf.eq(sink.pf),
 			packetizer.sink.pr.eq(sink.pr),
 			packetizer.sink.nr.eq(sink.nr),
@@ -42,7 +42,7 @@ class LiteEthEtherbonePacketTX(Module):
 		)
 		fsm.act("SEND",
 			Record.connect(packetizer.source, source),
-			source.src_port.eq(0x1234), # XXX,
+			source.src_port.eq(udp_port),
 			source.dst_port.eq(udp_port),
 			source.ip_address.eq(sink.ip_address),
 			source.length.eq(sink.length + etherbone_packet_header_len),

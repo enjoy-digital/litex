@@ -26,7 +26,7 @@ class TB(Module):
 		self.submodules.etherbone = LiteEthEtherbone(self.core.udp, 20000)
 
 		self.submodules.sram = wishbone.SRAM(1024)
-		self.submodules.interconnect = wishbone.InterconnectPointToPoint(self.etherbone.wishbone.bus, self.sram.bus)
+		self.submodules.interconnect = wishbone.InterconnectPointToPoint(self.etherbone.master.bus, self.sram.bus)
 
 
 

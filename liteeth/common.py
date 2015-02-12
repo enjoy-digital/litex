@@ -140,14 +140,6 @@ def _remove_from_layout(layout, *args):
 		if not remove:
 			r.append(f)
 	return r
-
-def eth_raw_description(dw):
-	payload_layout = [
-		("data", dw),
-		("error", dw//8)
-	]
-	return EndpointDescription(payload_layout, packetized=True)
-
 def eth_phy_description(dw):
 	payload_layout = [
 		("data", dw),
@@ -280,6 +272,7 @@ def eth_etherbone_mmap_description(dw):
 		("data", dw)
 	]
 	param_layout = [
+		("we", 1),
 		("count", 8),
 		("base_addr", 32),
 		("be", dw//8)

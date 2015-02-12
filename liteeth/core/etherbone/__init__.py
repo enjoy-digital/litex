@@ -10,21 +10,23 @@ from liteeth.core.etherbone.wishbone import *
 
 class LiteEthEtherbone(Module):
 	def __init__(self, udp, udp_port):
+		# decode/encode etherbone packets
 		self.submodules.packet = packet = LiteEthEtherbonePacket(udp, udp_port)
+
+		# packets can be probe (etherbone discovering) or records with
+		# writes and reads
 		self.submodules.probe = probe = LiteEthEtherboneProbe()
 		self.submodules.record = record = LiteEthEtherboneRecord()
 
+		# arbitrate/dispatch probe/records packets
 		dispatcher = Dispatcher(packet.source, [probe.sink, record.sink])
 		self.comb += dispatcher.sel.eq(~packet.source.pf)
-		self.submodules += dispatcher
-
 		arbiter = Arbiter([probe.source, record.source], packet.sink)
-		self.submodules += arbiter
+		self.submodules += dispatcher, arbiter
 
-		self.submodules.wishbone = wishbone = LiteEthEtherboneWishboneMaster()
+		# create mmap ŵishbone master
+		self.submodules.master = master = LiteEthEtherboneWishboneMaster()
 		self.comb += [
-			Record.connect(record.receiver.wr_source, wishbone.wr_sink),
-			Record.connect(record.receiver.rd_source, wishbone.rd_sink),
-			Record.connect(wishbone.wr_source, record.sender.wr_sink),
-			Record.connect(wishbone.rd_source, record.sender.rd_sink)
+			Record.connect(record.receiver.source, master.sink),
+			Record.connect(master.source, record.sender.sink)
 		]
