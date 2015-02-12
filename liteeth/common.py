@@ -157,11 +157,11 @@ def eth_mac_description(dw):
 	return EndpointDescription(payload_layout, packetized=True)
 
 def eth_arp_description(dw):
+	param_layout = _layout_from_header(arp_header)
 	payload_layout = [
 		("data", dw),
 		("error", dw//8)
 	]
-	param_layout = _layout_from_header(arp_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 arp_table_request_layout = [
@@ -174,22 +174,22 @@ arp_table_response_layout = [
 ]
 
 def eth_ipv4_description(dw):
+	param_layout = _layout_from_header(ipv4_header)
 	payload_layout = [
 		("data", dw),
 		("error", dw//8)
 	]
-	param_layout = _layout_from_header(ipv4_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_ipv4_user_description(dw):
-	payload_layout = [
-		("data", dw),
-		("error", dw//8)
-	]
 	param_layout = [
 		("length", 16),
 		("protocol", 8),
 		("ip_address", 32)
+	]
+	payload_layout = [
+		("data", dw),
+		("error", dw//8)
 	]
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
@@ -201,80 +201,80 @@ def convert_ip(s):
 	return ip
 
 def eth_icmp_description(dw):
+	param_layout = _layout_from_header(icmp_header)
 	payload_layout = [
 		("data", dw),
 		("error", dw//8)
 	]
-	param_layout = _layout_from_header(icmp_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_icmp_user_description(dw):
-	payload_layout = [
-		("data", dw),
-		("error", dw//8)
-	]
 	param_layout = _layout_from_header(icmp_header) + [
 		("ip_address", 32),
 		("length", 16)
 	]
+	payload_layout = [
+		("data", dw),
+		("error", dw//8)
+	]
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_udp_description(dw):
+	param_layout = _layout_from_header(udp_header)
 	payload_layout = [
 		("data", dw),
 		("error", dw//8)
 	]
-	param_layout = _layout_from_header(udp_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_udp_user_description(dw):
-	payload_layout = [
-		("data", dw),
-		("error", dw//8)
-	]
 	param_layout = [
 		("src_port", 16),
 		("dst_port", 16),
 		("ip_address", 32),
 		("length", 16)
 	]
+	payload_layout = [
+		("data", dw),
+		("error", dw//8)
+	]
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_etherbone_packet_description(dw):
+	param_layout = _layout_from_header(etherbone_packet_header)
 	payload_layout = [
 		("data", dw),
 		("error", dw//8)
 	]
-	param_layout = _layout_from_header(etherbone_packet_header)
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_etherbone_packet_user_description(dw):
-	payload_layout = [
-		("data", dw),
-		("error", dw//8)
-	]
 	param_layout = _layout_from_header(etherbone_packet_header)
 	param_layout = _remove_from_layout(param_layout, "magic", "portsize", "addrsize", "version")
 	param_layout += eth_udp_user_description(dw).param_layout
-	return EndpointDescription(payload_layout, param_layout, packetized=True)
-
-def eth_etherbone_record_description(dw):
 	payload_layout = [
 		("data", dw),
 		("error", dw//8)
 	]
+	return EndpointDescription(payload_layout, param_layout, packetized=True)
+
+def eth_etherbone_record_description(dw):
 	param_layout = _layout_from_header(etherbone_record_header)
+	payload_layout = [
+		("data", dw),
+		("error", dw//8)
+	]
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
 
 def eth_etherbone_mmap_description(dw):
-	payload_layout = [
-		("addr", 32),
-		("data", dw)
-	]
 	param_layout = [
 		("we", 1),
 		("count", 8),
 		("base_addr", 32),
 		("be", dw//8)
+	]
+	payload_layout = [
+		("addr", 32),
+		("data", dw)
 	]
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
