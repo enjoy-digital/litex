@@ -240,7 +240,7 @@ class GenericPlatform:
 	def add_verilog_include_path(self, path):
 		self.verilog_include_paths.append(os.path.abspath(path))
 
-	def _resolve_signals(self, vns):
+	def resolve_signals(self, vns):
 		# resolve signal names in constraints
 		sc = self.constraint_manager.get_sig_constraints()
 		named_sc = [(vns.get_name(sig), pins, others, resource) for sig, pins, others, resource in sc]

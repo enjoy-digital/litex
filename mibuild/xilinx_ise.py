@@ -144,7 +144,7 @@ class XilinxISEPlatform(xilinx_common.XilinxGenericPlatform):
 
 		if mode == "xst" or mode == "yosys":
 			v_src, vns = self.get_verilog(fragment)
-			named_sc, named_pc = self._resolve_signals(vns)
+			named_sc, named_pc = self.resolve_signals(vns)
 			v_file = build_name + ".v"
 			tools.write_to_file(v_file, v_src)
 			sources = self.sources + [(v_file, "verilog")]
@@ -162,7 +162,7 @@ class XilinxISEPlatform(xilinx_common.XilinxGenericPlatform):
 
 		if mode == "edif" or mode == "mist":
 			e_src, vns = self.get_edif(fragment)
-			named_sc, named_pc = self._resolve_signals(vns)
+			named_sc, named_pc = self.resolve_signals(vns)
 			e_file = build_name + ".edif"
 			tools.write_to_file(e_file, e_src)
 			isemode = "edif"

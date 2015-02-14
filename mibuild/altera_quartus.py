@@ -81,7 +81,7 @@ class AlteraQuartusPlatform(GenericPlatform):
 		self.finalize(fragment)
 
 		v_src, vns = self.get_verilog(fragment)
-		named_sc, named_pc = self._resolve_signals(vns)
+		named_sc, named_pc = self.resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
 		sources = self.sources + [(v_file, "verilog")]
