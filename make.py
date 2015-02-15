@@ -182,7 +182,8 @@ CPU type:  {}
 		for decorator in args.decorate:
 			soc = getattr(simplify, decorator)(soc)
 		build_kwargs = dict((k, autotype(v)) for k, v in args.build_option)
-		platform.build(soc, build_name=build_name, **build_kwargs)
+		vns = platform.build(soc, build_name=build_name, **build_kwargs)
+		soc.do_exit(vns)
 
 	if actions["load-bitstream"] or actions["flash-bitstream"] or actions["flash-bios"]:
 		prog = platform.create_programmer()

@@ -138,6 +138,9 @@ class GenSoC(Module):
 			t += clk_period_ns/2
 		return ceil(t/clk_period_ns)
 
+	def do_exit(self, vns):
+		pass
+
 class IntegratedBIOS:
 	def __init__(self, bios_size=0x8000):
 		self.submodules.rom = wishbone.SRAM(bios_size, read_only=True)
