@@ -75,15 +75,15 @@ class GenSoC(Module):
 
 		# add CPU Verilog sources
 		if cpu_type == "lm32":
-			platform.add_sources(os.path.join("verilog", "lm32", "submodule", "rtl"),
+			platform.add_sources(os.path.join("extcores", "lm32", "submodule", "rtl"),
 				"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
 				"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
 				"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
 				"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
 				"lm32_dcache.v", "lm32_debug.v", "lm32_itlb.v", "lm32_dtlb.v")
-			platform.add_verilog_include_path(os.path.join("verilog", "lm32"))
+			platform.add_verilog_include_path(os.path.join("extcores", "lm32"))
 		if cpu_type == "or1k":
-			platform.add_source_dir(os.path.join("verilog", "mor1kx", "submodule", "rtl", "verilog"))
+			platform.add_source_dir(os.path.join("extcores", "mor1kx", "submodule", "rtl", "verilog"))
 
 	def register_rom(self, rom_wb_if, bios_size=0xa000):
 		if self._rom_registered:
