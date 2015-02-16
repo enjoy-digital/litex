@@ -86,7 +86,7 @@ class TB(Module):
 
 			# test reads
 			if test_reads:
-				reads_addrs = [j for j in range(16)]
+				reads_addrs = [0x1000 + 4*j for j in range(16)]
 				reads = etherbone.EtherboneReads(base_ret_addr=0x1000, addrs=reads_addrs)
 				record = etherbone.EtherboneRecord()
 				record.writes = None

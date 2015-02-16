@@ -1,7 +1,7 @@
 import socket, time
 from liteeth.test.model.etherbone import *
 
-SRAM_BASE = 0x02000000//4
+SRAM_BASE = 0x02000000
 
 import socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -36,7 +36,7 @@ sock.sendto(bytes(packet), ("192.168.1.40", 20000))
 time.sleep(0.01)
 
 # test reads
-reads_addrs = [SRAM_BASE+j for j in range(16)]
+reads_addrs = [SRAM_BASE+4*j for j in range(16)]
 reads = EtherboneReads(base_ret_addr=0x1000, addrs=reads_addrs)
 record = EtherboneRecord()
 record.writes = None
