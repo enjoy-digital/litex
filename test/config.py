@@ -1,9 +1,14 @@
-from litescope.host.driver import LiteScopeUART2WBDriver
+use_uart = 0
+use_eth = 1
 
 csr_csv_file = "./csr.csv"
 busword = 32
 debug_wb = False
 
-com = 2
-baud = 921600
-wb = LiteScopeUART2WBDriver(com, baud, csr_csv_file, busword, debug_wb)
+if use_uart:
+	from litescope.host.driver import LiteScopeUART2WBDriver
+	wb = LiteScopeUART2WBDriver(2, 921600, csr_csv_file, busword, debug_wb)
+
+if use_eth:
+	from litescope.host.driver import LiteScopeEtherboneDriver
+	wb = LiteScopeEtherboneDriver("192.168.1.40", 20000, csr_csv_file, debug_wb)
