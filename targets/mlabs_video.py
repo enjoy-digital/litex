@@ -68,7 +68,7 @@ INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
 PIN "mxcrg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 """)
-		platform.add_source_dir(os.path.join("verilog", "mxcrg"))
+		platform.add_source_dir(os.path.join("misoclib", "mxcrg"))
 
 class MiniSoC(BaseSoC):
 	csr_map = {
