@@ -23,7 +23,7 @@ class LiteEthMAC(Module, AutoCSR):
 			self.submodules.interface = LiteEthMACWishboneInterface(dw, 2, 2)
 			self.comb += Port.connect(self.interface, self.core)
 			self.ev, self.bus = self.interface.sram.ev, self.interface.bus
-			self.csrs = self.interface.get_csrs()
+			self.csrs = self.interface.get_csrs() + self.core.get_csrs()
 		elif interface == "dma":
 			raise NotImplementedError
 		else:
