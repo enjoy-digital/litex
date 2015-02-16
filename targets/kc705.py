@@ -1,10 +1,13 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib import sdram, spiflash, ethmac
+from misoclib import sdram, spiflash
 from misoclib.sdram.phy import k7ddrphy
 from misoclib.gensoc import SDRAMSoC
-from misoclib.ethmac.phy import gmii
+
+from extcores import *
+from liteeth.phy.gmii import LiteEthPHYGMII
+from liteeth.mac import LiteEthMAC
 
 class _CRG(Module):
 	def __init__(self, platform):
@@ -121,8 +124,8 @@ class MiniSoC(BaseSoC):
 	def __init__(self, platform, **kwargs):
 		BaseSoC.__init__(self, platform, **kwargs)
 
-		self.submodules.ethphy = gmii.GMIIPHY(platform.request("eth_clocks"), platform.request("eth"))
-		self.submodules.ethmac = ethmac.EthMAC(phy=self.ethphy, with_hw_preamble_crc=True)
+		self.submodules.ethphy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
+		self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
 		self.add_wb_slave(lambda a: a[26:29] == 3, self.ethmac.bus)
 		self.add_cpu_memory_region("ethmac_mem", 0xb0000000, 0x2000)
 

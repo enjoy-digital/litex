@@ -4,10 +4,13 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import sdram, mxcrg, norflash16, ethmac, framebuffer, gpio
+from misoclib import sdram, mxcrg, norflash16, framebuffer, gpio
 from misoclib.sdram.phy import s6ddrphy
 from misoclib.gensoc import SDRAMSoC
-from misoclib.ethmac.phy import mii
+
+from extcores import *
+from liteeth.phy.mii import LiteEthPHYMII
+from liteeth.mac import LiteEthMAC
 
 class _MXClockPads:
 	def __init__(self, platform):
@@ -91,8 +94,8 @@ class MiniSoC(BaseSoC):
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
 			self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", i) for i in range(2)))
 
-		self.submodules.ethphy = mii.MIIPHY(platform.request("eth_clocks"), platform.request("eth"))
-		self.submodules.ethmac = ethmac.EthMAC(phy=self.ethphy, with_hw_preamble_crc=False)
+		self.submodules.ethphy = LiteEthPHYMII(platform.request("eth_clocks"), platform.request("eth"))
+		self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
 		self.add_wb_slave(lambda a: a[26:29] == 3, self.ethmac.bus)
 		self.add_cpu_memory_region("ethmac_mem", 0xb0000000, 0x2000)
 
