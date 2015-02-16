@@ -52,6 +52,9 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
   - Subsampling
   - Storage qualifier
   - Data storage in block rams
+- Bridges:
+  - UART2Wishbone
+  - Ethernet2Wishbone ("Etherbone")
 
 [> Possible improvements
 -------------------------
@@ -60,7 +63,6 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
 - add signals injection/generation
 - add storage in DRAM
 - add storage in HDD with LiteSATA core (to be released soon!)
-- add Ethernet Wishbone bridge
 - add PCIe Wishbone bridge with LitePCIe (to be released soon!)
 - ... See below Support and consulting :)
 
