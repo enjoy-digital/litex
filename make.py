@@ -34,7 +34,7 @@ load-bitstream  load bitstream into volatile storage.
 all             clean, build-csr-csv, build-bitstream, load-bitstream.
 """)
 
-	parser.add_argument("-t", "--target", default="udp", help="Core type to build")
+	parser.add_argument("-t", "--target", default="base", help="Core type to build")
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the Core type to build")
 	parser.add_argument("-p", "--platform", default=None, help="platform to build for")
 	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
@@ -92,8 +92,14 @@ if __name__ == "__main__":
               Ethernet core
 
 ====== Building options: ======
+Platform:  {}
+Target:    {}
+Subtarget: {}
 System Clk: {} MHz
 ===============================""".format(
+	platform_name,
+	args.target,
+	top_class.__name__,
 	soc.clk_freq/1000000
 	)
 )

@@ -33,7 +33,7 @@ Download and install
   - git clone https://github.com/enjoy-digital/liteeth
 
 6. Build and load UDP loopback design (only for KC705 for now):
-  - python3 make.py all (-s UDPSoCDevel to add LiteScopeLA)
+  - python3 make.py -t udp all
 
 7. Test design (only for KC705 for now):
   - try to ping 192.168.1.40
@@ -42,7 +42,7 @@ Download and install
   - run make test_udp
 
 8. Build and load Etherbone design (only for KC705 for now):
-  - python3 make.py -t Etherbone
+  - python3 make.py -t etherbone all
 
 9. Test design (only for KC705 for now):
   - try to ping 192.168.1.40
