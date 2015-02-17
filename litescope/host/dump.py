@@ -1,5 +1,8 @@
 import sys
+import os
+import shutil
 import datetime
+import zipfile
 
 def dec2bin(d, nb=0):
 	if d=="x":
@@ -295,6 +298,66 @@ class PYExport():
 		f.write(str(self))
 		f.close()
 
+class SRExport():
+	def __init__(self, dump):
+		self.dump = dump
+
+	def create_version(self):
+		f = open("version", "w")
+		f.write("1")
+		f.close()
+
+	def create_metadata(self, name):
+		f = open("metadata", "w")
+		r = """
+[global]
+sigrok version = 0.2.0
+[device 1]
+driver = litescope
+capturefile = {}
+unitsize = 1
+total probes = {}
+samplerate = {} MHz
+""".format(
+		name,
+		8,  # XXX add parameter
+		50, # XXX add parameter
+	)
+		# XXX add probe names
+		f.write(r)
+		f.close()
+
+	def create_data(self, name):
+		f = open(name, "wb")
+		# XXX
+		for i in range(16):
+			f.write(bytes(i))
+		f.close()
+
+	def zip(self, name):
+		def zipdir(path, zip):
+			for root, dirs, files in os.walk(path):
+				for file in files:
+					# XXX
+					os.chdir(root)
+					zip.write(file)
+					os.chdir("..")
+		zipf = zipfile.ZipFile(name + ".sr", 'w')
+		zipdir(name, zipf)
+		zipf.close()
+
+	def write(self, filename):
+		name, ext = os.path.splitext(filename)
+		if os.path.exists(name):
+			shutil.rmtree(name)
+		os.makedirs(name)
+		os.chdir(name)
+		self.create_version()
+		self.create_metadata(name)
+		self.create_data(name)
+		os.chdir("..")
+		self.zip(name)
+
 def main():
 	dump = Dump()
 	dump.add(Var("foo1", 1, [0,1,0,1,0,1]))
@@ -305,6 +368,7 @@ def main():
 	VCDExport(dump).write("mydump.vcd")
 	CSVExport(dump).write("mydump.csv")
 	PYExport(dump).write("mydump.py")
+	SRExport(dump).write("dump.sr")
 
 if __name__ == '__main__':
   main()
