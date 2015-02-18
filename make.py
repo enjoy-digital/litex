@@ -88,9 +88,8 @@ if __name__ == "__main__":
        / /__/ / __/ -_) _// __/ _ \\
       /____/_/\__/\__/___/\__/_//_/
 
-     A small footprint and configurable
-              Ethernet core
-
+  A small footprint and configurable Ethernet
+          core powered by Migen
 ====== Building options: ======
 Platform:  {}
 Target:    {}

@@ -8,7 +8,7 @@
 
        A small footprint and configurable Ethernet core
          with UDP/IP hw stack and Etherbone frontend
-                  developed by EnjoyDigital
+                  powered by Migen
 
 [> Doc
 ---------
