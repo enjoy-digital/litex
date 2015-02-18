@@ -2,7 +2,7 @@ import sys
 from config import *
 from tools import *
 from bist import *
-from litescope.host.driver import LiteScopeLADriver
+from litescope.host.driver.la import LiteScopeLADriver
 
 la = LiteScopeLADriver(wb.regs, "la")
 identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")
