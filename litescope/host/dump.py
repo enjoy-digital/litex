@@ -1,5 +1,6 @@
 import sys
 import os
+import math
 import shutil
 import datetime
 import zipfile
@@ -320,31 +321,44 @@ total probes = {}
 samplerate = {} MHz
 """.format(
 		name,
-		8,  # XXX add parameter
+		len(self.dump.vars),
 		50, # XXX add parameter
 	)
-		# XXX add probe names
+		for i, var in enumerate(self.dump.vars):
+			r += "probe{} = {}\n".format(i, var.name)
 		f.write(r)
 		f.close()
 
 	def create_data(self, name):
+		# XXX are probes limited to 1 bit?
+		data_bits = math.ceil(len(self.dump.vars)/8)*8
+		data_len = 0
+		for var in self.dump.vars:
+			data_len = max(data_len, len(var))
+		datas = []
+		for i in range(data_len):
+			data = 0
+			for j, var in enumerate(reversed(self.dump.vars)):
+				data = data << 1
+				try:
+					data |= var.values[i] %2
+				except:
+					pass
+			datas.append(data)
+
 		f = open(name, "wb")
-		# XXX
-		for i in range(16):
-			f.write(bytes(i))
+		for data in datas:
+			f.write(data.to_bytes(data_bits//8, "big"))
 		f.close()
 
 	def zip(self, name):
-		def zipdir(path, zip):
-			for root, dirs, files in os.walk(path):
-				for file in files:
-					# XXX
-					os.chdir(root)
-					zip.write(file)
-					os.chdir("..")
-		zipf = zipfile.ZipFile(name + ".sr", 'w')
-		zipdir(name, zipf)
-		zipf.close()
+		f = zipfile.ZipFile(name + ".sr", "w")
+		os.chdir(name)
+		f.write("version")
+		f.write("metadata")
+		f.write(name)
+		os.chdir("..")
+		f.close()
 
 	def write(self, filename):
 		name, ext = os.path.splitext(filename)
@@ -357,6 +371,7 @@ samplerate = {} MHz
 		self.create_data(name)
 		os.chdir("..")
 		self.zip(name)
+		shutil.rmtree(name)
 
 def main():
 	dump = Dump()
