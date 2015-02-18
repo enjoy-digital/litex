@@ -8,7 +8,7 @@ from collections import OrderedDict
 from litescope.host.dump import *
 
 class SigrokDump(Dump):
-	def __init__(self, init_dump=None):
+	def __init__(self, init_dump=None, samplerate=50000000):
 		Dump.__init__(self)
 		if init_dump:
 			self.vars = init_dump.vars
@@ -25,21 +25,20 @@ class SigrokDump(Dump):
 sigrok version = 0.2.0
 [device 1]
 driver = litescope
-capturefile = {}
+capturefile = logic-1
 unitsize = 1
 total probes = {}
-samplerate = {} MHz
+samplerate = {} KHz
 """.format(
-		name,
 		len(self.vars),
-		50, # XXX add parameter
+		self.samplerate//1000,
 	)
 		for i, var in enumerate(self.vars):
-			r += "probe{} = {}\n".format(i, var.name)
+			r += "probe{} = {}\n".format(i+1, var.name)
 		f.write(r)
 		f.close()
 
-	def write_data(self, name):
+	def write_data(self):
 		# XXX are probes limited to 1 bit?
 		data_bits = math.ceil(len(self.vars)/8)*8
 		data_len = 0
@@ -55,7 +54,7 @@ samplerate = {} MHz
 				except:
 					pass
 			datas.append(data)
-		f = open(name, "wb")
+		f = open("logic-1", "wb")
 		for data in datas:
 			f.write(data.to_bytes(data_bits//8, "big"))
 		f.close()
@@ -65,7 +64,7 @@ samplerate = {} MHz
 		os.chdir(name)
 		f.write("version")
 		f.write("metadata")
-		f.write(name)
+		f.write("logic-1")
 		os.chdir("..")
 		f.close()
 
@@ -77,7 +76,7 @@ samplerate = {} MHz
 		os.chdir(name)
 		self.write_version()
 		self.write_metadata(name)
-		self.write_data(name)
+		self.write_data()
 		os.chdir("..")
 		self.zip(name)
 		shutil.rmtree(name)
@@ -101,14 +100,20 @@ samplerate = {} MHz
 				index = int(m.group(1))
 				name = m.group(2)
 				probes[name] = index
+			m = re.search("samplerate = ([0-9]+) kHz", l, re.I)
+			if m is not None:
+				self.samplerate = int(m.group(1))*1000
+			m = re.search("samplerate = ([0-9]+) mHz", l, re.I)
+			if m is not None:
+				self.samplerate = int(m.group(1))*1000000
 		f.close()
 		return probes
 
-	def read_data(self, name, total_probes):
+	def read_data(self, name, nprobes):
 		datas = []
-		f = open(name, "rb")
+		f = open("logic-1", "rb")
 		while True:
-			data = f.read(math.ceil(total_probes/8))
+			data = f.read(math.ceil(nprobes/8))
 			if data == bytes('', "utf-8"):
 				break
 			data = int.from_bytes(data, "big")
@@ -129,7 +134,7 @@ samplerate = {} MHz
 		for k, v in probes.items():
 			probe_data = []
 			for data in datas:
-				probe_data.append((data >> v) & 0x1)
+				probe_data.append((data >> (v-1)) & 0x1)
 			self.add(Var(k, 1, probe_data))
 
 if __name__ == '__main__':
