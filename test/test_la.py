@@ -1,7 +1,7 @@
 from config import *
 import time
 
-from litescope.host.driver import LiteScopeLADriver
+from litescope.host.driver.la import LiteScopeLADriver
 la = LiteScopeLADriver(wb.regs, "la", debug=True)
 
 wb.open()
