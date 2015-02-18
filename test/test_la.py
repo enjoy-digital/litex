@@ -1,5 +1,5 @@
 from config import *
-from litescope.host.driver import LiteScopeLADriver
+from litescope.host.driver.la import LiteScopeLADriver
 
 wb.open()
 ###
@@ -19,5 +19,6 @@ la.upload()
 la.save("dump.vcd")
 la.save("dump.csv")
 la.save("dump.py")
+la.save("dump.sr")
 ###
 wb.close()

@@ -90,7 +90,7 @@ if __name__ == "__main__":
                               /_/
 
    A small footprint and configurable embedded FPGA
-            based in Migen/MiSoC
+       logic analyzer core powered by Migen
 
 ====== Building parameters: ======
 LiscopeIO

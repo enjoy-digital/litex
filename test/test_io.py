@@ -1,7 +1,7 @@
 import time
 
 from config import *
-from litescope.host.driver import LiteScopeIODriver
+from litescope.host.driver.io import LiteScopeIODriver
 
 def led_anim0(io):
 	for i in range(10):
