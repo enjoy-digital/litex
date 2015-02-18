@@ -94,7 +94,7 @@ if __name__ == "__main__":
     /____/_/\__/\__/___/_/ |_/_/ /_/ |_|
 
 A small footprint and configurable SATA core
-          based on Migen/MiSoC
+             powered by Migen
 
 ====== Building options: ======
 {} / {} Gbps
