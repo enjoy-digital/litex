@@ -68,10 +68,16 @@ class ConnectorManager:
 		for connector in connectors:
 			cit = iter(connector)
 			conn_name = next(cit)
-			pin_list = []
-			for pins in cit:
-				pin_list += pins.split()
-			pin_list = [None if pin == "None" else pin for pin in pin_list]
+			if isinstance(connector[1], str):
+				pin_list = []
+				for pins in cit:
+					pin_list += pins.split()
+				pin_list = [None if pin == "None" else pin for pin in pin_list]
+			elif isinstance(connector[1], dict):
+				pin_list = connector[1]
+			else:
+				raise ValueError("Unsupported pin list type {} for connector"
+						 " {}".format(type(connector[1]), conn_name))
 			if conn_name in self.connector_table:
 				raise ValueError("Connector specified more than once: "+conn_name)
 			self.connector_table[conn_name] = pin_list
@@ -81,7 +87,8 @@ class ConnectorManager:
 		for identifier in identifiers:
 			if ":" in identifier:
 				conn, pn = identifier.split(":")
-				pn = int(pn)
+				if pn.isdigit():
+					pn = int(pn)
 				r.append(self.connector_table[conn][pn])
 			else:
 				r.append(identifier)
