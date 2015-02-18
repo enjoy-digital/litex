@@ -4,8 +4,8 @@
 About LiteScope
 ================
 
-LiteScope is small footprint and configurable embedded logic analyzer that you
-can use in your FPGA and aims to provide a a free, portable and flexible
+LiteScope is a small footprint and configurable embedded logic analyzer that you
+can use in your FPGA and aims to provide a free, portable and flexible
 alternatve to vendor's solutions!
 
 LiteScope is part of LiteX libraries whose aims are to lower entry level of complex
