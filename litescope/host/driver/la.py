@@ -5,17 +5,16 @@ from litescope.host.dump import *
 from litescope.host.driver.truthtable import *
 
 class LiteScopeLADriver():
-	def __init__(self, regs, name, config_csv=None, use_rle=False, debug=False):
+	def __init__(self, regs, name, config_csv=None, debug=False):
 		self.regs = regs
 		self.name = name
-		self.use_rle = use_rle
 		self.debug = debug
 		if config_csv is None:
 			self.config_csv = name + ".csv"
 		self.get_config()
 		self.get_layout()
 		self.build()
-		self.dat = Dat(self.dw)
+		self.data = Dat(self.dw)
 
 	def get_config(self):
 		csv_reader = csv.reader(open(self.config_csv), delimiter=',', quotechar='#')
@@ -92,8 +91,6 @@ class LiteScopeLADriver():
 	def run(self, offset, length):
 		if self.debug:
 			print("running")
-		if self.with_rle:
-			self.config_rle(self.use_rle)
 		self.recorder_offset.write(offset)
 		self.recorder_length.write(length)
 		self.recorder_trigger.write(1)
@@ -102,12 +99,12 @@ class LiteScopeLADriver():
 		if self.debug:
 			print("uploading")
 		while self.recorder_source_stb.read():
-			self.dat.append(self.recorder_source_data.read())
+			self.data.append(self.recorder_source_data.read())
 			self.recorder_source_ack.write(1)
 		if self.with_rle:
-			if self.use_rle:
-				self.dat = self.dat.decode_rle()
-		return self.dat
+			if self.rle_enable.read():
+				self.data = self.data.decode_rle()
+		return self.data
 
 	def save(self, filename):
 		if self.debug:
@@ -127,5 +124,5 @@ class LiteScopeLADriver():
 			dump = SigrokDump()
 		else:
 			raise NotImplementedError
-		dump.add_from_layout(self.layout, self.dat)
+		dump.add_from_layout(self.layout, self.data)
 		dump.write(filename)

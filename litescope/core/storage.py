@@ -1,4 +1,5 @@
 from litescope.common import *
+from migen.flow.plumbing import Buffer
 
 class LiteScopeSubSamplerUnit(Module):
 	def __init__(self, dw):
@@ -33,38 +34,37 @@ class LiteScopeRunLengthEncoderUnit(Module):
 
 		self.enable = Signal()
 		###
-		sink_d = Sink(data_layout(dw))
-		self.sync += If(sink.stb, sink_d.eq(sink))
+		self.submodules.buf = buf = Buffer(sink.description)
+		self.comb += Record.connect(sink, buf.d)
 
-		cnt = Signal(max=length)
-		cnt_inc = Signal()
-		cnt_reset = Signal()
-		cnt_max = Signal()
-
-		self.sync += \
-			If(cnt_reset,
-				cnt.eq(1),
-			).Elif(cnt_inc,
-				cnt.eq(cnt+1)
-			)
-		self.comb += cnt_max.eq(cnt == length)
+		self.submodules.counter = counter = Counter(max=length)
+		counter_done = Signal()
+		self.comb += counter_done.eq(counter.value == length-1)
 
 		change = Signal()
-		self.comb += change.eq(sink.stb & (sink.dat != sink_d.dat))
+		self.comb += change.eq(
+			(sink.stb & buf.q.stb) &
+			(sink.data != buf.q.data)
+		)
 
-		fsm = FSM(reset_state="BYPASS")
-		self.submodules += fsm
+		self.submodules.fsm = fsm = FSM(reset_state="BYPASS")
 		fsm.act("BYPASS",
-			Record.connect(sink_d, source),
-			cnt_reset.eq(1),
-			If(self.enable & ~change & sink.stb, NextState("COUNT"))
+			Record.connect(buf.q, source),
+			counter.reset.eq(1),
+			If(sink.stb & ~change,
+				If(self.enable,
+					NextState("COUNT")
+				)
+			)
 		)
 		fsm.act("COUNT",
-			cnt_inc.eq(sink.stb),
-			If(change | cnt_max | ~self.enable,
+			counter.ce.eq(sink.stb),
+			If(~self.enable,
+				NextState("BYPASS")
+			).Elif(change | counter_done,
 				source.stb.eq(1),
-				source.dat[dw-1].eq(1), # Set RLE bit
-				source.dat[:flen(cnt)].eq(cnt),
+				source.data[:flen(counter.value)].eq(counter.value),
+				source.data[-1].eq(1), # Set RLE bit
 				NextState("BYPASS")
 			)
 		)
@@ -74,7 +74,7 @@ class LiteScopeRunLengthEncoder(LiteScopeRunLengthEncoderUnit, AutoCSR):
 		LiteScopeRunLengthEncoderUnit.__init__(self, dw, length)
 		self._enable = CSRStorage()
 		###
-		self.comb += self.enable.eq(self_enable.storage)
+		self.comb += self.enable.eq(self._enable.storage)
 
 class LiteScopeRecorderUnit(Module):
 	def __init__(self, dw, depth):

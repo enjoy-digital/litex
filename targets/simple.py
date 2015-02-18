@@ -87,17 +87,21 @@ class LiteScopeSoC(GenSoC, AutoCSR):
 		self.leds = Cat(*[platform.request("user_led", i) for i in range(8)])
 		self.comb += self.leds.eq(self.io.o)
 
-		cnt0 = Signal(8)
-		cnt1 = Signal(8)
-		self.sync += [
-			cnt0.eq(cnt0+1),
-			cnt1.eq(cnt1+2)
+		self.submodules.counter0 = counter0 = Counter(bits_sign=8)
+		self.submodules.counter1 = counter1 = Counter(bits_sign=8)
+		self.comb += [
+			counter0.ce.eq(1),
+			If(counter0.value == 16,
+				counter0.reset.eq(1),
+				counter1.ce.eq(1)
+			)
 		]
+
 		self.debug = (
-			cnt0,
-			cnt1
+			counter1.value,
+			Signal()
 		)
-		self.submodules.la = LiteScopeLA(self.debug, 512, with_subsampler=True)
+		self.submodules.la = LiteScopeLA(self.debug, 512, with_rle=True, with_subsampler=True)
 		self.la.trigger.add_port(LiteScopeTerm(self.la.dw))
 
 	def do_exit(self, vns):

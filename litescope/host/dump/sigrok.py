@@ -12,6 +12,7 @@ class SigrokDump(Dump):
 		Dump.__init__(self)
 		if init_dump:
 			self.vars = init_dump.vars
+		self.samplerate = samplerate
 
 	def write_version(self):
 		f = open("version", "w")
