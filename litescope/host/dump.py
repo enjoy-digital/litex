@@ -4,6 +4,8 @@ import math
 import shutil
 import datetime
 import zipfile
+import re
+from collections import OrderedDict
 
 def dec2bin(d, nb=0):
 	if d=="x":
@@ -303,12 +305,12 @@ class SRExport():
 	def __init__(self, dump):
 		self.dump = dump
 
-	def create_version(self):
+	def write_version(self):
 		f = open("version", "w")
 		f.write("1")
 		f.close()
 
-	def create_metadata(self, name):
+	def write_metadata(self, name):
 		f = open("metadata", "w")
 		r = """
 [global]
@@ -329,7 +331,7 @@ samplerate = {} MHz
 		f.write(r)
 		f.close()
 
-	def create_data(self, name):
+	def write_data(self, name):
 		# XXX are probes limited to 1 bit?
 		data_bits = math.ceil(len(self.dump.vars)/8)*8
 		data_len = 0
@@ -366,12 +368,68 @@ samplerate = {} MHz
 			shutil.rmtree(name)
 		os.makedirs(name)
 		os.chdir(name)
-		self.create_version()
-		self.create_metadata(name)
-		self.create_data(name)
+		self.write_version()
+		self.write_metadata(name)
+		self.write_data(name)
 		os.chdir("..")
 		self.zip(name)
 		shutil.rmtree(name)
+
+class SRImport():
+	def __init__(self, filename):
+		name, ext = os.path.splitext(filename)
+		self.unzip(filename, name)
+		os.chdir(name)
+		probes = self.read_metadata()
+		total_probes = len(probes.keys())
+		datas = self.read_data(name, total_probes)
+		os.chdir("..")
+		shutil.rmtree(name)
+		self.dump = self.generate_dump(probes, datas)
+
+	# XXX we can maybe avoid this
+	def unzip(self, filename, name):
+		f = open(filename, "rb")
+		z = zipfile.ZipFile(f)
+		if os.path.exists(name):
+			shutil.rmtree(name)
+			os.makedirs(name)
+		for file in z.namelist():
+			z.extract(file, name)
+		f.close()
+
+	def read_metadata(self):
+		probes = OrderedDict()
+		f = open("metadata", "r")
+		for l in f:
+			m = re.search("probe([0-9]+) = (\w+)", l, re.I)
+			if m is not None:
+				index = int(m.group(1))
+				name = m.group(2)
+				probes[name] = index
+		f.close()
+		return probes
+
+	def read_data(self, name, total_probes):
+		datas = []
+		f = open(name, "rb")
+		while True:
+			data = f.read(math.ceil(total_probes/8))
+			if data == bytes('', "utf-8"):
+				break
+			data = int.from_bytes(data, "big")
+			datas.append(data)
+		f.close()
+		return datas
+
+	def generate_dump(self, probes, datas):
+		dump = Dump()
+		for k, v in probes.items():
+			probe_data = []
+			for data in datas:
+				probe_data.append((data >> v) & 0x1)
+			dump.add(Var(k, 1, probe_data))
+		return dump
 
 def main():
 	dump = Dump()
@@ -384,6 +442,9 @@ def main():
 	CSVExport(dump).write("mydump.csv")
 	PYExport(dump).write("mydump.py")
 	SRExport(dump).write("dump.sr")
+	dump = SRImport("dump.sr").dump
+	VCDExport(dump).write("dump.vcd")
+
 
 if __name__ == '__main__':
   main()
