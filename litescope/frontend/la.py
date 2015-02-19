@@ -6,13 +6,18 @@ from mibuild.tools import write_to_file
 
 class LiteScopeLA(Module, AutoCSR):
 	def __init__(self, layout, depth, clk_domain="sys",
-			with_input_buffer=False, with_rle=False, with_subsampler=False):
+			with_input_buffer=False,
+			with_rle=False, rle_length=256,
+			with_subsampler=False):
 		self.layout = layout
 		self.data = Cat(*layout)
 		self.dw = flen(self.data)
+		if with_rle:
+			self.dw += 1
 		self.depth = depth
 		self.clk_domain = clk_domain
 		self.with_rle = with_rle
+		self.rle_length = rle_length
 		self.with_input_buffer = with_input_buffer
 		self.with_subsampler = with_subsampler
 
@@ -56,7 +61,7 @@ class LiteScopeLA(Module, AutoCSR):
 		# connect recorder
 		self.comb += Record.connect(self.trigger.source, self.recorder.trigger_sink)
 		if self.with_rle:
-			self.submodules.rle = LiteScopeRunLengthEncoder(self.dw)
+			self.submodules.rle = LiteScopeRunLengthEncoder(self.dw, self.rle_length)
 			self.comb += [
 				Record.connect(sink, self.rle.sink),
 				Record.connect(self.rle.source, self.recorder.data_sink),
