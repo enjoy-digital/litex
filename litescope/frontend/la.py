@@ -34,9 +34,13 @@ class LiteScopeLA(Module, AutoCSR):
 		sink = self.sink
 		# insert Buffer on sink (optional, can be used to improve timings)
 		if self.with_input_buffer:
-			self.submodules.buffer = Buffer(self.sink.description)
-			self.comb += Record.connect(sink, self.buffer.d)
-			sink = self.buffer.q
+			input_buffer = Buffer(self.sink.description)
+			if self.clk_domain is not "sys":
+				self.submodules += RenameClockDomains(input_buffer, clk_domain)
+			else:
+				self.submodules += input_buffer
+			self.comb += Record.connect(sink, intput_buffer.d)
+			sink = intput_buffer.q
 
 		# clock domain crossing (optional, required when capture_clk is not sys_clk)
 		# XXX : sys_clk must be faster than capture_clk, add Converter on data to remove this limitation
