@@ -5,12 +5,21 @@ from litescope.host.dump import *
 from litescope.host.driver.truthtable import *
 
 class LiteScopeLADriver():
-	def __init__(self, regs, name, config_csv=None, debug=False):
+	def __init__(self, regs, name, config_csv=None, clk_freq=None, debug=False):
 		self.regs = regs
 		self.name = name
-		self.debug = debug
 		if config_csv is None:
 			self.config_csv = name + ".csv"
+		if clk_freq is None:
+			try:
+				self.clk_freq = regs.identifier_frequency.read()
+			except:
+				self.clk_freq = None
+			self.samplerate = self.clk_freq
+		else:
+			self.clk_freq = clk_freq
+			self.samplerate = clk_freq
+		self.debug = debug
 		self.get_config()
 		self.get_layout()
 		self.build()
@@ -78,6 +87,10 @@ class LiteScopeLADriver():
 
 	def configure_subsampler(self, n):
 		self.subsampler_value.write(n-1)
+		if self.clk_freq is not None:
+			self.samplerate = self.clk_freq//n
+		else:
+			self.samplerate = None
 
 	def configure_qualifier(self, v):
 		self.recorder_qualifier.write(v)
@@ -121,7 +134,9 @@ class LiteScopeLADriver():
 			dump = PythonDump()
 		elif ext == ".sr":
 			from litescope.host.dump.sigrok import SigrokDump
-			dump = SigrokDump()
+			if self.samplerate is None:
+				raise ValueError("Unable to automatically retrieve clk_freq, clk_freq parameter required")
+			dump = SigrokDump(samplerate=self.samplerate)
 		else:
 			raise NotImplementedError
 		dump.add_from_layout(self.layout, self.data)
