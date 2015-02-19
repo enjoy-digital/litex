@@ -73,8 +73,9 @@ class LiteScopeRunLengthEncoder(LiteScopeRunLengthEncoderUnit, AutoCSR):
 	def __init__(self, dw, length=1024):
 		LiteScopeRunLengthEncoderUnit.__init__(self, dw, length)
 		self._enable = CSRStorage()
+		self.external_enable = Signal(reset=1)
 		###
-		self.comb += self.enable.eq(self._enable.storage)
+		self.comb += self.enable.eq(self._enable.storage & self.external_enable)
 
 class LiteScopeRecorderUnit(Module):
 	def __init__(self, dw, depth):
@@ -89,6 +90,7 @@ class LiteScopeRecorderUnit(Module):
 		self.length = Signal(bits_for(depth))
 		self.offset = Signal(bits_for(depth))
 		self.done = Signal()
+		self.post_hit = Signal()
 
 		self.source = Source(data_layout(dw))
 
@@ -120,6 +122,7 @@ class LiteScopeRecorderUnit(Module):
 			If(trigger_sink.stb & trigger_sink.hit, NextState("POST_HIT_RECORDING"))
 		)
 		fsm.act("POST_HIT_RECORDING",
+			self.post_hit.eq(1),
 			If(self.qualifier,
 				fifo.sink.stb.eq(trigger_sink.stb & trigger_sink.hit & data_sink.stb)
 			).Else(

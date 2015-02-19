@@ -59,7 +59,8 @@ class LiteScopeLA(Module, AutoCSR):
 			self.submodules.rle = LiteScopeRunLengthEncoder(self.dw)
 			self.comb += [
 				Record.connect(sink, self.rle.sink),
-				Record.connect(self.rle.source, self.recorder.data_sink)
+				Record.connect(self.rle.source, self.recorder.data_sink),
+				self.rle.external_enable.eq(self.recorder.post_hit)
 			]
 		else:
 			self.submodules.delay_buffer = Buffer(self.sink.description)
