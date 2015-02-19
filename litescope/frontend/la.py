@@ -81,6 +81,8 @@ class LiteScopeLA(Module, AutoCSR):
 		r += format_line("config", "dw", str(self.dw))
 		r += format_line("config", "depth", str(self.depth))
 		r += format_line("config", "with_rle", str(int(self.with_rle)))
+		if not isinstance(self.layout, tuple):
+			self.layout = [self.layout]
 		for e in self.layout:
 			r += format_line("layout", vns.get_name(e), str(flen(e)))
 		write_to_file(filename, r)

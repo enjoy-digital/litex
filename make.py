@@ -131,7 +131,7 @@ RLE: {}
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bitstream"]:
-		vns = platform.build(soc, build_name=build_name)
+		vns = platform.build(soc, build_name=build_name, run=True)
 		if hasattr(soc, "do_exit") and vns is not None:
 			if hasattr(soc.do_exit, '__call__'):
 				soc.do_exit(vns)
