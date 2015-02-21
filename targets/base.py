@@ -7,7 +7,7 @@ from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.bank.description import *
 
-from misoclib import identifier
+from targets import *
 
 from litescope.common import *
 from litescope.bridge.uart2wb import LiteScopeUART2WB
@@ -76,7 +76,7 @@ class GenSoC(Module):
 		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 
 		# CSR
-		self.submodules.identifier = identifier.Identifier(0, int(clk_freq), 0)
+		self.submodules.identifier = Identifier(0, int(clk_freq), 0)
 
 	def add_wb_master(self, wbm):
 		if self.finalized:
