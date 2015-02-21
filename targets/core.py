@@ -1,5 +1,7 @@
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from targets import *
+
 from litesata.common import *
 from litesata.phy import LiteSATAPHY
 from litesata import LiteSATA
