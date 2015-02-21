@@ -7,7 +7,7 @@ About LiteEth
 LiteEth provides a small footprint and configurable Ethernet core.
 
 LiteEth is part of LiteX libraries whose aims are to lower entry level of
-complex FPGA IP cores by providing simple, elegant and efficient implementations
+complex FPGA cores by providing simple, elegant and efficient implementations
 ofcomponents used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
 The core uses simple and specific streaming buses and will provides in the future
