@@ -278,3 +278,7 @@ def eth_etherbone_mmap_description(dw):
 		("data", dw)
 	]
 	return EndpointDescription(payload_layout, param_layout, packetized=True)
+
+def eth_tty_description(dw):
+	payload_layout = [("data", dw)]
+	return EndpointDescription(payload_layout, packetized=False)

@@ -6,7 +6,6 @@ from liteeth.common import *
 from liteeth.generic import *
 
 from targets.base import BaseSoC
-from liteeth.core import LiteEthUDPIPCore
 
 class UDPSoC(BaseSoC):
 	default_platform = "kc705"

@@ -14,3 +14,7 @@ test_udp:
 
 test_etherbone:
 	$(CMD) test_etherbone.py
+
+test_tty:
+	$(CMD) test_tty.py
+
