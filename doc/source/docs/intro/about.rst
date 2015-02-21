@@ -7,7 +7,7 @@ About LiteSATA
 LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
 
 LiteSATA is part of LiteX libraries whose aims is to lower entry level of complex
-FPGA IP cores by providing simple, elegant and efficient implementations of
+FPGA cores by providing simple, elegant and efficient implementations of
 components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
 The core uses simple and specific streaming buses and will provides in the future
