@@ -9,7 +9,7 @@ can use in your FPGA and aims to provide a free, portable and flexible
 alternatve to vendor's solutions!
 
 LiteScope is part of LiteX libraries whose aims are to lower entry level of complex
-FPGA IP cores by providing simple, elegant and efficient implementations of
+FPGA cores by providing simple, elegant and efficient implementations of
 components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
 The core uses simple and specific streaming buses and will provides in the future
