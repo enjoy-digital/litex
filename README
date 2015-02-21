@@ -81,27 +81,20 @@ devel [AT] lists.m-labs.hk.
   python3 setup.py install
   cd ..
 
-3. Obtain MiSoC and install it:
-  git clone https://github.com/m-labs/misoc --recursive
-  cd misoc
-  python3 setup.py install
-  cd ..
-
-Note: in case you have issues with Migen/MiSoC, please retry
+Note: in case you have issues with Migen, please retry
 with our forks at:
-  https://github.com/enjoy-digital/misoc
   https://github.com/enjoy-digital/migen
 until new features are merged.
 
-4. Obtain LiteScope and install it:
+3. Obtain LiteScope and install it:
   git clone https://github.com/enjoy-digital/litescope
 
-5. Build and load test design:
+4. Build and load test design:
   python3 make.py -s [platform] all
-  Supported platforms are the one altready supported by Mibuild:
+  Supported platforms are the ones already supported by Mibuild:
   de0nano, m1, mixxeo, kc705, zedboard...
 
-6. Test design:
+5. Test design:
   go to ./test directory and run:
   python3 test_io.py
   python3 test_la.py

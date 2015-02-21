@@ -5,7 +5,7 @@ from migen.bus import wishbone, csr
 from migen.bus import wishbone2csr
 from migen.bank.description import *
 
-from misoclib import identifier
+from targets import *
 
 from litescope.common import *
 from litescope.bridge.uart2wb import LiteScopeUART2WB
@@ -48,7 +48,7 @@ class GenSoC(Module):
 		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 
 		# CSR
-		self.submodules.identifier = identifier.Identifier(0, int(clk_freq), 0)
+		self.submodules.identifier = Identifier(0, int(clk_freq))
 
 	def add_cpu_memory_region(self, name, origin, length):
 		self.cpu_memory_regions.append((name, origin, length))
