@@ -67,7 +67,7 @@ class LiteEthPacketizer(Module):
 			fsm.act("SEND_HEADER",
 				source.stb.eq(1),
 				source.sop.eq(0),
-				source.eop.eq(sink.eop & (counter.value == header_words-2)),
+				source.eop.eq(0),
 				source.data.eq(header_reg[dw:2*dw]),
 				If(source.stb & source.ack,
 					shift.eq(1),

@@ -1,20 +1,20 @@
 import socket
 import threading
 
-test_message = "LiteEth virtual TTY Hello world"
-
 def test(fpga_ip, udp_port, test_message):
 	tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	rx_sock  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	rx_sock.bind(("", udp_port))
+	rx_sock.settimeout(0.5)
 
 	def receive():
-		data, addr = rx_sock.recvfrom(8192)
-		rx_packet = []
-		for byte in data:
-			rx_packet.append(int(byte))
-		for e in rx_packet:
-			print(chr(e))
+		while True:
+			try:
+				msg = rx_sock.recv(8192)
+				for byte in msg:
+					print(chr(byte), end="")
+			except:
+				break
 
 	def send():
 		tx_sock.sendto(bytes(test_message, "utf-8"), (fpga_ip, udp_port))
@@ -26,8 +26,8 @@ def test(fpga_ip, udp_port, test_message):
 	send_thread.start()
 
 	try:
-		send_thread.join(10)
-		receive_thread.join(0.1)
+		send_thread.join(5)
+		send_thread.join(5)
 	except KeyboardInterrupt:
 		pass
 
