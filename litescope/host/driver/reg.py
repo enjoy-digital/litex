@@ -12,19 +12,24 @@ class MappedReg:
 	def read(self):
 		if self.mode not in ["rw", "ro"]:
 			raise KeyError(name + "register not readable")
-		r = 0
-		for i in range(self.length):
-			r |= self.readfn(self.addr + 4*i)
-			if i != (self.length-1):
-				r <<= self.busword
-		return r
+		datas = self.readfn(self.addr, burst_length=self.length)
+		if isinstance(datas, int):
+			return datas
+		else:
+			data = 0
+			for i in range(self.length):
+				data |= datas[i]
+				if i != (self.length-1):
+					data <<= self.busword
+			return data
 
 	def write(self, value):
 		if self.mode not in ["rw", "wo"]:
 			raise KeyError(name + "register not writable")
+		datas = []
 		for i in range(self.length):
-			dat = (value >> ((self.length-1-i)*self.busword)) & (2**self.busword-1)
-			self.writefn(self.addr + 4*i, dat)
+			datas.append((value >> ((self.length-1-i)*self.busword)) & (2**self.busword-1))
+		self.writefn(self.addr, datas)
 
 class MappedRegs:
 	def __init__(self, d):
