@@ -10,16 +10,12 @@ def dec2bin(d, nb=0):
 			d=d>>1
 	return b.zfill(nb)
 
-def get_bits(values, width, low, high=None):
+def get_bits(values, low, high=None):
 	r = []
+	if high is None:
+		high = low+1
 	for val in values:
-		t = dec2bin(val, width)[::-1]
-		if high == None:
-			t = t[low]
-		else:
-			t = t[low:high]
-		t = t[::-1]
-		t = int(t,2)
+		t = (val >> low) & (2**(high-low)-1)
 		r.append(t)
 	return r
 
@@ -29,7 +25,7 @@ class Dat(list):
 
 	def __getitem__(self, key):
 		if isinstance(key, int):
-			return get_bits(self, self.width, key)
+			return get_bits(self, key)
 		elif isinstance(key, slice):
 			if key.start != None:
 				start = key.start
@@ -43,28 +39,23 @@ class Dat(list):
 				stop = self.width
 			if key.step != None:
 				raise KeyError
-			return get_bits(self, self.width, start, stop)
+			return get_bits(self, start, stop)
 		else:
 			raise KeyError
 
 	def decode_rle(self):
-		rle_bit = self[-1]
-		rle_dat = self[:self.width-1]
-
-		dat = Dat(self.width)
-		i=0
-		last = 0
-		for d in self:
-			if rle_bit[i]:
-				if len(dat) >= 1:
-					# FIX ME... why is rle_dat in reverse order...
-					for j in range(int(dec2bin(rle_dat[i])[::-1],2)):
-						dat.append(last)
+		datas = Dat(self.width-1)
+		last_data = 0
+		for data in self:
+			rle = data >> (self.width-1)
+			data = data & (2**(self.width-1)-1)
+			if rle:
+				for i in range(data):
+					datas.append(last_data)
 			else:
-				dat.append(d)
-				last = d
-			i +=1
-		return dat
+				datas.append(data)
+				last_data = data
+		return datas
 
 class Var:
 	def __init__(self, name, width, values=[], type="wire", default="x"):
