@@ -76,5 +76,6 @@ def test(fpga_ip, udp_port, test_size):
 	except KeyboardInterrupt:
 		pass
 
-test("192.168.1.40", 6000, 128*KB)
-test("192.168.1.40", 8000, 128*KB)
+def main(wb):
+	test("192.168.1.40", 6000, 128*KB)
+	test("192.168.1.40", 8000, 128*KB)

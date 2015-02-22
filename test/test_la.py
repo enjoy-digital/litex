@@ -1,34 +1,24 @@
-from config import *
 import time
-
 from litescope.host.driver.la import LiteScopeLADriver
-la = LiteScopeLADriver(wb.regs, "la", debug=True)
 
-wb.open()
-regs = wb.regs
-###
+def main(wb):
+	la = LiteScopeLADriver(wb.regs, "la", debug=True)
 
-conditions = {}
-conditions = {
-	"udpsocdevel_mac_rx_cdc_source_stb"	: 1
-}
-conditions = {
-	"core_udp_tx_fsm_state"	: 1
-}
-conditions = {
-	"etherbonesocdevel_master_bus_stb"	: 1,
-	"etherbonesocdevel_master_bus_we"	: 0
-}
-la.configure_term(port=0, cond=conditions)
-la.configure_sum("term")
-# Run Logic Analyzer
-la.run(offset=2048, length=4000)
+	wb.open()
+	regs = wb.regs
+	###
 
-while not la.done():
-	pass
+	conditions = {}
+	la.configure_term(port=0, cond=conditions)
+	la.configure_sum("term")
+	# Run Logic Analyzer
+	la.run(offset=2048, length=4000)
 
-la.upload()
-la.save("dump.vcd")
+	while not la.done():
+		pass
 
-###
-wb.close()
+	la.upload()
+	la.save("dump.vcd")
+
+	###
+	wb.close()
