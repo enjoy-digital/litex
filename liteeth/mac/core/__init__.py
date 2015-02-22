@@ -1,6 +1,6 @@
 from liteeth.common import *
 from liteeth.generic import *
-from liteeth.mac.core import gap, preamble, crc, last_be
+from liteeth.mac.core import gap, preamble, crc, padding, last_be
 
 class LiteEthMACCore(Module, AutoCSR):
 	def __init__(self, phy, dw, endianness="big", with_hw_preamble_crc=True):
@@ -36,6 +36,15 @@ class LiteEthMACCore(Module, AutoCSR):
 
 			tx_pipeline += [preamble_inserter, crc32_inserter]
 			rx_pipeline += [preamble_checker, crc32_checker]
+
+		# Padding
+		padding_inserter = padding.LiteEthMACPaddingInserter(phy.dw, 60)
+		padding_checker = padding.LiteEthMACPaddingChecker(phy.dw, 60)
+		self.submodules += RenameClockDomains(padding_inserter, "eth_tx")
+		self.submodules += RenameClockDomains(padding_checker, "eth_rx")
+
+		tx_pipeline += [padding_inserter]
+		rx_pipeline += [padding_checker]
 
 		# Delimiters
 		if dw != 8:
