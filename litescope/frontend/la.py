@@ -13,6 +13,7 @@ class LiteScopeLA(Module, AutoCSR):
 		self.data = Cat(*layout)
 		self.dw = flen(self.data)
 		if with_rle:
+			self.dw = max(self.dw, log2_int(rle_length))
 			self.dw += 1
 		self.depth = depth
 		self.clk_domain = clk_domain

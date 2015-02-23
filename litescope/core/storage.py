@@ -28,8 +28,6 @@ class LiteScopeRunLengthEncoderUnit(Module):
 	def __init__(self, dw, length):
 		self.dw = dw
 		self.length = length
-		if dw < (log2_int(length) + 1):
-			raise ValueError("Not enough bits to encode RLE length, increase dw or reduce RLE length")
 
 		self.sink = sink = Sink(data_layout(dw))
 		self.source = source = Source(data_layout(dw))
