@@ -21,8 +21,12 @@ class LiteScopeEtherboneDriver:
 	def close(self):
 		pass
 
-	def read(self, addr, burst_length=1):
-		reads_addrs = [addr+4*j for j in range(burst_length)]
+	def read(self, addr, burst_length=None, repeats=None):
+		def to_int(v):
+			return 1 if v is None else v
+		reads_addrs = []
+		for i in range(to_int(repeats)):
+			reads_addrs += [addr+4*j for j in range(to_int(burst_length))]
 		reads = EtherboneReads(base_ret_addr=0x1000, addrs=reads_addrs)
 		record = EtherboneRecord()
 		record.writes = None
@@ -45,14 +49,11 @@ class LiteScopeEtherboneDriver:
 		datas, addrs = self.rx_sock.recvfrom(8192)
 		packet = EtherbonePacket(datas)
 		packet.decode()
-		values = packet.records.pop().writes.get_datas()
+		datas = packet.records.pop().writes.get_datas()
 		if self.debug:
-			for i, val in enumerate(values):
-				print("RD %08X @ %08X" %(val, addr + 4*i))
-		if burst_length == 1:
-			return values[0]
-		else:
-			return values
+			for i, data in enumerate(datas):
+				print("RD %08X @ %08X" %(data, addr + 4*(i%to_int(burst_length))))
+		return datas
 
 	def write(self, addr, datas):
 		if not isinstance(datas, list):
