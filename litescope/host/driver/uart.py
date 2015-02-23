@@ -35,28 +35,27 @@ class LiteScopeUARTDriver:
 		self.uart.flushOutput()
 		self.uart.close()
 
-	def read(self, addr, burst_length=1):
-		self.uart.flushInput()
-		write_b(self.uart, self.cmds["read"])
-		write_b(self.uart, burst_length)
-		addr = addr//4
-		write_b(self.uart, (addr & 0xff000000) >> 24)
-		write_b(self.uart, (addr & 0x00ff0000) >> 16)
-		write_b(self.uart, (addr & 0x0000ff00) >> 8)
-		write_b(self.uart, (addr & 0x000000ff))
-		values = []
-		for i in range(burst_length):
-			val = 0
-			for j in range(4):
-				val = val << 8
-				val |= ord(self.uart.read())
-			if self.debug:
-				print("RD %08X @ %08X" %(val, (addr+i)*4))
-			values.append(val)
-		if burst_length == 1:
-			return values[0]
-		else:
-			return values
+	def read(self, addr, burst_length=None, repeats=None):
+		datas = []
+		def to_int(v):
+			return 1 if v is None else v
+		for i in range(to_int(repeats)):
+			self.uart.flushInput()
+			write_b(self.uart, self.cmds["read"])
+			write_b(self.uart, burst_length)
+			write_b(self.uart, (addr//4 & 0xff000000) >> 24)
+			write_b(self.uart, (addr//4 & 0x00ff0000) >> 16)
+			write_b(self.uart, (addr//4 & 0x0000ff00) >> 8)
+			write_b(self.uart, (addr//4 & 0x000000ff))
+			for j in range(to_int(burst_length)):
+				data = 0
+				for k in range(4):
+					data = data << 8
+					data |= ord(self.uart.read())
+				if self.debug:
+					print("RD %08X @ %08X" %(data, (addr+j)*4))
+				datas.append(data)
+		return datas
 
 	def write(self, addr, data):
 		if isinstance(data, list):
@@ -65,11 +64,10 @@ class LiteScopeUARTDriver:
 			burst_length = 1
 		write_b(self.uart, self.cmds["write"])
 		write_b(self.uart, burst_length)
-		addr = addr//4
-		write_b(self.uart, (addr & 0xff000000) >> 24)
-		write_b(self.uart, (addr & 0x00ff0000) >> 16)
-		write_b(self.uart, (addr & 0x0000ff00) >> 8)
-		write_b(self.uart, (addr & 0x000000ff))
+		write_b(self.uart, (addr//4 & 0xff000000) >> 24)
+		write_b(self.uart, (addr//4 & 0x00ff0000) >> 16)
+		write_b(self.uart, (addr//4 & 0x0000ff00) >> 8)
+		write_b(self.uart, (addr//4 & 0x000000ff))
 		if isinstance(data, list):
 			for i in range(len(data)):
 				dat = data[i]
