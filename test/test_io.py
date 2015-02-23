@@ -1,6 +1,4 @@
 import time
-
-from config import *
 from litescope.host.driver.io import LiteScopeIODriver
 
 def led_anim0(io):
@@ -25,11 +23,12 @@ def led_anim1(io):
 			time.sleep(i*i*0.0020)
 			led_data = (led_data>>1)
 
-io = LiteScopeIODriver(wb.regs, "io")
-wb.open()
-###
-led_anim0(io)
-led_anim1(io)
-print("%02X" %io.read())
-###
-wb.close()
+def main(wb):
+	io = LiteScopeIODriver(wb.regs, "io")
+	wb.open()
+	###
+	led_anim0(io)
+	led_anim1(io)
+	print("%02X" %io.read())
+	###
+	wb.close()
