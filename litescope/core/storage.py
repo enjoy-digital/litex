@@ -97,7 +97,6 @@ class LiteScopeRecorderUnit(Module):
 		self.post_hit = Signal()
 
 		self.source = Source(data_layout(dw))
-		self.source_level = Signal(bits_for(depth))
 
 		###
 
@@ -138,7 +137,6 @@ class LiteScopeRecorderUnit(Module):
 
 			If(~fifo.sink.ack | (fifo.fifo.level >= self.length), NextState("IDLE"))
 		)
-		self.comb += self.source_level.eq(fifo.fifo.level)
 
 class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
 	def __init__(self, dw, depth):
@@ -151,7 +149,7 @@ class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
 		self._done = CSRStatus()
 
 		self._source_stb = CSRStatus()
-		self._source_level = CSRStatus(bits_for(depth))
+		self._source_ack = CSR()
 		self._source_data = CSRStatus(dw)
 
 		###
@@ -164,7 +162,6 @@ class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
 			self._done.status.eq(self.done),
 
 			self._source_stb.status.eq(self.source.stb),
-			self._source_level.status.eq(self.source_level),
 			self._source_data.status.eq(self.source.data),
-			self.source.ack.eq(self._source_data.sel),
+			self.source.ack.eq(self._source_ack.re)
 		]

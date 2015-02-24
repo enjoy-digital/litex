@@ -111,11 +111,9 @@ class LiteScopeLADriver():
 	def upload(self):
 		if self.debug:
 			print("uploading")
-		level = self.recorder_source_level.read()
-		while level:
-			length = self.recorder_source_data.length
-			self.data += self.recorder_source_data.read(repeats=min(128//length, level))
-			level = self.recorder_source_level.read()
+		while self.recorder_source_stb.read():
+			self.data.append(self.recorder_source_data.read())
+			self.recorder_source_ack.write(1)
 		if self.with_rle:
 			if self.rle_enable.read():
 				self.data = self.data.decode_rle()
