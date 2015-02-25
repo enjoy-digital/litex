@@ -26,11 +26,18 @@ class LiteEthPHYSim(Module, AutoCSR):
 		self.submodules.crg = LiteEthPHYSimCRG()
 		self.sink = sink = Sink(eth_phy_description(8))
 		self.source = source = Source(eth_phy_description(8))
+
 		self.comb += [
 			pads.source_stb.eq(self.sink.stb),
 			pads.source_data.eq(self.sink.data),
-			self.sink.ack.eq(1),
+			self.sink.ack.eq(1)
+		]
 
+		self.sync += [
 			self.source.stb.eq(pads.sink_stb),
-			self.source.data.eq(pads.sink_data)
+			self.source.sop.eq(pads.sink_stb & ~self.source.stb),
+			self.source.data.eq(pads.sink_data),
+		]
+		self.comb += [
+			self.source.eop.eq(~pads.sink_stb & self.source.stb),
 		]
