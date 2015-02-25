@@ -11,3 +11,4 @@ tools/byteswap
 software/include/generated/*.h
 software/include/generated/*.ld
 software/include/generated/*.mak
+*.vcd

@@ -1,0 +1,142 @@
+                __   _ __      ______  __
+               / /  (_) /____ / __/ /_/ /
+              / /__/ / __/ -_) _// __/ _ \
+             /____/_/\__/\__/___/\__/_//_/
+
+           Copyright 2012-2015 / EnjoyDigital
+                florent@enjoy-digital.fr
+
+       A small footprint and configurable Ethernet core
+         with UDP/IP hw stack and Etherbone frontend
+                  powered by Migen
+
+[> Doc
+---------
+HTML : www.enjoy-digital.fr/litex/liteeth/
+PDF  : www.enjoy-digital.fr/litex/liteeth.pdf
+
+[> Intro
+---------
+LiteEth provides a small footprint and configurable Ethernet core.
+
+LiteEth is part of LiteX libraries whose aims are to lower entry level of
+complex FPGA cores by providing simple, elegant and efficient implementations
+ofcomponents used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
+
+The core uses simple and specific streaming buses and will provides in the future
+adapters to use standardized AXI or Avalon-ST streaming buses.
+
+Since Python is used to describe the HDL, the core is highly and easily
+configurable.
+
+LiteEth uses technologies developed in partnership with M-Labs Ltd:
+ - Migen enables generating HDL with Python in an efficient way.
+ - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
+
+LiteEth can be used as a Migen/MiSoC library (by simply installing  it
+with the provided setup.py) or can be integrated with your standard design flow
+by generating the verilog rtl that you will use as a standard core.
+
+[> Features
+-----------
+- Ethernet MAC with various interfaces and various PHYs (GMII, MII, Loopback)
+- Hardware UDP/IP stack with ARP and ICMP
+
+[> Possible improvements
+-------------------------
+- add standardized interfaces (AXI, Avalon-ST)
+- add DMA interface to MAC
+- add RGMII/SGMII PHYs
+- ... See below Support and consulting :)
+
+If you want to support these features, please contact us at florent [AT]
+enjoy-digital.fr. You can also contact our partner on the public mailing list
+devel [AT] lists.m-labs.hk.
+
+
+[> Getting started
+------------------
+1. Install Python3 and your vendor's software
+
+2. Obtain Migen and install it:
+  git clone https://github.com/m-labs/migen
+  cd migen
+  python3 setup.py install
+  cd ..
+
+Note: in case you have issues with Migen, please retry
+with our fork at:
+  https://github.com/enjoy-digital/misoc
+until new features are merged.
+
+3. Obtain LiteScope and install it:
+  git clone https://github.com/enjoy-digital/litescope
+  cd litescope
+  python3 setup.py install
+  cd ..
+
+4. Obtain LiteEth
+  git clone https://github.com/enjoy-digital/liteeth
+
+5. Build and load UDP loopback design (only for KC705 for now):
+  python3 make.py -t udp all
+
+6. Test design (only for KC705 for now):
+  try to ping 192.168.1.40
+  go to ./test directory:
+  change com port in config.py to your com port
+  run make test_udp
+
+7. Build and load Etherbone design (only for KC705 for now):
+  python3 make.py -t etherbone all
+
+8. Test design (only for KC705 for now):
+  try to ping 192.168.1.40
+  go to ./test directory run:
+  run make test_etherbone
+
+[> Simulations:
+  Simulations are available in ./liteth/test/:
+    - mac_core_tb
+    - mac_wishbone_tb
+    - arp_tb
+    - ip_tb
+    - icmp_tb
+    - udp_tb
+  All ethernet layers have their own model tested against real Ethernet dumps (dumps.py)
+  To run a simulation, move to ./liteeth/test and run:
+    make simulation_name
+
+[> Tests :
+  An UDP loopback example is provided and be controlled with: ./test/test_udp.py
+  An Etherbone example with Wishbone SRAM is provided and can be controlled with:
+  ./test/test_etherbone.py
+
+[> License
+-----------
+LiteEth is released under the very permissive two-clause BSD license. Under
+the terms of this license, you are authorized to use LiteEth for closed-source
+proprietary designs.
+Even though we do not require you to do so, those things are awesome, so please
+do them if possible:
+ - tell us that you are using LiteEth
+ - cite LiteEth in publications related to research it has helped
+ - send us feedback and suggestions for improvements
+ - send us bug reports when something goes wrong
+ - send us the modifications and improvements you have done to LiteEth.
+
+[> Support and consulting
+--------------------------
+We love open-source hardware and like sharing our designs with others.
+
+LiteEth is developed and maintained by EnjoyDigital.
+
+If you would like to know more about LiteEth or if you are already a happy
+user and would like to extend it for your needs, EnjoyDigital can provide standard
+commercial support as well as consulting services.
+
+So feel free to contact us, we'd love to work with you! (and eventually shorten
+the list of the possible improvements :)
+
+[> Contact
+E-mail: florent [AT] enjoy-digital.fr
