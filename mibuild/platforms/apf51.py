@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx_ise import XilinxISEPlatform
+from mibuild.xilinx.ise import XilinxISEPlatform
 
 _ios = [
 	("clk3", 0, Pins("N8"), IOStandard("LVCMOS33")),

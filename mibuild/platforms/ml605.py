@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.xilinx_common import CRG_DS
-from mibuild.xilinx_ise import XilinxISEPlatform
+from mibuild.xilinx.ise import XilinxISEPlatform
 
 _io = [
 	# System clock (Differential 200MHz)

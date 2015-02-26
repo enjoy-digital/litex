@@ -3,8 +3,8 @@
 
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.altera_quartus import AlteraQuartusPlatform
-from mibuild.programmer import USBBlaster
+from mibuild.altera.quartus import AlteraQuartusPlatform
+from mibuild.altera.programmer import USBBlaster
 
 _io = [
 	("clk50", 0, Pins("R8"), IOStandard("3.3-V LVTTL")),

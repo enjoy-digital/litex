@@ -1,9 +1,9 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
 from mibuild.xilinx_common import CRG_DS
-from mibuild.xilinx_ise import XilinxISEPlatform
-from mibuild.xilinx_vivado import XilinxVivadoPlatform
-from mibuild.programmer import XC3SProg
+from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx.vivado import XilinxVivadoPlatform
+from mibuild.xilinx.programmer import XC3SProg
 
 _io = [
 	("user_led", 0, Pins("AB8"), IOStandard("LVCMOS15")),

@@ -1,7 +1,7 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx_ise import XilinxISEPlatform
-from mibuild.programmer import UrJTAG
+from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx.programmer import UrJTAG
 
 _io = [
 	("user_led", 0, Pins("V5"), IOStandard("LVCMOS33"), Drive(24), Misc("SLEW=QUIETIO")),

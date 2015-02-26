@@ -1,5 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_ise import XilinxISEPlatform
+from mibuild.xilinx.ise import XilinxISEPlatform
 
 _io = [
 	("epb", 0,

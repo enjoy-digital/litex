@@ -6,7 +6,7 @@ from migen.genlib.cordic import Cordic
 from mibuild.tools import mkdir_noerror
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx_ise import XilinxISEPlatform
+from mibuild.xilinx.ise import XilinxISEPlatform
 
 class CordicImpl(Module):
 	def __init__(self, name, **kwargs):
