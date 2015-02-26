@@ -1,8 +1,10 @@
+import os
+
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
 class LM32(Module):
-	def __init__(self, eba_reset):
+	def __init__(self, platform, eba_reset):
 		self.ibus = i = wishbone.Interface()
 		self.dbus = d = wishbone.Interface()
 		self.interrupt = Signal(32)
@@ -49,3 +51,12 @@ class LM32(Module):
 			self.ibus.adr.eq(i_adr_o[2:]),
 			self.dbus.adr.eq(d_adr_o[2:])
 		]
+
+		# add Verilog sources
+		platform.add_sources(os.path.join("extcores", "lm32", "submodule", "rtl"),
+				"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
+				"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
+				"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
+				"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
+				"lm32_dcache.v", "lm32_debug.v", "lm32_itlb.v", "lm32_dtlb.v")
+		platform.add_verilog_include_path(os.path.join("extcores", "lm32"))

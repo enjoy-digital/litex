@@ -1,4 +1,3 @@
-import os
 from operator import itemgetter
 from math import ceil
 
@@ -48,9 +47,9 @@ class GenSoC(Module):
 
 		# Wishbone
 		if cpu_type == "lm32":
-			self.submodules.cpu = lm32.LM32(cpu_reset_address)
+			self.submodules.cpu = lm32.LM32(platform, cpu_reset_address)
 		elif cpu_type == "or1k":
-			self.submodules.cpu = mor1kx.MOR1KX(cpu_reset_address)
+			self.submodules.cpu = mor1kx.MOR1KX(platform, cpu_reset_address)
 		else:
 			raise ValueError("Unsupported CPU type: "+cpu_type)
 		self.submodules.sram = wishbone.SRAM(sram_size)
@@ -73,18 +72,6 @@ class GenSoC(Module):
 		self.submodules.identifier = identifier.Identifier(platform_id, int(clk_freq),
 			log2_int(l2_size) if l2_size else 0)
 		self.submodules.timer0 = timer.Timer()
-
-		# add CPU Verilog sources
-		if cpu_type == "lm32":
-			platform.add_sources(os.path.join("extcores", "lm32", "submodule", "rtl"),
-				"lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
-				"lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
-				"lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
-				"lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
-				"lm32_dcache.v", "lm32_debug.v", "lm32_itlb.v", "lm32_dtlb.v")
-			platform.add_verilog_include_path(os.path.join("extcores", "lm32"))
-		if cpu_type == "or1k":
-			platform.add_source_dir(os.path.join("extcores", "mor1kx", "submodule", "rtl", "verilog"))
 
 	def register_rom(self, rom_wb_if, bios_size=0xa000):
 		if self._rom_registered:

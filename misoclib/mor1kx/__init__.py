@@ -1,8 +1,10 @@
+import os
+
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
 class MOR1KX(Module):
-	def __init__(self, reset_pc):
+	def __init__(self, platform, reset_pc):
 		self.ibus = i = wishbone.Interface()
 		self.dbus = d = wishbone.Interface()
 		self.interrupt = Signal(32)
@@ -71,3 +73,6 @@ class MOR1KX(Module):
 			self.ibus.adr.eq(i_adr_o[2:]),
 			self.dbus.adr.eq(d_adr_o[2:])
 		]
+
+		# add Verilog sources
+		platform.add_source_dir(os.path.join("extcores", "mor1kx", "submodule", "rtl", "verilog"))
