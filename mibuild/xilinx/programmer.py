@@ -44,3 +44,26 @@ class XC3SProg(GenericProgrammer):
 	def flash(self, address, data_file):
 		flash_proxy = self.find_flash_proxy()
 		subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
+
+def _run_vivado(cmds):
+	with subprocess.Popen("vivado -mode tcl", stdin=subprocess.PIPE, shell=True) as process:
+		process.stdin.write(cmds.encode("ASCII"))
+		process.communicate()
+
+class VivadoProgrammer(GenericProgrammer):
+	needs_bitreverse = False
+
+	def load_bitstream(self, bitstream_file):
+		cmds = """open_hw
+connect_hw_server
+open_hw_target [lindex [get_hw_targets -of_objects [get_hw_servers localhost]] 0]
+
+set_property PROBES.FILE {{}} [lindex [get_hw_devices] 0]
+set_property PROGRAM.FILE {{{bitstream}}} [lindex [get_hw_devices] 0]
+
+program_hw_devices [lindex [get_hw_devices] 0]
+refresh_hw_device [lindex [get_hw_devices] 0]
+
+quit
+""".format(bitstream=bitstream_file)
+		_run_vivado(cmds)
