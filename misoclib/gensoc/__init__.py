@@ -1,6 +1,5 @@
 import os
 from operator import itemgetter
-from collections import defaultdict
 from math import ceil
 
 from migen.fhdl.std import *
@@ -26,12 +25,6 @@ class GenSoC(Module):
 		"uart":			0,
 		"timer0":		1,
 	}
-	known_platform_id = defaultdict(lambda: 0x554E, {
-		"mixxeo":		0x4D58,
-		"m1":			0x4D31,
-		"papilio_pro":	0x5050,
-		"kc705":		0x4B37
-	})
 
 	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, l2_size=0, with_uart=True, cpu_type="lm32",
 				csr_data_width=8, csr_address_width=14):
@@ -69,7 +62,8 @@ class GenSoC(Module):
 		# CSR
 		if with_uart:
 			self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
-		self.submodules.identifier = identifier.Identifier(self.known_platform_id[platform.name], int(clk_freq),
+		platform_id = 0x554E if not hasattr(platform, "identifier") else platform.identifier
+		self.submodules.identifier = identifier.Identifier(platform_id, int(clk_freq),
 			log2_int(l2_size) if l2_size else 0)
 		self.submodules.timer0 = timer.Timer()
 
