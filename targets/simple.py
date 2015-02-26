@@ -18,17 +18,13 @@ class _CRG(Module):
 		]
 
 class SimpleSoC(GenSoC, IntegratedBIOS):
-	default_platform = "de0nano"	# /!\ Adapt this!
-	clk_name = "clk50"				# /!\ Adapt this!
-	clk_freq = 50*1000000			# /!\ Adapt this!
-
 	def __init__(self, platform):
 		GenSoC.__init__(self, platform,
-			clk_freq=self.clk_freq,
+			clk_freq=int((1/(platform.default_clk_period))*1000000000),
 			cpu_reset_address=0)
 		IntegratedBIOS.__init__(self)
 
-		self.submodules.crg = _CRG(platform.request(self.clk_name))
+		self.submodules.crg = _CRG(platform.request(platform.default_clk_name))
 
 		# use on-board SRAM as SDRAM
 		sys_ram_size = 16*1024
