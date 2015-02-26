@@ -50,6 +50,7 @@ _connectors = [
 ]
 
 class Platform(XilinxISEPlatform):
+	identifier = 0x5050
 	default_clk_name = "clk32"
 	default_clk_period = 31.25
 	def __init__(self):

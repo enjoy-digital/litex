@@ -348,6 +348,7 @@ def Platform(*args, toolchain="vivado", **kwargs):
 		raise ValueError
 
 	class RealPlatform(xilinx_platform):
+		identifier = 0x4B37
 		default_clk_name = "clk156"
 		default_clk_period = 6.4
 		bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
