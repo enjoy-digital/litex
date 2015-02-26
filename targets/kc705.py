@@ -3,7 +3,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoclib import sdram, spiflash
 from misoclib.sdram.phy import k7ddrphy
-from misoclib.gensoc import SDRAMSoC
+from misoclib.gensoc import SDRAMSoC, mem_decoder
 
 from misoclib.liteeth.phy.gmii import LiteEthPHYGMII
 from misoclib.liteeth.mac import LiteEthMAC
@@ -120,12 +120,17 @@ class MiniSoC(BaseSoC):
 	}
 	interrupt_map.update(BaseSoC.interrupt_map)
 
+	mem_map = {
+		"ethmac":	0x30000000, # (shadow @0xb0000000)
+	}
+	mem_map.update(BaseSoC.mem_map)
+
 	def __init__(self, platform, **kwargs):
 		BaseSoC.__init__(self, platform, **kwargs)
 
 		self.submodules.ethphy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
 		self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
-		self.add_wb_slave(lambda a: a[26:29] == 3, self.ethmac.bus)
-		self.add_cpu_memory_region("ethmac_mem", 0xb0000000, 0x2000)
+		self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
+		self.add_cpu_memory_region("ethmac_mem", self.mem_map["ethmac"]+0x80000000, 0x2000)
 
 default_subtarget = BaseSoC
