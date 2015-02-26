@@ -28,6 +28,11 @@ _io = [
 	("user_dip_btn", 2, Pins("AA28"), IOStandard("LVCMOS25")),
 	("user_dip_btn", 3, Pins("Y28"), IOStandard("LVCMOS25")),
 
+	("user_sma_clock", 0,
+		Subsignal("p", Pins("L25"), IOStandard("LVDS_25")),
+		Subsignal("n", Pins("K25"), IOStandard("LVDS_25"))
+	),
+
 	("clk200", 0,
 		Subsignal("p", Pins("AD12"), IOStandard("LVDS")),
 		Subsignal("n", Pins("AD11"), IOStandard("LVDS"))
