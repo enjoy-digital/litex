@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx_common import CRG_DS
+from mibuild.xilinx.common import CRG_DS
 from mibuild.xilinx.ise import XilinxISEPlatform
 from mibuild.xilinx.vivado import XilinxVivadoPlatform
 from mibuild.xilinx.programmer import XC3SProg

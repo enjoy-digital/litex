@@ -1,5 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_common import CRG_DS
+from mibuild.xilinx.common import CRG_DS
 from mibuild.xilinx.ise import XilinxISEPlatform
 
 _io = [
