@@ -5,9 +5,8 @@ from misoclib import sdram, spiflash
 from misoclib.sdram.phy import k7ddrphy
 from misoclib.gensoc import SDRAMSoC
 
-from extcores import *
-from liteeth.phy.gmii import LiteEthPHYGMII
-from liteeth.mac import LiteEthMAC
+from misoclib.liteeth.phy.gmii import LiteEthPHYGMII
+from misoclib.liteeth.mac import LiteEthMAC
 
 class _CRG(Module):
 	def __init__(self, platform):

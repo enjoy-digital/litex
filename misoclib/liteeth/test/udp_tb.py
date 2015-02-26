@@ -3,11 +3,11 @@ from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
-from liteeth.common import *
-from liteeth.core import LiteEthUDPIPCore
+from misoclib.liteeth.common import *
+from misoclib.liteeth.core import LiteEthUDPIPCore
 
-from liteeth.test.common import *
-from liteeth.test.model import phy, mac, arp, ip, udp
+from misoclib.liteeth.test.common import *
+from misoclib.liteeth.test.model import phy, mac, arp, ip, udp
 
 ip_address = 0x12345678
 mac_address = 0x12345678abcd

@@ -3,11 +3,11 @@ from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
-from liteeth.common import *
-from liteeth.mac.core import LiteEthMACCore
+from misoclib.liteeth.common import *
+from misoclib.liteeth.mac.core import LiteEthMACCore
 
-from liteeth.test.common import *
-from liteeth.test.model import phy, mac
+from misoclib.liteeth.test.common import *
+from misoclib.liteeth.test.model import phy, mac
 
 class TB(Module):
 	def __init__(self):

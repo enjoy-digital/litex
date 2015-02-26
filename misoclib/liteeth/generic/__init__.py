@@ -1,4 +1,4 @@
-from liteeth.common import *
+from misoclib.liteeth.common import *
 
 # Generic classes
 class Port:

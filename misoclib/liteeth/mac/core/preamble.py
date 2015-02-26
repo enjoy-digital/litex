@@ -1,5 +1,5 @@
-from liteeth.common import *
-from liteeth.generic import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
 
 class LiteEthMACPreambleInserter(Module):
 	def __init__(self, dw):

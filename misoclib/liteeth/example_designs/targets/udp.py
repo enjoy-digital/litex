@@ -2,8 +2,8 @@ from litescope.common import *
 from litescope.frontend.la import LiteScopeLA
 from litescope.core.port import LiteScopeTerm
 
-from liteeth.common import *
-from liteeth.generic import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
 
 from targets.base import BaseSoC
 

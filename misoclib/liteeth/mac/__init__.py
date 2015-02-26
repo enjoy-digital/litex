@@ -1,8 +1,8 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.mac.common import *
-from liteeth.mac.core import LiteEthMACCore
-from liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterface
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.mac.common import *
+from misoclib.liteeth.mac.core import LiteEthMACCore
+from misoclib.liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterface
 
 class LiteEthMAC(Module, AutoCSR):
 	def __init__(self, phy, dw, interface="crossbar", endianness="big",

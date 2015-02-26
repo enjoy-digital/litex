@@ -1,5 +1,5 @@
-from liteeth.common import *
-from liteeth.generic import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
 
 class LiteEthMACPaddingInserter(Module):
 	def __init__(self, dw, packet_min_length):

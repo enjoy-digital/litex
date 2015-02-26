@@ -1,9 +1,9 @@
 import math, copy
 
-from liteeth.common import *
-from liteeth.test.common import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.test.common import *
 
-from liteeth.test.model import udp
+from misoclib.liteeth.test.model import udp
 
 def print_etherbone(s):
 	print_with_prefix(s, "[ETHERBONE]")

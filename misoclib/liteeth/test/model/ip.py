@@ -1,9 +1,9 @@
 import math
 
-from liteeth.common import *
-from liteeth.test.common import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.test.common import *
 
-from liteeth.test.model import mac
+from misoclib.liteeth.test.model import mac
 
 def print_ip(s):
 	print_with_prefix(s, "[IP]")
@@ -124,8 +124,8 @@ class IP(Module):
 				self.icmp_callback(packet)
 
 if __name__ == "__main__":
-	from liteeth.test.model.dumps import *
-	from liteeth.test.model.mac import *
+	from misoclib.liteeth.test.model.dumps import *
+	from misoclib.liteeth.test.model.mac import *
 	errors = 0
 	# UDP packet
 	packet = MACPacket(udp)

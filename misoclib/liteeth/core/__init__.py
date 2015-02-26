@@ -1,10 +1,10 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.mac import LiteEthMAC
-from liteeth.core.arp import LiteEthARP
-from liteeth.core.ip import LiteEthIP
-from liteeth.core.udp import LiteEthUDP
-from liteeth.core.icmp import LiteEthICMP
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.mac import LiteEthMAC
+from misoclib.liteeth.core.arp import LiteEthARP
+from misoclib.liteeth.core.ip import LiteEthIP
+from misoclib.liteeth.core.udp import LiteEthUDP
+from misoclib.liteeth.core.icmp import LiteEthICMP
 
 class LiteEthIPCore(Module, AutoCSR):
 	def __init__(self, phy, mac_address, ip_address, clk_freq):

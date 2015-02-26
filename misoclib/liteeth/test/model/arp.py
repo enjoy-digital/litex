@@ -1,9 +1,9 @@
 import math
 
-from liteeth.common import *
-from liteeth.test.common import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.test.common import *
 
-from liteeth.test.model import mac
+from misoclib.liteeth.test.model import mac
 
 def print_arp(s):
 	print_with_prefix(s, "[ARP]")
@@ -118,8 +118,8 @@ class ARP(Module):
 		request.target_ip = ip_address
 
 if __name__ == "__main__":
-	from liteeth.test.model.dumps import *
-	from liteeth.test.model.mac import *
+	from misoclib.liteeth.test.model.dumps import *
+	from misoclib.liteeth.test.model.mac import *
 	errors = 0
 	# ARP request
 	packet = MACPacket(arp_request)

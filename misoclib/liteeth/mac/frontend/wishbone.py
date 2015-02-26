@@ -1,6 +1,6 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.mac.frontend import sram
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.mac.frontend import sram
 
 from migen.bus import wishbone
 from migen.fhdl.simplify import FullMemoryWE

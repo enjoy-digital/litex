@@ -1,5 +1,5 @@
-from liteeth.common import *
-from liteeth.generic import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
 from migen.bus import wishbone
 
 class LiteEthEtherboneWishboneMaster(Module):

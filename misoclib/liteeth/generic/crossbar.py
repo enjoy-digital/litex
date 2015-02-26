@@ -1,9 +1,9 @@
 from collections import OrderedDict
 
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.generic.arbiter import Arbiter
-from liteeth.generic.dispatcher import Dispatcher
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.generic.arbiter import Arbiter
+from misoclib.liteeth.generic.dispatcher import Dispatcher
 
 class LiteEthCrossbar(Module):
 	def __init__(self, master_port, dispatch_param):

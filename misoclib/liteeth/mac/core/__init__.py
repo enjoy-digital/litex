@@ -1,6 +1,6 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.mac.core import gap, preamble, crc, padding, last_be
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.mac.core import gap, preamble, crc, padding, last_be
 
 class LiteEthMACCore(Module, AutoCSR):
 	def __init__(self, phy, dw, endianness="big", with_hw_preamble_crc=True):

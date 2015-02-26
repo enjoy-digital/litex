@@ -1,11 +1,11 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.generic.arbiter import Arbiter
-from liteeth.generic.dispatcher import Dispatcher
-from liteeth.core.etherbone.packet import *
-from liteeth.core.etherbone.probe import *
-from liteeth.core.etherbone.record import *
-from liteeth.core.etherbone.wishbone import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.generic.arbiter import Arbiter
+from misoclib.liteeth.generic.dispatcher import Dispatcher
+from misoclib.liteeth.core.etherbone.packet import *
+from misoclib.liteeth.core.etherbone.probe import *
+from misoclib.liteeth.core.etherbone.record import *
+from misoclib.liteeth.core.etherbone.wishbone import *
 
 class LiteEthEtherbone(Module):
 	def __init__(self, udp, udp_port):

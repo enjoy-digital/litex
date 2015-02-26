@@ -1,7 +1,7 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.generic.depacketizer import LiteEthDepacketizer
-from liteeth.generic.packetizer import LiteEthPacketizer
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.generic.depacketizer import LiteEthDepacketizer
+from misoclib.liteeth.generic.packetizer import LiteEthPacketizer
 
 class LiteEthICMPPacketizer(LiteEthPacketizer):
 	def __init__(self):

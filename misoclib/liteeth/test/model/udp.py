@@ -1,9 +1,9 @@
 import math
 
-from liteeth.common import *
-from liteeth.test.common import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.test.common import *
 
-from liteeth.test.model import ip
+from misoclib.liteeth.test.model import ip
 
 def print_udp(s):
 	print_with_prefix(s, "[UDP]")
@@ -90,9 +90,9 @@ class UDP(Module):
 				self.etherbone_callback(packet)
 
 if __name__ == "__main__":
-	from liteeth.test.model.dumps import *
-	from liteeth.test.model.mac import *
-	from liteeth.test.model.ip import *
+	from misoclib.liteeth.test.model.dumps import *
+	from misoclib.liteeth.test.model.mac import *
+	from misoclib.liteeth.test.model.ip import *
 	errors = 0
 	# UDP packet
 	packet = MACPacket(udp)

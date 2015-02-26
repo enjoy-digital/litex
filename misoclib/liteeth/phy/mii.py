@@ -1,5 +1,5 @@
-from liteeth.common import *
-from liteeth.generic import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
 
 class LiteEthPHYMIITX(Module):
 	def __init__(self, pads):

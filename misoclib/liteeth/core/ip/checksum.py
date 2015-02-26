@@ -1,5 +1,5 @@
-from liteeth.common import *
-from liteeth.generic import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
 
 class LiteEthIPV4Checksum(Module):
 	def __init__(self, words_per_clock_cycle=1, skip_checksum=False):

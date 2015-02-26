@@ -8,9 +8,8 @@ from misoclib import sdram, mxcrg, norflash16, framebuffer, gpio
 from misoclib.sdram.phy import s6ddrphy
 from misoclib.gensoc import SDRAMSoC
 
-from extcores import *
-from liteeth.phy.mii import LiteEthPHYMII
-from liteeth.mac import LiteEthMAC
+from misoclib.liteeth.phy.mii import LiteEthPHYMII
+from misoclib.liteeth.mac import LiteEthMAC
 
 class _MXClockPads:
 	def __init__(self, platform):

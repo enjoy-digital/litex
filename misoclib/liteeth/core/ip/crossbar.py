@@ -1,6 +1,6 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.generic.crossbar import LiteEthCrossbar
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.generic.crossbar import LiteEthCrossbar
 
 class LiteEthIPV4MasterPort:
 	def __init__(self, dw):

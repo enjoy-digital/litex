@@ -14,10 +14,10 @@ from litescope.bridge.uart2wb import LiteScopeUART2WB
 from litescope.frontend.la import LiteScopeLA
 from litescope.core.port import LiteScopeTerm
 
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.phy.gmii import LiteEthPHYGMII
-from liteeth.core import LiteEthUDPIPCore
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.phy.gmii import LiteEthPHYGMII
+from misoclib.liteeth.core import LiteEthUDPIPCore
 
 class _CRG(Module):
 	def __init__(self, platform):

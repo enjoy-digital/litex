@@ -1,5 +1,5 @@
-from liteeth.common import *
-from liteeth.test.common import *
+from misoclib.liteeth.common import *
+from misoclib.liteeth.test.common import *
 
 def print_phy(s):
 	print_with_prefix(s, "[PHY]")

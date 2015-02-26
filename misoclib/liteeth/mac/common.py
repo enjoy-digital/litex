@@ -1,8 +1,8 @@
-from liteeth.common import *
-from liteeth.generic import *
-from liteeth.generic.depacketizer import LiteEthDepacketizer
-from liteeth.generic.packetizer import LiteEthPacketizer
-from liteeth.generic.crossbar import LiteEthCrossbar
+from misoclib.liteeth.common import *
+from misoclib.liteeth.generic import *
+from misoclib.liteeth.generic.depacketizer import LiteEthDepacketizer
+from misoclib.liteeth.generic.packetizer import LiteEthPacketizer
+from misoclib.liteeth.generic.crossbar import LiteEthCrossbar
 
 class LiteEthMACDepacketizer(LiteEthDepacketizer):
 	def __init__(self):

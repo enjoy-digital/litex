@@ -4,7 +4,7 @@ from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source
 from migen.genlib.record import *
 
-from liteeth.common import *
+from misoclib.liteeth.common import *
 
 def print_with_prefix(s, prefix=""):
 	if not isinstance(s, str):
