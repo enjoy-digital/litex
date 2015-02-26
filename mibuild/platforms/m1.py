@@ -119,6 +119,8 @@ _io = [
 ]
 
 class Platform(XilinxISEPlatform):
+	default_clk_name = "clk50"
+	default_clk_period = 20
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
 			lambda p: SimpleCRG(p, "clk50", None))

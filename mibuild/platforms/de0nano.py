@@ -92,6 +92,8 @@ _io = [
 ]
 
 class Platform(AlteraQuartusPlatform):
+	default_clk_name = "clk50"
+	default_clk_period = 20
 	def __init__(self):
 		AlteraQuartusPlatform.__init__(self, "EP4CE22F17C6", _io,
 			lambda p: SimpleCRG(p, "clk50", None))

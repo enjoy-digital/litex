@@ -114,6 +114,8 @@ _io = [
 
 
 class Platform(XilinxISEPlatform):
+	default_clk_name = "clk64"
+	default_clk_period = 15.625
 	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g UnusedPin:PullUp"
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc3s1400a-ft256-4", _io,

@@ -142,6 +142,8 @@ _connectors = [
 ]
 
 class Platform(XilinxISEPlatform):
+	default_clk_name = "clk0"
+	default_clk_period = 10
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc3s200a-ft256-4", _ios,
 			lambda p: SimpleCRG(p, "clk0", None), _connectors)

@@ -134,6 +134,8 @@ _io = [
 ]
 
 class Platform(XilinxISEPlatform):
+	default_clk_name = "clk100"
+	default_clk_period = 10
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx150t-fgg676-3", _io,
 			lambda p: CRG_DS(p, "clk100", "gpio"))
