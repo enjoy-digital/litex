@@ -6,9 +6,10 @@ from migen.bank import csrgen
 from migen.bus import wishbone, csr, lasmibus, dfi
 from migen.bus import wishbone2lasmi, wishbone2csr
 
-from misoclib import lm32, mor1kx, uart, identifier, timer, memtest
+from misoclib import lm32, mor1kx, uart, identifier, timer
 from misoclib.sdram import lasmicon
 from misoclib.sdram import dfii
+from misoclib.sdram import memtest
 from misoclib.sdram.minicon import Minicon
 
 def mem_decoder(address, start=26, end=29):
