@@ -67,7 +67,7 @@ class BaseSoC(SDRAMSoC):
 	default_platform = "pipistrello"
 
 	csr_map = {
-		"spiflash":	10,
+		"spiflash":	16,
 	}
 	csr_map.update(SDRAMSoC.csr_map)
 

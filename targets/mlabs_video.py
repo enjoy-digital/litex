@@ -74,8 +74,8 @@ PIN "mxcrg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 
 class MiniSoC(BaseSoC):
 	csr_map = {
-		"ethphy":		10,
-		"ethmac":		11,
+		"ethphy":		16,
+		"ethmac":		17,
 	}
 	csr_map.update(BaseSoC.csr_map)
 
@@ -128,7 +128,7 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 
 class FramebufferSoC(MiniSoC):
 	csr_map = {
-		"fb":					12,
+		"fb":					18,
 	}
 	csr_map.update(MiniSoC.csr_map)
 
