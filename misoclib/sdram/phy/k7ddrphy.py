@@ -1,9 +1,9 @@
 # tCK=5ns CL=7 CWL=6
 
 from migen.fhdl.std import *
-from migen.bus.dfi import *
 from migen.bank.description import *
 
+from misoclib.sdram.bus.dfi import *
 from misoclib import sdram
 
 class K7DDRPHY(Module, AutoCSR):

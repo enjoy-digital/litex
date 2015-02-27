@@ -4,11 +4,11 @@ from math import ceil
 
 from migen.fhdl.std import *
 from migen.bank import csrgen
-from migen.bus import wishbone, csr, lasmibus, dfi
-from migen.bus import wishbone2lasmi, wishbone2csr
+from migen.bus import wishbone, csr, wishbone2csr
 
 from misoclib import uart, identifier, timer
 from misoclib.cpu import CPU, lm32, mor1kx
+from misoclib.sdram.bus import dfi, lasmibus, wishbone2lasmi
 from misoclib.sdram import lasmicon
 from misoclib.sdram import dfii
 from misoclib.sdram import memtest

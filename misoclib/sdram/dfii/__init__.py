@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
-from migen.bus import dfi
 from migen.bank.description import *
+
+from misoclib.sdram.bus import dfi
 
 class PhaseInjector(Module, AutoCSR):
 	def __init__(self, phase):

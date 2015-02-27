@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
-from migen.bus.lasmibus import *
 from migen.sim.generic import run_simulation
 
+from misoclib.sdram.bus import lasmibus
 from misoclib.sdram.lasmicon.bankmachine import *
 
 from common import sdram_phy, sdram_geom, sdram_timing, CommandLogger

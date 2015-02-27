@@ -1,8 +1,9 @@
 from migen.fhdl.std import *
-from migen.bus import wishbone, wishbone2lasmi, lasmibus
+from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
+from misoclib.sdram.bus import lasmibus, wishbone2lasmi
 from misoclib.sdram.lasmicon import *
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger

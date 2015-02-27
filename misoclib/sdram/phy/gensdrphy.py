@@ -22,10 +22,10 @@
 #
 
 from migen.fhdl.std import *
-from migen.bus.dfi import *
 from migen.genlib.record import *
 from migen.fhdl.specials import *
 
+from misoclib.sdram.bus.dfi import *
 from misoclib import sdram
 
 class GENSDRPHY(Module):

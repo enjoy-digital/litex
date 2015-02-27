@@ -15,9 +15,9 @@
 #
 
 from migen.fhdl.std import *
-from migen.bus.dfi import *
 from migen.genlib.record import *
 
+from misoclib.sdram.bus.dfi import *
 from misoclib import sdram
 
 class S6DDRPHY(Module):
