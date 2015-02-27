@@ -51,20 +51,20 @@ class _FIFO(Module):
 # This assumes a 50MHz base clock
 class _Clocking(Module, AutoCSR):
 	def __init__(self, pads_vga, pads_dvi):
-		self._r_cmd_data = CSRStorage(10)
-		self._r_send_cmd_data = CSR()
-		self._r_send_go = CSR()
-		self._r_status = CSRStatus(4)
+		self._cmd_data = CSRStorage(10)
+		self._send_cmd_data = CSR()
+		self._send_go = CSR()
+		self._status = CSRStatus(4)
 
 		self.clock_domains.cd_pix = ClockDomain(reset_less=True)
 		if pads_dvi is not None:
-			self._r_pll_reset = CSRStorage()
-			self._r_pll_adr = CSRStorage(5)
-			self._r_pll_dat_r = CSRStatus(16)
-			self._r_pll_dat_w = CSRStorage(16)
-			self._r_pll_read = CSR()
-			self._r_pll_write = CSR()
-			self._r_pll_drdy = CSRStatus()
+			self._pll_reset = CSRStorage()
+			self._pll_adr = CSRStorage(5)
+			self._pll_dat_r = CSRStatus(16)
+			self._pll_dat_w = CSRStorage(16)
+			self._pll_read = CSR()
+			self._pll_write = CSR()
+			self._pll_drdy = CSRStatus()
 
 			self.clock_domains.cd_pix2x = ClockDomain(reset_less=True)
 			self.clock_domains.cd_pix10x = ClockDomain(reset_less=True)
@@ -92,9 +92,9 @@ class _Clocking(Module, AutoCSR):
 		self.comb += transmitting.eq(remaining_bits != 0)
 		sr = Signal(10)
 		self.sync += [
-			If(self._r_send_cmd_data.re,
+			If(self._send_cmd_data.re,
 				remaining_bits.eq(10),
-				sr.eq(self._r_cmd_data.storage)
+				sr.eq(self._cmd_data.storage)
 			).Elif(transmitting,
 				remaining_bits.eq(remaining_bits - 1),
 				sr.eq(sr[1:])
@@ -102,21 +102,21 @@ class _Clocking(Module, AutoCSR):
 		]
 		self.comb += [
 			pix_progdata.eq(transmitting & sr[0]),
-			pix_progen.eq(transmitting | self._r_send_go.re)
+			pix_progen.eq(transmitting | self._send_go.re)
 		]
 
 		# enforce gap between commands
 		busy_counter = Signal(max=14)
 		busy = Signal()
 		self.comb += busy.eq(busy_counter != 0)
-		self.sync += If(self._r_send_cmd_data.re,
+		self.sync += If(self._send_cmd_data.re,
 				busy_counter.eq(13)
 			).Elif(busy,
 				busy_counter.eq(busy_counter - 1)
 			)
 
 		mult_locked = Signal()
-		self.comb += self._r_status.status.eq(Cat(busy, pix_progdone, pix_locked, mult_locked))
+		self.comb += self._status.status.eq(Cat(busy, pix_progdone, pix_locked, mult_locked))
 
 		# Clock multiplication and buffering
 		if pads_dvi is None:
@@ -133,10 +133,10 @@ class _Clocking(Module, AutoCSR):
 			pll_clk2 = Signal()
 			locked_async = Signal()
 			pll_drdy = Signal()
-			self.sync += If(self._r_pll_read.re | self._r_pll_write.re,
-				self._r_pll_drdy.status.eq(0)
+			self.sync += If(self._pll_read.re | self._pll_write.re,
+				self._pll_drdy.status.eq(0)
 			).Elif(pll_drdy,
-				self._r_pll_drdy.status.eq(1)
+				self._pll_drdy.status.eq(1)
 			)
 			self.specials += [
 				Instance("PLL_ADV",
@@ -151,13 +151,13 @@ class _Clocking(Module, AutoCSR):
 					o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
 					o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
 					o_LOCKED=pll_locked,
-					i_RST=~pix_locked | self._r_pll_reset.storage,
+					i_RST=~pix_locked | self._pll_reset.storage,
 
-					i_DADDR=self._r_pll_adr.storage,
-					o_DO=self._r_pll_dat_r.status,
-					i_DI=self._r_pll_dat_w.storage,
-					i_DEN=self._r_pll_read.re | self._r_pll_write.re,
-					i_DWE=self._r_pll_write.re,
+					i_DADDR=self._pll_adr.storage,
+					o_DO=self._pll_dat_r.status,
+					i_DI=self._pll_dat_w.storage,
+					i_DEN=self._pll_read.re | self._pll_write.re,
+					i_DWE=self._pll_write.re,
 					o_DRDY=pll_drdy,
 					i_DCLK=ClockSignal()),
 				Instance("BUFPLL", p_DIVIDE=5,

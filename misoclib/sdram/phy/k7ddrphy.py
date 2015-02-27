@@ -13,16 +13,16 @@ class K7DDRPHY(Module, AutoCSR):
 		d = flen(pads.dq)
 		nphases = 4
 
-		self._r_wlevel_en = CSRStorage()
-		self._r_wlevel_strobe = CSR()
-		self._r_dly_sel = CSRStorage(d//8)
-		self._r_rdly_dq_rst = CSR()
-		self._r_rdly_dq_inc = CSR()
-		self._r_rdly_dq_bitslip = CSR()
-		self._r_wdly_dq_rst = CSR()
-		self._r_wdly_dq_inc = CSR()
-		self._r_wdly_dqs_rst = CSR()
-		self._r_wdly_dqs_inc = CSR()
+		self._wlevel_en = CSRStorage()
+		self._wlevel_strobe = CSR()
+		self._dly_sel = CSRStorage(d//8)
+		self._rdly_dq_rst = CSR()
+		self._rdly_dq_inc = CSR()
+		self._rdly_dq_bitslip = CSR()
+		self._wdly_dq_rst = CSR()
+		self._wdly_dq_inc = CSR()
+		self._wdly_dqs_rst = CSR()
+		self._wdly_dqs_inc = CSR()
 
 		self.phy_settings = sdram.PhySettings(
 			memtype=memtype,
@@ -118,8 +118,8 @@ class K7DDRPHY(Module, AutoCSR):
 		oe_dqs = Signal()
 		dqs_serdes_pattern = Signal(8)
 		self.comb += \
-			If(self._r_wlevel_en.storage,
-				If(self._r_wlevel_strobe.re,
+			If(self._wlevel_en.storage,
+				If(self._wlevel_strobe.re,
 					dqs_serdes_pattern.eq(0b00000001)
 				).Else(
 					dqs_serdes_pattern.eq(0b00000000)
@@ -151,8 +151,8 @@ class K7DDRPHY(Module, AutoCSR):
 					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="VARIABLE", p_ODELAY_VALUE=0,
 
 					i_C=ClockSignal(),
-					i_LD=self._r_dly_sel.storage[i] & self._r_wdly_dq_rst.re,
-					i_CE=self._r_dly_sel.storage[i] & self._r_wdly_dq_inc.re,
+					i_LD=self._dly_sel.storage[i] & self._wdly_dq_rst.re,
+					i_CE=self._dly_sel.storage[i] & self._wdly_dq_inc.re,
 					i_LDPIPEEN=0, i_INC=1,
 
 					o_ODATAIN=dm_o_nodelay, o_DATAOUT=pads.dm[i]
@@ -183,8 +183,8 @@ class K7DDRPHY(Module, AutoCSR):
 					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="VARIABLE", p_ODELAY_VALUE=6,
 
 					i_C=ClockSignal(),
-					i_LD=self._r_dly_sel.storage[i] & self._r_wdly_dqs_rst.re,
-					i_CE=self._r_dly_sel.storage[i] & self._r_wdly_dqs_inc.re,
+					i_LD=self._dly_sel.storage[i] & self._wdly_dqs_rst.re,
+					i_CE=self._dly_sel.storage[i] & self._wdly_dqs_inc.re,
 					i_LDPIPEEN=0, i_INC=1,
 
 					o_ODATAIN=dqs_nodelay, o_DATAOUT=dqs_delayed
@@ -226,9 +226,9 @@ class K7DDRPHY(Module, AutoCSR):
 
 					i_DDLY=dq_i_delayed,
 					i_CE1=1,
-					i_RST=ResetSignal() | (self._r_dly_sel.storage[i//8] & self._r_wdly_dq_rst.re),
+					i_RST=ResetSignal() | (self._dly_sel.storage[i//8] & self._wdly_dq_rst.re),
 					i_CLK=ClockSignal("sys4x"), i_CLKB=~ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
-					i_BITSLIP=self._r_dly_sel.storage[i//8] & self._r_rdly_dq_bitslip.re,
+					i_BITSLIP=self._dly_sel.storage[i//8] & self._rdly_dq_bitslip.re,
 					o_Q8=self.dfi.phases[0].rddata[i], o_Q7=self.dfi.phases[0].rddata[d+i],
 					o_Q6=self.dfi.phases[1].rddata[i], o_Q5=self.dfi.phases[1].rddata[d+i],
 					o_Q4=self.dfi.phases[2].rddata[i], o_Q3=self.dfi.phases[2].rddata[d+i],
@@ -240,8 +240,8 @@ class K7DDRPHY(Module, AutoCSR):
 					p_PIPE_SEL="FALSE", p_ODELAY_TYPE="VARIABLE", p_ODELAY_VALUE=0,
 
 					i_C=ClockSignal(),
-					i_LD=self._r_dly_sel.storage[i//8] & self._r_wdly_dq_rst.re,
-					i_CE=self._r_dly_sel.storage[i//8] & self._r_wdly_dq_inc.re,
+					i_LD=self._dly_sel.storage[i//8] & self._wdly_dq_rst.re,
+					i_CE=self._dly_sel.storage[i//8] & self._wdly_dq_inc.re,
 					i_LDPIPEEN=0, i_INC=1,
 
 					o_ODATAIN=dq_o_nodelay, o_DATAOUT=dq_o_delayed
@@ -252,8 +252,8 @@ class K7DDRPHY(Module, AutoCSR):
 					p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=6,
 
 					i_C=ClockSignal(),
-					i_LD=self._r_dly_sel.storage[i//8] & self._r_rdly_dq_rst.re,
-					i_CE=self._r_dly_sel.storage[i//8] & self._r_rdly_dq_inc.re,
+					i_LD=self._dly_sel.storage[i//8] & self._rdly_dq_rst.re,
+					i_CE=self._dly_sel.storage[i//8] & self._rdly_dq_inc.re,
 					i_LDPIPEEN=0, i_INC=1,
 
 					i_IDATAIN=dq_i_nodelay, o_DATAOUT=dq_i_delayed
@@ -275,7 +275,7 @@ class K7DDRPHY(Module, AutoCSR):
 			n_rddata_en = Signal()
 			self.sync += n_rddata_en.eq(rddata_en)
 			rddata_en = n_rddata_en
-		self.sync += [phase.rddata_valid.eq(rddata_en | self._r_wlevel_en.storage)
+		self.sync += [phase.rddata_valid.eq(rddata_en | self._wlevel_en.storage)
 			for phase in self.dfi.phases]
 
 		oe = Signal()
@@ -284,7 +284,7 @@ class K7DDRPHY(Module, AutoCSR):
 		self.sync += last_wrdata_en.eq(Cat(wrphase.wrdata_en, last_wrdata_en[:3]))
 		self.comb += oe.eq(last_wrdata_en[1] | last_wrdata_en[2] | last_wrdata_en[3])
 		self.sync += \
-			If(self._r_wlevel_en.storage,
+			If(self._wlevel_en.storage,
 				oe_dqs.eq(1), oe_dq.eq(0)
 			).Else(
 				oe_dqs.eq(oe), oe_dq.eq(oe)

@@ -4,13 +4,13 @@ from migen.bank.description import *
 
 class GPIOIn(Module, AutoCSR):
 	def __init__(self, signal):
-		self._r_in = CSRStatus(flen(signal))
-		self.specials += MultiReg(signal, self._r_in.status)
+		self._in = CSRStatus(flen(signal))
+		self.specials += MultiReg(signal, self._in.status)
 
 class GPIOOut(Module, AutoCSR):
 	def __init__(self, signal):
-		self._r_out = CSRStorage(flen(signal))
-		self.comb += signal.eq(self._r_out.storage)
+		self._out = CSRStorage(flen(signal))
+		self.comb += signal.eq(self._out.storage)
 
 class GPIOInOut(Module):
 	def __init__(self, in_signal, out_signal):

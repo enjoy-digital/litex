@@ -101,7 +101,7 @@ class UARTTX(Module):
 
 class UART(Module, AutoCSR):
 	def __init__(self, pads, clk_freq, baud=115200):
-		self._r_rxtx = CSR(8)
+		self._rxtx = CSR(8)
 
 		self.submodules.ev = EventManager()
 		self.ev.tx = EventSourcePulse()
@@ -118,14 +118,14 @@ class UART(Module, AutoCSR):
 		self.submodules.tx = UARTTX(pads, tuning_word)
 
 		self.sync += [
-			If(self._r_rxtx.re,
+			If(self._rxtx.re,
 				self.tx.sink.stb.eq(1),
-				self.tx.sink.d.eq(self._r_rxtx.r),
+				self.tx.sink.d.eq(self._rxtx.r),
 			).Elif(self.tx.sink.ack,
 				self.tx.sink.stb.eq(0)
 			),
 			If(self.rx.source.stb,
-				self._r_rxtx.w.eq(self.rx.source.d)
+				self._rxtx.w.eq(self.rx.source.d)
 			)
 		]
 		self.comb += [

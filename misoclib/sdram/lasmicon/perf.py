@@ -3,9 +3,9 @@ from migen.bank.description import *
 
 class Bandwidth(Module, AutoCSR):
 	def __init__(self, cmd, period_bits=24):
-		self._r_update = CSR()
-		self._r_nreads = CSRStatus(period_bits)
-		self._r_nwrites = CSRStatus(period_bits)
+		self._update = CSR()
+		self._nreads = CSRStatus(period_bits)
+		self._nwrites = CSRStatus(period_bits)
 
 		###
 
@@ -37,8 +37,8 @@ class Bandwidth(Module, AutoCSR):
 				If(cmd_is_read, nreads.eq(nreads + 1)),
 				If(cmd_is_write, nwrites.eq(nwrites + 1)),
 			),
-			If(self._r_update.re,
-				self._r_nreads.status.eq(nreads_r),
-				self._r_nwrites.status.eq(nwrites_r)
+			If(self._update.re,
+				self._nreads.status.eq(nreads_r),
+				self._nwrites.status.eq(nwrites_r)
 			)
 		]
