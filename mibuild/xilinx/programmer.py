@@ -45,6 +45,24 @@ class XC3SProg(GenericProgrammer):
 		flash_proxy = self.find_flash_proxy()
 		subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
 
+
+class FpgaProg(GenericProgrammer):
+	needs_bitreverse = False
+
+	def __init__(self, flash_proxy_basename=None):
+		GenericProgrammer.__init__(self, flash_proxy_basename)
+
+	def load_bitstream(self, bitstream_file):
+		subprocess.call(["fpgaprog", "-v", "-f", bitstream_file])
+
+	def flash(self, address, data_file):
+		if address != 0:
+			raise ValueError("fpga prog needs a main bitstream at address 0")
+		flash_proxy = self.find_flash_proxy()
+		subprocess.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
+				   "-f", data_file])
+
+
 def _run_vivado(cmds):
 	with subprocess.Popen("vivado -mode tcl", stdin=subprocess.PIPE, shell=True) as process:
 		process.stdin.write(cmds.encode("ASCII"))
