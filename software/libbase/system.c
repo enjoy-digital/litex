@@ -85,4 +85,8 @@ void flush_l2_cache(void)
 #endif
 	}
 }
+#else
+void flush_l2_cache(void)
+{
+}
 #endif

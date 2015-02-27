@@ -3,7 +3,9 @@ import os
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
-class LM32(Module):
+from misoclib.cpu import CPU
+
+class LM32(CPU):
 	def __init__(self, platform, eba_reset):
 		self.ibus = i = wishbone.Interface()
 		self.dbus = d = wishbone.Interface()

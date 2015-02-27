@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
-from misoclib.gensoc import GenSoC, IntegratedBIOS, mem_decoder
+from misoclib.gensoc import GenSoC, mem_decoder
 
 class _CRG(Module):
 	def __init__(self, clk_in):
@@ -17,24 +17,13 @@ class _CRG(Module):
 			self.cd_sys.rst.eq(~rst_n)
 		]
 
-class SimpleSoC(GenSoC, IntegratedBIOS):
-	mem_map = {
-		"sdram":	0x40000000, # (shadow @0xc0000000)
-	}
-	mem_map.update(GenSoC.mem_map)
-
-	def __init__(self, platform):
+class SimpleSoC(GenSoC):
+	def __init__(self, platform, **kwargs):
 		GenSoC.__init__(self, platform,
 			clk_freq=int((1/(platform.default_clk_period))*1000000000),
-			cpu_reset_address=0)
-		IntegratedBIOS.__init__(self)
-
+			with_rom=True,
+			with_sdram=True, sdram_size=16*1024,
+			**kwargs)
 		self.submodules.crg = _CRG(platform.request(platform.default_clk_name))
-
-		# use on-board SRAM as SDRAM
-		sys_ram_size = 16*1024
-		self.submodules.sys_ram = wishbone.SRAM(sys_ram_size)
-		self.add_wb_slave(mem_decoder(self.mem_map["sdram"]), self.sys_ram.bus)
-		self.add_cpu_memory_region("sdram", self.mem_map["sdram"], sys_ram_size)
 
 default_subtarget = SimpleSoC

@@ -7,6 +7,7 @@ from migen.util.misc import autotype
 from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
+from misoclib.cpu import CPU
 from misoclib.sdram.phy import initsequence
 
 from misoc_import import misoc_import
@@ -121,7 +122,7 @@ CPU type:  {}
 		actions["build-bios"] = True
 		if not actions["load-bitstream"]:
 			actions["flash-bitstream"] = True
-		if not hasattr(soc, "init_bios_memory"):
+		if not soc.with_rom:
 			actions["flash-bios"] = True
 	if actions["build-bitstream"] and hasattr(soc, "init_bios_memory"):
 		actions["build-bios"] = True
@@ -144,28 +145,30 @@ CPU type:  {}
  */
 
 """.format(platform_name, args.target, top_class.__name__, soc.cpu_type)
+	if isinstance(soc.cpu_or_bridge, CPU):
 		cpu_mak = cpuif.get_cpu_mak(soc.cpu_type)
 		write_to_file("software/include/generated/cpu.mak", cpu_mak)
 		linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
 		write_to_file("software/include/generated/output_format.ld", linker_output_format)
 
-		linker_regions = cpuif.get_linker_regions(soc.cpu_memory_regions)
+		linker_regions = cpuif.get_linker_regions(soc.memory_regions)
 		write_to_file("software/include/generated/regions.ld", boilerplate + linker_regions)
-		try:
-			flash_boot_address = soc.flash_boot_address
-		except AttributeError:
-			flash_boot_address = None
-		mem_header = cpuif.get_mem_header(soc.cpu_memory_regions, flash_boot_address)
-		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
-		csr_header = cpuif.get_csr_header(soc.cpu_csr_regions, soc.interrupt_map)
-		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
+
 		for sdram_phy in ["sdrphy", "ddrphy"]:
 			if hasattr(soc, sdram_phy):
 				sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy))
 				write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
+	try:
+		flash_boot_address = soc.flash_boot_address
+	except AttributeError:
+		flash_boot_address = None
+	mem_header = cpuif.get_mem_header(soc.memory_regions, flash_boot_address)
+	write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
+	csr_header = cpuif.get_csr_header(soc.csr_regions, soc.interrupt_map)
+	write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
 
 	if actions["build-csr-csv"]:
-		csr_csv = cpuif.get_csr_csv(soc.cpu_csr_regions)
+		csr_csv = cpuif.get_csr_csv(soc.csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bios"]:
@@ -174,16 +177,8 @@ CPU type:  {}
 			raise OSError("BIOS build failed")
 
 	if actions["build-bitstream"]:
-		if hasattr(soc, "init_bios_memory"):
-			with open("software/bios/bios.bin", "rb") as bios_file:
-				bios_data = []
-				while True:
-					w = bios_file.read(4)
-					if not w:
-						break
-					bios_data.append(struct.unpack(">I", w)[0])
-			soc.init_bios_memory(bios_data)
-
+		if soc.with_rom:
+			soc.init_rom()
 		for decorator in args.decorate:
 			soc = getattr(simplify, decorator)(soc)
 		build_kwargs = dict((k, autotype(v)) for k, v in args.build_option)
@@ -209,4 +204,4 @@ CPU type:  {}
 	if actions["flash-bios"]:
 		prog = platform.create_programmer()
 		prog.set_flash_proxy_dir(args.flash_proxy_dir)
-		prog.flash(soc.cpu_reset_address, "software/bios/bios.bin")
+		prog.flash(soc.cpu_reset_address, soc.cpu_boot_file)
