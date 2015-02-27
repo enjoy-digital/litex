@@ -34,12 +34,11 @@ class GenSoC(Module):
 		"sram":		0x10000000, # (shadow @0x90000000)
 		"csr":		0x60000000, # (shadow @0xe0000000)
 	}
-	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, l2_size=0, with_uart=True, cpu_type="lm32",
+	def __init__(self, platform, clk_freq, cpu_reset_address, sram_size=4096, with_uart=True, cpu_type="lm32",
 				csr_data_width=8, csr_address_width=14):
 		self.clk_freq = clk_freq
 		self.cpu_reset_address = cpu_reset_address
 		self.sram_size = sram_size
-		self.l2_size = l2_size
 		self.cpu_type = cpu_type
 		self.csr_data_width = csr_data_width
 		self.csr_address_width = csr_address_width
@@ -71,8 +70,7 @@ class GenSoC(Module):
 		if with_uart:
 			self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=115200)
 		platform_id = 0x554E if not hasattr(platform, "identifier") else platform.identifier
-		self.submodules.identifier = identifier.Identifier(platform_id, int(clk_freq),
-			log2_int(l2_size) if l2_size else 0)
+		self.submodules.identifier = identifier.Identifier(platform_id, int(clk_freq))
 		self.submodules.timer0 = timer.Timer()
 
 	def register_rom(self, rom_wb_if, bios_size=0xa000):
@@ -155,8 +153,9 @@ class SDRAMSoC(GenSoC):
 	csr_map = {
 		"dfii":					6,
 		"lasmicon":				7,
-		"memtest_w":			8,
-		"memtest_r":			9
+		"wishbone2lasmi":		8,
+		"memtest_w":			9,
+		"memtest_r":			10
 	}
 	csr_map.update(GenSoC.csr_map)
 
@@ -166,7 +165,8 @@ class SDRAMSoC(GenSoC):
 	mem_map.update(GenSoC.mem_map)
 
 	def __init__(self, platform, clk_freq, cpu_reset_address, with_memtest=False, sram_size=4096, l2_size=8192, with_uart=True, ramcon_type="lasmicon", **kwargs):
-		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, l2_size, with_uart, **kwargs)
+		GenSoC.__init__(self, platform, clk_freq, cpu_reset_address, sram_size, with_uart, **kwargs)
+		self.l2_size = l2_size
 		self.with_memtest = with_memtest
 		self.ramcon_type = ramcon_type
 		self._sdram_phy_registered = False

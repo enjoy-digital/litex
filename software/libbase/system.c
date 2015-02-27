@@ -67,6 +67,7 @@ void flush_cpu_dcache(void)
 #endif
 }
 
+#ifdef WISHBONE2LASMI_BASE
 void flush_l2_cache(void)
 {
 	unsigned int l2_nwords;
@@ -74,7 +75,7 @@ void flush_l2_cache(void)
 	register unsigned int addr;
 	register unsigned int dummy;
 
-	l2_nwords = 1 << (identifier_l2_size_read() - 2);
+	l2_nwords = 1 << wishbone2lasmi_cachesize_read();
 	for(i=0;i<2*l2_nwords;i++) {
 		addr = SDRAM_BASE + i*4;
 #ifdef __lm32__
@@ -84,3 +85,4 @@ void flush_l2_cache(void)
 #endif
 	}
 }
+#endif
