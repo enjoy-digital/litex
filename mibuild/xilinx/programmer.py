@@ -35,7 +35,7 @@ class XC3SProg(GenericProgrammer):
 	needs_bitreverse = False
 
 	def __init__(self, cable, flash_proxy_basename=None):
-		Programmer.__init__(self, flash_proxy_basename)
+		GenericProgrammer.__init__(self, flash_proxy_basename)
 		self.cable = cable
 
 	def load_bitstream(self, bitstream_file):
