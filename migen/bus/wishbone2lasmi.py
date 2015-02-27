@@ -1,12 +1,14 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
+from migen.bank.description import *
 from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import split, displacer, chooser
 from migen.genlib.record import Record, layout_len
 
 # cachesize (in 32-bit words) is the size of the data store, must be a power of 2
-class WB2LASMI(Module):
+class WB2LASMI(Module, AutoCSR):
 	def __init__(self, cachesize, lasmim):
+		self._cachesize = CSRStatus(8, reset=log2_int(cachesize))
 		self.wishbone = wishbone.Interface()
 
 		###
