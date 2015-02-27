@@ -124,7 +124,7 @@ CPU type:  {}
 			actions["flash-bitstream"] = True
 		if not soc.with_rom:
 			actions["flash-bios"] = True
-	if actions["build-bitstream"] and hasattr(soc, "init_bios_memory"):
+	if actions["build-bitstream"] and soc.with_rom:
 		actions["build-bios"] = True
 	if actions["build-bios"]:
 		actions["build-headers"] = True
@@ -178,7 +178,15 @@ CPU type:  {}
 
 	if actions["build-bitstream"]:
 		if soc.with_rom:
-			soc.init_rom()
+			with open(soc.cpu_boot_file, "rb") as boot_file:
+				boot_data = []
+				while True:
+					w = boot_file.read(4)
+					if not w:
+						break
+					boot_data.append(struct.unpack(">I", w)[0])
+			soc.init_rom(boot_data)
+
 		for decorator in args.decorate:
 			soc = getattr(simplify, decorator)(soc)
 		build_kwargs = dict((k, autotype(v)) for k, v in args.build_option)

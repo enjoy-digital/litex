@@ -39,7 +39,7 @@ class GenSoC(Module):
 	def __init__(self, platform, clk_freq, cpu_or_bridge=None,
 				with_cpu=True, cpu_type="lm32", cpu_reset_address=0x00000000,
 							   cpu_boot_file="software/bios/bios.bin",
-				with_rom=False, rom_size=0x8000, rom_init_now=False,
+				with_rom=False, rom_size=0x8000,
 				with_sram=True, sram_size=4096,
 				with_sdram=False, sdram_size=64*1024,
 				with_csr=True, csr_data_width=8, csr_address_width=14,
@@ -57,7 +57,6 @@ class GenSoC(Module):
 
 		self.with_rom = with_rom
 		self.rom_size = rom_size
-		self.rom_init_now = rom_init_now
 
 		self.with_sram = with_sram
 		self.sram_size = sram_size
@@ -93,8 +92,6 @@ class GenSoC(Module):
 			if with_rom:
 				self.submodules.rom = wishbone.SRAM(rom_size, read_only=True)
 				self.register_mem("rom", self.mem_map["rom"], self.rom.bus, rom_size)
-				if rom_init_now:
-					self.init_rom()
 
 			if with_sram:
 				self.submodules.sram = wishbone.SRAM(sram_size)
@@ -118,20 +115,8 @@ class GenSoC(Module):
 			if with_timer:
 				self.submodules.timer0 = timer.Timer()
 
-	def init_rom(self, filename=None):
-		if filename is None:
-			filename = self.cpu_boot_file
-		filename_ext = os.path.splitext(filename)[1]
-		if filename_ext != ".bin":
-			raise ValueError("rom_init only supports .bin files")
-		with open(filename, "rb") as boot_file:
-			boot_data = []
-			while True:
-				w = boot_file.read(4)
-				if not w:
-					break
-				boot_data.append(struct.unpack(">I", w)[0])
-		self.rom.mem.init = boot_data
+	def init_rom(self, data):
+		self.rom.mem.init = data
 
 	def add_wb_master(self, wbm):
 		if self.finalized:
