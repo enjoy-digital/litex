@@ -245,7 +245,7 @@ class SDRAMSoC(GenSoC):
 
 		# MINICON
 		elif self.ramcon_type == "minicon":
-			if with_l2:
+			if self.with_l2:
 				raise ValueError("MINICON does not implement L2 cache (Use LASMICON)")
 
 			self.submodules.minicon = sdramcon = Minicon(phy_settings, sdram_geom, sdram_timing)
