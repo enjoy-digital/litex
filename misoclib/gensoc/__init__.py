@@ -91,10 +91,22 @@ class GenSoC(Module):
 			raise FinalizeError
 		self._wb_slaves.append((address_decoder, interface))
 
+	def check_cpu_memory_region(self, name, origin):
+		for n, o, l in self.cpu_memory_regions:
+			if n == name or o == origin:
+				raise ValueError("Memory region conflict between {} and {}".format(n, name))
+
 	def add_cpu_memory_region(self, name, origin, length):
+		self.check_cpu_memory_region(name, origin)
 		self.cpu_memory_regions.append((name, origin, length))
 
+	def check_cpu_csr_region(self, name, origin):
+		for n, o, l, obj in self.cpu_csr_regions:
+			if n == name or o == origin:
+				raise ValueError("CSR region conflict between {} and {}".format(n, name))
+
 	def add_cpu_csr_region(self, name, origin, busword, obj):
+		self.check_cpu_csr_region(name, origin)
 		self.cpu_csr_regions.append((name, origin, busword, obj))
 
 	def do_finalize(self):
