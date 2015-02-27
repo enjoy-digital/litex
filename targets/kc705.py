@@ -98,15 +98,16 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), memtype="DDR3")
 		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
 
-		# BIOS is in SPI flash
-		spiflash_pads = platform.request("spiflash")
-		spiflash_pads.clk = Signal()
-		self.specials += Instance("STARTUPE2",
-			i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
-			i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
-		self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
-		self.flash_boot_address = 0xb00000
-		self.register_rom(self.spiflash.bus)
+		# If not in ROM, BIOS is in SPI flash
+		if not self.with_rom:
+			spiflash_pads = platform.request("spiflash")
+			spiflash_pads.clk = Signal()
+			self.specials += Instance("STARTUPE2",
+				i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
+				i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
+			self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
+			self.flash_boot_address = 0xb00000
+			self.register_rom(self.spiflash.bus)
 
 class MiniSoC(BaseSoC):
 	csr_map = {
