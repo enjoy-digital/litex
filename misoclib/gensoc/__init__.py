@@ -193,7 +193,7 @@ class SDRAMSoC(GenSoC):
 				self.add_wb_slave(mem_decoder(self.mem_map["sdram"]), sdramcon.bus)
 			elif (sdram_width < 32):
 				self.submodules.dc = wishbone.DownConverter(32, sdram_width)
-				self.submodules.intercon = wishbone.InterconnectPointToPoint(dc.wishbone_o, sdramcon.bus)
+				self.submodules.intercon = wishbone.InterconnectPointToPoint(self.dc.wishbone_o, sdramcon.bus)
 				self.add_wb_slave(mem_decoder(self.mem_map["sdram"]), self.dc.wishbone_i)
 			else:
 				raise NotImplementedError("Unsupported SDRAM width of {} > 32".format(sdram_width))
