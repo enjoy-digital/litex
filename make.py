@@ -145,27 +145,27 @@ CPU type:  {}
  */
 
 """.format(platform_name, args.target, top_class.__name__, soc.cpu_type)
-	if isinstance(soc.cpu_or_bridge, CPU):
-		cpu_mak = cpuif.get_cpu_mak(soc.cpu_type)
-		write_to_file("software/include/generated/cpu.mak", cpu_mak)
-		linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
-		write_to_file("software/include/generated/output_format.ld", linker_output_format)
+		if isinstance(soc.cpu_or_bridge, CPU):
+			cpu_mak = cpuif.get_cpu_mak(soc.cpu_type)
+			write_to_file("software/include/generated/cpu.mak", cpu_mak)
+			linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
+			write_to_file("software/include/generated/output_format.ld", linker_output_format)
 
-		linker_regions = cpuif.get_linker_regions(soc.memory_regions)
-		write_to_file("software/include/generated/regions.ld", boilerplate + linker_regions)
+			linker_regions = cpuif.get_linker_regions(soc.memory_regions)
+			write_to_file("software/include/generated/regions.ld", boilerplate + linker_regions)
 
-		for sdram_phy in ["sdrphy", "ddrphy"]:
-			if hasattr(soc, sdram_phy):
-				sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy))
-				write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
-	try:
-		flash_boot_address = soc.flash_boot_address
-	except AttributeError:
-		flash_boot_address = None
-	mem_header = cpuif.get_mem_header(soc.memory_regions, flash_boot_address)
-	write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
-	csr_header = cpuif.get_csr_header(soc.csr_regions, soc.interrupt_map)
-	write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
+			for sdram_phy in ["sdrphy", "ddrphy"]:
+				if hasattr(soc, sdram_phy):
+					sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy))
+					write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
+		try:
+			flash_boot_address = soc.flash_boot_address
+		except AttributeError:
+			flash_boot_address = None
+		mem_header = cpuif.get_mem_header(soc.memory_regions, flash_boot_address)
+		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
+		csr_header = cpuif.get_csr_header(soc.csr_regions, soc.interrupt_map)
+		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
 
 	if actions["build-csr-csv"]:
 		csr_csv = cpuif.get_csr_csv(soc.csr_regions)
