@@ -6,7 +6,8 @@ from migen.bank import csrgen
 from migen.bus import wishbone, csr, lasmibus, dfi
 from migen.bus import wishbone2lasmi, wishbone2csr
 
-from misoclib import lm32, mor1kx, uart, identifier, timer
+from misoclib import uart, identifier, timer
+from misoclib.cpu import lm32, mor1kx
 from misoclib.sdram import lasmicon
 from misoclib.sdram import dfii
 from misoclib.sdram import memtest
