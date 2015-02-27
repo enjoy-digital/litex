@@ -119,6 +119,7 @@ _io = [
 ]
 
 class Platform(XilinxISEPlatform):
+	identifier = 0x4D31
 	default_clk_name = "clk50"
 	default_clk_period = 20
 	def __init__(self):
