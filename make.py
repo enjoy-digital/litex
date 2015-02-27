@@ -119,8 +119,10 @@ CPU type:  {}
 		actions["clean"] = True
 		actions["build-bitstream"] = True
 		actions["build-bios"] = True
-		actions["flash-bitstream"] = True
-		actions["flash-bios"] = True
+		if not actions["load-bitstream"]:
+			actions["flash-bitstream"] = True
+		if not hasattr(soc, "init_bios_memory"):
+			actions["flash-bios"] = True
 	if actions["build-bitstream"] and hasattr(soc, "init_bios_memory"):
 		actions["build-bios"] = True
 	if actions["build-bios"]:
@@ -188,20 +190,23 @@ CPU type:  {}
 		vns = platform.build(soc, build_name=build_name, **build_kwargs)
 		soc.do_exit(vns)
 
-	if actions["load-bitstream"] or actions["flash-bitstream"] or actions["flash-bios"]:
+	if actions["load-bitstream"]:
 		prog = platform.create_programmer()
-		if actions["load-bitstream"]:
-			prog.load_bitstream("build/" + build_name + platform.bitstream_ext)
-		if actions["flash-bitstream"]:
-			prog.set_flash_proxy_dir(args.flash_proxy_dir)
-			if prog.needs_bitreverse:
-				flashbit = "build/" + build_name + ".fpg"
-				subprocess.call(["tools/byteswap",
-					"build/" + build_name + ".bin",
-					flashbit])
-			else:
-				flashbit = "build/" + build_name + ".bin"
-			prog.flash(0, flashbit)
-		if actions["flash-bios"]:
-			prog.set_flash_proxy_dir(args.flash_proxy_dir)
-			prog.flash(soc.cpu_reset_address, "software/bios/bios.bin")
+		prog.load_bitstream("build/" + build_name + platform.bitstream_ext)
+
+	if actions["flash-bitstream"]:
+		prog = platform.create_programmer()
+		prog.set_flash_proxy_dir(args.flash_proxy_dir)
+		if prog.needs_bitreverse:
+			flashbit = "build/" + build_name + ".fpg"
+			subprocess.call(["tools/byteswap",
+				"build/" + build_name + ".bin",
+				flashbit])
+		else:
+			flashbit = "build/" + build_name + ".bin"
+		prog.flash(0, flashbit)
+
+	if actions["flash-bios"]:
+		prog = platform.create_programmer()
+		prog.set_flash_proxy_dir(args.flash_proxy_dir)
+		prog.flash(soc.cpu_reset_address, "software/bios/bios.bin")
