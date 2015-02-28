@@ -51,17 +51,20 @@ if __name__ == "__main__":
 	args = _get_args()
 
 	# create top-level Core object
-	target_module = _import("misoclib.com.liteeth.example_designs.targets", args.target)
+	target_module = _import("targets", args.target)
 	if args.sub_target:
 		top_class = getattr(target_module, args.sub_target)
 	else:
 		top_class = target_module.default_subtarget
 
 	if args.platform is None:
-		platform_name = top_class.default_platform
+		if hasattr(top_class, "default_platform"):
+			platform_name = top_class.default_platform
+		else:
+			raise ValueError("Target has no default platform, specify a platform with -p your_platform")
 	else:
 		platform_name = args.platform
-	platform_module = _import("misoclib.com.liteeth.example_designs.platforms", platform_name)
+	platform_module = _import("mibuild.platforms", platform_name)
 	platform_kwargs = dict((k, autotype(v)) for k, v in args.platform_option)
 	platform = platform_module.Platform(**platform_kwargs)
 

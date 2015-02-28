@@ -24,6 +24,7 @@ class SimpleSoC(SoC):
 			with_rom=True,
 			with_sdram=True, sdram_size=16*1024,
 			**kwargs)
-		self.submodules.crg = _CRG(platform.request(platform.default_clk_name))
+		clk_in = platform.request(platform.default_clk_name)
+		self.submodules.crg = _CRG(clk_in if not hasattr(clk_in, "p") else clk_in.p)
 
 default_subtarget = SimpleSoC

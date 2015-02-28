@@ -37,7 +37,8 @@ class LiteScopeSoC(SoC, AutoCSR):
 			with_identifier=True,
 			with_timer=False
 		)
-		self.submodules.crg = _CRG(platform.request(platform.default_clk_name))
+		clk_in = platform.request(platform.default_clk_name)
+		self.submodules.crg = _CRG(clk_in if not hasattr(clk_in, "p") else clk_in.p)
 
 		self.submodules.io = LiteScopeIO(8)
 		for i in range(8):
