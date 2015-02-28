@@ -4,12 +4,16 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import sdram, mxcrg, norflash16, framebuffer, gpio
-from misoclib.sdram.phy import s6ddrphy
+from misoclib import mxcrg
+from misoclib.mem import sdram
+from misoclib.mem.sdram.phy import s6ddrphy
+from misoclib.mem.flash import norflash16
+from misoclib.cpu.peripherals import gpio
+from misoclib.video import framebuffer
 from misoclib.gensoc import SDRAMSoC, mem_decoder
 
-from misoclib.liteeth.phy.mii import LiteEthPHYMII
-from misoclib.liteeth.mac import LiteEthMAC
+from misoclib.com.liteeth.phy.mii import LiteEthPHYMII
+from misoclib.com.liteeth.mac import LiteEthMAC
 
 class _MXClockPads:
 	def __init__(self, platform):

@@ -1,12 +1,13 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib import sdram, spiflash
-from misoclib.sdram.phy import k7ddrphy
+from misoclib.mem import sdram
+from misoclib.mem.sdram.phy import k7ddrphy
+from misoclib.mem.flash import spiflash
 from misoclib.gensoc import SDRAMSoC, mem_decoder
 
-from misoclib.liteeth.phy.gmii import LiteEthPHYGMII
-from misoclib.liteeth.mac import LiteEthMAC
+from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
+from misoclib.com.liteeth.mac import LiteEthMAC
 
 class _CRG(Module):
 	def __init__(self, platform):

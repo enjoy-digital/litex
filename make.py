@@ -8,7 +8,7 @@ from migen.fhdl import simplify
 
 from misoclib.gensoc import cpuif
 from misoclib.cpu import CPU
-from misoclib.sdram.phy import initsequence
+from misoclib.mem.sdram.phy import initsequence
 
 from misoc_import import misoc_import
 

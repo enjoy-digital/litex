@@ -3,8 +3,9 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib import spiflash, sdram
-from misoclib.sdram.phy import gensdrphy
+from misoclib.mem import sdram
+from misoclib.mem.sdram.phy import gensdrphy
+from misoclib.mem.flash import SpiFlash
 from misoclib.gensoc import SDRAMSoC
 
 class _CRG(Module):

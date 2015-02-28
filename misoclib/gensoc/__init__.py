@@ -6,13 +6,13 @@ from migen.fhdl.std import *
 from migen.bank import csrgen
 from migen.bus import wishbone, csr, wishbone2csr
 
-from misoclib import uart, identifier, timer
+from misoclib.com import uart
 from misoclib.cpu import CPU, lm32, mor1kx
-from misoclib.sdram.bus import dfi, lasmibus, wishbone2lasmi
-from misoclib.sdram import lasmicon
-from misoclib.sdram import dfii
-from misoclib.sdram import memtest
-from misoclib.sdram.minicon import Minicon
+from misoclib.cpu.peripherals import identifier, timer
+from misoclib.mem.sdram.bus import dfi, lasmibus, wishbone2lasmi
+from misoclib.mem.sdram import minicon,lasmicon
+from misoclib.mem.sdram import dfii
+from misoclib.mem.sdram import memtest
 
 def mem_decoder(address, start=26, end=29):
 	return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
@@ -248,7 +248,7 @@ class SDRAMSoC(GenSoC):
 			if self.with_l2:
 				raise ValueError("MINICON does not implement L2 cache (Use LASMICON or disable L2 cache (with_l2=False))")
 
-			self.submodules.minicon = sdramcon = Minicon(phy_settings, sdram_geom, sdram_timing)
+			self.submodules.minicon = sdramcon = minicon.Minicon(phy_settings, sdram_geom, sdram_timing)
 			self.submodules.dficon1 = dfi.Interconnect(sdramcon.dfi, self.dfii.slave)
 			sdram_width = flen(sdramcon.bus.dat_r)
 

@@ -1,8 +1,10 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
-from misoclib import uart, gpio, sdram
-from misoclib.sdram.phy import gensdrphy
+from misoclib.cpu.peripherals import gpio
+from misoclib.mem import sdram
+from misoclib.mem.sdram.phy import gensdrphy
+from misoclib.com import uart
 from misoclib.gensoc import SDRAMSoC
 
 class _PLL(Module):
