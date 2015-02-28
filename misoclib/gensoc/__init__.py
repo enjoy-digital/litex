@@ -246,7 +246,7 @@ class SDRAMSoC(GenSoC):
 		# MINICON
 		elif self.ramcon_type == "minicon":
 			if self.with_l2:
-				raise ValueError("MINICON does not implement L2 cache (Use LASMICON)")
+				raise ValueError("MINICON does not implement L2 cache (Use LASMICON or disable L2 cache (with_l2=False))")
 
 			self.submodules.minicon = sdramcon = Minicon(phy_settings, sdram_geom, sdram_timing)
 			self.submodules.dficon1 = dfi.Interconnect(sdramcon.dfi, self.dfii.slave)
@@ -254,9 +254,9 @@ class SDRAMSoC(GenSoC):
 
 			sdram_size = 2**(sdram_geom.bank_a+sdram_geom.row_a+sdram_geom.col_a)*sdram_width//8
 
-			if (sdram_width == 32):
+			if sdram_width == 32:
 				self.register_mem("sdram", self.mem_map["sdram"], sdramcon.bus, sdram_size)
-			elif (sdram_width < 32):
+			elif sdram_width < 32:
 				self.submodules.dc = wishbone.DownConverter(32, sdram_width)
 				self.submodules.intercon = wishbone.InterconnectPointToPoint(self.dc.wishbone_o, sdramcon.bus)
 				self.register_mem("sdram", self.mem_map["sdram"], self.dc.wishbone_i, sdram_size)
