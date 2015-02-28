@@ -96,6 +96,9 @@ class SoC(Module):
 				self.submodules.sdram = wishbone.SRAM(sdram_size)
 				self.register_mem("sdram", self.mem_map["sdram"], self.sdram.bus, sdram_size)
 
+		elif cpu_or_bridge is not None and not isinstance(cpu_or_bridge, CPU):
+			self._wb_masters += [cpu_or_bridge.wishbone]
+
 		if with_csr:
 			self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(csr_data_width, csr_address_width))
 			self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)

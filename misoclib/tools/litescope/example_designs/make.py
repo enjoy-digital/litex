@@ -59,7 +59,10 @@ if __name__ == "__main__":
 		top_class = target_module.default_subtarget
 
 	if args.platform is None:
-		platform_name = top_class.default_platform
+		if hasattr(top_class, "default_platform"):
+			platform_name = top_class.default_platform
+		else:
+			raise ValueError("Target has no default platform, specify a platform with -p your_platform")
 	else:
 		platform_name = args.platform
 	platform_module = _import("mibuild.platforms", platform_name)
@@ -128,7 +131,7 @@ RLE: {}
 		subprocess.call(["rm", "-rf", "build/*"])
 
 	if actions["build-csr-csv"]:
-		csr_csv = cpuif.get_csr_csv(soc.cpu_csr_regions)
+		csr_csv = cpuif.get_csr_csv(soc.csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bitstream"]:
