@@ -11,17 +11,8 @@ from mibuild import tools
 from mibuild.xilinx.common import *
 
 sys.path.append("../../../../") # Temporary
+from misoclib.soc import cpuif
 from misoclib.tools.litescope.common import *
-
-def get_csr_csv(regions):
-	r = ""
-	for name, origin, busword, obj in regions:
-		if not isinstance(obj, Memory):
-			for csr in obj:
-				nr = (csr.size + busword - 1)//busword
-				r += "{}_{},0x{:08x},{},{}\n".format(name, csr.name, origin, nr, "ro" if isinstance(csr, CSRStatus) else "rw")
-				origin += 4*nr
-	return r
 
 def _import(default, name):
 	return importlib.import_module(default + "." + name)
@@ -137,7 +128,7 @@ RLE: {}
 		subprocess.call(["rm", "-rf", "build/*"])
 
 	if actions["build-csr-csv"]:
-		csr_csv = get_csr_csv(soc.cpu_csr_regions)
+		csr_csv = cpuif.get_csr_csv(soc.cpu_csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bitstream"]:
