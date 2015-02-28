@@ -1,7 +1,7 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
 from mibuild.xilinx.ise import XilinxISEPlatform
-from mibuild.xilinx.programmer import FpgaProg
+from mibuild.xilinx.programmer import XC3SProg
 
 _io = [
 	("user_led", 0, Pins("V16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # green near hdmi
@@ -119,7 +119,7 @@ class Platform(XilinxISEPlatform):
 			lambda p: SimpleCRG(p, "clk50", None), _connectors)
 
 	def create_programmer(self):
-		return FpgaProg("bscan_spi_lx45_csg324.bit")
+		return XC3SProg("papilio", "bscan_spi_lx45_csg324.bit")
 
 	def do_finalize(self, fragment):
 		try:
