@@ -1,6 +1,7 @@
 import subprocess
 
 from mibuild.generic_programmer import GenericProgrammer
+from mibuild.xilinx import common
 
 def _run_urjtag(cmds):
 	with subprocess.Popen("jtag", stdin=subprocess.PIPE) as process:
@@ -62,6 +63,12 @@ class FpgaProg(GenericProgrammer):
 		subprocess.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
 				   "-f", data_file])
 
+def _source_vivado(vivado_path, ver=None):
+	if sys.platform == "win32" or sys.platform == "cygwin":
+		pass
+	else:
+		settings = common.settings(vivado_path, ver)
+		subprocess.call(["source", settings])
 
 def _run_vivado(cmds):
 	with subprocess.Popen("vivado -mode tcl", stdin=subprocess.PIPE, shell=True) as process:
@@ -70,6 +77,9 @@ def _run_vivado(cmds):
 
 class VivadoProgrammer(GenericProgrammer):
 	needs_bitreverse = False
+	def __init__(self, vivado_path="/opt/Xilinx/Vivado"):
+		GenericProgrammer.__init__(self)
+		_source_vivado(vivado_path)
 
 	def load_bitstream(self, bitstream_file):
 		cmds = """open_hw
