@@ -4,7 +4,7 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib import mxcrg
+from misoclib.others import mxcrg
 from misoclib.mem import sdram
 from misoclib.mem.sdram.phy import s6ddrphy
 from misoclib.mem.flash import norflash16
@@ -76,7 +76,7 @@ INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
 PIN "mxcrg/bufg_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
 """)
-		platform.add_source_dir(os.path.join("misoclib", "mxcrg"))
+		platform.add_source_dir(os.path.join("misoclib", "others", "mxcrg"))
 
 class MiniSoC(BaseSoC):
 	csr_map = {
