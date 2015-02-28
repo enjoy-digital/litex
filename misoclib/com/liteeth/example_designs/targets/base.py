@@ -9,10 +9,10 @@ from migen.bank.description import *
 
 from targets import *
 
-from litescope.common import *
-from litescope.bridge.uart2wb import LiteScopeUART2WB
-from litescope.frontend.la import LiteScopeLA
-from litescope.core.port import LiteScopeTerm
+from misoclib.tools.litescope.common import *
+from misoclib.tools.litescope.bridge.uart2wb import LiteScopeUART2WB
+from misoclib.tools.litescope.frontend.la import LiteScopeLA
+from misoclib.tools.litescope.core.port import LiteScopeTerm
 
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *

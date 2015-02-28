@@ -1,4 +1,4 @@
-from litescope.common import *
+from misoclib.tools.litescope.common import *
 from migen.flow.plumbing import Buffer
 
 class LiteScopeSubSamplerUnit(Module):

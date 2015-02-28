@@ -5,7 +5,7 @@ import zipfile
 import re
 from collections import OrderedDict
 
-from litescope.host.dump import *
+from misoclib.tools.litescope.host.dump import *
 
 class SigrokDump(Dump):
 	def __init__(self, init_dump=None, samplerate=50000000):

@@ -1,6 +1,6 @@
 import serial
 from struct import *
-from litescope.host.driver.reg import *
+from misoclib.tools.litescope.host.driver.reg import *
 
 def write_b(uart, data):
 	uart.write(pack('B',data))

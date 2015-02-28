@@ -1,4 +1,4 @@
-from litescope.common import *
+from misoclib.tools.litescope.common import *
 
 class LiteScopeTermUnit(Module):
 	def __init__(self, dw):

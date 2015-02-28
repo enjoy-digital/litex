@@ -1,4 +1,4 @@
-from litescope.common import *
+from misoclib.tools.litescope.common import *
 from migen.bus import wishbone
 from migen.genlib.misc import chooser
 from migen.genlib.cdc import MultiReg

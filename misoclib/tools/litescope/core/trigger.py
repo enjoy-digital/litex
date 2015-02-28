@@ -1,4 +1,4 @@
-from litescope.common import *
+from misoclib.tools.litescope.common import *
 
 class LiteScopeSumUnit(Module, AutoCSR):
 	def __init__(self, ports):

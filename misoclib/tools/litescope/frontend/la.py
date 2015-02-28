@@ -1,6 +1,6 @@
-from litescope.common import *
-from litescope.core.trigger import LiteScopeTrigger
-from litescope.core.storage import LiteScopeSubSampler, LiteScopeRecorder, LiteScopeRunLengthEncoder
+from misoclib.tools.litescope.common import *
+from misoclib.tools.litescope.core.trigger import LiteScopeTrigger
+from misoclib.tools.litescope.core.storage import LiteScopeSubSampler, LiteScopeRecorder, LiteScopeRunLengthEncoder
 
 from mibuild.tools import write_to_file
 

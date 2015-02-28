@@ -1,6 +1,6 @@
-from litescope.common import *
-from litescope.frontend.la import LiteScopeLA
-from litescope.core.port import LiteScopeTerm
+from misoclib.tools.litescope.common import *
+from misoclib.tools.litescope.frontend.la import LiteScopeLA
+from misoclib.tools.litescope.core.port import LiteScopeTerm
 
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *

@@ -1,4 +1,4 @@
-from litescope.host.dump import *
+from misoclib.tools.litescope.host.dump import *
 
 class PythonDump(Dump):
 	def __init__(self, init_dump=None):

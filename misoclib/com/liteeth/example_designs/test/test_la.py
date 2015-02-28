@@ -1,5 +1,5 @@
 import time
-from litescope.host.driver.la import LiteScopeLADriver
+from misoclib.tools.litescope.host.driver.la import LiteScopeLADriver
 
 def main(wb):
 	la = LiteScopeLADriver(wb.regs, "la", debug=True)

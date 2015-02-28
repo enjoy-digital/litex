@@ -10,7 +10,7 @@ from migen.bank.description import CSRStatus
 from mibuild import tools
 from mibuild.xilinx_common import *
 
-from litescope.common import *
+from misoclib.tools.litescope.common import *
 
 def get_csr_csv(regions):
 	r = ""

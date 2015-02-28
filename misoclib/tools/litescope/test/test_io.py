@@ -1,5 +1,5 @@
 import time
-from litescope.host.driver.io import LiteScopeIODriver
+from misoclib.tools.litescope.host.driver.io import LiteScopeIODriver
 
 def led_anim0(io):
 	for i in range(10):
