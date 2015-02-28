@@ -10,7 +10,7 @@ from migen.bank.description import CSRStatus
 from mibuild import tools
 from mibuild.xilinx_common import *
 
-sys.path.append("../../../") # Temporary
+sys.path.append("../../../../") # Temporary
 from misoclib.com.liteeth.common import *
 
 def get_csr_csv(regions):

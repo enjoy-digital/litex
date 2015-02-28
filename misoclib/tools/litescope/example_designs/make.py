@@ -8,8 +8,9 @@ from migen.fhdl import verilog, edif
 from migen.fhdl.structure import _Fragment
 from migen.bank.description import CSRStatus
 from mibuild import tools
-from mibuild.xilinx_common import *
+from mibuild.xilinx.common import *
 
+sys.path.append("../../../../") # Temporary
 from misoclib.tools.litescope.common import *
 
 def get_csr_csv(regions):
