@@ -6,7 +6,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoclib.mem import sdram
 from misoclib.mem.sdram.phy import gensdrphy
 from misoclib.mem.flash import SpiFlash
-from misoclib.gensoc import SDRAMSoC
+from misoclib.soc import SDRAMSoC
 
 class _CRG(Module):
 	def __init__(self, platform, clk_freq):

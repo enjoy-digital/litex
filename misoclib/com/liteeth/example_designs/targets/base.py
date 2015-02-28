@@ -55,7 +55,7 @@ class _CRG(Module):
 			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.reset),
 		]
 
-class GenSoC(Module):
+class SoC(Module):
 	csr_base = 0x00000000
 	csr_data_width = 32
 	csr_map = {
@@ -109,17 +109,17 @@ class GenSoC(Module):
 		for name, memory, mapaddr, mmap in self.csrbankarray.srams:
 			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), memory)
 
-class BaseSoC(GenSoC, AutoCSR):
+class BaseSoC(SoC, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
 		"phy":		11,
 		"core":		12
 	}
-	csr_map.update(GenSoC.csr_map)
+	csr_map.update(SoC.csr_map)
 	def __init__(self, platform, clk_freq=166*1000000,
 			mac_address=0x10e2d5000000,
 			ip_address="192.168.1.40"):
-		GenSoC.__init__(self, platform, clk_freq)
+		SoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
 		# wishbone SRAM (to test Wishbone over UART and Etherbone)

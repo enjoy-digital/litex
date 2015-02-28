@@ -17,7 +17,7 @@ from misoclib.mem.sdram import memtest
 def mem_decoder(address, start=26, end=29):
 	return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
-class GenSoC(Module):
+class SoC(Module):
 	csr_map = {
 		"crg":					0, # user
 		"uart":					1, # provided by default (optional)
@@ -160,7 +160,7 @@ class GenSoC(Module):
 		if isinstance(self.cpu_or_bridge, CPU):
 			for mem in ["rom", "sram"]:
 				if mem not in registered_mems:
-					raise FinalizeError("CPU needs a {} to be registered with GenSoC.register_mem()".format(mem))
+					raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
 
 		# Wishbone
 		self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
@@ -192,7 +192,7 @@ class GenSoC(Module):
 	def do_exit(self, vns):
 		pass
 
-class SDRAMSoC(GenSoC):
+class SDRAMSoC(SoC):
 	csr_map = {
 		"dfii":					6,
 		"lasmicon":				7,
@@ -200,14 +200,14 @@ class SDRAMSoC(GenSoC):
 		"memtest_w":			9,
 		"memtest_r":			10
 	}
-	csr_map.update(GenSoC.csr_map)
+	csr_map.update(SoC.csr_map)
 
 	def __init__(self, platform, clk_freq,
 			ramcon_type="lasmicon",
 			with_l2=True, l2_size=8192,
 			with_memtest=False,
 			**kwargs):
-		GenSoC.__init__(self, platform, clk_freq, **kwargs)
+		SoC.__init__(self, platform, clk_freq, **kwargs)
 		self.ramcon_type = ramcon_type
 
 		self.with_l2 = with_l2
@@ -268,4 +268,4 @@ class SDRAMSoC(GenSoC):
 	def do_finalize(self):
 		if not self._sdram_phy_registered:
 			raise FinalizeError("Need to call SDRAMSoC.register_sdram_phy()")
-		GenSoC.do_finalize(self)
+		SoC.do_finalize(self)

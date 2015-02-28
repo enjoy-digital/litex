@@ -27,7 +27,7 @@ class _CRG(Module):
 			self.cd_sys.rst.eq(~rst_n)
 		]
 
-class GenSoC(Module):
+class SoC(Module):
 	csr_base = 0x00000000
 	csr_data_width = 32
 	csr_map = {
@@ -71,16 +71,16 @@ class GenSoC(Module):
 		for name, memory, mapaddr, mmap in self.csrbankarray.srams:
 			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), memory)
 
-class LiteScopeSoC(GenSoC, AutoCSR):
+class LiteScopeSoC(SoC, AutoCSR):
 	default_platform = "de0nano"
 	csr_map = {
 		"io":	10,
 		"la":	11
 	}
-	csr_map.update(GenSoC.csr_map)
+	csr_map.update(SoC.csr_map)
 	def __init__(self, platform):
 		clk_freq = 50*1000000
-		GenSoC.__init__(self, platform, clk_freq)
+		SoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform.request("clk50"))
 
 		self.submodules.io = LiteScopeIO(8)

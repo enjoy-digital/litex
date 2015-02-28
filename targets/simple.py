@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
-from misoclib.gensoc import GenSoC, mem_decoder
+from misoclib.soc import SoC, mem_decoder
 
 class _CRG(Module):
 	def __init__(self, clk_in):
@@ -17,9 +17,9 @@ class _CRG(Module):
 			self.cd_sys.rst.eq(~rst_n)
 		]
 
-class SimpleSoC(GenSoC):
+class SimpleSoC(SoC):
 	def __init__(self, platform, **kwargs):
-		GenSoC.__init__(self, platform,
+		SoC.__init__(self, platform,
 			clk_freq=int((1/(platform.default_clk_period))*1000000000),
 			with_rom=True,
 			with_sdram=True, sdram_size=16*1024,

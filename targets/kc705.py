@@ -4,7 +4,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoclib.mem import sdram
 from misoclib.mem.sdram.phy import k7ddrphy
 from misoclib.mem.flash import spiflash
-from misoclib.gensoc import SDRAMSoC, mem_decoder
+from misoclib.soc import SDRAMSoC, mem_decoder
 
 from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
 from misoclib.com.liteeth.mac import LiteEthMAC

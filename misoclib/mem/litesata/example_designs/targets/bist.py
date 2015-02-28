@@ -55,7 +55,7 @@ class _CRG(Module):
 			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.reset),
 		]
 
-class GenSoC(Module):
+class SoC(Module):
 	csr_base = 0x00000000
 	csr_data_width = 32
 	csr_map = {
@@ -130,15 +130,15 @@ class BISTLeds(Module):
 		self.comb += platform.request("user_led", 2).eq(sata_phy.crg.ready)
 		self.comb += platform.request("user_led", 3).eq(sata_phy.ctrl.ready)
 
-class BISTSoC(GenSoC, AutoCSR):
+class BISTSoC(SoC, AutoCSR):
 	default_platform = "kc705"
 	csr_map = {
 		"sata":		10,
 	}
-	csr_map.update(GenSoC.csr_map)
+	csr_map.update(SoC.csr_map)
 	def __init__(self, platform):
 		clk_freq = 166*1000000
-		GenSoC.__init__(self, platform, clk_freq)
+		SoC.__init__(self, platform, clk_freq)
 		self.submodules.crg = _CRG(platform)
 
 		# SATA PHY/Core/Frontend

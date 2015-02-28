@@ -6,7 +6,7 @@ from mibuild.tools import write_to_file
 from migen.util.misc import autotype
 from migen.fhdl import simplify
 
-from misoclib.gensoc import cpuif
+from misoclib.soc import cpuif
 from misoclib.cpu import CPU
 from misoclib.mem.sdram.phy import initsequence
 
