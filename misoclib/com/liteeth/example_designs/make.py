@@ -8,7 +8,7 @@ from migen.fhdl import verilog, edif
 from migen.fhdl.structure import _Fragment
 from migen.bank.description import CSRStatus
 from mibuild import tools
-from mibuild.xilinx_common import *
+from mibuild.xilinx.common import *
 
 sys.path.append("../../../../") # Temporary
 from misoclib.com.liteeth.common import *
@@ -61,7 +61,7 @@ if __name__ == "__main__":
 	args = _get_args()
 
 	# create top-level Core object
-	target_module = _import("misoclib.liteeth.example_designs.targets", args.target)
+	target_module = _import("misoclib.com.liteeth.example_designs.targets", args.target)
 	if args.sub_target:
 		top_class = getattr(target_module, args.sub_target)
 	else:
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 		platform_name = top_class.default_platform
 	else:
 		platform_name = args.platform
-	platform_module = _import("misoclib.liteeth.example_designs.platforms", platform_name)
+	platform_module = _import("misoclib.com.liteeth.example_designs.platforms", platform_name)
 	platform_kwargs = dict((k, autotype(v)) for k, v in args.platform_option)
 	platform = platform_module.Platform(**platform_kwargs)
 
