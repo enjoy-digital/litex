@@ -2,9 +2,9 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from targets import *
 
-from litesata.common import *
-from litesata.phy import LiteSATAPHY
-from litesata import LiteSATA
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.phy import LiteSATAPHY
+from misoclib.mem.litesata import LiteSATA
 
 class LiteSATACore(Module):
 	default_platform = "verilog_backend"

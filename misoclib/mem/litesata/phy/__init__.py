@@ -1,6 +1,6 @@
-from litesata.common import *
-from litesata.phy.ctrl import *
-from litesata.phy.datapath import *
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.phy.ctrl import *
+from misoclib.mem.litesata.phy.datapath import *
 
 class LiteSATAPHY(Module):
 	def __init__(self, device, pads, revision, clk_freq):
@@ -8,8 +8,8 @@ class LiteSATAPHY(Module):
 		self.revision = revision
 		# Transceiver / Clocks
 		if device[:3] == "xc7": # Kintex 7
-			from litesata.phy.k7.trx import K7LiteSATAPHYTRX
-			from litesata.phy.k7.crg import K7LiteSATAPHYCRG
+			from misoclib.mem.litesata.phy.k7.trx import K7LiteSATAPHYTRX
+			from misoclib.mem.litesata.phy.k7.crg import K7LiteSATAPHYCRG
 			self.submodules.trx = K7LiteSATAPHYTRX(pads, revision)
 			self.submodules.crg = K7LiteSATAPHYCRG(pads, self.trx, revision, clk_freq)
 		else:

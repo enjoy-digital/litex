@@ -1,8 +1,8 @@
-from litesata.common import *
-from litesata.core.link import LiteSATALink
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.core.link import LiteSATALink
 
-from litesata.test.common import *
-from litesata.test.hdd import *
+from misoclib.mem.litesata.test.common import *
+from misoclib.mem.litesata.test.hdd import *
 
 class LinkStreamer(PacketStreamer):
 	def __init__(self):

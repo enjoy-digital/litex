@@ -1,9 +1,9 @@
-from litesata.common import *
-from litesata import LiteSATA
-from litesata.frontend.bist import LiteSATABISTGenerator, LiteSATABISTChecker
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata import LiteSATA
+from misoclib.mem.litesata.frontend.bist import LiteSATABISTGenerator, LiteSATABISTChecker
 
-from litesata.test.hdd import *
-from litesata.test.common import *
+from misoclib.mem.litesata.test.hdd import *
+from misoclib.mem.litesata.test.common import *
 
 class TB(Module):
 	def __init__(self):

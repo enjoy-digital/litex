@@ -1,9 +1,9 @@
 import subprocess
 
-from litesata.common import *
-from litesata.core.link.scrambler import *
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.core.link.scrambler import *
 
-from litesata.test.common import *
+from misoclib.mem.litesata.test.common import *
 
 class TB(Module):
 	def __init__(self, length):

@@ -1,5 +1,5 @@
-from litesata.common import *
-from litesata.core.link.scrambler import Scrambler
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.core.link.scrambler import Scrambler
 
 class LiteSATACONTInserter(Module):
 	def __init__(self, description):

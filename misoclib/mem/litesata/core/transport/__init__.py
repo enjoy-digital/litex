@@ -1,4 +1,4 @@
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 def _get_item(obj, name, width):
 	if "_lsb" in name:

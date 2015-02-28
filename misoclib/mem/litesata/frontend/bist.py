@@ -1,5 +1,5 @@
-from litesata.common import *
-from litesata.core.link.scrambler import Scrambler
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.core.link.scrambler import Scrambler
 
 from migen.fhdl.decorators import ModuleDecorator
 from migen.bank.description import *

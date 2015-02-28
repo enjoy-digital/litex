@@ -1,4 +1,4 @@
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 class LiteSATAMasterPort:
 	def __init__(self, dw):

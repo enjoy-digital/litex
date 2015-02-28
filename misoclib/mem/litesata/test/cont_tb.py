@@ -1,7 +1,7 @@
-from litesata.common import *
-from litesata.core.link.cont import LiteSATACONTInserter, LiteSATACONTRemover
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.core.link.cont import LiteSATACONTInserter, LiteSATACONTRemover
 
-from litesata.test.common import *
+from misoclib.mem.litesata.test.common import *
 
 class ContPacket(list):
 	def __init__(self, data=[]):

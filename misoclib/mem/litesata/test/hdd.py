@@ -1,8 +1,8 @@
 import subprocess
 import math
 
-from litesata.common import *
-from litesata.test.common import *
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.test.common import *
 
 def print_with_prefix(s, prefix=""):
 	if not isinstance(s, str):

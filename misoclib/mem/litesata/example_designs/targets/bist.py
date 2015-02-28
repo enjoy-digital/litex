@@ -1,6 +1,6 @@
 import os
 
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 from migen.bank import csrgen
 from migen.bus import wishbone, csr
 from migen.bus import wishbone2csr
@@ -15,9 +15,9 @@ from litescope.bridge.uart2wb import LiteScopeUART2WB
 from litescope.frontend.la import LiteScopeLA
 from litescope.core.port import LiteScopeTerm
 
-from litesata.common import *
-from litesata.phy import LiteSATAPHY
-from litesata import LiteSATA
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.phy import LiteSATAPHY
+from misoclib.mem.litesata import LiteSATA
 
 class _CRG(Module):
 	def __init__(self, platform):

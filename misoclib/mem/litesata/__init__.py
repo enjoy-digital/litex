@@ -1,7 +1,7 @@
-from litesata.common import *
-from litesata.phy import *
-from litesata.core import *
-from litesata.frontend import *
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.phy import *
+from misoclib.mem.litesata.core import *
+from misoclib.mem.litesata.frontend import *
 
 from migen.bank.description import *
 

@@ -1,7 +1,7 @@
-from litesata.common import *
-from litesata.phy.datapath import LiteSATAPHYDatapath
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.phy.datapath import LiteSATAPHYDatapath
 
-from litesata.test.common import *
+from misoclib.mem.litesata.test.common import *
 
 class DataPacket(list):
 	def __init__(self, data=[]):

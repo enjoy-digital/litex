@@ -1,7 +1,7 @@
-from litesata.common import *
-from litesata.core.link.crc import LiteSATACRCInserter, LiteSATACRCChecker
-from litesata.core.link.scrambler import LiteSATAScrambler
-from litesata.core.link.cont import LiteSATACONTInserter, LiteSATACONTRemover
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.core.link.crc import LiteSATACRCInserter, LiteSATACRCChecker
+from misoclib.mem.litesata.core.link.scrambler import LiteSATAScrambler
+from misoclib.mem.litesata.core.link.cont import LiteSATACONTInserter, LiteSATACONTRemover
 
 from_rx = [
 	("idle", 1),

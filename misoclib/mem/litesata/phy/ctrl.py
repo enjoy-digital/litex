@@ -1,4 +1,4 @@
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 def us(t, clk_freq):
 	clk_period_us = 1000000/clk_freq

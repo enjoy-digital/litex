@@ -1,8 +1,8 @@
-from litesata.common import *
-from litesata.core import LiteSATACore
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.core import LiteSATACore
 
-from litesata.test.hdd import *
-from litesata.test.common import *
+from misoclib.mem.litesata.test.hdd import *
+from misoclib.mem.litesata.test.common import *
 
 class CommandTXPacket(list):
 	def __init__(self, write=0, read=0, sector=0, count=0, data=[]):

@@ -1,4 +1,4 @@
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 @DecorateModule(InsertCE)
 class Scrambler(Module):

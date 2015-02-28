@@ -1,4 +1,4 @@
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 def ones(width):
 	return 2**width-1

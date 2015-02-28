@@ -1,4 +1,4 @@
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 class K7LiteSATAPHYCRG(Module):
 	def __init__(self, pads, gtx, revision, clk_freq):

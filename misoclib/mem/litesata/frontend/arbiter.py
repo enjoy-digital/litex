@@ -1,5 +1,5 @@
-from litesata.common import *
-from litesata.frontend.common import *
+from misoclib.mem.litesata.common import *
+from misoclib.mem.litesata.frontend.common import *
 
 from migen.genlib.roundrobin import *
 

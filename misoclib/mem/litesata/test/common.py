@@ -2,7 +2,7 @@ import random, copy
 
 from migen.sim.generic import run_simulation
 
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 def seed_to_data(seed, random=True):
 	if random:

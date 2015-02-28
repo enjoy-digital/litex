@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from litesata.common import *
+from misoclib.mem.litesata.common import *
 
 from migen.actorlib.crc import CRCInserter, CRCChecker
 
