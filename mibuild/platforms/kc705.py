@@ -378,7 +378,7 @@ _connectors = [
 	)
 ]
 
-def Platform(*args, toolchain="vivado", **kwargs):
+def Platform(*args, toolchain="vivado", programmer="xc3sprog", **kwargs):
 	if toolchain == "ise":
 		xilinx_platform = XilinxISEPlatform
 	elif toolchain == "vivado":
@@ -396,7 +396,12 @@ def Platform(*args, toolchain="vivado", **kwargs):
 			xilinx_platform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory, _connectors)
 
 		def create_programmer(self):
-			return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
+			if programmer == "xc3sprog":
+				return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
+			elif programmer == "vivado":
+				return VivadoProgrammer()
+			else:
+				raise ValueError("{} programmer is not supported".format(programmer))
 
 		def do_finalize(self, fragment):
 			try:
@@ -415,4 +420,5 @@ def Platform(*args, toolchain="vivado", **kwargs):
 				self.add_platform_command("CONFIG DCI_CASCADE = \"33 32 34\";")
 			else:
 				self.add_platform_command("set_property DCI_CASCADE {{32 34}} [get_iobanks 33]")
+
 	return RealPlatform(*args, **kwargs)
