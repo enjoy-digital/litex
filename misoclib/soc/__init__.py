@@ -27,7 +27,6 @@ class SoC(Module):
 		"timer0":		1,
 	}
 	mem_map = {
-		"rom":		0x00000000, # (shadow @0x80000000)
 		"sram":		0x10000000, # (shadow @0x90000000)
 		"sdram":	0x40000000, # (shadow @0xc0000000)
 		"csr":		0x60000000, # (shadow @0xe0000000)
@@ -35,7 +34,7 @@ class SoC(Module):
 	def __init__(self, platform, clk_freq, cpu_or_bridge=None,
 				with_cpu=True, cpu_type="lm32", cpu_reset_address=0x00000000,
 							   cpu_boot_file="software/bios/bios.bin",
-				with_rom=False, rom_size=0x8000,
+				with_rom=False, rom_size=0xa000,
 				with_sram=True, sram_size=4096,
 				with_sdram=False, sdram_size=64*1024,
 				with_csr=True, csr_data_width=8, csr_address_width=14,
@@ -87,7 +86,7 @@ class SoC(Module):
 
 			if with_rom:
 				self.submodules.rom = wishbone.SRAM(rom_size, read_only=True)
-				self.register_mem("rom", self.mem_map["rom"], self.rom.bus, rom_size)
+				self.register_mem("rom", self.cpu_reset_address, self.rom.bus, rom_size)
 
 			if with_sram:
 				self.submodules.sram = wishbone.SRAM(sram_size)
@@ -140,7 +139,7 @@ class SoC(Module):
 
 	# XXX for retro-compatibilty, we should maybe use directly register_mem in targets
 	def register_rom(self, interface):
-		self.register_mem("rom", self.mem_map["rom"], interface, size=self.rom_size)
+		self.register_mem("rom", self.cpu_reset_address, interface, size=self.rom_size)
 
 	def check_csr_region(self, name, origin):
 		for n, o, l, obj in self.csr_regions:
