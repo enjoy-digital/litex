@@ -5,7 +5,7 @@ from misoclib.cpu.peripherals import gpio
 from misoclib.mem import sdram
 from misoclib.mem.sdram.phy import gensdrphy
 from misoclib.com import uart
-from misoclib.soc import SDRAMSoC
+from misoclib.soc.sdram import SDRAMSoC
 
 class _PLL(Module):
 	def __init__(self, period_in, name, phase_shift, operation_mode):

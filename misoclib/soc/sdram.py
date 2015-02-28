@@ -5,7 +5,7 @@ from misoclib.mem.sdram.bus import dfi, lasmibus, wishbone2lasmi
 from misoclib.mem.sdram import minicon, lasmicon
 from misoclib.mem.sdram import dfii
 from misoclib.mem.sdram import memtest
-from misoclib.soc import Soc, mem_decoder
+from misoclib.soc import SoC, mem_decoder
 
 class SDRAMSoC(SoC):
 	csr_map = {

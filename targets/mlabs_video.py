@@ -10,7 +10,8 @@ from misoclib.mem.sdram.phy import s6ddrphy
 from misoclib.mem.flash import norflash16
 from misoclib.cpu.peripherals import gpio
 from misoclib.video import framebuffer
-from misoclib.soc import SDRAMSoC, mem_decoder
+from misoclib.soc import mem_decoder
+from misoclib.soc.sdram import SDRAMSoC
 
 from misoclib.com.liteeth.phy.mii import LiteEthPHYMII
 from misoclib.com.liteeth.mac import LiteEthMAC
