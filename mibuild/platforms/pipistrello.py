@@ -107,7 +107,6 @@ _io = [
 	("sdram", 0,
 		Subsignal("a", Pins("J7 J6 H5 L7 F3 H4 H3 H6 D2 D1 F4 D3 G6")),
 		Subsignal("ba", Pins("F2 F1")),
-		# Subsignal("cs_n", Pins("K6")), # NC
 		Subsignal("cke", Pins("H7")),
 		Subsignal("ras_n", Pins("L5")),
 		Subsignal("cas_n", Pins("K5")),
@@ -115,7 +114,6 @@ _io = [
 		Subsignal("dq", Pins("L2 L1 K2 K1 H2 H1 J3 J1 M3 M1 N2 N1 T2 T1 U2 U1")),
 		Subsignal("dqs", Pins("L4 P2")),
 		Subsignal("dm", Pins("K3 K4")),
-		# Subsignal("rzq", Pins("N4")), # NC
 		IOStandard("MOBILE_DDR")
 	)
 ]
