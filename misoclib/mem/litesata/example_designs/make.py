@@ -10,7 +10,6 @@ from migen.bank.description import CSRStatus
 from mibuild import tools
 from mibuild.xilinx.common import *
 
-sys.path.append("../../../../") # Temporary
 from misoclib.soc import cpuif
 from misoclib.mem.litesata.common import *
 
