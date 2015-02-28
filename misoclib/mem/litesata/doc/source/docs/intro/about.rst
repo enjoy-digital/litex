@@ -6,8 +6,7 @@ About LiteSATA
 
 LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
 
-LiteSATA is part of LiteX libraries whose aims is to lower entry level of complex
-FPGA cores by providing simple, elegant and efficient implementations of
+LiteSATA is part of MiSoC libraries whose aims are to lower entry level of complex FPGA cores by providing simple, elegant and efficient implementations of
 components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
 The core uses simple and specific streaming buses and will provides in the future
@@ -23,9 +22,8 @@ LiteSATA uses technologies developed in partnership with M-Labs Ltd:
  - Migen enables generating HDL with Python in an efficient way.
  - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
 
-LiteSATA can be used as a Migen/MiSoC library (by simply installing  it
-with the provided setup.py) or can be integrated with your standard design flow
-by generating the verilog rtl that you will use as a standard core.
+LiteSATA can be used as MiSoC library or can be integrated with your standard
+design flow by generating the verilog rtl that you will use as a standard core.
 
 .. _about-toolchain:
 

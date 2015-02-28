@@ -10,15 +10,14 @@
 
 [> Doc
 ---------
-HTML : www.enjoy-digital.fr/litex/litesata/
-PDF  : www.enjoy-digital.fr/litex/litesata.pdf
+HTML : www.enjoy-digital.fr/litesata/
+PDF  : www.enjoy-digital.fr/litesata.pdf
 
 [> Intro
 ---------
 LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
 
-LiteSATA is part of LiteX libraries whose aims are to lower entry level of complex
-FPGA cores by providing simple, elegant and efficient implementations of
+LiteSATA is part of MiSoC libraries whose aims are to lower entry level of complex FPGA cores by providing simple, elegant and efficient implementations of
 components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
 The core uses simple and specific streaming buses and will provides in the future
@@ -34,9 +33,8 @@ LiteSATA uses technologies developed in partnership with M-Labs Ltd:
  - Migen enables generating HDL with Python in an efficient way.
  - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
 
-LiteSATA can be used as a Migen/MiSoC library (by simply installing  it
-with the provided setup.py) or can be integrated with your standard design flow
-by generating the verilog rtl that you will use as a standard core.
+LiteSATA can be used as MiSoC library or can be integrated with your standard
+design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 -----------
@@ -93,37 +91,22 @@ devel [AT] lists.m-labs.hk.
   python3 setup.py install
   cd ..
 
-Note: in case you have issues with Migen, please retry
-with our fork at:
-  https://github.com/enjoy-digital/misoc
-until new features are merged.
-
-3. Obtain LiteScope and install it:
-  git clone https://github.com/enjoy-digital/litescope
-  cd litescope
-  python3 setup.py install
-  cd ..
-
-4. Obtain LiteSATA
-  git clone https://github.com/enjoy-digital/litesata
+3. Obtain MiSoC:
+  git clone https://github.com/m-labs/misoc --recursive
 
 5. Build and load BIST design (only for KC705 for now):
-  python3 make.py all (-s BISTSoCDevel to add LiteScopeLA)
+  go to misoclib/mem/litesata/example_designs/
+  run ./make.py all load-bitstream
 
 6. Test design (only for KC705 for now):
-  go to ./test directory and run:
-  change com port in config.py to your com port
-  python3 bist.py
+  go to [..]/example_designs/test/
+  run ./make.py --port your_serial_port bist
 
-7. Visualize Link Layer transactions (if BISTSoCDevel):
-  go to ./test directory and run:
-  python3 test_la.py [your_cond]
-  your_cond can be wr_cmd, id_cmd, rd_resp, ...
-  (open test_la.py to see all conditions or add yours)
-
-8. If you only want to build the core and use it with your
-  regular design flow:
-  python3 make.py -t core build-core
+7. If you only want to build the core and use it with your
+   regular design flow:
+     go to misoclib/mem/litesata/example_designs/
+     run ./make.py -t core build-core
+   You can customize the core in [..]/example_design/targets/core.py
 
 [> Simulations:
   Simulations are available in ./lib/sata/test:
@@ -160,7 +143,7 @@ do them if possible:
 --------------------------
 We love open-source hardware and like sharing our designs with others.
 
-LiteSATA is developed and maintained by EnjoyDigital.
+LiteSATA is mainly developed and maintained by EnjoyDigital.
 
 If you would like to know more about LiteSATA or if you are already a happy user
 and would like to extend it for your needs, EnjoyDigital can provide standard

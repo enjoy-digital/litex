@@ -6,9 +6,9 @@ About LiteScope
 
 LiteScope is a small footprint and configurable embedded logic analyzer that you
 can use in your FPGA and aims to provide a free, portable and flexible
-alternatve to vendor's solutions!
+alternative to vendor's solutions!
 
-LiteScope is part of LiteX libraries whose aims are to lower entry level of complex
+LiteScope is part of MiSoC libraries whose aims are to lower entry level of complex
 FPGA cores by providing simple, elegant and efficient implementations of
 components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
@@ -26,7 +26,7 @@ LiteScope can be used as a Migen/MiSoC library (by simply installing  it
 with the provided setup.py) or can be integrated with your standard design flow
 by generating the verilog rtl that you will use as a standard core.
 
-LiteScope produces "vcd" files that can be read in your regular waveforms viewer.
+LiteScope handles various export formats: .vcd, .sr(sigrok), .csv, .py...
 
 Since LiteScope also provides a UART <--> Wishbone brige so you only need 2
 external Rx/Tx pins to be ready to debug or control all your Wishbone peripherals!
@@ -59,7 +59,7 @@ Support and Consulting
 ======================
 We love open-source hardware and like sharing our designs with others.
 
-LiteScope is developed and maintained by EnjoyDigital.
+LiteScope is mainly developed and maintained by EnjoyDigital.
 
 If you would like to know more about LiteScope or if you are already a happy user
 and would like to extend it for your needs, EnjoyDigital can provide standard

@@ -6,7 +6,7 @@ About LiteEth
 
 LiteEth provides a small footprint and configurable Ethernet core.
 
-LiteEth is part of LiteX libraries whose aims are to lower entry level of
+LiteEth is part of MiSoC libraries whose aims are to lower entry level of
 complex FPGA cores by providing simple, elegant and efficient implementations
 ofcomponents used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
@@ -20,9 +20,8 @@ LiteEth uses technologies developed in partnership with M-Labs Ltd:
  - Migen enables generating HDL with Python in an efficient way.
  - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
 
-LiteEth can be used as a Migen/MiSoC library (by simply installing  it
-with the provided setup.py) or can be integrated with your standard design flow
-by generating the verilog rtl that you will use as a standard core.
+LiteEth can be used as MiSoC library or can be integrated with your standard
+design flow by generating the verilog rtl that you will use as a standard core.
 
 .. _about-toolchain:
 
@@ -43,7 +42,7 @@ Support and Consulting
 ======================
 We love open-source hardware and like sharing our designs with others.
 
-LiteEth is developed and maintained by EnjoyDigital.
+LiteEth is mainly developed and maintained by EnjoyDigital.
 
 If you would like to know more about LiteEth or if you are already a happy user
 and would like to extend it for your needs, EnjoyDigital can provide standard

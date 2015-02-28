@@ -3,11 +3,10 @@
           / /__/ / __/ -_) /_/ /\ \/ _  |
          /____/_/\__/\__/\____/___/____/
 
-          Copyright 2015 / EnjoyDigital
-               florent@enjoy-digital.fr
+          Copyright 2015 / EnjoyDigital / M-Labs Ltd
 
-   A small footprint and configurable USB core
-                  powered by Migen
+   	  A small footprint and configurable USB core
+                powered by Migen
 
 [> Doc
 ---------
@@ -17,7 +16,7 @@ XXX
 ---------
 LiteUSB provides a small footprint and configurable USB core.
 
-LiteUSB is part of LiteX libraries whose aims are to lower entry level of
+LiteUSB is part of MiSoC libraries whose aims are to lower entry level of
 complex FPGA cores by providing simple, elegant and efficient implementations
 ofcomponents used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
@@ -31,9 +30,8 @@ LiteUSB uses technologies developed in partnership with M-Labs Ltd:
  - Migen enables generating HDL with Python in an efficient way.
  - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
 
-LiteUSB can be used as a Migen/MiSoC library (by simply installing  it
-with the provided setup.py) or can be integrated with your standard design flow
-by generating the verilog rtl that you will use as a standard core.
+LiteUSB can be used as MiSoC library or can be integrated with your standard
+design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 -----------
@@ -78,7 +76,7 @@ do them if possible:
 --------------------------
 We love open-source hardware and like sharing our designs with others.
 
-LiteUSB is developed and maintained by EnjoyDigital.
+LiteUSB is mainly developed and maintained by EnjoyDigital.
 
 If you would like to know more about LiteUSB or if you are already a happy
 user and would like to extend it for your needs, EnjoyDigital can provide standard

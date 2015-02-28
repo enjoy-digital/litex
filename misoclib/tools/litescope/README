@@ -3,16 +3,15 @@
            / /__/ / __/ -_)\ \/ __/ _ \/ _ \/ -_)
           /____/_/\__/\__/___/\__/\___/ .__/\__/
                                      /_/
-           Copyright 2012-2015 / EnjoyDigital
-                florent@enjoy-digital.fr
+       Copyright 2012-2015 / EnjoyDigital / M-Labs Ltd
 
        A small footprint and configurable embedded FPGA
              logic analyzer core powered by Migen
 
 [> Doc
 ---------
-HTML : www.enjoy-digital.fr/litex/litescope/
-PDF  : www.enjoy-digital.fr/litex/litescope.pdf
+HTML : www.enjoy-digital.fr/litescope/
+PDF  : www.enjoy-digital.fr/litescope.pdf
 
 [> Intro
 ---------
@@ -20,7 +19,7 @@ LiteScope is a small footprint and configurable embedded logic analyzer that you
 can use in your FPGA and aims to provide a free, portable and flexible
 alternative to vendor's solutions!
 
-LiteScope is part of LiteX libraries whose aims are to lower entry level of complex
+LiteScope is part of MiSoC libraries whose aims are to lower entry level of complex
 FPGA cores by providing simple, elegant and efficient implementations of
 components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
@@ -38,7 +37,7 @@ LiteScope can be used as a Migen/MiSoC library (by simply installing  it
 with the provided setup.py) or can be integrated with your standard design flow
 by generating the verilog rtl that you will use as a standard core.
 
-LiteScope produces "vcd" files that can be read in your regular waveforms viewer.
+LiteScope handles various export formats: .vcd, .sr(sigrok), .csv, .py...
 
 Since LiteScope also provides a UART <--> Wishbone brige so you only need 2
 external Rx/Tx pins to be ready to debug or control all your Wishbone peripherals!
@@ -53,8 +52,8 @@ external Rx/Tx pins to be ready to debug or control all your Wishbone peripheral
   - Storage qualifier
   - Data storage in block rams
 - Bridges:
-  - UART2Wishbone
-  - Ethernet2Wishbone ("Etherbone")
+  - UART2Wishbone (provided by LiteScope)
+  - Ethernet2Wishbone ("Etherbone") (when used with LiteEth)
 
 [> Possible improvements
 -------------------------
@@ -81,23 +80,23 @@ devel [AT] lists.m-labs.hk.
   python3 setup.py install
   cd ..
 
-Note: in case you have issues with Migen, please retry
-with our forks at:
-  https://github.com/enjoy-digital/migen
-until new features are merged.
-
-3. Obtain LiteScope and install it:
-  git clone https://github.com/enjoy-digital/litescope
+3. Obtain MiSoC:
+  git clone https://github.com/m-labs/misoc --recursive
 
 4. Build and load test design:
-  python3 make.py -s [platform] all
+  go to misoclib/tools/litescope/example_designs/
+  ./make.py -p [your_platform] all load-bitstream
   Supported platforms are the ones already supported by Mibuild:
   de0nano, m1, mixxeo, kc705, zedboard...
 
 5. Test design:
-  go to ./test directory and run:
-  python3 test_io.py
-  python3 test_la.py
+  go to [..]/example_designs/test/ and run:
+  ./make.py --port your_serial_port io (will blink leds)
+  ./make.py --port your_serial_port la (will capture counter)
+
+  tests can also be executed over Etherbone (provided with LiteEth):
+  ./make.py --ip_address fpga_ip_address io
+  ./make.py --ip_address fpga_ip_address la
 
 [> Simulations:
   XXX convert simulations
@@ -122,7 +121,7 @@ do them if possible:
 --------------------------
 We love open-source hardware and like sharing our designs with others.
 
-LiteScope is developed and maintained by EnjoyDigital.
+LiteScope is mainly developed and maintained by EnjoyDigital.
 
 If you would like to know more about LiteScope or if you are already a happy user
 and would like to extend it for your needs, EnjoyDigital can provide standard
