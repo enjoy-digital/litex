@@ -1,4 +1,4 @@
-import subprocess
+import sys, subprocess
 
 from mibuild.generic_programmer import GenericProgrammer
 from mibuild.xilinx import common
