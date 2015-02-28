@@ -4,8 +4,8 @@ from mibuild.xilinx.ise import XilinxISEPlatform
 from mibuild.xilinx.programmer import XC3SProg
 
 _io = [
-	("user_led", 0, Pins("V16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # green near hdmi
-	("user_led", 1, Pins("U16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red near hdmi
+	("user_led", 0, Pins("V16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # green at hdmi
+	("user_led", 1, Pins("U16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at hdmi
 	("user_led", 2, Pins("A16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # green at msd
 	("user_led", 3, Pins("A15"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at msd
 	("user_led", 4, Pins("A12"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at usb
@@ -15,9 +15,9 @@ _io = [
 	("clk50", 0, Pins("H17"), IOStandard("LVTTL")),
 
 	("serial", 0,
-		Subsignal("tx", Pins("A10"), Misc("SLEW=SLOW")),
+		Subsignal("tx", Pins("A10")),
 		Subsignal("rx", Pins("A11"), Misc("PULLUP")),
-		Subsignal("rts", Pins("C10"), Misc("SLEW=SLOW")),
+		Subsignal("rts", Pins("C10")),
 		Subsignal("cts", Pins("A9"), Misc("PULLUP")),
 		IOStandard("LVTTL"),
 	),
@@ -32,7 +32,7 @@ _io = [
 		IOStandard("LVTTL"),
 	),
 
-	("dvi_in", 0,
+	("hdmi", 0,
 		Subsignal("clk_p", Pins("U5"), IOStandard("TMDS_33")),
 		Subsignal("clk_n", Pins("V5"), IOStandard("TMDS_33")),
 		Subsignal("data0_p", Pins("T6"), IOStandard("TMDS_33")),
@@ -41,9 +41,9 @@ _io = [
 		Subsignal("data1_n", Pins("V7"), IOStandard("TMDS_33")),
 		Subsignal("data2_p", Pins("U8"), IOStandard("TMDS_33")),
 		Subsignal("data2_n", Pins("V8"), IOStandard("TMDS_33")),
-		Subsignal("scl", Pins("V9"), IOStandard("LVCMOS33")),
-		Subsignal("sda", Pins("T9"), IOStandard("LVCMOS33")),
-		Subsignal("hpd_notif", Pins("R8"), IOStandard("LVCMOS33")),
+		Subsignal("scl", Pins("V9"), IOStandard("I2C")),
+		Subsignal("sda", Pins("T9"), IOStandard("I2C")),
+		Subsignal("hpd_notif", Pins("R8"), IOStandard("LVTTL")),
 	),
 
 	("spiflash", 0,
@@ -59,47 +59,64 @@ _io = [
 	("spiflash2x", 0,
 		Subsignal("cs_n", Pins("V3")),
 		Subsignal("clk", Pins("R15")),
-		Subsignal("dq", Pins("T13", "R13"), Misc("PULLUP")),
+		Subsignal("dq", Pins("T13 R13"), Misc("PULLUP")),
 		Subsignal("wp", Pins("T14")),
 		Subsignal("hold", Pins("V14")),
-		IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+		IOStandard("LVTTL"), Misc("SLEW=FAST")
+	),
+
+	("spiflash4x", 0,
+		Subsignal("cs_n", Pins("V3")),
+		Subsignal("clk", Pins("R15")),
+		Subsignal("dq", Pins("T13 R13 T14 V14"), Misc("PULLUP")),
+		IOStandard("LVTTL"), Misc("SLEW=FAST")
 	),
 
 	("mmc", 0,
 		Subsignal("clk", Pins("A3")),
-		Subsignal("cmd", Pins("B3")),
-		Subsignal("dat", Pins("B4 A4 B2 A2")),
+		Subsignal("cmd", Pins("B3"), Misc("PULLUP")),
+		Subsignal("dat", Pins("B4 A4 B2 A2"), Misc("PULLUP")),
+		IOStandard("SDIO")
+	),
+
+	("mmc_spi", 0,
+		Subsignal("cs_n", Pins("A2"), Misc("PULLUP")),
+		Subsignal("clk", Pins("A3")),
+		Subsignal("mosi", Pins("B3")),
+		Subsignal("miso", Pins("B4"), Misc("PULLUP")),
 		IOStandard("SDIO")
 	),
 
 	("audio", 0,
-		Subsignal("l", Pins("R7")),
-		Subsignal("r", Pins("T7")),
+		Subsignal("l", Pins("R7"), Misc("SLEW=SLOW")),
+		Subsignal("r", Pins("T7"), Misc("SLEW=SLOW")),
 		IOStandard("LVTTL"),
 	),
 
 	("pmod", 0,
 		Subsignal("d", Pins("D9 C8 D6 C4 B11 C9 D8 C6")),
-		IOStandard("LVCMOS33")
+		IOStandard("LVTTL")
 	),
 
 	("sdram_clock", 0,
 		Subsignal("p", Pins("G3")),
 		Subsignal("n", Pins("G1")),
-		IOStandard("MOBILE_DDR"), Misc("SLEW=FAST"),
+		IOStandard("MOBILE_DDR")
 	),
 
 	("sdram", 0,
 		Subsignal("a", Pins("J7 J6 H5 L7 F3 H4 H3 H6 D2 D1 F4 D3 G6")),
 		Subsignal("ba", Pins("F2 F1")),
-		# Subsignal("cs_n", Pins("")),
+		# Subsignal("cs_n", Pins("K6")), # NC
 		Subsignal("cke", Pins("H7")),
 		Subsignal("ras_n", Pins("L5")),
 		Subsignal("cas_n", Pins("K5")),
 		Subsignal("we_n", Pins("E3")),
 		Subsignal("dq", Pins("L2 L1 K2 K1 H2 H1 J3 J1 M3 M1 N2 N1 T2 T1 U2 U1")),
+		Subsignal("dqs", Pins("L4 P2")),
 		Subsignal("dm", Pins("K3 K4")),
-		IOStandard("MOBILE_DDR"), Misc("SLEW=FAST")
+		# Subsignal("rzq", Pins("N4")), # NC
+		IOStandard("MOBILE_DDR")
 	)
 ]
 
