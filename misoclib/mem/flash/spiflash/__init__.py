@@ -24,19 +24,20 @@ def _format_cmd(cmd, spi_width):
 	return c
 
 class SpiFlash(Module, AutoCSR):
-	def __init__(self, pads, dummy=15, div=2):
+	def __init__(self, pads, dummy=15, div=2, with_bitbang=True):
 		"""
 		Simple SPI flash, e.g. N25Q128 on the LX9 Microboard.
 
 		Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
 		Read). Only supports mode0 (cpol=0, cpha=0).
-		Supports software bitbanging (for write, erase, or other commands).
+		Optional supports software bitbanging (for write, erase, or other commands).
 		"""
 		self.bus = bus = wishbone.Interface()
 		spi_width = flen(pads.dq)
-		self.bitbang = CSRStorage(4)
-		self.miso = CSRStatus()
-		self.bitbang_en = CSRStorage()
+		if with_bitbang:
+			self.bitbang = CSRStorage(4)
+			self.miso = CSRStatus()
+			self.bitbang_en = CSRStorage()
 
 		##
 
@@ -62,9 +63,17 @@ class SpiFlash(Module, AutoCSR):
 		sr = Signal(max(cmd_width, addr_width, wbone_width))
 		dqs = Replicate(1, spi_width-1)
 
-		self.comb += [
-			bus.dat_r.eq(sr),
-			If(self.bitbang_en.storage,
+		self.comb += bus.dat_r.eq(sr)
+
+		hw_read_logic = [
+			pads.clk.eq(clk),
+			pads.cs_n.eq(cs_n),
+			dq.o.eq(sr[-spi_width:]),
+			dq.oe.eq(dq_oe)
+		]
+
+		if with_bitbang:
+			bitbang_logic = [
 				pads.clk.eq(self.bitbang.storage[1]),
 				pads.cs_n.eq(self.bitbang.storage[2]),
 				dq.o.eq(Cat(self.bitbang.storage[0], dqs)),
@@ -76,13 +85,16 @@ class SpiFlash(Module, AutoCSR):
 				If(self.bitbang.storage[1],
 					self.miso.status.eq(dq.i[-1])
 				)
-			).Else(
-				pads.clk.eq(clk),
-				pads.cs_n.eq(cs_n),
-				dq.o.eq(sr[-spi_width:]),
-				dq.oe.eq(dq_oe)
-			)
-		]
+			]
+
+			self.comb += \
+				If(self.bitbang_en.storage,
+					bitbang_logic
+				).Else(
+					hw_read_logic
+				)
+		else:
+			self.comb += hw_read_logic
 
 		if div < 2:
 			raise ValueError("Unsupported value \'{}\' for div parameter for SpiFlash core".format(div))
