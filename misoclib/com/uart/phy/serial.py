@@ -5,7 +5,7 @@ from migen.flow.actor import Sink, Source
 
 class UARTPHYSerialRX(Module):
 	def __init__(self, pads, tuning_word):
-		self.source = Source([("d", 8)])
+		self.source = Source([("data", 8)])
 		###
 		uart_clk_rxen = Signal()
 		phase_accumulator_rx = Signal(32)
@@ -17,7 +17,7 @@ class UARTPHYSerialRX(Module):
 		rx_bitcount = Signal(4)
 		rx_busy = Signal()
 		rx_done = self.source.stb
-		rx_data = self.source.d
+		rx_data = self.source.data
 		self.sync += [
 			rx_done.eq(0),
 			rx_r.eq(rx),
@@ -54,7 +54,7 @@ class UARTPHYSerialRX(Module):
 
 class UARTPHYSerialTX(Module):
 	def __init__(self, pads, tuning_word):
-		self.sink = Sink([("d", 8)])
+		self.sink = Sink([("data", 8)])
 		###
 		uart_clk_txen = Signal()
 		phase_accumulator_tx = Signal(32)
@@ -67,7 +67,7 @@ class UARTPHYSerialTX(Module):
 		self.sync += [
 			self.sink.ack.eq(0),
 			If(self.sink.stb & ~tx_busy & ~self.sink.ack,
-				tx_reg.eq(self.sink.d),
+				tx_reg.eq(self.sink.data),
 				tx_bitcount.eq(0),
 				tx_busy.eq(1),
 				pads.tx.eq(0)

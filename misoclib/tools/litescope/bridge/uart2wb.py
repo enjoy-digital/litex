@@ -80,11 +80,11 @@ class LiteScopeUART2WB(Module, AutoCSR):
 		tx_data_ce = Signal()
 
 		self.sync += [
-			If(cmd_ce, cmd.eq(uart.source.d)),
-			If(length_ce, length.eq(uart.source.d)),
-			If(address_ce, address.eq(Cat(uart.source.d, address[0:24]))),
+			If(cmd_ce, cmd.eq(uart.source.data)),
+			If(length_ce, length.eq(uart.source.data)),
+			If(address_ce, address.eq(Cat(uart.source.data, address[0:24]))),
 			If(rx_data_ce,
-				data.eq(Cat(uart.source.d, data[0:24]))
+				data.eq(Cat(uart.source.data, data[0:24]))
 			).Elif(tx_data_ce,
 				data.eq(self.wishbone.dat_r)
 			)
@@ -102,8 +102,8 @@ class LiteScopeUART2WB(Module, AutoCSR):
 			timeout.reset.eq(1),
 			If(uart.source.stb,
 				cmd_ce.eq(1),
-				If(	(uart.source.d == self.cmds["write"]) |
-					(uart.source.d == self.cmds["read"]),
+				If(	(uart.source.data == self.cmds["write"]) |
+					(uart.source.data == self.cmds["read"]),
 					NextState("RECEIVE_LENGTH")
 				),
 				byte_counter.reset.eq(1),
@@ -168,7 +168,7 @@ class LiteScopeUART2WB(Module, AutoCSR):
 			)
 		)
 		self.comb += \
-			chooser(data, byte_counter.value, uart.sink.d, n=4, reverse=True)
+			chooser(data, byte_counter.value, uart.sink.data, n=4, reverse=True)
 		fsm.act("SEND_DATA",
 			uart.sink.stb.eq(1),
 			If(uart.sink.ack,

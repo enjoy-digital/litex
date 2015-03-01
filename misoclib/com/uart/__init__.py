@@ -16,12 +16,12 @@ class UART(Module, AutoCSR):
 		self.sync += [
 			If(self._rxtx.re,
 				phy.tx.sink.stb.eq(1),
-				phy.tx.sink.d.eq(self._rxtx.r),
+				phy.tx.sink.data.eq(self._rxtx.r),
 			).Elif(phy.tx.sink.ack,
 				phy.tx.sink.stb.eq(0)
 			),
 			If(phy.rx.source.stb,
-				self._rxtx.w.eq(phy.rx.source.d)
+				self._rxtx.w.eq(phy.rx.source.data)
 			)
 		]
 		self.comb += [
