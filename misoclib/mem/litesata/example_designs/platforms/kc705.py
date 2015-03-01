@@ -1,41 +1,7 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
-from mibuild.xilinx.common import CRG_DS
-from mibuild.xilinx.ise import XilinxISEPlatform
-from mibuild.xilinx.vivado import XilinxVivadoPlatform
-from mibuild.xilinx.programmer import *
+from mibuild.platforms import kc705
 
-_io = [
-	("user_led", 0, Pins("AB8"), IOStandard("LVCMOS15")),
-	("user_led", 1, Pins("AA8"), IOStandard("LVCMOS15")),
-	("user_led", 2, Pins("AC9"), IOStandard("LVCMOS15")),
-	("user_led", 3, Pins("AB9"), IOStandard("LVCMOS15")),
-	("user_led", 4, Pins("AE26"), IOStandard("LVCMOS25")),
-	("user_led", 5, Pins("G19"), IOStandard("LVCMOS25")),
-	("user_led", 6, Pins("E18"), IOStandard("LVCMOS25")),
-	("user_led", 7, Pins("F16"), IOStandard("LVCMOS25")),
-
-	("cpu_reset", 0, Pins("AB7"), IOStandard("LVCMOS15")),
-
-	("clk200", 0,
-		Subsignal("p", Pins("AD12"), IOStandard("LVDS")),
-		Subsignal("n", Pins("AD11"), IOStandard("LVDS"))
-	),
-
-	("clk156", 0,
-		Subsignal("p", Pins("K28"), IOStandard("LVDS_25")),
-		Subsignal("n", Pins("K29"), IOStandard("LVDS_25"))
-	),
-
-
-	("serial", 0,
-		Subsignal("cts", Pins("L27")),
-		Subsignal("rts", Pins("K23")),
-		Subsignal("tx", Pins("K24")),
-		Subsignal("rx", Pins("M19")),
-		IOStandard("LVCMOS25")
-	),
-
+_sata_io = [
 	("sata", 0,
 		Subsignal("refclk_p", Pins("C8")),
 		Subsignal("refclk_n", Pins("C7")),
@@ -43,32 +9,22 @@ _io = [
 		Subsignal("txn", Pins("D1")),
 		Subsignal("rxp", Pins("E4")),
 		Subsignal("rxn", Pins("E3")),
-	),
+	)
 ]
 
-def Platform(*args, toolchain="vivado", programmer="xc3sprog", **kwargs):
-	if toolchain == "ise":
-		xilinx_platform = XilinxISEPlatform
-	elif toolchain == "vivado":
-		xilinx_platform = XilinxVivadoPlatform
-	else:
-		raise ValueError
+class SpecializedPlatform:
+	def __init__(self, platform):
+		self._platform = platform
 
-	class RealPlatform(xilinx_platform):
-		bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
+	def __getattr__(self, name):
+		return getattr(self._platform, name)
 
-		def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk200", "cpu_reset")):
-			xilinx_platform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory)
+class Platform(SpecializedPlatform):
+	def __init__(self, *args, **kwargs):
+		SpecializedPlatform.__init__(self, kc705.Platform(*args, **kwargs))
+		self.add_extension(_sata_io)
 
-		def create_programmer(self):
-			if programmer == "xc3sprog":
-				return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
-			elif programmer == "vivado":
-				return VivadoProgrammer()
-			else:
-				raise ValueError
-
-		def do_finalize(self, fragment):
+	def do_finalize(self, fragment):
 			try:
 				self.add_period_constraint(self.lookup_request("clk156").p, 6.4)
 			except ConstraintError:
@@ -94,5 +50,3 @@ set_false_path -from [get_clocks sata_tx_clk] -to [get_clocks sys_clk]
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 2.5 [current_design]
 """)
-
-	return RealPlatform(*args, **kwargs)
