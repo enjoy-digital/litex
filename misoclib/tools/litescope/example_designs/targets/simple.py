@@ -29,7 +29,7 @@ class LiteScopeSoC(SoC, AutoCSR):
 	csr_map.update(SoC.csr_map)
 	def __init__(self, platform):
 		clk_freq = int((1/(platform.default_clk_period))*1000000000)
-		self.submodules.uart2wb = LiteScopeUART2WB(platform.request("serial"), clk_freq, baud=115200)
+		self.submodules.uart2wb = LiteScopeUART2WB(platform.request("serial"), clk_freq, baudrate=115200)
 		SoC.__init__(self, platform, clk_freq, self.uart2wb,
 			with_cpu=False,
 			with_csr=True, csr_data_width=32,
@@ -47,8 +47,8 @@ class LiteScopeSoC(SoC, AutoCSR):
 			except:
 				pass
 
-		self.submodules.counter0 = counter0 = Counter(bits_sign=8)
-		self.submodules.counter1 = counter1 = Counter(bits_sign=8)
+		self.submodules.counter0 = counter0 = Counter(8)
+		self.submodules.counter1 = counter1 = Counter(8)
 		self.comb += [
 			counter0.ce.eq(1),
 			If(counter0.value == 16,

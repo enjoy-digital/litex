@@ -10,35 +10,6 @@ class Port:
 		return r
 
 # Generic modules
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class FlipFlop(Module):
-	def __init__(self, *args, **kwargs):
-		self.d = Signal(*args, **kwargs)
-		self.q = Signal(*args, **kwargs)
-		self.sync += self.q.eq(self.d)
-
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class Counter(Module):
-	def __init__(self, signal=None, **kwargs):
-		if signal is None:
-			self.value = Signal(**kwargs)
-		else:
-			self.value = signal
-		self.width = flen(self.value)
-		self.sync += self.value.eq(self.value+1)
-
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class Timeout(Module):
-	def __init__(self, length):
-		self.reached = Signal()
-		###
-		value = Signal(max=length)
-		self.sync += If(~self.reached, value.eq(value+1))
-		self.comb += self.reached.eq(value == (length-1))
-
 class BufferizeEndpoints(ModuleDecorator):
 	def __init__(self, submodule, *args):
 		ModuleDecorator.__init__(self, submodule)

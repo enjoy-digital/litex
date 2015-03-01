@@ -7,7 +7,7 @@ class LiteScopeSubSamplerUnit(Module):
 		self.source = source = Source(data_layout(dw))
 		self.value = Signal(32)
 		###
-		self.submodules.counter = Counter(bits_sign=32)
+		self.submodules.counter = Counter(32)
 		done = Signal()
 		self.comb += [
 			done.eq(self.counter.value >= self.value),

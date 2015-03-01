@@ -89,7 +89,7 @@ class BISTSoC(SoC, AutoCSR):
 	csr_map.update(SoC.csr_map)
 	def __init__(self, platform):
 		clk_freq = 166*1000000
-		self.submodules.uart2wb = LiteScopeUART2WB(platform.request("serial"), clk_freq, baud=115200)
+		self.submodules.uart2wb = LiteScopeUART2WB(platform.request("serial"), clk_freq, baudrate=115200)
 		SoC.__init__(self, platform, clk_freq, self.uart2wb,
 			with_cpu=False,
 			with_csr=True, csr_data_width=32,

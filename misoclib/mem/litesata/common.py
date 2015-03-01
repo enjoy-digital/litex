@@ -5,7 +5,7 @@ from migen.fhdl.decorators import ModuleDecorator
 from migen.genlib.resetsync import *
 from migen.genlib.fsm import *
 from migen.genlib.record import *
-from migen.genlib.misc import chooser, optree
+from migen.genlib.misc import chooser, optree, Counter, Timeout
 from migen.genlib.cdc import *
 from migen.flow.actor import *
 from migen.flow.plumbing import Multiplexer, Demultiplexer
@@ -252,27 +252,6 @@ def sectors2dwords(n):
 	return n*logical_sector_size//4
 
 # Generic modules
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class Counter(Module):
-	def __init__(self, signal=None, **kwargs):
-		if signal is None:
-			self.value = Signal(**kwargs)
-		else:
-			self.value = signal
-		self.width = flen(self.value)
-		self.sync += self.value.eq(self.value+1)
-
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
-class Timeout(Module):
-	def __init__(self, length):
-		self.reached = Signal()
-		###
-		value = Signal(max=length)
-		self.sync += If(~self.reached, value.eq(value+1))
-		self.comb += self.reached.eq(value == (length-1))
-
 class BufferizeEndpoints(ModuleDecorator):
 	def __init__(self, submodule, *args):
 		ModuleDecorator.__init__(self, submodule)

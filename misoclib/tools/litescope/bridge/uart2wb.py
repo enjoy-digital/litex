@@ -7,18 +7,7 @@ from migen.bank.eventmanager import *
 from migen.genlib.record import Record
 from migen.flow.actor import Sink, Source
 
-from misoclib.com.uart import UARTRX, UARTTX
-
-class UART(Module, AutoCSR):
-	def __init__(self, pads, clk_freq, baud=115200):
-		self._tuning_word = CSRStorage(32, reset=int((baud/clk_freq)*2**32))
-		tuning_word = self._tuning_word.storage
-
-		###
-
-		self.rx = UARTRX(pads, tuning_word)
-		self.tx = UARTTX(pads, tuning_word)
-		self.submodules += self.rx, self.tx
+from misoclib.com.uart.phy.serial import UARTPHYSerial
 
 class UARTPads:
 	def __init__(self):
@@ -58,23 +47,23 @@ class LiteScopeUART2WB(Module, AutoCSR):
 		"write"	: 0x01,
 		"read"	: 0x02
 	}
-	def __init__(self, pads, clk_freq, baud=115200, share_uart=False):
+	def __init__(self, pads, clk_freq, baudrate=115200, share_uart=False):
 		self.wishbone = wishbone.Interface()
 		if share_uart:
 			self._sel = CSRStorage()
 		###
 		if share_uart:
-			uart_mux = UARTMux(pads)
-			uart = UART(uart_mux.bridge_pads, clk_freq, baud)
-			self.submodules += uart_mux, uart
-			self.shared_pads = uart_mux.shared_pads
-			self.comb += uart_mux.sel.eq(self._sel.storage)
+			mux = UARTMux(pads)
+			uart = UARTPHYSerial(mux.bridge_pads, clk_freq, baudrate)
+			self.submodules += mux, uart
+			self.shared_pads = mux.shared_pads
+			self.comb += mux.sel.eq(self._sel.storage)
 		else:
-			uart = UART(pads, clk_freq, baud)
+			uart = UARTPHYSerial(pads, clk_freq, baudrate)
 			self.submodules += uart
 
-		byte_counter = Counter(bits_sign=3)
-		word_counter = Counter(bits_sign=8)
+		byte_counter = Counter(3)
+		word_counter = Counter(8)
 		self.submodules += byte_counter, word_counter
 
 		cmd = Signal(8)
@@ -91,11 +80,11 @@ class LiteScopeUART2WB(Module, AutoCSR):
 		tx_data_ce = Signal()
 
 		self.sync += [
-			If(cmd_ce, cmd.eq(uart.rx.source.d)),
-			If(length_ce, length.eq(uart.rx.source.d)),
-			If(address_ce, address.eq(Cat(uart.rx.source.d, address[0:24]))),
+			If(cmd_ce, cmd.eq(uart.source.d)),
+			If(length_ce, length.eq(uart.source.d)),
+			If(address_ce, address.eq(Cat(uart.source.d, address[0:24]))),
 			If(rx_data_ce,
-				data.eq(Cat(uart.rx.source.d, data[0:24]))
+				data.eq(Cat(uart.source.d, data[0:24]))
 			).Elif(tx_data_ce,
 				data.eq(self.wishbone.dat_r)
 			)
@@ -111,10 +100,10 @@ class LiteScopeUART2WB(Module, AutoCSR):
 		]
 		fsm.act("IDLE",
 			timeout.reset.eq(1),
-			If(uart.rx.source.stb,
+			If(uart.source.stb,
 				cmd_ce.eq(1),
-				If(	(uart.rx.source.d == self.cmds["write"]) |
-					(uart.rx.source.d == self.cmds["read"]),
+				If(	(uart.source.d == self.cmds["write"]) |
+					(uart.source.d == self.cmds["read"]),
 					NextState("RECEIVE_LENGTH")
 				),
 				byte_counter.reset.eq(1),
@@ -122,13 +111,13 @@ class LiteScopeUART2WB(Module, AutoCSR):
 			)
 		)
 		fsm.act("RECEIVE_LENGTH",
-			If(uart.rx.source.stb,
+			If(uart.source.stb,
 				length_ce.eq(1),
 				NextState("RECEIVE_ADDRESS")
 			)
 		)
 		fsm.act("RECEIVE_ADDRESS",
-			If(uart.rx.source.stb,
+			If(uart.source.stb,
 				address_ce.eq(1),
 				byte_counter.ce.eq(1),
 				If(byte_counter.value == 3,
@@ -142,7 +131,7 @@ class LiteScopeUART2WB(Module, AutoCSR):
 			)
 		)
 		fsm.act("RECEIVE_DATA",
-			If(uart.rx.source.stb,
+			If(uart.source.stb,
 				rx_data_ce.eq(1),
 				byte_counter.ce.eq(1),
 				If(byte_counter.value == 3,
@@ -179,10 +168,10 @@ class LiteScopeUART2WB(Module, AutoCSR):
 			)
 		)
 		self.comb += \
-			chooser(data, byte_counter.value, uart.tx.sink.d, n=4, reverse=True)
+			chooser(data, byte_counter.value, uart.sink.d, n=4, reverse=True)
 		fsm.act("SEND_DATA",
-			uart.tx.sink.stb.eq(1),
-			If(uart.tx.sink.ack,
+			uart.sink.stb.eq(1),
+			If(uart.sink.ack,
 				byte_counter.ce.eq(1),
 				If(byte_counter.value == 3,
 					word_counter.ce.eq(1),

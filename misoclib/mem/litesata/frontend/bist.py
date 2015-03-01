@@ -19,7 +19,7 @@ class LiteSATABISTGenerator(Module):
 
 		source, sink = user_port.sink, user_port.source
 
-		counter = Counter(bits_sign=32)
+		counter = Counter(32)
 		self.submodules += counter
 
 		scrambler = scrambler = InsertReset(Scrambler())
@@ -82,9 +82,10 @@ class LiteSATABISTChecker(Module):
 
 		source, sink = user_port.sink, user_port.source
 
-		counter = Counter(bits_sign=32)
-		error_counter = Counter(self.errors, bits_sign=32)
+		counter = Counter(32)
+		error_counter = Counter(32)
 		self.submodules += counter, error_counter
+		self.comb += self.errors.eq(error_counter.value)
 
 		scrambler = InsertReset(Scrambler())
 		self.submodules += scrambler
@@ -178,7 +179,7 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 		]
 
 		self.fsm = fsm = FSM(reset_state="IDLE")
-		loop_counter = Counter(bits_sign=8)
+		loop_counter = Counter(8)
 		self.submodules += fsm, loop_counter
 		fsm.act("IDLE",
 			self._done.status.eq(1),
@@ -205,11 +206,12 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
 			)
 		)
 
-		cycles_counter = Counter(self._cycles.status)
+		cycles_counter = Counter(32)
 		self.submodules += cycles_counter
 		self.sync += [
 			cycles_counter.reset.eq(start),
-			cycles_counter.ce.eq(~fsm.ongoing("IDLE"))
+			cycles_counter.ce.eq(~fsm.ongoing("IDLE")),
+			self._cycles.status.eq(cycles_counter.value)
 		]
 
 class LiteSATABISTIdentify(Module):

@@ -6,7 +6,7 @@ from migen.fhdl.decorators import ModuleDecorator
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import chooser
+from migen.genlib.misc import chooser, FlipFlop, Counter, Timeout
 from migen.flow.actor import *
 from migen.flow.plumbing import Buffer
 from migen.actorlib.structuring import Converter, Pipeline
