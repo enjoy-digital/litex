@@ -3,8 +3,6 @@ from migen.flow.actor import Sink, Source
 
 class UARTPHYSim(Module):
 	def __init__(self, pads):
-		self.dw = 8
-		self.tuning_word = Signal(32)
 		self.sink = Sink([("data", 8)])
 		self.source = Source([("data", 8)])
 

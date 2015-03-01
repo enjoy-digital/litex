@@ -15,16 +15,16 @@ class UART(Module, AutoCSR):
 		###
 		self.sync += [
 			If(self._rxtx.re,
-				phy.tx.sink.stb.eq(1),
-				phy.tx.sink.data.eq(self._rxtx.r),
-			).Elif(phy.tx.sink.ack,
-				phy.tx.sink.stb.eq(0)
+				phy.sink.stb.eq(1),
+				phy.sink.data.eq(self._rxtx.r),
+			).Elif(phy.sink.ack,
+				phy.sink.stb.eq(0)
 			),
-			If(phy.rx.source.stb,
-				self._rxtx.w.eq(phy.rx.source.data)
+			If(phy.source.stb,
+				self._rxtx.w.eq(phy.source.data)
 			)
 		]
 		self.comb += [
-			self.ev.tx.trigger.eq(phy.tx.sink.stb & phy.tx.sink.ack),
-			self.ev.rx.trigger.eq(phy.rx.source.stb) #phy.rx.source.ack supposed to be always 1
+			self.ev.tx.trigger.eq(phy.sink.stb & phy.sink.ack),
+			self.ev.rx.trigger.eq(phy.source.stb) #phy.source.ack supposed to be always 1
 		]
