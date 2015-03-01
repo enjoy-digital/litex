@@ -100,7 +100,7 @@ devel [AT] lists.m-labs.hk.
 
 6. Test design (only for KC705 for now):
   go to [..]/example_designs/test/
-  run ./make.py --port your_serial_port bist
+  run ./bist.py --port your_serial_port
 
 7. If you only want to build the core and use it with your
    regular design flow:

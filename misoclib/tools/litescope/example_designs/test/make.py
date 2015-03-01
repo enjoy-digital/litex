@@ -29,5 +29,5 @@ if __name__ == "__main__":
 		return importlib.import_module(name)
 
 	for test in args.test:
-		t = _import("test_"+test)
+		t = _import(test)
 		t.main(wb)

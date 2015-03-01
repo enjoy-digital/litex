@@ -91,12 +91,12 @@ devel [AT] lists.m-labs.hk.
 
 5. Test design:
   go to [..]/example_designs/test/ and run:
-  ./make.py --port your_serial_port io (will blink leds)
-  ./make.py --port your_serial_port la (will capture counter)
+  ./make.py --port your_serial_port test_io (will blink leds)
+  ./make.py --port your_serial_port test_la (will capture counter)
 
   tests can also be executed over Etherbone (provided with LiteEth):
-  ./make.py --ip_address fpga_ip_address io
-  ./make.py --ip_address fpga_ip_address la
+  ./make.py --ip_address fpga_ip_address test_io
+  ./make.py --ip_address fpga_ip_address test_la
 
 [> Simulations:
   XXX convert simulations

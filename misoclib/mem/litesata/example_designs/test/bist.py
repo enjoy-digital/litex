@@ -2,7 +2,7 @@ import time
 import argparse
 import random as rand
 from collections import OrderedDict
-from config import *
+from misoclib.tools.litescope.host.driver.uart import LiteScopeUARTDriver
 
 KB = 1024
 MB = 1024*KB
@@ -128,6 +128,9 @@ def _get_args():
 		description="""\
 SATA BIST utility.
 """)
+	parser.add_argument("--port", default=2, help="UART port")
+	parser.add_argument("--baudrate", default=921600, help="UART baudrate")
+	parser.add_argument("--busword", default=32, help="CSR busword")
 	parser.add_argument("-s", "--transfer_size", default=1024, help="transfer sizes (in KB, up to 16MB)")
 	parser.add_argument("-l", "--total_length", default=256, help="total transfer length (in MB, up to HDD capacity)")
 	parser.add_argument("-n", "--loops", default=1, help="number of loop per transfer (allow more precision on speed calculation for small transfers)")
@@ -140,6 +143,7 @@ SATA BIST utility.
 
 if __name__ == "__main__":
 	args = _get_args()
+	wb = LiteScopeUARTDriver(args.port, args.baudrate, "./csr.csv", int(args.busword), debug=False)
 	wb.open()
 	###
 	identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")

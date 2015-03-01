@@ -72,7 +72,7 @@ devel [AT] lists.m-labs.hk.
 5. Test design (only for KC705 for now):
   try to ping 192.168.1.40
   go to [..]/example_designs/test/
-  run ./make.py udp
+  run ./make.py test_udp
 
 6. Build and load Etherbone design (only for KC705 for now):
   python3 make.py -t etherbone all load-bitstream
@@ -80,7 +80,7 @@ devel [AT] lists.m-labs.hk.
 7. Test design (only for KC705 for now):
   try to ping 192.168.1.40
   go to [..]/example_designs/test/
-  run ./make.py etherbone
+  run ./make.py test_etherbone
 
 [> Simulations:
   Simulations are available in misoclib/com/liteeth/test/:
