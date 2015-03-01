@@ -42,20 +42,13 @@ class Reader(Module):
 			request_enable.eq(rsv_level != fifo_depth)
 		]
 
-		# data available
-		data_available = lasmim.dat_ack
-		for i in range(lasmim.read_latency):
-			new_data_available = Signal()
-			self.sync += new_data_available.eq(data_available)
-			data_available = new_data_available
-
 		# FIFO
 		fifo = SyncFIFO(lasmim.dw, fifo_depth)
 		self.submodules += fifo
 
 		self.comb += [
 			fifo.din.eq(lasmim.dat_r),
-			fifo.we.eq(data_available),
+			fifo.we.eq(lasmim.dat_r_ack),
 
 			self.data.stb.eq(fifo.readable),
 			fifo.re.eq(self.data.ack),
@@ -86,14 +79,8 @@ class Writer(Module):
 			fifo.din.eq(self.address_data.d)
 		]
 
-		data_valid = lasmim.dat_ack
-		for i in range(lasmim.write_latency):
-			new_data_valid = Signal()
-			self.sync += new_data_valid.eq(data_valid),
-			data_valid = new_data_valid
-
 		self.comb += [
-			fifo.re.eq(data_valid),
+			fifo.re.eq(lasmim.dat_w_ack),
 			If(data_valid,
 				lasmim.dat_we.eq(2**(lasmim.dw//8)-1),
 				lasmim.dat_w.eq(fifo.dout)
