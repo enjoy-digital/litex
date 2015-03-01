@@ -6,6 +6,7 @@ from migen.fhdl.std import *
 from migen.bank import csrgen
 from migen.bus import wishbone, csr, wishbone2csr
 
+from misoclib.com.uart.phy.serial import UARTPHYSerial
 from misoclib.com import uart
 from misoclib.cpu import CPU, lm32, mor1kx
 from misoclib.cpu.peripherals import identifier, timer
@@ -16,11 +17,12 @@ def mem_decoder(address, start=26, end=29):
 class SoC(Module):
 	csr_map = {
 		"crg":					0, # user
-		"uart":					1, # provided by default (optional)
-		"identifier":			2, # provided by default (optional)
-		"timer0":				3, # provided by default (optional)
-		"buttons":				4, # user
-		"leds":					5, # user
+		"uart_phy":				1, # provided by default (optional)
+		"uart":					2, # provided by default (optional)
+		"identifier":			3, # provided by default (optional)
+		"timer0":				4, # provided by default (optional)
+		"buttons":				5, # user
+		"leds":					6, # user
 	}
 	interrupt_map = {
 		"uart":			0,
@@ -105,7 +107,8 @@ class SoC(Module):
 			self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
 			if with_uart:
-				self.submodules.uart = uart.UART(platform.request("serial"), clk_freq, baud=uart_baudrate)
+				self.submodules.uart_phy = UARTPHYSerial(platform.request("serial"), clk_freq, uart_baudrate)
+				self.submodules.uart = uart.UART(self.uart_phy)
 
 			if with_identifier:
 				platform_id = 0x554E if not hasattr(platform, "identifier") else platform.identifier

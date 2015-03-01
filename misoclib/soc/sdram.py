@@ -9,11 +9,11 @@ from misoclib.soc import SoC, mem_decoder
 
 class SDRAMSoC(SoC):
 	csr_map = {
-		"dfii":					6,
-		"lasmicon":				7,
-		"wishbone2lasmi":		8,
-		"memtest_w":			9,
-		"memtest_r":			10
+		"dfii":					7,
+		"lasmicon":				8,
+		"wishbone2lasmi":		9,
+		"memtest_w":			10,
+		"memtest_r":			11
 	}
 	csr_map.update(SoC.csr_map)
 
