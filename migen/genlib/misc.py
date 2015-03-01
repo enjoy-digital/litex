@@ -85,3 +85,29 @@ def timeline(trigger, events):
 	sync = [If(get_cond(e), *e[1]) for e in events]
 	sync.append(counterlogic)
 	return sync
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class FlipFlop(Module):
+	def __init__(self, *args, **kwargs):
+		self.d = Signal(*args, **kwargs)
+		self.q = Signal(*args, **kwargs)
+		self.sync += self.q.eq(self.d)
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Counter(Module):
+	def __init__(self, *args, **kwargs):
+		self.value = Signal(**kwargs)
+		self.width = flen(self.value)
+		self.sync += self.value.eq(self.value+1)
+
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class Timeout(Module):
+	def __init__(self, length):
+		self.reached = Signal()
+		###
+		value = Signal(max=length)
+		self.sync += If(~self.reached, value.eq(value+1))
+		self.comb += self.reached.eq(value == (length-1))
