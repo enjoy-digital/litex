@@ -1,19 +1,14 @@
-import os
-
 from misoclib.mem.litesata.common import *
-from migen.bank import csrgen
-from migen.bus import wishbone, csr
-from migen.bus import wishbone2csr
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.bank.description import *
 
-from targets import *
+from misoclib.soc import SoC
 
-from litescope.common import *
-from litescope.bridge.uart2wb import LiteScopeUART2WB
-from litescope.frontend.la import LiteScopeLA
-from litescope.core.port import LiteScopeTerm
+from misoclib.tools.litescope.common import *
+from misoclib.tools.litescope.bridge.uart2wb import LiteScopeUART2WB
+from misoclib.tools.litescope.frontend.la import LiteScopeLA
+from misoclib.tools.litescope.core.port import LiteScopeTerm
 
 from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.phy import LiteSATAPHY
@@ -55,50 +50,6 @@ class _CRG(Module):
 			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.reset),
 		]
 
-class SoC(Module):
-	csr_base = 0x00000000
-	csr_data_width = 32
-	csr_map = {
-		"bridge":			0,
-		"identifier":		1,
-	}
-	interrupt_map = {}
-	cpu_type = None
-	def __init__(self, platform, clk_freq):
-		self.clk_freq = clk_freq
-		# UART <--> Wishbone bridge
-		self.submodules.bridge = LiteScopeUART2WB(platform.request("serial"), clk_freq, baud=921600)
-
-		# CSR bridge   0x00000000 (shadow @0x00000000)
-		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(self.csr_data_width))
-		self._wb_masters = [self.bridge.wishbone]
-		self._wb_slaves = [(lambda a: a[23:25] == 0, self.wishbone2csr.wishbone)]
-		self.cpu_csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
-
-		# CSR
-		self.submodules.identifier = Identifier(0, int(clk_freq))
-
-	def add_cpu_memory_region(self, name, origin, length):
-		self.cpu_memory_regions.append((name, origin, length))
-
-	def add_cpu_csr_region(self, name, origin, busword, obj):
-		self.cpu_csr_regions.append((name, origin, busword, obj))
-
-	def do_finalize(self):
-		# Wishbone
-		self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
-			self._wb_slaves, register=True)
-
-		# CSR
-		self.submodules.csrbankarray = csrgen.BankArray(self,
-			lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
-			data_width=self.csr_data_width)
-		self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
-		for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
-			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), csrs)
-		for name, memory, mapaddr, mmap in self.csrbankarray.srams:
-			self.add_cpu_csr_region(name, 0xe0000000+0x800*mapaddr, flen(rmap.bus.dat_w), memory)
-
 class BISTLeds(Module):
 	def __init__(self, platform, sata_phy):
 		# 1Hz blinking leds (sata_rx and sata_tx clocks)
@@ -138,7 +89,14 @@ class BISTSoC(SoC, AutoCSR):
 	csr_map.update(SoC.csr_map)
 	def __init__(self, platform):
 		clk_freq = 166*1000000
-		SoC.__init__(self, platform, clk_freq)
+		self.submodules.uart2wb = LiteScopeUART2WB(platform.request("serial"), clk_freq, baud=115200)
+		SoC.__init__(self, platform, clk_freq, self.uart2wb,
+			with_cpu=False,
+			with_csr=True, csr_data_width=32,
+			with_uart=False,
+			with_identifier=True,
+			with_timer=False
+		)
 		self.submodules.crg = _CRG(platform)
 
 		# SATA PHY/Core/Frontend

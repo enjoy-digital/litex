@@ -124,7 +124,7 @@ BIST: {}
 		subprocess.call(["rm", "-rf", "build/*"])
 
 	if actions["build-csr-csv"]:
-		csr_csv = cpuif.get_csr_csv(soc.cpu_csr_regions)
+		csr_csv = cpuif.get_csr_csv(soc.csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-core"]:
