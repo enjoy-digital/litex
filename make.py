@@ -158,11 +158,7 @@ CPU type:  {}
 				if hasattr(soc, sdram_phy):
 					sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy))
 					write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
-		try:
-			flash_boot_address = soc.flash_boot_address
-		except AttributeError:
-			flash_boot_address = None
-		mem_header = cpuif.get_mem_header(soc.memory_regions, flash_boot_address)
+		mem_header = cpuif.get_mem_header(soc.memory_regions, getattr(soc, "flash_boot_address", None))
 		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
 		csr_header = cpuif.get_csr_header(soc.csr_regions, soc.interrupt_map)
 		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
