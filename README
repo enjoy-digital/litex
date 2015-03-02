@@ -3,8 +3,10 @@
               / /|_/ / / / _\ \/ _ \/ /__
              /_/  /_/ /_/ /___/\___/\___/
 
-a high performance and small footprint SoC based on Migen
+            Copyright 2007-2015 / M-Labs Ltd
+            Copyright 2012-2015 / Enjoy-Digital
 
+    a high performance and small footprint SoC based on Migen
 
 [> Features
 -----------
@@ -26,11 +28,16 @@ a high performance and small footprint SoC based on Migen
  * Design new peripherals using Migen and benefit from automatic CSR maps
    and logic, etc.
  * Possibility to encapsulate legacy Verilog/VHDL code.
+ * Complex FPGA cores that can be used integrated in MiSoC or in standalone:
+     - LiteEth:   a small footprint and configurable Ethernet core
+     - LiteSATA:  a small footprint and configurable SATA core
+     - LiteScope: a small footprint and configurable logic analyzer core
 
 MiSoC comes with built-in support for the following boards:
  * Mixxeo, the digital video mixer from M-Labs [XC6SLX45]
  * Milkymist One, the original M-Labs video synthesizer [XC6SLX45]
  * Papilio Pro, a simple and low-cost development board [XC6SLX9]
+ * De0 Nano, a simple and low-cost development board [CYCLONEIV]
  * KC705, a Kintex-7 devboard from Xilinx [XC7K325T]
 MiSoC is portable and support for other boards can easily be added as external
 modules.
@@ -43,8 +50,12 @@ modules.
 2. Install JTAG tools.
   For Mixxeo and M1:          http://urjtag.org
   For Papilio Pro and KC705:  http://xc3sprog.sourceforge.net
+  For De0 Nano:               USBBlaster from Altera
+  We recommend using xc3sprog for Xilinx devices, but Vivado programmer
+  is also supported for Xilinx 7-series.
 
-3. Obtain and build any required flash proxy bitstreams. Flash proxy bitstreams
+3. (Optional, only needed if you want to flash the bistream/software)
+  Obtain and build any required flash proxy bitstreams. Flash proxy bitstreams
   give JTAG access to a flash chip through the FPGA.
   For Mixxeo and M1: https://github.com/m-labs/fjmem-m1
   For Papilio Pro:   https://github.com/GadgetFactory/Papilio-Loader
@@ -68,13 +79,23 @@ modules.
   For Mixxeo:      ./make.py all
   For M1:          ./make.py -p m1 all
   For Papilio Pro: ./make.py -t ppro all
+  For De0 Nano:    ./make.py -t de0nano all load-bitstream
   For KC705:       ./make.py -t kc705 all
+
+  If just want to load the bitstream in volatile SRAM use:
+    all load-bitstream
 
 7. Run a terminal program on the board's serial port at 115200 8-N-1.
   You should get the BIOS prompt.
 
 8. Read and experiment with the source!
   Come to our IRC channel and mailing list!
+  A simple target is provided to test MiSoC easily with your board:
+    Create your target with a clock and serial pins.
+    Build and test it: ./make.py -t simple -p your_platform all load-bitstream
+  If you don't have access to a FPGA board, you can also try MiSoC with Verilator:
+    Download and install Verilator: http://www.veripool.org/
+    Test it: ./make.py -t simple -p sim build-bitstream
 
 [> License
 ----------
@@ -98,6 +119,7 @@ See LICENSE file for full copyright and license info.
 --------
 Web:
   http://m-labs.hk
+  http://enjoy-digital.fr
 
 Code repository:
   https://github.com/m-labs/misoc
