@@ -7,14 +7,14 @@ from misoclib.mem.sdram.core import minicon, lasmicon
 from misoclib.mem.sdram.core.lasmicon.crossbar import Crossbar
 
 class SDRAMCore(Module, AutoCSR):
-	def __init__(self, phy, ramcon_type, sdram_geom, sdram_timing):
+	def __init__(self, phy, ramcon_type, sdram_geom, sdram_timing, **kwargs):
 		# DFI
 		self.submodules.dfii = dfii.DFIInjector(phy, sdram_geom.mux_a, sdram_geom.bank_a)
 		self.comb += Record.connect(self.dfii.master, phy.dfi)
 
 		# LASMICON
 		if ramcon_type == "lasmicon":
-			self.submodules.controller = controller = lasmicon.LASMIcon(phy, sdram_geom, sdram_timing)
+			self.submodules.controller = controller = lasmicon.LASMIcon(phy, sdram_geom, sdram_timing, **kwargs)
 			self.comb += Record.connect(controller.dfi, self.dfii.slave)
 
 			self.submodules.crossbar = crossbar = Crossbar([controller.lasmic], controller.nrowbits)

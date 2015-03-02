@@ -89,7 +89,8 @@ class _Steerer(Module):
 			]
 
 class Multiplexer(Module, AutoCSR):
-	def __init__(self, phy, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic):
+	def __init__(self, phy, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic,
+			with_bandwidth_measurement=False):
 		assert(phy.settings.nphases == len(dfi.phases))
 
 		# Command choosing
@@ -211,4 +212,5 @@ class Multiplexer(Module, AutoCSR):
 		fsm.finalize()
 		self.comb += refresher.ack.eq(fsm.state == fsm.encoding["REFRESH"])
 
-		self.submodules.bandwidth = Bandwidth(choose_req.cmd)
+		if with_bandwidth_measurement:
+			self.submodules.bandwidth = Bandwidth(choose_req.cmd)

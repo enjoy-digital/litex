@@ -6,7 +6,7 @@ from misoclib.mem.sdram.core.lasmicon.bankmachine import *
 from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
 class LASMIcon(Module):
-	def __init__(self, phy, geom_settings, timing_settings):
+	def __init__(self, phy, geom_settings, timing_settings, **kwargs):
 		if phy.settings.memtype in ["SDR"]:
 			burst_length = phy.settings.nphases*1 # command multiplication*SDR
 		elif phy.settings.memtype in ["DDR", "LPDDR", "DDR2", "DDR3"]:
@@ -35,7 +35,8 @@ class LASMIcon(Module):
 			for i in range(2**geom_settings.bank_a)]
 		self.submodules.multiplexer = Multiplexer(phy, geom_settings, timing_settings,
 			self.bank_machines, self.refresher,
-			self.dfi, self.lasmic)
+			self.dfi, self.lasmic,
+			**kwargs)
 
 	def get_csrs(self):
 		return self.multiplexer.get_csrs()
