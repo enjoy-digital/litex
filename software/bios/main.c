@@ -374,7 +374,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
 #endif
 
-#ifdef DFII_BASE
+#ifdef SDRAM_BASE
 	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
 	else if(strcmp(token, "sdrsw") == 0) sdrsw();
 	else if(strcmp(token, "sdrhw") == 0) sdrhw();
@@ -525,7 +525,7 @@ int main(int i, char **c)
 #ifdef ETHMAC_BASE
 	ethreset();
 #endif
-#ifdef DFII_BASE
+#ifdef SDRAM_BASE
 	sdr_ok = sdrinit();
 #else
 	sdr_ok = 1;
