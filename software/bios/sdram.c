@@ -1,5 +1,5 @@
 #include <generated/csr.h>
-#ifdef SDRAM_BASE
+#ifdef CSR_SDRAM_BASE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -191,7 +191,7 @@ void sdrwr(char *startaddr)
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
 }
 
-#ifdef DDRPHY_BASE
+#ifdef CSR_DDRPHY_BASE
 
 void sdrwlon(void)
 {
@@ -420,7 +420,7 @@ int sdrlevel(void)
 	return 1;
 }
 
-#endif /* DDRPHY_BASE */
+#endif /* CSR_DDRPHY_BASE */
 
 #define TEST_SIZE (2*1024*1024)
 
@@ -475,7 +475,7 @@ int sdrinit(void)
 	printf("Initializing SDRAM...\n");
 
 	init_sequence();
-#ifdef DDRPHY_BASE
+#ifdef CSR_DDRPHY_BASE
 	if(!sdrlevel())
 		return 0;
 #endif

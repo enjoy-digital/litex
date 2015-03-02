@@ -319,7 +319,7 @@ static void help(void)
 	puts("rcsr       - read processor CSR");
 	puts("wcsr       - write processor CSR");
 #endif
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 	puts("netboot    - boot via TFTP");
 #endif
 	puts("serialboot - boot via SFL");
@@ -361,7 +361,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "flashboot") == 0) flashboot();
 #endif
 	else if(strcmp(token, "serialboot") == 0) serialboot();
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 	else if(strcmp(token, "netboot") == 0) netboot();
 #endif
 
@@ -374,7 +374,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
 #endif
 
-#ifdef SDRAM_BASE
+#ifdef CSR_SDRAM_BASE
 	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
 	else if(strcmp(token, "sdrsw") == 0) sdrsw();
 	else if(strcmp(token, "sdrhw") == 0) sdrhw();
@@ -382,7 +382,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdrrd") == 0) sdrrd(get_token(&c), get_token(&c));
 	else if(strcmp(token, "sdrrderr") == 0) sdrrderr(get_token(&c));
 	else if(strcmp(token, "sdrwr") == 0) sdrwr(get_token(&c));
-#ifdef DDRPHY_BASE
+#ifdef CSR_DDRPHY_BASE
 	else if(strcmp(token, "sdrwlon") == 0) sdrwlon();
 	else if(strcmp(token, "sdrwloff") == 0) sdrwloff();
 	else if(strcmp(token, "sdrlevel") == 0) sdrlevel();
@@ -464,7 +464,7 @@ static int test_user_abort(void)
 	printf("Automatic boot in 2 seconds...\n");
 	printf("Q/ESC: abort boot\n");
 	printf("F7:    boot from serial\n");
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 	printf("F8:    boot from network\n");
 #endif
 	timer0_en_write(0);
@@ -483,7 +483,7 @@ static int test_user_abort(void)
 				serialboot();
 				return 0;
 			}
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 			if(c == 0x07) {
 				netboot();
 				return 0;
@@ -502,7 +502,7 @@ static void boot_sequence(void)
 		flashboot();
 #endif
 		serialboot();
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 		netboot();
 #endif
 		printf("No boot medium found\n");
@@ -522,10 +522,10 @@ int main(int i, char **c)
 	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", MSC_GIT_ID);
 	crcbios();
 	id_print();
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 	ethreset();
 #endif
-#ifdef SDRAM_BASE
+#ifdef CSR_SDRAM_BASE
 	sdr_ok = sdrinit();
 #else
 	sdr_ok = 1;

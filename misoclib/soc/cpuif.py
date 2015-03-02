@@ -73,10 +73,10 @@ def get_csr_header(regions, interrupt_map):
 	for name, origin, busword, obj in regions:
 		if isinstance(obj, Memory):
 			fullname = name + "_" + memory.name_override
-			r += "#define "+fullname.upper()+"_BASE "+hex(origin)+"\n"
+			r += "#define CSR_"+fullname.upper()+"_BASE "+hex(origin)+"\n"
 		else:
 			r += "\n/* "+name+" */\n"
-			r += "#define "+name.upper()+"_BASE "+hex(origin)+"\n"
+			r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
 			for csr in obj:
 				nr = (csr.size + busword - 1)//busword
 				r += _get_rw_functions(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus))

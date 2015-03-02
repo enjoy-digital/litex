@@ -67,7 +67,7 @@ void flush_cpu_dcache(void)
 #endif
 }
 
-#ifdef WISHBONE2LASMI_BASE
+#ifdef CSR_WISHBONE2LASMI_BASE
 void flush_l2_cache(void)
 {
 	unsigned int l2_nwords;

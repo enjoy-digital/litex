@@ -2,7 +2,7 @@
 
 #include <spiflash.h>
 
-#ifdef SPIFLASH_BASE
+#ifdef CSR_SPIFLASH_BASE
 
 #define PAGE_PROGRAM_CMD    (0x02)
 #define WRDI_CMD        (0x04)
@@ -33,7 +33,7 @@ static void flash_write_byte(unsigned char b)
     spiflash_bitbang_write(0); // ~CS_N ~CLK
 
     for(i = 0; i < 8; i++, b <<= 1) {
-        
+
         spiflash_bitbang_write((b & 0x80) >> 7);
         spiflash_bitbang_write(((b & 0x80) >> 7) | BITBANG_CLK);
     }
@@ -84,7 +84,7 @@ void erase_flash_sector(unsigned int addr)
 
     flash_write_byte(WREN_CMD);
     spiflash_bitbang_write(BITBANG_CS_N);
-    
+
     flash_write_byte(SE_CMD);
     flash_write_addr(sector_addr);
     spiflash_bitbang_write(BITBANG_CS_N);

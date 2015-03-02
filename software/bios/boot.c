@@ -176,7 +176,7 @@ void serialboot(void)
 	}
 }
 
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 
 #define LOCALIP1 192
 #define LOCALIP2 168

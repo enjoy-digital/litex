@@ -21,9 +21,6 @@ class SDRAMCore(Module, AutoCSR):
 
 		# MINICON
 		elif ramcon_type == "minicon":
-			if self.with_l2:
-				raise ValueError("MINICON does not implement L2 cache (Use LASMICON or disable L2 cache (with_l2=False))")
-
 			self.submodules.controller = controller = minicon.Minicon(phy, sdram_geom, sdram_timing)
 			self.comb += Record.connect(controller.dfi, self.dfii.slave)
 		else:

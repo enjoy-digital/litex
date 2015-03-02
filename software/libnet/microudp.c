@@ -1,5 +1,5 @@
 #include <generated/csr.h>
-#ifdef ETHMAC_BASE
+#ifdef CSR_ETHMAC_BASE
 
 #include <stdio.h>
 #include <system.h>

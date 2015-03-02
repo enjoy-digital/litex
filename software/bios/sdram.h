@@ -11,7 +11,7 @@ void sdrrd(char *startaddr, char *dq);
 void sdrrderr(char *count);
 void sdrwr(char *startaddr);
 
-#ifdef DDRPHY_BASE
+#ifdef CSR_DDRPHY_BASE
 void sdrwlon(void);
 void sdrwloff(void);
 int sdrlevel(void);
