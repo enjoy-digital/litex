@@ -37,6 +37,7 @@ MiSoC comes with built-in support for the following boards:
  * Mixxeo, the digital video mixer from M-Labs [XC6SLX45]
  * Milkymist One, the original M-Labs video synthesizer [XC6SLX45]
  * Papilio Pro, a simple and low-cost development board [XC6SLX9]
+ * Pipistrello, a simple board with USB and HDMI [XC6SLX45]
  * De0 Nano, a simple and low-cost development board [CYCLONEIV]
  * KC705, a Kintex-7 devboard from Xilinx [XC7K325T]
 MiSoC is portable and support for other boards can easily be added as external
@@ -79,6 +80,7 @@ modules.
   For Mixxeo:      ./make.py all
   For M1:          ./make.py -p m1 all
   For Papilio Pro: ./make.py -t ppro all
+  For Pipistrello: ./make.py -t pipistrello all
   For De0 Nano:    ./make.py -t de0nano all load-bitstream
   For KC705:       ./make.py -t kc705 all
 
