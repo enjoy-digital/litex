@@ -36,7 +36,9 @@ class PhaseInjector(Module, AutoCSR):
 		self.sync += If(phase.rddata_valid, self._rddata.status.eq(phase.rddata))
 
 class DFIInjector(Module, AutoCSR):
-	def __init__(self, a, ba, d, nphases=1):
+	def __init__(self, phy, a, ba):
+		d = phy.settings.dfi_d
+		nphases = phy.settings.nphases
 		inti = dfi.Interface(a, ba, d, nphases)
 		self.slave = dfi.Interface(a, ba, d, nphases)
 		self.master = dfi.Interface(a, ba, d, nphases)
