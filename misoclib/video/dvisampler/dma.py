@@ -3,7 +3,8 @@ from migen.genlib.fsm import FSM, NextState
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 from migen.flow.actor import *
-from migen.actorlib import dma_lasmi
+
+from misoclib.mem.sdram.frontend import dma_lasmi
 
 # Slot status: EMPTY=0 LOADED=1 PENDING=2
 class _Slot(Module, AutoCSR):

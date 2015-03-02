@@ -1,9 +1,9 @@
 from migen.fhdl.std import *
-from migen.actorlib import dma_lasmi
 from migen.sim.generic import run_simulation
 
 from misoclib.mem.sdram.bus import lasmibus
 from misoclib.mem.sdram.lasmicon import *
+from misoclib.mem.sdram.frontend import dma_lasmi
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 

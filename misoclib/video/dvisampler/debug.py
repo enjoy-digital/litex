@@ -2,8 +2,9 @@ from migen.fhdl.std import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.record import layout_len
 from migen.bank.description import AutoCSR
-from migen.actorlib import structuring, dma_lasmi, spi
+from migen.actorlib import structuring, spi
 
+from misoclib.mem.sdram.frontend import dma_lasmi
 from misoclib.video.dvisampler.edid import EDID
 from misoclib.video.dvisampler.clocking import Clocking
 from misoclib.video.dvisampler.datacapture import DataCapture

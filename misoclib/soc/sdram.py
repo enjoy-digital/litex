@@ -1,10 +1,10 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone, csr
 
-from misoclib.mem.sdram.bus import dfi, lasmibus, wishbone2lasmi
+from misoclib.mem.sdram.bus import dfi, lasmibus
 from misoclib.mem.sdram import minicon, lasmicon
 from misoclib.mem.sdram import dfii
-from misoclib.mem.sdram import memtest
+from misoclib.mem.sdram.frontend import memtest, wishbone2lasmi
 from misoclib.soc import SoC, mem_decoder
 
 class SDRAMSoC(SoC):

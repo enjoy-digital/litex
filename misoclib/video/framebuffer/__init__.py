@@ -2,8 +2,9 @@ from migen.fhdl.std import *
 from migen.flow.network import *
 from migen.flow import plumbing
 from migen.bank.description import AutoCSR
-from migen.actorlib import dma_lasmi, structuring, misc
+from migen.actorlib import structuring, misc
 
+from misoclib.mem.sdram.frontend import dma_lasmi
 from misoclib.video.framebuffer.format import bpp, pixel_layout, FrameInitiator, VTG
 from misoclib.video.framebuffer.phy import Driver
 
