@@ -80,8 +80,8 @@ class Writer(Module):
 		]
 
 		self.comb += [
-			fifo.re.eq(lasmim.dat_w_ack),
-			If(data_valid,
+			If(lasmim.dat_w_ack,
+				fifo.re.eq(1),
 				lasmim.dat_we.eq(2**(lasmim.dw//8)-1),
 				lasmim.dat_w.eq(fifo.dout)
 			),
