@@ -62,7 +62,8 @@ int getch(void)
 }
 
 vluint64_t main_time = 0;
-double sc_time_stamp () {
+double sc_time_stamp()
+{
 	return main_time;
 }
 
@@ -71,9 +72,9 @@ VerilatedVcdC* tfp;
 unsigned int tick;
 
 /* ios */
-/* ios */
 
-int console_service() {
+int console_service()
+{
 	/* fpga --> console */
 	SERIAL_SOURCE_ACK = 1;
 	if(SERIAL_SOURCE_STB == 1) {
@@ -100,7 +101,8 @@ int console_service() {
 	return 0;
 }
 
-void sim_tick() {
+void sim_tick()
+{
 	SYS_CLK = tick%2;
 	dut->eval();
 	if (trace)
@@ -108,7 +110,8 @@ void sim_tick() {
 	tick++;
 }
 
-void sim_init() {
+void sim_init()
+{
 	int i;
 	tick = 0;
 #ifdef SYS_RST
@@ -120,7 +123,8 @@ void sim_init() {
 #endif
 }
 
-int main(int argc, char **argv, char **env) {
+int main(int argc, char **argv, char **env)
+{
 
 	clock_t start;
 	clock_t end;
@@ -150,7 +154,7 @@ int main(int argc, char **argv, char **env) {
 
 	speed = (tick/2)/((end-start)/CLOCKS_PER_SEC);
 
-	printf("averate speed: %3.3f MHz\n\r", speed/1000000);
+	printf("average speed: %3.3f MHz\n\r", speed/1000000);
 
 	tfp->close();
 
