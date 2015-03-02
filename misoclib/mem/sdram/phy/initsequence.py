@@ -4,7 +4,7 @@ def get_sdram_phy_header(sdram_phy):
 	r = "#ifndef __GENERATED_SDRAM_PHY_H\n#define __GENERATED_SDRAM_PHY_H\n"
 	r += "#include <hw/common.h>\n#include <generated/csr.h>\n#include <hw/flags.h>\n\n"
 
-	nphases = sdram_phy.phy_settings.nphases
+	nphases = sdram_phy.settings.nphases
 	r += "#define DFII_NPHASES "+str(nphases)+"\n\n"
 
 	r += "static void cdelay(int i);\n"
@@ -29,7 +29,7 @@ static void command_p{n}(int cmd)
 
 #define command_prd(X) command_p{rdphase}(X)
 #define command_pwr(X) command_p{wrphase}(X)
-""".format(rdphase=str(sdram_phy.phy_settings.rdphase), wrphase=str(sdram_phy.phy_settings.wrphase))
+""".format(rdphase=str(sdram_phy.settings.rdphase), wrphase=str(sdram_phy.settings.wrphase))
 	r +="\n"
 
 	#
@@ -64,10 +64,10 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 		"CKE"           : "DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N"
 	}
 
-	cl = sdram_phy.phy_settings.cl
+	cl = sdram_phy.settings.cl
 
-	if sdram_phy.phy_settings.memtype == "SDR":
-		bl = sdram_phy.phy_settings.nphases
+	if sdram_phy.settings.memtype == "SDR":
+		bl = sdram_phy.settings.nphases
 		mr = log2_int(bl) + (cl << 4)
 		reset_dll = 1 << 8
 
@@ -81,8 +81,8 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 		]
 
-	elif sdram_phy.phy_settings.memtype == "DDR":
-		bl = 2*sdram_phy.phy_settings.nphases
+	elif sdram_phy.settings.memtype == "DDR":
+		bl = 2*sdram_phy.settings.nphases
 		mr  = log2_int(bl) + (cl << 4)
 		emr = 0
 		reset_dll = 1 << 8
@@ -98,8 +98,8 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 		]
 
-	elif sdram_phy.phy_settings.memtype == "LPDDR":
-		bl = 2*sdram_phy.phy_settings.nphases
+	elif sdram_phy.settings.memtype == "LPDDR":
+		bl = 2*sdram_phy.settings.nphases
 		mr  = log2_int(bl) + (cl << 4)
 		emr = 0
 		reset_dll = 1 << 8
@@ -115,8 +115,8 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 			("Load Mode Register / CL={0:d}, BL={1:d}".format(cl, bl), mr, 0, cmds["MODE_REGISTER"], 200)
 		]
 
-	elif sdram_phy.phy_settings.memtype == "DDR2":
-		bl = 2*sdram_phy.phy_settings.nphases
+	elif sdram_phy.settings.memtype == "DDR2":
+		bl = 2*sdram_phy.settings.nphases
 		wr = 2
 		mr = log2_int(bl) + (cl << 4) + (wr << 9)
 		emr = 0
@@ -139,8 +139,8 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 			("Load Extended Mode Register / OCD Default", emr+ocd, 1, cmds["MODE_REGISTER"], 0),
 			("Load Extended Mode Register / OCD Exit", emr, 1, cmds["MODE_REGISTER"], 0),
 		]
-	elif sdram_phy.phy_settings.memtype == "DDR3":
-		bl = 2*sdram_phy.phy_settings.nphases
+	elif sdram_phy.settings.memtype == "DDR3":
+		bl = 2*sdram_phy.settings.nphases
 		if bl != 8:
 			raise NotImplementedError("DDR3 PHY header generator only supports BL of 8")
 
@@ -188,7 +188,7 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 
 		mr0 = format_mr0(cl, 8, 1) # wr=8 FIXME: this should be ceiling(tWR/tCK)
 		mr1 = format_mr1(1, 1) # Output Drive Strength RZQ/7 (34 ohm) / Rtt RZQ/4 (60 ohm)
-		mr2 = format_mr2(sdram_phy.phy_settings.cwl, 2) # Rtt(WR) RZQ/4
+		mr2 = format_mr2(sdram_phy.settings.cwl, 2) # Rtt(WR) RZQ/4
 		mr3 = 0
 
 		init_sequence = [
@@ -204,7 +204,7 @@ const unsigned int dfii_pix_rddata_addr[{n}] = {{
 		# the value of MR1 needs to be modified during write leveling
 		r += "#define DDR3_MR1 {}\n\n".format(mr1)
 	else:
-		raise NotImplementedError("Unsupported memory type: "+sdram_phy.phy_settings.memtype)
+		raise NotImplementedError("Unsupported memory type: "+sdram_phy.settings.memtype)
 
 	r += "static void init_sequence(void)\n{\n"
 	for comment, a, ba, cmd, delay in init_sequence:

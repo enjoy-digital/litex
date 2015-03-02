@@ -57,7 +57,7 @@ class BaseSoC(SDRAMSoC):
 		)
 		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
 			rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
-		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
+		self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
 
 		# If not in ROM, BIOS is in // NOR flash
 		if not self.with_rom:

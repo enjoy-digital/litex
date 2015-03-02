@@ -24,7 +24,7 @@ class K7DDRPHY(Module, AutoCSR):
 		self._wdly_dqs_rst = CSR()
 		self._wdly_dqs_inc = CSR()
 
-		self.phy_settings = sdram.PhySettings(
+		self.settings = sdram.PhySettings(
 			memtype=memtype,
 			dfi_d=2*d,
 			nphases=nphases,
@@ -38,7 +38,7 @@ class K7DDRPHY(Module, AutoCSR):
 			write_latency=2
 		)
 
-		self.dfi = Interface(a, ba, self.phy_settings.dfi_d, nphases)
+		self.dfi = Interface(a, ba, self.settings.dfi_d, nphases)
 
 		###
 
@@ -270,7 +270,7 @@ class K7DDRPHY(Module, AutoCSR):
 		#  2 cycles through OSERDESE2
 		#  2 cycles CAS
 		#  2 cycles through ISERDESE2
-		rddata_en = self.dfi.phases[self.phy_settings.rdphase].rddata_en
+		rddata_en = self.dfi.phases[self.settings.rdphase].rddata_en
 		for i in range(5):
 			n_rddata_en = Signal()
 			self.sync += n_rddata_en.eq(rddata_en)
@@ -280,7 +280,7 @@ class K7DDRPHY(Module, AutoCSR):
 
 		oe = Signal()
 		last_wrdata_en = Signal(4)
-		wrphase = self.dfi.phases[self.phy_settings.wrphase]
+		wrphase = self.dfi.phases[self.settings.wrphase]
 		self.sync += last_wrdata_en.eq(Cat(wrphase.wrdata_en, last_wrdata_en[:3]))
 		self.comb += oe.eq(last_wrdata_en[1] | last_wrdata_en[2] | last_wrdata_en[3])
 		self.sync += \

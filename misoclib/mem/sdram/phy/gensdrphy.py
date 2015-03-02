@@ -34,7 +34,7 @@ class GENSDRPHY(Module):
 		ba = flen(pads.ba)
 		d = flen(pads.dq)
 
-		self.phy_settings = sdram.PhySettings(
+		self.settings = sdram.PhySettings(
 			memtype="SDR",
 			dfi_d=d,
 			nphases=1,

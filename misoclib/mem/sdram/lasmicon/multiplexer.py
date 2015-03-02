@@ -89,8 +89,8 @@ class _Steerer(Module):
 			]
 
 class Multiplexer(Module, AutoCSR):
-	def __init__(self, phy_settings, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic):
-		assert(phy_settings.nphases == len(dfi.phases))
+	def __init__(self, phy, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic):
+		assert(phy.settings.nphases == len(dfi.phases))
 
 		# Command choosing
 		requests = [bm.cmd for bm in bank_machines]
@@ -100,7 +100,7 @@ class Multiplexer(Module, AutoCSR):
 			choose_cmd.want_reads.eq(0),
 			choose_cmd.want_writes.eq(0)
 		]
-		if phy_settings.nphases == 1:
+		if phy.settings.nphases == 1:
 			self.comb += [
 				choose_cmd.want_cmds.eq(1),
 				choose_req.want_cmds.eq(1)
@@ -159,19 +159,19 @@ class Multiplexer(Module, AutoCSR):
 		fsm = FSM()
 		self.submodules += fsm
 
-		def steerer_sel(steerer, phy_settings, r_w_n):
+		def steerer_sel(steerer, phy, r_w_n):
 			r = []
-			for i in range(phy_settings.nphases):
+			for i in range(phy.settings.nphases):
 				s = steerer.sel[i].eq(STEER_NOP)
 				if r_w_n == "read":
-					if i == phy_settings.rdphase:
+					if i == phy.settings.rdphase:
 						s = steerer.sel[i].eq(STEER_REQ)
-					elif i == phy_settings.rdcmdphase:
+					elif i == phy.settings.rdcmdphase:
 						s = steerer.sel[i].eq(STEER_CMD)
 				elif r_w_n == "write":
-					if i == phy_settings.wrphase:
+					if i == phy.settings.wrphase:
 						s = steerer.sel[i].eq(STEER_REQ)
-					elif i == phy_settings.wrcmdphase:
+					elif i == phy.settings.wrcmdphase:
 						s = steerer.sel[i].eq(STEER_CMD)
 				else:
 					raise ValueError
@@ -183,7 +183,7 @@ class Multiplexer(Module, AutoCSR):
 			choose_req.want_reads.eq(1),
 			choose_cmd.cmd.ack.eq(1),
 			choose_req.cmd.ack.eq(1),
-			steerer_sel(steerer, phy_settings, "read"),
+			steerer_sel(steerer, phy, "read"),
 			If(write_available,
 				# TODO: switch only after several cycles of ~read_available?
 				If(~read_available | max_read_time, NextState("RTW"))
@@ -195,7 +195,7 @@ class Multiplexer(Module, AutoCSR):
 			choose_req.want_writes.eq(1),
 			choose_cmd.cmd.ack.eq(1),
 			choose_req.cmd.ack.eq(1),
-			steerer_sel(steerer, phy_settings, "write"),
+			steerer_sel(steerer, phy, "write"),
 			If(read_available,
 				If(~write_available | max_write_time, NextState("WTR"))
 			),
@@ -205,7 +205,7 @@ class Multiplexer(Module, AutoCSR):
 			steerer.sel[0].eq(STEER_REFRESH),
 			If(~refresher.req, NextState("READ"))
 		)
-		fsm.delayed_enter("RTW", "WRITE", phy_settings.read_latency-1) # FIXME: reduce this, actual limit is around (cl+1)/nphases
+		fsm.delayed_enter("RTW", "WRITE", phy.settings.read_latency-1) # FIXME: reduce this, actual limit is around (cl+1)/nphases
 		fsm.delayed_enter("WTR", "READ", timing_settings.tWTR-1)
 		# FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
 		fsm.finalize()

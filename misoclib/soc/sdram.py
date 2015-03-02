@@ -33,19 +33,19 @@ class SDRAMSoC(SoC):
 
 		self._sdram_phy_registered = False
 
-	def register_sdram_phy(self, phy_dfi, phy_settings, sdram_geom, sdram_timing):
+	def register_sdram_phy(self, phy, sdram_geom, sdram_timing):
 		if self._sdram_phy_registered:
 			raise FinalizeError
 		self._sdram_phy_registered = True
 
 		# DFI
 		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a,
-			phy_settings.dfi_d, phy_settings.nphases)
-		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, phy_dfi)
+			phy.settings.dfi_d, phy.settings.nphases)
+		self.submodules.dficon0 = dfi.Interconnect(self.dfii.master, phy.dfi)
 
 		# LASMICON
 		if self.ramcon_type == "lasmicon":
-			self.submodules.lasmicon = lasmicon.LASMIcon(phy_settings, sdram_geom, sdram_timing)
+			self.submodules.lasmicon = lasmicon.LASMIcon(phy, sdram_geom, sdram_timing)
 			self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
 
 			self.submodules.lasmixbar = crossbar.Crossbar([self.lasmicon.lasmic], self.lasmicon.nrowbits)
@@ -64,7 +64,7 @@ class SDRAMSoC(SoC):
 			if self.with_l2:
 				raise ValueError("MINICON does not implement L2 cache (Use LASMICON or disable L2 cache (with_l2=False))")
 
-			self.submodules.minicon = sdramcon = minicon.Minicon(phy_settings, sdram_geom, sdram_timing)
+			self.submodules.minicon = sdramcon = minicon.Minicon(phy, sdram_geom, sdram_timing)
 			self.submodules.dficon1 = dfi.Interconnect(sdramcon.dfi, self.dfii.slave)
 			sdram_width = flen(sdramcon.bus.dat_r)
 

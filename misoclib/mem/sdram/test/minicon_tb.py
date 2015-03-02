@@ -25,7 +25,7 @@ class MiniconTB(Module):
 	def __init__(self, sdrphy, dfi, sdram_geom, sdram_timing, pads, sdram_clk):
 
 		self.clk_freq = 80000000
-		phy_settings = sdrphy.phy_settings
+		phy_settings = sdrphy.settings
 		rdphase = phy_settings.rdphase
 		self.submodules.slave = Minicon(phy_settings, sdram_geom, sdram_timing)
 
@@ -70,7 +70,7 @@ class MiniconTB(Module):
 	def gen_simulation(self, selfp):
 		dfi = selfp.dfi
 		phy = self.sdrphy
-		rdphase = phy.phy_settings.rdphase
+		rdphase = phy.settings.rdphase
 		cycle = 0
 
 		while True:

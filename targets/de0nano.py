@@ -109,6 +109,6 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform)
 
 		self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
-		self.register_sdram_phy(self.sdrphy.dfi, self.sdrphy.phy_settings, sdram_geom, sdram_timing)
+		self.register_sdram_phy(self.sdrphy, sdram_geom, sdram_timing)
 
 default_subtarget = BaseSoC

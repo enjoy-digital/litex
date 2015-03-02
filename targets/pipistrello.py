@@ -121,7 +121,7 @@ class BaseSoC(SDRAMSoC):
 		platform.add_platform_command("""
 PIN "BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 """)
-		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
+		self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
 		# If not in ROM, BIOS is in SPI flash
 		if not self.with_rom:
 			self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=11, div=2)

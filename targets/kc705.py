@@ -98,7 +98,7 @@ class BaseSoC(SDRAMSoC):
 			write_time=16
 		)
 		self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), memtype="DDR3")
-		self.register_sdram_phy(self.ddrphy.dfi, self.ddrphy.phy_settings, sdram_geom, sdram_timing)
+		self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
 
 		# If not in ROM, BIOS is in SPI flash
 		if not self.with_rom:

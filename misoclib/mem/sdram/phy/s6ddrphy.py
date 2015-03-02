@@ -29,7 +29,7 @@ class S6DDRPHY(Module):
 		d = flen(pads.dq)
 		nphases = 2
 
-		self.phy_settings = sdram.PhySettings(
+		self.settings = sdram.PhySettings(
 			memtype=memtype,
 			dfi_d=2*d,
 			nphases=nphases,
@@ -42,7 +42,7 @@ class S6DDRPHY(Module):
 			write_latency=0
 		)
 
-		self.dfi = Interface(a, ba, self.phy_settings.dfi_d, nphases)
+		self.dfi = Interface(a, ba, self.settings.dfi_d, nphases)
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()
 
@@ -337,19 +337,19 @@ class S6DDRPHY(Module):
 		#
 		# DQ/DQS/DM control
 		#
-		self.comb += drive_dq.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
+		self.comb += drive_dq.eq(d_dfi[self.settings.wrphase].wrdata_en)
 
 		d_dfi_wrdata_en = Signal()
-		sd_sys += d_dfi_wrdata_en.eq(d_dfi[self.phy_settings.wrphase].wrdata_en)
+		sd_sys += d_dfi_wrdata_en.eq(d_dfi[self.settings.wrphase].wrdata_en)
 
 		r_dfi_wrdata_en = Signal(2)
 		sd_sdram_half += r_dfi_wrdata_en.eq(Cat(d_dfi_wrdata_en, r_dfi_wrdata_en[0]))
 
 		self.comb += drive_dqs.eq(r_dfi_wrdata_en[1])
 
-		rddata_sr = Signal(self.phy_settings.read_latency)
-		sd_sys += rddata_sr.eq(Cat(rddata_sr[1:self.phy_settings.read_latency],
-			d_dfi[self.phy_settings.rdphase].rddata_en))
+		rddata_sr = Signal(self.settings.read_latency)
+		sd_sys += rddata_sr.eq(Cat(rddata_sr[1:self.settings.read_latency],
+			d_dfi[self.settings.rdphase].rddata_en))
 
 		for n, phase in enumerate(self.dfi.phases):
 			self.comb += [
