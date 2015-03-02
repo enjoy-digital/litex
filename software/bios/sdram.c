@@ -40,7 +40,7 @@ void sdrrow(char *_row)
 {
 	char *c;
 	unsigned int row;
-	
+
 	if(*_row == 0) {
 		dfii_pi0_address_write(0x0000);
 		dfii_pi0_baddress_write(0);
@@ -104,7 +104,7 @@ void sdrrd(char *startaddr, char *dq)
 			return;
 		}
 	}
-	
+
 	dfii_pird_address_write(addr);
 	dfii_pird_baddress_write(0);
 	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
@@ -185,7 +185,7 @@ void sdrwr(char *startaddr)
 	for(p=0;p<DFII_NPHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
 			MMPTR(dfii_pix_wrdata_addr[p]+4*i) = 0x10*p + i;
-	
+
 	dfii_piwr_address_write(addr);
 	dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -422,7 +422,7 @@ int sdrlevel(void)
 
 #endif /* DDRPHY_BASE */
 
-#define TEST_SIZE (4*1024*1024)
+#define TEST_SIZE (2*1024*1024)
 
 int memtest_silent(void)
 {
@@ -430,13 +430,22 @@ int memtest_silent(void)
 	int i;
 	unsigned int prv;
 	unsigned int error_cnt;
-	
+
+	for(i=0;i<TEST_SIZE/4;i++) {
+		array[i] = 0x5A5A5A5A;
+	}
+	error_cnt = 0;
+	for(i=0;i<TEST_SIZE/4;i++) {
+		if(array[i] != 0x5A5A5A5A)
+			error_cnt++;
+	}
+
 	prv = 0;
 	for(i=0;i<TEST_SIZE/4;i++) {
 		prv = 1664525*prv + 1013904223;
 		array[i] = prv;
 	}
-	
+
 	prv = 0;
 	error_cnt = 0;
 	for(i=0;i<TEST_SIZE/4;i++) {
@@ -464,7 +473,7 @@ int memtest(void)
 int sdrinit(void)
 {
 	printf("Initializing SDRAM...\n");
-	
+
 	init_sequence();
 #ifdef DDRPHY_BASE
 	if(!sdrlevel())
@@ -473,7 +482,7 @@ int sdrinit(void)
 	dfii_control_write(DFII_CONTROL_SEL);
 	if(!memtest())
 		return 0;
-	
+
 	return 1;
 }
 
