@@ -142,7 +142,7 @@ class FramebufferSoC(MiniSoC):
 	def __init__(self, platform, **kwargs):
 		MiniSoC.__init__(self, platform, **kwargs)
 		pads_vga, pads_dvi = get_vga_dvi(platform)
-		self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi, self.lasmixbar.get_master())
+		self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi, self.sdram.crossbar.get_master())
 		add_vga_tig(platform, self.fb)
 
 default_subtarget = FramebufferSoC
