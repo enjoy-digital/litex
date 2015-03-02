@@ -4,7 +4,7 @@ from migen.genlib.misc import optree
 from migen.genlib.fsm import FSM, NextState
 from migen.bank.description import AutoCSR
 
-from misoclib.mem.sdram.lasmicon.perf import Bandwidth
+from misoclib.mem.sdram.core.lasmicon.perf import Bandwidth
 
 class CommandRequest:
 	def __init__(self, a, ba):

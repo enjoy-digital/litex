@@ -3,7 +3,7 @@ from random import Random
 from migen.fhdl.std import *
 from migen.sim.generic import run_simulation
 
-from misoclib.mem.sdram.lasmicon.refresher import *
+from misoclib.mem.sdram.core.lasmicon.refresher import *
 
 from common import CommandLogger
 

@@ -4,7 +4,7 @@ from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import optree
 from migen.genlib.fifo import SyncFIFO
 
-from misoclib.mem.sdram.lasmicon.multiplexer import *
+from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
 class _AddressSlicer:
 	def __init__(self, col_a, address_align):

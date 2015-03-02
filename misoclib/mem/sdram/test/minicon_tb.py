@@ -5,7 +5,7 @@ from migen.sim.generic import Simulator
 from migen.sim import icarus
 from mibuild.platforms import papilio_pro as board
 from misoclib import sdram
-from misoclib.mem.sdram.minicon import Minicon
+from misoclib.mem.sdram.core.minicon import Minicon
 from misoclib.mem.sdram.phy import gensdrphy
 from itertools import chain
 from os.path import isfile

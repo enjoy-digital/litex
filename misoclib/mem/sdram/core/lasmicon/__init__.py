@@ -1,9 +1,9 @@
 from migen.fhdl.std import *
 
 from misoclib.mem.sdram.bus import dfi, lasmibus
-from misoclib.mem.sdram.lasmicon.refresher import *
-from misoclib.mem.sdram.lasmicon.bankmachine import *
-from misoclib.mem.sdram.lasmicon.multiplexer import *
+from misoclib.mem.sdram.core.lasmicon.refresher import *
+from misoclib.mem.sdram.core.lasmicon.bankmachine import *
+from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
 class LASMIcon(Module):
 	def __init__(self, phy, geom_settings, timing_settings):

@@ -4,7 +4,7 @@ from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
 from misoclib.mem.sdram.bus import lasmibus
-from misoclib.mem.sdram.lasmicon import *
+from misoclib.mem.sdram.core.lasmicon import *
 from misoclib.mem.sdram.frontend import wishbone2lasmi
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
