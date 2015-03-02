@@ -4,6 +4,7 @@ from migen.bus import wishbone, csr
 from misoclib.mem.sdram.bus import dfi, lasmibus
 from misoclib.mem.sdram.phy import dfii
 from misoclib.mem.sdram import minicon, lasmicon
+from misoclib.mem.sdram.lasmicon import crossbar
 from misoclib.mem.sdram.frontend import memtest, wishbone2lasmi
 from misoclib.soc import SoC, mem_decoder
 
@@ -47,7 +48,7 @@ class SDRAMSoC(SoC):
 			self.submodules.lasmicon = lasmicon.LASMIcon(phy_settings, sdram_geom, sdram_timing)
 			self.submodules.dficon1 = dfi.Interconnect(self.lasmicon.dfi, self.dfii.slave)
 
-			self.submodules.lasmixbar = lasmibus.Crossbar([self.lasmicon.lasmic], self.lasmicon.nrowbits)
+			self.submodules.lasmixbar = crossbar.Crossbar([self.lasmicon.lasmic], self.lasmicon.nrowbits)
 
 			if self.with_memtest:
 				self.submodules.memtest_w = memtest.MemtestWriter(self.lasmixbar.get_master())
