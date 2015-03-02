@@ -41,7 +41,7 @@ class BankMachine(Module):
 			self.req_fifo.we.eq(req.stb),
 			req.req_ack.eq(self.req_fifo.writable),
 
-			self.req_fifo.re.eq(req.dat_w_ack | req.dat_r_ack),
+			self.req_fifo.re.eq(req.dat_ack),
 			req.lock.eq(self.req_fifo.readable)
 		]
 		reqf = self.req_fifo.dout
@@ -100,8 +100,7 @@ class BankMachine(Module):
 					If(hit,
 						# NB: write-to-read specification is enforced by multiplexer
 						self.cmd.stb.eq(1),
-						req.dat_w_ack.eq(self.cmd.ack & reqf.we),
-						req.dat_r_ack.eq(self.cmd.ack & ~reqf.we),
+						req.dat_ack.eq(self.cmd.ack),
 						self.cmd.is_read.eq(~reqf.we),
 						self.cmd.is_write.eq(reqf.we),
 						self.cmd.cas_n.eq(0),

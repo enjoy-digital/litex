@@ -105,6 +105,8 @@ class WB2LASMI(Module, AutoCSR):
 		fsm = FSM(reset_state="IDLE")
 		self.submodules += fsm
 
+		fsm.delayed_enter("EVICT_DATAD", "EVICT_DATA", lasmim.write_latency-1)
+		fsm.delayed_enter("REFILL_DATAD", "REFILL_DATA", lasmim.read_latency-1)
 
 		fsm.act("IDLE",
 			If(self.wishbone.cyc & self.wishbone.stb, NextState("TEST_HIT"))
@@ -133,7 +135,7 @@ class WB2LASMI(Module, AutoCSR):
 			If(lasmim.req_ack, NextState("EVICT_WAIT_DATA_ACK"))
 		)
 		fsm.act("EVICT_WAIT_DATA_ACK",
-			If(lasmim.dat_w_ack, NextState("EVICT_DATA"))
+			If(lasmim.dat_ack, NextState("EVICT_DATAD"))
 		)
 		fsm.act("EVICT_DATA",
 			write_to_lasmi.eq(1),
@@ -153,16 +155,17 @@ class WB2LASMI(Module, AutoCSR):
 		)
 		fsm.act("REFILL_REQUEST",
 			lasmim.stb.eq(1),
-			If(lasmim.req_ack, NextState("REFILL_DATA"))
+			If(lasmim.req_ack, NextState("REFILL_WAIT_DATA_ACK"))
+		)
+		fsm.act("REFILL_WAIT_DATA_ACK",
+			If(lasmim.dat_ack, NextState("REFILL_DATAD"))
 		)
 		fsm.act("REFILL_DATA",
-			If(lasmim.dat_r_ack,
-				write_from_lasmi.eq(1),
-				word_inc.eq(1),
-				If(word_is_last(word),
-					NextState("TEST_HIT"),
-				).Else(
-					NextState("REFILL_REQUEST")
-				)
+			write_from_lasmi.eq(1),
+			word_inc.eq(1),
+			If(word_is_last(word),
+				NextState("TEST_HIT"),
+			).Else(
+				NextState("REFILL_REQUEST")
 			)
 		)
