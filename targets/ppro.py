@@ -92,10 +92,11 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
 		self.register_sdram_phy(self.sdrphy, sdram_geom, sdram_timing)
 
+		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"), dummy=4, div=6)
+		self.flash_boot_address = 0x70000
+
 		# If not in ROM, BIOS is in SPI flash
 		if not self.with_rom:
-			self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"), dummy=4, div=6)
-			self.flash_boot_address = 0x70000
 			self.register_rom(self.spiflash.bus)
 
 default_subtarget = BaseSoC

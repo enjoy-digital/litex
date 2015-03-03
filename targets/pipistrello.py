@@ -122,10 +122,12 @@ class BaseSoC(SDRAMSoC):
 PIN "BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 """)
 		self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
+
+		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=11, div=2)
+		self.flash_boot_address = 0x180000
+
 		# If not in ROM, BIOS is in SPI flash
 		if not self.with_rom:
-			self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=11, div=2)
-			self.flash_boot_address = 0x180000
 			self.register_rom(self.spiflash.bus)
 
 default_subtarget = BaseSoC

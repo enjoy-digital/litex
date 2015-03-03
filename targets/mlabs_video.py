@@ -59,11 +59,12 @@ class BaseSoC(SDRAMSoC):
 			rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
 		self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
 
+		self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
+			self.ns(110), self.ns(50))
+		self.flash_boot_address = 0x001a0000
+
 		# If not in ROM, BIOS is in // NOR flash
 		if not self.with_rom:
-			self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
-				self.ns(110), self.ns(50))
-			self.flash_boot_address = 0x001a0000
 			self.register_rom(self.norflash.bus)
 
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
