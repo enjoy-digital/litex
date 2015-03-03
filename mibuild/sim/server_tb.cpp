@@ -150,7 +150,6 @@ void sim_tick(struct sim *s)
 	if (trace)
 		tfp->dump(s->tick);
 	s->tick++;
-	s->end = clock();
 }
 
 void sim_init(struct sim *s)
@@ -193,6 +192,7 @@ int main(int argc, char **argv, char **env)
 				s.run = false;
 		}
 	}
+	s.end = clock();
 
 	tfp->close();
 	pthread_cancel(sim_receive_thread);
