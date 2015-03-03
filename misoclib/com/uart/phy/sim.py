@@ -12,5 +12,6 @@ class UARTPHYSim(Module):
 			self.sink.ack.eq(pads.source_ack),
 
 			self.source.stb.eq(pads.sink_stb),
-			self.source.data.eq(pads.sink_data)
+			self.source.data.eq(pads.sink_data),
+			pads.sink_ack.eq(self.source.ack)
 		]

@@ -26,5 +26,6 @@ class UART(Module, AutoCSR):
 		]
 		self.comb += [
 			self.ev.tx.trigger.eq(phy.sink.stb & phy.sink.ack),
-			self.ev.rx.trigger.eq(phy.source.stb) #phy.source.ack supposed to be always 1
+			self.ev.rx.trigger.eq(phy.source.stb & phy.source.ack),
+			phy.source.ack.eq(~self.ev.rx.pending)
 		]
