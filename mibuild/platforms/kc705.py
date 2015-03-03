@@ -3,7 +3,7 @@ from mibuild.crg import SimpleCRG
 from mibuild.xilinx.common import CRG_DS
 from mibuild.xilinx.ise import XilinxISEPlatform
 from mibuild.xilinx.vivado import XilinxVivadoPlatform
-from mibuild.xilinx.programmer import XC3SProg
+from mibuild.xilinx.programmer import XC3SProg, VivadoProgrammer
 
 _io = [
 	("user_led", 0, Pins("AB8"), IOStandard("LVCMOS15")),
