@@ -90,13 +90,13 @@ class _Steerer(Module):
 
 class Multiplexer(Module, AutoCSR):
 	def __init__(self, phy, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic,
-			with_bandwidth_measurement=False):
+			with_bandwidth=False):
 		assert(phy.settings.nphases == len(dfi.phases))
 
 		# Command choosing
 		requests = [bm.cmd for bm in bank_machines]
-		choose_cmd = _CommandChooser(requests)
-		choose_req = _CommandChooser(requests)
+		self.submodules.choose_cmd = choose_cmd = _CommandChooser(requests)
+		self.submodules.choose_req = choose_req = _CommandChooser(requests)
 		self.comb += [
 			choose_cmd.want_reads.eq(0),
 			choose_cmd.want_writes.eq(0)
@@ -106,7 +106,6 @@ class Multiplexer(Module, AutoCSR):
 				choose_cmd.want_cmds.eq(1),
 				choose_req.want_cmds.eq(1)
 			]
-		self.submodules += choose_cmd, choose_req
 
 		# Command steering
 		nop = CommandRequest(geom_settings.mux_a, geom_settings.bank_a)
@@ -212,5 +211,11 @@ class Multiplexer(Module, AutoCSR):
 		fsm.finalize()
 		self.comb += refresher.ack.eq(fsm.state == fsm.encoding["REFRESH"])
 
-		if with_bandwidth_measurement:
-			self.submodules.bandwidth = Bandwidth(choose_req.cmd)
+		self.with_bandwidth = with_bandwidth
+
+	def add_bandwidth(self):
+		self.with_bandwidth = True
+
+	def do_finalize(self):
+		if self.with_bandwidth:
+			self.submodules.bandwidth = Bandwidth(self.choose_req.cmd)

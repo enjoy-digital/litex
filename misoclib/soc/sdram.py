@@ -19,7 +19,8 @@ class SDRAMSoC(SoC):
 	def __init__(self, platform, clk_freq,
 			ramcon_type="lasmicon",
 			with_l2=True, l2_size=8192,
-			with_memtest=False,
+			with_bandwidth=False,	# specific to LASMICON,
+			with_memtest=False,     # ignored for MINICON
 			**kwargs):
 		SoC.__init__(self, platform, clk_freq, **kwargs)
 		self.ramcon_type = ramcon_type
@@ -28,6 +29,7 @@ class SDRAMSoC(SoC):
 		self.l2_size = l2_size
 
 		self.with_memtest = with_memtest
+		self.with_bandwidth = with_bandwidth or with_memtest
 
 		self._sdram_phy_registered = False
 
@@ -41,6 +43,9 @@ class SDRAMSoC(SoC):
 
 		# LASMICON frontend
 		if self.ramcon_type == "lasmicon":
+			if self.with_bandwidth:
+				self.sdram.controller.multiplexer.add_bandwidth()
+
 			if self.with_memtest:
 				self.submodules.memtest_w = memtest.MemtestWriter(self.sdram.crossbar.get_master())
 				self.submodules.memtest_r = memtest.MemtestReader(self.sdram.crossbar.get_master())
