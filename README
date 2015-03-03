@@ -69,10 +69,12 @@ modules.
   make
   make install
 
-5. Compile and install GCC. Take gcc-core and gcc-g++ from GNU (version 4.5 or >=4.9).
+5. Compile and install GCC. Take gcc-core and gcc-g++ from GNU
+  (version 4.5 or >=4.9).
   rm -rf libstdc++-v3
   mkdir build && cd build
-  ../configure --target=lm32-elf --enable-languages="c,c++" --disable-libgcc --disable-libssp
+  ../configure --target=lm32-elf --enable-languages="c,c++" --disable-libgcc \
+    --disable-libssp
   make
   make install
 
@@ -95,7 +97,8 @@ modules.
   A simple target is provided to test MiSoC easily with your board:
     Create your target with a clock and serial pins.
     Build and test it: ./make.py -t simple -p your_platform all load-bitstream
-  If you don't have access to a FPGA board, you can also try MiSoC with Verilator:
+  If you don't have access to a FPGA board, you can also try MiSoC
+  with Verilator:
     Download and install Verilator: http://www.veripool.org/
     Test it: ./make.py -t simple -p sim build-bitstream
 
@@ -111,9 +114,9 @@ do them if possible:
  * send us feedback and suggestions for improvements
  * send us bug reports when something goes wrong
  * send us the modifications and improvements you have done to MiSoC.
-   The use of "git format-patch" is recommended. If your submission is large and
-   complex and/or you are not sure how to proceed, feel free to discuss it on
-   the mailing list or IRC (#m-labs on Freenode) beforehand.
+   The use of "git format-patch" is recommended. If your submission is large
+   and complex and/or you are not sure how to proceed, feel free to discuss it
+   on the mailing list or IRC (#m-labs on Freenode) beforehand.
 
 See LICENSE file for full copyright and license info.
 
