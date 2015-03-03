@@ -4,7 +4,7 @@ from migen.bank.description import *
 
 from misoclib.mem.sdram.phy import dfii
 from misoclib.mem.sdram.core import minicon, lasmicon
-from misoclib.mem.sdram.core.lasmicon.crossbar import Crossbar
+from misoclib.mem.sdram.core import lasmixbar
 
 class SDRAMCore(Module, AutoCSR):
 	def __init__(self, phy, ramcon_type, sdram_geom, sdram_timing, **kwargs):
@@ -18,7 +18,7 @@ class SDRAMCore(Module, AutoCSR):
 			self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings, sdram_geom, sdram_timing, **kwargs)
 			self.comb += Record.connect(controller.dfi, self.dfii.slave)
 
-			self.submodules.crossbar = crossbar = Crossbar([controller.lasmic], controller.nrowbits)
+			self.submodules.crossbar = crossbar = lasmixbar.LASMIxbar([controller.lasmic], controller.nrowbits)
 
 		# MINICON
 		elif ramcon_type == "minicon":

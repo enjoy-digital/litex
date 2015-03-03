@@ -25,7 +25,7 @@ from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.fhdl.specials import *
 
-from misoclib.mem.sdram.bus.dfi import *
+from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
 class GENSDRPHY(Module):

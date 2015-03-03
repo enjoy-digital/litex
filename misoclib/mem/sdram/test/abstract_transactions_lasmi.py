@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
-from misoclib.mem.sdram.bus import lasmibus
+from misoclib.mem.sdram.core import lasmibus
 
 def my_generator(n):
 	bank = n % 4

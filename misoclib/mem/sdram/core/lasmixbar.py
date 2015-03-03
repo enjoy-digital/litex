@@ -3,7 +3,7 @@ from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import optree
 
-from misoclib.mem.sdram.bus.lasmibus import Interface
+from misoclib.mem.sdram.core.lasmibus import Interface
 
 def _getattr_all(l, attr):
 	it = iter(l)
@@ -13,7 +13,7 @@ def _getattr_all(l, attr):
 			raise ValueError
 	return r
 
-class Crossbar(Module):
+class LASMIxbar(Module):
 	def __init__(self, controllers, cba_shift):
 		self._controllers = controllers
 		self._cba_shift = cba_shift

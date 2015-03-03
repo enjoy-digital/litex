@@ -3,7 +3,7 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
 
-from misoclib.mem.sdram.bus.dfi import *
+from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
 class K7DDRPHY(Module, AutoCSR):

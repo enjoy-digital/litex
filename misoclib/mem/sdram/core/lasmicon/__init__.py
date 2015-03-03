@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 
-from misoclib.mem.sdram.bus import dfi, lasmibus
+from misoclib.mem.sdram.phy import dfi
+from misoclib.mem.sdram.core import lasmibus
 from misoclib.mem.sdram.core.lasmicon.refresher import *
 from misoclib.mem.sdram.core.lasmicon.bankmachine import *
 from misoclib.mem.sdram.core.lasmicon.multiplexer import *

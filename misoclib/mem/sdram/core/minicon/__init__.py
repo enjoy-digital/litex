@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.fsm import FSM, NextState
 
-from misoclib.mem.sdram.bus import dfi as dfibus
+from misoclib.mem.sdram.phy import dfi as dfibus
 
 class _AddressSlicer:
 	def __init__(self, col_a, bank_a, row_a, address_align):
