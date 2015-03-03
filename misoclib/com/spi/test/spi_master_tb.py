@@ -77,8 +77,8 @@ class TB(Module):
 			yield
 		self.spi_slave.set_miso(0x123457)
 		yield from spi_access(selfp, 8, 0x123457)
-		print("%08x" %self.spi_slave.get_mosi())
-		print("%08x" %selfp.spi_master._miso.status)
+		print("{:08x}".format(self.spi_slave.get_mosi()))
+		print("{:08x}".format(selfp.spi_master._miso.status))
 
 if __name__ == "__main__":
 	run_simulation(TB(), ncycles=1000, vcd_name="my.vcd", keep_files=True)
