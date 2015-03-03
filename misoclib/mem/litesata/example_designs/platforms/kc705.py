@@ -3,12 +3,12 @@ from mibuild.platforms import kc705
 
 _sata_io = [
 	("sata", 0,
-		Subsignal("refclk_p", Pins("C8")),
-		Subsignal("refclk_n", Pins("C7")),
-		Subsignal("txp", Pins("D2")),
-		Subsignal("txn", Pins("D1")),
-		Subsignal("rxp", Pins("E4")),
-		Subsignal("rxn", Pins("E3")),
+		Subsignal("refclk_p", Pins("HPC:GBTCLK0_M2C_P")),
+		Subsignal("refclk_n", Pins("HPC:GBTCLK0_M2C_N")),
+		Subsignal("txp", Pins("HPC:DP0_C2M_P")),
+		Subsignal("txn", Pins("HPC:DP0_C2M_N")),
+		Subsignal("rxp", Pins("HPC:DP0_M2C_P")),
+		Subsignal("rxn", Pins("HPC:DP0_M2C_N")),
 	)
 ]
 
