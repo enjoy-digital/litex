@@ -69,11 +69,18 @@ double sc_time_stamp()
 
 Vdut* dut;
 VerilatedVcdC* tfp;
-unsigned int tick;
 
 /* ios */
 
-int console_service()
+struct sim {
+	bool run;
+
+	unsigned int tick;
+	clock_t start;
+	clock_t end;
+};
+
+int console_service(struct sim *s)
 {
 	/* fpga --> console */
 	SERIAL_SOURCE_ACK = 1;
@@ -86,7 +93,7 @@ int console_service()
 
 	/* console --> fpga */
 	SERIAL_SINK_STB = 0;
-	if (tick%(1000) == 0) {
+	if (s->tick%(1000) == 0) {
 		if(kbhit()) {
 			char c = getch();
 			if (c == 27 && !kbhit()) {
@@ -101,33 +108,32 @@ int console_service()
 	return 0;
 }
 
-void sim_tick()
+void sim_tick(struct sim *s)
 {
-	SYS_CLK = tick%2;
+	SYS_CLK = s->tick%2;
 	dut->eval();
 	if (trace)
-		tfp->dump(tick);
-	tick++;
+		tfp->dump(s->tick);
+	s->tick++;
+	s->end = clock();
 }
 
-void sim_init()
+void sim_init(struct sim *s)
 {
 	int i;
-	tick = 0;
+	s->tick = 0;
 #ifdef SYS_RST
 	SYS_RST = 1;
 	SYS_CLK = 0;
 	for (i=0; i<8; i++)
-		sim_tick();
+		sim_tick(s);
 	SYS_RST = 0;
 #endif
+	s->start = clock();
 }
 
 int main(int argc, char **argv, char **env)
 {
-
-	clock_t start;
-	clock_t end;
 	float speed;
 
 	set_conio_terminal_mode();
@@ -140,19 +146,19 @@ int main(int argc, char **argv, char **env)
 	dut->trace(tfp, 99);
 	tfp->open("dut.vcd");
 
-	start = clock();
-	sim_init();
-	bool run = true;
-	while(run) {
-		sim_tick();
+	struct sim s;
+	sim_init(&s);
+
+	s.run = true;
+	while(s.run) {
+		sim_tick(&s);
 		if (SYS_CLK) {
-			if (console_service() != 0)
-				run = false;
+			if (console_service(&s) != 0)
+				s.run = false;
 		}
 	}
-	end = clock();
 
-	speed = (tick/2)/((end-start)/CLOCKS_PER_SEC);
+	speed = (s.tick/2)/((s.end-s.start)/CLOCKS_PER_SEC);
 
 	printf("average speed: %3.3f MHz\n\r", speed/1000000);
 
