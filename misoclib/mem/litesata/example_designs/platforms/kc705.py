@@ -33,10 +33,6 @@ class Platform(SpecializedPlatform):
 				self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
 			except ConstraintError:
 				pass
-			try:
-				self.add_period_constraint(self.lookup_request("sata_host").refclk_p, 6.66)
-			except ConstraintError:
-				pass
 			self.add_platform_command("""
 create_clock -name sys_clk -period 6 [get_nets sys_clk]
 create_clock -name sata_rx_clk -period 3.33 [get_nets sata_rx_clk]
