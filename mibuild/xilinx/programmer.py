@@ -63,23 +63,22 @@ class FpgaProg(GenericProgrammer):
 		subprocess.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
 				   "-f", data_file])
 
-def _source_vivado(vivado_path, ver=None):
+def _run_vivado(path, ver, cmds):
 	if sys.platform == "win32" or sys.platform == "cygwin":
-		pass
+		vivado_cmd = "vivado -mode tcl"
 	else:
-		settings = common.settings(vivado_path, ver)
-		subprocess.call(["source", settings])
-
-def _run_vivado(cmds):
-	with subprocess.Popen("vivado -mode tcl", stdin=subprocess.PIPE, shell=True) as process:
+		settings = common.settings(path, ver)
+		vivado_cmd = "bash -c \"source " + settings + "&& vivado -mode tcl\""
+	with subprocess.Popen(vivado_cmd, stdin=subprocess.PIPE, shell=True) as process:
 		process.stdin.write(cmds.encode("ASCII"))
 		process.communicate()
 
 class VivadoProgrammer(GenericProgrammer):
 	needs_bitreverse = False
-	def __init__(self, vivado_path="/opt/Xilinx/Vivado"):
+	def __init__(self, vivado_path="/opt/Xilinx/Vivado", vivado_ver=None):
 		GenericProgrammer.__init__(self)
-		_source_vivado(vivado_path)
+		self.vivado_path = vivado_path
+		self.vivado_ver = vivado_ver
 
 	def load_bitstream(self, bitstream_file):
 		cmds = """open_hw
@@ -94,7 +93,7 @@ refresh_hw_device [lindex [get_hw_devices] 0]
 
 quit
 """.format(bitstream=bitstream_file)
-		_run_vivado(cmds)
+		_run_vivado(self.vivado_path, self.vivado_ver, cmds)
 
 	# XXX works to flash bitstream, adapt it to flash bios
 	def flash(self, address, data_file):
@@ -124,4 +123,4 @@ endgroup
 
 quit
 """.format(data=data_file)
-		_run_vivado(cmds)
+		_run_vivado(self.vivado_path, self.vivado_ver, cmds)
