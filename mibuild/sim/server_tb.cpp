@@ -137,8 +137,8 @@ int console_service(struct sim *s)
 	/* console --> fpga */
 	SERIAL_SINK_STB = s->rx_serial_stb;
 	SERIAL_SINK_DATA = s->rx_serial_data;
-	if (s->rx_serial_stb)
-		s->rx_serial_presented = 1;
+	if (SERIAL_SINK_STB & SERIAL_SINK_ACK)
+		s->rx_serial_presented = s->rx_serial_stb;
 
 	return 0;
 }
