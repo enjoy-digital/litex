@@ -15,14 +15,14 @@ class SDRAMCore(Module, AutoCSR):
 
 		# LASMICON
 		if ramcon_type == "lasmicon":
-			self.submodules.controller = controller = lasmicon.LASMIcon(phy, sdram_geom, sdram_timing, **kwargs)
+			self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings, sdram_geom, sdram_timing, **kwargs)
 			self.comb += Record.connect(controller.dfi, self.dfii.slave)
 
 			self.submodules.crossbar = crossbar = Crossbar([controller.lasmic], controller.nrowbits)
 
 		# MINICON
 		elif ramcon_type == "minicon":
-			self.submodules.controller = controller = minicon.Minicon(phy, sdram_geom, sdram_timing)
+			self.submodules.controller = controller = minicon.Minicon(phy.settings, sdram_geom, sdram_timing)
 			self.comb += Record.connect(controller.dfi, self.dfii.slave)
 		else:
 			raise ValueError("Unsupported SDRAM controller type: {}".format(self.ramcon_type))

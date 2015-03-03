@@ -156,7 +156,7 @@ CPU type:  {}
 
 			for sdram_phy in ["sdrphy", "ddrphy"]:
 				if hasattr(soc, sdram_phy):
-					sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy))
+					sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy).settings)
 					write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
 		mem_header = cpuif.get_mem_header(soc.memory_regions, getattr(soc, "flash_boot_address", None))
 		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)

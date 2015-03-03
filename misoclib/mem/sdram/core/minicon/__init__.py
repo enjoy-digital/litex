@@ -35,26 +35,26 @@ class _AddressSlicer:
 			return Cat(Replicate(0, self.address_align), address[:split])
 
 class Minicon(Module):
-	def __init__(self, phy, geom_settings, timing_settings):
-		if phy.settings.memtype in ["SDR"]:
-			burst_length = phy.settings.nphases*1 # command multiplication*SDR
-		elif phy.settings.memtype in ["DDR", "LPDDR", "DDR2", "DDR3"]:
-			burst_length = phy.settings.nphases*2 # command multiplication*DDR
+	def __init__(self, phy_settings, geom_settings, timing_settings):
+		if phy_settings.memtype in ["SDR"]:
+			burst_length = phy_settings.nphases*1 # command multiplication*SDR
+		elif phy_settings.memtype in ["DDR", "LPDDR", "DDR2", "DDR3"]:
+			burst_length = phy_settings.nphases*2 # command multiplication*DDR
 		address_align = log2_int(burst_length)
 
 		nbanks = range(2**geom_settings.bank_a)
 		A10_ENABLED = 0
 		COLUMN      = 1
 		ROW         = 2
-		rdphase = phy.settings.rdphase
-		wrphase = phy.settings.wrphase
+		rdphase = phy_settings.rdphase
+		wrphase = phy_settings.wrphase
 
 		self.dfi = dfi = dfibus.Interface(geom_settings.mux_a,
 			geom_settings.bank_a,
-			phy.settings.dfi_d,
-			phy.settings.nphases)
+			phy_settings.dfi_d,
+			phy_settings.nphases)
 
-		self.bus = bus = wishbone.Interface(data_width=phy.settings.nphases*flen(dfi.phases[rdphase].rddata))
+		self.bus = bus = wishbone.Interface(data_width=phy_settings.nphases*flen(dfi.phases[rdphase].rddata))
 		slicer = _AddressSlicer(geom_settings.col_a, geom_settings.bank_a, geom_settings.row_a, address_align)
 		refresh_req = Signal()
 		refresh_ack = Signal()
