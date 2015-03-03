@@ -30,7 +30,7 @@ class SpiFlash(Module, AutoCSR):
 
 		Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
 		Read). Only supports mode0 (cpol=0, cpha=0).
-		Optional supports software bitbanging (for write, erase, or other commands).
+		Optionally supports software bitbanging (for write, erase, or other commands).
 		"""
 		self.bus = bus = wishbone.Interface()
 		spi_width = flen(pads.dq)
@@ -39,7 +39,7 @@ class SpiFlash(Module, AutoCSR):
 			self.miso = CSRStatus()
 			self.bitbang_en = CSRStorage()
 
-		##
+		###
 
 		cs_n = Signal(reset=1)
 		clk = Signal()
