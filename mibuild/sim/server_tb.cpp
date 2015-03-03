@@ -178,7 +178,7 @@ int main(int argc, char **argv, char **env)
 
 	struct sim s;
 	sim_init(&s);
-	sim_connect(&s, "../../migen/mibuild/sim/simsocket"); // XXX use args
+	sim_connect(&s, "/tmp/simsocket");
 
 	pthread_t sim_receive_thread;
 

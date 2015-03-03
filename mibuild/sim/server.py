@@ -18,7 +18,7 @@ class PacketTooLarge(Exception):
 	pass
 
 class VerilatorServer:
-	def __init__(self, sockaddr="simsocket"):
+	def __init__(self, sockaddr="/tmp/simsocket"):
 		self.sockaddr = sockaddr
 		self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
 		self._cleanup_file()
