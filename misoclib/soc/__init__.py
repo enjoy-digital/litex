@@ -15,12 +15,6 @@ from misoclib.cpu.peripherals import identifier, timer
 def mem_decoder(address, start=26, end=29):
 	return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
-def is_sim(platform):
-	if hasattr(platform, "is_sim"):
-		return platform.is_sim
-	else:
-		return False
-
 class SoC(Module):
 	csr_map = {
 		"crg":					0, # user
@@ -114,7 +108,7 @@ class SoC(Module):
 			self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
 			if with_uart:
-				if is_sim(platform):
+				if getattr(platform, "is_sim", False):
 					self.submodules.uart_phy = UARTPHYSim(platform.request("serial"))
 				else:
 					self.submodules.uart_phy = UARTPHYSerial(platform.request("serial"), clk_freq, uart_baudrate)
