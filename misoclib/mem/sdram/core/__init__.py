@@ -9,7 +9,8 @@ from misoclib.mem.sdram.core.lasmicon.crossbar import Crossbar
 class SDRAMCore(Module, AutoCSR):
 	def __init__(self, phy, ramcon_type, sdram_geom, sdram_timing, **kwargs):
 		# DFI
-		self.submodules.dfii = dfii.DFIInjector(phy, sdram_geom.mux_a, sdram_geom.bank_a)
+		self.submodules.dfii = dfii.DFIInjector(sdram_geom.mux_a, sdram_geom.bank_a,
+				phy.settings.dfi_d, phy.settings.nphases)
 		self.comb += Record.connect(self.dfii.master, phy.dfi)
 
 		# LASMICON
