@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx_common import CRG_DS
-from mibuild.xilinx_vivado import XilinxVivadoPlatform
+from mibuild.xilinx.common import CRG_DS
+from mibuild.xilinx.vivado import XilinxVivadoPlatform
 
 _io = [
 	("sys_clk", 0, Pins("X")),
