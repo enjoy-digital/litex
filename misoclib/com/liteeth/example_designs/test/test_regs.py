@@ -4,7 +4,7 @@ def main(wb):
 	###
 	print("sysid     : 0x{:04x}".format(regs.identifier_sysid.read()))
 	print("revision  : 0x{:04x}".format(regs.identifier_revision.read()))
-	print("frequency : 0x{:04x}MHz".format(regs.identifier_frequency.read()/1000000))
+	print("frequency : 0x{:04x}MHz".format(int(regs.identifier_frequency.read()/1000000)))
 	SRAM_BASE = 0x02000000
 	wb.write(SRAM_BASE, [i for i in range(64)])
 	print(wb.read(SRAM_BASE, 64))
