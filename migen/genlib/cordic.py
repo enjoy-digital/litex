@@ -22,7 +22,7 @@ class TwoQuadrantCordic(Module):
 	mode has full throughput but uses many registers and has large
 	latency. If `"combinatorial"`, there are no registers, throughput is
 	maximal and latency is zero. `"pipelined"` and `"combinatorial"` use
-	the same number of sphifters and adders.
+	the same number of shifters and adders.
 
 	The type of trigonometric/arithmetic function is determined by
 	`cordic_mode` and `func_mode`. :math:`g` is the gain of the CORDIC.
@@ -47,7 +47,7 @@ class TwoQuadrantCordic(Module):
 				z_o = z_i + \\tan^{-1}(y_i/x_i)
 
 		* rotate-hyperbolic: hyperbolic functions of `zi`. Used to
-		  calculate hyprbolic functions, `sinh, cosh, tanh = cosh/sinh,
+		  calculate hyperbolic functions, `sinh, cosh, tanh = cosh/sinh,
 		  exp = cosh + sinh`:
 
 			.. math::
