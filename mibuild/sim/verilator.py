@@ -17,7 +17,10 @@ def _build_tb(platform, template):
 
 	ios = """
 #define SYS_CLK dut->{sys_clk}
+""".format(sys_clk=io_name("sys_clk"))
 
+	try:
+		ios += """
 #define SERIAL_SOURCE_STB dut->{serial_source_stb}
 #define SERIAL_SOURCE_ACK dut->{serial_source_ack}
 #define SERIAL_SOURCE_DATA   dut->{serial_source_data}
@@ -26,8 +29,6 @@ def _build_tb(platform, template):
 #define SERIAL_SINK_ACK dut->{serial_sink_ack}
 #define SERIAL_SINK_DATA   dut->{serial_sink_data}
 """.format(
-	sys_clk=io_name("sys_clk"),
-
 	serial_source_stb=io_name("serial", "source_stb"),
 	serial_source_ack=io_name("serial", "source_ack"),
 	serial_source_data=io_name("serial", "source_data"),
@@ -36,6 +37,29 @@ def _build_tb(platform, template):
 	serial_sink_ack=io_name("serial", "sink_ack"),
 	serial_sink_data=io_name("serial", "sink_data"),
 	)
+	except:
+		pass
+
+	try:
+		ios += """
+#define ETH_SOURCE_STB		dut->{eth_source_stb}
+#define ETH_SOURCE_ACK		dut->{eth_source_ack}
+#define ETH_SOURCE_DATA		dut->{eth_source_data}
+
+#define ETH_SINK_STB		dut->{eth_sink_stb}
+#define ETH_SINK_ACK		dut->{eth_sink_ack}
+#define ETH_SINK_DATA	dut->{eth_sink_data}
+""".format(
+	eth_source_stb=io_name("eth", "source_stb"),
+	eth_source_ack=io_name("eth", "source_ack"),
+	eth_source_data=io_name("eth", "source_data"),
+
+	eth_sink_stb=io_name("eth", "sink_stb"),
+	eth_sink_ack=io_name("eth", "sink_ack"),
+	eth_sink_data=io_name("eth", "sink_data"),
+	)
+	except:
+		pass
 
 	content = ""
 	f = open(template, "r")
