@@ -6,6 +6,9 @@ import os
 import pty
 import time
 import threading
+import subprocess
+import struct
+import fcntl
 
 messages= {
 	"EXIT":		0,
@@ -29,6 +32,14 @@ class VerilatorServer:
 		master, slave = pty.openpty()
 		self.serial = master
 		self.serial_name = os.ttyname(slave)
+
+		os.system("openvpn --mktun --dev tap0")
+		os.system("ip link set tap0 up")
+		os.system("ip addr add 192.169.0.14/24 dev tap0")
+		os.system("iface tap0 inet")
+		os.system("mknod /dev/net/tap c 10 200")
+		os.system("chmod 600 /dev/net/tap")
+
 
 		self.ack = False
 
@@ -67,12 +78,18 @@ class VerilatorServer:
 		if hasattr(self, "socket"):
 			self.socket.shutdown(socket.SHUT_RDWR)
 			self.socket.close()
+		os.system("openvpn --rmtun --dev tap0")
+		os.system("rm -f /dev/net/tap")
 		self._cleanup_file()
 
 # XXX proof of concept
 server = VerilatorServer()
 server.accept()
 print("Connection accepted")
+
+TUNSETIFF	= 0x400454ca
+IFF_TAP		= 0x0002
+IFF_NO_PI 	= 0x1000
 
 def read():
 	while True:
@@ -82,10 +99,10 @@ def read():
 				c = bytes(chr(packet[1]).encode('utf-8'))
 				os.write(server.serial, c)
 			elif packet[0] == messages["ETHERNET"]:
-				print("received ethernet")
-				for d in packet[1:]:
-					print("{:02X}".format(d), end="")
-				print("")
+				tap = os.open("/dev/net/tun", os.O_RDWR)
+				fcntl.ioctl(tap, TUNSETIFF, struct.pack("16sH", b"tap0", IFF_TAP | IFF_NO_PI))
+				os.write(tap, packet[1+8:-4])
+				os.close(tap)
 			elif packet[0] == messages["ACK"]:
 				server.ack = True
 
@@ -104,5 +121,9 @@ readthread.start()
 writethread = threading.Thread(target=write, daemon=True)
 writethread.start()
 
-while True:
-	time.sleep(1)
+try:
+    while True:
+       time.sleep(1)
+except KeyboardInterrupt:
+	server.close()
+

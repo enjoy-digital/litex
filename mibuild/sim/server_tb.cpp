@@ -153,6 +153,7 @@ int console_service(struct sim *s)
 	return 0;
 }
 
+#ifdef ETH_SOURCE_STB
 int eth_last_source_stb = 0;
 
 int ethernet_service(struct sim *s) {
@@ -171,6 +172,7 @@ int ethernet_service(struct sim *s) {
 	}
 	eth_last_source_stb = ETH_SOURCE_STB;
 }
+#endif
 
 void sim_tick(struct sim *s)
 {
@@ -219,7 +221,9 @@ int main(int argc, char **argv, char **env)
 		if (SYS_CLK) {
 			if (console_service(&s) != 0)
 				s.run = false;
+#ifdef ETH_SOURCE_STB
 			ethernet_service(&s);
+#endif
 		}
 	}
 	s.end = clock();
