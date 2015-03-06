@@ -96,32 +96,33 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		sdram_geom = sdram.GeomSettings(
-			bank_a=2,
-			row_a=13,
-			col_a=10
-		)
-		sdram_timing = sdram.TimingSettings(
-			tRP=self.ns(15),
-			tRCD=self.ns(15),
-			tWR=self.ns(15),
-			tWTR=2,
-			tREFI=self.ns(64*1000*1000/8192, False),
-			tRFC=self.ns(72),
-			req_queue_size=8,
-			read_time=32,
-			write_time=16
-		)
-		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("sdram"),
-			"LPDDR", rd_bitslip=1, wr_bitslip=3, dqs_ddr_alignment="C1")
-		self.comb += [
-			self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
-			self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb),
-		]
-		platform.add_platform_command("""
-PIN "BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
-""")
-		self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
+		if not self.with_sdram:
+			sdram_geom = sdram.GeomSettings(
+				bank_a=2,
+				row_a=13,
+				col_a=10
+			)
+			sdram_timing = sdram.TimingSettings(
+				tRP=self.ns(15),
+				tRCD=self.ns(15),
+				tWR=self.ns(15),
+				tWTR=2,
+				tREFI=self.ns(64*1000*1000/8192, False),
+				tRFC=self.ns(72),
+				req_queue_size=8,
+				read_time=32,
+				write_time=16
+			)
+			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("sdram"),
+				"LPDDR", rd_bitslip=1, wr_bitslip=3, dqs_ddr_alignment="C1")
+			self.comb += [
+				self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
+				self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb),
+			]
+			platform.add_platform_command("""
+	PIN "BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
+	""")
+			self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
 
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=11, div=2)
 		self.flash_boot_address = 0x180000

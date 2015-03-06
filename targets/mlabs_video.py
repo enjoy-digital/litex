@@ -38,26 +38,35 @@ class BaseSoC(SDRAMSoC):
 			cpu_reset_address=0x00180000,
 			**kwargs)
 
-		sdram_geom = sdram.GeomSettings(
-			bank_a=2,
-			row_a=13,
-			col_a=10
-		)
-		sdram_timing = sdram.TimingSettings(
-			tRP=self.ns(15),
-			tRCD=self.ns(15),
-			tWR=self.ns(15),
-			tWTR=2,
-			tREFI=self.ns(7800, False),
-			tRFC=self.ns(70),
+		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
 
-			req_queue_size=8,
-			read_time=32,
-			write_time=16
-		)
-		self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
-			rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
-		self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
+		if not self.with_sdram:
+			sdram_geom = sdram.GeomSettings(
+				bank_a=2,
+				row_a=13,
+				col_a=10
+			)
+			sdram_timing = sdram.TimingSettings(
+				tRP=self.ns(15),
+				tRCD=self.ns(15),
+				tWR=self.ns(15),
+				tWTR=2,
+				tREFI=self.ns(7800, False),
+				tRFC=self.ns(70),
+
+				req_queue_size=8,
+				read_time=32,
+				write_time=16
+			)
+			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
+				rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
+			self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
+
+
+			self.comb += [
+				self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
+				self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
+			]
 
 		self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
 			self.ns(110), self.ns(50))
@@ -67,11 +76,7 @@ class BaseSoC(SDRAMSoC):
 		if not self.with_rom:
 			self.register_rom(self.norflash.bus)
 
-		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
-		self.comb += [
-			self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
-			self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
-		]
+
 		platform.add_platform_command("""
 INST "mxcrg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";

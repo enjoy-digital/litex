@@ -73,24 +73,25 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		sdram_geom = sdram.GeomSettings(
-			bank_a=2,
-			row_a=12,
-			col_a=8
-		)
-		sdram_timing = sdram.TimingSettings(
-			tRP=self.ns(15),
-			tRCD=self.ns(15),
-			tWR=self.ns(14),
-			tWTR=2,
-			tREFI=self.ns(64*1000*1000/4096, False),
-			tRFC=self.ns(66),
-			req_queue_size=8,
-			read_time=32,
-			write_time=16
-		)
-		self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
-		self.register_sdram_phy(self.sdrphy, sdram_geom, sdram_timing)
+		if not self.with_sdram:
+			sdram_geom = sdram.GeomSettings(
+				bank_a=2,
+				row_a=12,
+				col_a=8
+			)
+			sdram_timing = sdram.TimingSettings(
+				tRP=self.ns(15),
+				tRCD=self.ns(15),
+				tWR=self.ns(14),
+				tWTR=2,
+				tREFI=self.ns(64*1000*1000/4096, False),
+				tRFC=self.ns(66),
+				req_queue_size=8,
+				read_time=32,
+				write_time=16
+			)
+			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
+			self.register_sdram_phy(self.sdrphy, sdram_geom, sdram_timing)
 
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"), dummy=4, div=6)
 		self.flash_boot_address = 0x70000
