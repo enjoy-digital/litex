@@ -18,6 +18,18 @@ _io = [
 		Subsignal("sink_ack", SimPins(1)),
 		Subsignal("sink_data", SimPins(8)),
 	),
+	("eth_clocks", 0,
+		Subsignal("none", SimPins(1)),
+	),
+	("eth", 0,
+		Subsignal("source_stb", SimPins(1)),
+		Subsignal("source_ack", SimPins(1)),
+		Subsignal("source_data", SimPins(8)),
+
+		Subsignal("sink_stb", SimPins(1)),
+		Subsignal("sink_ack", SimPins(1)),
+		Subsignal("sink_data", SimPins(8)),
+	),
 ]
 
 class Platform(VerilatorPlatform):
