@@ -11,7 +11,8 @@ messages= {
 	"EXIT":		0,
 	"ACK":		1,
 	"ERROR": 	2,
-	"UART": 	3
+	"UART": 	3,
+	"ETHERNET":	4
 }
 
 class PacketTooLarge(Exception):
@@ -80,7 +81,11 @@ def read():
 			if packet[0] == messages["UART"]:
 				c = bytes(chr(packet[1]).encode('utf-8'))
 				os.write(server.serial, c)
-
+			elif packet[0] == messages["ETHERNET"]:
+				print("received ethernet")
+				for d in packet[1:]:
+					print("{:02X}".format(d), end="")
+				print("")
 			elif packet[0] == messages["ACK"]:
 				server.ack = True
 

@@ -19,6 +19,9 @@
 #include <netdb.h>
 #include <pthread.h>
 
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
 int trace = 0;
 
 vluint64_t main_time = 0;
@@ -38,7 +41,8 @@ enum {
 	MESSAGE_EXIT = 0,
 	MESSAGE_ACK,
 	MESSAGE_ERROR,
-	MESSAGE_UART
+	MESSAGE_UART,
+	MESSAGE_ETH
 };
 
 struct sim {
@@ -57,6 +61,12 @@ struct sim {
 	char rx_serial_data;
 	char rx_serial_presented;
 };
+
+unsigned char eth_txbuffer[1532];
+unsigned char eth_rxbuffer[1532];
+int eth_txbuffer_len = 0;
+int eth_rxbuffer_len = 0;
+int eth_rxbuffer_pos = 0;
 
 int sim_connect(struct sim *s, const char *sockaddr)
 {
@@ -143,6 +153,25 @@ int console_service(struct sim *s)
 	return 0;
 }
 
+int eth_last_source_stb = 0;
+
+int ethernet_service(struct sim *s) {
+	/* fpga --> ethernet tap */
+	ETH_SOURCE_ACK = 1;
+	if(ETH_SOURCE_STB == 1) {
+		eth_txbuffer[eth_txbuffer_len] = ETH_SOURCE_DATA;
+		eth_txbuffer_len++;
+	} else {
+		if (eth_last_source_stb) {
+			s->txbuffer[0] = MESSAGE_ETH;
+			memcpy(s->txbuffer+1, eth_txbuffer, eth_txbuffer_len);
+			sim_send(s, s->txbuffer, eth_txbuffer_len+1);
+			eth_txbuffer_len = 0;
+		}
+	}
+	eth_last_source_stb = ETH_SOURCE_STB;
+}
+
 void sim_tick(struct sim *s)
 {
 	SYS_CLK = s->tick%2;
@@ -190,6 +219,7 @@ int main(int argc, char **argv, char **env)
 		if (SYS_CLK) {
 			if (console_service(&s) != 0)
 				s.run = false;
+			ethernet_service(&s);
 		}
 	}
 	s.end = clock();
