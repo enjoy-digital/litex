@@ -51,7 +51,10 @@ class SoC(Module):
 
 		self.with_cpu = with_cpu
 		self.cpu_type = cpu_type
-		self.cpu_reset_address = cpu_reset_address
+		if with_rom:
+			self.cpu_reset_address = 0
+		else:
+			self.cpu_reset_address = cpu_reset_address
 		self.cpu_boot_file = cpu_boot_file
 
 		self.with_rom = with_rom
@@ -80,9 +83,9 @@ class SoC(Module):
 
 		if with_cpu:
 			if cpu_type == "lm32":
-				self.submodules.cpu = lm32.LM32(platform, cpu_reset_address)
+				self.submodules.cpu = lm32.LM32(platform, self.cpu_reset_address)
 			elif cpu_type == "or1k":
-				self.submodules.cpu = mor1kx.MOR1KX(platform, cpu_reset_address)
+				self.submodules.cpu = mor1kx.MOR1KX(platform, self.cpu_reset_address)
 			else:
 				raise ValueError("Unsupported CPU type: "+cpu_type)
 			self.cpu_or_bridge = self.cpu
