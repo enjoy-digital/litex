@@ -13,7 +13,7 @@ from misoclib.video import framebuffer
 from misoclib.soc import mem_decoder
 from misoclib.soc.sdram import SDRAMSoC
 
-from misoclib.com.liteeth.phy.mii import LiteEthPHYMII
+from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.mac import LiteEthMAC
 
 class _MXClockPads:
@@ -111,7 +111,7 @@ class MiniSoC(BaseSoC):
 			self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
 			self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", i) for i in range(2)))
 
-		self.submodules.ethphy = LiteEthPHYMII(platform.request("eth_clocks"), platform.request("eth"))
+		self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"), platform.request("eth"))
 		self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
 		self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
 		self.add_memory_region("ethmac", self.mem_map["ethmac"]+0x80000000, 0x2000)
