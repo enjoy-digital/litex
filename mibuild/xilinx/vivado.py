@@ -19,9 +19,11 @@ def _format_constraint(c):
 		return "set_property DRIVE " + str(c.strength)
 	elif isinstance(c, Misc):
 		return "set_property " + c.misc.replace("=", " ")
+	else:
+		raise ValueError("unknown constraint %s" % c)
 
-def _format_xdc(signame, pin, others, resname):
-	fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
+def _format_xdc(signame, resname, *constraints):
+	fmt_c = [_format_constraint(c) for c in constraints]
 	fmt_r = resname[0] + ":" + str(resname[1])
 	if resname[2] is not None:
 		fmt_r += "." + resname[2]
@@ -35,9 +37,11 @@ def _build_xdc(named_sc, named_pc):
 	for sig, pins, others, resname in named_sc:
 		if len(pins) > 1:
 			for i, p in enumerate(pins):
-				r += _format_xdc(sig + "[" + str(i) + "]", p, others, resname)
+				r += _format_xdc(sig + "[" + str(i) + "]", resname, Pins(p), *others)
+		elif pins:
+			r += _format_xdc(sig, resname, Pins(pins[0]), *others)
 		else:
-			r += _format_xdc(sig, pins[0], others, resname)
+			r += _format_xdc(sig, resname, *others)
 	if named_pc:
 		r += "\n" + "\n\n".join(named_pc)
 	return r
