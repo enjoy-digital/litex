@@ -17,7 +17,7 @@ class LiteEthMACPaddingInserter(Module):
 			If(sink.stb & sink.ack,
 				counter.ce.eq(1),
 				If(sink.eop,
-					If(counter.value < (packet_min_data-1),
+					If(counter.value < packet_min_data,
 						source.eop.eq(0),
 						NextState("PADDING")
 					)
@@ -26,7 +26,7 @@ class LiteEthMACPaddingInserter(Module):
 		)
 		fsm.act("PADDING",
 			source.stb.eq(1),
-			source.eop.eq(counter.value == (packet_min_data-1)),
+			source.eop.eq(counter.value == packet_min_data),
 			source.data.eq(0),
 			If(source.ack,
 				counter.ce.eq(1),
