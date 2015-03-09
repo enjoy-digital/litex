@@ -222,7 +222,7 @@ int ethernet_service(struct sim *s) {
 		s->eth_txbuffer_len++;
 	} else {
 		if (s->eth_last_source_stb) {
-			eth_write_tap(s, s->eth_txbuffer, s->eth_txbuffer_len-1); // XXX FIXME software or gateware?
+			eth_write_tap(s, s->eth_txbuffer, s->eth_txbuffer_len);
 			s->eth_txbuffer_len = 0;
 		}
 	}
