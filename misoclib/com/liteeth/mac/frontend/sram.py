@@ -25,40 +25,25 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 		sink.ack.reset = 1
 
 		# length computation
-		cnt = Signal(lengthbits)
-		clr_cnt = Signal()
-		inc_cnt = Signal()
-		inc_val = Signal(3)
+		increment = Signal(3)
 		self.comb += \
 			If(sink.last_be[3],
-				inc_val.eq(1)
+				increment.eq(1)
 			).Elif(sink.last_be[2],
-				inc_val.eq(2)
+				increment.eq(2)
 			).Elif(sink.last_be[1],
-				inc_val.eq(3)
+				increment.eq(3)
 			).Else(
-				inc_val.eq(4)
+				increment.eq(4)
 			)
-		self.sync += \
-			If(clr_cnt,
-				cnt.eq(0)
-			).Elif(inc_cnt,
-				cnt.eq(cnt+inc_val)
-			)
+		counter = Counter(lengthbits, increment=increment)
+		self.submodules += counter
 
 		# slot computation
-		slot = Signal(slotbits)
-		inc_slot = Signal()
-		self.sync += \
-			If(inc_slot,
-				If(slot == nslots-1,
-					slot.eq(0),
-				).Else(
-					slot.eq(slot+1)
-				)
-			)
+		slot = Counter(slotbits)
+		self.submodules += slot
+
 		ongoing = Signal()
-		discard = Signal()
 
 		# status fifo
 		fifo = SyncFIFO([("slot", slotbits), ("length", lengthbits)], nslots)
@@ -72,13 +57,13 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 			If(sink.stb & sink.sop,
 				If(fifo.sink.ack,
 					ongoing.eq(1),
-					inc_cnt.eq(1),
+					counter.ce.eq(1),
 					NextState("WRITE")
 				)
 			)
 		)
 		fsm.act("WRITE",
-			inc_cnt.eq(sink.stb),
+			counter.ce.eq(sink.stb),
 			ongoing.eq(1),
 			If(sink.stb & sink.eop,
 				If((sink.error & sink.last_be) != 0,
@@ -89,18 +74,19 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 			)
 		)
 		fsm.act("DISCARD",
-			clr_cnt.eq(1),
+			counter.reset.eq(1),
 			NextState("IDLE")
 		)
+		self.comb += [
+			fifo.sink.slot.eq(slot.value),
+			fifo.sink.length.eq(counter.value)
+		]
 		fsm.act("TERMINATE",
-			clr_cnt.eq(1),
-			inc_slot.eq(1),
+			counter.reset.eq(1),
+			slot.ce.eq(1),
 			fifo.sink.stb.eq(1),
-			fifo.sink.slot.eq(slot),
-			fifo.sink.length.eq(cnt),
 			NextState("IDLE")
 		)
-
 		self.comb += [
 			fifo.source.ack.eq(self.ev.available.clear),
 			self.ev.available.trigger.eq(fifo.source.stb),
@@ -120,13 +106,13 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 		cases = {}
 		for n, port in enumerate(ports):
 			cases[n] = [
-				ports[n].adr.eq(cnt[2:]),
+				ports[n].adr.eq(counter.value[2:]),
 				ports[n].dat_w.eq(sink.data),
 				If(sink.stb & ongoing,
 					ports[n].we.eq(0xf)
 				)
 			]
-		self.comb += Case(slot, cases)
+		self.comb += Case(slot.value, cases)
 
 
 class LiteEthMACSRAMReader(Module, AutoCSR):
@@ -159,16 +145,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 		]
 
 		# length computation
-		cnt = Signal(lengthbits)
-		clr_cnt = Signal()
-		inc_cnt = Signal()
-
-		self.sync += \
-			If(clr_cnt,
-				cnt.eq(0)
-			).Elif(inc_cnt,
-				cnt.eq(cnt+4)
-			)
+		self.submodules.counter = counter = Counter(lengthbits, increment=4)
 
 		# fsm
 		first = Signal()
@@ -179,7 +156,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 		self.submodules += fsm
 
 		fsm.act("IDLE",
-			clr_cnt.eq(1),
+			counter.reset.eq(1),
 			If(fifo.source.stb,
 				NextState("CHECK")
 			)
@@ -192,10 +169,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 			)
 		)
 		length_lsb = fifo.source.length[0:2]
-		fsm.act("SEND",
-			source.stb.eq(1),
-			source.sop.eq(first),
-			source.eop.eq(last),
+		self.comb += [
 			If(last,
 				If(length_lsb == 3,
 					source.last_be.eq(0b0010)
@@ -206,9 +180,14 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 				).Else(
 					source.last_be.eq(0b0001)
 				)
-			),
+			)
+		]
+		fsm.act("SEND",
+			source.stb.eq(1),
+			source.sop.eq(first),
+			source.eop.eq(last),
 			If(source.ack,
-				inc_cnt.eq(~last),
+				counter.ce.eq(~last),
 				NextState("CHECK")
 			)
 		)
@@ -226,7 +205,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 				first.eq(0)
 			)
 		]
-		self.comb += last.eq(cnt + 4 >= fifo.source.length)
+		self.comb += last.eq((counter.value + 4) >= fifo.source.length)
 		self.sync += last_d.eq(last)
 
 		# memory
@@ -242,7 +221,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 
 		cases = {}
 		for n, port in enumerate(ports):
-			self.comb += ports[n].adr.eq(cnt[2:])
+			self.comb += ports[n].adr.eq(counter.value[2:])
 			cases[n] = [source.data.eq(port.dat_r)]
 		self.comb += Case(rd_slot, cases)
 
