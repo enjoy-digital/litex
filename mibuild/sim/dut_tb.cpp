@@ -17,6 +17,16 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
+/* ios */
+
+#ifdef SERIAL_SOURCE_STB
+#define WITH_SERIAL
+#endif
+
+#ifdef ETH_SOURCE_STB
+#define WITH_ETH
+#endif
+
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -28,9 +38,36 @@ double sc_time_stamp()
 	return main_time;
 }
 
-/* ios */
+/* Sim struct */
+struct sim {
+	bool run;
 
-/* Terminal functions */
+	unsigned int tick;
+	clock_t start;
+	clock_t end;
+	float speed;
+
+#ifdef WITH_SERIAL
+	char rx_serial_stb;
+	char rx_serial_data;
+	char rx_serial_presented;
+#endif
+
+#ifdef WITH_ETH
+	const char *eth_dev;
+	const char *eth_tap;
+	int eth_fd;
+	unsigned char eth_txbuffer[2048];
+	unsigned char eth_rxbuffer[2048];
+	int eth_txbuffer_len;
+	int eth_rxbuffer_len;
+	int eth_rxbuffer_pos;
+	int eth_last_source_stb;
+#endif
+};
+
+/* Serial functions */
+#ifdef WITH_SERIAL
 struct termios orig_termios;
 
 void reset_terminal_mode(void)
@@ -71,6 +108,7 @@ int getch(void)
 		return c;
 	}
 }
+#endif
 
 /* Ethernet functions */
 /* create tap:
@@ -79,98 +117,73 @@ int getch(void)
      mknod /dev/net/tap0 c 10 200
    delete tap:
      openvpn --rmtun --dev tap0 */
-#ifdef ETH_SOURCE_STB
-unsigned char eth_txbuffer[1532];
-unsigned char eth_rxbuffer[1532];
-int eth_txbuffer_len = 0;
-int eth_rxbuffer_len = 0;
-int eth_rxbuffer_pos = 0;
-
-struct eth_device
+#ifdef WITH_ETH
+void eth_init(struct sim *s, const char *dev, const char*tap)
 {
-	char *dev;
-	char *tap;
-	int fd;
-};
+	s->eth_txbuffer_len = 0;
+	s->eth_rxbuffer_len = 0;
+	s->eth_rxbuffer_pos = 0;
+	s->eth_last_source_stb = 0;
+	s->eth_dev = dev;
+	s->eth_tap = tap;
+}
 
-void eth_open(struct eth_device *eth)
+void eth_open(struct sim *s)
 {
 
 	struct ifreq ifr;
-	eth->fd = open (eth->dev, O_RDWR);
-	if(eth->fd < 0) {
-		fprintf (stderr, " Could not open dev %s\n", eth->dev);
+	s->eth_fd = open (s->eth_dev, O_RDWR);
+	if(s->eth_fd < 0) {
+		fprintf (stderr, " Could not open dev %s\n", s->eth_dev);
 		return;
 	}
 
 	memset (&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-	strncpy (ifr.ifr_name, eth->tap, IFNAMSIZ);
+	strncpy (ifr.ifr_name, s->eth_tap, IFNAMSIZ);
 
-	if (ioctl (eth->fd, TUNSETIFF, (void *) &ifr) < 0) {
-		fprintf (stderr, " Could not set %s\n", eth->tap);
-		close(eth->fd);
+	if (ioctl (s->eth_fd, TUNSETIFF, (void *) &ifr) < 0) {
+		fprintf (stderr, " Could not set %s\n", s->eth_tap);
+		close(s->eth_fd);
 	}
 	return;
 }
 
-int eth_close(struct eth_device *eth)
+int eth_close(struct sim *s)
 {
-	if (eth->fd < 0)
-		close(eth->fd);
+	if (s->eth_fd < 0)
+		close(s->eth_fd);
 }
 
-void eth_write_tap(
-	struct eth_device *eth,
-	unsigned char *buf,
-	unsigned long int length)
+void eth_write_tap(struct sim *s, unsigned char *buf, int len)
 {
-	write (eth->fd, buf, length);
+	write (s->eth_fd, buf, len);
 }
 
-int eth_read_tap (
-	struct eth_device *eth,
-	unsigned char *buf)
+int eth_read_tap (struct sim *s, unsigned char *buf)
 {
 
 	struct pollfd fds[1];
 	int n;
-	int length;
+	int len;
 
-	fds[0].fd = eth->fd;
+	fds[0].fd = s->eth_fd;
 	fds[0].events = POLLIN;
 
 	n = poll(fds, 1, 0);
 	if ((n > 0) && ((fds[0].revents & POLLIN) == POLLIN)) {
-		length = read(eth->fd, buf, 1532);
+		len = read(s->eth_fd, buf, 1532);
 	} else {
-		length = 0;
+		len = 0;
 	}
-	return length;
+	return len;
 }
 #endif
 
 Vdut* dut;
 VerilatedVcdC* tfp;
 
-#define MAX_LEN 2048
-
-struct sim {
-	bool run;
-
-	unsigned int tick;
-	clock_t start;
-	clock_t end;
-	float speed;
-
-	char txbuffer[MAX_LEN];
-	char rxbuffer[MAX_LEN];
-
-	char rx_serial_stb;
-	char rx_serial_data;
-	char rx_serial_presented;
-};
-
+#ifdef WITH_SERIAL
 int console_service(struct sim *s)
 {
 	/* fpga --> console */
@@ -198,38 +211,37 @@ int console_service(struct sim *s)
 	}
 	return 0;
 }
+#endif
 
-#ifdef ETH_SOURCE_STB
-int eth_last_source_stb = 0;
-
-int ethernet_service(struct eth_device *eth) {
+#ifdef WITH_ETH
+int ethernet_service(struct sim *s) {
 	/* fpga --> tap */
 	ETH_SOURCE_ACK = 1;
 	if(ETH_SOURCE_STB == 1) {
-		eth_txbuffer[eth_txbuffer_len] = ETH_SOURCE_DATA;
-		eth_txbuffer_len++;
+		s->eth_txbuffer[s->eth_txbuffer_len] = ETH_SOURCE_DATA;
+		s->eth_txbuffer_len++;
 	} else {
-		if (eth_last_source_stb) {
-			eth_write_tap(eth, eth_txbuffer, eth_txbuffer_len-1); // XXX FIXME software or gateware?
-			eth_txbuffer_len = 0;
+		if (s->eth_last_source_stb) {
+			eth_write_tap(s, s->eth_txbuffer, s->eth_txbuffer_len-1); // XXX FIXME software or gateware?
+			s->eth_txbuffer_len = 0;
 		}
 	}
-	eth_last_source_stb = ETH_SOURCE_STB;
+	s->eth_last_source_stb = ETH_SOURCE_STB;
 
 	/* tap --> fpga */
-	if (eth_rxbuffer_len == 0) {
+	if (s->eth_rxbuffer_len == 0) {
 		ETH_SINK_STB = 0;
-		eth_rxbuffer_pos = 0;
-		eth_rxbuffer_len = eth_read_tap(eth, eth_rxbuffer);
+		s->eth_rxbuffer_pos = 0;
+		s->eth_rxbuffer_len = eth_read_tap(s, s->eth_rxbuffer);
 	} else {
-		if (eth_rxbuffer_pos < MAX(eth_rxbuffer_len, 60)) {
+		if (s->eth_rxbuffer_pos < MAX(s->eth_rxbuffer_len, 60)) {
 			ETH_SINK_STB = 1;
-			ETH_SINK_DATA = eth_rxbuffer[eth_rxbuffer_pos];
-			eth_rxbuffer_pos++;
+			ETH_SINK_DATA = s->eth_rxbuffer[s->eth_rxbuffer_pos];
+			s->eth_rxbuffer_pos++;
 		} else {
 			ETH_SINK_STB = 0;
-			eth_rxbuffer_len = 0;
-			memset(eth_rxbuffer, 0, 1532);
+			s->eth_rxbuffer_len = 0;
+			memset(s->eth_rxbuffer, 0, 1532);
 		}
 	}
 }
@@ -275,23 +287,21 @@ int main(int argc, char **argv, char **env)
 	struct sim s;
 	sim_init(&s);
 
-#ifdef ETH_SOURCE_STB
-	struct eth_device eth;
-	char dev[] = "/dev/net/tap0";
-	char tap[] = "tap0";
-	eth.dev = dev;
-	eth.tap = tap;
-	eth_open(&eth);
+#ifdef WITH_ETH
+	eth_init(&s, "/dev/net/tap0", "tap0");
+	eth_open(&s);
 #endif
 
 	s.run = true;
 	while(s.run) {
 		sim_tick(&s);
 		if (SYS_CLK) {
+#ifdef WITH_SERIAL
 			if (console_service(&s) != 0)
 				s.run = false;
-#ifdef ETH_SOURCE_STB
-			ethernet_service(&eth);
+#endif
+#ifdef WITH_ETH
+			ethernet_service(&s);
 #endif
 		}
 	}
