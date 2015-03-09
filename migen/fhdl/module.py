@@ -145,7 +145,7 @@ class Module:
 		r = []
 		for name, submodule in self._submodules:
 			if not submodule._get_fragment_called:
-				r += [(name, submodule.get_fragment())]
+				r.append((name, submodule.get_fragment()))
 		return r
 
 	def finalize(self, *args, **kwargs):
