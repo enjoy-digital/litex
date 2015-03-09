@@ -1,3 +1,5 @@
+import os
+
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
@@ -21,11 +23,13 @@ class LiteEthPHYSimCRG(Module, AutoCSR):
 		]
 
 class LiteEthPHYSim(Module, AutoCSR):
-	def __init__(self, pads):
+	def __init__(self, pads, tap="tap0", ip_address="192.168.0.14"):
 		self.dw = 8
 		self.submodules.crg = LiteEthPHYSimCRG()
 		self.sink = sink = Sink(eth_phy_description(8))
 		self.source = source = Source(eth_phy_description(8))
+		self.tap = tap
+		self.ip_address = ip_address
 
 		self.comb += [
 			pads.source_stb.eq(self.sink.stb),
@@ -41,3 +45,13 @@ class LiteEthPHYSim(Module, AutoCSR):
 		self.comb += [
 			self.source.eop.eq(~pads.sink_stb & self.source.stb),
 		]
+
+		# XXX avoid use of os.system
+		os.system("openvpn --mktun --dev {}".format(self.tap))
+		os.system("ifconfig {} {} up".format(self.tap, self.ip_address))
+		os.system("mknod /dev/net/{} c 10 200".format(self.tap))
+
+	def do_exit(self, *args, **kwargs):
+		# XXX avoid use of os.system
+		os.system("rm -f /dev/net/{}".format(self.tap))
+		os.system("openvpn --rmtun --dev {}".format(self.tap))
