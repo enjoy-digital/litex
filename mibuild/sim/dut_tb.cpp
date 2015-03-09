@@ -52,7 +52,7 @@ struct sim {
 	char rx_serial_data;
 	char rx_serial_presented;
 #else
-	const char *serial_dev;
+	char serial_dev[64];
 	int serial_fd;
 	unsigned char serial_rx_data;
 	unsigned char serial_tx_data;
@@ -216,11 +216,20 @@ int console_service(struct sim *s)
 	return 0;
 }
 #else
-void console_open(struct sim *s, const char *dev)
+void console_init(struct sim *s)
 {
-	s->serial_fd = open(dev, O_RDWR);
+	FILE *f;
+	f = fopen("/tmp/simserial","r");
+	fscanf(f, "%[^\n]", s->serial_dev);
+	fclose(f);
+	return;
+}
+
+void console_open(struct sim *s)
+{
+	s->serial_fd = open(s->serial_dev, O_RDWR);
 	if(s->serial_fd < 0) {
-		fprintf (stderr, " Could not open dev %s\n", s->serial_dev);
+		fprintf(stderr, " Could not open dev %s\n", s->serial_dev);
 		return;
 	}
 	return;
@@ -352,7 +361,8 @@ int main(int argc, char **argv, char **env)
 	sim_init(&s);
 
 #ifdef WITH_SERIAL_PTY
-	console_open(&s, "/dev/pts/3"); // XXX get this from /tmp/simserial
+	console_init(&s);
+	console_open(&s);
 #endif
 
 #ifdef WITH_ETH
