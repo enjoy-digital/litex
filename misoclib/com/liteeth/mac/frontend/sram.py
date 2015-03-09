@@ -69,10 +69,10 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
 		self.submodules += fsm
 
 		fsm.act("IDLE",
-			inc_cnt.eq(sink.stb),
 			If(sink.stb & sink.sop,
-				ongoing.eq(1),
 				If(fifo.sink.ack,
+					ongoing.eq(1),
+					inc_cnt.eq(1),
 					NextState("WRITE")
 				)
 			)
