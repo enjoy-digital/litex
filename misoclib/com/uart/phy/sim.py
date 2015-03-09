@@ -1,3 +1,5 @@
+import os, pty, time
+
 from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source
 
@@ -15,3 +17,14 @@ class UARTPHYSim(Module):
 			self.source.data.eq(pads.sink_data),
 			pads.sink_ack.eq(self.source.ack)
 		]
+
+		m, s = pty.openpty()
+		name = os.ttyname(s)
+		print("UART tty: "+name)
+		time.sleep(0.5) # pause for user
+		f = open("/tmp/simserial", "w")
+		f.write(os.ttyname(s))
+		f.close()
+
+	def do_exit(self, *args, **kwargs):
+		os.remove("/tmp/simserial")
