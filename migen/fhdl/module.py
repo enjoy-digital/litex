@@ -142,8 +142,10 @@ class Module:
 			object.__setattr__(self, name, value)
 
 	def _collect_submodules(self):
-		r = [(name, submodule.get_fragment()) for name, submodule in self._submodules]
-		self._submodules = []
+		r = []
+		for name, submodule in self._submodules:
+			if not submodule._get_fragment_called:
+				r += [(name, submodule.get_fragment())]
 		return r
 
 	def finalize(self, *args, **kwargs):
@@ -176,3 +178,7 @@ class Module:
 
 	def do_finalize(self):
 		pass
+
+	def do_exit(self, *args, **kwargs):
+		for name, submodule in self._submodules:
+			submodule.do_exit(*args, **kwargs)
