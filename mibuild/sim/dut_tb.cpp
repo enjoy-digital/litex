@@ -79,7 +79,7 @@ int getch(void)
      mknod /dev/net/tap0 c 10 200
    delete tap:
      openvpn --rmtun --dev tap0 */
-
+#ifdef ETH_SOURCE_STB
 unsigned char eth_txbuffer[1532];
 unsigned char eth_rxbuffer[1532];
 int eth_txbuffer_len = 0;
@@ -148,6 +148,7 @@ int eth_read_tap (
 	}
 	return length;
 }
+#endif
 
 Vdut* dut;
 VerilatedVcdC* tfp;
@@ -259,6 +260,10 @@ void sim_init(struct sim *s)
 
 int main(int argc, char **argv, char **env)
 {
+	float speed;
+
+	set_conio_terminal_mode();
+
 	Verilated::commandArgs(argc, argv);
 	dut = new Vdut;
 
@@ -270,12 +275,14 @@ int main(int argc, char **argv, char **env)
 	struct sim s;
 	sim_init(&s);
 
+#ifdef ETH_SOURCE_STB
 	struct eth_device eth;
 	char dev[] = "/dev/net/tap0";
 	char tap[] = "tap0";
 	eth.dev = dev;
 	eth.tap = tap;
 	eth_open(&eth);
+#endif
 
 	s.run = true;
 	while(s.run) {
@@ -289,6 +296,11 @@ int main(int argc, char **argv, char **env)
 		}
 	}
 	s.end = clock();
+
+	speed = (s.tick/2)/((s.end-s.start)/CLOCKS_PER_SEC);
+
+	printf("average speed: %3.3f MHz\n\r", speed/1000000);
+
 
 	tfp->close();
 

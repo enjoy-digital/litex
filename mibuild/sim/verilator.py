@@ -109,7 +109,7 @@ def _run_sim(build_name):
 class VerilatorPlatform(GenericPlatform):
 	# XXX fir sim_path
 	def build(self, soc, build_dir="build", build_name="top",
-			sim_path="../migen/mibuild/sim/", dut="console_tb",
+			sim_path="../migen/mibuild/sim/", dut="dut_tb",
 			run=True, verbose=False):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
