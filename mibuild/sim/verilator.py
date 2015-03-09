@@ -7,7 +7,7 @@ from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
 
-def _build_tb(platform, template):
+def _build_tb(platform, serial, template):
 
 	def io_name(ressource, subsignal=None):
 		res = platform.lookup_request(ressource)
@@ -19,6 +19,12 @@ def _build_tb(platform, template):
 #define SYS_CLK dut->{sys_clk}
 """.format(sys_clk=io_name("sys_clk"))
 
+	if serial == "pty":
+		ios += "#define WITH_SERIAL_PTY"
+	elif serial == "console":
+		pass
+	else:
+		raise ValueError
 	try:
 		ios += """
 #define SERIAL_SOURCE_STB dut->{serial_source_stb}
@@ -73,7 +79,7 @@ def _build_tb(platform, template):
 	f.close()
 	tools.write_to_file("dut_tb.cpp", content)
 
-def _build_sim(platform, build_name, include_paths, sim_path, dut, verbose):
+def _build_sim(platform, build_name, include_paths, sim_path, serial, verbose):
 	include = ""
 	for path in include_paths:
 		include += "-I"+path+" "
@@ -89,7 +95,7 @@ make -j -C obj_dir/ -f Vdut.mk Vdut
 	build_script_file = "build_" + build_name + ".sh"
 	tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
-	_build_tb(platform, os.path.join("../", sim_path, dut + ".cpp")) # XXX
+	_build_tb(platform, serial, os.path.join("../", sim_path,"dut_tb.cpp"))
 	if verbose:
 		r = subprocess.call(["bash", build_script_file])
 	else:
@@ -109,7 +115,7 @@ def _run_sim(build_name):
 class VerilatorPlatform(GenericPlatform):
 	# XXX fir sim_path
 	def build(self, soc, build_dir="build", build_name="top",
-			sim_path="../migen/mibuild/sim/", dut="dut_tb",
+			sim_path="../migen/mibuild/sim/", serial="console",
 			run=True, verbose=False):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
@@ -129,7 +135,7 @@ class VerilatorPlatform(GenericPlatform):
 			if path not in include_paths:
 				include_paths.append(path)
 		include_paths += self.verilog_include_paths
-		_build_sim(self, build_name, include_paths, sim_path, dut, verbose)
+		_build_sim(self, build_name, include_paths, sim_path, serial, verbose)
 
 		if run:
 			_run_sim(build_name)

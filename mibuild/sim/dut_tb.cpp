@@ -47,12 +47,16 @@ struct sim {
 	clock_t end;
 	float speed;
 
-#ifdef WITH_SERIAL
+#ifndef WITH_SERIAL_PTY
 	char rx_serial_stb;
 	char rx_serial_data;
 	char rx_serial_presented;
+#else
+	const char *serial_dev;
+	int serial_fd;
+	unsigned char serial_rx_data;
+	unsigned char serial_tx_data;
 #endif
-
 #ifdef WITH_ETH
 	const char *eth_dev;
 	const char *eth_tap;
@@ -67,7 +71,7 @@ struct sim {
 };
 
 /* Serial functions */
-#ifdef WITH_SERIAL
+#ifndef WITH_SERIAL_PTY
 struct termios orig_termios;
 
 void reset_terminal_mode(void)
@@ -155,12 +159,12 @@ int eth_close(struct sim *s)
 		close(s->eth_fd);
 }
 
-void eth_write_tap(struct sim *s, unsigned char *buf, int len)
+void eth_write(struct sim *s, unsigned char *buf, int len)
 {
-	write (s->eth_fd, buf, len);
+	write(s->eth_fd, buf, len);
 }
 
-int eth_read_tap (struct sim *s, unsigned char *buf)
+int eth_read(struct sim *s, unsigned char *buf)
 {
 
 	struct pollfd fds[1];
@@ -183,7 +187,7 @@ int eth_read_tap (struct sim *s, unsigned char *buf)
 Vdut* dut;
 VerilatedVcdC* tfp;
 
-#ifdef WITH_SERIAL
+#ifndef WITH_SERIAL_PTY
 int console_service(struct sim *s)
 {
 	/* fpga --> console */
@@ -211,6 +215,64 @@ int console_service(struct sim *s)
 	}
 	return 0;
 }
+#else
+void console_open(struct sim *s, const char *dev)
+{
+	s->serial_fd = open(dev, O_RDWR);
+	if(s->serial_fd < 0) {
+		fprintf (stderr, " Could not open dev %s\n", s->serial_dev);
+		return;
+	}
+	return;
+}
+
+int console_close(struct sim *s)
+{
+	if (s->serial_fd < 0)
+		close(s->serial_fd);
+}
+
+void console_write(struct sim *s, unsigned char *buf, int len)
+{
+	write(s->serial_fd, buf, len);
+}
+
+int console_read(struct sim *s, unsigned char *buf)
+{
+	struct pollfd fds[1];
+	int n;
+	int len;
+
+	fds[0].fd = s->serial_fd;
+	fds[0].events = POLLIN;
+
+	n = poll(fds, 1, 0);
+	if ((n > 0) && ((fds[0].revents & POLLIN) == POLLIN)) {
+		len = read(s->serial_fd, buf, 1);
+	} else {
+		len = 0;
+	}
+	return len;
+}
+
+int console_service(struct sim *s)
+{
+	/* fpga --> console */
+	SERIAL_SOURCE_ACK = 1;
+	if(SERIAL_SOURCE_STB == 1) {
+		s->serial_tx_data = SERIAL_SOURCE_DATA;
+		console_write(s, &(s->serial_tx_data), 1);
+	}
+
+	/* console --> fpga */
+	SERIAL_SINK_STB = 0;
+	if (console_read(s, &(s->serial_rx_data)))
+	{
+		SERIAL_SINK_STB = 1;
+		SERIAL_SINK_DATA = s->serial_rx_data;
+	}
+	return 0;
+}
 #endif
 
 #ifdef WITH_ETH
@@ -222,7 +284,7 @@ int ethernet_service(struct sim *s) {
 		s->eth_txbuffer_len++;
 	} else {
 		if (s->eth_last_source_stb) {
-			eth_write_tap(s, s->eth_txbuffer, s->eth_txbuffer_len);
+			eth_write(s, s->eth_txbuffer, s->eth_txbuffer_len);
 			s->eth_txbuffer_len = 0;
 		}
 	}
@@ -232,7 +294,7 @@ int ethernet_service(struct sim *s) {
 	if (s->eth_rxbuffer_len == 0) {
 		ETH_SINK_STB = 0;
 		s->eth_rxbuffer_pos = 0;
-		s->eth_rxbuffer_len = eth_read_tap(s, s->eth_rxbuffer);
+		s->eth_rxbuffer_len = eth_read(s, s->eth_rxbuffer);
 	} else {
 		if (s->eth_rxbuffer_pos < MAX(s->eth_rxbuffer_len, 60)) {
 			ETH_SINK_STB = 1;
@@ -274,7 +336,9 @@ int main(int argc, char **argv, char **env)
 {
 	float speed;
 
+#ifndef WITH_SERIAL_PTY
 	set_conio_terminal_mode();
+#endif
 
 	Verilated::commandArgs(argc, argv);
 	dut = new Vdut;
@@ -287,8 +351,12 @@ int main(int argc, char **argv, char **env)
 	struct sim s;
 	sim_init(&s);
 
+#ifdef WITH_SERIAL_PTY
+	console_open(&s, "/dev/pts/3"); // XXX get this from /tmp/simserial
+#endif
+
 #ifdef WITH_ETH
-	eth_init(&s, "/dev/net/tap0", "tap0");
+	eth_init(&s, "/dev/net/tap0", "tap0"); // XXX get this from /tmp/simethernet
 	eth_open(&s);
 #endif
 
@@ -311,8 +379,15 @@ int main(int argc, char **argv, char **env)
 
 	printf("average speed: %3.3f MHz\n\r", speed/1000000);
 
-
 	tfp->close();
+
+
+#ifdef WITH_SERIAL_PTY
+	console_close(&s);
+#endif
+#ifdef WITH_ETH
+	eth_close(&s);
+#endif
 
 	exit(0);
 }
