@@ -193,6 +193,3 @@ class SoC(Module):
 		if margin:
 			t += clk_period_ns/2
 		return ceil(t/clk_period_ns)
-
-	def do_exit(self, vns):
-		pass
