@@ -97,10 +97,10 @@ class FlipFlop(Module):
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class Counter(Module):
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, increment=1, **kwargs):
 		self.value = Signal(*args, **kwargs)
 		self.width = flen(self.value)
-		self.sync += self.value.eq(self.value+1)
+		self.sync += self.value.eq(self.value+increment)
 
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
