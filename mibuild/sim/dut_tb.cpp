@@ -47,11 +47,7 @@ struct sim {
 	clock_t end;
 	float speed;
 
-#ifndef WITH_SERIAL_PTY
-	char rx_serial_stb;
-	char rx_serial_data;
-	char rx_serial_presented;
-#else
+#ifdef WITH_SERIAL_PTY
 	char serial_dev[64];
 	int serial_fd;
 	unsigned char serial_rx_data;
@@ -106,7 +102,7 @@ int getch(void)
 {
 	int r;
 	unsigned char c;
-	if ((r = read(0, &c, sizeof(c))) < 0) {
+	if((r = read(0, &c, sizeof(c))) < 0) {
 		return r;
 	} else {
 		return c;
@@ -138,16 +134,16 @@ void eth_open(struct sim *s)
 	struct ifreq ifr;
 	s->eth_fd = open (s->eth_dev, O_RDWR);
 	if(s->eth_fd < 0) {
-		fprintf (stderr, " Could not open dev %s\n", s->eth_dev);
+		fprintf(stderr, " Could not open dev %s\n", s->eth_dev);
 		return;
 	}
 
-	memset (&ifr, 0, sizeof(ifr));
+	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-	strncpy (ifr.ifr_name, s->eth_tap, IFNAMSIZ);
+	strncpy(ifr.ifr_name, s->eth_tap, IFNAMSIZ);
 
-	if (ioctl (s->eth_fd, TUNSETIFF, (void *) &ifr) < 0) {
-		fprintf (stderr, " Could not set %s\n", s->eth_tap);
+	if(ioctl(s->eth_fd, TUNSETIFF, (void *) &ifr) < 0) {
+		fprintf(stderr, " Could not set %s\n", s->eth_tap);
 		close(s->eth_fd);
 	}
 	return;
@@ -155,7 +151,7 @@ void eth_open(struct sim *s)
 
 int eth_close(struct sim *s)
 {
-	if (s->eth_fd < 0)
+	if(s->eth_fd < 0)
 		close(s->eth_fd);
 }
 
@@ -175,7 +171,7 @@ int eth_read(struct sim *s, unsigned char *buf)
 	fds[0].events = POLLIN;
 
 	n = poll(fds, 1, 0);
-	if ((n > 0) && ((fds[0].revents & POLLIN) == POLLIN)) {
+	if((n > 0) && ((fds[0].revents & POLLIN) == POLLIN)) {
 		len = read(s->eth_fd, buf, 1532);
 	} else {
 		len = 0;
@@ -193,7 +189,7 @@ int console_service(struct sim *s)
 	/* fpga --> console */
 	SERIAL_SOURCE_ACK = 1;
 	if(SERIAL_SOURCE_STB == 1) {
-		if (SERIAL_SOURCE_DATA == '\n')
+		if(SERIAL_SOURCE_DATA == '\n')
 			putchar('\r');
 		putchar(SERIAL_SOURCE_DATA);
 		fflush(stdout);
@@ -201,10 +197,10 @@ int console_service(struct sim *s)
 
 	/* console --> fpga */
 	SERIAL_SINK_STB = 0;
-	if (s->tick%(1000) == 0) {
+	if(s->tick%(1000) == 0) {
 		if(kbhit()) {
 			char c = getch();
-			if (c == 27 && !kbhit()) {
+			if(c == 27 && !kbhit()) {
 				printf("\r\n");
 				return -1;
 			} else {
@@ -237,7 +233,7 @@ void console_open(struct sim *s)
 
 int console_close(struct sim *s)
 {
-	if (s->serial_fd < 0)
+	if(s->serial_fd < 0)
 		close(s->serial_fd);
 }
 
@@ -256,7 +252,7 @@ int console_read(struct sim *s, unsigned char *buf)
 	fds[0].events = POLLIN;
 
 	n = poll(fds, 1, 0);
-	if ((n > 0) && ((fds[0].revents & POLLIN) == POLLIN)) {
+	if((n > 0) && ((fds[0].revents & POLLIN) == POLLIN)) {
 		len = read(s->serial_fd, buf, 1);
 	} else {
 		len = 0;
@@ -275,7 +271,7 @@ int console_service(struct sim *s)
 
 	/* console --> fpga */
 	SERIAL_SINK_STB = 0;
-	if (console_read(s, &(s->serial_rx_data)))
+	if(console_read(s, &(s->serial_rx_data)))
 	{
 		SERIAL_SINK_STB = 1;
 		SERIAL_SINK_DATA = s->serial_rx_data;
@@ -292,7 +288,7 @@ int ethernet_service(struct sim *s) {
 		s->eth_txbuffer[s->eth_txbuffer_len] = ETH_SOURCE_DATA;
 		s->eth_txbuffer_len++;
 	} else {
-		if (s->eth_last_source_stb) {
+		if(s->eth_last_source_stb) {
 			eth_write(s, s->eth_txbuffer, s->eth_txbuffer_len);
 			s->eth_txbuffer_len = 0;
 		}
@@ -300,12 +296,12 @@ int ethernet_service(struct sim *s) {
 	s->eth_last_source_stb = ETH_SOURCE_STB;
 
 	/* tap --> fpga */
-	if (s->eth_rxbuffer_len == 0) {
+	if(s->eth_rxbuffer_len == 0) {
 		ETH_SINK_STB = 0;
 		s->eth_rxbuffer_pos = 0;
 		s->eth_rxbuffer_len = eth_read(s, s->eth_rxbuffer);
 	} else {
-		if (s->eth_rxbuffer_pos < MAX(s->eth_rxbuffer_len, 60)) {
+		if(s->eth_rxbuffer_pos < MAX(s->eth_rxbuffer_len, 60)) {
 			ETH_SINK_STB = 1;
 			ETH_SINK_DATA = s->eth_rxbuffer[s->eth_rxbuffer_pos];
 			s->eth_rxbuffer_pos++;
@@ -322,7 +318,7 @@ void sim_tick(struct sim *s)
 {
 	SYS_CLK = s->tick%2;
 	dut->eval();
-	if (trace)
+	if(trace)
 		tfp->dump(s->tick);
 	s->tick++;
 }
@@ -373,9 +369,9 @@ int main(int argc, char **argv, char **env)
 	s.run = true;
 	while(s.run) {
 		sim_tick(&s);
-		if (SYS_CLK) {
+		if(SYS_CLK) {
 #ifdef WITH_SERIAL
-			if (console_service(&s) != 0)
+			if(console_service(&s) != 0)
 				s.run = false;
 #endif
 #ifdef WITH_ETH
