@@ -5,6 +5,7 @@ from migen.fhdl.std import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.io import *
 from mibuild.generic_platform import GenericPlatform
 from mibuild import tools
 
@@ -82,6 +83,15 @@ class XilinxAsyncResetSynchronizer:
 	def lower(dr):
 		return XilinxAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
+class XilinxDifferentialInputImpl(Module):
+	def __init__(self, i_p, i_n, o):
+		self.specials += Instance("IBUFDS", i_I=i_p, i_IB=i_n, o_O=o)
+
+class XilinxDifferentialInput:
+	@staticmethod
+	def lower(dr):
+		return XilinxDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
+
 class XilinxGenericPlatform(GenericPlatform):
 	bitstream_ext = ".bit"
 
@@ -89,7 +99,8 @@ class XilinxGenericPlatform(GenericPlatform):
 		so = {
 			NoRetiming:					XilinxNoRetiming,
 			MultiReg:					XilinxMultiReg,
-			AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer
+			AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer,
+			DifferentialInput:			XilinxDifferentialInput,
 		}
 		so.update(special_overrides)
 		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
