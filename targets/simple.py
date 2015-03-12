@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
+from migen.genlib.io import DifferentialInput
 
 from misoclib.soc import SoC, mem_decoder
 from misoclib.com.liteeth.phy import LiteEthPHY
@@ -29,12 +30,7 @@ class BaseSoC(SoC):
 		clk_in = platform.request(platform.default_clk_name)
 		clk_crg = Signal()
 		if hasattr(clk_in, "p"):
-			from mibuild.xilinx.vivado import XilinxVivadoPlatform
-			from mibuild.xilinx.ise import XilinxISEPlatform
-			if isinstance(platform, (XilinxISEPlatform, XilinxVivadoPlatform)):
-				self.specials += Instance("IBUFDS", i_I=clk_in.p, i_IB=clk_in.n, o_O=clk_crg)
-			else:
-				raise NotImplementedError
+			self.specials += DifferentialInput(clk_in.p, clk_in.n, clk_crg)
 		else:
 			self.comb += clk_crg.eq(clk_in)
 		self.submodules.crg = _CRG(clk_crg)
