@@ -6,7 +6,7 @@ from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.mac import LiteEthMAC
 
 class _CRG(Module):
-	def __init__(self, clk_in):
+	def __init__(self, clk_crg):
 		self.clock_domains.cd_sys = ClockDomain()
 		self.clock_domains.cd_por = ClockDomain(reset_less=True)
 
@@ -14,8 +14,8 @@ class _CRG(Module):
 		rst_n = Signal()
 		self.sync.por += rst_n.eq(1)
 		self.comb += [
-			self.cd_sys.clk.eq(clk_in),
-			self.cd_por.clk.eq(clk_in),
+			self.cd_sys.clk.eq(clk_crg),
+			self.cd_por.clk.eq(clk_crg),
 			self.cd_sys.rst.eq(~rst_n)
 		]
 
@@ -27,7 +27,17 @@ class BaseSoC(SoC):
 			with_sdram=True, sdram_size=16*1024,
 			**kwargs)
 		clk_in = platform.request(platform.default_clk_name)
-		self.submodules.crg = _CRG(clk_in if not hasattr(clk_in, "p") else clk_in.p)
+		clk_crg = Signal()
+		if hasattr(clk_in, "p"):
+			from mibuild.xilinx.vivado import XilinxVivadoPlatform
+			from mibuild.xilinx.ise import XilinxISEPlatform
+			if isinstance(platform, (XilinxISEPlatform, XilinxVivadoPlatform)):
+				self.specials += Instance("IBUFDS", i_I=clk_in.p, i_IB=clk_in.n, o_O=clk_crg)
+			else:
+				raise NotImplementedError
+		else:
+			self.comb += clk_crg.eq(clk_in)
+		self.submodules.crg = _CRG(clk_crg)
 
 class MiniSoC(BaseSoC):
 	csr_map = {
