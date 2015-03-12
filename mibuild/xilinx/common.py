@@ -92,6 +92,15 @@ class XilinxDifferentialInput:
 	def lower(dr):
 		return XilinxDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
 
+class XilinxDifferentialOutputImpl(Module):
+	def __init__(self, i, o_p, o_n):
+		self.specials += Instance("OBUFDS", i_I=i, o_O=o_p, o_OB=o_n)
+
+class XilinxDifferentialOutput:
+	@staticmethod
+	def lower(dr):
+		return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
+
 class XilinxGenericPlatform(GenericPlatform):
 	bitstream_ext = ".bit"
 
@@ -101,6 +110,7 @@ class XilinxGenericPlatform(GenericPlatform):
 			MultiReg:					XilinxMultiReg,
 			AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer,
 			DifferentialInput:			XilinxDifferentialInput,
+			DifferentialOutput:			XilinxDifferentialOutput,
 		}
 		so.update(special_overrides)
 		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)

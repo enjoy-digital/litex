@@ -17,3 +17,19 @@ class DifferentialInput(Special):
 	@staticmethod
 	def lower(dr):
 		raise NotImplementedError("Attempted to use a differential input, but platform does not support them")
+
+class DifferentialOutput(Special):
+	def __init__(self, i, o_p, o_n):
+		Special.__init__(self)
+		self.i = i
+		self.o_p = o_p
+		self.o_n = o_n
+
+	def iter_expressions(self):
+		yield self, "i", SPECIAL_INPUT
+		yield self, "o_p", SPECIAL_OUTPUT
+		yield self, "o_n", SPECIAL_OUTPUT
+
+	@staticmethod
+	def lower(dr):
+		raise NotImplementedError("Attempted to use a differential output, but platform does not support them")
