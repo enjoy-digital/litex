@@ -13,4 +13,4 @@ def LiteEthPHY(clock_pads, pads, **kwargs):
 		from misoclib.com.liteeth.phy.mii import LiteEthPHYMII
 		return LiteEthPHYMII(clock_pads, pads, **kwargs)
 	else:
-		raise ValueError("Unable to autodetect PHY from platform file, use direct instanciation")
+		raise ValueError("Unable to autodetect PHY from platform file, use direct instantiation")
