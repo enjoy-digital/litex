@@ -16,4 +16,4 @@ class DifferentialInput(Special):
 
 	@staticmethod
 	def lower(dr):
-		raise NotImplementedError("Attempted to use a reset synchronizer, but platform does not support them")
+		raise NotImplementedError("Attempted to use a differential input, but platform does not support them")
