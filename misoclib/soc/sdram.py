@@ -50,7 +50,15 @@ class SDRAMSoC(SoC):
 				self.submodules.memtest_r = memtest.MemtestReader(self.sdram.crossbar.get_master())
 
 			if self.with_l2:
-				self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_size//4, self.sdram.crossbar.get_master())
+				# XXX Vivado 2014.X workaround, Vivado is not able to map correctly our L2 cache.
+				# Issue is reported to Xilinx and should be fixed in next releases (2015.1?).
+				# Remove this workaround when fixed by Xilinx.
+				from mibuild.xilinx.vivado import XilinxVivadoPlatform
+				if isinstance(self.platform, XilinxVivadoPlatform):
+					from migen.fhdl.simplify import FullMemoryWE
+					self.submodules.wishbone2lasmi = FullMemoryWE(wishbone2lasmi.WB2LASMI(self.l2_size//4, self.sdram.crossbar.get_master()))
+				else:
+					self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_size//4, self.sdram.crossbar.get_master())
 				lasmic = self.sdram.controller.lasmic
 				sdram_size = 2**lasmic.aw*lasmic.dw*lasmic.nbanks//8
 				self.register_mem("sdram", self.mem_map["sdram"], self.wishbone2lasmi.wishbone, sdram_size)
