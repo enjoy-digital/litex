@@ -96,7 +96,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		if not self.with_sdram:
+		if not self.with_main_ram:
 			sdram_geom = sdram.GeomSettings(
 				bank_a=2,
 				row_a=13,

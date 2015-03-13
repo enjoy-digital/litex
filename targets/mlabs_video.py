@@ -40,7 +40,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
 
-		if not self.with_sdram:
+		if not self.with_main_ram:
 			sdram_geom = sdram.GeomSettings(
 				bank_a=2,
 				row_a=13,

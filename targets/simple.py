@@ -10,7 +10,7 @@ class BaseSoC(SoC):
 		SoC.__init__(self, platform,
 			clk_freq=int((1/(platform.default_clk_period))*1000000000),
 			with_rom=True,
-			with_sdram=True, sdram_size=16*1024,
+			with_main_ram=True, main_ram_size=16*1024,
 			**kwargs)
 
 class MiniSoC(BaseSoC):

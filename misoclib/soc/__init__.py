@@ -39,7 +39,7 @@ class SoC(Module):
 							   cpu_boot_file="software/bios/bios.bin",
 				with_rom=False, rom_size=0x8000,
 				with_sram=True, sram_size=4096,
-				with_sdram=False, sdram_size=64*1024,
+				with_main_ram=False, main_ram_size=64*1024,
 				with_csr=True, csr_data_width=8, csr_address_width=14,
 				with_uart=True, uart_baudrate=115200,
 				with_identifier=True,
@@ -62,8 +62,8 @@ class SoC(Module):
 		self.with_sram = with_sram
 		self.sram_size = sram_size
 
-		self.with_sdram = with_sdram
-		self.sdram_size = sdram_size
+		self.with_main_ram = with_main_ram
+		self.main_ram_size = main_ram_size
 
 		self.with_uart = with_uart
 		self.uart_baudrate = uart_baudrate
@@ -98,9 +98,10 @@ class SoC(Module):
 				self.submodules.sram = wishbone.SRAM(sram_size)
 				self.register_mem("sram", self.mem_map["sram"], self.sram.bus, sram_size)
 
-			if with_sdram:
-				self.submodules.sdram = wishbone.SRAM(sdram_size)
-				self.register_mem("sdram", self.mem_map["sdram"], self.sdram.bus, sdram_size)
+			# Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
+			if with_main_ram:
+				self.submodules.main_ram = wishbone.SRAM(main_ram_size)
+				self.register_mem("sdram", self.mem_map["sdram"], self.main_ram.bus, main_ram_size)
 
 		elif cpu_or_bridge is not None and not isinstance(cpu_or_bridge, CPU):
 			self._wb_masters += [cpu_or_bridge.wishbone]
