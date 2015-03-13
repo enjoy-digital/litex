@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.xilinx import XilinxPlatform
 from mibuild.xilinx.programmer import XC3SProg
 
@@ -55,14 +54,7 @@ class Platform(XilinxPlatform):
 	default_clk_period = 31.25
 
 	def __init__(self):
-		XilinxPlatform.__init__(self, "xc6slx9-tqg144-2", _io,
-			lambda p: SimpleCRG(p, "clk32", None), _connectors)
+		XilinxPlatform.__init__(self, "xc6slx9-tqg144-2", _io, _connectors)
 
 	def create_programmer(self):
 		return XC3SProg("papilio", "bscan_spi_lx9_papilio.bit")
-
-	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk32"), 31.25)
-		except ConstraintError:
-			pass

@@ -94,5 +94,6 @@ class AlteraQuartusPlatform(GenericPlatform):
 		return vns
 
 	def add_period_constraint(self, clk, period):
+		# TODO: handle differential clk
 		self.add_platform_command("""set_global_assignment -name DUTY_CYCLE 50 -section_id {clk}""", clk=clk)
 		self.add_platform_command("""set_global_assignment -name FMAX_REQUIREMENT "{freq} MHz" -section_id {clk}\n""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)

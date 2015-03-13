@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx.common import CRG_DS
 from mibuild.xilinx import XilinxPlatform
 
 _io = [
@@ -56,11 +55,4 @@ class Platform(XilinxPlatform):
 	default_clk_period = 5
 
 	def __init__(self):
-		XilinxPlatform.__init__(self, "xc6vlx240t-ff1156-1", _io,
-			lambda p: CRG_DS(p, "clk200", "user_btn"))
-
-	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk200").p, 5)
-		except ConstraintError:
-			pass
+		XilinxPlatform.__init__(self, "xc6vlx240t-ff1156-1", _io)

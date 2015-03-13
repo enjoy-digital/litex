@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.xilinx import XilinxPlatform
 
 _io = [
@@ -107,8 +106,7 @@ class Platform(XilinxPlatform):
 	default_clk_period = 10
 	
 	def __init__(self):
-		XilinxPlatform.__init__(self, "xc6slx9-2csg324", _io,
-				lambda p: SimpleCRG(p, "clk_y3", "user_btn"))
+		XilinxPlatform.__init__(self, "xc6slx9-2csg324", _io)
 		self.add_platform_command("""
 CONFIG VCCAUX = "3.3";
 """)
@@ -118,10 +116,7 @@ promgen -w -spi -c FF -p mcs -o {build_name}.mcs -u 0 {build_name}.bit
 """
 
 	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk_y3"), 10)
-		except ConstraintError:
-			pass
+		XilinxPlatform.do_finalize(self, fragment)
 
 		try:
 			eth_clocks = self.lookup_request("eth_clocks")

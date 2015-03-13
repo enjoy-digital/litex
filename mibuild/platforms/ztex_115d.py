@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.xilinx import XilinxPlatform
 
 _io = [
@@ -86,17 +85,13 @@ class Platform(XilinxPlatform):
 	default_clk_period = 20
 
 	def __init__(self):
-		XilinxPlatform.__init__(self, "xc6slx150-3csg484", _io,
-				lambda p: SimpleCRG(p, "clk_if", "rst"))
+		XilinxPlatform.__init__(self, "xc6slx150-3csg484", _io)
 		self.add_platform_command("""
 CONFIG VCCAUX = "2.5";
 """)
 
 	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk_if"), 20)
-		except ConstraintError:
-			pass
+		XilinxPlatform.do_finalize(self, fragment)
 
 		try:
 			clk_if = self.lookup_request("clk_if")

@@ -3,6 +3,7 @@ import os, sys
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
 from migen.genlib.record import Record
+from migen.genlib.io import CRG
 from migen.fhdl import verilog, edif
 from migen.util.misc import autotype
 
@@ -177,10 +178,9 @@ class ConstraintManager:
 		return self.platform_commands
 
 class GenericPlatform:
-	def __init__(self, device, io, default_crg_factory=None, connectors=[], name=None):
+	def __init__(self, device, io, connectors=[], name=None):
 		self.device = device
 		self.constraint_manager = ConstraintManager(io, connectors)
-		self.default_crg_factory = default_crg_factory
 		if name is None:
 			name = self.__module__.split(".")[-1]
 		self.name = name
@@ -194,6 +194,9 @@ class GenericPlatform:
 	def lookup_request(self, *args, **kwargs):
 		return self.constraint_manager.lookup_request(*args, **kwargs)
 
+	def add_period_constraint(self, clk, period):
+		raise NotImplementedError
+
 	def add_platform_command(self, *args, **kwargs):
 		return self.constraint_manager.add_platform_command(*args, **kwargs)
 
@@ -205,17 +208,20 @@ class GenericPlatform:
 			raise ConstraintError("Already finalized")
 		# if none exists, create a default clock domain and drive it
 		if not fragment.clock_domains:
-			if self.default_crg_factory is None:
-				raise NotImplementedError("No clock/reset generator defined by either platform or user")
-			crg = self.default_crg_factory(self)
+			if not hasattr(self, "default_clk_name"):
+				raise NotImplementedError("No default clock and no clock domain defined")
+			crg = CRG(self.request(self.default_clk_name))
 			fragment += crg.get_fragment()
 		self.do_finalize(fragment, *args, **kwargs)
 		self.finalized = True
 
 	def do_finalize(self, fragment, *args, **kwargs):
-		"""overload this and e.g. add_platform_command()'s after the
-		modules had their say"""
-		pass
+		"""overload this and e.g. add_platform_command()'s after the modules had their say"""
+		if hasattr(self, "default_clk_period"):
+			try:
+				self.add_period_constraint(self.lookup_request(self.default_clk_name), self.default_clk_period)
+			except ConstraintError:
+				pass
 
 	def add_source(self, filename, language=None):
 		if language is None:

@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.sim.verilator import VerilatorPlatform
 
 class SimPins(Pins):

@@ -36,4 +36,6 @@ class XilinxPlatform(GenericPlatform):
 		return self.toolchain.build(self, *args, **kwargs)
 
 	def add_period_constraint(self, clk, period):
+		if hasattr(clk, "p"):
+			clk = clk.p
 		self.toolchain.add_period_constraint(self, clk, period)

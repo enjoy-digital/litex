@@ -1,8 +1,6 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer
 from mibuild.xilinx.ise import XilinxISEToolchain
-from mibuild.xilinx.common import CRG_DS
 
 _io = [
 	("user_led", 0, Pins("AB8"), IOStandard("LVCMOS15")),
@@ -383,9 +381,7 @@ class Platform(XilinxPlatform):
 	default_clk_period = 6.4
 
 	def __init__(self, toolchain="vivado", programmer="xc3sprog"):
-		XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, 
-			default_crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset"),
-			connectors=_connectors,
+		XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors,
 			toolchain=toolchain)
 		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
 		self.programmer = programmer
@@ -399,10 +395,7 @@ class Platform(XilinxPlatform):
 			raise ValueError("{} programmer is not supported".format(programmer))
 
 	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk156").p, 6.4)
-		except ConstraintError:
-			pass
+		XilinxPlatform.do_finalize(self, fragment)
 		try:
 			self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
 		except ConstraintError:

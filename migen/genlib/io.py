@@ -33,3 +33,22 @@ class DifferentialOutput(Special):
 	@staticmethod
 	def lower(dr):
 		raise NotImplementedError("Attempted to use a differential output, but platform does not support them")
+
+class CRG(Module):
+	def __init__(self, clk):
+		self.clock_domains.cd_sys = ClockDomain()
+		self.clock_domains.cd_por = ClockDomain(reset_less=True)
+
+		if hasattr(clk, "p"):
+			clk_se = Signal()
+			self.specials += DifferentialInput(clk.p, clk.n, clk_se)
+			clk = clk_se
+
+		# Power on Reset (vendor agnostic)
+		rst_n = Signal()
+		self.sync.por += rst_n.eq(1)
+		self.comb += [
+			self.cd_sys.clk.eq(clk),
+			self.cd_por.clk.eq(clk),
+			self.cd_sys.rst.eq(~rst_n)
+		]

@@ -2,7 +2,6 @@
 # License: BSD
 
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.altera.quartus import AlteraQuartusPlatform
 from mibuild.altera.programmer import USBBlaster
 
@@ -96,14 +95,7 @@ class Platform(AlteraQuartusPlatform):
 	default_clk_period = 20
 
 	def __init__(self):
-		AlteraQuartusPlatform.__init__(self, "EP4CE22F17C6", _io,
-			lambda p: SimpleCRG(p, "clk50", None))
+		AlteraQuartusPlatform.__init__(self, "EP4CE22F17C6", _io)
 
 	def create_programmer(self):
 		return USBBlaster()
-
-	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk50"), 20)
-		except ConstraintError:
-			pass

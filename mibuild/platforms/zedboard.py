@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.xilinx import XilinxPlatform
 
 # Bank 34 and 35 voltage depend on J18 jumper setting
@@ -142,11 +141,4 @@ class Platform(XilinxPlatform):
 	default_clk_period = 10
 
 	def __init__(self):
-		XilinxPlatform.__init__(self, "xc7z020-clg484-1", _io,
-			lambda p: SimpleCRG(p, "clk100", None))
-
-	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk100"), 10)
-		except ConstraintError:
-			pass
+		XilinxPlatform.__init__(self, "xc7z020-clg484-1", _io)

@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx.common import CRG_DS
 from mibuild.xilinx import XilinxPlatform
 
 _io = [
@@ -118,18 +117,11 @@ class Platform(XilinxPlatform):
 	default_clk_period = 15.625
 
 	def __init__(self):
-		XilinxPlatform.__init__(self, "xc3s1400a-ft256-4", _io,
-			lambda p: CRG_DS(p, "clk64", "reset_n", rst_invert=True))
+		XilinxPlatform.__init__(self, "xc3s1400a-ft256-4", _io)
 		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g UnusedPin:PullUp"
 
 	def do_finalize(self, fragment):
-		try:
-			self.add_platform_command("""
-NET "{clk64}" TNM_NET = "GRPclk64";
-TIMESPEC "TSclk64" = PERIOD "GRPclk64" 15.625 ns HIGH 50%;
-""", clk64=self.lookup_request("clk64"))
-		except ConstraintError:
-			pass
+		XilinxPlatform.do_finalize(self, fragment)
 
 		self.add_platform_command("""
 TIMESPEC TS_Pad2Pad = FROM PADS TO PADS 7 ns;

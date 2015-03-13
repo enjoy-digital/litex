@@ -1,5 +1,4 @@
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.xilinx import XilinxPlatform
 from mibuild.xilinx.programmer import UrJTAG
 
@@ -160,18 +159,14 @@ class Platform(XilinxPlatform):
 	default_clk_period = 20
 
 	def __init__(self):
-		XilinxPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
-			lambda p: SimpleCRG(p, "clk50", None))
+		XilinxPlatform.__init__(self, "xc6slx45-fgg484-2", _io)
 		self.add_platform_command("CONFIG VCCAUX=\"3.3\";\n")
 
 	def create_programmer(self):
 		return UrJTAG("fjmem-mixxeo.bit")
 
 	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("clk50"), 20)
-		except ConstraintError:
-			pass
+		XilinxPlatform.do_finalize(self, fragment)
 
 		try:
 			eth_clocks = self.lookup_request("eth_clocks")
