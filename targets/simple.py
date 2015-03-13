@@ -1,24 +1,9 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
-from migen.genlib.io import DifferentialInput
 
 from misoclib.soc import SoC, mem_decoder
 from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.mac import LiteEthMAC
-
-class _CRG(Module):
-	def __init__(self, clk_crg):
-		self.clock_domains.cd_sys = ClockDomain()
-		self.clock_domains.cd_por = ClockDomain(reset_less=True)
-
-		# Power on Reset (vendor agnostic)
-		rst_n = Signal()
-		self.sync.por += rst_n.eq(1)
-		self.comb += [
-			self.cd_sys.clk.eq(clk_crg),
-			self.cd_por.clk.eq(clk_crg),
-			self.cd_sys.rst.eq(~rst_n)
-		]
 
 class BaseSoC(SoC):
 	def __init__(self, platform, **kwargs):
@@ -27,13 +12,6 @@ class BaseSoC(SoC):
 			with_rom=True,
 			with_sdram=True, sdram_size=16*1024,
 			**kwargs)
-		clk_in = platform.request(platform.default_clk_name)
-		clk_crg = Signal()
-		if hasattr(clk_in, "p"):
-			self.specials += DifferentialInput(clk_in.p, clk_in.n, clk_crg)
-		else:
-			self.comb += clk_crg.eq(clk_in)
-		self.submodules.crg = _CRG(clk_crg)
 
 class MiniSoC(BaseSoC):
 	csr_map = {
