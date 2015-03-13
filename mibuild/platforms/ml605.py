@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.xilinx.common import CRG_DS
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _io = [
 	# System clock (Differential 200MHz)
@@ -51,11 +51,12 @@ _io = [
 	)
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk200"
 	default_clk_period = 5
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6vlx240t-ff1156-1", _io,
+		XilinxPlatform.__init__(self, "xc6vlx240t-ff1156-1", _io,
 			lambda p: CRG_DS(p, "clk200", "user_btn"))
 
 	def do_finalize(self, fragment):

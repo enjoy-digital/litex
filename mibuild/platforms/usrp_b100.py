@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.xilinx.common import CRG_DS
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _io = [
 		("clk64", 0,
@@ -113,13 +113,14 @@ _io = [
 ]
 
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk64"
 	default_clk_period = 15.625
-	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g UnusedPin:PullUp"
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc3s1400a-ft256-4", _io,
+		XilinxPlatform.__init__(self, "xc3s1400a-ft256-4", _io,
 			lambda p: CRG_DS(p, "clk64", "reset_n", rst_invert=True))
+		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g UnusedPin:PullUp"
 
 	def do_finalize(self, fragment):
 		try:

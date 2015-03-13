@@ -6,7 +6,7 @@ from migen.genlib.cordic import Cordic
 from mibuild.tools import mkdir_noerror
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 class CordicImpl(Module):
 	def __init__(self, name, **kwargs):
@@ -27,7 +27,7 @@ class CordicImpl(Module):
 	def build(self):
 		self.platform.build(self, build_name=self.name)
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	_io = [
 		("clk", 0, Pins("AB13")),
 		("rst", 0, Pins("V5")),
@@ -38,7 +38,7 @@ class Platform(XilinxISEPlatform):
 		),
 	]
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", self._io,
+		XilinxPlatform.__init__(self, "xc6slx45-fgg484-2", self._io,
 			lambda p: SimpleCRG(p, "clk", "rst"))
 
 if __name__ == "__main__":

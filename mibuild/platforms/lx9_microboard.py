@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _io = [
 		("user_btn", 0, Pins("V4"), IOStandard("LVCMOS33"),
@@ -102,19 +102,20 @@ _io = [
 		]
 
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk_y3"
 	default_clk_period = 10
-	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g SPI_buswidth:4"
-	ise_commands = """
-promgen -w -spi -c FF -p mcs -o {build_name}.mcs -u 0 {build_name}.bit
-"""
+	
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6slx9-2csg324", _io,
+		XilinxPlatform.__init__(self, "xc6slx9-2csg324", _io,
 				lambda p: SimpleCRG(p, "clk_y3", "user_btn"))
 		self.add_platform_command("""
 CONFIG VCCAUX = "3.3";
 """)
+		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g SPI_buswidth:4"
+		self.ise_commands = """
+promgen -w -spi -c FF -p mcs -o {build_name}.mcs -u 0 {build_name}.bit
+"""
 
 	def do_finalize(self, fragment):
 		try:
@@ -130,5 +131,5 @@ CONFIG VCCAUX = "3.3";
 TIMESPEC "TS{phy_tx_clk}_io" = FROM "GRP{phy_tx_clk}" TO "PADS" 10 ns;
 TIMESPEC "TS{phy_rx_clk}_io" = FROM "PADS" TO "GRP{phy_rx_clk}" 10 ns;
 """, phy_rx_clk=eth_clocks.rx, phy_tx_clk=eth_clocks.tx)
-		except ContraintError:
+		except ConstraintError:
 			pass

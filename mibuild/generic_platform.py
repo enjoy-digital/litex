@@ -285,3 +285,6 @@ class GenericPlatform:
 		argdict = dict((k, autotype(v)) for k, v in zip(*[iter(arg)]*2))
 		kwargs.update(argdict)
 		self.build(*args, **kwargs)
+
+	def create_programmer(self):
+		raise NotImplementedError

@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 from mibuild.xilinx.programmer import XC3SProg
 
 _io = [
@@ -49,12 +49,13 @@ _connectors = [
 	("C", "P114 P115 P116 P117 P118 P119 P120 P121 P123 P124 P126 P127 P131 P132 P133 P134")
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	identifier = 0x5050
 	default_clk_name = "clk32"
 	default_clk_period = 31.25
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6slx9-tqg144-2", _io,
+		XilinxPlatform.__init__(self, "xc6slx9-tqg144-2", _io,
 			lambda p: SimpleCRG(p, "clk32", None), _connectors)
 
 	def create_programmer(self):

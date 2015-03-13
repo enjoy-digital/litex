@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 # Bank 34 and 35 voltage depend on J18 jumper setting
 _io = [
@@ -137,11 +137,12 @@ _io = [
 ]
 
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk100"
 	default_clk_period = 10
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc7z020-clg484-1", _io,
+		XilinxPlatform.__init__(self, "xc7z020-clg484-1", _io,
 			lambda p: SimpleCRG(p, "clk100", None))
 
 	def do_finalize(self, fragment):

@@ -1,9 +1,8 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
+from mibuild.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer
+from mibuild.xilinx.ise import XilinxISEToolchain
 from mibuild.xilinx.common import CRG_DS
-from mibuild.xilinx.ise import XilinxISEPlatform
-from mibuild.xilinx.vivado import XilinxVivadoPlatform
-from mibuild.xilinx.programmer import XC3SProg, VivadoProgrammer
 
 _io = [
 	("user_led", 0, Pins("AB8"), IOStandard("LVCMOS15")),
@@ -378,47 +377,41 @@ _connectors = [
 	)
 ]
 
-def Platform(*args, toolchain="vivado", programmer="xc3sprog", **kwargs):
-	if toolchain == "ise":
-		xilinx_platform = XilinxISEPlatform
-	elif toolchain == "vivado":
-		xilinx_platform = XilinxVivadoPlatform
-	else:
-		raise ValueError
+class Platform(XilinxPlatform):
+	identifier = 0x4B37
+	default_clk_name = "clk156"
+	default_clk_period = 6.4
 
-	class RealPlatform(xilinx_platform):
-		identifier = 0x4B37
-		default_clk_name = "clk156"
-		default_clk_period = 6.4
-		bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
+	def __init__(self, toolchain="vivado", programmer="xc3sprog"):
+		XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, 
+			default_crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset"),
+			connectors=_connectors,
+			toolchain=toolchain)
+		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
+		self.programmer = programmer
 
-		def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk156", "cpu_reset")):
-			xilinx_platform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory, _connectors)
+	def create_programmer(self):
+		if self.programmer == "xc3sprog":
+			return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
+		elif self.programmer == "vivado":
+			return VivadoProgrammer()
+		else:
+			raise ValueError("{} programmer is not supported".format(programmer))
 
-		def create_programmer(self):
-			if programmer == "xc3sprog":
-				return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
-			elif programmer == "vivado":
-				return VivadoProgrammer()
-			else:
-				raise ValueError("{} programmer is not supported".format(programmer))
-
-		def do_finalize(self, fragment):
-			try:
-				self.add_period_constraint(self.lookup_request("clk156").p, 6.4)
-			except ConstraintError:
-				pass
-			try:
-				self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
-			except ConstraintError:
-				pass
-			try:
-				self.add_period_constraint(self.lookup_request("eth_clocks").rx, 8.0)
-			except ConstraintError:
-				pass
-			if isinstance(self, XilinxISEPlatform):
-				self.add_platform_command("CONFIG DCI_CASCADE = \"33 32 34\";")
-			else:
-				self.add_platform_command("set_property DCI_CASCADE {{32 34}} [get_iobanks 33]")
-
-	return RealPlatform(*args, **kwargs)
+	def do_finalize(self, fragment):
+		try:
+			self.add_period_constraint(self.lookup_request("clk156").p, 6.4)
+		except ConstraintError:
+			pass
+		try:
+			self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
+		except ConstraintError:
+			pass
+		try:
+			self.add_period_constraint(self.lookup_request("eth_clocks").rx, 8.0)
+		except ConstraintError:
+			pass
+		if isinstance(self.toolchain, XilinxISEToolchain):
+			self.add_platform_command("CONFIG DCI_CASCADE = \"33 32 34\";")
+		else:
+			self.add_platform_command("set_property DCI_CASCADE {{32 34}} [get_iobanks 33]")

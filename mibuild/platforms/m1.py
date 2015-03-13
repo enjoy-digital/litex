@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 from mibuild.xilinx.programmer import UrJTAG
 
 _io = [
@@ -118,12 +118,13 @@ _io = [
 	)
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	identifier = 0x4D31
 	default_clk_name = "clk50"
 	default_clk_period = 20
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
+		XilinxPlatform.__init__(self, "xc6slx45-fgg484-2", _io,
 			lambda p: SimpleCRG(p, "clk50", None))
 
 	def create_programmer(self):

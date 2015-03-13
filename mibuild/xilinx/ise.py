@@ -120,50 +120,51 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit
 	if r != 0:
 		raise OSError("Subprocess failed")
 
-class XilinxISEPlatform(common.XilinxGenericPlatform):
-	xst_opt = """-ifmt MIXED
+class XilinxISEToolchain:
+	def __init__(self):
+		self.xst_opt = """-ifmt MIXED
 -opt_mode SPEED
 -register_balancing yes"""
-	map_opt = "-ol high -w"
-	par_opt = "-ol high -w"
-	ngdbuild_opt = ""
-	bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w"
-	ise_commands = ""
+		self.map_opt = "-ol high -w"
+		self.par_opt = "-ol high -w"
+		self.ngdbuild_opt = ""
+		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w"
+		self.ise_commands = ""
 
-	def build(self, fragment, build_dir="build", build_name="top",
+	def build(self, platform, fragment, build_dir="build", build_name="top",
 			ise_path="/opt/Xilinx", source=True, run=True, mode="xst"):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
-		self.finalize(fragment)
+		platform.finalize(fragment)
 
 		ngdbuild_opt = self.ngdbuild_opt
 
 		vns = None
 
 		if mode == "xst" or mode == "yosys":
-			v_src, vns = self.get_verilog(fragment)
-			named_sc, named_pc = self.resolve_signals(vns)
+			v_src, vns = platform.get_verilog(fragment)
+			named_sc, named_pc = platform.resolve_signals(vns)
 			v_file = build_name + ".v"
 			tools.write_to_file(v_file, v_src)
-			sources = self.sources + [(v_file, "verilog")]
+			sources = platform.sources + [(v_file, "verilog")]
 			if mode == "xst":
-				_build_xst_files(self.device, sources, self.verilog_include_paths, build_name, self.xst_opt)
+				_build_xst_files(platform.device, sources, platform.verilog_include_paths, build_name, self.xst_opt)
 				isemode = "xst"
 			else:
-				_run_yosys(self.device, sources, self.verilog_include_paths, build_name)
+				_run_yosys(platform.device, sources, platform.verilog_include_paths, build_name)
 				isemode = "edif"
-				ngdbuild_opt += "-p " + self.device
+				ngdbuild_opt += "-p " + platform.device
 
 		if mode == "mist":
 			from mist import synthesize
-			synthesize(fragment, self.constraint_manager.get_io_signals())
+			synthesize(fragment, platform.constraint_manager.get_io_signals())
 
 		if mode == "edif" or mode == "mist":
-			e_src, vns = self.get_edif(fragment)
-			named_sc, named_pc = self.resolve_signals(vns)
+			e_src, vns = platform.get_edif(fragment)
+			named_sc, named_pc = platform.resolve_signals(vns)
 			e_file = build_name + ".edif"
 			tools.write_to_file(e_file, e_src)
 			isemode = "edif"
@@ -178,6 +179,6 @@ class XilinxISEPlatform(common.XilinxGenericPlatform):
 
 		return vns
 
-	def add_period_constraint(self, clk, period):
-		self.add_platform_command("""NET "{clk}" TNM_NET = "GRP{clk}";
+	def add_period_constraint(self, platform, clk, period):
+		platform.add_platform_command("""NET "{clk}" TNM_NET = "GRP{clk}";
 TIMESPEC "TS{clk}" = PERIOD "GRP{clk}" """+str(period)+""" ns HIGH 50%;""", clk=clk)

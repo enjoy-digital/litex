@@ -93,26 +93,25 @@ def _run_vivado(build_name, vivado_path, source, ver=None):
 	if r != 0:
 		raise OSError("Subprocess failed")
 
-class XilinxVivadoPlatform(common.XilinxGenericPlatform):
-	def __init__(self, *args, **kwargs):
-		common.XilinxGenericPlatform.__init__(self, *args, **kwargs)
+class XilinxVivadoToolchain:
+	def __init__(self):
 		self.bitstream_commands = []
 		self.additional_commands = []
 
-	def build(self, fragment, build_dir="build", build_name="top",
+	def build(self, platform, fragment, build_dir="build", build_name="top",
 			vivado_path="/opt/Xilinx/Vivado", source=True, run=True):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
-		self.finalize(fragment)
-		v_src, vns = self.get_verilog(fragment)
-		named_sc, named_pc = self.resolve_signals(vns)
+		platform.finalize(fragment)
+		v_src, vns = platform.get_verilog(fragment)
+		named_sc, named_pc = platform.resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
-		sources = self.sources + [(v_file, "verilog")]
-		_build_files(self.device, sources, self.verilog_include_paths, build_name,
+		sources = platform.sources + [(v_file, "verilog")]
+		_build_files(platform.device, sources, platform.verilog_include_paths, build_name,
 			self.bitstream_commands, self.additional_commands)
 		tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
 		if run:
@@ -122,6 +121,6 @@ class XilinxVivadoPlatform(common.XilinxGenericPlatform):
 
 		return vns
 
-	def add_period_constraint(self, clk, period):
-		self.add_platform_command("""create_clock -name {clk} -period """ +\
+	def add_period_constraint(self, platform, clk, period):
+		platform.add_platform_command("""create_clock -name {clk} -period """ + \
 			str(period) + """ [get_ports {clk}]""", clk=clk)

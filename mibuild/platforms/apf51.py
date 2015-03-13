@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _ios = [
 	("clk3", 0, Pins("N8"), IOStandard("LVCMOS33")),
@@ -168,11 +168,12 @@ _connectors = [
 			"None")  # 140 FPGA_BANK3_POWER
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk3"
 	default_clk_period = 10.526
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6slx9-2csg225", _ios,
+		XilinxPlatform.__init__(self, "xc6slx9-2csg225", _ios,
 			lambda p: SimpleCRG(p, "clk3", None), _connectors)
 
 	def do_finalize(self, fragment):
@@ -180,4 +181,3 @@ class Platform(XilinxISEPlatform):
 			self.add_period_constraint(self.lookup_request("clk3"), 10.526)
 		except ConstraintError:
 			pass
-

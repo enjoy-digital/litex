@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _io = [
 		("clk_fx", 0, Pins("L22"), IOStandard("LVCMOS33")),
@@ -81,11 +81,12 @@ _io = [
 
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
+	default_clk_name = "clk_if"
+	default_clk_period = 20
+
 	def __init__(self):
-		default_clk_name = "clk_if"
-		default_clk_period = 20
-		XilinxISEPlatform.__init__(self, "xc6slx150-3csg484", _io,
+		XilinxPlatform.__init__(self, "xc6slx150-3csg484", _io,
 				lambda p: SimpleCRG(p, "clk_if", "rst"))
 		self.add_platform_command("""
 CONFIG VCCAUX = "2.5";
@@ -108,5 +109,5 @@ TIMESPEC "TSclk_if" = PERIOD "GRPclk_if" 20 ns HIGH 50%;
 TIMESPEC "TSclk_fx2if" = FROM "GRPclk_fx" TO "GRPclk_if" 3 ns DATAPATHONLY;
 TIMESPEC "TSclk_if2fx" = FROM "GRPclk_if" TO "GRPclk_fx" 3 ns DATAPATHONLY;
 """, clk_if=clk_if, clk_fx=clk_fx)
-		except ContraintError:
+		except ConstraintError:
 			pass

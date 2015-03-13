@@ -1,5 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _io = [
 	("epb", 0,
@@ -28,6 +28,6 @@ _io = [
 	),
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc5vsx95t-ff1136-1", _io)
+		XilinxPlatform.__init__(self, "xc5vsx95t-ff1136-1", _io)

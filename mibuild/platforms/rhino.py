@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.xilinx.common import CRG_DS
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _io = [
 	("user_led", 0, Pins("Y3")),
@@ -133,11 +133,12 @@ _io = [
 	)
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk100"
 	default_clk_period = 10
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc6slx150t-fgg676-3", _io,
+		XilinxPlatform.__init__(self, "xc6slx150t-fgg676-3", _io,
 			lambda p: CRG_DS(p, "clk100", "gpio"))
 
 	def do_finalize(self, fragment):

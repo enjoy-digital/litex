@@ -1,6 +1,6 @@
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 
 _ios = [
 	("clk0", 0, Pins("N9"), IOStandard("LVCMOS18")),
@@ -141,11 +141,12 @@ _connectors = [
 		"None")  # 116 USBH2_CLK USB_HOST2 +2V5 PA0
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk0"
 	default_clk_period = 10
+
 	def __init__(self):
-		XilinxISEPlatform.__init__(self, "xc3s200a-ft256-4", _ios,
+		XilinxPlatform.__init__(self, "xc3s200a-ft256-4", _ios,
 			lambda p: SimpleCRG(p, "clk0", None), _connectors)
 
 	def do_finalize(self, fragment):

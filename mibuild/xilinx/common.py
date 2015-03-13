@@ -4,9 +4,6 @@ from distutils.version import StrictVersion
 from migen.fhdl.std import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.genlib.cdc import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.io import *
-from mibuild.generic_platform import GenericPlatform
 from mibuild import tools
 
 def settings(path, ver=None, sub=None):
@@ -30,7 +27,7 @@ def settings(path, ver=None, sub=None):
 		if os.path.exists(settings):
 			return settings
 
-	raise ValueError("no settings file found")
+	raise OSError("no settings file found")
 
 class CRG_DS(Module):
 	def __init__(self, platform, clk_name, rst_name, rst_invert=False):
@@ -100,20 +97,3 @@ class XilinxDifferentialOutput:
 	@staticmethod
 	def lower(dr):
 		return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
-
-class XilinxGenericPlatform(GenericPlatform):
-	bitstream_ext = ".bit"
-
-	def get_verilog(self, *args, special_overrides=dict(), **kwargs):
-		so = {
-			NoRetiming:					XilinxNoRetiming,
-			MultiReg:					XilinxMultiReg,
-			AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer,
-			DifferentialInput:			XilinxDifferentialInput,
-			DifferentialOutput:			XilinxDifferentialOutput,
-		}
-		so.update(special_overrides)
-		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
-
-	def get_edif(self, fragment, **kwargs):
-		return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)
