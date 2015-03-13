@@ -53,8 +53,8 @@ class SDRAMSoC(SoC):
 				# XXX Vivado 2014.X workaround, Vivado is not able to map correctly our L2 cache.
 				# Issue is reported to Xilinx and should be fixed in next releases (2015.1?).
 				# Remove this workaround when fixed by Xilinx.
-				from mibuild.xilinx.vivado import XilinxVivadoPlatform
-				if isinstance(self.platform, XilinxVivadoPlatform):
+				from mibuild.xilinx.vivado import XilinxVivadoToolchain
+				if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
 					from migen.fhdl.simplify import FullMemoryWE
 					self.submodules.wishbone2lasmi = FullMemoryWE(wishbone2lasmi.WB2LASMI(self.l2_size//4, self.sdram.crossbar.get_master()))
 				else:
