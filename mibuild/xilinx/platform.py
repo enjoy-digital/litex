@@ -1,7 +1,3 @@
-from migen.genlib.cdc import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.io import *
-
 from mibuild.generic_platform import GenericPlatform
 from mibuild.xilinx import common, vivado, ise
 
@@ -18,19 +14,12 @@ class XilinxPlatform(GenericPlatform):
 			raise ValueError("Unknown toolchain")
 
 	def get_verilog(self, *args, special_overrides=dict(), **kwargs):
-		so = {
-			NoRetiming:					common.XilinxNoRetiming,
-			MultiReg:					common.XilinxMultiReg,
-			AsyncResetSynchronizer:		common.XilinxAsyncResetSynchronizer,
-			DifferentialInput:			common.XilinxDifferentialInput,
-			DifferentialOutput:			common.XilinxDifferentialOutput,
-		}
+		so = dict(common.xilinx_special_overrides)
 		so.update(special_overrides)
 		return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
 
 	def get_edif(self, fragment, **kwargs):
 		return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)
-
 
 	def build(self, *args, **kwargs):
 		return self.toolchain.build(self, *args, **kwargs)

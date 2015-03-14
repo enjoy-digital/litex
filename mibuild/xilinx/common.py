@@ -4,6 +4,8 @@ from distutils.version import StrictVersion
 from migen.fhdl.std import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.genlib.cdc import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.io import *
 from mibuild import tools
 
 def settings(path, ver=None, sub=None):
@@ -81,3 +83,11 @@ class XilinxDifferentialOutput:
 	@staticmethod
 	def lower(dr):
 		return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
+
+xilinx_special_overrides = {
+	NoRetiming:					XilinxNoRetiming,
+	MultiReg:					XilinxMultiReg,
+	AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer,
+	DifferentialInput:			XilinxDifferentialInput,
+	DifferentialOutput:			XilinxDifferentialOutput,
+}
