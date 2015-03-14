@@ -202,6 +202,9 @@ class TransformModule:
 	def __init__(self, transform, module):
 		self.transform = transform
 		self.module = module
+		self.get_fragment_called = False
 
 	def get_fragment(self):
+		assert(not self.get_fragment_called)
+		self.get_fragment_called = True
 		return self.transform(self.module.get_fragment())

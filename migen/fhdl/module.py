@@ -83,8 +83,8 @@ class _ModuleClockDomains(_ModuleProxy, _ModuleForwardAttr):
 
 class Module:
 	def get_fragment(self):
-		assert(not self._get_fragment_called)
-		self._get_fragment_called = True
+		assert(not self.get_fragment_called)
+		self.get_fragment_called = True
 		self.finalize()
 		return self._fragment
 
@@ -127,9 +127,9 @@ class Module:
 		elif name == "_clock_domains":
 			self._clock_domains = []
 			return self._clock_domains
-		elif name == "_get_fragment_called":
-			self._get_fragment_called = False
-			return self._get_fragment_called
+		elif name == "get_fragment_called":
+			self.get_fragment_called = False
+			return self.get_fragment_called
 
 		else:
 			raise AttributeError("'"+self.__class__.__name__+"' object has no attribute '"+name+"'")
@@ -144,7 +144,7 @@ class Module:
 	def _collect_submodules(self):
 		r = []
 		for name, submodule in self._submodules:
-			if not submodule._get_fragment_called:
+			if not submodule.get_fragment_called:
 				r.append((name, submodule.get_fragment()))
 		return r
 
