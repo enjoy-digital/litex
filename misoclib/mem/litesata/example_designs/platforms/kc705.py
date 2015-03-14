@@ -12,16 +12,9 @@ _sata_io = [
 	)
 ]
 
-class SpecializedPlatform:
-	def __init__(self, platform):
-		self._platform = platform
-
-	def __getattr__(self, name):
-		return getattr(self._platform, name)
-
-class Platform(SpecializedPlatform):
+class Platform(kc705.Platform):
 	def __init__(self, *args, **kwargs):
-		SpecializedPlatform.__init__(self, kc705.Platform(*args, **kwargs))
+		kc705.Platform.__init__(self, *args, **kwargs)
 		self.add_extension(_sata_io)
 
 	def do_finalize(self, fragment):
