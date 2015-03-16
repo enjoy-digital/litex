@@ -17,6 +17,15 @@ _io = [
 	("user_led", 6, Pins("AB20"), IOStandard("LVCMOS33")),
 	("user_led", 7, Pins("AA20"), IOStandard("LVCMOS33")),
 
+	("user_dip_btn", 0, Pins("J7"), IOStandard("LVCMOS15")),
+	("user_dip_btn", 1, Pins("J6"), IOStandard("LVCMOS15")),
+	("user_dip_btn", 2, Pins("H2"), IOStandard("LVCMOS15")),
+	("user_dip_btn", 3, Pins("H3"), IOStandard("LVCMOS15")),
+	("user_dip_btn", 4, Pins("J3"), IOStandard("LVCMOS15")),
+	("user_dip_btn", 5, Pins("K3"), IOStandard("LVCMOS15")),
+	("user_dip_btn", 6, Pins("J2"), IOStandard("LVCMOS15")),
+	("user_dip_btn", 7, Pins("J1"), IOStandard("LVCMOS15")),
+
 	("serial", 0,
 		Subsignal("tx", Pins("B11"), IOStandard("LVCMOS33")), # X4 IO0
 		Subsignal("rx", Pins("B12"), IOStandard("LVCMOS33")), # X4 IO1
