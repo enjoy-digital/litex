@@ -52,3 +52,40 @@ class CRG(Module):
 			self.cd_por.clk.eq(clk),
 			self.cd_sys.rst.eq(~rst_n)
 		]
+
+class DDRInput(Special):
+	def __init__(self, i, o1, o2, clk=ClockSignal()):
+		Special.__init__(self)
+		self.i = i
+		self.o1 = o1
+		self.o2 = o2
+		self.clk = clk
+
+	def iter_expressions(self):
+		yield self, "i", SPECIAL_INPUT
+		yield self, "o1", SPECIAL_OUTPUT
+		yield self, "o2", SPECIAL_OUTPUT
+		yield self, "clk", SPECIAL_INPUT
+
+	@staticmethod
+	def lower(dr):
+		raise NotImplementedError("Attempted to use a DDR input, but platform does not support them")
+
+class DDROutput(Special):
+	def __init__(self, i1, i2, o, clk=ClockSignal()):
+		Special.__init__(self)
+		self.i1 = i1
+		self.i2 = i2
+		self.o = o
+		self.clk = clk
+
+	def iter_expressions(self):
+		yield self, "i1", SPECIAL_INPUT
+		yield self, "i2", SPECIAL_INPUT
+		yield self, "o", SPECIAL_OUTPUT
+		yield self, "clk", SPECIAL_INPUT
+
+	@staticmethod
+	def lower(dr):
+		raise NotImplementedError("Attempted to use a DDR output, but platform does not support them")
+
