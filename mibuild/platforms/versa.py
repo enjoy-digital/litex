@@ -30,6 +30,46 @@ _io = [
 		Subsignal("tx", Pins("B11"), IOStandard("LVCMOS33")), # X4 IO0
 		Subsignal("rx", Pins("B12"), IOStandard("LVCMOS33")), # X4 IO1
 	),
+
+	("eth_clocks", 0,
+		Subsignal("tx", Pins("C12")),
+		Subsignal("gtx", Pins("M2")),
+		Subsignal("rx", Pins("L4")),
+		IOStandard("LVCMOS33")
+	),
+	("eth", 0,
+		Subsignal("rst_n", Pins("L3")),
+		Subsignal("mdio", Pins("L2")),
+		Subsignal("mdc", Pins("V4")),
+		Subsignal("dv", Pins("M1")),
+		Subsignal("rx_er", Pins("M4")),
+		Subsignal("rx_data", Pins("M5 N1 N6 P6 T2 R2 P5 P3")),
+		Subsignal("tx_en", Pins("V3")),
+		Subsignal("tx_data", Pins("V1 U1 R3 P1 N5 N3 N4 N2")),
+		Subsignal("col", Pins("R1")),
+		Subsignal("crs", Pins("P4")),
+		IOStandard("LVCMOS33")
+	),
+
+	("eth_clocks", 1,
+		Subsignal("tx", Pins("M21")),
+		Subsignal("gtx", Pins("M19")),
+		Subsignal("rx", Pins("N19")),
+		IOStandard("LVCMOS33")
+	),
+	("eth", 1,
+		Subsignal("rst_n", Pins("R21")),
+		Subsignal("mdio", Pins("U16")),
+		Subsignal("mdc", Pins("Y18")),
+		Subsignal("dv", Pins("U15")),
+		Subsignal("rx_er", Pins("V20")),
+		Subsignal("rx_data", Pins("AB17 AA17 R19 V21 T17 R18 W21 Y21")),
+		Subsignal("tx_en", Pins("V22")),
+		Subsignal("tx_data", Pins("W22 R16 P17 Y22 T21 U22 P20 U20")),
+		Subsignal("col", Pins("N18")),
+		Subsignal("crs", Pins("P19")),
+		IOStandard("LVCMOS33")
+	),
 ]
 
 class Platform(LatticePlatform):
