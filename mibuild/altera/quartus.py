@@ -5,7 +5,9 @@ import os, subprocess
 
 from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
+
 from mibuild import tools
+from mibuild.xilinx import common
 
 def _format_constraint(c):
 	if isinstance(c, Pins):
@@ -69,23 +71,22 @@ quartus_sta {build_name} -c {build_name}
 	if r != 0:
 		raise OSError("Subprocess failed")
 
-class AlteraQuartusPlatform(GenericPlatform):
-	bitstream_ext = ".sof"
-	def build(self, fragment, build_dir="build", build_name="top",
+class AlteraQuartusToolchain:
+	def build(self, platform, fragment, build_dir="build", build_name="top",
 			quartus_path="/opt/Altera", run=True):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
-		self.finalize(fragment)
+		platform.finalize(fragment)
 
-		v_src, vns = self.get_verilog(fragment)
-		named_sc, named_pc = self.resolve_signals(vns)
+		v_src, vns = platform.get_verilog(fragment)
+		named_sc, named_pc = platform.resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
-		sources = self.sources + [(v_file, "verilog")]
-		_build_files(self.device, sources, self.verilog_include_paths, named_sc, named_pc, build_name)
+		sources = platform.sources + [(v_file, "verilog")]
+		_build_files(platform.device, sources, platform.verilog_include_paths, named_sc, named_pc, build_name)
 		if run:
 			_run_quartus(build_name, quartus_path)
 
@@ -93,7 +94,7 @@ class AlteraQuartusPlatform(GenericPlatform):
 
 		return vns
 
-	def add_period_constraint(self, clk, period):
+	def add_period_constraint(self, platform, clk, period):
 		# TODO: handle differential clk
-		self.add_platform_command("""set_global_assignment -name DUTY_CYCLE 50 -section_id {clk}""", clk=clk)
-		self.add_platform_command("""set_global_assignment -name FMAX_REQUIREMENT "{freq} MHz" -section_id {clk}\n""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
+		platform.add_platform_command("""set_global_assignment -name DUTY_CYCLE 50 -section_id {clk}""", clk=clk)
+		platform.add_platform_command("""set_global_assignment -name FMAX_REQUIREMENT "{freq} MHz" -section_id {clk}\n""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)

@@ -2,7 +2,7 @@
 # License: BSD
 
 from mibuild.generic_platform import *
-from mibuild.altera.quartus import AlteraQuartusPlatform
+from mibuild.altera import AlteraPlatform
 from mibuild.altera.programmer import USBBlaster
 
 _io = [
@@ -90,12 +90,12 @@ _io = [
 	),
 ]
 
-class Platform(AlteraQuartusPlatform):
+class Platform(AlteraPlatform):
 	default_clk_name = "clk50"
 	default_clk_period = 20
 
 	def __init__(self):
-		AlteraQuartusPlatform.__init__(self, "EP4CE22F17C6", _io)
+		AlteraPlatform.__init__(self, "EP4CE22F17C6", _io)
 
 	def create_programmer(self):
 		return USBBlaster()
