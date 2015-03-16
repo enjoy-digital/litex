@@ -1,3 +1,5 @@
+from migen.genlib.io import DDROutput
+
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
@@ -32,23 +34,17 @@ class LiteEthPHYGMIIRX(Module):
 		]
 		self.comb += source.eop.eq(eop)
 
-# CRG is the only Xilinx specific module.
-# TODO: use generic code or add support for others vendors
 class LiteEthPHYGMIICRG(Module, AutoCSR):
 	def __init__(self, clock_pads, pads, with_hw_init_reset):
 		self._reset = CSRStorage()
 		###
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
-		self.specials += [
-			Instance("ODDR",
-				p_DDR_CLK_EDGE="SAME_EDGE",
-				i_C=ClockSignal("eth_tx"), i_CE=1, i_S=0, i_R=0,
-				i_D1=1, i_D2=0, o_Q=clock_pads.gtx,
-			),
-			Instance("BUFG", i_I=clock_pads.rx, o_O=self.cd_eth_rx.clk),
+		self.specials += DDROutput(1, 0, clock_pads.gtx, ClockSignal("eth_tx"))
+		self.comb += [
+			self.cd_eth_rx.clk.eq(clock_pads.rx),		# Let the synthesis tool insert
+			self.cd_eth_tx.clk.eq(self.cd_eth_rx.clk)	# the appropriate clock buffer
 		]
-		self.comb += self.cd_eth_tx.clk.eq(self.cd_eth_rx.clk)
 
 		if with_hw_init_reset:
 			reset = Signal()
