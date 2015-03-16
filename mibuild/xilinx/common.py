@@ -84,10 +84,24 @@ class XilinxDifferentialOutput:
 	def lower(dr):
 		return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+class XilinxDDROutputImpl(Module):
+	def __init__(self, i1, i2, o, clk):
+		self.specials += Instance("ODDR",
+				p_DDR_CLK_EDGE="SAME_EDGE",
+				i_C=clk, i_CE=1, i_S=0, i_R=0,
+				i_D1=i1, i_D2=i2, o_Q=o,
+		)
+
+class XilinxDDROutput:
+	@staticmethod
+	def lower(dr):
+		return XilinxDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
 xilinx_special_overrides = {
 	NoRetiming:					XilinxNoRetiming,
 	MultiReg:					XilinxMultiReg,
 	AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer,
 	DifferentialInput:			XilinxDifferentialInput,
 	DifferentialOutput:			XilinxDifferentialOutput,
+	DDROutput:					XilinxDDROutput
 }
