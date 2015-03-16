@@ -276,11 +276,19 @@ def _printinit(f, ios, ns):
 		- ios \
 		- list_targets(f) \
 		- list_special_ios(f, False, True, True)
+	wires = (_list_comb_wires(f) | list_special_ios(f, True, False, False)) \
+		- ios \
+		- list_targets(f) \
+		- list_special_ios(f, False, True, True)
 	if signals:
-		r += "initial begin\n"
 		for s in sorted(signals, key=lambda x: x.huid):
-			r += "\t" + ns.get_name(s) + " <= " + _printexpr(ns, s.reset)[0] + ";\n"
-		r += "end\n\n"
+			if s in wires:
+				r += "assign" + ns.get_name(s) + " = " + _printexpr(ns, s.reset)[0] + ";\n"
+		r += "always @(*) begin\n"
+		for s in sorted(signals, key=lambda x: x.huid):
+			if s not in wires:
+				r += "\t" + ns.get_name(s) + " <= " + _printexpr(ns, s.reset)[0] + ";\n"
+		r += "end\n"
 	return r
 
 def convert(f, ios=None, name="top",
