@@ -2,7 +2,7 @@
 # License: BSD
 
 from mibuild.generic_platform import *
-from mibuild.lattice.diamond import LatticeDiamondPlatform
+from mibuild.lattice import LatticePlatform
 from mibuild.lattice.programmer import LatticeProgrammer
 
 _io = [
@@ -23,12 +23,12 @@ _io = [
 	),
 ]
 
-class Platform(LatticeDiamondPlatform):
+class Platform(LatticePlatform):
 	default_clk_name = "clk100"
 	default_clk_period = 10
 
 	def __init__(self):
-		LatticeDiamondPlatform.__init__(self, "LFE3-35EA-6FN484C", _io)
+		LatticePlatform.__init__(self, "LFE3-35EA-6FN484C", _io)
 
 	def create_programmer(self):
 		return LatticeProgrammer()

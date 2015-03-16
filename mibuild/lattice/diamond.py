@@ -5,7 +5,9 @@ import os, subprocess, shutil
 
 from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
+
 from mibuild import tools
+from mibuild.lattice import common
 
 def _format_constraint(c):
 	if isinstance(c, Pins):
@@ -61,23 +63,22 @@ def _run_diamond(build_name, source, ver=None):
 	if r != 0:
 		raise OSError("Subprocess failed")
 
-class LatticeDiamondPlatform(GenericPlatform):
-	bitstream_ext = ".bit"
-	def build(self, fragment, build_dir="build", build_name="top",
+class LatticeDiamondToolchain:
+	def build(self, platform, fragment, build_dir="build", build_name="top",
 			diamond_path="/opt/Diamond", run=True):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
-		self.finalize(fragment)
+		platform.finalize(fragment)
 
-		v_src, vns = self.get_verilog(fragment)
-		named_sc, named_pc = self.resolve_signals(vns)
+		v_src, vns = platform.get_verilog(fragment)
+		named_sc, named_pc = platform.resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
-		sources = self.sources + [(v_file, "verilog")]
-		_build_files(self.device, sources, self.verilog_include_paths, build_name)
+		sources = platform.sources + [(v_file, "verilog")]
+		_build_files(platform.device, sources, platform.verilog_include_paths, build_name)
 
 		tools.write_to_file(build_name + ".lpf", _build_lpf(named_sc, named_pc))
 
@@ -88,6 +89,6 @@ class LatticeDiamondPlatform(GenericPlatform):
 
 		return vns
 
-	def add_period_constraint(self, clk, period):
+	def add_period_constraint(self, platform, clk, period):
 		# TODO: handle differential clk
-		self.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
+		platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
