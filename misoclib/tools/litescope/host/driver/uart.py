@@ -15,7 +15,8 @@ class LiteScopeUARTDriver:
 		self.baudrate = str(baudrate)
 		self.debug = debug
 		self.uart = serial.Serial(port, baudrate, timeout=0.25)
-		self.regs = build_map(addrmap, busword, self.read, self.write)
+		if addrmap is not None:
+			self.regs = build_map(addrmap, busword, self.read, self.write)
 
 	def open(self):
 		self.uart.flushOutput()

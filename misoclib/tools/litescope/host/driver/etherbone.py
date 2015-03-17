@@ -11,7 +11,8 @@ class LiteScopeEtherboneDriver:
 
 		self.tx_sock = None
 		self.rx_sock = None
-		self.regs = build_map(addrmap, busword, self.read, self.write)
+		if addrmap is not None:
+			self.regs = build_map(addrmap, busword, self.read, self.write)
 
 	def open(self):
 		self.tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
