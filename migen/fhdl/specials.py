@@ -89,7 +89,7 @@ class Instance(Special):
 	class PreformattedParam(str):
 		pass
 
-	def __init__(self, of, *items, name="", **kwargs):
+	def __init__(self, of, *items, name="", synthesis_directive=None, **kwargs):
 		Special.__init__(self)
 		self.of = of
 		if name:
@@ -97,6 +97,7 @@ class Instance(Special):
 		else:
 			self.name_override = of
 		self.items = list(items)
+		self.synthesis_directive = synthesis_directive
 		for k, v in sorted(kwargs.items(), key=itemgetter(0)):
 			item_type, item_name = k.split("_", maxsplit=1)
 			item_class = {
@@ -159,7 +160,11 @@ class Instance(Special):
 				r += "\t." + name_inst + "(" + name_design + ")"
 		if not firstp:
 			r += "\n"
-		r += ");\n\n"
+		if instance.synthesis_directive is not None:
+			synthesis_directive = "/* synthesis {} */".format(instance.synthesis_directive)
+			r += ")" + synthesis_directive + ";\n\n"
+		else:
+			r += ");\n\n"
 		return r
 
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
