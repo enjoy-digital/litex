@@ -1,6 +1,8 @@
 from migen.fhdl.std import *
 from migen.genlib.io import *
 
+from migen.genlib.resetsync import AsyncResetSynchronizer
+
 class LatticeAsyncResetSynchronizerImpl(Module):
 	def __init__(self, cd, async_reset):
 		rst1 = Signal()
@@ -18,8 +20,9 @@ class LatticeAsyncResetSynchronizer:
 
 class LatticeDDROutputImpl(Module):
 	def __init__(self, i1, i2, o, clk):
-		self.specials += Instance("ODDRA",
-				i_CLK=clk, i_RST=0,
+		self.specials += Instance("ODDRXD1",
+				synthesis_directive="ODDRAPPS=\"SCLK_ALIGNED\"",
+				i_SCLK=clk,
 				i_DA=i1, i_DB=i2, o_Q=o,
 		)
 
