@@ -38,7 +38,7 @@ all             clean, build-csr-csv, build-bitstream, load-bitstream.
 	parser.add_argument("-s", "--sub-target", default="", help="variant of the Core type to build")
 	parser.add_argument("-p", "--platform", default=None, help="platform to build for")
 	parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
-	parser.add_argument("-Op", "--platform-option", default=[("programmer", "vivado")], nargs=2, action="append", help="set platform-specific option")
+	parser.add_argument("-Op", "--platform-option", default=[], nargs=2, action="append", help="set platform-specific option")
 	parser.add_argument("--csr_csv", default="./test/csr.csv", help="CSV file to save the CSR map into")
 
 	parser.add_argument("action", nargs="+", help="specify an action")
