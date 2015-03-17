@@ -7,6 +7,7 @@ from mibuild.lattice.programmer import LatticeProgrammer
 
 _io = [
 	("clk100", 0, Pins("L5"), IOStandard("LVDS25")),
+	("rst_n", 0, Pins("A21"),IOStandard("LVCMOS33")),
 
 	("user_led", 0, Pins("Y20"), IOStandard("LVCMOS33")),
 	("user_led", 1, Pins("AA21"), IOStandard("LVCMOS33")),
