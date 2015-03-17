@@ -1,5 +1,6 @@
 from migen.bus import wishbone
 from migen.bank.description import *
+from migen.genlib.io import CRG
 
 from misoclib.soc import SoC
 from misoclib.tools.litescope.common import *
@@ -11,20 +12,6 @@ from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
 from misoclib.com.liteeth.core import LiteEthUDPIPCore
-
-class _CRG(Module):
-	def __init__(self, clk_in):
-		self.clock_domains.cd_sys = ClockDomain()
-		self.clock_domains.cd_por = ClockDomain(reset_less=True)
-
-		# Power on Reset (vendor agnostic)
-		rst_n = Signal()
-		self.sync.por += rst_n.eq(1)
-		self.comb += [
-			self.cd_sys.clk.eq(clk_in),
-			self.cd_por.clk.eq(clk_in),
-			self.cd_sys.rst.eq(~rst_n)
-		]
 
 class BaseSoC(SoC, AutoCSR):
 	csr_map = {
@@ -44,8 +31,7 @@ class BaseSoC(SoC, AutoCSR):
 			with_identifier=True,
 			with_timer=False
 		)
-		clk_in = platform.request(platform.default_clk_name)
-		self.submodules.crg = _CRG(clk_in if not hasattr(clk_in, "p") else clk_in.p)
+		self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 
 		# wishbone SRAM (to test Wishbone over UART and Etherbone)
 		self.submodules.sram = wishbone.SRAM(1024)
