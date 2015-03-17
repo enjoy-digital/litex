@@ -7,7 +7,7 @@ from mibuild.lattice.programmer import LatticeProgrammer
 
 _io = [
 	("clk100", 0, Pins("L5"), IOStandard("LVDS25")),
-	("rst_n", 0, Pins("A21"),IOStandard("LVCMOS33")),
+	("rst_n", 0, Pins("A21"), IOStandard("LVCMOS33")),
 
 	("user_led", 0, Pins("Y20"), IOStandard("LVCMOS33")),
 	("user_led", 1, Pins("AA21"), IOStandard("LVCMOS33")),
@@ -79,6 +79,13 @@ class Platform(LatticePlatform):
 
 	def __init__(self):
 		LatticePlatform.__init__(self, "LFE3-35EA-6FN484C", _io)
-
+		try:
+			self.add_period_constraint(self.lookup_request("eth_clocks", 0).rx, 8.0)
+		except ConstraintError:
+			pass
+		try:
+			self.add_period_constraint(self.lookup_request("eth_clocks", 1).rx, 8.0)
+		except ConstraintError:
+			pass
 	def create_programmer(self):
 		return LatticeProgrammer()
