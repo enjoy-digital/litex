@@ -35,7 +35,7 @@ class DifferentialOutput(Special):
 		raise NotImplementedError("Attempted to use a differential output, but platform does not support them")
 
 class CRG(Module):
-	def __init__(self, clk):
+	def __init__(self, clk, rst=Signal()):
 		self.clock_domains.cd_sys = ClockDomain()
 		self.clock_domains.cd_por = ClockDomain(reset_less=True)
 
@@ -46,7 +46,7 @@ class CRG(Module):
 
 		# Power on Reset (vendor agnostic)
 		rst_n = Signal()
-		self.sync.por += rst_n.eq(1)
+		self.sync.por += rst_n.eq(1 & ~rst)
 		self.comb += [
 			self.cd_sys.clk.eq(clk),
 			self.cd_por.clk.eq(clk),
