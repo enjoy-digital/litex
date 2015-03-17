@@ -1,4 +1,5 @@
 from migen.bank.description import *
+from migen.genlib.io import CRG
 
 from misoclib.soc import SoC
 from misoclib.tools.litescope.common import *
@@ -6,20 +7,6 @@ from misoclib.tools.litescope.bridge.uart2wb import LiteScopeUART2WB
 from misoclib.tools.litescope.frontend.io import LiteScopeIO
 from misoclib.tools.litescope.frontend.la import LiteScopeLA
 from misoclib.tools.litescope.core.port import LiteScopeTerm
-
-class _CRG(Module):
-	def __init__(self, clk_in):
-		self.clock_domains.cd_sys = ClockDomain()
-		self.clock_domains.cd_por = ClockDomain(reset_less=True)
-
-		# Power on Reset (vendor agnostic)
-		rst_n = Signal()
-		self.sync.por += rst_n.eq(1)
-		self.comb += [
-			self.cd_sys.clk.eq(clk_in),
-			self.cd_por.clk.eq(clk_in),
-			self.cd_sys.rst.eq(~rst_n)
-		]
 
 class LiteScopeSoC(SoC, AutoCSR):
 	csr_map = {
@@ -37,8 +24,7 @@ class LiteScopeSoC(SoC, AutoCSR):
 			with_identifier=True,
 			with_timer=False
 		)
-		clk_in = platform.request(platform.default_clk_name)
-		self.submodules.crg = _CRG(clk_in if not hasattr(clk_in, "p") else clk_in.p)
+		self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 
 		self.submodules.io = LiteScopeIO(8)
 		for i in range(8):
