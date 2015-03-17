@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
+from migen.genlib.io import CRG
 
 from misoclib.soc import SoC, mem_decoder
 from misoclib.com.liteeth.phy import LiteEthPHY
@@ -12,6 +13,7 @@ class BaseSoC(SoC):
 			with_rom=True,
 			with_main_ram=True, main_ram_size=16*1024,
 			**kwargs)
+		self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 
 class MiniSoC(BaseSoC):
 	csr_map = {
