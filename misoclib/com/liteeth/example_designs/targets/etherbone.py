@@ -13,7 +13,7 @@ class EtherboneSoC(BaseSoC):
 	def __init__(self, platform):
 		BaseSoC.__init__(self, platform,
 			mac_address=0x10e2d5000000,
-			ip_address="192.168.1.40")
+			ip_address="192.168.0.42")
 		self.submodules.etherbone = LiteEthEtherbone(self.core.udp, 20000)
 		self.add_wb_master(self.etherbone.master.bus)
 

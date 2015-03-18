@@ -12,7 +12,7 @@ def main(wb):
 	packet = EtherbonePacket()
 	packet.pf = 1
 	packet.encode()
-	sock.sendto(bytes(packet), ("192.168.1.40", 20000))
+	sock.sendto(bytes(packet), ("192.168.0.42", 20000))
 	time.sleep(0.01)
 
 	# test writes
@@ -34,7 +34,7 @@ def main(wb):
 	packet = EtherbonePacket()
 	packet.records = [record]
 	packet.encode()
-	sock.sendto(bytes(packet), ("192.168.1.40", 20000))
+	sock.sendto(bytes(packet), ("192.168.0.42", 20000))
 	time.sleep(0.01)
 
 	# test reads
@@ -56,5 +56,5 @@ def main(wb):
 	packet = EtherbonePacket()
 	packet.records = [record]
 	packet.encode()
-	sock.sendto(bytes(packet), ("192.168.1.40", 20000))
+	sock.sendto(bytes(packet), ("192.168.0.42", 20000))
 	time.sleep(0.01)

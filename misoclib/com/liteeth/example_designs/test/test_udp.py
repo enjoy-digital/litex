@@ -77,5 +77,5 @@ def test(fpga_ip, udp_port, test_size):
 		pass
 
 def main(wb):
-	test("192.168.1.40", 6000, 128*KB)
-	test("192.168.1.40", 8000, 128*KB)
+	test("192.168.0.42", 6000, 128*KB)
+	test("192.168.0.42", 8000, 128*KB)

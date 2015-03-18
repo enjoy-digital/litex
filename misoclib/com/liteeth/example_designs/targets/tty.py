@@ -13,8 +13,8 @@ class TTYSoC(BaseSoC):
 	def __init__(self, platform):
 		BaseSoC.__init__(self, platform,
 			mac_address=0x10e2d5000000,
-			ip_address="192.168.1.40")
-		self.submodules.tty = LiteEthTTY(self.core.udp, convert_ip("192.168.1.12"), 10000)
+			ip_address="192.168.0.42")
+		self.submodules.tty = LiteEthTTY(self.core.udp, convert_ip("192.168.0.14"), 10000)
 		self.comb += Record.connect(self.tty.source, self.tty.sink)
 
 class TTYSoCDevel(TTYSoC):

@@ -21,7 +21,7 @@ class BaseSoC(SoC, AutoCSR):
 	csr_map.update(SoC.csr_map)
 	def __init__(self, platform, clk_freq=166*1000000,
 			mac_address=0x10e2d5000000,
-			ip_address="192.168.1.40"):
+			ip_address="192.168.0.42"):
 		clk_freq = int((1/(platform.default_clk_period))*1000000000)
 		self.submodules.uart2wb = LiteScopeUART2WB(platform.request("serial"), clk_freq, baudrate=115200)
 		SoC.__init__(self, platform, clk_freq, self.uart2wb,
