@@ -307,10 +307,19 @@ class Memory(Special):
 		r += "\n"
 
 		if memory.init is not None:
+			memory_filename = gn(memory) + ".init"
+
+			# XXX move I/O to mibuild?
+			# (Implies mem init won't work with simple Migen examples?)
+			f = open(memory_filename, "w")
+			for d in memory.init:
+				f.write("{:x}\n".format(d))
+			f.close()
+
 			r += "initial begin\n"
-			for i, c in enumerate(memory.init):
-				r += "\t" + gn(memory) + "[" + str(i) + "] <= " + str(memory.width) + "'d" + str(c) + ";\n"
+			r += "$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
 			r += "end\n\n"
+
 
 		return r
 
