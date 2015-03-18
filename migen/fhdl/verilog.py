@@ -175,19 +175,18 @@ def _printheader(f, ios, name, ns):
 	r += "\n"
 	return r
 
-def _printcomb(f, ns, simulation, display_run):
+def _printcomb(f, ns, display_run):
 	r = ""
 	if f.comb:
-		if simulation:
-			# Generate a dummy event to get the simulator
-			# to run the combinatorial process once at the beginning.
-			syn_off = "// synthesis translate_off\n"
-			syn_on = "// synthesis translate_on\n"
-			dummy_s = Signal(name_override="dummy_s")
-			r += syn_off
-			r += "reg " + _printsig(ns, dummy_s) + ";\n"
-			r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
-			r += syn_on
+		# Generate a dummy event to get the simulator
+		# to run the combinatorial process once at the beginning.
+		syn_off = "// synthesis translate_off\n"
+		syn_on = "// synthesis translate_on\n"
+		dummy_s = Signal(name_override="dummy_s")
+		r += syn_off
+		r += "reg " + _printsig(ns, dummy_s) + ";\n"
+		r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
+		r += syn_on
 
 		groups = group_by_targets(f.comb)
 
@@ -195,11 +194,10 @@ def _printcomb(f, ns, simulation, display_run):
 			if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
 				r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
 			else:
-				if simulation:
-					dummy_d = Signal(name_override="dummy_d")
-					r += "\n" + syn_off
-					r += "reg " + _printsig(ns, dummy_d) + ";\n"
-					r += syn_on
+				dummy_d = Signal(name_override="dummy_d")
+				r += "\n" + syn_off
+				r += "reg " + _printsig(ns, dummy_d) + ";\n"
+				r += syn_on
 
 				r += "always @(*) begin\n"
 				if display_run:
@@ -207,10 +205,9 @@ def _printcomb(f, ns, simulation, display_run):
 				for t in g[0]:
 					r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
 				r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
-				if simulation:
-					r += syn_off
-					r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
-					r += syn_on
+				r += syn_off
+				r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
+				r += syn_on
 				r += "end\n"
 	r += "\n"
 	return r
@@ -290,7 +287,6 @@ def convert(f, ios=None, name="top",
   return_ns=False,
   special_overrides=dict(),
   create_clock_domains=True,
-  simulation=True,
   display_run=False):
 	if not isinstance(f, _Fragment):
 		f = f.get_fragment()
@@ -320,7 +316,7 @@ def convert(f, ios=None, name="top",
 
 	r = "/* Machine-generated using Migen */\n"
 	r += _printheader(f, ios, name, ns)
-	r += _printcomb(f, ns, simulation, display_run)
+	r += _printcomb(f, ns, display_run)
 	r += _printsync(f, ns)
 	r += _printspecials(special_overrides, f.specials - lowered_specials, ns)
 	r += _printinit(f, ios, ns)

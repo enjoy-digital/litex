@@ -274,11 +274,11 @@ class GenericPlatform:
 
 	def get_verilog(self, fragment, **kwargs):
 		return self._get_source(fragment, lambda f: verilog.convert(f, self.constraint_manager.get_io_signals(),
-				return_ns=True, create_clock_domains=False, simulation=False, **kwargs))
+				return_ns=True, create_clock_domains=False, **kwargs))
 
 	def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
 		return self._get_source(fragment, lambda f: edif.convert(f, self.constraint_manager.get_io_signals(),
-				cell_library, vendor, device, return_ns=True, simulation=False, **kwargs))
+				cell_library, vendor, device, return_ns=True, **kwargs))
 
 	def build(self, fragment):
 		raise NotImplementedError("GenericPlatform.build must be overloaded")
