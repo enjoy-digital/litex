@@ -171,7 +171,7 @@ def _printheader(f, ios, name, ns):
 		if sig in wires:
 			r += "wire " + _printsig(ns, sig) + ";\n"
 		else:
-			r += "reg " + _printsig(ns, sig) + ";\n"
+			r += "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
 	r += "\n"
 	return r
 
@@ -184,8 +184,7 @@ def _printcomb(f, ns, display_run):
 		syn_on = "// synthesis translate_on\n"
 		dummy_s = Signal(name_override="dummy_s")
 		r += syn_off
-		r += "reg " + _printsig(ns, dummy_s) + ";\n"
-		r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
+		r += "reg " + _printsig(ns, dummy_s) + " = 1'd0;\n"
 		r += syn_on
 
 		groups = group_by_targets(f.comb)
@@ -215,10 +214,6 @@ def _printcomb(f, ns, display_run):
 def _printsync(f, ns):
 	r = ""
 	for k, v in sorted(f.sync.items(), key=itemgetter(0)):
-		if f.clock_domains[k].rst is None:
-			r += "initial begin\n"
-			r += _printnode(ns, _AT_SIGNAL, 1, generate_reset(ResetSignal(k), v))
-			r += "end\n\n"
 		r += "always @(posedge " + ns.get_name(f.clock_domains[k].clk) + ") begin\n"
 		r += _printnode(ns, _AT_SIGNAL, 1, v)
 		r += "end\n\n"
@@ -270,19 +265,6 @@ def _printspecials(overrides, specials, ns):
 		r += pr
 	return r
 
-def _printinit(f, ios, ns):
-	r = ""
-	signals = (list_signals(f) | list_special_ios(f, True, False, False)) \
-		- ios \
-		- list_targets(f) \
-		- list_special_ios(f, False, True, True)
-	if signals:
-		r += "initial begin\n"
-		for s in sorted(signals, key=lambda x: x.huid):
-			r += "\t" + ns.get_name(s) + " <= " + _printexpr(ns, s.reset)[0] + ";\n"
-		r += "end\n\n"
-	return r
-
 def convert(f, ios=None, name="top",
   return_ns=False,
   special_overrides=dict(),
@@ -319,7 +301,6 @@ def convert(f, ios=None, name="top",
 	r += _printcomb(f, ns, display_run)
 	r += _printsync(f, ns)
 	r += _printspecials(special_overrides, f.specials - lowered_specials, ns)
-	r += _printinit(f, ios, ns)
 	r += "endmodule\n"
 
 	if return_ns:
