@@ -184,7 +184,8 @@ def _printcomb(f, ns, display_run):
 		syn_on = "// synthesis translate_on\n"
 		dummy_s = Signal(name_override="dummy_s")
 		r += syn_off
-		r += "reg " + _printsig(ns, dummy_s) + " = 1'd0;\n"
+		r += "reg " + _printsig(ns, dummy_s) + ";\n"
+		r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
 		r += syn_on
 
 		groups = group_by_targets(f.comb)
