@@ -20,6 +20,8 @@ class _CRG(Module):
 		clk200_se = Signal()
 		self.specials += Instance("IBUFDS", i_I=clk200.p, i_IB=clk200.n, o_O=clk200_se)
 
+		rst = platform.request("cpu_reset")
+
 		pll_locked = Signal()
 		pll_fb = Signal()
 		self.pll_sys = Signal()
@@ -50,8 +52,8 @@ class _CRG(Module):
 			Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
 			Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
 			Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
-			AsyncResetSynchronizer(self.cd_sys, ~pll_locked),
-			AsyncResetSynchronizer(self.cd_clk200, ~pll_locked),
+			AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst),
+			AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
 		]
 
 		reset_counter = Signal(4, reset=15)
