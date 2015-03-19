@@ -4,7 +4,9 @@ from misoclib.com.liteeth.mac.core import gap, preamble, crc, padding, last_be
 from misoclib.com.liteeth.phy.sim import LiteEthPHYSim
 
 class LiteEthMACCore(Module, AutoCSR):
-	def __init__(self, phy, dw, endianness="big", with_hw_preamble_crc=True):
+	def __init__(self, phy, dw, endianness="big",
+			with_preamble_crc=True,
+			with_padding=True):
 		if dw < phy.dw:
 			raise ValueError("Core data width({}) must be larger than PHY data width({})".format(dw, phy.dw))
 
@@ -24,9 +26,9 @@ class LiteEthMACCore(Module, AutoCSR):
 		if isinstance(phy, LiteEthPHYSim):
 			# In simulation, avoid CRC/Preamble to enable direct connection
 			# to the Ethernet tap.
-			self._hw_preamble_crc = CSRStatus(reset=1)
-		elif with_hw_preamble_crc:
-			self._hw_preamble_crc = CSRStatus(reset=1)
+			self._preamble_crc = CSRStatus(reset=1)
+		elif with_preamble_crc:
+			self._preamble_crc = CSRStatus(reset=1)
 			# Preamble insert/check
 			preamble_inserter = preamble.LiteEthMACPreambleInserter(phy.dw)
 			preamble_checker = preamble.LiteEthMACPreambleChecker(phy.dw)
@@ -43,13 +45,14 @@ class LiteEthMACCore(Module, AutoCSR):
 			rx_pipeline += [preamble_checker, crc32_checker]
 
 		# Padding
-		padding_inserter = padding.LiteEthMACPaddingInserter(phy.dw, 60)
-		padding_checker = padding.LiteEthMACPaddingChecker(phy.dw, 60)
-		self.submodules += RenameClockDomains(padding_inserter, "eth_tx")
-		self.submodules += RenameClockDomains(padding_checker, "eth_rx")
+		if with_padding:
+			padding_inserter = padding.LiteEthMACPaddingInserter(phy.dw, 60)
+			padding_checker = padding.LiteEthMACPaddingChecker(phy.dw, 60)
+			self.submodules += RenameClockDomains(padding_inserter, "eth_tx")
+			self.submodules += RenameClockDomains(padding_checker, "eth_rx")
 
-		tx_pipeline += [padding_inserter]
-		rx_pipeline += [padding_checker]
+			tx_pipeline += [padding_inserter]
+			rx_pipeline += [padding_checker]
 
 		# Delimiters
 		if dw != 8:
