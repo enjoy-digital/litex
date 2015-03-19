@@ -130,6 +130,7 @@ class Platform(XilinxPlatform):
 
 	def __init__(self):
 		XilinxPlatform.__init__(self, "xc6slx45-csg324-2", _io, _connectors)
+		self.toolchain.bitgen_opt += " -g Compress -g ConfigRate:6"
 
 	def create_programmer(self):
 		return XC3SProg("papilio", "bscan_spi_lx45_csg324.bit")
