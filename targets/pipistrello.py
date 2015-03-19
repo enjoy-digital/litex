@@ -55,7 +55,8 @@ class _CRG(Module):
 			p_CLKOUT5_PHASE=0., p_CLKOUT5_DIVIDE=p//1, # sys
 		)
 		self.specials += Instance("BUFG", i_I=pll[5], o_O=self.cd_sys.clk)
-		self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll_lckd)
+		reset = platform.request("user_btn")
+		self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll_lckd | reset)
 		self.specials += Instance("BUFG", i_I=pll[2], o_O=self.cd_sdram_half.clk)
 		self.specials += Instance("BUFPLL", p_DIVIDE=4,
 							i_PLLIN=pll[0], i_GCLK=self.cd_sys.clk,
@@ -125,9 +126,9 @@ class BaseSoC(SDRAMSoC):
 			self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
 
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=10, div=4)
-		self.flash_boot_address = 0x180000
 		# If not in ROM, BIOS is in SPI flash
 		if not self.with_rom:
+			self.flash_boot_address = 0x180000
 			self.register_rom(self.spiflash.bus)
 
 default_subtarget = BaseSoC
