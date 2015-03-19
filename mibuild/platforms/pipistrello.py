@@ -9,7 +9,7 @@ _io = [
 	("user_led", 3, Pins("A15"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at msd
 	("user_led", 4, Pins("A12"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at usb
 
-	("user_switch", 0, Pins("N14"), IOStandard("LVTTL"), Misc("PULLDOWN")),
+	("user_btn", 0, Pins("N14"), IOStandard("LVTTL"), Misc("PULLDOWN")),
 
 	("clk50", 0, Pins("H17"), IOStandard("LVTTL")),
 
