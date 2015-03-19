@@ -67,7 +67,7 @@ class _CRG(Module):
 		]
 		clk_sdram_half_shifted = Signal()
 		self.specials += Instance("BUFG", i_I=pll[3], o_O=clk_sdram_half_shifted)
-		clk = platform.request("sdram_clock")
+		clk = platform.request("ddram_clock")
 		self.specials += Instance("ODDR2", p_DDR_ALIGNMENT="NONE",
 			p_INIT=0, p_SRTYPE="SYNC",
 			i_D0=1, i_D1=0, i_S=0, i_R=0, i_CE=1,
@@ -113,7 +113,7 @@ class BaseSoC(SDRAMSoC):
 				read_time=32,
 				write_time=16
 			)
-			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("sdram"),
+			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"),
 				"LPDDR", rd_bitslip=1, wr_bitslip=3, dqs_ddr_alignment="C1")
 			self.comb += [
 				self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
@@ -124,9 +124,8 @@ class BaseSoC(SDRAMSoC):
 	""")
 			self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
 
-		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=11, div=2)
+		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=10, div=4)
 		self.flash_boot_address = 0x180000
-
 		# If not in ROM, BIOS is in SPI flash
 		if not self.with_rom:
 			self.register_rom(self.spiflash.bus)
