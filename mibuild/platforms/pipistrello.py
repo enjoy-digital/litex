@@ -97,13 +97,13 @@ _io = [
 		IOStandard("LVTTL")
 	),
 
-	("sdram_clock", 0,
+	("ddram_clock", 0,
 		Subsignal("p", Pins("G3")),
 		Subsignal("n", Pins("G1")),
 		IOStandard("MOBILE_DDR")
 	),
 
-	("sdram", 0,
+	("ddram", 0,
 		Subsignal("a", Pins("J7 J6 H5 L7 F3 H4 H3 H6 D2 D1 F4 D3 G6")),
 		Subsignal("ba", Pins("F2 F1")),
 		Subsignal("cke", Pins("H7")),
