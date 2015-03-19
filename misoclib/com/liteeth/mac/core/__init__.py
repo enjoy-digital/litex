@@ -26,6 +26,7 @@ class LiteEthMACCore(Module, AutoCSR):
 			# to the Ethernet tap.
 			self._hw_preamble_crc = CSRStatus(reset=1)
 		elif with_hw_preamble_crc:
+			self._hw_preamble_crc = CSRStatus(reset=1)
 			# Preamble insert/check
 			preamble_inserter = preamble.LiteEthMACPreambleInserter(phy.dw)
 			preamble_checker = preamble.LiteEthMACPreambleChecker(phy.dw)
