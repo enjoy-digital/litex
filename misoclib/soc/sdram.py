@@ -36,6 +36,8 @@ class SDRAMSoC(SoC):
 		if self._sdram_phy_registered:
 			raise FinalizeError
 		self._sdram_phy_registered = True
+		if self.ramcon_type == "minicon" and phy.settings.memtype != "SDR":
+			raise NotImplementedError("Minicon only supports SDR memtype for now (" + phy.settings.memtype + ")")
 
 		# Core
 		self.submodules.sdram = SDRAMCore(phy, self.ramcon_type, sdram_geom, sdram_timing)
