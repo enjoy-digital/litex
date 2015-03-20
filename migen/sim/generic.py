@@ -103,6 +103,7 @@ class Simulator:
 
 		self.sim_functions = fragment.sim
 		self.active_sim_functions = set(f for f in fragment.sim if not hasattr(f, "passive") or not f.passive)
+		self.unreferenced = {}
 
 	def run(self, ncycles=None):
 		counter = 0
@@ -140,28 +141,43 @@ class Simulator:
 				except KeyError:
 					pass
 
+	def get_unreferenced(self, item, index):
+		try:
+			return self.unreferenced[(item, index)]
+		except KeyError:
+			if isinstance(item, Memory):
+				try:
+					init = item.init[index]
+				except (TypeError, IndexError):
+					init = 0
+			else:
+				init = item.reset
+			self.unreferenced[(item, index)] = init
+			return init
+
 	def rd(self, item, index=0):
-		name = self.top_level.top_name + "." \
-		  + self.top_level.dut_name + "." \
-		  + self.namespace.get_name(item)
-		self.ipc.send(MessageRead(name, Int32(index)))
-		reply = self.ipc.recv()
-		assert(isinstance(reply, MessageReadReply))
+		try:
+			name = self.top_level.top_name + "." \
+			  + self.top_level.dut_name + "." \
+			  + self.namespace.get_name(item)
+			self.ipc.send(MessageRead(name, Int32(index)))
+			reply = self.ipc.recv()
+			assert(isinstance(reply, MessageReadReply))
+			value = reply.value
+		except KeyError:
+			value = self.get_unreferenced(item, index)
 		if isinstance(item, Memory):
 			signed = False
 			nbits = item.width
 		else:
 			signed = item.signed
 			nbits = flen(item)
-		value = reply.value & (2**nbits - 1)
+		value = value & (2**nbits - 1)
 		if signed and (value & 2**(nbits - 1)):
 			value -= 2**nbits
 		return value
 
 	def wr(self, item, value, index=0):
-		name = self.top_level.top_name + "." \
-		  + self.top_level.dut_name + "." \
-		  + self.namespace.get_name(item)
 		if isinstance(item, Memory):
 			nbits = item.width
 		else:
@@ -169,7 +185,13 @@ class Simulator:
 		if value < 0:
 			value += 2**nbits
 		assert(value >= 0 and value < 2**nbits)
-		self.ipc.send(MessageWrite(name, Int32(index), value))
+		try:
+			name = self.top_level.top_name + "." \
+			  + self.top_level.dut_name + "." \
+			  + self.namespace.get_name(item)
+			self.ipc.send(MessageWrite(name, Int32(index), value))
+		except KeyError:
+			self.unreferenced[(item, index)] = value
 
 	def __del__(self):
 		if hasattr(self, "ipc"):
