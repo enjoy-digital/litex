@@ -138,6 +138,23 @@ class MT46H32M16(SDRAMModule):
 			self.timing_settings)
 
 # DDR2
+class MT47H128M8(SDRAMModule):
+	geom_settings = {
+		"nbanks":	8,
+		"nrows":	16384,
+		"ncols":	1024
+	}
+	timing_settings = {
+		"tRP":		15,
+		"tRCD":		15,
+		"tWR":		15,
+		"tWTR":		2,
+		"tREFI":	7800,
+		"tRFC":		127.5
+	}
+	def __init__(self, clk_freq):
+		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+			self.timing_settings)
 
 # DDR3
 class MT8JTF12864(SDRAMModule):
