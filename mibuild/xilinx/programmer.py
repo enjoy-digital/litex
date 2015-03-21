@@ -63,6 +63,23 @@ class FpgaProg(GenericProgrammer):
 		subprocess.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
 				   "-f", data_file])
 
+def _run_impact(cmds):
+	with subprocess.Popen("impact -batch", stdin=subprocess.PIPE) as process:
+		process.stdin.write(cmds.encode("ASCII"))
+		process.communicate()
+
+class iMPACT(GenericProgrammer):
+	needs_bitreverse = False
+
+	def load_bitstream(self, bitstream_file):
+		cmds = """setMode -bs
+setCable -p auto
+addDevice -p 1 -file {bitstream}
+program -p 1
+quit
+""".format(bitstream=bitstream_file)
+		_run_impact(cmds)
+
 def _run_vivado(path, ver, cmds):
 	if sys.platform == "win32" or sys.platform == "cygwin":
 		vivado_cmd = "vivado -mode tcl"
