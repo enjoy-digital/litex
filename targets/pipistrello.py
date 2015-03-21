@@ -100,11 +100,6 @@ class BaseSoC(SDRAMSoC):
 
 		if not self.with_integrated_main_ram:
 			sdram_module = MT46H32M16(self.clk_freq)
-			sdram_controller_settings = sdram.ControllerSettings(
-				req_queue_size=8,
-				read_time=32,
-				write_time=16
-			)
 			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"),
 				"LPDDR", rd_bitslip=1, wr_bitslip=3, dqs_ddr_alignment="C1")
 			self.comb += [
@@ -114,8 +109,7 @@ class BaseSoC(SDRAMSoC):
 			platform.add_platform_command("""
 	PIN "BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 	""")
-			self.register_sdram_phy(self.ddrphy, sdram_module.geom_settings, sdram_module.timing_settings,
-				sdram_controller_settings)
+			self.register_sdram_phy(self.ddrphy, sdram_module.geom_settings, sdram_module.timing_settings)
 
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=10, div=4)
 		# If not in ROM, BIOS is in SPI flash

@@ -92,13 +92,7 @@ class BaseSoC(SDRAMSoC):
 
 		if not self.with_integrated_main_ram:
 			sdram_module = IS42S16160(self.clk_freq)
-			sdram_controller_settings = sdram.ControllerSettings(
-				req_queue_size=8,
-				read_time=32,
-				write_time=16
-			)
 			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
-			self.register_sdram_phy(self.sdrphy, sdram_module.geom_settings, sdram_module.timing_settings,
-				sdram_controller_settings)
+			self.register_sdram_phy(self.sdrphy, sdram_module.geom_settings, sdram_module.timing_settings)
 
 default_subtarget = BaseSoC

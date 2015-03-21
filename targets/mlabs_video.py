@@ -43,16 +43,9 @@ class BaseSoC(SDRAMSoC):
 
 		if not self.with_integrated_main_ram:
 			sdram_modules = MT46V32M16(self.clk_freq)
-			sdram_controller_settings =  sdram.ControllerSettings(
-				req_queue_size=8,
-				read_time=32,
-				write_time=16
-			)
 			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
 				rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
-			self.register_sdram_phy(self.ddrphy, sdram_modules.geom_settings, sdram_modules.timing_settings,
-				sdram_controller_settings)
-
+			self.register_sdram_phy(self.ddrphy, sdram_modules.geom_settings, sdram_modules.timing_settings)
 
 			self.comb += [
 				self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
