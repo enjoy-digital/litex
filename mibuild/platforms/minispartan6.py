@@ -3,26 +3,26 @@
 
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx_ise import XilinxISEPlatform
-from mibuild.programmer import XC3SProg
+from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx.programmer import XC3SProg
 
 _io = [
-        ("user_led", 0, Pins("P11"), IOStandard("LVTTL"), Misc("SLEW=SLOW")),
-        ("user_led", 1, Pins("N9"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
-        ("user_led", 2, Pins("M9"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
-        ("user_led", 3, Pins("P9"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
-        ("user_led", 4, Pins("T8"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
-        ("user_led", 5, Pins("N8"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
-        ("user_led", 6, Pins("P8"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
-        ("user_led", 7, Pins("P7"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 0, Pins("P11"), IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 1, Pins("N9"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 2, Pins("M9"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 3, Pins("P9"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 4, Pins("T8"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 5, Pins("N8"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 6, Pins("P8"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
+	("user_led", 7, Pins("P7"),  IOStandard("LVTTL"), Misc("SLEW=SLOW")),
 
 	("user_sw", 0, Pins("L1"), IOStandard("LVTTL"), Misc("PULLUP")),
 	("user_sw", 1, Pins("L3"), IOStandard("LVTTL"), Misc("PULLUP")),
 	("user_sw", 2, Pins("L4"), IOStandard("LVTTL"), Misc("PULLUP")),
 	("user_sw", 3, Pins("L5"), IOStandard("LVTTL"), Misc("PULLUP")),
 
-	("clk32", 0, Pins("K3"), IOStandard("LVCMOS33")),
-        ("clk50", 0, Pins("J4"), IOStandard("LVCMOS33")),
+	("clk32", 0, Pins("J4"), IOStandard("LVCMOS33")),
+	("clk50", 0, Pins("K3"), IOStandard("LVCMOS33")),
 
 	("spiflash", 0,
 		Subsignal("cs_n", Pins("T3"), IOStandard("LVTTL")),
@@ -39,8 +39,8 @@ _io = [
 	),
 
 	("serial", 0,
-		Subsignal("tx", Pins("N3"), IOStandard("LVTTL")),
-		Subsignal("rx", Pins("N1"), IOStandard("LVTTL"))
+		Subsignal("tx", Pins("N6"), IOStandard("LVTTL")), # FTDI D1
+		Subsignal("rx", Pins("M7"), IOStandard("LVTTL"))  # FTDI D0
 	),
 
 	("audio", 0,
@@ -73,12 +73,8 @@ _io = [
 	("dvi_in", 0,
 		Subsignal("clk_p", Pins("C9"), IOStandard("TMDS_33")),
 		Subsignal("clk_n", Pins("A9"), IOStandard("TMDS_33")),
-		Subsignal("data0_p", Pins("C7"), IOStandard("TMDS_33")),
-		Subsignal("data0_n", Pins("A7"), IOStandard("TMDS_33")),
-		Subsignal("data1_p", Pins("B6"), IOStandard("TMDS_33")),
-		Subsignal("data1_n", Pins("A6"), IOStandard("TMDS_33")),
-		Subsignal("data2_p", Pins("B5"), IOStandard("TMDS_33")),
-		Subsignal("data2_n", Pins("A5"), IOStandard("TMDS_33")),
+		Subsignal("data_p", Pins("C7 B6 B5"), IOStandard("TMDS_33")),
+		Subsignal("data_n", Pins("A7 A6 A5"), IOStandard("TMDS_33")),
 		Subsignal("scl", Pins("C1"), IOStandard("LVTTL")),
 		Subsignal("sda", Pins("B1"), IOStandard("LVTTL"))
 	),
@@ -86,25 +82,23 @@ _io = [
 	("dvi_out", 0,
 		Subsignal("clk_p", Pins("B14"), IOStandard("TMDS_33")),
 		Subsignal("clk_n", Pins("A14"), IOStandard("TMDS_33")),
-		Subsignal("data0_p", Pins("C13"), IOStandard("TMDS_33")),
-		Subsignal("data0_n", Pins("A13"), IOStandard("TMDS_33")),
-		Subsignal("data1_p", Pins("B12"), IOStandard("TMDS_33")),
-		Subsignal("data1_n", Pins("A12"), IOStandard("TMDS_33")),
-		Subsignal("data2_p", Pins("C11"), IOStandard("TMDS_33")),
-		Subsignal("data2_n", Pins("A11"), IOStandard("TMDS_33"))
+		Subsignal("data_p", Pins("C13 B12 C11"), IOStandard("TMDS_33")),
+		Subsignal("data_n", Pins("A13 A12 A11"), IOStandard("TMDS_33")),
 	)
 ]
 
 _connectors = [
-        ("A", "E7 C8 D8 E8 D9 A10 B10 C10 E10 F9 F10 D11"),
-        ("B", "E11 D14 D12 E12 E13 F13 F12 F14 G12 H14 J14"),
-        ("C", "J13 J12 K14 L14 L13 M14 M13 N14 M12 N12 P12 M11"),
-        ("D", "D6 C6 E6 C5"),
-        ("E", "D5 A4 G5 A3 B3 A2 B2 C3 C2 D3 D1 E3"),
-        ("F", "E2 E1 E4 F4 F5 G3 F3 G1 H3 H1 H2 J1")
+	("A", "E7 C8 D8 E8 D9 A10 B10 C10 E10 F9 F10 D11"),
+	("B", "E11 D14 D12 E12 E13 F13 F12 F14 G12 H14 J14"),
+	("C", "J13 J12 K14 L14 L13 M14 M13 N14 M12 N12 P12 M11"),
+	("D", "D6 C6 E6 C5"),
+	("E", "D5 A4 G5 A3 B3 A2 B2 C3 C2 D3 D1 E3"),
+	("F", "E2 E1 E4 F4 F5 G3 F3 G1 H3 H1 H2 J1")
 ]
 
 class Platform(XilinxISEPlatform):
+	default_clk_name = "clk50"
+	default_clk_period = 20
 	def __init__(self):
 		XilinxISEPlatform.__init__(self, "xc6slx9-3-ftg256", _io,
 			lambda p: SimpleCRG(p, "clk50", None), _connectors)
