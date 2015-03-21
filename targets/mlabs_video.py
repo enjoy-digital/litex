@@ -6,6 +6,7 @@ from mibuild.generic_platform import ConstraintError
 
 from misoclib.others import mxcrg
 from misoclib.mem import sdram
+from misoclib.mem.sdram.module import MT46V32M16
 from misoclib.mem.sdram.phy import s6ddrphy
 from misoclib.mem.flash import norflash16
 from misoclib.cpu.peripherals import gpio
@@ -41,19 +42,7 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
 
 		if not self.with_main_ram:
-			sdram_geom_settings = sdram.GeomSettings(
-				bank_a=2,
-				row_a=13,
-				col_a=10
-			)
-			sdram_timing_settings = sdram.TimingSettings(
-				tRP=self.ns(15),
-				tRCD=self.ns(15),
-				tWR=self.ns(15),
-				tWTR=2,
-				tREFI=self.ns(7800, False),
-				tRFC=self.ns(70),
-			)
+			sdram_module = MT46V32M16(self.clk_freq)
 			sdram_controller_settings =  sdram.ControllerSettings(
 				req_queue_size=8,
 				read_time=32,
@@ -61,7 +50,7 @@ class BaseSoC(SDRAMSoC):
 			)
 			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
 				rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
-			self.register_sdram_phy(self.ddrphy, sdram_geom_settings, sdram_timing_settings,
+			self.register_sdram_phy(self.ddrphy, sdram_module.geom_settings, sdram_module.timing_settings,
 				sdram_controller_settings)
 
 
