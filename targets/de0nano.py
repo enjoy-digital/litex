@@ -5,6 +5,7 @@ from misoclib.cpu.peripherals import gpio
 from misoclib.mem import sdram
 from misoclib.mem.sdram.module import IS42S16160
 from misoclib.mem.sdram.phy import gensdrphy
+from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.com import uart
 from misoclib.soc.sdram import SDRAMSoC
 
@@ -82,10 +83,11 @@ class _CRG(Module):
 class BaseSoC(SDRAMSoC):
 	default_platform = "de0nano"
 
-	def __init__(self, platform, **kwargs):
+	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=100*1000000,
 			with_integrated_rom=True,
+			sdram_controller_settings=sdram_controller_settings,
 			**kwargs)
 
 		self.submodules.crg = _CRG(platform)

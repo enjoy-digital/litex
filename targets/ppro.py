@@ -6,6 +6,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoclib.mem import sdram
 from misoclib.mem.sdram.module import MT48LC4M16
 from misoclib.mem.sdram.phy import gensdrphy
+from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.mem.flash import spiflash
 from misoclib.soc.sdram import SDRAMSoC
 
@@ -67,10 +68,12 @@ class BaseSoC(SDRAMSoC):
 	}
 	csr_map.update(SDRAMSoC.csr_map)
 
-	def __init__(self, platform, **kwargs):
+	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
 		clk_freq = 80*1000*1000
 		SDRAMSoC.__init__(self, platform, clk_freq,
-			cpu_reset_address=0x60000, **kwargs)
+			cpu_reset_address=0x60000,
+			sdram_controller_settings=sdram_controller_settings,
+			**kwargs)
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 

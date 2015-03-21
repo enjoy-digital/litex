@@ -8,6 +8,7 @@ from misoclib.others import mxcrg
 from misoclib.mem import sdram
 from misoclib.mem.sdram.module import MT46V32M16
 from misoclib.mem.sdram.phy import s6ddrphy
+from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.mem.flash import norflash16
 from misoclib.cpu.peripherals import gpio
 from misoclib.video import framebuffer
@@ -33,10 +34,11 @@ class _MXClockPads:
 class BaseSoC(SDRAMSoC):
 	default_platform = "mixxeo" # also supports m1
 
-	def __init__(self, platform, **kwargs):
+	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=(83 + Fraction(1, 3))*1000000,
 			cpu_reset_address=0x00180000,
+			sdram_controller_settings=sdram_controller_settings,
 			**kwargs)
 
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)

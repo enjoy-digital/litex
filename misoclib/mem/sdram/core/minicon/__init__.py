@@ -34,6 +34,10 @@ class _AddressSlicer:
 		else:
 			return Cat(Replicate(0, self.address_align), address[:split])
 
+class MiniconSettings:
+	def __init__(self):
+		pass
+
 class Minicon(Module):
 	def __init__(self, phy_settings, geom_settings, timing_settings):
 		if phy_settings.memtype in ["SDR"]:

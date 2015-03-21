@@ -6,6 +6,20 @@ from misoclib.mem.sdram.core.lasmicon.refresher import *
 from misoclib.mem.sdram.core.lasmicon.bankmachine import *
 from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
+class LASMIconSettings:
+	def __init__(self, req_queue_size=8,
+			read_time=32, write_time=16,
+			with_l2=True, l2_size=8192,
+			with_bandwidth=False,
+			with_memtest=False):
+		self.req_queue_size = req_queue_size
+		self.read_time = read_time
+		self.write_time = write_time
+		self.with_l2 = with_l2
+		self.l2_size = l2_size
+		self.with_bandwidth = with_bandwidth
+		self.with_memtest = with_memtest
+
 class LASMIcon(Module):
 	def __init__(self, phy_settings, geom_settings, timing_settings, controller_settings, **kwargs):
 		if phy_settings.memtype in ["SDR"]:

@@ -4,6 +4,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoclib.mem import sdram
 from misoclib.mem.sdram.module import MT8JTF12864
 from misoclib.mem.sdram.phy import k7ddrphy
+from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.mem.flash import spiflash
 from misoclib.soc import mem_decoder
 from misoclib.soc.sdram import SDRAMSoC
@@ -76,9 +77,10 @@ class BaseSoC(SDRAMSoC):
 	}
 	csr_map.update(SDRAMSoC.csr_map)
 
-	def __init__(self, platform, **kwargs):
+	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=125*1000000, cpu_reset_address=0xaf0000,
+			sdram_controller_settings=sdram_controller_settings,
 			**kwargs)
 
 		self.submodules.crg = _CRG(platform)
