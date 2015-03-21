@@ -90,26 +90,27 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform)
 
 		if not self.with_main_ram:
-			sdram_geom = sdram.GeomSettings(
+			sdram_geom_settings = sdram.GeomSettings(
 				bank_a=2,
 				row_a=13,
 				col_a=9
 			)
 
-			sdram_timing = sdram.TimingSettings(
+			sdram_timing_settings = sdram.TimingSettings(
 				tRP=self.ns(20),
 				tRCD=self.ns(20),
 				tWR=self.ns(20),
 				tWTR=2,
 				tREFI=self.ns(7800, False),
-				tRFC=self.ns(70),
-
+				tRFC=self.ns(70)
+			)
+			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
 				read_time=32,
 				write_time=16
 			)
-
 			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
-			self.register_sdram_phy(self.sdrphy, sdram_geom, sdram_timing)
+			self.register_sdram_phy(self.sdrphy, sdram_geom_settings, sdram_timing_settings,
+				sdram_controller_settings)
 
 default_subtarget = BaseSoC

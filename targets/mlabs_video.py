@@ -41,26 +41,28 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
 
 		if not self.with_main_ram:
-			sdram_geom = sdram.GeomSettings(
+			sdram_geom_settings = sdram.GeomSettings(
 				bank_a=2,
 				row_a=13,
 				col_a=10
 			)
-			sdram_timing = sdram.TimingSettings(
+			sdram_timing_settings = sdram.TimingSettings(
 				tRP=self.ns(15),
 				tRCD=self.ns(15),
 				tWR=self.ns(15),
 				tWTR=2,
 				tREFI=self.ns(7800, False),
 				tRFC=self.ns(70),
-
+			)
+			sdram_controller_settings =  sdram.ControllerSettings(
 				req_queue_size=8,
 				read_time=32,
 				write_time=16
 			)
 			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), memtype="DDR",
 				rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
-			self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
+			self.register_sdram_phy(self.ddrphy, sdram_geom_settings, sdram_timing_settings,
+				sdram_controller_settings)
 
 
 			self.comb += [

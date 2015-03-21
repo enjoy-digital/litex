@@ -26,7 +26,7 @@ class _AddressSlicer:
 			return Cat(Replicate(0, self.address_align), address[:split])
 
 class BankMachine(Module):
-	def __init__(self, geom_settings, timing_settings, address_align, bankn, req):
+	def __init__(self, geom_settings, timing_settings, controller_settings, address_align, bankn, req):
 		self.refresh_req = Signal()
 		self.refresh_gnt = Signal()
 		self.cmd = CommandRequestRW(geom_settings.mux_a, geom_settings.bank_a)
@@ -34,7 +34,7 @@ class BankMachine(Module):
 		###
 
 		# Request FIFO
-		self.submodules.req_fifo = SyncFIFO([("we", 1), ("adr", flen(req.adr))], timing_settings.req_queue_size)
+		self.submodules.req_fifo = SyncFIFO([("we", 1), ("adr", flen(req.adr))], controller_settings.req_queue_size)
 		self.comb += [
 			self.req_fifo.din.we.eq(req.we),
 			self.req_fifo.din.adr.eq(req.adr),

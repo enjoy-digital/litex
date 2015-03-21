@@ -89,7 +89,7 @@ class _Steerer(Module):
 			]
 
 class Multiplexer(Module, AutoCSR):
-	def __init__(self, phy_settings, geom_settings, timing_settings, bank_machines, refresher, dfi, lasmic,
+	def __init__(self, phy_settings, geom_settings, timing_settings, controller_settings, bank_machines, refresher, dfi, lasmic,
 			with_bandwidth=False):
 		assert(phy_settings.nphases == len(dfi.phases))
 
@@ -137,8 +137,8 @@ class Multiplexer(Module, AutoCSR):
 			else:
 				self.comb += max_time.eq(0)
 			return en, max_time
-		read_time_en, max_read_time = anti_starvation(timing_settings.read_time)
-		write_time_en, max_write_time = anti_starvation(timing_settings.write_time)
+		read_time_en, max_read_time = anti_starvation(controller_settings.read_time)
+		write_time_en, max_write_time = anti_starvation(controller_settings.write_time)
 
 		# Refresh
 		self.comb += [bm.refresh_req.eq(refresher.req) for bm in bank_machines]

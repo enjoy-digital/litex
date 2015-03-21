@@ -32,7 +32,7 @@ class SDRAMSoC(SoC):
 
 		self._sdram_phy_registered = False
 
-	def register_sdram_phy(self, phy, sdram_geom, sdram_timing):
+	def register_sdram_phy(self, phy, geom_settings, timing_settings, controller_settings):
 		if self._sdram_phy_registered:
 			raise FinalizeError
 		self._sdram_phy_registered = True
@@ -40,7 +40,7 @@ class SDRAMSoC(SoC):
 			raise NotImplementedError("Minicon only supports SDR memtype for now (" + phy.settings.memtype + ")")
 
 		# Core
-		self.submodules.sdram = SDRAMCore(phy, self.ramcon_type, sdram_geom, sdram_timing)
+		self.submodules.sdram = SDRAMCore(phy, self.ramcon_type, geom_settings, timing_settings, controller_settings)
 
 		# LASMICON frontend
 		if self.ramcon_type == "lasmicon":
@@ -68,7 +68,7 @@ class SDRAMSoC(SoC):
 		# MINICON frontend
 		elif self.ramcon_type == "minicon":
 			sdram_width = flen(self.sdram.controller.bus.dat_r)
-			main_ram_size = 2**(sdram_geom.bank_a+sdram_geom.row_a+sdram_geom.col_a)*sdram_width//8
+			main_ram_size = 2**(geom_settings.bank_a+geom_settings.row_a+geom_settings.col_a)*sdram_width//8
 
 			if sdram_width == 32:
 				self.register_mem("sdram", self.mem_map["sdram"], self.sdram.controller.bus, main_ram_size)

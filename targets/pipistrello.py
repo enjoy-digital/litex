@@ -98,18 +98,20 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform, clk_freq)
 
 		if not self.with_main_ram:
-			sdram_geom = sdram.GeomSettings(
+			sdram_geom_settings = sdram.GeomSettings(
 				bank_a=2,
 				row_a=13,
 				col_a=10
 			)
-			sdram_timing = sdram.TimingSettings(
+			sdram_timing_settings = sdram.TimingSettings(
 				tRP=self.ns(15),
 				tRCD=self.ns(15),
 				tWR=self.ns(15),
 				tWTR=2,
 				tREFI=self.ns(64*1000*1000/8192, False),
-				tRFC=self.ns(72),
+				tRFC=self.ns(72)
+			)
+			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
 				read_time=32,
 				write_time=16
@@ -123,7 +125,8 @@ class BaseSoC(SDRAMSoC):
 			platform.add_platform_command("""
 	PIN "BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 	""")
-			self.register_sdram_phy(self.ddrphy, sdram_geom, sdram_timing)
+			self.register_sdram_phy(self.ddrphy, sdram_geom_settings, sdram_timing_settings,
+				sdram_controller_settings)
 
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=10, div=4)
 		# If not in ROM, BIOS is in SPI flash

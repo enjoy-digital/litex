@@ -8,5 +8,6 @@ GeomSettingsT = namedtuple("_GeomSettings", "bank_a row_a col_a mux_a")
 def GeomSettings(bank_a, row_a, col_a):
 	return GeomSettingsT(bank_a, row_a, col_a, max(row_a, col_a))
 
-TimingSettings = namedtuple("TimingSettings", "tRP tRCD tWR tWTR tREFI tRFC" \
-	" req_queue_size read_time write_time")
+TimingSettings = namedtuple("TimingSettings", "tRP tRCD tWR tWTR tREFI tRFC")
+
+ControllerSettings = namedtuple("ControllerSettings", "req_queue_size read_time write_time")
