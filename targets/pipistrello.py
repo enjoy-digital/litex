@@ -20,7 +20,7 @@ class _CRG(Module):
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()
 
-		f0 = 50*1000*1000
+		f0 = 50*10e6
 		clk50 = platform.request("clk50")
 		clk50a = Signal()
 		self.specials += Instance("IBUFG", i_I=clk50, o_O=clk50a)
@@ -41,7 +41,7 @@ class _CRG(Module):
 			i_DADDR=0, i_DCLK=0, i_DEN=0, i_DI=0, i_DWE=0, i_RST=0, i_REL=0,
 			p_DIVCLK_DIVIDE=1, p_CLKFBOUT_MULT=m*p//n, p_CLKFBOUT_PHASE=0.,
 			i_CLKIN1=clk50b, i_CLKIN2=0, i_CLKINSEL=1,
-			p_CLKIN1_PERIOD=1/f0, p_CLKIN2_PERIOD=0.,
+			p_CLKIN1_PERIOD=10e9/f0, p_CLKIN2_PERIOD=0.,
 			i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb, o_LOCKED=pll_lckd,
 			o_CLKOUT0=pll[0], p_CLKOUT0_DUTY_CYCLE=.5,
 			o_CLKOUT1=pll[1], p_CLKOUT1_DUTY_CYCLE=.5,
@@ -91,7 +91,7 @@ class BaseSoC(SDRAMSoC):
 	csr_map.update(SDRAMSoC.csr_map)
 
 	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
-		clk_freq = 75*1000*1000
+		clk_freq = 75*10e6
 		if not kwargs.get("with_integrated_rom"):
 			kwargs["rom_size"] = 0x1000000 # 128 Mb
 		SDRAMSoC.__init__(self, platform, clk_freq,
