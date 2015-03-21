@@ -37,9 +37,9 @@ class SoC(Module):
 	def __init__(self, platform, clk_freq, cpu_or_bridge=None,
 				with_cpu=True, cpu_type="lm32", cpu_reset_address=0x00000000,
 							   cpu_boot_file="software/bios/bios.bin",
-				with_rom=False, rom_size=0x8000,
-				with_sram=True, sram_size=4096,
-				with_main_ram=False, main_ram_size=64*1024,
+				with_integrated_rom=False, rom_size=0x8000,
+				with_integrated_sram=True, sram_size=4096,
+				with_integrated_main_ram=False, main_ram_size=64*1024,
 				with_csr=True, csr_data_width=8, csr_address_width=14,
 				with_uart=True, uart_baudrate=115200,
 				with_identifier=True,
@@ -50,19 +50,19 @@ class SoC(Module):
 
 		self.with_cpu = with_cpu
 		self.cpu_type = cpu_type
-		if with_rom:
+		if with_integrated_rom:
 			self.cpu_reset_address = 0
 		else:
 			self.cpu_reset_address = cpu_reset_address
 		self.cpu_boot_file = cpu_boot_file
 
-		self.with_rom = with_rom
+		self.with_integrated_rom = with_integrated_rom
 		self.rom_size = rom_size
 
-		self.with_sram = with_sram
+		self.with_integrated_sram = with_integrated_sram
 		self.sram_size = sram_size
 
-		self.with_main_ram = with_main_ram
+		self.with_integrated_main_ram = with_integrated_main_ram
 		self.main_ram_size = main_ram_size
 
 		self.with_uart = with_uart
@@ -90,16 +90,16 @@ class SoC(Module):
 			self.cpu_or_bridge = self.cpu
 			self._wb_masters += [self.cpu.ibus, self.cpu.dbus]
 
-			if with_rom:
+			if with_integrated_rom:
 				self.submodules.rom = wishbone.SRAM(rom_size, read_only=True)
 				self.register_rom(self.rom.bus, rom_size)
 
-			if with_sram:
+			if with_integrated_sram:
 				self.submodules.sram = wishbone.SRAM(sram_size)
 				self.register_mem("sram", self.mem_map["sram"], self.sram.bus, sram_size)
 
 			# Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
-			if with_main_ram:
+			if with_integrated_main_ram:
 				self.submodules.main_ram = wishbone.SRAM(main_ram_size)
 				self.register_mem("sdram", self.mem_map["sdram"], self.main_ram.bus, main_ram_size)
 

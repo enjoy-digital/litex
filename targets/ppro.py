@@ -74,7 +74,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		if not self.with_main_ram:
+		if not self.with_integrated_main_ram:
 			sdram_module = MT48LC4M16(clk_freq)
 			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
@@ -89,7 +89,7 @@ class BaseSoC(SDRAMSoC):
 		self.flash_boot_address = 0x70000
 
 		# If not in ROM, BIOS is in SPI flash
-		if not self.with_rom:
+		if not self.with_integrated_rom:
 			self.register_rom(self.spiflash.bus)
 
 default_subtarget = BaseSoC

@@ -91,14 +91,14 @@ class BaseSoC(SDRAMSoC):
 
 	def __init__(self, platform, **kwargs):
 		clk_freq = 75*1000*1000
-		if not kwargs.get("with_rom"):
+		if not kwargs.get("with_integrated_rom"):
 			kwargs["rom_size"] = 0x1000000 # 128 Mb
 		SDRAMSoC.__init__(self, platform, clk_freq,
 					cpu_reset_address=0x170000, **kwargs) # 1.5 MB
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		if not self.with_main_ram:
+		if not self.with_integrated_main_ram:
 			sdram_module = MT46H32M16(self.clk_freq)
 			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
@@ -119,7 +119,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=10, div=4)
 		# If not in ROM, BIOS is in SPI flash
-		if not self.with_rom:
+		if not self.with_integrated_rom:
 			self.flash_boot_address = 0x180000
 			self.register_rom(self.spiflash.bus)
 

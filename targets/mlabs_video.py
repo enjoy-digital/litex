@@ -41,7 +41,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
 
-		if not self.with_main_ram:
+		if not self.with_integrated_main_ram:
 			sdram_modules = MT46V32M16(self.clk_freq)
 			sdram_controller_settings =  sdram.ControllerSettings(
 				req_queue_size=8,
@@ -64,7 +64,7 @@ class BaseSoC(SDRAMSoC):
 		self.flash_boot_address = 0x001a0000
 
 		# If not in ROM, BIOS is in // NOR flash
-		if not self.with_rom:
+		if not self.with_integrated_rom:
 			self.register_rom(self.norflash.bus)
 
 

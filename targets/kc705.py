@@ -83,7 +83,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform)
 
-		if not self.with_main_ram:
+		if not self.with_integrated_main_ram:
 			sdram_modules = MT8JTF12864(self.clk_freq)
 			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
@@ -103,7 +103,7 @@ class BaseSoC(SDRAMSoC):
 		self.flash_boot_address = 0xb00000
 
 		# If not in ROM, BIOS is in SPI flash
-		if not self.with_rom:
+		if not self.with_integrated_rom:
 			self.register_rom(self.spiflash.bus)
 
 class MiniSoC(BaseSoC):

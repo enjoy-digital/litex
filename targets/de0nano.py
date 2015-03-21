@@ -85,12 +85,12 @@ class BaseSoC(SDRAMSoC):
 	def __init__(self, platform, **kwargs):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=100*1000000,
-			with_rom=True,
+			with_integrated_rom=True,
 			**kwargs)
 
 		self.submodules.crg = _CRG(platform)
 
-		if not self.with_main_ram:
+		if not self.with_integrated_main_ram:
 			sdram_module = IS42S16160(self.clk_freq)
 			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,

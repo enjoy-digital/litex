@@ -122,9 +122,9 @@ CPU type:  {}
 		actions["build-bios"] = True
 		if not actions["load-bitstream"]:
 			actions["flash-bitstream"] = True
-		if not soc.with_rom:
+		if not soc.with_integrated_rom:
 			actions["flash-bios"] = True
-	if actions["build-bitstream"] and soc.with_rom:
+	if actions["build-bitstream"] and soc.with_integrated_rom:
 		actions["build-bios"] = True
 	if actions["build-bios"]:
 		actions["build-headers"] = True
@@ -173,7 +173,7 @@ CPU type:  {}
 			raise OSError("BIOS build failed")
 
 	if actions["build-bitstream"]:
-		if soc.with_rom:
+		if soc.with_integrated_rom:
 			with open(soc.cpu_boot_file, "rb") as boot_file:
 				boot_data = []
 				while True:

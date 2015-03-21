@@ -9,7 +9,7 @@ class BaseSoC(SoC):
 	def __init__(self, platform, **kwargs):
 		SoC.__init__(self, platform,
 			clk_freq=100*1000000,
-			with_rom=True,
+			with_integrated_rom=True,
 			**kwargs)
 		self.submodules.crg = CRG(platform.request("clk100"), ~platform.request("rst_n"))
 		self.comb += platform.request("user_led", 0).eq(ResetSignal())
