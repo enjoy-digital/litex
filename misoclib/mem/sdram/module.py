@@ -79,6 +79,24 @@ class MT48LC4M16(SDRAMModule):
 		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
 			self.timing_settings)
 
+class AS4C16M16(SDRAMModule):
+	geom_settings = {
+		"nbanks": 	4,
+		"nrows":	8192,
+		"ncols":	512
+	}
+	timing_settings = {
+		"tRP":		18,
+		"tRCD":		18,
+		"tWR":		12,
+		"tWTR":		2,
+		"tREFI":	256*1000*1000/4096,
+		"tRFC":		60
+	}
+	def __init__(self, clk_freq):
+		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+			self.timing_settings)
+
 # DDR
 class MT46V32M16(SDRAMModule):
 	geom_settings = {
