@@ -3,6 +3,7 @@ from migen.bus import wishbone
 
 from misoclib.cpu.peripherals import gpio
 from misoclib.mem import sdram
+from misoclib.mem.sdram.module import IS42S16160
 from misoclib.mem.sdram.phy import gensdrphy
 from misoclib.com import uart
 from misoclib.soc.sdram import SDRAMSoC
@@ -90,27 +91,14 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform)
 
 		if not self.with_main_ram:
-			sdram_geom_settings = sdram.GeomSettings(
-				bank_a=2,
-				row_a=13,
-				col_a=9
-			)
-
-			sdram_timing_settings = sdram.TimingSettings(
-				tRP=self.ns(20),
-				tRCD=self.ns(20),
-				tWR=self.ns(20),
-				tWTR=2,
-				tREFI=self.ns(7800, False),
-				tRFC=self.ns(70)
-			)
+			sdram_module = IS42S16160(self.clk_freq)
 			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
 				read_time=32,
 				write_time=16
 			)
 			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
-			self.register_sdram_phy(self.sdrphy, sdram_geom_settings, sdram_timing_settings,
+			self.register_sdram_phy(self.sdrphy, sdram_module.geom_settings, sdram_module.timing_settings,
 				sdram_controller_settings)
 
 default_subtarget = BaseSoC
