@@ -3,7 +3,7 @@
 
 from mibuild.generic_platform import *
 from mibuild.crg import SimpleCRG
-from mibuild.xilinx.ise import XilinxISEPlatform
+from mibuild.xilinx import XilinxPlatform
 from mibuild.xilinx.programmer import XC3SProg
 
 _io = [
@@ -96,18 +96,12 @@ _connectors = [
 	("F", "E2 E1 E4 F4 F5 G3 F3 G1 H3 H1 H2 J1")
 ]
 
-class Platform(XilinxISEPlatform):
+class Platform(XilinxPlatform):
 	default_clk_name = "clk50"
 	default_clk_period = 20
+
 	def __init__(self, device="xc6slx9"):
-		XilinxISEPlatform.__init__(self, device+"-3-ftg256", _io,
-			lambda p: SimpleCRG(p, "clk50", None), _connectors)
+		XilinxPlatform.__init__(self, device+"-3-ftg256", _io, _connectors)
 
 	def create_programmer(self):
 		return XC3SProg("minispartan6", "bscan_spi_minispartan6.bit")
-
-	def do_finalize(self, fragment):
-		try:
-			self.add_period_constraint(self.lookup_request("50"), 50)
-		except ConstraintError:
-			pass
