@@ -1,3 +1,19 @@
+# SDRAM memory modules library
+#
+# This library avoid duplications of memory modules definitions in targets and
+# ease SDRAM usage. (User can only select an already existing module or create
+# one for its board and contribute to this library)
+#
+# TODO:
+#   Try to share the maximum information we can between modules:
+#    - ex: MT46V32M16 and MT46H32M16 are almost identical (V=DDR, H=LPDDR)
+#    - Modules can have different configuration:
+#        MT8JTF12864 (1GB), MT8JTF25664 (2GB)
+#      but share all others informations, try to create an unique module for all
+#      configurations.
+#    - Modules can have different speedgrades, add support for it (and also add
+#      a check to verify clk_freq is in the supported range)
+
 from math import ceil
 
 from migen.fhdl.std import *
@@ -42,7 +58,8 @@ class IS42S16160(SDRAMModule):
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings, self.timing_settings)
+		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+			self.timing_settings)
 
 class MT48LC4M16(SDRAMModule):
 	geom_settings = {
@@ -59,7 +76,8 @@ class MT48LC4M16(SDRAMModule):
 		"tRFC":		66
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings, self.timing_settings)
+		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+			self.timing_settings)
 
 # DDR
 class MT46V32M16(SDRAMModule):
@@ -77,7 +95,8 @@ class MT46V32M16(SDRAMModule):
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings, self.timing_settings)
+		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+			self.timing_settings)
 
 # LPDDR
 class MT46H32M16(SDRAMModule):
@@ -95,7 +114,8 @@ class MT46H32M16(SDRAMModule):
 		"tRFC":		72
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings, self.timing_settings)
+		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+			self.timing_settings)
 
 # DDR2
 
@@ -115,4 +135,5 @@ class MT8JTF12864(SDRAMModule):
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings, self.timing_settings)
+		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+			self.timing_settings)
