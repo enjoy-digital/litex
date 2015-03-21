@@ -84,14 +84,14 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform)
 
 		if not self.with_main_ram:
-			sdram_module = MT8JTF12864(self.clk_freq)
+			sdram_modules = MT8JTF12864(self.clk_freq)
 			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
 				read_time=32,
 				write_time=16
 			)
 			self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), memtype="DDR3")
-			self.register_sdram_phy(self.ddrphy, sdram_module.geom_settings, sdram_module.timing_settings,
+			self.register_sdram_phy(self.ddrphy, sdram_modules.geom_settings, sdram_modules.timing_settings,
 				sdram_controller_settings)
 
 		spiflash_pads = platform.request("spiflash")
