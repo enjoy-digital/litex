@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoclib.mem import sdram
+from misoclib.mem.sdram.module import MT8JTF12864
 from misoclib.mem.sdram.phy import k7ddrphy
 from misoclib.mem.flash import spiflash
 from misoclib.soc import mem_decoder
@@ -83,26 +84,14 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform)
 
 		if not self.with_main_ram:
-			sdram_geom_settings = sdram.GeomSettings(
-				bank_a=3,
-				row_a=16,
-				col_a=10
-			)
-			sdram_timing_settings = sdram.TimingSettings(
-				tRP=self.ns(15),
-				tRCD=self.ns(15),
-				tWR=self.ns(15),
-				tWTR=2,
-				tREFI=self.ns(7800, False),
-				tRFC=self.ns(70)
-			)
+			sdram_module = MT8JTF12864(self.clk_freq)
 			sdram_controller_settings = sdram.ControllerSettings(
 				req_queue_size=8,
 				read_time=32,
 				write_time=16
 			)
 			self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), memtype="DDR3")
-			self.register_sdram_phy(self.ddrphy, sdram_geom_settings, sdram_timing_settings,
+			self.register_sdram_phy(self.ddrphy, sdram_module.geom_settings, sdram_module.timing_settings,
 				sdram_controller_settings)
 
 		spiflash_pads = platform.request("spiflash")
