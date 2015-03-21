@@ -13,6 +13,7 @@
 #      configurations.
 #    - Modules can have different speedgrades, add support for it (and also add
 #      a check to verify clk_freq is in the supported range)
+#   Try to uniformize tREFI computations between modules
 
 from math import ceil
 
