@@ -49,6 +49,7 @@ class IS42S16160(SDRAMModule):
 		"nrows":	8192,
 		"ncols":	512
 	}
+	# Note: timings for -7 speedgrade (add support for others speedgrades)
 	timing_settings = {
 		"tRP":		20,
 		"tRCD":		20,
@@ -85,6 +86,7 @@ class AS4C16M16(SDRAMModule):
 		"nrows":	8192,
 		"ncols":	512
 	}
+	# Note: timings for -6 speedgrade (add support for others speedgrades)
 	timing_settings = {
 		"tRP":		18,
 		"tRCD":		18,
