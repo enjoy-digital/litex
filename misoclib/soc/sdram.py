@@ -63,7 +63,7 @@ class SDRAMSoC(SoC):
 					self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_size//4, self.sdram.crossbar.get_master())
 				lasmic = self.sdram.controller.lasmic
 				main_ram_size = 2**lasmic.aw*lasmic.dw*lasmic.nbanks//8
-				self.register_mem("sdram", self.mem_map["sdram"], self.wishbone2lasmi.wishbone, main_ram_size)
+				self.register_mem("main_ram", self.mem_map["main_ram"], self.wishbone2lasmi.wishbone, main_ram_size)
 
 		# MINICON frontend
 		elif self.ramcon_type == "minicon":
@@ -71,11 +71,11 @@ class SDRAMSoC(SoC):
 			main_ram_size = 2**(geom_settings.bank_a+geom_settings.row_a+geom_settings.col_a)*sdram_width//8
 
 			if sdram_width == 32:
-				self.register_mem("sdram", self.mem_map["sdram"], self.sdram.controller.bus, main_ram_size)
+				self.register_mem("main_ram", self.mem_map["main_ram"], self.sdram.controller.bus, main_ram_size)
 			elif sdram_width < 32:
 				self.submodules.downconverter = downconverter = wishbone.DownConverter(32, sdram_width)
 				self.comb += Record.connect(downconverter.wishbone_o, self.sdram.controller.bus)
-				self.register_mem("sdram", self.mem_map["sdram"], downconverter.wishbone_i, main_ram_size)
+				self.register_mem("main_ram", self.mem_map["main_ram"], downconverter.wishbone_i, main_ram_size)
 			else:
 				raise NotImplementedError("Unsupported SDRAM width of {} > 32".format(sdram_width))
 

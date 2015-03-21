@@ -429,7 +429,7 @@ int sdrlevel(void)
 
 int memtest_silent(void)
 {
-	volatile unsigned int *array = (unsigned int *)SDRAM_BASE;
+	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
 	int i;
 	unsigned int prv;
 	unsigned int error_cnt;

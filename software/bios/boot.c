@@ -215,12 +215,12 @@ void netboot(void)
 
 	microudp_start(macadr, IPTOINT(LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4));
 
-	if(tftp_get_v(ip, "boot.bin", (void *)SDRAM_BASE) <= 0) {
+	if(tftp_get_v(ip, "boot.bin", (void *)MAIN_RAM_BASE) <= 0) {
 		printf("Network boot failed\n");
 		return;
 	}
 
-	cmdline_adr = SDRAM_BASE+0x1000000;
+	cmdline_adr = MAIN_RAM_BASE+0x1000000;
 	size = tftp_get_v(ip, "cmdline.txt", (void *)cmdline_adr);
 	if(size <= 0) {
 		printf("No command line parameters found\n");
@@ -228,7 +228,7 @@ void netboot(void)
 	} else
 		*((char *)(cmdline_adr+size)) = 0x00;
 
-	initrdstart_adr = SDRAM_BASE+0x1002000;
+	initrdstart_adr = MAIN_RAM_BASE+0x1002000;
 	size = tftp_get_v(ip, "initrd.bin", (void *)initrdstart_adr);
 	if(size <= 0) {
 		printf("No initial ramdisk found\n");
@@ -237,7 +237,7 @@ void netboot(void)
 	} else
 		initrdend_adr = initrdstart_adr + size;
 
-	boot(cmdline_adr, initrdstart_adr, initrdend_adr, SDRAM_BASE);
+	boot(cmdline_adr, initrdstart_adr, initrdend_adr, MAIN_RAM_BASE);
 }
 
 #endif
@@ -260,12 +260,12 @@ void flashboot(void)
 	}
 
 	printf("Loading %d bytes from flash...\n", length);
-	memcpy((void *)SDRAM_BASE, flashbase, length);
-	got_crc = crc32((unsigned char *)SDRAM_BASE, length);
+	memcpy((void *)MAIN_RAM_BASE, flashbase, length);
+	got_crc = crc32((unsigned char *)MAIN_RAM_BASE, length);
 	if(crc != got_crc) {
 		printf("CRC failed (expected %08x, got %08x)\n", crc, got_crc);
 		return;
 	}
-	boot(0, 0, 0, SDRAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE);
 }
 #endif

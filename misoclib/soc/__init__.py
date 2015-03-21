@@ -31,7 +31,7 @@ class SoC(Module):
 	mem_map = {
 		"rom":		0x00000000, # (shadow @0x80000000)
 		"sram":		0x10000000, # (shadow @0x90000000)
-		"sdram":	0x40000000, # (shadow @0xc0000000)
+		"main_ram":	0x40000000, # (shadow @0xc0000000)
 		"csr":		0x60000000, # (shadow @0xe0000000)
 	}
 	def __init__(self, platform, clk_freq, cpu_or_bridge=None,
@@ -101,7 +101,7 @@ class SoC(Module):
 			# Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
 			if with_integrated_main_ram:
 				self.submodules.main_ram = wishbone.SRAM(main_ram_size)
-				self.register_mem("sdram", self.mem_map["sdram"], self.main_ram.bus, main_ram_size)
+				self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, main_ram_size)
 
 		elif cpu_or_bridge is not None and not isinstance(cpu_or_bridge, CPU):
 			self._wb_masters += [cpu_or_bridge.wishbone]
