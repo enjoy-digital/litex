@@ -424,6 +424,9 @@ int sdrlevel(void)
 
 #define TEST_SIZE (2*1024*1024)
 
+#define ONEZERO 0xAAAAAAAA
+#define ZEROONE 0x55555555
+
 int memtest_silent(void)
 {
 	volatile unsigned int *array = (unsigned int *)SDRAM_BASE;
@@ -431,15 +434,26 @@ int memtest_silent(void)
 	unsigned int prv;
 	unsigned int error_cnt;
 
-	for(i=0;i<TEST_SIZE/4;i++) {
-		array[i] = 0x5A5A5A5A;
+	/* test data bus */
+	for(i=0;i<128;i++) {
+		array[i] = ONEZERO;
 	}
 	error_cnt = 0;
-	for(i=0;i<TEST_SIZE/4;i++) {
-		if(array[i] != 0x5A5A5A5A)
+	for(i=0;i<128;i++) {
+		if(array[i] != ONEZERO)
 			error_cnt++;
 	}
 
+	for(i=0;i<128;i++) {
+		array[i] = ZEROONE;
+	}
+	error_cnt = 0;
+	for(i=0;i<128;i++) {
+		if(array[i] != ZEROONE)
+			error_cnt++;
+	}
+
+	/* test random data */
 	prv = 0;
 	for(i=0;i<TEST_SIZE/4;i++) {
 		prv = 1664525*prv + 1013904223;
