@@ -93,7 +93,7 @@ class AS4C16M16(SDRAMModule):
 		"tRCD":		18,
 		"tWR":		12,
 		"tWTR":		2,
-		"tREFI":	256*1000*1000/4096,
+		"tREFI":	7800,
 		"tRFC":		60
 	}
 	def __init__(self, clk_freq):
