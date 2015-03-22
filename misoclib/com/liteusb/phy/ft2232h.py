@@ -3,7 +3,7 @@ from migen.flow.actor import *
 from migen.actorlib.fifo import AsyncFIFO
 from migen.fhdl.specials import *
 
-from liteusb.ftdi.std import *
+from misoclib.com.liteusb.common import *
 
 class FtdiPHY(Module):
 	def __init__(self, pads, fifo_depth=32, read_time=16, write_time=16):
@@ -100,7 +100,12 @@ class FtdiPHY(Module):
 		data_r  = Signal(dw)
 		data_oe = Signal()
 
-		pads.oe_n.reset = 1
+		if hasattr(pads, "oe_n"):
+			pads_oe_n = pads.oe_n
+		else:
+			pads_oe_n = Signal()
+
+		pads_oe_n.reset = 1
 		pads.rd_n.reset = 1
 		pads.wr_n.reset = 1
 
@@ -108,14 +113,14 @@ class FtdiPHY(Module):
 			If(fsm.ongoing("READ"),
 				data_oe.eq(0),
 
-				pads.oe_n.eq(0),
+				pads_oe_n.eq(0),
 				pads.rd_n.eq(~wants_read),
 				pads.wr_n.eq(1)
 
 			).Elif(fsm.ongoing("WRITE"),
 				data_oe.eq(1),
 
-				pads.oe_n.eq(1),
+				pads_oe_n.eq(1),
 				pads.rd_n.eq(1),
 				pads.wr_n.eq(~wants_write),
 
@@ -124,7 +129,7 @@ class FtdiPHY(Module):
 			).Else(
 				data_oe.eq(1),
 
-				pads.oe_n.eq(~fsm.ongoing("WTR")),
+				pads_oe_n.eq(~fsm.ongoing("WTR")),
 				pads.rd_n.eq(1),
 				pads.wr_n.eq(1)
 			),
