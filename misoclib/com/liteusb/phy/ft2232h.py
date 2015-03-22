@@ -5,7 +5,7 @@ from migen.fhdl.specials import *
 
 from misoclib.com.liteusb.common import *
 
-class FtdiPHY(Module):
+class FT2232HPHY(Module):
 	def __init__(self, pads, fifo_depth=32, read_time=16, write_time=16):
 		dw = flen(pads.data)
 
@@ -152,7 +152,7 @@ class FtdiPHY(Module):
 #
 # TB
 #
-class FtdiModel(Module, RandRun):
+class FT2232HModel(Module, RandRun):
 	def __init__(self, rd_data):
 		RandRun.__init__(self, 50)
 		self.rd_data = [0] + rd_data
@@ -258,8 +258,8 @@ user_wr_data  = [i%256 for i in range(LENGTH)]
 
 class TB(Module):
 	def __init__(self):
-		self.submodules.model = FtdiModel(model_rd_data)
-		self.submodules.phy = FtdiPHY(self.model)
+		self.submodules.model = FT2232HModel(model_rd_data)
+		self.submodules.phy = FT2232HPHY(self.model)
 
 		self.submodules.user = UserModel(user_wr_data)
 
@@ -305,8 +305,8 @@ def main():
 	#print(len(tb.user.rd_data))
 	#print(len(tb.model.wr_data))
 
-	print_results("FtdiModel --> UserModel", model_rd_data, tb.user.rd_data)
-	print_results("UserModel --> FtdiModel", user_wr_data,  tb.model.wr_data)
+	print_results("F2232HModel --> UserModel", model_rd_data, tb.user.rd_data)
+	print_results("UserModel --> FT2232HModel", user_wr_data,  tb.model.wr_data)
 
 if __name__ == "__main__":
 	main()

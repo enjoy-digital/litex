@@ -4,7 +4,7 @@ from migen.genlib.fsm import FSM, NextState
 
 from misoclib.com.liteusb.common import *
 
-class FtdiDepacketizer(Module):
+class LiteUSBDepacketizer(Module):
 	def __init__(self, timeout=10):
 		self.sink = sink = Sink(phy_layout)
 		self.source = source = Source(user_layout)
@@ -53,7 +53,7 @@ class FtdiDepacketizer(Module):
 			header_pack.source.ack.eq(1),
 		)
 
-		self.submodules.timeout = FtdiTimeout(60000000, timeout)
+		self.submodules.timeout = LiteUSBTimeout(60000000, timeout)
 		self.comb += self.timeout.clear.eq(fsm.ongoing("WAIT_SOP"))
 
 		fsm.act("RECEIVE_HEADER",
@@ -137,7 +137,7 @@ class DepacketizerSinkModel(Module, Sink, RandRun):
 class TB(Module):
 	def __init__(self):
 		self.submodules.source = DepacketizerSourceModel(src_data)
-		self.submodules.dut = FtdiDepacketizer()
+		self.submodules.dut = LiteUSBDepacketizer()
 		self.submodules.sink = DepacketizerSinkModel()
 
 		self.comb += [

@@ -4,7 +4,7 @@ from migen.genlib.fsm import FSM, NextState
 
 from misoclib.com.liteusb.common import *
 
-class FtdiPacketizer(Module):
+class LiteUSBPacketizer(Module):
 	def __init__(self):
 		self.sink = sink = Sink(user_layout)
 		self.source = source = Source(phy_layout)
@@ -132,7 +132,7 @@ class PacketizerSinkModel(Module, Sink, RandRun):
 class TB(Module):
 	def __init__(self):
 		self.submodules.source = PacketizerSourceModel(src_data)
-		self.submodules.dut = FtdiPacketizer()
+		self.submodules.dut = LiteUSBPacketizer()
 		self.submodules.sink = PacketizerSinkModel()
 
 		self.comb +=[

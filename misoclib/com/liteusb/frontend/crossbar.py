@@ -4,10 +4,10 @@ from migen.genlib.record import Record
 
 from misoclib.com.liteusb.common import *
 
-class FtdiCrossbar(Module):
+class LiteUSBCrossbar(Module):
 	def __init__(self, masters, slave=None):
 		if slave is None:
-			slave = FtdiPipe(user_layout)
+			slave = LiteUSBPipe(user_layout)
 			self.slave = slave
 
 		# masters --> slave arbitration

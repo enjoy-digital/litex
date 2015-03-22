@@ -5,7 +5,7 @@ from migen.genlib.fifo import SyncFIFOBuffered
 
 from misoclib.com.liteusb.common import *
 
-class FtdiUART(Module, AutoCSR):
+class LiteUSBUART(Module, AutoCSR):
 	def __init__(self, tag, fifo_depth=64):
 		self.tag = tag
 

@@ -283,7 +283,7 @@ class CRC32Checker(CRCChecker):
 	def __init__(self, layout):
 		CRCChecker.__init__(self, CRC32, layout)
 
-class FtdiCRC32(Module):
+class LiteUSBCRC32(Module):
 	def __init__(self, tag):
 		self.tag = tag
 

@@ -16,12 +16,12 @@ phy_layout = [
 	("d", 8)
 ]
 
-class FtdiPipe:
+class LiteUSBPipe:
 	def __init__(self, layout):
 		self.sink = Sink(layout)
 		self.source = Source(layout)
 
-class FtdiTimeout(Module):
+class LiteUSBTimeout(Module):
 	def __init__(self, clk_freq, length):
 		cnt_max = int(clk_freq*length)
 		width = bits_for(cnt_max)

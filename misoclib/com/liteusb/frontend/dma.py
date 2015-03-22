@@ -10,7 +10,7 @@ from misoclib.mem.sdram.frontend import dma_lasmi
 
 from misoclib.com.liteusb.common import *
 
-class FtdiDMAWriter(Module, AutoCSR):
+class LiteUSBDMAWriter(Module, AutoCSR):
 	def __init__(self, lasmim):
 		self.sink = sink = Sink(user_layout)
 
@@ -50,7 +50,7 @@ class FtdiDMAWriter(Module, AutoCSR):
 				self._crc_failed.status.eq(sink.error)
 			)
 
-class FtdiDMAReader(Module, AutoCSR):
+class LiteUSBDMAReader(Module, AutoCSR):
 	def __init__(self, lasmim, tag):
 		self.source = source = Source(user_layout)
 
@@ -89,12 +89,12 @@ class FtdiDMAReader(Module, AutoCSR):
 		self.ev.finalize()
 		self.comb += self.ev.done.trigger.eq(source.stb & source.eop)
 
-class FtdiDMA(Module, AutoCSR):
+class LiteUSBDMA(Module, AutoCSR):
 	def __init__(self, lasmim_ftdi_dma_wr, lasmim_ftdi_dma_rd, tag):
 		self.tag = tag
 
-		self.submodules.writer = FtdiDMAWriter(lasmim_ftdi_dma_wr)
-		self.submodules.reader = FtdiDMAReader(lasmim_ftdi_dma_rd, self.tag)
+		self.submodules.writer = LiteUSBDMAWriter(lasmim_ftdi_dma_wr)
+		self.submodules.reader = LiteUSBDMAReader(lasmim_ftdi_dma_rd, self.tag)
 		self.submodules.ev = SharedIRQ(self.writer.ev, self.reader.ev)
 
 		self.sink = self.writer.sink
