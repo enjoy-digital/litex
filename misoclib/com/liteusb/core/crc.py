@@ -1,4 +1,3 @@
-
 from collections import OrderedDict
 from migen.fhdl.std import *
 from migen.genlib.fsm import FSM, NextState
@@ -7,7 +6,7 @@ from migen.genlib.misc import chooser, optree
 from migen.flow.actor import Sink, Source
 from migen.actorlib.fifo import SyncFIFO
 
-from liteusb.ftdi.std import *
+from misoclib.com.liteusb.common import *
 
 class CRCEngine(Module):
 	"""Cyclic Redundancy Check Engine

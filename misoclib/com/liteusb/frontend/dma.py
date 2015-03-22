@@ -8,7 +8,7 @@ from migen.genlib.record import Record
 
 from misoclib.mem.sdram.frontend import dma_lasmi
 
-from liteusb.ftdi.std import *
+from misoclib.com.liteusb.common import *
 
 class FtdiDMAWriter(Module, AutoCSR):
 	def __init__(self, lasmim):

@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.roundrobin import *
 from migen.genlib.record import Record
 
-from liteusb.ftdi.std import *
+from misoclib.com.liteusb.common import *
 
 class FtdiCrossbar(Module):
 	def __init__(self, masters, slave=None):

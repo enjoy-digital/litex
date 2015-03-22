@@ -1,11 +1,11 @@
 from migen.fhdl.std import *
 from migen.flow.actor import *
 
-from liteusb.ftdi.std import *
-from liteusb.ftdi.crossbar import FtdiCrossbar
-from liteusb.ftdi.packetizer import FtdiPacketizer
-from liteusb.ftdi.depacketizer import FtdiDepacketizer
-from liteusb.ftdi.phy import FtdiPHY
+from misoclib.com.liteusb.common import *
+from misoclib.com.liteusb.frontend.crossbar import FtdiCrossbar
+from misoclib.com.liteusb.core.packetizer import FtdiPacketizer
+from misoclib.com.liteusb.core.depacketizer import FtdiDepacketizer
+from misoclib.com.liteusb.phy.ft2232h import FtdiPHY
 
 class FtdiCom(Module):
 	def __init__(self, pads, *ports):

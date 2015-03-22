@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.actorlib.structuring import *
 from migen.genlib.fsm import FSM, NextState
 
-from liteusb.ftdi.std import *
+from misoclib.com.liteusb.common import *
 
 class FtdiDepacketizer(Module):
 	def __init__(self, timeout=10):

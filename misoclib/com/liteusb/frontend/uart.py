@@ -3,7 +3,7 @@ from migen.bank.description import *
 from migen.bank.eventmanager import *
 from migen.genlib.fifo import SyncFIFOBuffered
 
-from liteusb.ftdi.std import *
+from misoclib.com.liteusb.common import *
 
 class FtdiUART(Module, AutoCSR):
 	def __init__(self, tag, fifo_depth=64):
