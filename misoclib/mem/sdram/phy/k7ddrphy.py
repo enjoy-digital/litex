@@ -7,7 +7,7 @@ from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
 class K7DDRPHY(Module, AutoCSR):
-	def __init__(self, pads, memtype):
+	def __init__(self, pads, module):
 		addressbits = flen(pads.a)
 		bankbits = flen(pads.ba)
 		databits = flen(pads.dq)
@@ -25,7 +25,7 @@ class K7DDRPHY(Module, AutoCSR):
 		self._wdly_dqs_inc = CSR()
 
 		self.settings = sdram.PhySettings(
-			memtype=memtype,
+			memtype=module.memtype,
 			dfi_databits=2*databits,
 			nphases=nphases,
 			rdphase=0,
@@ -37,6 +37,7 @@ class K7DDRPHY(Module, AutoCSR):
 			read_latency=6,
 			write_latency=2
 		)
+		self.module = module
 
 		self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
 

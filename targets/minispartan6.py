@@ -73,8 +73,7 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform, clk_freq)
 
 		if not self.with_integrated_main_ram:
-			sdram_module = AS4C16M16(clk_freq)
-			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
-			self.register_sdram_phy(self.sdrphy, sdram_module.geom_settings, sdram_module.timing_settings)
+			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"), AS4C16M16(clk_freq))
+			self.register_sdram_phy(self.sdrphy)
 
 default_subtarget = BaseSoC

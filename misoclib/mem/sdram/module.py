@@ -21,8 +21,9 @@ from migen.fhdl.std import *
 from misoclib.mem import sdram
 
 class SDRAMModule:
-	def __init__(self, clk_freq, geom_settings, timing_settings):
+	def __init__(self, clk_freq, memtype, geom_settings, timing_settings):
 		self.clk_freq = clk_freq
+		self.memtype = memtype
 		self.geom_settings = sdram.GeomSettings(
 			databits=geom_settings["nbits"],
 			bankbits=log2_int(geom_settings["nbanks"]),
@@ -62,7 +63,7 @@ class IS42S16160(SDRAMModule):
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+		SDRAMModule.__init__(self, clk_freq,  "SDR", self.geom_settings,
 			self.timing_settings)
 
 class MT48LC4M16(SDRAMModule):
@@ -81,7 +82,7 @@ class MT48LC4M16(SDRAMModule):
 		"tRFC":		66
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+		SDRAMModule.__init__(self, clk_freq, "SDR", self.geom_settings,
 			self.timing_settings)
 
 class AS4C16M16(SDRAMModule):
@@ -101,7 +102,7 @@ class AS4C16M16(SDRAMModule):
 		"tRFC":		60
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+		SDRAMModule.__init__(self, clk_freq, "SDR", self.geom_settings,
 			self.timing_settings)
 
 # DDR
@@ -121,7 +122,7 @@ class MT46V32M16(SDRAMModule):
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+		SDRAMModule.__init__(self, clk_freq, "DDR", self.geom_settings,
 			self.timing_settings)
 
 # LPDDR
@@ -141,7 +142,7 @@ class MT46H32M16(SDRAMModule):
 		"tRFC":		72
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+		SDRAMModule.__init__(self, clk_freq, "LPDDR", self.geom_settings,
 			self.timing_settings)
 
 # DDR2
@@ -161,7 +162,7 @@ class MT47H128M8(SDRAMModule):
 		"tRFC":		127.5
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+		SDRAMModule.__init__(self, clk_freq, "DDR2", self.geom_settings,
 			self.timing_settings)
 
 # DDR3
@@ -181,5 +182,5 @@ class MT8JTF12864(SDRAMModule):
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
-		SDRAMModule.__init__(self, clk_freq, self.geom_settings,
+		SDRAMModule.__init__(self, clk_freq, "DDR3", self.geom_settings,
 			self.timing_settings)

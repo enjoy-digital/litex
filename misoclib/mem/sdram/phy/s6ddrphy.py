@@ -21,8 +21,8 @@ from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
 class S6DDRPHY(Module):
-	def __init__(self, pads, memtype, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
-		if memtype not in ["DDR", "LPDDR", "DDR2"]:
+	def __init__(self, pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
+		if module.memtype not in ["DDR", "LPDDR", "DDR2"]:
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
 		addressbits = flen(pads.a)
 		bankbits = flen(pads.ba)
@@ -30,7 +30,7 @@ class S6DDRPHY(Module):
 		nphases = 2
 
 		self.settings = sdram.PhySettings(
-			memtype=memtype,
+			memtype=module.memtype,
 			dfi_databits=2*databits,
 			nphases=nphases,
 			rdphase=0,
@@ -41,6 +41,7 @@ class S6DDRPHY(Module):
 			read_latency=5,
 			write_latency=0
 		)
+		self.module = module
 
 		self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
 		self.clk4x_wr_strb = Signal()

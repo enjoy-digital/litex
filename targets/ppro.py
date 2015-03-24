@@ -78,9 +78,8 @@ class BaseSoC(SDRAMSoC):
 		self.submodules.crg = _CRG(platform, clk_freq)
 
 		if not self.with_integrated_main_ram:
-			sdram_module = MT48LC4M16(clk_freq)
-			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"))
-			self.register_sdram_phy(self.sdrphy, sdram_module.geom_settings, sdram_module.timing_settings)
+			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"), MT48LC4M16(clk_freq))
+			self.register_sdram_phy(self.sdrphy)
 
 		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"), dummy=4, div=6)
 		self.flash_boot_address = 0x70000

@@ -29,13 +29,13 @@ from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
 class GENSDRPHY(Module):
-	def __init__(self, pads):
+	def __init__(self, pads, module):
 		addressbits = flen(pads.a)
 		bankbits = flen(pads.ba)
 		databits = flen(pads.dq)
 
 		self.settings = sdram.PhySettings(
-			memtype="SDR",
+			memtype=module.memtype,
 			dfi_databits=databits,
 			nphases=1,
 			rdphase=0,
@@ -46,6 +46,7 @@ class GENSDRPHY(Module):
 			read_latency=4,
 			write_latency=0
 		)
+		self.module = module
 
 		self.dfi = Interface(addressbits, bankbits, databits)
 
