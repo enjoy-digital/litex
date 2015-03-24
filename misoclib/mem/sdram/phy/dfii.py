@@ -36,10 +36,10 @@ class PhaseInjector(Module, AutoCSR):
 		self.sync += If(phase.rddata_valid, self._rddata.status.eq(phase.rddata))
 
 class DFIInjector(Module, AutoCSR):
-	def __init__(self, a, ba, d, nphases=1):
-		inti = dfi.Interface(a, ba, d, nphases)
-		self.slave = dfi.Interface(a, ba, d, nphases)
-		self.master = dfi.Interface(a, ba, d, nphases)
+	def __init__(self, addressbits, bankbits, databits, nphases=1):
+		inti = dfi.Interface(addressbits, bankbits, databits, nphases)
+		self.slave = dfi.Interface(addressbits, bankbits, databits, nphases)
+		self.master = dfi.Interface(addressbits, bankbits, databits, nphases)
 
 		self._control = CSRStorage(4) # sel, cke, odt, reset_n
 

@@ -8,14 +8,14 @@ from misoclib.mem import sdram
 
 class K7DDRPHY(Module, AutoCSR):
 	def __init__(self, pads, memtype):
-		a = flen(pads.a)
-		ba = flen(pads.ba)
-		d = flen(pads.dq)
+		addressbits = flen(pads.a)
+		bankbits = flen(pads.ba)
+		databits = flen(pads.dq)
 		nphases = 4
 
 		self._wlevel_en = CSRStorage()
 		self._wlevel_strobe = CSR()
-		self._dly_sel = CSRStorage(d//8)
+		self._dly_sel = CSRStorage(databits//8)
 		self._rdly_dq_rst = CSR()
 		self._rdly_dq_inc = CSR()
 		self._rdly_dq_bitslip = CSR()
@@ -26,7 +26,7 @@ class K7DDRPHY(Module, AutoCSR):
 
 		self.settings = sdram.PhySettings(
 			memtype=memtype,
-			dfi_d=2*d,
+			dfi_databits=2*databits,
 			nphases=nphases,
 			rdphase=0,
 			wrphase=2,
@@ -38,7 +38,7 @@ class K7DDRPHY(Module, AutoCSR):
 			write_latency=2
 		)
 
-		self.dfi = Interface(a, ba, self.settings.dfi_d, nphases)
+		self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
 
 		###
 
@@ -65,7 +65,7 @@ class K7DDRPHY(Module, AutoCSR):
 		]
 
 		# Addresses and commands
-		for i in range(a):
+		for i in range(addressbits):
 			self.specials += \
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
@@ -81,7 +81,7 @@ class K7DDRPHY(Module, AutoCSR):
 					i_D5=self.dfi.phases[2].address[i], i_D6=self.dfi.phases[2].address[i],
 					i_D7=self.dfi.phases[3].address[i], i_D8=self.dfi.phases[3].address[i]
 				)
-		for i in range(ba):
+		for i in range(bankbits):
 			self.specials += \
 				Instance("OSERDESE2",
 					p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
@@ -127,7 +127,7 @@ class K7DDRPHY(Module, AutoCSR):
 			).Else(
 				dqs_serdes_pattern.eq(0b01010101)
 			)
-		for i in range(d//8):
+		for i in range(databits//8):
 			dm_o_nodelay = Signal()
 			self.specials += \
 				Instance("OSERDESE2",
@@ -139,10 +139,10 @@ class K7DDRPHY(Module, AutoCSR):
 					i_OCE=1,
 					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
-					i_D1=self.dfi.phases[0].wrdata_mask[i], i_D2=self.dfi.phases[0].wrdata_mask[d//8+i],
-					i_D3=self.dfi.phases[1].wrdata_mask[i], i_D4=self.dfi.phases[1].wrdata_mask[d//8+i],
-					i_D5=self.dfi.phases[2].wrdata_mask[i], i_D6=self.dfi.phases[2].wrdata_mask[d//8+i],
-					i_D7=self.dfi.phases[3].wrdata_mask[i], i_D8=self.dfi.phases[3].wrdata_mask[d//8+i]
+					i_D1=self.dfi.phases[0].wrdata_mask[i], i_D2=self.dfi.phases[0].wrdata_mask[databits//8+i],
+					i_D3=self.dfi.phases[1].wrdata_mask[i], i_D4=self.dfi.phases[1].wrdata_mask[databits//8+i],
+					i_D5=self.dfi.phases[2].wrdata_mask[i], i_D6=self.dfi.phases[2].wrdata_mask[databits//8+i],
+					i_D7=self.dfi.phases[3].wrdata_mask[i], i_D8=self.dfi.phases[3].wrdata_mask[databits//8+i]
 				)
 			self.specials += \
 				Instance("ODELAYE2",
@@ -197,7 +197,7 @@ class K7DDRPHY(Module, AutoCSR):
 
 		# DQ
 		oe_dq = Signal()
-		for i in range(d):
+		for i in range(databits):
 			dq_o_nodelay = Signal()
 			dq_o_delayed = Signal()
 			dq_i_nodelay = Signal()
@@ -213,10 +213,10 @@ class K7DDRPHY(Module, AutoCSR):
 					i_OCE=1, i_TCE=1,
 					i_RST=ResetSignal(),
 					i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
-					i_D1=self.dfi.phases[0].wrdata[i], i_D2=self.dfi.phases[0].wrdata[d+i],
-					i_D3=self.dfi.phases[1].wrdata[i], i_D4=self.dfi.phases[1].wrdata[d+i],
-					i_D5=self.dfi.phases[2].wrdata[i], i_D6=self.dfi.phases[2].wrdata[d+i],
-					i_D7=self.dfi.phases[3].wrdata[i], i_D8=self.dfi.phases[3].wrdata[d+i],
+					i_D1=self.dfi.phases[0].wrdata[i], i_D2=self.dfi.phases[0].wrdata[databits+i],
+					i_D3=self.dfi.phases[1].wrdata[i], i_D4=self.dfi.phases[1].wrdata[databits+i],
+					i_D5=self.dfi.phases[2].wrdata[i], i_D6=self.dfi.phases[2].wrdata[databits+i],
+					i_D7=self.dfi.phases[3].wrdata[i], i_D8=self.dfi.phases[3].wrdata[databits+i],
 					i_T1=~oe_dq
 				),
 				Instance("ISERDESE2",
@@ -229,10 +229,10 @@ class K7DDRPHY(Module, AutoCSR):
 					i_RST=ResetSignal() | (self._dly_sel.storage[i//8] & self._wdly_dq_rst.re),
 					i_CLK=ClockSignal("sys4x"), i_CLKB=~ClockSignal("sys4x"), i_CLKDIV=ClockSignal(),
 					i_BITSLIP=self._dly_sel.storage[i//8] & self._rdly_dq_bitslip.re,
-					o_Q8=self.dfi.phases[0].rddata[i], o_Q7=self.dfi.phases[0].rddata[d+i],
-					o_Q6=self.dfi.phases[1].rddata[i], o_Q5=self.dfi.phases[1].rddata[d+i],
-					o_Q4=self.dfi.phases[2].rddata[i], o_Q3=self.dfi.phases[2].rddata[d+i],
-					o_Q2=self.dfi.phases[3].rddata[i], o_Q1=self.dfi.phases[3].rddata[d+i]
+					o_Q8=self.dfi.phases[0].rddata[i], o_Q7=self.dfi.phases[0].rddata[databits+i],
+					o_Q6=self.dfi.phases[1].rddata[i], o_Q5=self.dfi.phases[1].rddata[databits+i],
+					o_Q4=self.dfi.phases[2].rddata[i], o_Q3=self.dfi.phases[2].rddata[databits+i],
+					o_Q2=self.dfi.phases[3].rddata[i], o_Q1=self.dfi.phases[3].rddata[databits+i]
 				),
 				Instance("ODELAYE2",
 					p_DELAY_SRC="ODATAIN", p_SIGNAL_PATTERN="DATA",

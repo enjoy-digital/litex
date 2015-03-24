@@ -7,19 +7,19 @@ from migen.genlib.fifo import SyncFIFO
 from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
 class _AddressSlicer:
-	def __init__(self, col_a, address_align):
-		self.col_a = col_a
+	def __init__(self, colbits, address_align):
+		self.colbits = colbits
 		self.address_align = address_align
 
 	def row(self, address):
-		split = self.col_a - self.address_align
+		split = self.colbits - self.address_align
 		if isinstance(address, int):
 			return address >> split
 		else:
 			return address[split:]
 
 	def col(self, address):
-		split = self.col_a - self.address_align
+		split = self.colbits - self.address_align
 		if isinstance(address, int):
 			return (address & (2**split - 1)) << self.address_align
 		else:
@@ -29,7 +29,7 @@ class BankMachine(Module):
 	def __init__(self, geom_settings, timing_settings, controller_settings, address_align, bankn, req):
 		self.refresh_req = Signal()
 		self.refresh_gnt = Signal()
-		self.cmd = CommandRequestRW(geom_settings.mux_a, geom_settings.bank_a)
+		self.cmd = CommandRequestRW(geom_settings.addressbits, geom_settings.bankbits)
 
 		###
 
@@ -46,11 +46,11 @@ class BankMachine(Module):
 		]
 		reqf = self.req_fifo.dout
 
-		slicer = _AddressSlicer(geom_settings.col_a, address_align)
+		slicer = _AddressSlicer(geom_settings.colbits, address_align)
 
 		# Row tracking
 		has_openrow = Signal()
-		openrow = Signal(geom_settings.row_a)
+		openrow = Signal(geom_settings.rowbits)
 		hit = Signal()
 		self.comb += hit.eq(openrow == slicer.row(reqf.adr))
 		track_open = Signal()

@@ -108,7 +108,7 @@ class Multiplexer(Module, AutoCSR):
 			]
 
 		# Command steering
-		nop = CommandRequest(geom_settings.mux_a, geom_settings.bank_a)
+		nop = CommandRequest(geom_settings.addressbits, geom_settings.bankbits)
 		commands = [nop, choose_cmd.cmd, choose_req.cmd, refresher.cmd] # nop must be 1st
 		(STEER_NOP, STEER_CMD, STEER_REQ, STEER_REFRESH) = range(4)
 		steerer = _Steerer(commands, dfi)

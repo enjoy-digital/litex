@@ -24,14 +24,14 @@ class S6DDRPHY(Module):
 	def __init__(self, pads, memtype, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
 		if memtype not in ["DDR", "LPDDR", "DDR2"]:
 			raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
-		a = flen(pads.a)
-		ba = flen(pads.ba)
-		d = flen(pads.dq)
+		addressbits = flen(pads.a)
+		bankbits = flen(pads.ba)
+		databits = flen(pads.dq)
 		nphases = 2
 
 		self.settings = sdram.PhySettings(
 			memtype=memtype,
-			dfi_d=2*d,
+			dfi_databits=2*databits,
 			nphases=nphases,
 			rdphase=0,
 			wrphase=1,
@@ -42,7 +42,7 @@ class S6DDRPHY(Module):
 			write_latency=0
 		)
 
-		self.dfi = Interface(a, ba, self.settings.dfi_d, nphases)
+		self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
 		self.clk4x_wr_strb = Signal()
 		self.clk4x_rd_strb = Signal()
 
@@ -80,7 +80,7 @@ class S6DDRPHY(Module):
 		]
 
 		# register dfi cmds on half_rate clk
-		r_dfi = Array(Record(phase_cmd_description(a, ba)) for i in range(nphases))
+		r_dfi = Array(Record(phase_cmd_description(addressbits, bankbits)) for i in range(nphases))
 		for n, phase in enumerate(self.dfi.phases):
 			sd_sdram_half +=[
 				r_dfi[n].address.eq(phase.address),
@@ -130,15 +130,15 @@ class S6DDRPHY(Module):
 		dqs_t_d0 = Signal()
 		dqs_t_d1 = Signal()
 
-		dqs_o = Signal(d//8)
-		dqs_t = Signal(d//8)
+		dqs_o = Signal(databits//8)
+		dqs_t = Signal(databits//8)
 
 		self.comb += [
 			dqs_t_d0.eq(~(drive_dqs | postamble)),
 			dqs_t_d1.eq(~drive_dqs),
 		]
 
-		for i in range(d//8):
+		for i in range(databits//8):
 			# DQS output
 			self.specials += Instance("ODDR2",
 				p_DDR_ALIGNMENT=dqs_ddr_alignment,
@@ -194,7 +194,7 @@ class S6DDRPHY(Module):
 
 		sd_sdram_half += postamble.eq(drive_dqs)
 
-		d_dfi = [Record(phase_wrdata_description(nphases*d)+phase_rddata_description(nphases*d))
+		d_dfi = [Record(phase_wrdata_description(nphases*databits)+phase_rddata_description(nphases*databits))
 			for i in range(2*nphases)]
 
 		for n, phase in enumerate(self.dfi.phases):
@@ -215,17 +215,17 @@ class S6DDRPHY(Module):
 		self.comb += drive_dq_n[0].eq(~drive_dq)
 		sd_sys += drive_dq_n[1].eq(drive_dq_n[0])
 
-		dq_t = Signal(d)
-		dq_o = Signal(d)
-		dq_i = Signal(d)
+		dq_t = Signal(databits)
+		dq_o = Signal(databits)
+		dq_i = Signal(databits)
 
 		dq_wrdata = []
 		for i in range(2):
 			for j in reversed(range(nphases)):
-				dq_wrdata.append(d_dfi[i*nphases+j].wrdata[:d])
-				dq_wrdata.append(d_dfi[i*nphases+j].wrdata[d:])
+				dq_wrdata.append(d_dfi[i*nphases+j].wrdata[:databits])
+				dq_wrdata.append(d_dfi[i*nphases+j].wrdata[databits:])
 
-		for i in range(d):
+		for i in range(databits):
 			# Data serializer
 			self.specials += Instance("OSERDES2",
 				p_DATA_WIDTH=4,
@@ -277,9 +277,9 @@ class S6DDRPHY(Module):
 				i_CLKDIV=sys_clk,
 				i_BITSLIP=bitslip_inc,
 
-				o_Q1=d_dfi[0*nphases+0].rddata[i+d],
+				o_Q1=d_dfi[0*nphases+0].rddata[i+databits],
 				o_Q2=d_dfi[0*nphases+0].rddata[i],
-				o_Q3=d_dfi[0*nphases+1].rddata[i+d],
+				o_Q3=d_dfi[0*nphases+1].rddata[i+databits],
 				o_Q4=d_dfi[0*nphases+1].rddata[i],
 			)
 
@@ -294,10 +294,10 @@ class S6DDRPHY(Module):
 		dq_wrdata_mask = []
 		for i in range(2):
 			for j in reversed(range(nphases)):
-				dq_wrdata_mask.append(d_dfi[i*nphases+j].wrdata_mask[:d//8])
-				dq_wrdata_mask.append(d_dfi[i*nphases+j].wrdata_mask[d//8:])
+				dq_wrdata_mask.append(d_dfi[i*nphases+j].wrdata_mask[:databits//8])
+				dq_wrdata_mask.append(d_dfi[i*nphases+j].wrdata_mask[databits//8:])
 
-		for i in range(d//8):
+		for i in range(databits//8):
 			# Mask serializer
 			self.specials += Instance("OSERDES2",
 				p_DATA_WIDTH=4,

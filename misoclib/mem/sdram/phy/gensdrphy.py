@@ -30,13 +30,13 @@ from misoclib.mem import sdram
 
 class GENSDRPHY(Module):
 	def __init__(self, pads):
-		a = flen(pads.a)
-		ba = flen(pads.ba)
-		d = flen(pads.dq)
+		addressbits = flen(pads.a)
+		bankbits = flen(pads.ba)
+		databits = flen(pads.dq)
 
 		self.settings = sdram.PhySettings(
 			memtype="SDR",
-			dfi_d=d,
+			dfi_databits=databits,
 			nphases=1,
 			rdphase=0,
 			wrphase=0,
@@ -47,7 +47,7 @@ class GENSDRPHY(Module):
 			write_latency=0
 		)
 
-		self.dfi = Interface(a, ba, d)
+		self.dfi = Interface(addressbits, bankbits, databits)
 
 		###
 
@@ -63,14 +63,14 @@ class GENSDRPHY(Module):
 			pads.we_n.eq(self.dfi.p0.we_n)
 		]
 		if hasattr(pads, "cs_n"):
-			self.sync += pads.cs_n.eq(self.dfi.p0.cs_n),
+			self.sync += pads.cs_n.eq(self.dfi.p0.cs_n)
 
 		#
 		# DQ/DQS/DM data
 		#
-		sd_dq_out = Signal(d)
+		sd_dq_out = Signal(databits)
 		drive_dq = Signal()
-		self.sync += sd_dq_out.eq(self.dfi.p0.wrdata),
+		self.sync += sd_dq_out.eq(self.dfi.p0.wrdata)
 		self.specials += Tristate(pads.dq, sd_dq_out, drive_dq)
 		self.sync += \
 			If(self.dfi.p0.wrdata_en,
@@ -78,7 +78,7 @@ class GENSDRPHY(Module):
 			).Else(
 				pads.dm.eq(0)
 			)
-		sd_dq_in_ps = Signal(d)
+		sd_dq_in_ps = Signal(databits)
 		self.sync.sys_ps += sd_dq_in_ps.eq(pads.dq)
 		self.sync += self.dfi.p0.rddata.eq(sd_dq_in_ps)
 

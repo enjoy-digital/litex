@@ -154,9 +154,9 @@ if __name__ == "__main__":
 	plat = board.Platform()
 
 	sdram_geom = sdram.GeomSettings(
-		bank_a=2,
-		row_a=12,
-		col_a=8
+		bankbits=2,
+		rowbits=12,
+		colbits=8
 	)
 
 	sdram_timing = sdram.TimingSettings(

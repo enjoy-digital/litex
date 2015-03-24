@@ -63,7 +63,7 @@ class SDRAMSoC(SoC):
 		# MINICON frontend
 		elif isinstance(self.sdram_controller_settings, MiniconSettings):
 			sdram_width = flen(self.sdram.controller.bus.dat_r)
-			main_ram_size = 2**(geom_settings.bank_a+geom_settings.row_a+geom_settings.col_a)*sdram_width//8
+			main_ram_size = 2**(geom_settings.bankbits+geom_settings.rowbits+geom_settings.colbits)*sdram_width//8
 
 			if sdram_width == 32:
 				self.register_mem("main_ram", self.mem_map["main_ram"], self.sdram.controller.bus, main_ram_size)

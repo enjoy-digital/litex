@@ -5,30 +5,30 @@ from migen.genlib.fsm import FSM, NextState
 from misoclib.mem.sdram.phy import dfi as dfibus
 
 class _AddressSlicer:
-	def __init__(self, col_a, bank_a, row_a, address_align):
-		self.col_a = col_a
-		self.bank_a = bank_a
-		self.row_a = row_a
-		self.max_a = col_a + row_a + bank_a
+	def __init__(self, colbits, bankbits, rowbits, address_align):
+		self.colbits = colbits
+		self.bankbits = bankbits
+		self.rowbits = rowbits
+		self.max_a = colbits + rowbits + bankbits
 		self.address_align = address_align
 
 	def row(self, address):
-		split = self.bank_a + self.col_a
+		split = self.bankbits + self.colbits
 		if isinstance(address, int):
 			return address >> split
 		else:
 			return address[split:self.max_a]
 
 	def bank(self, address):
-		mask = 2**(self.bank_a + self.col_a) - 1
-		shift = self.col_a
+		mask = 2**(self.bankbits + self.colbits) - 1
+		shift = self.colbits
 		if isinstance(address, int):
 			return (address & mask) >> shift
 		else:
-			return address[self.col_a:self.col_a+self.bank_a]
+			return address[self.colbits:self.colbits+self.bankbits]
 
 	def col(self, address):
-		split = self.col_a
+		split = self.colbits
 		if isinstance(address, int):
 			return (address & (2**split - 1)) << self.address_align
 		else:
@@ -46,20 +46,20 @@ class Minicon(Module):
 			burst_length = phy_settings.nphases*2 # command multiplication*DDR
 		address_align = log2_int(burst_length)
 
-		nbanks = range(2**geom_settings.bank_a)
+		nbanks = range(2**geom_settings.bankbits)
 		A10_ENABLED = 0
 		COLUMN      = 1
 		ROW         = 2
 		rdphase = phy_settings.rdphase
 		wrphase = phy_settings.wrphase
 
-		self.dfi = dfi = dfibus.Interface(geom_settings.mux_a,
-			geom_settings.bank_a,
-			phy_settings.dfi_d,
+		self.dfi = dfi = dfibus.Interface(geom_settings.addressbits,
+			geom_settings.bankbits,
+			phy_settings.dfi_databits,
 			phy_settings.nphases)
 
 		self.bus = bus = wishbone.Interface(data_width=phy_settings.nphases*flen(dfi.phases[rdphase].rddata))
-		slicer = _AddressSlicer(geom_settings.col_a, geom_settings.bank_a, geom_settings.row_a, address_align)
+		slicer = _AddressSlicer(geom_settings.colbits, geom_settings.bankbits, geom_settings.rowbits, address_align)
 		refresh_req = Signal()
 		refresh_ack = Signal()
 		refresh_counter = Signal(max=timing_settings.tREFI+1)
@@ -70,7 +70,7 @@ class Minicon(Module):
 		has_curbank_openrow = Signal()
 
 		# Extra bit means row is active when asserted
-		self.openrow = openrow = Array(Signal(geom_settings.row_a + 1) for b in nbanks)
+		self.openrow = openrow = Array(Signal(geom_settings.rowbits + 1) for b in nbanks)
 
 		self.comb += [
 			hit.eq(openrow[slicer.bank(bus.adr)] == Cat(slicer.row(bus.adr), 1)),

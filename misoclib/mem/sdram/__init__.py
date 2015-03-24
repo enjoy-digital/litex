@@ -1,11 +1,11 @@
 from collections import namedtuple
 
-PhySettingsT = namedtuple("PhySettings", "memtype dfi_d nphases rdphase wrphase rdcmdphase wrcmdphase cl cwl read_latency write_latency")
-def PhySettings(memtype, dfi_d, nphases, rdphase, wrphase, rdcmdphase, wrcmdphase, cl, read_latency, write_latency, cwl=0):
-	return PhySettingsT(memtype, dfi_d, nphases, rdphase, wrphase, rdcmdphase, wrcmdphase, cl, cwl, read_latency, write_latency)
+PhySettingsT = namedtuple("PhySettings", "memtype dfi_databits nphases rdphase wrphase rdcmdphase wrcmdphase cl cwl read_latency write_latency")
+def PhySettings(memtype, dfi_databits, nphases, rdphase, wrphase, rdcmdphase, wrcmdphase, cl, read_latency, write_latency, cwl=0):
+	return PhySettingsT(memtype, dfi_databits, nphases, rdphase, wrphase, rdcmdphase, wrcmdphase, cl, cwl, read_latency, write_latency)
 
-GeomSettingsT = namedtuple("_GeomSettings", "bank_a row_a col_a mux_a")
-def GeomSettings(bank_a, row_a, col_a):
-	return GeomSettingsT(bank_a, row_a, col_a, max(row_a, col_a))
+GeomSettingsT = namedtuple("_GeomSettings", "databits bankbits rowbits colbits addressbits")
+def GeomSettings(databits, bankbits, rowbits, colbits):
+	return GeomSettingsT(databits, bankbits, rowbits, colbits, max(rowbits, colbits))
 
 TimingSettings = namedtuple("TimingSettings", "tRP tRCD tWR tWTR tREFI tRFC")

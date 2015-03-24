@@ -24,9 +24,10 @@ class SDRAMModule:
 	def __init__(self, clk_freq, geom_settings, timing_settings):
 		self.clk_freq = clk_freq
 		self.geom_settings = sdram.GeomSettings(
-			bank_a=log2_int(geom_settings["nbanks"]),
-			row_a=log2_int(geom_settings["nrows"]),
-			col_a=log2_int(geom_settings["ncols"])
+			databits=geom_settings["nbits"],
+			bankbits=log2_int(geom_settings["nbanks"]),
+			rowbits=log2_int(geom_settings["nrows"]),
+			colbits=log2_int(geom_settings["ncols"]),
 		)
 		self.timing_settings = sdram.TimingSettings(
 			tRP=self.ns(timing_settings["tRP"]),
@@ -46,6 +47,7 @@ class SDRAMModule:
 # SDR
 class IS42S16160(SDRAMModule):
 	geom_settings = {
+		"nbits":	16,
 		"nbanks": 	4,
 		"nrows":	8192,
 		"ncols":	512
@@ -65,6 +67,7 @@ class IS42S16160(SDRAMModule):
 
 class MT48LC4M16(SDRAMModule):
 	geom_settings = {
+		"nbits":	16,
 		"nbanks":	4,
 		"nrows":	4096,
 		"ncols":	256
@@ -83,6 +86,7 @@ class MT48LC4M16(SDRAMModule):
 
 class AS4C16M16(SDRAMModule):
 	geom_settings = {
+		"nbits":	16,
 		"nbanks": 	4,
 		"nrows":	8192,
 		"ncols":	512
@@ -103,6 +107,7 @@ class AS4C16M16(SDRAMModule):
 # DDR
 class MT46V32M16(SDRAMModule):
 	geom_settings = {
+		"nbits":	16,
 		"nbanks":	4,
 		"nrows":	8192,
 		"ncols":	1024
@@ -122,6 +127,7 @@ class MT46V32M16(SDRAMModule):
 # LPDDR
 class MT46H32M16(SDRAMModule):
 	geom_settings = {
+		"nbits":	16,
 		"nbanks":	4,
 		"nrows":	8192,
 		"ncols":	1024
@@ -141,6 +147,7 @@ class MT46H32M16(SDRAMModule):
 # DDR2
 class MT47H128M8(SDRAMModule):
 	geom_settings = {
+		"nbits":	8,
 		"nbanks":	8,
 		"nrows":	16384,
 		"ncols":	1024
@@ -160,6 +167,7 @@ class MT47H128M8(SDRAMModule):
 # DDR3
 class MT8JTF12864(SDRAMModule):
 	geom_settings = {
+		"nbits":	8,
 		"nbanks":	8,
 		"nrows":	65536,
 		"ncols":	1024

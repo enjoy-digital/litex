@@ -1,42 +1,42 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
 
-def phase_cmd_description(a, ba):
+def phase_cmd_description(addressbits, bankbits):
 	return [
-		("address",			a,		DIR_M_TO_S),
-		("bank",			ba,		DIR_M_TO_S),
-		("cas_n",			1,		DIR_M_TO_S),
-		("cs_n",			1,		DIR_M_TO_S),
-		("ras_n",			1,		DIR_M_TO_S),
-		("we_n",			1,		DIR_M_TO_S),
-		("cke",				1,		DIR_M_TO_S),
-		("odt",				1,		DIR_M_TO_S),
-		("reset_n",			1,		DIR_M_TO_S)
+		("address",			addressbits,	DIR_M_TO_S),
+		("bank",			bankbits,		DIR_M_TO_S),
+		("cas_n",			1,				DIR_M_TO_S),
+		("cs_n",			1,				DIR_M_TO_S),
+		("ras_n",			1,				DIR_M_TO_S),
+		("we_n",			1,				DIR_M_TO_S),
+		("cke",				1,				DIR_M_TO_S),
+		("odt",				1,				DIR_M_TO_S),
+		("reset_n",			1,				DIR_M_TO_S)
 	]
 
-def phase_wrdata_description(d):
+def phase_wrdata_description(databits):
 	return [
-		("wrdata",			d,		DIR_M_TO_S),
-		("wrdata_en",		1,		DIR_M_TO_S),
-		("wrdata_mask",		d//8,	DIR_M_TO_S)
+		("wrdata",			databits,		DIR_M_TO_S),
+		("wrdata_en",		1,				DIR_M_TO_S),
+		("wrdata_mask",		databits//8,	DIR_M_TO_S)
 	]
 
-def phase_rddata_description(d):
+def phase_rddata_description(databits):
 	return [
-		("rddata_en",		1,		DIR_M_TO_S),
-		("rddata",			d,		DIR_S_TO_M),
-		("rddata_valid",	1,		DIR_S_TO_M)
+		("rddata_en",		1,				DIR_M_TO_S),
+		("rddata",			databits,		DIR_S_TO_M),
+		("rddata_valid",	1,				DIR_S_TO_M)
 	]
 
-def phase_description(a, ba, d):
-	r = phase_cmd_description(a, ba)
-	r += phase_wrdata_description(d)
-	r += phase_rddata_description(d)
+def phase_description(addressbits, bankbits, databits):
+	r = phase_cmd_description(addressbits, bankbits)
+	r += phase_wrdata_description(databits)
+	r += phase_rddata_description(databits)
 	return r
 
 class Interface(Record):
-	def __init__(self, a, ba, d, nphases=1):
-		layout = [("p"+str(i), phase_description(a, ba, d)) for i in range(nphases)]
+	def __init__(self, addressbits, bankbits, databits, nphases=1):
+		layout = [("p"+str(i), phase_description(addressbits, bankbits, databits)) for i in range(nphases)]
 		Record.__init__(self, layout)
 		self.phases = [getattr(self, "p"+str(i)) for i in range(nphases)]
 		for p in self.phases:

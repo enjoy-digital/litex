@@ -16,7 +16,7 @@ def ns(t, margin=True):
 
 sdram_phy = sdram.PhySettings(
 	memtype="DDR",
-	dfi_d=64,
+	dfi_databits=64,
 	nphases=2,
 	rdphase=0,
 	wrphase=1,
@@ -28,9 +28,9 @@ sdram_phy = sdram.PhySettings(
 )
 
 sdram_geom = sdram.GeomSettings(
-	bank_a=2,
-	row_a=13,
-	col_a=10
+	bankbits=2,
+	rowbits=13,
+	colbits=10
 )
 sdram_timing = sdram.TimingSettings(
 	tRP=ns(15),

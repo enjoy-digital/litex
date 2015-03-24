@@ -28,26 +28,26 @@ class LASMIcon(Module):
 			burst_length = phy_settings.nphases*2 # command multiplication*DDR
 		address_align = log2_int(burst_length)
 
-		self.dfi = dfi.Interface(geom_settings.mux_a,
-			geom_settings.bank_a,
-			phy_settings.dfi_d,
+		self.dfi = dfi.Interface(geom_settings.addressbits,
+			geom_settings.bankbits,
+			phy_settings.dfi_databits,
 			phy_settings.nphases)
 		self.lasmic = lasmibus.Interface(
-			aw=geom_settings.row_a + geom_settings.col_a - address_align,
-			dw=phy_settings.dfi_d*phy_settings.nphases,
-			nbanks=2**geom_settings.bank_a,
+			aw=geom_settings.rowbits + geom_settings.colbits - address_align,
+			dw=phy_settings.dfi_databits*phy_settings.nphases,
+			nbanks=2**geom_settings.bankbits,
 			req_queue_size=controller_settings.req_queue_size,
 			read_latency=phy_settings.read_latency+1,
 			write_latency=phy_settings.write_latency+1)
-		self.nrowbits = geom_settings.col_a - address_align
+		self.nrowbits = geom_settings.colbits - address_align
 
 		###
 
-		self.submodules.refresher = Refresher(geom_settings.mux_a, geom_settings.bank_a,
+		self.submodules.refresher = Refresher(geom_settings.addressbits, geom_settings.bankbits,
 			timing_settings.tRP, timing_settings.tREFI, timing_settings.tRFC)
 		self.submodules.bank_machines = [BankMachine(geom_settings, timing_settings, controller_settings, address_align, i,
 				getattr(self.lasmic, "bank"+str(i)))
-			for i in range(2**geom_settings.bank_a)]
+			for i in range(2**geom_settings.bankbits)]
 		self.submodules.multiplexer = Multiplexer(phy_settings, geom_settings, timing_settings, controller_settings,
 			self.bank_machines, self.refresher,
 			self.dfi, self.lasmic,

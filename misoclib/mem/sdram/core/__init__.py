@@ -9,8 +9,8 @@ from misoclib.mem.sdram.core import lasmixbar
 class SDRAMCore(Module, AutoCSR):
 	def __init__(self, phy, geom_settings, timing_settings, controller_settings, **kwargs):
 		# DFI
-		self.submodules.dfii = dfii.DFIInjector(geom_settings.mux_a, geom_settings.bank_a,
-				phy.settings.dfi_d, phy.settings.nphases)
+		self.submodules.dfii = dfii.DFIInjector(geom_settings.addressbits, geom_settings.bankbits,
+				phy.settings.dfi_databits, phy.settings.nphases)
 		self.comb += Record.connect(self.dfii.master, phy.dfi)
 
 		# LASMICON
