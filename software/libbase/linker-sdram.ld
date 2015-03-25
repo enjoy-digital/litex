@@ -12,7 +12,7 @@ SECTIONS
 		_ftext = .;
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 		_etext = .;
-	} > sdram
+	} > main_ram
 
 	.rodata :
 	{
@@ -21,7 +21,7 @@ SECTIONS
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		_erodata = .;
-	} > sdram
+	} > main_ram
 
 	.data :
 	{
@@ -32,7 +32,7 @@ SECTIONS
 		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
 		_edata = .;
-	} > sdram
+	} > main_ram
 
 	.bss :
 	{
@@ -48,7 +48,7 @@ SECTIONS
 		_ebss = .;
 		. = ALIGN(8);
 		_heapstart = .;
-	} > sdram
+	} > main_ram
 }
 
-PROVIDE(_fstack = ORIGIN(sdram) + LENGTH(sdram) - 4);
+PROVIDE(_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 4);
