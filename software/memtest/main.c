@@ -17,9 +17,9 @@ static void membw_service(void)
 	unsigned int rdb, wrb;
 
 	if(elapsed(&last_event, identifier_frequency_read())) {
-		lasmicon_bandwidth_update_write(1);
-		nr = lasmicon_bandwidth_nreads_read();
-		nw = lasmicon_bandwidth_nwrites_read();
+		sdram_controller_bandwidth_update_write(1);
+		nr = sdram_controller_bandwidth_nreads_read();
+		nw = sdram_controller_bandwidth_nwrites_read();
 		f = identifier_frequency_read();
 		rdb = (nr*f >> (24 - 7))/1000000ULL;
 		wrb = (nw*f >> (24 - 7))/1000000ULL;
@@ -75,14 +75,14 @@ int main(void)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
-	
+
 	puts("Memory testing software built "__DATE__" "__TIME__"\n");
 
 	if((memtest_w_magic_read() != 0x361f) || (memtest_r_magic_read() != 0x361f)) {
 		printf("Memory test cores not detected\n");
 		while(1);
 	}
-	
+
 	time_init();
 
 	flush_l2_cache();
@@ -90,6 +90,6 @@ int main(void)
 		memtest_service();
 		membw_service();
 	}
-	
+
 	return 0;
 }
