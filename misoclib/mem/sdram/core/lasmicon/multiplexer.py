@@ -92,6 +92,7 @@ class Multiplexer(Module, AutoCSR):
 	def __init__(self, phy_settings, geom_settings, timing_settings, controller_settings, bank_machines, refresher, dfi, lasmic,
 			with_bandwidth=False):
 		assert(phy_settings.nphases == len(dfi.phases))
+		self.phy_settings = phy_settings
 
 		# Command choosing
 		requests = [bm.cmd for bm in bank_machines]
@@ -218,4 +219,5 @@ class Multiplexer(Module, AutoCSR):
 
 	def do_finalize(self):
 		if self.with_bandwidth:
-			self.submodules.bandwidth = Bandwidth(self.choose_req.cmd)
+			data_width = self.phy_settings.dfi_databits*self.phy_settings.nphases
+			self.submodules.bandwidth = Bandwidth(self.choose_req.cmd, data_width)
