@@ -119,7 +119,7 @@ class Flterm:
 
 	def write_exact(self, data):
 		if isinstance(data, str):
-			self.serial.write(bytes(data, "latin1"))
+			self.serial.write(bytes(data, "utf-8"))
 		else:
 			self.serial.write(serial.to_bytes(data))
 
@@ -129,7 +129,7 @@ class Flterm:
 		while retry:
 			self.write_exact(frame.raw)
 			# Get the reply from the device
-			reply = character(self.serial.read(1))
+			reply = character(self.serial.read())
 			if reply == sfl_ack_success:
 				retry = 0
 			elif reply == sfl_ack_crcerror:
@@ -201,7 +201,7 @@ class Flterm:
 	def reader(self):
 		try:
 			while self.reader_alive:
-				c = character(self.serial.read(1))
+				c = character(self.serial.read())
 				if c == '\r':
 					sys.stdout.write('\n')
 				else:
