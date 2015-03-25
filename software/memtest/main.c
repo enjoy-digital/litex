@@ -5,6 +5,7 @@
 #include <uart.h>
 #include <time.h>
 #include <generated/csr.h>
+#include <generated/mem.h>
 #include <hw/flags.h>
 #include <console.h>
 #include <system.h>
@@ -31,7 +32,7 @@ static void membw_service(void)
 
 static void memtest_service(void)
 {
-	static unsigned int test_buffer[64*1024*1024/4] __attribute__((aligned(16)));
+	static unsigned int test_buffer[(MAIN_RAM_SIZE/2)/4] __attribute__((aligned(16)));
 	static unsigned char reading;
 	static unsigned int err, total_err;
 #ifdef DEBUG
