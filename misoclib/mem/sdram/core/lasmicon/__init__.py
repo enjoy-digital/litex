@@ -17,7 +17,10 @@ class LASMIconSettings:
 		self.write_time = write_time
 		self.with_l2 = with_l2
 		self.l2_size = l2_size
-		self.with_bandwidth = with_bandwidth
+		if with_memtest:
+			self.with_bandwidth = True
+		else:
+			self.with_bandwidth = with_bandwidth
 		self.with_memtest = with_memtest
 
 class LASMIcon(Module):
