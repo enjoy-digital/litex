@@ -87,9 +87,8 @@ class DFIPhase(Module):
 		]
 
 class SDRAMPHYSim(Module):
-	def __init__(self, module, nmodules=1):
+	def __init__(self, module, data_width):
 		addressbits = module.geom_settings.addressbits
-		databits = module.geom_settings.databits
 		bankbits = module.geom_settings.bankbits
 		rowbits = module.geom_settings.rowbits
 		colbits = module.geom_settings.colbits
@@ -97,7 +96,7 @@ class SDRAMPHYSim(Module):
 		# XXX expose this to user
 		self.settings = sdram.PhySettings(
 			memtype=module.memtype,
-			dfi_databits=databits,
+			dfi_databits=data_width,
 			nphases=1,
 			rdphase=0,
 			wrphase=0,
@@ -109,13 +108,12 @@ class SDRAMPHYSim(Module):
 		)
 		self.module = module
 
-		self.dfi = Interface(addressbits, bankbits, databits)
+		self.dfi = Interface(addressbits, bankbits, data_width)
 
 		###
 		nbanks = 2**bankbits
 		nrows = 2**rowbits
 		ncols = 2**colbits
-		data_width = databits*nmodules
 
 		# DFI phases
 		phases = [DFIPhase(self.dfi, n) for n in range(self.settings.nphases)]
