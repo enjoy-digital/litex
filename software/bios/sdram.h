@@ -17,6 +17,7 @@ void sdrwloff(void);
 int sdrlevel(void);
 #endif
 
+unsigned int seed_to_data(unsigned int seed, int random);
 int memtest_silent(void);
 int memtest(void);
 int sdrinit(void);

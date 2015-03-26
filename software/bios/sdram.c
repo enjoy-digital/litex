@@ -423,15 +423,24 @@ int sdrlevel(void)
 #endif /* CSR_DDRPHY_BASE */
 
 #define TEST_SIZE (2*1024*1024)
+#define TEST_RANDOM_DATA 1
 
 #define ONEZERO 0xAAAAAAAA
 #define ZEROONE 0x55555555
+
+unsigned int seed_to_data(unsigned int seed, int random)
+{
+	if (random)
+		return 1664525*seed + 1013904223;
+	else
+		return seed + 1;
+}
 
 int memtest_silent(void)
 {
 	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
 	int i;
-	unsigned int prv;
+	unsigned int seed;
 	unsigned int error_cnt;
 
 	/* test data bus */
@@ -453,18 +462,18 @@ int memtest_silent(void)
 			error_cnt++;
 	}
 
-	/* test random data */
-	prv = 0;
+	/* test counter or random data */
+	seed = 0;
 	for(i=0;i<TEST_SIZE/4;i++) {
-		prv = 1664525*prv + 1013904223;
-		array[i] = prv;
+		seed = seed_to_data(seed, TEST_RANDOM_DATA);
+		array[i] = seed;
 	}
 
-	prv = 0;
+	seed = 0;
 	error_cnt = 0;
 	for(i=0;i<TEST_SIZE/4;i++) {
-		prv = 1664525*prv + 1013904223;
-		if(array[i] != prv)
+		seed = seed_to_data(seed, TEST_RANDOM_DATA);
+		if(array[i] != seed)
 			error_cnt++;
 	}
 	return error_cnt;
