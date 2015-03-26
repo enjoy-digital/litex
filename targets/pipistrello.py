@@ -58,7 +58,12 @@ class _CRG(Module):
 		)
 		self.specials += Instance("BUFG", i_I=pll[5], o_O=self.cd_sys.clk)
 		reset = platform.request("user_btn")
-		self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll_lckd | reset)
+		self.clock_domains.cd_por = ClockDomain()
+		por = Signal(max=1 << 11, reset=(1 << 11) - 1)
+		self.sync.por += If(por != 0, por.eq(por - 1))
+		self.comb += self.cd_por.clk.eq(self.cd_sys.clk)
+		self.specials += AsyncResetSynchronizer(self.cd_por, reset)
+		self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll_lckd | (por > 0))
 		self.specials += Instance("BUFG", i_I=pll[2], o_O=self.cd_sdram_half.clk)
 		self.specials += Instance("BUFPLL", p_DIVIDE=4,
 							i_PLLIN=pll[0], i_GCLK=self.cd_sys.clk,
