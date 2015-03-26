@@ -428,7 +428,7 @@ int sdrlevel(void)
 #define ONEZERO 0xAAAAAAAA
 #define ZEROONE 0x55555555
 
-unsigned int seed_to_data(unsigned int seed, int random)
+static unsigned int seed_to_data(unsigned int seed, int random)
 {
 	if (random)
 		return 1664525*seed + 1013904223;
