@@ -194,6 +194,6 @@ class SDRAMPHYSim(Module):
 			banks_read_data = new_banks_read_data
 
 		self.comb += [
-			Cat(iter([phase.rddata_valid for phase in phases])).eq(banks_read),
-			Cat(iter([phase.rddata for phase in phases])).eq(banks_read_data)
+			Cat(*[phase.rddata_valid for phase in phases]).eq(banks_read),
+			Cat(*[phase.rddata for phase in phases]).eq(banks_read_data)
 		]
