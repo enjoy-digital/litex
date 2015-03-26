@@ -15,7 +15,7 @@ class _CRG(Module):
 		self.clock_domains.cd_sys = ClockDomain()
 		self.clock_domains.cd_sys_ps = ClockDomain()
 
-		f0 = 32*1e6
+		f0 = 32*1000000
 		clk32 = platform.request("clk32")
 		clk32a = Signal()
 		self.specials += Instance("IBUFG", i_I=clk32, o_O=clk32a)
@@ -35,7 +35,7 @@ class _CRG(Module):
 			i_DADDR=0, i_DCLK=0, i_DEN=0, i_DI=0, i_DWE=0, i_RST=0, i_REL=0,
 			p_DIVCLK_DIVIDE=1, p_CLKFBOUT_MULT=m*p//n, p_CLKFBOUT_PHASE=0.,
 			i_CLKIN1=clk32b, i_CLKIN2=0, i_CLKINSEL=1,
-			p_CLKIN1_PERIOD=1e9/f0, p_CLKIN2_PERIOD=0.,
+			p_CLKIN1_PERIOD=1000000000/f0, p_CLKIN2_PERIOD=0.,
 			i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb, o_LOCKED=pll_lckd,
 			o_CLKOUT0=pll[0], p_CLKOUT0_DUTY_CYCLE=.5,
 			o_CLKOUT1=pll[1], p_CLKOUT1_DUTY_CYCLE=.5,
@@ -69,7 +69,7 @@ class BaseSoC(SDRAMSoC):
 	csr_map.update(SDRAMSoC.csr_map)
 
 	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
-		clk_freq = 80*1e6
+		clk_freq = 80*1000000
 		SDRAMSoC.__init__(self, platform, clk_freq,
 			cpu_reset_address=0x60000,
 			sdram_controller_settings=sdram_controller_settings,
