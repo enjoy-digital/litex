@@ -7,13 +7,16 @@ from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
 from mibuild.generic_platform import *
 
-def _build_tb(platform, serial, template):
+from mibuild import tools
+from mibuild.sim import common
+
+def _build_tb(platform, vns, serial, template):
 
 	def io_name(ressource, subsignal=None):
 		res = platform.lookup_request(ressource)
 		if subsignal is not None:
 			res = getattr(res, subsignal)
-		return platform.vns.get_name(res)
+		return vns.get_name(res)
 
 	ios = """
 #define SYS_CLK dut->{sys_clk}
@@ -79,7 +82,7 @@ def _build_tb(platform, serial, template):
 	f.close()
 	tools.write_to_file("dut_tb.cpp", content)
 
-def _build_sim(platform, build_name, include_paths, sim_path, serial, verbose):
+def _build_sim(platform, vns, build_name, include_paths, sim_path, serial, verbose):
 	include = ""
 	for path in include_paths:
 		include += "-I"+path+" "
@@ -95,7 +98,7 @@ make -j -C obj_dir/ -f Vdut.mk Vdut
 	build_script_file = "build_" + build_name + ".sh"
 	tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
-	_build_tb(platform, serial, os.path.join("..", sim_path,"dut_tb.cpp"))
+	_build_tb(platform, vns, serial, os.path.join("..", sim_path,"dut_tb.cpp"))
 	if verbose:
 		r = subprocess.call(["bash", build_script_file])
 	else:
@@ -112,32 +115,34 @@ def _run_sim(build_name):
 	if r != 0:
 		raise OSError("Subprocess failed")
 
-class VerilatorPlatform(GenericPlatform):
+class SimVerilatorToolchain:
 	# XXX fir sim_path
-	def build(self, soc, build_dir="build", build_name="top",
+	def build(self, platform, fragment, build_dir="build", build_name="top",
 			sim_path="../migen/mibuild/sim/", serial="console",
 			run=True, verbose=False):
 		tools.mkdir_noerror(build_dir)
 		os.chdir(build_dir)
 
-		self.soc = soc
-		fragment = soc.get_fragment()
-		self.finalize(fragment)
-		v_src, vns = self.get_verilog(fragment)
-		named_sc, named_pc = self.resolve_signals(vns)
-		self.vns = vns
+		if not isinstance(fragment, _Fragment):
+			fragment = fragment.get_fragment()
+		platform.finalize(fragment)
+
+		v_src, vns = platform.get_verilog(fragment)
+		named_sc, named_pc = platform.resolve_signals(vns)
 		v_file = "dut.v"
 		tools.write_to_file(v_file, v_src)
 
 		include_paths = []
-		for source in self.sources:
+		for source in platform.sources:
 			path = os.path.dirname(source[0]).replace("\\", "\/")
 			if path not in include_paths:
 				include_paths.append(path)
-		include_paths += self.verilog_include_paths
-		_build_sim(self, build_name, include_paths, sim_path, serial, verbose)
+		include_paths += platform.verilog_include_paths
+		_build_sim(platform, vns, build_name, include_paths, sim_path, serial, verbose)
 
 		if run:
 			_run_sim(build_name)
 
 		os.chdir("..")
+
+		return vns
