@@ -422,16 +422,27 @@ int sdrlevel(void)
 
 #endif /* CSR_DDRPHY_BASE */
 
-#define TEST_SIZE (2*1024*1024)
-#define TEST_RANDOM_DATA 1
+#define TEST_DATA_SIZE (2*1024*1024)
+#define TEST_DATA_RANDOM 1
+
+#define TEST_ADDR_SIZE (32*1024)
+#define TEST_ADDR_RANDOM 0
 
 #define ONEZERO 0xAAAAAAAA
 #define ZEROONE 0x55555555
 
-static unsigned int seed_to_data(unsigned int seed, int random)
+static unsigned int seed_to_data_32(unsigned int seed, int random)
 {
 	if (random)
 		return 1664525*seed + 1013904223;
+	else
+		return seed + 1;
+}
+
+static unsigned short seed_to_data_16(unsigned short seed, int random)
+{
+	if (random)
+		return 25173*seed + 13849;
 	else
 		return seed + 1;
 }
@@ -440,7 +451,8 @@ int memtest_silent(void)
 {
 	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
 	int i;
-	unsigned int seed;
+	unsigned int seed_32;
+	unsigned short seed_16;
 	unsigned int error_cnt;
 
 	/* test data bus */
@@ -463,19 +475,35 @@ int memtest_silent(void)
 	}
 
 	/* test counter or random data */
-	seed = 0;
-	for(i=0;i<TEST_SIZE/4;i++) {
-		seed = seed_to_data(seed, TEST_RANDOM_DATA);
-		array[i] = seed;
+	seed_32 = 0;
+	for(i=0;i<TEST_DATA_SIZE/4;i++) {
+		seed_32 = seed_to_data_32(seed_32, TEST_DATA_RANDOM);
+		array[i] = seed_32;
 	}
 
-	seed = 0;
+	seed_32 = 0;
 	error_cnt = 0;
-	for(i=0;i<TEST_SIZE/4;i++) {
-		seed = seed_to_data(seed, TEST_RANDOM_DATA);
-		if(array[i] != seed)
+	for(i=0;i<TEST_DATA_SIZE/4;i++) {
+		seed_32 = seed_to_data_32(seed_32, TEST_DATA_RANDOM);
+		if(array[i] != seed_32)
 			error_cnt++;
 	}
+
+	/* test random addressing */
+	seed_16 = 0;
+	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
+		seed_16 = seed_to_data_16(seed_16, TEST_ADDR_RANDOM);
+		array[(unsigned int) seed_16] = i;
+	}
+
+	seed_16 = 0;
+	error_cnt = 0;
+	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
+		seed_16 = seed_to_data_16(seed_16, TEST_ADDR_RANDOM);
+		if(array[(unsigned int) seed_16] != i)
+			error_cnt++;
+	}
+
 	return error_cnt;
 }
 
@@ -485,7 +513,7 @@ int memtest(void)
 
 	e = memtest_silent();
 	if(e != 0) {
-		printf("Memtest failed: %d/%d words incorrect\n", e, TEST_SIZE/4);
+		printf("Memtest failed: %d/%d words incorrect\n", e, TEST_DATA_SIZE/4 + TEST_ADDR_SIZE/4);
 		return 0;
 	} else {
 		printf("Memtest OK\n");
