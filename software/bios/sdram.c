@@ -425,8 +425,8 @@ int sdrlevel(void)
 #define TEST_DATA_SIZE (2*1024*1024)
 #define TEST_RANDOM_DATA 1
 
-#define TEST_ADDR_SIZE 32*1024
-#define TEST_RANDOM_ADDR 1
+#define TEST_ADDR_SIZE (32*1024)
+#define TEST_RANDOM_ADDR 0
 
 #define ONEZERO 0xAAAAAAAA
 #define ZEROONE 0x55555555
