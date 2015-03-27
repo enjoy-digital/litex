@@ -1,5 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.sim.verilator import VerilatorPlatform
+from mibuild.sim import SimPlatform
 
 class SimPins(Pins):
 	def __init__(self, n):
@@ -31,13 +31,13 @@ _io = [
 	),
 ]
 
-class Platform(VerilatorPlatform):
+class Platform(SimPlatform):
 	is_sim = True
 	default_clk_name = "sys_clk"
 	default_clk_period = 1000 # on modern computers simulate at ~ 1MHz
 
 	def __init__(self):
-		VerilatorPlatform.__init__(self, "SIM", _io)
+		SimPlatform.__init__(self, "SIM", _io)
 
 	def do_finalize(self, fragment):
 		pass
