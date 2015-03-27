@@ -423,10 +423,10 @@ int sdrlevel(void)
 #endif /* CSR_DDRPHY_BASE */
 
 #define TEST_DATA_SIZE (2*1024*1024)
-#define TEST_RANDOM_DATA 1
+#define TEST_DATA_RANDOM 1
 
 #define TEST_ADDR_SIZE (32*1024)
-#define TEST_RANDOM_ADDR 0
+#define TEST_ADDR_RANDOM 0
 
 #define ONEZERO 0xAAAAAAAA
 #define ZEROONE 0x55555555
@@ -477,14 +477,14 @@ int memtest_silent(void)
 	/* test counter or random data */
 	seed_32 = 0;
 	for(i=0;i<TEST_DATA_SIZE/4;i++) {
-		seed_32 = seed_to_data_32(seed_32, TEST_RANDOM_DATA);
+		seed_32 = seed_to_data_32(seed_32, TEST_DATA_RANDOM);
 		array[i] = seed_32;
 	}
 
 	seed_32 = 0;
 	error_cnt = 0;
 	for(i=0;i<TEST_DATA_SIZE/4;i++) {
-		seed_32 = seed_to_data_32(seed_32, TEST_RANDOM_DATA);
+		seed_32 = seed_to_data_32(seed_32, TEST_DATA_RANDOM);
 		if(array[i] != seed_32)
 			error_cnt++;
 	}
@@ -492,14 +492,14 @@ int memtest_silent(void)
 	/* test random addressing */
 	seed_16 = 0;
 	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
-		seed_16 = seed_to_data_16(seed_16, TEST_RANDOM_ADDR);
+		seed_16 = seed_to_data_16(seed_16, TEST_ADDR_RANDOM);
 		array[(unsigned int) seed_16] = i;
 	}
 
 	seed_16 = 0;
 	error_cnt = 0;
 	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
-		seed_16 = seed_to_data_16(seed_16, TEST_RANDOM_ADDR);
+		seed_16 = seed_to_data_16(seed_16, TEST_ADDR_RANDOM);
 		if(array[(unsigned int) seed_16] != i)
 			error_cnt++;
 	}
