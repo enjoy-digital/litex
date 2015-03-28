@@ -13,7 +13,6 @@
 #      configurations.
 #    - Modules can have different speedgrades, add support for it (and also add
 #      a check to verify clk_freq is in the supported range)
-#   Try to uniformize tREFI computations between modules
 
 from math import ceil
 
@@ -57,7 +56,7 @@ class IS42S16160(SDRAMModule):
 		"tRCD":		20,
 		"tWR":		20,
 		"tWTR":		2,
-		"tREFI":	7800,
+		"tREFI":	64*1000*1000/8192,
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
@@ -94,7 +93,7 @@ class AS4C16M16(SDRAMModule):
 		"tRCD":		18,
 		"tWR":		12,
 		"tWTR":		2,
-		"tREFI":	7800,
+		"tREFI":	64*1000*1000/8192,
 		"tRFC":		60
 	}
 	def __init__(self, clk_freq):
@@ -113,7 +112,7 @@ class MT46V32M16(SDRAMModule):
 		"tRCD":		15,
 		"tWR":		15,
 		"tWTR":		2,
-		"tREFI":	7800,
+		"tREFI":	64*1000*1000/8192,
 		"tRFC":		70
 	}
 	def __init__(self, clk_freq):
