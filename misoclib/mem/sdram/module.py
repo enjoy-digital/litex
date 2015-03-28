@@ -161,7 +161,7 @@ class MT47H128M8(SDRAMModule):
 class MT8JTF12864(SDRAMModule):
 	geom_settings = {
 		"nbanks":	8,
-		"nrows":	65536,
+		"nrows":	16384,
 		"ncols":	1024
 	}
 	timing_settings = {
