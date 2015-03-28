@@ -2,10 +2,8 @@
 # License: BSD
 
 # SDRAM simulation PHY at DFI level
-# Status:
-# - tested against software memtest with SDR/DDR/LPDDR/DDR2 with Verilator.
+# tested with SDR/DDR/DDR2/LPDDR/DDR3
 # TODO:
-# - test with DDR3
 # - add $display support to Migen and manage timing violations?
 
 from migen.fhdl.std import *
