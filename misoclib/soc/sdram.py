@@ -36,6 +36,12 @@ class SDRAMSoC(SoC):
 		# Core
 		self.submodules.sdram = SDRAMCore(phy, phy.module.geom_settings, phy.module.timing_settings, self.sdram_controller_settings)
 
+		dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
+		sdram_width = phy.settings.dfi_databits//dfi_databits_divisor
+		main_ram_size = 2**(phy.module.geom_settings.bankbits+
+							phy.module.geom_settings.rowbits+
+							phy.module.geom_settings.colbits)*sdram_width//8
+
 		# LASMICON frontend
 		if isinstance(self.sdram_controller_settings, LASMIconSettings):
 			if self.sdram_controller_settings.with_bandwidth:
@@ -57,16 +63,10 @@ class SDRAMSoC(SoC):
 				else:
 					self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(l2_size//4, self.sdram.crossbar.get_master())
 				lasmic = self.sdram.controller.lasmic
-				main_ram_size = 2**lasmic.aw*lasmic.dw*lasmic.nbanks//8
 				self.register_mem("main_ram", self.mem_map["main_ram"], self.wishbone2lasmi.wishbone, main_ram_size)
 
 		# MINICON frontend
 		elif isinstance(self.sdram_controller_settings, MiniconSettings):
-			sdram_width = flen(self.sdram.controller.bus.dat_r)
-			main_ram_size = 2**(phy.module.geom_settings.bankbits+
-								phy.module.geom_settings.rowbits+
-								phy.module.geom_settings.colbits)*sdram_width//8
-
 			if sdram_width == 32:
 				self.register_mem("main_ram", self.mem_map["main_ram"], self.sdram.controller.bus, main_ram_size)
 			elif sdram_width < 32:
