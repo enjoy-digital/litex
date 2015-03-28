@@ -3,10 +3,9 @@
 
 # SDRAM simulation PHY at DFI level
 # Status:
-# - tested against software memtest with SDR with Verilator.
+# - tested against software memtest with SDR/DDR/LPDDR/DDR2 with Verilator.
 # TODO:
-# - expose phy_settings to user
-# - test with DDR, LPDDR, DDR2 and DDR3
+# - test with DDR3
 # - add $display support to Migen and manage timing violations?
 
 from migen.fhdl.std import *
@@ -87,33 +86,22 @@ class DFIPhase(Module):
 		]
 
 class SDRAMPHYSim(Module):
-	def __init__(self, module, data_width):
+	def __init__(self, module, settings):
 		addressbits = module.geom_settings.addressbits
 		bankbits = module.geom_settings.bankbits
 		rowbits = module.geom_settings.rowbits
 		colbits = module.geom_settings.colbits
 
-		# XXX expose this to user
-		self.settings = sdram.PhySettings(
-			memtype=module.memtype,
-			dfi_databits=data_width,
-			nphases=1,
-			rdphase=0,
-			wrphase=0,
-			rdcmdphase=0,
-			wrcmdphase=0,
-			cl=2,
-			read_latency=4,
-			write_latency=0
-		)
+		self.settings = settings
 		self.module = module
 
-		self.dfi = Interface(addressbits, bankbits, data_width)
+		self.dfi = Interface(addressbits, bankbits, self.settings.dfi_databits, self.settings.nphases)
 
 		###
 		nbanks = 2**bankbits
 		nrows = 2**rowbits
 		ncols = 2**colbits
+		data_width = self.settings.dfi_databits*self.settings.nphases
 
 		# DFI phases
 		phases = [DFIPhase(self.dfi, n) for n in range(self.settings.nphases)]
