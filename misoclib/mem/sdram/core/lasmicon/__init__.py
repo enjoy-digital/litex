@@ -11,7 +11,8 @@ class LASMIconSettings:
 			read_time=32, write_time=16,
 			with_l2=True, l2_size=8192,
 			with_bandwidth=False,
-			with_memtest=False):
+			with_memtest=False,
+			with_refresh=True):
 		self.req_queue_size = req_queue_size
 		self.read_time = read_time
 		self.write_time = write_time
@@ -22,6 +23,7 @@ class LASMIconSettings:
 		else:
 			self.with_bandwidth = with_bandwidth
 		self.with_memtest = with_memtest
+		self.with_refresh = with_refresh
 
 class LASMIcon(Module):
 	def __init__(self, phy_settings, geom_settings, timing_settings, controller_settings, **kwargs):
@@ -47,7 +49,7 @@ class LASMIcon(Module):
 		###
 
 		self.submodules.refresher = Refresher(geom_settings.addressbits, geom_settings.bankbits,
-			timing_settings.tRP, timing_settings.tREFI, timing_settings.tRFC)
+			timing_settings.tRP, timing_settings.tREFI, timing_settings.tRFC, enabled=controller_settings.with_refresh)
 		self.submodules.bank_machines = [BankMachine(geom_settings, timing_settings, controller_settings, address_align, i,
 				getattr(self.lasmic, "bank"+str(i)))
 			for i in range(2**geom_settings.bankbits)]
