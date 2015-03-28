@@ -41,6 +41,8 @@ class SDRAMSoC(SoC):
 		main_ram_size = 2**(phy.module.geom_settings.bankbits+
 							phy.module.geom_settings.rowbits+
 							phy.module.geom_settings.colbits)*sdram_width//8
+		# XXX: Limit main_ram_size to 256MB, we should modify mem_map to allow larger memories.
+		main_ram_size = min(main_ram_size, 256*1024*1024)
 
 		# LASMICON frontend
 		if isinstance(self.sdram_controller_settings, LASMIconSettings):
