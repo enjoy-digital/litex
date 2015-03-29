@@ -110,8 +110,8 @@ class Platform(XilinxPlatform):
 		self.add_platform_command("""
 CONFIG VCCAUX = "3.3";
 """)
-		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g SPI_buswidth:4"
-		self.ise_commands = """
+		self.toolchain.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g SPI_buswidth:4"
+		self.toolchain.ise_commands = """
 promgen -w -spi -c FF -p mcs -o {build_name}.mcs -u 0 {build_name}.bit
 """
 

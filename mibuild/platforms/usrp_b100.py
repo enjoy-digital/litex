@@ -118,7 +118,7 @@ class Platform(XilinxPlatform):
 
 	def __init__(self):
 		XilinxPlatform.__init__(self, "xc3s1400a-ft256-4", _io)
-		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g UnusedPin:PullUp"
+		self.toolchain.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g UnusedPin:PullUp"
 
 	def do_finalize(self, fragment):
 		XilinxPlatform.do_finalize(self, fragment)
