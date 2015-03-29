@@ -1,5 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer
+from mibuild.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer, iMPACT
 from mibuild.xilinx.ise import XilinxISEToolchain
 
 _io = [
@@ -391,6 +391,8 @@ class Platform(XilinxPlatform):
 			return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
 		elif self.programmer == "vivado":
 			return VivadoProgrammer()
+		elif self.programmer == "impact":
+			return iMPACT()
 		else:
 			raise ValueError("{} programmer is not supported".format(programmer))
 
