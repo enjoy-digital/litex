@@ -383,7 +383,11 @@ class Platform(XilinxPlatform):
 	def __init__(self, toolchain="vivado", programmer="xc3sprog"):
 		XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors,
 			toolchain=toolchain)
-		self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
+		if toolchain == "ise":
+			self.toolchain.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
+		elif toolchain == "vivado":
+			self.toolchain.bitstream_commands = ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
+			self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
 		self.programmer = programmer
 
 	def create_programmer(self):
