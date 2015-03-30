@@ -48,7 +48,7 @@ class Tristate(Special):
 			yield self, attr, target_context
 
 	@staticmethod
-	def emit_verilog(tristate, ns, fdict):
+	def emit_verilog(tristate, ns):
 		def pe(e):
 			return verilog_printexpr(ns, e)[0]
 		w, s = value_bits_sign(tristate.target)
@@ -58,7 +58,7 @@ class Tristate(Special):
 		if tristate.i is not None:
 			r += "assign " + pe(tristate.i) + " = " + pe(tristate.target) + ";\n"
 		r += "\n"
-		return r, fdict
+		return r
 
 class TSTriple:
 	def __init__(self, bits_sign=None, min=None, max=None, reset_o=0, reset_oe=0):
@@ -123,7 +123,7 @@ class Instance(Special):
 				yield item, "expr", SPECIAL_INOUT
 
 	@staticmethod
-	def emit_verilog(instance, ns, fdict):
+	def emit_verilog(instance, ns):
 		r = instance.of + " "
 		parameters = list(filter(lambda i: isinstance(i, Instance.Parameter), instance.items))
 		if parameters:
@@ -165,7 +165,7 @@ class Instance(Special):
 			r += ")" + synthesis_directive + ";\n\n"
 		else:
 			r += ");\n\n"
-		return r, fdict
+		return r
 
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
 
@@ -198,8 +198,8 @@ class _MemoryPort(Special):
 			yield self, attr, target_context
 
 	@staticmethod
-	def emit_verilog(port, ns, fdict):
-		return "", fdict # done by parent Memory object
+	def emit_verilog(port, ns):
+		return "" # done by parent Memory object
 
 class Memory(Special):
 	def __init__(self, width, depth, init=None, name=None):
@@ -237,7 +237,7 @@ class Memory(Special):
 		return mp
 
 	@staticmethod
-	def emit_verilog(memory, ns, fdict):
+	def emit_verilog(memory, ns):
 		r = ""
 		def gn(e):
 			if isinstance(e, Memory):
@@ -320,7 +320,8 @@ class Memory(Special):
 			r += "$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
 			r += "end\n\n"
 
-		return r, fdict
+
+		return r
 
 class SynthesisDirective(Special):
 	def __init__(self, template, **signals):
@@ -329,7 +330,7 @@ class SynthesisDirective(Special):
 		self.signals = signals
 
 	@staticmethod
-	def emit_verilog(directive, ns, fdict):
+	def emit_verilog(directive, ns):
 		name_dict = dict((k, ns.get_name(sig)) for k, sig in directive.signals.items())
 		formatted = directive.template.format(**name_dict)
-		return "// synthesis " + formatted + "\n", fdict
+		return "// synthesis " + formatted + "\n"
