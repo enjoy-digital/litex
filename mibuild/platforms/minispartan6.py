@@ -2,7 +2,6 @@
 # License: BSD
 
 from mibuild.generic_platform import *
-from mibuild.crg import SimpleCRG
 from mibuild.xilinx import XilinxPlatform
 from mibuild.xilinx.programmer import XC3SProg, FpgaProg
 
