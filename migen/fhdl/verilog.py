@@ -1,5 +1,6 @@
 from functools import partial
 from operator import itemgetter
+from collections import OrderedDict
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
@@ -257,14 +258,14 @@ def _lower_specials(overrides, specials):
 		f.specials -= lowered_specials2
 	return f, lowered_specials
 
-def _printspecials(overrides, specials, ns):
+def _printspecials(overrides, specials, ns, fdict):
 	r = ""
 	for special in sorted(specials, key=lambda x: x.huid):
-		pr = _call_special_classmethod(overrides, special, "emit_verilog", ns)
+		pr, fdict = _call_special_classmethod(overrides, special, "emit_verilog", ns, fdict)
 		if pr is None:
 			raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
 		r += pr
-	return r
+	return r, fdict
 
 class VerilogConvert:
 	def __init__(self, f, ios=None, name="top",
@@ -311,7 +312,9 @@ class VerilogConvert:
 		r += _printheader(self.f, self.ios, self.name, self.ns)
 		r += _printcomb(self.f, self.ns, self.display_run)
 		r += _printsync(self.f, self.ns)
-		r += _printspecials(self.special_overrides, self.f.specials - self.lowered_specials, self.ns)
+		fdict = OrderedDict()
+		src, fdict = _printspecials(self.special_overrides, self.f.specials - self.lowered_specials, self.ns, fdict)
+		r += src
 		r += "endmodule\n"
 		return r
 
