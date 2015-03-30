@@ -266,45 +266,57 @@ def _printspecials(overrides, specials, ns):
 		r += pr
 	return r
 
+class VerilogConvert:
+	def __init__(self, f, ios=None, name="top",
+  			special_overrides=dict(),
+  			create_clock_domains=True,
+  			display_run=False):
+		self.name = name
+		self.special_overrides = special_overrides
+		self.display_run = display_run
+
+		if not isinstance(f, _Fragment):
+			f = f.get_fragment()
+		if ios is None:
+			ios = set()
+
+		for cd_name in list_clock_domains(f):
+			try:
+				f.clock_domains[cd_name]
+			except KeyError:
+				if create_clock_domains:
+					cd = ClockDomain(cd_name)
+					f.clock_domains.append(cd)
+					ios |= {cd.clk, cd.rst}
+				else:
+					raise KeyError("Unresolved clock domain: '"+cd_name+"'")
+
+		f = lower_complex_slices(f)
+		insert_resets(f)
+		f = lower_basics(f)
+		fs, lowered_specials = _lower_specials(special_overrides, f.specials)
+		f += lower_basics(fs)
+
+		ns = build_namespace(list_signals(f) \
+			| list_special_ios(f, True, True, True) \
+			| ios)
+
+		self.f = f
+		self.ios = ios
+		self.ns = ns
+		self.lowered_specials = lowered_specials
+
+	def __str__(self):
+		r = "/* Machine-generated using Migen */\n"
+		r += _printheader(self.f, self.ios, self.name, self.ns)
+		r += _printcomb(self.f, self.ns, self.display_run)
+		r += _printsync(self.f, self.ns)
+		r += _printspecials(self.special_overrides, self.f.specials - self.lowered_specials, self.ns)
+		r += "endmodule\n"
+		return r
+
 def convert(f, ios=None, name="top",
-  return_ns=False,
   special_overrides=dict(),
   create_clock_domains=True,
   display_run=False):
-	if not isinstance(f, _Fragment):
-		f = f.get_fragment()
-	if ios is None:
-		ios = set()
-
-	for cd_name in list_clock_domains(f):
-		try:
-			f.clock_domains[cd_name]
-		except KeyError:
-			if create_clock_domains:
-				cd = ClockDomain(cd_name)
-				f.clock_domains.append(cd)
-				ios |= {cd.clk, cd.rst}
-			else:
-				raise KeyError("Unresolved clock domain: '"+cd_name+"'")
-
-	f = lower_complex_slices(f)
-	insert_resets(f)
-	f = lower_basics(f)
-	fs, lowered_specials = _lower_specials(special_overrides, f.specials)
-	f += lower_basics(fs)
-
-	ns = build_namespace(list_signals(f) \
-		| list_special_ios(f, True, True, True) \
-		| ios)
-
-	r = "/* Machine-generated using Migen */\n"
-	r += _printheader(f, ios, name, ns)
-	r += _printcomb(f, ns, display_run)
-	r += _printsync(f, ns)
-	r += _printspecials(special_overrides, f.specials - lowered_specials, ns)
-	r += "endmodule\n"
-
-	if return_ns:
-		return r, ns
-	else:
-		return r
+	return VerilogConvert(f, ios, name, special_overrides, create_clock_domains, display_run)
