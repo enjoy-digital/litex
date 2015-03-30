@@ -315,6 +315,11 @@ class VerilogConvert:
 		fdict = OrderedDict()
 		src, fdict = _printspecials(self.special_overrides, self.f.specials - self.lowered_specials, self.ns, fdict)
 		r += src
+		for filename, contents in fdict.items():
+			f = open(filename, "w")
+			for data in contents:
+				f.write("{:x}\n".format(data))
+			f.close()
 		r += "endmodule\n"
 		return r
 

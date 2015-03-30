@@ -6,6 +6,15 @@ from migen.fhdl.tools import *
 from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 
+def _new_file(fdict, requested_filename, contents):
+	filename = requested_filename
+	i = 1
+	while filename in fdict.keys():
+		filename = requested_filename + str(i)
+		i += 1
+	fdict[filename] = contents
+	return filename, fdict
+
 class Special(HUID):
 	def iter_expressions(self):
 		for x in []:
@@ -307,15 +316,7 @@ class Memory(Special):
 		r += "\n"
 
 		if memory.init is not None:
-			memory_filename = gn(memory) + ".init"
-
-			# XXX move I/O to mibuild?
-			# (Implies mem init won't work with simple Migen examples?)
-			f = open(memory_filename, "w")
-			for d in memory.init:
-				f.write("{:x}\n".format(d))
-			f.close()
-
+			memory_filename, fdict = _new_file(fdict, gn(memory) + ".init", memory.init)
 			r += "initial begin\n"
 			r += "$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
 			r += "end\n\n"
