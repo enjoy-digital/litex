@@ -182,36 +182,20 @@ def _generate_connections(f, ios, ns):
 		r[io].append(_NetBranch(portname=io, instancename=""))
 	return r
 
-class EDIFConvert:
-	def __init__(self, f, ios, cell_library, vendor, device, name="top"):
-		self.cell_library
-		self.vendor = vendor
-		self.device = device
-		self.name = name
-
-		if not isinstance(f, _Fragment):
-			f = f.get_fragment()
-		if f.comb != [] or f.sync != {}:
-			raise ValueError("Edif conversion can only handle synthesized fragments")
-		if ios is None:
-			ios = set()
-		cells = _generate_cells(f)
-		ns = build_namespace(list_special_ios(f, True, True, True))
-		instances = _generate_instances(f, ns)
-		inouts = _generate_ios(f, ios, ns)
-		connections = _generate_connections(f, ios, ns)
-
-		self.f = f
-		self.ios = ios
-		self.cells = cells
-		self.ns = ns
-		self.instances = instances
-		self.inouts = inouts
-		self.connections = connections
-
-	def __str__(self):
-		return _write_edif(self.cells, self.inouts, self.instances, self.connections,
-			self.cell_library, self.name, self.device, self.vendor)
-
 def convert(f, ios, cell_library, vendor, device, name="top", return_ns=False):
-	return EDIFConvert(f, ios, cell_library, vendor, device, name, return_ns)
+	if not isinstance(f, _Fragment):
+		f = f.get_fragment()
+	if f.comb != [] or f.sync != {}:
+		raise ValueError("Edif conversion can only handle synthesized fragments")
+	if ios is None:
+		ios = set()
+	cells = _generate_cells(f)
+	ns = build_namespace(list_special_ios(f, True, True, True))
+	instances = _generate_instances(f, ns)
+	inouts = _generate_ios(f, ios, ns)
+	connections = _generate_connections(f, ios, ns)
+	r =  _write_edif(cells, inouts, instances, connections, cell_library, name, device, vendor)
+	if return_ns:
+		return r, ns
+	else:
+		return r

@@ -87,17 +87,16 @@ class Simulator:
 		c_top = self.top_level.get(sockaddr)
 
 		fragment = fragment + _Fragment(clock_domains=top_level.clock_domains)
-		verilog_convert = verilog.convert(fragment,
+		c_fragment, self.namespace = verilog.convert(fragment,
 			ios=self.top_level.ios,
 			name=self.top_level.dut_type,
 			return_ns=True,
 			**vopts)
-		c_dut, self.namespace = str(verilog_convert), verilog_convert.ns
 
 		self.cycle_counter = -1
 
 		self.sim_runner = sim_runner
-		self.sim_runner.start(c_top, c_dut)
+		self.sim_runner.start(c_top, c_fragment)
 		self.ipc.accept()
 		reply = self.ipc.recv()
 		assert(isinstance(reply, MessageTick))
