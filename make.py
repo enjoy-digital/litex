@@ -88,6 +88,8 @@ if __name__ == "__main__":
 	memory_regions = soc.get_memory_regions()
 	csr_regions = soc.get_csr_regions()
 
+	bios_file = "software/bios/bios.bin"
+
 	# decode actions
 	action_list = ["clean", "build-bitstream", "build-headers", "build-csr-csv", "build-bios",
 		"load-bitstream", "flash-bitstream", "flash-bios", "all"]
@@ -175,7 +177,7 @@ CPU type:  {}
 
 	if actions["build-bitstream"]:
 		if soc.with_integrated_rom:
-			with open(soc.cpu_boot_file, "rb") as boot_file:
+			with open(bios_file, "rb") as boot_file:
 				boot_data = []
 				while True:
 					w = boot_file.read(4)
@@ -209,4 +211,4 @@ CPU type:  {}
 	if actions["flash-bios"]:
 		prog = platform.create_programmer()
 		prog.set_flash_proxy_dir(args.flash_proxy_dir)
-		prog.flash(soc.cpu_reset_address, soc.cpu_boot_file)
+		prog.flash(soc.cpu_reset_address, bios_file)

@@ -34,7 +34,6 @@ class SoC(Module):
 	}
 	def __init__(self, platform, clk_freq,
 				cpu_type="lm32", cpu_reset_address=0x00000000,
-				cpu_boot_file="software/bios/bios.bin",
 				with_integrated_rom=False, rom_size=0x8000,
 				with_integrated_sram=True, sram_size=4096,
 				with_integrated_main_ram=False, main_ram_size=64*1024,
@@ -50,7 +49,6 @@ class SoC(Module):
 			self.cpu_reset_address = 0
 		else:
 			self.cpu_reset_address = cpu_reset_address
-		self.cpu_boot_file = cpu_boot_file
 
 		self.with_integrated_rom = with_integrated_rom
 		self.rom_size = rom_size
