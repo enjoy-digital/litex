@@ -1,5 +1,6 @@
 import os
 from fractions import Fraction
+from math import ceil
 
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
@@ -47,20 +48,17 @@ class BaseSoC(SDRAMSoC):
 			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), MT46V32M16(self.clk_freq),
 				rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
 			self.register_sdram_phy(self.ddrphy)
-
 			self.comb += [
 				self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
 				self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
 			]
 
-		self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
-			self.ns(110), self.ns(50))
-		self.flash_boot_address = 0x001a0000
-
-		# If not in ROM, BIOS is in // NOR flash
 		if not self.with_integrated_rom:
+			clk_period_ns = 1000000000/self.clk_freq
+			self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
+				ceil(110/clk_period_ns), ceil(50/clk_period_ns))
+			self.flash_boot_address = 0x001a0000
 			self.register_rom(self.norflash.bus)
-
 
 		platform.add_platform_command("""
 INST "mxcrg/wr_bufpll" LOC = "BUFPLL_X0Y2";

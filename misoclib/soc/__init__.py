@@ -1,6 +1,5 @@
 import os, struct
 from operator import itemgetter
-from math import ceil
 
 from migen.fhdl.std import *
 from migen.bank import csrgen
@@ -188,9 +187,3 @@ class SoC(Module):
 			for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
 				if hasattr(self, k):
 					self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
-
-	def ns(self, t, margin=True):
-		clk_period_ns = 1000000000/self.clk_freq
-		if margin:
-			t += clk_period_ns/2
-		return ceil(t/clk_period_ns)
