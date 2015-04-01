@@ -86,6 +86,8 @@ if __name__ == "__main__":
 	top_kwargs = dict((k, autotype(v)) for k, v in args.target_option)
 	soc = top_class(platform, **top_kwargs)
 	soc.finalize()
+	memory_regions = soc.get_memory_regions()
+	csr_regions = soc.get_csr_regions()
 
 	# decode actions
 	action_list = ["clean", "build-bitstream", "build-headers", "build-csr-csv", "build-bios",
@@ -151,20 +153,20 @@ CPU type:  {}
 			linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
 			write_to_file("software/include/generated/output_format.ld", linker_output_format)
 
-			linker_regions = cpuif.get_linker_regions(soc.memory_regions)
+			linker_regions = cpuif.get_linker_regions(memory_regions)
 			write_to_file("software/include/generated/regions.ld", boilerplate + linker_regions)
 
 			for sdram_phy in ["sdrphy", "ddrphy"]:
 				if hasattr(soc, sdram_phy):
 					sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy).settings)
 					write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
-		mem_header = cpuif.get_mem_header(soc.memory_regions, getattr(soc, "flash_boot_address", None))
+		mem_header = cpuif.get_mem_header(memory_regions, getattr(soc, "flash_boot_address", None))
 		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
-		csr_header = cpuif.get_csr_header(soc.csr_regions, soc.interrupt_map)
+		csr_header = cpuif.get_csr_header(csr_regions, soc.interrupt_map)
 		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
 
 	if actions["build-csr-csv"]:
-		csr_csv = cpuif.get_csr_csv(soc.csr_regions)
+		csr_csv = cpuif.get_csr_csv(csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bios"]:

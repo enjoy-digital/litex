@@ -72,8 +72,8 @@ class SoC(Module):
 		self.csr_data_width = csr_data_width
 		self.csr_address_width = csr_address_width
 
-		self.memory_regions = []
-		self.csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
+		self._memory_regions = [] # list of (name, origin, length)
+		self._csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
 
 		self._wb_masters = []
 		self._wb_slaves = []
@@ -135,11 +135,11 @@ class SoC(Module):
 	def add_memory_region(self, name, origin, length):
 		def in_this_region(addr):
 			return addr >= origin and addr < origin + length
-		for n, o, l in self.memory_regions:
+		for n, o, l in self._memory_regions:
 			if n == name or in_this_region(o) or in_this_region(o+l-1):
 				raise ValueError("Memory region conflict between {} and {}".format(n, name))
 
-		self.memory_regions.append((name, origin, length))
+		self._memory_regions.append((name, origin, length))
 
 	def register_mem(self, name, address, interface, size=None):
 		self.add_wb_slave(mem_decoder(address), interface)
@@ -150,17 +150,23 @@ class SoC(Module):
 		self.add_wb_slave(mem_decoder(self.mem_map["rom"]), interface)
 		self.add_memory_region("rom", self.cpu_reset_address, rom_size)
 
+	def get_memory_regions(self):
+		return self._memory_regions
+
 	def check_csr_region(self, name, origin):
-		for n, o, l, obj in self.csr_regions:
+		for n, o, l, obj in self._csr_regions:
 			if n == name or o == origin:
 				raise ValueError("CSR region conflict between {} and {}".format(n, name))
 
 	def add_csr_region(self, name, origin, busword, obj):
 		self.check_csr_region(name, origin)
-		self.csr_regions.append((name, origin, busword, obj))
+		self._csr_regions.append((name, origin, busword, obj))
+
+	def get_csr_regions(self):
+		return self._csr_regions
 
 	def do_finalize(self):
-		registered_mems = [regions[0] for regions in self.memory_regions]
+		registered_mems = [regions[0] for regions in self._memory_regions]
 		if isinstance(self.cpu_or_bridge, CPU):
 			for mem in ["rom", "sram"]:
 				if mem not in registered_mems:
