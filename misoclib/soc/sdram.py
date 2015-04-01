@@ -64,7 +64,6 @@ class SDRAMSoC(SoC):
 					self.submodules.wishbone2lasmi = FullMemoryWE(wishbone2lasmi.WB2LASMI(l2_size//4, self.sdram.crossbar.get_master()))
 				else:
 					self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(l2_size//4, self.sdram.crossbar.get_master())
-				lasmic = self.sdram.controller.lasmic
 				self.register_mem("main_ram", self.mem_map["main_ram"], self.wishbone2lasmi.wishbone, main_ram_size)
 
 		# MINICON frontend
