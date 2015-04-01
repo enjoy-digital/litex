@@ -85,8 +85,9 @@ class SoC(Module):
 				self.submodules.cpu = mor1kx.MOR1KX(platform, self.cpu_reset_address)
 			else:
 				raise ValueError("Unsupported CPU type: "+cpu_type)
+			self.add_wb_master(self.cpu.ibus)
+			self.add_wb_master(self.cpu.dbus)
 			self.cpu_or_bridge = self.cpu
-			self._wb_masters += [self.cpu.ibus, self.cpu.dbus]
 
 			if with_integrated_rom:
 				self.submodules.rom = wishbone.SRAM(rom_size, read_only=True)
@@ -100,9 +101,8 @@ class SoC(Module):
 			if with_integrated_main_ram:
 				self.submodules.main_ram = wishbone.SRAM(main_ram_size)
 				self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, main_ram_size)
-
 		elif cpu_or_bridge is not None and not isinstance(cpu_or_bridge, CPU):
-			self._wb_masters += [cpu_or_bridge.wishbone]
+			self.add_wb_master(cpu_or_bridge.wishbone)
 
 		if with_csr:
 			self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(csr_data_width, csr_address_width))
