@@ -1,4 +1,3 @@
-import os, struct
 from operator import itemgetter
 
 from migen.fhdl.std import *
