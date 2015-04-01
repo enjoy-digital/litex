@@ -3,9 +3,7 @@ import os
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
-from misoclib.cpu import CPU
-
-class MOR1KX(CPU):
+class MOR1KX(Module):
 	def __init__(self, platform, reset_pc):
 		self.ibus = i = wishbone.Interface()
 		self.dbus = d = wishbone.Interface()

@@ -6,7 +6,7 @@ from migen.bus import wishbone, csr, wishbone2csr
 
 from misoclib.com.uart.phy import UARTPHY
 from misoclib.com import uart
-from misoclib.cpu import CPU, lm32, mor1kx
+from misoclib.cpu import lm32, mor1kx
 from misoclib.cpu.peripherals import identifier, timer
 
 def mem_decoder(address, start=26, end=29):
@@ -32,9 +32,9 @@ class SoC(Module):
 		"main_ram":	0x40000000, # (shadow @0xc0000000)
 		"csr":		0x60000000, # (shadow @0xe0000000)
 	}
-	def __init__(self, platform, clk_freq, cpu_or_bridge=None,
-				with_cpu=True, cpu_type="lm32", cpu_reset_address=0x00000000,
-							   cpu_boot_file="software/bios/bios.bin",
+	def __init__(self, platform, clk_freq,
+				cpu_type="lm32", cpu_reset_address=0x00000000,
+				cpu_boot_file="software/bios/bios.bin",
 				with_integrated_rom=False, rom_size=0x8000,
 				with_integrated_sram=True, sram_size=4096,
 				with_integrated_main_ram=False, main_ram_size=64*1024,
@@ -44,9 +44,7 @@ class SoC(Module):
 				with_timer=True):
 		self.platform = platform
 		self.clk_freq = clk_freq
-		self.cpu_or_bridge = cpu_or_bridge
 
-		self.with_cpu = with_cpu
 		self.cpu_type = cpu_type
 		if with_integrated_rom:
 			self.cpu_reset_address = 0
@@ -78,16 +76,15 @@ class SoC(Module):
 		self._wb_masters = []
 		self._wb_slaves = []
 
-		if with_cpu:
+		if cpu_type != "none":
 			if cpu_type == "lm32":
-				self.submodules.cpu = lm32.LM32(platform, self.cpu_reset_address)
+				self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address))
 			elif cpu_type == "or1k":
-				self.submodules.cpu = mor1kx.MOR1KX(platform, self.cpu_reset_address)
+				self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address))
 			else:
 				raise ValueError("Unsupported CPU type: "+cpu_type)
-			self.add_wb_master(self.cpu.ibus)
-			self.add_wb_master(self.cpu.dbus)
-			self.cpu_or_bridge = self.cpu
+			self.add_wb_master(self.cpu_or_bridge.ibus)
+			self.add_wb_master(self.cpu_or_bridge.dbus)
 
 			if with_integrated_rom:
 				self.submodules.rom = wishbone.SRAM(rom_size, read_only=True)
@@ -101,8 +98,6 @@ class SoC(Module):
 			if with_integrated_main_ram:
 				self.submodules.main_ram = wishbone.SRAM(main_ram_size)
 				self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, main_ram_size)
-		elif cpu_or_bridge is not None and not isinstance(cpu_or_bridge, CPU):
-			self.add_wb_master(cpu_or_bridge.wishbone)
 
 		if with_csr:
 			self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(csr_data_width, csr_address_width))
@@ -118,6 +113,13 @@ class SoC(Module):
 
 			if with_timer:
 				self.submodules.timer0 = timer.Timer()
+
+	def add_cpu_or_bridge(self, cpu_or_bridge):
+		if self.finalized:
+			raise FinalizeError
+		if hasattr(self, "cpu_or_bridge"):
+			raise NotImplementedError("More than one CPU is not supported")
+		self.submodules.cpu_or_bridge = cpu_or_bridge
 
 	def init_rom(self, data):
 		self.rom.mem.init = data
@@ -167,8 +169,8 @@ class SoC(Module):
 
 	def do_finalize(self):
 		registered_mems = [regions[0] for regions in self._memory_regions]
-		if isinstance(self.cpu_or_bridge, CPU):
-			for mem in ["rom", "sram"]:
+		if self.cpu_type != "none":
+			for mem in "rom", "sram":
 				if mem not in registered_mems:
 					raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
 

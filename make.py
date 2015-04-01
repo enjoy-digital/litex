@@ -7,7 +7,6 @@ from migen.util.misc import autotype
 from migen.fhdl import simplify
 
 from misoclib.soc import cpuif
-from misoclib.cpu import CPU
 from misoclib.mem.sdram.phy import initsequence
 
 from misoc_import import misoc_import
@@ -147,7 +146,7 @@ CPU type:  {}
  */
 
 """.format(platform_name, args.target, top_class.__name__, soc.cpu_type)
-		if isinstance(soc.cpu_or_bridge, CPU):
+		if soc.cpu_type != "none":
 			cpu_mak = cpuif.get_cpu_mak(soc.cpu_type)
 			write_to_file("software/include/generated/cpu.mak", cpu_mak)
 			linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
