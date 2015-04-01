@@ -160,7 +160,7 @@ class SoC(Module):
 		return self._csr_regions
 
 	def do_finalize(self):
-		registered_mems = [regions[0] for regions in self._memory_regions]
+		registered_mems = {regions[0] for regions in self._memory_regions}
 		if self.cpu_type != "none":
 			for mem in "rom", "sram":
 				if mem not in registered_mems:
