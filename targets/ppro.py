@@ -3,7 +3,6 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.mem import sdram
 from misoclib.mem.sdram.module import MT48LC4M16
 from misoclib.mem.sdram.phy import gensdrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
@@ -77,15 +76,13 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		if not self.with_integrated_main_ram:
+		if not self.integrated_main_ram_size:
 			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"), MT48LC4M16(clk_freq))
 			self.register_sdram_phy(self.sdrphy)
 
-		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"), dummy=4, div=6)
-		self.flash_boot_address = 0x70000
-
-		# If not in ROM, BIOS is in SPI flash
-		if not self.with_integrated_rom:
+		if not self.integrated_rom_size:
+			self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"), dummy=4, div=6)
+			self.flash_boot_address = 0x70000
 			self.register_rom(self.spiflash.bus)
 
 default_subtarget = BaseSoC

@@ -1,7 +1,6 @@
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.mem import sdram
 from misoclib.mem.sdram.module import MT8JTF12864
 from misoclib.mem.sdram.phy import k7ddrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
@@ -85,20 +84,18 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform)
 
-		if not self.with_integrated_main_ram:
+		if not self.integrated_main_ram_size:
 			self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), MT8JTF12864(self.clk_freq))
 			self.register_sdram_phy(self.ddrphy)
 
-		spiflash_pads = platform.request("spiflash")
-		spiflash_pads.clk = Signal()
-		self.specials += Instance("STARTUPE2",
-			i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
-			i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
-		self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
-		self.flash_boot_address = 0xb00000
-
-		# If not in ROM, BIOS is in SPI flash
-		if not self.with_integrated_rom:
+		if not self.integrated_rom_size:
+			spiflash_pads = platform.request("spiflash")
+			spiflash_pads.clk = Signal()
+			self.specials += Instance("STARTUPE2",
+				i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
+				i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
+			self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
+			self.flash_boot_address = 0xb00000
 			self.register_rom(self.spiflash.bus)
 
 class MiniSoC(BaseSoC):

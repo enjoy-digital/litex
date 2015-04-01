@@ -44,7 +44,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
 
-		if not self.with_integrated_main_ram:
+		if not self.integrated_main_ram_size:
 			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), MT46V32M16(self.clk_freq),
 				rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
 			self.register_sdram_phy(self.ddrphy)
@@ -53,7 +53,7 @@ class BaseSoC(SDRAMSoC):
 				self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)
 			]
 
-		if not self.with_integrated_rom:
+		if not self.integrated_rom_size:
 			clk_period_ns = 1000000000/self.clk_freq
 			self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
 				ceil(110/clk_period_ns), ceil(50/clk_period_ns))

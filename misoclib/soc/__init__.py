@@ -34,9 +34,9 @@ class SoC(Module):
 	}
 	def __init__(self, platform, clk_freq,
 				cpu_type="lm32", cpu_reset_address=0x00000000,
-				with_integrated_rom=False, rom_size=0x8000,
-				with_integrated_sram=True, sram_size=4096,
-				with_integrated_main_ram=False, main_ram_size=64*1024,
+				integrated_rom_size=0,
+				integrated_sram_size=4096,
+				integrated_main_ram_size=0,
 				with_csr=True, csr_data_width=8, csr_address_width=14,
 				with_uart=True, uart_baudrate=115200,
 				with_identifier=True,
@@ -45,19 +45,13 @@ class SoC(Module):
 		self.clk_freq = clk_freq
 
 		self.cpu_type = cpu_type
-		if with_integrated_rom:
-			self.cpu_reset_address = 0
-		else:
-			self.cpu_reset_address = cpu_reset_address
+		if integrated_rom_size:
+			cpu_reset_address = 0
+		self.cpu_reset_address = cpu_reset_address
 
-		self.with_integrated_rom = with_integrated_rom
-		self.rom_size = rom_size
-
-		self.with_integrated_sram = with_integrated_sram
-		self.sram_size = sram_size
-
-		self.with_integrated_main_ram = with_integrated_main_ram
-		self.main_ram_size = main_ram_size
+		self.integrated_rom_size = integrated_rom_size
+		self.integrated_sram_size = integrated_sram_size
+		self.integrated_main_ram_size = integrated_main_ram_size
 
 		self.with_uart = with_uart
 		self.uart_baudrate = uart_baudrate
@@ -84,18 +78,18 @@ class SoC(Module):
 			self.add_wb_master(self.cpu_or_bridge.ibus)
 			self.add_wb_master(self.cpu_or_bridge.dbus)
 
-			if with_integrated_rom:
-				self.submodules.rom = wishbone.SRAM(rom_size, read_only=True)
-				self.register_rom(self.rom.bus, rom_size)
+			if integrated_rom_size:
+				self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True)
+				self.register_rom(self.rom.bus, integrated_rom_size)
 
-			if with_integrated_sram:
-				self.submodules.sram = wishbone.SRAM(sram_size)
-				self.register_mem("sram", self.mem_map["sram"], self.sram.bus, sram_size)
+			if integrated_sram_size:
+				self.submodules.sram = wishbone.SRAM(integrated_sram_size)
+				self.register_mem("sram", self.mem_map["sram"], self.sram.bus, integrated_sram_size)
 
 			# Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
-			if with_integrated_main_ram:
-				self.submodules.main_ram = wishbone.SRAM(main_ram_size)
-				self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, main_ram_size)
+			if integrated_main_ram_size:
+				self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size)
+				self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
 
 		if with_csr:
 			self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(csr_data_width, csr_address_width))

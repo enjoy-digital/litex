@@ -10,8 +10,8 @@ class BaseSoC(SoC):
 	def __init__(self, platform, **kwargs):
 		SoC.__init__(self, platform,
 			clk_freq=int((1/(platform.default_clk_period))*1000000000),
-			with_integrated_rom=True,
-			with_integrated_main_ram=True, main_ram_size=16*1024,
+			integrated_rom_size=0x8000,
+			integrated_main_ram_size=16*1024,
 			**kwargs)
 		self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 

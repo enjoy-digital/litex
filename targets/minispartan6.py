@@ -3,11 +3,9 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.mem import sdram
 from misoclib.mem.sdram.module import AS4C16M16
 from misoclib.mem.sdram.phy import gensdrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
-from misoclib.mem.flash import spiflash
 from misoclib.soc.sdram import SDRAMSoC
 
 class _CRG(Module):
@@ -66,13 +64,13 @@ class BaseSoC(SDRAMSoC):
 	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
 		clk_freq = 80*1000000
 		SDRAMSoC.__init__(self, platform, clk_freq,
-			with_integrated_rom=True,
+			integrated_rom_size=0x8000,
 			sdram_controller_settings=sdram_controller_settings,
 			**kwargs)
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		if not self.with_integrated_main_ram:
+		if not self.integrated_main_ram_size:
 			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"), AS4C16M16(clk_freq))
 			self.register_sdram_phy(self.sdrphy)
 

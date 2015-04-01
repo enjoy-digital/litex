@@ -1,12 +1,8 @@
 from migen.fhdl.std import *
-from migen.bus import wishbone
 
-from misoclib.cpu.peripherals import gpio
-from misoclib.mem import sdram
 from misoclib.mem.sdram.module import IS42S16160
 from misoclib.mem.sdram.phy import gensdrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
-from misoclib.com import uart
 from misoclib.soc.sdram import SDRAMSoC
 
 class _PLL(Module):
@@ -86,13 +82,13 @@ class BaseSoC(SDRAMSoC):
 	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
 		SDRAMSoC.__init__(self, platform,
 			clk_freq=100*1000000,
-			with_integrated_rom=True,
+			integrated_rom_size=0x8000,
 			sdram_controller_settings=sdram_controller_settings,
 			**kwargs)
 
 		self.submodules.crg = _CRG(platform)
 
-		if not self.with_integrated_main_ram:
+		if not self.integrated_main_ram_size:
 			self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"), IS42S16160(self.clk_freq))
 			self.register_sdram_phy(self.sdrphy)
 

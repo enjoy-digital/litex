@@ -3,7 +3,6 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.mem import sdram
 from misoclib.mem.sdram.module import MT46H32M16
 from misoclib.mem.sdram.phy import s6ddrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
@@ -97,8 +96,6 @@ class BaseSoC(SDRAMSoC):
 
 	def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
 		clk_freq = 75*1000000
-		if not kwargs.get("with_integrated_rom"):
-			kwargs["rom_size"] = 0x1000000 # 128 Mb
 		SDRAMSoC.__init__(self, platform, clk_freq,
 					cpu_reset_address=0x170000, # 1.5 MB
 					sdram_controller_settings=sdram_controller_settings,
@@ -106,7 +103,7 @@ class BaseSoC(SDRAMSoC):
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
-		if not self.with_integrated_main_ram:
+		if not self.integrated_main_ram_size:
 			self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), MT46H32M16(self.clk_freq),
 				rd_bitslip=1, wr_bitslip=3, dqs_ddr_alignment="C1")
 			self.comb += [
@@ -118,10 +115,9 @@ class BaseSoC(SDRAMSoC):
 	""")
 			self.register_sdram_phy(self.ddrphy)
 
-		self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=10, div=4)
-		# If not in ROM, BIOS is in SPI flash
-		if not self.with_integrated_rom:
+		if not self.integrated_rom_size:
+			self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"), dummy=10, div=4)
 			self.flash_boot_address = 0x180000
-			self.register_rom(self.spiflash.bus)
+			self.register_rom(self.spiflash.bus, 0x1000000)
 
 default_subtarget = BaseSoC
