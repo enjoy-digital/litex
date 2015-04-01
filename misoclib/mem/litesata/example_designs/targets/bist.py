@@ -89,14 +89,15 @@ class BISTSoC(SoC, AutoCSR):
 	csr_map.update(SoC.csr_map)
 	def __init__(self, platform):
 		clk_freq = 166*1000000
-		self.submodules.uart2wb = LiteScopeUART2WB(platform.request("serial"), clk_freq, baudrate=115200)
-		SoC.__init__(self, platform, clk_freq, self.uart2wb,
-			with_cpu=False,
+		SoC.__init__(self, platform, clk_freq,
+			cpu_type="none",
 			with_csr=True, csr_data_width=32,
 			with_uart=False,
 			with_identifier=True,
 			with_timer=False
 		)
+		self.add_cpu_or_bridge(LiteScopeUART2WB(platform.request("serial"), clk_freq, baudrate=115200))
+		self.add_wb_master(self.cpu_or_bridge.wishbone)
 		self.submodules.crg = _CRG(platform)
 
 		# SATA PHY/Core/Frontend
