@@ -133,13 +133,13 @@ class SoC(Module):
 			raise FinalizeError
 		self._wb_slaves.append((address_decoder, interface))
 
-	def check_memory_region(self, name, origin):
+	def add_memory_region(self, name, origin, length):
+		def in_this_region(addr):
+			return addr >= origin and addr < origin + length
 		for n, o, l in self.memory_regions:
-			if n == name or o == origin:
+			if n == name or in_this_region(o) or in_this_region(o+l-1):
 				raise ValueError("Memory region conflict between {} and {}".format(n, name))
 
-	def add_memory_region(self, name, origin, length):
-		self.check_memory_region(name, origin)
 		self.memory_regions.append((name, origin, length))
 
 	def register_mem(self, name, address, interface, size=None):
