@@ -78,7 +78,7 @@ class SDRAMSoC(SoC):
 				raise NotImplementedError("Unsupported SDRAM width of {} > 32".format(sdram_width))
 
 	def do_finalize(self):
-		if not self.integrated_ram_size:
+		if not self.integrated_main_ram_size:
 			if not self._sdram_phy_registered:
 				raise FinalizeError("Need to call SDRAMSoC.register_sdram_phy()")
 		SoC.do_finalize(self)
