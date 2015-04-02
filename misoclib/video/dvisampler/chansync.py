@@ -42,7 +42,7 @@ class ChanSync(Module, AutoCSR):
 		self.valid_i = Signal()
 		self.chan_synced = Signal()
 
-		self._r_channels_synced = CSRStatus()
+		self._channels_synced = CSRStatus()
 
 		lst_control = []
 		all_control = Signal()
@@ -85,7 +85,7 @@ class ChanSync(Module, AutoCSR):
 					)
 				)
 			)
-		self.specials += MultiReg(self.chan_synced, self._r_channels_synced.status)
+		self.specials += MultiReg(self.chan_synced, self._channels_synced.status)
 
 class _TB(Module):
 	def __init__(self, test_seq_it):

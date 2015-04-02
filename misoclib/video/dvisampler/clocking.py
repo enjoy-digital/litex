@@ -4,16 +4,16 @@ from migen.bank.description import *
 
 class Clocking(Module, AutoCSR):
 	def __init__(self, pads):
-		self._r_pll_reset = CSRStorage(reset=1)
-		self._r_locked = CSRStatus()
+		self._pll_reset = CSRStorage(reset=1)
+		self._locked = CSRStatus()
 
 		# DRP
-		self._r_pll_adr = CSRStorage(5)
-		self._r_pll_dat_r = CSRStatus(16)
-		self._r_pll_dat_w = CSRStorage(16)
-		self._r_pll_read = CSR()
-		self._r_pll_write = CSR()
-		self._r_pll_drdy = CSRStatus()
+		self._pll_adr = CSRStorage(5)
+		self._pll_dat_r = CSRStatus(16)
+		self._pll_dat_w = CSRStorage(16)
+		self._pll_read = CSR()
+		self._pll_write = CSR()
+		self._pll_drdy = CSRStatus()
 
 		self.locked = Signal()
 		self.serdesstrobe = Signal()
@@ -32,10 +32,10 @@ class Clocking(Module, AutoCSR):
 		pll_clk1 = Signal()
 		pll_clk2 = Signal()
 		pll_drdy = Signal()
-		self.sync += If(self._r_pll_read.re | self._r_pll_write.re,
-			self._r_pll_drdy.status.eq(0)
+		self.sync += If(self._pll_read.re | self._pll_write.re,
+			self._pll_drdy.status.eq(0)
 		).Elif(pll_drdy,
-			self._r_pll_drdy.status.eq(1)
+			self._pll_drdy.status.eq(1)
 		)
 		self.specials += Instance("PLL_ADV",
 			p_CLKFBOUT_MULT=10,
@@ -48,13 +48,13 @@ class Clocking(Module, AutoCSR):
 			i_CLKIN1=clk_se,
 			o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
 			o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
-			o_LOCKED=pll_locked, i_RST=self._r_pll_reset.storage,
+			o_LOCKED=pll_locked, i_RST=self._pll_reset.storage,
 
-			i_DADDR=self._r_pll_adr.storage,
-			o_DO=self._r_pll_dat_r.status,
-			i_DI=self._r_pll_dat_w.storage,
-			i_DEN=self._r_pll_read.re | self._r_pll_write.re,
-			i_DWE=self._r_pll_write.re,
+			i_DADDR=self._pll_adr.storage,
+			o_DO=self._pll_dat_r.status,
+			i_DI=self._pll_dat_w.storage,
+			i_DEN=self._pll_read.re | self._pll_write.re,
+			i_DWE=self._pll_write.re,
 			o_DRDY=pll_drdy,
 			i_DCLK=ClockSignal())
 
@@ -67,7 +67,7 @@ class Clocking(Module, AutoCSR):
 			Instance("BUFG", i_I=pll_clk2, o_O=self._cd_pix.clk),
 			MultiReg(locked_async, self.locked, "sys")
 		]
-		self.comb += self._r_locked.status.eq(self.locked)
+		self.comb += self._locked.status.eq(self.locked)
 
 		# sychronize pix+pix2x reset
 		pix_rst_n = 1

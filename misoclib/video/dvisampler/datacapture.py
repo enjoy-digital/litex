@@ -7,10 +7,10 @@ class DataCapture(Module, AutoCSR):
 		self.serdesstrobe = Signal()
 		self.d = Signal(10)
 
-		self._r_dly_ctl = CSR(6)
-		self._r_dly_busy = CSRStatus(2)
-		self._r_phase = CSRStatus(2)
-		self._r_phase_reset = CSR()
+		self._dly_ctl = CSR(6)
+		self._dly_busy = CSRStatus(2)
+		self._phase = CSRStatus(2)
+		self._phase_reset = CSR()
 
 		###
 
@@ -163,21 +163,21 @@ class DataCapture(Module, AutoCSR):
 		]
 
 		self.comb += [
-			self.do_delay_master_cal.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[0]),
-			self.do_delay_master_rst.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[1]),
-			self.do_delay_slave_cal.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[2]),
-			self.do_delay_slave_rst.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[3]),
-			self.do_delay_inc.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[4]),
-			self.do_delay_dec.i.eq(self._r_dly_ctl.re & self._r_dly_ctl.r[5]),
-			self._r_dly_busy.status.eq(Cat(sys_delay_master_pending, sys_delay_slave_pending))
+			self.do_delay_master_cal.i.eq(self._dly_ctl.re & self._dly_ctl.r[0]),
+			self.do_delay_master_rst.i.eq(self._dly_ctl.re & self._dly_ctl.r[1]),
+			self.do_delay_slave_cal.i.eq(self._dly_ctl.re & self._dly_ctl.r[2]),
+			self.do_delay_slave_rst.i.eq(self._dly_ctl.re & self._dly_ctl.r[3]),
+			self.do_delay_inc.i.eq(self._dly_ctl.re & self._dly_ctl.r[4]),
+			self.do_delay_dec.i.eq(self._dly_ctl.re & self._dly_ctl.r[5]),
+			self._dly_busy.status.eq(Cat(sys_delay_master_pending, sys_delay_slave_pending))
 		]
 
 		# Phase detector control
-		self.specials += MultiReg(Cat(too_late, too_early), self._r_phase.status)
+		self.specials += MultiReg(Cat(too_late, too_early), self._phase.status)
 		self.submodules.do_reset_lateness = PulseSynchronizer("sys", "pix2x")
 		self.comb += [
 			reset_lateness.eq(self.do_reset_lateness.o),
-			self.do_reset_lateness.i.eq(self._r_phase_reset.re)
+			self.do_reset_lateness.i.eq(self._phase_reset.re)
 		]
 
 		# 5:10 deserialization

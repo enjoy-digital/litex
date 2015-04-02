@@ -120,7 +120,7 @@ class FrameExtraction(Module, AutoCSR):
 		self.frame = Source(word_layout)
 		self.busy = Signal()
 
-		self._r_overflow = CSR()
+		self._overflow = CSR()
 
 		###
 
@@ -194,11 +194,11 @@ class FrameExtraction(Module, AutoCSR):
 
 		overflow_mask = Signal()
 		self.comb += [
-			self._r_overflow.w.eq(sys_overflow & ~overflow_mask),
-			self.overflow_reset.i.eq(self._r_overflow.re)
+			self._overflow.w.eq(sys_overflow & ~overflow_mask),
+			self.overflow_reset.i.eq(self._overflow.re)
 		]
 		self.sync += \
-			If(self._r_overflow.re,
+			If(self._overflow.re,
 				overflow_mask.eq(1)
 			).Elif(self.overflow_reset_ack.o,
 				overflow_mask.eq(0)

@@ -8,8 +8,8 @@ from misoclib.video.dvisampler.common import control_tokens
 class WER(Module, AutoCSR):
 	def __init__(self, period_bits=24):
 		self.data = Signal(10)
-		self._r_update = CSR()
-		self._r_value = CSRStatus(period_bits)
+		self._update = CSR()
+		self._value = CSRStatus(period_bits)
 
 		###
 
@@ -56,4 +56,4 @@ class WER(Module, AutoCSR):
 		self.sync += If(self.ps_counter.o, wer_counter_sys.eq(wer_counter_r))
 
 		# register interface
-		self.sync += If(self._r_update.re, self._r_value.status.eq(wer_counter_sys))
+		self.sync += If(self._update.re, self._value.status.eq(wer_counter_sys))

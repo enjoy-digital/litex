@@ -18,19 +18,19 @@ _default_edid = [
 
 class EDID(Module, AutoCSR):
 	def __init__(self, pads, default=_default_edid):
-		self._r_hpd_notif = CSRStatus()
-		self._r_hpd_en = CSRStorage()
+		self._hpd_notif = CSRStatus()
+		self._hpd_en = CSRStorage()
 		self.specials.mem = Memory(8, 128, init=default)
 
 		###
 
 		# HPD
 		if hasattr(pads, "hpd_notif"):
-			self.specials += MultiReg(pads.hpd_notif, self._r_hpd_notif.status)
+			self.specials += MultiReg(pads.hpd_notif, self._hpd_notif.status)
 		else:
-			self.comb += self._r_hpd_notif.status.eq(1)
+			self.comb += self._hpd_notif.status.eq(1)
 		if hasattr(pads, "hpd_en"):
-			self.comb += pads.hpd_en.eq(self._r_hpd_en.storage)
+			self.comb += pads.hpd_en.eq(self._hpd_en.storage)
 
 		# EDID
 		scl_raw = Signal()
@@ -186,4 +186,4 @@ class EDID(Module, AutoCSR):
 
 		for state in fsm.actions.keys():
 			fsm.act(state, If(start, NextState("RCV_ADDRESS")))
-			fsm.act(state, If(~self._r_hpd_en.storage, NextState("WAIT_START")))
+			fsm.act(state, If(~self._hpd_en.storage, NextState("WAIT_START")))
