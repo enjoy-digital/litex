@@ -8,8 +8,6 @@ class _CSRBase(HUID):
 		self.name = get_obj_var_name(name)
 		if self.name is None:
 			raise ValueError("Cannot extract CSR name from code, need to specify.")
-		if len(self.name) > 2 and self.name[:2] == "r_":
-			self.name = self.name[2:]
 		self.size = size
 
 class CSR(_CSRBase):

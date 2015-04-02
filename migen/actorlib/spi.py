@@ -33,11 +33,11 @@ class SingleGenerator(Module, AutoCSR):
 			self.trigger = Signal()
 			trigger = self.trigger
 		elif mode == MODE_SINGLE_SHOT:
-			self._r_shoot = CSR()
-			trigger = self._r_shoot.re
+			self._shoot = CSR()
+			trigger = self._shoot.re
 		elif mode == MODE_CONTINUOUS:
-			self._r_enable = CSRStorage()
-			trigger = self._r_enable.storage
+			self._enable = CSRStorage()
+			trigger = self._enable.storage
 		else:
 			raise ValueError
 		self.sync += If(self.source.ack | ~self.source.stb, self.source.stb.eq(trigger))
@@ -74,10 +74,10 @@ class Collector(Module, AutoCSR):
 		self.busy = Signal()
 		dw = sum(len(s) for s in self.sink.payload.flatten())
 
-		self._r_wa = CSRStorage(bits_for(depth-1), write_from_dev=True)
-		self._r_wc = CSRStorage(bits_for(depth), write_from_dev=True, atomic_write=True)
-		self._r_ra = CSRStorage(bits_for(depth-1))
-		self._r_rd = CSRStatus(dw)
+		self._wa = CSRStorage(bits_for(depth-1), write_from_dev=True)
+		self._wc = CSRStorage(bits_for(depth), write_from_dev=True, atomic_write=True)
+		self._ra = CSRStorage(bits_for(depth-1))
+		self._rd = CSRStatus(dw)
 
 		###
 
@@ -90,22 +90,22 @@ class Collector(Module, AutoCSR):
 		self.comb += [
 			self.busy.eq(0),
 
-			If(self._r_wc.r != 0,
+			If(self._wc.r != 0,
 				self.sink.ack.eq(1),
 				If(self.sink.stb,
-					self._r_wa.we.eq(1),
-					self._r_wc.we.eq(1),
+					self._wa.we.eq(1),
+					self._wc.we.eq(1),
 					wp.we.eq(1)
 				)
 			),
-			self._r_wa.dat_w.eq(self._r_wa.storage + 1),
-			self._r_wc.dat_w.eq(self._r_wc.storage - 1),
+			self._wa.dat_w.eq(self._wa.storage + 1),
+			self._wc.dat_w.eq(self._wc.storage - 1),
 
-			wp.adr.eq(self._r_wa.storage),
+			wp.adr.eq(self._wa.storage),
 			wp.dat_w.eq(self.sink.payload.raw_bits()),
 
-			rp.adr.eq(self._r_ra.storage),
-			self._r_rd.status.eq(rp.dat_r)
+			rp.adr.eq(self._ra.storage),
+			self._rd.status.eq(rp.dat_r)
 		]
 
 class _DMAController(Module):
