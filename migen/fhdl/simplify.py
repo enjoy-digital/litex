@@ -1,10 +1,10 @@
 from migen.fhdl.std import *
 from migen.fhdl.specials import _MemoryPort
-from migen.fhdl.decorators import ModuleDecorator
+from migen.fhdl.decorators import ModuleTransformer
 from migen.util.misc import gcd_multiple
 
-class FullMemoryWE(ModuleDecorator):
-	def transform_fragment(self, f):
+class FullMemoryWE(ModuleTransformer):
+	def transform_fragment(self, i, f):
 		newspecials = set()
 
 		for orig in f.specials:
