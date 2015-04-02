@@ -45,11 +45,11 @@ class EndpointReporter(Module, AutoCSR):
 
 class DFGReporter(DFGHook, AutoCSR):
 	def __init__(self, dfg, nbits):
-		self._r_magic = CSRStatus(16)
-		self._r_neps = CSRStatus(8)
-		self._r_nbits = CSRStatus(8)
-		self._r_freeze = CSRStorage()
-		self._r_reset = CSR()
+		self._magic = CSRStatus(16)
+		self._neps = CSRStatus(8)
+		self._nbits = CSRStatus(8)
+		self._freeze = CSRStorage()
+		self._reset = CSR()
 
 		###
 
@@ -58,12 +58,12 @@ class DFGReporter(DFGHook, AutoCSR):
 		hooks = list(self.hooks_iter())
 
 		self.comb += [
-			self._r_magic.status.eq(ISD_MAGIC),
-			self._r_neps.status.eq(len(hooks)),
-			self._r_nbits.status.eq(nbits)
+			self._magic.status.eq(ISD_MAGIC),
+			self._neps.status.eq(len(hooks)),
+			self._nbits.status.eq(nbits)
 		]
 		for h in hooks:
 			self.comb += [
-				h.freeze.eq(self._r_freeze.storage),
-				h.reset.eq(self._r_reset.re)
+				h.freeze.eq(self._freeze.storage),
+				h.reset.eq(self._reset.re)
 			]
