@@ -78,10 +78,12 @@ void flush_l2_cache(void)
 	l2_nwords = 1 << wishbone2lasmi_cachesize_read();
 	for(i=0;i<2*l2_nwords;i++) {
 		addr = MAIN_RAM_BASE + i*4;
-#ifdef __lm32__
+#if defined (__lm32__)
 		__asm__ volatile("lw %0, (%1+0)\n":"=r"(dummy):"r"(addr));
+#elif defined (__or1k__)
+		__asm__ volatile("l.lwz %0, 0(%1)\n":"=r"(dummy):"r"(addr));
 #else
-#warning TODO
+#error Unsupported architecture
 #endif
 	}
 }
