@@ -1,12 +1,12 @@
 from migen.fhdl.std import *
-from migen.bus import wishbone, csr
+from migen.bus import wishbone
 from migen.genlib.record import *
 
 from misoclib.mem.sdram.core import SDRAMCore
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.mem.sdram.core.minicon import MiniconSettings
 from misoclib.mem.sdram.frontend import memtest, wishbone2lasmi
-from misoclib.soc import SoC, mem_decoder
+from misoclib.soc import SoC
 
 class SDRAMSoC(SoC):
 	csr_map = {
@@ -54,7 +54,7 @@ class SDRAMSoC(SoC):
 				self.submodules.memtest_r = memtest.MemtestReader(self.sdram.crossbar.get_master())
 
 			l2_size = self.sdram_controller_settings.l2_size
-			if l2_size != 0:
+			if l2_size:
 				# XXX Vivado 2014.X workaround, Vivado is not able to map correctly our L2 cache.
 				# Issue is reported to Xilinx and should be fixed in next releases (2015.1?).
 				# Remove this workaround when fixed by Xilinx.

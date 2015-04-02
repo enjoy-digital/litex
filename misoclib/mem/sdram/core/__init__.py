@@ -19,7 +19,7 @@ class SDRAMCore(Module, AutoCSR):
 				controller_settings, **kwargs)
 			self.comb += Record.connect(controller.dfi, self.dfii.slave)
 
-			self.submodules.crossbar = crossbar = lasmixbar.LASMIxbar([controller.lasmic], controller.nrowbits)
+			self.submodules.crossbar = lasmixbar.LASMIxbar([controller.lasmic], controller.nrowbits)
 
 		# MINICON
 		elif isinstance(controller_settings, minicon.MiniconSettings):
