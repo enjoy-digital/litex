@@ -1,7 +1,7 @@
 import math
 
 from migen.fhdl.std import *
-from migen.fhdl.decorators import ModuleDecorator
+from migen.fhdl.decorators import ModuleTransformer
 from migen.genlib.resetsync import *
 from migen.genlib.fsm import *
 from migen.genlib.record import *
@@ -252,15 +252,16 @@ def sectors2dwords(n):
 	return n*logical_sector_size//4
 
 # Generic modules
-class BufferizeEndpoints(ModuleDecorator):
-	def __init__(self, submodule, *args):
-		ModuleDecorator.__init__(self, submodule)
+class BufferizeEndpoints(ModuleTransformer):
+	def __init__(self, *names):
+		self.names = names
 
+	def transform_instance(self, submodule):
 		endpoints = get_endpoints(submodule)
 		sinks = {}
 		sources = {}
 		for name, endpoint in endpoints.items():
-			if name in args or len(args) == 0:
+			if not self.names or name in self.names:
 				if isinstance(endpoint, Sink):
 					sinks.update({name : endpoint})
 				elif isinstance(endpoint, Source):
