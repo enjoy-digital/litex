@@ -6,16 +6,14 @@ from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
 from misoclib.others import mxcrg
-from misoclib.mem import sdram
 from misoclib.mem.sdram.module import MT46V32M16
 from misoclib.mem.sdram.phy import s6ddrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.mem.flash import norflash16
-from misoclib.cpu.peripherals import gpio
 from misoclib.video import framebuffer
 from misoclib.soc import mem_decoder
 from misoclib.soc.sdram import SDRAMSoC
-
+from misoclib.com import gpio
 from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.mac import LiteEthMAC
 
