@@ -88,8 +88,6 @@ if __name__ == "__main__":
 	memory_regions = soc.get_memory_regions()
 	csr_regions = soc.get_csr_regions()
 
-	bios_file = "software/bios/bios.bin"
-
 	# decode actions
 	action_list = ["clean", "build-bitstream", "build-headers", "build-csr-csv", "build-bios",
 		"load-bitstream", "flash-bitstream", "flash-bios", "all"]
@@ -134,10 +132,10 @@ CPU type:  {}
 
 	if actions["clean"]:
 		subprocess.call(["rm", "-rf", "build/*"])
-		subprocess.call(["make", "-C", "software/libcompiler-rt", "clean"])
-		subprocess.call(["make", "-C", "software/libbase", "clean"])
-		subprocess.call(["make", "-C", "software/libnet", "clean"])
-		subprocess.call(["make", "-C", "software/bios", "clean"])
+		subprocess.call(["make", "-C", os.path.join("software", "libcompiler-rt"), "clean"])
+		subprocess.call(["make", "-C", os.path.join("software", "libbase"), "clean"])
+		subprocess.call(["make", "-C", os.path.join("software", "libnet"), "clean"])
+		subprocess.call(["make", "-C", os.path.join("software", "bios"), "clean"])
 
 	if actions["build-headers"]:
 		boilerplate = """/*
@@ -148,32 +146,35 @@ CPU type:  {}
  */
 
 """.format(platform_name, args.target, top_class.__name__, soc.cpu_type)
+		genhdir = os.path.join("software", "include", "generated")
 		if soc.cpu_type != "none":
 			cpu_mak = cpuif.get_cpu_mak(soc.cpu_type)
-			write_to_file("software/include/generated/cpu.mak", cpu_mak)
+			write_to_file(os.path.join(genhdir, "cpu.mak"), cpu_mak)
 			linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
-			write_to_file("software/include/generated/output_format.ld", linker_output_format)
+			write_to_file(os.path.join(genhdir, "output_format.ld"), linker_output_format)
 
 			linker_regions = cpuif.get_linker_regions(memory_regions)
-			write_to_file("software/include/generated/regions.ld", boilerplate + linker_regions)
+			write_to_file(os.path.join(genhdir, "regions.ld"), boilerplate + linker_regions)
 
 			for sdram_phy in ["sdrphy", "ddrphy"]:
 				if hasattr(soc, sdram_phy):
 					sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy).settings)
-					write_to_file("software/include/generated/sdram_phy.h", boilerplate + sdram_phy_header)
+					write_to_file(os.path.join(genhdir, "sdram_phy.h"), boilerplate + sdram_phy_header)
 		mem_header = cpuif.get_mem_header(memory_regions, getattr(soc, "flash_boot_address", None))
-		write_to_file("software/include/generated/mem.h", boilerplate + mem_header)
+		write_to_file(os.path.join(genhdir, "mem.h"), boilerplate + mem_header)
 		csr_header = cpuif.get_csr_header(csr_regions, soc.interrupt_map)
-		write_to_file("software/include/generated/csr.h", boilerplate + csr_header)
+		write_to_file(os.path.join(genhdir, "csr.h"), boilerplate + csr_header)
 
 	if actions["build-csr-csv"]:
 		csr_csv = cpuif.get_csr_csv(csr_regions)
 		write_to_file(args.csr_csv, csr_csv)
 
 	if actions["build-bios"]:
-		ret = subprocess.call(["make", "-C", "software/bios"])
+		ret = subprocess.call(["make", "-C", os.path.join("software", "bios")])
 		if ret:
 			raise OSError("BIOS build failed")
+
+	bios_file = os.path.join("software", "bios", "bios.bin")
 
 	if actions["build-bitstream"]:
 		if soc.integrated_rom_size:
@@ -194,18 +195,18 @@ CPU type:  {}
 
 	if actions["load-bitstream"]:
 		prog = platform.create_programmer()
-		prog.load_bitstream("build/" + build_name + platform.bitstream_ext)
+		prog.load_bitstream(os.path.join("build", build_name + platform.bitstream_ext))
 
 	if actions["flash-bitstream"]:
 		prog = platform.create_programmer()
 		prog.set_flash_proxy_dir(args.flash_proxy_dir)
 		if prog.needs_bitreverse:
-			flashbit = "build/" + build_name + ".fpg"
-			subprocess.call(["tools/byteswap",
-				"build/" + build_name + ".bin",
+			flashbit = os.path.join("build", build_name + ".fpg")
+			subprocess.call([os.path.join("tools", "byteswap"),
+				os.path.join("build", build_name + ".bin"),
 				flashbit])
 		else:
-			flashbit = "build/" + build_name + ".bin"
+			flashbit = os.path.join("build", build_name + ".bin")
 		prog.flash(0, flashbit)
 
 	if actions["flash-bios"]:
