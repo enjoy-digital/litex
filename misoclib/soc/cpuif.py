@@ -72,8 +72,7 @@ def get_csr_header(regions, interrupt_map):
 	r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n#include <hw/common.h>\n"
 	for name, origin, busword, obj in regions:
 		if isinstance(obj, Memory):
-			fullname = name + "_" + obj.name_override
-			r += "#define CSR_"+fullname.upper()+"_BASE "+hex(origin)+"\n"
+			r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
 		else:
 			r += "\n/* "+name+" */\n"
 			r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
