@@ -70,6 +70,7 @@ class XilinxVivadoToolchain:
 		self.bitstream_commands = []
 		self.additional_commands = []
 		self.pre_synthesis_commands = []
+		self.with_phys_opt = False
 
 	def _build_batch(self, platform, sources, build_name):
 		tcl = []
@@ -82,6 +83,8 @@ class XilinxVivadoToolchain:
 		tcl.append("report_utilization -hierarchical -file %s_utilization_hierarchical_synth.rpt" %(build_name))
 		tcl.append("report_utilization -file %s_utilization_synth.rpt" %(build_name))
 		tcl.append("place_design")
+		if self.with_phys_opt:
+			tcl.append("phys_opt_design -directive AddRetime")
 		tcl.append("report_utilization -hierarchical -file %s_utilization_hierarchical_place.rpt" %(build_name))
 		tcl.append("report_utilization -file %s_utilization_place.rpt" %(build_name))
 		tcl.append("report_io -file %s_io.rpt" %(build_name))
