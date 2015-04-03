@@ -69,6 +69,7 @@ class XilinxVivadoToolchain:
 	def __init__(self):
 		self.bitstream_commands = []
 		self.additional_commands = []
+		self.pre_synthesis_commands = []
 
 	def _build_batch(self, platform, sources, build_name):
 		tcl = []
@@ -76,6 +77,7 @@ class XilinxVivadoToolchain:
 			tcl.append("add_files " + filename.replace("\\", "/"))
 
 		tcl.append("read_xdc %s.xdc" %build_name)
+		tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
 		tcl.append("synth_design -top top -part %s -include_dirs {%s}" %(platform.device, " ".join(platform.verilog_include_paths)))
 		tcl.append("report_utilization -hierarchical -file %s_utilization_hierarchical_synth.rpt" %(build_name))
 		tcl.append("report_utilization -file %s_utilization_synth.rpt" %(build_name))
