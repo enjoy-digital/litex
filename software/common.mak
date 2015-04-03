@@ -11,13 +11,13 @@ LD_normal := $(TARGET_PREFIX)ld
 OBJCOPY_normal := $(TARGET_PREFIX)objcopy
 RANLIB_normal := $(TARGET_PREFIX)ranlib
 
-CC_quiet = @echo " CC " $@ && $(TARGET_PREFIX)gcc
-CX_quiet = @echo " CX " $@ && $(TARGET_PREFIX)g++
-AS_quiet = @echo " AS " $@ && $(TARGET_PREFIX)as
-AR_quiet = @echo " AR " $@ && $(TARGET_PREFIX)ar
-LD_quiet = @echo " LD " $@ && $(TARGET_PREFIX)ld
+CC_quiet = @echo " CC      " $@ && $(TARGET_PREFIX)gcc
+CX_quiet = @echo " CX      " $@ && $(TARGET_PREFIX)g++
+AS_quiet = @echo " AS      " $@ && $(TARGET_PREFIX)as
+AR_quiet = @echo " AR      " $@ && $(TARGET_PREFIX)ar
+LD_quiet = @echo " LD      " $@ && $(TARGET_PREFIX)ld
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(TARGET_PREFIX)objcopy
-RANLIB_quiet = @echo " RANLIB  " $@ && $(TARGET_PREFIX)ranlib
+RANLIB_quiet = @echo " RANLIB   " $@ && $(TARGET_PREFIX)ranlib
 
 MSC_GIT_ID := $(shell cd $(MSCDIR) && python3 -c "from misoclib.cpu.peripherals.identifier.git import get_id; print(hex(get_id()), end='')")
 
