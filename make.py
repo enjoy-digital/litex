@@ -96,7 +96,7 @@ if __name__ == "__main__":
 		if action in actions:
 			actions[action] = True
 		else:
-			print("Unknown action: "+action+". Valid actions are:")
+			print("Unknown action: {}. Valid actions are:".format(action))
 			for a in action_list:
 				print("  "+a)
 			sys.exit(1)

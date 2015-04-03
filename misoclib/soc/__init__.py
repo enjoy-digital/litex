@@ -74,7 +74,7 @@ class SoC(Module):
 			elif cpu_type == "or1k":
 				self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address))
 			else:
-				raise ValueError("Unsupported CPU type: "+cpu_type)
+				raise ValueError("Unsupported CPU type: {}".format(cpu_type))
 			self.add_wb_master(self.cpu_or_bridge.ibus)
 			self.add_wb_master(self.cpu_or_bridge.dbus)
 
