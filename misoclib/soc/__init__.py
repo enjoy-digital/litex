@@ -179,7 +179,7 @@ class SoC(Module):
 			for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
 				self.add_csr_region(name, self.mem_map["csr"]+0x80000000+0x800*mapaddr, self.csr_data_width, csrs)
 			for name, memory, mapaddr, mmap in self.csrbankarray.srams:
-				self.add_csr_region(name, self.mem_map["csr"]+0x80000000+0x800*mapaddr, self.csr_data_width, memory)
+				self.add_csr_region(name + "_" + memory.name_override, self.mem_map["csr"]+0x80000000+0x800*mapaddr, self.csr_data_width, memory)
 
 		# Interrupts
 		if hasattr(self.cpu_or_bridge, "interrupt"):
