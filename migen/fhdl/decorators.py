@@ -1,6 +1,7 @@
 import warnings
 
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.fhdl.tools import insert_reset, rename_clock_domain
 
 class ModuleTransformer:
@@ -40,10 +41,10 @@ class ModuleTransformer:
 		return victim
 
 	def __call__(self, victim):
-		try:
-			return self.wrap_class(victim)
-		except TypeError:
+		if isinstance(victim, Module):
 			return self.wrap_instance(victim)
+		else:
+			return self.wrap_class(victim)
 
 	@classmethod
 	def adhoc(cls, i, *args, **kwargs):
