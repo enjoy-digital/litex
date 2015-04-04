@@ -85,7 +85,7 @@ class AlteraQuartusToolchain:
 		named_sc, named_pc = platform.resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
-		sources = platform.sources + [(v_file, "verilog")]
+		sources = platform.sources | {(v_file, "verilog")}
 		_build_files(platform.device, sources, platform.verilog_include_paths, named_sc, named_pc, build_name)
 		if run:
 			_run_quartus(build_name, quartus_path)

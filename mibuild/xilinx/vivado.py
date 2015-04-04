@@ -110,7 +110,7 @@ class XilinxVivadoToolchain:
 		named_sc, named_pc = platform.resolve_signals(vns)
 		v_file = build_name + ".v"
 		tools.write_to_file(v_file, v_src)
-		sources = platform.sources + [(v_file, "verilog")]
+		sources = platform.sources | {(v_file, "verilog")}
 		_build_files(platform.device, sources, platform.verilog_include_paths, build_name,
 			self.bitstream_commands, self.additional_commands)
 		tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))

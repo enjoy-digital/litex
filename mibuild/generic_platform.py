@@ -184,8 +184,8 @@ class GenericPlatform:
 		if name is None:
 			name = self.__module__.split(".")[-1]
 		self.name = name
-		self.sources = []
-		self.verilog_include_paths = []
+		self.sources = set()
+		self.verilog_include_paths = set()
 		self.finalized = False
 
 	def request(self, *args, **kwargs):
@@ -229,7 +229,7 @@ class GenericPlatform:
 		if language is None:
 			language = "verilog" # default to Verilog
 		filename = os.path.abspath(filename)
-		self.sources.append((filename, language))
+		self.sources.add((filename, language))
 
 	def add_sources(self, path, *filenames, language=None):
 		for f in filenames:
@@ -251,7 +251,7 @@ class GenericPlatform:
 				self.add_source(filename, language)
 
 	def add_verilog_include_path(self, path):
-		self.verilog_include_paths.append(os.path.abspath(path))
+		self.verilog_include_paths.add(os.path.abspath(path))
 
 	def resolve_signals(self, vns):
 		# resolve signal names in constraints
