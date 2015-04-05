@@ -48,11 +48,11 @@ class ModuleTransformer:
 
 	@classmethod
 	def adhoc(cls, i, *args, **kwargs):
-		warnings.warn("deprecated, use the plain transformer", DeprecationWarning)
+		warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
 		return cls(*args, **kwargs)(i)
 
 def DecorateModule(transformer, *args, **kwargs):
-	warnings.warn("deprecated, use the plain transformer", DeprecationWarning)
+	warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
 	return transformer.__self__(*args, **kwargs)
 
 class ControlInserter(ModuleTransformer):
