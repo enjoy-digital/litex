@@ -86,24 +86,24 @@ def timeline(trigger, events):
 	sync.append(counterlogic)
 	return sync
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
+@ResetInserter()
+@CEInserter()
 class FlipFlop(Module):
 	def __init__(self, *args, **kwargs):
 		self.d = Signal(*args, **kwargs)
 		self.q = Signal(*args, **kwargs)
 		self.sync += self.q.eq(self.d)
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
+@ResetInserter()
+@CEInserter()
 class Counter(Module):
 	def __init__(self, *args, increment=1, **kwargs):
 		self.value = Signal(*args, **kwargs)
 		self.width = flen(self.value)
 		self.sync += self.value.eq(self.value+increment)
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
+@ResetInserter()
+@CEInserter()
 class Timeout(Module):
 	def __init__(self, length):
 		self.reached = Signal()

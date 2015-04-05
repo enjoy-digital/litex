@@ -2,8 +2,8 @@ from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.genlib import divider
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
+@ResetInserter()
+@CEInserter()
 class Example(Module):
 	def __init__(self, width):
 		d1 = divider.Divider(width)

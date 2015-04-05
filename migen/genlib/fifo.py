@@ -158,7 +158,7 @@ class AsyncFIFO(Module, _FIFOInterface):
 	"""Asynchronous FIFO (first in, first out)
 
 	Read and write interfaces are accessed from different clock domains,
-	named `read` and `write`. Use `RenameClockDomains` to rename to
+	named `read` and `write`. Use `ClockDomainsRenamer` to rename to
 	other names.
 
 	{interface}
@@ -172,8 +172,8 @@ class AsyncFIFO(Module, _FIFOInterface):
 
 		depth_bits = log2_int(depth, True)
 
-		produce = RenameClockDomains(GrayCounter(depth_bits+1), "write")
-		consume = RenameClockDomains(GrayCounter(depth_bits+1), "read")
+		produce = ClockDomainsRenamer("write")(GrayCounter(depth_bits+1))
+		consume = ClockDomainsRenamer("read")(GrayCounter(depth_bits+1))
 		self.submodules += produce, consume
 		self.comb += [
 			produce.ce.eq(self.writable & self.we),
