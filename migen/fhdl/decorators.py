@@ -81,7 +81,7 @@ class ControlInserter(ModuleTransformer):
 			to_insert = [(getattr(i, self.control_name), cdn)]
 		else:
 			to_insert = [(getattr(i, self.control_name + "_" + cdn), cdn)
-				for cdn in clock_domains]
+				for cdn in self.clock_domains]
 		self.transform_fragment_insert(i, f, to_insert)
 
 class CEInserter(ControlInserter):
