@@ -81,7 +81,7 @@ if __name__ == "__main__":
 	if args.external:
 		platform.soc_ext_path = os.path.abspath(args.external)
 
-	build_name = top_class.__name__.lower() + "-" + platform_name
+	build_name = args.target + "-" + top_class.__name__.lower() + "-" + platform_name
 	top_kwargs = dict((k, autotype(v)) for k, v in args.target_option)
 	soc = top_class(platform, **top_kwargs)
 	soc.finalize()
