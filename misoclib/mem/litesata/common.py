@@ -270,15 +270,15 @@ class BufferizeEndpoints(ModuleTransformer):
 		# add buffer on sinks
 		for name, sink in sinks.items():
 			buf = Buffer(sink.description)
-			self.submodules += buf
+			submodule.submodules += buf
 			setattr(self, name, buf.d)
-			self.comb += Record.connect(buf.q, sink)
+			submodule.comb += Record.connect(buf.q, sink)
 
 		# add buffer on sources
 		for name, source in sources.items():
 			buf = Buffer(source.description)
-			self.submodules += buf
-			self.comb += Record.connect(source, buf.d)
+			submodule.submodules += buf
+			submodule.comb += Record.connect(source, buf.d)
 			setattr(self, name, buf.q)
 
 class EndpointPacketStatus(Module):

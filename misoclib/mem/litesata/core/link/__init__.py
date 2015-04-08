@@ -35,7 +35,7 @@ class LiteSATALinkTX(Module):
 
 		# inserter CONT and scrambled data between
 		# CONT and next primitive
-		cont = BufferizeEndpoints(LiteSATACONTInserter(phy_description(32)), "source")
+		cont = BufferizeEndpoints("source")(LiteSATACONTInserter(phy_description(32)))
 		self.submodules += cont
 
 		# datas / primitives mux
@@ -121,7 +121,7 @@ class LiteSATALinkRX(Module):
 		self.submodules += fsm
 
 		# CONT remover
-		cont = BufferizeEndpoints(LiteSATACONTRemover(phy_description(32)), "source")
+		cont = BufferizeEndpoints("source")(LiteSATACONTRemover(phy_description(32)))
 		self.submodules += cont
 		self.comb += Record.connect(phy.source, cont.sink)
 
