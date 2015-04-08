@@ -68,7 +68,7 @@ def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only):
 		r += "}\n"
 	return r
 
-def get_csr_header(regions, interrupt_map):
+def get_csr_header(regions, constants):
 	r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n#include <hw/common.h>\n"
 	for name, origin, busword, obj in regions:
 		if isinstance(obj, Memory):
@@ -80,12 +80,11 @@ def get_csr_header(regions, interrupt_map):
 				nr = (csr.size + busword - 1)//busword
 				r += _get_rw_functions(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus))
 				origin += 4*nr
-			try:
-				interrupt_nr = interrupt_map[name]
-			except KeyError:
-				pass
-			else:
-				r += "#define "+name.upper()+"_INTERRUPT "+str(interrupt_nr)+"\n"
+
+	r += "\n/* constants */\n"
+	for name, value in constants:
+		r += "#define " + name + " " + str(value) + "\n"
+
 	r += "\n#endif\n"
 	return r
 

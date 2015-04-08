@@ -64,6 +64,7 @@ class SoC(Module):
 
 		self._memory_regions = [] # list of (name, origin, length)
 		self._csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
+		self._constants = [] # list of (name, value)
 
 		self._wb_masters = []
 		self._wb_slaves = []
@@ -158,6 +159,16 @@ class SoC(Module):
 
 	def get_csr_regions(self):
 		return self._csr_regions
+
+	def add_constant(self, name, value):
+		self._constants.append((name, value))
+
+	def get_constants(self):
+		r = []
+		for name, interrupt in sorted(self.interrupt_map.items(), key=itemgetter(1)):
+			r.append((name.upper() + "_INTERRUPT", interrupt))
+		r += self._constants
+		return r
 
 	def do_finalize(self):
 		registered_mems = {regions[0] for regions in self._memory_regions}
