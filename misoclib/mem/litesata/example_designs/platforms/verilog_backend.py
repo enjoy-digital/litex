@@ -1,6 +1,5 @@
 from mibuild.generic_platform import *
-from mibuild.xilinx.common import CRG_DS
-from mibuild.xilinx.vivado import XilinxVivadoPlatform
+from mibuild.xilinx.platform import XilinxPlatform
 
 _io = [
 	("sys_clk", 0, Pins("X")),
@@ -16,9 +15,9 @@ _io = [
 	),
 ]
 
-class Platform(XilinxVivadoPlatform):
-	def __init__(self, crg_factory=lambda p: CRG_DS(p, "clk200", "cpu_reset"), **kwargs):
-		XilinxVivadoPlatform.__init__(self, "xc7k325t-ffg900-2", _io, crg_factory)
+class Platform(XilinxPlatform):
+	def __init__(self, device="xc7k325t", programmer=""):
+		XilinxPlatform.__init__(self, device, _io)
 
 	def do_finalize(self, *args, **kwargs):
 		pass

@@ -69,8 +69,11 @@ if __name__ == "__main__":
 	top_kwargs = dict((k, autotype(v)) for k, v in args.target_option)
 	soc = top_class(platform, **top_kwargs)
 	soc.finalize()
-	memory_regions = soc.get_memory_regions()
-	csr_regions = soc.get_csr_regions()
+	try:
+		memory_regions = soc.get_memory_regions()
+		csr_regions = soc.get_csr_regions()
+	except:
+		pass
 
 	# decode actions
 	action_list = ["clean", "build-csr-csv", "build-core", "build-bitstream", "load-bitstream", "all"]
@@ -139,8 +142,8 @@ BIST: {}
 			MultiReg:					XilinxMultiReg,
 			AsyncResetSynchronizer:		XilinxAsyncResetSynchronizer
 		}
-		src = verilog.convert(soc, ios, special_overrides=so)
-		tools.write_to_file("build/litesata.v", src)
+		v_output = verilog.convert(soc, ios, special_overrides=so)
+		v_output.write("build/litesata.v")
 
 	if actions["build-bitstream"]:
 		vns = platform.build(soc, build_name=build_name, run=True)
