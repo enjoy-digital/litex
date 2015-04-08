@@ -6,6 +6,7 @@ from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.tools import *
 from migen.fhdl.bitcontainer import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
+from migen.fhdl.conv_output import ConvOutput
 
 def _printsig(ns, s):
 	if s.signed:
@@ -257,20 +258,20 @@ def _lower_specials(overrides, specials):
 		f.specials -= lowered_specials2
 	return f, lowered_specials
 
-def _printspecials(overrides, specials, ns):
+def _printspecials(overrides, specials, ns, add_data_file):
 	r = ""
 	for special in sorted(specials, key=lambda x: x.huid):
-		pr = _call_special_classmethod(overrides, special, "emit_verilog", ns)
+		pr = _call_special_classmethod(overrides, special, "emit_verilog", ns, add_data_file)
 		if pr is None:
 			raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
 		r += pr
 	return r
 
 def convert(f, ios=None, name="top",
-  return_ns=False,
   special_overrides=dict(),
   create_clock_domains=True,
   display_run=False):
+	r = ConvOutput()
 	if not isinstance(f, _Fragment):
 		f = f.get_fragment()
 	if ios is None:
@@ -296,15 +297,14 @@ def convert(f, ios=None, name="top",
 	ns = build_namespace(list_signals(f) \
 		| list_special_ios(f, True, True, True) \
 		| ios)
+	r.ns = ns
 
-	r = "/* Machine-generated using Migen */\n"
-	r += _printheader(f, ios, name, ns)
-	r += _printcomb(f, ns, display_run)
-	r += _printsync(f, ns)
-	r += _printspecials(special_overrides, f.specials - lowered_specials, ns)
-	r += "endmodule\n"
+	src = "/* Machine-generated using Migen */\n"
+	src += _printheader(f, ios, name, ns)
+	src += _printcomb(f, ns, display_run)
+	src += _printsync(f, ns)
+	src += _printspecials(special_overrides, f.specials - lowered_specials, ns, r.add_data_file)
+	src += "endmodule\n"
+	r.set_main_source(src)
 
-	if return_ns:
-		return r, ns
-	else:
-		return r
+	return r

@@ -1,10 +1,12 @@
 from collections import OrderedDict
+from collections import namedtuple
+
 from migen.fhdl.std import *
 from migen.fhdl.namer import build_namespace
 from migen.fhdl.tools import list_special_ios
 from migen.fhdl.structure import _Fragment
+from migen.fhdl.conv_output import ConvOutput
 
-from collections import namedtuple
 
 _Port = namedtuple("_Port", "name direction")
 _Cell = namedtuple("_Cell", "name ports")
@@ -125,7 +127,7 @@ def _generate_cells(f):
 			else:
 				cell_dict[special.of] = port_list
 		else:
-			raise ValueError("Edif conversion can only handle synthesized fragments")
+			raise ValueError("EDIF conversion can only handle synthesized fragments")
 	return [_Cell(k, v) for k, v in cell_dict.items()]
 
 def _generate_instances(f,ns):
@@ -146,7 +148,7 @@ def _generate_instances(f,ns):
 					raise NotImplementedError("Unsupported instance item")
 			instances.append(_Instance(name=ns.get_name(special), cell=special.of, properties=props))
 		else:
-			raise ValueError("Edif conversion can only handle synthesized fragments")
+			raise ValueError("EDIF conversion can only handle synthesized fragments")
 	return instances
 
 def _generate_ios(f, ios, ns):
@@ -174,7 +176,7 @@ def _generate_connections(f, ios, ns):
 				else:
 					raise NotImplementedError("Unsupported instance item")
 		else:
-			raise ValueError("Edif conversion can only handle synthesized fragments")
+			raise ValueError("EDIF conversion can only handle synthesized fragments")
 	for s in ios:
 		io = ns.get_name(s)
 		if io not in r:
@@ -182,11 +184,11 @@ def _generate_connections(f, ios, ns):
 		r[io].append(_NetBranch(portname=io, instancename=""))
 	return r
 
-def convert(f, ios, cell_library, vendor, device, name="top", return_ns=False):
+def convert(f, ios, cell_library, vendor, device, name="top"):
 	if not isinstance(f, _Fragment):
 		f = f.get_fragment()
 	if f.comb != [] or f.sync != {}:
-		raise ValueError("Edif conversion can only handle synthesized fragments")
+		raise ValueError("EDIF conversion can only handle synthesized fragments")
 	if ios is None:
 		ios = set()
 	cells = _generate_cells(f)
@@ -194,8 +196,9 @@ def convert(f, ios, cell_library, vendor, device, name="top", return_ns=False):
 	instances = _generate_instances(f, ns)
 	inouts = _generate_ios(f, ios, ns)
 	connections = _generate_connections(f, ios, ns)
-	r =  _write_edif(cells, inouts, instances, connections, cell_library, name, device, vendor)
-	if return_ns:
-		return r, ns
-	else:
-		return r
+	src = _write_edif(cells, inouts, instances, connections, cell_library, name, device, vendor)
+
+	r = ConvOutput()
+	r.set_main_source(src)
+	r.ns = ns
+	return r

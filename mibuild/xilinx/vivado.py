@@ -111,10 +111,10 @@ class XilinxVivadoToolchain:
 		if not isinstance(fragment, _Fragment):
 			fragment = fragment.get_fragment()
 		platform.finalize(fragment)
-		v_src, vns = platform.get_verilog(fragment)
-		named_sc, named_pc = platform.resolve_signals(vns)
+		v_output = platform.get_verilog(fragment)
+		named_sc, named_pc = platform.resolve_signals(v_output.ns)
 		v_file = build_name + ".v"
-		tools.write_to_file(v_file, v_src)
+		v_output.write(v_file)
 		sources = platform.sources | {(v_file, "verilog")}
 		self._build_batch(platform, sources, build_name)
 		tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
@@ -123,7 +123,7 @@ class XilinxVivadoToolchain:
 
 		os.chdir("..")
 
-		return vns
+		return v_output.ns
 
 	def add_period_constraint(self, platform, clk, period):
 		platform.add_platform_command("""create_clock -name {clk} -period """ + \

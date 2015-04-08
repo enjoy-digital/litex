@@ -48,7 +48,7 @@ class Tristate(Special):
 			yield self, attr, target_context
 
 	@staticmethod
-	def emit_verilog(tristate, ns):
+	def emit_verilog(tristate, ns, add_data_file):
 		def pe(e):
 			return verilog_printexpr(ns, e)[0]
 		w, s = value_bits_sign(tristate.target)
@@ -123,7 +123,7 @@ class Instance(Special):
 				yield item, "expr", SPECIAL_INOUT
 
 	@staticmethod
-	def emit_verilog(instance, ns):
+	def emit_verilog(instance, ns, add_data_file):
 		r = instance.of + " "
 		parameters = list(filter(lambda i: isinstance(i, Instance.Parameter), instance.items))
 		if parameters:
@@ -198,7 +198,7 @@ class _MemoryPort(Special):
 			yield self, attr, target_context
 
 	@staticmethod
-	def emit_verilog(port, ns):
+	def emit_verilog(port, ns, add_data_file):
 		return "" # done by parent Memory object
 
 class Memory(Special):
@@ -237,7 +237,7 @@ class Memory(Special):
 		return mp
 
 	@staticmethod
-	def emit_verilog(memory, ns):
+	def emit_verilog(memory, ns, add_data_file):
 		r = ""
 		def gn(e):
 			if isinstance(e, Memory):
@@ -307,14 +307,10 @@ class Memory(Special):
 		r += "\n"
 
 		if memory.init is not None:
-			memory_filename = gn(memory) + ".init"
-
-			# XXX move I/O to mibuild?
-			# (Implies mem init won't work with simple Migen examples?)
-			f = open(memory_filename, "w")
+			content = ""
 			for d in memory.init:
-				f.write("{:x}\n".format(d))
-			f.close()
+				content += "{:x}\n".format(d)
+			memory_filename = add_data_file(gn(memory) + ".init", content)
 
 			r += "initial begin\n"
 			r += "$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
@@ -330,7 +326,7 @@ class SynthesisDirective(Special):
 		self.signals = signals
 
 	@staticmethod
-	def emit_verilog(directive, ns):
+	def emit_verilog(directive, ns, add_data_file):
 		name_dict = dict((k, ns.get_name(sig)) for k, sig in directive.signals.items())
 		formatted = directive.template.format(**name_dict)
 		return "// synthesis " + formatted + "\n"

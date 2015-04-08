@@ -127,10 +127,9 @@ class SimVerilatorToolchain:
 			fragment = fragment.get_fragment()
 		platform.finalize(fragment)
 
-		v_src, vns = platform.get_verilog(fragment)
-		named_sc, named_pc = platform.resolve_signals(vns)
-		v_file = "dut.v"
-		tools.write_to_file(v_file, v_src)
+		v_output = platform.get_verilog(fragment)
+		named_sc, named_pc = platform.resolve_signals(v_output.ns)
+		v_output.write("dut.v")
 
 		include_paths = []
 		for source in platform.sources:
@@ -138,11 +137,11 @@ class SimVerilatorToolchain:
 			if path not in include_paths:
 				include_paths.append(path)
 		include_paths += platform.verilog_include_paths
-		_build_sim(platform, vns, build_name, include_paths, sim_path, serial, verbose)
+		_build_sim(platform, v_output.ns, build_name, include_paths, sim_path, serial, verbose)
 
 		if run:
 			_run_sim(build_name)
 
 		os.chdir("..")
 
-		return vns
+		return v_output.ns

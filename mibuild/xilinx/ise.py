@@ -145,10 +145,11 @@ class XilinxISEToolchain:
 		vns = None
 
 		if mode == "xst" or mode == "yosys":
-			v_src, vns = platform.get_verilog(fragment)
+			v_output = platform.get_verilog(fragment)
+			vns = v_output.ns
 			named_sc, named_pc = platform.resolve_signals(vns)
 			v_file = build_name + ".v"
-			tools.write_to_file(v_file, v_src)
+			v_output.write(v_file)
 			sources = platform.sources | {(v_file, "verilog")}
 			if mode == "xst":
 				_build_xst_files(platform.device, sources, platform.verilog_include_paths, build_name, self.xst_opt)
@@ -163,10 +164,11 @@ class XilinxISEToolchain:
 			synthesize(fragment, platform.constraint_manager.get_io_signals())
 
 		if mode == "edif" or mode == "mist":
-			e_src, vns = platform.get_edif(fragment)
+			e_output = platform.get_edif(fragment)
+			vns = e_output.ns
 			named_sc, named_pc = platform.resolve_signals(vns)
 			e_file = build_name + ".edif"
-			tools.write_to_file(e_file, e_src)
+			e_output.write(e_file)
 			isemode = "edif"
 
 		tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
