@@ -19,9 +19,8 @@ def write_to_file(filename, contents, force_unix=False):
 	newline = None
 	if force_unix:
 		newline = "\n"
-	f = open(filename, "w", newline=newline)
-	f.write(contents)
-	f.close()
+	with open(filename, "w", newline=newline) as f:
+		f.write(contents)
 
 def arch_bits():
 	return struct.calcsize("P")*8
