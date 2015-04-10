@@ -69,15 +69,18 @@ class S6DDRPHY(Module):
 		#             sys_clk   ----____----____
 		#  phase_sel(nphases=2) 0   1   0   1     Half Rate
 		phase_sel = Signal(log2_int(nphases))
-		sys_clk_d = Signal()
+		phase_half = Signal.like(phase_sel)
+		phase_sys = Signal.like(phase_half)
+
+		sd_sys += phase_sys.eq(phase_half)
 
 		sd_sdram_half += [
-			If(sys_clk & ~sys_clk_d,
-				phase_sel.eq(0)
+			If(phase_half == phase_sys,
+				phase_sel.eq(0),
 			).Else(
 				phase_sel.eq(phase_sel+1)
 			),
-			sys_clk_d.eq(sys_clk)
+			phase_half.eq(phase_half+1),
 		]
 
 		# register dfi cmds on half_rate clk

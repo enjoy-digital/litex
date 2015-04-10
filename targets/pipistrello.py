@@ -110,9 +110,6 @@ class BaseSoC(SDRAMSoC):
 				self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
 				self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb),
 			]
-			platform.add_platform_command("""
-	PIN "BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
-	""")
 			self.register_sdram_phy(self.ddrphy)
 
 		if not self.integrated_rom_size:
