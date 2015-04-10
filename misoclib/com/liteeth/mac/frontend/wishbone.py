@@ -23,7 +23,7 @@ class LiteEthMACWishboneInterface(Module, AutoCSR):
 		wb_rx_sram_ifs = [wishbone.SRAM(self.sram.writer.mems[n], read_only=True)
 			for n in range(nrxslots)]
 		# TODO: FullMemoryWE should move to Mibuild
-		wb_tx_sram_ifs = [FullMemoryWE(wishbone.SRAM(self.sram.reader.mems[n], read_only=False))
+		wb_tx_sram_ifs = [FullMemoryWE()(wishbone.SRAM(self.sram.reader.mems[n], read_only=False))
 			for n in range(ntxslots)]
 		wb_sram_ifs = wb_rx_sram_ifs + wb_tx_sram_ifs
 
