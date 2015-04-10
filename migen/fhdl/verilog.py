@@ -172,7 +172,11 @@ def _printheader(f, ios, name, ns):
 		if sig in wires:
 			r += "wire " + _printsig(ns, sig) + ";\n"
 		else:
-			r += "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
+			if isinstance(sig.reset, int):
+				resetexpr = " = " + _printexpr(ns, sig.reset)[0]
+			else:
+				resetexpr = ""
+			r += "reg " + _printsig(ns, sig) + resetexpr + ";\n"
 	r += "\n"
 	return r
 
