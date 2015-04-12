@@ -444,4 +444,27 @@ void ethreset(void)
 	busy_wait(2);
 }
 
+void ethmode(void)
+{
+	ethphy_clock_counter_reset_write(1);
+	busy_wait(1);
+	ethphy_clock_counter_reset_write(0);
+	busy_wait(1);
+
+	printf("Ethernet phy mode: ");
+	/* if freq > 120 MHz, use GMII (5MHz margin)*/
+	if (ethphy_clock_counter_value_read() > 120000000/10) {
+		ethphy_mode_write(0);
+		printf("GMII");
+	/* else use MII */
+	} else {
+		ethphy_mode_write(1);
+		printf("MII");
+	}
+	printf("\n");
+
+	ethphy_clock_counter_reset_write(1);
+}
+
 #endif
+

@@ -1,10 +1,11 @@
 from migen.genlib.io import DDROutput
 from migen.flow.plumbing import Multiplexer, Demultiplexer
+from migen.genlib.cdc import MultiReg
 
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
-from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMIIMIICRG
+from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMIICRG
 from misoclib.com.liteeth.phy.mii import LiteEthPHYMIITX, LiteEthPHYMIIRX
 from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMIITX, LiteEthPHYGMIIRX
 
@@ -67,6 +68,19 @@ class LiteEthPHYGMIIMIIRX(Module):
 			Record.connect(mux.source, source)
 		]
 
+class LiteEthGMIIMIIClockCounter(Module, AutoCSR):
+	def __init__(self):
+		self._reset = CSRStorage()
+		self._value = CSRStatus(32)
+		###
+		counter = RenameClockDomains(Counter(32), "eth_rx")
+		self.submodules += counter
+		self.comb += [
+			counter.reset.eq(self._reset.storage), #slow, don't need CDC
+			counter.ce.eq(1),
+		]
+		self.specials += MultiReg(counter.value, self._value.status)
+
 class LiteEthPHYGMIIMII(Module, AutoCSR):
 	def __init__(self, clock_pads, pads, with_hw_init_reset=True):
 		self.dw = 8
@@ -74,6 +88,7 @@ class LiteEthPHYGMIIMII(Module, AutoCSR):
 		mode = self._mode.storage
 		# Note: we can use GMII CRG since it also handles tx clock pad used for MII
 		self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset)
+		self.submodules.clock_counter = LiteEthGMIIMIIClockCounter()
 		self.submodules.tx = RenameClockDomains(LiteEthPHYGMIIMIITX(pads, mode), "eth_tx")
 		self.submodules.rx = RenameClockDomains(LiteEthPHYGMIIMIIRX(pads, mode), "eth_rx")
 		self.sink, self.source = self.tx.sink, self.rx.source

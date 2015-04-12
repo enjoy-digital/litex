@@ -502,6 +502,9 @@ static void boot_sequence(void)
 		flashboot();
 #endif
 		serialboot();
+#ifdef CSR_ETHPHY_MODE_ADDR
+		ethmode();
+#endif
 #ifdef CSR_ETHMAC_BASE
 		netboot();
 #endif
