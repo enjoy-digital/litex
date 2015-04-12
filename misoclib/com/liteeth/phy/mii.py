@@ -94,7 +94,8 @@ class LiteEthPHYMIICRG(Module, AutoCSR):
 	def __init__(self, clock_pads, pads, with_hw_init_reset):
 		self._reset = CSRStorage()
 		###
-		self.sync.base50 += clock_pads.phy.eq(~clock_pads.phy)
+		if hasattr(clock_pads, "phy"):
+			self.sync.base50 += clock_pads.phy.eq(~clock_pads.phy)
 
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
