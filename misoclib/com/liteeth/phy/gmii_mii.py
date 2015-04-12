@@ -14,12 +14,13 @@ modes = {
 	"MII"	: 1
 }
 
+tx_pads_layout = [("tx_er", 1), ("tx_en", 1), ("tx_data", 8)]
+rx_pads_layout = [("rx_er", 1), ("dv", 1), ("rx_data", 8)]
+
 class LiteEthPHYGMIIMIITX(Module):
 	def __init__(self, pads, mode):
 		self.sink = sink = Sink(eth_phy_description(8))
 		###
-		tx_pads_layout = [("tx_er", 1), ("tx_en", 1), ("tx_data", 8)]
-
 		gmii_tx_pads = Record(tx_pads_layout)
 		gmii_tx = LiteEthPHYGMIITX(gmii_tx_pads, pads_register=False)
 		self.submodules += gmii_tx
@@ -53,10 +54,16 @@ class LiteEthPHYGMIIMIIRX(Module):
 	def __init__(self, pads, mode):
 		self.source = source = Source(eth_phy_description(8))
 		###
-		gmii_rx = LiteEthPHYGMIIRX(pads)
+		pads_d = Record(rx_pads_layout)
+		self.sync += [
+			pads_d.dv.eq(pads.dv),
+			pads_d.rx_data.eq(pads.rx_data)
+		]
+
+		gmii_rx = LiteEthPHYGMIIRX(pads_d)
 		self.submodules += gmii_rx
 
-		mii_rx = LiteEthPHYMIIRX(pads)
+		mii_rx = LiteEthPHYMIIRX(pads_d)
 		self.submodules += mii_rx
 
 		mux = Multiplexer(eth_phy_description(8), 2)
