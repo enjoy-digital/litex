@@ -453,7 +453,7 @@ void ethmode(void)
 
 	printf("Ethernet phy mode: ");
 	/* if freq > 120 MHz, use GMII (5MHz margin)*/
-	if (ethphy_clock_counter_value_read() > 120000000/10) {
+	if(ethphy_clock_counter_value_read() > 120000000/10) {
 		ethphy_mode_write(0);
 		printf("GMII");
 	/* else use MII */
