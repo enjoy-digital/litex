@@ -94,7 +94,7 @@ class LiteEthPHYGMIIMII(Module, AutoCSR):
 		self._mode = CSRStorage()
 		mode = self._mode.storage
 		# Note: we can use GMII CRG since it also handles tx clock pad used for MII
-		self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset)
+		self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset, mode==modes["MII"])
 		self.submodules.clock_counter = LiteEthGMIIMIIClockCounter()
 		self.submodules.tx = RenameClockDomains(LiteEthPHYGMIIMIITX(pads, mode), "eth_tx")
 		self.submodules.rx = RenameClockDomains(LiteEthPHYGMIIMIIRX(pads, mode), "eth_rx")

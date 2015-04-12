@@ -40,16 +40,24 @@ class LiteEthPHYGMIIRX(Module):
 		self.comb += source.eop.eq(eop)
 
 class LiteEthPHYGMIICRG(Module, AutoCSR):
-	def __init__(self, clock_pads, pads, with_hw_init_reset):
+	def __init__(self, clock_pads, pads, with_hw_init_reset, mii_mode=0):
 		self._reset = CSRStorage()
 		###
 		self.clock_domains.cd_eth_rx = ClockDomain()
 		self.clock_domains.cd_eth_tx = ClockDomain()
-		self.specials += DDROutput(1, 0, clock_pads.gtx, ClockSignal("eth_tx"))
-		self.comb += [
-			self.cd_eth_rx.clk.eq(clock_pads.rx),		# Let the synthesis tool insert
-			self.cd_eth_tx.clk.eq(self.cd_eth_rx.clk)	# the appropriate clock buffer
-		]
+
+        # RX : Let the synthesis tool insert the appropriate clock buffer
+		self.comb += self.cd_eth_rx.clk.eq(clock_pads.rx)
+
+		# TX : GMII: Drive clock_pads.gtx, clock_pads.tx unused
+		#      MII: Use PHY clock_pads.tx as eth_tx_clk, do not drive clock_pads.gtx
+		self.specials += DDROutput(1, mii_mode, clock_pads.gtx, ClockSignal("eth_tx"))
+		# XXX Xilinx specific, replace BUFGMUX with a generic clock buffer?
+		self.specials += Instance("BUFGMUX",
+							i_I0=self.cd_eth_rx.clk,
+							i_I1=clock_pads.tx,
+							i_S=mii_mode,
+							o_O=self.cd_eth_tx.clk)
 
 		if with_hw_init_reset:
 			reset = Signal()
