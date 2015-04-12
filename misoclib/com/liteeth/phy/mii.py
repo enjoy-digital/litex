@@ -5,12 +5,13 @@ class LiteEthPHYMIITX(Module):
 	def __init__(self, pads):
 		self.sink = sink = Sink(eth_phy_description(8))
 		###
+		if hasattr(pads, "tx_er"):
+			self.sync += pads.tx_er.eq(0)
 		tx_en_r = Signal()
 		tx_data_r = Signal(4)
 		self.sync += [
-			pads.tx_er.eq(0),
 			pads.tx_en.eq(tx_en_r),
-			pads.tx_data.eq(tx_data_r),
+			pads.tx_data.eq(tx_data_r)
 		]
 
 		fsm = FSM(reset_state="IDLE")
