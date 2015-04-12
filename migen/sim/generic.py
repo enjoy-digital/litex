@@ -87,11 +87,11 @@ class Simulator:
 		c_top = self.top_level.get(sockaddr)
 
 		fragment = fragment + _Fragment(clock_domains=top_level.clock_domains)
-		c_fragment, self.namespace = verilog.convert(fragment,
+		c_fragment = verilog.convert(fragment,
 			ios=self.top_level.ios,
 			name=self.top_level.dut_type,
-			return_ns=True,
 			**vopts)
+		self.namespace = c_fragment.ns
 
 		self.cycle_counter = -1
 
