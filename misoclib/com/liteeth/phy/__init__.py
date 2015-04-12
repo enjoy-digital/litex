@@ -7,8 +7,14 @@ def LiteEthPHY(clock_pads, pads, **kwargs):
 		from misoclib.com.liteeth.phy.sim import LiteEthPHYSim
 		return LiteEthPHYSim(pads)
 	elif hasattr(clock_pads, "gtx") and flen(pads.tx_data) == 8:
-		from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
-		return LiteEthPHYGMII(clock_pads, pads, **kwargs)
+		if hasattr(clock_pads, "tx"):
+			# This is a 10/100/1G PHY
+			from misoclib.com.liteeth.phy.gmii_mii import LiteEthPHYGMIIMII
+			return LiteEthPHYGMIIMII(clock_pads, pads, **kwargs)
+		else:
+			# This is a pure 1G PHY
+			from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
+			return LiteEthPHYGMII(clock_pads, pads, **kwargs)
 	elif flen(pads.tx_data) == 4:
 		from misoclib.com.liteeth.phy.mii import LiteEthPHYMII
 		return LiteEthPHYMII(clock_pads, pads, **kwargs)
