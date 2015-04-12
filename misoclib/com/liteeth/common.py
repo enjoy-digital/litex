@@ -139,6 +139,7 @@ def _remove_from_layout(layout, *args):
 		if not remove:
 			r.append(f)
 	return r
+
 def eth_phy_description(dw):
 	payload_layout = [
 		("data", dw),

@@ -1,43 +1,28 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+def converter_description(dw):
+	payload_layout = [("data", dw)]
+	return EndpointDescription(payload_layout, packetized=True)
+
 class LiteEthPHYMIITX(Module):
 	def __init__(self, pads):
 		self.sink = sink = Sink(eth_phy_description(8))
 		###
 		if hasattr(pads, "tx_er"):
 			self.sync += pads.tx_er.eq(0)
-		tx_en_r = Signal()
-		tx_data_r = Signal(4)
-		self.sync += [
-			pads.tx_en.eq(tx_en_r),
-			pads.tx_data.eq(tx_data_r)
+		converter = Converter(converter_description(8), converter_description(4))
+		self.submodules += converter
+		self.comb += [
+			converter.sink.stb.eq(sink.stb),
+			converter.sink.data.eq(sink.data),
+			sink.ack.eq(converter.sink.ack),
+			converter.source.ack.eq(1)
 		]
-
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-		fsm.act("IDLE",
-			sink.ack.eq(1),
-			If(sink.stb & sink.sop,
-				sink.ack.eq(0),
-				NextState("SEND_LO")
-			)
-		)
-		fsm.act("SEND_LO",
-			tx_data_r.eq(sink.data[0:4]),
-			tx_en_r.eq(1),
-			NextState("SEND_HI")
-		)
-		fsm.act("SEND_HI",
-			tx_data_r.eq(sink.data[4:8]),
-			tx_en_r.eq(1),
-			sink.ack.eq(1),
-			If(sink.stb & sink.eop,
-				NextState("IDLE")
-			).Else(
-				NextState("SEND_LO")
-			)
-		)
+		self.sync += [
+			pads.tx_en.eq(converter.source.stb),
+			pads.tx_data.eq(converter.source.data)
+		]
 
 class LiteEthPHYMIIRX(Module):
 	def __init__(self, pads):
