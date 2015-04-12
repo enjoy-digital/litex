@@ -444,6 +444,7 @@ void ethreset(void)
 	busy_wait(2);
 }
 
+#ifdef CSR_ETHPHY_MODE_ADDR
 void ethmode(void)
 {
 	ethphy_clock_counter_reset_write(1);
@@ -465,6 +466,7 @@ void ethmode(void)
 
 	ethphy_clock_counter_reset_write(1);
 }
+#endif
 
 #endif
 
