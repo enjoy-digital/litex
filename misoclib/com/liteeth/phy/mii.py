@@ -28,53 +28,25 @@ class LiteEthPHYMIIRX(Module):
 	def __init__(self, pads):
 		self.source = source = Source(eth_phy_description(8))
 		###
-		sop = source.sop
-		set_sop = Signal()
-		clr_sop = Signal()
-		self.sync += \
-			If(clr_sop,
-				sop.eq(0)
-			).Elif(set_sop,
-				sop.eq(1)
-			)
+		sop = FlipFlop(reset=1)
+		self.submodules += sop
 
-		lo = Signal(4)
-		hi = Signal(4)
-		load_nibble = Signal(2)
-		self.sync  += \
-			If(load_nibble[0],
-				lo.eq(pads.rx_data)
-			).Elif(load_nibble[1],
-				hi.eq(pads.rx_data)
-			)
-		self.comb += [
-			source.data.eq(Cat(lo, hi))
+		converter = Converter(converter_description(4), converter_description(8))
+		converter = InsertReset(converter)
+		self.submodules += converter
+
+		self.sync += [
+			converter.reset.eq(~pads.dv),
+			converter.sink.stb.eq(1),
+			converter.sink.data.eq(pads.rx_data)
 		]
-
-		fsm = FSM(reset_state="IDLE")
-		self.submodules += fsm
-		fsm.act("IDLE",
-			set_sop.eq(1),
-			If(pads.dv,
-				load_nibble.eq(0b01),
-				NextState("LOAD_HI")
-			)
-		)
-		fsm.act("LOAD_LO",
-			source.stb.eq(1),
-			If(pads.dv,
-				clr_sop.eq(1),
-				load_nibble.eq(0b01),
-				NextState("LOAD_HI")
-			).Else(
-				source.eop.eq(1),
-				NextState("IDLE")
-			)
-		)
-		fsm.act("LOAD_HI",
-			load_nibble.eq(0b10),
-			NextState("LOAD_LO")
-		)
+		self.comb += [
+			sop.reset.eq(~pads.dv),
+			sop.ce.eq(pads.dv),
+			converter.sink.sop.eq(sop.q),
+			converter.sink.eop.eq(~pads.dv)
+		]
+		self.comb += Record.connect(converter.source, source)
 
 class LiteEthPHYMIICRG(Module, AutoCSR):
 	def __init__(self, clock_pads, pads, with_hw_init_reset):
