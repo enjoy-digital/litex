@@ -4,15 +4,19 @@ from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
 class LiteEthPHYGMIITX(Module):
-	def __init__(self, pads):
+	def __init__(self, pads, pads_register):
 		self.sink = sink = Sink(eth_phy_description(8))
 		###
 		if hasattr(pads, "tx_er"):
 			self.sync += pads.tx_er.eq(0)
-		self.sync += [
+		pads_eq = [
 			pads.tx_en.eq(sink.stb),
 			pads.tx_data.eq(sink.data)
 		]
+		if pads_register:
+			self.sync += pads_eq
+		else:
+			self.comb += pads_eq
 		self.comb += sink.ack.eq(1)
 
 class LiteEthPHYGMIIRX(Module):
