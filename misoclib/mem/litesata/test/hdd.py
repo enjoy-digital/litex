@@ -96,7 +96,9 @@ def print_link(s):
 
 
 def import_scrambler_datas():
-    with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+    with subprocess.Popen(["./scrambler"],
+                          stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE) as process:
         process.stdin.write("0x10000".encode("ASCII"))
         out, err = process.communicate()
     return [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
@@ -121,7 +123,9 @@ class LinkRXPacket(LinkPacket):
         for v in self[:-1]:
             stdin += "0x{:08x} ".format(v)
         stdin += "exit"
-        with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+        with subprocess.Popen("./crc",
+                              stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
             out, err = process.communicate()
         crc = int(out.decode("ASCII"), 16)
@@ -140,7 +144,9 @@ class LinkTXPacket(LinkPacket):
         for v in self:
             stdin += "0x{:08x} ".foramt(v)
         stdin += "exit"
-        with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+        with subprocess.Popen("./crc",
+                              stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
             out, err = process.communicate()
         crc = int(out.decode("ASCII"), 16)

@@ -84,7 +84,8 @@ class LiteSATACommandTX(Module):
 
             transport.sink.stb.eq(sink.stb),
             transport.sink.sop.eq(dwords_counter.value == 0),
-            transport.sink.eop.eq((dwords_counter.value == (fis_max_dwords-1)) | sink.eop),
+            transport.sink.eop.eq((dwords_counter.value == (fis_max_dwords-1)) |
+                                  sink.eop),
 
             sink.ack.eq(transport.sink.ack),
             If(sink.stb & sink.ack,

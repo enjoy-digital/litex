@@ -20,7 +20,9 @@ class LiteSATAPHYDatapathRX(Module):
                 last_charisk.eq(sink.charisk),
                 last_data.eq(sink.data)
             )
-        converter = Converter(phy_description(16), phy_description(32), reverse=False)
+        converter = Converter(phy_description(16),
+                              phy_description(32),
+                              reverse=False)
         converter = InsertReset(RenameClockDomains(converter, "sata_rx"))
         self.submodules += converter
         self.comb += [
@@ -71,7 +73,9 @@ class LiteSATAPHYDatapathTX(Module):
         self.comb += Record.connect(sink, fifo.sink)
 
     # width convertion (32 to 16)
-        converter = Converter(phy_description(32), phy_description(16), reverse=False)
+        converter = Converter(phy_description(32),
+                              phy_description(16),
+                              reverse=False)
         converter = RenameClockDomains(converter, "sata_tx")
         self.submodules += converter
         self.comb += [

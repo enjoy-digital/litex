@@ -140,7 +140,8 @@ class LiteSATAPHYCtrl(Module):
         ]
 
         self.comb +=  \
-            align_detect.eq(self.sink.stb & (self.sink.data == primitives["ALIGN"]))
+            align_detect.eq(self.sink.stb &
+                            (self.sink.data == primitives["ALIGN"]))
         self.sync += \
             If(fsm.ongoing("SEND_ALIGN"),
                 If(sink.stb,

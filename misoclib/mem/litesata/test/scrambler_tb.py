@@ -13,7 +13,9 @@ class TB(Module):
 
     def get_c_values(self, length):
         stdin = "0x{:08x}".format(length)
-        with subprocess.Popen("./scrambler", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+        with subprocess.Popen("./scrambler",
+                              stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
             out, err = process.communicate()
         return [int(e, 16) for e in out.decode("ASCII").split("\n")[:-1]]

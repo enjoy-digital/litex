@@ -17,7 +17,9 @@ class TB(Module):
         for data in datas:
             stdin += "0x{:08x} ".format(data)
         stdin += "exit"
-        with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+        with subprocess.Popen("./crc",
+                              stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
             out, err = process.communicate()
         return int(out.decode("ASCII"), 16)

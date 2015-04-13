@@ -88,6 +88,7 @@ class LiteSATACRC(Module):
     polynom = 0x04C11DB7
     init = 0x52325032
     check = 0x00000000
+
     def __init__(self, dw=32):
         self.d = Signal(self.width)
         self.value = Signal(self.width)

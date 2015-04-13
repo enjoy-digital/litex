@@ -104,7 +104,9 @@ class LiteSATATransportTX(Module):
 
         self.comb += [
             counter.ce.eq(sink.stb & link.sink.ack),
-            cmd_done.eq((counter.value == cmd_len) & link.sink.stb & link.sink.ack),
+            cmd_done.eq((counter.value == cmd_len) &
+                        link.sink.stb &
+                        link.sink.ack),
             If(cmd_send,
                 link.sink.stb.eq(sink.stb),
                 link.sink.sop.eq(counter.value == 0),

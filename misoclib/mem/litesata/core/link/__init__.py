@@ -91,7 +91,9 @@ class LiteSATALinkTX(Module):
                 insert.eq(primitives["HOLDA"]),
             ).Elif(~scrambler.source.stb,
                 insert.eq(primitives["HOLD"]),
-            ).Elif(scrambler.source.stb & scrambler.source.eop & scrambler.source.ack,
+            ).Elif(scrambler.source.stb &
+                   scrambler.source.eop &
+                   scrambler.source.ack,
                 NextState("EOF")
             )
         )
@@ -247,7 +249,8 @@ class LiteSATALink(Module):
         self.submodules.tx_buffer = PacketBuffer(link_description(32), buffer_depth)
         self.submodules.tx = LiteSATALinkTX(phy)
         self.submodules.rx = LiteSATALinkRX(phy)
-        self.submodules.rx_buffer = PacketBuffer(link_description(32), buffer_depth, almost_full=3*buffer_depth//4)
+        self.submodules.rx_buffer = PacketBuffer(link_description(32), buffer_depth,
+                                                 almost_full=3*buffer_depth//4)
         self.comb += [
             Record.connect(self.tx_buffer.source, self.tx.sink),
             Record.connect(self.rx.to_tx, self.tx.from_rx),

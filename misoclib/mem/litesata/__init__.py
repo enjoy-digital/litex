@@ -19,4 +19,3 @@ class LiteSATA(Module, AutoCSR):
         self.submodules.crossbar = LiteSATACrossbar(self.core)
         if with_bist:
             self.submodules.bist = LiteSATABIST(self.crossbar, with_bist_csr)
-
