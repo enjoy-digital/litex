@@ -102,6 +102,10 @@ modules.
     Download and install Verilator: http://www.veripool.org/
     Test it: ./make.py -t simple -p sim build-bitstream
 
+9. Contribute a patch!
+  Once you have experimented with stuff, please send your results back.
+  For more details on how to do so, you can see the CONTRIBUTING.md file.
+
 [> License
 ----------
 MiSoC is released under the very permissive two-clause BSD license. Under
