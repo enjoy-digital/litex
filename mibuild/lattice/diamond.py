@@ -87,7 +87,7 @@ class LatticeDiamondToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
-        sources = platform.sources + [(v_file, "verilog")]
+        sources = platform.sources | {(v_file, "verilog")}
         _build_files(platform.device, sources, platform.verilog_include_paths, build_name)
 
         tools.write_to_file(build_name + ".lpf", _build_lpf(named_sc, named_pc))
