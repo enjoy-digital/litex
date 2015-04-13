@@ -25,7 +25,7 @@ def _format_lpf(signame, pin, others, resname):
     fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
     r = ""
     for pre, suf in fmt_c:
-        r += pre + "\""+ signame +"\"" +  suf + ";\n"
+        r += pre + "\"" + signame + "\"" + suf + ";\n"
     return r
 
 
