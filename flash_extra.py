@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-import os, sys, argparse
+import os
+import sys
+import argparse
 
 from migen.util.misc import autotype
 

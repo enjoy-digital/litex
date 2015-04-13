@@ -1,4 +1,5 @@
-import sys, importlib
+import sys
+import importlib
 
 
 def misoc_import(default, external, name):

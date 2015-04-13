@@ -1,4 +1,6 @@
-import os, pty, time
+import os
+import pty
+import time
 
 from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source

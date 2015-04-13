@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-import sys, os, time, serial, threading, argparse
+import sys
+import os
+import time
+import serial
+import threading
+import argparse
 from serial.tools.miniterm import console, character, LF
 
 sfl_magic_len = 14

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import sys, os
+import sys
+import os
 from setuptools import setup
 from setuptools import find_packages
 
