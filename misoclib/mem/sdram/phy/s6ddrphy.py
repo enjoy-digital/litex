@@ -87,7 +87,7 @@ class S6DDRPHY(Module):
         # register dfi cmds on half_rate clk
         r_dfi = Array(Record(phase_cmd_description(addressbits, bankbits)) for i in range(nphases))
         for n, phase in enumerate(self.dfi.phases):
-            sd_sdram_half +=[
+            sd_sdram_half += [
                 r_dfi[n].address.eq(phase.address),
                 r_dfi[n].bank.eq(phase.bank),
                 r_dfi[n].cs_n.eq(phase.cs_n),

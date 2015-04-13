@@ -39,8 +39,8 @@ class SDRAMSoC(SoC):
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor
-        main_ram_size = 2**(phy.module.geom_settings.bankbits+
-                            phy.module.geom_settings.rowbits+
+        main_ram_size = 2**(phy.module.geom_settings.bankbits +
+                            phy.module.geom_settings.rowbits +
                             phy.module.geom_settings.colbits)*sdram_width//8
         # XXX: Limit main_ram_size to 256MB, we should modify mem_map to allow larger memories.
         main_ram_size = min(main_ram_size, 256*1024*1024)

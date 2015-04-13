@@ -48,9 +48,9 @@ class SPIMaster(Module, AutoCSR):
             )
         ]
 
-        self.comb +=[
-            set_clk.eq(i==div//2-1),
-            clr_clk.eq(i==div-1)
+        self.comb += [
+            set_clk.eq(i == (div//2-1)),
+            clr_clk.eq(i == (div-1))
         ]
 
         # fsm

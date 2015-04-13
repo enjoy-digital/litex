@@ -31,7 +31,7 @@ static void command_p{n}(int cmd)
 #define command_prd(X) command_p{rdphase}(X)
 #define command_pwr(X) command_p{wrphase}(X)
 """.format(rdphase=str(sdram_phy_settings.rdphase), wrphase=str(sdram_phy_settings.wrphase))
-    r +="\n"
+    r += "\n"
 
     #
     # sdrrd/sdrwr functions utilities
@@ -54,7 +54,7 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
     {sdram_dfii_pix_rddata_addr}
 }};
 """.format(n=nphases, sdram_dfii_pix_rddata_addr=",\n\t".join(sdram_dfii_pix_rddata_addr))
-    r +="\n"
+    r += "\n"
 
     # init sequence
     cmds = {
