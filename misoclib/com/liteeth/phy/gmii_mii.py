@@ -33,7 +33,7 @@ class LiteEthPHYGMIIMIITX(Module):
         demux = Demultiplexer(eth_phy_description(8), 2)
         self.submodules += demux
         self.comb += [
-            demux.sel.eq(mode==modes["MII"]),
+            demux.sel.eq(mode == modes["MII"]),
             Record.connect(sink, demux.sink),
             Record.connect(demux.source0, gmii_tx.sink),
             Record.connect(demux.source1, mii_tx.sink),
@@ -42,7 +42,7 @@ class LiteEthPHYGMIIMIITX(Module):
         if hasattr(pads, "tx_er"):
             self.comb += pads.tx_er.eq(0)
         self.sync += [
-            If(mode==modes["MII"],
+            If(mode == modes["MII"],
                 pads.tx_en.eq(mii_tx_pads.tx_en),
                 pads.tx_data.eq(mii_tx_pads.tx_data),
             ).Else(
@@ -71,7 +71,7 @@ class LiteEthPHYGMIIMIIRX(Module):
         mux = Multiplexer(eth_phy_description(8), 2)
         self.submodules += mux
         self.comb += [
-            mux.sel.eq(mode==modes["MII"]),
+            mux.sel.eq(mode == modes["MII"]),
             Record.connect(gmii_rx.source, mux.sink0),
             Record.connect(mii_rx.source, mux.sink1),
             Record.connect(mux.source, source)
@@ -98,7 +98,7 @@ class LiteEthPHYGMIIMII(Module, AutoCSR):
         self._mode = CSRStorage()
         mode = self._mode.storage
         # Note: we can use GMII CRG since it also handles tx clock pad used for MII
-        self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset, mode==modes["MII"])
+        self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset, mode == modes["MII"])
         self.submodules.clock_counter = LiteEthGMIIMIIClockCounter()
         self.submodules.tx = RenameClockDomains(LiteEthPHYGMIIMIITX(pads, mode), "eth_tx")
         self.submodules.rx = RenameClockDomains(LiteEthPHYGMIIMIIRX(pads, mode), "eth_rx")

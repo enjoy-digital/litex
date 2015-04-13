@@ -34,7 +34,7 @@ class LiteEthMACPreambleInserter(Module):
         )
         fsm.act("INSERT",
             self.source.stb.eq(1),
-            self.source.sop.eq(cnt==0),
+            self.source.sop.eq(cnt == 0),
             chooser(preamble, cnt, self.source.data),
             If(cnt == cnt_max,
                 If(self.source.ack, NextState("COPY"))

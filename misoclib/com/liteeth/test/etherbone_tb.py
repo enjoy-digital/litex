@@ -111,7 +111,7 @@ class TB(Module):
 
                 # check results
                 s, l, e = check(writes_datas, loopback_writes_datas)
-                print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
+                print("shift " + str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
     run_simulation(TB(), ncycles=4096, vcd_name="my.vcd", keep_files=True)

@@ -26,7 +26,7 @@ def check(p1, p2):
         else:
             ref, res = p2, p1
         shift = 0
-        while((ref[0] != res[0]) and (len(res)>1)):
+        while((ref[0] != res[0]) and (len(res) > 1)):
             res.pop(0)
             shift += 1
         length = min(len(ref), len(res))
@@ -59,7 +59,7 @@ def test(fpga_ip, udp_port, test_size):
                 rx_packet.append(int(byte))
             rx_reference_packet, rx_seed = generate_packet(rx_seed, 1024)
             s, l, e = check(rx_reference_packet, rx_packet)
-            print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
+            print("shift " + str(s) + " / length " + str(l) + " / errors " + str(e))
 
     def send():
         tx_seed = 0

@@ -59,7 +59,7 @@ def check(p1, p2):
         else:
             ref, res = p2, p1
         shift = 0
-        while((ref[0] != res[0]) and (len(res)>1)):
+        while((ref[0] != res[0]) and (len(res) > 1)):
             res.pop(0)
             shift += 1
         length = min(len(ref), len(res))
