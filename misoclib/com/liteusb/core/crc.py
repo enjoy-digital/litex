@@ -38,7 +38,7 @@ class CRCEngine(Module):
         self.last = Signal(width)
         self.next = Signal(width)
 
-        ###
+        # # #
 
         def _optimize_eq(l):
             """
@@ -108,7 +108,7 @@ class CRC32(Module):
         self.value = Signal(self.width)
         self.error = Signal()
 
-        ###
+        # # #
 
         self.submodules.engine = CRCEngine(dat_width, self.width, self.polynom)
         reg = Signal(self.width, reset=self.init)
@@ -144,7 +144,7 @@ class CRCInserter(Module):
         self.source = source = Source(layout)
         self.busy = Signal()
 
-        ###
+        # # #
 
         dw = flen(sink.d)
         crc = crc_class(dw)
@@ -225,7 +225,7 @@ class CRCChecker(Module):
         self.source = source = Source(layout)
         self.busy = Signal()
 
-        ###
+        # # #
 
         dw = flen(sink.d)
         crc = crc_class(dw)

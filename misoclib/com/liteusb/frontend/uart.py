@@ -20,7 +20,7 @@ class LiteUSBUART(Module, AutoCSR):
         self.source = source = Source(user_layout)
         self.sink = sink = Sink(user_layout)
 
-        ###
+        # # #
 
         # TX
         tx_start = self._rxtx.re

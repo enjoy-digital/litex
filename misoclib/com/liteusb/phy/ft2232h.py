@@ -304,11 +304,10 @@ def main():
     tb = TB()
     run_simulation(tb, ncycles=8000, vcd_name="tb_phy.vcd")
 
-    ###
-    #print(tb.user.rd_data)
-    #print(tb.model.wr_data)
-    #print(len(tb.user.rd_data))
-    #print(len(tb.model.wr_data))
+    # print(tb.user.rd_data)
+    # print(tb.model.wr_data)
+    # print(len(tb.user.rd_data))
+    # print(len(tb.model.wr_data))
 
     print_results("F2232HModel --> UserModel", model_rd_data, tb.user.rd_data)
     print_results("UserModel --> FT2232HModel", user_wr_data,  tb.model.wr_data)
