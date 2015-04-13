@@ -16,6 +16,8 @@ pixel_layout_s = [
     ("g", bpc),
     ("b", bpc)
 ]
+
+
 def pixel_layout(pack_factor):
     return [("p"+str(i), pixel_layout_s) for i in range(pack_factor)]
 
@@ -25,11 +27,14 @@ phy_layout_s = [
     ("g", bpc_phy),
     ("b", bpc_phy)
 ]
+
+
 def phy_layout(pack_factor):
     r = [("hsync", 1), ("vsync", 1), ("de", 1)]
     for i in range(pack_factor):
         r.append(("p"+str(i), phy_layout_s))
     return r
+
 
 class FrameInitiator(spi.SingleGenerator):
     def __init__(self, bus_aw, pack_factor, ndmas=1):
@@ -58,6 +63,7 @@ class FrameInitiator(spi.SingleGenerator):
 
     def dma_subr(self, i=0):
         return ["length", "base"+str(i)]
+
 
 class VTG(Module):
     def __init__(self, pack_factor):

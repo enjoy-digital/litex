@@ -11,6 +11,7 @@ from misoclib.soc.sdram import SDRAMSoC
 from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.mac import LiteEthMAC
 
+
 class _CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
@@ -67,6 +68,7 @@ class _CRG(Module):
             )
         self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
 
+
 class BaseSoC(SDRAMSoC):
     default_platform = "kc705"
 
@@ -97,6 +99,7 @@ class BaseSoC(SDRAMSoC):
             self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
             self.flash_boot_address = 0xb00000
             self.register_rom(self.spiflash.bus)
+
 
 class MiniSoC(BaseSoC):
     csr_map = {

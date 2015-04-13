@@ -7,6 +7,7 @@ from misoclib.mem.sdram.frontend import dma_lasmi
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 
+
 class TB(Module):
     def __init__(self):
         self.submodules.ctler = LASMIcon(sdram_phy, sdram_geom, sdram_timing)

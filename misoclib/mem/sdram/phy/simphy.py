@@ -11,6 +11,7 @@ from migen.fhdl.specials import *
 from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
+
 class Bank(Module):
     def __init__(self, data_width, nrows, ncols):
         self.activate = Signal()
@@ -53,6 +54,7 @@ class Bank(Module):
             )
         ]
 
+
 class DFIPhase(Module):
     def __init__(self, dfi, n):
         phase = getattr(dfi, "p"+str(n))
@@ -82,6 +84,7 @@ class DFIPhase(Module):
                 self.read.eq(phase.we_n)
             )
         ]
+
 
 class SDRAMPHYSim(Module):
     def __init__(self, module, settings):

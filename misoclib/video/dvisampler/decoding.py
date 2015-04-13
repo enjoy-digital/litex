@@ -3,6 +3,7 @@ from migen.genlib.record import Record
 
 from misoclib.video.dvisampler.common import control_tokens, channel_layout
 
+
 class Decoding(Module):
     def __init__(self):
         self.valid_i = Signal()

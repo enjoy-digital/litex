@@ -3,6 +3,7 @@ from migen.bank.description import *
 
 from misoclib.cpu.peripherals.identifier import git
 
+
 class Identifier(Module, AutoCSR):
     def __init__(self, sysid, frequency, revision=None):
         self._sysid = CSRStatus(16)

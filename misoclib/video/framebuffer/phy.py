@@ -7,6 +7,7 @@ from migen.flow.actor import *
 from misoclib.video.framebuffer.format import bpc_phy, phy_layout
 from misoclib.video.framebuffer import dvi
 
+
 class _FIFO(Module):
     def __init__(self, pack_factor):
         self.phy = Sink(phy_layout(pack_factor))
@@ -47,6 +48,7 @@ class _FIFO(Module):
                 self.pix_b.eq(pixel.b)
             )
         self.comb += fifo.re.eq(unpack_counter == (pack_factor - 1))
+
 
 # This assumes a 50MHz base clock
 class _Clocking(Module, AutoCSR):
@@ -188,6 +190,7 @@ class _Clocking(Module, AutoCSR):
                 i_R=0, i_S=0)
             self.specials += Instance("OBUFDS", i_I=dvi_clk_se,
                 o_O=pads_dvi.clk_p, o_OB=pads_dvi.clk_n)
+
 
 class Driver(Module, AutoCSR):
     def __init__(self, pack_factor, pads_vga, pads_dvi):

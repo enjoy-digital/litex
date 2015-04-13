@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 
+
 class Clocking(Module, AutoCSR):
     def __init__(self, pads):
         self._pll_reset = CSRStorage(reset=1)

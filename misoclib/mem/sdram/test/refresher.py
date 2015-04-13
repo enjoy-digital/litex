@@ -7,6 +7,7 @@ from misoclib.mem.sdram.core.lasmicon.refresher import *
 
 from common import CommandLogger
 
+
 class Granter(Module):
     def __init__(self, req, ack):
         self.req = req
@@ -34,6 +35,7 @@ class Granter(Module):
 
         if len(elts) > 1:
             print("\t".join(elts))
+
 
 class TB(Module):
     def __init__(self):

@@ -9,6 +9,7 @@ _FAST_READ = 0x0b
 _DIOFR = 0xbb
 _QIOFR = 0xeb
 
+
 def _format_cmd(cmd, spi_width):
     """
     `cmd` is the read instruction. Since everything is transmitted on all
@@ -22,6 +23,7 @@ def _format_cmd(cmd, spi_width):
         if not (cmd>>b)%2:
             c &= ~(1<<(b*spi_width))
     return c
+
 
 class SpiFlash(Module, AutoCSR):
     def __init__(self, pads, dummy=15, div=2, with_bitbang=True):
@@ -140,6 +142,7 @@ class SpiFlash(Module, AutoCSR):
             t += dt
 
         self.sync += timeline(bus.cyc & bus.stb & (i == div - 1), tseq)
+
 
 class SpiFlashTB(Module):
     def __init__(self):

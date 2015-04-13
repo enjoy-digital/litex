@@ -4,6 +4,7 @@ from migen.sim.generic import run_simulation
 
 from misoclib.com.spi import SPIMaster
 
+
 class SPISlave(Module):
     def __init__(self, pads, width):
         self.pads = pads
@@ -65,6 +66,7 @@ def spi_access(selfp, length, mosi):
     yield
     while not (selfp.spi_master._status.status & 0x1):
         yield
+
 
 class TB(Module):
     def __init__(self):

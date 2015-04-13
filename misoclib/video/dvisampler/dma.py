@@ -6,6 +6,7 @@ from migen.flow.actor import *
 
 from misoclib.mem.sdram.frontend import dma_lasmi
 
+
 # Slot status: EMPTY=0 LOADED=1 PENDING=2
 class _Slot(Module, AutoCSR):
     def __init__(self, addr_bits, alignment_bits):
@@ -29,6 +30,7 @@ class _Slot(Module, AutoCSR):
             self._address.we.eq(self.address_done),
             self.ev_source.trigger.eq(self._status.storage[1])
         ]
+
 
 class _SlotArray(Module, AutoCSR):
     def __init__(self, nslots, addr_bits, alignment_bits):
@@ -57,6 +59,7 @@ class _SlotArray(Module, AutoCSR):
         ]
         self.comb += [slot.address_reached.eq(self.address_reached) for slot in slots]
         self.comb += [slot.address_done.eq(self.address_done & (current_slot == n)) for n, slot in enumerate(slots)]
+
 
 class DMA(Module):
     def __init__(self, lasmim, nslots):

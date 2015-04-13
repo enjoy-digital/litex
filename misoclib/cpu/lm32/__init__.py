@@ -3,6 +3,7 @@ import os
 from migen.fhdl.std import *
 from migen.bus import wishbone
 
+
 class LM32(Module):
     def __init__(self, platform, eba_reset):
         self.ibus = i = wishbone.Interface()

@@ -2,6 +2,7 @@ from fractions import Fraction
 
 from migen.fhdl.std import *
 
+
 class MXCRG(Module):
     def __init__(self, pads, outfreq1x):
         self.clock_domains.cd_sys = ClockDomain()

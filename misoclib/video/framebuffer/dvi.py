@@ -3,6 +3,7 @@ from migen.genlib.misc import optree
 
 control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
 
+
 class Encoder(Module):
     def __init__(self):
         self.d = Signal(8)
@@ -83,6 +84,7 @@ class Encoder(Module):
                 cnt.eq(0)
             )
 
+
 class _EncoderSerializer(Module):
     def __init__(self, serdesstrobe, pad_p, pad_n):
         self.submodules.encoder = RenameClockDomains(Encoder(), "pix")
@@ -156,6 +158,7 @@ class PHY(Module):
             self.es2.de.eq(self.de),
         ]
 
+
 class _EncoderTB(Module):
     def __init__(self, inputs):
         self.outs = []
@@ -177,8 +180,10 @@ class _EncoderTB(Module):
         if selfp.simulator.cycle_counter > 4:
             self.outs.append(selfp.dut.out)
 
+
 def _bit(i, n):
     return (i >> n) & 1
+
 
 def _decode_tmds(b):
     try:

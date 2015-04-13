@@ -4,6 +4,7 @@ from migen.genlib.fsm import FSM
 
 from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
+
 class Refresher(Module):
     def __init__(self, a, ba, tRP, tREFI, tRFC, enabled=True):
         self.req = Signal()

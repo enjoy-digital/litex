@@ -3,6 +3,7 @@ from migen.bank.description import *
 
 from misoclib.mem.sdram.phy import dfi
 
+
 class PhaseInjector(Module, AutoCSR):
     def __init__(self, phase):
         self._command = CSRStorage(6) # cs, we, cas, ras, wren, rden
@@ -34,6 +35,7 @@ class PhaseInjector(Module, AutoCSR):
             phase.wrdata_mask.eq(0)
         ]
         self.sync += If(phase.rddata_valid, self._rddata.status.eq(phase.rddata))
+
 
 class DFIInjector(Module, AutoCSR):
     def __init__(self, addressbits, bankbits, databits, nphases=1):

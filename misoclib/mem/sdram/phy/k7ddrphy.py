@@ -6,6 +6,7 @@ from migen.bank.description import *
 from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
+
 class K7DDRPHY(Module, AutoCSR):
     def __init__(self, pads, module):
         addressbits = flen(pads.a)

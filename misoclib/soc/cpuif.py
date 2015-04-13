@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.bank.description import CSRStatus
 
+
 def get_cpu_mak(cpu_type):
     if cpu_type == "lm32":
         cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
@@ -10,8 +11,10 @@ def get_cpu_mak(cpu_type):
         raise ValueError("Unsupported CPU type: "+cpu_type)
     return "CPU={}\nCPUFLAGS={}\n".format(cpu_type, cpuflags)
 
+
 def get_linker_output_format(cpu_type):
     return "OUTPUT_FORMAT(\"elf32-{}\")\n".format(cpu_type)
+
 
 def get_linker_regions(regions):
     r = "MEMORY {\n"
@@ -19,6 +22,7 @@ def get_linker_regions(regions):
         r += "\t{} : ORIGIN = 0x{:08x}, LENGTH = 0x{:08x}\n".format(name, origin, length)
     r += "}\n"
     return r
+
 
 def get_mem_header(regions, flash_boot_address):
     r = "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
@@ -28,6 +32,7 @@ def get_mem_header(regions, flash_boot_address):
         r += "#define FLASH_BOOT_ADDRESS 0x{:08x}\n\n".format(flash_boot_address)
     r += "#endif\n"
     return r
+
 
 def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only):
     r = ""
@@ -68,6 +73,7 @@ def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only):
         r += "}\n"
     return r
 
+
 def get_csr_header(regions, constants):
     r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n#include <hw/common.h>\n"
     for name, origin, busword, obj in regions:
@@ -87,6 +93,7 @@ def get_csr_header(regions, constants):
 
     r += "\n#endif\n"
     return r
+
 
 def get_csr_csv(regions):
     r = ""

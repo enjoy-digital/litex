@@ -6,6 +6,7 @@ from migen.genlib.fifo import SyncFIFO
 
 from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
+
 class _AddressSlicer:
     def __init__(self, colbits, address_align):
         self.colbits = colbits
@@ -24,6 +25,7 @@ class _AddressSlicer:
             return (address & (2**split - 1)) << self.address_align
         else:
             return Cat(Replicate(0, self.address_align), address[:split])
+
 
 class BankMachine(Module):
     def __init__(self, geom_settings, timing_settings, controller_settings, address_align, bankn, req):

@@ -8,6 +8,7 @@ from misoclib.mem.sdram.frontend import dma_lasmi
 from misoclib.video.framebuffer.format import bpp, pixel_layout, FrameInitiator, VTG
 from misoclib.video.framebuffer.phy import Driver
 
+
 class Framebuffer(Module, AutoCSR):
     def __init__(self, pads_vga, pads_dvi, lasmim):
         pack_factor = lasmim.dw//bpp

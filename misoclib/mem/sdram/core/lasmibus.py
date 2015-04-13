@@ -4,6 +4,7 @@ from migen.genlib import roundrobin
 from migen.genlib.record import *
 from migen.genlib.misc import optree
 
+
 class Interface(Record):
     def __init__(self, aw, dw, nbanks, req_queue_size, read_latency, write_latency):
         self.aw = aw
@@ -32,6 +33,7 @@ class Interface(Record):
             ("dat_r",    dw,     DIR_S_TO_M)
         ]
         Record.__init__(self, layout)
+
 
 class Initiator(Module):
     def __init__(self, generator, bus):
@@ -75,6 +77,7 @@ class Initiator(Module):
                 else:
                     selfp.bus.we = 1
 
+
 class TargetModel:
     def __init__(self):
         self.last_bank = 0
@@ -96,6 +99,7 @@ class TargetModel:
             self.last_bank += 1
         return self.last_bank
 
+
 class _ReqFIFO(Module):
     def __init__(self, req_queue_size, bank):
         self.req_queue_size = req_queue_size
@@ -111,6 +115,7 @@ class _ReqFIFO(Module):
             selfp.bank.req_ack = 0
         selfp.bank.lock = bool(self.contents)
     do_simulation.passive = True
+
 
 class Target(Module):
     def __init__(self, model, *ifargs, **ifkwargs):

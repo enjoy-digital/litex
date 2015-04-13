@@ -4,6 +4,7 @@ from migen.bank.eventmanager import *
 from migen.genlib.record import Record
 from migen.flow.actor import Sink, Source
 
+
 class UART(Module, AutoCSR):
     def __init__(self, phy):
         self._rxtx = CSR(8)

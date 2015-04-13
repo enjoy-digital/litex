@@ -9,6 +9,7 @@ from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.mem.flash import spiflash
 from misoclib.soc.sdram import SDRAMSoC
 
+
 class _CRG(Module):
     def __init__(self, platform, clk_freq):
         self.clock_domains.cd_sys = ClockDomain()
@@ -85,6 +86,7 @@ class _CRG(Module):
             i_D0=0, i_D1=1, i_S=0, i_R=0, i_CE=1,
             i_C0=clk_sdram_half_shifted, i_C1=~clk_sdram_half_shifted,
             o_Q=clk.n)
+
 
 class BaseSoC(SDRAMSoC):
     default_platform = "pipistrello"

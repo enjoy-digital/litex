@@ -7,6 +7,7 @@ from migen.bank.description import *
 
 from misoclib.video.dvisampler.common import channel_layout
 
+
 class _SyncBuffer(Module):
     def __init__(self, width, depth):
         self.din = Signal(width)
@@ -36,6 +37,7 @@ class _SyncBuffer(Module):
             self.dout.eq(rdport.dat_r)
         ]
         self.sync += If(self.re, _inc(consume, depth))
+
 
 class ChanSync(Module, AutoCSR):
     def __init__(self, nchan=3, depth=8):
@@ -86,6 +88,7 @@ class ChanSync(Module, AutoCSR):
                 )
             )
         self.specials += MultiReg(self.chan_synced, self._channels_synced.status)
+
 
 class _TB(Module):
     def __init__(self, test_seq_it):

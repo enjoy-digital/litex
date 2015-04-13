@@ -28,6 +28,7 @@ from migen.fhdl.specials import *
 from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
+
 class GENSDRPHY(Module):
     def __init__(self, pads, module):
         addressbits = flen(pads.a)

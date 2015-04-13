@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
 
+
 class Bandwidth(Module, AutoCSR):
     def __init__(self, cmd, data_width, period_bits=24):
         self._update = CSR()

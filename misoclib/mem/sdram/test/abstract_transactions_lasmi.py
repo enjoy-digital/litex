@@ -4,6 +4,7 @@ from migen.sim.generic import run_simulation
 
 from misoclib.mem.sdram.core import lasmibus
 
+
 def my_generator(n):
     bank = n % 4
     for x in range(4):
@@ -17,6 +18,7 @@ def my_generator(n):
         print("{0}: Read {1:x} in {2} cycle(s)".format(n, t.data, t.latency))
         assert(t.data == 0x1000*bank + 0x100*x)
 
+
 class MyModel(lasmibus.TargetModel):
     def read(self, bank, address):
         r = 0x1000*bank + 0x100*address
@@ -26,6 +28,7 @@ class MyModel(lasmibus.TargetModel):
     def write(self, bank, address, data, we):
         print("write to bank {0} address {1:x} data {2:x}".format(bank, address, data))
         assert(data == 0x1000*bank + 0x100*address)
+
 
 class TB(Module):
     def __init__(self):

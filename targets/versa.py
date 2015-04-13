@@ -4,6 +4,7 @@ from migen.genlib.io import CRG
 
 from misoclib.soc import SoC
 
+
 class BaseSoC(SoC):
     default_platform = "versa"
     def __init__(self, platform, **kwargs):

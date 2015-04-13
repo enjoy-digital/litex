@@ -5,6 +5,7 @@ from migen.bank.description import *
 
 from misoclib.video.dvisampler.common import control_tokens
 
+
 class CharSync(Module, AutoCSR):
     def __init__(self, required_controls=8):
         self.raw_data = Signal(10)

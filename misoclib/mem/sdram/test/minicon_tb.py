@@ -15,11 +15,13 @@ clk_freq = 80000000
 
 from math import ceil
 
+
 def ns(t, margin=True):
     clk_period_ns = 1000000000/clk_freq
     if margin:
         t += clk_period_ns/2
     return ceil(t/clk_period_ns)
+
 
 class MiniconTB(Module):
     def __init__(self, sdrphy, dfi, sdram_geom, sdram_timing, pads, sdram_clk):
@@ -75,6 +77,7 @@ class MiniconTB(Module):
 
         while True:
             yield
+
 
 class MyTopLevel:
     def __init__(self, vcd_name=None, vcd_level=1,

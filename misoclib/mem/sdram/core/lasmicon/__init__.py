@@ -6,6 +6,7 @@ from misoclib.mem.sdram.core.lasmicon.refresher import *
 from misoclib.mem.sdram.core.lasmicon.bankmachine import *
 from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 
+
 class LASMIconSettings:
     def __init__(self, req_queue_size=8,
             read_time=32, write_time=16,
@@ -23,6 +24,7 @@ class LASMIconSettings:
             self.with_bandwidth = with_bandwidth
         self.with_memtest = with_memtest
         self.with_refresh = with_refresh
+
 
 class LASMIcon(Module):
     def __init__(self, phy_settings, geom_settings, timing_settings, controller_settings, **kwargs):

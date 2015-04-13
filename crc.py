@@ -1,5 +1,6 @@
 import binascii
 
+
 def insert_crc(i_filename, fbi_mode=False, o_filename=None):
     if o_filename is None:
         o_filename = i_filename

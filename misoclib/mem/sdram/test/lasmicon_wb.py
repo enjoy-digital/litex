@@ -11,6 +11,7 @@ from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 
 l2_size = 8192 # in bytes
 
+
 def my_generator():
     for x in range(20):
         t = TWrite(x, x)
@@ -24,6 +25,7 @@ def my_generator():
         t = TRead(x+l2_size//4)
         yield t
         print(str(t) + " delay=" + str(t.latency))
+
 
 class TB(Module):
     def __init__(self):

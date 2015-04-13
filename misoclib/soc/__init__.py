@@ -9,8 +9,10 @@ from misoclib.com import uart
 from misoclib.cpu import lm32, mor1kx
 from misoclib.cpu.peripherals import identifier, timer
 
+
 def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
+
 
 class SoC(Module):
     csr_map = {

@@ -4,6 +4,7 @@ from migen.genlib.fsm import FSM, NextState
 
 from misoclib.mem.sdram.phy import dfi as dfibus
 
+
 class _AddressSlicer:
     def __init__(self, colbits, bankbits, rowbits, address_align):
         self.colbits = colbits
@@ -34,9 +35,11 @@ class _AddressSlicer:
         else:
             return Cat(Replicate(0, self.address_align), address[:split])
 
+
 class MiniconSettings:
     def __init__(self):
         pass
+
 
 class Minicon(Module):
     def __init__(self, phy_settings, geom_settings, timing_settings):

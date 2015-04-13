@@ -3,6 +3,7 @@ import os, pty, time
 from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source
 
+
 class UARTPHYSim(Module):
     def __init__(self, pads, *args, **kwargs):
         self.sink = Sink([("data", 8)])

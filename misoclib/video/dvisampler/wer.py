@@ -5,6 +5,7 @@ from migen.genlib.cdc import PulseSynchronizer
 
 from misoclib.video.dvisampler.common import control_tokens
 
+
 class WER(Module, AutoCSR):
     def __init__(self, period_bits=24):
         self.data = Signal(10)

@@ -6,11 +6,13 @@ from misoclib.mem.sdram.core.lasmicon import *
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 
+
 def my_generator_r(n):
     for x in range(10):
         t = TRead(128*n + 48*n*x)
         yield t
     print("{0:3}: reads done".format(n))
+
 
 def my_generator_w(n):
     for x in range(10):
@@ -18,11 +20,13 @@ def my_generator_w(n):
         yield t
     print("{0:3}: writes done".format(n))
 
+
 def my_generator(n):
     if n % 2:
         return my_generator_w(n // 2)
     else:
         return my_generator_r(n // 2)
+
 
 class TB(Module):
     def __init__(self):

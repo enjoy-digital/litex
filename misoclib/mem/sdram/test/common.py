@@ -9,6 +9,8 @@ MHz = 1000000
 clk_freq = (83 + Fraction(1, 3))*MHz
 
 clk_period_ns = 1000000000/clk_freq
+
+
 def ns(t, margin=True):
     if margin:
         t += clk_period_ns/2
@@ -45,6 +47,7 @@ sdram_timing = sdram.TimingSettings(
     write_time=16
 )
 
+
 def decode_sdram(ras_n, cas_n, we_n, bank, address):
     elts = []
     if not ras_n and cas_n and we_n:
@@ -73,6 +76,7 @@ def decode_sdram(ras_n, cas_n, we_n, bank, address):
         elts.append("LMR")
     return elts
 
+
 class CommandLogger(Module):
     def __init__(self, cmd, rw=False):
         self.cmd = cmd
@@ -86,6 +90,7 @@ class CommandLogger(Module):
         if len(elts) > 1:
             print("\t".join(elts))
     do_simulation.passive = True
+
 
 class DFILogger(Module):
     def __init__(self, dfi):

@@ -5,6 +5,7 @@ from migen.actorlib.spi import *
 
 from misoclib.mem.sdram.frontend import dma_lasmi
 
+
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class LFSR(Module):
@@ -27,6 +28,7 @@ class LFSR(Module):
         ]
 
 memtest_magic = 0x361f
+
 
 class MemtestWriter(Module):
     def __init__(self, lasmim):
@@ -64,6 +66,7 @@ class MemtestWriter(Module):
     def get_csrs(self):
         return [self._magic, self._reset, self._shoot] + self._dma.get_csrs()
 
+
 class MemtestReader(Module):
     def __init__(self, lasmim):
         self._magic = CSRStatus(16)
@@ -94,6 +97,7 @@ class MemtestReader(Module):
 
     def get_csrs(self):
         return [self._magic, self._reset, self._error_count] + self._dma.get_csrs()
+
 
 class _LFSRTB(Module):
     def __init__(self, *args, **kwargs):

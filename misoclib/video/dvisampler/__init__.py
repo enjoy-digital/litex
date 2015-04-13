@@ -11,6 +11,7 @@ from misoclib.video.dvisampler.chansync import ChanSync
 from misoclib.video.dvisampler.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
 from misoclib.video.dvisampler.dma import DMA
 
+
 class DVISampler(Module, AutoCSR):
     def __init__(self, pads, lasmim, n_dma_slots=2):
         self.submodules.edid = EDID(pads)

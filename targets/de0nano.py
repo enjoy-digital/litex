@@ -5,6 +5,7 @@ from misoclib.mem.sdram.phy import gensdrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
 from misoclib.soc.sdram import SDRAMSoC
 
+
 class _PLL(Module):
     def __init__(self, period_in, name, phase_shift, operation_mode):
         self.clk_in = Signal()
@@ -43,6 +44,7 @@ class _PLL(Module):
             i_scanwrite=0
         )
 
+
 class _CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
@@ -75,6 +77,7 @@ class _CRG(Module):
         ]
 
         self.comb += platform.request("sdram_clock").eq(self.cd_sys_ps.clk)
+
 
 class BaseSoC(SDRAMSoC):
     default_platform = "de0nano"

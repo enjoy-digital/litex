@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.genlib.fifo import SyncFIFO
 
+
 class Reader(Module):
     def __init__(self, lasmim, fifo_depth=None):
         self.address = Sink([("a", lasmim.aw)])

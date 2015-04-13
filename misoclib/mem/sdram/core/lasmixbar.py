@@ -5,6 +5,7 @@ from migen.genlib.misc import optree
 
 from misoclib.mem.sdram.core.lasmibus import Interface
 
+
 def _getattr_all(l, attr):
     it = iter(l)
     r = getattr(next(it), attr)
@@ -12,6 +13,7 @@ def _getattr_all(l, attr):
         if getattr(e, attr) != r:
             raise ValueError
     return r
+
 
 class LASMIxbar(Module):
     def __init__(self, controllers, cba_shift):

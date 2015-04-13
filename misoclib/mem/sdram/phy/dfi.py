@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
 
+
 def phase_cmd_description(addressbits, bankbits):
     return [
         ("address",            addressbits,    DIR_M_TO_S),
@@ -14,12 +15,14 @@ def phase_cmd_description(addressbits, bankbits):
         ("reset_n",            1,                DIR_M_TO_S)
     ]
 
+
 def phase_wrdata_description(databits):
     return [
         ("wrdata",            databits,        DIR_M_TO_S),
         ("wrdata_en",        1,                DIR_M_TO_S),
         ("wrdata_mask",        databits//8,    DIR_M_TO_S)
     ]
+
 
 def phase_rddata_description(databits):
     return [
@@ -28,11 +31,13 @@ def phase_rddata_description(databits):
         ("rddata_valid",    1,                DIR_S_TO_M)
     ]
 
+
 def phase_description(addressbits, bankbits, databits):
     r = phase_cmd_description(addressbits, bankbits)
     r += phase_wrdata_description(databits)
     r += phase_rddata_description(databits)
     return r
+
 
 class Interface(Record):
     def __init__(self, addressbits, bankbits, databits, nphases=1):
@@ -61,6 +66,7 @@ class Interface(Record):
                         suffix = ""
                     r.append(("dfi_" + field + suffix, getattr(phase, field)))
         return r
+
 
 class Interconnect(Module):
     def __init__(self, master, slave):

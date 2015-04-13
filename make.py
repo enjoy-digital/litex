@@ -11,6 +11,7 @@ from misoclib.mem.sdram.phy import initsequence
 
 from misoc_import import misoc_import
 
+
 def _get_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\

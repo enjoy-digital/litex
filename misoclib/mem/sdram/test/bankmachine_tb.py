@@ -6,11 +6,13 @@ from misoclib.mem.sdram.core.lasmicon.bankmachine import *
 
 from common import sdram_phy, sdram_geom, sdram_timing, CommandLogger
 
+
 def my_generator():
     for x in range(10):
         yield True, x
     for x in range(10):
         yield False, 128*x
+
 
 class TB(Module):
     def __init__(self):

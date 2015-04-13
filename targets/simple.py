@@ -6,6 +6,7 @@ from misoclib.soc import SoC, mem_decoder
 from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.mac import LiteEthMAC
 
+
 class BaseSoC(SoC):
     def __init__(self, platform, **kwargs):
         SoC.__init__(self, platform,
@@ -14,6 +15,7 @@ class BaseSoC(SoC):
             integrated_main_ram_size=16*1024,
             **kwargs)
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
+
 
 class MiniSoC(BaseSoC):
     csr_map = {

@@ -9,6 +9,7 @@ from misoclib.video.dvisampler.edid import EDID
 from misoclib.video.dvisampler.clocking import Clocking
 from misoclib.video.dvisampler.datacapture import DataCapture
 
+
 class RawDVISampler(Module, AutoCSR):
     def __init__(self, pads, asmiport):
         self.submodules.edid = EDID(pads)

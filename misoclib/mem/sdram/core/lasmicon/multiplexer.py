@@ -6,6 +6,7 @@ from migen.bank.description import AutoCSR
 
 from misoclib.mem.sdram.core.lasmicon.perf import Bandwidth
 
+
 class CommandRequest:
     def __init__(self, a, ba):
         self.a = Signal(a)
@@ -13,6 +14,7 @@ class CommandRequest:
         self.cas_n = Signal(reset=1)
         self.ras_n = Signal(reset=1)
         self.we_n = Signal(reset=1)
+
 
 class CommandRequestRW(CommandRequest):
     def __init__(self, a, ba):
@@ -22,6 +24,7 @@ class CommandRequestRW(CommandRequest):
         self.is_cmd = Signal()
         self.is_read = Signal()
         self.is_write = Signal()
+
 
 class _CommandChooser(Module):
     def __init__(self, requests):
@@ -56,6 +59,7 @@ class _CommandChooser(Module):
             for i, req in enumerate(requests)]
         self.comb += rr.ce.eq(self.cmd.ack)
 
+
 class _Steerer(Module):
     def __init__(self, commands, dfi):
         ncmd = len(commands)
@@ -87,6 +91,7 @@ class _Steerer(Module):
                 phase.rddata_en.eq(Array(stb_and(cmd, "is_read") for cmd in commands)[sel]),
                 phase.wrdata_en.eq(Array(stb_and(cmd, "is_write") for cmd in commands)[sel])
             ]
+
 
 class Multiplexer(Module, AutoCSR):
     def __init__(self, phy_settings, geom_settings, timing_settings, controller_settings, bank_machines, refresher, dfi, lasmic,

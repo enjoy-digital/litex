@@ -8,6 +8,7 @@ from misoclib.mem.sdram.core.minicon import MiniconSettings
 from misoclib.mem.sdram.frontend import memtest, wishbone2lasmi
 from misoclib.soc import SoC
 
+
 class SDRAMSoC(SoC):
     csr_map = {
         "sdram":                8,

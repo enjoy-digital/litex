@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.fsm import FSM, NextState
 
+
 class NorFlash16(Module):
     def __init__(self, pads, rd_timing, wr_timing):
         self.bus = wishbone.Interface()

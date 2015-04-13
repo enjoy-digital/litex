@@ -3,6 +3,7 @@ from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 from migen.flow.actor import Sink, Source
 
+
 class UARTPHYSerialRX(Module):
     def __init__(self, pads, tuning_word):
         self.source = Source([("data", 8)])
@@ -52,6 +53,7 @@ class UARTPHYSerialRX(Module):
                     Cat(phase_accumulator_rx, uart_clk_rxen).eq(2**31)
                 )
 
+
 class UARTPHYSerialTX(Module):
     def __init__(self, pads, tuning_word):
         self.sink = Sink([("data", 8)])
@@ -92,6 +94,7 @@ class UARTPHYSerialTX(Module):
                     Cat(phase_accumulator_tx, uart_clk_txen).eq(0)
                 )
         ]
+
 
 class UARTPHYSerial(Module, AutoCSR):
     def __init__(self, pads, clk_freq, baudrate=115200):

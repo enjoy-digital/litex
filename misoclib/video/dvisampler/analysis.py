@@ -7,6 +7,7 @@ from migen.flow.actor import *
 
 from misoclib.video.dvisampler.common import channel_layout
 
+
 class SyncPolarity(Module):
     def __init__(self):
         self.valid_i = Signal()
@@ -50,6 +51,7 @@ class SyncPolarity(Module):
                 c_out.eq(c ^ c_polarity)
             )
         ]
+
 
 class ResolutionDetection(Module, AutoCSR):
     def __init__(self, nbits=11):
@@ -104,6 +106,7 @@ class ResolutionDetection(Module, AutoCSR):
                 vcounter_st.eq(0)
             )
         self.specials += MultiReg(vcounter_st, self._vres.status)
+
 
 class FrameExtraction(Module, AutoCSR):
     def __init__(self, word_width):

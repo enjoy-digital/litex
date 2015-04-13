@@ -1,5 +1,6 @@
 from migen.fhdl.std import log2_int
 
+
 def get_sdram_phy_header(sdram_phy_settings):
     r = "#ifndef __GENERATED_SDRAM_PHY_H\n#define __GENERATED_SDRAM_PHY_H\n"
     r += "#include <hw/common.h>\n#include <generated/csr.h>\n#include <hw/flags.h>\n\n"

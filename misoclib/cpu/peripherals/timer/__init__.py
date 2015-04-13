@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 
+
 class Timer(Module, AutoCSR):
     def __init__(self, width=32):
         self._load = CSRStorage(width)

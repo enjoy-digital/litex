@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.fsm import FSM, NextState
 
+
 class SPIMaster(Module, AutoCSR):
     def __init__(self, pads, width=24, div=2, cpha=1):
         self.pads = pads

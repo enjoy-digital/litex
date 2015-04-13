@@ -6,6 +6,7 @@ from misoclib.mem.sdram.phy import dfii
 from misoclib.mem.sdram.core import minicon, lasmicon
 from misoclib.mem.sdram.core import lasmixbar
 
+
 class SDRAMCore(Module, AutoCSR):
     def __init__(self, phy, geom_settings, timing_settings, controller_settings, **kwargs):
         # DFI

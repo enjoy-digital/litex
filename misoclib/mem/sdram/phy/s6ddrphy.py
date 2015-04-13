@@ -20,6 +20,7 @@ from migen.genlib.record import *
 from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
+
 class S6DDRPHY(Module):
     def __init__(self, pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
         if module.memtype not in ["DDR", "LPDDR", "DDR2"]:

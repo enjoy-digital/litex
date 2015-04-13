@@ -54,11 +54,13 @@ crc16_table = [
     0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
 ]
 
+
 def crc16(l):
     crc = 0
     for d in l:
         crc = crc16_table[((crc >> 8) ^ d) & 0xff] ^ (crc << 8)
     return crc
+
 
 class SFLFrame:
     def __init__(self):
@@ -86,6 +88,7 @@ class SFLFrame:
         for d in self.payload:
             self.raw.append(d)
 
+
 def get_file_data(filename):
     with open(filename, "rb") as f:
         data = []
@@ -95,6 +98,7 @@ def get_file_data(filename):
                 break
             data.append(int.from_bytes(w, "big"))
     return data
+
 
 class Flterm:
     def __init__(self, kernel_image, kernel_address):
@@ -267,6 +271,7 @@ class Flterm:
         self.writer_thread.join()
         if not writer_only:
             self.reader_thread.join()
+
 
 def _get_args():
     parser = argparse.ArgumentParser()
