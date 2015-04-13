@@ -105,8 +105,8 @@ class LiteScopeUART2WB(Module, AutoCSR):
             timeout.reset.eq(1),
             If(uart.source.stb,
                 cmd_ce.eq(1),
-                If(    (uart.source.data == self.cmds["write"]) |
-                    (uart.source.data == self.cmds["read"]),
+                If((uart.source.data == self.cmds["write"]) |
+                   (uart.source.data == self.cmds["read"]),
                     NextState("RECEIVE_LENGTH")
                 ),
                 byte_counter.reset.eq(1),
