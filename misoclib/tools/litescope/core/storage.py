@@ -68,7 +68,7 @@ class LiteScopeRunLengthEncoderUnit(Module):
             ).Elif(change | counter_done,
                 source.stb.eq(1),
                 source.data[:flen(counter.value)].eq(counter.value),
-                source.data[-1].eq(1), # Set RLE bit
+                source.data[-1].eq(1),  # Set RLE bit
                 buf.q.ack.eq(source.ack),
                 If(source.ack,
                     NextState("BYPASS")

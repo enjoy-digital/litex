@@ -7,7 +7,7 @@ class CSVDump(Dump):
         if init_dump:
             self.vars = init_dump.vars
 
-    def  generate_vars(self):
+    def generate_vars(self):
         r = ""
         for var in self.vars:
             r += var.name

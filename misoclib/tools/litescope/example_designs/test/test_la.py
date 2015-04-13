@@ -7,7 +7,7 @@ def main(wb):
     la = LiteScopeLADriver(wb.regs, "la", debug=True)
 
     #cond = {"cnt0"    :    128} # trigger on cnt0 = 128
-    cond = {} # trigger on cnt0 = 128
+    cond = {}  # trigger on cnt0 = 128
     la.configure_term(port=0, cond=cond)
     la.configure_sum("term")
     la.configure_subsampler(1)
