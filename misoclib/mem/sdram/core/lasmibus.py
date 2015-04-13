@@ -15,22 +15,22 @@ class Interface(Record):
         self.write_latency = write_latency
 
         bank_layout = [
-            ("adr",            aw,        DIR_M_TO_S),
-            ("we",            1,        DIR_M_TO_S),
-            ("stb",            1,        DIR_M_TO_S),
-            ("req_ack",        1,        DIR_S_TO_M),
-            ("dat_w_ack",    1,        DIR_S_TO_M),
-            ("dat_r_ack",    1,        DIR_S_TO_M),
-            ("lock",        1,        DIR_S_TO_M)
+            ("adr",      aw, DIR_M_TO_S),
+            ("we",        1, DIR_M_TO_S),
+            ("stb",       1, DIR_M_TO_S),
+            ("req_ack",   1, DIR_S_TO_M),
+            ("dat_w_ack", 1, DIR_S_TO_M),
+            ("dat_r_ack", 1, DIR_S_TO_M),
+            ("lock",      1, DIR_S_TO_M)
         ]
         if nbanks > 1:
             layout = [("bank"+str(i), bank_layout) for i in range(nbanks)]
         else:
             layout = bank_layout
         layout += [
-            ("dat_w",    dw,     DIR_M_TO_S),
-            ("dat_we",    dw//8,     DIR_M_TO_S),
-            ("dat_r",    dw,     DIR_S_TO_M)
+            ("dat_w",     dw, DIR_M_TO_S),
+            ("dat_we", dw//8, DIR_M_TO_S),
+            ("dat_r",     dw, DIR_S_TO_M)
         ]
         Record.__init__(self, layout)
 

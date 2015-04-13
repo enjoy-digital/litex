@@ -41,16 +41,16 @@ class MiniconTB(Module):
         self.pads = pads
 
         self.specials += Instance("mt48lc4m16a2",
-            io_Dq=pads.dq,
-            i_Addr=pads.a,
-            i_Ba=pads.ba,
-            i_Clk=ClockSignal(),
-            i_Cke=pads.cke,
-            i_Cs_n=pads.cs_n,
-            i_Ras_n=pads.ras_n,
-            i_Cas_n=pads.cas_n,
-            i_We_n=pads.we_n,
-            i_Dqm=pads.dm
+                                  io_Dq=pads.dq,
+                                  i_Addr=pads.a,
+                                  i_Ba=pads.ba,
+                                  i_Clk=ClockSignal(),
+                                  i_Cke=pads.cke,
+                                  i_Cs_n=pads.cs_n,
+                                  i_Ras_n=pads.ras_n,
+                                  i_Cas_n=pads.cas_n,
+                                  i_We_n=pads.we_n,
+                                  i_Dqm=pads.dm
         )
 
     def genxfers(self):

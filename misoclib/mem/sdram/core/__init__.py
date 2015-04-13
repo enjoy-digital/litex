@@ -16,15 +16,21 @@ class SDRAMCore(Module, AutoCSR):
 
         # LASMICON
         if isinstance(controller_settings, lasmicon.LASMIconSettings):
-            self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings, geom_settings, timing_settings,
-                controller_settings, **kwargs)
+            self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings,
+                                                                        geom_settings,
+                                                                        timing_settings,
+                                                                        controller_settings,
+                                                                        **kwargs)
             self.comb += Record.connect(controller.dfi, self.dfii.slave)
 
-            self.submodules.crossbar = lasmixbar.LASMIxbar([controller.lasmic], controller.nrowbits)
+            self.submodules.crossbar = lasmixbar.LASMIxbar([controller.lasmic],
+                                                           controller.nrowbits)
 
         # MINICON
         elif isinstance(controller_settings, minicon.MiniconSettings):
-            self.submodules.controller = controller = minicon.Minicon(phy.settings, geom_settings, timing_settings)
+            self.submodules.controller = controller = minicon.Minicon(phy.settings,
+                                                                      geom_settings,
+                                                                      timing_settings)
             self.comb += Record.connect(controller.dfi, self.dfii.slave)
         else:
             raise ValueError("Unsupported SDRAM controller type")

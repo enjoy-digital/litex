@@ -35,7 +35,8 @@ class MemtestWriter(Module):
         self._magic = CSRStatus(16)
         self._reset = CSR()
         self._shoot = CSR()
-        self.submodules._dma = DMAWriteController(dma_lasmi.Writer(lasmim), MODE_EXTERNAL)
+        self.submodules._dma = DMAWriteController(dma_lasmi.Writer(lasmim),
+                                                  MODE_EXTERNAL)
 
         ###
 
@@ -72,7 +73,8 @@ class MemtestReader(Module):
         self._magic = CSRStatus(16)
         self._reset = CSR()
         self._error_count = CSRStatus(lasmim.aw)
-        self.submodules._dma = DMAReadController(dma_lasmi.Reader(lasmim), MODE_SINGLE_SHOT)
+        self.submodules._dma = DMAReadController(dma_lasmi.Reader(lasmim),
+                                                 MODE_SINGLE_SHOT)
 
         ###
 

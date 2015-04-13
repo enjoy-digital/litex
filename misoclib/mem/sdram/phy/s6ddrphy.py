@@ -146,55 +146,55 @@ class S6DDRPHY(Module):
         for i in range(databits//8):
             # DQS output
             self.specials += Instance("ODDR2",
-                p_DDR_ALIGNMENT=dqs_ddr_alignment,
-                p_INIT=0,
-                p_SRTYPE="ASYNC",
+                                      p_DDR_ALIGNMENT=dqs_ddr_alignment,
+                                      p_INIT=0,
+                                      p_SRTYPE="ASYNC",
 
-                i_C0=sdram_half_clk,
-                i_C1=sdram_half_clk_n,
+                                      i_C0=sdram_half_clk,
+                                      i_C1=sdram_half_clk_n,
 
-                i_CE=1,
-                i_D0=0,
-                i_D1=1,
-                i_R=0,
-                i_S=0,
+                                      i_CE=1,
+                                      i_D0=0,
+                                      i_D1=1,
+                                      i_R=0,
+                                      i_S=0,
 
-                o_Q=dqs_o[i]
+                                      o_Q=dqs_o[i]
             )
 
             # DQS tristate cmd
             self.specials += Instance("ODDR2",
-                p_DDR_ALIGNMENT=dqs_ddr_alignment,
-                p_INIT=0,
-                p_SRTYPE="ASYNC",
+                                      p_DDR_ALIGNMENT=dqs_ddr_alignment,
+                                      p_INIT=0,
+                                      p_SRTYPE="ASYNC",
 
-                i_C0=sdram_half_clk,
-                i_C1=sdram_half_clk_n,
+                                      i_C0=sdram_half_clk,
+                                      i_C1=sdram_half_clk_n,
 
-                i_CE=1,
-                i_D0=dqs_t_d0,
-                i_D1=dqs_t_d1,
-                i_R=0,
-                i_S=0,
+                                      i_CE=1,
+                                      i_D0=dqs_t_d0,
+                                      i_D1=dqs_t_d1,
+                                      i_R=0,
+                                      i_S=0,
 
-                o_Q=dqs_t[i]
+                                      o_Q=dqs_t[i]
             )
 
             # DQS tristate buffer
             if hasattr(pads, "dqs_n"):
                 self.specials += Instance("OBUFTDS",
-                    i_I=dqs_o[i],
-                    i_T=dqs_t[i],
+                                          i_I=dqs_o[i],
+                                          i_T=dqs_t[i],
 
-                    o_O=pads.dqs[i],
-                    o_OB=pads.dqs_n[i],
+                                          o_O=pads.dqs[i],
+                                          o_OB=pads.dqs_n[i],
                 )
             else:
                 self.specials += Instance("OBUFT",
-                    i_I=dqs_o[i],
-                    i_T=dqs_t[i],
+                                          i_I=dqs_o[i],
+                                          i_T=dqs_t[i],
 
-                    o_O=pads.dqs[i]
+                                          o_O=pads.dqs[i]
                 )
 
         sd_sdram_half += postamble.eq(drive_dqs)
@@ -233,67 +233,67 @@ class S6DDRPHY(Module):
         for i in range(databits):
             # Data serializer
             self.specials += Instance("OSERDES2",
-                p_DATA_WIDTH=4,
-                p_DATA_RATE_OQ="SDR",
-                p_DATA_RATE_OT="SDR",
-                p_SERDES_MODE="NONE",
-                p_OUTPUT_MODE="SINGLE_ENDED",
+                                      p_DATA_WIDTH=4,
+                                      p_DATA_RATE_OQ="SDR",
+                                      p_DATA_RATE_OT="SDR",
+                                      p_SERDES_MODE="NONE",
+                                      p_OUTPUT_MODE="SINGLE_ENDED",
 
-                o_OQ=dq_o[i],
-                i_OCE=1,
-                i_CLK0=sdram_full_wr_clk,
-                i_CLK1=0,
-                i_IOCE=self.clk4x_wr_strb,
-                i_RST=0,
-                i_CLKDIV=sys_clk,
+                                      o_OQ=dq_o[i],
+                                      i_OCE=1,
+                                      i_CLK0=sdram_full_wr_clk,
+                                      i_CLK1=0,
+                                      i_IOCE=self.clk4x_wr_strb,
+                                      i_RST=0,
+                                      i_CLKDIV=sys_clk,
 
-                i_D1=dq_wrdata[wr_bitslip+3][i],
-                i_D2=dq_wrdata[wr_bitslip+2][i],
-                i_D3=dq_wrdata[wr_bitslip+1][i],
-                i_D4=dq_wrdata[wr_bitslip+0][i],
+                                      i_D1=dq_wrdata[wr_bitslip+3][i],
+                                      i_D2=dq_wrdata[wr_bitslip+2][i],
+                                      i_D3=dq_wrdata[wr_bitslip+1][i],
+                                      i_D4=dq_wrdata[wr_bitslip+0][i],
 
-                o_TQ=dq_t[i],
-                i_T1=drive_dq_n[(wr_bitslip+3)//4],
-                i_T2=drive_dq_n[(wr_bitslip+2)//4],
-                i_T3=drive_dq_n[(wr_bitslip+1)//4],
-                i_T4=drive_dq_n[(wr_bitslip+0)//4],
-                i_TRAIN=0,
-                i_TCE=1,
-                i_SHIFTIN1=0,
-                i_SHIFTIN2=0,
-                i_SHIFTIN3=0,
-                i_SHIFTIN4=0,
+                                      o_TQ=dq_t[i],
+                                      i_T1=drive_dq_n[(wr_bitslip+3)//4],
+                                      i_T2=drive_dq_n[(wr_bitslip+2)//4],
+                                      i_T3=drive_dq_n[(wr_bitslip+1)//4],
+                                      i_T4=drive_dq_n[(wr_bitslip+0)//4],
+                                      i_TRAIN=0,
+                                      i_TCE=1,
+                                      i_SHIFTIN1=0,
+                                      i_SHIFTIN2=0,
+                                      i_SHIFTIN3=0,
+                                      i_SHIFTIN4=0,
             )
 
             # Data deserializer
             self.specials += Instance("ISERDES2",
-                p_DATA_WIDTH=4,
-                p_DATA_RATE="SDR",
-                p_BITSLIP_ENABLE="TRUE",
-                p_SERDES_MODE="NONE",
-                p_INTERFACE_TYPE="RETIMED",
+                                      p_DATA_WIDTH=4,
+                                      p_DATA_RATE="SDR",
+                                      p_BITSLIP_ENABLE="TRUE",
+                                      p_SERDES_MODE="NONE",
+                                      p_INTERFACE_TYPE="RETIMED",
 
-                i_D=dq_i[i],
-                i_CE0=1,
-                i_CLK0=sdram_full_rd_clk,
-                i_CLK1=0,
-                i_IOCE=self.clk4x_rd_strb,
-                i_RST=ResetSignal(),
-                i_CLKDIV=sys_clk,
-                i_BITSLIP=bitslip_inc,
+                                      i_D=dq_i[i],
+                                      i_CE0=1,
+                                      i_CLK0=sdram_full_rd_clk,
+                                      i_CLK1=0,
+                                      i_IOCE=self.clk4x_rd_strb,
+                                      i_RST=ResetSignal(),
+                                      i_CLKDIV=sys_clk,
+                                      i_BITSLIP=bitslip_inc,
 
-                o_Q1=d_dfi[0*nphases+0].rddata[i+databits],
-                o_Q2=d_dfi[0*nphases+0].rddata[i],
-                o_Q3=d_dfi[0*nphases+1].rddata[i+databits],
-                o_Q4=d_dfi[0*nphases+1].rddata[i],
+                                      o_Q1=d_dfi[0*nphases+0].rddata[i+databits],
+                                      o_Q2=d_dfi[0*nphases+0].rddata[i],
+                                      o_Q3=d_dfi[0*nphases+1].rddata[i+databits],
+                                      o_Q4=d_dfi[0*nphases+1].rddata[i],
             )
 
             # Data buffer
             self.specials += Instance("IOBUF",
-                i_I=dq_o[i],
-                o_O=dq_i[i],
-                i_T=dq_t[i],
-                io_IO=pads.dq[i]
+                                      i_I=dq_o[i],
+                                      o_O=dq_i[i],
+                                      i_T=dq_t[i],
+                                      io_IO=pads.dq[i]
             )
 
         dq_wrdata_mask = []
@@ -305,31 +305,31 @@ class S6DDRPHY(Module):
         for i in range(databits//8):
             # Mask serializer
             self.specials += Instance("OSERDES2",
-                p_DATA_WIDTH=4,
-                p_DATA_RATE_OQ="SDR",
-                p_DATA_RATE_OT="SDR",
-                p_SERDES_MODE="NONE",
-                p_OUTPUT_MODE="SINGLE_ENDED",
+                                      p_DATA_WIDTH=4,
+                                      p_DATA_RATE_OQ="SDR",
+                                      p_DATA_RATE_OT="SDR",
+                                      p_SERDES_MODE="NONE",
+                                      p_OUTPUT_MODE="SINGLE_ENDED",
 
-                o_OQ=pads.dm[i],
-                i_OCE=1,
-                i_CLK0=sdram_full_wr_clk,
-                i_CLK1=0,
-                i_IOCE=self.clk4x_wr_strb,
-                i_RST=0,
-                i_CLKDIV=sys_clk,
+                                      o_OQ=pads.dm[i],
+                                      i_OCE=1,
+                                      i_CLK0=sdram_full_wr_clk,
+                                      i_CLK1=0,
+                                      i_IOCE=self.clk4x_wr_strb,
+                                      i_RST=0,
+                                      i_CLKDIV=sys_clk,
 
-                i_D1=dq_wrdata_mask[wr_bitslip+3][i],
-                i_D2=dq_wrdata_mask[wr_bitslip+2][i],
-                i_D3=dq_wrdata_mask[wr_bitslip+1][i],
-                i_D4=dq_wrdata_mask[wr_bitslip+0][i],
+                                      i_D1=dq_wrdata_mask[wr_bitslip+3][i],
+                                      i_D2=dq_wrdata_mask[wr_bitslip+2][i],
+                                      i_D3=dq_wrdata_mask[wr_bitslip+1][i],
+                                      i_D4=dq_wrdata_mask[wr_bitslip+0][i],
 
-                i_TRAIN=0,
-                i_TCE=0,
-                i_SHIFTIN1=0,
-                i_SHIFTIN2=0,
-                i_SHIFTIN3=0,
-                i_SHIFTIN4=0,
+                                      i_TRAIN=0,
+                                      i_TCE=0,
+                                      i_SHIFTIN1=0,
+                                      i_SHIFTIN2=0,
+                                      i_SHIFTIN3=0,
+                                      i_SHIFTIN4=0,
             )
 
         #

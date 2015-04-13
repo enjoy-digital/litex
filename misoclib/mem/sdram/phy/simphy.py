@@ -40,7 +40,8 @@ class Bank(Module):
             )
 
         self.specials.mem = mem = Memory(data_width, nrows*ncols)
-        self.specials.write_port = write_port = mem.get_port(write_capable=True, we_granularity=8)
+        self.specials.write_port = write_port = mem.get_port(write_capable=True,
+                                                             we_granularity=8)
         self.specials.read_port = read_port = mem.get_port(async_read=True)
         self.comb += [
             If(active,

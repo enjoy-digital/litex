@@ -31,25 +31,25 @@ class _CRG(Module):
         pll_clk200 = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
-                p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+                     p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
-                # VCO @ 1GHz
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=5.0,
-                p_CLKFBOUT_MULT=5, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+                     # VCO @ 1GHz
+                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=5.0,
+                     p_CLKFBOUT_MULT=5, p_DIVCLK_DIVIDE=1,
+                     i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-                # 125MHz
-                p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=self.pll_sys,
+                     # 125MHz
+                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=self.pll_sys,
 
-                # 500MHz
-                p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=pll_sys4x,
+                     # 500MHz
+                     p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=pll_sys4x,
 
-                # 200MHz
-                p_CLKOUT2_DIVIDE=5, p_CLKOUT2_PHASE=0.0, o_CLKOUT2=pll_clk200,
+                     # 200MHz
+                     p_CLKOUT2_DIVIDE=5, p_CLKOUT2_PHASE=0.0, o_CLKOUT2=pll_clk200,
 
-                p_CLKOUT3_DIVIDE=2, p_CLKOUT3_PHASE=0.0, #o_CLKOUT3=,
+                     p_CLKOUT3_DIVIDE=2, p_CLKOUT3_PHASE=0.0, #o_CLKOUT3=,
 
-                p_CLKOUT4_DIVIDE=4, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
+                     p_CLKOUT4_DIVIDE=4, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
             ),
             Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
@@ -80,22 +80,23 @@ class BaseSoC(SDRAMSoC):
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
         SDRAMSoC.__init__(self, platform,
-            clk_freq=125*1000000, cpu_reset_address=0xaf0000,
-            sdram_controller_settings=sdram_controller_settings,
-            **kwargs)
+                          clk_freq=125*1000000, cpu_reset_address=0xaf0000,
+                          sdram_controller_settings=sdram_controller_settings,
+                          **kwargs)
 
         self.submodules.crg = _CRG(platform)
 
         if not self.integrated_main_ram_size:
-            self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"), MT8JTF12864(self.clk_freq))
+            self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"),
+                                                       MT8JTF12864(self.clk_freq))
             self.register_sdram_phy(self.ddrphy)
 
         if not self.integrated_rom_size:
             spiflash_pads = platform.request("spiflash")
             spiflash_pads.clk = Signal()
             self.specials += Instance("STARTUPE2",
-                i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
-                i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
+                                      i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
+                                      i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
             self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
             self.flash_boot_address = 0xb00000
             self.register_rom(self.spiflash.bus)

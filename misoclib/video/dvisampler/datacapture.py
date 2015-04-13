@@ -30,27 +30,27 @@ class DataCapture(Module, AutoCSR):
         delay_slave_rst = Signal()
         delay_slave_busy = Signal()
         self.specials += Instance("IODELAY2",
-            p_SERDES_MODE="MASTER",
-            p_DELAY_SRC="IDATAIN", p_IDELAY_TYPE="DIFF_PHASE_DETECTOR",
-            p_COUNTER_WRAPAROUND="STAY_AT_LIMIT", p_DATA_RATE="SDR",
+                                  p_SERDES_MODE="MASTER",
+                                  p_DELAY_SRC="IDATAIN", p_IDELAY_TYPE="DIFF_PHASE_DETECTOR",
+                                  p_COUNTER_WRAPAROUND="STAY_AT_LIMIT", p_DATA_RATE="SDR",
 
-            i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_master,
-            i_CLK=ClockSignal("pix2x"), i_IOCLK0=ClockSignal("pix10x"),
+                                  i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_master,
+                                  i_CLK=ClockSignal("pix2x"), i_IOCLK0=ClockSignal("pix10x"),
 
-            i_INC=delay_inc, i_CE=delay_ce,
-            i_CAL=delay_master_cal, i_RST=delay_master_rst, o_BUSY=delay_master_busy,
-            i_T=1)
+                                  i_INC=delay_inc, i_CE=delay_ce,
+                                  i_CAL=delay_master_cal, i_RST=delay_master_rst, o_BUSY=delay_master_busy,
+                                  i_T=1)
         self.specials += Instance("IODELAY2",
-            p_SERDES_MODE="SLAVE",
-            p_DELAY_SRC="IDATAIN", p_IDELAY_TYPE="DIFF_PHASE_DETECTOR",
-            p_COUNTER_WRAPAROUND="WRAPAROUND", p_DATA_RATE="SDR",
+                                  p_SERDES_MODE="SLAVE",
+                                  p_DELAY_SRC="IDATAIN", p_IDELAY_TYPE="DIFF_PHASE_DETECTOR",
+                                  p_COUNTER_WRAPAROUND="WRAPAROUND", p_DATA_RATE="SDR",
 
-            i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_slave,
-            i_CLK=ClockSignal("pix2x"), i_IOCLK0=ClockSignal("pix10x"),
+                                  i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_slave,
+                                  i_CLK=ClockSignal("pix2x"), i_IOCLK0=ClockSignal("pix10x"),
 
-            i_INC=delay_inc, i_CE=delay_ce,
-            i_CAL=delay_slave_cal, i_RST=delay_slave_rst, o_BUSY=delay_slave_busy,
-            i_T=1)
+                                  i_INC=delay_inc, i_CE=delay_ce,
+                                  i_CAL=delay_slave_cal, i_RST=delay_slave_rst, o_BUSY=delay_slave_busy,
+                                  i_T=1)
 
         dsr2 = Signal(5)
         pd_valid = Signal()
@@ -58,32 +58,32 @@ class DataCapture(Module, AutoCSR):
         pd_edge = Signal()
         pd_cascade = Signal()
         self.specials += Instance("ISERDES2",
-            p_SERDES_MODE="MASTER",
-            p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=5,
-            p_INTERFACE_TYPE="RETIMED",
+                                  p_SERDES_MODE="MASTER",
+                                  p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=5,
+                                  p_INTERFACE_TYPE="RETIMED",
 
-            i_D=pad_delayed_master,
-            o_Q4=dsr2[4], o_Q3=dsr2[3], o_Q2=dsr2[2], o_Q1=dsr2[1],
+                                  i_D=pad_delayed_master,
+                                  o_Q4=dsr2[4], o_Q3=dsr2[3], o_Q2=dsr2[2], o_Q1=dsr2[1],
 
-            i_BITSLIP=0, i_CE0=1, i_RST=0,
-            i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix2x"),
-            i_IOCE=self.serdesstrobe,
+                                  i_BITSLIP=0, i_CE0=1, i_RST=0,
+                                  i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix2x"),
+                                  i_IOCE=self.serdesstrobe,
 
-            o_VALID=pd_valid, o_INCDEC=pd_incdec,
-            i_SHIFTIN=pd_edge, o_SHIFTOUT=pd_cascade)
+                                  o_VALID=pd_valid, o_INCDEC=pd_incdec,
+                                  i_SHIFTIN=pd_edge, o_SHIFTOUT=pd_cascade)
         self.specials += Instance("ISERDES2",
-            p_SERDES_MODE="SLAVE",
-            p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=5,
-            p_INTERFACE_TYPE="RETIMED",
+                                  p_SERDES_MODE="SLAVE",
+                                  p_BITSLIP_ENABLE="FALSE", p_DATA_RATE="SDR", p_DATA_WIDTH=5,
+                                  p_INTERFACE_TYPE="RETIMED",
 
-            i_D=pad_delayed_slave,
-            o_Q4=dsr2[0],
+                                  i_D=pad_delayed_slave,
+                                  o_Q4=dsr2[0],
 
-            i_BITSLIP=0, i_CE0=1, i_RST=0,
-            i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix2x"),
-            i_IOCE=self.serdesstrobe,
+                                  i_BITSLIP=0, i_CE0=1, i_RST=0,
+                                  i_CLK0=ClockSignal("pix10x"), i_CLKDIV=ClockSignal("pix2x"),
+                                  i_IOCE=self.serdesstrobe,
 
-            i_SHIFTIN=pd_cascade, o_SHIFTOUT=pd_edge)
+                                  i_SHIFTIN=pd_cascade, o_SHIFTOUT=pd_edge)
 
         # Phase error accumulator
         lateness = Signal(ntbits, reset=2**(ntbits - 1))

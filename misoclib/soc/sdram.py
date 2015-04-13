@@ -11,10 +11,10 @@ from misoclib.soc import SoC
 
 class SDRAMSoC(SoC):
     csr_map = {
-        "sdram":                8,
-        "wishbone2lasmi":        9,
-        "memtest_w":            10,
-        "memtest_r":            11
+        "sdram":           8,
+        "wishbone2lasmi":  9,
+        "memtest_w":      10,
+        "memtest_r":      11
     }
     csr_map.update(SoC.csr_map)
 
@@ -35,7 +35,10 @@ class SDRAMSoC(SoC):
             raise NotImplementedError("Minicon only supports SDR memtype for now (" + phy.settings.memtype + ")")
 
         # Core
-        self.submodules.sdram = SDRAMCore(phy, phy.module.geom_settings, phy.module.timing_settings, self.sdram_controller_settings)
+        self.submodules.sdram = SDRAMCore(phy,
+                                          phy.module.geom_settings,
+                                          phy.module.timing_settings,
+                                          self.sdram_controller_settings)
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor

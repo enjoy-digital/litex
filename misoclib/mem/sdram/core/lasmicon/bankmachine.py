@@ -36,7 +36,8 @@ class BankMachine(Module):
         ###
 
         # Request FIFO
-        self.submodules.req_fifo = SyncFIFO([("we", 1), ("adr", flen(req.adr))], controller_settings.req_queue_size)
+        self.submodules.req_fifo = SyncFIFO([("we", 1), ("adr", flen(req.adr))],
+                                            controller_settings.req_queue_size)
         self.comb += [
             self.req_fifo.din.we.eq(req.we),
             self.req_fifo.din.adr.eq(req.adr),

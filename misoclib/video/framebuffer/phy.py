@@ -81,13 +81,13 @@ class _Clocking(Module, AutoCSR):
         pix_progdone = Signal()
         pix_locked = Signal()
         self.specials += Instance("DCM_CLKGEN",
-            p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=1.0, p_CLKFX_MULTIPLY=2,
-            p_CLKIN_PERIOD=20.0, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
+                                  p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=1.0, p_CLKFX_MULTIPLY=2,
+                                  p_CLKIN_PERIOD=20.0, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
 
-            i_CLKIN=ClockSignal("base50"), o_CLKFX=clk_pix_unbuffered,
-            i_PROGCLK=ClockSignal(), i_PROGDATA=pix_progdata, i_PROGEN=pix_progen,
-            o_PROGDONE=pix_progdone, o_LOCKED=pix_locked,
-            i_FREEZEDCM=0, i_RST=ResetSignal())
+                                  i_CLKIN=ClockSignal("base50"), o_CLKFX=clk_pix_unbuffered,
+                                  i_PROGCLK=ClockSignal(), i_PROGDATA=pix_progdata, i_PROGEN=pix_progen,
+                                  o_PROGDONE=pix_progdone, o_LOCKED=pix_locked,
+                                  i_FREEZEDCM=0, i_RST=ResetSignal())
 
         remaining_bits = Signal(max=11)
         transmitting = Signal()
@@ -142,29 +142,29 @@ class _Clocking(Module, AutoCSR):
             )
             self.specials += [
                 Instance("PLL_ADV",
-                    p_CLKFBOUT_MULT=10,
-                    p_CLKOUT0_DIVIDE=1,   # pix10x
-                    p_CLKOUT1_DIVIDE=5,   # pix2x
-                    p_CLKOUT2_DIVIDE=10,  # pix
-                    p_COMPENSATION="INTERNAL",
+                         p_CLKFBOUT_MULT=10,
+                         p_CLKOUT0_DIVIDE=1,   # pix10x
+                         p_CLKOUT1_DIVIDE=5,   # pix2x
+                         p_CLKOUT2_DIVIDE=10,  # pix
+                         p_COMPENSATION="INTERNAL",
 
-                    i_CLKINSEL=1,
-                    i_CLKIN1=clk_pix_unbuffered,
-                    o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
-                    o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
-                    o_LOCKED=pll_locked,
-                    i_RST=~pix_locked | self._pll_reset.storage,
+                         i_CLKINSEL=1,
+                         i_CLKIN1=clk_pix_unbuffered,
+                         o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
+                         o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
+                         o_LOCKED=pll_locked,
+                         i_RST=~pix_locked | self._pll_reset.storage,
 
-                    i_DADDR=self._pll_adr.storage,
-                    o_DO=self._pll_dat_r.status,
-                    i_DI=self._pll_dat_w.storage,
-                    i_DEN=self._pll_read.re | self._pll_write.re,
-                    i_DWE=self._pll_write.re,
-                    o_DRDY=pll_drdy,
-                    i_DCLK=ClockSignal()),
+                         i_DADDR=self._pll_adr.storage,
+                         o_DO=self._pll_dat_r.status,
+                         i_DI=self._pll_dat_w.storage,
+                         i_DEN=self._pll_read.re | self._pll_write.re,
+                         i_DWE=self._pll_write.re,
+                         o_DRDY=pll_drdy,
+                         i_DCLK=ClockSignal()),
                 Instance("BUFPLL", p_DIVIDE=5,
-                    i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
-                    o_IOCLK=self.cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
+                         i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
+                         o_IOCLK=self.cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
                 Instance("BUFG", i_I=pll_clk1, o_O=self.cd_pix2x.clk),
                 Instance("BUFG", name="dviout_pix_bufg", i_I=pll_clk2, o_O=self.cd_pix.clk),
                 MultiReg(locked_async, mult_locked, "sys")
@@ -173,23 +173,23 @@ class _Clocking(Module, AutoCSR):
         # Drive VGA/DVI clock pads
         if pads_vga is not None:
             self.specials += Instance("ODDR2",
-                p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
-                o_Q=pads_vga.clk,
-                i_C0=ClockSignal("pix"),
-                i_C1=~ClockSignal("pix"),
-                i_CE=1, i_D0=1, i_D1=0,
-                i_R=0, i_S=0)
+                                      p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
+                                      o_Q=pads_vga.clk,
+                                      i_C0=ClockSignal("pix"),
+                                      i_C1=~ClockSignal("pix"),
+                                      i_CE=1, i_D0=1, i_D1=0,
+                                      i_R=0, i_S=0)
         if pads_dvi is not None:
             dvi_clk_se = Signal()
             self.specials += Instance("ODDR2",
-                p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
-                o_Q=dvi_clk_se,
-                i_C0=ClockSignal("pix"),
-                i_C1=~ClockSignal("pix"),
-                i_CE=1, i_D0=1, i_D1=0,
-                i_R=0, i_S=0)
+                                      p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
+                                      o_Q=dvi_clk_se,
+                                      i_C0=ClockSignal("pix"),
+                                      i_C1=~ClockSignal("pix"),
+                                      i_CE=1, i_D0=1, i_D1=0,
+                                      i_R=0, i_S=0)
             self.specials += Instance("OBUFDS", i_I=dvi_clk_se,
-                o_O=pads_dvi.clk_p, o_OB=pads_dvi.clk_n)
+                                      o_O=pads_dvi.clk_p, o_OB=pads_dvi.clk_n)
 
 
 class Driver(Module, AutoCSR):

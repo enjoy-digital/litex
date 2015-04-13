@@ -37,16 +37,19 @@ class BaseSoC(SDRAMSoC):
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
         SDRAMSoC.__init__(self, platform,
-            clk_freq=(83 + Fraction(1, 3))*1000000,
-            cpu_reset_address=0x00180000,
-            sdram_controller_settings=sdram_controller_settings,
-            **kwargs)
+                          clk_freq=(83 + Fraction(1, 3))*1000000,
+                          cpu_reset_address=0x00180000,
+                          sdram_controller_settings=sdram_controller_settings,
+                          **kwargs)
 
         self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"), MT46V32M16(self.clk_freq),
-                rd_bitslip=0, wr_bitslip=3, dqs_ddr_alignment="C1")
+            self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"),
+                                                       MT46V32M16(self.clk_freq),
+                                                       rd_bitslip=0,
+                                                       wr_bitslip=3,
+                                                       dqs_ddr_alignment="C1")
             self.register_sdram_phy(self.ddrphy)
             self.comb += [
                 self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
@@ -90,10 +93,12 @@ class MiniSoC(BaseSoC):
         if platform.name == "mixxeo":
             self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
         if platform.name == "m1":
-            self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0), platform.request("user_btn", 2)))
+            self.submodules.buttons = gpio.GPIOIn(Cat(platform.request("user_btn", 0),
+                                                      platform.request("user_btn", 2)))
             self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", i) for i in range(2)))
 
-        self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"), platform.request("eth"))
+        self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"),
+                                            platform.request("eth"))
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"]+0x80000000, 0x2000)
@@ -133,7 +138,8 @@ class FramebufferSoC(MiniSoC):
     def __init__(self, platform, **kwargs):
         MiniSoC.__init__(self, platform, **kwargs)
         pads_vga, pads_dvi = get_vga_dvi(platform)
-        self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi, self.sdram.crossbar.get_master())
+        self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi,
+                                                     self.sdram.crossbar.get_master())
         add_vga_tig(platform, self.fb)
 
 default_subtarget = FramebufferSoC

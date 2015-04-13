@@ -92,5 +92,6 @@ class UARTTB(Module):
 if __name__ == "__main__":
     from migen.sim.generic import Simulator, TopLevel
     from migen.sim import icarus
-    with Simulator(UARTTB(), TopLevel("top.vcd", clk_period=int(1/0.08333333)), icarus.Runner(keep_files=False)) as s:
+    with Simulator(UARTTB(), TopLevel("top.vcd", clk_period=int(1/0.08333333)),
+                   icarus.Runner(keep_files=False)) as s:
         s.run(20000)

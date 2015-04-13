@@ -21,21 +21,21 @@ class MXCRG(Module):
         in_period = float(Fraction(1000000000)/Fraction(infreq))
 
         self.specials += Instance("mxcrg",
-            Instance.Parameter("in_period", in_period),
-            Instance.Parameter("f_mult", ratio.numerator),
-            Instance.Parameter("f_div", ratio.denominator),
-            Instance.Input("clk50_pad", pads.clk50),
-            Instance.Input("trigger_reset", pads.trigger_reset),
+                                  Instance.Parameter("in_period", in_period),
+                                  Instance.Parameter("f_mult", ratio.numerator),
+                                  Instance.Parameter("f_div", ratio.denominator),
+                                  Instance.Input("clk50_pad", pads.clk50),
+                                  Instance.Input("trigger_reset", pads.trigger_reset),
 
-            Instance.Output("sys_clk", self.cd_sys.clk),
-            Instance.Output("sys_rst", self.cd_sys.rst),
-            Instance.Output("clk2x_270", self.cd_sdram_half.clk),
-            Instance.Output("clk4x_wr", self.cd_sdram_full_wr.clk),
-            Instance.Output("clk4x_rd", self.cd_sdram_full_rd.clk),
-            Instance.Output("base50_clk", self.cd_base50.clk),
+                                  Instance.Output("sys_clk", self.cd_sys.clk),
+                                  Instance.Output("sys_rst", self.cd_sys.rst),
+                                  Instance.Output("clk2x_270", self.cd_sdram_half.clk),
+                                  Instance.Output("clk4x_wr", self.cd_sdram_full_wr.clk),
+                                  Instance.Output("clk4x_rd", self.cd_sdram_full_rd.clk),
+                                  Instance.Output("base50_clk", self.cd_base50.clk),
 
-            Instance.Output("clk4x_wr_strb", self.clk4x_wr_strb),
-            Instance.Output("clk4x_rd_strb", self.clk4x_rd_strb),
-            Instance.Output("norflash_rst_n", pads.norflash_rst_n),
-            Instance.Output("ddr_clk_pad_p", pads.ddr_clk_p),
-            Instance.Output("ddr_clk_pad_n", pads.ddr_clk_n))
+                                  Instance.Output("clk4x_wr_strb", self.clk4x_wr_strb),
+                                  Instance.Output("clk4x_rd_strb", self.clk4x_rd_strb),
+                                  Instance.Output("norflash_rst_n", pads.norflash_rst_n),
+                                  Instance.Output("ddr_clk_pad_p", pads.ddr_clk_p),
+                                  Instance.Output("ddr_clk_pad_n", pads.ddr_clk_n))
