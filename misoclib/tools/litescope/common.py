@@ -8,7 +8,7 @@ from migen.flow.plumbing import Buffer
 from migen.fhdl.specials import Memory
 
 def data_layout(dw):
-	return [("data", dw, DIR_M_TO_S)]
+    return [("data", dw, DIR_M_TO_S)]
 
 def hit_layout():
-	return [("hit", 1, DIR_M_TO_S)]
+    return [("hit", 1, DIR_M_TO_S)]
