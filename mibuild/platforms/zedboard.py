@@ -5,11 +5,11 @@ from mibuild.xilinx import XilinxPlatform
 _io = [
         ("clk100", 0, Pins("Y9"), IOStandard("LVCMOS33")),
 
-        ("user_btn", 0, Pins("P16"), IOStandard("LVCMOS18")), # center
-        ("user_btn", 1, Pins("R16"), IOStandard("LVCMOS18")), # down
-        ("user_btn", 2, Pins("N15"), IOStandard("LVCMOS18")), # left
-        ("user_btn", 3, Pins("R18"), IOStandard("LVCMOS18")), # right
-        ("user_btn", 4, Pins("T18"), IOStandard("LVCMOS18")), # up
+        ("user_btn", 0, Pins("P16"), IOStandard("LVCMOS18")),  # center
+        ("user_btn", 1, Pins("R16"), IOStandard("LVCMOS18")),  # down
+        ("user_btn", 2, Pins("N15"), IOStandard("LVCMOS18")),  # left
+        ("user_btn", 3, Pins("R18"), IOStandard("LVCMOS18")),  # right
+        ("user_btn", 4, Pins("T18"), IOStandard("LVCMOS18")),  # up
 
         ("user_sw", 0, Pins("F22"), IOStandard("LVCMOS18")),
         ("user_sw", 1, Pins("G22"), IOStandard("LVCMOS18")),

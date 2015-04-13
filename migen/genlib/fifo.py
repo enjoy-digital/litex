@@ -48,9 +48,9 @@ class _FIFOInterface:
     """
     def __init__(self, width_or_layout, depth):
         self.we = Signal()
-        self.writable = Signal() # not full
+        self.writable = Signal()  # not full
         self.re = Signal()
-        self.readable = Signal() # not empty
+        self.readable = Signal()  # not empty
 
         if isinstance(width_or_layout, list):
             self.din = Record(width_or_layout)

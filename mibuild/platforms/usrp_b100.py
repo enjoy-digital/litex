@@ -33,8 +33,8 @@ _io = [
             Subsignal("d", Pins("P8 P9 N9 T9 R9 P11 P13 N12 "
                                 "T3 R3 P5 N6 T6 T5 N8 P7")),
             Subsignal("ctl", Pins("M7 M9 M11 P12")),
-            Subsignal("slwr", Pins("T4")), # rdy0
-            Subsignal("slrd", Pins("R5")), # rdy1
+            Subsignal("slwr", Pins("T4")),  # rdy0
+            Subsignal("slrd", Pins("R5")),  # rdy1
             #Subsignal("rdy2", Pins("T10")),
             #Subsignal("rdy3", Pins("N11")),
             #Subsignal("cs", Pins("P12")),

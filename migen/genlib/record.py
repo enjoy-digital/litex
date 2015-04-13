@@ -24,12 +24,12 @@ def set_layout_parameters(layout, **layout_dict):
 
     r = []
     for f in layout:
-        if isinstance(f[1], (int, tuple, str)): # cases 1/2
+        if isinstance(f[1], (int, tuple, str)):  # cases 1/2
             if len(f) == 3:
                 r.append((f[0], resolve(f[1]), f[2]))
             else:
                 r.append((f[0], resolve(f[1])))
-        elif isinstance(f[1], list): # case 3
+        elif isinstance(f[1], list):  # case 3
             r.append((f[0], set_layout_parameters(f[1], **layout_dict)))
         else:
             raise TypeError
@@ -39,12 +39,12 @@ def set_layout_parameters(layout, **layout_dict):
 def layout_len(layout):
     r = 0
     for f in layout:
-        if isinstance(f[1], (int, tuple)): # cases 1/2
+        if isinstance(f[1], (int, tuple)):  # cases 1/2
             if len(f) == 3:
                 fname, fsize, fdirection = f
             else:
                 fname, fsize = f
-        elif isinstance(f[1], list): # case 3
+        elif isinstance(f[1], list):  # case 3
             fname, fsublayout = f
             fsize = layout_len(fsublayout)
         else:
@@ -92,13 +92,13 @@ class Record:
         else:
             prefix = ""
         for f in self.layout:
-            if isinstance(f[1], (int, tuple)): # cases 1/2
+            if isinstance(f[1], (int, tuple)):  # cases 1/2
                 if(len(f) == 3):
                     fname, fsize, fdirection = f
                 else:
                     fname, fsize = f
                 finst = Signal(fsize, name=prefix + fname)
-            elif isinstance(f[1], list): # case 3
+            elif isinstance(f[1], list):  # case 3
                 fname, fsublayout = f
                 finst = Record(fsublayout, prefix + fname)
             else:

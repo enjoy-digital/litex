@@ -16,9 +16,9 @@ _io = [
         ("user_dip", 3, Pins("A4"), Misc("PULLDOWN"), IOStandard("LVCMOS33")),
 
         # TI CDCE913 programmable triple-output PLL
-        ("clk_y1", 0, Pins("V10"), IOStandard("LVCMOS33")), # default: 40 MHz
-        ("clk_y2", 0, Pins("K15"), IOStandard("LVCMOS33")), # default: 66 2/3 MHz
-        ("clk_y3", 0, Pins("C10"), IOStandard("LVCMOS33")), # default: 100 MHz
+        ("clk_y1", 0, Pins("V10"), IOStandard("LVCMOS33")),  # default: 40 MHz
+        ("clk_y2", 0, Pins("K15"), IOStandard("LVCMOS33")),  # default: 66 2/3 MHz
+        ("clk_y3", 0, Pins("C10"), IOStandard("LVCMOS33")),  # default: 100 MHz
 
         # Maxim DS1088LU oscillator, not populated
         ("clk_backup", 0, Pins("R8"), IOStandard("LVCMOS33")),
@@ -58,7 +58,7 @@ _io = [
         ("ddram_clock", 0,
             Subsignal("p", Pins("G3")),
             Subsignal("n", Pins("G1")),
-            IOStandard("MOBILE_DDR")), # actually DIFF_
+            IOStandard("MOBILE_DDR")),  # actually DIFF_
 
         # Micron MT46H32M16LFBF-5 LPDDR
         ("ddram", 0,
@@ -69,7 +69,7 @@ _io = [
                 "M3 M1 N2 N1 T2 T1 U2 U1")),
             Subsignal("cke", Pins("H7")),
             Subsignal("we_n", Pins("E3")),
-            Subsignal("cs_n", Pins("K6")), # NC!
+            Subsignal("cs_n", Pins("K6")),  # NC!
             Subsignal("cas_n", Pins("K5")),
             Subsignal("ras_n", Pins("L5")),
             Subsignal("dm", Pins("K3", "K4")),
@@ -89,14 +89,14 @@ _io = [
             Subsignal("col", Pins("M18"), Misc("PULLUP")),
             Subsignal("crs", Pins("N17"), Misc("PULLDOWN")),
             Subsignal("mdc", Pins("M16"), Misc("PULLDOWN")),
-            Subsignal("mdio", Pins("L18"), Misc("PULLUP")), # 1k5 ext PULLUP
+            Subsignal("mdio", Pins("L18"), Misc("PULLUP")),  # 1k5 ext PULLUP
             Subsignal("rst_n", Pins("T18"), Misc("TIG")),
             Subsignal("rx_data", Pins("T17 N16 N15 P18"), Misc("PULLUP")),
-            Subsignal("dv", Pins("P17"), Misc("PULLDOWN")), # MII
-            Subsignal("rx_er", Pins("N18"), Misc("PULLUP")), # auto MDIX
+            Subsignal("dv", Pins("P17"), Misc("PULLDOWN")),  # MII
+            Subsignal("rx_er", Pins("N18"), Misc("PULLUP")),  # auto MDIX
             Subsignal("tx_data", Pins("K18 K17 J18 J16")),
             Subsignal("tx_en", Pins("L17")),
-            Subsignal("tx_er", Pins("L16")), # NC!
+            Subsignal("tx_er", Pins("L16")),  # NC!
             IOStandard("LVCMOS33")),
         ]
 

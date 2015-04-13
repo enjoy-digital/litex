@@ -26,9 +26,9 @@ class Encoder(Module):
         Invalid, either none or multiple input bits are asserted
     """
     def __init__(self, width):
-        self.i = Signal(width) # one-hot
-        self.o = Signal(max=max(2, width)) # binary
-        self.n = Signal() # invalid: none or multiple
+        self.i = Signal(width)  # one-hot
+        self.o = Signal(max=max(2, width))  # binary
+        self.n = Signal()  # invalid: none or multiple
         act = dict((1<<j, self.o.eq(j)) for j in range(width))
         act["default"] = self.n.eq(1)
         self.comb += Case(self.i, act)
@@ -55,10 +55,10 @@ class PriorityEncoder(Module):
         Invalid, no input bits are asserted
     """
     def __init__(self, width):
-        self.i = Signal(width) # one-hot, lsb has priority
-        self.o = Signal(max=max(2, width)) # binary
-        self.n = Signal() # none
-        for j in range(width)[::-1]: # last has priority
+        self.i = Signal(width)  # one-hot, lsb has priority
+        self.o = Signal(max=max(2, width))  # binary
+        self.n = Signal()  # none
+        for j in range(width)[::-1]:  # last has priority
             self.comb += If(self.i[j], self.o.eq(j))
         self.comb += self.n.eq(self.i == 0)
 
@@ -85,13 +85,13 @@ class Decoder(Module):
     """
 
     def __init__(self, width):
-        self.i = Signal(max=max(2, width)) # binary
-        self.n = Signal() # none/invalid
-        self.o = Signal(width) # one-hot
+        self.i = Signal(max=max(2, width))  # binary
+        self.n = Signal()  # none/invalid
+        self.o = Signal(width)  # one-hot
         act = dict((j, self.o.eq(1<<j)) for j in range(width))
         self.comb += Case(self.i, act)
         self.comb += If(self.n, self.o.eq(0))
 
 
 class PriorityDecoder(Decoder):
-    pass # same
+    pass  # same

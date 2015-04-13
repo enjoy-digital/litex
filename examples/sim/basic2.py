@@ -17,7 +17,7 @@ class Counter(Module):
         # Only assert CE every second cycle.
         # => each counter value is held for two cycles.
         if selfp.simulator.cycle_counter % 2:
-            selfp.ce = 0 # This is how you write to a signal.
+            selfp.ce = 0  # This is how you write to a signal.
         else:
             selfp.ce = 1
         print("Cycle: " + str(selfp.simulator.cycle_counter) + " Count: " + \

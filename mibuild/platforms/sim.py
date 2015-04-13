@@ -36,7 +36,7 @@ _io = [
 class Platform(SimPlatform):
     is_sim = True
     default_clk_name = "sys_clk"
-    default_clk_period = 1000 # on modern computers simulate at ~ 1MHz
+    default_clk_period = 1000  # on modern computers simulate at ~ 1MHz
 
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)

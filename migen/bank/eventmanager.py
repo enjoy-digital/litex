@@ -7,10 +7,10 @@ from migen.genlib.misc import optree
 class _EventSource(HUID):
     def __init__(self):
         HUID.__init__(self)
-        self.status = Signal() # value in the status register
-        self.pending = Signal() # value in the pending register + assert irq if unmasked
-        self.trigger = Signal() # trigger signal interface to the user design
-        self.clear = Signal() # clearing attempt by W1C to pending register, ignored by some event sources
+        self.status = Signal()  # value in the status register
+        self.pending = Signal()  # value in the pending register + assert irq if unmasked
+        self.trigger = Signal()  # trigger signal interface to the user design
+        self.clear = Signal()  # clearing attempt by W1C to pending register, ignored by some event sources
 
 
 # set on a positive trigger pulse

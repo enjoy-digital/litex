@@ -14,7 +14,7 @@ class FullMemoryWE(ModuleTransformer):
                 continue
             global_granularity = gcd_multiple([p.we_granularity if p.we_granularity else orig.width for p in orig.ports])
             if global_granularity == orig.width:
-                newspecials.add(orig) # nothing to do
+                newspecials.add(orig)  # nothing to do
             else:
                 for i in range(orig.width//global_granularity):
                     if orig.init is None:

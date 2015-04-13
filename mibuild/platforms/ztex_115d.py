@@ -8,15 +8,15 @@ _io = [
         # PROG_B and DONE: AA1 U16
 
         ("fx2", 0,
-            Subsignal("sloe", Pins("U15"), Drive(12)), # M1
+            Subsignal("sloe", Pins("U15"), Drive(12)),  # M1
             Subsignal("slrd", Pins("N22"), Drive(12)),
             Subsignal("slwr", Pins("M22"), Drive(12)),
-            Subsignal("pktend", Pins("AB5"), Drive(12)), # CSO
-            Subsignal("fifoadr", Pins("W17 Y18"), Drive(12)), # CCLK M0
+            Subsignal("pktend", Pins("AB5"), Drive(12)),  # CSO
+            Subsignal("fifoadr", Pins("W17 Y18"), Drive(12)),  # CCLK M0
             Subsignal("cont", Pins("G20")),
             Subsignal("fd", Pins("Y17 V13 W13 AA8 AB8 W6 Y6 Y9 "
                 "V21 V22 U20 U22 R20 R22 P18 P19")),
-            Subsignal("flag", Pins("F20 F19 F18 AB17")), # - - - CSI/MOSI
+            Subsignal("flag", Pins("F20 F19 F18 AB17")),  # - - - CSI/MOSI
             Subsignal("rdy25", Pins("M21 K21 K22 J21")),
             Subsignal("ctl35", Pins("D19 E20 N20")),
             Subsignal("int45", Pins("C18 V17")),
@@ -44,9 +44,9 @@ _io = [
             IOStandard("SSTL18_II")),
 
         ("ddram", 0,
-            Subsignal("dqs", Pins("L3 T2"), IOStandard("SSTL18_II"), # DIFF_
+            Subsignal("dqs", Pins("L3 T2"), IOStandard("SSTL18_II"),  # DIFF_
                     Misc("IN_TERM=NONE")),
-            Subsignal("dqs_n", Pins("L1 T1"), IOStandard("SSTL18_II"), # DIFF_
+            Subsignal("dqs_n", Pins("L1 T1"), IOStandard("SSTL18_II"),  # DIFF_
                     Misc("IN_TERM=NONE")),
             Subsignal("dm", Pins("H1 H2"), Misc("OUT_TERM=UNTUNED_50")),
             Subsignal("dq", Pins("M1 M2 J1 K2 J3 K1 N3 N1 "
@@ -57,7 +57,7 @@ _io = [
                     Misc("OUT_TERM=UNTUNED_50")),
             Subsignal("ba", Pins("E3 E1 D1"), Misc("OUT_TERM=UNTUNED_50")),
             Subsignal("cke", Pins("J6"), Misc("OUT_TERM=UNTUNED_50")),
-            Subsignal("cs_n", Pins("H6")), # NC!
+            Subsignal("cs_n", Pins("H6")),  # NC!
             Subsignal("odt", Pins("M3"), Misc("OUT_TERM=UNTUNED_50")),
             Subsignal("we_n", Pins("D2")),
             Subsignal("rzq", Pins("AA2")),

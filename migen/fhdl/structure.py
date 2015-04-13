@@ -264,7 +264,7 @@ class Signal(Value):
                 min = 0
             if max is None:
                 max = 2
-            max -= 1 # make both bounds inclusive
+            max -= 1  # make both bounds inclusive
             assert(min < max)
             self.signed = min < 0 or max < 0
             self.nbits = builtins.max(bits_for(min, self.signed), bits_for(max, self.signed))
@@ -277,7 +277,7 @@ class Signal(Value):
         if not isinstance(self.nbits, int) or self.nbits <= 0:
             raise ValueError("Signal width must be a strictly positive integer")
 
-        self.variable = variable # deprecated
+        self.variable = variable  # deprecated
         self.reset = reset
         self.name_override = name_override
         self.backtrace = tracer.trace_back(name)

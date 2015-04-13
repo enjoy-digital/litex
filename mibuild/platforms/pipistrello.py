@@ -3,11 +3,11 @@ from mibuild.xilinx import XilinxPlatform
 from mibuild.xilinx.programmer import XC3SProg
 
 _io = [
-    ("user_led", 0, Pins("V16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # green at hdmi
-    ("user_led", 1, Pins("U16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at hdmi
-    ("user_led", 2, Pins("A16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # green at msd
-    ("user_led", 3, Pins("A15"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at msd
-    ("user_led", 4, Pins("A12"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")), # red at usb
+    ("user_led", 0, Pins("V16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")),  # green at hdmi
+    ("user_led", 1, Pins("U16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")),  # red at hdmi
+    ("user_led", 2, Pins("A16"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")),  # green at msd
+    ("user_led", 3, Pins("A15"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")),  # red at msd
+    ("user_led", 4, Pins("A12"), IOStandard("LVTTL"), Drive(8), Misc("SLEW=QUIETIO")),  # red at usb
 
     ("user_btn", 0, Pins("N14"), IOStandard("LVTTL"), Misc("PULLDOWN")),
 

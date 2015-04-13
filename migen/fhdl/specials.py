@@ -204,7 +204,7 @@ class _MemoryPort(Special):
 
     @staticmethod
     def emit_verilog(port, ns, add_data_file):
-        return "" # done by parent Memory object
+        return ""  # done by parent Memory object
 
 
 class Memory(Special):

@@ -64,8 +64,8 @@ class BitonicSort(Module):
         k = n//2
         if n > 1:
             t = [Signal(m) for j in range(n)]
-            self._sort(i[:k], t[:k], 1, m) # ascending
-            self._sort(i[k:], t[k:], 0, m) # descending
+            self._sort(i[:k], t[:k], 1, m)  # ascending
+            self._sort(i[k:], t[k:], 0, m)  # descending
             self._merge(t, o, dir, m)
         else:
             self.comb += o[0].eq(i[0])

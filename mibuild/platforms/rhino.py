@@ -25,17 +25,17 @@ _io = [
         Subsignal("we_n", Pins("W26")),
         Subsignal("oe_n", Pins("AA25")),
         Subsignal("ale_n", Pins("AA26")),
-        Subsignal("wait", Pins("AD26")), # WAIT1/BUSY0
+        Subsignal("wait", Pins("AD26")),  # WAIT1/BUSY0
         IOStandard("LVCMOS33")),
     # Warning: CS are numbered 1-7 on ARM side and 0-6 on FPGA side.
     # Numbers here are given on the FPGA side.
-    ("gpmc_ce_n", 0, Pins("V23"), IOStandard("LVCMOS33")), # nCS0
-    ("gpmc_ce_n", 1, Pins("U25"), IOStandard("LVCMOS33")), # nCS1
-    ("gpmc_ce_n", 2, Pins("W25"), IOStandard("LVCMOS33")), # nCS6
-    ("gpmc_dmareq_n", 0, Pins("T24"), IOStandard("LVCMOS33")), # nCS2
-    ("gpmc_dmareq_n", 1, Pins("T26"), IOStandard("LVCMOS33")), # nCS3
-    ("gpmc_dmareq_n", 2, Pins("V24"), IOStandard("LVCMOS33")), # nCS4
-    ("gpmc_dmareq_n", 3, Pins("V26"), IOStandard("LVCMOS33")), # nCS5
+    ("gpmc_ce_n", 0, Pins("V23"), IOStandard("LVCMOS33")),  # nCS0
+    ("gpmc_ce_n", 1, Pins("U25"), IOStandard("LVCMOS33")),  # nCS1
+    ("gpmc_ce_n", 2, Pins("W25"), IOStandard("LVCMOS33")),  # nCS6
+    ("gpmc_dmareq_n", 0, Pins("T24"), IOStandard("LVCMOS33")),  # nCS2
+    ("gpmc_dmareq_n", 1, Pins("T26"), IOStandard("LVCMOS33")),  # nCS3
+    ("gpmc_dmareq_n", 2, Pins("V24"), IOStandard("LVCMOS33")),  # nCS4
+    ("gpmc_dmareq_n", 3, Pins("V26"), IOStandard("LVCMOS33")),  # nCS5
 
     # FMC150
     ("fmc150_ctrl", 0,
@@ -63,14 +63,14 @@ _io = [
 
         Subsignal("pg_c2m", Pins("AA23"), IOStandard("LVCMOS33"))
     ),
-    ("ti_dac", 0, # DAC3283
+    ("ti_dac", 0,  # DAC3283
         Subsignal("dat_p", Pins("AA10 AA9 V11 Y11 W14 Y12 AD14 AE13"), IOStandard("LVDS_25")),
         Subsignal("dat_n", Pins("AB11 AB9 V10 AA11 Y13 AA12 AF14 AF13"), IOStandard("LVDS_25")),
         Subsignal("frame_p", Pins("AB13"), IOStandard("LVDS_25")),
         Subsignal("frame_n", Pins("AA13"), IOStandard("LVDS_25")),
         Subsignal("txenable", Pins("AB15"), IOStandard("LVCMOS25"))
     ),
-    ("ti_adc", 0, # ADS62P49
+    ("ti_adc", 0,  # ADS62P49
         Subsignal("dat_a_p", Pins("AB14 Y21 W20 AB22 V18 W17 AA21")),
         Subsignal("dat_a_n", Pins("AC14 AA22 Y20 AC22 W19 W18 AB21")),
         Subsignal("dat_b_p", Pins("Y17 U15 AA19 W16 AA18 Y15 V14")),

@@ -38,8 +38,8 @@ _io = [
     ),
 
     ("serial", 0,
-        Subsignal("tx", Pins("N6"), IOStandard("LVCMOS33")), # FTDI D1
-        Subsignal("rx", Pins("M7"), IOStandard("LVCMOS33"))  # FTDI D0
+        Subsignal("tx", Pins("N6"), IOStandard("LVCMOS33")),  # FTDI D1
+        Subsignal("rx", Pins("M7"), IOStandard("LVCMOS33"))   # FTDI D0
     ),
 
     ("audio", 0,

@@ -28,8 +28,8 @@ _io = [
     ("user_dip_btn", 7, Pins("J1"), IOStandard("LVCMOS15")),
 
     ("serial", 0,
-        Subsignal("tx", Pins("B11"), IOStandard("LVCMOS33")), # X4 IO0
-        Subsignal("rx", Pins("B12"), IOStandard("LVCMOS33")), # X4 IO1
+        Subsignal("tx", Pins("B11"), IOStandard("LVCMOS33")),  # X4 IO0
+        Subsignal("rx", Pins("B12"), IOStandard("LVCMOS33")),  # X4 IO1
     ),
 
     ("eth_clocks", 0,
