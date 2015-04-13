@@ -68,8 +68,12 @@ class LiteEthMACCore(Module, AutoCSR):
         # Converters
         if dw != phy.dw:
             reverse = endianness == "big"
-            tx_converter = Converter(eth_phy_description(dw), eth_phy_description(phy.dw), reverse=reverse)
-            rx_converter = Converter(eth_phy_description(phy.dw), eth_phy_description(dw), reverse=reverse)
+            tx_converter = Converter(eth_phy_description(dw),
+                                     eth_phy_description(phy.dw),
+                                     reverse=reverse)
+            rx_converter = Converter(eth_phy_description(phy.dw),
+                                     eth_phy_description(dw),
+                                     reverse=reverse)
             self.submodules += RenameClockDomains(tx_converter, "eth_tx")
             self.submodules += RenameClockDomains(rx_converter, "eth_rx")
 

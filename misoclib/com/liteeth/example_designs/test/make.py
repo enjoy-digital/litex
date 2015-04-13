@@ -8,7 +8,7 @@ def _get_args():
     parser.add_argument("-b", "--bridge", default="uart", help="Bridge to use")
     parser.add_argument("--port", default="2", help="UART port")
     parser.add_argument("--baudrate", default=115200, help="UART baudrate")
-    parser.add_argument("--ip_address", default="192.168.0.42", help="Etherbone  IP address")
+    parser.add_argument("--ip_address", default="192.168.0.42", help="Etherbone IP address")
     parser.add_argument("--udp_port", default=20000, help="Etherbone UDP port")
     parser.add_argument("--busword", default=32, help="CSR busword")
 

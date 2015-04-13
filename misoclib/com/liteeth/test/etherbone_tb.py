@@ -65,7 +65,8 @@ class TB(Module):
             # test writes
             if test_writes:
                 writes_datas = [j for j in range(16)]
-                writes = etherbone.EtherboneWrites(base_addr=0x1000, datas=writes_datas)
+                writes = etherbone.EtherboneWrites(base_addr=0x1000,
+                                                   datas=writes_datas)
                 record = etherbone.EtherboneRecord()
                 record.writes = writes
                 record.reads = None
@@ -88,7 +89,8 @@ class TB(Module):
             # test reads
             if test_reads:
                 reads_addrs = [0x1000 + 4*j for j in range(16)]
-                reads = etherbone.EtherboneReads(base_ret_addr=0x1000, addrs=reads_addrs)
+                reads = etherbone.EtherboneReads(base_ret_addr=0x1000,
+                                                 addrs=reads_addrs)
                 record = etherbone.EtherboneRecord()
                 record.writes = None
                 record.reads = reads

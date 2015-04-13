@@ -266,7 +266,11 @@ def eth_etherbone_packet_description(dw):
 
 def eth_etherbone_packet_user_description(dw):
     param_layout = _layout_from_header(etherbone_packet_header)
-    param_layout = _remove_from_layout(param_layout, "magic", "portsize", "addrsize", "version")
+    param_layout = _remove_from_layout(param_layout,
+                                       "magic",
+                                       "portsize",
+                                       "addrsize",
+                                       "version")
     param_layout += eth_udp_user_description(dw).param_layout
     payload_layout = [
         ("data", dw),

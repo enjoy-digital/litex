@@ -15,7 +15,8 @@ class LiteEthPHYMIITX(Module):
 
         if hasattr(pads, "tx_er"):
             self.sync += pads.tx_er.eq(0)
-        converter = Converter(converter_description(8), converter_description(4))
+        converter = Converter(converter_description(8),
+                              converter_description(4))
         self.submodules += converter
         self.comb += [
             converter.sink.stb.eq(sink.stb),
@@ -42,7 +43,8 @@ class LiteEthPHYMIIRX(Module):
         sop = FlipFlop(reset=1)
         self.submodules += sop
 
-        converter = Converter(converter_description(4), converter_description(8))
+        converter = Converter(converter_description(4),
+                              converter_description(8))
         converter = InsertReset(converter)
         self.submodules += converter
 

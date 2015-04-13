@@ -25,7 +25,9 @@ class ICMPPacket(Packet):
     def encode(self):
         header = 0
         for k, v in sorted(icmp_header.items()):
-            value = merge_bytes(split_bytes(getattr(self, k), math.ceil(v.width/8)), "little")
+            value = merge_bytes(split_bytes(getattr(self, k),
+                                            math.ceil(v.width/8)),
+                                            "little")
             header += (value << v.offset+(v.byte*8))
         for d in split_bytes(header, icmp_header_len):
             self.insert(0, d)

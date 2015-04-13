@@ -112,7 +112,9 @@ class LiteEthUDPRX(Module):
         )
         fsm.act("DROP",
             depacketizer.source.ack.eq(1),
-            If(depacketizer.source.stb & depacketizer.source.eop & depacketizer.source.ack,
+            If(depacketizer.source.stb &
+               depacketizer.source.eop &
+               depacketizer.source.ack,
                 NextState("IDLE")
             )
         )

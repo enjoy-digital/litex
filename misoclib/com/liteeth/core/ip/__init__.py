@@ -91,7 +91,9 @@ class LiteEthIPTX(Module):
         )
         fsm.act("DROP",
             packetizer.source.ack.eq(1),
-            If(packetizer.source.stb & packetizer.source.eop & packetizer.source.ack,
+            If(packetizer.source.stb &
+               packetizer.source.eop &
+               packetizer.source.ack,
                 NextState("IDLE")
             )
         )
@@ -167,7 +169,9 @@ class LiteEthIPRX(Module):
         )
         fsm.act("DROP",
             depacketizer.source.ack.eq(1),
-            If(depacketizer.source.stb & depacketizer.source.eop & depacketizer.source.ack,
+            If(depacketizer.source.stb &
+               depacketizer.source.eop &
+               depacketizer.source.ack,
                 NextState("IDLE")
             )
         )
