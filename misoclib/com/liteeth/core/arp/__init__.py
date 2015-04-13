@@ -112,9 +112,9 @@ class LiteEthARPRX(Module):
         reply = Signal()
         request = Signal()
         self.comb += Case(depacketizer.source.opcode, {
-            arp_opcode_request    :    [request.eq(1)],
-            arp_opcode_reply    :    [reply.eq(1)],
-            "default"            :    []
+            arp_opcode_request: [request.eq(1)],
+            arp_opcode_reply:   [reply.eq(1)],
+            "default":          []
             })
         self.comb += [
             source.ip_address.eq(depacketizer.source.sender_ip),

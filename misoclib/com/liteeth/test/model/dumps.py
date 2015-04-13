@@ -20,15 +20,15 @@ arp_request = format_dump("""
 00 22 19 22 54 9e a9 fe 64 62""")
 
 arp_request_infos = {
-    "sender_mac"        :    0x00123f979201,
-    "target_mac"        :    0x00221922549e,
-    "ethernet_type"        :     0x806,
-    "hwtype"            :     0x1,
-    "opcode"            :    0x1,
-    "protosize"            :    0x4,
-    "proto"                :    0x800,
-    "sender_ip"            :    0xa9feff42,
-    "target_ip"            :    0xa9fe6462
+    "sender_mac":    0x00123f979201,
+    "target_mac":    0x00221922549e,
+    "ethernet_type": 0x806,
+    "hwtype":        0x1,
+    "opcode":        0x1,
+    "protosize":     0x4,
+    "proto":         0x800,
+    "sender_ip":     0xa9feff42,
+    "target_ip":     0xa9fe6462
 
 }
 
@@ -39,15 +39,15 @@ arp_reply = format_dump("""
 00 00 00 00 00 00 00 00 00 00 00 00""")
 
 arp_reply_infos = {
-    "sender_mac"        :    0x00221922549e,
-    "target_mac"        :    0x00123f979201,
-    "ethernet_type"        :     0x806,
-    "hwtype"            :     0x1,
-    "opcode"            :    0x2,
-    "protosize"            :    0x4,
-    "proto"                :    0x800,
-    "sender_ip"            :    0xa9fe6462,
-    "target_ip"            :    0xa9feff42
+    "sender_mac":    0x00221922549e,
+    "target_mac":    0x00123f979201,
+    "ethernet_type": 0x806,
+    "hwtype":        0x1,
+    "opcode":        0x2,
+    "protosize":     0x4,
+    "proto":         0x800,
+    "sender_ip":     0xa9fe6462,
+    "target_ip":     0xa9feff42
 }
 
 udp = format_dump("""
@@ -60,13 +60,13 @@ aa 9b 4e 4d f9 2e 51 52 fe ff 65 31 3a 71 34 3a
 34 3a 55 54 7e 62 31 3a 79 31 3a 71 65""")
 
 udp_infos = {
-    "sender_mac"        :    0x00140b333327,
-    "target_mac"        :    0xd07ab596cd0a,
-    "protocol"            :    0x11,
-    "sender_ip"            :    0xc0a80165,
-    "target_ip"            :    0xb27b0d78,
-    "src_port"            :    0xa63f,
-    "dst_port"            :    0x690f
+    "sender_mac": 0x00140b333327,
+    "target_mac": 0xd07ab596cd0a,
+    "protocol":   0x11,
+    "sender_ip":  0xc0a80165,
+    "target_ip":  0xb27b0d78,
+    "src_port":   0xa63f,
+    "dst_port":   0x690f
 }
 
 ping_request = format_dump("""
@@ -77,9 +77,9 @@ ping_request = format_dump("""
 77 61 62 63 64 65 66 67 68 69""")
 
 ping_request_infos = {
-    "code"        : 0x0,
-    "msgtype"    : 0x8,
-    "quench"    : 0x2002100
+    "code":    0x0,
+    "msgtype": 0x8,
+    "quench":  0x2002100
 }
 
 ping_reply = format_dump("""

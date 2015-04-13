@@ -10,8 +10,8 @@ from misoclib.com.liteeth.phy.mii import LiteEthPHYMIITX, LiteEthPHYMIIRX
 from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMIITX, LiteEthPHYGMIIRX
 
 modes = {
-    "GMII"    : 0,
-    "MII"    : 1
+    "GMII": 0,
+    "MII": 1
 }
 
 tx_pads_layout = [("tx_er", 1), ("tx_en", 1), ("tx_data", 8)]

@@ -24,9 +24,9 @@ class BufferizeEndpoints(ModuleTransformer):
         for name, endpoint in endpoints.items():
             if not self.names or name in self.names:
                 if isinstance(endpoint, Sink):
-                    sinks.update({name : endpoint})
+                    sinks.update({name: endpoint})
                 elif isinstance(endpoint, Source):
-                    sources.update({name : endpoint})
+                    sources.update({name: endpoint})
 
         # add buffer on sinks
         for name, sink in sinks.items():
