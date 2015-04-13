@@ -40,7 +40,7 @@ def check(p1, p2):
 def generate_packet(seed, length):
     r = []
     for i in range(length):
-        r.append(seed_to_data(seed, True)%0xff) # XXX FIXME
+        r.append(seed_to_data(seed, True)%0xff)  # XXX FIXME
         seed += 1
     return r, seed
 
@@ -66,7 +66,7 @@ def test(fpga_ip, udp_port, test_size):
         while tx_seed < test_size:
             tx_packet, tx_seed = generate_packet(tx_seed, 1024)
             tx_sock.sendto(bytes(tx_packet), (fpga_ip, udp_port))
-            time.sleep(0.001) # XXX: FIXME, Python limitation?
+            time.sleep(0.001)  # XXX: FIXME, Python limitation?
 
     receive_thread = threading.Thread(target=receive)
     receive_thread.start()

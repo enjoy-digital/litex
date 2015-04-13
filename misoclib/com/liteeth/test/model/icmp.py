@@ -41,7 +41,7 @@ class ICMPPacket(Packet):
 
 
 class ICMP(Module):
-    def  __init__(self, ip, ip_address, debug=False):
+    def __init__(self, ip, ip_address, debug=False):
         self.ip = ip
         self.ip_address = ip_address
         self.debug = debug
@@ -65,7 +65,7 @@ class ICMP(Module):
         ip_packet.fragment_offset = 0
         ip_packet.ttl = 0x80
         ip_packet.sender_ip = self.ip_address
-        ip_packet.target_ip = 0x12345678 # XXX
+        ip_packet.target_ip = 0x12345678  # XXX
         ip_packet.checksum = 0
         ip_packet.protocol = icmp_protocol
         self.ip.send(ip_packet)

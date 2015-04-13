@@ -67,7 +67,7 @@ class IPPacket(Packet):
 
 
 class IP(Module):
-    def  __init__(self, mac, mac_address, ip_address, debug=False, loopback=False):
+    def __init__(self, mac, mac_address, ip_address, debug=False, loopback=False):
         self.mac = mac
         self.mac_address = mac_address
         self.ip_address = ip_address
@@ -95,7 +95,7 @@ class IP(Module):
             print_ip(">>>>>>>>")
             print_ip(packet)
         mac_packet = mac.MACPacket(packet)
-        mac_packet.target_mac = 0x12345678abcd # XXX
+        mac_packet.target_mac = 0x12345678abcd  # XXX
         mac_packet.sender_mac = self.mac_address
         mac_packet.ethernet_type = ethernet_type_ip
         self.mac.send(mac_packet)

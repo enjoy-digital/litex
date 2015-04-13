@@ -53,7 +53,7 @@ class MACPacket(Packet):
         self.preamble_error = self.check_remove_preamble()
         self.crc_error = self.check_remove_crc()
         if self.crc_error or self.preamble_error:
-            raise ValueError # XXX handle this properly
+            raise ValueError  # XXX handle this properly
         else:
             self.decode_remove_header()
 
@@ -89,7 +89,7 @@ class MACPacket(Packet):
 
 
 class MAC(Module):
-    def  __init__(self, phy, debug=False, loopback=False):
+    def __init__(self, phy, debug=False, loopback=False):
         self.phy = phy
         self.debug = debug
         self.loopback = loopback
@@ -129,7 +129,7 @@ class MAC(Module):
                 if self.arp_callback is not None:
                     self.arp_callback(packet)
             else:
-                raise ValueError # XXX handle this properly
+                raise ValueError  # XXX handle this properly
 
 if __name__ == "__main__":
     from misoclib.com.liteeth.test.model.dumps import *

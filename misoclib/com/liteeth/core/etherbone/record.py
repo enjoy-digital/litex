@@ -174,7 +174,7 @@ class LiteEthEtherboneRecord(Module):
         self.comb += [
             Record.connect(sender.source, packetizer.sink),
             Record.connect(packetizer.source, source),
-            source.length.eq(sender.source.wcount*4 + 4 + etherbone_record_header_len), # XXX improve this
+            source.length.eq(sender.source.wcount*4 + 4 + etherbone_record_header_len),  # XXX improve this
             source.ip_address.eq(last_ip_address)
         ]
         if endianness is "big":

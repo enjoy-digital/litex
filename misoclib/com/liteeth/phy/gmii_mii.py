@@ -86,7 +86,7 @@ class LiteEthGMIIMIIClockCounter(Module, AutoCSR):
         counter = RenameClockDomains(Counter(32), "eth_rx")
         self.submodules += counter
         self.comb += [
-            counter.reset.eq(self._reset.storage), #slow, don't need CDC
+            counter.reset.eq(self._reset.storage),  # slow, don't need CDC
             counter.ce.eq(1),
         ]
         self.specials += MultiReg(counter.value, self._value.status)

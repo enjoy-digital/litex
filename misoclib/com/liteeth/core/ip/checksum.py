@@ -4,8 +4,8 @@ from misoclib.com.liteeth.generic import *
 
 class LiteEthIPV4Checksum(Module):
     def __init__(self, words_per_clock_cycle=1, skip_checksum=False):
-        self.reset = Signal() # XXX FIXME InsertReset generates incorrect verilog
-        self.ce = Signal()    # XXX FIXME InsertCE generates incorrect verilog
+        self.reset = Signal()  # XXX FIXME InsertReset generates incorrect verilog
+        self.ce = Signal()     # XXX FIXME InsertCE generates incorrect verilog
         self.header = Signal(ipv4_header_len*8)
         self.value = Signal(16)
         self.done = Signal()

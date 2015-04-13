@@ -285,7 +285,7 @@ class EtherbonePacket(Packet):
 
 
 class Etherbone(Module):
-    def  __init__(self, udp, debug=False):
+    def __init__(self, udp, debug=False):
         self.udp = udp
         self.debug = debug
         self.tx_packets = []
@@ -301,7 +301,7 @@ class Etherbone(Module):
             print_etherbone(packet)
         udp_packet = udp.UDPPacket(packet)
         udp_packet.src_port = 0x1234  # XXX
-        udp_packet.dst_port = 20000 # XXX
+        udp_packet.dst_port = 20000  # XXX
         udp_packet.length = len(packet)
         udp_packet.checksum = 0
         self.udp.send(udp_packet)

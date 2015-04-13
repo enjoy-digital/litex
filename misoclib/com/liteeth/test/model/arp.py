@@ -43,7 +43,7 @@ class ARPPacket(Packet):
 
 
 class ARP(Module):
-    def  __init__(self, mac, mac_address, ip_address, debug=False):
+    def __init__(self, mac, mac_address, ip_address, debug=False):
         self.mac = mac
         self.mac_address = mac_address
         self.ip_address = ip_address
