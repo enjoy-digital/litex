@@ -1,7 +1,8 @@
 # This file is Copyright (c) 2015 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
-import os, subprocess
+import os
+import subprocess
 
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment

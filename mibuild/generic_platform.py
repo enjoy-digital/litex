@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment

@@ -1,4 +1,6 @@
-import os, subprocess, sys
+import os
+import subprocess
+import sys
 
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment

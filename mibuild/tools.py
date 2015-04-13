@@ -1,4 +1,5 @@
-import os, struct
+import os
+import struct
 from distutils.version import StrictVersion
 
 

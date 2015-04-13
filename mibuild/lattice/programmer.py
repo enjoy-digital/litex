@@ -1,4 +1,5 @@
-import os, subprocess
+import os
+import subprocess
 
 from mibuild.generic_programmer import GenericProgrammer
 from mibuild import tools
