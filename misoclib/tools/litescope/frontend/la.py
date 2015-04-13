@@ -4,6 +4,7 @@ from misoclib.tools.litescope.core.storage import LiteScopeSubSampler, LiteScope
 
 from mibuild.tools import write_to_file
 
+
 class LiteScopeLA(Module, AutoCSR):
     def __init__(self, layout, depth, clk_domain="sys",
             with_input_buffer=False,

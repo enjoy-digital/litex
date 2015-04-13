@@ -8,6 +8,7 @@ from misoclib.tools.litescope.frontend.io import LiteScopeIO
 from misoclib.tools.litescope.frontend.la import LiteScopeLA
 from misoclib.tools.litescope.core.port import LiteScopeTerm
 
+
 class LiteScopeSoC(SoC, AutoCSR):
     csr_map = {
         "io":    16,

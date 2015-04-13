@@ -1,5 +1,6 @@
 from misoclib.tools.litescope.common import *
 
+
 class LiteScopeIO(Module, AutoCSR):
     def __init__(self, dw):
         self.dw = dw

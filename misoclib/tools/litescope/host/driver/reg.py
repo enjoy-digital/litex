@@ -1,5 +1,6 @@
 import csv
 
+
 class MappedReg:
     def __init__(self, readfn, writefn, name, addr, length, busword, mode):
         self.readfn = readfn
@@ -36,6 +37,7 @@ class MappedReg:
             datas.append((value >> ((self.length-1-i)*self.busword)) & (2**self.busword-1))
         self.writefn(self.addr, datas)
 
+
 class MappedRegs:
     def __init__(self, d):
         self.d = d
@@ -47,7 +49,8 @@ class MappedRegs:
             pass
         raise KeyError("No such register " + attr)
 
-def    build_map(addrmap, busword, readfn, writefn):
+
+def build_map(addrmap, busword, readfn, writefn):
     csv_reader = csv.reader(open(addrmap), delimiter=',', quotechar='#')
     d = {}
     for item in csv_reader:

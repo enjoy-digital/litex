@@ -4,6 +4,7 @@ from migen.fhdl.structure import *
 from misoclib.tools.litescope.host.dump import *
 from misoclib.tools.litescope.host.driver.truthtable import *
 
+
 class LiteScopeLADriver():
     def __init__(self, regs, name, config_csv=None, clk_freq=None, debug=False):
         self.regs = regs

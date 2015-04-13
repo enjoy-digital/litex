@@ -1,5 +1,6 @@
 from misoclib.tools.litescope.common import *
 
+
 class LiteScopeTermUnit(Module):
     def __init__(self, dw):
         self.dw = dw
@@ -15,6 +16,7 @@ class LiteScopeTermUnit(Module):
             sink.ack.eq(source.ack)
         ]
 
+
 class LiteScopeTerm(LiteScopeTermUnit, AutoCSR):
     def __init__(self, dw):
         LiteScopeTermUnit.__init__(self, dw)
@@ -25,6 +27,7 @@ class LiteScopeTerm(LiteScopeTermUnit, AutoCSR):
             self.trig.eq(self._trig.storage),
             self.mask.eq(self._mask.storage)
         ]
+
 
 class LiteScopeRangeDetectorUnit(Module):
     def __init__(self, dw):
@@ -41,6 +44,7 @@ class LiteScopeRangeDetectorUnit(Module):
             sink.ack.eq(source.ack)
         ]
 
+
 class LiteScopeRangeDetector(LiteScopeRangeDetectorUnit, AutoCSR):
     def __init__(self, dw):
         LiteScopeRangeDetectorUnit.__init__(self, dw)
@@ -51,6 +55,7 @@ class LiteScopeRangeDetector(LiteScopeRangeDetectorUnit, AutoCSR):
             self.low.eq(self._low.storage),
             self.high.eq(self._high.storage)
         ]
+
 
 class LiteScopeEdgeDetectorUnit(Module):
     def __init__(self, dw):
@@ -79,6 +84,7 @@ class LiteScopeEdgeDetectorUnit(Module):
             self.buffer.source.ack.eq(source.ack),
             source.hit.eq(rising | falling | both)
         ]
+
 
 class LiteScopeEdgeDetector(LiteScopeEdgeDetectorUnit, AutoCSR):
     def __init__(self, dw):

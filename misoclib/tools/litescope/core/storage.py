@@ -1,6 +1,7 @@
 from misoclib.tools.litescope.common import *
 from migen.flow.plumbing import Buffer
 
+
 class LiteScopeSubSamplerUnit(Module):
     def __init__(self, dw):
         self.sink = sink = Sink(data_layout(dw))
@@ -17,12 +18,14 @@ class LiteScopeSubSamplerUnit(Module):
             self.counter.reset.eq(source.stb & source.ack & done)
         ]
 
+
 class LiteScopeSubSampler(LiteScopeSubSamplerUnit, AutoCSR):
     def __init__(self, dw):
         LiteScopeSubSamplerUnit.__init__(self, dw)
         self._value = CSRStorage(32)
         ###
         self.comb += self.value.eq(self._value.storage)
+
 
 class LiteScopeRunLengthEncoderUnit(Module):
     def __init__(self, dw, length):
@@ -73,6 +76,7 @@ class LiteScopeRunLengthEncoderUnit(Module):
             )
         )
 
+
 class LiteScopeRunLengthEncoder(LiteScopeRunLengthEncoderUnit, AutoCSR):
     def __init__(self, dw, length=1024):
         LiteScopeRunLengthEncoderUnit.__init__(self, dw, length)
@@ -80,6 +84,7 @@ class LiteScopeRunLengthEncoder(LiteScopeRunLengthEncoderUnit, AutoCSR):
         self.external_enable = Signal(reset=1)
         ###
         self.comb += self.enable.eq(self._enable.storage & self.external_enable)
+
 
 class LiteScopeRecorderUnit(Module):
     def __init__(self, dw, depth):
@@ -137,6 +142,7 @@ class LiteScopeRecorderUnit(Module):
 
             If(~fifo.sink.ack | (fifo.fifo.level >= self.length), NextState("IDLE"))
         )
+
 
 class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
     def __init__(self, dw, depth):

@@ -3,6 +3,7 @@ from misoclib.tools.litescope.host.driver.reg import *
 
 from liteeth.test.model.etherbone import *
 
+
 class LiteScopeEtherboneDriver:
     def __init__(self, ip_address, udp_port=20000, addrmap=None, busword=8, debug=False):
         self.ip_address = ip_address

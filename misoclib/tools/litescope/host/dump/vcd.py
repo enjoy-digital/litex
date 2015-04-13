@@ -1,6 +1,7 @@
 import datetime
 from misoclib.tools.litescope.host.dump import *
 
+
 class VCDDump(Dump):
     def __init__(self, init_dump=None, timescale="1ps", comment=""):
         Dump.__init__(self)

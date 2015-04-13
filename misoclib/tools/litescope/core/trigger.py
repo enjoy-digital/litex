@@ -1,5 +1,6 @@
 from misoclib.tools.litescope.common import *
 
+
 class LiteScopeSumUnit(Module, AutoCSR):
     def __init__(self, ports):
         self.sinks = sinks = [Sink(hit_layout()) for i in range(ports)]
@@ -35,6 +36,7 @@ class LiteScopeSumUnit(Module, AutoCSR):
         for i, sink in enumerate(sinks):
             self.comb += sink.ack.eq(sink.stb & source.ack)
 
+
 class LiteScopeSum(LiteScopeSumUnit, AutoCSR):
     def __init__(self, ports):
         LiteScopeSumUnit.__init__(self, ports)
@@ -47,6 +49,7 @@ class LiteScopeSum(LiteScopeSumUnit, AutoCSR):
             self.prog_adr.eq(self._prog_adr.storage),
             self.prog_dat.eq(self._prog_dat.storage)
         ]
+
 
 class LiteScopeTrigger(Module, AutoCSR):
     def __init__(self, dw):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse, importlib
 
+
 def _get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--bridge", default="uart", help="Bridge to use")

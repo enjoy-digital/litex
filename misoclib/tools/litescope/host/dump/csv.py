@@ -1,5 +1,6 @@
 from misoclib.tools.litescope.host.dump import *
 
+
 class CSVDump(Dump):
     def __init__(self, init_dump=None):
         Dump.__init__(self)

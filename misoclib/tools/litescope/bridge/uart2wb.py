@@ -9,10 +9,12 @@ from migen.flow.actor import Sink, Source
 
 from misoclib.com.uart.phy.serial import UARTPHYSerial
 
+
 class UARTPads:
     def __init__(self):
         self.rx = Signal()
         self.tx = Signal()
+
 
 class UARTMux(Module):
     def __init__(self, pads):
@@ -41,6 +43,7 @@ class UARTMux(Module):
             ).Else(
                 pads.tx.eq(self.bridge_pads.tx)
             )
+
 
 class LiteScopeUART2WB(Module, AutoCSR):
     cmds = {

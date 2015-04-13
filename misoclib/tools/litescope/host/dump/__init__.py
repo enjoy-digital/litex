@@ -10,6 +10,7 @@ def dec2bin(d, nb=0):
             d=d>>1
     return b.zfill(nb)
 
+
 def get_bits(values, low, high=None):
     r = []
     if high is None:
@@ -18,6 +19,7 @@ def get_bits(values, low, high=None):
         t = (val >> low) & (2**(high-low)-1)
         r.append(t)
     return r
+
 
 class Dat(list):
     def __init__(self, width):
@@ -57,6 +59,7 @@ class Dat(list):
                 last_data = data
         return datas
 
+
 class Var:
     def __init__(self, name, width, values=[], type="wire", default="x"):
         self.type = type
@@ -85,6 +88,7 @@ class Var:
         except :
             return r
         return r
+
 
 class Dump:
     def __init__(self):
