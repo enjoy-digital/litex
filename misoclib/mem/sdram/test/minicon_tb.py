@@ -184,7 +184,7 @@ if __name__ == "__main__":
 
     s = MiniconTB(sdrphy, sdrphy.dfi, sdram_geom, sdram_timing, pads=sdram_pads, sdram_clk=sdram_clk)
 
-    extra_files = [ "sdram_model/mt48lc4m16a2.v" ]
+    extra_files = ["sdram_model/mt48lc4m16a2.v"]
 
     if not isfile(extra_files[0]):
         print("ERROR: You need to download Micron Verilog simulation model for MT48LC4M16A2 and put it in sdram_model/mt48lc4m16a2.v")
