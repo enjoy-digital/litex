@@ -1,4 +1,5 @@
-import math, binascii
+import math
+import binascii
 
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.test.common import *

@@ -1,4 +1,5 @@
-import random, copy
+import random
+import copy
 
 from migen.fhdl.std import *
 from migen.flow.actor import Sink, Source

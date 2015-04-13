@@ -1,4 +1,5 @@
-import socket, time
+import socket
+import time
 from misoclib.com.liteeth.test.model.etherbone import *
 
 SRAM_BASE = 0x02000000

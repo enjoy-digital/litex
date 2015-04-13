@@ -1,4 +1,5 @@
-import math, copy
+import math
+import copy
 
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.test.common import *
