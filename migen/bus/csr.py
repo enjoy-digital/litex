@@ -5,10 +5,10 @@ from migen.genlib.record import *
 from migen.genlib.misc import chooser
 
 _layout = [
-    ("adr",        "address_width",    DIR_M_TO_S),
-    ("we",        1,                    DIR_M_TO_S),
-    ("dat_w",    "data_width",        DIR_M_TO_S),
-    ("dat_r",    "data_width",        DIR_S_TO_M)
+    ("adr",  "address_width", DIR_M_TO_S),
+    ("we",                 1, DIR_M_TO_S),
+    ("dat_w",   "data_width", DIR_M_TO_S),
+    ("dat_r",   "data_width", DIR_S_TO_M)
 ]
 
 

@@ -6,17 +6,17 @@ from migen.genlib.fsm import FSM, NextState
 from migen.bus.transactions import *
 
 _layout = [
-    ("adr",        30,                DIR_M_TO_S),
-    ("dat_w",    "data_width",     DIR_M_TO_S),
-    ("dat_r",    "data_width",     DIR_S_TO_M),
-    ("sel",        "sel_width",    DIR_M_TO_S),
-    ("cyc",        1,                DIR_M_TO_S),
-    ("stb",        1,                DIR_M_TO_S),
-    ("ack",        1,                DIR_S_TO_M),
-    ("we",        1,                DIR_M_TO_S),
-    ("cti",        3,                DIR_M_TO_S),
-    ("bte",        2,                DIR_M_TO_S),
-    ("err",        1,                DIR_S_TO_M)
+    ("adr",             30, DIR_M_TO_S),
+    ("dat_w", "data_width", DIR_M_TO_S),
+    ("dat_r", "data_width", DIR_S_TO_M),
+    ("sel",    "sel_width", DIR_M_TO_S),
+    ("cyc",              1, DIR_M_TO_S),
+    ("stb",              1, DIR_M_TO_S),
+    ("ack",              1, DIR_S_TO_M),
+    ("we",               1, DIR_M_TO_S),
+    ("cti",              3, DIR_M_TO_S),
+    ("bte",              2, DIR_M_TO_S),
+    ("err",              1, DIR_S_TO_M)
 ]
 
 
