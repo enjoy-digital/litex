@@ -4,6 +4,7 @@ from migen.genlib.fsm import FSM, NextState
 
 from misoclib.com.liteusb.common import *
 
+
 class LiteUSBPacketizer(Module):
     def __init__(self):
         self.sink = sink = Sink(user_layout)
@@ -70,8 +71,9 @@ src_data = [
     ),
     (0x22, 16,
         [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF]
-    ),
+    )
 ]
+
 
 class PacketizerSourceModel(Module, Source, RandRun):
     def __init__(self, data):
@@ -116,6 +118,7 @@ class PacketizerSourceModel(Module, Source, RandRun):
         if self._frame_cnt == len(self.data):
             raise StopSimulation
 
+
 class PacketizerSinkModel(Module, Sink, RandRun):
     def __init__(self):
         Sink.__init__(self, phy_layout)
@@ -139,6 +142,7 @@ class TB(Module):
             self.source.connect(self.dut.sink),
             self.dut.source.connect(self.sink),
         ]
+
 
 def main():
     from migen.sim.generic import run_simulation

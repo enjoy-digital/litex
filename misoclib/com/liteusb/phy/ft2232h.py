@@ -5,6 +5,7 @@ from migen.fhdl.specials import *
 
 from misoclib.com.liteusb.common import *
 
+
 class FT2232HPHY(Module):
     def __init__(self, pads, fifo_depth=32, read_time=16, write_time=16):
         dw = flen(pads.data)
@@ -212,6 +213,7 @@ class FT2232HModel(Module, RandRun):
         self.wr_sim(selfp)
         self.rd_sim(selfp)
 
+
 class UserModel(Module, RandRun):
     def __init__(self, wr_data):
         RandRun.__init__(self, 50)
@@ -256,6 +258,7 @@ LENGTH = 512
 model_rd_data = [i%256 for i in range(LENGTH)][::-1]
 user_wr_data  = [i%256 for i in range(LENGTH)]
 
+
 class TB(Module):
     def __init__(self):
         self.submodules.model = FT2232HModel(model_rd_data)
@@ -273,6 +276,7 @@ class TB(Module):
             ClockSignal("ftdi").eq(ClockSignal()),
             ResetSignal("ftdi").eq(ResetSignal())
         ]
+
 
 def print_results(s, l1, l2):
     def comp(l1, l2):
@@ -293,6 +297,7 @@ def print_results(s, l1, l2):
     else:
         r += "[KO]"
     print(r)
+
 
 def main():
     from migen.sim.generic import run_simulation

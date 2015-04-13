@@ -7,8 +7,8 @@ from migen.bank.eventmanager import *
 from migen.genlib.record import Record
 
 from misoclib.mem.sdram.frontend import dma_lasmi
-
 from misoclib.com.liteusb.common import *
+
 
 class LiteUSBDMAWriter(Module, AutoCSR):
     def __init__(self, lasmim):
@@ -50,6 +50,7 @@ class LiteUSBDMAWriter(Module, AutoCSR):
                 self._crc_failed.status.eq(sink.error)
             )
 
+
 class LiteUSBDMAReader(Module, AutoCSR):
     def __init__(self, lasmim, tag):
         self.source = source = Source(user_layout)
@@ -88,6 +89,7 @@ class LiteUSBDMAReader(Module, AutoCSR):
         self.ev.done = EventSourcePulse()
         self.ev.finalize()
         self.comb += self.ev.done.trigger.eq(source.stb & source.eop)
+
 
 class LiteUSBDMA(Module, AutoCSR):
     def __init__(self, lasmim_ftdi_dma_wr, lasmim_ftdi_dma_rd, tag):

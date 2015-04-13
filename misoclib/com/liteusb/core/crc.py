@@ -8,6 +8,7 @@ from migen.actorlib.fifo import SyncFIFO
 
 from misoclib.com.liteusb.common import *
 
+
 class CRCEngine(Module):
     """Cyclic Redundancy Check Engine
 
@@ -76,6 +77,7 @@ class CRCEngine(Module):
                     xors += [self.d[n]]
             self.comb += self.next[i].eq(optree("^", xors))
 
+
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class CRC32(Module):
@@ -118,6 +120,7 @@ class CRC32(Module):
             self.value.eq(~reg[::-1]),
             self.error.eq(self.engine.next != self.check)
         ]
+
 
 class CRCInserter(Module):
     """CRC Inserter
@@ -193,9 +196,11 @@ class CRCInserter(Module):
             )
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
+
 class CRC32Inserter(CRCInserter):
     def __init__(self, layout):
         CRCInserter.__init__(self, CRC32, layout)
+
 
 class CRCChecker(Module):
     """CRC Checker
@@ -279,9 +284,11 @@ class CRCChecker(Module):
         )
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
+
 class CRC32Checker(CRCChecker):
     def __init__(self, layout):
         CRCChecker.__init__(self, CRC32, layout)
+
 
 class LiteUSBCRC32(Module):
     def __init__(self, tag):

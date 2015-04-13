@@ -4,6 +4,7 @@ from migen.genlib.fsm import FSM, NextState
 
 from misoclib.com.liteusb.common import *
 
+
 class LiteUSBDepacketizer(Module):
     def __init__(self, timeout=10):
         self.sink = sink = Sink(phy_layout)
@@ -96,6 +97,7 @@ src_data =    [
     0x5A, 0xA5, 0x5A, 0xA5, 0x12, 0x00, 0x00, 0x00, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 ]*4
 
+
 class DepacketizerSourceModel(Module, Source, RandRun):
     def __init__(self, data):
         Source.__init__(self, phy_layout)
@@ -144,6 +146,7 @@ class TB(Module):
             self.source.connect(self.dut.sink),
             self.dut.source.connect(self.sink),
         ]
+
 
 def main():
     from migen.sim.generic import run_simulation

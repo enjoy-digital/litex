@@ -6,6 +6,7 @@ from misoclib.com.liteusb.frontend.crossbar import LiteUSBCrossbar
 from misoclib.com.liteusb.core.packetizer import LiteUSBPacketizer
 from misoclib.com.liteusb.core.depacketizer import LiteUSBDepacketizer
 
+
 class LiteUSBCom(Module):
     def __init__(self, phy, *ports):
         # crossbar

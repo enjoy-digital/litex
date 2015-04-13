@@ -16,10 +16,12 @@ phy_layout = [
     ("d", 8)
 ]
 
+
 class LiteUSBPipe:
     def __init__(self, layout):
         self.sink = Sink(layout)
         self.source = Source(layout)
+
 
 class LiteUSBTimeout(Module):
     def __init__(self, clk_freq, length):
@@ -43,8 +45,10 @@ class LiteUSBTimeout(Module):
 #
 import random
 
+
 def randn(max_n):
     return random.randint(0, max_n-1)
+
 
 class RandRun:
     def __init__(self, level=0):

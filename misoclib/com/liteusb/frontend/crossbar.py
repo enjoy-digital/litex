@@ -4,6 +4,7 @@ from migen.genlib.record import Record
 
 from misoclib.com.liteusb.common import *
 
+
 class LiteUSBCrossbar(Module):
     def __init__(self, masters, slave=None):
         if slave is None:
