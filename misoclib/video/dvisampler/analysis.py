@@ -139,7 +139,7 @@ class FrameExtraction(Module, AutoCSR):
         encoded_pixel = Signal(24)
         self.comb += encoded_pixel.eq(Cat(self.b, self.g, self.r))
         pack_factor = word_width//24
-        assert(pack_factor & (pack_factor - 1) == 0) # only support powers of 2
+        assert(pack_factor & (pack_factor - 1) == 0)  # only support powers of 2
         pack_counter = Signal(max=pack_factor)
         self.sync.pix += [
             cur_word_valid.eq(0),

@@ -120,7 +120,7 @@ class Flterm:
         self.serial = serial.Serial(port, speed, timeout=0.25)
         self.serial.flushOutput()
         self.serial.flushInput()
-        self.serial.close() # in case port was not correctly closed
+        self.serial.close()  # in case port was not correctly closed
         self.serial.open()
 
     def close(self):

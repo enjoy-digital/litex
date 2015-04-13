@@ -5,7 +5,7 @@ import importlib
 def misoc_import(default, external, name):
     if external:
         try:
-            del sys.modules[name] # force external path search
+            del sys.modules[name]  # force external path search
         except KeyError:
             pass
         loader = importlib.find_loader(name, [external])

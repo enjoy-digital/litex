@@ -73,8 +73,8 @@ class BaseSoC(SDRAMSoC):
     default_platform = "kc705"
 
     csr_map = {
-        "spiflash":    16,
-        "ddrphy":    17,
+        "spiflash": 16,
+        "ddrphy":   17,
     }
     csr_map.update(SDRAMSoC.csr_map)
 
@@ -103,18 +103,18 @@ class BaseSoC(SDRAMSoC):
 
 class MiniSoC(BaseSoC):
     csr_map = {
-        "ethphy":        18,
-        "ethmac":        19,
+        "ethphy": 18,
+        "ethmac": 19,
     }
     csr_map.update(BaseSoC.csr_map)
 
     interrupt_map = {
-        "ethmac":        2,
+        "ethmac": 2,
     }
     interrupt_map.update(BaseSoC.interrupt_map)
 
     mem_map = {
-        "ethmac":    0x30000000, # (shadow @0xb0000000)
+        "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 

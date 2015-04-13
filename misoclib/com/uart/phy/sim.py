@@ -24,7 +24,7 @@ class UARTPHYSim(Module):
         m, s = pty.openpty()
         name = os.ttyname(s)
         print("UART tty: "+name)
-        time.sleep(0.5) # pause for user
+        time.sleep(0.5)  # pause for user
         f = open("/tmp/simserial", "w")
         f.write(os.ttyname(s))
         f.close()

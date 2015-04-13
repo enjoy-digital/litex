@@ -28,12 +28,12 @@ class TB(Module):
     def do_simulation(self, selfp):
         dfip = selfp.ctler.dfi
         for p in dfip.phases:
-            if p.ras_n and not p.cas_n and not p.we_n: # write
+            if p.ras_n and not p.cas_n and not p.we_n:  # write
                 d = dfip.phases[0].wrdata | (dfip.phases[1].wrdata << 64)
                 print(d)
                 if d != p.address//2 + p.bank*512 + self.open_row*2048:
                     print("**** ERROR ****")
-            elif not p.ras_n and p.cas_n and p.we_n: # activate
+            elif not p.ras_n and p.cas_n and p.we_n:  # activate
                 self.open_row = p.address
 
 if __name__ == "__main__":

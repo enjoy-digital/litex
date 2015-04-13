@@ -9,7 +9,7 @@ from misoclib.mem.sdram.frontend import wishbone2lasmi
 
 from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 
-l2_size = 8192 # in bytes
+l2_size = 8192  # in bytes
 
 
 def my_generator():

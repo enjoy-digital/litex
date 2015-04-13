@@ -33,7 +33,7 @@ class _MXClockPads:
 
 
 class BaseSoC(SDRAMSoC):
-    default_platform = "mixxeo" # also supports m1
+    default_platform = "mixxeo"  # also supports m1
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
         SDRAMSoC.__init__(self, platform,
@@ -69,18 +69,18 @@ INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 
 class MiniSoC(BaseSoC):
     csr_map = {
-        "ethphy":        16,
-        "ethmac":        17,
+        "ethphy": 16,
+        "ethmac": 17,
     }
     csr_map.update(BaseSoC.csr_map)
 
     interrupt_map = {
-        "ethmac":        2,
+        "ethmac": 2,
     }
     interrupt_map.update(BaseSoC.interrupt_map)
 
     mem_map = {
-        "ethmac":    0x30000000, # (shadow @0xb0000000)
+        "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 
@@ -126,7 +126,7 @@ TIMESPEC "TSise_sucks2" = FROM "GRPsys_clk" TO "GRPvga_clk" TIG;
 
 class FramebufferSoC(MiniSoC):
     csr_map = {
-        "fb":                    18,
+        "fb": 18,
     }
     csr_map.update(MiniSoC.csr_map)
 

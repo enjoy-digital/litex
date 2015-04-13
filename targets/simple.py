@@ -19,18 +19,18 @@ class BaseSoC(SoC):
 
 class MiniSoC(BaseSoC):
     csr_map = {
-        "ethphy":        20,
-        "ethmac":        21
+        "ethphy": 20,
+        "ethmac": 21
     }
     csr_map.update(BaseSoC.csr_map)
 
     interrupt_map = {
-        "ethmac":        2,
+        "ethmac": 2,
     }
     interrupt_map.update(BaseSoC.interrupt_map)
 
     mem_map = {
-        "ethmac":    0x30000000, # (shadow @0xb0000000)
+        "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 

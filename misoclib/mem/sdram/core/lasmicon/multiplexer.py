@@ -115,7 +115,7 @@ class Multiplexer(Module, AutoCSR):
 
         # Command steering
         nop = CommandRequest(geom_settings.addressbits, geom_settings.bankbits)
-        commands = [nop, choose_cmd.cmd, choose_req.cmd, refresher.cmd] # nop must be 1st
+        commands = [nop, choose_cmd.cmd, choose_req.cmd, refresher.cmd]  # nop must be 1st
         (STEER_NOP, STEER_CMD, STEER_REQ, STEER_REFRESH) = range(4)
         steerer = _Steerer(commands, dfi)
         self.submodules += steerer
@@ -211,7 +211,7 @@ class Multiplexer(Module, AutoCSR):
             steerer.sel[0].eq(STEER_REFRESH),
             If(~refresher.req, NextState("READ"))
         )
-        fsm.delayed_enter("RTW", "WRITE", phy_settings.read_latency-1) # FIXME: reduce this, actual limit is around (cl+1)/nphases
+        fsm.delayed_enter("RTW", "WRITE", phy_settings.read_latency-1)  # FIXME: reduce this, actual limit is around (cl+1)/nphases
         fsm.delayed_enter("WTR", "READ", timing_settings.tWTR-1)
         # FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
         fsm.finalize()

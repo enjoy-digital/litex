@@ -6,7 +6,7 @@ from misoclib.mem.sdram.phy import dfi
 
 class PhaseInjector(Module, AutoCSR):
     def __init__(self, phase):
-        self._command = CSRStorage(6) # cs, we, cas, ras, wren, rden
+        self._command = CSRStorage(6)  # cs, we, cas, ras, wren, rden
         self._command_issue = CSR()
         self._address = CSRStorage(flen(phase.address))
         self._baddress = CSRStorage(flen(phase.bank))
@@ -43,7 +43,7 @@ class DFIInjector(Module, AutoCSR):
         self.slave = dfi.Interface(addressbits, bankbits, databits, nphases)
         self.master = dfi.Interface(addressbits, bankbits, databits, nphases)
 
-        self._control = CSRStorage(4) # sel, cke, odt, reset_n
+        self._control = CSRStorage(4)  # sel, cke, odt, reset_n
 
         for n, phase in enumerate(inti.phases):
             setattr(self.submodules, "pi" + str(n), PhaseInjector(phase))

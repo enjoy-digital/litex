@@ -40,9 +40,9 @@ class Clocking(Module, AutoCSR):
         )
         self.specials += Instance("PLL_ADV",
             p_CLKFBOUT_MULT=10,
-            p_CLKOUT0_DIVIDE=1,  # pix10x
-            p_CLKOUT1_DIVIDE=5,  # pix2x
-            p_CLKOUT2_DIVIDE=10, # pix
+            p_CLKOUT0_DIVIDE=1,   # pix10x
+            p_CLKOUT1_DIVIDE=5,   # pix2x
+            p_CLKOUT2_DIVIDE=10,  # pix
             p_COMPENSATION="INTERNAL",
 
             i_CLKINSEL=1,

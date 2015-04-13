@@ -23,7 +23,7 @@ class UARTPHYSerialRX(Module):
             rx_done.eq(0),
             rx_r.eq(rx),
             If(~rx_busy,
-                If(~rx & rx_r, # look for start bit
+                If(~rx & rx_r,  # look for start bit
                     rx_busy.eq(1),
                     rx_bitcount.eq(0),
                 )
@@ -31,12 +31,12 @@ class UARTPHYSerialRX(Module):
                 If(uart_clk_rxen,
                     rx_bitcount.eq(rx_bitcount + 1),
                     If(rx_bitcount == 0,
-                        If(rx, # verify start bit
+                        If(rx,  # verify start bit
                             rx_busy.eq(0)
                         )
                     ).Elif(rx_bitcount == 9,
                         rx_busy.eq(0),
-                        If(rx, # verify stop bit
+                        If(rx,  # verify stop bit
                             rx_data.eq(rx_reg),
                             rx_done.eq(1)
                         )

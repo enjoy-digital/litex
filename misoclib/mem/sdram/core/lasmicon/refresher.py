@@ -8,7 +8,7 @@ from misoclib.mem.sdram.core.lasmicon.multiplexer import *
 class Refresher(Module):
     def __init__(self, a, ba, tRP, tREFI, tRFC, enabled=True):
         self.req = Signal()
-        self.ack = Signal() # 1st command 1 cycle after assertion of ack
+        self.ack = Signal()  # 1st command 1 cycle after assertion of ack
         self.cmd = CommandRequest(a, ba)
 
         ###

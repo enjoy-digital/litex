@@ -46,8 +46,8 @@ class _CRG(Module):
             p_CLKOUT1_PHASE=0., p_CLKOUT1_DIVIDE=p//1,
             p_CLKOUT2_PHASE=0., p_CLKOUT2_DIVIDE=p//1,
             p_CLKOUT3_PHASE=0., p_CLKOUT3_DIVIDE=p//1,
-            p_CLKOUT4_PHASE=0., p_CLKOUT4_DIVIDE=p//1, # sys
-            p_CLKOUT5_PHASE=270., p_CLKOUT5_DIVIDE=p//1, # sys_ps
+            p_CLKOUT4_PHASE=0., p_CLKOUT4_DIVIDE=p//1,  # sys
+            p_CLKOUT5_PHASE=270., p_CLKOUT5_DIVIDE=p//1,  # sys_ps
         )
         self.specials += Instance("BUFG", i_I=pll[4], o_O=self.cd_sys.clk)
         self.specials += Instance("BUFG", i_I=pll[5], o_O=self.cd_sys_ps.clk)

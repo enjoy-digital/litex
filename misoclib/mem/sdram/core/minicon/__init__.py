@@ -44,9 +44,9 @@ class MiniconSettings:
 class Minicon(Module):
     def __init__(self, phy_settings, geom_settings, timing_settings):
         if phy_settings.memtype in ["SDR"]:
-            burst_length = phy_settings.nphases*1 # command multiplication*SDR
+            burst_length = phy_settings.nphases*1  # command multiplication*SDR
         elif phy_settings.memtype in ["DDR", "LPDDR", "DDR2", "DDR3"]:
-            burst_length = phy_settings.nphases*2 # command multiplication*DDR
+            burst_length = phy_settings.nphases*2  # command multiplication*DDR
         address_align = log2_int(burst_length)
 
         nbanks = range(2**geom_settings.bankbits)

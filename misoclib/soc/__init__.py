@@ -16,23 +16,23 @@ def mem_decoder(address, start=26, end=29):
 
 class SoC(Module):
     csr_map = {
-        "crg":                    0, # user
-        "uart_phy":                1, # provided by default (optional)
-        "uart":                    2, # provided by default (optional)
-        "identifier":            3, # provided by default (optional)
-        "timer0":                4, # provided by default (optional)
-        "buttons":                5, # user
-        "leds":                    6, # user
+        "crg":        0,  # user
+        "uart_phy":   1,  # provided by default (optional)
+        "uart":       2,  # provided by default (optional)
+        "identifier": 3,  # provided by default (optional)
+        "timer0":     4,  # provided by default (optional)
+        "buttons":    5,  # user
+        "leds":       6,  # user
     }
     interrupt_map = {
-        "uart":            0,
-        "timer0":        1,
+        "uart":   0,
+        "timer0": 1,
     }
     mem_map = {
-        "rom":        0x00000000, # (shadow @0x80000000)
-        "sram":        0x10000000, # (shadow @0x90000000)
-        "main_ram":    0x40000000, # (shadow @0xc0000000)
-        "csr":        0x60000000, # (shadow @0xe0000000)
+        "rom":      0x00000000,  # (shadow @0x80000000)
+        "sram":     0x10000000,  # (shadow @0x90000000)
+        "main_ram": 0x40000000,  # (shadow @0xc0000000)
+        "csr":      0x60000000,  # (shadow @0xe0000000)
     }
     def __init__(self, platform, clk_freq,
                 cpu_type="lm32", cpu_reset_address=0x00000000,
@@ -64,9 +64,9 @@ class SoC(Module):
         self.csr_data_width = csr_data_width
         self.csr_address_width = csr_address_width
 
-        self._memory_regions = [] # list of (name, origin, length)
-        self._csr_regions = [] # list of (name, origin, busword, csr_list/Memory)
-        self._constants = [] # list of (name, value)
+        self._memory_regions = []  # list of (name, origin, length)
+        self._csr_regions = []  # list of (name, origin, busword, csr_list/Memory)
+        self._constants = []  # list of (name, value)
 
         self._wb_masters = []
         self._wb_slaves = []

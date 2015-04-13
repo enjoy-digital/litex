@@ -33,7 +33,7 @@ class _FIFO(Module):
         ]
 
         unpack_counter = Signal(max=pack_factor)
-        assert(pack_factor & (pack_factor - 1) == 0) # only support powers of 2
+        assert(pack_factor & (pack_factor - 1) == 0)  # only support powers of 2
         self.sync.pix += [
             unpack_counter.eq(unpack_counter + 1),
             self.pix_hsync.eq(fifo.dout.hsync),
@@ -143,9 +143,9 @@ class _Clocking(Module, AutoCSR):
             self.specials += [
                 Instance("PLL_ADV",
                     p_CLKFBOUT_MULT=10,
-                    p_CLKOUT0_DIVIDE=1,  # pix10x
-                    p_CLKOUT1_DIVIDE=5,  # pix2x
-                    p_CLKOUT2_DIVIDE=10, # pix
+                    p_CLKOUT0_DIVIDE=1,   # pix10x
+                    p_CLKOUT1_DIVIDE=5,   # pix2x
+                    p_CLKOUT2_DIVIDE=10,  # pix
                     p_COMPENSATION="INTERNAL",
 
                     i_CLKINSEL=1,
