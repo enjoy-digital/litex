@@ -3,6 +3,7 @@ from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
 from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
+
 class LiteEthEtherboneRecordPacketizer(LiteEthPacketizer):
     def __init__(self):
         LiteEthPacketizer.__init__(self,
@@ -11,6 +12,7 @@ class LiteEthEtherboneRecordPacketizer(LiteEthPacketizer):
             etherbone_record_header,
             etherbone_record_header_len)
 
+
 class LiteEthEtherboneRecordDepacketizer(LiteEthDepacketizer):
     def __init__(self):
         LiteEthDepacketizer.__init__(self,
@@ -18,6 +20,7 @@ class LiteEthEtherboneRecordDepacketizer(LiteEthDepacketizer):
             eth_etherbone_record_description(32),
             etherbone_record_header,
             etherbone_record_header_len)
+
 
 class LiteEthEtherboneRecordReceiver(Module):
     def __init__(self, buffer_depth=256):
@@ -90,6 +93,7 @@ class LiteEthEtherboneRecordReceiver(Module):
             )
         )
 
+
 class LiteEthEtherboneRecordSender(Module):
     def __init__(self, buffer_depth=256):
         self.sink = sink = Sink(eth_etherbone_mmap_description(32))
@@ -137,6 +141,7 @@ class LiteEthEtherboneRecordSender(Module):
                 )
             )
         )
+
 
 # Limitation: For simplicity we only support 1 record per packet
 class LiteEthEtherboneRecord(Module):

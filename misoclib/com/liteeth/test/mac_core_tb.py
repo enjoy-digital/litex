@@ -9,6 +9,7 @@ from misoclib.com.liteeth.mac.core import LiteEthMACCore
 from misoclib.com.liteeth.test.common import *
 from misoclib.com.liteeth.test.model import phy, mac
 
+
 class TB(Module):
     def __init__(self):
         self.submodules.phy_model = phy.PHY(8, debug=False)

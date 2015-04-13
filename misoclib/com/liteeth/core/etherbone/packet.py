@@ -3,6 +3,7 @@ from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
 from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
+
 class LiteEthEtherbonePacketPacketizer(LiteEthPacketizer):
     def __init__(self):
         LiteEthPacketizer.__init__(self,
@@ -10,6 +11,7 @@ class LiteEthEtherbonePacketPacketizer(LiteEthPacketizer):
             eth_udp_user_description(32),
             etherbone_packet_header,
             etherbone_packet_header_len)
+
 
 class LiteEthEtherbonePacketTX(Module):
     def __init__(self, udp_port):
@@ -52,6 +54,7 @@ class LiteEthEtherbonePacketTX(Module):
             )
         )
 
+
 class LiteEthEtherbonePacketDepacketizer(LiteEthDepacketizer):
     def __init__(self):
         LiteEthDepacketizer.__init__(self,
@@ -59,6 +62,7 @@ class LiteEthEtherbonePacketDepacketizer(LiteEthDepacketizer):
             eth_etherbone_packet_description(32),
             etherbone_packet_header,
             etherbone_packet_header_len)
+
 
 class LiteEthEtherbonePacketRX(Module):
     def __init__(self):
@@ -116,6 +120,7 @@ class LiteEthEtherbonePacketRX(Module):
                 NextState("IDLE")
             )
         )
+
 
 class LiteEthEtherbonePacket(Module):
     def __init__(self, udp, udp_port):

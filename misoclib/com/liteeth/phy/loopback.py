@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthPHYLoopbackCRG(Module, AutoCSR):
     def __init__(self):
         self._reset = CSRStorage()
@@ -17,6 +18,7 @@ class LiteEthPHYLoopbackCRG(Module, AutoCSR):
             self.cd_eth_rx.rst.eq(reset),
             self.cd_eth_tx.rst.eq(reset)
         ]
+
 
 class LiteEthPHYLoopback(Module, AutoCSR):
     def __init__(self):

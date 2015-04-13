@@ -5,8 +5,10 @@ from misoclib.com.liteeth.test.common import *
 
 from misoclib.com.liteeth.test.model import ip
 
+
 def print_udp(s):
     print_with_prefix(s, "[UDP]")
+
 
 # UDP model
 class UDPPacket(Packet):
@@ -36,6 +38,7 @@ class UDPPacket(Packet):
         for d in self:
             r += "{:02x}".format(d)
         return r
+
 
 class UDP(Module):
     def  __init__(self, ip, ip_address, debug=False, loopback=False):

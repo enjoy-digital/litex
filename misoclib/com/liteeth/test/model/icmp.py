@@ -5,8 +5,10 @@ from misoclib.com.liteeth.test.common import *
 
 from misoclib.com.liteeth.test.model import ip
 
+
 def print_icmp(s):
     print_with_prefix(s, "[ICMP]")
+
 
 # ICMP model
 class ICMPPacket(Packet):
@@ -36,6 +38,7 @@ class ICMPPacket(Packet):
         for d in self:
             r += "{:02x}".format(d)
         return r
+
 
 class ICMP(Module):
     def  __init__(self, ip, ip_address, debug=False):

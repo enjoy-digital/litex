@@ -3,10 +3,12 @@ import math, binascii
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.test.common import *
 
+
 def print_mac(s):
     print_with_prefix(s, "[MAC]")
 
 preamble = split_bytes(eth_preamble, 8, "little")
+
 
 def crc32(l):
     crc = []
@@ -14,6 +16,7 @@ def crc32(l):
     for byte in crc_bytes:
         crc.append(int(byte))
     return crc
+
 
 # MAC model
 class MACPacket(Packet):
@@ -82,6 +85,7 @@ class MACPacket(Packet):
         for d in self:
             r += "{:02x}".format(d)
         return r
+
 
 class MAC(Module):
     def  __init__(self, phy, debug=False, loopback=False):

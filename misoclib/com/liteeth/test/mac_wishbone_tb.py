@@ -9,6 +9,7 @@ from misoclib.com.liteeth.mac import LiteEthMAC
 from misoclib.com.liteeth.test.common import *
 from misoclib.com.liteeth.test.model import phy, mac
 
+
 class WishboneMaster:
     def __init__(self, obj):
         self.obj = obj
@@ -41,6 +42,7 @@ class WishboneMaster:
         self.obj.stb = 0
         yield
 
+
 class SRAMReaderDriver:
     def __init__(self, obj):
         self.obj = obj
@@ -63,6 +65,7 @@ class SRAMReaderDriver:
         self.obj.ev.done.clear = 0
         yield
 
+
 class SRAMWriterDriver:
     def __init__(self, obj):
         self.obj = obj
@@ -76,6 +79,7 @@ class SRAMWriterDriver:
         yield
         self.obj.ev.available.clear = 0
         yield
+
 
 class TB(Module):
     def __init__(self):

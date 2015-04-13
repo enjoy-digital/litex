@@ -3,11 +3,13 @@ from misoclib.com.liteeth.generic import *
 
 from misoclib.com.liteeth.generic.crossbar import LiteEthCrossbar
 
+
 class LiteEthUDPMasterPort:
     def __init__(self, dw):
         self.dw = dw
         self.source = Source(eth_udp_user_description(dw))
         self.sink = Sink(eth_udp_user_description(dw))
+
 
 class LiteEthUDPSlavePort:
     def __init__(self, dw):
@@ -15,9 +17,11 @@ class LiteEthUDPSlavePort:
         self.sink = Sink(eth_udp_user_description(dw))
         self.source = Source(eth_udp_user_description(dw))
 
+
 class LiteEthUDPUserPort(LiteEthUDPSlavePort):
     def __init__(self, dw):
         LiteEthUDPSlavePort.__init__(self, dw)
+
 
 class LiteEthUDPCrossbar(LiteEthCrossbar):
     def __init__(self):

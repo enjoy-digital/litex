@@ -5,6 +5,7 @@ from misoclib.com.liteeth.core.ip.crossbar import *
 from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
 from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
+
 class LiteEthIPV4Packetizer(LiteEthPacketizer):
     def __init__(self):
         LiteEthPacketizer.__init__(self,
@@ -12,6 +13,7 @@ class LiteEthIPV4Packetizer(LiteEthPacketizer):
             eth_mac_description(8),
             ipv4_header,
             ipv4_header_len)
+
 
 class LiteEthIPTX(Module):
     def __init__(self, mac_address, ip_address, arp_table):
@@ -92,6 +94,7 @@ class LiteEthIPTX(Module):
             )
         )
 
+
 class LiteEthIPV4Depacketizer(LiteEthDepacketizer):
     def __init__(self):
         LiteEthDepacketizer.__init__(self,
@@ -99,6 +102,7 @@ class LiteEthIPV4Depacketizer(LiteEthDepacketizer):
             eth_ipv4_description(8),
             ipv4_header,
             ipv4_header_len)
+
 
 class LiteEthIPRX(Module):
     def __init__(self, mac_address, ip_address):
@@ -163,6 +167,7 @@ class LiteEthIPRX(Module):
                 NextState("IDLE")
             )
         )
+
 
 class LiteEthIP(Module):
     def __init__(self, mac, mac_address, ip_address, arp_table):

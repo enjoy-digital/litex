@@ -3,6 +3,7 @@ import os
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthPHYSimCRG(Module, AutoCSR):
     def __init__(self):
         self._reset = CSRStorage()
@@ -21,6 +22,7 @@ class LiteEthPHYSimCRG(Module, AutoCSR):
             self.cd_eth_rx.rst.eq(reset),
             self.cd_eth_tx.rst.eq(reset)
         ]
+
 
 class LiteEthPHYSim(Module, AutoCSR):
     def __init__(self, pads, tap="tap0", ip_address="192.168.0.14"):

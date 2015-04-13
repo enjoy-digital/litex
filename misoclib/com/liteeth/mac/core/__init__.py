@@ -3,6 +3,7 @@ from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.mac.core import gap, preamble, crc, padding, last_be
 from misoclib.com.liteeth.phy.sim import LiteEthPHYSim
 
+
 class LiteEthMACCore(Module, AutoCSR):
     def __init__(self, phy, dw, endianness="big",
             with_preamble_crc=True,

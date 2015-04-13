@@ -3,6 +3,7 @@ from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
 from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
+
 class LiteEthICMPPacketizer(LiteEthPacketizer):
     def __init__(self):
         LiteEthPacketizer.__init__(self,
@@ -10,6 +11,7 @@ class LiteEthICMPPacketizer(LiteEthPacketizer):
             eth_ipv4_user_description(8),
             icmp_header,
             icmp_header_len)
+
 
 class LiteEthICMPTX(Module):
     def __init__(self, ip_address):
@@ -47,6 +49,7 @@ class LiteEthICMPTX(Module):
             )
         )
 
+
 class LiteEthICMPDepacketizer(LiteEthDepacketizer):
     def __init__(self):
         LiteEthDepacketizer.__init__(self,
@@ -54,6 +57,7 @@ class LiteEthICMPDepacketizer(LiteEthDepacketizer):
             eth_icmp_description(8),
             icmp_header,
             icmp_header_len)
+
 
 class LiteEthICMPRX(Module):
     def __init__(self, ip_address):
@@ -109,6 +113,7 @@ class LiteEthICMPRX(Module):
             )
         )
 
+
 class LiteEthICMPEcho(Module):
     def __init__(self):
         self.sink = sink = Sink(eth_icmp_user_description(8))
@@ -121,6 +126,7 @@ class LiteEthICMPEcho(Module):
             self.source.msgtype.eq(0x0),
             self.source.checksum.eq(~((~self.buffer.source.checksum)-0x0800))
         ]
+
 
 class LiteEthICMP(Module):
     def __init__(self, ip, ip_address):

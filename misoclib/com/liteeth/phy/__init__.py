@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 def LiteEthPHY(clock_pads, pads, **kwargs):
     # Autodetect PHY
     if hasattr(pads, "source_stb"):

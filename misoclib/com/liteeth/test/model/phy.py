@@ -1,17 +1,21 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.test.common import *
 
+
 def print_phy(s):
     print_with_prefix(s, "[PHY]")
+
 
 # PHY model
 class PHYSource(PacketStreamer):
     def __init__(self, dw):
         PacketStreamer.__init__(self, eth_phy_description(dw))
 
+
 class PHYSink(PacketLogger):
     def __init__(self, dw):
         PacketLogger.__init__(self, eth_phy_description(dw))
+
 
 class PHY(Module):
     def __init__(self, dw, debug=False):

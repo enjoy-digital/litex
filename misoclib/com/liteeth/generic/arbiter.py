@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.roundrobin import *
 from migen.genlib.record import *
 
+
 class Arbiter(Module):
     def __init__(self, sources, sink):
         if len(sources) == 0:

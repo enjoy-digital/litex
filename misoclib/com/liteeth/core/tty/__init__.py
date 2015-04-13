@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthTTYTX(Module):
     def __init__(self, ip_address, udp_port, fifo_depth=None):
         self.sink = sink = Sink(eth_tty_description(8))
@@ -58,6 +59,7 @@ class LiteEthTTYTX(Module):
                 )
             )
 
+
 class LiteEthTTYRX(Module):
     def __init__(self, ip_address, udp_port, fifo_depth=None):
         self.sink = sink = Sink(eth_udp_user_description(8))
@@ -82,6 +84,7 @@ class LiteEthTTYRX(Module):
                 sink.ack.eq(fifo.sink.ack),
                 Record.connect(fifo.source, source)
             ]
+
 
 class LiteEthTTY(Module):
     def __init__(self, udp, ip_address, udp_port,

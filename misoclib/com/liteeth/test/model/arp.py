@@ -5,10 +5,12 @@ from misoclib.com.liteeth.test.common import *
 
 from misoclib.com.liteeth.test.model import mac
 
+
 def print_arp(s):
     print_with_prefix(s, "[ARP]")
 
 preamble = split_bytes(eth_preamble, 8)
+
 
 # ARP model
 class ARPPacket(Packet):
@@ -38,6 +40,7 @@ class ARPPacket(Packet):
         for d in self:
             r += "{:02x}".format(d)
         return r
+
 
 class ARP(Module):
     def  __init__(self, mac, mac_address, ip_address, debug=False):

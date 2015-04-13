@@ -5,8 +5,10 @@ from misoclib.com.liteeth.test.common import *
 
 from misoclib.com.liteeth.test.model import udp
 
+
 def print_etherbone(s):
     print_with_prefix(s, "[ETHERBONE]")
+
 
 # Etherbone model
 class EtherboneWrite:
@@ -16,12 +18,14 @@ class EtherboneWrite:
     def __repr__(self):
         return "WR32 0x{:08x}".format(self.data)
 
+
 class EtherboneRead:
     def __init__(self, addr):
         self.addr = addr
 
     def __repr__(self):
         return "RD32 @ 0x{:08x}".format(self.addr)
+
 
 class EtherboneWrites(Packet):
     def __init__(self, init=[], base_addr=0, datas=[]):
@@ -74,6 +78,7 @@ class EtherboneWrites(Packet):
             r += write.__repr__() + "\n"
         return r
 
+
 class EtherboneReads(Packet):
     def __init__(self, init=[], base_ret_addr=0, addrs=[]):
         Packet.__init__(self, init)
@@ -124,6 +129,7 @@ class EtherboneReads(Packet):
         for read in self.reads:
             r += read.__repr__() + "\n"
         return r
+
 
 class EtherboneRecord(Packet):
     def __init__(self, init=[]):
@@ -208,6 +214,7 @@ class EtherboneRecord(Packet):
                 r += self.reads.__repr__()
         return r
 
+
 class EtherbonePacket(Packet):
     def __init__(self, init=[]):
         Packet.__init__(self, init)
@@ -274,6 +281,7 @@ class EtherbonePacket(Packet):
             for i, record in enumerate(self.records):
                 r += record.__repr__(i)
         return r
+
 
 class Etherbone(Module):
     def  __init__(self, udp, debug=False):

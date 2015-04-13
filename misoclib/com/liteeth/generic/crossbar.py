@@ -5,6 +5,7 @@ from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.generic.arbiter import Arbiter
 from misoclib.com.liteeth.generic.dispatcher import Dispatcher
 
+
 class LiteEthCrossbar(Module):
     def __init__(self, master_port, dispatch_param):
         self.users = OrderedDict()

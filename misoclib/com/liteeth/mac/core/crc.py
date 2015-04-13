@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthMACCRCEngine(Module):
     """Cyclic Redundancy Check Engine
 
@@ -69,6 +70,7 @@ class LiteEthMACCRCEngine(Module):
                     xors += [self.data[n]]
             self.comb += self.next[i].eq(optree("^", xors))
 
+
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
 class LiteEthMACCRC32(Module):
@@ -111,6 +113,7 @@ class LiteEthMACCRC32(Module):
             self.value.eq(~reg[::-1]),
             self.error.eq(self.engine.next != self.check)
         ]
+
 
 class LiteEthMACCRCInserter(Module):
     """CRC Inserter
@@ -186,9 +189,11 @@ class LiteEthMACCRCInserter(Module):
             )
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
+
 class LiteEthMACCRC32Inserter(LiteEthMACCRCInserter):
     def __init__(self, description):
         LiteEthMACCRCInserter.__init__(self, LiteEthMACCRC32, description)
+
 
 class LiteEthMACCRCChecker(Module):
     """CRC Checker
@@ -271,6 +276,7 @@ class LiteEthMACCRCChecker(Module):
             )
         )
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
+
 
 class LiteEthMACCRC32Checker(LiteEthMACCRCChecker):
     def __init__(self, description):

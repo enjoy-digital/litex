@@ -5,12 +5,15 @@ from misoclib.com.liteeth.test.common import *
 
 from misoclib.com.liteeth.test.model import mac
 
+
 def print_ip(s):
     print_with_prefix(s, "[IP]")
+
 
 def carry_around_add(a, b):
     c = a + b
     return (c & 0xffff) + (c >> 16)
+
 
 def checksum(msg):
     s = 0
@@ -18,6 +21,7 @@ def checksum(msg):
         w = msg[i] + (msg[i+1] << 8)
         s = carry_around_add(s, w)
     return ~s & 0xffff
+
 
 # IP model
 class IPPacket(Packet):
@@ -60,6 +64,7 @@ class IPPacket(Packet):
         for d in self:
             r += "{:02x}".format(d)
         return r
+
 
 class IP(Module):
     def  __init__(self, mac, mac_address, ip_address, debug=False, loopback=False):

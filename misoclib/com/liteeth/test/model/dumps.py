@@ -1,7 +1,9 @@
 import re
 
+
 def format_dump(dump):
     return [int(s, 16) for s in re.split(r'[;,\s\n]\s*', dump) if s is not ""]
+
 
 def verify_packet(packet, infos):
     errors = 0

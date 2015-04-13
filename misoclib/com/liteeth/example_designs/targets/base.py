@@ -13,6 +13,7 @@ from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
 from misoclib.com.liteeth.core import LiteEthUDPIPCore
 
+
 class BaseSoC(SoC, AutoCSR):
     csr_map = {
         "phy":        11,
@@ -41,6 +42,7 @@ class BaseSoC(SoC, AutoCSR):
         # ethernet PHY and UDP/IP stack
         self.submodules.phy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
         self.submodules.core = LiteEthUDPIPCore(self.phy, mac_address, convert_ip(ip_address), clk_freq)
+
 
 class BaseSoCDevel(BaseSoC, AutoCSR):
     csr_map = {

@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
 
+
 class Dispatcher(Module):
     def __init__(self, source, sinks, one_hot=False):
         if len(sinks) == 0:

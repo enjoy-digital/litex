@@ -8,6 +8,7 @@ from misoclib.com.liteeth.generic import *
 from targets.base import BaseSoC
 from misoclib.com.liteeth.core.tty import LiteEthTTY
 
+
 class TTYSoC(BaseSoC):
     default_platform = "kc705"
     def __init__(self, platform):
@@ -16,6 +17,7 @@ class TTYSoC(BaseSoC):
             ip_address="192.168.0.42")
         self.submodules.tty = LiteEthTTY(self.core.udp, convert_ip("192.168.0.14"), 10000)
         self.comb += Record.connect(self.tty.source, self.tty.sink)
+
 
 class TTYSoCDevel(TTYSoC):
     csr_map = {

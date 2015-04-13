@@ -7,6 +7,7 @@ from misoclib.com.liteeth.core.etherbone.probe import *
 from misoclib.com.liteeth.core.etherbone.record import *
 from misoclib.com.liteeth.core.etherbone.wishbone import *
 
+
 class LiteEthEtherbone(Module):
     def __init__(self, udp, udp_port):
         # decode/encode etherbone packets

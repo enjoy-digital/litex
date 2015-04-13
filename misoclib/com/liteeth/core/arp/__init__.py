@@ -10,6 +10,7 @@ _arp_table_layout = [
         ("mac_address", 48)
     ]
 
+
 class LiteEthARPPacketizer(LiteEthPacketizer):
     def __init__(self):
         LiteEthPacketizer.__init__(self,
@@ -17,6 +18,7 @@ class LiteEthARPPacketizer(LiteEthPacketizer):
             eth_mac_description(8),
             arp_header,
             arp_header_len)
+
 
 class LiteEthARPTX(Module):
     def __init__(self, mac_address, ip_address):
@@ -72,6 +74,7 @@ class LiteEthARPTX(Module):
             )
         )
 
+
 class LiteEthARPDepacketizer(LiteEthDepacketizer):
     def __init__(self):
         LiteEthDepacketizer.__init__(self,
@@ -79,6 +82,7 @@ class LiteEthARPDepacketizer(LiteEthDepacketizer):
             eth_arp_description(8),
             arp_header,
             arp_header_len)
+
 
 class LiteEthARPRX(Module):
     def __init__(self, mac_address, ip_address):
@@ -130,6 +134,7 @@ class LiteEthARPRX(Module):
                 NextState("IDLE")
             )
         )
+
 
 class LiteEthARPTable(Module):
     def __init__(self, clk_freq, max_requests=8):
@@ -246,6 +251,7 @@ class LiteEthARPTable(Module):
                 NextState("IDLE")
             )
         )
+
 
 class LiteEthARP(Module):
     def __init__(self, mac, mac_address, ip_address, clk_freq):

@@ -1,9 +1,11 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 def converter_description(dw):
     payload_layout = [("data", dw)]
     return EndpointDescription(payload_layout, packetized=True)
+
 
 class LiteEthPHYMIITX(Module):
     def __init__(self, pads, pads_register=True):
@@ -28,6 +30,7 @@ class LiteEthPHYMIITX(Module):
         else:
             self.comb += pads_eq
 
+
 class LiteEthPHYMIIRX(Module):
     def __init__(self, pads):
         self.source = source = Source(eth_phy_description(8))
@@ -51,6 +54,7 @@ class LiteEthPHYMIIRX(Module):
             converter.sink.eop.eq(~pads.dv)
         ]
         self.comb += Record.connect(converter.source, source)
+
 
 class LiteEthPHYMIICRG(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset):
@@ -80,6 +84,7 @@ class LiteEthPHYMIICRG(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_eth_tx, reset),
             AsyncResetSynchronizer(self.cd_eth_rx, reset),
         ]
+
 
 class LiteEthPHYMII(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset=True):

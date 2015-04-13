@@ -3,6 +3,7 @@ from migen.genlib.io import DDROutput
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthPHYGMIITX(Module):
     def __init__(self, pads, pads_register):
         self.sink = sink = Sink(eth_phy_description(8))
@@ -18,6 +19,7 @@ class LiteEthPHYGMIITX(Module):
         else:
             self.comb += pads_eq
         self.comb += sink.ack.eq(1)
+
 
 class LiteEthPHYGMIIRX(Module):
     def __init__(self, pads):
@@ -38,6 +40,7 @@ class LiteEthPHYGMIIRX(Module):
             source.data.eq(pads.rx_data)
         ]
         self.comb += source.eop.eq(eop)
+
 
 class LiteEthPHYGMIICRG(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset, mii_mode=0):
@@ -75,6 +78,7 @@ class LiteEthPHYGMIICRG(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_eth_tx, reset),
             AsyncResetSynchronizer(self.cd_eth_rx, reset),
         ]
+
 
 class LiteEthPHYGMII(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset=True):

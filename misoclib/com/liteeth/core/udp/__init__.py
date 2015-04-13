@@ -4,6 +4,7 @@ from misoclib.com.liteeth.core.udp.crossbar import *
 from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
 from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
+
 class LiteEthUDPPacketizer(LiteEthPacketizer):
     def __init__(self):
         LiteEthPacketizer.__init__(self,
@@ -11,6 +12,7 @@ class LiteEthUDPPacketizer(LiteEthPacketizer):
             eth_ipv4_user_description(8),
             udp_header,
             udp_header_len)
+
 
 class LiteEthUDPTX(Module):
     def __init__(self, ip_address):
@@ -48,6 +50,7 @@ class LiteEthUDPTX(Module):
             )
         )
 
+
 class LiteEthUDPDepacketizer(LiteEthDepacketizer):
     def __init__(self):
         LiteEthDepacketizer.__init__(self,
@@ -55,6 +58,7 @@ class LiteEthUDPDepacketizer(LiteEthDepacketizer):
             eth_udp_description(8),
             udp_header,
             udp_header_len)
+
 
 class LiteEthUDPRX(Module):
     def __init__(self, ip_address):
@@ -108,6 +112,7 @@ class LiteEthUDPRX(Module):
                 NextState("IDLE")
             )
         )
+
 
 class LiteEthUDP(Module):
     def __init__(self, ip, ip_address):

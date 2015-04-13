@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 def _encode_header(h_dict, h_signal, obj):
     r = []
     for k, v in sorted(h_dict.items()):
@@ -8,6 +9,7 @@ def _encode_header(h_dict, h_signal, obj):
         end = start+v.width
         r.append(h_signal[start:end].eq(reverse_bytes(getattr(obj, k))))
     return r
+
 
 class LiteEthPacketizer(Module):
     def __init__(self, sink_description, source_description, header_type, header_length):

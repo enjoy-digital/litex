@@ -8,6 +8,7 @@ from misoclib.com.liteeth.generic import *
 from targets.base import BaseSoC
 from misoclib.com.liteeth.core.etherbone import LiteEthEtherbone
 
+
 class EtherboneSoC(BaseSoC):
     default_platform = "kc705"
     def __init__(self, platform):
@@ -16,6 +17,7 @@ class EtherboneSoC(BaseSoC):
             ip_address="192.168.0.42")
         self.submodules.etherbone = LiteEthEtherbone(self.core.udp, 20000)
         self.add_wb_master(self.etherbone.master.bus)
+
 
 class EtherboneSoCDevel(EtherboneSoC):
     csr_map = {

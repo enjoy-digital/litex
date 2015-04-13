@@ -5,6 +5,7 @@ SRAM_BASE = 0x02000000
 
 import socket
 
+
 def main(wb):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 

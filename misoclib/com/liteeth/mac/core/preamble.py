@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthMACPreambleInserter(Module):
     def __init__(self, dw):
         self.sink = Sink(eth_phy_description(dw))
@@ -49,6 +50,7 @@ class LiteEthMACPreambleInserter(Module):
                 NextState("IDLE"),
             )
         )
+
 
 class LiteEthMACPreambleChecker(Module):
     def __init__(self, dw):

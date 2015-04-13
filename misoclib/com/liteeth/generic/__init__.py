@@ -1,6 +1,7 @@
 from migen.fhdl.decorators import ModuleTransformer
 from misoclib.com.liteeth.common import *
 
+
 # Generic classes
 class Port:
     def connect(self, port):
@@ -9,6 +10,7 @@ class Port:
             Record.connect(port.source, self.sink)
         ]
         return r
+
 
 # Generic modules
 class BufferizeEndpoints(ModuleTransformer):
@@ -40,6 +42,7 @@ class BufferizeEndpoints(ModuleTransformer):
             submodule.comb += Record.connect(source, buf.d)
             setattr(self, name, buf.q)
 
+
 class EndpointPacketStatus(Module):
     def __init__(self, endpoint):
         self.start = Signal()
@@ -58,6 +61,7 @@ class EndpointPacketStatus(Module):
                 ongoing.eq(0)
             )
         self.comb += self.ongoing.eq((self.start | ongoing) & ~self.done)
+
 
 class PacketBuffer(Module):
     def __init__(self, description, data_depth, cmd_depth=4, almost_full=None):

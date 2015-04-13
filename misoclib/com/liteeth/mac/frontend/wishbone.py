@@ -5,6 +5,7 @@ from misoclib.com.liteeth.mac.frontend import sram
 from migen.bus import wishbone
 from migen.fhdl.simplify import FullMemoryWE
 
+
 class LiteEthMACWishboneInterface(Module, AutoCSR):
     def __init__(self, dw, nrxslots=2, ntxslots=2):
         self.sink = Sink(eth_phy_description(dw))

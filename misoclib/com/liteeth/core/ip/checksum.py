@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthIPV4Checksum(Module):
     def __init__(self, words_per_clock_cycle=1, skip_checksum=False):
         self.reset = Signal() # XXX FIXME InsertReset generates incorrect verilog

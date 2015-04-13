@@ -4,6 +4,7 @@ from misoclib.com.liteeth.generic import *
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 
+
 class LiteEthMACSRAMWriter(Module, AutoCSR):
     def __init__(self, dw, depth, nslots=2):
         self.sink = sink = Sink(eth_phy_description(dw))
@@ -224,6 +225,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
             self.comb += ports[n].adr.eq(counter.value[2:])
             cases[n] = [source.data.eq(port.dat_r)]
         self.comb += Case(rd_slot, cases)
+
 
 class LiteEthMACSRAM(Module, AutoCSR):
     def __init__(self, dw, depth, nrxslots, ntxslots):

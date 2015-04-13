@@ -1,6 +1,7 @@
 import socket
 import threading
 
+
 def test(fpga_ip, udp_port, test_message):
     tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     rx_sock  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -30,6 +31,7 @@ def test(fpga_ip, udp_port, test_message):
         send_thread.join(5)
     except KeyboardInterrupt:
         pass
+
 
 def main(wb):
     test_message = "LiteEth virtual TTY Hello world\n"

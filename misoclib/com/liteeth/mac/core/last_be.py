@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthMACTXLastBE(Module):
     def __init__(self, dw):
         self.sink = sink = Sink(eth_phy_description(dw))
@@ -22,6 +23,7 @@ class LiteEthMACTXLastBE(Module):
             source.data.eq(sink.data),
             sink.ack.eq(source.ack)
         ]
+
 
 class LiteEthMACRXLastBE(Module):
     def __init__(self, dw):

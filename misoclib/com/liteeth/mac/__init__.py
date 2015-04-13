@@ -4,6 +4,7 @@ from misoclib.com.liteeth.mac.common import *
 from misoclib.com.liteeth.mac.core import LiteEthMACCore
 from misoclib.com.liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterface
 
+
 class LiteEthMAC(Module, AutoCSR):
     def __init__(self, phy, dw, interface="crossbar", endianness="big",
             with_hw_preamble_crc=True):

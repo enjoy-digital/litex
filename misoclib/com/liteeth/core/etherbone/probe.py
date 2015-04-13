@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
+
 class LiteEthEtherboneProbe(Module):
     def __init__(self):
         self.sink = sink = Sink(eth_etherbone_packet_user_description(32))

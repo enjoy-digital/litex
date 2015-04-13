@@ -12,6 +12,7 @@ from misoclib.com.liteeth.test.model import phy, mac, arp, ip, udp
 ip_address = 0x12345678
 mac_address = 0x12345678abcd
 
+
 class TB(Module):
     def __init__(self, dw=8):
         self.dw = dw

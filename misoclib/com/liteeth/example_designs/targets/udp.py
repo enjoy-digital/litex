@@ -7,6 +7,7 @@ from misoclib.com.liteeth.generic import *
 
 from targets.base import BaseSoC
 
+
 class UDPSoC(BaseSoC):
     default_platform = "kc705"
     def __init__(self, platform):
@@ -27,6 +28,7 @@ class UDPSoC(BaseSoC):
         else:
             setattr(self.submodules, name, buf)
         self.comb += Port.connect(port, buf)
+
 
 class UDPSoCDevel(UDPSoC):
     csr_map = {

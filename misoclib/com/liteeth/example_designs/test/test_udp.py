@@ -7,11 +7,13 @@ KB = 1024
 MB = 1024*KB
 GB = 1024*MB
 
+
 def seed_to_data(seed, random=True):
     if random:
         return (seed * 0x31415979 + 1) & 0xffffffff
     else:
         return seed
+
 
 def check(p1, p2):
     p1 = copy.deepcopy(p1)
@@ -34,12 +36,14 @@ def check(p1, p2):
                 errors += 1
         return shift, length, errors
 
+
 def generate_packet(seed, length):
     r = []
     for i in range(length):
         r.append(seed_to_data(seed, True)%0xff) # XXX FIXME
         seed += 1
     return r, seed
+
 
 def test(fpga_ip, udp_port, test_size):
     tx_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -75,6 +79,7 @@ def test(fpga_ip, udp_port, test_size):
         receive_thread.join(0.1)
     except KeyboardInterrupt:
         pass
+
 
 def main(wb):
     test("192.168.0.42", 6000, 128*KB)

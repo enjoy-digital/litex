@@ -2,6 +2,7 @@ from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 from migen.bus import wishbone
 
+
 class LiteEthEtherboneWishboneMaster(Module):
     def __init__(self):
         self.sink = sink = Sink(eth_etherbone_mmap_description(32))

@@ -18,6 +18,7 @@ eth_interpacket_gap = 12
 eth_preamble = 0xD555555555555555
 buffer_depth = 2**log2_int(eth_mtu, need_pow2=False)
 
+
 class HField():
     def __init__(self, byte, offset, width):
         self.byte = byte
@@ -115,6 +116,7 @@ etherbone_record_header = {
     "rcount":           HField( 3,  0, 8)
 }
 
+
 def reverse_bytes(v):
     n = math.ceil(flen(v)/8)
     r = []
@@ -122,12 +124,14 @@ def reverse_bytes(v):
         r.append(v[i*8:min((i+1)*8, flen(v))])
     return Cat(iter(r))
 
+
 # layouts
 def _layout_from_header(header):
     _layout = []
     for k, v in sorted(header.items()):
         _layout.append((k, v.width))
     return _layout
+
 
 def _remove_from_layout(layout, *args):
     r = []
@@ -140,6 +144,7 @@ def _remove_from_layout(layout, *args):
             r.append(f)
     return r
 
+
 def eth_phy_description(dw):
     payload_layout = [
         ("data", dw),
@@ -148,6 +153,7 @@ def eth_phy_description(dw):
     ]
     return EndpointDescription(payload_layout, packetized=True)
 
+
 def eth_mac_description(dw):
     payload_layout = _layout_from_header(mac_header) + [
         ("data", dw),
@@ -155,6 +161,7 @@ def eth_mac_description(dw):
         ("error", dw//8)
     ]
     return EndpointDescription(payload_layout, packetized=True)
+
 
 def eth_arp_description(dw):
     param_layout = _layout_from_header(arp_header)
@@ -173,6 +180,7 @@ arp_table_response_layout = [
     ("mac_address", 48)
 ]
 
+
 def eth_ipv4_description(dw):
     param_layout = _layout_from_header(ipv4_header)
     payload_layout = [
@@ -180,6 +188,7 @@ def eth_ipv4_description(dw):
         ("error", dw//8)
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
+
 
 def eth_ipv4_user_description(dw):
     param_layout = [
@@ -193,12 +202,14 @@ def eth_ipv4_user_description(dw):
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
 
+
 def convert_ip(s):
     ip = 0
     for e in s.split("."):
         ip = ip << 8
         ip += int(e)
     return ip
+
 
 def eth_icmp_description(dw):
     param_layout = _layout_from_header(icmp_header)
@@ -207,6 +218,7 @@ def eth_icmp_description(dw):
         ("error", dw//8)
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
+
 
 def eth_icmp_user_description(dw):
     param_layout = _layout_from_header(icmp_header) + [
@@ -219,6 +231,7 @@ def eth_icmp_user_description(dw):
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
 
+
 def eth_udp_description(dw):
     param_layout = _layout_from_header(udp_header)
     payload_layout = [
@@ -226,6 +239,7 @@ def eth_udp_description(dw):
         ("error", dw//8)
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
+
 
 def eth_udp_user_description(dw):
     param_layout = [
@@ -240,6 +254,7 @@ def eth_udp_user_description(dw):
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
 
+
 def eth_etherbone_packet_description(dw):
     param_layout = _layout_from_header(etherbone_packet_header)
     payload_layout = [
@@ -247,6 +262,7 @@ def eth_etherbone_packet_description(dw):
         ("error", dw//8)
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
+
 
 def eth_etherbone_packet_user_description(dw):
     param_layout = _layout_from_header(etherbone_packet_header)
@@ -258,6 +274,7 @@ def eth_etherbone_packet_user_description(dw):
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
 
+
 def eth_etherbone_record_description(dw):
     param_layout = _layout_from_header(etherbone_record_header)
     payload_layout = [
@@ -265,6 +282,7 @@ def eth_etherbone_record_description(dw):
         ("error", dw//8)
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
+
 
 def eth_etherbone_mmap_description(dw):
     param_layout = [
@@ -278,6 +296,7 @@ def eth_etherbone_mmap_description(dw):
         ("data", dw)
     ]
     return EndpointDescription(payload_layout, param_layout, packetized=True)
+
 
 def eth_tty_description(dw):
     payload_layout = [("data", dw)]

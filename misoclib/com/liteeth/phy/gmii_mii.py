@@ -17,6 +17,7 @@ modes = {
 tx_pads_layout = [("tx_er", 1), ("tx_en", 1), ("tx_data", 8)]
 rx_pads_layout = [("rx_er", 1), ("dv", 1), ("rx_data", 8)]
 
+
 class LiteEthPHYGMIIMIITX(Module):
     def __init__(self, pads, mode):
         self.sink = sink = Sink(eth_phy_description(8))
@@ -50,6 +51,7 @@ class LiteEthPHYGMIIMIITX(Module):
             )
         ]
 
+
 class LiteEthPHYGMIIMIIRX(Module):
     def __init__(self, pads, mode):
         self.source = source = Source(eth_phy_description(8))
@@ -75,6 +77,7 @@ class LiteEthPHYGMIIMIIRX(Module):
             Record.connect(mux.source, source)
         ]
 
+
 class LiteEthGMIIMIIClockCounter(Module, AutoCSR):
     def __init__(self):
         self._reset = CSRStorage()
@@ -87,6 +90,7 @@ class LiteEthGMIIMIIClockCounter(Module, AutoCSR):
             counter.ce.eq(1),
         ]
         self.specials += MultiReg(counter.value, self._value.status)
+
 
 class LiteEthPHYGMIIMII(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset=True):
