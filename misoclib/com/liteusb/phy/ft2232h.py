@@ -16,14 +16,14 @@ class FT2232HPHY(Module):
 
         # Read Fifo (Ftdi --> SoC)
         read_fifo = RenameClockDomains(AsyncFIFO(phy_layout, fifo_depth),
-            {"write":"ftdi", "read":"sys"})
+            {"write": "ftdi", "read": "sys"})
         read_buffer = RenameClockDomains(SyncFIFO(phy_layout, 4),
-            {"sys":"ftdi"})
+            {"sys": "ftdi"})
         self.comb += read_buffer.source.connect(read_fifo.sink)
 
         # Write Fifo (SoC --> Ftdi)
         write_fifo = RenameClockDomains(AsyncFIFO(phy_layout, fifo_depth),
-            {"write":"sys", "read":"ftdi"})
+            {"write": "sys", "read": "ftdi"})
 
         self.submodules += read_fifo, read_buffer, write_fifo
 
