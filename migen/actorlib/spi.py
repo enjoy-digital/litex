@@ -170,7 +170,7 @@ class DMAWriteController(_DMAController):
 
         if ack_when_inactive:
             demultiplexer = plumbing.Demultiplexer([("d", bus_dw)], 2)
-            self.comb +=[
+            self.comb += [
                 demultiplexer.sel.eq(~adr_buffer.busy),
                 demultiplexer.source0.connect(comp_actor.d),
                 demultiplexer.source1.ack.eq(1),

@@ -23,7 +23,7 @@ def _format_constraint(c):
     elif isinstance(c, Misc):
         return "set_property " + c.misc.replace("=", " ")
     else:
-        raise ValueError("unknown constraint %s" % c)
+        raise ValueError("unknown constraint {}".format(c))
 
 
 def _format_xdc(signame, resname, *constraints):
@@ -31,7 +31,7 @@ def _format_xdc(signame, resname, *constraints):
     fmt_r = resname[0] + ":" + str(resname[1])
     if resname[2] is not None:
         fmt_r += "." + resname[2]
-    r = " ## %s\n" %fmt_r
+    r = " ## {}\n".format(fmt_r)
     for c in fmt_c:
         r += c + " [get_ports " + signame + "]\n"
     return r
@@ -84,27 +84,27 @@ class XilinxVivadoToolchain:
         for filename, language in sources:
             tcl.append("add_files " + filename.replace("\\", "/"))
 
-        tcl.append("read_xdc %s.xdc" %build_name)
+        tcl.append("read_xdc {}.xdc".format(build_name))
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
-        tcl.append("synth_design -top top -part %s -include_dirs {%s}" %(platform.device, " ".join(platform.verilog_include_paths)))
-        tcl.append("report_utilization -hierarchical -file %s_utilization_hierarchical_synth.rpt" %(build_name))
-        tcl.append("report_utilization -file %s_utilization_synth.rpt" %(build_name))
+        tcl.append("synth_design -top top -part {} -include_dirs {{{}}}".format(platform.device, " ".join(platform.verilog_include_paths)))
+        tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_synth.rpt".format(build_name))
+        tcl.append("report_utilization -file {}_utilization_synth.rpt".format(build_name))
         tcl.append("place_design")
         if self.with_phys_opt:
             tcl.append("phys_opt_design -directive AddRetime")
-        tcl.append("report_utilization -hierarchical -file %s_utilization_hierarchical_place.rpt" %(build_name))
-        tcl.append("report_utilization -file %s_utilization_place.rpt" %(build_name))
-        tcl.append("report_io -file %s_io.rpt" %(build_name))
-        tcl.append("report_control_sets -verbose -file %s_control_sets.rpt" %(build_name))
-        tcl.append("report_clock_utilization -file %s_clock_utilization.rpt" %(build_name))
+        tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_place.rpt".format(build_name))
+        tcl.append("report_utilization -file {}_utilization_place.rpt".format(build_name))
+        tcl.append("report_io -file {}_io.rpt".format(build_name))
+        tcl.append("report_control_sets -verbose -file {}_control_sets.rpt".format(build_name))
+        tcl.append("report_clock_utilization -file {}_clock_utilization.rpt".format(build_name))
         tcl.append("route_design")
-        tcl.append("report_route_status -file %s_route_status.rpt" %(build_name))
-        tcl.append("report_drc -file %s_drc.rpt" %(build_name))
-        tcl.append("report_timing_summary -max_paths 10 -file %s_timing.rpt" %(build_name))
-        tcl.append("report_power -file %s_power.rpt" %(build_name))
+        tcl.append("report_route_status -file {}_route_status.rpt".format(build_name))
+        tcl.append("report_drc -file {}_drc.rpt".format(build_name))
+        tcl.append("report_timing_summary -max_paths 10 -file {}_timing.rpt".format(build_name))
+        tcl.append("report_power -file {}_power.rpt".format(build_name))
         for bitstream_command in self.bitstream_commands:
             tcl.append(bitstream_command.format(build_name=build_name))
-        tcl.append("write_bitstream -force %s.bit " %build_name)
+        tcl.append("write_bitstream -force {}.bit ".format(build_name))
         for additional_command in self.additional_commands:
             tcl.append(additional_command.format(build_name=build_name))
         tcl.append("quit")

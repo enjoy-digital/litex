@@ -45,7 +45,7 @@ def _build_lpf(named_sc, named_pc):
 
 def _build_files(device, sources, vincpaths, build_name):
     tcl = []
-    tcl.append("prj_project new -name \"%s\" -impl \"implementation\" -dev %s -synthesis \"synplify\"" %(build_name, device))
+    tcl.append("prj_project new -name \"{}\" -impl \"implementation\" -dev {} -synthesis \"synplify\"".format(build_name, device))
     for path in vincpaths:
         tcl.append("prj_impl option {include path} {\"" + path.replace("\\", "/") + "\"}")
     for filename, language in sources:
