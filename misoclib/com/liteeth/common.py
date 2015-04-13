@@ -42,45 +42,45 @@ arp_opcode_reply = 0x0002
 
 arp_header_len = 28
 arp_header = {
-    "hwtype":           HField( 0,  0, 16),
-    "proto":            HField( 2,  0, 16),
-    "hwsize":           HField( 4,  0, 8),
-    "protosize":        HField( 5,  0, 8),
-    "opcode":           HField( 6,  0, 16),
-    "sender_mac":       HField( 8,  0, 48),
-    "sender_ip":        HField(14,  0, 32),
-    "target_mac":       HField(18,  0, 48),
-    "target_ip":        HField(24,  0, 32)
+    "hwtype":           HField(0,  0, 16),
+    "proto":            HField(2,  0, 16),
+    "hwsize":           HField(4,  0,  8),
+    "protosize":        HField(5,  0,  8),
+    "opcode":           HField(6,  0, 16),
+    "sender_mac":       HField(8,  0, 48),
+    "sender_ip":        HField(14, 0, 32),
+    "target_mac":       HField(18, 0, 48),
+    "target_ip":        HField(24, 0, 32)
 }
 
 ipv4_header_len = 20
 ipv4_header = {
-    "ihl":              HField(0,  0, 4),
-    "version":          HField(0,  4, 4),
+    "ihl":              HField(0,  0,  4),
+    "version":          HField(0,  4,  4),
     "total_length":     HField(2,  0, 16),
     "identification":   HField(4,  0, 16),
-    "ttl":              HField(8,  0, 8),
-    "protocol":         HField(9,  0, 8),
-    "checksum":         HField(10,  0, 16),
-    "sender_ip":        HField(12,  0, 32),
-    "target_ip":        HField(16,  0, 32)
+    "ttl":              HField(8,  0,  8),
+    "protocol":         HField(9,  0,  8),
+    "checksum":         HField(10, 0, 16),
+    "sender_ip":        HField(12, 0, 32),
+    "target_ip":        HField(16, 0, 32)
 }
 
 icmp_header_len = 8
 icmp_header = {
-    "msgtype":          HField( 0,  0, 8),
-    "code":             HField( 1,  0, 8),
-    "checksum":         HField( 2,  0, 16),
-    "quench":           HField( 4,  0, 32)
+    "msgtype":          HField(0,  0,  8),
+    "code":             HField(1,  0,  8),
+    "checksum":         HField(2,  0, 16),
+    "quench":           HField(4,  0, 32)
 }
 icmp_protocol = 0x01
 
 udp_header_len = 8
 udp_header = {
-    "src_port":         HField( 0,  0, 16),
-    "dst_port":         HField( 2,  0, 16),
-    "length":           HField( 4,  0, 16),
-    "checksum":         HField( 6,  0, 16)
+    "src_port":         HField(0,  0, 16),
+    "dst_port":         HField(2,  0, 16),
+    "length":           HField(4,  0, 16),
+    "checksum":         HField(6,  0, 16)
 }
 
 udp_protocol = 0x11
@@ -89,31 +89,31 @@ etherbone_magic = 0x4e6f
 etherbone_version = 1
 etherbone_packet_header_len = 8
 etherbone_packet_header = {
-    "magic":            HField( 0,  0, 16),
+    "magic":            HField(0,  0, 16),
 
-    "version":          HField( 2,  4, 4),
-    "nr":               HField( 2,  2, 1),
-    "pr":               HField( 2,  1, 1),
-    "pf":               HField( 2,  0, 1),
+    "version":          HField(2,  4, 4),
+    "nr":               HField(2,  2, 1),
+    "pr":               HField(2,  1, 1),
+    "pf":               HField(2,  0, 1),
 
-    "addr_size":        HField( 3,  4, 4),
-    "port_size":        HField( 3,  0, 4)
+    "addr_size":        HField(3,  4, 4),
+    "port_size":        HField(3,  0, 4)
 }
 
 etherbone_record_header_len = 4
 etherbone_record_header = {
-    "bca":              HField( 0,  0, 1),
-    "rca":              HField( 0,  1, 1),
-    "rff":              HField( 0,  2, 1),
-    "cyc":              HField( 0,  4, 1),
-    "wca":              HField( 0,  5, 1),
-    "wff":              HField( 0,  6, 1),
+    "bca":              HField(0,  0, 1),
+    "rca":              HField(0,  1, 1),
+    "rff":              HField(0,  2, 1),
+    "cyc":              HField(0,  4, 1),
+    "wca":              HField(0,  5, 1),
+    "wff":              HField(0,  6, 1),
 
-    "byte_enable":      HField( 1,  0, 8),
+    "byte_enable":      HField(1,  0, 8),
 
-    "wcount":           HField( 2,  0, 8),
+    "wcount":           HField(2,  0, 8),
 
-    "rcount":           HField( 3,  0, 8)
+    "rcount":           HField(3,  0, 8)
 }
 
 
