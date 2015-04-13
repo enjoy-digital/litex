@@ -103,6 +103,7 @@ class CRC32(Module):
     polynom = 0x04C11DB7
     init = 2**width-1
     check = 0xC704DD7B
+
     def __init__(self, dat_width):
         self.d = Signal(dat_width)
         self.value = Signal(self.width)

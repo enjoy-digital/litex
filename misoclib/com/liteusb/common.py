@@ -1,3 +1,5 @@
+import random
+
 from migen.fhdl.std import *
 from migen.genlib.fsm import *
 from migen.actorlib.fifo import *
@@ -38,12 +40,10 @@ class LiteUSBTimeout(Module):
             )
         self.comb += self.done.eq(cnt == cnt_max)
 
+
 #
 # TB
 #
-import random
-
-
 def randn(max_n):
     return random.randint(0, max_n-1)
 

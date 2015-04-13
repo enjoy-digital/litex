@@ -24,7 +24,7 @@ class LiteUSBUART(Module, AutoCSR):
 
         # TX
         tx_start = self._rxtx.re
-        tx_done  = self.ev.tx.trigger
+        tx_done = self.ev.tx.trigger
 
         self.sync += \
             If(tx_start,

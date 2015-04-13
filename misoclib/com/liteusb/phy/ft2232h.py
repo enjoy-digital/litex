@@ -68,7 +68,7 @@ class FT2232HPHY(Module):
         read_time_en, max_read_time = anti_starvation(read_time)
         write_time_en, max_write_time = anti_starvation(write_time)
 
-        data_w_accepted  = Signal(reset=1)
+        data_w_accepted = Signal(reset=1)
 
         fsm = FSM()
         self.submodules += RenameClockDomains(fsm, {"sys": "ftdi"})
@@ -97,8 +97,8 @@ class FT2232HPHY(Module):
         # Read / Write Actions
         #
 
-        data_w  = Signal(dw)
-        data_r  = Signal(dw)
+        data_w = Signal(dw)
+        data_r = Signal(dw)
         data_oe = Signal()
 
         if hasattr(pads, "oe_n"):
@@ -256,7 +256,7 @@ class UserModel(Module, RandRun):
 
 LENGTH = 512
 model_rd_data = [i%256 for i in range(LENGTH)][::-1]
-user_wr_data  = [i%256 for i in range(LENGTH)]
+user_wr_data = [i%256 for i in range(LENGTH)]
 
 
 class TB(Module):
