@@ -284,7 +284,7 @@ def print_results(s, l1, l2):
         try:
             for i, val in enumerate(l1):
                 if val != l2[i]:
-                    print(s + " : val : %02X, exp : %02X" %(val, l2[i]))
+                    print(s + " : val : {:02X}, exp : {:02X}".format(val, l2[i]))
                     r = False
         except:
             return r

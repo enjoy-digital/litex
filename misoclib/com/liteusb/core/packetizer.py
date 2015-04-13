@@ -138,7 +138,7 @@ class TB(Module):
         self.submodules.dut = LiteUSBPacketizer()
         self.submodules.sink = PacketizerSinkModel()
 
-        self.comb +=[
+        self.comb += [
             self.source.connect(self.dut.sink),
             self.dut.source.connect(self.sink),
         ]

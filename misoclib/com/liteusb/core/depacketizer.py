@@ -114,7 +114,7 @@ class DepacketizerSourceModel(Module, Source, RandRun):
             self._stb = 1
 
         if selfp.stb and selfp.ack:
-            self._cnt +=1
+            self._cnt += 1
 
         selfp.stb = self._stb
         selfp.d = self.data[self._cnt]
