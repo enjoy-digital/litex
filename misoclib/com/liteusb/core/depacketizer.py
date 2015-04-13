@@ -92,7 +92,7 @@ class LiteUSBDepacketizer(Module):
 #
 # TB
 #
-src_data =    [
+src_data = [
     0x5A, 0xA5, 0x5A, 0xA5, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01, 0x02, 0x03,
     0x5A, 0xA5, 0x5A, 0xA5, 0x12, 0x00, 0x00, 0x00, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 ]*4
@@ -116,10 +116,10 @@ class DepacketizerSourceModel(Module, Source, RandRun):
         if selfp.stb and selfp.ack:
             self._cnt +=1
 
-        selfp.stb =  self._stb
-        selfp.d =  self.data[self._cnt]
+        selfp.stb = self._stb
+        selfp.d = self.data[self._cnt]
 
-        if self._cnt  == len(self.data)-1:
+        if self._cnt == len(self.data)-1:
             raise StopSimulation
 
 

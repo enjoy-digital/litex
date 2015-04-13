@@ -207,7 +207,7 @@ class FT2232HModel(Module, RandRun):
     def do_simulation(self, selfp):
         RandRun.do_simulation(self, selfp)
         if self.init:
-            selfp.rxf_n =  0
+            selfp.rxf_n = 0
             self.wr_data = []
             self.init = False
         self.wr_sim(selfp)
