@@ -3,6 +3,7 @@ from misoclib.mem.litesata.frontend.common import *
 
 from migen.genlib.roundrobin import *
 
+
 class LiteSATAArbiter(Module):
     def __init__(self, users, master):
         self.rr = RoundRobin(len(users))

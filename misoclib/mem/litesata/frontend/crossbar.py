@@ -2,6 +2,7 @@ from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.frontend.common import *
 from misoclib.mem.litesata.frontend.arbiter import LiteSATAArbiter
 
+
 class LiteSATACrossbar(Module):
     def __init__(self, core):
         self.users = []

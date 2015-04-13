@@ -1,5 +1,6 @@
 from misoclib.mem.litesata.common import *
 
+
 @DecorateModule(InsertCE)
 class Scrambler(Module):
     """SATA Scrambler
@@ -63,6 +64,7 @@ class Scrambler(Module):
             self.comb += next_value[n].eq(optree("^", eq))
 
         self.comb += self.value.eq(next_value)
+
 
 @DecorateModule(InsertReset)
 class LiteSATAScrambler(Module):

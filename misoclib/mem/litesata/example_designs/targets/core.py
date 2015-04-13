@@ -6,6 +6,7 @@ from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.phy import LiteSATAPHY
 from misoclib.mem.litesata import LiteSATA
 
+
 class LiteSATACore(Module):
     default_platform = "verilog_backend"
     def __init__(self, platform, clk_freq=166*1000000, nports=4):
@@ -60,6 +61,5 @@ class LiteSATACore(Module):
                     obj = getattr(endpoint, e[0])
                     ios = ios.union({obj})
         return ios
-
 
 default_subtarget = LiteSATACore

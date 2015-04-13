@@ -3,12 +3,14 @@ from misoclib.mem.litesata.phy.datapath import LiteSATAPHYDatapath
 
 from misoclib.mem.litesata.test.common import *
 
+
 class DataPacket(list):
     def __init__(self, data=[]):
         self.ongoing = False
         self.done = False
         for d in data:
             self.append(d)
+
 
 class DataStreamer(PacketStreamer):
     def __init__(self):
@@ -26,9 +28,11 @@ class DataStreamer(PacketStreamer):
             except:
                 pass
 
+
 class DataLogger(PacketLogger):
     def __init__(self):
         PacketLogger.__init__(self, phy_description(32), DataPacket)
+
 
 class TRX(Module):
     def __init__(self):
@@ -36,11 +40,13 @@ class TRX(Module):
         self.source = Source(phy_description(32))
         self.comb += Record.connect(self.sink, self.source)
 
+
 class CTRL(Module):
     def __init__(self):
         self.sink = Sink(phy_description(32))
         self.source = Source(phy_description(32))
         self.ready = Signal(reset=1)
+
 
 class TB(Module):
     def __init__(self):

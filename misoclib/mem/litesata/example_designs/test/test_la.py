@@ -3,6 +3,7 @@ from tools import *
 from test_bist import *
 from litescope.host.driver.la import LiteScopeLADriver
 
+
 def main(wb):
     la = LiteScopeLADriver(wb.regs, "la")
     identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")

@@ -1,5 +1,6 @@
 from misoclib.mem.litesata.common import *
 
+
 def _get_item(obj, name, width):
     if "_lsb" in name:
         item = getattr(obj, name.replace("_lsb", ""))[:width]
@@ -8,6 +9,7 @@ def _get_item(obj, name, width):
     else:
         item = getattr(obj, name)
     return item
+
 
 def _encode_cmd(obj, description, signal):
     r = []
@@ -18,8 +20,10 @@ def _encode_cmd(obj, description, signal):
         r.append(signal[start:end].eq(item))
     return r
 
+
 def test_type(name, signal):
     return signal == fis_types[name]
+
 
 class LiteSATATransportTX(Module):
     def __init__(self, link):
@@ -114,6 +118,7 @@ class LiteSATATransportTX(Module):
             )
         ]
 
+
 def _decode_cmd(signal, description, obj):
     r = []
     for k, v in sorted(description.items()):
@@ -122,6 +127,7 @@ def _decode_cmd(signal, description, obj):
         item = _get_item(obj, k, v.width)
         r.append(item.eq(signal[start:end]))
     return r
+
 
 class LiteSATATransportRX(Module):
     def __init__(self, link):
@@ -249,6 +255,7 @@ class LiteSATATransportRX(Module):
                 Case(counter.value, cmd_cases),
             )
         self.comb += cmd_done.eq((counter.value == cmd_len) & link.source.ack)
+
 
 class LiteSATATransport(Module):
     def __init__(self, link):

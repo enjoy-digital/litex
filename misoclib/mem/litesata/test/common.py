@@ -4,11 +4,13 @@ from migen.sim.generic import run_simulation
 
 from misoclib.mem.litesata.common import *
 
+
 def seed_to_data(seed, random=True):
     if random:
         return (seed * 0x31415979 + 1) & 0xffffffff
     else:
         return seed
+
 
 def check(p1, p2):
     p1 = copy.deepcopy(p1)
@@ -31,8 +33,10 @@ def check(p1, p2):
                 errors += 1
         return shift, length, errors
 
+
 def randn(max_n):
     return random.randint(0, max_n-1)
+
 
 class PacketStreamer(Module):
     def __init__(self, description, packet_class):
@@ -80,6 +84,7 @@ class PacketStreamer(Module):
                 self.packet.done = 1
                 selfp.source.stb = 0
 
+
 class PacketLogger(Module):
     def __init__(self, description, packet_class):
         self.sink = Sink(description)
@@ -109,6 +114,7 @@ class PacketLogger(Module):
         if self.sink.description.packetized:
             if selfp.sink.stb == 1 and selfp.sink.eop == 1:
                 self.packet.done = True
+
 
 class Randomizer(Module):
     def __init__(self, description, level=0):

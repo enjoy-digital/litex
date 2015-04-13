@@ -12,6 +12,7 @@ _sata_io = [
     )
 ]
 
+
 class Platform(kc705.Platform):
     def __init__(self, *args, **kwargs):
         kc705.Platform.__init__(self, *args, **kwargs)

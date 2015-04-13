@@ -17,11 +17,13 @@ primitives = {
     "HOLDA"    :     0X9595AA7C
 }
 
+
 def decode_primitive(dword):
     for k, v in primitives.items():
         if dword == v:
             return k
     return ""
+
 
 def link_trace(mila, tx_data_name, rx_data_name):
     r = ""

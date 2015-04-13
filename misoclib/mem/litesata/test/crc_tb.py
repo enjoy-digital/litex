@@ -5,6 +5,7 @@ from misoclib.mem.litesata.core.link.crc import *
 
 from misoclib.mem.litesata.test.common import *
 
+
 class TB(Module):
     def __init__(self, length, random):
         self.submodules.crc = LiteSATACRC()

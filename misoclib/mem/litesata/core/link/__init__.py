@@ -9,6 +9,7 @@ from_rx = [
     ("det", 32)
 ]
 
+
 class LiteSATALinkTX(Module):
     def __init__(self, phy):
         self.sink = Sink(link_description(32))
@@ -108,6 +109,7 @@ class LiteSATALinkTX(Module):
                 NextState("IDLE")
             )
         )
+
 
 class LiteSATALinkRX(Module):
     def __init__(self, phy):
@@ -238,6 +240,7 @@ class LiteSATALinkRX(Module):
             self.to_tx.insert.eq(insert),
             self.to_tx.det.eq(det)
         ]
+
 
 class LiteSATALink(Module):
     def __init__(self, phy, buffer_depth):

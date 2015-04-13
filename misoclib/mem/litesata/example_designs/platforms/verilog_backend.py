@@ -15,6 +15,7 @@ _io = [
     ),
 ]
 
+
 class Platform(XilinxPlatform):
     def __init__(self, device="xc7k325t", programmer=""):
         XilinxPlatform.__init__(self, device, _io)

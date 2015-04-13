@@ -4,6 +4,7 @@ import math
 from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.test.common import *
 
+
 def print_with_prefix(s, prefix=""):
     if not isinstance(s, str):
         s = s.__repr__()
@@ -11,12 +12,14 @@ def print_with_prefix(s, prefix=""):
     for l in s:
         print(prefix + l)
 
+
 # PHY Layer model
 class PHYDword:
     def __init__(self, dat=0):
         self.dat = dat
         self.start = 1
         self.done = 0
+
 
 class PHYSource(Module):
     def __init__(self):
@@ -35,6 +38,7 @@ class PHYSource(Module):
                 selfp.source.charisk = 0b0001
         selfp.source.data = self.dword.dat
 
+
 class PHYSink(Module):
     def __init__(self):
         self.sink = Sink(phy_description(32))
@@ -52,6 +56,7 @@ class PHYSink(Module):
         if selfp.sink.stb == 1:
             self.dword.done = 1
             self.dword.dat = selfp.sink.data
+
 
 class PHYLayer(Module):
     def __init__(self):
@@ -80,15 +85,18 @@ class PHYLayer(Module):
 
         return receiving + sending
 
+
 # Link Layer model
 def print_link(s):
     print_with_prefix(s, "[LNK]: ")
+
 
 def import_scrambler_datas():
     with subprocess.Popen(["./scrambler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
         process.stdin.write("0x10000".encode("ASCII"))
         out, err = process.communicate()
     return [int(e, 16) for e in out.decode("utf-8").split("\n")[:-1]]
+
 
 class LinkPacket(list):
     def __init__(self, init=[]):
@@ -97,6 +105,7 @@ class LinkPacket(list):
         self.scrambled_datas = import_scrambler_datas()
         for dword in init:
             self.append(dword)
+
 
 class LinkRXPacket(LinkPacket):
     def descramble(self):
@@ -120,6 +129,7 @@ class LinkRXPacket(LinkPacket):
         self.descramble()
         return self.check_crc()
 
+
 class LinkTXPacket(LinkPacket):
     def insert_crc(self):
         stdin = ""
@@ -139,6 +149,7 @@ class LinkTXPacket(LinkPacket):
     def encode(self):
         self.insert_crc()
         self.scramble()
+
 
 class LinkLayer(Module):
     def  __init__(self, phy, debug=False, random_level=0):
@@ -271,12 +282,15 @@ class LinkLayer(Module):
                 self.callback(rx_dword)
             self.insert_cont()
 
+
 # Transport Layer model
 def print_transport(s):
     print_with_prefix(s, "[TRN]: ")
 
+
 def get_field_data(field, packet):
     return (packet[field.dword] >> field.offset) & (2**field.width-1)
+
 
 class FIS:
     def __init__(self, packet, description, direction="H2D"):
@@ -302,6 +316,7 @@ class FIS:
             r += k + " : 0x%x" %getattr(self,k) + "\n"
         return r
 
+
 class FIS_REG_H2D(FIS):
     def __init__(self, packet=[0]*fis_reg_h2d_cmd_len):
         FIS.__init__(self, packet, fis_reg_h2d_layout)
@@ -312,6 +327,7 @@ class FIS_REG_H2D(FIS):
         r = "FIS_REG_H2D\n"
         r += FIS.__repr__(self)
         return r
+
 
 class FIS_REG_D2H(FIS):
     def __init__(self, packet=[0]*fis_reg_d2h_cmd_len):
@@ -324,6 +340,7 @@ class FIS_REG_D2H(FIS):
         r += FIS.__repr__(self)
         return r
 
+
 class FIS_DMA_ACTIVATE_D2H(FIS):
     def __init__(self, packet=[0]*fis_dma_activate_d2h_cmd_len):
         FIS.__init__(self, packet, fis_dma_activate_d2h_layout)
@@ -334,6 +351,7 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
         r = "FIS_DMA_ACTIVATE_D2H\n"
         r += FIS.__repr__(self)
         return r
+
 
 class FIS_DATA(FIS):
     def __init__(self, packet=[0], direction="H2D"):
@@ -346,6 +364,7 @@ class FIS_DATA(FIS):
         for data in self.packet[1:]:
             r += "%08x\n" %data
         return r
+
 
 class FIS_UNKNOWN(FIS):
     def __init__(self, packet=[0], direction="H2D"):
@@ -360,6 +379,7 @@ class FIS_UNKNOWN(FIS):
         for dword in self.packet:
             r += "%08x\n" %dword
         return r
+
 
 class TransportLayer(Module):
     def __init__(self, link, debug=False, loopback=False):
@@ -397,6 +417,7 @@ class TransportLayer(Module):
         else:
             self.command_callback(fis)
 
+
 # Command Layer model
 class CommandLayer(Module):
     def __init__(self, transport):
@@ -422,15 +443,18 @@ class CommandLayer(Module):
             for packet in resp:
                 self.transport.send(packet)
 
+
 # HDD model
 def print_hdd(s):
     print_with_prefix(s, "[HDD]: ")
+
 
 class HDDMemRegion:
     def __init__(self, base, count, sector_size):
         self.base = base
         self.count = count
         self.data = [0]*(count*sector_size//4)
+
 
 class HDD(Module):
     def __init__(self,

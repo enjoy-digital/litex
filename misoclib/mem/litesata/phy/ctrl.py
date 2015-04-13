@@ -1,8 +1,10 @@
 from misoclib.mem.litesata.common import *
 
+
 def us(t, clk_freq):
     clk_period_us = 1000000/clk_freq
     return math.ceil(t/clk_period_us)
+
 
 class LiteSATAPHYCtrl(Module):
     def __init__(self, trx, crg, clk_freq):

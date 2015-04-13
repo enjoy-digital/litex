@@ -1,5 +1,6 @@
 from misoclib.mem.litesata.common import *
 
+
 class LiteSATAPHYDatapathRX(Module):
     def __init__(self):
         self.sink = sink = Sink(phy_description(16))
@@ -50,6 +51,7 @@ class LiteSATAPHYDatapathRX(Module):
             Record.connect(fifo.source, source)
         ]
 
+
 class LiteSATAPHYDatapathTX(Module):
     def __init__(self):
         self.sink = sink = Sink(phy_description(32))
@@ -76,6 +78,7 @@ class LiteSATAPHYDatapathTX(Module):
             Record.connect(fifo.source, converter.sink),
             Record.connect(converter.source, source)
         ]
+
 
 class LiteSATAPHYAlignInserter(Module):
     def __init__(self, ctrl):
@@ -110,6 +113,7 @@ class LiteSATAPHYAlignInserter(Module):
             )
         ]
 
+
 class LiteSATAPHYAlignRemover(Module):
     def __init__(self):
         self.sink = sink = Sink(phy_description(32))
@@ -126,6 +130,7 @@ class LiteSATAPHYAlignRemover(Module):
             ).Else(
                 Record.connect(sink, source)
             )
+
 
 class LiteSATAPHYDatapath(Module):
     def __init__(self, trx, ctrl):

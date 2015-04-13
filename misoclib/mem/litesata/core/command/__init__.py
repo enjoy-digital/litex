@@ -12,6 +12,7 @@ rx_to_tx = [
     ("d2h_error", 1)
 ]
 
+
 class LiteSATACommandTX(Module):
     def __init__(self, transport):
         self.sink = sink = Sink(command_tx_description(32))
@@ -115,6 +116,7 @@ class LiteSATACommandTX(Module):
                 to_rx.count.eq(sink.count)
             )
         ]
+
 
 class LiteSATACommandRX(Module):
     def __init__(self, transport):
@@ -267,6 +269,7 @@ class LiteSATACommandRX(Module):
             to_tx.dma_activate.eq(is_dma_activate),
             to_tx.d2h_error.eq(d2h_error)
         ]
+
 
 class LiteSATACommand(Module):
     def __init__(self, transport):

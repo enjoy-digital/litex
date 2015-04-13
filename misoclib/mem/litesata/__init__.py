@@ -5,6 +5,7 @@ from misoclib.mem.litesata.frontend import *
 
 from migen.bank.description import *
 
+
 class LiteSATA(Module, AutoCSR):
     def __init__(self, phy, buffer_depth=2*fis_max_dwords,
             with_bist=False, with_bist_csr=False):

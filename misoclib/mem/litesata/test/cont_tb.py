@@ -3,12 +3,14 @@ from misoclib.mem.litesata.core.link.cont import LiteSATACONTInserter, LiteSATAC
 
 from misoclib.mem.litesata.test.common import *
 
+
 class ContPacket(list):
     def __init__(self, data=[]):
         self.ongoing = False
         self.done = False
         for d in data:
             self.append(d)
+
 
 class ContStreamer(PacketStreamer):
     def __init__(self):
@@ -26,9 +28,11 @@ class ContStreamer(PacketStreamer):
             except:
                 pass
 
+
 class ContLogger(PacketLogger):
     def __init__(self):
         PacketLogger.__init__(self, phy_description(32), ContPacket)
+
 
 class TB(Module):
     def __init__(self):

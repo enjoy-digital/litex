@@ -5,6 +5,7 @@ from misoclib.mem.litesata.core.link.scrambler import *
 
 from misoclib.mem.litesata.test.common import *
 
+
 class TB(Module):
     def __init__(self, length):
         self.submodules.scrambler = InsertReset(Scrambler())

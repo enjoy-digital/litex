@@ -5,6 +5,7 @@ from misoclib.mem.litesata.frontend.bist import LiteSATABISTGenerator, LiteSATAB
 from misoclib.mem.litesata.test.hdd import *
 from misoclib.mem.litesata.test.common import *
 
+
 class TB(Module):
     def __init__(self):
         self.submodules.hdd = HDD(

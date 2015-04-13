@@ -1,7 +1,9 @@
 from misoclib.mem.litesata.common import *
 
+
 def ones(width):
     return 2**width-1
+
 
 class _PulseSynchronizer(PulseSynchronizer):
     def __init__(self, i, idomain, o, odomain):
@@ -11,11 +13,13 @@ class _PulseSynchronizer(PulseSynchronizer):
             o.eq(self.o)
         ]
 
+
 class _RisingEdge(Module):
     def __init__(self, i, o):
         i_d = Signal()
         self.sync += i_d.eq(i)
         self.comb += o.eq(i & ~i_d)
+
 
 class K7LiteSATAPHYTRX(Module):
     def __init__(self, pads, revision):

@@ -13,8 +13,10 @@ from mibuild.xilinx.common import *
 from misoclib.soc import cpuif
 from misoclib.mem.litesata.common import *
 
+
 def _import(default, name):
     return importlib.import_module(default + "." + name)
+
 
 def _get_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,

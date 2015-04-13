@@ -3,6 +3,7 @@ from misoclib.mem.litesata.core.link.scrambler import Scrambler
 
 from migen.bank.description import *
 
+
 class LiteSATABISTGenerator(Module):
     def __init__(self, user_port):
         self.start = Signal()
@@ -65,6 +66,7 @@ class LiteSATABISTGenerator(Module):
             )
         )
         self.sync += If(sink.stb & sink.ack, self.aborted.eq(sink.failed))
+
 
 class LiteSATABISTChecker(Module):
     def __init__(self, user_port):
@@ -147,6 +149,7 @@ class LiteSATABISTChecker(Module):
         )
         self.sync += If(sink.stb & sink.ack, self.aborted.eq(sink.failed))
 
+
 class LiteSATABISTUnitCSR(Module, AutoCSR):
     def __init__(self, bist_unit):
         self._start = CSR()
@@ -213,6 +216,7 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
             self._cycles.status.eq(cycles_counter.value)
         ]
 
+
 class LiteSATABISTIdentify(Module):
     def __init__(self, user_port):
         self.start = Signal()
@@ -261,6 +265,7 @@ class LiteSATABISTIdentify(Module):
             )
         )
 
+
 class LiteSATABISTIdentifyCSR(Module, AutoCSR):
     def __init__(self, bist_identify):
         self._start = CSR()
@@ -280,6 +285,7 @@ class LiteSATABISTIdentifyCSR(Module, AutoCSR):
             self._source_data.status.eq(bist_identify.source.data),
             bist_identify.source.ack.eq(self._source_ack.r & self._source_ack.re)
         ]
+
 
 class LiteSATABIST(Module, AutoCSR):
     def __init__(self, crossbar, with_csr=False):

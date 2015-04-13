@@ -1,5 +1,6 @@
 from misoclib.mem.litesata.common import *
 
+
 class LiteSATAMasterPort:
     def __init__(self, dw):
         self.source = Source(command_tx_description(dw))
@@ -11,6 +12,7 @@ class LiteSATAMasterPort:
             Record.connect(slave.source, self.sink)
         ]
 
+
 class LiteSATASlavePort:
     def __init__(self, dw):
         self.sink = Sink(command_tx_description(dw))
@@ -21,6 +23,7 @@ class LiteSATASlavePort:
             Record.connect(self.sink, master.source),
             Record.connect(master.sink, self.source)
         ]
+
 
 class LiteSATAUserPort(LiteSATASlavePort):
     def __init__(self, dw):

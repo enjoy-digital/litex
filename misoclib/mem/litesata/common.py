@@ -43,11 +43,13 @@ primitives = {
     "HOLDA"    :     0X9595AA7C
 }
 
+
 def is_primitive(dword):
     for k, v in primitives.items():
         if dword == v:
             return True
     return False
+
 
 def decode_primitive(dword):
     for k, v in primitives.items():
@@ -55,12 +57,14 @@ def decode_primitive(dword):
             return k
     return ""
 
+
 def phy_description(dw):
     layout = [
         ("data", dw),
         ("charisk", dw//8),
     ]
     return EndpointDescription(layout, packetized=False)
+
 
 def link_description(dw):
     layout = [
@@ -79,6 +83,7 @@ fis_types = {
     "PIO_SETUP_D2H":    0x5F,
     "DATA":             0x46
 }
+
 
 class FISField():
     def __init__(self, dword, offset, width):
@@ -150,6 +155,7 @@ fis_data_layout = {
     "type": FISField(0,  0, 8)
 }
 
+
 def transport_tx_description(dw):
     layout = [
         ("type", 8),
@@ -165,6 +171,7 @@ def transport_tx_description(dw):
         ("data", dw)
     ]
     return EndpointDescription(layout, packetized=True)
+
 
 def transport_rx_description(dw):
     layout = [
@@ -204,6 +211,7 @@ reg_d2h_status = {
     "err"    :    0
 }
 
+
 def command_tx_description(dw):
     layout = [
         ("write", 1),
@@ -214,6 +222,7 @@ def command_tx_description(dw):
         ("data", dw)
     ]
     return EndpointDescription(layout, packetized=True)
+
 
 def command_rx_description(dw):
     layout = [
@@ -226,6 +235,7 @@ def command_rx_description(dw):
     ]
     return EndpointDescription(layout, packetized=True)
 
+
 def command_rx_cmd_description(dw):
     layout = [
         ("write", 1),
@@ -236,6 +246,7 @@ def command_rx_cmd_description(dw):
     ]
     return EndpointDescription(layout, packetized=False)
 
+
 def command_rx_data_description(dw):
     layout = [
         ("data", dw)
@@ -245,11 +256,14 @@ def command_rx_data_description(dw):
 # HDD
 logical_sector_size = 512 # constant since all HDDs use this
 
+
 def dwords2sectors(n):
     return math.ceil(n*4/logical_sector_size)
 
+
 def sectors2dwords(n):
     return n*logical_sector_size//4
+
 
 # Generic modules
 class BufferizeEndpoints(ModuleTransformer):
@@ -281,6 +295,7 @@ class BufferizeEndpoints(ModuleTransformer):
             submodule.comb += Record.connect(source, buf.d)
             setattr(self, name, buf.q)
 
+
 class EndpointPacketStatus(Module):
     def __init__(self, endpoint):
         self.start = Signal()
@@ -299,6 +314,7 @@ class EndpointPacketStatus(Module):
                 ongoing.eq(0)
             )
         self.comb += self.ongoing.eq((self.start | ongoing) & ~self.done)
+
 
 class PacketBuffer(Module):
     def __init__(self, description, data_depth, cmd_depth=4, almost_full=None):

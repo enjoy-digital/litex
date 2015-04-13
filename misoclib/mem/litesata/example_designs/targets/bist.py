@@ -14,6 +14,7 @@ from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.phy import LiteSATAPHY
 from misoclib.mem.litesata import LiteSATA
 
+
 class _CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
@@ -50,6 +51,7 @@ class _CRG(Module):
             AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.reset),
         ]
 
+
 class BISTLeds(Module):
     def __init__(self, platform, sata_phy):
         # 1Hz blinking leds (sata_rx and sata_tx clocks)
@@ -81,6 +83,7 @@ class BISTLeds(Module):
         self.comb += platform.request("user_led", 2).eq(sata_phy.crg.ready)
         self.comb += platform.request("user_led", 3).eq(sata_phy.ctrl.ready)
 
+
 class BISTSoC(SoC, AutoCSR):
     default_platform = "kc705"
     csr_map = {
@@ -107,6 +110,7 @@ class BISTSoC(SoC, AutoCSR):
 
         # Status Leds
         self.submodules.leds = BISTLeds(platform, self.sata_phy)
+
 
 class BISTSoCDevel(BISTSoC, AutoCSR):
     csr_map = {

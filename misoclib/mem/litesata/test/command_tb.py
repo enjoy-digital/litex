@@ -4,6 +4,7 @@ from misoclib.mem.litesata.core import LiteSATACore
 from misoclib.mem.litesata.test.hdd import *
 from misoclib.mem.litesata.test.common import *
 
+
 class CommandTXPacket(list):
     def __init__(self, write=0, read=0, sector=0, count=0, data=[]):
         self.ongoing = False
@@ -14,6 +15,7 @@ class CommandTXPacket(list):
         self.count = count
         for d in data:
             self.append(d)
+
 
 class CommandStreamer(PacketStreamer):
     def __init__(self):
@@ -26,6 +28,7 @@ class CommandStreamer(PacketStreamer):
         selfp.source.sector = self.packet.sector
         selfp.source.count = self.packet.count
 
+
 class CommandRXPacket(list):
     def __init__(self):
         self.ongoing = False
@@ -33,6 +36,7 @@ class CommandRXPacket(list):
         self.write = 0
         self.read = 0
         self.failed = 0
+
 
 class CommandLogger(PacketLogger):
     def __init__(self):
@@ -50,6 +54,7 @@ class CommandLogger(PacketLogger):
             self.packet.append(selfp.sink.data)
         if selfp.sink.stb == 1 and selfp.sink.eop == 1:
             self.packet.done = True
+
 
 class TB(Module):
     def __init__(self):

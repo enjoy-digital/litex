@@ -2,6 +2,7 @@ from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.phy.ctrl import *
 from misoclib.mem.litesata.phy.datapath import *
 
+
 class LiteSATAPHY(Module):
     def __init__(self, device, pads, revision, clk_freq):
         self.pads = pads

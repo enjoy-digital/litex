@@ -10,6 +10,7 @@ GB = 1024*MB
 
 logical_sector_size = 512
 
+
 class Timer:
     def __init__(self):
         self.value = None
@@ -20,6 +21,7 @@ class Timer:
     def stop(self):
         self._stop = time.time()
         self.value = max(self._stop - self._start, 1/1000000)
+
 
 class LiteSATABISTUnitDriver:
     def __init__(self, regs, name):
@@ -55,13 +57,16 @@ class LiteSATABISTUnitDriver:
             errors = -1
         return (aborted, errors, speed)
 
+
 class LiteSATABISTGeneratorDriver(LiteSATABISTUnitDriver):
     def __init__(self, regs, name):
         LiteSATABISTUnitDriver.__init__(self, regs, name + "_generator")
 
+
 class LiteSATABISTCheckerDriver(LiteSATABISTUnitDriver):
     def __init__(self, regs, name):
         LiteSATABISTUnitDriver.__init__(self, regs, name + "_checker")
+
 
 class LiteSATABISTIdentifyDriver:
     def __init__(self, regs, name):
@@ -122,6 +127,7 @@ class LiteSATABISTIdentifyDriver:
         for k, v in self.capabilities.items():
             info += k + ": " + str(v) + "\n"
         print(info, end="")
+
 
 def _get_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,

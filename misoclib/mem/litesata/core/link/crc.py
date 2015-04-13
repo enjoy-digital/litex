@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from misoclib.mem.litesata.common import *
 
+
 class CRCEngine(Module):
     """Cyclic Redundancy Check Engine
 
@@ -67,6 +68,7 @@ class CRCEngine(Module):
                 if t == "new":
                     xors += [new[n]]
             self.comb += self.next[i].eq(optree("^", xors))
+
 
 @DecorateModule(InsertReset)
 @DecorateModule(InsertCE)
@@ -180,6 +182,7 @@ class CRCInserter(Module):
             )
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
+
 class CRCChecker(Module):
     """CRC Checker
 
@@ -262,9 +265,11 @@ class CRCChecker(Module):
         )
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
+
 class LiteSATACRCInserter(CRCInserter):
     def __init__(self, description):
         CRCInserter.__init__(self, LiteSATACRC, description)
+
 
 class LiteSATACRCChecker(CRCChecker):
     def __init__(self, description):

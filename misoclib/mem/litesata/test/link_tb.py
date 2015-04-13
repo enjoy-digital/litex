@@ -4,13 +4,16 @@ from misoclib.mem.litesata.core.link import LiteSATALink
 from misoclib.mem.litesata.test.common import *
 from misoclib.mem.litesata.test.hdd import *
 
+
 class LinkStreamer(PacketStreamer):
     def __init__(self):
         PacketStreamer.__init__(self, link_description(32), LinkTXPacket)
 
+
 class LinkLogger(PacketLogger):
     def __init__(self):
         PacketLogger.__init__(self, link_description(32), LinkRXPacket)
+
 
 class TB(Module):
     def __init__(self):
