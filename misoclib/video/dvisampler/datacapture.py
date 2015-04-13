@@ -98,7 +98,7 @@ class DataCapture(Module, AutoCSR):
             If(reset_lateness,
                 lateness.eq(2**(ntbits - 1))
             ).Elif(~delay_master_busy & ~delay_slave_busy & ~too_late & ~too_early,
-                If(pd_valid &  pd_incdec, lateness.eq(lateness - 1)),
+                If(pd_valid & pd_incdec, lateness.eq(lateness - 1)),
                 If(pd_valid & ~pd_incdec, lateness.eq(lateness + 1))
             )
         ]
