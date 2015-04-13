@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import argparse, importlib
+import argparse
+import importlib
 
 
 def _get_args():
