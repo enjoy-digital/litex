@@ -24,7 +24,7 @@ class Scrambler(Module):
         # XXX: from SATA specification, replace it with
         # a generic implementation using polynoms.
         lfsr_coefs = (
-            (15, 13, 4, 0), #0
+            (15, 13, 4, 0),  # 0
             (15, 14, 13, 5, 4, 1, 0),
             (14, 13, 6, 5, 4, 2, 1, 0),
             (15, 14, 7, 6, 5, 3, 2, 1),
@@ -41,7 +41,7 @@ class Scrambler(Module):
             (15, 13, 12, 11, 9, 5, 3, 2),
             (15, 14, 12, 10, 6, 3, 0),
 
-            (11, 7, 1, 0), #16
+            (11, 7, 1, 0),  # 16
             (12, 8, 2, 1),
             (13, 9, 3, 2),
             (14, 10, 4, 3),

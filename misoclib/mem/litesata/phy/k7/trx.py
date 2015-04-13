@@ -815,7 +815,7 @@ class K7LiteSATAPHYTRX(Module):
                     o_TXOUTCLK=self.txoutclk,
                     #o_TXOUTCLKFABRIC=,
                     #o_TXOUTCLKPCS=,
-                    i_TXOUTCLKSEL=0b11, #??
+                    i_TXOUTCLKSEL=0b11,  # ??
                     #o_TXRATEDONE=,
                 # Transmit Ports - TX Gearbox Ports
                     i_TXCHARISK=self.txcharisk,

@@ -152,7 +152,7 @@ class LinkTXPacket(LinkPacket):
 
 
 class LinkLayer(Module):
-    def  __init__(self, phy, debug=False, random_level=0):
+    def __init__(self, phy, debug=False, random_level=0):
         self.phy = phy
         self.debug = debug
         self.random_level = random_level

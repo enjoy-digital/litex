@@ -86,7 +86,7 @@ class LiteSATABISTIdentifyDriver:
             self.source_ack.write(1)
 
     def run(self, blocking=True):
-        self.read_fifo() # flush the fifo before we start
+        self.read_fifo()  # flush the fifo before we start
         self.start.write(1)
         if blocking:
             while (self.done.read() == 0):

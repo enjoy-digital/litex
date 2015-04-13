@@ -13,7 +13,7 @@ class LiteSATABISTGenerator(Module):
 
         self.done = Signal()
         self.aborted = Signal()
-        self.errors = Signal(32) # Note: Not used for writes
+        self.errors = Signal(32)  # Note: Not used for writes
 
         ###
 

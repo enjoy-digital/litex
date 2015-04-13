@@ -254,7 +254,7 @@ def command_rx_data_description(dw):
     return EndpointDescription(layout, packetized=True)
 
 # HDD
-logical_sector_size = 512 # constant since all HDDs use this
+logical_sector_size = 512  # constant since all HDDs use this
 
 
 def dwords2sectors(n):

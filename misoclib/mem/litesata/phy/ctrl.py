@@ -91,7 +91,7 @@ class LiteSATAPHYCtrl(Module):
         )
         fsm.act("AWAIT_NO_RX_IDLE",
             trx.tx_idle.eq(0),
-            source.data.eq(0x4A4A4A4A), #D10.2
+            source.data.eq(0x4A4A4A4A),  # D10.2
             source.charisk.eq(0b0000),
             If(~trx.rx_idle,
                 NextState("AWAIT_ALIGN"),
@@ -101,7 +101,7 @@ class LiteSATAPHYCtrl(Module):
         )
         fsm.act("AWAIT_ALIGN",
             trx.tx_idle.eq(0),
-            source.data.eq(0x4A4A4A4A), #D10.2
+            source.data.eq(0x4A4A4A4A),  # D10.2
             source.charisk.eq(0b0000),
             trx.rx_align.eq(1),
             align_timeout.ce.eq(1),

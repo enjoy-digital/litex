@@ -105,7 +105,7 @@ class BISTSoC(SoC, AutoCSR):
 
         # SATA PHY/Core/Frontend
         self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "sata_gen2", clk_freq)
-        self.comb += self.crg.reset.eq(self.sata_phy.ctrl.need_reset) # XXX FIXME
+        self.comb += self.crg.reset.eq(self.sata_phy.ctrl.need_reset)  # XXX FIXME
         self.submodules.sata = LiteSATA(self.sata_phy, with_bist=True, with_bist_csr=True)
 
         # Status Leds
