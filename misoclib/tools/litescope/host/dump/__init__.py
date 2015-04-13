@@ -109,5 +109,5 @@ class Dump:
     def __len__(self):
         l = 0
         for var in self.vars:
-            l = max(len(var),l)
+            l = max(len(var), l)
         return l

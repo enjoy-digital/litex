@@ -121,8 +121,8 @@ class VCDDump(Dump):
 
 if __name__ == '__main__':
     dump = VCDDump()
-    dump.add(Var("foo1", 1, [0,1,0,1,0,1]))
-    dump.add(Var("foo2", 2, [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]))
+    dump.add(Var("foo1", 1, [0, 1, 0, 1, 0, 1]))
+    dump.add(Var("foo2", 2, [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]))
     ramp = [i%128 for i in range(1024)]
     dump.add(Var("ramp", 16, ramp))
     dump.write("dump.vcd")
