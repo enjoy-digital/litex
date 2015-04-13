@@ -207,7 +207,7 @@ class EtherboneRecord(Packet):
                 r += "{:02x}".format(d)
         else:
             for k in sorted(etherbone_record_header.keys()):
-                r += k + " : 0x{:0x}\n".format(getattr(self,k))
+                r += k + " : 0x{:0x}\n".format(getattr(self, k))
             if self.wcount != 0:
                 r += self.writes.__repr__()
             if self.rcount != 0:
@@ -277,7 +277,7 @@ class EtherbonePacket(Packet):
                 r += "{:02x}".format(d)
         else:
             for k in sorted(etherbone_packet_header.keys()):
-                r += k + " : 0x{:0x}\n".format(getattr(self,k))
+                r += k + " : 0x{:0x}\n".format(getattr(self, k))
             for i, record in enumerate(self.records):
                 r += record.__repr__(i)
         return r

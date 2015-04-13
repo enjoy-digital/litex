@@ -35,7 +35,7 @@ class ARPPacket(Packet):
     def __repr__(self):
         r = "--------\n"
         for k in sorted(arp_header.keys()):
-            r += k + " : 0x{:0x}\n".format(getattr(self,k))
+            r += k + " : 0x{:0x}\n".format(getattr(self, k))
         r += "payload: "
         for d in self:
             r += "{:02x}".format(d)
