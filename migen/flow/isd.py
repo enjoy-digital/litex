@@ -4,6 +4,7 @@ from migen.flow.hooks import DFGHook
 
 ISD_MAGIC = 0x6ab4
 
+
 class EndpointReporter(Module, AutoCSR):
     def __init__(self, endpoint, nbits):
         self.reset = Signal()
@@ -42,6 +43,7 @@ class EndpointReporter(Module, AutoCSR):
                 self._nack_count.status.eq(nack_count)
             )
         ]
+
 
 class DFGReporter(DFGHook, AutoCSR):
     def __init__(self, dfg, nbits):

@@ -7,8 +7,10 @@ from migen.fhdl.structure import _Fragment
 from migen.fhdl.tools import rename_clock_domain
 from migen.sim.upper import gen_sim, proxy_sim
 
+
 class FinalizeError(Exception):
     pass
+
 
 def _flat_list(e):
     if isinstance(e, collections.Iterable):
@@ -16,14 +18,17 @@ def _flat_list(e):
     else:
         return [e]
 
+
 class _ModuleProxy:
     def __init__(self, fm):
         object.__setattr__(self, "_fm", fm)
+
 
 class _ModuleComb(_ModuleProxy):
     def __iadd__(self, other):
         self._fm._fragment.comb += _flat_list(other)
         return self
+
 
 def _cd_append(d, key, statements):
     try:
@@ -33,6 +38,7 @@ def _cd_append(d, key, statements):
         d[key] = l
     l += _flat_list(statements)
 
+
 class _ModuleSyncCD:
     def __init__(self, fm, cd):
         self._fm = fm
@@ -41,6 +47,7 @@ class _ModuleSyncCD:
     def __iadd__(self, other):
         _cd_append(self._fm._fragment.sync, self._cd, other)
         return self
+
 
 class _ModuleSync(_ModuleProxy):
     def __iadd__(self, other):
@@ -54,6 +61,7 @@ class _ModuleSync(_ModuleProxy):
         if not isinstance(value, _ModuleSyncCD):
             raise AttributeError("Attempted to assign sync property - use += instead")
 
+
 # _ModuleForwardAttr enables user classes to do e.g.:
 # self.subm.foobar = SomeModule()
 # and then access the submodule with self.foobar.
@@ -62,10 +70,12 @@ class _ModuleForwardAttr:
         self.__iadd__(value)
         setattr(self._fm, name, value)
 
+
 class _ModuleSpecials(_ModuleProxy, _ModuleForwardAttr):
     def __iadd__(self, other):
         self._fm._fragment.specials |= set(_flat_list(other))
         return self
+
 
 class _ModuleSubmodules(_ModuleProxy):
     def __setattr__(self, name, value):
@@ -76,10 +86,12 @@ class _ModuleSubmodules(_ModuleProxy):
         self._fm._submodules += [(None, e) for e in _flat_list(other)]
         return self
 
+
 class _ModuleClockDomains(_ModuleProxy, _ModuleForwardAttr):
     def __iadd__(self, other):
         self._fm._fragment.clock_domains += _flat_list(other)
         return self
+
 
 class Module:
     def get_fragment(self):

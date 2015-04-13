@@ -80,6 +80,7 @@ _io = [
 
 ]
 
+
 class Platform(XilinxPlatform):
     default_clk_name = "clk_if"
     default_clk_period = 20

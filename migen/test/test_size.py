@@ -2,8 +2,10 @@ import unittest
 
 from migen.fhdl.std import *
 
+
 def _same_slices(a, b):
     return a.value is b.value and a.start == b.start and a.stop == b.stop
+
 
 class SignalSizeCase(unittest.TestCase):
     def setUp(self):

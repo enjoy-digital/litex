@@ -7,6 +7,7 @@ from migen.flow.network import *
 from migen.flow import plumbing
 from migen.actorlib import misc
 
+
 # layout is a list of tuples, either:
 # - (name, nbits, [reset value], [alignment bits])
 # - (name, sublayout)
@@ -21,6 +22,7 @@ def _convert_layout(layout):
     return r
 
 (MODE_EXTERNAL, MODE_SINGLE_SHOT, MODE_CONTINUOUS) = range(3)
+
 
 class SingleGenerator(Module, AutoCSR):
     def __init__(self, layout, mode):
@@ -68,6 +70,7 @@ class SingleGenerator(Module, AutoCSR):
                 self.sync += If(self.source.ack | ~self.source.stb,
                     getattr(target, name).eq(reg.storage))
 
+
 class Collector(Module, AutoCSR):
     def __init__(self, layout, depth=1024):
         self.sink = Sink(layout)
@@ -108,6 +111,7 @@ class Collector(Module, AutoCSR):
             self._rd.status.eq(rp.dat_r)
         ]
 
+
 class _DMAController(Module):
     def __init__(self, bus_accessor, bus_aw, bus_dw, mode, base_reset=0, length_reset=0):
         self.alignment_bits = bits_for(bus_dw//8) - 1
@@ -125,6 +129,7 @@ class _DMAController(Module):
 
     def get_csrs(self):
         return self.generator.get_csrs() + [self.r_busy]
+
 
 class DMAReadController(_DMAController):
     def __init__(self, bus_accessor, *args, **kwargs):
@@ -144,6 +149,7 @@ class DMAReadController(_DMAController):
         self.data = comp_actor.q
         self.busy = comp_actor.busy
         self.comb += self.r_busy.status.eq(self.busy)
+
 
 class DMAWriteController(_DMAController):
     def __init__(self, bus_accessor, *args, ack_when_inactive=False, **kwargs):

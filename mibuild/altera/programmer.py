@@ -2,6 +2,7 @@ import subprocess
 
 from mibuild.generic_programmer import GenericProgrammer
 
+
 class USBBlaster(GenericProgrammer):
     needs_bitreverse = False
 

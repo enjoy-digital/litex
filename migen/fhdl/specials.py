@@ -6,6 +6,7 @@ from migen.fhdl.tools import *
 from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 
+
 class Special(HUID):
     def iter_expressions(self):
         for x in []:
@@ -30,6 +31,7 @@ class Special(HUID):
                 signals = list_signals(getattr(obj, attr))
                 r.update(signals)
         return r
+
 
 class Tristate(Special):
     def __init__(self, target, o, oe, i=None):
@@ -60,6 +62,7 @@ class Tristate(Special):
         r += "\n"
         return r
 
+
 class TSTriple:
     def __init__(self, bits_sign=None, min=None, max=None, reset_o=0, reset_oe=0):
         self.o = Signal(bits_sign, min=min, max=max, reset=reset_o)
@@ -68,6 +71,7 @@ class TSTriple:
 
     def get_tristate(self, target):
         return Tristate(target, self.o, self.oe, self.i)
+
 
 class Instance(Special):
     class _IO:
@@ -169,6 +173,7 @@ class Instance(Special):
 
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
 
+
 class _MemoryPort(Special):
     def __init__(self, adr, dat_r, we=None, dat_w=None,
       async_read=False, re=None, we_granularity=0, mode=WRITE_FIRST,
@@ -200,6 +205,7 @@ class _MemoryPort(Special):
     @staticmethod
     def emit_verilog(port, ns, add_data_file):
         return "" # done by parent Memory object
+
 
 class Memory(Special):
     def __init__(self, width, depth, init=None, name=None):
@@ -318,6 +324,7 @@ class Memory(Special):
 
 
         return r
+
 
 class SynthesisDirective(Special):
     def __init__(self, template, **signals):

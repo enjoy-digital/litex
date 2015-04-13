@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus.transactions import *
 
+
 def _byte_mask(orig, dat_w, sel):
     r = 0
     shift = 0
@@ -14,6 +15,7 @@ def _byte_mask(orig, dat_w, sel):
         sel >>= 1
         shift += 8
     return r
+
 
 class Initiator(Module):
     def __init__(self, generator, mem):

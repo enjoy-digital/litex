@@ -1,6 +1,7 @@
 from migen.fhdl.structure import Signal, StopSimulation
 from migen.fhdl.specials import Memory
 
+
 class MemoryProxy:
     def __init__(self, simulator, obj):
         self.simulator = simulator
@@ -22,6 +23,7 @@ class MemoryProxy:
                 raise ValueError
             for i, v in zip(range(start, stop, step), value):
                 self.simulator.wr(self._simproxy_obj, i, v)
+
 
 class Proxy:
     def __init__(self, simulator, obj):
@@ -51,6 +53,7 @@ class Proxy:
         item = self._simproxy_obj[key]
         assert(isinstance(item, Signal))
         self.simulator.wr(item, value)
+
 
 def gen_sim(simg):
     gens = dict()

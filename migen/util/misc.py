@@ -1,6 +1,7 @@
 from fractions import gcd
 import collections
 
+
 def flat_iteration(l):
     for element in l:
         if isinstance(element, collections.Iterable):
@@ -9,6 +10,7 @@ def flat_iteration(l):
         else:
             yield element
 
+
 def xdir(obj, return_values=False):
     for attr in dir(obj):
         if attr[:2] != "__" and attr[-2:] != "__":
@@ -16,6 +18,7 @@ def xdir(obj, return_values=False):
                 yield attr, getattr(obj, attr)
             else:
                 yield attr
+
 
 def autotype(s):
     if s == "True":
@@ -27,6 +30,7 @@ def autotype(s):
     except ValueError:
         pass
     return s
+
 
 def gcd_multiple(numbers):
     l = len(numbers)

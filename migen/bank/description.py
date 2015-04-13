@@ -2,6 +2,7 @@ from migen.util.misc import xdir
 from migen.fhdl.std import *
 from migen.fhdl.tracer import get_obj_var_name
 
+
 class _CSRBase(HUID):
     def __init__(self, size, name):
         HUID.__init__(self)
@@ -10,12 +11,14 @@ class _CSRBase(HUID):
             raise ValueError("Cannot extract CSR name from code, need to specify.")
         self.size = size
 
+
 class CSR(_CSRBase):
     def __init__(self, size=1, name=None):
         _CSRBase.__init__(self, size, name)
         self.re = Signal(name=self.name + "_re")
         self.r = Signal(self.size, name=self.name + "_r")
         self.w = Signal(self.size, name=self.name + "_w")
+
 
 class _CompoundCSR(_CSRBase, Module):
     def __init__(self, size, name):
@@ -30,6 +33,7 @@ class _CompoundCSR(_CSRBase, Module):
     def do_finalize(self, busword):
         raise NotImplementedError
 
+
 class CSRStatus(_CompoundCSR):
     def __init__(self, size=1, reset=0, name=None):
         _CompoundCSR.__init__(self, size, name)
@@ -42,6 +46,7 @@ class CSRStatus(_CompoundCSR):
             sc = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
             self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
             self.simple_csrs.append(sc)
+
 
 class CSRStorage(_CompoundCSR):
     def __init__(self, size=1, reset=0, atomic_write=False, write_from_dev=False, alignment_bits=0, name=None):
@@ -85,17 +90,20 @@ class CSRStorage(_CompoundCSR):
                 self.sync += If(sc.re, self.storage_full[lo:hi].eq(sc.r))
         self.sync += self.re.eq(sc.re)
 
+
 def csrprefix(prefix, csrs, done):
     for csr in csrs:
         if csr.huid not in done:
             csr.name = prefix + csr.name
             done.add(csr.huid)
 
+
 def memprefix(prefix, memories, done):
     for memory in memories:
         if memory.huid not in done:
             memory.name_override = prefix + memory.name_override
             done.add(memory.huid)
+
 
 class AutoCSR:
     def get_memories(self):

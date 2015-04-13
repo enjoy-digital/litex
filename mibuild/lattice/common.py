@@ -3,6 +3,7 @@ from migen.genlib.io import *
 
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+
 class LatticeAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
         rst1 = Signal()
@@ -13,10 +14,12 @@ class LatticeAsyncResetSynchronizerImpl(Module):
                 i_CK=cd.clk, o_Q=cd.rst)
         ]
 
+
 class LatticeAsyncResetSynchronizer:
     @staticmethod
     def lower(dr):
         return LatticeAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+
 
 class LatticeDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
@@ -25,6 +28,7 @@ class LatticeDDROutputImpl(Module):
                 i_SCLK=clk,
                 i_DA=i1, i_DB=i2, o_Q=o,
         )
+
 
 class LatticeDDROutput:
     @staticmethod

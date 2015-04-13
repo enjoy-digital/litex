@@ -1,6 +1,7 @@
 from mibuild.generic_platform import *
 from mibuild.sim import SimPlatform
 
+
 class SimPins(Pins):
     def __init__(self, n):
         Pins.__init__(self, "s "*n)
@@ -30,6 +31,7 @@ _io = [
         Subsignal("sink_data", SimPins(8)),
     ),
 ]
+
 
 class Platform(SimPlatform):
     is_sim = True

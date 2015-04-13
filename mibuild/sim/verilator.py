@@ -10,6 +10,7 @@ from mibuild.generic_platform import *
 from mibuild import tools
 from mibuild.sim import common
 
+
 def _build_tb(platform, vns, serial, template):
 
     def io_name(ressource, subsignal=None):
@@ -82,6 +83,7 @@ def _build_tb(platform, vns, serial, template):
     f.close()
     tools.write_to_file("dut_tb.cpp", content)
 
+
 def _build_sim(platform, vns, build_name, include_paths, sim_path, serial, verbose):
     include = ""
     for path in include_paths:
@@ -106,6 +108,7 @@ make -j -C obj_dir/ -f Vdut.mk Vdut
     if r != 0:
         raise OSError("Subprocess failed")
 
+
 def _run_sim(build_name):
     run_script_contents = """obj_dir/Vdut
 """
@@ -114,6 +117,7 @@ def _run_sim(build_name):
     r = subprocess.call(["bash", run_script_file])
     if r != 0:
         raise OSError("Subprocess failed")
+
 
 class SimVerilatorToolchain:
     # XXX fir sim_path

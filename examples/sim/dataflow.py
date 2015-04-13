@@ -5,15 +5,18 @@ from migen.flow.network import *
 from migen.actorlib.sim import *
 from migen.sim.generic import run_simulation
 
+
 def source_gen():
     for i in range(10):
         print("Sending:  " + str(i))
         yield Token("source", {"value": i})
 
+
 class SimSource(SimActor):
     def __init__(self):
         self.source = Source([("value", 32)])
         SimActor.__init__(self, source_gen())
+
 
 def sink_gen():
     while True:
@@ -21,10 +24,12 @@ def sink_gen():
         yield t
         print("Received: " + str(t.value["value"]))
 
+
 class SimSink(SimActor):
     def __init__(self):
         self.sink = Sink([("value", 32)])
         SimActor.__init__(self, sink_gen())
+
 
 class TB(Module):
     def __init__(self):

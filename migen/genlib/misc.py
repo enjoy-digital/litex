@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Operator
 
+
 def optree(op, operands, lb=None, ub=None, default=None):
     if lb is None:
         lb = 0
@@ -20,6 +21,7 @@ def optree(op, operands, lb=None, ub=None, default=None):
             [optree(op, operands, lb, s, default),
             optree(op, operands, s, ub, default)])
 
+
 def split(v, *counts):
     r = []
     offset = 0
@@ -30,6 +32,7 @@ def split(v, *counts):
             r.append(None)
         offset += n
     return tuple(r)
+
 
 def displacer(signal, shift, output, n=None, reverse=False):
     if shift is None:
@@ -43,6 +46,7 @@ def displacer(signal, shift, output, n=None, reverse=False):
         r = range(n)
     l = [Replicate(shift == i, w) & signal for i in r]
     return output.eq(Cat(*l))
+
 
 def chooser(signal, shift, output, n=None, reverse=False):
     if shift is None:
@@ -58,6 +62,7 @@ def chooser(signal, shift, output, n=None, reverse=False):
             s = i
         cases[i] = [output.eq(signal[s*w:(s+1)*w])]
     return Case(shift, cases).makedefault()
+
 
 def timeline(trigger, events):
     lastevent = max([e[0] for e in events])
@@ -86,6 +91,7 @@ def timeline(trigger, events):
     sync.append(counterlogic)
     return sync
 
+
 @ResetInserter()
 @CEInserter()
 class FlipFlop(Module):
@@ -94,6 +100,7 @@ class FlipFlop(Module):
         self.q = Signal(*args, **kwargs)
         self.sync += self.q.eq(self.d)
 
+
 @ResetInserter()
 @CEInserter()
 class Counter(Module):
@@ -101,6 +108,7 @@ class Counter(Module):
         self.value = Signal(*args, **kwargs)
         self.width = flen(self.value)
         self.sync += self.value.eq(self.value+increment)
+
 
 @ResetInserter()
 @CEInserter()

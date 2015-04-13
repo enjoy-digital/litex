@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.bank.bank import GenericBank
 
+
 class Bank(GenericBank):
     def __init__(self, description, bus=None):
         if bus is None:

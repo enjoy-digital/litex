@@ -123,6 +123,7 @@ _connectors = [
     ("C", "F17 F16 E16 G16 F15 G14 F14 H14 H13 J13 G13 H12 K14 K13 K12 L12"),
 ]
 
+
 class Platform(XilinxPlatform):
     identifier = 0x5049
     default_clk_name = "clk50"

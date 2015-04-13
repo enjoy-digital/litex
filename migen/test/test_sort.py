@@ -6,6 +6,7 @@ from migen.genlib.sort import *
 
 from migen.test.support import SimCase, SimBench
 
+
 class BitonicCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):
         def __init__(self):

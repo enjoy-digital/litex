@@ -167,6 +167,7 @@ _connectors = [
             "None")  # 140 FPGA_BANK3_POWER
 ]
 
+
 class Platform(XilinxPlatform):
     default_clk_name = "clk3"
     default_clk_period = 10.526

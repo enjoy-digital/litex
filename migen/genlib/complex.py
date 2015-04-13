@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 
+
 class Complex:
     def __init__(self, real, imag):
         self.real = real
@@ -45,6 +46,7 @@ class Complex:
             return self.real.eq(r.real), self.imag.eq(r.imag)
         else:
             return self.real.eq(r), self.imag.eq(0)
+
 
 def SignalC(*args, **kwargs):
     real = Signal(*args, **kwargs)

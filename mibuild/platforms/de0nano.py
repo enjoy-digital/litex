@@ -90,6 +90,7 @@ _io = [
     ),
 ]
 
+
 class Platform(AlteraPlatform):
     default_clk_name = "clk50"
     default_clk_period = 20

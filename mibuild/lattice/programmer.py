@@ -41,6 +41,7 @@ _xcf_template = """
 </ispXCF>
 """
 
+
 class LatticeProgrammer(GenericProgrammer):
     needs_bitreverse = False
 

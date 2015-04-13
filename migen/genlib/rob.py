@@ -1,11 +1,13 @@
 from migen.fhdl.std import *
 
+
 class ReorderSlot:
     def __init__(self, tag_width, data_width):
         self.wait_data = Signal()
         self.has_data = Signal()
         self.tag = Signal(tag_width)
         self.data = Signal(data_width)
+
 
 class ReorderBuffer(Module):
     def __init__(self, tag_width, data_width, depth):

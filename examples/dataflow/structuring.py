@@ -15,14 +15,17 @@ base_layout = [("value", 32)]
 packed_layout = structuring.pack_layout(base_layout, pack_factor)
 rawbits_layout = [("value", 32*pack_factor)]
 
+
 def source_gen():
     for i in count(0):
         yield Token("source", {"value": i})
+
 
 class SimSource(SimActor):
     def __init__(self):
         self.source = Source(base_layout)
         SimActor.__init__(self, source_gen())
+
 
 def sink_gen():
     while True:
@@ -30,10 +33,12 @@ def sink_gen():
         yield t
         print(t.value["value"])
 
+
 class SimSink(SimActor):
     def __init__(self):
         self.sink = Sink(base_layout)
         SimActor.__init__(self, sink_gen())
+
 
 class TB(Module):
     def __init__(self):

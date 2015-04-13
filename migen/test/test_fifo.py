@@ -5,6 +5,7 @@ from migen.genlib.fifo import SyncFIFO
 
 from migen.test.support import SimCase, SimBench
 
+
 class SyncFIFOCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):
         def __init__(self):

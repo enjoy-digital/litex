@@ -2,11 +2,13 @@ from migen.fhdl.std import *
 from migen.sim.generic import run_simulation
 from migen.fhdl import verilog
 
+
 class SimBench(Module):
     callback = None
     def do_simulation(self, selfp):
         if self.callback is not None:
             return self.callback(self, selfp)
+
 
 class SimCase:
     TestBench = SimBench

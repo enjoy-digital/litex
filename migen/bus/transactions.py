@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 
+
 class Transaction:
     def __init__(self, address, data=0, sel=None, busname=None):
         self.address = address
@@ -14,8 +15,10 @@ class Transaction:
     def __str__(self):
         return "<" + self.__class__.__name__ + " adr:" + hex(self.address) + " dat:" + hex(self.data) + ">"
 
+
 class TRead(Transaction):
     pass
+
 
 class TWrite(Transaction):
     pass

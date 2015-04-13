@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.complex import *
 from migen.fhdl import verilog
 
+
 class Example(Module):
     def __init__(self):
         w = Complex(32, 42)

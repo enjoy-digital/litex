@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.sim.generic import run_simulation
 
+
 class Mem(Module):
     def __init__(self):
         # Initialize the beginning of the memory with integers

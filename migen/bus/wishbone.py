@@ -19,15 +19,18 @@ _layout = [
     ("err",        1,                DIR_S_TO_M)
 ]
 
+
 class Interface(Record):
     def __init__(self, data_width=32):
         Record.__init__(self, set_layout_parameters(_layout,
             data_width=data_width,
             sel_width=data_width//8))
 
+
 class InterconnectPointToPoint(Module):
     def __init__(self, master, slave):
         self.comb += master.connect(slave)
+
 
 class Arbiter(Module):
     def __init__(self, masters, target):
@@ -53,6 +56,7 @@ class Arbiter(Module):
         # connect bus requests to round-robin selector
         reqs = [m.cyc for m in masters]
         self.comb += self.rr.request.eq(Cat(*reqs))
+
 
 class Decoder(Module):
     # slaves is a list of pairs:
@@ -94,11 +98,13 @@ class Decoder(Module):
         masked = [Replicate(slave_sel_r[i], flen(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
         self.comb += master.dat_r.eq(optree("|", masked))
 
+
 class InterconnectShared(Module):
     def __init__(self, masters, slaves, register=False):
         shared = Interface()
         self.submodules += Arbiter(masters, shared)
         self.submodules += Decoder(shared, slaves, register)
+
 
 class Crossbar(Module):
     def __init__(self, masters, slaves, register=False):
@@ -111,6 +117,7 @@ class Crossbar(Module):
         # arbitrate each access column onto its slave
         for column, bus in zip(zip(*access), busses):
             self.submodules += Arbiter(column, bus)
+
 
 class DownConverter(Module):
     # DownConverter splits Wishbone accesses of N bits in M accesses of L bits where:
@@ -197,6 +204,7 @@ class DownConverter(Module):
             )
         )
 
+
 class Tap(Module):
     def __init__(self, bus, handler=print):
         self.bus = bus
@@ -214,6 +222,7 @@ class Tap(Module):
                     selfp.bus.dat_r)
             self.handler(transaction)
     do_simulation.passive = True
+
 
 class Initiator(Module):
     def __init__(self, generator, bus=None):
@@ -251,6 +260,7 @@ class Initiator(Module):
                 selfp.bus.cyc = 0
                 selfp.bus.stb = 0
 
+
 class TargetModel:
     def read(self, address):
         return 0
@@ -260,6 +270,7 @@ class TargetModel:
 
     def can_ack(self, bus):
         return True
+
 
 class Target(Module):
     def __init__(self, model, bus=None):
@@ -280,6 +291,7 @@ class Target(Module):
         else:
             bus.ack = 0
     do_simulation.passive = True
+
 
 class SRAM(Module):
     def __init__(self, mem_or_size, read_only=None, init=None, bus=None):

@@ -1,6 +1,7 @@
 import cairo
 import math
 
+
 def _cairo_draw_node(ctx, dx, radius, color, outer_color, s):
     ctx.save()
 
@@ -31,6 +32,7 @@ def _cairo_draw_node(ctx, dx, radius, color, outer_color, s):
 
     ctx.restore()
 
+
 def _cairo_draw_connection(ctx, x0, y0, color0, x1, y1, color1):
     ctx.move_to(x0, y0)
     ctx.curve_to(x0, y0+20, x1, y1-20, x1, y1)
@@ -40,6 +42,7 @@ def _cairo_draw_connection(ctx, x0, y0, color0, x1, y1, color1):
     gradient_color.add_color_stop_rgb(1, *color1)
     ctx.set_source(gradient_color)
     ctx.stroke()
+
 
 class RenderNode:
     def __init__(self, label, children=None, color=(0.8, 0.8, 0.8), radius=40):
@@ -95,6 +98,7 @@ class RenderNode:
         ctx.translate(w/2, self.pitch/2)
         self.render(ctx)
         surface.finish()
+
 
 def _test():
     xns = [RenderNode("X"+str(n)) for n in range(5)]

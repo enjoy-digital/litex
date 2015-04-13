@@ -2,13 +2,16 @@ from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.genlib.misc import optree
 
+
 def gen_list(n):
     s = [Signal() for i in range(n)]
     return s
 
+
 def gen_2list(n):
     s = [Signal(2) for i in range(n)]
     return s
+
 
 class Foo:
     def __init__(self):
@@ -16,9 +19,11 @@ class Foo:
         lb = gen_2list(2)
         self.sigs = la + lb
 
+
 class Bar:
     def __init__(self):
         self.sigs = gen_list(2)
+
 
 class Example(Module):
     def __init__(self):

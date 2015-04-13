@@ -12,6 +12,7 @@ L = [
     ("ack", 1, DIR_S_TO_M)
 ]
 
+
 class Test(Module):
     def __init__(self):
         master = Record(L)

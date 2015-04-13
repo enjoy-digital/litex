@@ -8,6 +8,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.io import *
 from mibuild import tools
 
+
 def settings(path, ver=None, sub=None):
     vers = list(tools.versions(path))
     if ver is None:
@@ -31,14 +32,17 @@ def settings(path, ver=None, sub=None):
 
     raise OSError("no settings file found")
 
+
 class XilinxNoRetimingImpl(Module):
     def __init__(self, reg):
         self.specials += SynthesisDirective("attribute register_balancing of {r} is no", r=reg)
+
 
 class XilinxNoRetiming:
     @staticmethod
     def lower(dr):
         return XilinxNoRetimingImpl(dr.reg)
+
 
 class XilinxMultiRegImpl(MultiRegImpl):
     def __init__(self, *args, **kwargs):
@@ -46,10 +50,12 @@ class XilinxMultiRegImpl(MultiRegImpl):
         self.specials += [SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
             for r in self.regs]
 
+
 class XilinxMultiReg:
     @staticmethod
     def lower(dr):
         return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
+
 
 class XilinxAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
@@ -61,28 +67,34 @@ class XilinxAsyncResetSynchronizerImpl(Module):
                 i_CE=1, i_C=cd.clk, o_Q=cd.rst)
         ]
 
+
 class XilinxAsyncResetSynchronizer:
     @staticmethod
     def lower(dr):
         return XilinxAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
+
 class XilinxDifferentialInputImpl(Module):
     def __init__(self, i_p, i_n, o):
         self.specials += Instance("IBUFDS", i_I=i_p, i_IB=i_n, o_O=o)
+
 
 class XilinxDifferentialInput:
     @staticmethod
     def lower(dr):
         return XilinxDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
 
+
 class XilinxDifferentialOutputImpl(Module):
     def __init__(self, i, o_p, o_n):
         self.specials += Instance("OBUFDS", i_I=i, o_O=o_p, o_OB=o_n)
+
 
 class XilinxDifferentialOutput:
     @staticmethod
     def lower(dr):
         return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
+
 
 class XilinxDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
@@ -91,6 +103,7 @@ class XilinxDDROutputImpl(Module):
                 i_C=clk, i_CE=1, i_S=0, i_R=0,
                 i_D1=i1, i_D2=i2, o_Q=o,
         )
+
 
 class XilinxDDROutput:
     @staticmethod

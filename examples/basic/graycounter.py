@@ -4,6 +4,7 @@ from migen.fhdl.std import *
 from migen.genlib.cdc import GrayCounter
 from migen.sim.generic import run_simulation
 
+
 class TB(Module):
     def __init__(self, width=3):
         self.width = width

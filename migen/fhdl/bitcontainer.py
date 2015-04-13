@@ -1,5 +1,6 @@
 from migen.fhdl import structure as f
 
+
 def log2_int(n, need_pow2=True):
     l = 1
     r = 0
@@ -10,6 +11,7 @@ def log2_int(n, need_pow2=True):
         raise ValueError("Not a power of 2")
     return r
 
+
 def bits_for(n, require_sign_bit=False):
     if n > 0:
         r = log2_int(n + 1, False)
@@ -19,6 +21,7 @@ def bits_for(n, require_sign_bit=False):
     if require_sign_bit:
         r += 1
     return r
+
 
 def value_bits_sign(v):
     if isinstance(v, bool):
@@ -99,6 +102,7 @@ def value_bits_sign(v):
         raise TypeError("Can not calculate bit length of {} {}".format(
             type(v), v))
 
+
 def flen(v):
     """Bit length of an expression
 
@@ -119,6 +123,7 @@ def flen(v):
     8
     """
     return value_bits_sign(v)[0]
+
 
 def fiter(v):
     """Bit iterator
@@ -145,6 +150,7 @@ def fiter(v):
         return (v[i] for i in range(flen(v)))
     else:
         raise TypeError("Can not bit-iterate {} {}".format(type(v), v))
+
 
 def fslice(v, s):
     """Bit slice
@@ -179,6 +185,7 @@ def fslice(v, s):
         return v[s]
     else:
         raise TypeError("Can not bit-slice {} {}".format(type(v), v))
+
 
 def freversed(v):
     """Bit reverse

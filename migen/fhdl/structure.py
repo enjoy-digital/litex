@@ -4,6 +4,7 @@ from collections import defaultdict
 from migen.fhdl import tracer
 from migen.util.misc import flat_iteration
 
+
 class HUID:
     __next_uid = 0
     def __init__(self):
@@ -12,6 +13,7 @@ class HUID:
 
     def __hash__(self):
         return self.huid
+
 
 class Value(HUID):
     """Base class for operands
@@ -116,11 +118,13 @@ class Value(HUID):
     def __hash__(self):
         return HUID.__hash__(self)
 
+
 class _Operator(Value):
     def __init__(self, op, operands):
         Value.__init__(self)
         self.op = op
         self.operands = operands
+
 
 def Mux(sel, val1, val0):
     """Multiplex between two values
@@ -141,12 +145,14 @@ def Mux(sel, val1, val0):
     """
     return _Operator("m", [sel, val1, val0])
 
+
 class _Slice(Value):
     def __init__(self, value, start, stop):
         Value.__init__(self)
         self.value = value
         self.start = start
         self.stop = stop
+
 
 class Cat(Value):
     """Concatenate values
@@ -176,6 +182,7 @@ class Cat(Value):
         Value.__init__(self)
         self.l = list(flat_iteration(args))
 
+
 class Replicate(Value):
     """Replicate a value
 
@@ -200,6 +207,7 @@ class Replicate(Value):
         Value.__init__(self)
         self.v = v
         self.n = n
+
 
 class Signal(Value):
     """A `Value` that can change
@@ -292,6 +300,7 @@ class Signal(Value):
         from migen.fhdl.bitcontainer import value_bits_sign
         return cls(bits_sign=value_bits_sign(other), **kwargs)
 
+
 class ClockSignal(Value):
     """Clock signal for a given clock domain
 
@@ -306,6 +315,7 @@ class ClockSignal(Value):
     def __init__(self, cd="sys"):
         Value.__init__(self)
         self.cd = cd
+
 
 class ResetSignal(Value):
     """Reset signal for a given clock domain
@@ -324,10 +334,12 @@ class ResetSignal(Value):
 
 # statements
 
+
 class _Assign:
     def __init__(self, l, r):
         self.l = l
         self.r = r
+
 
 class If:
     """Conditional execution of statements
@@ -383,6 +395,7 @@ class If:
         _insert_else(self, [If(cond, *t)])
         return self
 
+
 def _insert_else(obj, clause):
     o = obj
     while o.f:
@@ -390,6 +403,7 @@ def _insert_else(obj, clause):
         assert(isinstance(o.f[0], If))
         o = o.f[0]
     o.f = clause
+
 
 class Case:
     """Case/Switch statement
@@ -440,6 +454,7 @@ class Case:
 
 # arrays
 
+
 class _ArrayProxy(Value):
     def __init__(self, choices, key):
         self.choices = choices
@@ -452,6 +467,7 @@ class _ArrayProxy(Value):
     def __getitem__(self, key):
         return _ArrayProxy([choice.__getitem__(key) for choice in self.choices],
             self.key)
+
 
 class Array(list):
     """Addressable multiplexer
@@ -487,6 +503,7 @@ class Array(list):
             return _ArrayProxy(self, key)
         else:
             return list.__getitem__(self, key)
+
 
 class ClockDomain:
     """Synchronous domain
@@ -537,6 +554,7 @@ class ClockDomain:
         if self.rst is not None:
             self.rst.name_override = new_name + "_rst"
 
+
 class _ClockDomainList(list):
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -549,8 +567,10 @@ class _ClockDomainList(list):
 
 (SPECIAL_INPUT, SPECIAL_OUTPUT, SPECIAL_INOUT) = range(3)
 
+
 class StopSimulation(Exception):
     pass
+
 
 class _Fragment:
     def __init__(self, comb=None, sync=None, specials=None, clock_domains=None, sim=None):

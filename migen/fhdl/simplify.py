@@ -3,6 +3,7 @@ from migen.fhdl.specials import _MemoryPort
 from migen.fhdl.decorators import ModuleTransformer
 from migen.util.misc import gcd_multiple
 
+
 class FullMemoryWE(ModuleTransformer):
     def transform_fragment(self, i, f):
         newspecials = set()

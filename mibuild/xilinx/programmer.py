@@ -3,10 +3,12 @@ import sys, subprocess
 from mibuild.generic_programmer import GenericProgrammer
 from mibuild.xilinx import common
 
+
 def _run_urjtag(cmds):
     with subprocess.Popen("jtag", stdin=subprocess.PIPE) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+
 
 class UrJTAG(GenericProgrammer):
     needs_bitreverse = True
@@ -32,6 +34,7 @@ flashmem "{address}" "{data_file}" noverify
 """.format(flash_proxy=flash_proxy, address=address, data_file=data_file)
         _run_urjtag(cmds)
 
+
 class XC3SProg(GenericProgrammer):
     needs_bitreverse = False
 
@@ -45,6 +48,7 @@ class XC3SProg(GenericProgrammer):
     def flash(self, address, data_file):
         flash_proxy = self.find_flash_proxy()
         subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
+
 
 
 class FpgaProg(GenericProgrammer):
@@ -63,10 +67,12 @@ class FpgaProg(GenericProgrammer):
         subprocess.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
                    "-f", data_file])
 
+
 def _run_impact(cmds):
     with subprocess.Popen("impact -batch", stdin=subprocess.PIPE) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+
 
 class iMPACT(GenericProgrammer):
     needs_bitreverse = False
@@ -80,6 +86,7 @@ quit
 """.format(bitstream=bitstream_file)
         _run_impact(cmds)
 
+
 def _run_vivado(path, ver, cmds):
     if sys.platform == "win32" or sys.platform == "cygwin":
         vivado_cmd = "vivado -mode tcl"
@@ -89,6 +96,7 @@ def _run_vivado(path, ver, cmds):
     with subprocess.Popen(vivado_cmd, stdin=subprocess.PIPE, shell=True) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+
 
 class VivadoProgrammer(GenericProgrammer):
     needs_bitreverse = False

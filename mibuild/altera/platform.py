@@ -1,6 +1,7 @@
 from mibuild.generic_platform import GenericPlatform
 from mibuild.altera import common, quartus
 
+
 class AlteraPlatform(GenericPlatform):
     bitstream_ext = ".sof"
 

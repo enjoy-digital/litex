@@ -1,5 +1,6 @@
 from migen.fhdl.std import *
 
+
 class Divider(Module):
     def __init__(self, w):
         self.start_i = Signal()

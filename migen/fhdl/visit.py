@@ -3,6 +3,7 @@ from copy import copy
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy, _Fragment
 
+
 class NodeVisitor:
     def visit(self, node):
         if isinstance(node, (int, bool)):
@@ -97,6 +98,7 @@ class NodeVisitor:
 
     def visit_unknown(self, node):
         pass
+
 
 # Default methods always copy the node, except for:
 # - Signals, ClockSignals and ResetSignals

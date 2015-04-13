@@ -1,6 +1,7 @@
 from mibuild.generic_platform import GenericPlatform
 from mibuild.sim import common, verilator
 
+
 class SimPlatform(GenericPlatform):
     def __init__(self, *args, toolchain="verilator", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)

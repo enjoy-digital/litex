@@ -5,6 +5,7 @@ from migen.genlib.coding import *
 
 from migen.test.support import SimCase, SimBench
 
+
 class EncCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):
         def __init__(self):
@@ -25,6 +26,7 @@ class EncCase(SimCase, unittest.TestCase):
             else:
                 self.assertEqual(tbp.dut.i, 1<<tbp.dut.o)
         self.run_with(cb, 256)
+
 
 class PrioEncCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):
@@ -51,6 +53,7 @@ class PrioEncCase(SimCase, unittest.TestCase):
                 self.assertGreaterEqual(i, 1<<o)
         self.run_with(cb, 256)
 
+
 class DecCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):
         def __init__(self):
@@ -75,6 +78,7 @@ class DecCase(SimCase, unittest.TestCase):
             else:
                 self.assertEqual(o, 1<<i)
         self.run_with(cb, 256)
+
 
 class SmallPrioEncCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):

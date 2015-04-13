@@ -3,6 +3,7 @@ from migen.flow.actor import *
 from migen.genlib.record import *
 from migen.genlib.misc import optree
 
+
 class Buffer(PipelinedActor):
     def __init__(self, layout):
         self.d = Sink(layout)
@@ -13,6 +14,7 @@ class Buffer(PipelinedActor):
                 self.q.payload.eq(self.d.payload),
                 self.q.param.eq(self.d.param)
             )
+
 
 class Combinator(Module):
     def __init__(self, layout, subrecords):
@@ -33,6 +35,7 @@ class Combinator(Module):
         self.comb += [sink.ack.eq(self.source.ack & self.source.stb) for sink in sinks]
         self.comb += [self.source.payload.eq(sink.payload) for sink in sinks]
         self.comb += [self.source.param.eq(sink.param) for sink in sinks]
+
 
 class Splitter(Module):
     def __init__(self, layout, subrecords):
@@ -58,6 +61,7 @@ class Splitter(Module):
         for n, s in enumerate(sources):
             self.comb += s.stb.eq(self.sink.stb & ~already_acked[n])
 
+
 class Multiplexer(Module):
     def __init__(self, layout, n):
         self.source = Source(layout)
@@ -75,6 +79,7 @@ class Multiplexer(Module):
         for i, sink in enumerate(sinks):
             cases[i] = Record.connect(sink, self.source)
         self.comb += Case(self.sel, cases)
+
 
 class Demultiplexer(Module):
     def __init__(self, layout, n):

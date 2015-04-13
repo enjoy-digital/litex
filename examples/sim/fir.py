@@ -7,6 +7,7 @@ from migen.fhdl import verilog
 from migen.genlib.misc import optree
 from migen.sim.generic import run_simulation
 
+
 # A synthesizable FIR filter.
 class FIR(Module):
     def __init__(self, coef, wsize=16):
@@ -28,6 +29,7 @@ class FIR(Module):
         sum_full = Signal((2*self.wsize-1, True))
         self.sync += sum_full.eq(optree("+", muls))
         self.comb += self.o.eq(sum_full[self.wsize-1:])
+
 
 # A test bench for our FIR filter.
 # Generates a sine wave at the input and records the output.

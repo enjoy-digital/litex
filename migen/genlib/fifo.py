@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.cdc import NoRetiming, MultiReg, GrayCounter
 from migen.genlib.record import layout_len, Record
 
+
 def _inc(signal, modulo):
     if modulo == 2**flen(signal):
         return signal.eq(signal + 1)
@@ -11,6 +12,7 @@ def _inc(signal, modulo):
         ).Else(
             signal.eq(signal + 1)
         )
+
 
 class _FIFOInterface:
     """
@@ -62,6 +64,7 @@ class _FIFOInterface:
             self.din_bits = self.din
             self.dout_bits = self.dout
             self.width = width_or_layout
+
 
 class SyncFIFO(Module, _FIFOInterface):
     """Synchronous FIFO (first in, first out)
@@ -130,6 +133,7 @@ class SyncFIFO(Module, _FIFOInterface):
             self.readable.eq(self.level != 0)
         ]
 
+
 class SyncFIFOBuffered(Module, _FIFOInterface):
     def __init__(self, width_or_layout, depth):
         _FIFOInterface.__init__(self, width_or_layout, depth)
@@ -153,6 +157,7 @@ class SyncFIFOBuffered(Module, _FIFOInterface):
                 self.readable.eq(0),
             )
         self.comb += self.level.eq(fifo.level + self.readable)
+
 
 class AsyncFIFO(Module, _FIFOInterface):
     """Asynchronous FIFO (first in, first out)

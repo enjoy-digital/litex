@@ -5,6 +5,7 @@ from migen.bus.transactions import *
 from migen.bus import wishbone
 from migen.sim.generic import run_simulation
 
+
 # Our bus master.
 # Python generators let us program bus transactions in an elegant sequential style.
 def my_generator():
@@ -27,6 +28,7 @@ def my_generator():
         for delay in range(prng.randrange(0, 3)):
             yield None
 
+
 # Our bus slave.
 class MyModelWB(wishbone.TargetModel):
     def __init__(self):
@@ -38,6 +40,7 @@ class MyModelWB(wishbone.TargetModel):
     def can_ack(self, bus):
         # Simulate variable latency.
         return self.prng.randrange(0, 2)
+
 
 class TB(Module):
     def __init__(self):

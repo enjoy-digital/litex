@@ -3,6 +3,7 @@ from migen.bus import wishbone
 from migen.bus import csr
 from migen.genlib.misc import timeline
 
+
 class WB2CSR(Module):
     def __init__(self, bus_wishbone=None, bus_csr=None):
         if bus_wishbone is None:

@@ -1,5 +1,6 @@
 import os
 
+
 class GenericProgrammer:
     def __init__(self, flash_proxy_basename=None):
         self.flash_proxy_basename = flash_proxy_basename

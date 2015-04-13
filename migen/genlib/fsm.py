@@ -5,8 +5,10 @@ from migen.fhdl.module import FinalizeError
 from migen.fhdl.visit import NodeTransformer
 from migen.fhdl.bitcontainer import value_bits_sign
 
+
 class AnonymousState:
     pass
+
 
 # do not use namedtuple here as it inherits tuple
 # and the latter is used elsewhere in FHDL
@@ -14,10 +16,12 @@ class NextState:
     def __init__(self, state):
         self.state = state
 
+
 class NextValue:
     def __init__(self, register, value):
         self.register = register
         self.value = value
+
 
 class _LowerNext(NodeTransformer):
     def __init__(self, next_state_signal, encoding, aliases):
@@ -45,6 +49,7 @@ class _LowerNext(NodeTransformer):
             return next_value.eq(node.value), next_value_ce.eq(1)
         else:
             return node
+
 
 class FSM(Module):
     def __init__(self, reset_state=None):

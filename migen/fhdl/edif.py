@@ -14,6 +14,7 @@ _Property = namedtuple("_Property", "name value")
 _Instance = namedtuple("_Instance", "name cell properties")
 _NetBranch = namedtuple("_NetBranch", "portname instancename")
 
+
 def _write_cells(cells):
     r = ""
     for cell in cells:
@@ -32,12 +33,14 @@ def _write_cells(cells):
         )"""
     return r
 
+
 def _write_io(ios):
     r = ""
     for s in ios:
         r += """
                         (port {0.name} (direction {0.direction}))""".format(s)
     return r
+
 
 def _write_instantiations(instances, cell_library):
     instantiations = ""
@@ -52,6 +55,7 @@ def _write_instantiations(instances, cell_library):
                         )"""
     return instantiations
 
+
 def _write_connections(connections):
     r = ""
     for netname, branches in connections.items():
@@ -65,6 +69,7 @@ def _write_connections(connections):
                             )
                         )"""
     return r
+
 
 def _write_edif(cells, ios, instances, connections, cell_library, design_name, part, vendor):
     r = """(edif {0}
@@ -105,6 +110,7 @@ def _write_edif(cells, ios, instances, connections, cell_library, design_name, p
 
     return r
 
+
 def _generate_cells(f):
     cell_dict = OrderedDict()
     for special in f.specials:
@@ -130,6 +136,7 @@ def _generate_cells(f):
             raise ValueError("EDIF conversion can only handle synthesized fragments")
     return [_Cell(k, v) for k, v in cell_dict.items()]
 
+
 def _generate_instances(f,ns):
     instances = []
     for special in f.specials:
@@ -151,6 +158,7 @@ def _generate_instances(f,ns):
             raise ValueError("EDIF conversion can only handle synthesized fragments")
     return instances
 
+
 def _generate_ios(f, ios, ns):
     outs = list_special_ios(f, False, True, False)
     inouts = list_special_ios(f, False, False, True)
@@ -159,6 +167,7 @@ def _generate_ios(f, ios, ns):
         direction = "OUTPUT" if io in outs else "INOUT" if io in inouts else "INPUT"
         r.append(_Port(name=ns.get_name(io), direction=direction))
     return r
+
 
 def _generate_connections(f, ios, ns):
     r = OrderedDict()
@@ -183,6 +192,7 @@ def _generate_connections(f, ios, ns):
             r[io] = []
         r[io].append(_NetBranch(portname=io, instancename=""))
     return r
+
 
 def convert(f, ios, cell_library, vendor, device, name="top"):
     if not isinstance(f, _Fragment):

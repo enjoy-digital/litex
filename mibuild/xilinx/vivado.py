@@ -10,6 +10,7 @@ from mibuild.generic_platform import *
 from mibuild import tools
 from mibuild.xilinx import common
 
+
 def _format_constraint(c):
     if isinstance(c, Pins):
         return "set_property LOC " + c.identifiers[0]
@@ -22,6 +23,7 @@ def _format_constraint(c):
     else:
         raise ValueError("unknown constraint %s" % c)
 
+
 def _format_xdc(signame, resname, *constraints):
     fmt_c = [_format_constraint(c) for c in constraints]
     fmt_r = resname[0] + ":" + str(resname[1])
@@ -31,6 +33,7 @@ def _format_xdc(signame, resname, *constraints):
     for c in fmt_c:
         r += c + " [get_ports " + signame + "]\n"
     return r
+
 
 def _build_xdc(named_sc, named_pc):
     r = ""
@@ -45,6 +48,7 @@ def _build_xdc(named_sc, named_pc):
     if named_pc:
         r += "\n" + "\n\n".join(named_pc)
     return r
+
 
 def _run_vivado(build_name, vivado_path, source, ver=None):
     if sys.platform == "win32" or sys.platform == "cygwin":
@@ -64,6 +68,7 @@ def _run_vivado(build_name, vivado_path, source, ver=None):
 
     if r != 0:
         raise OSError("Subprocess failed")
+
 
 class XilinxVivadoToolchain:
     def __init__(self):

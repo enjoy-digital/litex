@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.genlib import fifo
 
+
 class _FIFOActor(Module):
     def __init__(self, fifo_class, layout, depth):
         self.sink = Sink(layout)
@@ -42,12 +43,14 @@ class _FIFOActor(Module):
                 self.source.eop.eq(self.fifo.dout.eop)
             ]
 
+
 class SyncFIFO(_FIFOActor):
     def __init__(self, layout, depth, buffered=False):
         _FIFOActor.__init__(
             self,
             fifo.SyncFIFOBuffered if buffered else fifo.SyncFIFO,
             layout, depth)
+
 
 class AsyncFIFO(_FIFOActor):
     def __init__(self, layout, depth):

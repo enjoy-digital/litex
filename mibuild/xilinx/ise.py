@@ -7,6 +7,7 @@ from mibuild.generic_platform import *
 from mibuild import tools
 from mibuild.xilinx import common
 
+
 def _format_constraint(c):
     if isinstance(c, Pins):
         return "LOC=" + c.identifiers[0]
@@ -16,6 +17,7 @@ def _format_constraint(c):
         return "DRIVE=" + str(c.strength)
     elif isinstance(c, Misc):
         return c.misc
+
 
 def _format_ucf(signame, pin, others, resname):
     fmt_c = []
@@ -28,6 +30,7 @@ def _format_ucf(signame, pin, others, resname):
         fmt_r += "." + resname[2]
     return "NET \"" + signame + "\" " + " | ".join(fmt_c) + "; # " + fmt_r + "\n"
 
+
 def _build_ucf(named_sc, named_pc):
     r = ""
     for sig, pins, others, resname in named_sc:
@@ -39,6 +42,7 @@ def _build_ucf(named_sc, named_pc):
     if named_pc:
         r += "\n" + "\n\n".join(named_pc)
     return r
+
 
 def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
     prj_contents = ""
@@ -56,6 +60,7 @@ def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
     for path in vincpaths:
         xst_contents += "-vlgincdir " + path + "\n"
     tools.write_to_file(build_name + ".xst", xst_contents)
+
 
 def _run_yosys(device, sources, vincpaths, build_name):
     ys_contents = ""
@@ -86,6 +91,7 @@ synth_xilinx -arch {arch} -top top -edif {build_name}.edif""".format(arch=arch, 
     r = subprocess.call(["yosys", ys_name])
     if r != 0:
         raise OSError("Subprocess failed")
+
 
 def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
         bitgen_opt, ise_commands, map_opt, par_opt, ver=None):
@@ -119,6 +125,7 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit
     r = subprocess.call(["bash", build_script_file])
     if r != 0:
         raise OSError("Subprocess failed")
+
 
 class XilinxISEToolchain:
     def __init__(self):

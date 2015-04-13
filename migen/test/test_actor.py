@@ -8,10 +8,12 @@ from migen.actorlib.sim import *
 
 from migen.test.support import SimCase, SimBench
 
+
 def source_gen(sent):
     for i in range(10):
         yield Token("source", {"value": i})
         sent.append(i)
+
 
 class SimSource(SimActor):
     def __init__(self):
@@ -19,17 +21,20 @@ class SimSource(SimActor):
         self.sent = []
         SimActor.__init__(self, source_gen(self.sent))
 
+
 def sink_gen(received):
     while True:
         t = Token("sink")
         yield t
         received.append(t.value["value"])
 
+
 class SimSink(SimActor):
     def __init__(self):
         self.sink = Sink([("value", 32)])
         self.received = []
         SimActor.__init__(self, sink_gen(self.received))
+
 
 class SourceSinkCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):
@@ -47,6 +52,7 @@ class SourceSinkCase(SimCase, unittest.TestCase):
     def test_equal(self):
         self.run_with(lambda tb, tbp: None)
         self.assertEqual(self.tb.source.sent, self.tb.sink.received)
+
 
 class SourceSinkDirectCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):

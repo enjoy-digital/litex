@@ -3,6 +3,7 @@ from migen.flow.actor import *
 from migen.flow.transactions import *
 from migen.util.misc import xdir
 
+
 def _sim_multiread(sim, obj):
     if isinstance(obj, Signal):
         return sim.rd(obj)
@@ -14,12 +15,14 @@ def _sim_multiread(sim, obj):
                 r[k] = rd
         return r
 
+
 def _sim_multiwrite(sim, obj, value):
     if isinstance(obj, Signal):
         sim.wr(obj, value)
     else:
         for k, v in value.items():
             _sim_multiwrite(sim, getattr(obj, k), v)
+
 
 # Generators yield None or a tuple of Tokens.
 # Tokens for Sink endpoints are pulled and the "value" field filled in.
@@ -91,6 +94,7 @@ class TokenExchanger(Module):
             self._update_control_signals(selfp)
     do_simulation.passive = True
 
+
 class SimActor(Module):
     def __init__(self, generator):
         self.busy = Signal()
@@ -99,6 +103,7 @@ class SimActor(Module):
     def do_simulation(self, selfp):
         selfp.busy = self.token_exchanger.busy
     do_simulation.passive = True
+
 
 def _dumper_gen(prefix):
     while True:
@@ -109,6 +114,7 @@ def _dumper_gen(prefix):
         else:
             s = str(list(t.value.values())[0])
         print(prefix + s)
+
 
 class Dumper(SimActor):
     def __init__(self, layout, prefix=""):

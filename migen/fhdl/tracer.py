@@ -2,6 +2,7 @@ import inspect
 from opcode import opname
 from collections import defaultdict
 
+
 def get_var_name(frame):
     code = frame.f_code
     call_index = frame.f_lasti
@@ -29,10 +30,12 @@ def get_var_name(frame):
         else:
             return None
 
+
 def remove_underscore(s):
     if len(s) > 2 and s[0] == "_" and s[1] != "_":
         s = s[1:]
     return s
+
 
 def get_obj_var_name(override=None, default=None):
     if override:
@@ -55,11 +58,13 @@ def get_obj_var_name(override=None, default=None):
 name_to_idx = defaultdict(int)
 classname_to_objs = dict()
 
+
 def index_id(l, obj):
     for n, e in enumerate(l):
         if id(e) == id(obj):
             return n
     raise ValueError
+
 
 def trace_back(varname=None):
     l = []

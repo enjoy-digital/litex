@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.fhdl import verilog
 
+
 class Example(Module):
     def __init__(self, n=6):
         self.pad = Signal(n)

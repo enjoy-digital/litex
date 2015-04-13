@@ -3,6 +3,7 @@ from migen.genlib.record import *
 from migen.genlib.fsm import *
 from migen.flow.actor import *
 
+
 # Generates integers from start to maximum-1
 class IntSequence(Module):
     def __init__(self, nbits, offsetbits=0, step=1):

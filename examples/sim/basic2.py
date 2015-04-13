@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.sim.generic import run_simulation
 
+
 # A slightly more elaborate counter.
 # Has a clock enable (CE) signal, counts on more bits
 # and resets with a negative number.

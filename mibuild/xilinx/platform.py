@@ -1,6 +1,7 @@
 from mibuild.generic_platform import GenericPlatform
 from mibuild.xilinx import common, vivado, ise
 
+
 class XilinxPlatform(GenericPlatform):
     bitstream_ext = ".bit"
 

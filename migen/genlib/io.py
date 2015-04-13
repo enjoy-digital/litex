@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.fhdl.specials import Special
 from migen.fhdl.tools import list_signals
 
+
 class DifferentialInput(Special):
     def __init__(self, i_p, i_n, o):
         Special.__init__(self)
@@ -18,6 +19,7 @@ class DifferentialInput(Special):
     def lower(dr):
         raise NotImplementedError("Attempted to use a differential input, but platform does not support them")
 
+
 class DifferentialOutput(Special):
     def __init__(self, i, o_p, o_n):
         Special.__init__(self)
@@ -33,6 +35,7 @@ class DifferentialOutput(Special):
     @staticmethod
     def lower(dr):
         raise NotImplementedError("Attempted to use a differential output, but platform does not support them")
+
 
 class CRG(Module):
     def __init__(self, clk, rst=0):
@@ -53,6 +56,7 @@ class CRG(Module):
             self.cd_sys.rst.eq(~rst_n)
         ]
 
+
 class DDRInput(Special):
     def __init__(self, i, o1, o2, clk=ClockSignal()):
         Special.__init__(self)
@@ -70,6 +74,7 @@ class DDRInput(Special):
     @staticmethod
     def lower(dr):
         raise NotImplementedError("Attempted to use a DDR input, but platform does not support them")
+
 
 class DDROutput(Special):
     def __init__(self, i1, i2, o, clk=ClockSignal()):

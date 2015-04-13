@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.sim.generic import run_simulation
 
+
 # Our simple counter, which increments at every cycle
 # and prints its current value in simulation.
 class Counter(Module):

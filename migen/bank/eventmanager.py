@@ -3,6 +3,7 @@ from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.misc import optree
 
+
 class _EventSource(HUID):
     def __init__(self):
         HUID.__init__(self)
@@ -10,6 +11,7 @@ class _EventSource(HUID):
         self.pending = Signal() # value in the pending register + assert irq if unmasked
         self.trigger = Signal() # trigger signal interface to the user design
         self.clear = Signal() # clearing attempt by W1C to pending register, ignored by some event sources
+
 
 # set on a positive trigger pulse
 class EventSourcePulse(Module, _EventSource):
@@ -20,6 +22,7 @@ class EventSourcePulse(Module, _EventSource):
             If(self.clear, self.pending.eq(0)),
             If(self.trigger, self.pending.eq(1))
         ]
+
 
 # set on the falling edge of the trigger, status = trigger
 class EventSourceProcess(Module, _EventSource):
@@ -33,6 +36,7 @@ class EventSourceProcess(Module, _EventSource):
             If(~self.trigger & old_trigger, self.pending.eq(1))
         ]
 
+
 # all status set by external trigger
 class EventSourceLevel(Module, _EventSource):
     def __init__(self):
@@ -41,6 +45,7 @@ class EventSourceLevel(Module, _EventSource):
             self.status.eq(self.trigger),
             self.pending.eq(self.trigger)
         ]
+
 
 class EventManager(Module, AutoCSR):
     def __init__(self):
@@ -70,6 +75,7 @@ class EventManager(Module, AutoCSR):
             if self.finalized:
                 raise FinalizeError
             self.submodules += value
+
 
 class SharedIRQ(Module):
     def __init__(self, *event_managers):

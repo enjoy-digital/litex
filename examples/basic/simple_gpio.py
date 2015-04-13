@@ -3,6 +3,7 @@ from migen.fhdl import verilog
 from migen.genlib.cdc import MultiReg
 from migen.bank import description, csrgen
 
+
 class Example(Module):
     def __init__(self, ninputs=32, noutputs=32):
         r_o = description.CSRStorage(noutputs, atomic_write=True)

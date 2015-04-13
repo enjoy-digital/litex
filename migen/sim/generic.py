@@ -6,6 +6,7 @@ from migen.fhdl import verilog
 from migen.sim.ipc import *
 from migen.sim import icarus
 
+
 class TopLevel:
     def __init__(self, vcd_name=None, vcd_level=1,
       top_name="top", dut_type="dut", dut_name="dut",
@@ -71,6 +72,7 @@ end
                 dut_name=self.dut_name)
         r += "\nendmodule"
         return r
+
 
 class Simulator:
     def __init__(self, fragment, top_level=None, sim_runner=None, sockaddr="simsocket", **vopts):
@@ -210,6 +212,7 @@ class Simulator:
 
     def __exit__(self, type, value, traceback):
         self.close()
+
 
 def run_simulation(fragment, ncycles=None, vcd_name=None, **kwargs):
     with Simulator(fragment, TopLevel(vcd_name), icarus.Runner(**kwargs)) as s:

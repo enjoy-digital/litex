@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.fhdl.specials import Special
 from migen.fhdl.tools import list_signals
 
+
 class AsyncResetSynchronizer(Special):
     def __init__(self, cd, async_reset):
         Special.__init__(self)

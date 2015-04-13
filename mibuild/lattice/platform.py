@@ -1,6 +1,7 @@
 from mibuild.generic_platform import GenericPlatform
 from mibuild.lattice import common, diamond
 
+
 class LatticePlatform(GenericPlatform):
     bitstream_ext = ".bit"
 

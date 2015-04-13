@@ -3,6 +3,7 @@ from migen.fhdl.bitcontainer import value_bits_sign
 from migen.fhdl.specials import Special
 from migen.fhdl.tools import list_signals
 
+
 class NoRetiming(Special):
     def __init__(self, reg):
         Special.__init__(self)
@@ -12,6 +13,7 @@ class NoRetiming(Special):
     @staticmethod
     def lower(dr):
         return Module()
+
 
 class MultiRegImpl(Module):
     def __init__(self, i, o, odomain, n):
@@ -31,6 +33,7 @@ class MultiRegImpl(Module):
             src = reg
         self.comb += self.o.eq(src)
         self.specials += [NoRetiming(reg) for reg in self.regs]
+
 
 class MultiReg(Special):
     def __init__(self, i, o, odomain="sys", n=2):
@@ -58,6 +61,7 @@ class MultiReg(Special):
     def lower(dr):
         return MultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
+
 class PulseSynchronizer(Module):
     def __init__(self, idomain, odomain):
         self.i = Signal()
@@ -76,6 +80,7 @@ class PulseSynchronizer(Module):
         self.specials += MultiReg(toggle_i, toggle_o, odomain)
         sync_o += toggle_o_r.eq(toggle_o)
         self.comb += self.o.eq(toggle_o ^ toggle_o_r)
+
 
 class GrayCounter(Module):
     def __init__(self, width):

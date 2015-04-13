@@ -140,6 +140,7 @@ _connectors = [
         "None")  # 116 USBH2_CLK USB_HOST2 +2V5 PA0
 ]
 
+
 class Platform(XilinxPlatform):
     default_clk_name = "clk0"
     default_clk_period = 10

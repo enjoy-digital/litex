@@ -3,6 +3,7 @@ from migen.fhdl.std import *
 from migen.genlib.misc import optree
 from migen.genlib.record import *
 
+
 def _make_m2s(layout):
     r = []
     for f in layout:
@@ -11,6 +12,7 @@ def _make_m2s(layout):
         else:
             r.append((f[0], _make_m2s(f[1])))
     return r
+
 
 class EndpointDescription:
     def __init__(self, payload_layout, param_layout=[], packetized=False):
@@ -56,13 +58,16 @@ class _Endpoint(Record):
         except:
             return getattr(object.__getattribute__(self, "param"), name)
 
+
 class Source(_Endpoint):
     def connect(self, sink):
         return Record.connect(self, sink)
 
+
 class Sink(_Endpoint):
     def connect(self, source):
         return source.connect(self)
+
 
 def get_endpoints(obj, filt=_Endpoint):
     if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
@@ -73,11 +78,13 @@ def get_endpoints(obj, filt=_Endpoint):
             r[k] = v
     return r
 
+
 def get_single_ep(obj, filt):
     eps = get_endpoints(obj, filt)
     if len(eps) != 1:
         raise ValueError("More than one endpoint")
     return list(eps.items())[0]
+
 
 class BinaryActor(Module):
     def __init__(self, *args, **kwargs):
@@ -88,6 +95,7 @@ class BinaryActor(Module):
 
     def build_binary_control(self, sink, source):
         raise NotImplementedError("Binary actor classes must overload build_binary_control_fragment")
+
 
 class CombinatorialActor(BinaryActor):
     def build_binary_control(self, sink, source):
@@ -101,6 +109,7 @@ class CombinatorialActor(BinaryActor):
                 source.sop.eq(sink.sop),
                 source.eop.eq(sink.eop)
             ]
+
 
 class SequentialActor(BinaryActor):
     def __init__(self, delay):
@@ -133,6 +142,7 @@ class SequentialActor(BinaryActor):
                 source.sop.eq(sink.sop),
                 source.eop.eq(sink.eop)
             ]
+
 
 class PipelinedActor(BinaryActor):
     def __init__(self, latency):

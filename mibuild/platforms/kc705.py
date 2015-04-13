@@ -375,6 +375,7 @@ _connectors = [
     )
 ]
 
+
 class Platform(XilinxPlatform):
     identifier = 0x4B37
     default_clk_name = "clk156"

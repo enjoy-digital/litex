@@ -50,6 +50,7 @@ _io = [
     )
 ]
 
+
 class Platform(XilinxPlatform):
     default_clk_name = "clk200"
     default_clk_period = 5

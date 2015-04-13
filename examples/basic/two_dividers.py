@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.genlib import divider
 
+
 @ResetInserter()
 @CEInserter()
 class Example(Module):

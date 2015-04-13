@@ -4,6 +4,7 @@ from migen.fhdl.std import *
 Encoders and decoders between binary and one-hot representation
 """
 
+
 class Encoder(Module):
     """Encode one-hot to binary
 
@@ -31,6 +32,7 @@ class Encoder(Module):
         act = dict((1<<j, self.o.eq(j)) for j in range(width))
         act["default"] = self.n.eq(1)
         self.comb += Case(self.i, act)
+
 
 class PriorityEncoder(Module):
     """Priority encode requests to binary
@@ -60,6 +62,7 @@ class PriorityEncoder(Module):
             self.comb += If(self.i[j], self.o.eq(j))
         self.comb += self.n.eq(self.i == 0)
 
+
 class Decoder(Module):
     """Decode binary to one-hot
 
@@ -88,6 +91,7 @@ class Decoder(Module):
         act = dict((j, self.o.eq(1<<j)) for j in range(width))
         self.comb += Case(self.i, act)
         self.comb += If(self.n, self.o.eq(0))
+
 
 class PriorityDecoder(Decoder):
     pass # same

@@ -11,6 +11,7 @@ from migen.genlib.misc import optree
 # size can be an int, or a (int, bool) tuple for signed numbers
 # sublayout must be a list
 
+
 def set_layout_parameters(layout, **layout_dict):
     def resolve(p):
         if isinstance(p, str):
@@ -34,6 +35,7 @@ def set_layout_parameters(layout, **layout_dict):
             raise TypeError
     return r
 
+
 def layout_len(layout):
     r = 0
     for f in layout:
@@ -53,11 +55,13 @@ def layout_len(layout):
             r += fsize
     return r
 
+
 def layout_get(layout, name):
     for f in layout:
         if f[0] == name:
             return f
     raise KeyError(name)
+
 
 def layout_partial(layout, *elements):
     r = []
@@ -76,6 +80,7 @@ def layout_partial(layout, *elements):
                 insert_ref = new_insert_ref
         insert_ref.append(layout_get(copy_ref, last))
     return r
+
 
 class Record:
     def __init__(self, layout, name=None):

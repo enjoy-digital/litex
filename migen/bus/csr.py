@@ -11,14 +11,17 @@ _layout = [
     ("dat_r",    "data_width",        DIR_S_TO_M)
 ]
 
+
 class Interface(Record):
     def __init__(self, data_width=8, address_width=14):
         Record.__init__(self, set_layout_parameters(_layout,
             data_width=data_width, address_width=address_width))
 
+
 class Interconnect(Module):
     def __init__(self, master, slaves):
         self.comb += master.connect(*slaves)
+
 
 class Initiator(Module):
     def __init__(self, generator, bus=None):
@@ -54,6 +57,7 @@ class Initiator(Module):
                     if isinstance(self.transaction, TWrite):
                         selfp.bus.we = 1
                         selfp.bus.dat_w = self.transaction.data
+
 
 class SRAM(Module):
     def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None):

@@ -3,11 +3,13 @@ from migen.fhdl.specials import SynthesisDirective
 from migen.fhdl import verilog
 from migen.genlib.cdc import *
 
+
 class XilinxMultiRegImpl(MultiRegImpl):
     def __init__(self, *args, **kwargs):
         MultiRegImpl.__init__(self, *args, **kwargs)
         self.specials += set(SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
             for r in self.regs)
+
 
 class XilinxMultiReg:
     @staticmethod

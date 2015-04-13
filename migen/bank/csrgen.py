@@ -3,6 +3,7 @@ from migen.fhdl.std import *
 from migen.bus import csr
 from migen.bank.bank import GenericBank
 
+
 class Bank(GenericBank):
     def __init__(self, description, address=0, bus=None):
         if bus is None:
@@ -29,6 +30,7 @@ class Bank(GenericBank):
             self.bus.dat_r.eq(0),
             If(sel, Case(self.bus.adr[:self.decode_bits], brcases))
         ]
+
 
 # address_map(name, memory) returns the CSR offset at which to map
 # the CSR object (register bank or memory).

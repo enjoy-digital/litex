@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 
 (SP_WITHDRAW, SP_CE) = range(2)
 
+
 class RoundRobin(Module):
     def __init__(self, n, switch_policy=SP_WITHDRAW):
         self.request = Signal(n)

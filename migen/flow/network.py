@@ -9,6 +9,7 @@ from migen.flow import plumbing
 # from the dictionary. They are needed to enable actor duplication or sharing during
 # elaboration, and automatic parametrization of plumbing actors.
 
+
 class AbstractActor:
     def __init__(self, actor_class, parameters=dict(), name=None):
         self.actor_class = actor_class
@@ -25,6 +26,7 @@ class AbstractActor:
             r += ": " + self.name
         r += ">"
         return r
+
 
 class MultiDiGraph:
     def __init__(self):
@@ -88,6 +90,7 @@ class MultiDiGraph:
             for edge in self.edges[(source, sink)]:
                 e.append((source, sink, edge))
         return e
+
 
 # TODO: rewrite this without non-determinism
 class DataFlowGraph(MultiDiGraph):
@@ -279,6 +282,7 @@ class DataFlowGraph(MultiDiGraph):
         if optimizer is not None:
             optimizer(self)
         self._instantiate_actors()
+
 
 class CompositeActor(Module):
     def __init__(self, dfg):

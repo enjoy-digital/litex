@@ -9,8 +9,10 @@ from migen.util.misc import autotype
 
 from mibuild import tools
 
+
 class ConstraintError(Exception):
     pass
+
 
 class Pins:
     def __init__(self, *identifiers):
@@ -18,32 +20,39 @@ class Pins:
         for i in identifiers:
             self.identifiers += i.split()
 
+
 class IOStandard:
     def __init__(self, name):
         self.name = name
+
 
 class Drive:
     def __init__(self, strength):
         self.strength = strength
 
+
 class Misc:
     def __init__(self, misc):
         self.misc = misc
+
 
 class Subsignal:
     def __init__(self, name, *constraints):
         self.name = name
         self.constraints = list(constraints)
 
+
 class PlatformInfo:
     def __init__(self, info):
         self.info = info
+
 
 def _lookup(description, name, number):
     for resource in description:
         if resource[0] == name and (number is None or resource[1] == number):
             return resource
     raise ConstraintError("Resource not found: " + name + ":" + str(number))
+
 
 def _resource_type(resource):
     t = None
@@ -62,6 +71,7 @@ def _resource_type(resource):
                     n_bits = len(c.identifiers)
             t.append((element.name, n_bits))
     return t
+
 
 class ConnectorManager:
     def __init__(self, connectors):
@@ -95,6 +105,7 @@ class ConnectorManager:
                 r.append(identifier)
         return r
 
+
 def _separate_pins(constraints):
     pins = None
     others = []
@@ -105,6 +116,7 @@ def _separate_pins(constraints):
         else:
             others.append(c)
     return pins, others
+
 
 class ConstraintManager:
     def __init__(self, io, connectors):
@@ -176,6 +188,7 @@ class ConstraintManager:
 
     def get_platform_commands(self):
         return self.platform_commands
+
 
 class GenericPlatform:
     def __init__(self, device, io, connectors=[], name=None):

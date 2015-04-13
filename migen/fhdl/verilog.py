@@ -8,6 +8,7 @@ from migen.fhdl.bitcontainer import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
 from migen.fhdl.conv_output import ConvOutput
 
+
 def _printsig(ns, s):
     if s.signed:
         n = "signed "
@@ -17,6 +18,7 @@ def _printsig(ns, s):
         n += "[" + str(flen(s)-1) + ":0] "
     n += ns.get_name(s)
     return n
+
 
 def _printintbool(node):
     if isinstance(node, bool):
@@ -32,6 +34,7 @@ def _printintbool(node):
             return str(nbits) + "'sd" + str(2**nbits + node), True
     else:
         raise TypeError
+
 
 def _printexpr(ns, node):
     if isinstance(node, (int, bool)):
@@ -96,6 +99,7 @@ def _printexpr(ns, node):
 
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
+
 def _printnode(ns, at, level, node):
     if node is None:
         return ""
@@ -138,6 +142,7 @@ def _printnode(ns, at, level, node):
     else:
         raise TypeError("Node of unrecognized type: "+str(type(node)))
 
+
 def _list_comb_wires(f):
     r = set()
     groups = group_by_targets(f.comb)
@@ -145,6 +150,7 @@ def _list_comb_wires(f):
         if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
             r |= g[0]
     return r
+
 
 def _printheader(f, ios, name, ns):
     sigs = list_signals(f) | list_special_ios(f, True, True, True)
@@ -179,6 +185,7 @@ def _printheader(f, ios, name, ns):
             r += "reg " + _printsig(ns, sig) + resetexpr + ";\n"
     r += "\n"
     return r
+
 
 def _printcomb(f, ns, display_run):
     r = ""
@@ -217,6 +224,7 @@ def _printcomb(f, ns, display_run):
     r += "\n"
     return r
 
+
 def _printsync(f, ns):
     r = ""
     for k, v in sorted(f.sync.items(), key=itemgetter(0)):
@@ -224,6 +232,7 @@ def _printsync(f, ns):
         r += _printnode(ns, _AT_SIGNAL, 1, v)
         r += "end\n\n"
     return r
+
 
 def _call_special_classmethod(overrides, obj, method, *args, **kwargs):
     cl = obj.__class__
@@ -233,6 +242,7 @@ def _call_special_classmethod(overrides, obj, method, *args, **kwargs):
         return getattr(cl, method)(obj, *args, **kwargs)
     else:
         return None
+
 
 def _lower_specials_step(overrides, specials):
     f = _Fragment()
@@ -244,6 +254,7 @@ def _lower_specials_step(overrides, specials):
             lowered_specials.add(special)
     return f, lowered_specials
 
+
 def _can_lower(overrides, specials):
     for special in specials:
         cl = special.__class__
@@ -252,6 +263,7 @@ def _can_lower(overrides, specials):
         if hasattr(cl, "lower"):
             return True
     return False
+
 
 def _lower_specials(overrides, specials):
     f, lowered_specials = _lower_specials_step(overrides, specials)
@@ -262,6 +274,7 @@ def _lower_specials(overrides, specials):
         f.specials -= lowered_specials2
     return f, lowered_specials
 
+
 def _printspecials(overrides, specials, ns, add_data_file):
     r = ""
     for special in sorted(specials, key=lambda x: x.huid):
@@ -270,6 +283,7 @@ def _printspecials(overrides, specials, ns, add_data_file):
             raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
         r += pr
     return r
+
 
 def convert(f, ios=None, name="top",
   special_overrides=dict(),

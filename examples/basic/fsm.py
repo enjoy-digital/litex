@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.fhdl import verilog
 from migen.genlib.fsm import FSM, NextState, NextValue
 
+
 class Example(Module):
     def __init__(self):
         self.s = Signal()

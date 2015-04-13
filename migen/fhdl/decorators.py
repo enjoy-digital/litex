@@ -4,6 +4,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.fhdl.tools import insert_reset, rename_clock_domain
 
+
 class ModuleTransformer:
     # overload this in derived classes
     def transform_instance(self, i):
@@ -51,9 +52,11 @@ class ModuleTransformer:
         warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
         return cls(*args, **kwargs)(i)
 
+
 def DecorateModule(transformer, *args, **kwargs):
     warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
     return transformer.__self__(*args, **kwargs)
+
 
 class ControlInserter(ModuleTransformer):
     control_name = None  # override this
@@ -84,6 +87,7 @@ class ControlInserter(ModuleTransformer):
                 for cdn in self.clock_domains]
         self.transform_fragment_insert(i, f, to_insert)
 
+
 class CEInserter(ControlInserter):
     control_name = "ce"
 
@@ -93,6 +97,7 @@ class CEInserter(ControlInserter):
 
 InsertCE = CEInserter.adhoc
 
+
 class ResetInserter(ControlInserter):
     control_name = "reset"
 
@@ -101,6 +106,7 @@ class ResetInserter(ControlInserter):
             f.sync[cdn] = insert_reset(reset, f.sync[cdn])
 
 InsertReset = ResetInserter.adhoc
+
 
 class ClockDomainsRenamer(ModuleTransformer):
     def __init__(self, cd_remapping):

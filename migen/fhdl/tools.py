@@ -4,12 +4,14 @@ from migen.fhdl.visit import NodeVisitor, NodeTransformer
 from migen.fhdl.bitcontainer import value_bits_sign
 from migen.util.misc import flat_iteration
 
+
 class _SignalLister(NodeVisitor):
     def __init__(self):
         self.output_list = set()
 
     def visit_Signal(self, node):
         self.output_list.add(node)
+
 
 class _TargetLister(NodeVisitor):
     def __init__(self):
@@ -29,19 +31,23 @@ class _TargetLister(NodeVisitor):
         for choice in node.choices:
             self.visit(choice)
 
+
 def list_signals(node):
     lister = _SignalLister()
     lister.visit(node)
     return lister.output_list
+
 
 def list_targets(node):
     lister = _TargetLister()
     lister.visit(node)
     return lister.output_list
 
+
 def _resort_statements(ol):
     return [statement for i, statement in
             sorted(ol, key=lambda x: x[0])]
+
 
 def group_by_targets(sl):
     groups = []
@@ -63,11 +69,13 @@ def group_by_targets(sl):
     return [(targets, _resort_statements(stmts))
         for targets, stmts in groups]
 
+
 def list_special_ios(f, ins, outs, inouts):
     r = set()
     for special in f.specials:
         r |= special.list_ios(ins, outs, inouts)
     return r
+
 
 class _ClockDomainLister(NodeVisitor):
     def __init__(self):
@@ -84,10 +92,12 @@ class _ClockDomainLister(NodeVisitor):
             self.clock_domains.add(clockname)
             self.visit(statements)
 
+
 def list_clock_domains_expr(f):
     cdl = _ClockDomainLister()
     cdl.visit(f)
     return cdl.clock_domains
+
 
 def list_clock_domains(f):
     r = list_clock_domains_expr(f)
@@ -96,6 +106,7 @@ def list_clock_domains(f):
     for cd in f.clock_domains:
         r.add(cd.name)
     return r
+
 
 def is_variable(node):
     if isinstance(node, Signal):
@@ -112,12 +123,15 @@ def is_variable(node):
     else:
         raise TypeError
 
+
 def generate_reset(rst, sl):
     targets = list_targets(sl)
     return [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.huid)]
 
+
 def insert_reset(rst, sl):
     return [If(rst, *generate_reset(rst, sl)).Else(*sl)]
+
 
 def insert_resets(f):
     newsync = dict()
@@ -127,6 +141,7 @@ def insert_resets(f):
         else:
             newsync[k] = v
     f.sync = newsync
+
 
 class _Lowerer(NodeTransformer):
     def __init__(self):
@@ -148,6 +163,7 @@ class _Lowerer(NodeTransformer):
 
         self.target_context, self.extra_stmts = old_target_context, old_extra_stmts
         return r
+
 
 # Basics are FHDL structure elements that back-ends are not required to support
 # but can be expressed in terms of other elements (lowered) before conversion.
@@ -177,6 +193,7 @@ class _BasicLowerer(_Lowerer):
     def visit_ResetSignal(self, node):
         return self.clock_domains[node.cd].rst
 
+
 class _ComplexSliceLowerer(_Lowerer):
     def visit_Slice(self, node):
         if not isinstance(node.value, Signal):
@@ -188,6 +205,7 @@ class _ComplexSliceLowerer(_Lowerer):
             self.comb.append(self.visit_Assign(a))
             node = _Slice(slice_proxy, node.start, node.stop)
         return NodeTransformer.visit_Slice(self, node)
+
 
 def _apply_lowerer(l, f):
     f = l.visit(f)
@@ -208,11 +226,14 @@ def _apply_lowerer(l, f):
 
     return f
 
+
 def lower_basics(f):
     return _apply_lowerer(_BasicLowerer(f.clock_domains), f)
 
+
 def lower_complex_slices(f):
     return _apply_lowerer(_ComplexSliceLowerer(), f)
+
 
 class _ClockDomainRenamer(NodeVisitor):
     def __init__(self, old, new):
@@ -227,9 +248,11 @@ class _ClockDomainRenamer(NodeVisitor):
         if node.cd == self.old:
             node.cd = self.new
 
+
 def rename_clock_domain_expr(f, old, new):
     cdr = _ClockDomainRenamer(old, new)
     cdr.visit(f)
+
 
 def rename_clock_domain(f, old, new):
     rename_clock_domain_expr(f, old, new)

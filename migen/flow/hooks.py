@@ -3,6 +3,7 @@ from collections import defaultdict
 from migen.fhdl.std import *
 from migen.flow.actor import *
 
+
 class EndpointSimHook(Module):
     def __init__(self, endpoint):
         self.endpoint = endpoint
@@ -24,6 +25,7 @@ class EndpointSimHook(Module):
                 self.on_nack()
         else:
             self.on_inactive()
+
 
 class DFGHook(Module):
     def __init__(self, dfg, create):

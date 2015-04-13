@@ -4,11 +4,13 @@ from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.flow.actor import *
 
+
 def _rawbits_layout(l):
     if isinstance(l, int):
         return [("rawbits", l)]
     else:
         return l
+
 
 class Cast(CombinatorialActor):
     def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
@@ -28,8 +30,10 @@ class Cast(CombinatorialActor):
             raise TypeError
         self.comb += Cat(*sigs_to).eq(Cat(*sigs_from))
 
+
 def pack_layout(l, n):
     return [("chunk"+str(i), l) for i in range(n)]
+
 
 class Unpack(Module):
     def __init__(self, n, layout_to, reverse=False):
@@ -76,6 +80,7 @@ class Unpack(Module):
                 source.sop.eq(sink.sop & first),
                 source.eop.eq(sink.eop & last)
             ]
+
 
 class Pack(Module):
     def __init__(self, layout_from, n, reverse=False):
@@ -136,6 +141,7 @@ class Pack(Module):
                 )
             ]
 
+
 class Chunkerize(CombinatorialActor):
     def __init__(self, layout_from, layout_to, n, reverse=False):
         self.sink = Sink(layout_from)
@@ -160,6 +166,7 @@ class Chunkerize(CombinatorialActor):
             src = getattr(self.sink, f[0])
             dst = getattr(self.source, f[0])
             self.comb += dst.eq(src)
+
 
 class Unchunkerize(CombinatorialActor):
     def __init__(self, layout_from, n, layout_to, reverse=False):
@@ -187,6 +194,7 @@ class Unchunkerize(CombinatorialActor):
             src = getattr(self.sink, f[0])
             dst = getattr(self.source, f[0])
             self.comb += dst.eq(src)
+
 
 class Converter(Module):
     def __init__(self, layout_from, layout_to, reverse=False):
@@ -230,6 +238,7 @@ class Converter(Module):
         # direct connection
         else:
             self.comb += Record.connect(self.sink, self.source)
+
 
 class Pipeline(Module):
     def __init__(self, *modules):

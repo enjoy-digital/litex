@@ -1,5 +1,6 @@
 from migen.flow.hooks import *
 
+
 class EndpointReporter(EndpointSimHook):
     def __init__(self, endpoint):
         EndpointSimHook.__init__(self, endpoint)
@@ -36,6 +37,7 @@ class EndpointReporter(EndpointSimHook):
 
     def on_inactive(self):
         self.inactive += 1
+
 
 class DFGReporter(DFGHook):
     def __init__(self, dfg):

@@ -107,6 +107,7 @@ _connectors = [
     ("F", "E2 E1 E4 F4 F5 G3 F3 G1 H3 H1 H2 J1")
 ]
 
+
 class Platform(XilinxPlatform):
     default_clk_name = "clk32"
     default_clk_period = 31.25

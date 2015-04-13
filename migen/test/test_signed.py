@@ -3,6 +3,7 @@ import unittest
 from migen.fhdl.std import *
 from migen.test.support import SimCase, SimBench
 
+
 class SignedCase(SimCase, unittest.TestCase):
     class TestBench(SimBench):
         def __init__(self):

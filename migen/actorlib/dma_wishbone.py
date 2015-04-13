@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.flow.actor import *
 
+
 class Reader(Module):
     def __init__(self):
         self.bus = wishbone.Interface()
@@ -33,6 +34,7 @@ class Reader(Module):
                 data_reg.eq(self.bus.dat_r)
             )
         ]
+
 
 class Writer(Module):
     def __init__(self):

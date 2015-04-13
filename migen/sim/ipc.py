@@ -8,8 +8,10 @@ import os
 # Message classes
 #
 
+
 class Int32(int):
     pass
+
 
 class Message:
     def __init__(self, *pvalues):
@@ -26,21 +28,26 @@ class Message:
             pf = ""
         return "<" + self.__class__.__name__ + pf + ">"
 
+
 class MessageTick(Message):
     code = 0
     parameters = []
+
 
 class MessageGo(Message):
     code = 1
     parameters = []
 
+
 class MessageWrite(Message):
     code = 2
     parameters = [(str, "name"), (Int32, "index"), (int, "value")]
 
+
 class MessageRead(Message):
     code = 3
     parameters = [(str, "name"), (Int32, "index")]
+
 
 class MessageReadReply(Message):
     code = 4
@@ -51,6 +58,7 @@ message_classes = [MessageTick, MessageGo, MessageWrite, MessageRead, MessageRea
 #
 # Packing
 #
+
 
 def _pack_int(v):
     if v == 0:
@@ -63,10 +71,12 @@ def _pack_int(v):
         p.insert(0, len(p))
     return p
 
+
 def _pack_str(v):
     p = [ord(c) for c in v]
     p.append(0)
     return p
+
 
 def _pack_int32(v):
     return [
@@ -75,6 +85,7 @@ def _pack_int32(v):
         (v & 0xff0000) >> 16,
         (v & 0xff000000) >> 24
     ]
+
 
 def _pack(message):
     r = [message.code]
@@ -95,6 +106,7 @@ def _pack(message):
 # Unpacking
 #
 
+
 def _unpack_int(i, nchunks=None):
     v = 0
     power = 1
@@ -105,6 +117,7 @@ def _unpack_int(i, nchunks=None):
         power *= 256
     return v
 
+
 def _unpack_str(i):
     v = ""
     c = next(i)
@@ -112,6 +125,7 @@ def _unpack_str(i):
         v += chr(c)
         c = next(i)
     return v
+
 
 def _unpack(message):
     i = iter(message)
@@ -134,8 +148,10 @@ def _unpack(message):
 # I/O
 #
 
+
 class PacketTooLarge(Exception):
     pass
+
 
 class Initiator:
     def __init__(self, sockaddr):

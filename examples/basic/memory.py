@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.fhdl import verilog
 
+
 class Example(Module):
     def __init__(self):
         self.specials.mem = Memory(32, 100, init=[5, 18, 32])

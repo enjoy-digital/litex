@@ -48,6 +48,7 @@ _connectors = [
     ("C", "P114 P115 P116 P117 P118 P119 P120 P121 P123 P124 P126 P127 P131 P132 P133 P134")
 ]
 
+
 class Platform(XilinxPlatform):
     identifier = 0x5050
     default_clk_name = "clk32"

@@ -3,6 +3,7 @@ from itertools import combinations
 
 from migen.fhdl.structure import *
 
+
 class _Node:
     def __init__(self):
         self.signal_count = 0
@@ -10,6 +11,7 @@ class _Node:
         self.use_name = False
         self.use_number = False
         self.children = OrderedDict()
+
 
 def _display_tree(filename, tree):
     from migen.util.treeviz import RenderNode
@@ -31,6 +33,7 @@ def _display_tree(filename, tree):
 
     top = _to_render_node("top", tree)
     top.to_svg(filename)
+
 
 def _build_tree(signals, basic_tree=None):
     root = _Node()
@@ -60,6 +63,7 @@ def _build_tree(signals, basic_tree=None):
             current.signal_count += 1
     return root
 
+
 def _set_use_name(node, node_name=""):
     cnames = [(k, _set_use_name(v, k)) for k, v in node.children.items()]
     for (c1_prefix, c1_names), (c2_prefix, c2_names) in combinations(cnames, 2):
@@ -80,6 +84,7 @@ def _set_use_name(node, node_name=""):
 
     return r
 
+
 def _name_signal(tree, signal):
     elements = []
     treepos = tree
@@ -97,8 +102,10 @@ def _name_signal(tree, signal):
             elements.append(elname)
     return "_".join(elements)
 
+
 def _build_pnd_from_tree(tree, signals):
     return dict((signal, _name_signal(tree, signal)) for signal in signals)
+
 
 def _invert_pnd(pnd):
     inv_pnd = dict()
@@ -106,6 +113,7 @@ def _invert_pnd(pnd):
         inv_pnd[v] = inv_pnd.get(v, [])
         inv_pnd[v].append(k)
     return inv_pnd
+
 
 def _list_conflicting_signals(pnd):
     inv_pnd = _invert_pnd(pnd)
@@ -115,6 +123,7 @@ def _list_conflicting_signals(pnd):
             r.update(v)
     return r
 
+
 def _set_use_number(tree, signals):
     for signal in signals:
         current = tree
@@ -123,6 +132,7 @@ def _set_use_number(tree, signals):
             current.use_number = current.signal_count > len(current.numbers) and len(current.numbers) > 1
 
 _debug = False
+
 
 def _build_pnd_for_group(group_n, signals):
     basic_tree = _build_tree(signals)
@@ -161,6 +171,7 @@ def _build_pnd_for_group(group_n, signals):
 
     return pnd
 
+
 def _build_signal_groups(signals):
     r = []
     for signal in signals:
@@ -181,6 +192,7 @@ def _build_signal_groups(signals):
         s1 -= s2
     return r
 
+
 def _build_pnd(signals):
     groups = _build_signal_groups(signals)
     gpnds = [_build_pnd_for_group(n, gsignals) for n, gsignals in enumerate(groups)]
@@ -199,6 +211,7 @@ def _build_pnd(signals):
 
     return pnd
 
+
 def build_namespace(signals):
     pnd = _build_pnd(signals)
     ns = Namespace(pnd)
@@ -207,6 +220,7 @@ def build_namespace(signals):
         if signal.name_override is not None:
             ns.get_name(signal)
     return ns
+
 
 class Namespace:
     def __init__(self, pnd):
