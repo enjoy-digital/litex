@@ -58,11 +58,11 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
 
     # init sequence
     cmds = {
-        "PRECHARGE_ALL" : "DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS",
-        "MODE_REGISTER" : "DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS",
-        "AUTO_REFRESH"  : "DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_CS",
-        "UNRESET"       : "DFII_CONTROL_ODT|DFII_CONTROL_RESET_N",
-        "CKE"           : "DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N"
+        "PRECHARGE_ALL": "DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS",
+        "MODE_REGISTER": "DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS",
+        "AUTO_REFRESH":  "DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_CS",
+        "UNRESET":       "DFII_CONTROL_ODT|DFII_CONTROL_RESET_N",
+        "CKE":           "DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N"
     }
 
     cl = sdram_phy_settings.cl
@@ -147,11 +147,11 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
 
         def format_mr0(cl, wr, dll_reset):
             cl_to_mr0 = {
-                5 : 0b0010,
-                6 : 0b0100,
-                7 : 0b0110,
-                8 : 0b1000,
-                9 : 0b1010,
+                 5: 0b0010,
+                 6: 0b0100,
+                 7: 0b0110,
+                 8: 0b1000,
+                 9: 0b1010,
                 10: 0b1100,
                 11: 0b1110,
                 12: 0b0001,
@@ -160,10 +160,10 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
             }
             wr_to_mr0 = {
                 16: 0b000,
-                5 : 0b001,
-                6 : 0b010,
-                7 : 0b011,
-                8 : 0b100,
+                 5: 0b001,
+                 6: 0b010,
+                 7: 0b011,
+                 8: 0b100,
                 10: 0b101,
                 12: 0b110,
                 14: 0b111
