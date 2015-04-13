@@ -41,7 +41,7 @@ def gen_truth_table(s):
     truth_table = []
     for i in range(2**width):
         for j in range(width):
-            exec("%s = stim[j][i]" %operands[j])
+            exec("{} = stim[j][i]".format(operands[j]))
         truth_table.append(eval(s) != 0)
     return truth_table
 

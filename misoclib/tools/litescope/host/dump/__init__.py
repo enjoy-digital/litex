@@ -1,13 +1,13 @@
 def dec2bin(d, nb=0):
-    if d=="x":
+    if d == "x":
         return "x"*nb
-    elif d==0:
-        b="0"
+    elif d == 0:
+        b = "0"
     else:
-        b=""
-        while d!=0:
-            b="01"[d&1]+b
-            d=d>>1
+        b = ""
+        while d != 0:
+            b = "01"[d&1] + b
+            d = d >> 1
     return b.zfill(nb)
 
 
@@ -101,7 +101,7 @@ class Dump:
         self.vars.append(var)
 
     def add_from_layout(self, layout, var):
-        i=0
+        i = 0
         for s, n in layout:
             self.add(Var(s, n, var[i:i+n]))
             i += n

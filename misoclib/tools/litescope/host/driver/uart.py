@@ -56,7 +56,7 @@ class LiteScopeUARTDriver:
                     data = data << 8
                     data |= ord(self.uart.read())
                 if self.debug:
-                    print("RD %08X @ %08X" %(data, (addr+j)*4))
+                    print("RD {:08X} @ {:08X}".format(data, (addr+j)*4))
                 datas.append(data)
         return datas
 
@@ -78,11 +78,11 @@ class LiteScopeUARTDriver:
                     write_b(self.uart, (dat & 0xff000000) >> 24)
                     dat = dat << 8
                 if self.debug:
-                    print("WR %08X @ %08X" %(data[i], (addr + i)*4))
+                    print("WR {:08X} @ {:08X}".format(data[i], (addr + i)*4))
         else:
             dat = data
             for j in range(4):
                 write_b(self.uart, (dat & 0xff000000) >> 24)
                 dat = dat << 8
             if self.debug:
-                print("WR %08X @ %08X" %(data, (addr * 4)))
+                print("WR {:08X} @ {:08X}".format(data, (addr * 4)))

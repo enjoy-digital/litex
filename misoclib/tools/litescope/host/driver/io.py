@@ -7,7 +7,7 @@ class LiteScopeIODriver():
     def build(self):
         for key, value in self.regs.d.items():
             if self.name in key:
-                key = key.replace(self.name +"_", "")
+                key = key.replace(self.name + "_", "")
                 setattr(self, key, value)
 
     def write(self, value):

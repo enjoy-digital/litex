@@ -32,7 +32,7 @@ class CSVDump(Dump):
                 else:
                     r += dec2bin(var.val, var.width)
                 r += ", "
-            r+= "\n"
+            r += "\n"
         return r
 
     def write(self, filename):

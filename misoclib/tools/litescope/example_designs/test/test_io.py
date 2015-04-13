@@ -32,6 +32,6 @@ def main(wb):
     ###
     led_anim0(io)
     led_anim1(io)
-    print("%02X" %io.read())
+    print("{:02X}".format(io.read()))
     ###
     wb.close()

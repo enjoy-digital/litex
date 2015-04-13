@@ -54,7 +54,7 @@ class LiteScopeEtherboneDriver:
         datas = packet.records.pop().writes.get_datas()
         if self.debug:
             for i, data in enumerate(datas):
-                print("RD %08X @ %08X" %(data, addr + 4*(i%to_int(burst_length))))
+                print("RD {:08X} @ {:08X}".format(data, addr + 4*(i%to_int(burst_length))))
         return datas
 
     def write(self, addr, datas):
@@ -82,4 +82,4 @@ class LiteScopeEtherboneDriver:
 
         if self.debug:
             for i, data in enumerate(datas):
-                print("WR %08X @ %08X" %(data, addr + 4*i))
+                print("WR {:08X} @ {:08X}".format(data, addr + 4*i))

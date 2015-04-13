@@ -27,7 +27,7 @@ class UARTMux(Module):
         # when sel==0, route it to shared rx and bridge rx
         # when sel==1, route it only to bridge rx
         self.comb += \
-            If(self.sel==0,
+            If(self.sel == 0,
                 self.shared_pads.rx.eq(pads.rx),
                 self.bridge_pads.rx.eq(pads.rx)
             ).Else(
@@ -38,7 +38,7 @@ class UARTMux(Module):
         # when sel==0, route shared tx to pads tx
         # when sel==1, route bridge tx to pads tx
         self.comb += \
-            If(self.sel==0,
+            If(self.sel == 0,
                 pads.tx.eq(self.shared_pads.tx)
             ).Else(
                 pads.tx.eq(self.bridge_pads.tx)

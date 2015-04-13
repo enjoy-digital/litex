@@ -52,7 +52,7 @@ samplerate = {} KHz
             for j, var in enumerate(reversed(self.vars)):
                 data = data << 1
                 try:
-                    data |= var.values[i] %2
+                    data |= var.values[i] % 2
                 except:
                     pass
             datas.append(data)

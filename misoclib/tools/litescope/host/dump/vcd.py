@@ -87,7 +87,7 @@ class VCDDump(Dump):
             r += dec2bin(var.val, var.width)
             r += " "
             r += var.vcd_id
-            r+= "\n"
+            r += "\n"
         r += "$end\n"
         return r
 
