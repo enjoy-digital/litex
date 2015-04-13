@@ -7,7 +7,9 @@ class LiteScopeSubSamplerUnit(Module):
         self.sink = sink = Sink(data_layout(dw))
         self.source = source = Source(data_layout(dw))
         self.value = Signal(32)
-        ###
+
+        # # #
+
         self.submodules.counter = Counter(32)
         done = Signal()
         self.comb += [
@@ -23,7 +25,9 @@ class LiteScopeSubSampler(LiteScopeSubSamplerUnit, AutoCSR):
     def __init__(self, dw):
         LiteScopeSubSamplerUnit.__init__(self, dw)
         self._value = CSRStorage(32)
-        ###
+
+        # # #
+
         self.comb += self.value.eq(self._value.storage)
 
 
@@ -36,7 +40,9 @@ class LiteScopeRunLengthEncoderUnit(Module):
         self.source = source = Source(data_layout(dw))
 
         self.enable = Signal()
-        ###
+
+        # # #
+
         self.submodules.buf = buf = Buffer(sink.description)
         self.comb += Record.connect(sink, buf.d)
 
@@ -82,7 +88,9 @@ class LiteScopeRunLengthEncoder(LiteScopeRunLengthEncoderUnit, AutoCSR):
         LiteScopeRunLengthEncoderUnit.__init__(self, dw, length)
         self._enable = CSRStorage()
         self.external_enable = Signal(reset=1)
-        ###
+
+        # # #
+
         self.comb += self.enable.eq(self._enable.storage & self.external_enable)
 
 
@@ -103,7 +111,7 @@ class LiteScopeRecorderUnit(Module):
 
         self.source = Source(data_layout(dw))
 
-        ###
+        # # #
 
         fifo = InsertReset(SyncFIFO(data_layout(dw), depth, buffered=True))
         self.submodules += fifo
@@ -158,7 +166,7 @@ class LiteScopeRecorder(LiteScopeRecorderUnit, AutoCSR):
         self._source_ack = CSR()
         self._source_data = CSRStatus(dw)
 
-        ###
+        # # #
 
         self.comb += [
             self.trigger.eq(self._trigger.re),

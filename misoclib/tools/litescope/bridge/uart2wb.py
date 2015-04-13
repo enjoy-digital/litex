@@ -22,7 +22,8 @@ class UARTMux(Module):
         self.shared_pads = UARTPads()
         self.bridge_pads = UARTPads()
 
-    ###
+        # # #
+	
         # Route rx pad:
         # when sel==0, route it to shared rx and bridge rx
         # when sel==1, route it only to bridge rx
@@ -54,7 +55,9 @@ class LiteScopeUART2WB(Module, AutoCSR):
         self.wishbone = wishbone.Interface()
         if share_uart:
             self._sel = CSRStorage()
-        ###
+        
+		# # #
+		
         if share_uart:
             mux = UARTMux(pads)
             uart = UARTPHYSerial(mux.bridge_pads, clk_freq, baudrate)
@@ -93,7 +96,6 @@ class LiteScopeUART2WB(Module, AutoCSR):
             )
         ]
 
-        ###
         fsm = InsertReset(FSM(reset_state="IDLE"))
         timeout = Timeout(clk_freq//10)
         self.submodules += fsm, timeout

@@ -15,7 +15,7 @@ class LiteScopeSumUnit(Module, AutoCSR):
         prog = mem.get_port(write_capable=True)
         self.specials += mem, lut, prog
 
-        ###
+        # # #
 
         # program port
         self.comb += [
@@ -43,7 +43,9 @@ class LiteScopeSum(LiteScopeSumUnit, AutoCSR):
         self._prog_we = CSR()
         self._prog_adr = CSRStorage(ports)
         self._prog_dat = CSRStorage()
-        ###
+
+        # # #
+
         self.comb += [
             self.prog_we.eq(self._prog_we.re & self._prog_we.r),
             self.prog_adr.eq(self._prog_adr.storage),
@@ -64,7 +66,6 @@ class LiteScopeTrigger(Module, AutoCSR):
 
     def do_finalize(self):
         self.submodules.sum = LiteScopeSum(len(self.ports))
-        ###
         for i, port in enumerate(self.ports):
             # Note: port's ack is not used and supposed to be always 1
             self.comb += [

@@ -12,13 +12,13 @@ def led_anim0(io):
 
 def led_anim1(io):
     for j in range(4):
-        #Led <<
+        # Led <<
         led_data = 1
         for i in range(8):
             io.write(led_data)
             time.sleep(i*i*0.0020)
             led_data = (led_data<<1)
-        #Led >>
+        # Led >>
         ledData = 128
         for i in range(8):
             io.write(led_data)
@@ -29,9 +29,9 @@ def led_anim1(io):
 def main(wb):
     io = LiteScopeIODriver(wb.regs, "io")
     wb.open()
-    ###
+    # # #
     led_anim0(io)
     led_anim1(io)
     print("{:02X}".format(io.read()))
-    ###
+    # # #
     wb.close()

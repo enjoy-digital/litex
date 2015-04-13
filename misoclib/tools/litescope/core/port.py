@@ -9,7 +9,9 @@ class LiteScopeTermUnit(Module):
 
         self.trig = Signal(dw)
         self.mask = Signal(dw)
-        ###
+
+        # # #
+
         self.comb += [
             source.stb.eq(sink.stb),
             source.hit.eq((sink.data & self.mask) == self.trig),
@@ -22,7 +24,9 @@ class LiteScopeTerm(LiteScopeTermUnit, AutoCSR):
         LiteScopeTermUnit.__init__(self, dw)
         self._trig = CSRStorage(dw)
         self._mask = CSRStorage(dw)
-        ###
+
+        # # #
+
         self.comb += [
             self.trig.eq(self._trig.storage),
             self.mask.eq(self._mask.storage)
@@ -37,7 +41,9 @@ class LiteScopeRangeDetectorUnit(Module):
 
         self.low = Signal(dw)
         self.high = Signal(dw)
-        ###
+
+        # # #
+
         self.comb += [
             source.stb.eq(sink.stb),
             source.hit.eq((sink.data >= self.low) & (sink.data <= self.high)),
@@ -50,7 +56,9 @@ class LiteScopeRangeDetector(LiteScopeRangeDetectorUnit, AutoCSR):
         LiteScopeRangeDetectorUnit.__init__(self, dw)
         self._low = CSRStorage(dw)
         self._high = CSRStorage(dw)
-        ###
+
+        # # #
+
         self.comb += [
             self.low.eq(self._low.storage),
             self.high.eq(self._high.storage)
@@ -66,7 +74,9 @@ class LiteScopeEdgeDetectorUnit(Module):
         self.rising_mask = Signal(dw)
         self.falling_mask = Signal(dw)
         self.both_mask = Signal(dw)
-        ###
+
+        # # #
+
         self.buffer = Buffer(self.sink.description)
         self.comb += Record.connect(self.sink, self.buffer.sink)
 
@@ -92,7 +102,9 @@ class LiteScopeEdgeDetector(LiteScopeEdgeDetectorUnit, AutoCSR):
         self._rising = CSRStorage(dw)
         self._falling = CSRStorage(dw)
         self._both = CSRStorage(dw)
-        ###
+
+        # # #
+
         self.comb += [
             self.rising.eq(self._rising.storage),
             self.falling.eq(self._falling.storage),
