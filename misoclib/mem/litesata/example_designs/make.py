@@ -72,7 +72,7 @@ if __name__ == "__main__":
     platform_kwargs = dict((k, autotype(v)) for k, v in args.platform_option)
     platform = platform_module.Platform(**platform_kwargs)
 
-    build_name = top_class.__name__.lower() +  "-" + platform_name
+    build_name = top_class.__name__.lower() + "-" + platform_name
     top_kwargs = dict((k, autotype(v)) for k, v in args.target_option)
     soc = top_class(platform, **top_kwargs)
     soc.finalize()

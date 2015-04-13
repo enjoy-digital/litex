@@ -433,7 +433,7 @@ class CommandLayer(Module):
         resp = None
         if isinstance(fis, FIS_REG_H2D):
             if fis.command == regs["WRITE_DMA_EXT"]:
-                resp =  self.hdd.write_dma_callback(fis)
+                resp = self.hdd.write_dma_callback(fis)
             elif fis.command == regs["READ_DMA_EXT"]:
                 resp = self.hdd.read_dma_callback(fis)
         elif isinstance(fis, FIS_DATA):
