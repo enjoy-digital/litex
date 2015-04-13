@@ -15,6 +15,7 @@ class LiteScopeSoC(SoC, AutoCSR):
         "la":    17
     }
     csr_map.update(SoC.csr_map)
+
     def __init__(self, platform):
         clk_freq = int((1/(platform.default_clk_period))*1000000000)
         SoC.__init__(self, platform, clk_freq,

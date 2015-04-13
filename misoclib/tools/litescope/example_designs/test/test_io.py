@@ -17,13 +17,13 @@ def led_anim1(io):
         for i in range(8):
             io.write(led_data)
             time.sleep(i*i*0.0020)
-            led_data = (led_data<<1)
+            led_data = (led_data << 1)
         # Led >>
         ledData = 128
         for i in range(8):
             io.write(led_data)
             time.sleep(i*i*0.0020)
-            led_data = (led_data>>1)
+            led_data = (led_data >> 1)
 
 
 def main(wb):

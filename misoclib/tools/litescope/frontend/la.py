@@ -48,7 +48,8 @@ class LiteScopeLA(Module, AutoCSR):
         # XXX : sys_clk must be faster than capture_clk, add Converter on data to remove this limitation
         if self.clk_domain is not "sys":
             self.submodules.fifo = AsyncFIFO(self.sink.description, 32)
-            self.submodules += RenameClockDomains(self.fifo, {"write": self.clk_domain, "read": "sys"})
+            self.submodules += RenameClockDomains(self.fifo,
+                {"write": self.clk_domain, "read": "sys"})
             self.comb += Record.connect(sink, self.fifo.sink)
             sink = self.fifo.source
 

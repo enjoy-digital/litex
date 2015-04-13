@@ -33,25 +33,25 @@ class VCDDump(Dump):
         return r
 
     def generate_version(self):
-        r  = "$version\n"
+        r = "$version\n"
         r += "\tmiscope VCD dump\n"
         r += "$end\n"
         return r
 
     def generate_comment(self):
-        r  = "$comment\n"
+        r = "$comment\n"
         r += self.comment
         r += "\n$end\n"
         return r
 
     def generate_timescale(self):
-        r  = "$timescale "
+        r = "$timescale "
         r += self.timescale
         r += " $end\n"
         return r
 
     def generate_scope(self):
-        r  = "$scope "
+        r = "$scope "
         r += self.timescale
         r += " $end\n"
         return r
@@ -71,17 +71,17 @@ class VCDDump(Dump):
         return r
 
     def generate_unscope(self):
-        r  = "$unscope "
+        r = "$unscope "
         r += " $end\n"
         return r
 
     def generate_enddefinitions(self):
-        r  = "$enddefinitions "
+        r = "$enddefinitions "
         r += " $end\n"
         return r
 
     def generate_dumpvars(self):
-        r  = "$dumpvars\n"
+        r = "$dumpvars\n"
         for var in self.vars:
             r += "b"
             r += dec2bin(var.val, var.width)
