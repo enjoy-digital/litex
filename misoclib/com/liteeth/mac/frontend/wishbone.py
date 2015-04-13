@@ -11,7 +11,9 @@ class LiteEthMACWishboneInterface(Module, AutoCSR):
         self.sink = Sink(eth_phy_description(dw))
         self.source = Source(eth_phy_description(dw))
         self.bus = wishbone.Interface()
-        ###
+
+        # # #
+
         # storage in SRAM
         sram_depth = buffer_depth//(dw//8)
         self.submodules.sram = sram.LiteEthMACSRAM(dw, sram_depth, nrxslots, ntxslots)

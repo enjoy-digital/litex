@@ -17,7 +17,9 @@ class LiteEthICMPTX(Module):
     def __init__(self, ip_address):
         self.sink = sink = Sink(eth_icmp_user_description(8))
         self.source = source = Source(eth_ipv4_user_description(8))
-        ###
+
+        # # #
+
         self.submodules.packetizer = packetizer = LiteEthICMPPacketizer()
         self.comb += [
             packetizer.sink.stb.eq(sink.stb),
@@ -63,7 +65,9 @@ class LiteEthICMPRX(Module):
     def __init__(self, ip_address):
         self.sink = sink = Sink(eth_ipv4_user_description(8))
         self.source = source = Source(eth_icmp_user_description(8))
-        ###
+
+        # # #
+
         self.submodules.depacketizer = depacketizer = LiteEthICMPDepacketizer()
         self.comb += Record.connect(sink, depacketizer.sink)
 
@@ -118,7 +122,9 @@ class LiteEthICMPEcho(Module):
     def __init__(self):
         self.sink = sink = Sink(eth_icmp_user_description(8))
         self.source = source = Source(eth_icmp_user_description(8))
-        ###
+
+        # # #
+
         self.submodules.buffer = PacketBuffer(eth_icmp_user_description(8), 128, 2)
         self.comb += [
             Record.connect(sink, self.buffer.sink),

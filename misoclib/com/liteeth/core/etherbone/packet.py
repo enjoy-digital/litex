@@ -17,7 +17,9 @@ class LiteEthEtherbonePacketTX(Module):
     def __init__(self, udp_port):
         self.sink = sink = Sink(eth_etherbone_packet_user_description(32))
         self.source = source = Source(eth_udp_user_description(32))
-        ###
+
+        # # #
+
         self.submodules.packetizer = packetizer = LiteEthEtherbonePacketPacketizer()
         self.comb += [
             packetizer.sink.stb.eq(sink.stb),
@@ -68,7 +70,9 @@ class LiteEthEtherbonePacketRX(Module):
     def __init__(self):
         self.sink = sink = Sink(eth_udp_user_description(32))
         self.source = source = Source(eth_etherbone_packet_user_description(32))
-        ###
+
+        # # #
+
         self.submodules.depacketizer = depacketizer = LiteEthEtherbonePacketDepacketizer()
         self.comb += Record.connect(sink, depacketizer.sink)
 

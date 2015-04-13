@@ -6,7 +6,9 @@ class LiteEthMACPaddingInserter(Module):
     def __init__(self, dw, packet_min_length):
         self.sink = sink = Sink(eth_phy_description(dw))
         self.source = source = Source(eth_phy_description(dw))
-        ###
+
+        # # #
+
         packet_min_data = math.ceil(packet_min_length/(dw/8))
 
         self.submodules.counter = counter = Counter(max=eth_mtu)
@@ -42,7 +44,9 @@ class LiteEthMACPaddingChecker(Module):
     def __init__(self, dw, packet_min_length):
         self.sink = sink = Sink(eth_phy_description(dw))
         self.source = source = Source(eth_phy_description(dw))
-        ###
+
+        # # #
+
         # XXX see if we should drop the packet when
         # payload size < minimum ethernet payload size
         self.comb += Record.connect(sink, source)

@@ -9,7 +9,9 @@ class LiteEthIPV4Checksum(Module):
         self.header = Signal(ipv4_header_len*8)
         self.value = Signal(16)
         self.done = Signal()
-        ###
+
+        # # #
+
         s = Signal(17)
         r = Signal(17)
         n_cycles = 0

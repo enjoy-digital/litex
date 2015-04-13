@@ -130,12 +130,12 @@ if __name__ == "__main__":
     packet = ARPPacket(packet)
     # check decoding
     packet.decode()
-    #print(packet)
+    # print(packet)
     errors += verify_packet(packet, arp_request_infos)
     # check encoding
     packet.encode()
     packet.decode()
-    #print(packet)
+    # print(packet)
     errors += verify_packet(packet, arp_request_infos)
 
     # ARP Reply
@@ -144,12 +144,12 @@ if __name__ == "__main__":
     packet = ARPPacket(packet)
     # check decoding
     packet.decode()
-    #print(packet)
+    # print(packet)
     errors += verify_packet(packet, arp_reply_infos)
     # check encoding
     packet.encode()
     packet.decode()
-    #print(packet)
+    # print(packet)
     errors += verify_packet(packet, arp_reply_infos)
 
     print("arp errors " + str(errors))

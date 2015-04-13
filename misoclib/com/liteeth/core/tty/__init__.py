@@ -6,7 +6,9 @@ class LiteEthTTYTX(Module):
     def __init__(self, ip_address, udp_port, fifo_depth=None):
         self.sink = sink = Sink(eth_tty_description(8))
         self.source = source = Source(eth_udp_user_description(8))
-        ###
+
+        # # #
+
         if fifo_depth is None:
             self.comb += [
                 source.stb.eq(sink.stb),
@@ -64,7 +66,9 @@ class LiteEthTTYRX(Module):
     def __init__(self, ip_address, udp_port, fifo_depth=None):
         self.sink = sink = Sink(eth_udp_user_description(8))
         self.source = source = Source(eth_tty_description(8))
-        ###
+
+        # # #
+
         valid = Signal()
         self.comb += valid.eq(
             (sink.ip_address == ip_address) &

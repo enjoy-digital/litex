@@ -6,7 +6,9 @@ class LiteEthMACTXLastBE(Module):
     def __init__(self, dw):
         self.sink = sink = Sink(eth_phy_description(dw))
         self.source = source = Source(eth_phy_description(dw))
-        ###
+
+        # # #
+
         ongoing = Signal()
         self.sync += \
             If(sink.stb & sink.ack,
@@ -29,7 +31,9 @@ class LiteEthMACRXLastBE(Module):
     def __init__(self, dw):
         self.sink = sink = Sink(eth_phy_description(dw))
         self.source = source = Source(eth_phy_description(dw))
-        ###
+
+        # # #
+
         self.comb += [
             source.stb.eq(sink.stb),
             source.sop.eq(sink.sop),

@@ -14,7 +14,9 @@ class Dispatcher(Module):
                 self.sel = Signal(len(sinks))
             else:
                 self.sel = Signal(max=len(sinks))
-            ###
+
+            # # #
+
             sop = Signal()
             self.comb += sop.eq(source.stb & source.sop)
             sel = Signal(flen(self.sel))

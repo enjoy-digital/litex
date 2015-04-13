@@ -26,7 +26,9 @@ class LiteEthEtherboneRecordReceiver(Module):
     def __init__(self, buffer_depth=256):
         self.sink = sink = Sink(eth_etherbone_record_description(32))
         self.source = source = Source(eth_etherbone_mmap_description(32))
-        ###
+
+        # # #
+
         fifo = SyncFIFO(eth_etherbone_record_description(32), buffer_depth, buffered=True)
         self.submodules += fifo
         self.comb += Record.connect(sink, fifo.sink)
@@ -98,7 +100,9 @@ class LiteEthEtherboneRecordSender(Module):
     def __init__(self, buffer_depth=256):
         self.sink = sink = Sink(eth_etherbone_mmap_description(32))
         self.source = source = Source(eth_etherbone_record_description(32))
-        ###
+
+        # # #
+
         pbuffer = PacketBuffer(eth_etherbone_mmap_description(32), buffer_depth)
         self.submodules += pbuffer
         self.comb += Record.connect(sink, pbuffer.sink)
@@ -148,7 +152,8 @@ class LiteEthEtherboneRecord(Module):
     def __init__(self, endianness="big"):
         self.sink = sink = Sink(eth_etherbone_packet_user_description(32))
         self.source = source = Sink(eth_etherbone_packet_user_description(32))
-        ###
+
+        # # #
 
         # receive record, decode it and generate mmap stream
         self.submodules.depacketizer = depacketizer = LiteEthEtherboneRecordDepacketizer()

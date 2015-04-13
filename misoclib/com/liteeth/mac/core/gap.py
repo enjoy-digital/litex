@@ -6,7 +6,9 @@ class LiteEthMACGap(Module):
     def __init__(self, dw, ack_on_gap=False):
         self.sink = sink = Sink(eth_phy_description(dw))
         self.source = source = Source(eth_phy_description(dw))
-        ###
+
+        # # #
+
         gap = math.ceil(eth_interpacket_gap/(dw//8))
         self.submodules.counter = counter = Counter(max=gap)
 

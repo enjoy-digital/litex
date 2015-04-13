@@ -7,8 +7,7 @@ def main(wb):
 
     wb.open()
     regs = wb.regs
-    ###
-
+    # # #
     conditions = {}
     la.configure_term(port=0, cond=conditions)
     la.configure_sum("term")
@@ -20,6 +19,5 @@ def main(wb):
 
     la.upload()
     la.save("dump.vcd")
-
-    ###
+    # # #
     wb.close()

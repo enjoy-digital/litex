@@ -10,7 +10,9 @@ def converter_description(dw):
 class LiteEthPHYMIITX(Module):
     def __init__(self, pads, pads_register=True):
         self.sink = sink = Sink(eth_phy_description(8))
-        ###
+
+        # # #
+
         if hasattr(pads, "tx_er"):
             self.sync += pads.tx_er.eq(0)
         converter = Converter(converter_description(8), converter_description(4))
@@ -34,7 +36,9 @@ class LiteEthPHYMIITX(Module):
 class LiteEthPHYMIIRX(Module):
     def __init__(self, pads):
         self.source = source = Source(eth_phy_description(8))
-        ###
+
+        # # #
+
         sop = FlipFlop(reset=1)
         self.submodules += sop
 
@@ -59,7 +63,9 @@ class LiteEthPHYMIIRX(Module):
 class LiteEthPHYMIICRG(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset):
         self._reset = CSRStorage()
-        ###
+
+        # # #
+
         if hasattr(clock_pads, "phy"):
             self.sync.base50 += clock_pads.phy.eq(~clock_pads.phy)
 

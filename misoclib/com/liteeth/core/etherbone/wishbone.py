@@ -8,7 +8,8 @@ class LiteEthEtherboneWishboneMaster(Module):
         self.sink = sink = Sink(eth_etherbone_mmap_description(32))
         self.source = source = Source(eth_etherbone_mmap_description(32))
         self.bus = bus = wishbone.Interface()
-        ###s
+
+        # # #
 
         self.submodules.data = data = FlipFlop(32)
         self.comb += data.d.eq(bus.dat_r)

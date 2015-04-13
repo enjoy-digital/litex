@@ -21,7 +21,9 @@ rx_pads_layout = [("rx_er", 1), ("dv", 1), ("rx_data", 8)]
 class LiteEthPHYGMIIMIITX(Module):
     def __init__(self, pads, mode):
         self.sink = sink = Sink(eth_phy_description(8))
-        ###
+
+        # # #
+
         gmii_tx_pads = Record(tx_pads_layout)
         gmii_tx = LiteEthPHYGMIITX(gmii_tx_pads, pads_register=False)
         self.submodules += gmii_tx
@@ -55,7 +57,9 @@ class LiteEthPHYGMIIMIITX(Module):
 class LiteEthPHYGMIIMIIRX(Module):
     def __init__(self, pads, mode):
         self.source = source = Source(eth_phy_description(8))
-        ###
+
+        # # #
+
         pads_d = Record(rx_pads_layout)
         self.sync += [
             pads_d.dv.eq(pads.dv),
@@ -82,7 +86,9 @@ class LiteEthGMIIMIIClockCounter(Module, AutoCSR):
     def __init__(self):
         self._reset = CSRStorage()
         self._value = CSRStatus(32)
-        ###
+
+        # # #
+
         counter = RenameClockDomains(Counter(32), "eth_rx")
         self.submodules += counter
         self.comb += [

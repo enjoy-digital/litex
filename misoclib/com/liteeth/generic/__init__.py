@@ -68,7 +68,8 @@ class PacketBuffer(Module):
         self.sink = sink = Sink(description)
         self.source = source = Source(description)
 
-        ###
+        # # #
+
         sink_status = EndpointPacketStatus(self.sink)
         source_status = EndpointPacketStatus(self.source)
         self.submodules += sink_status, source_status

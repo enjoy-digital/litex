@@ -100,19 +100,19 @@ if __name__ == "__main__":
     # UDP packet
     packet = MACPacket(udp)
     packet.decode_remove_header()
-    #print(packet)
+    # print(packet)
     packet = IPPacket(packet)
     packet.decode()
-    #print(packet)
+    # print(packet)
     packet = UDPPacket(packet)
     packet.decode()
-    #print(packet)
+    # print(packet)
     if packet.length != (len(packet)+udp_header_len):
         errors += 1
     errors += verify_packet(packet, udp_infos)
     packet.encode()
     packet.decode()
-    #print(packet)
+    # print(packet)
     if packet.length != (len(packet)+udp_header_len):
         errors += 1
     errors += verify_packet(packet, udp_infos)

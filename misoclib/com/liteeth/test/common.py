@@ -86,7 +86,9 @@ class PacketStreamer(Module):
     def __init__(self, description, last_be=None):
         self.source = Source(description)
         self.last_be = last_be
-        ###
+
+        # # #
+
         self.packets = []
         self.packet = Packet()
         self.packet.done = True
@@ -130,7 +132,9 @@ class PacketStreamer(Module):
 class PacketLogger(Module):
     def __init__(self, description):
         self.sink = Sink(description)
-        ###
+
+        # # #
+
         self.packet = Packet()
 
     def receive(self):

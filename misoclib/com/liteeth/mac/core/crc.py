@@ -31,7 +31,7 @@ class LiteEthMACCRCEngine(Module):
         self.last = Signal(width)
         self.next = Signal(width)
 
-        ###
+        # # #
 
         def _optimize_eq(l):
             """
@@ -101,7 +101,7 @@ class LiteEthMACCRC32(Module):
         self.value = Signal(self.width)
         self.error = Signal()
 
-        ###
+        # # #
 
         self.submodules.engine = LiteEthMACCRCEngine(data_width, self.width, self.polynom)
         reg = Signal(self.width, reset=self.init)
@@ -137,7 +137,7 @@ class LiteEthMACCRCInserter(Module):
         self.source = source = Source(description)
         self.busy = Signal()
 
-        ###
+        # # #
 
         dw = flen(sink.data)
         crc = crc_class(dw)
@@ -218,7 +218,7 @@ class LiteEthMACCRCChecker(Module):
         self.source = source = Source(description)
         self.busy = Signal()
 
-        ###
+        # # #
 
         dw = flen(sink.data)
         crc = crc_class(dw)

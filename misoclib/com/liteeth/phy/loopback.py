@@ -5,7 +5,9 @@ from misoclib.com.liteeth.generic import *
 class LiteEthPHYLoopbackCRG(Module, AutoCSR):
     def __init__(self):
         self._reset = CSRStorage()
-        ###
+
+        # # #
+
         self.clock_domains.cd_eth_rx = ClockDomain()
         self.clock_domains.cd_eth_tx = ClockDomain()
         self.comb += [

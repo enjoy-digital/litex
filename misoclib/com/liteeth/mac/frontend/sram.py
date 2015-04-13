@@ -20,7 +20,7 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
         self.ev.available = EventSourceLevel()
         self.ev.finalize()
 
-        ###
+        # # #
 
         # packet dropped if no slot available
         sink.ack.reset = 1
@@ -133,7 +133,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
         self.ev.done = EventSourcePulse()
         self.ev.finalize()
 
-        ###
+        # # #
 
         # command fifo
         fifo = SyncFIFO([("slot", slotbits), ("length", lengthbits)], nslots)

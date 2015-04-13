@@ -7,7 +7,9 @@ from misoclib.com.liteeth.generic import *
 class LiteEthPHYGMIITX(Module):
     def __init__(self, pads, pads_register):
         self.sink = sink = Sink(eth_phy_description(8))
-        ###
+
+        # # #
+
         if hasattr(pads, "tx_er"):
             self.sync += pads.tx_er.eq(0)
         pads_eq = [
@@ -24,7 +26,9 @@ class LiteEthPHYGMIITX(Module):
 class LiteEthPHYGMIIRX(Module):
     def __init__(self, pads):
         self.source = source = Source(eth_phy_description(8))
-        ###
+
+        # # #
+
         dv_d = Signal()
         self.sync += dv_d.eq(pads.dv)
 
@@ -45,7 +49,9 @@ class LiteEthPHYGMIIRX(Module):
 class LiteEthPHYGMIICRG(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset, mii_mode=0):
         self._reset = CSRStorage()
-        ###
+
+        # # #
+
         self.clock_domains.cd_eth_rx = ClockDomain()
         self.clock_domains.cd_eth_tx = ClockDomain()
 

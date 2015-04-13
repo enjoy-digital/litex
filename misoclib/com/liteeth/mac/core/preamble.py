@@ -7,7 +7,7 @@ class LiteEthMACPreambleInserter(Module):
         self.sink = Sink(eth_phy_description(dw))
         self.source = Source(eth_phy_description(dw))
 
-        ###
+        # # #
 
         preamble = Signal(64, reset=eth_preamble)
         cnt_max = (64//dw)-1
@@ -57,7 +57,7 @@ class LiteEthMACPreambleChecker(Module):
         self.sink = Sink(eth_phy_description(dw))
         self.source = Source(eth_phy_description(dw))
 
-        ###
+        # # #
 
         preamble = Signal(64, reset=eth_preamble)
         cnt_max = (64//dw) - 1

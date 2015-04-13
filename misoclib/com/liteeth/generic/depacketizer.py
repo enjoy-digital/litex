@@ -16,7 +16,9 @@ class LiteEthDepacketizer(Module):
         self.sink = sink = Sink(sink_description)
         self.source = source = Source(source_description)
         self.header = Signal(header_length*8)
-        ###
+
+        # # #
+
         dw = flen(sink.data)
 
         header_words = (header_length*8)//dw

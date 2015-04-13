@@ -135,19 +135,19 @@ if __name__ == "__main__":
     # UDP packet
     packet = MACPacket(udp)
     packet.decode_remove_header()
-    #print(packet)
+    # print(packet)
     packet = IPPacket(packet)
     # check decoding
     errors += not packet.check_checksum()
     packet.decode()
-    #print(packet)
+    # print(packet)
     errors += verify_packet(packet, {})
     # check encoding
     packet.encode()
     packet.insert_checksum()
     errors += not packet.check_checksum()
     packet.decode()
-    #print(packet)
+    # print(packet)
     errors += verify_packet(packet, {})
 
     print("ip errors " + str(errors))

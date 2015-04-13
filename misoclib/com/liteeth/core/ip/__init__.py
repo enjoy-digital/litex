@@ -20,7 +20,9 @@ class LiteEthIPTX(Module):
         self.sink = sink = Sink(eth_ipv4_user_description(8))
         self.source = source = Source(eth_mac_description(8))
         self.target_unreachable = Signal()
-        ###
+
+        # # #
+
         self.submodules.checksum = checksum = LiteEthIPV4Checksum(skip_checksum=True)
         self.comb += [
             checksum.ce.eq(sink.stb & sink.sop),
@@ -108,7 +110,9 @@ class LiteEthIPRX(Module):
     def __init__(self, mac_address, ip_address):
         self.sink = sink = Sink(eth_mac_description(8))
         self.source = source = Source(eth_ipv4_user_description(8))
-        ###
+
+        # # #
+
         self.submodules.depacketizer = depacketizer = LiteEthIPV4Depacketizer()
         self.comb += Record.connect(sink, depacketizer.sink)
 

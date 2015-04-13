@@ -18,7 +18,9 @@ class LiteEthUDPTX(Module):
     def __init__(self, ip_address):
         self.sink = sink = Sink(eth_udp_user_description(8))
         self.source = source = Source(eth_ipv4_user_description(8))
-        ###
+
+        # # #
+
         self.submodules.packetizer = packetizer = LiteEthUDPPacketizer()
         self.comb += [
             packetizer.sink.stb.eq(sink.stb),
@@ -64,7 +66,9 @@ class LiteEthUDPRX(Module):
     def __init__(self, ip_address):
         self.sink = sink = Sink(eth_ipv4_user_description(8))
         self.source = source = Source(eth_udp_user_description(8))
-        ###
+
+        # # #
+
         self.submodules.depacketizer = depacketizer = LiteEthUDPDepacketizer()
         self.comb += Record.connect(sink, depacketizer.sink)
 

@@ -24,7 +24,9 @@ class LiteEthARPTX(Module):
     def __init__(self, mac_address, ip_address):
         self.sink = sink = Sink(_arp_table_layout)
         self.source = source = Source(eth_mac_description(8))
-        ###
+
+        # # #
+
         self.submodules.packetizer = packetizer = LiteEthARPPacketizer()
 
         counter = Counter(max=max(arp_header_len, eth_min_len))
@@ -88,7 +90,9 @@ class LiteEthARPRX(Module):
     def __init__(self, mac_address, ip_address):
         self.sink = sink = Sink(eth_mac_description(8))
         self.source = source = Source(_arp_table_layout)
-        ###
+
+        # # #
+
         self.submodules.depacketizer = depacketizer = LiteEthARPDepacketizer()
         self.comb += Record.connect(sink, depacketizer.sink)
 
@@ -139,12 +143,14 @@ class LiteEthARPRX(Module):
 class LiteEthARPTable(Module):
     def __init__(self, clk_freq, max_requests=8):
         self.sink = sink = Sink(_arp_table_layout)             # from arp_rx
-        self.source = source = Source(_arp_table_layout)     # to arp_tx
+        self.source = source = Source(_arp_table_layout)       # to arp_tx
 
         # Request/Response interface
         self.request = request = Sink(arp_table_request_layout)
         self.response = response = Source(arp_table_response_layout)
-        ###
+
+        # # #
+
         request_timeout = Timeout(clk_freq//10)
         request_counter = Counter(max=max_requests)
         request_pending = FlipFlop()

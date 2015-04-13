@@ -349,9 +349,9 @@ if __name__ == "__main__":
     packet.nr = 0
     packet.pr = 0
     packet.pf = 0
-    #print(packet)
+    # print(packet)
     packet.encode()
-    #print(packet)
+    # print(packet)
 
     # Send packet over UDP to check against Wireshark dissector
     import socket
