@@ -31,9 +31,9 @@ class K7LiteSATAPHYCRG(Module):
         mmcm_clk_i = Signal()
         mmcm_clk0_o = Signal()
         mmcm_div_config = {
-            "sata_gen1" :     16.0,
-            "sata_gen2" :    8.0,
-            "sata_gen3" :     4.0
+            "sata_gen1":     16.0,
+            "sata_gen2":    8.0,
+            "sata_gen3":     4.0
             }
         mmcm_div = mmcm_div_config[revision]
         self.specials += [

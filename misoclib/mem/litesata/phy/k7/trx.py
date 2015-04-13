@@ -105,17 +105,17 @@ class K7LiteSATAPHYTRX(Module):
 
     # Config at startup
         div_config = {
-            "sata_gen1" :     4,
-            "sata_gen2" :    2,
-            "sata_gen3" :     1
+            "sata_gen1": 4,
+            "sata_gen2": 2,
+            "sata_gen3": 1
             }
         rxout_div = div_config[revision]
         txout_div = div_config[revision]
 
         cdr_config = {
-            "sata_gen1" :    0x0380008BFF40100008,
-            "sata_gen2" :    0x0388008BFF40200008,
-            "sata_gen3" :    0X0380008BFF10200010
+            "sata_gen1": 0x0380008BFF40100008,
+            "sata_gen2": 0x0388008BFF40200008,
+            "sata_gen3": 0X0380008BFF10200010
         }
         rxcdr_cfg = cdr_config[revision]
 

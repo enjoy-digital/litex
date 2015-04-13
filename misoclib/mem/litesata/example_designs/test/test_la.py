@@ -22,27 +22,27 @@ def main(wb):
     conditions = {}
     conditions["now"] = {}
     conditions["id_cmd"] = {
-        "sata_command_tx_sink_stb"                : 1,
-        "sata_command_tx_sink_payload_identify"    : 1,
+        "sata_command_tx_sink_stb": 1,
+        "sata_command_tx_sink_payload_identify": 1,
     }
     conditions["id_resp"] = {
-        "source_source_payload_data" : primitives["X_RDY"],
+        "source_source_payload_data": primitives["X_RDY"],
     }
     conditions["wr_cmd"] = {
-        "sata_command_tx_sink_stb"            : 1,
-        "sata_command_tx_sink_payload_write"    : 1,
+        "sata_command_tx_sink_stb": 1,
+        "sata_command_tx_sink_payload_write": 1,
     }
     conditions["wr_resp"] = {
-        "sata_command_rx_source_stb"            : 1,
-        "sata_command_rx_source_payload_write"    : 1,
+        "sata_command_rx_source_stb": 1,
+        "sata_command_rx_source_payload_write": 1,
     }
     conditions["rd_cmd"] = {
-        "sata_command_tx_sink_stb"            : 1,
-        "sata_command_tx_sink_payload_read"    : 1,
+        "sata_command_tx_sink_stb": 1,
+        "sata_command_tx_sink_payload_read": 1,
     }
     conditions["rd_resp"] = {
-        "sata_command_rx_source_stb"            : 1,
-        "sata_command_rx_source_payload_read"    : 1,
+        "sata_command_rx_source_stb": 1,
+        "sata_command_rx_source_payload_read": 1,
     }
 
     la.configure_term(port=0, cond=conditions[trig])

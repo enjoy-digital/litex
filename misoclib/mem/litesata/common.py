@@ -14,33 +14,33 @@ from migen.actorlib.fifo import *
 from migen.actorlib.structuring import Pipeline, Converter
 
 bitrates = {
-    "sata_gen3"    :    6.0,
-    "sata_gen2"    :    3.0,
-    "sata_gen1"    :    1.5,
+    "sata_gen3": 6.0,
+    "sata_gen2": 3.0,
+    "sata_gen1": 1.5,
 }
 
 frequencies = {
-    "sata_gen3"    :    150.0,
-    "sata_gen2"    :    75.0,
-    "sata_gen1"    :    37.5,
+    "sata_gen3": 150.0,
+    "sata_gen2": 75.0,
+    "sata_gen1": 37.5,
 }
 
 # PHY / Link Layers
 primitives = {
-    "ALIGN"    :    0x7B4A4ABC,
-    "CONT"    :     0X9999AA7C,
-    "SYNC"    :    0xB5B5957C,
-    "R_RDY"    :    0x4A4A957C,
-    "R_OK"    :    0x3535B57C,
-    "R_ERR"    :    0x5656B57C,
-    "R_IP"    :    0X5555B57C,
-    "X_RDY"    :    0x5757B57C,
-    "CONT"    :    0x9999AA7C,
-    "WTRM"    :    0x5858B57C,
-    "SOF"    :    0x3737B57C,
-    "EOF"    :    0xD5D5B57C,
-    "HOLD"    :    0xD5D5AA7C,
-    "HOLDA"    :     0X9595AA7C
+    "ALIGN":  0x7B4A4ABC,
+    "CONT":   0X9999AA7C,
+    "SYNC":   0xB5B5957C,
+    "R_RDY":  0x4A4A957C,
+    "R_OK":   0x3535B57C,
+    "R_ERR":  0x5656B57C,
+    "R_IP":   0X5555B57C,
+    "X_RDY":  0x5757B57C,
+    "CONT":   0x9999AA7C,
+    "WTRM":   0x5858B57C,
+    "SOF":    0x3737B57C,
+    "EOF":    0xD5D5B57C,
+    "HOLD":   0xD5D5AA7C,
+    "HOLDA":  0X9595AA7C
 }
 
 
@@ -193,22 +193,22 @@ def transport_rx_description(dw):
 
 # Command Layer
 regs = {
-    "WRITE_DMA_EXT"            : 0x35,
-    "READ_DMA_EXT"            : 0x25,
-    "IDENTIFY_DEVICE"        : 0xEC
+    "WRITE_DMA_EXT":   0x35,
+    "READ_DMA_EXT":    0x25,
+    "IDENTIFY_DEVICE": 0xEC
 }
 
 reg_d2h_status = {
-    "bsy"    :    7,
-    "drdy"    :    6,
-    "df"    :    5,
-    "se"    :    5,
-    "dwe"    :    4,
-    "drq"    :    3,
-    "ae"    :    2,
-    "sns"    :    1,
-    "cc"    :     0,
-    "err"    :    0
+    "bsy":  7,
+    "drdy": 6,
+    "df":   5,
+    "se":   5,
+    "dwe":  4,
+    "drq":  3,
+    "ae":   2,
+    "sns":  1,
+    "cc":   0,
+    "err":  0
 }
 
 
@@ -277,9 +277,9 @@ class BufferizeEndpoints(ModuleTransformer):
         for name, endpoint in endpoints.items():
             if not self.names or name in self.names:
                 if isinstance(endpoint, Sink):
-                    sinks.update({name : endpoint})
+                    sinks.update({name: endpoint})
                 elif isinstance(endpoint, Source):
-                    sources.update({name : endpoint})
+                    sources.update({name: endpoint})
 
         # add buffer on sinks
         for name, sink in sinks.items():
