@@ -80,7 +80,7 @@ class LiteEthDepacketizer(Module):
         fsm.act("COPY",
             sink.ack.eq(source.ack),
             source.stb.eq(sink.stb | no_payload),
-            If(source.stb &  source.ack & source.eop,
+            If(source.stb & source.ack & source.eop,
                 NextState("IDLE")
             )
         )

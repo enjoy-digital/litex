@@ -152,7 +152,7 @@ class LiteEthEtherboneRecord(Module):
 
         # receive record, decode it and generate mmap stream
         self.submodules.depacketizer = depacketizer = LiteEthEtherboneRecordDepacketizer()
-        self.submodules.receiver = receiver =  LiteEthEtherboneRecordReceiver()
+        self.submodules.receiver = receiver = LiteEthEtherboneRecordReceiver()
         self.comb += [
             Record.connect(sink, depacketizer.sink),
             Record.connect(depacketizer.source, receiver.sink)
@@ -169,7 +169,7 @@ class LiteEthEtherboneRecord(Module):
         ]
 
         # receive mmap stream, encode it and send records
-        self.submodules.sender = sender =  LiteEthEtherboneRecordSender()
+        self.submodules.sender = sender = LiteEthEtherboneRecordSender()
         self.submodules.packetizer = packetizer = LiteEthEtherboneRecordPacketizer()
         self.comb += [
             Record.connect(sender.source, packetizer.sink),
