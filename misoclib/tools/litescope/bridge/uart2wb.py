@@ -47,8 +47,8 @@ class UARTMux(Module):
 
 class LiteScopeUART2WB(Module, AutoCSR):
     cmds = {
-        "write"    : 0x01,
-        "read"    : 0x02
+        "write": 0x01,
+        "read": 0x02
     }
     def __init__(self, pads, clk_freq, baudrate=115200, share_uart=False):
         self.wishbone = wishbone.Interface()

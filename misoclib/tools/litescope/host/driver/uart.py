@@ -9,8 +9,8 @@ def write_b(uart, data):
 
 class LiteScopeUARTDriver:
     cmds = {
-        "write"    : 0x01,
-        "read"    : 0x02
+        "write": 0x01,
+        "read": 0x02
     }
     def __init__(self, port, baudrate=115200, addrmap=None, busword=8, debug=False):
         self.port = port

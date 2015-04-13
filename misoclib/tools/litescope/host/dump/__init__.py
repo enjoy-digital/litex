@@ -77,7 +77,7 @@ class Var:
 
     def change(self, cnt):
         r = ""
-        try :
+        try:
             if self.values[cnt+1] != self.val:
                 r += "b"
                 r += dec2bin(self.values[cnt+1], self.width)
@@ -85,7 +85,7 @@ class Var:
                 r += self.vcd_id
                 r += "\n"
                 return r
-        except :
+        except:
             return r
         return r
 
