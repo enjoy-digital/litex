@@ -4,17 +4,15 @@ from migen.actorlib.fifo import *
 from migen.flow.actor import EndpointDescription
 
 user_layout = EndpointDescription(
-    [    ("dst", 8),
-         ("length", 4*8),
-         ("error", 1),
-        ("d", 8)
+    [("dst", 8),
+     ("length", 4*8),
+     ("error", 1),
+     ("d", 8)
     ],
     packetized=True
 )
 
-phy_layout = [
-    ("d", 8)
-]
+phy_layout = [("d", 8)]
 
 
 class LiteUSBPipe:

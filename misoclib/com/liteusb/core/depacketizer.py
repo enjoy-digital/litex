@@ -43,11 +43,11 @@ class LiteUSBDepacketizer(Module):
                     preamble[i].eq(preamble[i-1])
             )
         fsm.act("WAIT_SOP",
-            If(    (preamble[3] == 0x5A) &
-                (preamble[2] == 0xA5) &
-                (preamble[1] == 0x5A) &
-                (preamble[0] == 0xA5) &
-                sink.stb,
+            If((preamble[3] == 0x5A) &
+               (preamble[2] == 0xA5) &
+               (preamble[1] == 0x5A) &
+               (preamble[0] == 0xA5) &
+               sink.stb,
             NextState("RECEIVE_HEADER")
             ),
             sink.ack.eq(1),
