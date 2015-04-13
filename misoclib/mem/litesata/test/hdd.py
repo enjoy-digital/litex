@@ -313,7 +313,7 @@ class FIS:
         else:
             r = "<<<<<<<<\n"
         for k in sorted(self.description.keys()):
-            r += k + " : 0x%x" %getattr(self,k) + "\n"
+            r += k + " : 0x%x" %getattr(self, k) + "\n"
         return r
 
 
