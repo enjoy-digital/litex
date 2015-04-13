@@ -29,67 +29,67 @@ from misoclib.mem.sdram.phy.dfi import *
 from misoclib.mem import sdram
 
 class GENSDRPHY(Module):
-	def __init__(self, pads, module):
-		addressbits = flen(pads.a)
-		bankbits = flen(pads.ba)
-		databits = flen(pads.dq)
+    def __init__(self, pads, module):
+        addressbits = flen(pads.a)
+        bankbits = flen(pads.ba)
+        databits = flen(pads.dq)
 
-		self.settings = sdram.PhySettings(
-			memtype=module.memtype,
-			dfi_databits=databits,
-			nphases=1,
-			rdphase=0,
-			wrphase=0,
-			rdcmdphase=0,
-			wrcmdphase=0,
-			cl=2,
-			read_latency=4,
-			write_latency=0
-		)
-		self.module = module
+        self.settings = sdram.PhySettings(
+            memtype=module.memtype,
+            dfi_databits=databits,
+            nphases=1,
+            rdphase=0,
+            wrphase=0,
+            rdcmdphase=0,
+            wrcmdphase=0,
+            cl=2,
+            read_latency=4,
+            write_latency=0
+        )
+        self.module = module
 
-		self.dfi = Interface(addressbits, bankbits, databits)
+        self.dfi = Interface(addressbits, bankbits, databits)
 
-		###
+        ###
 
-		#
-		# Command/address
-		#
-		self.sync += [
-			pads.a.eq(self.dfi.p0.address),
-			pads.ba.eq(self.dfi.p0.bank),
-			pads.cke.eq(self.dfi.p0.cke),
-			pads.cas_n.eq(self.dfi.p0.cas_n),
-			pads.ras_n.eq(self.dfi.p0.ras_n),
-			pads.we_n.eq(self.dfi.p0.we_n)
-		]
-		if hasattr(pads, "cs_n"):
-			self.sync += pads.cs_n.eq(self.dfi.p0.cs_n)
+        #
+        # Command/address
+        #
+        self.sync += [
+            pads.a.eq(self.dfi.p0.address),
+            pads.ba.eq(self.dfi.p0.bank),
+            pads.cke.eq(self.dfi.p0.cke),
+            pads.cas_n.eq(self.dfi.p0.cas_n),
+            pads.ras_n.eq(self.dfi.p0.ras_n),
+            pads.we_n.eq(self.dfi.p0.we_n)
+        ]
+        if hasattr(pads, "cs_n"):
+            self.sync += pads.cs_n.eq(self.dfi.p0.cs_n)
 
-		#
-		# DQ/DQS/DM data
-		#
-		sd_dq_out = Signal(databits)
-		drive_dq = Signal()
-		self.sync += sd_dq_out.eq(self.dfi.p0.wrdata)
-		self.specials += Tristate(pads.dq, sd_dq_out, drive_dq)
-		self.sync += \
-			If(self.dfi.p0.wrdata_en,
-				pads.dm.eq(self.dfi.p0.wrdata_mask)
-			).Else(
-				pads.dm.eq(0)
-			)
-		sd_dq_in_ps = Signal(databits)
-		self.sync.sys_ps += sd_dq_in_ps.eq(pads.dq)
-		self.sync += self.dfi.p0.rddata.eq(sd_dq_in_ps)
+        #
+        # DQ/DQS/DM data
+        #
+        sd_dq_out = Signal(databits)
+        drive_dq = Signal()
+        self.sync += sd_dq_out.eq(self.dfi.p0.wrdata)
+        self.specials += Tristate(pads.dq, sd_dq_out, drive_dq)
+        self.sync += \
+            If(self.dfi.p0.wrdata_en,
+                pads.dm.eq(self.dfi.p0.wrdata_mask)
+            ).Else(
+                pads.dm.eq(0)
+            )
+        sd_dq_in_ps = Signal(databits)
+        self.sync.sys_ps += sd_dq_in_ps.eq(pads.dq)
+        self.sync += self.dfi.p0.rddata.eq(sd_dq_in_ps)
 
-		#
-		# DQ/DM control
-		#
-		d_dfi_wrdata_en = Signal()
-		self.sync += d_dfi_wrdata_en.eq(self.dfi.p0.wrdata_en)
-		self.comb += drive_dq.eq(d_dfi_wrdata_en)
+        #
+        # DQ/DM control
+        #
+        d_dfi_wrdata_en = Signal()
+        self.sync += d_dfi_wrdata_en.eq(self.dfi.p0.wrdata_en)
+        self.comb += drive_dq.eq(d_dfi_wrdata_en)
 
-		rddata_sr = Signal(4)
-		self.comb += self.dfi.p0.rddata_valid.eq(rddata_sr[3])
-		self.sync += rddata_sr.eq(Cat(self.dfi.p0.rddata_en, rddata_sr[:3]))
+        rddata_sr = Signal(4)
+        self.comb += self.dfi.p0.rddata_valid.eq(rddata_sr[3])
+        self.sync += rddata_sr.eq(Cat(self.dfi.p0.rddata_en, rddata_sr[:3]))

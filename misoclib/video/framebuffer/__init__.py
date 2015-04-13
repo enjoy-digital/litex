@@ -9,24 +9,24 @@ from misoclib.video.framebuffer.format import bpp, pixel_layout, FrameInitiator,
 from misoclib.video.framebuffer.phy import Driver
 
 class Framebuffer(Module, AutoCSR):
-	def __init__(self, pads_vga, pads_dvi, lasmim):
-		pack_factor = lasmim.dw//bpp
+    def __init__(self, pads_vga, pads_dvi, lasmim):
+        pack_factor = lasmim.dw//bpp
 
-		g = DataFlowGraph()
+        g = DataFlowGraph()
 
-		self.fi = FrameInitiator(lasmim.aw, pack_factor)
+        self.fi = FrameInitiator(lasmim.aw, pack_factor)
 
-		intseq = misc.IntSequence(lasmim.aw, lasmim.aw)
-		dma_out = AbstractActor(plumbing.Buffer)
-		g.add_connection(self.fi, intseq, source_subr=self.fi.dma_subr())
-		g.add_pipeline(intseq, AbstractActor(plumbing.Buffer), dma_lasmi.Reader(lasmim), dma_out)
+        intseq = misc.IntSequence(lasmim.aw, lasmim.aw)
+        dma_out = AbstractActor(plumbing.Buffer)
+        g.add_connection(self.fi, intseq, source_subr=self.fi.dma_subr())
+        g.add_pipeline(intseq, AbstractActor(plumbing.Buffer), dma_lasmi.Reader(lasmim), dma_out)
 
-		cast = structuring.Cast(lasmim.dw, pixel_layout(pack_factor), reverse_to=True)
-		vtg = VTG(pack_factor)
-		self.driver = Driver(pack_factor, pads_vga, pads_dvi)
+        cast = structuring.Cast(lasmim.dw, pixel_layout(pack_factor), reverse_to=True)
+        vtg = VTG(pack_factor)
+        self.driver = Driver(pack_factor, pads_vga, pads_dvi)
 
-		g.add_connection(self.fi, vtg, source_subr=self.fi.timing_subr, sink_ep="timing")
-		g.add_connection(dma_out, cast)
-		g.add_connection(cast, vtg, sink_ep="pixels")
-		g.add_connection(vtg, self.driver)
-		self.submodules += CompositeActor(g)
+        g.add_connection(self.fi, vtg, source_subr=self.fi.timing_subr, sink_ep="timing")
+        g.add_connection(dma_out, cast)
+        g.add_connection(cast, vtg, sink_ep="pixels")
+        g.add_connection(vtg, self.driver)
+        self.submodules += CompositeActor(g)
