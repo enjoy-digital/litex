@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-import sys, os, argparse, subprocess, struct, importlib
+import sys
+import os
+import argparse
+import subprocess
+import struct
+import importlib
 
 from mibuild.tools import write_to_file
 from migen.util.misc import autotype

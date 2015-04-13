@@ -1,4 +1,5 @@
-import random, copy
+import random
+import copy
 
 from migen.sim.generic import run_simulation
 
