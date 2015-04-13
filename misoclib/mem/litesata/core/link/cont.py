@@ -47,7 +47,7 @@ class LiteSATACONTInserter(Module):
             Record.connect(sink, source),
             If(sink.stb,
                 If(~change,
-                    counter.ce.eq(sink.ack & (counter.value !=2)),
+                    counter.ce.eq(sink.ack & (counter.value != 2)),
                     # insert CONT
                     If(counter.value == 1,
                         source.charisk.eq(0b0001),

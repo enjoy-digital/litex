@@ -15,7 +15,7 @@ class TB(Module):
     def get_c_crc(self, datas):
         stdin = ""
         for data in datas:
-            stdin += "0x%08x " %data
+            stdin += "0x{:08x} ".format(data)
         stdin += "exit"
         with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
@@ -52,7 +52,7 @@ class TB(Module):
 
         # check results
         s, l, e = check(c_crc, sim_crc)
-        print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
+        print("shift " + str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
     from migen.sim.generic import run_simulation

@@ -30,7 +30,7 @@ class LiteSATABISTUnitDriver:
         self.frequency = regs.identifier_frequency.read()
         self.time = 0
         for s in ["start", "sector", "count", "loops", "random", "done", "aborted", "errors", "cycles"]:
-            setattr(self, s, getattr(regs, name + "_"+ s))
+            setattr(self, s, getattr(regs, name + "_" + s))
 
     def run(self, sector, count, loops, random, blocking=True, hw_timer=True):
         self.sector.write(sector)
@@ -73,7 +73,7 @@ class LiteSATABISTIdentifyDriver:
         self.regs = regs
         self.name = name
         for s in ["start", "done", "source_stb", "source_ack", "source_data"]:
-            setattr(self, s, getattr(regs, name + "_identify_"+ s))
+            setattr(self, s, getattr(regs, name + "_identify_" + s))
         self.data = []
 
     def read_fifo(self):
@@ -123,7 +123,7 @@ class LiteSATABISTIdentifyDriver:
         info = "Serial Number: " + self.serial_number + "\n"
         info += "Firmware Revision: " + self.firmware_revision + "\n"
         info += "Model Number: " + self.model_number + "\n"
-        info += "Capacity: %3.2f GB\n" %((self.total_sectors*logical_sector_size)/GB)
+        info += "Capacity: {:3.2f} GB\n".format((self.total_sectors*logical_sector_size)/GB)
         for k, v in self.capabilities.items():
             info += k + ": " + str(v) + "\n"
         print(info, end="")
@@ -189,9 +189,9 @@ if __name__ == "__main__":
                     if not read_done:
                         retry += 1
 
-                print("sector=%d(%dMB) wr_speed=%4.2fMB/s rd_speed=%4.2fMB/s errors=%d retry=%d" %(
+                print("sector={:d}({:d}MB) wr_speed={:4.2f}MB/s rd_speed={:4.2f}MB/s errors={:d} retry={:d}".format(
                     sector,
-                     run_sectors*logical_sector_size/MB,
+                    run_sectors*logical_sector_size/MB,
                     write_speed/MB,
                     read_speed/MB,
                     write_errors + read_errors,

@@ -92,7 +92,7 @@ class TB(Module):
 
         # check results
         s, l, e = check(streamer_packet, self.logger.packet)
-        print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
+        print("shift " + str(s) + " / length " + str(l) + " / errors " + str(e))
 
 
 if __name__ == "__main__":

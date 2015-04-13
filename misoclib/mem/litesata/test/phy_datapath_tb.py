@@ -81,13 +81,13 @@ class TB(Module):
         yield from self.streamer.send(streamer_packet)
         yield from self.logger.receive(512)
         for d in self.logger.packet:
-            r = "%08x " %d
-            r +=decode_primitive(d)
+            r = "{:08x} ".format(d)
+            r += decode_primitive(d)
             print(r)
 
         # check results
         #s, l, e = check(streamer_packet, self.logger.packet)
-        #print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
+        #print("shift " + str(s) + " / length " + str(l) + " / errors " + str(e))
 
 
 if __name__ == "__main__":

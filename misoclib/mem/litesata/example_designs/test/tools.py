@@ -37,11 +37,11 @@ def link_trace(mila, tx_data_name, rx_data_name):
             rx_data = var.values
 
     for i in range(len(tx_data)):
-        tx = "%08x " %tx_data[i]
+        tx = "{:08x} ".format(tx_data[i])
         tx += decode_primitive(tx_data[i])
         tx += " "*(16-len(tx))
 
-        rx = "%08x " %rx_data[i]
+        rx = "{:08x} ".format(rx_data[i])
         rx += decode_primitive(rx_data[i])
         rx += " "*(16-len(rx))
 

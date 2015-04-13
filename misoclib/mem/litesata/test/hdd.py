@@ -75,11 +75,11 @@ class PHYLayer(Module):
         yield from self.rx.receive()
 
     def __repr__(self):
-        receiving = "%08x " %self.rx.dword.dat
+        receiving = "{:08x} ".format(self.rx.dword.dat)
         receiving += decode_primitive(self.rx.dword.dat)
         receiving += " "*(16-len(receiving))
 
-        sending = "%08x " %self.tx.dword.dat
+        sending = "{:08x} ".format(self.tx.dword.dat)
         sending += decode_primitive(self.tx.dword.dat)
         sending += " "*(16-len(sending))
 
@@ -115,7 +115,7 @@ class LinkRXPacket(LinkPacket):
     def check_crc(self):
         stdin = ""
         for v in self[:-1]:
-            stdin += "0x%08x " %v
+            stdin += "0x{:08x} ".format(v)
         stdin += "exit"
         with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
@@ -134,7 +134,7 @@ class LinkTXPacket(LinkPacket):
     def insert_crc(self):
         stdin = ""
         for v in self:
-            stdin += "0x%08x " %v
+            stdin += "0x{:08x} ".foramt(v)
         stdin += "exit"
         with subprocess.Popen("./crc", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
@@ -313,7 +313,7 @@ class FIS:
         else:
             r = "<<<<<<<<\n"
         for k in sorted(self.description.keys()):
-            r += k + " : 0x%x" %getattr(self, k) + "\n"
+            r += k + " : 0x{:x}".format(getattr(self, k)) + "\n"
         return r
 
 
@@ -362,7 +362,7 @@ class FIS_DATA(FIS):
         r = "FIS_DATA\n"
         r += FIS.__repr__(self)
         for data in self.packet[1:]:
-            r += "%08x\n" %data
+            r += "{:08x}\n".format(data)
         return r
 
 
@@ -377,7 +377,7 @@ class FIS_UNKNOWN(FIS):
         else:
             r += "<<<<<<<<\n"
         for dword in self.packet:
-            r += "%08x\n" %dword
+            r += "{:08x}\n".format(dword)
         return r
 
 

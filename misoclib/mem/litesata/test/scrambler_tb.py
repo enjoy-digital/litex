@@ -12,7 +12,7 @@ class TB(Module):
         self.length = length
 
     def get_c_values(self, length):
-        stdin = "0x%08x" %length
+        stdin = "0x{:08x}".format(length)
         with subprocess.Popen("./scrambler", stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
             process.stdin.write(stdin.encode("ASCII"))
             out, err = process.communicate()
@@ -42,7 +42,7 @@ class TB(Module):
 
         # check results
         s, l, e = check(c_values, sim_values)
-        print("shift "+ str(s) + " / length " + str(l) + " / errors " + str(e))
+        print("shift " + str(s) + " / length " + str(l) + " / errors " + str(e))
 
 if __name__ == "__main__":
     from migen.sim.generic import run_simulation
