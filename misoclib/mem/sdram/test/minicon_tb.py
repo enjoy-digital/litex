@@ -55,16 +55,16 @@ class MiniconTB(Module):
 
     def genxfers(self):
         cycle = 0
-        for a in chain(range(4),range(256,260),range(1024,1028)):
+        for a in chain(range(4), range(256, 260), range(1024, 1028)):
             t = TRead(a)
             yield t
             print("read {} in {} cycles".format(t.data, t.latency))
-        for a in chain(range(4),range(256,260),range(1024,1028),range(4096,4100)):
+        for a in chain(range(4), range(256, 260), range(1024, 1028), range(4096, 4100)):
             t = TWrite(a, 0xaa55aa55+cycle)
             cycle += 1
             yield t
             print("read {} in {} cycles".format(t.data, t.latency))
-        for a in chain(range(4),range(256,260),range(1024,1028),range(4096,4100)):
+        for a in chain(range(4), range(256, 260), range(1024, 1028), range(4096, 4100)):
             t = TRead(a)
             yield t
             print("read {} in {} cycles".format(t.data, t.latency))
