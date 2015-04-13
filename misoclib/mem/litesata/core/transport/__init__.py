@@ -29,7 +29,7 @@ class LiteSATATransportTX(Module):
     def __init__(self, link):
         self.sink = sink = Sink(transport_tx_description(32))
 
-        ###
+        # # #
 
         cmd_ndwords = max(fis_reg_h2d_cmd_len, fis_data_cmd_len)
         encoded_cmd = Signal(cmd_ndwords*32)
@@ -133,7 +133,7 @@ class LiteSATATransportRX(Module):
     def __init__(self, link):
         self.source = source = Source(transport_rx_description(32))
 
-        ###
+        # # #
 
         cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len,
                           fis_pio_setup_d2h_cmd_len, fis_data_cmd_len)

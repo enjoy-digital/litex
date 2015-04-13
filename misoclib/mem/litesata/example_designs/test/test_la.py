@@ -11,8 +11,7 @@ def main(wb):
     checker = LiteSATABISTCheckerDriver(wb.regs, "sata_bist")
     wb.open()
     regs = wb.regs
-    ###
-
+    # # #
     trig = "now"
     if len(sys.argv) < 2:
         print("No trigger condition, triggering immediately!")
@@ -60,7 +59,7 @@ def main(wb):
 
     la.upload()
     la.save("dump.vcd")
-    ###
+    # # #
     wb.close()
 
     f = open("dump_link.txt", "w")

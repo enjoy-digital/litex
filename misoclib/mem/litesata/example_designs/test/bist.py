@@ -151,7 +151,7 @@ if __name__ == "__main__":
     args = _get_args()
     wb = LiteScopeUARTDriver(args.port, args.baudrate, "./csr.csv", int(args.busword), debug=False)
     wb.open()
-    ###
+    # # #
     identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")
     generator = LiteSATABISTGeneratorDriver(wb.regs, "sata_bist")
     checker = LiteSATABISTCheckerDriver(wb.regs, "sata_bist")
@@ -204,5 +204,5 @@ if __name__ == "__main__":
 
         except KeyboardInterrupt:
             pass
-    ###
+    # # #
     wb.close()

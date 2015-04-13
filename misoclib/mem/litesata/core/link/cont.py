@@ -7,7 +7,7 @@ class LiteSATACONTInserter(Module):
         self.sink = sink = Sink(description)
         self.source = source = Source(description)
 
-        ###
+        # # #
 
         counter = Counter(max=4)
         self.submodules += counter
@@ -79,7 +79,7 @@ class LiteSATACONTRemover(Module):
         self.sink = sink = Sink(description)
         self.source = source = Source(description)
 
-        ###
+        # # #
 
         is_data = Signal()
         is_cont = Signal()

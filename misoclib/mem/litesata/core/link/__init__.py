@@ -15,7 +15,7 @@ class LiteSATALinkTX(Module):
         self.sink = Sink(link_description(32))
         self.from_rx = Sink(from_rx)
 
-        ###
+        # # #
 
         self.fsm = fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
@@ -117,7 +117,7 @@ class LiteSATALinkRX(Module):
         self.hold = Signal()
         self.to_tx = Source(from_rx)
 
-        ###
+        # # #
 
         self.fsm = fsm = FSM(reset_state="IDLE")
         self.submodules += fsm

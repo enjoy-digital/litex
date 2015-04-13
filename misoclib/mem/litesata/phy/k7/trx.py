@@ -351,7 +351,7 @@ class K7LiteSATAPHYTRX(Module):
                     "p_RX_DDI_SEL": 0,
                     "p_RX_DEFER_RESET_BUF_EN": "TRUE",
 
-                #CDR Attributes
+                # CDR Attributes
                     "p_RXCDR_CFG": rxcdr_cfg,
                     "p_RXCDR_FR_RESET_ON_EIDLE": 0,
                     "p_RXCDR_HOLD_DURING_EIDLE": 0,

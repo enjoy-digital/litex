@@ -6,7 +6,7 @@ class LiteSATAPHYDatapathRX(Module):
         self.sink = sink = Sink(phy_description(16))
         self.source = source = Source(phy_description(32))
 
-        ###
+        # # #
 
     # width convertion (16 to 32) and byte alignment
         byte_alignment = Signal()
@@ -57,7 +57,7 @@ class LiteSATAPHYDatapathTX(Module):
         self.sink = sink = Sink(phy_description(32))
         self.source = source = Source(phy_description(16))
 
-        ###
+        # # #
 
     # clock domain crossing
         # (sata_gen3) sys_clk to 300MHz sata_tx clk
@@ -85,7 +85,7 @@ class LiteSATAPHYAlignInserter(Module):
         self.sink = sink = Sink(phy_description(32))
         self.source = source = Source(phy_description(32))
 
-        ###
+        # # #
 
         # send 2 ALIGN every 256 DWORDs
         # used for clock compensation between
@@ -119,7 +119,7 @@ class LiteSATAPHYAlignRemover(Module):
         self.sink = sink = Sink(phy_description(32))
         self.source = source = Source(phy_description(32))
 
-        ###
+        # # #
 
         charisk_match = sink.charisk == 0b0001
         data_match = sink.data == primitives["ALIGN"]
@@ -137,7 +137,7 @@ class LiteSATAPHYDatapath(Module):
         self.sink = sink = Sink(phy_description(32))
         self.source = source = Source(phy_description(32))
 
-        ###
+        # # #
 
     # TX path
         align_inserter = LiteSATAPHYAlignInserter(ctrl)

@@ -24,7 +24,9 @@ class PHYDword:
 class PHYSource(Module):
     def __init__(self):
         self.source = Source(phy_description(32))
-        ###
+
+        # # #
+
         self.dword = PHYDword()
 
     def send(self, dword):
@@ -42,7 +44,9 @@ class PHYSource(Module):
 class PHYSink(Module):
     def __init__(self):
         self.sink = Sink(phy_description(32))
-        ###
+
+        # # #
+
         self.dword = PHYDword()
 
     def receive(self):
@@ -462,7 +466,6 @@ class HDD(Module):
             transport_debug=False, transport_loopback=False,
             hdd_debug=False,
             ):
-        ###
         self.submodules.phy = PHYLayer()
         self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
         self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)

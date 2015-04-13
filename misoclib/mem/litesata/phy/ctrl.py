@@ -13,7 +13,8 @@ class LiteSATAPHYCtrl(Module):
         self.sink = sink = Sink(phy_description(32))
         self.source = source = Source(phy_description(32))
 
-        ###
+        # # #
+
         self.comb += [
             source.stb.eq(1),
             sink.ack.eq(1)

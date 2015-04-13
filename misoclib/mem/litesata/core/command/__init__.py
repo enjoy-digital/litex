@@ -19,7 +19,7 @@ class LiteSATACommandTX(Module):
         self.to_rx = to_rx = Source(tx_to_rx)
         self.from_rx = from_rx = Sink(rx_to_tx)
 
-        ###
+        # # #
 
         self.comb += [
             transport.sink.pm_port.eq(0),
@@ -124,7 +124,7 @@ class LiteSATACommandRX(Module):
         self.to_tx = to_tx = Source(rx_to_tx)
         self.from_tx = from_tx = Sink(tx_to_rx)
 
-        ###
+        # # #
 
         def test_type(name):
             return transport.source.type == fis_types[name]

@@ -88,7 +88,7 @@ class TB(Module):
         yield from self.streamer.send(streamer_packet)
         yield from self.logger.receive(len(test_packet))
         #for d in self.logger.packet:
-        #    print("%08x" %d)
+        #    print("{:08}".format(d))
 
         # check results
         s, l, e = check(streamer_packet, self.logger.packet)

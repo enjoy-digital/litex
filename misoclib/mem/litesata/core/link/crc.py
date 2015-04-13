@@ -29,7 +29,7 @@ class CRCEngine(Module):
         self.last = Signal(width)
         self.next = Signal(width)
 
-        ###
+        # # #
 
         def _optimize_eq(l):
             """
@@ -93,7 +93,7 @@ class LiteSATACRC(Module):
         self.value = Signal(self.width)
         self.error = Signal()
 
-        ###
+        # # #
 
         engine = CRCEngine(self.width, self.polynom)
         self.submodules += engine
@@ -130,7 +130,7 @@ class CRCInserter(Module):
         self.source = source = Source(layout)
         self.busy = Signal()
 
-        ###
+        # # #
 
         dw = flen(sink.d)
         crc = crc_class(dw)
@@ -206,7 +206,7 @@ class CRCChecker(Module):
         self.source = source = Source(layout)
         self.busy = Signal()
 
-        ###
+        # # #
 
         dw = flen(sink.d)
         crc = crc_class(dw)

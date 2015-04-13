@@ -42,7 +42,9 @@ def randn(max_n):
 class PacketStreamer(Module):
     def __init__(self, description, packet_class):
         self.source = Source(description)
-        ###
+
+        # # #
+
         self.packets = []
         self.packet = packet_class()
         self.packet.done = 1
@@ -89,7 +91,9 @@ class PacketStreamer(Module):
 class PacketLogger(Module):
     def __init__(self, description, packet_class):
         self.sink = Sink(description)
-        ###
+
+        # # #
+
         self.packet_class = packet_class
         self.packet = packet_class()
 

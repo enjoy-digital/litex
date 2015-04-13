@@ -15,7 +15,7 @@ class Scrambler(Module):
     def __init__(self):
         self.value = Signal(32)
 
-        ###
+        # # #
 
         context = Signal(16, reset=0xf0f6)
         next_value = Signal(32)
@@ -72,7 +72,7 @@ class LiteSATAScrambler(Module):
         self.sink = sink = Sink(description)
         self.source = source = Source(description)
 
-        ###
+        # # #
 
         scrambler = Scrambler()
         self.submodules += scrambler

@@ -15,7 +15,7 @@ class LiteSATABISTGenerator(Module):
         self.aborted = Signal()
         self.errors = Signal(32)  # Note: Not used for writes
 
-        ###
+        # # #
 
         source, sink = user_port.sink, user_port.source
 
@@ -79,7 +79,7 @@ class LiteSATABISTChecker(Module):
         self.aborted = Signal()
         self.errors = Signal(32)
 
-        ###
+        # # #
 
         source, sink = user_port.sink, user_port.source
 
@@ -163,7 +163,7 @@ class LiteSATABISTUnitCSR(Module, AutoCSR):
         self._errors = CSRStatus(32)
         self._cycles = CSRStatus(32)
 
-        ###
+        # # #
 
         self.submodules += bist_unit
 
@@ -226,7 +226,7 @@ class LiteSATABISTIdentify(Module):
         self.submodules += fifo
         self.source = fifo.source
 
-        ###
+        # # #
 
         source, sink = user_port.sink, user_port.source
 
@@ -274,7 +274,7 @@ class LiteSATABISTIdentifyCSR(Module, AutoCSR):
         self._source_ack = CSR()
         self._source_data = CSRStatus(32)
 
-        ###
+        # # #
 
         self.submodules += bist_identify
         self.comb += [
