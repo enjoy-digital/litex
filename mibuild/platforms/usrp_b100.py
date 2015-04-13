@@ -35,9 +35,9 @@ _io = [
             Subsignal("ctl", Pins("M7 M9 M11 P12")),
             Subsignal("slwr", Pins("T4")),  # rdy0
             Subsignal("slrd", Pins("R5")),  # rdy1
-            #Subsignal("rdy2", Pins("T10")),
-            #Subsignal("rdy3", Pins("N11")),
-            #Subsignal("cs", Pins("P12")),
+            # Subsignal("rdy2", Pins("T10")),
+            # Subsignal("rdy3", Pins("N11")),
+            # Subsignal("cs", Pins("P12")),
             Subsignal("sloe", Pins("R11")),
             Subsignal("pktend", Pins("P10")),
             Subsignal("adr", Pins("T11 H16")),
