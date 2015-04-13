@@ -100,7 +100,7 @@ make -j -C obj_dir/ -f Vdut.mk Vdut
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
-    _build_tb(platform, vns, serial, os.path.join("..", sim_path,"dut_tb.cpp"))
+    _build_tb(platform, vns, serial, os.path.join("..", sim_path, "dut_tb.cpp"))
     if verbose:
         r = subprocess.call(["bash", build_script_file])
     else:

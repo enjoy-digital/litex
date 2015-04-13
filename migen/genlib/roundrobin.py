@@ -17,7 +17,7 @@ class RoundRobin(Module):
             cases = {}
             for i in range(n):
                 switch = []
-                for j in reversed(range(i+1,i+n)):
+                for j in reversed(range(i+1, i+n)):
                     t = j % n
                     switch = [
                         If(self.request[t],

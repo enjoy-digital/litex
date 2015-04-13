@@ -137,7 +137,7 @@ def _generate_cells(f):
     return [_Cell(k, v) for k, v in cell_dict.items()]
 
 
-def _generate_instances(f,ns):
+def _generate_instances(f, ns):
     instances = []
     for special in f.specials:
         if isinstance(special, Instance):
