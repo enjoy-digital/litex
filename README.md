@@ -27,13 +27,18 @@ written in Python.
 
 See the doc/ folder for more technical information.
 
+Migen is designed for Python 3.3. Note that Migen is **not** spelled MiGen.
+
+#### Quick Links
+
 Code repository:
 https://github.com/m-labs/migen
 
 System-on-chip design based on Migen:
 https://github.com/m-labs/misoc
 
-Migen is designed for Python 3.3. Note that Migen is **not** spelled MiGen.
+Online documentation:
+http://m-labs.hk/gateware.html
 
 #### Quick intro
 ```python
