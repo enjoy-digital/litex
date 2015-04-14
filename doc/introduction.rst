@@ -53,6 +53,17 @@ Either run the ``setup.py`` installation script or simply set ``PYTHONPATH`` to 
 
 For simulation support, an extra step is needed. See :ref:`vpisetup`.
 
+If you wish to contribute patches, the suggest way to install is;
+   #. Clone from the git repository at http://github.com/m-labs/migen
+   #. Install using ``python3 ./setup.py develop --user``
+   #. Edit the code in your git checkout.
+
+Alternative install methods
+===========================
+
+ * Migen is available for linux-64 and linux-32 through Binstar's conda tool. Instructions are at https://binstar.org/fallen/migen
+ * Migen can be referenced in a requirements.txt file (used for ``pip install -r requirements.txt``) via ``-e git+http://github.com/m-labs/migen.git#egg=migen``. See the `pip documentation <https://pip.pypa.io/en/latest/reference/pip_install.html#id19>`_ for more information.
+
 Feedback
 ********
 Feedback concerning Migen or this manual should be sent to the M-Labs developers' mailing list at devel@lists.m-labs.hk.
