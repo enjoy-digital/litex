@@ -13,3 +13,11 @@ install:
 
 script:
   - "python setup.py test"
+
+notifications:
+  irc:
+    channels:
+      - chat.freenode.net#m-labs
+    template:
+      - "%{repository}#%{build_number} (%{branch} - %{commit} : %{author}): %{message}"
+      - "Build details : %{build_url}"
