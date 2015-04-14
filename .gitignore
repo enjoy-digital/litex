@@ -1,5 +1,6 @@
 __pycache__
 *.pyc
+*.egg-info/
 vpi/*.o
 vpi/migensim.vpi
 examples/*.vcd
