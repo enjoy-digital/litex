@@ -1,15 +1,17 @@
-INSTDIR=/usr/lib/ivl
-INCDIRS=-I/usr/include/iverilog
+INSTDIR = $(shell iverilog-vpi --install-dir)
+
+CFLAGS = -Wall -O2 $(CFLAGS_$@)
+VPI_CFLAGS := $(shell iverilog-vpi --cflags)
 
 OBJ=ipc.o main.o
 
 all: migensim.vpi
 
 %.o: %.c
-	$(CC) -fPIC -Wall -O2 -c $(INCDIRS) -o $@ $<
+	$(CC) $(CFLAGS) $(VPI_CFLAGS) -c $(INCDIRS) -o $@ $<
 
 migensim.vpi: $(OBJ)
-	$(CC) -shared -o $@ $(OBJ) -lvpi
+	iverilog-vpi --name=migensim $^
 
 install: migensim.vpi
 	install -m755 -t $(INSTDIR) $^
