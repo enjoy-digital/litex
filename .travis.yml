@@ -1,0 +1,8 @@
+language: python
+python:
+  - "3.4"
+install:
+  - "sudo apt-get install iverilog; iverilog -v; true"
+  - "(cd vpi; make; sudo make install)"
+script:
+  - "python setup.py test -s migen.test.test_fifo.SyncFIFOCase"
