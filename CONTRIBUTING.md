@@ -53,19 +53,13 @@ beforehand.
 
 # Style Guide
 
-All new code should be complaint with the
+All code should be compliant with the
 [PEP8 style guide](https://www.python.org/dev/peps/pep-0008/).
 
 You can use the [pep8 tool](https://www.python.org/dev/peps/pep-0008/) to check
 compliance with `pep8 myfile.py`
 
 When modifying existing code **be consistent** with any existing code style.
-Older code is not yet PEP8 but will hopefully be converted in the future.
-
-# migen vs misoc vs "FPGA cores"
-
-FIXME: Add something like ["Puppet Core vs Modules"](
-https://github.com/puppetlabs/puppet/blob/master/CONTRIBUTING.md#puppet-core-vs-modules).
 
 # License
 
