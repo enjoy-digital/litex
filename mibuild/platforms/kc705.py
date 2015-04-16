@@ -146,6 +146,43 @@ _io = [
         Subsignal("crs", Pins("R30")),
         IOStandard("LVCMOS25")
     ),
+
+    ("pcie_x1", 0,
+        Subsignal("rst_n", Pins("G25"), IOStandard("LVCMOS25")),
+        Subsignal("clk_p", Pins("U8")),
+        Subsignal("clk_n", Pins("U7")),
+        Subsignal("rx_p", Pins("M6")),
+        Subsignal("rx_n", Pins("M5")),
+        Subsignal("tx_p", Pins("L4")),
+        Subsignal("tx_n", Pins("L3"))
+    ),
+    ("pcie_x2", 0,
+        Subsignal("rst_n", Pins("G25"), IOStandard("LVCMOS25")),
+        Subsignal("clk_p", Pins("U8")),
+        Subsignal("clk_n", Pins("U7")),
+        Subsignal("rx_p", Pins("M6 P6")),
+        Subsignal("rx_n", Pins("M5 P5")),
+        Subsignal("tx_p", Pins("L4 M2")),
+        Subsignal("tx_n", Pins("L3 M1"))
+    ),
+    ("pcie_x4", 0,
+        Subsignal("rst_n", Pins("G25"), IOStandard("LVCMOS25")),
+        Subsignal("clk_p", Pins("U8")),
+        Subsignal("clk_n", Pins("U7")),
+        Subsignal("rx_p", Pins("M6 P6 R4 T6")),
+        Subsignal("rx_n", Pins("M5 P5 R3 T5")),
+        Subsignal("tx_p", Pins("L4 M2 N4 P2")),
+        Subsignal("tx_n", Pins("L3 M1 N3 P1"))
+    ),
+    ("pcie_x8", 0,
+        Subsignal("rst_n", Pins("G25"), IOStandard("LVCMOS25")),
+        Subsignal("clk_p", Pins("U8")),
+        Subsignal("clk_n", Pins("U7")),
+        Subsignal("rx_p", Pins("M6 P6 R4 T6 V6 W4 Y6 AA4")),
+        Subsignal("rx_n", Pins("M5 P5 R3 T5 V5 W3 Y5 AA3")),
+        Subsignal("tx_p", Pins("L4 M2 N4 P2 T2 U4 V2 Y2")),
+        Subsignal("tx_n", Pins("L3 M1 N3 P1 T1 U3 V1 Y1"))
+    )
 ]
 
 _connectors = [
