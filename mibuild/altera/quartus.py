@@ -47,14 +47,14 @@ def _build_qsf(named_sc, named_pc):
 
 def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
     qsf_contents = ""
-    for filename, language in sources:
+    for filename, language, library in sources:
         # Enforce use of SystemVerilog (Quartus does not support global parameters in Verilog)
         if language == "verilog":
             language = "systemverilog"
-        qsf_contents += "set_global_assignment -name " + language.upper() + "_FILE " + filename.replace("\\", "/") + "\n"
+        qsf_contents += "set_global_assignment -name " + language.upper() + "_FILE " + filename + " -library " + library + " \n"
 
     for path in vincpaths:
-        qsf_contents += "set_global_assignment -name SEARCH_PATH " + path.replace("\\", "/") + "\n"
+        qsf_contents += "set_global_assignment -name SEARCH_PATH " + path + "\n"
 
     qsf_contents += _build_qsf(named_sc, named_pc)
     qsf_contents += "set_global_assignment -name DEVICE " + device
@@ -92,7 +92,7 @@ class AlteraQuartusToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
-        sources = platform.sources | {(v_file, "verilog")}
+        sources = platform.sources | {(v_file, "verilog", "work")}
         _build_files(platform.device, sources, platform.verilog_include_paths, named_sc, named_pc, build_name)
         if run:
             _run_quartus(build_name, quartus_path)

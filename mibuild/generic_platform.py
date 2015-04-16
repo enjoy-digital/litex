@@ -237,19 +237,23 @@ class GenericPlatform:
             except ConstraintError:
                 pass
 
-    def add_source(self, filename, language=None):
+    def add_source(self, filename, language=None, library=None):
         if language is None:
             language = tools.language_by_filename(filename)
         if language is None:
             language = "verilog"  # default to Verilog
+        if library is None:
+            library = "work"  # default to work
         filename = os.path.abspath(filename)
-        self.sources.add((filename, language))
+        if sys.platform == "win32" or sys.platform == "cygwin":
+            filename = filename.replace("\\", "/")
+        self.sources.add((filename, language, library))
 
-    def add_sources(self, path, *filenames, language=None):
+    def add_sources(self, path, *filenames, language=None, library=None):
         for f in filenames:
-            self.add_source(os.path.join(path, f), language)
+            self.add_source(os.path.join(path, f), language, library)
 
-    def add_source_dir(self, path, recursive=True):
+    def add_source_dir(self, path, recursive=True, library=None):
         dir_files = []
         if recursive:
             for root, dirs, files in os.walk(path):
@@ -262,10 +266,13 @@ class GenericPlatform:
         for filename in dir_files:
             language = tools.language_by_filename(filename)
             if language is not None:
-                self.add_source(filename, language)
+                self.add_source(filename, language, library)
 
     def add_verilog_include_path(self, path):
-        self.verilog_include_paths.add(os.path.abspath(path))
+        path = os.path.abspath(path)
+        if sys.platform == "win32" or sys.platform == "cygwin":
+            path = path.replace("\\", "/")
+        self.verilog_include_paths.add(path)
 
     def resolve_signals(self, vns):
         # resolve signal names in constraints

@@ -81,8 +81,9 @@ class XilinxVivadoToolchain:
 
     def _build_batch(self, platform, sources, build_name):
         tcl = []
-        for filename, language in sources:
-            tcl.append("add_files " + filename.replace("\\", "/"))
+        for filename, language, library in sources:
+            tcl.append("add_files " + filename)
+            tcl.append("set_property library {} [get_files {}]".format(library, filename))
 
         tcl.append("read_xdc {}.xdc".format(build_name))
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
@@ -122,7 +123,7 @@ class XilinxVivadoToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
-        sources = platform.sources | {(v_file, "verilog")}
+        sources = platform.sources | {(v_file, "verilog", "work")}
         self._build_batch(platform, sources, build_name)
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
         if run:

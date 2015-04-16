@@ -48,8 +48,8 @@ def _build_ucf(named_sc, named_pc):
 
 def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
     prj_contents = ""
-    for filename, language in sources:
-        prj_contents += language + " work " + filename + "\n"
+    for filename, language, library in sources:
+        prj_contents += language + " " + library + " " + filename + "\n"
     tools.write_to_file(build_name + ".prj", prj_contents)
 
     xst_contents = """run
@@ -159,7 +159,7 @@ class XilinxISEToolchain:
             named_sc, named_pc = platform.resolve_signals(vns)
             v_file = build_name + ".v"
             v_output.write(v_file)
-            sources = platform.sources | {(v_file, "verilog")}
+            sources = platform.sources | {(v_file, "verilog", "work")}
             if mode == "xst":
                 _build_xst_files(platform.device, sources, platform.verilog_include_paths, build_name, self.xst_opt)
                 isemode = "xst"

@@ -47,9 +47,9 @@ def _build_files(device, sources, vincpaths, build_name):
     tcl = []
     tcl.append("prj_project new -name \"{}\" -impl \"implementation\" -dev {} -synthesis \"synplify\"".format(build_name, device))
     for path in vincpaths:
-        tcl.append("prj_impl option {include path} {\"" + path.replace("\\", "/") + "\"}")
-    for filename, language in sources:
-        tcl.append("prj_src add \"" + filename.replace("\\", "/") + "\"")
+        tcl.append("prj_impl option {include path} {\"" + path + "\"}")
+    for filename, language, library in sources:
+        tcl.append("prj_src add \"" + filename + "\" -work " + library)
     tcl.append("prj_run Synthesis -impl implementation -forceOne")
     tcl.append("prj_run Translate -impl implementation")
     tcl.append("prj_run Map -impl implementation")
@@ -67,7 +67,7 @@ def _run_diamond(build_name, source, ver=None):
         r = subprocess.call([build_script_file])
         shutil.copy(os.path.join("implementation", build_name + "_implementation.bit"), build_name + ".bit")
     else:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     if r != 0:
         raise OSError("Subprocess failed")
@@ -87,7 +87,7 @@ class LatticeDiamondToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
-        sources = platform.sources | {(v_file, "verilog")}
+        sources = platform.sources | {(v_file, "verilog", "work")}
         _build_files(platform.device, sources, platform.verilog_include_paths, build_name)
 
         tools.write_to_file(build_name + ".lpf", _build_lpf(named_sc, named_pc))
