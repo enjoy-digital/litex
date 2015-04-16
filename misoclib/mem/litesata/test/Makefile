@@ -1,7 +1,7 @@
-MSCDIR = ../../
+MSCDIR = ../../../../
 PYTHON = python3
 
-CMD = PYTHONPATH=$(MSCDIR) $(PYTHON)
+CMD = PYTHONPATH=$(PYTHONPATH):$(MSCDIR) $(PYTHON)
 
 CC=gcc
 CFLAGS =-Wall -O0
