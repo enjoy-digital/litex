@@ -34,7 +34,7 @@ def get_mem_header(regions, flash_boot_address):
     return r
 
 
-def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only):
+def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only, with_access_functions):
     r = ""
 
     r += "#define CSR_"+reg_name.upper()+"_ADDR "+hex(reg_base)+"\n"
@@ -52,30 +52,33 @@ def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only):
     else:
         ctype = "unsigned char"
 
-    r += "static inline "+ctype+" "+reg_name+"_read(void) {\n"
-    if size > 1:
-        r += "\t"+ctype+" r = MMPTR("+hex(reg_base)+");\n"
-        for byte in range(1, nwords):
-            r += "\tr <<= "+str(busword)+";\n\tr |= MMPTR("+hex(reg_base+4*byte)+");\n"
-        r += "\treturn r;\n}\n"
-    else:
-        r += "\treturn MMPTR("+hex(reg_base)+");\n}\n"
+    if with_access_functions:
+        r += "static inline "+ctype+" "+reg_name+"_read(void) {\n"
+        if size > 1:
+            r += "\t"+ctype+" r = MMPTR("+hex(reg_base)+");\n"
+            for byte in range(1, nwords):
+                r += "\tr <<= "+str(busword)+";\n\tr |= MMPTR("+hex(reg_base+4*byte)+");\n"
+            r += "\treturn r;\n}\n"
+        else:
+            r += "\treturn MMPTR("+hex(reg_base)+");\n}\n"
 
-    if not read_only:
-        r += "static inline void "+reg_name+"_write("+ctype+" value) {\n"
-        for word in range(nwords):
-            shift = (nwords-word-1)*busword
-            if shift:
-                value_shifted = "value >> "+str(shift)
-            else:
-                value_shifted = "value"
-            r += "\tMMPTR("+hex(reg_base+4*word)+") = "+value_shifted+";\n"
-        r += "}\n"
+        if not read_only:
+            r += "static inline void "+reg_name+"_write("+ctype+" value) {\n"
+            for word in range(nwords):
+                shift = (nwords-word-1)*busword
+                if shift:
+                    value_shifted = "value >> "+str(shift)
+                else:
+                    value_shifted = "value"
+                r += "\tMMPTR("+hex(reg_base+4*word)+") = "+value_shifted+";\n"
+            r += "}\n"
     return r
 
 
-def get_csr_header(regions, constants):
-    r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n#include <hw/common.h>\n"
+def get_csr_header(regions, constants, with_access_functions=True):
+    r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
+    if with_access_functions:
+        r += "#include <hw/common.h>\n"
     for name, origin, busword, obj in regions:
         if isinstance(obj, Memory):
             r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
@@ -84,7 +87,7 @@ def get_csr_header(regions, constants):
             r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
             for csr in obj:
                 nr = (csr.size + busword - 1)//busword
-                r += _get_rw_functions(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus))
+                r += _get_rw_functions(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus), with_access_functions)
                 origin += 4*nr
 
     r += "\n/* constants */\n"
