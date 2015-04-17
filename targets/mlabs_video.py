@@ -101,7 +101,7 @@ class MiniSoC(BaseSoC):
                                             platform.request("eth"))
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
-        self.add_memory_region("ethmac", self.mem_map["ethmac"]+0x80000000, 0x2000)
+        self.add_memory_region("ethmac", self.mem_map["ethmac"]+self.shadow_address, 0x2000)
 
 
 def get_vga_dvi(platform):
