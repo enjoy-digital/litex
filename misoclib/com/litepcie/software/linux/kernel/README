@@ -1,0 +1,9 @@
+- Use 'make' to build the driver
+
+- Install the driver and create the device with :
+
+  ./init.sh
+
+- Remove driver with
+
+  rmmod litepcie
