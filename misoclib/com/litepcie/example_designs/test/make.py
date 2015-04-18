@@ -10,6 +10,8 @@ def _get_args():
     parser.add_argument("--baudrate", default=115200, help="UART baudrate")
     parser.add_argument("--ip_address", default="192.168.0.42", help="Etherbone IP address")
     parser.add_argument("--udp_port", default=20000, help="Etherbone UDP port")
+    parser.add_argument("--bar", default="/sys/bus/pci/devices/0000:04:00.0/resource0", help="PCIe BAR")
+    parser.add_argument("--bar_size", default=1*1024*1024, help="PCIe BAR size")
     parser.add_argument("--busword", default=32, help="CSR busword")
 
     parser.add_argument("test", nargs="+", help="specify a test")
@@ -25,6 +27,9 @@ if __name__ == "__main__":
     elif args.bridge == "etherbone":
         from misoclib.tools.litescope.host.driver.etherbone import LiteScopeEtherboneDriver
         wb = LiteScopeEtherboneDriver(args.ip_address, int(args.udp_port), "./csr.csv", int(args.busword), debug=False)
+    elif args.bridge == "pcie":
+        from misoclib.tools.litescope.host.driver.pcie import LiteScopePCIeDriver
+        wb = LiteScopePCIeDriver(args.bar, args.bar_size, "./csr.csv", int(args.busword), debug=False)
     else:
         ValueError("Invalid bridge {}".format(args.bridge))
 
