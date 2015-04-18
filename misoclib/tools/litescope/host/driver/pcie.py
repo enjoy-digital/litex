@@ -21,10 +21,8 @@ class LiteScopePCIeDriver:
         self.mmap.close()
         self.f.close()
 
-    def read(self, addr, burst_length=None, repeats=None):
-        if repeats is not None:
-            raise NotImplementedError
-        values = []
+    def read(self, addr, burst_length=1):
+        datas = []
         for i in range(burst_length):
             self.mmap.seek(addr + 4*i)
             dat = self.mmap.read(4)
@@ -34,8 +32,11 @@ class LiteScopePCIeDriver:
             val |= dat[0] << 0
             if self.debug:
                 print("RD {:08X} @ {:08X}".format(val, addr + 4*i))
-            values.append(val)
-        return values
+            datas.append(val)
+        if burst_length == 1:
+            return datas[0]
+        else:
+            return datas
 
     def write(self, addr, data):
         if isinstance(data, list):
@@ -48,8 +49,8 @@ class LiteScopePCIeDriver:
             dat_bytes = [0, 0, 0, 0]
             dat_bytes[3] = (dat >> 24) & 0xff
             dat_bytes[2] = (dat >> 16) & 0xff
-            dat_bytes[1] = (dat >> 8) & 0xff
-            dat_bytes[0] = (dat >> 0) & 0xff
+            dat_bytes[1] = (dat >>  8) & 0xff
+            dat_bytes[0] = (dat >>  0) & 0xff
             self.mmap[addr + 4*i:addr + 4*(i+1)] = bytes(dat_bytes)
             if self.debug:
                 print("WR {:08X} @ {:08X}".format(dat, (addr + i)*4))

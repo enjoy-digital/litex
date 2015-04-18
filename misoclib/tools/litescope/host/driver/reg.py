@@ -10,25 +10,19 @@ class MappedReg:
         self.busword = busword
         self.mode = mode
 
-    def read(self, repeats=None):
+    def read(self):
         if self.mode not in ["rw", "ro"]:
             raise KeyError(name + "register not readable")
-
-        def to_int(v):
-            return 1 if v is None else v
-        read_datas = self.readfn(self.addr, burst_length=self.length, repeats=repeats)
-        datas = []
-        for i in range(to_int(repeats)):
-            data = 0
-            for j in range(self.length):
-                data = data << self.busword
-                data |= read_datas[i*self.length+j]
-            datas.append(data)
-        if repeats is None:
-            return datas[0]
-        else:
+        datas = self.readfn(self.addr, burst_length=self.length)
+        if isinstance(datas, int):
             return datas
-
+        else:
+            data = 0
+            for i in range(self.length):
+                data = data << self.busword
+                data |= read_datas[i]
+            return data
+ 
     def write(self, value):
         if self.mode not in ["rw", "wo"]:
             raise KeyError(name + "register not writable")
