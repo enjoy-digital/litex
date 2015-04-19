@@ -95,29 +95,29 @@ int ipc_receive(struct ipc_softc *sc)
 			char *name;
 			int nchunks;
 			unsigned char *chunks;
-			unsigned int index;
+			unsigned int chunk_index;
 			
 			name = (char *)&buffer[i];
 			i += strlen(name) + 1;
 			assert((i+4) < l);
-			index = buffer[i] | buffer[i+1] << 8 | buffer[i+2] << 16 | buffer[i+3] << 24;
+			chunk_index = buffer[i] | buffer[i+1] << 8 | buffer[i+2] << 16 | buffer[i+3] << 24;
 			i += 4;
 			nchunks = buffer[i++];
 			assert(i + nchunks == l);
 			chunks = (unsigned char *)&buffer[i];
 			
-			return sc->h_write(name, index, nchunks, chunks, sc->user);
+			return sc->h_write(name, chunk_index, nchunks, chunks, sc->user);
 		}
 		case MESSAGE_READ: {
 			char *name;
-			unsigned int index;
+			unsigned int name_index;
 			
 			name = (char *)&buffer[i];
 			i += strlen(name) + 1;
 			assert((i+4) == l);
-			index = buffer[i] | buffer[i+1] << 8 | buffer[i+2] << 16 | buffer[i+3] << 24;
+			name_index = buffer[i] | buffer[i+1] << 8 | buffer[i+2] << 16 | buffer[i+3] << 24;
 			
-			return sc->h_read(name, index, sc->user);
+			return sc->h_read(name, name_index, sc->user);
 		}
 		default:
 			return 0;
