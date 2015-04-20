@@ -20,7 +20,7 @@ class MappedReg:
             data = 0
             for i in range(self.length):
                 data = data << self.busword
-                data |= read_datas[i]
+                data |= datas[i]
             return data
  
     def write(self, value):
