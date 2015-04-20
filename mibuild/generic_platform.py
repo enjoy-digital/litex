@@ -1,8 +1,7 @@
 import os
 import sys
 
-from migen.fhdl.std import *
-from migen.fhdl.structure import _Fragment
+from migen.fhdl.std import Signal
 from migen.genlib.record import Record
 from migen.genlib.io import CRG
 from migen.fhdl import verilog, edif
@@ -21,20 +20,33 @@ class Pins:
         for i in identifiers:
             self.identifiers += i.split()
 
+    def __repr__(self):
+        return "{}('{}')".format(self.__class__.__name__,
+                                 " ".join(self.identifiers))
+
 
 class IOStandard:
     def __init__(self, name):
         self.name = name
+
+    def __repr__(self):
+        return "{}('{}')".format(self.__class__.__name__, self.name)
 
 
 class Drive:
     def __init__(self, strength):
         self.strength = strength
 
+    def __repr__(self):
+        return "{}('{}')".format(self.__class__.__name__, self.strength)
+
 
 class Misc:
     def __init__(self, misc):
         self.misc = misc
+
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, repr(self.misc))
 
 
 class Subsignal:
@@ -42,17 +54,26 @@ class Subsignal:
         self.name = name
         self.constraints = list(constraints)
 
+    def __repr__(self):
+        return "{}('{}', {})".format(
+            self.__class__.__name__,
+            self.name,
+            ", ".join([repr(constr) for constr in self.constraints]))
+
 
 class PlatformInfo:
     def __init__(self, info):
         self.info = info
+
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, repr(self.info))
 
 
 def _lookup(description, name, number):
     for resource in description:
         if resource[0] == name and (number is None or resource[1] == number):
             return resource
-    raise ConstraintError("Resource not found: " + name + ":" + str(number))
+    raise ConstraintError("Resource not found: {}:{}".format(name, number))
 
 
 def _resource_type(resource):
@@ -64,13 +85,16 @@ def _resource_type(resource):
         elif isinstance(element, Subsignal):
             if t is None:
                 t = []
+
             assert(isinstance(t, list))
             n_bits = None
             for c in element.constraints:
                 if isinstance(c, Pins):
                     assert(n_bits is None)
                     n_bits = len(c.identifiers)
+
             t.append((element.name, n_bits))
+
     return t
 
 
@@ -89,9 +113,11 @@ class ConnectorManager:
                 pin_list = connector[1]
             else:
                 raise ValueError("Unsupported pin list type {} for connector"
-                         " {}".format(type(connector[1]), conn_name))
+                                 " {}".format(type(connector[1]), conn_name))
             if conn_name in self.connector_table:
-                raise ValueError("Connector specified more than once: "+conn_name)
+                raise ValueError(
+                    "Connector specified more than once: {}".format(conn_name))
+
             self.connector_table[conn_name] = pin_list
 
     def resolve_identifiers(self, identifiers):
@@ -101,9 +127,11 @@ class ConnectorManager:
                 conn, pn = identifier.split(":")
                 if pn.isdigit():
                     pn = int(pn)
+
                 r.append(self.connector_table[conn][pn])
             else:
                 r.append(identifier)
+
         return r
 
 
@@ -116,6 +144,7 @@ def _separate_pins(constraints):
             pins = c.identifiers
         else:
             others.append(c)
+
     return pins, others
 
 
@@ -136,19 +165,23 @@ class ConstraintManager:
             obj = Signal(rt, name_override=resource[0])
         else:
             obj = Record(rt, name=resource[0])
+
         for element in resource[2:]:
             if isinstance(element, PlatformInfo):
                 obj.platform_info = element.info
                 break
+
         self.available.remove(resource)
         self.matched.append((resource, obj))
         return obj
 
     def lookup_request(self, name, number=None):
         for resource, obj in self.matched:
-            if resource[0] == name and (number is None or resource[1] == number):
+            if resource[0] == name and (number is None or
+                                        resource[1] == number):
                 return obj
-        raise ConstraintError("Resource not found: " + name + ":" + str(number))
+
+        raise ConstraintError("Resource not found: {}:{}".format(name, number))
 
     def add_platform_command(self, command, **signals):
         self.platform_commands.append((command, signals))
@@ -160,6 +193,7 @@ class ConstraintManager:
                 r.add(obj)
             else:
                 r.update(obj.flatten())
+
         return r
 
     def get_sig_constraints(self):
@@ -174,17 +208,21 @@ class ConstraintManager:
                     has_subsignals = True
                 else:
                     top_constraints.append(element)
+
             if has_subsignals:
                 for element in resource[2:]:
                     if isinstance(element, Subsignal):
                         sig = getattr(obj, element.name)
-                        pins, others = _separate_pins(top_constraints + element.constraints)
+                        pins, others = _separate_pins(top_constraints +
+                                                      element.constraints)
                         pins = self.connector_manager.resolve_identifiers(pins)
-                        r.append((sig, pins, others, (name, number, element.name)))
+                        r.append((sig, pins, others,
+                                  (name, number, element.name)))
             else:
                 pins, others = _separate_pins(top_constraints)
                 pins = self.connector_manager.resolve_identifiers(pins)
                 r.append((obj, pins, others, (name, number, None)))
+
         return r
 
     def get_platform_commands(self):
@@ -223,27 +261,35 @@ class GenericPlatform:
         # if none exists, create a default clock domain and drive it
         if not fragment.clock_domains:
             if not hasattr(self, "default_clk_name"):
-                raise NotImplementedError("No default clock and no clock domain defined")
+                raise NotImplementedError(
+                    "No default clock and no clock domain defined")
             crg = CRG(self.request(self.default_clk_name))
             fragment += crg.get_fragment()
+
         self.do_finalize(fragment, *args, **kwargs)
         self.finalized = True
 
     def do_finalize(self, fragment, *args, **kwargs):
-        """overload this and e.g. add_platform_command()'s after the modules had their say"""
+        """overload this and e.g. add_platform_command()'s after the modules
+        had their say"""
         if hasattr(self, "default_clk_period"):
             try:
-                self.add_period_constraint(self.lookup_request(self.default_clk_name), self.default_clk_period)
+                self.add_period_constraint(
+                    self.lookup_request(self.default_clk_name),
+                    self.default_clk_period)
             except ConstraintError:
                 pass
 
     def add_source(self, filename, language=None, library=None):
         if language is None:
             language = tools.language_by_filename(filename)
+
         if language is None:
             language = "verilog"  # default to Verilog
+
         if library is None:
             library = "work"  # default to work
+
         filename = os.path.abspath(filename)
         if sys.platform == "win32" or sys.platform == "cygwin":
             filename = filename.replace("\\", "/")
@@ -277,20 +323,28 @@ class GenericPlatform:
     def resolve_signals(self, vns):
         # resolve signal names in constraints
         sc = self.constraint_manager.get_sig_constraints()
-        named_sc = [(vns.get_name(sig), pins, others, resource) for sig, pins, others, resource in sc]
+        named_sc = [(vns.get_name(sig), pins, others, resource)
+                    for sig, pins, others, resource in sc]
         # resolve signal names in platform commands
         pc = self.constraint_manager.get_platform_commands()
         named_pc = []
         for template, args in pc:
             name_dict = dict((k, vns.get_name(sig)) for k, sig in args.items())
             named_pc.append(template.format(**name_dict))
+
         return named_sc, named_pc
 
     def get_verilog(self, fragment, **kwargs):
-        return verilog.convert(fragment, self.constraint_manager.get_io_signals(), create_clock_domains=False, **kwargs)
+        return verilog.convert(
+            fragment,
+            self.constraint_manager.get_io_signals(),
+            create_clock_domains=False, **kwargs)
 
     def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
-        return edif.convert(fragment, self.constraint_manager.get_io_signals(), cell_library, vendor, device, **kwargs)
+        return edif.convert(
+            fragment,
+            self.constraint_manager.get_io_signals(),
+            cell_library, vendor, device, **kwargs)
 
     def build(self, fragment):
         raise NotImplementedError("GenericPlatform.build must be overloaded")
@@ -298,9 +352,10 @@ class GenericPlatform:
     def build_cmdline(self, *args, **kwargs):
         arg = sys.argv[1:]
         if len(arg) % 2:
-            print("Missing value for option: "+sys.argv[-1])
+            print("Missing value for option: {}".format(sys.argv[-1]))
             sys.exit(1)
-        argdict = dict((k, autotype(v)) for k, v in zip(*[iter(arg)]*2))
+
+        argdict = dict((k, autotype(v)) for k, v in zip(*[iter(arg)] * 2))
         kwargs.update(argdict)
         self.build(*args, **kwargs)
 

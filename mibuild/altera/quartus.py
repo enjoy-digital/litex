@@ -5,60 +5,90 @@ import os
 import subprocess
 
 from migen.fhdl.structure import _Fragment
-from mibuild.generic_platform import *
+from mibuild.generic_platform import (Pins, IOStandard, Misc)
 
 from mibuild import tools
-from mibuild.xilinx import common
 
 
-def _format_constraint(c):
+def _format_constraint(c, signame, fmt_r):
     if isinstance(c, Pins):
-        return "set_location_assignment PIN_" + c.identifiers[0]
+        return "set_location_assignment -comment \"{name}\" " \
+            "-to {signame} Pin_{pin}".format(
+                signame=signame,
+                name=fmt_r,
+                pin=c.identifiers[0])
     elif isinstance(c, IOStandard):
-        return "set_instance_assignment -name IO_STANDARD " + "\"" + c.name + "\""
+        return "set_instance_assignment -name io_standard " \
+            "-comment \"{name}\" \"{std}\" -to {signame}".format(
+                signame=signame,
+                name=fmt_r,
+                std=c.name)
     elif isinstance(c, Misc):
-        return c.misc
+        if not isinstance(c.misc, str) and len(c.misc) == 2:
+            return "set_instance_assignment -comment \"{name}\" " \
+                "-name {misc[0]} \"{misc[1]}\" -to {signame}".format(
+                    signame=signame,
+                    name=fmt_r,
+                    misc=c.misc)
+        else:
+            return "set_instance_assignment -comment \"{name}\" " \
+                "-name {misc} " \
+                "-to {signame}".format(
+                    signame=signame,
+                    name=fmt_r,
+                    misc=c.misc)
 
 
 def _format_qsf(signame, pin, others, resname):
-    fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
-    fmt_r = resname[0] + ":" + str(resname[1])
+    fmt_r = "{}:{}".format(*resname[:2])
     if resname[2] is not None:
         fmt_r += "." + resname[2]
-    r = ""
-    for c in fmt_c:
-        r += c + " -to " + signame + " # " + fmt_r + "\n"
-    return r
+
+    fmt_c = [_format_constraint(c, signame, fmt_r) for c in
+             ([Pins(pin)] + others)]
+
+    return '\n'.join(fmt_c)
 
 
 def _build_qsf(named_sc, named_pc):
-    r = ""
+    lines = []
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):
-                r += _format_qsf(sig + "[" + str(i) + "]", p, others, resname)
+                lines.append(
+                    _format_qsf("{}[{}]".format(sig, i), p, others, resname))
         else:
-            r += _format_qsf(sig, pins[0], others, resname)
+            lines.append(_format_qsf(sig, pins[0], others, resname))
+
     if named_pc:
-        r += "\n" + "\n\n".join(named_pc)
-    r += "set_global_assignment -name top_level_entity top\n"
-    return r
+        lines.append("")
+        lines.append("\n\n".join(named_pc))
+
+    lines.append("set_global_assignment -name top_level_entity top")
+    return "\n".join(lines)
 
 
 def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
-    qsf_contents = ""
+    lines = []
     for filename, language, library in sources:
-        # Enforce use of SystemVerilog (Quartus does not support global parameters in Verilog)
+        # Enforce use of SystemVerilog
+        # (Quartus does not support global parameters in Verilog)
         if language == "verilog":
             language = "systemverilog"
-        qsf_contents += "set_global_assignment -name " + language.upper() + "_FILE " + filename + " -library " + library + " \n"
+        lines.append(
+            "set_global_assignment -name {lang}_FILE {path} "
+            "-library {lib}".format(
+                lang=language.upper(),
+                path=filename.replace("\\", "/"),
+                lib=library))
 
     for path in vincpaths:
-        qsf_contents += "set_global_assignment -name SEARCH_PATH " + path + "\n"
+        lines.append("set_global_assignment -name SEARCH_PATH {}".format(
+            path.replace("\\", "/")))
 
-    qsf_contents += _build_qsf(named_sc, named_pc)
-    qsf_contents += "set_global_assignment -name DEVICE " + device
-    tools.write_to_file(build_name + ".qsf", qsf_contents)
+    lines.append(_build_qsf(named_sc, named_pc))
+    lines.append("set_global_assignment -name DEVICE {}".format(device))
+    tools.write_to_file("{}.qsf".format(build_name), "\n".join(lines))
 
 
 def _run_quartus(build_name, quartus_path):
@@ -69,18 +99,19 @@ quartus_fit --read_settings_files=off --write_settings_files=off {build_name} -c
 quartus_asm --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
 quartus_sta {build_name} -c {build_name}
 
-""".format(build_name=build_name)
+""".format(build_name=build_name)  # noqa
     build_script_file = "build_" + build_name + ".sh"
-    tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
+    tools.write_to_file(build_script_file,
+                        build_script_contents,
+                        force_unix=True)
 
-    r = subprocess.call(["bash", build_script_file])
-    if r != 0:
+    if subprocess.call(["bash", build_script_file]):
         raise OSError("Subprocess failed")
 
 
 class AlteraQuartusToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            quartus_path="/opt/Altera", run=True):
+              quartus_path="/opt/Altera", run=True):
         tools.mkdir_noerror(build_dir)
         os.chdir(build_dir)
 
@@ -93,7 +124,12 @@ class AlteraQuartusToolchain:
         v_file = build_name + ".v"
         v_output.write(v_file)
         sources = platform.sources | {(v_file, "verilog", "work")}
-        _build_files(platform.device, sources, platform.verilog_include_paths, named_sc, named_pc, build_name)
+        _build_files(platform.device,
+                     sources,
+                     platform.verilog_include_paths,
+                     named_sc,
+                     named_pc,
+                     build_name)
         if run:
             _run_quartus(build_name, quartus_path)
 
@@ -103,5 +139,11 @@ class AlteraQuartusToolchain:
 
     def add_period_constraint(self, platform, clk, period):
         # TODO: handle differential clk
-        platform.add_platform_command("""set_global_assignment -name DUTY_CYCLE 50 -section_id {clk}""", clk=clk)
-        platform.add_platform_command("""set_global_assignment -name FMAX_REQUIREMENT "{freq} MHz" -section_id {clk}\n""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
+        platform.add_platform_command(
+            "set_global_assignment -name duty_cycle 50 -section_id {clk}",
+            clk=clk)
+        platform.add_platform_command(
+            "set_global_assignment -name fmax_requirement \"{freq} MHz\" "
+            "-section_id {clk}".format(freq=(1. / period) * 1000,
+                                       clk="{clk}"),
+            clk=clk)
