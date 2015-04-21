@@ -1,4 +1,8 @@
 ### Migen (Milkymist generator)
+
+[![Build Status](https://travis-ci.org/m-labs/migen.svg)](
+https://travis-ci.org/m-labs/migen)
+
 #### A Python toolbox for building complex digital hardware
 
 Despite being faster than schematics entry, hardware design with Verilog and
@@ -41,6 +45,7 @@ Online documentation:
 http://m-labs.hk/gateware.html
 
 #### Quick intro
+
 ```python
 from migen.fhdl.std import *
 from mibuild.platforms import m1
@@ -54,6 +59,7 @@ plat.build_cmdline(m)
 ```
 
 #### License
+
 Migen is released under the very permissive two-clause BSD license. Under the
 terms of this license, you are authorized to use Migen for closed-source
 proprietary designs.
