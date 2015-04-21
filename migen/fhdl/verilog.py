@@ -8,7 +8,6 @@ from migen.fhdl.bitcontainer import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
 from migen.fhdl.conv_output import ConvOutput
 
-
 def _printsig(ns, s):
     if s.signed:
         n = "signed "
@@ -27,10 +26,10 @@ def _printintbool(node):
         else:
             return "1'd0", False
     elif isinstance(node, int):
+        nbits = bits_for(node)
         if node >= 0:
-            return str(bits_for(node)) + "'d" + str(node), False
+            return str(nbits) + "'d" + str(node), False
         else:
-            nbits = bits_for(node)
             return str(nbits) + "'sd" + str(2**nbits + node), True
     else:
         raise TypeError
@@ -152,7 +151,7 @@ def _list_comb_wires(f):
     return r
 
 
-def _printheader(f, ios, name, ns):
+def _printheader(f, ios, name, ns, asic_syntax=False):
     sigs = list_signals(f) | list_special_ios(f, True, True, True)
     special_outs = list_special_ios(f, False, True, True)
     inouts = list_special_ios(f, False, False, True)
@@ -178,23 +177,27 @@ def _printheader(f, ios, name, ns):
         if sig in wires:
             r += "wire " + _printsig(ns, sig) + ";\n"
         else:
-            r += "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
+            if asic_syntax:
+                r += "reg " + _printsig(ns, sig) + ";\n"
+            else:
+                r += "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
     r += "\n"
     return r
 
 
-def _printcomb(f, ns, display_run):
+def _printcomb(f, ns, display_run, asic_syntax=False):
     r = ""
     if f.comb:
         # Generate a dummy event to get the simulator
         # to run the combinatorial process once at the beginning.
         syn_off = "// synthesis translate_off\n"
         syn_on = "// synthesis translate_on\n"
-        dummy_s = Signal(name_override="dummy_s")
-        r += syn_off
-        r += "reg " + _printsig(ns, dummy_s) + ";\n"
-        r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
-        r += syn_on
+        if not asic_syntax:
+            dummy_s = Signal(name_override="dummy_s")
+            r += syn_off
+            r += "reg " + _printsig(ns, dummy_s) + ";\n"
+            r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
+            r += syn_on
 
         groups = group_by_targets(f.comb)
 
@@ -202,20 +205,26 @@ def _printcomb(f, ns, display_run):
             if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
                 r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
             else:
-                dummy_d = Signal(name_override="dummy_d")
-                r += "\n" + syn_off
-                r += "reg " + _printsig(ns, dummy_d) + ";\n"
-                r += syn_on
+                if not asic_syntax:
+                    dummy_d = Signal(name_override="dummy_d")
+                    r += "\n" + syn_off
+                    r += "reg " + _printsig(ns, dummy_d) + ";\n"
+                    r += syn_on
 
                 r += "always @(*) begin\n"
                 if display_run:
                     r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
-                for t in g[0]:
-                    r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
-                r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
-                r += syn_off
-                r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
-                r += syn_on
+                if asic_syntax:
+                    for t in g[0]:
+                        r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
+                    r += _printnode(ns, _AT_BLOCKING, 1, g[1])
+                else:
+                    for t in g[0]:
+                        r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
+                    r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
+                    r += syn_off
+                    r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
+                    r += syn_on
                 r += "end\n"
     r += "\n"
     return r
@@ -284,7 +293,7 @@ def _printspecials(overrides, specials, ns, add_data_file):
 def convert(f, ios=None, name="top",
   special_overrides=dict(),
   create_clock_domains=True,
-  display_run=False):
+  display_run=False, asic_syntax=False):
     r = ConvOutput()
     if not isinstance(f, _Fragment):
         f = f.get_fragment()
@@ -314,8 +323,8 @@ def convert(f, ios=None, name="top",
     r.ns = ns
 
     src = "/* Machine-generated using Migen */\n"
-    src += _printheader(f, ios, name, ns)
-    src += _printcomb(f, ns, display_run)
+    src += _printheader(f, ios, name, ns, asic_syntax)
+    src += _printcomb(f, ns, display_run, asic_syntax)
     src += _printsync(f, ns)
     src += _printspecials(special_overrides, f.specials - lowered_specials, ns, r.add_data_file)
     src += "endmodule\n"
