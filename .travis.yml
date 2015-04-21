@@ -2,6 +2,16 @@ language: python
 python:
   - "3.4"
 
+env:
+  global:
+    - PATH=$HOME/miniconda/bin:$PATH
+
+before_install:
+  # Install Miniconda
+  - wget https://raw.githubusercontent.com/m-labs/artiq/master/.travis/get-anaconda.sh
+  - chmod +x get-anaconda.sh
+  - ./get-anaconda.sh binstar numpydoc
+  - source $HOME/miniconda/bin/activate py34
 install:
   # Install iverilog package.
   - "sudo add-apt-repository -y ppa:mithro/iverilog-backport"
@@ -13,9 +23,20 @@ install:
   # Install verilator package
   - "sudo apt-get install verilator"
   - "verilator --version; true"
+  # Build and install Migen conda package
+  - "conda build conda/migen"
+  - "conda install $HOME/miniconda/conda-bld/linux-64/migen-*.tar.bz2"
 
 script:
+  # Run tests
   - "python setup.py test"
+  # Generate HTML documentation
+  - "make -C doc html"
+
+after_success:
+  # Upload Migen conda package to binstar
+  - binstar login --hostname $(hostname) --username $binstar_login --password $binstar_password
+  - binstar upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/migen-*.tar.bz2
 
 notifications:
   email: false
