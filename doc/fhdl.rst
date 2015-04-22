@@ -260,57 +260,57 @@ Summary of special attributes
 
 .. table:: Summary of special attributes
 
-+--------------------------------------------+--------------------------------------------------------------+
-| Syntax                                     | Action                                                       |
-+============================================+==============================================================+
-| self.comb += stmt                          | Add combinatorial statement to current module.               |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.comb += stmtA, stmtB                  | Add combinatorial statements A and B to current module.      |
-|                                            |                                                              |
-| self.comb += [stmtA, stmtB]                |                                                              |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.sync += stmt                          | Add synchronous statement to current module, in default      |
-|                                            | clock domain sys.                                            |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.sync.foo += stmt                      | Add synchronous statement to current module, in clock domain |
-|                                            | foo.                                                         |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.sync.foo += stmtA, stmtB              | Add synchronous statements A and B to current module, in     |
-|                                            | clock domain foo.                                            |
-| self.sync.foo += [stmtA, stmtB]            |                                                              |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.submodules += mod                     | Add anonymous submodule to current module.                   |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.submodules += modA, modB              | Add anonymous submodules A and B to current module.          |
-|                                            |                                                              |
-| self.submodules += [modA, modB]            |                                                              |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.submodules.bar = mod                  | Add submodule named bar to current module. The submodule can |
-|                                            | then be accessed using self.bar.                             |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.specials += spe                       | Add anonymous special to current module.                     |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.specials += speA, speB                | Add anonymous specials A and B to current module.            |
-|                                            |                                                              |
-| self.specials += [speA, speB]              |                                                              |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.specials.bar = spe                    | Add special named bar to current module. The special can     |
-|                                            | then be accessed using self.bar.                             |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.clock_domains += cd                   | Add clock domain to current module.                          |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.clock_domains += cdA, cdB             | Add clock domains A and B to current module.                 |
-|                                            |                                                              |
-| self.clock_domains += [cdA, cdB]           |                                                              |
-+--------------------------------------------+--------------------------------------------------------------+
-| self.clock_domains.pix = ClockDomain()     | Create and add clock domain pix to current module. The clock |
-|                                            | domain name is pix in all cases. It can be accessed using    |
-| self.clock_domains._pix = ClockDomain()    | self.pix, self._pix, self.cd_pix and self._cd_pix,           |
-|                                            | respectively.                                                |
-| self.clock_domains.cd_pix = ClockDomain()  |                                                              |
-|                                            |                                                              |
-| self.clock_domains._cd_pix = ClockDomain() |                                                              |
-+--------------------------------------------+--------------------------------------------------------------+
+   +--------------------------------------------+--------------------------------------------------------------+
+   | Syntax                                     | Action                                                       |
+   +============================================+==============================================================+
+   | self.comb += stmt                          | Add combinatorial statement to current module.               |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.comb += stmtA, stmtB                  | Add combinatorial statements A and B to current module.      |
+   |                                            |                                                              |
+   | self.comb += [stmtA, stmtB]                |                                                              |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.sync += stmt                          | Add synchronous statement to current module, in default      |
+   |                                            | clock domain sys.                                            |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.sync.foo += stmt                      | Add synchronous statement to current module, in clock domain |
+   |                                            | foo.                                                         |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.sync.foo += stmtA, stmtB              | Add synchronous statements A and B to current module, in     |
+   |                                            | clock domain foo.                                            |
+   | self.sync.foo += [stmtA, stmtB]            |                                                              |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.submodules += mod                     | Add anonymous submodule to current module.                   |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.submodules += modA, modB              | Add anonymous submodules A and B to current module.          |
+   |                                            |                                                              |
+   | self.submodules += [modA, modB]            |                                                              |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.submodules.bar = mod                  | Add submodule named bar to current module. The submodule can |
+   |                                            | then be accessed using self.bar.                             |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.specials += spe                       | Add anonymous special to current module.                     |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.specials += speA, speB                | Add anonymous specials A and B to current module.            |
+   |                                            |                                                              |
+   | self.specials += [speA, speB]              |                                                              |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.specials.bar = spe                    | Add special named bar to current module. The special can     |
+   |                                            | then be accessed using self.bar.                             |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.clock_domains += cd                   | Add clock domain to current module.                          |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.clock_domains += cdA, cdB             | Add clock domains A and B to current module.                 |
+   |                                            |                                                              |
+   | self.clock_domains += [cdA, cdB]           |                                                              |
+   +--------------------------------------------+--------------------------------------------------------------+
+   | self.clock_domains.pix = ClockDomain()     | Create and add clock domain pix to current module. The clock |
+   |                                            | domain name is pix in all cases. It can be accessed using    |
+   | self.clock_domains._pix = ClockDomain()    | self.pix, self._pix, self.cd_pix and self._cd_pix,           |
+   |                                            | respectively.                                                |
+   | self.clock_domains.cd_pix = ClockDomain()  |                                                              |
+   |                                            |                                                              |
+   | self.clock_domains._cd_pix = ClockDomain() |                                                              |
+   +--------------------------------------------+--------------------------------------------------------------+
 
 Clock domain management
 =======================
