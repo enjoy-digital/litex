@@ -10,6 +10,9 @@ install:
   - "iverilog -v; true"
   # Build the vpi module.
   - "(cd vpi; make; sudo make install)"
+  # Install verilator package
+  - "sudo apt-get install verilator"
+  - "verilator --version; true"
 
 script:
   - "python setup.py test"
