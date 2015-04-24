@@ -7,8 +7,8 @@ from misoclib.com.liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterfa
 
 class LiteEthMAC(Module, AutoCSR):
     def __init__(self, phy, dw, interface="crossbar", endianness="big",
-            with_hw_preamble_crc=True):
-        self.submodules.core = LiteEthMACCore(phy, dw, endianness, with_hw_preamble_crc)
+            with_preamble_crc=True):
+        self.submodules.core = LiteEthMACCore(phy, dw, endianness, with_preamble_crc)
         self.csrs = []
         if interface == "crossbar":
             self.submodules.crossbar = LiteEthMACCrossbar()

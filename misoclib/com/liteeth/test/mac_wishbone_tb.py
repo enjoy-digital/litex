@@ -85,7 +85,7 @@ class TB(Module):
     def __init__(self):
         self.submodules.phy_model = phy.PHY(8, debug=False)
         self.submodules.mac_model = mac.MAC(self.phy_model, debug=False, loopback=True)
-        self.submodules.ethmac = LiteEthMAC(phy=self.phy_model, dw=32, interface="wishbone", with_hw_preamble_crc=True)
+        self.submodules.ethmac = LiteEthMAC(phy=self.phy_model, dw=32, interface="wishbone", with_preamble_crc=True)
 
         # use sys_clk for each clock_domain
         self.clock_domains.cd_eth_rx = ClockDomain()

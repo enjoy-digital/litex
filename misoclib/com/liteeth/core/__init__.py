@@ -9,7 +9,7 @@ from misoclib.com.liteeth.core.icmp import LiteEthICMP
 
 class LiteEthIPCore(Module, AutoCSR):
     def __init__(self, phy, mac_address, ip_address, clk_freq):
-        self.submodules.mac = LiteEthMAC(phy, 8, interface="crossbar", with_hw_preamble_crc=True)
+        self.submodules.mac = LiteEthMAC(phy, 8, interface="crossbar", with_preamble_crc=True)
         self.submodules.arp = LiteEthARP(self.mac, mac_address, ip_address, clk_freq)
         self.submodules.ip = LiteEthIP(self.mac, mac_address, ip_address, self.arp.table)
         self.submodules.icmp = LiteEthICMP(self.ip, ip_address)

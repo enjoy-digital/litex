@@ -14,7 +14,7 @@ class TB(Module):
     def __init__(self):
         self.submodules.phy_model = phy.PHY(8, debug=False)
         self.submodules.mac_model = mac.MAC(self.phy_model, debug=False, loopback=True)
-        self.submodules.core = LiteEthMACCore(phy=self.phy_model, dw=8, with_hw_preamble_crc=True)
+        self.submodules.core = LiteEthMACCore(phy=self.phy_model, dw=8, with_preamble_crc=True)
 
         self.submodules.streamer = PacketStreamer(eth_phy_description(8), last_be=1)
         self.submodules.streamer_randomizer = AckRandomizer(eth_phy_description(8), level=50)

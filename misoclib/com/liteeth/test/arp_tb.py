@@ -20,7 +20,7 @@ class TB(Module):
         self.submodules.mac_model = mac.MAC(self.phy_model, debug=False, loopback=False)
         self.submodules.arp_model = arp.ARP(self.mac_model, mac_address, ip_address, debug=False)
 
-        self.submodules.mac = LiteEthMAC(self.phy_model, dw=8, with_hw_preamble_crc=True)
+        self.submodules.mac = LiteEthMAC(self.phy_model, dw=8, with_preamble_crc=True)
         self.submodules.arp = LiteEthARP(self.mac, mac_address, ip_address, 100000)
 
         # use sys_clk for each clock_domain
