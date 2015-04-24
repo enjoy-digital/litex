@@ -152,7 +152,7 @@ def _list_comb_wires(f):
 
 
 def _printheader(f, ios, name, ns,
-                 reg_initialization=True):
+                 reg_initialization):
     sigs = list_signals(f) | list_special_ios(f, True, True, True)
     special_outs = list_special_ios(f, False, True, True)
     inouts = list_special_ios(f, False, False, True)
@@ -187,9 +187,9 @@ def _printheader(f, ios, name, ns,
 
 
 def _printcomb(f, ns,
-               display_run=False,
-               dummy_signal=True,
-               blocking_assign=False):
+               display_run,
+               dummy_signal,
+               blocking_assign):
     r = ""
     if f.comb:
         if dummy_signal:
