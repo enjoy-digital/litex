@@ -151,7 +151,8 @@ def _list_comb_wires(f):
     return r
 
 
-def _printheader(f, ios, name, ns, asic_syntax=False):
+def _printheader(f, ios, name, ns,
+                 reg_initialization=True):
     sigs = list_signals(f) | list_special_ios(f, True, True, True)
     special_outs = list_special_ios(f, False, True, True)
     inouts = list_special_ios(f, False, False, True)
@@ -177,22 +178,25 @@ def _printheader(f, ios, name, ns, asic_syntax=False):
         if sig in wires:
             r += "wire " + _printsig(ns, sig) + ";\n"
         else:
-            if asic_syntax:
-                r += "reg " + _printsig(ns, sig) + ";\n"
-            else:
+            if reg_initialization:
                 r += "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
+            else:
+                r += "reg " + _printsig(ns, sig) + ";\n"
     r += "\n"
     return r
 
 
-def _printcomb(f, ns, display_run, asic_syntax=False):
+def _printcomb(f, ns,
+               display_run=False,
+               dummy_signal=True,
+               blocking_assign=False):
     r = ""
     if f.comb:
-        # Generate a dummy event to get the simulator
-        # to run the combinatorial process once at the beginning.
-        syn_off = "// synthesis translate_off\n"
-        syn_on = "// synthesis translate_on\n"
-        if not asic_syntax:
+        if dummy_signal:
+            # Generate a dummy event to get the simulator
+            # to run the combinatorial process once at the beginning.
+            syn_off = "// synthesis translate_off\n"
+            syn_on = "// synthesis translate_on\n"
             dummy_s = Signal(name_override="dummy_s")
             r += syn_off
             r += "reg " + _printsig(ns, dummy_s) + ";\n"
@@ -205,7 +209,7 @@ def _printcomb(f, ns, display_run, asic_syntax=False):
             if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
                 r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
             else:
-                if not asic_syntax:
+                if dummy_signal:
                     dummy_d = Signal(name_override="dummy_d")
                     r += "\n" + syn_off
                     r += "reg " + _printsig(ns, dummy_d) + ";\n"
@@ -214,7 +218,7 @@ def _printcomb(f, ns, display_run, asic_syntax=False):
                 r += "always @(*) begin\n"
                 if display_run:
                     r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
-                if asic_syntax:
+                if blocking_assign:
                     for t in g[0]:
                         r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
                     r += _printnode(ns, _AT_BLOCKING, 1, g[1])
@@ -222,6 +226,7 @@ def _printcomb(f, ns, display_run, asic_syntax=False):
                     for t in g[0]:
                         r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
                     r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
+                if dummy_signal:
                     r += syn_off
                     r += "\t" + ns.get_name(dummy_d) + " <= " + ns.get_name(dummy_s) + ";\n"
                     r += syn_on
@@ -323,8 +328,12 @@ def convert(f, ios=None, name="top",
     r.ns = ns
 
     src = "/* Machine-generated using Migen */\n"
-    src += _printheader(f, ios, name, ns, asic_syntax)
-    src += _printcomb(f, ns, display_run, asic_syntax)
+    src += _printheader(f, ios, name, ns,
+                        reg_initialization=not asic_syntax)
+    src += _printcomb(f, ns,
+                      display_run=display_run,
+                      dummy_signal=not asic_syntax,
+                      blocking_assign=asic_syntax)
     src += _printsync(f, ns)
     src += _printspecials(special_overrides, f.specials - lowered_specials, ns, r.add_data_file)
     src += "endmodule\n"
