@@ -3,24 +3,29 @@ from misoclib.com.liteeth.generic import *
 
 
 class LiteEthMACPaddingInserter(Module):
-    def __init__(self, dw, packet_min_length):
+    def __init__(self, dw, padding):
         self.sink = sink = Sink(eth_phy_description(dw))
         self.source = source = Source(eth_phy_description(dw))
 
         # # #
 
-        packet_min_data = math.ceil(packet_min_length/(dw/8))
+        padding_limit = math.ceil(padding/(dw/8))-1
 
-        self.submodules.counter = counter = Counter(max=eth_mtu)
+        self.submodules.counter = counter = Counter(16, reset=1)
+        counter_done = Signal()
+        self.comb += [
+            counter.reset.eq(sink.stb & sink.sop & sink.ack),
+            counter.ce.eq(source.stb & source.ack),
+            counter_done.eq(counter.value >= padding_limit),
+        ]
 
-        self.submodules.fsm = fsm = FSM(reset_state="COPY")
-        fsm.act("COPY",
-            counter.reset.eq(sink.stb & sink.sop),
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
             Record.connect(sink, source),
-            If(sink.stb & sink.ack,
+            If(source.stb & source.ack,
                 counter.ce.eq(1),
                 If(sink.eop,
-                    If(counter.value < packet_min_data,
+                    If(~counter_done,
                         source.eop.eq(0),
                         NextState("PADDING")
                     )
@@ -29,12 +34,11 @@ class LiteEthMACPaddingInserter(Module):
         )
         fsm.act("PADDING",
             source.stb.eq(1),
-            source.eop.eq(counter.value == packet_min_data),
+            source.eop.eq(counter_done),
             source.data.eq(0),
             If(source.ack,
-                counter.ce.eq(1),
-                If(source.eop,
-                    NextState("COPY")
+                If(counter_done,
+                    NextState("IDLE")
                 )
             )
         )
