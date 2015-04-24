@@ -121,8 +121,8 @@ class LiteEthIPRX(Module):
         self.submodules.checksum = checksum = LiteEthIPV4Checksum(skip_checksum=False)
         self.comb += [
             checksum.header.eq(depacketizer.header),
-            checksum.reset.eq(depacketizer.source.stb & depacketizer.source.eop),
-            checksum.ce.eq(depacketizer.source.stb & depacketizer.source.sop)
+            checksum.reset.eq(~(depacketizer.source.stb & depacketizer.source.sop)),
+            checksum.ce.eq(1)
         ]
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
