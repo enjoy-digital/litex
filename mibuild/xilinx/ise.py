@@ -54,6 +54,7 @@ def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
 
     xst_contents = """run
 -ifn {build_name}.prj
+-use_new_parser yes
 -top top
 {xst_opt}
 -ofn {build_name}.ngc
