@@ -5,7 +5,7 @@ from misoclib.com.liteeth.generic import *
 
 
 class LiteEthPHYGMIITX(Module):
-    def __init__(self, pads, pads_register):
+    def __init__(self, pads, pads_register=True):
         self.sink = sink = Sink(eth_phy_description(8))
 
         # # #
