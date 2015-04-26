@@ -83,58 +83,78 @@ class LiteEthPHYGMIIMIIRX(Module):
 
 
 class LiteEthGMIIMIIModeDetection(Module, AutoCSR):
-    def __init__(self):
-        self._reset = CSRStorage()
-        self._counter = CSRStatus(32)
-        self._mode = CSRStorage()
+    def __init__(self, clk_freq):
         self.mode = Signal()
+        self._mode = CSRStatus()
 
         # # #
 
-        # Note:
-        # For now mode detection is done with gateware and software.
-        # We will probably do it in gateware in the future
-        # (we will need to pass clk_freq parameter to PHY)
+        mode = Signal()
+        update_mode = Signal()
+        self.sync += \
+            If(update_mode,
+                self.mode.eq(mode)
+            )
+        self.comb += self._mode.status.eq(self.mode)
 
         # Principle:
         #  sys_clk >= 125MHz
         #  eth_rx <= 125Mhz
-        # We generate a pulse in eth_rx clock domain that increments
-        # a counter in sys_clk domain.
+        # We generate ticks every 1024 clock cycles in eth_rx domain
+        # and measure ticks period in sys_clk domain.
 
-        # Generate a pulse every 4 clock cycles (eth_rx clock domain)
-        eth_pulse = Signal()
-        eth_counter = Signal(2)
+        # Generate a tick every 1024 clock cycles (eth_rx clock domain)
+        eth_tick = Signal()
+        eth_counter = Signal(10)
         self.sync.eth_rx += eth_counter.eq(eth_counter + 1)
-        self.comb += eth_pulse.eq(eth_counter == 0)
+        self.comb += eth_tick.eq(eth_counter == 0)
 
-        # Synchronize pulse (sys clock domain)
-        sys_pulse = Signal()
+        # Synchronize tick (sys clock domain)
+        sys_tick = Signal()
         eth_ps = PulseSynchronizer("eth_rx", "sys")
         self.comb += [
-            eth_ps.i.eq(eth_pulse),
-            sys_pulse.eq(eth_ps.o)
+            eth_ps.i.eq(eth_tick),
+            sys_tick.eq(eth_ps.o)
         ]
         self.submodules += eth_ps
 
-        # Count pulses (sys clock domain)
-        counter = Counter(32)
-        self.submodules += counter
-        self.comb += [
-            counter.reset.eq(self._reset.storage),
-            counter.ce.eq(sys_pulse)
-        ]
-        self.comb += self._counter.status.eq(counter.value)
+        # sys_clk domain counter
+        sys_counter = Counter(24)
+        self.submodules += sys_counter
 
-        # Output mode
-        self.comb += self.mode.eq(self._mode.storage)
+        fsm = FSM(reset_state="IDLE")
+        self.submodules += fsm
+
+        fsm.act("IDLE",
+            sys_counter.reset.eq(1),
+            If(sys_tick,
+                NextState("COUNT")
+            )
+        )
+        fsm.act("COUNT",
+            sys_counter.ce.eq(1),
+            If(sys_tick,
+                NextState("DETECTION")
+            )
+        )
+        fsm.act("DETECTION",
+            update_mode.eq(1),
+            # if freq < 125MHz-5% use MII mode
+            If(sys_counter.value > int((clk_freq/125000000)*1024*1.05),
+                mode.eq(1)
+            # if freq >= 125MHz-5% use GMII mode
+            ).Else(
+                mode.eq(0)
+            ),
+            NextState("IDLE")
+        )
 
 
 class LiteEthPHYGMIIMII(Module, AutoCSR):
-    def __init__(self, clock_pads, pads, with_hw_init_reset=True):
+    def __init__(self, clock_pads, pads, clk_freq, with_hw_init_reset=True):
         self.dw = 8
         # Note: we can use GMII CRG since it also handles tx clock pad used for MII
-        self.submodules.mode_detection = LiteEthGMIIMIIModeDetection()
+        self.submodules.mode_detection = LiteEthGMIIMIIModeDetection(clk_freq)
         mode = self.mode_detection.mode
         self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset, mode == modes["MII"])
         self.submodules.tx = RenameClockDomains(LiteEthPHYGMIIMIITX(pads, mode), "eth_tx")

@@ -433,7 +433,7 @@ static void busy_wait(unsigned int ds)
 	while(timer0_value_read()) timer0_update_value_write(1);
 }
 
-void ethreset(void)
+void eth_init(void)
 {
 	ethphy_crg_reset_write(0);
 	busy_wait(2);
@@ -445,50 +445,15 @@ void ethreset(void)
 }
 
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
-static int eth_test_frequency(unsigned int freq, unsigned int target, unsigned int margin)
+void eth_mode(void)
 {
-	if (freq < (target - margin))
-		return 0;
-	else if (freq > (target + margin))
-		return 0;
-	else
-		return 1;
-}
-
-int eth_mode_detection(void)
-{
-	unsigned int frequency;
-
-	ethphy_mode_detection_reset_write(1);
-	busy_wait(1);
-	ethphy_mode_detection_reset_write(0);
-	busy_wait(1);
-	frequency = ethphy_mode_detection_counter_read()*4*10;
-	ethphy_mode_detection_reset_write(1);
-
 	printf("Ethernet phy mode: ");
-	/* 10Mbps */
-	if(eth_test_frequency(frequency, 2500000, 1000000)) {
-		ethphy_mode_detection_mode_write(1);
-		printf("10Mbps (MII)\n");
-		return 1;
-	/* 100Mbps */
-	} else if(eth_test_frequency(frequency, 25000000, 1000000)) {
-		ethphy_mode_detection_mode_write(1);
-		printf("100Mbps (MII)\n");
-		return 1;
-	/* 1Gbps */
-	} else if(eth_test_frequency(frequency, 125000000, 1000000)) {
-		ethphy_mode_detection_mode_write(0);
-		printf("1Gbps (GMII)\n");
-		return 1;
-	/* Failed */
-	 } else {
-		printf("Failed to detect link speed\n");
-		return 0;
-	}
+	if (ethphy_mode_detection_mode_read())
+		printf("MII");
+	else
+		printf("GMII");
+	printf("\n");
 }
 #endif
 
 #endif
-

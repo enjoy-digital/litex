@@ -122,7 +122,7 @@ class MiniSoC(BaseSoC):
     def __init__(self, platform, **kwargs):
         BaseSoC.__init__(self, platform, **kwargs)
 
-        self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"), platform.request("eth"))
+        self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"), platform.request("eth"), clk_freq=self.clk_freq)
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"]+self.shadow_address, 0x2000)
