@@ -497,16 +497,21 @@ static int test_user_abort(void)
 
 static void boot_sequence(void)
 {
+	int eth_ok;
+
 	if(test_user_abort()) {
 #ifdef FLASH_BOOT_ADDRESS
 		flashboot();
 #endif
 		serialboot();
-#ifdef CSR_ETHPHY_MODE_ADDR
-		ethmode();
+#ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
+		eth_ok = eth_mode_detection();
+#else
+		eth_ok = 1;
 #endif
 #ifdef CSR_ETHMAC_BASE
-		netboot();
+		if (eth_ok)
+			netboot();
 #endif
 		printf("No boot medium found\n");
 	}

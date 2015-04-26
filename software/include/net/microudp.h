@@ -15,6 +15,6 @@ void microudp_set_callback(udp_callback callback);
 void microudp_service(void);
 
 void ethreset(void);
-void ethmode(void);
+int eth_mode_detection(void);
 
 #endif /* __MICROUDP_H */
