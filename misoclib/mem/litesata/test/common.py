@@ -5,6 +5,13 @@ from migen.sim.generic import run_simulation
 
 from misoclib.mem.litesata.common import *
 
+def print_with_prefix(s, prefix=""):
+    if not isinstance(s, str):
+        s = s.__repr__()
+    s = s.split("\n")
+    for l in s:
+        print(prefix + l)
+
 
 def seed_to_data(seed, random=True):
     if random:

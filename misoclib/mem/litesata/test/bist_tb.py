@@ -2,8 +2,8 @@ from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata import LiteSATA
 from misoclib.mem.litesata.frontend.bist import LiteSATABISTGenerator, LiteSATABISTChecker
 
-from misoclib.mem.litesata.test.hdd import *
 from misoclib.mem.litesata.test.common import *
+from misoclib.mem.litesata.test.model.hdd import *
 
 
 class TB(Module):

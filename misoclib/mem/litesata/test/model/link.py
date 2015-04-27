@@ -4,93 +4,6 @@ import math
 from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.test.common import *
 
-
-def print_with_prefix(s, prefix=""):
-    if not isinstance(s, str):
-        s = s.__repr__()
-    s = s.split("\n")
-    for l in s:
-        print(prefix + l)
-
-
-# PHY Layer model
-class PHYDword:
-    def __init__(self, dat=0):
-        self.dat = dat
-        self.start = 1
-        self.done = 0
-
-
-class PHYSource(Module):
-    def __init__(self):
-        self.source = Source(phy_description(32))
-
-        # # #
-
-        self.dword = PHYDword()
-
-    def send(self, dword):
-        self.dword = dword
-
-    def do_simulation(self, selfp):
-        selfp.source.stb = 1
-        selfp.source.charisk = 0b0000
-        for k, v in primitives.items():
-            if v == self.dword.dat:
-                selfp.source.charisk = 0b0001
-        selfp.source.data = self.dword.dat
-
-
-class PHYSink(Module):
-    def __init__(self):
-        self.sink = Sink(phy_description(32))
-
-        # # #
-
-        self.dword = PHYDword()
-
-    def receive(self):
-        self.dword.done = 0
-        while self.dword.done == 0:
-            yield
-
-    def do_simulation(self, selfp):
-        self.dword.done = 0
-        selfp.sink.ack = 1
-        if selfp.sink.stb == 1:
-            self.dword.done = 1
-            self.dword.dat = selfp.sink.data
-
-
-class PHYLayer(Module):
-    def __init__(self):
-
-        self.submodules.rx = PHYSink()
-        self.submodules.tx = PHYSource()
-
-        self.source = self.tx.source
-        self.sink = self.rx.sink
-
-    def send(self, dword):
-        packet = PHYDword(dword)
-        self.tx.send(packet)
-
-    def receive(self):
-        yield from self.rx.receive()
-
-    def __repr__(self):
-        receiving = "{:08x} ".format(self.rx.dword.dat)
-        receiving += decode_primitive(self.rx.dword.dat)
-        receiving += " "*(16-len(receiving))
-
-        sending = "{:08x} ".format(self.tx.dword.dat)
-        sending += decode_primitive(self.tx.dword.dat)
-        sending += " "*(16-len(sending))
-
-        return receiving + sending
-
-
-# Link Layer model
 def print_link(s):
     print_with_prefix(s, "[LNK]: ")
 
@@ -142,7 +55,7 @@ class LinkTXPacket(LinkPacket):
     def insert_crc(self):
         stdin = ""
         for v in self:
-            stdin += "0x{:08x} ".foramt(v)
+            stdin += "0x{:08x} ".format(v)
         stdin += "exit"
         with subprocess.Popen("./crc",
                               stdin=subprocess.PIPE,
@@ -299,7 +212,7 @@ def print_transport(s):
 
 
 def get_field_data(field, packet):
-    return (packet[field.dword] >> field.offset) & (2**field.width-1)
+    return (packet[field.byte//4] >> field.offset) & (2**field.width-1)
 
 
 class FIS:
@@ -315,7 +228,7 @@ class FIS:
 
     def encode(self):
         for k, v in self.description.items():
-            self.packet[v.dword] |= (getattr(self, k) << v.offset)
+            self.packet[v.byte//4] |= (getattr(self, k) << v.offset)
 
     def __repr__(self):
         if self.direction == "H2D":
@@ -328,8 +241,8 @@ class FIS:
 
 
 class FIS_REG_H2D(FIS):
-    def __init__(self, packet=[0]*fis_reg_h2d_cmd_len):
-        FIS.__init__(self, packet, fis_reg_h2d_layout)
+    def __init__(self, packet=[0]*fis_reg_h2d_header.length):
+        FIS.__init__(self, packet, fis_reg_h2d_header.fields)
         self.type = fis_types["REG_H2D"]
         self.direction = "H2D"
 
@@ -340,8 +253,8 @@ class FIS_REG_H2D(FIS):
 
 
 class FIS_REG_D2H(FIS):
-    def __init__(self, packet=[0]*fis_reg_d2h_cmd_len):
-        FIS.__init__(self, packet, fis_reg_d2h_layout)
+    def __init__(self, packet=[0]*fis_reg_d2h_header.length):
+        FIS.__init__(self, packet, fis_reg_d2h_header.fields)
         self.type = fis_types["REG_D2H"]
         self.direction = "D2H"
 
@@ -352,8 +265,8 @@ class FIS_REG_D2H(FIS):
 
 
 class FIS_DMA_ACTIVATE_D2H(FIS):
-    def __init__(self, packet=[0]*fis_dma_activate_d2h_cmd_len):
-        FIS.__init__(self, packet, fis_dma_activate_d2h_layout)
+    def __init__(self, packet=[0]*fis_dma_activate_d2h_header.length):
+        FIS.__init__(self, packet, fis_dma_activate_d2h_header.fields)
         self.type = fis_types["DMA_ACTIVATE_D2H"]
         self.direction = "D2H"
 
@@ -365,7 +278,7 @@ class FIS_DMA_ACTIVATE_D2H(FIS):
 
 class FIS_DATA(FIS):
     def __init__(self, packet=[0], direction="H2D"):
-        FIS.__init__(self, packet, fis_data_layout, direction)
+        FIS.__init__(self, packet, fis_data_header.fields, direction)
         self.type = fis_types["DATA"]
 
     def __repr__(self):
@@ -488,7 +401,7 @@ class HDD(Module):
 
     def malloc(self, sector, count):
         if self.debug:
-            s = "Allocating {n} sectors: {s} to {e}".format(n=count, s=sector, e=sector+count)
+            s = "Allocating {n} sectors: {s} to {e}".format(n=count, s=sector, e=sector+count-1)
             s += " ({} KB)".format(count*logical_sector_size//1024)
             print_hdd(s)
         self.mem = HDDMemRegion(sector, count, logical_sector_size)

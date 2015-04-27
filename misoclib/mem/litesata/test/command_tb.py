@@ -1,8 +1,8 @@
 from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.core import LiteSATACore
 
-from misoclib.mem.litesata.test.hdd import *
 from misoclib.mem.litesata.test.common import *
+from misoclib.mem.litesata.test.model.hdd import *
 
 
 class CommandTXPacket(list):
