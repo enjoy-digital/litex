@@ -98,6 +98,8 @@ class BaseSoC(SDRAMSoC):
                                       i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
                                       i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
             self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
+            self.add_constant("SPIFLASH_PAGE_SIZE", 256)
+            self.add_constant("SPIFLASH_SECTOR_SIZE", 0x10000)
             self.flash_boot_address = 0xb00000
             self.register_rom(self.spiflash.bus)
 
