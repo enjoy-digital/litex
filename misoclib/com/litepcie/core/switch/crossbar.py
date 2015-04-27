@@ -3,8 +3,6 @@ from migen.bank.description import *
 
 from misoclib.com.litepcie.common import *
 from misoclib.com.litepcie.core.switch.common import *
-from misoclib.com.litepcie.core.switch.arbiter import Arbiter
-from misoclib.com.litepcie.core.switch.dispatcher import Dispatcher
 from misoclib.com.litepcie.core.switch.request_controller import RequestController
 
 

@@ -13,9 +13,9 @@ def print_host(s):
 # Host model
 class Host(Module):
     def __init__(self, dw, root_id, endpoint_id, bar0_size=1*MB,
-            phy_debug=False,
-            chipset_debug=False, chipset_split=False, chipset_reordering=False,
-            host_debug=False):
+                 phy_debug=False,
+                 chipset_debug=False, chipset_split=False, chipset_reordering=False,
+                 host_debug=False):
         self.debug = host_debug
         self.chipset_split = chipset_split
         ###

@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.flow.actor import EndpointDescription, Sink, Source
+from migen.actorlib.packet import HeaderField, Header
 
 from misoclib.com.litepcie.common import *
 
@@ -26,92 +27,91 @@ max_request_size = 512
 
 
 # headers
-class HField():
-    def __init__(self, word, offset, width):
-        self.word = word
-        self.offset = offset
-        self.width = width
-
-tlp_header_w = 128
-
-tlp_common_header = {
-    "fmt":  HField(0, 29, 2),
-    "type": HField(0, 24, 5),
+tlp_common_header_length = 16
+tlp_common_header_fields = {
+    "fmt":  HeaderField(0*4, 29, 2),
+    "type": HeaderField(0*4, 24, 5),
 }
+tlp_common_header = Header(tlp_common_header_fields,
+                            tlp_common_header_length,
+                            swap_field_bytes=False)
 
-tlp_request_header = {
-    "fmt":          HField(0, 29,  2),
-    "type":         HField(0, 24,  5),
-    "tc":           HField(0, 20,  3),
-    "td":           HField(0, 15,  1),
-    "ep":           HField(0, 14,  1),
-    "attr":         HField(0, 12,  2),
-    "length":       HField(0,  0, 10),
 
-    "requester_id": HField(1, 16, 16),
-    "tag":          HField(1,  8,  8),
-    "last_be":      HField(1,  4,  4),
-    "first_be":     HField(1,  0,  4),
+tlp_request_header_length = 16
+tlp_request_header_fields = {
+    "fmt":          HeaderField(0*4, 29,  2),
+    "type":         HeaderField(0*4, 24,  5),
+    "tc":           HeaderField(0*4, 20,  3),
+    "td":           HeaderField(0*4, 15,  1),
+    "ep":           HeaderField(0*4, 14,  1),
+    "attr":         HeaderField(0*4, 12,  2),
+    "length":       HeaderField(0*4,  0, 10),
 
-    "address":      HField(2,  2, 30),
+    "requester_id": HeaderField(1*4, 16, 16),
+    "tag":          HeaderField(1*4,  8,  8),
+    "last_be":      HeaderField(1*4,  4,  4),
+    "first_be":     HeaderField(1*4,  0,  4),
+
+    "address":      HeaderField(2*4,  2, 30),
 }
+tlp_request_header = Header(tlp_request_header_fields,
+                            tlp_request_header_length,
+                            swap_field_bytes=False)
 
-tlp_completion_header = {
-    "fmt":           HField(0, 29,  2),
-    "type":          HField(0, 24,  5),
-    "tc":            HField(0, 20,  3),
-    "td":            HField(0, 15,  1),
-    "ep":            HField(0, 14,  1),
-    "attr":          HField(0, 12,  2),
-    "length":        HField(0,  0, 10),
 
-    "completer_id":  HField(1, 16, 16),
-    "status":        HField(1, 13,  3),
-    "bcm":           HField(1, 12,  1),
-    "byte_count":    HField(1,  0, 12),
+tlp_completion_header_length = 16
+tlp_completion_header_fields = {
+    "fmt":           HeaderField(0*4, 29,  2),
+    "type":          HeaderField(0*4, 24,  5),
+    "tc":            HeaderField(0*4, 20,  3),
+    "td":            HeaderField(0*4, 15,  1),
+    "ep":            HeaderField(0*4, 14,  1),
+    "attr":          HeaderField(0*4, 12,  2),
+    "length":        HeaderField(0*4,  0, 10),
 
-    "requester_id":  HField(2, 16, 16),
-    "tag":           HField(2,  8,  8),
-    "lower_address": HField(2,  0,  7),
+    "completer_id":  HeaderField(1*4, 16, 16),
+    "status":        HeaderField(1*4, 13,  3),
+    "bcm":           HeaderField(1*4, 12,  1),
+    "byte_count":    HeaderField(1*4,  0, 12),
+
+    "requester_id":  HeaderField(2*4, 16, 16),
+    "tag":           HeaderField(2*4,  8,  8),
+    "lower_address": HeaderField(2*4,  0,  7),
 }
+tlp_completion_header = Header(tlp_completion_header_fields,
+                            tlp_completion_header_length,
+                            swap_field_bytes=False)
 
 
 # layouts
-def _layout_from_header(header):
-    _layout = []
-    for k, v in sorted(header.items()):
-        _layout.append((k, v.width))
-    return _layout
-
-
 def tlp_raw_layout(dw):
     layout = [
-        ("header",    tlp_header_w),
-        ("dat",        dw),
-        ("be",        dw//8)
+        ("header", 4*32),
+        ("dat",    dw),
+        ("be",     dw//8)
     ]
     return EndpointDescription(layout, packetized=True)
 
 
 def tlp_common_layout(dw):
-    layout = _layout_from_header(tlp_common_header) + [
-        ("dat",        dw),
-        ("be",        dw//8)
+    layout = tlp_common_header.get_layout() + [
+        ("dat", dw),
+        ("be",  dw//8)
     ]
     return EndpointDescription(layout, packetized=True)
 
 
 def tlp_request_layout(dw):
-    layout = _layout_from_header(tlp_request_header) + [
-        ("dat",        dw),
-        ("be",        dw//8)
+    layout = tlp_request_header.get_layout() + [
+        ("dat", dw),
+        ("be",  dw//8)
     ]
     return EndpointDescription(layout, packetized=True)
 
 
 def tlp_completion_layout(dw):
-    layout = _layout_from_header(tlp_completion_header) + [
-        ("dat",        dw),
-        ("be",        dw//8)
+    layout = tlp_completion_header.get_layout() + [
+        ("dat", dw),
+        ("be",  dw//8)
     ]
     return EndpointDescription(layout, packetized=True)

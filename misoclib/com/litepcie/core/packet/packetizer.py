@@ -4,16 +4,6 @@ from migen.genlib.fsm import FSM, NextState
 from migen.genlib.misc import chooser
 
 from misoclib.com.litepcie.core.packet.common import *
-from misoclib.com.litepcie.core.switch.arbiter import Arbiter
-
-
-def _encode_header(h_dict, h_signal, obj):
-    r = []
-    for k, v in sorted(h_dict.items()):
-        start = v.word*32+v.offset
-        end = start+v.width
-        r.append(h_signal[start:end].eq(getattr(obj, k)))
-    return r
 
 
 class HeaderInserter(Module):
@@ -53,7 +43,7 @@ class HeaderInserter(Module):
             source.sop.eq(0),
             source.eop.eq(sink.eop),
             source.dat.eq(Cat(sink.header[64:96], reverse_bytes(sink.dat[:32]))),
-            source.be.eq(Cat(Signal(4, reset=0xf), reverse_bits(sink.be[:4]))),
+            source.be.eq(Cat(Signal(4, reset=0xf), freversed(sink.be[:4]))),
             If(source.stb & source.ack,
                 sink.ack.eq(1),
                 If(source.eop,
@@ -135,7 +125,7 @@ class Packetizer(Module):
             tlp_req.ack.eq(tlp_raw_req.ack),
             tlp_raw_req.sop.eq(tlp_req.sop),
             tlp_raw_req.eop.eq(tlp_req.eop),
-            _encode_header(tlp_request_header, tlp_raw_req.header, tlp_req),
+            tlp_request_header.encode(tlp_req, tlp_raw_req.header),
             tlp_raw_req.dat.eq(tlp_req.dat),
             tlp_raw_req.be.eq(tlp_req.be),
         ]
@@ -179,7 +169,7 @@ class Packetizer(Module):
             tlp_cmp.ack.eq(tlp_raw_cmp.ack),
             tlp_raw_cmp.sop.eq(tlp_cmp.sop),
             tlp_raw_cmp.eop.eq(tlp_cmp.eop),
-            _encode_header(tlp_completion_header, tlp_raw_cmp.header, tlp_cmp),
+            tlp_completion_header.encode(tlp_cmp, tlp_raw_cmp.header),
             tlp_raw_cmp.dat.eq(tlp_cmp.dat),
             tlp_raw_cmp.be.eq(tlp_cmp.be),
         ]

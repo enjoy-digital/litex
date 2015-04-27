@@ -3,16 +3,6 @@ from migen.actorlib.structuring import *
 from migen.genlib.fsm import FSM, NextState
 
 from misoclib.com.litepcie.core.packet.common import *
-from misoclib.com.litepcie.core.switch.dispatcher import Dispatcher
-
-
-def _decode_header(h_dict, h_signal, obj):
-    r = []
-    for k, v in sorted(h_dict.items()):
-        start = v.word*32+v.offset
-        end = start+v.width
-        r.append(getattr(obj, k).eq(h_signal[start:end]))
-    return r
 
 
 class HeaderExtracter(Module):
@@ -65,7 +55,7 @@ class HeaderExtracter(Module):
             source.sop.eq(sop),
             source.eop.eq(sink.eop),
             source.dat.eq(Cat(reverse_bytes(sink_dat_r[32:]), reverse_bytes(sink.dat[:32]))),
-            source.be.eq(Cat(reverse_bits(sink_be_r[4:]), reverse_bits(sink.be[:4]))),
+            source.be.eq(Cat(freversed(sink_be_r[4:]), freversed(sink.be[:4]))),
             If(source.stb & source.ack & source.eop,
                 NextState("HEADER1")
             )
@@ -82,7 +72,7 @@ class HeaderExtracter(Module):
             source.sop.eq(1),
             source.eop.eq(1),
             source.dat.eq(reverse_bytes(sink.dat[32:])),
-            source.be.eq(reverse_bits(sink.be[4:])),
+            source.be.eq(freversed(sink.be[4:])),
             If(source.stb & source.ack & source.eop,
                 NextState("HEADER1")
             )
@@ -116,7 +106,7 @@ class Depacketizer(Module):
             dispatch_source.eop.eq(header_extracter.source.eop),
             dispatch_source.dat.eq(header_extracter.source.dat),
             dispatch_source.be.eq(header_extracter.source.be),
-            _decode_header(tlp_common_header, header, dispatch_source)
+            tlp_common_header.decode(header, dispatch_source)
         ]
 
         self.submodules.dispatcher = Dispatcher(dispatch_source, dispatch_sinks)
@@ -132,7 +122,7 @@ class Depacketizer(Module):
         # decode TLP request and format local request
         tlp_req = Source(tlp_request_layout(dw))
         self.comb += Record.connect(dispatch_sinks[0], tlp_req)
-        self.comb += _decode_header(tlp_request_header, header, tlp_req)
+        self.comb += tlp_request_header.decode(header, tlp_req)
 
         req_source = self.req_source
         self.comb += [
@@ -151,7 +141,7 @@ class Depacketizer(Module):
         # decode TLP completion and format local completion
         tlp_cmp = Source(tlp_completion_layout(dw))
         self.comb += Record.connect(dispatch_sinks[1], tlp_cmp)
-        self.comb += _decode_header(tlp_completion_header, header, tlp_cmp)
+        self.comb += tlp_completion_header.decode(header, tlp_cmp)
 
         cmp_source = self.cmp_source
         self.comb += [

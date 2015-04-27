@@ -4,7 +4,7 @@ from misoclib.com.litepcie.core.packet.common import *
 
 # TLP Layer model
 def get_field_data(field, dwords):
-    return (dwords[field.word] >> field.offset) & (2**field.width-1)
+    return (dwords[field.byte//4] >> field.offset) & (2**field.width-1)
 
 tlp_headers_dict = {
     "RD32": tlp_request_header,
@@ -23,14 +23,14 @@ class TLP():
         self.decode_dwords()
 
     def decode_dwords(self):
-        for k, v in tlp_headers_dict[self.name].items():
+        for k, v in tlp_headers_dict[self.name].fields.items():
             setattr(self, k, get_field_data(v, self.header))
 
     def encode_dwords(self, data=[]):
         self.header = [0, 0, 0]
-        for k, v in tlp_headers_dict[self.name].items():
-            field = tlp_headers_dict[self.name][k]
-            self.header[field.word] |= (getattr(self, k) << field.offset)
+        for k, v in tlp_headers_dict[self.name].fields.items():
+            field = tlp_headers_dict[self.name].fields[k]
+            self.header[field.byte//4] |= (getattr(self, k) << field.offset)
         self.data = data
         self.dwords = self.header + self.data
         return self.dwords
@@ -81,8 +81,8 @@ fmt_type_dict = {
 
 
 def parse_dwords(dwords):
-    f = get_field_data(tlp_common_header["fmt"], dwords)
-    t = get_field_data(tlp_common_header["type"], dwords)
+    f = get_field_data(tlp_common_header.fields["fmt"], dwords)
+    t = get_field_data(tlp_common_header.fields["type"], dwords)
     fmt_type = (f << 5) | t
     try:
         tlp, min_len = fmt_type_dict[fmt_type]

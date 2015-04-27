@@ -1,6 +1,8 @@
 from migen.fhdl.std import *
 from migen.genlib.record import *
+from migen.genlib.misc import reverse_bytes
 from migen.flow.actor import *
+from migen.actorlib.packet import Arbiter, Dispatcher
 
 KB = 1024
 MB = 1024*KB
@@ -17,15 +19,6 @@ def get_bar_mask(size):
                     mask |= (1 << i)
                 size = size >> 1
             return mask
-
-
-def reverse_bytes(v):
-    return Cat(v[24:32], v[16:24], v[8:16], v[0:8])
-
-
-def reverse_bits(v):
-    return Cat(v[3], v[2], v[1], v[0])
-
 
 def phy_layout(dw):
     layout = [
