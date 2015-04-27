@@ -29,7 +29,7 @@ class LiteUSBUART(Module, AutoCSR):
         self.sync += \
             If(tx_start,
                 source.stb.eq(1),
-                source.d.eq(self._rxtx.r),
+                source.data.eq(self._rxtx.r),
             ).Elif(tx_done,
                 source.stb.eq(0)
             )
@@ -50,7 +50,7 @@ class LiteUSBUART(Module, AutoCSR):
         self.comb += [
             rx_fifo.we.eq(sink.stb),
             sink.ack.eq(sink.stb & rx_fifo.writable),
-            rx_fifo.din.eq(sink.d),
+            rx_fifo.din.eq(sink.data),
 
             rx_available.eq(rx_fifo.readable),
             rx_fifo.re.eq(self.ev.rx.clear),

@@ -34,7 +34,7 @@ class CRCEngine(Module):
         next CRC value.
     """
     def __init__(self, dat_width, width, polynom):
-        self.d = Signal(dat_width)
+        self.data = Signal(dat_width)
         self.last = Signal(width)
         self.next = Signal(width)
 
@@ -74,7 +74,7 @@ class CRCEngine(Module):
                 if t == "state":
                     xors += [self.last[n]]
                 elif t == "din":
-                    xors += [self.d[n]]
+                    xors += [self.data[n]]
             self.comb += self.next[i].eq(optree("^", xors))
 
 
@@ -105,7 +105,7 @@ class CRC32(Module):
     check = 0xC704DD7B
 
     def __init__(self, dat_width):
-        self.d = Signal(dat_width)
+        self.data = Signal(dat_width)
         self.value = Signal(self.width)
         self.error = Signal()
 
@@ -115,7 +115,7 @@ class CRC32(Module):
         reg = Signal(self.width, reset=self.init)
         self.sync += reg.eq(self.engine.next)
         self.comb += [
-            self.engine.d.eq(self.d),
+            self.engine.data.eq(self.data),
             self.engine.last.eq(reg),
 
             self.value.eq(~reg[::-1]),
@@ -147,7 +147,7 @@ class CRCInserter(Module):
 
         # # #
 
-        dw = flen(sink.d)
+        dw = flen(sink.data)
         crc = crc_class(dw)
         fsm = FSM(reset_state="IDLE")
         self.submodules += crc, fsm
@@ -162,7 +162,7 @@ class CRCInserter(Module):
         )
         fsm.act("COPY",
             crc.ce.eq(sink.stb & source.ack),
-            crc.d.eq(sink.d),
+            crc.data.eq(sink.data),
             Record.connect(sink, source),
             source.eop.eq(0),
             If(sink.stb & sink.eop & source.ack,
@@ -175,7 +175,7 @@ class CRCInserter(Module):
             cnt_done = Signal()
             fsm.act("INSERT",
                 source.stb.eq(1),
-                chooser(crc.value, cnt, source.d, reverse=True),
+                chooser(crc.value, cnt, source.data, reverse=True),
                 If(cnt_done,
                     source.eop.eq(1),
                     If(source.ack, NextState("IDLE"))
@@ -192,7 +192,7 @@ class CRCInserter(Module):
             fsm.act("INSERT",
                 source.stb.eq(1),
                 source.eop.eq(1),
-                source.d.eq(crc.value),
+                source.data.eq(crc.value),
                 If(source.ack, NextState("IDLE"))
             )
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
@@ -228,7 +228,7 @@ class CRCChecker(Module):
 
         # # #
 
-        dw = flen(sink.d)
+        dw = flen(sink.data)
         crc = crc_class(dw)
         self.submodules += crc
         ratio = crc.width//dw
@@ -268,14 +268,14 @@ class CRCChecker(Module):
             NextState("IDLE"),
         )
         fsm.act("IDLE",
-            crc.d.eq(sink.d),
+            crc.data.eq(sink.data),
             If(sink.stb & sink.sop & sink.ack,
                 crc.ce.eq(1),
                 NextState("COPY")
             )
         )
         fsm.act("COPY",
-            crc.d.eq(sink.d),
+            crc.data.eq(sink.data),
             If(sink.stb & sink.ack,
                 crc.ce.eq(1),
                 If(sink.eop,

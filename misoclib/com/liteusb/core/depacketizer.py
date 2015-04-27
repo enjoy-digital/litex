@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.actorlib.structuring import *
 from migen.genlib.fsm import FSM, NextState
+from migen.genlib.misc import Timeout
 
 from misoclib.com.liteusb.common import *
 
@@ -32,12 +33,12 @@ class LiteUSBDepacketizer(Module):
 
         for i, byte in enumerate(header):
             chunk = getattr(header_pack.source.payload, "chunk" + str(i))
-            self.comb += byte.eq(chunk.d)
+            self.comb += byte.eq(chunk.data)
 
         fsm = FSM()
         self.submodules += fsm
 
-        self.comb += preamble[0].eq(sink.d)
+        self.comb += preamble[0].eq(sink.data)
         for i in range(1, 4):
             self.sync += If(sink.stb & sink.ack,
                     preamble[i].eq(preamble[i-1])
@@ -54,18 +55,21 @@ class LiteUSBDepacketizer(Module):
             header_pack.source.ack.eq(1),
         )
 
-        self.submodules.timeout = LiteUSBTimeout(60000000, timeout)
-        self.comb += self.timeout.clear.eq(fsm.ongoing("WAIT_SOP"))
+        self.submodules.timeout = Timeout(60000000*timeout)
+        self.comb += [
+            self.timeout.reset.eq(fsm.ongoing("WAIT_SOP")),
+            self.timeout.ce.eq(1)
+        ]
 
         fsm.act("RECEIVE_HEADER",
             header_pack.sink.stb.eq(sink.stb),
             header_pack.sink.payload.eq(sink.payload),
-            If(self.timeout.done, NextState("WAIT_SOP"))
+            If(self.timeout.reached, NextState("WAIT_SOP"))
             .Elif(header_pack.source.stb, NextState("RECEIVE_PAYLOAD"))
             .Else(sink.ack.eq(1))
         )
 
-        self.comb += header_pack.reset.eq(self.timeout.done)
+        self.comb += header_pack.reset.eq(self.timeout.reached)
 
         sop = Signal()
         eop = Signal()
@@ -75,9 +79,9 @@ class LiteUSBDepacketizer(Module):
             source.stb.eq(sink.stb),
             source.sop.eq(sop),
             source.eop.eq(eop),
-            source.d.eq(sink.d),
+            source.data.eq(sink.data),
             sink.ack.eq(source.ack),
-            If((eop & sink.stb & source.ack) | self.timeout.done,
+            If((eop & sink.stb & source.ack) | self.timeout.reached,
                 NextState("WAIT_SOP")
             )
         )
@@ -120,7 +124,7 @@ class DepacketizerSourceModel(Module, Source, RandRun):
             self._cnt += 1
 
         selfp.stb = self._stb
-        selfp.d = self.data[self._cnt]
+        selfp.data = self.data[self._cnt]
 
         if self._cnt == len(self.data)-1:
             raise StopSimulation

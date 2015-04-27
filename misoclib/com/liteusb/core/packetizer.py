@@ -35,7 +35,7 @@ class LiteUSBPacketizer(Module):
 
         for i, byte in enumerate(header):
             chunk = getattr(header_unpack.sink.payload, "chunk" + str(i))
-            self.comb += chunk.d.eq(byte)
+            self.comb += chunk.data.eq(byte)
 
         fsm = FSM()
         self.submodules += fsm
@@ -47,14 +47,14 @@ class LiteUSBPacketizer(Module):
         fsm.act("SEND_HEADER",
             header_unpack.sink.stb.eq(1),
             source.stb.eq(1),
-            source.d.eq(header_unpack.source.d),
+            source.data.eq(header_unpack.source.data),
             header_unpack.source.ack.eq(source.ack),
             If(header_unpack.sink.ack, NextState("SEND_DATA"))
         )
 
         fsm.act("SEND_DATA",
             source.stb.eq(sink.stb),
-            source.d.eq(sink.d),
+            source.data.eq(sink.data),
             sink.ack.eq(source.ack),
             If(source.ack & sink.eop, NextState("WAIT_SOP"))
         )
@@ -113,7 +113,7 @@ class PacketizerSourceModel(Module, Source, RandRun):
         selfp.eop = self._eop & self._stb
         selfp.dst = dst
         selfp.length = length
-        selfp.d = payload[self._payload_cnt]
+        selfp.data = payload[self._payload_cnt]
 
         if self._frame_cnt == len(self.data):
             raise StopSimulation
