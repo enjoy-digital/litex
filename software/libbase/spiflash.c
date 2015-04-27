@@ -1,25 +1,20 @@
 #include <generated/csr.h>
 
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+
 #include <spiflash.h>
 
-#ifdef CSR_SPIFLASH_BASE
+#define PAGE_PROGRAM_CMD (0x02)
+#define WRDI_CMD         (0x04)
+#define RDSR_CMD         (0x05)
+#define WREN_CMD         (0x06)
+#define SE_CMD           (0x20)
 
-#define PAGE_PROGRAM_CMD    (0x02)
-#define WRDI_CMD        (0x04)
-#define RDSR_CMD        (0x05)
-#define WREN_CMD        (0x06)
-#define SE_CMD            (0x20)
-
-#define BITBANG_CLK        (1 << 1)
+#define BITBANG_CLK         (1 << 1)
 #define BITBANG_CS_N        (1 << 2)
 #define BITBANG_DQ_INPUT    (1 << 3)
 
-#define SR_WIP            (1)
-
-#define PAGE_SIZE (256)
-#define PAGE_MASK (PAGE_SIZE - 1)
-#define SECTOR_SIZE (4096)
-#define SECTOR_MASK (SECTOR_SIZE - 1)
+#define SR_WIP              (1)
 
 static void flash_write_byte(unsigned char b);
 static void flash_write_addr(unsigned int addr);
@@ -76,7 +71,7 @@ static void wait_for_device_ready(void)
 
 void erase_flash_sector(unsigned int addr)
 {
-    unsigned int sector_addr = addr & ~(SECTOR_MASK);
+    unsigned int sector_addr = addr & ~(SPIFLASH_SECTOR_SIZE - 1);
 
     spiflash_bitbang_en_write(1);
 
@@ -98,8 +93,8 @@ void write_to_flash_page(unsigned int addr, unsigned char *c, unsigned int len)
 {
     unsigned int i;
 
-    if(len > PAGE_SIZE)
-        len = PAGE_SIZE;
+    if(len > SPIFLASH_PAGE_SIZE)
+        len = SPIFLASH_PAGE_SIZE;
 
     spiflash_bitbang_en_write(1);
 
@@ -120,4 +115,27 @@ void write_to_flash_page(unsigned int addr, unsigned char *c, unsigned int len)
     spiflash_bitbang_en_write(0);
 }
 
-#endif
+#define SPIFLASH_PAGE_MASK (SPIFLASH_PAGE_SIZE - 1)
+
+void write_to_flash(unsigned int addr, unsigned char *c, unsigned int len)
+{
+   unsigned int written = 0;
+
+   if(addr & SPIFLASH_PAGE_MASK) {
+       written = min(SPIFLASH_PAGE_SIZE - (addr & SPIFLASH_PAGE_MASK), len);
+       write_to_flash_page(addr, c, written);
+       c += written;
+       addr += written;
+       len -= written;
+   }
+
+   while(len > 0) {
+       written = min(len, SPIFLASH_PAGE_SIZE);
+       write_to_flash_page(addr, c, written);
+       c += written;
+       addr += written;
+       len -= written;
+   }
+}
+
+#endif /* CSR_SPIFLASH_BASE && SPIFLASH_PAGE_SIZE */
