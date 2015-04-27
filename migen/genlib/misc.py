@@ -1,5 +1,3 @@
-import math
-
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Operator
 
@@ -67,7 +65,7 @@ def chooser(signal, shift, output, n=None, reverse=False):
 
 
 def reverse_bytes(signal):
-    n = math.ceil(flen(signal)/8)
+    n = (flen(signal)+7)//8
     r = []
     for i in reversed(range(n)):
         r.append(signal[i*8:min((i+1)*8, flen(signal))])
