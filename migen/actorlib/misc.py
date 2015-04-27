@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.record import *
 from migen.genlib.fsm import *
 from migen.flow.actor import *
+from migen.flow.plumbing import Buffer
 
 
 # Generates integers from start to maximum-1
@@ -63,3 +64,33 @@ class IntSequence(Module):
                 If(last, NextState("IDLE"))
             )
         )
+
+# Add buffers on Endpoints (can be used to improve timings)
+class BufferizeEndpoints(ModuleTransformer):
+    def __init__(self, *names):
+        self.names = names
+
+    def transform_instance(self, submodule):
+        endpoints = get_endpoints(submodule)
+        sinks = {}
+        sources = {}
+        for name, endpoint in endpoints.items():
+            if not self.names or name in self.names:
+                if isinstance(endpoint, Sink):
+                    sinks.update({name: endpoint})
+                elif isinstance(endpoint, Source):
+                    sources.update({name: endpoint})
+
+        # add buffer on sinks
+        for name, sink in sinks.items():
+            buf = Buffer(sink.description)
+            submodule.submodules += buf
+            setattr(submodule, name, buf.d)
+            submodule.comb += Record.connect(buf.q, sink)
+
+        # add buffer on sources
+        for name, source in sources.items():
+            buf = Buffer(source.description)
+            submodule.submodules += buf
+            submodule.comb += Record.connect(source, buf.d)
+            setattr(submodule, name, buf.q)
