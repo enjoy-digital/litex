@@ -16,8 +16,7 @@ class LiteEthARPPacketizer(LiteEthPacketizer):
         LiteEthPacketizer.__init__(self,
             eth_arp_description(8),
             eth_mac_description(8),
-            arp_header,
-            arp_header_len)
+            arp_header)
 
 
 class LiteEthARPTX(Module):
@@ -29,7 +28,7 @@ class LiteEthARPTX(Module):
 
         self.submodules.packetizer = packetizer = LiteEthARPPacketizer()
 
-        counter = Counter(max=max(arp_header_len, eth_min_len))
+        counter = Counter(max=max(arp_header.length, eth_min_len))
         self.submodules += counter
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -43,7 +42,7 @@ class LiteEthARPTX(Module):
         )
         self.comb += [
             packetizer.sink.sop.eq(counter.value == 0),
-            packetizer.sink.eop.eq(counter.value == max(arp_header_len, eth_min_len)-1),
+            packetizer.sink.eop.eq(counter.value == max(arp_header.length, eth_min_len)-1),
             packetizer.sink.hwtype.eq(arp_hwtype_ethernet),
             packetizer.sink.proto.eq(arp_proto_ip),
             packetizer.sink.hwsize.eq(6),
@@ -82,8 +81,7 @@ class LiteEthARPDepacketizer(LiteEthDepacketizer):
         LiteEthDepacketizer.__init__(self,
             eth_mac_description(8),
             eth_arp_description(8),
-            arp_header,
-            arp_header_len)
+            arp_header)
 
 
 class LiteEthARPRX(Module):

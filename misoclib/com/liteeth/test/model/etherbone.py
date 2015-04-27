@@ -161,9 +161,9 @@ class EtherboneRecord(Packet):
         if not self.encoded:
             raise ValueError
         header = []
-        for byte in self[:etherbone_record_header_len]:
+        for byte in self[:etherbone_record_header.length]:
             header.append(self.pop(0))
-        for k, v in sorted(etherbone_record_header.items()):
+        for k, v in sorted(etherbone_record_header.fields.items()):
             setattr(self, k, get_field_data(v, header))
         self.writes = self.get_writes()
         if self.writes is not None:
@@ -193,12 +193,12 @@ class EtherboneRecord(Packet):
         if self.reads is not None:
             self.set_reads(self.reads)
         header = 0
-        for k, v in sorted(etherbone_record_header.items()):
+        for k, v in sorted(etherbone_record_header.fields.items()):
             value = merge_bytes(split_bytes(getattr(self, k),
                                             math.ceil(v.width/8)),
                                             "little")
             header += (value << v.offset+(v.byte*8))
-        for d in split_bytes(header, etherbone_record_header_len):
+        for d in split_bytes(header, etherbone_record_header.length):
             self.insert(0, d)
         self.encoded = True
 
@@ -209,7 +209,7 @@ class EtherboneRecord(Packet):
             for d in self:
                 r += "{:02x}".format(d)
         else:
-            for k in sorted(etherbone_record_header.keys()):
+            for k in sorted(etherbone_record_header.fields.keys()):
                 r += k + " : 0x{:0x}\n".format(getattr(self, k))
             if self.wcount != 0:
                 r += self.writes.__repr__()
@@ -247,9 +247,9 @@ class EtherbonePacket(Packet):
         if not self.encoded:
             raise ValueError
         header = []
-        for byte in self[:etherbone_packet_header_len]:
+        for byte in self[:etherbone_packet_header.length]:
             header.append(self.pop(0))
-        for k, v in sorted(etherbone_packet_header.items()):
+        for k, v in sorted(etherbone_packet_header.fields.items()):
             setattr(self, k, get_field_data(v, header))
         self.records = self.get_records()
         self.encoded = False
@@ -265,10 +265,10 @@ class EtherbonePacket(Packet):
             raise ValueError
         self.set_records(self.records)
         header = 0
-        for k, v in sorted(etherbone_packet_header.items()):
+        for k, v in sorted(etherbone_packet_header.fields.items()):
             value = merge_bytes(split_bytes(getattr(self, k), math.ceil(v.width/8)), "little")
             header += (value << v.offset+(v.byte*8))
-        for d in split_bytes(header, etherbone_packet_header_len):
+        for d in split_bytes(header, etherbone_packet_header.length):
             self.insert(0, d)
         self.encoded = True
 
@@ -279,7 +279,7 @@ class EtherbonePacket(Packet):
             for d in self:
                 r += "{:02x}".format(d)
         else:
-            for k in sorted(etherbone_packet_header.keys()):
+            for k in sorted(etherbone_packet_header.fields.keys()):
                 r += k + " : 0x{:0x}\n".format(getattr(self, k))
             for i, record in enumerate(self.records):
                 r += record.__repr__(i)

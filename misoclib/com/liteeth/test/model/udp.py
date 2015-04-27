@@ -17,24 +17,24 @@ class UDPPacket(Packet):
 
     def decode(self):
         header = []
-        for byte in self[:udp_header_len]:
+        for byte in self[:udp_header.length]:
             header.append(self.pop(0))
-        for k, v in sorted(udp_header.items()):
+        for k, v in sorted(udp_header.fields.items()):
             setattr(self, k, get_field_data(v, header))
 
     def encode(self):
         header = 0
-        for k, v in sorted(udp_header.items()):
+        for k, v in sorted(udp_header.fields.items()):
             value = merge_bytes(split_bytes(getattr(self, k),
                                             math.ceil(v.width/8)),
                                             "little")
             header += (value << v.offset+(v.byte*8))
-        for d in split_bytes(header, udp_header_len):
+        for d in split_bytes(header, udp_header.length):
             self.insert(0, d)
 
     def __repr__(self):
         r = "--------\n"
-        for k in sorted(udp_header.keys()):
+        for k in sorted(udp_header.fields.keys()):
             r += k + " : 0x{:0x}\n".format(getattr(self, k))
         r += "payload: "
         for d in self:
@@ -109,13 +109,13 @@ if __name__ == "__main__":
     packet = UDPPacket(packet)
     packet.decode()
     # print(packet)
-    if packet.length != (len(packet)+udp_header_len):
+    if packet.length != (len(packet)+udp_header.length):
         errors += 1
     errors += verify_packet(packet, udp_infos)
     packet.encode()
     packet.decode()
     # print(packet)
-    if packet.length != (len(packet)+udp_header_len):
+    if packet.length != (len(packet)+udp_header.length):
         errors += 1
     errors += verify_packet(packet, udp_infos)
 

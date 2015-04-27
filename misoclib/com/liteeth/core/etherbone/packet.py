@@ -9,8 +9,7 @@ class LiteEthEtherbonePacketPacketizer(LiteEthPacketizer):
         LiteEthPacketizer.__init__(self,
             eth_etherbone_packet_description(32),
             eth_udp_user_description(32),
-            etherbone_packet_header,
-            etherbone_packet_header_len)
+            etherbone_packet_header)
 
 
 class LiteEthEtherbonePacketTX(Module):
@@ -50,7 +49,7 @@ class LiteEthEtherbonePacketTX(Module):
             source.src_port.eq(udp_port),
             source.dst_port.eq(udp_port),
             source.ip_address.eq(sink.ip_address),
-            source.length.eq(sink.length + etherbone_packet_header_len),
+            source.length.eq(sink.length + etherbone_packet_header.length),
             If(source.stb & source.eop & source.ack,
                 NextState("IDLE")
             )
@@ -62,8 +61,7 @@ class LiteEthEtherbonePacketDepacketizer(LiteEthDepacketizer):
         LiteEthDepacketizer.__init__(self,
             eth_udp_user_description(32),
             eth_etherbone_packet_description(32),
-            etherbone_packet_header,
-            etherbone_packet_header_len)
+            etherbone_packet_header)
 
 
 class LiteEthEtherbonePacketRX(Module):
@@ -109,7 +107,7 @@ class LiteEthEtherbonePacketRX(Module):
             source.src_port.eq(sink.src_port),
             source.dst_port.eq(sink.dst_port),
             source.ip_address.eq(sink.ip_address),
-            source.length.eq(sink.length - etherbone_packet_header_len)
+            source.length.eq(sink.length - etherbone_packet_header.length)
         ]
         fsm.act("PRESENT",
             source.stb.eq(depacketizer.source.stb),

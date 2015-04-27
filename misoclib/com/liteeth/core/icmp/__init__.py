@@ -9,8 +9,7 @@ class LiteEthICMPPacketizer(LiteEthPacketizer):
         LiteEthPacketizer.__init__(self,
             eth_icmp_description(8),
             eth_ipv4_user_description(8),
-            icmp_header,
-            icmp_header_len)
+            icmp_header)
 
 
 class LiteEthICMPTX(Module):
@@ -43,7 +42,7 @@ class LiteEthICMPTX(Module):
         )
         fsm.act("SEND",
             Record.connect(packetizer.source, source),
-            source.length.eq(sink.length + icmp_header_len),
+            source.length.eq(sink.length + icmp_header.length),
             source.protocol.eq(icmp_protocol),
             source.ip_address.eq(sink.ip_address),
             If(source.stb & source.eop & source.ack,
@@ -57,8 +56,7 @@ class LiteEthICMPDepacketizer(LiteEthDepacketizer):
         LiteEthDepacketizer.__init__(self,
             eth_ipv4_user_description(8),
             eth_icmp_description(8),
-            icmp_header,
-            icmp_header_len)
+            icmp_header)
 
 
 class LiteEthICMPRX(Module):
@@ -99,7 +97,7 @@ class LiteEthICMPRX(Module):
             source.checksum.eq(depacketizer.source.checksum),
             source.quench.eq(depacketizer.source.quench),
             source.ip_address.eq(sink.ip_address),
-            source.length.eq(sink.length - icmp_header_len),
+            source.length.eq(sink.length - icmp_header.length),
             source.data.eq(depacketizer.source.data),
             source.error.eq(depacketizer.source.error)
         ]
@@ -127,7 +125,7 @@ class LiteEthICMPEcho(Module):
 
         # # #
 
-        self.submodules.buffer = PacketBuffer(eth_icmp_user_description(8), 128, 2)
+        self.submodules.buffer = Buffer(eth_icmp_user_description(8), 128, 2)
         self.comb += [
             Record.connect(sink, self.buffer.sink),
             Record.connect(self.buffer.source, source),

@@ -5,11 +5,11 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import chooser, FlipFlop, Counter, Timeout
+from migen.genlib.misc import chooser, reverse_bytes, FlipFlop, Counter, Timeout
 from migen.flow.actor import *
-from migen.flow.plumbing import Buffer
 from migen.actorlib.structuring import Converter, Pipeline
 from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
+from migen.actorlib.packet import *
 from migen.bank.description import *
 
 eth_mtu = 1532
@@ -18,121 +18,123 @@ eth_interpacket_gap = 12
 eth_preamble = 0xD555555555555555
 buffer_depth = 2**log2_int(eth_mtu, need_pow2=False)
 
-
-class HField():
-    def __init__(self, byte, offset, width):
-        self.byte = byte
-        self.offset = offset
-        self.width = width
-
 ethernet_type_ip = 0x800
 ethernet_type_arp = 0x806
 
-mac_header_len = 14
-mac_header = {
-    "target_mac":       HField(0,  0, 48),
-    "sender_mac":       HField(6,  0, 48),
-    "ethernet_type":    HField(12, 0, 16)
+mac_header_length = 14
+mac_header_fields = {
+    "target_mac":       HeaderField(0,  0, 48),
+    "sender_mac":       HeaderField(6,  0, 48),
+    "ethernet_type":    HeaderField(12, 0, 16)
 }
+mac_header = Header(mac_header_fields,
+                    mac_header_length,
+                    swap_field_bytes=True)
 
 arp_hwtype_ethernet = 0x0001
 arp_proto_ip = 0x0800
 arp_opcode_request = 0x0001
 arp_opcode_reply = 0x0002
 
-arp_header_len = 28
-arp_header = {
-    "hwtype":           HField(0,  0, 16),
-    "proto":            HField(2,  0, 16),
-    "hwsize":           HField(4,  0,  8),
-    "protosize":        HField(5,  0,  8),
-    "opcode":           HField(6,  0, 16),
-    "sender_mac":       HField(8,  0, 48),
-    "sender_ip":        HField(14, 0, 32),
-    "target_mac":       HField(18, 0, 48),
-    "target_ip":        HField(24, 0, 32)
+arp_header_length = 28
+arp_header_fields = {
+    "hwtype":           HeaderField(0,  0, 16),
+    "proto":            HeaderField(2,  0, 16),
+    "hwsize":           HeaderField(4,  0,  8),
+    "protosize":        HeaderField(5,  0,  8),
+    "opcode":           HeaderField(6,  0, 16),
+    "sender_mac":       HeaderField(8,  0, 48),
+    "sender_ip":        HeaderField(14, 0, 32),
+    "target_mac":       HeaderField(18, 0, 48),
+    "target_ip":        HeaderField(24, 0, 32)
 }
+arp_header = Header(arp_header_fields,
+                    arp_header_length,
+                    swap_field_bytes=True)
 
-ipv4_header_len = 20
-ipv4_header = {
-    "ihl":              HField(0,  0,  4),
-    "version":          HField(0,  4,  4),
-    "total_length":     HField(2,  0, 16),
-    "identification":   HField(4,  0, 16),
-    "ttl":              HField(8,  0,  8),
-    "protocol":         HField(9,  0,  8),
-    "checksum":         HField(10, 0, 16),
-    "sender_ip":        HField(12, 0, 32),
-    "target_ip":        HField(16, 0, 32)
-}
 
-icmp_header_len = 8
-icmp_header = {
-    "msgtype":          HField(0,  0,  8),
-    "code":             HField(1,  0,  8),
-    "checksum":         HField(2,  0, 16),
-    "quench":           HField(4,  0, 32)
+ipv4_header_length = 20
+ipv4_header_fields = {
+    "ihl":              HeaderField(0,  0,  4),
+    "version":          HeaderField(0,  4,  4),
+    "total_length":     HeaderField(2,  0, 16),
+    "identification":   HeaderField(4,  0, 16),
+    "ttl":              HeaderField(8,  0,  8),
+    "protocol":         HeaderField(9,  0,  8),
+    "checksum":         HeaderField(10, 0, 16),
+    "sender_ip":        HeaderField(12, 0, 32),
+    "target_ip":        HeaderField(16, 0, 32)
 }
+ipv4_header = Header(ipv4_header_fields,
+                     ipv4_header_length,
+                     swap_field_bytes=True)
+
 icmp_protocol = 0x01
 
-udp_header_len = 8
-udp_header = {
-    "src_port":         HField(0,  0, 16),
-    "dst_port":         HField(2,  0, 16),
-    "length":           HField(4,  0, 16),
-    "checksum":         HField(6,  0, 16)
+icmp_header_length = 8
+icmp_header_fields = {
+    "msgtype":          HeaderField(0,  0,  8),
+    "code":             HeaderField(1,  0,  8),
+    "checksum":         HeaderField(2,  0, 16),
+    "quench":           HeaderField(4,  0, 32)
 }
+icmp_header  = Header(icmp_header_fields,
+                      icmp_header_length,
+                      swap_field_bytes=True)
 
 udp_protocol = 0x11
 
+udp_header_length = 8
+udp_header_fields = {
+    "src_port":         HeaderField(0,  0, 16),
+    "dst_port":         HeaderField(2,  0, 16),
+    "length":           HeaderField(4,  0, 16),
+    "checksum":         HeaderField(6,  0, 16)
+}
+udp_header = Header(udp_header_fields,
+                    udp_header_length,
+                    swap_field_bytes=True)
+
+
 etherbone_magic = 0x4e6f
 etherbone_version = 1
-etherbone_packet_header_len = 8
-etherbone_packet_header = {
-    "magic":            HField(0,  0, 16),
+etherbone_packet_header_length = 8
+etherbone_packet_header_fields = {
+    "magic":            HeaderField(0,  0, 16),
 
-    "version":          HField(2,  4, 4),
-    "nr":               HField(2,  2, 1),
-    "pr":               HField(2,  1, 1),
-    "pf":               HField(2,  0, 1),
+    "version":          HeaderField(2,  4, 4),
+    "nr":               HeaderField(2,  2, 1),
+    "pr":               HeaderField(2,  1, 1),
+    "pf":               HeaderField(2,  0, 1),
 
-    "addr_size":        HField(3,  4, 4),
-    "port_size":        HField(3,  0, 4)
+    "addr_size":        HeaderField(3,  4, 4),
+    "port_size":        HeaderField(3,  0, 4)
 }
+etherbone_packet_header = Header(etherbone_packet_header_fields,
+                                 etherbone_packet_header_length,
+                                 swap_field_bytes=True)
 
-etherbone_record_header_len = 4
-etherbone_record_header = {
-    "bca":              HField(0,  0, 1),
-    "rca":              HField(0,  1, 1),
-    "rff":              HField(0,  2, 1),
-    "cyc":              HField(0,  4, 1),
-    "wca":              HField(0,  5, 1),
-    "wff":              HField(0,  6, 1),
+etherbone_record_header_length = 4
+etherbone_record_header_fields = {
+    "bca":              HeaderField(0,  0, 1),
+    "rca":              HeaderField(0,  1, 1),
+    "rff":              HeaderField(0,  2, 1),
+    "cyc":              HeaderField(0,  4, 1),
+    "wca":              HeaderField(0,  5, 1),
+    "wff":              HeaderField(0,  6, 1),
 
-    "byte_enable":      HField(1,  0, 8),
+    "byte_enable":      HeaderField(1,  0, 8),
 
-    "wcount":           HField(2,  0, 8),
+    "wcount":           HeaderField(2,  0, 8),
 
-    "rcount":           HField(3,  0, 8)
+    "rcount":           HeaderField(3,  0, 8)
 }
-
-
-def reverse_bytes(v):
-    n = math.ceil(flen(v)/8)
-    r = []
-    for i in reversed(range(n)):
-        r.append(v[i*8:min((i+1)*8, flen(v))])
-    return Cat(iter(r))
+etherbone_record_header = Header(etherbone_record_header_fields,
+                                 etherbone_record_header_length,
+                                 swap_field_bytes=True)
 
 
 # layouts
-def _layout_from_header(header):
-    _layout = []
-    for k, v in sorted(header.items()):
-        _layout.append((k, v.width))
-    return _layout
-
-
 def _remove_from_layout(layout, *args):
     r = []
     for f in layout:
@@ -155,7 +157,7 @@ def eth_phy_description(dw):
 
 
 def eth_mac_description(dw):
-    payload_layout = _layout_from_header(mac_header) + [
+    payload_layout = mac_header.get_layout() + [
         ("data", dw),
         ("last_be", dw//8),
         ("error", dw//8)
@@ -164,7 +166,7 @@ def eth_mac_description(dw):
 
 
 def eth_arp_description(dw):
-    param_layout = _layout_from_header(arp_header)
+    param_layout = arp_header.get_layout()
     payload_layout = [
         ("data", dw),
         ("error", dw//8)
@@ -182,7 +184,7 @@ arp_table_response_layout = [
 
 
 def eth_ipv4_description(dw):
-    param_layout = _layout_from_header(ipv4_header)
+    param_layout = ipv4_header.get_layout()
     payload_layout = [
         ("data", dw),
         ("error", dw//8)
@@ -212,7 +214,7 @@ def convert_ip(s):
 
 
 def eth_icmp_description(dw):
-    param_layout = _layout_from_header(icmp_header)
+    param_layout = icmp_header.get_layout()
     payload_layout = [
         ("data", dw),
         ("error", dw//8)
@@ -221,7 +223,7 @@ def eth_icmp_description(dw):
 
 
 def eth_icmp_user_description(dw):
-    param_layout = _layout_from_header(icmp_header) + [
+    param_layout = icmp_header.get_layout() + [
         ("ip_address", 32),
         ("length", 16)
     ]
@@ -233,7 +235,7 @@ def eth_icmp_user_description(dw):
 
 
 def eth_udp_description(dw):
-    param_layout = _layout_from_header(udp_header)
+    param_layout = udp_header.get_layout()
     payload_layout = [
         ("data", dw),
         ("error", dw//8)
@@ -256,7 +258,7 @@ def eth_udp_user_description(dw):
 
 
 def eth_etherbone_packet_description(dw):
-    param_layout = _layout_from_header(etherbone_packet_header)
+    param_layout = etherbone_packet_header.get_layout()
     payload_layout = [
         ("data", dw),
         ("error", dw//8)
@@ -265,7 +267,7 @@ def eth_etherbone_packet_description(dw):
 
 
 def eth_etherbone_packet_user_description(dw):
-    param_layout = _layout_from_header(etherbone_packet_header)
+    param_layout = etherbone_packet_header.get_layout()
     param_layout = _remove_from_layout(param_layout,
                                        "magic",
                                        "portsize",
@@ -280,7 +282,7 @@ def eth_etherbone_packet_user_description(dw):
 
 
 def eth_etherbone_record_description(dw):
-    param_layout = _layout_from_header(etherbone_record_header)
+    param_layout = etherbone_record_header.get_layout()
     payload_layout = [
         ("data", dw),
         ("error", dw//8)

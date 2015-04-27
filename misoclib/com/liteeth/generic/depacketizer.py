@@ -2,26 +2,17 @@ from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
 
-def _decode_header(h_dict, h_signal, obj):
-    r = []
-    for k, v in sorted(h_dict.items()):
-        start = v.byte*8+v.offset
-        end = start+v.width
-        r.append(getattr(obj, k).eq(reverse_bytes(h_signal[start:end])))
-    return r
-
-
 class LiteEthDepacketizer(Module):
-    def __init__(self, sink_description, source_description, header_type, header_length):
+    def __init__(self, sink_description, source_description, header):
         self.sink = sink = Sink(sink_description)
         self.source = source = Source(source_description)
-        self.header = Signal(header_length*8)
+        self.header = Signal(header.length*8)
 
         # # #
 
         dw = flen(sink.data)
 
-        header_words = (header_length*8)//dw
+        header_words = (header.length*8)//dw
 
         shift = Signal()
         counter = Counter(max=max(header_words, 2))
@@ -77,7 +68,7 @@ class LiteEthDepacketizer(Module):
             source.eop.eq(sink.eop | no_payload),
             source.data.eq(sink.data),
             source.error.eq(sink.error),
-            _decode_header(header_type, self.header, source)
+            header.decode(self.header, source)
         ]
         fsm.act("COPY",
             sink.ack.eq(source.ack),

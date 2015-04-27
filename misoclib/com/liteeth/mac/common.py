@@ -10,8 +10,7 @@ class LiteEthMACDepacketizer(LiteEthDepacketizer):
         LiteEthDepacketizer.__init__(self,
             eth_phy_description(8),
             eth_mac_description(8),
-            mac_header,
-            mac_header_len)
+            mac_header)
 
 
 class LiteEthMACPacketizer(LiteEthPacketizer):
@@ -19,8 +18,7 @@ class LiteEthMACPacketizer(LiteEthPacketizer):
         LiteEthPacketizer.__init__(self,
             eth_mac_description(8),
             eth_phy_description(8),
-            mac_header,
-            mac_header_len)
+            mac_header)
 
 
 class LiteEthMACMasterPort:

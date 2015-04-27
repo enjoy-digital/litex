@@ -10,8 +10,7 @@ class LiteEthUDPPacketizer(LiteEthPacketizer):
         LiteEthPacketizer.__init__(self,
             eth_udp_description(8),
             eth_ipv4_user_description(8),
-            udp_header,
-            udp_header_len)
+            udp_header)
 
 
 class LiteEthUDPTX(Module):
@@ -29,7 +28,7 @@ class LiteEthUDPTX(Module):
             sink.ack.eq(packetizer.sink.ack),
             packetizer.sink.src_port.eq(sink.src_port),
             packetizer.sink.dst_port.eq(sink.dst_port),
-            packetizer.sink.length.eq(sink.length + udp_header_len),
+            packetizer.sink.length.eq(sink.length + udp_header.length),
             packetizer.sink.checksum.eq(0),  # Disabled (MAC CRC is enough)
             packetizer.sink.data.eq(sink.data)
         ]
@@ -58,8 +57,7 @@ class LiteEthUDPDepacketizer(LiteEthDepacketizer):
         LiteEthDepacketizer.__init__(self,
             eth_ipv4_user_description(8),
             eth_udp_description(8),
-            udp_header,
-            udp_header_len)
+            udp_header)
 
 
 class LiteEthUDPRX(Module):
@@ -99,7 +97,7 @@ class LiteEthUDPRX(Module):
             source.src_port.eq(depacketizer.source.src_port),
             source.dst_port.eq(depacketizer.source.dst_port),
             source.ip_address.eq(sink.ip_address),
-            source.length.eq(depacketizer.source.length - udp_header_len),
+            source.length.eq(depacketizer.source.length - udp_header.length),
             source.data.eq(depacketizer.source.data),
             source.error.eq(depacketizer.source.error)
         ]

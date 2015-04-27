@@ -6,7 +6,7 @@ class LiteEthIPV4Checksum(Module):
     def __init__(self, words_per_clock_cycle=1, skip_checksum=False):
         self.reset = Signal()  # XXX FIXME InsertReset generates incorrect verilog
         self.ce = Signal()     # XXX FIXME InsertCE generates incorrect verilog
-        self.header = Signal(ipv4_header_len*8)
+        self.header = Signal(ipv4_header.length*8)
         self.value = Signal(16)
         self.done = Signal()
 
@@ -15,8 +15,8 @@ class LiteEthIPV4Checksum(Module):
         s = Signal(17)
         r = Signal(17)
         n_cycles = 0
-        for i in range(ipv4_header_len//2):
-            if skip_checksum and (i == ipv4_header["checksum"].byte//2):
+        for i in range(ipv4_header.length//2):
+            if skip_checksum and (i == ipv4_header.fields["checksum"].byte//2):
                 pass
             else:
                 s_next = Signal(17)

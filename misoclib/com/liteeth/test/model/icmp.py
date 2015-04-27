@@ -17,24 +17,24 @@ class ICMPPacket(Packet):
 
     def decode(self):
         header = []
-        for byte in self[:icmp_header_len]:
+        for byte in self[:icmp_header.length]:
             header.append(self.pop(0))
-        for k, v in sorted(icmp_header.items()):
+        for k, v in sorted(icmp_header.fields.items()):
             setattr(self, k, get_field_data(v, header))
 
     def encode(self):
         header = 0
-        for k, v in sorted(icmp_header.items()):
+        for k, v in sorted(icmp_header.fields.items()):
             value = merge_bytes(split_bytes(getattr(self, k),
                                             math.ceil(v.width/8)),
                                             "little")
             header += (value << v.offset+(v.byte*8))
-        for d in split_bytes(header, icmp_header_len):
+        for d in split_bytes(header, icmp_header.length):
             self.insert(0, d)
 
     def __repr__(self):
         r = "--------\n"
-        for k in sorted(icmp_header.keys()):
+        for k in sorted(icmp_header.fields.keys()):
             r += k + " : 0x{:0x}\n".format(getattr(self, k))
         r += "payload: "
         for d in self:

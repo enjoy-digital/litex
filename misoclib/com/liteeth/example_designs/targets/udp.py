@@ -22,7 +22,7 @@ class UDPSoC(BaseSoC):
 
     def add_udp_loopback(self, port, dw, depth, name=None):
         port = self.core.udp.crossbar.get_port(port, dw)
-        buf = PacketBuffer(eth_udp_user_description(dw), depth//(dw//8), 8)
+        buf = Buffer(eth_udp_user_description(dw), depth//(dw//8), 8)
         if name is None:
             self.submodules += buf
         else:

@@ -2,33 +2,24 @@ from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
 
-def _encode_header(h_dict, h_signal, obj):
-    r = []
-    for k, v in sorted(h_dict.items()):
-        start = v.byte*8+v.offset
-        end = start+v.width
-        r.append(h_signal[start:end].eq(reverse_bytes(getattr(obj, k))))
-    return r
-
-
 class LiteEthPacketizer(Module):
-    def __init__(self, sink_description, source_description, header_type, header_length):
+    def __init__(self, sink_description, source_description, header):
         self.sink = sink = Sink(sink_description)
         self.source = source = Source(source_description)
-        self.header = Signal(header_length*8)
+        self.header = Signal(header.length*8)
 
         # # #
 
         dw = flen(self.sink.data)
 
-        header_reg = Signal(header_length*8)
-        header_words = (header_length*8)//dw
+        header_reg = Signal(header.length*8)
+        header_words = (header.length*8)//dw
         load = Signal()
         shift = Signal()
         counter = Counter(max=max(header_words, 2))
         self.submodules += counter
 
-        self.comb += _encode_header(header_type, self.header, sink)
+        self.comb += header.encode(sink, self.header)
         if header_words == 1:
             self.sync += [
                 If(load,

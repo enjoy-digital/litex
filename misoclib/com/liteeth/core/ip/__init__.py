@@ -11,8 +11,7 @@ class LiteEthIPV4Packetizer(LiteEthPacketizer):
         LiteEthPacketizer.__init__(self,
             eth_ipv4_description(8),
             eth_mac_description(8),
-            ipv4_header,
-            ipv4_header_len)
+            ipv4_header)
 
 
 class LiteEthIPTX(Module):
@@ -104,8 +103,7 @@ class LiteEthIPV4Depacketizer(LiteEthDepacketizer):
         LiteEthDepacketizer.__init__(self,
             eth_mac_description(8),
             eth_ipv4_description(8),
-            ipv4_header,
-            ipv4_header_len)
+            ipv4_header)
 
 
 class LiteEthIPRX(Module):

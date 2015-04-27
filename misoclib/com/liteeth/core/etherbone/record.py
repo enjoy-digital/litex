@@ -9,8 +9,7 @@ class LiteEthEtherboneRecordPacketizer(LiteEthPacketizer):
         LiteEthPacketizer.__init__(self,
             eth_etherbone_record_description(32),
             eth_etherbone_packet_user_description(32),
-            etherbone_record_header,
-            etherbone_record_header_len)
+            etherbone_record_header)
 
 
 class LiteEthEtherboneRecordDepacketizer(LiteEthDepacketizer):
@@ -18,8 +17,7 @@ class LiteEthEtherboneRecordDepacketizer(LiteEthDepacketizer):
         LiteEthDepacketizer.__init__(self,
             eth_etherbone_packet_user_description(32),
             eth_etherbone_record_description(32),
-            etherbone_record_header,
-            etherbone_record_header_len)
+            etherbone_record_header)
 
 
 class LiteEthEtherboneRecordReceiver(Module):
@@ -104,7 +102,7 @@ class LiteEthEtherboneRecordSender(Module):
 
         # # #
 
-        pbuffer = PacketBuffer(eth_etherbone_mmap_description(32), buffer_depth)
+        pbuffer = Buffer(eth_etherbone_mmap_description(32), buffer_depth)
         self.submodules += pbuffer
         self.comb += Record.connect(sink, pbuffer.sink)
 
@@ -181,7 +179,7 @@ class LiteEthEtherboneRecord(Module):
             Record.connect(sender.source, packetizer.sink),
             Record.connect(packetizer.source, source),
             # XXX improve this
-            source.length.eq(sender.source.wcount*4 + 4 + etherbone_record_header_len),
+            source.length.eq(sender.source.wcount*4 + 4 + etherbone_record_header.length),
             source.ip_address.eq(last_ip_address)
         ]
         if endianness is "big":
