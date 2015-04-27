@@ -246,10 +246,10 @@ class LiteSATALinkRX(Module):
 
 class LiteSATALink(Module):
     def __init__(self, phy, buffer_depth):
-        self.submodules.tx_buffer = PacketBuffer(link_description(32), buffer_depth)
+        self.submodules.tx_buffer = Buffer(link_description(32), buffer_depth)
         self.submodules.tx = LiteSATALinkTX(phy)
         self.submodules.rx = LiteSATALinkRX(phy)
-        self.submodules.rx_buffer = PacketBuffer(link_description(32), buffer_depth,
+        self.submodules.rx_buffer = Buffer(link_description(32), buffer_depth,
                                                  almost_full=3*buffer_depth//4)
         self.comb += [
             Record.connect(self.tx_buffer.source, self.tx.sink),

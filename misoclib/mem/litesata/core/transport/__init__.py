@@ -1,26 +1,6 @@
 from misoclib.mem.litesata.common import *
 
 
-def _get_item(obj, name, width):
-    if "_lsb" in name:
-        item = getattr(obj, name.replace("_lsb", ""))[:width]
-    elif "_msb" in name:
-        item = getattr(obj, name.replace("_msb", ""))[width:2*width]
-    else:
-        item = getattr(obj, name)
-    return item
-
-
-def _encode_cmd(obj, description, signal):
-    r = []
-    for k, v in sorted(description.items()):
-        start = v.dword*32 + v.offset
-        end = start + v.width
-        item = _get_item(obj, k, v.width)
-        r.append(signal[start:end].eq(item))
-    return r
-
-
 def test_type(name, signal):
     return signal == fis_types[name]
 
@@ -31,7 +11,8 @@ class LiteSATATransportTX(Module):
 
         # # #
 
-        cmd_ndwords = max(fis_reg_h2d_cmd_len, fis_data_cmd_len)
+        cmd_ndwords = max(fis_reg_h2d_header.length,
+                          fis_data_header.length)
         encoded_cmd = Signal(cmd_ndwords*32)
 
         counter = Counter(max=cmd_ndwords+1)
@@ -72,8 +53,8 @@ class LiteSATATransportTX(Module):
             If(update_fis_type, fis_type.eq(link.source.d[:8]))
 
         fsm.act("SEND_CTRL_CMD",
-            _encode_cmd(sink, fis_reg_h2d_layout, encoded_cmd),
-            cmd_len.eq(fis_reg_h2d_cmd_len-1),
+            fis_reg_h2d_header.encode(sink, encoded_cmd),
+            cmd_len.eq(fis_reg_h2d_header.length-1),
             cmd_send.eq(1),
             If(cmd_done,
                 sink.ack.eq(1),
@@ -82,8 +63,8 @@ class LiteSATATransportTX(Module):
         )
         fsm.act("SEND_DATA_CMD",
             sink.ack.eq(0),
-            _encode_cmd(sink, fis_data_layout, encoded_cmd),
-            cmd_len.eq(fis_data_cmd_len-1),
+            fis_data_header.encode(sink, encoded_cmd),
+            cmd_len.eq(fis_data_header.length-1),
             cmd_with_data.eq(1),
             cmd_send.eq(1),
             If(cmd_done,
@@ -121,24 +102,16 @@ class LiteSATATransportTX(Module):
         ]
 
 
-def _decode_cmd(signal, description, obj):
-    r = []
-    for k, v in sorted(description.items()):
-        start = v.dword*32+v.offset
-        end = start+v.width
-        item = _get_item(obj, k, v.width)
-        r.append(item.eq(signal[start:end]))
-    return r
-
-
 class LiteSATATransportRX(Module):
     def __init__(self, link):
         self.source = source = Source(transport_rx_description(32))
 
         # # #
 
-        cmd_ndwords = max(fis_reg_d2h_cmd_len, fis_dma_activate_d2h_cmd_len,
-                          fis_pio_setup_d2h_cmd_len, fis_data_cmd_len)
+        cmd_ndwords = max(fis_reg_d2h_header.length,
+                          fis_dma_activate_d2h_header.length,
+                          fis_pio_setup_d2h_header.length,
+                          fis_data_header.length)
         encoded_cmd = Signal(cmd_ndwords*32)
 
         counter = Counter(max=cmd_ndwords+1)
@@ -186,11 +159,11 @@ class LiteSATATransportRX(Module):
 
         fsm.act("RECEIVE_CTRL_CMD",
             If(test_type("REG_D2H", fis_type),
-                cmd_len.eq(fis_reg_d2h_cmd_len-1)
+                cmd_len.eq(fis_reg_d2h_header.length-1)
             ).Elif(test_type("DMA_ACTIVATE_D2H", fis_type),
-                cmd_len.eq(fis_dma_activate_d2h_cmd_len-1)
+                cmd_len.eq(fis_dma_activate_d2h_header.length-1)
             ).Else(
-                cmd_len.eq(fis_pio_setup_d2h_cmd_len-1)
+                cmd_len.eq(fis_pio_setup_d2h_header.length-1)
             ),
             cmd_receive.eq(1),
             link.source.ack.eq(1),
@@ -203,18 +176,18 @@ class LiteSATATransportRX(Module):
             source.sop.eq(1),
             source.eop.eq(1),
             If(test_type("REG_D2H", fis_type),
-                _decode_cmd(encoded_cmd, fis_reg_d2h_layout, source),
+                fis_reg_d2h_header.decode(encoded_cmd, source)
             ).Elif(test_type("DMA_ACTIVATE_D2H", fis_type),
-                _decode_cmd(encoded_cmd, fis_dma_activate_d2h_layout, source),
+                fis_dma_activate_d2h_header.decode(encoded_cmd, source)
             ).Else(
-                _decode_cmd(encoded_cmd, fis_pio_setup_d2h_layout, source),
+                fis_pio_setup_d2h_header.decode(encoded_cmd, source)
             ),
             If(source.stb & source.ack,
                 NextState("IDLE")
             )
         )
         fsm.act("RECEIVE_DATA_CMD",
-            cmd_len.eq(fis_data_cmd_len-1),
+            cmd_len.eq(fis_data_header.length-1),
             cmd_receive.eq(1),
             link.source.ack.eq(1),
             If(cmd_done,
@@ -224,7 +197,7 @@ class LiteSATATransportRX(Module):
         fsm.act("PRESENT_DATA",
             data_receive.eq(1),
             source.stb.eq(link.source.stb),
-            _decode_cmd(encoded_cmd, fis_data_layout, source),
+            fis_data_header.decode(encoded_cmd, source),
             source.sop.eq(data_sop),
             source.eop.eq(link.source.eop),
             source.error.eq(link.source.error),
