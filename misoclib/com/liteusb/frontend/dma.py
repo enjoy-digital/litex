@@ -12,7 +12,7 @@ from misoclib.com.liteusb.common import *
 
 class LiteUSBDMAWriter(Module, AutoCSR):
     def __init__(self, lasmim):
-        self.sink = sink = Sink(user_layout)
+        self.sink = sink = Sink(user_description(8))
 
         # Pack data
         pack_factor = lasmim.dw//8
@@ -53,7 +53,7 @@ class LiteUSBDMAWriter(Module, AutoCSR):
 
 class LiteUSBDMAReader(Module, AutoCSR):
     def __init__(self, lasmim, tag):
-        self.source = source = Source(user_layout)
+        self.source = source = Source(user_description(8))
 
         reader = dma_lasmi.Reader(lasmim)
         self.dma = spi.DMAReadController(reader, mode=spi.MODE_SINGLE_SHOT)
@@ -92,11 +92,11 @@ class LiteUSBDMAReader(Module, AutoCSR):
 
 
 class LiteUSBDMA(Module, AutoCSR):
-    def __init__(self, lasmim_ftdi_dma_wr, lasmim_ftdi_dma_rd, tag):
+    def __init__(self, lasmim_dma_wr, lasmim_dma_rd, tag):
         self.tag = tag
 
-        self.submodules.writer = LiteUSBDMAWriter(lasmim_ftdi_dma_wr)
-        self.submodules.reader = LiteUSBDMAReader(lasmim_ftdi_dma_rd, self.tag)
+        self.submodules.writer = LiteUSBDMAWriter(lasmim_dma_wr)
+        self.submodules.reader = LiteUSBDMAReader(lasmim_dma_rd, self.tag)
         self.submodules.ev = SharedIRQ(self.writer.ev, self.reader.ev)
 
         self.sink = self.writer.sink

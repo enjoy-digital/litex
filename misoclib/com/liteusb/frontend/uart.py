@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.bank.eventmanager import *
-from migen.genlib.fifo import SyncFIFOBuffered
+from migen.actorlib.fifo import SyncFIFO
 
 from misoclib.com.liteusb.common import *
 
@@ -17,8 +17,8 @@ class LiteUSBUART(Module, AutoCSR):
         self.ev.rx = EventSourceLevel()
         self.ev.finalize()
 
-        self.source = source = Source(user_layout)
-        self.sink = sink = Sink(user_layout)
+        self.source = source = Source(user_description(8))
+        self.sink = sink = Sink(user_description(8))
 
         # # #
 
@@ -45,14 +45,15 @@ class LiteUSBUART(Module, AutoCSR):
         # RX
         rx_available = self.ev.rx.trigger
 
-        rx_fifo = SyncFIFOBuffered(8, fifo_depth)
+        rx_fifo = SyncFIFO(8, fifo_depth)
         self.submodules += rx_fifo
         self.comb += [
+            Record.connect(sink, rx_fifo.sink),
+
             rx_fifo.we.eq(sink.stb),
             sink.ack.eq(sink.stb & rx_fifo.writable),
             rx_fifo.din.eq(sink.data),
-
-            rx_available.eq(rx_fifo.readable),
-            rx_fifo.re.eq(self.ev.rx.clear),
+            rx_available.eq(rx_fifo.stb),
+            rx_fifo.ack.eq(self.ev.rx.clear),
             self._rxtx.w.eq(rx_fifo.dout)
         ]

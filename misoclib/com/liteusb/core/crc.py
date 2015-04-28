@@ -198,9 +198,9 @@ class CRCInserter(Module):
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
 
-class CRC32Inserter(CRCInserter):
-    def __init__(self, layout):
-        CRCInserter.__init__(self, CRC32, layout)
+class LiteUSBCRC32Inserter(CRCInserter):
+    def __init__(self):
+        CRCInserter.__init__(self, CRC32, user_description(8))
 
 
 class CRCChecker(Module):
@@ -286,20 +286,6 @@ class CRCChecker(Module):
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
 
 
-class CRC32Checker(CRCChecker):
-    def __init__(self, layout):
-        CRCChecker.__init__(self, CRC32, layout)
-
-
-class LiteUSBCRC32(Module):
-    def __init__(self, tag):
-        self.tag = tag
-
-        self.submodules.inserter = CRC32Inserter(user_layout)
-        self.submodules.checker = CRC32Checker(user_layout)
-
-        self.dma_sink = self.inserter.sink
-        self.dma_source = self.checker.source
-
-        self.sink = self.checker.sink
-        self.source = self.inserter.source
+class LiteUSBCRC32Checker(CRCChecker):
+    def __init__(self):
+        CRCChecker.__init__(self, CRC32, user_description(8))
