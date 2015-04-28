@@ -1,5 +1,4 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.mac.core import gap, preamble, crc, padding, last_be
 from misoclib.com.liteeth.phy.sim import LiteEthPHYSim
 

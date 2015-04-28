@@ -1,5 +1,4 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.mac import LiteEthMAC
 from misoclib.com.liteeth.core.arp import LiteEthARP
 from misoclib.com.liteeth.core.ip import LiteEthIP

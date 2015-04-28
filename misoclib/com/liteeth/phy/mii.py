@@ -1,5 +1,4 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 
 
 def converter_description(dw):

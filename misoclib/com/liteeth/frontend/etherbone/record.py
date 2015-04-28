@@ -1,20 +1,17 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
-from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
-from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
 
-class LiteEthEtherboneRecordPacketizer(LiteEthPacketizer):
+class LiteEthEtherboneRecordPacketizer(Packetizer):
     def __init__(self):
-        LiteEthPacketizer.__init__(self,
+        Packetizer.__init__(self,
             eth_etherbone_record_description(32),
             eth_etherbone_packet_user_description(32),
             etherbone_record_header)
 
 
-class LiteEthEtherboneRecordDepacketizer(LiteEthDepacketizer):
+class LiteEthEtherboneRecordDepacketizer(Depacketizer):
     def __init__(self):
-        LiteEthDepacketizer.__init__(self,
+        Depacketizer.__init__(self,
             eth_etherbone_packet_user_description(32),
             eth_etherbone_record_description(32),
             etherbone_record_header)

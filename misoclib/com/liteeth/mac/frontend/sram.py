@@ -1,5 +1,4 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 
 from migen.bank.description import *
 from migen.bank.eventmanager import *

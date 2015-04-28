@@ -1,7 +1,5 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
-
-from misoclib.com.liteeth.generic.crossbar import LiteEthCrossbar
+from misoclib.com.liteeth.crossbar import LiteEthCrossbar
 
 
 class LiteEthUDPMasterPort:

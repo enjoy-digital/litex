@@ -1,7 +1,6 @@
 import os
 
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 
 
 class LiteEthPHYSimCRG(Module, AutoCSR):

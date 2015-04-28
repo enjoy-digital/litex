@@ -6,7 +6,7 @@ from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.generic import *
 
 from targets.base import BaseSoC
-from misoclib.com.liteeth.core.tty import LiteEthTTY
+from misoclib.com.liteeth.frontend.tty import LiteEthTTY
 
 
 class TTYSoC(BaseSoC):

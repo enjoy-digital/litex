@@ -5,7 +5,7 @@ from migen.sim.generic import run_simulation
 
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.core import LiteEthUDPIPCore
-from misoclib.com.liteeth.core.etherbone import LiteEthEtherbone
+from misoclib.com.liteeth.frontend.etherbone import LiteEthEtherbone
 
 from misoclib.com.liteeth.test.common import *
 from misoclib.com.liteeth.test.model import phy, mac, arp, ip, udp, etherbone

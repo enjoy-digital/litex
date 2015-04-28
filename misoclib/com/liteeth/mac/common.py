@@ -1,21 +1,18 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
-from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
-from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
-from misoclib.com.liteeth.generic.crossbar import LiteEthCrossbar
+from misoclib.com.liteeth.crossbar import LiteEthCrossbar
 
 
-class LiteEthMACDepacketizer(LiteEthDepacketizer):
+class LiteEthMACDepacketizer(Depacketizer):
     def __init__(self):
-        LiteEthDepacketizer.__init__(self,
+        Depacketizer.__init__(self,
             eth_phy_description(8),
             eth_mac_description(8),
             mac_header)
 
 
-class LiteEthMACPacketizer(LiteEthPacketizer):
+class LiteEthMACPacketizer(Packetizer):
     def __init__(self):
-        LiteEthPacketizer.__init__(self,
+        Packetizer.__init__(self,
             eth_mac_description(8),
             eth_phy_description(8),
             mac_header)

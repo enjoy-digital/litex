@@ -12,6 +12,14 @@ from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
 from migen.actorlib.packet import *
 from migen.bank.description import *
 
+class Port:
+    def connect(self, port):
+        r = [
+            Record.connect(self.source, port.sink),
+            Record.connect(port.source, self.sink)
+        ]
+        return r
+
 eth_mtu = 1532
 eth_min_len = 46
 eth_interpacket_gap = 12

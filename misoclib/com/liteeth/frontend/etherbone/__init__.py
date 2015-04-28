@@ -1,5 +1,4 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.core.etherbone.packet import *
 from misoclib.com.liteeth.core.etherbone.probe import *
 from misoclib.com.liteeth.core.etherbone.record import *

@@ -1,7 +1,6 @@
 from migen.genlib.io import DDROutput
 
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 
 
 class LiteEthPHYGMIITX(Module):

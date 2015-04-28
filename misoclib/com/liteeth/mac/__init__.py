@@ -1,5 +1,4 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.mac.common import *
 from misoclib.com.liteeth.mac.core import LiteEthMACCore
 from misoclib.com.liteeth.mac.frontend.wishbone import LiteEthMACWishboneInterface

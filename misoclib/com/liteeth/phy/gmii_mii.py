@@ -3,7 +3,6 @@ from migen.flow.plumbing import Multiplexer, Demultiplexer
 from migen.genlib.cdc import PulseSynchronizer
 
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 
 from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMIICRG
 from misoclib.com.liteeth.phy.mii import LiteEthPHYMIITX, LiteEthPHYMIIRX

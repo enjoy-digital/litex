@@ -1,7 +1,4 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
-from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
-from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
 _arp_table_layout = [
         ("reply", 1),
@@ -11,9 +8,9 @@ _arp_table_layout = [
     ]
 
 
-class LiteEthARPPacketizer(LiteEthPacketizer):
+class LiteEthARPPacketizer(Packetizer):
     def __init__(self):
-        LiteEthPacketizer.__init__(self,
+        Packetizer.__init__(self,
             eth_arp_description(8),
             eth_mac_description(8),
             arp_header)
@@ -76,9 +73,9 @@ class LiteEthARPTX(Module):
         )
 
 
-class LiteEthARPDepacketizer(LiteEthDepacketizer):
+class LiteEthARPDepacketizer(Depacketizer):
     def __init__(self):
-        LiteEthDepacketizer.__init__(self,
+        Depacketizer.__init__(self,
             eth_mac_description(8),
             eth_arp_description(8),
             arp_header)

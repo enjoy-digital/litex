@@ -1,14 +1,11 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
 from misoclib.com.liteeth.core.ip.checksum import *
 from misoclib.com.liteeth.core.ip.crossbar import *
-from misoclib.com.liteeth.generic.depacketizer import LiteEthDepacketizer
-from misoclib.com.liteeth.generic.packetizer import LiteEthPacketizer
 
 
-class LiteEthIPV4Packetizer(LiteEthPacketizer):
+class LiteEthIPV4Packetizer(Packetizer):
     def __init__(self):
-        LiteEthPacketizer.__init__(self,
+        Packetizer.__init__(self,
             eth_ipv4_description(8),
             eth_mac_description(8),
             ipv4_header)
@@ -98,9 +95,9 @@ class LiteEthIPTX(Module):
         )
 
 
-class LiteEthIPV4Depacketizer(LiteEthDepacketizer):
+class LiteEthIPV4Depacketizer(Depacketizer):
     def __init__(self):
-        LiteEthDepacketizer.__init__(self,
+        Depacketizer.__init__(self,
             eth_mac_description(8),
             eth_ipv4_description(8),
             ipv4_header)
