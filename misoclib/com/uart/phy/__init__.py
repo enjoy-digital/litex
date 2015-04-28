@@ -1,7 +1,3 @@
-from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.generic import *
-
-
 def UARTPHY(pads, *args, **kwargs):
     # Autodetect PHY
     if hasattr(pads, "source_stb"):
