@@ -11,7 +11,7 @@ class LiteScopeIODriver():
                 setattr(self, key, value)
 
     def write(self, value):
-        self.o.write(value)
+        self.output.write(value)
 
     def read(self):
-        return self.i.read()
+        return self.input.read()
