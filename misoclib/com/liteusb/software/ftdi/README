@@ -1,0 +1,14 @@
+[> Libftdicom
+------------------------------
+
+[> Windows build
+--------------------------
+1. Install MinGW32
+2. Download libusbx windows binaries (tested version: libusbx-1.0.17-win)
+3. Put libusb-1.0.dll.a in mingw lib directory
+4. Download Zadig and use WinUSB driver for Interface A and Interface B
+5. make all in libftdicom/win
+
+[> Linux build
+--------------------------
+1. make all in libftdicom/linux

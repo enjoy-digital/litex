@@ -4,6 +4,7 @@
  *              for synchronous FIFO mode.
  *
  * Copyright (C) 2009 Micah Elizabeth Scott
+ * Copyright (C) 2015 Florent Kermarrec
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,9 +80,6 @@ typedef struct {
 #define FTDI_VENDOR               0x0403
 #define FTDI_PRODUCT_FT2232H      0x6010
 
-#define LITEUSB_VENDOR              0x1d50
-#define LITEUSB_PRODUCT             0x607c
-
 #define FTDI_COMMAND_TIMEOUT      1000
 
 #define FTDI_SET_BAUD_REQUEST     0x03
@@ -102,9 +100,9 @@ typedef int (FTDIStreamCallback)(uint8_t *buffer, int length,
  * Public Functions
  */
 
-int FTDIDevice_Open(FTDIDevice *dev);
+int FTDIDevice_Open(FTDIDevice *dev, FTDIInterface interface);
 void FTDIDevice_Close(FTDIDevice *dev);
-int FTDIDevice_Reset(FTDIDevice *dev);
+int FTDIDevice_Reset(FTDIDevice *dev, FTDIInterface interface);
 
 int FTDIDevice_SetMode(FTDIDevice *dev, FTDIInterface interface,
                        FTDIBitmode mode, uint8_t pinDirections,

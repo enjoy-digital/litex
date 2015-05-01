@@ -4,6 +4,7 @@
  *              synchronous FIFO mode. Requires libusb-1.0
  *
  * Copyright (C) 2009 Micah Elizabeth Scott
+ * Copyright (C) 2015 Florent Kermarrec
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,16 +52,14 @@ typedef struct {
 } FTDIStreamState;
 
 static int
-DeviceInit(FTDIDevice *dev)
+DeviceInit(FTDIDevice *dev, FTDIInterface interface)
 {
-  int err, interface;
+  int err;
 
-  for (interface = 0; interface < 2; interface++) {
-    if (libusb_kernel_driver_active(dev->handle, interface) == 1) {
-      if ((err = libusb_detach_kernel_driver(dev->handle, interface))) {
-        perror("Error detaching kernel driver");
-        return err;
-      }
+  if (libusb_kernel_driver_active(dev->handle, (interface-1)) == 1) {
+    if ((err = libusb_detach_kernel_driver(dev->handle, (interface-1)))) {
+      perror("Error detaching kernel driver");
+      return err;
     }
   }
 
@@ -69,11 +68,9 @@ DeviceInit(FTDIDevice *dev)
     return err;
   }
 
-  for (interface = 0; interface < 2; interface++) {
-    if ((err = libusb_claim_interface(dev->handle, interface))) {
-      perror("Error claiming interface");
-      return err;
-    }
+  if ((err = libusb_claim_interface(dev->handle, (interface-1)))) {
+    perror("Error claiming interface");
+    return err;
   }
 
   return 0;
@@ -81,7 +78,7 @@ DeviceInit(FTDIDevice *dev)
 
 
 int
-FTDIDevice_Open(FTDIDevice *dev)
+FTDIDevice_Open(FTDIDevice *dev, FTDIInterface interface)
 {
   int err;
 
@@ -93,9 +90,6 @@ FTDIDevice_Open(FTDIDevice *dev)
 
   libusb_set_debug(dev->libusb, 0);
 
-  dev->handle = libusb_open_device_with_vid_pid(dev->libusb,
-					  LITEUSB_VENDOR,
-						LITEUSB_PRODUCT);
 
   if (!dev->handle) {
     dev->handle = libusb_open_device_with_vid_pid(dev->libusb,
@@ -107,7 +101,7 @@ FTDIDevice_Open(FTDIDevice *dev)
     return LIBUSB_ERROR_NO_DEVICE;
   }
 
-  return DeviceInit(dev);
+  return DeviceInit(dev, interface);
 }
 
 
@@ -120,7 +114,7 @@ FTDIDevice_Close(FTDIDevice *dev)
 
 
 int
-FTDIDevice_Reset(FTDIDevice *dev)
+FTDIDevice_Reset(FTDIDevice *dev, FTDIInterface interface)
 {
   int err;
 
@@ -128,7 +122,7 @@ FTDIDevice_Reset(FTDIDevice *dev)
   if (err)
     return err;
 
-  return DeviceInit(dev);
+  return DeviceInit(dev, interface);
 }
 
 
