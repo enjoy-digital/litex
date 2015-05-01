@@ -1,6 +1,6 @@
 import string
 import mmap
-from misoclib.tools.litescope.host.driver.reg import *
+from misoclib.tools.litescope.software.driver.reg import *
 
 
 class LiteScopePCIeDriver:

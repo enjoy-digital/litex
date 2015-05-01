@@ -1,5 +1,5 @@
 import socket
-from misoclib.tools.litescope.host.driver.reg import *
+from misoclib.tools.litescope.software.driver.reg import *
 
 from liteeth.test.model.etherbone import *
 

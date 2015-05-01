@@ -1,4 +1,4 @@
-from litescope.host.dump import *
+from litescope.software.dump import *
 
 primitives = {
     "ALIGN":  0x7B4A4ABC,

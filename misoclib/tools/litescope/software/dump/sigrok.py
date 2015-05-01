@@ -5,7 +5,7 @@ import zipfile
 import re
 from collections import OrderedDict
 
-from misoclib.tools.litescope.host.dump import *
+from misoclib.tools.litescope.software.dump import *
 
 
 class SigrokDump(Dump):

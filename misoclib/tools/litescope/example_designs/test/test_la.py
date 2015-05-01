@@ -1,4 +1,4 @@
-from misoclib.tools.litescope.host.driver.la import LiteScopeLADriver
+from misoclib.tools.litescope.software.driver.la import LiteScopeLADriver
 
 
 def main(wb):

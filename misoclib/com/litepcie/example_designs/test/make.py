@@ -21,14 +21,14 @@ def _get_args():
 if __name__ == "__main__":
     args = _get_args()
     if args.bridge == "uart":
-        from misoclib.tools.litescope.host.driver.uart import LiteScopeUART2WishboneDriver
+        from misoclib.tools.litescope.software.driver.uart import LiteScopeUART2WishboneDriver
         port = args.port if not args.port.isdigit() else int(args.port)
         wb = LiteScopeUART2WishboneDriver(port, args.baudrate, "./csr.csv", int(args.busword), debug=False)
     elif args.bridge == "etherbone":
-        from misoclib.tools.litescope.host.driver.etherbone import LiteScopeEtherboneDriver
+        from misoclib.tools.litescope.software.driver.etherbone import LiteScopeEtherboneDriver
         wb = LiteScopeEtherboneDriver(args.ip_address, int(args.udp_port), "./csr.csv", int(args.busword), debug=False)
     elif args.bridge == "pcie":
-        from misoclib.tools.litescope.host.driver.pcie import LiteScopePCIeDriver
+        from misoclib.tools.litescope.software.driver.pcie import LiteScopePCIeDriver
         wb = LiteScopePCIeDriver(args.bar, args.bar_size, "./csr.csv", int(args.busword), debug=False)
     else:
         ValueError("Invalid bridge {}".format(args.bridge))

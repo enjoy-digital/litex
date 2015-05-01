@@ -2,7 +2,7 @@ import time
 import argparse
 import random as rand
 from collections import OrderedDict
-from misoclib.tools.litescope.host.driver.uart import LiteScopeUART2WishboneDriver
+from misoclib.tools.litescope.software.driver.uart import LiteScopeUART2WishboneDriver
 
 KB = 1024
 MB = 1024*KB

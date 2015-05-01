@@ -1,4 +1,4 @@
-from misoclib.tools.litescope.host.dump import *
+from misoclib.tools.litescope.software.dump import *
 
 
 class CSVDump(Dump):

@@ -1,8 +1,8 @@
 import csv
 from struct import *
 from migen.fhdl.structure import *
-from misoclib.tools.litescope.host.dump import *
-from misoclib.tools.litescope.host.driver.truthtable import *
+from misoclib.tools.litescope.software.dump import *
+from misoclib.tools.litescope.software.driver.truthtable import *
 
 
 class LiteScopeLADriver():
@@ -125,16 +125,16 @@ class LiteScopeLADriver():
             print("saving to " + filename)
         name, ext = os.path.splitext(filename)
         if ext == ".vcd":
-            from misoclib.tools.litescope.host.dump.vcd import VCDDump
+            from misoclib.tools.litescope.software.dump.vcd import VCDDump
             dump = VCDDump()
         elif ext == ".csv":
-            from misoclib.tools.litescope.host.dump.csv import CSVDump
+            from misoclib.tools.litescope.software.dump.csv import CSVDump
             dump = CSVDump()
         elif ext == ".py":
-            from misoclib.tools.litescope.host.dump.python import PythonDump
+            from misoclib.tools.litescope.software.dump.python import PythonDump
             dump = PythonDump()
         elif ext == ".sr":
-            from misoclib.tools.litescope.host.dump.sigrok import SigrokDump
+            from misoclib.tools.litescope.software.dump.sigrok import SigrokDump
             if self.samplerate is None:
                 raise ValueError("Unable to automatically retrieve clk_freq, clk_freq parameter required")
             dump = SigrokDump(samplerate=self.samplerate)

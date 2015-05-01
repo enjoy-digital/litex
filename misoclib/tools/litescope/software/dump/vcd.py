@@ -1,5 +1,5 @@
 import datetime
-from misoclib.tools.litescope.host.dump import *
+from misoclib.tools.litescope.software.dump import *
 
 
 class VCDDump(Dump):

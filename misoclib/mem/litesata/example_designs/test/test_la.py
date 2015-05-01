@@ -1,7 +1,7 @@
 import sys
 from tools import *
 from test_bist import *
-from litescope.host.driver.la import LiteScopeLADriver
+from litescope.software.driver.la import LiteScopeLADriver
 
 
 def main(wb):
