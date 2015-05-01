@@ -50,7 +50,8 @@ class LiteScopeWishboneBridge(Module):
         self.submodules += fsm, timeout
         self.comb += [
             timeout.ce.eq(1),
-            fsm.reset.eq(timeout.reached)
+            fsm.reset.eq(timeout.reached),
+            phy.source.ack.eq(1)
         ]
         fsm.act("IDLE",
             timeout.reset.eq(1),
