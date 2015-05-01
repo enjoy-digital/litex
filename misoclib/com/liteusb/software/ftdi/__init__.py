@@ -5,13 +5,10 @@ import time
 import queue
 import threading
 
-_lpath = (os.path.dirname(__file__))
-if _lpath == '':
-    _lpath = '.'
 if platform.system() == "Windows":
-    libftdicom =  ctypes.cdll.LoadLibrary(_lpath + "/libftdicom.dll")
+    libftdicom =  ctypes.cdll.LoadLibrary("./libftdicom.dll")
 else:
-    libftdicom =  ctypes.cdll.LoadLibrary(_lpath + "/libftdicom.so")
+    libftdicom =  ctypes.cdll.LoadLibrary("./libftdicom.so")
 
 
 class FTDI_Device(ctypes.Structure):
