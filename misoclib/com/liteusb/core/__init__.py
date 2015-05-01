@@ -3,29 +3,29 @@ from misoclib.com.liteusb.core.packet import LiteUSBPacketizer, LiteUSBDepacketi
 from misoclib.com.liteusb.core.crc import LiteUSBCRC32Inserter, LiteUSBCRC32Checker
 from misoclib.com.liteusb.core.crossbar import LiteUSBCrossbar
 
-# XXX Header should be protected by CRC
-
 class LiteUSBCore(Module):
-    def __init__(self, phy):
+    def __init__(self, phy, clk_freq, with_crc=True):
+        rx_pipeline = [phy]
+        tx_pipeline = [phy]
+
         # depacketizer / packetizer
-        self.submodules.depacketizer = LiteUSBDepacketizer()
+        self.submodules.depacketizer = LiteUSBDepacketizer(clk_freq)
         self.submodules.packetizer = LiteUSBPacketizer()
-        self.comb += [
-            Record.connect(phy.source, self.depacketizer.sink),
-            Record.connect(self.packetizer.source, phy.sink)
-        ]
+        rx_pipeline += [self.depacketizer]
+        tx_pipeline += [self.packetizer]
 
-        # crc checker / inserter
-        self.submodules.crc_rx = LiteUSBCRC32Checker()
-        self.submodules.crc_tx = LiteUSBCRC32Inserter()
-        self.comb += [
-            Record.connect(self.depacketizer.source, self.crc_rx.sink),
-            Record.connect(self.crc_tx.source, self.packetizer.sink)
-        ]
+        if with_crc:
+            # crc checker / inserter
+            self.submodules.crc_rx = LiteUSBCRC32Checker()
+            self.submodules.crc_tx = LiteUSBCRC32Inserter()
+            rx_pipeline += [self.crc_rx]
+            tx_pipeline += [self.crc_tx]
 
-       # crossbar
+        # crossbar
         self.submodules.crossbar = LiteUSBCrossbar()
-        self.comb += [
-            Record.connect(self.crossbar.master.source, self.crc_tx.sink),
-            Record.connect(self.crc_rx.source, self.crossbar.master.sink)
-        ]
+        rx_pipeline += [self.crossbar.master]
+        tx_pipeline += [self.crossbar.master]
+
+        # graph
+        self.submodules.rx_pipeline = Pipeline(*rx_pipeline)
+        self.submodules.tx_pipeline = Pipeline(*reversed(tx_pipeline))

@@ -16,7 +16,7 @@ class LiteUSBDMAWriter(Module, AutoCSR):
 
         # Pack data
         pack_factor = lasmim.dw//8
-        pack = structuring.Pack(phy_layout, pack_factor, reverse=True)
+        pack = structuring.Pack(phy_description(8), pack_factor, reverse=True)
         cast = structuring.Cast(pack.source.payload.layout, lasmim.dw)
 
         # DMA
@@ -61,12 +61,12 @@ class LiteUSBDMAReader(Module, AutoCSR):
         pack_factor = lasmim.dw//8
         packed_dat = structuring.pack_layout(8, pack_factor)
         cast = structuring.Cast(lasmim.dw, packed_dat)
-        unpack = structuring.Unpack(pack_factor, phy_layout, reverse=True)
+        unpack = structuring.Unpack(pack_factor, phy_description(8), reverse=True)
 
         # Graph
         cnt = Signal(32)
         self.sync += \
-            If(self.dma.generator._r_shoot.re,
+            If(self.dma.generator._shoot.re,
                 cnt.eq(0)
             ).Elif(source.stb & source.ack,
                 cnt.eq(cnt + 1)
@@ -92,12 +92,11 @@ class LiteUSBDMAReader(Module, AutoCSR):
 
 
 class LiteUSBDMA(Module, AutoCSR):
-    def __init__(self, lasmim_dma_wr, lasmim_dma_rd, tag):
-        self.tag = tag
-
+    def __init__(self, port, lasmim_dma_wr, lasmim_dma_rd):
         self.submodules.writer = LiteUSBDMAWriter(lasmim_dma_wr)
-        self.submodules.reader = LiteUSBDMAReader(lasmim_dma_rd, self.tag)
+        self.submodules.reader = LiteUSBDMAReader(lasmim_dma_rd, port.tag)
         self.submodules.ev = SharedIRQ(self.writer.ev, self.reader.ev)
-
-        self.sink = self.writer.sink
-        self.source = self.reader.source
+        self.comb += [
+            Record.connect(port.source, self.writer.sink),
+            Record.connect(self.reader.source, port.sink),
+        ]

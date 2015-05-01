@@ -9,7 +9,7 @@ class LiteUSBCrossbar(Module):
         self.dispatch_param = "dst"
 
     def get_port(self, dst):
-        port = LiteUSBUserPort(8)
+        port = LiteUSBUserPort(8, dst)
         if dst in self.users.keys():
             raise ValueError("Destination {0:#x} already assigned".format(dst))
         self.users[dst] = port

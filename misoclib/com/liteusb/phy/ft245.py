@@ -1,3 +1,5 @@
+import math
+
 from migen.fhdl.std import *
 from migen.flow.actor import *
 from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
@@ -24,39 +26,31 @@ def anti_starvation(module, timeout):
         return en, max_time
 
 
-class FT2232HPHYSynchronous(Module):
-    def __init__(self, pads,
+class FT245PHYSynchronous(Module):
+    def __init__(self, pads, clk_freq,
                  fifo_depth=32,
-                 read_time=16,
-                 write_time=16):
+                 read_time=128,
+                 write_time=128):
         dw = flen(pads.data)
 
-        #
-        # Read / Write Fifos
-        #
-
-        # Read Fifo (Ftdi --> SoC)
+        # read fifo (FTDI --> SoC)
         read_fifo = RenameClockDomains(AsyncFIFO(phy_description(8), fifo_depth),
             {"write": "ftdi", "read": "sys"})
         read_buffer = RenameClockDomains(SyncFIFO(phy_description(8), 4),
             {"sys": "ftdi"})
         self.comb += read_buffer.source.connect(read_fifo.sink)
 
-        # Write Fifo (SoC --> Ftdi)
+        # write fifo (SoC --> FTDI)
         write_fifo = RenameClockDomains(AsyncFIFO(phy_description(8), fifo_depth),
             {"write": "sys", "read": "ftdi"})
 
         self.submodules += read_fifo, read_buffer, write_fifo
 
-        #
-        # Sink / Source interfaces
-        #
+        # sink / source interfaces
         self.sink = write_fifo.sink
         self.source = read_fifo.source
 
-        #
-        # Read / Write Arbitration
-        #
+        # read / write arbitration
         wants_write = Signal()
         wants_read = Signal()
 
@@ -102,14 +96,13 @@ class FT2232HPHYSynchronous(Module):
             NextState("READ")
         )
 
-        #
-        # Read / Write Actions
-        #
-
+        # databus tristate
         data_w = Signal(dw)
         data_r = Signal(dw)
         data_oe = Signal()
+        self.specials += Tristate(pads.data, data_w, data_oe, data_r)
 
+        # read / write actions
         pads.oe_n.reset = 1
         pads.rd_n.reset = 1
         pads.wr_n.reset = 1
@@ -145,43 +138,35 @@ class FT2232HPHYSynchronous(Module):
                 )
         ]
 
-        #
-        # Databus Tristate
-        #
-        self.specials += Tristate(pads.data, data_w, data_oe, data_r)
 
-        self.debug = Signal(8)
-        self.comb += self.debug.eq(data_r)
-
-
-class FT2232HPHYAsynchronous(Module):
+class FT245PHYAsynchronous(Module):
     def __init__(self, pads, clk_freq,
                  fifo_depth=32,
-                 read_time=16,
-                 write_time=16):
+                 read_time=128,
+                 write_time=128):
         dw = flen(pads.data)
+        self.clk_freq = clk_freq
 
-        #
-        # Read / Write Fifos
-        #
+        # timings
+        tRD          = self.ns(30) # RD# active pulse width (t4)
+        tRDDataSetup = self.ns(14) # RD# to DATA (t3)
+        tWRDataSetup = self.ns(5)  # DATA to WR# active setup time (t8)
+        tWR          = self.ns(30) # WR# active pulse width (t10)
+        tMultiReg    = 2
 
-        # Read Fifo (Ftdi --> SoC)
+        # read fifo (FTDI --> SoC)
         read_fifo = SyncFIFO(phy_description(8), fifo_depth)
 
-        # Write Fifo (SoC --> Ftdi)
+        # write fifo (SoC --> FTDI)
         write_fifo = SyncFIFO(phy_description(8), fifo_depth)
 
         self.submodules += read_fifo, write_fifo
 
-        #
-        # Sink / Source interfaces
-        #
+        # sink / source interfaces
         self.sink = write_fifo.sink
         self.source = read_fifo.source
 
-        #
-        # Read / Write Arbitration
-        #
+        # read / write arbitration
         wants_write = Signal()
         wants_read = Signal()
 
@@ -233,9 +218,7 @@ class FT2232HPHYAsynchronous(Module):
             NextState("READ")
         )
 
-        #
-        # Databus Tristate
-        #
+        # databus tristate
         data_w = Signal(dw)
         data_r_async = Signal(dw)
         data_r = Signal(dw)
@@ -245,10 +228,8 @@ class FT2232HPHYAsynchronous(Module):
             MultiReg(data_r_async, data_r)
         ]
 
-        #
-        # Read / Write Actions
-        #
-        pads.wr_n.reset = 1
+
+        # read actions
         pads.rd_n.reset = 1
 
         read_fsm = FSM(reset_state="IDLE")
@@ -267,7 +248,7 @@ class FT2232HPHYAsynchronous(Module):
         read_fsm.act("PULSE_RD_N",
             pads.rd_n.eq(0),
             read_counter.ce.eq(1),
-            If(read_counter.value == 15, # XXX Compute exact value
+            If(read_counter.value == max((tRD-1), (tRDDataSetup + tMultiReg -1)),
                 NextState("ACQUIRE_DATA")
             )
         )
@@ -281,6 +262,9 @@ class FT2232HPHYAsynchronous(Module):
                 NextState("IDLE")
             )
         )
+
+        # write actions
+        pads.wr_n.reset = 1
 
         write_fsm = FSM(reset_state="IDLE")
         write_counter = Counter(8)
@@ -299,7 +283,7 @@ class FT2232HPHYAsynchronous(Module):
             data_oe.eq(1),
             data_w.eq(write_fifo.source.data),
             write_counter.ce.eq(1),
-            If(write_counter.value == 5, # XXX Compute exact value
+            If(write_counter.value == (tWRDataSetup-1),
                 write_counter.reset.eq(1),
                 NextState("PULSE_WR_N")
             )
@@ -309,7 +293,7 @@ class FT2232HPHYAsynchronous(Module):
             data_w.eq(write_fifo.source.data),
             pads.wr_n.eq(0),
             write_counter.ce.eq(1),
-            If(write_counter.value == 15, # XXX Compute exact value
+            If(write_counter.value == (tWR-1),
                 NextState("WAIT_TXE_N")
             )
         )
@@ -319,3 +303,17 @@ class FT2232HPHYAsynchronous(Module):
                 NextState("IDLE")
             )
         )
+
+    def ns(self, t, margin=True):
+        clk_period_ns = 1000000000/self.clk_freq
+        if margin:
+            t += clk_period_ns/2
+        return math.ceil(t/clk_period_ns)
+
+
+def FT245PHY(pads, *args, **kwargs):
+    # autodetect PHY
+    if hasattr(pads, "oe_n"):
+        return FT245PHYSynchronous(pads, *args, **kwargs)
+    else:
+        return FT245PHYAsynchronous(pads, *args, **kwargs)

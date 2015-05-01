@@ -5,17 +5,21 @@ from migen.fhdl.specials import *
 from migen.sim.generic import run_simulation
 
 from misoclib.com.liteusb.common import *
-from misoclib.com.liteusb.phy.ft2232h import FT2232HPHYAsynchronous
+from misoclib.com.liteusb.phy.ft245 import FT245PHYAsynchronous
 from misoclib.com.liteusb.test.common import *
 
 # XXX for now use it from liteeth to avoid duplication
 from misoclib.com.liteeth.test.common import *
 
-class FT2232HAsynchronousModel(Module, RandRun):
-    def __init__(self, rd_data):
-        RandRun.__init__(self, 10)
+class FT245AsynchronousModel(Module):
+    def __init__(self, clk_freq, rd_data):
+        self.clk_freq = clk_freq
         self.rd_data = [0] + rd_data
         self.rd_idx = 0
+
+        # timings
+        self.tRDInactive = self.ns(49) # RXF# inactive after RD# cycle
+        self.tWRInactive = self.ns(49) # TXE# inactive after WR# cycle
 
         # pads
         self.data = Signal(8)
@@ -48,11 +52,10 @@ class FT2232HAsynchronousModel(Module, RandRun):
         else:
             if (not selfp.wr_n and self.last_wr_n) and not selfp.txe_n:
                 self.wr_data.append(selfp.data_w)
-                self.wr_delay = 20 # XXX FIXME
+                self.wr_delay = self.tWRInactive
             self.last_wr_n = selfp.wr_n
 
-            if self.run:
-                selfp.txe_n = 0
+            selfp.txe_n = 0
 
     def rd_sim(self, selfp):
         if self.rd_delay:
@@ -60,12 +63,9 @@ class FT2232HAsynchronousModel(Module, RandRun):
             self.rd_delay = self.rd_delay - 1
         else:
             rxf_n = selfp.rxf_n
-            if self.run:
-                if self.rd_idx < len(self.rd_data)-1:
-                    self.rd_done = selfp.rxf_n
-                    selfp.rxf_n = 0
-                else:
-                    selfp.rxf_n = self.rd_done
+            if self.rd_idx < len(self.rd_data)-1:
+                self.rd_done = selfp.rxf_n
+                selfp.rxf_n = 0
             else:
                 selfp.rxf_n = self.rd_done
 
@@ -75,12 +75,11 @@ class FT2232HAsynchronousModel(Module, RandRun):
                 selfp.data_r = self.rd_data[self.rd_idx]
                 self.rd_done = 1
             if selfp.rd_n and not self.last_rd_n:
-                self.rd_delay = 4 # XXX FIXME
+                self.rd_delay = self.tRDInactive
 
         self.last_rd_n = selfp.rd_n
 
     def do_simulation(self, selfp):
-        RandRun.do_simulation(self, selfp)
         if self.init:
             selfp.rxf_n = 0
             self.wr_data = []
@@ -88,13 +87,21 @@ class FT2232HAsynchronousModel(Module, RandRun):
         self.wr_sim(selfp)
         self.rd_sim(selfp)
 
+    def ns(self, t, margin=True):
+        clk_period_ns = 1000000000/self.clk_freq
+        if margin:
+            t += clk_period_ns/2
+        return math.ceil(t/clk_period_ns)
+
+
 test_packet = [i%256 for i in range(128)]
 
 
 class TB(Module):
     def __init__(self):
-        self.submodules.model = FT2232HAsynchronousModel(test_packet)
-        self.submodules.phy = FT2232HPHYAsynchronous(self.model, 50000000)
+        clk_freq = 50*1000000
+        self.submodules.model = FT245AsynchronousModel(clk_freq, test_packet)
+        self.submodules.phy = FT245PHYAsynchronous(self.model, clk_freq)
 
         self.submodules.streamer = PacketStreamer(phy_description(8))
         self.submodules.streamer_randomizer = AckRandomizer(phy_description(8), level=10)

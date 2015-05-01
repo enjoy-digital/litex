@@ -3,6 +3,7 @@ from migen.genlib.fsm import *
 from migen.actorlib.fifo import *
 from migen.flow.actor import EndpointDescription
 from migen.actorlib.packet import *
+from migen.actorlib.structuring import Pipeline
 
 
 packet_header_length = 9
@@ -49,11 +50,12 @@ class LiteUSBMasterPort:
 
 
 class LiteUSBSlavePort:
-    def __init__(self, dw):
+    def __init__(self, dw, tag):
         self.sink = Sink(user_description(dw))
         self.source = Source(user_description(dw))
+        self.tag = tag
 
 
 class LiteUSBUserPort(LiteUSBSlavePort):
-    def __init__(self, dw):
-        LiteUSBSlavePort.__init__(self, dw)
+    def __init__(self, dw, tag):
+        LiteUSBSlavePort.__init__(self, dw, tag)

@@ -5,13 +5,13 @@ from migen.fhdl.specials import *
 from migen.sim.generic import run_simulation
 
 from misoclib.com.liteusb.common import *
-from misoclib.com.liteusb.phy.ft2232h import FT2232HPHYSynchronous
+from misoclib.com.liteusb.phy.ft245 import FT245PHYSynchronous
 from misoclib.com.liteusb.test.common import *
 
 # XXX for now use it from liteeth to avoid duplication
 from misoclib.com.liteeth.test.common import *
 
-class FT2232HSynchronousModel(Module, RandRun):
+class FT245SynchronousModel(Module, RandRun):
     def __init__(self, rd_data):
         RandRun.__init__(self, 10)
         self.rd_data = [0] + rd_data
@@ -82,8 +82,8 @@ test_packet = [i%256 for i in range(512)]
 
 class TB(Module):
     def __init__(self):
-        self.submodules.model = FT2232HSynchronousModel(test_packet)
-        self.submodules.phy = FT2232HPHYSynchronous(self.model)
+        self.submodules.model = FT245SynchronousModel(test_packet)
+        self.submodules.phy = FT245PHYSynchronous(self.model)
 
         self.submodules.streamer = PacketStreamer(phy_description(8))
         self.submodules.streamer_randomizer = AckRandomizer(phy_description(8), level=10)

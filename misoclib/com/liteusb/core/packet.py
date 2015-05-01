@@ -66,7 +66,7 @@ class LiteUSBPacketizer(Module):
 
 
 class LiteUSBDepacketizer(Module):
-    def __init__(self, timeout=10):
+    def __init__(self, clk_freq, timeout=10):
         self.sink = sink = Sink(phy_description(8))
         self.source = source = Source(user_description(8))
 
@@ -116,9 +116,9 @@ class LiteUSBDepacketizer(Module):
             header_pack.source.ack.eq(1),
         )
 
-        self.submodules.timeout = Timeout(60000000*timeout) #XXX use clk_freq
+        self.submodules.timeout = Timeout(clk_freq*timeout)
         self.comb += [
-            self.timeout.reset.eq(fsm.ongoing("WAIT_SOP")),
+            self.timeout.reset.eq(fsm.ongoing("IDLE")),
             self.timeout.ce.eq(1)
         ]
 

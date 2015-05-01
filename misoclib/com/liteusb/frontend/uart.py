@@ -1,59 +1,35 @@
 from migen.fhdl.std import *
-from migen.bank.description import *
-from migen.bank.eventmanager import *
-from migen.actorlib.fifo import SyncFIFO
 
 from misoclib.com.liteusb.common import *
+from misoclib.com.uart import UART
 
+class LiteUSBUARTPHY:
+    def __init__(self):
+        self.sink = Sink([("data", 8)])
+        self.source = Source([("data", 8)])
 
-class LiteUSBUART(Module, AutoCSR):
-    def __init__(self, tag, fifo_depth=64):
-        self.tag = tag
+class LiteUSBUART(UART):
+    def __init__(self, port,
+                 tx_fifo_depth=16,
+                 rx_fifo_depth=16):
 
-        self._rxtx = CSR(8)
-
-        self.submodules.ev = EventManager()
-        self.ev.tx = EventSourcePulse()
-        self.ev.rx = EventSourceLevel()
-        self.ev.finalize()
-
-        self.source = source = Source(user_description(8))
-        self.sink = sink = Sink(user_description(8))
-
-        # # #
+        phy = LiteUSBUARTPHY()
+        UART.__init__(self, phy, tx_fifo_depth, rx_fifo_depth)
 
         # TX
-        tx_start = self._rxtx.re
-        tx_done = self.ev.tx.trigger
-
-        self.sync += \
-            If(tx_start,
-                source.stb.eq(1),
-                source.data.eq(self._rxtx.r),
-            ).Elif(tx_done,
-                source.stb.eq(0)
-            )
-
         self.comb += [
-            source.sop.eq(1),
-            source.eop.eq(1),
-            source.length.eq(1),
-            source.dst.eq(self.tag),
-            tx_done.eq(source.stb & source.ack),
+            port.sink.stb.eq(phy.sink.stb),
+            port.sink.sop.eq(1),
+            port.sink.eop.eq(1),
+            port.sink.length.eq(1),
+            port.sink.dst.eq(port.tag),
+            port.sink.data.eq(phy.sink.data),
+            phy.sink.ack.eq(port.sink.ack)
         ]
 
         # RX
-        rx_available = self.ev.rx.trigger
-
-        rx_fifo = SyncFIFO(8, fifo_depth)
-        self.submodules += rx_fifo
         self.comb += [
-            Record.connect(sink, rx_fifo.sink),
-
-            rx_fifo.we.eq(sink.stb),
-            sink.ack.eq(sink.stb & rx_fifo.writable),
-            rx_fifo.din.eq(sink.data),
-            rx_available.eq(rx_fifo.stb),
-            rx_fifo.ack.eq(self.ev.rx.clear),
-            self._rxtx.w.eq(rx_fifo.dout)
+            phy.source.stb.eq(port.source.stb),
+            phy.source.data.eq(port.source.data),
+            port.source.ack.eq(phy.source.ack)
         ]
