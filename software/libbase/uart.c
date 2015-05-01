@@ -31,19 +31,22 @@ void uart_isr(void)
 	stat = uart_ev_pending_read();
 
 	if(stat & UART_EV_RX) {
-		rx_buf[rx_produce] = uart_rxtx_read();
-		rx_produce = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
-		uart_ev_pending_write(UART_EV_RX);
+		while(!uart_rxempty_read()) {
+			rx_buf[rx_produce] = uart_rxtx_read();
+			rx_produce = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
+			uart_ev_pending_write(UART_EV_RX);
+		}
 	}
 
 	if(stat & UART_EV_TX) {
 		uart_ev_pending_write(UART_EV_TX);
-		if(tx_level > 0) {
+		if(tx_level == 0)
+			tx_cts = 1;
+		while(tx_level > 0 && !uart_txfull_read()) {
 			uart_rxtx_write(tx_buf[tx_consume]);
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
 			tx_level--;
-		} else
-			tx_cts = 1;
+		}
 	}
 }
 
