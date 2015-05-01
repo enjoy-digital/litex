@@ -7,7 +7,7 @@ def write_b(uart, data):
     uart.write(pack('B', data))
 
 
-class LiteScopeUARTDriver:
+class LiteScopeUART2WishboneDriver:
     cmds = {
         "write": 0x01,
         "read":  0x02
@@ -25,16 +25,8 @@ class LiteScopeUARTDriver:
         self.uart.close()
         self.uart.open()
         self.uart.flushInput()
-        try:
-            self.regs.uart2wb_sel.write(1)
-        except:
-            pass
 
     def close(self):
-        try:
-            self.regs.uart2wb_sel.write(0)
-        except:
-            pass
         self.uart.flushOutput()
         self.uart.close()
 

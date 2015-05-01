@@ -6,7 +6,7 @@ from migen.genlib.misc import timeline
 
 from misoclib.soc import SoC
 from misoclib.tools.litescope.common import *
-from misoclib.tools.litescope.bridge.uart2wb import LiteScopeUART2WB
+from misoclib.tools.litescope.bridge.wishbone import LiteScopeUART2Wishbone
 
 from misoclib.com.litepcie.phy.s7pciephy import S7PCIEPHY
 from misoclib.com.litepcie.core import Endpoint
@@ -82,7 +82,7 @@ class PCIeDMASoC(SoC, AutoCSR):
         self.dma.source.connect(self.dma.sink)
 
         if with_uart_bridge:
-            self.submodules.uart_bridge = LiteScopeUART2WB(platform.request("serial"), clk_freq, baudrate=115200)
+            self.submodules.uart_bridge = LiteScopeUART2Wishbone(platform.request("serial"), clk_freq, baudrate=115200)
             self.add_wb_master(self.uart_bridge.wishbone)
 
         # IRQs

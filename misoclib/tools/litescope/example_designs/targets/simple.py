@@ -3,7 +3,7 @@ from migen.genlib.io import CRG
 
 from misoclib.soc import SoC
 from misoclib.tools.litescope.common import *
-from misoclib.tools.litescope.bridge.uart2wb import LiteScopeUART2WB
+from misoclib.tools.litescope.bridge.wishbone import LiteScopeUART2Wishbone
 from misoclib.tools.litescope.frontend.io import LiteScopeIO
 from misoclib.tools.litescope.frontend.la import LiteScopeLA
 from misoclib.tools.litescope.core.port import LiteScopeTerm
@@ -25,7 +25,7 @@ class LiteScopeSoC(SoC, AutoCSR):
             with_identifier=True,
             with_timer=False
         )
-        self.add_cpu_or_bridge(LiteScopeUART2WB(platform.request("serial"), clk_freq, baudrate=115200))
+        self.add_cpu_or_bridge(LiteScopeUART2Wishbone(platform.request("serial"), clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 

@@ -19,9 +19,9 @@ def _get_args():
 if __name__ == "__main__":
     args = _get_args()
     if args.bridge == "uart":
-        from misoclib.tools.litescope.host.driver.uart import LiteScopeUARTDriver
+        from misoclib.tools.litescope.host.driver.uart import LiteScopeUART2WishboneDriver
         port = args.port if not args.port.isdigit() else int(args.port)
-        wb = LiteScopeUARTDriver(port, args.baudrate, "./csr.csv", int(args.busword), debug=False)
+        wb = LiteScopeUART2WishboneDriver(port, args.baudrate, "./csr.csv", int(args.busword), debug=False)
     elif args.bridge == "etherbone":
         from misoclib.tools.litescope.host.driver.etherbone import LiteScopeEtherboneDriver
         wb = LiteScopeEtherboneDriver(args.ip_address, int(args.udp_port), "./csr.csv", int(args.busword), debug=False)
