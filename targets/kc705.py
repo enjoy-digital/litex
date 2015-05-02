@@ -9,7 +9,7 @@ from misoclib.soc import mem_decoder
 from misoclib.soc.sdram import SDRAMSoC
 
 from misoclib.com.liteeth.phy import LiteEthPHY
-from misoclib.com.liteeth.mac import LiteEthMAC
+from misoclib.com.liteeth.core.mac import LiteEthMAC
 
 
 class _CRG(Module):

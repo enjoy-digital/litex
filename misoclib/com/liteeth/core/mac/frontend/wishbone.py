@@ -1,5 +1,5 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.mac.frontend import sram
+from misoclib.com.liteeth.core.mac.frontend import sram
 
 from migen.bus import wishbone
 from migen.fhdl.simplify import FullMemoryWE

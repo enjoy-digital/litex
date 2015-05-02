@@ -4,7 +4,7 @@ from migen.genlib.io import CRG
 
 from misoclib.soc import SoC, mem_decoder
 from misoclib.com.liteeth.phy import LiteEthPHY
-from misoclib.com.liteeth.mac import LiteEthMAC
+from misoclib.com.liteeth.core.mac import LiteEthMAC
 
 
 class BaseSoC(SoC):
