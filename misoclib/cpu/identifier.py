@@ -1,7 +1,11 @@
+import subprocess
+
 from migen.fhdl.std import *
 from migen.bank.description import *
 
-from misoclib.cpu import git
+def get_id():
+    output = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii")
+    return int(output[:8], 16)
 
 
 class Identifier(Module, AutoCSR):
@@ -13,7 +17,7 @@ class Identifier(Module, AutoCSR):
         ###
 
         if revision is None:
-            revision = git.get_id()
+            revision = get_id()
 
         self.comb += [
             self._sysid.status.eq(sysid),
