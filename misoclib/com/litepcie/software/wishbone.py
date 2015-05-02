@@ -1,9 +1,11 @@
 import string
 import mmap
+import sys
+
 from misoclib.tools.litescope.software.driver.reg import *
 
 
-class LiteScopePCIeDriver:
+class LitePCIeWishboneDriverLinux:
     def __init__(self, bar, bar_size, addrmap=None, busword=8, debug=False):
         self.bar = bar
         self.bar_size = bar_size
@@ -54,3 +56,10 @@ class LiteScopePCIeDriver:
             self.mmap[addr + 4*i:addr + 4*(i+1)] = bytes(dat_bytes)
             if self.debug:
                 print("WR {:08X} @ {:08X}".format(dat, (addr + i)*4))
+
+
+def LitePCIeWishboneDriver(*args, **kwargs):
+    if sys.platform == "win32" or sys.platform == "cygwin":
+        raise NotImplementedError
+    else:
+        return LitePCIeWishboneDriverLinux(*args, **kwargs)

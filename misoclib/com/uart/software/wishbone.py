@@ -7,7 +7,7 @@ def write_b(uart, data):
     uart.write(pack('B', data))
 
 
-class LiteScopeUART2WishboneDriver:
+class UARTWishboneBridgeDriver:
     cmds = {
         "write": 0x01,
         "read":  0x02

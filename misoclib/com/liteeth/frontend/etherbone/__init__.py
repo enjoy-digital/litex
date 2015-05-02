@@ -1,8 +1,8 @@
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.core.etherbone.packet import *
-from misoclib.com.liteeth.core.etherbone.probe import *
-from misoclib.com.liteeth.core.etherbone.record import *
-from misoclib.com.liteeth.core.etherbone.wishbone import *
+from misoclib.com.liteeth.frontend.etherbone.packet import *
+from misoclib.com.liteeth.frontend.etherbone.probe import *
+from misoclib.com.liteeth.frontend.etherbone.record import *
+from misoclib.com.liteeth.frontend.etherbone.wishbone import *
 
 
 class LiteEthEtherbone(Module):

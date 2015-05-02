@@ -139,8 +139,3 @@ class LiteScopeWishboneBridge(Module):
                 )
             )
         )
-
-class LiteScopeUART2Wishbone(LiteScopeWishboneBridge):
-    def __init__(self, pads, clk_freq, baudrate=115200):
-        self.submodules.phy = UARTPHYSerial(pads, clk_freq, baudrate)
-        LiteScopeWishboneBridge.__init__(self, self.phy, clk_freq)

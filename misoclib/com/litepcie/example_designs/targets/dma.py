@@ -6,13 +6,14 @@ from migen.genlib.misc import timeline
 
 from misoclib.soc import SoC
 from misoclib.tools.litescope.common import *
-from misoclib.tools.litescope.bridge.wishbone import LiteScopeUART2Wishbone
+
+from misoclib.com.uart.frontend.wishbone import UARTWishboneBridge
 
 from misoclib.com.litepcie.phy.s7pciephy import S7PCIEPHY
 from misoclib.com.litepcie.core import Endpoint
 from misoclib.com.litepcie.core.irq.interrupt_controller import InterruptController
 from misoclib.com.litepcie.frontend.dma import DMA
-from misoclib.com.litepcie.frontend.bridge.wishbone import WishboneBridge
+from misoclib.com.litepcie.frontend.wishbone import LitePCIeWishboneBridge
 
 
 class _CRG(Module, AutoCSR):
@@ -74,7 +75,7 @@ class PCIeDMASoC(SoC, AutoCSR):
         self.submodules.pcie_endpoint = Endpoint(self.pcie_phy, with_reordering=True)
 
         # PCIe Wishbone bridge
-        self.add_cpu_or_bridge(WishboneBridge(self.pcie_endpoint, lambda a: 1))
+        self.add_cpu_or_bridge(LitePCIeWishboneBridge(self.pcie_endpoint, lambda a: 1))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
         # PCIe DMA
@@ -82,7 +83,7 @@ class PCIeDMASoC(SoC, AutoCSR):
         self.dma.source.connect(self.dma.sink)
 
         if with_uart_bridge:
-            self.submodules.uart_bridge = LiteScopeUART2Wishbone(platform.request("serial"), clk_freq, baudrate=115200)
+            self.submodules.uart_bridge = UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200)
             self.add_wb_master(self.uart_bridge.wishbone)
 
         # IRQs

@@ -2,7 +2,7 @@ import time
 import argparse
 import random as rand
 from collections import OrderedDict
-from misoclib.tools.litescope.software.driver.uart import LiteScopeUART2WishboneDriver
+from misoclib.com.uart.software.wishbone import UARTWishboneBridgeDriver
 
 KB = 1024
 MB = 1024*KB
@@ -149,7 +149,7 @@ SATA BIST utility.
 
 if __name__ == "__main__":
     args = _get_args()
-    wb = LiteScopeUART2WishboneDriver(args.port, args.baudrate, "./csr.csv", int(args.busword), debug=False)
+    wb = UARTWishboneBridgeDriver(args.port, args.baudrate, "./csr.csv", int(args.busword), debug=False)
     wb.open()
     # # #
     identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")

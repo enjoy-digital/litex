@@ -1,6 +1,6 @@
 from misoclib.com.liteusb.software.ftdi import FTDIComDevice
 
-class LiteScopeUSB2WishboneFTDIDriver:
+class LiteUSBWishboneDriverFTDI:
     cmds = {
         "write": 0x01,
         "read":  0x02
@@ -69,3 +69,10 @@ class LiteScopeUSB2WishboneFTDIDriver:
                 dat = dat << 8
             if self.debug:
                 print("WR {:08X} @ {:08X}".format(data[i], addr + 4*i))
+
+
+def LiteUSBWishboneDriver(chip="ft2232h", *args, **kwargs):
+    drivers = {
+        "ft2232h": LiteUSBWishboneDriverFTDI
+    }
+    return drivers[chip](*args, **kwargs)

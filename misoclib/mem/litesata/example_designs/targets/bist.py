@@ -6,9 +6,10 @@ from migen.bank.description import *
 from misoclib.soc import SoC
 
 from misoclib.tools.litescope.common import *
-from misoclib.tools.litescope.bridge.wishbone import LiteScopeUART2Wishbone
 from misoclib.tools.litescope.frontend.la import LiteScopeLA
 from misoclib.tools.litescope.core.port import LiteScopeTerm
+
+from misoclib.com.uart.frontend.wishbone import UARTWishboneBridge
 
 from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.phy import LiteSATAPHY
@@ -99,7 +100,7 @@ class BISTSoC(SoC, AutoCSR):
             with_identifier=True,
             with_timer=False
         )
-        self.add_cpu_or_bridge(LiteScopeUART2Wishbone(platform.request("serial"), clk_freq, baudrate=115200))
+        self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
         self.submodules.crg = _CRG(platform)
 

@@ -5,7 +5,7 @@ from migen.bus import wishbone
 from misoclib.com.litepcie.common import *
 
 
-class WishboneBridge(Module):
+class LitePCIeWishboneBridge(Module):
     def __init__(self, endpoint, address_decoder):
         self.wishbone = wishbone.Interface()
 
