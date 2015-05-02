@@ -5,8 +5,10 @@ from misoclib.com.liteeth.core.mac.frontend.wishbone import LiteEthMACWishboneIn
 
 
 class LiteEthMAC(Module, AutoCSR):
-    def __init__(self, phy, dw, interface="crossbar", endianness="big",
-            with_preamble_crc=True):
+    def __init__(self, phy, dw,
+                 interface="crossbar",
+                 endianness="big",
+                 with_preamble_crc=True):
         self.submodules.core = LiteEthMACCore(phy, dw, endianness, with_preamble_crc)
         self.csrs = []
         if interface == "crossbar":
@@ -24,10 +26,8 @@ class LiteEthMAC(Module, AutoCSR):
             self.comb += Port.connect(self.interface, self.core)
             self.ev, self.bus = self.interface.sram.ev, self.interface.bus
             self.csrs = self.interface.get_csrs() + self.core.get_csrs()
-        elif interface == "dma":
-            raise NotImplementedError
         else:
-            raise ValueError(interface + " not supported by LiteEthMac!")
+            raise NotImplementedError
 
     def get_csrs(self):
         return self.csrs
