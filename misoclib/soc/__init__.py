@@ -7,7 +7,7 @@ from migen.bus import wishbone, csr, wishbone2csr
 from misoclib.com.uart.phy import UARTPHY
 from misoclib.com import uart
 from misoclib.cpu import lm32, mor1kx
-from misoclib.cpu.peripherals import identifier, timer
+from misoclib.cpu import identifier, timer
 
 
 def mem_decoder(address, start=26, end=29):

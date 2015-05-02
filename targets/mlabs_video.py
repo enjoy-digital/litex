@@ -67,7 +67,7 @@ class BaseSoC(SDRAMSoC):
 INST "mxcrg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 """)
-        platform.add_source_dir(os.path.join("misoclib", "others", "mxcrg"))
+        platform.add_source_dir(os.path.join("misoclib", "others"))
 
 
 class MiniSoC(BaseSoC):

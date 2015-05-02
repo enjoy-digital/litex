@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
 
-from misoclib.cpu.peripherals.identifier import git
+from misoclib.cpu import git
 
 
 class Identifier(Module, AutoCSR):
