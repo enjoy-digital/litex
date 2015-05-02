@@ -179,10 +179,15 @@ class UART:
             self.q = queue.Queue()
 
         def get_packet_size(self, buf):
-            return 10
+            payload_size = buf[5] << 24
+            payload_size |= buf[6] << 16
+            payload_size |= buf[7] << 8
+            payload_size |= buf[8] << 0
+            return 9 + payload_size
 
         def consume(self, buf):
-            self.q.put(buf[9])
+            for value in buf[9:]:
+                self.q.put(value)
 
     def __init__(self, tag):
         self.tag = tag
