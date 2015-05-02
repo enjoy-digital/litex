@@ -39,7 +39,7 @@ class SoC(Module):
                 integrated_rom_size=0,
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0,
-                shadow_address=0x80000000,
+                shadow_base=0x80000000,
                 with_csr=True, csr_data_width=8, csr_address_width=14,
                 with_uart=True, uart_baudrate=115200,
                 with_identifier=True,
@@ -61,7 +61,7 @@ class SoC(Module):
 
         self.with_identifier = with_identifier
 
-        self.shadow_address = shadow_address
+        self.shadow_base = shadow_base
 
         self.with_csr = with_csr
         self.csr_data_width = csr_data_width
@@ -193,9 +193,9 @@ class SoC(Module):
                 data_width=self.csr_data_width, address_width=self.csr_address_width)
             self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
             for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
-                self.add_csr_region(name, self.mem_map["csr"]+self.shadow_address+0x800*mapaddr, self.csr_data_width, csrs)
+                self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
             for name, memory, mapaddr, mmap in self.csrbankarray.srams:
-                self.add_csr_region(name + "_" + memory.name_override, self.mem_map["csr"]+self.shadow_address+0x800*mapaddr, self.csr_data_width, memory)
+                self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
 
         # Interrupts
         if hasattr(self.cpu_or_bridge, "interrupt"):

@@ -62,7 +62,7 @@ class PCIeDMASoC(SoC, AutoCSR):
         clk_freq = 125*1000000
         SoC.__init__(self, platform, clk_freq,
             cpu_type="none",
-            shadow_address=0x00000000,
+            shadow_base=0x00000000,
             with_csr=True, csr_data_width=32,
             with_uart=False,
             with_identifier=True,
