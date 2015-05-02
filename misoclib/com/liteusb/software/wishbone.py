@@ -5,7 +5,7 @@ class LiteUSBWishboneDriverFTDI:
         "write": 0x01,
         "read":  0x02
     }
-    def __init__(self, interface, mode, tag, addrmap=None, debug=False):
+    def __init__(self, interface, mode, tag, addrmap=None, busword=8, debug=False):
         self.interface = interface
         self.mode = mode
         self.tag = tag

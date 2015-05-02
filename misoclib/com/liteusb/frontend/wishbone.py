@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 
 from misoclib.com.liteusb.common import *
-from misoclib.tools.litescope.bridge.wishbone import LiteScopeWishboneBridge
+from misoclib.tools.litescope.frontend.wishbone import LiteScopeWishboneBridge
 
 class LiteUSBWishboneBridge(LiteScopeWishboneBridge):
     def __init__(self, port, clk_freq):
