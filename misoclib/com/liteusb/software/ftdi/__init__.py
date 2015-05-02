@@ -195,8 +195,18 @@ class UART:
             return -1
         return resp
 
-    def do_write(self, value):
-        msg = [0x5A, 0xA5, 0x5A, 0xA5, self.tag, 0x00, 0x00, 0x00, 1, value&0xFF]
+    def do_write(self, data):
+        if isinstance(data, int):
+            data = [data]
+        msg = [0x5A, 0xA5, 0x5A, 0xA5]
+        msg.append(self.tag)
+        length = len(data)
+        msg.append((length >> 24) & 0xff)
+        msg.append((length >> 16) & 0xff)
+        msg.append((length >> 8) & 0xff)
+        msg.append((length >> 0) & 0xff)
+        for value in data:
+            msg.append(value&0xff)
         self.service.write(bytes(msg))
 
 
@@ -339,8 +349,8 @@ class FTDIComDevice:
     def uartread(self, timeout=None):
         return self.uart.do_read(timeout)
 
-    def uartwrite(self, value):
-        return self.uart.do_write(value)
+    def uartwrite(self, data):
+        return self.uart.do_write(data)
 
     def dmaread(self):
         return self.dma.do_read()

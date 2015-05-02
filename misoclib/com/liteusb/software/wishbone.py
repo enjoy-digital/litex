@@ -24,17 +24,18 @@ class LiteUSBWishboneDriverFTDI:
     def close(self):
         self.com.close()
 
-    # XXX regroup cmds in a single packet
     def read(self, addr, burst_length=1):
         datas = []
+        msg = []
         self.com.uartflush()
-        self.com.uartwrite(self.cmds["read"])
-        self.com.uartwrite(burst_length)
+        msg.append(self.cmds["read"])
+        msg.append(burst_length)
         word_addr = addr//4
-        self.com.uartwrite((word_addr >> 24) & 0xff)
-        self.com.uartwrite((word_addr >> 16) & 0xff)
-        self.com.uartwrite((word_addr >> 8) & 0xff)
-        self.com.uartwrite((word_addr >> 0) & 0xff)
+        msg.append((word_addr >> 24) & 0xff)
+        msg.append((word_addr >> 16) & 0xff)
+        msg.append((word_addr >> 8) & 0xff)
+        msg.append((word_addr >> 0) & 0xff)
+        self.com.uartwrite(msg)
         for i in range(burst_length):
             data = 0
             for k in range(4):
@@ -48,27 +49,28 @@ class LiteUSBWishboneDriverFTDI:
         else:
             return datas
 
-    # XXX regroup cmds in a single packet
     def write(self, addr, data):
         if isinstance(data, list):
             burst_length = len(data)
         else:
             burst_length = 1
             data = [data]
-        self.com.uartwrite(self.cmds["write"])
-        self.com.uartwrite(burst_length)
+        msg = []
+        msg.append(self.cmds["write"])
+        msg.append(burst_length)
         word_addr = addr//4
-        self.com.uartwrite((word_addr >> 24) & 0xff)
-        self.com.uartwrite((word_addr >> 16) & 0xff)
-        self.com.uartwrite((word_addr >> 8) & 0xff)
-        self.com.uartwrite((word_addr >> 0) & 0xff)
+        msg.append((word_addr >> 24) & 0xff)
+        msg.append((word_addr >> 16) & 0xff)
+        msg.append((word_addr >> 8) & 0xff)
+        msg.append((word_addr >> 0) & 0xff)
         for i in range(len(data)):
             dat = data[i]
             for j in range(4):
-                self.com.uartwrite((dat >> 24) & 0xff)
+                msg.append((dat >> 24) & 0xff)
                 dat = dat << 8
             if self.debug:
                 print("WR {:08X} @ {:08X}".format(data[i], addr + 4*i))
+        self.com.uartwrite(msg)
 
 
 def LiteUSBWishboneDriver(chip="ft2232h", *args, **kwargs):
