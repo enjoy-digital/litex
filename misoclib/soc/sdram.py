@@ -59,8 +59,8 @@ class SDRAMSoC(SoC):
 
             l2_size = self.sdram_controller_settings.l2_size
             if l2_size:
-                # XXX Vivado 2014.X workaround, Vivado is not able to map correctly our L2 cache.
-                # Issue is reported to Xilinx and should be fixed in next releases (2015.1?).
+                # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
+                # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
                 # Remove this workaround when fixed by Xilinx.
                 from mibuild.xilinx.vivado import XilinxVivadoToolchain
                 if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
