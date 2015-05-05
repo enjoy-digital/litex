@@ -21,23 +21,39 @@ class _RisingEdge(Module):
         self.comb += o.eq(i & ~i_d)
 
 
+class _LowPassFilter(Module):
+    def __init__(self, i, o, cycles):
+        i_d = Signal()
+        self.submodules.timeout = Timeout(cycles)
+        self.sync += [
+            i_d.eq(i),
+            If(self.timeout.reached,
+                o.eq(i_d)
+            )
+        ]
+        self.comb += [
+            self.timeout.reset.eq(i != i_d),
+            self.timeout.ce.eq(1)
+        ]
+
+
 class K7LiteSATAPHYTRX(Module):
     def __init__(self, pads, revision):
     # Common signals
 
         # control
-        self.tx_idle = Signal()            #i
+        self.tx_idle = Signal()         #i
 
         self.tx_cominit_stb = Signal()  #i
         self.tx_cominit_ack = Signal()  #o
         self.tx_comwake_stb = Signal()  #i
-        self.tx_comwake_ack = Signal()    #o
+        self.tx_comwake_ack = Signal()  #o
 
-        self.rx_idle = Signal()            #o
+        self.rx_idle = Signal()         #o
         self.rx_align = Signal()        #i
 
-        self.rx_cominit_stb = Signal()    #o
-        self.rx_comwake_stb = Signal()    #o
+        self.rx_cominit_stb = Signal()  #o
+        self.rx_comwake_stb = Signal()  #o
 
         # datapath
         self.sink = Sink(phy_description(16))
@@ -53,15 +69,12 @@ class K7LiteSATAPHYTRX(Module):
 
         # Receive Ports
         self.rxuserrdy = Signal()
-        self.rxalign = Signal()
 
         # Receive Ports - 8b10b Decoder
         self.rxcharisk = Signal(2)
-        self.rxdisperr = Signal(2)
 
         # Receive Ports - RX Data Path interface
         self.gtrxreset = Signal()
-        self.pmarxreset = Signal()
         self.rxdata = Signal(16)
         self.rxoutclk = Signal()
         self.rxusrclk = Signal()
@@ -72,6 +85,8 @@ class K7LiteSATAPHYTRX(Module):
 
         # Receive Ports - RX PLL Ports
         self.rxresetdone = Signal()
+        self.rxdlyreset = Signal()
+        self.rxdlyresetdone = Signal()
 
         # Receive Ports - RX Ports for SATA
         self.rxcominitdet = Signal()
@@ -92,6 +107,8 @@ class K7LiteSATAPHYTRX(Module):
 
         # Transmit Ports - TX PLL Ports
         self.txresetdone = Signal()
+        self.txdlyreset = Signal()
+        self.txdlyresetdone = Signal()
 
         # Transmit Ports - TX Ports for PCI Express
         self.txelecidle = Signal(reset=1)
@@ -100,8 +117,6 @@ class K7LiteSATAPHYTRX(Module):
         self.txcomfinish = Signal()
         self.txcominit = Signal()
         self.txcomwake = Signal()
-        self.txrate = Signal(3)
-        self.rxcdrlock = Signal()
 
     # Config at startup
         div_config = {
@@ -125,7 +140,6 @@ class K7LiteSATAPHYTRX(Module):
             self.tx_cominit_ack.eq(self.tx_cominit_stb & self.txcomfinish),
             self.tx_comwake_ack.eq(self.tx_comwake_stb & self.txcomfinish),
             self.rx_idle.eq(self.rxelecidle),
-            self.rxalign.eq(self.rx_align),
             self.rx_cominit_stb.eq(self.rxcominitdet),
             self.rx_comwake_stb.eq(self.rxcomwakedet),
         ]
@@ -150,16 +164,19 @@ class K7LiteSATAPHYTRX(Module):
         txelecidle = Signal(reset=1)
         txcominit = Signal()
         txcomwake = Signal()
-        txrate = Signal(3)
+        txdlyreset = Signal()
+        txdlyresetdone = Signal()
+        gttxreset = Signal()
 
         self.specials += [
             MultiReg(self.txuserrdy, txuserrdy, "sata_tx"),
             MultiReg(self.txelecidle, txelecidle, "sata_tx"),
-            MultiReg(self.txrate, txrate, "sata_tx")
+            MultiReg(self.gttxreset, gttxreset, "sata_tx"),
         ]
         self.submodules += [
             _PulseSynchronizer(self.txcominit, "sys", txcominit, "sata_tx"),
             _PulseSynchronizer(self.txcomwake, "sys", txcomwake, "sata_tx"),
+            _PulseSynchronizer(self.txdlyreset, "sys", txdlyreset, "sata_tx"),
         ]
 
         # sata_tx clk --> sys clk
@@ -168,6 +185,7 @@ class K7LiteSATAPHYTRX(Module):
 
         self.specials += [
             MultiReg(txresetdone, self.txresetdone, "sys"),
+            MultiReg(txdlyresetdone, self.txdlyresetdone, "sys"),
         ]
 
         self.submodules += [
@@ -176,43 +194,35 @@ class K7LiteSATAPHYTRX(Module):
 
         # sys clk --> sata_rx clk
         rxuserrdy = Signal()
+        rxdlyreset = Signal()
 
         self.specials += [
             MultiReg(self.rxuserrdy, rxuserrdy, "sata_rx"),
         ]
 
+        self.submodules += [
+            _PulseSynchronizer(self.rxdlyreset, "sys", rxdlyreset, "sata_rx"),
+        ]
+
         # sata_rx clk --> sys clk
         rxelecidle = Signal()
         rxelecidle_i = Signal()
-        rxelecidle_cnt_i = Signal(9)
         rxresetdone = Signal()
         rxcominitdet = Signal()
         rxcomwakedet = Signal()
         rxratedone = Signal()
-        rxcdrlock = Signal()
+        rxdlyresetdone = Signal()
 
         self.specials += [
             MultiReg(rxelecidle, rxelecidle_i, "sys"),
             MultiReg(rxresetdone, self.rxresetdone, "sys"),
             MultiReg(rxcominitdet, self.rxcominitdet, "sys"),
             MultiReg(rxcomwakedet, self.rxcomwakedet, "sys"),
-            MultiReg(rxcdrlock, self.rxcdrlock, "sys"),
+            MultiReg(rxdlyresetdone, self.rxdlyresetdone, "sys"),
         ]
 
-        self.sync += [
-            If(rxelecidle_i != self.rxelecidle,
-                If(rxelecidle_cnt_i == 0,
-                    self.rxelecidle.eq(rxelecidle_i),
-                    rxelecidle_cnt_i.eq(255)
-                ).Else(
-                    rxelecidle_cnt_i.eq(rxelecidle_cnt_i-1)
-                )
-            ).Else(
-                rxelecidle_cnt_i.eq(255)
-            )
-        ]
-
-        self.rxbyteisaligned = Signal()
+        rxelecidle_filter = _LowPassFilter(rxelecidle_i, self.rxelecidle, 256)
+        self.submodules += rxelecidle_filter
 
     # QPLL input clock
         self.qpllclk = Signal()
@@ -230,7 +240,7 @@ class K7LiteSATAPHYTRX(Module):
                 # RX Byte and Word Alignment Attributes
                     "p_ALIGN_COMMA_DOUBLE": "FALSE",
                     "p_ALIGN_COMMA_ENABLE": ones(10),
-                    "p_ALIGN_COMMA_WORD": 2,
+                    "p_ALIGN_COMMA_WORD": 1,
                     "p_ALIGN_MCOMMA_DET": "TRUE",
                     "p_ALIGN_MCOMMA_VALUE": 0b1010000011,
                     "p_ALIGN_PCOMMA_DET": "TRUE",
@@ -263,9 +273,9 @@ class K7LiteSATAPHYTRX(Module):
                     "p_CLK_CORRECT_USE": "FALSE",
                     "p_CLK_COR_SEQ_2_ENABLE": ones(4),
                     "p_CLK_COR_SEQ_2_1": 0b0100000000,
-                    "p_CLK_COR_SEQ_2_2": 0,
-                    "p_CLK_COR_SEQ_2_3": 0,
-                    "p_CLK_COR_SEQ_2_4": 0,
+                    "p_CLK_COR_SEQ_2_2": 0b0000000000,
+                    "p_CLK_COR_SEQ_2_3": 0b0000000000,
+                    "p_CLK_COR_SEQ_2_4": 0b0000000000,
 
                 # RX Channel Bonding Attributes
                     "p_CHAN_BOND_KEEP_ALIGN": "FALSE",
@@ -314,7 +324,7 @@ class K7LiteSATAPHYTRX(Module):
                     "p_RX_CM_TRIM": 0b010,
                     "p_RX_DEBUG_CFG": 0,
                     "p_RX_OS_CFG": 0b10000000,
-                    "p_TERM_RCAL_CFG": 0,
+                    "p_TERM_RCAL_CFG": 0b10000,
                     "p_TERM_RCAL_OVRD": 0,
                     "p_TST_RSV": 0,
                     "p_RX_CLK25_DIV": 6,
@@ -330,8 +340,8 @@ class K7LiteSATAPHYTRX(Module):
                 # RX Buffer Attributes
                     "p_RXBUF_ADDR_MODE": "FAST",
                     "p_RXBUF_EIDLE_HI_CNT": 0b1000,
-                    "p_RXBUF_EIDLE_LO_CNT": 0,
-                    "p_RXBUF_EN": "TRUE",
+                    "p_RXBUF_EIDLE_LO_CNT": 0b0000,
+                    "p_RXBUF_EN": "FALSE",
                     "p_RX_BUFFER_CFG": 0,
                     "p_RXBUF_RESET_ON_CB_CHANGE": "TRUE",
                     "p_RXBUF_RESET_ON_COMMAALIGN": "FALSE",
@@ -397,7 +407,7 @@ class K7LiteSATAPHYTRX(Module):
                     "p_TRANS_TIME_RATE": 0x0e,
 
                 # TX Buffer Attributes
-                    "p_TXBUF_EN": "TRUE",
+                    "p_TXBUF_EN": "FALSE",
                     "p_TXBUF_RESET_ON_RATE_CHANGE": "TRUE",
                     "p_TXDLY_CFG": 0x1f,
                     "p_TXDLY_LCFG": 0x030,
@@ -405,7 +415,7 @@ class K7LiteSATAPHYTRX(Module):
                     "p_TXPH_CFG": 0x0780,
                     "p_TXPHDLY_CFG": 0x084020,
                     "p_TXPH_MONITOR_SEL": 0,
-                    "p_TX_XCLK_SEL": "TXOUT",
+                    "p_TX_XCLK_SEL": "TXUSR",
 
                 # FPGA TX Interface Attributes
                     "p_TX_DATA_WIDTH": 20,
@@ -569,7 +579,7 @@ class K7LiteSATAPHYTRX(Module):
                 # Receive Ports - CDR Ports
                     i_RXCDRFREQRESET=0,
                     i_RXCDRHOLD=0,
-                    o_RXCDRLOCK=rxcdrlock,
+                    #o_RXCDRLOCK=,
                     i_RXCDROVRDEN=0,
                     i_RXCDRRESET=0,
                     i_RXCDRRESETRSV=0,
@@ -595,7 +605,7 @@ class K7LiteSATAPHYTRX(Module):
                     i_RXPRBSCNTRESET=0,
 
                 # Receive Ports - RX  Equalizer Ports
-                    i_RXDFEXYDEN=0,
+                    i_RXDFEXYDEN=1,
                     i_RXDFEXYDHOLD=0,
                     i_RXDFEXYDOVRDEN=0,
 
@@ -610,12 +620,12 @@ class K7LiteSATAPHYTRX(Module):
                 # Receive Ports - RX Buffer Bypass Ports
                     i_RXBUFRESET=0,
                     #o_RXBUFSTATUS=,
-                    i_RXDDIEN=0,
-                    i_RXDLYBYPASS=1,
+                    i_RXDDIEN=1,
+                    i_RXDLYBYPASS=0,
                     i_RXDLYEN=0,
                     i_RXDLYOVRDEN=0,
-                    i_RXDLYSRESET=0,
-                    #o_RXDLYSRESETDONE=0,
+                    i_RXDLYSRESET=rxdlyreset,
+                    o_RXDLYSRESETDONE=rxdlyresetdone,
                     i_RXPHALIGN=0,
                     #o_RXPHALIGNDONE=,
                     i_RXPHALIGNEN=0,
@@ -627,7 +637,7 @@ class K7LiteSATAPHYTRX(Module):
                     #o_RXSTATUS=,
 
                 # Receive Ports - RX Byte and Word Alignment Ports
-                    o_RXBYTEISALIGNED=self.rxbyteisaligned,
+                    #o_RXBYTEISALIGNED=,
                     #o_RXBYTEREALIGN=,
                     #o_RXCOMMADET=,
                     i_RXCOMMADETEN=1,
@@ -651,7 +661,7 @@ class K7LiteSATAPHYTRX(Module):
                     i_RXDFEAGCOVRDEN=0,
                     i_RXDFECM1EN=0,
                     i_RXDFELFHOLD=0,
-                    i_RXDFELFOVRDEN=1,
+                    i_RXDFELFOVRDEN=0,
                     i_RXDFELPMRESET=0,
                     i_RXDFETAP2HOLD=0,
                     i_RXDFETAP2OVRDEN=0,
@@ -699,7 +709,7 @@ class K7LiteSATAPHYTRX(Module):
                     i_GTRXRESET=self.gtrxreset,
                     i_RXOOBRESET=0,
                     i_RXPCSRESET=0,
-                    i_RXPMARESET=self.pmarxreset,
+                    i_RXPMARESET=0,
 
                 # Receive Ports - RX Margin Analysis ports
                     i_RXLPMEN=0,
@@ -750,7 +760,7 @@ class K7LiteSATAPHYTRX(Module):
 
                 # TX Initialization and Reset Ports
                     i_CFGRESET=0,
-                    i_GTTXRESET=self.gttxreset,
+                    i_GTTXRESET=gttxreset,
                     #o_PCSRSVDOUT=,
                     i_TXUSERRDY=txuserrdy,
 
@@ -769,19 +779,19 @@ class K7LiteSATAPHYTRX(Module):
                 # Transmit Ports - PCI Express Ports
                     i_TXELECIDLE=txelecidle,
                     i_TXMARGIN=0,
-                    i_TXRATE=txrate,
+                    i_TXRATE=0,
                     i_TXSWING=0,
 
                 # Transmit Ports - Pattern Generator Ports
                     i_TXPRBSFORCEERR=0,
 
                 # Transmit Ports - TX Buffer Bypass Ports
-                    i_TXDLYBYPASS=1,
+                    i_TXDLYBYPASS=0,
                     i_TXDLYEN=0,
                     i_TXDLYHOLD=0,
                     i_TXDLYOVRDEN=0,
-                    i_TXDLYSRESET=0,
-                    #o_TXDLYSRESETDONE=,
+                    i_TXDLYSRESET=txdlyreset,
+                    o_TXDLYSRESETDONE=txdlyresetdone,
                     i_TXDLYUPDOWN=0,
                     i_TXPHALIGN=0,
                     #o_TXPHALIGNDONE=txphaligndone,
@@ -815,7 +825,7 @@ class K7LiteSATAPHYTRX(Module):
                     o_TXOUTCLK=self.txoutclk,
                     #o_TXOUTCLKFABRIC=,
                     #o_TXOUTCLKPCS=,
-                    i_TXOUTCLKSEL=0b11,  # ??
+                    i_TXOUTCLKSEL=0b11,
                     #o_TXRATEDONE=,
                 # Transmit Ports - TX Gearbox Ports
                     i_TXCHARISK=self.txcharisk,

@@ -19,7 +19,6 @@ from misoclib.mem.litesata import LiteSATA
 class _CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
-        self.reset = Signal()
 
         clk200 = platform.request("clk200")
         clk200_se = Signal()
@@ -49,7 +48,7 @@ class _CRG(Module):
                 p_CLKOUT4_DIVIDE=2, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
             ),
             Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset") | self.reset),
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | platform.request("cpu_reset")),
         ]
 
 
@@ -106,7 +105,6 @@ class BISTSoC(SoC, AutoCSR):
 
         # SATA PHY/Core/Frontend
         self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "sata_gen2", clk_freq)
-        self.comb += self.crg.reset.eq(self.sata_phy.ctrl.need_reset)  # XXX FIXME
         self.submodules.sata = LiteSATA(self.sata_phy, with_bist=True, with_bist_csr=True)
 
         # Status Leds

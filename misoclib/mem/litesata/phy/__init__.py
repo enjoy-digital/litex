@@ -7,6 +7,7 @@ class LiteSATAPHY(Module):
     def __init__(self, device, pads, revision, clk_freq):
         self.pads = pads
         self.revision = revision
+
         # Transceiver / Clocks
         if device[:3] == "xc7": # Kintex 7
             from misoclib.mem.litesata.phy.k7.trx import K7LiteSATAPHYTRX
@@ -14,8 +15,7 @@ class LiteSATAPHY(Module):
             self.submodules.trx = K7LiteSATAPHYTRX(pads, revision)
             self.submodules.crg = K7LiteSATAPHYCRG(pads, self.trx, revision, clk_freq)
         else:
-            msg = "Device" + device + "not (yet) supported."
-            raise NotImplementedError(msg)
+            raise NotImplementedError
 
         # Control
         self.submodules.ctrl = LiteSATAPHYCtrl(self.trx, self.crg, clk_freq)

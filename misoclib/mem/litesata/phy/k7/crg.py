@@ -3,15 +3,17 @@ from misoclib.mem.litesata.common import *
 
 class K7LiteSATAPHYCRG(Module):
     def __init__(self, pads, gtx, revision, clk_freq):
-        self.reset = Signal()
+        self.tx_reset = Signal()
+        self.rx_reset = Signal()
         self.ready = Signal()
 
         self.clock_domains.cd_sata_tx = ClockDomain()
         self.clock_domains.cd_sata_rx = ClockDomain()
 
-    # CPLL
-        # (sata_gen3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
-        # (sata_gen2 & sata_gen1) VCO still @ 3 GHz, Line rate is decreased with output dividers.
+        # CPLL
+        #   (sata_gen3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
+        #   (sata_gen2 & sata_gen1) VCO still @ 3 GHz, Line rate is
+        #   decreased with output dividers.
         refclk = Signal()
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=0,
@@ -21,19 +23,19 @@ class K7LiteSATAPHYCRG(Module):
         )
         self.comb += gtx.gtrefclk0.eq(refclk)
 
-    # TX clocking
-        # (sata_gen3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
-        # (sata_gen2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits)
-        # (sata_gen1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits)
+        # TX clocking
+        #   (sata_gen3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)
+        #   (sata_gen2) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 150MHz (16-bits)
+        #   (sata_gen1) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 75MHz (16-bits)
         mmcm_reset = Signal()
         mmcm_locked = Signal()
         mmcm_fb = Signal()
         mmcm_clk_i = Signal()
         mmcm_clk0_o = Signal()
         mmcm_div_config = {
-            "sata_gen1":     16.0,
+            "sata_gen1":   16.0,
             "sata_gen2":    8.0,
-            "sata_gen3":     4.0
+            "sata_gen3":    4.0
             }
         mmcm_div = mmcm_div_config[revision]
         self.specials += [
@@ -60,10 +62,10 @@ class K7LiteSATAPHYCRG(Module):
             gtx.txusrclk2.eq(self.cd_sata_tx.clk)
         ]
 
-    # RX clocking
-        # (sata_gen3) sata_rx recovered clk @ 300MHz from GTX RXOUTCLK
-        # (sata_gen2) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
-        # (sata_gen1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
+        # RX clocking
+        #   (sata_gen3) sata_rx recovered clk @ 300MHz from GTX RXOUTCLK
+        #   (sata_gen2) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
+        #   (sata_gen1) sata_rx recovered clk @ 150MHz from GTX RXOUTCLK
         self.specials += [
             Instance("BUFG", i_I=gtx.rxoutclk, o_O=self.cd_sata_rx.clk),
         ]
@@ -72,85 +74,154 @@ class K7LiteSATAPHYCRG(Module):
             gtx.rxusrclk2.eq(self.cd_sata_rx.clk)
         ]
 
-    # Configuration Reset
-        # After configuration, GTX's resets have to stay low for at least 500ns
-        # See AR43482
-        reset_en = Signal()
-        clk_period_ns = 1000000000/clk_freq
-        reset_en_cnt_max = math.ceil(500/clk_period_ns)
-        reset_en_cnt = Signal(max=reset_en_cnt_max, reset=reset_en_cnt_max-1)
-        self.sync += \
-            If(self.reset,
-                reset_en_cnt.eq(reset_en_cnt.reset)
-            ).Elif(~reset_en,
-                reset_en_cnt.eq(reset_en_cnt-1)
-            )
-        self.comb += reset_en.eq(reset_en_cnt == 0)
+        # Configuration Reset
+        #   After configuration, GTX's resets have to stay low for at least 500ns
+        #   See AR43482
+        startup_cycles = math.ceil(500*clk_freq/1000000000)
+        startup_wait = Timeout(startup_cycles)
+        self.submodules += startup_wait
+        self.comb += [
+            startup_wait.reset.eq(self.tx_reset | self.rx_reset),
+            startup_wait.ce.eq(1)
+        ]
 
-    # TX Reset FSM
-        tx_reset_fsm = InsertReset(FSM(reset_state="IDLE"))
-        self.submodules += tx_reset_fsm
-        self.comb += tx_reset_fsm.reset.eq(self.reset)
-        tx_reset_fsm.act("IDLE",
-            If(reset_en,
-                NextState("RESET_GTX"),
+        # TX Startup FSM
+        self.tx_ready = Signal()
+        tx_startup_fsm = InsertReset(FSM(reset_state="IDLE"))
+        self.submodules += tx_startup_fsm
+        # Wait 500ns of AR43482
+        tx_startup_fsm.act("IDLE",
+            If(startup_wait.reached,
+                NextState("RESET_ALL"),
             )
         )
-        tx_reset_fsm.act("RESET_GTX",
+        # Reset CPLL, MMCM, GTX
+        tx_startup_fsm.act("RESET_ALL",
+            gtx.cpllreset.eq(1),
+            mmcm_reset.eq(1),
             gtx.gttxreset.eq(1),
-            If(gtx.cplllock & mmcm_locked,
+            NextState("RELEASE_CPLL"),
+        )
+        # Release CPLL reset and wait for lock
+        tx_startup_fsm.act("RELEASE_CPLL",
+            mmcm_reset.eq(1),
+            gtx.gttxreset.eq(1),
+            If(gtx.cplllock,
+                NextState("RELEASE_MMCM"),
+            )
+        )
+        # Release MMCM reset and wait for lock
+        tx_startup_fsm.act("RELEASE_MMCM",
+            gtx.gttxreset.eq(1),
+            If(mmcm_locked,
                 NextState("RELEASE_GTX")
             )
         )
-        tx_reset_fsm.act("RELEASE_GTX",
+        # Release GTX reset and wait for GTX resetdone
+        # (from UG476, GTX is reseted on falling edge
+        # of gttxreset)
+        tx_startup_fsm.act("RELEASE_GTX",
             gtx.txuserrdy.eq(1),
             If(gtx.txresetdone,
                 NextState("READY")
             )
         )
-        tx_reset_fsm.act("READY",
-            gtx.txuserrdy.eq(1)
+        # Start Delay alignment (Pulse)
+        tx_startup_fsm.act("ALIGN",
+            gtx.txuserrdy.eq(1),
+            gtx.txdlyreset.eq(1),
+            NextState("WAIT_ALIGN")
         )
-
-    # RX Reset FSM
-        rx_reset_fsm = InsertReset(FSM(reset_state="IDLE"))
-        self.submodules += rx_reset_fsm
-        self.comb += rx_reset_fsm.reset.eq(self.reset)
-
-        rx_reset_fsm.act("IDLE",
-            If(reset_en,
-                NextState("RESET_GTX"),
-            )
-        )
-        rx_reset_fsm.act("RESET_GTX",
-            gtx.gtrxreset.eq(1),
-            If(gtx.cplllock & mmcm_locked,
-                NextState("RELEASE_GTX")
-            )
-        )
-        rx_reset_fsm.act("RELEASE_GTX",
-            gtx.rxuserrdy.eq(1),
-            If(gtx.rxresetdone,
+        # Wait Delay alignment
+        tx_startup_fsm.act("WAIT_ALIGN",
+            gtx.txuserrdy.eq(1),
+            If(gtx.txdlyresetdone,
                 NextState("READY")
             )
         )
-        rx_reset_fsm.act("READY",
-            gtx.rxuserrdy.eq(1)
+        tx_startup_fsm.act("READY",
+            gtx.txuserrdy.eq(1),
+            self.tx_ready.eq(1)
         )
 
-    # Ready
-        self.tx_ready = tx_reset_fsm.ongoing("READY")
-        self.rx_ready = rx_reset_fsm.ongoing("READY")
+        tx_ready_timeout = Timeout(1*clk_freq//1000)
+        self.submodules += tx_ready_timeout
+        self.comb += [
+            tx_ready_timeout.reset.eq(self.tx_reset | self.tx_ready),
+            tx_ready_timeout.ce.eq(~self.tx_ready),
+            tx_startup_fsm.reset.eq(self.tx_reset | tx_ready_timeout.reached),
+        ]
+
+
+        # RX Startup FSM
+        self.rx_ready = Signal()
+        rx_startup_fsm = InsertReset(FSM(reset_state="IDLE"))
+        self.submodules += rx_startup_fsm
+
+        cdr_stable = Timeout(2048)
+        self.submodules += cdr_stable
+        self.comb += cdr_stable.ce.eq(1),
+
+        # Wait 500ns of AR43482
+        rx_startup_fsm.act("IDLE",
+            cdr_stable.reset.eq(1),
+            If(startup_wait.reached,
+                NextState("RESET_GTX"),
+            )
+        )
+        # Reset GTX
+        rx_startup_fsm.act("RESET_GTX",
+            gtx.gtrxreset.eq(1),
+            NextState("WAIT_CPLL")
+        )
+        # Wait for CPLL lock
+        rx_startup_fsm.act("WAIT_CPLL",
+            gtx.gtrxreset.eq(1),
+            If(gtx.cplllock,
+                NextState("RELEASE_GTX"),
+                cdr_stable.reset.eq(1)
+            )
+        )
+        # Release GTX reset and wait for GTX resetdone
+        # (from UG476, GTX is reseted on falling edge
+        # of gttxreset)
+        rx_startup_fsm.act("RELEASE_GTX",
+            gtx.rxuserrdy.eq(1),
+            If(gtx.rxresetdone &  cdr_stable.reached,
+                NextState("ALIGN")
+            )
+        )
+        # Start Delay alignment (Pulse)
+        rx_startup_fsm.act("ALIGN",
+            gtx.rxuserrdy.eq(1),
+            gtx.rxdlyreset.eq(1),
+            NextState("WAIT_ALIGN")
+        )
+        # Wait Delay alignment
+        rx_startup_fsm.act("WAIT_ALIGN",
+            gtx.rxuserrdy.eq(1),
+            If(gtx.rxdlyresetdone,
+                NextState("READY")
+            )
+        )
+        rx_startup_fsm.act("READY",
+            gtx.rxuserrdy.eq(1),
+            self.rx_ready.eq(1)
+        )
+
+        rx_ready_timeout = Timeout(1*clk_freq//1000)
+        self.submodules += rx_ready_timeout
+        self.comb += [
+            rx_ready_timeout.reset.eq(self.rx_reset | self.rx_ready),
+            rx_ready_timeout.ce.eq(~self.rx_ready),
+            rx_startup_fsm.reset.eq(self.rx_reset | rx_ready_timeout.reached),
+        ]
+
+        # Ready
         self.comb += self.ready.eq(self.tx_ready & self.rx_ready)
 
-    # Reset PLL
-        self.comb += gtx.cpllreset.eq(ResetSignal() | self.reset | ~reset_en)
-
-    # Reset MMCM
-        self.comb += mmcm_reset.eq(ResetSignal() | self.reset | ~gtx.cplllock)
-
-    # Reset for SATA TX/RX clock domains
+        # Reset for SATA TX/RX clock domains
         self.specials += [
-            AsyncResetSynchronizer(self.cd_sata_tx, ~self.tx_ready),
-            AsyncResetSynchronizer(self.cd_sata_rx, ~self.rx_ready),
+            AsyncResetSynchronizer(self.cd_sata_tx, ~(gtx.cplllock & mmcm_locked) | self.tx_reset),
+            AsyncResetSynchronizer(self.cd_sata_rx, ~gtx.cplllock | self.rx_reset),
         ]

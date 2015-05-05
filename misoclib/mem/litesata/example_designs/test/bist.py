@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
                 print("sector={:d}({:d}MB) wr_speed={:4.2f}MB/s rd_speed={:4.2f}MB/s errors={:d} retry={:d}".format(
                     sector,
-                    run_sectors*logical_sector_size/MB,
+                    int(run_sectors*logical_sector_size/MB),
                     write_speed/MB,
                     read_speed/MB,
                     write_errors + read_errors,
