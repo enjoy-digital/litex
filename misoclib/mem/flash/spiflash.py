@@ -85,7 +85,7 @@ class SpiFlash(Module, AutoCSR):
                     dq.oe.eq(1)
                 ),
                 If(self.bitbang.storage[1],
-                    self.miso.status.eq(dq.i[-1])
+                    self.miso.status.eq(dq.i[1])
                 )
             ]
 
