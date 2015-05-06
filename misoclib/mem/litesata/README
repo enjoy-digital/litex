@@ -91,34 +91,38 @@ devel [AT] lists.m-labs.hk.
   python3 setup.py install
   cd ..
 
-3. Obtain MiSoC:
+3. Obtain MiSoC and install it:
   git clone https://github.com/m-labs/misoc --recursive
+  cd misoc
+  python3 setup.pu install
+  cd ..
 
 5. Build and load BIST design (only for KC705 for now):
-  go to misoclib/mem/litesata/example_designs/
-  run ./make.py all load-bitstream
+  go to ./example_designs/
+  run ./make.py all
 
 6. Test design (only for KC705 for now):
-  go to [..]/example_designs/test/
-  run ./bist.py --port your_serial_port
+  go to ./example_designs/test/
+  run ./bist.py --port <your_serial_port>
 
 7. If you only want to build the core and use it with your
    regular design flow:
-     go to misoclib/mem/litesata/example_designs/
+     go to ./litesata/example_designs/
      run ./make.py -t core build-core
-   You can customize the core in [..]/example_design/targets/core.py
+   You can customize the core in ./example_designs/targets/core.py
 
 [> Simulations:
-  Simulations are available in ./lib/sata/test:
+  Simulations are available in ./test:
     - crc_tb
     - scrambler_tb
     - phy_datapath_tb
     - link_tb
     - command_tb
     - bist_tb
-  hdd.py is a simplified HDD model implementing all SATA layers.
-  To run a simulation, move to ./lib/sata/test and run:
-    make simulation_name
+  Models for all the layers of SATA and a simplified HDD model are
+  provided.
+  To run a simulation, go to ./test and run:
+    make <simulation_name>
 
 [> Tests :
   A synthetizable BIST is provided and can be controlled with ./test/bist.py

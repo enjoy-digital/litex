@@ -15,6 +15,6 @@ Simulations are available in ./lib/sata/test:
   - command_tb
   - bist_tb
 
-hdd.py is a simplified HDD model implementing all SATA layers.
-To run a simulation, move to ./lib/sata/test and run:
-  - make simulation_name
+Models for all the layers of SATA and a simplified HDD model are provided.
+To run a simulation, go to ./test and run:
+  - make <simulation_name>
