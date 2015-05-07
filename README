@@ -45,6 +45,9 @@ modules.
 
 [> Quick start guide
 --------------------
+0. If cloned from Git without the --recursive option, get the submodules:
+  git submodule update --init
+
 1. Install Python 3.3+, Migen and FPGA vendor's development tools.
   Get Migen from: https://github.com/m-labs/migen
 
