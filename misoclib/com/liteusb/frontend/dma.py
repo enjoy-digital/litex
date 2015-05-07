@@ -78,7 +78,7 @@ class LiteUSBDMAReader(Module, AutoCSR):
             source.stb.eq(unpack.source.stb),
             source.sop.eq(cnt == 0),
             source.eop.eq(cnt == (self.dma.length*pack_factor-1)),
-            source.length.eq(self.dma.length*pack_factor+4),
+            source.length.eq(self.dma.length*pack_factor),
             source.data.eq(unpack.source.data),
             source.dst.eq(tag),
             unpack.source.ack.eq(source.ack)
