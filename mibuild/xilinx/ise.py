@@ -54,7 +54,6 @@ def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
 
     xst_contents = """run
 -ifn {build_name}.prj
--use_new_parser yes
 -top top
 {xst_opt}
 -ofn {build_name}.ngc
@@ -133,6 +132,7 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit
 class XilinxISEToolchain:
     def __init__(self):
         self.xst_opt = """-ifmt MIXED
+-use_new_parser yes
 -opt_mode SPEED
 -register_balancing yes"""
         self.map_opt = "-ol high -w"
