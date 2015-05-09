@@ -3,11 +3,13 @@
 
 import socket
 import os
+import sys
+import struct
+
 
 #
 # Message classes
 #
-
 
 class Int32(int):
     pass
@@ -55,10 +57,10 @@ class MessageReadReply(Message):
 
 message_classes = [MessageTick, MessageGo, MessageWrite, MessageRead, MessageReadReply]
 
+
 #
 # Packing
 #
-
 
 def _pack_int(v):
     if v == 0:
@@ -76,6 +78,11 @@ def _pack_str(v):
     p = [ord(c) for c in v]
     p.append(0)
     return p
+
+
+def _pack_int16(v):
+    return [v & 0xff,
+            (v & 0xff00) >> 8]
 
 
 def _pack_int32(v):
@@ -100,12 +107,15 @@ def _pack(message):
             r += _pack_int32(value)
         else:
             raise TypeError
+    if sys.platform == "win32":
+        size = _pack_int16(len(r) + 2)  # size specifier adds to size
+        r = size + r
     return bytes(r)
+
 
 #
 # Unpacking
 #
-
 
 def _unpack_int(i, nchunks=None):
     v = 0
@@ -144,10 +154,10 @@ def _unpack(message):
         pvalues.append(v)
     return msgclass(*pvalues)
 
+
 #
 # I/O
 #
-
 
 class PacketTooLarge(Exception):
     pass
@@ -156,8 +166,11 @@ class PacketTooLarge(Exception):
 class Initiator:
     def __init__(self, sockaddr):
         self.sockaddr = sockaddr
-        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-        self._cleanup_file()
+        if sys.platform == "win32":
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            self._cleanup_file()
         self.socket.bind(self.sockaddr)
         self.socket.listen(1)
 
@@ -175,11 +188,31 @@ class Initiator:
 
     def recv(self):
         maxlen = 2048
-        packet = self.conn.recv(maxlen)
-        if len(packet) < 1:
-            return None
-        if len(packet) >= maxlen:
-            raise PacketTooLarge
+        if sys.platform == "win32":
+            packet = self.conn.recv(maxlen)
+            if len(packet) < 1:
+                return None
+            if len(packet) >= maxlen:
+                raise PacketTooLarge
+            expected_size = struct.unpack("<H", packet[:2])[0]
+
+            # If full packet wasn't received, keep waiting!
+            if len(packet) < expected_size:
+                packet_frag = self.conn.recv(maxlen)
+                packet += packet_frag
+                if len(packet_frag) < 1:
+                    return None
+                if len(packet) >= maxlen:
+                    raise PacketTooLarge
+
+            # Discard the length from the packet - it's not needed anymore.
+            packet = packet[2:]
+        else:
+            packet = self.conn.recv(maxlen)
+            if len(packet) < 1:
+                return None
+            if len(packet) >= maxlen:
+                raise PacketTooLarge
         return _unpack(packet)
 
     def close(self):
@@ -187,6 +220,17 @@ class Initiator:
             self.conn.shutdown(socket.SHUT_RDWR)
             self.conn.close()
         if hasattr(self, "socket"):
-            self.socket.shutdown(socket.SHUT_RDWR)
-            self.socket.close()
-        self._cleanup_file()
+            if sys.platform == "win32":
+                # self.socket.shutdown(socket.SHUT_RDWR)
+                # Fails with WinError 10057:
+                # A request to send or receive data was disallowed because the
+                # socket is not connected and (when sending on a datagram
+                # socket using a sendto call) no address was supplied
+                # This error will cascade into WinError 10038, where
+                # Simulator.__exit__ didn't finish cleaning up and left an
+                # invalid socket.
+                self.socket.close()
+            else:
+                self.socket.shutdown(socket.SHUT_RDWR)
+                self.socket.close()
+                self._cleanup_file()
