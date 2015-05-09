@@ -1,12 +1,12 @@
-from misoclib.tools.litescope.common import *
+from migen.fhdl.std import *
 from migen.bus import wishbone
-from migen.genlib.misc import chooser
+from migen.genlib.misc import chooser, Counter, Timeout
 from migen.genlib.record import Record
+from migen.genlib.fsm import FSM, NextState
 from migen.flow.actor import Sink, Source
 
-from misoclib.com.uart.phy.serial import UARTPHYSerial
 
-class LiteScopeWishboneBridge(Module):
+class WishboneStreamingBridge(Module):
     cmds = {
         "write": 0x01,
         "read": 0x02

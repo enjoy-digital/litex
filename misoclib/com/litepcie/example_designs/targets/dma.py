@@ -7,7 +7,7 @@ from migen.genlib.misc import timeline
 from misoclib.soc import SoC
 from misoclib.tools.litescope.common import *
 
-from misoclib.com.uart.frontend.wishbone import UARTWishboneBridge
+from misoclib.com.uart.wishbone import UARTWishboneBridge
 
 from misoclib.com.litepcie.phy.s7pciephy import S7PCIEPHY
 from misoclib.com.litepcie.core import Endpoint
