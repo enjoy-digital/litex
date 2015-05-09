@@ -7,7 +7,7 @@ from misoclib.tools.litescope.core.port import LiteScopeTerm
 from misoclib.tools.litescope.frontend.io import LiteScopeIO
 from misoclib.tools.litescope.frontend.la import LiteScopeLA
 
-from misoclib.com.uart.wishbone import UARTWishboneBridge
+from misoclib.com.uart.bridge import UARTWishboneBridge
 
 class LiteScopeSoC(SoC, AutoCSR):
     csr_map = {

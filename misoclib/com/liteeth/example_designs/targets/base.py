@@ -7,7 +7,7 @@ from misoclib.tools.litescope.common import *
 from misoclib.tools.litescope.frontend.la import LiteScopeLA
 from misoclib.tools.litescope.core.port import LiteScopeTerm
 
-from misoclib.com.uart.wishbone import UARTWishboneBridge
+from misoclib.com.uart.bridge import UARTWishboneBridge
 
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
