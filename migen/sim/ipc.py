@@ -6,6 +6,8 @@ import os
 import sys
 import struct
 
+if sys.platform == "win32":
+    header_len = 2
 
 #
 # Message classes
@@ -108,7 +110,7 @@ def _pack(message):
         else:
             raise TypeError
     if sys.platform == "win32":
-        size = _pack_int16(len(r) + 2)  # size specifier adds to size
+        size = _pack_int16(len(r) + header_len)
         r = size + r
     return bytes(r)
 
@@ -174,6 +176,8 @@ class Initiator:
         self.socket.bind(self.sockaddr)
         self.socket.listen(1)
 
+        self.ipc_rxbuffer = bytearray()
+
     def _cleanup_file(self):
         try:
             os.remove(self.sockaddr)
@@ -189,30 +193,22 @@ class Initiator:
     def recv(self):
         maxlen = 2048
         if sys.platform == "win32":
-            packet = self.conn.recv(maxlen)
-            if len(packet) < 1:
-                return None
-            if len(packet) >= maxlen:
-                raise PacketTooLarge
-            expected_size = struct.unpack("<H", packet[:2])[0]
-
-            # If full packet wasn't received, keep waiting!
-            if len(packet) < expected_size:
-                packet_frag = self.conn.recv(maxlen)
-                packet += packet_frag
-                if len(packet_frag) < 1:
-                    return None
-                if len(packet) >= maxlen:
-                    raise PacketTooLarge
-
-            # Discard the length from the packet - it's not needed anymore.
-            packet = packet[2:]
+            def recv_packet():
+                while len(self.ipc_rxbuffer) < header_len:
+                    self.ipc_rxbuffer += self.conn.recv(maxlen)
+                packet_len = struct.unpack("<H", self.ipc_rxbuffer[:header_len])[0]
+                while len(self.ipc_rxbuffer) < packet_len:
+                    self.ipc_rxbuffer += self.conn.recv(maxlen)
+                packet = self.ipc_rxbuffer[header_len:packet_len]
+                self.ipc_rxbuffer = self.ipc_rxbuffer[packet_len:]
+                return packet
+            packet = recv_packet()
         else:
             packet = self.conn.recv(maxlen)
-            if len(packet) < 1:
-                return None
-            if len(packet) >= maxlen:
-                raise PacketTooLarge
+        if len(packet) < 1:
+            return None
+        if len(packet) >= maxlen:
+            raise PacketTooLarge
         return _unpack(packet)
 
     def close(self):
@@ -221,14 +217,9 @@ class Initiator:
             self.conn.close()
         if hasattr(self, "socket"):
             if sys.platform == "win32":
-                # self.socket.shutdown(socket.SHUT_RDWR)
-                # Fails with WinError 10057:
-                # A request to send or receive data was disallowed because the
-                # socket is not connected and (when sending on a datagram
-                # socket using a sendto call) no address was supplied
-                # This error will cascade into WinError 10038, where
-                # Simulator.__exit__ didn't finish cleaning up and left an
-                # invalid socket.
+                # don't shutdown our socket since closing connection
+                # seems to already have done it. (trigger an error
+                # otherwise)
                 self.socket.close()
             else:
                 self.socket.shutdown(socket.SHUT_RDWR)

@@ -3,6 +3,10 @@
  * License: GPLv3 with additional permissions (see README).
  */
 
+#ifdef _WIN32
+#define WINVER 0x501
+#endif
+
 #include <assert.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -13,7 +17,6 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#define WIN_SOCKET_PORT "50007"
 #else
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -30,6 +33,16 @@ struct ipc_softc {
 	void *user;
 };
 
+#define MAX_LEN 2048
+
+#ifdef _WIN32
+#define WIN32_HEADER_LEN 2
+#define WIN32_SOCKET_PORT "50007"
+
+unsigned char ipc_rxbuffer[2*MAX_LEN];
+int ipc_rxlen;
+#endif
+
 struct ipc_softc *ipc_connect(const char *sockaddr,
 	go_handler h_go, write_handler h_write, read_handler h_read, void *user)
 {
@@ -37,6 +50,7 @@ struct ipc_softc *ipc_connect(const char *sockaddr,
 #ifdef _WIN32
 	struct addrinfo hints, *my_addrinfo;
 	WSADATA wsaData;
+	ipc_rxlen = 0;
 #else
 	struct sockaddr_un addr;
 #endif
@@ -61,7 +75,7 @@ struct ipc_softc *ipc_connect(const char *sockaddr,
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	if(getaddrinfo(sockaddr, WIN_SOCKET_PORT, NULL, &my_addrinfo) != 0) {
+	if(getaddrinfo(sockaddr, WIN32_SOCKET_PORT, NULL, &my_addrinfo) != 0) {
 		free(sc);
 		return NULL;
 	}
@@ -113,7 +127,37 @@ enum {
 	MESSAGE_READ_REPLY
 };
 
-#define MAX_LEN 2048
+static int ipc_receive_packet(struct ipc_softc *sc, unsigned char *buffer) {
+#ifdef _WIN32
+	int len;
+	int packet_len;
+	/* ensure we have packet header */
+	while (ipc_rxlen < WIN32_HEADER_LEN) {
+		len = recv(sc->socket, (char *)&ipc_rxbuffer[ipc_rxlen], MAX_LEN, 0);
+		if (len)
+			ipc_rxlen += len;
+	}
+
+	/* compute packet length and ensure we have the payload */
+	packet_len = ((ipc_rxbuffer[1] << 8) | (ipc_rxbuffer[0]));
+	while (ipc_rxlen < packet_len) {
+		len = recv(sc->socket, (char *) &ipc_rxbuffer[ipc_rxlen], MAX_LEN, 0);
+		if (len)
+			ipc_rxlen += len;
+	}
+
+	/* copy packet to buffer */
+	memcpy(buffer, ipc_rxbuffer + WIN32_HEADER_LEN, packet_len - WIN32_HEADER_LEN);
+
+	/* prepare ipc_rxbuffer for next packet */
+	ipc_rxlen = ipc_rxlen - packet_len;
+	memcpy(ipc_rxbuffer, ipc_rxbuffer + packet_len, ipc_rxlen);
+
+	return packet_len - WIN32_HEADER_LEN;
+#else
+	return recv(sc->socket, buffer, MAX_LEN, 0);
+#endif
+}
 
 /*
  * 0 -> error
@@ -125,55 +169,13 @@ int ipc_receive(struct ipc_softc *sc)
 	unsigned char buffer[MAX_LEN];
 	ssize_t l = 0;
 	int i;
-#ifdef _WIN32
-	int expected_num;
-	int received_num = 0;
-#endif
 
-#ifdef _WIN32
-	/* Initial recv. Includes a length identifier so that we wait
-	 * until a full message is received. The length of the message
-	 * includes the length identifier. */
-	while(received_num < 2) {
-		/* Ensure we wait to get the packet length,
-		 * which requires two bytes, before continuing. */
-		received_num = recv(sc->socket, (char *)&buffer[l], \
-			(MAX_LEN - received_num), 0);
-		l += received_num;
-
-		if(received_num == 0)
-			return 2;
-		if((received_num < 0) || (received_num >= MAX_LEN) || \
-			(l >= MAX_LEN))
-			return 0;
-	}
-
-	expected_num = ((buffer[1] << 8) | (buffer[0]));
-	while(l < expected_num) {
-		/* received_num will never exceed MAX_LEN, unless
-		 * recv is broken. */
-		received_num = recv(sc->socket, (char *)&buffer[l], \
-			(MAX_LEN - received_num), 0);
-		l += received_num;
-
-		if(received_num == 0)
-			return 2;
-		if((received_num < 0) || (received_num >= MAX_LEN) || \
-			(l >= MAX_LEN))
-			return 0;
-	} /* l is assumed to have the message length
-	   * in the message unpacking code. */
-	i = 2; /* Skip the length identifier. */
-#else
-	/* On Unix, SOCK_SEQPACKET will take care of ensuring message
-	 * boundaries are satisfied. */
-	l = recv(sc->socket, buffer, MAX_LEN, 0);
+	l = ipc_receive_packet(sc, (unsigned char *)&buffer);
 	if(l == 0)
 		return 2;
 	if((l < 0) || (l >= MAX_LEN))
 		return 0;
-	i = 0; /* No length identifier, so we care about the entire buffer */
-#endif
+	i = 0;
 
 	switch(buffer[i++]) {
 		case MESSAGE_GO:
