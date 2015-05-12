@@ -24,17 +24,14 @@ class _RisingEdge(Module):
 class _LowPassFilter(Module):
     def __init__(self, i, o, cycles):
         i_d = Signal()
-        self.submodules.timeout = Timeout(cycles)
+        self.submodules.timer = WaitTimer(cycles)
         self.sync += [
             i_d.eq(i),
-            If(self.timeout.reached,
+            If(self.timer.done,
                 o.eq(i_d)
             )
         ]
-        self.comb += [
-            self.timeout.reset.eq(i != i_d),
-            self.timeout.ce.eq(1)
-        ]
+        self.comb += self.timer.wait.eq(i == i_d)
 
 
 class K7LiteSATAPHYTRX(Module):

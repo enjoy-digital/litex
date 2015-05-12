@@ -1,6 +1,6 @@
 from misoclib.com.liteusb.common import *
 from migen.actorlib.structuring import Pack, Unpack
-from migen.genlib.misc import Timeout
+from migen.genlib.misc import WaitTimer
 
 class LiteUSBPacketizer(Module):
     def __init__(self):
@@ -116,16 +116,13 @@ class LiteUSBDepacketizer(Module):
             header_pack.source.ack.eq(1),
         )
 
-        self.submodules.timeout = Timeout(clk_freq*timeout)
-        self.comb += [
-            self.timeout.reset.eq(fsm.ongoing("IDLE")),
-            self.timeout.ce.eq(1)
-        ]
+        self.submodules.timer = WaitTimer(clk_freq*timeout)
+        self.comb += self.timer.wait.eq(~fsm.ongoing("IDLE"))
 
         fsm.act("RECEIVE_HEADER",
             header_pack.sink.stb.eq(sink.stb),
             header_pack.sink.payload.eq(sink.payload),
-            If(self.timeout.reached,
+            If(self.timer.done,
                 NextState("IDLE")
             ).Elif(header_pack.source.stb,
                 NextState("COPY")
@@ -134,7 +131,7 @@ class LiteUSBDepacketizer(Module):
             )
         )
 
-        self.comb += header_pack.reset.eq(self.timeout.reached)
+        self.comb += header_pack.reset.eq(self.timer.done)
 
         sop = Signal()
         eop = Signal()
@@ -146,7 +143,7 @@ class LiteUSBDepacketizer(Module):
             source.eop.eq(eop),
             source.data.eq(sink.data),
             sink.ack.eq(source.ack),
-            If((source.stb & source.ack & eop) | self.timeout.reached,
+            If((source.stb & source.ack & eop) | self.timer.done
                 NextState("IDLE")
             )
         )

@@ -5,7 +5,7 @@ from migen.fhdl.decorators import ModuleTransformer
 from migen.genlib.resetsync import *
 from migen.genlib.fsm import *
 from migen.genlib.record import *
-from migen.genlib.misc import chooser, optree, Counter, Timeout
+from migen.genlib.misc import chooser, optree, Counter, WaitTimer
 from migen.genlib.cdc import *
 from migen.flow.actor import *
 from migen.flow.plumbing import Multiplexer, Demultiplexer

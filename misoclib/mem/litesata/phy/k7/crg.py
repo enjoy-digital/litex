@@ -78,12 +78,9 @@ class K7LiteSATAPHYCRG(Module):
         #   After configuration, GTX's resets have to stay low for at least 500ns
         #   See AR43482
         startup_cycles = math.ceil(500*clk_freq/1000000000)
-        startup_wait = Timeout(startup_cycles)
-        self.submodules += startup_wait
-        self.comb += [
-            startup_wait.reset.eq(self.tx_reset | self.rx_reset),
-            startup_wait.ce.eq(1)
-        ]
+        startup_timer = WaitTimer(startup_cycles)
+        self.submodules += startup_timer
+        self.comb += startup_timer.wait.eq(~(self.tx_reset | self.rx_reset))
 
         # TX Startup FSM
         self.tx_ready = Signal()
@@ -91,7 +88,7 @@ class K7LiteSATAPHYCRG(Module):
         self.submodules += tx_startup_fsm
         # Wait 500ns of AR43482
         tx_startup_fsm.act("IDLE",
-            If(startup_wait.reached,
+            If(startup_timer.done,
                 NextState("RESET_ALL"),
             )
         )
@@ -144,12 +141,11 @@ class K7LiteSATAPHYCRG(Module):
             self.tx_ready.eq(1)
         )
 
-        tx_ready_timeout = Timeout(1*clk_freq//1000)
-        self.submodules += tx_ready_timeout
+        tx_ready_timer = WaitTimer(1*clk_freq//1000)
+        self.submodules += tx_ready_timer
         self.comb += [
-            tx_ready_timeout.reset.eq(self.tx_reset | self.tx_ready),
-            tx_ready_timeout.ce.eq(~self.tx_ready),
-            tx_startup_fsm.reset.eq(self.tx_reset | tx_ready_timeout.reached),
+            tx_ready_timer.wait.eq(~self.tx_ready),
+            tx_startup_fsm.reset.eq(self.tx_reset | tx_ready_timer.done),
         ]
 
 
@@ -158,14 +154,12 @@ class K7LiteSATAPHYCRG(Module):
         rx_startup_fsm = InsertReset(FSM(reset_state="IDLE"))
         self.submodules += rx_startup_fsm
 
-        cdr_stable = Timeout(2048)
-        self.submodules += cdr_stable
-        self.comb += cdr_stable.ce.eq(1),
+        cdr_stable_timer = WaitTimer(2048)
+        self.submodules += cdr_stable_timer
 
         # Wait 500ns of AR43482
         rx_startup_fsm.act("IDLE",
-            cdr_stable.reset.eq(1),
-            If(startup_wait.reached,
+            If(startup_timer.done,
                 NextState("RESET_GTX"),
             )
         )
@@ -178,8 +172,7 @@ class K7LiteSATAPHYCRG(Module):
         rx_startup_fsm.act("WAIT_CPLL",
             gtx.gtrxreset.eq(1),
             If(gtx.cplllock,
-                NextState("RELEASE_GTX"),
-                cdr_stable.reset.eq(1)
+                NextState("RELEASE_GTX")
             )
         )
         # Release GTX reset and wait for GTX resetdone
@@ -187,7 +180,8 @@ class K7LiteSATAPHYCRG(Module):
         # of gttxreset)
         rx_startup_fsm.act("RELEASE_GTX",
             gtx.rxuserrdy.eq(1),
-            If(gtx.rxresetdone &  cdr_stable.reached,
+            cdr_stable_timer.wait.eq(1),
+            If(gtx.rxresetdone &  cdr_stable_timer.done,
                 NextState("ALIGN")
             )
         )
@@ -209,12 +203,11 @@ class K7LiteSATAPHYCRG(Module):
             self.rx_ready.eq(1)
         )
 
-        rx_ready_timeout = Timeout(1*clk_freq//1000)
-        self.submodules += rx_ready_timeout
+        rx_ready_timer = WaitTimer(1*clk_freq//1000)
+        self.submodules += rx_ready_timer
         self.comb += [
-            rx_ready_timeout.reset.eq(self.rx_reset | self.rx_ready),
-            rx_ready_timeout.ce.eq(~self.rx_ready),
-            rx_startup_fsm.reset.eq(self.rx_reset | rx_ready_timeout.reached),
+            rx_ready_timer.wait.eq(~self.rx_ready),
+            rx_startup_fsm.reset.eq(self.rx_reset | rx_ready_timer.done),
         ]
 
         # Ready

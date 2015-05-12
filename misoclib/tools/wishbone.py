@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
-from migen.genlib.misc import chooser, Counter, Timeout
+from migen.genlib.misc import chooser, Counter, WaitTimer
 from migen.genlib.record import Record
 from migen.genlib.fsm import FSM, NextState
 from migen.flow.actor import Sink, Source
@@ -46,15 +46,13 @@ class WishboneStreamingBridge(Module):
         ]
 
         fsm = InsertReset(FSM(reset_state="IDLE"))
-        timeout = Timeout(clk_freq//10)
-        self.submodules += fsm, timeout
+        timer = WaitTimer(clk_freq//10)
+        self.submodules += fsm, timer
         self.comb += [
-            timeout.ce.eq(1),
-            fsm.reset.eq(timeout.reached),
+            fsm.reset.eq(timer.done),
             phy.source.ack.eq(1)
         ]
         fsm.act("IDLE",
-            timeout.reset.eq(1),
             If(phy.source.stb,
                 cmd_ce.eq(1),
                 If((phy.source.data == self.cmds["write"]) |
@@ -139,6 +137,8 @@ class WishboneStreamingBridge(Module):
                 )
             )
         )
+
+        self.comb += timer.wait.eq(~fsm.ongoing("IDLE"))
 
         if phy.sink.description.packetized:
             self.comb += [

@@ -15,9 +15,9 @@ class LiteSATAPHYCtrl(Module):
             sink.ack.eq(1)
         ]
 
-        retry_timeout = Timeout(self.us(10000))
-        align_timeout = Timeout(self.us(873))
-        self.submodules += align_timeout, retry_timeout
+        retry_timer = WaitTimer(self.us(10000))
+        align_timer = WaitTimer(self.us(873))
+        self.submodules += align_timer, retry_timer
 
         align_detect = Signal()
         non_align_cnt = Signal(4)
@@ -26,11 +26,9 @@ class LiteSATAPHYCtrl(Module):
 
         self.fsm = fsm = InsertReset(FSM(reset_state="RESET"))
         self.submodules += fsm
-        self.comb += fsm.reset.eq(retry_timeout.reached | align_timeout.reached)
+        self.comb += fsm.reset.eq(retry_timer.done | align_timer.done)
         fsm.act("RESET",
             trx.tx_idle.eq(1),
-            retry_timeout.reset.eq(1),
-            align_timeout.reset.eq(1),
             non_align_counter.reset.eq(1),
             If(crg.ready,
                 NextState("COMINIT")
@@ -45,14 +43,14 @@ class LiteSATAPHYCtrl(Module):
         )
         fsm.act("AWAIT_COMINIT",
             trx.tx_idle.eq(1),
-            retry_timeout.ce.eq(1),
+            retry_timer.wait.eq(1),
             If(trx.rx_cominit_stb,
                 NextState("AWAIT_NO_COMINIT")
             )
         )
         fsm.act("AWAIT_NO_COMINIT",
             trx.tx_idle.eq(1),
-            retry_timeout.reset.eq(1),
+            retry_timer.wait.eq(1),
             If(~trx.rx_cominit_stb,
                 NextState("CALIBRATE")
             )
@@ -70,7 +68,7 @@ class LiteSATAPHYCtrl(Module):
         )
         fsm.act("AWAIT_COMWAKE",
             trx.tx_idle.eq(1),
-            retry_timeout.ce.eq(1),
+            retry_timer.wait.eq(1),
             If(trx.rx_comwake_stb,
                 NextState("AWAIT_NO_COMWAKE")
             )
@@ -85,7 +83,7 @@ class LiteSATAPHYCtrl(Module):
             trx.tx_idle.eq(0),
             source.data.eq(0x4A4A4A4A),  # D10.2
             source.charisk.eq(0b0000),
-            align_timeout.ce.eq(1),
+            align_timer.wait.eq(1),
             If(~trx.rx_idle,
                 NextState("AWAIT_ALIGN"),
                 crg.tx_reset.eq(1),
@@ -97,7 +95,7 @@ class LiteSATAPHYCtrl(Module):
             source.data.eq(0x4A4A4A4A),  # D10.2
             source.charisk.eq(0b0000),
             trx.rx_align.eq(1),
-            align_timeout.ce.eq(1),
+            align_timer.wait.eq(1),
             If(align_detect & ~trx.rx_idle,
                 NextState("SEND_ALIGN")
             )
@@ -105,7 +103,7 @@ class LiteSATAPHYCtrl(Module):
         fsm.act("SEND_ALIGN",
             trx.tx_idle.eq(0),
             trx.rx_align.eq(1),
-            align_timeout.ce.eq(1),
+            align_timer.wait.eq(1),
             source.data.eq(primitives["ALIGN"]),
             source.charisk.eq(0b0001),
             If(sink.stb,

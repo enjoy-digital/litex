@@ -146,13 +146,13 @@ class LiteEthARPTable(Module):
 
         # # #
 
-        request_timeout = Timeout(clk_freq//10)
+        request_timer = WaitTimer(clk_freq//10)
         request_counter = Counter(max=max_requests)
         request_pending = FlipFlop()
         request_ip_address = FlipFlop(32)
-        self.submodules += request_timeout, request_counter, request_pending, request_ip_address
+        self.submodules += request_timer, request_counter, request_pending, request_ip_address
         self.comb += [
-            request_timeout.ce.eq(request_pending.q),
+            request_timer.wait.eq(request_pending.q & ~request_counter.ce),
             request_pending.d.eq(1),
             request_ip_address.d.eq(request.ip_address)
         ]
@@ -164,8 +164,8 @@ class LiteEthARPTable(Module):
         cached_valid = Signal()
         cached_ip_address = Signal(32)
         cached_mac_address = Signal(48)
-        cached_timeout = Timeout(clk_freq*10)
-        self.submodules += cached_timeout
+        cached_timer = WaitTimer(clk_freq*10)
+        self.submodules += cached_timer
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
@@ -177,7 +177,7 @@ class LiteEthARPTable(Module):
                 NextState("UPDATE_TABLE"),
             ).Elif(request_counter.value == max_requests-1,
                 NextState("PRESENT_RESPONSE")
-            ).Elif(request.stb | (request_pending.q & request_timeout.reached),
+            ).Elif(request.stb | (request_pending.q & request_timer.done),
                 NextState("CHECK_TABLE")
             )
         )
@@ -199,10 +199,9 @@ class LiteEthARPTable(Module):
                 cached_valid.eq(1),
                 cached_ip_address.eq(sink.ip_address),
                 cached_mac_address.eq(sink.mac_address),
-                cached_timeout.reset.eq(1)
             ).Else(
-                cached_timeout.ce.eq(1),
-                If(cached_timeout.reached,
+                cached_timer.wait.eq(1),
+                If(cached_timer.done,
                     cached_valid.eq(0)
                 )
             )
@@ -230,7 +229,6 @@ class LiteEthARPTable(Module):
             source.request.eq(1),
             source.ip_address.eq(request_ip_address.q),
             If(source.ack,
-                request_timeout.reset.eq(1),
                 request_counter.reset.eq(request.stb),
                 request_counter.ce.eq(1),
                 request_pending.ce.eq(1),

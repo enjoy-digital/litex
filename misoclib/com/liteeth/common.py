@@ -5,7 +5,7 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import chooser, reverse_bytes, FlipFlop, Counter, Timeout
+from migen.genlib.misc import chooser, reverse_bytes, FlipFlop, Counter, WaitTimer
 from migen.flow.actor import *
 from migen.actorlib.structuring import Converter, Pipeline
 from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
