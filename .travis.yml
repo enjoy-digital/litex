@@ -10,8 +10,9 @@ before_install:
   # Install Miniconda
   - wget https://raw.githubusercontent.com/m-labs/artiq/master/.travis/get-anaconda.sh
   - chmod +x get-anaconda.sh
-  - ./get-anaconda.sh binstar numpydoc
+  - ./get-anaconda.sh
   - source $HOME/miniconda/bin/activate py34
+  - conda install binstar numpydoc
 install:
   # Install iverilog package.
   - "sudo add-apt-repository -y ppa:mithro/iverilog-backport"
