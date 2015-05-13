@@ -66,7 +66,7 @@ class SingleGenerator(Module, AutoCSR):
                 regname = prefix + name
                 reg = CSRStorage(nbits + alignment, reset=reset, atomic_write=atomic,
                     alignment_bits=alignment, name=regname)
-                setattr(self, "r_"+regname, reg)
+                setattr(self, "_"+regname, reg)
                 self.sync += If(self.source.ack | ~self.source.stb,
                     getattr(target, name).eq(reg.storage))
 
@@ -120,15 +120,15 @@ class _DMAController(Module):
             ("base", bus_aw + self.alignment_bits, base_reset, self.alignment_bits)
         ]
         self.generator = SingleGenerator(layout, mode)
-        self.r_busy = CSRStatus()
+        self._busy = CSRStatus()
 
-        self.length = self.generator.r_length.storage
-        self.base = self.generator.r_base.storage
+        self.length = self.generator._length.storage
+        self.base = self.generator._base.storage
         if hasattr(self.generator, "trigger"):
             self.trigger = self.generator.trigger
 
     def get_csrs(self):
-        return self.generator.get_csrs() + [self.r_busy]
+        return self.generator.get_csrs() + [self._busy]
 
 
 class DMAReadController(_DMAController):
@@ -148,7 +148,7 @@ class DMAReadController(_DMAController):
 
         self.data = comp_actor.q
         self.busy = comp_actor.busy
-        self.comb += self.r_busy.status.eq(self.busy)
+        self.comb += self._busy.status.eq(self.busy)
 
 
 class DMAWriteController(_DMAController):
@@ -181,4 +181,4 @@ class DMAWriteController(_DMAController):
             self.data = comp_actor.d
 
         self.busy = comp_actor.busy
-        self.comb += self.r_busy.status.eq(self.busy)
+        self.comb += self._busy.status.eq(self.busy)
