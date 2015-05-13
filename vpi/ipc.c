@@ -132,17 +132,17 @@ static int ipc_receive_packet(struct ipc_softc *sc, unsigned char *buffer) {
 	int len;
 	int packet_len;
 	/* ensure we have packet header */
-	while (ipc_rxlen < WIN32_HEADER_LEN) {
+	while(ipc_rxlen < WIN32_HEADER_LEN) {
 		len = recv(sc->socket, (char *)&ipc_rxbuffer[ipc_rxlen], MAX_LEN, 0);
-		if (len)
+		if(len)
 			ipc_rxlen += len;
 	}
 
 	/* compute packet length and ensure we have the payload */
-	packet_len = ((ipc_rxbuffer[1] << 8) | (ipc_rxbuffer[0]));
-	while (ipc_rxlen < packet_len) {
-		len = recv(sc->socket, (char *) &ipc_rxbuffer[ipc_rxlen], MAX_LEN, 0);
-		if (len)
+	packet_len = (ipc_rxbuffer[1] << 8) | ipc_rxbuffer[0];
+	while(ipc_rxlen < packet_len) {
+		len = recv(sc->socket, (char *)&ipc_rxbuffer[ipc_rxlen], MAX_LEN, 0);
+		if(len)
 			ipc_rxlen += len;
 	}
 

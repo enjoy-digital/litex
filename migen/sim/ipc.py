@@ -190,21 +190,22 @@ class Initiator:
     def send(self, message):
         self.conn.send(_pack(message))
 
-    def recv(self):
-        maxlen = 2048
+    def recv_packet(self, maxlen):
         if sys.platform == "win32":
-            def recv_packet():
-                while len(self.ipc_rxbuffer) < header_len:
-                    self.ipc_rxbuffer += self.conn.recv(maxlen)
-                packet_len = struct.unpack("<H", self.ipc_rxbuffer[:header_len])[0]
-                while len(self.ipc_rxbuffer) < packet_len:
-                    self.ipc_rxbuffer += self.conn.recv(maxlen)
-                packet = self.ipc_rxbuffer[header_len:packet_len]
-                self.ipc_rxbuffer = self.ipc_rxbuffer[packet_len:]
-                return packet
-            packet = recv_packet()
+            while len(self.ipc_rxbuffer) < header_len:
+                self.ipc_rxbuffer += self.conn.recv(maxlen)
+            packet_len = struct.unpack("<H", self.ipc_rxbuffer[:header_len])[0]
+            while len(self.ipc_rxbuffer) < packet_len:
+                self.ipc_rxbuffer += self.conn.recv(maxlen)
+            packet = self.ipc_rxbuffer[header_len:packet_len]
+            self.ipc_rxbuffer = self.ipc_rxbuffer[packet_len:]
         else:
             packet = self.conn.recv(maxlen)
+        return packet
+
+    def recv(self):
+        maxlen = 2048
+        packet = self.recv_packet(maxlen)
         if len(packet) < 1:
             return None
         if len(packet) >= maxlen:
