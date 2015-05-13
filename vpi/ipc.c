@@ -36,11 +36,13 @@ struct ipc_softc {
 #define MAX_LEN 2048
 
 #ifdef _WIN32
-#define WIN32_HEADER_LEN 2
-#define WIN32_SOCKET_PORT "50007"
+#define HEADER_LEN 2
+#define SOCKET_PORT "50007"
 
 unsigned char ipc_rxbuffer[2*MAX_LEN];
 int ipc_rxlen;
+#else
+#define HEADER_LEN 0
 #endif
 
 struct ipc_softc *ipc_connect(const char *sockaddr,
@@ -75,7 +77,7 @@ struct ipc_softc *ipc_connect(const char *sockaddr,
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	if(getaddrinfo(sockaddr, WIN32_SOCKET_PORT, NULL, &my_addrinfo) != 0) {
+	if(getaddrinfo(sockaddr, SOCKET_PORT, NULL, &my_addrinfo) != 0) {
 		free(sc);
 		return NULL;
 	}
@@ -132,7 +134,7 @@ static int ipc_receive_packet(struct ipc_softc *sc, unsigned char *buffer) {
 	int len;
 	int packet_len;
 	/* ensure we have packet header */
-	while(ipc_rxlen < WIN32_HEADER_LEN) {
+	while(ipc_rxlen < HEADER_LEN) {
 		len = recv(sc->socket, (char *)&ipc_rxbuffer[ipc_rxlen], MAX_LEN, 0);
 		if(len)
 			ipc_rxlen += len;
@@ -147,13 +149,13 @@ static int ipc_receive_packet(struct ipc_softc *sc, unsigned char *buffer) {
 	}
 
 	/* copy packet to buffer */
-	memcpy(buffer, ipc_rxbuffer + WIN32_HEADER_LEN, packet_len - WIN32_HEADER_LEN);
+	memcpy(buffer, ipc_rxbuffer + HEADER_LEN, packet_len - HEADER_LEN);
 
 	/* prepare ipc_rxbuffer for next packet */
 	ipc_rxlen = ipc_rxlen - packet_len;
 	memcpy(ipc_rxbuffer, ipc_rxbuffer + packet_len, ipc_rxlen);
 
-	return packet_len - WIN32_HEADER_LEN;
+	return packet_len - HEADER_LEN;
 #else
 	return recv(sc->socket, buffer, MAX_LEN, 0);
 #endif
@@ -218,24 +220,16 @@ int ipc_receive(struct ipc_softc *sc)
 int ipc_tick(struct ipc_softc *sc)
 {
 	ssize_t l;
+	char c[HEADER_LEN + 1];
 
 #ifdef _WIN32
-	char c[3];
-
 	c[0] = 3;
 	c[1] = 0;
-	c[2] = MESSAGE_TICK;
-	l = send(sc->socket, c, 3, 0);
-	if(l != 3)
-		return 0;
-#else
-	char c;
-
-	c = MESSAGE_TICK;
-	l = send(sc->socket, &c, 1, 0);
-	if(l != 1)
-		return 0;
 #endif
+	c[HEADER_LEN + 0] = MESSAGE_TICK;
+	l = send(sc->socket, c, HEADER_LEN + 1, 0);
+	if(l != (HEADER_LEN + 1))
+		return 0;
 
 	return 1;
 }
@@ -246,25 +240,17 @@ int ipc_read_reply(struct ipc_softc *sc, int nchunks, const unsigned char *chunk
 	char buffer[MAX_LEN];
 	ssize_t l;
 
-#ifdef _WIN32
-	len = nchunks + 4;
+	len = nchunks + HEADER_LEN + 2;
 	assert(len < MAX_LEN);
 	assert(nchunks < 256);
 
+#ifdef _WIN32
 	buffer[0] = len & 0xFF;
 	buffer[1] = (0xFF00 & len) >> 8;
-	buffer[2] = MESSAGE_READ_REPLY;
-	buffer[3] = nchunks;
-	memcpy(&buffer[4], chunks, nchunks);
-#else
-	len = nchunks + 2;
-	assert(len < MAX_LEN);
-	assert(nchunks < 256);
-
-	buffer[0] = MESSAGE_READ_REPLY;
-	buffer[1] = nchunks;
-	memcpy(&buffer[2], chunks, nchunks);
 #endif
+	buffer[HEADER_LEN + 0] = MESSAGE_READ_REPLY;
+	buffer[HEADER_LEN + 1] = nchunks;
+	memcpy(&buffer[HEADER_LEN + 2], chunks, nchunks);
 
 	l = send(sc->socket, buffer, len, 0);
 	if(l != len)
