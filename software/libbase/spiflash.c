@@ -8,7 +8,7 @@
 #define WRDI_CMD         0x04
 #define RDSR_CMD         0x05
 #define WREN_CMD         0x06
-#define SE_CMD           0x20
+#define SE_CMD           0xd8
 
 #define BITBANG_CLK         (1 << 1)
 #define BITBANG_CS_N        (1 << 2)
