@@ -4,17 +4,17 @@
 
 #include <spiflash.h>
 
-#define PAGE_PROGRAM_CMD (0x02)
-#define WRDI_CMD         (0x04)
-#define RDSR_CMD         (0x05)
-#define WREN_CMD         (0x06)
-#define SE_CMD           (0x20)
+#define PAGE_PROGRAM_CMD 0x02
+#define WRDI_CMD         0x04
+#define RDSR_CMD         0x05
+#define WREN_CMD         0x06
+#define SE_CMD           0x20
 
 #define BITBANG_CLK         (1 << 1)
 #define BITBANG_CS_N        (1 << 2)
 #define BITBANG_DQ_INPUT    (1 << 3)
 
-#define SR_WIP              (1)
+#define SR_WIP              1
 
 static void flash_write_byte(unsigned char b);
 static void flash_write_addr(unsigned int addr);
