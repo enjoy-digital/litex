@@ -2,7 +2,7 @@ from misoclib.mem.litesata.common import *
 
 
 class K7LiteSATAPHYCRG(Module):
-    def __init__(self, pads, gtx, revision, clk_freq):
+    def __init__(self, clock_pads_or_refclk, pads, gtx, revision, clk_freq):
         self.tx_reset = Signal()
         self.rx_reset = Signal()
         self.ready = Signal()
@@ -14,14 +14,19 @@ class K7LiteSATAPHYCRG(Module):
         #   (sata_gen3) 150MHz / VCO @ 3GHz / Line rate @ 6Gbps
         #   (sata_gen2 & sata_gen1) VCO still @ 3 GHz, Line rate is
         #   decreased with output dividers.
-        refclk = Signal()
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=0,
-            i_I=pads.refclk_p,
-            i_IB=pads.refclk_n,
-            o_O=refclk
-        )
-        self.comb += gtx.gtrefclk0.eq(refclk)
+        if isinstance(clock_pads_or_refclk, Signal):
+            self.refclk = clock_pads_or_refclk
+        else:
+            self.refclk = Signal()
+            clock_pads = clock_pads_or_refclk
+            self.specials += Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=clock_pads.refclk_p,
+                i_IB=clock_pads.refclk_n,
+                o_O=self.refclk
+            )
+
+        self.comb += gtx.gtrefclk0.eq(self.refclk)
 
         # TX clocking
         #   (sata_gen3) 150MHz from CPLL TXOUTCLK, sata_tx clk @ 300MHz (16-bits)

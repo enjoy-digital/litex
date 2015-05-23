@@ -1,4 +1,4 @@
-from litescope.software.dump import *
+from misoclib.tools.litescope.software.dump import *
 
 primitives = {
     "ALIGN":  0x7B4A4ABC,
@@ -25,10 +25,10 @@ def decode_primitive(dword):
     return ""
 
 
-def link_trace(mila, tx_data_name, rx_data_name):
+def link_trace(la, tx_data_name, rx_data_name):
     r = ""
     dump = Dump()
-    dump.add_from_layout(mila.layout, mila.dat)
+    dump.add_from_layout(la.layout, la.data)
 
     for var in dump.vars:
         if var.name == tx_data_name:

@@ -3,15 +3,19 @@ from misoclib.mem.litesata.test.common import *
 
 from misoclib.mem.litesata.test.model.transport import FIS_REG_H2D, FIS_DATA
 
+
 class CommandLayer(Module):
     def __init__(self, transport):
         self.transport = transport
-        self.transport.set_command_callback(self.callback)
+        self.transport.set_command(self)
 
         self.hdd = None
+        self.n = None
 
     def set_hdd(self, hdd):
         self.hdd = hdd
+        self.transport.n = hdd.n
+        self.transport.link.n = hdd.n
 
     def callback(self, fis):
         resp = None

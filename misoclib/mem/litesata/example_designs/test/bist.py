@@ -72,7 +72,7 @@ class LiteSATABISTIdentifyDriver:
     def __init__(self, regs, name):
         self.regs = regs
         self.name = name
-        for s in ["start", "done", "source_stb", "source_ack", "source_data"]:
+        for s in ["start", "done", "data_width", "source_stb", "source_ack", "source_data"]:
             setattr(self, s, getattr(regs, name + "_identify_" + s))
         self.data = []
 
@@ -189,11 +189,12 @@ if __name__ == "__main__":
                     if not read_done:
                         retry += 1
 
+                ratio = identify.data_width.read()//32
                 print("sector={:d}({:d}MB) wr_speed={:4.2f}MB/s rd_speed={:4.2f}MB/s errors={:d} retry={:d}".format(
                     sector,
-                    int(run_sectors*logical_sector_size/MB),
-                    write_speed/MB,
-                    read_speed/MB,
+                    int(run_sectors*logical_sector_size/MB)*ratio,
+                    write_speed/MB*ratio,
+                    read_speed/MB*ratio,
                     write_errors + read_errors,
                     retry))
                 if random_addressing:

@@ -127,7 +127,7 @@ class K7LiteSATAPHYTRX(Module):
         cdr_config = {
             "sata_gen1": 0x0380008BFF40100008,
             "sata_gen2": 0x0388008BFF40200008,
-            "sata_gen3": 0X0380008BFF10200010
+            "sata_gen3": 0x0380008BFF10200010
         }
         rxcdr_cfg = cdr_config[revision]
 
@@ -352,7 +352,7 @@ class K7LiteSATAPHYTRX(Module):
                     "p_RXDLY_LCFG": 0x30,
                     "p_RXDLY_TAP_CFG": 0,
                     "p_RXPH_CFG": 0,
-                    "p_RXPHDLY_CFG": 0x084820,
+                    "p_RXPHDLY_CFG": 0x084020,
                     "p_RXPH_MONITOR_SEL": 0,
                     "p_RX_XCLK_SEL": "RXUSR",
                     "p_RX_DDI_SEL": 0,
@@ -405,7 +405,7 @@ class K7LiteSATAPHYTRX(Module):
 
                 # TX Buffer Attributes
                     "p_TXBUF_EN": "FALSE",
-                    "p_TXBUF_RESET_ON_RATE_CHANGE": "TRUE",
+                    "p_TXBUF_RESET_ON_RATE_CHANGE": "FALSE",
                     "p_TXDLY_CFG": 0x1f,
                     "p_TXDLY_LCFG": 0x030,
                     "p_TXDLY_TAP_CFG": 0,
@@ -471,7 +471,7 @@ class K7LiteSATAPHYTRX(Module):
                     "p_RX_DFE_H5_CFG": 0b00011100000,
                     "p_RX_DFE_KL_CFG": 0b0000011111110,
                     "p_RX_DFE_LPM_CFG": 0x0954,
-                    "p_RX_DFE_LPM_HOLD_DURING_EIDLE": 0,
+                    "p_RX_DFE_LPM_HOLD_DURING_EIDLE": 1,
                     "p_RX_DFE_UT_CFG": 0b10001111000000000,
                     "p_RX_DFE_VP_CFG": 0b00011111100000011,
 

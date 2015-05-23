@@ -19,10 +19,18 @@ class LiteSATAPHYCtrl(Module):
         align_timer = WaitTimer(self.us(873))
         self.submodules += align_timer, retry_timer
 
-        align_detect = Signal()
-        non_align_cnt = Signal(4)
+        align_det = Signal()
+        misalign_det = Signal()
         non_align_counter = Counter(4)
         self.submodules += non_align_counter
+
+        self.comb +=  [
+            If(sink.stb,
+                align_det.eq((self.sink.charisk == 0b0001) &
+                                (self.sink.data == primitives["ALIGN"])),
+                misalign_det.eq((self.sink.charisk & 0b1010) != 0)
+            )
+        ]
 
         self.fsm = fsm = InsertReset(FSM(reset_state="RESET"))
         self.submodules += fsm
@@ -96,7 +104,7 @@ class LiteSATAPHYCtrl(Module):
             source.charisk.eq(0b0000),
             trx.rx_align.eq(1),
             align_timer.wait.eq(1),
-            If(align_detect & ~trx.rx_idle,
+            If(align_det & ~trx.rx_idle,
                 NextState("SEND_ALIGN")
             )
         )
@@ -117,19 +125,33 @@ class LiteSATAPHYCtrl(Module):
                 NextState("READY")
             )
         )
+
+        # wait alignement stability for 100ms before declaring ctrl is ready,
+        # reset the RX part of the transceiver when misalignment is detected.
+        stability_timer = WaitTimer(100*clk_freq//1000)
+        self.submodules += stability_timer
+
         fsm.act("READY",
             trx.tx_idle.eq(0),
             trx.rx_align.eq(1),
             source.data.eq(primitives["SYNC"]),
             source.charisk.eq(0b0001),
-            self.ready.eq(1),
+            stability_timer.wait.eq(1),
+            self.ready.eq(stability_timer.done),
             If(trx.rx_idle,
-               NextState("RESET"),
-			)
+                NextState("RESET"),
+            ).Elif(misalign_det,
+                crg.rx_reset.eq(1),
+                NextState("REALIGN")
+            )
+        )
+        fsm.act("REALIGN",
+            If(crg.ready,
+                NextState("READY")
+            )
         )
 
-        self.comb +=  align_detect.eq(self.sink.stb &
-                                     (self.sink.data == primitives["ALIGN"]))
+
 
     def us(self, t):
         clk_period_us = 1000000/self.clk_freq

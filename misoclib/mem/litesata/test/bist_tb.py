@@ -1,5 +1,6 @@
 from misoclib.mem.litesata.common import *
-from misoclib.mem.litesata import LiteSATA
+from misoclib.mem.litesata.core import LiteSATACore
+from misoclib.mem.litesata.frontend.crossbar import LiteSATACrossbar
 from misoclib.mem.litesata.frontend.bist import LiteSATABISTGenerator, LiteSATABISTChecker
 
 from misoclib.mem.litesata.test.common import *
@@ -12,35 +13,43 @@ class TB(Module):
                 link_debug=False, link_random_level=0,
                 transport_debug=False, transport_loopback=False,
                 hdd_debug=True)
-        self.submodules.controller = LiteSATA(self.hdd.phy)
-        self.submodules.generator = LiteSATABISTGenerator(self.controller.crossbar.get_port())
-        self.submodules.checker = LiteSATABISTChecker(self.controller.crossbar.get_port())
+        self.submodules.core = LiteSATACore(self.hdd.phy)
+        self.submodules.crossbar = LiteSATACrossbar(self.core)
+        self.submodules.generator = LiteSATABISTGenerator(self.crossbar.get_port())
+        self.submodules.checker = LiteSATABISTChecker(self.crossbar.get_port())
 
     def gen_simulation(self, selfp):
         hdd = self.hdd
         hdd.malloc(0, 64)
-        selfp.generator.sector = 0
-        selfp.generator.count = 17
-        selfp.checker.sector = 0
-        selfp.checker.count = 17
+        sector = 0
+        count = 17
+        generator = selfp.generator
+        checker = selfp.checker
         while True:
-            selfp.generator.start = 1
+            # write data
+            generator.sector = sector
+            generator.count = count
+            generator.start = 1
             yield
-            selfp.generator.start = 0
+            generator.start = 0
             yield
-            while selfp.generator.done == 0:
+            while generator.done == 0:
                 yield
-            selfp.checker.start = 1
+
+            # verify data
+            checker.sector = sector
+            checker.count = count
+            checker.start = 1
             yield
-            selfp.checker.start = 0
+            checker.start = 0
             yield
-            while selfp.checker.done == 0:
+            while checker.done == 0:
                 yield
-            print("errors {}".format(selfp.checker.errors))
-            selfp.generator.sector += 1
-            selfp.generator.count = max((selfp.generator.count + 1)%8, 1)
-            selfp.checker.sector += 1
-            selfp.checker.count = max((selfp.checker.count + 1)%8, 1)
+            print("errors {}".format(checker.errors))
+
+            # prepare next iteration
+            sector += 1
+            count = max((count + 1)%8, 1)
 
 if __name__ == "__main__":
     run_simulation(TB(), ncycles=8192*2, vcd_name="my.vcd", keep_files=True)

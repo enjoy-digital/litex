@@ -94,10 +94,10 @@ if __name__ == "__main__":
                 print("  "+a)
             sys.exit(1)
 
-
-    revision = soc.sata_phy.revision
-    has_bist = hasattr(soc.sata, "bist")
-    user_ports = len(soc.sata.crossbar.users)
+    try:
+        revision = soc.sata_phy.revision
+    except:
+        revision = soc.sata_phy0.revision
 
     print("""
        __   _ __      _______ _________
@@ -111,13 +111,9 @@ A small footprint and configurable SATA core
 ====== Building options: ======
 {} / {} Gbps
 System Clk: {} MHz (min: {} MHz)
-User ports: {}
-BIST: {}
 ===============================""".format(
     revision.replace("sata_", "SATA "), bitrates[revision],
-    soc.clk_freq/1000000, frequencies[revision],
-    user_ports,
-    has_bist
+    soc.clk_freq/1000000, frequencies[revision]
     )
 )
 
@@ -145,9 +141,9 @@ BIST: {}
             soc = soc.get_fragment()
         platform.finalize(soc)
         so = {
-            NoRetiming:                    XilinxNoRetiming,
-            MultiReg:                    XilinxMultiReg,
-            AsyncResetSynchronizer:        XilinxAsyncResetSynchronizer
+            NoRetiming:             XilinxNoRetiming,
+            MultiReg:               XilinxMultiReg,
+            AsyncResetSynchronizer: XilinxAsyncResetSynchronizer
         }
         v_output = verilog.convert(soc, ios, special_overrides=so)
         v_output.write("build/litesata.v")

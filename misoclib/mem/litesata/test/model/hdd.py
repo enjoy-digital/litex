@@ -8,8 +8,9 @@ from misoclib.mem.litesata.test.model.link import *
 from misoclib.mem.litesata.test.model.transport import *
 from misoclib.mem.litesata.test.model.command import *
 
-def print_hdd(s):
-    print_with_prefix(s, "[HDD]: ")
+
+def print_hdd(s, n=None):
+    print_with_prefix(s, "[HDD{}]: ".format("" if n is None else str(n)))
 
 
 class HDDMemRegion:
@@ -20,11 +21,12 @@ class HDDMemRegion:
 
 
 class HDD(Module):
-    def __init__(self,
+    def __init__(self, n=None,
             link_debug=False, link_random_level=0,
             transport_debug=False, transport_loopback=False,
             hdd_debug=False,
             ):
+        self.n = n
         self.submodules.phy = PHYLayer()
         self.submodules.link = LinkLayer(self.phy, link_debug, link_random_level)
         self.submodules.transport = TransportLayer(self.link, transport_debug, transport_loopback)
@@ -43,7 +45,7 @@ class HDD(Module):
         if self.debug:
             s = "Allocating {n} sectors: {s} to {e}".format(n=count, s=sector, e=sector+count-1)
             s += " ({} KB)".format(count*logical_sector_size//1024)
-            print_hdd(s)
+            print_hdd(s, self.n)
         self.mem = HDDMemRegion(sector, count, logical_sector_size)
 
     def write(self, sector, data):
@@ -53,7 +55,7 @@ class HDD(Module):
                 s = "{}".format(sector)
             else:
                 s = "{s} to {e}".format(s=sector, e=sector+n-1)
-            print_hdd("Writing sector " + s)
+            print_hdd("Writing sector " + s, self.n)
         for i in range(len(data)):
             offset = sectors2dwords(sector)
             self.mem.data[offset+i] = data[i]
@@ -64,7 +66,7 @@ class HDD(Module):
                 s = "{}".format(sector)
             else:
                 s = "{s} to {e}".format(s=sector, e=sector+count-1)
-            print_hdd("Reading sector " + s)
+            print_hdd("Reading sector " + s, self.n)
         data = []
         for i in range(sectors2dwords(count)):
             data.append(self.mem.data[sectors2dwords(sector)+i])

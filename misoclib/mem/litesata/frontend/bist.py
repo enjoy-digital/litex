@@ -17,6 +17,8 @@ class LiteSATABISTGenerator(Module):
 
         # # #
 
+        n = flen(user_port.sink.data)//32
+
         source, sink = user_port.sink, user_port.source
 
         counter = Counter(32)
@@ -45,9 +47,9 @@ class LiteSATABISTGenerator(Module):
             source.sector.eq(self.sector),
             source.count.eq(self.count),
             If(self.random,
-                source.data.eq(scrambler.value)
+                source.data.eq(Replicate(scrambler.value, n))
             ).Else(
-                source.data.eq(counter.value)
+                source.data.eq(Replicate(counter.value, n))
             )
         ]
         fsm.act("SEND_CMD_AND_DATA",
@@ -80,6 +82,8 @@ class LiteSATABISTChecker(Module):
         self.errors = Signal(32)
 
         # # #
+
+        n = flen(user_port.sink.data)//32
 
         source, sink = user_port.sink, user_port.source
 
@@ -124,12 +128,12 @@ class LiteSATABISTChecker(Module):
                 NextState("RECEIVE_DATA")
             )
         )
-        expected_data = Signal(32)
+        expected_data = Signal(n*32)
         self.comb += \
             If(self.random,
-                expected_data.eq(scrambler.value)
+                expected_data.eq(Replicate(scrambler.value, n))
             ).Else(
-                expected_data.eq(counter.value)
+                expected_data.eq(Replicate(counter.value, n))
             )
         fsm.act("RECEIVE_DATA",
             sink.ack.eq(1),
@@ -221,6 +225,7 @@ class LiteSATABISTIdentify(Module):
     def __init__(self, user_port):
         self.start = Signal()
         self.done  = Signal()
+        self.data_width = flen(user_port.sink.data)
 
         fifo = SyncFIFO([("data", 32)], 512, buffered=True)
         self.submodules += fifo
@@ -270,6 +275,7 @@ class LiteSATABISTIdentifyCSR(Module, AutoCSR):
     def __init__(self, bist_identify):
         self._start = CSR()
         self._done = CSRStatus()
+        self._data_width = CSRStatus(16, reset=bist_identify.data_width)
         self._source_stb = CSRStatus()
         self._source_ack = CSR()
         self._source_data = CSRStatus(32)

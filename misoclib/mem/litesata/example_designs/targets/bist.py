@@ -13,7 +13,9 @@ from misoclib.com.uart.bridge import UARTWishboneBridge
 
 from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.phy import LiteSATAPHY
-from misoclib.mem.litesata import LiteSATA
+from misoclib.mem.litesata.core import LiteSATACore
+from misoclib.mem.litesata.frontend.crossbar import LiteSATACrossbar
+from misoclib.mem.litesata.frontend.bist import LiteSATABIST
 
 
 class _CRG(Module):
@@ -53,41 +55,31 @@ class _CRG(Module):
 
 
 class BISTLeds(Module):
-    def __init__(self, platform, sata_phy):
-        # 1Hz blinking leds (sata_rx and sata_tx clocks)
-        sata_rx_led = platform.request("user_led", 0)
-        sata_tx_led = platform.request("user_led", 1)
+    def __init__(self, platform, sata_phys):
+        for i, sata_phy in enumerate(sata_phys):
+            # 1Hz blinking leds (sata_rx and sata_tx clocks)
+            rx_led = platform.request("user_led", 2*i)
 
-        sata_rx_cnt = Signal(32)
-        sata_tx_cnt = Signal(32)
+            rx_cnt = Signal(32)
 
-        sata_freq = int(frequencies[sata_phy.revision]*1000*1000)
+            freq = int(frequencies[sata_phy.revision]*1000*1000)
 
-        self.sync.sata_rx += \
-            If(sata_rx_cnt == 0,
-                sata_rx_led.eq(~sata_rx_led),
-                sata_rx_cnt.eq(sata_freq//2)
-            ).Else(
-                sata_rx_cnt.eq(sata_rx_cnt-1)
-            )
+            self.sync.sata_rx += \
+                If(rx_cnt == 0,
+                    rx_led.eq(~rx_led),
+                    rx_cnt.eq(freq//2)
+                ).Else(
+                    rx_cnt.eq(rx_cnt-1)
+                )
 
-        self.sync.sata_tx += \
-            If(sata_tx_cnt == 0,
-                sata_tx_led.eq(~sata_tx_led),
-                sata_tx_cnt.eq(sata_freq//2)
-            ).Else(
-                sata_tx_cnt.eq(sata_tx_cnt-1)
-            )
-
-        # ready leds (crg and ctrl)
-        self.comb += platform.request("user_led", 2).eq(sata_phy.crg.ready)
-        self.comb += platform.request("user_led", 3).eq(sata_phy.ctrl.ready)
+            # ready leds
+            self.comb += platform.request("user_led", 2*i+1).eq(sata_phy.ctrl.ready)
 
 
 class BISTSoC(SoC, AutoCSR):
     default_platform = "kc705"
     csr_map = {
-        "sata":        10,
+        "sata_bist": 16
     }
     csr_map.update(SoC.csr_map)
     def __init__(self, platform):
@@ -104,16 +96,29 @@ class BISTSoC(SoC, AutoCSR):
         self.submodules.crg = _CRG(platform)
 
         # SATA PHY/Core/Frontend
-        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "sata_gen2", clk_freq)
-        self.submodules.sata = LiteSATA(self.sata_phy, with_bist=True, with_bist_csr=True)
+        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata_clocks"), platform.request("sata", 0), "sata_gen2", clk_freq)
+        self.submodules.sata_core = LiteSATACore(self.sata_phy)
+        self.submodules.sata_crossbar = LiteSATACrossbar(self.sata_core)
+        self.submodules.sata_bist = LiteSATABIST(self.sata_crossbar, with_csr=True)
 
         # Status Leds
-        self.submodules.leds = BISTLeds(platform, self.sata_phy)
+        self.submodules.leds = BISTLeds(platform, [self.sata_phy])
 
+        platform.add_platform_command("""
+create_clock -name sys_clk -period 6 [get_nets sys_clk]
+
+create_clock -name sata_rx_clk -period 6.66 [get_nets sata_rx_clk]
+create_clock -name sata_tx_clk -period 6.66 [get_nets sata_tx_clk]
+
+set_false_path -from [get_clocks sys_clk] -to [get_clocks sata_rx_clk]
+set_false_path -from [get_clocks sys_clk] -to [get_clocks sata_tx_clk]
+set_false_path -from [get_clocks sata_rx_clk] -to [get_clocks sys_clk]
+set_false_path -from [get_clocks sata_tx_clk] -to [get_clocks sys_clk]
+""")
 
 class BISTSoCDevel(BISTSoC, AutoCSR):
     csr_map = {
-        "la":            20
+        "la": 17
     }
     csr_map.update(BISTSoC.csr_map)
     def __init__(self, platform):

@@ -1,11 +1,11 @@
 import sys
 from tools import *
-from test_bist import *
-from litescope.software.driver.la import LiteScopeLADriver
+from bist import *
+from misoclib.tools.litescope.software.driver.la import LiteScopeLADriver
 
 
 def main(wb):
-    la = LiteScopeLADriver(wb.regs, "la")
+    la = LiteScopeLADriver(wb.regs, "la", debug=True)
     identify = LiteSATABISTIdentifyDriver(wb.regs, "sata_bist")
     generator = LiteSATABISTGeneratorDriver(wb.regs, "sata_bist")
     checker = LiteSATABISTCheckerDriver(wb.regs, "sata_bist")

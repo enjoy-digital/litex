@@ -4,8 +4,9 @@ import math
 from misoclib.mem.litesata.common import *
 from misoclib.mem.litesata.test.common import *
 
-def print_link(s):
-    print_with_prefix(s, "[LNK]: ")
+
+def print_link(s, n=None):
+    print_with_prefix(s, "[LNK{}]: ".format("" if n is None else str(n)))
 
 
 def import_scrambler_datas():
@@ -91,13 +92,14 @@ class LinkLayer(Module):
 
         self.scrambled_datas = import_scrambler_datas()
 
-        self.transport_callback = None
+        self.transport = None
+        self.n = None
 
         self.send_state = ""
         self.send_states = ["RDY", "SOF", "DATA", "EOF", "WTRM"]
 
-    def set_transport_callback(self, callback):
-        self.transport_callback = callback
+    def set_transport(self, transport):
+        self.transport = transport
 
     def send(self, dword):
         if self.send_state == "RDY":
@@ -164,8 +166,8 @@ class LinkLayer(Module):
             self.phy.send(primitives["R_OK"])
             if self.rx_packet.ongoing:
                 self.rx_packet.decode()
-                if self.transport_callback is not None:
-                    self.transport_callback(self.rx_packet)
+                if self.transport is not None:
+                    self.transport.callback(self.rx_packet)
                 self.rx_packet.ongoing = False
         elif dword == primitives["HOLD"]:
             self.phy.send(primitives["HOLDA"])
@@ -190,7 +192,7 @@ class LinkLayer(Module):
         while True:
             yield from self.phy.receive()
             if self.debug:
-                print_link(self.phy)
+                print_link(self.phy, self.n)
             self.phy.send(primitives["SYNC"])
             rx_dword = self.phy.rx.dword.dat
             rx_dword = self.remove_cont(rx_dword)

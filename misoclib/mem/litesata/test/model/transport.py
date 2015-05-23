@@ -3,8 +3,9 @@ from misoclib.mem.litesata.test.common import *
 
 from misoclib.mem.litesata.test.model.link import LinkTXPacket
 
-def print_transport(s):
-    print_with_prefix(s, "[TRN]: ")
+
+def print_transport(s, n=None):
+    print_with_prefix(s, "[TRN{}]: ".format("" if n is None else str(n)))
 
 
 def get_field_data(field, packet):
@@ -105,17 +106,20 @@ class TransportLayer(Module):
         self.link = link
         self.debug = debug
         self.loopback = loopback
-        self.link.set_transport_callback(self.callback)
+        self.link.set_transport(self)
 
-    def set_command_callback(self, callback):
-        self.command_callback = callback
+        self.command = None
+        self.n = None
+
+    def set_command(self, command):
+        self.command = command
 
     def send(self, fis):
         fis.encode()
         packet = LinkTXPacket(fis.packet)
         self.link.tx_packets.append(packet)
         if self.debug and not self.loopback:
-            print_transport(fis)
+            print_transport(fis, self.n)
 
     def callback(self, packet):
         fis_type = packet[0] & 0xff
@@ -130,8 +134,8 @@ class TransportLayer(Module):
         else:
             fis = FIS_UNKNOWN(packet, direction="H2D")
         if self.debug:
-            print_transport(fis)
+            print_transport(fis, self.n)
         if self.loopback:
             self.send(fis)
         else:
-            self.command_callback(fis)
+            self.command.callback(fis)

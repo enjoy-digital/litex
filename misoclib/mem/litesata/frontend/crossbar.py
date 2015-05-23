@@ -4,16 +4,17 @@ from misoclib.mem.litesata.frontend.arbiter import LiteSATAArbiter
 
 
 class LiteSATACrossbar(Module):
-    def __init__(self, core):
+    def __init__(self, controller):
+        self.dw = flen(controller.sink.data)
         self.users = []
-        self.master = LiteSATAMasterPort(32)
+        self.master = LiteSATAMasterPort(self.dw)
         self.comb += [
-            self.master.source.connect(core.sink),
-            core.source.connect(self.master.sink)
+            self.master.source.connect(controller.sink),
+            controller.source.connect(self.master.sink)
         ]
 
     def get_port(self):
-        port = LiteSATAUserPort(32)
+        port = LiteSATAUserPort(self.dw)
         self.users += [port]
         return port
 

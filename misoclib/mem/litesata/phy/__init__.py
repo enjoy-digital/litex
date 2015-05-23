@@ -4,7 +4,7 @@ from misoclib.mem.litesata.phy.datapath import *
 
 
 class LiteSATAPHY(Module):
-    def __init__(self, device, pads, revision, clk_freq):
+    def __init__(self, device, clock_pads_or_refclk, pads, revision, clk_freq):
         self.pads = pads
         self.revision = revision
 
@@ -13,7 +13,7 @@ class LiteSATAPHY(Module):
             from misoclib.mem.litesata.phy.k7.trx import K7LiteSATAPHYTRX
             from misoclib.mem.litesata.phy.k7.crg import K7LiteSATAPHYCRG
             self.submodules.trx = K7LiteSATAPHYTRX(pads, revision)
-            self.submodules.crg = K7LiteSATAPHYCRG(pads, self.trx, revision, clk_freq)
+            self.submodules.crg = K7LiteSATAPHYCRG(clock_pads_or_refclk, pads, self.trx, revision, clk_freq)
         else:
             raise NotImplementedError
 

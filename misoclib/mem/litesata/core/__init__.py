@@ -5,7 +5,7 @@ from misoclib.mem.litesata.core.command import LiteSATACommand
 
 
 class LiteSATACore(Module):
-    def __init__(self, phy, buffer_depth):
+    def __init__(self, phy, buffer_depth=2*fis_max_dwords):
         self.submodules.link = LiteSATALink(phy, buffer_depth)
         self.submodules.transport = LiteSATATransport(self.link)
         self.submodules.command = LiteSATACommand(self.transport)

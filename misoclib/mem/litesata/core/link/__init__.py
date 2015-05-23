@@ -41,6 +41,7 @@ class LiteSATALinkTX(Module):
 
         # datas / primitives mux
         insert = Signal(32)
+        copy = Signal()
         self.comb += [
             If(self.from_rx.insert,
                 cont.sink.stb.eq(1),
@@ -51,7 +52,7 @@ class LiteSATALinkTX(Module):
                 cont.sink.stb.eq(1),
                 cont.sink.data.eq(insert),
                 cont.sink.charisk.eq(0x0001),
-            ).Elif(fsm.ongoing("COPY"),
+            ).Elif(copy,
                 cont.sink.stb.eq(scrambler.source.stb),
                 cont.sink.data.eq(scrambler.source.d),
                 scrambler.source.ack.eq(cont.sink.ack),
@@ -87,6 +88,7 @@ class LiteSATALinkTX(Module):
             )
         )
         fsm.act("COPY",
+            copy.eq(1),
             If(self.from_rx.det == primitives["HOLD"],
                 insert.eq(primitives["HOLDA"]),
             ).Elif(~scrambler.source.stb,
@@ -145,12 +147,15 @@ class LiteSATALinkRX(Module):
         crc = LiteSATACRCChecker(link_description(32))
         self.submodules += crc
 
+        idle = Signal()
+        copy = Signal()
+
         sop = Signal()
         eop = Signal()
         self.sync += \
-            If(fsm.ongoing("IDLE"),
+            If(idle,
                 sop.eq(1),
-            ).Elif(fsm.ongoing("COPY"),
+            ).Elif(copy,
                 If(scrambler.sink.stb & scrambler.sink.ack,
                     sop.eq(0)
                 )
@@ -177,6 +182,7 @@ class LiteSATALinkRX(Module):
 
         # FSM
         fsm.act("IDLE",
+            idle.eq(1),
             scrambler.reset.eq(1),
             If(det == primitives["X_RDY"],
                 NextState("RDY")
@@ -199,6 +205,7 @@ class LiteSATALinkRX(Module):
             scrambler.sink.eop.eq(eop)
         ]
         fsm.act("COPY",
+            copy.eq(1),
             scrambler.sink.stb.eq(cont.source.stb & ((det == 0) | eop)),
             insert.eq(primitives["R_IP"]),
             If(det == primitives["HOLD"],
