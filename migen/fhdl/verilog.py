@@ -8,6 +8,26 @@ from migen.fhdl.bitcontainer import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
 from migen.fhdl.conv_output import ConvOutput
 
+_reserved_keywords = {
+"always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
+"case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
+"defparam", "design", "disable", "edge", "else", "end", "endcase", "endconfig",
+"endfunction", "endgenerate", "endmodule", "endprimitive", "endspecify",
+"endtable", "endtask", "event", "for", "force", "forever", "fork", "function",
+"generate", "genvar", "highz0", "highz1", "if", "ifnone", "incdir", "include",
+"initial", "inout", "input", "instance", "integer", "join", "large", "liblist",
+"library", "localparam", "macromodule", "medium", "module", "nand", "negedge",
+"nmos", "nor", "noshowcancelled", "not", "notif0", "notif1", "or", "output",
+"parameter", "pmos", "posedge", "primitive", "pull0", "pull1" "pulldown"
+"pullup","pulsestyle_onevent", "pulsestyle_ondetect", "remos", "real",
+"realtime", "reg", "release", "repeat", "rnmos", "rpmos", "rtran", "rtranif0",
+"rtranif1", "scalared", "showcancelled", "signed", "small", "specify",
+"specparam", "strong0", "strong1", "supply0", "supply1", "table", "task",
+"time", "tran", "tranif0", "tranif1", "tri", "tri0", "tri1", "triand",
+"trior", "trireg", "unsigned", "use", "vectored", "wait", "wand", "weak0",
+"weak1", "while", "wire", "wor","xnor","xor"}
+
+
 def _printsig(ns, s):
     if s.signed:
         n = "signed "
@@ -324,7 +344,7 @@ def convert(f, ios=None, name="top",
 
     ns = build_namespace(list_signals(f) \
         | list_special_ios(f, True, True, True) \
-        | ios)
+        | ios, _reserved_keywords)
     r.ns = ns
 
     src = "/* Machine-generated using Migen */\n"

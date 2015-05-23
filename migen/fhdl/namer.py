@@ -212,9 +212,9 @@ def _build_pnd(signals):
     return pnd
 
 
-def build_namespace(signals):
+def build_namespace(signals, reserved_keywords=set()):
     pnd = _build_pnd(signals)
-    ns = Namespace(pnd)
+    ns = Namespace(pnd, reserved_keywords)
     # register signals with name_override
     for signal in signals:
         if signal.name_override is not None:
@@ -223,8 +223,8 @@ def build_namespace(signals):
 
 
 class Namespace:
-    def __init__(self, pnd):
-        self.counts = {}
+    def __init__(self, pnd, reserved_keywords=set()):
+        self.counts = {k: 1 for k in reserved_keywords}
         self.sigs = {}
         self.pnd = pnd
 
