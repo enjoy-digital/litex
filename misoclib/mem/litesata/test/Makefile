@@ -29,5 +29,8 @@ command_tb:
 bist_tb:
 	$(CMD) bist_tb.py
 
+striping_tb:
+	$(CMD) striping_tb.py
+
 clean:
 	rm crc scrambler *.vcd
