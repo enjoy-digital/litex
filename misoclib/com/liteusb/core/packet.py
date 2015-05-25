@@ -143,7 +143,7 @@ class LiteUSBDepacketizer(Module):
             source.eop.eq(eop),
             source.data.eq(sink.data),
             sink.ack.eq(source.ack),
-            If((source.stb & source.ack & eop) | self.timer.done
+            If((source.stb & source.ack & eop) | self.timer.done,
                 NextState("IDLE")
             )
         )
