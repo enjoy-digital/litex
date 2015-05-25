@@ -110,8 +110,8 @@ class LiteSATAStriping(Module):
                      +----> controllerN (dw)
 
     Characteristics:
-        - master's visible capacity = N x controller's visible capacity
-        - master's throughput = N x (slowest) controller's throughput
+        - port's visible capacity = N x controller's visible capacity
+        - port's throughput = N x (slowest) controller's throughput
 
     Can be used to increase capacity and writes/reads throughput.
     """

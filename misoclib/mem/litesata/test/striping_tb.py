@@ -65,4 +65,4 @@ class TB(Module):
             count = max((count + 1)%8, 1)
 
 if __name__ == "__main__":
-    run_simulation(TB(), ncycles=8192*2, vcd_name="my.vcd", keep_files=True)
+    run_simulation(TB(), ncycles=4096, vcd_name="my.vcd", keep_files=True)

@@ -18,7 +18,7 @@ from misoclib.mem.litesata.frontend.crossbar import LiteSATACrossbar
 from misoclib.mem.litesata.frontend.bist import LiteSATABIST
 
 
-class _CRG(Module):
+class CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
 
@@ -54,7 +54,7 @@ class _CRG(Module):
         ]
 
 
-class BISTLeds(Module):
+class StatusLeds(Module):
     def __init__(self, platform, sata_phys):
         for i, sata_phy in enumerate(sata_phys):
             # 1Hz blinking leds (sata_rx and sata_tx clocks)
@@ -93,7 +93,7 @@ class BISTSoC(SoC, AutoCSR):
         )
         self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
-        self.submodules.crg = _CRG(platform)
+        self.submodules.crg = CRG(platform)
 
         # SATA PHY/Core/Frontend
         self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata_clocks"), platform.request("sata", 0), "sata_gen2", clk_freq)
