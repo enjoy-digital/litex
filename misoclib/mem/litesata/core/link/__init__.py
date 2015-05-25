@@ -36,7 +36,7 @@ class LiteSATALinkTX(Module):
 
         # inserter CONT and scrambled data between
         # CONT and next primitive
-        cont = BufferizeEndpoints("source")(LiteSATACONTInserter(phy_description(32)))
+        cont = BufferizeEndpoints("sink")(LiteSATACONTInserter(phy_description(32)))
         self.submodules += cont
 
         # datas / primitives mux
