@@ -32,5 +32,8 @@ bist_tb:
 striping_tb:
 	$(CMD) striping_tb.py
 
+mirroring_tb:
+	$(CMD) mirroring_tb.py
+
 clean:
 	rm crc scrambler *.vcd
