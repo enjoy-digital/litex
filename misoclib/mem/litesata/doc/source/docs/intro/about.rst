@@ -1,18 +1,17 @@
 .. _about:
 
-================
+==============
 About LiteSATA
-================
+==============
 
-LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
+LiteSATA provides a small footprint and configurable SATA gen1/2 core.
 
-LiteSATA is part of MiSoC libraries whose aims are to lower entry level of complex FPGA cores by providing simple, elegant and efficient implementations of
-components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
+LiteSATA is part of the MiSoC libraries whose aims are to lower entry level of complex FPGA cores by providing simple, elegant and efficient implementations of components used in modern SoCs such as Ethernet, SATA, PCIe, SDRAM controller...
 
-The core uses simple and specific streaming buses and will provides in the future
+The core uses simple and specific streaming buses and will provide in the future
 adapters to use standardized AXI or Avalon-ST streaming buses.
 
-Since Python is used to describe the HDL, the core is highly and easily
+Since Python is used to describe the gateware, the core is highly and easily
 configurable.
 
 The synthetizable BIST can be used as a starting point to integrate SATA in
@@ -22,8 +21,8 @@ LiteSATA uses technologies developed in partnership with M-Labs Ltd:
  - Migen enables generating HDL with Python in an efficient way.
  - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
 
-LiteSATA can be used as MiSoC library or can be integrated with your standard
-design flow by generating the verilog rtl that you will use as a standard core.
+LiteSATA can be used as a Python library or can be integrated with your standard
+design flow by generating the Verilog RTL that you will use as a standard core.
 
 .. _about-toolchain:
 

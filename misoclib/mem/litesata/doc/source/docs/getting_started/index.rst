@@ -4,9 +4,9 @@
 Getting Started
 ===============
 
-Now you know why LiteSATA is :ref:`core for you <about>`, it's time to *get started*.
+Now that you know why LiteSATA is the :ref:`core for you <about>`, it's time to *get started*.
 
-This section provides a walk-through of :ref:`downloading and installing the tools`.
+This section explains the procedure for :ref:`downloading and installing the tools`.
 
 .. toctree::
 	:maxdepth: 1
@@ -14,4 +14,3 @@ This section provides a walk-through of :ref:`downloading and installing the too
 	downloads
 	FAQ
 	bug_reports
-

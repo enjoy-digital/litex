@@ -1,8 +1,8 @@
 .. _frontend-index:
 
-========================
+===================
 Frontend interfaces
-========================
+===================
 
 All frontend modules of LiteSATA share the same user interface based on packets.
 An interface has 2 endpoints:
@@ -12,8 +12,8 @@ An interface has 2 endpoints:
 
 Packets and user commands/responses are described in the next sections.
 
-Packets description
-===================
+Packet description
+==================
 
 Sink and Source are packets with additional parameters. A packet has the following signals:
 
@@ -39,16 +39,16 @@ User Commands
 
 All transfers are initiated using the Sink endpoint which has the following signals:
 
- - :code:`write`: 1 bit signal indicates if we want to write data to the HDD.
- - :code:`read`: 1 bit signal indicaties if we want to read data from the HDD.
- - :code:`identify`: 1 bit signal indicates if command is an identify device command (use to get HDD informations).
+ - :code:`write`: 1 bit signal, indicates if we want to write data to the HDD.
+ - :code:`read`: 1 bit signal, indicaties if we want to read data from the HDD.
+ - :code:`identify`: 1 bit signal, indicates if the command is an identify device command (use to get HDD information).
  - :code:`sector`: 48 bits signal, the sector number we are going to write or read.
  - :code:`count`: 16 bits signal, the number of sectors we are going to write or read.
  - :code:`data`: n x 32 bits signal, the write data. (n depends of the frontend module)
 
 .. tip::
 
-	- :code:`write`, :code:`read`, :code:`identify`, :code:`sector`, :code:`count` are parameters so remain constant for a packet duration.
+	- :code:`write`, :code:`read`, :code:`identify`, :code:`sector`, :code:`count` are parameters which must remain constant for the duration of the packet.
 	- :code:`sector`, :code:`count` are ignored during an :code:`identify` command.
 	- :code:`data` is ignored during a :code:`read` or :code:`identify` command.
 
@@ -57,32 +57,32 @@ User Responses
 
 Responses are obtained from the Source endpoint which has the following signals:
 
- - :code:`write`: 1 bit signal indicates if command was a write.
- - :code:`read`: 1 bit signal indicaties if command was a read.
- - :code:`identify`: 1 bit signal indicates if command was an identify device command.
- - :code:`last`: 1 bit signal indicates if this is the last packet of the response. (A response can be return in several packets)
- - :code:`failed`: 1 bit signal identicates if an error was detected in the response (CRC, FIS...)
+ - :code:`write`: 1 bit signal, indicates if the command was a write.
+ - :code:`read`: 1 bit signal, indicaties if the command was a read.
+ - :code:`identify`: 1 bit signal, indicates if the command was an identify device command.
+ - :code:`last`: 1 bit signal, indicates if this is the last packet of the response. (A response can be return in several packets)
+ - :code:`failed`: 1 bit signal, indicates if an error was detected in the response (CRC, FIS...)
  - :code:`data`: n x 32 bits signal, the read data. (n depends of the frontend module)
 
 .. tip::
 
-	- :code:`write`, :code:`read`, :code:`identify`, :code:`last` are parameters so remain constant for a packet duration.
+	- :code:`write`, :code:`read`, :code:`identify`, :code:`last` are parameters that must remain constant for the duration of a packet.
 	- :code:`data` can be ignored in the case of a :code:`write` or :code:`identify` command.
 	- in case of a :code:`read` command, read data packets are presented followed by an empty packet indicating the end of the transaction (last=1).
 
-========================
+================
 Frontend modules
-========================
+================
 
 LiteSATA provides a configurable and flexible frontend that can be used to:
 
-- Provides any number of user ports.
+- Provide any number of user ports.
 - Generate any RAID configuration when used with multiple HDDs.
 
 Crossbar
 ========
 
-The crossbar let the user request any number of ports. It automatically arbitrate requests and dispatch responses to the corresponding ports.
+The crossbar lets the user request any number of ports. It automatically arbitrates requests and dispatches responses to the corresponding ports.
 
 The following example creates a crossbar and 2 user ports:
 
@@ -95,7 +95,7 @@ The following example creates a crossbar and 2 user ports:
 Striping
 ========
 
-The striping module segment data so that data is stored on N different controllers. (RAID0 equivalent)
+The striping module segments data so that data is stored on N different controllers (RAID0 equivalent).
 
 .. code-block:: python
 
@@ -120,7 +120,7 @@ The following example creates a striping with 2 HDDs:
 Mirroring
 =========
 
-The mirroring module handles N controllers and provides N ports. (RAID1 equivalent)
+The mirroring module handles N controllers and provides N ports (RAID1 equivalent).
 
 Each port has its dedicated controller for reads:
 
@@ -146,7 +146,7 @@ Characteristics:
   - total writes throughput = (slowest) :code:`controller`'s throughput
   - total reads throughput = N x :code:`controller`'s throughput
 
-It can be used for data redundancy and/or to increase total reads speed.
+It can be used for data redundancy and/or to increase the total read speed.
 
 .. code-block:: python
 
@@ -154,8 +154,8 @@ It can be used for data redundancy and/or to increase total reads speed.
 
 :code:`sata_striping`'s ports[0] and ports[1] are the user interfaces.
 
-Modules combinations
-====================
+Module combinations
+===================
 
 Since all frontend modules share the same interface, it's easy to combine them together.
 
@@ -180,9 +180,9 @@ Since it's probably easier to figure out how to use the frontend modules with re
 
 - A BIST_ (Data generator and checker) design that can be used to understand how to connect your logic to the user_port provided by the crossbar.
 
-- A Striping_  design that can be used to understand how to connect couple 4 HDDs together in striping mode and do a BIST it.
+- A Striping_  design that can be used to understand how to couple 4 HDDs together in striping mode and do a BIST.
 
-- A Mirroring_  design that can be used to understand how to connect couple 4 HDDs together in Mirroring mode and do a BIST it.
+- A Mirroring_  design that can be used to understand how to couple 4 HDDs together in Mirroring mode and do a BIST.
 
 .. _BIST: https://github.com/m-labs/misoc/blob/master/misoclib/mem/litesata/example_designs/targets/bist.py
 
