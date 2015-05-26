@@ -15,13 +15,13 @@ Packets and user commands/responses are described in the next sections.
 Packet description
 ==================
 
-Sink and Source are packets with additional parameters. A packet has the following signals:
+Sink and Source endpoints use packets with additional parameters. A packet has the following signals:
 
- - :code:`stb`: Strobe signal indicates that command or data is valid.
- - :code:`sop`: Start Of Packet signal indicates that current command or data is the first of the packet.
- - :code:`eop`: End Of Packet signal indicates that current command or data is the last of the packet.
- - :code:`ack`: Response from the endpoint indicates that core is able to accept our command or data.
- - :code:`data`: Current data of the packet.
+ - :code:`stb`: Strobe signal, indicates that command or data is valid.
+ - :code:`sop`: Start Of Packet signal, indicates that current command or data is the first of the packet.
+ - :code:`eop`: End Of Packet signal, indicates that current command or data is the last of the packet.
+ - :code:`ack`: Acknowledge signal, indicates the destination is able to accept current data.
+ - :code:`data`: Data signal.
 
 .. figure:: packets.png
    :width: 50%
@@ -31,16 +31,16 @@ Sink and Source are packets with additional parameters. A packet has the followi
 
 .. tip::
 
-	- When a packet only has a command or :code:`data`, :code:`sop` and :code:`eop` must be set to 1 on the same clock cycle.
+	- When a packet only has a :code:`data`, :code:`sop` and :code:`eop` must be set to 1 on the same clock cycle.
 	- A :code:`data` is accepted when :code:`stb` =1 and :code:`ack` =1.
 
 User Commands
 =============
 
-All transfers are initiated using the Sink endpoint which has the following signals:
+All transfers are initiated using the Sink endpoint of the interface which has the following signals:
 
  - :code:`write`: 1 bit signal, indicates if we want to write data to the HDD.
- - :code:`read`: 1 bit signal, indicaties if we want to read data from the HDD.
+ - :code:`read`: 1 bit signal, indicates if we want to read data from the HDD.
  - :code:`identify`: 1 bit signal, indicates if the command is an identify device command (use to get HDD information).
  - :code:`sector`: 48 bits signal, the sector number we are going to write or read.
  - :code:`count`: 16 bits signal, the number of sectors we are going to write or read.
@@ -58,7 +58,7 @@ User Responses
 Responses are obtained from the Source endpoint which has the following signals:
 
  - :code:`write`: 1 bit signal, indicates if the command was a write.
- - :code:`read`: 1 bit signal, indicaties if the command was a read.
+ - :code:`read`: 1 bit signal, indicates if the command was a read.
  - :code:`identify`: 1 bit signal, indicates if the command was an identify device command.
  - :code:`last`: 1 bit signal, indicates if this is the last packet of the response. (A response can be return in several packets)
  - :code:`failed`: 1 bit signal, indicates if an error was detected in the response (CRC, FIS...)
@@ -76,13 +76,13 @@ Frontend modules
 
 LiteSATA provides a configurable and flexible frontend that can be used to:
 
-- Provide any number of user ports.
-- Generate any RAID configuration when used with multiple HDDs.
+- Provides any number of user ports.
+- Generate RAID configurations when used with multiple HDDs.
 
 Crossbar
 ========
 
-The crossbar lets the user request any number of ports. It automatically arbitrates requests and dispatches responses to the corresponding ports.
+The crossbar allows the user to request any number of ports for their application. It automatically arbitrates requests and dispatches responses to the corresponding ports.
 
 The following example creates a crossbar and 2 user ports:
 
@@ -115,7 +115,7 @@ The following example creates a striping with 2 HDDs:
 
     self.submodules.sata_striping = LiteSATAStriping([self.sata_core0, self.sata_core1])
 
-:code:`sata_striping`'s sink and source are the user interface.
+:code:`sata_striping`'s Sink and Source are the user interface.
 
 Mirroring
 =========
@@ -139,7 +139,7 @@ Writes are mirrored on each controller:
         portX (stalled) +----> controllerX      |      portX (stalled) +-----> controllerX
         portN (stalled) +----> controllerN      |      portN ----------+-----> controllerN
 
-Writes have priority on reads. When a write is presented on one of the port, the module waits for all ongoing reads to finish and commute to write mode. Once all writes are serviced it returns to read mode.
+Writes have priority on reads. When a write is presented on one of the ports, the module waits for all ongoing reads to finish and commute to write mode. Once all writes are serviced it returns to read mode.
 
 Characteristics:
   - :code:`port`'s visible capacity = :code:`controller`'s visible capacity
@@ -148,11 +148,13 @@ Characteristics:
 
 It can be used for data redundancy and/or to increase the total read speed.
 
+The following example creates a mirroring with 2 HDDs:
+
 .. code-block:: python
 
     self.submodules.sata_mirroring = LiteSATAMirroring([self.sata_core0, self.sata_core1])
 
-:code:`sata_striping`'s ports[0] and ports[1] are the user interfaces.
+:code:`sata_striping`'s :code:`ports[0]` and :code:`ports[1]` are the user interfaces.
 
 Module combinations
 ===================
@@ -180,9 +182,9 @@ Since it's probably easier to figure out how to use the frontend modules with re
 
 - A BIST_ (Data generator and checker) design that can be used to understand how to connect your logic to the user_port provided by the crossbar.
 
-- A Striping_  design that can be used to understand how to couple 4 HDDs together in striping mode and do a BIST.
+- A Striping_  design that can be used to understand how to combine 4 HDDs together in striping mode and do a BIST on it.
 
-- A Mirroring_  design that can be used to understand how to couple 4 HDDs together in Mirroring mode and do a BIST.
+- A Mirroring_ design that can be used to understand how to combine 4 HDDs together in mirroring mode and do a BIST on it.
 
 .. _BIST: https://github.com/m-labs/misoc/blob/master/misoclib/mem/litesata/example_designs/targets/bist.py
 
