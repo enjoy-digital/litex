@@ -24,5 +24,3 @@ News
 	docs/frontend/index
 	docs/simulation/index
 	docs/test/index
-	docs/site/about
-

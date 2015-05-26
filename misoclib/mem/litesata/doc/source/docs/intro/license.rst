@@ -9,6 +9,7 @@ terms of this license, you are authorized to use LiteSATA for closed-source
 proprietary designs.
 Even though we do not require you to do so, those things are awesome, so please
 do them if possible:
+
  - tell us that you are using LiteSATA
  - cite LiteSATA in publications related to research it has helped
  - send us feedback and suggestions for improvements
@@ -17,7 +18,7 @@ do them if possible:
 
 ::
 
-  Unless otherwise noted, LiteSATA is copyright (C) 2015 HKU.
+  Unless otherwise noted, LiteSATA is copyright (C) 2014-2015 HKU.
 
   Redistribution and use in source and binary forms, with or without modification,
   are permitted provided that the following conditions are met:

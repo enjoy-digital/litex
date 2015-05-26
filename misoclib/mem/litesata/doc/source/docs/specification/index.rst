@@ -5,7 +5,7 @@ SATA Specification
 ========================
 
 .. note::
-	This chapter is a lightly modified version of the excellent SATA summerization found in Chapter 2 of Erik Landström's Thesis_.
+	This chapter is a lightly modified version of the excellent SATA summary found in Chapter 2 of Erik Landström's Thesis_.
 
 Serial Advanced Technology Attachment (SATA) is a serial link replacement of
 Parallel ATA (PATA), both standards for communication with mass storage devices.
@@ -20,7 +20,7 @@ data stream
 
    SATA layers.
 
-SATA’s architecture consists of four layers, Application, Transport, Link, and Physical.
+SATA's architecture consists of four layers, Application, Transport, Link, and Physical.
 The Application layer is responsible for overall ATA commands and of controlling SATA
 register accesses. The transport layer places control information and data to be transferred between
 the host and corresponding SATA device in a data packets. One such packet is called a frame
@@ -111,6 +111,7 @@ Physical Layer
 ==============
 This section describes the physical interface towards the actual SATA link.
 The features of the phy can be summarized to:
+
   - Transmit/Receive a 1.5 Gbps, 3.0 or 6.0 Gbps differential signal
   - Speed negotiation
   - OOB detection and transmission
@@ -132,6 +133,7 @@ Link Layer
 ==========
 This section describes the SATA link layer.
 The link layer’s major tasks are:
+
   - Flow control
   - Encapsulate FISes received from transport layer
   - CRC generation and CRC check
@@ -175,6 +177,7 @@ Transport Layer
 ===============
 The main task for the SATA transport layer is to handle FISes and a brief description
 of the layer’s features follows:
+
   - Flow control
   - Error control
   - Error reporting
@@ -189,6 +192,7 @@ there are bytes or bits missing for an entire Dword.
 The flow control in this case is only to report to the link layer that the data buffers
 are close to over- or underflow. Errors detected are supposed to be reported to
 the application layer and the detectable errors are:
+
   - Errors from lower layers like 8b/10b disparity error or CRC errors.
   - SATA state or protocol errors caused by standard violation.
   - Frame errors like malformed header.
@@ -201,11 +205,11 @@ bytes (maximum supported FIS size). The max sized non-data FIS is 28 bytes so
 the costs of a large buffer can be spared.
 
 Command Layer
-=================
+=============
 The command layer tells the transport layer what kind of FISes to send and receive
 for each specific command and in which order those FISes are expexted to be delivered.
 
 .. note::
-	This chapter is a lightly modified version of the excellent SATA summerization found in Chapter 2 of Erik Landström's Thesis_.
+	This chapter is a lightly modified version of the excellent SATA summary found in Chapter 2 of Erik Landström's Thesis_.
 
 .. _Thesis: http://www.diva-portal.org/smash/get/diva2:207798/FULLTEXT01.pdf

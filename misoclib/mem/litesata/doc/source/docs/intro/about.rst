@@ -51,7 +51,7 @@ Core:
 Frontend:
   - Configurable crossbar (simply declare your crossbar and use core.crossbar.get_port() to add a new port!)
   - Ports arbitration transparent to the user
-  - Synthetizable BIST
+  - Synthesizable BIST
   - Striping module to segment data on multiple HDDs and increase write/read speed and capacity. (RAID0 equivalent)
   - Mirroring module for data redundancy and increase read speeds. (RAID1 equivalent)
 
@@ -85,5 +85,3 @@ the list of the possible improvements :)
 Contact
 =======
 E-mail: florent [AT] enjoy-digital.fr
-
-
