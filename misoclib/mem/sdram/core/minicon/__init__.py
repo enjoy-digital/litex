@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.fsm import FSM, NextState
+from migen.genlib.misc import optree, Counter, WaitTimer
 
 from misoclib.mem.sdram.phy import dfi as dfibus
 
@@ -10,36 +11,55 @@ class _AddressSlicer:
         self.colbits = colbits
         self.bankbits = bankbits
         self.rowbits = rowbits
-        self.max_a = colbits + rowbits + bankbits
         self.address_align = address_align
+        self.addressbits = colbits - address_align + bankbits + rowbits
 
     def row(self, address):
-        split = self.bankbits + self.colbits
+        split = self.bankbits + self.colbits - self.address_align
         if isinstance(address, int):
             return address >> split
         else:
-            return address[split:self.max_a]
+            return address[split:self.addressbits]
 
     def bank(self, address):
-        mask = 2**(self.bankbits + self.colbits) - 1
-        shift = self.colbits
+        split = self.colbits - self.address_align
         if isinstance(address, int):
-            return (address & mask) >> shift
+            return (address & (2**(split + self.bankbits) - 1)) >> split
         else:
-            return address[self.colbits:self.colbits+self.bankbits]
+            return address[split:split+self.bankbits]
 
     def col(self, address):
-        split = self.colbits
+        split = self.colbits - self.address_align
         if isinstance(address, int):
             return (address & (2**split - 1)) << self.address_align
         else:
             return Cat(Replicate(0, self.address_align), address[:split])
 
 
+@DecorateModule(InsertReset)
+@DecorateModule(InsertCE)
+class _Bank(Module):
+    def __init__(self, geom_settings):
+        self.open = Signal()
+        self.row = Signal(geom_settings.rowbits)
+
+        self.idle = Signal(reset=1)
+        self.hit = Signal()
+
+        # # #
+
+        row = Signal(geom_settings.rowbits)
+        self.sync += \
+            If(self.open,
+                self.idle.eq(0),
+                row.eq(self.row)
+            )
+        self.comb += self.hit.eq(~self.idle & (self.row == row))
+
+
 class MiniconSettings:
     def __init__(self):
         pass
-
 
 class Minicon(Module):
     def __init__(self, phy_settings, geom_settings, timing_settings):
@@ -49,146 +69,135 @@ class Minicon(Module):
             burst_length = phy_settings.nphases*2  # command multiplication*DDR
         address_align = log2_int(burst_length)
 
-        nbanks = range(2**geom_settings.bankbits)
-        A10_ENABLED = 0
-        COLUMN      = 1
-        ROW         = 2
-        rdphase = phy_settings.rdphase
-        wrphase = phy_settings.wrphase
+        # # #
 
         self.dfi = dfi = dfibus.Interface(geom_settings.addressbits,
             geom_settings.bankbits,
             phy_settings.dfi_databits,
             phy_settings.nphases)
 
-        self.bus = bus = wishbone.Interface(data_width=phy_settings.nphases*flen(dfi.phases[rdphase].rddata))
-        slicer = _AddressSlicer(geom_settings.colbits, geom_settings.bankbits, geom_settings.rowbits, address_align)
-        refresh_req = Signal()
-        refresh_ack = Signal()
-        refresh_counter = Signal(max=timing_settings.tREFI+1)
-        hit = Signal()
-        row_open = Signal()
-        row_closeall = Signal()
-        addr_sel = Signal(max=3, reset=A10_ENABLED)
-        has_curbank_openrow = Signal()
+        self.bus = bus = wishbone.Interface()
 
-        # Extra bit means row is active when asserted
-        self.openrow = openrow = Array(Signal(geom_settings.rowbits + 1) for b in nbanks)
+        rdphase = phy_settings.rdphase
+        wrphase = phy_settings.wrphase
+
+        precharge_all = Signal()
+        activate = Signal()
+        refresh = Signal()
+        write = Signal()
+        read = Signal()
+
+        # Compute current column, bank and row from wishbone address
+        slicer = _AddressSlicer(geom_settings.colbits,
+                                geom_settings.bankbits,
+                                geom_settings.rowbits,
+                                address_align)
+
+        # Manage banks
+        bank_open = Signal()
+        bank_idle = Signal()
+        bank_hit = Signal()
+
+        banks = []
+        for i in range(2**geom_settings.bankbits):
+            bank = _Bank(geom_settings)
+            self.comb += [
+                bank.open.eq(activate),
+                bank.reset.eq(precharge_all),
+                bank.row.eq(slicer.row(bus.adr))
+            ]
+            banks.append(bank)
+        self.submodules += banks
+
+        cases = {}
+        for i, bank in enumerate(banks):
+            cases[i] = [bank.ce.eq(1)]
+        self.comb += Case(slicer.bank(bus.adr), cases)
 
         self.comb += [
-            hit.eq(openrow[slicer.bank(bus.adr)] == Cat(slicer.row(bus.adr), 1)),
-            has_curbank_openrow.eq(openrow[slicer.bank(bus.adr)][-1]),
-            bus.dat_r.eq(Cat(phase.rddata for phase in dfi.phases)),
-            Cat(phase.wrdata for phase in dfi.phases).eq(bus.dat_w),
-            Cat(phase.wrdata_mask for phase in dfi.phases).eq(~bus.sel),
+            bank_hit.eq(optree("|", [bank.hit & bank.ce for bank in banks])),
+            bank_idle.eq(optree("|", [bank.idle & bank.ce for bank in banks])),
         ]
 
-        for phase in dfi.phases:
-            self.comb += [
-                phase.cke.eq(1),
-                phase.cs_n.eq(0),
-                phase.address.eq(Array([2**10, slicer.col(bus.adr), slicer.row(bus.adr)])[addr_sel]),
-                phase.bank.eq(slicer.bank(bus.adr))
-            ]
+        # Timings
+        write2precharge_timer = WaitTimer(2 + timing_settings.tWR - 1)
+        self.submodules +=  write2precharge_timer
+        self.comb += write2precharge_timer.wait.eq(~write)
 
-        for b in nbanks:
-            self.sync += [
-                If(row_open & (b == slicer.bank(bus.adr)),
-                    openrow[b].eq(Cat(slicer.row(bus.adr), 1)),
-                ),
-                If(row_closeall,
-                    openrow[b][-1].eq(0)
-                )
-            ]
+        refresh_timer = WaitTimer(timing_settings.tREFI)
+        self.submodules +=  refresh_timer
+        self.comb += refresh_timer.wait.eq(~refresh)
 
-        self.sync += [
-            If(refresh_ack,
-                refresh_req.eq(0)
-            ),
-            If(refresh_counter == 0,
-                refresh_counter.eq(timing_settings.tREFI),
-                refresh_req.eq(1)
-            ).Else(
-                refresh_counter.eq(refresh_counter - 1)
-            )
-        ]
-
-        fsm = FSM()
-        self.submodules += fsm
+        # Main FSM
+        self.submodules.fsm = fsm = FSM()
         fsm.act("IDLE",
-            If(refresh_req,
-                NextState("PRECHARGEALL")
+            If(refresh_timer.done,
+                NextState("PRECHARGE-ALL")
             ).Elif(bus.stb & bus.cyc,
-                If(hit & bus.we,
-                    NextState("WRITE")
-                ),
-                If(hit & ~bus.we,
-                    NextState("READ")
-                ),
-                If(has_curbank_openrow & ~hit,
-                    NextState("PRECHARGE")
-                ),
-                If(~has_curbank_openrow,
+                If(bank_hit,
+                    If(bus.we,
+                        NextState("WRITE")
+                    ).Else(
+                        NextState("READ")
+                    )
+                ).Elif(~bank_idle,
+                    If(write2precharge_timer.done,
+                        NextState("PRECHARGE")
+                    )
+                ).Else(
                     NextState("ACTIVATE")
-                ),
+                )
             )
         )
         fsm.act("READ",
-            # We output Column bits at address pins so A10 is 0
-            # to disable row Auto-Precharge
+            read.eq(1),
             dfi.phases[rdphase].ras_n.eq(1),
             dfi.phases[rdphase].cas_n.eq(0),
             dfi.phases[rdphase].we_n.eq(1),
             dfi.phases[rdphase].rddata_en.eq(1),
-            addr_sel.eq(COLUMN),
-            NextState("READ-WAIT-ACK"),
+            NextState("WAIT-READ-DONE"),
         )
-        fsm.act("READ-WAIT-ACK",
+        fsm.act("WAIT-READ-DONE",
             If(dfi.phases[rdphase].rddata_valid,
-                NextState("IDLE"),
-                bus.ack.eq(1)
-            ).Else(
-                NextState("READ-WAIT-ACK")
+                bus.ack.eq(1),
+                NextState("IDLE")
             )
         )
         fsm.act("WRITE",
+            write.eq(1),
             dfi.phases[wrphase].ras_n.eq(1),
             dfi.phases[wrphase].cas_n.eq(0),
             dfi.phases[wrphase].we_n.eq(0),
             dfi.phases[wrphase].wrdata_en.eq(1),
-            addr_sel.eq(COLUMN),
+            NextState("WRITE-LATENCY")
+        )
+        fsm.act("WRITE-ACK",
             bus.ack.eq(1),
             NextState("IDLE")
         )
-        fsm.act("PRECHARGEALL",
-            row_closeall.eq(1),
+        fsm.act("PRECHARGE-ALL",
+            precharge_all.eq(1),
             dfi.phases[rdphase].ras_n.eq(0),
             dfi.phases[rdphase].cas_n.eq(1),
             dfi.phases[rdphase].we_n.eq(0),
-            addr_sel.eq(A10_ENABLED),
             NextState("PRE-REFRESH")
         )
         fsm.act("PRECHARGE",
-            # Notes:
-            # 1. we are presenting the column address so that A10 is low
-            # 2. since we always go to the ACTIVATE state, we do not need
-            # to assert row_close because it will be reopen right after.
-            NextState("TRP"),
-            addr_sel.eq(COLUMN),
-            dfi.phases[rdphase].ras_n.eq(0),
-            dfi.phases[rdphase].cas_n.eq(1),
-            dfi.phases[rdphase].we_n.eq(0)
+            # do no reset bank since we are going to re-open it
+            dfi.phases[0].ras_n.eq(0),
+            dfi.phases[0].cas_n.eq(1),
+            dfi.phases[0].we_n.eq(0),
+            NextState("TRP")
         )
         fsm.act("ACTIVATE",
-            row_open.eq(1),
+            activate.eq(1),
+            dfi.phases[0].ras_n.eq(0),
+            dfi.phases[0].cas_n.eq(1),
+            dfi.phases[0].we_n.eq(1),
             NextState("TRCD"),
-            dfi.phases[rdphase].ras_n.eq(0),
-            dfi.phases[rdphase].cas_n.eq(1),
-            dfi.phases[rdphase].we_n.eq(1),
-            addr_sel.eq(ROW)
         )
         fsm.act("REFRESH",
-            refresh_ack.eq(1),
+            refresh.eq(1),
             dfi.phases[rdphase].ras_n.eq(0),
             dfi.phases[rdphase].cas_n.eq(0),
             dfi.phases[rdphase].we_n.eq(1),
@@ -198,3 +207,30 @@ class Minicon(Module):
         fsm.delayed_enter("PRE-REFRESH", "REFRESH", timing_settings.tRP-1)
         fsm.delayed_enter("TRCD", "IDLE", timing_settings.tRCD-1)
         fsm.delayed_enter("POST-REFRESH", "IDLE", timing_settings.tRFC-1)
+        fsm.delayed_enter("WRITE-LATENCY", "WRITE-ACK", phy_settings.write_latency-1)
+
+        # DFI commands
+        for phase in dfi.phases:
+            if hasattr(phase, "reset_n"):
+                self.comb += phase.reset_n.eq(1)
+            if hasattr(phase, "odt"):
+                self.comb += phase.odt.eq(1)
+            self.comb += [
+                phase.cke.eq(1),
+                phase.cs_n.eq(0),
+                phase.bank.eq(slicer.bank(bus.adr)),
+                If(precharge_all,
+                    phase.address.eq(2**10)
+                ).Elif(activate,
+                     phase.address.eq(slicer.row(bus.adr))
+                ).Elif(write | read,
+                    phase.address.eq(slicer.col(bus.adr))
+                )
+            ]
+
+        # DFI datapath
+        self.comb += [
+            bus.dat_r.eq(Cat(phase.rddata for phase in dfi.phases)),
+            Cat(phase.wrdata for phase in dfi.phases).eq(bus.dat_w),
+            Cat(phase.wrdata_mask for phase in dfi.phases).eq(~bus.sel),
+        ]
