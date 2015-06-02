@@ -74,7 +74,7 @@ class FSM(Module):
     def delayed_enter(self, name, target, delay):
         if self.finalized:
             raise FinalizeError
-        if delay:
+        if delay > 0:
             state = name
             for i in range(delay):
                 if i == delay - 1:
