@@ -13,7 +13,7 @@ from misoclib.mem import sdram
 
 
 class Bank(Module):
-    def __init__(self, data_width, nrows, ncols):
+    def __init__(self, data_width, nrows, ncols, burst_length):
         self.activate = Signal()
         self.activate_row = Signal(max=nrows)
         self.precharge = Signal()
@@ -39,7 +39,7 @@ class Bank(Module):
                 row.eq(self.activate_row)
             )
 
-        self.specials.mem = mem = Memory(data_width, nrows*ncols)
+        self.specials.mem = mem = Memory(data_width, nrows*ncols//burst_length)
         self.specials.write_port = write_port = mem.get_port(write_capable=True,
                                                              we_granularity=8)
         self.specials.read_port = read_port = mem.get_port(async_read=True)
@@ -89,6 +89,11 @@ class DFIPhase(Module):
 
 class SDRAMPHYSim(Module):
     def __init__(self, module, settings):
+        if settings.memtype in ["SDR"]:
+            burst_length = settings.nphases*1  # command multiplication*SDR
+        elif settings.memtype in ["DDR", "LPDDR", "DDR2", "DDR3"]:
+            burst_length = settings.nphases*2  # command multiplication*DDR
+
         addressbits = module.geom_settings.addressbits
         bankbits = module.geom_settings.bankbits
         rowbits = module.geom_settings.rowbits
@@ -110,7 +115,7 @@ class SDRAMPHYSim(Module):
         self.submodules += phases
 
         # banks
-        banks = [Bank(data_width, nrows, ncols) for i in range(nbanks)]
+        banks = [Bank(data_width, nrows, ncols, burst_length) for i in range(nbanks)]
         self.submodules += banks
 
         # connect DFI phases to banks (cmds, write datapath)
