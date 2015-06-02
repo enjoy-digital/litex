@@ -82,6 +82,38 @@ class PulseSynchronizer(Module):
         self.comb += self.o.eq(toggle_o ^ toggle_o_r)
 
 
+class BusSynchronizer(Module):
+    """Clock domain transfer of several bits at once.
+
+    Ensures that all the bits form a single word that was present
+    synchronously in the input clock domain (unlike direct use of
+    ``MultiReg``)."""
+    def __init__(self, width, idomain, odomain):
+        self.i = Signal(width)
+        self.o = Signal(width)
+
+        if width == 1:
+            self.specials += MultiReg(self.i, self.o, odomain)
+        else:
+            sync_i = getattr(self.sync, idomain)
+            sync_o = getattr(self.sync, odomain)
+
+            starter = Signal(reset=1)
+            sync_i += starter.eq(0)
+            self.submodules._ping = PulseSynchronizer(idomain, odomain)
+            self.submodules._pong = PulseSynchronizer(odomain, idomain)
+            self.comb += [
+                self._ping.i.eq(starter | self._pong.o),
+                self._pong.i.eq(self._ping.i)
+            ]
+
+            ibuffer = Signal(width)
+            obuffer = Signal(width)
+            sync_i += If(self._pong.o, ibuffer.eq(self.i))
+            self.specials += MultiReg(ibuffer, obuffer, odomain)
+            sync_o += If(self._ping.o, self.o.eq(obuffer))
+
+
 class GrayCounter(Module):
     def __init__(self, width):
         self.ce = Signal()
