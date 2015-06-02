@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import optree, Counter, WaitTimer
+from migen.genlib.misc import optree, WaitTimer
 
 from misoclib.mem.sdram.phy import dfi as dfibus
 
@@ -61,12 +61,14 @@ class MiniconSettings:
     def __init__(self):
         pass
 
+
 class Minicon(Module):
     def __init__(self, phy_settings, geom_settings, timing_settings):
         if phy_settings.memtype in ["SDR"]:
             burst_length = phy_settings.nphases*1  # command multiplication*SDR
         elif phy_settings.memtype in ["DDR", "LPDDR", "DDR2", "DDR3"]:
             burst_length = phy_settings.nphases*2  # command multiplication*DDR
+        burst_width = phy_settings.dfi_databits*phy_settings.nphases
         address_align = log2_int(burst_length)
 
         # # #
@@ -76,7 +78,7 @@ class Minicon(Module):
             phy_settings.dfi_databits,
             phy_settings.nphases)
 
-        self.bus = bus = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(burst_width)
 
         rdphase = phy_settings.rdphase
         wrphase = phy_settings.wrphase
@@ -203,11 +205,11 @@ class Minicon(Module):
             dfi.phases[rdphase].we_n.eq(1),
             NextState("POST-REFRESH")
         )
-        fsm.delayed_enter("TRP", "ACTIVATE", timing_settings.tRP-1)
-        fsm.delayed_enter("PRE-REFRESH", "REFRESH", timing_settings.tRP-1)
-        fsm.delayed_enter("TRCD", "IDLE", timing_settings.tRCD-1)
-        fsm.delayed_enter("POST-REFRESH", "IDLE", timing_settings.tRFC-1)
         fsm.delayed_enter("WRITE-LATENCY", "WRITE-ACK", phy_settings.write_latency-1)
+        fsm.delayed_enter("TRP", "ACTIVATE", timing_settings.tRP-1)
+        fsm.delayed_enter("TRCD", "IDLE", timing_settings.tRCD-1)
+        fsm.delayed_enter("PRE-REFRESH", "REFRESH", timing_settings.tRP-1)
+        fsm.delayed_enter("POST-REFRESH", "IDLE", timing_settings.tRFC-1)
 
         # DFI commands
         for phase in dfi.phases:

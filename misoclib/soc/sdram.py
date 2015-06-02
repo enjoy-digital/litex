@@ -70,15 +70,8 @@ class SDRAMSoC(SoC):
 
         # MINICON frontend
         elif isinstance(self.sdram_controller_settings, MiniconSettings):
-            burst_width = phy.settings.dfi_databits*phy.settings.nphases
-            if burst_width == 32:
-                self.register_mem("main_ram", self.mem_map["main_ram"], self.sdram.controller.bus, main_ram_size)
-            elif burst_width < 32:
-                self.submodules.downconverter = downconverter = wishbone.DownConverter(32, burst_width)
-                self.comb += Record.connect(downconverter.wishbone_o, self.sdram.controller.bus)
-                self.register_mem("main_ram", self.mem_map["main_ram"], downconverter.wishbone_i, main_ram_size)
-            else:
-                raise NotImplementedError("Unsupported burst width of {} > 32".format(burst_width))
+            self.submodules.converter = wishbone.Converter(wishbone.Interface(), self.sdram.controller.bus)
+            self.register_mem("main_ram", self.mem_map["main_ram"], self.converter.master, main_ram_size)
 
     def do_finalize(self):
         if not self.integrated_main_ram_size:
