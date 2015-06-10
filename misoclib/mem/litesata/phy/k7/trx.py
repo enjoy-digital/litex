@@ -575,7 +575,7 @@ class K7LiteSATAPHYTRX(Module):
 
                 # Receive Ports - CDR Ports
                     i_RXCDRFREQRESET=0,
-                    i_RXCDRHOLD=0,
+                    i_RXCDRHOLD=self.rxelecidle,
                     #o_RXCDRLOCK=,
                     i_RXCDROVRDEN=0,
                     i_RXCDRRESET=0,
