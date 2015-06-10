@@ -4,7 +4,7 @@
 About LiteSATA
 ==============
 
-LiteSATA provides a small footprint and configurable SATA gen1/2 core.
+LiteSATA provides a small footprint and configurable SATA gen1/2/3 core.
 
 LiteSATA is part of the MiSoC libraries whose aims are to lower entry level of complex FPGA cores by providing simple, elegant and efficient implementations of components used in modern SoCs such as Ethernet, SATA, PCIe, SDRAM controller...
 

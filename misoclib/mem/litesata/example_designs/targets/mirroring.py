@@ -31,7 +31,7 @@ class MirroringSoC(SoC, AutoCSR):
     }
     csr_map.update(SoC.csr_map)
     def __init__(self, platform):
-        clk_freq = 166*1000000
+        clk_freq = 200*1000000
         SoC.__init__(self, platform, clk_freq,
             cpu_type="none",
             with_csr=True, csr_data_width=32,
@@ -44,10 +44,10 @@ class MirroringSoC(SoC, AutoCSR):
         self.submodules.crg = CRG(platform)
 
         # SATA PHYs
-        sata_phy0 = LiteSATAPHY(platform.device, platform.request("sata_clocks"), platform.request("sata", 0), "sata_gen2", clk_freq)
-        sata_phy1 = LiteSATAPHY(platform.device, sata_phy0.crg.refclk, platform.request("sata", 1), "sata_gen2", clk_freq)
-        sata_phy2 = LiteSATAPHY(platform.device, sata_phy0.crg.refclk, platform.request("sata", 2), "sata_gen2", clk_freq)
-        sata_phy3 = LiteSATAPHY(platform.device, sata_phy0.crg.refclk, platform.request("sata", 3), "sata_gen2", clk_freq)
+        sata_phy0 = LiteSATAPHY(platform.device, platform.request("sata_clocks"), platform.request("sata", 0), "sata_gen3", clk_freq)
+        sata_phy1 = LiteSATAPHY(platform.device, sata_phy0.crg.refclk, platform.request("sata", 1), "sata_gen3", clk_freq)
+        sata_phy2 = LiteSATAPHY(platform.device, sata_phy0.crg.refclk, platform.request("sata", 2), "sata_gen3", clk_freq)
+        sata_phy3 = LiteSATAPHY(platform.device, sata_phy0.crg.refclk, platform.request("sata", 3), "sata_gen3", clk_freq)
         sata_phys = [sata_phy0, sata_phy1, sata_phy2, sata_phy3]
         for i, sata_phy in enumerate(sata_phys):
             sata_phy = RenameClockDomains(sata_phy, {"sata_rx": "sata_rx{}".format(str(i)),
@@ -79,13 +79,13 @@ class MirroringSoC(SoC, AutoCSR):
 
 
         platform.add_platform_command("""
-create_clock -name sys_clk -period 6 [get_nets sys_clk]
+create_clock -name sys_clk -period 5 [get_nets sys_clk]
 """)
 
         for i in range(len(sata_phys)):
             platform.add_platform_command("""
-create_clock -name {sata_rx_clk} -period 6.66 [get_nets {sata_rx_clk}]
-create_clock -name {sata_tx_clk} -period 6.66 [get_nets {sata_tx_clk}]
+create_clock -name {sata_rx_clk} -period 3.33 [get_nets {sata_rx_clk}]
+create_clock -name {sata_tx_clk} -period 3.33 [get_nets {sata_tx_clk}]
 
 set_false_path -from [get_clocks sys_clk] -to [get_clocks {sata_rx_clk}]
 set_false_path -from [get_clocks sys_clk] -to [get_clocks {sata_tx_clk}]

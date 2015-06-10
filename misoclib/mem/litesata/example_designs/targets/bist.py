@@ -38,8 +38,8 @@ class CRG(Module):
                 p_CLKFBOUT_MULT=5, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-                # 166MHz
-                p_CLKOUT0_DIVIDE=6, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
+                # 200MHz
+                p_CLKOUT0_DIVIDE=5, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
 
                 p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, #o_CLKOUT1=,
 
@@ -56,6 +56,11 @@ class CRG(Module):
 
 class StatusLeds(Module):
     def __init__(self, platform, sata_phys):
+        if not isinstance(sata_phys, list):
+            sata_phys = [sata_phys]
+            use_cd_num = False
+        else:
+            use_cd_num = True
         for i, sata_phy in enumerate(sata_phys):
             # 1Hz blinking leds (sata_rx and sata_tx clocks)
             rx_led = platform.request("user_led", 2*i)
@@ -64,7 +69,8 @@ class StatusLeds(Module):
 
             freq = int(frequencies[sata_phy.revision]*1000*1000)
 
-            self.sync.sata_rx += \
+            rx_sync = getattr(self.sync, "sata_rx{}".format(str(i) if use_cd_num else ""))
+            rx_sync += \
                 If(rx_cnt == 0,
                     rx_led.eq(~rx_led),
                     rx_cnt.eq(freq//2)
@@ -83,7 +89,7 @@ class BISTSoC(SoC, AutoCSR):
     }
     csr_map.update(SoC.csr_map)
     def __init__(self, platform):
-        clk_freq = 166*1000000
+        clk_freq = 200*1000000
         SoC.__init__(self, platform, clk_freq,
             cpu_type="none",
             with_csr=True, csr_data_width=32,
@@ -96,19 +102,19 @@ class BISTSoC(SoC, AutoCSR):
         self.submodules.crg = CRG(platform)
 
         # SATA PHY/Core/Frontend
-        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata_clocks"), platform.request("sata", 0), "sata_gen2", clk_freq)
+        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata_clocks"), platform.request("sata", 0), "sata_gen3", clk_freq)
         self.submodules.sata_core = LiteSATACore(self.sata_phy)
         self.submodules.sata_crossbar = LiteSATACrossbar(self.sata_core)
         self.submodules.sata_bist = LiteSATABIST(self.sata_crossbar, with_csr=True)
 
         # Status Leds
-        self.submodules.leds = BISTLeds(platform, [self.sata_phy])
+        self.submodules.leds = StatusLeds(platform, self.sata_phy)
 
         platform.add_platform_command("""
-create_clock -name sys_clk -period 6 [get_nets sys_clk]
+create_clock -name sys_clk -period 5 [get_nets sys_clk]
 
-create_clock -name sata_rx_clk -period 6.66 [get_nets sata_rx_clk]
-create_clock -name sata_tx_clk -period 6.66 [get_nets sata_tx_clk]
+create_clock -name sata_rx_clk -period 3.33 [get_nets sata_rx_clk]
+create_clock -name sata_tx_clk -period 3.33 [get_nets sata_tx_clk]
 
 set_false_path -from [get_clocks sys_clk] -to [get_clocks sata_rx_clk]
 set_false_path -from [get_clocks sys_clk] -to [get_clocks sata_tx_clk]
