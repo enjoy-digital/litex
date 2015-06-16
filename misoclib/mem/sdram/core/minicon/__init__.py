@@ -58,8 +58,8 @@ class _Bank(Module):
 
 
 class MiniconSettings:
-    def __init__(self):
-        pass
+    def __init__(self, l2_size=0):
+        self.l2_size = l2_size
 
 
 class Minicon(Module):
