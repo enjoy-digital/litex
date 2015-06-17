@@ -1,8 +1,10 @@
 from migen.fhdl.std import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
-from migen.genlib.misc import optree, chooser, FlipFlop, Counter
+from migen.genlib.misc import split, displacer, optree, chooser
+from migen.genlib.misc import FlipFlop, Counter
 from migen.genlib.fsm import FSM, NextState
+from migen.bank.description import *
 from migen.bus.transactions import *
 
 _layout = [
@@ -405,6 +407,162 @@ class Converter(Module):
             self.submodules += upconverter
         else:
             Record.connect(master, slave)
+
+
+class Cache(Module, AutoCSR):
+    """Cache
+
+    This module is a write-back wishbone cache that can be used as a L2 cache.
+    Cachesize (in 32-bit words) is the size of the data store and must be a power of 2
+    """
+    def __init__(self, cachesize, master, slave):
+        self._size = CSRStatus(8, reset=log2_int(cachesize))
+        self.master = master
+        self.slave = slave
+
+        ###
+
+        dw_from = flen(master.dat_r)
+        dw_to = flen(slave.dat_r)
+        if dw_to > dw_from and (dw_to % dw_from) != 0:
+            raise ValueError("Slave data width must be a multiple of {dw}".format(dw=dw_from))
+        if dw_to < dw_from and (dw_from % dw_to) != 0:
+            raise ValueError("Master data width must be a multiple of {dw}".format(dw=dw_to))
+
+        # Split address:
+        # TAG | LINE NUMBER | LINE OFFSET
+        offsetbits = log2_int(max(dw_to//dw_from, 1))
+        addressbits = flen(slave.adr) + offsetbits
+        linebits = log2_int(cachesize) - offsetbits
+        tagbits = addressbits - linebits
+        wordbits = log2_int(max(dw_from//dw_to, 1))
+        adr_offset, adr_line, adr_tag = split(master.adr, offsetbits, linebits, tagbits)
+        word = Signal(wordbits) if wordbits else None
+
+        # Data memory
+        data_mem = Memory(dw_to*2**wordbits, 2**linebits)
+        data_port = data_mem.get_port(write_capable=True, we_granularity=8)
+        self.specials += data_mem, data_port
+
+        write_from_slave = Signal()
+        if adr_offset is None:
+            adr_offset_r = None
+        else:
+            adr_offset_r = Signal(offsetbits)
+            self.sync += adr_offset_r.eq(adr_offset)
+
+        self.comb += [
+            data_port.adr.eq(adr_line),
+            If(write_from_slave,
+                displacer(slave.dat_r, word, data_port.dat_w),
+                displacer(Replicate(1, dw_to//8), word, data_port.we)
+            ).Else(
+                data_port.dat_w.eq(Replicate(master.dat_w, max(dw_to//dw_from, 1))),
+                If(master.cyc & master.stb & master.we & master.ack,
+                    displacer(master.sel, adr_offset, data_port.we, 2**offsetbits, reverse=True)
+                )
+            ),
+            chooser(data_port.dat_r, word, slave.dat_w),
+            slave.sel.eq(2**(dw_to//8)-1),
+            chooser(data_port.dat_r, adr_offset_r, master.dat_r, reverse=True)
+        ]
+
+
+        # Tag memory
+        tag_layout = [("tag", tagbits), ("dirty", 1)]
+        tag_mem = Memory(layout_len(tag_layout), 2**linebits)
+        tag_port = tag_mem.get_port(write_capable=True)
+        self.specials += tag_mem, tag_port
+        tag_do = Record(tag_layout)
+        tag_di = Record(tag_layout)
+        self.comb += [
+            tag_do.raw_bits().eq(tag_port.dat_r),
+            tag_port.dat_w.eq(tag_di.raw_bits())
+        ]
+
+        self.comb += [
+            tag_port.adr.eq(adr_line),
+            tag_di.tag.eq(adr_tag)
+        ]
+        if word is not None:
+            self.comb += slave.adr.eq(Cat(word, adr_line, tag_do.tag))
+        else:
+            self.comb += slave.adr.eq(Cat(adr_line, tag_do.tag))
+
+        # slave word computation, word_clr and word_inc will be simplified
+        # at synthesis when wordbits=0
+        word_clr = Signal()
+        word_inc = Signal()
+        if word is not None:
+            self.sync += \
+                If(word_clr,
+                    word.eq(0),
+                ).Elif(word_inc,
+                    word.eq(word+1)
+                )
+
+        def word_is_last(word):
+            if word is not None:
+                return word == 2**wordbits-1
+            else:
+                return 1
+
+        # Control FSM
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(master.cyc & master.stb,
+                NextState("TEST_HIT")
+            )
+        )
+        fsm.act("TEST_HIT",
+            word_clr.eq(1),
+            If(tag_do.tag == adr_tag,
+                master.ack.eq(1),
+                If(master.we,
+                    tag_di.dirty.eq(1),
+                    tag_port.we.eq(1)
+                ),
+                NextState("IDLE")
+            ).Else(
+                If(tag_do.dirty,
+                    NextState("EVICT")
+                ).Else(
+                    NextState("REFILL_WRTAG")
+                )
+            )
+        )
+
+        fsm.act("EVICT",
+            slave.stb.eq(1),
+            slave.cyc.eq(1),
+            slave.we.eq(1),
+            If(slave.ack,
+                word_inc.eq(1),
+                 If(word_is_last(word),
+                    NextState("REFILL_WRTAG")
+                )
+            )
+        )
+        fsm.act("REFILL_WRTAG",
+            # Write the tag first to set the slave address
+            tag_port.we.eq(1),
+            word_clr.eq(1),
+            NextState("REFILL")
+        )
+        fsm.act("REFILL",
+            slave.stb.eq(1),
+            slave.cyc.eq(1),
+            slave.we.eq(0),
+            If(slave.ack,
+                write_from_slave.eq(1),
+                word_inc.eq(1),
+                If(word_is_last(word),
+                    NextState("TEST_HIT"),
+                ).Else(
+                    NextState("REFILL")
+                )
+            )
+        )
 
 
 class Tap(Module):
