@@ -54,7 +54,7 @@ class SDRAMSoC(SoC):
         main_ram_size = min(main_ram_size, 256*1024*1024)
         l2_size = self.sdram_controller_settings.l2_size
 
- 		# add a wishbone interface to the DRAM
+        # add a Wishbone interface to the DRAM
         wb_sdram = wishbone.Interface()
         self.add_wb_sdram_if(wb_sdram)
         self.register_mem("main_ram", self.mem_map["main_ram"], wb_sdram, main_ram_size)
