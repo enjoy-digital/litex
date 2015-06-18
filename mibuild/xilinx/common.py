@@ -1,4 +1,5 @@
 import os
+import sys
 from distutils.version import StrictVersion
 
 from migen.fhdl.std import *
@@ -25,8 +26,13 @@ def settings(path, ver=None, sub=None):
     if tools.arch_bits() == 32:
         search.reverse()
 
+    if sys.platform == "win32" or sys.platform == "cygwin":
+        script_ext = "bat"
+    else:
+        script_ext = "sh"
+
     for b in search:
-        settings = os.path.join(full, "settings{0}.sh".format(b))
+        settings = os.path.join(full, "settings{0}.{1}".format(b, script_ext))
         if os.path.exists(settings):
             return settings
 
