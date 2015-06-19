@@ -74,7 +74,7 @@ void flush_l2_cache(void)
 	register unsigned int addr;
 	register unsigned int dummy;
 
-	for(i=0;i<2*L2_SIZE;i++) {
+	for(i=0;i<2*L2_SIZE/4;i++) {
 		addr = MAIN_RAM_BASE + i*4;
 #if defined (__lm32__)
 		__asm__ volatile("lw %0, (%1+0)\n":"=r"(dummy):"r"(addr));
