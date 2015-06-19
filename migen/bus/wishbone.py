@@ -4,7 +4,6 @@ from migen.genlib.record import *
 from migen.genlib.misc import split, displacer, optree, chooser
 from migen.genlib.misc import FlipFlop, Counter
 from migen.genlib.fsm import FSM, NextState
-from migen.bank.description import *
 from migen.bus.transactions import *
 
 _layout = [
@@ -409,14 +408,13 @@ class Converter(Module):
             Record.connect(master, slave)
 
 
-class Cache(Module, AutoCSR):
+class Cache(Module):
     """Cache
 
     This module is a write-back wishbone cache that can be used as a L2 cache.
     Cachesize (in 32-bit words) is the size of the data store and must be a power of 2
     """
     def __init__(self, cachesize, master, slave):
-        self._size = CSRStatus(8, reset=log2_int(cachesize))
         self.master = master
         self.slave = slave
 
