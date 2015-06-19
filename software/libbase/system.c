@@ -67,16 +67,14 @@ void flush_cpu_dcache(void)
 #endif
 }
 
-#ifdef CSR_L2_CACHE_BASE
+#ifdef L2_SIZE
 void flush_l2_cache(void)
 {
-	unsigned int l2_nwords;
 	unsigned int i;
 	register unsigned int addr;
 	register unsigned int dummy;
 
-	l2_nwords = 1 << l2_cache_size_read();
-	for(i=0;i<2*l2_nwords;i++) {
+	for(i=0;i<2*L2_SIZE;i++) {
 		addr = MAIN_RAM_BASE + i*4;
 #if defined (__lm32__)
 		__asm__ volatile("lw %0, (%1+0)\n":"=r"(dummy):"r"(addr));
@@ -86,9 +84,5 @@ void flush_l2_cache(void)
 #error Unsupported architecture
 #endif
 	}
-}
-#else
-void flush_l2_cache(void)
-{
 }
 #endif

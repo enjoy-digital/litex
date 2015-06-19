@@ -355,7 +355,10 @@ static void do_command(char *c)
 	else if(strcmp(token, "mw") == 0) mw(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "mc") == 0) mc(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
+
+#ifdef L2_SIZE
 	else if(strcmp(token, "flushl2") == 0) flush_l2_cache();
+#endif
 
 #ifdef FLASH_BOOT_ADDRESS
 	else if(strcmp(token, "flashboot") == 0) flashboot();
