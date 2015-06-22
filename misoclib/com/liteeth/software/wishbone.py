@@ -2,10 +2,10 @@ import socket
 
 from misoclib.tools.litescope.software.driver.reg import *
 
-from liteeth.test.model.etherbone import *
+from misoclib.com.liteeth.test.model.etherbone import *
 
 
-class LiteEthWishboneDriver:
+class LiteEthWishboneBridgeDriver:
     def __init__(self, ip_address, udp_port=20000, addrmap=None, busword=8, debug=False):
         self.ip_address = ip_address
         self.udp_port = udp_port
