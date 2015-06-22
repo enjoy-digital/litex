@@ -195,18 +195,17 @@ class LiteEthARPTable(Module):
             update.eq(1),
             NextState("CHECK_TABLE")
         )
-        self.sync += [
+        self.sync += \
             If(update,
                 cached_valid.eq(1),
                 cached_ip_address.eq(sink.ip_address),
                 cached_mac_address.eq(sink.mac_address),
             ).Else(
-                cached_timer.wait.eq(1),
                 If(cached_timer.done,
                     cached_valid.eq(0)
                 )
             )
-        ]
+        self.comb += cached_timer.wait.eq(~update)
         found = Signal()
         fsm.act("CHECK_TABLE",
             If(cached_valid,
