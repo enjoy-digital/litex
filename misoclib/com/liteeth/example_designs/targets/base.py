@@ -1,6 +1,7 @@
 from migen.bus import wishbone
 from migen.bank.description import *
 from migen.genlib.io import CRG
+from mibuild.xilinx.vivado import XilinxVivadoToolchain
 
 from misoclib.soc import SoC
 from misoclib.tools.litescope.common import *
@@ -10,14 +11,14 @@ from misoclib.tools.litescope.core.port import LiteScopeTerm
 from misoclib.com.uart.bridge import UARTWishboneBridge
 
 from misoclib.com.liteeth.common import *
-from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
+from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.core import LiteEthUDPIPCore
 
 
 class BaseSoC(SoC, AutoCSR):
     csr_map = {
-        "phy":        11,
-        "core":        12
+        "phy":  11,
+        "core": 12
     }
     csr_map.update(SoC.csr_map)
     def __init__(self, platform, clk_freq=166*1000000,
@@ -40,8 +41,19 @@ class BaseSoC(SoC, AutoCSR):
         self.add_wb_slave(lambda a: a[23:25] == 1, self.sram.bus)
 
         # ethernet PHY and UDP/IP stack
-        self.submodules.phy = LiteEthPHYGMII(platform.request("eth_clocks"), platform.request("eth"))
+        self.submodules.phy = LiteEthPHY(platform.request("eth_clocks"), platform.request("eth"), clk_freq=clk_freq)
         self.submodules.core = LiteEthUDPIPCore(self.phy, mac_address, convert_ip(ip_address), clk_freq)
+
+        if isinstance(platform.toolchain, XilinxVivadoToolchain):
+            platform.add_platform_command("""
+create_clock -name sys_clk -period 6.0 [get_nets sys_clk]
+create_clock -name eth_rx_clk -period 8.0 [get_nets eth_rx_clk]
+create_clock -name eth_tx_clk -period 8.0 [get_nets eth_tx_clk]
+set_false_path -from [get_clocks sys_clk] -to [get_clocks eth_rx_clk]
+set_false_path -from [get_clocks eth_rx_clk] -to [get_clocks sys_clk]
+set_false_path -from [get_clocks sys_clk] -to [get_clocks eth_tx_clk]
+set_false_path -from [get_clocks eth_tx_clk] -to [get_clocks sys_clk]
+""")
 
 
 class BaseSoCDevel(BaseSoC, AutoCSR):
