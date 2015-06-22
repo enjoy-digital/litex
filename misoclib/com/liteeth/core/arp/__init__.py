@@ -185,6 +185,7 @@ class LiteEthARPTable(Module):
             source.stb.eq(1),
             source.reply.eq(1),
             source.ip_address.eq(sink.ip_address),
+            source.mac_address.eq(sink.mac_address),
             If(source.ack,
                 NextState("IDLE")
             )
