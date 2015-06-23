@@ -1,6 +1,7 @@
 from migen.bus import wishbone
 from migen.bank.description import *
 from migen.genlib.io import CRG
+from migen.fhdl.specials import Keep
 from mibuild.xilinx.vivado import XilinxVivadoToolchain
 
 from misoclib.soc import SoC
@@ -45,6 +46,11 @@ class BaseSoC(SoC, AutoCSR):
         self.submodules.core = LiteEthUDPIPCore(self.phy, mac_address, convert_ip(ip_address), clk_freq)
 
         if isinstance(platform.toolchain, XilinxVivadoToolchain):
+            self.specials += [
+                Keep(self.crg.cd_sys.clk),
+                Keep(self.phy.crg.cd_eth_rx.clk),
+                Keep(self.phy.crg.cd_eth_tx.clk)
+            ]
             platform.add_platform_command("""
 create_clock -name sys_clk -period 6.0 [get_nets sys_clk]
 create_clock -name eth_rx_clk -period 8.0 [get_nets eth_rx_clk]
