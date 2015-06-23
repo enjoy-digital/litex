@@ -20,7 +20,13 @@ class _CRG(Module):
         self.clk4x_wr_strb = Signal()
         self.clk4x_rd_strb = Signal()
 
-        f0 = 50*1000000
+        f0 = Fraction(50, 1)*1000000
+        p = 12
+        f = Fraction(clk_freq*p, f0)
+        n, d = f.numerator, f.denominator
+        assert 19e6 <= f0/d <= 500e6  # pfd
+        assert 400e6 <= f0*n/d <= 1080e6  # vco
+
         clk50 = platform.request("clk50")
         clk50a = Signal()
         self.specials += Instance("IBUFG", i_I=clk50, o_O=clk50a)
@@ -28,10 +34,6 @@ class _CRG(Module):
         self.specials += Instance("BUFIO2", p_DIVIDE=1,
                                   p_DIVIDE_BYPASS="TRUE", p_I_INVERT="FALSE",
                                   i_I=clk50a, o_DIVCLK=clk50b)
-        f = Fraction(int(clk_freq), int(f0))
-        n, m = f.denominator, f.numerator
-        assert f0/n*m == clk_freq
-        p = 8
         pll_lckd = Signal()
         pll_fb = Signal()
         pll = Signal(6)
@@ -39,9 +41,9 @@ class _CRG(Module):
                                      p_BANDWIDTH="OPTIMIZED", p_COMPENSATION="INTERNAL",
                                      p_REF_JITTER=.01, p_CLK_FEEDBACK="CLKFBOUT",
                                      i_DADDR=0, i_DCLK=0, i_DEN=0, i_DI=0, i_DWE=0, i_RST=0, i_REL=0,
-                                     p_DIVCLK_DIVIDE=1, p_CLKFBOUT_MULT=m*p//n, p_CLKFBOUT_PHASE=0.,
+                                     p_DIVCLK_DIVIDE=d, p_CLKFBOUT_MULT=n, p_CLKFBOUT_PHASE=0.,
                                      i_CLKIN1=clk50b, i_CLKIN2=0, i_CLKINSEL=1,
-                                     p_CLKIN1_PERIOD=1000000000/f0, p_CLKIN2_PERIOD=0.,
+                                     p_CLKIN1_PERIOD=1e9/f0, p_CLKIN2_PERIOD=0.,
                                      i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb, o_LOCKED=pll_lckd,
                                      o_CLKOUT0=pll[0], p_CLKOUT0_DUTY_CYCLE=.5,
                                      o_CLKOUT1=pll[1], p_CLKOUT1_DUTY_CYCLE=.5,
@@ -50,7 +52,7 @@ class _CRG(Module):
                                      o_CLKOUT4=pll[4], p_CLKOUT4_DUTY_CYCLE=.5,
                                      o_CLKOUT5=pll[5], p_CLKOUT5_DUTY_CYCLE=.5,
                                      p_CLKOUT0_PHASE=0., p_CLKOUT0_DIVIDE=p//4,  # sdram wr rd
-                                     p_CLKOUT1_PHASE=0., p_CLKOUT1_DIVIDE=p//8,
+                                     p_CLKOUT1_PHASE=0., p_CLKOUT1_DIVIDE=p//4,
                                      p_CLKOUT2_PHASE=270., p_CLKOUT2_DIVIDE=p//2,  # sdram dqs adr ctrl
                                      p_CLKOUT3_PHASE=250., p_CLKOUT3_DIVIDE=p//2,  # off-chip ddr
                                      p_CLKOUT4_PHASE=0., p_CLKOUT4_DIVIDE=p//1,
@@ -96,8 +98,8 @@ class BaseSoC(SDRAMSoC):
     }
     csr_map.update(SDRAMSoC.csr_map)
 
-    def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
-        clk_freq = 75*1000000
+    def __init__(self, platform, sdram_controller_settings=LASMIconSettings(),
+                 clk_freq=(83 + Fraction(1, 3))*1000*1000, **kwargs):
         SDRAMSoC.__init__(self, platform, clk_freq,
                           cpu_reset_address=0x170000,  # 1.5 MB
                           sdram_controller_settings=sdram_controller_settings,
