@@ -7,6 +7,7 @@
 #include <generated/sdram_phy.h>
 #include <generated/mem.h>
 #include <hw/flags.h>
+#include <system.h>
 
 #include "sdram.h"
 
@@ -460,6 +461,8 @@ int memtest_silent(void)
 		array[i] = ONEZERO;
 	}
 	error_cnt = 0;
+	flush_cpu_dcache();
+	flush_l2_cache();
 	for(i=0;i<128;i++) {
 		if(array[i] != ONEZERO)
 			error_cnt++;
@@ -469,6 +472,8 @@ int memtest_silent(void)
 		array[i] = ZEROONE;
 	}
 	error_cnt = 0;
+	flush_cpu_dcache();
+	flush_l2_cache();
 	for(i=0;i<128;i++) {
 		if(array[i] != ZEROONE)
 			error_cnt++;
@@ -483,6 +488,8 @@ int memtest_silent(void)
 
 	seed_32 = 0;
 	error_cnt = 0;
+	flush_cpu_dcache();
+	flush_l2_cache();
 	for(i=0;i<TEST_DATA_SIZE/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, TEST_DATA_RANDOM);
 		if(array[i] != seed_32)
@@ -498,6 +505,8 @@ int memtest_silent(void)
 
 	seed_16 = 0;
 	error_cnt = 0;
+	flush_cpu_dcache();
+	flush_l2_cache();
 	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, TEST_ADDR_RANDOM);
 		if(array[(unsigned int) seed_16] != i)
