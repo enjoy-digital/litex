@@ -29,7 +29,7 @@ Configuration and Status Registers
 
 CSR-2 bus
 =========
-The CSR-2 bus, is a low-bandwidth, resource-sensitive bus designed for accessing the configuration and status registers of cores from software.
+The CSR-2 bus is a low-bandwidth, resource-sensitive bus designed for accessing the configuration and status registers of cores from software.
 
 It is the successor of the CSR bus used in Milkymist SoC 1.x, with two modifications:
 
@@ -46,7 +46,7 @@ Migen Bank is a system comparable to wishbone-gen [wbgen]_, which automates the 
 
 Bank takes a description made up of a list of registers and generates logic implementing it with a slave interface compatible with Migen Bus.
 
-The lowest-level description of a register is provided by the ``CSR`` class, which maps to the value at a single address on the target bus. The width of the register needs to be inferior or equal to the bus word width. All accesses are atomic. It has the following signal properties as interface to the user design:
+The lowest-level description of a register is provided by the ``CSR`` class, which maps to the value at a single address on the target bus. The width of the register needs to be less than or equal to the bus word width. All accesses are atomic. It has the following signal properties to interface to the user design:
 
 * ``r``, which contains the data written from the bus interface.
 * ``re``, which is the strobe signal for ``r``. It is active for one cycle, after or during a write from the bus. ``r`` is only valid when ``re`` is high.
@@ -56,7 +56,7 @@ Names of CSRs can be omitted if they can be extracted from the variable name. Wh
 
 Compound CSRs (which are transformed into ``CSR`` plus additional logic for implementation) provide additional features optimized for common applications.
 
-The ``CSRStatus`` class is meant to be used as a status register that is read-only from the CPU. The user design is expected to drive its ``status`` signal. The advantage of using ``CSRStatus`` instead of using ``CSR`` and driving ``w`` is that the width of ``CSRStatus`` can be arbitrary. Status registers larger than the bus word width are automatically broken down into several ``CSR`` registers to span several addresses. Be careful that the atomicity of reads is not guaranteed.
+The ``CSRStatus`` class is meant to be used as a status register that is read-only from the CPU. The user design is expected to drive its ``status`` signal. The advantage of using ``CSRStatus`` instead of using ``CSR`` and driving ``w`` is that the width of ``CSRStatus`` can be arbitrary. Status registers larger than the bus word width are automatically broken down into several ``CSR`` registers to span several addresses. Be careful, though: the atomicity of reads is not guaranteed.
 
 The ``CSRStorage`` class provides a memory location that can be read and written by the CPU, and read and optionally written by the design. It can also span several CSR addresses. An optional mechanism for atomic CPU writes is provided; when enabled, writes to the first CSR addresses go to a back-buffer whose contents are atomically copied to the main buffer when the last address is written. When ``CSRStorage`` can be written to by the design, the atomicity of reads by the CPU is not guaranteed.
 
