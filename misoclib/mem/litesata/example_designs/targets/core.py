@@ -17,7 +17,7 @@ class Core(Module):
         self.clk_freq = clk_freq
 
         # SATA PHY/Core/Frontend
-        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata"), "sata_gen2", clk_freq)
+        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sys_clk"), platform.request("sata"), "sata_gen2", clk_freq)
         self.submodules.sata_core = LiteSATACore(self.sata_phy)
         self.submodules.sata_crossbar = LiteSATACrossbar(self.sata_core)
 
