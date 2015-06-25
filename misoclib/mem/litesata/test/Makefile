@@ -13,8 +13,7 @@ crc_tb:
 	$(CC) $(CFLAGS) $(INC) -o crc crc.c
 	$(CMD) crc_tb.py
 
-scrambler_tb:
-	$(CC) $(CFLAGS) $(INC) -o scrambler scrambler.c
+scrambler_tb: scrambler
 	$(CMD) scrambler_tb.py
 
 cont_tb:
@@ -26,7 +25,7 @@ link_tb:
 command_tb:
 	$(CMD) command_tb.py
 
-bist_tb:
+bist_tb: scrambler
 	$(CMD) bist_tb.py
 
 striping_tb:
@@ -35,5 +34,8 @@ striping_tb:
 mirroring_tb:
 	$(CMD) mirroring_tb.py
 
+scrambler: scrambler.c
+	$(CC) $(CFLAGS) $(INC) -o $@ $<
+
 clean:
-	rm crc scrambler *.vcd
+	rm -f crc scrambler *.vcd
