@@ -4,14 +4,15 @@ from mibuild.xilinx.platform import XilinxPlatform
 _io = [
     ("sys_clk", 0, Pins("X")),
     ("sys_rst", 1, Pins("X")),
-
+    ("sata_clocks", 0,
+        Subsignal("refclk_p", Pins("X")),
+        Subsignal("refclk_n", Pins("X")),
+    ),
     ("sata", 0,
-        Subsignal("refclk_p", Pins("C8")),
-        Subsignal("refclk_n", Pins("C7")),
-        Subsignal("txp", Pins("D2")),
-        Subsignal("txn", Pins("D1")),
-        Subsignal("rxp", Pins("E4")),
-        Subsignal("rxn", Pins("E3")),
+        Subsignal("txp", Pins("X")),
+        Subsignal("txn", Pins("X")),
+        Subsignal("rxp", Pins("X")),
+        Subsignal("rxn", Pins("X")),
     ),
 ]
 

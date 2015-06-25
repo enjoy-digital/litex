@@ -5,6 +5,7 @@ from misoclib.mem.litesata.phy.datapath import *
 
 class LiteSATAPHY(Module):
     def __init__(self, device, clock_pads_or_refclk, pads, revision, clk_freq):
+        self.clock_pads = clock_pads_or_refclk
         self.pads = pads
         self.revision = revision
 

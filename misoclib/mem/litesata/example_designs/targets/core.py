@@ -17,7 +17,7 @@ class Core(Module):
         self.clk_freq = clk_freq
 
         # SATA PHY/Core/Frontend
-        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sys_clk"), platform.request("sata"), "sata_gen2", clk_freq)
+        self.submodules.sata_phy = LiteSATAPHY(platform.device, platform.request("sata_clocks"), platform.request("sata"), "sata_gen2", clk_freq)
         self.submodules.sata_core = LiteSATACore(self.sata_phy)
         self.submodules.sata_crossbar = LiteSATACrossbar(self.sata_core)
 
@@ -32,6 +32,10 @@ class Core(Module):
         ios = set()
 
         # Transceiver
+        for e in dir(self.sata_phy.clock_pads):
+            obj = getattr(self.sata_phy.clock_pads, e)
+            if isinstance(obj, Signal):
+                ios = ios.union({obj})
         for e in dir(self.sata_phy.pads):
             obj = getattr(self.sata_phy.pads, e)
             if isinstance(obj, Signal):
