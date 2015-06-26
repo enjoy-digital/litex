@@ -117,7 +117,14 @@ class Flterm:
 
     def open(self, port, speed):
         port = port if not port.isdigit() else int(port)
-        self.serial = serial.Serial(port, speed, timeout=0.25)
+        self.serial = serial.serial_for_url(
+            port,
+            baudrate=speed,
+            bytesize=8,
+            parity="N",
+            stopbits=1,
+            xonxoff=0,
+            timeout=0.25)
         self.serial.flushOutput()
         self.serial.flushInput()
         self.serial.close()  # in case port was not correctly closed
