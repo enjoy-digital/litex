@@ -165,7 +165,7 @@ class SoC(Module):
     def get_csr_regions(self):
         return self._csr_regions
 
-    def add_constant(self, name, value):
+    def add_constant(self, name, value=None):
         self._constants.append((name, value))
 
     def get_constants(self):

@@ -92,7 +92,10 @@ def get_csr_header(regions, constants, with_access_functions=True):
 
     r += "\n/* constants */\n"
     for name, value in constants:
-        r += "#define " + name + " " + str(value) + "\n"
+        r += "#define " + name
+        if value is not None:
+            r += " " + str(value)
+        r += "\n"
 
     r += "\n#endif\n"
     return r
