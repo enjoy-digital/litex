@@ -125,7 +125,7 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk50"
     default_clk_period = 20
 
-    def __init__(self, device="xc3s200a-4-vq100", programmer="xc3sprog"):
+    def __init__(self, device="xc3s200a-4-vq100"):
         XilinxPlatform.__init__(self, device, _io, _connectors)
         # Small device- optimize for AREA instead of SPEED (LM32 runs at about
         # 60-65MHz in AREA configuration).
@@ -136,11 +136,3 @@ class Platform(XilinxPlatform):
 
     def create_programmer(self):
         raise NotImplementedError
-        # Not actually supported right now- add FT245RL support to xc3sprog.
-        # Alternatively, use the JTAG pins instead of USB with another
-        # supported programmer.
-        if self.programmer == "xc3sprog":
-            return XC3SProg("mercury", "bscan_spi_mercury.bit")
-        else:
-            raise ValueError("""{} programmer is not
- supported""".format(programmer))
