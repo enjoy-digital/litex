@@ -26,7 +26,7 @@ install:
   - "verilator --version; true"
   # Build and install Migen conda package
   - "conda build conda/migen"
-  - "conda install $HOME/miniconda/conda-bld/linux-64/migen-*.tar.bz2"
+  - "conda install migen --use-local"
 
 script:
   # Run tests
