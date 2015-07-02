@@ -80,6 +80,8 @@ class FPGALink(GenericProgrammer):
         xsvf_file = os.path.splitext(bitstream_file)[0]+'.xsvf'
         print("\nGenerating xsvf formatted bitstream")
         print("="*n)
+        if os.path.exists(xsvf_file):
+            os.unlink(xsvf_file)
         _create_xsvf(bitstream_file, xsvf_file)
         print("\n"+"="*n+"\n")
 

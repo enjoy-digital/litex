@@ -1,3 +1,4 @@
+import os
 import sys
 import subprocess
 
@@ -73,10 +74,13 @@ def _run_impact(cmds):
     with subprocess.Popen("impact -batch", stdin=subprocess.PIPE, shell=True) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+        return process.returncode
 
 
 def _create_xsvf(bitstream_file, xsvf_file):
-    _run_impact("""
+    assert os.path.exists(bitstream_file), bitstream_file
+    assert not os.path.exists(xsvf_file), xsvf_file
+    assert 0 == _run_impact("""
 setPreference -pref KeepSVF:True
 setMode -bs
 setCable -port xsvf -file {xsvf}
