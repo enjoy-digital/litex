@@ -327,6 +327,9 @@ static void help(void)
 	puts("flashboot  - boot from flash");
 #endif
 	puts("revision   - display revision");
+#ifdef CSR_SDRAM_BASE
+	puts("memtest    - run a memory test");
+#endif
 }
 
 static char *get_token(char **str)
