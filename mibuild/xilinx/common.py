@@ -104,10 +104,10 @@ class XilinxDifferentialOutput:
 
 class XilinxDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ODDR",
-                p_DDR_CLK_EDGE="SAME_EDGE",
-                i_C=clk, i_CE=1, i_S=0, i_R=0,
-                i_D1=i1, i_D2=i2, o_Q=o,
+        self.specials += Instance("ODDR2",
+                p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
+                i_C0=clk, i_C1=~clk, i_CE=1, i_S=0, i_R=0,
+                i_D0=i1, i_D1=i2, o_Q=o,
         )
 
 
@@ -116,11 +116,32 @@ class XilinxDDROutput:
     def lower(dr):
         return XilinxDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
+
 xilinx_special_overrides = {
-    NoRetiming:                    XilinxNoRetiming,
-    MultiReg:                    XilinxMultiReg,
-    AsyncResetSynchronizer:        XilinxAsyncResetSynchronizer,
-    DifferentialInput:            XilinxDifferentialInput,
-    DifferentialOutput:            XilinxDifferentialOutput,
-    DDROutput:                    XilinxDDROutput
+    NoRetiming:             XilinxNoRetiming,
+    MultiReg:               XilinxMultiReg,
+    AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
+    DifferentialInput:      XilinxDifferentialInput,
+    DifferentialOutput:     XilinxDifferentialOutput,
+    DDROutput:              XilinxDDROutput
+}
+
+
+class XilinxDDROutputImplS7(Module):
+    def __init__(self, i1, i2, o, clk):
+        self.specials += Instance("ODDR",
+                p_DDR_CLK_EDGE="SAME_EDGE",
+                i_C=clk, i_CE=1, i_S=0, i_R=0,
+                i_D1=i1, i_D2=i2, o_Q=o,
+        )
+
+
+class XilinxDDROutputS7:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDROutputImplS7(dr.i1, dr.i2, dr.o, dr.clk)
+
+
+xilinx_s7_special_overrides = {
+    DDROutput:              XilinxDDROutputS7
 }
