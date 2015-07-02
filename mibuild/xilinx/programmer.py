@@ -70,9 +70,20 @@ class FpgaProg(GenericProgrammer):
 
 
 def _run_impact(cmds):
-    with subprocess.Popen("impact -batch", stdin=subprocess.PIPE) as process:
+    with subprocess.Popen("impact -batch", stdin=subprocess.PIPE, shell=True) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+
+
+def _create_xsvf(bitstream_file, xsvf_file):
+    _run_impact("""
+setPreference -pref KeepSVF:True
+setMode -bs
+setCable -port xsvf -file {xsvf}
+addDevice -p 1 -file {bitstream}
+program -p 1
+quit
+""".format(bitstream=bitstream_file, xsvf=xsvf_file))
 
 
 class iMPACT(GenericProgrammer):
