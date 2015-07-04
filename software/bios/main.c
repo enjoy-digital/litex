@@ -508,10 +508,10 @@ static void boot_sequence(void)
 		flashboot();
 #endif
 		serialboot();
+#ifdef CSR_ETHMAC_BASE
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
 		eth_mode();
 #endif
-#ifdef CSR_ETHMAC_BASE
 		netboot();
 #endif
 		printf("No boot medium found\n");
