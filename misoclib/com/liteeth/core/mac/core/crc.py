@@ -258,15 +258,14 @@ class LiteEthMACCRCChecker(Module):
             fifo.reset.eq(1),
             NextState("IDLE"),
         )
+        self.comb += crc.data.eq(sink.data)
         fsm.act("IDLE",
-            crc.data.eq(sink.data),
             If(sink.stb & sink.sop & sink.ack,
                 crc.ce.eq(1),
                 NextState("COPY")
             )
         )
         fsm.act("COPY",
-            crc.data.eq(sink.data),
             If(sink.stb & sink.ack,
                 crc.ce.eq(1),
                 If(sink.eop,
