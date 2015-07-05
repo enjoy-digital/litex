@@ -127,7 +127,7 @@ class Platform(XilinxPlatform):
         XilinxPlatform.__init__(self, "xc6slx45-fgg484-2", _io)
 
     def create_programmer(self):
-        return UrJTAG("fjmem-m1.bit")
+        return UrJTAG(cable="milkymist", flash_proxy_basename="fjmem-m1.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
