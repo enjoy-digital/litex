@@ -1,6 +1,7 @@
 from misoclib.com.liteeth.common import *
 from misoclib.com.liteeth.core.mac.core import gap, preamble, crc, padding, last_be
 from misoclib.com.liteeth.phy.sim import LiteEthPHYSim
+from misoclib.com.liteeth.phy.mii import LiteEthPHYMII
 
 
 class LiteEthMACCore(Module, AutoCSR):
@@ -80,8 +81,12 @@ class LiteEthMACCore(Module, AutoCSR):
             rx_pipeline += [rx_converter]
 
         # Cross Domain Crossing
-        tx_cdc = AsyncFIFO(eth_phy_description(dw), 64)
-        rx_cdc = AsyncFIFO(eth_phy_description(dw), 64)
+        if isinstance(phy, LiteEthPHYMII):
+            fifo_depth = 8
+        else:
+            fifo_depth = 64
+        tx_cdc = AsyncFIFO(eth_phy_description(dw), fifo_depth)
+        rx_cdc = AsyncFIFO(eth_phy_description(dw), fifo_depth)
         self.submodules += RenameClockDomains(tx_cdc, {"write": "sys", "read": "eth_tx"})
         self.submodules += RenameClockDomains(rx_cdc, {"write": "eth_rx", "read": "sys"})
 
