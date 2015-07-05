@@ -59,8 +59,8 @@ class LiteSATAMirroringTX(Module):
             read_status = Status(read)
             self.submodules += read_status
             self.comb += [
-                Record.connect(sink, read, leave_out=["stb", "ack"]),
-                Record.connect(sink, write, leave_out=["stb", "ack"]),
+                Record.connect(sink, read, leave_out=set(["stb", "ack"])),
+                Record.connect(sink, write, leave_out=set(["stb", "ack"])),
                 read.stb.eq(sink.stb & (sink.read | sink.identify) & ~read_stall),
                 write.stb.eq(sink.stb & sink.write),
                 If(sink.read | sink.identify,
@@ -127,8 +127,8 @@ class LiteSATAMirroringRX(Module):
             sink_status = Status(sinks[i])
             self.submodules += sink_status
             self.comb += [
-                Record.connect(sinks[i], reads[i], leave_out=["stb", "ack"]),
-                Record.connect(sinks[i], write_striper.sinks[i], leave_out=["stb", "ack"]),
+                Record.connect(sinks[i], reads[i], leave_out=set(["stb", "ack"])),
+                Record.connect(sinks[i], write_striper.sinks[i], leave_out=set(["stb", "ack"])),
                 reads[i].stb.eq(sinks[i].stb & ctrl.reading),
                 write_striper.sinks[i].stb.eq(sinks[i].stb & ctrl.writing),
                 sinks[i].ack.eq(reads[i].ack | write_striper.sinks[i].ack),

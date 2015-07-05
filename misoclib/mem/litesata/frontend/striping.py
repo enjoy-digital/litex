@@ -39,7 +39,7 @@ class LiteSATAStripingTX(Module):
 
         # split data and ctrl signals (except stb & ack managed in fsm)
         for i, s in enumerate(sources):
-            self.comb += Record.connect(sink, s, leave_out=["stb", "ack", "data"])
+            self.comb += Record.connect(sink, s, leave_out=set(["stb", "ack", "data"]))
             if mirroring_mode:
                 self.comb += s.data.eq(sink.data)
             else:
@@ -82,7 +82,7 @@ class LiteSATAStripingRX(Module):
         )
 
         # use first sink for ctrl signals (except for stb, ack & failed)
-        self.comb += Record.connect(sinks[0], source, leave_out=["stb", "ack", "failed", "data"])
+        self.comb += Record.connect(sinks[0], source, leave_out=set(["stb", "ack", "failed", "data"]))
 		# combine datas
         if mirroring_mode:
             self.comb += source.data.eq(0) # mirroring only used for writes
