@@ -35,8 +35,7 @@ class WB2LASMI(Module):
             If(lasmim.dat_r_ack,
                 wishbone.ack.eq(1),
                 NextState("IDLE")
-            ),
-            NextState("IDLE")
+            )
         )
 
         # Address / Datapath
