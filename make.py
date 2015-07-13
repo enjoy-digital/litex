@@ -64,7 +64,7 @@ if __name__ == "__main__":
     if args.external:
         external_target = os.path.join(args.external, "targets")
         external_platform = os.path.join(args.external, "platforms")
-        sys.path.insert(1, os.path.abspath(args.external))
+        sys.path.insert(0, os.path.abspath(args.external))
 
     # create top-level SoC object
     target_module = misoc_import("targets", external_target, args.target)
