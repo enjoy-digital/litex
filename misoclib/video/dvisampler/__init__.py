@@ -13,7 +13,7 @@ from misoclib.video.dvisampler.dma import DMA
 
 
 class DVISampler(Module, AutoCSR):
-    def __init__(self, pads, lasmim, n_dma_slots=2):
+    def __init__(self, pads, lasmim, n_dma_slots=2, fifo_depth=512):
         self.submodules.edid = EDID(pads)
         self.submodules.clocking = Clocking(pads)
 
@@ -63,7 +63,7 @@ class DVISampler(Module, AutoCSR):
             self.resdetection.vsync.eq(self.syncpol.vsync)
         ]
 
-        self.submodules.frame = FrameExtraction(24*lasmim.dw//32)
+        self.submodules.frame = FrameExtraction(24*lasmim.dw//32, fifo_depth)
         self.comb += [
             self.frame.valid_i.eq(self.syncpol.valid_o),
             self.frame.de.eq(self.syncpol.de),

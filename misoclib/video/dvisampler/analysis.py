@@ -109,7 +109,7 @@ class ResolutionDetection(Module, AutoCSR):
 
 
 class FrameExtraction(Module, AutoCSR):
-    def __init__(self, word_width):
+    def __init__(self, word_width, fifo_depth):
         # in pix clock domain
         self.valid_i = Signal()
         self.vsync = Signal()
@@ -155,7 +155,7 @@ class FrameExtraction(Module, AutoCSR):
         ]
 
         # FIFO
-        fifo = RenameClockDomains(AsyncFIFO(word_layout, 512),
+        fifo = RenameClockDomains(AsyncFIFO(word_layout, fifo_depth),
             {"write": "pix", "read": "sys"})
         self.submodules += fifo
         self.comb += [
