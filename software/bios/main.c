@@ -326,6 +326,9 @@ static void help(void)
 #ifdef FLASH_BOOT_ADDRESS
 	puts("flashboot  - boot from flash");
 #endif
+#ifdef ROM_BOOT_ADDRESS
+	puts("romboot    - boot from embedded rom");
+#endif
 	puts("revision   - display revision");
 #ifdef CSR_SDRAM_BASE
 	puts("memtest    - run a memory test");
@@ -365,6 +368,9 @@ static void do_command(char *c)
 
 #ifdef FLASH_BOOT_ADDRESS
 	else if(strcmp(token, "flashboot") == 0) flashboot();
+#endif
+#ifdef ROM_BOOT_ADDRESS
+	else if(strcmp(token, "romboot") == 0) romboot();
 #endif
 	else if(strcmp(token, "serialboot") == 0) serialboot();
 #ifdef CSR_ETHMAC_BASE
@@ -506,6 +512,9 @@ static void boot_sequence(void)
 	if(test_user_abort()) {
 #ifdef FLASH_BOOT_ADDRESS
 		flashboot();
+#endif
+#ifdef ROM_BOOT_ADDRESS
+		romboot();
 #endif
 		serialboot();
 #ifdef CSR_ETHMAC_BASE

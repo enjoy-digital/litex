@@ -269,3 +269,14 @@ void flashboot(void)
 	boot(0, 0, 0, MAIN_RAM_BASE);
 }
 #endif
+
+#ifdef ROM_BOOT_ADDRESS
+/* When firmware is small enough, it can be interesting to run code from an
+   embedded blockram memory (faster and not impacted by memory controller
+   activity). Define ROM_BOOT_ADDRESS for that and initialize the blockram
+   with the firmware data. */
+void romboot(void)
+{
+	boot(0, 0, 0, ROM_BOOT_ADDRESS);
+}
+#endif

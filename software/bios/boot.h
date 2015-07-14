@@ -4,5 +4,6 @@
 void serialboot(void);
 void netboot(void);
 void flashboot(void);
+void romboot(void);
 
 #endif /* __BOOT_H */
