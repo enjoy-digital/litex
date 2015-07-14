@@ -89,21 +89,21 @@ _io = [
 
     ("audio", 0,
         Subsignal("channel1", Pins("B16"), IOStandard("LVCMOS33"),
-                  Misc("DRIVE=8,SLEW=FAST")),
+                  Misc("SLEW=FAST")),
         Subsignal("channel2", Pins("A16"), IOStandard("LVCMOS33"),
-                  Misc("DRIVE=8,SLEW=FAST"))),
+                  Misc("SLEW=FAST"))),
 
     ("vga_out", 0,
-        Subsignal("hsync", Pins("B12"), IOStandard("LVCMOS33"),
-                  Misc("DRIVE=8,SLEW=FAST")),
-        Subsignal("vsync", Pins("A12"), IOStandard("LVCMOS33"),
-                  Misc("DRIVE=8,SLEW=FAST")),
+        Subsignal("hsync_n", Pins("B12"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
+        Subsignal("vsync_n", Pins("A12"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
         Subsignal("r", Pins("A9 B9 C9"), IOStandard("LVCMOS33"),
-                  Misc("DRIVE=8,SLEW=FAST")),
+                  Misc("SLEW=FAST")),
         Subsignal("g", Pins("C10 A10 C11"), IOStandard("LVCMOS33"),
-                  Misc("DRIVE=8,SLEW=FAST")),
+                  Misc("SLEW=FAST")),
         Subsignal("b", Pins("B11 A11"), IOStandard("LVCMOS33"),
-                  Misc("DRIVE=8,SLEW=FAST")))
+                  Misc("SLEW=FAST")))
 ]
 
 _connectors = [
