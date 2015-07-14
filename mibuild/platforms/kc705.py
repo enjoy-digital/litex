@@ -186,8 +186,7 @@ _io = [
 ]
 
 _connectors = [
-    ("HPC",
-        {
+    ("HPC", {
         "DP1_M2C_P": "D6",
         "DP1_M2C_N": "D5",
         "DP2_M2C_P": "B6",
@@ -332,8 +331,7 @@ _connectors = [
         "HA23_N": "L13",
         }
     ),
-    ("LPC",
-        {
+    ("LPC", {
         "GBTCLK0_M2C_P": "N8",
         "GBTCLK0_M2C_N": "N7",
         "LA01_CC_P": "AE23",
