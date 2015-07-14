@@ -1,38 +1,30 @@
 from mibuild.generic_platform import *
 from mibuild.xilinx import XilinxPlatform
 
+
 _io = [
     ("clk100", 0, Pins("V10"), IOStandard("LVCMOS33")),
     ("clk12", 0, Pins("D9"), IOStandard("LVCMOS33")),
 
-    (
-        "serial",
-        0,
-        Subsignal("tx", Pins("A8"), IOStandard("LVCMOS33"), Misc("SLEW=FAST")),
-        Subsignal("rx", Pins("B8"), IOStandard("LVCMOS33"), Misc("SLEW=FAST"))
-    ),
+    ("serial", 0,
+        Subsignal("tx", Pins("A8"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
+        Subsignal("rx", Pins("B8"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST"))),
 
-    (
-        "spiflash",
-        0,
+    ("spiflash", 0,
         Subsignal("cs_n", Pins("V3")),
         Subsignal("clk", Pins("R15")),
         Subsignal("mosi", Pins("T13")),
         Subsignal("miso", Pins("R13"), Misc("PULLUP")),
-        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
-    ),
+        IOStandard("LVCMOS33"), Misc("SLEW=FAST")),
 
-    (
-        "lpddr_clock",
-        0,
+    ("ddram_clock", 0,
         Subsignal("p", Pins("G3")),
         Subsignal("n", Pins("G1")),
-        IOStandard("MOBILE_DDR")
-    ),
+        IOStandard("MOBILE_DDR")),
 
-    (
-        "lpddr",
-        0,
+    ("ddram", 0,
         Subsignal("a", Pins("J7 J6 H5 L7 F3 H4 H3 H6 D2 D1 F4 D3 G6")),
         Subsignal("ba", Pins("F2 F1")),
         Subsignal("cke", Pins("H7")),
@@ -44,8 +36,7 @@ _io = [
         ),
         Subsignal("dqs", Pins("L4 P2")),
         Subsignal("dm", Pins("K3 K4")),
-        IOStandard("MOBILE_DDR")
-    ),
+        IOStandard("MOBILE_DDR")),
 
     ("dipswitch", 0, Pins("C17"), IOStandard("LVCMOS33"), Misc("PULLUP")),
     ("dipswitch", 1, Pins("C18"), IOStandard("LVCMOS33"), Misc("PULLUP")),
@@ -72,55 +63,17 @@ _io = [
     ("user_led", 6, Pins("P16"), IOStandard("LVCMOS33"), Drive(8)),
     ("user_led", 7, Pins("P15"), IOStandard("LVCMOS33"), Drive(8)),
 
-    (
-        "microsd",
-        0,
-        Subsignal(
-            "dat0",
-            Pins("K14"),
-            IOStandard("LVCMOS33"),
-            Misc("SLEW=FAST")
-        ),
+    ("mmc", 0,
+        Subsignal("dat", Pins("K14 G18 J13 L13"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
 
-        Subsignal(
-            "dat1",
-            Pins("G18"),
-            IOStandard("LVCMOS33"),
-            Misc("SLEW=FAST")
-        ),
+        Subsignal("cmd", Pins("G16"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
 
-        Subsignal(
-            "dat2",
-            Pins("J13"),
-            IOStandard("LVCMOS33"),
-            Misc("SLEW=FAST")
-        ),
+        Subsignal("clk", Pins("L12"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST"))),
 
-        Subsignal(
-            "dat3",
-            Pins("L13"),
-            IOStandard("LVCMOS33"),
-            Misc("SLEW=FAST")
-        ),
-
-        Subsignal(
-            "cmd",
-            Pins("G16"),
-            IOStandard("LVCMOS33"),
-            Misc("SLEW=FAST")
-        ),
-
-        Subsignal(
-            "clk",
-            Pins("L12"),
-            IOStandard("LVCMOS33"),
-            Misc("SLEW=FAST")
-        )
-    ),
-
-    (
-        "sevenseg",
-        0,
+    ("sevenseg", 0,
         Subsignal("segment7", Pins("A3"), IOStandard("LVCMOS33")),  # A
         Subsignal("segment6", Pins("B4"), IOStandard("LVCMOS33")),  # B
         Subsignal("segment5", Pins("A4"), IOStandard("LVCMOS33")),  # C
@@ -129,102 +82,28 @@ _io = [
         Subsignal("segment2", Pins("D6"), IOStandard("LVCMOS33")),  # F
         Subsignal("segment1", Pins("C6"), IOStandard("LVCMOS33")),  # G
         Subsignal("segment0", Pins("A5"), IOStandard("LVCMOS33")),  # Dot
-        Subsignal("enable0", Pins("B2"), IOStandard("LVCMOS33")),  # EN0
-        Subsignal("enable1", Pins("A2"), IOStandard("LVCMOS33")),  # EN1
-        Subsignal("enable2", Pins("B3"), IOStandard("LVCMOS33"))   # EN2
-    ),
+        Subsignal("enable0", Pins("B2"), IOStandard("LVCMOS33")),   # EN0
+        Subsignal("enable1", Pins("A2"), IOStandard("LVCMOS33")),   # EN1
+        Subsignal("enable2", Pins("B3"), IOStandard("LVCMOS33"))),  # EN2
 
-    (
-        "audio",
-        0,
-        Subsignal(
-            "channel1",
-            Pins("B16"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
 
-        Subsignal(
-            "channel2",
-            Pins("A16"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        )
-    ),
+    ("audio", 0,
+        Subsignal("channel1", Pins("B16"), IOStandard("LVCMOS33"),
+                  Misc("DRIVE=8,SLEW=FAST")),
+        Subsignal("channel2", Pins("A16"), IOStandard("LVCMOS33"),
+                  Misc("DRIVE=8,SLEW=FAST"))),
 
-    (
-        "vga",
-        0,
-        Subsignal(
-            "hsync",
-            Pins("B12"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "vsync",
-            Pins("A12"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "red2",
-            Pins("C9"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "red1",
-            Pins("B9"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "red0",
-            Pins("A9"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "green2",
-            Pins("C11"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "green1",
-            Pins("A10"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "green0",
-            Pins("C10"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "blue2",
-            Pins("A11"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        ),
-
-        Subsignal(
-            "blue1",
-            Pins("B11"),
-            IOStandard("LVCMOS33"),
-            Misc("DRIVE=8,SLEW=FAST")
-        )
-    )
+    ("vga_out", 0,
+        Subsignal("hsync", Pins("B12"), IOStandard("LVCMOS33"),
+                  Misc("DRIVE=8,SLEW=FAST")),
+        Subsignal("vsync", Pins("A12"), IOStandard("LVCMOS33"),
+                  Misc("DRIVE=8,SLEW=FAST")),
+        Subsignal("r", Pins("A9 B9 C9"), IOStandard("LVCMOS33"),
+                  Misc("DRIVE=8,SLEW=FAST")),
+        Subsignal("g", Pins("C10 A10 C11"), IOStandard("LVCMOS33"),
+                  Misc("DRIVE=8,SLEW=FAST")),
+        Subsignal("b", Pins("B11 A11"), IOStandard("LVCMOS33"),
+                  Misc("DRIVE=8,SLEW=FAST")))
 ]
 
 _connectors = [
