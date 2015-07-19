@@ -13,39 +13,37 @@
 
 static char rx_buf[UART_RINGBUFFER_SIZE_RX];
 static volatile unsigned int rx_produce;
-static volatile unsigned int rx_consume;
+static unsigned int rx_consume;
 
 #define UART_RINGBUFFER_SIZE_TX 128
 #define UART_RINGBUFFER_MASK_TX (UART_RINGBUFFER_SIZE_TX-1)
 
 static char tx_buf[UART_RINGBUFFER_SIZE_TX];
 static unsigned int tx_produce;
-static unsigned int tx_consume;
-static volatile int tx_cts;
-static volatile int tx_level;
+static volatile unsigned int tx_consume;
 
 void uart_isr(void)
 {
-	unsigned int stat;
-	
+	unsigned int stat, rx_produce_next;
+
 	stat = uart_ev_pending_read();
 
 	if(stat & UART_EV_RX) {
 		while(!uart_rxempty_read()) {
-			rx_buf[rx_produce] = uart_rxtx_read();
-			rx_produce = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
+			rx_produce_next = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
+			if(rx_produce_next != rx_consume) {
+				rx_buf[rx_produce] = uart_rxtx_read();
+				rx_produce = rx_produce_next;
+			}
 			uart_ev_pending_write(UART_EV_RX);
 		}
 	}
 
 	if(stat & UART_EV_TX) {
 		uart_ev_pending_write(UART_EV_TX);
-		if(tx_level == 0)
-			tx_cts = 1;
-		while(tx_level > 0 && !uart_txfull_read()) {
+		while((tx_consume != tx_produce) && !uart_txfull_read()) {
 			uart_rxtx_write(tx_buf[tx_consume]);
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
-			tx_level--;
 		}
 	}
 }
@@ -54,8 +52,13 @@ void uart_isr(void)
 char uart_read(void)
 {
 	char c;
-	
-	while(rx_consume == rx_produce);
+
+	if(irq_getie()) {
+		while(rx_consume == rx_produce);
+	} else if (rx_consume == rx_produce) {
+		return 0;
+	}
+
 	c = rx_buf[rx_consume];
 	rx_consume = (rx_consume + 1) & UART_RINGBUFFER_MASK_RX;
 	return c;
@@ -69,45 +72,45 @@ int uart_read_nonblock(void)
 void uart_write(char c)
 {
 	unsigned int oldmask;
-	
-	if(irq_getie()) {
-		while(tx_level == UART_RINGBUFFER_SIZE_TX);
-	}
-	
-	oldmask = irq_getmask();
-	irq_setmask(0);
+	unsigned int tx_produce_next = (tx_produce + 1) & UART_RINGBUFFER_MASK_TX;
 
-	if(tx_cts) {
-		tx_cts = 0;
-		uart_rxtx_write(c);
-	} else {
+	if(irq_getie()) {
+		while(tx_produce_next == tx_consume);
+	} else if(tx_produce_next == tx_consume) {
+		return;
+	}
+
+	oldmask = irq_getmask();
+	irq_setmask(oldmask & ~(1 << UART_INTERRUPT));
+#if 0
+	while((tx_consume != tx_produce) && !uart_txfull_read()) {
+		uart_rxtx_write(tx_buf[tx_consume]);
+		tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
+	}
+#endif
+	if((tx_consume != tx_produce) || uart_txfull_read()) {
 		tx_buf[tx_produce] = c;
-		tx_produce = (tx_produce + 1) & UART_RINGBUFFER_MASK_TX;
-		tx_level++;
+		tx_produce = tx_produce_next;
+	} else {
+		uart_rxtx_write(c);
 	}
 	irq_setmask(oldmask);
 }
 
 void uart_init(void)
 {
-	unsigned int mask;
-	
 	rx_produce = 0;
 	rx_consume = 0;
-	
+
 	tx_produce = 0;
 	tx_consume = 0;
-	tx_cts = 1;
-	tx_level = 0;
 
 	uart_ev_pending_write(uart_ev_pending_read());
 	uart_ev_enable_write(UART_EV_TX | UART_EV_RX);
-	mask = irq_getmask();
-	mask |= 1 << UART_INTERRUPT;
-	irq_setmask(mask);
+	irq_setmask(irq_getmask() | (1 << UART_INTERRUPT));
 }
 
 void uart_sync(void)
 {
-	while(!tx_cts);
+	while(tx_consume != tx_produce);
 }
