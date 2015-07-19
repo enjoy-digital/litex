@@ -82,12 +82,6 @@ void uart_write(char c)
 
 	oldmask = irq_getmask();
 	irq_setmask(oldmask & ~(1 << UART_INTERRUPT));
-#if 0
-	while((tx_consume != tx_produce) && !uart_txfull_read()) {
-		uart_rxtx_write(tx_buf[tx_consume]);
-		tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
-	}
-#endif
 	if((tx_consume != tx_produce) || uart_txfull_read()) {
 		tx_buf[tx_produce] = c;
 		tx_produce = tx_produce_next;
