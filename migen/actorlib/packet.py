@@ -282,10 +282,12 @@ class Depacketizer(Module):
             ).Elif(source.stb & source.ack,
                 source.sop.eq(0)
             )
+
+        if hasattr(sink, "error"):
+            self.comb += source_error.eq(sink.error)
         self.comb += [
             source.eop.eq(sink.eop | no_payload),
             source.data.eq(sink.data),
-            source.error.eq(sink.error),
             header.decode(self.header, source)
         ]
         fsm.act("COPY",
