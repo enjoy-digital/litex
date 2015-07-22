@@ -69,6 +69,7 @@ class PCIeDMASoC(SoC, AutoCSR):
             with_timer=False
         )
         self.submodules.crg = _CRG(platform)
+        platform.misoc_path = "../../../../"
 
         # PCIe endpoint
         self.submodules.pcie_phy = S7PCIEPHY(platform, link_width=2)

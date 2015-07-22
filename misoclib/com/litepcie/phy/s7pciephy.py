@@ -151,15 +151,13 @@ class S7PCIEPHY(Module, AutoCSR):
             convert_size(dcommand[12:15], self.max_request_size),
             convert_size(dcommand[5:8], self.max_payload_size)
         ]
-
-        extcores_path = "extcores"
-        # XXX find a better way to do this?
-        current_path = os.getcwd()
-        current_path = current_path.replace("\\", "/")
-        if "litepcie/example_designs" in current_path:
-            extcores_path = os.path.join("..", "..", "..", "..", extcores_path)
-        platform.add_source_dir(os.path.join(extcores_path, "litepcie_phy_wrappers", "xilinx", "7-series", "common"))
+        if hasattr(platform, "misoc_path"):
+            misoc_path = platform.misoc_path
+        else:
+            misoc_path = "./"
+        litepcie_phy_wrapper_path = os.path.join(misoc_path, "extcores", "litepcie_phy_wrappers")
+        platform.add_source_dir(os.path.join(litepcie_phy_wrapper_path, "xilinx", "7-series", "common"))
         if device[:4] == "xc7k":
-            platform.add_source_dir(os.path.join(extcores_path, "litepcie_phy_wrappers", "xilinx", "7-series", "kintex7"))
+            platform.add_source_dir(os.path.join(litepcie_phy_wrapper_path, "xilinx", "7-series", "kintex7"))
         elif device[:4] == "xc7a":
-            platform.add_source_dir(os.path.join(extcores_path, "litepcie_phy_wrappers", "xilinx", "7-series", "artix7"))
+            platform.add_source_dir(os.path.join(litepcie_phy_wrapper_path, "xilinx", "7-series", "artix7"))
