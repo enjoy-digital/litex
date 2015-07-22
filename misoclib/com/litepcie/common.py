@@ -63,5 +63,5 @@ def interrupt_layout():
 
 
 def dma_layout(dw):
-    layout = [("dat", dw)]
+    layout = [("data", dw)]
     return EndpointDescription(layout, packetized=True)

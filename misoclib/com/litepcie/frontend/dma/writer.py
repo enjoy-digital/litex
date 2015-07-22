@@ -28,7 +28,7 @@ class DMAWriter(Module, AutoCSR):
         self.comb += [
             fifo.we.eq(sink.stb & enable),
             sink.ack.eq(fifo.writable & sink.stb & enable),
-            fifo.din.eq(sink.dat),
+            fifo.din.eq(sink.data),
             fifo.reset.eq(~enable)
         ]
 

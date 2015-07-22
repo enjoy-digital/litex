@@ -70,7 +70,7 @@ class DMAReader(Module, AutoCSR):
         self.comb += [
             fifo.sink.stb.eq(port.sink.stb),
             fifo.sink.sop.eq(port.sink.sop & (port.sink.user_id != last_user_id)),
-            fifo.sink.dat.eq(port.sink.dat),
+            fifo.sink.data.eq(port.sink.dat),
             port.sink.ack.eq(fifo.sink.ack | ~enable),
         ]
         self.comb += Record.connect(fifo.source, self.source)
