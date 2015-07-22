@@ -163,9 +163,6 @@ class XilinxISEToolchain:
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
             ise_path=_default_ise_path(), source=_default_source(), run=True, mode="xst"):
-        tools.mkdir_noerror(build_dir)
-        os.chdir(build_dir)
-
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
@@ -174,40 +171,44 @@ class XilinxISEToolchain:
 
         vns = None
 
-        if mode == "xst" or mode == "yosys":
-            v_output = platform.get_verilog(fragment)
-            vns = v_output.ns
-            named_sc, named_pc = platform.resolve_signals(vns)
-            v_file = build_name + ".v"
-            v_output.write(v_file)
-            sources = platform.sources | {(v_file, "verilog", "work")}
-            if mode == "xst":
-                _build_xst_files(platform.device, sources, platform.verilog_include_paths, build_name, self.xst_opt)
-                isemode = "xst"
-            else:
-                _run_yosys(platform.device, sources, platform.verilog_include_paths, build_name)
+        tools.mkdir_noerror(build_dir)
+        cwd = os.getcwd()
+        os.chdir(build_dir)
+        try:
+            if mode == "xst" or mode == "yosys":
+                v_output = platform.get_verilog(fragment)
+                vns = v_output.ns
+                named_sc, named_pc = platform.resolve_signals(vns)
+                v_file = build_name + ".v"
+                v_output.write(v_file)
+                sources = platform.sources | {(v_file, "verilog", "work")}
+                if mode == "xst":
+                    _build_xst_files(platform.device, sources, platform.verilog_include_paths, build_name, self.xst_opt)
+                    isemode = "xst"
+                else:
+                    _run_yosys(platform.device, sources, platform.verilog_include_paths, build_name)
+                    isemode = "edif"
+                    ngdbuild_opt += "-p " + platform.device
+
+            if mode == "mist":
+                from mist import synthesize
+                synthesize(fragment, platform.constraint_manager.get_io_signals())
+
+            if mode == "edif" or mode == "mist":
+                e_output = platform.get_edif(fragment)
+                vns = e_output.ns
+                named_sc, named_pc = platform.resolve_signals(vns)
+                e_file = build_name + ".edif"
+                e_output.write(e_file)
                 isemode = "edif"
-                ngdbuild_opt += "-p " + platform.device
 
-        if mode == "mist":
-            from mist import synthesize
-            synthesize(fragment, platform.constraint_manager.get_io_signals())
-
-        if mode == "edif" or mode == "mist":
-            e_output = platform.get_edif(fragment)
-            vns = e_output.ns
-            named_sc, named_pc = platform.resolve_signals(vns)
-            e_file = build_name + ".edif"
-            e_output.write(e_file)
-            isemode = "edif"
-
-        tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
-        if run:
-            _run_ise(build_name, ise_path, source, isemode,
-                    ngdbuild_opt, self.bitgen_opt, self.ise_commands,
-                    self.map_opt, self.par_opt)
-
-        os.chdir("..")
+            tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
+            if run:
+                _run_ise(build_name, ise_path, source, isemode,
+                         ngdbuild_opt, self.bitgen_opt, self.ise_commands,
+                         self.map_opt, self.par_opt)
+        finally:
+            os.chdir(cwd)
 
         return vns
 
