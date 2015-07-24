@@ -55,3 +55,15 @@ class SyncFIFO(_FIFOActor):
 class AsyncFIFO(_FIFOActor):
     def __init__(self, layout, depth):
         _FIFOActor.__init__(self, fifo.AsyncFIFO, layout, depth)
+
+
+def FIFO(layout, depth, buffered=False,
+          sink_cd="sys", source_cd="sys"):
+    if sink_cd != source_cd:
+        if buffered:
+            ValueError("AsyncFIFO does not support buffered mode")
+        fifo = AsyncFIFO(layout, depth)
+        return ClockDomainsRenamer({"write": sink_cd, "read": source_cd})(fifo)
+    else:
+        fifo = SyncFIFO(layout, depth, buffered)
+        return ClockDomainsRenamer(sink_cd)(fifo)
