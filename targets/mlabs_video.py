@@ -5,7 +5,6 @@ from math import ceil
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib.others import mxcrg
 from misoclib.mem.sdram.module import MT46V32M16
 from misoclib.mem.sdram.phy import s6ddrphy
 from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
@@ -16,6 +15,44 @@ from misoclib.soc.sdram import SDRAMSoC
 from misoclib.com import gpio
 from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.core.mac import LiteEthMAC
+
+
+class _MXCRG(Module):
+    def __init__(self, pads, outfreq1x):
+        self.clock_domains.cd_sys = ClockDomain()
+        self.clock_domains.cd_sdram_half = ClockDomain()
+        self.clock_domains.cd_sdram_full_wr = ClockDomain()
+        self.clock_domains.cd_sdram_full_rd = ClockDomain()
+        self.clock_domains.cd_base50 = ClockDomain(reset_less=True)
+
+        self.clk4x_wr_strb = Signal()
+        self.clk4x_rd_strb = Signal()
+
+        ###
+
+        infreq = 50*1000000
+        ratio = Fraction(outfreq1x)/Fraction(infreq)
+        in_period = float(Fraction(1000000000)/Fraction(infreq))
+
+        self.specials += Instance("mxcrg",
+                                  Instance.Parameter("in_period", in_period),
+                                  Instance.Parameter("f_mult", ratio.numerator),
+                                  Instance.Parameter("f_div", ratio.denominator),
+                                  Instance.Input("clk50_pad", pads.clk50),
+                                  Instance.Input("trigger_reset", pads.trigger_reset),
+
+                                  Instance.Output("sys_clk", self.cd_sys.clk),
+                                  Instance.Output("sys_rst", self.cd_sys.rst),
+                                  Instance.Output("clk2x_270", self.cd_sdram_half.clk),
+                                  Instance.Output("clk4x_wr", self.cd_sdram_full_wr.clk),
+                                  Instance.Output("clk4x_rd", self.cd_sdram_full_rd.clk),
+                                  Instance.Output("base50_clk", self.cd_base50.clk),
+
+                                  Instance.Output("clk4x_wr_strb", self.clk4x_wr_strb),
+                                  Instance.Output("clk4x_rd_strb", self.clk4x_rd_strb),
+                                  Instance.Output("norflash_rst_n", pads.norflash_rst_n),
+                                  Instance.Output("ddr_clk_pad_p", pads.ddr_clk_p),
+                                  Instance.Output("ddr_clk_pad_n", pads.ddr_clk_n))
 
 
 class _MXClockPads:
@@ -42,7 +79,7 @@ class BaseSoC(SDRAMSoC):
                           sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
 
-        self.submodules.crg = mxcrg.MXCRG(_MXClockPads(platform), self.clk_freq)
+        self.submodules.crg = _MXCRG(_MXClockPads(platform), self.clk_freq)
 
         if not self.integrated_main_ram_size:
             self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"),
@@ -67,7 +104,7 @@ class BaseSoC(SDRAMSoC):
 INST "mxcrg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 """)
-        platform.add_source_dir(os.path.join("misoclib", "others"))
+        platform.add_source(os.path.join("misoclib", "mxcrg.v"))
 
 
 class MiniSoC(BaseSoC):
