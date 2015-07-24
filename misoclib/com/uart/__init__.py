@@ -2,7 +2,15 @@ from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.bank.eventmanager import *
 from migen.genlib.record import Record
-from migen.actorlib.fifo import FIFO
+from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
+
+
+def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
+    if sink_cd != source_cd:
+        fifo = AsyncFIFO([("data", 8)], depth)
+        return ClockDomainsRenamer({"write": sink_cd, "read": source_cd})(fifo)
+    else:
+        return SyncFIFO([("data", 8)], depth)
 
 
 class UART(Module, AutoCSR):
@@ -22,7 +30,7 @@ class UART(Module, AutoCSR):
         # # #
 
         # TX
-        tx_fifo = FIFO([("data", 8)], tx_fifo_depth, source_cd=phy_cd)
+        tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
         self.submodules += tx_fifo
 
         tx_irqs = {
@@ -40,7 +48,7 @@ class UART(Module, AutoCSR):
 
 
         # RX
-        rx_fifo = FIFO([("data", 8)], rx_fifo_depth, sink_cd=phy_cd)
+        rx_fifo = _get_uart_fifo(rx_fifo_depth, sink_cd=phy_cd)
         self.submodules += rx_fifo
 
         rx_irqs = {
