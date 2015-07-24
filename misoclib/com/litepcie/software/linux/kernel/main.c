@@ -268,12 +268,12 @@ static int litepcie_dma_wait(LitePCIeState *s, struct litepcie_ioctl_dma_wait *m
     for (;;) {
         /* set current buffer */
         if (s->tx_dma_started) {
-            m->tx_buf_num = litepcie_readl(s, CSR_DMA_READER_TABLE_INDEX_ADDR);
+            m->tx_buf_num = (litepcie_readl(s, CSR_DMA_READER_TABLE_LOOP_STATUS_ADDR) & 0xffff);
         } else {
             m->tx_buf_num = 0;
         }
         if (s->rx_dma_started) {
-            m->rx_buf_num = litepcie_readl(s, CSR_DMA_WRITER_TABLE_INDEX_ADDR);
+            m->rx_buf_num = (litepcie_readl(s, CSR_DMA_WRITER_TABLE_LOOP_STATUS_ADDR) & 0xfffff);
         } else {
             m->rx_buf_num = 0;
         }
