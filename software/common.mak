@@ -5,7 +5,6 @@ RM ?= rm -f
 
 CC_normal := $(TARGET_PREFIX)gcc
 CX_normal := $(TARGET_PREFIX)g++
-AS_normal := $(TARGET_PREFIX)as
 AR_normal := $(TARGET_PREFIX)ar
 LD_normal := $(TARGET_PREFIX)ld
 OBJCOPY_normal := $(TARGET_PREFIX)objcopy
@@ -13,7 +12,6 @@ RANLIB_normal := $(TARGET_PREFIX)ranlib
 
 CC_quiet = @echo " CC      " $@ && $(TARGET_PREFIX)gcc
 CX_quiet = @echo " CX      " $@ && $(TARGET_PREFIX)g++
-AS_quiet = @echo " AS      " $@ && $(TARGET_PREFIX)as
 AR_quiet = @echo " AR      " $@ && $(TARGET_PREFIX)ar
 LD_quiet = @echo " LD      " $@ && $(TARGET_PREFIX)ld
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(TARGET_PREFIX)objcopy
@@ -24,7 +22,6 @@ MSC_GIT_ID := $(shell cd $(MSCDIR) && python3 -c "from misoclib.cpu.identifier i
 ifeq ($(V),1)
 	CC = $(CC_normal)
 	CX = $(CX_normal)
-	AS = $(AS_normal)
 	AR = $(AR_normal)
 	LD = $(LD_normal)
 	OBJCOPY = $(OBJCOPY_normal)
@@ -32,7 +29,6 @@ ifeq ($(V),1)
 else
 	CC = $(CC_quiet)
 	CX = $(CX_quiet)
-	AS = $(AS_quiet)
 	AR = $(AR_quiet)
 	LD = $(LD_quiet)
 	OBJCOPY = $(OBJCOPY_quiet)
