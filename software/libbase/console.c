@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+FILE *stdin, *stdout, *stderr;
+
 static console_write_hook write_hook;
 static console_read_hook read_hook;
 static console_read_nonblock_hook read_nonblock_hook;
@@ -60,11 +62,28 @@ void putsnonl(const char *s)
 	}
 }
 
+#define PRINTF_BUFFER_SIZE 256
+
 int printf(const char *fmt, ...)
 {
 	va_list args;
 	int len;
-	char outbuf[256];
+	char outbuf[PRINTF_BUFFER_SIZE];
+
+	va_start(args, fmt);
+	len = vscnprintf(outbuf, sizeof(outbuf), fmt, args);
+	va_end(args);
+	outbuf[len] = 0;
+	putsnonl(outbuf);
+
+	return len;
+}
+
+int fprintf(FILE *stream, const char *fmt, ...)
+{
+	va_list args;
+	int len;
+	char outbuf[PRINTF_BUFFER_SIZE];
 
 	va_start(args, fmt);
 	len = vscnprintf(outbuf, sizeof(outbuf), fmt, args);
