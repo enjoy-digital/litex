@@ -63,7 +63,7 @@ char *number(char *buf, char *end, unsigned long num, int base, int size, int pr
 
 unsigned int rand(void);
 void srand(unsigned int seed);
-void abort(void);
+void abort(void) __attribute__((noreturn));
 
 void qsort(void *base, size_t nmemb, size_t size, int(*compar)(const void *, const void *));
 
