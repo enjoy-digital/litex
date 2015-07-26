@@ -1,0 +1,9 @@
+#ifndef __CXX_NEW
+#define __CXX_NEW
+
+#include <cstddef>
+
+inline void* operator new (std::size_t size, void* ptr) noexcept
+  { return ptr; }
+
+#endif /* __CXX_NEW */

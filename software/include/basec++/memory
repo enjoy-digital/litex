@@ -1,0 +1,4 @@
+#ifndef __CXX_MEMORY
+#define __CXX_MEMORY
+
+#endif /* __CXX_MEMORY */

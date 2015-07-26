@@ -1,0 +1,4 @@
+#ifndef __CXX_ALGORITHM
+#define __CXX_ALGORITHM
+
+#endif /* __CXX_ALGORITHM */

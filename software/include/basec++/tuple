@@ -1,0 +1,4 @@
+#ifndef __CXX_TUPLE
+#define __CXX_TUPLE
+
+#endif /* __CXX_TUPLE */

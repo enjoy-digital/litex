@@ -1,0 +1,4 @@
+#ifndef __CXX_VECTOR
+#define __CXX_VECTOR
+
+#endif /* __CXX_VECTOR */
