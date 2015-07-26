@@ -4,8 +4,13 @@ TARGET_PREFIX=$(TRIPLE)-
 
 RM ?= rm -f
 
+ifeq ($(CPU),or1k)
 CC_normal      := clang -target $(TRIPLE)
 CX_normal      := clang++ -target $(TRIPLE)
+else
+CC_normal      := $(TARGET_PREFIX)gcc
+CX_normal      := $(TARGET_PREFIX)g++
+endif
 AR_normal      := $(TARGET_PREFIX)ar
 LD_normal      := $(TARGET_PREFIX)ld
 OBJCOPY_normal := $(TARGET_PREFIX)objcopy
