@@ -9,12 +9,10 @@ all: crt0-$(CPU).o libbase.a libbase-nofloat.a
 -include $(OBJECTS:.o=.d)
 
 libbase.a: $(OBJECTS) vsnprintf.o
-	$(AR) clr libbase.a $(OBJECTS) vsnprintf.o
-	$(RANLIB) libbase.a
+	$(AR) crs libbase.a $(OBJECTS) vsnprintf.o
 
 libbase-nofloat.a: $(OBJECTS) vsnprintf-nofloat.o
-	$(AR) clr libbase-nofloat.a $(OBJECTS) vsnprintf-nofloat.o
-	$(RANLIB) libbase-nofloat.a
+	$(AR) crs libbase-nofloat.a $(OBJECTS) vsnprintf-nofloat.o
 
 vsnprintf-nofloat.o: vsnprintf.c
 	$(call compile-dep,-DNO_FLOAT)

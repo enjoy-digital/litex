@@ -8,14 +8,12 @@ CX_normal := $(TARGET_PREFIX)g++
 AR_normal := $(TARGET_PREFIX)ar
 LD_normal := $(TARGET_PREFIX)ld
 OBJCOPY_normal := $(TARGET_PREFIX)objcopy
-RANLIB_normal := $(TARGET_PREFIX)ranlib
 
 CC_quiet = @echo " CC      " $@ && $(TARGET_PREFIX)gcc
 CX_quiet = @echo " CX      " $@ && $(TARGET_PREFIX)g++
 AR_quiet = @echo " AR      " $@ && $(TARGET_PREFIX)ar
 LD_quiet = @echo " LD      " $@ && $(TARGET_PREFIX)ld
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(TARGET_PREFIX)objcopy
-RANLIB_quiet = @echo " RANLIB   " $@ && $(TARGET_PREFIX)ranlib
 
 MSC_GIT_ID := $(shell cd $(MSCDIR) && python3 -c "from misoclib.cpu.identifier import get_id; print(hex(get_id()), end='')")
 
@@ -25,14 +23,12 @@ ifeq ($(V),1)
 	AR = $(AR_normal)
 	LD = $(LD_normal)
 	OBJCOPY = $(OBJCOPY_normal)
-	RANLIB = $(RANLIB_normal)
 else
 	CC = $(CC_quiet)
 	CX = $(CX_quiet)
 	AR = $(AR_quiet)
 	LD = $(LD_quiet)
 	OBJCOPY = $(OBJCOPY_quiet)
-	RANLIB = $(RANLIB_quiet)
 endif
 
 # Toolchain options

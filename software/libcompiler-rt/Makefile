@@ -13,8 +13,7 @@ all: libcompiler-rt.a
 -include $(OBJECTS:.o=.d)
 
 libcompiler-rt.a: $(OBJECTS)
-	$(AR) clr libcompiler-rt.a $(OBJECTS)
-	$(RANLIB) libcompiler-rt.a
+	$(AR) crs libcompiler-rt.a $(OBJECTS)
 
 %.o: $(MSCDIR)/software/compiler-rt/lib/builtins/%.c
 	$(compile-dep)

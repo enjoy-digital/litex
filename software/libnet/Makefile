@@ -9,8 +9,7 @@ all: libnet.a
 -include $(OBJECTS:.o=.d)
 
 libnet.a: $(OBJECTS)
-	$(AR) clr libnet.a $(OBJECTS)
-	$(RANLIB) libnet.a
+	$(AR) crs libnet.a $(OBJECTS)
 
 %.o: %.c
 	$(compile-dep)
