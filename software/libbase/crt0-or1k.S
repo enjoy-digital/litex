@@ -141,10 +141,6 @@ _crt0:
     /* Setup stack and global pointer */
     l.movhi    r1, hi(_fstack)
     l.ori     r1, r1, lo(_fstack)
-/*
-    l.movhi    r16, hi(_gp)
-    l.ori     r16, gp, lo(_gp)
-*/
 
     /* Clear BSS */
     l.movhi    r21, hi(_fbss)

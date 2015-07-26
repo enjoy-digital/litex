@@ -4,12 +4,16 @@ from migen.bank.description import CSRStatus
 
 def get_cpu_mak(cpu_type):
     if cpu_type == "lm32":
+        triple = "lm32-elf"
         cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
+        clang = ""
     elif cpu_type == "or1k":
-        cpuflags = "-mhard-mul -mhard-div"
+        triple = "or1k-linux"
+        cpuflags = "-fPIC -mhard-mul -mhard-div"
+        clang = "1"
     else:
         raise ValueError("Unsupported CPU type: "+cpu_type)
-    return "CPU={}\nCPUFLAGS={}\n".format(cpu_type, cpuflags)
+    return "TRIPLE={}\nCPU={}\nCPUFLAGS={}\nCLANG={}".format(triple, cpu_type, cpuflags, clang)
 
 
 def get_linker_output_format(cpu_type):

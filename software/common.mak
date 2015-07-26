@@ -1,10 +1,9 @@
 include $(MSCDIR)/software/include/generated/cpu.mak
-TRIPLE=$(CPU)-elf
 TARGET_PREFIX=$(TRIPLE)-
 
 RM ?= rm -f
 
-ifeq ($(CPU),or1k)
+ifeq ($(CLANG),1)
 CC_normal      := clang -target $(TRIPLE)
 CX_normal      := clang++ -target $(TRIPLE)
 else

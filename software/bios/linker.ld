@@ -14,6 +14,17 @@ SECTIONS
 		_etext = .;
 	} > rom
 
+	.got :
+	{
+		_GLOBAL_OFFSET_TABLE_ = .;
+		*(.got)
+	} > rom
+
+	.got.plt :
+	{
+		*(.got.plt)
+	} > rom
+
 	.rodata :
 	{
 		. = ALIGN(4);
@@ -30,7 +41,6 @@ SECTIONS
 		_fdata = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
-		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
 		_edata = .;
 	} > rom
@@ -49,6 +59,12 @@ SECTIONS
 		_ebss = .;
 		_end = .;
 	} > sram
+
+	/DISCARD/ :
+	{
+		*(.eh_frame)
+		*(.comment)
+	}
 }
 
 PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 4);
