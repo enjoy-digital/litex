@@ -36,8 +36,8 @@ endif
 #
 INCLUDES = -I$(MSCDIR)/software/include/base -I$(MSCDIR)/software/include -I$(MSCDIR)/common
 COMMONFLAGS = -Os $(CPUFLAGS) -Wall -fno-builtin -nostdinc -DMSC_GIT_ID=$(MSC_GIT_ID) $(INCLUDES)
-CFLAGS = $(COMMONFLAGS) -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
-CXXFLAGS = $(COMMONFLAGS) -fno-exceptions -ffreestanding
+CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
+CXXFLAGS = $(COMMONFLAGS) -fexceptions -fno-rtti -ffreestanding
 LDFLAGS = -nostdlib -nodefaultlibs -L$(MSCDIR)/software/include
 
 # compile and generate dependencies, based on
