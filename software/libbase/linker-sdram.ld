@@ -14,6 +14,17 @@ SECTIONS
 		_etext = .;
 	} > main_ram
 
+	.got :
+	{
+		_GLOBAL_OFFSET_TABLE_ = .;
+		*(.got)
+	} > main_ram
+
+	.got.plt :
+	{
+		*(.got.plt)
+	} > main_ram
+
 	.rodata :
 	{
 		. = ALIGN(4);
@@ -29,7 +40,6 @@ SECTIONS
 		_fdata = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
-		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
 		_edata = .;
 	} > main_ram
