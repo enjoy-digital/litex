@@ -1,19 +1,20 @@
 include $(MSCDIR)/software/include/generated/cpu.mak
-TARGET_PREFIX=$(CPU)-elf-
+TRIPLE=$(CPU)-elf
+TARGET_PREFIX=$(TRIPLE)-
 
 RM ?= rm -f
 
-CC_normal := $(TARGET_PREFIX)gcc
-CX_normal := $(TARGET_PREFIX)g++
-AR_normal := $(TARGET_PREFIX)ar
-LD_normal := $(TARGET_PREFIX)ld
+CC_normal      := clang -target $(TRIPLE)
+CX_normal      := clang++ -target $(TRIPLE)
+AR_normal      := $(TARGET_PREFIX)ar
+LD_normal      := $(TARGET_PREFIX)ld
 OBJCOPY_normal := $(TARGET_PREFIX)objcopy
 
-CC_quiet = @echo " CC      " $@ && $(TARGET_PREFIX)gcc
-CX_quiet = @echo " CX      " $@ && $(TARGET_PREFIX)g++
-AR_quiet = @echo " AR      " $@ && $(TARGET_PREFIX)ar
-LD_quiet = @echo " LD      " $@ && $(TARGET_PREFIX)ld
-OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(TARGET_PREFIX)objcopy
+CC_quiet      = @echo " CC      " $@ && $(CC_normal)
+CX_quiet      = @echo " CX      " $@ && $(CX_normal)
+AR_quiet      = @echo " AR      " $@ && $(AR_normal)
+LD_quiet      = @echo " LD      " $@ && $(LD_normal)
+OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(OBJCOPY_normal)
 
 MSC_GIT_ID := $(shell cd $(MSCDIR) && python3 -c "from misoclib.cpu.identifier import get_id; print(hex(get_id()), end='')")
 
