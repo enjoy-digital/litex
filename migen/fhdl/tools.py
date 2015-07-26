@@ -191,7 +191,15 @@ class _BasicLowerer(_Lowerer):
         return self.clock_domains[node.cd].clk
 
     def visit_ResetSignal(self, node):
-        return self.clock_domains[node.cd].rst
+        rst = self.clock_domains[node.cd].rst
+        if rst is None:
+            if node.allow_resetless:
+                return 0
+            else:
+                raise ValueError("Attempted to get reset signal of resetless"
+                                 " domain '{}'".format(node.cd))
+        else:
+            return rst
 
 
 class _ComplexSliceLowerer(_Lowerer):
