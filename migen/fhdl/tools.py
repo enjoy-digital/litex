@@ -193,7 +193,7 @@ class _BasicLowerer(_Lowerer):
     def visit_ResetSignal(self, node):
         rst = self.clock_domains[node.cd].rst
         if rst is None:
-            if node.allow_resetless:
+            if node.allow_reset_less:
                 return 0
             else:
                 raise ValueError("Attempted to get reset signal of resetless"

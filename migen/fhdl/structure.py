@@ -327,14 +327,14 @@ class ResetSignal(Value):
     ----------
     cd : str
         Clock domain to obtain a reset signal for. Defaults to `"sys"`.
-    allow_resetless : bool
+    allow_reset_less : bool
         If the clock domain is resetless, return 0 instead of reporting an
         error.
     """
-    def __init__(self, cd="sys", allow_resetless=False):
+    def __init__(self, cd="sys", allow_reset_less=False):
         Value.__init__(self)
         self.cd = cd
-        self.allow_resetless = allow_resetless
+        self.allow_reset_less = allow_reset_less
 
 # statements
 
