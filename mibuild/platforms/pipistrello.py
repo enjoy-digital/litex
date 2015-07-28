@@ -16,8 +16,8 @@ _io = [
     ("serial", 0,
         Subsignal("tx", Pins("A10")),
         Subsignal("rx", Pins("A11"), Misc("PULLUP")),
-        Subsignal("rts", Pins("C10")),
-        Subsignal("cts", Pins("A9"), Misc("PULLUP")),
+        Subsignal("cts", Pins("C10"), Misc("PULLUP")),
+        Subsignal("rts", Pins("A9"), Misc("PULLUP")),
         IOStandard("LVTTL"),
     ),
 
