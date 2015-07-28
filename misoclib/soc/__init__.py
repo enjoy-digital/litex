@@ -146,7 +146,7 @@ class SoC(Module):
         if size is not None:
             self.add_memory_region(name, address, size)
 
-    def register_rom(self, interface, rom_size=0xa000):
+    def register_rom(self, interface, rom_size=0x10000):
         self.add_wb_slave(mem_decoder(self.mem_map["rom"]), interface)
         self.add_memory_region("rom", self.cpu_reset_address, rom_size)
 
