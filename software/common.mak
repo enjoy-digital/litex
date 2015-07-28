@@ -4,8 +4,8 @@ TARGET_PREFIX=$(TRIPLE)-
 RM ?= rm -f
 
 ifeq ($(CLANG),1)
-CC_normal      := clang -target $(TRIPLE)
-CX_normal      := clang++ -target $(TRIPLE)
+CC_normal      := clang -target $(TRIPLE) -integrated-as
+CX_normal      := clang++ -target $(TRIPLE) -integrated-as
 else
 CC_normal      := $(TARGET_PREFIX)gcc
 CX_normal      := $(TARGET_PREFIX)g++
@@ -39,7 +39,7 @@ endif
 # Toolchain options
 #
 INCLUDES = -I$(MSCDIR)/software/include/base -I$(MSCDIR)/software/include -I$(MSCDIR)/common
-COMMONFLAGS = -Os $(CPUFLAGS) -Wall -fno-builtin -nostdinc -DMSC_GIT_ID=$(MSC_GIT_ID) $(INCLUDES)
+COMMONFLAGS = -Os $(CPUFLAGS) -fomit-frame-pointer -Wall -fno-builtin -nostdinc -DMSC_GIT_ID=$(MSC_GIT_ID) $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(MSCDIR)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
 LDFLAGS = -nostdlib -nodefaultlibs -L$(MSCDIR)/software/include
