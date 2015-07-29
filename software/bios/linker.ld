@@ -1,8 +1,6 @@
 INCLUDE generated/output_format.ld
 ENTRY(_start)
 
-__DYNAMIC = 0;
-
 INCLUDE generated/regions.ld
 
 SECTIONS
@@ -12,17 +10,6 @@ SECTIONS
 		_ftext = .;
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 		_etext = .;
-	} > rom
-
-	.got :
-	{
-		_GLOBAL_OFFSET_TABLE_ = .;
-		*(.got)
-	} > rom
-
-	.got.plt :
-	{
-		*(.got.plt)
 	} > rom
 
 	.rodata :
