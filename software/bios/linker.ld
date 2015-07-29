@@ -18,18 +18,12 @@ SECTIONS
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
-		_erodata = .;
-	} > rom
 
-	/* We shouldn't have a .data section, but the GNU crapchain whines if we don't */
-	.data :
-	{
+		/* Make sure the file is aligned on disk as well
+		   as in memory; CRC calculation requires that. */
+		FILL(0);
 		. = ALIGN(4);
-		_fdata = .;
-		*(.data .data.* .gnu.linkonce.d.*)
-		*(.data1)
-		*(.sdata .sdata.* .gnu.linkonce.s.*)
-		_edata = .;
+		_erodata = .;
 	} > rom
 
 	.bss :
@@ -51,6 +45,9 @@ SECTIONS
 	{
 		*(.eh_frame)
 		*(.comment)
+		*(.data .data.* .gnu.linkonce.d.*)
+		*(.data1)
+		*(.sdata .sdata.* .gnu.linkonce.s.*)
 	}
 }
 
