@@ -158,7 +158,7 @@ class XilinxISEToolchain:
         self.map_opt = "-ol high -w"
         self.par_opt = "-ol high -w"
         self.ngdbuild_opt = ""
-        self.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w"
+        self.bitgen_opt = "-g Binary:Yes -w"
         self.ise_commands = ""
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
