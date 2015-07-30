@@ -234,6 +234,7 @@ _exception_handler:
     l.jr    r9
      l.nop
 
+.global _cache_init
 _cache_init:
     /*
     This function is to be used ONLY during reset, before main() is called.
