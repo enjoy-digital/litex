@@ -456,11 +456,12 @@ int memtest_silent(void)
 	unsigned short seed_16;
 	unsigned int error_cnt;
 
+	error_cnt = 0;
+
 	/* test data bus */
 	for(i=0;i<128;i++) {
 		array[i] = ONEZERO;
 	}
-	error_cnt = 0;
 	flush_cpu_dcache();
 	flush_l2_cache();
 	for(i=0;i<128;i++) {
@@ -471,7 +472,6 @@ int memtest_silent(void)
 	for(i=0;i<128;i++) {
 		array[i] = ZEROONE;
 	}
-	error_cnt = 0;
 	flush_cpu_dcache();
 	flush_l2_cache();
 	for(i=0;i<128;i++) {
@@ -487,7 +487,6 @@ int memtest_silent(void)
 	}
 
 	seed_32 = 0;
-	error_cnt = 0;
 	flush_cpu_dcache();
 	flush_l2_cache();
 	for(i=0;i<TEST_DATA_SIZE/4;i++) {
@@ -504,7 +503,6 @@ int memtest_silent(void)
 	}
 
 	seed_16 = 0;
-	error_cnt = 0;
 	flush_cpu_dcache();
 	flush_l2_cache();
 	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
@@ -522,7 +520,7 @@ int memtest(void)
 
 	e = memtest_silent();
 	if(e != 0) {
-		printf("Memtest failed: %d/%d words incorrect\n", e, TEST_DATA_SIZE/4 + TEST_ADDR_SIZE/4);
+		printf("Memtest failed: %d/%d words incorrect\n", e, 2*128 + TEST_DATA_SIZE/4 + TEST_ADDR_SIZE/4);
 		return 0;
 	} else {
 		printf("Memtest OK\n");
