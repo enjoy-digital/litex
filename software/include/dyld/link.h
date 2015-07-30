@@ -1,5 +1,5 @@
-#ifndef __LIMITS_H
-#define __LIMITS_H
+#ifndef __LINK_H
+#define __LINK_H
 
 #include <stddef.h>
 #include <elf.h>
@@ -25,4 +25,4 @@ extern int dl_iterate_phdr (int (*__callback) (struct dl_phdr_info *,
 }
 #endif
 
-#endif /* __LIMITS_H */
+#endif /* __LINK_H */
