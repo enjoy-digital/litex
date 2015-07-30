@@ -9,7 +9,7 @@ def get_cpu_mak(cpu_type):
         clang = ""
     elif cpu_type == "or1k":
         triple = "or1k-linux"
-        cpuflags = "-mhard-mul -mhard-div"
+        cpuflags = "-mhard-mul -mhard-div -mror -mffl1 -maddc"
         clang = "1"
     else:
         raise ValueError("Unsupported CPU type: "+cpu_type)
