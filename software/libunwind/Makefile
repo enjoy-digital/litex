@@ -3,7 +3,7 @@ include $(MSCDIR)/software/common.mak
 
 COMMONFLAGS+=-integrated-as \
 	-I. -I$(MSCDIR)/software/include/dyld/ -I$(MSCDIR)/software/unwinder/include/ \
-	-D__ELF__ -D__linux__
+	-D__ELF__ -D__linux__ -D_LIBUNWIND_NO_HEAP
 
 OBJECTS=UnwindRegistersSave.o UnwindRegistersRestore.o UnwindLevel1.o libunwind.o
 
