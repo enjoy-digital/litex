@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+typedef int intptr_t;
 typedef unsigned int uintptr_t;
 
 typedef unsigned long long uint64_t;
