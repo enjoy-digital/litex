@@ -2,6 +2,7 @@ include $(MSCDIR)/software/include/generated/cpu.mak
 TARGET_PREFIX=$(TRIPLE)-
 
 RM ?= rm -f
+PYTHON ?= python3
 
 ifeq ($(CLANG),1)
 CC_normal      := clang -target $(TRIPLE) -integrated-as
@@ -20,7 +21,7 @@ AR_quiet      = @echo " AR      " $@ && $(AR_normal)
 LD_quiet      = @echo " LD      " $@ && $(LD_normal)
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(OBJCOPY_normal)
 
-MSC_GIT_ID := $(shell cd $(MSCDIR) && python3 -c "from misoclib.cpu.identifier import get_id; print(hex(get_id()), end='')")
+MSC_GIT_ID := $(shell cd $(MSCDIR) && $(PYTHON) -c "from misoclib.cpu.identifier import get_id; print(hex(get_id()), end='')")
 
 ifeq ($(V),1)
 	CC = $(CC_normal)
