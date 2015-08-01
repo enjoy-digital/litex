@@ -78,18 +78,3 @@ int printf(const char *fmt, ...)
 
 	return len;
 }
-
-int fprintf(FILE *stream, const char *fmt, ...)
-{
-	va_list args;
-	int len;
-	char outbuf[PRINTF_BUFFER_SIZE];
-
-	va_start(args, fmt);
-	len = vscnprintf(outbuf, sizeof(outbuf), fmt, args);
-	va_end(args);
-	outbuf[len] = 0;
-	putsnonl(outbuf);
-
-	return len;
-}
