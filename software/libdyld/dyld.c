@@ -3,26 +3,36 @@
 #include <string.h>
 #include <dyld.h>
 
-static int fixup_rela(Elf32_Addr base, Elf32_Rela *rela,
-                      const char *strtab, Elf32_Sym *symtab,
+static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
                       Elf32_Addr (*resolve_import)(const char *),
                       const char **error_out) {
     Elf32_Sym *sym = NULL;
     if(ELF32_R_SYM(rela->r_info) != 0)
-        sym = &symtab[ELF32_R_SYM(rela->r_info)];
+        sym = &info->symtab[ELF32_R_SYM(rela->r_info)];
     Elf32_Addr value;
 
     switch(ELF32_R_TYPE(rela->r_info)) {
+        case R_OR1K_NONE:
+        return 1; // Does nothing.
+
         case R_OR1K_RELATIVE:
-        value = base + (sym ? sym->st_value : 0) + rela->r_addend;
+        value = info->base + (sym ? sym->st_value : 0) + rela->r_addend;
         break;
 
+        case R_OR1K_32:
+        case R_OR1K_GLOB_DAT:
+        value = (Elf32_Addr)dyld_lookup(&info->strtab[sym->st_name], info);
+        if(value != 0)
+            break;
+        //fallthrough
+
         case R_OR1K_JMP_SLOT:
-        value = resolve_import(&strtab[sym->st_name]);
+        value = resolve_import(&info->strtab[sym->st_name]);
         if(value == 0) {
             static char error[256];
             snprintf(error, sizeof(error),
-                     "ELF object has an unresolved symbol: %s", &strtab[sym->st_name]);
+                     "ELF object has an unresolved symbol: %s",
+                     &info->strtab[sym->st_name]);
             *error_out = error;
             return 0;
         }
@@ -33,7 +43,7 @@ static int fixup_rela(Elf32_Addr base, Elf32_Rela *rela,
         return 0;
     }
 
-    *(Elf32_Addr*)(base + rela->r_offset) = value;
+    *(Elf32_Addr*)(info->base + rela->r_offset) = value;
 
     return 1;
 }
@@ -116,16 +126,6 @@ int dyld_load(void *shlib, Elf32_Addr base,
         return 0;
     }
 
-    for(int i = 0; i < relanum; i++) {
-        if(!fixup_rela(base, &rela[i], strtab, symtab, resolve_import, error_out))
-            return 0;
-    }
-
-    for(int i = 0; i < pltrelnum; i++) {
-        if(!fixup_rela(base, &pltrel[i], strtab, symtab, resolve_import, error_out))
-            return 0;
-    }
-
     info->base         = base;
     info->init         = (void*)(base + init);
     info->strtab       = strtab;
@@ -134,6 +134,16 @@ int dyld_load(void *shlib, Elf32_Addr base,
     info->hash.nchain  = hash[1];
     info->hash.bucket  = &hash[2];
     info->hash.chain   = &hash[2 + info->hash.nbucket];
+
+    for(int i = 0; i < relanum; i++) {
+        if(!fixup_rela(info, &rela[i], resolve_import, error_out))
+            return 0;
+    }
+
+    for(int i = 0; i < pltrelnum; i++) {
+        if(!fixup_rela(info, &pltrel[i], resolve_import, error_out))
+            return 0;
+    }
 
     return 1;
 }
