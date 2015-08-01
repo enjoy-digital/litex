@@ -43,7 +43,8 @@ static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
         return 0;
     }
 
-    *(Elf32_Addr*)(info->base + rela->r_offset) = value;
+    memcpy((Elf32_Addr*)(info->base + rela->r_offset), &value,
+           sizeof(Elf32_Addr));
 
     return 1;
 }
