@@ -154,13 +154,11 @@ static unsigned long elf_hash(const unsigned char *name)
 void *dyld_lookup(const char *symbol, struct dyld_info *info) {
     unsigned hash = elf_hash((const unsigned char*) symbol);
     unsigned index = info->hash.bucket[hash % info->hash.nbucket];
-    while(strcmp(&info->strtab[info->symtab[index].st_name], symbol) &&
-          info->hash.chain[index] != STN_UNDEF)
+    while(strcmp(&info->strtab[info->symtab[index].st_name], symbol)) {
+        if(index == STN_UNDEF)
+            return NULL;
         index = info->hash.chain[index];
-
-    if(info->hash.chain[index] != STN_UNDEF) {
-        return (void*)(info->base + info->symtab[index].st_value);
-    } else {
-        return NULL;
     }
+
+    return (void*)(info->base + info->symtab[index].st_value);
 }
