@@ -21,8 +21,8 @@ static int fixup_rela(Elf32_Addr base, Elf32_Rela *rela,
         value = resolve_import(&strtab[sym->st_name]);
         if(value == 0) {
             static char error[256];
-            error[scnprintf(error, sizeof(error), "ELF object has an unresolved symbol: %s",
-                            &strtab[sym->st_name])] = 0;
+            snprintf(error, sizeof(error),
+                     "ELF object has an unresolved symbol: %s", &strtab[sym->st_name]);
             *error_out = error;
             return 0;
         }
@@ -95,7 +95,7 @@ int dyld_load(void *shlib, Elf32_Addr base,
             case DT_RELASZ:   relanum   = dyn->d_un.d_val / sizeof(Elf32_Rela); break;
             case DT_JMPREL:   pltrel    = (Elf32_Rela *)(base + dyn->d_un.d_ptr); break;
             case DT_PLTRELSZ: pltrelnum = dyn->d_un.d_val / sizeof(Elf32_Rela); break;
-            case DT_HASH:     hash      = (Elf32_Word *)dyn->d_un.d_val; break;
+            case DT_HASH:     hash      = (Elf32_Word *)(base + dyn->d_un.d_ptr); break;
             case DT_INIT:     init      = dyn->d_un.d_val; break;
 
             case DT_REL:
