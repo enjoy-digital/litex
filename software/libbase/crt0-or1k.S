@@ -19,7 +19,7 @@
 
 #include <spr-defs.h>
 
-#define EXCEPTION_STACK_SIZE (128+128)
+#define EXCEPTION_STACK_SIZE (4*32)
 
 #define HANDLE_EXCEPTION                    ; \
     l.addi  r1, r1, -EXCEPTION_STACK_SIZE   ; \
@@ -193,11 +193,18 @@ _exception_handler:
 
     /* Save return address */
     l.or    r14, r0, r9
-    /* send stack pointer as argument */
+    /* Calculate exception vector from handler address */
+    l.andi  r3, r9, 0xf00
+    l.srli  r3, r3, 8
+    /* Pass saved register state */
     l.or    r4, r0, r1
+    /* Extract exception PC */
+    l.mfspr r5, r0, SPR_EPCR_BASE
+    /* Extract exception effective address */
+    l.mfspr r6, r0, SPR_EEAR_BASE
     /* Call exception handler with the link address as argument */
     l.jal   exception_handler
-     l.or   r3, r0, r14
+     l.nop
 
     /* Load return address */
     l.or    r9, r0, r14
