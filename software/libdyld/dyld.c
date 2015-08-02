@@ -171,5 +171,9 @@ void *dyld_lookup(const char *symbol, struct dyld_info *info) {
         index = info->hash.chain[index];
     }
 
-    return (void*)(info->base + info->symtab[index].st_value);
+    Elf32_Addr value = info->symtab[index].st_value;
+    if(value != 0)
+        return (void*)(info->base + value);
+    else
+        return NULL;
 }
