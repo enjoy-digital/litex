@@ -5,7 +5,8 @@
 
 static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
                       Elf32_Addr (*resolve_import)(const char *),
-                      const char **error_out) {
+                      const char **error_out)
+{
     Elf32_Sym *sym = NULL;
     if(ELF32_R_SYM(rela->r_info) != 0)
         sym = &info->symtab[ELF32_R_SYM(rela->r_info)];
@@ -51,7 +52,8 @@ static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
 
 int dyld_load(void *shlib, Elf32_Addr base,
               Elf32_Addr (*resolve_import)(const char *),
-              struct dyld_info *info, const char **error_out) {
+              struct dyld_info *info, const char **error_out)
+{
     Elf32_Ehdr *ehdr = (Elf32_Ehdr *)shlib;
 
     const unsigned char expected_ident[EI_NIDENT] = {
@@ -162,7 +164,8 @@ static unsigned long elf_hash(const unsigned char *name)
     return h;
 }
 
-void *dyld_lookup(const char *symbol, struct dyld_info *info) {
+void *dyld_lookup(const char *symbol, struct dyld_info *info)
+{
     unsigned hash = elf_hash((const unsigned char*) symbol);
     unsigned index = info->hash.bucket[hash % info->hash.nbucket];
     while(strcmp(&info->strtab[info->symtab[index].st_name], symbol)) {
