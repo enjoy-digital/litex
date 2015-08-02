@@ -16,7 +16,7 @@ static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
         return 1; // Does nothing.
 
         case R_OR1K_RELATIVE:
-        value = info->base + (sym ? sym->st_value : 0) + rela->r_addend;
+        value = info->base + rela->r_addend;
         break;
 
         case R_OR1K_32:
