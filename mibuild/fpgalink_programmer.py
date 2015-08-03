@@ -1,11 +1,14 @@
-
 import os
 
 from mibuild.generic_programmer import GenericProgrammer
 from mibuild.xilinx.programmer import _create_xsvf
 
-import fpgalink3
-fpgalink3.flInitialise(0)
+try:
+   import fl
+except ImportError:
+   import fpgalink3 as fl
+
+fl.flInitialise(0)
 
 
 class FPGALink(GenericProgrammer):
@@ -50,28 +53,29 @@ class FPGALink(GenericProgrammer):
 
         print("Attempting to open connection to FPGALink device", vp, "...")
         try:
-            handle = fpgalink3.flOpen(self.fpgalink_vidpid)
-        except fpgalink3.FLException as ex:
+            handle = fl.flOpen(self.fpgalink_vidpid)
+        except fl.FLException as ex:
             if not ivp:
                 raise FLException(
                     "Could not open FPGALink device at {0} and"
                     " no initial VID:PID was supplied".format(vp))
 
             print("Loading firmware into %s..." % ivp)
-            fpgalink3.flLoadStandardFirmware(ivp, vp)
+            fl.flLoadStandardFirmware(ivp, vp)
 
             print("Awaiting renumeration...")
-            if not fpgalink3.flAwaitDevice(vp, 600):
-                raise fpgalink3.FLException(
+            if not fl.flAwaitDevice(vp, 600):
+                raise fl.FLException(
                     "FPGALink device did not renumerate properly"
                     " as {0}".format(vp))
 
             print("Attempting to open connection to FPGALink device", vp,
                   "again...")
-            handle = fpgalink3.flOpen(vp)
+            handle = fl.flOpen(vp)
 
         # Only Nero capable hardware support doing programming.
-        assert fpgalink3.flIsNeroCapable(handle)
+        assert fl.flIsNeroCapable(handle)
+        print("Cable connection opened.")
         return handle
 
     def load_bitstream(self, bitstream_file):
@@ -88,10 +92,11 @@ class FPGALink(GenericProgrammer):
         print("Programming %s to device." % xsvf_file)
         print("="*n)
         handle = self.open_device()
-        fpgalink3.flProgram(handle, 'J:'+self.pin_cfg, progFile=xsvf_file)
+        print("Programming device...")
+        fl.flProgram(handle, "J:"+self.pin_cfg, progFile=xsvf_file)
         print("Programming successful!")
         print("="*n+"\n")
-        fpgalink3.flClose(handle)
+        fl.flClose(handle)
 
     def flash(self, address, data_file):
         raise NotImplementedError("Not supported yet.")
