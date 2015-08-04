@@ -9,7 +9,9 @@
 # 5 cycles later, along with the assertion
 # of dfi_rddata_valid.
 #
-# This PHY only supports CAS Latency 3.
+# This PHY only supports CAS latency 3 for DDR, LPDDR, DDR2
+# and CAS latency 5/CAS write latency 6 for DDR3.
+#
 # Read commands must be sent on phase 0.
 # Write commands must be sent on phase 1.
 #
@@ -23,25 +25,41 @@ from misoclib.mem import sdram
 
 class S6DDRPHY(Module):
     def __init__(self, pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
-        if module.memtype not in ["DDR", "LPDDR", "DDR2"]:
-            raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR and DDR2")
+        if module.memtype not in ["DDR", "LPDDR", "DDR2", "DDR3"]:
+            raise NotImplementedError("S6DDRPHY only supports DDR, LPDDR, DDR2 and DDR3")
         addressbits = flen(pads.a)
         bankbits = flen(pads.ba)
         databits = flen(pads.dq)
         nphases = 2
 
-        self.settings = sdram.PhySettings(
-            memtype=module.memtype,
-            dfi_databits=2*databits,
-            nphases=nphases,
-            rdphase=0,
-            wrphase=1,
-            rdcmdphase=1,
-            wrcmdphase=0,
-            cl=3,
-            read_latency=5,
-            write_latency=0
-        )
+        if module.memtype == "DDR3":
+            self.settings = sdram.PhySettings(
+                memtype="DDR3",
+                dfi_databits=2*databits,
+                nphases=nphases,
+                rdphase=0,
+                wrphase=1,
+                rdcmdphase=1,
+                wrcmdphase=0,
+                cl=5,
+                cwl=6,
+                read_latency=6,
+                write_latency=2
+            )
+        else:
+            self.settings = sdram.PhySettings(
+                memtype=module.memtype,
+                dfi_databits=2*databits,
+                nphases=nphases,
+                rdphase=0,
+                wrphase=1,
+                rdcmdphase=1,
+                wrcmdphase=0,
+                cl=3,
+                read_latency=5,
+                write_latency=0
+            )
+
         self.module = module
 
         self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
@@ -88,6 +106,8 @@ class S6DDRPHY(Module):
         r_dfi = Array(Record(phase_cmd_description(addressbits, bankbits)) for i in range(nphases))
         for n, phase in enumerate(self.dfi.phases):
             sd_sdram_half += [
+                r_dfi[n].reset_n.eq(phase.reset_n),
+                r_dfi[n].odt.eq(phase.odt),
                 r_dfi[n].address.eq(phase.address),
                 r_dfi[n].bank.eq(phase.bank),
                 r_dfi[n].cs_n.eq(phase.cs_n),
@@ -106,8 +126,10 @@ class S6DDRPHY(Module):
             pads.cas_n.eq(r_dfi[phase_sel].cas_n),
             pads.we_n.eq(r_dfi[phase_sel].we_n)
         ]
-        if hasattr(pads, "cs_n"):
-            sd_sdram_half += pads.cs_n.eq(r_dfi[phase_sel].cs_n)
+        # optional pads
+        for name in "reset_n", "cs_n", "odt":
+          if hasattr(pads, name):
+              sd_sdram_half += getattr(pads, name).eq(getattr(r_dfi[phase_sel], name))
 
         #
         # Bitslip
@@ -332,25 +354,27 @@ class S6DDRPHY(Module):
                                       i_SHIFTIN4=0,
             )
 
-        #
-        # ODT
-        #
-        # ODT not yet supported
-        if hasattr(pads, "odt"):
-            self.comb += pads.odt.eq(0)
 
         #
         # DQ/DQS/DM control
         #
-        self.comb += drive_dq.eq(d_dfi[self.settings.wrphase].wrdata_en)
+        if module.memtype == "DDR3":
+            r_drive_dq = Signal(self.settings.cwl-1)
+            sd_sdram_half += r_drive_dq.eq(Cat(d_dfi[self.settings.wrphase].wrdata_en, r_drive_dq))
+            self.comb += drive_dq.eq(r_drive_dq[self.settings.cwl-2])
+        else:
+            self.comb += drive_dq.eq(d_dfi[self.settings.wrphase].wrdata_en)
 
         d_dfi_wrdata_en = Signal()
         sd_sys += d_dfi_wrdata_en.eq(d_dfi[self.settings.wrphase].wrdata_en)
 
-        r_dfi_wrdata_en = Signal(2)
-        sd_sdram_half += r_dfi_wrdata_en.eq(Cat(d_dfi_wrdata_en, r_dfi_wrdata_en[0]))
+        r_dfi_wrdata_en = Signal(max(self.settings.cwl, self.settings.cl))
+        sd_sdram_half += r_dfi_wrdata_en.eq(Cat(d_dfi_wrdata_en, r_dfi_wrdata_en))
 
-        self.comb += drive_dqs.eq(r_dfi_wrdata_en[1])
+        if module.memtype == "DDR3":
+            self.comb += drive_dqs.eq(r_dfi_wrdata_en[self.settings.cwl-1])
+        else:
+            self.comb += drive_dqs.eq(r_dfi_wrdata_en[1])
 
         rddata_sr = Signal(self.settings.read_latency)
         sd_sys += rddata_sr.eq(Cat(rddata_sr[1:self.settings.read_latency],
