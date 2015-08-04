@@ -16,6 +16,10 @@ def LiteEthPHY(clock_pads, pads, **kwargs):
             # This is a pure 1G PHY
             from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
             return LiteEthPHYGMII(clock_pads, pads, **kwargs)
+    elif hasattr(pads, "rx_ctl"):
+         # This is a 10/100/1G RGMII PHY
+           from misoclib.com.liteeth.phy.rgmii import LiteEthPHYRGMII
+           return LiteEthPHYRGMII(clock_pads, pads, **kwargs)
     elif flen(pads.tx_data) == 4:
         # This is a MII PHY
         from misoclib.com.liteeth.phy.mii import LiteEthPHYMII
