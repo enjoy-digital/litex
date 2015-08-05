@@ -1,3 +1,5 @@
+# RGMII PHY for Spartan-6
+
 from migen.genlib.io import DDROutput
 from migen.genlib.misc import WaitTimer
 from migen.genlib.fsm import FSM, NextState
