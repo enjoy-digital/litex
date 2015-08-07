@@ -22,12 +22,11 @@ static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
 
         case R_OR1K_32:
         case R_OR1K_GLOB_DAT:
+        case R_OR1K_JMP_SLOT:
         value = (Elf32_Addr)dyld_lookup(&info->strtab[sym->st_name], info);
         if(value != 0)
             break;
-        //fallthrough
 
-        case R_OR1K_JMP_SLOT:
         value = resolve_import(&info->strtab[sym->st_name]);
         if(value == 0) {
             static char error[256];
