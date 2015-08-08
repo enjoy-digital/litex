@@ -89,7 +89,7 @@ void erase_flash_sector(unsigned int addr)
     spiflash_bitbang_en_write(0);
 }
 
-void write_to_flash_page(unsigned int addr, unsigned char *c, unsigned int len)
+void write_to_flash_page(unsigned int addr, const unsigned char *c, unsigned int len)
 {
     unsigned int i;
 
@@ -117,7 +117,7 @@ void write_to_flash_page(unsigned int addr, unsigned char *c, unsigned int len)
 
 #define SPIFLASH_PAGE_MASK (SPIFLASH_PAGE_SIZE - 1)
 
-void write_to_flash(unsigned int addr, unsigned char *c, unsigned int len)
+void write_to_flash(unsigned int addr, const unsigned char *c, unsigned int len)
 {
    unsigned int written = 0;
 
