@@ -5,14 +5,14 @@
 
 struct dyld_info {
     Elf32_Addr base;
-    void *init;
+    const void *init;
     const char *strtab;
-    Elf32_Sym *symtab;
+    const Elf32_Sym *symtab;
     struct {
         Elf32_Word nbucket;
         Elf32_Word nchain;
-        Elf32_Word *bucket;
-        Elf32_Word *chain;
+        const Elf32_Word *bucket;
+        const Elf32_Word *chain;
     } hash;
 };
 
@@ -20,7 +20,7 @@ struct dyld_info {
 extern "C" {
 #endif
 
-int dyld_load(void *shlib, Elf32_Addr base,
+int dyld_load(const void *shlib, Elf32_Addr base,
               Elf32_Addr (*resolve_import)(const char *),
               struct dyld_info *info, const char **error_out);
 void *dyld_lookup(const char *symbol, struct dyld_info *info);

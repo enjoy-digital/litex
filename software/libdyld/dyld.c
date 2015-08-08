@@ -3,11 +3,11 @@
 #include <string.h>
 #include <dyld.h>
 
-static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
+static int fixup_rela(struct dyld_info *info, const Elf32_Rela *rela,
                       Elf32_Addr (*resolve_import)(const char *),
                       const char **error_out)
 {
-    Elf32_Sym *sym = NULL;
+    const Elf32_Sym *sym = NULL;
     if(ELF32_R_SYM(rela->r_info) != 0)
         sym = &info->symtab[ELF32_R_SYM(rela->r_info)];
     Elf32_Addr value;
@@ -49,11 +49,11 @@ static int fixup_rela(struct dyld_info *info, Elf32_Rela *rela,
     return 1;
 }
 
-int dyld_load(void *shlib, Elf32_Addr base,
+int dyld_load(const void *shlib, Elf32_Addr base,
               Elf32_Addr (*resolve_import)(const char *),
               struct dyld_info *info, const char **error_out)
 {
-    Elf32_Ehdr *ehdr = (Elf32_Ehdr *)shlib;
+    const Elf32_Ehdr *ehdr = (const Elf32_Ehdr *)shlib;
 
     const unsigned char expected_ident[EI_NIDENT] = {
         ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3,
@@ -75,14 +75,14 @@ int dyld_load(void *shlib, Elf32_Addr base,
 #error Unsupported architecture
 #endif
 
-    Elf32_Phdr *phdr = (Elf32_Phdr *)((intptr_t)shlib + ehdr->e_phoff);
-    Elf32_Dyn *dyn = NULL;
+    const Elf32_Phdr *phdr = (const Elf32_Phdr *)((intptr_t)shlib + ehdr->e_phoff);
+    const Elf32_Dyn *dyn = NULL;
     for(int i = 0; i < ehdr->e_phnum; i++) {
         if(phdr[i].p_type == PT_DYNAMIC)
-            dyn = (Elf32_Dyn *)((intptr_t)shlib + phdr[i].p_offset);
+            dyn = (const Elf32_Dyn *)((intptr_t)shlib + phdr[i].p_offset);
 
         memcpy((void*)(base + phdr[i].p_vaddr),
-               (void*)((intptr_t)shlib + phdr[i].p_offset),
+               (const void*)((intptr_t)shlib + phdr[i].p_offset),
                phdr[i].p_filesz);
     }
 
@@ -91,23 +91,24 @@ int dyld_load(void *shlib, Elf32_Addr base,
         return 0;
     }
 
-    char *strtab = NULL;
-    Elf32_Sym *symtab = NULL;
-    Elf32_Rela *rela = NULL, *pltrel = NULL;
-    Elf32_Word *hash = NULL, init = 0;
+    const char *strtab = NULL;
+    const Elf32_Sym *symtab = NULL;
+    const Elf32_Rela *rela = NULL, *pltrel = NULL;
+    const Elf32_Word *hash = NULL;
+    Elf32_Word init = 0;
     size_t syment = sizeof(Elf32_Sym), relaent = sizeof(Elf32_Rela),
            relanum = 0, pltrelnum = 0;
     while(dyn->d_tag != DT_NULL) {
         switch(dyn->d_tag) {
-            case DT_STRTAB:   strtab    = (char *)(base + dyn->d_un.d_ptr); break;
-            case DT_SYMTAB:   symtab    = (Elf32_Sym *)(base + dyn->d_un.d_ptr); break;
+            case DT_STRTAB:   strtab    = (const char *)(base + dyn->d_un.d_ptr); break;
+            case DT_SYMTAB:   symtab    = (const Elf32_Sym *)(base + dyn->d_un.d_ptr); break;
             case DT_SYMENT:   syment    = dyn->d_un.d_val; break;
-            case DT_RELA:     rela      = (Elf32_Rela *)(base + dyn->d_un.d_ptr); break;
+            case DT_RELA:     rela      = (const Elf32_Rela *)(base + dyn->d_un.d_ptr); break;
             case DT_RELAENT:  relaent   = dyn->d_un.d_val; break;
             case DT_RELASZ:   relanum   = dyn->d_un.d_val / sizeof(Elf32_Rela); break;
-            case DT_JMPREL:   pltrel    = (Elf32_Rela *)(base + dyn->d_un.d_ptr); break;
+            case DT_JMPREL:   pltrel    = (const Elf32_Rela *)(base + dyn->d_un.d_ptr); break;
             case DT_PLTRELSZ: pltrelnum = dyn->d_un.d_val / sizeof(Elf32_Rela); break;
-            case DT_HASH:     hash      = (Elf32_Word *)(base + dyn->d_un.d_ptr); break;
+            case DT_HASH:     hash      = (const Elf32_Word *)(base + dyn->d_un.d_ptr); break;
             case DT_INIT:     init      = dyn->d_un.d_val; break;
 
             case DT_REL:
