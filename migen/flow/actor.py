@@ -165,8 +165,8 @@ class PipelinedActor(BinaryActor):
             self.busy.eq(busy)
         ]
         if sink.description.packetized:
-            sop = sink.sop
-            eop = sink.eop
+            sop = sink.stb & sink.sop
+            eop = sink.stb & sink.eop
             for i in range(latency):
                 sop_n = Signal()
                 eop_n = Signal()
