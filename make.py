@@ -136,11 +136,11 @@ CPU type:  {}
         actions["build-headers"] = True
 
     if actions["clean"]:
-        subprocess.call(["rm", "-rf", "build/*"])
-        subprocess.call(["make", "-C", os.path.join("software", "libcompiler-rt"), "clean"])
-        subprocess.call(["make", "-C", os.path.join("software", "libbase"), "clean"])
-        subprocess.call(["make", "-C", os.path.join("software", "libnet"), "clean"])
-        subprocess.call(["make", "-C", os.path.join("software", "bios"), "clean"])
+        subprocess.check_call(["rm", "-rvf", "build/*"])
+        subprocess.check_call(["make", "-C", os.path.join("software", "libcompiler-rt"), "clean"])
+        subprocess.check_call(["make", "-C", os.path.join("software", "libbase"), "clean"])
+        subprocess.check_call(["make", "-C", os.path.join("software", "libnet"), "clean"])
+        subprocess.check_call(["make", "-C", os.path.join("software", "bios"), "clean"])
 
     if actions["build-headers"]:
         boilerplate = """/*
@@ -207,7 +207,7 @@ CPU type:  {}
         prog.set_flash_proxy_dir(args.flash_proxy_dir)
         if prog.needs_bitreverse:
             flashbit = os.path.join("build", build_name + ".fpg")
-            subprocess.call([os.path.join("tools", "byteswap"),
+            subprocess.check_call([os.path.join("tools", "byteswap"),
                 os.path.join("build", build_name + ".bin"),
                 flashbit])
         else:
