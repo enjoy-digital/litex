@@ -5,6 +5,7 @@ import time
 import serial
 import threading
 import argparse
+
 from serial.tools.miniterm import console, character, LF
 
 sfl_magic_len = 14
@@ -13,17 +14,17 @@ sfl_magic_ack = "z6IHG7cYDID6o\n"
 
 # General commands
 sfl_cmd_abort = 0x00
-sfl_cmd_load = 0x01
-sfl_cmd_jump = 0x02
+sfl_cmd_load  = 0x01
+sfl_cmd_jump  = 0x02
+
 
 # Replies
-sfl_ack_success = 'K'
+sfl_ack_success  = 'K'
 sfl_ack_crcerror = 'C'
-sfl_ack_unknown = 'U'
-sfl_ack_error = 'E'
+sfl_ack_unknown  = 'U'
+sfl_ack_error    = 'E'
 
-# XXX : can we get CRC16 from a standard Python library as it's done
-# for CRC32 with binascii?
+
 crc16_table = [
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
     0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
@@ -64,7 +65,7 @@ def crc16(l):
     crc = 0
     for d in l:
         crc = crc16_table[((crc >> 8) ^ d) & 0xff] ^ (crc << 8)
-    return crc
+    return crc & 0xffff
 
 
 class SFLFrame:
@@ -87,8 +88,8 @@ class SFLFrame:
         self.raw = []
         self.raw.append(self.length)
         self.compute_crc()
-        self.raw.append((self.crc & 0xff00) >> 8)
-        self.raw.append(self.crc & 0x00ff)
+        for d in self.crc.to_bytes(2, "big"):
+            self.raw.append(d)
         self.raw.append(self.cmd)
         for d in self.payload:
             self.raw.append(d)
@@ -165,14 +166,11 @@ class Flterm:
         while len(data) != 0:
             print("{}%\r".format(100*position//length), end="")
             frame = SFLFrame()
-            if len(data) > 251:
-                frame_data = data[:251]
-            frame.length = len(frame_data)+4
+            frame_data = data[:251]
+            frame.length = len(frame_data) + 4
             frame.cmd = sfl_cmd_load
-            frame.payload.append((current_address & 0xff000000) >> 24)
-            frame.payload.append((current_address & 0x00ff0000) >> 16)
-            frame.payload.append((current_address & 0x0000ff00) >> 8)
-            frame.payload.append((current_address & 0x000000ff) >> 0)
+            for d in current_address.to_bytes(4, "big"):
+                frame.payload.append(d)
             for d in frame_data:
                 frame.payload.append(d)
             if self.send_frame(frame) == 0:
@@ -193,10 +191,8 @@ class Flterm:
         frame = SFLFrame()
         frame.length = 4
         frame.cmd = sfl_cmd_jump
-        frame.payload.append((self.kernel_address & 0xff000000) >> 24)
-        frame.payload.append((self.kernel_address & 0x00ff0000) >> 16)
-        frame.payload.append((self.kernel_address & 0x0000ff00) >> 8)
-        frame.payload.append((self.kernel_address & 0x000000ff) >> 0)
+        for d in self.kernel_address.to_bytes(4, "big"):
+            frame.payload.append(d)
         self.send_frame(frame)
 
     def detect_magic(self, data):
@@ -290,7 +286,7 @@ def _get_args():
     parser.add_argument("--port", default="2", help="serial port")
     parser.add_argument("--speed", default=115200, help="serial baudrate")
     parser.add_argument("--kernel", default=None, help="kernel image")
-    parser.add_argument("--kernel-adr", default=0x40000000, help="kernel address")
+    parser.add_argument("--kernel-adr", default="0x40000000", help="kernel address")
     return parser.parse_args()
 
 if __name__ == "__main__":
