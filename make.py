@@ -136,7 +136,7 @@ CPU type:  {}
         actions["build-headers"] = True
 
     if actions["clean"]:
-        subprocess.check_call(["rm", "-rvf", "build/*"])
+        subprocess.check_call("rm -rvf build/*", shell=True) # Need shell for the build/* globbing
         subprocess.check_call(["make", "-C", os.path.join("software", "libcompiler-rt"), "clean"])
         subprocess.check_call(["make", "-C", os.path.join("software", "libbase"), "clean"])
         subprocess.check_call(["make", "-C", os.path.join("software", "libnet"), "clean"])
