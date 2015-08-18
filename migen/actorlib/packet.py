@@ -284,7 +284,7 @@ class Depacketizer(Module):
             )
 
         if hasattr(sink, "error"):
-            self.comb += source_error.eq(sink.error)
+            self.comb += source.error.eq(sink.error)
         self.comb += [
             source.eop.eq(sink.eop | no_payload),
             source.data.eq(sink.data),
