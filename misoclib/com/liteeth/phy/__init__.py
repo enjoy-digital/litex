@@ -2,6 +2,7 @@ from misoclib.com.liteeth.common import *
 
 
 def LiteEthPHY(clock_pads, pads, **kwargs):
+    clk_freq = kwargs.pop("clk_freq")
     # Autodetect PHY
     if hasattr(pads, "source_stb"):
         # This is a simulation PHY
@@ -11,7 +12,7 @@ def LiteEthPHY(clock_pads, pads, **kwargs):
         if hasattr(clock_pads, "tx"):
             # This is a 10/100/1G PHY
             from misoclib.com.liteeth.phy.gmii_mii import LiteEthPHYGMIIMII
-            return LiteEthPHYGMIIMII(clock_pads, pads, **kwargs)
+            return LiteEthPHYGMIIMII(clock_pads, pads, clk_freq=clk_freq, **kwargs)
         else:
             # This is a pure 1G PHY
             from misoclib.com.liteeth.phy.gmii import LiteEthPHYGMII
