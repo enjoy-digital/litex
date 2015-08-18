@@ -46,6 +46,7 @@ all             clean, build-csr-csv, build-bitstream, load-bitstream.
     parser.add_argument("-p", "--platform", default=None, help="platform to build for")
     parser.add_argument("-Ot", "--target-option", default=[], nargs=2, action="append", help="set target-specific option")
     parser.add_argument("-Op", "--platform-option", default=[("programmer", "vivado")], nargs=2, action="append", help="set platform-specific option")
+    parser.add_argument("-Ob", "--build-option", default=[], nargs=2, action="append", help="set build option")
     parser.add_argument("--csr_csv", default="./test/csr.csv", help="CSV file to save the CSR map into")
 
     parser.add_argument("action", nargs="+", help="specify an action")
@@ -149,7 +150,8 @@ System Clk: {} MHz (min: {} MHz)
         v_output.write("build/litesata.v")
 
     if actions["build-bitstream"]:
-        vns = platform.build(soc, build_name=build_name, run=True)
+        build_kwargs = dict((k, autotype(v)) for k, v in args.build_option)
+        vns = platform.build(soc, build_name=build_name, **build_kwargs)
         if hasattr(soc, "do_exit") and vns is not None:
             if hasattr(soc.do_exit, '__call__'):
                 soc.do_exit(vns)
