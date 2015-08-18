@@ -286,7 +286,7 @@ def _get_args():
     parser.add_argument("--port", default="2", help="serial port")
     parser.add_argument("--speed", default=115200, help="serial baudrate")
     parser.add_argument("--kernel", default=None, help="kernel image")
-    parser.add_argument("--kernel-adr", type=lambda a: int(a, 16), default=0x40000000, help="kernel address")
+    parser.add_argument("--kernel-adr", type=lambda a: int(a, 0), default=0x40000000, help="kernel address")
     return parser.parse_args()
 
 if __name__ == "__main__":
