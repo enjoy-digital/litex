@@ -428,7 +428,7 @@ class S6QuarterRateDDRPHY(Module):
         self.clk8x_rd_strb = half_rate_phy.clk4x_rd_strb
 
         # sys_clk      : system clk, used for dfi interface
-        # sys2x_clk    : half rate  sys clk
+        # sys2x_clk    : 2x system clk
         sd_sys = getattr(self.sync, "sys")
         sd_sys2x = getattr(self.sync, "sys2x")
 
