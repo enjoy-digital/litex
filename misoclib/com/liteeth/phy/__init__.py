@@ -1,8 +1,7 @@
 from misoclib.com.liteeth.common import *
 
 
-def LiteEthPHY(clock_pads, pads, **kwargs):
-    clk_freq = None if "clk_freq" not in kwargs else kwargs.pop("clk_freq")
+def LiteEthPHY(clock_pads, pads, clk_freq=None, **kwargs):
     # Autodetect PHY
     if hasattr(pads, "source_stb"):
         # This is a simulation PHY
