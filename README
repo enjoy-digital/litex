@@ -28,7 +28,8 @@
  * Design new peripherals using Migen and benefit from automatic CSR maps
    and logic, etc.
  * Possibility to encapsulate legacy Verilog/VHDL code.
- * Complex FPGA cores that can be used integrated in MiSoC or in standalone:
+ * Complex FPGA cores that can be used integrated in MiSoC or standalone:
+     - LitePcie:  a small footprint and configuragle PCIe core
      - LiteEth:   a small footprint and configurable Ethernet core
      - LiteSATA:  a small footprint and configurable SATA core
      - LiteScope: a small footprint and configurable logic analyzer core
@@ -40,6 +41,7 @@ MiSoC comes with built-in support for the following boards:
  * Pipistrello, a simple board with USB and HDMI [XC6SLX45]
  * De0 Nano, a simple and low-cost development board [CYCLONEIV]
  * KC705, a Kintex-7 devboard from Xilinx [XC7K325T]
+ * Versa, a low-cost Lattice development board [ECP3-35]
 MiSoC is portable and support for other boards can easily be added as external
 modules.
 
