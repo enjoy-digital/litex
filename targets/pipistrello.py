@@ -108,11 +108,11 @@ class BaseSoC(SDRAMSoC):
         self.submodules.crg = _CRG(platform, clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"),
-                                                       MT46H32M16(self.clk_freq),
-                                                       rd_bitslip=1,
-                                                       wr_bitslip=3,
-                                                       dqs_ddr_alignment="C1")
+            self.submodules.ddrphy = s6ddrphy.S6HalfRateDDRPHY(platform.request("ddram"),
+                                                               MT46H32M16(self.clk_freq),
+                                                               rd_bitslip=1,
+                                                               wr_bitslip=3,
+                                                               dqs_ddr_alignment="C1")
             self.comb += [
                 self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
                 self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb),

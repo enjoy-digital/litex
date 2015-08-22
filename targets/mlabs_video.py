@@ -82,11 +82,11 @@ class BaseSoC(SDRAMSoC):
         self.submodules.crg = _MXCRG(_MXClockPads(platform), self.clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.ddrphy = s6ddrphy.S6DDRPHY(platform.request("ddram"),
-                                                       MT46V32M16(self.clk_freq),
-                                                       rd_bitslip=0,
-                                                       wr_bitslip=3,
-                                                       dqs_ddr_alignment="C1")
+            self.submodules.ddrphy = s6ddrphy.S6HalfRateDDRPHY(platform.request("ddram"),
+                                                               MT46V32M16(self.clk_freq),
+                                                               rd_bitslip=0,
+                                                               wr_bitslip=3,
+                                                               dqs_ddr_alignment="C1")
             self.register_sdram_phy(self.ddrphy)
             self.comb += [
                 self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
