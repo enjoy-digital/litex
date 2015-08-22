@@ -165,6 +165,26 @@ class MT47H128M8(SDRAMModule):
             self.timing_settings)
 
 
+class P3R1GE4JGF(SDRAMModule):
+    geom_settings = {
+        "nbanks": 8,
+        "nrows": 8192,
+        "ncols": 1024
+    }
+    timing_settings = {
+        "tRP":   12.5,
+        "tRCD":  12.5,
+        "tWR":   15,
+        "tWTR":  3,
+        "tREFI": 7800,
+        "tRFC":  127.5,
+    }
+
+    def __init__(self, clk_freq):
+        SDRAMModule.__init__(self, clk_freq, "DDR2", self.geom_settings,
+            self.timing_settings)
+
+
 # DDR3
 class MT8JTF12864(SDRAMModule):
     geom_settings = {
@@ -180,6 +200,26 @@ class MT8JTF12864(SDRAMModule):
         "tREFI": 7800,
         "tRFC":  70
     }
+    def __init__(self, clk_freq):
+        SDRAMModule.__init__(self, clk_freq, "DDR3", self.geom_settings,
+            self.timing_settings)
+
+
+class MT41J128M16(SDRAMModule):
+    geom_settings = {
+        "nbanks": 8,
+        "nrows":  16384,
+        "ncols":  1024,
+    }
+    timing_settings = {
+        "tRP":   15,
+        "tRCD":  15,
+        "tWR":   15,
+        "tWTR":  3,
+        "tREFI": 64*1000*1000/16384,
+        "tRFC":  260,
+    }
+
     def __init__(self, clk_freq):
         SDRAMModule.__init__(self, clk_freq, "DDR3", self.geom_settings,
             self.timing_settings)
