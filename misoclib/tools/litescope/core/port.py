@@ -81,13 +81,13 @@ class LiteScopeEdgeDetectorUnit(Module):
         self.comb += Record.connect(self.sink, self.buffer.d)
 
         rising = Signal(dw)
-        rising.eq(self.rising_mask & sink.data & ~self.buffer.q.data)
+        self.comb += rising.eq(self.rising_mask & sink.data & ~self.buffer.q.data)
 
         falling = Signal(dw)
-        falling.eq(self.falling_mask & ~sink.data & self.buffer.q.data)
+        self.comb += falling.eq(self.falling_mask & ~sink.data & self.buffer.q.data)
 
         both = Signal(dw)
-        both.eq(self.both_mask & (rising | falling))
+        self.comb += both.eq(self.both_mask & (rising | falling))
 
         self.comb += [
             source.stb.eq(sink.stb & self.buffer.q.stb),
