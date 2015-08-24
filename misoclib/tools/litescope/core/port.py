@@ -77,22 +77,22 @@ class LiteScopeEdgeDetectorUnit(Module):
 
         # # #
 
-        self.buffer = Buffer(self.sink.description)
-        self.comb += Record.connect(self.sink, self.buffer.sink)
+        self.submodules.buffer = Buffer(self.sink.description)
+        self.comb += Record.connect(self.sink, self.buffer.d)
 
         rising = Signal(dw)
-        rising.eq(self.rising_mask & sink.data & ~self.buffer.source.data)
+        rising.eq(self.rising_mask & sink.data & ~self.buffer.q.data)
 
         falling = Signal(dw)
-        falling.eq(self.falling_mask & sink.data & ~self.buffer.source.data)
+        falling.eq(self.falling_mask & ~sink.data & self.buffer.q.data)
 
         both = Signal(dw)
-        both.eq(self.both_mask & sink.data & ~self.buffer.source.data)
+        both.eq(self.both_mask & (rising | falling))
 
         self.comb += [
-            source.stb.eq(sink.stb & self.buffer.source.stb),
-            self.buffer.source.ack.eq(source.ack),
-            source.hit.eq(rising | falling | both)
+            source.stb.eq(sink.stb & self.buffer.q.stb),
+            self.buffer.q.ack.eq(source.ack),
+            source.hit.eq((rising | falling | both) != 0)
         ]
 
 
@@ -106,7 +106,7 @@ class LiteScopeEdgeDetector(LiteScopeEdgeDetectorUnit, AutoCSR):
         # # #
 
         self.comb += [
-            self.rising.eq(self._rising.storage),
-            self.falling.eq(self._falling.storage),
-            self.both.eq(self._both.storage)
+            self.rising_mask.eq(self._rising.storage),
+            self.falling_mask.eq(self._falling.storage),
+            self.both_mask.eq(self._both.storage)
         ]
