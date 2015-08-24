@@ -99,14 +99,14 @@ class LiteScopeEdgeDetectorUnit(Module):
 class LiteScopeEdgeDetector(LiteScopeEdgeDetectorUnit, AutoCSR):
     def __init__(self, dw):
         LiteScopeEdgeDetectorUnit.__init__(self, dw)
-        self._rising = CSRStorage(dw)
-        self._falling = CSRStorage(dw)
-        self._both = CSRStorage(dw)
+        self._rising_mask = CSRStorage(dw)
+        self._falling_mask = CSRStorage(dw)
+        self._both_mask = CSRStorage(dw)
 
         # # #
 
         self.comb += [
-            self.rising_mask.eq(self._rising.storage),
-            self.falling_mask.eq(self._falling.storage),
-            self.both_mask.eq(self._both.storage)
+            self.rising_mask.eq(self._rising_mask.storage),
+            self.falling_mask.eq(self._falling_mask.storage),
+            self.both_mask.eq(self._both_mask.storage)
         ]
