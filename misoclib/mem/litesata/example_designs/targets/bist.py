@@ -1,7 +1,6 @@
 from misoclib.mem.litesata.common import *
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.bank.description import *
 
 from misoclib.soc import SoC
 
@@ -82,7 +81,7 @@ class StatusLeds(Module):
             self.comb += platform.request("user_led", 2*i+1).eq(sata_phy.ctrl.ready)
 
 
-class BISTSoC(SoC, AutoCSR):
+class BISTSoC(SoC):
     default_platform = "kc705"
     csr_map = {
         "sata_bist": 16
@@ -122,7 +121,7 @@ set_false_path -from [get_clocks sata_rx_clk] -to [get_clocks sys_clk]
 set_false_path -from [get_clocks sata_tx_clk] -to [get_clocks sys_clk]
 """)
 
-class BISTSoCDevel(BISTSoC, AutoCSR):
+class BISTSoCDevel(BISTSoC):
     csr_map = {
         "la": 17
     }

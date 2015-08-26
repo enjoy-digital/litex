@@ -1,7 +1,6 @@
 from misoclib.mem.litesata.common import *
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.bank.description import *
 
 from misoclib.soc import SoC
 
@@ -21,7 +20,7 @@ from misoclib.mem.litesata.frontend.bist import LiteSATABIST
 from misoclib.mem.litesata.example_designs.targets.bist import CRG, StatusLeds
 
 
-class MirroringSoC(SoC, AutoCSR):
+class MirroringSoC(SoC):
     default_platform = "kc705"
     csr_map = {
         "sata_bist0": 16,

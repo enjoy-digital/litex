@@ -1,5 +1,4 @@
 from migen.bus import wishbone
-from migen.bank.description import *
 from migen.genlib.io import CRG
 from migen.fhdl.specials import Keep
 from mibuild.xilinx.vivado import XilinxVivadoToolchain
@@ -16,7 +15,7 @@ from misoclib.com.liteeth.phy import LiteEthPHY
 from misoclib.com.liteeth.core import LiteEthUDPIPCore
 
 
-class BaseSoC(SoC, AutoCSR):
+class BaseSoC(SoC):
     csr_map = {
         "phy":  11,
         "core": 12
@@ -62,7 +61,7 @@ set_false_path -from [get_clocks eth_tx_clk] -to [get_clocks sys_clk]
 """)
 
 
-class BaseSoCDevel(BaseSoC, AutoCSR):
+class BaseSoCDevel(BaseSoC):
     csr_map = {
         "la":            20
     }

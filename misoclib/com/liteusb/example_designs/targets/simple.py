@@ -1,4 +1,3 @@
-from migen.bank.description import *
 from migen.genlib.io import CRG
 from migen.actorlib.fifo import SyncFIFO
 
@@ -11,7 +10,7 @@ from misoclib.com.liteusb.frontend.wishbone import LiteUSBWishboneBridge
 
 from misoclib.com.gpio import GPIOOut
 
-class LiteUSBSoC(SoC, AutoCSR):
+class LiteUSBSoC(SoC):
     csr_map = {}
     csr_map.update(SoC.csr_map)
 

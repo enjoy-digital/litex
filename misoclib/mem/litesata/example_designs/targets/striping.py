@@ -1,7 +1,6 @@
 from misoclib.mem.litesata.common import *
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.bank.description import *
 
 from misoclib.soc import SoC
 
@@ -21,7 +20,7 @@ from misoclib.mem.litesata.frontend.bist import LiteSATABIST
 from misoclib.mem.litesata.example_designs.targets.bist import CRG, StatusLeds
 
 
-class StripingSoC(SoC, AutoCSR):
+class StripingSoC(SoC):
     default_platform = "kc705"
     csr_map = {
         "sata_bist": 16
@@ -86,7 +85,7 @@ set_false_path -from [get_clocks {sata_tx_clk}] -to [get_clocks sys_clk]
            sata_tx_clk="sata_tx{}_clk".format(str(i))))
 
 
-class StripingSoCDevel(StripingSoC, AutoCSR):
+class StripingSoCDevel(StripingSoC):
     csr_map = {
         "la": 17
     }

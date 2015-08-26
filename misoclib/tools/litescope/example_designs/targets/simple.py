@@ -1,4 +1,3 @@
-from migen.bank.description import *
 from migen.genlib.io import CRG
 
 from misoclib.soc import SoC
@@ -9,7 +8,7 @@ from misoclib.tools.litescope.frontend.la import LiteScopeLA
 
 from misoclib.com.uart.bridge import UARTWishboneBridge
 
-class LiteScopeSoC(SoC, AutoCSR):
+class LiteScopeSoC(SoC):
     csr_map = {
         "io":    16,
         "la":    17

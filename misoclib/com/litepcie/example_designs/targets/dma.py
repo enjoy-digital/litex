@@ -1,5 +1,4 @@
 from migen.bus import wishbone
-from migen.bank.description import *
 from migen.genlib.io import CRG
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.misc import timeline
@@ -39,7 +38,7 @@ class _CRG(Module, AutoCSR):
         self.sync += If(self._scratch.re, self._scratch.w.eq(self._scratch.r))
 
 
-class PCIeDMASoC(SoC, AutoCSR):
+class PCIeDMASoC(SoC):
     default_platform = "kc705"
     csr_map = {
         "crg":            16,
