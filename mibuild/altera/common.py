@@ -2,7 +2,7 @@ from migen.fhdl.std import Instance, Module
 from migen.genlib.io import DifferentialInput, DifferentialOutput
 
 
-class QuartusDifferentialInputImpl(Module):
+class AlteraDifferentialInputImpl(Module):
     def __init__(self, i_p, i_n, o):
         self.specials += Instance("ALT_INBUF_DIFF",
                                   name="ibuf_diff",
@@ -11,13 +11,13 @@ class QuartusDifferentialInputImpl(Module):
                                   o_o=o)
 
 
-class QuartusDifferentialInput:
+class AlteraDifferentialInput:
     @staticmethod
     def lower(dr):
-        return QuartusDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
+        return AlteraDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
 
 
-class QuartusDifferentialOutputImpl(Module):
+class AlteraDifferentialOutputImpl(Module):
     def __init__(self, i, o_p, o_n):
         self.specials += Instance("ALT_OUTBUF_DIFF",
                                   name="obuf_diff",
@@ -26,13 +26,13 @@ class QuartusDifferentialOutputImpl(Module):
                                   o_obar=o_n)
 
 
-class QuartusDifferentialOutput:
+class AlteraDifferentialOutput:
     @staticmethod
     def lower(dr):
-        return QuartusDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
+        return AlteraDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
 
 altera_special_overrides = {
-    DifferentialInput: QuartusDifferentialInput,
-    DifferentialOutput: QuartusDifferentialOutput
+    DifferentialInput: AlteraDifferentialInput,
+    DifferentialOutput: AlteraDifferentialOutput
 }
