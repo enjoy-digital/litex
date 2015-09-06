@@ -105,8 +105,8 @@ def memprefix(prefix, memories, done):
             done.add(memory.huid)
 
 
-class AutoCSR:
-    def get_memories(self):
+def _make_gatherer(method, cls, prefix_cb):
+    def gatherer(self):
         try:
             exclude = self.autocsr_exclude
         except AttributeError:
@@ -118,30 +118,16 @@ class AutoCSR:
         r = []
         for k, v in xdir(self, True):
             if k not in exclude:
-                if isinstance(v, Memory):
+                if isinstance(v, cls):
                     r.append(v)
-                elif hasattr(v, "get_memories") and callable(v.get_memories):
-                    memories = v.get_memories()
-                    memprefix(k + "_", memories, prefixed)
-                    r += memories
+                elif hasattr(v, method) and callable(getattr(v, method)):
+                    items = getattr(v, method)()
+                    prefix_cb(k + "_", items, prefixed)
+                    r += items
         return sorted(r, key=lambda x: x.huid)
+    return gatherer
 
-    def get_csrs(self):
-        try:
-            exclude = self.autocsr_exclude
-        except AttributeError:
-            exclude = {}
-        try:
-            prefixed = self.__prefixed
-        except AttributeError:
-            prefixed = self.__prefixed = set()
-        r = []
-        for k, v in xdir(self, True):
-            if k not in exclude:
-                if isinstance(v, _CSRBase):
-                    r.append(v)
-                elif hasattr(v, "get_csrs") and callable(v.get_csrs):
-                    csrs = v.get_csrs()
-                    csrprefix(k + "_", csrs, prefixed)
-                    r += csrs
-        return sorted(r, key=lambda x: x.huid)
+
+class AutoCSR:
+    get_memories = _make_gatherer("get_memories", Memory, memprefix)
+    get_csrs = _make_gatherer("get_csrs", _CSRBase, csrprefix)
