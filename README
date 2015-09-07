@@ -30,7 +30,6 @@
  * Possibility to encapsulate legacy Verilog/VHDL code.
  * Complex FPGA cores that can be used integrated in MiSoC or standalone:
      - LiteEth:   a small footprint and configurable Ethernet core
-     - LiteSATA:  a small footprint and configurable SATA core
 
 MiSoC comes with built-in support for the following boards:
  * Mixxeo, the digital video mixer from M-Labs [XC6SLX45]
