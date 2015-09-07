@@ -1,5 +1,0 @@
-.. _community:
-
-=========
-Community
-=========

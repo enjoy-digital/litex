@@ -3,8 +3,8 @@ from migen.bus import wishbone
 from migen.genlib.io import CRG
 
 from misoclib.soc import SoC, mem_decoder
-from misoclib.com.liteeth.phy import LiteEthPHY
-from misoclib.com.liteeth.core.mac import LiteEthMAC
+from misoclib.com.liteethmini.phy import LiteEthPHY
+from misoclib.com.liteethmini.mac import LiteEthMAC
 
 
 class BaseSoC(SoC):

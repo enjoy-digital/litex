@@ -8,8 +8,8 @@ from misoclib.mem.flash import spiflash
 from misoclib.soc import mem_decoder
 from misoclib.soc.sdram import SDRAMSoC
 
-from misoclib.com.liteeth.phy import LiteEthPHY
-from misoclib.com.liteeth.core.mac import LiteEthMAC
+from misoclib.com.liteethmini.phy import LiteEthPHY
+from misoclib.com.liteethmini.mac import LiteEthMAC
 
 
 class _CRG(Module):
