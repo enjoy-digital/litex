@@ -7,9 +7,6 @@
 [submodule "software/compiler-rt"]
 	path = software/compiler-rt
 	url = http://llvm.org/git/compiler-rt.git
-[submodule "extcores/litepcie_phy_wrappers"]
-	path = extcores/litepcie_phy_wrappers
-	url = https://github.com/enjoy-digital/litepcie_phy_wrappers
 [submodule "software/unwinder"]
 	path = software/unwinder
 	url = https://github.com/whitequark/libunwind
