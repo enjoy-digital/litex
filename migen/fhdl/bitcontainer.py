@@ -50,13 +50,13 @@ def value_bits_sign(v):
         elif v.op == "*":
             if not obs[0][1] and not obs[1][1]:
                 # both operands unsigned
-                return obs[0][0] + obs[1][0]
+                return obs[0][0] + obs[1][0], False
             elif obs[0][1] and obs[1][1]:
                 # both operands signed
-                return obs[0][0] + obs[1][0] - 1
+                return obs[0][0] + obs[1][0] - 1, True
             else:
                 # one operand signed, the other unsigned (add sign bit)
-                return obs[0][0] + obs[1][0] + 1 - 1
+                return obs[0][0] + obs[1][0] + 1 - 1, True
         elif v.op == "<<<":
             if obs[1][1]:
                 extra = 2**(obs[1][0] - 1) - 1
