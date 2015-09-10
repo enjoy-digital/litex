@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 
 from migen.fhdl.std import *
 from migen.fhdl import verilog
-from migen.genlib.misc import optree
 from migen.sim.generic import run_simulation
 
+from functools import reduce
+from operator import add
 
 # A synthesizable FIR filter.
 class FIR(Module):
@@ -27,7 +28,7 @@ class FIR(Module):
             c_fp = int(c*2**(self.wsize - 1))
             muls.append(c_fp*sreg)
         sum_full = Signal((2*self.wsize-1, True))
-        self.sync += sum_full.eq(optree("+", muls))
+        self.sync += sum_full.eq(reduce(add, muls))
         self.comb += self.o.eq(sum_full[self.wsize-1:])
 
 
