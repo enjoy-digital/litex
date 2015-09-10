@@ -36,6 +36,7 @@ class EDID(Module, AutoCSR):
         # EDID
         scl_raw = Signal()
         sda_i = Signal()
+        sda_raw = Signal()
         sda_drv = Signal()
         _sda_drv_reg = Signal()
         _sda_i_async = Signal()
@@ -43,7 +44,7 @@ class EDID(Module, AutoCSR):
         self.specials += [
             MultiReg(pads.scl, scl_raw),
             Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
-            MultiReg(_sda_i_async, sda_i)
+            MultiReg(_sda_i_async, sda_raw)
         ]
 
         scl_i = Signal()
@@ -51,7 +52,10 @@ class EDID(Module, AutoCSR):
         samp_carry = Signal()
         self.sync += [
             Cat(samp_count, samp_carry).eq(samp_count + 1),
-            If(samp_carry, scl_i.eq(scl_raw))
+            If(samp_carry,
+                scl_i.eq(scl_raw),
+                sda_i.eq(sda_raw)
+            )
         ]
 
         scl_r = Signal()
