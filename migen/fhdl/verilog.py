@@ -8,6 +8,7 @@ from migen.fhdl.bitcontainer import bits_for, flen
 from migen.fhdl.namer import Namespace, build_namespace
 from migen.fhdl.conv_output import ConvOutput
 
+
 _reserved_keywords = {
 "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
 "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
@@ -25,7 +26,8 @@ _reserved_keywords = {
 "specparam", "strong0", "strong1", "supply0", "supply1", "table", "task",
 "time", "tran", "tranif0", "tranif1", "tri", "tri0", "tri1", "triand",
 "trior", "trireg", "unsigned", "use", "vectored", "wait", "wand", "weak0",
-"weak1", "while", "wire", "wor","xnor","xor"}
+"weak1", "while", "wire", "wor","xnor","xor"
+}
 
 
 def _printsig(ns, s):
@@ -115,6 +117,7 @@ def _printexpr(ns, node):
         return "{" + str(node.n) + "{" + _printexpr(ns, node.v)[0] + "}}", False
     else:
         raise TypeError("Expression of unrecognized type: "+str(type(node)))
+
 
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
