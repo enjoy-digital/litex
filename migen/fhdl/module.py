@@ -5,7 +5,6 @@ from migen.util.misc import flat_iteration
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Fragment
 from migen.fhdl.tools import rename_clock_domain
-from migen.sim.upper import gen_sim, proxy_sim
 
 
 class FinalizeError(Exception):
@@ -118,20 +117,7 @@ class Module:
             self.finalized = False
             return self.finalized
         elif name == "_fragment":
-            simf = None
-            try:
-                simf = self.do_simulation
-            except AttributeError:
-                try:
-                    simg = self.gen_simulation
-                except AttributeError:
-                    pass
-                else:
-                    simf = gen_sim(simg)
-            if simf is not None:
-                simf = proxy_sim(self, simf)
-            sim = [] if simf is None else [simf]
-            self._fragment = _Fragment(sim=sim)
+            self._fragment = _Fragment()
             return self._fragment
         elif name == "_submodules":
             self._submodules = []

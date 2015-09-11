@@ -572,23 +572,17 @@ class _ClockDomainList(list):
 (SPECIAL_INPUT, SPECIAL_OUTPUT, SPECIAL_INOUT) = range(3)
 
 
-class StopSimulation(Exception):
-    pass
-
-
 class _Fragment:
-    def __init__(self, comb=None, sync=None, specials=None, clock_domains=None, sim=None):
+    def __init__(self, comb=None, sync=None, specials=None, clock_domains=None):
         if comb is None: comb = []
         if sync is None: sync = dict()
         if specials is None: specials = set()
         if clock_domains is None: clock_domains = _ClockDomainList()
-        if sim is None: sim = []
 
         self.comb = comb
         self.sync = sync
         self.specials = specials
         self.clock_domains = _ClockDomainList(clock_domains)
-        self.sim = sim
 
     def __add__(self, other):
         newsync = defaultdict(list)
@@ -598,8 +592,7 @@ class _Fragment:
             newsync[k].extend(v)
         return _Fragment(self.comb + other.comb, newsync,
             self.specials | other.specials,
-            self.clock_domains + other.clock_domains,
-            self.sim + other.sim)
+            self.clock_domains + other.clock_domains)
 
     def __iadd__(self, other):
         newsync = defaultdict(list)
@@ -611,5 +604,4 @@ class _Fragment:
         self.sync = newsync
         self.specials |= other.specials
         self.clock_domains += other.clock_domains
-        self.sim += other.sim
         return self
