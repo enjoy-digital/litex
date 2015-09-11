@@ -1,5 +1,5 @@
 from migen.fhdl.std import *
-from migen.sim.generic import run_simulation
+from migen.sim import Simulator
 
 
 # A slightly more elaborate counter.
@@ -13,15 +13,17 @@ class Counter(Module):
 
         self.sync += If(self.ce, self.count.eq(self.count + 1))
 
-    def do_simulation(self, selfp):
+
+def counter_test(dut):
+    for cycle in range(20):
         # Only assert CE every second cycle.
         # => each counter value is held for two cycles.
-        if selfp.simulator.cycle_counter % 2:
-            selfp.ce = 0  # This is how you write to a signal.
+        if cycle % 2:
+            yield dut.ce, 0  # This is how you write to a signal.
         else:
-            selfp.ce = 1
-        print("Cycle: " + str(selfp.simulator.cycle_counter) + " Count: " + \
-            str(selfp.count))
+            yield dut.ce, 1
+        print("Cycle: {} Count: {}".format(cycle, (yield dut.count)))
+        yield
 
 # Output is:
 # Cycle: 0 Count: -5
@@ -33,5 +35,4 @@ class Counter(Module):
 
 if __name__ == "__main__":
     dut = Counter()
-    # Demonstrate VCD output
-    run_simulation(dut, vcd_name="my.vcd", ncycles=20)
+    Simulator(dut, counter_test(dut)).run()

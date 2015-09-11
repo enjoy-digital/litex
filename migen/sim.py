@@ -69,7 +69,7 @@ class Evaluator:
         self.modifications.clear()
         return r
 
-    def _eval(self, node):
+    def eval(self, node):
         if isinstance(node, (int, bool)):
             return node
         elif isinstance(node, Signal):
@@ -78,7 +78,7 @@ class Evaluator:
             except KeyError:
                 return node.reset
         elif isinstance(node, _Operator):
-            operands = [self._eval(o) for o in node.operands]
+            operands = [self.eval(o) for o in node.operands]
             if node.op == "-":
                 if len(operands) == 1:
                     return -operands[0]
@@ -90,20 +90,23 @@ class Evaluator:
             # TODO: Cat, Slice, Array, ClockSignal, ResetSignal, Memory
             raise NotImplementedError
 
+    def assign(self, signal, value):
+        value = value & (2**signal.nbits - 1)
+        if signal.signed and (value & 2**(signal.nbits - 1)):
+            value -= 2**signal.nbits
+        self.modifications[signal] = value
+
     def execute(self, statements):
         for s in statements:
             if isinstance(s, _Assign):
-                value = self._eval(s.r)
+                value = self.eval(s.r)
                 if isinstance(s.l, Signal):
-                    value = value & (2**s.l.nbits - 1)
-                    if s.l.signed and (value & 2**(s.l.nbits - 1)):
-                        value -= 2**s.l.nbits
-                    self.modifications[s.l] = value
+                    self.assign(s.l, value)
                 else:
                     # TODO: Cat, Slice, Array, ClockSignal, ResetSignal, Memory
                     raise NotImplementedError
             elif isinstance(s, If):
-                if self._eval(s.cond):
+                if self.eval(s.cond):
                     self.execute(s.t)
                 else:
                     self.execute(s.f)
@@ -144,6 +147,26 @@ class Simulator:
                 self.evaluator.execute(self.comb_dependent_statements[signal])
             modified = self.evaluator.commit()
 
+    def _process_generators(self, cd):
+        if cd in self.generators:
+            exhausted = []
+            for generator in self.generators[cd]:
+                reply = None
+                while True:
+                    try:
+                        request = generator.send(reply)
+                        if request is None:
+                            break  # next cycle
+                        elif isinstance(request, tuple):
+                            self.evaluator.assign(*request)
+                        else:
+                            reply = self.evaluator.eval(request)
+                    except StopIteration:
+                        exhausted.append(generator)
+                        break
+            for generator in exhausted:
+                self.generators[cd].remove(generator)
+
     def _continue_simulation(self):
         # TODO: passive generators
         return any(self.generators.values())
@@ -153,10 +176,11 @@ class Simulator:
         self._comb_propagate(self.evaluator.commit())
 
         while True:
-            print(self.evaluator.signal_values)
             cds = self.time.tick()
             for cd in cds:
                 self.evaluator.execute(self.fragment.sync[cd])
-            self._comb_propagate(self.evaluator.commit())            
+                self._process_generators(cd)
+            self._comb_propagate(self.evaluator.commit())
+
             if not self._continue_simulation():
                 break
