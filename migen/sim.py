@@ -141,7 +141,8 @@ class Simulator:
             for signal in list_inputs(statement):
                 self.comb_dependent_statements[signal].append(statement)
 
-    def _comb_propagate(self, modified):
+    def _commit_and_comb_propagate(self):
+        modified = self.evaluator.commit()
         while modified:
             for signal in modified:
                 self.evaluator.execute(self.comb_dependent_statements[signal])
@@ -180,7 +181,7 @@ class Simulator:
 
     def run(self):
         self.evaluator.execute(self.fragment.comb)
-        self._comb_propagate(self.evaluator.commit())
+        self._commit_and_comb_propagate()
 
         while True:
             cds = self.time.tick()
@@ -189,7 +190,7 @@ class Simulator:
                     self.evaluator.execute(self.fragment.sync[cd])
                 if cd in self.generators:
                     self._process_generators(cd)
-            self._comb_propagate(self.evaluator.commit())
+            self._commit_and_comb_propagate()
 
             if not self._continue_simulation():
                 break
