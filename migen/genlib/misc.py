@@ -44,14 +44,6 @@ def chooser(signal, shift, output, n=None, reverse=False):
     return Case(shift, cases).makedefault()
 
 
-def reverse_bytes(signal):
-    n = (flen(signal)+7)//8
-    r = []
-    for i in reversed(range(n)):
-        r.append(signal[i*8:min((i+1)*8, flen(signal))])
-    return Cat(iter(r))
-
-
 def timeline(trigger, events):
     lastevent = max([e[0] for e in events])
     counter = Signal(max=lastevent+1)
@@ -78,24 +70,6 @@ def timeline(trigger, events):
     sync = [If(get_cond(e), *e[1]) for e in events]
     sync.append(counterlogic)
     return sync
-
-
-@ResetInserter()
-@CEInserter()
-class FlipFlop(Module):
-    def __init__(self, *args, **kwargs):
-        self.d = Signal(*args, **kwargs)
-        self.q = Signal(*args, **kwargs)
-        self.sync += self.q.eq(self.d)
-
-
-@ResetInserter()
-@CEInserter()
-class Counter(Module):
-    def __init__(self, *args, increment=1, **kwargs):
-        self.value = Signal(*args, **kwargs)
-        self.width = flen(self.value)
-        self.sync += self.value.eq(self.value+increment)
 
 
 class WaitTimer(Module):
