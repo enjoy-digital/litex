@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen.fhdl.structure import *
 from migen.fhdl.specials import _MemoryPort
 from migen.fhdl.decorators import ModuleTransformer
 from migen.util.misc import gcd_multiple

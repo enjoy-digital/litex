@@ -2,7 +2,7 @@ import unittest
 import subprocess
 import os
 
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl.verilog import convert
 
 

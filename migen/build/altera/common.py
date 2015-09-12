@@ -1,4 +1,5 @@
-from migen.fhdl.std import Instance, Module
+from migen.fhdl.module import Module
+from migen.fhdl.specials import Instance
 from migen.genlib.io import DifferentialInput, DifferentialOutput
 
 

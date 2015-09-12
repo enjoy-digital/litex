@@ -1,7 +1,5 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl import verilog
-from migen.genlib.fsm import FSM, NextState, NextValue
-
 
 class Example(Module):
     def __init__(self):
@@ -26,5 +24,6 @@ class Example(Module):
         self.bl = myfsm.before_leaving("FOO")
         self.al = myfsm.after_leaving("FOO")
 
-example = Example()
-print(verilog.convert(example, {example.s, example.counter, example.be, example.ae, example.bl, example.al}))
+if __name__ == "__main__":
+    example = Example()
+    print(verilog.convert(example, {example.s, example.counter, example.be, example.ae, example.bl, example.al}))

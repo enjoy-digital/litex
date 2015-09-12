@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen.fhdl.structure import *
 from migen.fhdl.tracer import get_obj_var_name
 
 from functools import reduce

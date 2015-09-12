@@ -1,6 +1,9 @@
 from migen.fhdl import structure as f
 
 
+__all__ = ["log2_int", "bits_for", "flen", "fiter", "fslice", "freversed"]
+
+
 def log2_int(n, need_pow2=True):
     l = 1
     r = 0

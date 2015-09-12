@@ -7,6 +7,9 @@ from migen.fhdl.structure import _Fragment
 from migen.fhdl.tools import rename_clock_domain
 
 
+__all__ = ["Module", "FinalizeError"]
+
+
 class FinalizeError(Exception):
     pass
 

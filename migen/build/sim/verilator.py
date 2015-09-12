@@ -4,18 +4,14 @@
 import os
 import subprocess
 
-from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
-
 from migen.build import tools
 from migen.build.generic_platform import *
-from migen.build.sim import common
 
 
 def _build_tb(platform, vns, serial, template):
-
-    def io_name(ressource, subsignal=None):
-        res = platform.lookup_request(ressource)
+    def io_name(resource, subsignal=None):
+        res = platform.lookup_request(resource)
         if subsignal is not None:
             res = getattr(res, subsignal)
         return vns.get_name(res)

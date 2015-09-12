@@ -1,7 +1,6 @@
 import subprocess
 
-from migen.fhdl.std import *
-from migen.fhdl.specials import Instance
+from migen import *
 from migen.fhdl.verilog import convert
 
 

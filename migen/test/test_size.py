@@ -1,6 +1,6 @@
 import unittest
 
-from migen.fhdl.std import *
+from migen import *
 
 
 def _same_slices(a, b):

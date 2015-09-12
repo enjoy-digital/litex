@@ -1,13 +1,13 @@
+from functools import reduce
+from operator import add
+
 from math import cos, pi
 from scipy import signal
 import matplotlib.pyplot as plt
 
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl import verilog
-from migen.sim import Simulator
 
-from functools import reduce
-from operator import add
 
 # A synthesizable FIR filter.
 class FIR(Module):

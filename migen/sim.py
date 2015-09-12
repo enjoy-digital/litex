@@ -1,9 +1,12 @@
 import operator
 from collections import defaultdict
 
-from migen.fhdl.std import *
+from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Assign, _Fragment
 from migen.fhdl.tools import list_inputs
+
+
+__all__ = ["Simulator"]
 
 
 class ClockState:

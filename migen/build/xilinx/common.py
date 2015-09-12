@@ -2,7 +2,9 @@ import os
 import sys
 from distutils.version import StrictVersion
 
-from migen.fhdl.std import *
+from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
+from migen.fhdl.module import Module
 from migen.fhdl.specials import SynthesisDirective
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer

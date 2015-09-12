@@ -1,6 +1,6 @@
 import unittest
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.coding import *
 
 from migen.test.support import SimCase, SimBench

@@ -1,8 +1,7 @@
 from random import Random
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.cdc import GrayCounter
-from migen.sim import Simulator
 
 
 def tb(dut):

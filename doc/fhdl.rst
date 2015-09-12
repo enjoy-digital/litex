@@ -8,7 +8,7 @@ FHDL differs from MyHDL [myhdl]_ in fundamental ways. MyHDL follows the event-dr
 
 .. [myhdl] http://www.myhdl.org
 
-FHDL is made of several elements, which are briefly explained below. They all can be imported from the ``migen.fhdl.std`` module.
+FHDL is made of several elements, which are briefly explained below. They all can be imported directly from the ``migen`` module.
 
 Expressions
 ***********

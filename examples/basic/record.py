@@ -1,6 +1,6 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl import verilog
-from migen.genlib.record import *
+
 
 L = [
     ("position", [
@@ -19,6 +19,8 @@ class Test(Module):
         slave = Record(L)
         self.comb += master.connect(slave)
 
-print(verilog.convert(Test()))
-print(layout_len(L))
-print(layout_partial(L, "position/x", "color"))
+
+if __name__ == "__main__":
+    print(verilog.convert(Test()))
+    print(layout_len(L))
+    print(layout_partial(L, "position/x", "color"))

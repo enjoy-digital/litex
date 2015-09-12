@@ -1,12 +1,11 @@
 import os
 import sys
 
-from migen.fhdl.std import Signal
+from migen.fhdl.structure import Signal
 from migen.genlib.record import Record
 from migen.genlib.io import CRG
 from migen.fhdl import verilog, edif
 from migen.util.misc import autotype
-
 from migen.build import tools
 
 

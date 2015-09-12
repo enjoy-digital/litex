@@ -1,8 +1,9 @@
-from migen.fhdl.std import *
-
 """
 Encoders and decoders between binary and one-hot representation
 """
+
+from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 
 
 class Encoder(Module):

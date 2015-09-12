@@ -1,7 +1,7 @@
 import unittest
 from random import randrange
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.sort import *
 
 from migen.test.support import SimCase

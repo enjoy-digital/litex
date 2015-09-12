@@ -5,6 +5,12 @@ from migen.fhdl.module import Module
 from migen.fhdl.tools import insert_reset, rename_clock_domain
 
 
+__all__ = ["DecorateModule",
+           "InsertCE", "InsertReset", "RenameClockDomains",
+           "CEInserter", "ResetInserter", "ClockDomainsRenamer",
+           "ModuleTransformer"]
+
+
 class ModuleTransformer:
     # overload this in derived classes
     def transform_instance(self, i):

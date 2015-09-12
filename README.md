@@ -47,7 +47,7 @@ http://m-labs.hk/gateware.html
 #### Quick intro
 
 ```python
-from migen.fhdl.std import *
+from migen import *
 from migen.build.platforms import m1
 plat = m1.Platform()
 led = plat.request("user_led")

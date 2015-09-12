@@ -7,6 +7,10 @@ from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 
 
+__all__ = ["TSTriple", "Instance", "Memory",
+    "READ_FIRST", "WRITE_FIRST", "NO_CHANGE"]
+
+
 class Special(HUID):
     def iter_expressions(self):
         for x in []:
@@ -171,6 +175,7 @@ class Instance(Special):
             r += ");\n\n"
         return r
 
+
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
 
 
@@ -319,7 +324,7 @@ class Memory(Special):
             memory_filename = add_data_file(gn(memory) + ".init", content)
 
             r += "initial begin\n"
-            r += "$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
+            r += "\t$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
             r += "end\n\n"
 
 

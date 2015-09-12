@@ -1,5 +1,4 @@
-from migen.fhdl.std import *
-from migen.sim.generic import run_simulation
+from migen import *
 
 
 class Mem(Module):

@@ -1,9 +1,12 @@
 from collections import OrderedDict
 
-from migen.fhdl.std import *
-from migen.fhdl.module import FinalizeError
+from migen.fhdl.structure import *
+from migen.fhdl.module import Module, FinalizeError
 from migen.fhdl.visit import NodeTransformer
 from migen.fhdl.bitcontainer import value_bits_sign
+
+
+__all__ = ["AnonymousState", "NextState", "NextValue", "FSM"]
 
 
 class AnonymousState:

@@ -1,5 +1,4 @@
-from migen.fhdl.std import *
-from migen.sim import Simulator
+from migen import *
 
 
 # A slightly more elaborate counter.

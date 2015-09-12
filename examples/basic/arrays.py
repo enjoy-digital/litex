@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl import verilog
 
 
@@ -24,4 +24,5 @@ class Example(Module):
         outa = Array(Signal() for a in range(dy))
         self.specials += Instance("test", o_O=outa[y], i_I=ina[x])
 
-print(verilog.convert(Example()))
+if __name__ == "__main__":
+    print(verilog.convert(Example()))

@@ -2,7 +2,6 @@ import os
 import subprocess
 import sys
 
-from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
 from migen.build.generic_platform import *
 from migen.build import tools

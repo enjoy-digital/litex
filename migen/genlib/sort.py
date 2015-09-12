@@ -1,4 +1,5 @@
-from migen.fhdl.std import *
+from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 
 
 class BitonicSort(Module):
