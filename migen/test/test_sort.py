@@ -4,11 +4,11 @@ from random import randrange
 from migen.fhdl.std import *
 from migen.genlib.sort import *
 
-from migen.test.support import SimCase, SimBench
+from migen.test.support import SimCase
 
 
 class BitonicCase(SimCase, unittest.TestCase):
-    class TestBench(SimBench):
+    class TestBench(Module):
         def __init__(self):
             self.submodules.dut = BitonicSort(8, 4, ascending=True)
 
@@ -20,8 +20,11 @@ class BitonicCase(SimCase, unittest.TestCase):
             self.assertEqual(flen(self.tb.dut.o[i]), 4)
 
     def test_sort(self):
-        def cb(tb, tbp):
-            for i in tb.dut.i:
-                tbp.simulator.wr(i, randrange(1<<flen(i)))
-            self.assertEqual(sorted(list(tbp.dut.i)), list(tbp.dut.o))
-        self.run_with(cb, 20)
+        def gen():
+            for repeat in range(20):
+                for i in self.tb.dut.i:
+                    yield i, randrange(1<<flen(i))
+                yield
+                self.assertEqual(sorted((yield self.tb.dut.i)),
+                                 (yield self.tb.dut.o))
+        self.run_with(gen())
