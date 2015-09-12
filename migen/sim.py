@@ -147,6 +147,14 @@ class Simulator:
                 self.evaluator.execute(self.comb_dependent_statements[signal])
             modified = self.evaluator.commit()
 
+    def _eval_nested_lists(self, x):
+        if isinstance(x, list):
+            return [self._eval_nested_lists(e) for e in x]
+        elif isinstance(x, Signal):
+            return self.evaluator.eval(x)
+        else:
+            raise ValueError
+
     def _process_generators(self, cd):
         exhausted = []
         for generator in self.generators[cd]:
@@ -159,7 +167,7 @@ class Simulator:
                     elif isinstance(request, tuple):
                         self.evaluator.assign(*request)
                     else:
-                        reply = self.evaluator.eval(request)
+                        reply = self._eval_nested_lists(request)
                 except StopIteration:
                     exhausted.append(generator)
                     break
