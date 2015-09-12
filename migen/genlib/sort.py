@@ -1,5 +1,4 @@
 from migen.fhdl.std import *
-from migen.fhdl import verilog
 
 
 class BitonicSort(Module):
