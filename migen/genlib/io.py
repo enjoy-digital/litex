@@ -48,12 +48,12 @@ class CRG(Module):
             clk = clk_se
 
         # Power on Reset (vendor agnostic)
-        rst_n = Signal()
-        self.sync.por += rst_n.eq(1 & ~rst)
+        rst = Signal(reset=1)
+        self.sync.por += rst.eq(rst)
         self.comb += [
             self.cd_sys.clk.eq(clk),
             self.cd_por.clk.eq(clk),
-            self.cd_sys.rst.eq(~rst_n)
+            self.cd_sys.rst.eq(rst)
         ]
 
 
