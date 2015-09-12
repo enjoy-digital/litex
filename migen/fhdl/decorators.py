@@ -1,5 +1,3 @@
-import warnings
-
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.fhdl.tools import insert_reset, rename_clock_domain
@@ -52,16 +50,6 @@ class ModuleTransformer:
             return self.wrap_instance(victim)
         else:
             return self.wrap_class(victim)
-
-    @classmethod
-    def adhoc(cls, i, *args, **kwargs):
-        warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
-        return cls(*args, **kwargs)(i)
-
-
-def DecorateModule(transformer, *args, **kwargs):
-    warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
-    return transformer.__self__(*args, **kwargs)
 
 
 class ControlInserter(ModuleTransformer):
