@@ -148,24 +148,23 @@ class Simulator:
             modified = self.evaluator.commit()
 
     def _process_generators(self, cd):
-        if cd in self.generators:
-            exhausted = []
-            for generator in self.generators[cd]:
-                reply = None
-                while True:
-                    try:
-                        request = generator.send(reply)
-                        if request is None:
-                            break  # next cycle
-                        elif isinstance(request, tuple):
-                            self.evaluator.assign(*request)
-                        else:
-                            reply = self.evaluator.eval(request)
-                    except StopIteration:
-                        exhausted.append(generator)
-                        break
-            for generator in exhausted:
-                self.generators[cd].remove(generator)
+        exhausted = []
+        for generator in self.generators[cd]:
+            reply = None
+            while True:
+                try:
+                    request = generator.send(reply)
+                    if request is None:
+                        break  # next cycle
+                    elif isinstance(request, tuple):
+                        self.evaluator.assign(*request)
+                    else:
+                        reply = self.evaluator.eval(request)
+                except StopIteration:
+                    exhausted.append(generator)
+                    break
+        for generator in exhausted:
+            self.generators[cd].remove(generator)
 
     def _continue_simulation(self):
         # TODO: passive generators
@@ -178,8 +177,10 @@ class Simulator:
         while True:
             cds = self.time.tick()
             for cd in cds:
-                self.evaluator.execute(self.fragment.sync[cd])
-                self._process_generators(cd)
+                if cd in self.fragment.sync:
+                    self.evaluator.execute(self.fragment.sync[cd])
+                if cd in self.generators:
+                    self._process_generators(cd)
             self._comb_propagate(self.evaluator.commit())
 
             if not self._continue_simulation():
