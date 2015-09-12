@@ -4,7 +4,6 @@ import sys
 
 from migen.fhdl.std import *
 from migen.fhdl.structure import _Fragment
-
 from migen.build.generic_platform import *
 from migen.build import tools
 from migen.build.xilinx import common
@@ -134,7 +133,7 @@ def _default_ise_path():
 
 
 def _default_source():
-    return False if sys.platform == "win32" else True
+    return sys.platform != "win32"
 
 
 class XilinxISEToolchain:
