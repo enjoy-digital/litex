@@ -1,6 +1,7 @@
 from operator import itemgetter
 
 from migen.fhdl.structure import *
+from migen.fhdl.structure import _DUID
 from migen.fhdl.bitcontainer import bits_for, value_bits_sign
 from migen.fhdl.tools import *
 from migen.fhdl.tracer import get_obj_var_name
@@ -11,7 +12,7 @@ __all__ = ["TSTriple", "Instance", "Memory",
     "READ_FIRST", "WRITE_FIRST", "NO_CHANGE"]
 
 
-class Special(HUID):
+class Special(_DUID):
     def iter_expressions(self):
         for x in []:
             yield x

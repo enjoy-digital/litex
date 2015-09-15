@@ -158,16 +158,16 @@ def _build_pnd_for_group(group_n, signals):
         if _debug:
             print("namer: using basic strategy (group {0})".format(group_n))
 
-    # ...then add number suffixes by HUID
+    # ...then add number suffixes by DUID
     inv_pnd = _invert_pnd(pnd)
-    huid_suffixed = False
+    duid_suffixed = False
     for name, signals in inv_pnd.items():
         if len(signals) > 1:
-            huid_suffixed = True
-            for n, signal in enumerate(sorted(signals, key=lambda x: x.huid)):
+            duid_suffixed = True
+            for n, signal in enumerate(sorted(signals, key=lambda x: x.duid)):
                 pnd[signal] += str(n)
-    if _debug and huid_suffixed:
-        print("namer: using HUID suffixes (group {0})".format(group_n))
+    if _debug and duid_suffixed:
+        print("namer: using DUID suffixes (group {0})".format(group_n))
 
     return pnd
 

@@ -1,24 +1,22 @@
 import builtins
-from collections import defaultdict
+from collections import defaultdict, Iterable
 
 from migen.fhdl import tracer
 from migen.util.misc import flat_iteration
 
 
-class HUID:
+class _DUID:
+    """Deterministic Unique IDentifier"""
     __next_uid = 0
     def __init__(self):
-        self.huid = HUID.__next_uid
-        HUID.__next_uid += 1
-
-    def __hash__(self):
-        return self.huid
+        self.duid = _DUID.__next_uid
+        _DUID.__next_uid += 1
 
 
-class Value(HUID):
+class _Value(_DUID):
     """Base class for operands
 
-    Instances of `Value` or its subclasses can be operands to
+    Instances of `_Value` or its subclasses can be operands to
     arithmetic, comparison, bitwise, and logic operators.
     They can be assigned (:meth:`eq`) or indexed/sliced (using the usual
     Python indexing and slicing notation).
@@ -27,7 +25,18 @@ class Value(HUID):
     represent the integer.
     """
     def __bool__(self):
-        raise NotImplementedError("For boolean operations between expressions: use '&'/'|' instead of 'and'/'or'")
+        # Special case: Constants and Signals are part of a set or used as
+        # dictionary keys, and Python needs to check for equality.
+        if isinstance(self, _Operator) and self.op == "==":
+            a, b = self.operands
+            if isinstance(a, Constant) and isinstance(b, Constant):
+                return a.value == b.value
+            if isinstance(a, Signal) and isinstance(b, Signal):
+                return a is b
+            if (isinstance(a, Constant) and isinstance(b, Signal)
+                    or isinstance(a, Signal) and isinstance(a, Constant)):
+                return False
+        raise TypeError("Attempted to convert Migen value to boolean")
 
     def __invert__(self):
         return _Operator("~", [self])
@@ -104,7 +113,7 @@ class Value(HUID):
 
         Parameters
         ----------
-        r : Value, in
+        r : _Value, in
             Value to be assigned.
 
         Returns
@@ -116,14 +125,20 @@ class Value(HUID):
         return _Assign(self, r)
 
     def __hash__(self):
-        return HUID.__hash__(self)
+        raise TypeError("unhashable type: '{}'".format(type(self).__name__))
 
 
-class _Operator(Value):
+class _Operator(_Value):
     def __init__(self, op, operands):
-        Value.__init__(self)
+        _Value.__init__(self)
         self.op = op
-        self.operands = operands
+        self.operands = []
+        for o in operands:
+            if isinstance(o, (bool, int)):
+                o = Constant(o)
+            if not isinstance(o, _Value):
+                raise TypeError("Operand not a Migen value")
+            self.operands.append(o)
 
 
 def Mux(sel, val1, val0):
@@ -131,33 +146,39 @@ def Mux(sel, val1, val0):
 
     Parameters
     ----------
-    sel : Value(1), in
+    sel : _Value(1), in
         Selector.
-    val1 : Value(N), in
-    val0 : Value(N), in
+    val1 : _Value(N), in
+    val0 : _Value(N), in
         Input values.
 
     Returns
     -------
-    Value(N), out
-        Output `Value`. If `sel` is asserted, the Mux returns
+    _Value(N), out
+        Output `_Value`. If `sel` is asserted, the Mux returns
         `val1`, else `val0`.
     """
     return _Operator("m", [sel, val1, val0])
 
 
-class _Slice(Value):
+class _Slice(_Value):
     def __init__(self, value, start, stop):
-        Value.__init__(self)
+        _Value.__init__(self)
+        if isinstance(value, (bool, int)):
+            value = Constant(value)
+        if not isinstance(value, _Value):
+            raise TypeError("Sliced object is not a Migen value")
+        if not isinstance(start, int) or not isinstance(stop, int):
+            raise TypeError("Slice boundaries must be integers")
         self.value = value
         self.start = start
         self.stop = stop
 
 
-class Cat(Value):
+class Cat(_Value):
     """Concatenate values
 
-    Form a compound `Value` from several smaller ones by concatenation.
+    Form a compound `_Value` from several smaller ones by concatenation.
     The first argument occupies the lower bits of the result.
     The return value can be used on either side of an assignment, that
     is, the concatenated value can be used as an argument on the RHS or
@@ -170,20 +191,26 @@ class Cat(Value):
 
     Parameters
     ----------
-    *args : Values or iterables of Values, inout
-        `Value` s to be concatenated.
+    *args : _Values or iterables of _Values, inout
+        `_Value` s to be concatenated.
 
     Returns
     -------
     Cat, inout
-        Resulting `Value` obtained by concatentation.
+        Resulting `_Value` obtained by concatentation.
     """
     def __init__(self, *args):
-        Value.__init__(self)
-        self.l = list(flat_iteration(args))
+        _Value.__init__(self)
+        self.l = []
+        for v in flat_iteration(args):
+            if isinstance(v, (bool, int)):
+                v = Constant(v)
+            if not isinstance(v, _Value):
+                raise TypeError("Concatenated object is not a Migen value")
+            self.l.append(v)
 
 
-class Replicate(Value):
+class Replicate(_Value):
     """Replicate a value
 
     An input value is replicated (repeated) several times
@@ -193,7 +220,7 @@ class Replicate(Value):
 
     Parameters
     ----------
-    v : Value, in
+    v : _Value, in
         Input value to be replicated.
     n : int
         Number of replications.
@@ -204,13 +231,52 @@ class Replicate(Value):
         Replicated value.
     """
     def __init__(self, v, n):
-        Value.__init__(self)
+        _Value.__init__(self)
+        if isinstance(v, (bool, int)):
+            v = Constant(v)
+        if not isinstance(v, _Value):
+            raise TypeError("Replicated object is not a Migen value")
+        if not isinstance(n, int) or n < 0:
+            raise TypeError("Replication count must be a positive integer")
         self.v = v
         self.n = n
 
 
-class Signal(Value):
-    """A `Value` that can change
+class Constant(_Value):
+    """A constant, HDL-literal integer `_Value`
+
+    Parameters
+    ----------
+    value : int
+    bits_sign : int or tuple or None
+        Either an integer `bits` or a tuple `(bits, signed)`
+        specifying the number of bits in this `Constant` and whether it is
+        signed (can represent negative values). `bits_sign` defaults
+        to the minimum width and signedness of `value`.
+    """
+    def __init__(self, value, bits_sign=None):
+        from migen.fhdl.bitcontainer import bits_for
+
+        _Value.__init__(self)
+
+        self.value = int(value)
+        if bits_sign is None:
+            bits_sign = bits_for(self.value), self.value < 0
+        elif isinstance(bits_sign, int):
+            bits_sign = bits_sign, self.value < 0
+        self.nbits, self.signed = bits_sign
+        if not isinstance(self.nbits, int) or self.nbits <= 0:
+            raise TypeError("Width must be a strictly positive integer")
+
+    def __hash__(self):
+        return self.value
+
+
+C = Constant  # shorthand
+
+
+class Signal(_Value):
+    """A `_Value` that can change
 
     The `Signal` object represents a value that is expected to change
     in the circuit. It does exactly what Verilog's `wire` and
@@ -219,7 +285,7 @@ class Signal(Value):
     A `Signal` can be indexed to access a subset of its bits. Negative
     indices (`signal[-1]`) and the extended Python slicing notation
     (`signal[start:stop:step]`) are supported.
-    The indeces 0 and -1 are the least and most significant bits
+    The indices 0 and -1 are the least and most significant bits
     respectively.
 
     Parameters
@@ -256,7 +322,7 @@ class Signal(Value):
     def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None, related=None):
         from migen.fhdl.bitcontainer import bits_for
 
-        Value.__init__(self)
+        _Value.__init__(self)
 
         # determine number of bits and signedness
         if bits_sign is None:
@@ -283,6 +349,12 @@ class Signal(Value):
         self.backtrace = tracer.trace_back(name)
         self.related = related
 
+    def __setattr__(self, k, v):
+        if k == "reset":
+            if isinstance(v, (bool, int)):
+                v = Constant(v)
+        _Value.__setattr__(self, k, v)
+
     def __repr__(self):
         return "<Signal " + (self.backtrace[-1][0] or "anonymous") + " at " + hex(id(self)) + ">"
 
@@ -292,7 +364,7 @@ class Signal(Value):
 
         Parameters
         ----------
-        other : Value
+        other : _Value
             Object to base this Signal on.
 
         See `migen.fhdl.bitcontainer.value_bits_sign`() for details.
@@ -300,8 +372,11 @@ class Signal(Value):
         from migen.fhdl.bitcontainer import value_bits_sign
         return cls(bits_sign=value_bits_sign(other), **kwargs)
 
+    def __hash__(self):
+        return self.duid
 
-class ClockSignal(Value):
+
+class ClockSignal(_Value):
     """Clock signal for a given clock domain
 
     `ClockSignal` s for a given clock domain can be retrieved multiple
@@ -313,11 +388,11 @@ class ClockSignal(Value):
         Clock domain to obtain a clock signal for. Defaults to `"sys"`.
     """
     def __init__(self, cd="sys"):
-        Value.__init__(self)
+        _Value.__init__(self)
         self.cd = cd
 
 
-class ResetSignal(Value):
+class ResetSignal(_Value):
     """Reset signal for a given clock domain
 
     `ResetSignal` s for a given clock domain can be retrieved multiple
@@ -332,25 +407,43 @@ class ResetSignal(Value):
         error.
     """
     def __init__(self, cd="sys", allow_reset_less=False):
-        Value.__init__(self)
+        _Value.__init__(self)
         self.cd = cd
         self.allow_reset_less = allow_reset_less
+
 
 # statements
 
 
-class _Assign:
+class _Statement:
+    pass
+
+
+class _Assign(_Statement):
     def __init__(self, l, r):
+        if not isinstance(l, _Value):
+            raise TypeError("LHS of assignment is not a Migen value")
+        if isinstance(r, (bool, int)):
+            r = Constant(r)
+        if not isinstance(r, _Value):
+            raise TypeError("RHS of assignment is not a Migen value")
         self.l = l
         self.r = r
 
 
-class If:
+def _check_statement(s):
+    if isinstance(s, Iterable):
+        return all(_check_statement(ss) for ss in s)
+    else:
+        return isinstance(s, _Statement)
+
+
+class If(_Statement):
     """Conditional execution of statements
 
     Parameters
     ----------
-    cond : Value(1), in
+    cond : _Value(1), in
         Condition
     *t : Statements
         Statements to execute if `cond` is asserted.
@@ -370,6 +463,12 @@ class If:
     ... )
     """
     def __init__(self, cond, *t):
+        if isinstance(cond, (bool, int)):
+            cond = Constant(cond)
+        if not isinstance(cond, _Value):
+            raise TypeError("Test condition is not a Migen value")
+        if not _check_statement(t):
+            raise TypeError("Not all test body objects are Migen statements")
         self.cond = cond
         self.t = list(t)
         self.f = []
@@ -382,6 +481,8 @@ class If:
         *f : Statements
             Statements to execute if all previous conditions fail.
         """
+        if not _check_statement(f):
+            raise TypeError("Not all test body objects are Migen statements")
         _insert_else(self, list(f))
         return self
 
@@ -390,7 +491,7 @@ class If:
 
         Parameters
         ----------
-        cond : Value(1), in
+        cond : _Value(1), in
             Condition
         *t : Statements
             Statements to execute if previous conditions fail and `cond`
@@ -409,12 +510,12 @@ def _insert_else(obj, clause):
     o.f = clause
 
 
-class Case:
+class Case(_Statement):
     """Case/Switch statement
 
     Parameters
     ----------
-    test : Value, in
+    test : _Value, in
         Selector value used to decide which block to execute
     cases : dict
         Dictionary of cases. The keys are numeric constants to compare
@@ -434,13 +535,27 @@ class Case:
     ... })
     """
     def __init__(self, test, cases):
+        if isinstance(test, (bool, int)):
+            test = Constant(test)
+        if not isinstance(test, _Value):
+            raise TypeError("Case test object is not a Migen value")
         self.test = test
-        self.cases = cases
+        self.cases = dict()
+        for k, v in cases.items():
+            if isinstance(k, (bool, int)):
+                k = Constant(k)
+            if (not isinstance(k, Constant) 
+                    and not (isinstance(k, str) and k == "default")):
+                raise TypeError("Case object is not a Migen constant")
+            if not _check_statement(v):
+                raise TypeError("Not all objects for case {} "
+                                "are Migen statements".format(k))
+            self.cases[k] = v
 
     def makedefault(self, key=None):
         """Mark a key as the default case
 
-        Deletes/Substitutes any previously existing default case.
+        Deletes/substitutes any previously existing default case.
 
         Parameters
         ----------
@@ -450,18 +565,26 @@ class Case:
         """
         if key is None:
             for choice in self.cases.keys():
-                if key is None or choice > key:
+                if key is None or choice.value > key.value:
                     key = choice
         self.cases["default"] = self.cases[key]
         del self.cases[key]
         return self
 
+
 # arrays
 
 
-class _ArrayProxy(Value):
+class _ArrayProxy(_Value):
     def __init__(self, choices, key):
-        self.choices = choices
+        self.choices = []
+        for c in choices:
+            if isinstance(c, (bool, int)):
+                c = Constant(c)
+            if not isinstance(c, (_Value, Array)):
+                raise TypeError("Array element is not a Migen value: {}"
+                                .format(c))
+            self.choices.append(c)
         self.key = key
 
     def __getattr__(self, attr):
@@ -478,7 +601,7 @@ class Array(list):
 
     An array is created from an iterable of values and indexed using the
     usual Python simple indexing notation (no negative indices or
-    slices). It can be indexed by numeric constants, `Value` s, or
+    slices). It can be indexed by numeric constants, `_Value` s, or
     `Signal` s.
 
     The result of indexing the array is a proxy for the entry at the
@@ -491,7 +614,7 @@ class Array(list):
 
     Parameters
     ----------
-    values : iterable of ints, Values, Signals
+    values : iterable of ints, _Values, Signals
         Entries of the array. Each entry can be a numeric constant, a
         `Signal` or a `Record`.
 
@@ -503,7 +626,9 @@ class Array(list):
     >>> b.eq(a[9 - c])
     """
     def __getitem__(self, key):
-        if isinstance(key, Value):
+        if isinstance(key, Constant):
+            return list.__getitem__(self, key.value)
+        elif isinstance(key, _Value):
             return _ArrayProxy(self, key)
         else:
             return list.__getitem__(self, key)
@@ -568,6 +693,7 @@ class _ClockDomainList(list):
             raise KeyError(key)
         else:
             return list.__getitem__(self, key)
+
 
 (SPECIAL_INPUT, SPECIAL_OUTPUT, SPECIAL_INOUT) = range(3)
 

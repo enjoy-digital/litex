@@ -27,11 +27,7 @@ def bits_for(n, require_sign_bit=False):
 
 
 def value_bits_sign(v):
-    if isinstance(v, bool):
-        return 1, False
-    elif isinstance(v, int):
-        return bits_for(v), v < 0
-    elif isinstance(v, f.Signal):
+    if isinstance(v, (f.Constant, f.Signal)):
         return v.nbits, v.signed
     elif isinstance(v, (f.ClockSignal, f.ResetSignal)):
         return 1, False

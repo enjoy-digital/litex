@@ -143,7 +143,7 @@ def is_variable(node):
 
 def generate_reset(rst, sl):
     targets = list_targets(sl)
-    return [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.huid)]
+    return [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.duid)]
 
 
 def insert_reset(rst, sl):

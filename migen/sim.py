@@ -73,8 +73,8 @@ class Evaluator:
         return r
 
     def eval(self, node):
-        if isinstance(node, (int, bool)):
-            return node
+        if isinstance(node, Constant):
+            return node.value
         elif isinstance(node, Signal):
             try:
                 return self.signal_values[node]
