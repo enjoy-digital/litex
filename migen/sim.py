@@ -110,6 +110,7 @@ class Evaluator:
             raise NotImplementedError
 
     def assign(self, signal, value):
+        assert not signal.variable
         value = value & (2**signal.nbits - 1)
         if signal.signed and (value & 2**(signal.nbits - 1)):
             value -= 2**signal.nbits
