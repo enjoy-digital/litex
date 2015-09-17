@@ -13,12 +13,16 @@ FHDL is made of several elements, which are briefly explained below. They all ca
 Expressions
 ***********
 
-Integers and booleans
-=====================
+Constants
+=========
 
-Python integers and booleans can appear in FHDL expressions to represent constant values in a circuit. ``True`` and ``False`` are interpreted as 1 and 0, respectively.
+The ``Constant`` object represents a constant, HDL-literal integer. It behaves like specifying integers and booleans but also supports slicing and can have a bit width or signedness different from what is implied by the value it represents.
+
+``True`` and ``False`` are interpreted as 1 and 0, respectively.
 
 Negative integers are explicitly supported. As with MyHDL [countin]_, arithmetic operations return the natural results.
+
+To lighten the syntax, assignments and operators automatically wrap Python integers and booleans into ``Constant``. Additionally, ``Constant`` is aliased to ``C``. The following are valid Migen statements: ``a.eq(0)``, ``a.eq(a + 1)``, ``a.eq(C(42)[0:1])``.
 
 .. [countin] http://www.jandecaluwe.com/hdldesign/counting.html
 
