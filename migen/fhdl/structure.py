@@ -432,7 +432,7 @@ class _Assign(_Statement):
 
 
 def _check_statement(s):
-    if isinstance(s, Iterable):
+    if isinstance(s, _collections.Iterable):
         return all(_check_statement(ss) for ss in s)
     else:
         return isinstance(s, _Statement)

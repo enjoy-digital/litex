@@ -80,7 +80,7 @@ class Evaluator:
             try:
                 return self.signal_values[node]
             except KeyError:
-                return node.reset
+                return node.reset.value
         elif isinstance(node, _Operator):
             operands = [self.eval(o) for o in node.operands]
             if node.op == "-":
