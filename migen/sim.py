@@ -2,7 +2,8 @@ import operator
 from collections import defaultdict
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Assign, _Fragment
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
+from migen.fhdl.bitcontainer import flen
 from migen.fhdl.tools import list_inputs
 
 
@@ -87,10 +88,25 @@ class Evaluator:
                     return -operands[0]
                 else:
                     return operands[0] - operands[1]
+            elif node.op == "m":
+                return operands[1] if operands[0] else operands[2]
             else:
                 return str2op[node.op](*operands)
+        elif isinstance(node, _Slice):
+            v = self.eval(node.value)
+            idx = range(node.start, node.stop)
+            return sum(((v >> i) & 1) << j for j, i in enumerate(idx))
+        elif isinstance(node, Cat):
+            shift = 0
+            r = 0
+            for element in node.l:
+                nbits = flen(element)
+                # make value always positive
+                r |= (self.eval(element) & (2**nbits-1)) << shift
+                shift += nbits
+            return r
         else:
-            # TODO: Cat, Slice, Array, ClockSignal, ResetSignal, Memory
+            # TODO: Array, ClockSignal, ResetSignal, Memory
             raise NotImplementedError
 
     def assign(self, signal, value):
