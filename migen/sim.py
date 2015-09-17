@@ -4,7 +4,7 @@ from collections import defaultdict
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.bitcontainer import flen
-from migen.fhdl.tools import list_inputs
+from migen.fhdl.tools import list_targets
 
 
 __all__ = ["Simulator"]
@@ -152,19 +152,17 @@ class Simulator:
                 self.generators[k] = [v]
 
         # TODO: insert_resets
+        self.fragment.comb[0:0] = [s.eq(s.reset)
+                                   for s in list_targets(self.fragment.comb)]
+
         self.time = TimeManager(clocks)
         self.evaluator = Evaluator()
 
-        self.comb_dependent_statements = defaultdict(list)
-        for statement in self.fragment.comb:
-            for signal in list_inputs(statement):
-                self.comb_dependent_statements[signal].append(statement)
-
     def _commit_and_comb_propagate(self):
+        # TODO: optimize
         modified = self.evaluator.commit()
         while modified:
-            for signal in modified:
-                self.evaluator.execute(self.comb_dependent_statements[signal])
+            self.evaluator.execute(self.fragment.comb)
             modified = self.evaluator.commit()
 
     def _eval_nested_lists(self, x):
