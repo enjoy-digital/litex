@@ -141,7 +141,8 @@ def _printnode(ns, at, level, node):
     elif isinstance(node, Case):
         if node.cases:
             r = "\t"*level + "case (" + _printexpr(ns, node.test)[0] + ")\n"
-            css = sorted([(k, v) for (k, v) in node.cases.items() if isinstance(k, Constant)], key=itemgetter(0))
+            css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
+            css = sorted(css, key=lambda x: x[0].value)
             for choice, statements in css:
                 r += "\t"*(level + 1) + _printexpr(ns, choice)[0] + ": begin\n"
                 r += _printnode(ns, at, level + 2, statements)
