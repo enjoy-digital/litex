@@ -1,11 +1,11 @@
 import unittest
 
-from migen.fhdl.std import *
-from migen.test.support import SimCase, SimBench
+from migen import *
+from migen.test.support import SimCase
 
 
 class ConstantCase(SimCase, unittest.TestCase):
-    class TestBench(SimBench):
+    class TestBench(Module):
         def __init__(self):
             self.sigs = [
                 (Signal(3), Constant(0), 0),
@@ -18,11 +18,11 @@ class ConstantCase(SimCase, unittest.TestCase):
             self.comb += [a.eq(b) for a, b, c in self.sigs]
 
     def test_comparisons(self):
-        def cb(tb, tbp):
-            for s, l, v in tb.sigs:
-                s = tbp.simulator.rd(s)
+        def gen():
+            for s, l, v in self.tb.sigs:
+                s = yield s
                 self.assertEqual(
                     s, int(v),
                     "got {}, want {} from literal {}".format(
                         s, v, l))
-        self.run_with(cb, 1)
+        self.run_with(gen())
