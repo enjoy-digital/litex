@@ -1,8 +1,8 @@
-import builtins
-from collections import defaultdict, Iterable
+import builtins as _builtins
+import collections as _collections
 
-from migen.fhdl import tracer
-from migen.util.misc import flat_iteration
+from migen.fhdl import tracer as _tracer
+from migen.util.misc import flat_iteration as _flat_iteration
 
 
 class _DUID:
@@ -202,7 +202,7 @@ class Cat(_Value):
     def __init__(self, *args):
         _Value.__init__(self)
         self.l = []
-        for v in flat_iteration(args):
+        for v in _flat_iteration(args):
             if isinstance(v, (bool, int)):
                 v = Constant(v)
             if not isinstance(v, _Value):
@@ -333,7 +333,7 @@ class Signal(_Value):
             max -= 1  # make both bounds inclusive
             assert(min < max)
             self.signed = min < 0 or max < 0
-            self.nbits = builtins.max(bits_for(min, self.signed), bits_for(max, self.signed))
+            self.nbits = _builtins.max(bits_for(min, self.signed), bits_for(max, self.signed))
         else:
             assert(min is None and max is None)
             if isinstance(bits_sign, tuple):
@@ -346,7 +346,7 @@ class Signal(_Value):
         self.variable = variable  # deprecated
         self.reset = reset
         self.name_override = name_override
-        self.backtrace = tracer.trace_back(name)
+        self.backtrace = _tracer.trace_back(name)
         self.related = related
 
     def __setattr__(self, k, v):
@@ -657,7 +657,7 @@ class ClockDomain:
         Reset signal for this domain. Can be driven or used to drive.
     """
     def __init__(self, name=None, reset_less=False):
-        self.name = tracer.get_obj_var_name(name)
+        self.name = _tracer.get_obj_var_name(name)
         if self.name is None:
             raise ValueError("Cannot extract clock domain name from code, need to specify.")
         if self.name.startswith("cd_"):
@@ -711,7 +711,7 @@ class _Fragment:
         self.clock_domains = _ClockDomainList(clock_domains)
 
     def __add__(self, other):
-        newsync = defaultdict(list)
+        newsync = _collections.defaultdict(list)
         for k, v in self.sync.items():
             newsync[k] = v[:]
         for k, v in other.sync.items():
@@ -721,7 +721,7 @@ class _Fragment:
             self.clock_domains + other.clock_domains)
 
     def __iadd__(self, other):
-        newsync = defaultdict(list)
+        newsync = _collections.defaultdict(list)
         for k, v in self.sync.items():
             newsync[k] = v[:]
         for k, v in other.sync.items():
