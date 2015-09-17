@@ -1,7 +1,7 @@
 from migen.fhdl import structure as f
 
 
-__all__ = ["log2_int", "bits_for", "flen", "fiter", "fslice", "freversed"]
+__all__ = ["log2_int", "bits_for", "flen", "fiter"]
 
 
 def log2_int(n, need_pow2=True):
@@ -149,60 +149,3 @@ def fiter(v):
         return (v[i] for i in range(flen(v)))
     else:
         raise TypeError("Can not bit-iterate {} {}".format(type(v), v))
-
-
-def fslice(v, s):
-    """Bit slice
-
-    Parameters
-    ----------
-    v : int, bool or Value
-    s : slice or int
-
-    Returns
-    -------
-    int or Value
-        Expression for the slice `s` of `v`.
-
-    Examples
-    --------
-    >>> fslice(f.Signal(2), 1) #doctest: +ELLIPSIS
-    <migen.fhdl.structure._Slice object at 0x...>
-    >>> bin(fslice(0b1101, slice(1, None, 2)))
-    '0b10'
-    >>> fslice(-1, slice(0, 4))
-    1
-    >>> fslice(-7, slice(None))
-    9
-    """
-    if isinstance(v, (bool, int)):
-        if isinstance(s, int):
-            s = slice(s)
-        idx = range(*s.indices(bits_for(v)))
-        return sum(((v >> i) & 1) << j for j, i in enumerate(idx))
-    elif isinstance(v, f.Value):
-        return v[s]
-    else:
-        raise TypeError("Can not bit-slice {} {}".format(type(v), v))
-
-
-def freversed(v):
-    """Bit reverse
-
-    Parameters
-    ----------
-    v : int, bool or Value
-
-    Returns
-    -------
-    int or Value
-        Expression containing the bit reversed input.
-
-    Examples
-    --------
-    >>> freversed(f.Signal(2)) #doctest: +ELLIPSIS
-    <migen.fhdl.structure.Cat object at 0x...>
-    >>> bin(freversed(0b1011))
-    '0b1101'
-    """
-    return fslice(v, slice(None, None, -1))
