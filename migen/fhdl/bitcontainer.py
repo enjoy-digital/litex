@@ -1,7 +1,7 @@
 from migen.fhdl import structure as f
 
 
-__all__ = ["log2_int", "bits_for", "flen", "fiter"]
+__all__ = ["log2_int", "bits_for", "flen"]
 
 
 def log2_int(n, need_pow2=True):
@@ -123,29 +123,3 @@ def flen(v):
     """
     return value_bits_sign(v)[0]
 
-
-def fiter(v):
-    """Bit iterator
-
-    Parameters
-    ----------
-    v : int, bool or Value
-
-    Returns
-    -------
-    iter
-        Iterator over the bits in `v`
-
-    Examples
-    --------
-    >>> list(fiter(f.Signal(2))) #doctest: +ELLIPSIS
-    [<migen.fhdl.structure._Slice object at 0x...>, <migen.fhdl.structure._Slice object at 0x...>]
-    >>> list(fiter(4))
-    [0, 0, 1]
-    """
-    if isinstance(v, (bool, int)):
-        return ((v >> i) & 1 for i in range(bits_for(v)))
-    elif isinstance(v, f.Value):
-        return (v[i] for i in range(flen(v)))
-    else:
-        raise TypeError("Can not bit-iterate {} {}".format(type(v), v))
