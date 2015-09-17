@@ -2,6 +2,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Special
 from migen.fhdl.bitcontainer import value_bits_sign
+from migen.genlib.misc import WaitTimer
 
 
 class NoRetiming(Special):
@@ -88,7 +89,7 @@ class BusSynchronizer(Module):
     Ensures that all the bits form a single word that was present
     synchronously in the input clock domain (unlike direct use of
     ``MultiReg``)."""
-    def __init__(self, width, idomain, odomain):
+    def __init__(self, width, idomain, odomain, timeout=128):
         self.i = Signal(width)
         self.o = Signal(width)
 
@@ -102,8 +103,10 @@ class BusSynchronizer(Module):
             sync_i += starter.eq(0)
             self.submodules._ping = PulseSynchronizer(idomain, odomain)
             self.submodules._pong = PulseSynchronizer(odomain, idomain)
+            self.submodules._timeout = WaitTimer(timeout)
             self.comb += [
-                self._ping.i.eq(starter | self._pong.o),
+                self._timeout.wait.eq(~self._ping.i),
+                self._ping.i.eq(starter | self._pong.o | self._timeout.done),
                 self._pong.i.eq(self._ping.i)
             ]
 
