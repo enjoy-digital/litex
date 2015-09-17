@@ -547,6 +547,8 @@ class Case(_Statement):
             if (not isinstance(k, Constant) 
                     and not (isinstance(k, str) and k == "default")):
                 raise TypeError("Case object is not a Migen constant")
+            if not isinstance(v, _collections.Iterable):
+                v = [v]
             if not _check_statement(v):
                 raise TypeError("Not all objects for case {} "
                                 "are Migen statements".format(k))
