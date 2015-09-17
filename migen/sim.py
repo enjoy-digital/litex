@@ -130,8 +130,15 @@ class Evaluator:
                     self.execute(s.t)
                 else:
                     self.execute(s.f)
+            elif isinstance(s, Case):
+                test = self.eval(s.test)
+                for k, v in s.cases.items():
+                    if isinstance(k, Constant) and k.value == test:
+                        self.execute(v)
+                        return
+                if "default" in s.cases:
+                    self.execute(s.cases["default"])
             else:
-                # TODO: Case
                 raise NotImplementedError
 
 
