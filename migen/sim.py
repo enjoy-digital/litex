@@ -1,7 +1,8 @@
 import operator
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
+from migen.fhdl.structure import (_Operator, _Slice, _ArrayProxy,
+                                  _Assign, _Fragment)
 from migen.fhdl.bitcontainer import flen
 from migen.fhdl.tools import list_targets
 
@@ -72,16 +73,21 @@ class Evaluator:
         self.modifications.clear()
         return r
 
-    def eval(self, node):
+    def eval(self, node, postcommit=False):
         if isinstance(node, Constant):
             return node.value
         elif isinstance(node, Signal):
+            if postcommit:
+                try:
+                    return self.modifications[node]
+                except KeyError:
+                    pass
             try:
                 return self.signal_values[node]
             except KeyError:
                 return node.reset.value
         elif isinstance(node, _Operator):
-            operands = [self.eval(o) for o in node.operands]
+            operands = [self.eval(o, postcommit) for o in node.operands]
             if node.op == "-":
                 if len(operands) == 1:
                     return -operands[0]
@@ -92,7 +98,7 @@ class Evaluator:
             else:
                 return str2op[node.op](*operands)
         elif isinstance(node, _Slice):
-            v = self.eval(node.value)
+            v = self.eval(node.value, postcommit)
             idx = range(node.start, node.stop)
             return sum(((v >> i) & 1) << j for j, i in enumerate(idx))
         elif isinstance(node, Cat):
@@ -101,29 +107,46 @@ class Evaluator:
             for element in node.l:
                 nbits = flen(element)
                 # make value always positive
-                r |= (self.eval(element) & (2**nbits-1)) << shift
+                r |= (self.eval(element, postcommit) & (2**nbits-1)) << shift
                 shift += nbits
             return r
+        elif isinstance(node, _ArrayProxy):
+            return self.eval(node.choices[self.eval(node.key, postcommit)],
+                             postcommit)
         else:
-            # TODO: Array, ClockSignal, ResetSignal, Memory
+            # TODO: ClockSignal, ResetSignal, Memory
             raise NotImplementedError
 
-    def assign(self, signal, value):
-        assert not signal.variable
-        value = value & (2**signal.nbits - 1)
-        if signal.signed and (value & 2**(signal.nbits - 1)):
-            value -= 2**signal.nbits
-        self.modifications[signal] = value
+    def assign(self, node, value):
+        if isinstance(node, Signal):
+            assert not node.variable
+            value = value & (2**node.nbits - 1)
+            if node.signed and (value & 2**(node.nbits - 1)):
+                value -= 2**node.nbits
+            self.modifications[node] = value
+        elif isinstance(node, Cat):
+            for element in node.l:
+                nbits = flen(element)
+                self.assign(element, value & (2**nbits-1))
+                value >>= nbits
+        elif isinstance(node, Slice):
+            full_value = self.eval(node, True)
+            # clear bits assigned to by the slice
+            full_value &= ~((2**node.stop-1) - (2**node.start-1))
+            # set them to the new value
+            value &= 2**(node.stop - node.start)-1
+            full_value |= value << node.start
+            self.assign(node, full_value)
+        elif isinstance(node, _ArrayProxy):
+            self.assign(node.choices[self.eval(node.key)], value)
+        else:
+            # TODO: ClockSignal, ResetSignal, Memory
+            raise NotImplementedError
 
     def execute(self, statements):
         for s in statements:
             if isinstance(s, _Assign):
-                value = self.eval(s.r)
-                if isinstance(s.l, Signal):
-                    self.assign(s.l, value)
-                else:
-                    # TODO: Cat, Slice, Array, ClockSignal, ResetSignal, Memory
-                    raise NotImplementedError
+                self.assign(s.l, self.eval(s.r))
             elif isinstance(s, If):
                 if self.eval(s.cond):
                     self.execute(s.t)
@@ -158,7 +181,8 @@ class Simulator:
             else:
                 self.generators[k] = [v]
 
-        # TODO: insert_resets
+        # TODO: insert_resets on sync
+        # comb signals return to their reset value if nothing assigns them
         self.fragment.comb[0:0] = [s.eq(s.reset)
                                    for s in list_targets(self.fragment.comb)]
 
