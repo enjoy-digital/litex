@@ -193,10 +193,7 @@ class _MemoryPort(Special):
         self.re = re
         self.we_granularity = we_granularity
         self.mode = mode
-        if isinstance(clock_domain, str):
-            self.clock = ClockSignal(clock_domain)
-        else:
-            self.clock = clock_domain
+        self.clock = ClockSignal(clock_domain)
 
     def iter_expressions(self):
         for attr, target_context in [
