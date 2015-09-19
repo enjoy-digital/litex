@@ -1,5 +1,4 @@
 import operator
-from collections import defaultdict
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
