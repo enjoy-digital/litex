@@ -5,6 +5,7 @@ from migen.fhdl.structure import (_Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import flen
 from migen.fhdl.tools import list_targets
+from migen.fhdl.simplify import FullMemoryWE, MemoryToArray
 
 
 __all__ = ["Simulator"]
@@ -114,7 +115,7 @@ class Evaluator:
             return self.eval(node.choices[self.eval(node.key, postcommit)],
                              postcommit)
         else:
-            # TODO: ClockSignal, ResetSignal, Memory
+            # TODO: ClockSignal, ResetSignal
             raise NotImplementedError
 
     def assign(self, node, value):
@@ -129,7 +130,7 @@ class Evaluator:
                 nbits = flen(element)
                 self.assign(element, value & (2**nbits-1))
                 value >>= nbits
-        elif isinstance(node, Slice):
+        elif isinstance(node, _Slice):
             full_value = self.eval(node, True)
             # clear bits assigned to by the slice
             full_value &= ~((2**node.stop-1) - (2**node.start-1))
@@ -140,7 +141,7 @@ class Evaluator:
         elif isinstance(node, _ArrayProxy):
             self.assign(node.choices[self.eval(node.key)], value)
         else:
-            # TODO: ClockSignal, ResetSignal, Memory
+            # TODO: ClockSignal, ResetSignal
             raise NotImplementedError
 
     def execute(self, statements):
@@ -181,6 +182,8 @@ class Simulator:
             else:
                 self.generators[k] = [v]
 
+        FullMemoryWE().transform_fragment(None, self.fragment)
+        MemoryToArray().transform_fragment(None, self.fragment)
         # TODO: insert_resets on sync
         # comb signals return to their reset value if nothing assigns them
         self.fragment.comb[0:0] = [s.eq(s.reset)
