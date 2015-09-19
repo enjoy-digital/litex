@@ -110,7 +110,7 @@ class Pack(Module):
         for f in description_to.param_layout:
             src = getattr(self.sink, f[0])
             dst = getattr(self.source, f[0])
-            self.comb += dst.eq(src)
+            self.sync += If(load_part, dst.eq(src))
 
         if description_to.packetized:
             demux_last = ((demux == (n - 1)) | sink.eop)
