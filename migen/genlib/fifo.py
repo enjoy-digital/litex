@@ -1,6 +1,7 @@
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Memory
+from migen.fhdl.bitcontainer import flen
 from migen.genlib.cdc import NoRetiming, MultiReg, GrayCounter
 from migen.genlib.record import layout_len, Record
 
