@@ -1,5 +1,5 @@
 from migen.fhdl.structure import *
-from migen.fhdl.specials import _MemoryPort
+from migen.fhdl.specials import Memory, _MemoryPort, WRITE_FIRST, NO_CHANGE
 from migen.fhdl.decorators import ModuleTransformer
 from migen.util.misc import gcd_multiple
 
@@ -25,18 +25,71 @@ class FullMemoryWE(ModuleTransformer):
                     newspecials.add(newmem)
                     for port in orig.ports:
                         port_granularity = port.we_granularity if port.we_granularity else orig.width
-                        newport = _MemoryPort(adr=port.adr,
+                        newport = _MemoryPort(
+                            adr=port.adr,
 
                             dat_r=port.dat_r[i*global_granularity:(i+1)*global_granularity] if port.dat_r is not None else None,
                             we=port.we[i*global_granularity//port_granularity] if port.we is not None else None,
                             dat_w=port.dat_w[i*global_granularity:(i+1)*global_granularity] if port.dat_w is not None else None,
 
-                              async_read=port.async_read,
-                              re=port.re,
-                              we_granularity=0,
-                              mode=port.mode,
-                              clock_domain=port.clock)
+                            async_read=port.async_read,
+                            re=port.re,
+                            we_granularity=0,
+                            mode=port.mode,
+                            clock_domain=port.clock)
                         newmem.ports.append(newport)
                         newspecials.add(newport)
+
+        f.specials = newspecials
+
+
+class MemoryToArray(ModuleTransformer):
+    def transform_fragment(self, i, f):
+        newspecials = set()
+
+        for mem in f.specials:
+            if not isinstance(mem, Memory):
+                newspecials.add(mem)
+                continue
+
+            storage = Array()
+            init = []
+            if mem.init is not None:
+                init = mem.init
+            for d in init:
+                mem_storage = Signal(mem.width, reset=d)
+                storage.append(mem_storage)
+            for _ in range(mem.depth-len(init)):
+                mem_storage = Signal(mem.width)
+                storage.append(mem_storage)
+
+            for port in mem.ports:
+                if port.we_granularity:
+                    raise NotImplementedError
+                try:
+                    sync = f.sync[port.clock.cd]
+                except KeyError:
+                    sync = f.sync[port.clock.cd] = []
+
+                # read
+                if port.async_read:
+                    f.comb.append(port.dat_r.eq(storage[port.adr]))
+                else:
+                    if port.mode == WRITE_FIRST and port.we is not None:
+                        adr_reg = Signal.like(port.adr)
+                        rd_stmt = adr_reg.eq(port.adr)
+                        f.comb.append(port.dat_r.eq(storage[adr_reg]))
+                    elif port.mode == NO_CHANGE and port.we is not None:
+                        rd_stmt = If(~port.we, port.dat_r.eq(storage[port.adr]))
+                    else: # READ_FIRST or port.we is None, simplest case
+                        rd_stmt = port.dat_r.eq(storage[port.adr])
+                    if port.re is None:
+                        sync.append(rd_stmt)
+                    else:
+                        sync.append(If(port.re, rd_stmt))
+
+                # write
+                if port.we is not None:
+                    sync.append(If(port.we, storage[port.adr].eq(port.dat_w)))
 
         f.specials = newspecials
