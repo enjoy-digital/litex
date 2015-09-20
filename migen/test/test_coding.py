@@ -21,7 +21,7 @@ class EncCase(SimCase, unittest.TestCase):
         def gen():
             for _ in range(256):
                 if seq:
-                    yield self.tb.dut.i, seq.pop(0)
+                    yield self.tb.dut.i.eq(seq.pop(0))
                 if (yield self.tb.dut.n):
                     self.assertNotIn((yield self.tb.dut.i), [1<<i for i in range(8)])
                 else:
@@ -45,7 +45,7 @@ class PrioEncCase(SimCase, unittest.TestCase):
         def gen():
             for _ in range(256):
                 if seq:
-                    yield self.tb.dut.i, seq.pop(0)
+                    yield self.tb.dut.i.eq(seq.pop(0))
                 i = yield self.tb.dut.i
                 if (yield self.tb.dut.n):
                     self.assertEqual(i, 0)
@@ -74,8 +74,8 @@ class DecCase(SimCase, unittest.TestCase):
             for _ in range(256):
                 if seq:
                     i = seq.pop()
-                    yield self.tb.dut.i, i//2
-                    yield self.tb.dut.n, i%2
+                    yield self.tb.dut.i.eq(i//2)
+                    yield self.tb.dut.n.eq(i%2)
                 i = yield self.tb.dut.i
                 o = yield self.tb.dut.o
                 if (yield self.tb.dut.n):
@@ -100,7 +100,7 @@ class SmallPrioEncCase(SimCase, unittest.TestCase):
         def gen():
             for _ in range(5):
                 if seq:
-                    yield self.tb.dut.i, seq.pop(0)
+                    yield self.tb.dut.i.eq(seq.pop(0))
                 i = yield self.tb.dut.i
                 if (yield self.tb.dut.n):
                     self.assertEqual(i, 0)

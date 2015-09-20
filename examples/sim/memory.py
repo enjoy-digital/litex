@@ -11,7 +11,7 @@ class Mem(Module):
 def memory_test(dut):
     # write (only first 5 values)
     for i in range(5):
-        yield dut.mem[i], 42 + i
+        yield dut.mem[i].eq(42 + i)
     # remember: values are written after the tick, and read before the tick.
     # wait one tick for the memory to update.
     yield

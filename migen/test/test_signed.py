@@ -29,8 +29,8 @@ class SignedCase(SimCase, unittest.TestCase):
     def test_comparisons(self):
         def gen():
             for i in range(-4, 4):
-                yield self.tb.a, i
-                yield self.tb.b, i
+                yield self.tb.a.eq(i)
+                yield self.tb.b.eq(i)
                 a = yield self.tb.a
                 b = yield self.tb.b
                 for asign, bsign, f, r, op in self.tb.vals:

@@ -18,9 +18,9 @@ def counter_test(dut):
         # Only assert CE every second cycle.
         # => each counter value is held for two cycles.
         if cycle % 2:
-            yield dut.ce, 0  # This is how you write to a signal.
+            yield dut.ce.eq(0)  # This is how you write to a signal.
         else:
-            yield dut.ce, 1
+            yield dut.ce.eq(1)
         print("Cycle: {} Count: {}".format(cycle, (yield dut.count)))
         yield
 

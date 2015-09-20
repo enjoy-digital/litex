@@ -9,7 +9,7 @@ def tb(dut):
     for i in range(35):
         print("{0:0{1}b} CE={2} bin={3}".format((yield dut.q),
             flen(dut.q), (yield dut.ce), (yield dut.q_binary)))
-        yield dut.ce, prng.getrandbits(1)
+        yield dut.ce.eq(prng.getrandbits(1))
         yield
 
 

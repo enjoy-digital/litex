@@ -28,8 +28,8 @@ class SyncFIFOCase(SimCase, unittest.TestCase):
         def gen():
             for cycle in count():
                 # fire re and we at "random"
-                yield self.tb.dut.we, cycle % 2 == 0
-                yield self.tb.dut.re, cycle % 3 == 0
+                yield self.tb.dut.we.eq(cycle % 2 == 0)
+                yield self.tb.dut.re.eq(cycle % 3 == 0)
                 # the output if valid must be correct
                 if (yield self.tb.dut.readable) and (yield self.tb.dut.re):
                     try:
@@ -45,9 +45,10 @@ class SyncFIFOCase(SimCase, unittest.TestCase):
         seq = [x for x in range(20) if x % 5]
         def gen():
             for cycle in count():
-                yield self.tb.dut.we, cycle % 2 == 0
-                yield self.tb.dut.re, cycle % 7 == 0
-                yield self.tb.dut.replace, (yield self.tb.dut.din.a) % 5 == 1
+                yield self.tb.dut.we.eq(cycle % 2 == 0)
+                yield self.tb.dut.re.eq(cycle % 7 == 0)
+                yield self.tb.dut.replace.eq(
+                    (yield self.tb.dut.din.a) % 5 == 1)
                 if (yield self.tb.dut.readable) and (yield self.tb.dut.re):
                     try:
                         i = seq.pop(0)

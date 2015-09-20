@@ -23,7 +23,7 @@ class BitonicCase(SimCase, unittest.TestCase):
         def gen():
             for repeat in range(20):
                 for i in self.tb.dut.i:
-                    yield i, randrange(1<<flen(i))
+                    yield i.eq(randrange(1<<flen(i)))
                 yield
                 self.assertEqual(sorted((yield self.tb.dut.i)),
                                  (yield self.tb.dut.o))

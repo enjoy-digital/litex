@@ -38,7 +38,7 @@ def fir_tb(dut, frequency, inputs, outputs):
     f = 2**(dut.wsize - 1)
     for cycle in range(200):
         v = 0.1*cos(2*pi*frequency*cycle)
-        yield dut.i, int(f*v)
+        yield dut.i.eq(int(f*v))
         inputs.append(v)
         outputs.append((yield dut.o)/f)
         yield

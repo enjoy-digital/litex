@@ -1,7 +1,8 @@
 import operator
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import (_Value, _Operator, _Slice, _ArrayProxy,
+from migen.fhdl.structure import (_Value, _Statement,
+                                  _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import flen
 from migen.fhdl.tools import list_targets
@@ -207,11 +208,14 @@ class Simulator:
             self.evaluator.execute(self.fragment.comb)
             modified = self.evaluator.commit()
 
-    def _eval_nested_lists(self, x):
+    def _evalexec_nested_lists(self, x):
         if isinstance(x, list):
-            return [self._eval_nested_lists(e) for e in x]
+            return [self._evalexec_nested_lists(e) for e in x]
         elif isinstance(x, _Value):
             return self.evaluator.eval(x)
+        elif isinstance(x, _Statement):
+            self.evaluator.execute([x])
+            return None
         else:
             raise ValueError
 
@@ -224,10 +228,8 @@ class Simulator:
                     request = generator.send(reply)
                     if request is None:
                         break  # next cycle
-                    elif isinstance(request, tuple):
-                        self.evaluator.assign(*request)
                     else:
-                        reply = self._eval_nested_lists(request)
+                        reply = self._evalexec_nested_lists(request)
                 except StopIteration:
                     exhausted.append(generator)
                     break
