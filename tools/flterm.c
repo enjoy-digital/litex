@@ -579,7 +579,8 @@ enum {
 	OPTION_CMDLINEADR,
 	OPTION_INITRD,
 	OPTION_INITRDADR,
-	OPTION_LOG
+	OPTION_LOG,
+	OPTION_HELP,
 };
 
 static const struct option options[] = {
@@ -637,6 +638,11 @@ static const struct option options[] = {
 		.name = "log",
 		.has_arg = 1,
 		.val = OPTION_LOG
+	},
+	{
+		.name = "help",
+		.has_arg = 0,
+		.val = OPTION_HELP
 	},
 	{
 		.name = NULL
@@ -753,6 +759,9 @@ int main(int argc, char *argv[])
 				free(log_path);
 				log_path = strdup(optarg);
 				break;
+			case OPTION_HELP:
+				print_usage();
+				return 0;
 		}
 	}
 
