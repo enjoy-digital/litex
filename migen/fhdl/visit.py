@@ -1,13 +1,14 @@
 from copy import copy
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Operator, _Slice, _Assign, _ArrayProxy, _Fragment
+from migen.fhdl.structure import (_Operator, _Slice, _Assign, _ArrayProxy,
+                                  _Fragment)
 
 
 class NodeVisitor:
     def visit(self, node):
-        if isinstance(node, (int, bool)):
-            self.visit_constant(node)
+        if isinstance(node, Constant):
+            self.visit_Constant(node)
         elif isinstance(node, Signal):
             self.visit_Signal(node)
         elif isinstance(node, ClockSignal):
@@ -39,7 +40,7 @@ class NodeVisitor:
         elif node is not None:
             self.visit_unknown(node)
 
-    def visit_constant(self, node):
+    def visit_Constant(self, node):
         pass
 
     def visit_Signal(self, node):
@@ -107,8 +108,8 @@ class NodeVisitor:
 # In those cases, the original node is returned unchanged.
 class NodeTransformer:
     def visit(self, node):
-        if isinstance(node, (int, bool)):
-            return self.visit_constant(node)
+        if isinstance(node, Constant):
+            return self.visit_Constant(node)
         elif isinstance(node, Signal):
             return self.visit_Signal(node)
         elif isinstance(node, ClockSignal):
@@ -142,7 +143,7 @@ class NodeTransformer:
         else:
             return None
 
-    def visit_constant(self, node):
+    def visit_Constant(self, node):
         return node
 
     def visit_Signal(self, node):
