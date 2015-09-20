@@ -1,7 +1,7 @@
-The FHDL layer
-##############
+The FHDL domain-specific language
+#################################
 
-The Fragmented Hardware Description Language (FHDL) is the lowest layer of Migen. It consists of a formal system to describe signals, and combinatorial and synchronous statements operating on them. The formal system itself is low level and close to the synthesizable subset of Verilog, and we then rely on Python algorithms to build complex structures by combining FHDL elements.
+The Fragmented Hardware Description Language (FHDL) is the basis of Migen. It consists of a formal system to describe signals, and combinatorial and synchronous statements operating on them. The formal system itself is low level and close to the synthesizable subset of Verilog, and we then rely on Python algorithms to build complex structures by combining FHDL elements.
 The FHDL module also contains a back-end to produce synthesizable Verilog, and some structure analysis and manipulation functionality.
 
 FHDL differs from MyHDL [myhdl]_ in fundamental ways. MyHDL follows the event-driven paradigm of traditional HDLs (see :ref:`background`) while FHDL separates the code into combinatorial statements, synchronous statements, and reset values. In MyHDL, the logic is described directly in the Python AST. The converter to Verilog or VHDL then examines the Python AST and recognizes a subset of Python that it translates into V*HDL statements. This seriously impedes the capability of MyHDL to generate logic procedurally. With FHDL, you manipulate a custom AST from Python, and you can more easily design algorithms that operate on it.
@@ -28,6 +28,7 @@ To lighten the syntax, assignments and operators automatically wrap Python integ
 
 Signal
 ======
+
 The signal object represents a value that is expected to change in the circuit. It does exactly what Verilog's "wire" and "reg" and VHDL's "signal" do.
 
 The main point of the signal object is that it is identified by its Python ID (as returned by the :py:func:`id` function), and nothing else. It is the responsibility of the V*HDL back-end to establish an injective mapping between Python IDs and the V*HDL namespace. It should perform name mangling to ensure this. The consequence of this is that signal objects can safely become members of arbitrary Python classes, or be passed as parameters to functions or methods that generate logic involving them.
@@ -49,6 +50,7 @@ In case of conflicts, Migen tries first to resolve the situation by prefixing th
 
 Operators
 =========
+
 Operators are represented by the ``_Operator`` object, which generally should not be used directly. Instead, most FHDL objects overload the usual Python logic and arithmetic operators, which allows a much lighter syntax to be used. For example, the expression: ::
 
   a * b + c
@@ -59,15 +61,18 @@ is equivalent to::
 
 Slices
 ======
+
 Likewise, slices are represented by the ``_Slice`` object, which often should not be used in favor of the Python slice operation [x:y]. Implicit indices using the forms [x], [x:] and [:y] are supported. Beware! Slices work like Python slices, not like VHDL or Verilog slices. The first bound is the index of the LSB and is inclusive. The second bound is the index of MSB and is exclusive. In V*HDL, bounds are MSB:LSB and both are inclusive.
 
 Concatenations
 ==============
+
 Concatenations are done using the ``Cat`` object. To make the syntax lighter, its constructor takes a variable number of arguments, which are the signals to be concatenated together (you can use the Python "*" operator to pass a list instead).
 To be consistent with slices, the first signal is connected to the bits with the lowest indices in the result. This is the opposite of the way the "{}" construct works in Verilog.
 
 Replications
 ============
+
 The ``Replicate`` object represents the equivalent of {count{expression}} in Verilog.
 
 Statements
@@ -75,6 +80,7 @@ Statements
 
 Assignment
 ==========
+
 Assignments are represented with the ``_Assign`` object. Since using it directly would result in a cluttered syntax, the preferred technique for assignments is to use the ``eq()`` method provided by objects that can have a value assigned to them. They are signals, and their combinations with the slice and concatenation operators.
 As an example, the statement: ::
 
@@ -86,6 +92,7 @@ is equivalent to: ::
 
 If
 ==
+
 The ``If`` object takes a first parameter which must be an expression (combination of the ``Constant``, ``Signal``, ``_Operator``, ``_Slice``, etc. objects) representing the condition, then a variable number of parameters representing the statements (``_Assign``, ``If``, ``Case``, etc. objects) to be executed when the condition is verified.
 
 The ``If`` object defines a ``Else()`` method, which when called defines the statements to be executed when the condition is not true. Those statements are passed as parameters to the variadic method.
@@ -109,10 +116,12 @@ Example: ::
 
 Case
 ====
+
 The ``Case`` object constructor takes as first parameter the expression to be tested, and a dictionary whose keys are the values to be matched, and values the statements to be executed in the case of a match. The special value ``"default"`` can be used as match value, which means the statements should be executed whenever there is no other match.
 
 Arrays
 ======
+
 The ``Array`` object represents lists of other objects that can be indexed by FHDL expressions. It is explicitly possible to:
 
 * nest ``Array`` objects to create multidimensional tables.
@@ -138,6 +147,7 @@ Specials
 
 Tri-state I/O
 =============
+
 A triplet (O, OE, I) of one-way signals defining a tri-state I/O port is represented by the ``TSTriple`` object. Such objects are only containers for signals that are intended to be later connected to a tri-state I/O buffer, and cannot be used as module specials. Such objects, however, should be kept in the design as long as possible as they allow the individual one-way signals to be manipulated in a non-ambiguous way.
 
 The object that can be used in as a module special is ``Tristate``, and it behaves exactly like an instance of a tri-state I/O buffer that would be defined as follows: ::
@@ -157,6 +167,7 @@ By default, Migen emits technology-independent behavioral code for a tri-state b
 
 Instances
 =========
+
 Instance objects represent the parametrized instantiation of a V*HDL module, and the connection of its ports to FHDL signals. They are useful in a number of cases:
 
 * Reusing legacy or third-party V*HDL code.
@@ -174,6 +185,7 @@ These parameters can be:
 
 Memories
 ========
+
 Memories (on-chip SRAM) are supported using a mechanism similar to instances.
 
 A memory object has the following parameters:
@@ -262,7 +274,7 @@ Clock domains are then added to a module using the ``clock_domains`` special att
 Summary of special attributes
 =============================
 
-.. table:: Summary of special attributes
+.. table::
 
    +--------------------------------------------+--------------------------------------------------------------+
    | Syntax                                     | Action                                                       |
@@ -342,16 +354,9 @@ Finalization is automatically invoked at V*HDL conversion and at simulation. It 
 
 The clock domain management mechanism explained above happens during finalization.
 
-Simulation
-==========
-
-The ``do_simulation`` method of the ``Module`` class can be defined and will be executed at each clock cycle, or the generator-style API can be used by defining ``gen_simulation`` instead. The generator yields the number of cycles it wants to wait for. See :ref:`simulating` for more information on using the simulator.
-
-Simulation of designs with several clock domains is not supported yet.
-
 Conversion for synthesis
 ************************
 
-Any FHDL module (except, of course, its simulation functions) can be converted into synthesizable Verilog HDL. This is accomplished by using the ``convert`` function in the ``verilog`` module.
+Any FHDL module can be converted into synthesizable Verilog HDL. This is accomplished by using the ``convert`` function in the ``verilog`` module.
 
-The Mibuild component provides scripts to interface third-party FPGA tools to Migen and a database of boards for the easy deployment of designs.
+The ``migen.build`` component provides scripts to interface third-party FPGA tools (from Xilinx, Altera and Lattice) to Migen, and a database of boards for the easy deployment of designs.

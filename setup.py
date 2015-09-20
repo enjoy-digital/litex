@@ -15,7 +15,7 @@ if sys.version_info < required_version:
 
 setup(
     name="migen",
-    version="0.0+dev",
+    version="1.0",
     description="Python toolbox for building complex digital hardware",
     long_description=README,
     author="Sebastien Bourdeauducq",
