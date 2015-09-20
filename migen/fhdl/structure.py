@@ -579,6 +579,7 @@ class Case(_Statement):
 
 class _ArrayProxy(_Value):
     def __init__(self, choices, key):
+        _Value.__init__(self)
         self.choices = []
         for c in choices:
             if isinstance(c, (bool, int)):
