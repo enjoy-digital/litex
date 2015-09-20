@@ -5,6 +5,9 @@ from migen.util.misc import gcd_multiple
 
 
 class FullMemoryWE(ModuleTransformer):
+    def __init__(self):
+        self.replacments = dict()
+
     def transform_fragment(self, i, f):
         newspecials = set()
 
@@ -16,6 +19,7 @@ class FullMemoryWE(ModuleTransformer):
             if global_granularity == orig.width:
                 newspecials.add(orig)  # nothing to do
             else:
+                newmems = []
                 for i in range(orig.width//global_granularity):
                     if orig.init is None:
                         newinit = None
@@ -23,6 +27,7 @@ class FullMemoryWE(ModuleTransformer):
                         newinit = [(v >> i*global_granularity) & (2**global_granularity - 1) for v in orig.init]
                     newmem = Memory(global_granularity, orig.depth, newinit, orig.name_override + "_grain" + str(i))
                     newspecials.add(newmem)
+                    newmems.append(newmem)
                     for port in orig.ports:
                         port_granularity = port.we_granularity if port.we_granularity else orig.width
                         newport = _MemoryPort(
@@ -39,11 +44,15 @@ class FullMemoryWE(ModuleTransformer):
                             clock_domain=port.clock)
                         newmem.ports.append(newport)
                         newspecials.add(newport)
+                self.replacments[orig] = newmems
 
         f.specials = newspecials
 
 
 class MemoryToArray(ModuleTransformer):
+    def __init__(self):
+        self.replacements = dict()
+
     def transform_fragment(self, i, f):
         newspecials = set()
 
@@ -53,6 +62,7 @@ class MemoryToArray(ModuleTransformer):
                 continue
 
             storage = Array()
+            self.replacements[mem] = storage
             init = []
             if mem.init is not None:
                 init = mem.init
@@ -90,6 +100,15 @@ class MemoryToArray(ModuleTransformer):
 
                 # write
                 if port.we is not None:
-                    sync.append(If(port.we, storage[port.adr].eq(port.dat_w)))
+                    if port.we_granularity:
+                        n = mem.width//port.we_granularity
+                        for i in range(n):
+                            m = i*port.we_granularity
+                            M = (i+1)*port.we_granularity
+                            sync.append(If(port.we[i],
+                                        storage[port.adr][m:M].eq(port.dat_w)))
+                    else:
+                        sync.append(If(port.we,
+                                       storage[port.adr].eq(port.dat_w)))
 
         f.specials = newspecials

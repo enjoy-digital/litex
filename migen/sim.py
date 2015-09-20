@@ -1,11 +1,12 @@
 import operator
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import (_Operator, _Slice, _ArrayProxy,
+from migen.fhdl.structure import (_Value, _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import flen
 from migen.fhdl.tools import list_targets
-from migen.fhdl.simplify import FullMemoryWE, MemoryToArray
+from migen.fhdl.simplify import MemoryToArray
+from migen.fhdl.specials import _MemoryLocation
 
 
 __all__ = ["Simulator"]
@@ -61,7 +62,8 @@ str2op = {
 
 
 class Evaluator:
-    def __init__(self):
+    def __init__(self, replaced_memories):
+        self.replaced_memories = replaced_memories
         self.signal_values = dict()
         self.modifications = dict()
 
@@ -114,6 +116,9 @@ class Evaluator:
         elif isinstance(node, _ArrayProxy):
             return self.eval(node.choices[self.eval(node.key, postcommit)],
                              postcommit)
+        elif isinstance(node, _MemoryLocation):
+            array = self.replaced_memories[node.memory]
+            return self.eval(array[self.eval(node.index, postcommit)], postcommit)
         else:
             # TODO: ClockSignal, ResetSignal
             raise NotImplementedError
@@ -140,6 +145,9 @@ class Evaluator:
             self.assign(node, full_value)
         elif isinstance(node, _ArrayProxy):
             self.assign(node.choices[self.eval(node.key)], value)
+        elif isinstance(node, _MemoryLocation):
+            array = self.replaced_memories[node.memory]
+            self.assign(array[self.eval(node.index)], value)
         else:
             # TODO: ClockSignal, ResetSignal
             raise NotImplementedError
@@ -182,15 +190,15 @@ class Simulator:
             else:
                 self.generators[k] = [v]
 
-        FullMemoryWE().transform_fragment(None, self.fragment)
-        MemoryToArray().transform_fragment(None, self.fragment)
+        mta = MemoryToArray()
+        mta.transform_fragment(None, self.fragment)
         # TODO: insert_resets on sync
         # comb signals return to their reset value if nothing assigns them
         self.fragment.comb[0:0] = [s.eq(s.reset)
                                    for s in list_targets(self.fragment.comb)]
 
         self.time = TimeManager(clocks)
-        self.evaluator = Evaluator()
+        self.evaluator = Evaluator(mta.replacements)
 
     def _commit_and_comb_propagate(self):
         # TODO: optimize
@@ -202,7 +210,7 @@ class Simulator:
     def _eval_nested_lists(self, x):
         if isinstance(x, list):
             return [self._eval_nested_lists(e) for e in x]
-        elif isinstance(x, Signal):
+        elif isinstance(x, _Value):
             return self.evaluator.eval(x)
         else:
             raise ValueError

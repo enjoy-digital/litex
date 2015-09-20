@@ -1,7 +1,7 @@
 from operator import itemgetter
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _DUID
+from migen.fhdl.structure import _DUID, _Value
 from migen.fhdl.bitcontainer import bits_for, value_bits_sign
 from migen.fhdl.tools import *
 from migen.fhdl.tracer import get_obj_var_name
@@ -210,6 +210,18 @@ class _MemoryPort(Special):
         return ""  # done by parent Memory object
 
 
+class _MemoryLocation(_Value):
+    def __init__(self, memory, index):
+        _Value.__init__(self)
+        if isinstance(index, (bool, int)):
+            index = Constant(index)
+        if not isinstance(index, _Value):
+            raise TypeError("Memory index is not a Migen value: {}"
+                            .format(index))
+        self.memory = memory
+        self.index = index
+
+
 class Memory(Special):
     def __init__(self, width, depth, init=None, name=None):
         Special.__init__(self)
@@ -218,6 +230,10 @@ class Memory(Special):
         self.ports = []
         self.init = init
         self.name_override = get_obj_var_name(name, "mem")
+
+    def __getitem__(self, index):
+        # simulation only
+        return _MemoryLocation(self, index)
 
     def get_port(self, write_capable=False, async_read=False,
       has_re=False, we_granularity=0, mode=WRITE_FIRST,
@@ -324,7 +340,6 @@ class Memory(Special):
             r += "initial begin\n"
             r += "\t$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
             r += "end\n\n"
-
 
         return r
 
