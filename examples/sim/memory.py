@@ -23,4 +23,4 @@ def memory_test(dut):
 
 if __name__ == "__main__":
     dut = Mem()
-    Simulator(dut, memory_test(dut)).run()
+    run_simulation(dut, memory_test(dut))

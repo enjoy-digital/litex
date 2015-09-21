@@ -5,12 +5,10 @@ from migen.fhdl.structure import (_Value, _Statement,
                                   _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import flen
-from migen.fhdl.tools import list_targets
+from migen.fhdl.tools import list_signals, list_targets
 from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
-
-
-__all__ = ["Simulator"]
+from migen.sim.vcd import VCDWriter, DummyVCDWriter
 
 
 class ClockState:
@@ -37,7 +35,7 @@ class TimeManager:
             cs.times_before_tick -= dt
             if not cs.times_before_tick:
                 cs.times_before_tick += cs.period
-        return r
+        return dt, r
 
 
 str2op = {
@@ -175,9 +173,8 @@ class Evaluator:
 
 
 # TODO: instances via Iverilog/VPI
-# TODO: VCD output
 class Simulator:
-    def __init__(self, fragment_or_module, generators, clocks={"sys": 100}):
+    def __init__(self, fragment_or_module, generators, clocks={"sys": 10}, vcd_name=None):
         if isinstance(fragment_or_module, _Fragment):
             self.fragment = fragment_or_module
         else:
@@ -198,15 +195,36 @@ class Simulator:
         self.fragment.comb[0:0] = [s.eq(s.reset)
                                    for s in list_targets(self.fragment.comb)]
 
+        if vcd_name is None:
+            self.vcd = DummyVCDWriter()
+        else:
+            signals = sorted(list_signals(self.fragment),
+                             key=lambda x: x.duid)
+            self.vcd = VCDWriter(vcd_name, signals)
+
         self.time = TimeManager(clocks)
         self.evaluator = Evaluator(mta.replacements)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
+    def close(self):
+        self.vcd.close()
+
     def _commit_and_comb_propagate(self):
         # TODO: optimize
+        all_modified = set()
         modified = self.evaluator.commit()
+        all_modified |= modified
         while modified:
             self.evaluator.execute(self.fragment.comb)
             modified = self.evaluator.commit()
+            all_modified |= modified
+        for signal in all_modified:
+            self.vcd.set(signal, self.evaluator.signal_values[signal])
 
     def _evalexec_nested_lists(self, x):
         if isinstance(x, list):
@@ -245,7 +263,8 @@ class Simulator:
         self._commit_and_comb_propagate()
 
         while True:
-            cds = self.time.tick()
+            dt, cds = self.time.tick()
+            self.vcd.delay(dt)
             for cd in cds:
                 if cd in self.fragment.sync:
                     self.evaluator.execute(self.fragment.sync[cd])
@@ -255,3 +274,8 @@ class Simulator:
 
             if not self._continue_simulation():
                 break
+
+
+def run_simulation(*args, **kwargs):
+    with Simulator(*args, **kwargs) as s:
+        s.run()

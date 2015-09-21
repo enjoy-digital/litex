@@ -15,4 +15,4 @@ def tb(dut):
 
 if __name__ == "__main__":
     dut = GrayCounter(3)
-    Simulator(dut, tb(dut)).run()
+    run_simulation(dut, tb(dut), vcd_name="graycounter.vcd")

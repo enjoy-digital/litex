@@ -34,4 +34,4 @@ def counter_test(dut):
 
 if __name__ == "__main__":
     dut = Counter()
-    Simulator(dut, counter_test(dut)).run()
+    run_simulation(dut, counter_test(dut), vcd_name="basic2.vcd")

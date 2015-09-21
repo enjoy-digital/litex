@@ -10,4 +10,4 @@ class SimCase:
         verilog.convert(self.tb)
 
     def run_with(self, generator):
-        Simulator(self.tb, generator).run()
+        run_simulation(self.tb, generator)

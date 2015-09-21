@@ -55,7 +55,7 @@ if __name__ == "__main__":
     for frequency in [0.05, 0.1, 0.25]:
         dut = FIR(coef)
         tb = fir_tb(dut, frequency, in_signals, out_signals)
-        Simulator(dut, tb).run()
+        run_simulation(dut, tb)
 
     # Plot data from the input and output waveforms.
     plt.plot(in_signals)
