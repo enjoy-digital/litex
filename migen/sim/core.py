@@ -12,30 +12,45 @@ from migen.sim.vcd import VCDWriter, DummyVCDWriter
 
 
 class ClockState:
-    def __init__(self, period, times_before_tick):
-        self.period = period
-        self.times_before_tick = times_before_tick
+    def __init__(self, high, half_period, time_before_trans):
+        self.high = high
+        self.half_period = half_period
+        self.time_before_trans = time_before_trans
 
 
 class TimeManager:
     def __init__(self, description):
         self.clocks = dict()
 
-        for k, v in description.items():
-            if not isinstance(v, tuple):
-                v = v, 0
-            self.clocks[k] = ClockState(v[0], v[0] - v[1])
+        for k, period_phase in description.items():
+            if isinstance(period_phase, tuple):
+                period, phase = period_phase
+            else:
+                period = period_phase
+                phase = 0
+            half_period = period//2
+            if phase >= half_period:
+                phase -= half_period
+                high = True
+            else:
+                high = False
+            self.clocks[k] = ClockState(high, half_period, half_period - phase)
     
     def tick(self):
-        r = set()
-        dt = min(cs.times_before_tick for cs in self.clocks.values())
+        rising = set()
+        falling = set()
+        dt = min(cs.time_before_trans for cs in self.clocks.values())
         for k, cs in self.clocks.items():
-            if cs.times_before_tick == dt:
-                r.add(k)
-            cs.times_before_tick -= dt
-            if not cs.times_before_tick:
-                cs.times_before_tick += cs.period
-        return dt, r
+            if cs.time_before_trans == dt:
+                cs.high = not cs.high
+                if cs.high:
+                    rising.add(k)
+                else:
+                    falling.add(k)
+            cs.time_before_trans -= dt
+            if not cs.time_before_trans:
+                cs.time_before_trans += cs.half_period
+        return dt, rising, falling
 
 
 str2op = {
@@ -188,22 +203,31 @@ class Simulator:
             else:
                 self.generators[k] = [v]
 
+        self.time = TimeManager(clocks)
+        for clock in clocks.keys():
+            if clock not in self.fragment.clock_domains:
+                cd = ClockDomain(name=clock, reset_less=True)
+                cd.clk.reset = C(self.time.clocks[clock].high)
+                self.fragment.clock_domains.append(cd)
+
         mta = MemoryToArray()
         mta.transform_fragment(None, self.fragment)
         # TODO: insert_resets on sync
         # comb signals return to their reset value if nothing assigns them
         self.fragment.comb[0:0] = [s.eq(s.reset)
                                    for s in list_targets(self.fragment.comb)]
+        self.evaluator = Evaluator(mta.replacements)
 
         if vcd_name is None:
             self.vcd = DummyVCDWriter()
         else:
-            signals = sorted(list_signals(self.fragment),
-                             key=lambda x: x.duid)
+            signals = list_signals(self.fragment)
+            for cd in self.fragment.clock_domains:
+                signals.add(cd.clk)
+                if cd.rst is not None:
+                    signals.add(cd.rst)
+            signals = sorted(signals, key=lambda x: x.duid)
             self.vcd = VCDWriter(vcd_name, signals)
-
-        self.time = TimeManager(clocks)
-        self.evaluator = Evaluator(mta.replacements)
 
     def __enter__(self):
         return self
@@ -263,13 +287,16 @@ class Simulator:
         self._commit_and_comb_propagate()
 
         while True:
-            dt, cds = self.time.tick()
+            dt, rising, falling = self.time.tick()
             self.vcd.delay(dt)
-            for cd in cds:
+            for cd in rising:
+                self.evaluator.assign(self.fragment.clock_domains[cd].clk, 1)
                 if cd in self.fragment.sync:
                     self.evaluator.execute(self.fragment.sync[cd])
                 if cd in self.generators:
                     self._process_generators(cd)
+            for cd in falling:
+                self.evaluator.assign(self.fragment.clock_domains[cd].clk, 0)
             self._commit_and_comb_propagate()
 
             if not self._continue_simulation():
