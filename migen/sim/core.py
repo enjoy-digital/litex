@@ -5,7 +5,7 @@ from migen.fhdl.structure import (_Value, _Statement,
                                   _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import flen
-from migen.fhdl.tools import list_signals, list_targets
+from migen.fhdl.tools import list_signals, list_targets, insert_resets
 from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
 from migen.sim.vcd import VCDWriter, DummyVCDWriter
@@ -76,7 +76,8 @@ str2op = {
 
 
 class Evaluator:
-    def __init__(self, replaced_memories):
+    def __init__(self, clock_domains, replaced_memories):
+        self.clock_domains = clock_domains
         self.replaced_memories = replaced_memories
         self.signal_values = dict()
         self.modifications = dict()
@@ -133,8 +134,19 @@ class Evaluator:
         elif isinstance(node, _MemoryLocation):
             array = self.replaced_memories[node.memory]
             return self.eval(array[self.eval(node.index, postcommit)], postcommit)
+        elif isinstance(node, ClockSignal):
+            return self.eval(self.clock_domains[node.cd].clk, postcommit)
+        elif isinstance(node, ResetSignal):
+            rst = self.clock_domains[node.cd].rst
+            if rst is None:
+                if node.allow_reset_less:
+                    return 0
+                else:
+                    raise ValueError("Attempted to get reset signal of resetless"
+                                     " domain '{}'".format(node.cd))
+            else:
+                return self.eval(rst, postcommit)
         else:
-            # TODO: ClockSignal, ResetSignal
             raise NotImplementedError
 
     def assign(self, node, value):
@@ -163,7 +175,6 @@ class Evaluator:
             array = self.replaced_memories[node.memory]
             self.assign(array[self.eval(node.index)], value)
         else:
-            # TODO: ClockSignal, ResetSignal
             raise NotImplementedError
 
     def execute(self, statements):
@@ -212,11 +223,12 @@ class Simulator:
 
         mta = MemoryToArray()
         mta.transform_fragment(None, self.fragment)
-        # TODO: insert_resets on sync
+        insert_resets(self.fragment)
         # comb signals return to their reset value if nothing assigns them
         self.fragment.comb[0:0] = [s.eq(s.reset)
                                    for s in list_targets(self.fragment.comb)]
-        self.evaluator = Evaluator(mta.replacements)
+        self.evaluator = Evaluator(self.fragment.clock_domains,
+                                   mta.replacements)
 
         if vcd_name is None:
             self.vcd = DummyVCDWriter()
