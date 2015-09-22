@@ -5,6 +5,7 @@ class Example(Module):
     def __init__(self):
         self.s = Signal()
         self.counter = Signal(8)
+        x = Array(Signal(name="a") for i in range(7))
 
         myfsm = FSM()
         self.submodules += myfsm
@@ -16,6 +17,7 @@ class Example(Module):
         myfsm.act("BAR",
             self.s.eq(0),
             NextValue(self.counter, self.counter + 1),
+            NextValue(x[self.counter], 89),
             NextState("FOO")
         )
 
