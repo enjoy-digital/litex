@@ -15,7 +15,7 @@ setup(
     name="migen",
     version="1.0",
     description="Python toolbox for building complex digital hardware",
-    long_description=open("README.md").read(),
+    long_description=open("README.rst").read(),
     author="Sebastien Bourdeauducq",
     author_email="sb@m-labs.hk",
     url="http://m-labs.hk",
