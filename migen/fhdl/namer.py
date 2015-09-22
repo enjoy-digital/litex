@@ -227,8 +227,17 @@ class Namespace:
         self.counts = {k: 1 for k in reserved_keywords}
         self.sigs = {}
         self.pnd = pnd
+        self.clock_domains = dict()
 
     def get_name(self, sig):
+        if isinstance(sig, ClockSignal):
+            sig = self.clock_domains[sig.cd].clk
+        if isinstance(sig, ResetSignal):
+            sig = self.clock_domains[sig.cd].rst
+            if sig is None:
+                raise ValueError("Attempted to obtain name of non-existent "
+                                 "reset signal of domain "+sig.cd)
+
         if sig.name_override is not None:
             sig_name = sig.name_override
         else:

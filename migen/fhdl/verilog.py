@@ -342,6 +342,7 @@ def convert(f, ios=None, name="top",
     ns = build_namespace(list_signals(f) \
         | list_special_ios(f, True, True, True) \
         | ios, _reserved_keywords)
+    ns.clock_domains = f.clock_domains
     r.ns = ns
 
     src = "/* Machine-generated using Migen */\n"
