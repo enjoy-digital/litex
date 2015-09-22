@@ -162,13 +162,13 @@ class Evaluator:
                 self.assign(element, value & (2**nbits-1))
                 value >>= nbits
         elif isinstance(node, _Slice):
-            full_value = self.eval(node, True)
+            full_value = self.eval(node.value, True)
             # clear bits assigned to by the slice
             full_value &= ~((2**node.stop-1) - (2**node.start-1))
             # set them to the new value
             value &= 2**(node.stop - node.start)-1
             full_value |= value << node.start
-            self.assign(node, full_value)
+            self.assign(node.value, full_value)
         elif isinstance(node, _ArrayProxy):
             self.assign(node.choices[self.eval(node.key)], value)
         elif isinstance(node, _MemoryLocation):
