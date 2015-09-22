@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 
 from misoc.mem.sdram.module import IS42S16160
 from misoc.mem.sdram.phy import gensdrphy

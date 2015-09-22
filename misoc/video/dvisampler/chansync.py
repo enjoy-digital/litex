@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.cdc import MultiReg
 from migen.genlib.fifo import _inc
 from migen.genlib.record import Record, layout_len

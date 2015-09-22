@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.bus.transactions import *
 from migen.bus import wishbone
 from migen.genlib.misc import timeline

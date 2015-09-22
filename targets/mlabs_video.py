@@ -2,7 +2,7 @@ import os
 from fractions import Fraction
 from math import ceil
 
-from migen.fhdl.std import *
+from migen import *
 from mibuild.generic_platform import ConstraintError
 
 from misoc.mem.sdram.module import MT46V32M16

@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.flow.actor import *
 from migen.genlib.fifo import SyncFIFO
 

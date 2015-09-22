@@ -16,7 +16,7 @@
 # Write commands must be sent on phase 1.
 #
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.record import *
 
 from misoc.mem.sdram.phy.dfi import *

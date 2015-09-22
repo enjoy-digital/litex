@@ -1,7 +1,7 @@
 import math
 from collections import OrderedDict
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState

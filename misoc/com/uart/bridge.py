@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 
 from misoc.tools.wishbone import WishboneStreamingBridge
 from misoc.com.uart.phy.serial import UARTPHYSerial

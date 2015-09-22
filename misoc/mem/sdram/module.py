@@ -16,7 +16,7 @@
 
 from math import ceil
 
-from migen.fhdl.std import *
+from migen import *
 from misoc.mem import sdram
 
 

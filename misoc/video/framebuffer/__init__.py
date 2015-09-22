@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.flow.network import *
 from migen.flow import plumbing
 from migen.bank.description import AutoCSR

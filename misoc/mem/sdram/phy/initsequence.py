@@ -1,4 +1,4 @@
-from migen.fhdl.std import log2_int
+from migen import log2_int
 
 
 def get_sdram_phy_header(sdram_phy_settings):

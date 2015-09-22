@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.fsm import FSM, NextState
 from migen.bank.description import *
 from migen.bank.eventmanager import *

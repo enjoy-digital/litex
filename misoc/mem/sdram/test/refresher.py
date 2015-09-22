@@ -1,6 +1,6 @@
 from random import Random
 
-from migen.fhdl.std import *
+from migen import *
 from migen.sim.generic import run_simulation
 
 from misoc.mem.sdram.core.lasmicon.refresher import *

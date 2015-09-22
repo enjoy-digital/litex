@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 
 from misoc.mem.sdram.phy import dfi
 from misoc.mem.sdram.core import lasmibus

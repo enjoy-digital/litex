@@ -1,6 +1,6 @@
 from fractions import Fraction
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.actorlib.fifo import SyncFIFO
 

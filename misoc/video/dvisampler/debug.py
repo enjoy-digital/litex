@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.record import layout_len
 from migen.bank.description import AutoCSR

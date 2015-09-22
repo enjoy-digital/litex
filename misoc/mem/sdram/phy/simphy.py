@@ -6,7 +6,7 @@
 # TODO:
 # - add $display support to Migen and manage timing violations?
 
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl.specials import *
 from misoc.mem.sdram.phy.dfi import *
 from misoc.mem import sdram

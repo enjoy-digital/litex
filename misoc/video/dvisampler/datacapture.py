@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.bank.description import *
 

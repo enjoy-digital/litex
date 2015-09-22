@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.sim.generic import run_simulation
 
 from misoc.mem.sdram.code import lasmibus

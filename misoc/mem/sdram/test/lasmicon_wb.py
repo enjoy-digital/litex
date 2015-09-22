@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.sim.generic import run_simulation

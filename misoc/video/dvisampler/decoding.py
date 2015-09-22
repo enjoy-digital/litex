@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.record import Record
 
 from misoc.video.dvisampler.common import control_tokens, channel_layout

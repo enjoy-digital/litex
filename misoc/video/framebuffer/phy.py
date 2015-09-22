@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.cdc import MultiReg
 from migen.bank.description import *

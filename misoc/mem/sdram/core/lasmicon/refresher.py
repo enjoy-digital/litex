@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.misc import timeline
 from migen.genlib.fsm import FSM
 

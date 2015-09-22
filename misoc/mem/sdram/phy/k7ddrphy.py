@@ -1,6 +1,6 @@
 # tCK=5ns CL=7 CWL=6
 
-from migen.fhdl.std import *
+from migen import *
 from migen.bank.description import *
 
 from misoc.mem.sdram.phy.dfi import *

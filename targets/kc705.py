@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.mem.sdram.module import MT8JTF12864

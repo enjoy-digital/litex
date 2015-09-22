@@ -1,6 +1,6 @@
 from operator import itemgetter
 
-from migen.fhdl.std import *
+from migen import *
 from migen.bank import csrgen
 from migen.bus import wishbone, csr, wishbone2csr
 

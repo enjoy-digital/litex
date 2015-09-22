@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.record import *
 from migen.sim.generic import run_simulation
 

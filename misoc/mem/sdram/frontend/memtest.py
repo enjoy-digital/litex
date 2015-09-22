@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.misc import optree
 from migen.bank.description import *
 from migen.actorlib.spi import *
