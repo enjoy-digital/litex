@@ -1,9 +1,9 @@
 from migen.fhdl.std import *
 
-from misoclib.mem.sdram.module import IS42S16160
-from misoclib.mem.sdram.phy import gensdrphy
-from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
-from misoclib.soc.sdram import SDRAMSoC
+from misoc.mem.sdram.module import IS42S16160
+from misoc.mem.sdram.phy import gensdrphy
+from misoc.mem.sdram.core.lasmicon import LASMIconSettings
+from misoc.soc.sdram import SDRAMSoC
 
 
 class _PLL(Module):

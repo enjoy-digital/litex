@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.io import CRG
 
-from misoclib.soc import SoC
+from misoc.soc import SoC
 
 
 class BaseSoC(SoC):

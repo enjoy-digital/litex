@@ -11,8 +11,8 @@ from mibuild.tools import write_to_file
 from migen.util.misc import autotype
 from migen.fhdl import simplify
 
-from misoclib.soc import cpuif
-from misoclib.mem.sdram.phy import initsequence
+from misoc.soc import cpuif
+from misoc.mem.sdram.phy import initsequence
 
 from misoc_import import misoc_import
 

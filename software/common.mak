@@ -21,7 +21,7 @@ AR_quiet      = @echo " AR      " $@ && $(AR_normal)
 LD_quiet      = @echo " LD      " $@ && $(LD_normal)
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(OBJCOPY_normal)
 
-MSC_GIT_ID := $(shell cd $(MSCDIR) && $(PYTHON) -c "from misoclib.cpu.identifier import get_id; print(hex(get_id()), end='')")
+MSC_GIT_ID := $(shell cd $(MSCDIR) && $(PYTHON) -c "from misoc.cpu.identifier import get_id; print(hex(get_id()), end='')")
 
 ifeq ($(V),1)
 	CC = $(CC_normal)

@@ -5,16 +5,16 @@ from math import ceil
 from migen.fhdl.std import *
 from mibuild.generic_platform import ConstraintError
 
-from misoclib.mem.sdram.module import MT46V32M16
-from misoclib.mem.sdram.phy import s6ddrphy
-from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
-from misoclib.mem.flash import norflash16
-from misoclib.video import framebuffer
-from misoclib.soc import mem_decoder
-from misoclib.soc.sdram import SDRAMSoC
-from misoclib.com import gpio
-from misoclib.com.liteethmini.phy import LiteEthPHY
-from misoclib.com.liteethmini.mac import LiteEthMAC
+from misoc.mem.sdram.module import MT46V32M16
+from misoc.mem.sdram.phy import s6ddrphy
+from misoc.mem.sdram.core.lasmicon import LASMIconSettings
+from misoc.mem.flash import norflash16
+from misoc.video import framebuffer
+from misoc.soc import mem_decoder
+from misoc.soc.sdram import SDRAMSoC
+from misoc.com import gpio
+from misoc.com.liteethmini.phy import LiteEthPHY
+from misoc.com.liteethmini.mac import LiteEthMAC
 
 
 class _MXCRG(Module):
@@ -104,7 +104,7 @@ class BaseSoC(SDRAMSoC):
 INST "mxcrg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 """)
-        platform.add_source(os.path.join("misoclib", "mxcrg.v"))
+        platform.add_source(os.path.join("misoc", "mxcrg.v"))
 
 
 class MiniSoC(BaseSoC):

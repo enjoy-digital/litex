@@ -3,11 +3,11 @@ from fractions import Fraction
 from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoclib.mem.sdram.module import MT48LC4M16
-from misoclib.mem.sdram.phy import gensdrphy
-from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
-from misoclib.mem.flash import spiflash
-from misoclib.soc.sdram import SDRAMSoC
+from misoc.mem.sdram.module import MT48LC4M16
+from misoc.mem.sdram.phy import gensdrphy
+from misoc.mem.sdram.core.lasmicon import LASMIconSettings
+from misoc.mem.flash import spiflash
+from misoc.soc.sdram import SDRAMSoC
 
 
 class _CRG(Module):

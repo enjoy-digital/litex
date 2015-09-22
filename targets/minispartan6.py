@@ -4,10 +4,10 @@ from migen.fhdl.std import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.actorlib.fifo import SyncFIFO
 
-from misoclib.mem.sdram.module import AS4C16M16
-from misoclib.mem.sdram.phy import gensdrphy
-from misoclib.mem.sdram.core.lasmicon import LASMIconSettings
-from misoclib.soc.sdram import SDRAMSoC
+from misoc.mem.sdram.module import AS4C16M16
+from misoc.mem.sdram.phy import gensdrphy
+from misoc.mem.sdram.core.lasmicon import LASMIconSettings
+from misoc.soc.sdram import SDRAMSoC
 
 class _CRG(Module):
     def __init__(self, platform, clk_freq):

@@ -14,7 +14,7 @@ if sys.version_info < required_version:
         ".".join(map(str, required_version))))
 
 setup(
-    name="misoclib",
+    name="misoc",
     version="unknown",
     description="a high performance and small footprint SoC based on Migen",
     long_description=README,

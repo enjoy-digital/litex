@@ -2,9 +2,9 @@ from migen.fhdl.std import *
 from migen.bus import wishbone
 from migen.genlib.io import CRG
 
-from misoclib.soc import SoC, mem_decoder
-from misoclib.com.liteethmini.phy import LiteEthPHY
-from misoclib.com.liteethmini.mac import LiteEthMAC
+from misoc.soc import SoC, mem_decoder
+from misoc.com.liteethmini.phy import LiteEthPHY
+from misoc.com.liteethmini.mac import LiteEthMAC
 
 
 class BaseSoC(SoC):
