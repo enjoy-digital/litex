@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 from migen.fhdl.structure import *
-from migen.fhdl.structure import _Slice, _ArrayProxy
+from migen.fhdl.structure import _Statement, _Slice, _ArrayProxy
 from migen.fhdl.module import Module, FinalizeError
 from migen.fhdl.visit import NodeTransformer
 from migen.fhdl.bitcontainer import value_bits_sign
@@ -16,12 +16,12 @@ class AnonymousState:
 
 # do not use namedtuple here as it inherits tuple
 # and the latter is used elsewhere in FHDL
-class NextState:
+class NextState(_Statement):
     def __init__(self, state):
         self.state = state
 
 
-class NextValue:
+class NextValue(_Statement):
     def __init__(self, target, value):
         self.target = target
         self.value = value
