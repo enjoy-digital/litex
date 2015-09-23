@@ -1,8 +1,8 @@
-[submodule "extcores/lm32/submodule"]
-	path = extcores/lm32/submodule
+[submodule "misoc/lm32/verilog/submodule"]
+	path = misoc/lm32/verilog/submodule
 	url = https://github.com/m-labs/lm32.git
-[submodule "extcores/mor1kx/submodule"]
-	path = extcores/mor1kx/submodule
+[submodule "misoc/mor1kx/verilog"]
+	path = misoc/mor1kx/verilog
 	url = https://github.com/openrisc/mor1kx.git
 [submodule "software/compiler-rt"]
 	path = software/compiler-rt

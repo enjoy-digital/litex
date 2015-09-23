@@ -5,10 +5,9 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-required_version = (3, 3)
-if sys.version_info < required_version:
-    raise SystemExit("MiSoC requires python {0} or greater".format(
-        ".".join(map(str, required_version))))
+if sys.version_info[:3] < (3, 3):
+    raise SystemExit("You need Python 3.3+")
+
 
 setup(
     name="misoc",
