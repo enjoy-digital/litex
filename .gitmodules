@@ -1,8 +1,8 @@
-[submodule "misoc/lm32/verilog/submodule"]
-	path = misoc/lm32/verilog/submodule
+[submodule "misoc/cores/lm32/verilog/submodule"]
+	path = misoc/cores/lm32/verilog/submodule
 	url = https://github.com/m-labs/lm32.git
-[submodule "misoc/mor1kx/verilog"]
-	path = misoc/mor1kx/verilog
+[submodule "misoc/cores/mor1kx/verilog"]
+	path = misoc/cores/mor1kx/verilog
 	url = https://github.com/openrisc/mor1kx.git
 [submodule "software/compiler-rt"]
 	path = software/compiler-rt
