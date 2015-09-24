@@ -158,7 +158,6 @@ class SDRAMPHYSim(Module):
 
             # bank reads
             reads = Signal(len(phases))
-            read_data = Signal(data_width)
             cases = {}
             for np, phase in enumerate(phases):
                 self.comb += reads[np].eq(phase.read)

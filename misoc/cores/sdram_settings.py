@@ -1,9 +1,21 @@
-# SDRAM memory modules library
-#
-# This library avoid duplications of memory modules definitions in targets and
-# ease SDRAM usage. (User can only select an already existing module or create
-# one for its board and contribute to this library)
-#
+from math import ceil
+from collections import namedtuple
+
+from migen import *
+from misoc.mem import sdram
+
+
+PhySettingsT = namedtuple("PhySettings", "memtype dfi_databits nphases rdphase wrphase rdcmdphase wrcmdphase cl cwl read_latency write_latency")
+def PhySettings(memtype, dfi_databits, nphases, rdphase, wrphase, rdcmdphase, wrcmdphase, cl, read_latency, write_latency, cwl=0):
+    return PhySettingsT(memtype, dfi_databits, nphases, rdphase, wrphase, rdcmdphase, wrcmdphase, cl, cwl, read_latency, write_latency)
+
+GeomSettingsT = namedtuple("_GeomSettings", "bankbits rowbits colbits addressbits")
+def GeomSettings(bankbits, rowbits, colbits):
+    return GeomSettingsT(bankbits, rowbits, colbits, max(rowbits, colbits))
+
+TimingSettings = namedtuple("TimingSettings", "tRP tRCD tWR tWTR tREFI tRFC")
+
+
 # TODO:
 #   Try to share the maximum information we can between modules:
 #    - ex: MT46V32M16 and MT46H32M16 are almost identical (V=DDR, H=LPDDR)
@@ -13,11 +25,6 @@
 #      configurations.
 #    - Modules can have different speedgrades, add support for it (and also add
 #      a check to verify clk_freq is in the supported range)
-
-from math import ceil
-
-from migen import *
-from misoc.mem import sdram
 
 
 class SDRAMModule:

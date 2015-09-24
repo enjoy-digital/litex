@@ -4,7 +4,7 @@ from migen.sim.generic import run_simulation
 from misoc.mem.sdram.code import lasmibus
 from misoc.mem.sdram.core.lasmicon.bankmachine import *
 
-from common import sdram_phy, sdram_geom, sdram_timing, CommandLogger
+from test_common import sdram_phy, sdram_geom, sdram_timing, CommandLogger
 
 
 def my_generator():

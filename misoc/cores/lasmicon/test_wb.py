@@ -7,7 +7,7 @@ from misoc.mem.sdram.core import lasmibus
 from misoc.mem.sdram.core.lasmicon import *
 from misoc.mem.sdram.frontend import wishbone2lasmi
 
-from common import sdram_phy, sdram_geom, sdram_timing, DFILogger
+from test_common import sdram_phy, sdram_geom, sdram_timing, DFILogger
 
 l2_size = 8192  # in bytes
 

@@ -96,7 +96,6 @@ class Minicon(Module):
                                 address_align)
 
         # Manage banks
-        bank_open = Signal()
         bank_idle = Signal()
         bank_hit = Signal()
 
