@@ -1,15 +1,14 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoc.mem.sdram.module import MT8JTF12864
-from misoc.mem.sdram.phy import k7ddrphy
-from misoc.mem.sdram.core.lasmicon import LASMIconSettings
-from misoc.mem.flash import spiflash
-from misoc.soc import mem_decoder
-from misoc.soc.sdram import SDRAMSoC
-
-from misoc.com.liteethmini.phy import LiteEthPHY
-from misoc.com.liteethmini.mac import LiteEthMAC
+from misoc.cores.sdram_settings import MT8JTF12864
+from misoc.cores.sdram_phy import k7ddrphy
+from misoc.cores.lasmicon.core import LASMIconSettings
+from misoc.cores import spi_flash
+from misoc.cores.liteeth_mini.phy import LiteEthPHY
+from misoc.cores.liteeth_mini.mac import LiteEthMAC
+from misoc.integration.soc_core import mem_decoder
+from misoc.integration.soc_sdram import SoCSDRAM
 
 
 class _CRG(Module):
@@ -69,17 +68,17 @@ class _CRG(Module):
         self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
 
 
-class BaseSoC(SDRAMSoC):
+class BaseSoC(SoCSDRAM):
     default_platform = "kc705"
 
     csr_map = {
         "spiflash": 16,
         "ddrphy":   17,
     }
-    csr_map.update(SDRAMSoC.csr_map)
+    csr_map.update(SoCSDRAM.csr_map)
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
-        SDRAMSoC.__init__(self, platform,
+        SoCSDRAM.__init__(self, platform,
                           clk_freq=125*1000000, cpu_reset_address=0xaf0000,
                           sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
@@ -97,7 +96,7 @@ class BaseSoC(SDRAMSoC):
             self.specials += Instance("STARTUPE2",
                                       i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
                                       i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
-            self.submodules.spiflash = spiflash.SpiFlash(spiflash_pads, dummy=11, div=2)
+            self.submodules.spiflash = spi_flash.SpiFlash(spiflash_pads, dummy=11, div=2)
             self.add_constant("SPIFLASH_PAGE_SIZE", 256)
             self.add_constant("SPIFLASH_SECTOR_SIZE", 0x10000)
             self.flash_boot_address = 0xb00000

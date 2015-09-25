@@ -1,4 +1,8 @@
-from misoc.com.liteethmini.common import *
+from migen import *
+from migen.genlib.fsm import *
+from migen.genlib.record import Record
+
+from misoc.cores.liteeth_mini.common import eth_phy_description, eth_preamble
 
 
 class LiteEthMACPreambleInserter(Module):

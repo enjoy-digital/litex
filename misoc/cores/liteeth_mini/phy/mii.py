@@ -1,4 +1,6 @@
-from misoc.com.liteethmini.common import *
+from migen import *
+
+from misoc.interconnect.csr import *
 
 
 def converter_description(dw):
@@ -44,7 +46,7 @@ class LiteEthPHYMIIRX(Module):
 
         converter = Converter(converter_description(4),
                               converter_description(8))
-        converter = InsertReset(converter)
+        converter = ResetInserter(converter)
         self.submodules += converter
 
         self.sync += [

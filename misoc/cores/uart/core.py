@@ -1,15 +1,17 @@
 from migen import *
-from migen.bank.description import *
-from migen.bank.eventmanager import *
 from migen.genlib.record import Record
-from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
+
+from misoc.interconnect.csr import *
+from misoc.interconnect.csr_eventmanager import *
+# TODO: from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
+# TODO: remove dataflow?
 
 
 class RS232PHYRX(Module):
     def __init__(self, pads, tuning_word):
         self.source = Source([("data", 8)])
 
-        ###
+        # # #
 
         uart_clk_rxen = Signal()
         phase_accumulator_rx = Signal(32)

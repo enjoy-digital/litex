@@ -1,6 +1,7 @@
 from migen import *
-from migen.bus import wishbone
 from migen.genlib.fsm import FSM, NextState
+
+from misoc.interconnect import wishbone
 
 
 class NorFlash16(Module):

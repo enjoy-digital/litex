@@ -1,6 +1,7 @@
 from migen import *
-from migen.bank.description import *
-from migen.bank.eventmanager import *
+
+from misoc.interconnect.csr import *
+from misoc.interconnect.csr_eventmanager import *
 
 
 class Timer(Module, AutoCSR):

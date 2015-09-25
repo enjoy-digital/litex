@@ -16,11 +16,14 @@
 # Write commands must be sent on phase 1.
 #
 
+from functools import reduce
+from operator import or_
+
 from migen import *
 from migen.genlib.record import *
 
-from misoc.mem.sdram.phy.dfi import *
-from misoc.mem import sdram
+from misoc.interconnect.dfi import *
+from misoc.cores import sdram_settings
 
 
 class S6HalfRateDDRPHY(Module):
@@ -33,7 +36,7 @@ class S6HalfRateDDRPHY(Module):
         nphases = 2
 
         if module.memtype == "DDR3":
-            self.settings = sdram.PhySettings(
+            self.settings = sdram_settings.PhySettings(
                 memtype="DDR3",
                 dfi_databits=2*databits,
                 nphases=nphases,
@@ -47,7 +50,7 @@ class S6HalfRateDDRPHY(Module):
                 write_latency=2
             )
         else:
-            self.settings = sdram.PhySettings(
+            self.settings = sdram_settings.PhySettings(
                 memtype=module.memtype,
                 dfi_databits=2*databits,
                 nphases=nphases,
@@ -361,7 +364,7 @@ class S6HalfRateDDRPHY(Module):
 
         # write
         wrdata_en = Signal()
-        self.comb += wrdata_en.eq(optree("|", [d_dfi[p].wrdata_en for p in range(nphases)]))
+        self.comb += wrdata_en.eq(reduce(or_, [d_dfi[p].wrdata_en for p in range(nphases)]))
 
         if module.memtype == "DDR3":
             r_drive_dq = Signal(self.settings.cwl-1)
@@ -383,7 +386,7 @@ class S6HalfRateDDRPHY(Module):
 
         # read
         rddata_en = Signal()
-        self.comb += rddata_en.eq(optree("|", [d_dfi[p].rddata_en for p in range(nphases)]))
+        self.comb += rddata_en.eq(reduce(or_, [d_dfi[p].rddata_en for p in range(nphases)]))
 
         rddata_sr = Signal(self.settings.read_latency)
         sd_sys += rddata_sr.eq(Cat(rddata_sr[1:self.settings.read_latency], rddata_en))
@@ -407,7 +410,7 @@ class S6QuarterRateDDRPHY(Module):
         databits = flen(pads.dq)
         nphases = 4
 
-        self.settings = sdram.PhySettings(
+        self.settings = sdram_settings.PhySettings(
             memtype="DDR3",
             dfi_databits=2*databits,
             nphases=nphases,

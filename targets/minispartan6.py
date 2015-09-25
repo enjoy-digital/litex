@@ -2,12 +2,12 @@ from fractions import Fraction
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.actorlib.fifo import SyncFIFO
 
-from misoc.mem.sdram.module import AS4C16M16
-from misoc.mem.sdram.phy import gensdrphy
-from misoc.mem.sdram.core.lasmicon import LASMIconSettings
-from misoc.soc.sdram import SDRAMSoC
+from misoc.cores.sdram_settings import AS4C16M16
+from misoc.cores.sdram_phy import GENSDRPHY
+from misoc.cores.lasmicon.core import LASMIconSettings
+from misoc.integration.soc_sdram import SoCSDRAM
+
 
 class _CRG(Module):
     def __init__(self, platform, clk_freq):
@@ -60,12 +60,12 @@ class _CRG(Module):
                                   o_Q=platform.request("sdram_clock"))
 
 
-class BaseSoC(SDRAMSoC):
+class BaseSoC(SoCSDRAM):
     default_platform = "minispartan6"
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
         clk_freq = 80*1000000
-        SDRAMSoC.__init__(self, platform, clk_freq,
+        SoCSDRAM.__init__(self, platform, clk_freq,
                           integrated_rom_size=0x8000,
                           sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
@@ -73,8 +73,8 @@ class BaseSoC(SDRAMSoC):
         self.submodules.crg = _CRG(platform, clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"),
-                                                         AS4C16M16(clk_freq))
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"),
+                                               AS4C16M16(clk_freq))
             self.register_sdram_phy(self.sdrphy)
 
 default_subtarget = BaseSoC

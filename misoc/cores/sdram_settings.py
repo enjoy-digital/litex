@@ -2,7 +2,6 @@ from math import ceil
 from collections import namedtuple
 
 from migen import *
-from misoc.mem import sdram
 
 
 PhySettingsT = namedtuple("PhySettings", "memtype dfi_databits nphases rdphase wrphase rdcmdphase wrcmdphase cl cwl read_latency write_latency")
@@ -31,12 +30,12 @@ class SDRAMModule:
     def __init__(self, clk_freq, memtype, geom_settings, timing_settings):
         self.clk_freq = clk_freq
         self.memtype = memtype
-        self.geom_settings = sdram.GeomSettings(
+        self.geom_settings = GeomSettings(
             bankbits=log2_int(geom_settings["nbanks"]),
             rowbits=log2_int(geom_settings["nrows"]),
             colbits=log2_int(geom_settings["ncols"]),
         )
-        self.timing_settings = sdram.TimingSettings(
+        self.timing_settings = TimingSettings(
             tRP=self.ns(timing_settings["tRP"]),
             tRCD=self.ns(timing_settings["tRCD"]),
             tWR=self.ns(timing_settings["tWR"]),

@@ -1,4 +1,6 @@
-from misoc.com.liteethmini.common import *
+from migen import *
+
+from misoc.cores.liteeth_mini.common import eth_phy_description
 
 
 class LiteEthMACTXLastBE(Module):

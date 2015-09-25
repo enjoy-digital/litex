@@ -1,15 +1,14 @@
 from migen import *
-from migen.bus import wishbone
 from migen.genlib.io import CRG
 
-from misoc.soc import SoC, mem_decoder
-from misoc.com.liteethmini.phy import LiteEthPHY
-from misoc.com.liteethmini.mac import LiteEthMAC
+from misoc.cores.liteeth_mini.phy import LiteEthPHY
+from misoc.cores.liteeth_mini.mac import LiteEthMAC
+from misoc.integration.soc_core import SoCCore, mem_decoder
 
 
-class BaseSoC(SoC):
+class BaseSoC(SoCCore):
     def __init__(self, platform, **kwargs):
-        SoC.__init__(self, platform,
+        SoCCore.__init__(self, platform,
             clk_freq=int((1/(platform.default_clk_period))*1000000000),
             integrated_rom_size=0x8000,
             integrated_main_ram_size=16*1024,

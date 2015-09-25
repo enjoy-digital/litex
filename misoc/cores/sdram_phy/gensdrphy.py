@@ -23,10 +23,9 @@
 
 from migen import *
 from migen.genlib.record import *
-from migen.fhdl.specials import *
 
-from misoc.mem.sdram.phy.dfi import *
-from misoc.mem import sdram
+from misoc.interconnect.dfi import *
+from misoc.cores import sdram_settings
 
 
 class GENSDRPHY(Module):
@@ -35,7 +34,7 @@ class GENSDRPHY(Module):
         bankbits = flen(pads.ba)
         databits = flen(pads.dq)
 
-        self.settings = sdram.PhySettings(
+        self.settings = sdram_settings.PhySettings(
             memtype=module.memtype,
             dfi_databits=databits,
             nphases=1,

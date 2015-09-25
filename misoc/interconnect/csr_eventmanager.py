@@ -1,12 +1,15 @@
+from functools import reduce
+from operator import or_
+
+from migen import *
 from migen.util.misc import xdir
-from migen.fhdl.std import *
-from migen.bank.description import *
-from migen.genlib.misc import optree
+
+from misoc.interconnect.csr import *
 
 
-class _EventSource(HUID):
+class _EventSource(DUID):
     def __init__(self):
-        HUID.__init__(self)
+        DUID.__init__(self)
         self.status = Signal()  # value in the status register
         self.pending = Signal()  # value in the pending register + assert irq if unmasked
         self.trigger = Signal()  # trigger signal interface to the user design
@@ -53,7 +56,7 @@ class EventManager(Module, AutoCSR):
 
     def do_finalize(self):
         sources_u = [v for k, v in xdir(self, True) if isinstance(v, _EventSource)]
-        sources = sorted(sources_u, key=lambda x: x.huid)
+        sources = sorted(sources_u, key=lambda x: x.duid)
         n = len(sources)
         self.status = CSR(n)
         self.pending = CSR(n)
@@ -67,7 +70,7 @@ class EventManager(Module, AutoCSR):
             ]
 
         irqs = [self.pending.w[i] & self.enable.storage[i] for i in range(n)]
-        self.comb += self.irq.eq(optree("|", irqs))
+        self.comb += self.irq.eq(reduce(or_, irqs))
 
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
@@ -80,4 +83,4 @@ class EventManager(Module, AutoCSR):
 class SharedIRQ(Module):
     def __init__(self, *event_managers):
         self.irq = Signal()
-        self.comb += self.irq.eq(optree("|", [ev.irq for ev in event_managers]))
+        self.comb += self.irq.eq(reduce(or_, [ev.irq for ev in event_managers]))

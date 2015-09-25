@@ -1,10 +1,9 @@
 from migen import *
 from migen.genlib.roundrobin import *
 from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import optree
 from migen.genlib.fifo import SyncFIFO
 
-from misoc.mem.sdram.core.lasmicon.multiplexer import *
+from misoc.cores.lasmicon.multiplexer import *
 
 
 class _AddressSlicer:

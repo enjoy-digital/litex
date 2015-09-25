@@ -1,5 +1,8 @@
+from functools import reduce
+from operator import add
+
 from migen import *
-from migen.genlib.misc import optree
+
 
 control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
 
@@ -18,7 +21,7 @@ class Encoder(Module):
         d = Signal(8)
         n1d = Signal(max=9)
         self.sync += [
-            n1d.eq(optree("+", [self.d[i] for i in range(8)])),
+            n1d.eq(reduce(add, [self.d[i] for i in range(8)])),
             d.eq(self.d)
         ]
 
@@ -39,8 +42,8 @@ class Encoder(Module):
         n0q_m = Signal(max=9)
         n1q_m = Signal(max=9)
         self.sync += [
-            n0q_m.eq(optree("+", [~q_m[i] for i in range(8)])),
-            n1q_m.eq(optree("+", [q_m[i] for i in range(8)])),
+            n0q_m.eq(reduce(add, [~q_m[i] for i in range(8)])),
+            n1q_m.eq(reduce(add, [q_m[i] for i in range(8)])),
             q_m_r.eq(q_m)
         ]
 

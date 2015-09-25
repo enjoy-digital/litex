@@ -1,10 +1,9 @@
-from migen.fhdl.std import *
-from migen.bus.transactions import *
-from migen.bank.description import CSRStorage
+from migen import *
 from migen.genlib.record import *
 from migen.genlib.misc import chooser
 
 from misoc.interconnect import csr
+from misoc.interconnect.csr import CSRStorage
 
 
 _layout = [
@@ -24,42 +23,6 @@ class Interface(Record):
 class Interconnect(Module):
     def __init__(self, master, slaves):
         self.comb += master.connect(*slaves)
-
-
-class Initiator(Module):
-    def __init__(self, generator, bus=None):
-        self.generator = generator
-        if bus is None:
-            bus = Interface()
-        self.bus = bus
-        self.transaction = None
-        self.read_data_ready = False
-        self.done = False
-
-    def do_simulation(self, selfp):
-        if not self.done:
-            if self.transaction is not None:
-                if isinstance(self.transaction, TRead):
-                    if self.read_data_ready:
-                        self.transaction.data = selfp.bus.dat_r
-                        self.transaction = None
-                        self.read_data_ready = False
-                    else:
-                        self.read_data_ready = True
-                else:
-                    selfp.bus.we = 0
-                    self.transaction = None
-            if self.transaction is None:
-                try:
-                    self.transaction = next(self.generator)
-                except StopIteration:
-                    self.transaction = None
-                    raise StopSimulation
-                if self.transaction is not None:
-                    selfp.bus.adr = self.transaction.address
-                    if isinstance(self.transaction, TWrite):
-                        selfp.bus.we = 1
-                        selfp.bus.dat_w = self.transaction.data
 
 
 class SRAM(Module):

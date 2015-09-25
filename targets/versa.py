@@ -1,14 +1,13 @@
 from migen import *
-from migen.bus import wishbone
 from migen.genlib.io import CRG
 
-from misoc.soc import SoC
+from misoc.integration.soc_core import SoCCore
 
 
-class BaseSoC(SoC):
+class BaseSoC(SoCCore):
     default_platform = "versa"
     def __init__(self, platform, **kwargs):
-        SoC.__init__(self, platform,
+        SoCCore.__init__(self, platform,
                      clk_freq=100*1000000,
                      integrated_rom_size=0x8000,
                      **kwargs)

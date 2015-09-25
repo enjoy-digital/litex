@@ -1,10 +1,10 @@
 # tCK=5ns CL=7 CWL=6
 
 from migen import *
-from migen.bank.description import *
 
-from misoc.mem.sdram.phy.dfi import *
-from misoc.mem import sdram
+from misoc.interconnect.dfi import *
+from misoc.interconnect.csr import *
+from misoc.cores import sdram_settings
 
 
 class K7DDRPHY(Module, AutoCSR):
@@ -25,7 +25,7 @@ class K7DDRPHY(Module, AutoCSR):
         self._wdly_dqs_rst = CSR()
         self._wdly_dqs_inc = CSR()
 
-        self.settings = sdram.PhySettings(
+        self.settings = sdram_settings.PhySettings(
             memtype=module.memtype,
             dfi_databits=2*databits,
             nphases=nphases,

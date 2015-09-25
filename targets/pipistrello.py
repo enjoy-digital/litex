@@ -3,11 +3,11 @@ from fractions import Fraction
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoc.mem.sdram.module import MT46H32M16
-from misoc.mem.sdram.phy import s6ddrphy
-from misoc.mem.sdram.core.lasmicon import LASMIconSettings
-from misoc.mem.flash import spiflash
-from misoc.soc.sdram import SDRAMSoC
+from misoc.cores.sdram_settings import MT46H32M16
+from misoc.cores.sdram_phy import S6HalfRateDDRPHY
+from misoc.cores.lasmicon.core import LASMIconSettings
+from misoc.cores import spi_flash
+from misoc.integration.soc_sdram import SoCSDRAM
 
 
 class _CRG(Module):
@@ -90,17 +90,17 @@ class _CRG(Module):
                                   o_Q=clk.n)
 
 
-class BaseSoC(SDRAMSoC):
+class BaseSoC(SoCSDRAM):
     default_platform = "pipistrello"
 
     csr_map = {
         "spiflash": 16,
     }
-    csr_map.update(SDRAMSoC.csr_map)
+    csr_map.update(SoCSDRAM.csr_map)
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(),
                  clk_freq=(83 + Fraction(1, 3))*1000*1000, **kwargs):
-        SDRAMSoC.__init__(self, platform, clk_freq,
+        SoCSDRAM.__init__(self, platform, clk_freq,
                           cpu_reset_address=0x170000,  # 1.5 MB
                           sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
@@ -108,11 +108,11 @@ class BaseSoC(SDRAMSoC):
         self.submodules.crg = _CRG(platform, clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.ddrphy = s6ddrphy.S6HalfRateDDRPHY(platform.request("ddram"),
-                                                               MT46H32M16(self.clk_freq),
-                                                               rd_bitslip=1,
-                                                               wr_bitslip=3,
-                                                               dqs_ddr_alignment="C1")
+            self.submodules.ddrphy = S6HalfRateDDRPHY(platform.request("ddram"),
+                                                      MT46H32M16(self.clk_freq),
+                                                      rd_bitslip=1,
+                                                      wr_bitslip=3,
+                                                      dqs_ddr_alignment="C1")
             self.comb += [
                 self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
                 self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb),
@@ -120,8 +120,8 @@ class BaseSoC(SDRAMSoC):
             self.register_sdram_phy(self.ddrphy)
 
         if not self.integrated_rom_size:
-            self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash4x"),
-                                                         dummy=10, div=4)
+            self.submodules.spiflash = spi_flash.SpiFlash(platform.request("spiflash4x"),
+                                                          dummy=10, div=4)
             self.add_constant("SPIFLASH_PAGE_SIZE", 256)
             self.add_constant("SPIFLASH_SECTOR_SIZE", 0x10000)
             self.flash_boot_address = 0x180000

@@ -1,10 +1,9 @@
 from migen import *
 
-from misoc.mem.sdram.phy import dfi
-from misoc.mem.sdram.core import lasmibus
-from misoc.mem.sdram.core.lasmicon.refresher import *
-from misoc.mem.sdram.core.lasmicon.bankmachine import *
-from misoc.mem.sdram.core.lasmicon.multiplexer import *
+from misoc.interconnect import dfi, lasmi_bus
+from misoc.cores.lasmicon.refresher import *
+from misoc.cores.lasmicon.bankmachine import *
+from misoc.cores.lasmicon.multiplexer import *
 
 
 class LASMIconSettings:
@@ -36,7 +35,7 @@ class LASMIcon(Module):
             geom_settings.bankbits,
             phy_settings.dfi_databits,
             phy_settings.nphases)
-        self.lasmic = lasmibus.Interface(
+        self.lasmic = lasmi_bus.Interface(
             aw=geom_settings.rowbits + geom_settings.colbits - address_align,
             dw=phy_settings.dfi_databits*phy_settings.nphases,
             nbanks=2**geom_settings.bankbits,

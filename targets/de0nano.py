@@ -1,9 +1,9 @@
 from migen import *
 
-from misoc.mem.sdram.module import IS42S16160
-from misoc.mem.sdram.phy import gensdrphy
-from misoc.mem.sdram.core.lasmicon import LASMIconSettings
-from misoc.soc.sdram import SDRAMSoC
+from misoc.cores.sdram_settings import IS42S16160
+from misoc.cores.sdram_phy import GENSDRPHY
+from misoc.cores.lasmicon.core import LASMIconSettings
+from misoc.integration.soc_sdram import SoCSDRAM
 
 
 class _PLL(Module):
@@ -79,11 +79,11 @@ class _CRG(Module):
         self.comb += platform.request("sdram_clock").eq(self.cd_sys_ps.clk)
 
 
-class BaseSoC(SDRAMSoC):
+class BaseSoC(SoCSDRAM):
     default_platform = "de0nano"
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
-        SDRAMSoC.__init__(self, platform,
+        SoCSDRAM.__init__(self, platform,
                           clk_freq=100*1000000,
                           integrated_rom_size=0x8000,
                           sdram_controller_settings=sdram_controller_settings,
@@ -92,8 +92,8 @@ class BaseSoC(SDRAMSoC):
         self.submodules.crg = _CRG(platform)
 
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"),
-                                                         IS42S16160(self.clk_freq))
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"),
+                                               IS42S16160(self.clk_freq))
             self.register_sdram_phy(self.sdrphy)
 
 default_subtarget = BaseSoC

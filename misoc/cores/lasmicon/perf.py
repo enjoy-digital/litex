@@ -1,5 +1,6 @@
 from migen import *
-from migen.bank.description import *
+
+from misoc.interconnect.csr import *
 
 
 class Bandwidth(Module, AutoCSR):

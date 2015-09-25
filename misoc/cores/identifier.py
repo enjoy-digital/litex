@@ -1,7 +1,9 @@
 import subprocess
 
 from migen import *
-from migen.bank.description import *
+
+from misoc.interconnect.csr import *
+
 
 def get_id():
     output = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii")

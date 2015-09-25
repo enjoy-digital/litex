@@ -1,10 +1,9 @@
 from operator import itemgetter
 
 from migen import *
-from migen.bank import csrgen
-from migen.bus import wishbone, csr, wishbone2csr
 
-from misoc import lm32, mor1kx, identifier, timer, uart
+from misoc.cores import lm32, mor1kx, identifier, timer, uart
+from misoc.interconnect import wishbone, csr_bus, wishbone2csr
 
 
 def mem_decoder(address, start=26, end=29):
@@ -185,10 +184,11 @@ class SoCCore(Module):
 
         # CSR
         if self.with_csr:
-            self.submodules.csrbankarray = csrgen.BankArray(self,
+            self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
                 lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
                 data_width=self.csr_data_width, address_width=self.csr_address_width)
-            self.submodules.csrcon = csr.Interconnect(self.wishbone2csr.csr, self.csrbankarray.get_buses())
+            self.submodules.csrcon = csr_bus.Interconnect(
+                self.wishbone2csr.csr, self.csrbankarray.get_buses())
             for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
                 self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
             for name, memory, mapaddr, mmap in self.csrbankarray.srams:

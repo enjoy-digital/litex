@@ -1,5 +1,6 @@
 from migen import *
-from migen.bank.description import CSRStatus
+
+from misoc.interconnect.csr import CSRStatus
 
 
 def get_cpu_mak(cpu_type):

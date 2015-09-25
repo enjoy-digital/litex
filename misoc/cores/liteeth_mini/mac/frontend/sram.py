@@ -1,7 +1,9 @@
-from misoc.com.liteethmini.common import *
+from misoc import *
 
-from migen.bank.description import *
-from migen.bank.eventmanager import *
+from misoc.interconnect.csr import *
+from misoc.interconnect.csr_eventmanager import *
+
+from misoc.cores.liteeth_mini.common import eth_phy_description
 
 
 class LiteEthMACSRAMWriter(Module, AutoCSR):

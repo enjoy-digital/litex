@@ -1,7 +1,7 @@
-from migen.fhdl.std import *
-from migen.bus import wishbone
-from migen.bus import csr
+from migen import *
 from migen.genlib.misc import timeline
+
+from misoc.interconnect import csr, wishbone
 
 
 class WB2CSR(Module):

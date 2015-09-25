@@ -1,7 +1,9 @@
-from misoc.com.liteethmini.common import *
-from misoc.com.liteethmini.mac.core import gap, preamble, crc, padding, last_be
-from misoc.com.liteethmini.phy.sim import LiteEthPHYSim
-from misoc.com.liteethmini.phy.mii import LiteEthPHYMII
+from migen import *
+
+from misoc.interconnect.csr import *
+from misoc.cores.liteeth_mini.common import *
+from misoc.cores.liteeth_mini.mac.core import gap, preamble, crc, padding, last_be
+from misoc.cores.liteeth_mini.phy.mii import LiteEthPHYMII
 
 
 class LiteEthMACCore(Module, AutoCSR):
@@ -24,11 +26,7 @@ class LiteEthMACCore(Module, AutoCSR):
         rx_pipeline += [rx_gap_checker]
 
         # Preamble / CRC
-        if isinstance(phy, LiteEthPHYSim):
-            # In simulation, avoid CRC/Preamble to enable direct connection
-            # to the Ethernet tap.
-            self._preamble_crc = CSRStatus(reset=1)
-        elif with_preamble_crc:
+        if with_preamble_crc:
             self._preamble_crc = CSRStatus(reset=1)
             # Preamble insert/check
             preamble_inserter = preamble.LiteEthMACPreambleInserter(phy.dw)

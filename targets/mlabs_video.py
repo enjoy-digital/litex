@@ -3,18 +3,18 @@ from fractions import Fraction
 from math import ceil
 
 from migen import *
-from mibuild.generic_platform import ConstraintError
+from migen.build.generic_platform import ConstraintError
 
-from misoc.mem.sdram.module import MT46V32M16
-from misoc.mem.sdram.phy import s6ddrphy
-from misoc.mem.sdram.core.lasmicon import LASMIconSettings
-from misoc.mem.flash import norflash16
-from misoc.video import framebuffer
-from misoc.soc import mem_decoder
-from misoc.soc.sdram import SDRAMSoC
-from misoc.com import gpio
-from misoc.com.liteethmini.phy import LiteEthPHY
-from misoc.com.liteethmini.mac import LiteEthMAC
+from misoc.cores.sdram_settings import MT46V32M16
+from misoc.cores.sdram_phy import S6HalfRateDDRPHY
+from misoc.cores.lasmicon.core import LASMIconSettings
+from misoc.cores import nor_flash_16
+from misoc.cores import framebuffer
+from misoc.cores import gpio
+from misoc.cores.liteeth_mini.phy import LiteEthPHY
+from misoc.cores.liteeth_mini.mac import LiteEthMAC
+from misoc.integration.soc_core import mem_decoder
+from misoc.integration.soc_sdram import SoCSDRAM
 
 
 class _MXCRG(Module):
@@ -69,11 +69,11 @@ class _MXClockPads:
         self.ddr_clk_n = ddram_clock.n
 
 
-class BaseSoC(SDRAMSoC):
+class BaseSoC(SoCSDRAM):
     default_platform = "mixxeo"  # also supports m1
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
-        SDRAMSoC.__init__(self, platform,
+        SoCSDRAM.__init__(self, platform,
                           clk_freq=(83 + Fraction(1, 3))*1000000,
                           cpu_reset_address=0x00180000,
                           sdram_controller_settings=sdram_controller_settings,
@@ -82,11 +82,11 @@ class BaseSoC(SDRAMSoC):
         self.submodules.crg = _MXCRG(_MXClockPads(platform), self.clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.ddrphy = s6ddrphy.S6HalfRateDDRPHY(platform.request("ddram"),
-                                                               MT46V32M16(self.clk_freq),
-                                                               rd_bitslip=0,
-                                                               wr_bitslip=3,
-                                                               dqs_ddr_alignment="C1")
+            self.submodules.ddrphy = S6HalfRateDDRPHY(platform.request("ddram"),
+                                                      MT46V32M16(self.clk_freq),
+                                                      rd_bitslip=0,
+                                                      wr_bitslip=3,
+                                                      dqs_ddr_alignment="C1")
             self.register_sdram_phy(self.ddrphy)
             self.comb += [
                 self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
@@ -95,7 +95,8 @@ class BaseSoC(SDRAMSoC):
 
         if not self.integrated_rom_size:
             clk_period_ns = 1000000000/self.clk_freq
-            self.submodules.norflash = norflash16.NorFlash16(platform.request("norflash"),
+            self.submodules.norflash = nor_flash_16.NorFlash16(
+                platform.request("norflash"),
                 ceil(110/clk_period_ns), ceil(50/clk_period_ns))
             self.flash_boot_address = 0x001a0000
             self.register_rom(self.norflash.bus)

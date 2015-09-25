@@ -1,8 +1,10 @@
-from misoc.com.liteethmini.common import *
-from misoc.com.liteethmini.mac.frontend import sram
-
-from migen.bus import wishbone
+from migen import *
 from migen.fhdl.simplify import FullMemoryWE
+
+from misoc.cores.liteeth_mini.common import eth_phy_description
+from misoc.cores.liteeth_mini.mac.frontend import sram
+from misoc.interconnect import wishbone
+from misoc.interconnect.csr import *
 
 
 class LiteEthMACWishboneInterface(Module, AutoCSR):

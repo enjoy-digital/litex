@@ -1,9 +1,12 @@
-from migen import *
-from migen.bus import wishbone
-from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import optree, WaitTimer
+from functools import reduce
+from operator import or_
 
-from misoc.mem.sdram.phy import dfi as dfibus
+from migen import *
+from migen.genlib.fsm import FSM, NextState
+from migen.genlib.misc import WaitTimer
+
+from misoc.interconnect import dfi as dfibus
+from misoc.interconnect import wishbone
 
 
 class _AddressSlicer:
@@ -36,8 +39,8 @@ class _AddressSlicer:
             return Cat(Replicate(0, self.address_align), address[:split])
 
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
+@ResetInserter()
+@CEInserter()
 class _Bank(Module):
     def __init__(self, geom_settings):
         self.open = Signal()
@@ -116,8 +119,8 @@ class Minicon(Module):
         self.comb += Case(slicer.bank(bus.adr), cases)
 
         self.comb += [
-            bank_hit.eq(optree("|", [bank.hit & bank.ce for bank in banks])),
-            bank_idle.eq(optree("|", [bank.idle & bank.ce for bank in banks])),
+            bank_hit.eq(reduce(or_, [bank.hit & bank.ce for bank in banks])),
+            bank_idle.eq(reduce(or_, [bank.idle & bank.ce for bank in banks])),
         ]
 
         # Timings

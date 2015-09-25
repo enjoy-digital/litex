@@ -1,4 +1,4 @@
-from misoc.com.liteethmini.common import *
+from misoc.cores.liteeth_mini.common import *
 
 
 def LiteEthPHY(clock_pads, pads, clk_freq=None, **kwargs):

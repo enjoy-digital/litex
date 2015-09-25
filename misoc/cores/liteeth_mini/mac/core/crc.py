@@ -1,4 +1,4 @@
-from misoc.com.liteethmini.common import *
+from migen import *
 
 
 class LiteEthMACCRCEngine(Module):
@@ -70,8 +70,8 @@ class LiteEthMACCRCEngine(Module):
             self.comb += self.next[i].eq(optree("^", xors))
 
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
+@ResetInserter()
+@CEInserter()
 class LiteEthMACCRC32(Module):
     """IEEE 802.3 CRC
 
@@ -224,7 +224,6 @@ class LiteEthMACCRCChecker(Module):
         self.submodules += crc
         ratio = crc.width//dw
 
-        error = Signal()
         fifo = InsertReset(SyncFIFO(description, ratio + 1))
         self.submodules += fifo
 

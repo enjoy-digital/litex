@@ -1,11 +1,14 @@
 from migen import *
-from migen.bus import wishbone
 from migen.genlib.record import *
 
-from misoc.mem.sdram.core.lasmicon import LASMIconSettings
-from misoc.mem.sdram.core.minicon import MiniconSettings
-from misoc.mem.sdram.frontend import memtest, wishbone2lasmi
+from misoc.interconnect import wishbone, wishbone2lasmi
+from misoc.interconnect.csr import AutoCSR
+from misoc.cores import sdram_tester
 from misoc.integration.soc_core import SoCCore
+
+# TODO: cleanup
+from misoc.cores.lasmicon.core import LASMIconSettings
+from misoc.cores.minicon.core import MiniconSettings
 
 
 class SDRAMCore(Module, AutoCSR):
@@ -44,11 +47,11 @@ class SoCSDRAM(SoCCore):
         "memtest_w":      10,
         "memtest_r":      11
     }
-    csr_map.update(SoC.csr_map)
+    csr_map.update(SoCCore.csr_map)
 
     def __init__(self, platform, clk_freq, sdram_controller_settings,
             **kwargs):
-        SoC.__init__(self, platform, clk_freq, **kwargs)
+        SoCCore.__init__(self, platform, clk_freq, **kwargs)
         if isinstance(sdram_controller_settings, str):
             self.sdram_controller_settings = eval(sdram_controller_settings)
         else:
@@ -95,8 +98,8 @@ class SoCSDRAM(SoCCore):
                 self.sdram.controller.multiplexer.add_bandwidth()
 
             if self.sdram_controller_settings.with_memtest:
-                self.submodules.memtest_w = memtest.MemtestWriter(self.sdram.crossbar.get_master())
-                self.submodules.memtest_r = memtest.MemtestReader(self.sdram.crossbar.get_master())
+                self.submodules.memtest_w = sdram_tester.Writer(self.sdram.crossbar.get_master())
+                self.submodules.memtest_r = sdram_tester.Reader(self.sdram.crossbar.get_master())
 
             if l2_size:
                 lasmim = self.sdram.crossbar.get_master()
@@ -136,4 +139,4 @@ class SoCSDRAM(SoCCore):
             # arbitrate wishbone interfaces to the DRAM
             self.submodules.wb_sdram_con = wishbone.Arbiter(self._wb_sdram_ifs,
                                                             self._wb_sdram)
-        SoC.do_finalize(self)
+        SoCCore.do_finalize(self)

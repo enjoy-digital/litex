@@ -1,6 +1,7 @@
 from migen import *
 from migen.genlib.fsm import FSM, NextState
 
+
 class WB2LASMI(Module):
     def __init__(self, wishbone, lasmim):
 

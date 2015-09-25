@@ -1,13 +1,16 @@
+from functools import reduce
+from operator import xor
+
 from migen import *
-from migen.genlib.misc import optree
-from migen.bank.description import *
-from migen.actorlib.spi import *
 
-from misoc.mem.sdram.frontend import dma_lasmi
+from misoc.interconnect.csr import *
+from misoc.interconnect import dma_lasmi
+
+# TODO: implement or replace DMAControllers in MiSoC
 
 
-@DecorateModule(InsertReset)
-@DecorateModule(InsertCE)
+@ResetInserter()
+@CEInserter()
 class LFSR(Module):
     def __init__(self, n_out, n_state=31, taps=[27, 30]):
         self.o = Signal(n_out)
@@ -18,7 +21,7 @@ class LFSR(Module):
         curval = [state[i] for i in range(n_state)]
         curval += [0]*(n_out - n_state)
         for i in range(n_out):
-            nv = ~optree("^", [curval[tap] for tap in taps])
+            nv = ~reduce(xor, [curval[tap] for tap in taps])
             curval.insert(0, nv)
             curval.pop()
 
@@ -27,10 +30,11 @@ class LFSR(Module):
             self.o.eq(Cat(*curval))
         ]
 
+
 memtest_magic = 0x361f
 
 
-class MemtestWriter(Module):
+class Writer(Module):
     def __init__(self, lasmim):
         self._magic = CSRStatus(16)
         self._reset = CSR()
@@ -68,7 +72,7 @@ class MemtestWriter(Module):
         return [self._magic, self._reset, self._shoot] + self._dma.get_csrs()
 
 
-class MemtestReader(Module):
+class Reader(Module):
     def __init__(self, lasmim):
         self._magic = CSRStatus(16)
         self._reset = CSR()

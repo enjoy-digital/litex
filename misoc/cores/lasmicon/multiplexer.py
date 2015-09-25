@@ -1,10 +1,12 @@
+from functools import reduce
+from operator import or_, and_
+
 from migen import *
 from migen.genlib.roundrobin import *
-from migen.genlib.misc import optree
 from migen.genlib.fsm import FSM, NextState
-from migen.bank.description import AutoCSR
 
-from misoc.mem.sdram.core.lasmicon.perf import Bandwidth
+from misoc.cores.lasmicon.perf import Bandwidth
+from misoc.interconnect.csr import AutoCSR
 
 
 class CommandRequest:
@@ -124,8 +126,8 @@ class Multiplexer(Module, AutoCSR):
         read_available = Signal()
         write_available = Signal()
         self.comb += [
-            read_available.eq(optree("|", [req.stb & req.is_read for req in requests])),
-            write_available.eq(optree("|", [req.stb & req.is_write for req in requests]))
+            read_available.eq(reduce(or_, [req.stb & req.is_read for req in requests])),
+            write_available.eq(reduce(or_, [req.stb & req.is_write for req in requests]))
         ]
 
         def anti_starvation(timeout):
@@ -149,7 +151,7 @@ class Multiplexer(Module, AutoCSR):
         # Refresh
         self.comb += [bm.refresh_req.eq(refresher.req) for bm in bank_machines]
         go_to_refresh = Signal()
-        self.comb += go_to_refresh.eq(optree("&", [bm.refresh_gnt for bm in bank_machines]))
+        self.comb += go_to_refresh.eq(reduce(and_, [bm.refresh_gnt for bm in bank_machines]))
 
         # Datapath
         all_rddata = [p.rddata for p in dfi.phases]

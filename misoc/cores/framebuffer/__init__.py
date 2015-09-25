@@ -1,1 +1,1 @@
-from misoc.framebuffer.core import Framebuffer
+from misoc.cores.framebuffer.core import Framebuffer

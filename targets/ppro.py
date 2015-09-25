@@ -3,11 +3,11 @@ from fractions import Fraction
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoc.mem.sdram.module import MT48LC4M16
-from misoc.mem.sdram.phy import gensdrphy
-from misoc.mem.sdram.core.lasmicon import LASMIconSettings
-from misoc.mem.flash import spiflash
-from misoc.soc.sdram import SDRAMSoC
+from misoc.cores.sdram_settings import MT48LC4M16
+from misoc.cores.sdram_phy import GENSDRPHY
+from misoc.cores.lasmicon.core import LASMIconSettings
+from misoc.cores import spi_flash
+from misoc.integration.soc_sdram import SoCSDRAM
 
 
 class _CRG(Module):
@@ -61,17 +61,17 @@ class _CRG(Module):
                                   o_Q=platform.request("sdram_clock"))
 
 
-class BaseSoC(SDRAMSoC):
+class BaseSoC(SoCSDRAM):
     default_platform = "papilio_pro"
 
     csr_map = {
         "spiflash": 16,
     }
-    csr_map.update(SDRAMSoC.csr_map)
+    csr_map.update(SoCSDRAM.csr_map)
 
     def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
         clk_freq = 80*1000000
-        SDRAMSoC.__init__(self, platform, clk_freq,
+        SoCSDRAM.__init__(self, platform, clk_freq,
                           cpu_reset_address=0x60000,
                           sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
@@ -79,13 +79,13 @@ class BaseSoC(SDRAMSoC):
         self.submodules.crg = _CRG(platform, clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = gensdrphy.GENSDRPHY(platform.request("sdram"),
-                                                         MT48LC4M16(clk_freq))
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"),
+                                               MT48LC4M16(clk_freq))
             self.register_sdram_phy(self.sdrphy)
 
         if not self.integrated_rom_size:
-            self.submodules.spiflash = spiflash.SpiFlash(platform.request("spiflash2x"),
-                                                         dummy=4, div=6)
+            self.submodules.spiflash = spi_flash.SpiFlash(platform.request("spiflash2x"),
+                                                          dummy=4, div=6)
             self.flash_boot_address = 0x70000
             self.register_rom(self.spiflash.bus)
 

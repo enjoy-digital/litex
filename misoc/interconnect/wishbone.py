@@ -1,12 +1,15 @@
-from migen.fhdl.std import *
+from functools import reduce
+from operator import or_
+
+from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
-from migen.genlib.misc import split, displacer, optree, chooser
-from migen.genlib.misc import FlipFlop, Counter
+from migen.genlib.misc import split, displacer, chooser
 from migen.genlib.fsm import FSM, NextState
-from migen.bus.transactions import *
 
 from misoc.interconnect import csr
+
+# TODO: rewrite without FlipFlop and Counter
 
 
 _layout = [
@@ -94,13 +97,13 @@ class Decoder(Module):
 
         # generate master ack (resp. err) by ORing all slave acks (resp. errs)
         self.comb += [
-            master.ack.eq(optree("|", [slave[1].ack for slave in slaves])),
-            master.err.eq(optree("|", [slave[1].err for slave in slaves]))
+            master.ack.eq(reduce(or_, [slave[1].ack for slave in slaves])),
+            master.err.eq(reduce(or_, [slave[1].err for slave in slaves]))
         ]
 
         # mux (1-hot) slave data return
         masked = [Replicate(slave_sel_r[i], flen(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
-        self.comb += master.dat_r.eq(optree("|", masked))
+        self.comb += master.dat_r.eq(reduce(or_, masked))
 
 
 class InterconnectShared(Module):
@@ -564,94 +567,6 @@ class Cache(Module):
                 )
             )
         )
-
-
-class Tap(Module):
-    def __init__(self, bus, handler=print):
-        self.bus = bus
-        self.handler = handler
-
-    def do_simulation(self, selfp):
-        if selfp.bus.ack:
-            assert(selfp.bus.cyc and selfp.bus.stb)
-            if selfp.bus.we:
-                transaction = TWrite(selfp.bus.adr,
-                    selfp.bus.dat_w,
-                    selfp.bus.sel)
-            else:
-                transaction = TRead(selfp.bus.adr,
-                    selfp.bus.dat_r)
-            self.handler(transaction)
-    do_simulation.passive = True
-
-
-class Initiator(Module):
-    def __init__(self, generator, bus=None):
-        self.generator = generator
-        if bus is None:
-            bus = Interface()
-        self.bus = bus
-        self.transaction_start = 0
-        self.transaction = None
-
-    def do_simulation(self, selfp):
-        if self.transaction is None or selfp.bus.ack:
-            if self.transaction is not None:
-                self.transaction.latency = selfp.simulator.cycle_counter - self.transaction_start - 1
-                if isinstance(self.transaction, TRead):
-                    self.transaction.data = selfp.bus.dat_r
-            try:
-                self.transaction = next(self.generator)
-            except StopIteration:
-                selfp.bus.cyc = 0
-                selfp.bus.stb = 0
-                raise StopSimulation
-            if self.transaction is not None:
-                self.transaction_start = selfp.simulator.cycle_counter
-                selfp.bus.cyc = 1
-                selfp.bus.stb = 1
-                selfp.bus.adr = self.transaction.address
-                if isinstance(self.transaction, TWrite):
-                    selfp.bus.we = 1
-                    selfp.bus.sel = self.transaction.sel
-                    selfp.bus.dat_w = self.transaction.data
-                else:
-                    selfp.bus.we = 0
-            else:
-                selfp.bus.cyc = 0
-                selfp.bus.stb = 0
-
-
-class TargetModel:
-    def read(self, address):
-        return 0
-
-    def write(self, address, data, sel):
-        pass
-
-    def can_ack(self, bus):
-        return True
-
-
-class Target(Module):
-    def __init__(self, model, bus=None):
-        if bus is None:
-            bus = Interface()
-        self.bus = bus
-        self.model = model
-
-    def do_simulation(self, selfp):
-        bus = selfp.bus
-        if not bus.ack:
-            if self.model.can_ack(bus) and bus.cyc and bus.stb:
-                if bus.we:
-                    self.model.write(bus.adr, bus.dat_w, bus.sel)
-                else:
-                    bus.dat_r = self.model.read(bus.adr)
-                bus.ack = 1
-        else:
-            bus.ack = 0
-    do_simulation.passive = True
 
 
 class SRAM(Module):

@@ -1,11 +1,11 @@
+from migen import *
 from migen.util.misc import xdir
-from migen.fhdl.std import *
 from migen.fhdl.tracer import get_obj_var_name
 
 
-class _CSRBase(HUID):
+class _CSRBase(DUID):
     def __init__(self, size, name):
-        HUID.__init__(self)
+        DUID.__init__(self)
         self.name = get_obj_var_name(name)
         if self.name is None:
             raise ValueError("Cannot extract CSR name from code, need to specify.")
@@ -93,16 +93,16 @@ class CSRStorage(_CompoundCSR):
 
 def csrprefix(prefix, csrs, done):
     for csr in csrs:
-        if csr.huid not in done:
+        if csr.duid not in done:
             csr.name = prefix + csr.name
-            done.add(csr.huid)
+            done.add(csr.duid)
 
 
 def memprefix(prefix, memories, done):
     for memory in memories:
-        if memory.huid not in done:
+        if memory.duid not in done:
             memory.name_override = prefix + memory.name_override
-            done.add(memory.huid)
+            done.add(memory.duid)
 
 
 def _make_gatherer(method, cls, prefix_cb):
@@ -124,7 +124,7 @@ def _make_gatherer(method, cls, prefix_cb):
                     items = getattr(v, method)()
                     prefix_cb(k + "_", items, prefixed)
                     r += items
-        return sorted(r, key=lambda x: x.huid)
+        return sorted(r, key=lambda x: x.duid)
     return gatherer
 
 

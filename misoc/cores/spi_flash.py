@@ -1,9 +1,9 @@
 from migen import *
-from migen.bus.transactions import *
-from migen.bus import wishbone
 from migen.genlib.misc import timeline
-from migen.genlib.record import Record
-from migen.bank.description import AutoCSR, CSRStorage, CSRStatus
+
+from misoc.interconnect import wishbone
+from misoc.interconnect.csr import AutoCSR, CSRStorage, CSRStatus
+
 
 _FAST_READ = 0x0b
 _DIOFR = 0xbb
@@ -142,40 +142,3 @@ class SpiFlash(Module, AutoCSR):
             t += dt
 
         self.sync += timeline(bus.cyc & bus.stb & (i == div - 1), tseq)
-
-
-class SpiFlashTB(Module):
-    def __init__(self):
-        self.submodules.master = wishbone.Initiator(self.gen_reads())
-        self.pads = Record([("cs_n", 1), ("clk", 1), ("dq", 4)])
-        self.submodules.slave = SpiFlash(self.pads)
-        self.submodules.tap = wishbone.Tap(self.slave.bus)
-        self.submodules.intercon = wishbone.InterconnectPointToPoint(
-                self.master.bus, self.slave.bus)
-        self.cycle = 0
-
-    def gen_reads(self):
-        for a in range(10):
-            t = TRead(a)
-            yield t
-            print("read {} in {} cycles(s)".format(t.data, t.latency))
-
-    def do_simulation(self, selfp):
-        if selfp.pads.cs_n:
-            self.cycle = 0
-        else:
-            self.cycle += 1
-            if not selfp.slave.dq.oe:
-                selfp.slave.dq.i = self.cycle & 0xf
-    do_simulation.passive = True
-
-if __name__ == "__main__":
-    from migen.sim.generic import run_simulation
-    from migen.fhdl import verilog
-
-    pads = Record([("cs_n", 1), ("clk", 1), ("dq", 4)])
-    s = SpiFlash(pads)
-    print(verilog.convert(s, ios={pads.clk, pads.cs_n, pads.dq, s.bus.adr,
-        s.bus.dat_r, s.bus.cyc, s.bus.ack, s.bus.stb}))
-
-    run_simulation(SpiFlashTB(), vcd_name="spiflash.vcd")

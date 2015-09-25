@@ -2,7 +2,7 @@ from migen import *
 from migen.genlib.misc import timeline
 from migen.genlib.fsm import FSM
 
-from misoc.mem.sdram.core.lasmicon.multiplexer import *
+from misoc.cores.lasmicon.multiplexer import *
 
 
 class Refresher(Module):

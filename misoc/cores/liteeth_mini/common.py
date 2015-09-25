@@ -1,16 +1,15 @@
-import math
-from collections import OrderedDict
-
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.record import *
-from migen.genlib.fsm import FSM, NextState
-from migen.genlib.misc import chooser, reverse_bytes, FlipFlop, Counter, WaitTimer
-from migen.flow.actor import *
-from migen.actorlib.structuring import Converter, Pipeline
-from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
-from migen.actorlib.packet import *
-from migen.bank.description import *
+
+from misoc.interconnect.csr import *
+
+
+# TODO: rewrite without dataflow or implement those
+# from migen.flow.actor import *
+# from migen.actorlib.structuring import Converter, Pipeline
+# from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
+# from migen.actorlib.packet import *
+
 
 class Port:
     def connect(self, port):
@@ -25,6 +24,7 @@ eth_min_len = 46
 eth_interpacket_gap = 12
 eth_preamble = 0xD555555555555555
 buffer_depth = 2**log2_int(eth_mtu, need_pow2=False)
+
 
 def eth_phy_description(dw):
     payload_layout = [

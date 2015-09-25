@@ -1,4 +1,10 @@
-from misoc.com.liteethmini.common import *
+import math
+
+from migen import *
+from migen.genlib.fsm import *
+
+from misoc.cores.liteeth_mini.common import eth_phy_description
+
 
 class LiteEthMACGap(Module):
     def __init__(self, dw, ack_on_gap=False):

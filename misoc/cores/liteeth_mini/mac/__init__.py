@@ -1,6 +1,9 @@
-from misoc.com.liteethmini.common import *
-from misoc.com.liteethmini.mac.core import LiteEthMACCore
-from misoc.com.liteethmini.mac.frontend.wishbone import LiteEthMACWishboneInterface
+from migen import *
+
+from misoc.interconnect.csr import *
+from misoc.cores.liteeth_mini.common import *
+from misoc.cores.liteeth_mini.mac.core import LiteEthMACCore
+from misoc.cores.liteeth_mini.mac.frontend.wishbone import LiteEthMACWishboneInterface
 
 
 class LiteEthMAC(Module, AutoCSR):
