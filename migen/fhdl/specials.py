@@ -44,7 +44,7 @@ class Tristate(Special):
         self.target = wrap(target)
         self.o = wrap(o)
         self.oe = wrap(oe)
-        self.i = wrap(i)
+        self.i = wrap(i) if i is not None else None
 
     def iter_expressions(self):
         for attr, target_context in [
@@ -52,7 +52,8 @@ class Tristate(Special):
           ("o", SPECIAL_INPUT),
           ("oe", SPECIAL_INPUT),
           ("i", SPECIAL_OUTPUT)]:
-            yield self, attr, target_context
+            if getattr(self, attr) is not None:
+                yield self, attr, target_context
 
     @staticmethod
     def emit_verilog(tristate, ns, add_data_file):
