@@ -41,10 +41,10 @@ class Special(DUID):
 class Tristate(Special):
     def __init__(self, target, o, oe, i=None):
         Special.__init__(self)
-        self.target = target
-        self.o = o
-        self.oe = oe
-        self.i = i
+        self.target = wrap(target)
+        self.o = wrap(o)
+        self.oe = wrap(oe)
+        self.i = wrap(i)
 
     def iter_expressions(self):
         for attr, target_context in [
@@ -84,7 +84,7 @@ class Instance(Special):
             self.name = name
             if expr is None:
                 expr = Signal()
-            self.expr = expr
+            self.expr = wrap(expr)
     class Input(_IO):
         pass
     class Output(_IO):
@@ -94,6 +94,8 @@ class Instance(Special):
     class Parameter:
         def __init__(self, name, value):
             self.name = name
+            if isinstance(value, (int, bool)):
+                value = Constant(value)
             self.value = value
     class PreformattedParam(str):
         pass
@@ -143,7 +145,7 @@ class Instance(Special):
                     r += ",\n"
                 firstp = False
                 r += "\t." + p.name + "("
-                if isinstance(p.value, (int, bool)):
+                if isinstance(p.value, Constant):
                     r += verilog_printexpr(ns, p.value)[0]
                 elif isinstance(p.value, float):
                     r += str(p.value)

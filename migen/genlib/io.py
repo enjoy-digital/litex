@@ -6,9 +6,9 @@ from migen.fhdl.specials import Special
 class DifferentialInput(Special):
     def __init__(self, i_p, i_n, o):
         Special.__init__(self)
-        self.i_p = i_p
-        self.i_n = i_n
-        self.o = o
+        self.i_p = wrap(i_p)
+        self.i_n = wrap(i_n)
+        self.o = wrap(o)
 
     def iter_expressions(self):
         yield self, "i_p", SPECIAL_INPUT
@@ -23,9 +23,9 @@ class DifferentialInput(Special):
 class DifferentialOutput(Special):
     def __init__(self, i, o_p, o_n):
         Special.__init__(self)
-        self.i = i
-        self.o_p = o_p
-        self.o_n = o_n
+        self.i = wrap(i)
+        self.o_p = wrap(o_p)
+        self.o_n = wrap(o_n)
 
     def iter_expressions(self):
         yield self, "i", SPECIAL_INPUT
@@ -60,10 +60,10 @@ class CRG(Module):
 class DDRInput(Special):
     def __init__(self, i, o1, o2, clk=ClockSignal()):
         Special.__init__(self)
-        self.i = i
-        self.o1 = o1
-        self.o2 = o2
-        self.clk = clk
+        self.i = wrap(i)
+        self.o1 = wrap(o1)
+        self.o2 = wrap(o2)
+        self.clk = wrap(clk)
 
     def iter_expressions(self):
         yield self, "i", SPECIAL_INPUT

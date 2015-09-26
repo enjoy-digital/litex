@@ -39,8 +39,8 @@ class MultiRegImpl(Module):
 class MultiReg(Special):
     def __init__(self, i, o, odomain="sys", n=2):
         Special.__init__(self)
-        self.i = i
-        self.o = o
+        self.i = wrap(i)
+        self.o = wrap(o)
         self.odomain = odomain
         self.n = n
 
