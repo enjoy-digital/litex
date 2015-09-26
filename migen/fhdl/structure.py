@@ -5,15 +5,15 @@ from migen.fhdl import tracer as _tracer
 from migen.util.misc import flat_iteration as _flat_iteration
 
 
-class _DUID:
+class DUID:
     """Deterministic Unique IDentifier"""
     __next_uid = 0
     def __init__(self):
-        self.duid = _DUID.__next_uid
-        _DUID.__next_uid += 1
+        self.duid = DUID.__next_uid
+        DUID.__next_uid += 1
 
 
-class _Value(_DUID):
+class _Value(DUID):
     """Base class for operands
 
     Instances of `_Value` or its subclasses can be operands to
