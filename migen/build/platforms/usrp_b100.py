@@ -135,7 +135,7 @@ TIMESPEC TS_Pad2Pad = FROM PADS TO PADS 7 ns;
                     (gpif.ctl, "in"), (gpif.adr, "out"),
                     (gpif.slwr, "out"), (gpif.sloe, "out"),
                     (gpif.slrd, "out"), (gpif.pktend, "out")]:
-                if flen(i) > 1:
+                if len(i) > 1:
                     q = "(*)"
                 else:
                     q = ""

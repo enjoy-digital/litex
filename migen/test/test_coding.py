@@ -12,9 +12,9 @@ class EncCase(SimCase, unittest.TestCase):
             self.submodules.dut = Encoder(8)
 
     def test_sizes(self):
-        self.assertEqual(flen(self.tb.dut.i), 8)
-        self.assertEqual(flen(self.tb.dut.o), 3)
-        self.assertEqual(flen(self.tb.dut.n), 1)
+        self.assertEqual(len(self.tb.dut.i), 8)
+        self.assertEqual(len(self.tb.dut.o), 3)
+        self.assertEqual(len(self.tb.dut.n), 1)
 
     def test_run_sequence(self):
         seq = list(range(1<<8))
@@ -36,9 +36,9 @@ class PrioEncCase(SimCase, unittest.TestCase):
             self.submodules.dut = PriorityEncoder(8)
 
     def test_sizes(self):
-        self.assertEqual(flen(self.tb.dut.i), 8)
-        self.assertEqual(flen(self.tb.dut.o), 3)
-        self.assertEqual(flen(self.tb.dut.n), 1)
+        self.assertEqual(len(self.tb.dut.i), 8)
+        self.assertEqual(len(self.tb.dut.o), 3)
+        self.assertEqual(len(self.tb.dut.n), 1)
 
     def test_run_sequence(self):
         seq = list(range(1<<8))
@@ -64,9 +64,9 @@ class DecCase(SimCase, unittest.TestCase):
             self.submodules.dut = Decoder(8)
 
     def test_sizes(self):
-        self.assertEqual(flen(self.tb.dut.i), 3)
-        self.assertEqual(flen(self.tb.dut.o), 8)
-        self.assertEqual(flen(self.tb.dut.n), 1)
+        self.assertEqual(len(self.tb.dut.i), 3)
+        self.assertEqual(len(self.tb.dut.o), 8)
+        self.assertEqual(len(self.tb.dut.n), 1)
 
     def test_run_sequence(self):
         seq = list(range(8*2))
@@ -91,9 +91,9 @@ class SmallPrioEncCase(SimCase, unittest.TestCase):
             self.submodules.dut = PriorityEncoder(1)
 
     def test_sizes(self):
-        self.assertEqual(flen(self.tb.dut.i), 1)
-        self.assertEqual(flen(self.tb.dut.o), 1)
-        self.assertEqual(flen(self.tb.dut.n), 1)
+        self.assertEqual(len(self.tb.dut.i), 1)
+        self.assertEqual(len(self.tb.dut.o), 1)
+        self.assertEqual(len(self.tb.dut.n), 1)
 
     def test_run_sequence(self):
         seq = list(range(1))

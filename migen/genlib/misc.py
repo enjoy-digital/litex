@@ -19,8 +19,8 @@ def displacer(signal, shift, output, n=None, reverse=False):
     if shift is None:
         return output.eq(signal)
     if n is None:
-        n = 2**flen(shift)
-    w = flen(signal)
+        n = 2**len(shift)
+    w = len(signal)
     if reverse:
         r = reversed(range(n))
     else:
@@ -33,8 +33,8 @@ def chooser(signal, shift, output, n=None, reverse=False):
     if shift is None:
         return output.eq(signal)
     if n is None:
-        n = 2**flen(shift)
-    w = flen(output)
+        n = 2**len(shift)
+    w = len(output)
     cases = {}
     for i in range(n):
         if reverse:

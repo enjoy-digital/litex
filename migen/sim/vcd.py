@@ -1,6 +1,5 @@
 from itertools import count
 
-from migen.fhdl.bitcontainer import flen
 from migen.fhdl.namer import build_namespace
 
 
@@ -30,7 +29,7 @@ class VCDWriter:
                 code = next(codes)
                 self.codes[signal] = code
                 self.fo.write("$var wire {len} {code} {name} $end\n"
-                              .format(name=name, code=code, len=flen(signal)))
+                              .format(name=name, code=code, len=len(signal)))
             self.fo.write("$dumpvars\n")
             for signal in signals:
                 value = signal.reset.value
@@ -43,7 +42,7 @@ class VCDWriter:
             raise
 
     def _write_value(self, signal, value):
-        l = flen(signal)
+        l = len(signal)
         if value < 0:
             value += 2**l
         if l > 1:

@@ -20,8 +20,8 @@ class SyncFIFOCase(SimCase, unittest.TestCase):
             ]
 
     def test_sizes(self):
-        self.assertEqual(flen(self.tb.dut.din_bits), 64)
-        self.assertEqual(flen(self.tb.dut.dout_bits), 64)
+        self.assertEqual(len(self.tb.dut.din_bits), 64)
+        self.assertEqual(len(self.tb.dut.dout_bits), 64)
 
     def test_run_sequence(self):
         seq = list(range(20))

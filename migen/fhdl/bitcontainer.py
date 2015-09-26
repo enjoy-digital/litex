@@ -1,7 +1,7 @@
 from migen.fhdl import structure as f
 
 
-__all__ = ["log2_int", "bits_for", "flen"]
+__all__ = ["log2_int", "bits_for", "value_bits_sign"]
 
 
 def log2_int(n, need_pow2=True):
@@ -27,6 +27,25 @@ def bits_for(n, require_sign_bit=False):
 
 
 def value_bits_sign(v):
+    """Bit length and signedness of a value.
+
+    Parameters
+    ----------
+    v : Value
+
+    Returns
+    -------
+    int, bool
+        Number of bits required to store `v` or available in `v`, followed by
+        whether `v` has a sign bit (included in the bit count).
+
+    Examples
+    --------
+    >>> value_bits_sign(f.Signal(8))
+    8, False
+    >>> value_bits_sign(C(0xaa))
+    8, False
+    """
     if isinstance(v, (f.Constant, f.Signal)):
         return v.nbits, v.signed
     elif isinstance(v, (f.ClockSignal, f.ResetSignal)):
@@ -100,26 +119,3 @@ def value_bits_sign(v):
     else:
         raise TypeError("Can not calculate bit length of {} {}".format(
             type(v), v))
-
-
-def flen(v):
-    """Bit length of an expression
-
-    Parameters
-    ----------
-    v : int, bool or Value
-
-    Returns
-    -------
-    int
-        Number of bits required to store `v` or available in `v`
-
-    Examples
-    --------
-    >>> flen(f.Signal(8))
-    8
-    >>> flen(0xaa)
-    8
-    """
-    return value_bits_sign(v)[0]
-

@@ -89,11 +89,12 @@ class _Value(DUID):
     def __ge__(self, other):
         return _Operator(">=", [self, other])
 
+    def __len__(self):
+        from migen.fhdl.bitcontainer import value_bits_sign
+        return value_bits_sign(self)[0]
 
     def __getitem__(self, key):
-        from migen.fhdl.bitcontainer import flen
-
-        n = flen(self)
+        n = len(self)
         if isinstance(key, int):
             if key >= n:
                 raise IndexError
@@ -187,7 +188,7 @@ class Cat(_Value):
     meeting these properties. The bit length of the return value is the sum of
     the bit lengths of the arguments::
 
-        flen(Cat(args)) == sum(flen(arg) for arg in args)
+        len(Cat(args)) == sum(len(arg) for arg in args)
 
     Parameters
     ----------
@@ -210,7 +211,7 @@ class Replicate(_Value):
     An input value is replicated (repeated) several times
     to be used on the RHS of assignments::
 
-        flen(Replicate(s, n)) == flen(s)*n
+        len(Replicate(s, n)) == len(s)*n
 
     Parameters
     ----------
@@ -356,7 +357,7 @@ class Signal(_Value):
         other : _Value
             Object to base this Signal on.
 
-        See `migen.fhdl.bitcontainer.value_bits_sign`() for details.
+        See `migen.fhdl.bitcontainer.value_bits_sign` for details.
         """
         from migen.fhdl.bitcontainer import value_bits_sign
         return cls(bits_sign=value_bits_sign(other), **kwargs)

@@ -1,13 +1,12 @@
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Memory
-from migen.fhdl.bitcontainer import flen
 from migen.genlib.cdc import NoRetiming, MultiReg, GrayCounter
 from migen.genlib.record import layout_len, Record
 
 
 def _inc(signal, modulo):
-    if modulo == 2**flen(signal):
+    if modulo == 2**len(signal):
         return signal.eq(signal + 1)
     else:
         return If(signal == (modulo - 1),

@@ -4,7 +4,6 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import (_Value, _Statement,
                                   _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
-from migen.fhdl.bitcontainer import flen
 from migen.fhdl.tools import list_signals, list_targets, insert_resets
 from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
@@ -123,7 +122,7 @@ class Evaluator:
             shift = 0
             r = 0
             for element in node.l:
-                nbits = flen(element)
+                nbits = len(element)
                 # make value always positive
                 r |= (self.eval(element, postcommit) & (2**nbits-1)) << shift
                 shift += nbits
@@ -158,7 +157,7 @@ class Evaluator:
             self.modifications[node] = value
         elif isinstance(node, Cat):
             for element in node.l:
-                nbits = flen(element)
+                nbits = len(element)
                 self.assign(element, value & (2**nbits-1))
                 value >>= nbits
         elif isinstance(node, _Slice):

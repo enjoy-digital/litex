@@ -16,14 +16,14 @@ class BitonicCase(SimCase, unittest.TestCase):
         self.assertEqual(len(self.tb.dut.i), 8)
         self.assertEqual(len(self.tb.dut.o), 8)
         for i in range(8):
-            self.assertEqual(flen(self.tb.dut.i[i]), 4)
-            self.assertEqual(flen(self.tb.dut.o[i]), 4)
+            self.assertEqual(len(self.tb.dut.i[i]), 4)
+            self.assertEqual(len(self.tb.dut.o[i]), 4)
 
     def test_sort(self):
         def gen():
             for repeat in range(20):
                 for i in self.tb.dut.i:
-                    yield i.eq(randrange(1<<flen(i)))
+                    yield i.eq(randrange(1<<len(i)))
                 yield
                 self.assertEqual(sorted((yield self.tb.dut.i)),
                                  (yield self.tb.dut.o))

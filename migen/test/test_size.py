@@ -13,10 +13,7 @@ class SignalSizeCase(unittest.TestCase):
         self.j = C(-127)
         self.s = Signal((13, True))
 
-    def test_flen(self):
-        self.assertEqual(flen(self.s), 13)
-        self.assertEqual(flen(self.i), 8)
-        self.assertEqual(flen(self.j), 8)
-
-    def test_flen_type(self):
-        self.assertRaises(TypeError, flen, [])
+    def test_len(self):
+        self.assertEqual(len(self.s), 13)
+        self.assertEqual(len(self.i), 8)
+        self.assertEqual(len(self.j), 8)
