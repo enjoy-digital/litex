@@ -213,13 +213,8 @@ class _MemoryPort(Special):
 class _MemoryLocation(_Value):
     def __init__(self, memory, index):
         _Value.__init__(self)
-        if isinstance(index, (bool, int)):
-            index = Constant(index)
-        if not isinstance(index, _Value):
-            raise TypeError("Memory index is not a Migen value: {}"
-                            .format(index))
         self.memory = memory
-        self.index = index
+        self.index = wrap(index)
 
 
 class Memory(Special):

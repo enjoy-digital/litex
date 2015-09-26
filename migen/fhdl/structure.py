@@ -128,17 +128,21 @@ class _Value(DUID):
         raise TypeError("unhashable type: '{}'".format(type(self).__name__))
 
 
+def wrap(value):
+    """Ensures that the passed object is a Migen value. Booleans and integers
+    are automatically wrapped into ``Constant``."""
+    if isinstance(value, (bool, int)):
+        value = Constant(value)
+    if not isinstance(value, _Value):
+        raise TypeError("Object is not a Migen value")
+    return value
+
+
 class _Operator(_Value):
     def __init__(self, op, operands):
         _Value.__init__(self)
         self.op = op
-        self.operands = []
-        for o in operands:
-            if isinstance(o, (bool, int)):
-                o = Constant(o)
-            if not isinstance(o, _Value):
-                raise TypeError("Operand not a Migen value")
-            self.operands.append(o)
+        self.operands = [wrap(o) for o in operands]
 
 
 def Mux(sel, val1, val0):
@@ -164,13 +168,9 @@ def Mux(sel, val1, val0):
 class _Slice(_Value):
     def __init__(self, value, start, stop):
         _Value.__init__(self)
-        if isinstance(value, (bool, int)):
-            value = Constant(value)
-        if not isinstance(value, _Value):
-            raise TypeError("Sliced object is not a Migen value")
         if not isinstance(start, int) or not isinstance(stop, int):
             raise TypeError("Slice boundaries must be integers")
-        self.value = value
+        self.value = wrap(value)
         self.start = start
         self.stop = stop
 
@@ -201,13 +201,7 @@ class Cat(_Value):
     """
     def __init__(self, *args):
         _Value.__init__(self)
-        self.l = []
-        for v in _flat_iteration(args):
-            if isinstance(v, (bool, int)):
-                v = Constant(v)
-            if not isinstance(v, _Value):
-                raise TypeError("Concatenated object is not a Migen value")
-            self.l.append(v)
+        self.l = [wrap(v) for v in _flat_iteration(args)]
 
 
 class Replicate(_Value):
@@ -232,13 +226,9 @@ class Replicate(_Value):
     """
     def __init__(self, v, n):
         _Value.__init__(self)
-        if isinstance(v, (bool, int)):
-            v = Constant(v)
-        if not isinstance(v, _Value):
-            raise TypeError("Replicated object is not a Migen value")
         if not isinstance(n, int) or n < 0:
             raise TypeError("Replication count must be a positive integer")
-        self.v = v
+        self.v = wrap(v)
         self.n = n
 
 
@@ -351,8 +341,7 @@ class Signal(_Value):
 
     def __setattr__(self, k, v):
         if k == "reset":
-            if isinstance(v, (bool, int)):
-                v = Constant(v)
+            v = wrap(v)
         _Value.__setattr__(self, k, v)
 
     def __repr__(self):
@@ -421,14 +410,8 @@ class _Statement:
 
 class _Assign(_Statement):
     def __init__(self, l, r):
-        if not isinstance(l, _Value):
-            raise TypeError("LHS of assignment is not a Migen value")
-        if isinstance(r, (bool, int)):
-            r = Constant(r)
-        if not isinstance(r, _Value):
-            raise TypeError("RHS of assignment is not a Migen value")
-        self.l = l
-        self.r = r
+        self.l = wrap(l)
+        self.r = wrap(r)
 
 
 def _check_statement(s):
@@ -463,13 +446,9 @@ class If(_Statement):
     ... )
     """
     def __init__(self, cond, *t):
-        if isinstance(cond, (bool, int)):
-            cond = Constant(cond)
-        if not isinstance(cond, _Value):
-            raise TypeError("Test condition is not a Migen value")
         if not _check_statement(t):
             raise TypeError("Not all test body objects are Migen statements")
-        self.cond = cond
+        self.cond = wrap(cond)
         self.t = list(t)
         self.f = []
 
@@ -535,11 +514,7 @@ class Case(_Statement):
     ... })
     """
     def __init__(self, test, cases):
-        if isinstance(test, (bool, int)):
-            test = Constant(test)
-        if not isinstance(test, _Value):
-            raise TypeError("Case test object is not a Migen value")
-        self.test = test
+        self.test = wrap(test)
         self.cases = dict()
         for k, v in cases.items():
             if isinstance(k, (bool, int)):
