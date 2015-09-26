@@ -5,7 +5,6 @@ import os
 import argparse
 import subprocess
 import struct
-import shutil
 
 from mibuild.tools import write_to_file
 from migen.util.misc import autotype
@@ -137,8 +136,7 @@ CPU type:  {}
         actions["build-headers"] = True
 
     if actions["clean"]:
-        shutil.rmtree("build") # Need shell for the build/* globbing
-        os.mkdir("build")
+        subprocess.check_call("rm -rvf build/*", shell=True) # Need shell for the build/* globbing
         subprocess.check_call(["make", "-C", os.path.join("software", "libcompiler-rt"), "clean"])
         subprocess.check_call(["make", "-C", os.path.join("software", "libbase"), "clean"])
         subprocess.check_call(["make", "-C", os.path.join("software", "libnet"), "clean"])
