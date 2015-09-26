@@ -167,7 +167,7 @@ CPU type:  {}
                     write_to_file(os.path.join(genhdir, "sdram_phy.h"), boilerplate + sdram_phy_header)
         mem_header = cpu_interface.get_mem_header(memory_regions, getattr(soc, "flash_boot_address", None))
         write_to_file(os.path.join(genhdir, "mem.h"), boilerplate + mem_header)
-        csr_header = cpu_interface.get_csr_header(csr_regions, soc.get_constants())
+        csr_header = cpu_interface.get_csr_header(csr_regions, sorted(soc.get_constants()))
         write_to_file(os.path.join(genhdir, "csr.h"), boilerplate + csr_header)
 
     if actions["build-csr-csv"]:
