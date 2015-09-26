@@ -560,9 +560,6 @@ class _ArrayProxy(_Value):
         for c in choices:
             if isinstance(c, (bool, int)):
                 c = Constant(c)
-            if not isinstance(c, (_Value, Array)):
-                raise TypeError("Array element is not a Migen value: {}"
-                                .format(c))
             self.choices.append(c)
         self.key = key
 
