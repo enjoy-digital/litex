@@ -32,7 +32,7 @@ class MiniconTB(Module):
         self.submodules.slave = Minicon(phy_settings, sdram_geom, sdram_timing)
 
         self.submodules.tap = wishbone.Tap(self.slave.bus)
-        self.submodules.dc = dc = wishbone.DownConverter(32, phy_settings.nphases*flen(dfi.phases[rdphase].rddata))
+        self.submodules.dc = dc = wishbone.DownConverter(32, phy_settings.nphases*len(dfi.phases[rdphase].rddata))
         self.submodules.master = wishbone.Initiator(self.genxfers(), bus=dc.wishbone_i)
         self.submodules.intercon = wishbone.InterconnectPointToPoint(dc.wishbone_o, self.slave.bus)
 

@@ -30,9 +30,9 @@ from misoc.cores import sdram_settings
 
 class GENSDRPHY(Module):
     def __init__(self, pads, module):
-        addressbits = flen(pads.a)
-        bankbits = flen(pads.ba)
-        databits = flen(pads.dq)
+        addressbits = len(pads.a)
+        bankbits = len(pads.ba)
+        databits = len(pads.dq)
 
         self.settings = sdram_settings.PhySettings(
             memtype=module.memtype,

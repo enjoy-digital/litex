@@ -30,9 +30,9 @@ class S6HalfRateDDRPHY(Module):
     def __init__(self, pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
         if module.memtype not in ["DDR", "LPDDR", "DDR2", "DDR3"]:
             raise NotImplementedError("S6HalfRateDDRPHY only supports DDR, LPDDR, DDR2 and DDR3")
-        addressbits = flen(pads.a)
-        bankbits = flen(pads.ba)
-        databits = flen(pads.dq)
+        addressbits = len(pads.a)
+        bankbits = len(pads.ba)
+        databits = len(pads.dq)
         nphases = 2
 
         if module.memtype == "DDR3":
@@ -405,9 +405,9 @@ class S6QuarterRateDDRPHY(Module):
         half_rate_phy = S6HalfRateDDRPHY(pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment)
         self.submodules += RenameClockDomains(half_rate_phy, {"sys" : "sys2x"})
 
-        addressbits = flen(pads.a)
-        bankbits = flen(pads.ba)
-        databits = flen(pads.dq)
+        addressbits = len(pads.a)
+        bankbits = len(pads.ba)
+        databits = len(pads.dq)
         nphases = 4
 
         self.settings = sdram_settings.PhySettings(

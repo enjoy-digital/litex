@@ -7,7 +7,7 @@ def LiteEthPHY(clock_pads, pads, clk_freq=None, **kwargs):
         # This is a simulation PHY
         from misoc.com.liteethmini.phy.sim import LiteEthPHYSim
         return LiteEthPHYSim(pads)
-    elif hasattr(clock_pads, "gtx") and flen(pads.tx_data) == 8:
+    elif hasattr(clock_pads, "gtx") and len(pads.tx_data) == 8:
         if hasattr(clock_pads, "tx"):
             # This is a 10/100/1G PHY
             from misoc.com.liteethmini.phy.gmii_mii import LiteEthPHYGMIIMII
@@ -19,7 +19,7 @@ def LiteEthPHY(clock_pads, pads, clk_freq=None, **kwargs):
     elif hasattr(pads, "rx_ctl"):
         # This is a 10/100/1G RGMII PHY
         raise ValueError("RGMII PHYs are specific to vendors (for now), use direct instantiation")
-    elif flen(pads.tx_data) == 4:
+    elif len(pads.tx_data) == 4:
         # This is a MII PHY
         from misoc.com.liteethmini.phy.mii import LiteEthPHYMII
         return LiteEthPHYMII(clock_pads, pads, **kwargs)

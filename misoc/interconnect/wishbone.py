@@ -102,7 +102,7 @@ class Decoder(Module):
         ]
 
         # mux (1-hot) slave data return
-        masked = [Replicate(slave_sel_r[i], flen(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
+        masked = [Replicate(slave_sel_r[i], len(master.dat_r)) & slaves[i][1].dat_r for i in range(ns)]
         self.comb += master.dat_r.eq(reduce(or_, masked))
 
 
@@ -144,8 +144,8 @@ class DownConverter(Module):
         Manage err signal? (Not implemented since we generally don't use it on Migen/MiSoC modules)
     """
     def __init__(self, master, slave):
-        dw_from = flen(master.dat_r)
-        dw_to = flen(slave.dat_w)
+        dw_from = len(master.dat_r)
+        dw_to = len(slave.dat_w)
         ratio = dw_from//dw_to
 
         # # #
@@ -251,8 +251,8 @@ class UpConverter(Module):
         Manage err signal? (Not implemented since we generally don't use it on Migen/MiSoC modules)
     """
     def __init__(self, master, slave):
-        dw_from = flen(master.dat_r)
-        dw_to = flen(slave.dat_w)
+        dw_from = len(master.dat_r)
+        dw_to = len(slave.dat_w)
         ratio = dw_to//dw_from
         ratiobits = log2_int(ratio)
 
@@ -402,8 +402,8 @@ class Converter(Module):
 
         # # #
 
-        dw_from = flen(master.dat_r)
-        dw_to = flen(slave.dat_r)
+        dw_from = len(master.dat_r)
+        dw_to = len(slave.dat_r)
         if dw_from > dw_to:
             downconverter = DownConverter(master, slave)
             self.submodules += downconverter
@@ -426,8 +426,8 @@ class Cache(Module):
 
         ###
 
-        dw_from = flen(master.dat_r)
-        dw_to = flen(slave.dat_r)
+        dw_from = len(master.dat_r)
+        dw_to = len(slave.dat_r)
         if dw_to > dw_from and (dw_to % dw_from) != 0:
             raise ValueError("Slave data width must be a multiple of {dw}".format(dw=dw_from))
         if dw_to < dw_from and (dw_from % dw_to) != 0:
@@ -436,7 +436,7 @@ class Cache(Module):
         # Split address:
         # TAG | LINE NUMBER | LINE OFFSET
         offsetbits = log2_int(max(dw_to//dw_from, 1))
-        addressbits = flen(slave.adr) + offsetbits
+        addressbits = len(slave.adr) + offsetbits
         linebits = log2_int(cachesize) - offsetbits
         tagbits = addressbits - linebits
         wordbits = log2_int(max(dw_from//dw_to, 1))
@@ -574,7 +574,7 @@ class SRAM(Module):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        bus_data_width = flen(self.bus.dat_r)
+        bus_data_width = len(self.bus.dat_r)
         if isinstance(mem_or_size, Memory):
             assert(mem_or_size.width <= bus_data_width)
             self.mem = mem_or_size
@@ -597,7 +597,7 @@ class SRAM(Module):
                 for i in range(4)]
         # address and data
         self.comb += [
-            port.adr.eq(self.bus.adr[:flen(port.adr)]),
+            port.adr.eq(self.bus.adr[:len(port.adr)]),
             self.bus.dat_r.eq(port.dat_r)
         ]
         if not read_only:
@@ -617,7 +617,7 @@ class CSRBank(csr.GenericBank):
 
         ###
 
-        GenericBank.__init__(self, description, flen(self.bus.dat_w))
+        GenericBank.__init__(self, description, len(self.bus.dat_w))
 
         for i, c in enumerate(self.simple_csrs):
             self.comb += [

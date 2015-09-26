@@ -34,7 +34,7 @@ class _CommandChooser(Module):
         self.want_writes = Signal()
         self.want_cmds = Signal()
         # NB: cas_n/ras_n/we_n are 1 when stb is inactive
-        self.cmd = CommandRequestRW(flen(requests[0].a), flen(requests[0].ba))
+        self.cmd = CommandRequestRW(len(requests[0].a), len(requests[0].ba))
 
         ###
 

@@ -31,7 +31,7 @@ class SRAM(Module):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        data_width = flen(self.bus.dat_w)
+        data_width = len(self.bus.dat_w)
         if isinstance(mem_or_size, Memory):
             mem = mem_or_size
         else:
@@ -89,10 +89,10 @@ class SRAM(Module):
                 ]
 
         if self._page is None:
-            self.comb += port.adr.eq(self.bus.adr[word_bits:word_bits+flen(port.adr)])
+            self.comb += port.adr.eq(self.bus.adr[word_bits:word_bits+len(port.adr)])
         else:
             pv = self._page.storage
-            self.comb += port.adr.eq(Cat(self.bus.adr[word_bits:word_bits+flen(port.adr)-flen(pv)], pv))
+            self.comb += port.adr.eq(Cat(self.bus.adr[word_bits:word_bits+len(port.adr)-len(pv)], pv))
 
     def get_csrs(self):
         if self._page is None:
@@ -109,7 +109,7 @@ class CSRBank(csr.GenericBank):
 
         ###
 
-        csr.GenericBank.__init__(self, description, flen(self.bus.dat_w))
+        csr.GenericBank.__init__(self, description, len(self.bus.dat_w))
 
         sel = Signal()
         self.comb += sel.eq(self.bus.adr[9:] == address)

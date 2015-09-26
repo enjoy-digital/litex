@@ -138,7 +138,7 @@ class LiteEthMACCRCInserter(Module):
 
         # # #
 
-        dw = flen(sink.data)
+        dw = len(sink.data)
         crc = crc_class(dw)
         fsm = FSM(reset_state="IDLE")
         self.submodules += crc, fsm
@@ -219,7 +219,7 @@ class LiteEthMACCRCChecker(Module):
 
         # # #
 
-        dw = flen(sink.data)
+        dw = len(sink.data)
         crc = crc_class(dw)
         self.submodules += crc
         ratio = crc.width//dw

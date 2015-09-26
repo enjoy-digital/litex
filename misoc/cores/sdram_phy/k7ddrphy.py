@@ -9,9 +9,9 @@ from misoc.cores import sdram_settings
 
 class K7DDRPHY(Module, AutoCSR):
     def __init__(self, pads, module):
-        addressbits = flen(pads.a)
-        bankbits = flen(pads.ba)
-        databits = flen(pads.dq)
+        addressbits = len(pads.a)
+        bankbits = len(pads.ba)
+        databits = len(pads.dq)
         nphases = 4
 
         self._wlevel_en = CSRStorage()

@@ -35,7 +35,7 @@ class SpiFlash(Module, AutoCSR):
         Optionally supports software bitbanging (for write, erase, or other commands).
         """
         self.bus = bus = wishbone.Interface()
-        spi_width = flen(pads.dq)
+        spi_width = len(pads.dq)
         if with_bitbang:
             self.bitbang = CSRStorage(4)
             self.miso = CSRStatus()
@@ -46,7 +46,7 @@ class SpiFlash(Module, AutoCSR):
         cs_n = Signal(reset=1)
         clk = Signal()
         dq_oe = Signal()
-        wbone_width = flen(bus.dat_r)
+        wbone_width = len(bus.dat_r)
 
 
         read_cmd_params = {
