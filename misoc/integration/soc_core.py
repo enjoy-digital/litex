@@ -94,7 +94,8 @@ class SoCCore(Module):
                 self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
 
         if with_csr:
-            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(bus_csr=csr.Interface(csr_data_width, csr_address_width))
+            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
+                bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
             self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
             if with_uart:

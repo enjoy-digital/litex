@@ -1,6 +1,7 @@
 from migen import *
 from migen.genlib.record import *
 from migen.genlib.misc import chooser
+from migen.util.misc import xdir
 
 from misoc.interconnect import csr
 from misoc.interconnect.csr import CSRStorage
@@ -108,7 +109,7 @@ class CSRBank(csr.GenericBank):
 
         ###
 
-        GenericBank.__init__(self, description, flen(self.bus.dat_w))
+        csr.GenericBank.__init__(self, description, flen(self.bus.dat_w))
 
         sel = Signal()
         self.comb += sel.eq(self.bus.adr[9:] == address)
@@ -154,7 +155,7 @@ class CSRBankArray(Module):
                     mapaddr = self.address_map(name, memory)
                     if mapaddr is None:
                         continue
-                    sram_bus = csr.Interface(*ifargs, **ifkwargs)
+                    sram_bus = Interface(*ifargs, **ifkwargs)
                     mmap = csr.SRAM(memory, mapaddr, bus=sram_bus)
                     self.submodules += mmap
                     csrs += mmap.get_csrs()
@@ -163,8 +164,8 @@ class CSRBankArray(Module):
                 mapaddr = self.address_map(name, None)
                 if mapaddr is None:
                     continue
-                bank_bus = csr.Interface(*ifargs, **ifkwargs)
-                rmap = Bank(csrs, mapaddr, bus=bank_bus)
+                bank_bus = Interface(*ifargs, **ifkwargs)
+                rmap = CSRBank(csrs, mapaddr, bus=bank_bus)
                 self.submodules += rmap
                 self.banks.append((name, csrs, mapaddr, rmap))
 

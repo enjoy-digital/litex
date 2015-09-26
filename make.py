@@ -7,12 +7,12 @@ import subprocess
 import struct
 import shutil
 
-from mibuild.tools import write_to_file
+from migen.build.tools import write_to_file
 from migen.util.misc import autotype
 from migen.fhdl import simplify
 
-from misoc.soc import cpuif
-from misoc.mem.sdram.phy import initsequence
+from misoc.integration import cpu_interface
+from misoc.integration import sdram_init
 
 from misoc_import import misoc_import
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
             raise ValueError("Target has no default platform, specify a platform with -p your_platform")
     else:
         platform_name = args.platform
-    platform_module = misoc_import("mibuild.platforms", external_platform, platform_name)
+    platform_module = misoc_import("migen.build.platforms", external_platform, platform_name)
     platform_kwargs = dict((k, autotype(v)) for k, v in args.platform_option)
     platform = platform_module.Platform(**platform_kwargs)
     if args.external:
@@ -155,25 +155,25 @@ CPU type:  {}
 """.format(platform_name, args.target, top_class.__name__, soc.cpu_type)
         genhdir = os.path.join("software", "include", "generated")
         if soc.cpu_type != "none":
-            cpu_mak = cpuif.get_cpu_mak(soc.cpu_type)
+            cpu_mak = cpu_interface.get_cpu_mak(soc.cpu_type)
             write_to_file(os.path.join(genhdir, "cpu.mak"), cpu_mak)
-            linker_output_format = cpuif.get_linker_output_format(soc.cpu_type)
+            linker_output_format = cpu_interface.get_linker_output_format(soc.cpu_type)
             write_to_file(os.path.join(genhdir, "output_format.ld"), linker_output_format)
 
-            linker_regions = cpuif.get_linker_regions(memory_regions)
+            linker_regions = cpu_interface.get_linker_regions(memory_regions)
             write_to_file(os.path.join(genhdir, "regions.ld"), boilerplate + linker_regions)
 
             for sdram_phy in ["sdrphy", "ddrphy"]:
                 if hasattr(soc, sdram_phy):
-                    sdram_phy_header = initsequence.get_sdram_phy_header(getattr(soc, sdram_phy).settings)
+                    sdram_phy_header = sdram_init.get_sdram_phy_header(getattr(soc, sdram_phy).settings)
                     write_to_file(os.path.join(genhdir, "sdram_phy.h"), boilerplate + sdram_phy_header)
-        mem_header = cpuif.get_mem_header(memory_regions, getattr(soc, "flash_boot_address", None))
+        mem_header = cpu_interface.get_mem_header(memory_regions, getattr(soc, "flash_boot_address", None))
         write_to_file(os.path.join(genhdir, "mem.h"), boilerplate + mem_header)
-        csr_header = cpuif.get_csr_header(csr_regions, soc.get_constants())
+        csr_header = cpu_interface.get_csr_header(csr_regions, soc.get_constants())
         write_to_file(os.path.join(genhdir, "csr.h"), boilerplate + csr_header)
 
     if actions["build-csr-csv"]:
-        csr_csv = cpuif.get_csr_csv(csr_regions)
+        csr_csv = cpu_interface.get_csr_csv(csr_regions)
         write_to_file(args.csr_csv, csr_csv)
 
     if actions["build-bios"]:

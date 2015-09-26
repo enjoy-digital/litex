@@ -1,10 +1,10 @@
 from migen import *
 from migen.genlib.record import Record
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 from misoc.interconnect.csr_eventmanager import *
-# TODO: from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
-# TODO: remove dataflow?
+from misoc.interconnect.stream import Source, Sink, SyncFIFO, AsyncFIFO
 
 
 class RS232PHYRX(Module):

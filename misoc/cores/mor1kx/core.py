@@ -1,7 +1,8 @@
 import os
 
 from migen import *
-from migen.bus import wishbone
+
+from misoc.interconnect import wishbone
 
 
 class MOR1KX(Module):
@@ -76,5 +77,7 @@ class MOR1KX(Module):
         ]
 
         # add Verilog sources
-        platform.add_source_dir(os.path.join("extcores", "mor1kx", "submodule",
-                                             "rtl", "verilog"))
+        vdir = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            "verilog", "rtl", "verilog")
+        platform.add_source_dir(vdir)

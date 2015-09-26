@@ -1,7 +1,8 @@
 import os
 
 from migen import *
-from migen.bus import wishbone
+
+from misoc.interconnect import wishbone
 
 
 class LM32(Module):
@@ -54,10 +55,12 @@ class LM32(Module):
         ]
 
         # add Verilog sources
-        platform.add_sources(os.path.join("extcores", "lm32", "submodule", "rtl"),
+        vdir = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        platform.add_sources(os.path.join(vdir, "submodule", "rtl"),
                 "lm32_cpu.v", "lm32_instruction_unit.v", "lm32_decoder.v",
                 "lm32_load_store_unit.v", "lm32_adder.v", "lm32_addsub.v", "lm32_logic_op.v",
                 "lm32_shifter.v", "lm32_multiplier.v", "lm32_mc_arithmetic.v",
                 "lm32_interrupt.v", "lm32_ram.v", "lm32_dp_ram.v", "lm32_icache.v",
                 "lm32_dcache.v", "lm32_debug.v", "lm32_itlb.v", "lm32_dtlb.v")
-        platform.add_verilog_include_path(os.path.join("extcores", "lm32"))
+        platform.add_verilog_include_path(vdir)
