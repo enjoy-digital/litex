@@ -1,9 +1,9 @@
 from migen import *
 from migen.genlib.record import *
 
-from misoc.interconnect import wishbone, wishbone2lasmi
+from misoc.interconnect import wishbone, wishbone2lasmi, lasmi_bus
 from misoc.interconnect.csr import AutoCSR
-from misoc.cores import sdram_tester
+from misoc.cores import sdram_tester, dfii, minicon, lasmicon
 from misoc.integration.soc_core import SoCCore
 
 # TODO: cleanup
@@ -19,7 +19,7 @@ class SDRAMCore(Module, AutoCSR):
         self.comb += Record.connect(self.dfii.master, phy.dfi)
 
         # LASMICON
-        if isinstance(controller_settings, lasmicon.LASMIconSettings):
+        if isinstance(controller_settings, LASMIconSettings):
             self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings,
                                                                         geom_settings,
                                                                         timing_settings,
@@ -27,11 +27,11 @@ class SDRAMCore(Module, AutoCSR):
                                                                         **kwargs)
             self.comb += Record.connect(controller.dfi, self.dfii.slave)
 
-            self.submodules.crossbar = lasmixbar.LASMIxbar([controller.lasmic],
+            self.submodules.crossbar = lasmi_bus.LASMIxbar([controller.lasmic],
                                                            controller.nrowbits)
 
         # MINICON
-        elif isinstance(controller_settings, minicon.MiniconSettings):
+        elif isinstance(controller_settings, MiniconSettings):
             self.submodules.controller = controller = minicon.Minicon(phy.settings,
                                                                       geom_settings,
                                                                       timing_settings)
@@ -107,7 +107,7 @@ class SoCSDRAM(SoCCore):
                 # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
                 # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
                 # Remove this workaround when fixed by Xilinx.
-                from mibuild.xilinx.vivado import XilinxVivadoToolchain
+                from migen.build.xilinx.vivado import XilinxVivadoToolchain
                 if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
                     from migen.fhdl.simplify import FullMemoryWE
                     self.submodules.l2_cache = FullMemoryWE()(l2_cache)
@@ -122,7 +122,7 @@ class SoCSDRAM(SoCCore):
                 # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
                 # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
                 # Remove this workaround when fixed by Xilinx.
-                from mibuild.xilinx.vivado import XilinxVivadoToolchain
+                from migen.build.xilinx.vivado import XilinxVivadoToolchain
                 if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
                     from migen.fhdl.simplify import FullMemoryWE
                     self.submodules.l2_cache = FullMemoryWE()(l2_cache)

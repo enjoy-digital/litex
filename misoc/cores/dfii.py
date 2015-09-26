@@ -1,7 +1,7 @@
 from migen import *
-from migen.bank.description import *
 
-from misoc.mem.sdram.phy import dfi
+from misoc.interconnect import dfi
+from misoc.interconnect.csr import *
 
 
 class PhaseInjector(Module, AutoCSR):

@@ -23,6 +23,7 @@
 
 from migen import *
 from migen.genlib.record import *
+from migen.fhdl.specials import Tristate
 
 from misoc.interconnect.dfi import *
 from misoc.cores import sdram_settings
