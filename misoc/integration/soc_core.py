@@ -116,7 +116,7 @@ class SoCCore(Module):
             raise NotImplementedError("More than one CPU is not supported")
         self.submodules.cpu_or_bridge = cpu_or_bridge
 
-    def init_rom(self, data):
+    def initialize_rom(self, data):
         self.rom.mem.init = data
 
     def add_wb_master(self, wbm):
@@ -200,3 +200,6 @@ class SoCCore(Module):
             for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
                 if hasattr(self, k):
                     self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
+
+    def build(self, *args, **kwargs):
+        self.platform.build(self, *args, **kwargs)

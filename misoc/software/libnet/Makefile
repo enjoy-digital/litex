@@ -1,5 +1,5 @@
-MSCDIR=../..
-include $(MSCDIR)/software/common.mak
+include ../include/generated/variables.mak
+include $(MISOC_DIRECTORY)/software/common.mak
 
 OBJECTS=microudp.o tftp.o
 
@@ -11,7 +11,7 @@ all: libnet.a
 libnet.a: $(OBJECTS)
 	$(AR) crs libnet.a $(OBJECTS)
 
-%.o: %.c
+%.o: $(LIBNET_DIRECTORY)/%.c
 	$(compile-dep)
 
 %.o: %.S

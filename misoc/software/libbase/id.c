@@ -16,5 +16,5 @@ void id_print(void)
 	char sysid[3];
 
 	get_sysid_formatted(sysid);
-	printf("Running on MiSoC rev. %08x (sysid:%s) at %dMHz\n", identifier_revision_read(), sysid, identifier_frequency_read()/1000000);
+	printf("Running on MiSoC (sysid:%s) at %dMHz\n", sysid, identifier_frequency_read()/1000000);
 }

@@ -1,7 +1,7 @@
-MSCDIR=../..
-include $(MSCDIR)/software/common.mak
+include ../include/generated/variables.mak
+include $(MISOC_DIRECTORY)/software/common.mak
 
-COMMONFLAGS += -I$(MSCDIR)/software/include/dyld
+COMMONFLAGS += -I$(MISOC_DIRECTORY)/software/include/dyld
 
 OBJECTS=dyld.o
 
@@ -12,6 +12,9 @@ all: libdyld.a
 
 libdyld.a: $(OBJECTS)
 	$(AR) crs libdyld.a $(OBJECTS)
+
+%.o: $(LIBDYLD_DIRECTORY)/%.c
+	$(compile-dep)
 
 .PHONY: clean
 

@@ -1,4 +1,3 @@
-include $(MSCDIR)/software/include/generated/cpu.mak
 TARGET_PREFIX=$(TRIPLE)-
 
 RM ?= rm -f
@@ -21,8 +20,6 @@ AR_quiet      = @echo " AR      " $@ && $(AR_normal)
 LD_quiet      = @echo " LD      " $@ && $(LD_normal)
 OBJCOPY_quiet = @echo " OBJCOPY " $@ && $(OBJCOPY_normal)
 
-MSC_GIT_ID := $(shell cd $(MSCDIR) && $(PYTHON) -c "from misoc.cores.identifier import get_id; print(hex(get_id()), end='')")
-
 ifeq ($(V),1)
 	CC = $(CC_normal)
 	CX = $(CX_normal)
@@ -39,11 +36,11 @@ endif
 
 # Toolchain options
 #
-INCLUDES = -I$(MSCDIR)/software/include/base -I$(MSCDIR)/software/include -I$(MSCDIR)/common
-COMMONFLAGS = -Os $(CPUFLAGS) -fomit-frame-pointer -Wall -fno-builtin -nostdinc -DMSC_GIT_ID=$(MSC_GIT_ID) $(INCLUDES)
+INCLUDES = -I$(MISOC_DIRECTORY)/software/include/base -I$(MISOC_DIRECTORY)/software/include -I$(MISOC_DIRECTORY)/common -I$(BUILDINC_DIRECTORY)
+COMMONFLAGS = -Os $(CPUFLAGS) -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
-CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(MSCDIR)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
-LDFLAGS = -nostdlib -nodefaultlibs -L$(MSCDIR)/software/include
+CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(MISOC_DIRECTORY)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
+LDFLAGS = -nostdlib -nodefaultlibs -L$(BUILDINC_DIRECTORY)
 
 # compile and generate dependencies, based on
 # http://scottmcpeak.com/autodepend/autodepend.html

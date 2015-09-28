@@ -1,13 +1,17 @@
+#!/usr/bin/env python3
+
 from fractions import Fraction
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.build.platforms import papilio_pro
 
 from misoc.cores.sdram_settings import MT48LC4M16
 from misoc.cores.sdram_phy import GENSDRPHY
 from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.cores import spi_flash
 from misoc.integration.soc_sdram import SoCSDRAM
+from misoc.integration.builder import Builder
 
 
 class _CRG(Module):
@@ -62,8 +66,6 @@ class _CRG(Module):
 
 
 class BaseSoC(SoCSDRAM):
-    default_platform = "papilio_pro"
-
     csr_map = {
         "spiflash": 16,
     }
@@ -89,4 +91,12 @@ class BaseSoC(SoCSDRAM):
             self.flash_boot_address = 0x70000
             self.register_rom(self.spiflash.bus)
 
-default_subtarget = BaseSoC
+
+def main():
+    soc = BaseSoC(papilio_pro.Platform(), cpu_type="or1k")
+    builder = Builder(soc, "misoc_build")
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,8 +1,9 @@
-MSCDIR=../..
-include $(MSCDIR)/software/common.mak
+include ../include/generated/variables.mak
+include $(MISOC_DIRECTORY)/software/common.mak
 
 COMMONFLAGS+=-integrated-as \
-	-I. -I$(MSCDIR)/software/include/dyld/ -I$(MSCDIR)/software/unwinder/include/ \
+	-I. -I$(MISOC_DIRECTORY)/software/include/dyld/ -I$(MISOC_DIRECTORY)/software/unwinder/include/ \
+	-I$(LIBUNWIND_DIRECTORY) \
 	-D__ELF__ -D__linux__ -D_LIBUNWIND_NO_HEAP -DNDEBUG
 
 OBJECTS=UnwindRegistersSave.o UnwindRegistersRestore.o UnwindLevel1.o libunwind.o
@@ -15,16 +16,16 @@ all: libunwind.a
 libunwind.a: $(OBJECTS)
 	$(AR) crs libunwind.a $(OBJECTS)
 
-%.o: $(MSCDIR)/software/unwinder/src/%.cpp
+%.o: $(MISOC_DIRECTORY)/software/unwinder/src/%.cpp
 	$(compilexx-dep)
 
-%.o: $(MSCDIR)/software/unwinder/src/%.c
+%.o: $(MISOC_DIRECTORY)/software/unwinder/src/%.c
 	$(compile-dep)
 
-%.o: $(MSCDIR)/software/unwinder/src/%.S
+%.o: $(MISOC_DIRECTORY)/software/unwinder/src/%.S
 	$(assemble)
 
 .PHONY: clean
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libuwind.a .*~ *~
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libunwind.a .*~ *~

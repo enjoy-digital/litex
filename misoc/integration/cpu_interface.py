@@ -3,18 +3,23 @@ from migen import *
 from misoc.interconnect.csr import CSRStatus
 
 
-def get_cpu_mak(cpu_type):
-    if cpu_type == "lm32":
+def get_cpu_mak(cpu):
+    if cpu == "lm32":
         triple = "lm32-elf"
         cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
         clang = ""
-    elif cpu_type == "or1k":
+    elif cpu == "or1k":
         triple = "or1k-linux"
         cpuflags = "-mhard-mul -mhard-div -mror -mffl1 -maddc"
         clang = "1"
     else:
-        raise ValueError("Unsupported CPU type: "+cpu_type)
-    return "TRIPLE={}\nCPU={}\nCPUFLAGS={}\nCLANG={}".format(triple, cpu_type, cpuflags, clang)
+        raise ValueError("Unsupported CPU type: "+cpu)
+    return [
+        ("TRIPLE", triple),
+        ("CPU", cpu),
+        ("CPUFLAGS", cpuflags),
+        ("CLANG", clang)
+    ]
 
 
 def get_linker_output_format(cpu_type):

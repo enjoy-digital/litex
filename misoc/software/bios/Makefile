@@ -1,5 +1,5 @@
-MSCDIR=../..
-include $(MSCDIR)/software/common.mak
+include ../include/generated/variables.mak
+include $(MISOC_DIRECTORY)/software/common.mak
 
 OBJECTS=isr.o sdram.o main.o boot-helper-$(CPU).o boot.o dataflow.o
 
@@ -11,35 +11,30 @@ all: bios.bin
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
-	$(MSCDIR)/mkmscimg.py $@
+	$(PYTHON) -m misoc.tools.mkmscimg $@
 
-bios.elf: linker.ld $(OBJECTS) libs
+bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 %.elf:
 	$(LD) $(LDFLAGS) -T $< -N -o $@ \
-		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
+		../libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
-		-L$(MSCDIR)/software/libnet \
-		-L$(MSCDIR)/software/libbase \
-		-L$(MSCDIR)/software/libcompiler-rt \
-		-lnet -lbase-nofloat -lcompiler-rt
+		-L../libnet \
+		-L../libbase \
+		-L../libcompiler_rt \
+		-lnet -lbase-nofloat -lcompiler_rt
 	chmod -x $@
 
-main.o: main.c
+main.o: $(BIOS_DIRECTORY)/main.c
 	$(compile-dep)
 
-%.o: %.c
+%.o: $(BIOS_DIRECTORY)/%.c
 	$(compile-dep)
 
-%.o: %.S
+%.o: $(BIOS_DIRECTORY)/%.S
 	$(assemble)
-
-libs:
-	$(MAKE) -C $(MSCDIR)/software/libcompiler-rt
-	$(MAKE) -C $(MSCDIR)/software/libbase
-	$(MAKE) -C $(MSCDIR)/software/libnet
 
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin .*~ *~
 
-.PHONY: all main.o clean libs
+.PHONY: all main.o clean

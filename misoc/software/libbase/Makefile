@@ -1,5 +1,5 @@
-MSCDIR=../..
-include $(MSCDIR)/software/common.mak
+include ../include/generated/variables.mak
+include $(MISOC_DIRECTORY)/software/common.mak
 
 OBJECTS=exception.o libc.o errno.o crc16.o crc32.o console.o system.o id.o uart.o time.o qsort.o strtod.o spiflash.o
 
@@ -14,13 +14,13 @@ libbase.a: $(OBJECTS) vsnprintf.o
 libbase-nofloat.a: $(OBJECTS) vsnprintf-nofloat.o
 	$(AR) crs libbase-nofloat.a $(OBJECTS) vsnprintf-nofloat.o
 
-vsnprintf-nofloat.o: vsnprintf.c
+vsnprintf-nofloat.o: $(LIBBASE_DIRECTORY)/vsnprintf.c
 	$(call compile-dep,-DNO_FLOAT)
 
-%.o: %.c
+%.o: $(LIBBASE_DIRECTORY)/%.c
 	$(compile-dep)
 
-%.o: %.S
+%.o: $(LIBBASE_DIRECTORY)/%.S
 	$(assemble)
 
 .PHONY: clean

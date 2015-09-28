@@ -377,8 +377,6 @@ static void do_command(char *c)
 	else if(strcmp(token, "netboot") == 0) netboot();
 #endif
 
-	else if(strcmp(token, "revision") == 0) printf("%08x\n", MSC_GIT_ID);
-
 	else if(strcmp(token, "help") == 0) help();
 
 #ifdef __lm32__
@@ -535,9 +533,9 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
-	puts("\nMiSoC BIOS   http://m-labs.hk\n"
-	"(c) Copyright 2007-2014 Sebastien Bourdeauducq");
-	printf("Revision %08x built "__DATE__" "__TIME__"\n\n", MSC_GIT_ID);
+	puts("\nMiSoC BIOS\n"
+	"(c) Copyright 2007-2015 M-Labs Limited\n"
+	"Built "__DATE__" "__TIME__"\n");
 	crcbios();
 	id_print();
 #ifdef CSR_ETHMAC_BASE
