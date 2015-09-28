@@ -3,7 +3,6 @@
 #include <uart.h>
 #include <system.h>
 #include <crc.h>
-#include <sfl.h>
 #include <string.h>
 #include <irq.h>
 
@@ -12,6 +11,7 @@
 
 #include <net/microudp.h>
 #include <net/tftp.h>
+#include "sfl.h"
 #include "boot.h"
 
 extern void boot_helper(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int addr);

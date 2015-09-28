@@ -4,9 +4,9 @@
 [submodule "misoc/cores/mor1kx/verilog"]
 	path = misoc/cores/mor1kx/verilog
 	url = https://github.com/openrisc/mor1kx.git
-[submodule "software/compiler-rt"]
-	path = software/compiler-rt
+[submodule "misoc/software/compiler-rt"]
+	path = misoc/software/compiler-rt
 	url = http://llvm.org/git/compiler-rt.git
-[submodule "software/unwinder"]
-	path = software/unwinder
+[submodule "misoc/software/unwinder"]
+	path = misoc/software/unwinder
 	url = https://github.com/whitequark/libunwind

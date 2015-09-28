@@ -1,15 +1,3 @@
 __pycache__
-build/*
-*.o
-*.d
-*.a
-*.elf
-*.bin
-*.fbi
-tools/flterm
-tools/byteswap
-software/include/generated/*.h
-software/include/generated/*.ld
-software/include/generated/*.mak
 *.vcd
 outgoing
