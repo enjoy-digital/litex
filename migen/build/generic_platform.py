@@ -1,11 +1,9 @@
 import os
-import sys
 
 from migen.fhdl.structure import Signal
 from migen.genlib.record import Record
 from migen.genlib.io import CRG
 from migen.fhdl import verilog, edif
-from migen.util.misc import autotype
 from migen.build import tools
 
 
@@ -282,17 +280,13 @@ class GenericPlatform:
     def add_source(self, filename, language=None, library=None):
         if language is None:
             language = tools.language_by_filename(filename)
-
         if language is None:
-            language = "verilog"  # default to Verilog
+            language = "verilog"
 
         if library is None:
-            library = "work"  # default to work
+            library = "work"
 
-        filename = os.path.abspath(filename)
-        if sys.platform == "win32" or sys.platform == "cygwin":
-            filename = filename.replace("\\", "/")
-        self.sources.add((filename, language, library))
+        self.sources.add((os.path.abspath(filename), language, library))
 
     def add_sources(self, path, *filenames, language=None, library=None):
         for f in filenames:
@@ -314,10 +308,7 @@ class GenericPlatform:
                 self.add_source(filename, language, library)
 
     def add_verilog_include_path(self, path):
-        path = os.path.abspath(path)
-        if sys.platform == "win32" or sys.platform == "cygwin":
-            path = path.replace("\\", "/")
-        self.verilog_include_paths.add(path)
+        self.verilog_include_paths.add(os.path.abspath(path))
 
     def resolve_signals(self, vns):
         # resolve signal names in constraints
@@ -347,16 +338,6 @@ class GenericPlatform:
 
     def build(self, fragment):
         raise NotImplementedError("GenericPlatform.build must be overloaded")
-
-    def build_cmdline(self, *args, **kwargs):
-        arg = sys.argv[1:]
-        if len(arg) % 2:
-            print("Missing value for option: {}".format(sys.argv[-1]))
-            sys.exit(1)
-
-        argdict = dict((k, autotype(v)) for k, v in zip(*[iter(arg)] * 2))
-        kwargs.update(argdict)
-        self.build(*args, **kwargs)
 
     def create_programmer(self):
         raise NotImplementedError
