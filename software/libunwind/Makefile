@@ -27,4 +27,4 @@ libunwind.a: $(OBJECTS)
 .PHONY: clean
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libuwind.a .*~ *~
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libunwind.a .*~ *~
