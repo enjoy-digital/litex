@@ -1,9 +1,15 @@
+#!/usr/bin/env python3
+
+import argparse
+import importlib
+
 from migen import *
 from migen.genlib.io import CRG
 
 from misoc.cores.liteeth_mini.phy import LiteEthPHY
 from misoc.cores.liteeth_mini.mac import LiteEthMAC
-from misoc.integration.soc_core import SoCCore, mem_decoder
+from misoc.integration.soc_core import *
+from misoc.integration.builder import *
 
 
 class BaseSoC(SoCCore):
@@ -44,4 +50,24 @@ class MiniSoC(BaseSoC):
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
-default_subtarget = BaseSoC
+
+def main():
+    parser = argparse.ArgumentParser(description="Generic MiSoC port")
+    builder_args(parser)
+    soc_core_args(parser)
+    parser.add_argument("--with-ethernet", action="store_true",
+                        help="enable Ethernet support")
+    parser.add_argument("platform",
+                        help="module name of the Migen platform to build for")
+    args = parser.parse_args()
+
+    platform_module = importlib.import_module(args.platform)
+    platform = platform_module.Platform()
+    cls = MiniSoC if args.with_ethernet else BaseSoC
+    soc = cls(platform, **soc_core_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()

@@ -5,6 +5,10 @@ import struct
 from misoc.integration import cpu_interface, sdram_init
 
 
+__all__ = ["misoc_software_packages", "misoc_directory",
+           "Builder", "builder_args", "builder_argdict"]
+
+
 # in build order (for dependencies)
 misoc_software_packages = [
     "libbase",
@@ -20,11 +24,20 @@ misoc_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 class Builder:
-    def __init__(self, soc, output_dir):
+    def __init__(self, soc, output_dir=None,
+                 compile_software=True, compile_gateware=True,
+                 csr_csv=None):
         self.soc = soc
+        if output_dir is None:
+            output_dir = "misoc_{}_{}".format(
+                soc.__class__.__name__.lower(),
+                soc.platform.name)
         # From Python doc: makedirs() will become confused if the path
         # elements to create include '..'
         self.output_dir = os.path.abspath(output_dir)
+        self.compile_software = compile_software
+        self.compile_gateware = compile_gateware
+        self.csr_csv = csr_csv
 
         self.software_packages = []
         for name in misoc_software_packages:
@@ -73,7 +86,11 @@ class Builder:
             with open(os.path.join(generated_dir, "sdram_phy.h"), "w") as f:
                 f.write(sdram_init.get_sdram_phy_header(sdram_phy_settings))
 
-    def _generate_software(self, compile):
+        if self.csr_csv is not None:
+            with open(self.csr_csv, "w") as f:
+                f.write(cpu_interface.get_csr_csv(csr_regions))
+
+    def _generate_software(self):
         for name, src_dir in self.software_packages:
             dst_dir = os.path.join(self.output_dir, "software", name)
             os.makedirs(dst_dir, exist_ok=True)
@@ -84,7 +101,7 @@ class Builder:
             except FileNotFoundError:
                 pass
             os.symlink(src, dst)
-            if compile:
+            if self.compile_software:
                 subprocess.check_call(["make", "-C", dst_dir])
 
     def _initialize_rom(self):
@@ -100,15 +117,39 @@ class Builder:
                     boot_data.append(struct.unpack(">I", w)[0])
             self.soc.initialize_rom(boot_data)
 
-    def build(self, compile_software=True, compile_gateware=True):
+    def build(self):
         self.soc.finalize()
 
-        if self.soc.integrated_rom_size and not compile_software:
+        if self.soc.integrated_rom_size and not self.compile_software:
             raise ValueError("Software must be compiled in order to "
                              "intitialize integrated ROM")
 
         self._generate_includes()
-        self._generate_software(compile_software)
+        self._generate_software()
         self._initialize_rom()
         self.soc.build(build_dir=os.path.join(self.output_dir, "gateware"),
-                       run=compile_gateware)
+                       run=self.compile_gateware)
+
+
+def builder_args(parser):
+    parser.add_argument("--output-dir", default=None,
+                        help="output directory for generated "
+                             "source files and binaries")
+    parser.add_argument("--no-compile-software", action="store_true",
+                        help="do not compile the software, only generate "
+                             "build infrastructure")
+    parser.add_argument("--no-compile-gateware", action="store_true",
+                        help="do not compile the gateware, only generate "
+                             "HDL source files and build scripts")
+    parser.add_argument("--csr-csv", default=None,
+                        help="store CSR map in CSV format into the "
+                             "specified file")
+
+
+def builder_argdict(args):
+    return {
+        "output_dir": args.output_dir,
+        "compile_software": not args.no_compile_software,
+        "compile_gateware": not args.no_compile_gateware,
+        "csr_csv": args.csr_csv
+    }

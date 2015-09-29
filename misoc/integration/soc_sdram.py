@@ -4,11 +4,14 @@ from migen.genlib.record import *
 from misoc.interconnect import wishbone, wishbone2lasmi, lasmi_bus
 from misoc.interconnect.csr import AutoCSR
 from misoc.cores import sdram_tester, dfii, minicon, lasmicon
-from misoc.integration.soc_core import SoCCore
+from misoc.integration.soc_core import *
 
 # TODO: cleanup
 from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.cores.minicon.core import MiniconSettings
+
+
+__all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 
 class SDRAMCore(Module, AutoCSR):
@@ -140,3 +143,7 @@ class SoCSDRAM(SoCCore):
             self.submodules.wb_sdram_con = wishbone.Arbiter(self._wb_sdram_ifs,
                                                             self._wb_sdram)
         SoCCore.do_finalize(self)
+
+
+soc_sdram_args = soc_core_args
+soc_sdram_argdict = soc_core_argdict

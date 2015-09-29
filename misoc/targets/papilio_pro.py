@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 from fractions import Fraction
 
 from migen import *
@@ -10,8 +11,8 @@ from misoc.cores.sdram_settings import MT48LC4M16
 from misoc.cores.sdram_phy import GENSDRPHY
 from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.cores import spi_flash
-from misoc.integration.soc_sdram import SoCSDRAM
-from misoc.integration.builder import Builder
+from misoc.integration.soc_sdram import *
+from misoc.integration.builder import *
 
 
 class _CRG(Module):
@@ -71,7 +72,8 @@ class BaseSoC(SoCSDRAM):
     }
     csr_map.update(SoCSDRAM.csr_map)
 
-    def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, sdram_controller_settings=LASMIconSettings(), **kwargs):
+        platform = papilio_pro.Platform()
         clk_freq = 80*1000000
         SoCSDRAM.__init__(self, platform, clk_freq,
                           cpu_reset_address=0x60000,
@@ -93,8 +95,13 @@ class BaseSoC(SoCSDRAM):
 
 
 def main():
-    soc = BaseSoC(papilio_pro.Platform(), cpu_type="or1k")
-    builder = Builder(soc, "misoc_build")
+    parser = argparse.ArgumentParser(description="MiSoC port to the Papilio Pro")
+    builder_args(parser)
+    soc_sdram_args(parser)
+    args = parser.parse_args()
+
+    soc = BaseSoC(**soc_sdram_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
 

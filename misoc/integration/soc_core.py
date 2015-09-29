@@ -6,6 +6,9 @@ from misoc.cores import lm32, mor1kx, identifier, timer, uart
 from misoc.interconnect import wishbone, csr_bus, wishbone2csr
 
 
+__all__ = ["mem_decoder", "SoCCore", "soc_core_args", "soc_core_argdict"]
+
+
 def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
@@ -190,3 +193,21 @@ class SoCCore(Module):
 
     def build(self, *args, **kwargs):
         self.platform.build(self, *args, **kwargs)
+
+
+def soc_core_args(parser):
+    parser.add_argument("--cpu-type", default=None,
+                        help="select CPU: lm32, or1k")
+    parser.add_argument("--integrated-rom-size", default=None, type=int,
+                        help="size/enable the integrated (BIOS) ROM")
+    parser.add_argument("--integrated-main-ram-size", default=None, type=int,
+                        help="size/enable the integrated main RAM")
+
+
+def soc_core_argdict(args):
+    r = dict()
+    for a in "cpu_type", "integrated_rom_size", "integrated_main_ram_size":
+        arg = getattr(args, a)
+        if arg is not None:
+            r[a] = arg
+    return r

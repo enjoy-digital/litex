@@ -1,12 +1,17 @@
+#!/usr/bin/env python3
+
+import argparse
 from fractions import Fraction
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.build.platforms import minispartan6
 
 from misoc.cores.sdram_settings import AS4C16M16
 from misoc.cores.sdram_phy import GENSDRPHY
 from misoc.cores.lasmicon.core import LASMIconSettings
-from misoc.integration.soc_sdram import SoCSDRAM
+from misoc.integration.soc_sdram import *
+from misoc.integration.builder import *
 
 
 class _CRG(Module):
@@ -61,10 +66,9 @@ class _CRG(Module):
 
 
 class BaseSoC(SoCSDRAM):
-    default_platform = "minispartan6"
-
-    def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, sdram_controller_settings=LASMIconSettings(), **kwargs):
         clk_freq = 80*1000000
+        platform = minispartan6.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq,
                           integrated_rom_size=0x8000,
                           sdram_controller_settings=sdram_controller_settings,
@@ -77,4 +81,17 @@ class BaseSoC(SoCSDRAM):
                                                AS4C16M16(clk_freq))
             self.register_sdram_phy(self.sdrphy)
 
-default_subtarget = BaseSoC
+
+def main():
+    parser = argparse.ArgumentParser(description="MiSoC port to the MiniSpartan6")
+    builder_args(parser)
+    soc_sdram_args(parser)
+    args = parser.parse_args()
+
+    soc = BaseSoC(**soc_sdram_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()

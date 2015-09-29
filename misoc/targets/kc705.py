@@ -1,5 +1,10 @@
+#!/usr/bin/env python3
+
+import argparse
+
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.build.platforms import kc705
 
 from misoc.cores.sdram_settings import MT8JTF12864
 from misoc.cores.sdram_phy import k7ddrphy
@@ -8,7 +13,9 @@ from misoc.cores import spi_flash
 from misoc.cores.liteeth_mini.phy import LiteEthPHY
 from misoc.cores.liteeth_mini.mac import LiteEthMAC
 from misoc.integration.soc_core import mem_decoder
-from misoc.integration.soc_sdram import SoCSDRAM
+from misoc.integration.soc_sdram import *
+from misoc.integration.builder import *
+
 
 
 class _CRG(Module):
@@ -77,7 +84,8 @@ class BaseSoC(SoCSDRAM):
     }
     csr_map.update(SoCSDRAM.csr_map)
 
-    def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, toolchain="ise", sdram_controller_settings=LASMIconSettings(), **kwargs):
+        platform = kc705.Platform(toolchain=toolchain)
         SoCSDRAM.__init__(self, platform,
                           clk_freq=125*1000000, cpu_reset_address=0xaf0000,
                           sdram_controller_settings=sdram_controller_settings,
@@ -120,12 +128,31 @@ class MiniSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, **kwargs):
-        BaseSoC.__init__(self, platform, **kwargs)
+    def __init__(self, *args, **kwargs):
+        BaseSoC.__init__(self, *args, **kwargs)
 
-        self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"), platform.request("eth"), clk_freq=self.clk_freq)
+        self.submodules.ethphy = LiteEthPHY(self.platform.request("eth_clocks"),
+                                            self.platform.request("eth"), clk_freq=self.clk_freq)
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
-default_subtarget = BaseSoC
+
+def main():
+    parser = argparse.ArgumentParser(description="MiSoC port to the KC705")
+    builder_args(parser)
+    soc_sdram_args(parser)
+    parser.add_argument("--toolchain", default="ise",
+                        help="FPGA toolchain to use: ise, vivado")
+    parser.add_argument("--with-ethernet", action="store_true",
+                        help="enable Ethernet support")
+    args = parser.parse_args()
+
+    cls = MiniSoC if args.with_ethernet else BaseSoC
+    soc = cls(toolchain=args.toolchain, **soc_sdram_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()

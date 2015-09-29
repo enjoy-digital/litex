@@ -1,20 +1,25 @@
+#!/usr/bin/env python3
+
+import argparse
 import os
 from fractions import Fraction
 from math import ceil
 
 from migen import *
 from migen.build.generic_platform import ConstraintError
+from migen.build.platforms import mixxeo, m1
 
 from misoc.cores.sdram_settings import MT46V32M16
 from misoc.cores.sdram_phy import S6HalfRateDDRPHY
 from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.cores import nor_flash_16
-from misoc.cores import framebuffer
+# TODO: from misoc.cores import framebuffer
 from misoc.cores import gpio
 from misoc.cores.liteeth_mini.phy import LiteEthPHY
 from misoc.cores.liteeth_mini.mac import LiteEthMAC
 from misoc.integration.soc_core import mem_decoder
-from misoc.integration.soc_sdram import SoCSDRAM
+from misoc.integration.soc_sdram import *
+from misoc.integration.builder import *
 
 
 class _MXCRG(Module):
@@ -70,9 +75,13 @@ class _MXClockPads:
 
 
 class BaseSoC(SoCSDRAM):
-    default_platform = "mixxeo"  # also supports m1
-
-    def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, platform_name="mixxeo", sdram_controller_settings=LASMIconSettings(), **kwargs):
+        if platform_name == "mixxeo":
+            platform = mixxeo.Platform()
+        elif platform_name == "m1":
+            platform = m1.Platform()
+        else:
+            raise ValueError
         SoCSDRAM.__init__(self, platform,
                           clk_freq=(83 + Fraction(1, 3))*1000000,
                           cpu_reset_address=0x00180000,
@@ -105,7 +114,7 @@ class BaseSoC(SoCSDRAM):
 INST "mxcrg/wr_bufpll" LOC = "BUFPLL_X0Y2";
 INST "mxcrg/rd_bufpll" LOC = "BUFPLL_X0Y3";
 """)
-        platform.add_source(os.path.join("misoc", "mxcrg.v"))
+        platform.add_source(os.path.join(misoc_directory, "cores", "mxcrg.v"))
 
 
 class MiniSoC(BaseSoC):
@@ -125,9 +134,10 @@ class MiniSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, **kwargs):
-        BaseSoC.__init__(self, platform, **kwargs)
+    def __init__(self, *args, **kwargs):
+        BaseSoC.__init__(self, *args, **kwargs)
 
+        platform = self.platform
         if platform.name == "mixxeo":
             self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
         if platform.name == "m1":
@@ -173,11 +183,33 @@ class FramebufferSoC(MiniSoC):
     }
     csr_map.update(MiniSoC.csr_map)
 
-    def __init__(self, platform, **kwargs):
-        MiniSoC.__init__(self, platform, **kwargs)
+    def __init__(self, *args, **kwargs):
+        MiniSoC.__init__(self, *args, **kwargs)
         pads_vga, pads_dvi = get_vga_dvi(platform)
         self.submodules.fb = framebuffer.Framebuffer(pads_vga, pads_dvi,
                                                      self.sdram.crossbar.get_master())
         add_vga_tig(platform, self.fb)
 
-default_subtarget = FramebufferSoC
+
+def main():
+    parser = argparse.ArgumentParser(description="MiSoC port to the Mixxeo and Milkymist One")
+    builder_args(parser)
+    soc_sdram_args(parser)
+    parser.add_argument("--platform", default="mixxeo",
+                        help="platform to build for: mixxeo, m1")
+    parser.add_argument("--soc-type", default="base",
+                        help="SoC type: base, mini, framebuffer")
+    args = parser.parse_args()
+
+    cls = {
+        "base": BaseSoC,
+        "mini": MiniSoC,
+        "framebuffer": FramebufferSoC
+    }[args.soc_type]
+    soc = cls(args.platform, **soc_sdram_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()

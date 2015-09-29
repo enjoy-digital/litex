@@ -1,9 +1,15 @@
+#!/usr/bin/env python3
+
+import argparse
+
 from migen import *
+from migen.build.platforms import de0nano
 
 from misoc.cores.sdram_settings import IS42S16160
 from misoc.cores.sdram_phy import GENSDRPHY
 from misoc.cores.lasmicon.core import LASMIconSettings
-from misoc.integration.soc_sdram import SoCSDRAM
+from misoc.integration.soc_sdram import *
+from misoc.integration.builder import *
 
 
 class _PLL(Module):
@@ -80,9 +86,8 @@ class _CRG(Module):
 
 
 class BaseSoC(SoCSDRAM):
-    default_platform = "de0nano"
-
-    def __init__(self, platform, sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, sdram_controller_settings=LASMIconSettings(), **kwargs):
+        platform = de0nano.Platform()
         SoCSDRAM.__init__(self, platform,
                           clk_freq=100*1000000,
                           integrated_rom_size=0x8000,
@@ -96,4 +101,16 @@ class BaseSoC(SoCSDRAM):
                                                IS42S16160(self.clk_freq))
             self.register_sdram_phy(self.sdrphy)
 
-default_subtarget = BaseSoC
+def main():
+    parser = argparse.ArgumentParser(description="MiSoC port to the Altera DE0 Nano")
+    builder_args(parser)
+    soc_sdram_args(parser)
+    args = parser.parse_args()
+
+    soc = BaseSoC(**soc_sdram_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()
