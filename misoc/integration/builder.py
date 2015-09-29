@@ -88,7 +88,7 @@ class Builder:
                 subprocess.check_call(["make", "-C", dst_dir])
 
     def _initialize_rom(self):
-        bios_file = os.path.join(self.output_dir, "software" "bios",
+        bios_file = os.path.join(self.output_dir, "software", "bios",
                                  "bios.bin")
         if self.soc.integrated_rom_size:
             with open(bios_file, "rb") as boot_file:

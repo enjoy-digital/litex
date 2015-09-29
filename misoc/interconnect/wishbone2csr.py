@@ -1,7 +1,7 @@
 from migen import *
 from migen.genlib.misc import timeline
 
-from misoc.interconnect import csr, wishbone
+from misoc.interconnect import csr_bus, wishbone
 
 
 class WB2CSR(Module):
@@ -10,7 +10,7 @@ class WB2CSR(Module):
             bus_wishbone = wishbone.Interface()
         self.wishbone = bus_wishbone
         if bus_csr is None:
-            bus_csr = csr.Interface()
+            bus_csr = csr_bus.Interface()
         self.csr = bus_csr
 
         ###
