@@ -118,7 +118,6 @@ class Flterm:
         self.detect_magic_str = " "*len(sfl_magic_req)
 
     def open(self, port, speed):
-        port = port if not port.isdigit() else int(port)
         self.serial = serial.serial_for_url(
             port,
             baudrate=speed,
@@ -284,13 +283,14 @@ class Flterm:
 
 def _get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", default="2", help="serial port")
+    parser.add_argument("port", help="serial port")
     parser.add_argument("--speed", default=115200, help="serial baudrate")
     parser.add_argument("--kernel", default=None, help="kernel image")
     parser.add_argument("--kernel-adr", type=lambda a: int(a, 0), default=0x40000000, help="kernel address")
     return parser.parse_args()
 
-if __name__ == "__main__":
+
+def main():
     args = _get_args()
     flterm = Flterm(args.kernel, args.kernel_adr)
     flterm.open(args.port, args.speed)
@@ -300,3 +300,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     flterm.join()
+
+
+if __name__ == "__main__":
+    main()
