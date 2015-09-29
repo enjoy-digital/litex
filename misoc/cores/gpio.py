@@ -1,6 +1,7 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
-from migen.bank.description import *
+
+from misoc.interconnect.csr import *
 
 
 class GPIOIn(Module, AutoCSR):
