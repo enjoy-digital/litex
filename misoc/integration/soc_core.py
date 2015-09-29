@@ -36,7 +36,7 @@ class SoCCore(Module):
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0,
                 shadow_base=0x80000000,
-                with_csr=True, csr_data_width=8, csr_address_width=14,
+                csr_data_width=8, csr_address_width=14,
                 with_uart=True, uart_baudrate=115200,
                 with_identifier=True,
                 with_timer=True):
@@ -59,7 +59,6 @@ class SoCCore(Module):
 
         self.shadow_base = shadow_base
 
-        self.with_csr = with_csr
         self.csr_data_width = csr_data_width
         self.csr_address_width = csr_address_width
 
@@ -70,51 +69,42 @@ class SoCCore(Module):
         self._wb_masters = []
         self._wb_slaves = []
 
-        if cpu_type != "none":
-            if cpu_type == "lm32":
-                self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address))
-            elif cpu_type == "or1k":
-                self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address))
-            else:
-                raise ValueError("Unsupported CPU type: {}".format(cpu_type))
-            self.add_wb_master(self.cpu_or_bridge.ibus)
-            self.add_wb_master(self.cpu_or_bridge.dbus)
+        if cpu_type == "lm32":
+            self.submodules.cpu = lm32.LM32(platform, self.cpu_reset_address)
+        elif cpu_type == "or1k":
+            self.submodules.cpu = mor1kx.MOR1KX(platform, self.cpu_reset_address)
+        else:
+            raise ValueError("Unsupported CPU type: {}".format(cpu_type))
+        self.add_wb_master(self.cpu.ibus)
+        self.add_wb_master(self.cpu.dbus)
 
-            if integrated_rom_size:
-                self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True)
-                self.register_rom(self.rom.bus, integrated_rom_size)
+        if integrated_rom_size:
+            self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True)
+            self.register_rom(self.rom.bus, integrated_rom_size)
 
-            if integrated_sram_size:
-                self.submodules.sram = wishbone.SRAM(integrated_sram_size)
-                self.register_mem("sram", self.mem_map["sram"], self.sram.bus, integrated_sram_size)
+        if integrated_sram_size:
+            self.submodules.sram = wishbone.SRAM(integrated_sram_size)
+            self.register_mem("sram", self.mem_map["sram"], self.sram.bus, integrated_sram_size)
 
-            # Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
-            if integrated_main_ram_size:
-                self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size)
-                self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
+        # Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
+        if integrated_main_ram_size:
+            self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size)
+            self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
 
-        if with_csr:
-            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
-                bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
-            self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
+        self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
+            bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
+        self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
-            if with_uart:
-                self.submodules.uart_phy = uart.RS232PHY(platform.request("serial"), clk_freq, uart_baudrate)
-                self.submodules.uart = uart.UART(self.uart_phy)
+        if with_uart:
+            self.submodules.uart_phy = uart.RS232PHY(platform.request("serial"), clk_freq, uart_baudrate)
+            self.submodules.uart = uart.UART(self.uart_phy)
 
-            if with_identifier:
-                platform_id = 0x554E if not hasattr(platform, "identifier") else platform.identifier
-                self.submodules.identifier = identifier.Identifier(platform_id, int(clk_freq))
+        if with_identifier:
+            platform_id = 0x554E if not hasattr(platform, "identifier") else platform.identifier
+            self.submodules.identifier = identifier.Identifier(platform_id, int(clk_freq))
 
-            if with_timer:
-                self.submodules.timer0 = timer.Timer()
-
-    def add_cpu_or_bridge(self, cpu_or_bridge):
-        if self.finalized:
-            raise FinalizeError
-        if hasattr(self, "cpu_or_bridge"):
-            raise NotImplementedError("More than one CPU is not supported")
-        self.submodules.cpu_or_bridge = cpu_or_bridge
+        if with_timer:
+            self.submodules.timer0 = timer.Timer()
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
@@ -174,32 +164,29 @@ class SoCCore(Module):
 
     def do_finalize(self):
         registered_mems = {regions[0] for regions in self._memory_regions}
-        if self.cpu_type != "none":
-            for mem in "rom", "sram":
-                if mem not in registered_mems:
-                    raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
+        for mem in "rom", "sram":
+            if mem not in registered_mems:
+                raise FinalizeError("CPU needs a {} to be registered with register_mem()".format(mem))
 
         # Wishbone
         self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
             self._wb_slaves, register=True)
 
         # CSR
-        if self.with_csr:
-            self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
-                lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
-                data_width=self.csr_data_width, address_width=self.csr_address_width)
-            self.submodules.csrcon = csr_bus.Interconnect(
-                self.wishbone2csr.csr, self.csrbankarray.get_buses())
-            for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
-                self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
-            for name, memory, mapaddr, mmap in self.csrbankarray.srams:
-                self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
+        self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
+            lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
+            data_width=self.csr_data_width, address_width=self.csr_address_width)
+        self.submodules.csrcon = csr_bus.Interconnect(
+            self.wishbone2csr.csr, self.csrbankarray.get_buses())
+        for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+            self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
+        for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+            self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
 
         # Interrupts
-        if hasattr(self.cpu_or_bridge, "interrupt"):
-            for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
-                if hasattr(self, k):
-                    self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
+        for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
+            if hasattr(self, k):
+                self.comb += self.cpu.interrupt[v].eq(getattr(self, k).ev.irq)
 
     def build(self, *args, **kwargs):
         self.platform.build(self, *args, **kwargs)
