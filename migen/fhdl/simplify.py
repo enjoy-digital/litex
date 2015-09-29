@@ -41,7 +41,7 @@ class FullMemoryWE(ModuleTransformer):
                             re=port.re,
                             we_granularity=0,
                             mode=port.mode,
-                            clock_domain=port.clock)
+                            clock_domain=port.clock.cd)
                         newmem.ports.append(newport)
                         newspecials.add(newport)
                 self.replacments[orig] = newmems
