@@ -379,6 +379,8 @@ class ClockSignal(_Value):
     """
     def __init__(self, cd="sys"):
         _Value.__init__(self)
+        if not isinstance(cd, str):
+            raise TypeError("Argument of ClockSignal must be a string")
         self.cd = cd
 
 
@@ -398,6 +400,8 @@ class ResetSignal(_Value):
     """
     def __init__(self, cd="sys", allow_reset_less=False):
         _Value.__init__(self)
+        if not isinstance(cd, str):
+            raise TypeError("Argument of ResetSignal must be a string")
         self.cd = cd
         self.allow_reset_less = allow_reset_less
 
