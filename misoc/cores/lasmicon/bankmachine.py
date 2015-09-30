@@ -35,18 +35,24 @@ class BankMachine(Module):
         ###
 
         # Request FIFO
-        self.submodules.req_fifo = SyncFIFO([("we", 1), ("adr", len(req.adr))],
+        layout = [("we", 1), ("adr", len(req.adr))]
+        req_in = Record(layout)
+        reqf = Record(layout)
+        self.submodules.req_fifo = SyncFIFO(layout_len(layout),
                                             controller_settings.req_queue_size)
         self.comb += [
-            self.req_fifo.din.we.eq(req.we),
-            self.req_fifo.din.adr.eq(req.adr),
+            self.req_fifo.din.eq(req_in.raw_bits()),
+            reqf.raw_bits().eq(self.req_fifo.dout)
+        ]
+        self.comb += [
+            req_in.we.eq(req.we),
+            req_in.adr.eq(req.adr),
             self.req_fifo.we.eq(req.stb),
             req.req_ack.eq(self.req_fifo.writable),
 
             self.req_fifo.re.eq(req.dat_w_ack | req.dat_r_ack),
             req.lock.eq(self.req_fifo.readable)
         ]
-        reqf = self.req_fifo.dout
 
         slicer = _AddressSlicer(geom_settings.colbits, address_align)
 
