@@ -1,6 +1,8 @@
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Memory
+from migen.fhdl.bitcontainer import log2_int
+from migen.fhdl.decorators import ClockDomainsRenamer
 from migen.genlib.cdc import NoRetiming, MultiReg, GrayCounter
 
 
