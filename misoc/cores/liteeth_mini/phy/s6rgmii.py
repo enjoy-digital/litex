@@ -1,10 +1,13 @@
 # RGMII PHY for Spartan-6
 
+from migen import *
 from migen.genlib.io import DDROutput
 from migen.genlib.misc import WaitTimer
 from migen.genlib.fsm import FSM, NextState
 
-from misoc.com.liteethmini.common import *
+from misoc.interconnect.stream import *
+from misoc.interconnect.csr import *
+from misoc.cores.liteeth_mini.common import *
 
 
 class LiteEthPHYRGMIITX(Module):
@@ -155,8 +158,6 @@ class LiteEthPHYRGMII(Module, AutoCSR):
         self.submodules.crg = LiteEthPHYRGMIICRG(clock_pads,
                                                  pads,
                                                  with_hw_init_reset)
-        self.submodules.tx = RenameClockDomains(LiteEthPHYRGMIITX(pads),
-                                                "eth_tx")
-        self.submodules.rx = RenameClockDomains(LiteEthPHYRGMIIRX(pads),
-                                                "eth_rx")
+        self.submodules.tx = ClockDomainsRenamer("eth_tx")(LiteEthPHYRGMIITX(pads))
+        self.submodules.rx = ClockDomainsRenamer("eth_rx")(LiteEthPHYRGMIIRX(pads))
         self.sink, self.source = self.tx.sink, self.rx.source

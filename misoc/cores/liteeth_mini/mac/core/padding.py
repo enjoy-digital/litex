@@ -1,8 +1,9 @@
+import math
+
 from migen import *
 
+from misoc.interconnect.stream import *
 from misoc.cores.liteeth_mini.common import eth_phy_description
-
-# TODO: rewrite without Counter
 
 
 class LiteEthMACPaddingInserter(Module):
@@ -14,19 +15,26 @@ class LiteEthMACPaddingInserter(Module):
 
         padding_limit = math.ceil(padding/(dw/8))-1
 
-        self.submodules.counter = counter = Counter(16, reset=1)
+        counter = Signal(16, reset=1)
         counter_done = Signal()
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += If(counter_reset,
+                            counter.eq(1)
+                        ).Elif(counter_ce,
+                            counter.eq(counter + 1)
+                        )
         self.comb += [
-            counter.reset.eq(sink.stb & sink.sop & sink.ack),
-            counter.ce.eq(source.stb & source.ack),
-            counter_done.eq(counter.value >= padding_limit),
+            counter_reset.eq(sink.stb & sink.sop & sink.ack),
+            counter_ce.eq(source.stb & source.ack),
+            counter_done.eq(counter >= padding_limit),
         ]
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             Record.connect(sink, source),
             If(source.stb & source.ack,
-                counter.ce.eq(1),
+                counter_ce.eq(1),
                 If(sink.eop,
                     If(~counter_done,
                         source.eop.eq(0),
@@ -54,7 +62,7 @@ class LiteEthMACPaddingChecker(Module):
 
         # # #
 
-        # XXX see if we should drop the packet when
+        # TODO: see if we should drop the packet when
         # payload size < minimum ethernet payload size
         self.comb += Record.connect(sink, source)
 

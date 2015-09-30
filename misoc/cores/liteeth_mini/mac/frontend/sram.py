@@ -2,6 +2,7 @@ from misoc import *
 
 from misoc.interconnect.csr import *
 from misoc.interconnect.csr_eventmanager import *
+from misoc.interconnect.stream import *
 
 from misoc.cores.liteeth_mini.common import eth_phy_description
 
@@ -38,12 +39,19 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
             ).Else(
                 increment.eq(4)
             )
-        counter = Counter(lengthbits, increment=increment)
-        self.submodules += counter
+        counter = Signal(lengthbits)
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += If(counter_reset,
+                        counter.eq(0)
+                    ).Elif(counter_ce,
+                        counter.eq(counter + increment)
+                    )
 
         # slot computation
-        slot = Counter(slotbits)
-        self.submodules += slot
+        slot = Signal(slotbits)
+        slot_ce = Signal()
+        self.sync += If(slot_ce, slot.eq(slot + 1))
 
         ongoing = Signal()
 
@@ -59,13 +67,13 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
             If(sink.stb & sink.sop,
                 If(fifo.sink.ack,
                     ongoing.eq(1),
-                    counter.ce.eq(1),
+                    counter_ce.eq(1),
                     NextState("WRITE")
                 )
             )
         )
         fsm.act("WRITE",
-            counter.ce.eq(sink.stb),
+            counter_ce.eq(sink.stb),
             ongoing.eq(1),
             If(sink.stb & sink.eop,
                 If((sink.error & sink.last_be) != 0,
@@ -76,16 +84,16 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
             )
         )
         fsm.act("DISCARD",
-            counter.reset.eq(1),
+            counter_reset.eq(1),
             NextState("IDLE")
         )
         self.comb += [
-            fifo.sink.slot.eq(slot.value),
-            fifo.sink.length.eq(counter.value)
+            fifo.sink.slot.eq(slot),
+            fifo.sink.length.eq(counter)
         ]
         fsm.act("TERMINATE",
-            counter.reset.eq(1),
-            slot.ce.eq(1),
+            counter_reset.eq(1),
+            slot_ce.eq(1),
             fifo.sink.stb.eq(1),
             NextState("IDLE")
         )
@@ -108,13 +116,13 @@ class LiteEthMACSRAMWriter(Module, AutoCSR):
         cases = {}
         for n, port in enumerate(ports):
             cases[n] = [
-                ports[n].adr.eq(counter.value[2:]),
+                ports[n].adr.eq(counter[2:]),
                 ports[n].dat_w.eq(sink.data),
                 If(sink.stb & ongoing,
                     ports[n].we.eq(0xf)
                 )
             ]
-        self.comb += Case(slot.value, cases)
+        self.comb += Case(slot, cases)
 
 
 class LiteEthMACSRAMReader(Module, AutoCSR):
@@ -147,7 +155,15 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
         ]
 
         # length computation
-        self.submodules.counter = counter = Counter(lengthbits, increment=4)
+        counter = Signal(lengthbits)
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += If(counter_reset,
+                            counter.eq(0)
+                        ).Elif(counter_ce,
+                            counter.eq(counter + 4)
+                        )
+
 
         # fsm
         first = Signal()
@@ -158,7 +174,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
         self.submodules += fsm
 
         fsm.act("IDLE",
-            counter.reset.eq(1),
+            counter_reset.eq(1),
             If(fifo.source.stb,
                 NextState("CHECK")
             )
@@ -189,7 +205,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
             source.sop.eq(first),
             source.eop.eq(last),
             If(source.ack,
-                counter.ce.eq(~last),
+                counter_ce.eq(~last),
                 NextState("CHECK")
             )
         )
@@ -207,7 +223,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
                 first.eq(0)
             )
         ]
-        self.comb += last.eq((counter.value + 4) >= fifo.source.length)
+        self.comb += last.eq((counter + 4) >= fifo.source.length)
         self.sync += last_d.eq(last)
 
         # memory
@@ -223,7 +239,7 @@ class LiteEthMACSRAMReader(Module, AutoCSR):
 
         cases = {}
         for n, port in enumerate(ports):
-            self.comb += ports[n].adr.eq(counter.value[2:])
+            self.comb += ports[n].adr.eq(counter[2:])
             cases[n] = [source.data.eq(port.dat_r)]
         self.comb += Case(rd_slot, cases)
 

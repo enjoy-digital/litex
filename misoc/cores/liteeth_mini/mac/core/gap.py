@@ -3,7 +3,8 @@ import math
 from migen import *
 from migen.genlib.fsm import *
 
-from misoc.cores.liteeth_mini.common import eth_phy_description
+from misoc.interconnect.stream import Sink, Source
+from misoc.cores.liteeth_mini.common import eth_phy_description, eth_interpacket_gap
 
 
 class LiteEthMACGap(Module):
@@ -14,20 +15,28 @@ class LiteEthMACGap(Module):
         # # #
 
         gap = math.ceil(eth_interpacket_gap/(dw//8))
-        self.submodules.counter = counter = Counter(max=gap)
+        counter = Signal(max=gap)
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += \
+            If(counter_reset,
+               counter.eq(0)
+            ).Elif(counter_ce,
+                counter.eq(counter + 1)
+            )
 
         self.submodules.fsm = fsm = FSM(reset_state="COPY")
         fsm.act("COPY",
-            counter.reset.eq(1),
+            counter_reset.eq(1),
             Record.connect(sink, source),
             If(sink.stb & sink.eop & sink.ack,
                 NextState("GAP")
             )
         )
         fsm.act("GAP",
-            counter.ce.eq(1),
+            counter_ce.eq(1),
             sink.ack.eq(int(ack_on_gap)),
-            If(counter.value == (gap-1),
+            If(counter == (gap-1),
                 NextState("COPY")
             )
         )

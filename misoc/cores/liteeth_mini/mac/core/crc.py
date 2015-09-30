@@ -1,4 +1,11 @@
+from collections import OrderedDict
+from functools import reduce
+from operator import xor
+
 from migen import *
+from migen.genlib.misc import chooser
+
+from misoc.interconnect.stream import *
 
 
 class LiteEthMACCRCEngine(Module):
@@ -67,7 +74,7 @@ class LiteEthMACCRCEngine(Module):
                     xors += [self.last[n]]
                 elif t == "din":
                     xors += [self.data[n]]
-            self.comb += self.next[i].eq(optree("^", xors))
+            self.comb += self.next[i].eq(reduce(xor, xors))
 
 
 @ResetInserter()
@@ -224,7 +231,7 @@ class LiteEthMACCRCChecker(Module):
         self.submodules += crc
         ratio = crc.width//dw
 
-        fifo = InsertReset(SyncFIFO(description, ratio + 1))
+        fifo = ResetInserter()(SyncFIFO(description, ratio + 1))
         self.submodules += fifo
 
         fsm = FSM(reset_state="RESET")

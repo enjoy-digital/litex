@@ -1,5 +1,6 @@
 from migen import *
 
+from misoc.interconnect.stream import *
 from misoc.cores.liteeth_mini.common import eth_phy_description
 
 

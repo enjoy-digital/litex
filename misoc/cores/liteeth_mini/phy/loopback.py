@@ -1,5 +1,9 @@
-from misoc.com.liteethmini.common import *
-from misoc.com.liteethmini.generic import *
+from migen import *
+
+from misoc.interconnect.csr import *
+from misoc.interconnect.stream import *
+from misoc.cores.liteeth_mini.common import *
+from misoc.cores.liteeth.mini.generic import *
 
 
 class LiteEthPHYLoopbackCRG(Module, AutoCSR):
@@ -26,6 +30,6 @@ class LiteEthPHYLoopback(Module, AutoCSR):
     def __init__(self):
         self.dw = 8
         self.submodules.crg = LiteEthLoopbackPHYCRG()
-        self.sink = sink = Sink(eth_phy_description(8))
-        self.source = source = Source(eth_phy_description(8))
+        self.sink = Sink(eth_phy_description(8))
+        self.source = Source(eth_phy_description(8))
         self.comb += Record.connect(self.sink, self.source)

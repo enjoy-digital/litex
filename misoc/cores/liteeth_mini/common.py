@@ -2,13 +2,7 @@ from migen import *
 from migen.genlib.record import *
 
 from misoc.interconnect.csr import *
-
-
-# TODO: rewrite without dataflow or implement those
-# from migen.flow.actor import *
-# from migen.actorlib.structuring import Converter, Pipeline
-# from migen.actorlib.fifo import SyncFIFO, AsyncFIFO
-# from migen.actorlib.packet import *
+from misoc.interconnect.stream import *
 
 
 class Port:

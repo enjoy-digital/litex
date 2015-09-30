@@ -1,12 +1,13 @@
+from migen import *
 from migen.genlib.io import DDROutput
-from migen.flow.plumbing import Multiplexer, Demultiplexer
 from migen.genlib.cdc import PulseSynchronizer
 
-from misoc.com.liteethmini.common import *
+from misoc.interconnect.stream import *
+from misoc.cores.liteeth_mini.common import *
+from misoc.cores.liteeth_mini.phy.gmii import LiteEthPHYGMIICRG
+from misoc.cores.liteeth_mini.phy.mii import LiteEthPHYMIITX, LiteEthPHYMIIRX
+from misoc.cores.liteeth_mini.phy.gmii import LiteEthPHYGMIITX, LiteEthPHYGMIIRX
 
-from misoc.com.liteethmini.phy.gmii import LiteEthPHYGMIICRG
-from misoc.com.liteethmini.phy.mii import LiteEthPHYMIITX, LiteEthPHYMIIRX
-from misoc.com.liteethmini.phy.gmii import LiteEthPHYGMIITX, LiteEthPHYGMIIRX
 
 modes = {
     "GMII": 0,
@@ -118,20 +119,28 @@ class LiteEthGMIIMIIModeDetection(Module, AutoCSR):
         self.submodules += eth_ps
 
         # sys_clk domain counter
-        sys_counter = Counter(24)
-        self.submodules += sys_counter
+        sys_counter = Signal(24)
+        sys_counter_reset = Signal()
+        sys_counter_ce = Signal()
+        self.sync += [
+            If(sys_counter_reset,
+               sys_counter.eq(0)
+            ).Elif(sys_counter_ce,
+                sys_counter.eq(sys_counter + 1)
+            )
+        ]
 
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
         fsm.act("IDLE",
-            sys_counter.reset.eq(1),
+            sys_counter_reset.eq(1),
             If(sys_tick,
                 NextState("COUNT")
             )
         )
         fsm.act("COUNT",
-            sys_counter.ce.eq(1),
+            sys_counter_ce.eq(1),
             If(sys_tick,
                 NextState("DETECTION")
             )
@@ -139,7 +148,7 @@ class LiteEthGMIIMIIModeDetection(Module, AutoCSR):
         fsm.act("DETECTION",
             update_mode.eq(1),
             # if freq < 125MHz-5% use MII mode
-            If(sys_counter.value > int((clk_freq/125000000)*1024*1.05),
+            If(sys_counter > int((clk_freq/125000000)*1024*1.05),
                 mode.eq(1)
             # if freq >= 125MHz-5% use GMII mode
             ).Else(
@@ -156,6 +165,6 @@ class LiteEthPHYGMIIMII(Module, AutoCSR):
         self.submodules.mode_detection = LiteEthGMIIMIIModeDetection(clk_freq)
         mode = self.mode_detection.mode
         self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset, mode == modes["MII"])
-        self.submodules.tx = RenameClockDomains(LiteEthPHYGMIIMIITX(pads, mode), "eth_tx")
-        self.submodules.rx = RenameClockDomains(LiteEthPHYGMIIMIIRX(pads, mode), "eth_rx")
+        self.submodules.tx = ClockDomainsRenamer("eth_tx")(LiteEthPHYGMIIMIITX(pads, mode))
+        self.submodules.rx = ClockDomainsRenamer("eth_rx")(LiteEthPHYGMIIMIIRX(pads, mode))
         self.sink, self.source = self.tx.sink, self.rx.source

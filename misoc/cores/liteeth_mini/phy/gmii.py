@@ -1,6 +1,8 @@
+from migen import *
 from migen.genlib.io import DDROutput
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoc.com.liteethmini.common import *
+from misoc.cores.liteeth_mini.common import *
 
 
 class LiteEthPHYGMIITX(Module):
@@ -69,11 +71,13 @@ class LiteEthPHYGMIICRG(Module, AutoCSR):
 
         if with_hw_init_reset:
             reset = Signal()
+            counter = Signal(max=512)
             counter_done = Signal()
-            self.submodules.counter = counter = Counter(max=512)
+            counter_ce = Signal()
+            self.sync += If(counter_ce, counter.eq(counter + 1))
             self.comb += [
-                counter_done.eq(counter.value == 256),
-                counter.ce.eq(~counter_done),
+                counter_done.eq(counter == 256),
+                counter_ce.eq(~counter_done),
                 reset.eq(~counter_done | self._reset.storage)
             ]
         else:

@@ -19,8 +19,8 @@ class LiteEthMACCore(Module, AutoCSR):
         # Interpacket gap
         tx_gap_inserter = gap.LiteEthMACGap(phy.dw)
         rx_gap_checker = gap.LiteEthMACGap(phy.dw, ack_on_gap=True)
-        self.submodules += RenameClockDomains(tx_gap_inserter, "eth_tx")
-        self.submodules += RenameClockDomains(rx_gap_checker, "eth_rx")
+        self.submodules += ClockDomainsRenamer("eth_tx")(tx_gap_inserter)
+        self.submodules += ClockDomainsRenamer("eth_rx")(rx_gap_checker)
 
         tx_pipeline += [tx_gap_inserter]
         rx_pipeline += [rx_gap_checker]
@@ -31,14 +31,14 @@ class LiteEthMACCore(Module, AutoCSR):
             # Preamble insert/check
             preamble_inserter = preamble.LiteEthMACPreambleInserter(phy.dw)
             preamble_checker = preamble.LiteEthMACPreambleChecker(phy.dw)
-            self.submodules += RenameClockDomains(preamble_inserter, "eth_tx")
-            self.submodules += RenameClockDomains(preamble_checker, "eth_rx")
+            self.submodules += ClockDomainsRenamer("eth_tx")(preamble_inserter)
+            self.submodules += ClockDomainsRenamer("eth_rx")(preamble_checker)
 
             # CRC insert/check
             crc32_inserter = crc.LiteEthMACCRC32Inserter(eth_phy_description(phy.dw))
             crc32_checker = crc.LiteEthMACCRC32Checker(eth_phy_description(phy.dw))
-            self.submodules += RenameClockDomains(crc32_inserter, "eth_tx")
-            self.submodules += RenameClockDomains(crc32_checker, "eth_rx")
+            self.submodules += ClockDomainsRenamer("eth_tx")(crc32_inserter)
+            self.submodules += ClockDomainsRenamer("eth_rx")(crc32_checker)
 
             tx_pipeline += [preamble_inserter, crc32_inserter]
             rx_pipeline += [preamble_checker, crc32_checker]
@@ -47,8 +47,8 @@ class LiteEthMACCore(Module, AutoCSR):
         if with_padding:
             padding_inserter = padding.LiteEthMACPaddingInserter(phy.dw, 60)
             padding_checker = padding.LiteEthMACPaddingChecker(phy.dw, 60)
-            self.submodules += RenameClockDomains(padding_inserter, "eth_tx")
-            self.submodules += RenameClockDomains(padding_checker, "eth_rx")
+            self.submodules += ClockDomainsRenamer("eth_tx")(padding_inserter)
+            self.submodules += ClockDomainsRenamer("eth_rx")(padding_checker)
 
             tx_pipeline += [padding_inserter]
             rx_pipeline += [padding_checker]
@@ -57,8 +57,8 @@ class LiteEthMACCore(Module, AutoCSR):
         if dw != 8:
             tx_last_be = last_be.LiteEthMACTXLastBE(phy.dw)
             rx_last_be = last_be.LiteEthMACRXLastBE(phy.dw)
-            self.submodules += RenameClockDomains(tx_last_be, "eth_tx")
-            self.submodules += RenameClockDomains(rx_last_be, "eth_rx")
+            self.submodules += ClockDomainsRenamer("eth_tx")(tx_last_be)
+            self.submodules += ClockDomainsRenamer("eth_rx")(rx_last_be)
 
             tx_pipeline += [tx_last_be]
             rx_pipeline += [rx_last_be]
@@ -72,8 +72,8 @@ class LiteEthMACCore(Module, AutoCSR):
             rx_converter = Converter(eth_phy_description(phy.dw),
                                      eth_phy_description(dw),
                                      reverse=reverse)
-            self.submodules += RenameClockDomains(tx_converter, "eth_tx")
-            self.submodules += RenameClockDomains(rx_converter, "eth_rx")
+            self.submodules += ClockDomainsRenamer("eth_tx")(tx_converter)
+            self.submodules += ClockDomainsRenamer("eth_rx")(rx_converter)
 
             tx_pipeline += [tx_converter]
             rx_pipeline += [rx_converter]
@@ -85,14 +85,16 @@ class LiteEthMACCore(Module, AutoCSR):
             fifo_depth = 64
         tx_cdc = AsyncFIFO(eth_phy_description(dw), fifo_depth)
         rx_cdc = AsyncFIFO(eth_phy_description(dw), fifo_depth)
-        self.submodules += RenameClockDomains(tx_cdc, {"write": "sys", "read": "eth_tx"})
-        self.submodules += RenameClockDomains(rx_cdc, {"write": "eth_rx", "read": "sys"})
+        self.submodules += ClockDomainsRenamer({"write": "sys", "read": "eth_tx"})(tx_cdc)
+        self.submodules += ClockDomainsRenamer({"write": "eth_rx", "read": "sys"})(rx_cdc)
 
         tx_pipeline += [tx_cdc]
         rx_pipeline += [rx_cdc]
 
-        # Graph
-        self.submodules.tx_pipeline = Pipeline(*reversed(tx_pipeline))
-        self.submodules.rx_pipeline = Pipeline(*rx_pipeline)
-
-        self.sink, self.source = self.tx_pipeline.sink, self.rx_pipeline.source
+        tx_pipeline_r = list(reversed(tx_pipeline))
+        for s, d in zip(tx_pipeline_r, tx_pipeline_r[1:]):
+            self.comb += s.source.connect(d.sink)
+        for s, d in zip(rx_pipeline, rx_pipeline[1:]):
+            self.comb += s.source.connect(d.sink)
+        self.sink = tx_pipeline[-1].sink
+        self.source = rx_pipeline[-1].source

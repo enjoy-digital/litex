@@ -1,7 +1,9 @@
 from migen import *
 from migen.genlib.fsm import *
+from migen.genlib.misc import chooser
 from migen.genlib.record import Record
 
+from misoc.interconnect.stream import *
 from misoc.cores.liteeth_mini.common import eth_phy_description, eth_preamble
 
 
