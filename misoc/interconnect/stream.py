@@ -113,3 +113,32 @@ class SyncFIFO(_FIFOWrapper):
 class AsyncFIFO(_FIFOWrapper):
     def __init__(self, layout, depth):
         _FIFOWrapper.__init__(self, fifo.AsyncFIFO, layout, depth)
+
+
+class Multiplexer(Module):
+    def __init__(self, layout, n):
+        self.source = Source(layout)
+        sinks = []
+        for i in range(n):
+            sink = Sink(layout)
+            setattr(self, "sink"+str(i), sink)
+            sinks.append(sink)
+        self.sel = Signal(max=n)
+
+        # # #
+
+        cases = {}
+        for i, sink in enumerate(sinks):
+            cases[i] = Record.connect(sink, self.source)
+        self.comb += Case(self.sel, cases)
+
+
+class Demultiplexer(Module):
+    def __init__(self, layout, n):
+        self.sink = Sink(layout)
+        sources = []
+        for i in range(n):
+            source = Source(layout)
+            setattr(self, "source"+str(i), source)
+            sources.append(source)
+        self.sel = Signal(max=n)
