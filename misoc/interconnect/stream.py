@@ -14,24 +14,22 @@ def _make_m2s(layout):
 
 
 class EndpointDescription:
-    def __init__(self, payload_layout, param_layout=[], packetized=False):
+    def __init__(self, payload_layout, packetized=False):
         self.payload_layout = payload_layout
-        self.param_layout = param_layout
         self.packetized = packetized
 
     def get_full_layout(self):
-        reserved = {"stb", "ack", "payload", "param", "sop", "eop", "description"}
+        reserved = {"stb", "ack", "payload", "sop", "eop", "description"}
         attributed = set()
-        for f in self.payload_layout + self.param_layout:
+        for f in self.payload_layout:
             if f[0] in attributed:
-                raise ValueError(f[0] + " already attributed in payload or param layout")
+                raise ValueError(f[0] + " already attributed in payload layout")
             if f[0] in reserved:
                 raise ValueError(f[0] + " cannot be used in endpoint layout")
             attributed.add(f[0])
 
         full_layout = [
             ("payload", _make_m2s(self.payload_layout)),
-            ("param", _make_m2s(self.param_layout)),
             ("stb", 1, DIR_M_TO_S),
             ("ack", 1, DIR_S_TO_M)
         ]
@@ -52,10 +50,7 @@ class _Endpoint(Record):
         Record.__init__(self, self.description.get_full_layout())
 
     def __getattr__(self, name):
-        try:
-            return getattr(object.__getattribute__(self, "payload"), name)
-        except:
-            return getattr(object.__getattribute__(self, "param"), name)
+        return getattr(object.__getattribute__(self, "payload"), name)
 
 
 class Source(_Endpoint):
@@ -77,35 +72,33 @@ class _FIFOWrapper(Module):
         ###
 
         description = self.sink.description
-        fifo_layout = [
-            ("payload", description.payload_layout),
-            # Note : Can be optimized by passing parameters
-            #        in another fifo. We will only have one
-            #        data per packet.
-            ("param", description.param_layout)
-        ]
+        fifo_layout = [("payload", description.payload_layout)]
         if description.packetized:
             fifo_layout += [("sop", 1), ("eop", 1)]
 
-        self.submodules.fifo = fifo_class(fifo_layout, depth)
+        self.submodules.fifo = fifo_class(layout_len(fifo_layout), depth)
+        fifo_in = Record(fifo_layout)
+        fifo_out = Record(fifo_layout)
+        self.comb += [
+            self.fifo.din.eq(fifo_in.raw_bits()),
+            fifo_out.raw_bits().eq(self.fifo.dout)
+        ]
 
         self.comb += [
             self.sink.ack.eq(self.fifo.writable),
             self.fifo.we.eq(self.sink.stb),
-            self.fifo.din.payload.eq(self.sink.payload),
-            self.fifo.din.param.eq(self.sink.param),
+            fifo_in.payload.eq(self.sink.payload),
 
             self.source.stb.eq(self.fifo.readable),
-            self.source.payload.eq(self.fifo.dout.payload),
-            self.source.param.eq(self.fifo.dout.param),
+            self.source.payload.eq(fifo_out.payload),
             self.fifo.re.eq(self.source.ack)
         ]
         if description.packetized:
             self.comb += [
-                self.fifo.din.sop.eq(self.sink.sop),
-                self.fifo.din.eop.eq(self.sink.eop),
-                self.source.sop.eq(self.fifo.dout.sop),
-                self.source.eop.eq(self.fifo.dout.eop)
+                fifo_in.sop.eq(self.sink.sop),
+                fifo_in.eop.eq(self.sink.eop),
+                self.source.sop.eq(fifo_out.sop),
+                self.source.eop.eq(fifo_out.eop)
             ]
 
 
