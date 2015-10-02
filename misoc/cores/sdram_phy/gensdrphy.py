@@ -30,13 +30,13 @@ from misoc.cores import sdram_settings
 
 
 class GENSDRPHY(Module):
-    def __init__(self, pads, module):
+    def __init__(self, pads):
         addressbits = len(pads.a)
         bankbits = len(pads.ba)
         databits = len(pads.dq)
 
         self.settings = sdram_settings.PhySettings(
-            memtype=module.memtype,
+            memtype="SDR",
             dfi_databits=databits,
             nphases=1,
             rdphase=0,
@@ -47,7 +47,6 @@ class GENSDRPHY(Module):
             read_latency=4,
             write_latency=0
         )
-        self.module = module
 
         self.dfi = Interface(addressbits, bankbits, databits)
 

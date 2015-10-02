@@ -2,7 +2,7 @@ import os
 import subprocess
 import struct
 
-from misoc.integration import cpu_interface, sdram_init
+from misoc.integration import cpu_interface, soc_sdram, sdram_init
 
 
 __all__ = ["misoc_software_packages", "misoc_directory",
@@ -53,11 +53,10 @@ class Builder:
         flash_boot_address = getattr(self.soc, "flash_boot_address", None)
         csr_regions = self.soc.get_csr_regions()
         constants = self.soc.get_constants()
-        # TODO: cleanup
-        sdram_phy_settings = None
-        for sdram_phy in "sdrphy", "ddrphy":
-            if hasattr(self.soc, sdram_phy):
-                sdram_phy_settings = getattr(self.soc, sdram_phy).settings
+        if isinstance(self.soc, soc_sdram.SoCSDRAM):
+            sdram_phy_settings = self.soc._sdram_phy[0].settings
+        else:
+            sdram_phy_settings = None
 
         buildinc_dir = os.path.join(self.output_dir, "software", "include")
         generated_dir = os.path.join(buildinc_dir, "generated")

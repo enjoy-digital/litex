@@ -9,7 +9,6 @@ from migen.build.platforms import papilio_pro
 
 from misoc.cores.sdram_settings import MT48LC4M16
 from misoc.cores.sdram_phy import GENSDRPHY
-from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.cores import spi_flash
 from misoc.integration.soc_sdram import *
 from misoc.integration.builder import *
@@ -72,20 +71,20 @@ class BaseSoC(SoCSDRAM):
     }
     csr_map.update(SoCSDRAM.csr_map)
 
-    def __init__(self, sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, **kwargs):
         platform = papilio_pro.Platform()
         clk_freq = 80*1000000
         SoCSDRAM.__init__(self, platform, clk_freq,
                           cpu_reset_address=0x60000,
-                          sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
 
         self.submodules.crg = _CRG(platform, clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"),
-                                               MT48LC4M16(clk_freq))
-            self.register_sdram_phy(self.sdrphy)
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
+            sdram_module = MT48LC4M16(clk_freq)
+            self.register_sdram(self.sdrphy, "minicon",
+                                sdram_module.geom_settings, sdram_module.timing_settings)
 
         if not self.integrated_rom_size:
             self.submodules.spiflash = spi_flash.SpiFlash(platform.request("spiflash2x"),

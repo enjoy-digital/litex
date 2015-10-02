@@ -9,7 +9,6 @@ from migen.build.platforms import pipistrello
 
 from misoc.cores.sdram_settings import MT46H32M16
 from misoc.cores.sdram_phy import S6HalfRateDDRPHY
-from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.cores import spi_flash
 from misoc.integration.soc_sdram import *
 from misoc.integration.builder import *
@@ -101,19 +100,18 @@ class BaseSoC(SoCSDRAM):
     }
     csr_map.update(SoCSDRAM.csr_map)
 
-    def __init__(self, sdram_controller_settings=LASMIconSettings(),
-                 clk_freq=(83 + Fraction(1, 3))*1000*1000, **kwargs):
+    def __init__(self, clk_freq=(83 + Fraction(1, 3))*1000*1000, **kwargs):
         platform = pipistrello.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq,
                           cpu_reset_address=0x170000,  # 1.5 MB
-                          sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
 
         self.submodules.crg = _CRG(platform, clk_freq)
 
         if not self.integrated_main_ram_size:
+            sdram_module = MT46H32M16(self.clk_freq)
             self.submodules.ddrphy = S6HalfRateDDRPHY(platform.request("ddram"),
-                                                      MT46H32M16(self.clk_freq),
+                                                      sdram_module.memtype,
                                                       rd_bitslip=1,
                                                       wr_bitslip=3,
                                                       dqs_ddr_alignment="C1")
@@ -121,7 +119,8 @@ class BaseSoC(SoCSDRAM):
                 self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
                 self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb),
             ]
-            self.register_sdram_phy(self.ddrphy)
+            self.register_sdram(self.ddrphy, "minicon",
+                                sdram_module.geom_settings, sdram_module.timing_settings)
 
         if not self.integrated_rom_size:
             self.submodules.spiflash = spi_flash.SpiFlash(platform.request("spiflash4x"),

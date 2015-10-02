@@ -60,11 +60,6 @@ class _Bank(Module):
         self.comb += self.hit.eq(~self.idle & (self.row == row))
 
 
-class MiniconSettings:
-    def __init__(self, l2_size=0):
-        self.l2_size = l2_size
-
-
 class Minicon(Module):
     def __init__(self, phy_settings, geom_settings, timing_settings):
         if phy_settings.memtype in ["SDR"]:

@@ -211,20 +211,12 @@ class Multiplexer(Module, AutoCSR):
         )
         fsm.act("REFRESH",
             steerer.sel[0].eq(STEER_REFRESH),
+            refresher.ack.eq(1),
             If(~refresher.req, NextState("READ"))
         )
         fsm.delayed_enter("RTW", "WRITE", phy_settings.read_latency-1)  # FIXME: reduce this, actual limit is around (cl+1)/nphases
         fsm.delayed_enter("WTR", "READ", timing_settings.tWTR-1)
-        # FIXME: workaround for zero-delay loop simulation problem with Icarus Verilog
-        fsm.finalize()
-        self.comb += refresher.ack.eq(fsm.state == fsm.encoding["REFRESH"])
 
-        self.with_bandwidth = with_bandwidth
-
-    def add_bandwidth(self):
-        self.with_bandwidth = True
-
-    def do_finalize(self):
-        if self.with_bandwidth:
-            data_width = self.phy_settings.dfi_databits*self.phy_settings.nphases
+        if controller_settings.with_bandwidth:
+            data_width = phy_settings.dfi_databits*phy_settings.nphases
             self.submodules.bandwidth = Bandwidth(self.choose_req.cmd, data_width)

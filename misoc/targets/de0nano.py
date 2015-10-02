@@ -7,7 +7,6 @@ from migen.build.platforms import de0nano
 
 from misoc.cores.sdram_settings import IS42S16160
 from misoc.cores.sdram_phy import GENSDRPHY
-from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.integration.soc_sdram import *
 from misoc.integration.builder import *
 
@@ -86,20 +85,20 @@ class _CRG(Module):
 
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, **kwargs):
         platform = de0nano.Platform()
         SoCSDRAM.__init__(self, platform,
                           clk_freq=100*1000000,
                           integrated_rom_size=0x8000,
-                          sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
 
         self.submodules.crg = _CRG(platform)
 
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"),
-                                               IS42S16160(self.clk_freq))
-            self.register_sdram_phy(self.sdrphy)
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
+            sdram_module = IS42S16160(self.clk_freq)
+            self.register_sdram(self.sdrphy, "minicon",
+                                sdram_module.geom_settings, sdram_module.timing_settings)
 
 def main():
     parser = argparse.ArgumentParser(description="MiSoC port to the Altera DE0 Nano")

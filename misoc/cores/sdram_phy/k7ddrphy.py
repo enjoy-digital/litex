@@ -8,7 +8,7 @@ from misoc.cores import sdram_settings
 
 
 class K7DDRPHY(Module, AutoCSR):
-    def __init__(self, pads, module):
+    def __init__(self, pads):
         addressbits = len(pads.a)
         bankbits = len(pads.ba)
         databits = len(pads.dq)
@@ -26,7 +26,7 @@ class K7DDRPHY(Module, AutoCSR):
         self._wdly_dqs_inc = CSR()
 
         self.settings = sdram_settings.PhySettings(
-            memtype=module.memtype,
+            memtype="DDR3",
             dfi_databits=2*databits,
             nphases=nphases,
             rdphase=0,
@@ -38,7 +38,6 @@ class K7DDRPHY(Module, AutoCSR):
             read_latency=6,
             write_latency=2
         )
-        self.module = module
 
         self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
 

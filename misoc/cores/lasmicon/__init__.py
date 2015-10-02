@@ -1,1 +1,1 @@
-from misoc.cores.lasmicon.core import LASMIcon
+from misoc.cores.lasmicon.core import ControllerSettings, LASMIcon

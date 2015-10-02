@@ -58,7 +58,7 @@ class IS42S16160(SDRAMModule):
         "nrows":  8192,
         "ncols":  512
     }
-    # Note: timings for -7 speedgrade (add support for others speedgrades)
+    # Timings for -7 speedgrade
     timing_settings = {
         "tRP":   20,
         "tRCD":  20,
@@ -68,7 +68,7 @@ class IS42S16160(SDRAMModule):
         "tRFC":  70
     }
     def __init__(self, clk_freq):
-        SDRAMModule.__init__(self, clk_freq,  "SDR", self.geom_settings,
+        SDRAMModule.__init__(self, clk_freq, "SDR", self.geom_settings,
             self.timing_settings)
 
 
@@ -97,7 +97,7 @@ class AS4C16M16(SDRAMModule):
         "nrows":  8192,
         "ncols":  512
     }
-    # Note: timings for -6 speedgrade (add support for others speedgrades)
+    # Timings for -6 speedgrade
     timing_settings = {
         "tRP":   18,
         "tRCD":  18,
@@ -225,7 +225,6 @@ class MT41J128M16(SDRAMModule):
         "tREFI": 64*1000*1000/16384,
         "tRFC":  260,
     }
-
     def __init__(self, clk_freq):
         SDRAMModule.__init__(self, clk_freq, "DDR3", self.geom_settings,
             self.timing_settings)

@@ -11,7 +11,6 @@ from migen.build.platforms import mixxeo, m1
 
 from misoc.cores.sdram_settings import MT46V32M16
 from misoc.cores.sdram_phy import S6HalfRateDDRPHY
-from misoc.cores.lasmicon.core import LASMIconSettings
 from misoc.cores import nor_flash_16
 # TODO: from misoc.cores import framebuffer
 from misoc.cores import gpio
@@ -75,7 +74,7 @@ class _MXClockPads:
 
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, platform_name="mixxeo", sdram_controller_settings=LASMIconSettings(), **kwargs):
+    def __init__(self, platform_name="mixxeo", **kwargs):
         if platform_name == "mixxeo":
             platform = mixxeo.Platform()
         elif platform_name == "m1":
@@ -85,18 +84,19 @@ class BaseSoC(SoCSDRAM):
         SoCSDRAM.__init__(self, platform,
                           clk_freq=(83 + Fraction(1, 3))*1000000,
                           cpu_reset_address=0x00180000,
-                          sdram_controller_settings=sdram_controller_settings,
                           **kwargs)
 
         self.submodules.crg = _MXCRG(_MXClockPads(platform), self.clk_freq)
 
         if not self.integrated_main_ram_size:
+            sdram_module = MT46V32M16(self.clk_freq)
             self.submodules.ddrphy = S6HalfRateDDRPHY(platform.request("ddram"),
-                                                      MT46V32M16(self.clk_freq),
+                                                      sdram_module.memtype,
                                                       rd_bitslip=0,
                                                       wr_bitslip=3,
                                                       dqs_ddr_alignment="C1")
-            self.register_sdram_phy(self.ddrphy)
+            self.register_sdram(self.ddrphy, "lasmicon",
+                                sdram_module.geom_settings, sdram_module.timing_settings)
             self.comb += [
                 self.ddrphy.clk4x_wr_strb.eq(self.crg.clk4x_wr_strb),
                 self.ddrphy.clk4x_rd_strb.eq(self.crg.clk4x_rd_strb)

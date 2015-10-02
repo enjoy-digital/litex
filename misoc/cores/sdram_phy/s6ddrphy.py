@@ -27,15 +27,15 @@ from misoc.cores import sdram_settings
 
 
 class S6HalfRateDDRPHY(Module):
-    def __init__(self, pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
-        if module.memtype not in ["DDR", "LPDDR", "DDR2", "DDR3"]:
+    def __init__(self, pads, memtype, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
+        if memtype not in ["DDR", "LPDDR", "DDR2", "DDR3"]:
             raise NotImplementedError("S6HalfRateDDRPHY only supports DDR, LPDDR, DDR2 and DDR3")
         addressbits = len(pads.a)
         bankbits = len(pads.ba)
         databits = len(pads.dq)
         nphases = 2
 
-        if module.memtype == "DDR3":
+        if memtype == "DDR3":
             self.settings = sdram_settings.PhySettings(
                 memtype="DDR3",
                 dfi_databits=2*databits,
@@ -51,7 +51,7 @@ class S6HalfRateDDRPHY(Module):
             )
         else:
             self.settings = sdram_settings.PhySettings(
-                memtype=module.memtype,
+                memtype=memtype,
                 dfi_databits=2*databits,
                 nphases=nphases,
                 rdphase=0,
@@ -62,8 +62,6 @@ class S6HalfRateDDRPHY(Module):
                 read_latency=5,
                 write_latency=0
             )
-
-        self.module = module
 
         self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
         self.clk4x_wr_strb = Signal()
@@ -366,7 +364,7 @@ class S6HalfRateDDRPHY(Module):
         wrdata_en = Signal()
         self.comb += wrdata_en.eq(reduce(or_, [d_dfi[p].wrdata_en for p in range(nphases)]))
 
-        if module.memtype == "DDR3":
+        if memtype == "DDR3":
             r_drive_dq = Signal(self.settings.cwl-1)
             sd_sdram_half += r_drive_dq.eq(Cat(wrdata_en, r_drive_dq))
             self.comb += drive_dq.eq(r_drive_dq[self.settings.cwl-2])
@@ -379,7 +377,7 @@ class S6HalfRateDDRPHY(Module):
         r_dfi_wrdata_en = Signal(max(self.settings.cwl, self.settings.cl))
         sd_sdram_half += r_dfi_wrdata_en.eq(Cat(wrdata_en_d, r_dfi_wrdata_en))
 
-        if module.memtype == "DDR3":
+        if memtype == "DDR3":
             self.comb += drive_dqs.eq(r_dfi_wrdata_en[self.settings.cwl-1])
         else:
             self.comb += drive_dqs.eq(r_dfi_wrdata_en[1])
@@ -399,10 +397,8 @@ class S6HalfRateDDRPHY(Module):
 
 
 class S6QuarterRateDDRPHY(Module):
-    def __init__(self, pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
-        if module.memtype not in ["DDR3"]:
-            raise NotImplementedError("S6QuarterRateDDRPHY only supports DDR3")
-        half_rate_phy = S6HalfRateDDRPHY(pads, module, rd_bitslip, wr_bitslip, dqs_ddr_alignment)
+    def __init__(self, pads, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
+        half_rate_phy = S6HalfRateDDRPHY(pads, "DDR3", rd_bitslip, wr_bitslip, dqs_ddr_alignment)
         self.submodules += RenameClockDomains(half_rate_phy, {"sys" : "sys2x"})
 
         addressbits = len(pads.a)
@@ -423,8 +419,6 @@ class S6QuarterRateDDRPHY(Module):
             read_latency=6//2+1,
             write_latency=2//2
         )
-
-        self.module = module
 
         self.dfi = Interface(addressbits, bankbits, 2*databits, nphases)
         self.clk8x_wr_strb = half_rate_phy.clk4x_wr_strb

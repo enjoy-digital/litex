@@ -1,1 +1,1 @@
-from misoc.cores.minicon.core import Minicon, MiniconSettings
+from misoc.cores.minicon.core import Minicon
