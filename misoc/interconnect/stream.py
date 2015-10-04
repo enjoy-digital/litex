@@ -142,3 +142,10 @@ class Demultiplexer(Module):
             setattr(self, "source"+str(i), source)
             sources.append(source)
         self.sel = Signal(max=n)
+
+        # # #
+
+        cases = {}
+        for i, source in enumerate(sources):
+            cases[i] = Record.connect(self.sink, source)
+        self.comb += Case(self.sel, cases)
