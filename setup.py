@@ -18,7 +18,6 @@ setup(
     author_email="sb@m-labs.hk",
     url="http://m-labs.hk",
     download_url="https://github.com/m-labs/misoc",
-    packages=find_packages(),
     license="BSD",
     platforms=["Any"],
     keywords="HDL ASIC FPGA hardware design",
@@ -31,4 +30,11 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
     ],
+    packages=find_packages(),
+    entry_points={
+        "console_scripts": [
+            "flterm=misoc.tools.flterm:main",
+            "mkmscimg=misoc.tools.mkmscimg:main",
+        ],
+    },
 )
