@@ -11,7 +11,7 @@ before_install:
   - wget https://raw.githubusercontent.com/m-labs/artiq/master/.travis/get-anaconda.sh
   - chmod +x get-anaconda.sh
   - ./get-anaconda.sh
-  - source $HOME/miniconda/bin/activate py34
+  - source $HOME/miniconda/bin/activate py35
   - conda install anaconda-client numpydoc
 install:
   # Install iverilog package.
