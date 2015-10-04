@@ -13,7 +13,7 @@ setup(
     name="misoc",
     version="1.0",
     description="a high performance and small footprint SoC based on Migen",
-    long_description=open("README.rst").read(),
+    long_description=open("README").read(),
     author="Sebastien Bourdeauducq",
     author_email="sb@m-labs.hk",
     url="http://m-labs.hk",
