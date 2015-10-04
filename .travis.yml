@@ -25,7 +25,7 @@ install:
   - "sudo apt-get install verilator"
   - "verilator --version; true"
   # Build and install Migen conda package
-  - "conda build conda/migen"
+  - "conda build --python 3.5 conda/migen"
   - "conda install migen --use-local"
 
 script:
