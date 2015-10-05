@@ -31,6 +31,7 @@ setup(
         "Programming Language :: Python",
     ],
     packages=find_packages(),
+    include_package_data=True,
     entry_points={
         "console_scripts": [
             "flterm=misoc.tools.flterm:main",
