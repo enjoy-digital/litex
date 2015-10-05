@@ -237,6 +237,8 @@ class Simulator:
                 signals.add(cd.clk)
                 if cd.rst is not None:
                     signals.add(cd.rst)
+            for memory_array in mta.replacements.values():
+                signals |= set(memory_array)
             signals = sorted(signals, key=lambda x: x.duid)
             self.vcd = VCDWriter(vcd_name, signals)
 
