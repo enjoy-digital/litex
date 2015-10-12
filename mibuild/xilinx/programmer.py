@@ -121,10 +121,12 @@ def _run_vivado(path, ver, cmds):
 
 class VivadoProgrammer(GenericProgrammer):
     needs_bitreverse = False
-    def __init__(self, vivado_path="/opt/Xilinx/Vivado", vivado_ver=None):
+    def __init__(self, vivado_path="/opt/Xilinx/Vivado", vivado_ver=None,
+                 flash_part="n25q256-3.3v-spi-x1_x2_x4"):
         GenericProgrammer.__init__(self)
         self.vivado_path = vivado_path
         self.vivado_ver = vivado_ver
+        self.flash_part = flash_part
 
     def load_bitstream(self, bitstream_file):
         cmds = """open_hw
@@ -146,7 +148,7 @@ quit
         cmds = """open_hw
 connect_hw_server
 open_hw_target [lindex [get_hw_targets -of_objects [get_hw_servers localhost]] 0]
-create_hw_cfgmem -hw_device [lindex [get_hw_devices] 0] -mem_dev  [lindex [get_cfgmem_parts {{n25q256-3.3v-spi-x1_x2_x4}}] 0]
+create_hw_cfgmem -hw_device [lindex [get_hw_devices] 0] -mem_dev  [lindex [get_cfgmem_parts {{{flash_part}}}] 0]
 
 set_property PROGRAM.BLANK_CHECK  0 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
 set_property PROGRAM.ERASE  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
@@ -168,7 +170,7 @@ program_hw_cfgmem -hw_cfgmem [get_property PROGRAM.HW_CFGMEM [lindex [get_hw_dev
 endgroup
 
 quit
-""".format(data=data_file)
+""".format(data=data_file, flash_part=self.flash_part)
         _run_vivado(self.vivado_path, self.vivado_ver, cmds)
 
 
