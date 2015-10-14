@@ -23,6 +23,10 @@ misoc_software_packages = [
 misoc_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
+def _makefile_escape(s):
+    return s.replace("\\", "\\\\")
+
+
 class Builder:
     def __init__(self, soc, output_dir=None,
                  compile_software=True, compile_gateware=True,
@@ -63,7 +67,7 @@ class Builder:
         os.makedirs(generated_dir, exist_ok=True)
         with open(os.path.join(generated_dir, "variables.mak"), "w") as f:
             def define(k, v):
-                f.write("{}={}\n".format(k, v))
+                f.write("{}={}\n".format(k, _makefile_escape(v)))
             for k, v in cpu_interface.get_cpu_mak(cpu_type):
                 define(k, v)
             define("MISOC_DIRECTORY", misoc_directory)
