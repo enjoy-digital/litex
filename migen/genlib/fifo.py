@@ -26,38 +26,37 @@ class _FIFOInterface:
 
     Parameters
     ----------
-    width_or_layout : int, layout
+    width : int
         Bit width for the data.
     depth : int
         Depth of the FIFO.
 
     Attributes
     ----------
-    din : in, width_or_layout
-        Input data either flat or Record structured.
+    din : in, width
+        Input data
     writable : out
         There is space in the FIFO and `we` can be asserted to load new data.
     we : in
         Write enable signal to latch `din` into the FIFO. Does nothing if
         `writable` is not asserted.
-    dout : out, width_or_layout
-        Output data, same type as `din`. Only valid if `readable` is
-        asserted.
+    dout : out, width
+        Output data. Only valid if `readable` is asserted.
     readable : out
         Output data `dout` valid, FIFO not empty.
     re : in
         Acknowledge `dout`. If asserted, the next entry will be
         available on the next cycle (if `readable` is high then).
     """
-    def __init__(self, width_or_layout, depth):
+    def __init__(self, width, depth):
         self.we = Signal()
         self.writable = Signal()  # not full
         self.re = Signal()
         self.readable = Signal()  # not empty
 
-        self.din = Signal(width_or_layout)
-        self.dout = Signal(width_or_layout)
-        self.width = width_or_layout
+        self.din = Signal(width)
+        self.dout = Signal(width)
+        self.width = width
 
 
 class SyncFIFO(Module, _FIFOInterface):
@@ -76,8 +75,8 @@ class SyncFIFO(Module, _FIFOInterface):
     """
     __doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
 
-    def __init__(self, width_or_layout, depth, fwft=True):
-        _FIFOInterface.__init__(self, width_or_layout, depth)
+    def __init__(self, width, depth, fwft=True):
+        _FIFOInterface.__init__(self, width, depth)
 
         self.level = Signal(max=depth+1)
         self.replace = Signal()
@@ -129,9 +128,9 @@ class SyncFIFO(Module, _FIFOInterface):
 
 
 class SyncFIFOBuffered(Module, _FIFOInterface):
-    def __init__(self, width_or_layout, depth):
-        _FIFOInterface.__init__(self, width_or_layout, depth)
-        self.submodules.fifo = fifo = SyncFIFO(width_or_layout, depth, False)
+    def __init__(self, width, depth):
+        _FIFOInterface.__init__(self, width, depth)
+        self.submodules.fifo = fifo = SyncFIFO(width, depth, False)
 
         self.writable = fifo.writable
         self.din = fifo.din
@@ -162,8 +161,8 @@ class AsyncFIFO(Module, _FIFOInterface):
     """
     __doc__ = __doc__.format(interface=_FIFOInterface.__doc__)
 
-    def __init__(self, width_or_layout, depth):
-        _FIFOInterface.__init__(self, width_or_layout, depth)
+    def __init__(self, width, depth):
+        _FIFOInterface.__init__(self, width, depth)
 
         ###
 
