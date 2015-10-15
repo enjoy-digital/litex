@@ -194,7 +194,7 @@ class Evaluator:
                 if "default" in s.cases:
                     self.execute(s.cases["default"])
             elif isinstance(s, list):
-                execute(s)
+                self.execute(s)
             else:
                 raise NotImplementedError
 
