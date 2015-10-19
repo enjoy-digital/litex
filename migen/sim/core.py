@@ -156,10 +156,11 @@ class Evaluator:
                 value -= 2**node.nbits
             self.modifications[node] = value
         elif isinstance(node, Cat):
+            nbits = 0
             for element in node.l:
+                value >>= nbits
                 nbits = len(element)
                 self.assign(element, value & (2**nbits-1))
-                value >>= nbits
         elif isinstance(node, _Slice):
             full_value = self.eval(node.value, True)
             # clear bits assigned to by the slice
