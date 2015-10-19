@@ -5,6 +5,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.structure import (_Value, _Statement,
                                   _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
+from migen.fhdl.bitcontainer import value_bits_sign
 from migen.fhdl.tools import list_signals, list_targets, insert_resets
 from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
@@ -73,6 +74,13 @@ str2op = {
     ">": operator.gt,
     ">=": operator.ge,
 }
+
+
+def _truncate(value, nbits, signed):
+    value = value & (2**nbits - 1)
+    if signed and (value & 2**(nbits - 1)):
+        value -= 2**nbits
+    return value
 
 
 class Evaluator:
@@ -152,10 +160,8 @@ class Evaluator:
     def assign(self, node, value):
         if isinstance(node, Signal):
             assert not node.variable
-            value = value & (2**node.nbits - 1)
-            if node.signed and (value & 2**(node.nbits - 1)):
-                value -= 2**node.nbits
-            self.modifications[node] = value
+            self.modifications[node] = _truncate(value,
+                                                 node.nbits, node.signed)
         elif isinstance(node, Cat):
             for element in node.l:
                 nbits = len(element)
@@ -187,7 +193,8 @@ class Evaluator:
                 else:
                     self.execute(s.f)
             elif isinstance(s, Case):
-                test = self.eval(s.test)
+                nbits, signed = value_bits_sign(s.test)
+                test = _truncate(self.eval(s.test), nbits, signed)
                 for k, v in s.cases.items():
                     if isinstance(k, Constant) and k.value == test:
                         self.execute(v)
