@@ -60,7 +60,7 @@ class _LowerNext(NodeTransformer):
     def _get_register_control(self, target):
         for x in self.registers:
             if _target_eq(target, x[0]):
-                return x
+                return x[1], x[2]
         raise KeyError
 
     def visit_unknown(self, node):
