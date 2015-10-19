@@ -20,6 +20,7 @@ class DivisionCase(SimCase, unittest.TestCase):
                         yield self.tb.dut.start_i.eq(1)
                         yield
                         yield self.tb.dut.start_i.eq(0)
+                        yield
                         while not (yield self.tb.dut.ready_o):
                             yield
                         self.assertEqual((yield self.tb.dut.quotient_o), dividend//divisor)
