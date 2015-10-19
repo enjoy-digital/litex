@@ -1,6 +1,13 @@
 include ../include/generated/variables.mak
 include $(MISOC_DIRECTORY)/software/common.mak
 
+# lm32 is not supported
+ifeq ($(CPU),lm32)
+	ALL_TARGET=
+else
+	ALL_TARGET=libunwind.a
+endif
+
 COMMONFLAGS+=-integrated-as \
 	-I. -I$(MISOC_DIRECTORY)/software/include/dyld/ -I$(MISOC_DIRECTORY)/software/unwinder/include/ \
 	-I$(LIBUNWIND_DIRECTORY) \
@@ -8,7 +15,7 @@ COMMONFLAGS+=-integrated-as \
 
 OBJECTS=UnwindRegistersSave.o UnwindRegistersRestore.o UnwindLevel1.o libunwind.o
 
-all: libunwind.a
+all: $(ALL_TARGET)
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
