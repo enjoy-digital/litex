@@ -181,7 +181,7 @@ class Evaluator:
             if isinstance(s, _Assign):
                 self.assign(s.l, self.eval(s.r))
             elif isinstance(s, If):
-                if self.eval(s.cond):
+                if self.eval(s.cond) & (2**len(s.cond) - 1):
                     self.execute(s.t)
                 else:
                     self.execute(s.f)
