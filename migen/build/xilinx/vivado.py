@@ -80,8 +80,10 @@ class XilinxVivadoToolchain:
     def _build_batch(self, platform, sources, build_name):
         tcl = []
         for filename, language, library in sources:
-            tcl.append("add_files " + filename)
-            tcl.append("set_property library {} [get_files {}]".format(library, filename))
+            filename_tcl = "{" + filename + "}"
+            tcl.append("add_files " + filename_tcl)
+            tcl.append("set_property library {} [get_files {}]"
+                       .format(library, filename_tcl))
 
         tcl.append("read_xdc {}.xdc".format(build_name))
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
