@@ -1,4 +1,5 @@
 import operator
+import collections
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import (_Value, _Statement,
@@ -193,7 +194,7 @@ class Evaluator:
                         return
                 if "default" in s.cases:
                     self.execute(s.cases["default"])
-            elif isinstance(s, list):
+            elif isinstance(s, collections.Iterable):
                 self.execute(s)
             else:
                 raise NotImplementedError

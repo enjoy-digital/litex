@@ -1,5 +1,6 @@
 from functools import partial
 from operator import itemgetter
+import collections
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
@@ -128,7 +129,7 @@ def _printnode(ns, at, level, node):
         else:
             assignment = " <= "
         return "\t"*level + _printexpr(ns, node.l)[0] + assignment + _printexpr(ns, node.r)[0] + ";\n"
-    elif isinstance(node, (list, tuple)):
+    elif isinstance(node, collections.Iterable):
         return "".join(list(map(partial(_printnode, ns, at, level), node)))
     elif isinstance(node, If):
         r = "\t"*level + "if (" + _printexpr(ns, node.cond)[0] + ") begin\n"
