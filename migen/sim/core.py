@@ -211,7 +211,8 @@ class Simulator:
             generators = {"sys": generators}
         self.generators = dict()
         for k, v in generators.items():
-            if isinstance(v, collections.Iterable):
+            if (isinstance(v, collections.Iterable)
+                    and not isinstance(v, collections.Generator)):
                 self.generators[k] = list(v)
             else:
                 self.generators[k] = [v]
