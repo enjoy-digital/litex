@@ -25,6 +25,9 @@ install:
   - "sudo apt-get install verilator"
   - "verilator --version; true"
   # Build and install Migen conda package
+  # workaround for https://github.com/conda/conda-build/issues/466
+  - "mkdir -p /home/travis/miniconda/conda-bld/linux-64"
+  - "conda index /home/travis/miniconda/conda-bld/linux-64"
   - "conda build --python 3.5 conda/migen"
   - "conda install migen --use-local"
 
