@@ -7,6 +7,7 @@ source:
   git_tag: new
 
 build:
+  noarch_python: True
   number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
   script: $PYTHON setup.py install
 
