@@ -196,11 +196,13 @@ class Evaluator:
             elif isinstance(s, Case):
                 nbits, signed = value_bits_sign(s.test)
                 test = _truncate(self.eval(s.test), nbits, signed)
+                found = False
                 for k, v in s.cases.items():
                     if isinstance(k, Constant) and k.value == test:
                         self.execute(v)
-                        return
-                if "default" in s.cases:
+                        found = True
+                        break
+                if not found and "default" in s.cases:
                     self.execute(s.cases["default"])
             elif isinstance(s, collections.Iterable):
                 self.execute(s)
