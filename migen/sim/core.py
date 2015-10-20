@@ -1,5 +1,6 @@
 import operator
 import collections
+import inspect
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import (_Value, _Statement,
@@ -219,7 +220,7 @@ class Simulator:
         self.generators = dict()
         for k, v in generators.items():
             if (isinstance(v, collections.Iterable)
-                    and not isinstance(v, collections.Generator)):
+                    and not inspect.isgenerator(v)):
                 self.generators[k] = list(v)
             else:
                 self.generators[k] = [v]
