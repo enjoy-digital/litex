@@ -39,8 +39,8 @@ script:
 
 after_success:
   # Upload Migen conda package to binstar
-  - anaconda login --hostname $(hostname) --username $binstar_login --password $binstar_password
-  - anaconda upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/migen-*.tar.bz2
+  - if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then anaconda login --hostname $(hostname) --username $binstar_login --password $binstar_password; fi
+  - if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then anaconda upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/noarch/migen-*.tar.bz2; fi
 
 notifications:
   email: false
