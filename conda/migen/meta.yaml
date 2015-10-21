@@ -1,6 +1,6 @@
 package:
   name: migen
-  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
+  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}.{{ environ.get("GIT_DESCRIBE_HASH") }}
 
 source:
   git_url: https://github.com/m-labs/migen
