@@ -182,9 +182,10 @@ def _build_signal_groups(signals):
             related_list.insert(0, cur_signal)
             cur_signal = cur_signal.related
         # add to groups
-        r += [set()]*(len(related_list) - len(r))
-        for target_set, source_set in zip(r, related_list):
-            target_set.add(source_set)
+        for _ in range(len(related_list) - len(r)):
+            r.append(set())
+        for target_set, source_signal in zip(r, related_list):
+            target_set.add(source_signal)
     # with the algorithm above and a list of all signals,
     # a signal appears in all groups of a lower number than its.
     # make signals appear only in their group of highest number.
