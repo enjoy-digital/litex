@@ -1,14 +1,14 @@
 package:
   name: migen
-  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
+  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}.{{ environ.get("GIT_DESCRIBE_HASH") }}
 
 source:
   git_url: https://github.com/m-labs/migen
   git_tag: new
 
 build:
-  noarch_python: True
-  number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
+  noarch_python: true
+  string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
   script: $PYTHON setup.py install
 
 requirements:
