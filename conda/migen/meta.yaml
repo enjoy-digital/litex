@@ -14,9 +14,9 @@ build:
 
 requirements:
   build:
-    - python
+    - python 3.5.*
   run:
-    - python
+    - python 3.5.*
 
 test:
   imports:
