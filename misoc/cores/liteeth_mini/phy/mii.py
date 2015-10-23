@@ -58,9 +58,11 @@ class LiteEthPHYMIIRX(Module):
             converter.sink.stb.eq(1),
             converter.sink.data.eq(pads.rx_data)
         ]
-        self.comb += [
+        self.sync += [
             sop_set.eq(~pads.dv),
-            sop_clr.eq(pads.dv),
+            sop_clr.eq(pads.dv)
+        ]
+        self.comb += [
             converter.sink.sop.eq(sop),
             converter.sink.eop.eq(~pads.dv)
         ]
