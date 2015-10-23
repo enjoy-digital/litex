@@ -39,8 +39,10 @@ class LiteEthPHYMIIRX(Module):
 
         # # #
 
-        sop = FlipFlop(reset=1)
-        self.submodules += sop
+        sop = Signal(reset=1)
+        sop_set = Signal()
+        sop_clr = Signal()
+        self.sync += If(sop_set, sop.eq(1)).Elif(sop_clr, sop.eq(0))
 
         converter = Converter(converter_description(4),
                               converter_description(8))
@@ -52,10 +54,12 @@ class LiteEthPHYMIIRX(Module):
             converter.sink.stb.eq(1),
             converter.sink.data.eq(pads.rx_data)
         ]
+        self.sync += [
+            sop_set.eq(~pads.dv),
+            sop_clr.eq(pads.dv)
+        ]
         self.comb += [
-            sop.reset.eq(~pads.dv),
-            sop.ce.eq(pads.dv),
-            converter.sink.sop.eq(sop.q),
+            converter.sink.sop.eq(sop),
             converter.sink.eop.eq(~pads.dv)
         ]
         self.comb += Record.connect(converter.source, source)
