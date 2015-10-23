@@ -92,11 +92,7 @@ class LiteEthPHYGMIICRG(Module, AutoCSR):
 class LiteEthPHYGMII(Module, AutoCSR):
     def __init__(self, clock_pads, pads, with_hw_init_reset=True):
         self.dw = 8
-        self.submodules.crg = LiteEthPHYGMIICRG(clock_pads,
-                                                pads,
-                                                with_hw_init_reset)
-        self.submodules.tx = RenameClockDomains(LiteEthPHYGMIITX(pads),
-                                                "eth_tx")
-        self.submodules.rx = RenameClockDomains(LiteEthPHYGMIIRX(pads),
-                                                "eth_rx")
+        self.submodules.crg = LiteEthPHYGMIICRG(clock_pads, pads, with_hw_init_reset)
+        self.submodules.tx = ClockDomainsRenamer("eth_tx")(LiteEthPHYGMIITX(pads))
+        self.submodules.rx = ClockDomainsRenamer("eth_rx")(LiteEthPHYGMIIRX(pads))
         self.sink, self.source = self.tx.sink, self.rx.source
