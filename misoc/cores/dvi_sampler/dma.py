@@ -1,10 +1,12 @@
 from migen import *
 from migen.genlib.fsm import FSM, NextState
-from migen.bank.description import *
-from migen.bank.eventmanager import *
-from migen.flow.actor import *
 
-from misoc.mem.sdram.frontend import dma_lasmi
+from misoc.interconnect.csr import *
+from misoc.interconnect.csr_eventmanager import *
+
+# TODO: rewrite dma_lasmi module
+# TODO: use stream packets to resync DMA
+#from misoc.mem.sdram.frontend import dma_lasmi
 
 
 # Slot status: EMPTY=0 LOADED=1 PENDING=2

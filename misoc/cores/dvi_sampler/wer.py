@@ -1,9 +1,11 @@
+from functools import reduce
+from operator import add, or_
+
 from migen import *
-from migen.bank.description import *
-from migen.genlib.misc import optree
 from migen.genlib.cdc import PulseSynchronizer
 
-from misoc.dvisampler.common import control_tokens
+from misoc.interconnect.csr import *
+from misoc.cores.dvi_sampler.common import control_tokens
 
 
 class WER(Module, AutoCSR):
@@ -23,10 +25,10 @@ class WER(Module, AutoCSR):
         transitions = Signal(8)
         self.comb += [transitions[i].eq(data_r[i] ^ data_r[i+1]) for i in range(8)]
         transition_count = Signal(max=9)
-        self.sync.pix += transition_count.eq(optree("+", [transitions[i] for i in range(8)]))
+        self.sync.pix += transition_count.eq(reduce(add, [transitions[i] for i in range(8)]))
 
         is_control = Signal()
-        self.sync.pix += is_control.eq(optree("|", [data_r == ct for ct in control_tokens]))
+        self.sync.pix += is_control.eq(reduce(or_, [data_r == ct for ct in control_tokens]))
 
         # pipeline stage 3
         is_error = Signal()

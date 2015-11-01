@@ -1,1 +1,1 @@
-from misoc.dvisampler.core import DVISampler
+from misoc.cores.dvi_sampler.core import DVISampler

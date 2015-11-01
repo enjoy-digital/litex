@@ -1,7 +1,7 @@
 from migen import *
 from migen.genlib.record import Record
 
-from misoc.dvisampler.common import control_tokens, channel_layout
+from misoc.cores.dvi_sampler.common import control_tokens, channel_layout
 
 
 class Decoding(Module):

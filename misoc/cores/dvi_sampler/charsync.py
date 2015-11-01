@@ -1,9 +1,11 @@
+from functools import reduce
+from operator import or_
+
 from migen import *
 from migen.genlib.cdc import MultiReg
-from migen.genlib.misc import optree
-from migen.bank.description import *
 
-from misoc.dvisampler.common import control_tokens
+from misoc.interconnect.csr import *
+from misoc.cores.dvi_sampler.common import control_tokens
 
 
 class CharSync(Module, AutoCSR):
@@ -26,7 +28,7 @@ class CharSync(Module, AutoCSR):
         control_position = Signal(max=10)
         self.sync.pix += found_control.eq(0)
         for i in range(10):
-            self.sync.pix += If(optree("|", [raw[i:i+10] == t for t in control_tokens]),
+            self.sync.pix += If(reduce(or_, [raw[i:i+10] == t for t in control_tokens]),
                   found_control.eq(1),
                   control_position.eq(i)
             )

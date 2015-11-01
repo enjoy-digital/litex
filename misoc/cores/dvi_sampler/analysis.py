@@ -2,10 +2,9 @@ from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.record import Record
-from migen.bank.description import *
-from migen.flow.actor import *
 
-from misoc.dvisampler.common import channel_layout
+from misoc.interconnect.csr import *
+from misoc.cores.dvi_sampler.common import channel_layout
 
 
 class SyncPolarity(Module):

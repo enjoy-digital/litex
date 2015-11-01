@@ -1,13 +1,14 @@
 from migen import *
 from migen.genlib.fifo import AsyncFIFO
-from migen.genlib.record import layout_len
 from migen.bank.description import AutoCSR
 from migen.actorlib import structuring, spi
 
-from misoc.mem.sdram.frontend import dma_lasmi
-from misoc.dvisampler.edid import EDID
-from misoc.dvisampler.clocking import Clocking
-from misoc.dvisampler.datacapture import DataCapture
+from misoc.cores.dvi_sampler.edid import EDID
+from misoc.cores.dvi_sampler.clocking import Clocking
+from misoc.cores.dvi_sampler.datacapture import DataCapture
+
+# TODO
+#from misoc.mem.sdram.frontend import dma_lasmi
 
 
 class RawDVISampler(Module, AutoCSR):

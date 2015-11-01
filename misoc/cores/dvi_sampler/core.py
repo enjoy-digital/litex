@@ -1,15 +1,15 @@
 from migen import *
-from migen.bank.description import AutoCSR
 
-from misoc.dvisampler.edid import EDID
-from misoc.dvisampler.clocking import Clocking
-from misoc.dvisampler.datacapture import DataCapture
-from misoc.dvisampler.charsync import CharSync
-from misoc.dvisampler.wer import WER
-from misoc.dvisampler.decoding import Decoding
-from misoc.dvisampler.chansync import ChanSync
-from misoc.dvisampler.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
-from misoc.dvisampler.dma import DMA
+from misoc.interconnect.csr import AutoCSR
+from misoc.cores.dvi_sampler.edid import EDID
+from misoc.cores.dvi_sampler.clocking import Clocking
+from misoc.cores.dvi_sampler.datacapture import DataCapture
+from misoc.cores.dvi_sampler.charsync import CharSync
+from misoc.cores.dvi_sampler.wer import WER
+from misoc.cores.dvi_sampler.decoding import Decoding
+from misoc.cores.dvi_sampler.chansync import ChanSync
+from misoc.cores.dvi_sampler.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
+from misoc.cores.dvi_sampler.dma import DMA
 
 
 class DVISampler(Module, AutoCSR):

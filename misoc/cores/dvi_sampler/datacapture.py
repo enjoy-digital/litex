@@ -1,6 +1,7 @@
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
-from migen.bank.description import *
+
+from misoc.interconnect.csr import *
 
 
 class DataCapture(Module, AutoCSR):

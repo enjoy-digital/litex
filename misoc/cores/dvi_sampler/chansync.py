@@ -1,11 +1,13 @@
+from functools import reduce
+from operator import or_, and_
+
 from migen import *
 from migen.genlib.cdc import MultiReg
 from migen.genlib.fifo import _inc
 from migen.genlib.record import Record, layout_len
-from migen.genlib.misc import optree
-from migen.bank.description import *
 
-from misoc.dvisampler.common import channel_layout
+from misoc.interconnect.csr import *
+from misoc.cores.dvi_sampler.common import channel_layout
 
 
 class _SyncBuffer(Module):
@@ -73,8 +75,8 @@ class ChanSync(Module, AutoCSR):
 
         some_control = Signal()
         self.comb += [
-            all_control.eq(optree("&", lst_control)),
-            some_control.eq(optree("|", lst_control))
+            all_control.eq(reduce(and_, lst_control)),
+            some_control.eq(reduce(or_, lst_control))
         ]
         self.sync.pix += If(~self.valid_i,
                 self.chan_synced.eq(0)
