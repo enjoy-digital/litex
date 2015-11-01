@@ -149,3 +149,239 @@ class Demultiplexer(Module):
         for i, source in enumerate(sources):
             cases[i] = Record.connect(self.sink, source)
         self.comb += Case(self.sel, cases)
+
+# TODO: clean up code below
+# XXX
+
+from copy import copy
+from migen.util.misc import xdir
+
+def pack_layout(l, n):
+    return [("chunk"+str(i), l) for i in range(n)]
+
+def get_endpoints(obj, filt=_Endpoint):
+    if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
+        return obj.get_endpoints(filt)
+    r = dict()
+    for k, v in xdir(obj, True):
+        if isinstance(v, filt):
+            r[k] = v
+    return r
+
+def get_single_ep(obj, filt):
+    eps = get_endpoints(obj, filt)
+    if len(eps) != 1:
+        raise ValueError("More than one endpoint")
+    return list(eps.items())[0]
+
+
+class BinaryActor(Module):
+    def __init__(self, *args, **kwargs):
+        self.busy = Signal()
+        sink = get_single_ep(self, Sink)[1]
+        source = get_single_ep(self, Source)[1]
+        self.build_binary_control(sink, source, *args, **kwargs)
+
+    def build_binary_control(self, sink, source):
+        raise NotImplementedError("Binary actor classes must overload build_binary_control_fragment")
+
+
+class CombinatorialActor(BinaryActor):
+    def build_binary_control(self, sink, source):
+        self.comb += [
+            source.stb.eq(sink.stb),
+            sink.ack.eq(source.ack),
+            self.busy.eq(0)
+        ]
+        if sink.description.packetized:
+            self.comb += [
+                source.sop.eq(sink.sop),
+                source.eop.eq(sink.eop)
+            ]
+
+
+class Unpack(Module):
+    def __init__(self, n, layout_to, reverse=False):
+        self.source = source = Source(layout_to)
+        description_from = copy(source.description)
+        description_from.payload_layout = pack_layout(description_from.payload_layout, n)
+        self.sink = sink = Sink(description_from)
+
+        self.busy = Signal()
+
+        ###
+
+        mux = Signal(max=n)
+        first = Signal()
+        last = Signal()
+        self.comb += [
+            first.eq(mux == 0),
+            last.eq(mux == (n-1)),
+            source.stb.eq(sink.stb),
+            sink.ack.eq(last & source.ack)
+        ]
+        self.sync += [
+            If(source.stb & source.ack,
+                If(last,
+                    mux.eq(0)
+                ).Else(
+                    mux.eq(mux + 1)
+                )
+            )
+        ]
+        cases = {}
+        for i in range(n):
+            chunk = n-i-1 if reverse else i
+            cases[i] = [source.payload.raw_bits().eq(getattr(sink.payload, "chunk"+str(chunk)).raw_bits())]
+        self.comb += Case(mux, cases).makedefault()
+
+        if description_from.packetized:
+            self.comb += [
+                source.sop.eq(sink.sop & first),
+                source.eop.eq(sink.eop & last)
+            ]
+
+
+class Pack(Module):
+    def __init__(self, layout_from, n, reverse=False):
+        self.sink = sink = Sink(layout_from)
+        description_to = copy(sink.description)
+        description_to.payload_layout = pack_layout(description_to.payload_layout, n)
+        self.source = source = Source(description_to)
+        self.busy = Signal()
+
+        ###
+
+        demux = Signal(max=n)
+
+        load_part = Signal()
+        strobe_all = Signal()
+        cases = {}
+        for i in range(n):
+            chunk = n-i-1 if reverse else i
+            cases[i] = [getattr(source.payload, "chunk"+str(chunk)).raw_bits().eq(sink.payload.raw_bits())]
+        self.comb += [
+            self.busy.eq(strobe_all),
+            sink.ack.eq(~strobe_all | source.ack),
+            source.stb.eq(strobe_all),
+            load_part.eq(sink.stb & sink.ack)
+        ]
+
+        if description_to.packetized:
+            demux_last = ((demux == (n - 1)) | sink.eop)
+        else:
+            demux_last = (demux == (n - 1))
+
+        self.sync += [
+            If(source.ack, strobe_all.eq(0)),
+            If(load_part,
+                Case(demux, cases),
+                If(demux_last,
+                    demux.eq(0),
+                    strobe_all.eq(1)
+                ).Else(
+                    demux.eq(demux + 1)
+                )
+            )
+        ]
+
+        if description_to.packetized:
+            self.sync += [
+                If(source.stb & source.ack,
+                    source.sop.eq(sink.sop),
+                    source.eop.eq(sink.eop),
+                ).Elif(sink.stb & sink.ack,
+                    source.sop.eq(sink.sop | source.sop),
+                    source.eop.eq(sink.eop | source.eop)
+                )
+            ]
+
+
+class Chunkerize(CombinatorialActor):
+    def __init__(self, layout_from, layout_to, n, reverse=False):
+        self.sink = Sink(layout_from)
+        if isinstance(layout_to, EndpointDescription):
+            layout_to = copy(layout_to)
+            layout_to.payload_layout = pack_layout(layout_to.payload_layout, n)
+        else:
+            layout_to = pack_layout(layout_to, n)
+        self.source = Source(layout_to)
+        CombinatorialActor.__init__(self)
+
+        ###
+
+        for i in range(n):
+            chunk = n-i-1 if reverse else i
+            for f in self.sink.description.payload_layout:
+                src = getattr(self.sink, f[0])
+                dst = getattr(getattr(self.source, "chunk"+str(chunk)), f[0])
+                self.comb += dst.eq(src[i*len(src)//n:(i+1)*len(src)//n])
+
+
+class Unchunkerize(CombinatorialActor):
+    def __init__(self, layout_from, n, layout_to, reverse=False):
+        if isinstance(layout_from, EndpointDescription):
+            fields = layout_from.payload_layout
+            layout_from = copy(layout_from)
+            layout_from.payload_layout = pack_layout(layout_from.payload_layout, n)
+        else:
+            fields = layout_from
+            layout_from = pack_layout(layout_from, n)
+        self.sink = Sink(layout_from)
+        self.source = Source(layout_to)
+        CombinatorialActor.__init__(self)
+
+        ###
+
+        for i in range(n):
+            chunk = n-i-1 if reverse else i
+            for f in fields:
+                src = getattr(getattr(self.sink, "chunk"+str(chunk)), f[0])
+                dst = getattr(self.source, f[0])
+                self.comb += dst[i*len(dst)//n:(i+1)*len(dst)//n].eq(src)
+
+
+class Converter(Module):
+    def __init__(self, layout_from, layout_to, reverse=False):
+        self.sink = Sink(layout_from)
+        self.source = Source(layout_to)
+        self.busy = Signal()
+
+        ###
+
+        width_from = len(self.sink.payload.raw_bits())
+        width_to = len(self.source.payload.raw_bits())
+
+        # downconverter
+        if width_from > width_to:
+            if width_from % width_to:
+                raise ValueError
+            ratio = width_from//width_to
+            self.submodules.chunkerize = Chunkerize(layout_from, layout_to, ratio, reverse)
+            self.submodules.unpack = Unpack(ratio, layout_to)
+
+            self.comb += [
+                Record.connect(self.sink, self.chunkerize.sink),
+                Record.connect(self.chunkerize.source, self.unpack.sink),
+                Record.connect(self.unpack.source, self.source),
+                self.busy.eq(self.unpack.busy)
+            ]
+        # upconverter
+        elif width_to > width_from:
+            if width_to % width_from:
+                raise ValueError
+            ratio = width_to//width_from
+            self.submodules.pack = Pack(layout_from, ratio)
+            self.submodules.unchunkerize = Unchunkerize(layout_from, ratio, layout_to, reverse)
+
+            self.comb += [
+                Record.connect(self.sink, self.pack.sink),
+                Record.connect(self.pack.source, self.unchunkerize.sink),
+                Record.connect(self.unchunkerize.source, self.source),
+                self.busy.eq(self.pack.busy)
+            ]
+        # direct connection
+        else:
+            self.comb += Record.connect(self.sink, self.source)
+
+# XXX
