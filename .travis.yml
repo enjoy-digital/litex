@@ -19,6 +19,8 @@ install:
   - "conda index /home/travis/miniconda/conda-bld/linux-64"
   - "conda build --python 3.5 conda/misoc"
   - "conda install $(conda build --output --python 3.5 conda/misoc)"
+script:
+  - true
 
 after_success:
   - if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then anaconda login --hostname $(hostname) --username $binstar_login --password $binstar_password; fi
