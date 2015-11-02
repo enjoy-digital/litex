@@ -3,7 +3,7 @@ package:
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
-  git_url: https://github.com/m-labs/misoc
+  git_url: -b new https://github.com/m-labs/misoc
   git_tag: new
 
 build:
