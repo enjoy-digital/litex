@@ -641,7 +641,7 @@ class CSRBank(csr.GenericBank):
 
         ###
 
-        GenericBank.__init__(self, description, len(self.bus.dat_w))
+        csr.GenericBank.__init__(self, description, len(self.bus.dat_w))
 
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
