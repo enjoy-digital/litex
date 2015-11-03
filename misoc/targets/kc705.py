@@ -83,7 +83,7 @@ class BaseSoC(SoCSDRAM):
     }
     csr_map.update(SoCSDRAM.csr_map)
 
-    def __init__(self, toolchain="ise", **kwargs):
+    def __init__(self, toolchain="ise", sdram_controller_type="minicon", **kwargs):
         platform = kc705.Platform(toolchain=toolchain)
         SoCSDRAM.__init__(self, platform,
                           clk_freq=125*1000000, cpu_reset_address=0xaf0000,
@@ -94,7 +94,7 @@ class BaseSoC(SoCSDRAM):
         if not self.integrated_main_ram_size:
             self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"))
             sdram_module = MT8JTF12864(self.clk_freq)
-            self.register_sdram(self.ddrphy, "lasmicon",
+            self.register_sdram(self.ddrphy, sdram_controller_type,
                                 sdram_module.geom_settings, sdram_module.timing_settings)
 
         if not self.integrated_rom_size:
