@@ -137,18 +137,28 @@ class MiniSoC(BaseSoC):
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="MiSoC port to the KC705")
-    builder_args(parser)
+def soc_kc705_args(parser):
     soc_sdram_args(parser)
     parser.add_argument("--toolchain", default="ise",
                         help="FPGA toolchain to use: ise, vivado")
+
+
+def soc_kc705_argdict(args):
+    r = soc_sdram_argdict(args)
+    r["toolchain"] = args.toolchain
+    return r
+
+
+def main():
+    parser = argparse.ArgumentParser(description="MiSoC port to the KC705")
+    builder_args(parser)
+    soc_kc705_args(parser)
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
     args = parser.parse_args()
 
     cls = MiniSoC if args.with_ethernet else BaseSoC
-    soc = cls(toolchain=args.toolchain, **soc_sdram_argdict(args))
+    soc = cls(**soc_kc705_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
