@@ -17,17 +17,14 @@ OBJECTS=UnwindRegistersSave.o UnwindRegistersRestore.o UnwindLevel1.o libunwind.
 
 all: $(ALL_TARGET)
 
-# pull in dependency info for *existing* .o files
--include $(OBJECTS:.o=.d)
-
 libunwind.a: $(OBJECTS)
 	$(AR) crs libunwind.a $(OBJECTS)
 
 %.o: $(MISOC_DIRECTORY)/software/unwinder/src/%.cpp
-	$(compilexx-dep)
+	$(compilexx)
 
 %.o: $(MISOC_DIRECTORY)/software/unwinder/src/%.c
-	$(compile-dep)
+	$(compile)
 
 %.o: $(MISOC_DIRECTORY)/software/unwinder/src/%.S
 	$(assemble)
@@ -35,4 +32,4 @@ libunwind.a: $(OBJECTS)
 .PHONY: clean
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libunwind.a .*~ *~
+	$(RM) $(OBJECTS) libunwind.a .*~ *~

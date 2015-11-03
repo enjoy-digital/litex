@@ -14,16 +14,13 @@ OBJECTS=dyld.o
 
 all: $(ALL_TARGET)
 
-# pull in dependency info for *existing* .o files
--include $(OBJECTS:.o=.d)
-
 libdyld.a: $(OBJECTS)
 	$(AR) crs libdyld.a $(OBJECTS)
 
 %.o: $(LIBDYLD_DIRECTORY)/%.c
-	$(compile-dep)
+	$(compile)
 
-.PHONY: clean
+.PHONY: all clean
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) libdyld.a .*~ *~
+	$(RM) $(OBJECTS) libdyld.a .*~ *~

@@ -5,9 +5,6 @@ OBJECTS=exception.o libc.o errno.o crc16.o crc32.o console.o system.o id.o uart.
 
 all: crt0-$(CPU).o libbase.a libbase-nofloat.a
 
-# pull in dependency info for *existing* .o files
--include $(OBJECTS:.o=.d)
-
 libbase.a: $(OBJECTS) vsnprintf.o
 	$(AR) crs libbase.a $(OBJECTS) vsnprintf.o
 
@@ -15,16 +12,16 @@ libbase-nofloat.a: $(OBJECTS) vsnprintf-nofloat.o
 	$(AR) crs libbase-nofloat.a $(OBJECTS) vsnprintf-nofloat.o
 
 vsnprintf-nofloat.o: $(LIBBASE_DIRECTORY)/vsnprintf.c
-	$(call compile-dep,-DNO_FLOAT)
+	$(call compile,-DNO_FLOAT)
 
 %.o: $(LIBBASE_DIRECTORY)/%.c
-	$(compile-dep)
+	$(compile)
 
 %.o: $(LIBBASE_DIRECTORY)/%.S
 	$(assemble)
 
-.PHONY: clean
+.PHONY: all clean
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) crt0-$(CPU).o vsnprintf.o vsnprintf.d vsnprintf-nofloat.o vsnprintf-nofloat.d
+	$(RM) $(OBJECTS) crt0-$(CPU).o vsnprintf.o vsnprintf-nofloat.o
 	$(RM) libbase.a libbase-nofloat.a .*~ *~

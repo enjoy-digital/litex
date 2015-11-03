@@ -5,9 +5,6 @@ OBJECTS=isr.o sdram.o main.o boot-helper-$(CPU).o boot.o dataflow.o
 
 all: bios.bin
 
-# pull in dependency info for *existing* .o files
--include $(OBJECTS:.o=.d)
-
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
@@ -26,15 +23,15 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 	chmod -x $@
 
 main.o: $(BIOS_DIRECTORY)/main.c
-	$(compile-dep)
+	$(compile)
 
 %.o: $(BIOS_DIRECTORY)/%.c
-	$(compile-dep)
+	$(compile)
 
 %.o: $(BIOS_DIRECTORY)/%.S
 	$(assemble)
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) bios.elf bios.bin .*~ *~
+	$(RM) $(OBJECTS) bios.elf bios.bin .*~ *~
 
-.PHONY: all main.o clean
+.PHONY: all clean main.o

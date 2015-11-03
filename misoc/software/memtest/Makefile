@@ -5,9 +5,6 @@ OBJECTS=isr.o main.o
 
 all: memtest.bin
 
-# pull in dependency info for *existing* .o files
--include $(OBJECTS:.o=.d)
-
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
@@ -26,10 +23,10 @@ memtest.elf: $(OBJECTS) libs
 	chmod -x $@
 
 main.o: main.c
-	$(compile-dep)
+	$(compile)
 
 %.o: %.c
-	$(compile-dep)
+	$(compile)
 
 %.o: %.S
 	$(assemble)
@@ -44,7 +41,7 @@ load: memtest.bin
 
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) memtest.elf memtest.bin
+	$(RM) $(OBJECTS) memtest.elf memtest.bin
 	$(RM) .*~ *~
 
 .PHONY: all main.o clean libs load

@@ -9,16 +9,13 @@ OBJECTS=divsi3.o modsi3.o comparesf2.o comparedf2.o negsf2.o negdf2.o addsf3.o s
 
 all: libcompiler_rt.a
 
-# pull in dependency info for *existing* .o files
--include $(OBJECTS:.o=.d)
-
 libcompiler_rt.a: $(OBJECTS)
 	$(AR) crs libcompiler_rt.a $(OBJECTS)
 
 %.o: $(MISOC_DIRECTORY)/software/compiler_rt/lib/builtins/%.c
-	$(compile-dep)
+	$(compile)
 
-.PHONY: clean
+.PHONY: all clean
 
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.ts) $(OBJECTS:.o=.d) libcompiler_rt.a .*~ *~

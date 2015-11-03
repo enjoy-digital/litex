@@ -45,26 +45,14 @@ LDFLAGS = -nostdlib -nodefaultlibs -L$(BUILDINC_DIRECTORY)
 # compile and generate dependencies, based on
 # http://scottmcpeak.com/autodepend/autodepend.html
 
-define compilexx-dep
-$(CX) -c $(CXXFLAGS) $(1) $< -o $*.o
-@$(CX_normal) -MM $(CXXFLAGS) $(1) $< > $*.d
-@mv -f $*.d $*.d.tmp
-@sed -e 's|.*:|$*.o:|' < $*.d.tmp > $*.d
-@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
-	sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
-@rm -f $*.d.tmp
+define compilexx
+$(CX) -c $(CXXFLAGS) $(1) $< -o $@
 endef
 
-define compile-dep
-$(CC) -c $(CFLAGS) $(1) $< -o $*.o
-@$(CC_normal) -MM $(CFLAGS) $(1) $< > $*.d
-@mv -f $*.d $*.d.tmp
-@sed -e 's|.*:|$*.o:|' < $*.d.tmp > $*.d
-@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
-	sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
-@rm -f $*.d.tmp
+define compile
+$(CC) -c $(CFLAGS) $(1) $< -o $@
 endef
 
 define assemble
-$(CC) -c $(CFLAGS) -o $*.o $<
+$(CC) -c $(CFLAGS) -o $@ $<
 endef
