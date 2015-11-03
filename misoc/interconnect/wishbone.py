@@ -33,6 +33,30 @@ class Interface(Record):
             data_width=data_width,
             sel_width=data_width//8))
 
+    def _do_transaction(self):
+        yield self.cyc.eq(1)
+        yield self.stb.eq(1)
+        yield
+        while not (yield self.ack):
+            yield
+        yield self.cyc.eq(0)
+        yield self.stb.eq(0)
+
+    def write(self, adr, dat, sel=None):
+        if sel is None:
+            sel = 2**len(self.sel) - 1
+        yield self.adr.eq(adr)
+        yield self.dat_w.eq(dat)
+        yield self.sel.eq(sel)
+        yield self.we.eq(1)
+        yield from self._do_transaction()
+
+    def read(self, adr):
+        yield self.adr.eq(adr)
+        yield self.we.eq(0)
+        yield from self._do_transaction()
+        return (yield self.dat_r)
+
 
 class InterconnectPointToPoint(Module):
     def __init__(self, master, slave):
