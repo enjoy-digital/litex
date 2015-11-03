@@ -130,13 +130,18 @@ class BaseSoC(SoCSDRAM):
             self.flash_boot_address = 0x180000
             self.register_rom(self.spiflash.bus, 0x1000000)
 
+
+soc_pipistrello_args = soc_sdram_args
+soc_pipistrello_argdict = soc_sdram_argdict
+
+
 def main():
     parser = argparse.ArgumentParser(description="MiSoC port to the Pipistrello")
     builder_args(parser)
-    soc_sdram_args(parser)
+    soc_pipistrello_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(**soc_sdram_argdict(args))
+    soc = BaseSoC(**soc_pipistrello_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
