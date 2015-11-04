@@ -1,28 +1,23 @@
 #!/usr/bin/env python3
 
 import sys
-import os
 from setuptools import setup
 from setuptools import find_packages
 
-here = os.path.abspath(os.path.dirname(__file__))
-README = open(os.path.join(here, "README")).read()
 
-required_version = (3, 3)
-if sys.version_info < required_version:
-    raise SystemExit("MiSoC requires python {0} or greater".format(
-        ".".join(map(str, required_version))))
+if sys.version_info[:3] < (3, 3):
+    raise SystemExit("You need Python 3.3+")
+
 
 setup(
-    name="misoclib",
-    version="unknown",
+    name="misoc",
+    version="1.0",
     description="a high performance and small footprint SoC based on Migen",
-    long_description=README,
+    long_description=open("README").read(),
     author="Sebastien Bourdeauducq",
     author_email="sb@m-labs.hk",
     url="http://m-labs.hk",
     download_url="https://github.com/m-labs/misoc",
-    packages=find_packages(here),
     license="BSD",
     platforms=["Any"],
     keywords="HDL ASIC FPGA hardware design",
@@ -35,4 +30,12 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
     ],
+    packages=find_packages(),
+    include_package_data=True,
+    entry_points={
+        "console_scripts": [
+            "flterm=misoc.tools.flterm:main",
+            "mkmscimg=misoc.tools.mkmscimg:main",
+        ],
+    },
 )
