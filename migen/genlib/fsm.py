@@ -1,9 +1,13 @@
 from collections import OrderedDict
 
-from migen.fhdl.std import *
-from migen.fhdl.module import FinalizeError
+from migen.fhdl.structure import *
+from migen.fhdl.structure import _Statement, _Slice, _ArrayProxy
+from migen.fhdl.module import Module, FinalizeError
 from migen.fhdl.visit import NodeTransformer
 from migen.fhdl.bitcontainer import value_bits_sign
+
+
+__all__ = ["AnonymousState", "NextState", "NextValue", "FSM"]
 
 
 class AnonymousState:
@@ -12,15 +16,37 @@ class AnonymousState:
 
 # do not use namedtuple here as it inherits tuple
 # and the latter is used elsewhere in FHDL
-class NextState:
+class NextState(_Statement):
     def __init__(self, state):
         self.state = state
 
 
-class NextValue:
-    def __init__(self, register, value):
-        self.register = register
+class NextValue(_Statement):
+    def __init__(self, target, value):
+        self.target = target
         self.value = value
+
+
+def _target_eq(a, b):
+    if type(a) != type(b):
+        return False
+    ty = type(a)
+    if ty == Constant:
+        return a.value == b.value
+    elif ty == Signal:
+        return a is b
+    elif ty == Cat:
+        return all(_target_eq(x, y) for x, y in zip(a.l, b.l))
+    elif ty == _Slice:
+        return (_target_eq(a.value, b.value)
+                    and a.start == b.start
+                    and a.end == b.end)
+    elif ty == _ArrayProxy:
+        return (all(_target_eq(x, y) for x, y in zip(a.choices, b.choices))
+                    and _target_eq(a.key, b.key))
+    else:
+        raise ValueError("NextValue cannot be used with target type '{}'"
+                         .format(ty))
 
 
 class _LowerNext(NodeTransformer):
@@ -28,8 +54,14 @@ class _LowerNext(NodeTransformer):
         self.next_state_signal = next_state_signal
         self.encoding = encoding
         self.aliases = aliases
-        # register -> next_value_ce, next_value
-        self.registers = OrderedDict()
+        # (target, next_value_ce, next_value)
+        self.registers = []
+
+    def _get_register_control(self, target):
+        for x in self.registers:
+            if _target_eq(target, x[0]):
+                return x[1], x[2]
+        raise KeyError
 
     def visit_unknown(self, node):
         if isinstance(node, NextState):
@@ -40,12 +72,12 @@ class _LowerNext(NodeTransformer):
             return self.next_state_signal.eq(self.encoding[actual_state])
         elif isinstance(node, NextValue):
             try:
-                next_value_ce, next_value = self.registers[node.register]
+                next_value_ce, next_value = self._get_register_control(node.target)
             except KeyError:
-                related = node.register if isinstance(node.register, Signal) else None
-                next_value = Signal(bits_sign=value_bits_sign(node.register), related=related)
+                related = node.target if isinstance(node.target, Signal) else None
+                next_value = Signal(bits_sign=value_bits_sign(node.target), related=related)
                 next_value_ce = Signal(related=related)
-                self.registers[node.register] = next_value_ce, next_value
+                self.registers.append((node.target, next_value_ce, next_value))
             return next_value.eq(node.value), next_value_ce.eq(1)
         else:
             return node
@@ -130,7 +162,7 @@ class FSM(Module):
             Case(self.state, cases).makedefault(self.encoding[self.reset_state])
         ]
         self.sync += self.state.eq(self.next_state)
-        for register, (next_value_ce, next_value) in ln.registers.items():
+        for register, next_value_ce, next_value in ln.registers:
             self.sync += If(next_value_ce, register.eq(next_value))
 
         # drive entering/leaving signals

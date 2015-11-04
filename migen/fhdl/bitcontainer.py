@@ -1,6 +1,9 @@
 from migen.fhdl import structure as f
 
 
+__all__ = ["log2_int", "bits_for", "value_bits_sign"]
+
+
 def log2_int(n, need_pow2=True):
     l = 1
     r = 0
@@ -24,11 +27,26 @@ def bits_for(n, require_sign_bit=False):
 
 
 def value_bits_sign(v):
-    if isinstance(v, bool):
-        return 1, False
-    elif isinstance(v, int):
-        return bits_for(v), v < 0
-    elif isinstance(v, f.Signal):
+    """Bit length and signedness of a value.
+
+    Parameters
+    ----------
+    v : Value
+
+    Returns
+    -------
+    int, bool
+        Number of bits required to store `v` or available in `v`, followed by
+        whether `v` has a sign bit (included in the bit count).
+
+    Examples
+    --------
+    >>> value_bits_sign(f.Signal(8))
+    8, False
+    >>> value_bits_sign(C(0xaa))
+    8, False
+    """
+    if isinstance(v, (f.Constant, f.Signal)):
         return v.nbits, v.signed
     elif isinstance(v, (f.ClockSignal, f.ResetSignal)):
         return 1, False
@@ -101,109 +119,3 @@ def value_bits_sign(v):
     else:
         raise TypeError("Can not calculate bit length of {} {}".format(
             type(v), v))
-
-
-def flen(v):
-    """Bit length of an expression
-
-    Parameters
-    ----------
-    v : int, bool or Value
-
-    Returns
-    -------
-    int
-        Number of bits required to store `v` or available in `v`
-
-    Examples
-    --------
-    >>> flen(f.Signal(8))
-    8
-    >>> flen(0xaa)
-    8
-    """
-    return value_bits_sign(v)[0]
-
-
-def fiter(v):
-    """Bit iterator
-
-    Parameters
-    ----------
-    v : int, bool or Value
-
-    Returns
-    -------
-    iter
-        Iterator over the bits in `v`
-
-    Examples
-    --------
-    >>> list(fiter(f.Signal(2))) #doctest: +ELLIPSIS
-    [<migen.fhdl.structure._Slice object at 0x...>, <migen.fhdl.structure._Slice object at 0x...>]
-    >>> list(fiter(4))
-    [0, 0, 1]
-    """
-    if isinstance(v, (bool, int)):
-        return ((v >> i) & 1 for i in range(bits_for(v)))
-    elif isinstance(v, f.Value):
-        return (v[i] for i in range(flen(v)))
-    else:
-        raise TypeError("Can not bit-iterate {} {}".format(type(v), v))
-
-
-def fslice(v, s):
-    """Bit slice
-
-    Parameters
-    ----------
-    v : int, bool or Value
-    s : slice or int
-
-    Returns
-    -------
-    int or Value
-        Expression for the slice `s` of `v`.
-
-    Examples
-    --------
-    >>> fslice(f.Signal(2), 1) #doctest: +ELLIPSIS
-    <migen.fhdl.structure._Slice object at 0x...>
-    >>> bin(fslice(0b1101, slice(1, None, 2)))
-    '0b10'
-    >>> fslice(-1, slice(0, 4))
-    1
-    >>> fslice(-7, slice(None))
-    9
-    """
-    if isinstance(v, (bool, int)):
-        if isinstance(s, int):
-            s = slice(s)
-        idx = range(*s.indices(bits_for(v)))
-        return sum(((v >> i) & 1) << j for j, i in enumerate(idx))
-    elif isinstance(v, f.Value):
-        return v[s]
-    else:
-        raise TypeError("Can not bit-slice {} {}".format(type(v), v))
-
-
-def freversed(v):
-    """Bit reverse
-
-    Parameters
-    ----------
-    v : int, bool or Value
-
-    Returns
-    -------
-    int or Value
-        Expression containing the bit reversed input.
-
-    Examples
-    --------
-    >>> freversed(f.Signal(2)) #doctest: +ELLIPSIS
-    <migen.fhdl.structure.Cat object at 0x...>
-    >>> bin(freversed(0b1011))
-    '0b1101'
-    """
-    return fslice(v, slice(None, None, -1))

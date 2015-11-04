@@ -4,7 +4,7 @@ package:
 
 source:
   git_url: https://github.com/m-labs/migen
-  git_tag: master
+  git_tag: new
 
 build:
   noarch_python: true

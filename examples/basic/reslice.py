@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl import verilog
 
 
@@ -14,4 +14,6 @@ class Example(Module):
         self.comb += s3.eq(0)
         self.comb += d.eq(Cat(d[::-1], Cat(s1[:1], s3[-4:])[:3]))
 
-print(verilog.convert(Example()))
+
+if __name__ == "__main__":
+    print(verilog.convert(Example()))

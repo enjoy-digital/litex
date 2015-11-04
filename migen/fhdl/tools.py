@@ -32,6 +32,17 @@ class _TargetLister(NodeVisitor):
             self.visit(choice)
 
 
+class _InputLister(NodeVisitor):
+    def __init__(self):
+        self.output_list = set()
+
+    def visit_Signal(self, node):
+        self.output_list.add(node)
+
+    def visit_Assign(self, node):
+        self.visit(node.r)
+
+
 def list_signals(node):
     lister = _SignalLister()
     lister.visit(node)
@@ -40,6 +51,12 @@ def list_signals(node):
 
 def list_targets(node):
     lister = _TargetLister()
+    lister.visit(node)
+    return lister.output_list
+
+
+def list_inputs(node):
+    lister = _InputLister()
     lister.visit(node)
     return lister.output_list
 
@@ -126,7 +143,7 @@ def is_variable(node):
 
 def generate_reset(rst, sl):
     targets = list_targets(sl)
-    return [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.huid)]
+    return [t.eq(t.reset) for t in sorted(targets, key=lambda x: x.duid)]
 
 
 def insert_reset(rst, sl):

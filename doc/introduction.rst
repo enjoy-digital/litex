@@ -10,7 +10,7 @@ Migen makes it possible to apply modern software concepts such as object-oriente
 Background
 **********
 
-Even though the Milkymist system-on-chip [mm]_ is technically successful, it suffers from several limitations stemming from its implementation in manually written Verilog HDL:
+Even though the Milkymist system-on-chip [mm]_ had many successes, it suffers from several limitations stemming from its implementation in manually written Verilog HDL:
 
 .. [mm] http://m-labs.hk
 
@@ -38,20 +38,24 @@ Even though the Milkymist system-on-chip [mm]_ is technically successful, it suf
    #. Building a memory infrastructure (including bus interconnect, bridges and caches) that can automatically adapt itself at compile-time to any word size of the SDRAM is clumsy and tedious.
    #. Building register banks for control, status and interrupt management of cores can also largely benefit from automation.
    #. Many hardware acceleration problems can fit into the dataflow programming model. Manual dataflow implementation in V*HDL has, again, a lot of redundancy and potential for human errors. See the Milkymist texture mapping unit [mthesis]_ [mxcell]_ for an example of this. The amount of detail to deal with manually also makes the design space exploration difficult, and therefore hinders the design of efficient architectures.
-   #. Pre-computation of values, such as filter coefficients for DSP or even simply trigonometric tables, must often be done using external tools whose results are copy-and-pasted (in the best cases, automatically) into the V*HDL source.
+   #. Pre-computation of values, such as filter coefficients for DSP or even simply trigonometric tables, must often be done using external tools whose results are copy-and-pasted (in the best case, automatically) into the V*HDL source.
 
 .. [mthesis] http://m-labs.hk/thesis/thesis.pdf
 .. [mxcell] http://www.xilinx.com/publications/archives/xcell/Xcell77.pdf p30-35
    
 Enter Migen, a Python toolbox for building complex digital hardware. We could have designed a brand new programming language, but that would have been reinventing the wheel instead of being able to benefit from Python's rich features and immense library. The price to pay is a slightly cluttered syntax at times when writing descriptions in FHDL, but we believe this is totally acceptable, particularly when compared to VHDL ;-)
 
-Migen is made up of several related components, which are described in this manual.
+Migen is made up of several related components:
+
+#. the base language, FHDL
+#. a library of small generic cores
+#. a simulator
+#. a build system
 
 Installing Migen
 ****************
-Either run the ``setup.py`` installation script or simply set ``PYTHONPATH`` to the root of the source directory.
 
-For simulation support, an extra step is needed. See :ref:`vpisetup`.
+Either run the ``setup.py`` installation script or simply set ``PYTHONPATH`` to the root of the source directory.
 
 If you wish to contribute patches, the suggest way to install is;
    #. Clone from the git repository at http://github.com/m-labs/migen
@@ -61,9 +65,9 @@ If you wish to contribute patches, the suggest way to install is;
 Alternative install methods
 ===========================
 
- * Migen is available for linux-64 and linux-32 through Binstar's conda tool. Instructions are at https://binstar.org/fallen/migen
- * Migen can be referenced in a requirements.txt file (used for ``pip install -r requirements.txt``) via ``-e git+http://github.com/m-labs/migen.git#egg=migen``. See the `pip documentation <https://pip.pypa.io/en/latest/reference/pip_install.html#id19>`_ for more information.
+ * Migen is available for the Anaconda Python distribution. The package can be found at at https://anaconda.org/m-labs/migen
+ * Migen can be referenced in a requirements.txt file (used for ``pip install -r requirements.txt``) via ``-e git+http://github.com/m-labs/migen.git#egg=migen``. See the pip documentation for more information.
 
 Feedback
 ********
-Feedback concerning Migen or this manual should be sent to the M-Labs developers' mailing list at devel@lists.m-labs.hk.
+Feedback concerning Migen or this manual should be sent to the M-Labs developers' mailing list ``devel`` on lists.m-labs.hk.

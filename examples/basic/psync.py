@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl.specials import SynthesisDirective
 from migen.fhdl import verilog
 from migen.genlib.cdc import *
@@ -16,6 +16,8 @@ class XilinxMultiReg:
     def lower(dr):
         return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
-ps = PulseSynchronizer("from", "to")
-v = verilog.convert(ps, {ps.i, ps.o}, special_overrides={MultiReg: XilinxMultiReg})
-print(v)
+
+if __name__ == "__main__":
+    ps = PulseSynchronizer("from", "to")
+    v = verilog.convert(ps, {ps.i, ps.o}, special_overrides={MultiReg: XilinxMultiReg})
+    print(v)

@@ -1,7 +1,7 @@
-from migen.fhdl.std import *
-from migen.fhdl.bitcontainer import value_bits_sign
+from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.fhdl.specials import Special
-from migen.fhdl.tools import list_signals
+from migen.fhdl.bitcontainer import value_bits_sign
 from migen.genlib.misc import WaitTimer
 
 
@@ -39,8 +39,8 @@ class MultiRegImpl(Module):
 class MultiReg(Special):
     def __init__(self, i, o, odomain="sys", n=2):
         Special.__init__(self)
-        self.i = i
-        self.o = o
+        self.i = wrap(i)
+        self.o = wrap(o)
         self.odomain = odomain
         self.n = n
 

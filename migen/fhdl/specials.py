@@ -1,13 +1,18 @@
 from operator import itemgetter
 
 from migen.fhdl.structure import *
+from migen.fhdl.structure import _Value
 from migen.fhdl.bitcontainer import bits_for, value_bits_sign
 from migen.fhdl.tools import *
 from migen.fhdl.tracer import get_obj_var_name
 from migen.fhdl.verilog import _printexpr as verilog_printexpr
 
 
-class Special(HUID):
+__all__ = ["TSTriple", "Instance", "Memory",
+    "READ_FIRST", "WRITE_FIRST", "NO_CHANGE"]
+
+
+class Special(DUID):
     def iter_expressions(self):
         for x in []:
             yield x
@@ -36,10 +41,10 @@ class Special(HUID):
 class Tristate(Special):
     def __init__(self, target, o, oe, i=None):
         Special.__init__(self)
-        self.target = target
-        self.o = o
-        self.oe = oe
-        self.i = i
+        self.target = wrap(target)
+        self.o = wrap(o)
+        self.oe = wrap(oe)
+        self.i = wrap(i) if i is not None else None
 
     def iter_expressions(self):
         for attr, target_context in [
@@ -47,7 +52,8 @@ class Tristate(Special):
           ("o", SPECIAL_INPUT),
           ("oe", SPECIAL_INPUT),
           ("i", SPECIAL_OUTPUT)]:
-            yield self, attr, target_context
+            if getattr(self, attr) is not None:
+                yield self, attr, target_context
 
     @staticmethod
     def emit_verilog(tristate, ns, add_data_file):
@@ -79,7 +85,7 @@ class Instance(Special):
             self.name = name
             if expr is None:
                 expr = Signal()
-            self.expr = expr
+            self.expr = wrap(expr)
     class Input(_IO):
         pass
     class Output(_IO):
@@ -89,6 +95,8 @@ class Instance(Special):
     class Parameter:
         def __init__(self, name, value):
             self.name = name
+            if isinstance(value, (int, bool)):
+                value = Constant(value)
             self.value = value
     class PreformattedParam(str):
         pass
@@ -138,7 +146,7 @@ class Instance(Special):
                     r += ",\n"
                 firstp = False
                 r += "\t." + p.name + "("
-                if isinstance(p.value, (int, bool)):
+                if isinstance(p.value, Constant):
                     r += verilog_printexpr(ns, p.value)[0]
                 elif isinstance(p.value, float):
                     r += str(p.value)
@@ -171,6 +179,7 @@ class Instance(Special):
             r += ");\n\n"
         return r
 
+
 (READ_FIRST, WRITE_FIRST, NO_CHANGE) = range(3)
 
 
@@ -187,10 +196,7 @@ class _MemoryPort(Special):
         self.re = re
         self.we_granularity = we_granularity
         self.mode = mode
-        if isinstance(clock_domain, str):
-            self.clock = ClockSignal(clock_domain)
-        else:
-            self.clock = clock_domain
+        self.clock = ClockSignal(clock_domain)
 
     def iter_expressions(self):
         for attr, target_context in [
@@ -207,6 +213,13 @@ class _MemoryPort(Special):
         return ""  # done by parent Memory object
 
 
+class _MemoryLocation(_Value):
+    def __init__(self, memory, index):
+        _Value.__init__(self)
+        self.memory = memory
+        self.index = wrap(index)
+
+
 class Memory(Special):
     def __init__(self, width, depth, init=None, name=None):
         Special.__init__(self)
@@ -215,6 +228,10 @@ class Memory(Special):
         self.ports = []
         self.init = init
         self.name_override = get_obj_var_name(name, "mem")
+
+    def __getitem__(self, index):
+        # simulation only
+        return _MemoryLocation(self, index)
 
     def get_port(self, write_capable=False, async_read=False,
       has_re=False, we_granularity=0, mode=WRITE_FIRST,
@@ -319,9 +336,8 @@ class Memory(Special):
             memory_filename = add_data_file(gn(memory) + ".init", content)
 
             r += "initial begin\n"
-            r += "$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
+            r += "\t$readmemh(\"" + memory_filename + "\", " + gn(memory) + ");\n"
             r += "end\n\n"
-
 
         return r
 

@@ -1,7 +1,6 @@
-from collections import OrderedDict
-from collections import namedtuple
+from collections import OrderedDict, namedtuple
 
-from migen.fhdl.std import *
+from migen.fhdl.structure import *
 from migen.fhdl.namer import build_namespace
 from migen.fhdl.tools import list_special_ios
 from migen.fhdl.structure import _Fragment

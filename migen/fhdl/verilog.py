@@ -1,31 +1,35 @@
 from functools import partial
 from operator import itemgetter
+import collections
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 from migen.fhdl.tools import *
-from migen.fhdl.bitcontainer import bits_for, flen
-from migen.fhdl.namer import Namespace, build_namespace
+from migen.fhdl.bitcontainer import bits_for
+from migen.fhdl.namer import build_namespace
 from migen.fhdl.conv_output import ConvOutput
 
+
 _reserved_keywords = {
-"always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
-"case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
-"defparam", "design", "disable", "edge", "else", "end", "endcase", "endconfig",
-"endfunction", "endgenerate", "endmodule", "endprimitive", "endspecify",
-"endtable", "endtask", "event", "for", "force", "forever", "fork", "function",
-"generate", "genvar", "highz0", "highz1", "if", "ifnone", "incdir", "include",
-"initial", "inout", "input", "instance", "integer", "join", "large", "liblist",
-"library", "localparam", "macromodule", "medium", "module", "nand", "negedge",
-"nmos", "nor", "noshowcancelled", "not", "notif0", "notif1", "or", "output",
-"parameter", "pmos", "posedge", "primitive", "pull0", "pull1" "pulldown"
-"pullup","pulsestyle_onevent", "pulsestyle_ondetect", "remos", "real",
-"realtime", "reg", "release", "repeat", "rnmos", "rpmos", "rtran", "rtranif0",
-"rtranif1", "scalared", "showcancelled", "signed", "small", "specify",
-"specparam", "strong0", "strong1", "supply0", "supply1", "table", "task",
-"time", "tran", "tranif0", "tranif1", "tri", "tri0", "tri1", "triand",
-"trior", "trireg", "unsigned", "use", "vectored", "wait", "wand", "weak0",
-"weak1", "while", "wire", "wor","xnor","xor"}
+    "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
+    "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
+    "defparam", "design", "disable", "edge", "else", "end", "endcase",
+    "endconfig", "endfunction", "endgenerate", "endmodule", "endprimitive",
+    "endspecify", "endtable", "endtask", "event", "for", "force", "forever",
+    "fork", "function", "generate", "genvar", "highz0", "highz1", "if",
+    "ifnone", "incdir", "include", "initial", "inout", "input",
+    "instance", "integer", "join", "large", "liblist", "library", "localparam",
+    "macromodule", "medium", "module", "nand", "negedge", "nmos", "nor",
+    "noshowcancelled", "not", "notif0", "notif1", "or", "output", "parameter",
+    "pmos", "posedge", "primitive", "pull0", "pull1" "pulldown",
+    "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "remos", "real",
+    "realtime", "reg", "release", "repeat", "rnmos", "rpmos", "rtran",
+    "rtranif0", "rtranif1", "scalared", "showcancelled", "signed", "small",
+    "specify", "specparam", "strong0", "strong1", "supply0", "supply1",
+    "table", "task", "time", "tran", "tranif0", "tranif1", "tri", "tri0",
+    "tri1", "triand", "trior", "trireg", "unsigned", "use", "vectored", "wait",
+    "wand", "weak0", "weak1", "while", "wire", "wor","xnor", "xor"
+}
 
 
 def _printsig(ns, s):
@@ -33,31 +37,23 @@ def _printsig(ns, s):
         n = "signed "
     else:
         n = ""
-    if flen(s) > 1:
-        n += "[" + str(flen(s)-1) + ":0] "
+    if len(s) > 1:
+        n += "[" + str(len(s)-1) + ":0] "
     n += ns.get_name(s)
     return n
 
 
-def _printintbool(node):
-    if isinstance(node, bool):
-        if node:
-            return "1'd1", False
-        else:
-            return "1'd0", False
-    elif isinstance(node, int):
-        nbits = bits_for(node)
-        if node >= 0:
-            return str(nbits) + "'d" + str(node), False
-        else:
-            return str(nbits) + "'sd" + str(2**nbits + node), True
+def _printconstant(node):
+    if node.signed:
+        return (str(node.nbits) + "'sd" + str(2**node.nbits + node.value),
+                True)
     else:
-        raise TypeError
+        return str(node.nbits) + "'d" + str(node.value), False
 
 
 def _printexpr(ns, node):
-    if isinstance(node, (int, bool)):
-        return _printintbool(node)
+    if isinstance(node, Constant):
+        return _printconstant(node)
     elif isinstance(node, Signal):
         return ns.get_name(node), node.signed
     elif isinstance(node, _Operator):
@@ -98,7 +94,7 @@ def _printexpr(ns, node):
     elif isinstance(node, _Slice):
         # Verilog does not like us slicing non-array signals...
         if isinstance(node.value, Signal) \
-          and flen(node.value) == 1 \
+          and len(node.value) == 1 \
           and node.start == 0 and node.stop == 1:
               return _printexpr(ns, node.value)
 
@@ -114,7 +110,8 @@ def _printexpr(ns, node):
     elif isinstance(node, Replicate):
         return "{" + str(node.n) + "{" + _printexpr(ns, node.v)[0] + "}}", False
     else:
-        raise TypeError("Expression of unrecognized type: "+str(type(node)))
+        raise TypeError("Expression of unrecognized type: '{}'".format(type(node).__name__))
+
 
 (_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
 
@@ -132,7 +129,7 @@ def _printnode(ns, at, level, node):
         else:
             assignment = " <= "
         return "\t"*level + _printexpr(ns, node.l)[0] + assignment + _printexpr(ns, node.r)[0] + ";\n"
-    elif isinstance(node, (list, tuple)):
+    elif isinstance(node, collections.Iterable):
         return "".join(list(map(partial(_printnode, ns, at, level), node)))
     elif isinstance(node, If):
         r = "\t"*level + "if (" + _printexpr(ns, node.cond)[0] + ") begin\n"
@@ -145,7 +142,8 @@ def _printnode(ns, at, level, node):
     elif isinstance(node, Case):
         if node.cases:
             r = "\t"*level + "case (" + _printexpr(ns, node.test)[0] + ")\n"
-            css = sorted([(k, v) for (k, v) in node.cases.items() if k != "default"], key=itemgetter(0))
+            css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
+            css = sorted(css, key=lambda x: x[0].value)
             for choice, statements in css:
                 r += "\t"*(level + 1) + _printexpr(ns, choice)[0] + ": begin\n"
                 r += _printnode(ns, at, level + 2, statements)
@@ -180,7 +178,7 @@ def _printheader(f, ios, name, ns,
     wires = _list_comb_wires(f) | special_outs
     r = "module " + name + "(\n"
     firstp = True
-    for sig in sorted(ios, key=lambda x: x.huid):
+    for sig in sorted(ios, key=lambda x: x.duid):
         if not firstp:
             r += ",\n"
         firstp = False
@@ -194,7 +192,7 @@ def _printheader(f, ios, name, ns,
         else:
             r += "\tinput " + _printsig(ns, sig)
     r += "\n);\n\n"
-    for sig in sorted(sigs - ios, key=lambda x: x.huid):
+    for sig in sorted(sigs - ios, key=lambda x: x.duid):
         if sig in wires:
             r += "wire " + _printsig(ns, sig) + ";\n"
         else:
@@ -277,7 +275,7 @@ def _call_special_classmethod(overrides, obj, method, *args, **kwargs):
 def _lower_specials_step(overrides, specials):
     f = _Fragment()
     lowered_specials = set()
-    for special in sorted(specials, key=lambda x: x.huid):
+    for special in sorted(specials, key=lambda x: x.duid):
         impl = _call_special_classmethod(overrides, special, "lower")
         if impl is not None:
             f += impl.get_fragment()
@@ -307,7 +305,7 @@ def _lower_specials(overrides, specials):
 
 def _printspecials(overrides, specials, ns, add_data_file):
     r = ""
-    for special in sorted(specials, key=lambda x: x.huid):
+    for special in sorted(specials, key=lambda x: x.duid):
         pr = _call_special_classmethod(overrides, special, "emit_verilog", ns, add_data_file)
         if pr is None:
             raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
@@ -345,6 +343,7 @@ def convert(f, ios=None, name="top",
     ns = build_namespace(list_signals(f) \
         | list_special_ios(f, True, True, True) \
         | ios, _reserved_keywords)
+    ns.clock_domains = f.clock_domains
     r.ns = ns
 
     src = "/* Machine-generated using Migen */\n"

@@ -21,10 +21,8 @@ def _make_test_method(name, foldername):
 class TestExamplesSim(unittest.TestCase):
     pass
 
-for name in ("abstract_transactions_wb",
-              "basic1",
+for name in ("basic1",
               "basic2",
-              "dataflow",
               # skip "fir" as it depends on SciPy
               # "fir",
               "memory"):
@@ -36,30 +34,16 @@ class TestExamplesBasic(unittest.TestCase):
     pass
 
 for name in ("arrays",
-              "complex",
               "fsm",
               "graycounter",
-              "hamming",
               "local_cd",
               "memory",
               "namer",
               "psync",
               "record",
               "reslice",
-              "simple_gpio",
               "tristate",
               "two_dividers"):
     setattr(TestExamplesBasic, "test_" + name,
             _make_test_method(name, "basic"))
 
-
-class TestDataflow(unittest.TestCase):
-    pass
-
-for name in ("dma",
-              "misc",
-              # skip "structuring" as it depends on networkx, SciPy
-              # "structuring",
-              ):
-    setattr(TestDataflow, "test_" + name,
-            _make_test_method(name, "dataflow"))

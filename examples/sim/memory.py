@@ -1,5 +1,4 @@
-from migen.fhdl.std import *
-from migen.sim.generic import run_simulation
+from migen import *
 
 
 class Mem(Module):
@@ -8,19 +7,20 @@ class Mem(Module):
         # from 0 to 19.
         self.specials.mem = Memory(16, 2**12, init=list(range(20)))
 
-    def do_simulation(self, selfp):
-        # Read the memory. Use the cycle counter as address.
-        value = selfp.mem[selfp.simulator.cycle_counter]
-        # Print the result. Output is:
-        # 0
-        # 1
-        # 2
-        # ...
+
+def memory_test(dut):
+    # write (only first 5 values)
+    for i in range(5):
+        yield dut.mem[i].eq(42 + i)
+    # remember: values are written after the tick, and read before the tick.
+    # wait one tick for the memory to update.
+    yield
+    # read what we have written, plus some initialization data
+    for i in range(10):
+        value = yield dut.mem[i]
         print(value)
-        # Raising StopSimulation disables the current (and here, only one)
-        # simulation function. Simulator stops when all functions are disabled.
-        if value == 10:
-            raise StopSimulation
+
 
 if __name__ == "__main__":
-    run_simulation(Mem())
+    dut = Mem()
+    run_simulation(dut, memory_test(dut))

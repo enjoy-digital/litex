@@ -1,25 +1,6 @@
-from migen.fhdl.std import *
-from migen.fhdl.structure import _Operator
-
-
-def optree(op, operands, lb=None, ub=None, default=None):
-    if lb is None:
-        lb = 0
-    if ub is None:
-        ub = len(operands)
-    l = ub - lb
-    if l == 0:
-        if default is None:
-            raise AttributeError
-        else:
-            return default
-    elif l == 1:
-        return operands[lb]
-    else:
-        s = lb + l//2
-        return _Operator(op,
-            [optree(op, operands, lb, s, default),
-            optree(op, operands, s, ub, default)])
+from migen.fhdl.structure import *
+from migen.fhdl.module import Module
+from migen.fhdl.bitcontainer import bits_for
 
 
 def split(v, *counts):
@@ -38,8 +19,8 @@ def displacer(signal, shift, output, n=None, reverse=False):
     if shift is None:
         return output.eq(signal)
     if n is None:
-        n = 2**flen(shift)
-    w = flen(signal)
+        n = 2**len(shift)
+    w = len(signal)
     if reverse:
         r = reversed(range(n))
     else:
@@ -52,8 +33,8 @@ def chooser(signal, shift, output, n=None, reverse=False):
     if shift is None:
         return output.eq(signal)
     if n is None:
-        n = 2**flen(shift)
-    w = flen(output)
+        n = 2**len(shift)
+    w = len(output)
     cases = {}
     for i in range(n):
         if reverse:
@@ -62,14 +43,6 @@ def chooser(signal, shift, output, n=None, reverse=False):
             s = i
         cases[i] = [output.eq(signal[s*w:(s+1)*w])]
     return Case(shift, cases).makedefault()
-
-
-def reverse_bytes(signal):
-    n = (flen(signal)+7)//8
-    r = []
-    for i in reversed(range(n)):
-        r.append(signal[i*8:min((i+1)*8, flen(signal))])
-    return Cat(iter(r))
 
 
 def timeline(trigger, events):
@@ -98,24 +71,6 @@ def timeline(trigger, events):
     sync = [If(get_cond(e), *e[1]) for e in events]
     sync.append(counterlogic)
     return sync
-
-
-@ResetInserter()
-@CEInserter()
-class FlipFlop(Module):
-    def __init__(self, *args, **kwargs):
-        self.d = Signal(*args, **kwargs)
-        self.q = Signal(*args, **kwargs)
-        self.sync += self.q.eq(self.d)
-
-
-@ResetInserter()
-@CEInserter()
-class Counter(Module):
-    def __init__(self, *args, increment=1, **kwargs):
-        self.value = Signal(*args, **kwargs)
-        self.width = flen(self.value)
-        self.sync += self.value.eq(self.value+increment)
 
 
 class WaitTimer(Module):

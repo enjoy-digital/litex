@@ -1,54 +1,56 @@
 import unittest
+from itertools import count
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.fifo import SyncFIFO
 
-from migen.test.support import SimCase, SimBench
+from migen.test.support import SimCase
 
 
 class SyncFIFOCase(SimCase, unittest.TestCase):
-    class TestBench(SimBench):
+    class TestBench(Module):
         def __init__(self):
-            self.submodules.dut = SyncFIFO([("a", 32), ("b", 32)], 2)
+            self.submodules.dut = SyncFIFO(64, 2)
 
             self.sync += [
                 If(self.dut.we & self.dut.writable,
-                    self.dut.din.a.eq(self.dut.din.a + 1),
-                    self.dut.din.b.eq(self.dut.din.b + 2)
+                    self.dut.din[:32].eq(self.dut.din[:32] + 1),
+                    self.dut.din[32:].eq(self.dut.din[32:] + 2)
                 )
             ]
 
-    def test_sizes(self):
-        self.assertEqual(flen(self.tb.dut.din_bits), 64)
-        self.assertEqual(flen(self.tb.dut.dout_bits), 64)
-
     def test_run_sequence(self):
         seq = list(range(20))
-        def cb(tb, tbp):
-            # fire re and we at "random"
-            tbp.dut.we = tbp.simulator.cycle_counter % 2 == 0
-            tbp.dut.re = tbp.simulator.cycle_counter % 3 == 0
-            # the output if valid must be correct
-            if tbp.dut.readable and tbp.dut.re:
-                try:
-                    i = seq.pop(0)
-                except IndexError:
-                    raise StopSimulation
-                self.assertEqual(tbp.dut.dout.a, i)
-                self.assertEqual(tbp.dut.dout.b, i*2)
-        self.run_with(cb)
+        def gen():
+            for cycle in count():
+                # fire re and we at "random"
+                yield self.tb.dut.we.eq(cycle % 2 == 0)
+                yield self.tb.dut.re.eq(cycle % 3 == 0)
+                # the output if valid must be correct
+                if (yield self.tb.dut.readable) and (yield self.tb.dut.re):
+                    try:
+                        i = seq.pop(0)
+                    except IndexError:
+                        break
+                    self.assertEqual((yield self.tb.dut.dout[:32]), i)
+                    self.assertEqual((yield self.tb.dut.dout[32:]), i*2)
+                yield
+        self.run_with(gen())
 
     def test_replace(self):
         seq = [x for x in range(20) if x % 5]
-        def cb(tb, tbp):
-            tbp.dut.we = tbp.simulator.cycle_counter % 2 == 0
-            tbp.dut.re = tbp.simulator.cycle_counter % 3 == 0
-            tbp.dut.replace = tbp.dut.din.a % 5 == 1
-            if tbp.dut.readable and tbp.dut.re:
-                try:
-                    i = seq.pop(0)
-                except IndexError:
-                    raise StopSimulation
-                self.assertEqual(tbp.dut.dout.a, i)
-                self.assertEqual(tbp.dut.dout.b, i*2)
-        self.run_with(cb)
+        def gen():
+            for cycle in count():
+                yield self.tb.dut.we.eq(cycle % 2 == 0)
+                yield self.tb.dut.re.eq(cycle % 7 == 0)
+                yield self.tb.dut.replace.eq(
+                    (yield self.tb.dut.din[:32]) % 5 == 1)
+                if (yield self.tb.dut.readable) and (yield self.tb.dut.re):
+                    try:
+                        i = seq.pop(0)
+                    except IndexError:
+                        break
+                    self.assertEqual((yield self.tb.dut.dout[:32]), i)
+                    self.assertEqual((yield self.tb.dut.dout[32:]), i*2)
+                yield
+        self.run_with(gen())

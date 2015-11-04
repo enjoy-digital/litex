@@ -1,8 +1,10 @@
-import warnings
-
 from migen.fhdl.structure import *
 from migen.fhdl.module import Module
 from migen.fhdl.tools import insert_reset, rename_clock_domain
+
+
+__all__ = ["CEInserter", "ResetInserter", "ClockDomainsRenamer",
+           "ModuleTransformer"]
 
 
 class ModuleTransformer:
@@ -47,16 +49,6 @@ class ModuleTransformer:
         else:
             return self.wrap_class(victim)
 
-    @classmethod
-    def adhoc(cls, i, *args, **kwargs):
-        warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
-        return cls(*args, **kwargs)(i)
-
-
-def DecorateModule(transformer, *args, **kwargs):
-    warnings.warn("deprecated, use the plain transformer", DeprecationWarning, 2)
-    return transformer.__self__(*args, **kwargs)
-
 
 class ControlInserter(ModuleTransformer):
     control_name = None  # override this
@@ -95,8 +87,6 @@ class CEInserter(ControlInserter):
         for ce, cdn in to_insert:
             f.sync[cdn] = [If(ce, *f.sync[cdn])]
 
-InsertCE = CEInserter.adhoc
-
 
 class ResetInserter(ControlInserter):
     control_name = "reset"
@@ -104,8 +94,6 @@ class ResetInserter(ControlInserter):
     def transform_fragment_insert(self, i, f, to_insert):
         for reset, cdn in to_insert:
             f.sync[cdn] = insert_reset(reset, f.sync[cdn])
-
-InsertReset = ResetInserter.adhoc
 
 
 class ClockDomainsRenamer(ModuleTransformer):
@@ -117,5 +105,3 @@ class ClockDomainsRenamer(ModuleTransformer):
     def transform_fragment(self, i, f):
         for old, new in self.cd_remapping.items():
             rename_clock_domain(f, old, new)
-
-RenameClockDomains = ClockDomainsRenamer.adhoc

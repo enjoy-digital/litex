@@ -1,6 +1,9 @@
-from migen.fhdl.std import *
+from migen.fhdl.structure import *
 from migen.fhdl.tracer import get_obj_var_name
-from migen.genlib.misc import optree
+
+from functools import reduce
+from operator import or_
+
 
 (DIR_NONE, DIR_S_TO_M, DIR_M_TO_S) = range(3)
 
@@ -141,7 +144,7 @@ class Record:
                     if direction == DIR_M_TO_S:
                         r += [getattr(slave, field).eq(self_e) for slave in slaves]
                     elif direction == DIR_S_TO_M:
-                        r.append(self_e.eq(optree("|", [getattr(slave, field) for slave in slaves])))
+                        r.append(self_e.eq(reduce(or_, [getattr(slave, field) for slave in slaves])))
                     else:
                         raise TypeError
                 else:
@@ -164,7 +167,7 @@ class Record:
                     s_signal, s_direction = next(iter_slave)
                     assert(s_direction == DIR_S_TO_M)
                     s_signals.append(s_signal)
-                r.append(m_signal.eq(optree("|", s_signals)))
+                r.append(m_signal.eq(reduce(or_, s_signals)))
             else:
                 raise TypeError
         return r

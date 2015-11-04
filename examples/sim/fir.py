@@ -1,11 +1,12 @@
+from functools import reduce
+from operator import add
+
 from math import cos, pi
 from scipy import signal
 import matplotlib.pyplot as plt
 
-from migen.fhdl.std import *
+from migen import *
 from migen.fhdl import verilog
-from migen.genlib.misc import optree
-from migen.sim.generic import run_simulation
 
 
 # A synthesizable FIR filter.
@@ -27,25 +28,21 @@ class FIR(Module):
             c_fp = int(c*2**(self.wsize - 1))
             muls.append(c_fp*sreg)
         sum_full = Signal((2*self.wsize-1, True))
-        self.sync += sum_full.eq(optree("+", muls))
-        self.comb += self.o.eq(sum_full[self.wsize-1:])
+        self.sync += sum_full.eq(reduce(add, muls))
+        self.comb += self.o.eq(sum_full >> self.wsize-1)
 
 
 # A test bench for our FIR filter.
 # Generates a sine wave at the input and records the output.
-class TB(Module):
-    def __init__(self, coef, frequency):
-        self.submodules.fir = FIR(coef)
-        self.frequency = frequency
-        self.inputs = []
-        self.outputs = []
+def fir_tb(dut, frequency, inputs, outputs):
+    f = 2**(dut.wsize - 1)
+    for cycle in range(200):
+        v = 0.1*cos(2*pi*frequency*cycle)
+        yield dut.i.eq(int(f*v))
+        inputs.append(v)
+        outputs.append((yield dut.o)/f)
+        yield
 
-    def do_simulation(self, selfp):
-        f = 2**(self.fir.wsize - 1)
-        v = 0.1*cos(2*pi*self.frequency*selfp.simulator.cycle_counter)
-        selfp.fir.i = int(f*v)
-        self.inputs.append(v)
-        self.outputs.append(selfp.fir.o/f)
 
 if __name__ == "__main__":
     # Compute filter coefficients with SciPy.
@@ -56,10 +53,9 @@ if __name__ == "__main__":
     in_signals = []
     out_signals = []
     for frequency in [0.05, 0.1, 0.25]:
-        tb = TB(coef, frequency)
-        run_simulation(tb, ncycles=200)
-        in_signals += tb.inputs
-        out_signals += tb.outputs
+        dut = FIR(coef)
+        tb = fir_tb(dut, frequency, in_signals, out_signals)
+        run_simulation(dut, tb)
 
     # Plot data from the input and output waveforms.
     plt.plot(in_signals)
