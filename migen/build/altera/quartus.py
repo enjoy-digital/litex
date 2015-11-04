@@ -113,7 +113,7 @@ quartus_sta {build_name} -c {build_name}
 
 class AlteraQuartusToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
-              quartus_path="/opt/Altera", run=True):
+              toolchain_path="/opt/Altera", run=True):
         tools.mkdir_noerror(build_dir)
         os.chdir(build_dir)
 
@@ -133,7 +133,7 @@ class AlteraQuartusToolchain:
                      named_pc,
                      build_name)
         if run:
-            _run_quartus(build_name, quartus_path)
+            _run_quartus(build_name, toolchain_path)
 
         os.chdir("..")
 

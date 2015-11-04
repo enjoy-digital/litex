@@ -112,7 +112,7 @@ class XilinxVivadoToolchain:
         tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            vivado_path="/opt/Xilinx/Vivado", source=True, run=True):
+            toolchain_path="/opt/Xilinx/Vivado", source=True, run=True):
         tools.mkdir_noerror(build_dir)
         os.chdir(build_dir)
 
@@ -127,7 +127,7 @@ class XilinxVivadoToolchain:
         self._build_batch(platform, sources, build_name)
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
         if run:
-            _run_vivado(build_name, vivado_path, source)
+            _run_vivado(build_name, toolchain_path, source)
 
         os.chdir("..")
 

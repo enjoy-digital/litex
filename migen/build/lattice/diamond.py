@@ -76,7 +76,7 @@ def _run_diamond(build_name, source, ver=None):
 
 class LatticeDiamondToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            diamond_path="/opt/Diamond", run=True):
+              toolchain_path="/opt/Diamond", run=True):
         tools.mkdir_noerror(build_dir)
         os.chdir(build_dir)
 
@@ -94,7 +94,7 @@ class LatticeDiamondToolchain:
         tools.write_to_file(build_name + ".lpf", _build_lpf(named_sc, named_pc))
 
         if run:
-            _run_diamond(build_name, diamond_path)
+            _run_diamond(build_name, toolchain_path)
 
         os.chdir("..")
 

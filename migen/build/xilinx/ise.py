@@ -135,16 +135,16 @@ class XilinxISEToolchain:
         self.ise_commands = ""
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            ise_path=None, source=None, run=True, mode="xst"):
+            toolchain_path=None, source=None, run=True, mode="xst"):
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
-        if ise_path is None:
+        if toolchain_path is None:
             if sys.platform == "win32":
-                ise_path = "C:\\Xilinx"
+                toolchain_path = "C:\\Xilinx"
             elif sys.platform == "cygwin":
-                ise_path = "/cygdrive/c/Xilinx"
+                toolchain_path = "/cygdrive/c/Xilinx"
             else:
-                ise_path = "/opt/Xilinx"
+                toolchain_path = "/opt/Xilinx"
         if source is None:
             source = sys.platform != "win32"
 
@@ -185,7 +185,7 @@ class XilinxISEToolchain:
 
             tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
             if run:
-                _run_ise(build_name, ise_path, source, isemode,
+                _run_ise(build_name, toolchain_path, source, isemode,
                          ngdbuild_opt, self.bitgen_opt, self.ise_commands,
                          self.map_opt, self.par_opt)
         finally:
