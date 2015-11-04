@@ -11,7 +11,7 @@ if sys.version_info[:3] < (3, 3):
 
 setup(
     name="misoc",
-    version="1.0",
+    version="0.2",
     description="a high performance and small footprint SoC based on Migen",
     long_description=open("README").read(),
     author="Sebastien Bourdeauducq",
