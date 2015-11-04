@@ -122,19 +122,6 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit
         raise OSError("Subprocess failed")
 
 
-def _default_ise_path():
-    if sys.platform == "win32":
-        return "C:\\Xilinx"
-    elif sys.platform == "cygwin":
-        return "/cygdrive/c/Xilinx"
-    else:
-        return "/opt/Xilinx"
-
-
-def _default_source():
-    return sys.platform != "win32"
-
-
 class XilinxISEToolchain:
     def __init__(self):
         self.xst_opt = """-ifmt MIXED
@@ -148,13 +135,21 @@ class XilinxISEToolchain:
         self.ise_commands = ""
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            ise_path=_default_ise_path(), source=_default_source(), run=True, mode="xst"):
+            ise_path=None, source=None, run=True, mode="xst"):
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
+        if ise_path is None:
+            if sys.platform == "win32":
+                ise_path = "C:\\Xilinx"
+            elif sys.platform == "cygwin":
+                ise_path = "/cygdrive/c/Xilinx"
+            else:
+                ise_path = "/opt/Xilinx"
+        if source is None:
+            source = sys.platform != "win32"
+
         platform.finalize(fragment)
-
         ngdbuild_opt = self.ngdbuild_opt
-
         vns = None
 
         tools.mkdir_noerror(build_dir)
