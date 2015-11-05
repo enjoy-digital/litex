@@ -323,7 +323,7 @@ def convert(f, ios=None, name="top",
     if ios is None:
         ios = set()
 
-    for cd_name in list_clock_domains(f):
+    for cd_name in sorted(list_clock_domains(f)):
         try:
             f.clock_domains[cd_name]
         except KeyError:
