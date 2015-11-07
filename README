@@ -5,22 +5,21 @@
 
                 Build your hardware, easily!
                 Copyright 2015 Enjoy-Digital
-             (based on Migen/MiSoC technologies)
 
 [> Intro
 ---------
-LiteX is a fork of Migen/MiSoC for our own needs at Enjoy-Digital. It provides
-a single python package and add some specific features to design our FPGA cores,
-build a SoC with or or load/flash it to the hardware.
+LiteX is an alternative (fork) to Migen/MiSoC maintained and used by Enjoy-Digital
+to build our cores, integrate them in complete SoC and load/flash them to the
+hardware.
 
-The structure of LiteX is kept close to Migen/MiSoC to enable collaboration
+The structure of LiteX is kept close to Migen/MiSoC to ease collaboration
 between projects.
 
 [> License
 -----------
-LiteX is copyright (c) 2015 Enjoy-Digital.
-Since it is based on Migen/MiSoC, see gen/MIGEN_LICENSE and soc/MISOC_LICENSE or
-git history to get correct ownership of files.
+LiteX is copyright (c) 2015 Enjoy-Digital under BSD Lisense.
+Since it is based on MiSoC/Migen, please also refer to LICENSE files in soc/gen 
+directories or git history to get correct copyrights.
 
 [> Sub-packages
 -----------
@@ -37,6 +36,40 @@ soc:
 
 boards:
   Provides platforms and targets for the supported boards.
+
+[> Quick start guide
+--------------------
+0. If cloned from Git without the --recursive option, get the submodules:
+  git submodule update --init
+
+1. Install Python 3.3+ and FPGA vendor's development tools and JTAG tools.
+
+2. Compile and install binutils. Take the latest version from GNU.
+  mkdir build && cd build
+  ../configure --target=lm32-elf
+  make
+  make install
+
+3. (Optional, only if you want to use a lm32 CPU in you SoC)
+  Compile and install GCC. Take gcc-core and gcc-g++ from GNU
+  (version 4.5 or >=4.9).
+  rm -rf libstdc++-v3
+  mkdir build && cd build
+  ../configure --target=lm32-elf --enable-languages="c,c++" --disable-libgcc \
+    --disable-libssp
+  make
+  make install
+
+4. Build the target of your board...:
+  Go to boards/targets and execute the target you want to build
+
+5. ... and/or install Verilator and test LiteX on your computer:
+  Download and install Verilator: http://www.veripool.org/
+  Go to boards/targets
+  ./sim.py
+
+6. Run a terminal program on the board's serial port at 115200 8-N-1.
+  You should get the BIOS prompt.
 
 [> Contact
 E-mail: florent [AT] enjoy-digital.fr
