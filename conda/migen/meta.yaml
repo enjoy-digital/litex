@@ -1,0 +1,28 @@
+package:
+  name: migen
+  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
+
+source:
+  git_url: https://github.com/m-labs/migen
+  git_tag: master
+
+build:
+  noarch_python: true
+  number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
+  string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}+git{{ environ.get("GIT_DESCRIBE_HASH", "")[1:] }}
+  script: $PYTHON setup.py install
+
+requirements:
+  build:
+    - python 3.5.*
+  run:
+    - python 3.5.*
+
+test:
+  imports:
+    - migen
+
+about:
+  home: http://m-labs.hk/gateware.html
+  license: 3-clause BSD
+  summary: 'A Python toolbox for building complex digital hardware'
