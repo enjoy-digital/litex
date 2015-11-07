@@ -1,4 +1,0 @@
-graft misoc/software
-graft misoc/cores/lm32/verilog
-graft misoc/cores/mor1kx/verilog
-include misoc/cores/mxcrg.v

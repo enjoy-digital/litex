@@ -10,16 +10,14 @@ if sys.version_info[:3] < (3, 3):
 
 
 setup(
-    name="migen",
-    version="0.2",
-    description="Python toolbox for building complex digital hardware",
-    long_description=open("README.rst").read(),
-    author="Sebastien Bourdeauducq",
-    author_email="sb@m-labs.hk",
-    url="http://m-labs.hk",
-    download_url="https://github.com/m-labs/migen",
-    packages=find_packages(),
-    test_suite="migen.test",
+    name="litex",
+    version="1.0",
+    description="Python tools to design FPGA cores and SoCs",
+    long_description=open("README").read(),
+    author="Florent Kermarrec",
+    author_email="florent@enjoy-digital.fr",
+    url="http://enjoy-digital.fr",
+    download_url="https://github.com/enjoy-digital/litex",
     license="BSD",
     platforms=["Any"],
     keywords="HDL ASIC FPGA hardware design",
@@ -32,4 +30,12 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
     ],
+    packages=find_packages(),
+    include_package_data=True,
+    entry_points={
+        "console_scripts": [
+            "flterm=litex.soc.tools.flterm:main",
+            "mkmscimg=litex.soc.tools.mkmscimg:main",
+        ],
+    },
 )

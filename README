@@ -1,0 +1,42 @@
+                       __   _ __      _  __
+                      / /  (_) /____ | |/_/
+                     / /__/ / __/ -_)>  <
+                    /____/_/\__/\__/_/|_|
+
+                Build your hardware, easily!
+                Copyright 2015 Enjoy-Digital
+             (based on Migen/MiSoC technologies)
+
+[> Intro
+---------
+LiteX is a fork of Migen/MiSoC for our own needs at Enjoy-Digital. It provides
+a single python package and add some specific features to design our FPGA cores,
+build a SoC with or or load/flash it to the hardware.
+
+The structure of LiteX is kept close to Migen/MiSoC to enable collaboration
+between projects.
+
+[> License
+-----------
+LiteX is copyright (c) 2015 Enjoy-Digital.
+Since it is based on Migen/MiSoC, see gen/MIGEN_LICENSE and soc/MISOC_LICENSE or
+git history to get correct ownership of files.
+
+[> Sub-packages
+-----------
+gen:
+  Provides tools and simple modules to generate HDL.
+
+build:
+  Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to
+  simulate HDL code or full SoCs.
+
+soc:
+  Provides definitions/modules to build cores (bus, bank, flow), cores and tools
+  to build a SoC from such cores.
+
+boards:
+  Provides platforms and targets for the supported boards.
+
+[> Contact
+E-mail: florent [AT] enjoy-digital.fr
