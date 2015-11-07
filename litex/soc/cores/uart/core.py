@@ -111,6 +111,22 @@ class RS232PHY(Module, AutoCSR):
         self.sink, self.source = self.tx.sink, self.rx.source
 
 
+class RS232PHYModel(Module):
+    def __init__(self, pads):
+        self.sink = Sink([("data", 8)])
+        self.source = Source([("data", 8)])
+
+        self.comb += [
+            pads.source_stb.eq(self.sink.stb),
+            pads.source_data.eq(self.sink.data),
+            self.sink.ack.eq(pads.source_ack),
+
+            self.source.stb.eq(pads.sink_stb),
+            self.source.data.eq(pads.sink_data),
+            pads.sink_ack.eq(self.source.ack)
+        ]
+
+
 def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     if sink_cd != source_cd:
         fifo = AsyncFIFO([("data", 8)], depth)

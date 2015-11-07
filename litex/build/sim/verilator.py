@@ -9,6 +9,9 @@ from litex.build import tools
 from litex.build.generic_platform import *
 
 
+sim_directory = os.path.abspath(os.path.dirname(__file__))
+
+
 def _build_tb(platform, vns, serial, template):
     def io_name(resource, subsignal=None):
         res = platform.lookup_request(resource)
@@ -81,7 +84,7 @@ def _build_tb(platform, vns, serial, template):
     tools.write_to_file("dut_tb.cpp", content)
 
 
-def _build_sim(platform, vns, build_name, include_paths, sim_path, serial, verbose):
+def _build_sim(platform, vns, build_name, include_paths, serial, verbose):
     include = ""
     for path in include_paths:
         include += "-I"+path+" "
@@ -97,7 +100,7 @@ make -j -C obj_dir/ -f Vdut.mk Vdut
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
-    _build_tb(platform, vns, serial, os.path.join("..", sim_path, "dut_tb.cpp"))
+    _build_tb(platform, vns, serial, os.path.join(sim_directory, "dut_tb.cpp"))
     if verbose:
         r = subprocess.call(["bash", build_script_file])
     else:
@@ -117,10 +120,8 @@ def _run_sim(build_name):
 
 
 class SimVerilatorToolchain:
-    # XXX fir sim_path
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            sim_path="../migen/migen/build/sim/", serial="console",
-            run=True, verbose=False):
+            serial="console", run=True, verbose=False):
         tools.mkdir_noerror(build_dir)
         os.chdir(build_dir)
 
@@ -138,7 +139,7 @@ class SimVerilatorToolchain:
             if path not in include_paths:
                 include_paths.append(path)
         include_paths += platform.verilog_include_paths
-        _build_sim(platform, v_output.ns, build_name, include_paths, sim_path, serial, verbose)
+        _build_sim(platform, v_output.ns, build_name, include_paths, serial, verbose)
 
         if run:
             _run_sim(build_name)
