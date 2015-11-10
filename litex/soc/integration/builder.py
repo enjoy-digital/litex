@@ -13,7 +13,6 @@ __all__ = ["soc_software_packages", "soc_directory",
 soc_software_packages = [
     "libbase",
     "libcompiler_rt",
-    "libdyld",
     "libnet",
     "bios"
 ]
