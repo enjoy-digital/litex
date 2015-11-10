@@ -175,15 +175,22 @@ class DownConverter(Module):
         read = Signal()
         write = Signal()
 
-        counter = Counter(max=ratio)
-        self.submodules += counter
+        counter = Signal(max=ratio)
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += \
+            If(counter_reset,
+                counter.eq(0)
+            ).Elif(counter_ce,
+                counter.eq(counter + 1)
+            )
         counter_done = Signal()
-        self.comb += counter_done.eq(counter.value == ratio-1)
+        self.comb += counter_done.eq(counter == ratio-1)
 
         # Main FSM
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            counter.reset.eq(1),
+            counter_reset.eq(1),
             If(master.stb & master.cyc,
                 If(master.we,
                     NextState("WRITE")
@@ -199,7 +206,7 @@ class DownConverter(Module):
             If(master.stb & master.cyc,
                 slave.stb.eq(1),
                 If(slave.ack,
-                    counter.ce.eq(1),
+                    counter_ce.eq(1),
                     If(counter_done,
                         master.ack.eq(1),
                         NextState("IDLE")
@@ -215,7 +222,7 @@ class DownConverter(Module):
             If(master.stb & master.cyc,
                 slave.stb.eq(1),
                 If(slave.ack,
-                    counter.ce.eq(1),
+                    counter_ce.eq(1),
                     If(counter_done,
                         master.ack.eq(1),
                         NextState("IDLE")
@@ -233,7 +240,7 @@ class DownConverter(Module):
             ).Else(
                 slave.cti.eq(2)
             ),
-            slave.adr.eq(Cat(counter.value, master.adr))
+            slave.adr.eq(Cat(counter, master.adr))
         ]
 
         # Datapath
@@ -243,13 +250,13 @@ class DownConverter(Module):
                 slave.sel.eq(master.sel[i*dw_to//8:(i+1)*dw_to]),
                 slave.dat_w.eq(master.dat_w[i*dw_to:(i+1)*dw_to])
             ]
-        self.comb += Case(counter.value, cases)
+        self.comb += Case(counter, cases)
 
 
         cached_data = Signal(dw_from)
         self.comb += master.dat_r.eq(Cat(cached_data[dw_to:], slave.dat_r))
         self.sync += \
-            If(read & counter.ce,
+            If(read & counter_ce,
                 cached_data.eq(master.dat_r)
             )
 
@@ -287,13 +294,20 @@ class UpConverter(Module):
         self.submodules += address
         self.comb += address.d.eq(master.adr)
 
-        counter = Counter(max=ratio)
-        self.submodules += counter
+        counter = Signal(max=ratio)
+        counter_ce = Signal()
+        counter_reset = Signal()
+        self.sync += \
+            If(counter_reset,
+                counter.eq(0)
+            ).Elif(counter_ce,
+                counter.eq(counter + 1)
+            )
         counter_offset = Signal(max=ratio)
         counter_done = Signal()
         self.comb += [
             counter_offset.eq(address.q),
-            counter_done.eq((counter.value + counter_offset) == ratio-1)
+            counter_done.eq((counter + counter_offset) == ratio-1)
         ]
 
         cached_data = Signal(dw_to)
@@ -314,7 +328,7 @@ class UpConverter(Module):
         # Main FSM
         self.submodules.fsm = fsm = FSM()
         fsm.act("IDLE",
-            counter.reset.eq(1),
+            counter_reset.eq(1),
             If(master.stb & master.cyc,
                 address.ce.eq(1),
                 If(master.we,
@@ -331,7 +345,7 @@ class UpConverter(Module):
         fsm.act("WRITE",
             If(master.stb & master.cyc,
                 write.eq(1),
-                counter.ce.eq(1),
+                counter_ce.eq(1),
                 master.ack.eq(1),
                 If(counter_done,
                     NextState("EVICT")
@@ -384,7 +398,7 @@ class UpConverter(Module):
             write_sel = Signal()
             cases[i] = write_sel.eq(1)
             self.comb += [
-                cached_sels[i].reset.eq(counter.reset),
+                cached_sels[i].reset.eq(counter_reset),
                 If(write,
                     cached_datas[i].d.eq(master.dat_w),
                 ).Else(
@@ -396,7 +410,7 @@ class UpConverter(Module):
                     cached_sels[i].ce.eq(1)
                 )
             ]
-        self.comb += Case(counter.value + counter_offset, cases)
+        self.comb += Case(counter + counter_offset, cases)
 
         cases = {}
         for i in range(ratio):

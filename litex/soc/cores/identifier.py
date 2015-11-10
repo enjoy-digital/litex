@@ -1,16 +1,14 @@
 from litex.gen import *
 
-from litex.soc.interconnect.csr import *
 
+class Identifier(Module):
+    def __init__(self, ident):
+        contents = list(ident.encode())
+        l = len(contents)
+        if l > 255:
+            raise ValueError("Identifier string must be 255 characters or less")
+        contents.insert(0, l)
+        self.mem = Memory(8, len(contents), init=contents)
 
-class Identifier(Module, AutoCSR):
-    def __init__(self, sysid, frequency, revision=None):
-        self._sysid = CSRStatus(16)
-        self._frequency = CSRStatus(32)
-
-        ###
-
-        self.comb += [
-            self._sysid.status.eq(sysid),
-            self._frequency.status.eq(frequency)
-        ]
+    def get_memories(self):
+        return [(True, self.mem)]

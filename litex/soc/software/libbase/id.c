@@ -4,17 +4,17 @@
 #include <string.h>
 #include <id.h>
 
-void get_sysid_formatted(char *sysid)
-{
-	sysid[0] = identifier_sysid_read() >> 8;
-	sysid[1] = identifier_sysid_read();
-	sysid[2] = 0;
-}
 
-void id_print(void)
+void get_ident(char *ident)
 {
-	char sysid[3];
-
-	get_sysid_formatted(sysid);
-	printf("Running on LiteX SoC (sysid:%s) at %dMHz\n", sysid, identifier_frequency_read()/1000000);
+#ifdef CSR_IDENTIFIER_MEM_BASE
+    int len, i;
+    
+    len = MMPTR(CSR_IDENTIFIER_MEM_BASE);
+    for(i=0;i<len;i++)
+        ident[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE + 4 + i*4);
+    ident[i] = 0;
+#else
+    ident[0] = 0;
+#endif
 }

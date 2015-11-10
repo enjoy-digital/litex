@@ -152,11 +152,16 @@ class CSRBankArray(Module):
             if hasattr(obj, "get_memories"):
                 memories = obj.get_memories()
                 for memory in memories:
+                    if isinstance(memory, tuple):
+                        read_only, memory = memory
+                    else:
+                        read_only = False
                     mapaddr = self.address_map(name, memory)
                     if mapaddr is None:
                         continue
                     sram_bus = Interface(*ifargs, **ifkwargs)
-                    mmap = csr.SRAM(memory, mapaddr, bus=sram_bus)
+                    mmap = SRAM(memory, mapaddr, read_only=read_only,
+                                bus=sram_bus)
                     self.submodules += mmap
                     csrs += mmap.get_csrs()
                     self.srams.append((name, memory, mapaddr, mmap))

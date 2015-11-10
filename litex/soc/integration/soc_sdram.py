@@ -43,7 +43,7 @@ class SoCSDRAM(SoCCore):
     def __init__(self, platform, clk_freq, l2_size=8192, **kwargs):
         SoCCore.__init__(self, platform, clk_freq, **kwargs)
         self.l2_size = l2_size
-
+        
         self._sdram_phy = []
         self._wb_sdram_ifs = []
         self._wb_sdram = wishbone.Interface()

@@ -34,7 +34,7 @@ static int check_ack(void)
 
 	timer0_en_write(0);
 	timer0_reload_write(0);
-	timer0_load_write(identifier_frequency_read()/4);
+	timer0_load_write(SYSTEM_CLOCK_FREQUENCY/4);
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	recognized = 0;

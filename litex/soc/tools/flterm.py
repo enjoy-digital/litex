@@ -299,7 +299,6 @@ def main():
         flterm.join(True)
     except KeyboardInterrupt:
         pass
-    flterm.join()
 
 
 if __name__ == "__main__":

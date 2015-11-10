@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-void get_sysid_formatted(char *sysid);
-void id_print(void);
+#define IDENT_SIZE 256
+void get_ident(char *ident);
 
 #ifdef __cplusplus
 }

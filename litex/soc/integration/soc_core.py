@@ -16,13 +16,13 @@ def mem_decoder(address, start=26, end=29):
 
 class SoCCore(Module):
     csr_map = {
-        "crg":        0,  # user
-        "uart_phy":   1,  # provided by default (optional)
-        "uart":       2,  # provided by default (optional)
-        "identifier": 3,  # provided by default (optional)
-        "timer0":     4,  # provided by default (optional)
-        "buttons":    5,  # user
-        "leds":       6,  # user
+        "crg":            0,  # user
+        "uart_phy":       1,  # provided by default (optional)
+        "uart":           2,  # provided by default (optional)
+        "identifier_mem": 3,  # provided by default (optional)
+        "timer0":         4,  # provided by default (optional)
+        "buttons":        5,  # user
+        "leds":           6,  # user
     }
     interrupt_map = {
         "uart":   0,
@@ -42,7 +42,7 @@ class SoCCore(Module):
                 shadow_base=0x80000000,
                 csr_data_width=8, csr_address_width=14,
                 with_uart=True, uart_baudrate=115200,
-                with_identifier=True,
+                ident="",
                 with_timer=True):
         self.platform = platform
         self.clk_freq = clk_freq
@@ -58,8 +58,6 @@ class SoCCore(Module):
 
         self.with_uart = with_uart
         self.uart_baudrate = uart_baudrate
-
-        self.with_identifier = with_identifier
 
         self.shadow_base = shadow_base
 
@@ -103,9 +101,9 @@ class SoCCore(Module):
             self.submodules.uart_phy = uart.RS232PHY(platform.request("serial"), clk_freq, uart_baudrate)
             self.submodules.uart = uart.UART(self.uart_phy)
 
-        if with_identifier:
-            platform_id = 0x554E if not hasattr(platform, "identifier") else platform.identifier
-            self.submodules.identifier = identifier.Identifier(platform_id, int(clk_freq))
+        if ident:
+            self.submodules.identifier = identifier.Identifier(ident)
+        self.add_constant("SYSTEM_CLOCK_FREQUENCY", int(clk_freq))
 
         if with_timer:
             self.submodules.timer0 = timer.Timer()

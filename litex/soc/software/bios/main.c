@@ -13,7 +13,6 @@
 #include <net/microudp.h>
 
 #include "sdram.h"
-#include "dataflow.h"
 #include "boot.h"
 
 /* General address space functions */
@@ -176,6 +175,14 @@ static void crc(char *startaddr, char *len)
 	printf("CRC32: %08x\n", crc32((unsigned char *)addr, length));
 }
 
+static void ident(void)
+{
+	char buffer[IDENT_SIZE];
+
+	get_ident(buffer);
+	printf("Ident: %s\n", buffer);
+}
+
 #ifdef __lm32__
 enum {
 	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,
@@ -288,23 +295,6 @@ static void wcsr(char *csr, char *value)
 
 #endif /* __lm32__ */
 
-static void dfs(char *baseaddr)
-{
-	char *c;
-	unsigned int addr;
-
-	if(*baseaddr == 0) {
-		printf("dfs <address>\n");
-		return;
-	}
-	addr = strtoul(baseaddr, &c, 0);
-	if(*c != 0) {
-		printf("incorrect address\n");
-		return;
-	}
-	print_isd_info(addr);
-}
-
 /* Init + command line */
 
 static void help(void)
@@ -361,6 +351,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "mw") == 0) mw(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "mc") == 0) mc(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
+	else if(strcmp(token, "ident") == 0) ident();
 
 #ifdef L2_SIZE
 	else if(strcmp(token, "flushl2") == 0) flush_l2_cache();
@@ -400,8 +391,6 @@ static void do_command(char *c)
 	else if(strcmp(token, "memtest") == 0) memtest();
 	else if(strcmp(token, "sdrinit") == 0) sdrinit();
 #endif
-
-	else if(strcmp(token, "dfs") == 0) dfs(get_token(&c));
 
 	else if(strcmp(token, "") != 0)
 		printf("Command not found\n");
@@ -479,7 +468,7 @@ static int test_user_abort(void)
 #endif
 	timer0_en_write(0);
 	timer0_reload_write(0);
-	timer0_load_write(identifier_frequency_read()*2);
+	timer0_load_write(SYSTEM_CLOCK_FREQUENCY*2);
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	while(timer0_value_read()) {
@@ -538,7 +527,6 @@ int main(int i, char **c)
 	"(c) Copyright 2007-2015 M-Labs Limited\n"
 	"Built "__DATE__" "__TIME__"\n");
 	crcbios();
-	id_print();
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
