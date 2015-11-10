@@ -8,8 +8,10 @@
 
 from litex.gen import *
 from litex.gen.fhdl.specials import *
-from litex.soc.mem.sdram.phy.dfi import *
-from litex.soc.mem import sdram
+from litex.soc.interconnect.dfi import *
+
+from functools import reduce
+from operator import or_
 
 
 class Bank(Module):
@@ -27,7 +29,8 @@ class Bank(Module):
         self.read_col = Signal(max=ncols)
         self.read_data = Signal(data_width)
 
-        ###
+        # # #
+
         active = Signal()
         row = Signal(max=nrows)
 
@@ -74,7 +77,8 @@ class DFIPhase(Module):
         self.write = Signal()
         self.read = Signal()
 
-        ###
+        # # #
+
         self.comb += [
             If(~phase.cs_n & ~phase.ras_n & phase.cas_n,
                 self.activate.eq(phase.we_n),
@@ -87,7 +91,7 @@ class DFIPhase(Module):
         ]
 
 
-class SDRAMPHYSim(Module):
+class SDRAMPHYModel(Module):
     def __init__(self, module, settings):
         if settings.memtype in ["SDR"]:
             burst_length = settings.nphases*1  # command multiplication*SDR
@@ -104,7 +108,8 @@ class SDRAMPHYSim(Module):
 
         self.dfi = Interface(addressbits, bankbits, self.settings.dfi_databits, self.settings.nphases)
 
-        ###
+        # # #
+
         nbanks = 2**bankbits
         nrows = 2**rowbits
         ncols = 2**colbits
@@ -171,9 +176,10 @@ class SDRAMPHYSim(Module):
         banks_read = Signal()
         banks_read_data = Signal(data_width)
         self.comb += [
-            banks_read.eq(optree("|", [bank.read for bank in banks])),
-            banks_read_data.eq(optree("|", [bank.read_data for bank in banks]))
+            banks_read.eq(reduce(or_, [bank.read for bank in banks])),
+            banks_read_data.eq(reduce(or_, [bank.read_data for bank in banks]))
         ]
+
         # simulate read latency
         for i in range(self.settings.read_latency):
             new_banks_read = Signal()

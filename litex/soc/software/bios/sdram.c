@@ -423,7 +423,7 @@ int sdrlevel(void)
 
 #endif /* CSR_DDRPHY_BASE */
 
-#define TEST_DATA_SIZE (2*1024*1024)
+#define TEST_DATA_SIZE (32*1024) // FIXME add #define
 #define TEST_DATA_RANDOM 1
 
 #define TEST_ADDR_SIZE (32*1024)
