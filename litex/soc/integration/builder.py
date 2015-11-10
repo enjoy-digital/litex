@@ -15,7 +15,6 @@ soc_software_packages = [
     "libcompiler_rt",
     "libdyld",
     "libnet",
-    "libunwind",
     "bios"
 ]
 

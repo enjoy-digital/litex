@@ -7,6 +7,3 @@
 [submodule "litex/soc/software/compiler_rt"]
 	path = litex/soc/software/compiler_rt
 	url = http://llvm.org/git/compiler-rt.git
-[submodule "litex/soc/software/unwinder"]
-	path = litex/soc/software/unwinder
-	url = https://github.com/whitequark/libunwind
