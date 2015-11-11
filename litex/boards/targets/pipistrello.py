@@ -3,8 +3,8 @@
 import argparse
 from fractions import Fraction
 
-from litex.gen import *
-from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+from migen import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.boards.platforms import pipistrello
 
 from litex.soc.cores.sdram_settings import MT46H32M16

@@ -1,4 +1,4 @@
-from litex.gen import *
+from migen import *
 
 from litex.soc.interconnect import dfi, lasmi_bus
 from litex.soc.cores.sdram.lasmicon.refresher import *

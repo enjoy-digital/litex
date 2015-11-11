@@ -1,9 +1,9 @@
 from functools import reduce
 from operator import or_
 
-from litex.gen import *
-from litex.gen.genlib.fsm import FSM, NextState
-from litex.gen.genlib.misc import WaitTimer
+from migen import *
+from migen.genlib.fsm import FSM, NextState
+from migen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import dfi as dfibus
 from litex.soc.interconnect import wishbone

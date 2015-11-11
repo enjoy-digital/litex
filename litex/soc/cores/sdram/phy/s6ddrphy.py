@@ -19,8 +19,8 @@
 from functools import reduce
 from operator import or_
 
-from litex.gen import *
-from litex.gen.genlib.record import *
+from migen import *
+from migen.genlib.record import *
 
 from litex.soc.interconnect.dfi import *
 from litex.soc.cores.sdram import settings as sdram_settings

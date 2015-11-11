@@ -1,9 +1,9 @@
 from functools import reduce
 from operator import or_, and_
 
-from litex.gen import *
-from litex.gen.genlib.roundrobin import *
-from litex.gen.genlib.fsm import FSM, NextState
+from migen import *
+from migen.genlib.roundrobin import *
+from migen.genlib.fsm import FSM, NextState
 
 from litex.soc.cores.sdram.lasmicon.perf import Bandwidth
 from litex.soc.interconnect.csr import AutoCSR

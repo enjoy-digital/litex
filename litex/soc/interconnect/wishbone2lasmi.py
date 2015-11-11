@@ -1,5 +1,5 @@
-from litex.gen import *
-from litex.gen.genlib.fsm import FSM, NextState
+from migen import *
+from migen.genlib.fsm import FSM, NextState
 
 
 class WB2LASMI(Module):

@@ -21,9 +21,9 @@
 # This PHY only supports CAS Latency 2.
 #
 
-from litex.gen import *
-from litex.gen.genlib.record import *
-from litex.gen.fhdl.specials import Tristate
+from migen import *
+from migen.genlib.record import *
+from migen.fhdl.specials import Tristate
 
 from litex.soc.interconnect.dfi import *
 from litex.soc.cores.sdram import settings as sdram_settings

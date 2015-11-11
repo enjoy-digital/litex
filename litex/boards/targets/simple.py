@@ -3,8 +3,8 @@
 import argparse
 import importlib
 
-from litex.gen import *
-from litex.gen.genlib.io import CRG
+from migen import *
+from migen.genlib.io import CRG
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *

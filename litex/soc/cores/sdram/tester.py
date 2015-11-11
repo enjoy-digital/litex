@@ -1,7 +1,7 @@
 from functools import reduce
 from operator import xor
 
-from litex.gen import *
+from migen import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import dma_lasmi
@@ -114,8 +114,8 @@ class _LFSRTB(Module):
         print("{0:032x}".format(selfp.dut.o))
 
 if __name__ == "__main__":
-    from litex.gen.fhdl import verilog
-    from litex.gen.sim.generic import run_simulation
+    from migen.fhdl import verilog
+    from migen.sim.generic import run_simulation
 
     lfsr = LFSR(3, 4, [3, 2])
     print(verilog.convert(lfsr, ios={lfsr.ce, lfsr.reset, lfsr.o}))

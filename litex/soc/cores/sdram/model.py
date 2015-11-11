@@ -6,8 +6,8 @@
 # TODO:
 # - add $display support to LiteX gen and manage timing violations?
 
-from litex.gen import *
-from litex.gen.fhdl.specials import *
+from migen import *
+from migen.fhdl.specials import *
 from litex.soc.interconnect.dfi import *
 
 from functools import reduce

@@ -1,7 +1,7 @@
-from litex.gen import *
-from litex.gen.genlib.roundrobin import *
-from litex.gen.genlib.fsm import FSM, NextState
-from litex.gen.genlib.fifo import SyncFIFO
+from migen import *
+from migen.genlib.roundrobin import *
+from migen.genlib.fsm import FSM, NextState
+from migen.genlib.fifo import SyncFIFO
 
 from litex.soc.cores.sdram.lasmicon.multiplexer import *
 

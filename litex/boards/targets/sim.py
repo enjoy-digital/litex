@@ -3,9 +3,9 @@
 import argparse
 import importlib
 
-from litex.gen import *
+from migen import *
 from litex.boards.platforms import sim
-from litex.gen.genlib.io import CRG
+from migen.genlib.io import CRG
 
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *

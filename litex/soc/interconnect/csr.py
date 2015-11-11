@@ -1,6 +1,6 @@
-from litex.gen import *
-from litex.gen.util.misc import xdir
-from litex.gen.fhdl.tracer import get_obj_var_name
+from migen import *
+from migen.util.misc import xdir
+from migen.fhdl.tracer import get_obj_var_name
 
 
 class _CSRBase(DUID):

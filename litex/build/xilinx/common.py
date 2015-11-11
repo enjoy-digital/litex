@@ -2,13 +2,13 @@ import os
 import sys
 from distutils.version import StrictVersion
 
-from litex.gen.fhdl.structure import *
-from litex.gen.fhdl.specials import Instance
-from litex.gen.fhdl.module import Module
-from litex.gen.fhdl.specials import SynthesisDirective
-from litex.gen.genlib.cdc import *
-from litex.gen.genlib.resetsync import AsyncResetSynchronizer
-from litex.gen.genlib.io import *
+from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
+from migen.fhdl.module import Module
+from migen.fhdl.specials import SynthesisDirective
+from migen.genlib.cdc import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.io import *
 
 from litex.build import tools
 

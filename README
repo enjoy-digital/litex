@@ -2,29 +2,32 @@
                       / /  (_) /____ | |/_/
                      / /__/ / __/ -_)>  <
                     /____/_/\__/\__/_/|_|
+                         Migen inside
 
                 Build your hardware, easily!
                 Copyright 2015 Enjoy-Digital
 
 [> Intro
 ---------
-LiteX is an alternative (fork) to Migen/MiSoC maintained and used by Enjoy-Digital
-to build our cores, integrate them in complete SoC and load/flash them to the
-hardware.
+LiteX is an alternative to MiSoC maintained and used by Enjoy-Digital to build 
+our cores, integrate them in complete SoC and load/flash them to the hardware.
 
-The structure of LiteX is kept close to Migen/MiSoC to ease collaboration
-between projects.
+The structure of LiteX is kept close to MiSoC to ease collaboration between 
+projects.
+
+LiteX is based on Migen.
 
 [> License
 -----------
 LiteX is copyright (c) 2015 Enjoy-Digital under BSD Lisense.
-Since it is based on MiSoC/Migen, please also refer to LICENSE files in soc/gen 
-directories or git history to get correct copyrights.
+Since it is based on MiSoC, please also refer to LICENSE file in soc directory
+or git history to get correct copyrights.
 
 [> Sub-packages
------------
+----------------
 gen:
-  Provides tools and simple modules to generate HDL.
+  Provides specific or experimentatl modules to generate HDL that are not integrated
+  in Migen.
 
 build:
   Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to

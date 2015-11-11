@@ -1,6 +1,6 @@
-from litex.gen import *
-from litex.gen.genlib.misc import timeline
-from litex.gen.genlib.fsm import FSM
+from migen import *
+from migen.genlib.misc import timeline
+from migen.genlib.fsm import FSM
 
 from litex.soc.cores.sdram.lasmicon.multiplexer import *
 

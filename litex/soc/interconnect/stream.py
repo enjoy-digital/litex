@@ -1,6 +1,6 @@
-from litex.gen import *
-from litex.gen.genlib.record import *
-from litex.gen.genlib import fifo
+from migen import *
+from migen.genlib.record import *
+from migen.genlib import fifo
 
 
 def _make_m2s(layout):
@@ -154,7 +154,7 @@ class Demultiplexer(Module):
 # XXX
 
 from copy import copy
-from litex.gen.util.misc import xdir
+from migen.util.misc import xdir
 
 def pack_layout(l, n):
     return [("chunk"+str(i), l) for i in range(n)]

@@ -1,5 +1,5 @@
-from litex.gen import *
-from litex.gen.genlib.fifo import SyncFIFO
+from migen import *
+from migen.genlib.fifo import SyncFIFO
 
 
 class Reader(Module):

@@ -1,6 +1,6 @@
-from litex.gen import *
-from litex.gen.genlib.record import *
-from litex.gen.sim.generic import run_simulation
+from migen import *
+from migen.genlib.record import *
+from migen.sim.generic import run_simulation
 
 from litex.soc.com.spi import SPIMaster
 

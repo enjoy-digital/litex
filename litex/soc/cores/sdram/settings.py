@@ -1,7 +1,7 @@
 from math import ceil
 from collections import namedtuple
 
-from litex.gen import *
+from migen import *
 
 
 PhySettingsT = namedtuple("PhySettings", "memtype dfi_databits nphases rdphase wrphase rdcmdphase wrcmdphase cl cwl read_latency write_latency")
