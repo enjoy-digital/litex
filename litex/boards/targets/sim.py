@@ -12,7 +12,10 @@ from litex.soc.integration.builder import *
 from litex.soc.cores import uart
 from litex.soc.cores.sdram.settings import PhySettings, IS42S16160
 from litex.soc.cores.sdram.model import SDRAMPHYModel
+from litex.soc.integration.soc_core import mem_decoder
 
+from litex.soc.cores.liteeth_mini.phy.model import LiteEthPHYModel
+from litex.soc.cores.liteeth_mini.mac import LiteEthMAC
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
@@ -49,13 +52,43 @@ class BaseSoC(SoCSDRAM):
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
 
+class MiniSoC(BaseSoC):
+    csr_map = {
+        "ethphy": 18,
+        "ethmac": 19,
+    }
+    csr_map.update(BaseSoC.csr_map)
+
+    interrupt_map = {
+        "ethmac": 2,
+    }
+    interrupt_map.update(BaseSoC.interrupt_map)
+
+    mem_map = {
+        "ethmac": 0x30000000,  # (shadow @0xb0000000)
+    }
+    mem_map.update(BaseSoC.mem_map)
+
+    def __init__(self, *args, **kwargs):
+        BaseSoC.__init__(self, *args, **kwargs)
+
+        self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth"))
+        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
+        self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
+        self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--with-ethernet", action="store_true",
+                        help="enable Ethernet support")
     args = parser.parse_args()
 
-    soc = BaseSoC(**soc_sdram_argdict(args))
+    cls = MiniSoC if args.with_ethernet else BaseSoC
+    soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
