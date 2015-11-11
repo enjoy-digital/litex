@@ -200,6 +200,56 @@ class CombinatorialActor(BinaryActor):
             ]
 
 
+class PipelinedActor(BinaryActor):
+    def __init__(self, latency):
+        self.pipe_ce = Signal()
+        BinaryActor.__init__(self, latency)
+
+    def build_binary_control(self, sink, source, latency):
+        busy = 0
+        valid = sink.stb
+        for i in range(latency):
+            valid_n = Signal()
+            self.sync += If(self.pipe_ce, valid_n.eq(valid))
+            valid = valid_n
+            busy = busy | valid
+
+        self.comb += [
+            self.pipe_ce.eq(source.ack | ~valid),
+            sink.ack.eq(self.pipe_ce),
+            source.stb.eq(valid),
+            self.busy.eq(busy)
+        ]
+        if sink.description.packetized:
+            sop = sink.stb & sink.sop
+            eop = sink.stb & sink.eop
+            for i in range(latency):
+                sop_n = Signal()
+                eop_n = Signal()
+                self.sync += \
+                    If(self.pipe_ce,
+                        sop_n.eq(sop),
+                        eop_n.eq(eop)
+                    )
+                sop = sop_n
+                eop = eop_n
+
+            self.comb += [
+                source.eop.eq(eop),
+                source.sop.eq(sop)
+            ]
+
+
+class Buffer(PipelinedActor):
+    def __init__(self, layout):
+        self.d = Sink(layout)
+        self.q = Source(layout)
+        PipelinedActor.__init__(self, 1)
+        self.sync += \
+            If(self.pipe_ce,
+                self.q.payload.eq(self.d.payload)
+            )
+
 class Unpack(Module):
     def __init__(self, n, layout_to, reverse=False):
         self.source = source = Source(layout_to)
