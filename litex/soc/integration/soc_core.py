@@ -71,14 +71,15 @@ class SoCCore(Module):
         self._wb_masters = []
         self._wb_slaves = []
 
-        if cpu_type == "lm32":
-            self.submodules.cpu = lm32.LM32(platform, self.cpu_reset_address)
-        elif cpu_type == "or1k":
-            self.submodules.cpu = mor1kx.MOR1KX(platform, self.cpu_reset_address)
-        else:
-            raise ValueError("Unsupported CPU type: {}".format(cpu_type))
-        self.add_wb_master(self.cpu.ibus)
-        self.add_wb_master(self.cpu.dbus)
+        if cpu_type is not None:
+            if cpu_type == "lm32":
+                self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address))
+            elif cpu_type == "or1k":
+                self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address))
+            else:
+                raise ValueError("Unsupported CPU type: {}".format(cpu_type))
+            self.add_wb_master(self.cpu_or_bridge.ibus)
+            self.add_wb_master(self.cpu_or_bridge.dbus)
 
         if integrated_rom_size:
             self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True)
@@ -107,6 +108,13 @@ class SoCCore(Module):
 
         if with_timer:
             self.submodules.timer0 = timer.Timer()
+
+    def add_cpu_or_bridge(self, cpu_or_bridge):
+        if self.finalized:
+            raise FinalizeError
+        if hasattr(self, "cpu_or_bridge"):
+            raise NotImplementedError("More than one CPU is not supported")
+        self.submodules.cpu_or_bridge = cpu_or_bridge
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
@@ -166,9 +174,10 @@ class SoCCore(Module):
 
     def do_finalize(self):
         registered_mems = {regions[0] for regions in self._memory_regions}
-        for mem in "rom", "sram":
-            if mem not in registered_mems:
-                raise FinalizeError("CPU needs a {} to be registered with register_mem()".format(mem))
+        if self.cpu_type is not None:
+            for mem in "rom", "sram":
+                if mem not in registered_mems:
+                    raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
 
         # Wishbone
         self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
