@@ -1,6 +1,7 @@
 import os
 import subprocess
 import struct
+import shutil
 
 from litex.soc.integration import cpu_interface, soc_sdram, sdram_init
 
@@ -29,7 +30,8 @@ class Builder:
     def __init__(self, soc, output_dir=None,
                  compile_software=True, compile_gateware=True,
                  gateware_toolchain_path=None,
-                 csr_csv=None):
+                 csr_csv=None,
+                 use_symlinks=False):
         self.soc = soc
         if output_dir is None:
             output_dir = "soc_{}_{}".format(
@@ -42,6 +44,7 @@ class Builder:
         self.compile_gateware = compile_gateware
         self.gateware_toolchain_path = gateware_toolchain_path
         self.csr_csv = csr_csv
+        self.use_symlinks = use_symlinks
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -93,17 +96,26 @@ class Builder:
             with open(self.csr_csv, "w") as f:
                 f.write(cpu_interface.get_csr_csv(csr_regions))
 
-    def _generate_software(self):
+    def _prepare_software(self):
         for name, src_dir in self.software_packages:
             dst_dir = os.path.join(self.output_dir, "software", name)
-            os.makedirs(dst_dir, exist_ok=True)
-            src = os.path.join(src_dir, "Makefile")
-            dst = os.path.join(dst_dir, "Makefile")
-            try:
-                os.remove(dst)
-            except FileNotFoundError:
-                pass
-            os.symlink(src, dst)
+            if self.use_symlinks:
+                os.makedirs(dst_dir, exist_ok=True)
+                src = os.path.join(src_dir, "Makefile")
+                dst = os.path.join(dst_dir, "Makefile")
+                try:
+                    os.remove(dst)
+                except FileNotFoundError:
+                    pass
+                os.symlink(src, dst)
+            else:
+                if os.path.exists(dst_dir):
+                    shutil.rmtree(dst_dir)
+                shutil.copytree(src_dir, dst_dir)
+
+    def _generate_software(self):
+         for name, src_dir in self.software_packages:
+            dst_dir = os.path.join(self.output_dir, "software", name)
             if self.compile_software:
                 subprocess.check_call(["make", "-C", dst_dir])
 
@@ -127,6 +139,7 @@ class Builder:
             raise ValueError("Software must be compiled in order to "
                              "intitialize integrated ROM")
 
+        self._prepare_software()
         self._generate_includes()
         self._generate_software()
         self._initialize_rom()
