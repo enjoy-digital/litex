@@ -1,8 +1,8 @@
 from migen import *
 from migen.genlib.record import *
 
-from misoc.interconnect.csr import *
-from misoc.interconnect.stream import *
+from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.stream import *
 
 
 class Port:

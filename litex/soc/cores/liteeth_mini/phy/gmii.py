@@ -2,7 +2,7 @@ from migen import *
 from migen.genlib.io import DDROutput
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoc.cores.liteeth_mini.common import *
+from litex.soc.cores.liteeth_mini.common import *
 
 
 class LiteEthPHYGMIITX(Module):

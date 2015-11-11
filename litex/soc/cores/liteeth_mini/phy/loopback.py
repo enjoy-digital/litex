@@ -1,9 +1,9 @@
 from migen import *
 
-from misoc.interconnect.csr import *
-from misoc.interconnect.stream import *
-from misoc.cores.liteeth_mini.common import *
-from misoc.cores.liteeth.mini.generic import *
+from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.stream import *
+from litex.soc.cores.liteeth_mini.common import *
+from litex.soc.cores.liteeth.mini.generic import *
 
 
 class LiteEthPHYLoopbackCRG(Module, AutoCSR):

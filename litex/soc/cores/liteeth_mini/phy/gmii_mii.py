@@ -2,11 +2,11 @@ from migen import *
 from migen.genlib.io import DDROutput
 from migen.genlib.cdc import PulseSynchronizer
 
-from misoc.interconnect.stream import *
-from misoc.cores.liteeth_mini.common import *
-from misoc.cores.liteeth_mini.phy.gmii import LiteEthPHYGMIICRG
-from misoc.cores.liteeth_mini.phy.mii import LiteEthPHYMIITX, LiteEthPHYMIIRX
-from misoc.cores.liteeth_mini.phy.gmii import LiteEthPHYGMIITX, LiteEthPHYGMIIRX
+from litex.soc.interconnect.stream import *
+from litex.soc.cores.liteeth_mini.common import *
+from litex.soc.cores.liteeth_mini.phy.gmii import LiteEthPHYGMIICRG
+from litex.soc.cores.liteeth_mini.phy.mii import LiteEthPHYMIITX, LiteEthPHYMIIRX
+from litex.soc.cores.liteeth_mini.phy.gmii import LiteEthPHYGMIITX, LiteEthPHYGMIIRX
 
 
 modes = {

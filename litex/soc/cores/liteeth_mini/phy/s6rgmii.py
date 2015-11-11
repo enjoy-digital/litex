@@ -5,9 +5,9 @@ from migen.genlib.io import DDROutput
 from migen.genlib.misc import WaitTimer
 from migen.genlib.fsm import FSM, NextState
 
-from misoc.interconnect.stream import *
-from misoc.interconnect.csr import *
-from misoc.cores.liteeth_mini.common import *
+from litex.soc.interconnect.stream import *
+from litex.soc.interconnect.csr import *
+from litex.soc.cores.liteeth_mini.common import *
 
 
 class LiteEthPHYRGMIITX(Module):
