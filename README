@@ -5,7 +5,7 @@
                          Migen inside
 
                 Build your hardware, easily!
-                Copyright 2015 Enjoy-Digital
+             Copyright 2012-2015 Enjoy-Digital
 
 [> Intro
 ---------
@@ -19,7 +19,7 @@ LiteX is based on Migen.
 
 [> License
 -----------
-LiteX is copyright (c) 2015 Enjoy-Digital under BSD Lisense.
+LiteX is Copyright (c) 2012-2015 Enjoy-Digital under BSD Lisense.
 Since it is based on MiSoC, please also refer to LICENSE file in soc directory
 or git history to get correct copyrights.
 
@@ -45,7 +45,8 @@ boards:
 0. If cloned from Git without the --recursive option, get the submodules:
   git submodule update --init
 
-1. Install Python 3.3+ and FPGA vendor's development tools and JTAG tools.
+1. Install Python 3.3+, Migen and FPGA vendor's development tools and JTAG tools.
+  Get Migen from: https://github.com/m-labs/migen
 
 2. Compile and install binutils. Take the latest version from GNU.
   mkdir build && cd build

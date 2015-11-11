@@ -523,7 +523,7 @@ int main(int i, char **c)
 	irq_setie(1);
 	uart_init();
 	puts("\nLiteX SoC BIOS\n"
-	"(c) Copyright 2015 Enjoy-Digital\n"
+	"(c) Copyright 2012-2015 Enjoy-Digital\n"
 	"(c) Copyright 2007-2015 M-Labs Limited\n"
 	"Built "__DATE__" "__TIME__"\n");
 	crcbios();
