@@ -1,0 +1,58 @@
+         __   _ __      ______  __   __  ____      _
+        / /  (_) /____ / __/ /_/ /  /  |/  (_)__  (_)
+       / /__/ / __/ -_) _// __/ _ \/ /|_/ / / _ \/ /
+      /____/_/\__/\__/___/\__/_//_/_/  /_/_/_//_/_/
+
+        Copyright 2012-2015 / EnjoyDigital / M-Labs Ltd
+
+   A small footprint and configurable minimal Ethernet core
+                  powered by Migen
+
+[> Intro
+---------
+LiteEthMini is a subset of LiteEth (https://github.com/enjoy-digital/liteeth)
+intended to be used with a CPU and a software stack.
+
+[> Features
+-----------
+- Ethernet MAC with various various PHYs (GMII, MII, RGMII, Loopback)
+- SRAM storage and wishbone interface
+
+[> Possible improvements
+-------------------------
+- add DMA interface to MAC
+- add SGMII PHY
+- ... See below Support and consulting :)
+
+If you want to support these features, please contact us at florent [AT]
+enjoy-digital.fr. You can also contact our partner on the public mailing list
+devel [AT] lists.m-labs.hk.
+
+[> License
+-----------
+LiteEthMini is released under the very permissive two-clause BSD license. Under
+the terms of this license, you are authorized to use LiteEthMini for closed-source
+proprietary designs.
+Even though we do not require you to do so, those things are awesome, so please
+do them if possible:
+ - tell us that you are using LiteEthMini
+ - cite LiteEthMini in publications related to research it has helped
+ - send us feedback and suggestions for improvements
+ - send us bug reports when something goes wrong
+ - send us the modifications and improvements you have done to LiteEthMini.
+
+[> Support and consulting
+--------------------------
+We love open-source hardware and like sharing our designs with others.
+
+LiteEthMini is mainly developed and maintained by EnjoyDigital.
+
+If you would like to know more about LiteEthMini or if you are already a happy
+user and would like to extend it for your needs, EnjoyDigital can provide standard
+commercial support as well as consulting services.
+
+So feel free to contact us, we'd love to work with you! (and eventually shorten
+the list of the possible improvements :)
+
+[> Contact
+E-mail: florent [AT] enjoy-digital.fr
