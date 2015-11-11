@@ -44,7 +44,9 @@ class BaseSoC(SoCSDRAM):
             self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings)
             self.register_sdram(self.sdrphy, "minicon",
                                 sdram_module.geom_settings, sdram_module.timing_settings)
-
+            # reduce memtest size to speed up simulation
+            self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
+            self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
 
 def main():

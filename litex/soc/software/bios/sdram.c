@@ -423,15 +423,6 @@ int sdrlevel(void)
 
 #endif /* CSR_DDRPHY_BASE */
 
-#define TEST_DATA_SIZE (32*1024) // FIXME add #define
-#define TEST_DATA_RANDOM 1
-
-#define TEST_ADDR_SIZE (32*1024)
-#define TEST_ADDR_RANDOM 0
-
-#define ONEZERO 0xAAAAAAAA
-#define ZEROONE 0x55555555
-
 static unsigned int seed_to_data_32(unsigned int seed, int random)
 {
 	if (random)
@@ -448,81 +439,123 @@ static unsigned short seed_to_data_16(unsigned short seed, int random)
 		return seed + 1;
 }
 
-int memtest_silent(void)
+#define ONEZERO 0xAAAAAAAA
+#define ZEROONE 0x55555555
+
+#ifndef MEMTEST_BUS_SIZE
+#define MEMTEST_BUS_SIZE (512)
+#endif
+
+static int memtest_bus(void)
 {
 	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
-	int i;
-	unsigned int seed_32;
-	unsigned short seed_16;
-	unsigned int error_cnt;
+	int i, errors;
 
-	error_cnt = 0;
+	errors = 0;
 
-	/* test data bus */
-	for(i=0;i<128;i++) {
+	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		array[i] = ONEZERO;
 	}
 	flush_cpu_dcache();
 	flush_l2_cache();
-	for(i=0;i<128;i++) {
+	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		if(array[i] != ONEZERO)
-			error_cnt++;
+			errors++;
 	}
 
-	for(i=0;i<128;i++) {
+	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		array[i] = ZEROONE;
 	}
 	flush_cpu_dcache();
 	flush_l2_cache();
-	for(i=0;i<128;i++) {
+	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		if(array[i] != ZEROONE)
-			error_cnt++;
+			errors++;
 	}
 
-	/* test counter or random data */
+	return errors;
+}
+
+#ifndef MEMTEST_DATA_SIZE
+#define MEMTEST_DATA_SIZE (2*1024*1024)
+#endif
+#define MEMTEST_DATA_RANDOM 1
+
+static int memtest_data(void)
+{
+	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	int i, errors;
+	unsigned int seed_32;
+
+	errors = 0;
 	seed_32 = 0;
-	for(i=0;i<TEST_DATA_SIZE/4;i++) {
-		seed_32 = seed_to_data_32(seed_32, TEST_DATA_RANDOM);
+
+	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		array[i] = seed_32;
 	}
 
 	seed_32 = 0;
 	flush_cpu_dcache();
 	flush_l2_cache();
-	for(i=0;i<TEST_DATA_SIZE/4;i++) {
-		seed_32 = seed_to_data_32(seed_32, TEST_DATA_RANDOM);
+	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		if(array[i] != seed_32)
-			error_cnt++;
+			errors++;
 	}
 
-	/* test random addressing */
+	return errors;
+}
+#ifndef MEMTEST_ADDR_SIZE
+#define MEMTEST_ADDR_SIZE (32*1024)
+#endif
+#define MEMTEST_ADDR_RANDOM 0
+
+static int memtest_addr(void)
+{
+	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	int i, errors;
+	unsigned short seed_16;
+
+	errors = 0;
 	seed_16 = 0;
-	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
-		seed_16 = seed_to_data_16(seed_16, TEST_ADDR_RANDOM);
+
+	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
+		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		array[(unsigned int) seed_16] = i;
 	}
 
 	seed_16 = 0;
 	flush_cpu_dcache();
 	flush_l2_cache();
-	for(i=0;i<TEST_ADDR_SIZE/4;i++) {
-		seed_16 = seed_to_data_16(seed_16, TEST_ADDR_RANDOM);
+	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
+		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		if(array[(unsigned int) seed_16] != i)
-			error_cnt++;
+			errors++;
 	}
 
-	return error_cnt;
+	return errors;
 }
 
 int memtest(void)
 {
-	unsigned int e;
+	int bus_errors, data_errors, addr_errors;
 
-	e = memtest_silent();
-	if(e != 0) {
-		printf("Memtest failed: %d/%d words incorrect\n", e, 2*128 + TEST_DATA_SIZE/4 + TEST_ADDR_SIZE/4);
+	bus_errors = memtest_bus();
+	if(bus_errors != 0)
+		printf("Memtest bus failed: %d/%d errors\n", bus_errors, 2*128);
+
+	data_errors = memtest_data();
+	if(bus_errors != 0)
+		printf("Memtest data failed: %d/%d errors\n", data_errors, MEMTEST_DATA_SIZE/4);
+
+	addr_errors = memtest_addr();
+	if(addr_errors != 0)
+		printf("Memtest addr failed: %d/%d errors\n", addr_errors, MEMTEST_ADDR_SIZE/4);
+
+	if(bus_errors + data_errors + addr_errors != 0)
 		return 0;
-	} else {
+	else {
 		printf("Memtest OK\n");
 		return 1;
 	}
