@@ -14,22 +14,24 @@ def _make_m2s(layout):
 
 
 class EndpointDescription:
-    def __init__(self, payload_layout, packetized=False):
+    def __init__(self, payload_layout, param_layout=[], packetized=False):
         self.payload_layout = payload_layout
+        self.param_layout = param_layout
         self.packetized = packetized
 
     def get_full_layout(self):
-        reserved = {"stb", "ack", "payload", "sop", "eop", "description"}
+        reserved = {"stb", "ack", "payload", "param", "sop", "eop", "description"}
         attributed = set()
-        for f in self.payload_layout:
+        for f in self.payload_layout + self.param_layout:
             if f[0] in attributed:
-                raise ValueError(f[0] + " already attributed in payload layout")
+                raise ValueError(f[0] + " already attributed in payload or param layout")
             if f[0] in reserved:
                 raise ValueError(f[0] + " cannot be used in endpoint layout")
             attributed.add(f[0])
 
         full_layout = [
             ("payload", _make_m2s(self.payload_layout)),
+            ("param", _make_m2s(self.param_layout)),
             ("stb", 1, DIR_M_TO_S),
             ("ack", 1, DIR_S_TO_M)
         ]
@@ -50,7 +52,10 @@ class _Endpoint(Record):
         Record.__init__(self, self.description.get_full_layout())
 
     def __getattr__(self, name):
-        return getattr(object.__getattribute__(self, "payload"), name)
+        try:
+            return getattr(object.__getattribute__(self, "payload"), name)
+        except:
+            return getattr(object.__getattribute__(self, "param"), name)
 
 
 class Source(_Endpoint):
@@ -247,7 +252,8 @@ class Buffer(PipelinedActor):
         PipelinedActor.__init__(self, 1)
         self.sync += \
             If(self.pipe_ce,
-                self.q.payload.eq(self.d.payload)
+                self.q.payload.eq(self.d.payload),
+                self.q.param.eq(self.d.param)
             )
 
 class Unpack(Module):
