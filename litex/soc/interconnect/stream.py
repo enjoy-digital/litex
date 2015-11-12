@@ -440,4 +440,23 @@ class Converter(Module):
         else:
             self.comb += Record.connect(self.sink, self.source)
 
+
+class Pipeline(Module):
+    def __init__(self, *modules):
+        n = len(modules)
+        m = modules[0]
+        # expose sink of first module
+        # if available
+        if hasattr(m, "sink"):
+            self.sink = m.sink
+        for i in range(1, n):
+            m_n = modules[i]
+            self.comb += m.source.connect(m_n.sink)
+            m = m_n
+        # expose source of last module
+        # if available
+        if hasattr(m, "source"):
+            self.source = m.source
+
+
 # XXX
