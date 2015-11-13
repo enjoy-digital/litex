@@ -13,7 +13,7 @@ from litex.soc.interconnect.stream import Sink, Source
 class Counter(Module):
     def __init__(self, *args, increment=1, **kwargs):
         self.value = Signal(*args, **kwargs)
-        self.width = flen(self.value)
+        self.width = len(self.value)
         self.sync += self.value.eq(self.value+increment)
 
 
@@ -107,7 +107,7 @@ class WishboneStreamingBridge(Module):
         self.comb += [
             self.wishbone.adr.eq(address + word_counter.value),
             self.wishbone.dat_w.eq(data),
-            self.wishbone.sel.eq(2**flen(self.wishbone.sel)-1)
+            self.wishbone.sel.eq(2**len(self.wishbone.sel)-1)
         ]
         fsm.act("WRITE_DATA",
             self.wishbone.stb.eq(1),
