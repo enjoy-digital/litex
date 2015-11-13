@@ -1,5 +1,5 @@
-from migen import *
-from migen.fhdl.simplify import FullMemoryWE
+from litex.gen import *
+from litex.gen.fhdl.simplify import FullMemoryWE
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *

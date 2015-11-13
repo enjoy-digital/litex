@@ -1,7 +1,7 @@
-from migen import *
-from migen.genlib.roundrobin import *
-from migen.genlib.record import *
-from migen.genlib.fsm import FSM, NextState
+from litex.gen import *
+from litex.gen.genlib.roundrobin import *
+from litex.gen.genlib.record import *
+from litex.gen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect.stream import *
 

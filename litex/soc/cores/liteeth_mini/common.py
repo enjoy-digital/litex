@@ -1,5 +1,5 @@
-from migen import *
-from migen.genlib.record import *
+from litex.gen import *
+from litex.gen.genlib.record import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.stream import *

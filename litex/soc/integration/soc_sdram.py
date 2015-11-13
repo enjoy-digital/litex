@@ -1,5 +1,5 @@
-from migen import *
-from migen.genlib.record import *
+from litex.gen import *
+from litex.gen.genlib.record import *
 
 from litex.soc.interconnect import wishbone, wishbone2lasmi, lasmi_bus
 from litex.soc.interconnect.csr import AutoCSR
@@ -84,7 +84,7 @@ class SoCSDRAM(SoCCore):
                 # Remove this workaround when fixed by Xilinx.
                 from litex.build.xilinx.vivado import XilinxVivadoToolchain
                 if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
-                    from migen.fhdl.simplify import FullMemoryWE
+                    from litex.gen.fhdl.simplify import FullMemoryWE
                     self.submodules.l2_cache = FullMemoryWE()(l2_cache)
                 else:
                     self.submodules.l2_cache = l2_cache
@@ -97,7 +97,7 @@ class SoCSDRAM(SoCCore):
                 # Remove this workaround when fixed by Xilinx.
                 from litex.build.xilinx.vivado import XilinxVivadoToolchain
                 if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
-                    from migen.fhdl.simplify import FullMemoryWE
+                    from litex.gen.fhdl.simplify import FullMemoryWE
                     self.submodules.l2_cache = FullMemoryWE()(l2_cache)
                 else:
                     self.submodules.l2_cache = l2_cache

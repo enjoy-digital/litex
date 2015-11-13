@@ -1,8 +1,8 @@
 from functools import reduce
 from operator import or_
 
-from migen import *
-from migen.util.misc import xdir
+from litex.gen import *
+from litex.gen.util.misc import xdir
 
 from litex.soc.interconnect.csr import *
 

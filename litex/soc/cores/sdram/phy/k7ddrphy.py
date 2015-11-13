@@ -1,6 +1,6 @@
 # tCK=5ns CL=7 CWL=6
 
-from migen import *
+from litex.gen import *
 
 from litex.soc.interconnect.dfi import *
 from litex.soc.interconnect.csr import *

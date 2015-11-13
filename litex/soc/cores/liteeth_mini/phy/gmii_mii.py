@@ -1,6 +1,6 @@
-from migen import *
-from migen.genlib.io import DDROutput
-from migen.genlib.cdc import PulseSynchronizer
+from litex.gen import *
+from litex.gen.genlib.io import DDROutput
+from litex.gen.genlib.cdc import PulseSynchronizer
 
 from litex.soc.interconnect.stream import *
 from litex.soc.cores.liteeth_mini.common import *

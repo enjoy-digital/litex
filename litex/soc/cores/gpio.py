@@ -1,5 +1,5 @@
-from migen import *
-from migen.genlib.cdc import MultiReg
+from litex.gen import *
+from litex.gen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 

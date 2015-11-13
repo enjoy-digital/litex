@@ -144,7 +144,8 @@ def _printnode(ns, at, level, node, target_filter=None):
     elif isinstance(node, Case):
         if node.cases:
             r = "\t"*level + "case (" + _printexpr(ns, node.test)[0] + ")\n"
-            css = sorted([(k, v) for (k, v) in node.cases.items() if k != "default"], key=itemgetter(0))
+            css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
+            css = sorted(css, key=lambda x: x[0].value)
             for choice, statements in css:
                 r += "\t"*(level + 1) + _printexpr(ns, choice)[0] + ": begin\n"
                 r += _printnode(ns, at, level + 2, statements, target_filter)
@@ -359,7 +360,7 @@ def convert(f, ios=None, name="top",
     ns.clock_domains = f.clock_domains
     r.ns = ns
 
-    src = "/* Machine-generated using Migen */\n"
+    src = "/* Machine-generated using LiteX gen*/\n"
     src += _printheader(f, ios, name, ns,
                         reg_initialization=not asic_syntax)
     src += _printcomb(f, ns,

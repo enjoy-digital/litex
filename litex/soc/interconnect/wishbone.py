@@ -1,11 +1,11 @@
 from functools import reduce
 from operator import or_
 
-from migen import *
-from migen.genlib import roundrobin
-from migen.genlib.record import *
-from migen.genlib.misc import split, displacer, chooser
-from migen.genlib.fsm import FSM, NextState
+from litex.gen import *
+from litex.gen.genlib import roundrobin
+from litex.gen.genlib.record import *
+from litex.gen.genlib.misc import split, displacer, chooser
+from litex.gen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect import csr
 

@@ -1,9 +1,9 @@
 # RGMII PHY for Spartan-6
 
-from migen import *
-from migen.genlib.io import DDROutput
-from migen.genlib.misc import WaitTimer
-from migen.genlib.fsm import FSM, NextState
+from litex.gen import *
+from litex.gen.genlib.io import DDROutput
+from litex.gen.genlib.misc import WaitTimer
+from litex.gen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect.stream import *
 from litex.soc.interconnect.csr import *

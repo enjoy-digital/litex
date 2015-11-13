@@ -1,4 +1,4 @@
-from migen import *
+from litex.gen import *
 
 from litex.soc.interconnect.stream import *
 from litex.soc.cores.liteeth_mini.common import eth_phy_description

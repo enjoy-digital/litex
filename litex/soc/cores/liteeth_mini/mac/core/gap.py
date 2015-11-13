@@ -1,7 +1,7 @@
 import math
 
-from migen import *
-from migen.genlib.fsm import *
+from litex.gen import *
+from litex.gen.genlib.fsm import *
 
 from litex.soc.interconnect.stream import Sink, Source
 from litex.soc.cores.liteeth_mini.common import eth_phy_description, eth_interpacket_gap

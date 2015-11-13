@@ -1,6 +1,6 @@
 from operator import itemgetter
 
-from migen import *
+from litex.gen import *
 
 from litex.soc.cores import identifier, timer, uart
 from litex.soc.cores.cpu import lm32, mor1kx

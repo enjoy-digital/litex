@@ -1,4 +1,4 @@
-from migen import *
+from litex.gen import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *

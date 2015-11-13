@@ -1,4 +1,4 @@
-from migen import *
+from litex.gen import *
 
 from litex.soc.interconnect.wishbonebridge import WishboneStreamingBridge
 from litex.soc.cores.uart.core import RS232PHY

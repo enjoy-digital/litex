@@ -1,7 +1,7 @@
-from migen import *
-from migen.genlib.fsm import *
-from migen.genlib.misc import chooser
-from migen.genlib.record import Record
+from litex.gen import *
+from litex.gen.genlib.fsm import *
+from litex.gen.genlib.misc import chooser
+from litex.gen.genlib.record import Record
 
 from litex.soc.interconnect.stream import *
 from litex.soc.cores.liteeth_mini.common import eth_phy_description, eth_preamble

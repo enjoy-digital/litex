@@ -1,5 +1,5 @@
-from migen import *
-from migen.genlib.fsm import FSM, NextState
+from litex.gen import *
+from litex.gen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect import wishbone
 

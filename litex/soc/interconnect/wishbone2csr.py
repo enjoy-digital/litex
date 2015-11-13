@@ -1,5 +1,5 @@
-from migen import *
-from migen.genlib.misc import timeline
+from litex.gen import *
+from litex.gen.genlib.misc import timeline
 
 from litex.soc.interconnect import csr_bus, wishbone
 

@@ -1,7 +1,7 @@
-from migen import *
-from migen.genlib.record import *
-from migen.genlib.misc import chooser
-from migen.util.misc import xdir
+from litex.gen import *
+from litex.gen.genlib.record import *
+from litex.gen.genlib.misc import chooser
+from litex.gen.util.misc import xdir
 
 from litex.soc.interconnect import csr
 from litex.soc.interconnect.csr import CSRStorage

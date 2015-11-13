@@ -6,7 +6,7 @@ import sys
 import subprocess
 import shutil
 
-from migen.fhdl.structure import _Fragment
+from litex.gen.fhdl.structure import _Fragment
 
 from litex.build.generic_platform import *
 from litex.build import tools
