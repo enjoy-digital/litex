@@ -8,10 +8,10 @@ from litex.soc.interconnect.stream import *
 # TODO: move reverse_bytes / Counter
 
 def reverse_bytes(signal):
-    n = (flen(signal)+7)//8
+    n = (len(signal)+7)//8
     r = []
     for i in reversed(range(n)):
-        r.append(signal[i*8:min((i+1)*8, flen(signal))])
+        r.append(signal[i*8:min((i+1)*8, len(signal))])
     return Cat(iter(r))
 
 
@@ -20,7 +20,7 @@ def reverse_bytes(signal):
 class Counter(Module):
     def __init__(self, *args, increment=1, **kwargs):
         self.value = Signal(*args, **kwargs)
-        self.width = flen(self.value)
+        self.width = len(self.value)
         self.sync += self.value.eq(self.value+increment)
 
 class Status(Module):
@@ -159,7 +159,7 @@ class Packetizer(Module):
 
         # # #
 
-        dw = flen(self.sink.data)
+        dw = len(self.sink.data)
 
         header_reg = Signal(header.length*8)
         header_words = (header.length*8)//dw
@@ -244,7 +244,7 @@ class Depacketizer(Module):
 
         # # #
 
-        dw = flen(sink.data)
+        dw = len(sink.data)
 
         header_words = (header.length*8)//dw
 
