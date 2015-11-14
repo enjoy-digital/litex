@@ -5,7 +5,8 @@ from litex.gen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect.stream import *
 
-# TODO: move reverse_bytes / Counter
+# TODO: clean up code below
+# XXX
 
 def reverse_bytes(signal):
     n = (len(signal)+7)//8
@@ -379,3 +380,5 @@ class Buffer(Module):
         if almost_full is not None:
             self.almost_full = Signal()
             self.comb += self.almost_full.eq(data_fifo.fifo.level > almost_full)
+
+# XXX

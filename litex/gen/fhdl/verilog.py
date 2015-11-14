@@ -9,6 +9,7 @@ from litex.gen.fhdl.bitcontainer import bits_for
 from litex.gen.fhdl.namer import build_namespace
 from litex.gen.fhdl.conv_output import ConvOutput
 
+# TODO: clean up simulation hack
 
 _reserved_keywords = {
     "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",

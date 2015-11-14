@@ -5,6 +5,9 @@ from copy import deepcopy
 from litex.gen import *
 from litex.soc.interconnect.stream import Sink, Source
 
+# TODO: clean up code below
+# XXX
+
 def print_with_prefix(s, prefix=""):
     if not isinstance(s, str):
         s = s.__repr__()
@@ -191,3 +194,5 @@ class AckRandomizer(Module):
             selfp.run = 0
         else:
             selfp.run = 1
+
+# XXX
