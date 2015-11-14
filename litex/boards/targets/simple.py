@@ -9,10 +9,8 @@ from litex.gen.genlib.io import CRG
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-# TODO: use liteeth
-from litex.soc.cores.liteeth_mini.phy import LiteEthPHY
-from litex.soc.cores.liteeth_mini.mac import LiteEthMAC
-
+from liteeth.phy import LiteEthPHY
+from liteeth.core.mac import LiteEthMAC
 
 class BaseSoC(SoCCore):
     def __init__(self, platform, **kwargs):

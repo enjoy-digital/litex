@@ -14,8 +14,8 @@ from litex.soc.cores.sdram.settings import PhySettings, IS42S16160
 from litex.soc.cores.sdram.model import SDRAMPHYModel
 from litex.soc.integration.soc_core import mem_decoder
 
-from litex.soc.cores.liteeth_mini.phy.model import LiteEthPHYModel
-from litex.soc.cores.liteeth_mini.mac import LiteEthMAC
+from liteeth.phy.model import LiteEthPHYModel
+from liteeth.core.mac import LiteEthMAC
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
