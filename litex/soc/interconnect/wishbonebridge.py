@@ -56,7 +56,7 @@ class WishboneStreamingBridge(Module):
             )
         ]
 
-        fsm = InsertReset(FSM(reset_state="IDLE"))
+        fsm = ResetInserter()(FSM(reset_state="IDLE"))
         timer = WaitTimer(clk_freq//10)
         self.submodules += fsm, timer
         self.comb += [

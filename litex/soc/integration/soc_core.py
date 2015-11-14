@@ -195,9 +195,10 @@ class SoCCore(Module):
             self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
 
         # Interrupts
-        for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
-            if hasattr(self, k):
-                self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
+        if hasattr(self.cpu_or_bridge, "interrupt"):
+            for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
+                if hasattr(self, k):
+                    self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
 
     def build(self, *args, **kwargs):
         self.platform.build(self, *args, **kwargs)

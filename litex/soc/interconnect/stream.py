@@ -74,7 +74,7 @@ class _FIFOWrapper(Module):
         self.source = Source(layout)
         self.busy = Signal()
 
-        ###
+        # # #
 
         description = self.sink.description
         fifo_layout = [("payload", description.payload_layout)]
@@ -160,6 +160,12 @@ class Demultiplexer(Module):
 
 from copy import copy
 from litex.gen.util.misc import xdir
+
+def _rawbits_layout(l):
+    if isinstance(l, int):
+        return [("rawbits", l)]
+    else:
+        return l
 
 def pack_layout(l, n):
     return [("chunk"+str(i), l) for i in range(n)]
@@ -256,6 +262,26 @@ class Buffer(PipelinedActor):
                 self.q.param.eq(self.d.param)
             )
 
+
+class Cast(CombinatorialActor):
+    def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
+        self.sink = Sink(_rawbits_layout(layout_from))
+        self.source = Source(_rawbits_layout(layout_to))
+        CombinatorialActor.__init__(self)
+
+        # # #
+
+        sigs_from = self.sink.payload.flatten()
+        if reverse_from:
+            sigs_from = list(reversed(sigs_from))
+        sigs_to = self.source.payload.flatten()
+        if reverse_to:
+            sigs_to = list(reversed(sigs_to))
+        if sum(len(s) for s in sigs_from) != sum(len(s) for s in sigs_to):
+            raise TypeError
+        self.comb += Cat(*sigs_to).eq(Cat(*sigs_from))
+
+
 class Unpack(Module):
     def __init__(self, n, layout_to, reverse=False):
         self.source = source = Source(layout_to)
@@ -265,7 +291,7 @@ class Unpack(Module):
 
         self.busy = Signal()
 
-        ###
+        # # #
 
         mux = Signal(max=n)
         first = Signal()
@@ -306,7 +332,7 @@ class Pack(Module):
         self.source = source = Source(description_to)
         self.busy = Signal()
 
-        ###
+        # # #
 
         demux = Signal(max=n)
 
@@ -364,7 +390,7 @@ class Chunkerize(CombinatorialActor):
         self.source = Source(layout_to)
         CombinatorialActor.__init__(self)
 
-        ###
+        # # #
 
         for i in range(n):
             chunk = n-i-1 if reverse else i
@@ -387,7 +413,7 @@ class Unchunkerize(CombinatorialActor):
         self.source = Source(layout_to)
         CombinatorialActor.__init__(self)
 
-        ###
+        # # #
 
         for i in range(n):
             chunk = n-i-1 if reverse else i
@@ -403,7 +429,7 @@ class Converter(Module):
         self.source = Source(layout_to)
         self.busy = Signal()
 
-        ###
+        # # #
 
         width_from = len(self.sink.payload.raw_bits())
         width_to = len(self.source.payload.raw_bits())
