@@ -99,19 +99,17 @@ class Builder:
     def _prepare_software(self):
         for name, src_dir in self.software_packages:
             dst_dir = os.path.join(self.output_dir, "software", name)
-            if self.use_symlinks:
-                os.makedirs(dst_dir, exist_ok=True)
-                src = os.path.join(src_dir, "Makefile")
-                dst = os.path.join(dst_dir, "Makefile")
+            os.makedirs(dst_dir, exist_ok=True)
+            src = os.path.join(src_dir, "Makefile")
+            dst = os.path.join(dst_dir, "Makefile")
+            if self.use_symlinks:    
                 try:
                     os.remove(dst)
                 except FileNotFoundError:
                     pass
                 os.symlink(src, dst)
             else:
-                if os.path.exists(dst_dir):
-                    shutil.rmtree(dst_dir)
-                shutil.copytree(src_dir, dst_dir)
+                 shutil.copy(src, dst)
 
     def _generate_software(self):
          for name, src_dir in self.software_packages:
