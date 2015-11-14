@@ -197,7 +197,7 @@ class SoCCore(Module):
         # Interrupts
         for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
             if hasattr(self, k):
-                self.comb += self.cpu.interrupt[v].eq(getattr(self, k).ev.irq)
+                self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
 
     def build(self, *args, **kwargs):
         self.platform.build(self, *args, **kwargs)
