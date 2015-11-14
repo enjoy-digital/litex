@@ -114,12 +114,26 @@ def get_csr_header(regions, constants, with_access_functions=True):
     return r
 
 
-def get_csr_csv(regions):
+def get_csr_csv(csr_regions=None, constants=None, memory_regions=None):
     r = ""
-    for name, origin, busword, obj in regions:
-        if not isinstance(obj, Memory):
-            for csr in obj:
-                nr = (csr.size + busword - 1)//busword
-                r += "{}_{},0x{:08x},{},{}\n".format(name, csr.name, origin, nr, "ro" if isinstance(csr, CSRStatus) else "rw")
-                origin += 4*nr
+
+    if csr_regions is not None:
+        for name, origin, busword, obj in csr_regions:
+            r += "csr_base,{},0x{:08x},,\n".format(name, origin)
+
+        for name, origin, busword, obj in csr_regions:
+            if not isinstance(obj, Memory):
+                for csr in obj:
+                    nr = (csr.size + busword - 1)//busword
+                    r += "csr_register,{}_{},0x{:08x},{},{}\n".format(name, csr.name, origin, nr, "ro" if isinstance(csr, CSRStatus) else "rw")
+                    origin += 4*nr
+
+    if constants is not None:
+        for name, value in constants:
+            r += "constant,{},{},,\n".format(name.lower(), value)
+
+    if memory_regions is not None:
+        for name, origin, length in memory_regions:
+            r += "memory_region,{},0x{:08x},{:d},\n".format(name.lower(), origin, length)
+
     return r

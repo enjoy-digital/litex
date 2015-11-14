@@ -1,6 +1,6 @@
 import csv
 
-# TODO: share reg for all software drivers
+# TODO: move
 
 class MappedReg:
     def __init__(self, readfn, writefn, name, addr, length, busword, mode):
@@ -33,7 +33,7 @@ class MappedReg:
         self.writefn(self.addr, datas)
 
 
-class MappedRegs:
+class MappedElements:
     def __init__(self, d):
         self.d = d
 
@@ -42,15 +42,37 @@ class MappedRegs:
             return self.__dict__['d'][attr]
         except KeyError:
             pass
-        raise KeyError("No such register " + attr)
+        raise KeyError("No such element " + attr)
 
 
-def build_map(addrmap, busword, readfn, writefn):
+def build_csr_bases(addrmap):
     csv_reader = csv.reader(open(addrmap), delimiter=',', quotechar='#')
     d = {}
     for item in csv_reader:
-        name, addr, length, mode = item
-        addr = int(addr.replace("0x", ""), 16)
-        length = int(length)
-        d[name] = MappedReg(readfn, writefn, name, addr, length, busword, mode)
-    return MappedRegs(d)
+        group, name, addr, dummy0, dummy1 = item
+        if group == "csr_base":
+            d[name] = int(addr.replace("0x", ""), 16)
+    return MappedElements(d)
+
+def build_csr_registers(addrmap, busword, readfn, writefn):
+    csv_reader = csv.reader(open(addrmap), delimiter=',', quotechar='#')
+    d = {}
+    for item in csv_reader:
+        group, name, addr, length, mode = item
+        if group == "csr_register":
+            addr = int(addr.replace("0x", ""), 16)
+            length = int(length)
+            d[name] = MappedReg(readfn, writefn, name, addr, length, busword, mode)
+    return MappedElements(d)
+
+def build_constants(addrmap):
+    csv_reader = csv.reader(open(addrmap), delimiter=',', quotechar='#')
+    d = {}
+    for item in csv_reader:
+        group, name, value, dummy0, dummy1 = item
+        if group == "constant":
+            try:
+                d[name] = int(value)
+            except:
+                d[name] = value
+    return MappedElements(d)

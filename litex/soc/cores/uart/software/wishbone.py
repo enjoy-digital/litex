@@ -1,8 +1,7 @@
 import serial
 from struct import *
 
-# TODO: share reg for all software drivers
-from litex.soc.cores.uart.software.reg import *
+from litex.soc.cores.uart.software.csr import *
 
 
 def write_b(uart, data):
@@ -20,7 +19,9 @@ class UARTWishboneBridgeDriver:
         self.debug = debug
         self.uart = serial.Serial(port, baudrate, timeout=0.25)
         if addrmap is not None:
-            self.regs = build_map(addrmap, busword, self.read, self.write)
+            self.bases = build_csr_bases(addrmap)
+            self.regs = build_csr_registers(addrmap, busword, self.read, self.write)
+            self.constants = build_constants(addrmap)
 
     def open(self):
         self.uart.flushOutput()
