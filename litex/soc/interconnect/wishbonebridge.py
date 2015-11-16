@@ -144,7 +144,7 @@ class WishboneStreamingBridge(Module):
             phy.sink.stb.eq(1),
             If(phy.sink.ack,
                 byte_counter_ce.eq(1),
-                If(byte_counter.value == 3,
+                If(byte_counter == 3,
                     word_counter_ce.eq(1),
                     If(word_counter == (length-1),
                         NextState("IDLE")

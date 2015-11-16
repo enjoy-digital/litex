@@ -1,0 +1,66 @@
+import socket
+
+from litex.soc.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
+from litex.soc.tools.remote.etherbone import EtherboneReads, EtherboneWrites
+from litex.soc.tools.remote.etherbone import EtherboneIPC
+from litex.soc.tools.remote.csr_builder import CSRBuilder
+
+
+class RemoteClient(EtherboneIPC, CSRBuilder):
+    def __init__(self, host="localhost", port=1234, csr_csv="csr.csv", csr_data_width=32, debug=False):
+        CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
+        self.host = host
+        self.port = port
+        self.debug = debug
+
+    def open(self):
+        if hasattr(self, "socket"):
+            return
+        self.socket = socket.create_connection((self.host, self.port), 5.0)
+        self.socket.settimeout(1.0)
+
+    def close(self):
+        if not hasattr(self, "socket"):
+            return
+        self.socket.close()
+        del self.socket
+
+    def read(self, addr, length=1):
+        # prepare packet
+        record = EtherboneRecord()
+        record.reads = EtherboneReads(addrs=[addr + 4*j for j in range(length)])
+        record.rcount = len(record.reads)
+
+        # send packet
+        packet = EtherbonePacket()
+        packet.records = [record]
+        packet.encode()
+        self.send_packet(self.socket, packet[:])
+
+        # receive response
+        packet = EtherbonePacket(self.receive_packet(self.socket))
+        packet.decode()
+        datas = packet.records.pop().writes.get_datas()
+        if self.debug:
+            for i, data in enumerate(datas):
+                print("read {:08x} @ {:08x}".format(data, addr + 4*i))
+        if length == 1:
+            return datas[0]
+        else:
+            return datas
+
+    def write(self, addr, datas):
+        if not isinstance(datas, list):
+            datas = [datas]
+        record = EtherboneRecord()
+        record.writes = EtherboneWrites(base_addr=addr, datas=[d for d in datas])
+        record.wcount = len(record.writes)
+
+        packet = EtherbonePacket()
+        packet.records = [record]
+        packet.encode()
+        self.send_packet(self.socket, packet)
+
+        if self.debug:
+            for i, data in enumerate(datas):
+                print("write {:08x} @ {:08x}".format(data, addr + 4*i))
