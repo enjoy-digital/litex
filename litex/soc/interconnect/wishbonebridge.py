@@ -8,15 +8,6 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.stream import Sink, Source
 
 
-@ResetInserter()
-@CEInserter()
-class Counter(Module):
-    def __init__(self, *args, increment=1, **kwargs):
-        self.value = Signal(*args, **kwargs)
-        self.width = len(self.value)
-        self.sync += self.value.eq(self.value+increment)
-
-
 class WishboneStreamingBridge(Module):
     cmds = {
         "write": 0x01,
@@ -28,9 +19,25 @@ class WishboneStreamingBridge(Module):
 
         # # #
 
-        byte_counter = Counter(3)
-        word_counter = Counter(8)
-        self.submodules += byte_counter, word_counter
+        byte_counter = Signal(3)
+        byte_counter_reset = Signal()
+        byte_counter_ce = Signal()
+        self.sync += \
+            If(byte_counter_reset,
+                byte_counter.eq(0)
+            ).Elif(byte_counter_ce,
+                byte_counter.eq(byte_counter + 1)
+            )
+
+        word_counter = Signal(3)
+        word_counter_reset = Signal()
+        word_counter_ce = Signal()
+        self.sync += \
+            If(word_counter_reset,
+                word_counter.eq(0)
+            ).Elif(word_counter_ce,
+                word_counter.eq(word_counter + 1)
+            )
 
         cmd = Signal(8)
         cmd_ce = Signal()
@@ -70,8 +77,8 @@ class WishboneStreamingBridge(Module):
                    (phy.source.data == self.cmds["read"]),
                     NextState("RECEIVE_LENGTH")
                 ),
-                byte_counter.reset.eq(1),
-                word_counter.reset.eq(1)
+                byte_counter_reset.eq(1),
+                word_counter_reset.eq(1)
             )
         )
         fsm.act("RECEIVE_LENGTH",
@@ -83,39 +90,39 @@ class WishboneStreamingBridge(Module):
         fsm.act("RECEIVE_ADDRESS",
             If(phy.source.stb,
                 address_ce.eq(1),
-                byte_counter.ce.eq(1),
-                If(byte_counter.value == 3,
+                byte_counter_ce.eq(1),
+                If(byte_counter == 3,
                     If(cmd == self.cmds["write"],
                         NextState("RECEIVE_DATA")
                     ).Elif(cmd == self.cmds["read"],
                         NextState("READ_DATA")
                     ),
-                    byte_counter.reset.eq(1),
+                    byte_counter_reset.eq(1),
                 )
             )
         )
         fsm.act("RECEIVE_DATA",
             If(phy.source.stb,
                 rx_data_ce.eq(1),
-                byte_counter.ce.eq(1),
-                If(byte_counter.value == 3,
+                byte_counter_ce.eq(1),
+                If(byte_counter == 3,
                     NextState("WRITE_DATA"),
-                    byte_counter.reset.eq(1)
+                    byte_counter_reset.eq(1)
                 )
             )
         )
         self.comb += [
-            self.wishbone.adr.eq(address + word_counter.value),
+            self.wishbone.adr.eq(address + word_counter),
             self.wishbone.dat_w.eq(data),
-            self.wishbone.sel.eq(2**len(self.wishbone.sel)-1)
+            self.wishbone.sel.eq(2**len(self.wishbone.sel) - 1)
         ]
         fsm.act("WRITE_DATA",
             self.wishbone.stb.eq(1),
             self.wishbone.we.eq(1),
             self.wishbone.cyc.eq(1),
             If(self.wishbone.ack,
-                word_counter.ce.eq(1),
-                If(word_counter.value == (length-1),
+                word_counter_ce.eq(1),
+                If(word_counter == (length-1),
                     NextState("IDLE")
                 ).Else(
                     NextState("RECEIVE_DATA")
@@ -132,18 +139,18 @@ class WishboneStreamingBridge(Module):
             )
         )
         self.comb += \
-            chooser(data, byte_counter.value, phy.sink.data, n=4, reverse=True)
+            chooser(data, byte_counter, phy.sink.data, n=4, reverse=True)
         fsm.act("SEND_DATA",
             phy.sink.stb.eq(1),
             If(phy.sink.ack,
-                byte_counter.ce.eq(1),
+                byte_counter_ce.eq(1),
                 If(byte_counter.value == 3,
-                    word_counter.ce.eq(1),
-                    If(word_counter.value == (length-1),
+                    word_counter_ce.eq(1),
+                    If(word_counter == (length-1),
                         NextState("IDLE")
                     ).Else(
                         NextState("READ_DATA"),
-                        byte_counter.reset.eq(1)
+                        byte_counter_reset.eq(1)
                     )
                 )
             )
@@ -153,8 +160,8 @@ class WishboneStreamingBridge(Module):
 
         if phy.sink.description.packetized:
             self.comb += [
-                phy.sink.sop.eq((byte_counter.value == 0) & (word_counter.value == 0)),
-                phy.sink.eop.eq((byte_counter.value == 3) & (word_counter.value == (length-1)))
+                phy.sink.sop.eq((byte_counter == 0) & (word_counter == 0)),
+                phy.sink.eop.eq((byte_counter == 3) & (word_counter == length - 1))
             ]
             if hasattr(phy.sink, "length"):
                 self.comb += phy.sink.length.eq(4*length)
