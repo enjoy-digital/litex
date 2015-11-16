@@ -379,6 +379,6 @@ class Buffer(Module):
         # compute almost full
         if almost_full is not None:
             self.almost_full = Signal()
-            self.comb += self.almost_full.eq(data_fifo.fifo.level > almost_full)
+            self.comb += self.almost_full.eq(data_fifo.level > almost_full)
 
 # XXX
