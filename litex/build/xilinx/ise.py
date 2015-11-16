@@ -96,11 +96,9 @@ def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
     if source:
         settings = common.settings(ise_path, ver, "ISE_DS")
         build_script_contents += source_cmd + settings + "\n"
-    if mode == "edif":
-        ext = "edif"
-    else:
-        ext = "ngc"
-        build_script_contents += """
+
+    ext = "ngc"
+    build_script_contents += """
 xst -ifn {build_name}.xst
 """
 
@@ -170,18 +168,6 @@ class XilinxISEToolchain:
                     _run_yosys(platform.device, sources, platform.verilog_include_paths, build_name)
                     isemode = "edif"
                     ngdbuild_opt += "-p " + platform.device
-
-            if mode == "mist":
-                from mist import synthesize
-                synthesize(fragment, platform.constraint_manager.get_io_signals())
-
-            if mode == "edif" or mode == "mist":
-                e_output = platform.get_edif(fragment)
-                vns = e_output.ns
-                named_sc, named_pc = platform.resolve_signals(vns)
-                e_file = build_name + ".edif"
-                e_output.write(e_file)
-                isemode = "edif"
 
             tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
             if run:

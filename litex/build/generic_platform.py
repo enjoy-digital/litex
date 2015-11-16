@@ -3,7 +3,7 @@ import os
 from litex.gen.fhdl.structure import Signal
 from litex.gen.genlib.record import Record
 from litex.gen.genlib.io import CRG
-from litex.gen.fhdl import verilog, edif
+from litex.gen.fhdl import verilog
 from litex.build import tools
 
 
@@ -329,12 +329,6 @@ class GenericPlatform:
             fragment,
             self.constraint_manager.get_io_signals(),
             create_clock_domains=False, **kwargs)
-
-    def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
-        return edif.convert(
-            fragment,
-            self.constraint_manager.get_io_signals(),
-            cell_library, vendor, device, **kwargs)
 
     def build(self, fragment):
         raise NotImplementedError("GenericPlatform.build must be overloaded")

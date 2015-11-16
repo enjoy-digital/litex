@@ -21,9 +21,6 @@ class XilinxPlatform(GenericPlatform):
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args, special_overrides=so, **kwargs)
 
-    def get_edif(self, fragment, **kwargs):
-        return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)
-
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
