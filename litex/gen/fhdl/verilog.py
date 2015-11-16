@@ -224,7 +224,7 @@ def _printcomb(f, ns,
             r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
             r += syn_on
 
-       
+
         from collections import defaultdict
 
         target_stmt_map = defaultdict(list)
@@ -233,9 +233,6 @@ def _printcomb(f, ns,
             targets = list_targets(statement)
             for t in targets:
                 target_stmt_map[t].append(statement)
-
-        #from pprint import pprint
-        #pprint(target_stmt_map)
 
         groups = group_by_targets(f.comb)
 
@@ -331,7 +328,10 @@ def _printspecials(overrides, specials, ns, add_data_file):
 def convert(f, ios=None, name="top",
   special_overrides=dict(),
   create_clock_domains=True,
-  display_run=False, asic_syntax=False):
+  display_run=False,
+  reg_initialization=True,
+  dummy_signal=True,
+  blocking_assign=False):
     r = ConvOutput()
     if not isinstance(f, _Fragment):
         f = f.get_fragment()
@@ -363,11 +363,11 @@ def convert(f, ios=None, name="top",
 
     src = "/* Machine-generated using LiteX gen*/\n"
     src += _printheader(f, ios, name, ns,
-                        reg_initialization=not asic_syntax)
+                        reg_initialization=reg_initialization)
     src += _printcomb(f, ns,
                       display_run=display_run,
-                      dummy_signal=not asic_syntax,
-                      blocking_assign=asic_syntax)
+                      dummy_signal=dummy_signal,
+                      blocking_assign=blocking_assign)
     src += _printsync(f, ns)
     src += _printspecials(special_overrides, f.specials - lowered_specials, ns, r.add_data_file)
     src += "endmodule\n"
