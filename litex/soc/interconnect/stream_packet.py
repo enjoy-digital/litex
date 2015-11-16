@@ -16,14 +16,6 @@ def reverse_bytes(signal):
     return Cat(iter(r))
 
 
-@ResetInserter()
-@CEInserter()
-class Counter(Module):
-    def __init__(self, *args, increment=1, **kwargs):
-        self.value = Signal(*args, **kwargs)
-        self.width = len(self.value)
-        self.sync += self.value.eq(self.value+increment)
-
 class Status(Module):
     def __init__(self, endpoint):
         self.sop = sop = Signal()
@@ -166,8 +158,15 @@ class Packetizer(Module):
         header_words = (header.length*8)//dw
         load = Signal()
         shift = Signal()
-        counter = Counter(max=max(header_words, 2))
-        self.submodules += counter
+        counter = Signal(max=max(header_words, 2))
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += \
+            If(counter_reset,
+                counter.eq(0)
+            ).Elif(Counter.ce,
+                counter.eq(counter + 1)
+            )
 
         self.comb += header.encode(sink, self.header)
         if header_words == 1:
@@ -195,7 +194,7 @@ class Packetizer(Module):
 
         fsm.act("IDLE",
             sink.ack.eq(1),
-            counter.reset.eq(1),
+            counter_reset.eq(1),
             If(sink.stb & sink.sop,
                 sink.ack.eq(0),
                 source.stb.eq(1),
@@ -216,8 +215,8 @@ class Packetizer(Module):
                 source.data.eq(header_reg[dw:2*dw]),
                 If(source.stb & source.ack,
                     shift.eq(1),
-                    counter.ce.eq(1),
-                    If(counter.value == header_words-2,
+                    counter._e.eq(1),
+                    If(counter == header_words-2,
                         NextState("COPY")
                     )
                 )
@@ -250,8 +249,15 @@ class Depacketizer(Module):
         header_words = (header.length*8)//dw
 
         shift = Signal()
-        counter = Counter(max=max(header_words, 2))
-        self.submodules += counter
+        counter = Signal(max=max(header_words, 2))
+        counter_reset = Signal()
+        counter_ce = Signal()
+        self.sync += \
+            If(counter_reset,
+                counter.eq(0)
+            ).Elif(Counter.ce,
+                counter.eq(counter + 1)
+            )
 
         if header_words == 1:
             self.sync += \
@@ -274,7 +280,7 @@ class Depacketizer(Module):
 
         fsm.act("IDLE",
             sink.ack.eq(1),
-            counter.reset.eq(1),
+            counter_reset.eq(1),
             If(sink.stb,
                 shift.eq(1),
                 NextState(idle_next_state)
@@ -284,9 +290,9 @@ class Depacketizer(Module):
             fsm.act("RECEIVE_HEADER",
                 sink.ack.eq(1),
                 If(sink.stb,
-                    counter.ce.eq(1),
+                    counter_ce.eq(1),
                     shift.eq(1),
-                    If(counter.value == header_words-2,
+                    If(counter == header_words-2,
                         NextState("COPY")
                     )
                 )
