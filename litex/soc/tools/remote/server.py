@@ -80,10 +80,11 @@ def _get_args():
     return parser.parse_args()
 
 def main():
+    print("LiteX remote server")
     args = _get_args()
     if args.comm == "uart":
         from litex.soc.tools.remote import CommUART
-        port = args.port if not args.port.isdigit() else int(args.port)
+        print("Using CommUART, port: {} / baudrate: {}".format(args.port, args.baudrate))
         comm = CommUART(args.port if not args.port.isdigit() else int(args.port),
                         args.baudrate,
                         debug=False)
