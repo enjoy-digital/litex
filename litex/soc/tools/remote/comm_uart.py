@@ -56,7 +56,7 @@ class CommUART:
         length = len(data)
         self._write([self.msg_type["write"], length])
         self._write(list((addr//4).to_bytes(4, byteorder="big")))
-        for i, value in enumerate(range(data)):
+        for i, value in enumerate(data):
             self._write(list(value.to_bytes(4, byteorder="big")))
             if self.debug:
                 print("write {:08x} @ {:08x}".format(value, addr + 4*i))

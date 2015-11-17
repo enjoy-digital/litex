@@ -67,10 +67,6 @@ class RemoteServer(EtherboneIPC):
         self.serve_thread.setDaemon(True)
         self.serve_thread.start()
 
-    def join(self, writer_only=False):
-        if not hasattr(self, "serve_thread"):
-            return
-        self.serve_thread.join()
 
 def _get_args():
     parser = argparse.ArgumentParser()
@@ -95,8 +91,9 @@ def main():
     server.open()
     server.start()
     try:
-        server.join(True)
-    except KeyboardInterrupt: # FIXME
+        import time
+        while True: time.sleep(100)
+    except KeyboardInterrupt:
         pass
 
 if __name__ == "__main__":
