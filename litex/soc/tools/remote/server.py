@@ -73,6 +73,7 @@ def _get_args():
     parser.add_argument("--comm", default="uart", help="comm interface")
     parser.add_argument("--port", default="2", help="UART port")
     parser.add_argument("--baudrate", default=115200, help="UART baudrate")
+    parser.add_argument("--debug", action="store_true", help="enable debug")
     return parser.parse_args()
 
 def main():
@@ -83,7 +84,7 @@ def main():
         print("Using CommUART, port: {} / baudrate: {}".format(args.port, args.baudrate))
         comm = CommUART(args.port if not args.port.isdigit() else int(args.port),
                         args.baudrate,
-                        debug=False)
+                        debug=args.debug)
     else:
         raise NotImplementedError
 

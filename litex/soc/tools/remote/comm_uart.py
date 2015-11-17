@@ -45,7 +45,7 @@ class CommUART:
         for i in range(length_int):
             value = int.from_bytes(self._read(4), "big")
             if self.debug:
-                print("read {:08x} @ {:08x}".format(data, addr + 4*i))
+                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
             if length is None:
                 return value
             data.append(value)
