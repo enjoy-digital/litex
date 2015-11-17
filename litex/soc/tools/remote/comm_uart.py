@@ -10,12 +10,10 @@ class CommUART:
     def __init__(self, port, baudrate=115200, debug=False):
         self.port = port
         self.baudrate = str(baudrate)
-        self.csr_data_width = None
         self.debug = debug
         self.port = serial.serial_for_url(port, baudrate)
 
-    def open(self, csr_data_width):
-        self.csr_data_width = csr_data_width
+    def open(self):
         if hasattr(self, "port"):
             return
         self.port.open()
@@ -40,25 +38,25 @@ class CommUART:
             pos += written
 
     def read(self, addr, length=None):
-        r = []
+        data = []
         length_int = 1 if length is None else length
         self._write([self.msg_type["read"], length_int])
         self._write(list((addr//4).to_bytes(4, byteorder="big")))
         for i in range(length_int):
-            data = int.from_bytes(self._read(4), "big")
+            value = int.from_bytes(self._read(4), "big")
             if self.debug:
                 print("read {:08x} @ {:08x}".format(data, addr + 4*i))
             if length is None:
-                return data
-            r.append(data)
-        return r
+                return value
+            data.append(value)
+        return data
 
     def write(self, addr, data):
         data = data if isinstance(data, list) else [data]
         length = len(data)
         self._write([self.msg_type["write"], length])
         self._write(list((addr//4).to_bytes(4, byteorder="big")))
-        for i in range(len(data)):
-            self._write(list(data[i].to_bytes(4, byteorder="big")))
+        for i, value in enumerate(range(data)):
+            self._write(list(value.to_bytes(4, byteorder="big")))
             if self.debug:
-                print("write {:08x} @ {:08x}".format(data[i], addr + 4*i))
+                print("write {:08x} @ {:08x}".format(value, addr + 4*i))

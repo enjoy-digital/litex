@@ -7,10 +7,9 @@ from litex.soc.tools.remote.etherbone import EtherboneIPC
 
 
 class RemoteServer(EtherboneIPC):
-    def __init__(self, comm, port=1234, csr_data_width=32):
+    def __init__(self, comm, port=1234):
         self.comm = comm
         self.port = port
-        self.csr_data_width = 32
 
     def open(self):
         if hasattr(self, "socket"):
@@ -18,7 +17,7 @@ class RemoteServer(EtherboneIPC):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(("localhost", self.port))
         self.socket.listen(1)
-        self.comm.open(self.csr_data_width)
+        self.comm.open()
 
     def close(self):
         self.comm.close()
@@ -78,7 +77,6 @@ def _get_args():
     parser.add_argument("--comm", default="uart", help="comm interface")
     parser.add_argument("--port", default="2", help="UART port")
     parser.add_argument("--baudrate", default=115200, help="UART baudrate")
-    parser.add_argument("--csr_data_width", default=32, help="CSR data_width")
     return parser.parse_args()
 
 def main():
@@ -92,7 +90,7 @@ def main():
     else:
         raise NotImplementedError
 
-    server = RemoteServer(comm, csr_data_width=args.csr_data_width)
+    server = RemoteServer(comm)
     server.open()
     server.start()
     try:
