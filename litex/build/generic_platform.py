@@ -15,7 +15,10 @@ class Pins:
     def __init__(self, *identifiers):
         self.identifiers = []
         for i in identifiers:
-            self.identifiers += i.split()
+            if isinstance(i, int):
+                self.identifiers += ["X"]*i
+            else:
+                self.identifiers += i.split()
 
     def __repr__(self):
         return "{}('{}')".format(self.__class__.__name__,
