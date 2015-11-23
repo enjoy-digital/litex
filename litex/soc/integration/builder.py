@@ -94,7 +94,7 @@ class Builder:
 
         if self.csr_csv is not None:
             with open(self.csr_csv, "w") as f:
-                f.write(cpu_interface.get_csr_csv(csr_regions))
+                f.write(cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
 
     def _prepare_software(self):
         for name, src_dir in self.software_packages:
