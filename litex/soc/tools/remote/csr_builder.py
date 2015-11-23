@@ -17,6 +17,7 @@ class CSRRegister:
     def __init__(self, readfn, writefn, name, addr, length, data_width, mode):
         self.readfn = readfn
         self.writefn = writefn
+        self.name = name
         self.addr = addr
         self.length = length
         self.data_width = data_width
@@ -24,7 +25,7 @@ class CSRRegister:
 
     def read(self):
         if self.mode not in ["rw", "ro"]:
-            raise KeyError(name + "register not readable")
+            raise KeyError(self.name + "register not readable")
         datas = self.readfn(self.addr, length=self.length)
         if isinstance(datas, int):
             return datas
@@ -37,11 +38,17 @@ class CSRRegister:
 
     def write(self, value):
         if self.mode not in ["rw", "wo"]:
-            raise KeyError(name + "register not writable")
+            raise KeyError(self.name + "register not writable")
         datas = []
         for i in range(self.length):
             datas.append((value >> ((self.length-1-i)*self.data_width)) & (2**self.data_width-1))
         self.writefn(self.addr, datas)
+
+
+class CSRMemoryRegion:
+    def __init__(self, base, size):
+        self.base = base
+        self.size = size
 
 
 class CSRBuilder:
@@ -50,6 +57,7 @@ class CSRBuilder:
         self.constants = self.build_constants(csr_csv)
         self.bases = self.build_bases(csr_csv)
         self.regs = self.build_registers(csr_csv, comm.read, comm.write)
+        self.mems = self.build_memories(csr_csv)
 
     def build_bases(self, csr_csv):
         csv_reader = csv.reader(open(csr_csv), delimiter=',', quotechar='#')
@@ -81,4 +89,13 @@ class CSRBuilder:
                     d[name] = int(value)
                 except:
                     d[name] = value
+        return CSRElements(d)
+
+    def build_memories(self, csr_csv):
+        csv_reader = csv.reader(open(csr_csv), delimiter=',', quotechar='#')
+        d = {}
+        for item in csv_reader:
+            group, name, base, size, dummy1 = item
+            if group == "memory_region":
+                d[name] = CSRMemoryRegion(int(base, 16), int(size))
         return CSRElements(d)
