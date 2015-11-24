@@ -164,7 +164,7 @@ class Packetizer(Module):
         self.sync += \
             If(counter_reset,
                 counter.eq(0)
-            ).Elif(Counter.ce,
+            ).Elif(counter_ce,
                 counter.eq(counter + 1)
             )
 
@@ -215,7 +215,7 @@ class Packetizer(Module):
                 source.data.eq(header_reg[dw:2*dw]),
                 If(source.stb & source.ack,
                     shift.eq(1),
-                    counter._e.eq(1),
+                    counter_ce.eq(1),
                     If(counter == header_words-2,
                         NextState("COPY")
                     )
@@ -255,7 +255,7 @@ class Depacketizer(Module):
         self.sync += \
             If(counter_reset,
                 counter.eq(0)
-            ).Elif(Counter.ce,
+            ).Elif(counter_ce,
                 counter.eq(counter + 1)
             )
 
