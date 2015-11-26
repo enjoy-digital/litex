@@ -133,14 +133,18 @@ class Builder:
     def build(self):
         self.soc.finalize()
 
-        if self.soc.integrated_rom_size and not self.compile_software:
-            raise ValueError("Software must be compiled in order to "
-                             "intitialize integrated ROM")
+        os.makedirs(self.output_dir, exist_ok=True)
 
-        self._prepare_software()
-        self._generate_includes()
-        self._generate_software()
-        self._initialize_rom()
+        if self.soc.cpu_type is not None:
+            if self.soc.integrated_rom_size and not self.compile_software:
+                raise ValueError("Software must be compiled in order to "
+                                 "intitialize integrated ROM")
+
+            self._prepare_software()
+            self._generate_includes()
+            self._generate_software()
+            self._initialize_rom()
+
         if self.gateware_toolchain_path is None:
             kwargs = dict()
         else:
