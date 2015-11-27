@@ -118,13 +118,15 @@ class Header:
             field = getattr(obj, name.replace("_msb", ""))[width:2*width]
         else:
             field = getattr(obj, name)
+        if len(field) != width:
+            raise ValueError("Width mismatch on " + name + " field")
         return field
 
     def encode(self, obj, signal):
         r = []
         for k, v in sorted(self.fields.items()):
-            start = v.byte*8+v.offset
-            end = start+v.width
+            start = v.byte*8 + v.offset
+            end = start + v.width
             field = self.get_field(obj, k, v.width)
             if self.swap_field_bytes:
                 field = reverse_bytes(field)
@@ -134,8 +136,8 @@ class Header:
     def decode(self, signal, obj):
         r = []
         for k, v in sorted(self.fields.items()):
-            start = v.byte*8+v.offset
-            end = start+v.width
+            start = v.byte*8 + v.offset
+            end = start + v.width
             field = self.get_field(obj, k, v.width)
             if self.swap_field_bytes:
                 r.append(field.eq(reverse_bytes(signal[start:end])))
