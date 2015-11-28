@@ -478,7 +478,16 @@ class Pipeline(Module):
             self.sink = m.sink
         for i in range(1, n):
             m_n = modules[i]
-            self.comb += m.source.connect(m_n.sink)
+            if isinstance(m, _Endpoint):
+                source = m
+            else:
+                source = m.source
+            if isinstance(m_n, _Endpoint):
+                sink = m_n
+            else:
+                sink = m_n.sink            
+            if m is not m_n:
+                self.comb += Record.connect(source, sink)
             m = m_n
         # expose source of last module
         # if available
