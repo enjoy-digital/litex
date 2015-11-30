@@ -78,6 +78,7 @@ class LatticeDiamondToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path="/opt/Diamond", run=True):
         tools.mkdir_noerror(build_dir)
+        cwd = os.getcwd()
         os.chdir(build_dir)
 
         if not isinstance(fragment, _Fragment):
@@ -96,7 +97,7 @@ class LatticeDiamondToolchain:
         if run:
             _run_diamond(build_name, toolchain_path)
 
-        os.chdir("..")
+        os.chdir(cwd)
 
         return v_output.ns
 

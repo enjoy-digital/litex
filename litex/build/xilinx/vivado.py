@@ -114,6 +114,7 @@ class XilinxVivadoToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
             toolchain_path="/opt/Xilinx/Vivado", source=True, run=True):
         tools.mkdir_noerror(build_dir)
+        cwd = os.getcwd()
         os.chdir(build_dir)
 
         if not isinstance(fragment, _Fragment):
@@ -129,7 +130,7 @@ class XilinxVivadoToolchain:
         if run:
             _run_vivado(build_name, toolchain_path, source)
 
-        os.chdir("..")
+        os.chdir(cwd)
 
         return v_output.ns
 
