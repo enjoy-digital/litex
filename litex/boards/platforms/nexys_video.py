@@ -43,6 +43,8 @@ _io = [
 
     ("clk100", 0, Pins("R4"), IOStandard("LVCMOS33")),
 
+    ("cpu_reset", 0, Pins("G4"), IOStandard("LVCMOS15")),
+
     ("serial", 0,
         Subsignal("tx", Pins("AA19")),
         Subsignal("rx", Pins("V18")),
@@ -66,8 +68,8 @@ _io = [
             Misc("IN_TERM=UNTUNED_SPLIT_50")),
         Subsignal("dqs_p", Pins("K2 E1"), IOStandard("DIFF_SSTL15")),
         Subsignal("dqs_n", Pins("J2 D1"), IOStandard("DIFF_SSTL15")),
-        Subsignal("clk_p", Pins(""), IOStandard("DIFF_SSTL15")),
-        Subsignal("clk_n", Pins(""), IOStandard("DIFF_SSTL15")),
+        Subsignal("clk_p", Pins("P5"), IOStandard("DIFF_SSTL15")),
+        Subsignal("clk_n", Pins("P4"), IOStandard("DIFF_SSTL15")),
         Subsignal("cke", Pins("J6"), IOStandard("SSTL15")),
         Subsignal("odt", Pins("K4"), IOStandard("SSTL15")),
         Subsignal("reset_n", Pins("G1"), IOStandard("SSTL15")),
@@ -137,6 +139,8 @@ class Platform(XilinxPlatform):
             ["write_cfgmem -force -format bin -interface spix4 -size 16 "
              "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
         self.programmer = programmer
+        self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 35]")
+
 
     def create_programmer(self):
         if self.programmer == "xc3sprog":
