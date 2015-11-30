@@ -86,7 +86,7 @@ def layout_partial(layout, *elements):
 
 
 class Record:
-    def __init__(self, layout, name=None):
+    def __init__(self, layout, name=None, use_name_override=False):
         self.name = get_obj_var_name(name, "")
         self.layout = layout
 
@@ -100,7 +100,10 @@ class Record:
                     fname, fsize, fdirection = f
                 else:
                     fname, fsize = f
-                finst = Signal(fsize, name=prefix + fname)
+                if use_name_override:
+                    finst = Signal(fsize, name_override=prefix + fname)
+                else:
+                    finst = Signal(fsize, name=prefix + fname)
             elif isinstance(f[1], list):  # case 3
                 fname, fsublayout = f
                 finst = Record(fsublayout, prefix + fname)

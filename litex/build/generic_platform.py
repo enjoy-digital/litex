@@ -161,10 +161,14 @@ class ConstraintManager:
     def request(self, name, number=None):
         resource = _lookup(self.available, name, number)
         rt = _resource_type(resource)
-        if isinstance(rt, int):
-            obj = Signal(rt, name_override=resource[0])
+        if number is None:
+            resource_name = name
         else:
-            obj = Record(rt, name=resource[0])
+            resource_name = name + str(number)
+        if isinstance(rt, int):
+            obj = Signal(rt, name_override=resource_name)
+        else:
+            obj = Record(rt, name=resource_name, use_name_override=True)
 
         for element in resource[2:]:
             if isinstance(element, PlatformInfo):
