@@ -99,22 +99,6 @@ class MiniSoC(BaseSoC):
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
-        self.specials += [
-            Keep(self.ethphy.crg.cd_eth_rx.clk),
-            Keep(self.ethphy.crg.cd_eth_tx.clk)
-        ]
-        self.platform.add_platform_command("""
-create_clock -name sys_clk -period 10 [get_nets sys_clk]
-create_clock -name eth_rx_clk -period 8 [get_nets eth_clocks_tx]
-create_clock -name eth_tx_clk -period 8 [get_nets eth_clocks_rx]
-
-set_false_path -from [get_clocks eth_rx_clk] -to [get_clocks sys_clk]
-set_false_path -from [get_clocks sys_clk] -to [get_clocks eth_rx_clk]
-set_false_path -from [get_clocks eth_tx_clk] -to [get_clocks sys_clk]
-set_false_path -from [get_clocks sys_clk] -to [get_clocks eth_tx_clk]
-""")
-
-
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC port to Nexys Video")
     builder_args(parser)
