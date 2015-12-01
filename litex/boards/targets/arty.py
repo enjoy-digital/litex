@@ -72,7 +72,11 @@ class _CRG(Module):
 class BaseSoC(SoCCore):
     def __init__(self, **kwargs):
         platform = arty.Platform()
-        SoCCore.__init__(self, platform, clk_freq=100*1000000, **kwargs)
+        SoCCore.__init__(self, platform, clk_freq=100*1000000,
+                         integrated_rom_size=0x8000,
+                         integrated_sram_size=0x8000,
+                         integrated_main_ram_size=0x10000,
+                         **kwargs)
 
         self.submodules.crg = _CRG(platform)
 
