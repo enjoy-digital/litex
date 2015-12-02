@@ -113,7 +113,7 @@ quartus_sta {build_name} -c {build_name}
 
 class AlteraQuartusToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
-              toolchain_path="/opt/Altera", run=True):
+              toolchain_path="/opt/Altera", run=True, **kwargs):
         cwd = os.getcwd()
         tools.mkdir_noerror(build_dir)
         os.chdir(build_dir)
@@ -122,7 +122,7 @@ class AlteraQuartusToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        v_output = platform.get_verilog(fragment)
+        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)

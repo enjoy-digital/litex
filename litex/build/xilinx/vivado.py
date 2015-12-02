@@ -112,7 +112,7 @@ class XilinxVivadoToolchain:
         tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            toolchain_path="/opt/Xilinx/Vivado", source=True, run=True):
+            toolchain_path="/opt/Xilinx/Vivado", source=True, run=True, **kwargs):
         tools.mkdir_noerror(build_dir)
         cwd = os.getcwd()
         os.chdir(build_dir)
@@ -120,7 +120,7 @@ class XilinxVivadoToolchain:
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
-        v_output = platform.get_verilog(fragment)
+        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)

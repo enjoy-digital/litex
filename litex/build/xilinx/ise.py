@@ -133,7 +133,7 @@ class XilinxISEToolchain:
         self.ise_commands = ""
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            toolchain_path=None, source=None, run=True, mode="xst"):
+            toolchain_path=None, source=None, run=True, mode="xst", **kwargs):
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         if toolchain_path is None:
@@ -155,7 +155,7 @@ class XilinxISEToolchain:
         os.chdir(build_dir)
         try:
             if mode == "xst" or mode == "yosys":
-                v_output = platform.get_verilog(fragment)
+                v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
                 vns = v_output.ns
                 named_sc, named_pc = platform.resolve_signals(vns)
                 v_file = build_name + ".v"
