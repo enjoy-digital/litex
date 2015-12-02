@@ -130,7 +130,7 @@ class Builder:
                     boot_data.append(struct.unpack(">I", w)[0])
             self.soc.initialize_rom(boot_data)
 
-    def build(self):
+    def build(self, toolchain_path=None, **kwargs):
         self.soc.finalize()
 
         os.makedirs(self.output_dir, exist_ok=True)
@@ -145,12 +145,11 @@ class Builder:
             self._generate_software()
             self._initialize_rom()
 
-        if self.gateware_toolchain_path is None:
-            kwargs = dict()
-        else:
-            kwargs = {"toolchain_path": self.gateware_toolchain_path}
+        if self.gateware_toolchain_path is not None:
+            toolchain_path = self.gateware_toolchain_path
         self.soc.build(build_dir=os.path.join(self.output_dir, "gateware"),
-                       run=self.compile_gateware, **kwargs)
+                       run=self.compile_gateware, toolchain_path=toolchain_path,
+                       **kwargs)
 
 
 def builder_args(parser):

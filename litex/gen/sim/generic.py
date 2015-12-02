@@ -102,6 +102,7 @@ class Simulator:
         c_fragment = verilog.convert(fragment,
             ios=self.top_level.ios,
             name=self.top_level.dut_type,
+            regular_comb=False,
             **vopts)
         self.namespace = c_fragment.ns
 

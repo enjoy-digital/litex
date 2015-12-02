@@ -9,7 +9,7 @@ from litex.gen.fhdl.bitcontainer import bits_for
 from litex.gen.fhdl.namer import build_namespace
 from litex.gen.fhdl.conv_output import ConvOutput
 
-# TODO: clean up simulation hack
+# TODO: remove printcomb_simulation when we will be using new migen simulator
 
 _reserved_keywords = {
     "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
@@ -207,10 +207,10 @@ def _printheader(f, ios, name, ns,
     return r
 
 
-def _printcomb(f, ns,
-               display_run,
-               dummy_signal,
-               blocking_assign):
+def _printcomb_simulation(f, ns,
+            display_run,
+            dummy_signal,
+            blocking_assign):
     r = ""
     if f.comb:
         if dummy_signal:
@@ -251,18 +251,42 @@ def _printcomb(f, ns,
                 if display_run:
                     r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
                 if blocking_assign:
-                	r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
-                	r += _printnode(ns, _AT_BLOCKING, 1, stmts, t)
+                    r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
+                    r += _printnode(ns, _AT_BLOCKING, 1, stmts, t)
                 else:
-                	r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
-                	r += _printnode(ns, _AT_NONBLOCKING, 1, stmts, t)
+                    r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
+                    r += _printnode(ns, _AT_NONBLOCKING, 1, stmts, t)
                 if dummy_signal:
-                	r += syn_off
-                	r += "\t" + ns.get_name(dummy_d) + " = " + ns.get_name(dummy_s) + ";\n"
-                	r += syn_on
+                    r += syn_off
+                    r += "\t" + ns.get_name(dummy_d) + " = " + ns.get_name(dummy_s) + ";\n"
+                    r += syn_on
                 r += "end\n"
     r += "\n"
     return r
+
+
+def _printcomb_regular(f, ns, blocking_assign):
+    r = ""
+    if f.comb:
+        groups = group_by_targets(f.comb)
+
+        for n, g in enumerate(groups):
+            if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
+                r += "assign " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
+            else:
+                r += "always @(*) begin\n"
+                if blocking_assign:
+                    for t in g[0]:
+                        r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
+                    r += _printnode(ns, _AT_BLOCKING, 1, g[1])
+                else:
+                    for t in g[0]:
+                        r += "\t" + ns.get_name(t) + " <= " + _printexpr(ns, t.reset)[0] + ";\n"
+                    r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
+                r += "end\n"
+    r += "\n"
+    return r
+
 
 
 def _printsync(f, ns):
@@ -331,7 +355,8 @@ def convert(f, ios=None, name="top",
   display_run=False,
   reg_initialization=True,
   dummy_signal=True,
-  blocking_assign=False):
+  blocking_assign=False,
+  regular_comb=True):
     r = ConvOutput()
     if not isinstance(f, _Fragment):
         f = f.get_fragment()
@@ -361,10 +386,16 @@ def convert(f, ios=None, name="top",
     ns.clock_domains = f.clock_domains
     r.ns = ns
 
-    src = "/* Machine-generated using LiteX gen*/\n"
+    src = "/* Machine-generated using LiteX gen "
+    src += "(regular)" if regular_comb else "(simulation)"
+    src += " */\n"
     src += _printheader(f, ios, name, ns,
                         reg_initialization=reg_initialization)
-    src += _printcomb(f, ns,
+    if regular_comb:
+        src += _printcomb_regular(f, ns,
+                      blocking_assign=blocking_assign)
+    else:
+        src += _printcomb_simulation(f, ns,
                       display_run=display_run,
                       dummy_signal=dummy_signal,
                       blocking_assign=blocking_assign)
