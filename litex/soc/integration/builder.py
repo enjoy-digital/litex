@@ -92,9 +92,13 @@ class Builder:
             with open(os.path.join(generated_dir, "sdram_phy.h"), "w") as f:
                 f.write(sdram_init.get_sdram_phy_header(sdram_phy_settings))
 
-        if self.csr_csv is not None:
-            with open(self.csr_csv, "w") as f:
-                f.write(cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
+    def _generate_csr_csv(self):
+        memory_regions = self.soc.get_memory_regions()
+        csr_regions = self.soc.get_csr_regions()
+        constants = self.soc.get_constants()
+        
+        with open(self.csr_csv, "w") as f:
+            f.write(cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
 
     def _prepare_software(self):
         for name, src_dir in self.software_packages:
@@ -144,6 +148,9 @@ class Builder:
             self._generate_includes()
             self._generate_software()
             self._initialize_rom()
+
+        if self.csr_csv is not None:
+            self._generate_csr_csv()
 
         if self.gateware_toolchain_path is not None:
             toolchain_path = self.gateware_toolchain_path
