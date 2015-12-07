@@ -9,6 +9,9 @@
 
 #include <net/microudp.h>
 
+//#define DEBUG_MICROUDP_TX
+//#define DEBUG_MICROUDP_TX
+
 #define ETHERTYPE_ARP 0x0806
 #define ETHERTYPE_IP  0x0800
 
@@ -132,6 +135,15 @@ static void send_packet(void)
 	txbuffer->raw[txlen+3] = (crc & 0xff000000) >> 24;
 	txlen += 4;
 #endif
+
+#ifdef DEBUG_MICROUDP_TX
+	int j;
+	printf(">>>> txlen : %d\n", txlen);
+	for(j=0;j<txlen;j++)
+		printf("%02x",txbuffer->raw[j]);
+	printf("\n");
+#endif
+
 	ethmac_sram_reader_slot_write(txslot);
 	ethmac_sram_reader_length_write(txlen);
 	while(!(ethmac_sram_reader_ready_read()));
@@ -356,6 +368,14 @@ void microudp_set_callback(udp_callback callback)
 static void process_frame(void)
 {
 	flush_cpu_dcache();
+
+#ifdef DEBUG_MICROUDP_RX
+	int j;
+	printf("<<< rxlen : %d\n", rxlen);
+	for(j=0;j<rxlen;j++)
+		printf("%02x", rxbuffer->raw[j]);
+	printf("\n");
+#endif
 
 #ifndef HW_PREAMBLE_CRC
 	int i;
