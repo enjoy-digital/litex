@@ -43,7 +43,7 @@ class EndpointDescription:
         return full_layout
 
 
-class _Endpoint(Record):
+class Endpoint(Record):
     def __init__(self, description_or_layout):
         if isinstance(description_or_layout, EndpointDescription):
             self.description = description_or_layout
@@ -58,12 +58,12 @@ class _Endpoint(Record):
             return getattr(object.__getattribute__(self, "param"), name)
 
 
-class Source(_Endpoint):
+class Source(Endpoint):
     def connect(self, sink):
         return Record.connect(self, sink)
 
 
-class Sink(_Endpoint):
+class Sink(Endpoint):
     def connect(self, source):
         return source.connect(self)
 
@@ -171,7 +171,7 @@ def _rawbits_layout(l):
 def pack_layout(l, n):
     return [("chunk"+str(i), l) for i in range(n)]
 
-def get_endpoints(obj, filt=_Endpoint):
+def get_endpoints(obj, filt=Endpoint):
     if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
         return obj.get_endpoints(filt)
     r = dict()
@@ -478,11 +478,11 @@ class Pipeline(Module):
             self.sink = m.sink
         for i in range(1, n):
             m_n = modules[i]
-            if isinstance(m, _Endpoint):
+            if isinstance(m, Endpoint):
                 source = m
             else:
                 source = m.source
-            if isinstance(m_n, _Endpoint):
+            if isinstance(m_n, Endpoint):
                 sink = m_n
             else:
                 sink = m_n.sink            
