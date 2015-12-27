@@ -32,9 +32,12 @@ class RemoteServer(EtherboneIPC):
             print("Connected with " + addr[0] + ":" + str(addr[1]))
             try:
                 while True:
-                    packet = self.receive_packet(client_socket)
-                    if packet == 0:
-                        break
+                    try:
+                        packet = self.receive_packet(client_socket)
+                        if packet == 0:
+                            break
+                    except:
+                    	break
                     packet = EtherbonePacket(packet)
                     packet.decode()
 
