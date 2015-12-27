@@ -445,7 +445,7 @@ class Converter(Module):
             upconverter = UpConverter(master, slave)
             self.submodules += upconverter
         else:
-            Record.connect(master, slave)
+            master.connect(slave)
 
 
 class Cache(Module):

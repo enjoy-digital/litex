@@ -159,7 +159,7 @@ class UART(Module, AutoCSR):
             tx_fifo.sink.stb.eq(self._rxtx.re),
             tx_fifo.sink.data.eq(self._rxtx.r),
             self._txfull.status.eq(~tx_fifo.sink.ack),
-            Record.connect(tx_fifo.source, phy.sink),
+            tx_fifo.source.connect(phy.sink),
             # Generate TX IRQ when tx_fifo becomes non-full
             self.ev.tx.trigger.eq(~tx_fifo.sink.ack)
         ]
@@ -169,7 +169,7 @@ class UART(Module, AutoCSR):
         self.submodules += rx_fifo
 
         self.comb += [
-            Record.connect(phy.source, rx_fifo.sink),
+            phy.source.connect(rx_fifo.sink),
             self._rxempty.status.eq(~rx_fifo.source.stb),
             self._rxtx.w.eq(rx_fifo.source.data),
             rx_fifo.source.ack.eq(self.ev.rx.clear),

@@ -38,7 +38,7 @@ class Arbiter(Module):
             pass
         elif len(masters) == 1:
             self.grant = Signal()
-            self.comb += Record.connect(masters.pop(), slave)
+            self.comb += masters.pop().connect(slave)
         else:
             self.submodules.rr = RoundRobin(len(masters))
             self.grant = self.rr.grant
@@ -47,7 +47,7 @@ class Arbiter(Module):
                 status = Status(master)
                 self.submodules += status
                 self.comb += self.rr.request[i].eq(status.ongoing)
-                cases[i] = [Record.connect(master, slave)]
+                cases[i] = [master.connect(slave)]
             self.comb += Case(self.grant, cases)
 
 
@@ -56,7 +56,7 @@ class Dispatcher(Module):
         if len(slaves) == 0:
             self.sel = Signal()
         elif len(slaves) == 1:
-            self.comb += Record.connect(master, slaves.pop())
+            self.comb += master.connect(slaves.pop())
             self.sel = Signal()
         else:
             if one_hot:
@@ -87,7 +87,7 @@ class Dispatcher(Module):
                     idx = 2**i
                 else:
                     idx = i
-                cases[idx] = [Record.connect(master, slave)]
+                cases[idx] = [master.connect(slave)]
             cases["default"] = [master.ack.eq(1)]
             self.comb += Case(sel, cases)
 
@@ -350,7 +350,7 @@ class Buffer(Module):
         data_fifo = SyncFIFO(description, data_depth, buffered=True)
         self.submodules += data_fifo
         self.comb += [
-            Record.connect(self.sink, data_fifo.sink),
+            self.sink.connect(data_fifo.sink, leave_out=set(["stb", "ack"])),
             data_fifo.sink.stb.eq(self.sink.stb & cmd_fifo.sink.ack),
             self.sink.ack.eq(data_fifo.sink.ack & cmd_fifo.sink.ack),
         ]
@@ -376,7 +376,7 @@ class Buffer(Module):
             source_error = Signal()
 
         fsm.act("OUTPUT",
-            Record.connect(data_fifo.source, self.source),
+            data_fifo.source.connect(self.source, leave_out=set("error")),
             source_error.eq(cmd_fifo.source.error),
             If(source_status.eop,
                 cmd_fifo.source.ack.eq(1),

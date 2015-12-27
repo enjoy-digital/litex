@@ -14,13 +14,13 @@ class ControllerInjector(Module, AutoCSR):
     def __init__(self, phy, controller_type, geom_settings, timing_settings):
         self.submodules.dfii = dfii.DFIInjector(geom_settings.addressbits, geom_settings.bankbits,
                 phy.settings.dfi_databits, phy.settings.nphases)
-        self.comb += Record.connect(self.dfii.master, phy.dfi)
+        self.comb += self.dfii.master.connect(phy.dfi)
 
         if controller_type == "lasmicon":
             self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings,
                                                                         geom_settings,
                                                                         timing_settings)
-            self.comb += Record.connect(controller.dfi, self.dfii.slave)
+            self.comb += controller.dfi.connect(self.dfii.slave)
 
             self.submodules.crossbar = lasmi_bus.LASMIxbar([controller.lasmic],
                                                            controller.nrowbits)
@@ -28,7 +28,7 @@ class ControllerInjector(Module, AutoCSR):
             self.submodules.controller = controller = minicon.Minicon(phy.settings,
                                                                       geom_settings,
                                                                       timing_settings)
-            self.comb += Record.connect(controller.dfi, self.dfii.slave)
+            self.comb += controller.dfi.connect(self.dfii.slave)
         else:
             raise ValueError("Unsupported SDRAM controller type")
 

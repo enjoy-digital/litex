@@ -59,13 +59,10 @@ class Endpoint(Record):
 
 
 class Source(Endpoint):
-    def connect(self, sink):
-        return Record.connect(self, sink)
-
+	pass
 
 class Sink(Endpoint):
-    def connect(self, source):
-        return source.connect(self)
+	pass
 
 
 class _FIFOWrapper(Module):
@@ -135,7 +132,7 @@ class Multiplexer(Module):
 
         cases = {}
         for i, sink in enumerate(sinks):
-            cases[i] = Record.connect(sink, self.source)
+            cases[i] = sink.connect(self.source)
         self.comb += Case(self.sel, cases)
 
 
@@ -153,7 +150,7 @@ class Demultiplexer(Module):
 
         cases = {}
         for i, source in enumerate(sources):
-            cases[i] = Record.connect(self.sink, source)
+            cases[i] = self.sink.connect(source)
         self.comb += Case(self.sel, cases)
 
 # TODO: clean up code below
@@ -254,13 +251,13 @@ class PipelinedActor(BinaryActor):
 
 class Buffer(PipelinedActor):
     def __init__(self, layout):
-        self.d = Sink(layout)
-        self.q = Source(layout)
+        self.sink = Sink(layout)
+        self.source = Source(layout)
         PipelinedActor.__init__(self, 1)
         self.sync += \
             If(self.pipe_ce,
-                self.q.payload.eq(self.d.payload),
-                self.q.param.eq(self.d.param)
+            	self.source.payload.eq(self.sink.payload),
+            	self.source.param.eq(self.sink.param)
             )
 
 
@@ -428,7 +425,6 @@ class Converter(Module):
     def __init__(self, layout_from, layout_to, reverse=False):
         self.sink = Sink(layout_from)
         self.source = Source(layout_to)
-        self.busy = Signal()
 
         # # #
 
@@ -443,12 +439,10 @@ class Converter(Module):
             self.submodules.chunkerize = Chunkerize(layout_from, layout_to, ratio, reverse)
             self.submodules.unpack = Unpack(ratio, layout_to)
 
-            self.comb += [
-                Record.connect(self.sink, self.chunkerize.sink),
-                Record.connect(self.chunkerize.source, self.unpack.sink),
-                Record.connect(self.unpack.source, self.source),
-                self.busy.eq(self.unpack.busy)
-            ]
+            self.submodules += Pipeline(self.sink,
+            	                        self.chunkerize,
+            	                        self.unpack,
+            	                        self.source)
         # upconverter
         elif width_to > width_from:
             if width_to % width_from:
@@ -457,15 +451,13 @@ class Converter(Module):
             self.submodules.pack = Pack(layout_from, ratio)
             self.submodules.unchunkerize = Unchunkerize(layout_from, ratio, layout_to, reverse)
 
-            self.comb += [
-                Record.connect(self.sink, self.pack.sink),
-                Record.connect(self.pack.source, self.unchunkerize.sink),
-                Record.connect(self.unchunkerize.source, self.source),
-                self.busy.eq(self.pack.busy)
-            ]
+            self.submodules += Pipeline(self.sink,
+            	                        self.pack,
+            	                        self.unchunkerize,
+                                        self.source)
         # direct connection
         else:
-            self.comb += Record.connect(self.sink, self.source)
+            self.comb += self.sink.connect(self.source)
 
 
 class Pipeline(Module):
@@ -487,7 +479,7 @@ class Pipeline(Module):
             else:
                 sink = m_n.sink            
             if m is not m_n:
-                self.comb += Record.connect(source, sink)
+                self.comb += source.connect(sink)
             m = m_n
         # expose source of last module
         # if available
@@ -515,14 +507,14 @@ class BufferizeEndpoints(ModuleTransformer):
         for name, sink in sinks.items():
             buf = Buffer(sink.description)
             submodule.submodules += buf
-            setattr(submodule, name, buf.d)
-            submodule.comb += Record.connect(buf.q, sink)
+            setattr(submodule, name, buf.sink)
+            submodule.comb += buf.source.connect(sink)
 
         # add buffer on sources
         for name, source in sources.items():
             buf = Buffer(source.description)
             submodule.submodules += buf
-            submodule.comb += Record.connect(source, buf.d)
-            setattr(submodule, name, buf.q)
+            submodule.comb += source.connect(buf.sink)
+            setattr(submodule, name, buf.source)
 
 # XXX
