@@ -154,9 +154,10 @@ class Builder:
 
         if self.gateware_toolchain_path is not None:
             toolchain_path = self.gateware_toolchain_path
-        self.soc.build(build_dir=os.path.join(self.output_dir, "gateware"),
-                       run=self.compile_gateware, toolchain_path=toolchain_path,
-                       **kwargs)
+        vns = self.soc.build(build_dir=os.path.join(self.output_dir, "gateware"),
+                             run=self.compile_gateware, toolchain_path=toolchain_path,
+                             **kwargs)
+        return vns
 
 
 def builder_args(parser):

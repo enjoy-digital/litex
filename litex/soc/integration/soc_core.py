@@ -201,7 +201,7 @@ class SoCCore(Module):
                     self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
 
     def build(self, *args, **kwargs):
-        self.platform.build(self, *args, **kwargs)
+        return self.platform.build(self, *args, **kwargs)
 
 
 def soc_core_args(parser):
