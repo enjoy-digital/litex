@@ -468,7 +468,11 @@ static int test_user_abort(void)
 #endif
 	timer0_en_write(0);
 	timer0_reload_write(0);
+#ifndef TEST_USER_ABORT_DELAY
 	timer0_load_write(SYSTEM_CLOCK_FREQUENCY*2);
+#else
+	timer0_load_write(TEST_USER_ABORT_DELAY);
+#endif
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	while(timer0_value_read()) {
