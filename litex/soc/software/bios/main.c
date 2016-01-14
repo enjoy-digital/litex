@@ -500,15 +500,15 @@ static void boot_sequence(void)
 #ifdef FLASH_BOOT_ADDRESS
 		flashboot();
 #endif
+#ifdef ROM_BOOT_ADDRESS
+		romboot();
+#endif
 		serialboot();
 #ifdef CSR_ETHMAC_BASE
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
 		eth_mode();
 #endif
 		netboot();
-#endif
-#ifdef ROM_BOOT_ADDRESS
-		romboot();
 #endif
 		printf("No boot medium found\n");
 	}
