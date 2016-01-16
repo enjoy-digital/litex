@@ -34,10 +34,10 @@ setup(
     include_package_data=True,
     entry_points={
         "console_scripts": [
-            "flterm=litex.soc.tools.flterm:main",
+            "litex_term=litex.soc.tools.litex_term:main",
             "mkmscimg=litex.soc.tools.mkmscimg:main",
-            "remote_server=litex.soc.tools.remote.server:main",
-            "remote_client=litex.soc.tools.remote.client:main"
+            "litex_server=litex.soc.tools.remote.litex_server:main",
+            "litex_client=litex.soc.tools.remote.litex_client:main"
         ],
     },
 )
