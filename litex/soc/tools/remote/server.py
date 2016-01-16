@@ -1,3 +1,4 @@
+import sys
 import socket
 import threading
 import argparse
@@ -71,17 +72,21 @@ class RemoteServer(EtherboneIPC):
         self.serve_thread.start()
 
 
-def _get_args():
+def _get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--comm", default="uart", help="comm interface")
-    parser.add_argument("--port", default="2", help="UART port")
+    parser.add_argument("--port", help="UART port")
     parser.add_argument("--baudrate", default=115200, help="UART baudrate")
     parser.add_argument("--debug", action="store_true", help="enable debug")
-    return parser.parse_args()
+    return parser
 
 def main():
     print("LiteX remote server")
-    args = _get_args()
+    parser = _get_parser()
+    if len(sys.argv) < 2:
+        parser.print_help()
+        sys.exit()
+    args = parser.parse_args()
     if args.comm == "uart":
         from litex.soc.tools.remote import CommUART
         print("Using CommUART, port: {} / baudrate: {}".format(args.port, args.baudrate))
