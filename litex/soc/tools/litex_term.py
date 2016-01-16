@@ -133,7 +133,7 @@ def get_file_data(filename):
     return data
 
 
-class Flterm:
+class LiteXTerm:
     def __init__(self, kernel_image, kernel_address):
         self.kernel_image = kernel_image
         self.kernel_address = kernel_address
@@ -178,13 +178,13 @@ class Flterm:
             elif reply == sfl_ack_crcerror:
                 retry = 1
             else:
-                print("[FLTERM] Got unknown reply '{}' from the device, aborting.".format(reply))
+                print("[TERM] Got unknown reply '{}' from the device, aborting.".format(reply))
                 return 0
         return 1
 
     def upload(self, filename, address):
         data = get_file_data(filename)
-        print("[FLTERM] Uploading {} ({} bytes)...".format(filename, len(data)))
+        print("[TERM] Uploading {} ({} bytes)...".format(filename, len(data)))
         current_address = address
         position = 0
         length = len(data)
@@ -209,11 +209,11 @@ class Flterm:
                 data = []
         end = time.time()
         elapsed = end - start
-        print("[FLTERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
+        print("[TERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
         return length
 
     def boot(self):
-        print("[FLTERM] Booting the device.")
+        print("[TERM] Booting the device.")
         frame = SFLFrame()
         frame.length = 4
         frame.cmd = sfl_cmd_jump
@@ -229,12 +229,12 @@ class Flterm:
             return False
 
     def answer_magic(self):
-        print("[FLTERM] Received firmware download request from the device.")
+        print("[TERM] Received firmware download request from the device.")
         if os.path.exists(self.kernel_image):
             self.write_exact(sfl_magic_ack)
             self.upload(self.kernel_image, self.kernel_address)
             self.boot()
-        print("[FLTERM] Done.");
+        print("[TERM] Done.");
 
     def reader(self):
         try:
@@ -293,7 +293,7 @@ class Flterm:
         self.writer_thread.join()
 
     def start(self):
-        print("[FLTERM] Starting....")
+        print("[TERM] Starting....")
         self.start_reader()
         self.start_writer()
 
@@ -318,11 +318,11 @@ def _get_args():
 
 def main():
     args = _get_args()
-    flterm = Flterm(args.kernel, args.kernel_adr)
-    flterm.open(args.port, args.speed)
-    flterm.start()
+    term = LiteXTerm(args.kernel, args.kernel_adr)
+    term.open(args.port, args.speed)
+    term.start()
     try:
-        flterm.join(True)
+        term.join(True)
     except KeyboardInterrupt:
         pass
 
