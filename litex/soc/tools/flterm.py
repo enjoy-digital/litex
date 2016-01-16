@@ -7,7 +7,33 @@ import serial
 import threading
 import argparse
 
-from serial.tools.miniterm import console, character, LF
+
+if sys.platform == "win32":
+    def getkey():
+        import msvcrt
+        return msvcrt.getch()
+
+else:
+    def getkey():
+        import termios
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        new = termios.tcgetattr(fd)
+        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
+        new[6][termios.VMIN] = 1
+        new[6][termios.VTIME] = 0
+        termios.tcsetattr(fd, termios.TCSANOW, new)
+        c = None
+        try:
+            c = os.read(fd, 1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSAFLUSH, old)
+        return c
+
+
+def character(b):
+    return b.decode('latin1')
+
 
 sfl_magic_len = 14
 sfl_magic_req = "sL5DdSMmkekro\n"
@@ -242,14 +268,14 @@ class Flterm:
         try:
             while self.writer_alive:
                 try:
-                    b = console.getkey()
+                    b = getkey()
                 except KeyboardInterrupt:
                     b = serial.to_bytes([3])
                 c = character(b)
                 if c == chr(0x03):
                     self.stop()
                 elif c == '\n':
-                    self.serial.write(LF)
+                    self.serial.write(serial.to_bytes([10]))
                 else:
                     self.serial.write(b)
         except:
