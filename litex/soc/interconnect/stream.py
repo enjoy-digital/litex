@@ -59,10 +59,10 @@ class Endpoint(Record):
 
 
 class Source(Endpoint):
-	pass
+    pass
 
 class Sink(Endpoint):
-	pass
+    pass
 
 
 class _FIFOWrapper(Module):
@@ -256,8 +256,8 @@ class Buffer(PipelinedActor):
         PipelinedActor.__init__(self, 1)
         self.sync += \
             If(self.pipe_ce,
-            	self.source.payload.eq(self.sink.payload),
-            	self.source.param.eq(self.sink.param)
+                self.source.payload.eq(self.sink.payload),
+                self.source.param.eq(self.sink.param)
             )
 
 
@@ -315,6 +315,11 @@ class Unpack(Module):
             cases[i] = [source.payload.raw_bits().eq(getattr(sink.payload, "chunk"+str(chunk)).raw_bits())]
         self.comb += Case(mux, cases).makedefault()
 
+        for f in description_from.param_layout:
+            src = getattr(self.sink, f[0])
+            dst = getattr(self.source, f[0])
+            self.comb += dst.eq(src)
+
         if description_from.packetized:
             self.comb += [
                 source.sop.eq(sink.sop & first),
@@ -346,6 +351,11 @@ class Pack(Module):
             source.stb.eq(strobe_all),
             load_part.eq(sink.stb & sink.ack)
         ]
+
+        for f in description_to.param_layout:
+            src = getattr(self.sink, f[0])
+            dst = getattr(self.source, f[0])
+            self.sync += If(load_part, dst.eq(src))
 
         if description_to.packetized:
             demux_last = ((demux == (n - 1)) | sink.eop)
@@ -397,6 +407,11 @@ class Chunkerize(CombinatorialActor):
                 dst = getattr(getattr(self.source, "chunk"+str(chunk)), f[0])
                 self.comb += dst.eq(src[i*len(src)//n:(i+1)*len(src)//n])
 
+        for f in self.sink.description.param_layout:
+            src = getattr(self.sink, f[0])
+            dst = getattr(self.source, f[0])
+            self.comb += dst.eq(src)
+
 
 class Unchunkerize(CombinatorialActor):
     def __init__(self, layout_from, n, layout_to, reverse=False):
@@ -420,6 +435,11 @@ class Unchunkerize(CombinatorialActor):
                 dst = getattr(self.source, f[0])
                 self.comb += dst[i*len(dst)//n:(i+1)*len(dst)//n].eq(src)
 
+        for f in self.sink.description.param_layout:
+            src = getattr(self.sink, f[0])
+            dst = getattr(self.source, f[0])
+            self.comb += dst.eq(src)
+
 
 class Converter(Module):
     def __init__(self, layout_from, layout_to, reverse=False):
@@ -440,9 +460,9 @@ class Converter(Module):
             self.submodules.unpack = Unpack(ratio, layout_to)
 
             self.submodules += Pipeline(self.sink,
-            	                        self.chunkerize,
-            	                        self.unpack,
-            	                        self.source)
+                                        self.chunkerize,
+                                        self.unpack,
+                                        self.source)
         # upconverter
         elif width_to > width_from:
             if width_to % width_from:
@@ -452,8 +472,8 @@ class Converter(Module):
             self.submodules.unchunkerize = Unchunkerize(layout_from, ratio, layout_to, reverse)
 
             self.submodules += Pipeline(self.sink,
-            	                        self.pack,
-            	                        self.unchunkerize,
+                                        self.pack,
+                                        self.unchunkerize,
                                         self.source)
         # direct connection
         else:
