@@ -179,26 +179,27 @@ class SoCCore(Module):
                 if mem not in registered_mems:
                     raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
 
-        # Wishbone
-        self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
-            self._wb_slaves, register=True)
+        if len(self._wb_masters):
+            # Wishbone
+            self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
+                self._wb_slaves, register=True)
 
-        # CSR
-        self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
-            lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
-            data_width=self.csr_data_width, address_width=self.csr_address_width)
-        self.submodules.csrcon = csr_bus.Interconnect(
-            self.wishbone2csr.csr, self.csrbankarray.get_buses())
-        for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
-            self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
-        for name, memory, mapaddr, mmap in self.csrbankarray.srams:
-            self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
+            # CSR
+            self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
+                lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
+                data_width=self.csr_data_width, address_width=self.csr_address_width)
+            self.submodules.csrcon = csr_bus.Interconnect(
+                self.wishbone2csr.csr, self.csrbankarray.get_buses())
+            for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+                self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
+            for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+                self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
 
-        # Interrupts
-        if hasattr(self.cpu_or_bridge, "interrupt"):
-            for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
-                if hasattr(self, k):
-                    self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
+            # Interrupts
+            if hasattr(self.cpu_or_bridge, "interrupt"):
+                for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
+                    if hasattr(self, k):
+                        self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
 
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
