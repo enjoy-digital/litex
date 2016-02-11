@@ -310,7 +310,7 @@ class Signal(_Value):
         defaults to 0) and `max` (exclusive, defaults to 2).
     related : Signal or None
     """
-    def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None, related=None):
+    def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None, related=None, attribute=""):
         from litex.gen.fhdl.bitcontainer import bits_for
 
         _Value.__init__(self)
@@ -339,6 +339,7 @@ class Signal(_Value):
         self.name_override = name_override
         self.backtrace = _tracer.trace_back(name)
         self.related = related
+        self.attribute = attribute
 
     def __setattr__(self, k, v):
         if k == "reset":
@@ -524,7 +525,7 @@ class Case(_Statement):
         for k, v in cases.items():
             if isinstance(k, (bool, int)):
                 k = Constant(k)
-            if (not isinstance(k, Constant) 
+            if (not isinstance(k, Constant)
                     and not (isinstance(k, str) and k == "default")):
                 raise TypeError("Case object is not a Migen constant")
             if not isinstance(v, _collections.Iterable):

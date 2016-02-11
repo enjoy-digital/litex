@@ -196,13 +196,16 @@ def _printheader(f, ios, name, ns,
             r += "\tinput " + _printsig(ns, sig)
     r += "\n);\n\n"
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
+        attributes = ""
+        if sig.attribute != "":
+            attributes = "(*" + sig.attribute[:-1] + "*) "
         if sig in wires:
-            r += "wire " + _printsig(ns, sig) + ";\n"
+            r += attributes + "wire " + _printsig(ns, sig) + ";\n"
         else:
             if reg_initialization:
-                r += "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
+                r += attributes + "reg " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
             else:
-                r += "reg " + _printsig(ns, sig) + ";\n"
+                r += attributes + "reg " + _printsig(ns, sig) + ";\n"
     r += "\n"
     return r
 

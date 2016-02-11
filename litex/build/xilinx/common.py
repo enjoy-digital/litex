@@ -44,7 +44,7 @@ def settings(path, ver=None, sub=None):
 
 class XilinxNoRetimingImpl(Module):
     def __init__(self, reg):
-        self.specials += SynthesisDirective("attribute register_balancing of {r} is no", r=reg)
+        reg.attribute += " OPTIMIZE =\"OFF\"," # XXX "register balancing is no" equivalent?
 
 
 class XilinxNoRetiming:
@@ -52,12 +52,11 @@ class XilinxNoRetiming:
     def lower(dr):
         return XilinxNoRetimingImpl(dr.reg)
 
-
 class XilinxMultiRegImpl(MultiRegImpl):
     def __init__(self, *args, **kwargs):
         MultiRegImpl.__init__(self, *args, **kwargs)
-        self.specials += [SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
-            for r in self.regs]
+        for reg in self.regs:
+            reg.attribute += " SHIFT_EXTRACT=\"NO\", ASYNC_REG=\"TRUE\","
 
 
 class XilinxMultiReg:
