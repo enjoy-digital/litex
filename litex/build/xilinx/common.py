@@ -42,27 +42,52 @@ def settings(path, ver=None, sub=None):
     raise OSError("no settings file found")
 
 
-class XilinxNoRetimingImpl(Module):
+class XilinxNoRetimingVivadoImpl(Module):
     def __init__(self, reg):
-        reg.attribute += " OPTIMIZE =\"OFF\"," # XXX "register balancing is no" equivalent?
+        pass # No equivalent in Vivado
 
 
-class XilinxNoRetiming:
+class XilinxNoRetimingVivado:
     @staticmethod
     def lower(dr):
-        return XilinxNoRetimingImpl(dr.reg)
+        return XilinxNoRetimingVivadoImpl(dr.reg)
 
-class XilinxMultiRegImpl(MultiRegImpl):
+
+class XilinxNoRetimingISEImpl(Module):
+    def __init__(self, reg):
+        self.specials += SynthesisDirective("attribute register_balancing of {r} is no", r=reg)
+
+
+class XilinxNoRetimingISE:
+    @staticmethod
+    def lower(dr):
+        return XilinxNoRetimingISEImpl(dr.reg)
+
+
+class XilinxMultiRegVivadoImpl(MultiRegImpl):
     def __init__(self, *args, **kwargs):
         MultiRegImpl.__init__(self, *args, **kwargs)
         for reg in self.regs:
             reg.attribute += " SHIFT_EXTRACT=\"NO\", ASYNC_REG=\"TRUE\","
 
 
-class XilinxMultiReg:
+class XilinxMultiRegVivado:
     @staticmethod
     def lower(dr):
-        return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
+        return XilinxMultiRegVivadoImpl(dr.i, dr.o, dr.odomain, dr.n)
+
+
+class XilinxMultiRegISEImpl(MultiRegImpl):
+    def __init__(self, *args, **kwargs):
+        MultiRegImpl.__init__(self, *args, **kwargs)
+        self.specials += [SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
+            for r in self.regs]
+
+
+class XilinxMultiRegISE:
+    @staticmethod
+    def lower(dr):
+        return XilinxMultiRegISEImpl(dr.i, dr.o, dr.odomain, dr.n)
 
 
 class XilinxAsyncResetSynchronizerImpl(Module):
@@ -120,12 +145,22 @@ class XilinxDDROutput:
 
 
 xilinx_special_overrides = {
-    NoRetiming:             XilinxNoRetiming,
-    MultiReg:               XilinxMultiReg,
     AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
     DifferentialInput:      XilinxDifferentialInput,
     DifferentialOutput:     XilinxDifferentialOutput,
     DDROutput:              XilinxDDROutput
+}
+
+
+xilinx_vivado_special_overrides = {
+    NoRetiming:             XilinxNoRetimingVivado,
+    MultiReg:               XilinxMultiRegVivado
+}
+
+
+xilinx_ise_special_overrides = {
+    NoRetiming:             XilinxNoRetimingISE,
+    MultiReg:               XilinxMultiRegISE
 }
 
 
