@@ -31,10 +31,6 @@ else:
         return c
 
 
-def character(b):
-    return b.decode('latin1')
-
-
 sfl_magic_len = 14
 sfl_magic_req = "sL5DdSMmkekro\n"
 sfl_magic_ack = "z6IHG7cYDID6o\n"
@@ -161,7 +157,7 @@ class LiteXTerm:
         while retry:
             self.write_exact(frame.raw)
             # Get the reply from the device
-            reply = character(self.serial.read())
+            reply = self.serial.read().decode()
             if reply == sfl_ack_success:
                 retry = 0
             elif reply == sfl_ack_crcerror:
@@ -229,7 +225,7 @@ class LiteXTerm:
     def reader(self):
         try:
             while self.reader_alive:
-                c = character(self.serial.read())
+                c = self.serial.read().decode()
                 if c == '\r':
                     sys.stdout.write('\n')
                 else:
@@ -261,7 +257,7 @@ class LiteXTerm:
                     b = getkey()
                 except KeyboardInterrupt:
                     b = serial.to_bytes([3])
-                c = character(b)
+                c = b.decode()
                 if c == chr(0x03):
                     self.stop()
                 elif c == '\n':
