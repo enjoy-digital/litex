@@ -32,8 +32,8 @@ else:
 
 
 sfl_magic_len = 14
-sfl_magic_req = "sL5DdSMmkekro\n"
-sfl_magic_ack = "z6IHG7cYDID6o\n"
+sfl_magic_req = bytes("sL5DdSMmkekro\n", "utf-8")
+sfl_magic_ack = bytes("z6IHG7cYDID6o\n", "utf-8")
 
 # General commands
 sfl_cmd_abort = 0x00
@@ -126,7 +126,7 @@ class LiteXTerm:
         self.reader_alive = False
         self.writer_alive = False
 
-        self.detect_magic_str = " "*len(sfl_magic_req)
+        self.detect_magic_bytes = bytearray([0 for i in range(len(sfl_magic_req))])
 
     def open(self, port, speed):
         self.serial = serial.serial_for_url(
@@ -145,17 +145,11 @@ class LiteXTerm:
     def close(self):
         self.serial.close()
 
-    def write_exact(self, data):
-        if isinstance(data, str):
-            self.serial.write(bytes(data, "utf-8"))
-        else:
-            self.serial.write(serial.to_bytes(data))
-
     def send_frame(self, frame):
         frame.encode()
         retry = 1
         while retry:
-            self.write_exact(frame.raw)
+            self.serial.write(frame.raw)
             # Get the reply from the device
             reply = self.serial.read().decode()
             if reply == sfl_ack_success:
@@ -208,16 +202,16 @@ class LiteXTerm:
         self.send_frame(frame)
 
     def detect_magic(self, data):
-        if data is not "":
-            self.detect_magic_str = self.detect_magic_str[1:] + data
-            return self.detect_magic_str == sfl_magic_req
+        if len(data):
+            self.detect_magic_bytes = self.detect_magic_bytes[1:] + data
+            return self.detect_magic_bytes == sfl_magic_req
         else:
             return False
 
     def answer_magic(self):
         print("[TERM] Received firmware download request from the device.")
         if os.path.exists(self.kernel_image):
-            self.write_exact(sfl_magic_ack)
+            self.serial.write(sfl_magic_ack)
             self.upload(self.kernel_image, self.kernel_address)
             self.boot()
         print("[TERM] Done.");
@@ -233,7 +227,7 @@ class LiteXTerm:
                 sys.stdout.flush()
 
                 if self.kernel_image is not None:
-                    if self.detect_magic(c):
+                    if self.detect_magic(bytes(c, "utf-8")):
                         self.answer_magic()
 
         except serial.SerialException:
