@@ -122,17 +122,6 @@ class SFLFrame:
             self.raw.append(d)
 
 
-def get_file_data(filename):
-    with open(filename, "rb") as f:
-        data = []
-        while True:
-            w = f.read(1)
-            if not w:
-                break
-            data.append(int.from_bytes(w, "big"))
-    return data
-
-
 class LiteXTerm:
     def __init__(self, kernel_image, kernel_address):
         self.kernel_image = kernel_image
@@ -183,13 +172,14 @@ class LiteXTerm:
         return 1
 
     def upload(self, filename, address):
-        data = get_file_data(filename)
+        with open(filename, "rb") as f:
+            data = f.read()
         print("[TERM] Uploading {} ({} bytes)...".format(filename, len(data)))
         current_address = address
         position = 0
         length = len(data)
         start = time.time()
-        while len(data) != 0:
+        while len(data):
             print("{}%\r".format(100*position//length), end="")
             frame = SFLFrame()
             frame_data = data[:251]
