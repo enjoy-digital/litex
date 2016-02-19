@@ -21,6 +21,7 @@ class CommUART:
     def close(self):
         if not hasattr(self, "port"):
             return
+        self.port.close()
         del self.port
 
     def _read(self, length):
