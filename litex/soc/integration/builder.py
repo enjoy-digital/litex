@@ -30,8 +30,7 @@ class Builder:
     def __init__(self, soc, output_dir=None,
                  compile_software=True, compile_gateware=True,
                  gateware_toolchain_path=None,
-                 csr_csv=None,
-                 use_symlinks=False):
+                 csr_csv=None):
         self.soc = soc
         if output_dir is None:
             output_dir = "soc_{}_{}".format(
@@ -44,7 +43,6 @@ class Builder:
         self.compile_gateware = compile_gateware
         self.gateware_toolchain_path = gateware_toolchain_path
         self.csr_csv = csr_csv
-        self.use_symlinks = use_symlinks
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -96,7 +94,7 @@ class Builder:
         memory_regions = self.soc.get_memory_regions()
         csr_regions = self.soc.get_csr_regions()
         constants = self.soc.get_constants()
-        
+
         with open(self.csr_csv, "w") as f:
             f.write(cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
 
@@ -104,22 +102,13 @@ class Builder:
         for name, src_dir in self.software_packages:
             dst_dir = os.path.join(self.output_dir, "software", name)
             os.makedirs(dst_dir, exist_ok=True)
-            src = os.path.join(src_dir, "Makefile")
-            dst = os.path.join(dst_dir, "Makefile")
-            if self.use_symlinks:    
-                try:
-                    os.remove(dst)
-                except FileNotFoundError:
-                    pass
-                os.symlink(src, dst)
-            else:
-                 shutil.copy(src, dst)
 
     def _generate_software(self):
          for name, src_dir in self.software_packages:
             dst_dir = os.path.join(self.output_dir, "software", name)
+            makefile = os.path.join(src_dir, "Makefile")
             if self.compile_software:
-                subprocess.check_call(["make", "-C", dst_dir])
+                subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
 
     def _initialize_rom(self):
         bios_file = os.path.join(self.output_dir, "software", "bios",
