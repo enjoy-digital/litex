@@ -14,13 +14,12 @@ def _make_m2s(layout):
 
 
 class EndpointDescription:
-    def __init__(self, payload_layout, param_layout=[], packetized=True):
+    def __init__(self, payload_layout, param_layout=[]):
         self.payload_layout = payload_layout
         self.param_layout = param_layout
-        self.packetized = packetized
 
     def get_full_layout(self):
-        reserved = {"stb", "ack", "payload", "param", "sop", "eop", "description"}
+        reserved = {"stb", "ack", "payload", "param", "eop", "description"}
         attributed = set()
         for f in self.payload_layout + self.param_layout:
             if f[0] in attributed:
@@ -33,13 +32,9 @@ class EndpointDescription:
             ("payload", _make_m2s(self.payload_layout)),
             ("param", _make_m2s(self.param_layout)),
             ("stb", 1, DIR_M_TO_S),
-            ("ack", 1, DIR_S_TO_M)
+            ("ack", 1, DIR_S_TO_M),
+            ("eop", 1, DIR_M_TO_S)
         ]
-        if self.packetized:
-            full_layout += [
-                ("sop", 1, DIR_M_TO_S),
-                ("eop", 1, DIR_M_TO_S)
-            ]
         return full_layout
 
 
@@ -74,9 +69,8 @@ class _FIFOWrapper(Module):
         # # #
 
         description = self.sink.description
-        fifo_layout = [("payload", description.payload_layout)]
-        if description.packetized:
-            fifo_layout += [("sop", 1), ("eop", 1)]
+        fifo_layout = [("payload", description.payload_layout),
+                       ("eop", 1)]
 
         self.submodules.fifo = fifo_class(layout_len(fifo_layout), depth)
         fifo_in = Record(fifo_layout)
@@ -89,19 +83,14 @@ class _FIFOWrapper(Module):
         self.comb += [
             self.sink.ack.eq(self.fifo.writable),
             self.fifo.we.eq(self.sink.stb),
+            fifo_in.eop.eq(self.sink.eop),
             fifo_in.payload.eq(self.sink.payload),
 
             self.source.stb.eq(self.fifo.readable),
+            self.source.eop.eq(fifo_out.eop),
             self.source.payload.eq(fifo_out.payload),
             self.fifo.re.eq(self.source.ack)
         ]
-        if description.packetized:
-            self.comb += [
-                fifo_in.sop.eq(self.sink.sop),
-                fifo_in.eop.eq(self.sink.eop),
-                self.source.sop.eq(fifo_out.sop),
-                self.source.eop.eq(fifo_out.eop)
-            ]
 
 
 class SyncFIFO(_FIFOWrapper):
@@ -199,14 +188,10 @@ class CombinatorialActor(BinaryActor):
     def build_binary_control(self, sink, source):
         self.comb += [
             source.stb.eq(sink.stb),
+            source.eop.eq(sink.eop),
             sink.ack.eq(source.ack),
             self.busy.eq(0)
         ]
-        if sink.description.packetized:
-            self.comb += [
-                source.sop.eq(sink.sop),
-                source.eop.eq(sink.eop)
-            ]
 
 
 class PipelinedActor(BinaryActor):
@@ -229,24 +214,15 @@ class PipelinedActor(BinaryActor):
             source.stb.eq(valid),
             self.busy.eq(busy)
         ]
-        if sink.description.packetized:
-            sop = sink.stb & sink.sop
-            eop = sink.stb & sink.eop
-            for i in range(latency):
-                sop_n = Signal()
-                eop_n = Signal()
-                self.sync += \
-                    If(self.pipe_ce,
-                        sop_n.eq(sop),
-                        eop_n.eq(eop)
-                    )
-                sop = sop_n
-                eop = eop_n
-
-            self.comb += [
-                source.eop.eq(eop),
-                source.sop.eq(sop)
-            ]
+        eop = sink.stb & sink.eop
+        for i in range(latency):
+            eop_n = Signal()
+            self.sync += \
+                If(self.pipe_ce,
+                    eop_n.eq(eop)
+                )
+            eop = eop_n
+        self.comb += source.eop.eq(eop)
 
 
 class Buffer(PipelinedActor):
@@ -292,10 +268,8 @@ class Unpack(Module):
         # # #
 
         mux = Signal(max=n)
-        first = Signal()
         last = Signal()
         self.comb += [
-            first.eq(mux == 0),
             last.eq(mux == (n-1)),
             source.stb.eq(sink.stb),
             sink.ack.eq(last & source.ack)
@@ -320,11 +294,7 @@ class Unpack(Module):
             dst = getattr(self.source, f[0])
             self.comb += dst.eq(src)
 
-        if description_from.packetized:
-            self.comb += [
-                source.sop.eq(sink.sop & first),
-                source.eop.eq(sink.eop & last)
-            ]
+        self.comb += source.eop.eq(sink.eop & last)
 
 
 class Pack(Module):
@@ -357,10 +327,7 @@ class Pack(Module):
             dst = getattr(self.source, f[0])
             self.sync += If(load_part, dst.eq(src))
 
-        if description_to.packetized:
-            demux_last = ((demux == (n - 1)) | sink.eop)
-        else:
-            demux_last = (demux == (n - 1))
+        demux_last = ((demux == (n - 1)) | sink.eop)
 
         self.sync += [
             If(source.ack, strobe_all.eq(0)),
@@ -372,19 +339,13 @@ class Pack(Module):
                 ).Else(
                     demux.eq(demux + 1)
                 )
+            ),
+            If(source.stb & source.ack,
+                source.eop.eq(sink.eop),
+            ).Elif(sink.stb & sink.ack,
+                source.eop.eq(sink.eop | source.eop)
             )
         ]
-
-        if description_to.packetized:
-            self.sync += [
-                If(source.stb & source.ack,
-                    source.sop.eq(sink.sop),
-                    source.eop.eq(sink.eop),
-                ).Elif(sink.stb & sink.ack,
-                    source.sop.eq(sink.sop | source.sop),
-                    source.eop.eq(sink.eop | source.eop)
-                )
-            ]
 
 
 class Chunkerize(CombinatorialActor):

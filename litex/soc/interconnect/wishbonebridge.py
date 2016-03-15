@@ -158,10 +158,7 @@ class WishboneStreamingBridge(Module):
 
         self.comb += timer.wait.eq(~fsm.ongoing("IDLE"))
 
-        if phy.sink.description.packetized:
-            self.comb += [
-                phy.sink.sop.eq((byte_counter == 0) & (word_counter == 0)),
-                phy.sink.eop.eq((byte_counter == 3) & (word_counter == length - 1))
-            ]
-            if hasattr(phy.sink, "length"):
-                self.comb += phy.sink.length.eq(4*length)
+        self.comb += phy.sink.eop.eq((byte_counter == 3) & (word_counter == length - 1))
+
+        if hasattr(phy.sink, "length"):
+            self.comb += phy.sink.length.eq(4*length)

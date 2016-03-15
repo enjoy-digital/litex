@@ -18,18 +18,25 @@ def reverse_bytes(signal):
 
 class Status(Module):
     def __init__(self, endpoint):
-        self.sop = sop = Signal()
-        self.eop = eop =Signal()
+        self.first = first = Signal(reset=1)
+        self.eop = eop = Signal()
         self.ongoing = Signal()
 
         ongoing = Signal()
         self.comb += \
             If(endpoint.stb,
-                sop.eq(endpoint.sop),
                 eop.eq(endpoint.eop & endpoint.ack)
             )
-        self.sync += ongoing.eq((sop | ongoing) & ~eop)
-        self.comb += self.ongoing.eq((sop | ongoing) & ~eop)
+        self.sync += ongoing.eq((endpoint.stb | ongoing) & ~eop)
+        self.comb += self.ongoing.eq((endpoint.stb | ongoing) & ~eop)
+
+        self.sync += [
+            If(eop,
+                first.eq(1)
+            ).Elif(endpoint.stb & endpoint.ack,
+                first.eq(0)
+            )
+        ]
 
 
 class Arbiter(Module):
@@ -72,11 +79,11 @@ class Dispatcher(Module):
             sel = Signal.like(self.sel)
             sel_ongoing = Signal.like(self.sel)
             self.sync += \
-                If(status.sop,
+                If(status.first,
                     sel_ongoing.eq(self.sel)
                 )
             self.comb += \
-                If(status.sop,
+                If(status.first,
                     sel.eq(self.sel)
                 ).Else(
                     sel.eq(sel_ongoing)
@@ -197,10 +204,9 @@ class Packetizer(Module):
         fsm.act("IDLE",
             sink.ack.eq(1),
             counter_reset.eq(1),
-            If(sink.stb & sink.sop,
+            If(sink.stb,
                 sink.ack.eq(0),
                 source.stb.eq(1),
-                source.sop.eq(1),
                 source.eop.eq(0),
                 source.data.eq(self.header[:dw]),
                 If(source.stb & source.ack,
@@ -212,7 +218,6 @@ class Packetizer(Module):
         if header_words != 1:
             fsm.act("SEND_HEADER",
                 source.stb.eq(1),
-                source.sop.eq(0),
                 source.eop.eq(0),
                 source.data.eq(header_reg[dw:2*dw]),
                 If(source.stb & source.ack,
@@ -225,7 +230,6 @@ class Packetizer(Module):
             )
         fsm.act("COPY",
             source.stb.eq(sink.stb),
-            source.sop.eq(0),
             source.eop.eq(sink.eop),
             source.data.eq(sink.data),
             source.error.eq(sink.error),
@@ -302,10 +306,7 @@ class Depacketizer(Module):
         no_payload = Signal()
         self.sync += \
             If(fsm.before_entering("COPY"),
-                source.sop.eq(1),
                 no_payload.eq(sink.eop)
-            ).Elif(source.stb & source.ack,
-                source.sop.eq(0)
             )
 
         if hasattr(sink, "error"):
@@ -360,13 +361,6 @@ class Buffer(Module):
         self.submodules += fsm
         fsm.act("IDLE",
             If(cmd_fifo.source.stb,
-                NextState("SEEK_SOP")
-            )
-        )
-        fsm.act("SEEK_SOP",
-            If(~data_fifo.source.sop,
-                data_fifo.source.ack.eq(1)
-            ).Else(
                 NextState("OUTPUT")
             )
         )

@@ -120,21 +120,17 @@ class PacketStreamer(Module):
             self.packet = self.packets.pop(0)
         if not self.packet.ongoing and not self.packet.done:
             selfp.source.stb = 1
-            if self.source.description.packetized:
-                selfp.source.sop = 1
             selfp.source.data = self.packet.pop(0)
             self.packet.ongoing = True
         elif selfp.source.stb == 1 and selfp.source.ack == 1:
-            if self.source.description.packetized:
-                selfp.source.sop = 0
-                if len(self.packet) == 1:
-                    selfp.source.eop = 1
-                    if self.last_be is not None:
-                        selfp.source.last_be = self.last_be
-                else:
-                    selfp.source.eop = 0
-                    if self.last_be is not None:
-                        selfp.source.last_be = 0
+            if len(self.packet) == 1:
+                selfp.source.eop = 1
+                if self.last_be is not None:
+                    selfp.source.last_be = self.last_be
+            else:
+                selfp.source.eop = 0
+                if self.last_be is not None:
+                    selfp.source.last_be = 0
             if len(self.packet) > 0:
                 selfp.source.stb = 1
                 selfp.source.data = self.packet.pop(0)
@@ -150,6 +146,7 @@ class PacketLogger(Module):
         # # #
 
         self.packet = Packet()
+        self.first = True
 
     def receive(self):
         self.packet.done = False
@@ -159,16 +156,15 @@ class PacketLogger(Module):
     def do_simulation(self, selfp):
         selfp.sink.ack = 1
         if selfp.sink.stb:
-            if self.sink.description.packetized:
-                if selfp.sink.sop:
-                    self.packet = Packet()
-                    self.packet.append(selfp.sink.data)
-                else:
-                    self.packet.append(selfp.sink.data)
-                if selfp.sink.eop:
-                    self.packet.done = True
+            if self.first:
+                self.packet = Packet()
+                self.packet.append(selfp.sink.data)
+                self.first = False
             else:
                 self.packet.append(selfp.sink.data)
+            if selfp.sink.eop:
+                self.packet.done = True
+                self.first = True
 
 
 class AckRandomizer(Module):
