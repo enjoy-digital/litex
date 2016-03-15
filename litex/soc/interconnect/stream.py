@@ -14,7 +14,7 @@ def _make_m2s(layout):
 
 
 class EndpointDescription:
-    def __init__(self, payload_layout, param_layout=[], packetized=False):
+    def __init__(self, payload_layout, param_layout=[], packetized=True):
         self.payload_layout = payload_layout
         self.param_layout = param_layout
         self.packetized = packetized
@@ -497,7 +497,7 @@ class Pipeline(Module):
             if isinstance(m_n, Endpoint):
                 sink = m_n
             else:
-                sink = m_n.sink            
+                sink = m_n.sink
             if m is not m_n:
                 self.comb += source.connect(sink)
             m = m_n
