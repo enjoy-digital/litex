@@ -2,6 +2,7 @@ from litex.gen import *
 from litex.gen.genlib.record import *
 from litex.gen.genlib import fifo
 
+(DIR_SINK, DIR_SOURCE) = range(2)
 
 def _make_m2s(layout):
     r = []
@@ -370,10 +371,7 @@ def get_single_ep(obj, filt):
 
 class BinaryActor(Module):
     def __init__(self, *args, **kwargs):
-        self.busy = Signal()
-        sink = get_single_ep(self, Sink)[1]
-        source = get_single_ep(self, Source)[1]
-        self.build_binary_control(sink, source, *args, **kwargs)
+        self.build_binary_control(self.sink, self.source, *args, **kwargs)
 
     def build_binary_control(self, sink, source):
         raise NotImplementedError("Binary actor classes must overload build_binary_control_fragment")
@@ -385,7 +383,6 @@ class CombinatorialActor(BinaryActor):
             source.stb.eq(sink.stb),
             source.eop.eq(sink.eop),
             sink.ack.eq(source.ack),
-            self.busy.eq(0)
         ]
 
 
@@ -395,19 +392,16 @@ class PipelinedActor(BinaryActor):
         BinaryActor.__init__(self, latency)
 
     def build_binary_control(self, sink, source, latency):
-        busy = 0
         valid = sink.stb
         for i in range(latency):
             valid_n = Signal()
             self.sync += If(self.pipe_ce, valid_n.eq(valid))
             valid = valid_n
-            busy = busy | valid
 
         self.comb += [
             self.pipe_ce.eq(source.ack | ~valid),
             sink.ack.eq(self.pipe_ce),
-            source.stb.eq(valid),
-            self.busy.eq(busy)
+            source.stb.eq(valid)
         ]
         eop = sink.stb & sink.eop
         for i in range(latency):
@@ -458,8 +452,6 @@ class Unpack(Module):
         description_from.payload_layout = pack_layout(description_from.payload_layout, n)
         self.sink = sink = Endpoint(description_from)
 
-        self.busy = Signal()
-
         # # #
 
         mux = Signal(max=n)
@@ -498,7 +490,6 @@ class Pack(Module):
         description_to = copy(sink.description)
         description_to.payload_layout = pack_layout(description_to.payload_layout, n)
         self.source = source = Endpoint(description_to)
-        self.busy = Signal()
 
         # # #
 
@@ -511,7 +502,6 @@ class Pack(Module):
             chunk = n-i-1 if reverse else i
             cases[i] = [getattr(source.payload, "chunk"+str(chunk)).raw_bits().eq(sink.payload.raw_bits())]
         self.comb += [
-            self.busy.eq(strobe_all),
             sink.ack.eq(~strobe_all | source.ack),
             source.stb.eq(strobe_all),
             load_part.eq(sink.stb & sink.ack)
@@ -572,32 +562,26 @@ class Pipeline(Module):
 
 # Add buffers on Endpoints (can be used to improve timings)
 class BufferizeEndpoints(ModuleTransformer):
-    def __init__(self, *names):
-        self.names = names
+    def __init__(self, endpoint_dict):
+        self.endpoint_dict = endpoint_dict
 
     def transform_instance(self, submodule):
-        endpoints = get_endpoints(submodule)
-        sinks = {}
-        sources = {}
-        for name, endpoint in endpoints.items():
-            if not self.names or name in self.names:
-                if isinstance(endpoint, Sink):
-                    sinks.update({name: endpoint})
-                elif isinstance(endpoint, Source):
-                    sources.update({name: endpoint})
+        for name, direction in self.endpoint_dict.items():
+            endpoint = getattr(submodule, name)
+            # add buffer on sinks
+            if direction == DIR_SINK:
+                buf = Buffer(endpoint.description)
+                submodule.submodules += buf
+                setattr(submodule, name, buf.sink)
+                submodule.comb += buf.source.connect(endpoint)
+            # add buffer on sources
+            elif direction == DIR_SOURCE:
+                buf = Buffer(endpoint.description)
+                submodule.submodules += buf
+                submodule.comb += endpoint.connect(buf.sink)
+                setattr(submodule, name, buf.source)
+            else:
+                raise ValueError
 
-        # add buffer on sinks
-        for name, sink in sinks.items():
-            buf = Buffer(sink.description)
-            submodule.submodules += buf
-            setattr(submodule, name, buf.sink)
-            submodule.comb += buf.source.connect(sink)
-
-        # add buffer on sources
-        for name, source in sources.items():
-            buf = Buffer(source.description)
-            submodule.submodules += buf
-            submodule.comb += source.connect(buf.sink)
-            setattr(submodule, name, buf.source)
 
 # XXX
