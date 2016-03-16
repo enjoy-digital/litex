@@ -119,24 +119,24 @@ class PacketStreamer(Module):
         if len(self.packets) and self.packet.done:
             self.packet = self.packets.pop(0)
         if not self.packet.ongoing and not self.packet.done:
-            selfp.source.stb = 1
+            selfp.source.valid = 1
             selfp.source.data = self.packet.pop(0)
             self.packet.ongoing = True
-        elif selfp.source.stb == 1 and selfp.source.ack == 1:
+        elif selfp.source.valid == 1 and selfp.source.ready == 1:
             if len(self.packet) == 1:
-                selfp.source.eop = 1
+                selfp.source.last = 1
                 if self.last_be is not None:
                     selfp.source.last_be = self.last_be
             else:
-                selfp.source.eop = 0
+                selfp.source.last = 0
                 if self.last_be is not None:
                     selfp.source.last_be = 0
             if len(self.packet) > 0:
-                selfp.source.stb = 1
+                selfp.source.valid = 1
                 selfp.source.data = self.packet.pop(0)
             else:
                 self.packet.done = True
-                selfp.source.stb = 0
+                selfp.source.valid = 0
 
 
 class PacketLogger(Module):
@@ -154,15 +154,15 @@ class PacketLogger(Module):
             yield
 
     def do_simulation(self, selfp):
-        selfp.sink.ack = 1
-        if selfp.sink.stb:
+        selfp.sink.ready = 1
+        if selfp.sink.valid:
             if self.first:
                 self.packet = Packet()
                 self.packet.append(selfp.sink.data)
                 self.first = False
             else:
                 self.packet.append(selfp.sink.data)
-            if selfp.sink.eop:
+            if selfp.sink.last:
                 self.packet.done = True
                 self.first = True
 
@@ -180,8 +180,8 @@ class AckRandomizer(Module):
             If(self.run,
                 self.sink.connect(self.source)
             ).Else(
-                self.source.stb.eq(0),
-                self.sink.ack.eq(0),
+                self.source.valid.eq(0),
+                self.sink.ready.eq(0),
             )
 
     def do_simulation(self, selfp):

@@ -20,9 +20,9 @@ class Reader(Module):
 
         self.comb += [
             lasmim.we.eq(0),
-            lasmim.stb.eq(self.address.stb & request_enable),
+            lasmim.stb.eq(self.address.valid & request_enable),
             lasmim.adr.eq(self.address.a),
-            self.address.ack.eq(lasmim.req_ack & request_enable),
+            self.address.ready.eq(lasmim.req_ack & request_enable),
             request_issued.eq(lasmim.stb & lasmim.req_ack)
         ]
 
@@ -51,10 +51,10 @@ class Reader(Module):
             fifo.din.eq(lasmim.dat_r),
             fifo.we.eq(lasmim.dat_r_ack),
 
-            self.data.stb.eq(fifo.readable),
-            fifo.re.eq(self.data.ack),
+            self.data.valid.eq(fifo.readable),
+            fifo.re.eq(self.data.ready),
             self.data.d.eq(fifo.dout),
-            data_dequeued.eq(self.data.stb & self.data.ack)
+            data_dequeued.eq(self.data.valid & self.data.ready)
         ]
 
 
@@ -73,10 +73,10 @@ class Writer(Module):
 
         self.comb += [
             lasmim.we.eq(1),
-            lasmim.stb.eq(fifo.writable & self.address_data.stb),
+            lasmim.stb.eq(fifo.writable & self.address_data.valid),
             lasmim.adr.eq(self.address_data.a),
-            self.address_data.ack.eq(fifo.writable & lasmim.req_ack),
-            fifo.we.eq(self.address_data.stb & lasmim.req_ack),
+            self.address_data.ready.eq(fifo.writable & lasmim.req_ack),
+            fifo.we.eq(self.address_data.valid & lasmim.req_ack),
             fifo.din.eq(self.address_data.d)
         ]
 

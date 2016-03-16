@@ -68,10 +68,10 @@ class WishboneStreamingBridge(Module):
         self.submodules += fsm, timer
         self.comb += [
             fsm.reset.eq(timer.done),
-            phy.source.ack.eq(1)
+            phy.source.ready.eq(1)
         ]
         fsm.act("IDLE",
-            If(phy.source.stb,
+            If(phy.source.valid,
                 cmd_ce.eq(1),
                 If((phy.source.data == self.cmds["write"]) |
                    (phy.source.data == self.cmds["read"]),
@@ -82,13 +82,13 @@ class WishboneStreamingBridge(Module):
             )
         )
         fsm.act("RECEIVE_LENGTH",
-            If(phy.source.stb,
+            If(phy.source.valid,
                 length_ce.eq(1),
                 NextState("RECEIVE_ADDRESS")
             )
         )
         fsm.act("RECEIVE_ADDRESS",
-            If(phy.source.stb,
+            If(phy.source.valid,
                 address_ce.eq(1),
                 byte_counter_ce.eq(1),
                 If(byte_counter == 3,
@@ -102,7 +102,7 @@ class WishboneStreamingBridge(Module):
             )
         )
         fsm.act("RECEIVE_DATA",
-            If(phy.source.stb,
+            If(phy.source.valid,
                 rx_data_ce.eq(1),
                 byte_counter_ce.eq(1),
                 If(byte_counter == 3,
@@ -141,8 +141,8 @@ class WishboneStreamingBridge(Module):
         self.comb += \
             chooser(data, byte_counter, phy.sink.data, n=4, reverse=True)
         fsm.act("SEND_DATA",
-            phy.sink.stb.eq(1),
-            If(phy.sink.ack,
+            phy.sink.valid.eq(1),
+            If(phy.sink.ready,
                 byte_counter_ce.eq(1),
                 If(byte_counter == 3,
                     word_counter_ce.eq(1),
@@ -158,7 +158,7 @@ class WishboneStreamingBridge(Module):
 
         self.comb += timer.wait.eq(~fsm.ongoing("IDLE"))
 
-        self.comb += phy.sink.eop.eq((byte_counter == 3) & (word_counter == length - 1))
+        self.comb += phy.sink.last.eq((byte_counter == 3) & (word_counter == length - 1))
 
         if hasattr(phy.sink, "length"):
             self.comb += phy.sink.length.eq(4*length)

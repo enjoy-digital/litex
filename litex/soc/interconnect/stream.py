@@ -20,7 +20,7 @@ class EndpointDescription:
         self.param_layout = param_layout
 
     def get_full_layout(self):
-        reserved = {"stb", "ack", "payload", "param", "eop", "description"}
+        reserved = {"valid", "ready", "payload", "param", "last", "description"}
         attributed = set()
         for f in self.payload_layout + self.param_layout:
             if f[0] in attributed:
@@ -30,9 +30,9 @@ class EndpointDescription:
             attributed.add(f[0])
 
         full_layout = [
-            ("stb", 1, DIR_M_TO_S),
-            ("ack", 1, DIR_S_TO_M),
-            ("eop", 1, DIR_M_TO_S),
+            ("valid", 1, DIR_M_TO_S),
+            ("ready", 1, DIR_S_TO_M),
+            ("last", 1, DIR_M_TO_S),
             ("payload", _make_m2s(self.payload_layout)),
             ("param", _make_m2s(self.param_layout))
         ]
@@ -64,7 +64,7 @@ class _FIFOWrapper(Module):
         description = self.sink.description
         fifo_layout = [("payload", description.payload_layout),
                        ("param", description.param_layout),
-                       ("eop", 1)]
+                       ("last", 1)]
 
         self.submodules.fifo = fifo_class(layout_len(fifo_layout), depth)
         fifo_in = Record(fifo_layout)
@@ -75,17 +75,17 @@ class _FIFOWrapper(Module):
         ]
 
         self.comb += [
-            self.sink.ack.eq(self.fifo.writable),
-            self.fifo.we.eq(self.sink.stb),
-            fifo_in.eop.eq(self.sink.eop),
+            self.sink.ready.eq(self.fifo.writable),
+            self.fifo.we.eq(self.sink.valid),
+            fifo_in.last.eq(self.sink.last),
             fifo_in.payload.eq(self.sink.payload),
             fifo_in.param.eq(self.sink.param),
 
-            self.source.stb.eq(self.fifo.readable),
-            self.source.eop.eq(fifo_out.eop),
+            self.source.valid.eq(self.fifo.readable),
+            self.source.last.eq(fifo_out.last),
             self.source.payload.eq(fifo_out.payload),
             self.source.param.eq(fifo_out.param),
-            self.fifo.re.eq(self.source.ack)
+            self.fifo.re.eq(self.source.ready)
         ]
 
 
@@ -153,15 +153,15 @@ class _UpConverter(Module):
         load_part = Signal()
         strobe_all = Signal()
         self.comb += [
-            sink.ack.eq(~strobe_all | source.ack),
-            source.stb.eq(strobe_all),
-            load_part.eq(sink.stb & sink.ack)
+            sink.ready.eq(~strobe_all | source.ready),
+            source.valid.eq(strobe_all),
+            load_part.eq(sink.valid & sink.ready)
         ]
 
-        demux_last = ((demux == (ratio - 1)) | sink.eop)
+        demux_last = ((demux == (ratio - 1)) | sink.last)
 
         self.sync += [
-            If(source.ack, strobe_all.eq(0)),
+            If(source.ready, strobe_all.eq(0)),
             If(load_part,
                 If(demux_last,
                     demux.eq(0),
@@ -170,10 +170,10 @@ class _UpConverter(Module):
                     demux.eq(demux + 1)
                 )
             ),
-            If(source.stb & source.ack,
-                source.eop.eq(sink.eop),
-            ).Elif(sink.stb & sink.ack,
-                source.eop.eq(sink.eop | source.eop)
+            If(source.valid & source.ready,
+                source.last.eq(sink.last),
+            ).Elif(sink.valid & sink.ready,
+                source.last.eq(sink.last | source.last)
             )
         ]
 
@@ -202,12 +202,12 @@ class _DownConverter(Module):
         last = Signal()
         self.comb += [
             last.eq(mux == (ratio-1)),
-            source.stb.eq(sink.stb),
-            source.eop.eq(sink.eop & last),
-            sink.ack.eq(last & source.ack)
+            source.valid.eq(sink.valid),
+            source.last.eq(sink.last & last),
+            sink.ready.eq(last & source.ready)
         ]
         self.sync += \
-            If(source.stb & source.ack,
+            If(source.valid & source.ready,
                 If(last,
                     mux.eq(0)
                 ).Else(
@@ -294,9 +294,9 @@ class StrideConverter(Module):
 
         # cast sink to converter.sink (user fields --> raw bits)
         self.comb += [
-            converter.sink.stb.eq(sink.stb),
-            converter.sink.eop.eq(sink.eop),
-            sink.ack.eq(converter.sink.ack)
+            converter.sink.valid.eq(sink.valid),
+            converter.sink.last.eq(sink.last),
+            sink.ready.eq(converter.sink.ready)
         ]
         if converter.cls == _DownConverter:
             ratio = converter.ratio
@@ -313,9 +313,9 @@ class StrideConverter(Module):
 
         # cast converter.source to source (raw bits --> user fields)
         self.comb += [
-            source.stb.eq(converter.source.stb),
-            source.eop.eq(converter.source.eop),
-            converter.source.ack.eq(source.ack)
+            source.valid.eq(converter.source.valid),
+            source.last.eq(converter.source.last),
+            converter.source.ready.eq(source.ready)
         ]
         if converter.cls == _UpConverter:
             ratio = converter.ratio
@@ -380,9 +380,9 @@ class BinaryActor(Module):
 class CombinatorialActor(BinaryActor):
     def build_binary_control(self, sink, source):
         self.comb += [
-            source.stb.eq(sink.stb),
-            source.eop.eq(sink.eop),
-            sink.ack.eq(source.ack),
+            source.valid.eq(sink.valid),
+            source.last.eq(sink.last),
+            sink.ready.eq(source.ready),
         ]
 
 
@@ -392,26 +392,26 @@ class PipelinedActor(BinaryActor):
         BinaryActor.__init__(self, latency)
 
     def build_binary_control(self, sink, source, latency):
-        valid = sink.stb
+        valid = sink.valid
         for i in range(latency):
             valid_n = Signal()
             self.sync += If(self.pipe_ce, valid_n.eq(valid))
             valid = valid_n
 
         self.comb += [
-            self.pipe_ce.eq(source.ack | ~valid),
-            sink.ack.eq(self.pipe_ce),
-            source.stb.eq(valid)
+            self.pipe_ce.eq(source.ready | ~valid),
+            sink.ready.eq(self.pipe_ce),
+            source.valid.eq(valid)
         ]
-        eop = sink.stb & sink.eop
+        last = sink.valid & sink.last
         for i in range(latency):
-            eop_n = Signal()
+            last_n = Signal()
             self.sync += \
                 If(self.pipe_ce,
-                    eop_n.eq(eop)
+                    last_n.eq(last)
                 )
-            eop = eop_n
-        self.comb += source.eop.eq(eop)
+            last = last_n
+        self.comb += source.last.eq(last)
 
 
 class Buffer(PipelinedActor):
@@ -458,11 +458,11 @@ class Unpack(Module):
         last = Signal()
         self.comb += [
             last.eq(mux == (n-1)),
-            source.stb.eq(sink.stb),
-            sink.ack.eq(last & source.ack)
+            source.valid.eq(sink.valid),
+            sink.ready.eq(last & source.ready)
         ]
         self.sync += [
-            If(source.stb & source.ack,
+            If(source.valid & source.ready,
                 If(last,
                     mux.eq(0)
                 ).Else(
@@ -481,7 +481,7 @@ class Unpack(Module):
             dst = getattr(self.source, f[0])
             self.comb += dst.eq(src)
 
-        self.comb += source.eop.eq(sink.eop & last)
+        self.comb += source.last.eq(sink.last & last)
 
 
 class Pack(Module):
@@ -502,9 +502,9 @@ class Pack(Module):
             chunk = n-i-1 if reverse else i
             cases[i] = [getattr(source.payload, "chunk"+str(chunk)).raw_bits().eq(sink.payload.raw_bits())]
         self.comb += [
-            sink.ack.eq(~strobe_all | source.ack),
-            source.stb.eq(strobe_all),
-            load_part.eq(sink.stb & sink.ack)
+            sink.ready.eq(~strobe_all | source.ready),
+            source.valid.eq(strobe_all),
+            load_part.eq(sink.valid & sink.ready)
         ]
 
         for f in description_to.param_layout:
@@ -512,10 +512,10 @@ class Pack(Module):
             dst = getattr(self.source, f[0])
             self.sync += If(load_part, dst.eq(src))
 
-        demux_last = ((demux == (n - 1)) | sink.eop)
+        demux_last = ((demux == (n - 1)) | sink.last)
 
         self.sync += [
-            If(source.ack, strobe_all.eq(0)),
+            If(source.ready, strobe_all.eq(0)),
             If(load_part,
                 Case(demux, cases),
                 If(demux_last,
@@ -525,10 +525,10 @@ class Pack(Module):
                     demux.eq(demux + 1)
                 )
             ),
-            If(source.stb & source.ack,
-                source.eop.eq(sink.eop),
-            ).Elif(sink.stb & sink.ack,
-                source.eop.eq(sink.eop | source.eop)
+            If(source.valid & source.ready,
+                source.last.eq(sink.last),
+            ).Elif(sink.valid & sink.ready,
+                source.last.eq(sink.last | source.last)
             )
         ]
 

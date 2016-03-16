@@ -22,7 +22,7 @@ class RS232PHYRX(Module):
         rx_reg = Signal(8)
         rx_bitcount = Signal(4)
         rx_busy = Signal()
-        rx_done = self.source.stb
+        rx_done = self.source.valid
         rx_data = self.source.data
         self.sync += [
             rx_done.eq(0),
@@ -74,8 +74,8 @@ class RS232PHYTX(Module):
         tx_bitcount = Signal(4)
         tx_busy = Signal()
         self.sync += [
-            self.sink.ack.eq(0),
-            If(self.sink.stb & ~tx_busy & ~self.sink.ack,
+            self.sink.ready.eq(0),
+            If(self.sink.valid & ~tx_busy & ~self.sink.ready,
                 tx_reg.eq(self.sink.data),
                 tx_bitcount.eq(0),
                 tx_busy.eq(1),
@@ -87,7 +87,7 @@ class RS232PHYTX(Module):
                 ).Elif(tx_bitcount == 9,
                     pads.tx.eq(1),
                     tx_busy.eq(0),
-                    self.sink.ack.eq(1),
+                    self.sink.ready.eq(1),
                 ).Else(
                     pads.tx.eq(tx_reg[0]),
                     tx_reg.eq(Cat(tx_reg[1:], 0))
@@ -117,13 +117,13 @@ class RS232PHYModel(Module):
         self.source = stream.Endpoint([("data", 8)])
 
         self.comb += [
-            pads.source_stb.eq(self.sink.stb),
+            pads.source_stb.eq(self.sink.valid),
             pads.source_data.eq(self.sink.data),
-            self.sink.ack.eq(pads.source_ack),
+            self.sink.ready.eq(pads.source_ack),
 
-            self.source.stb.eq(pads.sink_stb),
+            self.source.valid.eq(pads.sink_stb),
             self.source.data.eq(pads.sink_data),
-            pads.sink_ack.eq(self.source.ack)
+            pads.sink_ack.eq(self.source.ready)
         ]
 
 
@@ -156,12 +156,12 @@ class UART(Module, AutoCSR):
         self.submodules += tx_fifo
 
         self.comb += [
-            tx_fifo.sink.stb.eq(self._rxtx.re),
+            tx_fifo.sink.valid.eq(self._rxtx.re),
             tx_fifo.sink.data.eq(self._rxtx.r),
-            self._txfull.status.eq(~tx_fifo.sink.ack),
+            self._txfull.status.eq(~tx_fifo.sink.ready),
             tx_fifo.source.connect(phy.sink),
             # Generate TX IRQ when tx_fifo becomes non-full
-            self.ev.tx.trigger.eq(~tx_fifo.sink.ack)
+            self.ev.tx.trigger.eq(~tx_fifo.sink.ready)
         ]
 
         # RX
@@ -170,9 +170,9 @@ class UART(Module, AutoCSR):
 
         self.comb += [
             phy.source.connect(rx_fifo.sink),
-            self._rxempty.status.eq(~rx_fifo.source.stb),
+            self._rxempty.status.eq(~rx_fifo.source.valid),
             self._rxtx.w.eq(rx_fifo.source.data),
-            rx_fifo.source.ack.eq(self.ev.rx.clear),
+            rx_fifo.source.ready.eq(self.ev.rx.clear),
             # Generate RX IRQ when tx_fifo becomes non-empty
-            self.ev.rx.trigger.eq(~rx_fifo.source.stb)
+            self.ev.rx.trigger.eq(~rx_fifo.source.valid)
         ]
