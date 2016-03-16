@@ -5,7 +5,7 @@ from litex.gen.genlib.record import Record
 from litex.gen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect import wishbone
-from litex.soc.interconnect.stream import Sink, Source
+from litex.soc.interconnect import stream
 
 
 class WishboneStreamingBridge(Module):
