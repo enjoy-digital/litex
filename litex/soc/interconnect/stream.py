@@ -70,6 +70,7 @@ class _FIFOWrapper(Module):
 
         description = self.sink.description
         fifo_layout = [("payload", description.payload_layout),
+                       ("param", description.param_layout),
                        ("eop", 1)]
 
         self.submodules.fifo = fifo_class(layout_len(fifo_layout), depth)
@@ -85,10 +86,12 @@ class _FIFOWrapper(Module):
             self.fifo.we.eq(self.sink.stb),
             fifo_in.eop.eq(self.sink.eop),
             fifo_in.payload.eq(self.sink.payload),
+            fifo_in.param.eq(self.sink.param),
 
             self.source.stb.eq(self.fifo.readable),
             self.source.eop.eq(fifo_out.eop),
             self.source.payload.eq(fifo_out.payload),
+            self.source.param.eq(fifo_out.param),
             self.fifo.re.eq(self.source.ack)
         ]
 
