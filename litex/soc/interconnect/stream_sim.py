@@ -3,7 +3,7 @@ import math
 from copy import deepcopy
 
 from litex.gen import *
-from litex.soc.interconnect.stream import Sink, Source
+from litex.soc.interconnect import stream
 
 # TODO: clean up code below
 # XXX
@@ -96,7 +96,7 @@ class Packet(list):
 
 class PacketStreamer(Module):
     def __init__(self, description, last_be=None):
-        self.source = Source(description)
+        self.source = stream.Endpoint(description)
         self.last_be = last_be
 
         # # #
@@ -141,7 +141,7 @@ class PacketStreamer(Module):
 
 class PacketLogger(Module):
     def __init__(self, description):
-        self.sink = Sink(description)
+        self.sink = stream.Endpoint(description)
 
         # # #
 
@@ -171,8 +171,8 @@ class AckRandomizer(Module):
     def __init__(self, description, level=0):
         self.level = level
 
-        self.sink = Sink(description)
-        self.source = Source(description)
+        self.sink = stream.Endpoint(description)
+        self.source = stream.Endpoint(description)
 
         self.run = Signal()
 

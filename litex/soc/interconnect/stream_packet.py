@@ -3,7 +3,7 @@ from litex.gen.genlib.roundrobin import *
 from litex.gen.genlib.record import *
 from litex.gen.genlib.fsm import FSM, NextState
 
-from litex.soc.interconnect.stream import *
+from litex.soc.interconnect import stream
 
 # TODO: clean up code below
 # XXX
@@ -155,8 +155,8 @@ class Header:
 
 class Packetizer(Module):
     def __init__(self, sink_description, source_description, header):
-        self.sink = sink = Sink(sink_description)
-        self.source = source = Source(source_description)
+        self.sink = sink = stream.Endpoint(sink_description)
+        self.source = source = stream.Endpoint(source_description)
         self.header = Signal(header.length*8)
 
         # # #
@@ -244,8 +244,8 @@ class Packetizer(Module):
 
 class Depacketizer(Module):
     def __init__(self, sink_description, source_description, header):
-        self.sink = sink = Sink(sink_description)
-        self.source = source = Source(source_description)
+        self.sink = sink = stream.Endpoint(sink_description)
+        self.source = source = stream.Endpoint(source_description)
         self.header = Signal(header.length*8)
 
         # # #
@@ -327,8 +327,8 @@ class Depacketizer(Module):
 
 class Buffer(Module):
     def __init__(self, description, data_depth, cmd_depth=4, almost_full=None):
-        self.sink = sink = Sink(description)
-        self.source = source = Source(description)
+        self.sink = sink = stream.Endpoint(description)
+        self.source = source = stream.Endpoint(description)
 
         # # #
 

@@ -53,13 +53,6 @@ class Endpoint(Record):
             return getattr(object.__getattribute__(self, "param"), name)
 
 
-class Source(Endpoint):
-    pass
-
-class Sink(Endpoint):
-    pass
-
-
 class _FIFOWrapper(Module):
     def __init__(self, fifo_class, layout, depth):
         self.sink = Endpoint(layout)
@@ -429,8 +422,8 @@ class PipelinedActor(BinaryActor):
 
 class Buffer(PipelinedActor):
     def __init__(self, layout):
-        self.sink = Sink(layout)
-        self.source = Source(layout)
+        self.sink = Endpoint(layout)
+        self.source = Endpoint(layout)
         PipelinedActor.__init__(self, 1)
         self.sync += \
             If(self.pipe_ce,
@@ -441,8 +434,8 @@ class Buffer(PipelinedActor):
 
 class Cast(CombinatorialActor):
     def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
-        self.sink = Sink(_rawbits_layout(layout_from))
-        self.source = Source(_rawbits_layout(layout_to))
+        self.sink = Endpoint(_rawbits_layout(layout_from))
+        self.source = Endpoint(_rawbits_layout(layout_to))
         CombinatorialActor.__init__(self)
 
         # # #
@@ -460,10 +453,10 @@ class Cast(CombinatorialActor):
 
 class Unpack(Module):
     def __init__(self, n, layout_to, reverse=False):
-        self.source = source = Source(layout_to)
+        self.source = source = Endpoint(layout_to)
         description_from = copy(source.description)
         description_from.payload_layout = pack_layout(description_from.payload_layout, n)
-        self.sink = sink = Sink(description_from)
+        self.sink = sink = Endpoint(description_from)
 
         self.busy = Signal()
 
@@ -501,10 +494,10 @@ class Unpack(Module):
 
 class Pack(Module):
     def __init__(self, layout_from, n, reverse=False):
-        self.sink = sink = Sink(layout_from)
+        self.sink = sink = Endpoint(layout_from)
         description_to = copy(sink.description)
         description_to.payload_layout = pack_layout(description_to.payload_layout, n)
-        self.source = source = Source(description_to)
+        self.source = source = Endpoint(description_to)
         self.busy = Signal()
 
         # # #
