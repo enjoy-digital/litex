@@ -115,28 +115,30 @@ class PacketStreamer(Module):
         while not packet.done:
             yield
 
-    def do_simulation(self, selfp):
-        if len(self.packets) and self.packet.done:
-            self.packet = self.packets.pop(0)
-        if not self.packet.ongoing and not self.packet.done:
-            selfp.source.valid = 1
-            selfp.source.data = self.packet.pop(0)
-            self.packet.ongoing = True
-        elif selfp.source.valid == 1 and selfp.source.ready == 1:
-            if len(self.packet) == 1:
-                selfp.source.last = 1
-                if self.last_be is not None:
-                    selfp.source.last_be = self.last_be
-            else:
-                selfp.source.last = 0
-                if self.last_be is not None:
-                    selfp.source.last_be = 0
-            if len(self.packet) > 0:
-                selfp.source.valid = 1
-                selfp.source.data = self.packet.pop(0)
-            else:
-                self.packet.done = True
-                selfp.source.valid = 0
+    def generator(self):
+        while True:
+            if len(self.packets) and self.packet.done:
+                self.packet = self.packets.pop(0)
+            if not self.packet.ongoing and not self.packet.done:
+                yield self.source.valid.eq(1)
+                yield self.source.data.eq(self.packet.pop(0))
+                self.packet.ongoing = True
+            elif (yield self.source.valid) == 1 and (yield self.source.ready) == 1:
+                if len(self.packet) == 1:
+                    yield self.source.last.eq(1)
+                    if self.last_be is not None:
+                        yield self.source.last_be.eq(self.last_be)
+                else:
+                    yield self.source.last.eq(0)
+                    if self.last_be is not None:
+                        yield self.source.last_be.eq(0)
+                if len(self.packet) > 0:
+                    yield self.source.valid.eq(1)
+                    yield self.source.data.eq(self.packet.pop(0))
+                else:
+                    self.packet.done = True
+                    yield self.source.valid.eq(0)
+            yield
 
 
 class PacketLogger(Module):
@@ -153,18 +155,20 @@ class PacketLogger(Module):
         while not self.packet.done:
             yield
 
-    def do_simulation(self, selfp):
-        selfp.sink.ready = 1
-        if selfp.sink.valid:
-            if self.first:
-                self.packet = Packet()
-                self.packet.append(selfp.sink.data)
-                self.first = False
-            else:
-                self.packet.append(selfp.sink.data)
-            if selfp.sink.last:
-                self.packet.done = True
-                self.first = True
+    def generator(self):
+        while True:
+            yield self.sink.ready.eq(1)
+            if (yield self.sink.valid):
+                if self.first:
+                    self.packet = Packet()
+                    self.packet.append((yield self.sink.data))
+                    self.first = False
+                else:
+                    self.packet.append((yield self.sink.data))
+                if (yield self.sink.last):
+                    self.packet.done = True
+                    self.first = True
+            yield
 
 
 class AckRandomizer(Module):
@@ -174,21 +178,23 @@ class AckRandomizer(Module):
         self.sink = stream.Endpoint(description)
         self.source = stream.Endpoint(description)
 
-        self.run = Signal()
+        self.ce = Signal(reset=1)
 
         self.comb += \
-            If(self.run,
-                self.sink.connect(self.source)
+            If(self.ce,
+                Record.connect(self.sink, self.source)
             ).Else(
                 self.source.valid.eq(0),
                 self.sink.ready.eq(0),
             )
 
-    def do_simulation(self, selfp):
-        n = randn(100)
-        if n < self.level:
-            selfp.run = 0
-        else:
-            selfp.run = 1
+    def generator(self):
+        while True:
+            n = randn(100)
+            if n < self.level:
+                yield self.ce.eq(0)
+            else:
+                yield self.ce.eq(1)
+            yield
 
 # XXX
