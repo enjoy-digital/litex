@@ -168,7 +168,7 @@ class ConstraintManager:
         if isinstance(rt, int):
             obj = Signal(rt, name_override=resource_name)
         else:
-            obj = Record(rt, name=resource_name, use_name_override=True)
+            obj = Record(rt, name=resource_name)
 
         for element in resource[2:]:
             if isinstance(element, PlatformInfo):
@@ -252,6 +252,15 @@ class GenericPlatform:
 
     def add_period_constraint(self, clk, period):
         raise NotImplementedError
+
+    def add_false_path_constraint(self, from_, to):
+        raise NotImplementedError
+
+    def add_false_path_constraints(self, *clk):
+        for a in clk:
+            for b in clk:
+                if a is not b:
+                    self.add_false_path_constraint(a, b)
 
     def add_platform_command(self, *args, **kwargs):
         return self.constraint_manager.add_platform_command(*args, **kwargs)

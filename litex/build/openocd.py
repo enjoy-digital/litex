@@ -13,7 +13,7 @@ class OpenOCD(GenericProgrammer):
     def load_bitstream(self, bitstream):
         script = "; ".join([
             "init",
-            "pld load 0 {}".format(bitstream),
+            "pld load 0 {{{}}}".format(bitstream),
             "exit",
         ])
         subprocess.call(["openocd", "-f", self.config, "-c", script])
@@ -22,8 +22,8 @@ class OpenOCD(GenericProgrammer):
         flash_proxy = self.find_flash_proxy()
         script = "; ".join([
             "init",
-            "jtagspi_init 0 {}".format(flash_proxy),
-            "jtagspi_program {} 0x{:x}".format(data, address),
+            "jtagspi_init 0 {{{}}}".format(flash_proxy),
+            "jtagspi_program {{{}}} 0x{:x}".format(data, address),
             "fpga_program",
             "exit"
         ])

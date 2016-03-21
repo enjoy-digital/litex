@@ -217,9 +217,9 @@ def build_namespace(signals, reserved_keywords=set()):
     pnd = _build_pnd(signals)
     ns = Namespace(pnd, reserved_keywords)
     # register signals with name_override
-    for signal in signals:
-        if signal.name_override is not None:
-            ns.get_name(signal)
+    swno = {signal for signal in signals if signal.name_override is not None}
+    for signal in sorted(swno, key=lambda x: x.duid):
+        ns.get_name(signal)
     return ns
 
 

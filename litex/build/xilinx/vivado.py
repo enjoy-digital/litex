@@ -135,5 +135,11 @@ class XilinxVivadoToolchain:
         return v_output.ns
 
     def add_period_constraint(self, platform, clk, period):
-        platform.add_platform_command("""create_clock -name {clk} -period """ + \
-            str(period) + """ [get_ports {clk}]""", clk=clk)
+        platform.add_platform_command(
+            "create_clock -name {clk} -period " + str(period) +
+            " [get_nets {clk}]", clk=clk)
+
+    def add_false_path_constraint(self, platform, from_, to):
+        platform.add_platform_command(
+            "set_false_path -from [get_clocks {from_}] -to [get_clocks {to}]",
+            from_=from_, to=to)

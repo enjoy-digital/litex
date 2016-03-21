@@ -34,7 +34,7 @@ class _Value(DUID):
             if isinstance(a, Signal) and isinstance(b, Signal):
                 return a is b
             if (isinstance(a, Constant) and isinstance(b, Signal)
-                    or isinstance(a, Signal) and isinstance(a, Constant)):
+                    or isinstance(a, Signal) and isinstance(b, Constant)):
                 return False
         raise TypeError("Attempted to convert Migen value to boolean")
 
@@ -107,7 +107,8 @@ class _Value(DUID):
                 return Cat(self[i] for i in range(start, stop, step))
             return _Slice(self, start, stop)
         else:
-            raise TypeError
+            raise TypeError("Cannot use type {} ({}) as key".format(
+                type(key), repr(key)))
 
     def eq(self, r):
         """Assignment
@@ -525,7 +526,7 @@ class Case(_Statement):
         for k, v in cases.items():
             if isinstance(k, (bool, int)):
                 k = Constant(k)
-            if (not isinstance(k, Constant)
+            if (not isinstance(k, Constant) 
                     and not (isinstance(k, str) and k == "default")):
                 raise TypeError("Case object is not a Migen constant")
             if not isinstance(v, _collections.Iterable):
@@ -542,16 +543,21 @@ class Case(_Statement):
 
         Parameters
         ----------
-        key : int or None
+        key : int, Constant or None
             Key to use as default case if no other key matches.
             By default, the largest key is the default key.
         """
         if key is None:
             for choice in self.cases.keys():
-                if key is None or choice.value > key.value:
+                if (key is None
+                        or (isinstance(choice, str) and choice == "default")
+                        or choice.value > key.value):
                     key = choice
-        self.cases["default"] = self.cases[key]
+        if not isinstance(key, str) or key != "default":
+            key = wrap(key)
+        stmts = self.cases[key]
         del self.cases[key]
+        self.cases["default"] = stmts
         return self
 
 
@@ -679,23 +685,17 @@ class _ClockDomainList(list):
 (SPECIAL_INPUT, SPECIAL_OUTPUT, SPECIAL_INOUT) = range(3)
 
 
-class StopSimulation(Exception):
-    pass
-
-
 class _Fragment:
-    def __init__(self, comb=None, sync=None, specials=None, clock_domains=None, sim=None):
+    def __init__(self, comb=None, sync=None, specials=None, clock_domains=None):
         if comb is None: comb = []
         if sync is None: sync = dict()
         if specials is None: specials = set()
         if clock_domains is None: clock_domains = _ClockDomainList()
-        if sim is None: sim = []
 
         self.comb = comb
         self.sync = sync
         self.specials = specials
         self.clock_domains = _ClockDomainList(clock_domains)
-        self.sim = sim
 
     def __add__(self, other):
         newsync = _collections.defaultdict(list)
@@ -705,8 +705,7 @@ class _Fragment:
             newsync[k].extend(v)
         return _Fragment(self.comb + other.comb, newsync,
             self.specials | other.specials,
-            self.clock_domains + other.clock_domains,
-            self.sim + other.sim)
+            self.clock_domains + other.clock_domains)
 
     def __iadd__(self, other):
         newsync = _collections.defaultdict(list)
@@ -718,5 +717,4 @@ class _Fragment:
         self.sync = newsync
         self.specials |= other.specials
         self.clock_domains += other.clock_domains
-        self.sim += other.sim
         return self

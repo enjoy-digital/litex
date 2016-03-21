@@ -14,12 +14,12 @@ from litex.build import tools
 
 
 def settings(path, ver=None, sub=None):
-    vers = list(tools.versions(path))
     if ver is None:
+        vers = list(tools.versions(path))
+        if not vers:
+            raise OSError("no version directory for Xilinx tools found in "
+                          + path)
         ver = max(vers)
-    else:
-        ver = StrictVersion(ver)
-        assert ver in vers
 
     full = os.path.join(path, str(ver))
     if sub:
@@ -39,7 +39,7 @@ def settings(path, ver=None, sub=None):
         if os.path.exists(settings):
             return settings
 
-    raise OSError("no settings file found")
+    raise OSError("no Xilinx tools settings file found")
 
 
 class XilinxNoRetimingVivadoImpl(Module):

@@ -55,6 +55,7 @@ class MemoryToArray(ModuleTransformer):
 
     def transform_fragment(self, i, f):
         newspecials = set()
+        processed_ports = set()
 
         for mem in f.specials:
             if not isinstance(mem, Memory):
@@ -111,4 +112,7 @@ class MemoryToArray(ModuleTransformer):
                         sync.append(If(port.we,
                                        storage[port.adr].eq(port.dat_w)))
 
+                processed_ports.add(port)
+
+        newspecials -= processed_ports
         f.specials = newspecials

@@ -12,7 +12,7 @@ class BitonicSort(Module):
 
     http://www.dps.uibk.ac.at/~cosenza/teaching/gpu/sort-batcher.pdf
 
-    http://www.inf.fh-lensburg.de/lang/algorithmen/sortieren/bitonic/bitonicen.htm
+    http://www.inf.fh-flensburg.de/lang/algorithmen/sortieren/bitonic/bitonicen.htm
 
     http://www.myhdl.org/doku.php/cookbook:bitonic
 
