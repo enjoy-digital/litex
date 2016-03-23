@@ -6,15 +6,17 @@ from litex.gen.util.misc import gcd_multiple
 
 class FullMemoryWE(ModuleTransformer):
     def __init__(self):
-        self.replacments = dict()
+        self.replacements = dict()
 
     def transform_fragment(self, i, f):
         newspecials = set()
+        replaced_ports = set()
 
         for orig in f.specials:
             if not isinstance(orig, Memory):
                 newspecials.add(orig)
                 continue
+
             global_granularity = gcd_multiple([p.we_granularity if p.we_granularity else orig.width for p in orig.ports])
             if global_granularity == orig.width:
                 newspecials.add(orig)  # nothing to do
@@ -44,8 +46,12 @@ class FullMemoryWE(ModuleTransformer):
                             clock_domain=port.clock.cd)
                         newmem.ports.append(newport)
                         newspecials.add(newport)
-                self.replacments[orig] = newmems
 
+                for port in orig.ports:
+                    replaced_ports.add(port)
+                self.replacements[orig] = newmems
+
+        newspecials -= replaced_ports
         f.specials = newspecials
 
 
@@ -75,8 +81,6 @@ class MemoryToArray(ModuleTransformer):
                 storage.append(mem_storage)
 
             for port in mem.ports:
-                if port.we_granularity:
-                    raise NotImplementedError
                 try:
                     sync = f.sync[port.clock.cd]
                 except KeyError:

@@ -11,7 +11,7 @@ from litex.gen.fhdl.bitcontainer import value_bits_sign
 from litex.gen.fhdl.tools import (list_targets, list_signals,
                               insert_resets, lower_specials)
 from litex.gen.fhdl.simplify import MemoryToArray
-from litex.gen.fhdl.specials import _MemoryLocation
+from litex.gen.fhdl.specials import _MemoryLocation, _MemoryPort
 from litex.gen.sim.vcd import VCDWriter, DummyVCDWriter
 
 
@@ -230,6 +230,13 @@ class Simulator:
         fs, lowered = lower_specials(overrides={}, specials=self.fragment.specials)
         self.fragment += fs
         self.fragment.specials -= lowered
+        # FIXME: Remaining replaced ports workaround
+        remaining_memory_ports = set()
+        for s in self.fragment.specials:
+            if isinstance(s, _MemoryPort):
+                remaining_memory_ports.add(s)
+        self.fragment.specials -= remaining_memory_ports
+        # FIXME: Remaining replaced ports workaround
         if self.fragment.specials:
             raise ValueError("Could not lower all specials", self.fragment.specials)
 
