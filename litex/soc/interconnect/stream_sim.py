@@ -74,18 +74,6 @@ def randn(max_n):
     return random.randint(0, max_n-1)
 
 
-class RandRun:
-    def __init__(self, level=0):
-        self.run = True
-        self.level = level
-
-    def do_simulation(self, selfp):
-        self.run = True
-        n = randn(100)
-        if n < self.level:
-            self.run = False
-
-
 class Packet(list):
     def __init__(self, init=[]):
         self.ongoing = False
@@ -115,6 +103,7 @@ class PacketStreamer(Module):
         while not packet.done:
             yield
 
+    @passive
     def generator(self):
         while True:
             if len(self.packets) and self.packet.done:
@@ -155,6 +144,7 @@ class PacketLogger(Module):
         while not self.packet.done:
             yield
 
+    @passive
     def generator(self):
         while True:
             yield self.sink.ready.eq(1)
@@ -171,7 +161,7 @@ class PacketLogger(Module):
             yield
 
 
-class AckRandomizer(Module):
+class Randomizer(Module):
     def __init__(self, description, level=0):
         self.level = level
 
@@ -182,12 +172,13 @@ class AckRandomizer(Module):
 
         self.comb += \
             If(self.ce,
-                Record.connect(self.sink, self.source)
+                self.sink.connect(self.source)
             ).Else(
                 self.source.valid.eq(0),
                 self.sink.ready.eq(0),
             )
 
+    @passive
     def generator(self):
         while True:
             n = randn(100)
