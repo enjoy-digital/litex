@@ -21,6 +21,7 @@ from operator import or_
 
 from litex.gen import *
 from litex.gen.genlib.record import *
+from litex.gen.fhdl.decorators import ClockDomainsRenamer
 
 from litex.soc.interconnect.dfi import *
 from litex.soc.cores.sdram import settings as sdram_settings
@@ -399,7 +400,7 @@ class S6HalfRateDDRPHY(Module):
 class S6QuarterRateDDRPHY(Module):
     def __init__(self, pads, rd_bitslip, wr_bitslip, dqs_ddr_alignment):
         half_rate_phy = S6HalfRateDDRPHY(pads, "DDR3", rd_bitslip, wr_bitslip, dqs_ddr_alignment)
-        self.submodules += RenameClockDomains(half_rate_phy, {"sys" : "sys2x"})
+        self.submodules += ClockDomainsRenamer("sys2x")(half_rate_phy)
 
         addressbits = len(pads.a)
         bankbits = len(pads.ba)
