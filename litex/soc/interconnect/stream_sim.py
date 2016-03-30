@@ -83,14 +83,14 @@ class Packet(list):
 
 
 class PacketStreamer(Module):
-    def __init__(self, description, last_be=None):
+    def __init__(self, description, last_be=None, packet_cls=Packet):
         self.source = stream.Endpoint(description)
         self.last_be = last_be
 
         # # #
 
         self.packets = []
-        self.packet = Packet()
+        self.packet = packet_cls()
         self.packet.done = True
 
     def send(self, packet):
@@ -112,16 +112,11 @@ class PacketStreamer(Module):
                 yield self.source.valid.eq(1)
                 yield self.source.data.eq(self.packet.pop(0))
                 self.packet.ongoing = True
-            elif (yield self.source.valid) == 1 and (yield self.source.ready) == 1:
-                if len(self.packet) == 1:
-                    yield self.source.last.eq(1)
-                    if self.last_be is not None:
-                        yield self.source.last_be.eq(self.last_be)
-                else:
-                    yield self.source.last.eq(0)
-                    if self.last_be is not None:
-                        yield self.source.last_be.eq(0)
-                if len(self.packet) > 0:
+            elif (yield self.source.valid) and (yield self.source.ready):
+                yield self.source.last.eq(len(self.packet) == 1)
+                if self.last_be is not None:
+                    yield self.source.last_be.eq(self.last_be & (len(self.packet) == 1))
+                if len(self.packet):
                     yield self.source.valid.eq(1)
                     yield self.source.data.eq(self.packet.pop(0))
                 else:
@@ -131,18 +126,23 @@ class PacketStreamer(Module):
 
 
 class PacketLogger(Module):
-    def __init__(self, description):
+    def __init__(self, description, packet_cls=Packet):
         self.sink = stream.Endpoint(description)
 
         # # #
 
-        self.packet = Packet()
+        self.packet_cls = packet_cls
+        self.packet = packet_cls()
         self.first = True
 
-    def receive(self):
+    def receive(self, length=None):
         self.packet.done = False
-        while not self.packet.done:
-            yield
+        if length is None:
+            while not self.packet.done:
+                yield
+        else:
+            while length > len(self.packet):
+                yield
 
     @passive
     def generator(self):
@@ -150,11 +150,9 @@ class PacketLogger(Module):
             yield self.sink.ready.eq(1)
             if (yield self.sink.valid):
                 if self.first:
-                    self.packet = Packet()
-                    self.packet.append((yield self.sink.data))
+                    self.packet = self.packet_cls()
                     self.first = False
-                else:
-                    self.packet.append((yield self.sink.data))
+                self.packet.append((yield self.sink.data))
                 if (yield self.sink.last):
                     self.packet.done = True
                     self.first = True
