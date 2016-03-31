@@ -34,6 +34,9 @@ void flush_cpu_icache(void)
 
 	for (i = 0; i < cache_size; i += cache_block_size)
 		mtspr(SPR_ICBIR, i);
+#elif defined (__riscv__)
+	/* no instruction cache */
+	asm volatile("nop");
 #else
 #error Unsupported architecture
 #endif
@@ -62,6 +65,9 @@ void flush_cpu_dcache(void)
 
 	for (i = 0; i < cache_size; i += cache_block_size)
 		mtspr(SPR_DCBIR, i);
+#elif defined (__riscv__)
+	/* no data cache */
+	asm volatile("nop");
 #else
 #error Unsupported architecture
 #endif
@@ -80,6 +86,9 @@ void flush_l2_cache(void)
 		__asm__ volatile("lw %0, (%1+0)\n":"=r"(dummy):"r"(addr));
 #elif defined (__or1k__)
 		__asm__ volatile("l.lwz %0, 0(%1)\n":"=r"(dummy):"r"(addr));
+#elif defined (__riscv__)
+	/* FIXME */
+	asm volatile("nop");
 #else
 #error Unsupported architecture
 #endif

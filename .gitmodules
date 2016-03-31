@@ -7,3 +7,6 @@
 [submodule "litex/soc/software/compiler_rt"]
 	path = litex/soc/software/compiler_rt
 	url = http://llvm.org/git/compiler-rt.git
+[submodule "litex/soc/cores/cpu/picorv32/verilog"]
+	path = litex/soc/cores/cpu/picorv32/verilog
+	url = https://github.com/cliffordwolf/picorv32

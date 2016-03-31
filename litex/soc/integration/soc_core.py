@@ -3,7 +3,7 @@ from operator import itemgetter
 from litex.gen import *
 
 from litex.soc.cores import identifier, timer, uart
-from litex.soc.cores.cpu import lm32, mor1kx
+from litex.soc.cores.cpu import lm32, mor1kx, picorv32
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 
 
@@ -76,6 +76,8 @@ class SoCCore(Module):
                 self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address))
             elif cpu_type == "or1k":
                 self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address))
+            elif cpu_type == "riscv32":
+                self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_wb_master(self.cpu_or_bridge.ibus)
@@ -207,7 +209,7 @@ class SoCCore(Module):
 
 def soc_core_args(parser):
     parser.add_argument("--cpu-type", default=None,
-                        help="select CPU: lm32, or1k")
+                        help="select CPU: lm32, or1k, riscv32")
     parser.add_argument("--integrated-rom-size", default=None, type=int,
                         help="size/enable the integrated (BIOS) ROM")
     parser.add_argument("--integrated-main-ram-size", default=None, type=int,

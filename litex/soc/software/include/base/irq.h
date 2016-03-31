@@ -17,6 +17,9 @@ static inline unsigned int irq_getie(void)
 	return ie;
 #elif defined (__or1k__)
 	return !!(mfspr(SPR_SR) & SPR_SR_IEE);
+#elif defined (__riscv__)
+	/* FIXME */
+	return 0;
 #else
 #error Unsupported architecture
 #endif
@@ -31,6 +34,9 @@ static inline void irq_setie(unsigned int ie)
 		mtspr(SPR_SR, mfspr(SPR_SR) | SPR_SR_IEE);
 	else
 		mtspr(SPR_SR, mfspr(SPR_SR) & ~SPR_SR_IEE);
+#elif defined (__riscv__)
+	/* FIXME */
+	return 0;
 #else
 #error Unsupported architecture
 #endif
@@ -44,6 +50,9 @@ static inline unsigned int irq_getmask(void)
 	return mask;
 #elif defined (__or1k__)
 	return mfspr(SPR_PICMR);
+#elif defined (__riscv__)
+	/* FIXME */
+	return 0;
 #else
 #error Unsupported architecture
 #endif
@@ -55,6 +64,9 @@ static inline void irq_setmask(unsigned int mask)
 	__asm__ __volatile__("wcsr IM, %0" : : "r" (mask));
 #elif defined (__or1k__)
 	mtspr(SPR_PICMR, mask);
+#elif defined (__riscv__)
+	/* FIXME */
+	return 0;
 #else
 #error Unsupported architecture
 #endif
@@ -68,6 +80,9 @@ static inline unsigned int irq_pending(void)
 	return pending;
 #elif defined (__or1k__)
 	return mfspr(SPR_PICSR);
+#elif defined (__riscv__)
+	/* FIXME */
+	return 0;
 #else
 #error Unsupported architecture
 #endif

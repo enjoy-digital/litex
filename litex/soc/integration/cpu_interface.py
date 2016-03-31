@@ -2,6 +2,11 @@ from litex.gen import *
 
 from litex.soc.interconnect.csr import CSRStatus
 
+cpu_endianness = {
+    "lm32": "big",
+    "or1k": "big",
+    "riscv32": "little"
+}
 
 def get_cpu_mak(cpu):
     if cpu == "lm32":
@@ -12,18 +17,28 @@ def get_cpu_mak(cpu):
         triple = "or1k-linux"
         cpuflags = "-mhard-mul -mhard-div -mror -mffl1 -maddc"
         clang = "1"
+    elif cpu == "riscv32":
+        triple = "riscv32-unknown-elf"
+        cpuflags = "-mno-save-restore"
+        clang = ""
     else:
         raise ValueError("Unsupported CPU type: "+cpu)
     return [
         ("TRIPLE", triple),
         ("CPU", cpu),
         ("CPUFLAGS", cpuflags),
+        ("CPUENDIANNESS", cpu_endianness[cpu]),
         ("CLANG", clang)
     ]
 
 
 def get_linker_output_format(cpu_type):
-    return "OUTPUT_FORMAT(\"elf32-{}\")\n".format(cpu_type)
+    linker_output_formats = {
+        "lm32": "elf32-lm32",
+        "or1k": "elf32-or1k",
+        "riscv32": "elf32-littleriscv"
+    }
+    return "OUTPUT_FORMAT(\"" + linker_output_formats[cpu_type] + "\")\n"
 
 
 def get_linker_regions(regions):
