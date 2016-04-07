@@ -388,6 +388,7 @@ class CombinatorialActor(BinaryActor):
 
 class PipelinedActor(BinaryActor):
     def __init__(self, latency):
+        self.latency = latency
         self.pipe_ce = Signal()
         BinaryActor.__init__(self, latency)
 
