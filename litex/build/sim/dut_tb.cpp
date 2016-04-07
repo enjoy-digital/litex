@@ -19,11 +19,11 @@
 
 /* ios */
 
-#ifdef SERIAL_SOURCE_STB
+#ifdef SERIAL_SOURCE_VALID
 #define WITH_SERIAL
 #endif
 
-#ifdef ETH_SOURCE_STB
+#ifdef ETH_SOURCE_VALID
 #define WITH_ETH
 #endif
 
@@ -62,7 +62,7 @@ struct sim {
 	int eth_txbuffer_len;
 	int eth_rxbuffer_len;
 	int eth_rxbuffer_pos;
-	int eth_last_source_stb;
+	int eth_last_source_valid;
 #endif
 };
 
@@ -123,7 +123,7 @@ void eth_init(struct sim *s, const char *dev, const char*tap)
 	s->eth_txbuffer_len = 0;
 	s->eth_rxbuffer_len = 0;
 	s->eth_rxbuffer_pos = 0;
-	s->eth_last_source_stb = 0;
+	s->eth_last_source_valid = 0;
 	s->eth_dev = dev;
 	s->eth_tap = tap;
 }
@@ -187,8 +187,8 @@ VerilatedVcdC* tfp;
 int console_service(struct sim *s)
 {
 	/* fpga --> console */
-	SERIAL_SOURCE_ACK = 1;
-	if(SERIAL_SOURCE_STB == 1) {
+	SERIAL_SOURCE_READY = 1;
+	if(SERIAL_SOURCE_VALID == 1) {
 		if(SERIAL_SOURCE_DATA == '\n')
 			putchar('\r');
 		putchar(SERIAL_SOURCE_DATA);
@@ -196,7 +196,7 @@ int console_service(struct sim *s)
 	}
 
 	/* console --> fpga */
-	SERIAL_SINK_STB = 0;
+	SERIAL_SINK_VALID = 0;
 	if(s->tick%(1000) == 0) {
 		if(kbhit()) {
 			char c = getch();
@@ -204,7 +204,7 @@ int console_service(struct sim *s)
 				printf("\r\n");
 				return -1;
 			} else {
-				SERIAL_SINK_STB = 1;
+				SERIAL_SINK_VALID = 1;
 				SERIAL_SINK_DATA = c;
 			}
 		}
@@ -263,17 +263,17 @@ int console_read(struct sim *s, unsigned char *buf)
 int console_service(struct sim *s)
 {
 	/* fpga --> console */
-	SERIAL_SOURCE_ACK = 1;
-	if(SERIAL_SOURCE_STB == 1) {
+	SERIAL_SOURCE_READY = 1;
+	if(SERIAL_SOURCE_VALID == 1) {
 		s->serial_tx_data = SERIAL_SOURCE_DATA;
 		console_write(s, &(s->serial_tx_data), 1);
 	}
 
 	/* console --> fpga */
-	SERIAL_SINK_STB = 0;
+	SERIAL_SINK_VALID = 0;
 	if(console_read(s, &(s->serial_rx_data)))
 	{
-		SERIAL_SINK_STB = 1;
+		SERIAL_SINK_VALID = 1;
 		SERIAL_SINK_DATA = s->serial_rx_data;
 	}
 	return 0;
@@ -283,30 +283,30 @@ int console_service(struct sim *s)
 #ifdef WITH_ETH
 int ethernet_service(struct sim *s) {
 	/* fpga --> tap */
-	ETH_SOURCE_ACK = 1;
-	if(ETH_SOURCE_STB == 1) {
+	ETH_SOURCE_READY = 1;
+	if(ETH_SOURCE_VALID == 1) {
 		s->eth_txbuffer[s->eth_txbuffer_len] = ETH_SOURCE_DATA;
 		s->eth_txbuffer_len++;
 	} else {
-		if(s->eth_last_source_stb) {
+		if(s->eth_last_source_valid) {
 			eth_write(s, s->eth_txbuffer, s->eth_txbuffer_len);
 			s->eth_txbuffer_len = 0;
 		}
 	}
-	s->eth_last_source_stb = ETH_SOURCE_STB;
+	s->eth_last_source_valid = ETH_SOURCE_VALID;
 
 	/* tap --> fpga */
 	if(s->eth_rxbuffer_len == 0) {
-		ETH_SINK_STB = 0;
+		ETH_SINK_VALID = 0;
 		s->eth_rxbuffer_pos = 0;
 		s->eth_rxbuffer_len = eth_read(s, s->eth_rxbuffer);
 	} else {
 		if(s->eth_rxbuffer_pos < MAX(s->eth_rxbuffer_len, 60)) {
-			ETH_SINK_STB = 1;
+			ETH_SINK_VALID = 1;
 			ETH_SINK_DATA = s->eth_rxbuffer[s->eth_rxbuffer_pos];
 			s->eth_rxbuffer_pos++;
 		} else {
-			ETH_SINK_STB = 0;
+			ETH_SINK_VALID = 0;
 			s->eth_rxbuffer_len = 0;
 			memset(s->eth_rxbuffer, 0, 1532);
 		}
