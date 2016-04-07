@@ -16,6 +16,9 @@ all: libcompiler_rt.a
 libcompiler_rt.a: $(OBJECTS)
 	$(AR) crs libcompiler_rt.a $(OBJECTS)
 
+mulsi3.o: $(SOC_DIRECTORY)/software/libcompiler_rt/mulsi3.c
+	$(compile)
+
 %.o: $(SOC_DIRECTORY)/software/compiler_rt/lib/builtins/%.c
 	$(compile)
 
