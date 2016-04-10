@@ -7,7 +7,7 @@ ifeq ($(CLANG),1)
 CC_normal      := clang -target $(TRIPLE) -integrated-as
 CX_normal      := clang++ -target $(TRIPLE) -integrated-as
 else
-CC_normal      := $(TARGET_PREFIX)gcc
+CC_normal      := $(TARGET_PREFIX)gcc -std=gnu99
 CX_normal      := $(TARGET_PREFIX)g++
 endif
 AR_normal      := $(TARGET_PREFIX)ar
