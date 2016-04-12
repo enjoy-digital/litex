@@ -11,7 +11,7 @@ __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 
 class ControllerInjector(Module, AutoCSR):
-    def __init__(self, phy, controller_type, geom_settings, timing_settings):
+    def __init__(self, phy, controller_type, geom_settings, timing_settings, controller_settings):
         self.submodules.dfii = dfii.DFIInjector(geom_settings.addressbits, geom_settings.bankbits,
                 phy.settings.dfi_databits, phy.settings.nphases)
         self.comb += self.dfii.master.connect(phy.dfi)
@@ -19,7 +19,8 @@ class ControllerInjector(Module, AutoCSR):
         if controller_type == "lasmicon":
             self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings,
                                                                         geom_settings,
-                                                                        timing_settings)
+                                                                        timing_settings,
+                                                                        controller_settings)
             self.comb += controller.dfi.connect(self.dfii.slave)
 
             self.submodules.crossbar = lasmi_bus.LASMIxbar([controller.lasmic],
@@ -43,7 +44,7 @@ class SoCSDRAM(SoCCore):
     def __init__(self, platform, clk_freq, l2_size=8192, **kwargs):
         SoCCore.__init__(self, platform, clk_freq, **kwargs)
         self.l2_size = l2_size
-        
+
         self._sdram_phy = []
         self._wb_sdram_ifs = []
         self._wb_sdram = wishbone.Interface()
@@ -53,12 +54,12 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, sdram_controller_type, geom_settings, timing_settings):
+    def register_sdram(self, phy, sdram_controller_type, geom_settings, timing_settings, controller_settings=None):
         assert not self._sdram_phy
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
         self.submodules.sdram = ControllerInjector(
-            phy, sdram_controller_type, geom_settings, timing_settings)
+            phy, sdram_controller_type, geom_settings, timing_settings, controller_settings)
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor
