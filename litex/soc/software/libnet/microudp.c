@@ -10,7 +10,7 @@
 #include <net/microudp.h>
 
 //#define DEBUG_MICROUDP_TX
-//#define DEBUG_MICROUDP_TX
+//#define DEBUG_MICROUDP_RX
 
 #define ETHERTYPE_ARP 0x0806
 #define ETHERTYPE_IP  0x0800

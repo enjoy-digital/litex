@@ -117,13 +117,13 @@ class RS232PHYModel(Module):
         self.source = stream.Endpoint([("data", 8)])
 
         self.comb += [
-            pads.source_stb.eq(self.sink.valid),
+            pads.source_valid.eq(self.sink.valid),
             pads.source_data.eq(self.sink.data),
-            self.sink.ready.eq(pads.source_ack),
+            self.sink.ready.eq(pads.source_ready),
 
-            self.source.valid.eq(pads.sink_stb),
+            self.source.valid.eq(pads.sink_valid),
             self.source.data.eq(pads.sink_data),
-            pads.sink_ack.eq(self.source.ready)
+            pads.sink_ready.eq(self.source.ready)
         ]
 
 
