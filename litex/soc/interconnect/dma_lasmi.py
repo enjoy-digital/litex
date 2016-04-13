@@ -5,11 +5,11 @@ from litex.soc.interconnect import stream
 
 class Reader(Module):
     def __init__(self, lasmim, fifo_depth=None):
-        self.address = stream.Endpoint([("a", lasmim.aw)])
-        self.data = stream.Endpoint([("d", lasmim.dw)])
+        self.sink = sink = stream.Endpoint([("address", lasmim.aw)])
+        self.source = source = stream.Endpoint([("data", lasmim.dw)])
         self.busy = Signal()
 
-        ###
+        # # #
 
         if fifo_depth is None:
             fifo_depth = lasmim.req_queue_size + lasmim.read_latency + 2
@@ -20,9 +20,9 @@ class Reader(Module):
 
         self.comb += [
             lasmim.we.eq(0),
-            lasmim.stb.eq(self.address.valid & request_enable),
-            lasmim.adr.eq(self.address.a),
-            self.address.ready.eq(lasmim.req_ack & request_enable),
+            lasmim.stb.eq(sink.valid & request_enable),
+            lasmim.adr.eq(sink.address),
+            sink.ready.eq(lasmim.req_ack & request_enable),
             request_issued.eq(lasmim.stb & lasmim.req_ack)
         ]
 
@@ -51,19 +51,20 @@ class Reader(Module):
             fifo.din.eq(lasmim.dat_r),
             fifo.we.eq(lasmim.dat_r_ack),
 
-            self.data.valid.eq(fifo.readable),
-            fifo.re.eq(self.data.ready),
-            self.data.d.eq(fifo.dout),
-            data_dequeued.eq(self.data.valid & self.data.ready)
+            source.valid.eq(fifo.readable),
+            fifo.re.eq(source.ready),
+            source.data.eq(fifo.dout),
+            data_dequeued.eq(source.valid & source.ready)
         ]
 
 
 class Writer(Module):
     def __init__(self, lasmim, fifo_depth=None):
-        self.address_data = stream.Endpoint([("a", lasmim.aw), ("d", lasmim.dw)])
+        self.source = source = stream.Endpoint([("address", lasmim.aw),
+                                                ("data", lasmim.dw)])
         self.busy = Signal()
 
-        ###
+        # # #
 
         if fifo_depth is None:
             fifo_depth = lasmim.req_queue_size + lasmim.write_latency + 2
@@ -73,11 +74,11 @@ class Writer(Module):
 
         self.comb += [
             lasmim.we.eq(1),
-            lasmim.stb.eq(fifo.writable & self.address_data.valid),
-            lasmim.adr.eq(self.address_data.a),
-            self.address_data.ready.eq(fifo.writable & lasmim.req_ack),
-            fifo.we.eq(self.address_data.valid & lasmim.req_ack),
-            fifo.din.eq(self.address_data.d)
+            lasmim.stb.eq(fifo.writable & source.valid),
+            lasmim.adr.eq(source.address),
+            source.ready.eq(fifo.writable & lasmim.req_ack),
+            fifo.we.eq(source.valid & lasmim.req_ack),
+            fifo.din.eq(source.data)
         ]
 
         self.comb += [
