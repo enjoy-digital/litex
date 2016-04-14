@@ -180,11 +180,21 @@ class XilinxISEToolchain:
         return vns
 
     def add_period_constraint(self, platform, clk, period):
-        platform.add_platform_command("""NET "{clk}" TNM_NET = "GRP{clk}";
-TIMESPEC "TS{clk}" = PERIOD "GRP{clk}" """ + str(period) + """ ns HIGH 50%;""",
-                                      clk=clk)
+        platform.add_platform_command(
+            """
+NET "{clk}" TNM_NET = "PRD{clk}";
+TIMESPEC "TS{clk}" = PERIOD "PRD{clk}" """ + str(period) + """ ns HIGH 50%;
+""",
+            clk=clk,
+            )
 
     def add_false_path_constraint(self, platform, from_, to):
         platform.add_platform_command(
-            """TIMESPEC "TS{from_}TO{to}" = FROM "GRP{from_}" TO "GRP{to}" TIG;""",
-            from_=from_, to=to)
+            """
+NET "{from_}" TNM_NET = "TIG{from_}";
+NET "{to}" TNM_NET = "TIG{to}";
+TIMESPEC "TS{from_}TO{to}" = FROM "TIG{from_}" TO "TIG{to}" TIG;
+""",
+            from_=from_,
+            to=to,
+            )
