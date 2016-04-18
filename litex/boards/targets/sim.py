@@ -31,7 +31,7 @@ class BaseSoC(SoCSDRAM):
         self.submodules.uart = uart.UART(self.uart_phy)
 
         if not self.integrated_main_ram_size:
-            sdram_module = IS42S16160(self.clk_freq)
+            sdram_module = IS42S16160(self.clk_freq, "1:1")
             phy_settings = PhySettings(
                 memtype="SDR",
                 dfi_databits=1*16,
