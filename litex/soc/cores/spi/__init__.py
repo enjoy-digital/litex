@@ -1,1 +1,1 @@
-from litex.soc.spi.core import SPIMaster
+from litex.soc.cores.spi.core import SPIMaster

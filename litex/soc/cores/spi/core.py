@@ -1,6 +1,5 @@
 from litex.gen import *
-from litex.gen.bank.description import *
-from litex.gen.genlib.fsm import FSM, NextState
+from litex.soc.interconnect.csr import *
 
 
 class SPIMaster(Module, AutoCSR):
