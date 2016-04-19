@@ -544,19 +544,20 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
-	puts("\nLiteX SoC BIOS\n"
-	"(c) Copyright 2012-2015 Enjoy-Digital\n"
+	printf("\nLiteX SoC BIOS ");
+#ifdef __lm32__
+	printf("(lm32)\n");
+#elif __or1k__
+	printf("(or1k)\n");
+#elif __riscv__
+	printf("(riscv)\n");
+#else
+	printf("(unknown)\n");
+#endif
+	puts(
+	"(c) Copyright 2012-2016 Enjoy-Digital\n"
 	"(c) Copyright 2007-2015 M-Labs Limited\n"
 	"Built "__DATE__" "__TIME__"\n");
-#ifdef __lm32__
-	printf("Running on lm32.\n");
-#elif __or1k__
-	printf("Running on or1k.\n");
-#elif __riscv__
-	printf("Running on riscv.\n");
-#else
-	printf("Running on unknown architecture.\n");
-#endif
 
 	crcbios();
 #ifdef CSR_ETHMAC_BASE
