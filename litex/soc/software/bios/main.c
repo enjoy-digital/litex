@@ -462,9 +462,15 @@ static int test_user_abort(void)
 
 	printf("Automatic boot in 2 seconds...\n");
 	printf("Q/ESC: abort boot\n");
-	printf("F7:    boot from serial\n");
+#ifdef FLASH_BOOT_ADDRESS
+	printf("F:     boot from flash\n");
+#endif
+	printf("S:     boot from serial\n");
 #ifdef CSR_ETHMAC_BASE
-	printf("F8:    boot from network\n");
+	printf("N:     boot from network\n");
+#endif
+#ifdef ROM_BOOT_ADDRESS
+	printf("R:     boot from embedded ROM\n");
 #endif
 	timer0_en_write(0);
 	timer0_reload_write(0);
@@ -478,17 +484,29 @@ static int test_user_abort(void)
 	while(timer0_value_read()) {
 		if(readchar_nonblock()) {
 			c = readchar();
-			if((c == 'Q')||(c == '\e')) {
+			if((c == 'Q')||(c == 'q')||(c == '\e')) {
 				puts("Aborted");
 				return 0;
 			}
-			if(c == 0x06) {
+#ifdef FLASH_BOOT_ADDRESS
+			if((c == 'F')||(c == 'f')) {
+				flashboot();
+				return 0;
+			}
+#endif
+			if((c == 'S')||(c == 's')) {
 				serialboot();
 				return 0;
 			}
 #ifdef CSR_ETHMAC_BASE
-			if(c == 0x07) {
+			if((c == 'N')||(c == 'n')) {
 				netboot();
+				return 0;
+			}
+#endif
+#ifdef ROM_BOOT_ADDRESS
+			if((c == 'R')||(c == 'r')) {
+				romboot();
 				return 0;
 			}
 #endif
