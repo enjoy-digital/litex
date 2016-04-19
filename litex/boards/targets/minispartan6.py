@@ -76,7 +76,7 @@ class BaseSoC(SoCSDRAM):
 
         if not self.integrated_main_ram_size:
             self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
-            sdram_module = AS4C16M16(clk_freq)
+            sdram_module = AS4C16M16(clk_freq, "1:1")
             self.register_sdram(self.sdrphy, "minicon",
                                 sdram_module.geom_settings, sdram_module.timing_settings)
 
