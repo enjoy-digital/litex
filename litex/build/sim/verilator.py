@@ -101,12 +101,17 @@ make -j -C obj_dir/ -f Vdut.mk Vdut
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
     _build_tb(platform, vns, serial, os.path.join(sim_directory, "dut_tb.cpp"))
+    p = subprocess.Popen(["bash", build_script_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    output, _ = p.communicate()
+    output = output.decode('utf-8')
+    if p.returncode != 0:
+        error_messages = []
+        for l in output.splitlines():
+            if verbose or "error" in l.lower():
+                error_messages.append(l)
+        raise OSError("Subprocess failed with {}\n{}".format(p.returncode, "\n".join(error_messages)))
     if verbose:
-        r = subprocess.call(["bash", build_script_file])
-    else:
-        r = subprocess.call(["bash", build_script_file], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-    if r != 0:
-        raise OSError("Subprocess failed")
+        print(output)
 
 
 def _run_sim(build_name):
