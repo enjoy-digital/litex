@@ -16,16 +16,14 @@ def get_cpu_mak(cpu):
         clang = bool(int(clang))
     else:
         clang = None
-
     if cpu == "lm32":
         assert not clang, "lm32 not supported with clang."
         triple = "lm32-elf"
         cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
     elif cpu == "or1k":
-        # Default to CLANG unless told otherwise
+        # default to CLANG unless told otherwise
         if clang is None:
            clang = True
-
         triple = "or1k-elf"
         cpuflags = "-mhard-mul -mhard-div -mror"
         if clang:
@@ -42,7 +40,7 @@ def get_cpu_mak(cpu):
         ("CPU", cpu),
         ("CPUFLAGS", cpuflags),
         ("CPUENDIANNESS", cpu_endianness[cpu]),
-        ("CLANG", str(int(clang)))
+        ("CLANG", str(0 if clang is None else int(clang)))
     ]
 
 
