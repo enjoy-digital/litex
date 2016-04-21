@@ -133,22 +133,22 @@ class Record:
 
     def connect(self, *slaves, keep=None, omit=None):
         if keep is None:
-            keep = set([f[0] for f in self.layout])
-        if isinstance(keep, list):
-            keep = set(keep)
+            _keep = set([f[0] for f in self.layout])
+        elif isinstance(keep, list):
+            _keep = set(keep)
         if omit is None:
-            omit = set()
-        if isinstance(omit, list):
-            omit = set(omit)
+            _omit = set()
+        elif isinstance(omit, list):
+            _omit = set(omit)
 
-        keep = keep - omit
+        _keep = _keep - _omit
 
         r = []
         for f in self.layout:
             field = f[0]
             self_e = getattr(self, field)
             if isinstance(self_e, Signal):
-                if field in keep:
+                if field in _keep:
                     direction = f[2]
                     if direction == DIR_M_TO_S:
                         r += [getattr(slave, field).eq(self_e) for slave in slaves]
