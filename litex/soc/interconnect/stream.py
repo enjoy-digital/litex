@@ -276,7 +276,7 @@ class Converter(Module):
         else:
             self.source = Endpoint([("data", nbits_to)])
             self.comb += converter.source.connect(self.source,
-                            leave_out=set(["valid_token_count"]))
+                            omit=set(["valid_token_count"]))
 
 
 class StrideConverter(Module):

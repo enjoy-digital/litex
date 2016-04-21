@@ -451,14 +451,14 @@ class S6QuarterRateDDRPHY(Module):
         # DFI adaptation
 
         # Commands and writes
-        dfi_leave_out = set(["rddata", "rddata_valid", "wrdata_en"])
+        dfi_omit = set(["rddata", "rddata_valid", "wrdata_en"])
         self.comb += [
             If(~phase_sel,
-                self.dfi.phases[0].connect(half_rate_phy.dfi.phases[0], leave_out=dfi_leave_out),
-                self.dfi.phases[1].connect(half_rate_phy.dfi.phases[1], leave_out=dfi_leave_out),
+                self.dfi.phases[0].connect(half_rate_phy.dfi.phases[0], omit=dfi_omit),
+                self.dfi.phases[1].connect(half_rate_phy.dfi.phases[1], omit=dfi_omit),
             ).Else(
-                self.dfi.phases[2].connect(half_rate_phy.dfi.phases[0], leave_out=dfi_leave_out),
-                self.dfi.phases[3].connect(half_rate_phy.dfi.phases[1], leave_out=dfi_leave_out),
+                self.dfi.phases[2].connect(half_rate_phy.dfi.phases[0], omit=dfi_omit),
+                self.dfi.phases[3].connect(half_rate_phy.dfi.phases[1], omit=dfi_omit),
             ),
         ]
         wr_data_en = self.dfi.phases[self.settings.wrphase].wrdata_en & ~phase_sel
