@@ -136,10 +136,14 @@ class Record:
             _keep = set([f[0] for f in self.layout])
         elif isinstance(keep, list):
             _keep = set(keep)
+        else:
+            _keep = keep
         if omit is None:
             _omit = set()
         elif isinstance(omit, list):
             _omit = set(omit)
+        else:
+            _omit = omit
 
         _keep = _keep - _omit
 
