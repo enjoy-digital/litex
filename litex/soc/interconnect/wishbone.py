@@ -10,6 +10,13 @@ from litex.gen.genlib.fsm import FSM, NextState
 from litex.soc.interconnect import csr
 
 # TODO: rewrite without FlipFlop and Counter
+@ResetInserter()
+@CEInserter()
+class FlipFlop(Module):
+    def __init__(self, *args, **kwargs):
+        self.d = Signal(*args, **kwargs)
+        self.q = Signal(*args, **kwargs)
+        self.sync += self.q.eq(self.d)
 
 
 _layout = [
