@@ -214,6 +214,7 @@ void sdrwloff(void)
 
 #define ERR_DDRPHY_DELAY 32
 
+#ifndef SDRAM_ISERDESE2_BITSLIP
 static int write_level(int *delay, int *high_skew)
 {
 	int i;
@@ -283,6 +284,11 @@ static int write_level(int *delay, int *high_skew)
 
 	return ok;
 }
+#else
+static int write_level(int *delay, int *high_skew)
+{
+}
+#endif
 
 static void read_bitslip(int *delay, int *high_skew)
 {
@@ -408,19 +414,6 @@ static void read_delays(void)
 	cdelay(15);
 
 	printf("completed\n");
-}
-
-int sdrlevel(void)
-{
-	int delay[DFII_PIX_DATA_SIZE/2];
-	int high_skew[DFII_PIX_DATA_SIZE/2];
-
-	if(!write_level(delay, high_skew))
-		return 0;
-	read_bitslip(delay, high_skew);
-	read_delays();
-
-	return 1;
 }
 
 #endif /* CSR_DDRPHY_BASE */
@@ -563,14 +556,56 @@ int memtest(void)
 	}
 }
 
+int sdrlevel_generic(void)
+{
+	int delay[DFII_PIX_DATA_SIZE/2];
+	int high_skew[DFII_PIX_DATA_SIZE/2];
+
+	if(!write_level(delay, high_skew))
+		return 0;
+	read_bitslip(delay, high_skew);
+	read_delays();
+
+	return 1;
+}
+
+static int sdrlevel_artix7(void)
+{
+	int bitslip, delay, module;
+	int i;
+	sdram_dfii_control_write(DFII_CONTROL_SEL);
+	for(module=0; module<8; module++) {
+		ddrphy_dly_sel_write(1<<module);
+		ddrphy_rdly_dq_rst_write(1);
+		for(bitslip=0; bitslip<SDRAM_ISERDESE2_BITSLIP; bitslip++) {
+			// 7-series SERDES in DDR mode needs 3 pulses for 1 bitslip
+			for(i=0; i<3; i++)
+				ddrphy_rdly_dq_bitslip_write(1);
+		}
+		for(delay=0; delay<SDRAM_IDELAYE2_DELAY; delay++)
+			ddrphy_rdly_dq_inc_write(1);
+	}
+	return 1;
+}
+
+int sdrlevel(void)
+{
+#ifdef SDRAM_ISERDESE2_BITSLIP
+	if(!sdrlevel_artix7())
+		return 0;
+#else
+	if(!sdrlevel_generic())
+		return 0;
+#endif
+}
+
 int sdrinit(void)
 {
 	printf("Initializing SDRAM...\n");
 
 	init_sequence();
 #ifdef CSR_DDRPHY_BASE
-	if(!sdrlevel())
-		return 0;
+	sdrlevel();
 #endif
 	sdram_dfii_control_write(DFII_CONTROL_SEL);
 	if(!memtest())
