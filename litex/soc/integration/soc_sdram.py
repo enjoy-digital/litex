@@ -68,8 +68,7 @@ class SoCSDRAM(SoCCore):
                             geom_settings.colbits)*sdram_width//8
         # XXX: Limit main_ram_size to 256MB, we should modify mem_map to allow larger memories.
         main_ram_size = min(main_ram_size, 256*1024*1024)
-        if self.l2_size:
-            self.add_constant("L2_SIZE", self.l2_size)
+        self.add_constant("L2_SIZE", self.l2_size)
 
         # add a Wishbone interface to the DRAM
         wb_sdram = wishbone.Interface()
