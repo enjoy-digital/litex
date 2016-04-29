@@ -2,14 +2,12 @@ from litex.gen import *
 from litex.gen.genlib.record import *
 
 from litex.soc.interconnect import wishbone
-
-from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.integration.soc_core import *
 
-from litedram import lasmi_bus
-from litedram.frontend import wishbone2lasmi
-from litedram import dfii, lasmicon
+from litedram.frontend import crossbar
+from litedram.frontend.bridge import LiteDRAMWishboneBridge
+from litedram import dfii, core
 
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
@@ -21,14 +19,13 @@ class ControllerInjector(Module, AutoCSR):
                 phy.settings.dfi_databits, phy.settings.nphases)
         self.comb += self.dfii.master.connect(phy.dfi)
 
-        self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings,
-                                                                    geom_settings,
-                                                                    timing_settings,
-                                                                    controller_settings)
+        self.submodules.controller = controller = core.LiteDRAMController(phy.settings,
+                                                                          geom_settings,
+                                                                          timing_settings,
+                                                                          controller_settings)
         self.comb += controller.dfi.connect(self.dfii.slave)
 
-        self.submodules.crossbar = lasmi_bus.LASMIxbar([controller.lasmic],
-                                                       controller.nrowbits)
+        self.submodules.crossbar = crossbar.LiteDRAMCrossbar(controller.lasmic, controller.nrowbits)
 
 
 class SoCSDRAM(SoCCore):
@@ -55,8 +52,10 @@ class SoCSDRAM(SoCCore):
         assert not self._sdram_phy
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
-        self.submodules.sdram = ControllerInjector(
-            phy, geom_settings, timing_settings, controller_settings)
+        self.submodules.sdram = ControllerInjector(phy,
+                                                   geom_settings,
+                                                   timing_settings,
+                                                   controller_settings)
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor
@@ -73,8 +72,8 @@ class SoCSDRAM(SoCCore):
         self.register_mem("main_ram", self.mem_map["main_ram"], wb_sdram, main_ram_size)
 
         if self.l2_size:
-            lasmim = self.sdram.crossbar.get_master()
-            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(lasmim.dw))
+            port = self.sdram.crossbar.get_port()
+            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(port.dw))
             # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
             # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
             # Remove this workaround when fixed by Xilinx.
@@ -84,7 +83,7 @@ class SoCSDRAM(SoCCore):
                 self.submodules.l2_cache = FullMemoryWE()(l2_cache)
             else:
                 self.submodules.l2_cache = l2_cache
-            self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_cache.slave, lasmim)
+            self.submodules.wishbone_bridge = LiteDRAMWishboneBridge(self.l2_cache.slave, port)
 
     def do_finalize(self):
         if not self.integrated_main_ram_size:
