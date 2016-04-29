@@ -9,34 +9,26 @@ from litex.soc.integration.soc_core import *
 
 from litedram import lasmi_bus
 from litedram.frontend import wishbone2lasmi
-from litedram import dfii, minicon, lasmicon
+from litedram import dfii, lasmicon
 
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 
 class ControllerInjector(Module, AutoCSR):
-    def __init__(self, phy, controller_type, geom_settings, timing_settings, controller_settings):
+    def __init__(self, phy, geom_settings, timing_settings, controller_settings):
         self.submodules.dfii = dfii.DFIInjector(geom_settings.addressbits, geom_settings.bankbits,
                 phy.settings.dfi_databits, phy.settings.nphases)
         self.comb += self.dfii.master.connect(phy.dfi)
 
-        if controller_type == "lasmicon":
-            self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings,
-                                                                        geom_settings,
-                                                                        timing_settings,
-                                                                        controller_settings)
-            self.comb += controller.dfi.connect(self.dfii.slave)
+        self.submodules.controller = controller = lasmicon.LASMIcon(phy.settings,
+                                                                    geom_settings,
+                                                                    timing_settings,
+                                                                    controller_settings)
+        self.comb += controller.dfi.connect(self.dfii.slave)
 
-            self.submodules.crossbar = lasmi_bus.LASMIxbar([controller.lasmic],
-                                                           controller.nrowbits)
-        elif controller_type == "minicon":
-            self.submodules.controller = controller = minicon.Minicon(phy.settings,
-                                                                      geom_settings,
-                                                                      timing_settings)
-            self.comb += controller.dfi.connect(self.dfii.slave)
-        else:
-            raise ValueError("Unsupported SDRAM controller type")
+        self.submodules.crossbar = lasmi_bus.LASMIxbar([controller.lasmic],
+                                                       controller.nrowbits)
 
 
 class SoCSDRAM(SoCCore):
@@ -59,12 +51,12 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, sdram_controller_type, geom_settings, timing_settings, controller_settings=None):
+    def register_sdram(self, phy, geom_settings, timing_settings, controller_settings=None):
         assert not self._sdram_phy
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
         self.submodules.sdram = ControllerInjector(
-            phy, sdram_controller_type, geom_settings, timing_settings, controller_settings)
+            phy, geom_settings, timing_settings, controller_settings)
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor
@@ -80,36 +72,19 @@ class SoCSDRAM(SoCCore):
         self.add_wb_sdram_if(wb_sdram)
         self.register_mem("main_ram", self.mem_map["main_ram"], wb_sdram, main_ram_size)
 
-        if sdram_controller_type == "lasmicon":
-            if self.l2_size:
-                lasmim = self.sdram.crossbar.get_master()
-                l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(lasmim.dw))
-                # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
-                # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
-                # Remove this workaround when fixed by Xilinx.
-                from litex.build.xilinx.vivado import XilinxVivadoToolchain
-                if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
-                    from litex.gen.fhdl.simplify import FullMemoryWE
-                    self.submodules.l2_cache = FullMemoryWE()(l2_cache)
-                else:
-                    self.submodules.l2_cache = l2_cache
-                self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_cache.slave, lasmim)
-        elif sdram_controller_type == "minicon":
-            if self.l2_size:
-                l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, self.sdram.controller.bus)
-                # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
-                # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
-                # Remove this workaround when fixed by Xilinx.
-                from litex.build.xilinx.vivado import XilinxVivadoToolchain
-                if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
-                    from litex.gen.fhdl.simplify import FullMemoryWE
-                    self.submodules.l2_cache = FullMemoryWE()(l2_cache)
-                else:
-                    self.submodules.l2_cache = l2_cache
+        if self.l2_size:
+            lasmim = self.sdram.crossbar.get_master()
+            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(lasmim.dw))
+            # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
+            # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
+            # Remove this workaround when fixed by Xilinx.
+            from litex.build.xilinx.vivado import XilinxVivadoToolchain
+            if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+                from litex.gen.fhdl.simplify import FullMemoryWE
+                self.submodules.l2_cache = FullMemoryWE()(l2_cache)
             else:
-                self.submodules.converter = wishbone.Converter(self._wb_sdram, self.sdram.controller.bus)
-        else:
-            raise ValueError
+                self.submodules.l2_cache = l2_cache
+            self.submodules.wishbone2lasmi = wishbone2lasmi.WB2LASMI(self.l2_cache.slave, lasmim)
 
     def do_finalize(self):
         if not self.integrated_main_ram_size:
