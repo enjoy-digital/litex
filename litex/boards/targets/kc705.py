@@ -11,7 +11,7 @@ from litex.soc.integration.soc_core import mem_decoder
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
-from litedram.settings import MT8JTF12864
+from litedram.modules import MT8JTF12864
 from litedram.phy import k7ddrphy
 
 from liteeth.phy import LiteEthPHY

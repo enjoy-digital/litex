@@ -8,7 +8,7 @@ from litex.boards.platforms import de0nano
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
-from litedram.settings import IS42S16160
+from litedram.modules import IS42S16160
 from litedram.phy import GENSDRPHY
 
 

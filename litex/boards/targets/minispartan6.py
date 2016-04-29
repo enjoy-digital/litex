@@ -10,7 +10,7 @@ from litex.boards.platforms import minispartan6
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
-from litedram.settings import AS4C16M16
+from litedram.modules import AS4C16M16
 from litedram.phy import GENSDRPHY
 
 
