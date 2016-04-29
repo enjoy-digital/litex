@@ -118,6 +118,15 @@ def _printexpr(ns, node):
 def _printnode(ns, at, level, node):
     if node is None:
         return ""
+    elif isinstance(node, Display):
+        s = "\"" + node.s + "\\r\""
+        for arg in node.args:
+            s += ", "
+            if isinstance(arg, Signal):
+                s += ns.get_name(arg)
+            else:
+                s += str(arg)
+        return "\t"*level + "$display(" + s + ");\n"
     elif isinstance(node, _Assign):
         if at == _AT_BLOCKING:
             assignment = " = "

@@ -718,3 +718,8 @@ class _Fragment:
         self.specials |= other.specials
         self.clock_domains += other.clock_domains
         return self
+
+class Display:
+    def __init__(self, s, *args):
+        self.s = s
+        self.args = args
