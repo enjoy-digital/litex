@@ -556,6 +556,7 @@ int memtest(void)
 	}
 }
 
+#ifdef CSR_DDRPHY_BASE
 int sdrlevel_generic(void)
 {
 	int delay[DFII_PIX_DATA_SIZE/2];
@@ -569,6 +570,7 @@ int sdrlevel_generic(void)
 	return 1;
 }
 
+#ifdef SDRAM_ISERDESE2_BITSLIP
 static int sdrlevel_artix7(void)
 {
 	int bitslip, delay, module;
@@ -587,6 +589,7 @@ static int sdrlevel_artix7(void)
 	}
 	return 1;
 }
+#endif
 
 int sdrlevel(void)
 {
@@ -598,6 +601,7 @@ int sdrlevel(void)
 		return 0;
 #endif
 }
+#endif
 
 int sdrinit(void)
 {

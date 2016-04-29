@@ -10,9 +10,10 @@ from litex.gen.genlib.io import CRG
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.cores import uart
-from litex.soc.cores.sdram.settings import PhySettings, IS42S16160
-from litex.soc.cores.sdram.model import SDRAMPHYModel
 from litex.soc.integration.soc_core import mem_decoder
+
+from litedram.settings import PhySettings, IS42S16160
+from litedram.model import SDRAMPHYModel
 
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.core.mac import LiteEthMAC

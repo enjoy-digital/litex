@@ -6,12 +6,13 @@ from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.boards.platforms import kc705
 
-from litex.soc.cores.sdram.settings import MT8JTF12864
-from litex.soc.cores.sdram.phy import k7ddrphy
 from litex.soc.cores.flash import spi_flash
 from litex.soc.integration.soc_core import mem_decoder
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+
+from litedram.settings import MT8JTF12864
+from litedram.phy import k7ddrphy
 
 from liteeth.phy import LiteEthPHY
 from liteeth.core.mac import LiteEthMAC

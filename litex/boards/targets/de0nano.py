@@ -5,10 +5,11 @@ import argparse
 from litex.gen import *
 from litex.boards.platforms import de0nano
 
-from litex.soc.cores.sdram.settings import IS42S16160
-from litex.soc.cores.sdram.phy import GENSDRPHY
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+
+from litedram.settings import IS42S16160
+from litedram.phy import GENSDRPHY
 
 
 class _PLL(Module):

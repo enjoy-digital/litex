@@ -7,10 +7,11 @@ from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.boards.platforms import minispartan6
 
-from litex.soc.cores.sdram.settings import AS4C16M16
-from litex.soc.cores.sdram.phy import GENSDRPHY
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+
+from litedram.settings import AS4C16M16
+from litedram.phy import GENSDRPHY
 
 
 class _CRG(Module):

@@ -1,10 +1,15 @@
 from litex.gen import *
 from litex.gen.genlib.record import *
 
-from litex.soc.interconnect import wishbone, wishbone2lasmi, lasmi_bus
+from litex.soc.interconnect import wishbone
+
+from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR
-from litex.soc.cores.sdram import dfii, minicon, lasmicon
 from litex.soc.integration.soc_core import *
+
+from litedram import lasmi_bus
+from litedram.frontend import wishbone2lasmi
+from litedram import dfii, minicon, lasmicon
 
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
