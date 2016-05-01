@@ -13,7 +13,7 @@ from litex.soc.cores import uart
 from litex.soc.integration.soc_core import mem_decoder
 
 from litedram.modules import PhySettings, IS42S16160
-from litedram.model import SDRAMPHYModel
+from litedram.phy.model import SDRAMPHYModel
 
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.core.mac import LiteEthMAC
