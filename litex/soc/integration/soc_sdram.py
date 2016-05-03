@@ -25,7 +25,7 @@ class ControllerInjector(Module, AutoCSR):
                                                                           controller_settings)
         self.comb += controller.dfi.connect(self.dfii.slave)
 
-        self.submodules.crossbar = crossbar.LiteDRAMCrossbar(controller.lasmic, controller.nrowbits)
+        self.submodules.crossbar = crossbar.LiteDRAMCrossbar(controller.interface, controller.nrowbits)
 
 
 class SoCSDRAM(SoCCore):
