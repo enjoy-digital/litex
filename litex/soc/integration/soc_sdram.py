@@ -14,7 +14,7 @@ __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 
 class ControllerInjector(Module, AutoCSR):
-    def __init__(self, phy, geom_settings, timing_settings, controller_settings):
+    def __init__(self, phy, geom_settings, timing_settings, **kwargs):
         self.submodules.dfii = dfii.DFIInjector(geom_settings.addressbits, geom_settings.bankbits,
                 phy.settings.dfi_databits, phy.settings.nphases)
         self.comb += self.dfii.master.connect(phy.dfi)
@@ -22,7 +22,7 @@ class ControllerInjector(Module, AutoCSR):
         self.submodules.controller = controller = core.LiteDRAMController(phy.settings,
                                                                           geom_settings,
                                                                           timing_settings,
-                                                                          controller_settings)
+                                                                          **kwargs)
         self.comb += controller.dfi.connect(self.dfii.slave)
 
         self.submodules.crossbar = crossbar.LiteDRAMCrossbar(controller.interface, controller.nrowbits)
@@ -48,14 +48,14 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, geom_settings, timing_settings, controller_settings=None):
+    def register_sdram(self, phy, geom_settings, timing_settings, **kwargs):
         assert not self._sdram_phy
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
         self.submodules.sdram = ControllerInjector(phy,
                                                    geom_settings,
                                                    timing_settings,
-                                                   controller_settings)
+                                                   **kwargs)
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor

@@ -12,7 +12,8 @@ from litex.soc.integration.builder import *
 from litex.soc.cores import uart
 from litex.soc.integration.soc_core import mem_decoder
 
-from litedram.modules import PhySettings, IS42S16160
+from litedram.common import PhySettings
+from litedram.modules import IS42S16160
 from litedram.phy.model import SDRAMPHYModel
 
 from liteeth.phy.model import LiteEthPHYModel
