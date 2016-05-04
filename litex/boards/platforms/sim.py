@@ -30,6 +30,14 @@ _io = [
         Subsignal("sink_ready", SimPins(1)),
         Subsignal("sink_data", SimPins(8)),
     ),
+    ("vga", 0,
+        Subsignal("de", SimPins(1)),
+        Subsignal("hsync", SimPins(1)),
+        Subsignal("vsync", SimPins(1)),
+        Subsignal("r", SimPins(8)),
+        Subsignal("g", SimPins(8)),
+        Subsignal("b", SimPins(8)),
+    ),
 ]
 
 

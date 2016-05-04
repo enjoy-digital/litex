@@ -17,6 +17,8 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
+#include <SDL/SDL.h>
+
 /* ios */
 
 #ifdef SERIAL_SOURCE_VALID
@@ -25,6 +27,10 @@
 
 #ifdef ETH_SOURCE_VALID
 #define WITH_ETH
+#endif
+
+#ifdef VGA_DE
+#define WITH_VGA
 #endif
 
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -37,6 +43,9 @@ double sc_time_stamp()
 {
 	return main_time;
 }
+
+Vdut* dut;
+VerilatedVcdC* tfp;
 
 /* Sim struct */
 struct sim {
@@ -180,8 +189,78 @@ int eth_read(struct sim *s, unsigned char *buf)
 }
 #endif
 
-Vdut* dut;
-VerilatedVcdC* tfp;
+/* VGA functions */
+#ifdef WITH_VGA
+
+SDL_Surface *screen;
+SDL_Event event;
+
+void vga_set_pixel(SDL_Surface *screen, int x, int y, char r, char g, char b)
+{
+	unsigned int *pixmem32;
+	unsigned int color;
+
+	color = SDL_MapRGB(screen->format, r, g, b);
+	pixmem32 = (unsigned int*) screen->pixels  + y*640 + x;
+	*pixmem32 = color;
+}
+
+int vga_init(struct sim *s) {
+	if(SDL_Init(SDL_INIT_VIDEO) < 0) return 1;
+	if(!(screen = SDL_SetVideoMode(640, 480, 32, SDL_HWSURFACE))) {
+		SDL_Quit();
+		return 1;
+	}
+	return 0;
+}
+
+int x;
+int y;
+int hsync_needs_de = 1;
+int vsync_needs_de = 1;
+
+void vga_service(struct sim *s) {
+	if(VGA_HSYNC == 1 && hsync_needs_de == 0) {
+		x = 0;
+		y++;
+		hsync_needs_de = 1;
+	}
+	if(VGA_VSYNC == 1 && vsync_needs_de == 0) {
+		y = 0;
+		vsync_needs_de = 1;
+		if(SDL_MUSTLOCK(screen))
+			SDL_UnlockSurface(screen);
+		SDL_Flip(screen);
+		if(SDL_MUSTLOCK(screen))
+			SDL_LockSurface(screen);
+	}
+	if(VGA_DE == 1) {
+		hsync_needs_de = 0;
+		vsync_needs_de = 0;
+		vga_set_pixel(screen, x, y, VGA_R, VGA_G, VGA_B);
+		x++;
+	}
+
+	if(s->tick%1000 == 0) {
+		while(SDL_PollEvent(&event)) {
+			switch (event.type) {
+				case SDL_QUIT:
+					s->run = false;
+					break;
+				case SDL_KEYDOWN:
+					s->run = false;
+					break;
+			}
+		}
+	}
+}
+
+int vga_close(struct sim *s) {
+	SDL_Quit();
+}
+
+#endif
+
 
 #ifndef WITH_SERIAL_PTY
 int console_service(struct sim *s)
@@ -366,6 +445,10 @@ int main(int argc, char **argv, char **env)
 	eth_open(&s);
 #endif
 
+#ifdef WITH_VGA
+	if(vga_init(&s)) return 1;
+#endif
+
 	s.run = true;
 	while(s.run) {
 		sim_tick(&s);
@@ -377,6 +460,9 @@ int main(int argc, char **argv, char **env)
 #ifdef WITH_ETH
 			ethernet_service(&s);
 #endif
+#ifdef WITH_VGA
+			vga_service(&s);
+#endif
 		}
 	}
 	s.end = clock();
@@ -387,12 +473,14 @@ int main(int argc, char **argv, char **env)
 
 	tfp->close();
 
-
 #ifdef WITH_SERIAL_PTY
 	console_close(&s);
 #endif
 #ifdef WITH_ETH
 	eth_close(&s);
+#endif
+#ifdef WITH_VGA
+	vga_close(&s);
 #endif
 
 	exit(0);
