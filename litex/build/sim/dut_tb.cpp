@@ -216,18 +216,18 @@ int vga_init(struct sim *s) {
 
 int x;
 int y;
-int hsync_needs_de = 1;
-int vsync_needs_de = 1;
+int hsync_wait_de = 1;
+int vsync_wait_de = 1;
 
 void vga_service(struct sim *s) {
-	if(VGA_HSYNC == 1 && hsync_needs_de == 0) {
+	if(VGA_HSYNC == 1 && hsync_wait_de == 0) {
 		x = 0;
 		y++;
-		hsync_needs_de = 1;
+		hsync_wait_de = 1;
 	}
-	if(VGA_VSYNC == 1 && vsync_needs_de == 0) {
+	if(VGA_VSYNC == 1 && vsync_wait_de == 0) {
 		y = 0;
-		vsync_needs_de = 1;
+		vsync_wait_de = 1;
 		if(SDL_MUSTLOCK(screen))
 			SDL_UnlockSurface(screen);
 		SDL_Flip(screen);
@@ -235,8 +235,8 @@ void vga_service(struct sim *s) {
 			SDL_LockSurface(screen);
 	}
 	if(VGA_DE == 1) {
-		hsync_needs_de = 0;
-		vsync_needs_de = 0;
+		hsync_wait_de = 0;
+		vsync_wait_de = 0;
 		vga_set_pixel(screen, x, y, VGA_R, VGA_G, VGA_B);
 		x++;
 	}
