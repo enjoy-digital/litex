@@ -212,6 +212,8 @@ class Evaluator:
                     self.execute(s.cases["default"])
             elif isinstance(s, collections.Iterable):
                 self.execute(s)
+            elif isinstance(s, Display):
+                print(s.s)
             else:
                 raise NotImplementedError
 
