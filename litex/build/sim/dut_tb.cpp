@@ -207,7 +207,7 @@ void vga_set_pixel(SDL_Surface *screen, int x, int y, char r, char g, char b)
 
 int vga_init(struct sim *s) {
 	if(SDL_Init(SDL_INIT_VIDEO) < 0) return 1;
-	if(!(screen = SDL_SetVideoMode(640, 480, 32, SDL_HWSURFACE))) {
+	if(!(screen = SDL_SetVideoMode(640, 480+1, 32, SDL_HWSURFACE))) {
 		SDL_Quit();
 		return 1;
 	}
@@ -216,10 +216,12 @@ int vga_init(struct sim *s) {
 
 int x;
 int y;
+int frame;
 int hsync_wait_de = 1;
 int vsync_wait_de = 1;
 
 void vga_service(struct sim *s) {
+	int i;
 	if(VGA_HSYNC == 1 && hsync_wait_de == 0) {
 		x = 0;
 		y++;
@@ -228,6 +230,9 @@ void vga_service(struct sim *s) {
 	if(VGA_VSYNC == 1 && vsync_wait_de == 0) {
 		y = 0;
 		vsync_wait_de = 1;
+		for(i=0; i<frame; i++)
+			vga_set_pixel(screen, i%640, 480, 255, 255, 255);
+		frame++;
 		if(SDL_MUSTLOCK(screen))
 			SDL_UnlockSurface(screen);
 		SDL_Flip(screen);
