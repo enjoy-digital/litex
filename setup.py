@@ -36,8 +36,7 @@ setup(
         "console_scripts": [
             "litex_term=litex.soc.tools.litex_term:main",
             "mkmscimg=litex.soc.tools.mkmscimg:main",
-            "litex_server=litex.soc.tools.remote.litex_server:main",
-            "litex_client=litex.soc.tools.remote.litex_client:main"
+            "litex_server=litex.soc.tools.remote.litex_server:main"
         ],
     },
 )
