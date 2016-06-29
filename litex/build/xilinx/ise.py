@@ -134,7 +134,6 @@ class XilinxISEToolchain:
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
             toolchain_path=None, source=None, run=True, mode="xst", **kwargs):
-        print(source)
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         if toolchain_path is None:
