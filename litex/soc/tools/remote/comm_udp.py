@@ -2,11 +2,13 @@ import socket
 
 from litex.soc.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
 from litex.soc.tools.remote.etherbone import EtherboneReads, EtherboneWrites
+from litex.soc.tools.remote.csr_builder import CSRBuilder
 
-
-class CommUDP:
-    def __init__(self, host="localhost", port=1234, debug=False):
-        self.host = host
+class CommUDP(CSRBuilder):
+    def __init__(self, server="192.168.1.50", port=1234, csr_csv="csr.csv", csr_data_width=32, debug=False):
+        if csr_csv is not None:
+            CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
+        self.server = server
         self.port = port
         self.debug = debug
 
@@ -36,21 +38,21 @@ class CommUDP:
         packet.encode()
         self.tx_socket.sendto(bytes(packet), (self.server, self.port))
 
-        data, dummy = self.rx_socket.recvfrom(8192)
+        datas, dummy = self.rx_socket.recvfrom(8192)
         packet = EtherbonePacket(datas)
         packet.decode()
-        data = packet.records.pop().writes.get_datas()
+        datas = packet.records.pop().writes.get_datas()
         if self.debug:
-            for i, value in enumerate(data):
-                print("RD {:08X} @ {:08X}".format(data, addr + 4*i))
-        return data[0] if length is None else data
+            for i, value in enumerate(datas):
+                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
+        return datas[0] if length is None else datas
 
-    def write(self, addr, data):
-        data = data if isinstance(data, list) else [data]
-        length = len(data)
+    def write(self, addr, datas):
+        datas = datas if isinstance(datas, list) else [datas]
+        length = len(datas)
         record = EtherboneRecord()
-        record.writes = EtherboneWrites(base_addr=addr, datas=iter(data))
-        record.wcount = len(record.write)
+        record.writes = EtherboneWrites(base_addr=addr, datas=iter(datas))
+        record.wcount = len(record.writes)
 
         packet = EtherbonePacket()
         packet.records = [record]
@@ -58,5 +60,5 @@ class CommUDP:
         self.tx_socket.sendto(bytes(packet), (self.server, self.port))
 
         if self.debug:
-            for i, value in enumerate(data):
-                print("WR {:08X} @ {:08X}".format(data, addr + 4*i))
+            for i, value in enumerate(datas):
+                print("write {:08x} @ {:08x}".format(value, addr + 4*i))
