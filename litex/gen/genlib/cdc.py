@@ -1,8 +1,9 @@
 from litex.gen.fhdl.structure import *
 from litex.gen.fhdl.module import Module
-from litex.gen.fhdl.specials import Special
+from litex.gen.fhdl.specials import Special, Memory
 from litex.gen.fhdl.bitcontainer import value_bits_sign
 from litex.gen.genlib.misc import WaitTimer
+from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
 
 class NoRetiming(Special):
@@ -138,4 +139,47 @@ class GrayCounter(Module):
         self.sync += [
             self.q_binary.eq(self.q_next_binary),
             self.q.eq(self.q_next)
+        ]
+
+
+class ElasticBuffer(Module):
+    def __init__(self, width, depth, idomain, odomain):
+        self.reset = Signal()
+        self.din = Signal(width)
+        self.dout = Signal(width)
+
+        # # #
+
+        cd_write = ClockDomain()
+        cd_read = ClockDomain()
+        self.comb += [
+            cd_write.clk.eq(ClockSignal(idomain)),
+            cd_read.clk.eq(ClockSignal(odomain))
+        ]
+        self.specials += [
+            AsyncResetSynchronizer(cd_write, self.reset),
+            AsyncResetSynchronizer(cd_read, self.reset)
+        ]
+        self.clock_domains += cd_write, cd_read
+
+        wrpointer = Signal(max=depth, reset=depth//2)
+        rdpointer = Signal(max=depth)
+
+        storage = Memory(width, depth)
+        self.specials += storage
+
+        wrport = storage.get_port(write_capable=True, clock_domain="write")
+        rdport = storage.get_port(clock_domain="read")
+        self.specials += wrport, rdport
+
+        self.sync.write += wrpointer.eq(wrpointer + 1)
+        self.sync.read += rdpointer.eq(rdpointer + 1)
+
+        self.comb += [
+            wrport.we.eq(1),
+            wrport.adr.eq(wrpointer),
+            wrport.dat_w.eq(self.din),
+
+            rdport.adr.eq(rdpointer),
+            self.dout.eq(rdport.dat_r)
         ]
