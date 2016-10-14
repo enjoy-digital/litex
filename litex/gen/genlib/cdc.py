@@ -144,21 +144,22 @@ class GrayCounter(Module):
 
 class ElasticBuffer(Module):
     def __init__(self, width, depth, idomain, odomain):
-        self.reset = Signal()
         self.din = Signal(width)
         self.dout = Signal(width)
 
         # # #
 
+        reset = Signal()
         cd_write = ClockDomain()
         cd_read = ClockDomain()
         self.comb += [
             cd_write.clk.eq(ClockSignal(idomain)),
-            cd_read.clk.eq(ClockSignal(odomain))
+            cd_read.clk.eq(ClockSignal(odomain)),
+            reset.eq(ResetSignal(idomain) | ResetSignal(odomain))
         ]
         self.specials += [
-            AsyncResetSynchronizer(cd_write, self.reset),
-            AsyncResetSynchronizer(cd_read, self.reset)
+            AsyncResetSynchronizer(cd_write, reset),
+            AsyncResetSynchronizer(cd_read, reset)
         ]
         self.clock_domains += cd_write, cd_read
 
