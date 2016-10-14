@@ -51,7 +51,7 @@ class BaseSoC(SoCSDRAM):
             self.register_sdram(self.sdrphy,
                                 sdram_module.geom_settings,
                                 sdram_module.timing_settings,
-                                ControllerSettings(with_refresh=False))
+                                controller_settings=ControllerSettings(with_refresh=False))
             # reduce memtest size to speed up simulation
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
