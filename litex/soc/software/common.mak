@@ -34,16 +34,18 @@ else
 	OBJCOPY = $(OBJCOPY_quiet)
 endif
 
+# http://scottmcpeak.com/autodepend/autodepend.html
+# Generate *.d Makefile dependencies fragments, include using;
+# -include $(OBJECTS:.o=.d)
+DEPFLAGS += -MD -MP
+
 # Toolchain options
 #
 INCLUDES = -I$(SOC_DIRECTORY)/software/include/base -I$(SOC_DIRECTORY)/software/include -I$(SOC_DIRECTORY)/common -I$(BUILDINC_DIRECTORY)
-COMMONFLAGS = -Os $(CPUFLAGS) -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES)
+COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES)
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
 LDFLAGS = -nostdlib -nodefaultlibs -L$(BUILDINC_DIRECTORY)
-
-# compile and generate dependencies, based on
-# http://scottmcpeak.com/autodepend/autodepend.html
 
 define compilexx
 $(CX) -c $(CXXFLAGS) $(1) $< -o $@
