@@ -64,17 +64,22 @@ void putsnonl(const char *s)
 
 #define PRINTF_BUFFER_SIZE 256
 
-int printf(const char *fmt, ...)
+int vprintf(const char *fmt, va_list args)
 {
-	va_list args;
 	int len;
 	char outbuf[PRINTF_BUFFER_SIZE];
-
-	va_start(args, fmt);
 	len = vscnprintf(outbuf, sizeof(outbuf), fmt, args);
-	va_end(args);
 	outbuf[len] = 0;
 	putsnonl(outbuf);
+	return len;
+}
 
+int printf(const char *fmt, ...)
+{
+	int len;
+	va_list args;
+	va_start(args, fmt);
+	len = vprintf(fmt, args);
+	va_end(args);
 	return len;
 }

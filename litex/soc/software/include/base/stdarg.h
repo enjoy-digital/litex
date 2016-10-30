@@ -16,6 +16,7 @@ extern "C" {
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list args);
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args);
 int vsprintf(char *buf, const char *fmt, va_list args);
+int vprintf(const char *format, va_list ap);
 
 #ifdef __cplusplus
 }
