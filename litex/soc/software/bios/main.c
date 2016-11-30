@@ -305,6 +305,7 @@ static void help(void)
 	puts("mw         - write address space");
 	puts("mc         - copy address space");
 	puts("crc        - compute CRC32 of a part of the address space");
+	puts("ident      - display identifier");
 #ifdef __lm32__
 	puts("rcsr       - read processor CSR");
 	puts("wcsr       - write processor CSR");
@@ -319,7 +320,6 @@ static void help(void)
 #ifdef ROM_BOOT_ADDRESS
 	puts("romboot    - boot from embedded rom");
 #endif
-	puts("revision   - display revision");
 #ifdef CSR_SDRAM_BASE
 	puts("memtest    - run a memory test");
 #endif
@@ -558,7 +558,7 @@ int main(int i, char **c)
 #endif
 	puts(
 	"(c) Copyright 2012-2016 Enjoy-Digital\n"
-	"(c) Copyright 2007-2015 M-Labs Limited\n"
+	"(c) Copyright 2007-2016 M-Labs Limited\n"
 	"Built "__DATE__" "__TIME__"\n");
 
 	crcbios();
