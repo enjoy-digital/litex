@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=isr.o sdram.o main.o boot-helper-$(CPU).o boot.o dataflow.o
+OBJECTS=isr.o sdram.o main.o boot-helper-$(CPU).o boot.o
 
 all: bios.bin
 
