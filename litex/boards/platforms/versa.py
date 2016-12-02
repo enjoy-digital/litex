@@ -92,5 +92,43 @@ class Platform(LatticePlatform):
             self.add_period_constraint(self.lookup_request("eth_clocks", 1).rx, 8.0)
         except ConstraintError:
             pass
+
     def create_programmer(self):
-        return LatticeProgrammer()
+        _xcf_template = """
+<?xml version='1.0' encoding='utf-8' ?>
+<!DOCTYPE        ispXCF    SYSTEM    "IspXCF.dtd" >
+<ispXCF version="3.4.1">
+    <Comment></Comment>
+    <Chain>
+        <Comm>JTAG</Comm>
+        <Device>
+            <SelectedProg value="TRUE"/>
+            <Pos>1</Pos>
+            <Vendor>Lattice</Vendor>
+            <Family>LatticeECP3</Family>
+            <Name>LFE3-35EA</Name>
+            <File>{bitstream_file}</File>
+            <Operation>Fast Program</Operation>
+        </Device>
+    </Chain>
+    <ProjectOptions>
+        <Program>SEQUENTIAL</Program>
+        <Process>ENTIRED CHAIN</Process>
+        <OperationOverride>No Override</OperationOverride>
+        <StartTAP>TLR</StartTAP>
+        <EndTAP>TLR</EndTAP>
+        <VerifyUsercode value="FALSE"/>
+    </ProjectOptions>
+    <CableOptions>
+        <CableName>USB2</CableName>
+        <PortAdd>FTUSB-0</PortAdd>
+        <USBID>Dual RS232-HS A Location 0000 Serial A</USBID>
+        <JTAGPinSetting>
+            TRST    ABSENT;
+            ISPEN    ABSENT;
+        </JTAGPinSetting>
+    </CableOptions>
+</ispXCF>
+"""
+
+        return LatticeProgrammer(_xcf_template)
