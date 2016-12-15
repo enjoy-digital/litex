@@ -95,6 +95,8 @@ class Builder:
         csr_regions = self.soc.get_csr_regions()
         constants = self.soc.get_constants()
 
+        csr_dir = os.path.dirname(self.csr_csv)
+        os.makedirs(csr_dir, exist_ok=True)
         with open(self.csr_csv, "w") as f:
             f.write(cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
 
