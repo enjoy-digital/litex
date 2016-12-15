@@ -34,4 +34,4 @@ main.o: $(BIOS_DIRECTORY)/main.c
 clean:
 	$(RM) $(OBJECTS) bios.elf bios.bin .*~ *~
 
-.PHONY: all clean main.o
+.PHONY: all clean
