@@ -7,9 +7,11 @@ from litex.soc.tools.remote.csr_builder import CSRBuilder
 
 
 class RemoteClient(EtherboneIPC, CSRBuilder):
-    def __init__(self, host="localhost", port=1234, csr_csv="csr.csv", csr_data_width=32, debug=False):
+    def __init__(self, host="localhost", port=1234, csr_csv="csr.csv", csr_data_width=None, debug=False):
         if csr_csv is not None:
             CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
+        else:
+            assert csr_data_width is not None
         self.host = host
         self.port = port
         self.debug = debug

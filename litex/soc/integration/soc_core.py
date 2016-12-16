@@ -98,6 +98,7 @@ class SoCCore(Module):
 
         self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
             bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
+        self.add_constant("CSR_DATA_WIDTH", csr_data_width)
         self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
         if with_uart:
