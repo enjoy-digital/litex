@@ -22,8 +22,8 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-lnet -lbase-nofloat -lcompiler_rt
 	chmod -x $@
 
-main.o: $(BIOS_DIRECTORY)/main.c
-	$(compile)
+# pull in dependency info for *existing* .o files
+-include $(OBJECTS:.o=.d)
 
 %.o: $(BIOS_DIRECTORY)/%.c
 	$(compile)
