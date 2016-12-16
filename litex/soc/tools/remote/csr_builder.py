@@ -3,11 +3,15 @@ import csv
 
 class CSRElements:
     def __init__(self, d):
-        self.d = d
+        self.__dict__.update(d)
+
+    @property
+    def d(self):
+        return self.__dict__
 
     def __getattr__(self, attr):
         try:
-            return self.__dict__['d'][attr]
+            return self.__dict__[attr]
         except KeyError:
             pass
         raise KeyError("No such element " + attr)
