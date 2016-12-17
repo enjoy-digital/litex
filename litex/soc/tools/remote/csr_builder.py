@@ -3,11 +3,15 @@ import csv
 
 class CSRElements:
     def __init__(self, d):
-        self.d = d
+        self.__dict__.update(d)
+
+    @property
+    def d(self):
+        return self.__dict__
 
     def __getattr__(self, attr):
         try:
-            return self.__dict__['d'][attr]
+            return self.__dict__[attr]
         except KeyError:
             pass
         raise KeyError("No such element " + attr)
@@ -52,9 +56,20 @@ class CSRMemoryRegion:
 
 
 class CSRBuilder:
-    def __init__(self, comm, csr_csv, csr_data_width):
-        self.csr_data_width = csr_data_width
+    def __init__(self, comm, csr_csv, csr_data_width=None):
         self.constants = self.build_constants(csr_csv)
+
+        # Load csr_data_width from the constants, otherwise it must be provided
+        constant_csr_data_width = self.constants.d.get('csr_data_width', None)
+        if csr_data_width is None:
+            csr_data_width = constant_csr_data_width
+        if csr_data_width is None:
+            raise KeyError('csr_data_width not found in constants, please provide!')
+        if csr_data_width != constant_csr_data_width:
+            raise KeyError('csr_data_width of {} provided but {} found in constants'.format(
+                csr_data_width, constant_csr_data_width))
+
+        self.csr_data_width = csr_data_width
         self.bases = self.build_bases(csr_csv)
         self.regs = self.build_registers(csr_csv, comm.read, comm.write)
         self.mems = self.build_memories(csr_csv)

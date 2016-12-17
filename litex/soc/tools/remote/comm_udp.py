@@ -5,7 +5,7 @@ from litex.soc.tools.remote.etherbone import EtherboneReads, EtherboneWrites
 from litex.soc.tools.remote.csr_builder import CSRBuilder
 
 class CommUDP(CSRBuilder):
-    def __init__(self, server="192.168.1.50", port=1234, csr_csv="csr.csv", csr_data_width=32, debug=False):
+    def __init__(self, server="192.168.1.50", port=1234, csr_csv="csr.csv", csr_data_width=None, debug=False):
         if csr_csv is not None:
             CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
         self.server = server
