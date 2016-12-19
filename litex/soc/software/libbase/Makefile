@@ -11,6 +11,9 @@ libbase.a: $(OBJECTS) vsnprintf.o
 libbase-nofloat.a: $(OBJECTS) vsnprintf-nofloat.o
 	$(AR) crs libbase-nofloat.a $(OBJECTS) vsnprintf-nofloat.o
 
+# pull in dependency info for *existing* .o files
+-include $(OBJECTS:.o=.d)
+
 vsnprintf-nofloat.o: $(LIBBASE_DIRECTORY)/vsnprintf.c
 	$(call compile,-DNO_FLOAT)
 
