@@ -63,8 +63,6 @@ class SpiFlash(Module, AutoCSR):
         self.specials.dq = dq.get_tristate(pads.dq)
 
         sr = Signal(max(cmd_width, addr_width, wbone_width))
-        dqs = Replicate(1, spi_width-1)
-
         self.comb += bus.dat_r.eq(sr)
 
         hw_read_logic = [
@@ -78,7 +76,6 @@ class SpiFlash(Module, AutoCSR):
             bitbang_logic = [
                 pads.clk.eq(self.bitbang.storage[1]),
                 pads.cs_n.eq(self.bitbang.storage[2]),
-                dq.o.eq(Cat(self.bitbang.storage[0], dqs)),
                 If(self.bitbang.storage[3],
                     dq.oe.eq(0)
                 ).Else(
@@ -88,6 +85,14 @@ class SpiFlash(Module, AutoCSR):
                     self.miso.status.eq(dq.i[1])
                 )
             ]
+            if spi_width > 1:
+                bitbang_logic += [
+                    dq.o.eq(Cat(self.bitbang.storage[0], Replicate(1, spi_width-1)))
+                ]
+            else:
+                bitbang_logic += [
+                    dq.o.eq(self.bitbang.storage[0])
+                ]
 
             self.comb += \
                 If(self.bitbang_en.storage,
