@@ -14,7 +14,7 @@ class CSRElements:
             return self.__dict__[attr]
         except KeyError:
             pass
-        raise KeyError("No such element " + attr)
+        raise AttributeError("No such element " + attr)
 
 
 class CSRRegister:
