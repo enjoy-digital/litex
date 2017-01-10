@@ -390,19 +390,23 @@ class PipelinedActor(BinaryActor):
     def __init__(self, latency):
         self.latency = latency
         self.pipe_ce = Signal()
+        self.busy = Signal()
         BinaryActor.__init__(self, latency)
 
     def build_binary_control(self, sink, source, latency):
+        busy = 0
         valid = sink.valid
         for i in range(latency):
             valid_n = Signal()
             self.sync += If(self.pipe_ce, valid_n.eq(valid))
             valid = valid_n
+            busy = busy | valid
 
         self.comb += [
             self.pipe_ce.eq(source.ready | ~valid),
             sink.ready.eq(self.pipe_ce),
-            source.valid.eq(valid)
+            source.valid.eq(valid),
+            self.busy.eq(busy)
         ]
         last = sink.valid & sink.last
         for i in range(latency):
