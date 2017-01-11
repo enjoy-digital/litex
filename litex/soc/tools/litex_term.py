@@ -214,7 +214,7 @@ class LiteXTerm:
             while self.reader_alive:
                 c = self.port.read()
                 if c == b"\r":
-                    sys.stdout.write(b"\n")
+                    sys.stdout.buffer.write(b"\n")
                 else:
                 	sys.stdout.buffer.write(c)
                 sys.stdout.flush()
