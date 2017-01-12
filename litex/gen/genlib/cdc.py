@@ -142,6 +142,20 @@ class GrayCounter(Module):
         ]
 
 
+class GrayDecoder(Module):
+    def __init__(self, width):
+        self.i = Signal(width)
+        self.o = Signal(width)
+
+        # # #
+
+        o_comb = Signal(width)
+        self.comb += o_comb[-1].eq(self.i[-1])
+        for i in reversed(range(width-1)):
+            self.comb += o_comb[i].eq(o_comb[i+1] ^ self.i[i])
+        self.sync += self.o.eq(o_comb)
+
+
 class ElasticBuffer(Module):
     def __init__(self, width, depth, idomain, odomain):
         self.din = Signal(width)
