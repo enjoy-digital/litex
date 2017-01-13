@@ -19,6 +19,9 @@ def write_to_file(filename, contents, force_unix=False):
     newline = None
     if force_unix:
         newline = "\n"
+    if os.path.exists(filename):
+        if open(filename, "r", newline=newline).read() == contents:
+            return
     with open(filename, "w", newline=newline) as f:
         f.write(contents)
 
