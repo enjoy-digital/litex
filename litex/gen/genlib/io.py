@@ -38,6 +38,8 @@ class DifferentialOutput(Special):
 
 
 class CRG(Module):
+    """ Clock and Reset Generator """
+
     def __init__(self, clk, rst=0):
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_por = ClockDomain(reset_less=True)

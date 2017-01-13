@@ -1,5 +1,6 @@
 import builtins as _builtins
 import collections as _collections
+import re as _re
 
 from litex.gen.fhdl import tracer as _tracer
 from litex.gen.util.misc import flat_iteration as _flat_iteration
@@ -136,7 +137,8 @@ def wrap(value):
     if isinstance(value, (bool, int)):
         value = Constant(value)
     if not isinstance(value, _Value):
-        raise TypeError("Object is not a Migen value")
+        raise TypeError("Object '{}' of type {} is not a Migen value"
+                        .format(value, type(value)))
     return value
 
 
@@ -310,11 +312,19 @@ class Signal(_Value):
         determined by the integer range given by `min` (inclusive,
         defaults to 0) and `max` (exclusive, defaults to 2).
     related : Signal or None
+    attr : set of synthesis attributes
     """
-    def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None, related=None, attribute=""):
+    _name_re = _re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+    def __init__(self, bits_sign=None, name=None, variable=False, reset=0, name_override=None, min=None, max=None, related=None, attr=None):
         from litex.gen.fhdl.bitcontainer import bits_for
 
         _Value.__init__(self)
+
+        for n in [name, name_override]:
+            if n is not None and not self._name_re.match(n):
+                raise ValueError("Signal name {} is not a valid Python identifier"
+                                 .format(repr(n)))
 
         # determine number of bits and signedness
         if bits_sign is None:
@@ -332,15 +342,19 @@ class Signal(_Value):
                 self.nbits, self.signed = bits_sign
             else:
                 self.nbits, self.signed = bits_sign, False
+        if isinstance(reset, (bool, int)):
+            reset = Constant(reset, (self.nbits, self.signed))
         if not isinstance(self.nbits, int) or self.nbits <= 0:
             raise ValueError("Signal width must be a strictly positive integer")
+        if attr is None:
+            attr = set()
 
         self.variable = variable  # deprecated
         self.reset = reset
         self.name_override = name_override
         self.backtrace = _tracer.trace_back(name)
         self.related = related
-        self.attribute = attribute
+        self.attr = attr
 
     def __setattr__(self, k, v):
         if k == "reset":
@@ -526,7 +540,7 @@ class Case(_Statement):
         for k, v in cases.items():
             if isinstance(k, (bool, int)):
                 k = Constant(k)
-            if (not isinstance(k, Constant) 
+            if (not isinstance(k, Constant)
                     and not (isinstance(k, str) and k == "default")):
                 raise TypeError("Case object is not a Migen constant")
             if not isinstance(v, _collections.Iterable):

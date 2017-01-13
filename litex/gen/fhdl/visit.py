@@ -38,7 +38,7 @@ class NodeVisitor:
             self.visit_clock_domains(node)
         elif isinstance(node, _ArrayProxy):
             self.visit_ArrayProxy(node)
-        elif node is not None:
+        else:
             self.visit_unknown(node)
 
     def visit_Constant(self, node):
@@ -140,10 +140,8 @@ class NodeTransformer:
             return self.visit_clock_domains(node)
         elif isinstance(node, _ArrayProxy):
             return self.visit_ArrayProxy(node)
-        elif node is not None:
-            return self.visit_unknown(node)
         else:
-            return None
+            return self.visit_unknown(node)
 
     def visit_Constant(self, node):
         return node

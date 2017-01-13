@@ -1,16 +1,34 @@
 import os
 import sys
-from distutils.version import StrictVersion
+try:
+    import colorama
+    colorama.init()  # install escape sequence translation on Windows
+    _have_colorama = True
+except ImportError:
+    _have_colorama = False
 
 from litex.gen.fhdl.structure import *
 from litex.gen.fhdl.specials import Instance
 from litex.gen.fhdl.module import Module
-from litex.gen.fhdl.specials import SynthesisDirective
 from litex.gen.genlib.cdc import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.gen.genlib.io import *
 
 from litex.build import tools
+
+
+colors = []
+if _have_colorama:
+    colors += [
+        ("^ERROR:.*$", colorama.Fore.RED + colorama.Style.BRIGHT +
+         r"\g<0>" + colorama.Style.RESET_ALL),
+        ("^CRITICAL WARNING:.*$", colorama.Fore.RED +
+         r"\g<0>" + colorama.Style.RESET_ALL),
+        ("^WARNING:.*$", colorama.Fore.YELLOW +
+         r"\g<0>" + colorama.Style.RESET_ALL),
+        ("^INFO:.*$", colorama.Fore.GREEN +
+         r"\g<0>" + colorama.Style.RESET_ALL),
+    ]
 
 
 def settings(path, ver=None, sub=None):
@@ -42,52 +60,18 @@ def settings(path, ver=None, sub=None):
     raise OSError("no Xilinx tools settings file found")
 
 
-class XilinxNoRetimingVivadoImpl(Module):
-    def __init__(self, reg):
-        pass # No equivalent in Vivado
-
-
-class XilinxNoRetimingVivado:
-    @staticmethod
-    def lower(dr):
-        return XilinxNoRetimingVivadoImpl(dr.reg)
-
-
-class XilinxNoRetimingISEImpl(Module):
-    def __init__(self, reg):
-        self.specials += SynthesisDirective("attribute register_balancing of {r} is no", r=reg)
-
-
-class XilinxNoRetimingISE:
-    @staticmethod
-    def lower(dr):
-        return XilinxNoRetimingISEImpl(dr.reg)
-
-
-class XilinxMultiRegVivadoImpl(MultiRegImpl):
+class XilinxMultiRegImpl(MultiRegImpl):
     def __init__(self, *args, **kwargs):
         MultiRegImpl.__init__(self, *args, **kwargs)
-        for reg in self.regs:
-            reg.attribute += " SHIFT_EXTRACT=\"NO\", ASYNC_REG=\"TRUE\","
+        for r in self.regs:
+            r.attr.add("async_reg")
+            r.attr.add("no_shreg_extract")
 
 
-class XilinxMultiRegVivado:
+class XilinxMultiReg:
     @staticmethod
     def lower(dr):
-        return XilinxMultiRegVivadoImpl(dr.i, dr.o, dr.odomain, dr.n)
-
-
-class XilinxMultiRegISEImpl(MultiRegImpl):
-    def __init__(self, *args, **kwargs):
-        MultiRegImpl.__init__(self, *args, **kwargs)
-        self.specials += [SynthesisDirective("attribute shreg_extract of {r} is no", r=r)
-            for r in self.regs]
-
-
-class XilinxMultiRegISE:
-    @staticmethod
-    def lower(dr):
-        return XilinxMultiRegISEImpl(dr.i, dr.o, dr.odomain, dr.n)
+        return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
 
 class XilinxAsyncResetSynchronizerImpl(Module):
@@ -99,6 +83,8 @@ class XilinxAsyncResetSynchronizerImpl(Module):
             Instance("FDPE", p_INIT=1, i_D=rst1, i_PRE=async_reset,
                 i_CE=1, i_C=cd.clk, o_Q=cd.rst)
         ]
+        rst1.attr.add("async_reg")
+        cd.rst.attr.add("async_reg")
 
 
 class XilinxAsyncResetSynchronizer:
@@ -145,22 +131,11 @@ class XilinxDDROutput:
 
 
 xilinx_special_overrides = {
+    MultiReg:               XilinxMultiReg,
     AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
     DifferentialInput:      XilinxDifferentialInput,
     DifferentialOutput:     XilinxDifferentialOutput,
     DDROutput:              XilinxDDROutput
-}
-
-
-xilinx_vivado_special_overrides = {
-    NoRetiming:             XilinxNoRetimingVivado,
-    MultiReg:               XilinxMultiRegVivado
-}
-
-
-xilinx_ise_special_overrides = {
-    NoRetiming:             XilinxNoRetimingISE,
-    MultiReg:               XilinxMultiRegISE
 }
 
 

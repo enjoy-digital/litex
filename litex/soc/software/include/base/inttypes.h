@@ -22,6 +22,8 @@
 #ifndef __INTTYPES_H
 #define __INTTYPES_H
 
+#include <stdint.h>
+
 # if __WORDSIZE == 64
 #  define __PRI64_PREFIX        "l"
 #  define __PRIPTR_PREFIX       "l"

@@ -1,20 +1,13 @@
+"""
+Clock domain crossing module
+"""
+
 from litex.gen.fhdl.structure import *
 from litex.gen.fhdl.module import Module
 from litex.gen.fhdl.specials import Special, Memory
 from litex.gen.fhdl.bitcontainer import value_bits_sign
 from litex.gen.genlib.misc import WaitTimer
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
-
-
-class NoRetiming(Special):
-    def __init__(self, reg):
-        Special.__init__(self)
-        self.reg = reg
-
-    # do nothing
-    @staticmethod
-    def lower(dr):
-        return Module()
 
 
 class MultiRegImpl(Module):
@@ -34,7 +27,8 @@ class MultiRegImpl(Module):
             sd += reg.eq(src)
             src = reg
         self.comb += self.o.eq(src)
-        self.specials += [NoRetiming(reg) for reg in self.regs]
+        for reg in self.regs:
+            reg.attr.add("no_retiming")
 
 
 class MultiReg(Special):
@@ -114,6 +108,7 @@ class BusSynchronizer(Module):
             ibuffer = Signal(width)
             obuffer = Signal(width)
             sync_i += If(self._pong.o, ibuffer.eq(self.i))
+            ibuffer.attr.add("no_retiming")
             self.specials += MultiReg(ibuffer, obuffer, odomain)
             sync_o += If(self._ping.o, self.o.eq(obuffer))
 

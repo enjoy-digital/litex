@@ -1,3 +1,11 @@
+"""
+CSR-2 bus
+=========
+
+The CSR-2 bus is a low-bandwidth, resource-sensitive bus designed for accessing
+the configuration and status registers of cores from software.
+"""
+
 from litex.gen import *
 from litex.gen.genlib.record import *
 from litex.gen.genlib.misc import chooser
@@ -19,6 +27,24 @@ class Interface(Record):
     def __init__(self, data_width=8, address_width=14):
         Record.__init__(self, set_layout_parameters(_layout,
             data_width=data_width, address_width=address_width))
+
+    @classmethod
+    def like(self, other):
+        return Interface(len(other.dat_w),
+                         len(other.adr))
+
+    def write(self, adr, dat):
+        yield self.adr.eq(adr)
+        yield self.dat_w.eq(dat)
+        yield self.we.eq(1)
+        yield
+        yield self.we.eq(0)
+
+    def read(self, adr):
+        yield self.adr.eq(adr)
+        yield
+        yield
+        return (yield self.dat_r)
 
 
 class Interconnect(Module):
@@ -144,6 +170,7 @@ class CSRBankArray(Module):
     def scan(self, ifargs, ifkwargs):
         self.banks = []
         self.srams = []
+        self.constants = []
         for name, obj in xdir(self.source, True):
             if hasattr(obj, "get_csrs"):
                 csrs = obj.get_csrs()
@@ -165,6 +192,9 @@ class CSRBankArray(Module):
                     self.submodules += mmap
                     csrs += mmap.get_csrs()
                     self.srams.append((name, memory, mapaddr, mmap))
+            if hasattr(obj, "get_constants"):
+                for constant in obj.get_constants():
+                    self.constants.append((name, constant))
             if csrs:
                 mapaddr = self.address_map(name, None)
                 if mapaddr is None:

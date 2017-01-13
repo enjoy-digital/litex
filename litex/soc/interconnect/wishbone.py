@@ -9,14 +9,7 @@ from litex.gen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect import csr
 
-# TODO: rewrite without FlipFlop and Counter
-@ResetInserter()
-@CEInserter()
-class FlipFlop(Module):
-    def __init__(self, *args, **kwargs):
-        self.d = Signal(*args, **kwargs)
-        self.q = Signal(*args, **kwargs)
-        self.sync += self.q.eq(self.d)
+# TODO: rewrite without FlipFlop
 
 
 _layout = [
@@ -39,6 +32,10 @@ class Interface(Record):
         Record.__init__(self, set_layout_parameters(_layout,
             data_width=data_width,
             sel_width=data_width//8))
+
+    @staticmethod
+    def like(other):
+        return Interface(len(other.dat_w))
 
     def _do_transaction(self):
         yield self.cyc.eq(1)
@@ -465,7 +462,7 @@ class Cache(Module):
         self.master = master
         self.slave = slave
 
-        ###
+        # # #
 
         dw_from = len(master.dat_r)
         dw_to = len(slave.dat_r)

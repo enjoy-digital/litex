@@ -21,6 +21,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 /**
  * vsnprintf - Format a string and place it in a buffer
@@ -109,7 +110,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		/* get the precision */
 		precision = -1;
 		if (*fmt == '.') {
-			++fmt;	
+			++fmt;
 			if (isdigit(*fmt))
 				precision = skip_atoi(&fmt);
 			else if (*fmt == '*') {
@@ -195,51 +196,40 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 #ifndef NO_FLOAT
 			case 'g':
 			case 'f': {
-				int m;
-				double f;
-				int integer;
-				
+			  double f, g;
+
 				f = va_arg(args, double);
 				if(f < 0.0) {
-					*str = '-';
+					if(str < end)
+						*str = '-';
 					str++;
 					f = -f;
 				}
 
-				integer = f;
-				if(integer > 0) {
-					m = 1;
-					while(integer > (m*10)) m *= 10;
-					while((m >= 1) && (str < end)) {
-						int n;
-						n = integer/m;
-						*str = '0' + n;
-						str++;
-						f = f - m*n;
-						integer = integer - m*n;
-						m /= 10;
-					}
-				} else if(str < end) {
-					*str = '0';
+				g = pow(10.0, floor(log10(f)));
+				if(g < 1.0) {
+					if(str < end)
+						*str = '0';
 					str++;
+				}
+				while(g >= 1.0) {
+					if(str < end)
+						*str = '0' + fmod(f/g, 10.0);
+					str++;
+					g /= 10.0;
 				}
 
-				if(str < end) {
+				if(str < end)
 					*str = '.';
-					str++;
-				}
+				str++;
 
 				for(i=0;i<6;i++) {
-					int n;
-
-					f = f*10.0;
-					n = f;
-					f = f - n;
-					if(str >= end) break;
-					*str = '0' + n;
+					f = fmod(f*10.0, 10.0);
+					if(str < end)
+						*str = '0' + f;
 					str++;
 				}
-				
+
 				continue;
 			}
 #endif

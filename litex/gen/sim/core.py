@@ -11,7 +11,9 @@ from litex.gen.fhdl.bitcontainer import value_bits_sign
 from litex.gen.fhdl.tools import (list_targets, list_signals,
                               insert_resets, lower_specials)
 from litex.gen.fhdl.simplify import MemoryToArray
-from litex.gen.fhdl.specials import _MemoryLocation, _MemoryPort
+from litex.gen.fhdl.specials import _MemoryLocation
+from litex.gen.fhdl.module import Module
+from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.gen.sim.vcd import VCDWriter, DummyVCDWriter
 
 
@@ -39,7 +41,7 @@ class TimeManager:
             else:
                 high = False
             self.clocks[k] = ClockState(high, half_period, half_period - phase)
-
+    
     def tick(self):
         rising = set()
         falling = set()
@@ -62,14 +64,14 @@ str2op = {
     "+": operator.add,
     "-": operator.sub,
     "*": operator.mul,
-
+    
     ">>>": operator.rshift,
     "<<<": operator.lshift,
-
+    
     "&": operator.and_,
     "^": operator.xor,
     "|": operator.or_,
-
+    
     "<": operator.lt,
     "<=": operator.le,
     "==": operator.eq,
@@ -144,8 +146,8 @@ class Evaluator:
             v = self.eval(node.v, postcommit) & (2**nbits - 1)
             return sum(v << i*nbits for i in range(node.n))
         elif isinstance(node, _ArrayProxy):
-            return self.eval(node.choices[self.eval(node.key, postcommit)],
-                             postcommit)
+            idx = min(len(node.choices) - 1, self.eval(node.key, postcommit))
+            return self.eval(node.choices[idx], postcommit)
         elif isinstance(node, _MemoryLocation):
             array = self.replaced_memories[node.memory]
             return self.eval(array[self.eval(node.index, postcommit)], postcommit)
@@ -183,7 +185,8 @@ class Evaluator:
             full_value |= value << node.start
             self.assign(node.value, full_value)
         elif isinstance(node, _ArrayProxy):
-            self.assign(node.choices[self.eval(node.key)], value)
+            idx = min(len(node.choices) - 1, self.eval(node.key))
+            self.assign(node.choices[idx], value)
         elif isinstance(node, _MemoryLocation):
             array = self.replaced_memories[node.memory]
             self.assign(array[self.eval(node.index)], value)
@@ -218,9 +221,24 @@ class Evaluator:
                 raise NotImplementedError
 
 
+class DummyAsyncResetSynchronizerImpl(Module):
+    def __init__(self, cd, async_reset):
+        # TODO: asynchronous set
+        # This naive implementation has a minimum reset pulse
+        # width requirement of one clock period in cd.
+        self.comb += cd.rst.eq(async_reset)
+
+
+class DummyAsyncResetSynchronizer:
+    @staticmethod
+    def lower(dr):
+        return DummyAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+
+
 # TODO: instances via Iverilog/VPI
 class Simulator:
-    def __init__(self, fragment_or_module, generators, clocks={"sys": 10}, vcd_name=None):
+    def __init__(self, fragment_or_module, generators, clocks={"sys": 10}, vcd_name=None,
+                 special_overrides={}):
         if isinstance(fragment_or_module, _Fragment):
             self.fragment = fragment_or_module
         else:
@@ -229,16 +247,11 @@ class Simulator:
         mta = MemoryToArray()
         mta.transform_fragment(None, self.fragment)
 
-        fs, lowered = lower_specials(overrides={}, specials=self.fragment.specials)
+        overrides = {AsyncResetSynchronizer: DummyAsyncResetSynchronizer}
+        overrides.update(special_overrides)
+        fs, lowered = lower_specials(overrides=overrides, specials=self.fragment.specials)
         self.fragment += fs
         self.fragment.specials -= lowered
-        # FIXME: Remaining replaced ports workaround
-        remaining_memory_ports = set()
-        for s in self.fragment.specials:
-            if isinstance(s, _MemoryPort):
-                remaining_memory_ports.add(s)
-        self.fragment.specials -= remaining_memory_ports
-        # FIXME: Remaining replaced ports workaround
         if self.fragment.specials:
             raise ValueError("Could not lower all specials", self.fragment.specials)
 

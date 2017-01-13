@@ -175,6 +175,14 @@ class SoCCore(Module):
         r += self._constants
         return r
 
+    def get_csr_dev_address(self, name, memory):
+        if memory is not None:
+            name = name + "_" + memory.name_override
+        try:
+            return self.csr_map[name]
+        except ValueError:
+            return None
+
     def do_finalize(self):
         registered_mems = {regions[0] for regions in self._memory_regions}
         if self.cpu_type is not None:
@@ -189,7 +197,7 @@ class SoCCore(Module):
 
             # CSR
             self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
-                lambda name, memory: self.csr_map[name if memory is None else name + "_" + memory.name_override],
+                self.get_csr_dev_address,
                 data_width=self.csr_data_width, address_width=self.csr_address_width)
             self.submodules.csrcon = csr_bus.Interconnect(
                 self.wishbone2csr.csr, self.csrbankarray.get_buses())

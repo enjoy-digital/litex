@@ -202,6 +202,8 @@ _exception_handler:
     l.mfspr r5, r0, SPR_EPCR_BASE
     /* Extract exception effective address */
     l.mfspr r6, r0, SPR_EEAR_BASE
+    /* Extract exception SR */
+    l.mfspr r7, r0, SPR_ESR_BASE
     /* Call exception handler with the link address as argument */
     l.jal   exception_handler
      l.nop

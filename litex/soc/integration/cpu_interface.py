@@ -11,28 +11,18 @@ cpu_endianness = {
 }
 
 def get_cpu_mak(cpu):
-    clang = os.getenv("CLANG", "")
-    if clang != "":
-        clang = bool(int(clang))
-    else:
-        clang = None
     if cpu == "lm32":
-        assert not clang, "lm32 not supported with clang."
         triple = "lm32-elf"
         cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
+        clang = ""
     elif cpu == "or1k":
-        # default to CLANG unless told otherwise
-        if clang is None:
-           clang = True
-        triple = "or1k-elf"
-        cpuflags = "-mhard-mul -mhard-div -mror"
-        if clang:
-            triple = "or1k-linux"
-            cpuflags += "-mffl1 -maddc"
+        triple = "or1k-linux"
+        cpuflags = "-mhard-mul -mhard-div -mror -mffl1 -maddc"
+        clang = "1"
     elif cpu == "riscv32":
-        assert not clang, "riscv32 not supported with clang."
         triple = "riscv32-unknown-elf"
         cpuflags = "-mno-save-restore"
+        clang = "0"
     else:
         raise ValueError("Unsupported CPU type: "+cpu)
     return [
@@ -40,7 +30,7 @@ def get_cpu_mak(cpu):
         ("CPU", cpu),
         ("CPUFLAGS", cpuflags),
         ("CPUENDIANNESS", cpu_endianness[cpu]),
-        ("CLANG", str(0 if clang is None else int(clang)))
+        ("CLANG", clang)
     ]
 
 
@@ -71,7 +61,7 @@ def get_mem_header(regions, flash_boot_address):
     return r
 
 
-def _get_rw_functions(reg_name, reg_base, nwords, busword, read_only, with_access_functions):
+def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_access_functions):
     r = ""
 
     r += "#define CSR_"+reg_name.upper()+"_ADDR "+hex(reg_base)+"\n"
@@ -124,18 +114,23 @@ def get_csr_header(regions, constants, with_access_functions=True):
             r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
             for csr in obj:
                 nr = (csr.size + busword - 1)//busword
-                r += _get_rw_functions(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus), with_access_functions)
+                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus), with_access_functions)
                 origin += 4*nr
 
     r += "\n/* constants */\n"
     for name, value in constants:
-        r += "#define " + name
-        if value is not None:
-            if isinstance(value, str):
-                r +=  " \"" + value + "\""
-            else:
-                r += " " + str(value)
-        r += "\n"
+        if value is None:
+            r += "#define "+name+"\n"
+            continue
+        if isinstance(value, str):
+            value = "\"" + value + "\""
+            ctype = "const char *"
+        else:
+            value = str(value)
+            ctype = "int"
+        r += "#define "+name+" "+value+"\n"
+        r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
+        r += "\treturn "+value+";\n}\n"
 
     r += "\n#endif\n"
     return r

@@ -5,12 +5,10 @@ __all__ = ["log2_int", "bits_for", "value_bits_sign"]
 
 
 def log2_int(n, need_pow2=True):
-    l = 1
-    r = 0
-    while l < n:
-        l *= 2
-        r += 1
-    if need_pow2 and l != n:
+    if n == 0:
+        return 0
+    r = (n - 1).bit_length()
+    if need_pow2 and (1 << r) != n:
         raise ValueError("Not a power of 2")
     return r
 
@@ -24,6 +22,21 @@ def bits_for(n, require_sign_bit=False):
     if require_sign_bit:
         r += 1
     return r
+
+
+def _bitwise_binary_bits_sign(a, b):
+    if not a[1] and not b[1]:
+        # both operands unsigned
+        return max(a[0], b[0]), False
+    elif a[1] and b[1]:
+        # both operands signed
+        return max(a[0], b[0]), True
+    elif not a[1] and b[1]:
+        # first operand unsigned (add sign bit), second operand signed
+        return max(a[0] + 1, b[0]), True
+    else:
+        # first signed, second operand unsigned (add sign bit)
+        return max(a[0], b[0] + 1), True
 
 
 def value_bits_sign(v):
@@ -53,18 +66,13 @@ def value_bits_sign(v):
     elif isinstance(v, f._Operator):
         obs = list(map(value_bits_sign, v.operands))
         if v.op == "+" or v.op == "-":
-            if not obs[0][1] and not obs[1][1]:
-                # both operands unsigned
-                return max(obs[0][0], obs[1][0]) + 1, False
-            elif obs[0][1] and obs[1][1]:
-                # both operands signed
-                return max(obs[0][0], obs[1][0]) + 1, True
-            elif not obs[0][1] and obs[1][1]:
-                # first operand unsigned (add sign bit), second operand signed
-                return max(obs[0][0] + 1, obs[1][0]) + 1, True
-            else:
-                # first signed, second operand unsigned (add sign bit)
-                return max(obs[0][0], obs[1][0] + 1) + 1, True
+            if len(obs) == 1:
+                if v.op == "-" and not obs[0][1]:
+                    return obs[0][0] + 1, True
+                else:
+                    return obs[0]
+            n, s = _bitwise_binary_bits_sign(*obs)
+            return n + 1, s
         elif v.op == "*":
             if not obs[0][1] and not obs[1][1]:
                 # both operands unsigned
@@ -88,23 +96,14 @@ def value_bits_sign(v):
                 extra = 0
             return obs[0][0] + extra, obs[0][1]
         elif v.op == "&" or v.op == "^" or v.op == "|":
-            if not obs[0][1] and not obs[1][1]:
-                # both operands unsigned
-                return max(obs[0][0], obs[1][0]), False
-            elif obs[0][1] and obs[1][1]:
-                # both operands signed
-                return max(obs[0][0], obs[1][0]), True
-            elif not obs[0][1] and obs[1][1]:
-                # first operand unsigned (add sign bit), second operand signed
-                return max(obs[0][0] + 1, obs[1][0]), True
-            else:
-                # first signed, second operand unsigned (add sign bit)
-                return max(obs[0][0], obs[1][0] + 1), True
-        elif v.op == "<" or v.op == "<=" or v.op == "==" or v.op == "!=" \
-          or v.op == ">" or v.op == ">=":
-              return 1, False
+            return _bitwise_binary_bits_sign(*obs)
+        elif (v.op == "<" or v.op == "<=" or v.op == "==" or v.op == "!=" or
+              v.op == ">" or v.op == ">="):
+            return 1, False
         elif v.op == "~":
             return obs[0]
+        elif v.op == "m":
+            return _bitwise_binary_bits_sign(obs[1], obs[2])
         else:
             raise TypeError
     elif isinstance(v, f._Slice):

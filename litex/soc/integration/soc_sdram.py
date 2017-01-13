@@ -62,7 +62,7 @@ class SoCSDRAM(SoCCore):
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +
                             geom_settings.colbits)*sdram_width//8
-        # XXX: Limit main_ram_size to 256MB, we should modify mem_map to allow larger memories.
+        # TODO: modify mem_map to allow larger memories.
         main_ram_size = min(main_ram_size, 256*1024*1024)
         self.add_constant("L2_SIZE", self.l2_size)
 

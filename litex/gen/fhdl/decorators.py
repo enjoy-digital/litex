@@ -28,7 +28,8 @@ class ModuleTransformer:
                 return f
 
         Wrapped.__name__ = victim.__name__
-        # "{}_{}".format(self.__class__.__name__, victim.__name__)
+        Wrapped.__doc__ = victim.__doc__
+        Wrapped.__module__ = victim.__module__
         return Wrapped
 
     def wrap_instance(self, victim):

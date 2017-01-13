@@ -4,7 +4,6 @@ import os
 
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
-from litex.gen.fhdl.specials import Keep
 
 from litex.boards.platforms import nexys_video
 

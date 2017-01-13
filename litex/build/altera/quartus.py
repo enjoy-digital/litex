@@ -100,6 +100,7 @@ quartus_map --read_settings_files=on --write_settings_files=off {build_name} -c 
 quartus_fit --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
 quartus_asm --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
 quartus_sta {build_name} -c {build_name}
+quartus_cpf -c {build_name}.sof {build_name}.rbf
 
 """.format(build_name=build_name)  # noqa
     build_script_file = "build_" + build_name + ".sh"
@@ -115,7 +116,7 @@ class AlteraQuartusToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path="/opt/Altera", run=True, **kwargs):
         cwd = os.getcwd()
-        tools.mkdir_noerror(build_dir)
+        os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
 
         if not isinstance(fragment, _Fragment):

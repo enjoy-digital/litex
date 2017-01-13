@@ -3,7 +3,6 @@ import subprocess
 import struct
 import shutil
 
-from litex.build.tools import write_to_file
 from litex.soc.integration import cpu_interface, soc_sdram, sdram_init
 
 
@@ -11,10 +10,9 @@ __all__ = ["soc_software_packages", "soc_directory",
            "Builder", "builder_args", "builder_argdict"]
 
 
-# in build order (for dependencies)
 soc_software_packages = [
-    "libbase",
     "libcompiler_rt",
+    "libbase",
     "libnet",
     "bios"
 ]
@@ -47,10 +45,11 @@ class Builder:
 
         self.software_packages = []
         for name in soc_software_packages:
-            self.add_software_package(
-                name, os.path.join(soc_directory, "software", name))
+            self.add_software_package(name)
 
-    def add_software_package(self, name, src_dir):
+    def add_software_package(self, name, src_dir=None):
+        if src_dir is None:
+            src_dir = os.path.join(soc_directory, "software", name)
         self.software_packages.append((name, src_dir))
 
     def _generate_includes(self):
@@ -67,38 +66,30 @@ class Builder:
         buildinc_dir = os.path.join(self.output_dir, "software", "include")
         generated_dir = os.path.join(buildinc_dir, "generated")
         os.makedirs(generated_dir, exist_ok=True)
+        with open(os.path.join(generated_dir, "variables.mak"), "w") as f:
+            def define(k, v):
+                f.write("{}={}\n".format(k, _makefile_escape(v)))
+            for k, v in cpu_interface.get_cpu_mak(cpu_type):
+                define(k, v)
+            define("SOC_DIRECTORY", soc_directory)
+            define("BUILDINC_DIRECTORY", buildinc_dir)
+            f.write("export BUILDINC_DIRECTORY\n")
+            for name, src_dir in self.software_packages:
+                define(name.upper() + "_DIRECTORY", src_dir)
 
-        variables_contents = []
-        def define(k, v):
-            variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
-        for k, v in cpu_interface.get_cpu_mak(cpu_type):
-            define(k, v)
-        define("SOC_DIRECTORY", soc_directory)
-        define("BUILDINC_DIRECTORY", buildinc_dir)
-        for name, src_dir in self.software_packages:
-            define(name.upper() + "_DIRECTORY", src_dir)
-        write_to_file(
-            os.path.join(generated_dir, "variables.mak"),
-            "".join(variables_contents))
+        with open(os.path.join(generated_dir, "output_format.ld"), "w") as f:
+            f.write(cpu_interface.get_linker_output_format(cpu_type))
+        with open(os.path.join(generated_dir, "regions.ld"), "w") as f:
+            f.write(cpu_interface.get_linker_regions(memory_regions))
 
-        write_to_file(
-            os.path.join(generated_dir, "output_format.ld"),
-            cpu_interface.get_linker_output_format(cpu_type))
-        write_to_file(
-            os.path.join(generated_dir, "regions.ld"),
-            cpu_interface.get_linker_regions(memory_regions))
-
-        write_to_file(
-            os.path.join(generated_dir, "mem.h"),
-            cpu_interface.get_mem_header(memory_regions, flash_boot_address))
-        write_to_file(
-            os.path.join(generated_dir, "csr.h"),
-            cpu_interface.get_csr_header(csr_regions, constants))
+        with open(os.path.join(generated_dir, "mem.h"), "w") as f:
+            f.write(cpu_interface.get_mem_header(memory_regions, flash_boot_address))
+        with open(os.path.join(generated_dir, "csr.h"), "w") as f:
+            f.write(cpu_interface.get_csr_header(csr_regions, constants))
 
         if sdram_phy_settings is not None:
-            write_to_file(
-                os.path.join(generated_dir, "sdram_phy.h"),
-                sdram_init.get_sdram_phy_header(sdram_phy_settings))
+            with open(os.path.join(generated_dir, "sdram_phy.h"), "w") as f:
+                f.write(sdram_init.get_sdram_phy_header(sdram_phy_settings))
 
     def _generate_csr_csv(self):
         memory_regions = self.soc.get_memory_regions()
@@ -107,9 +98,8 @@ class Builder:
 
         csr_dir = os.path.dirname(self.csr_csv)
         os.makedirs(csr_dir, exist_ok=True)
-        write_to_file(
-            self.csr_csv,
-            cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
+        with open(self.csr_csv, "w") as f:
+            f.write(cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
 
     def _prepare_software(self):
         for name, src_dir in self.software_packages:

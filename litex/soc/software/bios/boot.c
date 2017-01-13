@@ -27,6 +27,12 @@ static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, uns
 	while(1);
 }
 
+enum {
+	ACK_TIMEOUT,
+	ACK_CANCELLED,
+	ACK_OK
+};
+
 static int check_ack(void)
 {
 	int recognized;
@@ -42,10 +48,12 @@ static int check_ack(void)
 		if(uart_read_nonblock()) {
 			char c;
 			c = uart_read();
+			if((c == 'Q') || (c == '\e'))
+				return ACK_CANCELLED;
 			if(c == str[recognized]) {
 				recognized++;
 				if(recognized == SFL_MAGIC_LEN)
-					return 1;
+					return ACK_OK;
 			} else {
 				if(c == str[0])
 					recognized = 1;
@@ -55,30 +63,39 @@ static int check_ack(void)
 		}
 		timer0_update_value_write(1);
 	}
-	return 0;
+	return ACK_TIMEOUT;
 }
 
 #define MAX_FAILED 5
 
-void serialboot(void)
+/* Returns 1 if other boot methods should be tried */
+int serialboot(void)
 {
 	struct sfl_frame frame;
 	int failed;
 	unsigned int cmdline_adr, initrdstart_adr, initrdend_adr;
 	static const char str[SFL_MAGIC_LEN+1] = SFL_MAGIC_REQ;
 	const char *c;
+	int ack_status;
 
 	printf("Booting from serial...\n");
+	printf("Press Q or ESC to abort boot completely.\n");
 
 	c = str;
 	while(*c) {
 		uart_write(*c);
 		c++;
 	}
-	if(!check_ack()) {
+	ack_status = check_ack();
+	if(ack_status == ACK_TIMEOUT) {
 		printf("Timeout\n");
-		return;
+		return 1;
 	}
+	if(ack_status == ACK_CANCELLED) {
+		printf("Cancelled\n");
+		return 0;
+	}
+	/* assume ACK_OK */
 
 	failed = 0;
 	cmdline_adr = initrdstart_adr = initrdend_adr = 0;
@@ -102,7 +119,7 @@ void serialboot(void)
 			failed++;
 			if(failed == MAX_FAILED) {
 				printf("Too many consecutive errors, aborting");
-				return;
+				return 1;
 			}
 			uart_write(SFL_ACK_CRCERROR);
 			continue;
@@ -113,7 +130,7 @@ void serialboot(void)
 			case SFL_CMD_ABORT:
 				failed = 0;
 				uart_write(SFL_ACK_SUCCESS);
-				return;
+				return 1;
 			case SFL_CMD_LOAD: {
 				char *writepointer;
 
@@ -168,12 +185,13 @@ void serialboot(void)
 				failed++;
 				if(failed == MAX_FAILED) {
 					printf("Too many consecutive errors, aborting");
-					return;
+					return 1;
 				}
 				uart_write(SFL_ACK_UNKNOWN);
 				break;
 		}
 	}
+	return 1;
 }
 
 #ifdef CSR_ETHMAC_BASE
