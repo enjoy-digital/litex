@@ -71,6 +71,8 @@ class SoCCore(Module):
         self._wb_masters = []
         self._wb_slaves = []
 
+        self.config = dict()
+
         if cpu_type is not None:
             if cpu_type == "lm32":
                 self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address))
@@ -82,6 +84,7 @@ class SoCCore(Module):
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_wb_master(self.cpu_or_bridge.ibus)
             self.add_wb_master(self.cpu_or_bridge.dbus)
+        self.config["CPU_TYPE"] = str(cpu_type).upper()
 
         if integrated_rom_size:
             self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True)
@@ -98,6 +101,7 @@ class SoCCore(Module):
 
         self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
             bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
+        self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.add_constant("CSR_DATA_WIDTH", csr_data_width)
         self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
@@ -107,6 +111,7 @@ class SoCCore(Module):
 
         if ident:
             self.submodules.identifier = identifier.Identifier(ident)
+        self.config["CLOCK_FREQUENCY"] = int(clk_freq)
         self.add_constant("SYSTEM_CLOCK_FREQUENCY", int(clk_freq))
 
         if with_timer:
@@ -205,6 +210,10 @@ class SoCCore(Module):
                 self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
             for name, memory, mapaddr, mmap in self.csrbankarray.srams:
                 self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
+            for name, constant in self.csrbankarray.constants:
+                self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
+            for name, value in sorted(self.config.items(), key=itemgetter(0)):
+                self._constants.append(("CONFIG_" + name.upper(), value))
 
             # Interrupts
             if hasattr(self.cpu_or_bridge, "interrupt"):
