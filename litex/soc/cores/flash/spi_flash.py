@@ -25,7 +25,7 @@ def _format_cmd(cmd, spi_width):
     return c
 
 
-class SpiFlash(Module, AutoCSR):
+class SpiFlashDualQuad(Module, AutoCSR):
     def __init__(self, pads, dummy=15, div=2, with_bitbang=True):
         """
         Simple SPI flash, e.g. N25Q128 on the LX9 Microboard.
@@ -36,12 +36,13 @@ class SpiFlash(Module, AutoCSR):
         """
         self.bus = bus = wishbone.Interface()
         spi_width = len(pads.dq)
+        assert spi_width >= 2
         if with_bitbang:
             self.bitbang = CSRStorage(4)
             self.miso = CSRStatus()
             self.bitbang_en = CSRStorage()
 
-        ###
+        # # #
 
         cs_n = Signal(reset=1)
         clk = Signal()
@@ -132,6 +133,104 @@ class SpiFlash(Module, AutoCSR):
                 [sr[-addr_width:].eq(Cat(z, bus.adr))]),
             ((dummy + wbone_width//spi_width)*div,
                 [dq_oe.eq(0)]),
+            (1,
+                [bus.ack.eq(1), cs_n.eq(1)]),
+            (div, # tSHSL!
+                [bus.ack.eq(0)]),
+            (0,
+                []),
+        ]
+
+        # accumulate timeline deltas
+        t, tseq = 0, []
+        for dt, a in seq:
+            tseq.append((t, a))
+            t += dt
+
+        self.sync += timeline(bus.cyc & bus.stb & (i == div - 1), tseq)
+
+
+class SpiFlashSingle(Module, AutoCSR):
+    def __init__(self, pads, dummy=8, div=2, with_bitbang=True):
+        """
+        Simple SPI flash, e.g. N25Q128 on the LX9 Microboard.
+
+        Supports 1-bit reads. Only supports mode0 (cpol=0, cpha=0).
+        Optionally supports software bitbanging (for write, erase, or other commands).
+        """
+        self.bus = bus = wishbone.Interface()
+        if with_bitbang:
+            self.bitbang = CSRStorage(4)
+            self.miso = CSRStatus()
+            self.bitbang_en = CSRStorage()
+
+        # # #
+
+        cs_n = Signal(reset=1)
+        clk = Signal()
+        dq_oe = Signal()
+        wbone_width = len(bus.dat_r)
+
+        read_cmd = _FAST_READ
+        cmd_width = 8
+        addr_width = 24
+
+        pads.cs_n.reset = 1
+
+        sr = Signal(max(8, addr_width, wbone_width))
+        self.comb += bus.dat_r.eq(sr)
+
+        hw_read_logic = [
+            pads.clk.eq(clk),
+            pads.cs_n.eq(cs_n),
+            pads.mosi.eq(sr[-1:])
+        ]
+
+        if with_bitbang:
+            bitbang_logic = [
+                pads.clk.eq(self.bitbang.storage[1]),
+                pads.cs_n.eq(self.bitbang.storage[2]),
+                self.miso.status.eq(pads.miso),
+                pads.mosi.eq(self.bitbang.storage[0]),
+            ]
+            self.comb += \
+                If(self.bitbang_en.storage,
+                    bitbang_logic
+                ).Else(
+                    hw_read_logic
+                )
+        else:
+            self.comb += hw_read_logic
+
+        if div < 2:
+            raise ValueError("Unsupported value \'{}\' for div parameter for SpiFlash core".format(div))
+        else:
+            i = Signal(max=div)
+            dqi = Signal(1)
+            self.sync += [
+                If(i == div//2 - 1,
+                    clk.eq(1),
+                    dqi.eq(pads.miso),
+                ),
+                If(i == div - 1,
+                    i.eq(0),
+                    clk.eq(0),
+                    sr.eq(Cat(dqi, sr[:-1]))
+                ).Else(
+                    i.eq(i + 1),
+                ),
+            ]
+
+        # spi is byte-addressed, prefix by zeros
+        z = Replicate(0, log2_int(wbone_width//8))
+
+        seq = [
+            (cmd_width//div,
+                [cs_n.eq(0), sr[-cmd_width:].eq(read_cmd)]),
+            (addr_width//div,
+                [sr[-addr_width:].eq(Cat(z, bus.adr))]),
+            ((dummy + wbone_width)*div,
+                []),
             (1,
                 [bus.ack.eq(1), cs_n.eq(1)]),
             (div, # tSHSL!
