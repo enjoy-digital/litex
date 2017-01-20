@@ -32,6 +32,7 @@ if _have_colorama:
 
 
 def settings(path, ver=None, sub=None):
+    assert path is not None
     if ver is None:
         vers = list(tools.versions(path))
         if not vers:
