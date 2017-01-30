@@ -49,7 +49,7 @@ class SoCCore(Module):
 
         self.cpu_type = cpu_type
         if integrated_rom_size:
-            cpu_reset_address = 0
+            cpu_reset_address = self.mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address
 
         self.integrated_rom_size = integrated_rom_size
