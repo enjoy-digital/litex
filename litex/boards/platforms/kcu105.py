@@ -12,9 +12,38 @@ _io = [
     ("user_led", 6, Pins("R23"), IOStandard("LVCMOS18")),
     ("user_led", 7, Pins("P23"), IOStandard("LVCMOS18")),
 
+    ("cpu_reset", 0, Pins("AN8"), IOStandard("LVCMOS18")),
+
+    ("user_btn_c", 0, Pins("AE10"), IOStandard("LVCMOS18")),
+    ("user_btn_n", 0, Pins("AD10"), IOStandard("LVCMOS18")),
+    ("user_btn_s", 0, Pins("AF8"), IOStandard("LVCMOS18")),
+    ("user_btn_w", 0, Pins("AF9"), IOStandard("LVCMOS18")),
+    ("user_btn_e", 0, Pins("AE8"), IOStandard("LVCMOS18")),
+
+    ("user_dip_btn", 0, Pins("AN16"), IOStandard("LVCMOS12")),
+    ("user_dip_btn", 1, Pins("AN19"), IOStandard("LVCMOS12")),
+    ("user_dip_btn", 2, Pins("AP18"), IOStandard("LVCMOS12")),
+    ("user_dip_btn", 3, Pins("AN14"), IOStandard("LVCMOS12")),
+
+    ("user_sma_clock", 0,
+        Subsignal("p", Pins("D23"), IOStandard("LVDS")),
+        Subsignal("n", Pins("C23"), IOStandard("LVDS"))
+    ),
+
     ("clk125", 0,
         Subsignal("p", Pins("G10"), IOStandard("LVDS")),
         Subsignal("n", Pins("F10"), IOStandard("LVDS"))
+    ),
+
+    ("clk300", 0,
+        Subsignal("p", Pins("AK17"), IOStandard("DIFF_SSTL12")),
+        Subsignal("n", Pins("AK16"), IOStandard("DIFF_SSTL12"))
+    ),
+
+    ("i2c", 0,
+        Subsignal("scl", Pins("J24")),
+        Subsignal("sda", Pins("J25")),
+        IOStandard("LVCMOS18")
     ),
 
     ("serial", 0,
@@ -25,9 +54,77 @@ _io = [
         IOStandard("LVCMOS18")
 	),
 
-    ("user_sma_clock", 0,
-        Subsignal("p", Pins("D23"), IOStandard("LVDS")),
-        Subsignal("n", Pins("C23"), IOStandard("LVDS"))
+    ("spiflash", 0,  # clock needs to be accessed through primitive
+        Subsignal("cs_n", Pins("U7")),
+        Subsignal("dq", Pins("AC7 AB7 AA7 Y7")),
+        IOStandard("LVCMOS18")
+    ),
+
+    ("spiflash", 1,  # clock needs to be accessed through primitive
+        Subsignal("cs_n", Pins("G26")),
+        Subsignal("dq", Pins("M20 L20 R21 R22")),
+        IOStandard("LVCMOS18")
+    ),
+
+    ("rotary", 0,
+        Subsignal("a", Pins("Y21")),
+        Subsignal("b", Pins("AD26")),
+        Subsignal("push", Pins("AF28")),
+        IOStandard("LVCMOS18")
+    ),
+
+    ("hdmi", 0,
+        Subsignal("d", Pins(
+            "AK11 AP11 AP13 AN13 AN11 AM11 AN12 AM12",
+            "AL12 AK12 AL13 AK13 AD11 AH12 AG12 AJ11",
+            "AG10 AK8")),
+        Subsignal("de", Pins("AE11")),
+        Subsignal("clk", Pins("AF13")),
+        Subsignal("vsync", Pins("AH13")),
+        Subsignal("hsync", Pins("AE13")),
+        Subsignal("spdif", Pins("AE12")),
+        Subsignal("spdif_out", Pins("AF12")),
+        IOStandard("LVCMOS18")
+    ),
+
+    ("pcie_x1", 0,
+        Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
+        Subsignal("clk_p", Pins("AB6")),
+        Subsignal("clk_n", Pins("AB5")),
+        Subsignal("rx_p", Pins("AB2")),
+        Subsignal("rx_n", Pins("AB1")),
+        Subsignal("tx_p", Pins("AC3")),
+        Subsignal("tx_n", Pins("AC4"))
+    ),
+
+    ("pcie_x2", 0,
+        Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
+        Subsignal("clk_p", Pins("AB6")),
+        Subsignal("clk_n", Pins("AB5")),
+        Subsignal("rx_p", Pins("AB2 AD2")),
+        Subsignal("rx_n", Pins("AB1 AD1")),
+        Subsignal("tx_p", Pins("AC3 AE4")),
+        Subsignal("tx_n", Pins("AC4 AE3"))
+    ),
+
+    ("pcie_x4", 0,
+        Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
+        Subsignal("clk_p", Pins("AB6")),
+        Subsignal("clk_n", Pins("AB5")),
+        Subsignal("rx_p", Pins("AB2 AD2 AF2 AH2")),
+        Subsignal("rx_n", Pins("AB1 AD1 AF1 AH1")),
+        Subsignal("tx_p", Pins("AC3 AE4 AG4 AH6")),
+        Subsignal("tx_n", Pins("AC4 AE3 AG3 AH5"))
+    ),
+
+    ("pcie_x8", 0,
+        Subsignal("rst_n", Pins("K22"), IOStandard("LVCMOS18")),
+        Subsignal("clk_p", Pins("AB6")),
+        Subsignal("clk_n", Pins("AB5")),
+        Subsignal("rx_p", Pins("AB2 AD2 AF2 AH2 AJ4 AK2 AM2 AP2")),
+        Subsignal("rx_n", Pins("AB1 AD1 AF1 AH1 AJ3 AK1 AM1 AP1")),
+        Subsignal("tx_p", Pins("AC3 AE4 AG4 AH6 AK6 AL4 AM6 AN4")),
+        Subsignal("tx_n", Pins("AC4 AE3 AG3 AH5 AK5 AL3 AM5 AN3"))
     ),
 ]
 
