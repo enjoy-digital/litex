@@ -29,6 +29,8 @@ _io = [
         Subsignal("p", Pins("D23"), IOStandard("LVDS")),
         Subsignal("n", Pins("C23"), IOStandard("LVDS"))
     ),
+    ("user_sma_clock_p", 0, Pins("D23"), IOStandard("LVCMOS18")),
+    ("user_sma_clock_n", 0, Pins("C23"), IOStandard("LVCMOS18")),
 
     ("clk125", 0,
         Subsignal("p", Pins("G10"), IOStandard("LVDS")),
