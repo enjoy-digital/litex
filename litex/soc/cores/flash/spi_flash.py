@@ -31,7 +31,6 @@ class SpiFlashDualQuad(Module, AutoCSR):
         Simple SPI flash.
         Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
         Read). Only supports mode0 (cpol=0, cpha=0).
-        Optionally supports software bitbanging (for write, erase, or other commands).
         """
         self.bus = bus = wishbone.Interface()
         spi_width = len(pads.dq)
@@ -117,7 +116,6 @@ class SpiFlashSingle(Module, AutoCSR):
         """
         Simple SPI flash.
         Supports 1-bit reads. Only supports mode0 (cpol=0, cpha=0).
-        Optionally supports software bitbanging (for write, erase, or other commands).
         """
         self.bus = bus = wishbone.Interface()
 
