@@ -114,22 +114,12 @@ def main():
     soc_core_args(parser)
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
-    parser.add_argument("--build", action="store_true",
-                        help="build bitstream")
-    parser.add_argument("--load", action="store_true",
-                        help="load bitstream")
     args = parser.parse_args()
 
     cls = MiniSoC if args.with_ethernet else BaseSoC
     soc = cls(**soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-
-    if args.build:
-        builder.build()
-
-    if args.load:
-        prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.output_dir, "gateware", "top.bit"))
+    builder.build()
 
 
 if __name__ == "__main__":
