@@ -87,7 +87,8 @@ class BaseSoC(SoCSDRAM):
     def __init__(self, toolchain="ise", **kwargs):
         platform = kc705.Platform(toolchain=toolchain)
         SoCSDRAM.__init__(self, platform,
-                          clk_freq=125*1000000, cpu_reset_address=0xaf0000,
+                          clk_freq=125*1000000,
+                          integrated_rom_size=0x8000,
                           **kwargs)
 
         self.submodules.crg = _CRG(platform)
@@ -97,18 +98,6 @@ class BaseSoC(SoCSDRAM):
             sdram_module = MT8JTF12864(self.clk_freq, "1:4")
             self.register_sdram(self.ddrphy,
                                 sdram_module.geom_settings, sdram_module.timing_settings)
-
-        if not self.integrated_rom_size:
-            spiflash_pads = platform.request("spiflash")
-            spiflash_pads.clk = Signal()
-            self.specials += Instance("STARTUPE2",
-                                      i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
-                                      i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
-            self.submodules.spiflash = spi_flash.SpiFlash(spiflash_pads, dummy=11, div=2)
-            self.add_constant("SPIFLASH_PAGE_SIZE", 256)
-            self.add_constant("SPIFLASH_SECTOR_SIZE", 0x10000)
-            self.flash_boot_address = 0xb00000
-            self.register_rom(self.spiflash.bus)
 
 
 class MiniSoC(BaseSoC):
