@@ -77,7 +77,7 @@ def _run_diamond(build_name, source, ver=None):
 class LatticeDiamondToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path="/opt/Diamond", run=True, **kwargs):
-        tools.mkdir_noerror(build_dir)
+        os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
 
