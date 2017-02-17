@@ -91,8 +91,9 @@ class XilinxVivadoToolchain:
         for filename, language, library in sources:
             filename_tcl = "{" + filename + "}"
             tcl.append("add_files " + filename_tcl)
-            tcl.append("set_property library {} [get_files {}]"
-                       .format(library, filename_tcl))
+            if language == "vhdl":
+                tcl.append("set_property library {} [get_files {}]"
+                           .format(library, filename_tcl))
 
         tcl.append("read_xdc {}.xdc".format(build_name))
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
