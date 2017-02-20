@@ -27,14 +27,16 @@ _io = [
     ("user_dip_btn", 3, Pins("Y28"), IOStandard("LVCMOS25")),
 
     ("user_sma_clock", 0,
-        Subsignal("p", Pins("L25"), IOStandard("LVDS_25")),
-        Subsignal("n", Pins("K25"), IOStandard("LVDS_25"))
+        Subsignal("p", Pins("L25"), IOStandard("LVDS_25"),
+            Misc("DIFF_TERM=TRUE")),
+        Subsignal("n", Pins("K25"), IOStandard("LVDS_25"),
+            Misc("DIFF_TERM=TRUE"))
     ),
     ("user_sma_clock_p", 0, Pins("L25"), IOStandard("LVCMOS25")),
     ("user_sma_clock_n", 0, Pins("K25"), IOStandard("LVCMOS25")),
 
-    ("user_sma_gpio_p", 0, Pins("Y23"), IOStandard("LVCMOS33")),
-    ("user_sma_gpio_n", 0, Pins("Y24"), IOStandard("LVCMOS33")),
+    ("user_sma_gpio_p", 0, Pins("Y23"), IOStandard("LVCMOS25")),
+    ("user_sma_gpio_n", 0, Pins("Y24"), IOStandard("LVCMOS25")),
 
     ("clk200", 0,
         Subsignal("p", Pins("AD12"), IOStandard("LVDS")),
@@ -188,8 +190,48 @@ _io = [
         Subsignal("rx_n", Pins("M5 P5 R3 T5 V5 W3 Y5 AA3")),
         Subsignal("tx_p", Pins("L4 M2 N4 P2 T2 U4 V2 Y2")),
         Subsignal("tx_n", Pins("L3 M1 N3 P1 T1 U3 V1 Y1"))
-    )
+    ),
+
+    ("vadj_on_b", 0, Pins("J27"), IOStandard("LVCMOS25")),
+
+    ("sgmii_clock", 0,
+        Subsignal("p", Pins("G8")),
+        Subsignal("n", Pins("G7"))
+    ),
+
+    ("user_sma_mgt_tx", 0,
+        Subsignal("p", Pins("K2")),
+        Subsignal("n", Pins("K1"))
+    ),
+    ("user_sma_mgt_rx", 0,
+        Subsignal("p", Pins("K6")),
+        Subsignal("n", Pins("K5"))
+    ),
+
+    ("sfp_tx", 0,
+        Subsignal("p", Pins("H2")),
+        Subsignal("n", Pins("H1"))
+    ),
+    ("sfp_rx", 0,
+        Subsignal("p", Pins("G4")),
+        Subsignal("n", Pins("G3"))
+    ),
+    ("sfp_tx_disable_n", 0, Pins("Y20"), IOStandard("LVCMOS25")),
+
+    ("si5324", 0,
+        Subsignal("rst_n", Pins("AE20"), IOStandard("LVCMOS25")),
+        Subsignal("int", Pins("AG24"), IOStandard("LVCMOS25"))
+    ),
+    ("si5324_clkin", 0,
+        Subsignal("p", Pins("W27"), IOStandard("LVDS_25")),
+        Subsignal("n", Pins("W28"), IOStandard("LVDS_25"))
+    ),
+    ("si5324_clkout", 0,
+        Subsignal("p", Pins("L8")),
+        Subsignal("n", Pins("L7"))
+    ),
 ]
+
 
 _connectors = [
     ("HPC", {
@@ -413,12 +455,22 @@ _connectors = [
         "LA33_P": "AC29",
         "LA33_N": "AC30",
         }
-    )
+    ),
+    ("XADC", {
+        "GPIO0": "AB25",
+        "GPIO1": "AA25",
+        "GPIO2": "AB28",
+        "GPIO3": "AA27",
+        "VAUX0_N": "J24",
+        "VAUX0_P": "J23",
+        "VAUX8_N": "L23",
+        "VAUX8_P": "L22",
+        }
+    ),
 ]
 
 
 class Platform(XilinxPlatform):
-    identifier = 0x4B37
     default_clk_name = "clk156"
     default_clk_period = 6.4
 
@@ -428,6 +480,10 @@ class Platform(XilinxPlatform):
         if toolchain == "ise":
             self.toolchain.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
         elif toolchain == "vivado":
+            self.add_platform_command("""
+set_property CFGBVS VCCO [current_design]
+set_property CONFIG_VOLTAGE 2.5 [current_design]
+""")
             self.toolchain.bitstream_commands = ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
             self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
         self.programmer = programmer
@@ -450,6 +506,10 @@ class Platform(XilinxPlatform):
             pass
         try:
             self.add_period_constraint(self.lookup_request("eth_clocks").rx, 8.0)
+        except ConstraintError:
+            pass
+        try:
+            self.add_period_constraint(self.lookup_request("eth_clocks").tx, 8.0)
         except ConstraintError:
             pass
         if isinstance(self.toolchain, XilinxISEToolchain):
