@@ -92,10 +92,10 @@ class VivadoProgrammer(GenericProgrammer):
         self.vivado_ver = vivado_ver
         self.flash_part = flash_part
 
-    def load_bitstream(self, bitstream_file):
+    def load_bitstream(self, bitstream_file, target=""):
         cmds = """open_hw
 connect_hw_server
-open_hw_target
+open_hw_target {target}
 
 set_property PROBES.FILE {{}} [lindex [get_hw_devices] 0]
 set_property PROGRAM.FILE {{{bitstream}}} [lindex [get_hw_devices] 0]
@@ -104,7 +104,7 @@ program_hw_devices [lindex [get_hw_devices] 0]
 refresh_hw_device [lindex [get_hw_devices] 0]
 
 quit
-""".format(bitstream=bitstream_file)
+""".format(target=target, bitstream=bitstream_file)
         _run_vivado(self.vivado_path, self.vivado_ver, cmds)
 
     # XXX works to flash bitstream, adapt it to flash bios
