@@ -199,7 +199,7 @@ _io = [
         Subsignal("p", Pins("T2")),
         Subsignal("n", Pins("T1"))
     ),
-    ("sfp_tx_disable_n", 0, Pins("AL8"), IOStandard("LVCMOS25")),
+    ("sfp_tx_disable_n", 0, Pins("AL8"), IOStandard("LVCMOS18")),
 
     ("sfp_tx", 1,
         Subsignal("p", Pins("W4")),
@@ -209,7 +209,7 @@ _io = [
         Subsignal("p", Pins("V2")),
         Subsignal("n", Pins("V1"))
     ),
-    ("sfp_tx_disable_n", 1, Pins("D28"), IOStandard("LVCMOS25")),
+    ("sfp_tx_disable_n", 1, Pins("D28"), IOStandard("LVCMOS18")),
 ]
 
 _connectors = [
