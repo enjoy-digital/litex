@@ -109,13 +109,13 @@ _io = [
         Subsignal("dq", Pins(
             "AE23 AG20 AF22 AF20 AE22 AD20 AG22 AE20",
             "AJ24 AG24 AJ23 AF23 AH23 AF24 AH22 AG25",
-            
+
             "AL22 AL25 AM20 AK23 AK22 AL20 AL24 AL23",
             "AM24 AN23 AN24 AP23 AP25 AN22 AP24 AM22",
 
             "AH28 AK26 AK28 AM27 AJ28 AH27 AK27 AM26",
             "AL30 AP29 AM30 AN28 AL29 AP28 AM29 AN27",
-            
+
             "AH31 AH32 AJ34 AK31 AJ31 AJ30 AH34 AK32",
             "AN33 AP33 AM34 AP31 AM32 AN31 AL34 AN32",
             ),
@@ -171,6 +171,45 @@ _io = [
         Subsignal("tx_p", Pins("AC3 AE4 AG4 AH6 AK6 AL4 AM6 AN4")),
         Subsignal("tx_n", Pins("AC4 AE3 AG3 AH5 AK5 AL3 AM5 AN3"))
     ),
+
+    ("sgmii_clock", 0,
+        Subsignal("p", Pins("P26"), IOStandard("LVDS_25")),
+        Subsignal("n", Pins("N26"), IOStandard("LVDS_25"))
+    ),
+
+
+    ("user_sma_mgt_refclk", 0,
+        Subsignal("p", Pins("V6")),
+        Subsignal("n", Pins("V5"))
+    ),
+    ("user_sma_mgt_tx", 0,
+        Subsignal("p", Pins("R4")),
+        Subsignal("n", Pins("R3"))
+    ),
+    ("user_sma_mgt_rx", 0,
+        Subsignal("p", Pins("P2")),
+        Subsignal("n", Pins("P1"))
+    ),
+
+    ("sfp_tx", 0,
+        Subsignal("p", Pins("U4")),
+        Subsignal("n", Pins("U3"))
+    ),
+    ("sfp_rx", 0,
+        Subsignal("p", Pins("T2")),
+        Subsignal("n", Pins("T1"))
+    ),
+    ("sfp_tx_disable_n", 0, Pins("AL8"), IOStandard("LVCMOS25")),
+
+    ("sfp_tx", 1,
+        Subsignal("p", Pins("W4")),
+        Subsignal("n", Pins("W3"))
+    ),
+    ("sfp_rx", 1,
+        Subsignal("p", Pins("V2")),
+        Subsignal("n", Pins("V1"))
+    ),
+    ("sfp_tx_disable_n", 1, Pins("D28"), IOStandard("LVCMOS25")),
 ]
 
 _connectors = [
