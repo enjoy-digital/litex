@@ -11,26 +11,42 @@ cpu_endianness = {
 }
 
 def get_cpu_mak(cpu):
+    clang = os.getenv("CLANG", "")
+    if clang != "":
+        clang = bool(int(clang))
+    else:
+        clang = None
+
     if cpu == "lm32":
+        assert not clang, "lm32 not supported with clang."
         triple = "lm32-elf"
         cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
-        clang = ""
+        clang = False
     elif cpu == "or1k":
-        triple = "or1k-linux"
-        cpuflags = "-mhard-mul -mhard-div -mror -mffl1 -maddc"
-        clang = "1"
+        # Default to CLANG unless told otherwise
+        if clang is None:
+           clang = True
+
+        triple = "or1k-elf"
+        cpuflags = "-mhard-mul -mhard-div -mror"
+        if clang:
+            triple = "or1k-linux"
+            cpuflags += "-mffl1 -maddc"
     elif cpu == "riscv32":
+        assert not clang, "riscv32 not supported with clang."
         triple = "riscv32-unknown-elf"
         cpuflags = "-mno-save-restore"
-        clang = "0"
+        clang = False
     else:
         raise ValueError("Unsupported CPU type: "+cpu)
+
+    assert isinstance(clang, bool)
     return [
         ("TRIPLE", triple),
         ("CPU", cpu),
         ("CPUFLAGS", cpuflags),
         ("CPUENDIANNESS", cpu_endianness[cpu]),
-        ("CLANG", clang)
+        ("CLANG", str(int(clang)))
     ]
 
 
