@@ -44,6 +44,8 @@ class SoCCore(Module):
                 with_uart=True, uart_baudrate=115200,
                 ident="",
                 with_timer=True):
+        self.config = dict()
+
         self.platform = platform
         self.clk_freq = clk_freq
 
@@ -51,6 +53,7 @@ class SoCCore(Module):
         if integrated_rom_size:
             cpu_reset_address = self.mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address
+        self.config["CPU_RESET_ADDR"] = self.cpu_reset_address
 
         self.integrated_rom_size = integrated_rom_size
         self.integrated_sram_size = integrated_sram_size
@@ -70,8 +73,6 @@ class SoCCore(Module):
 
         self._wb_masters = []
         self._wb_slaves = []
-
-        self.config = dict()
 
         if cpu_type is not None:
             if cpu_type == "lm32":
