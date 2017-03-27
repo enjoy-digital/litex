@@ -1,6 +1,6 @@
-from litex.gen.build.generic_platform import *
-from litex.gen.build.xilinx import XilinxPlatform
-from litex.gen.build.xilinx.programmer import XC3SProg
+from litex.build.generic_platform import *
+from litex.build.xilinx import XilinxPlatform
+from litex.build.xilinx.programmer import XC3SProg
 
 
 _io = [
