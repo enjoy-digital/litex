@@ -228,11 +228,12 @@ class Packetizer(Module):
                     )
                 )
             )
+        if hasattr(sink, "error"):
+            self.comb += source.error.eq(sink.error)
         fsm.act("COPY",
             source.valid.eq(sink.valid),
             source.last.eq(sink.last),
             source.data.eq(sink.data),
-            source.error.eq(sink.error),
             If(source.valid & source.ready,
                 sink.ready.eq(1),
                 If(source.last,
