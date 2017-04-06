@@ -8,6 +8,7 @@
 #define WRDI_CMD         0x04
 #define RDSR_CMD         0x05
 #define WREN_CMD         0x06
+#define RD_CMD           0x0b
 #define SE_CMD           0xd8
 
 #define BITBANG_CLK         (1 << 1)
@@ -22,6 +23,25 @@ static void wait_for_device_ready(void);
 
 #define min(a,b)  (a>b?b:a)
 
+// flash_read/flash_write fcns make no assumptions on bitbang reg on entry.
+// They will all leave the bitbang reg as 0x00 on exit.
+static unsigned char flash_read_byte()
+{
+    int i;
+    unsigned char b = 0;
+    spiflash_bitbang_write(BITBANG_DQ_INPUT); // ~CS_N ~CLK DQ_INPUT
+
+    for(i = 0; i < 8; i++) {
+        b <<= 1;
+        spiflash_bitbang_write(BITBANG_CLK | BITBANG_DQ_INPUT);
+        b |= spiflash_miso_read();
+        spiflash_bitbang_write(0           | BITBANG_DQ_INPUT);
+    }
+
+    spiflash_bitbang_write(0); // ~CS_N ~CLK
+    return b;
+}
+
 static void flash_write_byte(unsigned char b)
 {
     int i;
@@ -34,7 +54,6 @@ static void flash_write_byte(unsigned char b)
     }
 
     spiflash_bitbang_write(0); // ~CS_N ~CLK
-
 }
 
 static void flash_write_addr(unsigned int addr)
@@ -50,6 +69,11 @@ static void flash_write_addr(unsigned int addr)
     spiflash_bitbang_write(0);
 }
 
+
+// Bitbang commands will have flash_read/write fcns set up the bitbang reg
+// on entry. On exit, bitbang command fcns will deassert CS_N bitbang
+// regs (required) and then disable bitbang interface.
+// write_to_flash_page leaves CS_N as 0. Why?
 static void wait_for_device_ready(void)
 {
     unsigned char sr;
@@ -57,14 +81,7 @@ static void wait_for_device_ready(void)
     do {
         sr = 0;
         flash_write_byte(RDSR_CMD);
-        spiflash_bitbang_write(BITBANG_DQ_INPUT);
-        for(i = 0; i < 8; i++) {
-            sr <<= 1;
-            spiflash_bitbang_write(BITBANG_CLK | BITBANG_DQ_INPUT);
-            sr |= spiflash_miso_read();
-            spiflash_bitbang_write(0           | BITBANG_DQ_INPUT);
-        }
-        spiflash_bitbang_write(0);
+        sr = flash_read_byte();
         spiflash_bitbang_write(BITBANG_CS_N);
     } while(sr & SR_WIP);
 }
@@ -82,6 +99,25 @@ void erase_flash_sector(unsigned int addr)
 
     flash_write_byte(SE_CMD);
     flash_write_addr(sector_addr);
+    spiflash_bitbang_write(BITBANG_CS_N);
+
+    wait_for_device_ready();
+
+    spiflash_bitbang_en_write(0);
+}
+
+void read_from_flash(unsigned int addr, const unsigned char *c, unsigned int len)
+{
+    unsigned int i;
+
+    spiflash_bitbang_en_write(1);
+
+    wait_for_device_ready();
+
+    flash_write_byte(RD_CMD);
+    flash_write_addr(addr);
+    for(i = 0; i < len; i++)
+        *c++ = flash_read_byte();
     spiflash_bitbang_write(BITBANG_CS_N);
 
     wait_for_device_ready();
