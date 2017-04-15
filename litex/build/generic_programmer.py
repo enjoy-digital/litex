@@ -17,7 +17,10 @@ class GenericProgrammer:
             fullname = os.path.join(fulldir, self.flash_proxy_basename)
             if os.path.exists(fullname):
                 return fullname
-        raise OSError("Failed to find flash proxy bitstream")
+        raise OSError(
+            "Failed to find flash proxy bitstream %s, searched:\n    %s\n" % (
+                self.flash_proxy_basename,
+                "\n    ".join(self.flash_proxy_dirs)))
 
     # must be overloaded by specific programmer
     def load_bitstream(self, bitstream_file):
