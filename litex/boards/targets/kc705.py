@@ -6,7 +6,6 @@ from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.boards.platforms import kc705
 
-from litex.soc.cores.flash import spi_flash
 from litex.soc.integration.soc_core import mem_decoder
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
