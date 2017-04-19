@@ -5,6 +5,7 @@ from litex.gen.genlib.cdc import MultiReg
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.interconnect import stream
+from litex.soc.interconnect.wishbonebridge import WishboneStreamingBridge
 
 
 class RS232PHYRX(Module):
@@ -176,3 +177,9 @@ class UART(Module, AutoCSR):
             # Generate RX IRQ when tx_fifo becomes non-empty
             self.ev.rx.trigger.eq(~rx_fifo.source.valid)
         ]
+
+
+class UARTWishboneBridge(WishboneStreamingBridge):
+    def __init__(self, pads, clk_freq, baudrate=115200):
+        self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
+        WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
