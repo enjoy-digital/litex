@@ -18,6 +18,7 @@ setup(
     author_email="florent@enjoy-digital.fr",
     url="http://enjoy-digital.fr",
     download_url="https://github.com/enjoy-digital/litex",
+    test_suite="test",
     license="BSD",
     platforms=["Any"],
     keywords="HDL ASIC FPGA hardware design",
