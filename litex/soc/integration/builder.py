@@ -142,8 +142,8 @@ class Builder:
 
         os.makedirs(self.output_dir, exist_ok=True)
 
-        if self.soc.cpu_type is not None:
-            if self.soc.integrated_rom_size and not self.compile_software:
+        if self.soc.cpu_type is not None and self.compile_software:
+            if self.soc.integrated_rom_size:
                 raise ValueError("Software must be compiled in order to "
                                  "intitialize integrated ROM")
 
