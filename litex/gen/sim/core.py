@@ -41,7 +41,7 @@ class TimeManager:
             else:
                 high = False
             self.clocks[k] = ClockState(high, half_period, half_period - phase)
-    
+
     def tick(self):
         rising = set()
         falling = set()
@@ -64,14 +64,14 @@ str2op = {
     "+": operator.add,
     "-": operator.sub,
     "*": operator.mul,
-    
+
     ">>>": operator.rshift,
     "<<<": operator.lshift,
-    
+
     "&": operator.and_,
     "^": operator.xor,
     "|": operator.or_,
-    
+
     "<": operator.lt,
     "<=": operator.le,
     "==": operator.eq,
@@ -271,7 +271,7 @@ class Simulator:
         self.time = TimeManager(clocks)
         for clock in clocks.keys():
             if clock not in self.fragment.clock_domains:
-                cd = ClockDomain(name=clock, reset_less=True)
+                cd = ClockDomain(name=clock)
                 cd.clk.reset = C(self.time.clocks[clock].high)
                 self.fragment.clock_domains.append(cd)
 
