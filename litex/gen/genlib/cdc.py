@@ -1,7 +1,7 @@
 """
 Clock domain crossing module
 """
-from fractions import gcd
+from math import gcd
 
 from litex.gen.fhdl.structure import *
 from litex.gen.fhdl.module import Module
