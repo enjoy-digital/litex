@@ -7,6 +7,7 @@ from litex.gen.fhdl.structure import *
 from litex.gen.fhdl.module import Module
 from litex.gen.fhdl.specials import Special, Memory
 from litex.gen.fhdl.bitcontainer import value_bits_sign
+from litex.gen.fhdl.decorators import ClockDomainsRenamer
 from litex.gen.genlib.misc import WaitTimer
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 
@@ -99,7 +100,8 @@ class BusSynchronizer(Module):
             sync_i += starter.eq(0)
             self.submodules._ping = PulseSynchronizer(idomain, odomain)
             self.submodules._pong = PulseSynchronizer(odomain, idomain)
-            self.submodules._timeout = WaitTimer(timeout)
+            self.submodules._timeout = ClockDomainsRenamer(idomain)(
+                WaitTimer(timeout))
             self.comb += [
                 self._timeout.wait.eq(~self._ping.i),
                 self._ping.i.eq(starter | self._pong.o | self._timeout.done),
@@ -198,7 +200,7 @@ class ElasticBuffer(Module):
 
 def lcm(a, b):
     """Compute the lowest common multiple of a and b"""
-    return int(a * b / gcd(a, b))
+    return (a*b)//gcd(a, b)
 
 
 class Gearbox(Module):
