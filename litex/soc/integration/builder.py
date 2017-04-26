@@ -127,30 +127,26 @@ class Builder:
     def _initialize_rom(self):
         bios_file = os.path.join(self.output_dir, "software", "bios",
                                  "bios.bin")
-        if self.soc.integrated_rom_size:
-            with open(bios_file, "rb") as boot_file:
-                boot_data = []
-                while True:
-                    w = boot_file.read(4)
-                    if not w:
-                        break
-                    boot_data.append(struct.unpack(">I", w)[0])
-            self.soc.initialize_rom(boot_data)
+        with open(bios_file, "rb") as boot_file:
+            boot_data = []
+            while True:
+                w = boot_file.read(4)
+                if not w:
+                    break
+                boot_data.append(struct.unpack(">I", w)[0])
+        self.soc.initialize_rom(boot_data)
 
     def build(self, toolchain_path=None, **kwargs):
         self.soc.finalize()
 
         os.makedirs(self.output_dir, exist_ok=True)
 
-        if self.soc.cpu_type is not None and self.compile_software:
-            if self.soc.integrated_rom_size:
-                raise ValueError("Software must be compiled in order to "
-                                 "intitialize integrated ROM")
-
+        if self.soc.cpu_type is not None:
             self._prepare_software()
             self._generate_includes()
             self._generate_software()
-            self._initialize_rom()
+            if self.soc.integrated_rom_size and self.compile_software:
+            	self._initialize_rom()
 
         if self.csr_csv is not None:
             self._generate_csr_csv()
