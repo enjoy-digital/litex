@@ -1,3 +1,4 @@
+# Copyright 2014-2015 Robert Jordens <jordens@gmail.com>
 
 from litex.gen import *
 from litex.soc.interconnect.csr import *
