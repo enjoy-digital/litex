@@ -224,11 +224,12 @@ class Gearbox(Module):
         ]
         self.clock_domains += cd_write, cd_read
 
-        storage = Signal(lcm(iwidth, owidth))
+        # TODO: optimize storage/resets for lowest ressource usage / lowest latency
+        storage = Signal(2*lcm(iwidth, owidth))
         wrchunks = len(storage)//iwidth
         rdchunks = len(storage)//owidth
-        wrpointer = Signal(max=wrchunks, reset=0 if iwidth > owidth else wrchunks-1)
-        rdpointer = Signal(max=rdchunks, reset=rdchunks-1 if iwidth > owidth else 0)
+        wrpointer = Signal(max=wrchunks, reset=0 if iwidth > owidth else wrchunks//2)
+        rdpointer = Signal(max=rdchunks, reset=rdchunks//2 if iwidth > owidth else 0)
 
         self.sync.write += \
             If(wrpointer == wrchunks-1,
