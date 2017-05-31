@@ -224,7 +224,6 @@ class Gearbox(Module):
         ]
         self.clock_domains += cd_write, cd_read
 
-        # TODO: optimize storage/resets for lowest ressource usage / lowest latency
         storage = Signal(2*lcm(iwidth, owidth))
         wrchunks = len(storage)//iwidth
         rdchunks = len(storage)//owidth
