@@ -8,6 +8,12 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect.wishbonebridge import WishboneStreamingBridge
 
 
+class RS232PHYInterface:
+    def __init__(self):
+        self.sink = stream.Endpoint([("data", 8)])
+        self.source = stream.Endpoint([("data", 8)])
+
+
 class RS232PHYRX(Module):
     def __init__(self, pads, tuning_word):
         self.source = stream.Endpoint([("data", 8)])
@@ -183,3 +189,21 @@ class UARTWishboneBridge(WishboneStreamingBridge):
     def __init__(self, pads, clk_freq, baudrate=115200):
         self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
         WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
+
+
+class UARTMultiplexer(Module):
+    def __init__(self, uarts, phy):
+        self.sel = Signal(max=len(uarts))
+
+        # # #
+
+        cases = {}
+        for n in range(len(uarts)):
+            # don't stall uarts when not selected
+            self.comb += uarts[n].sink.ready.eq(1)
+            # connect core to phy
+            cases[n] = [
+                phy.source.connect(uarts[n].source),
+                uarts[n].sink.connect(phy.sink)
+            ]
+        self.comb += Case(self.sel, cases)
