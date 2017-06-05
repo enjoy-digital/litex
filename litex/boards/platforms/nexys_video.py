@@ -106,9 +106,9 @@ _io = [
         Subsignal("data2_n", Pins("V2"), IOStandard("TMDS_33")),
         Subsignal("scl", Pins("Y4"), IOStandard("LVCMOS33")),
         Subsignal("sda", Pins("AB5"), IOStandard("LVCMOS33")),
+        Subsignal("hpd_en", Pins("AB12"), IOStandard("LVCMOS25")),
         Subsignal("cec", Pins("AA5"), IOStandard("LVCMOS33")),  # FIXME
         Subsignal("txen", Pins("R3"), IOStandard("LVCMOS33")),  # FIXME
-        Subsignal("hpa", Pins("AB12"), IOStandard("LVCMOS25")), # FIXME
     ),
 
     ("hdmi_out", 0,
