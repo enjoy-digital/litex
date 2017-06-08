@@ -5,9 +5,8 @@ class Identifier(Module):
     def __init__(self, ident):
         contents = list(ident.encode())
         l = len(contents)
-        if l > 255:
+        if l > 256:
             raise ValueError("Identifier string must be 255 characters or less")
-        contents.insert(0, l)
         self.mem = Memory(8, len(contents), init=contents)
 
     def get_memories(self):
