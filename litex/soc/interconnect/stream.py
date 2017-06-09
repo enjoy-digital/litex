@@ -20,7 +20,7 @@ class EndpointDescription:
         self.param_layout = param_layout
 
     def get_full_layout(self):
-        reserved = {"valid", "ready", "payload", "param", "last", "description"}
+        reserved = {"valid", "ready", "payload", "param", "first", "last", "description"}
         attributed = set()
         for f in self.payload_layout + self.param_layout:
             if f[0] in attributed:
@@ -32,6 +32,7 @@ class EndpointDescription:
         full_layout = [
             ("valid", 1, DIR_M_TO_S),
             ("ready", 1, DIR_S_TO_M),
+            ("first", 1, DIR_M_TO_S),
             ("last", 1, DIR_M_TO_S),
             ("payload", _make_m2s(self.payload_layout)),
             ("param", _make_m2s(self.param_layout))
@@ -64,6 +65,7 @@ class _FIFOWrapper(Module):
         description = self.sink.description
         fifo_layout = [("payload", description.payload_layout),
                        ("param", description.param_layout),
+                       ("first", 1),
                        ("last", 1)]
 
         self.submodules.fifo = fifo_class(layout_len(fifo_layout), depth)
@@ -77,11 +79,13 @@ class _FIFOWrapper(Module):
         self.comb += [
             self.sink.ready.eq(self.fifo.writable),
             self.fifo.we.eq(self.sink.valid),
+            fifo_in.first.eq(self.sink.first),
             fifo_in.last.eq(self.sink.last),
             fifo_in.payload.eq(self.sink.payload),
             fifo_in.param.eq(self.sink.param),
 
             self.source.valid.eq(self.fifo.readable),
+            self.source.first.eq(fifo_out.first),
             self.source.last.eq(fifo_out.last),
             self.source.payload.eq(fifo_out.payload),
             self.source.param.eq(fifo_out.param),
@@ -171,8 +175,10 @@ class _UpConverter(Module):
                 )
             ),
             If(source.valid & source.ready,
+                source.first.eq(sink.first),
                 source.last.eq(sink.last),
             ).Elif(sink.valid & sink.ready,
+                source.first.eq(sink.first | source.first),
                 source.last.eq(sink.last | source.last)
             )
         ]
@@ -199,10 +205,13 @@ class _DownConverter(Module):
 
         # control path
         mux = Signal(max=ratio)
+        first = Signal()
         last = Signal()
         self.comb += [
+            first.eq(mux == 0),
             last.eq(mux == (ratio-1)),
             source.valid.eq(sink.valid),
+            source.first.eq(sink.first & first),
             source.last.eq(sink.last & last),
             sink.ready.eq(last & source.ready)
         ]
@@ -295,6 +304,7 @@ class StrideConverter(Module):
         # cast sink to converter.sink (user fields --> raw bits)
         self.comb += [
             converter.sink.valid.eq(sink.valid),
+            converter.sink.first.eq(sink.first),
             converter.sink.last.eq(sink.last),
             sink.ready.eq(converter.sink.ready)
         ]
@@ -314,6 +324,7 @@ class StrideConverter(Module):
         # cast converter.source to source (raw bits --> user fields)
         self.comb += [
             source.valid.eq(converter.source.valid),
+            source.first.eq(converter.source.first),
             source.last.eq(converter.source.last),
             converter.source.ready.eq(source.ready)
         ]
@@ -381,6 +392,7 @@ class CombinatorialActor(BinaryActor):
     def build_binary_control(self, sink, source):
         self.comb += [
             source.valid.eq(sink.valid),
+            source.first.eq(sink.first),
             source.last.eq(sink.last),
             sink.ready.eq(source.ready),
         ]
@@ -408,15 +420,22 @@ class PipelinedActor(BinaryActor):
             source.valid.eq(valid),
             self.busy.eq(busy)
         ]
+        first = sink.valid & sink.first
         last = sink.valid & sink.last
         for i in range(latency):
+            first_n = Signal()
             last_n = Signal()
             self.sync += \
                 If(self.pipe_ce,
+                    first_n.eq(first),
                     last_n.eq(last)
                 )
+            first = first_n
             last = last_n
-        self.comb += source.last.eq(last)
+        self.comb += [
+            source.first.eq(first),
+            source.last.eq(last)
+        ]
 
 
 class Buffer(PipelinedActor):
@@ -460,8 +479,10 @@ class Unpack(Module):
         # # #
 
         mux = Signal(max=n)
+        first = Signal()
         last = Signal()
         self.comb += [
+            first.eq(mux == 0),
             last.eq(mux == (n-1)),
             source.valid.eq(sink.valid),
             sink.ready.eq(last & source.ready)
@@ -486,7 +507,10 @@ class Unpack(Module):
             dst = getattr(self.source, f[0])
             self.comb += dst.eq(src)
 
-        self.comb += source.last.eq(sink.last & last)
+        self.comb += [
+            source.first.eq(sink.first & first),
+            source.last.eq(sink.last & last)
+        ]
 
 
 class Pack(Module):
@@ -531,8 +555,10 @@ class Pack(Module):
                 )
             ),
             If(source.valid & source.ready,
+                source.first.eq(sink.first),
                 source.last.eq(sink.last),
             ).Elif(sink.valid & sink.ready,
+                source.first.eq(sink.first | source.first),
                 source.last.eq(sink.last | source.last)
             )
         ]
