@@ -282,7 +282,7 @@ class Memory(Special):
         data_regs = {}
         for port in memory.ports:
             if not port.async_read:
-                if port.mode == WRITE_FIRST:
+                if port.mode == WRITE_FIRST and port.we is not None:
                     adr_reg = Signal(name_override="memadr")
                     r += "reg [" + str(adrbits-1) + ":0] " \
                         + gn(adr_reg) + ";\n"
@@ -308,11 +308,11 @@ class Memory(Special):
                     r += "\tif (" + gn(port.we) + ")\n"
                     r += "\t\t" + gn(memory) + "[" + gn(port.adr) + "] <= " + gn(port.dat_w) + ";\n"
             if not port.async_read:
-                if port.mode == WRITE_FIRST:
+                if port.mode == WRITE_FIRST and port.we is not None:
                     rd = "\t" + gn(adr_regs[id(port)]) + " <= " + gn(port.adr) + ";\n"
                 else:
                     bassign = gn(data_regs[id(port)]) + " <= " + gn(memory) + "[" + gn(port.adr) + "];\n"
-                    if port.mode == READ_FIRST:
+                    if port.mode == READ_FIRST or port.we is None:
                         rd = "\t" + bassign
                     elif port.mode == NO_CHANGE:
                         rd = "\tif (!" + gn(port.we) + ")\n" \
@@ -328,7 +328,7 @@ class Memory(Special):
             if port.async_read:
                 r += "assign " + gn(port.dat_r) + " = " + gn(memory) + "[" + gn(port.adr) + "];\n"
             else:
-                if port.mode == WRITE_FIRST:
+                if port.mode == WRITE_FIRST and port.we is not None:
                     r += "assign " + gn(port.dat_r) + " = " + gn(memory) + "[" + gn(adr_regs[id(port)]) + "];\n"
                 else:
                     r += "assign " + gn(port.dat_r) + " = " + gn(data_regs[id(port)]) + ";\n"
