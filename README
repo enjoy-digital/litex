@@ -8,7 +8,7 @@
              Copyright 2012-2016 Enjoy-Digital
 
 [> Intro
----------
+--------
 LiteX is an alternative to Migen/MiSoC maintained and used by Enjoy-Digital
 to build our cores, integrate them in complete SoC and load/flash them to
 the hardware and experiment new features.
@@ -18,13 +18,13 @@ between projects and efforts are made to keep cores developed with LiteX
 compatible with Migen/MiSoC.
 
 [> License
------------
+----------
 LiteX is Copyright (c) 2012-2015 Enjoy-Digital under BSD Lisense.
 Since it is based on Migen/MiSoC, please also refer to LICENSE file in gen/soc
 directory or git history to get correct copyrights.
 
 [> Sub-packages
-----------------
+---------------
 gen:
   Provides specific or experimentatl modules to generate HDL that are not integrated
   in Migen.
@@ -76,4 +76,5 @@ boards:
   You should get the BIOS prompt.
 
 [> Contact
+----------
 E-mail: florent [AT] enjoy-digital.fr
