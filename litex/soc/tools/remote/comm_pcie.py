@@ -29,7 +29,7 @@ class CommPCIeLinux:
             self.mmap.seek(addr + 4*i)
             value = int.from_bytes(self.mmap.read(4), "big")
             if self.debug:
-                print("RD {:08X} @ {:08X}".format(data, addr + 4*i))
+                print("read {:08x} @ {:08x}".format(value, addr + 4*i))
              if length is None:
                 return value
             data.append(value)
@@ -41,4 +41,4 @@ class CommPCIeLinux:
         for i, value in enumerate(data):
             self.mmap[addr + 4*i:addr + 4*(i + 1)] = value.to_bytes(4, byteorder="big")
             if self.debug:
-                print("WR {:08X} @ {:08X}".format(value, 4*(addr + i)))
+                print("write {:08x} @ {:08x}".format(value, addr + 4*i))
