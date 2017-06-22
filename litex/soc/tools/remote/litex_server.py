@@ -1,7 +1,6 @@
 import sys
 import socket
 import threading
-import argparse
 
 from litex.soc.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
 from litex.soc.tools.remote.etherbone import EtherboneIPC
@@ -72,27 +71,45 @@ class RemoteServer(EtherboneIPC):
         self.serve_thread.start()
 
 
-def _get_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--comm", default="uart", help="comm interface")
-    parser.add_argument("--port", help="UART port")
-    parser.add_argument("--baudrate", default=115200, help="UART baudrate")
-    parser.add_argument("--debug", action="store_true", help="enable debug")
-    return parser
-
 def main():
     print("LiteX remote server")
-    parser = _get_parser()
-    if len(sys.argv) < 2:
-        parser.print_help()
+    if len(sys.argv) < 2 or len(sys.argv) > 4:
+        print("usages:")
+        print("litex_server uart [port] [baudrate]")
+        print("litex_server udp [server] [server_port]")
+        print("litex_server pcie [bar] [bar_size]")
         sys.exit()
-    args = parser.parse_args()
-    if args.comm == "uart":
+    comm = sys.argv[1]
+    if comm == "uart":
         from litex.soc.tools.remote import CommUART
-        print("Using CommUART, port: {} / baudrate: {}".format(args.port, args.baudrate))
-        comm = CommUART(args.port if not args.port.isdigit() else int(args.port),
-                        args.baudrate,
-                        debug=args.debug)
+        uart_port = None
+        uart_baudrate = 115200
+        if len(sys.argv) > 2:
+            uart_port = sys.argv[2]
+        if len(sys.argv) > 3:
+            uart_baudrate = int(sys.argv[3])
+        print("[CommUART] port: {} / baudrate: {}".format(uart_port, uart_baudrate))
+        comm = CommUART(uart_port, uart_baudrate)
+    elif comm == "udp":
+        from litex.soc.tools.remote import CommUDP
+        server = "192.168.1.50"
+        server_port = 1234
+        if len(sys.argv) > 2:
+            server = sys.argv[2]
+        if len(sys.argv) > 3:
+            server_port = int(sys.argv[3])
+        print("[CommUDP] server: {} / port: {}".format(server, server_port))
+        comm = CommUDP(server, server_port)
+    elif comm == "pcie":
+        from litex.soc.tools.remote import CommPCIe
+        bar = ""
+        bar_size = 1024*1024
+        if len(sys.argv) > 2:
+            bar = sys.argv[2]
+        if len(sys.argv) > 3:
+            bar_size = int(sys.argv[3])
+        print("[CommPCIe] bar: {} / bar_size: {}".format(bar, bar_size))
+        comm = CommPCIe(bar, bar_size)
     else:
         raise NotImplementedError
 
