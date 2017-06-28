@@ -16,13 +16,13 @@ struct pad_list_s {
   struct pad_list_s *next;
 };
 
-int lambdasim_pads_get_list(struct pad_list_s **plist);
-int lambdasim_pads_find(struct pad_list_s *first, char *name, int index,  struct pad_list_s **found);
+int litex_sim_pads_get_list(struct pad_list_s **plist);
+int litex_sim_pads_find(struct pad_list_s *first, char *name, int index,  struct pad_list_s **found);
   
 #ifdef __cplusplus
-extern "C" int lambdasim_register_pads(struct pad_s *pads, char *interface_name, int index);
+extern "C" int litex_sim_register_pads(struct pad_s *pads, char *interface_name, int index);
 #else
-int lambdasim_register_pads(struct pad_s *pads, char *interface_name, int index);
+int litex_sim_register_pads(struct pad_s *pads, char *interface_name, int index);
 #endif
 
 #endif

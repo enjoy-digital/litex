@@ -33,8 +33,8 @@ struct ext_module_list_s {
   struct ext_module_list_s *next;
 };
 
-int lambdasim_file_to_module_list(char *filename, struct module_s **mod);
-int lambdasim_load_ext_modules(struct ext_module_list_s **mlist);
-int lambdasim_find_ext_module(struct ext_module_list_s *first, char *name , struct ext_module_list_s **found);
+int litex_sim_file_to_module_list(char *filename, struct module_s **mod);
+int litex_sim_load_ext_modules(struct ext_module_list_s **mlist);
+int litex_sim_find_ext_module(struct ext_module_list_s *first, char *name , struct ext_module_list_s **found);
 
 #endif

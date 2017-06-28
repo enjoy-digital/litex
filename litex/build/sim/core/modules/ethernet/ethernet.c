@@ -37,7 +37,7 @@ struct session_s {
 
 static struct event_base *base=NULL;
 
-int lambdasim_module_get_args( char *args, char *arg, char **val)
+int litex_sim_module_get_args( char *args, char *arg, char **val)
 {
   int ret=RC_OK;
   json_object *jsobj=NULL;
@@ -73,7 +73,7 @@ out:
   return ret;
 }
 
-static int lambdasim_module_pads_get( struct pad_s *pads, char *name, void **signal)
+static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
   int ret;
   void *sig=NULL;
@@ -159,14 +159,14 @@ static int ethernet_new(void **sess, char *args)
   }
   memset(s, 0, sizeof(struct session_s));
 
-  ret = lambdasim_module_get_args(args, "interface", &c_tap);
+  ret = litex_sim_module_get_args(args, "interface", &c_tap);
   {
     if(RC_OK != ret)
     {
       goto out;
     }
   }
-  ret = lambdasim_module_get_args(args, "ip", &c_tap_ip);
+  ret = litex_sim_module_get_args(args, "ip", &c_tap_ip);
   {
     if(RC_OK != ret)
     {
@@ -206,17 +206,17 @@ static int ethernet_add_pads(void *sess, struct pad_list_s *plist)
   pads = plist->pads;
   if(!strcmp(plist->name, "eth"))
   {
-    lambdasim_module_pads_get(pads, "sink_data", (void**)&s->rx);
-    lambdasim_module_pads_get(pads, "sink_valid", (void**)&s->rx_valid);
-    lambdasim_module_pads_get(pads, "sink_ready", (void**)&s->rx_ready);
-    lambdasim_module_pads_get(pads, "source_data", (void**)&s->tx);
-    lambdasim_module_pads_get(pads, "source_valid", (void**)&s->tx_valid);
-    lambdasim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
+    litex_sim_module_pads_get(pads, "sink_data", (void**)&s->rx);
+    litex_sim_module_pads_get(pads, "sink_valid", (void**)&s->rx_valid);
+    litex_sim_module_pads_get(pads, "sink_ready", (void**)&s->rx_ready);
+    litex_sim_module_pads_get(pads, "source_data", (void**)&s->tx);
+    litex_sim_module_pads_get(pads, "source_valid", (void**)&s->tx_valid);
+    litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
   
   if(!strcmp(plist->name, "sys_clk"))  
   {
-    lambdasim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
+    litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
   }
 
 out:
@@ -302,7 +302,7 @@ static struct ext_module_s ext_mod = {
   ethernet_tick
 };
 
-int lambdasim_ext_module_init(int (*register_module)(struct ext_module_s *))
+int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
 {
   int ret=RC_OK;
   ret = register_module(&ext_mod);

@@ -16,7 +16,7 @@
 
 static struct ext_module_list_s *modlist=NULL;
 
-int lambdasim_register_ext_module(struct ext_module_s *mod)
+int litex_sim_register_ext_module(struct ext_module_s *mod)
 {
   int ret=RC_OK;
   struct ext_module_list_s *ml=NULL;
@@ -43,13 +43,13 @@ out:
   return ret;
 }
 
-int lambdasim_load_ext_modules(struct ext_module_list_s **mlist)
+int litex_sim_load_ext_modules(struct ext_module_list_s **mlist)
 {
   int ret = RC_OK;
   tinydir_dir dir;
   tinydir_file file;
   dylib_ref lib;
-  int (*lambdasim_ext_module_init)(int (*reg)(struct ext_module_s *));
+  int (*litex_sim_ext_module_init)(int (*reg)(struct ext_module_s *));
   char name[100];
   if (tinydir_open(&dir, "./modules/") == -1)
   {
@@ -82,20 +82,20 @@ int lambdasim_load_ext_modules(struct ext_module_list_s **mlist)
 	goto out;
       }
       
-      if(!libdylib_find(lib, "lambdasim_ext_module_init"))
+      if(!libdylib_find(lib, "litex_sim_ext_module_init"))
       {
 	ret = RC_ERROR;
-	eprintf("Module has no lambdasim_ext_module_init function\n");
+	eprintf("Module has no litex_sim_ext_module_init function\n");
 	goto out;
       }
-      LIBDYLIB_BINDNAME(lib, lambdasim_ext_module_init);
-      if(!lambdasim_ext_module_init)
+      LIBDYLIB_BINDNAME(lib, litex_sim_ext_module_init);
+      if(!litex_sim_ext_module_init)
       {
 	ret = RC_ERROR;
 	eprintf("Can't bind %s\n", libdylib_last_error());
 	goto out;
       }
-      ret = lambdasim_ext_module_init(lambdasim_register_ext_module);
+      ret = litex_sim_ext_module_init(litex_sim_register_ext_module);
       if(RC_OK != ret)
       {
 	goto out;
@@ -114,7 +114,7 @@ out:
   return ret;
 }
 
-int lambdasim_find_ext_module(struct ext_module_list_s *first, char *name , struct ext_module_list_s **found)
+int litex_sim_find_ext_module(struct ext_module_list_s *first, char *name , struct ext_module_list_s **found)
 {
   struct ext_module_list_s *list = NULL;
   int ret=RC_OK;
@@ -136,7 +136,7 @@ out:
   return ret;
 }
 
-int lambdasim_find_module(struct module_s *first, char *name , struct module_s **found)
+int litex_sim_find_module(struct module_s *first, char *name , struct module_s **found)
 {
   struct module_s *list = NULL;
   int ret=RC_OK;

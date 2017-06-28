@@ -21,7 +21,7 @@
 #include <event2/util.h>
 #include <event2/event.h>
 
-void lambdasim_init(void **out);
+void litex_sim_init(void **out);
 
 struct session_list_s {
   void *session;
@@ -32,7 +32,7 @@ struct session_list_s {
 
 struct session_list_s *sesslist=NULL;
 
-static int lambdasim_initialize_all(void **dut, void *base)
+static int litex_sim_initialize_all(void **dut, void *base)
 {
   struct module_s *ml=NULL;
   struct module_s *mli=NULL;
@@ -47,7 +47,7 @@ static int lambdasim_initialize_all(void **dut, void *base)
   int ret = RC_OK;
   
   /* Load external modules */
-  ret = lambdasim_load_ext_modules(&mlist);
+  ret = litex_sim_load_ext_modules(&mlist);
   if(RC_OK != ret)
   {
     goto out;
@@ -61,16 +61,16 @@ static int lambdasim_initialize_all(void **dut, void *base)
   }
   
   /* Load configuration */
-  ret = lambdasim_file_to_module_list("sim_config.js", &ml);
+  ret = litex_sim_file_to_module_list("sim_config.js", &ml);
   if(RC_OK != ret)
   {
     goto out;
   }
   /* Init generated */
-  lambdasim_init(&vdut);
+  litex_sim_init(&vdut);
   
   /* Get pads from generated */
-  ret = lambdasim_pads_get_list(&plist);
+  ret = litex_sim_pads_get_list(&plist);
   if(RC_OK != ret)
   {
     goto out;
@@ -81,7 +81,7 @@ static int lambdasim_initialize_all(void **dut, void *base)
 
     /* Find the module in the external module */
     pmlist = NULL;
-    ret = lambdasim_find_ext_module(mlist, mli->name, &pmlist );
+    ret = litex_sim_find_ext_module(mlist, mli->name, &pmlist );
     if(RC_OK != ret)
     {
       goto out;
@@ -115,7 +115,7 @@ static int lambdasim_initialize_all(void **dut, void *base)
     {
       /*Find the pads */
       pplist=NULL;
-      ret = lambdasim_pads_find(plist, mli->iface[i].name, mli->iface[i].index, &pplist);
+      ret = litex_sim_pads_find(plist, mli->iface[i].name, mli->iface[i].index, &pplist);
       if(RC_OK != ret)
       {
 	goto out;
@@ -137,7 +137,7 @@ out:
   return ret;
 }
 
-int lambdasim_sort_session()
+int litex_sim_sort_session()
 {
   struct session_list_s *s;
   struct session_list_s *sprev=sesslist;
@@ -175,7 +175,7 @@ static void cb(int sock, short which, void *arg)
   int i;
   
   
-  //lambdasim_eval(vdut);
+  //litex_sim_eval(vdut);
   for(i = 0; i < 1000; i++)
   {
     for(s = sesslist; s; s=s->next)
@@ -183,14 +183,14 @@ static void cb(int sock, short which, void *arg)
       if(s->tickfirst)
 	s->module->tick(s->session);
     }
-    lambdasim_eval(vdut);
+    litex_sim_eval(vdut);
     for(s = sesslist; s; s=s->next)
     {
       if(!s->tickfirst)
 	s->module->tick(s->session);
     }
   }
-  //lambdasim_eval(vdut);
+  //litex_sim_eval(vdut);
   
   
   if (!evtimer_pending(ev, NULL)) {
@@ -221,12 +221,12 @@ int main()
     goto out;
   }
   
-  if(RC_OK != (ret = lambdasim_initialize_all(&vdut, base)))
+  if(RC_OK != (ret = litex_sim_initialize_all(&vdut, base)))
   {
     goto out;
   }
   
-  if(RC_OK != (ret = lambdasim_sort_session()))
+  if(RC_OK != (ret = litex_sim_sort_session()))
   {
     goto out;
   }

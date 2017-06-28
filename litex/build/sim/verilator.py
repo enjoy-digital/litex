@@ -38,7 +38,7 @@ def _generate_sim_h(platform):
 
     content += """\
 #ifndef __cplusplus
-void lambdasim_init(void **out);
+void litex_sim_init(void **out);
 #endif
 
 #endif /* __SIM_CORE_H_ */
@@ -53,7 +53,7 @@ def _generate_sim_cpp_struct(name, index, siglist):
         content += '    {}{}[{}].signal = &dut->{};\n'.format(name, index, i, sigfname)
 
     idx_int = 0 if not index else int(index)
-    content += '    lambdasim_register_pads({}{}, (char*)"{}", {});\n\n'.format(name, index, name, idx_int)
+    content += '    litex_sim_register_pads({}{}, (char*)"{}", {});\n\n'.format(name, index, name, idx_int)
 
     return content
 
@@ -67,7 +67,7 @@ def _generate_sim_cpp(platform):
 #include <verilated.h>
 #include "dut_header.h"
 
-extern "C" void lambdasim_init(void **out)
+extern "C" void litex_sim_init(void **out)
 {
     Vdut *dut;
 

@@ -25,7 +25,7 @@ struct session_s {
 };
 
 struct event_base *base;
-static int lambdasim_module_pads_get( struct pad_s *pads, char *name, void **signal)
+static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
   int ret;
   void *sig=NULL;
@@ -134,17 +134,17 @@ static int serial2console_add_pads(void *sess, struct pad_list_s *plist)
   pads = plist->pads;
   if(!strcmp(plist->name, "serial"))
   {
-    lambdasim_module_pads_get(pads, "sink_data", (void**)&s->rx);
-    lambdasim_module_pads_get(pads, "sink_valid", (void**)&s->rx_valid);
-    lambdasim_module_pads_get(pads, "sink_ready", (void**)&s->rx_ready);
-    lambdasim_module_pads_get(pads, "source_data", (void**)&s->tx);
-    lambdasim_module_pads_get(pads, "source_valid", (void**)&s->tx_valid);
-    lambdasim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
+    litex_sim_module_pads_get(pads, "sink_data", (void**)&s->rx);
+    litex_sim_module_pads_get(pads, "sink_valid", (void**)&s->rx_valid);
+    litex_sim_module_pads_get(pads, "sink_ready", (void**)&s->rx_ready);
+    litex_sim_module_pads_get(pads, "source_data", (void**)&s->tx);
+    litex_sim_module_pads_get(pads, "source_valid", (void**)&s->tx_valid);
+    litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
   
   if(!strcmp(plist->name, "sys_clk"))  
   {
-    lambdasim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
+    litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
 
   }
 
@@ -195,7 +195,7 @@ static struct ext_module_s ext_mod = {
   serial2console_tick
 };
 
-int lambdasim_ext_module_init(int (*register_module)(struct ext_module_s *))
+int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
 {
   int ret=RC_OK;
   ret = register_module(&ext_mod);

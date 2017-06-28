@@ -11,13 +11,13 @@
 
 VerilatedVcdC* tfp;
 
-extern "C" void lambdasim_eval(void *vdut)
+extern "C" void litex_sim_eval(void *vdut)
 {
   Vdut *dut = (Vdut*)vdut;
   dut->eval();
 }
 
-extern "C" void lambdasim_init_tracer(void *vdut)
+extern "C" void litex_sim_init_tracer(void *vdut)
 {
   Vdut *dut = (Vdut*)vdut;
   Verilated::traceEverOn(true);
@@ -26,7 +26,7 @@ extern "C" void lambdasim_init_tracer(void *vdut)
   tfp->open("dut.vcd");
 }
 
-extern "C" void lambdasim_tracer_dump()
+extern "C" void litex_sim_tracer_dump()
 {
   static unsigned int ticks=0;
   tfp->dump(ticks++);

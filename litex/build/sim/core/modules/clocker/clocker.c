@@ -8,7 +8,7 @@ struct session_s {
   char *sys_clk;
 };
 
-static int lambdasim_module_pads_get( struct pad_s *pads, char *name, void **signal)
+static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
   int ret;
   void *sig=NULL;
@@ -80,7 +80,7 @@ static int clocker_add_pads(void *sess, struct pad_list_s *plist)
   
   if(!strcmp(plist->name, "sys_clk"))  
   {
-    lambdasim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
+    litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
   }
 
   *s->sys_clk=0;
@@ -104,7 +104,7 @@ static struct ext_module_s ext_mod = {
   clocker_tick
 };
 
-int lambdasim_ext_module_init(int (*register_module)(struct ext_module_s *))
+int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
 {
   int ret=RC_OK;
   ret = register_module(&ext_mod);

@@ -299,7 +299,7 @@ out:
   return ret;
 }
 
-int lambdasim_file_to_module_list(char *filename, struct module_s **mod)
+int litex_sim_file_to_module_list(char *filename, struct module_s **mod)
 {
   struct module_s *m=NULL;
   json_object *obj=NULL;
