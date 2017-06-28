@@ -28,6 +28,7 @@ class BaseSoC(SoCSDRAM):
         SoCSDRAM.__init__(self, platform,
             clk_freq=int((1/(platform.default_clk_period))*1000000000),
             integrated_rom_size=0x8000,
+            ident="LiteX simulation example design",
             with_uart=False,
             **kwargs)
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
