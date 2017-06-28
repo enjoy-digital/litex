@@ -29,29 +29,26 @@ struct event_base *base;
 
 int litex_sim_module_get_args( char *args, char *arg, char **val)
 {
-  int ret=RC_OK;
-  json_object *jsobj=NULL;
-  json_object *obj=NULL;
-  char *value=NULL;
+  int ret = RC_OK;
+  json_object *jsobj = NULL;
+  json_object *obj = NULL;
+  char *value = NULL;
   int r;
 
   jsobj = json_tokener_parse(args);
-  if(NULL==jsobj)
-  {
+  if(NULL==jsobj) {
     fprintf(stderr, "Error parsing json arg: %s \n", args);
     ret=RC_JSERROR;
     goto out;
   }
-  if(!json_object_is_type(jsobj, json_type_object))
-  {
+  if(!json_object_is_type(jsobj, json_type_object)) {
     fprintf(stderr, "Arg must be type object! : %s \n", args);
     ret=RC_JSERROR;
     goto out;
   }
   obj=NULL;
   r = json_object_object_get_ex(jsobj, arg, &obj);
-  if(!r)
-  {
+  if(!r) {
     fprintf(stderr, "Could not find object: \"%s\" (%s)\n", arg, args);
     ret=RC_JSERROR;
     goto out;
@@ -66,40 +63,38 @@ out:
 static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
   int ret;
-  void *sig=NULL;
+  void *sig = NULL;
   int i;
 
-  if(!pads || !name || !signal)
-  {
-    ret=RC_INVARG;
+  if(!pads || !name || !signal) {
+    ret = RC_INVARG;
     goto out;
   }
+
   i = 0;
-  while(pads[i].name)
-  {
-    if(!strcmp(pads[i].name, name))
-    {
-      sig=(void*)pads[i].signal;
+  while(pads[i].name) {
+    if(!strcmp(pads[i].name, name)) {
+      sig = (void*)pads[i].signal;
       break;
     }
     i++;
   }
 
 out:
-  *signal=sig;
+  *signal = sig;
   return ret;
 }
 
 static int serial2tcp_start(void *b)
 {
-  base =(struct event_base *)b;
-  printf("Loaded %p!\n", base);
+  base = (struct event_base *)b;
+  printf("[serial2tcp] loaded (%p)\n", base);
   return RC_OK;
 }
 
 void read_handler(int fd, short event, void *arg)
 {
-  struct session_s *s= (struct session_s*)arg;
+  struct session_s *s = (struct session_s*)arg;
   char buffer[1024];
   ssize_t read_len;
   
@@ -115,16 +110,13 @@ void read_handler(int fd, short event, void *arg)
 
 static void event_handler(int fd, short event, void *arg)
 {
-  //printf("hit\n");
   if (event & EV_READ)
-  {
     read_handler(fd, event, arg);
-  }
 }
 
 static void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd, struct sockaddr *address, int socklen,  void *ctx)
 {
-  struct session_s *s= (struct session_s*)ctx;
+  struct session_s *s = (struct session_s*)ctx;
   struct timeval tv = {1, 0};
   
   s->fd = fd;
@@ -143,41 +135,34 @@ accept_error_cb(struct evconnlistener *listener, void *ctx)
 
 static int serial2tcp_new(void **sess, char *args)
 {
-  int ret=RC_OK;
-  struct session_s *s=NULL;
-  char *cport=NULL;
+  int ret = RC_OK;
+  struct session_s *s = NULL;
+  char *cport = NULL;
   int port;
   struct evconnlistener *listener;
   struct sockaddr_in sin;
 
-  if(!sess)
-  {
+  if(!sess) {
     ret = RC_INVARG;
     goto out;
   }
 
   ret = litex_sim_module_get_args(args, "port", &cport);
-  {
-    if(RC_OK != ret)
-    {
-      goto out;
-    }
-  }
+  if(RC_OK != ret)
+    goto out;
 
   printf("Found port %s\n", cport);
   sscanf(cport, "%d", &port);
   free(cport);
-  if(!port)
-  {
-    ret=RC_ERROR;
+  if(!port) {
+    ret = RC_ERROR;
     fprintf(stderr, "Invalid port selected!\n");
     goto out;
   }
    
   s=(struct session_s*)malloc(sizeof(struct session_s));
-  if(!s)
-  {
-    ret=RC_NOENMEM;
+  if(!s) {
+    ret = RC_NOENMEM;
     goto out;
   }
   memset(s, 0, sizeof(struct session_s));
@@ -187,8 +172,7 @@ static int serial2tcp_new(void **sess, char *args)
   sin.sin_addr.s_addr = htonl(0);
   sin.sin_port = htons(port);
   listener = evconnlistener_new_bind(base, accept_conn_cb, s,  LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE, -1, (struct sockaddr*)&sin, sizeof(sin));
-  if (!listener)
-  {
+  if (!listener) {
     ret=RC_ERROR;
     eprintf("Can't bind port %d\n!\n", port);
     goto out;
@@ -198,7 +182,6 @@ static int serial2tcp_new(void **sess, char *args)
 out:
   *sess=(void*)s;
   return ret;
-  
 }
 
 static int serial2tcp_add_pads(void *sess, struct pad_list_s *plist)
@@ -206,14 +189,12 @@ static int serial2tcp_add_pads(void *sess, struct pad_list_s *plist)
   int ret=RC_OK;
   struct session_s *s=(struct session_s*)sess;
   struct pad_s *pads;
-  if(!sess || !plist)
-  {
+  if(!sess || !plist) {
     ret = RC_INVARG;
     goto out;
   }
   pads = plist->pads;
-  if(!strcmp(plist->name, "serial"))
-  {
+  if(!strcmp(plist->name, "serial")) {
     litex_sim_module_pads_get(pads, "sink_data", (void**)&s->rx);
     litex_sim_module_pads_get(pads, "sink_valid", (void**)&s->rx_valid);
     litex_sim_module_pads_get(pads, "sink_ready", (void**)&s->rx_ready);
@@ -222,11 +203,8 @@ static int serial2tcp_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
   
-  if(!strcmp(plist->name, "sys_clk"))  
-  {
+  if(!strcmp(plist->name, "sys_clk"))
     litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
-
-  }
 
 out:
   return ret;
@@ -235,20 +213,16 @@ out:
 static int serial2tcp_tick(void *sess)
 {
   char c;
-  int ret=RC_OK;
+  int ret = RC_OK;
   
-  struct session_s *s=(struct session_s*)sess;
+  struct session_s *s = (struct session_s*)sess;
   if(*s->sys_clk == 0)
-  {
     return RC_OK;
-  }
 
   *s->tx_ready = 1;
-  if(s->fd && *s->tx_valid)
-  {
+  if(s->fd && *s->tx_valid) {
     c = *s->tx;
-    if(-1 ==write(s->fd, &c, 1))
-    {
+    if(-1 ==write(s->fd, &c, 1)) {
       eprintf("Error writing on socket\n");
       ret = RC_ERROR;
       goto out;
@@ -256,8 +230,7 @@ static int serial2tcp_tick(void *sess)
   }
   
   *s->rx_valid=0;
-  if(s->datalen)
-  {
+  if(s->datalen) {
     *s->rx=s->databuf[s->data_start];
     s->data_start = (s->data_start + 1) % 2048;
     s->datalen--;
@@ -279,7 +252,7 @@ static struct ext_module_s ext_mod = {
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
   ret = register_module(&ext_mod);
   return ret;
 }

@@ -37,58 +37,55 @@ struct session_s {
 
 static struct event_base *base=NULL;
 
-int litex_sim_module_get_args( char *args, char *arg, char **val)
+int litex_sim_module_get_args(char *args, char *arg, char **val)
 {
-  int ret=RC_OK;
-  json_object *jsobj=NULL;
-  json_object *obj=NULL;
-  char *value=NULL;
+  int ret = RC_OK;
+  json_object *jsobj = NULL;
+  json_object *obj = NULL;
+  char *value = NULL;
   int r;
 
   jsobj = json_tokener_parse(args);
-  if(NULL==jsobj)
-  {
+  if(NULL == jsobj) {
     fprintf(stderr, "Error parsing json arg: %s \n", args);
-    ret=RC_JSERROR;
+    ret = RC_JSERROR;
     goto out;
   }
-  if(!json_object_is_type(jsobj, json_type_object))
-  {
+
+  if(!json_object_is_type(jsobj, json_type_object)) {
     fprintf(stderr, "Arg must be type object! : %s \n", args);
-    ret=RC_JSERROR;
+    ret = RC_JSERROR;
     goto out;
   }
+
   obj=NULL;
   r = json_object_object_get_ex(jsobj, arg, &obj);
-  if(!r)
-  {
+  if(!r) {
     fprintf(stderr, "Could not find object: \"%s\" (%s)\n", arg, args);
-    ret=RC_JSERROR;
+    ret = RC_JSERROR;
     goto out;
   }
-  value=strdup(json_object_get_string(obj));
+  value = strdup(json_object_get_string(obj));
 
 out:
   *val = value;
   return ret;
 }
 
-static int litex_sim_module_pads_get( struct pad_s *pads, char *name, void **signal)
+static int litex_sim_module_pads_get(struct pad_s *pads, char *name, void **signal)
 {
   int ret;
-  void *sig=NULL;
+  void *sig = NULL;
   int i;
 
-  if(!pads || !name || !signal)
-  {
+  if(!pads || !name || !signal) {
     ret=RC_INVARG;
     goto out;
   }
+
   i = 0;
-  while(pads[i].name)
-  {
-    if(!strcmp(pads[i].name, name))
-    {
+  while(pads[i].name) {
+    if(!strcmp(pads[i].name, name)) {
       sig=(void*)pads[i].signal;
       break;
     }
@@ -102,34 +99,27 @@ out:
 
 static int ethernet_start(void *b)
 {
-  base=(struct event_base *)b;
-  printf("Loaded eth %p!\n", base);
+  base = (struct event_base *) b;
+  printf("[ethernet] loaded (%p)\n", base);
   return RC_OK;
 }
 
 void event_handler(int fd, short event, void *arg)
 {
-  struct  session_s *s=(struct session_s*)arg;
+  struct  session_s *s = (struct session_s*)arg;
   struct eth_packet_s *ep;
   struct eth_packet_s *tep;
   
-  
-  
-  if (event & EV_TIMEOUT) {
-    //printf("timeout\n");
-  } else if (event & EV_READ) {
+  if (event & EV_READ) {
     ep = malloc(sizeof(struct eth_packet_s));
     memset(ep, 0, sizeof(struct eth_packet_s));
     ep->len = tapcfg_read(s->tapcfg, ep->data, 2000);
     if(ep->len < 60)
-    {
       ep->len = 60;
-    }
     
     if(!s->ethpack)
-    {
       s->ethpack = ep;
-    } else {
+    else {
       for(tep=s->ethpack; tep->next; tep=tep->next);
       tep->next = ep;
     }
@@ -140,20 +130,18 @@ static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
 
 static int ethernet_new(void **sess, char *args)
 {
-  int ret=RC_OK;
-  char *c_tap=NULL;
-  char *c_tap_ip=NULL;
-  struct session_s *s=NULL;
-  struct timeval tv={10, 0};
-  if(!sess)
-  {
+  int ret = RC_OK;
+  char *c_tap = NULL;
+  char *c_tap_ip = NULL;
+  struct session_s *s = NULL;
+  struct timeval tv = {10, 0};
+  if(!sess) {
     ret = RC_INVARG;
     goto out;
   }
 
   s=(struct session_s*)malloc(sizeof(struct session_s));
-  if(!s)
-  {
+  if(!s) {
     ret=RC_NOENMEM;
     goto out;
   }
@@ -162,16 +150,12 @@ static int ethernet_new(void **sess, char *args)
   ret = litex_sim_module_get_args(args, "interface", &c_tap);
   {
     if(RC_OK != ret)
-    {
       goto out;
-    }
   }
   ret = litex_sim_module_get_args(args, "ip", &c_tap_ip);
   {
     if(RC_OK != ret)
-    {
       goto out;
-    }
   }
 
   s->tapcfg = tapcfg_init();
@@ -182,8 +166,6 @@ static int ethernet_new(void **sess, char *args)
   tapcfg_iface_set_status(s->tapcfg, TAPCFG_STATUS_ALL_UP);
   free(c_tap);
   free(c_tap_ip);
-  printf("FT:%d\n", s->fd);
-  printf("ETHERNET MODULE NEW CALLED\n");
 
   s->ev = event_new(base, s->fd, EV_READ | EV_PERSIST, event_handler, s);
   event_add(s->ev, &tv);
@@ -196,16 +178,14 @@ out:
 static int ethernet_add_pads(void *sess, struct pad_list_s *plist)
 {
   int ret=RC_OK;
-  struct session_s *s=(struct session_s*)sess;
+  struct session_s *s = (struct session_s*)sess;
   struct pad_s *pads;
-  if(!sess || !plist)
-  {
+  if(!sess || !plist) {
     ret = RC_INVARG;
     goto out;
   }
   pads = plist->pads;
-  if(!strcmp(plist->name, "eth"))
-  {
+  if(!strcmp(plist->name, "eth")) {
     litex_sim_module_pads_get(pads, "sink_data", (void**)&s->rx);
     litex_sim_module_pads_get(pads, "sink_valid", (void**)&s->rx_valid);
     litex_sim_module_pads_get(pads, "sink_ready", (void**)&s->rx_ready);
@@ -214,10 +194,8 @@ static int ethernet_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
   
-  if(!strcmp(plist->name, "sys_clk"))  
-  {
+  if(!strcmp(plist->name, "sys_clk"))
     litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
-  }
 
 out:
   return ret;
@@ -226,48 +204,33 @@ out:
 static int ethernet_tick(void *sess)
 {
   char c;
-  struct session_s *s=(struct session_s*)sess;
+  struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;
   
   if(*s->sys_clk == 0)
-  {
     return RC_OK;
-  }
-
 
   *s->tx_ready = 1;
-  if(*s->tx_valid == 1)
-  {
+  if(*s->tx_valid == 1) {
     c = *s->tx;
-   //printf("%02x ", (unsigned char)c);
     s->databuf[s->datalen++]=c;
   } else {
-    if(s->datalen)
-    {
-      //printf("send fini\n");
+    if(s->datalen) {
       tapcfg_write(s->tapcfg, s->databuf, s->datalen);
       s->datalen=0;
     }
   }
   
   *s->rx_valid=0;
-  if(s->inlen)
-  {
+  if(s->inlen) {
     *s->rx_valid=1;
     *s->rx = s->inbuf[s->insent++];
-    //printf("%02x ", (unsigned char)*s->rx);
-    //printf("%d", *s->rx_ready);
-    if(s->insent == s->inlen)
-    {
-      //printf("recv fini\n");
+    if(s->insent == s->inlen) {
       s->insent =0;
       s->inlen = 0;
     }
-  }
-  else
-  {
-    if(s->ethpack)
-    {
+  } else {
+    if(s->ethpack) {
       memcpy(s->inbuf, s->ethpack->data, s->ethpack->len);
       s->inlen = s->ethpack->len;
       pep=s->ethpack->next;
@@ -275,21 +238,6 @@ static int ethernet_tick(void *sess)
       s->ethpack=pep;
     }
   }
-  /*
-  else
-  {
-  if(tapcfg_wait_readable(s->tapcfg, 0))
-    {
-      memset(s->inbuf, 0, 2000);
-      s->inlen =  tapcfg_read(s->tapcfg, s->inbuf, 2000);
-      
-      if(s->inlen < 60)
-      {
-	s->inlen = 60;
-      }
-    }
-  }
-  */
   return RC_OK;
 }
 
@@ -304,7 +252,7 @@ static struct ext_module_s ext_mod = {
 
 int litex_sim_ext_module_init(int (*register_module)(struct ext_module_s *))
 {
-  int ret=RC_OK;
+  int ret = RC_OK;
   ret = register_module(&ext_mod);
   return ret;
 }

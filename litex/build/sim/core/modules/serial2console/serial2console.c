@@ -63,6 +63,7 @@ static int serial2console_start(void *b)
 {
   base = (struct event_base *)b;
   set_conio_terminal_mode();
+  printf("[serial2console] loaded (%p)\n", base);
   return RC_OK;
 }
 
