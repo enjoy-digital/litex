@@ -75,6 +75,8 @@ class XilinxVivadoToolchain:
         "keep": ("dont_touch", "true"),
         "no_retiming": ("dont_touch", "true"),
         "async_reg": ("async_reg", "true"),
+        "ars_ff": ("ars_ff", "true"),  # user-defined attribute
+        "ars_false_path": ("ars_false_path", "true"),  # user-defined attribute
         "no_shreg_extract": None
     }
 
@@ -88,31 +90,37 @@ class XilinxVivadoToolchain:
 
     def _build_batch(self, platform, sources, build_name):
         tcl = []
+        tcl.append("create_property ars_ff cell")
+        tcl.append("create_property ars_false_path net")
         for filename, language, library in sources:
             filename_tcl = "{" + filename + "}"
             tcl.append("add_files " + filename_tcl)
-            if language == "vhdl":
-                tcl.append("set_property library {} [get_files {}]"
-                           .format(library, filename_tcl))
+            tcl.append("set_property library {} [get_files {}]"
+                       .format(library, filename_tcl))
 
         tcl.append("read_xdc {}.xdc".format(build_name))
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
+        # "-include_dirs {}" crashes Vivado 2016.4
         if platform.verilog_include_paths:
-            synth_design_extra = "-include_dirs {{{}}}".format(" ".join(platform.verilog_include_paths))
+            tcl.append("synth_design -top {} -part {} -include_dirs {{{}}}".format(build_name, platform.device, " ".join(platform.verilog_include_paths)))
         else:
-            synth_design_extra = ""
-        tcl.append("synth_design -top {} -part {} {}".format(build_name, platform.device, synth_design_extra))
+            tcl.append("synth_design -top {} -part {}".format(build_name, platform.device))
+        tcl.append("write_checkpoint -force {}_synth.dcp".format(build_name))
+        tcl.append("report_timing_summary -file {}_timing_synth.rpt".format(build_name))
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_synth.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_synth.rpt".format(build_name))
+        tcl.append("opt_design")
         tcl.append("place_design")
         if self.with_phys_opt:
             tcl.append("phys_opt_design -directive AddRetime")
+        tcl.append("write_checkpoint -force {}_place.dcp".format(build_name))
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_place.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_place.rpt".format(build_name))
         tcl.append("report_io -file {}_io.rpt".format(build_name))
         tcl.append("report_control_sets -verbose -file {}_control_sets.rpt".format(build_name))
         tcl.append("report_clock_utilization -file {}_clock_utilization.rpt".format(build_name))
         tcl.append("route_design")
+        tcl.append("write_checkpoint -force {}_route.dcp".format(build_name))
         tcl.append("report_route_status -file {}_route_status.rpt".format(build_name))
         tcl.append("report_drc -file {}_drc.rpt".format(build_name))
         tcl.append("report_timing_summary -datasheet -max_paths 10 -file {}_timing.rpt".format(build_name))
@@ -144,6 +152,22 @@ class XilinxVivadoToolchain:
         del self.clocks
         del self.false_paths
 
+    def _constrain(self, platform):
+        # The asychronous reset input to the AsyncResetSynchronizer is a false
+        # path
+        platform.add_platform_command(
+            "set_false_path -quiet "
+            "-through [get_nets -hier -filter {{ars_false_path==true}}] "
+            "-to [get_cells -hier -filter {{ars_ff==true}}]"
+        )
+        # clock_period-2ns to resolve metastability on the wire between the
+        # AsyncResetSynchronizer FFs
+        platform.add_platform_command(
+            "set_max_delay 2 -quiet "
+            "-from [get_cells -hier -filter {{ars_ff==true}}] "
+            "-to [get_cells -hier -filter {{ars_ff==true}}]"
+        )
+
     def build(self, platform, fragment, build_dir="build", build_name="top",
             toolchain_path=None, source=True, run=True, **kwargs):
         if toolchain_path is None:
@@ -161,6 +185,7 @@ class XilinxVivadoToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
         self._convert_clocks(platform)
+        self._constrain(platform)
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"

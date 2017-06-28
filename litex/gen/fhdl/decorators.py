@@ -71,7 +71,9 @@ class ControlInserter(ModuleTransformer):
 
     def transform_fragment(self, i, f):
         if self.clock_domains is None:
-            if len(f.sync) != 1:
+            if not f.sync:
+                return
+            if len(f.sync) > 1:
                 raise ValueError("Control signal clock domains must be specified when module has more than one domain")
             cdn = list(f.sync.keys())[0]
             to_insert = [(getattr(i, self.control_name), cdn)]

@@ -32,7 +32,6 @@ if _have_colorama:
 
 
 def settings(path, ver=None, sub=None):
-    assert path is not None
     if ver is None:
         vers = list(tools.versions(path))
         if not vers:
@@ -77,15 +76,19 @@ class XilinxMultiReg:
 
 class XilinxAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
-        rst1 = Signal()
+        if not hasattr(async_reset, "attr"):
+            i, async_reset = async_reset, Signal()
+            self.comb += async_reset.eq(i)
+        rst_meta = Signal()
         self.specials += [
             Instance("FDPE", p_INIT=1, i_D=0, i_PRE=async_reset,
-                i_CE=1, i_C=cd.clk, o_Q=rst1),
-            Instance("FDPE", p_INIT=1, i_D=rst1, i_PRE=async_reset,
-                i_CE=1, i_C=cd.clk, o_Q=cd.rst)
+                i_CE=1, i_C=cd.clk, o_Q=rst_meta,
+                attr={"async_reg", "ars_ff"}),
+            Instance("FDPE", p_INIT=1, i_D=rst_meta, i_PRE=async_reset,
+                i_CE=1, i_C=cd.clk, o_Q=cd.rst,
+                attr={"async_reg", "ars_ff"})
         ]
-        rst1.attr.add("async_reg")
-        cd.rst.attr.add("async_reg")
+        async_reset.attr.add("ars_false_path")
 
 
 class XilinxAsyncResetSynchronizer:

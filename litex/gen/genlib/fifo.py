@@ -57,6 +57,7 @@ class _FIFOInterface:
         self.din = Signal(width)
         self.dout = Signal(width)
         self.width = width
+        self.depth = depth
 
 
 class SyncFIFO(Module, _FIFOInterface):

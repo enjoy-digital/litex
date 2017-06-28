@@ -271,7 +271,7 @@ class Simulator:
         self.time = TimeManager(clocks)
         for clock in clocks.keys():
             if clock not in self.fragment.clock_domains:
-                cd = ClockDomain(name=clock)
+                cd = ClockDomain(name=clock, reset_less=True)
                 cd.clk.reset = C(self.time.clocks[clock].high)
                 self.fragment.clock_domains.append(cd)
 

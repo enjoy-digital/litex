@@ -174,10 +174,10 @@ def _list_comb_wires(f):
             r |= g[0]
     return r
 
-def _printattr(sig, attr_translate):
+def _printattr(attr, attr_translate):
     r = ""
     firsta = True
-    for attr in sorted(sig.attr,
+    for attr in sorted(attr,
                        key=lambda x: ("", x) if isinstance(x, str) else x):
         if isinstance(attr, tuple):
             # platform-dependent attribute
@@ -210,7 +210,7 @@ def _printheader(f, ios, name, ns, attr_translate,
         if not firstp:
             r += ",\n"
         firstp = False
-        attr = _printattr(sig, attr_translate)
+        attr = _printattr(sig.attr, attr_translate)
         if attr:
             r += "\t" + attr
         if sig in inouts:
@@ -224,7 +224,7 @@ def _printheader(f, ios, name, ns, attr_translate,
             r += "\tinput " + _printsig(ns, sig)
     r += "\n);\n\n"
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
-        attr = _printattr(sig, attr_translate)
+        attr = _printattr(sig.attr, attr_translate)
         if attr:
             r += attr + " "
         if sig in wires:
@@ -300,9 +300,13 @@ def _printsync(f, ns):
     return r
 
 
-def _printspecials(overrides, specials, ns, add_data_file):
+def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
     r = ""
     for special in sorted(specials, key=lambda x: x.duid):
+        if hasattr(special, "attr"):
+            attr = _printattr(special.attr, attr_translate)
+            if attr:
+                r += attr + " "
         pr = call_special_classmethod(overrides, special, "emit_verilog", ns, add_data_file)
         if pr is None:
             raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
@@ -369,7 +373,8 @@ def convert(f, ios=None, name="top",
                       dummy_signal=dummy_signal,
                       blocking_assign=blocking_assign)
     src += _printsync(f, ns)
-    src += _printspecials(special_overrides, f.specials - lowered_specials, ns, r.add_data_file)
+    src += _printspecials(special_overrides, f.specials - lowered_specials,
+        ns, r.add_data_file, attr_translate)
     src += "endmodule\n"
     r.set_main_source(src)
 
