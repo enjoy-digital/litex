@@ -20,6 +20,8 @@ from litedram.core.controller import ControllerSettings
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.core.mac import LiteEthMAC
 
+from litex.build.sim.config import SimConfig
+
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
         platform = sim.Platform()
@@ -92,10 +94,15 @@ def main():
                         help="enable Ethernet support")
     args = parser.parse_args()
 
+    scfg = SimConfig(default_clk="sys_clk")
+    scfg.add_module("serial2console", "serial")
+    if args.with_ethernet:
+        scfg.add_module('ethernet', "eth", args={"interface": "tap1", "ip": "192.168.1.100"})
+
     cls = MiniSoC if args.with_ethernet else BaseSoC
     soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build()
+    builder.build(sim_config=scfg)
 
 
 if __name__ == "__main__":
