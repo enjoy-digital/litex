@@ -10,3 +10,6 @@
 [submodule "litex/soc/cores/cpu/picorv32/verilog"]
 	path = litex/soc/cores/cpu/picorv32/verilog
 	url = https://github.com/cliffordwolf/picorv32
+[submodule "litex/build/sim/core/modules/ethernet/tapcfg"]
+	path = litex/build/sim/core/modules/ethernet/tapcfg
+	url = https://github.com/nizox/tapcfg
