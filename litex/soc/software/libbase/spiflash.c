@@ -25,7 +25,11 @@ static void wait_for_device_ready(void);
 
 // flash_read/flash_write fcns make no assumptions on bitbang reg on entry.
 // They will all leave the bitbang reg as 0x00 on exit.
-static unsigned char flash_read_byte()
+// We latch on positive edge, so only Modes 0 and 3 supported.
+// FIXME: Bitbang commands that use the read/write primitives
+// leave ~CLK as 0 on exit, which is Mode 0 compatible only.
+// How should we handle Mode 3? Set-once global and mask?
+static unsigned char flash_read_byte(void)
 {
     int i;
     unsigned char b = 0;
@@ -69,11 +73,10 @@ static void flash_write_addr(unsigned int addr)
     spiflash_bitbang_write(0);
 }
 
-
 // Bitbang commands will have flash_read/write fcns set up the bitbang reg
 // on entry. On exit, bitbang command fcns will deassert CS_N bitbang
 // regs (required) and then disable bitbang interface.
-// write_to_flash_page leaves CS_N as 0. Why?
+// XXX: write_to_flash_page leaves CS_N as 0. Why?
 static void wait_for_device_ready(void)
 {
     unsigned char sr;
@@ -106,7 +109,7 @@ void erase_flash_sector(unsigned int addr)
     spiflash_bitbang_en_write(0);
 }
 
-void read_from_flash(unsigned int addr, const unsigned char *c, unsigned int len)
+void read_from_flash(unsigned int addr, unsigned char *c, unsigned int len)
 {
     unsigned int i;
 
@@ -116,6 +119,7 @@ void read_from_flash(unsigned int addr, const unsigned char *c, unsigned int len
 
     flash_write_byte(RD_CMD);
     flash_write_addr(addr);
+    (void) flash_read_byte(); // Higher-speed read has a dummy byte.
     for(i = 0; i < len; i++)
         *c++ = flash_read_byte();
     spiflash_bitbang_write(BITBANG_CS_N);
