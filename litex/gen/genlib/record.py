@@ -96,11 +96,14 @@ class Record:
             prefix = ""
         for f in self.layout:
             if isinstance(f[1], (int, tuple)):  # cases 1/2
-                if(len(f) == 3):
+                freset_less = False
+                if(len(f) == 4):
+                    fname, fsize, fdirection, freset_less = f
+                elif(len(f) == 3):
                     fname, fsize, fdirection = f
                 else:
                     fname, fsize = f
-                finst = Signal(fsize, name=prefix + fname)
+                finst = Signal(fsize, name=prefix + fname, reset_less=freset_less)
             elif isinstance(f[1], list):  # case 3
                 fname, fsublayout = f
                 finst = Record(fsublayout, prefix + fname)

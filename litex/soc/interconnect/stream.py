@@ -4,11 +4,11 @@ from litex.gen.genlib import fifo
 
 (DIR_SINK, DIR_SOURCE) = range(2)
 
-def _make_m2s(layout):
+def _make_m2s(layout, reset_less=False):
     r = []
     for f in layout:
         if isinstance(f[1], (int, tuple)):
-            r.append((f[0], f[1], DIR_M_TO_S))
+            r.append((f[0], f[1], DIR_M_TO_S, reset_less))
         else:
             r.append((f[0], _make_m2s(f[1])))
     return r
@@ -34,8 +34,8 @@ class EndpointDescription:
             ("ready", 1, DIR_S_TO_M),
             ("first", 1, DIR_M_TO_S),
             ("last", 1, DIR_M_TO_S),
-            ("payload", _make_m2s(self.payload_layout)),
-            ("param", _make_m2s(self.param_layout))
+            ("payload", _make_m2s(self.payload_layout, True)),
+            ("param", _make_m2s(self.param_layout, True))
         ]
         return full_layout
 
