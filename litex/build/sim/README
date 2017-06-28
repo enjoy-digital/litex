@@ -1,0 +1,11 @@
+LiteX Sim is a contribution from LambdaConcept and provides
+a modular SoC simulation environment.
+
+The contribution from LambdaConcept is a major rework/refactoring
+of the original simulation environnment PoC that was hacky and not
+modular.
+
+LiteX Sim is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept.com>
+                           2017 Ramtin Amin <ramtin@lambdaconcept.com>
+
+Original PoC is Copyright (c) 2015-2016 Florent Kermarrec <florent@enjoy-digital.fr>
