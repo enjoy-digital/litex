@@ -16,9 +16,6 @@
 
 static struct ext_module_list_s *modlist=NULL;
 
-
-
-
 int lambdasim_register_ext_module(struct ext_module_s *mod)
 {
   int ret=RC_OK;
@@ -43,7 +40,6 @@ int lambdasim_register_ext_module(struct ext_module_s *mod)
   modlist = ml;
 
 out:
-  
   return ret;
 }
 
@@ -139,7 +135,6 @@ out:
   *found = list;
   return ret;
 }
-
 
 int lambdasim_find_module(struct module_s *first, char *name , struct module_s **found)
 {

@@ -19,8 +19,6 @@ struct module_s {
   struct module_s *next;
 };
 
-
-
 struct ext_module_s {
   char *name;
   int (*start)(void *);
@@ -34,7 +32,6 @@ struct ext_module_list_s {
   struct ext_module_s *module;
   struct ext_module_list_s *next;
 };
-
 
 int lambdasim_file_to_module_list(char *filename, struct module_s **mod);
 int lambdasim_load_ext_modules(struct ext_module_list_s **mlist);

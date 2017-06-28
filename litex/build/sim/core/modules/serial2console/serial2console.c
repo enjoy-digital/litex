@@ -52,8 +52,6 @@ out:
   return ret;
 }
 
-
-
 void set_conio_terminal_mode(void)
 {
   struct termios new_termios;
@@ -62,8 +60,6 @@ void set_conio_terminal_mode(void)
   cfmakeraw(&new_termios);
   tcsetattr(0, TCSANOW, &new_termios);
 }
-
-
 
 static int serial2console_start(void *b)
 {
@@ -96,7 +92,6 @@ static void event_handler(int fd, short event, void *arg)
     read_handler(fd, event, arg);
   }
 }
-
 
 static int serial2console_new(void **sess, char *args)
 {
@@ -155,8 +150,8 @@ static int serial2console_add_pads(void *sess, struct pad_list_s *plist)
 
 out:
   return ret;
-  
 }
+
 static int serial2console_tick(void *sess)
 {
 

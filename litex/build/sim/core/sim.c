@@ -23,7 +23,6 @@
 
 void lambdasim_init(void **out);
 
-
 struct session_list_s {
   void *session;
   char tickfirst;
@@ -60,7 +59,6 @@ static int lambdasim_initialize_all(void **dut, void *base)
       pmlist->module->start(base);
     }
   }
-
   
   /* Load configuration */
   ret = lambdasim_file_to_module_list("sim_config.js", &ml);
@@ -138,6 +136,7 @@ static int lambdasim_initialize_all(void **dut, void *base)
 out:
   return ret;
 }
+
 int lambdasim_sort_session()
 {
   struct session_list_s *s;
@@ -161,10 +160,11 @@ int lambdasim_sort_session()
     sprev = s;
   }
 
-  return RC_OK;
-  
+  return RC_OK; 
 }
+
 struct event *ev;
+
 static void cb(int sock, short which, void *arg)
 {
   struct session_list_s *s;
@@ -201,7 +201,6 @@ static void cb(int sock, short which, void *arg)
 
 int main()
 {
-
   void *vdut=NULL;
   struct event_base *base=NULL;
   struct timeval tv;

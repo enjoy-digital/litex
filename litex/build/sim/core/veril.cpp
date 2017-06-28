@@ -9,7 +9,6 @@
 #include "verilated_vcd_c.h"
 #include <verilated.h>
 
-
 VerilatedVcdC* tfp;
 
 extern "C" void lambdasim_eval(void *vdut)

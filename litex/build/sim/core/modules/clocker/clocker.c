@@ -86,7 +86,6 @@ static int clocker_add_pads(void *sess, struct pad_list_s *plist)
   *s->sys_clk=0;
 out:
   return ret;
-  
 }
 
 static int clocker_tick(void *sess)

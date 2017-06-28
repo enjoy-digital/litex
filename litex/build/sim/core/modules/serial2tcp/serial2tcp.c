@@ -27,7 +27,6 @@ struct session_s {
 
 struct event_base *base;
 
-
 int lambdasim_module_get_args( char *args, char *arg, char **val)
 {
   int ret=RC_OK;
@@ -64,8 +63,6 @@ out:
   return ret;
 }
 
-
-
 static int lambdasim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
   int ret;
@@ -92,8 +89,6 @@ out:
   *signal=sig;
   return ret;
 }
-
-
 
 static int serial2tcp_start(void *b)
 {
@@ -127,9 +122,6 @@ static void event_handler(int fd, short event, void *arg)
   }
 }
 
-
-
-
 static void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd, struct sockaddr *address, int socklen,  void *ctx)
 {
   struct session_s *s= (struct session_s*)ctx;
@@ -158,13 +150,11 @@ static int serial2tcp_new(void **sess, char *args)
   struct evconnlistener *listener;
   struct sockaddr_in sin;
 
-  
   if(!sess)
   {
     ret = RC_INVARG;
     goto out;
   }
-
 
   ret = lambdasim_module_get_args(args, "port", &cport);
   {
@@ -183,8 +173,7 @@ static int serial2tcp_new(void **sess, char *args)
     fprintf(stderr, "Invalid port selected!\n");
     goto out;
   }
-  
-  
+   
   s=(struct session_s*)malloc(sizeof(struct session_s));
   if(!s)
   {
@@ -204,10 +193,7 @@ static int serial2tcp_new(void **sess, char *args)
     eprintf("Can't bind port %d\n!\n", port);
     goto out;
   }
-  evconnlistener_set_error_cb(listener, accept_error_cb);
-  
-  
-  
+  evconnlistener_set_error_cb(listener, accept_error_cb); 
   
 out:
   *sess=(void*)s;
@@ -257,7 +243,6 @@ static int serial2tcp_tick(void *sess)
     return RC_OK;
   }
 
-  
   *s->tx_ready = 1;
   if(s->fd && *s->tx_valid)
   {

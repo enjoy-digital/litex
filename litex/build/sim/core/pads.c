@@ -7,6 +7,7 @@
 #include "pads.h"
 
 static struct pad_list_s *padlist=NULL;
+
 int lambdasim_register_pads(struct pad_s *pads, char *interface_name, int index)
 {
   int ret = RC_OK;

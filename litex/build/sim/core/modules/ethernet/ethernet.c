@@ -35,7 +35,6 @@ struct session_s {
   struct event *ev;
 };
 
-
 static struct event_base *base=NULL;
 
 int lambdasim_module_get_args( char *args, char *arg, char **val)
@@ -74,7 +73,6 @@ out:
   return ret;
 }
 
-
 static int lambdasim_module_pads_get( struct pad_s *pads, char *name, void **signal)
 {
   int ret;
@@ -109,8 +107,6 @@ static int ethernet_start(void *b)
   return RC_OK;
 }
 
-
-
 void event_handler(int fd, short event, void *arg)
 {
   struct  session_s *s=(struct session_s*)arg;
@@ -139,6 +135,7 @@ void event_handler(int fd, short event, void *arg)
     }
   }
 }
+
 static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
 
 static int ethernet_new(void **sess, char *args)
@@ -194,7 +191,6 @@ static int ethernet_new(void **sess, char *args)
 out:
   *sess=(void*)s;
   return ret;
-  
 }
 
 static int ethernet_add_pads(void *sess, struct pad_list_s *plist)
@@ -225,8 +221,8 @@ static int ethernet_add_pads(void *sess, struct pad_list_s *plist)
 
 out:
   return ret;
-  
 }
+
 static int ethernet_tick(void *sess)
 {
   char c;
