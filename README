@@ -69,6 +69,7 @@ boards:
 
 5. ... and/or install Verilator and test LiteX on your computer:
   Download and install Verilator: http://www.veripool.org/
+  Install libevent-devel / json-c-devel packages
   Go to boards/targets
   ./sim.py
 
