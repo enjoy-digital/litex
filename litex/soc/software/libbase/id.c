@@ -12,7 +12,7 @@ void get_ident(char *ident)
     
     len = MMPTR(CSR_IDENTIFIER_MEM_BASE);
     for(i=0;i<len;i++)
-        ident[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE + 4 + i*4);
+        ident[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE + 4*i);
     ident[i] = 0;
 #else
     ident[0] = 0;
