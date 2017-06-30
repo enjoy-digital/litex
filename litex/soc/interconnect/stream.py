@@ -10,7 +10,7 @@ def _make_m2s(layout, reset_less=False):
         if isinstance(f[1], (int, tuple)):
             r.append((f[0], f[1], DIR_M_TO_S, reset_less))
         else:
-            r.append((f[0], _make_m2s(f[1])))
+            r.append((f[0], _make_m2s(f[1]), reset_less))
     return r
 
 
@@ -32,8 +32,8 @@ class EndpointDescription:
         full_layout = [
             ("valid", 1, DIR_M_TO_S),
             ("ready", 1, DIR_S_TO_M),
-            ("first", 1, DIR_M_TO_S),
-            ("last", 1, DIR_M_TO_S),
+            ("first", 1, DIR_M_TO_S, True),
+            ("last", 1, DIR_M_TO_S, True),
             ("payload", _make_m2s(self.payload_layout, True)),
             ("param", _make_m2s(self.param_layout, True))
         ]
