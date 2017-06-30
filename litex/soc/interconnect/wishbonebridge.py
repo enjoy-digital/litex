@@ -19,7 +19,7 @@ class WishboneStreamingBridge(Module):
 
         # # #
 
-        byte_counter = Signal(3)
+        byte_counter = Signal(3, reset_less=True)
         byte_counter_reset = Signal()
         byte_counter_ce = Signal()
         self.sync += \
@@ -29,7 +29,7 @@ class WishboneStreamingBridge(Module):
                 byte_counter.eq(byte_counter + 1)
             )
 
-        word_counter = Signal(3)
+        word_counter = Signal(3, reset_less=True)
         word_counter_reset = Signal()
         word_counter_ce = Signal()
         self.sync += \
@@ -39,16 +39,16 @@ class WishboneStreamingBridge(Module):
                 word_counter.eq(word_counter + 1)
             )
 
-        cmd = Signal(8)
+        cmd = Signal(8, reset_less=True)
         cmd_ce = Signal()
 
-        length = Signal(8)
+        length = Signal(8, reset_less=True)
         length_ce = Signal()
 
-        address = Signal(32)
+        address = Signal(32, reset_less=True)
         address_ce = Signal()
 
-        data = Signal(32)
+        data = Signal(32, reset_less=True)
         rx_data_ce = Signal()
         tx_data_ce = Signal()
 
