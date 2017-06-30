@@ -163,7 +163,7 @@ class Packetizer(Module):
 
         dw = len(self.sink.data)
 
-        header_reg = Signal(header.length*8)
+        header_reg = Signal(header.length*8, reset_less=True)
         header_words = (header.length*8)//dw
         load = Signal()
         shift = Signal()
@@ -253,6 +253,7 @@ class Depacketizer(Module):
 
         dw = len(sink.data)
 
+        header_reg = Signal(header.length*8, reset_less=True)
         header_words = (header.length*8)//dw
 
         shift = Signal()
@@ -269,13 +270,14 @@ class Depacketizer(Module):
         if header_words == 1:
             self.sync += \
                 If(shift,
-                    self.header.eq(sink.data)
+                    header_reg.eq(sink.data)
                 )
         else:
             self.sync += \
                 If(shift,
-                    self.header.eq(Cat(self.header[dw:], sink.data))
+                    header_reg.eq(Cat(header_reg[dw:], sink.data))
                 )
+        self.comb += self.header.eq(header_reg)
 
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
