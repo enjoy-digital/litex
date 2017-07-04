@@ -4,6 +4,7 @@ import argparse
 
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+
 from litex.boards.platforms import kc705
 
 from litex.soc.integration.soc_core import mem_decoder
@@ -44,17 +45,16 @@ class _CRG(Module):
                      i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
                      # 125MHz
-                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=self.pll_sys,
+                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0,
+                     o_CLKOUT0=self.pll_sys,
 
                      # 500MHz
-                     p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=pll_sys4x,
+                     p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0,
+                     o_CLKOUT1=pll_sys4x,
 
                      # 200MHz
-                     p_CLKOUT2_DIVIDE=5, p_CLKOUT2_PHASE=0.0, o_CLKOUT2=pll_clk200,
-
-                     p_CLKOUT3_DIVIDE=2, p_CLKOUT3_PHASE=0.0, #o_CLKOUT3=,
-
-                     p_CLKOUT4_DIVIDE=4, p_CLKOUT4_PHASE=0.0, #o_CLKOUT4=
+                     p_CLKOUT2_DIVIDE=5, p_CLKOUT2_PHASE=0.0,
+                     o_CLKOUT2=pll_clk200
             ),
             Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
@@ -75,34 +75,31 @@ class _CRG(Module):
 
 
 class BaseSoC(SoCSDRAM):
-    default_platform = "kc705"
-
     csr_map = {
-        "spiflash": 16,
-        "ddrphy":   17,
+        "ddrphy":    16,
     }
     csr_map.update(SoCSDRAM.csr_map)
-
-    def __init__(self, toolchain="ise", **kwargs):
-        platform = kc705.Platform(toolchain=toolchain)
-        SoCSDRAM.__init__(self, platform,
-                          clk_freq=125*1000000,
-                          integrated_rom_size=0x8000,
+    def __init__(self, **kwargs):
+        platform = kc705.Platform()
+        SoCSDRAM.__init__(self, platform, clk_freq=125*1000000,
+                         integrated_rom_size=0x8000,
+                         integrated_sram_size=0x8000,
                           **kwargs)
 
         self.submodules.crg = _CRG(platform)
 
-        if not self.integrated_main_ram_size:
-            self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"))
-            sdram_module = MT8JTF12864(self.clk_freq, "1:4")
-            self.register_sdram(self.ddrphy,
-                                sdram_module.geom_settings, sdram_module.timing_settings)
+        # sdram
+        self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"))
+        sdram_module = MT8JTF12864(self.clk_freq, "1:4")
+        self.register_sdram(self.ddrphy,
+                            sdram_module.geom_settings,
+                            sdram_module.timing_settings)
 
 
 class MiniSoC(BaseSoC):
     csr_map = {
         "ethphy": 18,
-        "ethmac": 19,
+        "ethmac": 19
     }
     csr_map.update(BaseSoC.csr_map)
 
@@ -116,47 +113,37 @@ class MiniSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, *args, **kwargs):
-        BaseSoC.__init__(self, *args, **kwargs)
+    def __init__(self, **kwargs):
+        BaseSoC.__init__(self, **kwargs)
 
-        eth_clocks = self.platform.request("eth_clocks")
-        self.submodules.ethphy = LiteEthPHY(eth_clocks,
+        self.submodules.ethphy = LiteEthPHY(self.platform.request("eth_clocks"),
                                             self.platform.request("eth"), clk_freq=self.clk_freq)
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32, interface="wishbone")
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
         self.crg.cd_sys.clk.attr.add("keep")
+        self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
         self.ethphy.crg.cd_eth_tx.clk.attr.add("keep")
-        # period constraints are required here because of vivado
         self.platform.add_period_constraint(self.crg.cd_sys.clk, 8.0)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 8.0)
         self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 8.0)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.ethphy.crg.cd_eth_tx.clk, eth_clocks.rx)
-
-def soc_kc705_args(parser):
-    soc_sdram_args(parser)
-    parser.add_argument("--toolchain", default="ise",
-                        help="FPGA toolchain to use: ise, vivado")
-
-
-def soc_kc705_argdict(args):
-    r = soc_sdram_argdict(args)
-    r["toolchain"] = args.toolchain
-    return r
+            self.ethphy.crg.cd_eth_rx.clk,
+            self.ethphy.crg.cd_eth_tx.clk)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to the KC705")
+    parser = argparse.ArgumentParser(description="LiteX SoC port to KC705")
     builder_args(parser)
-    soc_kc705_args(parser)
+    soc_sdram_args(parser)
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
     args = parser.parse_args()
 
     cls = MiniSoC if args.with_ethernet else BaseSoC
-    soc = cls(**soc_kc705_argdict(args))
+    soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
+
 import argparse
-import os
 
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
@@ -27,7 +27,7 @@ class _CRG(Module):
         self.clock_domains.cd_clk50 = ClockDomain()
 
         clk100 = platform.request("clk100")
-        rst = platform.request("cpu_reset")
+        rst = ~platform.request("cpu_reset")
 
         pll_locked = Signal()
         pll_fb = Signal()
@@ -70,9 +70,9 @@ class _CRG(Module):
             Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
             Instance("BUFG", i_I=pll_clk50, o_O=self.cd_clk50.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | ~rst),
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst),
             AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
-            AsyncResetSynchronizer(self.cd_clk50, ~pll_locked | ~rst),
+            AsyncResetSynchronizer(self.cd_clk50, ~pll_locked | rst),
         ]
 
         reset_counter = Signal(4, reset=15)
@@ -108,8 +108,8 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"))
-        self.add_constant("A7DDRPHY_BITSLIP", 2)
-        self.add_constant("A7DDRPHY_DELAY", 6)
+        self.add_constant("A7DDRPHY_BITSLIP", 3)
+        self.add_constant("A7DDRPHY_DELAY", 14)
         sdram_module = MT41K128M16(self.clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
@@ -142,6 +142,7 @@ class MiniSoC(BaseSoC):
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
+        self.crg.cd_sys.clk.attr.add("keep")
         self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
         self.ethphy.crg.cd_eth_tx.clk.attr.add("keep")
         self.platform.add_period_constraint(self.crg.cd_sys.clk, 10.0)
