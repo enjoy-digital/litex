@@ -185,6 +185,26 @@ class UART(Module, AutoCSR):
         ]
 
 
+class UARTStub(Module, AutoCSR):
+    def __init__(self):
+        self._rxtx = CSR(8)
+        self._txfull = CSRStatus()
+        self._rxempty = CSRStatus()
+
+        self.submodules.ev = EventManager()
+        self.ev.tx = EventSourceProcess()
+        self.ev.rx = EventSourceProcess()
+        self.ev.finalize()
+
+        # # #
+
+        self.comb += [
+            self._txfull.status.eq(0),
+            self.ev.tx.trigger.eq(~(self._rxtx.re & self._rxtx.r)),
+            self._rxempty.status.eq(1)
+        ]
+
+
 class UARTWishboneBridge(WishboneStreamingBridge):
     def __init__(self, pads, clk_freq, baudrate=115200):
         self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)

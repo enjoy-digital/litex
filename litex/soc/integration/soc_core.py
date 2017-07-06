@@ -41,7 +41,7 @@ class SoCCore(Module):
                 integrated_main_ram_size=0,
                 shadow_base=0x80000000,
                 csr_data_width=8, csr_address_width=14,
-                with_uart=True, uart_baudrate=115200,
+                with_uart=True, uart_baudrate=115200, uart_stub=False,
                 ident="",
                 with_timer=True):
         self.config = dict()
@@ -107,8 +107,11 @@ class SoCCore(Module):
         self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
         if with_uart:
-            self.submodules.uart_phy = uart.RS232PHY(platform.request("serial"), clk_freq, uart_baudrate)
-            self.submodules.uart = uart.UART(self.uart_phy)
+            if uart_stub:
+                self.submodules.uart  = uart.UARTStub()
+            else:
+                self.submodules.uart_phy = uart.RS232PHY(platform.request("serial"), clk_freq, uart_baudrate)
+                self.submodules.uart = uart.UART(self.uart_phy)
 
         if ident:
             self.submodules.identifier = identifier.Identifier(ident)
