@@ -1,5 +1,4 @@
 import math
-from copy import deepcopy
 import struct
 
 from litex.soc.interconnect.stream_packet import HeaderField, Header
@@ -44,14 +43,11 @@ etherbone_record_header = Header(etherbone_record_header_fields,
 
 def split_bytes(v, n, endianness="big"):
     r = []
-    r_bytes = v.to_bytes(n, byteorder=endianness)
-    for byte in r_bytes:
-        r.append(int(byte))
-    return r
+    return v.to_bytes(n, byteorder=endianness)
 
 
 def merge_bytes(b, endianness="big"):
-    return int.from_bytes(bytes(b), endianness)
+    return int.from_bytes(b, endianness)
 
 
 def get_field_data(field, datas):
@@ -304,8 +300,8 @@ class EtherbonePacket(Packet):
         while len(payload) != 0:
             record = EtherboneRecord(payload)
             record.decode()
-            records.append(deepcopy(record))
-            payload = record
+            records.append(record)
+            payload = record[:]
         return records
 
     def decode(self):
