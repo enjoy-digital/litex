@@ -92,47 +92,47 @@ class VivadoProgrammer(GenericProgrammer):
         self.vivado_ver = vivado_ver
         self.flash_part = flash_part
 
-    def load_bitstream(self, bitstream_file, target=""):
+    def load_bitstream(self, bitstream_file, target="", device=0):
         cmds = """open_hw
 connect_hw_server
 open_hw_target {target}
 
-set_property PROBES.FILE {{}} [lindex [get_hw_devices] 0]
-set_property PROGRAM.FILE {{{bitstream}}} [lindex [get_hw_devices] 0]
+set_property PROBES.FILE {{}} [lindex [get_hw_devices] {{{device}}}]
+set_property PROGRAM.FILE {{{bitstream}}} [lindex [get_hw_devices] {{{device}}}]
 
-program_hw_devices [lindex [get_hw_devices] 0]
-refresh_hw_device [lindex [get_hw_devices] 0]
+program_hw_devices [lindex [get_hw_devices] {{{device}}}]
+refresh_hw_device [lindex [get_hw_devices] {{{device}}}]
 
 quit
-""".format(target=target, bitstream=bitstream_file)
+""".format(target=target, bitstream=bitstream_file, device=device)
         _run_vivado(self.vivado_path, self.vivado_ver, cmds)
 
     # XXX works to flash bitstream, adapt it to flash bios
-    def flash(self, address, data_file):
+    def flash(self, address, data_file, device=0):
         cmds = """open_hw
 connect_hw_server
 open_hw_target
-create_hw_cfgmem -hw_device [lindex [get_hw_devices] 0] -mem_dev  [lindex [get_cfgmem_parts {{{flash_part}}}] 0]
+create_hw_cfgmem -hw_device [lindex [get_hw_devices] {{{device}}}] -mem_dev  [lindex [get_cfgmem_parts {{{flash_part}}}] 0]
 
-set_property PROGRAM.BLANK_CHECK  0 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.ERASE  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.CFG_PROGRAM  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.VERIFY  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-refresh_hw_device [lindex [get_hw_devices] 0]
+set_property PROGRAM.BLANK_CHECK  0 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.ERASE  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.CFG_PROGRAM  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.VERIFY  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+refresh_hw_device [lindex [get_hw_devices] {{{device}}}]
 
-set_property PROGRAM.ADDRESS_RANGE  {{use_file}} [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.FILES [list "{data}" ] [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0]]
-set_property PROGRAM.UNUSED_PIN_TERMINATION {{pull-none}} [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.BLANK_CHECK  0 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.ERASE  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.CFG_PROGRAM  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
-set_property PROGRAM.VERIFY  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
+set_property PROGRAM.ADDRESS_RANGE  {{use_file}} [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.FILES [list "{data}" ] [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}}]]
+set_property PROGRAM.UNUSED_PIN_TERMINATION {{pull-none}} [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.BLANK_CHECK  0 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.ERASE  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.CFG_PROGRAM  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
+set_property PROGRAM.VERIFY  1 [ get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
 
 startgroup
-if {{![string equal [get_property PROGRAM.HW_CFGMEM_TYPE  [lindex [get_hw_devices] 0]] [get_property MEM_TYPE [get_property CFGMEM_PART [get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]]]] }}  {{ create_hw_bitstream -hw_device [lindex [get_hw_devices] 0] [get_property PROGRAM.HW_CFGMEM_BITFILE [ lindex [get_hw_devices] 0]]; program_hw_devices [lindex [get_hw_devices] 0]; }};
-program_hw_cfgmem -hw_cfgmem [get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] 0 ]]
+if {{![string equal [get_property PROGRAM.HW_CFGMEM_TYPE  [lindex [get_hw_devices] {{{device}}}]] [get_property MEM_TYPE [get_property CFGMEM_PART [get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]]]] }}  {{ create_hw_bitstream -hw_device [lindex [get_hw_devices] {{{device}}}] [get_property PROGRAM.HW_CFGMEM_BITFILE [ lindex [get_hw_devices] {{{device}}}]]; program_hw_devices [lindex [get_hw_devices] {{{device}}}]; }};
+program_hw_cfgmem -hw_cfgmem [get_property PROGRAM.HW_CFGMEM [lindex [get_hw_devices] {{{device}}} ]]
 endgroup
 
 quit
-""".format(data=data_file, flash_part=self.flash_part)
+""".format(data=data_file, flash_part=self.flash_part, device=device)
         _run_vivado(self.vivado_path, self.vivado_ver, cmds)
