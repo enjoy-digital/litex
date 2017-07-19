@@ -15,7 +15,13 @@ class RemoteServer(EtherboneIPC):
         if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind(("localhost", self.port))
+        for i in range(32):
+            try:
+                self.socket.bind(("localhost", self.port + i))
+                break
+            except: 
+                pass
+        print("tcp port: {:d}".format(self.port + i))
         self.socket.listen(1)
         self.comm.open()
 
@@ -88,7 +94,7 @@ def main():
             uart_port = sys.argv[2]
         if len(sys.argv) > 3:
             uart_baudrate = int(sys.argv[3])
-        print("[CommUART] port: {} / baudrate: {}".format(uart_port, uart_baudrate))
+        print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
         comm = CommUART(uart_port, uart_baudrate)
     elif comm == "udp":
         from litex.soc.tools.remote import CommUDP
@@ -98,7 +104,7 @@ def main():
             server = sys.argv[2]
         if len(sys.argv) > 3:
             server_port = int(sys.argv[3])
-        print("[CommUDP] server: {} / port: {}".format(server, server_port))
+        print("[CommUDP] server: {} / port: {} / ".format(server, server_port), end="")
         comm = CommUDP(server, server_port)
     elif comm == "pcie":
         from litex.soc.tools.remote import CommPCIe
@@ -108,7 +114,7 @@ def main():
             bar = sys.argv[2]
         if len(sys.argv) > 3:
             bar_size = int(sys.argv[3])
-        print("[CommPCIe] bar: {} / bar_size: {}".format(bar, bar_size))
+        print("[CommPCIe] bar: {} / bar_size: {} / ".format(bar, bar_size), end="")
         comm = CommPCIe(bar, bar_size)
     else:
         raise NotImplementedError
