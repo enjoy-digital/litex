@@ -211,17 +211,15 @@ class Gearbox(Module):
 
         # # #
 
-        reset = Signal()
+        rst = Signal()
         cd_write = ClockDomain()
         cd_read = ClockDomain()
         self.comb += [
+            rst.eq(ResetSignal(idomain) | ResetSignal(odomain)),
             cd_write.clk.eq(ClockSignal(idomain)),
             cd_read.clk.eq(ClockSignal(odomain)),
-            reset.eq(ResetSignal(idomain) | ResetSignal(odomain))
-        ]
-        self.specials += [
-            AsyncResetSynchronizer(cd_write, reset),
-            AsyncResetSynchronizer(cd_read, reset)
+            cd_write.rst.eq(rst),
+            cd_read.rst.eq(rst)
         ]
         self.clock_domains += cd_write, cd_read
 
