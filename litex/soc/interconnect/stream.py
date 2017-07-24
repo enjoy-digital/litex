@@ -10,7 +10,7 @@ def _make_m2s(layout, reset_less=False):
         if isinstance(f[1], (int, tuple)):
             r.append((f[0], f[1], DIR_M_TO_S, reset_less))
         else:
-            r.append((f[0], _make_m2s(f[1]), reset_less))
+            r.append((f[0], _make_m2s(f[1], reset_less)))
     return r
 
 
