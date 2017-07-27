@@ -45,18 +45,19 @@ class SPIRegister(Module):
             self.o.eq(Mux(self.lsb, self.data[0], self.data[-1])),
         ]
         self.sync += [
-            If(self.shift,
-                If(self.lsb,
-                    self.data[:-1].eq(self.data[1:]),
-                ).Else(
-                    self.data[1:].eq(self.data[:-1]),
+            If(self.lsb,
+                If(self.shift,
+                    self.data[:-1].eq(self.data[1:])
+                ),
+                If(self.sample,
+                    self.data[0].eq(self.i)
                 )
-            ),
-            If(self.sample,
-                If(self.lsb,
-                    self.data[-1].eq(self.i),
-                ).Else(
-                    self.data[0].eq(self.i),
+            ).Else(
+                If(self.shift,
+                    self.data[1:].eq(self.data[:-1]),
+                ),
+                If(self.sample,
+                    self.data[0].eq(self.i)
                 )
             )
         ]
@@ -317,14 +318,17 @@ class SPIMasterCore(Module):
         ]
 
         # I/O
-        if hasattr(pads, "cs_n"):
-            cs_n_t = TSTriple(len(pads.cs_n))
-            self.specials += cs_n_t.get_tristate(pads.cs_n)
-            self.comb += [
-                cs_n_t.oe.eq(~self.config.offline),
-                cs_n_t.o.eq((cs & Replicate(machine.cs, len(cs))) ^
-                            Replicate(~self.config.cs_polarity, len(cs))),
-            ]
+        if not hasattr(pads, "cs_n"):
+            self.cs_n = Signal()
+        else:
+            self.cs_n = pads.cs_n
+        cs_n_t = TSTriple(len(self.cs_n))
+        self.specials += cs_n_t.get_tristate(self.cs_n)
+        self.comb += [
+            cs_n_t.oe.eq(~self.config.offline),
+            cs_n_t.o.eq((cs & Replicate(machine.cs, len(cs))) ^
+                        Replicate(~self.config.cs_polarity, len(cs))),
+        ]
 
         clk_t = TSTriple()
         self.specials += clk_t.get_tristate(pads.clk)
@@ -342,6 +346,7 @@ class SPIMasterCore(Module):
             machine.reg.i.eq(Mux(self.config.half_duplex, mosi_t.i,
                              getattr(pads, "miso", mosi_t.i))),
         ]
+        self.mosi_t = mosi_t
 
 
 class SPIMaster(Module, AutoCSR):
