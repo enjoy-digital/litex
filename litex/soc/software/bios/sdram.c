@@ -436,10 +436,13 @@ static unsigned short seed_to_data_16(unsigned short seed, int random)
 #define MEMTEST_BUS_SIZE (512)
 #endif
 
+//#define MEMTEST_BUS_DEBUG
+
 static int memtest_bus(void)
 {
 	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
 	int i, errors;
+	unsigned int rdata;
 
 	errors = 0;
 
@@ -449,8 +452,13 @@ static int memtest_bus(void)
 	flush_cpu_dcache();
 	flush_l2_cache();
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
-		if(array[i] != ONEZERO)
+		rdata = array[i];
+		if(rdata != ONEZERO) {
 			errors++;
+#ifdef MEMTEST_BUS_DEBUG
+			printf("[bus: %0x]: %08x vs %08x\n", i, rdata, ONEZERO);
+#endif
+		}
 	}
 
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
@@ -459,8 +467,13 @@ static int memtest_bus(void)
 	flush_cpu_dcache();
 	flush_l2_cache();
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
-		if(array[i] != ZEROONE)
+		rdata = array[i];
+		if(rdata != ZEROONE) {
 			errors++;
+#ifdef MEMTEST_BUS_DEBUG
+			printf("[bus %0x]: %08x vs %08x\n", i, rdata, ZEROONE);
+#endif
+		}
 	}
 
 	return errors;
@@ -471,11 +484,14 @@ static int memtest_bus(void)
 #endif
 #define MEMTEST_DATA_RANDOM 1
 
+//#define MEMTEST_DATA_DEBUG
+
 static int memtest_data(void)
 {
 	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
 	int i, errors;
 	unsigned int seed_32;
+	unsigned int rdata;
 
 	errors = 0;
 	seed_32 = 0;
@@ -490,8 +506,13 @@ static int memtest_data(void)
 	flush_l2_cache();
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
-		if(array[i] != seed_32)
+		rdata = array[i];
+		if(rdata != seed_32) {
 			errors++;
+#ifdef MEMTEST_DATA_DEBUG
+			printf("[data %0x]: %08x vs %08x\n", i, rdata, seed_32);
+#endif
+		}
 	}
 
 	return errors;
@@ -501,11 +522,14 @@ static int memtest_data(void)
 #endif
 #define MEMTEST_ADDR_RANDOM 0
 
+//#define MEMTEST_ADDR_DEBUG
+
 static int memtest_addr(void)
 {
 	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
 	int i, errors;
 	unsigned short seed_16;
+	unsigned short rdata;
 
 	errors = 0;
 	seed_16 = 0;
@@ -520,8 +544,13 @@ static int memtest_addr(void)
 	flush_l2_cache();
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
-		if(array[(unsigned int) seed_16] != i)
+		rdata = array[(unsigned int) seed_16];
+		if(rdata != i) {
 			errors++;
+#ifdef MEMTEST_ADDR_DEBUG
+			printf("[addr %0x]: %08x vs %08x\n", i, rdata, i);
+#endif
+		}
 	}
 
 	return errors;
