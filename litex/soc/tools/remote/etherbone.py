@@ -3,6 +3,7 @@ import struct
 
 from litex.soc.interconnect.stream_packet import HeaderField, Header
 
+
 etherbone_magic = 0x4e6f
 etherbone_version = 1
 etherbone_packet_header_length = 8
@@ -21,20 +22,22 @@ etherbone_packet_header = Header(etherbone_packet_header_fields,
                                  etherbone_packet_header_length,
                                  swap_field_bytes=True)
 
+# When reading/writing to a FIFO, you don't increase
+# the address after each write.
 etherbone_record_header_length = 4
 etherbone_record_header_fields = {
-    "bca":              HeaderField(0,  0, 1),
-    "rca":              HeaderField(0,  1, 1),
-    "rff":              HeaderField(0,  2, 1),
-    "cyc":              HeaderField(0,  4, 1),
-    "wca":              HeaderField(0,  5, 1),
-    "wff":              HeaderField(0,  6, 1),
+    "bca":              HeaderField(0,  0, 1), # ReplyToCfgSpace  - ??? (C)onfig (A)dress
+    "rca":              HeaderField(0,  1, 1), # ReadFromCfgSpace - (R)ead from (C)onfig (A)dress
+    "rff":              HeaderField(0,  2, 1), # ReadFIFO         - (R)ead (F)I(F)O
+    "cyc":              HeaderField(0,  4, 1), # DropCycle        - Drop(Cyc)le
+    "wca":              HeaderField(0,  5, 1), # WriteToCfgSpace  - (W)rite to (C)onfig (A)dress
+    "wff":              HeaderField(0,  6, 1), # WriteFIFO        - (W)rite (F)I(F)O
 
-    "byte_enable":      HeaderField(1,  0, 8),
+    "byte_enable":      HeaderField(1,  0, 8), # Select
 
-    "wcount":           HeaderField(2,  0, 8),
+    "wcount":           HeaderField(2,  0, 8), # Writes
 
-    "rcount":           HeaderField(3,  0, 8)
+    "rcount":           HeaderField(3,  0, 8), # Reads
 }
 etherbone_record_header = Header(etherbone_record_header_fields,
                                  etherbone_record_header_length,
