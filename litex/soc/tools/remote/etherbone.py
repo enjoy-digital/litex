@@ -10,12 +10,12 @@ etherbone_packet_header_fields = {
     "magic":            HeaderField(0,  0, 16),
 
     "version":          HeaderField(2,  4, 4),
-    "nr":               HeaderField(2,  2, 1),
-    "pr":               HeaderField(2,  1, 1),
-    "pf":               HeaderField(2,  0, 1),
+    "nr":               HeaderField(2,  2, 1), # No Reads
+    "pr":               HeaderField(2,  1, 1), # Probe Reply
+    "pf":               HeaderField(2,  0, 1), # Probe Flag
 
-    "addr_size":        HeaderField(3,  4, 4),
-    "port_size":        HeaderField(3,  0, 4)
+    "addr_size":        HeaderField(3,  4, 4), # 1=8bits, 2=16bits, 4=32bits, 8=64bits
+    "port_size":        HeaderField(3,  0, 4), # Same as above
 }
 etherbone_packet_header = Header(etherbone_packet_header_fields,
                                  etherbone_packet_header_length,
