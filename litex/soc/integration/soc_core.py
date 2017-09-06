@@ -10,6 +10,17 @@ from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 __all__ = ["mem_decoder", "SoCCore", "soc_core_args", "soc_core_argdict"]
 
 
+def version(with_time=True):
+    import datetime
+    import time
+    if with_time:
+        return datetime.datetime.fromtimestamp(
+                time.time()).strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        return datetime.datetime.fromtimestamp(
+                time.time()).strftime("%Y-%m-%d")
+
+
 def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
@@ -42,7 +53,7 @@ class SoCCore(Module):
                 shadow_base=0x80000000,
                 csr_data_width=8, csr_address_width=14,
                 with_uart=True, uart_baudrate=115200, uart_stub=False,
-                ident="",
+                ident="", ident_version=False,
                 with_timer=True):
         self.config = dict()
 
@@ -114,6 +125,8 @@ class SoCCore(Module):
                 self.submodules.uart = uart.UART(self.uart_phy)
 
         if ident:
+            if ident_version:
+                ident = ident + " " + version()
             self.submodules.identifier = identifier.Identifier(ident)
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
         self.add_constant("SYSTEM_CLOCK_FREQUENCY", int(clk_freq))
