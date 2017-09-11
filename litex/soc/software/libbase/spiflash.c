@@ -13,7 +13,9 @@
 
 #define BITBANG_CLK         (1 << 1)
 #define BITBANG_CS_N        (1 << 2)
-#define BITBANG_DQ_INPUT    (1 << 3)
+#define BITBANG_DQ_INPUT    (1 << 3) // This bit is only used for Dual/Quad SPI
+// flash, where MISO/MOSI pins are bidirectional depending on SPI flash command.
+// The bitbang interface does not support Dual/Quad reads.
 
 #define SR_WIP              1
 
