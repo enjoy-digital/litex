@@ -755,7 +755,11 @@ class _Fragment:
         self.clock_domains += other.clock_domains
         return self
 
+
 class Display(_Statement):
     def __init__(self, s, *args):
         self.s = s
         self.args = args
+
+class Finish(_Statement):
+    pass
