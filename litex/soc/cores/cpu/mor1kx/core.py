@@ -6,16 +6,15 @@ from litex.soc.interconnect import wishbone
 
 
 class MOR1KX(Module):
-    def __init__(self, platform, reset_pc):
+    def __init__(self, platform, reset_pc, variant=None):
+        assert variant in (None, "linux"), "Unsupported variant %s" % variant
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
 
         # # #
 
-        i_adr_o = Signal(32)
-        d_adr_o = Signal(32)
-        self.specials += Instance("mor1kx",
+        cpu_args = dict(
             p_FEATURE_INSTRUCTIONCACHE="ENABLED",
             p_OPTION_ICACHE_BLOCK_WIDTH=4,
             p_OPTION_ICACHE_SET_WIDTH=8,
@@ -39,6 +38,35 @@ class MOR1KX(Module):
             p_OPTION_RESET_PC=reset_pc,
             p_IBUS_WB_TYPE="B3_REGISTERED_FEEDBACK",
             p_DBUS_WB_TYPE="B3_REGISTERED_FEEDBACK",
+        )
+
+        if variant == None:
+            # Use the default configuration
+            pass
+        elif variant == "linux":
+            cpu_args.update(dict(
+                # Linux needs the memory management units.
+                p_FEATURE_IMMU="ENABLED",
+                p_FEATURE_DMMU="ENABLED",
+                # FIXME: Currently we need the or1k timer when we should be
+                # using the litex timer.
+                p_FEATURE_TIMER="ENABLED",
+            ))
+            # FIXME: Check if these are needed?
+            use_defaults = (
+                "p_FEATURE_SYSCALL", "p_FEATURE_TRAP", "p_FEATURE_RANGE",
+                "p_FEATURE_OVERFLOW",
+            )
+            for to_remove in use_defaults:
+                del cpu_args[to_remove]
+
+        else:
+            assert False, "Unsupported variant %s" % variant
+
+        i_adr_o = Signal(32)
+        d_adr_o = Signal(32)
+        self.specials += Instance("mor1kx",
+            **cpu_args,
 
             i_clk=ClockSignal(),
             i_rst=ResetSignal(),
