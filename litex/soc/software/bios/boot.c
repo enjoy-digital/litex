@@ -18,7 +18,7 @@ extern void boot_helper(unsigned int r1, unsigned int r2, unsigned int r3, unsig
 
 static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int addr)
 {
-	printf("Executing booted program.\n");
+	printf("Executing booted program at 0x%08x\n", addr);
 	uart_sync();
 	irq_setmask(0);
 	irq_setie(0);
