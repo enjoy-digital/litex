@@ -1,5 +1,5 @@
 from litex.build.generic_platform import GenericPlatform
-from litex.build.lattice import common, diamond
+from litex.build.lattice import common, diamond, icestorm
 
 
 class LatticePlatform(GenericPlatform):
@@ -9,6 +9,9 @@ class LatticePlatform(GenericPlatform):
         GenericPlatform.__init__(self, *args, **kwargs)
         if toolchain == "diamond":
             self.toolchain = diamond.LatticeDiamondToolchain()
+        elif toolchain == "icestorm":
+            self.bitstream_ext = ".bin"
+            self.toolchain = icestorm.LatticeIceStormToolchain()
         else:
             raise ValueError("Unknown toolchain")
 
