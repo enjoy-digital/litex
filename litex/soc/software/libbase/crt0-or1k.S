@@ -19,7 +19,18 @@
 
 #include <spr-defs.h>
 
-#define EXCEPTION_STACK_SIZE (4*32)
+/*
+ * OR1K Architecture has a 128 byte "red zone" after the stack that can not be
+ * touched by exception handlers. GCC uses this red zone for locals and
+ * temps without needing to change the stack pointer.
+ */
+#define OR1K_RED_ZONE_SIZE	128
+
+/*
+ * We need 4 bytes (32 bits) * 32 registers space on the stack to save all the
+ * registers.
+ */
+#define EXCEPTION_STACK_SIZE	((4*32) + OR1K_RED_ZONE_SIZE)
 
 #define HANDLE_EXCEPTION                    ; \
     l.addi  r1, r1, -EXCEPTION_STACK_SIZE   ; \

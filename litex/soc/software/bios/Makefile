@@ -12,8 +12,8 @@ all: bios.bin
 
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
-%.elf:
-	$(LD) $(LDFLAGS) -T $< -N -o $@ \
+%.elf: ../libbase/crt0-$(CPU).o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
+	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
 		../libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
 		-L../libnet \
