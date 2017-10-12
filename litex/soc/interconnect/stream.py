@@ -32,8 +32,8 @@ class EndpointDescription:
         full_layout = [
             ("valid", 1, DIR_M_TO_S),
             ("ready", 1, DIR_S_TO_M),
-            ("first", 1, DIR_M_TO_S, True),
-            ("last", 1, DIR_M_TO_S, True),
+            ("first", 1, DIR_M_TO_S),
+            ("last", 1, DIR_M_TO_S),
             ("payload", _make_m2s(self.payload_layout, True)),
             ("param", _make_m2s(self.param_layout, True))
         ]
