@@ -45,8 +45,7 @@ boards:
 0. If cloned from Git without the --recursive option, get the submodules:
   git submodule update --init
 
-1. Install Python 3.3+, Migen and FPGA vendor's development tools and JTAG tools.
-  Get Migen from: https://github.com/m-labs/migen
+1. Install Python 3.3+ and FPGA vendor's development tools and JTAG tools.
 
 2. Compile and install binutils. Take the latest version from GNU.
   mkdir build && cd build
