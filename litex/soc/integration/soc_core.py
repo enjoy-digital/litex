@@ -25,6 +25,19 @@ def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
 
+class ReadOnlyDict(dict):
+    def __readonly__(self, *args, **kwargs):
+        raise RuntimeError("Cannot modify ReadOnlyDict")
+    __setitem__ = __readonly__
+    __delitem__ = __readonly__
+    pop = __readonly__
+    popitem = __readonly__
+    clear = __readonly__
+    update = __readonly__
+    setdefault = __readonly__
+    del __readonly__
+
+
 class SoCCore(Module):
     csr_map = {
         "crg":            0,  # user
@@ -161,8 +174,11 @@ class SoCCore(Module):
         # Make sure other functions are not using this value.
         self.soc_interrupt_map = None
 
+        # Make the interrupt vector read only
+        self.interrupt_map = ReadOnlyDict(self.interrupt_map)
+
         # Save the interrupt reverse map
-        self.interrupt_rmap = interrupt_rmap
+        self.interrupt_rmap = ReadOnlyDict(interrupt_rmap)
 
 
     def add_cpu_or_bridge(self, cpu_or_bridge):
