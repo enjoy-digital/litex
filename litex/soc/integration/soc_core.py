@@ -36,8 +36,9 @@ class SoCCore(Module):
         "leds":           6,  # user
     }
     interrupt_map = {
-        "uart":   0,
-        "timer0": 1,
+        "nmi":    0, # Reserve zero for "non-maskable interrupt"
+        "timer0": 1, # LiteX Timer
+        "uart":   2, # LiteX UART (IRQ 2 for UART matches mor1k standard config).
     }
     mem_map = {
         "rom":      0x00000000,  # (default shadow @0x80000000)
