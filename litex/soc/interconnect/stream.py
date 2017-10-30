@@ -99,6 +99,7 @@ class SyncFIFO(_FIFOWrapper):
             self,
             fifo.SyncFIFOBuffered if buffered else fifo.SyncFIFO,
             layout, depth)
+        self.depth = self.fifo.depth
         self.level = self.fifo.level
 
 
