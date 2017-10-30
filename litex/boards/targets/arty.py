@@ -124,7 +124,7 @@ class MiniSoC(BaseSoC):
     csr_map.update(BaseSoC.csr_map)
 
     interrupt_map = {
-        "ethmac": 2,
+        "ethmac": 3,
     }
     interrupt_map.update(BaseSoC.interrupt_map)
 

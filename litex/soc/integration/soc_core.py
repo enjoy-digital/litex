@@ -25,6 +25,19 @@ def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
 
+class ReadOnlyDict(dict):
+    def __readonly__(self, *args, **kwargs):
+        raise RuntimeError("Cannot modify ReadOnlyDict")
+    __setitem__ = __readonly__
+    __delitem__ = __readonly__
+    pop = __readonly__
+    popitem = __readonly__
+    clear = __readonly__
+    update = __readonly__
+    setdefault = __readonly__
+    del __readonly__
+
+
 class SoCCore(Module):
     csr_map = {
         "crg":            0,  # user
@@ -35,9 +48,11 @@ class SoCCore(Module):
         "buttons":        5,  # user
         "leds":           6,  # user
     }
-    interrupt_map = {
-        "uart":   0,
-        "timer0": 1,
+    interrupt_map = {}
+    soc_interrupt_map = {
+        "nmi":    0, # Reserve zero for "non-maskable interrupt"
+        "timer0": 1, # LiteX Timer
+        "uart":   2, # LiteX UART (IRQ 2 for UART matches mor1k standard config).
     }
     mem_map = {
         "rom":      0x00000000,  # (default shadow @0x80000000)
@@ -123,6 +138,8 @@ class SoCCore(Module):
             else:
                 self.submodules.uart_phy = uart.RS232PHY(platform.request("serial"), clk_freq, uart_baudrate)
                 self.submodules.uart = uart.UART(self.uart_phy)
+        else:
+            del self.soc_interrupt_map["uart"]
 
         if ident:
             if ident_version:
@@ -133,6 +150,36 @@ class SoCCore(Module):
 
         if with_timer:
             self.submodules.timer0 = timer.Timer()
+        else:
+            del self.soc_interrupt_map["timer0"]
+
+        # Invert the interrupt map.
+        interrupt_rmap = {}
+        for mod_name, interrupt in self.interrupt_map.items():
+            assert interrupt not in interrupt_rmap, (
+                "Interrupt vector conflict for IRQ %s, user defined %s conflicts with user defined %s" % (
+                    interrupt, mod_name, interrupt_rmap[interrupt]))
+
+            interrupt_rmap[interrupt] = mod_name
+
+        # Add the base SoC's interrupt map
+        for mod_name, interrupt in self.soc_interrupt_map.items():
+            assert interrupt not in interrupt_rmap, (
+                "Interrupt vector conflict for IRQ %s, user defined %s conflicts with SoC inbuilt %s" % (
+                    interrupt, mod_name, interrupt_rmap[interrupt]))
+
+            self.interrupt_map[mod_name] = interrupt
+            interrupt_rmap[interrupt] = mod_name
+
+        # Make sure other functions are not using this value.
+        self.soc_interrupt_map = None
+
+        # Make the interrupt vector read only
+        self.interrupt_map = ReadOnlyDict(self.interrupt_map)
+
+        # Save the interrupt reverse map
+        self.interrupt_rmap = ReadOnlyDict(interrupt_rmap)
+
 
     def add_cpu_or_bridge(self, cpu_or_bridge):
         if self.finalized:
@@ -192,7 +239,7 @@ class SoCCore(Module):
 
     def get_constants(self):
         r = []
-        for name, interrupt in sorted(self.interrupt_map.items(), key=itemgetter(1)):
+        for interrupt, name in sorted(self.interrupt_rmap.items()):
             r.append((name.upper() + "_INTERRUPT", interrupt))
         r += self._constants
         return r
@@ -234,9 +281,13 @@ class SoCCore(Module):
 
             # Interrupts
             if hasattr(self.cpu_or_bridge, "interrupt"):
-                for k, v in sorted(self.interrupt_map.items(), key=itemgetter(1)):
-                    if hasattr(self, k):
-                        self.comb += self.cpu_or_bridge.interrupt[v].eq(getattr(self, k).ev.irq)
+                for interrupt, mod_name in sorted(self.interrupt_rmap.items()):
+                    if mod_name == "nmi":
+                        continue
+                    assert hasattr(self, mod_name), "Missing module for interrupt %s" % mod_name
+                    mod_impl = getattr(self, mod_name)
+                    assert hasattr(mod_impl, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % mod_name
+                    self.comb += self.cpu_or_bridge.interrupt[interrupt].eq(mod_impl.ev.irq)
 
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
