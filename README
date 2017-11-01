@@ -5,7 +5,7 @@
                          Migen inside
 
                 Build your hardware, easily!
-             Copyright 2012-2016 Enjoy-Digital
+             Copyright 2012-2017 Enjoy-Digital
 
 [> Intro
 --------
@@ -19,7 +19,7 @@ compatible with Migen/MiSoC.
 
 [> License
 ----------
-LiteX is Copyright (c) 2012-2015 Enjoy-Digital under BSD Lisense.
+LiteX is Copyright (c) 2012-2017 Enjoy-Digital under BSD Lisense.
 Since it is based on Migen/MiSoC, please also refer to LICENSE file in gen/soc
 directory or git history to get correct copyrights.
 
