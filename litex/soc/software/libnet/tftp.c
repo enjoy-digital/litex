@@ -133,6 +133,7 @@ int tftp_get(uint32_t ip, const char *filename, void *buffer)
 		}
 	}
 
+	i = 12000000;
 	length_before = total_length;
 	while(!transfer_finished) {
 		if(length_before != total_length) {
