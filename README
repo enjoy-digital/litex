@@ -26,7 +26,7 @@ directory or git history to get correct copyrights.
 [> Sub-packages
 ---------------
 gen:
-  Provides specific or experimentatl modules to generate HDL that are not integrated
+  Provides specific or experimental modules to generate HDL that are not integrated
   in Migen.
 
 build:
