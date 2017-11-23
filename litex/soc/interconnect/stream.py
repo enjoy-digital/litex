@@ -176,8 +176,13 @@ class _UpConverter(Module):
                 )
             ),
             If(source.valid & source.ready,
-                source.first.eq(sink.first),
-                source.last.eq(sink.last),
+                If(sink.valid & sink.ready,
+                    source.first.eq(sink.first),
+                    source.last.eq(sink.last)
+                ).Else(
+                    source.first.eq(0),
+                    source.last.eq(0)
+                )
             ).Elif(sink.valid & sink.ready,
                 source.first.eq(sink.first | source.first),
                 source.last.eq(sink.last | source.last)
