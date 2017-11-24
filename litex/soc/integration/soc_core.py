@@ -64,7 +64,7 @@ class SoCCore(Module):
                 cpu_type="lm32", cpu_reset_address=0x00000000,
                 integrated_rom_size=0,
                 integrated_sram_size=4096,
-                integrated_main_ram_size=0,
+                integrated_main_ram_size=0, integrated_main_ram_init=[],
                 shadow_base=0x80000000,
                 csr_data_width=8, csr_address_width=14,
                 with_uart=True, uart_baudrate=115200, uart_stub=False,
@@ -123,7 +123,7 @@ class SoCCore(Module):
 
         # Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
         if integrated_main_ram_size:
-            self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size)
+            self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size, init=integrated_main_ram_init)
             self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
 
         self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
