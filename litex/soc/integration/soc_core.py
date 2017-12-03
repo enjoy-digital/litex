@@ -50,7 +50,6 @@ class SoCCore(Module):
     }
     interrupt_map = {}
     soc_interrupt_map = {
-        "nmi":    0, # Reserve zero for "non-maskable interrupt"
         "timer0": 1, # LiteX Timer
         "uart":   2, # LiteX UART (IRQ 2 for UART matches mor1k standard config).
     }
@@ -69,6 +68,7 @@ class SoCCore(Module):
                 csr_data_width=8, csr_address_width=14,
                 with_uart=True, uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
+                reserve_nmi_interrupt=True,
                 with_timer=True):
         self.config = dict()
 
@@ -131,6 +131,9 @@ class SoCCore(Module):
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.add_constant("CSR_DATA_WIDTH", csr_data_width)
         self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
+
+        if reserve_nmi_interrupt:
+            self.soc_interrupt_map["nmi"] = 0 # Reserve zero for "non-maskable interrupt"
 
         if with_uart:
             if uart_stub:
