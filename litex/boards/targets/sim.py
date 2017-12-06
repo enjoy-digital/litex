@@ -23,6 +23,11 @@ from liteeth.core.mac import LiteEthMAC
 from litex.build.sim.config import SimConfig
 
 class BaseSoC(SoCSDRAM):
+    interrupt_map = {
+        "uart": 2,
+    }
+    interrupt_map.update(SoCSDRAM.interrupt_map)
+
     def __init__(self, **kwargs):
         platform = sim.Platform()
         SoCSDRAM.__init__(self, platform,
