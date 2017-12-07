@@ -61,7 +61,7 @@ class SoCCore(Module):
     }
     def __init__(self, platform, clk_freq,
                 cpu_type="lm32", cpu_reset_address=0x00000000,
-                integrated_rom_size=0,
+                integrated_rom_size=0, integrated_rom_init=[],
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
                 shadow_base=0x80000000,
@@ -82,6 +82,7 @@ class SoCCore(Module):
         self.config["CPU_RESET_ADDR"] = self.cpu_reset_address
 
         self.integrated_rom_size = integrated_rom_size
+        self.integrated_rom_initialized = integrated_rom_init != []
         self.integrated_sram_size = integrated_sram_size
         self.integrated_main_ram_size = integrated_main_ram_size
 
@@ -114,7 +115,7 @@ class SoCCore(Module):
         self.config["CPU_TYPE"] = str(cpu_type).upper()
 
         if integrated_rom_size:
-            self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True)
+            self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True, init=integrated_rom_init)
             self.register_rom(self.rom.bus, integrated_rom_size)
 
         if integrated_sram_size:

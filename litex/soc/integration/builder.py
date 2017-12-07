@@ -146,7 +146,8 @@ class Builder:
             self._generate_includes()
             self._generate_software()
             if self.soc.integrated_rom_size and self.compile_software:
-            	self._initialize_rom()
+                if not self.soc.integrated_rom_initialized:
+                    self._initialize_rom()
 
         if self.csr_csv is not None:
             self._generate_csr_csv()
