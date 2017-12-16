@@ -88,7 +88,7 @@ class XilinxVivadoToolchain:
         self.clocks = dict()
         self.false_paths = set()
 
-    def _build_batch(self, platform, sources, build_name):
+    def _build_batch(self, platform, sources, edifs, build_name):
         tcl = []
         tcl.append("create_property ars_ff cell")
         tcl.append("create_property ars_false_path net")
@@ -97,7 +97,9 @@ class XilinxVivadoToolchain:
             tcl.append("add_files " + filename_tcl)
             tcl.append("set_property library {} [get_files {}]"
                        .format(library, filename_tcl))
-
+        for filename in edifs:
+            filename_tcl = "{" + filename + "}"
+            tcl.append("read_edif " + filename_tcl)
         tcl.append("read_xdc {}.xdc".format(build_name))
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
         # "-include_dirs {}" crashes Vivado 2016.4
@@ -191,7 +193,8 @@ class XilinxVivadoToolchain:
         v_file = build_name + ".v"
         v_output.write(v_file)
         sources = platform.sources | {(v_file, "verilog", "work")}
-        self._build_batch(platform, sources, build_name)
+        edifs = platform.edifs
+        self._build_batch(platform, sources, edifs, build_name)
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
         if run:
             _run_vivado(build_name, toolchain_path, source)

@@ -1,3 +1,5 @@
+import os
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.xilinx import common, vivado, ise
 
@@ -7,12 +9,16 @@ class XilinxPlatform(GenericPlatform):
 
     def __init__(self, *args, toolchain="ise", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
+        self.edifs = set()
         if toolchain == "ise":
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
             self.toolchain = vivado.XilinxVivadoToolchain()
         else:
             raise ValueError("Unknown toolchain")
+
+    def add_edif(self, filename):
+        self.edifs.add((os.path.abspath(filename)))
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.xilinx_special_overrides)
