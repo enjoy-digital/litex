@@ -74,7 +74,7 @@ _connectors = [
 
 
 # Some default useful extensions- use platform.add_extension() to use, e.g.
-# from migen.build.platforms import mercury
+# from litex.boards.platforms import mercury
 # plat = mercury.Platform()
 # plat.add_extension(mercury.gpio_sram)
 
