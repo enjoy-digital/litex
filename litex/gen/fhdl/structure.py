@@ -37,7 +37,7 @@ class _Value(DUID):
             if (isinstance(a, Constant) and isinstance(b, Signal)
                     or isinstance(a, Signal) and isinstance(b, Constant)):
                 return False
-        raise TypeError("Attempted to convert Migen value to boolean")
+        raise TypeError("Attempted to convert LiteX value to boolean")
 
     def __invert__(self):
         return _Operator("~", [self])
@@ -132,12 +132,12 @@ class _Value(DUID):
 
 
 def wrap(value):
-    """Ensures that the passed object is a Migen value. Booleans and integers
+    """Ensures that the passed object is a LiteX value. Booleans and integers
     are automatically wrapped into ``Constant``."""
     if isinstance(value, (bool, int)):
         value = Constant(value)
     if not isinstance(value, _Value):
-        raise TypeError("Object '{}' of type {} is not a Migen value"
+        raise TypeError("Object '{}' of type {} is not a LiteX value"
                         .format(value, type(value)))
     return value
 
@@ -380,7 +380,7 @@ class Signal(_Value):
         other : _Value
             Object to base this Signal on.
 
-        See `migen.fhdl.bitcontainer.value_bits_sign` for details.
+        See `litex.gen.fhdl.bitcontainer.value_bits_sign` for details.
         """
         from litex.gen.fhdl.bitcontainer import value_bits_sign
         kw = dict(bits_sign=value_bits_sign(other))
@@ -481,7 +481,7 @@ class If(_Statement):
     """
     def __init__(self, cond, *t):
         if not _check_statement(t):
-            raise TypeError("Not all test body objects are Migen statements")
+            raise TypeError("Not all test body objects are LiteX statements")
         self.cond = wrap(cond)
         self.t = list(t)
         self.f = []
@@ -495,7 +495,7 @@ class If(_Statement):
             Statements to execute if all previous conditions fail.
         """
         if not _check_statement(f):
-            raise TypeError("Not all test body objects are Migen statements")
+            raise TypeError("Not all test body objects are LiteX statements")
         _insert_else(self, list(f))
         return self
 
@@ -555,12 +555,12 @@ class Case(_Statement):
                 k = Constant(k)
             if (not isinstance(k, Constant)
                     and not (isinstance(k, str) and k == "default")):
-                raise TypeError("Case object is not a Migen constant")
+                raise TypeError("Case object is not a LiteX constant")
             if not isinstance(v, _collections.Iterable):
                 v = [v]
             if not _check_statement(v):
                 raise TypeError("Not all objects for case {} "
-                                "are Migen statements".format(k))
+                                "are LiteX statements".format(k))
             self.cases[k] = v
 
     def makedefault(self, key=None):
