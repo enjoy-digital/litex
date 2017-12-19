@@ -84,7 +84,7 @@ class BaseSoC(SoCSDRAM):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to the MiniSpartan6")
+    parser = argparse.ArgumentParser(description="LiteX port to the MiniSpartan6")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()
