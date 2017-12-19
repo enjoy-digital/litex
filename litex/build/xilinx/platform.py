@@ -22,8 +22,12 @@ class XilinxPlatform(GenericPlatform):
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.xilinx_special_overrides)
+        if self.device[:3] == "xc6":
+            so.update(common.xilinx_s6_special_overrides)
         if self.device[:3] == "xc7":
             so.update(common.xilinx_s7_special_overrides)
+        if self.device[:4] == "xcku":
+            so.update(common.xilinx_ku_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides=so, attr_translate=self.toolchain.attr_translate, **kwargs)
