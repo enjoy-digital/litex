@@ -76,7 +76,7 @@ def _run_vivado(path, ver, cmds):
     if sys.platform == "win32" or sys.platform == "cygwin":
         vivado_cmd = "vivado -mode tcl"
     else:
-        settings = common.settings(path, ver)
+        settings = common.settings(path, "", ver, first="name")
         vivado_cmd = "bash -c \"source " + settings + "&& vivado -mode tcl\""
     with subprocess.Popen(vivado_cmd, stdin=subprocess.PIPE, shell=True) as process:
         process.stdin.write(cmds.encode("ASCII"))
