@@ -7,6 +7,7 @@ import subprocess
 import shutil
 
 from litex.gen.fhdl.structure import _Fragment
+from litex.gen.fhdl.verilog import DummyAttrTranslate
 
 from litex.build.generic_platform import *
 from litex.build import tools
@@ -89,6 +90,10 @@ def _run_diamond(build_name, toolchain_path, ver=None):
 
 
 class LatticeDiamondToolchain:
+    attr_translate = DummyAttrTranslate()
+
+    special_overrides = common.diamond_special_overrides
+
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path="/opt/Diamond", run=True, **kwargs):
         os.makedirs(build_dir, exist_ok=True)
