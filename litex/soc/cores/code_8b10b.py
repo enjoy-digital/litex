@@ -236,6 +236,7 @@ class Encoder(Module):
         self.d = [Signal(8) for _ in range(nwords)]
         self.k = [Signal() for _ in range(nwords)]
         self.output = [Signal(10) for _ in range(nwords)]
+        self.disparity = [Signal() for _ in range(nwords)]
 
         # # #
 
@@ -246,12 +247,16 @@ class Encoder(Module):
         for e1, e2 in zip(encoders, encoders[1:]):
             self.comb += e2.disp_in.eq(e1.disp_out)
 
-        for d, k, output, e in zip(self.d, self.k, self.output, encoders):
+        for d, k, output, disparity, encoder in \
+                zip(self.d, self.k, self.output, self.disparity, encoders):
             self.comb += [
-                e.d.eq(d),
-                e.k.eq(k)
+                encoder.d.eq(d),
+                encoder.k.eq(k)
             ]
-            self.sync += output.eq(e.output)
+            self.sync += [
+                output.eq(encoder.output),
+                disparity.eq(encoder.disp_out)
+            ]
 
 
 class Decoder(Module):
