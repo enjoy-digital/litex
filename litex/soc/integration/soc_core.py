@@ -66,7 +66,7 @@ class SoCCore(Module):
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
                 shadow_base=0x80000000,
                 csr_data_width=8, csr_address_width=14,
-                with_uart=True, uart_baudrate=115200, uart_stub=False,
+                with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
                 reserve_nmi_interrupt=True,
                 with_timer=True):
@@ -140,7 +140,7 @@ class SoCCore(Module):
             if uart_stub:
                 self.submodules.uart  = uart.UARTStub()
             else:
-                self.submodules.uart_phy = uart.RS232PHY(platform.request("serial"), clk_freq, uart_baudrate)
+                self.submodules.uart_phy = uart.RS232PHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = uart.UART(self.uart_phy)
         else:
             del self.soc_interrupt_map["uart"]
