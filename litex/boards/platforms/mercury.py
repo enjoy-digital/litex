@@ -1,8 +1,9 @@
-# This file is Copyright (c) 2015-2017 William D. Jones <thor0505@comcast.net>
+# This file is Copyright (c) 2015, 2017 William D. Jones <thor0505@comcast.net>
 # License: BSD
 
-from litex.gen.build.generic_platform import *
-from litex.gen.build.xilinx import XilinxPlatform, XC3SProg
+from litex.build.generic_platform import *
+from litex.build.xilinx import XilinxPlatform
+from litex.build.xilinx.programmer import XC3SProg
 
 
 _io = [
@@ -66,8 +67,11 @@ _connectors = [
     # to FPGA)- LVCMOS33
     ("CLKIO", "P40 P44"),  # Clock IO (Can be used as GPIO)- LVCMOS33
     ("INPUT", "P68 P97 P7 P82"),  # Input-only pins- LVCMOS33
-    ("LED", "P13 P15 P16 P19")  # LEDs can be used as pins as well- LVTTL.
+    ("LED", "P13 P15 P16 P19"),  # LEDs can be used as pins as well- LVTTL.
+    ("PMOD", "P5 P4 P6 P98 P94 P93 P90 P89")  # Baseboard PMOD.
+    # Overlaps w/ GPIO bus.
 ]
+
 
 # Some default useful extensions- use platform.add_extension() to use, e.g.
 # from migen.build.platforms import mercury
@@ -103,8 +107,8 @@ gpio_sram = [
 serial = [
     ("serial", 0,
         Subsignal("tx", Pins("DIO:0"), IOStandard("LVCMOS33")),  # FTDI D1
-        Subsignal("rx", Pins("INPUT:0"), IOStandard("LVCMOS33"))
-    )   # FTDI D0
+        Subsignal("rx", Pins("INPUT:0"), IOStandard("LVCMOS33"))  # FTDI D0
+    )
 ]
 
 leds = [
@@ -114,9 +118,75 @@ leds = [
     ("user_led", 3, Pins("LED:3"), IOStandard("LVTTL"))
 ]
 
+
+# The remaining peripherals only make sense w/ the Baseboard installed.
 # See: http://www.micro-nova.com/mercury-baseboard/
-# Not implemented yet.
-baseboard = [
+sw = [
+    ("sw", 0, Pins("GPIO:0"), IOStandard("LVTTL")),
+    ("sw", 1, Pins("GPIO:1"), IOStandard("LVTTL")),
+    ("sw", 2, Pins("GPIO:2"), IOStandard("LVTTL")),
+    ("sw", 3, Pins("GPIO:3"), IOStandard("LVTTL")),
+    ("sw", 4, Pins("GPIO:4"), IOStandard("LVTTL")),
+    ("sw", 5, Pins("GPIO:5"), IOStandard("LVTTL")),
+    ("sw", 6, Pins("GPIO:6"), IOStandard("LVTTL")),
+    ("sw", 7, Pins("GPIO:7"), IOStandard("LVTTL"))
+]
+
+user_btn = [
+    ("user_btn", 1, Pins("INPUT:0"), IOStandard("LVTTL")),
+    ("user_btn", 2, Pins("INPUT:1"), IOStandard("LVTTL")),
+    ("user_btn", 3, Pins("INPUT:2"), IOStandard("LVTTL")),
+    ("user_btn", 4, Pins("INPUT:3"), IOStandard("LVTTL"))
+]
+
+vga = [
+    ("vga_out", 0,
+        Subsignal("hsync_n", Pins("LED:2"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
+        Subsignal("vsync_n", Pins("LED:3"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
+        Subsignal("r", Pins("DIO:0 DIO:1 DIO:2"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
+        Subsignal("g", Pins("DIO:3 DIO:4 DIO:5"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST")),
+        Subsignal("b", Pins("DIO:6 CLKIO:0"), IOStandard("LVCMOS33"),
+                  Misc("SLEW=FAST"))
+    )
+]
+
+extclk = [
+    ("extclk", 0, Pins("CLKIO:1"), IOStandard("LVCMOS33"))
+]
+
+sevenseg = [
+    ("sevenseg", 0,
+        Subsignal("segment7", Pins("GPIO:12"), IOStandard("LVTTL")),  # A
+        Subsignal("segment6", Pins("GPIO:13"), IOStandard("LVTTL")),  # B
+        Subsignal("segment5", Pins("GPIO:14"), IOStandard("LVTTL")),  # C
+        Subsignal("segment4", Pins("GPIO:15"), IOStandard("LVTTL")),  # D
+        Subsignal("segment3", Pins("GPIO:16"), IOStandard("LVTTL")),  # E
+        Subsignal("segment2", Pins("GPIO:17"), IOStandard("LVTTL")),  # F
+        Subsignal("segment1", Pins("GPIO:18"), IOStandard("LVTTL")),  # G
+        Subsignal("segment0", Pins("GPIO:19"), IOStandard("LVTTL")),  # Dot
+        Subsignal("enable0", Pins("GPIO:8"), IOStandard("LVTTL")),   # EN0
+        Subsignal("enable1", Pins("GPIO:9"), IOStandard("LVTTL")),   # EN1
+        Subsignal("enable2", Pins("GPIO:10"), IOStandard("LVTTL")),  # EN2
+        Subsignal("enable3", Pins("GPIO:11"), IOStandard("LVTTL"))  # EN2
+    )
+]
+
+ps2 = [
+    ("ps2", 0,
+        Subsignal("clk", Pins("LED:1"), IOStandard("LVCMOS33")),
+        Subsignal("data", Pins("LED:0"), IOStandard("LVCMOS33"))
+    )
+]
+
+audio = [
+    ("audio", 0,
+        Subsignal("l", Pins("GPIO:29"), IOStandard("LVTTL")),
+        Subsignal("r", Pins("GPIO:28"), IOStandard("LVTTL"))
+    )
 ]
 
 
