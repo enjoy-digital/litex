@@ -119,6 +119,7 @@ class XilinxVivadoToolchain:
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_place.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_place.rpt".format(build_name))
         tcl.append("report_io -file {}_io.rpt".format(build_name))
+        tcl.append("write_csv -force {}_tracelength.csv".format(build_name))
         tcl.append("report_control_sets -verbose -file {}_control_sets.rpt".format(build_name))
         tcl.append("report_clock_utilization -file {}_clock_utilization.rpt".format(build_name))
         tcl.append("route_design")
