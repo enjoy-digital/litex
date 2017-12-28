@@ -117,12 +117,15 @@ class Builder:
             dst_dir = os.path.join(self.output_dir, "software", name)
             os.makedirs(dst_dir, exist_ok=True)
 
-    def _generate_software(self):
+    def _generate_software(self, compile_bios=True):
          for name, src_dir in self.software_packages:
-            dst_dir = os.path.join(self.output_dir, "software", name)
-            makefile = os.path.join(src_dir, "Makefile")
-            if self.compile_software:
-                subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
+            if name == "bios" and not compile_bios:
+                pass
+            else:
+                dst_dir = os.path.join(self.output_dir, "software", name)
+                makefile = os.path.join(src_dir, "Makefile")
+                if self.compile_software:
+                    subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
 
     def _initialize_rom(self):
         bios_file = os.path.join(self.output_dir, "software", "bios",
@@ -144,7 +147,7 @@ class Builder:
         if self.soc.cpu_type is not None:
             self._prepare_software()
             self._generate_includes()
-            self._generate_software()
+            self._generate_software(not self.soc.integrated_rom_initialized)
             if self.soc.integrated_rom_size and self.compile_software:
                 if not self.soc.integrated_rom_initialized:
                     self._initialize_rom()
