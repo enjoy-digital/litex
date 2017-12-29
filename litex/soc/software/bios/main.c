@@ -384,7 +384,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdrrderr") == 0) sdrrderr(get_token(&c));
 	else if(strcmp(token, "sdrwr") == 0) sdrwr(get_token(&c));
 #ifdef CSR_DDRPHY_BASE
-#ifndef A7DDRPHY_BITSLIP
+#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
 	else if(strcmp(token, "sdrwlon") == 0) sdrwlon();
 	else if(strcmp(token, "sdrwloff") == 0) sdrwloff();
 #endif
