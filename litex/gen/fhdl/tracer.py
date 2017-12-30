@@ -1,15 +1,40 @@
 import inspect
+from sys import version_info
 from opcode import opname
 from collections import defaultdict
+
+# All opcodes are 2 bytes in length in Python 3.6
+def _bytecode_length_version_guard(old_len):
+    return old_len if version_info[1] < 6 else 2
+
+_call_opcodes = {
+    "CALL_FUNCTION" : _bytecode_length_version_guard(3),
+    "CALL_FUNCTION_KW" : _bytecode_length_version_guard(3),
+}
+
+if version_info[1] < 6:
+    _call_opcodes["CALL_FUNCTION_VAR"] = 3
+    _call_opcodes["CALL_FUNCTION_VAR_KW"] = 3
+else:
+    _call_opcodes["CALL_FUNCTION_VAR_KW"] = 2
+
+_load_build_opcodes = {
+    "LOAD_GLOBAL" : _bytecode_length_version_guard(3),
+    "LOAD_ATTR" : _bytecode_length_version_guard(3),
+    "LOAD_FAST" : _bytecode_length_version_guard(3),
+    "LOAD_DEREF" : _bytecode_length_version_guard(3),
+    "DUP_TOP" : _bytecode_length_version_guard(1),
+    "BUILD_LIST" : _bytecode_length_version_guard(3),
+}
 
 
 def get_var_name(frame):
     code = frame.f_code
     call_index = frame.f_lasti
     call_opc = opname[code.co_code[call_index]]
-    if call_opc != "CALL_FUNCTION" and call_opc != "CALL_FUNCTION_VAR":
+    if call_opc not in _call_opcodes:
         return None
-    index = call_index+3
+    index = call_index+_call_opcodes[call_opc]
     while True:
         opc = opname[code.co_code[index]]
         if opc == "STORE_NAME" or opc == "STORE_ATTR":
@@ -21,12 +46,8 @@ def get_var_name(frame):
         elif opc == "STORE_DEREF":
             name_index = int(code.co_code[index+1])
             return code.co_cellvars[name_index]
-        elif opc == "LOAD_GLOBAL" or opc == "LOAD_ATTR" or opc == "LOAD_FAST" or opc == "LOAD_DEREF":
-            index += 3
-        elif opc == "DUP_TOP":
-            index += 1
-        elif opc == "BUILD_LIST":
-            index += 3
+        elif opc in _load_build_opcodes:
+            index += _load_build_opcodes[opc]
         else:
             return None
 
