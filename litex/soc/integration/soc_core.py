@@ -60,7 +60,7 @@ class SoCCore(Module):
         "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
     def __init__(self, platform, clk_freq,
-                cpu_type="lm32", cpu_reset_address=0x00000000,
+                cpu_type="lm32", cpu_reset_address=0x00000000, cpu_variant=None,
                 integrated_rom_size=0, integrated_rom_init=[],
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
@@ -76,6 +76,7 @@ class SoCCore(Module):
         self.clk_freq = clk_freq
 
         self.cpu_type = cpu_type
+        self.cpu_variant = cpu_variant
         if integrated_rom_size:
             cpu_reset_address = self.mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address
@@ -103,16 +104,18 @@ class SoCCore(Module):
 
         if cpu_type is not None:
             if cpu_type == "lm32":
-                self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address))
+                self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "or1k":
-                self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address))
+                self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "riscv32":
-                self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address))
+                self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_wb_master(self.cpu_or_bridge.ibus)
             self.add_wb_master(self.cpu_or_bridge.dbus)
         self.config["CPU_TYPE"] = str(cpu_type).upper()
+        if self.cpu_variant:
+            self.config["CPU_VARIANT"] = str(cpu_type).upper()
 
         if integrated_rom_size:
             self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True, init=integrated_rom_init)

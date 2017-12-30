@@ -6,7 +6,8 @@ from litex.soc.interconnect import wishbone
 
 
 class LM32(Module):
-    def __init__(self, platform, eba_reset):
+    def __init__(self, platform, eba_reset, variant=None):
+        assert variant == None, "No lm32 variants currently supported."
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
