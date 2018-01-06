@@ -20,6 +20,8 @@ def _format_constraint(c):
         return "set_property DRIVE " + str(c.strength)
     elif isinstance(c, Misc):
         return "set_property " + c.misc.replace("=", " ")
+    elif isinstance(c, Inverted):
+        return ""
     else:
         raise ValueError("unknown constraint {}".format(c))
 

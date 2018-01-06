@@ -49,6 +49,12 @@ class Misc:
         return "{}({})".format(self.__class__.__name__, repr(self.misc))
 
 
+class Inverted:
+    def __repr__(self):
+        return "{}()".format(self.__class__.__name__)
+
+
+
 class Subsignal:
     def __init__(self, name, *constraints):
         self.name = name
@@ -78,6 +84,7 @@ def _lookup(description, name, number):
 
 def _resource_type(resource):
     t = None
+    i = None
     for element in resource[2:]:
         if isinstance(element, Pins):
             assert(t is None)
@@ -85,17 +92,23 @@ def _resource_type(resource):
         elif isinstance(element, Subsignal):
             if t is None:
                 t = []
+            if i is None:
+                i = []
 
             assert(isinstance(t, list))
             n_bits = None
+            inverted = False
             for c in element.constraints:
                 if isinstance(c, Pins):
                     assert(n_bits is None)
                     n_bits = len(c.identifiers)
+                if isinstance(c, Inverted):
+                    inverted = True
 
             t.append((element.name, n_bits))
+            i.append((element.name, inverted))
 
-    return t
+    return t, i
 
 
 class ConnectorManager:
@@ -160,7 +173,7 @@ class ConstraintManager:
 
     def request(self, name, number=None):
         resource = _lookup(self.available, name, number)
-        rt = _resource_type(resource)
+        rt, ri = _resource_type(resource)
         if number is None:
             resource_name = name
         else:
@@ -169,8 +182,14 @@ class ConstraintManager:
             obj = Signal(rt, name_override=resource_name)
         else:
             obj = Record(rt, name=resource_name)
+            for name, inverted in ri:
+                if inverted:
+                    getattr(obj, name).inverted = True
 
         for element in resource[2:]:
+            if isinstance(element, Inverted):
+                if isinstance(obj, Signal):
+                    obj.inverted = True
             if isinstance(element, PlatformInfo):
                 obj.platform_info = element.info
                 break
