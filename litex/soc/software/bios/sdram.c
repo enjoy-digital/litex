@@ -598,7 +598,33 @@ int memtest(void)
 }
 
 #ifdef CSR_DDRPHY_BASE
-int sdrlevel(void)
+#ifdef READ_LEVELING_BITSLIP
+int sdrlevel(void) /* manual */
+{
+	int bitslip, delay, module;
+	int i;
+	sdram_dfii_control_write(DFII_CONTROL_SEL);
+	for(module=0; module<8; module++) {
+		ddrphy_dly_sel_write(1<<module);
+		ddrphy_rdly_dq_rst_write(1);
+	    /* configure bitslip */
+#ifdef KUSDDRPHY
+			ddrphy_rdly_dq_bitslip_write(1);
+#else
+		for(bitslip=0; bitslip<READ_LEVELING_BITSLIP; bitslip++) {
+			// 7-series SERDES in DDR mode needs 3 pulses for 1 bitslip
+			for(i=0; i<3; i++)
+				ddrphy_rdly_dq_bitslip_write(1);
+		}
+#endif
+		/* configure delay */
+		for(delay=0; delay<READ_LEVELING_DELAY; delay++)
+			ddrphy_rdly_dq_inc_write(1);
+	}
+	return 1;
+}
+#else
+int sdrlevel(void) /* automatic */
 {
 	int delay[DFII_PIX_DATA_SIZE/2];
 	int high_skew[DFII_PIX_DATA_SIZE/2];
@@ -618,6 +644,7 @@ int sdrlevel(void)
 
 	return 1;
 }
+#endif
 #endif
 
 int sdrinit(void)
