@@ -582,7 +582,7 @@ int memtest(void)
 		printf("Memtest bus failed: %d/%d errors\n", bus_errors, 2*128);
 
 	data_errors = memtest_data();
-	if(bus_errors != 0)
+	if(data_errors != 0)
 		printf("Memtest data failed: %d/%d errors\n", data_errors, MEMTEST_DATA_SIZE/4);
 
 	addr_errors = memtest_addr();
