@@ -496,8 +496,8 @@ int main(int i, char **c)
 	printf("(unknown)\n");
 #endif
 	puts(
-	"(c) Copyright 2012-2017 Enjoy-Digital\n"
-	"(c) Copyright 2007-2017 M-Labs Limited\n"
+	"(c) Copyright 2012-2018 Enjoy-Digital\n"
+	"(c) Copyright 2007-2018 M-Labs Limited\n"
 	"Built "__DATE__" "__TIME__"\n");
 	crcbios();
 #ifdef CSR_ETHMAC_BASE
