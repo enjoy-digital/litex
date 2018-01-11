@@ -32,6 +32,7 @@ setup(
         "Programming Language :: Python",
     ],
     packages=find_packages(),
+    install_requires=["pyserial"],
     include_package_data=True,
     entry_points={
         "console_scripts": [
