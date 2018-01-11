@@ -496,7 +496,8 @@ set_property CONFIG_VOLTAGE 2.5 [current_design]
         elif self.programmer == "impact":
             return iMPACT()
         else:
-            raise ValueError("{} programmer is not supported".format(programmer))
+            raise ValueError("{} programmer is not supported".format(
+                self.programmer))
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)

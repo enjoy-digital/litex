@@ -123,4 +123,5 @@ class Platform(XilinxPlatform):
         elif self.programmer == "fpgaprog":
             return FpgaProg()
         else:
-            raise ValueError("{} programmer is not supported".format(programmer))
+            raise ValueError("{} programmer is not supported".format(
+                self.programmer))
