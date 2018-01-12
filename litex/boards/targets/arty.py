@@ -108,6 +108,8 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"))
+        self.add_constant("READ_LEVELING_BITSLIP", 3)
+        self.add_constant("READ_LEVELING_DELAY", 14)
         sdram_module = MT41K128M16(self.clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
