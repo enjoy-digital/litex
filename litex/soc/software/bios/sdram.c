@@ -383,7 +383,7 @@ static void read_delays(void)
 
 		/* Get a bit further into the working zone */
 #ifdef KUSDDRPHY
-		for(j=0;j<8;j++) {
+		for(j=0;j<16;j++) {
 			delay += 1;
 			ddrphy_rdly_dq_inc_write(1);
 		}
