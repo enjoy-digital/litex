@@ -144,10 +144,10 @@ def get_csr_header(regions, constants, with_access_functions=True):
         else:
             value = str(value)
             ctype = "int"
-            r += "#define "+name+" "+value+"\n"
-            if with_access_functions:
-                r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
-                r += "\treturn "+value+";\n}\n"
+        r += "#define "+name+" "+value+"\n"
+        if with_access_functions:
+            r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
+            r += "\treturn "+value+";\n}\n"
 
     r += "\n#endif\n"
     return r
