@@ -61,7 +61,7 @@ _io = [
         Subsignal("tx", Pins("K26")),
         Subsignal("rx", Pins("G25")),
         IOStandard("LVCMOS18")
-	),
+    ),
 
     ("spiflash", 0,  # clock needs to be accessed through primitive
         Subsignal("cs_n", Pins("U7")),

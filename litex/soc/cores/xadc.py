@@ -28,7 +28,7 @@ class XADC(Module, AutoCSR):
         drdy = Signal()
 
         self.specials += Instance("XADC",
-        	# from ug480
+            # from ug480
             p_INIT_40=0x9000, p_INIT_41=0x2ef0, p_INIT_42=0x0400,
             p_INIT_48=0x4701, p_INIT_49=0x000f,
             p_INIT_4A=0x4700, p_INIT_4B=0x0000,

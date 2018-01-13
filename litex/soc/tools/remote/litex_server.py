@@ -43,7 +43,7 @@ class RemoteServer(EtherboneIPC):
                         if packet == 0:
                             break
                     except:
-                    	break
+                        break
                     packet = EtherbonePacket(packet)
                     packet.decode()
 
