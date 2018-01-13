@@ -171,7 +171,7 @@ class SoCCore(Module):
 
         # Add the base SoC's interrupt map
         for mod_name, interrupt in self.soc_interrupt_map.items():
-            assert interrupt not in interrupt_rmap, (
+            assert interrupt not in interrupt_rmap or mod_name == interrupt_rmap[interrupt], (
                 "Interrupt vector conflict for IRQ %s, user defined %s conflicts with SoC inbuilt %s" % (
                     interrupt, mod_name, interrupt_rmap[interrupt]))
 
