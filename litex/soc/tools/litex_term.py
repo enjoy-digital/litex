@@ -216,7 +216,7 @@ class LiteXTerm:
                 if c == b"\r":
                     sys.stdout.buffer.write(b"\n")
                 else:
-                	sys.stdout.buffer.write(c)
+                    sys.stdout.buffer.write(c)
                 sys.stdout.flush()
 
                 if self.kernel_image is not None:
