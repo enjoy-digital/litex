@@ -9,8 +9,11 @@
 #include <generated/mem.h>
 #include <generated/csr.h>
 
+#ifdef CSR_ETHMAC_BASE
 #include <net/microudp.h>
 #include <net/tftp.h>
+#endif
+
 #include "sfl.h"
 #include "boot.h"
 

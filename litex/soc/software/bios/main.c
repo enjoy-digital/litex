@@ -10,7 +10,10 @@
 
 #include <generated/csr.h>
 #include <generated/mem.h>
+
+#ifdef CSR_ETHMAC_BASE
 #include <net/microudp.h>
+#endif
 
 #include "sdram.h"
 #include "boot.h"
