@@ -1,6 +1,11 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
+# Permit TFTP_SERVER_PORT override from shell environment / command line
+ifdef TFTP_SERVER_PORT
+CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
+endif
+
 OBJECTS=isr.o sdram.o main.o boot-helper-$(CPU).o boot.o
 
 all: bios.bin
