@@ -4,7 +4,7 @@
 #include <net/microudp.h>
 #include <net/tftp.h>
 
-#define PORT_OUT	69
+/* Local TFTP client port (arbitrary) */
 #define PORT_IN		7642
 
 enum {
@@ -100,7 +100,8 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	}
 }
 
-int tftp_get(uint32_t ip, const char *filename, void *buffer)
+int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
+    void *buffer)
 {
 	int len;
 	int tries;
@@ -120,7 +121,7 @@ int tftp_get(uint32_t ip, const char *filename, void *buffer)
 	while(1) {
 		packet_data = microudp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_RRQ, filename);
-		microudp_send(PORT_IN, PORT_OUT, len);
+		microudp_send(PORT_IN, server_port, len);
 		for(i=0;i<2000000;i++) {
 			microudp_service();
 			if((total_length > 0) || transfer_finished) break;
@@ -152,7 +153,8 @@ int tftp_get(uint32_t ip, const char *filename, void *buffer)
 	return total_length;
 }
 
-int tftp_put(uint32_t ip, const char *filename, const void *buffer, int size)
+int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
+    const void *buffer, int size)
 {
 	int len, send;
 	int tries;
@@ -172,7 +174,7 @@ int tftp_put(uint32_t ip, const char *filename, const void *buffer, int size)
 	while(1) {
 		packet_data = microudp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_WRQ, filename);
-		microudp_send(PORT_IN, PORT_OUT, len);
+		microudp_send(PORT_IN, server_port, len);
 		for(i=0;i<2000000;i++) {
 			last_ack = -1;
 			microudp_service();
