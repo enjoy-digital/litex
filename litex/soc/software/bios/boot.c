@@ -210,11 +210,16 @@ int serialboot(void)
 #define REMOTEIP4 100
 #endif
 
-static int tftp_get_v(unsigned int ip, const char *filename, char *buffer)
+#ifndef TFTP_SERVER_PORT
+#define TFTP_SERVER_PORT 69    /* IANA well known port: UDP/69 */
+#endif
+
+static int tftp_get_v(unsigned int ip, unsigned short server_port,
+    const char *filename, char *buffer)
 {
 	int r;
 
-	r = tftp_get(ip, filename, buffer);
+	r = tftp_get(ip, server_port, filename, buffer);
 	if(r > 0)
 		printf("Successfully downloaded %d bytes from %s over TFTP\n", r, filename);
 	else
@@ -229,6 +234,7 @@ void netboot(void)
 	int size;
 	unsigned int cmdline_adr, initrdstart_adr, initrdend_adr;
 	unsigned int ip;
+        unsigned short tftp_port;
 
 	printf("Booting from network...\n");
 	printf("Local IP : %d.%d.%d.%d\n", LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4);
@@ -238,13 +244,17 @@ void netboot(void)
 
 	microudp_start(macadr, IPTOINT(LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4));
 
-	if(tftp_get_v(ip, "boot.bin", (void *)MAIN_RAM_BASE) <= 0) {
+        tftp_port = TFTP_SERVER_PORT;
+	printf("Fetching from: UDP/%d\n", tftp_port);
+
+	if(tftp_get_v(ip, tftp_port, "boot.bin", (void *)MAIN_RAM_BASE) <= 0) {
+                /* XXX: Try alternate TFTP port here? */
 		printf("Network boot failed\n");
 		return;
 	}
 
 	cmdline_adr = MAIN_RAM_BASE+0x1000000;
-	size = tftp_get_v(ip, "cmdline.txt", (void *)cmdline_adr);
+	size = tftp_get_v(ip, tftp_port, "cmdline.txt", (void *)cmdline_adr);
 	if(size <= 0) {
 		printf("No command line parameters found\n");
 		cmdline_adr = 0;
@@ -252,7 +262,7 @@ void netboot(void)
 		*((char *)(cmdline_adr+size)) = 0x00;
 
 	initrdstart_adr = MAIN_RAM_BASE+0x1002000;
-	size = tftp_get_v(ip, "initrd.bin", (void *)initrdstart_adr);
+	size = tftp_get_v(ip, tftp_port, "initrd.bin", (void *)initrdstart_adr);
 	if(size <= 0) {
 		printf("No initial ramdisk found\n");
 		initrdstart_adr = 0;
