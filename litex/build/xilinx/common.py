@@ -2,7 +2,11 @@ import os
 import sys
 try:
     import colorama
-    colorama.init()  # install escape sequence translation on Windows
+    # install escape sequence translation on Windows
+    if os.getenv("COLORAMA", "") == "force":
+        colorama.init(strip=False)
+    else:
+        colorama.init()
     _have_colorama = True
 except ImportError:
     _have_colorama = False
