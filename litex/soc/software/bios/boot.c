@@ -210,8 +210,9 @@ int serialboot(void)
 #define REMOTEIP4 100
 #endif
 
+#define DEFAULT_TFTP_SERVER_PORT 69  /* IANA well known port: UDP/69 */
 #ifndef TFTP_SERVER_PORT
-#define TFTP_SERVER_PORT 69    /* IANA well known port: UDP/69 */
+#define TFTP_SERVER_PORT DEFAULT_TFTP_SERVER_PORT
 #endif
 
 static int tftp_get_v(unsigned int ip, unsigned short server_port,
@@ -244,11 +245,21 @@ void netboot(void)
 
 	microudp_start(macadr, IPTOINT(LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4));
 
-        tftp_port = TFTP_SERVER_PORT;
+	tftp_port = TFTP_SERVER_PORT;
 	printf("Fetching from: UDP/%d\n", tftp_port);
 
-	if(tftp_get_v(ip, tftp_port, "boot.bin", (void *)MAIN_RAM_BASE) <= 0) {
-                /* XXX: Try alternate TFTP port here? */
+	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)MAIN_RAM_BASE);
+
+	if ((size <= 0) && (tftp_port != DEFAULT_TFTP_SERVER_PORT)) {
+		/* Try default TFTP port if timed out on non-standard port */
+		tftp_port = DEFAULT_TFTP_SERVER_PORT;
+		printf("Fetching from: UDP/%d\n", tftp_port);
+
+		size = tftp_get_v(ip, tftp_port, "boot.bin",
+			(void *)MAIN_RAM_BASE);
+        }
+
+        if (size <= 0) {
 		printf("Network boot failed\n");
 		return;
 	}
