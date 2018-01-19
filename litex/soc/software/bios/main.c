@@ -488,15 +488,19 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
-	printf("\nLiteX SoC BIOS ");
+	printf("\e[1m        __   _ __      _  __\e[0m\n");
+	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
+	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
+	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
+	printf("\e[1m      SoC BIOS / CPU:\e[0m");
 #ifdef __lm32__
-	printf("(lm32)\n");
+	printf("\e[1mLM32\e[0m\n");
 #elif __or1k__
-	printf("(or1k)\n");
+	printf("\e[1mOR1K\e[0m\n");
 #elif __riscv__
-	printf("(riscv)\n");
+	printf("\e[1mRISC-V\n");
 #else
-	printf("(unknown)\n");
+	printf("\e[1mUnknown\e[0m\n");
 #endif
 	puts(
 	"(c) Copyright 2012-2018 Enjoy-Digital\n"
