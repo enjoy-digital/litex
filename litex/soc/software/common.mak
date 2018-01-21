@@ -1,7 +1,7 @@
 TARGET_PREFIX=$(TRIPLE)-
 
 RM ?= rm -f
-PYTHON ?= python3
+PYTHON ?= python
 
 ifeq ($(CLANG),1)
 CC_normal      := clang -target $(TRIPLE) -integrated-as
