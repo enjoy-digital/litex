@@ -162,8 +162,8 @@ class Builder:
         if self.gateware_toolchain_path is not None:
             toolchain_path = self.gateware_toolchain_path
 
-        if 'run' not in kwargs:
-            kwargs['run'] = self.compile_gateware
+        if "run" not in kwargs:
+            kwargs["run"] = self.compile_gateware
         vns = self.soc.build(build_dir=os.path.join(self.output_dir, "gateware"),
                              toolchain_path=toolchain_path, **kwargs)
         return vns

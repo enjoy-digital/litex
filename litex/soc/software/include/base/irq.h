@@ -10,7 +10,7 @@ extern "C" {
 // instructions. It also doesn't have a global interrupt enable/disable, so
 // we have to emulate it via saving and restoring a mask and using 0/~1 as a
 // hardware mask.
-// Due to all this somewhat low-level mess, all of the glue is implementein
+// Due to all this somewhat low-level mess, all of the glue is implemented in
 // the RiscV crt0, and this header is kept as a thin wrapper. Since interrupts
 // managed by this layer, do not call interrupt instructions directly, as the
 // state will go out of sync with the hardware.
