@@ -130,13 +130,17 @@ class Builder:
     def _initialize_rom(self):
         bios_file = os.path.join(self.output_dir, "software", "bios",
                                  "bios.bin")
+        endianness =  cpu_interface.cpu_endianness[self.soc.cpu_type]
         with open(bios_file, "rb") as boot_file:
             boot_data = []
             while True:
                 w = boot_file.read(4)
                 if not w:
                     break
-                boot_data.append(struct.unpack(">I", w)[0])
+                if endianness == 'little':
+                    boot_data.append(struct.unpack("<I", w)[0])
+                else:
+                    boot_data.append(struct.unpack(">I", w)[0])
         self.soc.initialize_rom(boot_data)
 
     def build(self, toolchain_path=None, **kwargs):
@@ -157,9 +161,11 @@ class Builder:
 
         if self.gateware_toolchain_path is not None:
             toolchain_path = self.gateware_toolchain_path
+
+        if 'run' not in kwargs:
+            kwargs['run'] = self.compile_gateware
         vns = self.soc.build(build_dir=os.path.join(self.output_dir, "gateware"),
-                             run=self.compile_gateware, toolchain_path=toolchain_path,
-                             **kwargs)
+                             toolchain_path=toolchain_path, **kwargs)
         return vns
 
 

@@ -35,7 +35,7 @@ def get_cpu_mak(cpu):
     elif cpu == "riscv32":
         assert not clang, "riscv32 not supported with clang."
         triple = "riscv32-unknown-elf"
-        cpuflags = "-mno-save-restore"
+        cpuflags = "-mno-save-restore -march=rv32im -mabi=ilp32"
         clang = False
     else:
         raise ValueError("Unsupported CPU type: "+cpu)

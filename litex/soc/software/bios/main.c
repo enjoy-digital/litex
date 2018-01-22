@@ -497,7 +497,7 @@ int main(int i, char **c)
 	printf("\e[1mLM32\e[0m\n");
 #elif __or1k__
 	printf("\e[1mOR1K\e[0m\n");
-#elif __riscv__
+#elif __riscv
 	printf("\e[1mRISC-V\n");
 #else
 	printf("\e[1mUnknown\e[0m\n");

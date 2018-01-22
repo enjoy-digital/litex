@@ -6,10 +6,11 @@ from litex.soc.interconnect import wishbone
 
 
 class PicoRV32(Module):
-    def __init__(self, platform, progaddr_reset):
+    def __init__(self, platform, progaddr_reset, variant):
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
+        self.trap = Signal()
 
         # # #
 
@@ -34,9 +35,10 @@ class PicoRV32(Module):
             p_CATCH_MISALIGN=1,
             p_CATCH_ILLINSN=1,
             p_ENABLE_PCPI=0,
-            p_ENABLE_MUL=0,
+            p_ENABLE_MUL=1,
+            p_ENABLE_DIV=1,
             p_ENABLE_FAST_MUL=0,
-            p_ENABLE_IRQ=0,
+            p_ENABLE_IRQ=1,
             p_ENABLE_IRQ_QREGS=1,
             p_ENABLE_IRQ_TIMER=1,
             p_ENABLE_TRACE=0,
@@ -51,7 +53,7 @@ class PicoRV32(Module):
             i_resetn=~ResetSignal(),
 
             # trap
-            o_trap=Signal(), # not used
+            o_trap=self.trap,
 
             # memory interface
             o_mem_valid=mem_valid,
