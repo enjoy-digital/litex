@@ -136,7 +136,7 @@ sudo obj_dir/Vdut
 
 
 class SimVerilatorToolchain:
-    def build(self, platform, fragment, build_dir="build", build_name="top",
+    def build(self, platform, fragment, build_dir="build", build_name="dut",
             toolchain_path=None, serial="console", run=True, verbose=True,
             sim_config=None):
         os.makedirs(build_dir, exist_ok=True)
@@ -146,9 +146,9 @@ class SimVerilatorToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        v_output = platform.get_verilog(fragment)
+        v_output = platform.get_verilog(fragment, name=build_name)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_output.write("dut.v")
+        v_output.write(build_name + ".v")
 
         include_paths = []
         for source in platform.sources:
