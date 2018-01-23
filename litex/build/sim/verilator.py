@@ -146,7 +146,7 @@ class SimVerilatorToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        v_output = platform.get_verilog(fragment)
+        v_output = platform.get_verilog(fragment, name=build_name)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_output.write("dut.v")
 
