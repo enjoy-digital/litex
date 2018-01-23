@@ -181,11 +181,18 @@ class Instance(Special):
                 r += "\t." + name_inst + "(" + name_design + ")"
         if not firstp:
             r += "\n"
-        if instance.synthesis_directive is not None:
-            synthesis_directive = "/* synthesis {} */".format(instance.synthesis_directive)
-            r += ")" + synthesis_directive + ";\n\n"
-        else:
-            r += ");\n\n"
+
+        directives = instance.synthesis_directive
+        if directives is None:
+            directives = []
+        elif type(directives) == str :
+            directives = [directives,]
+
+        r += ")";
+        for directive in directives:
+            r += "\n\t/* synthesis {} */".format(directive)
+        r += ";\n\n"
+
         return r
 
 
