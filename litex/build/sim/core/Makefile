@@ -24,7 +24,7 @@ $(OBJS_SIM): %.o: $(SRC_DIR)/%.c
 
 .PHONY: sim
 sim: mkdir $(OBJS_SIM)
-	verilator -Wno-fatal -O3 --cc dut.v --exe \
+	verilator -Wno-fatal -O3 --cc dut.v --top-module dut --exe \
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
 		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
 		-LDFLAGS "$(LDFLAGS)" \
