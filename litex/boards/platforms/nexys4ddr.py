@@ -22,6 +22,29 @@ _io = [
     ("user_led", 14, Pins("V12"), IOStandard("LVCMOS33")),
     ("user_led", 15, Pins("V11"), IOStandard("LVCMOS33")),
 
+    ("user_sw",  0, Pins("J15"), IOStandard("LVCMOS33")),
+    ("user_sw",  1, Pins("L16"), IOStandard("LVCMOS33")),
+    ("user_sw",  2, Pins("M13"), IOStandard("LVCMOS33")),
+    ("user_sw",  3, Pins("R15"), IOStandard("LVCMOS33")),
+    ("user_sw",  4, Pins("R17"), IOStandard("LVCMOS33")),
+    ("user_sw",  5, Pins("T18"), IOStandard("LVCMOS33")),
+    ("user_sw",  6, Pins("U18"), IOStandard("LVCMOS33")),
+    ("user_sw",  7, Pins("R13"), IOStandard("LVCMOS33")),
+    ("user_sw",  8, Pins("T8"), IOStandard("LVCMOS33")),
+    ("user_sw",  9, Pins("U8"), IOStandard("LVCMOS33")),
+    ("user_sw", 10, Pins("R16"), IOStandard("LVCMOS33")),
+    ("user_sw", 11, Pins("T13"), IOStandard("LVCMOS33")),
+    ("user_sw", 12, Pins("H6"), IOStandard("LVCMOS33")),
+    ("user_sw", 13, Pins("U12"), IOStandard("LVCMOS33")),
+    ("user_sw", 14, Pins("U11"), IOStandard("LVCMOS33")),
+    ("user_sw", 15, Pins("V10"), IOStandard("LVCMOS33")),
+
+    ("user_btn", 0, Pins("N17"), IOStandard("LVCMOS33")),
+    ("user_btn", 1, Pins("P18"), IOStandard("LVCMOS33")),
+    ("user_btn", 2, Pins("P17"), IOStandard("LVCMOS33")),
+    ("user_btn", 3, Pins("M17"), IOStandard("LVCMOS33")),
+    ("user_btn", 4, Pins("M18"), IOStandard("LVCMOS33")),
+
     ("clk100", 0, Pins("E3"), IOStandard("LVCMOS33")),
 
     ("cpu_reset", 0, Pins("C12"), IOStandard("LVCMOS33")),
@@ -39,7 +62,7 @@ _io = [
             IOStandard("SSTL18_II")),
         Subsignal("ba", Pins("P2 P3 R1"), IOStandard("SSTL18_II")),
         Subsignal("ras_n", Pins("N4"), IOStandard("SSTL18_II")),
-        Subsignal("cas_n", Pins("L3"), IOStandard("SSTL18_II")),
+        Subsignal("cas_n", Pins("L1"), IOStandard("SSTL18_II")),
         Subsignal("we_n", Pins("N2"), IOStandard("SSTL18_II")),
         Subsignal("dm", Pins("T6 U1"), IOStandard("SSTL18_II")),
         Subsignal("dq", Pins(
@@ -66,7 +89,7 @@ class Platform(XilinxPlatform):
     def __init__(self, programmer="vivado"):
         XilinxPlatform.__init__(self, "xc7a100t-CSG324-1", _io, toolchain="vivado")
         self.programmer = programmer
-        self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 35]")
+        self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 34]")
 
 
     def create_programmer(self):
