@@ -1,0 +1,82 @@
+# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
+from litex.build.generic_platform import *
+from litex.build.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer
+
+_io = [
+    ("user_led",  0, Pins("H17"), IOStandard("LVCMOS33")),
+    ("user_led",  1, Pins("K15"), IOStandard("LVCMOS33")),
+    ("user_led",  2, Pins("J13"), IOStandard("LVCMOS33")),
+    ("user_led",  3, Pins("N14"), IOStandard("LVCMOS33")),
+    ("user_led",  4, Pins("R18"), IOStandard("LVCMOS33")),
+    ("user_led",  5, Pins("V17"), IOStandard("LVCMOS33")),
+    ("user_led",  6, Pins("U17"), IOStandard("LVCMOS33")),
+    ("user_led",  7, Pins("U16"), IOStandard("LVCMOS33")),
+    ("user_led",  8, Pins("V16"), IOStandard("LVCMOS33")),
+    ("user_led",  9, Pins("T15"), IOStandard("LVCMOS33")),
+    ("user_led", 10, Pins("U14"), IOStandard("LVCMOS33")),
+    ("user_led", 11, Pins("T16"), IOStandard("LVCMOS33")),
+    ("user_led", 12, Pins("V15"), IOStandard("LVCMOS33")),
+    ("user_led", 13, Pins("V14"), IOStandard("LVCMOS33")),
+    ("user_led", 14, Pins("V12"), IOStandard("LVCMOS33")),
+    ("user_led", 15, Pins("V11"), IOStandard("LVCMOS33")),
+
+    ("clk100", 0, Pins("E3"), IOStandard("LVCMOS33")),
+
+    ("cpu_reset", 0, Pins("C12"), IOStandard("LVCMOS33")),
+
+    ("serial", 0,
+        Subsignal("tx", Pins("D4")),
+        Subsignal("rx", Pins("C4")),
+        IOStandard("LVCMOS33"),
+    ),
+
+    ("ddram", 0,
+        Subsignal("a", Pins(
+            "M4 P4 M6 T1 L3 P5 M2 N1",
+            "L4 N5 R2 K5 N6"),
+            IOStandard("SSTL18_II")),
+        Subsignal("ba", Pins("P2 P3 R1"), IOStandard("SSTL18_II")),
+        Subsignal("ras_n", Pins("N4"), IOStandard("SSTL18_II")),
+        Subsignal("cas_n", Pins("L3"), IOStandard("SSTL18_II")),
+        Subsignal("we_n", Pins("N2"), IOStandard("SSTL18_II")),
+        Subsignal("dm", Pins("T6 U1"), IOStandard("SSTL18_II")),
+        Subsignal("dq", Pins(
+            "R7 V6 R8 U7 V7 R6 U6 R5",
+            "T5 U3 V5 U4 V4 T4 V1 T3"),
+            IOStandard("SSTL18_II"),
+            Misc("IN_TERM=UNTUNED_SPLIT_50")),
+        Subsignal("dqs_p", Pins("U9 U2"), IOStandard("DIFF_SSTL18_II")),
+        Subsignal("dqs_n", Pins("V9 V2"), IOStandard("DIFF_SSTL18_II")),
+        Subsignal("clk_p", Pins("L6"), IOStandard("DIFF_SSTL18_II")),
+        Subsignal("clk_n", Pins("L5"), IOStandard("DIFF_SSTL18_II")),
+        Subsignal("cke", Pins("M1"), IOStandard("SSTL18_II")),
+        Subsignal("odt", Pins("M3"), IOStandard("SSTL18_II")),
+        Subsignal("cs_n", Pins("K6"), IOStandard("SSTL18_II")),
+        Misc("SLEW=FAST"),
+    ),
+]
+
+
+class Platform(XilinxPlatform):
+    default_clk_name = "clk100"
+    default_clk_period = 10.0
+
+    def __init__(self, programmer="vivado"):
+        XilinxPlatform.__init__(self, "xc7a100t-CSG324-1", _io, toolchain="vivado")
+        self.programmer = programmer
+        self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 35]")
+
+
+    def create_programmer(self):
+        if self.programmer == "xc3sprog":
+            return XC3SProg("nexys4")
+        elif self.programmer == "vivado":
+            return VivadoProgrammer()
+        else:
+            raise ValueError("{} programmer is not supported"
+                             .format(self.programmer))
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
