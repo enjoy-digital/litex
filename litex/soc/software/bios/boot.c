@@ -290,6 +290,17 @@ void netboot(void)
 #endif
 
 #ifdef FLASH_BOOT_ADDRESS
+
+/* On systems with exernal SDRAM we copy out of the SPI flash into the SDRAM
+   before running, as it is faster.  If we have no SDRAM then we have to
+   execute directly out of the SPI flash. */
+#ifdef MAIN_RAM_BASE
+#define FIRMWARE_BASE_ADDRESS MAIN_RAM_BASE
+#else
+/* Firmware code starts after (a) length and (b) CRC -- both unsigned ints */
+#define FIRMWARE_BASE_ADDRESS (FLASH_BOOT_ADDRESS + 2 * sizeof(unsigned int))
+#endif
+
 void flashboot(void)
 {
 	unsigned int *flashbase;
@@ -306,14 +317,17 @@ void flashboot(void)
 		return;
 	}
 
+#ifdef MAIN_RAM_BASE
 	printf("Loading %d bytes from flash...\n", length);
 	memcpy((void *)MAIN_RAM_BASE, flashbase, length);
-	got_crc = crc32((unsigned char *)MAIN_RAM_BASE, length);
+#endif
+
+	got_crc = crc32((unsigned char *)FIRMWARE_BASE_ADDRESS, length);
 	if(crc != got_crc) {
 		printf("CRC failed (expected %08x, got %08x)\n", crc, got_crc);
 		return;
 	}
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, FIRMWARE_BASE_ADDRESS);
 }
 #endif
 
