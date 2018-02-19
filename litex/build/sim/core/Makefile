@@ -26,6 +26,7 @@ $(OBJS_SIM): %.o: $(SRC_DIR)/%.c
 sim: mkdir $(OBJS_SIM)
 	verilator -Wno-fatal -O3 --cc dut.v --top-module dut --exe \
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
+		--top-module dut \
 		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
 		-LDFLAGS "$(LDFLAGS)" \
 		-trace $(INC_DIR)
