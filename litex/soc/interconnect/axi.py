@@ -13,33 +13,43 @@ from litex.soc.interconnect import csr_bus
 # Layout of AXI4 Lite Bus
 _layout = [
     # Write Address
-    ("awaddr", "address_width", DIR_M_TO_S),
-    ("awprot", 3, DIR_M_TO_S),
-    ("awvalid", 1, DIR_M_TO_S),
-    ("awready", 1, DIR_S_TO_M),
+    ("aw", [
+        ("addr", "address_width", DIR_M_TO_S),
+        ("prot", 3, DIR_M_TO_S),
+        ("valid", 1, DIR_M_TO_S),
+        ("ready", 1, DIR_S_TO_M),
+    ]),
 
     # Write Data
-    ("wdata", "data_width", DIR_M_TO_S),
-    ("wstrb", "strb_width", DIR_M_TO_S),
-    ("wvalid", 1, DIR_M_TO_S),
-    ("wready", 1, DIR_S_TO_M),
+    ("w", [
+        ("data", "data_width", DIR_M_TO_S),
+        ("strb", "strb_width", DIR_M_TO_S),
+        ("valid", 1, DIR_M_TO_S),
+        ("ready", 1, DIR_S_TO_M),
+    ]),
 
     # Write Response
-    ("bresp", 2, DIR_S_TO_M),
-    ("bvalid", 1, DIR_S_TO_M),
-    ("bready", 1, DIR_M_TO_S),
+    ("b", [
+        ("resp", 2, DIR_S_TO_M),
+        ("valid", 1, DIR_S_TO_M),
+        ("ready", 1, DIR_M_TO_S),
+    ]),
 
     # Read Address
-    ("araddr", "address_width", DIR_M_TO_S),
-    ("arprot", 3, DIR_M_TO_S),
-    ("arvalid", 1, DIR_M_TO_S),
-    ("arready", 1, DIR_S_TO_M),
+    ("ar", [
+        ("addr", "address_width", DIR_M_TO_S),
+        ("prot", 3, DIR_M_TO_S),
+        ("valid", 1, DIR_M_TO_S),
+        ("ready", 1, DIR_S_TO_M),
+    ]),
 
     # Read Data
-    ("rdata", "data_width", DIR_S_TO_M),
-    ("rresp", 2, DIR_S_TO_M),
-    ("rvalid", 1, DIR_S_TO_M),
-    ("rready", 1, DIR_M_TO_S),
+    ("r", [
+        ("data", "data_width", DIR_S_TO_M),
+        ("resp", 2, DIR_S_TO_M),
+        ("valid", 1, DIR_S_TO_M),
+        ("ready", 1, DIR_M_TO_S),
+    ]),
 ]
 
 class Interface(Record):
@@ -66,11 +76,13 @@ class AXILite2CSR(Module):
     including writes.
     """
 
-    def __init__(self, bus_interface_axi, bus_interface_csr):
-        self.axi = bus_interface_axi
-        self.csr = bus_interface_csr
+    def __init__(self, bus_axi, bus_csr):
+        self.axi = axi = bus_axi
+        self.csr = csr = bus_csr
 
         ###
+
+        ar, r, aw, w, b = axi.ar, axi.r, axi.aw, axi.w, axi.b
 
         # Machine is currently busy talking to CSR, hold your horses.
         busy = Signal()
@@ -80,89 +92,88 @@ class AXILite2CSR(Module):
         # A read transaction is happening on the bus.
         read_transaction = Signal()
         self.comb += [
-            write_transaction.eq(self.axi.awvalid & self.axi.awready & self.axi.wvalid & self.axi.wready),
-            read_transaction.eq(self.axi.arvalid & self.axi.arready),
+            write_transaction.eq(aw.valid & aw.ready & w.valid & w.ready),
+            read_transaction.eq(ar.valid & ar.ready),
         ]
 
         # Write transaction generation.
         self.sync += [
-            self.axi.awready.eq(0),
-            self.axi.wready.eq(0),
-            If(self.axi.awvalid & self.axi.wvalid,
-                If(~self.axi.awready & ~busy & ~self.axi.arvalid,
-                    self.axi.awready.eq(1),
-                    self.axi.wready.eq(1)
+            aw.ready.eq(0),
+            w.ready.eq(0),
+            If(aw.valid & w.valid,
+                If(~aw.ready & ~busy & ~ar.valid,
+                    aw.ready.eq(1),
+                    w.ready.eq(1)
                 )
             )
         ]
         # Write response generation.
         self.sync += [
-            self.axi.bvalid.eq(0),
+            b.valid.eq(0),
             If(write_transaction,
-                If(self.axi.bready & ~self.axi.bvalid,
-                    self.axi.bvalid.eq(1),
+                If(b.ready & ~b.valid,
+                    b.valid.eq(1),
                     # Response 0 -> OKAY
-                    self.axi.bresp.eq(0),
+                    b.resp.eq(0),
                 )
             )
         ]
         # Read transaction generation.
         self.sync += [
-            self.axi.arready.eq(0),
-            If(self.axi.arvalid & ~self.axi.arready & ~busy,
-                self.axi.arready.eq(1),
+            ar.ready.eq(0),
+            If(ar.valid & ~ar.ready & ~busy,
+                ar.ready.eq(1),
             )
         ]
 
 
         # Registered data to be written to CSR, set by FSM.
-        wdata = Signal(self.csr.dat_w.nbits)
+        wdata = Signal(csr.dat_w.nbits)
         # Combinatorial byte address to assert on CSR bus, driven by FSM.
-        addr = Signal(self.axi.araddr.nbits)
+        addr = Signal(ar.addr.nbits)
         # Drive AXI & CSR combinatorial signals.
         self.comb += [
-            self.csr.adr.eq(addr >> 
-                int(math.log(self.axi.rdata.nbits//8, 2.0))),
-            self.csr.dat_w.eq(wdata),
+            csr.adr.eq(addr >> int(math.log(r.data.nbits//8, 2.0))),
+            csr.dat_w.eq(wdata),
 
-            self.axi.rdata.eq(self.csr.dat_r),
-            self.axi.rresp.eq(0),
+            r.data.eq(csr.dat_r),
+            r.resp.eq(0),
         ]
 
         # CSR interaction FSM.
-        self.submodules.fsm = FSM(reset_state='IDLE')
+        self.submodules.fsm = fsm = FSM(reset_state='IDLE')
         self.comb += [
-            busy.eq(~self.fsm.ongoing('IDLE')),
-            self.axi.rvalid.eq(self.fsm.ongoing('READING')),
-            self.csr.we.eq(self.fsm.ongoing('WRITING')),
+            busy.eq(~fsm.ongoing('IDLE')),
+            r.valid.eq(fsm.ongoing('READING')),
+            csr.we.eq(fsm.ongoing('WRITING')),
         ]
 
         # Idle state - wait for a transaction to happen on AXI. Immediately
         # assert read/write address on CSR if such an transaction is occuring.
-        self.fsm.act('IDLE',
+        fsm.act('IDLE',
             If(read_transaction,
-                addr.eq(self.axi.araddr),
+                addr.eq(ar.addr),
                 NextState('READING'),
             ).Elif(write_transaction,
-                addr.eq(self.axi.awaddr),
+                addr.eq(aw.addr),
                 # Register data from AXI.
-                NextValue(wdata, self.axi.wdata),
+                NextValue(wdata, w.data),
                 NextState('WRITING'),
             )
         )
 
         # Perform write to CSR.
-        self.fsm.act('WRITING',
-            addr.eq(self.axi.awaddr),
+        fsm.act('WRITING',
+            addr.eq(aw.addr),
             # CSR writes are single cycle, go back to IDLE.
             NextState('IDLE'),
         )
 
         # Respond to read to AXI.
-        self.fsm.act('READING',
-            addr.eq(self.axi.araddr),
+        fsm.act('READING',
+            addr.eq(ar.addr),
             # If AXI master is ready to receive data, go back to IDLE.
-            If(self.axi.rready,
+            If(r.ready,
                 NextState('IDLE'),
             )
         )
@@ -183,8 +194,10 @@ def test_axilite2csr():
             self.axi = Interface(data_width=32, address_width=14)
             self.submodules.holder = CSRHolder()
             self.submodules.dut = AXILite2CSR(self.axi, self.csr)
-            self.submodules.csrbankarray = csr_bus.CSRBankArray(self, self.map_csr, data_width=32, address_width=12)
-            self.submodules.csrcon = csr_bus.Interconnect(self.csr, self.csrbankarray.get_buses())
+            self.submodules.csrbankarray = csr_bus.CSRBankArray(
+                    self, self.map_csr, data_width=32, address_width=12)
+            self.submodules.csrcon = csr_bus.Interconnect(
+                    self.csr, self.csrbankarray.get_buses())
 
         def map_csr(self, name, memory):
             return {
@@ -192,64 +205,68 @@ def test_axilite2csr():
             }[name]
 
     def testbench_write_read(dut):
+        axi = dut.axi
+
         for _ in range(8):
             yield
 
         # Write test
-        yield dut.axi.awvalid.eq(1)
-        yield dut.axi.awaddr.eq(4)
-        yield dut.axi.wvalid.eq(1)
-        yield dut.axi.bready.eq(1)
-        yield dut.axi.wdata.eq(0x2137)
+        yield axi.aw.valid.eq(1)
+        yield axi.aw.addr.eq(4)
+        yield axi.w.valid.eq(1)
+        yield axi.b.ready.eq(1)
+        yield axi.w.data.eq(0x2137)
 
-        while (yield dut.axi.awready) != 1:
+        while (yield axi.aw.ready) != 1:
             yield
-        while (yield dut.axi.wready) != 1:
+        while (yield axi.w.ready) != 1:
             yield
-        yield dut.axi.awvalid.eq(0)
-        yield dut.axi.wvalid.eq(0)
+        yield axi.aw.valid.eq(0)
+        yield axi.w.valid.eq(0)
 
         for _ in range(8):
             yield
 
         # Read test
-        yield dut.axi.arvalid.eq(1)
-        yield dut.axi.rready.eq(1)
-        yield dut.axi.araddr.eq(4)
+        yield axi.ar.valid.eq(1)
+        yield axi.r.ready.eq(1)
+        yield axi.ar.addr.eq(4)
 
-        while (yield dut.axi.arready != 1):
+        while (yield axi.ar.ready != 1):
             yield
-        yield dut.axi.arvalid.eq(0)
-        while (yield dut.axi.rvalid != 1):
+        yield axi.ar.valid.eq(0)
+        while (yield axi.r.valid != 1):
             yield
-        yield dut.axi.rready.eq(0)
+        yield axi.r.ready.eq(0)
 
-        read = yield dut.axi.rdata
+        read = yield axi.r.data
         assert read == 0x2137
 
         for _ in range(8):
             yield
 
     def testbench_simultaneous(dut):
+        axi = dut.axi
+
         for _ in range(8):
             yield
 
         # Write
-        yield dut.axi.awvalid.eq(1)
-        yield dut.axi.awaddr.eq(2)
-        yield dut.axi.wvalid.eq(1)
-        yield dut.axi.bready.eq(1)
-        yield dut.axi.wdata.eq(0x2137)
+        yield axi.aw.valid.eq(1)
+        yield axi.aw.addr.eq(2)
+        yield axi.w.valid.eq(1)
+        yield axi.b.ready.eq(1)
+        yield axi.w.data.eq(0x2137)
         # Read
-        yield dut.axi.arvalid.eq(1)
-        yield dut.axi.rready.eq(1)
-        yield dut.axi.araddr.eq(2)
+        yield axi.ar.valid.eq(1)
+        yield axi.r.ready.eq(1)
+        yield axi.ar.addr.eq(2)
 
         yield
         yield
 
-        is_reading = yield dut.axi.arready
-        is_writing = yield dut.axi.awready
+        is_reading = yield axi.ar.ready
+        is_writing = yield axi.aw.ready
 
         assert is_reading
         assert not is_writing
