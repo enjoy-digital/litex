@@ -1,7 +1,11 @@
-Unless otherwise noted, Migen is copyright (C) 2011-2013 Sebastien Bourdeauducq.
+Unless otherwise noted, Migen is copyright (C) 2011-2017 M-Labs Limited.
+
 The simulation extension (as mentioned in the comments at the beginning of the
-corresponding source files) is copyright (C) 2012 Vermeer Manufacturing Co. All
-rights reserved.
+corresponding source files) is copyright (C) 2012 Vermeer Manufacturing Co.
+
+See original copyright notice below;
+----
+Copyright (C) 2011-2017 M-Labs Limited.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:

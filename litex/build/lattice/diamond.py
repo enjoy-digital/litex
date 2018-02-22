@@ -58,6 +58,7 @@ def _build_files(device, sources, vincpaths, build_name):
     tcl.append("prj_run Map -impl implementation")
     tcl.append("prj_run PAR -impl implementation")
     tcl.append("prj_run Export -impl implementation -task Bitgen")
+    tcl.append("prj_run Export -impl implementation -task Jedecgen")
     tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
 

@@ -89,7 +89,7 @@ class Arbiter(Module):
                         self.comb += dest.eq(source)
 
         # connect bus requests to round-robin selector
-        reqs = [m.cyc for m in masters]
+        reqs = [m.cyc & ~m.ack for m in masters]
         self.comb += self.rr.request.eq(Cat(*reqs))
 
 
@@ -97,7 +97,7 @@ class Decoder(Module):
     # slaves is a list of pairs:
     # 0) function that takes the address signal and returns a FHDL expression
     #    that evaluates to 1 when the slave is selected and 0 otherwise.
-    # 1) wishbone.Slave reference.
+    # 1) wishbone.Interface reference.
     # register adds flip-flops after the address comparators. Improves timing,
     # but breaks Wishbone combinatorial feedback.
     def __init__(self, master, slaves, register=False):
@@ -168,6 +168,8 @@ class DownConverter(Module):
         Read from master are splitted in N reads to the the slave. Read datas from
         the slave are cached before being presented concatenated on the last access.
 
+    TODO:
+        Manage err signal? (Not implemented since we generally don't use it on Migen/LiteX modules)
     """
     def __init__(self, master, slave):
         dw_from = len(master.dat_r)
@@ -251,7 +253,7 @@ class DownConverter(Module):
         cases = {}
         for i in range(ratio):
             cases[i] = [
-                slave.sel.eq(master.sel[i*dw_to//8:(i+1)*dw_to]),
+                slave.sel.eq(master.sel[i*dw_to//8:(i+1)*dw_to//8]),
                 slave.dat_w.eq(master.dat_w[i*dw_to:(i+1)*dw_to])
             ]
         self.comb += Case(counter, cases)
@@ -280,6 +282,8 @@ class UpConverter(Module):
         Cache is refilled only at the beginning of each burst, the subsequent
         reads of a burst use the cached data.
 
+    TODO:
+        Manage err signal? (Not implemented since we generally don't use it on Migen/LiteX modules)
     """
     def __init__(self, master, slave):
         dw_from = len(master.dat_r)
@@ -643,7 +647,7 @@ class SRAM(Module):
         # generate ack
         self.sync += [
             self.bus.ack.eq(0),
-            If(self.bus.cyc & self.bus.stb & ~self.bus.ack,    self.bus.ack.eq(1))
+            If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
         ]
 
 

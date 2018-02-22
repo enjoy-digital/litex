@@ -44,8 +44,8 @@ def _printsig(ns, s):
 
 def _printconstant(node):
     if node.signed:
-        return (str(node.nbits) + "'sd" + str(2**node.nbits + node.value),
-                True)
+        val = node.value if node.value >= 0 else 2**node.nbits + node.value
+        return (str(node.nbits) + "'sd" + str(val), True)
     else:
         return str(node.nbits) + "'d" + str(node.value), False
 
@@ -249,15 +249,19 @@ def _printcomb_simulation(f, ns,
     r = ""
     if f.comb:
         if dummy_signal:
-            # Generate a dummy event to get the simulator
-            # to run the combinatorial process once at the beginning.
+            explanation = """
+// Adding a dummy event (using a dummy signal 'dummy_s') to get the simulator
+// to run the combinatorial process once at the beginning.
+"""
             syn_off = "// synthesis translate_off\n"
             syn_on = "// synthesis translate_on\n"
             dummy_s = Signal(name_override="dummy_s")
+            r += explanation
             r += syn_off
             r += "reg " + _printsig(ns, dummy_s) + ";\n"
             r += "initial " + ns.get_name(dummy_s) + " <= 1'd0;\n"
             r += syn_on
+            r += "\n"
 
 
         from collections import defaultdict
@@ -397,7 +401,7 @@ def convert(f, ios=None, name="top",
     ns.clock_domains = f.clock_domains
     r.ns = ns
 
-    src = "/* Machine-generated using LiteX gen */\n"
+    src = "/* Machine-generated using LiteX */\n"
     src += _printheader(f, ios, name, ns, attr_translate,
                         reg_initialization=reg_initialization)
     if regular_comb:

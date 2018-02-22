@@ -56,6 +56,9 @@ class CSRConstant(DUID):
         """Read method for simulation."""
         return self.value.value
 
+    def __str__(self):
+        return "<CSRConstant {}>".format(self.name)
+
 
 class CSR(_CSRBase):
     """Basic CSR register.
@@ -100,6 +103,9 @@ class CSR(_CSRBase):
         yield self.re.eq(1)
         yield
         yield self.re.eq(0)
+
+    def __str__(self):
+        return "<CSR {}({})>".format(self.name, self.size)
 
 
 class _CompoundCSR(_CSRBase, Module):
@@ -165,6 +171,9 @@ class CSRStatus(_CompoundCSR):
     def read(self):
         """Read method for simulation."""
         return (yield self.status)
+
+    def __str__(self):
+        return "<CSRStatus {}({})>".format(self.name, self.size)
 
 
 class CSRStorage(_CompoundCSR):
@@ -272,6 +281,9 @@ class CSRStorage(_CompoundCSR):
         yield self.re.eq(1)
         yield
         yield self.re.eq(0)
+
+    def __str__(self):
+        return "<CSRStorage {}({})>".format(self.name, self.size)
 
 
 def csrprefix(prefix, csrs, done):

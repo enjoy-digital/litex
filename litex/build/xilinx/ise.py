@@ -82,7 +82,7 @@ synth_xilinx -top top -edif {build_name}.edif""".format(build_name=build_name)
 
 
 def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
-        bitgen_opt, ise_commands, map_opt, par_opt, ver=None):
+        toolchain, platform, ver=None):
     if sys.platform == "win32" or sys.platform == "cygwin":
         source_cmd = "call "
         script_ext = ".bat"
@@ -98,22 +98,34 @@ def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
     if source:
         settings = common.settings(ise_path, "ISE_DS", ver, first="version")
         build_script_contents += source_cmd + settings + "\n"
-
-    ext = "ngc"
-    build_script_contents += """
+    if mode == "edif":
+        ext = "edif"
+    else:
+        ext = "ngc"
+        build_script_contents += """
 xst -ifn {build_name}.xst{fail_stmt}
 """
 
     build_script_contents += """
 ngdbuild {ngdbuild_opt} -uc {build_name}.ucf {build_name}.{ext} {build_name}.ngd{fail_stmt}
+"""
+    if mode == "cpld":
+        build_script_contents += """
+cpldfit -ofmt verilog {par_opt} -p {device} {build_name}.ngd{fail_stmt}
+taengine -f {build_name}.vm6 -detail -iopath -l {build_name}.tim{fail_stmt}
+hprep6 -s IEEE1532 -i {build_name}.vm6{fail_stmt}
+"""
+    else:
+        build_script_contents += """
 map {map_opt} -o {build_name}_map.ncd {build_name}.ngd {build_name}.pcf{fail_stmt}
 par {par_opt} {build_name}_map.ncd {build_name}.ncd {build_name}.pcf{fail_stmt}
 bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
 """
     build_script_contents = build_script_contents.format(build_name=build_name,
-            ngdbuild_opt=ngdbuild_opt, bitgen_opt=bitgen_opt, ext=ext,
-            par_opt=par_opt, map_opt=map_opt, fail_stmt=fail_stmt)
-    build_script_contents += ise_commands.format(build_name=build_name)
+            ngdbuild_opt=ngdbuild_opt, bitgen_opt=toolchain.bitgen_opt, ext=ext,
+            par_opt=toolchain.par_opt, map_opt=toolchain.map_opt,
+            device=platform.device, fail_stmt=fail_stmt)
+    build_script_contents += toolchain.ise_commands.format(build_name=build_name)
     build_script_file = "build_" + build_name + script_ext
     tools.write_to_file(build_script_file, build_script_contents, force_unix=False)
     command = shell + [build_script_file]
@@ -127,7 +139,10 @@ class XilinxISEToolchain:
         "keep": ("keep", "true"),
         "no_retiming": ("register_balancing", "no"),
         "async_reg": None,
-        "ars_ff": None,
+        "mr_ff": None,
+        "mr_false_path": None,
+        "ars_ff1": None,
+        "ars_ff2": None,
         "ars_false_path": None,
         "no_shreg_extract": ("shreg_extract", "no")
     }
@@ -144,7 +159,7 @@ class XilinxISEToolchain:
         self.ise_commands = ""
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            toolchain_path=None, source=None, run=True, mode="xst", **kwargs):
+            toolchain_path=None, source=True, run=True, mode="xst", **kwargs):
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         if toolchain_path is None:
@@ -154,8 +169,6 @@ class XilinxISEToolchain:
                 toolchain_path = "/cygdrive/c/Xilinx"
             else:
                 toolchain_path = "/opt/Xilinx"
-        if source is None:
-            source = sys.platform != "win32"
 
         platform.finalize(fragment)
         ngdbuild_opt = self.ngdbuild_opt
@@ -165,30 +178,45 @@ class XilinxISEToolchain:
         cwd = os.getcwd()
         os.chdir(build_dir)
         try:
-            if mode == "xst" or mode == "yosys":
+            if mode in ("xst", "yosys", "cpld"):
                 v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
                 vns = v_output.ns
                 named_sc, named_pc = platform.resolve_signals(vns)
                 v_file = build_name + ".v"
                 v_output.write(v_file)
                 sources = platform.sources | {(v_file, "verilog", "work")}
-                if mode == "xst":
+                if mode in ("xst", "cpld"):
                     _build_xst_files(platform.device, sources, platform.verilog_include_paths, build_name, self.xst_opt)
-                    isemode = "xst"
+                    isemode = mode
                 else:
                     _run_yosys(platform.device, sources, platform.verilog_include_paths, build_name)
                     isemode = "edif"
                     ngdbuild_opt += "-p " + platform.device
 
+            if mode == "mist":
+                from mist import synthesize
+                synthesize(fragment, platform.constraint_manager.get_io_signals())
+
+            if mode == "edif" or mode == "mist":
+                e_output = platform.get_edif(fragment)
+                vns = e_output.ns
+                named_sc, named_pc = platform.resolve_signals(vns)
+                e_file = build_name + ".edif"
+                e_output.write(e_file)
+                isemode = "edif"
+
             tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
             if run:
                 _run_ise(build_name, toolchain_path, source, isemode,
-                         ngdbuild_opt, self.bitgen_opt, self.ise_commands,
-                         self.map_opt, self.par_opt)
+                         ngdbuild_opt, self, platform)
         finally:
             os.chdir(cwd)
 
         return vns
+
+    # ISE is broken and you must use *separate* TNM_NET objects for period
+    # constraints and other constraints otherwise it will be unable to trace
+    # them through clock objects like DCM and PLL objects.
 
     def add_period_constraint(self, platform, clk, period):
         platform.add_platform_command(

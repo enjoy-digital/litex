@@ -3,10 +3,15 @@
 	url = https://github.com/m-labs/lm32.git
 [submodule "litex/soc/cores/cpu/mor1kx/verilog"]
 	path = litex/soc/cores/cpu/mor1kx/verilog
-	url = https://github.com/openrisc/mor1kx.git
+	url = https://github.com/m-labs/mor1kx.git
 [submodule "litex/soc/software/compiler_rt"]
 	path = litex/soc/software/compiler_rt
 	url = http://llvm.org/git/compiler-rt.git
+[submodule "litex/software/unwinder"]
+	path = litex/soc/software/unwinder
+	url = http://llvm.org/git/libunwind.git
+
+# LiteX only submodules
 [submodule "litex/soc/cores/cpu/picorv32/verilog"]
 	path = litex/soc/cores/cpu/picorv32/verilog
 	url = https://github.com/cliffordwolf/picorv32
