@@ -5,8 +5,8 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-if sys.version_info[:3] < (3, 3):
-    raise SystemExit("You need Python 3.3+")
+if sys.version_info[:3] < (3, 5):
+    raise SystemExit("You need Python 3.5+")
 
 
 setup(
@@ -25,7 +25,7 @@ setup(
     classifiers=[
         "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
         "Environment :: Console",
-        "Development Status :: Beta",
+        "Development Status :: Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",

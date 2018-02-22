@@ -5,29 +5,42 @@
                          Migen inside
 
                 Build your hardware, easily!
-             Copyright 2012-2018 Enjoy-Digital
+              Copyright 2012-2018 / EnjoyDigital
 
 [> Intro
 --------
-LiteX is an alternative to Migen/MiSoC maintained and used by Enjoy-Digital
-to build our cores, integrate them in complete SoC and load/flash them to
-the hardware and experiment new features.
+LiteX is an alternative to MiSoC maintained and used by Enjoy-Digital to build
+our cores, integrate them in complete SoC and load/flash them to the hardware
+and experiment new features.
 
-The structure of LiteX is kept close to Migen/MiSoC to ease collaboration
-between projects and efforts are made to keep cores developed with LiteX
-compatible with Migen/MiSoC.
+                        +---------------+
+                        |FPGA toolchains|
+                        +----^-----+----+
+                             |     |
+                          +--+-----v--+
+         +-------+        |           |
+         | Migen +-------->           |
+         +-------+        |           |        Your design
+                          |   LiteX   +---> ready to be used!
+                          |           |
++----------------------+  |           |
+|LiteX Cores Ecosystem +-->           |
++----------------------+  +-^-------^-+
+ (Eth,,SATA,,DRAM,,USB,     |       |
+  PCIe,Video,etc...)        +       +
+                           board   target
+                           file    file
 
-[> License
-----------
-LiteX is Copyright (c) 2012-2017 Enjoy-Digital under BSD Lisense.
-Since it is based on Migen/MiSoC, please also refer to LICENSE file in gen/soc
-directory or git history to get correct copyrights.
+
+The structure of LiteX is kept close to MiSoC to ease collaboration between
+projects.
 
 [> Sub-packages
 ---------------
 gen:
   Provides specific or experimental modules to generate HDL that are not integrated
-  in Migen.
+  in Migen. (For now a full copy of Migen is included in gen, aim is is to only
+  keep specific or experimental modules)
 
 build:
   Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to
