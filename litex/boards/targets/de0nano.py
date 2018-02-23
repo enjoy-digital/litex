@@ -2,7 +2,8 @@
 
 import argparse
 
-from litex.gen import *
+from migen import *
+
 from litex.boards.platforms import de0nano
 
 from litex.soc.integration.soc_sdram import *

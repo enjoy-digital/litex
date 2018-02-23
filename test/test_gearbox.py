@@ -1,8 +1,8 @@
 import unittest
 import random
 
-from litex.gen import *
-from litex.gen.genlib.cdc import Gearbox
+from migen import *
+from migen.genlib.cdc import Gearbox
 
 # TODO:
 # connect two gearbox together:

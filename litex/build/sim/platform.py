@@ -1,5 +1,6 @@
-from litex.gen.fhdl.structure import Signal
-from litex.gen.genlib.record import Record
+from migen.fhdl.structure import Signal
+from migen.genlib.record import Record
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.sim import common, verilator
 

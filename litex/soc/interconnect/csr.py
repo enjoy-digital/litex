@@ -24,9 +24,9 @@ class, which provides ``get_csrs`` and ``get_memories`` methods that scan for
 CSR and memory attributes and return their list.
 """
 
-from litex.gen import *
-from litex.gen.util.misc import xdir
-from litex.gen.fhdl.tracer import get_obj_var_name
+from migen import *
+from migen.util.misc import xdir
+from migen.fhdl.tracer import get_obj_var_name
 
 
 class _CSRBase(DUID):

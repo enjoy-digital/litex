@@ -1,7 +1,7 @@
-from litex.gen.fhdl.module import Module
-from litex.gen.fhdl.specials import Instance
-from litex.gen.genlib.io import *
-from litex.gen.genlib.resetsync import AsyncResetSynchronizer
+from migen.fhdl.module import Module
+from migen.fhdl.specials import Instance
+from migen.genlib.io import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 
 class DiamondAsyncResetSynchronizerImpl(Module):

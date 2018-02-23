@@ -1,6 +1,6 @@
-from litex.gen.fhdl.module import Module
-from litex.gen.fhdl.specials import Instance
-from litex.gen.genlib.io import DifferentialInput, DifferentialOutput
+from migen.fhdl.module import Module
+from migen.fhdl.specials import Instance
+from migen.genlib.io import DifferentialInput, DifferentialOutput
 
 
 class AlteraDifferentialInputImpl(Module):

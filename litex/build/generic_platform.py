@@ -1,9 +1,10 @@
 import os
 
-from litex.gen.fhdl.structure import Signal
-from litex.gen.genlib.record import Record
-from litex.gen.genlib.io import CRG
-from litex.gen.fhdl import verilog
+from migen.fhdl.structure import Signal
+from migen.genlib.record import Record
+from migen.genlib.io import CRG
+from migen.fhdl import verilog
+
 from litex.build import tools
 
 

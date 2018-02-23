@@ -1,16 +1,16 @@
-from litex.gen import *
-from litex.gen.genlib.record import *
-from litex.gen.genlib import fifo
+from migen import *
+from migen.genlib.record import *
+from migen.genlib import fifo
 
 (DIR_SINK, DIR_SOURCE) = range(2)
 
-def _make_m2s(layout, reset_less=False):
+def _make_m2s(layout):
     r = []
     for f in layout:
         if isinstance(f[1], (int, tuple)):
-            r.append((f[0], f[1], DIR_M_TO_S, reset_less))
+            r.append((f[0], f[1], DIR_M_TO_S))
         else:
-            r.append((f[0], _make_m2s(f[1], reset_less)))
+            r.append((f[0], _make_m2s(f[1])))
     return r
 
 
@@ -34,8 +34,8 @@ class EndpointDescription:
             ("ready", 1, DIR_S_TO_M),
             ("first", 1, DIR_M_TO_S),
             ("last", 1, DIR_M_TO_S),
-            ("payload", _make_m2s(self.payload_layout, True)),
-            ("param", _make_m2s(self.param_layout, True))
+            ("payload", _make_m2s(self.payload_layout)),
+            ("param", _make_m2s(self.param_layout))
         ]
         return full_layout
 
@@ -359,7 +359,7 @@ class StrideConverter(Module):
 # XXX
 
 from copy import copy
-from litex.gen.util.misc import xdir
+from migen.util.misc import xdir
 
 def _rawbits_layout(l):
     if isinstance(l, int):

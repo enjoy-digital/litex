@@ -2,11 +2,11 @@ from functools import partial
 from operator import itemgetter
 import collections
 
-from litex.gen.fhdl.structure import *
-from litex.gen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
-from litex.gen.fhdl.tools import *
-from litex.gen.fhdl.namer import build_namespace
-from litex.gen.fhdl.conv_output import ConvOutput
+from migen.fhdl.structure import *
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
+from migen.fhdl.tools import *
+from migen.fhdl.namer import build_namespace
+from migen.fhdl.conv_output import ConvOutput
 
 
 _reserved_keywords = {

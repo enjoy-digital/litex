@@ -1,8 +1,8 @@
 import unittest
 import random
 
-from litex.gen import *
-from litex.gen.genlib.misc import BitSlip
+from migen import *
+from migen.genlib.misc import BitSlip
 
 
 class BitSlipModel:

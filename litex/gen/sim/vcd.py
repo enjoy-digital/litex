@@ -4,7 +4,7 @@ import os
 from collections import OrderedDict
 import shutil
 
-from litex.gen.fhdl.namer import build_namespace
+from migen.fhdl.namer import build_namespace
 
 
 def vcd_codes():

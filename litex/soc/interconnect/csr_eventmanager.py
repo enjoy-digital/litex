@@ -6,8 +6,8 @@ controllers.
 from functools import reduce
 from operator import or_
 
-from litex.gen import *
-from litex.gen.util.misc import xdir
+from migen import *
+from migen.util.misc import xdir
 
 from litex.soc.interconnect.csr import *
 

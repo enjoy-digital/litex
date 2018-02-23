@@ -2,7 +2,8 @@ import random
 import math
 from copy import deepcopy
 
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect import stream
 
 # TODO: clean up code below

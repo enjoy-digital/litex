@@ -1,7 +1,7 @@
 import unittest
 import os
 
-from litex.gen import *
+from migen import *
 
 from litex.soc.integration.builder import *
 

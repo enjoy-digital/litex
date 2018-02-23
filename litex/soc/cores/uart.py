@@ -1,6 +1,6 @@
-from litex.gen import *
-from litex.gen.genlib.record import Record
-from litex.gen.genlib.cdc import MultiReg
+from migen import *
+from migen.genlib.record import Record
+from migen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *

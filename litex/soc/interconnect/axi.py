@@ -6,8 +6,9 @@
 
 import math
 
-from litex.gen import *
-from litex.gen.genlib.record import *
+from migen import *
+from migen.genlib.record import *
+
 from litex.soc.interconnect import csr_bus
 
 # Layout of AXI4 Lite Bus
@@ -179,7 +180,7 @@ class AXILite2CSR(Module):
         )
 
 
-from litex.gen.sim import run_simulation
+from migen.sim import run_simulation
 from litex.soc.interconnect import csr, csr_bus
 
 def test_axilite2csr():

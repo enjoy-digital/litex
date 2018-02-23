@@ -12,7 +12,7 @@ Note: This encoding is *not* used by DVI/HDMI (that uses a *different* 8b/10b
 scheme called TMDS).
 """
 
-from litex.gen import *
+from migen import *
 
 
 def disparity(word, nbits):

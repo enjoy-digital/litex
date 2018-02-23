@@ -17,7 +17,7 @@
 
 from math import atan, atanh, log, sqrt, pi
 
-from litex.gen import *
+from migen import *
 
 
 class TwoQuadrantCordic(Module):

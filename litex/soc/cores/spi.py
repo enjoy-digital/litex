@@ -1,6 +1,7 @@
 from itertools import product
 
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect.csr import *
 
 

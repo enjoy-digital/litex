@@ -1,4 +1,4 @@
-from litex.gen import *
+from migen import *
 
 
 class Identifier(Module):

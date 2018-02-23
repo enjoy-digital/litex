@@ -1,6 +1,6 @@
-from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg, GrayCounter
-from litex.gen.genlib.cdc import GrayDecoder
+from migen import *
+from migen.genlib.cdc import MultiReg, GrayCounter
+from migen.genlib.cdc import GrayDecoder
 
 from litex.soc.interconnect.csr import *
 

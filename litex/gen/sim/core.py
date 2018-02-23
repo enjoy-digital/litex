@@ -3,18 +3,18 @@ import collections
 import inspect
 from functools import wraps
 
-from litex.gen.fhdl.structure import *
-from litex.gen.fhdl.structure import (_Value, _Statement,
+from migen.fhdl.structure import *
+from migen.fhdl.structure import (_Value, _Statement,
                                   _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
-from litex.gen.fhdl.bitcontainer import value_bits_sign
-from litex.gen.fhdl.tools import (list_targets, list_signals,
+from migen.fhdl.bitcontainer import value_bits_sign
+from migen.fhdl.tools import (list_targets, list_signals,
                               insert_resets, lower_specials)
-from litex.gen.fhdl.simplify import MemoryToArray
-from litex.gen.fhdl.specials import _MemoryLocation
-from litex.gen.fhdl.module import Module
-from litex.gen.genlib.resetsync import AsyncResetSynchronizer
-from litex.gen.sim.vcd import VCDWriter, DummyVCDWriter
+from migen.fhdl.simplify import MemoryToArray
+from migen.fhdl.specials import _MemoryLocation
+from migen.fhdl.module import Module
+from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.sim.vcd import VCDWriter, DummyVCDWriter
 
 
 class ClockState:

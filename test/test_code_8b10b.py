@@ -2,7 +2,7 @@ import unittest
 import random
 from collections import namedtuple
 
-from litex.gen import *
+from migen import *
 
 from litex.soc.cores import code_8b10b
 

@@ -5,7 +5,7 @@ import os
 import sys
 import subprocess
 
-from litex.gen.fhdl.structure import _Fragment
+from migen.fhdl.structure import _Fragment
 
 from litex.build.generic_platform import *
 from litex.build import tools

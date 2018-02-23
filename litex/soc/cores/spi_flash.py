@@ -1,5 +1,5 @@
-from litex.gen import *
-from litex.gen.genlib.misc import timeline
+from migen import *
+from migen.genlib.misc import timeline
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRStatus

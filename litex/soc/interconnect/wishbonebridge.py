@@ -1,8 +1,8 @@
-from litex.gen import *
+from migen import *
 
-from litex.gen.genlib.misc import chooser, WaitTimer
-from litex.gen.genlib.record import Record
-from litex.gen.genlib.fsm import FSM, NextState
+from migen.genlib.misc import chooser, WaitTimer
+from migen.genlib.record import Record
+from migen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import stream
