@@ -11,7 +11,11 @@
 --------
 LiteX is an alternative to MiSoC maintained and used by Enjoy-Digital to build
 our cores, integrate them in complete SoC and load/flash them to the hardware
-and experiment new features.
+and experiment new features. (structure is kept close to MiSoC to ease
+collaboration)
+
+Typical LiteX design flow:
+--------------------------
 
                         +---------------+
                         |FPGA toolchains|
@@ -26,14 +30,11 @@ and experiment new features.
 +----------------------+  |           |
 |LiteX Cores Ecosystem +-->           |
 +----------------------+  +-^-------^-+
- (Eth,,SATA,,DRAM,,USB,     |       |
-  PCIe,Video,etc...)        +       +
+ (Eth, SATA, DRAM, USB,     |       |
+  PCIe, Video, etc...)      +       +
                            board   target
                            file    file
 
-
-The structure of LiteX is kept close to MiSoC to ease collaboration between
-projects.
 
 [> Sub-packages
 ---------------
