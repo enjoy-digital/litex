@@ -39,8 +39,7 @@ projects.
 ---------------
 gen:
   Provides specific or experimental modules to generate HDL that are not integrated
-  in Migen. (For now a full copy of Migen is included in gen, aim is is to only
-  keep specific or experimental modules)
+  in Migen.
 
 build:
   Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to
