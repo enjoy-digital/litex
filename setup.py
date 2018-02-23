@@ -11,7 +11,7 @@ if sys.version_info[:3] < (3, 5):
 
 setup(
     name="litex",
-    version="0.1",
+    version="0.2.dev",
     description="Python tools to design FPGA cores and SoCs",
     long_description=open("README").read(),
     author="Florent Kermarrec",
