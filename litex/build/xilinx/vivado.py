@@ -180,6 +180,13 @@ class XilinxVivadoToolchain:
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
             toolchain_path=None, source=True, run=True, **kwargs):
+        if toolchain_path is None:
+            if sys.platform == "win32":
+                toolchain_path = "C:\\Xilinx"
+            elif sys.platform == "cygwin":
+                toolchain_path = "/cygdrive/c/Xilinx"
+            else:
+                toolchain_path = "/opt/Xilinx/Vivado"
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
@@ -198,8 +205,6 @@ class XilinxVivadoToolchain:
         self._build_batch(platform, sources, edifs, build_name)
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
         if run:
-            if toolchain_path is None:
-                toolchain_path = "/opt/Xilinx/Vivado"
             _run_vivado(build_name, toolchain_path, source)
 
         os.chdir(cwd)
