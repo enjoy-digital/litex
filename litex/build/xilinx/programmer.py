@@ -6,6 +6,42 @@ from litex.build.generic_programmer import GenericProgrammer
 from litex.build.xilinx import common
 
 
+def _run_urjtag(cmds):
+    with subprocess.Popen("jtag", stdin=subprocess.PIPE) as process:
+        process.stdin.write(cmds.encode("ASCII"))
+        process.communicate()
+
+
+class UrJTAG(GenericProgrammer):
+    needs_bitreverse = True
+
+    def __init__(self, cable, flash_proxy_basename=None):
+        GenericProgrammer.__init__(self, flash_proxy_basename)
+        self.cable = cable
+
+    def load_bitstream(self, bitstream_file):
+        cmds = """cable {cable}
+detect
+pld load {bitstream}
+quit
+""".format(bitstream=bitstream_file, cable=self.cable)
+        _run_urjtag(cmds)
+
+    def flash(self, address, data_file):
+        flash_proxy = self.find_flash_proxy()
+        cmds = """cable {cable}
+detect
+pld load "{flash_proxy}"
+initbus fjmem opcode=000010
+frequency 6000000
+detectflash 0
+endian big
+flashmem "{address}" "{data_file}" noverify
+""".format(flash_proxy=flash_proxy, address=address, data_file=data_file,
+           cable=self.cable)
+        _run_urjtag(cmds)
+
+
 class XC3SProg(GenericProgrammer):
     needs_bitreverse = False
 

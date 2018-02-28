@@ -19,9 +19,6 @@ def write_to_file(filename, contents, force_unix=False):
     newline = None
     if force_unix:
         newline = "\n"
-    if os.path.exists(filename):
-        if open(filename, "r", newline=newline).read() == contents:
-            return
     with open(filename, "w", newline=newline) as f:
         f.write(contents)
 
@@ -41,23 +38,20 @@ def versions(path):
             continue
 
 
-def sub_rules(lines, rules, max_matches=1):
-    for line in lines:
-        n = max_matches
-        for pattern, color in rules:
-            line, m = re.subn(pattern, color, line, n)
-            n -= m
-            if not n:
-                break
-        yield line
+def sub_rules(line, rules, max_matches=1):
+    for pattern, color in rules:
+        line, matches = re.subn(pattern, color, line, max_matches)
+        max_matches -= matches
+        if not max_matches:
+            break
+    return line
 
 
 def subprocess_call_filtered(command, rules, *, max_matches=1, **kwargs):
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE,
-                            universal_newlines=True, bufsize=1,
-                            **kwargs)
-    with proc:
-        for line in sub_rules(iter(proc.stdout.readline, ""),
-                              rules, max_matches):
-            sys.stdout.write(line)
-    return proc.returncode
+    with subprocess.Popen(command, stdout=subprocess.PIPE,
+                          universal_newlines=True, bufsize=1,
+                          **kwargs) as proc:
+        with open(proc.stdout.fileno(), errors="ignore", closefd=False) as stdout:
+            for line in stdout:
+                print(sub_rules(line, rules, max_matches), end="")
+        return proc.wait()

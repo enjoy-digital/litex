@@ -2,11 +2,7 @@ import os
 import sys
 try:
     import colorama
-    # install escape sequence translation on Windows
-    if os.getenv("COLORAMA", "") == "force":
-        colorama.init(strip=False)
-    else:
-        colorama.init()
+    colorama.init()  # install escape sequence translation on Windows
     _have_colorama = True
 except ImportError:
     _have_colorama = False
@@ -35,54 +31,43 @@ if _have_colorama:
     ]
 
 
-def settings(path, name=None, ver=None, first=None):
-    if first == "version":
-        if not ver:
-            vers = tools.versions(path)
-            ver = max(vers)
+def settings(path, ver=None, sub=None):
+    if ver is None:
+        vers = list(tools.versions(path))
+        if not vers:
+            raise OSError("no version directory for Xilinx tools found in "
+                          + path)
+        ver = max(vers)
 
-        full = os.path.join(path, str(ver), name)
-
-    elif first == "name":
-        path = os.path.join(path, name)
-
-        if not ver:
-            vers = tools.versions(path)
-            ver = max(vers)
-
-        full = os.path.join(path, str(ver))
-
-    if not vers:
-        raise OSError(
-            "no version directory for Xilinx tools found in {}".format(
-                path))
+    full = os.path.join(path, str(ver))
+    if sub:
+        full = os.path.join(full, sub)
 
     search = [64, 32]
     if tools.arch_bits() == 32:
-        search = [32]
+        search.reverse()
 
     if sys.platform == "win32" or sys.platform == "cygwin":
         script_ext = "bat"
     else:
         script_ext = "sh"
 
-    searched_in = []
     for b in search:
         settings = os.path.join(full, "settings{0}.{1}".format(b, script_ext))
         if os.path.exists(settings):
             return settings
-        searched_in.append(settings)
 
-    raise OSError(
-        "no Xilinx tools settings file found.\n"
-        "Looked in:\n"
-        "   " +
-        "\n   ".join(searched_in))
+    raise OSError("no Xilinx tools settings file found")
 
 
 class XilinxMultiRegImpl(MultiRegImpl):
     def __init__(self, *args, **kwargs):
         MultiRegImpl.__init__(self, *args, **kwargs)
+        i = self.i
+        if not hasattr(i, "attr"):
+            i0, i = i, Signal()
+            self.comb += i.eq(i0)
+        self.regs[0].attr.add("mr_ff")
         for r in self.regs:
             r.attr.add("async_reg")
             r.attr.add("no_shreg_extract")
@@ -103,12 +88,11 @@ class XilinxAsyncResetSynchronizerImpl(Module):
         self.specials += [
             Instance("FDPE", p_INIT=1, i_D=0, i_PRE=async_reset,
                 i_CE=1, i_C=cd.clk, o_Q=rst_meta,
-                attr={"async_reg", "ars_ff"}),
+                attr={"async_reg", "ars_ff1"}),
             Instance("FDPE", p_INIT=1, i_D=rst_meta, i_PRE=async_reset,
                 i_CE=1, i_C=cd.clk, o_Q=cd.rst,
-                attr={"async_reg", "ars_ff"})
+                attr={"async_reg", "ars_ff2"})
         ]
-        async_reset.attr.add("ars_false_path")
 
 
 class XilinxAsyncResetSynchronizer:
@@ -139,27 +123,31 @@ class XilinxDifferentialOutput:
         return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
 
-class XilinxDDROutputImpl(Module):
+xilinx_special_overrides = {
+    MultiReg:               XilinxMultiReg,
+    AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
+    DifferentialInput:      XilinxDifferentialInput,
+    DifferentialOutput:     XilinxDifferentialOutput
+}
+
+
+class XilinxDDROutputImplS6(Module):
     def __init__(self, i1, i2, o, clk):
         self.specials += Instance("ODDR2",
-                p_DDR_ALIGNMENT="NONE", p_INIT=0, p_SRTYPE="SYNC",
+                p_DDR_ALIGNMENT="C0", p_INIT=0, p_SRTYPE="SYNC",
                 i_C0=clk, i_C1=~clk, i_CE=1, i_S=0, i_R=0,
                 i_D0=i1, i_D1=i2, o_Q=o,
         )
 
 
-class XilinxDDROutput:
+class XilinxDDROutputS6:
     @staticmethod
     def lower(dr):
-        return XilinxDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+        return XilinxDDROutputImplS6(dr.i1, dr.i2, dr.o, dr.clk)
 
 
-xilinx_special_overrides = {
-    MultiReg:               XilinxMultiReg,
-    AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
-    DifferentialInput:      XilinxDifferentialInput,
-    DifferentialOutput:     XilinxDifferentialOutput,
-    DDROutput:              XilinxDDROutput
+xilinx_s6_special_overrides = {
+    DDROutput:              XilinxDDROutputS6
 }
 
 
@@ -178,6 +166,60 @@ class XilinxDDROutputS7:
         return XilinxDDROutputImplS7(dr.i1, dr.i2, dr.o, dr.clk)
 
 
+class XilinxDDRInputImplS7(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("IDDR",
+                p_DDR_CLK_EDGE="SAME_EDGE_PIPELINED",
+                i_C=clk, i_CE=1, i_S=0, i_R=0,
+                o_D=i, i_Q1=o1, i_Q2=o2,
+        )
+
+
+class XilinxDDRInputS7:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplS7(dr.i, dr.o1, dr.o2, dr.clk)
+
+
 xilinx_s7_special_overrides = {
-    DDROutput:              XilinxDDROutputS7
+    DDROutput:              XilinxDDROutputS7,
+    DDRInput:               XilinxDDRInputS7
+}
+
+
+class XilinxDDROutputImplKU(Module):
+    def __init__(self, i1, i2, o, clk):
+        self.specials += Instance("ODDRE1",
+                i_C=clk, i_SR=0,
+                i_D1=i1, i_D2=i2, o_Q=o,
+        )
+
+
+class XilinxDDROutputKU:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDROutputImplKU(dr.i1, dr.i2, dr.o, dr.clk)
+
+
+class XilinxDDRInputImplKU(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("IDDRE1",
+            p_DDR_CLK_EDGE="SAME_EDGE_PIPELINED",
+            p_IS_C_INVERTED=0,
+            i_D=i,
+            o_Q1=o1, o_Q2=o2,
+            i_C=clk, i_CB=~clk,
+            i_R=0
+        )
+
+
+class XilinxDDRInputKU:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplKU(dr.i, dr.o1, dr.o2, dr.clk)
+
+
+xilinx_ku_special_overrides = {
+    DDROutput:              XilinxDDROutputKU,
+    DDRInput:               XilinxDDRInputKU
 }

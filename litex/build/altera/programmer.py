@@ -6,8 +6,7 @@ from litex.build.generic_programmer import GenericProgrammer
 class USBBlaster(GenericProgrammer):
     needs_bitreverse = False
 
-    def load_bitstream(self, bitstream_file, port=0):
-        usb_port = "[USB-{}]".format(port)
+    def load_bitstream(self, bitstream_file, cable_suffix=""):
         subprocess.call(["quartus_pgm", "-m", "jtag", "-c",
-                         "USB-Blaster{}".format(usb_port), "-o",
+                         "USB-Blaster{}".format(cable_suffix), "-o",
                          "p;{}".format(bitstream_file)])
