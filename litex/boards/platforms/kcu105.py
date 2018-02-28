@@ -198,23 +198,19 @@ _io = [
         Subsignal("n", Pins("P1"))
     ),
 
-    ("sfp_tx", 0,
-        Subsignal("p", Pins("U4")),
-        Subsignal("n", Pins("U3"))
-    ),
-    ("sfp_rx", 0,
-        Subsignal("p", Pins("T2")),
-        Subsignal("n", Pins("T1"))
+    ("sfp", 0,
+        Subsignal("txp", Pins("U4")),
+        Subsignal("txn", Pins("U3")),
+        Subsignal("rxp", Pins("T2")),
+        Subsignal("rxn", Pins("T1"))
     ),
     ("sfp_tx_disable_n", 0, Pins("AL8"), IOStandard("LVCMOS18")),
 
-    ("sfp_tx", 1,
-        Subsignal("p", Pins("W4")),
-        Subsignal("n", Pins("W3"))
-    ),
-    ("sfp_rx", 1,
-        Subsignal("p", Pins("V2")),
-        Subsignal("n", Pins("V1"))
+    ("sfp", 1,
+        Subsignal("txp", Pins("W4")),
+        Subsignal("txn", Pins("W3")),
+        Subsignal("rxp", Pins("V2")),
+        Subsignal("rxn", Pins("V1"))		
     ),
     ("sfp_tx_disable_n", 1, Pins("D28"), IOStandard("LVCMOS18")),
 ]
