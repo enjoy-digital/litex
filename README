@@ -70,7 +70,8 @@ Migen documentation can be found here: https://m-labs.hk/migen/manual
 0. If cloned from Git without the --recursive option, get the submodules:
   git submodule update --init
 
-1. Install Python 3.5+, FPGA vendor's development tools and JTAG tools.
+1. Install Python 3.5, Migen and FPGA vendor's development tools.
+   Get Migen from: https://github.com/m-labs/migen
 
 2. Compile and install binutils. Take the latest version from GNU.
   mkdir build && cd build
