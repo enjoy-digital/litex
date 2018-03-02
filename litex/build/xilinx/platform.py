@@ -1,3 +1,5 @@
+import os
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.xilinx import common, vivado, ise
 
