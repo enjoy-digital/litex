@@ -27,7 +27,7 @@ _io = [
     ("user_btn", 2, Pins("J16"), IOStandard("LVCMOS33")),
     ("user_btn", 3, Pins("H13"), IOStandard("LVCMOS33")),
 
-    ("clk100", 0, Pins("R2"), IOStandard("LVCMOS33")),
+    ("clk100", 0, Pins("R2"), IOStandard("SSTL135")),
 
     ("cpu_reset", 0, Pins("C18"), IOStandard("LVCMOS33")),
 
