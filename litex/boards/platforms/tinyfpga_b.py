@@ -9,12 +9,6 @@ _io = [
         IOStandard("LVCMOS33")
     ),
 
-    ("serial", 0,
-        Subsignal("tx", Pins("B2")),
-        Subsignal("rx", Pins("A2")),
-        IOStandard("LVCMOS33")
-    ),
-
     ("spiflash", 0,
         Subsignal("cs_n", Pins("F7"), IOStandard("LVCMOS33")),
         Subsignal("clk", Pins("G7"), IOStandard("LVCMOS33")),
@@ -31,6 +25,16 @@ _connectors = [
     # E8, Pin 20 (Input only)
     ("GPIO", "B2 A2 A1 B1 C1 D1 E1 G1 H1 J1 D9 C9 A9 A8 A7 A6"),
     ("GBIN", "E8")
+]
+
+
+# Default peripherals
+serial = [
+    ("serial", 0,
+        Subsignal("tx", Pins("GPIO:0")),
+        Subsignal("rx", Pins("GPIO:1")),
+        IOStandard("LVCMOS33")
+    )
 ]
 
 
