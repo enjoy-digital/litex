@@ -46,19 +46,19 @@ Typical LiteX design flow
 Sub-packages
 ------------
 
-* gen -
+* [gen](litex/gen) -
   Provides specific or experimental modules to generate HDL that are not integrated
   in Migen.
 
-* build -
+* [build](litex/build) -
   Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to
   simulate HDL code or full SoCs.
 
-* soc -
+* [soc](litex/soc) -
   Provides definitions/modules to build cores (bus, bank, flow), cores and tools
   to build a SoC from such cores.
 
-* boards -
+* [boards](litex/boards) -
   Provides platforms and targets for the supported boards.
 
 
