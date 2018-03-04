@@ -94,25 +94,34 @@ Quick start guide with Conda
  0. Get miniconda by following instructions at https://conda.io/miniconda.html
 
  1. Clone LiteX
-   `git clone --recurse-submodules https://github.com/enjoy-digital/litex.git`
+    ```shell
+    git clone --recurse-submodules https://github.com/enjoy-digital/litex.git
+    ```
 
  2. Create a LiteX environment from [environment.yml](environment.yml)
-   `conda env create -f environment.yml`
+    ```shell
+    conda env create -f environment.yml
+    ```
 
  3. Enter conda environment
-    `conda activate litex`
+    ```shell
+    conda activate litex
+    ```
 
  4. Build the target of your board...:
     Go to [boards/targets](litex/boards/targets) and run the target you want to
     build. For example;
-    `cd litex/boards/targets; python arty.py --help`
-
+    ```
+    cd litex/boards/targets; python arty.py --help
+    ```
 
 Quick start guide for advanced users
 ------------------------------------
 
  0. If cloned from Git without the --recursive option, get the submodules:
-    `git submodule update --init`
+    ```shell
+    git submodule update --init
+    ```
 
  1. Install Python 3.5, Migen and FPGA vendor's development tools.
     Get Migen from: https://github.com/m-labs/migen
@@ -140,7 +149,9 @@ Quick start guide for advanced users
  4. Build the target of your board...:
     Go to [boards/targets](litex/boards/targets) and run the target you want to
     build. For example;
-    `cd litex/boards/targets; python arty.py --help`
+    ```shell
+    cd litex/boards/targets; python arty.py --help
+    ```
 
  5. ... and/or install Verilator and test LiteX on your computer:
 
