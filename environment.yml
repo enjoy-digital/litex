@@ -3,6 +3,7 @@ channels:
  - timvideos
 dependencies:
  - python=3.6
+ - pypandoc
  - pip
  - binutils-lm32-elf
  - gcc-lm32-elf-nostdc

@@ -8,12 +8,20 @@ from setuptools import find_packages
 if sys.version_info[:3] < (3, 5):
     raise SystemExit("You need Python 3.5+")
 
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+except(IOError, ImportError) as e:
+    import logging
+    logging.warning("Unable to convert README to rst format!", exc_info=e)
+    long_description = open('README.md').read()
+
 
 setup(
     name="litex",
     version="0.2.dev",
     description="Python tools to design FPGA cores and SoCs",
-    long_description=open("README.md").read(),
+    long_description=long_description,
     author="Florent Kermarrec",
     author_email="florent@enjoy-digital.fr",
     url="http://enjoy-digital.fr",
