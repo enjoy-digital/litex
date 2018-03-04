@@ -1,0 +1,19 @@
+language: python
+python:
+ - "3.6"
+
+install:
+ - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+ - bash miniconda.sh -b -p $HOME/miniconda
+ - export PATH="$HOME/miniconda/bin:$PATH"
+ - hash -r
+ - conda config --set always_yes yes --set changeps1 no
+
+before_script:
+ - export -f travis_nanoseconds
+ - export -f travis_fold
+ - export -f travis_time_start
+ - export -f travis_time_finish
+
+script:
+ - ./.travis-build-socs.sh
