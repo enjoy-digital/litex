@@ -11,4 +11,4 @@ install:
 
 script:
  - conda env create -f environment.yml
- - source activate litex
+ - ./.travis-build-socs.sh
