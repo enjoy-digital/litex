@@ -9,6 +9,12 @@ install:
  - hash -r
  - conda config --set always_yes yes --set changeps1 no
 
+before_script:
+ - export -f travis_nanoseconds
+ - export -f travis_fold
+ - export -f travis_time_start
+ - export -f travis_time_finish
+
 script:
  - conda env create -f environment.yml
  - ./.travis-build-socs.sh
