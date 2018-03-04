@@ -16,5 +16,4 @@ before_script:
  - export -f travis_time_finish
 
 script:
- - conda env create -f environment.yml
  - ./.travis-build-socs.sh

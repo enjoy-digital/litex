@@ -2,7 +2,16 @@
 
 set -e
 
+travis_fold start "environment.create"
+travis_time_start
+echo "Setting up basic conda environment"
+echo "-------------------------------------------------------------------"
+conda env create -f environment.yml
 source activate litex
+echo "-------------------------------------------------------------------"
+travis_time_finish
+travis_fold end "environment.create"
+echo "-"
 
 SOC_FILES=$(find litex/boards/targets -name \*.py | grep -v sim | grep -v "__")
 
@@ -26,4 +35,5 @@ for SOC_FILE in $SOC_FILES; do
 	find soc_*$TARGET* | sort
 	echo "-------------------------------------------------------------------"
 	travis_fold end "$SOC.2"
+	echo "-"
 done
