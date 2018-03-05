@@ -1,3 +1,4 @@
+import inspect
 from operator import itemgetter
 
 from migen import *
@@ -256,6 +257,16 @@ class SoCCore(Module):
             name = name + "_" + memory.name_override
         try:
             return self.csr_map[name]
+        except KeyError as e:
+            raise RuntimeError("""\
+Unable to find {} in your SoC's csr address map.
+
+Check {}.csr_map in {}
+
+Found {} in the csr_map""".format(
+                name, self.__class__.__name__, inspect.getfile(self.__class__),
+                ", ".join(self.csr_map.keys()))
+            ) from e
         except ValueError:
             return None
 
