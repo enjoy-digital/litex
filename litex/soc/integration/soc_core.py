@@ -258,15 +258,12 @@ class SoCCore(Module):
         try:
             return self.csr_map[name]
         except KeyError as e:
-            raise RuntimeError("""\
-Unable to find {} in your SoC's csr address map.
-
-Check {}.csr_map in {}
-
-Found {} in the csr_map""".format(
-                name, self.__class__.__name__, inspect.getfile(self.__class__),
-                ", ".join(self.csr_map.keys()))
-            ) from e
+            msg = "Undefined \"{}\" CSR.\n".format(name)
+            msg += "Avalaible CSRs in {} ({}):\n".format(
+                self.__class__.__name__, inspect.getfile(self.__class__))
+            for k in sorted(self.csr_map.keys()):
+                msg += "- {}\n".format(k)
+            raise RuntimeError(msg)
         except ValueError:
             return None
 
