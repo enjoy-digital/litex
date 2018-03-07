@@ -488,6 +488,7 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
+	printf("\n");
 	printf("\e[1m        __   _ __      _  __\e[0m\n");
 	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
 	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
