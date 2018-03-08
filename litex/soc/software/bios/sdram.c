@@ -222,11 +222,17 @@ void sdrwloff(void)
 
 static int write_level(int *delay, int *high_skew)
 {
-	int i;
+	int i, j;
 	int dq_address;
 	unsigned char dq;
+	int err_ddrphy_wdly;
 	int ok;
 
+	err_ddrphy_wdly = ERR_DDRPHY_DELAY;
+#ifdef CSR_DDRPHY_WDLY_DQS_TAPS_ADDR
+	printf("Write leveling dqs taps offset: %d\n", ddrphy_wdly_dqs_taps_read());
+	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_wdly_dqs_taps_read();
+#endif
 	printf("Write leveling: ");
 
 	sdrwlon();
@@ -236,6 +242,10 @@ static int write_level(int *delay, int *high_skew)
 		ddrphy_dly_sel_write(1 << i);
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
+#ifdef CSR_DDRPHY_WDLY_DQS_TAPS_ADDR
+		for(j=0; j<ddrphy_wdly_dqs_taps_read(); j++)
+			ddrphy_wdly_dqs_inc_write(1);
+#endif
 
 		delay[i] = 0;
 
@@ -250,7 +260,7 @@ static int write_level(int *delay, int *high_skew)
 			high_skew[i] = 1;
 			while(dq != 0) {
 				delay[i]++;
-				if(delay[i] >= ERR_DDRPHY_DELAY)
+				if(delay[i] >= err_ddrphy_wdly)
 					break;
 				ddrphy_wdly_dq_inc_write(1);
 				ddrphy_wdly_dqs_inc_write(1);
@@ -263,7 +273,7 @@ static int write_level(int *delay, int *high_skew)
 
 		while(dq == 0) {
 			delay[i]++;
-			if(delay[i] >= ERR_DDRPHY_DELAY)
+			if(delay[i] >= err_ddrphy_wdly)
 				break;
 			ddrphy_wdly_dq_inc_write(1);
 			ddrphy_wdly_dqs_inc_write(1);
@@ -278,7 +288,7 @@ static int write_level(int *delay, int *high_skew)
 	ok = 1;
 	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
 		printf("%2d%c ", delay[i], high_skew[i] ? '*' : ' ');
-		if(delay[i] >= ERR_DDRPHY_DELAY)
+		if(delay[i] >= err_ddrphy_wdly)
 			ok = 0;
 	}
 
@@ -653,7 +663,13 @@ int sdrinit(void)
 
 	init_sequence();
 #ifdef CSR_DDRPHY_BASE
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(0);
+#endif
 	sdrlevel();
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(1);
+#endif
 #endif
 	sdram_dfii_control_write(DFII_CONTROL_SEL);
 	if(!memtest())
