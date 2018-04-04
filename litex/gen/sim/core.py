@@ -14,7 +14,8 @@ from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
 from migen.fhdl.module import Module
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.sim.vcd import VCDWriter, DummyVCDWriter
+
+from litex.gen.sim.vcd import VCDWriter, DummyVCDWriter
 
 
 class ClockState:
