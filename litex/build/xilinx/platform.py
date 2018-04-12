@@ -10,6 +10,7 @@ class XilinxPlatform(GenericPlatform):
     def __init__(self, *args, toolchain="ise", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
+        self.ips = set()
         if toolchain == "ise":
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
@@ -19,6 +20,9 @@ class XilinxPlatform(GenericPlatform):
 
     def add_edif(self, filename):
         self.edifs.add((os.path.abspath(filename)))
+
+    def add_ip(self, filename):
+        self.ips.add((os.path.abspath(filename)))
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.xilinx_special_overrides)
