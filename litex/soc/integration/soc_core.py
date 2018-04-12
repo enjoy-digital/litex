@@ -146,8 +146,8 @@ class SoCCore(Module):
             else:
                 self.submodules.uart_phy = uart.RS232PHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = uart.UART(self.uart_phy)
-        #else:
-        #    del self.soc_interrupt_map["uart"]
+        else:
+            del self.soc_interrupt_map["uart"]
 
         if ident:
             if ident_version:
