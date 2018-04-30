@@ -146,8 +146,8 @@ class SoCCore(Module):
             else:
                 self.submodules.uart_phy = uart.RS232PHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = uart.UART(self.uart_phy)
-        else:
-            del self.soc_interrupt_map["uart"]
+        #else:
+        #    del self.soc_interrupt_map["uart"]
 
         if ident:
             if ident_version:
@@ -158,8 +158,8 @@ class SoCCore(Module):
 
         if with_timer:
             self.submodules.timer0 = timer.Timer()
-        else:
-            del self.soc_interrupt_map["timer0"]
+        #else:
+        #    del self.soc_interrupt_map["timer0"]
 
         # Invert the interrupt map.
         interrupt_rmap = {}
