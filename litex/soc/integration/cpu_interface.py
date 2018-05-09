@@ -34,13 +34,13 @@ def get_cpu_mak(cpu):
             triple = "or1k-linux"
             cpuflags += "-mffl1 -maddc"
     elif cpu == "picorv32":
-        assert not clang, "riscv32 not supported with clang."
-        triple = "riscv32-unknown-elf"
+        assert not clang, "picorv32 not supported with clang."
+        triple = "riscv64-unknown-elf"
         cpuflags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
         clang = False
     elif cpu == "vexriscv":
         assert not clang, "vexrisv not supported with clang."
-        triple = "riscv32-unknown-elf"
+        triple = "riscv64-unknown-elf"
         cpuflags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
         clang = False
     else:
