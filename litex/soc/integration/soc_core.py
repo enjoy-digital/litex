@@ -108,7 +108,7 @@ class SoCCore(Module):
                 self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "or1k":
                 self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "riscv32":
+            elif cpu_type == "picorv32":
                 self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))

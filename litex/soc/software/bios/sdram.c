@@ -18,7 +18,7 @@ static void cdelay(int i)
 		__asm__ volatile("nop");
 #elif defined (__or1k__)
 		__asm__ volatile("l.nop");
-#elif defined (__riscv)
+#elif defined (__picorv32__)
 		__asm__ volatile("nop");
 #else
 #error Unsupported architecture

@@ -497,9 +497,9 @@ int main(int i, char **c)
 #ifdef __lm32__
 	printf("\e[1mLM32\e[0m\n");
 #elif __or1k__
-	printf("\e[1mOR1K\e[0m\n");
-#elif __riscv
-	printf("\e[1mRISC-V\e[0m\n");
+	printf("\e[1mMOR1K\e[0m\n");
+#elif __picorv32__
+	printf("\e[1mPicoRV32\e[0m\n");
 #else
 	printf("\e[1mUnknown\e[0m\n");
 #endif

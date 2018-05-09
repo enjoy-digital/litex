@@ -34,7 +34,7 @@ void flush_cpu_icache(void)
 
 	for (i = 0; i < cache_size; i += cache_block_size)
 		mtspr(SPR_ICBIR, i);
-#elif defined (__riscv)
+#elif defined (__picorv32__)
 	/* no instruction cache */
 	asm volatile("nop");
 #else
@@ -65,7 +65,7 @@ void flush_cpu_dcache(void)
 
 	for (i = 0; i < cache_size; i += cache_block_size)
 		mtspr(SPR_DCBIR, i);
-#elif defined (__riscv)
+#elif defined (__picorv32__)
 	/* no data cache */
 	asm volatile("nop");
 #else
@@ -77,21 +77,8 @@ void flush_cpu_dcache(void)
 void flush_l2_cache(void)
 {
 	unsigned int i;
-	register unsigned int addr;
-	register unsigned int dummy;
-
 	for(i=0;i<2*L2_SIZE/4;i++) {
-		addr = MAIN_RAM_BASE + i*4;
-#if defined (__lm32__)
-		__asm__ volatile("lw %0, (%1+0)\n":"=r"(dummy):"r"(addr));
-#elif defined (__or1k__)
-		__asm__ volatile("l.lwz %0, 0(%1)\n":"=r"(dummy):"r"(addr));
-#elif defined (__riscv)
-	/* FIXME */
-	asm volatile("nop");
-#else
-#error Unsupported architecture
-#endif
+		((volatile unsigned int *) MAIN_RAM_BASE)[i];
 	}
 }
 #endif
