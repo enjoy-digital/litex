@@ -36,6 +36,21 @@ Typical LiteX design flow:
                            file    file
 
 
+LiteX already supports various softcores CPUs: LM32, Mor1kx, PicoRV32, VexRiscv
+and is compatible with the LiteX's Cores Ecosystem:
+
+- LiteDRAM: https://github.com/enjoy-digital/litedram
+- LiteEth: https://github.com/enjoy-digital/liteeth
+- LitePCIe: https://github.com/enjoy-digital/litepcie
+- LiteSATA: https://github.com/enjoy-digital/litesata
+- LiteUSB: https://github.com/enjoy-digital/litesata
+- LiteSDCard: https://github.com/enjoy-digital/litesdcard
+- LiteICLink: https://github.com/enjoy-digital/liteiclink
+- LiteJESD204B: https://github.com/enjoy-digital/litejesd204b
+- LiteVideo: https://github.com/enjoy-digital/litevideo
+- LiteScope: https://github.com/enjoy-digital/litescope
+
+
 [> Sub-packages
 ---------------
 gen:
@@ -63,6 +78,8 @@ and multiple examples provided! You can even run Linux on your FPGA using LiteX
 very easily!
 
 Migen documentation can be found here: https://m-labs.hk/migen/manual
+
+FPGA lessons/tutorials can be found at: https://github.com/enjoy-digital/fpga_101
 
 [> Medium Quick start guide with Conda
 -----------------------------------------
