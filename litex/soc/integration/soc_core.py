@@ -4,7 +4,7 @@ from operator import itemgetter
 from migen import *
 
 from litex.soc.cores import identifier, timer, uart
-from litex.soc.cores.cpu import lm32, mor1kx, picorv32
+from litex.soc.cores.cpu import lm32, mor1kx, picorv32, vexriscv
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 
 
@@ -110,6 +110,8 @@ class SoCCore(Module):
                 self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "picorv32":
                 self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
+            elif cpu_type == "vexriscv":
+                self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_wb_master(self.cpu_or_bridge.ibus)

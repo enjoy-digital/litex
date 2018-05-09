@@ -38,6 +38,8 @@ static inline unsigned int irq_getie(void)
 	return !!(mfspr(SPR_SR) & SPR_SR_IEE);
 #elif defined (__picorv32__)
 	return _irq_enabled != 0;
+#elif defined (__vexriscv__)
+	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 #else
 #error Unsupported architecture
 #endif
@@ -57,6 +59,8 @@ static inline void irq_setie(unsigned int ie)
         _irq_enable();
     else
         _irq_disable();
+#elif defined (__vexriscv__)
+	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 #else
 #error Unsupported architecture
 #endif
@@ -74,6 +78,10 @@ static inline unsigned int irq_getmask(void)
     // PicoRV32 interrupt mask bits are high-disabled. This is the inverse of how
     // LiteX sees things.
     return ~_irq_mask;
+#elif defined (__vexriscv__)
+	unsigned int mask;
+	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_IRQ_MASK));
+	return mask;
 #else
 #error Unsupported architecture
 #endif
@@ -89,6 +97,8 @@ static inline void irq_setmask(unsigned int mask)
     // PicoRV32 interrupt mask bits are high-disabled. This is the inverse of how
     // LiteX sees things.
     _irq_setmask(~mask);
+#elif defined (__vexriscv__)
+	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
 #else
 #error Unsupported architecture
 #endif
@@ -104,6 +114,10 @@ static inline unsigned int irq_pending(void)
 	return mfspr(SPR_PICSR);
 #elif defined (__picorv32__)
 	return _irq_pending;
+#elif defined (__vexriscv__)
+	unsigned int pending;
+	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_IRQ_PENDING));
+	return pending;
 #else
 #error Unsupported architecture
 #endif

@@ -7,7 +7,8 @@ from litex.soc.interconnect.csr import CSRStatus
 cpu_endianness = {
     "lm32": "big",
     "or1k": "big",
-    "picorv32": "little"
+    "picorv32": "little",
+    "vexriscv": "little"
 }
 
 def get_cpu_mak(cpu):
@@ -37,6 +38,11 @@ def get_cpu_mak(cpu):
         triple = "riscv32-unknown-elf"
         cpuflags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
         clang = False
+    elif cpu == "vexriscv":
+        assert not clang, "vexrisv not supported with clang."
+        triple = "riscv32-unknown-elf"
+        cpuflags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
+        clang = False
     else:
         raise ValueError("Unsupported CPU type: "+cpu)
 
@@ -54,7 +60,8 @@ def get_linker_output_format(cpu_type):
     linker_output_formats = {
         "lm32": "elf32-lm32",
         "or1k": "elf32-or1k",
-        "picorv32": "elf32-littleriscv"
+        "picorv32": "elf32-littleriscv",
+        "vexriscv": "elf32-littleriscv"
     }
     return "OUTPUT_FORMAT(\"" + linker_output_formats[cpu_type] + "\")\n"
 

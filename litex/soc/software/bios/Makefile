@@ -13,7 +13,11 @@ all: bios.bin
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	chmod -x $@
+ifeq ($(CPUENDIANNESS),little)
+	$(PYTHON) -m litex.soc.tools.mkmscimg $@ --little
+else
 	$(PYTHON) -m litex.soc.tools.mkmscimg $@
+endif
 
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 

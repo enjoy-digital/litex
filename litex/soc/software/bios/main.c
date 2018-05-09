@@ -500,6 +500,8 @@ int main(int i, char **c)
 	printf("\e[1mMOR1K\e[0m\n");
 #elif __picorv32__
 	printf("\e[1mPicoRV32\e[0m\n");
+#elif __vexriscv__
+	printf("\e[1mVexRiscv\e[0m\n");
 #else
 	printf("\e[1mUnknown\e[0m\n");
 #endif

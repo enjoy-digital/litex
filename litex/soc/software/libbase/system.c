@@ -4,6 +4,10 @@
 #include <spr-defs.h>
 #endif
 
+#ifdef __vexriscv__
+#include <csr-defs.h>
+#endif
+
 #include <system.h>
 #include <generated/mem.h>
 #include <generated/csr.h>
@@ -37,6 +41,15 @@ void flush_cpu_icache(void)
 #elif defined (__picorv32__)
 	/* no instruction cache */
 	asm volatile("nop");
+#elif defined (__vexriscv__)
+	asm volatile(
+		".word(0x400F)\n"
+		"nop\n"
+		"nop\n"
+		"nop\n"
+		"nop\n"
+		"nop\n"
+	);
 #else
 #error Unsupported architecture
 #endif
@@ -68,6 +81,14 @@ void flush_cpu_dcache(void)
 #elif defined (__picorv32__)
 	/* no data cache */
 	asm volatile("nop");
+#elif defined (__vexriscv__)
+	unsigned long cache_info;
+	asm volatile ("csrr %0, %1" : "=r"(cache_info) : "i"(CSR_DCACHE_INFO));
+	unsigned long cache_way_size = cache_info & 0xFFFFF;
+	unsigned long cache_line_size = (cache_info >> 20) & 0xFFF;
+	for(register unsigned long idx = 0;idx < cache_way_size;idx += cache_line_size){
+		asm volatile("mv x10, %0 \n .word(0b01110000000001010101000000001111)"::"r"(idx));
+	}
 #else
 #error Unsupported architecture
 #endif
