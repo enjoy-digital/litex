@@ -7,27 +7,37 @@ import serial
 import threading
 import argparse
 
-# TODO: cleanup getkey function
+
 if sys.platform == "win32":
-    def getkey():
-        import msvcrt
-        return msvcrt.getch()
+    import msvcrt
+    class Console:
+        def configure(self):
+            pass
+
+        def unconfigure(self):
+            pass
+
+        def getkey(self):
+            return msvcrt.getch()
 else:
-    def getkey():
-        import termios
-        fd = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
-        new = termios.tcgetattr(fd)
-        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
-        new[6][termios.VMIN] = 1
-        new[6][termios.VTIME] = 0
-        termios.tcsetattr(fd, termios.TCSANOW, new)
-        c = None
-        try:
-            c = os.read(fd, 1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSAFLUSH, old)
-        return c
+    import termios
+    class Console:
+        def __init__(self):
+            self.fd = sys.stdin.fileno()
+            self.default_settings = termios.tcgetattr(self.fd)
+
+        def configure(self):
+            settings = termios.tcgetattr(self.fd)
+            settings[3] = settings[3] & ~termios.ICANON & ~termios.ECHO
+            settings[6][termios.VMIN] = 1
+            settings[6][termios.VTIME] = 0
+            termios.tcsetattr(self.fd, termios.TCSANOW, settings)
+
+        def unconfigure(self):
+            termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.default_settings)
+
+        def getkey(self):
+            return os.read(self.fd, 1)
 
 
 sfl_prompt_req = b"F7:    boot from serial\n"
@@ -118,6 +128,8 @@ class LiteXTerm:
 
         self.prompt_detect_buffer = bytes(len(sfl_prompt_req))
         self.magic_detect_buffer = bytes(len(sfl_magic_req))
+
+        self.console = Console()
 
     def open(self, port, baudrate):
         if hasattr(self, "port"):
@@ -242,7 +254,7 @@ class LiteXTerm:
     def writer(self):
         try:
             while self.writer_alive:
-                b = getkey()
+                b = self.console.getkey()
                 if b == b"\x03":
                     self.stop()
                 elif b == b"\n":
@@ -292,13 +304,16 @@ def _get_args():
 def main():
     args = _get_args()
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr)
+    term.console.configure()
     try:
         term.open(args.port, args.speed)
         term.start()
         term.join(True)
+    except KeyboardInterrupt:
+        term.console.unconfigure()
     finally:
+        term.console.unconfigure()
         term.close()
-
 
 if __name__ == "__main__":
     main()
