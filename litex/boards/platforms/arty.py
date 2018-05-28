@@ -109,10 +109,10 @@ _io = [
 ]
 
 _connectors = [
-    ("pmoda", 0, Pins("G13 B11 A11 D12 D13 B18 A18 K16"), IOStandard("LVCMOS33")),
-    ("pmodb", 0, Pins("E15 E16 D15 C15 J17 J18 K15 J15"), IOStandard("LVCMOS33")),
-    ("pmodc", 0, Pins("U12 V12 V10 V11 U14 V14 T13 U13"), IOStandard("LVCMOS33")),
-    ("pmodd", 0, Pins("D4 D3 F4 F3 E2 D2 H2 G2"), IOStandard("LVCMOS33")),   
+    ("pmoda", "G13 B11 A11 D12 D13 B18 A18 K16"),
+    ("pmodb", "E15 E16 D15 C15 J17 J18 K15 J15"),
+    ("pmodc", "U12 V12 V10 V11 U14 V14 T13 U13"),
+    ("pmodd", "D4 D3 F4 F3 E2 D2 H2 G2"),   
 ]
 
 class Platform(XilinxPlatform):
@@ -120,7 +120,7 @@ class Platform(XilinxPlatform):
     default_clk_period = 10.0
 
     def __init__(self, toolchain="vivado", programmer="vivado"):
-        XilinxPlatform.__init__(self, "xc7a35ticsg324-1L", _io,
+        XilinxPlatform.__init__(self, "xc7a35ticsg324-1L", _io, _connectors,
                                 toolchain=toolchain)
         self.toolchain.bitstream_commands = \
             ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
