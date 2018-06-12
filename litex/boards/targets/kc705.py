@@ -12,7 +12,7 @@ from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
 from litedram.modules import MT8JTF12864
-from litedram.phy import k7ddrphy
+from litedram.phy import s7ddrphy
 
 from liteeth.phy import LiteEthPHY
 from liteeth.core.mac import LiteEthMAC
@@ -89,7 +89,7 @@ class BaseSoC(SoCSDRAM):
         self.submodules.crg = _CRG(platform)
 
         # sdram
-        self.submodules.ddrphy = k7ddrphy.K7DDRPHY(platform.request("ddram"))
+        self.submodules.ddrphy = s7ddrphy.K7DDRPHY(platform.request("ddram"))
         sdram_module = MT8JTF12864(self.clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
