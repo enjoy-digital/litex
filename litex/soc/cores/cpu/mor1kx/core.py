@@ -105,6 +105,10 @@ class MOR1KX(Module):
         ]
 
         # add verilog sources
+        self.add_sources(platform)
+
+    @staticmethod
+    def add_sources(platform):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)),
             "verilog", "rtl", "verilog")

@@ -56,6 +56,10 @@ class LM32(Module):
         ]
 
         # add verilog sources
+        self.add_sources(platform)
+
+    @staticmethod
+    def add_sources(platform):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_sources(os.path.join(vdir, "submodule", "rtl"),

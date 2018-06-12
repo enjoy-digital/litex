@@ -44,7 +44,11 @@ class VexRiscv(Module):
                                   i_dBusWishbone_ACK=d.ack,
                                   i_dBusWishbone_ERR=d.err)
 
-        # add Verilog sources
+        # add verilog sources
+        self.add_sources(platform)
+
+    @staticmethod
+    def add_sources(platform):
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_sources(os.path.join(vdir), "VexRiscv.v")
         platform.add_verilog_include_path(vdir)
