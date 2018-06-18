@@ -12,7 +12,9 @@ all: bios.bin
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
+ifneq ($(OS),Windows_NT)
 	chmod -x $@
+endif
 ifeq ($(CPUENDIANNESS),little)
 	$(PYTHON) -m litex.soc.tools.mkmscimg $@ --little
 else
@@ -29,7 +31,9 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libbase \
 		-L../libcompiler_rt \
 		-lnet -lbase-nofloat -lcompiler_rt
+ifneq ($(OS),Windows_NT)
 	chmod -x $@
+endif
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
