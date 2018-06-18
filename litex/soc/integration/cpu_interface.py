@@ -125,11 +125,13 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
     return r
 
 
-def get_csr_header(regions, constants, with_access_functions=True):
+def get_csr_header(regions, constants, with_access_functions=True, with_shadow_base=True, shadow_base=0x80000000):
     r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
         r += "#include <hw/common.h>\n"
     for name, origin, busword, obj in regions:
+        if not with_shadow_base:
+            origin &= (~shadow_base)
         if isinstance(obj, Memory):
             r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
         else:
