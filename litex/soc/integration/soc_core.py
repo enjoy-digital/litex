@@ -301,10 +301,10 @@ class SoCCore(Module):
                 for interrupt, mod_name in sorted(self.interrupt_rmap.items()):
                     if mod_name == "nmi":
                         continue
-                    assert hasattr(self, mod_name), "Missing module for interrupt %s" % mod_name
-                    mod_impl = getattr(self, mod_name)
-                    assert hasattr(mod_impl, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % mod_name
-                    self.comb += self.cpu_or_bridge.interrupt[interrupt].eq(mod_impl.ev.irq)
+                    if hasattr(self, mod_name):
+                        mod_impl = getattr(self, mod_name)
+                        assert hasattr(mod_impl, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % mod_name
+                        self.comb += self.cpu_or_bridge.interrupt[interrupt].eq(mod_impl.ev.irq)
 
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
