@@ -222,9 +222,39 @@ void sdrwloff(void)
 	ddrphy_wlevel_en_write(0);
 }
 
-static int write_level(int *delay, int *high_skew)
+static void write_level_scan(void)
 {
 	int i, j;
+	int dq_address;
+	unsigned char dq;
+
+	printf("Write leveling scan:\n");
+
+	sdrwlon();
+	cdelay(100);
+	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
+		printf("Module %d:\n", i);
+	    dq_address = sdram_dfii_pix_rddata_addr[0]+4*(DFII_PIX_DATA_SIZE/2-1-i);
+		ddrphy_dly_sel_write(1 << i);
+		ddrphy_wdly_dq_rst_write(1);
+		ddrphy_wdly_dqs_rst_write(1);
+		for(j=0;j<ERR_DDRPHY_DELAY;j++) {
+			ddrphy_wlevel_strobe_write(1);
+			cdelay(10);
+			dq = MMPTR(dq_address);
+			printf("%d", dq == 0);
+			ddrphy_wdly_dq_inc_write(1);
+			ddrphy_wdly_dqs_inc_write(1);
+			cdelay(10);
+		}
+		printf("\n");
+	}
+	sdrwloff();
+}
+
+static int write_level(int *delay, int *high_skew)
+{
+	int i;
 	int dq_address;
 	unsigned char dq;
 	int err_ddrphy_wdly;
@@ -245,6 +275,7 @@ static int write_level(int *delay, int *high_skew)
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
 #ifdef CSR_DDRPHY_WDLY_DQS_TAPS_ADDR
+		int j;
 		for(j=0; j<ddrphy_wdly_dqs_taps_read(); j++)
 			ddrphy_wdly_dqs_inc_write(1);
 #endif
@@ -332,6 +363,66 @@ static void read_bitslip(int *delay, int *high_skew)
 			printf("%d ", i);
 		}
 	printf("\n");
+}
+
+static void read_delays_scan(void)
+{
+	unsigned int prv;
+	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
+	int p, i, j;
+	int working;
+
+	printf("Read delays scan:\n");
+
+	/* Generate pseudo-random sequence */
+	prv = 42;
+	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++) {
+		prv = 1664525*prv + 1013904223;
+		prs[i] = prv;
+	}
+
+	/* Activate */
+	sdram_dfii_pi0_address_write(0);
+	sdram_dfii_pi0_baddress_write(0);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
+	cdelay(15);
+
+	/* Write test pattern */
+	for(p=0;p<DFII_NPHASES;p++)
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+			MMPTR(sdram_dfii_pix_wrdata_addr[p]+4*i) = prs[DFII_PIX_DATA_SIZE*p+i];
+	sdram_dfii_piwr_address_write(0);
+	sdram_dfii_piwr_baddress_write(0);
+	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
+
+	/* Calibrate each DQ in turn */
+	sdram_dfii_pird_address_write(0);
+	sdram_dfii_pird_baddress_write(0);
+	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
+		printf("Module %d:\n", (DFII_PIX_DATA_SIZE/2-i-1));
+		ddrphy_dly_sel_write(1 << (DFII_PIX_DATA_SIZE/2-i-1));
+		ddrphy_rdly_dq_rst_write(1);
+		for(j=0; j<ERR_DDRPHY_DELAY;j++) {
+			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+			cdelay(15);
+			working = 1;
+			for(p=0;p<DFII_NPHASES;p++) {
+				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_DATA_SIZE*p+i])
+					working = 0;
+				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
+					working = 0;
+			}
+			printf("%d", working);
+			ddrphy_rdly_dq_inc_write(1);
+		}
+		printf("\n");
+	}
+
+	/* Precharge */
+	sdram_dfii_pi0_address_write(0);
+	sdram_dfii_pi0_baddress_write(0);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+	cdelay(15);
 }
 
 static void read_delays(void)
@@ -648,10 +739,12 @@ int sdrlevel(void) /* automatic */
 		high_skew[i] = 0;
 	}
 #else
+	write_level_scan();
 	if(!write_level(delay, high_skew))
 		return 0;
 #endif
 	read_bitslip(delay, high_skew);
+	read_delays_scan();
 	read_delays();
 
 	return 1;
