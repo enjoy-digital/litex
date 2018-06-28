@@ -233,16 +233,16 @@ static void write_level_scan(void)
 	sdrwlon();
 	cdelay(100);
 	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
-		printf("Module %d:\n", i);
+		printf("m%d: ", i);
 	    dq_address = sdram_dfii_pix_rddata_addr[0]+4*(DFII_PIX_DATA_SIZE/2-1-i);
 		ddrphy_dly_sel_write(1 << i);
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
-		for(j=0;j<ERR_DDRPHY_DELAY;j++) {
+		for(j=0;j<ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();j++) {
 			ddrphy_wlevel_strobe_write(1);
 			cdelay(10);
 			dq = MMPTR(dq_address);
-			printf("%d", dq == 0);
+			printf("%d", dq != 0);
 			ddrphy_wdly_dq_inc_write(1);
 			ddrphy_wdly_dqs_inc_write(1);
 			cdelay(10);
@@ -260,11 +260,8 @@ static int write_level(int *delay, int *high_skew)
 	int err_ddrphy_wdly;
 	int ok;
 
-	err_ddrphy_wdly = ERR_DDRPHY_DELAY;
-#ifdef CSR_DDRPHY_WDLY_DQS_TAPS_ADDR
-	printf("Write leveling dqs taps offset: %d\n", ddrphy_wdly_dqs_taps_read());
-	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_wdly_dqs_taps_read();
-#endif
+	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();
+
 	printf("Write leveling: ");
 
 	sdrwlon();
@@ -274,7 +271,7 @@ static int write_level(int *delay, int *high_skew)
 		ddrphy_dly_sel_write(1 << i);
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
-#ifdef CSR_DDRPHY_WDLY_DQS_TAPS_ADDR
+#ifdef KUSDDRPHY /* Need to init manually on Ultrascale */
 		int j;
 		for(j=0; j<ddrphy_wdly_dqs_taps_read(); j++)
 			ddrphy_wdly_dqs_inc_write(1);
@@ -290,6 +287,7 @@ static int write_level(int *delay, int *high_skew)
 			 * Assume this DQ group has between 1 and 2 bit times of skew.
 			 * Bring DQS into the CK=0 zone before continuing leveling.
 			 */
+#ifndef DDRPHY_HIGH_SKEW_DISABLE
 			high_skew[i] = 1;
 			while(dq != 0) {
 				delay[i]++;
@@ -301,6 +299,9 @@ static int write_level(int *delay, int *high_skew)
 				cdelay(10);
 				dq = MMPTR(dq_address);
 			 }
+#else
+			high_skew[i] = 0;
+#endif
 		} else
 			high_skew[i] = 0;
 
@@ -398,8 +399,8 @@ static void read_delays_scan(void)
 	/* Calibrate each DQ in turn */
 	sdram_dfii_pird_address_write(0);
 	sdram_dfii_pird_baddress_write(0);
-	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
-		printf("Module %d:\n", (DFII_PIX_DATA_SIZE/2-i-1));
+	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
+		printf("m%d: ", (DFII_PIX_DATA_SIZE/2-i-1));
 		ddrphy_dly_sel_write(1 << (DFII_PIX_DATA_SIZE/2-i-1));
 		ddrphy_rdly_dq_rst_write(1);
 		for(j=0; j<ERR_DDRPHY_DELAY;j++) {
