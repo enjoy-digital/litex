@@ -336,6 +336,19 @@ static int write_level(int *delay, int *high_skew)
 
 #endif /* CSR_DDRPHY_WLEVEL_EN_ADDR */
 
+static void read_bitslip_inc(char m)
+{
+		ddrphy_dly_sel_write(1 << m);
+#ifdef KUSDDRPHY
+		ddrphy_rdly_dq_bitslip_write(1);
+#else
+		/* 7-series SERDES in DDR mode needs 3 pulses for 1 bitslip */
+		ddrphy_rdly_dq_bitslip_write(1);
+		ddrphy_rdly_dq_bitslip_write(1);
+		ddrphy_rdly_dq_bitslip_write(1);
+#endif
+}
+
 static void read_bitslip(int *delay, int *high_skew)
 {
 	int bitslip_thr;
@@ -352,28 +365,22 @@ static void read_bitslip(int *delay, int *high_skew)
 	printf("Read bitslip: ");
 	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--)
 		if(delay[i] > bitslip_thr) {
-			ddrphy_dly_sel_write(1 << i);
-#ifdef KUSDDRPHY
-			ddrphy_rdly_dq_bitslip_write(1);
-#else
-			/* 7-series SERDES in DDR mode needs 3 pulses for 1 bitslip */
-			ddrphy_rdly_dq_bitslip_write(1);
-			ddrphy_rdly_dq_bitslip_write(1);
-			ddrphy_rdly_dq_bitslip_write(1);
-#endif
+			read_bitslip_inc(i);
 			printf("%d ", i);
 		}
 	printf("\n");
 }
 
-static void read_delays_scan(void)
+static int read_level_scan(int silent)
 {
 	unsigned int prv;
 	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
 	int p, i, j;
 	int working;
+	int optimal;
 
-	printf("Read delays scan:\n");
+	if (!silent)
+		printf("Read delays scan:\n");
 
 	/* Generate pseudo-random sequence */
 	prv = 42;
@@ -399,8 +406,10 @@ static void read_delays_scan(void)
 	/* Calibrate each DQ in turn */
 	sdram_dfii_pird_address_write(0);
 	sdram_dfii_pird_baddress_write(0);
+	optimal = 1;
 	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
-		printf("m%d: ", (DFII_PIX_DATA_SIZE/2-i-1));
+		if (!silent)
+			printf("m%d: ", (DFII_PIX_DATA_SIZE/2-i-1));
 		ddrphy_dly_sel_write(1 << (DFII_PIX_DATA_SIZE/2-i-1));
 		ddrphy_rdly_dq_rst_write(1);
 		for(j=0; j<ERR_DDRPHY_DELAY;j++) {
@@ -413,10 +422,15 @@ static void read_delays_scan(void)
 				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
 					working = 0;
 			}
-			printf("%d", working);
+			if (j == 0)
+				/* to have an optimal scan, first tap should not be working */
+				optimal &= (working == 0);
+			if (!silent)
+				printf("%d", working);
 			ddrphy_rdly_dq_inc_write(1);
 		}
-		printf("\n");
+		if (!silent)
+			printf("\n");
 	}
 
 	/* Precharge */
@@ -424,9 +438,11 @@ static void read_delays_scan(void)
 	sdram_dfii_pi0_baddress_write(0);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(15);
+
+	return optimal;
 }
 
-static void read_delays(void)
+static void read_level(void)
 {
 	unsigned int prv;
 	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
@@ -732,6 +748,7 @@ int sdrlevel(void) /* automatic */
 {
 	int delay[DFII_PIX_DATA_SIZE/2];
 	int high_skew[DFII_PIX_DATA_SIZE/2];
+	int i;
 
 #ifndef CSR_DDRPHY_WLEVEL_EN_ADDR
 	int i;
@@ -744,9 +761,18 @@ int sdrlevel(void) /* automatic */
 	if(!write_level(delay, high_skew))
 		return 0;
 #endif
-	read_bitslip(delay, high_skew);
-	read_delays_scan();
-	read_delays();
+	/* check for optimal read leveling window */
+	if (read_level_scan(1)) {
+		/* if optimal, show scan */
+		read_level_scan(0);
+	} else {
+		/* else increment bitslip and re-scan */
+		printf("Read bitslip for optimal window\n");
+		for(i=0; i<DFII_PIX_DATA_SIZE/2; i++)
+			read_bitslip_inc(i);
+		read_level_scan(0);
+	}
+	read_level();
 
 	return 1;
 }
