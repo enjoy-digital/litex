@@ -422,7 +422,7 @@ static int read_level_scan(int silent)
 				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
 					working = 0;
 			}
-			if (j == 0)
+			if ((j == 0) || (j == (ERR_DDRPHY_DELAY-1)))
 				/* to have an optimal scan, first tap should not be working */
 				optimal &= (working == 0);
 			if (!silent)
