@@ -493,18 +493,20 @@ int main(int i, char **c)
 	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
 	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
 	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
-	printf("\e[1m      SoC BIOS / CPU: \e[0m");
+	printf("\e[1m SoC BIOS / CPU: ");
 #ifdef __lm32__
-	printf("\e[1mLM32\e[0m\n");
+	printf("LM32");
 #elif __or1k__
-	printf("\e[1mMOR1K\e[0m\n");
+	printf("MOR1K");
 #elif __picorv32__
-	printf("\e[1mPicoRV32\e[0m\n");
+	printf("PicoRV32");
 #elif __vexriscv__
-	printf("\e[1mVexRiscv\e[0m\n");
+	printf("VexRiscv");
 #else
-	printf("\e[1mUnknown\e[0m\n");
+	printf("Unknown");
 #endif
+	printf(" / %3dMHz\e[0m\n", SYSTEM_CLOCK_FREQUENCY/1000000);
+
 	puts(
 	"(c) Copyright 2012-2018 Enjoy-Digital\n"
 	"(c) Copyright 2007-2018 M-Labs Limited\n"
