@@ -61,7 +61,7 @@ class SoCCore(Module):
         "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
     def __init__(self, platform, clk_freq,
-                cpu_type="lm32", cpu_reset_address=0x00000000, cpu_variant=None,
+                cpu_type="lm32", cpu_reset_address=0x00000000, cpu_variant=None, cpu_debugging=False,
                 integrated_rom_size=0, integrated_rom_init=[],
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
@@ -81,6 +81,7 @@ class SoCCore(Module):
         if integrated_rom_size:
             cpu_reset_address = self.mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address
+        self.cpu_debugging = cpu_debugging
         self.config["CPU_RESET_ADDR"] = self.cpu_reset_address
 
         self.integrated_rom_size = integrated_rom_size
@@ -111,7 +112,7 @@ class SoCCore(Module):
             elif cpu_type == "picorv32":
                 self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "vexriscv":
-                self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address))
+                self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address, cpu_debugging=self.cpu_debugging))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_wb_master(self.cpu_or_bridge.ibus)
@@ -147,7 +148,8 @@ class SoCCore(Module):
                 self.submodules.uart  = uart.UARTStub()
             else:
                 self.submodules.uart_phy = uart.RS232PHY(platform.request(uart_name), clk_freq, uart_baudrate)
-                self.submodules.uart = uart.UART(self.uart_phy)
+                self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
+
         #else:
         #    del self.soc_interrupt_map["uart"]
 
