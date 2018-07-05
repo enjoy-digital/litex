@@ -22,7 +22,7 @@ _io = [
     ("key", 1, Pins("E1"), IOStandard("3.3-V LVTTL")),
 
     ("sw", 0, Pins("M1"), IOStandard("3.3-V LVTTL")),
-    ("sw", 1, Pins("T9"), IOStandard("3.3-V LVTTL")),
+    ("sw", 1, Pins("T8"), IOStandard("3.3-V LVTTL")),
     ("sw", 2, Pins("B9"), IOStandard("3.3-V LVTTL")),
     ("sw", 3, Pins("M15"), IOStandard("3.3-V LVTTL")),
 
