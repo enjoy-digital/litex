@@ -61,7 +61,7 @@ class SoCCore(Module):
         "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
     def __init__(self, platform, clk_freq,
-                cpu_type="lm32", cpu_reset_address=0x00000000, cpu_variant=None, cpu_debugging=False,
+                cpu_type="lm32", cpu_reset_address=0x00000000, cpu_variant=None,
                 integrated_rom_size=0, integrated_rom_init=[],
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
@@ -81,7 +81,6 @@ class SoCCore(Module):
         if integrated_rom_size:
             cpu_reset_address = self.mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address
-        self.cpu_debugging = cpu_debugging
         self.config["CPU_RESET_ADDR"] = self.cpu_reset_address
 
         self.integrated_rom_size = integrated_rom_size
@@ -112,7 +111,7 @@ class SoCCore(Module):
             elif cpu_type == "picorv32":
                 self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "vexriscv":
-                self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address, cpu_debugging=self.cpu_debugging))
+                self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_wb_master(self.cpu_or_bridge.ibus)
@@ -315,6 +314,8 @@ class SoCCore(Module):
 def soc_core_args(parser):
     parser.add_argument("--cpu-type", default=None,
                         help="select CPU: lm32, or1k, riscv32")
+    parser.add_argument("--cpu-variant", default=None,
+                        help="select CPU variant")
     parser.add_argument("--integrated-rom-size", default=None, type=int,
                         help="size/enable the integrated (BIOS) ROM")
     parser.add_argument("--integrated-main-ram-size", default=None, type=int,
@@ -323,7 +324,7 @@ def soc_core_args(parser):
 
 def soc_core_argdict(args):
     r = dict()
-    for a in "cpu_type", "integrated_rom_size", "integrated_main_ram_size":
+    for a in "cpu_type", "cpu_variant", "integrated_rom_size", "integrated_main_ram_size":
         arg = getattr(args, a)
         if arg is not None:
             r[a] = arg
