@@ -74,6 +74,13 @@ _io = [
         Subsignal("dat", Pins("AC20 AA23 AA22 AC21")),
         IOStandard("LVCMOS25")),
 
+    ("mmc_spi", 0,
+        Subsignal("miso", Pins("AC20"), Misc("PULLUP")),
+        Subsignal("clk", Pins("AB23")),
+        Subsignal("mosi", Pins("AB22")),
+        Subsignal("cs_n", Pins("AC21")),
+        IOStandard("LVCMOS25")),
+
     ("lcd", 0,
         Subsignal("db", Pins("AA13 AA10 AA11 Y10")),
         Subsignal("e", Pins("AB10")),
@@ -144,7 +151,7 @@ _io = [
         Subsignal("int_n", Pins("N30")),
         Subsignal("mdio", Pins("J21")),
         Subsignal("mdc", Pins("R23")),
-        Subsignal("dv", Pins("R28")),
+        Subsignal("rx_dv", Pins("R28")),
         Subsignal("rx_er", Pins("V26")),
         Subsignal("rx_data", Pins("U30 U25 T25 U28 R19 T27 T26 T28")),
         Subsignal("tx_en", Pins("M27")),
@@ -207,16 +214,16 @@ _io = [
         Subsignal("p", Pins("K6")),
         Subsignal("n", Pins("K5"))
     ),
-
-    ("sfp_tx", 0,
+    ("sfp_tx", 0,  # inverted prior to HW rev 1.1
         Subsignal("p", Pins("H2")),
         Subsignal("n", Pins("H1"))
     ),
-    ("sfp_rx", 0,
+    ("sfp_rx", 0,  # inverted prior to HW rev 1.1
         Subsignal("p", Pins("G4")),
         Subsignal("n", Pins("G3"))
     ),
     ("sfp_tx_disable_n", 0, Pins("Y20"), IOStandard("LVCMOS25")),
+    ("sfp_rx_los", 0, Pins("P19"), IOStandard("LVCMOS25")),
 
     ("si5324", 0,
         Subsignal("rst_n", Pins("AE20"), IOStandard("LVCMOS25")),
@@ -496,8 +503,7 @@ set_property CONFIG_VOLTAGE 2.5 [current_design]
         elif self.programmer == "impact":
             return iMPACT()
         else:
-            raise ValueError("{} programmer is not supported".format(
-                self.programmer))
+            raise ValueError("{} programmer is not supported".format(programmer))
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
