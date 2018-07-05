@@ -66,7 +66,8 @@ soc:
   to build a SoC from such cores.
 
 boards:
-  Provides platforms and targets for the supported boards.
+  Provides platforms and targets for the supported boards. All Migen's platforms
+  can also be used in LiteX.
 
 [> Very Quick start guide (for newcomers)
 -----------------------------------------
