@@ -44,9 +44,6 @@ class VexRiscvDebugBridge():
         parser.add_argument("--csr", default="test/csr.csv", help="csr mapping file")
         self.args = parser.parse_args()
 
-    def temperature(self):
-        return self.rc.read(self.rc.regs.xadc_temperature.addr) * 503.975 / 4096 - 273.15
-
     def accept(self):
         if hasattr(self, "debugger"):
             return
@@ -85,7 +82,6 @@ class VexRiscvDebugBridge():
 def main():
     vrvb = VexRiscvDebugBridge()
     vrvb.open()
-    print("FPGA Temperature: {} C".format(vrvb.temperature()))
 
     while True:
         vrvb.accept()
