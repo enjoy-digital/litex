@@ -95,7 +95,7 @@ class VexRiscv(Module, AutoCSR):
                 # A write to the REFRESH register indicates which register
                 # (DATA or CORE) we want to update from the CPU.
                 ).Elif(debug_refresh.re,
-                    If(~debug_refresh.storage,
+                    If(debug_refresh.storage == 0,
                         refreshing_data.eq(0),
                         debug_bus_cmd_payload_address.eq(0)
                     ).Else(
