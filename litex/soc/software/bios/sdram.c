@@ -751,7 +751,6 @@ int sdrlevel(void) /* automatic */
 	int i;
 
 #ifndef CSR_DDRPHY_WLEVEL_EN_ADDR
-	int i;
 	for(i=0; i<DFII_PIX_DATA_SIZE/2; i++) {
 		delay[i] = 0;
 		high_skew[i] = 0;
