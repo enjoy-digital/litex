@@ -66,7 +66,7 @@ class SoCCore(Module):
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
                 shadow_base=0x80000000,
-                csr_data_width=8, csr_address_width=14,
+                csr_data_width=8, csr_address_width=14, csr_expose=False,
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
                 reserve_nmi_interrupt=True,
@@ -95,6 +95,9 @@ class SoCCore(Module):
 
         self.csr_data_width = csr_data_width
         self.csr_address_width = csr_address_width
+        self.csr_expose = csr_expose
+        if csr_expose:
+            self.csr = csr_bus.Interface(csr_data_width, csr_address_width)
 
         self._memory_regions = []  # list of (name, origin, length)
         self._csr_regions = []  # list of (name, origin, busword, csr_list/Memory)
@@ -286,8 +289,12 @@ class SoCCore(Module):
             self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
                 self.get_csr_dev_address,
                 data_width=self.csr_data_width, address_width=self.csr_address_width)
-            self.submodules.csrcon = csr_bus.Interconnect(
-                self.wishbone2csr.csr, self.csrbankarray.get_buses())
+            if self.csr_expose:
+                self.submodules.csrcon = csr_bus.InterconnectShared(
+                    [self.csr, self.wishbone2csr.csr], self.csrbankarray.get_buses())
+            else:
+                self.submodules.csrcon = csr_bus.Interconnect(
+                    self.wishbone2csr.csr, self.csrbankarray.get_buses())
             for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
                 self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
             for name, memory, mapaddr, mmap in self.csrbankarray.srams:
