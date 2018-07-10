@@ -118,6 +118,24 @@ class RS232PHY(Module, AutoCSR):
         self.sink, self.source = self.tx.sink, self.rx.source
 
 
+class RS232PHYMultiplexer(Module):
+    def __init__(self, phys, phy):
+        self.sel = Signal(max=len(phys))
+
+        # # #
+
+        cases = {}
+        for n in range(len(phys)):
+            # don't stall uarts when not selected
+            self.comb += phys[n].sink.ready.eq(1)
+            # connect core to phy
+            cases[n] = [
+                phy.source.connect(phys[n].source),
+                phys[n].sink.connect(phy.sink)
+            ]
+        self.comb += Case(self.sel, cases)
+
+
 class RS232PHYModel(Module):
     def __init__(self, pads):
         self.sink = stream.Endpoint([("data", 8)])
@@ -211,19 +229,20 @@ class UARTWishboneBridge(WishboneStreamingBridge):
         WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
 
 
+def UARTPads():
+    return Record([("tx", 1), ("rx", 1)])
+
+
 class UARTMultiplexer(Module):
-    def __init__(self, uarts, phy):
+    def __init__(self, uarts, uart):
         self.sel = Signal(max=len(uarts))
 
         # # #
 
         cases = {}
         for n in range(len(uarts)):
-            # don't stall uarts when not selected
-            self.comb += uarts[n].sink.ready.eq(1)
-            # connect core to phy
             cases[n] = [
-                phy.source.connect(uarts[n].source),
-                uarts[n].sink.connect(phy.sink)
+                uart.tx.eq(uarts[n].tx),
+                uarts[n].rx.eq(uart.rx)
             ]
         self.comb += Case(self.sel, cases)
