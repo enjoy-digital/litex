@@ -377,6 +377,7 @@ static int read_level_scan(int silent)
 	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
 	int p, i, j;
 	int working;
+	int working_delays;
 	int optimal;
 
 	if (!silent)
@@ -407,6 +408,7 @@ static int read_level_scan(int silent)
 	sdram_dfii_pird_address_write(0);
 	sdram_dfii_pird_baddress_write(0);
 	working = 0;
+	working_delays = 0;
 	optimal = 1;
 	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
 		if (!silent)
@@ -425,6 +427,7 @@ static int read_level_scan(int silent)
 					working_delay = 0;
 			}
 			working |= working_delay;
+			working_delays += working_delay;
 			if ((j == 0) || (j == (ERR_DDRPHY_DELAY-1)))
 				/* to have an optimal scan, first tap and last tap should not be working */
 				optimal &= (working_delay == 0);
@@ -442,7 +445,8 @@ static int read_level_scan(int silent)
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(15);
 
-	return working & optimal;
+	/* Successful if working and optimal or if number of working delays > 3/4 of the taps */
+	return (working & optimal) | (working_delays > 3*ERR_DDRPHY_DELAY/4);
 }
 
 static void read_level(void)
