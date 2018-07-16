@@ -18,8 +18,8 @@ from litedram.phy import s7ddrphy
 class _CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
-        self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
+        self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
+        self.clock_domains.cd_sys2x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
         self.clock_domains.cd_clk100 = ClockDomain()
 
@@ -29,8 +29,8 @@ class _CRG(Module):
         pll_locked = Signal()
         pll_fb = Signal()
         self.pll_sys = Signal()
-        pll_sys4x = Signal()
-        pll_sys4x_dqs = Signal()
+        pll_sys2x = Signal()
+        pll_sys2x_dqs = Signal()
         pll_clk200 = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
@@ -45,21 +45,21 @@ class _CRG(Module):
                      p_CLKOUT0_DIVIDE=16, p_CLKOUT0_PHASE=0.0,
                      o_CLKOUT0=self.pll_sys,
 
-                     # 400 MHz
-                     p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.0,
-                     o_CLKOUT1=pll_sys4x,
+                     # 200 MHz
+                     p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.0,
+                     o_CLKOUT1=pll_sys2x,
 
-                     # 400 MHz dqs
-                     p_CLKOUT2_DIVIDE=4, p_CLKOUT2_PHASE=90.0,
-                     o_CLKOUT2=pll_sys4x_dqs,
+                     # 200 MHz dqs
+                     p_CLKOUT2_DIVIDE=8, p_CLKOUT2_PHASE=90.0,
+                     o_CLKOUT2=pll_sys2x_dqs,
 
                      # 200 MHz
                      p_CLKOUT3_DIVIDE=8, p_CLKOUT3_PHASE=0.0,
                      o_CLKOUT3=pll_clk200
             ),
             Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
-            Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
-            Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
+            Instance("BUFG", i_I=pll_sys2x, o_O=self.cd_sys2x.clk),
+            Instance("BUFG", i_I=pll_sys2x_dqs, o_O=self.cd_sys2x_dqs.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
             Instance("BUFG", i_I=clk100, o_O=self.cd_clk100.clk),
             AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst),
@@ -85,7 +85,8 @@ class BaseSoC(SoCSDRAM):
     csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, **kwargs):
         platform = nexys4ddr.Platform()
-        SoCSDRAM.__init__(self, platform, clk_freq=100*1000000,
+        sys_clk_freq = int(100e6)
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                          integrated_rom_size=0x8000,
                          integrated_sram_size=0x8000,
                          **kwargs)
@@ -93,11 +94,12 @@ class BaseSoC(SoCSDRAM):
         self.submodules.crg = _CRG(platform)
 
         # sdram
-        self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"))
-        sdram_module = MT47H64M16(self.clk_freq, "1:4")
+        self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"), memtype="DDR2", nphases=2, sys_clk_freq=sys_clk_freq)
+        sdram_module = MT47H64M16(self.clk_freq, "1:2")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
+        self.add_constant("MEMTEST_ADDR_SIZE", 0) # FIXME
 
 
 def main():
