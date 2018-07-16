@@ -68,7 +68,7 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
     cl = sdram_phy_settings.cl
 
     if sdram_phy_settings.memtype == "SDR":
-        bl = sdram_phy_settings.nphases
+        bl = 1
         mr = log2_int(bl) + (cl << 4)
         reset_dll = 1 << 8
 
@@ -83,7 +83,7 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
         ]
 
     elif sdram_phy_settings.memtype == "DDR":
-        bl = 2*sdram_phy_settings.nphases
+        bl = 4
         mr  = log2_int(bl) + (cl << 4)
         emr = 0
         reset_dll = 1 << 8
@@ -100,7 +100,7 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
         ]
 
     elif sdram_phy_settings.memtype == "LPDDR":
-        bl = 2*sdram_phy_settings.nphases
+        bl = 4
         mr  = log2_int(bl) + (cl << 4)
         emr = 0
         reset_dll = 1 << 8
@@ -117,7 +117,7 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
         ]
 
     elif sdram_phy_settings.memtype == "DDR2":
-        bl = 2*sdram_phy_settings.nphases
+        bl = 4
         wr = 2
         mr = log2_int(bl) + (cl << 4) + (wr << 9)
         emr = 0
@@ -141,7 +141,7 @@ const unsigned int sdram_dfii_pix_rddata_addr[{n}] = {{
             ("Load Extended Mode Register / OCD Exit", emr, 1, cmds["MODE_REGISTER"], 0),
         ]
     elif sdram_phy_settings.memtype == "DDR3":
-        bl = 2*sdram_phy_settings.nphases
+        bl = 8
 
         def format_mr0(bl, cl, wr, dll_reset):
             bl_to_mr0 = {
