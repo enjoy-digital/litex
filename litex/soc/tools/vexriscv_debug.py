@@ -35,9 +35,9 @@ class VexRiscvDebugBridge():
         if not hasattr(self, "rc"):
             self.rc = RemoteClient(csr_csv=self.args.csr)
             self.rc.open()
-            self.core_addr = self.rc.regs.cpu_or_bridge_debug_core.addr
-            self.data_addr = self.rc.regs.cpu_or_bridge_debug_data.addr
-            self.refresh_addr = self.rc.regs.cpu_or_bridge_debug_refresh.addr
+            self.core_reg = self.rc.regs.cpu_or_bridge_debug_core
+            self.data_reg = self.rc.regs.cpu_or_bridge_debug_data
+            self.refresh_reg = self.rc.regs.cpu_or_bridge_debug_refresh
 
     def _get_args(self):
         parser = argparse.ArgumentParser()
@@ -52,21 +52,21 @@ class VexRiscvDebugBridge():
         print("Accepted debugger connection from {}".format(address[0]))
 
     def _refresh_reg(self, reg):
-        self.rc.write(self.refresh_addr, reg)
+        self.refresh_reg.write(reg)
 
     def read_core(self):
         self._refresh_reg(0)
-        self.write_to_debugger(self.rc.read(self.core_addr))
+        self.write_to_debugger(self.core_reg.read())
 
     def read_data(self):
         self._refresh_reg(4)
-        self.write_to_debugger(self.rc.read(self.data_addr))
+        self.write_to_debugger(self.data_reg.read())
 
     def write_core(self, value):
-        self.rc.write(self.core_addr, value)
+        self.core_reg.write(value)
 
     def write_data(self, value):
-        self.rc.write(self.data_addr, value)
+        self.data_reg.write(value)
 
     def read_from_debugger(self):
         data = self.debugger.recv(10)
