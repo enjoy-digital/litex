@@ -89,12 +89,28 @@ _io = [
 ]
 
 
+_connectors = [
+    ("HPC", {
+        "DP0_C2M_P": "Y2",
+        "DP0_C2M_N": "Y1",
+        "DP0_M2C_P": "AA4",
+        "DP0_M2C_N": "AA3",
+        "GBTCLK0_M2C_P": "L8",
+        "GBTCLK0_M2C_N": "L7",
+        }
+    ),
+]
+
 class Platform(XilinxPlatform):
-    def __init__(self):
-        XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, toolchain="vivado")
+    def __init__(self, programmer="vivado"):
+        XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
+        self.programmer = programmer
 
     def create_programmer(self):
-        return VivadoProgrammer()
+        if self.programmer == "vivado":
+            return VivadoProgrammer()
+        else:
+            raise ValueError("{} programmer is not supported".format(programmer))
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
