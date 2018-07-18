@@ -26,6 +26,21 @@ SECTIONS
 		_erodata = .;
 	} > rom
 
+	.data :
+	{
+		. = ALIGN(4);
+		_fdata = .;
+		*(.data .data.* .gnu.linkonce.d.*)
+		*(.data1)
+		*(.sdata .sdata.* .gnu.linkonce.s.*)
+
+		/* Make sure the file is aligned on disk as well
+		   as in memory; CRC calculation requires that. */
+		FILL(0);
+		. = ALIGN(4);
+		_edata = .;
+	} > rom
+
 	.bss :
 	{
 		. = ALIGN(4);
@@ -45,9 +60,6 @@ SECTIONS
 	{
 		*(.eh_frame)
 		*(.comment)
-		*(.data .data.* .gnu.linkonce.d.*)
-		*(.data1)
-		*(.sdata .sdata.* .gnu.linkonce.s.*)
 	}
 }
 
