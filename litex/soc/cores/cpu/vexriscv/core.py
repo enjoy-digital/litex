@@ -5,7 +5,6 @@ from migen import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
-
 class VexRiscv(Module, AutoCSR):
     def __init__(self, platform, cpu_reset_address, variant=None):
         assert variant in (None, "debug"), "Unsupported variant %s" % variant
@@ -25,147 +24,71 @@ class VexRiscv(Module, AutoCSR):
             cpu_reset = Signal()
             cpu_args = {}
             cpu_filename = "VexRiscv-Debug.v"
-            # Create four debug registers:
-            #   DEBUG_CORE:    The contents of the debug core register
-            #   DEBUG_DATA:    Write an instruction into the pipeline, or read the result.
-            #   DEBUG_REFRESH: Write 0x00 or 0x04 here to update either CORE or DATA
-            #   DEBUG_COUNT:   An incrementing value that can be used to detect packet loss.
-            #                  Updated on a successful WRITE to CORE, DATA, or REFRESH.
-            self.debug_core = debug_core = CSRStorage(32, name="debug_core", write_from_dev=True)
-            self.debug_data = debug_data = CSRStorage(32, name="debug_data", write_from_dev=True)
-            self.debug_refresh = debug_refresh = CSRStorage(8, name="debug_refresh")
-            self.debug_counter = debug_counter = CSRStatus(32, name="debug_counter")
 
-            # # #
 
-            debug_bus_cmd_payload_wr = Signal()
-            debug_bus_cmd_payload_address = Signal(8)
-            debug_bus_cmd_payload_data = Signal(32)
-            debug_bus_cmd_ready = Signal()
-            debug_bus_rsp_data = Signal(32)
-            debug_start_cmd = Signal()
-            debug_update_pending = Signal()
-            debug_write_pending = Signal()
-            debug_reset_out = Signal()
-            debug_reset_counter = Signal(16)
+            self.i_cmd_valid = Signal()
+            self.i_cmd_payload_wr = Signal()
+            self.i_cmd_payload_address = Signal(8)
+            self.i_cmd_payload_data = Signal(32)
+            self.o_cmd_ready = Signal()
+            self.o_rsp_data = Signal(32)
+            self.o_resetOut = Signal()
 
-            # A bit to indicate whether we're REFRESHing the CORE or DATA register
-            refreshing_data = Signal()
+            self.transfer_complete = Signal()
+            self.transfer_in_progress = Signal()
+            self.transfer_wait_for_ack = Signal()
+
+            self.debug_bus = wishbone.Interface()
 
             self.sync += [
-                # If the core asserts reset_out, set debug_reset for 2**16 cycles.
-                If(debug_reset_out,
-                    debug_reset_counter.eq(0),
-                    self.debug_reset.eq(1)
-                ).Elif(debug_reset_counter != (2**16-1),
-                    debug_reset_counter.eq(debug_reset_counter + 1)
-                ).Else(
-                    self.debug_reset.eq(0)
-                ),
+                self.debug_bus.dat_r.eq(self.o_rsp_data),
+            ]
 
-                # Reset the CPU if debug_reset is asserted and none of the
-                # Wishbone buses are in use
-                cpu_reset.eq((~i.cyc & ~d.cyc & ~d.stb & ~i.stb &
-                             self.debug_reset) | ResetSignal()),
-
-                # If there's a Wishbone write on the CORE register, write to
-                # debug register address 0.
-                If(debug_core.re,
-                    debug_bus_cmd_payload_address.eq(0x00),
-                    debug_bus_cmd_payload_data.eq(debug_core.storage),
-
-                    debug_bus_cmd_payload_wr.eq(1),
-                    debug_start_cmd.eq(1),
-                    debug_write_pending.eq(1),
-
-                    debug_core.we.eq(0),
-                    debug_data.we.eq(0)
-                # Or, if there's a write to the DATA register, write to
-                # debug register address 4.
-                ).Elif(debug_data.re,
-                    debug_bus_cmd_payload_address.eq(0x04),
-                    debug_bus_cmd_payload_data.eq(debug_data.storage),
-
-                    debug_bus_cmd_payload_wr.eq(1),
-                    debug_start_cmd.eq(1),
-                    debug_write_pending.eq(1),
-
-                    debug_core.we.eq(0),
-                    debug_data.we.eq(0)
-                # A write to the REFRESH register indicates which register
-                # (DATA or CORE) we want to update from the CPU.
-                ).Elif(debug_refresh.re,
-                    If(debug_refresh.storage == 0,
-                        refreshing_data.eq(0),
-                        debug_bus_cmd_payload_address.eq(0)
-                    ).Else(
-                        refreshing_data.eq(1),
-                        debug_bus_cmd_payload_address.eq(4)
-                    ),
-                    # Data can be anything, since it's a "read"
-                    debug_bus_cmd_payload_data.eq(0),
-
-                    # Start a "Read" command with the "Write" bit set to 0
-                    debug_bus_cmd_payload_wr.eq(0),
-                    debug_start_cmd.eq(1),
-
-                    # The data will be ready when debug_bus_cmd_ready == 1,
-                    # so set the pending bit to look for it on future cycles.
-                    debug_update_pending.eq(1),
-
-                    debug_core.we.eq(0),
-                    debug_data.we.eq(0)
-                # If the pending bit is set, check to see if the cmd_ready
-                # bit from the debug bus is 1, indicating the CPU has finished
-                # its operation and is in the idle state.
-                ).Elif(debug_update_pending,
-                    If(debug_bus_cmd_ready,
-                        debug_bus_cmd_payload_wr.eq(0),
-                        debug_update_pending.eq(0),
-                        debug_write_pending.eq(0),
-                        debug_start_cmd.eq(0),
-                        debug_counter.status.eq(debug_counter.status + 1),
-                        # Depending on whether we were asked to update the CORE
-                        # or DATA register, copy the response data to the correct CSR.
-                        If(~refreshing_data,
-                            debug_core.dat_w.eq(debug_bus_rsp_data),
-                            debug_core.we.eq(1),
-                            debug_data.we.eq(0)
-                        ).Else(
-                            debug_data.dat_w.eq(debug_bus_rsp_data),
-                            debug_core.we.eq(0),
-                            debug_data.we.eq(1)
-                        )
+            self.sync += [
+                # CYC is held high for the duration of the transfer.
+                # STB is kept high when the transfer finishes (write)
+                # or the master is waiting for data (read), and stays
+                # there until ACK, ERR, or RTY are asserted.
+                If((self.debug_bus.stb & self.debug_bus.cyc)
+                & (~self.transfer_in_progress)
+                & (~self.transfer_complete)
+                & (~self.transfer_wait_for_ack),
+                    self.i_cmd_payload_data.eq(self.debug_bus.dat_w),
+                    self.i_cmd_payload_address.eq((self.debug_bus.adr[0:6] << 2) | 0),
+                    self.i_cmd_payload_wr.eq(self.debug_bus.we),
+                    self.i_cmd_valid.eq(1),
+                    self.transfer_in_progress.eq(1),
+                    self.transfer_complete.eq(0),
+                    self.debug_bus.ack.eq(0)
+                ).Elif(self.transfer_in_progress,
+                    If(self.o_cmd_ready,
+                        self.i_cmd_valid.eq(0),
+                        self.i_cmd_payload_wr.eq(0),
+                        self.transfer_complete.eq(1),
+                        self.transfer_in_progress.eq(0)
                     )
-                # If there's a pending write to CORE or DATA, increment the
-                # packet counter once the operation has finished.
-                ).Elif(debug_write_pending,
-                    If(debug_bus_cmd_ready,
-                        # When debug_bus_cmd_ready goes 1,
-                        debug_counter.status.eq(debug_counter.status + 1),
-                        debug_update_pending.eq(0),
-                        debug_write_pending.eq(0),
-                        debug_start_cmd.eq(0),
-                        debug_data.we.eq(0),
-                        debug_core.we.eq(0)
-                    )
-                # Otherwise, ensure the Write Enable bits on the registers
-                # are 0, so we're not constantly loading floating values.
-                ).Else(
-                    debug_core.we.eq(0),
-                    debug_data.we.eq(0)
+                ).Elif(self.transfer_complete,
+                    self.transfer_complete.eq(0),
+                    self.debug_bus.ack.eq(1),
+                    self.transfer_wait_for_ack.eq(1)
+                ).Elif(self.transfer_wait_for_ack & ~(self.debug_bus.stb & self.debug_bus.cyc),
+                    self.transfer_wait_for_ack.eq(0),
+                    self.debug_bus.ack.eq(0)
                 )
             ]
 
+            cpu_reset.eq((~i.cyc & ~d.cyc & ~d.stb & ~i.stb &
+                            self.o_resetOut) | ResetSignal()),
+
             cpu_args.update({
                 "i_debugReset": ResetSignal(),
-                "i_debug_bus_cmd_valid": debug_start_cmd,
-                "i_debug_bus_cmd_payload_wr": debug_bus_cmd_payload_wr,
-                "i_debug_bus_cmd_payload_address": debug_bus_cmd_payload_address,
-                "i_debug_bus_cmd_payload_data": debug_bus_cmd_payload_data,
-                "o_debug_bus_cmd_ready": debug_bus_cmd_ready,
-                "o_debug_bus_rsp_data": debug_bus_rsp_data,
-                "o_debug_resetOut": debug_reset_out
+                "i_debug_bus_cmd_valid": self.i_cmd_valid,
+                "i_debug_bus_cmd_payload_wr": self.i_cmd_payload_wr,
+                "i_debug_bus_cmd_payload_address": self.i_cmd_payload_address,
+                "i_debug_bus_cmd_payload_data": self.i_cmd_payload_data,
+                "o_debug_bus_cmd_ready": self.o_cmd_ready,
+                "o_debug_bus_rsp_data": self.o_rsp_data,
+                "o_debug_resetOut": self.o_resetOut
             })
 
         self.specials += Instance("VexRiscv",
