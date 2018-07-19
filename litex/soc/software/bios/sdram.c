@@ -203,6 +203,7 @@ void sdrwr(char *startaddr)
 #else
 #define ERR_DDRPHY_DELAY 32
 #endif
+#define ERR_DDRPHY_BITSLIP 8
 
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
 
@@ -748,14 +749,15 @@ int sdrlevel(void)
 		return 0;
 #endif
 	/* check for optimal read leveling window */
-	for(i=0; i<8; i++) {
-		if (read_level_scan(1)) {
+	for(i=0; i<ERR_DDRPHY_BITSLIP; i++) {
+		/* scan */
+		if (read_level_scan(1))
 			break;
-		} else {
-			/* else increment bitslip and re-scan */
-			for(j=0; j<DFII_PIX_DATA_SIZE/2; j++)
-				read_bitslip_inc(j);
-		}
+		if (i == ERR_DDRPHY_BITSLIP-1)
+			return 0;
+		/* increment bitslip */
+		for(j=0; j<DFII_PIX_DATA_SIZE/2; j++)
+			read_bitslip_inc(j);
 	}
 	/* show bitslip and scan */
 	printf("Read bitslip: %d\n", i);
