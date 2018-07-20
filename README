@@ -102,11 +102,13 @@ FPGA lessons/tutorials can be found at: https://github.com/enjoy-digital/fpga_10
 
 [> Quick start guide (for advanced users)
 -----------------------------------------
-0. If cloned from Git without the --recursive option, get the submodules:
-  git submodule update --init
+0. Install Python 3.5+ and FPGA vendor's development tools.
 
-1. Install Python 3.5, Migen and FPGA vendor's development tools.
-   Get Migen from: https://github.com/m-labs/migen
+1. Get litex_setup.py script and execute:
+   ./litex_setup.py init install
+   This will clone and install Migen, LiteX and LiteX's cores.
+   To update all repositories execute:
+   ./litex_setup.py update
 
 2. Compile and install binutils. Take the latest version from GNU.
   mkdir build && cd build
