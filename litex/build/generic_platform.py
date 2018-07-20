@@ -261,7 +261,7 @@ class GenericPlatform:
         if name is None:
             name = self.__module__.split(".")[-1]
         self.name = name
-        self.sources = set()
+        self.sources = []
         self.verilog_include_paths = set()
         self.finalized = False
 
@@ -323,7 +323,7 @@ class GenericPlatform:
         if library is None:
             library = "work"
 
-        self.sources.add((os.path.abspath(filename), language, library))
+        self.sources.append((os.path.abspath(filename), language, library))
 
     def add_sources(self, path, *filenames, language=None, library=None):
         for f in filenames:

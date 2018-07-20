@@ -173,7 +173,7 @@ class LatticeIceStormToolchain:
         return series_size_str[2:]
 
     def gen_read_files(self, platform, main):
-        sources = platform.sources | {(main, "verilog", "work")}
+        sources = platform.sources + [(main, "verilog", "work")]
         incflags = ""
         read_files = list()
         for path in platform.verilog_include_paths:

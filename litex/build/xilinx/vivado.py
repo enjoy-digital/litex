@@ -223,7 +223,7 @@ class XilinxVivadoToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
-        sources = platform.sources | {(v_file, "verilog", "work")}
+        sources = platform.sources + [(v_file, "verilog", "work")]
         edifs = platform.edifs
         ips = platform.ips
         self._build_batch(platform, sources, edifs, ips, build_name)

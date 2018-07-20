@@ -181,7 +181,7 @@ class XilinxISEToolchain:
                 named_sc, named_pc = platform.resolve_signals(vns)
                 v_file = build_name + ".v"
                 v_output.write(v_file)
-                sources = platform.sources | {(v_file, "verilog", "work")}
+                sources = platform.sources + [(v_file, "verilog", "work")]
                 if mode in ("xst", "cpld"):
                     _build_xst_files(platform.device, sources, platform.verilog_include_paths, build_name, self.xst_opt)
                     isemode = mode
