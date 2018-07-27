@@ -38,8 +38,7 @@ setup(
         "console_scripts": [
             "litex_term=litex.soc.tools.litex_term:main",
             "mkmscimg=litex.soc.tools.mkmscimg:main",
-            "litex_server=litex.soc.tools.remote.litex_server:main",
-            "vexriscv_bridge=litex.soc.tools.vexriscv_debug:main"
+            "litex_server=litex.soc.tools.remote.litex_server:main"
         ],
     },
 )
