@@ -10,6 +10,8 @@ class VexRiscv(Module, AutoCSR):
         assert variant in (None, "debug"), "Unsupported variant %s" % variant
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
+        i_err = Signal()
+        d_err = Signal()
 
         self.interrupt = Signal(32)
 
@@ -34,6 +36,8 @@ class VexRiscv(Module, AutoCSR):
             self.o_rsp_data = Signal(32)
             self.o_resetOut = Signal()
 
+            reset_debug_logic = Signal()
+
             self.transfer_complete = Signal()
             self.transfer_in_progress = Signal()
             self.transfer_wait_for_ack = Signal()
@@ -42,6 +46,7 @@ class VexRiscv(Module, AutoCSR):
 
             self.sync += [
                 self.debug_bus.dat_r.eq(self.o_rsp_data),
+                cpu_reset.eq(reset_debug_logic | ResetSignal()),
             ]
 
             self.sync += [
@@ -74,11 +79,20 @@ class VexRiscv(Module, AutoCSR):
                 ).Elif(self.transfer_wait_for_ack & ~(self.debug_bus.stb & self.debug_bus.cyc),
                     self.transfer_wait_for_ack.eq(0),
                     self.debug_bus.ack.eq(0)
+                ),
+                # Force a Wishbone error if transferring during a reset sequence.
+                # Because o_resetOut is multiple cycles and i.stb/d.stb should
+                # deassert one cycle after i_err/i_ack/d_err/d_ack are asserted,
+                # this will give i_err and o_err enough time to be reset to 0
+                # once the reset cycle finishes.
+                If(self.o_resetOut,
+                    If(i.cyc & i.stb, i_err.eq(1)).Else(i_err.eq(0)),
+                    If(d.cyc & d.stb, d_err.eq(1)).Else(d_err.eq(0)),
+                    reset_debug_logic.eq(1))
+                .Else(
+                    reset_debug_logic.eq(0)
                 )
             ]
-
-            cpu_reset.eq((~i.cyc & ~d.cyc & ~d.stb & ~i.stb &
-                            self.o_resetOut) | ResetSignal()),
 
             cpu_args.update({
                 "i_debugReset": ResetSignal(),
@@ -91,6 +105,10 @@ class VexRiscv(Module, AutoCSR):
                 "o_debug_resetOut": self.o_resetOut
             })
 
+        self.comb += [
+            i.err.eq(i_err),
+            d.err.eq(d_err),
+        ]
         self.specials += Instance("VexRiscv",
                 **cpu_args,
 
@@ -111,7 +129,7 @@ class VexRiscv(Module, AutoCSR):
                 o_iBusWishbone_BTE=i.bte,
                 i_iBusWishbone_DAT_MISO=i.dat_r,
                 i_iBusWishbone_ACK=i.ack,
-                i_iBusWishbone_ERR=i.err,
+                i_iBusWishbone_ERR=i_err,
 
                 o_dBusWishbone_ADR=d.adr,
                 o_dBusWishbone_DAT_MOSI=d.dat_w,
@@ -123,7 +141,7 @@ class VexRiscv(Module, AutoCSR):
                 o_dBusWishbone_BTE=d.bte,
                 i_dBusWishbone_DAT_MISO=d.dat_r,
                 i_dBusWishbone_ACK=d.ack,
-                i_dBusWishbone_ERR=d.err)
+                i_dBusWishbone_ERR=d_err)
 
         # add verilog sources
         self.add_sources(platform, cpu_filename)
