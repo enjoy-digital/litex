@@ -4,7 +4,7 @@ from operator import or_
 from migen import *
 from migen.genlib import roundrobin
 from migen.genlib.record import *
-from migen.genlib.misc import split, displacer, chooser
+from migen.genlib.misc import split, displacer, chooser, WaitTimer
 from migen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect import csr
@@ -134,11 +134,30 @@ class Decoder(Module):
         self.comb += master.dat_r.eq(reduce(or_, masked))
 
 
+class Timeout(Module):
+    def __init__(self, master, cycles):
+        self.error = Signal()
+
+        # # #
+
+        timer = WaitTimer(cycles)
+        self.submodules += timer
+        self.comb += [
+            timer.wait.eq(master.stb & master.cyc & ~master.ack),
+            If(timer.done,
+                master.dat_r.eq((2**len(master.dat_w))-1),
+                master.ack.eq(1),
+                self.error.eq(1)
+            )
+        ]
+
+
 class InterconnectShared(Module):
-    def __init__(self, masters, slaves, register=False):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=2**16):
         shared = Interface()
-        self.submodules += Arbiter(masters, shared)
-        self.submodules += Decoder(shared, slaves, register)
+        self.submodules.arbiter = Arbiter(masters, shared)
+        self.submodules.decoder = Decoder(shared, slaves, register)
+        self.submodules.timeout = Timeout(shared, timeout_cycles)
 
 
 class Crossbar(Module):
