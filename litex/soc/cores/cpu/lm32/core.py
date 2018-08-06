@@ -7,6 +7,7 @@ from litex.soc.interconnect import wishbone
 
 class LM32(Module):
     def __init__(self, platform, eba_reset, variant=None):
+        self.reset = Signal()
         assert variant == None, "No lm32 variants currently supported."
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -20,7 +21,7 @@ class LM32(Module):
             p_eba_reset=Instance.PreformattedParam("32'h{:08x}".format(eba_reset)),
 
             i_clk_i=ClockSignal(),
-            i_rst_i=ResetSignal(),
+            i_rst_i=ResetSignal() | self.reset,
 
             i_interrupt=self.interrupt,
 

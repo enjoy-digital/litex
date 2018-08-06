@@ -8,6 +8,7 @@ from litex.soc.interconnect import wishbone
 class MOR1KX(Module):
     def __init__(self, platform, reset_pc, variant=None):
         assert variant in (None, "linux"), "Unsupported variant %s" % variant
+        self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
@@ -69,7 +70,7 @@ class MOR1KX(Module):
             **cpu_args,
 
             i_clk=ClockSignal(),
-            i_rst=ResetSignal(),
+            i_rst=ResetSignal() | self.reset,
 
             i_irq_i=self.interrupt,
 

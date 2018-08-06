@@ -8,6 +8,7 @@ from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 class VexRiscv(Module, AutoCSR):
     def __init__(self, platform, cpu_reset_address, variant=None):
         assert variant in (None, "debug"), "Unsupported variant %s" % variant
+        self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         i_err = Signal()
@@ -113,7 +114,7 @@ class VexRiscv(Module, AutoCSR):
                 **cpu_args,
 
                 i_clk=ClockSignal(),
-                i_reset=cpu_reset,
+                i_reset=cpu_reset | self.reset,
 
                 i_externalResetVector=cpu_reset_address,
                 i_externalInterruptArray=self.interrupt,
