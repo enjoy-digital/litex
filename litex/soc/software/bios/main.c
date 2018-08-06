@@ -313,6 +313,9 @@ static void help(void)
 	puts("rcsr       - read processor CSR");
 	puts("wcsr       - write processor CSR");
 #endif
+#ifdef CSR_CTRL_BASE
+	puts("reboot     - reset processor");
+#endif
 #ifdef CSR_ETHMAC_BASE
 	puts("netboot    - boot via TFTP");
 #endif
@@ -344,6 +347,13 @@ static char *get_token(char **str)
 	return d;
 }
 
+#ifdef CSR_CTRL_BASE
+static void reboot(void)
+{
+	ctrl_reset_write(1);
+}
+#endif
+
 static void do_command(char *c)
 {
 	char *token;
@@ -359,7 +369,9 @@ static void do_command(char *c)
 #ifdef L2_SIZE
 	else if(strcmp(token, "flushl2") == 0) flush_l2_cache();
 #endif
-
+#ifdef CSR_CTRL_BASE
+	else if(strcmp(token, "reboot") == 0) reboot();
+#endif
 #ifdef FLASH_BOOT_ADDRESS
 	else if(strcmp(token, "flashboot") == 0) flashboot();
 #endif
