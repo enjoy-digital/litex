@@ -5,6 +5,7 @@ from migen import *
 
 from litex.soc.cores import identifier, timer, uart
 from litex.soc.cores.cpu import lm32, mor1kx, picorv32, vexriscv
+from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 
 
@@ -39,15 +40,40 @@ class ReadOnlyDict(dict):
     del __readonly__
 
 
+class SoCController(Module, AutoCSR):
+    def __init__(self):
+        self._reset = CSR()
+        self._scratch = CSRStorage(32, reset=0x12345678)
+        self._bus_errors = CSRStatus(32)
+
+        # # #
+
+        # reset
+        self.reset = Signal()
+        self.comb += self.reset.eq(self._reset.re)
+
+        # bus errors
+        self.bus_error = Signal()
+        bus_errors = Signal(32)
+        self.sync += \
+            If(bus_errors != (2**len(bus_errors)-1),
+                If(self.bus_error,
+                    bus_errors.eq(bus_errors + 1)
+                )
+            )
+        self.comb += self._bus_errors.status.eq(bus_errors)
+
+
 class SoCCore(Module):
     csr_map = {
-        "crg":            0,  # user
-        "uart_phy":       1,  # provided by default (optional)
-        "uart":           2,  # provided by default (optional)
-        "identifier_mem": 3,  # provided by default (optional)
-        "timer0":         4,  # provided by default (optional)
-        "buttons":        5,  # user
-        "leds":           6,  # user
+        "ctrl":           0,  # provided by default (optional)
+        "crg":            1,  # user
+        "uart_phy":       2,  # provided by default (optional)
+        "uart":           3,  # provided by default (optional)
+        "identifier_mem": 4,  # provided by default (optional)
+        "timer0":         5,  # provided by default (optional)
+        "buttons":        6,  # user
+        "leds":           7,  # user
     }
     interrupt_map = {}
     soc_interrupt_map = {
@@ -70,7 +96,8 @@ class SoCCore(Module):
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
                 reserve_nmi_interrupt=True,
-                with_timer=True):
+                with_timer=True,
+                with_ctrl=True):
         self.config = dict()
 
         self.platform = platform
@@ -99,12 +126,17 @@ class SoCCore(Module):
         if csr_expose:
             self.csr = csr_bus.Interface(csr_data_width, csr_address_width)
 
+        self.with_ctrl = with_ctrl
+
         self._memory_regions = []  # list of (name, origin, length)
         self._csr_regions = []  # list of (name, origin, busword, csr_list/Memory)
         self._constants = []  # list of (name, value)
 
         self._wb_masters = []
         self._wb_slaves = []
+
+        if with_ctrl:
+            self.submodules.ctrl = SoCController()
 
         if cpu_type is not None:
             if cpu_type == "lm32":
@@ -119,6 +151,8 @@ class SoCCore(Module):
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_wb_master(self.cpu_or_bridge.ibus)
             self.add_wb_master(self.cpu_or_bridge.dbus)
+            if with_ctrl:
+                self.comb += self.cpu_or_bridge.reset.eq(self.ctrl.reset)
         self.config["CPU_TYPE"] = str(cpu_type).upper()
         if self.cpu_variant:
             self.config["CPU_VARIANT"] = str(cpu_type).upper()
@@ -284,6 +318,8 @@ class SoCCore(Module):
             # Wishbone
             self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
                 self._wb_slaves, register=True)
+            if self.with_ctrl:
+                self.comb += self.ctrl.bus_error.eq(self.wishbonecon.timeout.error)
 
             # CSR
             self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
