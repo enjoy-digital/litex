@@ -7,6 +7,7 @@ from litex.soc.interconnect import wishbone
 
 class PicoRV32(Module):
     def __init__(self, platform, progaddr_reset, variant):
+        self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
@@ -50,7 +51,7 @@ class PicoRV32(Module):
 
             # clock / reset
             i_clk=ClockSignal(),
-            i_resetn=~ResetSignal(),
+            i_resetn=~(ResetSignal() | self.reset),
 
             # trap
             o_trap=self.trap,
