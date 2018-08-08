@@ -39,7 +39,7 @@ def get_cpu_mak(cpu):
         cpuflags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
         clang = False
     elif cpu == "vexriscv":
-        assert not clang, "vexrisv not supported with clang."
+        assert not clang, "vexriscv not supported with clang."
         triple = "riscv64-unknown-elf"
         cpuflags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
         clang = False
