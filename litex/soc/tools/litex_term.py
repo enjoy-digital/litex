@@ -6,6 +6,8 @@ import time
 import serial
 import threading
 import argparse
+from subprocess import call
+from os.path import dirname
 
 
 if sys.platform == "win32":
@@ -118,10 +120,11 @@ class SFLFrame:
 
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address):
+    def __init__(self, serial_boot, kernel_image, kernel_address, isMake):
         self.serial_boot = serial_boot
         self.kernel_image = kernel_image
         self.kernel_address = kernel_address
+        self.isMake = isMake
 
         self.reader_alive = False
         self.writer_alive = False
@@ -157,7 +160,13 @@ class LiteXTerm:
                 return 0
         return 1
 
-    def upload(self, filename, address):
+    def make(self):
+        dName = dirname(self.kernel_image)
+        if not dName:
+            dName = "."
+        call(["make", "clean", "all"], cwd=dName)
+
+    def upload(self, filename, address, chunk_size=100):
         with open(filename, "rb") as f:
             data = f.read()
         print("[TERM] Uploading {} ({} bytes)...".format(filename, len(data)))
@@ -171,7 +180,7 @@ class LiteXTerm:
                                                     100*position//length))
             sys.stdout.flush()
             frame = SFLFrame()
-            frame_data = data[:251]
+            frame_data = data[:chunk_size]
             frame.cmd = sfl_cmd_load
             frame.payload = current_address.to_bytes(4, "big")
             frame.payload += frame_data
@@ -180,19 +189,21 @@ class LiteXTerm:
             current_address += len(frame_data)
             position += len(frame_data)
             try:
-                data = data[251:]
+                data = data[chunk_size:]
             except:
                 data = []
         end = time.time()
         elapsed = end - start
         print("[TERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
+        # self.serial_boot = False
         return length
 
     def boot(self):
         print("[TERM] Booting the device.")
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
-        frame.payload = self.kernel_address.to_bytes(4, "big") 
+        frame.payload = self.kernel_address.to_bytes(4, "big")
+        # frame.payload = b"\x00\x00\x00\x00"
         self.send_frame(frame)
 
     def detect_prompt(self, data):
@@ -215,6 +226,8 @@ class LiteXTerm:
 
     def answer_magic(self):
         print("[TERM] Received firmware download request from the device.")
+        if self.isMake:
+            self.make()
         if os.path.exists(self.kernel_image):
             self.port.write(sfl_magic_ack)
             self.upload(self.kernel_image, self.kernel_address)
@@ -231,8 +244,8 @@ class LiteXTerm:
                     sys.stdout.buffer.write(c)
                 sys.stdout.flush()
 
-                if self.kernel_image is not None:
-                    if self.serial_boot and self.detect_prompt(c):
+                if self.serial_boot and self.kernel_image is not None:
+                    if self.detect_prompt(c):
                         self.answer_prompt()
                     if self.detect_magic(c):
                         self.answer_magic()
@@ -296,6 +309,8 @@ def _get_args():
     parser.add_argument("--speed", default=115200, help="serial baudrate")
     parser.add_argument("--serial-boot", default=False, action='store_true',
                         help="automatically initiate serial boot")
+    parser.add_argument("--make", default=False, action='store_true',
+                        help='call `make clean all` before loading firmware. Implies `serial-boot`')
     parser.add_argument("--kernel", default=None, help="kernel image")
     parser.add_argument("--kernel-adr", type=lambda a: int(a, 0), default=0x40000000, help="kernel address")
     return parser.parse_args()
@@ -303,7 +318,9 @@ def _get_args():
 
 def main():
     args = _get_args()
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr)
+    if args.make:
+        args.serial_boot = True
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.make)
     term.console.configure()
     try:
         term.open(args.port, args.speed)

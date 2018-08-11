@@ -12,6 +12,8 @@ class PicoRV32(Module):
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
         self.trap = Signal()
+        # programmable interrupt vector input
+        self.progaddr_irq = Signal(32, reset=0x00000010)
 
         # # #
 
@@ -46,7 +48,6 @@ class PicoRV32(Module):
             p_MASKED_IRQ=0x00000000,
             p_LATCHED_IRQ=0xffffffff,
             p_PROGADDR_RESET=progaddr_reset,
-            p_PROGADDR_IRQ=0x00000010,
             p_STACKADDR=0xffffffff,
 
             # clock / reset
@@ -65,6 +66,9 @@ class PicoRV32(Module):
             o_mem_wdata=mem_wdata,
             o_mem_wstrb=mem_wstrb,
             i_mem_rdata=mem_rdata,
+
+            # programmable interrupt vector
+            i_progaddr_irq=self.progaddr_irq,
 
             # look ahead interface (not used)
             o_mem_la_read=Signal(),

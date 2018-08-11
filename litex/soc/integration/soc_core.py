@@ -45,12 +45,17 @@ class SoCController(Module, AutoCSR):
         self._reset = CSR()
         self._scratch = CSRStorage(32, reset=0x12345678)
         self._bus_errors = CSRStatus(32)
+        self._progaddr_irq = CSRStorage(32, reset=0x00000010)
 
         # # #
 
         # reset
         self.reset = Signal()
         self.comb += self.reset.eq(self._reset.re)
+
+        # programmable interrupt vector (only used for picorv32 right now)
+        self.progaddr_irq = Signal(32)
+        self.comb += self.progaddr_irq.eq(self._progaddr_irq.storage)
 
         # bus errors
         self.bus_error = Signal()
@@ -145,6 +150,9 @@ class SoCCore(Module):
                 self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "picorv32":
                 self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
+                if with_ctrl:
+                    # wire up the programmable interrupt vector from CSR storage to picorv32 input
+                    self.comb += self.cpu_or_bridge.progaddr_irq.eq(self.ctrl.progaddr_irq)
             elif cpu_type == "vexriscv":
                 self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
             else:
