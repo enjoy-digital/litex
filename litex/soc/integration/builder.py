@@ -106,7 +106,7 @@ class Builder:
         csr_regions = self.soc.get_csr_regions()
         constants = self.soc.get_constants()
 
-        csr_dir = os.path.dirname(self.csr_csv)
+        csr_dir = os.path.dirname(os.path.realpath(self.csr_csv))
         os.makedirs(csr_dir, exist_ok=True)
         write_to_file(
             self.csr_csv,
