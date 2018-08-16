@@ -3,6 +3,7 @@
 # License: BSD
 
 import os
+import sys
 import subprocess
 
 from migen.fhdl.structure import _Fragment
@@ -131,9 +132,16 @@ sudo obj_dir/Vdut
 """
     run_script_file = "run_" + build_name + ".sh"
     tools.write_to_file(run_script_file, run_script_contents, force_unix=True)
-    r = subprocess.call(["bash", run_script_file])
-    if r != 0:
-        raise OSError("Subprocess failed")
+    if sys.platform != "win32":
+        import termios
+        termios_settings = termios.tcgetattr(sys.stdin.fileno())
+    try:
+        r = subprocess.call(["bash", run_script_file])
+        if r != 0:
+            raise OSError("Subprocess failed")
+    except:
+        if sys.platform != "win32":
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
 
 
 class SimVerilatorToolchain:
