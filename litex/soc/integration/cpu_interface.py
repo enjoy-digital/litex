@@ -1,4 +1,5 @@
 import os
+from shutil import which
 
 from migen import *
 
@@ -35,12 +36,18 @@ def get_cpu_mak(cpu):
             cpuflags += "-mffl1 -maddc"
     elif cpu == "picorv32":
         assert not clang, "picorv32 not supported with clang."
-        triple = "riscv64-unknown-elf"
+        if which("riscv64-unknown-elf-gcc"):
+            triple = "riscv64-unknown-elf"
+        else:
+            triple = "riscv32-unknown-elf"
         cpuflags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
         clang = False
     elif cpu == "vexriscv":
         assert not clang, "vexriscv not supported with clang."
-        triple = "riscv64-unknown-elf"
+        if which("riscv64-unknown-elf-gcc"):
+            triple = "riscv64-unknown-elf"
+        else:
+            triple = "riscv32-unknown-elf"
         cpuflags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
         clang = False
     else:
