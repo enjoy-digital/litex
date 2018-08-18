@@ -731,6 +731,7 @@ int sdrlevel(void)
 	int delay[DFII_PIX_DATA_SIZE/2];
 	int high_skew[DFII_PIX_DATA_SIZE/2];
 	int i, j;
+	int bitslip;
 
 	for(i=0; i<DFII_PIX_DATA_SIZE/2; i++) {
 		ddrphy_dly_sel_write(1<<i);
@@ -748,20 +749,29 @@ int sdrlevel(void)
 	if(!write_level(delay, high_skew))
 		return 0;
 #endif
-	/* check for optimal read leveling window */
-	for(i=0; i<ERR_DDRPHY_BITSLIP; i++) {
+	/* check possible read windows (based on bitslip) */
+	for(bitslip=0; bitslip<ERR_DDRPHY_BITSLIP; bitslip++) {
 		/* scan */
 		if (read_level_scan(1))
 			break;
-		if (i == ERR_DDRPHY_BITSLIP-1)
+		if (bitslip == ERR_DDRPHY_BITSLIP-1)
 			return 0;
 		/* increment bitslip */
-		for(j=0; j<DFII_PIX_DATA_SIZE/2; j++)
-			read_bitslip_inc(j);
+		for(i=0; i<DFII_PIX_DATA_SIZE/2; i++)
+			read_bitslip_inc(i);
 	}
-	/* show bitslip and scan */
-	printf("Read bitslip: %d\n", i);
-    read_level_scan(0);
+
+	/* select read window (bitslip)*/
+	printf("Read bitslip: %d\n", bitslip);
+	for(i=0; i<DFII_PIX_DATA_SIZE/2; i++) {
+		ddrphy_dly_sel_write(1<<i);
+		ddrphy_rdly_dq_bitslip_rst_write(1);
+		for (j=0; j<bitslip; j++)
+			read_bitslip_inc(i);
+	}
+
+	/* scan selected read window */
+	read_level_scan(0);
 	read_level();
 
 	return 1;
