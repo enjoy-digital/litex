@@ -7,8 +7,8 @@ from litex.soc.interconnect import wishbone
 
 class LM32(Module):
     def __init__(self, platform, eba_reset, variant=None):
+        assert variant in (None, "minimal"), "Unsupported variant %s" % variant
         self.reset = Signal()
-        assert variant == None, "No lm32 variants currently supported."
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
@@ -57,10 +57,10 @@ class LM32(Module):
         ]
 
         # add verilog sources
-        self.add_sources(platform)
+        self.add_sources(platform, variant)
 
     @staticmethod
-    def add_sources(platform):
+    def add_sources(platform, variant):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_sources(os.path.join(vdir, "submodule", "rtl"),
@@ -82,4 +82,7 @@ class LM32(Module):
                 "lm32_debug.v",
                 "lm32_itlb.v",
                 "lm32_dtlb.v")
-        platform.add_verilog_include_path(vdir)
+        if variant == "minimal":
+            platform.add_verilog_include_path(os.path.join(vdir, "config_minimal"))
+        else:
+            platform.add_verilog_include_path(os.path.join(vdir, "config"))

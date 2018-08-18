@@ -446,8 +446,8 @@ static int read_level_scan(int silent)
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(15);
 
-	/* Successful if working and optimal or if number of working delays > 3/4 of the taps */
-	return (working & optimal) | (working_delays > 3*ERR_DDRPHY_DELAY/4);
+	/* Successful if working and optimal or number of working delays > 3/4 of the taps */
+	return working & (optimal | working_delays > 3*(DFII_PIX_DATA_SIZE/2)*ERR_DDRPHY_DELAY/4);
 }
 
 static void read_level(void)
