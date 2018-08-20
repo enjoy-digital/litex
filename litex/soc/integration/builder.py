@@ -4,8 +4,9 @@ import struct
 import shutil
 
 from litex.build.tools import write_to_file
-from litex.soc.integration import cpu_interface, soc_sdram, sdram_init
+from litex.soc.integration import cpu_interface, soc_sdram
 
+from litedram import sdram_init
 
 __all__ = ["soc_software_packages", "soc_directory",
            "Builder", "builder_args", "builder_argdict"]
