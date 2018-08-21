@@ -121,6 +121,10 @@ _io = [
     ## Crypto 1 Wire Interface - ATSHA204A-MAHCZ-T
     #set_property -dict { PACKAGE_PIN D17   IOSTANDARD LVCMOS33 } [get_ports { crypto_sda }]; #IO_0_14 Sch=crypto_sda
 
+]
+
+
+_con = [
     ## Pmod Header JA
     #set_property -dict { PACKAGE_PIN G17   IOSTANDARD LVCMOS33 } [get_ports { ja[0] }]; #IO_L5N_T0_D07_14 Sch=ja[1]
     #set_property -dict { PACKAGE_PIN G19   IOSTANDARD LVCMOS33 } [get_ports { ja[1] }]; #IO_L4N_T0_D05_14 Sch=ja[2]
@@ -130,17 +134,9 @@ _io = [
     #set_property -dict { PACKAGE_PIN H19   IOSTANDARD LVCMOS33 } [get_ports { ja[5] }]; #IO_L4P_T0_D04_14 Sch=ja[8]
     #set_property -dict { PACKAGE_PIN J19   IOSTANDARD LVCMOS33 } [get_ports { ja[6] }]; #IO_L6N_T0_D08_VREF_14 Sch=ja[9]
     #set_property -dict { PACKAGE_PIN K18   IOSTANDARD LVCMOS33 } [get_ports { ja[7] }]; #IO_L8N_T1_D12_14 Sch=ja[10]
+    ("PMOD", "G17 G19 N18 L18 H17 H19 J19 K18")
 ]
 
-_io += [
-    ## UART2
-    # set_property -dict { PACKAGE_PIN A16   IOSTANDARD LVCMOS33 } [get_ports {  }]; #IO_L12P_T1_MRCC_16 Sch=pio[03]
-    # set_property -dict { PACKAGE_PIN K3    IOSTANDARD LVCMOS33 } [get_ports {  }]; #IO_L7N_T1_AD6N_35 Sch=pio[04]
-    ("serial", 1,
-        Subsignal("tx", Pins("A16")),
-        Subsignal("rx", Pins("K3")),
-        IOStandard("LVCMOS33"))
-]
 
 class Platform(XilinxPlatform):
     name = "cmod_a7"
@@ -165,7 +161,7 @@ class Platform(XilinxPlatform):
 
     def __init__(self, toolchain="vivado", programmer="openocd"):
         XilinxPlatform.__init__(self, "xc7a35t-cpg236-1", _io,
-                                toolchain=toolchain)
+                                toolchain=toolchain, connectors=_con)
         self.toolchain.bitstream_commands = \
             ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = \
