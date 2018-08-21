@@ -100,7 +100,7 @@ class Builder:
         if sdram_phy_settings is not None:
             write_to_file(
                 os.path.join(generated_dir, "sdram_phy.h"),
-                sdram_init.get_sdram_phy_header(sdram_phy_settings))
+                sdram_init.get_sdram_phy_c_header(sdram_phy_settings))
 
     def _generate_csr_csv(self):
         memory_regions = self.soc.get_memory_regions()
