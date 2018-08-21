@@ -6,7 +6,7 @@ from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.integration.soc_core import *
 
 from litedram.frontend import crossbar
-from litedram.frontend.bridge import LiteDRAMWishboneBridge
+from litedram.frontend.wishbone import LiteDRAMWishbone2Native
 from litedram import dfii, core
 
 
@@ -75,7 +75,7 @@ class SoCSDRAM(SoCCore):
 
         if self.l2_size:
             port = self.sdram.crossbar.get_port()
-            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(port.dw))
+            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(port.data_width))
             # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
             # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
             # Remove this workaround when fixed by Xilinx.
@@ -85,7 +85,7 @@ class SoCSDRAM(SoCCore):
                 self.submodules.l2_cache = FullMemoryWE()(l2_cache)
             else:
                 self.submodules.l2_cache = l2_cache
-            self.submodules.wishbone_bridge = LiteDRAMWishboneBridge(self.l2_cache.slave, port)
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
 
     def do_finalize(self):
         if not self.integrated_main_ram_size:
