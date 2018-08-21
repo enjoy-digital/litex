@@ -132,6 +132,15 @@ _io = [
     #set_property -dict { PACKAGE_PIN K18   IOSTANDARD LVCMOS33 } [get_ports { ja[7] }]; #IO_L8N_T1_D12_14 Sch=ja[10]
 ]
 
+_io += [
+    ## UART2
+    # set_property -dict { PACKAGE_PIN A16   IOSTANDARD LVCMOS33 } [get_ports {  }]; #IO_L12P_T1_MRCC_16 Sch=pio[03]
+    # set_property -dict { PACKAGE_PIN K3    IOSTANDARD LVCMOS33 } [get_ports {  }]; #IO_L7N_T1_AD6N_35 Sch=pio[04]
+    ("serial", 1,
+        Subsignal("tx", Pins("A16")),
+        Subsignal("rx", Pins("K3")),
+        IOStandard("LVCMOS33"))
+]
 
 class Platform(XilinxPlatform):
     name = "cmod_a7"
