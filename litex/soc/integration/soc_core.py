@@ -7,6 +7,7 @@ from litex.soc.cores import identifier, timer, uart
 from litex.soc.cores.cpu import lm32, mor1kx, picorv32, vexriscv
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
+from litex.soc.integration.cpu_interface import cpu_endianness
 
 
 __all__ = ["mem_decoder", "SoCCore", "soc_core_args", "soc_core_argdict"]
@@ -105,6 +106,7 @@ class SoCCore(Module):
 
         self.cpu_type = cpu_type
         self.cpu_variant = cpu_variant
+        self.cpu_endianness = cpu_endianness[cpu_type]
         if integrated_rom_size:
             cpu_reset_address = self.mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address

@@ -6,6 +6,7 @@ from migen import *
 from litex.soc.interconnect.csr import CSRStatus
 
 cpu_endianness = {
+    None: "big",
     "lm32": "big",
     "or1k": "big",
     "picorv32": "little",
