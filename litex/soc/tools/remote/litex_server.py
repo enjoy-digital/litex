@@ -1,5 +1,6 @@
 import sys
 import socket
+import time
 import threading
 
 from litex.soc.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
@@ -10,6 +11,7 @@ class RemoteServer(EtherboneIPC):
     def __init__(self, comm, port=1234):
         self.comm = comm
         self.port = port
+        self.lock = False
 
     def open(self):
         if hasattr(self, "socket"):
@@ -19,7 +21,7 @@ class RemoteServer(EtherboneIPC):
             try:
                 self.socket.bind(("localhost", self.port + i))
                 break
-            except: 
+            except:
                 pass
         print("tcp port: {:d}".format(self.port + i))
         self.socket.listen(1)
@@ -49,11 +51,18 @@ class RemoteServer(EtherboneIPC):
 
                     record = packet.records.pop()
 
-                    # writes:
+                    # wait for lock
+                    while self.lock:
+                        time.sleep(0.01)
+
+                    # set lock
+                    self.lock = True
+
+                    # handle writes:
                     if record.writes != None:
                         self.comm.write(record.writes.base_addr, record.writes.get_datas())
 
-                    # reads
+                    # handle reads
                     if record.reads != None:
                         reads = []
                         for addr in record.reads.get_addrs():
@@ -67,14 +76,19 @@ class RemoteServer(EtherboneIPC):
                         packet.records = [record]
                         packet.encode()
                         self.send_packet(client_socket, packet)
+
+                    # release lock
+                    self.lock = False
+
             finally:
                 print("Disconnect")
                 client_socket.close()
 
-    def start(self):
-        self.serve_thread = threading.Thread(target=self._serve_thread)
-        self.serve_thread.setDaemon(True)
-        self.serve_thread.start()
+    def start(self, nthreads):
+        for i in range(nthreads):
+            self.serve_thread = threading.Thread(target=self._serve_thread)
+            self.serve_thread.setDaemon(True)
+            self.serve_thread.start()
 
 
 def main():
@@ -121,7 +135,7 @@ def main():
 
     server = RemoteServer(comm)
     server.open()
-    server.start()
+    server.start(4)
     try:
         import time
         while True: time.sleep(100)

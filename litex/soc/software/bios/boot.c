@@ -29,6 +29,8 @@ static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, uns
 	ctrl_progaddr_irq_write(addr + 0x00000010);
 #endif
 	flush_cpu_icache();
+	flush_cpu_dcache();
+	flush_l2_cache();
 	boot_helper(r1, r2, r3, addr);
 	while(1);
 }
