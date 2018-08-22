@@ -126,10 +126,9 @@ mkdir -p modules && cp obj_dir/*.so modules
         print(output)
 
 
-def _run_sim(build_name):
-    run_script_contents = """\
-sudo obj_dir/Vdut
-"""
+def _run_sim(build_name, as_root=False):
+    run_script_contents = "sudo " if as_root else ""
+    run_script_contents += "obj_dir/Vdut"
     run_script_file = "run_" + build_name + ".sh"
     tools.write_to_file(run_script_file, run_script_contents, force_unix=True)
     if sys.platform != "win32":
@@ -173,7 +172,7 @@ class SimVerilatorToolchain:
         _build_sim(platform, build_name, verbose)
 
         if run:
-            _run_sim(build_name)
+            _run_sim(build_name, as_root=sim_config.has_module("ethernet"))
 
         os.chdir("..")
 
