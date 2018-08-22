@@ -60,10 +60,6 @@ class Builder:
         flash_boot_address = getattr(self.soc, "flash_boot_address", None)
         csr_regions = self.soc.get_csr_regions()
         constants = self.soc.get_constants()
-        if isinstance(self.soc, soc_sdram.SoCSDRAM) and self.soc._sdram_phy:
-            sdram_phy_settings = self.soc._sdram_phy[0].settings
-        else:
-            sdram_phy_settings = None
 
         buildinc_dir = os.path.join(self.output_dir, "software", "include")
         generated_dir = os.path.join(buildinc_dir, "generated")
@@ -97,10 +93,12 @@ class Builder:
             os.path.join(generated_dir, "csr.h"),
             cpu_interface.get_csr_header(csr_regions, constants))
 
-        if sdram_phy_settings is not None:
+        if isinstance(self.soc, soc_sdram.SoCSDRAM):
             write_to_file(
                 os.path.join(generated_dir, "sdram_phy.h"),
-                sdram_init.get_sdram_phy_c_header(sdram_phy_settings))
+                sdram_init.get_sdram_phy_c_header(
+                    self.soc.sdram.controller.settings.phy,
+                    self.soc.sdram.controller.settings.timing))
 
     def _generate_csr_csv(self):
         memory_regions = self.soc.get_memory_regions()
