@@ -19,10 +19,8 @@ class ControllerInjector(Module, AutoCSR):
                 phy.settings.dfi_databits, phy.settings.nphases)
         self.comb += self.dfii.master.connect(phy.dfi)
 
-        self.submodules.controller = controller = core.LiteDRAMController(phy.settings,
-                                                                          geom_settings,
-                                                                          timing_settings,
-                                                                          **kwargs)
+        self.submodules.controller = controller = core.LiteDRAMController(
+            phy.settings, geom_settings, timing_settings, **kwargs)
         self.comb += controller.dfi.connect(self.dfii.slave)
 
         self.submodules.crossbar = crossbar.LiteDRAMCrossbar(controller.interface, controller.nrowbits)
@@ -54,16 +52,15 @@ class SoCSDRAM(SoCCore):
         assert not self._sdram_phy
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
-        self.submodules.sdram = ControllerInjector(phy,
-                                                   geom_settings,
-                                                   timing_settings,
-                                                   **kwargs)
+        self.submodules.sdram = ControllerInjector(
+            phy, geom_settings, timing_settings, **kwargs)
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +
                             geom_settings.colbits)*sdram_width//8
+
         # TODO: modify mem_map to allow larger memories.
         main_ram_size = min(main_ram_size, 256*1024*1024)
         self.add_constant("L2_SIZE", self.l2_size)
@@ -85,8 +82,8 @@ class SoCSDRAM(SoCCore):
                 raise FinalizeError("Need to call SDRAMSoC.register_sdram()")
 
             # arbitrate wishbone interfaces to the DRAM
-            self.submodules.wb_sdram_con = wishbone.Arbiter(self._wb_sdram_ifs,
-                                                            self._wb_sdram)
+            self.submodules.wb_sdram_con = wishbone.Arbiter(
+                self._wb_sdram_ifs, self._wb_sdram)
         SoCCore.do_finalize(self)
 
 
