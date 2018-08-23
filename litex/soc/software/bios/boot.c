@@ -27,7 +27,9 @@ static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, uns
 	irq_setie(0);
 	flush_cpu_icache();
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	boot_helper(r1, r2, r3, addr);
 	while(1);
 }
