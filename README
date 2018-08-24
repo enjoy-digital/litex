@@ -43,7 +43,7 @@ and is compatible with the LiteX's Cores Ecosystem:
 - LiteEth: https://github.com/enjoy-digital/liteeth
 - LitePCIe: https://github.com/enjoy-digital/litepcie
 - LiteSATA: https://github.com/enjoy-digital/litesata
-- LiteUSB: https://github.com/enjoy-digital/litesata
+- LiteUSB: https://github.com/enjoy-digital/liteusb
 - LiteSDCard: https://github.com/enjoy-digital/litesdcard
 - LiteICLink: https://github.com/enjoy-digital/liteiclink
 - LiteJESD204B: https://github.com/enjoy-digital/litejesd204b
