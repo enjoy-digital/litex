@@ -56,3 +56,31 @@ class TinyFpgaBProgrammer(GenericProgrammer):
     # is active, and the user image need not be reprogrammed.
     def boot(self):
         subprocess.call(["tinyfpgab", "-b"])
+
+
+# Different bootloader protocol requires different application. In the basic
+# case, command-line arguments are the same. Note that this programmer can
+# also be used with TinyFPGA B2 if you have updated its bootloader.
+class TinyProgProgrammer(GenericProgrammer):
+    needs_bitreverse = False
+
+    # You probably want to pass address="None" for this programmer
+    # unless you know what you're doing.
+    def flash(self, address, bitstream_file, user_data=False):
+        if address is None:
+            if not user_data:
+                # tinyprog looks at spi flash metadata to figure out where to
+                # program your bitstream.
+                subprocess.call(["tinyprog", "-p", bitstream_file])
+            else:
+                # Ditto with user data.
+                subprocess.call(["tinyprog", "-u", bitstream_file])
+        else:
+            # Provide override so user can program wherever they wish.
+            subprocess.call(["tinyprog", "-a", str(address), "-p",
+                            bitstream_file])
+
+    # Force user image to boot if a user reset tinyfpga, the bootloader
+    # is active, and the user image need not be reprogrammed.
+    def boot(self):
+        subprocess.call(["tinyprog", "-b"])
