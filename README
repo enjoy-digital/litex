@@ -9,10 +9,8 @@
 
 [> Intro
 --------
-LiteX is an alternative to MiSoC maintained and used by Enjoy-Digital to build
-our cores, integrate them in complete SoC and load/flash them to the hardware
-and experiment new features. (structure is kept close to MiSoC to ease
-collaboration)
+LiteX is a FPGA design/SoC builder that can be used to build cores, create
+SoCs and full FPGA designs.
 
 Typical LiteX design flow:
 --------------------------
