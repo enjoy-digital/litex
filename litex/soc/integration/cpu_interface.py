@@ -13,7 +13,7 @@ cpu_endianness = {
     "vexriscv": "little"
 }
 
-def get_cpu_mak(cpu):
+def get_cpu_mak(cpu, variant):
     clang = os.getenv("CLANG", "")
     if clang != "":
         clang = bool(int(clang))
@@ -23,7 +23,10 @@ def get_cpu_mak(cpu):
     if cpu == "lm32":
         assert not clang, "lm32 not supported with clang."
         triple = "lm32-elf"
-        cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
+        if variant == "minimal":
+            cpuflags = "-mbarrel-shift-enabled -msign-extend-enabled"
+        else:
+            cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
         clang = False
     elif cpu == "or1k":
         # Default to CLANG unless told otherwise

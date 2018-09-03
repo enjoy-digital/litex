@@ -15,7 +15,7 @@ all: libcompiler_rt.a
 
 libcompiler_rt.a: $(OBJECTS)
 	$(CC) -c $(CFLAGS) $(1) $(SOC_DIRECTORY)/software/libcompiler_rt/mulsi3.c -o mulsi3.o
-	$(AR) crs libcompiler_rt.a $(OBJECTS)
+	$(AR) crs libcompiler_rt.a $(OBJECTS) mulsi3.o
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
