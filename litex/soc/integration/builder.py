@@ -56,6 +56,7 @@ class Builder:
 
     def _generate_includes(self):
         cpu_type = self.soc.cpu_type
+        cpu_variant = self.soc.cpu_variant
         memory_regions = self.soc.get_memory_regions()
         flash_boot_address = getattr(self.soc, "flash_boot_address", None)
         csr_regions = self.soc.get_csr_regions()
@@ -68,7 +69,7 @@ class Builder:
         variables_contents = []
         def define(k, v):
             variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
-        for k, v in cpu_interface.get_cpu_mak(cpu_type):
+        for k, v in cpu_interface.get_cpu_mak(cpu_type, cpu_variant):
             define(k, v)
         define("SOC_DIRECTORY", soc_directory)
         variables_contents.append("export BUILDINC_DIRECTORY\n")
