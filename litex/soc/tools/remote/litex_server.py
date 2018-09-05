@@ -97,7 +97,7 @@ def main():
         print("usages:")
         print("litex_server uart [port] [baudrate]")
         print("litex_server udp [server] [server_port]")
-        print("litex_server pcie [bar] [bar_size]")
+        print("litex_server pcie [bar]")
         sys.exit()
     comm = sys.argv[1]
     if comm == "uart":
@@ -123,13 +123,12 @@ def main():
     elif comm == "pcie":
         from litex.soc.tools.remote import CommPCIe
         bar = ""
-        bar_size = 1024*1024
         if len(sys.argv) > 2:
             bar = sys.argv[2]
         if len(sys.argv) > 3:
             bar_size = int(sys.argv[3])
-        print("[CommPCIe] bar: {} / bar_size: {} / ".format(bar, bar_size), end="")
-        comm = CommPCIe(bar, bar_size)
+        print("[CommPCIe] bar: {} / ".format(bar), end="")
+        comm = CommPCIe(bar)
     else:
         raise NotImplementedError
 
