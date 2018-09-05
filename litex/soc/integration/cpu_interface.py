@@ -10,7 +10,8 @@ cpu_endianness = {
     "lm32": "big",
     "or1k": "big",
     "picorv32": "little",
-    "vexriscv": "little"
+    "vexriscv": "little",
+    "minerva": "little",
 }
 
 def get_cpu_mak(cpu, variant):
@@ -54,6 +55,14 @@ def get_cpu_mak(cpu, variant):
             triple = "riscv32-unknown-elf"
         cpuflags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
         clang = False
+    elif cpu == "minerva":
+        assert not clang, "minerva not supported with clang."
+        if which("riscv64-unknown-elf-gcc"):
+            triple = "riscv64-unknown-elf"
+        else:
+            triple = "riscv32-unknown-elf"
+        cpuflags = "-D__minerva__ -march=rv32i -mabi=ilp32"
+        clang = False
     else:
         raise ValueError("Unsupported CPU type: "+cpu)
 
@@ -72,7 +81,8 @@ def get_linker_output_format(cpu_type):
         "lm32": "elf32-lm32",
         "or1k": "elf32-or1k",
         "picorv32": "elf32-littleriscv",
-        "vexriscv": "elf32-littleriscv"
+        "vexriscv": "elf32-littleriscv",
+        "minerva": "elf32-littleriscv",
     }
     return "OUTPUT_FORMAT(\"" + linker_output_formats[cpu_type] + "\")\n"
 

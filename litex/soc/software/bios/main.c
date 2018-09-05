@@ -514,6 +514,8 @@ int main(int i, char **c)
 	printf("PicoRV32");
 #elif __vexriscv__
 	printf("VexRiscv");
+#elif __minerva__
+	printf("Minerva");
 #else
 	printf("Unknown");
 #endif
