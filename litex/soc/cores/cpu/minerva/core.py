@@ -4,8 +4,6 @@ from migen import *
 
 from litex.soc.interconnect import wishbone
 
-from minerva.core import Minerva as MinervaCPU
-
 
 class Minerva(Module):
     def __init__(self, platform, cpu_reset_address, variant=None):
@@ -17,10 +15,15 @@ class Minerva(Module):
 
         ###
 
-        self.submodules.cpu = MinervaCPU(reset_address=cpu_reset_address)
-        self.comb += [
-            self.cpu.reset.eq(self.reset),
-            self.cpu.external_interrupt.eq(self.interrupt),
-            self.cpu.ibus.connect(self.ibus),
-            self.cpu.dbus.connect(self.dbus)
-        ]
+        try: # FIXME: workaround until Minerva code is released
+            from minerva.core import Minerva as MinervaCPU
+            self.submodules.cpu = MinervaCPU(reset_address=cpu_reset_address)
+            self.comb += [
+                self.cpu.reset.eq(self.reset),
+                self.cpu.external_interrupt.eq(self.interrupt),
+                self.cpu.ibus.connect(self.ibus),
+                self.cpu.dbus.connect(self.dbus)
+            ]
+        except:
+            pass
+
