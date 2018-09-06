@@ -4,7 +4,7 @@
 #include <spr-defs.h>
 #endif
 
-#if defined (__vexriscv___) || defined(__minerva__)
+#if defined (__vexriscv__)
 #include <csr-defs.h>
 #endif
 
