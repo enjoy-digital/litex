@@ -127,6 +127,7 @@ static ethernet_buffer *txbuffer1;
 
 static void send_packet(void)
 {
+
 #ifndef HW_PREAMBLE_CRC
 	unsigned int crc;
 	crc = crc32(&txbuffer->raw[8], txlen-8);
@@ -134,9 +135,9 @@ static void send_packet(void)
 	txbuffer->raw[txlen+1] = (crc & 0xff00) >> 8;
 	txbuffer->raw[txlen+2] = (crc & 0xff0000) >> 16;
 	txbuffer->raw[txlen+3] = (crc & 0xff000000) >> 24;
-	//txlen += 4;
+	txlen += 4;
 #endif
-	txlen += 4; // FIXME
+	txlen += 4; //FIXME: padding?
 
 #ifdef DEBUG_MICROUDP_TX
 	int j;
@@ -169,7 +170,7 @@ static void process_arp(void)
 	const struct arp_frame *rx_arp = &rxbuffer->frame.contents.arp;
 	struct arp_frame *tx_arp = &txbuffer->frame.contents.arp;
 
-	//if(rxlen < ARP_PACKET_LENGTH) return; // FIXME
+	if(rxlen < ARP_PACKET_LENGTH) return;
 	if(ntohs(rx_arp->hwtype) != ARP_HWTYPE_ETHERNET) return;
 	if(ntohs(rx_arp->proto) != ARP_PROTO_IP) return;
 	if(rx_arp->hwsize != 6) return;

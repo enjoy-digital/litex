@@ -45,8 +45,7 @@ class MiniSoC(BaseSoC):
         self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"),
                                             platform.request("eth"))
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-                                            interface="wishbone",
-                                            with_preamble_crc=False)
+            interface="wishbone", endianness=self.cpu_endianness, with_preamble_crc=False)
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
