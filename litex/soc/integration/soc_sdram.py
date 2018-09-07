@@ -72,8 +72,15 @@ class SoCSDRAM(SoCCore):
 
         if self.l2_size:
             port = self.sdram.crossbar.get_port()
-            self.submodules.l2_cache = wishbone.Cache(
-                self.l2_size//4, self._wb_sdram, wishbone.Interface(port.data_width))
+            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(port.dw))
+            # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
+            # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
+            from litex.build.xilinx.vivado import XilinxVivadoToolchain
+            if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+                from migen.fhdl.simplify import FullMemoryWE
+                self.submodules.l2_cache = FullMemoryWE()(l2_cache)
+            else:
+                self.submodules.l2_cache = l2_cache
             self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
 
     def do_finalize(self):
