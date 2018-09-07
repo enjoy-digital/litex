@@ -76,8 +76,9 @@ class TinyProgProgrammer(GenericProgrammer):
                 # Ditto with user data.
                 subprocess.call(["tinyprog", "-u", bitstream_file])
         else:
-            # Provide override so user can program wherever they wish.
-            subprocess.call(["tinyprog", "-a", str(address), "-p",
+            # Provide override so user can program wherever they wish (outside
+            # of bootloader region).
+            subprocess.call(["tinyprog", "-a", str(address), "--program-image",
                             bitstream_file])
 
     # Force user image to boot if a user reset tinyfpga, the bootloader
