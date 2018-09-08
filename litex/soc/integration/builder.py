@@ -71,6 +71,12 @@ class Builder:
             variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
         for k, v in cpu_interface.get_cpu_mak(cpu_type, cpu_variant):
             define(k, v)
+        # Distinguish between applications running from main RAM and
+        # flash for user-provided software packages.
+        if "main_ram" in (m[0] for m in memory_regions):
+            define("COPY_TO_MAIN_RAM", "1")
+        else:
+            define("COPY_TO_MAIN_RAM", "0")
         define("SOC_DIRECTORY", soc_directory)
         variables_contents.append("export BUILDINC_DIRECTORY\n")
         define("BUILDINC_DIRECTORY", buildinc_dir)
