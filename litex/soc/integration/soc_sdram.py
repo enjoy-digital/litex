@@ -15,8 +15,12 @@ __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 class ControllerInjector(Module, AutoCSR):
     def __init__(self, phy, geom_settings, timing_settings, **kwargs):
-        self.submodules.dfii = dfii.DFIInjector(geom_settings.addressbits, geom_settings.bankbits,
-                phy.settings.dfi_databits, phy.settings.nphases)
+        self.submodules.dfii = dfii.DFIInjector(
+            geom_settings.addressbits,
+            geom_settings.bankbits,
+            phy.settings.nranks,
+            phy.settings.dfi_databits,
+            phy.settings.nphases)
         self.comb += self.dfii.master.connect(phy.dfi)
 
         self.submodules.controller = controller = core.LiteDRAMController(
