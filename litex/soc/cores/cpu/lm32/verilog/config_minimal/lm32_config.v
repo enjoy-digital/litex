@@ -39,13 +39,13 @@
 // in a pipelined one. The multi-cycle multiplier stalls the pipe
 // for 32 cycles. If both options are disabled, multiply operations
 // are not supported.
-//`define CFG_MC_MULTIPLY_ENABLED
+`define CFG_MC_MULTIPLY_ENABLED
 //`define CFG_PL_MULTIPLY_ENABLED
 
 // Enable the multi-cycle divider. Stalls the pipe until the result
 // is ready after 32 cycles. If disabled, the divide operation is not
 // supported.
-//`define CFG_MC_DIVIDE_ENABLED
+`define CFG_MC_DIVIDE_ENABLED
 
 
 //

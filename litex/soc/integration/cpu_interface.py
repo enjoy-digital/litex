@@ -24,10 +24,7 @@ def get_cpu_mak(cpu, variant):
     if cpu == "lm32":
         assert not clang, "lm32 not supported with clang."
         triple = "lm32-elf"
-        if variant == "minimal":
-            cpuflags = "-mbarrel-shift-enabled -msign-extend-enabled"
-        else:
-            cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
+        cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
         clang = False
     elif cpu == "or1k":
         # Default to CLANG unless told otherwise
