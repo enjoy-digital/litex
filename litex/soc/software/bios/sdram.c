@@ -801,8 +801,10 @@ int sdrinit(void)
 #endif
 #endif
 	if(!memtest()) {
+#ifdef CSR_DDRPHY_BASE
 		/* show scans */
 		sdrlevel(0);
+#endif
 		return 0;
 	}
 
