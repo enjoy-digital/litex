@@ -31,7 +31,7 @@ class _CRG(Module):
 
         pll_locked = Signal()
         pll_fb = Signal()
-        self.pll_sys = Signal()
+        pll_sys = Signal()
         pll_sys4x = Signal()
         pll_sys4x_dqs = Signal()
         pll_clk200 = Signal()
@@ -46,7 +46,7 @@ class _CRG(Module):
 
                      # 100 MHz
                      p_CLKOUT0_DIVIDE=16, p_CLKOUT0_PHASE=0.0,
-                     o_CLKOUT0=self.pll_sys,
+                     o_CLKOUT0=pll_sys,
 
                      # 400 MHz
                      p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.0,
@@ -60,7 +60,7 @@ class _CRG(Module):
                      p_CLKOUT3_DIVIDE=8, p_CLKOUT3_PHASE=0.0,
                      o_CLKOUT3=pll_clk200
             ),
-            Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
+            Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
             Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
