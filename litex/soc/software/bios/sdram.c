@@ -780,8 +780,6 @@ int sdrlevel(int silent)
     read_level_scan(0);
 	read_level();
 
-	sdrhw();
-
 	return 1;
 }
 #endif
@@ -800,6 +798,7 @@ int sdrinit(void)
 	ddrphy_en_vtc_write(1);
 #endif
 #endif
+	sdrhw();
 	if(!memtest()) {
 #ifdef CSR_DDRPHY_BASE
 		/* show scans */
