@@ -101,11 +101,12 @@ class Builder:
             cpu_interface.get_csr_header(csr_regions, constants))
 
         if isinstance(self.soc, soc_sdram.SoCSDRAM):
-            write_to_file(
-                os.path.join(generated_dir, "sdram_phy.h"),
-                sdram_init.get_sdram_phy_c_header(
-                    self.soc.sdram.controller.settings.phy,
-                    self.soc.sdram.controller.settings.timing))
+            if hasattr(self.soc, "sdram"):
+                write_to_file(
+                    os.path.join(generated_dir, "sdram_phy.h"),
+                    sdram_init.get_sdram_phy_c_header(
+                        self.soc.sdram.controller.settings.phy,
+                        self.soc.sdram.controller.settings.timing))
 
     def _generate_csr_csv(self):
         memory_regions = self.soc.get_memory_regions()
