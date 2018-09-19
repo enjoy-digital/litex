@@ -29,7 +29,7 @@ def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
 
-def get_mem_data(filename, mem_size):
+def get_mem_data(filename, mem_size=None):
     data = []
     with open(filename, "rb") as mem_file:
         while True:
@@ -39,9 +39,10 @@ def get_mem_data(filename, mem_size):
             data.append(struct.unpack(">I", w)[0])
     data_size = len(data)*4
     assert data_size > 0
-    assert data_size < mem_size, (
-        "file is too big: {}/{} bytes".format(
-            data_size, mem_size))
+    if mem_size is not None:
+        assert data_size < mem_size, (
+            "file is too big: {}/{} bytes".format(
+                data_size, mem_size))
     return data
 
 

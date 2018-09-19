@@ -7,6 +7,7 @@ from migen.genlib.io import CRG
 
 from litex.boards.platforms import sim
 
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.cores import uart
@@ -65,7 +66,6 @@ class SimSoC(SoCSDRAM):
         SoCSDRAM.__init__(self, platform,
             clk_freq=int(1e9/platform.default_clk_period),
             integrated_rom_size=0x8000,
-            integrated_main_ram_size=0x8000 if not with_sdram else 0,
             ident="LiteX Simulation", ident_version=True,
             with_uart=False,
             **kwargs)
@@ -144,6 +144,8 @@ def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--ram-init", default=None,
+                        help="ram_init file")
     parser.add_argument("--with-sdram", action="store_true",
                         help="enable SDRAM support")
     parser.add_argument("--with-ethernet", action="store_true",
@@ -156,6 +158,13 @@ def main():
 
     sim_config = SimConfig(default_clk="sys_clk")
     sim_config.add_module("serial2console", "serial")
+    integrated_main_ram_init = []
+    if not args.with_sdram:
+        if args.ram_init is not None:
+            integrated_main_ram_init = get_mem_data(args.ram_init)
+            integrated_main_ram_size = max(len(integrated_main_ram_init), 0x10000)
+    else:
+        integrated_main_ram_size = 0
     if args.with_ethernet:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
     if args.with_etherbone:
@@ -165,6 +174,8 @@ def main():
         with_ethernet=args.with_ethernet,
         with_etherbone=args.with_etherbone,
         with_analyzer=args.with_analyzer,
+        integrated_main_ram_size=integrated_main_ram_size,
+        integrated_main_ram_init=integrated_main_ram_init,
         **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(sim_config=sim_config)
