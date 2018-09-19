@@ -22,7 +22,7 @@ class BaseSoC(SoCCore):
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 
 
-class MiniSoC(BaseSoC):
+class EthernetSoC(BaseSoC):
     csr_map = {
         "ethphy": 20,
         "ethmac": 21
@@ -62,7 +62,7 @@ def main():
 
     platform_module = importlib.import_module(args.platform)
     platform = platform_module.Platform()
-    cls = MiniSoC if args.with_ethernet else BaseSoC
+    cls = EthernetSoC if args.with_ethernet else BaseSoC
     soc = cls(platform, **soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()

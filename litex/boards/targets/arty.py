@@ -114,7 +114,7 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.timing_settings)
 
 
-class MiniSoC(BaseSoC):
+class EthernetSoC(BaseSoC):
     csr_map = {
         "ethphy": 18,
         "ethmac": 19
@@ -161,7 +161,7 @@ def main():
                         help="enable Ethernet support")
     args = parser.parse_args()
 
-    cls = MiniSoC if args.with_ethernet else BaseSoC
+    cls = EthernetSoC if args.with_ethernet else BaseSoC
     soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
