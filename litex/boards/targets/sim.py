@@ -18,8 +18,11 @@ from litedram.modules import IS42S16160
 from litedram.phy.model import SDRAMPHYModel
 from litedram.core.controller import ControllerSettings
 
+from liteeth.common import convert_ip
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.core.mac import LiteEthMAC
+from liteeth.core import LiteEthUDPIPCore
+from liteeth.frontend.etherbone import LiteEthEtherbone
 
 from litex.build.sim.config import SimConfig
 
@@ -34,7 +37,7 @@ class BaseSoC(SoCSDRAM):
         SoCSDRAM.__init__(self, platform,
             clk_freq=int((1/(platform.default_clk_period))*1000000000),
             integrated_rom_size=0x8000,
-            ident="LiteX simulation example design",
+            ident="LiteX Simulation", ident_version=True,
             with_uart=False,
             **kwargs)
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
@@ -66,7 +69,7 @@ class BaseSoC(SoCSDRAM):
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
 
-class MiniSoC(BaseSoC):
+class EthernetSoC(BaseSoC):
     csr_map = {
         "ethphy": 18,
         "ethmac": 19,
@@ -93,6 +96,23 @@ class MiniSoC(BaseSoC):
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
 
+class EtherboneSoC(BaseSoC):
+    csr_map = {
+        "ethphy":  11,
+        "ethcore": 12
+    }
+    csr_map.update(SoCSDRAM.csr_map)
+    def __init__(self, mac_address=0x10e2d5000000, ip_address="192.168.1.50", *args, **kwargs):
+        BaseSoC.__init__(self, *args, **kwargs)
+
+        # ethernet phy and hw stack
+        self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth"))
+        self.submodules.ethcore = LiteEthUDPIPCore(self.ethphy, mac_address, convert_ip(ip_address), self.clk_freq)
+
+        # etherbone
+        self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234, mode="master")
+        self.add_wb_master(self.etherbone.wishbone.bus)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
@@ -100,14 +120,21 @@ def main():
     soc_sdram_args(parser)
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true",
+                        help="enable Etherbone support")
     args = parser.parse_args()
 
     scfg = SimConfig(default_clk="sys_clk")
     scfg.add_module("serial2console", "serial")
-    if args.with_ethernet:
+    if args.with_ethernet or args.with_etherbone:
         scfg.add_module('ethernet', "eth", args={"interface": "tap1", "ip": "192.168.1.100"})
 
-    cls = MiniSoC if args.with_ethernet else BaseSoC
+    if args.with_ethernet:
+        cls = EthernetSoC
+    elif args.with_etherbone:
+        cls = EtherboneSoC
+    else:
+        cls = BaseSoC
     soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(sim_config=scfg)
