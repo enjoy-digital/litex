@@ -1,3 +1,4 @@
+import struct
 import inspect
 from operator import itemgetter
 
@@ -10,7 +11,7 @@ from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 from litex.soc.integration.cpu_interface import cpu_endianness
 
 
-__all__ = ["mem_decoder", "SoCCore", "soc_core_args", "soc_core_argdict"]
+__all__ = ["mem_decoder", "get_mem_data", "SoCCore", "soc_core_args", "soc_core_argdict"]
 
 
 def version(with_time=True):
@@ -26,6 +27,22 @@ def version(with_time=True):
 
 def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
+
+
+def get_mem_data(filename, mem_size):
+    data = []
+    with open(filename, "rb") as mem_file:
+        while True:
+            w = mem_file.read(4)
+            if not w:
+                break
+            data.append(struct.unpack(">I", w)[0])
+    data_size = len(data)*4
+    assert data_size > 0
+    assert data_size < mem_size, (
+        "file is too big: {}/{} bytes".format(
+            data_size, mem_size))
+    return data
 
 
 class ReadOnlyDict(dict):
