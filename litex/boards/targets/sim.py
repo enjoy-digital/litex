@@ -174,6 +174,7 @@ def main():
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
     if args.with_etherbone:
         sim_config.add_module('ethernet', "eth", args={"interface": "tap1", "ip": "192.168.1.101"})
+
     soc = SimSoC(
         with_sdram=args.with_sdram,
         with_ethernet=args.with_ethernet,
@@ -182,7 +183,10 @@ def main():
         **soc_kwargs)
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
-    builder.build(sim_config=sim_config)
+    vns = builder.build(run=False, sim_config=sim_config)
+    if args.with_analyzer:
+        soc.analyzer.export_csv(vns, "analyzer.csv")
+    builder.build(build=False, sim_config=sim_config)
 
 
 if __name__ == "__main__":
