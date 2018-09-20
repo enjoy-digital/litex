@@ -158,17 +158,18 @@ def main():
                         help="enable Analyzer support")
     args = parser.parse_args()
 
-    kwargs = soc_sdram_argdict(args)
+    soc_kwargs = soc_sdram_argdict(args)
+    builder_kwargs = builder_argdict(args)
 
     sim_config = SimConfig(default_clk="sys_clk")
     sim_config.add_module("serial2console", "serial")
     if args.rom_init:
-        kwargs["integrated_rom_init"] = get_mem_data(args.rom_init)
-    kwargs["integrated_main_ram_size"] = 0x10000
+        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init)
+    soc_kwargs["integrated_main_ram_size"] = 0x10000
     if not args.with_sdram:
         if args.ram_init is not None:
-            kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init)
-            kwargs["integrated_main_ram_size"] = max(len(kwargs["integrated_main_ram_init"]), 0x10000)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init)
+            soc_kwargs["integrated_main_ram_size"] = max(len(soc_kwargs["integrated_main_ram_init"]), 0x10000)
     if args.with_ethernet:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
     if args.with_etherbone:
@@ -178,8 +179,9 @@ def main():
         with_ethernet=args.with_ethernet,
         with_etherbone=args.with_etherbone,
         with_analyzer=args.with_analyzer,
-        **kwargs)
-    builder = Builder(soc, **builder_argdict(args))
+        **soc_kwargs)
+    builder_kwargs["csr_csv"] = "csr.csv"
+    builder = Builder(soc, **builder_kwargs)
     builder.build(sim_config=sim_config)
 
 
