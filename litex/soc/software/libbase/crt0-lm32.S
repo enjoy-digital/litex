@@ -112,6 +112,25 @@ _crt0:
 	mvhi    sp, hi(_fstack)
 	ori     sp, sp, lo(_fstack)
 
+#ifdef FLASH_DATA_SECTION
+	/* Load DATA */
+	mvhi    r1, hi(_erodata)
+	ori     r1, r1, lo(_erodata)
+	mvhi    r2, hi(_fdata)
+	ori     r2, r2, lo(_fdata)
+	mvhi    r3, hi(_edata)
+	ori     r3, r3, lo(_edata)
+.moveDATA:
+	be      r2, r3, .doBSS
+	lw      r4, (r1+0)
+	sw      (r2+0), r4
+	/* _edata is aligned to 16 bytes. Use word-xfers. */
+	addi    r1, r1, 4
+	addi    r2, r2, 4
+	bi     .moveDATA
+#endif
+
+.doBSS:
 	/* Clear BSS */
 	mvhi    r1, hi(_fbss)
 	ori     r1, r1, lo(_fbss)
