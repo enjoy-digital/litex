@@ -123,12 +123,12 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
     if with_access_functions:
         r += "static inline "+ctype+" "+reg_name+"_read(void) {\n"
         if size > 1:
-            r += "\t"+ctype+" r = MMPTR("+hex(reg_base)+");\n"
+            r += "\t"+ctype+" r = csr_readl("+hex(reg_base)+");\n"
             for byte in range(1, nwords):
-                r += "\tr <<= "+str(busword)+";\n\tr |= MMPTR("+hex(reg_base+4*byte)+");\n"
+                r += "\tr <<= "+str(busword)+";\n\tr |= csr_readl("+hex(reg_base+4*byte)+");\n"
             r += "\treturn r;\n}\n"
         else:
-            r += "\treturn MMPTR("+hex(reg_base)+");\n}\n"
+            r += "\treturn csr_readl("+hex(reg_base)+");\n}\n"
 
         if not read_only:
             r += "static inline void "+reg_name+"_write("+ctype+" value) {\n"
@@ -138,7 +138,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
                     value_shifted = "value >> "+str(shift)
                 else:
                     value_shifted = "value"
-                r += "\tMMPTR("+hex(reg_base+4*word)+") = "+value_shifted+";\n"
+                r += "\tcsr_writel("+value_shifted+", "+hex(reg_base+4*word)+");\n"
             r += "}\n"
     return r
 
@@ -146,7 +146,17 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
 def get_csr_header(regions, constants, with_access_functions=True, with_shadow_base=True, shadow_base=0x80000000):
     r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
+        r += "#include <stdint.h>\n"
+        r += "#ifdef CSR_ACCESSORS_DEFINED\n"
+        r += "extern void csr_writeb(uint8_t value, uint32_t addr);\n"
+        r += "extern uint8_t csr_readb(uint32_t addr);\n"
+        r += "extern void csr_writew(uint16_t value, uint32_t addr);\n"
+        r += "extern uint16_t csr_readw(uint32_t addr);\n"
+        r += "extern void csr_writel(uint32_t value, uint32_t addr);\n"
+        r += "extern uint32_t csr_readl(uint32_t addr);\n"
+        r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
         r += "#include <hw/common.h>\n"
+        r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
     for name, origin, busword, obj in regions:
         if not with_shadow_base:
             origin &= (~shadow_base)
