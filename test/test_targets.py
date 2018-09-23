@@ -18,27 +18,42 @@ def build_test(socs):
 
 
 class TestTargets(unittest.TestCase):
-    def test_arty(self):
-        from litex.boards.targets.arty import BaseSoC, MiniSoC
-        errors = build_test([BaseSoC(), MiniSoC()])
-        self.assertEqual(errors, 0)
-
+    # altera boards
     def test_de0nano(self):
         from litex.boards.targets.de0nano import BaseSoC
         errors = build_test([BaseSoC()])
         self.assertEqual(errors, 0)
 
-    def test_kc705(self):
-        from litex.boards.targets.kc705 import BaseSoC, MiniSoC
-        errors = build_test([BaseSoC(), MiniSoC()])
-        self.assertEqual(errors, 0)
-
+    # xilinx boards
     def test_minispartan6(self):
         from litex.boards.targets.minispartan6 import BaseSoC
         errors = build_test([BaseSoC()])
         self.assertEqual(errors, 0)
 
-    def test_nexys_video(self):
-        from litex.boards.targets.nexys_video import BaseSoC, MiniSoC
-        errors = build_test([BaseSoC(), MiniSoC()])
+    def test_arty(self):
+        from litex.boards.targets.arty import BaseSoC, EthernetSoC
+        errors = build_test([BaseSoC(), EthernetSoC()])
         self.assertEqual(errors, 0)
+
+    def test_nexys4ddr(self):
+        from litex.boards.targets.nexys4ddr import BaseSoC
+        errors = build_test([BaseSoC()])
+        self.assertEqual(errors, 0)
+
+    def test_nexys_video(self):
+        from litex.boards.targets.nexys_video import BaseSoC, EthernetSoC
+        errors = build_test([BaseSoC(), EthernetSoC()])
+        self.assertEqual(errors, 0)
+
+    def test_genesys2(self):
+        from litex.boards.targets.genesys2 import BaseSoC, EthernetSoC
+        errors = build_test([BaseSoC(), EthernetSoC()])
+        self.assertEqual(errors, 0)
+
+    def test_kc705(self):
+        from litex.boards.targets.kc705 import BaseSoC, EthernetSoC
+        errors = build_test([BaseSoC(), EthernetSoC()])
+        self.assertEqual(errors, 0)
+
+    # lattice boards
+
