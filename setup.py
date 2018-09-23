@@ -40,6 +40,7 @@ setup(
             "litex_term=litex.soc.tools.litex_term:main",
             "litex_server=litex.soc.tools.remote.litex_server:main",
             "litex_sim=litex.boards.targets.sim:main",
+            "litex_simple=litex.boards.targets.simple:main",
         ],
     },
 )
