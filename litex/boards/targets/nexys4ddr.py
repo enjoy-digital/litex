@@ -95,7 +95,7 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"), memtype="DDR2", nphases=2, sys_clk_freq=sys_clk_freq)
-        sdram_module = MT47H64M16(self.clk_freq, "1:2")
+        sdram_module = MT47H64M16(sys_clk_freq, "1:2")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)

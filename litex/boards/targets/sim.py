@@ -63,8 +63,8 @@ class SimSoC(SoCSDRAM):
         with_analyzer=False,
         **kwargs):
         platform = sim.Platform()
-        SoCSDRAM.__init__(self, platform,
-            clk_freq=int(1e9/platform.default_clk_period),
+        sys_clk_freq = int(1e9/platform.default_clk_period)
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             integrated_rom_size=0x8000,
             ident="LiteX Simulation", ident_version=True,
             with_uart=False,
@@ -78,7 +78,7 @@ class SimSoC(SoCSDRAM):
 
         # sdram
         if with_sdram:
-            sdram_module = IS42S16160(self.clk_freq, "1:1")
+            sdram_module = IS42S16160(sys_clk_freq, "1:1")
             phy_settings = PhySettings(
                 memtype="SDR",
                 dfi_databits=1*16,
@@ -122,7 +122,7 @@ class SimSoC(SoCSDRAM):
             self.submodules.etherbonephy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
             # eth core
             etherbonecore = LiteEthUDPIPCore(self.etherbonephy,
-                etherbone_mac_address, convert_ip(etherbone_ip_address), self.clk_freq)
+                etherbone_mac_address, convert_ip(etherbone_ip_address), sys_clk_freq)
             if with_ethernet:
                 etherbonecore = ClockDomainsRenamer({"eth_tx": "etherbonephy_eth_tx", "eth_rx":  "etherbonephy_eth_rx"})(etherbonecore)
             self.submodules.etherbonecore = etherbonecore
@@ -134,8 +134,8 @@ class SimSoC(SoCSDRAM):
         if with_analyzer:
             analyzer_signals = [
                 # FIXME: find interesting signals to probe
-                self.cpu_or_bridge.ibus,
-                self.cpu_or_bridge.dbus
+                self.cpu.ibus,
+                self.cpu.dbus
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
 

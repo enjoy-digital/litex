@@ -99,7 +99,8 @@ class BaseSoC(SoCSDRAM):
     csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, **kwargs):
         platform = arty.Platform()
-        SoCSDRAM.__init__(self, platform, clk_freq=100*1000000,
+        sys_clk_freq = int(100e6)
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                          integrated_rom_size=0x8000,
                          integrated_sram_size=0x8000,
                          **kwargs)
@@ -107,8 +108,8 @@ class BaseSoC(SoCSDRAM):
         self.submodules.crg = _CRG(platform)
 
         # sdram
-        self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"))
-        sdram_module = MT41K128M16(self.clk_freq, "1:4")
+        self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"), sys_clk_freq=sys_clk_freq)
+        sdram_module = MT41K128M16(sys_clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
