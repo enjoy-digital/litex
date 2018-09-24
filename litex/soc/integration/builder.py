@@ -74,10 +74,16 @@ class Builder:
         define("LITEX", "1")
         # Distinguish between applications running from main RAM and
         # flash for user-provided software packages.
+        exec_profiles = {
+            "COPY_TO_MAIN_RAM" : "0",
+            "EXECUTE_IN_PLACE" : "0"
+        }
         if "main_ram" in (m[0] for m in memory_regions):
-            define("COPY_TO_MAIN_RAM", "1")
+            exec_profiles["COPY_TO_MAIN_RAM"] = "1"
         else:
-            define("COPY_TO_MAIN_RAM", "0")
+            exec_profiles["EXECUTE_IN_PLACE"] = "1"
+        for k, v in exec_profiles.items():
+            define(k, v)
         define("SOC_DIRECTORY", soc_directory)
         variables_contents.append("export BUILDINC_DIRECTORY\n")
         define("BUILDINC_DIRECTORY", buildinc_dir)
