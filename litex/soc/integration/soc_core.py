@@ -385,11 +385,18 @@ def soc_core_args(parser):
                         help="size/enable the integrated (BIOS) ROM")
     parser.add_argument("--integrated-main-ram-size", default=None, type=int,
                         help="size/enable the integrated main RAM")
+    parser.add_argument("--uart-stub", default=False, type=bool,
+                        help="enable uart stub")
 
 
 def soc_core_argdict(args):
     r = dict()
-    for a in "cpu_type", "cpu_variant", "integrated_rom_size", "integrated_main_ram_size":
+    for a in [
+        "cpu_type",
+        "cpu_variant",
+        "integrated_rom_size",
+        "integrated_main_ram_size",
+        "uart_stub"]:
         arg = getattr(args, a)
         if arg is not None:
             r[a] = arg
