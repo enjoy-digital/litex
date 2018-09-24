@@ -68,7 +68,7 @@ class Builder:
         variables_contents = []
         def define(k, v):
             variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
-        for k, v in cpu_interface.get_cpu_mak(self.soc.cpu_or_bridge):
+        for k, v in cpu_interface.get_cpu_mak(self.soc.cpu):
             define(k, v)
         # Distinguish between applications running from main RAM and
         # flash for user-provided software packages.
@@ -87,7 +87,7 @@ class Builder:
 
         write_to_file(
             os.path.join(generated_dir, "output_format.ld"),
-            cpu_interface.get_linker_output_format(self.soc.cpu_or_bridge))
+            cpu_interface.get_linker_output_format(self.soc.cpu))
         write_to_file(
             os.path.join(generated_dir, "regions.ld"),
             cpu_interface.get_linker_regions(memory_regions))
@@ -135,7 +135,7 @@ class Builder:
 
     def _initialize_rom(self):
         bios_file = os.path.join(self.output_dir, "software", "bios","bios.bin")
-        bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu_or_bridge.endianness)
+        bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu.endianness)
         self.soc.initialize_rom(bios_data)
 
     def build(self, toolchain_path=None, **kwargs):

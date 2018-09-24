@@ -161,21 +161,21 @@ class SoCCore(Module):
 
         if cpu_type is not None:
             if cpu_type == "lm32":
-                self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "or1k":
-                self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "picorv32":
-                self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "vexriscv":
-                self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "minerva":
-                self.add_cpu_or_bridge(minerva.Minerva(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(minerva.Minerva(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
-            self.add_wb_master(self.cpu_or_bridge.ibus)
-            self.add_wb_master(self.cpu_or_bridge.dbus)
+            self.add_wb_master(self.cpu.ibus)
+            self.add_wb_master(self.cpu.dbus)
             if with_ctrl:
-                self.comb += self.cpu_or_bridge.reset.eq(self.ctrl.reset)
+                self.comb += self.cpu.reset.eq(self.ctrl.reset)
         self.config["CPU_TYPE"] = str(cpu_type).upper()
         if self.cpu_variant:
             self.config["CPU_VARIANT"] = str(cpu_type).upper()
@@ -252,12 +252,17 @@ class SoCCore(Module):
         self.interrupt_rmap = ReadOnlyDict(interrupt_rmap)
 
 
-    def add_cpu_or_bridge(self, cpu_or_bridge):
+    def add_cpu(self, cpu):
         if self.finalized:
             raise FinalizeError
-        if hasattr(self, "cpu_or_bridge"):
+        if hasattr(self, "cpu"):
             raise NotImplementedError("More than one CPU is not supported")
-        self.submodules.cpu_or_bridge = cpu_or_bridge
+        self.submodules.cpu = cpu
+
+    def add_cpu_or_bridge(self, cpu_or_bridge):
+        print("[WARNING] Please update SoCCore's \"add_cpu_or_bridge\" call to \"add_cpu\"")
+        self.add_cpu(cpu_or_bridge)
+        self.cpu_or_bridge = self.cpu
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
@@ -364,14 +369,14 @@ class SoCCore(Module):
                 self._constants.append(("CONFIG_" + name.upper(), value))
 
             # Interrupts
-            if hasattr(self.cpu_or_bridge, "interrupt"):
+            if hasattr(self.cpu, "interrupt"):
                 for interrupt, mod_name in sorted(self.interrupt_rmap.items()):
                     if mod_name == "nmi":
                         continue
                     if hasattr(self, mod_name):
                         mod_impl = getattr(self, mod_name)
                         assert hasattr(mod_impl, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % mod_name
-                        self.comb += self.cpu_or_bridge.interrupt[interrupt].eq(mod_impl.ev.irq)
+                        self.comb += self.cpu.interrupt[interrupt].eq(mod_impl.ev.irq)
 
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
