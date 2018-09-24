@@ -144,6 +144,8 @@ def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--threads", default=1,
+                        help="set number of threads (default=1)")
     parser.add_argument("--rom-init", default=None,
                         help="rom_init file")
     parser.add_argument("--ram-init", default=None,
@@ -183,10 +185,10 @@ def main():
         **soc_kwargs)
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
-    vns = builder.build(run=False, sim_config=sim_config)
+    vns = builder.build(run=False, threads=args.threads, sim_config=sim_config)
     if args.with_analyzer:
         soc.analyzer.export_csv(vns, "analyzer.csv")
-    builder.build(build=False, sim_config=sim_config)
+    builder.build(build=False, threads=args.threads, sim_config=sim_config)
 
 
 if __name__ == "__main__":
