@@ -83,18 +83,6 @@ class S7Clocking(Module):
                 return config
         raise ValueError("No PLL config found")
 
-    def add_idelayctrl(self, cd):
-        reset_counter = Signal(4, reset=15)
-        ic_reset = Signal(reset=1)
-        sync = getattr(self.sync, cd.name)
-        sync += \
-            If(reset_counter != 0,
-                reset_counter.eq(reset_counter - 1)
-            ).Else(
-                ic_reset.eq(0)
-            )
-        self.specials += Instance("IDELAYCTRL", i_REFCLK=cd.clk, i_RST=ic_reset)
-
     def do_finalize(self):
         assert hasattr(self, "clkin")
 
@@ -144,3 +132,17 @@ class S7MMCM(S7Clocking):
             mmcm_params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             mmcm_params["o_CLKOUT{}".format(n)] = clk
         self.specials += Instance("MMCME2_BASE", **mmcm_params)
+
+
+class S7IDELAYCTRL(Module):
+    def __init__(self, cd):
+        reset_counter = Signal(4, reset=15)
+        ic_reset = Signal(reset=1)
+        sync = getattr(self.sync, cd.name)
+        sync += \
+            If(reset_counter != 0,
+                reset_counter.eq(reset_counter - 1)
+            ).Else(
+                ic_reset.eq(0)
+            )
+        self.specials += Instance("IDELAYCTRL", i_REFCLK=cd.clk, i_RST=ic_reset)
