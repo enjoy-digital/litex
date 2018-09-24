@@ -121,7 +121,6 @@ _connectors = [
 
 
 class Platform(XilinxPlatform):
-    name = "mimasv2"
     default_clk_name = "clk100"
     default_clk_period = 10
 
