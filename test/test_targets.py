@@ -57,3 +57,30 @@ class TestTargets(unittest.TestCase):
 
     # lattice boards
 
+    # build simple design for all platforms
+    def test_simple(self):
+        platforms = [
+            "arty",
+            "arty_s7",
+            "de0nano",
+            "genesys2",
+            "icestick",
+            "kc705",
+            "kcu105",
+            "machxo3",
+            "mercury",
+            "mimasv2",
+            "minispartan6",
+            "nexys4ddr",
+            "nexys_video",
+            "papilio_pro",
+            "tinyfpga_b",
+            "tinyfpga_bx",
+            "versa",
+            "versaecp55g"
+        ]
+        for p in platforms:
+            os.system("litex_simple litex.boards.platforms." + p +
+                " --no-compile-software " +
+                " --no-compile-gateware " +
+                " --uart-stub=True")
