@@ -70,6 +70,8 @@ class Builder:
             variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
         for k, v in cpu_interface.get_cpu_mak(self.soc.cpu):
             define(k, v)
+        # Distinguish between LiteX and MiSoC.
+        define("LITEX", "1")
         # Distinguish between applications running from main RAM and
         # flash for user-provided software packages.
         if "main_ram" in (m[0] for m in memory_regions):
