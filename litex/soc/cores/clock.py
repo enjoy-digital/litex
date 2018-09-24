@@ -11,7 +11,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 
 # TODO:
-# - add S7PLL support for all family/speedgrades (currently Artix7 -3 speedgrade)
 # - add S7MMCM support (should be very similar to S7PLL)
 
 
@@ -22,11 +21,17 @@ def period_ns(freq):
 class S7PLL(Module):
     nclkouts_max = 6
     clkin_freq_range = (10e6, 800e6)
-    vco_freq_range = (600e6, 1600e6)
     clkfbout_mult_frange = (2, 64+1)
     clkout_divide_range = (1, 128+1)
 
-    def __init__(self):
+    def __init__(self, speedgrade=-1):
+        if speedgrade == -3:
+            self.vco_freq_range = (600e6, 1600e6)
+        elif speedgrade == -2:
+            self.vco_freq_range = (600e6, 1440e6)
+        else:
+            self.vco_freq_range = (600e6, 1200e6)
+
         self.reset = Signal()
         self.locked = Signal()
         self.clkin_freq = None
