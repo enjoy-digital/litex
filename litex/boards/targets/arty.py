@@ -30,7 +30,7 @@ class _CRG(Module):
         pll.register_clkin(platform.request("clk100"), 100e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
         pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq, phase=90)
+        pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
         pll.create_clkout(self.cd_clk200, 200e6)
         pll.add_idelayctrl(self.cd_clk200)
 

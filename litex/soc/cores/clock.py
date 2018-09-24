@@ -10,16 +10,11 @@ from migen.genlib.io import DifferentialInput
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 
-# TODO:
-# - add S7MMCM support (should be very similar to S7PLL)
-
-
 def period_ns(freq):
     return 1e9/freq
 
 
-class S7PLL(Module):
-    nclkouts_max = 6
+class S7Clocking(Module):
     clkin_freq_range = (10e6, 800e6)
     clkfbout_mult_frange = (2, 64+1)
     clkout_divide_range = (1, 128+1)
@@ -102,10 +97,17 @@ class S7PLL(Module):
 
     def do_finalize(self):
         assert hasattr(self, "clkin")
+
+
+class S7PLL(S7Clocking):
+    nclkouts_max = 6
+
+    def do_finalize(self):
+        S7Clocking.do_finalize(self)
         config = self.compute_config()
         pll_fb = Signal()
         pll_params = dict(
-            p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked,
+            p_STARTUP_WAIT="FALSE", i_RST=self.reset, o_LOCKED=self.locked,
 
             # VCO
             p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
@@ -117,3 +119,28 @@ class S7PLL(Module):
             pll_params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             pll_params["o_CLKOUT{}".format(n)] = clk
         self.specials += Instance("PLLE2_BASE", **pll_params)
+
+
+class S7MMCM(S7Clocking):
+    nclkouts_max = 7
+
+    def do_finalize(self):
+        S7Clocking.do_finalize(self)
+        config = self.compute_config()
+        mmcm_fb = Signal()
+        mmcm_params = dict(
+            p_BANDWIDTH="OPTIMIZED", i_RST=self.reset, o_LOCKED=self.locked,
+
+            # VCO
+            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
+            p_CLKFBOUT_MULT_F=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
+            i_CLKIN1=self.clkin, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+        )
+        for n, (clk, f, p) in sorted(self.clkouts.items()):
+            if n == 0:
+                mmcm_params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
+            else:
+                mmcm_params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
+            mmcm_params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
+            mmcm_params["o_CLKOUT{}".format(n)] = clk
+        self.specials += Instance("MMCME2_BASE", **mmcm_params)
