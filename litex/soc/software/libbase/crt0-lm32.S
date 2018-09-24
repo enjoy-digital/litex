@@ -112,7 +112,7 @@ _crt0:
 	mvhi    sp, hi(_fstack)
 	ori     sp, sp, lo(_fstack)
 
-#ifdef FLASH_DATA_SECTION
+#ifdef EXECUTE_IN_PLACE
 	/* Load DATA */
 	mvhi    r1, hi(_erodata)
 	ori     r1, r1, lo(_erodata)
