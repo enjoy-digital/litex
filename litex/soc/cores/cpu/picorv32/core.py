@@ -6,6 +6,12 @@ from litex.soc.interconnect import wishbone
 
 
 class PicoRV32(Module):
+    name = "picorv32"
+    endianness = "little"
+    gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
+    gcc_flags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
+    linker_output_format = "elf32-littleriscv"
+
     def __init__(self, platform, progaddr_reset, variant):
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()

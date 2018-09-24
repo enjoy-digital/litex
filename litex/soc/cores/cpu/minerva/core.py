@@ -6,6 +6,12 @@ from litex.soc.interconnect import wishbone
 
 
 class Minerva(Module):
+    name = "minerva"
+    endianness = "little"
+    gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
+    gcc_flags = "-D__minerva__ -march=rv32i -mabi=ilp32"
+    linker_output_format = "elf32-littleriscv"
+
     def __init__(self, platform, cpu_reset_address, variant=None):
         assert variant is None, "Unsupported variant %s" % variant
         self.reset = Signal()

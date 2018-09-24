@@ -6,6 +6,12 @@ from litex.soc.interconnect import wishbone
 
 
 class LM32(Module):
+    name = "lm32"
+    endianness = "big"
+    gcc_triple = "lm32-elf"
+    gcc_flags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
+    linker_output_format = "elf32-lm32"
+
     def __init__(self, platform, eba_reset, variant=None):
         assert variant in (None, "lite", "minimal"), "Unsupported variant %s" % variant
         self.reset = Signal()

@@ -5,83 +5,52 @@ from migen import *
 
 from litex.soc.interconnect.csr import CSRStatus
 
-cpu_endianness = {
-    None: "big",
-    "lm32": "big",
-    "or1k": "big",
-    "picorv32": "little",
-    "vexriscv": "little",
-    "minerva": "little",
-}
-
-def get_cpu_mak(cpu, variant):
+def get_cpu_mak(cpu):
+    # select between clang and gcc
     clang = os.getenv("CLANG", "")
     if clang != "":
         clang = bool(int(clang))
     else:
         clang = None
-
-    if cpu == "lm32":
-        assert not clang, "lm32 not supported with clang."
-        triple = "lm32-elf"
-        cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
-        clang = False
-    elif cpu == "or1k":
-        # Default to CLANG unless told otherwise
-        if clang is None:
-           clang = True
-
-        triple = "or1k-elf"
-        cpuflags = "-mhard-mul -mhard-div -mror"
+    if not hasattr(cpu, "clang_triple"):
         if clang:
-            triple = "or1k-linux"
-            cpuflags += "-mffl1 -maddc"
-    elif cpu == "picorv32":
-        assert not clang, "picorv32 not supported with clang."
-        if which("riscv64-unknown-elf-gcc"):
-            triple = "riscv64-unknown-elf"
+            raise ValueError(cpu.name + "not supported with clang.")
         else:
-            triple = "riscv32-unknown-elf"
-        cpuflags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
-        clang = False
-    elif cpu == "vexriscv":
-        assert not clang, "vexriscv not supported with clang."
-        if which("riscv64-unknown-elf-gcc"):
-            triple = "riscv64-unknown-elf"
-        else:
-            triple = "riscv32-unknown-elf"
-        cpuflags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
-        clang = False
-    elif cpu == "minerva":
-        assert not clang, "minerva not supported with clang."
-        if which("riscv64-unknown-elf-gcc"):
-            triple = "riscv64-unknown-elf"
-        else:
-            triple = "riscv32-unknown-elf"
-        cpuflags = "-D__minerva__ -march=rv32i -mabi=ilp32"
-        clang = False
+            clang = False
     else:
-        raise ValueError("Unsupported CPU type: "+cpu)
-
+        # Default to clang unless told otherwise
+        if clang is None:
+            clang = True
     assert isinstance(clang, bool)
+    if clang:
+        triple = cpu.clang_triple
+        flags = cpu.clang_flags
+    else:
+        triple = cpu.gcc_triple
+        flags = cpu.gcc_flags
+
+    # select triple when more than one
+    def select_triple(triple):
+        if isinstance(triple, tuple):
+            for i in range(len(triple)):
+                t = triple[i]
+                if which(t+"-gcc"):
+                    return t
+        else:
+            return triple
+
+    # return informations
     return [
-        ("TRIPLE", triple),
-        ("CPU", cpu),
-        ("CPUFLAGS", cpuflags),
-        ("CPUENDIANNESS", cpu_endianness[cpu]),
+        ("TRIPLE", select_triple(triple)),
+        ("CPU", cpu.name),
+        ("CPUFLAGS", flags),
+        ("CPUENDIANNESS", cpu.endianness),
         ("CLANG", str(int(clang)))
     ]
 
 
-def get_linker_output_format(cpu_type):
-    linker_output_formats = {
-        "lm32": "elf32-lm32",
-        "or1k": "elf32-or1k",
-        "picorv32": "elf32-littleriscv",
-        "vexriscv": "elf32-littleriscv",
-        "minerva": "elf32-littleriscv",
-    }
-    return "OUTPUT_FORMAT(\"" + linker_output_formats[cpu_type] + "\")\n"
+def get_linker_output_format(cpu):
+    return "OUTPUT_FORMAT(\"" + cpu.linker_output_format + "\")\n"
 
 
 def get_linker_regions(regions):

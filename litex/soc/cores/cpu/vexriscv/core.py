@@ -5,7 +5,14 @@ from migen import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
+
 class VexRiscv(Module, AutoCSR):
+    name = "vexriscv"
+    endianness = "little"
+    gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
+    gcc_flags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
+    linker_output_format = "elf32-littleriscv"
+
     def __init__(self, platform, cpu_reset_address, variant=None):
         assert variant in (None, "debug"), "Unsupported variant %s" % variant
         self.reset = Signal()

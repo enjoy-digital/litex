@@ -6,6 +6,14 @@ from litex.soc.interconnect import wishbone
 
 
 class MOR1KX(Module):
+    name = "or1k"
+    endianness = "big"
+    gcc_triple = "or1k-elf"
+    gcc_flags = "-mhard-mul -mhard-div -mror"
+    clang_triple = "or1k-linux"
+    clang_flags = "-mhard-mul -mhard-div -mror -mffl1 -maddc"
+    linker_output_format = "elf32-or1k"
+
     def __init__(self, platform, reset_pc, variant=None):
         assert variant in (None, "linux"), "Unsupported variant %s" % variant
         self.reset = Signal()

@@ -56,7 +56,6 @@ class Builder:
 
     def _generate_includes(self):
         cpu_type = self.soc.cpu_type
-        cpu_variant = self.soc.cpu_variant
         memory_regions = self.soc.get_memory_regions()
         flash_boot_address = getattr(self.soc, "flash_boot_address", None)
         csr_regions = self.soc.get_csr_regions()
@@ -69,7 +68,7 @@ class Builder:
         variables_contents = []
         def define(k, v):
             variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
-        for k, v in cpu_interface.get_cpu_mak(cpu_type, cpu_variant):
+        for k, v in cpu_interface.get_cpu_mak(self.soc.cpu_or_bridge):
             define(k, v)
         # Distinguish between applications running from main RAM and
         # flash for user-provided software packages.
@@ -88,7 +87,7 @@ class Builder:
 
         write_to_file(
             os.path.join(generated_dir, "output_format.ld"),
-            cpu_interface.get_linker_output_format(cpu_type))
+            cpu_interface.get_linker_output_format(self.soc.cpu_or_bridge))
         write_to_file(
             os.path.join(generated_dir, "regions.ld"),
             cpu_interface.get_linker_regions(memory_regions))
@@ -137,7 +136,7 @@ class Builder:
     def _initialize_rom(self):
         bios_file = os.path.join(self.output_dir, "software", "bios",
                                  "bios.bin")
-        endianness =  cpu_interface.cpu_endianness[self.soc.cpu_type]
+        endianness =  self.soc.cpu_or_bridge.endianness
         with open(bios_file, "rb") as boot_file:
             boot_data = []
             while True:
