@@ -4,7 +4,7 @@ import struct
 import shutil
 
 from litex.build.tools import write_to_file
-from litex.soc.integration import cpu_interface, soc_sdram
+from litex.soc.integration import cpu_interface, soc_core, soc_sdram
 
 from litedram import sdram_init
 
@@ -134,20 +134,9 @@ class Builder:
                     subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
 
     def _initialize_rom(self):
-        bios_file = os.path.join(self.output_dir, "software", "bios",
-                                 "bios.bin")
-        endianness =  self.soc.cpu_or_bridge.endianness
-        with open(bios_file, "rb") as boot_file:
-            boot_data = []
-            while True:
-                w = boot_file.read(4)
-                if not w:
-                    break
-                if endianness == 'little':
-                    boot_data.append(struct.unpack("<I", w)[0])
-                else:
-                    boot_data.append(struct.unpack(">I", w)[0])
-        self.soc.initialize_rom(boot_data)
+        bios_file = os.path.join(self.output_dir, "software", "bios","bios.bin")
+        bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu_or_bridge.endianness)
+        self.soc.initialize_rom(bios_data)
 
     def build(self, toolchain_path=None, **kwargs):
         self.soc.finalize()
