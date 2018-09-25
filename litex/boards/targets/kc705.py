@@ -3,10 +3,10 @@
 import argparse
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.boards.platforms import kc705
 
+from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import mem_decoder
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
@@ -19,59 +19,19 @@ from liteeth.core.mac import LiteEthMAC
 
 
 class _CRG(Module):
-    def __init__(self, platform):
+    def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
 
-        clk200 = platform.request("clk200")
-        clk200_se = Signal()
-        self.specials += Instance("IBUFDS", i_I=clk200.p, i_IB=clk200.n, o_O=clk200_se)
+        self.submodules.pll = pll = S7MMCM()
+        self.comb += pll.reset.eq(platform.request("cpu_reset"))
+        pll.register_clkin(platform.request("clk200"), 200e6)
+        pll.create_clkout(self.cd_sys, sys_clk_freq)
+        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq)
+        pll.create_clkout(self.cd_clk200, 200e6)
 
-        rst = platform.request("cpu_reset")
-
-        pll_locked = Signal()
-        pll_fb = Signal()
-        pll_sys = Signal()
-        pll_sys4x = Signal()
-        pll_clk200 = Signal()
-        self.specials += [
-            Instance("PLLE2_BASE",
-                     p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-
-                     # VCO @ 1GHz
-                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=5.0,
-                     p_CLKFBOUT_MULT=5, p_DIVCLK_DIVIDE=1,
-                     i_CLKIN1=clk200_se, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
-
-                     # 125MHz
-                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0,
-                     o_CLKOUT0=pll_sys,
-
-                     # 500MHz
-                     p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0,
-                     o_CLKOUT1=pll_sys4x,
-
-                     # 200MHz
-                     p_CLKOUT2_DIVIDE=5, p_CLKOUT2_PHASE=0.0,
-                     o_CLKOUT2=pll_clk200
-            ),
-            Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
-            Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
-            Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst),
-            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
-        ]
-
-        reset_counter = Signal(4, reset=15)
-        ic_reset = Signal(reset=1)
-        self.sync.clk200 += \
-            If(reset_counter != 0,
-                reset_counter.eq(reset_counter - 1)
-            ).Else(
-                ic_reset.eq(0)
-            )
-        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
+        self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
 
 class BaseSoC(SoCSDRAM):
@@ -87,7 +47,7 @@ class BaseSoC(SoCSDRAM):
                          integrated_sram_size=0x8000,
                           **kwargs)
 
-        self.submodules.crg = _CRG(platform)
+        self.submodules.crg = _CRG(platform, sys_clk_freq)
 
         # sdram
         self.submodules.ddrphy = s7ddrphy.K7DDRPHY(platform.request("ddram"), sys_clk_freq=sys_clk_freq)
