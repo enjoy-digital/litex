@@ -15,7 +15,6 @@ def period_ns(freq):
 
 
 class S7Clocking(Module):
-    clkin_freq_range = (10e6, 800e6)
     clkfbout_mult_frange = (2, 64+1)
     clkout_divide_range = (1, 128+1)
 
@@ -91,6 +90,7 @@ class S7Clocking(Module):
 
 class S7PLL(S7Clocking):
     nclkouts_max = 6
+    clkin_freq_range = (19e6, 800e6)
 
     def __init__(self, speedgrade=-1):
         S7Clocking.__init__(self)
@@ -124,6 +124,12 @@ class S7MMCM(S7Clocking):
 
     def __init__(self, speedgrade=-1):
         S7Clocking.__init__(self)
+        self.clkin_freq_range = {
+            -1: (10e6, 800e6),
+            -2: (10e6, 933e6),
+            -3: (10e6, 1066e6),
+        }[speedgrade]
+
         self.vco_freq_range = {
             -1: (600e6, 1200e6),
             -2: (600e6, 1440e6),
