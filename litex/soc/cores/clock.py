@@ -45,16 +45,25 @@ class S7Clocking(Module):
             raise ValueError
         self.clkin_freq = freq
 
-    def create_clkout(self, cd, freq, phase=0):
+    def create_clkout(self, cd, freq, phase=0, buf="bufg"):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
-        clkout_bufg = Signal()
-        self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset),
-        self.specials += Instance("BUFG", i_I=clkout, o_O=clkout_bufg)
-        self.comb += cd.clk.eq(clkout_bufg)
         self.clkouts[self.nclkouts] = (clkout, freq, phase)
         self.nclkouts += 1
-        return clkout_bufg
+        self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+        if buf is None:
+            self.comb += cd.clk.eq(clkout)
+        else:
+            clkout_buf = Signal()
+            self.comb += cd.clk.eq(clkout_buf)
+            if buf == "bufg":
+                self.specials += Instance("BUFG", i_I=clkout, o_O=clkout_buf)
+            elif buf == "bufr":
+                self.specials += Instance("BUFR", i_I=clkout, o_O=clkout_buf)
+            else:
+                raise ValueError
+
+        return clkout_buf
 
     def compute_config(self):
         config = {}
