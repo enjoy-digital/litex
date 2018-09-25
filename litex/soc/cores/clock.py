@@ -19,14 +19,7 @@ class S7Clocking(Module):
     clkfbout_mult_frange = (2, 64+1)
     clkout_divide_range = (1, 128+1)
 
-    def __init__(self, speedgrade=-1):
-        if speedgrade == -3:
-            self.vco_freq_range = (600e6, 1600e6)
-        elif speedgrade == -2:
-            self.vco_freq_range = (600e6, 1440e6)
-        else:
-            self.vco_freq_range = (600e6, 1200e6)
-
+    def __init__(self):
         self.reset = Signal()
         self.locked = Signal()
         self.clkin_freq = None
@@ -99,6 +92,14 @@ class S7Clocking(Module):
 class S7PLL(S7Clocking):
     nclkouts_max = 6
 
+    def __init__(self, speedgrade=-1):
+        S7Clocking.__init__(self)
+        self.vco_freq_range = {
+            -1: (800e6, 2133e6),
+            -2: (800e6, 1866e6),
+            -3: (800e6, 1600e6),
+        }[speedgrade]
+
     def do_finalize(self):
         S7Clocking.do_finalize(self)
         config = self.compute_config()
@@ -120,6 +121,14 @@ class S7PLL(S7Clocking):
 
 class S7MMCM(S7Clocking):
     nclkouts_max = 7
+
+    def __init__(self, speedgrade=-1):
+        S7Clocking.__init__(self)
+        self.vco_freq_range = {
+            -1: (600e6, 1200e6),
+            -2: (600e6, 1440e6),
+            -3: (600e6, 1600e6),
+        }[speedgrade]
 
     def do_finalize(self):
         S7Clocking.do_finalize(self)
