@@ -9,12 +9,14 @@ from migen import *
 from migen.genlib.io import DifferentialInput
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.soc.interconnect.csr import *
+
 
 def period_ns(freq):
     return 1e9/freq
 
 
-class S7Clocking(Module):
+class S7Clocking(Module, AutoCSR):
     clkfbout_mult_frange = (2, 64+1)
     clkout_divide_range = (1, 128+1)
 
@@ -26,6 +28,7 @@ class S7Clocking(Module):
         self.nclkouts = 0
         self.clkouts = {}
         self.config = {}
+        self.params = {}
 
     def register_clkin(self, clkin, freq):
         self.clkin = Signal()
@@ -84,6 +87,35 @@ class S7Clocking(Module):
                 return config
         raise ValueError("No PLL config found")
 
+    def expose_drp(self):
+        self.drp_reset = CSR()
+        self.drp_read = CSR()
+        self.drp_write = CSR()
+        self.drp_drdy = CSRStatus()
+        self.drp_adr = CSRStorage(7)
+        self.drp_dat_w = CSRStorage(16)
+        self.drp_dat_r = CSRStatus(16)
+
+        # # #
+
+        drp_drdy = Signal()
+        self.params.update(
+            i_DCLK=ClockSignal(),
+            i_DWE=self.drp_write.re,
+            i_DEN=self.drp_read.re | self.drp_write.re,
+            o_DRDY=drp_drdy,
+            i_DADDR=self.drp_adr.storage,
+            i_DI=self.drp_dat_w.storage,
+            o_DO=self.drp_dat_r.status
+        )
+        self.sync += [
+            If(self.drp_read.re | self.drp_write.re,
+                self.drp_drdy.status.eq(0)
+            ).Elif(drp_drdy,
+                self.drp_drdy.status.eq(1)
+            )
+        ]
+
     def do_finalize(self):
         assert hasattr(self, "clkin")
 
@@ -104,7 +136,7 @@ class S7PLL(S7Clocking):
         S7Clocking.do_finalize(self)
         config = self.compute_config()
         pll_fb = Signal()
-        pll_params = dict(
+        self.params.update(
             p_STARTUP_WAIT="FALSE", i_RST=self.reset, o_LOCKED=self.locked,
 
             # VCO
@@ -113,10 +145,10 @@ class S7PLL(S7Clocking):
             i_CLKIN1=self.clkin, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
         )
         for n, (clk, f, p) in sorted(self.clkouts.items()):
-            pll_params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
-            pll_params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            pll_params["o_CLKOUT{}".format(n)] = clk
-        self.specials += Instance("PLLE2_BASE", **pll_params)
+            self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
+            self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
+            self.params["o_CLKOUT{}".format(n)] = clk
+        self.specials += Instance("PLLE2_ADV", **self.params)
 
 
 class S7MMCM(S7Clocking):
@@ -140,7 +172,7 @@ class S7MMCM(S7Clocking):
         S7Clocking.do_finalize(self)
         config = self.compute_config()
         mmcm_fb = Signal()
-        mmcm_params = dict(
+        self.params.update(
             p_BANDWIDTH="OPTIMIZED", i_RST=self.reset, o_LOCKED=self.locked,
 
             # VCO
@@ -150,12 +182,12 @@ class S7MMCM(S7Clocking):
         )
         for n, (clk, f, p) in sorted(self.clkouts.items()):
             if n == 0:
-                mmcm_params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
+                self.params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
             else:
-                mmcm_params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
-            mmcm_params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            mmcm_params["o_CLKOUT{}".format(n)] = clk
-        self.specials += Instance("MMCME2_BASE", **mmcm_params)
+                self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
+            self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
+            self.params["o_CLKOUT{}".format(n)] = clk
+        self.specials += Instance("MMCME2_ADV", **self.params)
 
 
 class S7IDELAYCTRL(Module):
