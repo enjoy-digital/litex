@@ -11,6 +11,12 @@ void sdrrd(char *startaddr, char *dq);
 void sdrrderr(char *count);
 void sdrwr(char *startaddr);
 
+#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
+void sdrwlon(void);
+void sdrwloff(void);
+int write_level(void);
+#endif
+
 #ifdef CSR_DDRPHY_BASE
 void sdrwlon(void);
 void sdrwloff(void);

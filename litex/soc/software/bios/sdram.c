@@ -225,11 +225,27 @@ void sdrwloff(void)
 	ddrphy_wlevel_en_write(0);
 }
 
-static void write_level_scan(void)
+int write_level(void)
 {
 	int i, j;
+
 	int dq_address;
 	unsigned char dq;
+
+	int err_ddrphy_wdly;
+
+	unsigned char taps_scan[ERR_DDRPHY_DELAY];
+
+	int one_window_active;
+	int one_window_start;
+	int one_window_len;
+	int best_one_window_len;
+
+	int delays[DFII_PIX_DATA_SIZE/2];
+
+    int ok;
+
+	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();
 
 	printf("Write leveling scan:\n");
 
@@ -238,94 +254,72 @@ static void write_level_scan(void)
 	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
 		printf("m%d: ", i);
 	    dq_address = sdram_dfii_pix_rddata_addr[0]+4*(DFII_PIX_DATA_SIZE/2-1-i);
+
+	    /* reset delay */
 		ddrphy_dly_sel_write(1 << i);
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
-		for(j=0;j<ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();j++) {
+#ifdef KUSDDRPHY /* need to init manually on Ultrascale */
+		for(j=0; j<ddrphy_wdly_dqs_taps_read(); j++)
+			ddrphy_wdly_dqs_inc_write(1);
+#endif
+		/* scan taps */
+		for(j=0;j<err_ddrphy_wdly;j++) {
 			ddrphy_wlevel_strobe_write(1);
 			cdelay(10);
 			dq = MMPTR(dq_address);
 			printf("%d", dq != 0);
+			taps_scan[j] = (dq != 0);
 			ddrphy_wdly_dq_inc_write(1);
 			ddrphy_wdly_dqs_inc_write(1);
 			cdelay(10);
 		}
 		printf("\n");
-	}
-	sdrwloff();
-}
 
-static int write_level(int *delay, int *high_skew)
-{
-	int i;
-	int dq_address;
-	unsigned char dq;
-	int err_ddrphy_wdly;
-	int ok;
+		/* find best delay */
+		one_window_active = 0;
+		one_window_start = 0;
+		one_window_len = 0;
+		best_one_window_len = 0;
+		delays[i] = -1;
+		for(j=0;j<err_ddrphy_wdly;j++) {
+			if (one_window_active) {
+				if ((taps_scan[j] == 0) || (j == err_ddrphy_wdly-1)) {
+					one_window_len = j - one_window_start;
+					if (one_window_len > best_one_window_len) {
+						delays[i] = one_window_start;
+						best_one_window_len = one_window_len;
+					}
+					one_window_active = 0;
+				}
+			} else {
+				if (taps_scan[j]) {
+					one_window_active = 1;
+					one_window_start = j;
+				}
+			}
+		}
 
-	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();
-
-	printf("Write leveling: ");
-
-	sdrwlon();
-	cdelay(100);
-	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
-		dq_address = sdram_dfii_pix_rddata_addr[0]+4*(DFII_PIX_DATA_SIZE/2-1-i);
-		ddrphy_dly_sel_write(1 << i);
+		/* configure delays */
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
-#ifdef KUSDDRPHY /* Need to init manually on Ultrascale */
-		int j;
+#ifdef KUSDDRPHY /* need to init manually on Ultrascale */
 		for(j=0; j<ddrphy_wdly_dqs_taps_read(); j++)
 			ddrphy_wdly_dqs_inc_write(1);
 #endif
-
-		delay[i] = 0;
-
-		ddrphy_wlevel_strobe_write(1);
-		cdelay(10);
-		dq = MMPTR(dq_address);
-		if(dq != 0) {
-			/*
-			 * Assume this DQ group has between 1 and 2 bit times of skew.
-			 * Bring DQS into the CK=0 zone before continuing leveling.
-			 */
-#ifndef DDRPHY_HIGH_SKEW_DISABLE
-			high_skew[i] = 1;
-			while(dq != 0) {
-				delay[i]++;
-				if(delay[i] >= err_ddrphy_wdly)
-					break;
-				ddrphy_wdly_dq_inc_write(1);
-				ddrphy_wdly_dqs_inc_write(1);
-				ddrphy_wlevel_strobe_write(1);
-				cdelay(10);
-				dq = MMPTR(dq_address);
-			 }
-#else
-			high_skew[i] = 0;
-#endif
-		} else
-			high_skew[i] = 0;
-
-		while(dq == 0) {
-			delay[i]++;
-			if(delay[i] >= err_ddrphy_wdly)
-				break;
+		for(j=0; j<delays[i]; j++) {
 			ddrphy_wdly_dq_inc_write(1);
 			ddrphy_wdly_dqs_inc_write(1);
-
-			ddrphy_wlevel_strobe_write(1);
-			cdelay(10);
-			dq = MMPTR(dq_address);
 		}
 	}
+
 	sdrwloff();
 
 	ok = 1;
+	printf("Write leveling: ");
 	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
-		printf("%2d%c ", delay[i], high_skew[i] ? '*' : ' ');
-		if(delay[i] >= err_ddrphy_wdly)
+		printf("%2d ", delays[i]);
+		if(delays[i] < 0)
 			ok = 0;
 	}
 
@@ -350,28 +344,6 @@ static void read_bitslip_inc(char m)
 		ddrphy_rdly_dq_bitslip_write(1);
 		ddrphy_rdly_dq_bitslip_write(1);
 #endif
-}
-
-static void read_bitslip(int *delay, int *high_skew)
-{
-	int bitslip_thr;
-	int i;
-
-	bitslip_thr = 0x7fffffff;
-	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++)
-		if(high_skew[i] && (delay[i] < bitslip_thr))
-			bitslip_thr = delay[i];
-	if(bitslip_thr == 0x7fffffff)
-		return;
-	bitslip_thr = bitslip_thr/2;
-
-	printf("Read bitslip: ");
-	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--)
-		if(delay[i] > bitslip_thr) {
-			read_bitslip_inc(i);
-			printf("%d ", i);
-		}
-	printf("\n");
 }
 
 static int read_level_scan(int silent)
@@ -721,8 +693,6 @@ int memtest(void)
 #ifdef CSR_DDRPHY_BASE
 int sdrlevel(int silent)
 {
-	int delay[DFII_PIX_DATA_SIZE/2];
-	int high_skew[DFII_PIX_DATA_SIZE/2];
 	int i, j;
 	int bitslip;
 	int score;
@@ -737,16 +707,11 @@ int sdrlevel(int silent)
 		ddrphy_rdly_dq_bitslip_rst_write(1);
 	}
 
-#ifndef CSR_DDRPHY_WLEVEL_EN_ADDR
-	for(i=0; i<DFII_PIX_DATA_SIZE/2; i++) {
-		delay[i] = 0;
-		high_skew[i] = 0;
-	}
-#else
-	write_level_scan();
-	if(!write_level(delay, high_skew))
+#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
+	if(!write_level())
 		return 0;
 #endif
+
 	/* scan possible read windows */
 	best_score = 0;
 	best_bitslip = 0;
