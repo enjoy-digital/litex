@@ -167,11 +167,13 @@ def main():
     sim_config.add_module("serial2console", "serial")
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init)
-    soc_kwargs["integrated_main_ram_size"] = 0x10000
     if not args.with_sdram:
+        soc_kwargs["integrated_main_ram_size"] = 0x10000
         if args.ram_init is not None:
             soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init)
             soc_kwargs["integrated_main_ram_size"] = max(len(soc_kwargs["integrated_main_ram_init"]), 0x10000)
+    else:
+        soc_kwargs["integrated_main_ram_size"] = 0x0
     if args.with_ethernet:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
     if args.with_etherbone:
