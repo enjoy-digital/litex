@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 try:
     import colorama
     colorama.init()  # install escape sequence translation on Windows
@@ -223,3 +224,23 @@ xilinx_ku_special_overrides = {
     DDROutput:              XilinxDDROutputKU,
     DDRInput:               XilinxDDRInputKU
 }
+
+
+def _run_yosys(device, sources, vincpaths, build_name):
+    ys_contents = ""
+    incflags = ""
+    for path in vincpaths:
+        incflags += " -I" + path
+    for filename, language, library in sources:
+        ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
+
+    ys_contents += """\
+# hierarchy -top top
+# proc; memory; opt; fsm; opt
+synth_xilinx -top top -edif {build_name}.edif""".format(build_name=build_name)
+
+    ys_name = build_name + ".ys"
+    tools.write_to_file(ys_name, ys_contents)
+    r = subprocess.call(["yosys", ys_name])
+    if r != 0:
+        raise OSError("Subprocess failed")
