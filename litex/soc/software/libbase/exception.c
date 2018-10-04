@@ -25,7 +25,7 @@ static void emerg_printf(const char *fmt, ...)
 	}
 }
 
-static char emerg_getc()
+static char emerg_getc(void)
 {
 	while(uart_rxempty_read());
 	char c = uart_rxtx_read();

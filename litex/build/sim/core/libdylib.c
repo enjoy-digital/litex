@@ -39,7 +39,7 @@ static void set_last_error(const char *s)
     if (!s)
         s = "NULL error";
     last_err_set = 1;
-    strncpy(last_err, s, ERR_MAX_SIZE);
+    strncpy(last_err, s, ERR_MAX_SIZE-1);
 }
 
 static dylib_ref dylib_ref_alloc (void *handle, const char *path)
