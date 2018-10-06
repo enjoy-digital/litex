@@ -31,13 +31,20 @@ def get_cpu_mak(cpu):
 
     # select triple when more than one
     def select_triple(triple):
-        if isinstance(triple, tuple):
+        r = None
+        if not isinstance(triple, tuple):
+            triple = (triple)
+        for i in range(len(triple)):
+            t = triple[i]
+            if which(t+"-gcc"):
+                r = t
+                break
+        if r is None:
+            msg = "Unable to find any of the cross compilation toolchains:\n"
             for i in range(len(triple)):
-                t = triple[i]
-                if which(t+"-gcc"):
-                    return t
-        else:
-            return triple
+                msg += "- " + triple[i] + "\n"
+            raise OSError(msg)
+        return r
 
     # return informations
     return [
