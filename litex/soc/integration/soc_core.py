@@ -298,6 +298,10 @@ class SoCCore(Module):
     def get_memory_regions(self):
         return self._memory_regions
 
+    def check_csr_range(self, name, addr):
+        if addr >= 1<<(self.csr_address_width+2):
+            raise ValueError("{} CSR out of range, increase csr_address_width".format(name))
+
     def check_csr_region(self, name, origin):
         for n, o, l, obj in self._csr_regions:
             if n == name or o == origin:
@@ -360,8 +364,10 @@ class SoCCore(Module):
                 self.submodules.csrcon = csr_bus.Interconnect(
                     self.wishbone2csr.csr, self.csrbankarray.get_buses())
             for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+                self.check_csr_range(name, 0x800*mapaddr)
                 self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
             for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+                self.check_csr_range(name, 0x800*mapaddr)
                 self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
             for name, constant in self.csrbankarray.constants:
                 self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
