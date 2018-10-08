@@ -33,7 +33,7 @@ def get_cpu_mak(cpu):
     def select_triple(triple):
         r = None
         if not isinstance(triple, tuple):
-            triple = (triple)
+            triple = (triple,)
         for i in range(len(triple)):
             t = triple[i]
             if which(t+"-gcc"):
