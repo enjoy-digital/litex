@@ -442,6 +442,7 @@ static void crcbios(void)
 
 static void readstr(char *s, int size)
 {
+	static char skip = 0;
 	char c[2];
 	int ptr;
 
@@ -449,6 +450,9 @@ static void readstr(char *s, int size)
 	ptr = 0;
 	while(1) {
 		c[0] = readchar();
+		if (c[0] == skip)
+			continue;
+		skip = 0;
 		switch(c[0]) {
 			case 0x7f:
 			case 0x08:
@@ -460,7 +464,12 @@ static void readstr(char *s, int size)
 			case 0x07:
 				break;
 			case '\r':
+				skip = '\n';
+				s[ptr] = 0x00;
+				putsnonl("\n");
+				return;
 			case '\n':
+				skip = '\r';
 				s[ptr] = 0x00;
 				putsnonl("\n");
 				return;
