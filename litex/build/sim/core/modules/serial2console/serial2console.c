@@ -76,6 +76,11 @@ void read_handler(int fd, short event, void *arg)
   int i;
   read_len = read(fd, buffer, 1024);
   for(i = 0; i < read_len; i++) {
+    /* If we are reading a newline make sure its \r\n.  */
+    if (buffer[i] == '\n') {
+      s->databuf[(s->data_start + s->datalen ) % 2048] = '\r';
+      s->datalen++;
+    }
     s->databuf[(s->data_start + s->datalen ) % 2048] = buffer[i];
     s->datalen++;
   }
@@ -157,7 +162,7 @@ static int serial2console_tick(void *sess) {
 
   *s->rx_valid = 0;
   if(s->datalen) {
-    *s->rx=s->databuf[s->data_start];
+    *s->rx = s->databuf[s->data_start];
     s->data_start = (s->data_start + 1) % 2048;
     s->datalen--;
     *s->rx_valid = 1;
