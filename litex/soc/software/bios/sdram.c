@@ -207,6 +207,8 @@ void sdrwr(char *startaddr)
 #endif
 #define ERR_DDRPHY_BITSLIP 8
 
+#define NBMODULES DFII_PIX_DATA_SIZE/2
+
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
 
 void sdrwlon(void)
@@ -238,22 +240,20 @@ int write_level(void)
 
 	int one_window_active;
 	int one_window_start;
-	int one_window_len;
-	int best_one_window_len;
 
-	int delays[DFII_PIX_DATA_SIZE/2];
+	int delays[NBMODULES];
 
     int ok;
 
 	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();
 
-	printf("Write leveling scan:\n");
+	printf("Write leveling:\n");
 
 	sdrwlon();
 	cdelay(100);
-	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
-		printf("m%d: ", i);
-	    dq_address = sdram_dfii_pix_rddata_addr[0]+4*(DFII_PIX_DATA_SIZE/2-1-i);
+	for(i=0;i<NBMODULES;i++) {
+		printf("m%d: |", i);
+	    dq_address = sdram_dfii_pix_rddata_addr[0]+4*(NBMODULES-1-i);
 
 	    /* reset delay */
 		ddrphy_dly_sel_write(1 << i);
@@ -274,24 +274,16 @@ int write_level(void)
 			ddrphy_wdly_dqs_inc_write(1);
 			cdelay(10);
 		}
-		printf("\n");
+		printf("|");
 
-		/* find best delay */
+		/* select last 0/1 transition */
 		one_window_active = 0;
 		one_window_start = 0;
-		one_window_len = 0;
-		best_one_window_len = 0;
 		delays[i] = -1;
 		for(j=0;j<err_ddrphy_wdly;j++) {
 			if (one_window_active) {
-				if ((taps_scan[j] == 0) || (j == err_ddrphy_wdly-1)) {
-					one_window_len = j - one_window_start;
-					if (one_window_len > best_one_window_len) {
-						delays[i] = one_window_start;
-						best_one_window_len = one_window_len;
-					}
+				if (taps_scan[j] == 0)
 					one_window_active = 0;
-				}
 			} else {
 				if (taps_scan[j]) {
 					one_window_active = 1;
@@ -299,6 +291,7 @@ int write_level(void)
 				}
 			}
 		}
+		delays[i] = one_window_start;
 
 		/* configure delays */
 		ddrphy_wdly_dq_rst_write(1);
@@ -311,22 +304,17 @@ int write_level(void)
 			ddrphy_wdly_dq_inc_write(1);
 			ddrphy_wdly_dqs_inc_write(1);
 		}
+
+		printf(" delay: %02d\n", delays[i]);
 	}
 
 	sdrwloff();
 
 	ok = 1;
-	printf("Write leveling: ");
-	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
-		printf("%2d ", delays[i]);
+	for(i=NBMODULES-1;i>=0;i--) {
 		if(delays[i] < 0)
 			ok = 0;
 	}
-
-	if(ok)
-		printf("completed\n");
-	else
-		printf("failed\n");
 
 	return ok;
 }
@@ -346,15 +334,12 @@ static void read_bitslip_inc(char m)
 #endif
 }
 
-static int read_level_scan(int silent)
+static int read_level_scan(int module, int silent)
 {
 	unsigned int prv;
 	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
 	int p, i, j;
 	int score;
-
-	if (!silent)
-		printf("Read delays scan:\n");
 
 	/* Generate pseudo-random sequence */
 	prv = 42;
@@ -381,30 +366,29 @@ static int read_level_scan(int silent)
 	sdram_dfii_pird_address_write(0);
 	sdram_dfii_pird_baddress_write(0);
 	score = 0;
-	for(i=DFII_PIX_DATA_SIZE/2-1;i>=0;i--) {
-		if (!silent)
-			printf("m%d: ", (DFII_PIX_DATA_SIZE/2-i-1));
-		ddrphy_dly_sel_write(1 << (DFII_PIX_DATA_SIZE/2-i-1));
-		ddrphy_rdly_dq_rst_write(1);
-		for(j=0; j<ERR_DDRPHY_DELAY;j++) {
-			int working;
-			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
-			cdelay(15);
-			working = 1;
-			for(p=0;p<DFII_NPHASES;p++) {
-				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_DATA_SIZE*p+i])
-					working = 0;
-				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
-					working = 0;
-			}
-			if (!silent)
-				printf("%d", working);
-			score += working;
-			ddrphy_rdly_dq_inc_write(1);
+
+	if (!silent)
+		printf("m%d: |", module);
+	ddrphy_dly_sel_write(1 << module);
+	ddrphy_rdly_dq_rst_write(1);
+	for(j=0; j<ERR_DDRPHY_DELAY;j++) {
+		int working;
+		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+		cdelay(15);
+		working = 1;
+		for(p=0;p<DFII_NPHASES;p++) {
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
+				working = 0;
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+				working = 0;
 		}
 		if (!silent)
-			printf("\n");
+			printf("%d", working);
+		score += working;
+		ddrphy_rdly_dq_inc_write(1);
 	}
+	if (!silent)
+		printf("|");
 
 	/* Precharge */
 	sdram_dfii_pi0_address_write(0);
@@ -415,7 +399,7 @@ static int read_level_scan(int silent)
 	return score;
 }
 
-static void read_level(void)
+static void read_level(int module)
 {
 	unsigned int prv;
 	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
@@ -423,7 +407,7 @@ static void read_level(void)
 	int working;
 	int delay, delay_min, delay_max;
 
-	printf("Read delays: ");
+	printf("delays: ");
 
 	/* Generate pseudo-random sequence */
 	prv = 42;
@@ -449,77 +433,74 @@ static void read_level(void)
 	/* Calibrate each DQ in turn */
 	sdram_dfii_pird_address_write(0);
 	sdram_dfii_pird_baddress_write(0);
-	for(i=0;i<DFII_PIX_DATA_SIZE/2;i++) {
-		ddrphy_dly_sel_write(1 << (DFII_PIX_DATA_SIZE/2-i-1));
-		delay = 0;
 
-		/* Find smallest working delay */
-		ddrphy_rdly_dq_rst_write(1);
-		while(1) {
-			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
-			cdelay(15);
-			working = 1;
-			for(p=0;p<DFII_NPHASES;p++) {
-				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_DATA_SIZE*p+i])
-					working = 0;
-				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
-					working = 0;
-			}
-			if(working)
-				break;
-			delay++;
-			if(delay >= ERR_DDRPHY_DELAY)
-				break;
-			ddrphy_rdly_dq_inc_write(1);
-		}
-		delay_min = delay;
+	ddrphy_dly_sel_write(1 << module);
+	delay = 0;
 
-		/* Get a bit further into the working zone */
-#ifdef KUSDDRPHY
-		for(j=0;j<16;j++) {
-			delay += 1;
-			ddrphy_rdly_dq_inc_write(1);
+	/* Find smallest working delay */
+	ddrphy_rdly_dq_rst_write(1);
+	while(1) {
+		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+		cdelay(15);
+		working = 1;
+		for(p=0;p<DFII_NPHASES;p++) {
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
+				working = 0;
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+				working = 0;
 		}
-#else
+		if(working)
+			break;
 		delay++;
+		if(delay >= ERR_DDRPHY_DELAY)
+			break;
 		ddrphy_rdly_dq_inc_write(1);
+	}
+	delay_min = delay;
+
+	/* Get a bit further into the working zone */
+#ifdef KUSDDRPHY
+	for(j=0;j<16;j++) {
+		delay += 1;
+		ddrphy_rdly_dq_inc_write(1);
+	}
+#else
+	delay++;
+	ddrphy_rdly_dq_inc_write(1);
 #endif
 
-		/* Find largest working delay */
-		while(1) {
-			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
-			cdelay(15);
-			working = 1;
-			for(p=0;p<DFII_NPHASES;p++) {
-				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*i) != prs[DFII_PIX_DATA_SIZE*p+i])
-					working = 0;
-				if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(i+DFII_PIX_DATA_SIZE/2)) != prs[DFII_PIX_DATA_SIZE*p+i+DFII_PIX_DATA_SIZE/2])
-					working = 0;
-			}
-			if(!working)
-				break;
-			delay++;
-			if(delay >= ERR_DDRPHY_DELAY)
-				break;
-			ddrphy_rdly_dq_inc_write(1);
+	/* Find largest working delay */
+	while(1) {
+		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+		cdelay(15);
+		working = 1;
+		for(p=0;p<DFII_NPHASES;p++) {
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
+				working = 0;
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+				working = 0;
 		}
-		delay_max = delay;
-
-		printf("%d:%02d-%02d  ", DFII_PIX_DATA_SIZE/2-i-1, delay_min, delay_max);
-
-		/* Set delay to the middle */
-		ddrphy_rdly_dq_rst_write(1);
-		for(j=0;j<(delay_min+delay_max)/2;j++)
-			ddrphy_rdly_dq_inc_write(1);
+		if(!working)
+			break;
+		delay++;
+		if(delay >= ERR_DDRPHY_DELAY)
+			break;
+		ddrphy_rdly_dq_inc_write(1);
 	}
+	delay_max = delay;
+
+	printf("%02d+-%02d", (delay_min+delay_max)/2, (delay_max-delay_min)/2);
+
+	/* Set delay to the middle */
+	ddrphy_rdly_dq_rst_write(1);
+	for(j=0;j<(delay_min+delay_max)/2;j++)
+		ddrphy_rdly_dq_inc_write(1);
 
 	/* Precharge */
 	sdram_dfii_pi0_address_write(0);
 	sdram_dfii_pi0_baddress_write(0);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	cdelay(15);
-
-	printf("completed\n");
 }
 #endif /* CSR_DDRPHY_BASE */
 
@@ -566,7 +547,7 @@ static int memtest_bus(void)
 		if(rdata != ONEZERO) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("[bus: %0x]: %08x vs %08x\n", i, rdata, ONEZERO);
+			printf("[bus: 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, ONEZERO);
 #endif
 		}
 	}
@@ -581,7 +562,7 @@ static int memtest_bus(void)
 		if(rdata != ZEROONE) {
 			errors++;
 #ifdef MEMTEST_BUS_DEBUG
-			printf("[bus %0x]: %08x vs %08x\n", i, rdata, ZEROONE);
+			printf("[bus 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, ZEROONE);
 #endif
 		}
 	}
@@ -620,7 +601,7 @@ static int memtest_data(void)
 		if(rdata != seed_32) {
 			errors++;
 #ifdef MEMTEST_DATA_DEBUG
-			printf("[data %0x]: %08x vs %08x\n", i, rdata, seed_32);
+			printf("[data 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, seed_32);
 #endif
 		}
 	}
@@ -658,7 +639,7 @@ static int memtest_addr(void)
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
-			printf("[addr %0x]: %08x vs %08x\n", i, rdata, i);
+			printf("[addr 0x%0x]: 0x%08x vs 0x%08x\n", i, rdata, i);
 #endif
 		}
 	}
@@ -701,7 +682,7 @@ int sdrlevel(int silent)
 
 	sdrsw();
 
-	for(i=0; i<DFII_PIX_DATA_SIZE/2; i++) {
+	for(i=0; i<NBMODULES; i++) {
 		ddrphy_dly_sel_write(1<<i);
 		ddrphy_rdly_dq_rst_write(1);
 		ddrphy_rdly_dq_bitslip_rst_write(1);
@@ -712,38 +693,36 @@ int sdrlevel(int silent)
 		return 0;
 #endif
 
-	/* scan possible read windows */
-	best_score = 0;
-	best_bitslip = 0;
-	for(bitslip=0; bitslip<ERR_DDRPHY_BITSLIP; bitslip++) {
-		if (!silent)
-			printf("Read bitslip: %d\n", bitslip);
-		/* compute score */
-		score = read_level_scan(silent);
-		if (score > best_score) {
-			best_bitslip = bitslip;
-			best_score = score;
-		}
-		/* exit */
-		if (bitslip == ERR_DDRPHY_BITSLIP-1)
-			break;
-		/* increment bitslip */
-		for(i=0; i<DFII_PIX_DATA_SIZE/2; i++)
+	printf("Read leveling:\n");
+	for(i=0; i<NBMODULES; i++) {
+		/* scan possible read windows */
+		best_score = 0;
+		best_bitslip = 0;
+		for(bitslip=0; bitslip<ERR_DDRPHY_BITSLIP; bitslip++) {
+			/* compute score */
+			score = read_level_scan(i, silent);
+			if (score > best_score) {
+				best_bitslip = bitslip;
+				best_score = score;
+			}
+			/* exit */
+			if (bitslip == ERR_DDRPHY_BITSLIP-1)
+				break;
+			/* increment bitslip */
 			read_bitslip_inc(i);
-	}
+		}
 
-	/* select best read window */
-	printf("Best read bitslip: %d\n", best_bitslip);
-	for(i=0; i<DFII_PIX_DATA_SIZE/2; i++) {
-		ddrphy_dly_sel_write(1<<i);
+		/* select best read window */
 		ddrphy_rdly_dq_bitslip_rst_write(1);
 		for (j=0; j<best_bitslip; j++)
 			read_bitslip_inc(i);
-	}
 
-	/* show scan and do leveling */
-    read_level_scan(0);
-	read_level();
+		/* show scan and do leveling */
+		read_level_scan(i, 0);
+		printf(" bitslip:%d ", best_bitslip);
+		read_level(i);
+		printf("\n");
+	}
 
 	return 1;
 }
@@ -765,10 +744,6 @@ int sdrinit(void)
 #endif
 	sdrhw();
 	if(!memtest()) {
-#ifdef CSR_DDRPHY_BASE
-		/* show scans */
-		sdrlevel(0);
-#endif
 		return 0;
 	}
 
