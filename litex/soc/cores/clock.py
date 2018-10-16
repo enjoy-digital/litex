@@ -40,10 +40,10 @@ class S7Clocking(Module, AutoCSR):
             raise ValueError
         self.clkin_freq = freq
 
-    def create_clkout(self, cd, freq, phase=0, buf="bufg"):
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase)
+        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         self.nclkouts += 1
         self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
         if buf is None:
@@ -68,11 +68,11 @@ class S7Clocking(Module, AutoCSR):
             vco_freq = self.clkin_freq*clkfbout_mult
             (vco_freq_min, vco_freq_max) = self.vco_freq_range
             if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                for n, (clk, f, p) in sorted(self.clkouts.items()):
+                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
                     valid = False
                     for d in range(*self.clkout_divide_range):
                         clk_freq = vco_freq/d
-                        if clk_freq == f:
+                        if abs(clk_freq - f) < f*m:
                             config["clkout{}_divide".format(n)] = d
                             config["clkout{}_phase".format(n)] = p
                             valid = True
@@ -144,7 +144,7 @@ class S7PLL(S7Clocking):
             p_CLKFBOUT_MULT=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
             i_CLKIN1=self.clkin, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
         )
-        for n, (clk, f, p) in sorted(self.clkouts.items()):
+        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)] = clk
@@ -180,7 +180,7 @@ class S7MMCM(S7Clocking):
             p_CLKFBOUT_MULT_F=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
             i_CLKIN1=self.clkin, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
         )
-        for n, (clk, f, p) in sorted(self.clkouts.items()):
+        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             if n == 0:
                 self.params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
             else:
