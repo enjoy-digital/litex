@@ -403,7 +403,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdrwlon") == 0) sdrwlon();
 	else if(strcmp(token, "sdrwloff") == 0) sdrwloff();
 #endif
-	else if(strcmp(token, "sdrlevel") == 0) sdrlevel(0);
+	else if(strcmp(token, "sdrlevel") == 0) sdrlevel();
 #endif
 	else if(strcmp(token, "memtest") == 0) memtest();
 	else if(strcmp(token, "sdrinit") == 0) sdrinit();

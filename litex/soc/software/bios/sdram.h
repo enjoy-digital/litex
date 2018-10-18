@@ -20,7 +20,7 @@ int write_level(void);
 #ifdef CSR_DDRPHY_BASE
 void sdrwlon(void);
 void sdrwloff(void);
-int sdrlevel(int silent);
+int sdrlevel(void);
 #endif
 
 int memtest_silent(void);

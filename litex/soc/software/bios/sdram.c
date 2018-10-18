@@ -245,7 +245,7 @@ int write_level(void)
 
     int ok;
 
-	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();
+	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read() - 1;
 
 	printf("Write leveling:\n");
 
@@ -324,17 +324,10 @@ int write_level(void)
 static void read_bitslip_inc(char m)
 {
 		ddrphy_dly_sel_write(1 << m);
-#ifdef KUSDDRPHY
 		ddrphy_rdly_dq_bitslip_write(1);
-#else
-		/* 7-series SERDES in DDR mode needs 3 pulses for 1 bitslip */
-		ddrphy_rdly_dq_bitslip_write(1);
-		ddrphy_rdly_dq_bitslip_write(1);
-		ddrphy_rdly_dq_bitslip_write(1);
-#endif
 }
 
-static int read_level_scan(int module, int silent)
+static int read_level_scan(int module, int bitslip)
 {
 	unsigned int prv;
 	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
@@ -367,8 +360,7 @@ static int read_level_scan(int module, int silent)
 	sdram_dfii_pird_baddress_write(0);
 	score = 0;
 
-	if (!silent)
-		printf("m%d: |", module);
+	printf("m%d, b%d: |", module, bitslip);
 	ddrphy_dly_sel_write(1 << module);
 	ddrphy_rdly_dq_rst_write(1);
 	for(j=0; j<ERR_DDRPHY_DELAY;j++) {
@@ -382,13 +374,11 @@ static int read_level_scan(int module, int silent)
 			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
-		if (!silent)
-			printf("%d", working);
+		printf("%d", working);
 		score += working;
 		ddrphy_rdly_dq_inc_write(1);
 	}
-	if (!silent)
-		printf("|");
+	printf("| ");
 
 	/* Precharge */
 	sdram_dfii_pi0_address_write(0);
@@ -672,7 +662,7 @@ int memtest(void)
 }
 
 #ifdef CSR_DDRPHY_BASE
-int sdrlevel(int silent)
+int sdrlevel(void)
 {
 	int i, j;
 	int bitslip;
@@ -700,7 +690,9 @@ int sdrlevel(int silent)
 		best_bitslip = 0;
 		for(bitslip=0; bitslip<ERR_DDRPHY_BITSLIP; bitslip++) {
 			/* compute score */
-			score = read_level_scan(i, silent);
+			score = read_level_scan(i, bitslip);
+			read_level(i);
+			printf("\n");
 			if (score > best_score) {
 				best_bitslip = bitslip;
 				best_score = score;
@@ -713,13 +705,12 @@ int sdrlevel(int silent)
 		}
 
 		/* select best read window */
+		printf("best: m%d, b%d ", i, best_bitslip);
 		ddrphy_rdly_dq_bitslip_rst_write(1);
 		for (j=0; j<best_bitslip; j++)
 			read_bitslip_inc(i);
 
-		/* show scan and do leveling */
-		read_level_scan(i, 0);
-		printf(" bitslip:%d ", best_bitslip);
+		/* re-do leveling on best read window*/
 		read_level(i);
 		printf("\n");
 	}
@@ -737,7 +728,7 @@ int sdrinit(void)
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(0);
 #endif
-	sdrlevel(1);
+	sdrlevel();
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(1);
 #endif
