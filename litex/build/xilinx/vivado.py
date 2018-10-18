@@ -109,6 +109,7 @@ class XilinxVivadoToolchain:
     def _build_batch(self, platform, sources, edifs, ips, build_name):
         tcl = []
         tcl.append("create_project -force -name {} -part {}".format(build_name, platform.device))
+        tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
         for filename, language, library in sources:
             filename_tcl = "{" + filename + "}"
             tcl.append("add_files " + filename_tcl)
