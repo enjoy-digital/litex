@@ -5,7 +5,6 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.integration.soc_core import *
 
-from litedram.frontend import crossbar
 from litedram.frontend.wishbone import LiteDRAMWishbone2Native
 from litedram import dfii, core
 
@@ -27,7 +26,7 @@ class ControllerInjector(Module, AutoCSR):
             phy.settings, geom_settings, timing_settings, **kwargs)
         self.comb += controller.dfi.connect(self.dfii.slave)
 
-        self.submodules.crossbar = crossbar.LiteDRAMCrossbar(controller.interface, controller.nrowbits)
+        self.submodules.crossbar = core.LiteDRAMCrossbar(controller.interface)
 
 
 class SoCSDRAM(SoCCore):
