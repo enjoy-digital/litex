@@ -157,7 +157,7 @@ def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
         fifo = stream.AsyncFIFO([("data", 8)], depth)
         return ClockDomainsRenamer({"write": sink_cd, "read": source_cd})(fifo)
     else:
-        return stream.SyncFIFO([("data", 8)], depth)
+        return stream.SyncFIFO([("data", 8)], depth, buffered=True)
 
 
 class UART(Module, AutoCSR):
