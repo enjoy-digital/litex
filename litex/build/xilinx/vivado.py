@@ -109,6 +109,7 @@ class XilinxVivadoToolchain:
     def _build_batch(self, platform, sources, edifs, ips, build_name, synth_mode="vivado"):
         tcl = []
         tcl.append("create_project -force -name {} -part {}".format(build_name, platform.device))
+        tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
         if synth_mode == "vivado":
             # "-include_dirs {}" crashes Vivado 2016.4
             for filename, language, library in sources:
@@ -116,7 +117,6 @@ class XilinxVivadoToolchain:
                 tcl.append("add_files " + filename_tcl)
                 tcl.append("set_property library {} [get_files {}]"
                            .format(library, filename_tcl))
-
         for filename in edifs:
             filename_tcl = "{" + filename + "}"
             tcl.append("read_edif " + filename_tcl)

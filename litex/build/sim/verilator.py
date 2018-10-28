@@ -107,9 +107,9 @@ def _build_sim(platform, build_name, threads, verbose):
     makefile = os.path.join(core_directory, 'Makefile')
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} THREADS={}
+make -C . -f {} {}
 mkdir -p modules && cp obj_dir/*.so modules
-""".format(makefile, threads)
+""".format(makefile, "THREADS={}".format(threads) if int(threads) > 1 else "")
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
