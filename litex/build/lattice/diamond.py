@@ -94,7 +94,7 @@ def _run_diamond(build_name, toolchain_path, ver=None):
 class LatticeDiamondToolchain:
     attr_translate = DummyAttrTranslate()
 
-    special_overrides = common.diamond_special_overrides
+    special_overrides = common.lattice_ecpx_special_overrides
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path="/opt/Diamond", run=True, **kwargs):

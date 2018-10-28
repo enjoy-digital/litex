@@ -91,7 +91,7 @@ class LatticeIceStormToolchain:
         "no_shreg_extract": None
     }
 
-    special_overrides = common.icestorm_special_overrides
+    special_overrides = common.lattice_ice40_special_overrides
 
     def __init__(self):
         # Variables within replacement fields should be backend-aware and
