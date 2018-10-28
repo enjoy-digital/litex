@@ -82,7 +82,7 @@ def _run_diamond(build_name, toolchain_path, ver=None):
         build_script_file = "build_{}.sh".format(build_name)
 
         tools.write_to_file(build_script_file, build_script_contents)
-        r = subprocess.call(['/bin/sh', build_script_file])
+        r = subprocess.call(["bash", build_script_file])
         shutil.copy(os.path.join("implementation", build_name + "_implementation.bit"), build_name + ".bit")
     else:
         raise NotImplementedError
