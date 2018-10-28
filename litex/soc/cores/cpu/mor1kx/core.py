@@ -122,3 +122,4 @@ class MOR1KX(Module):
             os.path.abspath(os.path.dirname(__file__)),
             "verilog", "rtl", "verilog")
         platform.add_source_dir(vdir)
+        platform.add_verilog_include_path(vdir)

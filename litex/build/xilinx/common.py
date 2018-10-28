@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 try:
     import colorama
     colorama.init()  # install escape sequence translation on Windows
@@ -224,3 +225,51 @@ xilinx_ku_special_overrides = {
     DDROutput:              XilinxDDROutputKU,
     DDRInput:               XilinxDDRInputKU
 }
+
+
+def _run_yosys(device, sources, vincpaths, build_name):
+    ys_contents = ""
+    incflags = ""
+    for path in vincpaths:
+        incflags += " -I" + path
+    for filename, language, library in sources:
+        ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
+
+    ys_contents += """\
+hierarchy -top top
+
+# FIXME: Are these needed?
+# proc; memory; opt; fsm; opt
+
+# Map keep to keep=1 for yosys
+log
+log XX. Converting (* keep = "xxxx" *) attribute for Yosys
+log
+attrmap -tocase keep -imap keep="true" keep=1 -imap keep="false" keep=0 -remove keep=0
+select -list a:keep=1
+
+# Add keep=1 for yosys to objects which have dont_touch="true" attribute.
+log
+log XX. Converting (* dont_touch = "true" *) attribute for Yosys
+log
+select -list a:dont_touch=true
+setattr -set keep 1 a:dont_touch=true
+
+# Convert (* async_reg = "true" *) to async registers for Yosys.
+# (* async_reg = "true", dont_touch = "true" *) reg xilinxmultiregimpl0_regs1 = 1'd0;
+log
+log XX. Converting (* async_reg = "true" *) attribute to async registers for Yosys
+log
+select -list a:async_reg=true
+setattr -set keep 1 a:async_reg=true
+
+synth_xilinx -top top
+
+write_edif -attrprop {build_name}.edif
+""".format(build_name=build_name)
+
+    ys_name = build_name + ".ys"
+    tools.write_to_file(ys_name, ys_contents)
+    r = subprocess.call(["yosys", ys_name])
+    if r != 0:
+        raise OSError("Subprocess failed")
