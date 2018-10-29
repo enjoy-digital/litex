@@ -58,10 +58,15 @@ def main():
                         help="enable Ethernet support")
     parser.add_argument("platform",
                         help="module name of the platform to build for")
+    parser.add_argument("--gateware-toolchain", default=None,
+                        help="FPGA gateware toolchain used for build")
     args = parser.parse_args()
 
     platform_module = importlib.import_module(args.platform)
-    platform = platform_module.Platform()
+    if args.gateware_toolchain is not None:
+        platform = platform_module.Platform(toolchain=args.gateware_toolchain)
+    else:
+        platform = platform_module.Platform()
     cls = EthernetSoC if args.with_ethernet else BaseSoC
     soc = cls(platform, **soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
