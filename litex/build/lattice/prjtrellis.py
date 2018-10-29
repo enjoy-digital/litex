@@ -56,12 +56,14 @@ def generate_prjtrellis_iowrapper(platform, vns):
 
     # ios declaration
     ios_declaration = ""
-    for io_name, io_pins, _, _ in ios:
-        ios_declaration += "\t" + ios_direction[io_name] + " "
-        if len(io_pins) > 1:
-            ios_declaration += "[{}:0] ".format(len(io_pins) - 1)
-        ios_declaration += io_name + "_io"
-        ios_declaration += ",\n" if io_name != last_io_name else ""
+    for io_name, io_pins, io_others, _ in ios:
+        for io_other in io_others:
+            if isinstance(io_other, IOStandard):
+                io_standard = io_other.name
+        for i, io_pin in enumerate(io_pins):
+            ios_declaration += "(* LOC=\"{}\" *) (* IO_TYPE=\"{}\" *)\n".format(io_pin, io_standard)
+            ios_declaration += "\t" + ios_direction[io_name] + " " + io_name + "_io" + (str(i) if len(io_pins) > 1 else "")
+            ios_declaration += ",\n" if io_name != last_io_name or (i != len(io_pins) - 1) else ""
     iowrapper_contents.append(ios_declaration)
     iowrapper_contents.append(");\n")
 
@@ -78,28 +80,33 @@ def generate_prjtrellis_iowrapper(platform, vns):
     # trellis_io declaration
     trellis_io_declaration = ""
     for io_name, io_pins, io_others, _ in ios:
-        for io_other in io_others:
-            if isinstance(io_other, IOStandard):
-                io_standard = io_other.name
         for i, io_pin in enumerate(io_pins):
-            trellis_io_declaration += \
-            "(* LOC=\"{}\" *) (* IO_TYPE=\"{}\" *)\n".format(io_pin, io_standard)
+            io_suffix = "io" + str(i) if len(io_pins) > 1 else "io"
             if ios_direction[io_name] == "input":
                 trellis_io_declaration += \
                 "TRELLIS_IO #(.DIR(\"INPUT\")) {} (.B({}), .O({}));\n".format(
-                    io_name + "_buf" + str(i), io_name + "_io[" + str(i) + "]", io_name + "[" + str(i) + "]")
+                    io_name + "_buf" + str(i), io_name + "_" + io_suffix, io_name + "[" + str(i) + "]")
             elif ios_direction[io_name] == "output":
                 trellis_io_declaration += \
                 "TRELLIS_IO #(.DIR(\"OUTPUT\")) {} (.B({}), .I({}));\n".format(
-                    io_name + "_buf" + str(i), io_name + "_io[" + str(i) + "]", io_name + "[" + str(i) + "]")
+                    io_name + "_buf" + str(i), io_name + "_" + io_suffix, io_name + "[" + str(i) + "]")
             else:
-                raise NotImplementedError
+                pass # handled by Migen's Tristate
     iowrapper_contents.append(trellis_io_declaration)
 
     # top declaration
     top_declaration = "{build_name} _{build_name}(\n"
     for io_name, io_pins, _, _ in ios:
-        top_declaration += "\t." + io_name + "(" + io_name + ")"
+        if ios_direction[io_name] == "inout":
+            if len(io_pins) > 1:
+                io_concat_name = "{{"
+                io_concat_name += ",".join([io_name + "_io" + str(i) for i in range(len(io_pins))])
+                io_concat_name += "}}"
+                top_declaration += "\t." + io_name + "(" + io_concat_name + ")"
+            else:
+                top_declaration += "\t." + io_name + "(" + io_name + "_io)"
+        else:
+            top_declaration += "\t." + io_name + "(" + io_name + ")"
         top_declaration += ",\n" if io_name != last_io_name else "\n"
     top_declaration += ");\n"
     iowrapper_contents.append(top_declaration)
@@ -125,7 +132,7 @@ class LatticePrjTrellisToolchain:
         "no_shreg_extract": None
     }
 
-    special_overrides = common.lattice_ecpx_special_overrides
+    special_overrides = common.lattice_ecpx_prjtrellis_special_overrides
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=True):
