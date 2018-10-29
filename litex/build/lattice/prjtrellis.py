@@ -11,8 +11,9 @@ from litex.build import tools
 from litex.build.lattice import common
 
 # TODO:
-# - add inout support to iowrapper
-# - check/document attr_translate
+# - add timing constraint support.
+# - add inout support to iowrapper.
+# - check/document attr_translate.
 
 
 nextpnr_ecp5_architectures = {
@@ -128,6 +129,8 @@ class LatticePrjTrellisToolchain:
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=True):
+        if toolchain_path is None:
+            toolchain_path = "/opt/prjtrellis/"
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
