@@ -9,10 +9,12 @@ class PicoRV32(Module):
     name = "picorv32"
     endianness = "little"
     gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
-    gcc_flags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
+    gcc_flags_template = "-D__picorv32__ -mno-save-restore -march=rv32{ext} -mabi=ilp32"
     linker_output_format = "elf32-littleriscv"
 
     def __init__(self, platform, progaddr_reset, variant):
+        self.gcc_flags = ""
+
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -59,8 +61,22 @@ class PicoRV32(Module):
             "p_STACKADDR" : 0xffffffff
         }
 
+        if variant == None:
+            self.gcc_flags = PicoRV32.gcc_flags_template.format(ext="im")
+        elif variant == "minimal":
+            picorv32_params.update({
+                "p_ENABLE_COUNTERS" : 0,
+                "p_ENABLE_COUNTERS64" : 0,
+                "p_TWO_STAGE_SHIFT" : 0,
+                "p_CATCH_MISALIGN" : 0,
+                "p_ENABLE_MUL" : 0,
+                "p_ENABLE_DIV" : 0,
+                "p_ENABLE_IRQ_TIMER" : 0
+            })
+            self.gcc_flags = PicoRV32.gcc_flags_template.format(ext="i")
+
         self.specials += Instance("picorv32",
-            # parameters
+            # parameters dictionary
             **picorv32_params,
 
             # clock / reset
