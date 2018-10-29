@@ -12,7 +12,6 @@ from litex.build.lattice import common
 
 # TODO:
 # - add inout support to iowrapper
-# - verify iowrapper handle correctly multi-bit signals
 # - check/document attr_translate
 
 
@@ -45,9 +44,9 @@ def generate_prjtrellis_iowrapper(platform, vns):
     ios_direction = {}
     # resolve ios directions
     cm = platform.constraint_manager
-    for io_name, io_pin, _, _ in ios:
-        for cm_sig, cm_pin, _, _ in cm.get_sig_constraints():
-            if io_pin == cm_pin:
+    for io_name, io_pins, _, _ in ios:
+        for cm_sig, cm_pins, _, _ in cm.get_sig_constraints():
+            if io_pins == cm_pins:
                 ios_direction[io_name] = cm_sig.direction
         last_io_name = io_name
 
@@ -56,10 +55,10 @@ def generate_prjtrellis_iowrapper(platform, vns):
 
     # ios declaration
     ios_declaration = ""
-    for io_name, io_pin, _, _ in ios:
+    for io_name, io_pins, _, _ in ios:
         ios_declaration += "\t" + ios_direction[io_name] + " "
-        if len(io_pin) > 1:
-            ios_declaration += "[{}:0] ".format(len(io_pin - 1))
+        if len(io_pins) > 1:
+            ios_declaration += "[{}:0] ".format(len(io_pins) - 1)
         ios_declaration += io_name + "_io"
         ios_declaration += ",\n" if io_name != last_io_name else ""
     iowrapper_contents.append(ios_declaration)
@@ -67,37 +66,38 @@ def generate_prjtrellis_iowrapper(platform, vns):
 
     # wires declaration
     wires_declaration = ""
-    for io_name, io_pin, _, _ in ios:
+    for io_name, io_pins, _, _ in ios:
         wires_declaration += "wire "
-        if len(io_pin) > 1:
-            wires_declaration += "[{}:0] ".format(len(io_pin - 1))
+        if len(io_pins) > 1:
+            wires_declaration += "[{}:0] ".format(len(io_pins) - 1)
         wires_declaration += io_name
         wires_declaration += ";\n"
     iowrapper_contents.append(wires_declaration)
 
     # trellis_io declaration
     trellis_io_declaration = ""
-    for io_name, io_pin, io_others, _ in ios:
+    for io_name, io_pins, io_others, _ in ios:
         for io_other in io_others:
             if isinstance(io_other, IOStandard):
                 io_standard = io_other.name
-        trellis_io_declaration += \
-        "(* LOC=\"{}\" *) (* IO_TYPE=\"{}\" *)\n".format(io_pin[0], io_standard)
-        if ios_direction[io_name] == "input":
+        for i, io_pin in enumerate(io_pins):
             trellis_io_declaration += \
-            "TRELLIS_IO #(.DIR(\"INPUT\")) {} (.B({}), .O({}));\n".format(
-                io_name + "_buf", io_name + "_io", io_name)
-        elif ios_direction[io_name] == "output":
-            trellis_io_declaration += \
-            "TRELLIS_IO #(.DIR(\"OUTPUT\")) {} (.B({}), .I({}));\n".format(
-                io_name + "_buf", io_name + "_io", io_name)
-        else:
-            raise NotImplementedError
+            "(* LOC=\"{}\" *) (* IO_TYPE=\"{}\" *)\n".format(io_pin, io_standard)
+            if ios_direction[io_name] == "input":
+                trellis_io_declaration += \
+                "TRELLIS_IO #(.DIR(\"INPUT\")) {} (.B({}), .O({}));\n".format(
+                    io_name + "_buf" + str(i), io_name + "_io[" + str(i) + "]", io_name + "[" + str(i) + "]")
+            elif ios_direction[io_name] == "output":
+                trellis_io_declaration += \
+                "TRELLIS_IO #(.DIR(\"OUTPUT\")) {} (.B({}), .I({}));\n".format(
+                    io_name + "_buf" + str(i), io_name + "_io[" + str(i) + "]", io_name + "[" + str(i) + "]")
+            else:
+                raise NotImplementedError
     iowrapper_contents.append(trellis_io_declaration)
 
     # top declaration
     top_declaration = "{build_name} _{build_name}(\n"
-    for io_name, io_pin, _, _ in ios:
+    for io_name, io_pins, _, _ in ios:
         top_declaration += "\t." + io_name + "(" + io_name + ")"
         top_declaration += ",\n" if io_name != last_io_name else "\n"
     top_declaration += ");\n"
