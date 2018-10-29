@@ -214,8 +214,7 @@ class XilinxVivadoToolchain:
         )
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            toolchain_path=None, source=True, run=True, **kwargs):
-        synth_mode = kwargs.get('synth_mode', 'yosys')
+            toolchain_path=None, source=True, run=True, synth_mode="vivado", **kwargs):
         if toolchain_path is None:
             if sys.platform == "win32":
                 toolchain_path = "C:\\Xilinx\\Vivado"
@@ -244,9 +243,11 @@ class XilinxVivadoToolchain:
         if run:
             if synth_mode == "yosys":
                 common._run_yosys(platform.device, sources, platform.verilog_include_paths, build_name)
+            elif synth_mode == "vivado":
+                _run_vivado(build_name, toolchain_path, source)
             else:
                 raise OSError("Error!")
-            _run_vivado(build_name, toolchain_path, source)
+
 
         os.chdir(cwd)
 
