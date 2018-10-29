@@ -16,7 +16,7 @@ class BaseSoC(Module):
         led0_pads = platform.request("user_led", 0)
         led1_pads = platform.request("user_led", 1)
 
-        # no constraint file for now with prjtrellis
+        # FIXME: no constraint file for now with prjtrellis
         platform.lookup_request("clk100").attr.add(("LOC", "P3"))
         platform.lookup_request("clk100").attr.add(("IO_TYPE", "LVDS"))
         platform.lookup_request("user_dip_btn").attr.add(("LOC", "H2"))
@@ -26,7 +26,7 @@ class BaseSoC(Module):
         platform.lookup_request("user_led", 1).attr.add(("LOC", "D17"))
         platform.lookup_request("user_led", 1).attr.add(("IO_TYPE", "LVCMOS25"))
 
-        # add TRELLIS_IO instance on all inputs/outputs
+        # FIXME: add TRELLIS_IO instance on all inputs/outputs
         sys_clk_pads_i = Signal()
         btn_pads_i = Signal()
         led0_pads_i = Signal()
@@ -53,7 +53,7 @@ class BaseSoC(Module):
 def main():
     platform = versaecp55g.Platform(toolchain="prjtrellis")
     soc = BaseSoC(platform)
-    platform.build(soc)
+    platform.build(soc, toolchain_path="/home/florent/dev/symbiflow/prjtrellis") # FIXME
 
 
 if __name__ == "__main__":
