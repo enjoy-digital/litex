@@ -12,8 +12,8 @@ from litex.build.lattice import common
 
 # TODO:
 # - add timing constraint support.
-# - add inout support to iowrapper.
 # - check/document attr_translate.
+# - use constraint file when prjtrellis will support it.
 
 
 nextpnr_ecp5_architectures = {
@@ -40,21 +40,22 @@ def yosys_import_sources(platform):
     return "\n".join(reads)
 
 
-def generate_prjtrellis_iowrapper(platform, vns):
+def generate_prjtrellis_top(top_file, platform, vns):
+    # resolve ios directions / types
     ios, _ = platform.resolve_signals(vns)
     ios_direction = {}
-    # resolve ios directions
+    ios_type = {}
     cm = platform.constraint_manager
     for io_name, io_pins, _, _ in ios:
         for cm_sig, cm_pins, _, _ in cm.get_sig_constraints():
             if io_pins == cm_pins:
                 ios_direction[io_name] = cm_sig.direction
+                ios_type[io_name] = cm_sig.type
         last_io_name = io_name
 
-    iowrapper_contents = []
-    iowrapper_contents.append("module {build_name}_iowrapper(")
-
-    # ios declaration
+    # prjtrellis module / ios declaration
+    top_contents = []
+    top_contents.append("module prjtrellis_{build_name}(")
     ios_declaration = ""
     for io_name, io_pins, io_others, _ in ios:
         for io_other in io_others:
@@ -64,20 +65,20 @@ def generate_prjtrellis_iowrapper(platform, vns):
             ios_declaration += "(* LOC=\"{}\" *) (* IO_TYPE=\"{}\" *)\n".format(io_pin, io_standard)
             ios_declaration += "\t" + ios_direction[io_name] + " " + io_name + "_io" + (str(i) if len(io_pins) > 1 else "")
             ios_declaration += ",\n" if io_name != last_io_name or (i != len(io_pins) - 1) else ""
-    iowrapper_contents.append(ios_declaration)
-    iowrapper_contents.append(");\n")
+    top_contents.append(ios_declaration)
+    top_contents.append(");\n")
 
-    # wires declaration
-    wires_declaration = ""
+    # top signals declaration
+    signals_declaration = ""
     for io_name, io_pins, _, _ in ios:
-        wires_declaration += "wire "
+        signals_declaration += ios_type[io_name] + " "
         if len(io_pins) > 1:
-            wires_declaration += "[{}:0] ".format(len(io_pins) - 1)
-        wires_declaration += io_name
-        wires_declaration += ";\n"
-    iowrapper_contents.append(wires_declaration)
+            signals_declaration += "[{}:0] ".format(len(io_pins) - 1)
+        signals_declaration += io_name
+        signals_declaration += ";\n"
+    top_contents.append(signals_declaration)
 
-    # trellis_io declaration
+    # trellis_ios declaration
     trellis_io_declaration = ""
     for io_name, io_pins, io_others, _ in ios:
         for i, io_pin in enumerate(io_pins):
@@ -92,30 +93,38 @@ def generate_prjtrellis_iowrapper(platform, vns):
                     io_name + "_buf" + str(i), io_name + "_" + io_suffix, io_name + "[" + str(i) + "]")
             else:
                 pass # handled by Migen's Tristate
-    iowrapper_contents.append(trellis_io_declaration)
+    top_contents.append(trellis_io_declaration)
 
-    # top declaration
-    top_declaration = "{build_name} _{build_name}(\n"
-    for io_name, io_pins, _, _ in ios:
-        if ios_direction[io_name] == "inout":
-            if len(io_pins) > 1:
-                io_concat_name = "{{"
-                io_concat_name += ",".join([io_name + "_io" + str(i) for i in range(len(io_pins))])
-                io_concat_name += "}}"
-                top_declaration += "\t." + io_name + "(" + io_concat_name + ")"
-            else:
-                top_declaration += "\t." + io_name + "(" + io_name + "_io)"
-        else:
-            top_declaration += "\t." + io_name + "(" + io_name + ")"
-        top_declaration += ",\n" if io_name != last_io_name else "\n"
-    top_declaration += ");\n"
-    iowrapper_contents.append(top_declaration)
+    # top_recopy:
+    # - skip module definition.
+    # - use ios names for inouts.
+    def replace_inouts(l):
+        r = l
+        for io_name, io_pins, _, _ in ios:
+            if ios_direction[io_name] == "inout":
+                if len(io_pins) > 1:
+                    for i in range(len(io_pins)):
+                        r = r.replace(io_name + "[" + str(i) + "]", io_name + "_io" + str(i))
+                else:
+                    r = r.replace(io_name, io_name + "_io")
+        return r
 
-    iowrapper_contents.append("endmodule")
+    skip = True
+    f = open(top_file, "r")
+    for l in f:
+        if not skip:
+            l = l.replace("\n", "")
+            l = l.replace("{", "{{")
+            l = l.replace("}", "}}")
+            l = replace_inouts(l)
+            top_contents.append(l)
+        if ");" in l:
+            skip = False
+    f.close()
 
-    iowrapper_contents = "\n".join(iowrapper_contents)
+    top_contents = "\n".join(top_contents)
 
-    return iowrapper_contents
+    return top_contents
 
 
 class LatticePrjTrellisToolchain:
@@ -147,24 +156,22 @@ class LatticePrjTrellisToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        v_output = platform.get_verilog(fragment)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
-        platform.add_source(v_file)
+        top_output = platform.get_verilog(fragment)
+        top_file = build_name + ".v"
+        top_output.write(top_file)
 
-        # generate iowrapper (with constraints and trellis_ios)
-        # FIXME: remove when prjtrellis will support constraint files
-        iowrapper_file = build_name + "_iowrapper.v"
-        iowrapper_contents = generate_prjtrellis_iowrapper(platform, v_output.ns)
-        iowrapper_contents = iowrapper_contents.format(build_name=build_name)
-        tools.write_to_file(iowrapper_file, iowrapper_contents)
-        platform.add_source(iowrapper_file)
+        # insert constraints and trellis_io to generated verilog
+        prjtrellis_top_file = build_name + "_prjtrellis.v"
+        prjtrellis_top_contents = generate_prjtrellis_top(top_file, platform, top_output.ns)
+        prjtrellis_top_contents = prjtrellis_top_contents.format(build_name=build_name)
+        tools.write_to_file(prjtrellis_top_file, prjtrellis_top_contents)
+        platform.add_source(prjtrellis_top_file)
 
         # generate yosys script
         yosys_script_file = build_name + ".ys"
         yosys_script_contents = [
             yosys_import_sources(platform),
-            "synth_ecp5 -nomux -json {build_name}.json -top {build_name}_iowrapper"
+            "synth_ecp5 -nomux -json {build_name}.json -top prjtrellis_{build_name}"
         ]
         yosys_script_contents = "\n".join(yosys_script_contents)
         yosys_script_contents = yosys_script_contents.format(build_name=build_name)

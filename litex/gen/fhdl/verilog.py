@@ -206,6 +206,7 @@ def _printheader(f, ios, name, ns, attr_translate,
         attr = _printattr(sig.attr, attr_translate)
         if attr:
             r += "\t" + attr
+        sig.type = "wire"
         if sig in inouts:
             sig.direction = "inout"
             r += "\tinout " + _printsig(ns, sig)
@@ -214,6 +215,7 @@ def _printheader(f, ios, name, ns, attr_translate,
             if sig in wires:
                 r += "\toutput " + _printsig(ns, sig)
             else:
+                sig.type = "reg"
                 r += "\toutput reg " + _printsig(ns, sig)
         else:
             sig.direction = "input"
