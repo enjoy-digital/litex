@@ -3,18 +3,12 @@ from migen.genlib.roundrobin import *
 from migen.genlib.record import *
 from migen.genlib.fsm import FSM, NextState
 
+from litex.gen import *
+
 from litex.soc.interconnect import stream
 
 # TODO: clean up code below
 # XXX
-
-def reverse_bytes(signal):
-    n = (len(signal)+7)//8
-    r = []
-    for i in reversed(range(n)):
-        r.append(signal[i*8:min((i+1)*8, len(signal))])
-    return Cat(iter(r))
-
 
 class Status(Module):
     def __init__(self, endpoint):
