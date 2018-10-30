@@ -52,6 +52,7 @@ class BaseSoC(SoCSDRAM):
         platform = ulx3s.Platform(toolchain="prjtrellis")
         sys_clk_freq = int(25e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
+                          l2_size=32,
                           integrated_rom_size=0x8000,
                           **kwargs)
 
