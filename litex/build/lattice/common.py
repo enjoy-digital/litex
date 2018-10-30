@@ -49,9 +49,10 @@ class LatticeECPXPrjTrellisTristateImpl(Module):
             self.specials += \
                 Instance("TRELLIS_IO",
                     p_DIR="BIDIR",
-                    i_B=~io[bit],
+                    i_B=io[bit],
                     i_I=o[bit],
-                    o_O=i[bit]
+                    o_O=i[bit],
+                    i_T=~oe,
                 )
 
 class LatticeECPXPrjTrellisTristate(Module):
