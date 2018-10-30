@@ -146,7 +146,7 @@ class LatticePrjTrellisToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=True):
         if toolchain_path is None:
-            toolchain_path = "/opt/prjtrellis/"
+            toolchain_path = "/usr/share/trellis/"
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
