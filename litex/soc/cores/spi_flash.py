@@ -1,6 +1,8 @@
 from migen import *
 from migen.genlib.misc import timeline
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRStatus
 
@@ -26,7 +28,7 @@ def _format_cmd(cmd, spi_width):
 
 
 class SpiFlashDualQuad(Module, AutoCSR):
-    def __init__(self, pads, dummy=15, div=2):
+    def __init__(self, pads, dummy=15, div=2, endianness="big"):
         """
         Simple SPI flash.
         Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
@@ -56,7 +58,10 @@ class SpiFlashDualQuad(Module, AutoCSR):
         self.specials.dq = dq.get_tristate(pads.dq)
 
         sr = Signal(max(cmd_width, addr_width, wbone_width))
-        self.comb += bus.dat_r.eq(sr)
+        if endianness == "big":
+            self.comb += bus.dat_r.eq(sr)
+        else:
+            self.comb += bus.dat_r.eq(reverse_bytes(sr))
 
         self.comb += [
             pads.clk.eq(clk),
@@ -136,7 +141,10 @@ class SpiFlashSingle(Module, AutoCSR):
         addr_width = 24
 
         sr = Signal(max(cmd_width, addr_width, wbone_width))
-        self.comb += bus.dat_r.eq(sr)
+        if endianness == "big":
+            self.comb += bus.dat_r.eq(sr)
+        else:
+            self.comb += bus.dat_r.eq(reverse_bytes(sr))
 
         self.comb += [
             pads.clk.eq(clk),
