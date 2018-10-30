@@ -205,7 +205,7 @@ class LatticePrjTrellisToolchain:
 
         os.chdir(cwd)
 
-        return v_output.ns
+        return top_output.ns
 
     def add_period_constraint(self, platform, clk, period):
         print("TODO: add_period_constraint")
