@@ -45,6 +45,8 @@ class _CRG(Module):
                 o_Z=new_sdram_ps_clk)
             sdram_ps_clk = new_sdram_ps_clk
         self.comb += self.cd_sys_ps.clk.eq(sdram_ps_clk)
+        sdram_clock = platform.request("sdram_clock")
+        self.comb += sdram_clock.eq(sdram_ps_clk)
 
         # Stop ESP32 from resetting FPGA
         wifi_gpio0 = platform.request("wifi_gpio0")
