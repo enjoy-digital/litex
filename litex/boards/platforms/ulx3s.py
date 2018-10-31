@@ -36,6 +36,8 @@ _io = [
         Subsignal("dm", Pins("U19 E20")),
         IOStandard("LVCMOS33")
     ),
+
+    ("wifi_gpio0", 0, Pins("L2"), IOStandard("LVCMOS33")),
 ]
 
 
@@ -44,4 +46,4 @@ class Platform(LatticePlatform):
     default_clk_period = 10
 
     def __init__(self, **kwargs):
-        LatticePlatform.__init__(self, "LFE5U-85F-6BG381C", _io, **kwargs)
+        LatticePlatform.__init__(self, "LFE5U-45F-6BG381C", _io, **kwargs)

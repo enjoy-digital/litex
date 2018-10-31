@@ -46,6 +46,10 @@ class _CRG(Module):
             sdram_ps_clk = new_sdram_ps_clk
         self.comb += self.cd_sys_ps.clk.eq(sdram_ps_clk)
 
+        # Stop ESP32 from resetting FPGA
+        wifi_gpio0 = platform.request("wifi_gpio0")
+        self.comb += wifi_gpio0.eq(1)
+
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):

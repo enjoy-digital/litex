@@ -98,10 +98,11 @@ class LatticePrjTrellisToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        top_output = platform.get_verilog(fragment)
+        top_output = platform.get_verilog(fragment, name=build_name)
         named_sc, named_pc = platform.resolve_signals(top_output.ns)
         top_file = build_name + ".v"
         top_output.write(top_file)
+        platform.add_source(top_file)
 
         # generate constraints
         tools.write_to_file(build_name + ".lpf", _build_lpf(named_sc, named_pc))
