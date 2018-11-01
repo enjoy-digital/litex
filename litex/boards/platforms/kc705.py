@@ -241,6 +241,10 @@ _io = [
         Subsignal("n", Pins("G7"))
     ),
 
+    ("user_sma_mgt_refclk", 0,
+        Subsignal("p", Pins("J8")),
+        Subsignal("n", Pins("J7"))
+    ),
     ("user_sma_mgt_tx", 0,
         Subsignal("p", Pins("K2")),
         Subsignal("n", Pins("K1"))
