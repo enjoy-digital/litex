@@ -57,7 +57,7 @@ class PicoRV32(Module):
             "p_MASKED_IRQ" : 0x00000000,
             "p_LATCHED_IRQ" : 0xffffffff,
             "p_PROGADDR_RESET" : progaddr_reset,
-            "p_PROGADDR_IRQ" : 0x00000010,
+            "p_PROGADDR_IRQ" : progaddr_reset + 0x00000010,
             "p_STACKADDR" : 0xffffffff
         }
 
