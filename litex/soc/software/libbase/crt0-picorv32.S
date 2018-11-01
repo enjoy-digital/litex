@@ -180,6 +180,14 @@ _crt0:
   la t1, _irq_mask
   sw t0, 0(t1)
 
+  /* Clear BSS */
+  la t0, _fbss
+  la t1, _ebss
+2:
+  sw zero, 0(t0)
+  addi t0, t0, 4
+  bltu t0, t1, 2b
+
   /* set main stack */
   la sp, _fstack
 
