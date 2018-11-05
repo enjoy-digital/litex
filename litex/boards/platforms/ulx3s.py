@@ -34,10 +34,14 @@ _io = [
         Subsignal("cke", Pins("F20")),
         Subsignal("ba", Pins("P19 N20")),
         Subsignal("dm", Pins("U19 E20")),
-        IOStandard("LVCMOS33")
+        IOStandard("LVCMOS33"), Misc("SLEWRATE=FAST")
     ),
 
     ("wifi_gpio0", 0, Pins("L2"), IOStandard("LVCMOS33")),
+
+    ("ext0p", 0, Pins("B11"), IOStandard("LVCMOS33")),
+    ("ext1p", 0, Pins("A10"), IOStandard("LVCMOS33")),
+
 ]
 
 
