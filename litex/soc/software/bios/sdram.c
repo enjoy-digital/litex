@@ -213,7 +213,7 @@ void sdrwr(char *startaddr)
 
 void sdrwlon(void)
 {
-	sdram_dfii_pi0_address_write(DDR3_MR1 | (1 << 7));
+	sdram_dfii_pi0_address_write(DDRX_MR1 | (1 << 7));
 	sdram_dfii_pi0_baddress_write(1);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	ddrphy_wlevel_en_write(1);
@@ -221,7 +221,7 @@ void sdrwlon(void)
 
 void sdrwloff(void)
 {
-	sdram_dfii_pi0_address_write(DDR3_MR1);
+	sdram_dfii_pi0_address_write(DDRX_MR1);
 	sdram_dfii_pi0_baddress_write(1);
 	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 	ddrphy_wlevel_en_write(0);
@@ -245,7 +245,11 @@ int write_level(void)
 
     int ok;
 
+#ifdef KUSDDRPHY
+	err_ddrphy_wdly = ERR_DDRPHY_DELAY; /* FIXME */
+#else
 	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read() - 1;
+#endif
 
 	printf("Write leveling:\n");
 
