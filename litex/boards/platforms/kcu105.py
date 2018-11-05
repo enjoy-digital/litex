@@ -104,7 +104,7 @@ _io = [
         Subsignal("ba", Pins("AF17 AL15"), IOStandard("SSTL12_DCI")),
         Subsignal("bg", Pins("AG15"), IOStandard("SSTL12_DCI")),
         Subsignal("ras_n", Pins("AF14"), IOStandard("SSTL12_DCI")),  # A16
-        Subsignal("cas_n", Pins("AG14 "), IOStandard("SSTL12_DCI")), # A15
+        Subsignal("cas_n", Pins("AG14"), IOStandard("SSTL12_DCI")),  # A15
         Subsignal("we_n", Pins("AD16"), IOStandard("SSTL12_DCI")),   # A14
         Subsignal("cs_n", Pins("AL19"), IOStandard("SSTL12_DCI")),
         Subsignal("act_n", Pins("AH14"), IOStandard("SSTL12_DCI")),
@@ -117,7 +117,7 @@ _io = [
             "AE23 AG20 AF22 AF20 AE22 AD20 AG22 AE20",
             "AJ24 AG24 AJ23 AF23 AH23 AF24 AH22 AG25",
 
-            "AL22 AL25 AM20 AK23 AK22 AL20 AL24 AL23",
+            "AL22 AL25 AM20 AK23 AK22 AL24 AL20 AL23",
             "AM24 AN23 AN24 AP23 AP25 AN22 AP24 AM22",
 
             "AH28 AK26 AK28 AM27 AJ28 AH27 AK27 AM26",
