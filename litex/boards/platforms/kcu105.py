@@ -103,9 +103,9 @@ _io = [
             IOStandard("SSTL12_DCI")),
         Subsignal("ba", Pins("AF17 AL15"), IOStandard("SSTL12_DCI")),
         Subsignal("bg", Pins("AG15"), IOStandard("SSTL12_DCI")),
-        Subsignal("ras_n", Pins("AF14"), IOStandard("SSTL12_DCI")), # A16
+        Subsignal("ras_n", Pins("AF14"), IOStandard("SSTL12_DCI")),  # A16
         Subsignal("cas_n", Pins("AG14 "), IOStandard("SSTL12_DCI")), # A15
-        Subsignal("we_n", Pins("AD16"), IOStandard("SSTL12_DCI")), # A14
+        Subsignal("we_n", Pins("AD16"), IOStandard("SSTL12_DCI")),   # A14
         Subsignal("cs_n", Pins("AL19"), IOStandard("SSTL12_DCI")),
         Subsignal("act_n", Pins("AH14"), IOStandard("SSTL12_DCI")),
         Subsignal("ten", Pins("AH16"), IOStandard("SSTL12_DCI")),
@@ -131,8 +131,8 @@ _io = [
             IOStandard("DIFF_POD12")),
         Subsignal("dqs_n", Pins("AH21 AJ25 AK20 AP21 AL28 AP30 AJ33 AP34"),
             IOStandard("DIFF_POD12")),
-        Subsignal("clk_p", Pins("AE16"), IOStandard("DIFF_SSTL2_DCI")),
-        Subsignal("clk_n", Pins("AE15"), IOStandard("DIFF_SSTL2_DCI")),
+        Subsignal("clk_p", Pins("AE16"), IOStandard("DIFF_SSTL12_DCI")),
+        Subsignal("clk_n", Pins("AE15"), IOStandard("DIFF_SSTL12_DCI")),
         Subsignal("cke", Pins("AD15"), IOStandard("SSTL12_DCI")),
         Subsignal("odt", Pins("AJ18"), IOStandard("SSTL12_DCI")),
         Subsignal("reset_n", Pins("AL18"), IOStandard("LVCMOS12")),
