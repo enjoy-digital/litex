@@ -229,7 +229,7 @@ void sdrwloff(void)
 
 int write_level(void)
 {
-	int i, j;
+	int i, j, k;
 
 	int dq_address;
 	unsigned char dq;
@@ -269,11 +269,22 @@ int write_level(void)
 #endif
 		/* scan taps */
 		for(j=0;j<err_ddrphy_wdly;j++) {
-			ddrphy_wlevel_strobe_write(1);
-			cdelay(10);
-			dq = MMPTR(dq_address);
-			printf("%d", dq != 0);
-			taps_scan[j] = (dq != 0);
+			int zero_count = 0;
+			int one_count = 0;
+			for (k=0; k<128; k++) {
+				ddrphy_wlevel_strobe_write(1);
+				cdelay(10);
+				dq = MMPTR(dq_address);
+				if (dq != 0)
+					one_count++;
+				else
+					zero_count++;
+			}
+			if (one_count > zero_count)
+				taps_scan[j] = 1;
+			else
+				taps_scan[j] = 0;
+			printf("%d", taps_scan[j]);
 			ddrphy_wdly_dq_inc_write(1);
 			ddrphy_wdly_dqs_inc_write(1);
 			cdelay(10);
