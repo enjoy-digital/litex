@@ -33,6 +33,7 @@ class _CRG(Module):
             Instance("IBUFDS", i_I=clk125.p, i_IB=clk125.n, o_O=clk125_ibufds),
             Instance("BUFG", i_I=clk125_ibufds, o_O=clk125_buffered),
             Instance("PLLE2_BASE", name="crg_main_mmcm",
+                i_RST=platform.request("cpu_reset"),
                 p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                 # VCO @ 1GHz
