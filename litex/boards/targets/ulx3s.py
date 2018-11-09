@@ -12,6 +12,7 @@ from litex.soc.integration.builder import *
 
 from litedram.modules import MT48LC16M16
 from litedram.phy import GENSDRPHY
+from litedram.core.controller import ControllerSettings
 
 
 class _CRG(Module):
@@ -69,7 +70,9 @@ class BaseSoC(SoCSDRAM):
             sdram_module = MT48LC16M16(sys_clk_freq, "1:1")
             self.register_sdram(self.sdrphy,
                                 sdram_module.geom_settings,
-                                sdram_module.timing_settings)
+                                sdram_module.timing_settings,
+                                controller_settings=ControllerSettings(
+                                    with_refresh=False)) # FIXME
 
 
 def main():
