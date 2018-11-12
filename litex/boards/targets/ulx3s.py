@@ -26,65 +26,38 @@ class _CRG(Module):
         rst = platform.request("rst")
 
         # sys_clk
+        self.comb += self.cd_sys.clk.eq(clk25)
         # FIXME: AsyncResetSynchronizer needs FD1S3BX support.
         #self.specials += AsyncResetSynchronizer(self.cd_sys, rst)
         self.comb += self.cd_sys.rst.eq(rst)
-        self.comb += self.cd_sys_ps.rst.eq(rst)
 
-        sys_clk = Signal()
-        sdram_ps_clk = Signal()
-
-        self.specials += Instance(
-            "EHXPLLL",
-            i_CLKI=clk25,
-            i_CLKFB=sys_clk,
-            i_PHASESEL1=0,
-            i_PHASESEL0=0,
-            i_PHASEDIR=0,
-            i_PHASESTEP=0,
-            i_PHASELOADREG=0,
-            i_STDBY=0,
-            i_PLLWAKESYNC=0,
-            i_RST=0,
-            i_ENCLKOP=0,
-            i_ENCLKOS=0,
-            o_CLKOP=sys_clk,
-            o_CLKOS=sdram_ps_clk,
-            p_CLKOS_FPHASE=2,
-            p_CLKOS_CPHASE=15,
-            p_CLKOP_FPHASE=0,
-            p_CLKOP_CPHASE=12,
-            p_PLL_LOCK_MODE=0,
-            p_OUTDIVIDER_MUXB="DIVB",
-            p_CLKOS_ENABLE="ENABLED",
-            p_CLKOP_ENABLE="ENABLED",
-            p_CLKOS_DIV=13,
-            p_CLKOP_DIV=13,
-            p_CLKFB_DIV=2,
-            p_CLKI_DIV=1,
-            p_FEEDBK_PATH="CLKOP",
-            attr=[("ICP_CURRENT", "6"), ("LPF_RESISTOR", "16"), ("MFG_ENABLE_FILTEROPAMP", "1"), ("MFG_GMCREF_SEL", "2")]
-        )
-
-        self.comb += self.cd_sys.clk.eq(sys_clk)
+        # sys_clk phase shifted (for sdram)
+        sdram_ps_clk = self.cd_sys.clk
+        # FIXME: phase shift with luts, needs PLL support.
+        sdram_ps_luts = 5
+        for i in range(sdram_ps_luts):
+            new_sdram_ps_clk = Signal()
+            self.specials += Instance("LUT4",
+                p_INIT=2,
+                i_A=sdram_ps_clk,
+                i_B=0,
+                i_C=0,
+                i_D=0,
+                o_Z=new_sdram_ps_clk)
+            sdram_ps_clk = new_sdram_ps_clk
         self.comb += self.cd_sys_ps.clk.eq(sdram_ps_clk)
         sdram_clock = platform.request("sdram_clock")
-        self.comb += sdram_clock.eq(sys_clk)
+        self.comb += sdram_clock.eq(sdram_ps_clk)
 
         # Stop ESP32 from resetting FPGA
         wifi_gpio0 = platform.request("wifi_gpio0")
         self.comb += wifi_gpio0.eq(1)
 
-        ext0p = platform.request("ext0p")
-        self.comb += ext0p.eq(sdram_ps_clk)
-        ext1p = platform.request("ext1p")
-        self.comb += ext1p.eq(self.cd_sys.clk)
-
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
         platform = ulx3s.Platform(toolchain="prjtrellis")
-        sys_clk_freq = int(50e6)
+        sys_clk_freq = int(25e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           l2_size=32,
                           integrated_rom_size=0x8000,
