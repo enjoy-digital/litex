@@ -28,7 +28,7 @@ class _CRG(Module):
 
         # sys_4x_clk divider
         self.comb += self.cd_sys_4x.clk.eq(clk100)
-        sys_4x_divider = Signal(2)
+        sys_4x_divider = Signal(1)
         self.sync.sys_4x += sys_4x_divider.eq(sys_4x_divider + 1)
 
         # sys_clk
@@ -40,7 +40,7 @@ class _CRG(Module):
         # sys_clk phase shifted (for sdram)
         sdram_ps_clk = self.cd_sys.clk
         # FIXME: phase shift with luts, needs PLL support.
-        sdram_ps_luts = 5
+        sdram_ps_luts = 2
         for i in range(sdram_ps_luts):
             new_sdram_ps_clk = Signal()
             self.specials += Instance("LUT4",
@@ -60,7 +60,7 @@ class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
         platform = versa_ecp5.Platform(toolchain="prjtrellis")
         platform.add_extension(versa_ecp5._ecp5_soc_hat_io)
-        sys_clk_freq = int(25e6)
+        sys_clk_freq = int(50e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           l2_size=32,
                           integrated_rom_size=0x8000,
