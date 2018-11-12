@@ -33,7 +33,7 @@ def _format_constraint(c):
     elif isinstance(c, IOStandard):
         return ("IOBUF PORT ", " IO_TYPE=" + c.name)
     elif isinstance(c, Misc):
-        return c.misc
+        return ("IOBUF PORT ", " " + c.misc)
 
 
 def _format_lpf(signame, pin, others, resname):
