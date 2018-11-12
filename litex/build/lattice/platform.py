@@ -1,5 +1,5 @@
 from litex.build.generic_platform import GenericPlatform
-from litex.build.lattice import common, diamond, icestorm, prjtrellis
+from litex.build.lattice import common, diamond, icestorm, trellis
 
 
 class LatticePlatform(GenericPlatform):
@@ -9,8 +9,8 @@ class LatticePlatform(GenericPlatform):
         GenericPlatform.__init__(self, *args, **kwargs)
         if toolchain == "diamond":
             self.toolchain = diamond.LatticeDiamondToolchain()
-        elif toolchain == "prjtrellis":
-            self.toolchain = prjtrellis.LatticePrjTrellisToolchain()
+        elif toolchain == "trellis":
+            self.toolchain = trellis.LatticeTrellisToolchain()
         elif toolchain == "icestorm":
             self.bitstream_ext = ".bin"
             self.toolchain = icestorm.LatticeIceStormToolchain()
