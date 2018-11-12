@@ -56,7 +56,7 @@ class _CRG(Module):
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
-        platform = ulx3s.Platform(toolchain="prjtrellis")
+        platform = ulx3s.Platform(toolchain="trellis")
         sys_clk_freq = int(25e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           l2_size=32,

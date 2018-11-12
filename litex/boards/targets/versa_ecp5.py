@@ -58,7 +58,7 @@ class _CRG(Module):
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
-        platform = versa_ecp5.Platform(toolchain="prjtrellis")
+        platform = versa_ecp5.Platform(toolchain="trellis")
         platform.add_extension(versa_ecp5._ecp5_soc_hat_io)
         sys_clk_freq = int(50e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
