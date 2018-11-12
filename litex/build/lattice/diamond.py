@@ -132,7 +132,9 @@ class LatticeDiamondToolchain:
     special_overrides = common.lattice_ecpx_special_overrides
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-              toolchain_path="/opt/Diamond", run=True, **kwargs):
+              toolchain_path=None, run=True, **kwargs):
+        if toolchain_path is None:
+            toolchain_path = "/opt/Diamond"
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
