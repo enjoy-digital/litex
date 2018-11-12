@@ -40,7 +40,6 @@ def _format_constraint(c):
 def _format_lpf(signame, pin, others, resname):
     fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
     r = ""
-    print(fmt_c)
     for pre, suf in fmt_c:
         r += pre + "\"" + signame + "\"" + suf + ";\n"
     return r
@@ -138,7 +137,7 @@ class LatticeTrellisToolchain:
         self.freq_constraints = dict()
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-              toolchain_path=None, run=True):
+              toolchain_path=None, run=True, **kwargs):
         if toolchain_path is None:
             toolchain_path = "/usr/share/trellis/"
         os.makedirs(build_dir, exist_ok=True)
@@ -150,7 +149,7 @@ class LatticeTrellisToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        top_output = platform.get_verilog(fragment, name=build_name)
+        top_output = platform.get_verilog(fragment, name=build_name, **kwargs)
         named_sc, named_pc = platform.resolve_signals(top_output.ns)
         top_file = build_name + ".v"
         top_output.write(top_file)

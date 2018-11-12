@@ -183,3 +183,30 @@ endgroup
 quit
 """.format(data=data_file, flash_part=self.flash_part, device=device)
         _run_vivado(self.vivado_path, self.vivado_ver, cmds)
+
+
+class Adept(GenericProgrammer):
+    """Using the Adept tool with an onboard Digilent "USB JTAG" cable.
+
+    You need to install Adept Utilities V2 from
+    http://www.digilentinc.com/Products/Detail.cfm?NavPath=2,66,828&Prod=ADEPT2
+    """
+
+    needs_bitreverse = False
+
+    def __init__(self, board, index, flash_proxy_basename=None):
+        GenericProgrammer.__init__(self, flash_proxy_basename)
+        self.board = board
+        self.index = index
+
+    def load_bitstream(self, bitstream_file):
+        subprocess.call([
+            "djtgcfg",
+            "--verbose",
+            "prog", "-d", self.board,
+            "-i", str(self.index),
+            "-f", bitstream_file,
+            ])
+
+    def flash(self, address, data_file):
+        raise ValueError("Flashing unsupported with DigilentAdept tools")

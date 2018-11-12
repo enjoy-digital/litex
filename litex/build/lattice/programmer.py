@@ -11,15 +11,11 @@ class LatticeProgrammer(GenericProgrammer):
     def __init__(self, xcf_template):
         self.xcf_template = xcf_template
 
-    def load_bitstream(self, bitstream_file, toolchain_path=''):
+    def load_bitstream(self, bitstream_file):
         xcf_file = bitstream_file.replace(".bit", ".xcf")
         xcf_content = self.xcf_template.format(bitstream_file=bitstream_file)
         tools.write_to_file(xcf_file, xcf_content)
-        if toolchain_path:
-            pgrcmd = os.path.join(toolchain_path, 'bin/lin64/pgrcmd')
-        else:
-            pgrcmr = 'pgrcmr'
-        subprocess.call([pgrcmd, "-infile", xcf_file])
+        subprocess.call(["pgrcmd", "-infile", xcf_file])
 
 
 class IceStormProgrammer(GenericProgrammer):
@@ -76,12 +72,22 @@ class TinyProgProgrammer(GenericProgrammer):
                 # Ditto with user data.
                 subprocess.call(["tinyprog", "-u", bitstream_file])
         else:
-            # Provide override so user can program wherever they wish (outside
-            # of bootloader region).
-            subprocess.call(["tinyprog", "-a", str(address), "--program-image",
+            # Provide override so user can program wherever they wish.
+            subprocess.call(["tinyprog", "-a", str(address), "-p",
                             bitstream_file])
 
     # Force user image to boot if a user reset tinyfpga, the bootloader
     # is active, and the user image need not be reprogrammed.
     def boot(self):
         subprocess.call(["tinyprog", "-b"])
+
+
+class MyStormProgrammer(GenericProgrammer):
+    def __init__(self, serial_port):
+        self.serial_port = serial_port
+
+    def load_bitstream(self, bitstream_file):
+        import serial
+        with serial.Serial(self.serial_port) as port:
+            with open(bitstream_file, "rb") as f:
+                port.write(f.read())

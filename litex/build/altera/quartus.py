@@ -100,7 +100,10 @@ quartus_map --read_settings_files=on --write_settings_files=off {build_name} -c 
 quartus_fit --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
 quartus_asm --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
 quartus_sta {build_name} -c {build_name}
-quartus_cpf -c {build_name}.sof {build_name}.rbf
+if [ -f "{build_name}.sof" ]
+then
+    quartus_cpf -c {build_name}.sof {build_name}.rbf
+fi
 
 """.format(build_name=build_name)  # noqa
     build_script_file = "build_" + build_name + ".sh"
@@ -127,7 +130,7 @@ class AlteraQuartusToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
-        sources = platform.sources + [(v_file, "verilog", "work")]
+        sources = platform.sources | {(v_file, "verilog", "work")}
         _build_files(platform.device,
                      sources,
                      platform.verilog_include_paths,
