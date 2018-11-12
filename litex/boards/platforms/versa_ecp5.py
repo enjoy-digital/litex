@@ -64,6 +64,22 @@ _io = [
         Subsignal("tx_data", Pins("J17 J16 D19 D20")),
         IOStandard("LVCMOS25")
     ),
+
+    ("ext_clk", 0,
+        Subsignal("p", Pins("A4")),
+        Subsignal("n", Pins("A5")),
+        IOStandard("LVDS")
+    ),
+
+    ("pcie_x1", 0,
+        Subsignal("clk_p", Pins("Y11")),
+        Subsignal("clk_n", Pins("Y12")),
+        Subsignal("rx_p", Pins("Y5")),
+        Subsignal("rx_n", Pins("Y6")),
+        Subsignal("tx_p", Pins("W4")),
+        Subsignal("tx_n", Pins("W5")),
+        Subsignal("perst", Pins("A6"), IOStandard("LVCMOS33")),
+    ),
 ]
 
 
@@ -88,12 +104,59 @@ _ecp5_soc_hat_io = [
 ]
 
 
+_connectors = [
+   ("X3",
+        "None",  # (no pin 0)
+        "None",  #  1 GND
+        "None",  #  2 N/C
+        "None",  #  3 +2V5
+        "B19",   #  4 EXPCON_IO29
+        "B12",   #  5 EXPCON_IO30
+        "B9",    #  6 EXPCON_IO31
+        "E6",    #  7 EXPCON_IO32
+        "D6",    #  8 EXPCON_IO33
+        "E7",    #  9 EXPCON_IO34
+        "D7",    # 10 EXPCON_IO35
+        "B11",   # 11 EXPCON_IO36
+        "B6",    # 12 EXPCON_IO37
+        "E9",    # 13 EXPCON_IO38
+        "D9",    # 14 EXPCON_IO39
+        "B8",    # 15 EXPCON_IO40
+        "C8",    # 16 EXPCON_IO41
+        "D8",    # 17 EXPCON_IO42
+        "E8",    # 18 EXPCON_IO43
+        "C7",    # 19 EXPCON_IO44
+        "C6",    # 20 EXPCON_IO45
+        "None",  # 21 +5V
+        "None",  # 22 GND
+        "None",  # 23 +2V5
+        "None",  # 24 GND
+        "None",  # 25 +3V3
+        "None",  # 26 GND
+        "None",  # 27 +3V3
+        "None",  # 28 GND
+        "None",  # 29 EXPCON_OSC
+        "None",  # 30 GND
+        "None",  # 31 EXPCON_CLKIN
+        "None",  # 32 GND
+        "None",  # 33 EXPCON_CLKOUT
+        "None",  # 34 GND
+        "None",  # 35 +3V3
+        "None",  # 36 GND
+        "None",  # 37 +3V3
+        "None",  # 38 GND
+        "None",  # 39 +3V3
+        "None",  # 40 GND
+    ),
+]
+
+
 class Platform(LatticePlatform):
     default_clk_name = "clk100"
     default_clk_period = 10
 
     def __init__(self, **kwargs):
-        LatticePlatform.__init__(self, "LFE5UM5G-45F-8BG381C", _io, **kwargs)
+        LatticePlatform.__init__(self, "LFE5UM5G-45F-8BG381C", _io, _connectors, **kwargs)
 
     def do_finalize(self, fragment):
         LatticePlatform.do_finalize(self, fragment)
@@ -106,24 +169,8 @@ class Platform(LatticePlatform):
         except ConstraintError:
             pass
 
-    def create_programmer(self):
-        _xcf_template = """
-<?xml version='1.0' encoding='utf-8' ?>
-<!DOCTYPE        ispXCF    SYSTEM    "IspXCF.dtd" >
-<ispXCF version="3.4.1">
-    <Comment></Comment>
-    <Chain>
-        <Comm>JTAG</Comm>
-        <Device>
-            <SelectedProg value="TRUE"/>
-            <Pos>1</Pos>
-            <Vendor>Lattice</Vendor>
-            <Family>ECP5UM5G</Family>
-            <Name>LFE5UM5G-45F</Name>
-            <IDCode>0x81112043</IDCode>
-            <File>{bitstream_file}</File>
-            <Operation>Fast Program</Operation>
-        </Device>
+    def create_programmer(self, with_ispclock=True):
+        _xcf_ispclock = """
         <Device>
             <SelectedProg value="FALSE"/>
             <Pos>2</Pos>
@@ -139,6 +186,25 @@ class Platform(LatticePlatform):
                 <BScanVal>0</BScanVal>
             </Bypass>
         </Device>
+"""
+
+        _xcf_template = """
+<?xml version='1.0' encoding='utf-8' ?>
+<!DOCTYPE        ispXCF    SYSTEM    "IspXCF.dtd" >
+<ispXCF version="3.4.1">
+    <Comment></Comment>
+    <Chain>
+        <Comm>JTAG</Comm>
+        <Device>
+            <SelectedProg value="TRUE"/>
+            <Pos>1</Pos>
+            <Vendor>Lattice</Vendor>
+            <Family>ECP5UM5G</Family>
+            <Name>LFE5UM5G-45F</Name>
+            <IDCode>0x81112043</IDCode>
+            <File>{{bitstream_file}}</File>
+            <Operation>Fast Program</Operation>
+        </Device>{ispclock}
     </Chain>
     <ProjectOptions>
         <Program>SEQUENTIAL</Program>
@@ -154,6 +220,6 @@ class Platform(LatticePlatform):
         <USBID>LATTICE ECP5_5G VERSA BOARD A Location 0000 Serial Lattice ECP5_5G VERSA Board A</USBID>
     </CableOptions>
 </ispXCF>
-"""
+""".format(ispclock=_xcf_ispclock if with_ispclock else "")
 
         return LatticeProgrammer(_xcf_template)
