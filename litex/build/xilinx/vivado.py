@@ -214,7 +214,7 @@ class XilinxVivadoToolchain:
         )
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            toolchain_path="/opt/Xilinx/Vivado", source=True, run=True, **kwargs):
+            toolchain_path="/opt/Xilinx/Vivado", source=True, run=True, synth_mode="vivado", **kwargs):
         if toolchain_path is None:
             toolchain_path = "/opt/Xilinx/Vivado"
         os.makedirs(build_dir, exist_ok=True)
