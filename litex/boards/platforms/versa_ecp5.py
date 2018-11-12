@@ -33,7 +33,6 @@ _io = [
         Subsignal("tx", Pins("A11"), IOStandard("LVCMOS33")),
     ),
 
-
     ("eth_clocks", 0,
         Subsignal("tx", Pins("P19")),
         Subsignal("rx", Pins("L20")),
@@ -64,6 +63,27 @@ _io = [
         Subsignal("tx_ctl", Pins("E19")),
         Subsignal("tx_data", Pins("J17 J16 D19 D20")),
         IOStandard("LVCMOS25")
+    ),
+]
+
+
+_ecp5_soc_hat_io = [
+    ("sdram_clock", 0, Pins("E14"), IOStandard("LVCMOS33")),
+    ("sdram", 0,
+         Subsignal("a", Pins(
+            "C6 E15 A16 B16 D15 C15 B15 E12",
+            "D12 B10 C7 A9 C10")),
+         Subsignal("dq", Pins(
+            "B19 B12 B9 E6 D6 E7 D7 B11",
+            "C14 A14 E13 D13 C13 B13 A13 A12")),
+         Subsignal("we_n", Pins("E9")),
+         Subsignal("ras_n", Pins("B8")),
+         Subsignal("cas_n", Pins("D9")),
+         Subsignal("cs_n", Pins("C8")),
+         Subsignal("cke", Pins("D11")),
+         Subsignal("ba", Pins("D8 E8")),
+         Subsignal("dm", Pins("B6 D14")),
+         IOStandard("LVCMOS33"), Misc("SLEWRATE=FAST")
     ),
 ]
 
