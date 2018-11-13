@@ -518,7 +518,7 @@ int main(int i, char **c)
 #ifdef __lm32__
 	printf("LM32");
 #elif __or1k__
-	printf("MOR1K");
+	printf("MOR1KX");
 #elif __picorv32__
 	printf("PicoRV32");
 #elif __vexriscv__
