@@ -127,7 +127,7 @@ class LatticeIceStormToolchain:
 
     # platform.device should be of the form "ice40-{lp384, hx1k, etc}-{tq144, etc}"
     def build(self, platform, fragment, build_dir="build", build_name="top",
-              use_nextpnr=True, run=True, **kwargs):
+              toolchain_path=None, use_nextpnr=True, run=True, **kwargs):
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
