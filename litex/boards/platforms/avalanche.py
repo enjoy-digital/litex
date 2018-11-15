@@ -1,4 +1,8 @@
+# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 from litex.build.generic_platform import *
+from litex.build.microsemi import MicrosemiPlatform
 
 _io = [
     ("clk50", 0, Pins("R1"), IOStandard("LVCMOS25")),
@@ -76,3 +80,10 @@ _io = [
         IOStandard("LVCMOS25")
     ),
 ]
+
+class Platform(MicrosemiPlatform):
+    default_clk_name = "clk50"
+    default_clk_period = 20.0
+
+    def __init__(self):
+        MicrosemiPlatform.__init__(self, "MPF300TS_ES", _io)
