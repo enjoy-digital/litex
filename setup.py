@@ -37,9 +37,9 @@ setup(
     entry_points={
         "console_scripts": [
             "mkmscimg=litex.soc.tools.mkmscimg:main",
-            "litex_term=litex.soc.tools.litex_term:main",
-            "litex_server=litex.soc.tools.remote.litex_server:main",
-            "litex_sim=litex.boards.targets.sim:main",
+            "litex_term=litex.utils.litex_term:main",
+            "litex_server=litex.utils.litex_server:main",
+            "litex_sim=litex.utils.litex_sim:main",
             "litex_simple=litex.boards.targets.simple:main",
         ],
     },

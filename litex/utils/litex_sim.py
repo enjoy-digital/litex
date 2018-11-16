@@ -5,7 +5,9 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
-from litex.boards.platforms import sim
+from litex.build.generic_platform import *
+from litex.build.sim import SimPlatform
+from litex.build.sim.config import SimConfig
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
@@ -26,7 +28,68 @@ from liteeth.frontend.etherbone import LiteEthEtherbone
 
 from litescope import LiteScopeAnalyzer
 
-from litex.build.sim.config import SimConfig
+
+class SimPins(Pins):
+    def __init__(self, n):
+        Pins.__init__(self, "s "*n)
+
+_io = [
+    ("sys_clk", 0, SimPins(1)),
+    ("sys_rst", 0, SimPins(1)),
+    ("serial", 0,
+        Subsignal("source_valid", SimPins(1)),
+        Subsignal("source_ready", SimPins(1)),
+        Subsignal("source_data", SimPins(8)),
+
+        Subsignal("sink_valid", SimPins(1)),
+        Subsignal("sink_ready", SimPins(1)),
+        Subsignal("sink_data", SimPins(8)),
+    ),
+    ("eth_clocks", 0,
+        Subsignal("none", SimPins(1)),
+    ),
+    ("eth", 0,
+        Subsignal("source_valid", SimPins(1)),
+        Subsignal("source_ready", SimPins(1)),
+        Subsignal("source_data", SimPins(8)),
+
+        Subsignal("sink_valid", SimPins(1)),
+        Subsignal("sink_ready", SimPins(1)),
+        Subsignal("sink_data", SimPins(8)),
+    ),
+    ("eth_clocks", 1,
+        Subsignal("none", SimPins(1)),
+    ),
+    ("eth", 1,
+        Subsignal("source_valid", SimPins(1)),
+        Subsignal("source_ready", SimPins(1)),
+        Subsignal("source_data", SimPins(8)),
+
+        Subsignal("sink_valid", SimPins(1)),
+        Subsignal("sink_ready", SimPins(1)),
+        Subsignal("sink_data", SimPins(8)),
+    ),
+    ("vga", 0,
+        Subsignal("de", SimPins(1)),
+        Subsignal("hsync", SimPins(1)),
+        Subsignal("vsync", SimPins(1)),
+        Subsignal("r", SimPins(8)),
+        Subsignal("g", SimPins(8)),
+        Subsignal("b", SimPins(8)),
+    ),
+]
+
+
+class Platform(SimPlatform):
+    default_clk_name = "sys_clk"
+    default_clk_period = 1000  # on modern computers simulate at ~ 1MHz
+
+    def __init__(self):
+        SimPlatform.__init__(self, "SIM", _io)
+
+    def do_finalize(self, fragment):
+        pass
+
 
 
 def csr_map_update(csr_map, csr_peripherals):
@@ -62,7 +125,7 @@ class SimSoC(SoCSDRAM):
         with_etherbone=False, etherbone_mac_address=0x10e2d5000000, etherbone_ip_address="192.168.1.50",
         with_analyzer=False,
         **kwargs):
-        platform = sim.Platform()
+        platform = Platform()
         sys_clk_freq = int(1e9/platform.default_clk_period)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             integrated_rom_size=0x8000,

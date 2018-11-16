@@ -192,7 +192,7 @@ class LiteXTerm:
         print("[TERM] Booting the device.")
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
-        frame.payload = self.kernel_address.to_bytes(4, "big") 
+        frame.payload = self.kernel_address.to_bytes(4, "big")
         self.send_frame(frame)
 
     def detect_prompt(self, data):
