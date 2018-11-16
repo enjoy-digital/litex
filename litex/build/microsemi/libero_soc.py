@@ -12,8 +12,116 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.microsemi import common
 
-def _build_files(device, sources, vincpaths, build_name):
-    print("TODO: _build_files")
+def _format_constraint(c):
+    if isinstance(c, Pins):
+        return "-pin_name {} ".format(c.identifiers[0])
+    elif isinstance(c, IOStandard):
+        return "-io_std {} ".format(c.name)
+    elif isinstance(c, Misc):
+        raise NotImplementedError
+
+
+def _format_pdc(signame, pin, others):
+    fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
+    r = "set_io "
+    r += "-port_name {} ".format(signame)
+    for c in  ([Pins(pin)] + others):
+        r += _format_constraint(c)
+    r += "-fixed true "
+    r += "\n"
+    return r
+
+
+def _build_pdc(named_sc, named_pc, build_name):
+    pdc = ""
+    for sig, pins, others, resname in named_sc:
+        if len(pins) > 1:
+            for i, p in enumerate(pins):
+                pdc += _format_pdc(sig + "[" + str(i) + "]", p, others)
+        else:
+            pdc += _format_pdc(sig, pins[0], others)
+    tools.write_to_file(build_name + ".pdc", pdc)
+
+
+def _build_tcl(platform, sources, build_dir, build_name):
+    tcl = []
+
+    # create project
+    tcl.append(" ".join([
+        "new_project",
+        "-location {./impl}",
+        "-name {{{}}}".format(build_name),
+        "-project_description {}",
+        "-block_mode 0",
+        "-standalone_peripheral_initialization 0",
+        "-instantiate_in_smartdesign 1",
+        "-ondemand_build_dh 0",
+        "-use_enhanced_constraint_flow 0",
+        "-hdl {VERILOG}",
+        "-family {PolarFire}",
+        "-die {}",
+        "-package {}",
+        "-speed {}",
+        "-die_voltage {}",
+        "-part_range {}",
+        "-adv_options {}"
+        ]))
+
+    # set device FIXME: use platform device
+    tcl.append(" ".join([
+        "set_device",
+        "-family {PolarFire}",
+        "-die {MPF300TS_ES}",
+        "-package {FCG484}",
+        "-speed {-1}",
+        "-die_voltage {1.0}",
+        "-part_range {EXT}",
+        "-adv_options {IO_DEFT_STD:LVCMOS 1.8V}",
+        "-adv_options {RESTRICTPROBEPINS:1}",
+        "-adv_options {RESTRICTSPIPINS:0}",
+        "-adv_options {TEMPR:EXT}",
+        "-adv_options {UNUSED_MSS_IO_RESISTOR_PULL:None}",
+        "-adv_options {VCCI_1.2_VOLTR:EXT}",
+        "-adv_options {VCCI_1.5_VOLTR:EXT}",
+        "-adv_options {VCCI_1.8_VOLTR:EXT}",
+        "-adv_options {VCCI_2.5_VOLTR:EXT}",
+        "-adv_options {VCCI_3.3_VOLTR:EXT}",
+        "-adv_options {VOLTR:EXT} "
+    ]))   
+
+    # add files
+    for filename, language, library in sources:
+            filename_tcl = "{" + filename + "}"
+            tcl.append("import_files -hdl_source " + filename_tcl)
+
+    # set top
+    tcl.append("set_root -module {{{}}}".format(build_name))
+
+    # copy init files FIXME: support for include path on LiberoSoC?
+    for file in os.listdir(build_dir):
+        if file.endswith(".init"):
+            tcl.append("file copy -- {} impl/synthesis".format(file))
+
+    # import constraints
+    tcl.append("import_files -io_pdc {{{}}}".format(build_name + ".pdc"))
+
+    # build flow
+    tcl.append("run_tool -name {CONSTRAINT_MANAGEMENT}")
+    tcl.append("run_tool -name {SYNTHESIZE}")
+    tcl.append(" ".join([
+        "configure_tool",
+        "-name {PLACEROUTE}",
+        "-params {EFFORT_LEVEL:true}",
+        "-params {REPAIR_MIN_DELAY:true}",
+        "-params {TDPR:true}"
+    ]))
+    tcl.append("run_tool -name {PLACEROUTE}") 
+    tcl.append("run_tool -name {GENERATEPROGRAMMINGDATA}")
+    tcl.append("run_tool -name {GENERATEPROGRAMMINGFILE}")
+
+    # generate tcl
+    tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
+
 
 def _build_script(build_name, device, toolchain_path, ver=None):
     if sys.platform in ("win32", "cygwin"):
@@ -28,6 +136,7 @@ def _build_script(build_name, device, toolchain_path, ver=None):
     tools.write_to_file(build_script_file, build_script_contents,
                         force_unix=False)
     return build_script_file
+
 
 def _run_script(script):
     if sys.platform in ("win32", "cygwin"):
@@ -56,7 +165,7 @@ class MicrosemiLiberoSoCPolarfireToolchain:
     special_overrides = common.microsemi_polarfire_special_overrides
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-              toolchain_path=None, run=True, **kwargs):
+              toolchain_path=None, run=False, **kwargs):
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
@@ -65,20 +174,29 @@ class MicrosemiLiberoSoCPolarfireToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
-        sources = platform.sources | {(v_file, "verilog", "work")}
-        _build_files(platform.device, sources, platform.verilog_include_paths, build_name)
+        # generate verilog
+        top_output = platform.get_verilog(fragment, name=build_name, **kwargs)
+        named_sc, named_pc = platform.resolve_signals(top_output.ns)
+        top_file = build_name + ".v"
+        top_output.write(top_file)
+        platform.add_source(top_file)
 
+        # generate design script (tcl)
+        _build_tcl(platform, platform.sources, build_dir, build_name)
+
+        # generate design constraints (pdc)
+        _build_pdc(named_sc, named_pc, build_name)
+
+        # generate build script
         script = _build_script(build_name, platform.device, toolchain_path)
+        
+        # run
         if run:
             _run_script(script)
 
         os.chdir(cwd)
 
-        return v_output.ns
+        return top_output.ns
 
     def add_period_constraint(self, platform, clk, period):
         print("TODO: add_period_constraint")
