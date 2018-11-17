@@ -57,6 +57,16 @@ class TestTargets(unittest.TestCase):
 
     # lattice boards
 
+    def test_versa_ecp5(self):
+        from litex.boards.targets.versa_ecp5 import BaseSoC
+        errors = build_test([BaseSoC()])
+        self.assertEqual(errors, 0)
+
+    def test_versa_ulx3s(self):
+        from litex.boards.targets.ulx3s import BaseSoC
+        errors = build_test([BaseSoC()])
+        self.assertEqual(errors, 0)
+
     # build simple design for all platforms
     def test_simple(self):
         platforms = [
@@ -76,8 +86,8 @@ class TestTargets(unittest.TestCase):
             "papilio_pro",
             "tinyfpga_b",
             "tinyfpga_bx",
-            "versa",
-            "versaecp55g"
+            "versa_ecp3",
+            "versa_ecp5"
         ]
         for p in platforms:
             os.system("litex_simple litex.boards.platforms." + p +
