@@ -1,3 +1,5 @@
+import math
+
 from migen import *
 from migen.genlib.record import *
 from migen.genlib import fifo
@@ -354,6 +356,61 @@ class StrideConverter(Module):
         else:
             raise ValueError
 
+
+def lcm(a, b):
+    return (a*b)//math.gcd(a, b)
+
+
+def inc_mod(s, m):
+    return [s.eq(s + 1), If(s == (m -1), s.eq(0))]
+
+
+class Gearbox(Module):
+    def __init__(self, i_dw, o_dw):
+        self.sink = sink = Endpoint([("data", i_dw)])
+        self.source = source = Endpoint([("data", o_dw)])
+
+        # # #
+
+        io_lcm = lcm(i_dw, o_dw)
+
+        # control path
+
+        level     = Signal(max=io_lcm)
+        i_inc    = Signal()
+        i_count  = Signal(max=io_lcm//i_dw)
+        o_inc   = Signal()
+        o_count = Signal(max=io_lcm//o_dw)
+
+        self.comb += [
+            sink.ready.eq(level < (io_lcm - i_dw)),
+            source.valid.eq(level >= o_dw),
+        ]
+        self.comb += [
+            i_inc.eq(sink.valid & sink.ready),
+            o_inc.eq(source.valid & source.ready)
+        ]
+        self.sync += [
+            If(i_inc, *inc_mod(i_count, io_lcm//i_dw)),
+            If(o_inc, *inc_mod(o_count, io_lcm//o_dw)),
+            If(i_inc & ~o_inc, level.eq(level + i_dw)),
+            If(~i_inc & o_inc, level.eq(level - o_dw)),
+            If(i_inc & o_inc, level.eq(level + i_dw - o_dw))
+        ]
+
+        # data path
+
+        shift_register = Signal(io_lcm)
+
+        i_cases = {}
+        for i in range(io_lcm//i_dw):
+            i_cases[i] = shift_register[i_dw*i:i_dw*(i+1)].eq(sink.data)
+        self.sync += If(sink.valid & sink.ready, Case(i_count, i_cases))
+
+        o_cases = {}
+        for i in range(io_lcm//o_dw):
+            o_cases[i] = source.data.eq(shift_register[o_dw*i:o_dw*(i+1)])
+        self.comb += Case(o_count, o_cases)
 
 # TODO: clean up code below
 # XXX
