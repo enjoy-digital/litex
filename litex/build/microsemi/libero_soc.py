@@ -104,6 +104,12 @@ def _build_tcl(platform, sources, build_dir, build_name):
 
     # import constraints
     tcl.append("import_files -io_pdc {{{}}}".format(build_name + ".pdc"))
+    tcl.append(" ".join(["organize_tool_files",
+        "-tool {PLACEROUTE}",
+        "-file impl/constraint/io/{}.pdc".format(build_name),
+        "-module {}".format(build_name),
+        "-input_type {constraint}"
+    ]))
 
     # build flow
     tcl.append("run_tool -name {CONSTRAINT_MANAGEMENT}")
