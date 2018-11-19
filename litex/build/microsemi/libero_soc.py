@@ -87,7 +87,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
         "-adv_options {VCCI_2.5_VOLTR:EXT}",
         "-adv_options {VCCI_3.3_VOLTR:EXT}",
         "-adv_options {VOLTR:EXT} "
-    ]))   
+    ]))
 
     # add files
     for filename, language, library in sources:
@@ -102,11 +102,20 @@ def _build_tcl(platform, sources, build_dir, build_name):
         if file.endswith(".init"):
             tcl.append("file copy -- {} impl/synthesis".format(file))
 
-    # import constraints
+    # import io constraints
     tcl.append("import_files -io_pdc {{{}}}".format(build_name + ".pdc"))
     tcl.append(" ".join(["organize_tool_files",
         "-tool {PLACEROUTE}",
         "-file impl/constraint/io/{}.pdc".format(build_name),
+        "-module {}".format(build_name),
+        "-input_type {constraint}"
+    ]))
+
+    # import timing constraints
+    tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {{{}}}".format(build_name + ".sdc"))
+    tcl.append(" ".join(["organize_tool_files",
+        "-tool {VERIFYTIMING}",
+        "-file impl/constraint/{}.sdc".format(build_name),
         "-module {}".format(build_name),
         "-input_type {constraint}"
     ]))
@@ -128,6 +137,24 @@ def _build_tcl(platform, sources, build_dir, build_name):
     # generate tcl
     tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
+
+def _build_sdc(vns, clocks, false_paths, build_name):
+    sdc = []
+
+    for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
+        sdc.append(
+            "create_clock -name {clk} -period " + str(period) +
+            " [get_nets {clk}]".format(clk=vns.get_name(clk)))
+    for from_, to in sorted(false_paths,
+                            key=lambda x: (x[0].duid, x[1].duid)):
+        sdc.append(
+            "set_clock_groups "
+            "-group [get_clocks -include_generated_clocks -of [get_nets {from_}]] "
+            "-group [get_clocks -include_generated_clocks -of [get_nets {to}]] "
+            "-asynchronous".format(from_=from_, to=to))
+
+    # generate sdc
+    tools.write_to_file(build_name + ".sdc", "\n".join(sdc))
 
 def _build_script(build_name, device, toolchain_path, ver=None):
     if sys.platform in ("win32", "cygwin"):
@@ -170,6 +197,10 @@ class MicrosemiLiberoSoCPolarfireToolchain:
 
     special_overrides = common.microsemi_polarfire_special_overrides
 
+    def __init__(self):
+        self.clocks = dict()
+        self.false_paths = set()
+
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=False, **kwargs):
         os.makedirs(build_dir, exist_ok=True)
@@ -190,8 +221,11 @@ class MicrosemiLiberoSoCPolarfireToolchain:
         # generate design script (tcl)
         _build_tcl(platform, platform.sources, build_dir, build_name)
 
-        # generate design constraints (pdc)
+        # generate design io constraints (pdc)
         _build_pdc(named_sc, named_pc, build_name)
+
+        # generate design timing constraints (sdc)
+        _build_sdc(top_output.ns, self.clocks, self.false_paths, build_name)
 
         # generate build script
         script = _build_script(build_name, platform.device, toolchain_path)
@@ -205,4 +239,10 @@ class MicrosemiLiberoSoCPolarfireToolchain:
         return top_output.ns
 
     def add_period_constraint(self, platform, clk, period):
-        print("TODO: add_period_constraint")
+        if clk in self.clocks:
+            raise ValueError("A period constraint already exists")
+        self.clocks[clk] = period
+
+    def add_false_path_constraint(self, platform, from_, to):
+        if (to, from_) not in self.false_paths:
+            self.false_paths.add((from_, to))
