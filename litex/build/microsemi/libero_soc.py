@@ -113,12 +113,13 @@ def _build_tcl(platform, sources, build_dir, build_name):
 
     # import timing constraints
     tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {{{}}}".format(build_name + ".sdc"))
-    tcl.append(" ".join(["organize_tool_files",
-        "-tool {VERIFYTIMING}",
-        "-file impl/constraint/{}.sdc".format(build_name),
-        "-module {}".format(build_name),
-        "-input_type {constraint}"
-    ]))
+    for tool in ["{SYNTHESIZE}", "{PLACEROUTE}", "{VERIFYTIMING}"]:
+        tcl.append(" ".join(["organize_tool_files",
+            "-tool " + tool,
+            "-file impl/constraint/{}.sdc".format(build_name),
+            "-module {}".format(build_name),
+            "-input_type {constraint}"
+        ]))
 
     # build flow
     tcl.append("run_tool -name {CONSTRAINT_MANAGEMENT}")
