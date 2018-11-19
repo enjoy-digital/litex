@@ -8,7 +8,7 @@ _io = [
     ("clk50", 0, Pins("R1"), IOStandard("LVCMOS25")),
     ("clk50", 1, Pins("J3"), IOStandard("LVCMOS25")),
 
-    ("rst", 0, Pins("F5"), IOStandard("LVCMOS33")),
+    ("rst_n", 0, Pins("F5"), IOStandard("LVCMOS33")),
 
     ("user_led", 0, Pins("D6"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("D7"), IOStandard("LVCMOS33")),
