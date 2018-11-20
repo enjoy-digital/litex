@@ -22,6 +22,7 @@
 #include <event2/event.h>
 
 void litex_sim_init(void **out);
+void litex_sim_dump();
 
 struct session_list_s {
   void *session;
@@ -45,7 +46,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
   void *vdut=NULL;
   int i;
   int ret = RC_OK;
-  
+
   /* Load external modules */
   ret = litex_sim_load_ext_modules(&mlist);
   if(RC_OK != ret)
@@ -59,7 +60,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
       pmlist->module->start(base);
     }
   }
-  
+
   /* Load configuration */
   ret = litex_sim_file_to_module_list("sim_config.js", &ml);
   if(RC_OK != ret)
@@ -68,14 +69,14 @@ static int litex_sim_initialize_all(void **dut, void *base)
   }
   /* Init generated */
   litex_sim_init(&vdut);
-  
+
   /* Get pads from generated */
   ret = litex_sim_pads_get_list(&plist);
   if(RC_OK != ret)
   {
     goto out;
   }
-  
+
   for(mli = ml; mli; mli=mli->next)
   {
 
@@ -91,7 +92,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
       eprintf("Could not find module %s\n", mli->name);
       continue;
     }
-    
+
     slist=(struct session_list_s *)malloc(sizeof(struct session_list_s));
     if(NULL == slist)
     {
@@ -109,7 +110,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
       goto out;
     }
     sesslist = slist;
-    
+
     /* For each interface */
     for(i = 0; i < mli->niface; i++)
     {
@@ -129,7 +130,7 @@ static int litex_sim_initialize_all(void **dut, void *base)
       if(RC_OK != ret)
       {
 	goto out;
-      } 
+      }
     }
   }
   *dut = vdut;
@@ -141,12 +142,12 @@ int litex_sim_sort_session()
 {
   struct session_list_s *s;
   struct session_list_s *sprev=sesslist;
-  
+
   if(!sesslist->next)
   {
     return RC_OK;
   }
-  
+
   for(s = sesslist->next; s; s=s->next)
   {
     if(s->tickfirst)
@@ -160,7 +161,7 @@ int litex_sim_sort_session()
     sprev = s;
   }
 
-  return RC_OK; 
+  return RC_OK;
 }
 
 struct event *ev;
@@ -173,9 +174,8 @@ static void cb(int sock, short which, void *arg)
   tv.tv_sec = 0;
   tv.tv_usec = 0;
   int i;
-  
-  
-  //litex_sim_eval(vdut);
+
+
   for(i = 0; i < 1000; i++)
   {
     for(s = sesslist; s; s=s->next)
@@ -184,20 +184,19 @@ static void cb(int sock, short which, void *arg)
 	s->module->tick(s->session);
     }
     litex_sim_eval(vdut);
+    litex_sim_dump();
     for(s = sesslist; s; s=s->next)
     {
       if(!s->tickfirst)
 	s->module->tick(s->session);
     }
   }
-  //litex_sim_eval(vdut);
-  
-  
+
   if (!evtimer_pending(ev, NULL)) {
     event_del(ev);
     evtimer_add(ev, &tv);
   }
-}  
+}
 
 int main()
 {
@@ -206,7 +205,7 @@ int main()
   struct timeval tv;
 
   int ret;
-  
+
 #ifdef _WIN32
   WSADATA wsa_data;
   WSAStartup(0x0201, &wsa_data);
@@ -220,23 +219,23 @@ int main()
     ret=RC_ERROR;
     goto out;
   }
-  
+
   if(RC_OK != (ret = litex_sim_initialize_all(&vdut, base)))
   {
     goto out;
   }
-  
+
   if(RC_OK != (ret = litex_sim_sort_session()))
   {
     goto out;
   }
-  
-  
+
+
   tv.tv_sec = 0;
   tv.tv_usec = 0;
   ev = event_new(base, -1, EV_PERSIST, cb, vdut);
   event_add(ev, &tv);
- 
+
   event_base_dispatch(base);
 out:
   return ret;
