@@ -124,6 +124,8 @@ class SoCCore(Module):
         self.platform = platform
         self.clk_freq = clk_freq
 
+        if cpu_type == "None":
+            cpu_type = None
         self.cpu_type = cpu_type
         self.cpu_variant = cpu_variant
         if integrated_rom_size:
