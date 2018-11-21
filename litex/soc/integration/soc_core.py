@@ -10,7 +10,14 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 
 
-__all__ = ["mem_decoder", "get_mem_data", "SoCCore", "soc_core_args", "soc_core_argdict"]
+__all__ = [
+    "mem_decoder",
+    "get_mem_data",
+    "csr_map_update",
+    "SoCCore",
+    "soc_core_args",
+    "soc_core_argdict"
+]
 
 
 def version(with_time=True):
@@ -59,6 +66,11 @@ class ReadOnlyDict(dict):
     update = __readonly__
     setdefault = __readonly__
     del __readonly__
+
+
+def csr_map_update(csr_map, csr_peripherals):
+    csr_map.update(dict((n, v)
+        for v, n in enumerate(csr_peripherals, start=max(csr_map.values()) + 1)))
 
 
 class SoCController(Module, AutoCSR):
