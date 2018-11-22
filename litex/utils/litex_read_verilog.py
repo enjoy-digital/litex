@@ -38,17 +38,17 @@ def main():
             length = "" if len(info["bits"]) == 1 else len(info["bits"])
             migen_def.append(" " * 8 + "self.{} = Signal({})".format(name, length))
         migen_def.append("")
-        migen_def.append(" "*4 + "# # #")
+        migen_def.append(" "*8 + "# # #")
         migen_def.append("")
-        migen_def.append(" "*4 + "self.specials += Instance(\"{}\",".format(module))
+        migen_def.append(" "*8 + "self.specials += Instance(\"{}\",".format(module))
         for name, info in j["modules"][module]["ports"].items():
             io_prefix = {
                 "input": "i",
                 "output": "o",
                 "inout": "io"
             }[info["direction"]]
-            migen_def.append(" "*8 + "{}_{}=self.{},".format(io_prefix, name, name))
-        migen_def.append(" "*4 + ")")
+            migen_def.append(" "*12 + "{}_{}=self.{},".format(io_prefix, name, name))
+        migen_def.append(" "*8 + ")")
         migen_def.append("")
         print("\n".join(migen_def))
 
