@@ -52,7 +52,7 @@ _io = [
         Subsignal("cs_n", Pins("W7")),
         Subsignal("dm", Pins("Y9 R15")),
         Subsignal("dq", Pins(
-            "T7 T8 U8 U9 R10 V9 V10 D7",
+            "T7 T8 U8 U9 R10 V9 V10 W9",
             "V14 U14 R12 T11 U15 T13 U13 T15")),
         Subsignal("dqs_p", Pins("T10 R13")),
         Subsignal("dqs_n", Pins("U10 T12")),
