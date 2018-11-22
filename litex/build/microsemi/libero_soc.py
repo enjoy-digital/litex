@@ -102,11 +102,13 @@ def _build_tcl(platform, sources, build_dir, build_name):
         if file.endswith(".init"):
             tcl.append("file copy -- {} impl/synthesis".format(file))
 
-    # import io constraints
+    # import io / placement constraints
     tcl.append("import_files -io_pdc {{{}}}".format(build_name + ".pdc"))
+    tcl.append("import_files -fp_pdc {{{}}}".format(build_name + "_additional.pdc"))
     tcl.append(" ".join(["organize_tool_files",
         "-tool {PLACEROUTE}",
         "-file impl/constraint/io/{}.pdc".format(build_name),
+        "-file impl/constraint/fp/{}_additional.pdc".format(build_name),
         "-module {}".format(build_name),
         "-input_type {constraint}"
     ]))
@@ -193,6 +195,7 @@ class MicrosemiLiberoSoCPolarfireToolchain:
     def __init__(self):
         self.clocks = dict()
         self.false_paths = set()
+        self.additional_constraints = []
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=False, **kwargs):
@@ -216,6 +219,9 @@ class MicrosemiLiberoSoCPolarfireToolchain:
 
         # generate design io constraints (pdc)
         _build_pdc(named_sc, named_pc, build_name)
+
+        # generate design additional constraints (pdc)
+        tools.write_to_file(build_name + "_additional.pdc", "\n".join(self.additional_constraints))
 
         # generate design timing constraints (sdc)
         _build_sdc(top_output.ns, self.clocks, self.false_paths, build_name)
