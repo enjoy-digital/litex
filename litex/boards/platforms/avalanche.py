@@ -86,4 +86,4 @@ class Platform(MicrosemiPlatform):
     default_clk_period = 20.0
 
     def __init__(self):
-        MicrosemiPlatform.__init__(self, "MPF300TS_ES", _io)
+        MicrosemiPlatform.__init__(self, "MPF300TS_ES-FCG484-1", _io)
