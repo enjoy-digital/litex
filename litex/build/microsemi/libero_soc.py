@@ -142,7 +142,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
     tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
 
-def _build_sdc(vns, clocks, false_paths, build_name):
+def _build_timing_sdc(vns, clocks, false_paths, build_name, additional_timing_constraints):
     sdc = []
 
     for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
@@ -158,6 +158,7 @@ def _build_sdc(vns, clocks, false_paths, build_name):
             "-asynchronous".format(from_=from_, to=to))
 
     # generate sdc
+    sdc += additional_timing_constraints
     tools.write_to_file(build_name + ".sdc", "\n".join(sdc))
 
 def _build_script(build_name, device, toolchain_path, ver=None):
@@ -206,6 +207,7 @@ class MicrosemiLiberoSoCPolarfireToolchain:
         self.false_paths = set()
         self.additional_io_constraints = []
         self.additional_fp_constraints = []
+        self.additional_timing_constraints = []
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=False, **kwargs):
@@ -234,7 +236,8 @@ class MicrosemiLiberoSoCPolarfireToolchain:
         _build_fp_pdc(build_name, self.additional_fp_constraints)
 
         # generate design timing constraints (sdc)
-        _build_sdc(top_output.ns, self.clocks, self.false_paths, build_name)
+        _build_timing_sdc(top_output.ns, self.clocks, self.false_paths, build_name,
+            self.additional_timing_constraints)
 
         # generate build script
         script = _build_script(build_name, platform.device, toolchain_path)
