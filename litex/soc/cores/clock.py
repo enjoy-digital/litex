@@ -15,6 +15,7 @@ from litex.soc.interconnect.csr import *
 def period_ns(freq):
     return 1e9/freq
 
+# Xilinx
 
 class S7Clocking(Module, AutoCSR):
     clkfbout_mult_frange = (2, 64+1)
@@ -203,3 +204,122 @@ class S7IDELAYCTRL(Module):
                 ic_reset.eq(0)
             )
         self.specials += Instance("IDELAYCTRL", i_REFCLK=cd.clk, i_RST=ic_reset)
+
+# Lattice
+
+# TODO:
+# - test on hardware
+# - add phase shift support
+
+class ECP5PLL(Module):
+    nclkouts_max = 4
+    clkfb_div_range = (1, 128+1)
+    clko_div_range = (1, 128+1)
+    clki_freq_range = (8e6, 400e6)
+    clko_freq_range = (3.125e6, 400e6)
+    vco_freq_range = (400e6, 800e6)
+
+    def __init__(self):
+        self.reset = Signal()
+        self.locked = Signal()
+        self.clkin_freq = None
+        self.vcxo_freq = None
+        self.nclkouts = 0
+        self.clkouts = {}
+        self.config = {}
+        self.params = {}
+
+    def register_clkin(self, clkin, freq):
+        (clki_freq_min, clki_freq_max) = self.clki_freq_range
+        assert freq >= clki_freq_min
+        assert freq <= clki_freq_max
+        self.clkin = Signal()
+        if isinstance(clkin, Signal):
+            self.comb += self.clkin.eq(clkin)
+        else:
+            raise ValueError
+        self.clkin_freq = freq
+
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2):
+        (clko_freq_min, clko_freq_max) = self.clko_freq_range
+        assert freq >= clko_freq_min
+        assert freq <= clko_freq_max
+        assert phase == 0
+        assert self.nclkouts < self.nclkouts_max
+        clkout = Signal()
+        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
+        self.nclkouts += 1
+        self.comb += cd.clk.eq(clkout)
+
+    def compute_config(self):
+        config = {}
+        config["clki_div"] = 1
+        for clkfb_div in range(*self.clkfb_div_range):
+            all_valid = True
+            vco_freq = self.clkin_freq*clkfb_div
+            (vco_freq_min, vco_freq_max) = self.vco_freq_range
+            if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
+                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                    valid = False
+                    for d in range(*self.clko_div_range):
+                        clk_freq = vco_freq/d
+                        if abs(clk_freq - f) < f*m:
+                            config["clko{}_div".format(n)] = d
+                            config["clko{}_phase".format(n)] = p
+                            valid = True
+                            break
+                    if not valid:
+                        all_valid = False
+            else:
+                all_valid = False
+            if all_valid:
+                config["vco"] = vco_freq
+                config["clkfb_div"] = clkfb_div
+                return config
+        raise ValueError("No PLL config found")
+
+    def do_finalize(self):
+        config = self.compute_config()
+        clkfb = Signal()
+        self.params.update(
+            attr=[
+                ("ICP_CURRENT", "6"),
+                ("LPF_RESISTOR", "16"),
+                ("MFG_ENABLE_FILTEROPAMP", "1"),
+                ("MFG_GMCREF_SEL", "2")],
+            p_PLL_LOCK_MODE=0,
+
+            p_FEEDBK_PATH="CLKOP",
+            p_OUTDIVIDER_MUXB="DIVB",
+            p_CLKOP_ENABLE="ENABLED",
+            p_CLKOS_ENABLE="ENABLED",
+            p_CLKOS2_ENABLE="ENABLED",
+            p_CLKOS3_ENABLE="ENABLED",
+
+            p_CLKFB_DIV=config["clkfb_div"],
+            p_CLKI_DIV=1,
+
+            i_CLKI=self.clkin,
+            i_CLKFB=clkfb,
+            o_LOCK=self.locked,
+
+            i_STDBY=0,
+            i_PLLWAKESYNC=0,
+            i_RST=self.reset,
+
+            i_PHASESEL1=0,
+            i_PHASESEL0=0,
+            i_PHASEDIR=0,
+            i_PHASESTEP=0,
+            i_PHASELOADREG=0,
+        )
+        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+            if n == 0:
+                self.comb += clkfb.eq(clk)
+            n_to_l = {0: "P", 1: "S", 2: "S2", 3: "S3"}
+            self.params["i_ENCLKO{}".format(n_to_l[n])] = 0
+            self.params["p_CLKO{}_DIV".format(n)] = config["clko{}_div".format(n)]
+            self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
+            self.params["p_CLK0{}_CPHASE".format(n_to_l[n])] = 0
+            self.params["o_CLKO{}".format(n_to_l[n])] = clk
+        self.specials += Instance("EHXPLLL", **self.params)
