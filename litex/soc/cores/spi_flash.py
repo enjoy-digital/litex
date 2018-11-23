@@ -117,7 +117,7 @@ class SpiFlashDualQuad(Module, AutoCSR):
 
 
 class SpiFlashSingle(Module, AutoCSR):
-    def __init__(self, pads, dummy=15, div=2):
+    def __init__(self, pads, dummy=15, div=2, endianness="big"):
         """
         Simple SPI flash.
         Supports 1-bit reads. Only supports mode0 (cpol=0, cpha=0).
