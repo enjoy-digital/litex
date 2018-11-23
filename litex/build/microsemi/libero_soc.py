@@ -12,7 +12,7 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.microsemi import common
 
-def _format_constraint(c):
+def _format_io_constraint(c):
     if isinstance(c, Pins):
         return "-pin_name {} ".format(c.identifiers[0])
     elif isinstance(c, IOStandard):
@@ -21,26 +21,31 @@ def _format_constraint(c):
         raise NotImplementedError
 
 
-def _format_pdc(signame, pin, others):
-    fmt_c = [_format_constraint(c) for c in ([Pins(pin)] + others)]
+def _format_io_pdc(signame, pin, others):
+    fmt_c = [_format_io_constraint(c) for c in ([Pins(pin)] + others)]
     r = "set_io "
     r += "-port_name {{{}}} ".format(signame)
     for c in  ([Pins(pin)] + others):
-        r += _format_constraint(c)
+        r += _format_io_constraint(c)
     r += "-fixed true "
     r += "\n"
     return r
 
 
-def _build_pdc(named_sc, named_pc, build_name):
+def _build_io_pdc(named_sc, named_pc, build_name, additional_io_constraints):
     pdc = ""
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):
-                pdc += _format_pdc(sig + "[" + str(i) + "]", p, others)
+                pdc += _format_io_pdc(sig + "[" + str(i) + "]", p, others)
         else:
-            pdc += _format_pdc(sig, pins[0], others)
-    tools.write_to_file(build_name + ".pdc", pdc)
+            pdc += _format_io_pdc(sig, pins[0], others)
+    pdc += "\n".join(additional_io_constraints)
+    tools.write_to_file(build_name + "_io.pdc", pdc)
+
+def _build_fp_pdc(build_name, additional_fp_constraints):
+    pdc = "\n".join(additional_fp_constraints)
+    tools.write_to_file(build_name + "_fp.pdc", pdc)
 
 
 def _build_tcl(platform, sources, build_dir, build_name):
@@ -102,13 +107,13 @@ def _build_tcl(platform, sources, build_dir, build_name):
         if file.endswith(".init"):
             tcl.append("file copy -- {} impl/synthesis".format(file))
 
-    # import io / placement constraints
-    tcl.append("import_files -io_pdc {{{}}}".format(build_name + ".pdc"))
-    tcl.append("import_files -fp_pdc {{{}}}".format(build_name + "_additional.pdc"))
+    # import io / fp constraints
+    tcl.append("import_files -io_pdc {{{}}}".format(build_name + "_io.pdc"))
+    tcl.append("import_files -fp_pdc {{{}}}".format(build_name + "_fp.pdc"))
     tcl.append(" ".join(["organize_tool_files",
         "-tool {PLACEROUTE}",
-        "-file impl/constraint/io/{}.pdc".format(build_name),
-        "-file impl/constraint/fp/{}_additional.pdc".format(build_name),
+        "-file impl/constraint/io/{}_io.pdc".format(build_name),
+        "-file impl/constraint/fp/{}_fp.pdc".format(build_name),
         "-module {}".format(build_name),
         "-input_type {constraint}"
     ]))
@@ -195,7 +200,8 @@ class MicrosemiLiberoSoCPolarfireToolchain:
     def __init__(self):
         self.clocks = dict()
         self.false_paths = set()
-        self.additional_constraints = []
+        self.additional_io_constraints = []
+        self.additional_fp_constraints = []
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=False, **kwargs):
@@ -218,10 +224,10 @@ class MicrosemiLiberoSoCPolarfireToolchain:
         _build_tcl(platform, platform.sources, build_dir, build_name)
 
         # generate design io constraints (pdc)
-        _build_pdc(named_sc, named_pc, build_name)
+        _build_io_pdc(named_sc, named_pc, build_name, self.additional_io_constraints)
 
-        # generate design additional constraints (pdc)
-        tools.write_to_file(build_name + "_additional.pdc", "\n".join(self.additional_constraints))
+        # generate design fp constraints (pdc)
+        _build_fp_pdc(build_name, self.additional_fp_constraints)
 
         # generate design timing constraints (sdc)
         _build_sdc(top_output.ns, self.clocks, self.false_paths, build_name)
