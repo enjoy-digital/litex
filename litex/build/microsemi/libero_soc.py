@@ -12,8 +12,10 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.microsemi import common
 
+
 def tcl_name(name):
     return "{" + name + "}"
+
 
 def _format_io_constraint(c):
     if isinstance(c, Pins):
@@ -111,19 +113,30 @@ def _build_tcl(platform, sources, build_dir, build_name):
         if file.endswith(".init"):
             tcl.append("file copy -- {} impl/synthesis".format(file))
 
-    # import io / fp constraints
+    # import io constraints
     tcl.append("import_files -io_pdc {}".format(tcl_name(build_name + "_io.pdc")))
+
+    # import floorplanner constraints
     tcl.append("import_files -fp_pdc {}".format(tcl_name(build_name + "_fp.pdc")))
+
+    # import timing constraints
+    tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {}".format(tcl_name(build_name + ".sdc")))
+
+    # associate constraints with tools
+    tcl.append(" ".join(["organize_tool_files",
+        "-tool {SYNTHESIZE}",
+        "-file impl/constraint/{}.sdc".format(build_name),
+        "-module {}".format(build_name),
+        "-input_type {constraint}"
+    ]))
     tcl.append(" ".join(["organize_tool_files",
         "-tool {PLACEROUTE}",
         "-file impl/constraint/io/{}_io.pdc".format(build_name),
         "-file impl/constraint/fp/{}_fp.pdc".format(build_name),
+        "-file impl/constraint/{}.sdc".format(build_name),
         "-module {}".format(build_name),
         "-input_type {constraint}"
     ]))
-
-    # import timing constraints
-    tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {}".format(tcl_name(build_name + ".sdc")))
     tcl.append(" ".join(["organize_tool_files",
         "-tool {VERIFYTIMING}",
         "-file impl/constraint/{}.sdc".format(build_name),
@@ -160,6 +173,7 @@ def _build_timing_sdc(vns, clocks, false_paths, build_name, additional_timing_co
     # generate sdc
     sdc += additional_timing_constraints
     tools.write_to_file(build_name + ".sdc", "\n".join(sdc))
+
 
 def _build_script(build_name, device, toolchain_path, ver=None):
     if sys.platform in ("win32", "cygwin"):
