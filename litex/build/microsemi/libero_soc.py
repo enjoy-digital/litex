@@ -12,6 +12,9 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.microsemi import common
 
+def tcl_name(name):
+    return "{" + name + "}"
+
 def _format_io_constraint(c):
     if isinstance(c, Pins):
         return "-pin_name {} ".format(c.identifiers[0])
@@ -24,7 +27,7 @@ def _format_io_constraint(c):
 def _format_io_pdc(signame, pin, others):
     fmt_c = [_format_io_constraint(c) for c in ([Pins(pin)] + others)]
     r = "set_io "
-    r += "-port_name {{{}}} ".format(signame)
+    r += "-port_name {} ".format(tcl_name(signame))
     for c in  ([Pins(pin)] + others):
         r += _format_io_constraint(c)
     r += "-fixed true "
@@ -55,7 +58,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
     tcl.append(" ".join([
         "new_project",
         "-location {./impl}",
-        "-name {{{}}}".format(build_name),
+        "-name {}".format(tcl_name(build_name)),
         "-project_description {}",
         "-block_mode 0",
         "-standalone_peripheral_initialization 0",
@@ -72,13 +75,14 @@ def _build_tcl(platform, sources, build_dir, build_name):
         "-adv_options {}"
         ]))
 
-    # set device FIXME: use platform device
+    die, package, speed = platform.device.split("-")
     tcl.append(" ".join([
         "set_device",
         "-family {PolarFire}",
-        "-die {MPF300TS_ES}",
-        "-package {FCG484}",
-        "-speed {-1}",
+        "-die {}".format(tcl_name(die)),
+        "-package {}".format(tcl_name(package)),
+        "-speed {}".format(tcl_name("-" + speed)),
+        # FIXME: common to all PolarFire devices?
         "-die_voltage {1.0}",
         "-part_range {EXT}",
         "-adv_options {IO_DEFT_STD:LVCMOS 1.8V}",
@@ -100,7 +104,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
             tcl.append("import_files -hdl_source " + filename_tcl)
 
     # set top
-    tcl.append("set_root -module {{{}}}".format(build_name))
+    tcl.append("set_root -module {}".format(tcl_name(build_name)))
 
     # copy init files FIXME: support for include path on LiberoSoC?
     for file in os.listdir(build_dir):
@@ -108,8 +112,8 @@ def _build_tcl(platform, sources, build_dir, build_name):
             tcl.append("file copy -- {} impl/synthesis".format(file))
 
     # import io / fp constraints
-    tcl.append("import_files -io_pdc {{{}}}".format(build_name + "_io.pdc"))
-    tcl.append("import_files -fp_pdc {{{}}}".format(build_name + "_fp.pdc"))
+    tcl.append("import_files -io_pdc {}".format(tcl_name(build_name + "_io.pdc")))
+    tcl.append("import_files -fp_pdc {}".format(tcl_name(build_name + "_fp.pdc")))
     tcl.append(" ".join(["organize_tool_files",
         "-tool {PLACEROUTE}",
         "-file impl/constraint/io/{}_io.pdc".format(build_name),
@@ -119,7 +123,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
     ]))
 
     # import timing constraints
-    tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {{{}}}".format(build_name + ".sdc"))
+    tcl.append("import_files -convert_EDN_to_HDL 0 -sdc {}".format(tcl_name(build_name + ".sdc")))
     tcl.append(" ".join(["organize_tool_files",
         "-tool {VERIFYTIMING}",
         "-file impl/constraint/{}.sdc".format(build_name),
