@@ -237,6 +237,9 @@ class MicrosemiLiberoSoCPolarfireToolchain:
         
         # run
         if run:
+            # delete previous impl
+            if os.path.exists("impl"):
+                shutil.rmtree("impl")
             _run_script(script)
 
         os.chdir(cwd)
