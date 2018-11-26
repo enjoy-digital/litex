@@ -1,10 +1,11 @@
 #include <generated/csr.h>
-#ifdef CSR_SDRAM_BASE
 
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef CSR_SDRAM_BASE
 #include <generated/sdram_phy.h>
+#endif
 #include <generated/mem.h>
 #include <hw/flags.h>
 #include <system.h>
@@ -30,6 +31,8 @@ static void cdelay(int i)
 		i--;
 	}
 }
+
+#ifdef CSR_SDRAM_BASE
 
 void sdrsw(void)
 {
@@ -509,6 +512,8 @@ static void read_level(int module)
 }
 #endif /* CSR_DDRPHY_BASE */
 
+#endif /* CSR_SDRAM_BASE */
+
 static unsigned int seed_to_data_32(unsigned int seed, int random)
 {
 	if (random)
@@ -675,6 +680,8 @@ int memtest(void)
 		return 1;
 	}
 }
+
+#ifdef CSR_SDRAM_BASE
 
 #ifdef CSR_DDRPHY_BASE
 int sdrlevel(void)
