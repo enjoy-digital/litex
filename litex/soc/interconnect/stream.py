@@ -43,12 +43,12 @@ class EndpointDescription:
 
 
 class Endpoint(Record):
-    def __init__(self, description_or_layout):
+    def __init__(self, description_or_layout, name=None, **kwargs):
         if isinstance(description_or_layout, EndpointDescription):
             self.description = description_or_layout
         else:
             self.description = EndpointDescription(description_or_layout)
-        Record.__init__(self, self.description.get_full_layout())
+        Record.__init__(self, self.description.get_full_layout(), name, **kwargs)
 
     def __getattr__(self, name):
         try:
