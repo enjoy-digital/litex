@@ -551,7 +551,9 @@ static int memtest_bus(void)
 		array[i] = ONEZERO;
 	}
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		rdata = array[i];
 		if(rdata != ONEZERO) {
@@ -566,7 +568,9 @@ static int memtest_bus(void)
 		array[i] = ZEROONE;
 	}
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		rdata = array[i];
 		if(rdata != ZEROONE) {
@@ -604,7 +608,9 @@ static int memtest_data(void)
 
 	seed_32 = 0;
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		rdata = array[i];
@@ -642,7 +648,9 @@ static int memtest_addr(void)
 
 	seed_16 = 0;
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		rdata = array[(unsigned int) seed_16];
