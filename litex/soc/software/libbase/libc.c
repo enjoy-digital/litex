@@ -669,7 +669,7 @@ void srand(unsigned int seed)
 	randseed = seed;
 }
 
-void abort(void)
+__attribute__ ((used)) void abort(void)
 {
 	printf("Aborted.");
 	while(1);
