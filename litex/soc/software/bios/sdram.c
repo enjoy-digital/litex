@@ -1,10 +1,11 @@
 #include <generated/csr.h>
-#ifdef CSR_SDRAM_BASE
 
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef CSR_SDRAM_BASE
 #include <generated/sdram_phy.h>
+#endif
 #include <generated/mem.h>
 #include <hw/flags.h>
 #include <system.h>
@@ -30,6 +31,8 @@ static void cdelay(int i)
 		i--;
 	}
 }
+
+#ifdef CSR_SDRAM_BASE
 
 void sdrsw(void)
 {
@@ -509,6 +512,8 @@ static void read_level(int module)
 }
 #endif /* CSR_DDRPHY_BASE */
 
+#endif /* CSR_SDRAM_BASE */
+
 static unsigned int seed_to_data_32(unsigned int seed, int random)
 {
 	if (random)
@@ -546,7 +551,9 @@ static int memtest_bus(void)
 		array[i] = ONEZERO;
 	}
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		rdata = array[i];
 		if(rdata != ONEZERO) {
@@ -561,7 +568,9 @@ static int memtest_bus(void)
 		array[i] = ZEROONE;
 	}
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
 		rdata = array[i];
 		if(rdata != ZEROONE) {
@@ -599,7 +608,9 @@ static int memtest_data(void)
 
 	seed_32 = 0;
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		rdata = array[i];
@@ -637,7 +648,9 @@ static int memtest_addr(void)
 
 	seed_16 = 0;
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		rdata = array[(unsigned int) seed_16];
@@ -675,6 +688,8 @@ int memtest(void)
 		return 1;
 	}
 }
+
+#ifdef CSR_SDRAM_BASE
 
 #ifdef CSR_DDRPHY_BASE
 int sdrlevel(void)

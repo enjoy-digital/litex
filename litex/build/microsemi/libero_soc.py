@@ -48,6 +48,7 @@ def _build_io_pdc(named_sc, named_pc, build_name, additional_io_constraints):
     pdc += "\n".join(additional_io_constraints)
     tools.write_to_file(build_name + "_io.pdc", pdc)
 
+
 def _build_fp_pdc(build_name, additional_fp_constraints):
     pdc = "\n".join(additional_fp_constraints)
     tools.write_to_file(build_name + "_fp.pdc", pdc)
@@ -225,31 +226,33 @@ class MicrosemiLiberoSoCPolarfireToolchain:
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=False, **kwargs):
+        # create build directory
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
 
+        # finalized design
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-        # generate verilog
+        # generate top module
         top_output = platform.get_verilog(fragment, name=build_name, **kwargs)
         named_sc, named_pc = platform.resolve_signals(top_output.ns)
         top_file = build_name + ".v"
         top_output.write(top_file)
         platform.add_source(top_file)
 
-        # generate design script (tcl)
+        # generate design script file (.tcl)
         _build_tcl(platform, platform.sources, build_dir, build_name)
 
-        # generate design io constraints (pdc)
+        # generate design io constraints file (.pdc)
         _build_io_pdc(named_sc, named_pc, build_name, self.additional_io_constraints)
 
-        # generate design fp constraints (pdc)
+        # generate design fp constraints file (.pdc)
         _build_fp_pdc(build_name, self.additional_fp_constraints)
 
-        # generate design timing constraints (sdc)
+        # generate design timing constraints file (sdc)
         _build_timing_sdc(top_output.ns, self.clocks, self.false_paths, build_name,
             self.additional_timing_constraints)
 

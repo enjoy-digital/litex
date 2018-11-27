@@ -541,7 +541,11 @@ int main(int i, char **c)
 #ifdef CSR_SDRAM_BASE
 	sdr_ok = sdrinit();
 #else
+#ifdef MAIN_RAM_TEST
+	sdr_ok = memtest();
+#else
 	sdr_ok = 1;
+#endif
 #endif
 	if(sdr_ok)
 		boot_sequence();
