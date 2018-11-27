@@ -221,6 +221,8 @@ def main():
                         help="enable Etherbone support")
     parser.add_argument("--with-analyzer", action="store_true",
                         help="enable Analyzer support")
+    parser.add_argument("--trace", action="store_true",
+                        help="enable VCD tracing")
     args = parser.parse_args()
 
     soc_kwargs = soc_sdram_argdict(args)
@@ -250,10 +252,10 @@ def main():
         **soc_kwargs)
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
-    vns = builder.build(run=False, threads=args.threads, sim_config=sim_config)
+    vns = builder.build(run=False, threads=args.threads, sim_config=sim_config, trace=args.trace)
     if args.with_analyzer:
         soc.analyzer.export_csv(vns, "analyzer.csv")
-    builder.build(build=False, threads=args.threads, sim_config=sim_config)
+    builder.build(build=False, threads=args.threads, sim_config=sim_config, trace=args.trace)
 
 
 if __name__ == "__main__":
