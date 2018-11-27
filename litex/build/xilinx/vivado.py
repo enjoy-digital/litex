@@ -106,10 +106,12 @@ class XilinxVivadoToolchain:
         self.clocks = dict()
         self.false_paths = set()
 
-    def _build_batch(self, platform, sources, edifs, ips, build_name, synth_mode="vivado"):
+    def _build_batch(self, platform, sources, edifs, ips, build_name, synth_mode, enable_xpm):
+        assert synth_mode in ["vivado", "yosys"]
         tcl = []
         tcl.append("create_project -force -name {} -part {}".format(build_name, platform.device))
-        tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
+        if enable_xpm:
+            tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
         if synth_mode == "vivado":
             # "-include_dirs {}" crashes Vivado 2016.4
             for filename, language, library in sources:
@@ -214,7 +216,8 @@ class XilinxVivadoToolchain:
         )
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-            toolchain_path="/opt/Xilinx/Vivado", source=True, run=True, synth_mode="vivado", **kwargs):
+            toolchain_path="/opt/Xilinx/Vivado", source=True, run=True,
+            synth_mode="vivado", enable_xpm=False, **kwargs):
         if toolchain_path is None:
             toolchain_path = "/opt/Xilinx/Vivado"
         os.makedirs(build_dir, exist_ok=True)
@@ -233,7 +236,7 @@ class XilinxVivadoToolchain:
         sources = platform.sources | {(v_file, "verilog", "work")}
         edifs = platform.edifs
         ips = platform.ips
-        self._build_batch(platform, sources, edifs, ips, build_name, synth_mode=synth_mode)
+        self._build_batch(platform, sources, edifs, ips, build_name, synth_mode, enable_xpm)
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
         if run:
             if synth_mode == "yosys":
