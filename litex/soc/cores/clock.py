@@ -208,16 +208,15 @@ class S7IDELAYCTRL(Module):
 # Lattice
 
 # TODO:
-# - test on hardware
 # - add phase shift support
 
 class ECP5PLL(Module):
-    nclkouts_max = 4
+    nclkouts_max = 3
     clkfb_div_range = (1, 128+1)
     clko_div_range = (1, 128+1)
     clki_freq_range = (8e6, 400e6)
     clko_freq_range = (3.125e6, 400e6)
-    vco_freq_range = (400e6, 800e6)
+    vco_freq_range = (550e6, 1250e6)
 
     def __init__(self):
         self.reset = Signal()
@@ -256,7 +255,7 @@ class ECP5PLL(Module):
         config["clki_div"] = 1
         for clkfb_div in range(*self.clkfb_div_range):
             all_valid = True
-            vco_freq = self.clkin_freq*clkfb_div
+            vco_freq = self.clkin_freq*clkfb_div*1 # clkos3_div=1
             (vco_freq_min, vco_freq_max) = self.vco_freq_range
             if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
                 for n, (clk, f, p, m) in sorted(self.clkouts.items()):
@@ -287,39 +286,23 @@ class ECP5PLL(Module):
                 ("LPF_RESISTOR", "16"),
                 ("MFG_ENABLE_FILTEROPAMP", "1"),
                 ("MFG_GMCREF_SEL", "2")],
-            p_PLL_LOCK_MODE=0,
+            i_RST=self.reset,
 
-            p_FEEDBK_PATH="CLKOP",
-            p_OUTDIVIDER_MUXB="DIVB",
-            p_CLKOP_ENABLE="ENABLED",
-            p_CLKOS_ENABLE="ENABLED",
-            p_CLKOS2_ENABLE="ENABLED",
-            p_CLKOS3_ENABLE="ENABLED",
+            i_CLKI=self.clkin,
+            o_LOCK=self.locked,
+
+            p_FEEDBK_PATH="INT_OS3",   # CLKOS3 reserved for
+            p_CLKOS3_ENABLE="ENABLED", # feedback with div=1.
+            p_CLKOS3_DIV=1,
 
             p_CLKFB_DIV=config["clkfb_div"],
             p_CLKI_DIV=1,
-
-            i_CLKI=self.clkin,
-            i_CLKFB=clkfb,
-            o_LOCK=self.locked,
-
-            i_STDBY=0,
-            i_PLLWAKESYNC=0,
-            i_RST=self.reset,
-
-            i_PHASESEL1=0,
-            i_PHASESEL0=0,
-            i_PHASEDIR=0,
-            i_PHASESTEP=0,
-            i_PHASELOADREG=0,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            if n == 0:
-                self.comb += clkfb.eq(clk)
-            n_to_l = {0: "P", 1: "S", 2: "S2", 3: "S3"}
-            self.params["i_ENCLKO{}".format(n_to_l[n])] = 0
-            self.params["p_CLKO{}_DIV".format(n)] = config["clko{}_div".format(n)]
+            n_to_l = {0: "P", 1: "S", 2: "OS2"}
+            self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
+            self.params["p_CLKO{}_DIV".format(n_to_l[n])] = config["clko{}_div".format(n)]
             self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
-            self.params["p_CLK0{}_CPHASE".format(n_to_l[n])] = 0
+            self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = 0
             self.params["o_CLKO{}".format(n_to_l[n])] = clk
         self.specials += Instance("EHXPLLL", **self.params)
