@@ -11,6 +11,7 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.xilinx import common
 
+from distutils.version import StrictVersion
 
 def _format_constraint(c):
     if isinstance(c, Pins):
@@ -109,7 +110,8 @@ class XilinxVivadoToolchain:
     def _build_batch(self, platform, sources, edifs, ips, build_name, synth_mode="vivado"):
         tcl = []
         tcl.append("create_project -force -name {} -part {}".format(build_name, platform.device))
-        tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
+        if self._ver >= StrictVersion("2016.0"):
+            tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
         if synth_mode == "vivado":
             # "-include_dirs {}" crashes Vivado 2016.4
             for filename, language, library in sources:
@@ -213,6 +215,19 @@ class XilinxVivadoToolchain:
                 "-of [get_cells -filter {{ars_ff2 == TRUE}}]]"
         )
 
+    def _get_version(self, vivado_path):
+        paths_to_try = [vivado_path, os.path.join(vivado_path, "Vivado")]
+        for p in paths_to_try:
+            vers = list(tools.versions(p))
+            if not vers:
+                continue
+            break
+        else:
+            raise OSError("Unable to locate Vivado directory or settings.")
+        self._ver = max(vers)
+        return self._ver
+
+
     def build(self, platform, fragment, build_dir="build", build_name="top",
             toolchain_path="/opt/Xilinx/Vivado", source=True, run=True, synth_mode="vivado", **kwargs):
         if toolchain_path is None:
@@ -233,6 +248,7 @@ class XilinxVivadoToolchain:
         sources = platform.sources | {(v_file, "verilog", "work")}
         edifs = platform.edifs
         ips = platform.ips
+        self._get_version(toolchain_path)
         self._build_batch(platform, sources, edifs, ips, build_name, synth_mode=synth_mode)
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
         if run:
