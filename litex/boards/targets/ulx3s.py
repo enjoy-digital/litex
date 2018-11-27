@@ -7,6 +7,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.boards.platforms import ulx3s
 
+from litex.soc.cores.clock import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
@@ -22,11 +23,16 @@ class _CRG(Module):
 
         # # #
 
+        # clk / rst
         clk25 = platform.request("clk25")
         rst = platform.request("rst")
+        platform.add_period_constraint(clk25, 40.0)
 
-        # sys_clk
-        self.comb += self.cd_sys.clk.eq(clk25)
+        # pll
+        self.submodules.pll = pll = ECP5PLL()
+        self.comb += pll.reset.eq(rst)
+        pll.register_clkin(clk25, 25e6)
+        pll.create_clkout(self.cd_sys, 50e6)
         # FIXME: AsyncResetSynchronizer needs FD1S3BX support.
         #self.specials += AsyncResetSynchronizer(self.cd_sys, rst)
         self.comb += self.cd_sys.rst.eq(rst)

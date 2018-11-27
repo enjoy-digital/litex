@@ -7,6 +7,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.boards.platforms import versa_ecp5
 
+from litex.soc.cores.clock import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
@@ -17,22 +18,21 @@ from litedram.core.controller import ControllerSettings
 
 class _CRG(Module):
     def __init__(self, platform):
-        self.clock_domains.cd_sys_4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_sys_ps = ClockDomain()
 
         # # #
 
+        # clk / rst
         clk100 = platform.request("clk100")
         rst_n = platform.request("rst_n")
+        platform.add_period_constraint(clk100, 10.0)
 
-        # sys_4x_clk divider
-        self.comb += self.cd_sys_4x.clk.eq(clk100)
-        sys_4x_divider = Signal(1)
-        self.sync.sys_4x += sys_4x_divider.eq(sys_4x_divider + 1)
-
-        # sys_clk
-        self.comb += self.cd_sys.clk.eq(sys_4x_divider[-1])
+        # pll
+        self.submodules.pll = pll = ECP5PLL()
+        self.comb += pll.reset.eq(~rst_n)
+        pll.register_clkin(clk100, 100e6)
+        pll.create_clkout(self.cd_sys, 50e6)
         # FIXME: AsyncResetSynchronizer needs FD1S3BX support.
         #self.specials += AsyncResetSynchronizer(self.cd_sys, rst)
         self.comb += self.cd_sys.rst.eq(~rst_n)
@@ -40,7 +40,7 @@ class _CRG(Module):
         # sys_clk phase shifted (for sdram)
         sdram_ps_clk = self.cd_sys.clk
         # FIXME: phase shift with luts, needs PLL support.
-        sdram_ps_luts = 2
+        sdram_ps_luts = 5
         for i in range(sdram_ps_luts):
             new_sdram_ps_clk = Signal()
             self.specials += Instance("LUT4",
