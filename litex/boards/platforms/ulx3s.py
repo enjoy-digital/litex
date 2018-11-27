@@ -42,6 +42,26 @@ _io = [
     ("ext0p", 0, Pins("B11"), IOStandard("LVCMOS33")),
     ("ext1p", 0, Pins("A10"), IOStandard("LVCMOS33")),
 
+    ("gpio", 0,
+        Subsignal("p", Pins("B11")),
+        Subsignal("n", Pins("C11")),
+        IOStandard("LVCMOS33")
+    ),
+    ("gpio", 1,
+        Subsignal("p", Pins("A10")),
+        Subsignal("n", Pins("A11")),
+        IOStandard("LVCMOS33")
+    ),
+    ("gpio", 2,
+        Subsignal("p", Pins("A9")),
+        Subsignal("n", Pins("B10")),
+        IOStandard("LVCMOS33")
+    ),
+    ("gpio", 3,
+        Subsignal("p", Pins("B9")),
+        Subsignal("n", Pins("C10")),
+        IOStandard("LVCMOS33")
+    ),
 ]
 
 
