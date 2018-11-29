@@ -276,7 +276,7 @@ int memcmp(const void *cs, const void *ct, size_t count)
  * @c: The byte to fill the area with
  * @count: The size of the area.
  */
-void *memset(void *s, int c, size_t count)
+__attribute__((used)) void *memset(void *s, int c, size_t count)
 {
 	char *xs = s;
 
