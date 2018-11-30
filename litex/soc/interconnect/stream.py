@@ -404,12 +404,12 @@ class Gearbox(Module):
 
         i_cases = {}
         for i in range(io_lcm//i_dw):
-            i_cases[i] = shift_register[i_dw*i:i_dw*(i+1)].eq(sink.data[::-1])
+            i_cases[i] = shift_register[io_lcm - i_dw*(i+1):io_lcm - i_dw*i].eq(sink.data)
         self.sync += If(sink.valid & sink.ready, Case(i_count, i_cases))
 
         o_cases = {}
         for i in range(io_lcm//o_dw):
-            o_cases[i] = source.data.eq(shift_register[o_dw*i:o_dw*(i+1)][::-1])
+            o_cases[i] = source.data.eq(shift_register[io_lcm - o_dw*(i+1):io_lcm - o_dw*i])
         self.comb += Case(o_count, o_cases)
 
 # TODO: clean up code below
