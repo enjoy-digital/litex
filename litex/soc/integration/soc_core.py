@@ -117,14 +117,14 @@ class SoCCore(Module):
         "rom":      0x00000000,  # (default shadow @0x80000000)
         "sram":     0x10000000,  # (default shadow @0x90000000)
         "main_ram": 0x40000000,  # (default shadow @0xc0000000)
-        "csr":      0x60000000,  # (default shadow @0xe0000000)
+        "csr":      0xe0000000,  # (default shadow @0xe0000000)
     }
     def __init__(self, platform, clk_freq,
                 cpu_type="lm32", cpu_reset_address=0x00000000, cpu_variant=None,
                 integrated_rom_size=0, integrated_rom_init=[],
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
-                shadow_base=0x80000000,
+                shadow_base=0x00000000,
                 csr_data_width=8, csr_address_width=14, csr_expose=False,
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,

@@ -1,3 +1,12 @@
+#define r_type_insn(_f7, _rs2, _rs1, _f3, _rd, _opc) \
+.word (((_f7) << 25) | ((_rs2) << 20) | ((_rs1) << 15) | ((_f3) << 12) | ((_rd) << 7) | ((_opc) << 0))
+
+#define LOAD_VIRTUAL(_rd, _rs1, _rs2 ) \
+r_type_insn(0b0000000, _rs2, _rs1, 0b111, _rd, 0b0001111)
+
+#define LOAD_TLB(_rd, _rs1, _rs2 ) \
+r_type_insn(0b0000001, _rs2, _rs1, 0b111, _rd, 0b0001111)
+
 .global main
 .global isr
 .global _start
@@ -57,6 +66,13 @@ crt_init:
   la sp, _fstack + 4
   la a0, trap_entry
   csrw mtvec, a0
+
+
+mapping:
+    li x5, 0x000C0000
+    li x7, 0xf8040000
+    LOAD_VIRTUAL(0, 5, 0)
+    LOAD_TLB(0, 5, 7)
 
 bss_init:
   la a0, _fbss
