@@ -250,9 +250,7 @@ class Simulator:
 
         overrides = {AsyncResetSynchronizer: DummyAsyncResetSynchronizer}
         overrides.update(special_overrides)
-        fs, lowered = lower_specials(overrides=overrides, specials=self.fragment.specials)
-        self.fragment += fs
-        self.fragment.specials -= lowered
+        f, lowered = lower_specials(overrides, self.fragment)
         if self.fragment.specials:
             raise ValueError("Could not lower all specials", self.fragment.specials)
 

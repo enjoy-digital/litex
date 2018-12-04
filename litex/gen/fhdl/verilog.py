@@ -377,8 +377,8 @@ def convert(f, ios=None, name="top",
     f = lower_complex_slices(f)
     insert_resets(f)
     f = lower_basics(f)
-    fs, lowered_specials = lower_specials(special_overrides, f.specials)
-    f += lower_basics(fs)
+    f, lowered_specials = lower_specials(special_overrides, f)
+    f = lower_basics(f)
 
     for io in sorted(ios, key=lambda x: x.duid):
         if io.name_override is None:
