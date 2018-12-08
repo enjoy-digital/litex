@@ -106,8 +106,11 @@ class SyncFIFO(_FIFOWrapper):
 
 
 class AsyncFIFO(_FIFOWrapper):
-    def __init__(self, layout, depth):
-        _FIFOWrapper.__init__(self, fifo.AsyncFIFO, layout, depth)
+    def __init__(self, layout, depth, buffered=False):
+        _FIFOWrapper.__init__(
+            self,
+            fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
+            layout, depth)
 
 
 class Multiplexer(Module):
