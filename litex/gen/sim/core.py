@@ -217,7 +217,14 @@ class Evaluator:
             elif isinstance(s, collections.Iterable):
                 self.execute(s)
             elif isinstance(s, Display):
-                print(s.s)
+                args = []
+                for arg in s.args:
+                    assert isinstance(arg, _Value)
+                    try:
+                        args.append(self.signal_values[arg])
+                    except: # not yet evaluated
+                        args.append(arg.reset.value)
+                print(s.s %(*args,))
             else:
                 raise NotImplementedError
 
