@@ -30,7 +30,9 @@ sim: mkdir $(OBJS_SIM)
 		$(if $(THREADS), --threads $(THREADS),) \
 		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
 		-LDFLAGS "$(LDFLAGS)" \
-		-trace $(INC_DIR)
+		--trace \
+		$(if $(COVERAGE), --coverage,) \
+		$(INC_DIR)
 	make -j -C $(OBJ_DIR) -f Vdut.mk Vdut
 
 .PHONY: modules

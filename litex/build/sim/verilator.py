@@ -118,13 +118,16 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(platform, build_name, threads, verbose):
+def _build_sim(platform, build_name, threads, coverage, verbose):
     makefile = os.path.join(core_directory, 'Makefile')
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {}
+make -C . -f {} {} {}
 mkdir -p modules && cp obj_dir/*.so modules
-""".format(makefile, "THREADS={}".format(threads) if int(threads) > 1 else "")
+""".format(makefile,
+    "THREADS={}".format(threads) if int(threads) > 1 else "",
+    "COVERAGE=1" if coverage else "",
+    )
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
@@ -161,7 +164,7 @@ def _run_sim(build_name, as_root=False):
 class SimVerilatorToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="dut",
             toolchain_path=None, serial="console", build=True, run=True, threads=1,
-            verbose=True, sim_config=None, trace=False):
+            verbose=True, sim_config=None, trace=False, coverage=False):
 
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
@@ -188,7 +191,7 @@ class SimVerilatorToolchain:
             if sim_config:
                 _generate_sim_config(sim_config)
 
-            _build_sim(platform, build_name, threads, verbose)
+            _build_sim(platform, build_name, threads, coverage, verbose)
 
         if run:
             _run_sim(build_name, as_root=sim_config.has_module("ethernet"))
