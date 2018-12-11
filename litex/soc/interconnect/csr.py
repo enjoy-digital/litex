@@ -234,7 +234,7 @@ class CSRStorage(_CompoundCSR):
             self.dat_w = Signal(self.size - self.alignment_bits)
             self.sync += If(self.we, self.storage_full.eq(self.dat_w << self.alignment_bits))
 
-    def do_finalize(self, busword):
+    def do_finalize(self, busword=8):
         nwords = (self.size + busword - 1)//busword
         if nwords > 1 and self.atomic_write:
             backstore = Signal(self.size - busword, name=self.name + "_backstore")
@@ -268,10 +268,17 @@ class CSRStorage(_CompoundCSR):
 
     def write(self, value):
         """Write method for simulation."""
-        yield self.storage.eq(value >> self.alignment_bits)
-        yield self.re.eq(1)
+        for sc in reversed(self.simple_csrs):
+            yield from sc.write(value)
+            yield
+            value = value >> sc.size
+
+    def write_from_dev(self, value):
+        yield self.dat_w.eq(value)
+        yield self.we.eq(1)
         yield
-        yield self.re.eq(0)
+        yield # FIXME: Why two yields!?
+        yield self.we.eq(0)
 
 
 def csrprefix(prefix, csrs, done):
