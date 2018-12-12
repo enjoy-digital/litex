@@ -88,6 +88,7 @@ class LM32(Module):
                 "lm32_debug.v",
                 "lm32_itlb.v",
                 "lm32_dtlb.v")
+        platform.add_verilog_include_path(os.path.join(vdir, "submodule", "rtl"))
         if variant == "minimal":
             platform.add_verilog_include_path(os.path.join(vdir, "config_minimal"))
         elif variant == "lite":
