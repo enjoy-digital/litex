@@ -14,7 +14,10 @@ class VexRiscv(Module, AutoCSR):
     linker_output_format = "elf32-littleriscv"
 
     def __init__(self, platform, cpu_reset_address, variant=None):
-        assert variant in (None, "debug"), "Unsupported variant %s" % variant
+        variant = "std" if variant is None else variant
+        variant = "std_debug" if variant == "debug" else variant
+        variants = ("std", "std_debug", "lite", "lite_debug", "min", "min_debug")
+        assert variant in variants, "Unsupported variant %s" % variant
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -26,15 +29,22 @@ class VexRiscv(Module, AutoCSR):
         # Output reset signal -- set to 1 when CPU reset is asserted
         self.debug_reset = Signal()
 
-        if variant == None:
-            cpu_reset = ResetSignal()
-            cpu_args = {}
-            cpu_filename = "VexRiscv.v"
-        elif variant == "debug":
+        verilog_variants = {
+            "std":        "VexRiscv.v",
+            "std_debug":  "VexRiscv_Debug.v",
+            "lite":       "VexRiscv_Lite.v",
+            "lite_debug": "VexRiscv_LiteDebug.v",
+            "min":        "VexRiscv_Lite.v",
+            "min_debug":  "VexRiscv_LiteDebug.v",
+        }
+
+        cpu_reset = ResetSignal()
+        cpu_args = {}
+        cpu_filename = verilog_variants[variant]
+
+        if "debug" in variant:
             cpu_reset = Signal()
             cpu_args = {}
-            cpu_filename = "VexRiscv-Debug.v"
-
 
             self.i_cmd_valid = Signal()
             self.i_cmd_payload_wr = Signal()
@@ -157,5 +167,4 @@ class VexRiscv(Module, AutoCSR):
     @staticmethod
     def add_sources(platform, cpu_filename):
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
-        platform.add_sources(os.path.join(vdir), cpu_filename)
-        platform.add_verilog_include_path(vdir)
+        platform.add_source(os.path.join(vdir, cpu_filename))
