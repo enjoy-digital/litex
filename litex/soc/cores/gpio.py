@@ -6,13 +6,13 @@ from litex.soc.interconnect.csr import *
 
 class GPIOIn(Module, AutoCSR):
     def __init__(self, signal):
-        self._in = CSRStatus(len(signal))
+        self.submodules._in = CSRStatus(len(signal))
         self.specials += MultiReg(signal, self._in.status)
 
 
 class GPIOOut(Module, AutoCSR):
     def __init__(self, signal):
-        self._out = CSRStorage(len(signal))
+        self.submodules._out = CSRStorage(len(signal))
         self.comb += signal.eq(self._out.storage)
 
 
