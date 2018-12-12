@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2015-2016 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
 #                            2017 Pierre-Olivier Vauboin <po@lambdaconcept.com>
 # License: BSD
 
@@ -105,7 +105,6 @@ def _generate_sim_variables(include_paths):
     include = ""
     for path in include_paths:
         include += "-I"+path+" "
-
     content = """\
 SRC_DIR = {}
 INC_DIR = {}
@@ -118,13 +117,17 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(platform, build_name, threads, coverage, verbose):
+def _build_sim(platform, build_name, sources, threads, coverage, verbose):
     makefile = os.path.join(core_directory, 'Makefile')
+    cc_srcs = []
+    for filename, language, library in sources:
+        cc_srcs.append("--cc " + filename + " ")
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {} {}
+make -C . -f {} {} {} {}
 mkdir -p modules && cp obj_dir/*.so modules
 """.format(makefile,
+    "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "THREADS={}".format(threads) if int(threads) > 1 else "",
     "COVERAGE=1" if coverage else "",
     )
@@ -166,37 +169,41 @@ class SimVerilatorToolchain:
             toolchain_path=None, serial="console", build=True, run=True, threads=1,
             verbose=True, sim_config=None, trace=False, coverage=False):
 
+        # create build directory
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
 
         if build:
+            # finalize design
             if not isinstance(fragment, _Fragment):
                 fragment = fragment.get_fragment()
             platform.finalize(fragment)
 
-            v_output = platform.get_verilog(fragment,
+            # generate top module
+            top_output = platform.get_verilog(fragment,
                 name=build_name, dummy_signal=False, regular_comb=False, blocking_assign=True)
-            named_sc, named_pc = platform.resolve_signals(v_output.ns)
-            v_output.write(build_name + ".v")
+            named_sc, named_pc = platform.resolve_signals(top_output.ns)
+            top_file = build_name + ".v"
+            top_output.write(top_file)
+            platform.add_source(top_file)
 
-            include_paths = []
-            for source in platform.sources:
-                path = os.path.dirname(source[0]).replace("\\", "\/")
-                if path not in include_paths:
-                    include_paths.append(path)
-            include_paths += platform.verilog_include_paths
+            # generate cpp header/main/variables
             _generate_sim_h(platform)
             _generate_sim_cpp(platform, trace)
-            _generate_sim_variables(include_paths)
+            _generate_sim_variables(platform.verilog_include_paths)
+
+            # generate sim config
             if sim_config:
                 _generate_sim_config(sim_config)
 
-            _build_sim(platform, build_name, threads, coverage, verbose)
+            # build
+            _build_sim(platform, build_name, platform.sources, threads, coverage, verbose)
 
+        # run
         if run:
             _run_sim(build_name, as_root=sim_config.has_module("ethernet"))
 
         os.chdir("../../")
 
         if build:
-            return v_output.ns
+            return top_output.ns

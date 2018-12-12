@@ -4,6 +4,8 @@ CC = gcc
 CFLAGS = -Wall -O3 -ggdb
 LDFLAGS = -lpthread -ljson-c -lm -lstdc++ -ldl -levent
 
+CC_SRCS ?= "--cc dut.v"
+
 SRC_DIR ?= .
 INC_DIR ?= .
 MOD_DIR = $(SRC_DIR)/modules
@@ -24,7 +26,7 @@ $(OBJS_SIM): %.o: $(SRC_DIR)/%.c
 
 .PHONY: sim
 sim: mkdir $(OBJS_SIM)
-	verilator -Wno-fatal -O3 --cc dut.v --top-module dut --exe \
+	verilator -Wno-fatal -O3 $(CC_SRCS) --top-module dut --exe \
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
 		--top-module dut \
 		$(if $(THREADS), --threads $(THREADS),) \
