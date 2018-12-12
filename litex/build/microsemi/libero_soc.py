@@ -103,8 +103,8 @@ def _build_tcl(platform, sources, build_dir, build_name):
 
     # add files
     for filename, language, library in sources:
-            filename_tcl = "{" + filename + "}"
-            tcl.append("import_files -hdl_source " + filename_tcl)
+        filename_tcl = "{" + filename + "}"
+        tcl.append("import_files -hdl_source " + filename_tcl)
 
     # set top
     tcl.append("set_root -module {}".format(tcl_name(build_name)))
@@ -148,7 +148,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
     # build flow
     tcl.append("run_tool -name {CONSTRAINT_MANAGEMENT}")
     tcl.append("run_tool -name {SYNTHESIZE}")
-    tcl.append("run_tool -name {PLACEROUTE}") 
+    tcl.append("run_tool -name {PLACEROUTE}")
     tcl.append("run_tool -name {GENERATEPROGRAMMINGDATA}")
     tcl.append("run_tool -name {GENERATEPROGRAMMINGFILE}")
 
@@ -231,7 +231,7 @@ class MicrosemiLiberoSoCPolarfireToolchain:
         cwd = os.getcwd()
         os.chdir(build_dir)
 
-        # finalized design
+        # finalize design
         if not isinstance(fragment, _Fragment):
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
@@ -258,7 +258,7 @@ class MicrosemiLiberoSoCPolarfireToolchain:
 
         # generate build script
         script = _build_script(build_name, platform.device, toolchain_path)
-        
+
         # run
         if run:
             # delete previous impl
