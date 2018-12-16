@@ -12,6 +12,11 @@
 
 #include "sdram.h"
 
+// FIXME(hack): If we don't have main ram, just target the sram instead.
+#ifndef MAIN_RAM_BASE
+#define MAIN_RAM_BASE SRAM_BASE
+#endif
+
 static void cdelay(int i)
 {
 	while(i > 0) {
