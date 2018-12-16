@@ -191,7 +191,8 @@ class LatticeIceStormToolchain:
             "lp8k": ["cm81", "cm81:4k", "cm121", "cm121:4k", "cm225",
                      "cm225:4k"],
             "hx8k": ["cb132", "cb132:4k", "tq144:4k", "cm225", "ct256"],
-            "up5k": ["sg48"],
+            "up3k": ["sg48", "uwg30"],
+            "up5k": ["sg48", "uwg30"],
         }
 
         (family, series_size, package) = device_str.split("-")
