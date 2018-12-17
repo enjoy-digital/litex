@@ -253,11 +253,7 @@ int write_level(void)
 
     int ok;
 
-#ifdef KUSDDRPHY
-	err_ddrphy_wdly = ERR_DDRPHY_DELAY; /* FIXME */
-#else
 	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read() - 1;
-#endif
 
 	printf("Write leveling:\n");
 
@@ -272,7 +268,7 @@ int write_level(void)
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
 #ifdef KUSDDRPHY /* need to init manually on Ultrascale */
-		for(j=0; j<ddrphy_wdly_dqs_taps_read(); j++)
+		for(j=0; j<ddrphy_half_sys8x_taps_read(); j++)
 			ddrphy_wdly_dqs_inc_write(1);
 #endif
 		/* scan taps */
@@ -320,7 +316,7 @@ int write_level(void)
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
 #ifdef KUSDDRPHY /* need to init manually on Ultrascale */
-		for(j=0; j<ddrphy_wdly_dqs_taps_read(); j++)
+		for(j=0; j<ddrphy_half_sys8x_taps_read(); j++)
 			ddrphy_wdly_dqs_inc_write(1);
 #endif
 		for(j=0; j<delays[i]; j++) {
