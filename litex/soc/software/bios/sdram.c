@@ -275,6 +275,10 @@ int write_level(void)
 		for(j=0;j<err_ddrphy_wdly;j++) {
 			int zero_count = 0;
 			int one_count = 0;
+			int show = 1;
+#ifdef KUSDDRPHY
+			show = (j%16 == 0);
+#endif
 			for (k=0; k<128; k++) {
 				ddrphy_wlevel_strobe_write(1);
 				cdelay(10);
@@ -288,7 +292,8 @@ int write_level(void)
 				taps_scan[j] = 1;
 			else
 				taps_scan[j] = 0;
-			printf("%d", taps_scan[j]);
+			if (show)
+				printf("%d", taps_scan[j]);
 			ddrphy_wdly_dq_inc_write(1);
 			ddrphy_wdly_dqs_inc_write(1);
 			cdelay(10);
@@ -384,6 +389,10 @@ static int read_level_scan(int module, int bitslip)
 	ddrphy_rdly_dq_rst_write(1);
 	for(j=0; j<ERR_DDRPHY_DELAY;j++) {
 		int working;
+		int show = 1;
+#ifdef KUSDDRPHY
+		show = (j%16 == 0);
+#endif
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
 		working = 1;
@@ -393,7 +402,8 @@ static int read_level_scan(int module, int bitslip)
 			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
-		printf("%d", working);
+		if (show)
+			printf("%d", working);
 		score += working;
 		ddrphy_rdly_dq_inc_write(1);
 	}
