@@ -58,8 +58,11 @@ def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
 -ofn {build_name}.ngc
 -p {device}
 """.format(build_name=build_name, xst_opt=xst_opt, device=device)
-    for path in vincpaths:
-        xst_contents += "-vlgincdir " + tools.cygpath(path) + "\n"
+    if vincpaths:
+        xst_contents += "-vlgincdir {"
+        for path in vincpaths:
+            xst_contents += tools.cygpath(path) + " "
+        xst_contents += "}"
     tools.write_to_file(build_name + ".xst", xst_contents)
 
 
