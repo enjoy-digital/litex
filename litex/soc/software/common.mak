@@ -49,7 +49,7 @@ INCLUDES = -I$(SOC_DIRECTORY)/software/include/base -I$(SOC_DIRECTORY)/software/
 COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES) -flto -fuse-linker-plugin -Os -ffunction-sections -fdata-sections -flto -nostartfiles -nostdlib -nodefaultlibs
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
-LDFLAGS = -nostdlib -nodefaultlibs -L$(BUILDINC_DIRECTORY)
+LDFLAGS = -nostdlib -nodefaultlibs -Os $(CPUFLAGS) -L$(BUILDINC_DIRECTORY)
 #--plugin $(shell $(CC) --print-prog-name liblto_plugin.so)
 
 define compilexx
