@@ -30,7 +30,8 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libnet \
 		-L../libbase \
 		-L../libcompiler_rt \
-		-lnet -lbase-nofloat -lcompiler_rt
+		-lnet -lbase-nofloat -lcompiler_rt \
+		-lgcc
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif
