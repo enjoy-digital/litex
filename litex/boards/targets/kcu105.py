@@ -12,7 +12,7 @@ from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
 from litedram.modules import EDY4016A
-from litedram.phy import kusddrphy
+from litedram.phy import usddrphy
 
 
 class _CRG(Module):
@@ -101,8 +101,8 @@ class BaseSoC(SoCSDRAM):
         self.submodules.crg = _CRG(platform)
 
         # sdram
-        self.submodules.ddrphy = kusddrphy.KUSDDRPHY(platform.request("ddram"), memtype="DDR4", sys_clk_freq=sys_clk_freq)
-        self.add_constant("KUSDDRPHY", None)
+        self.submodules.ddrphy = usddrphy.USDDRPHY(platform.request("ddram"), memtype="DDR4", sys_clk_freq=sys_clk_freq)
+        self.add_constant("USDDRPHY", None)
         sdram_module = EDY4016A(sys_clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,

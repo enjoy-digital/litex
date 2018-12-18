@@ -208,7 +208,7 @@ void sdrwr(char *startaddr)
 
 #ifdef CSR_DDRPHY_BASE
 
-#ifdef KUSDDRPHY
+#ifdef USDDRPHY
 #define ERR_DDRPHY_DELAY 512
 #else
 #define ERR_DDRPHY_DELAY 32
@@ -267,7 +267,7 @@ int write_level(void)
 		ddrphy_dly_sel_write(1 << i);
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
-#ifdef KUSDDRPHY /* need to init manually on Ultrascale */
+#ifdef USDDRPHY /* need to init manually on Ultrascale */
 		for(j=0; j<ddrphy_half_sys8x_taps_read(); j++)
 			ddrphy_wdly_dqs_inc_write(1);
 #endif
@@ -276,7 +276,7 @@ int write_level(void)
 			int zero_count = 0;
 			int one_count = 0;
 			int show = 1;
-#ifdef KUSDDRPHY
+#ifdef USDDRPHY
 			show = (j%16 == 0);
 #endif
 			for (k=0; k<128; k++) {
@@ -320,7 +320,7 @@ int write_level(void)
 		/* configure delays */
 		ddrphy_wdly_dq_rst_write(1);
 		ddrphy_wdly_dqs_rst_write(1);
-#ifdef KUSDDRPHY /* need to init manually on Ultrascale */
+#ifdef USDDRPHY /* need to init manually on Ultrascale */
 		for(j=0; j<ddrphy_half_sys8x_taps_read(); j++)
 			ddrphy_wdly_dqs_inc_write(1);
 #endif
@@ -390,7 +390,7 @@ static int read_level_scan(int module, int bitslip)
 	for(j=0; j<ERR_DDRPHY_DELAY;j++) {
 		int working;
 		int show = 1;
-#ifdef KUSDDRPHY
+#ifdef USDDRPHY
 		show = (j%16 == 0);
 #endif
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
@@ -478,7 +478,7 @@ static void read_level(int module)
 	delay_min = delay;
 
 	/* Get a bit further into the working zone */
-#ifdef KUSDDRPHY
+#ifdef USDDRPHY
 	for(j=0;j<16;j++) {
 		delay += 1;
 		ddrphy_rdly_dq_inc_write(1);
