@@ -486,6 +486,6 @@ class Platform(XilinxPlatform):
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
-        self.add_platform_command("set_property INTERNAL_VREF {{0.60}} [get_iobanks 44]")
-        self.add_platform_command("set_property INTERNAL_VREF {{0.60}} [get_iobanks 45]")
-        self.add_platform_command("set_property INTERNAL_VREF {{0.60}} [get_iobanks 46]")
+        self.add_platform_command("set_property INTERNAL_VREF {{0.84}} [get_iobanks 44]")
+        self.add_platform_command("set_property INTERNAL_VREF {{0.84}} [get_iobanks 45]")
+        self.add_platform_command("set_property INTERNAL_VREF {{0.84}} [get_iobanks 46]")
