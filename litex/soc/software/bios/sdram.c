@@ -508,7 +508,10 @@ static void read_level(int module)
 	}
 	delay_max = delay;
 
-	printf("%02d+-%02d", (delay_min+delay_max)/2, (delay_max-delay_min)/2);
+	if (delay_min >= ERR_DDRPHY_DELAY)
+		printf("-");
+	else
+		printf("%02d+-%02d", (delay_min+delay_max)/2, (delay_max-delay_min)/2);
 
 	/* Set delay to the middle */
 	ddrphy_rdly_dq_rst_write(1);
