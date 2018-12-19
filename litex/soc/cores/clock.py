@@ -60,8 +60,6 @@ class S7Clocking(Module, AutoCSR):
             else:
                 raise ValueError
 
-        return clkout_buf
-
     def compute_config(self):
         config = {}
         config["divclk_divide"] = 1
