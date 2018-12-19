@@ -253,7 +253,7 @@ int write_level(void)
 
     int ok;
 
-	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read() - 1;
+	err_ddrphy_wdly = (ERR_DDRPHY_DELAY*14)/16 - ddrphy_half_sys8x_taps_read();
 
 	printf("Write leveling:\n");
 
