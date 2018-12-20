@@ -32,6 +32,17 @@ extern "C" void litex_sim_tracer_dump()
   tfp->dump(ticks++);
 }
 
+extern "C" int litex_sim_got_finish()
+{
+  return Verilated::gotFinish();
+}
+
+#if VM_COVERAGE
+extern "C" void litex_sim_coverage_dump()
+{
+  VerilatedCov::write("dut.cov");
+}
+#endif
 
 vluint64_t main_time = 0;
 double sc_time_stamp()

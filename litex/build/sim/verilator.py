@@ -160,8 +160,9 @@ def _run_sim(build_name, as_root=False):
         if r != 0:
             raise OSError("Subprocess failed")
     except:
-        if sys.platform != "win32":
-            termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
+        pass
+    if sys.platform != "win32":
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
 
 
 class SimVerilatorToolchain:

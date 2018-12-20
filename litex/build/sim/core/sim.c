@@ -32,6 +32,7 @@ struct session_list_s {
 };
 
 struct session_list_s *sesslist=NULL;
+struct event_base *base=NULL;
 
 static int litex_sim_initialize_all(void **dut, void *base)
 {
@@ -175,7 +176,6 @@ static void cb(int sock, short which, void *arg)
   tv.tv_usec = 0;
   int i;
 
-
   for(i = 0; i < 1000; i++)
   {
     for(s = sesslist; s; s=s->next)
@@ -192,6 +192,9 @@ static void cb(int sock, short which, void *arg)
     }
   }
 
+  if (litex_sim_got_finish())
+    event_base_loopbreak(base);
+
   if (!evtimer_pending(ev, NULL)) {
     event_del(ev);
     evtimer_add(ev, &tv);
@@ -201,7 +204,6 @@ static void cb(int sock, short which, void *arg)
 int main()
 {
   void *vdut=NULL;
-  struct event_base *base=NULL;
   struct timeval tv;
 
   int ret;
@@ -235,8 +237,10 @@ int main()
   tv.tv_usec = 0;
   ev = event_new(base, -1, EV_PERSIST, cb, vdut);
   event_add(ev, &tv);
-
   event_base_dispatch(base);
+#if VM_COVERAGE
+  litex_sim_coverage_dump();
+#endif
 out:
   return ret;
 }
