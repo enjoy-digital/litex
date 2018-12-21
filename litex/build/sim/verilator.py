@@ -117,7 +117,7 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(platform, build_name, sources, threads, coverage, verbose):
+def _build_sim(build_name, sources, threads, coverage):
     makefile = os.path.join(core_directory, 'Makefile')
     cc_srcs = []
     for filename, language, library in sources:
@@ -134,6 +134,8 @@ mkdir -p modules && cp obj_dir/*.so modules
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
+def _compile_sim(build_name, verbose):
+    build_script_file = "build_" + build_name + ".sh"
     p = subprocess.Popen(["bash", build_script_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output, _ = p.communicate()
     output = output.decode('utf-8')
@@ -145,7 +147,6 @@ mkdir -p modules && cp obj_dir/*.so modules
         raise OSError("Subprocess failed with {}\n{}".format(p.returncode, "\n".join(error_messages)))
     if verbose:
         print(output)
-
 
 def _run_sim(build_name, as_root=False):
     run_script_contents = "sudo " if as_root else ""
@@ -198,10 +199,11 @@ class SimVerilatorToolchain:
                 _generate_sim_config(sim_config)
 
             # build
-            _build_sim(platform, build_name, platform.sources, threads, coverage, verbose)
+            _build_sim(build_name, platform.sources, threads, coverage)
 
         # run
         if run:
+            _compile_sim(build_name, verbose)
             _run_sim(build_name, as_root=sim_config.has_module("ethernet"))
 
         os.chdir("../../")
