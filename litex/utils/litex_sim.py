@@ -16,9 +16,8 @@ from litex.soc.cores import uart
 from litex.soc.integration.soc_core import mem_decoder
 
 from litedram.common import PhySettings
-from litedram.modules import IS42S16160
+from litedram.modules import MT48LC16M16
 from litedram.phy.model import SDRAMPHYModel
-from litedram.core.controller import ControllerSettings
 
 from liteeth.common import convert_ip
 from liteeth.phy.model import LiteEthPHYModel
@@ -30,71 +29,58 @@ from litescope import LiteScopeAnalyzer
 
 
 class SimPins(Pins):
-    def __init__(self, n):
+    def __init__(self, n=1):
         Pins.__init__(self, "s "*n)
+
 
 _io = [
     ("sys_clk", 0, SimPins(1)),
     ("sys_rst", 0, SimPins(1)),
     ("serial", 0,
-        Subsignal("source_valid", SimPins(1)),
-        Subsignal("source_ready", SimPins(1)),
+        Subsignal("source_valid", SimPins()),
+        Subsignal("source_ready", SimPins()),
         Subsignal("source_data", SimPins(8)),
 
-        Subsignal("sink_valid", SimPins(1)),
-        Subsignal("sink_ready", SimPins(1)),
+        Subsignal("sink_valid", SimPins()),
+        Subsignal("sink_ready", SimPins()),
         Subsignal("sink_data", SimPins(8)),
     ),
     ("eth_clocks", 0,
-        Subsignal("none", SimPins(1)),
+        Subsignal("none", SimPins()),
     ),
     ("eth", 0,
-        Subsignal("source_valid", SimPins(1)),
-        Subsignal("source_ready", SimPins(1)),
+        Subsignal("source_valid", SimPins()),
+        Subsignal("source_ready", SimPins()),
         Subsignal("source_data", SimPins(8)),
 
-        Subsignal("sink_valid", SimPins(1)),
-        Subsignal("sink_ready", SimPins(1)),
+        Subsignal("sink_valid", SimPins()),
+        Subsignal("sink_ready", SimPins()),
         Subsignal("sink_data", SimPins(8)),
     ),
     ("eth_clocks", 1,
-        Subsignal("none", SimPins(1)),
+        Subsignal("none", SimPins()),
     ),
     ("eth", 1,
-        Subsignal("source_valid", SimPins(1)),
-        Subsignal("source_ready", SimPins(1)),
+        Subsignal("source_valid", SimPins()),
+        Subsignal("source_ready", SimPins()),
         Subsignal("source_data", SimPins(8)),
 
-        Subsignal("sink_valid", SimPins(1)),
-        Subsignal("sink_ready", SimPins(1)),
+        Subsignal("sink_valid", SimPins()),
+        Subsignal("sink_ready", SimPins()),
         Subsignal("sink_data", SimPins(8)),
-    ),
-    ("vga", 0,
-        Subsignal("de", SimPins(1)),
-        Subsignal("hsync", SimPins(1)),
-        Subsignal("vsync", SimPins(1)),
-        Subsignal("r", SimPins(8)),
-        Subsignal("g", SimPins(8)),
-        Subsignal("b", SimPins(8)),
     ),
 ]
 
 
 class Platform(SimPlatform):
     default_clk_name = "sys_clk"
-    default_clk_period = 1000  # on modern computers simulate at ~ 1MHz
+    default_clk_period = 1000 # ~ 1MHz
 
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)
 
     def do_finalize(self, fragment):
         pass
-
-
-
-def csr_map_update(csr_map, csr_peripherals):
-    csr_map.update(dict((n, v)
-        for v, n in enumerate(csr_peripherals, start=max(csr_map.values()) + 1)))
 
 
 class SimSoC(SoCSDRAM):
@@ -126,14 +112,14 @@ class SimSoC(SoCSDRAM):
         with_analyzer=False,
         **kwargs):
         platform = Platform()
-        sys_clk_freq = int(1e9/platform.default_clk_period)
+        sys_clk_freq = int(1e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             integrated_rom_size=0x8000,
             ident="LiteX Simulation", ident_version=True,
             with_uart=False,
             **kwargs)
         # crg
-        self.submodules.crg = CRG(platform.request(platform.default_clk_name))
+        self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # serial
         self.submodules.uart_phy = uart.RS232PHYModel(platform.request("serial"))
@@ -141,10 +127,10 @@ class SimSoC(SoCSDRAM):
 
         # sdram
         if with_sdram:
-            sdram_module = IS42S16160(sys_clk_freq, "1:1")
+            sdram_module =  MT48LC16M16(100e6, "1:1") # use 100MHz timings
             phy_settings = PhySettings(
                 memtype="SDR",
-                dfi_databits=1*16,
+                dfi_databits=16,
                 nphases=1,
                 rdphase=0,
                 wrphase=0,
@@ -158,8 +144,7 @@ class SimSoC(SoCSDRAM):
             self.register_sdram(
                 self.sdrphy,
                 sdram_module.geom_settings,
-                sdram_module.timing_settings,
-                controller_settings=ControllerSettings(with_refresh=False))
+                sdram_module.timing_settings)
             # reduce memtest size for simulation speedup
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
