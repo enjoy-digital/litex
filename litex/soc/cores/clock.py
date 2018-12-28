@@ -206,7 +206,7 @@ class S7IDELAYCTRL(Module):
 # Lattice
 
 # TODO:
-# - add phase shift support
+# - add proper phase support.
 
 class ECP5PLL(Module):
     nclkouts_max = 3
@@ -241,7 +241,6 @@ class ECP5PLL(Module):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
         assert freq >= clko_freq_min
         assert freq <= clko_freq_max
-        assert phase == 0
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
@@ -301,6 +300,6 @@ class ECP5PLL(Module):
             self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
             self.params["p_CLKO{}_DIV".format(n_to_l[n])] = config["clko{}_div".format(n)]
             self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
-            self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = 0
+            self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = p
             self.params["o_CLKO{}".format(n_to_l[n])] = clk
         self.specials += Instance("EHXPLLL", **self.params)
