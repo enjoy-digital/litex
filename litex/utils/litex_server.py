@@ -109,7 +109,7 @@ def main():
         if len(sys.argv) > 2:
             uart_port = sys.argv[2]
         if len(sys.argv) > 3:
-            uart_baudrate = int(sys.argv[3])
+            uart_baudrate = int(float(sys.argv[3]))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
         comm = CommUART(uart_port, uart_baudrate)
     elif comm == "udp":
