@@ -137,6 +137,7 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
         if not with_shadow_base:
             origin &= (~shadow_base)
         if isinstance(obj, Memory):
+            r += "\n/* "+name+" */\n"
             r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
         else:
             r += "\n/* "+name+" */\n"
