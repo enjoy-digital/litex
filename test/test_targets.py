@@ -71,20 +71,14 @@ class TestTargets(unittest.TestCase):
     def test_simple(self):
         platforms = [
             "arty",
-            "arty_s7",
             "de0nano",
             "genesys2",
-            "icestick",
             "kc705",
             "kcu105",
             "machxo3",
-            "mercury",
-            "mimasv2",
             "minispartan6",
             "nexys4ddr",
             "nexys_video",
-            "papilio_pro",
-            "tinyfpga_b",
             "tinyfpga_bx",
             "versa_ecp3",
             "versa_ecp5"
