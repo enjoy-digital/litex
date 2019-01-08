@@ -24,7 +24,7 @@ class _CRG(Module):
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
 
-        self.submodules.pll = pll = S7MMCM()
+        self.submodules.pll = pll = S7MMCM(speedgrade=-2)
         self.comb += pll.reset.eq(~platform.request("cpu_reset_n"))
         pll.register_clkin(platform.request("clk200"), 200e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
