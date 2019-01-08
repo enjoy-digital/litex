@@ -16,44 +16,26 @@ from litedram.phy import usddrphy
 
 
 class _CRG(Module):
-    def __init__(self, platform):
+    def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
         self.clock_domains.cd_ic = ClockDomain()
 
-        clk125 = platform.request("clk125")
-        clk125_ibufds = Signal()
-        clk125_buffered = Signal()
-        pll_locked = Signal()
-        pll_fb = Signal()
-        pll_sys4x = Signal()
-        pll_clk200 = Signal()
+        self.submodules.pll = pll = USMMCM(speedgrade=-2)
+        self.comb += pll.reset.eq(platform.request("cpu_reset"))
+        self.clock_domains.cd_pll4x = ClockDomain(reset_less=True)
+        pll.register_clkin(platform.request("clk125"), 125e6)
+        pll.create_clkout(self.cd_pll4x, sys_clk_freq*4, buf=None, with_reset=False)
+        pll.create_clkout(self.cd_clk200, 200e6, with_reset=False)
+
         self.specials += [
-            Instance("IBUFDS", i_I=clk125.p, i_IB=clk125.n, o_O=clk125_ibufds),
-            Instance("BUFG", i_I=clk125_ibufds, o_O=clk125_buffered),
-            Instance("PLLE2_BASE", name="crg_main_mmcm",
-                i_RST=platform.request("cpu_reset"),
-                p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-
-                # VCO @ 1GHz
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
-                p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=clk125_buffered, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
-
-                # 500MHz
-                p_CLKOUT0_DIVIDE=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys4x,
-
-                # 200MHz
-                p_CLKOUT1_DIVIDE=5, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=pll_clk200,
-            ),
             Instance("BUFGCE_DIV", name="main_bufgce_div",
                 p_BUFGCE_DIVIDE=4,
-                i_CE=1, i_I=pll_sys4x, o_O=self.cd_sys.clk),
+                i_CE=1, i_I=self.cd_pll4x.clk, o_O=self.cd_sys.clk),
             Instance("BUFGCE", name="main_bufgce",
-                i_CE=1, i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
-            Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
-            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked),
+                i_CE=1, i_I=self.cd_pll4x.clk, o_O=self.cd_sys4x.clk),
+            AsyncResetSynchronizer(self.cd_clk200, ~pll.locked),
         ]
 
         ic_reset_counter = Signal(max=64, reset=63)
@@ -98,7 +80,7 @@ class BaseSoC(SoCSDRAM):
                          integrated_sram_size=0x8000,
                           **kwargs)
 
-        self.submodules.crg = _CRG(platform)
+        self.submodules.crg = _CRG(platform, sys_clk_freq)
 
         # sdram
         self.submodules.ddrphy = usddrphy.USDDRPHY(platform.request("ddram"), memtype="DDR4", sys_clk_freq=sys_clk_freq)
