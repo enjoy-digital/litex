@@ -24,16 +24,6 @@ class VexRiscv(Module, AutoCSR):
 
         self.interrupt = Signal(32)
 
-        verilog_variants = {
-            "std":        "VexRiscv.v",
-            "std_debug":  "VexRiscv_Debug.v",
-            "lite":       "VexRiscv_Lite.v",
-            "lite_debug": "VexRiscv_LiteDebug.v",
-            "min":        "VexRiscv_Lite.v",
-            "min_debug":  "VexRiscv_LiteDebug.v",
-        }
-        cpu_filename = verilog_variants[variant]
-
         self.cpu_params = dict(
                 i_clk=ClockSignal(),
                 i_reset=ResetSignal() | self.reset,
@@ -70,7 +60,7 @@ class VexRiscv(Module, AutoCSR):
             self.add_debug()
 
         # add verilog sources
-        self.add_sources(platform, cpu_filename)
+        self.add_sources(platform, variant)
 
     def add_debug(self):
         debug_reset = Signal()
@@ -159,7 +149,16 @@ class VexRiscv(Module, AutoCSR):
         )
 
     @staticmethod
-    def add_sources(platform, cpu_filename):
+    def add_sources(platform, variant="std"):
+        verilog_variants = {
+            "std":        "VexRiscv.v",
+            "std_debug":  "VexRiscv_Debug.v",
+            "lite":       "VexRiscv_Lite.v",
+            "lite_debug": "VexRiscv_LiteDebug.v",
+            "min":        "VexRiscv_Lite.v",
+            "min_debug":  "VexRiscv_LiteDebug.v",
+        }
+        cpu_filename = verilog_variants[variant]
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_source(os.path.join(vdir, cpu_filename))
 
