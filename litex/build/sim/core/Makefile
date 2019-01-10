@@ -34,7 +34,8 @@ sim: mkdir $(OBJS_SIM)
 		-LDFLAGS "$(LDFLAGS)" \
 		--trace \
 		$(if $(COVERAGE), --coverage,) \
-		$(INC_DIR)
+		$(INC_DIR) \
+		-Wno-WIDTH
 	make -j -C $(OBJ_DIR) -f Vdut.mk Vdut
 
 .PHONY: modules
