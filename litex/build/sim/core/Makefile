@@ -36,6 +36,7 @@ sim: mkdir $(OBJS_SIM)
 		$(if $(COVERAGE), --coverage,) \
 		--unroll-count 256 \
 		$(INC_DIR) \
+		-Wno-BLKANDNBLK \
 		-Wno-WIDTH
 	make -j -C $(OBJ_DIR) -f Vdut.mk Vdut
 
