@@ -34,6 +34,7 @@ sim: mkdir $(OBJS_SIM)
 		-LDFLAGS "$(LDFLAGS)" \
 		--trace \
 		$(if $(COVERAGE), --coverage,) \
+		--unroll-count 256 \
 		$(INC_DIR) \
 		-Wno-WIDTH
 	make -j -C $(OBJ_DIR) -f Vdut.mk Vdut
