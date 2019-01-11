@@ -190,10 +190,12 @@ static void cb(int sock, short which, void *arg)
       if(!s->tickfirst)
 	s->module->tick(s->session);
     }
-  }
 
-  if (litex_sim_got_finish())
-    event_base_loopbreak(base);
+    if (litex_sim_got_finish()) {
+        event_base_loopbreak(base);
+        break;
+    }
+  }
 
   if (!evtimer_pending(ev, NULL)) {
     event_del(ev);
@@ -231,7 +233,6 @@ int main()
   {
     goto out;
   }
-
 
   tv.tv_sec = 0;
   tv.tv_usec = 0;
