@@ -33,7 +33,7 @@ class S7Clocking(Module, AutoCSR):
 
     def register_clkin(self, clkin, freq):
         self.clkin = Signal()
-        if isinstance(clkin, Signal):
+        if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)
         elif isinstance(clkin, Record):
             self.specials += DifferentialInput(clkin.p, clkin.n, self.clkin)
@@ -224,7 +224,7 @@ class USClocking(Module, AutoCSR):
 
     def register_clkin(self, clkin, freq):
         self.clkin = Signal()
-        if isinstance(clkin, Signal):
+        if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)
         elif isinstance(clkin, Record):
             self.specials += DifferentialInput(clkin.p, clkin.n, self.clkin)
@@ -413,7 +413,7 @@ class ECP5PLL(Module):
         assert freq >= clki_freq_min
         assert freq <= clki_freq_max
         self.clkin = Signal()
-        if isinstance(clkin, Signal):
+        if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)
         else:
             raise ValueError
