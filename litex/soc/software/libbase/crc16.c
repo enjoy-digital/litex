@@ -1,5 +1,5 @@
 #include <crc.h>
-
+#ifdef CRC16_FAST
 static const unsigned int crc16_table[256] = {
 	0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
 	0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
@@ -45,3 +45,16 @@ unsigned short crc16(const unsigned char *buffer, int len)
 	
 	return crc;
 }
+#else
+unsigned short crc16(const unsigned char* data_p, int length) {
+    unsigned char x;
+    unsigned short crc = 0;
+
+    while (length--){
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
+    }
+    return crc;
+}
+#endif
