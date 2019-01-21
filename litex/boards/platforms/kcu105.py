@@ -184,6 +184,10 @@ _io = [
         Subsignal("n", Pins("N26"), IOStandard("LVDS_25"))
     ),
 
+    ("si570_refclk", 0,
+        Subsignal("p", Pins("P6")),
+        Subsignal("n", Pins("P5"))
+    ),
 
     ("user_sma_mgt_refclk", 0,
         Subsignal("p", Pins("V6")),
