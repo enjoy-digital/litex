@@ -520,7 +520,7 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk156"
     default_clk_period = 6.4
 
-    def __init__(self, toolchain="vivado", programmer="xc3sprog"):
+    def __init__(self, toolchain="vivado", programmer="vivado"):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors,
             toolchain=toolchain)
         if toolchain == "ise":
