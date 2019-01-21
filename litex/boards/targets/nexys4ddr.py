@@ -14,6 +14,8 @@ from litex.soc.integration.builder import *
 from litedram.modules import MT47H64M16
 from litedram.phy import s7ddrphy
 
+# CRG ----------------------------------------------------------------------------------------------
+
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
@@ -34,6 +36,7 @@ class _CRG(Module):
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     csr_map = {
@@ -58,9 +61,10 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.timing_settings)
         self.add_constant("MEMTEST_ADDR_SIZE", 0) # FIXME
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to Nexys4DDR")
+    parser = argparse.ArgumentParser(description="LiteX SoC on Nexys4DDR")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()

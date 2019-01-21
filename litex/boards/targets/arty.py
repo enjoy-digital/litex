@@ -17,6 +17,7 @@ from litedram.phy import s7ddrphy
 from liteeth.phy.mii import LiteEthPHYMII
 from liteeth.core.mac import LiteEthMAC
 
+# CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
@@ -41,6 +42,7 @@ class _CRG(Module):
             Instance("BUFG", i_I=eth_clk, o_O=platform.request("eth_ref_clk")),
         ]
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     csr_map = {
@@ -64,6 +66,7 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
 
+# EthernetSoC --------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
     csr_map = {
@@ -103,9 +106,10 @@ class EthernetSoC(BaseSoC):
             self.ethphy.crg.cd_eth_rx.clk,
             self.ethphy.crg.cd_eth_tx.clk)
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to Arty")
+    parser = argparse.ArgumentParser(description="LiteX SoC on Arty")
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--with-ethernet", action="store_true",

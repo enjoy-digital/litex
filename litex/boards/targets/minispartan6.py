@@ -14,6 +14,7 @@ from litex.soc.integration.builder import *
 from litedram.modules import AS4C16M16
 from litedram.phy import GENSDRPHY
 
+# CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
     def __init__(self, platform, clk_freq):
@@ -65,6 +66,7 @@ class _CRG(Module):
                                   i_C0=self.cd_sys.clk, i_C1=~self.cd_sys.clk,
                                   o_Q=platform.request("sdram_clock"))
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
@@ -83,9 +85,10 @@ class BaseSoC(SoCSDRAM):
                                 sdram_module.geom_settings,
                                 sdram_module.timing_settings)
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to the MiniSpartan6")
+    parser = argparse.ArgumentParser(description="LiteX SoC on MiniSpartan6")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()

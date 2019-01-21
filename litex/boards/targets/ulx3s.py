@@ -14,6 +14,7 @@ from litex.soc.integration.builder import *
 from litedram.modules import MT48LC16M16
 from litedram.phy import GENSDRPHY
 
+# CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
     def __init__(self, platform):
@@ -45,6 +46,7 @@ class _CRG(Module):
         wifi_gpio0 = platform.request("wifi_gpio0")
         self.comb += wifi_gpio0.eq(1)
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
@@ -63,8 +65,10 @@ class BaseSoC(SoCSDRAM):
                                 sdram_module.geom_settings,
                                 sdram_module.timing_settings)
 
+# Build --------------------------------------------------------------------------------------------
+
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to the ULX3S")
+    parser = argparse.ArgumentParser(description="LiteX SoC on ULX3S")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()

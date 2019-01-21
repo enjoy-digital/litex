@@ -12,6 +12,8 @@ from litex.soc.integration.builder import *
 from liteeth.phy import LiteEthPHY
 from liteeth.core.mac import LiteEthMAC
 
+# BaseSoC ------------------------------------------------------------------------------------------
+
 class BaseSoC(SoCCore):
     def __init__(self, platform, **kwargs):
         sys_clk_freq = int(1e9/platform.default_clk_period)
@@ -21,6 +23,7 @@ class BaseSoC(SoCCore):
             **kwargs)
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 
+# EthernetSoC --------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
     csr_map = {
@@ -49,6 +52,7 @@ class EthernetSoC(BaseSoC):
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC")

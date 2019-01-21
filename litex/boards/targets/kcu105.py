@@ -14,6 +14,7 @@ from litex.soc.integration.builder import *
 from litedram.modules import EDY4016A
 from litedram.phy import usddrphy
 
+# CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
@@ -66,6 +67,7 @@ class _CRG(Module):
             AsyncResetSynchronizer(self.cd_ic, ic_reset)
         ]
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     csr_map = {
@@ -90,9 +92,10 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to KCU105")
+    parser = argparse.ArgumentParser(description="LiteX SoC on KCU105")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()

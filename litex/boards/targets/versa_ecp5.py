@@ -14,6 +14,7 @@ from litex.soc.integration.builder import *
 from litedram.modules import AS4C32M16
 from litedram.phy import GENSDRPHY
 
+# CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
     def __init__(self, platform):
@@ -41,6 +42,7 @@ class _CRG(Module):
         # sdram clock
         self.comb += platform.request("sdram_clock").eq(self.cd_sys_ps.clk)
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
@@ -60,8 +62,10 @@ class BaseSoC(SoCSDRAM):
                                 sdram_module.geom_settings,
                                 sdram_module.timing_settings)
 
+# Build --------------------------------------------------------------------------------------------
+
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to the Versa ECP5")
+    parser = argparse.ArgumentParser(description="LiteX SoC on ECP5")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()

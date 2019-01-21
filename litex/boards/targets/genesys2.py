@@ -17,6 +17,7 @@ from litedram.phy import s7ddrphy
 from liteeth.phy.s7rgmii import LiteEthPHYRGMII
 from liteeth.core.mac import LiteEthMAC
 
+# CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
@@ -33,6 +34,7 @@ class _CRG(Module):
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     csr_map = {
@@ -56,6 +58,7 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
 
+# EthernetSoC ------------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
     csr_map = {
@@ -95,9 +98,10 @@ class EthernetSoC(BaseSoC):
             self.ethphy.crg.cd_eth_rx.clk,
             self.ethphy.crg.cd_eth_tx.clk)
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to Genesys 2")
+    parser = argparse.ArgumentParser(description="LiteX SoC on Genesys2")
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--with-ethernet", action="store_true",
