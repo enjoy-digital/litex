@@ -385,6 +385,23 @@ class USMMCM(USClocking):
             self.params["o_CLKOUT{}".format(n)] = clk
         self.specials += Instance("MMCME2_ADV", **self.params)
 
+
+class USIDELAYCTRL(Module):
+    def __init__(self, cd):
+        reset_counter = Signal(6, reset=63)
+        ic_reset = Signal(reset=1)
+        sync = getattr(self.sync, cd.name)
+        sync += \
+            If(reset_counter != 0,
+                reset_counter.eq(reset_counter - 1)
+            ).Else(
+                ic_reset.eq(0)
+            )
+        self.specials += Instance("IDELAYCTRL",
+            p_SIM_DEVICE="ULTRASCALE",
+            i_REFCLK=cd.clk,
+            i_RST=ic_reset)
+
 # Lattice / ECP5
 
 # TODO:
