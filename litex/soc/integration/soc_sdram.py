@@ -1,3 +1,5 @@
+from math import log2
+
 from migen import *
 from migen.genlib.record import *
 
@@ -76,7 +78,9 @@ class SoCSDRAM(SoCCore):
 
         if self.l2_size:
             port = self.sdram.crossbar.get_port()
-            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(port.dw))
+            port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
+            l2_size         = 2**int(log2(self.l2_size))    # Round to nearest power of 2
+            l2_cache = wishbone.Cache(l2_size//4, self._wb_sdram, wishbone.Interface(port.data_width))
             # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
             # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
             from litex.build.xilinx.vivado import XilinxVivadoToolchain
