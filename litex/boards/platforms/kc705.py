@@ -253,6 +253,12 @@ _io = [
         Subsignal("p", Pins("K6")),
         Subsignal("n", Pins("K5"))
     ),
+    ("sfp", 0,  # inverted prior to HW rev 1.1
+        Subsignal("txp", Pins("H2")),
+        Subsignal("txn", Pins("H1")),
+        Subsignal("rxp", Pins("G4")),
+        Subsignal("rxn", Pins("G3")),
+    ),
     ("sfp_tx", 0,  # inverted prior to HW rev 1.1
         Subsignal("p", Pins("H2")),
         Subsignal("n", Pins("H1"))
