@@ -140,7 +140,7 @@ class Timeout(Module):
 
         # # #
 
-        timer = WaitTimer(cycles)
+        timer = WaitTimer(int(cycles))
         self.submodules += timer
         self.comb += [
             timer.wait.eq(master.stb & master.cyc & ~master.ack),
@@ -153,7 +153,7 @@ class Timeout(Module):
 
 
 class InterconnectShared(Module):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=2**16):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         shared = Interface()
         self.submodules.arbiter = Arbiter(masters, shared)
         self.submodules.decoder = Decoder(shared, slaves, register)
