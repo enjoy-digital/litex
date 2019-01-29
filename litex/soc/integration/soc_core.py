@@ -128,6 +128,7 @@ class SoCCore(Module):
                 csr_data_width=8, csr_address_width=14, csr_expose=False,
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
+                wishbone_timeout_cycles=1e6,
                 reserve_nmi_interrupt=True,
                 with_timer=True,
                 with_ctrl=True):
@@ -154,6 +155,8 @@ class SoCCore(Module):
         self.uart_baudrate = uart_baudrate
 
         self.shadow_base = shadow_base
+
+        self.wishbone_timeout_cycles = wishbone_timeout_cycles
 
         self.csr_data_width = csr_data_width
         self.csr_address_width = csr_address_width
@@ -363,8 +366,8 @@ class SoCCore(Module):
         if len(self._wb_masters):
             # Wishbone
             self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
-                self._wb_slaves, register=True)
-            if self.with_ctrl:
+                self._wb_slaves, register=True, timeout_cycles=self.wishbone_timeout_cycles)
+            if self.with_ctrl and (self.wishbone_timeout_cycles is not None):
                 self.comb += self.ctrl.bus_error.eq(self.wishbonecon.timeout.error)
 
             # CSR

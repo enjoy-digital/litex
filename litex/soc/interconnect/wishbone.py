@@ -157,7 +157,8 @@ class InterconnectShared(Module):
         shared = Interface()
         self.submodules.arbiter = Arbiter(masters, shared)
         self.submodules.decoder = Decoder(shared, slaves, register)
-        self.submodules.timeout = Timeout(shared, timeout_cycles)
+        if timeout_cycles is not None:
+            self.submodules.timeout = Timeout(shared, timeout_cycles)
 
 
 class Crossbar(Module):
