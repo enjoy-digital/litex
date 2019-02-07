@@ -135,8 +135,29 @@ class LatticeiCE40DifferentialOutput:
     def lower(dr):
         return LatticeiCE40DifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+
+class LatticeiCE40DDROutputImpl(Module):
+    def __init__(self, i1, i2, o, clk):
+        self.specials += Instance("SB_IO",
+            p_PIN_TYPE=C(0b010000, 6),
+            p_IO_STANDARD="SB_LVCMOS",
+            io_PACKAGE_PIN=o,
+            i_CLOCK_ENABLE=1,
+            i_OUTPUT_CLK=clk,
+            i_OUTPUT_ENABLE=1,
+            i_D_OUT_0=i1,
+            i_D_OUT_1=i2)
+
+
+class LatticeiCE40DDROutput:
+    @staticmethod
+    def lower(dr):
+        return LatticeiCE40DDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
+
 lattice_ice40_special_overrides = {
     AsyncResetSynchronizer: LatticeiCE40AsyncResetSynchronizer,
     Tristate:               LatticeiCE40Tristate,
-    DifferentialOutput:     LatticeiCE40DifferentialOutput
+    DifferentialOutput:     LatticeiCE40DifferentialOutput,
+    DDROutput:              LatticeiCE40DDROutput
 }
