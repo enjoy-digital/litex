@@ -32,18 +32,13 @@ class EthernetSoC(BaseSoC):
     }
     csr_map.update(BaseSoC.csr_map)
 
-    interrupt_map = {
-        "ethmac": 3,
-    }
-    interrupt_map.update(BaseSoC.interrupt_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 
     def __init__(self, platform, **kwargs):
-        BaseSoC.__init__(self, platform, **kwargs)
+        BaseSoC.__init__(self, platform, soc_interrupts=["ethmac"], **kwargs)
 
         self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"),
                                             platform.request("eth"))

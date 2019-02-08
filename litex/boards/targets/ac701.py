@@ -77,11 +77,6 @@ class EthernetSoC(BaseSoC):
     }
     csr_map.update(BaseSoC.csr_map)
 
-    interrupt_map = {
-        "ethmac": 3,
-    }
-    interrupt_map.update(BaseSoC.interrupt_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -89,7 +84,7 @@ class EthernetSoC(BaseSoC):
 
     def __init__(self, phy="rgmii", **kwargs):
         assert phy in ["rgmii", "1000basex"]
-        BaseSoC.__init__(self, **kwargs)
+        BaseSoC.__init__(self, soc_interrupts=["ethmac"], **kwargs)
 
         if phy == "rgmii":
             self.submodules.ethphy = LiteEthPHYRGMII(self.platform.request("eth_clocks"),

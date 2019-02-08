@@ -110,18 +110,13 @@ class EthernetSoC(BaseSoC):
     }
     csr_map.update(BaseSoC.csr_map)
 
-    interrupt_map = {
-        "ethmac": 3,
-    }
-    interrupt_map.update(BaseSoC.interrupt_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 
     def __init__(self, **kwargs):
-        BaseSoC.__init__(self, **kwargs)
+        BaseSoC.__init__(self, soc_interrupts=["ethmac"], **kwargs)
 
         self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
         self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,

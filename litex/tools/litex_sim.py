@@ -95,11 +95,6 @@ class SimSoC(SoCSDRAM):
     ]
     csr_map_update(SoCSDRAM.csr_map, csr_peripherals)
 
-    interrupt_map = {
-        "ethmac": 3,
-    }
-    interrupt_map.update(SoCSDRAM.interrupt_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -117,7 +112,9 @@ class SimSoC(SoCSDRAM):
             integrated_rom_size=0x8000,
             ident="LiteX Simulation", ident_version=True,
             with_uart=False,
+            soc_interrupts=["ethmac"]
             **kwargs)
+
         # crg
         self.submodules.crg = CRG(platform.request("sys_clk"))
 

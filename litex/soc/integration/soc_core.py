@@ -174,10 +174,6 @@ class SoCCore(Module):
         "buttons":        6,  # user
         "leds":           7,  # user
     }
-    soc_interrupt_map = {
-        "timer0": 1, # LiteX Timer
-        "uart":   2, # LiteX UART (IRQ 2 for UART matches mor1k standard config).
-    }
     mem_map = {
         "rom":      0x00000000,  # (default shadow @0x80000000)
         "sram":     0x10000000,  # (default shadow @0x90000000)
@@ -194,10 +190,10 @@ class SoCCore(Module):
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
                 wishbone_timeout_cycles=1e6,
-                reserve_nmi_interrupt=True,
                 with_timer=True,
                 with_ctrl=True,
-                user_interrupts={}):
+                user_interrupts={},
+                soc_interrupts=[]):
         self.config = dict()
 
         self.platform = platform
@@ -285,6 +281,12 @@ class SoCCore(Module):
         if self.cpu_variant:
             self.config["CPU_VARIANT"] = str(cpu_type).upper()
 
+        self.soc_interrupt_map = self.cpu.reserved_interrupts.copy()
+        self.allocate_soc_interrupt("timer0")
+        self.allocate_soc_interrupt("uart")
+        for soc_interrupt in soc_interrupts:
+            self.allocate_soc_interrupt(soc_interrupt)
+
         if integrated_rom_size:
             self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True, init=integrated_rom_init)
             self.register_rom(self.rom.bus, integrated_rom_size)
@@ -303,9 +305,6 @@ class SoCCore(Module):
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.add_constant("CSR_DATA_WIDTH", csr_data_width)
         self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
-
-        if reserve_nmi_interrupt:
-            self.soc_interrupt_map["nmi"] = 0 # Reserve zero for "non-maskable interrupt"
 
         if with_uart:
             if uart_stub:
@@ -497,6 +496,14 @@ class SoCCore(Module):
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
 
+    def allocate_soc_interrupt(self, name):
+        mapped_interrupts = self.soc_interrupt_map.values()
+        for irq_no in range(0, 8):
+            if irq_no in mapped_interrupts:
+                continue
+            self.soc_interrupt_map[name] = irq_no
+            return
+        raise ValueError("No more space to allocate SoC {} IRQ".format(name))
 
 def soc_core_args(parser):
     parser.add_argument("--cpu-type", default=None,
