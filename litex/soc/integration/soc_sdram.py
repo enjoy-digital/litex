@@ -41,8 +41,9 @@ class SoCSDRAM(SoCCore):
 
     def __init__(self, platform, clk_freq, l2_size=8192, **kwargs):
         SoCCore.__init__(self, platform, clk_freq, **kwargs)
-        if self.cpu_type is not None and self.csr_data_width != 8:
-             raise NotImplementedError("BIOS supports SDRAM initialization only for csr_data_width=8")
+        if not self.integrated_main_ram_size:
+            if self.cpu_type is not None and self.csr_data_width != 8:
+                 raise NotImplementedError("BIOS supports SDRAM initialization only for csr_data_width=8")
         self.l2_size = l2_size
 
         self._sdram_phy = []
