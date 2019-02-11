@@ -44,8 +44,19 @@ lattice_ecpx_special_overrides = {
 class LatticeECPXTrellisTristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
-        for bit in range(nbits):
+        if nbits == 1:
+            # If `io` is an expression like `port[x]`, it is not legal to index further
+            # into it if it is only 1 bit wide.
             self.specials += \
+              Instance("TRELLIS_IO",
+                    p_DIR="BIDIR",
+                    i_B=io,
+                    i_I=o,
+                    o_O=i,
+                    i_T=~oe,
+                )
+        else:
+            for bit in range(nbits):
                 Instance("TRELLIS_IO",
                     p_DIR="BIDIR",
                     i_B=io[bit],
@@ -53,6 +64,7 @@ class LatticeECPXTrellisTristateImpl(Module):
                     o_O=i[bit],
                     i_T=~oe,
                 )
+
 
 class LatticeECPXTrellisTristate(Module):
     @staticmethod
