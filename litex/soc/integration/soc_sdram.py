@@ -55,7 +55,7 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, geom_settings, timing_settings, use_axi=False, **kwargs):
+    def register_sdram(self, phy, geom_settings, timing_settings, use_axi=False, use_full_memory_we=True, **kwargs):
         assert not self._sdram_phy
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
@@ -85,7 +85,7 @@ class SoCSDRAM(SoCCore):
             # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
             # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
             from litex.build.xilinx.vivado import XilinxVivadoToolchain
-            if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+            if isinstance(self.platform.toolchain, XilinxVivadoToolchain) and use_full_memory_we:
                 from migen.fhdl.simplify import FullMemoryWE
                 self.submodules.l2_cache = FullMemoryWE()(l2_cache)
             else:
