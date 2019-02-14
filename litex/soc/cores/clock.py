@@ -73,6 +73,7 @@ class S7Clocking(Module, AutoCSR):
                     for d in range(*self.clkout_divide_range):
                         clk_freq = vco_freq/d
                         if abs(clk_freq - f) < f*m:
+                            config["clkout{}_freq".format(n)] = clk_freq
                             config["clkout{}_divide".format(n)] = d
                             config["clkout{}_phase".format(n)] = p
                             valid = True
@@ -264,6 +265,7 @@ class USClocking(Module, AutoCSR):
                     for d in range(*self.clkout_divide_range):
                         clk_freq = vco_freq/d
                         if abs(clk_freq - f) < f*m:
+                            config["clkout{}_freq".format(n)] = clk_freq
                             config["clkout{}_divide".format(n)] = d
                             config["clkout{}_phase".format(n)] = p
                             valid = True
@@ -459,6 +461,7 @@ class ECP5PLL(Module):
                     for d in range(*self.clko_div_range):
                         clk_freq = vco_freq/d
                         if abs(clk_freq - f) < f*m:
+                            config["clko{}_freq".format(n)] = clk_freq
                             config["clko{}_div".format(n)] = d
                             config["clko{}_phase".format(n)] = p
                             valid = True
