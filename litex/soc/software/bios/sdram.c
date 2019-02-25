@@ -208,14 +208,17 @@ void sdrwr(char *startaddr)
 
 #ifdef CSR_DDRPHY_BASE
 
-#ifdef USDDRPHY
+#if defined (USDDRPHY)
 #define ERR_DDRPHY_DELAY 512
+#elif defined (ECP5DDRPHY)
+#define ERR_DDRPHY_DELAY 8
 #else
 #define ERR_DDRPHY_DELAY 32
 #endif
-#define ERR_DDRPHY_BITSLIP 8
 
-#define NBMODULES DFII_PIX_DATA_SIZE/2
+#define ERR_DDRPHY_BITSLIP DFII_NPHASES*2
+
+#define NBMODULES DFII_PIX_DATA_SIZE*DFII_NPHASES/8
 
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
 
