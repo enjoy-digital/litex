@@ -762,7 +762,7 @@ int memtest(void)
 #ifdef CSR_DDRPHY_BASE
 int sdrlevel(void)
 {
-	int i, j;
+	int module;
 	int bitslip;
 	int score;
 	int best_score;
@@ -784,14 +784,14 @@ int sdrlevel(void)
 #endif
 
 	printf("Read leveling:\n");
-	for(i=0; i<NBMODULES; i++) {
+	for(module=0; module<NBMODULES; module++) {
 		/* scan possible read windows */
 		best_score = 0;
 		best_bitslip = 0;
 		for(bitslip=0; bitslip<ERR_DDRPHY_BITSLIP; bitslip++) {
 			/* compute score */
-			score = read_level_scan(i, bitslip);
-			read_level(i);
+			score = read_level_scan(module, bitslip);
+			read_level(module);
 			printf("\n");
 			if (score > best_score) {
 				best_bitslip = bitslip;
@@ -801,17 +801,17 @@ int sdrlevel(void)
 			if (bitslip == ERR_DDRPHY_BITSLIP-1)
 				break;
 			/* increment bitslip */
-			read_bitslip_inc(i);
+			read_bitslip_inc(module);
 		}
 
 		/* select best read window */
-		printf("best: m%d, b%d ", i, best_bitslip);
-		read_bitslip_rst(i);
-		for (j=0; j<best_bitslip; j++)
-			read_bitslip_inc(i);
+		printf("best: m%d, b%d ", module, best_bitslip);
+		read_bitslip_rst(module);
+		for (bitslip=0; bitslip<best_bitslip; bitslip++)
+			read_bitslip_inc(module);
 
 		/* re-do leveling on best read window*/
-		read_level(i);
+		read_level(module);
 		printf("\n");
 	}
 
