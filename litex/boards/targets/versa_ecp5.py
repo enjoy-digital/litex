@@ -68,8 +68,8 @@ class BaseSoC(SoCSDRAM):
         "ddrphy":    16,
     }
     csr_map.update(SoCSDRAM.csr_map)
-    def __init__(self, **kwargs):
-        platform = versa_ecp5.Platform(toolchain="diamond")
+    def __init__(self, toolchain="diamond", **kwargs):
+        platform = versa_ecp5.Platform(toolchain=toolchain)
         sys_clk_freq = int(50e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
@@ -95,11 +95,13 @@ class BaseSoC(SoCSDRAM):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on ECP5")
+    parser.add_argument("--gateware-toolchain", dest="toolchain", default="diamond",
+        help='gateware toolchain to use, diamond (default) or  trellis')
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(**soc_sdram_argdict(args))
+    soc = BaseSoC(toolchain=args.toolchain, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
