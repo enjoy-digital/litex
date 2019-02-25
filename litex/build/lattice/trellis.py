@@ -125,7 +125,7 @@ class LatticeTrellisToolchain:
         self.yosys_template = [
             "{read_files}",
             "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
-            "synth_ecp5 -nomux -json {build_name}.json -top {build_name}",
+            "synth_ecp5 -json {build_name}.json -top {build_name}",
         ]
 
         self.build_template = [
@@ -189,9 +189,4 @@ class LatticeTrellisToolchain:
     # approach as the icestorm and use the fastest clock for timing
     # constraints.
     def add_period_constraint(self, platform, clk, period):
-        new_freq = 1000.0/period
-
-        if clk not in self.freq_constraints.keys():
-            self.freq_constraints[clk] = new_freq
-        else:
-            raise ConstraintError("Period constraint already added to signal.")
+        platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
