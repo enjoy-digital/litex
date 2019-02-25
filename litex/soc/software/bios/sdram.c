@@ -235,6 +235,36 @@ void sdrwloff(void)
 	ddrphy_wlevel_en_write(0);
 }
 
+static void write_delay_rst(int module) {
+	int i;
+
+	/* sel module */
+	ddrphy_dly_sel_write(1 << module);
+
+	/* rst delay */
+	ddrphy_wdly_dq_rst_write(1);
+	ddrphy_wdly_dqs_rst_write(1);
+#ifdef USDDRPHY /* need to init manually on Ultrascale */
+	for(i=0; i<ddrphy_half_sys8x_taps_read(); i++)
+		ddrphy_wdly_dqs_inc_write(1);
+#endif
+
+	/* unsel module */
+	ddrphy_dly_sel_write(0);
+}
+
+static void write_delay_inc(int module) {
+	/* sel module */
+	ddrphy_dly_sel_write(1 << module);
+
+	/* inc delay */
+	ddrphy_wdly_dq_inc_write(1);
+	ddrphy_wdly_dqs_inc_write(1);
+
+	/* unsel module */
+	ddrphy_dly_sel_write(0);
+}
+
 int write_level(void)
 {
 	int i, j, k;
@@ -263,14 +293,9 @@ int write_level(void)
 		printf("m%d: |", i);
 	    dq_address = sdram_dfii_pix_rddata_addr[0]+4*(NBMODULES-1-i);
 
-	    /* reset delay */
-		ddrphy_dly_sel_write(1 << i);
-		ddrphy_wdly_dq_rst_write(1);
-		ddrphy_wdly_dqs_rst_write(1);
-#ifdef USDDRPHY /* need to init manually on Ultrascale */
-		for(j=0; j<ddrphy_half_sys8x_taps_read(); j++)
-			ddrphy_wdly_dqs_inc_write(1);
-#endif
+		/* rst delay */
+		write_delay_rst(i);
+
 		/* scan taps */
 		for(j=0;j<err_ddrphy_wdly;j++) {
 			int zero_count = 0;
@@ -294,8 +319,7 @@ int write_level(void)
 				taps_scan[j] = 0;
 			if (show)
 				printf("%d", taps_scan[j]);
-			ddrphy_wdly_dq_inc_write(1);
-			ddrphy_wdly_dqs_inc_write(1);
+			write_delay_inc(i);
 			cdelay(10);
 		}
 		printf("|");
@@ -317,18 +341,10 @@ int write_level(void)
 		}
 		delays[i] = one_window_start;
 
-		/* configure delays */
-		ddrphy_wdly_dq_rst_write(1);
-		ddrphy_wdly_dqs_rst_write(1);
-#ifdef USDDRPHY /* need to init manually on Ultrascale */
-		for(j=0; j<ddrphy_half_sys8x_taps_read(); j++)
-			ddrphy_wdly_dqs_inc_write(1);
-#endif
-		for(j=0; j<delays[i]; j++) {
-			ddrphy_wdly_dq_inc_write(1);
-			ddrphy_wdly_dqs_inc_write(1);
-		}
-
+		/* configure write delay */
+		write_delay_rst(i);
+		for(j=0; j<delays[i]; j++)
+			write_delay_inc(i);
 		printf(" delay: %02d\n", delays[i]);
 	}
 
@@ -345,10 +361,51 @@ int write_level(void)
 
 #endif /* CSR_DDRPHY_WLEVEL_EN_ADDR */
 
+static void read_delay_rst(int module) {
+	/* sel module */
+	ddrphy_dly_sel_write(1 << module);
+
+	/* rst delay */
+	ddrphy_rdly_dq_rst_write(1);
+
+	/* unsel module */
+	ddrphy_dly_sel_write(0);
+}
+
+static void read_delay_inc(int module) {
+	/* sel module */
+	ddrphy_dly_sel_write(1 << module);
+
+	/* inc delay */
+	ddrphy_rdly_dq_inc_write(1);
+
+	/* unsel module */
+	ddrphy_dly_sel_write(0);
+}
+
+static void read_bitslip_rst(char m)
+{
+	/* sel module */
+	ddrphy_dly_sel_write(1 << m);
+
+	/* inc delay */
+	ddrphy_rdly_dq_bitslip_rst_write(1);
+
+	/* unsel module */
+	ddrphy_dly_sel_write(0);
+}
+
+
 static void read_bitslip_inc(char m)
 {
-		ddrphy_dly_sel_write(1 << m);
-		ddrphy_rdly_dq_bitslip_write(1);
+	/* sel module */
+	ddrphy_dly_sel_write(1 << m);
+
+	/* inc delay */
+	ddrphy_rdly_dq_bitslip_write(1);
+
+	/* unsel module */
+	ddrphy_dly_sel_write(0);
 }
 
 static int read_level_scan(int module, int bitslip)
@@ -385,8 +442,7 @@ static int read_level_scan(int module, int bitslip)
 	score = 0;
 
 	printf("m%d, b%d: |", module, bitslip);
-	ddrphy_dly_sel_write(1 << module);
-	ddrphy_rdly_dq_rst_write(1);
+	read_delay_rst(module);
 	for(j=0; j<ERR_DDRPHY_DELAY;j++) {
 		int working;
 		int show = 1;
@@ -405,7 +461,7 @@ static int read_level_scan(int module, int bitslip)
 		if (show)
 			printf("%d", working);
 		score += working;
-		ddrphy_rdly_dq_inc_write(1);
+		read_delay_inc(module);
 	}
 	printf("| ");
 
@@ -453,11 +509,9 @@ static void read_level(int module)
 	sdram_dfii_pird_address_write(0);
 	sdram_dfii_pird_baddress_write(0);
 
-	ddrphy_dly_sel_write(1 << module);
-	delay = 0;
-
 	/* Find smallest working delay */
-	ddrphy_rdly_dq_rst_write(1);
+	delay = 0;
+	read_delay_rst(module);
 	while(1) {
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
@@ -473,7 +527,7 @@ static void read_level(int module)
 		delay++;
 		if(delay >= ERR_DDRPHY_DELAY)
 			break;
-		ddrphy_rdly_dq_inc_write(1);
+		read_delay_inc(module);
 	}
 	delay_min = delay;
 
@@ -481,11 +535,11 @@ static void read_level(int module)
 #ifdef USDDRPHY
 	for(j=0;j<16;j++) {
 		delay += 1;
-		ddrphy_rdly_dq_inc_write(1);
+		read_delay_inc(module)
 	}
 #else
 	delay++;
-	ddrphy_rdly_dq_inc_write(1);
+	read_delay_inc(module);
 #endif
 
 	/* Find largest working delay */
@@ -504,7 +558,7 @@ static void read_level(int module)
 		delay++;
 		if(delay >= ERR_DDRPHY_DELAY)
 			break;
-		ddrphy_rdly_dq_inc_write(1);
+		read_delay_inc(module);
 	}
 	delay_max = delay;
 
@@ -514,9 +568,9 @@ static void read_level(int module)
 		printf("%02d+-%02d", (delay_min+delay_max)/2, (delay_max-delay_min)/2);
 
 	/* Set delay to the middle */
-	ddrphy_rdly_dq_rst_write(1);
+	read_delay_rst(module);
 	for(j=0;j<(delay_min+delay_max)/2;j++)
-		ddrphy_rdly_dq_inc_write(1);
+		read_delay_inc(module);
 
 	/* Precharge */
 	sdram_dfii_pi0_address_write(0);
@@ -716,10 +770,12 @@ int sdrlevel(void)
 
 	sdrsw();
 
-	for(i=0; i<NBMODULES; i++) {
-		ddrphy_dly_sel_write(1<<i);
-		ddrphy_rdly_dq_rst_write(1);
-		ddrphy_rdly_dq_bitslip_rst_write(1);
+	for(module=0; module<NBMODULES; module++) {
+#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
+		write_delay_rst(module);
+#endif
+		read_delay_rst(module);
+		read_bitslip_rst(module);
 	}
 
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
@@ -750,7 +806,7 @@ int sdrlevel(void)
 
 		/* select best read window */
 		printf("best: m%d, b%d ", i, best_bitslip);
-		ddrphy_rdly_dq_bitslip_rst_write(1);
+		read_bitslip_rst(i);
 		for (j=0; j<best_bitslip; j++)
 			read_bitslip_inc(i);
 
