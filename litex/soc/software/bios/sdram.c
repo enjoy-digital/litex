@@ -548,7 +548,7 @@ static void read_level(int module)
 #ifdef USDDRPHY
 	for(j=0;j<16;j++) {
 		delay += 1;
-		read_delay_inc(module)
+		read_delay_inc(module);
 	}
 #else
 	delay++;
