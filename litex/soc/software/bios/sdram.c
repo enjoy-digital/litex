@@ -277,13 +277,14 @@ int write_level(void)
 	unsigned char taps_scan[ERR_DDRPHY_DELAY];
 
 	int one_window_active;
-	int one_window_start;
+	int one_window_start, one_window_best_start;
+	int one_window_count, one_window_best_count;
 
 	int delays[NBMODULES];
 
-    int ok;
+	int ok;
 
-	err_ddrphy_wdly = (ERR_DDRPHY_DELAY*14)/16 - ddrphy_half_sys8x_taps_read();
+	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();
 
 	printf("Write leveling:\n");
 
@@ -291,12 +292,12 @@ int write_level(void)
 	cdelay(100);
 	for(i=0;i<NBMODULES;i++) {
 		printf("m%d: |", i);
-	    dq_address = sdram_dfii_pix_rddata_addr[0]+4*(NBMODULES-1-i);
+		dq_address = sdram_dfii_pix_rddata_addr[0]+4*(NBMODULES-1-i);
 
 		/* rst delay */
 		write_delay_rst(i);
 
-		/* scan taps */
+		/* scan write delay taps */
 		for(j=0;j<err_ddrphy_wdly;j++) {
 			int zero_count = 0;
 			int one_count = 0;
@@ -324,14 +325,23 @@ int write_level(void)
 		}
 		printf("|");
 
-		/* select last 0/1 transition */
+		/* find longer 1 window and set delay at the 0/1 transition */
 		one_window_active = 0;
 		one_window_start = 0;
+		one_window_count = 0;
+		one_window_best_start = 0;
+		one_window_best_count = 0;
 		delays[i] = -1;
 		for(j=0;j<err_ddrphy_wdly;j++) {
 			if (one_window_active) {
-				if (taps_scan[j] == 0)
+				if ((taps_scan[j] == 0) | (j == err_ddrphy_wdly - 1)) {
 					one_window_active = 0;
+					one_window_count = j - one_window_start;
+					if (one_window_count > one_window_best_count) {
+						one_window_best_start = one_window_start;
+						one_window_best_count = one_window_count;
+					}
+				}
 			} else {
 				if (taps_scan[j]) {
 					one_window_active = 1;
@@ -339,7 +349,7 @@ int write_level(void)
 				}
 			}
 		}
-		delays[i] = one_window_start;
+		delays[i] = one_window_best_start;
 
 		/* configure write delay */
 		write_delay_rst(i);
