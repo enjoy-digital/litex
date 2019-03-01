@@ -258,7 +258,7 @@ void netboot(void)
 	tftp_port = TFTP_SERVER_PORT;
 	printf("Fetching from: UDP/%d\n", tftp_port);
 
-	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)MAIN_RAM_BASE);
+	size = tftp_get_v(ip, tftp_port, "vmlinux.bin", (void *)MAIN_RAM_BASE);
 
 	if ((size <= 0) && (tftp_port != DEFAULT_TFTP_SERVER_PORT)) {
 		/* Try default TFTP port if timed out on non-standard port */
@@ -274,16 +274,16 @@ void netboot(void)
 		return;
 	}
 
-	cmdline_adr = MAIN_RAM_BASE+0x1000000;
-	size = tftp_get_v(ip, tftp_port, "cmdline.txt", (void *)cmdline_adr);
+	cmdline_adr = MAIN_RAM_BASE + 0x1000000;
+	size = tftp_get_v(ip, tftp_port, "vmlinux.dtb", (void *)cmdline_adr);
 	if(size <= 0) {
 		printf("No command line parameters found\n");
 		cmdline_adr = 0;
 	} else
 		*((char *)(cmdline_adr+size)) = 0x00;
 
-	initrdstart_adr = MAIN_RAM_BASE+0x1002000;
-	size = tftp_get_v(ip, tftp_port, "initrd.bin", (void *)initrdstart_adr);
+	initrdstart_adr = MAIN_RAM_BASE + 0x2000000;
+	size = tftp_get_v(ip, tftp_port, "initramdisk.gz", (void *)initrdstart_adr);
 	if(size <= 0) {
 		printf("No initial ramdisk found\n");
 		initrdstart_adr = 0;
