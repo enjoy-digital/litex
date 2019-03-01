@@ -49,8 +49,8 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, **kwargs):
-        platform = ulx3s.Platform(toolchain="trellis")
+    def __init__(self, toolchain="diamond", **kwargs):
+        platform = ulx3s.Platform(toolchain=toolchain)
         sys_clk_freq = int(50e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
@@ -69,11 +69,13 @@ class BaseSoC(SoCSDRAM):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on ULX3S")
+    parser.add_argument("--gateware-toolchain", dest="toolchain", default="diamond",
+        help='gateware toolchain to use, diamond (default) or  trellis')
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(**soc_sdram_argdict(args))
+    soc = BaseSoC(toolchain=args.toolchain, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
