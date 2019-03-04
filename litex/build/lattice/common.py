@@ -57,13 +57,14 @@ class LatticeECPXTrellisTristateImpl(Module):
                 )
         else:
             for bit in range(nbits):
-                Instance("TRELLIS_IO",
-                    p_DIR="BIDIR",
-                    i_B=io[bit],
-                    i_I=o[bit],
-                    o_O=i[bit],
-                    i_T=~oe,
-                )
+                self.specials += \
+                    Instance("TRELLIS_IO",
+                        p_DIR="BIDIR",
+                        i_B=io[bit],
+                        i_I=o[bit],
+                        o_O=i[bit],
+                        i_T=~oe,
+                    )
 
 
 class LatticeECPXTrellisTristate(Module):
