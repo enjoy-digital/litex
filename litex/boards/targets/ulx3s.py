@@ -26,6 +26,7 @@ class _CRG(Module):
         # clk / rst
         clk25 = platform.request("clk25")
         rst = platform.request("rst")
+        platform.add_period_constraint(clk25, 40.0)
 
         # pll
         self.submodules.pll = pll = ECP5PLL()
@@ -33,11 +34,7 @@ class _CRG(Module):
         pll.register_clkin(clk25, 25e6)
         pll.create_clkout(self.cd_sys, 50e6, phase=11)
         pll.create_clkout(self.cd_sys_ps, 50e6, phase=20)
-        # FIXME: AsyncResetSynchronizer needs FD1S3BX support.
-        #self.specials += AsyncResetSynchronizer(self.cd_sys, rst)
-        self.comb += self.cd_sys.rst.eq(rst)
-        platform.add_period_constraint(self.cd_sys.clk, 20.0)
-        platform.add_period_constraint(self.cd_sys_ps.clk, 20.0)
+        self.specials += AsyncResetSynchronizer(self.cd_sys, rst)
 
         # sdram clock
         self.comb += platform.request("sdram_clock").eq(self.cd_sys_ps.clk)
