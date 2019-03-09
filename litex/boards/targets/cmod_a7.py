@@ -28,7 +28,7 @@ class _CRG(Module):
         # self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
         # Add reset button
-        self.comb += mmcm.reset.eq(~platform.request("cpu_reset"))
+        # self.comb += mmcm.reset.eq(~platform.request("cpu_reset"))
 
         # Not sure if needed?
         self.cd_sys.clk.attr.add("keep")
