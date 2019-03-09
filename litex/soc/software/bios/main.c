@@ -506,8 +506,8 @@ int main(int i, char **c)
 	char buffer[64];
 	int sdr_ok;
 
-	irq_setmask(0);
-	irq_setie(1);
+	//irq_setmask(0);
+	irq_setie(0);
 	uart_init();
 	printf("\n");
 	printf("\e[1m        __   _ __      _  __\e[0m\n");
