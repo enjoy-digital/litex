@@ -145,6 +145,9 @@ class VexRiscv(Module, AutoCSR):
                 i_externalInterruptArray=self.interrupt,
                 i_timerInterrupt=0,
 
+                i_timerInterruptS=0,
+                i_externalInterruptS=0,
+
                 o_iBusWishbone_ADR=i.adr,
                 o_iBusWishbone_DAT_MOSI=i.dat_w,
                 o_iBusWishbone_SEL=i.sel,
