@@ -155,6 +155,17 @@ def _printnode(ns, at, level, node, target_filter=None):
             return r
         else:
             return ""
+    elif isinstance(node, Display):
+        s = "\"" + node.s + "\""
+        for arg in node.args:
+            s += ", "
+            if isinstance(arg, Signal):
+                s += ns.get_name(arg)
+            else:
+                s += str(arg)
+        return "\t"*level + "$display(" + s + ");\n"
+    elif isinstance(node, Finish):
+        return "\t"*level + "$finish;\n"
     else:
         raise TypeError("Node of unrecognized type: "+str(type(node)))
 
@@ -206,14 +217,19 @@ def _printheader(f, ios, name, ns, attr_translate,
         attr = _printattr(sig.attr, attr_translate)
         if attr:
             r += "\t" + attr
+        sig.type = "wire"
         if sig in inouts:
+            sig.direction = "inout"
             r += "\tinout " + _printsig(ns, sig)
         elif sig in targets:
+            sig.direction = "output"
             if sig in wires:
                 r += "\toutput " + _printsig(ns, sig)
             else:
+                sig.type = "reg"
                 r += "\toutput reg " + _printsig(ns, sig)
         else:
+            sig.direction = "input"
             r += "\tinput " + _printsig(ns, sig)
     r += "\n);\n\n"
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
@@ -372,8 +388,8 @@ def convert(f, ios=None, name="top",
     f = lower_complex_slices(f)
     insert_resets(f)
     f = lower_basics(f)
-    fs, lowered_specials = lower_specials(special_overrides, f.specials)
-    f += lower_basics(fs)
+    f, lowered_specials = lower_specials(special_overrides, f)
+    f = lower_basics(f)
 
     for io in sorted(ios, key=lambda x: x.duid):
         if io.name_override is None:

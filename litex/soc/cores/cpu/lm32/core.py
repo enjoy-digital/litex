@@ -6,8 +6,14 @@ from litex.soc.interconnect import wishbone
 
 
 class LM32(Module):
+    name = "lm32"
+    endianness = "big"
+    gcc_triple = "lm32-elf"
+    gcc_flags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
+    linker_output_format = "elf32-lm32"
+
     def __init__(self, platform, eba_reset, variant=None):
-        assert variant in (None, "minimal"), "Unsupported variant %s" % variant
+        assert variant in (None, "lite", "minimal"), "Unsupported variant %s" % variant
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -60,7 +66,7 @@ class LM32(Module):
         self.add_sources(platform, variant)
 
     @staticmethod
-    def add_sources(platform, variant):
+    def add_sources(platform, variant=None):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_sources(os.path.join(vdir, "submodule", "rtl"),
@@ -82,7 +88,10 @@ class LM32(Module):
                 "lm32_debug.v",
                 "lm32_itlb.v",
                 "lm32_dtlb.v")
+        platform.add_verilog_include_path(os.path.join(vdir, "submodule", "rtl"))
         if variant == "minimal":
             platform.add_verilog_include_path(os.path.join(vdir, "config_minimal"))
+        elif variant == "lite":
+            platform.add_verilog_include_path(os.path.join(vdir, "config_lite"))
         else:
             platform.add_verilog_include_path(os.path.join(vdir, "config"))

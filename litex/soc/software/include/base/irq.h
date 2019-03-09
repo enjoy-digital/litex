@@ -40,6 +40,8 @@ static inline unsigned int irq_getie(void)
 	return _irq_enabled != 0;
 #elif defined (__vexriscv__)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
+#elif defined (__minerva__)
+	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 #else
 #error Unsupported architecture
 #endif
@@ -60,6 +62,8 @@ static inline void irq_setie(unsigned int ie)
     else
         _irq_disable();
 #elif defined (__vexriscv__)
+	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
+#elif defined (__minerva__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 #else
 #error Unsupported architecture
@@ -82,6 +86,10 @@ static inline unsigned int irq_getmask(void)
 	unsigned int mask;
 	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_IRQ_MASK));
 	return mask;
+#elif defined (__minerva__)
+	unsigned int mask;
+	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_IRQ_MASK));
+	return mask;
 #else
 #error Unsupported architecture
 #endif
@@ -99,6 +107,8 @@ static inline void irq_setmask(unsigned int mask)
     _irq_setmask(~mask);
 #elif defined (__vexriscv__)
 	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
+#elif defined (__minerva__)
+	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
 #else
 #error Unsupported architecture
 #endif
@@ -115,6 +125,10 @@ static inline unsigned int irq_pending(void)
 #elif defined (__picorv32__)
 	return _irq_pending;
 #elif defined (__vexriscv__)
+	unsigned int pending;
+	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_IRQ_PENDING));
+	return pending;
+#elif defined (__minerva__)
 	unsigned int pending;
 	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_IRQ_PENDING));
 	return pending;

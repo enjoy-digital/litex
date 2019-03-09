@@ -27,7 +27,7 @@ static inline void mtspr(unsigned long add, unsigned long val)
 #endif
 
 
-#if defined(__vexriscv__)
+#if defined(__vexriscv__) || defined(__minerva__)
 #include <csr-defs.h>
 #define csrr(reg) ({ unsigned long __tmp; \
   asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \

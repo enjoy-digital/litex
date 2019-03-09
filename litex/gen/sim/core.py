@@ -217,7 +217,14 @@ class Evaluator:
             elif isinstance(s, collections.Iterable):
                 self.execute(s)
             elif isinstance(s, Display):
-                print(s.s)
+                args = []
+                for arg in s.args:
+                    assert isinstance(arg, _Value)
+                    try:
+                        args.append(self.signal_values[arg])
+                    except: # not yet evaluated
+                        args.append(arg.reset.value)
+                print(s.s %(*args,))
             else:
                 raise NotImplementedError
 
@@ -250,9 +257,7 @@ class Simulator:
 
         overrides = {AsyncResetSynchronizer: DummyAsyncResetSynchronizer}
         overrides.update(special_overrides)
-        fs, lowered = lower_specials(overrides=overrides, specials=self.fragment.specials)
-        self.fragment += fs
-        self.fragment.specials -= lowered
+        f, lowered = lower_specials(overrides, self.fragment)
         if self.fragment.specials:
             raise ValueError("Could not lower all specials", self.fragment.specials)
 

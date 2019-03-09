@@ -4,6 +4,7 @@ from distutils.version import StrictVersion
 import re
 import subprocess
 import sys
+import ctypes
 
 
 def language_by_filename(name):
@@ -55,3 +56,35 @@ def subprocess_call_filtered(command, rules, *, max_matches=1, **kwargs):
             for line in stdout:
                 print(sub_rules(line, rules, max_matches), end="")
         return proc.wait()
+
+
+if sys.platform == "cygwin":
+    cygwin1 = ctypes.CDLL("/usr/bin/cygwin1.dll")
+    cygwin_conv_path_proto = ctypes.CFUNCTYPE(
+        ctypes.c_ssize_t, # Return
+        ctypes.c_uint, # what
+        ctypes.c_void_p, # from
+        ctypes.c_void_p, # to
+        ctypes.c_size_t) # size
+    cygwin_conv_path = cygwin_conv_path_proto(("cygwin_conv_path", cygwin1),
+        ((1, "what"),
+        (1, "from"),
+        (1, "to"),
+        (1, "size")))
+
+
+    def cygpath_to_windows(path):
+        what = ctypes.c_uint(0) # CCP_POSIX_TO_WIN_A
+        fro = ctypes.c_char_p(path.encode('utf-8'))
+        to = ctypes.byref(ctypes.create_string_buffer(260))
+        size = ctypes.c_size_t(260)
+
+        cygwin_conv_path(what, fro, to, size)
+        return ctypes.cast(to, ctypes.c_char_p).value.decode('utf-8')
+
+    # Convert cygwin paths to Windows native paths. This is a noop otherwise.
+    def cygpath(p):
+        return cygpath_to_windows(p)
+else:
+    def cygpath(p):
+        return p

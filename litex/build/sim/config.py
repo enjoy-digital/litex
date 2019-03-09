@@ -38,5 +38,11 @@ class SimConfig():
             newmod.update({"tickfirst": tickfirst})
         self.modules.append(newmod)
 
+    def has_module(self, name):
+        for module in self.modules:
+            if module["module"] == name:
+                return True
+        return False
+
     def get_json(self):
         return json.dumps(self.modules, indent=4)

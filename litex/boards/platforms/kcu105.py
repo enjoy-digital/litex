@@ -103,9 +103,9 @@ _io = [
             IOStandard("SSTL12_DCI")),
         Subsignal("ba", Pins("AF17 AL15"), IOStandard("SSTL12_DCI")),
         Subsignal("bg", Pins("AG15"), IOStandard("SSTL12_DCI")),
-        Subsignal("ras_n", Pins("AF14"), IOStandard("SSTL12_DCI")), # A16
-        Subsignal("cas_n", Pins("AG14 "), IOStandard("SSTL12_DCI")), # A15
-        Subsignal("we_n", Pins("AD16"), IOStandard("SSTL12_DCI")), # A14
+        Subsignal("ras_n", Pins("AF14"), IOStandard("SSTL12_DCI")),  # A16
+        Subsignal("cas_n", Pins("AG14"), IOStandard("SSTL12_DCI")),  # A15
+        Subsignal("we_n", Pins("AD16"), IOStandard("SSTL12_DCI")),   # A14
         Subsignal("cs_n", Pins("AL19"), IOStandard("SSTL12_DCI")),
         Subsignal("act_n", Pins("AH14"), IOStandard("SSTL12_DCI")),
         Subsignal("ten", Pins("AH16"), IOStandard("SSTL12_DCI")),
@@ -117,7 +117,7 @@ _io = [
             "AE23 AG20 AF22 AF20 AE22 AD20 AG22 AE20",
             "AJ24 AG24 AJ23 AF23 AH23 AF24 AH22 AG25",
 
-            "AL22 AL25 AM20 AK23 AK22 AL20 AL24 AL23",
+            "AL22 AL25 AM20 AK23 AK22 AL24 AL20 AL23",
             "AM24 AN23 AN24 AP23 AP25 AN22 AP24 AM22",
 
             "AH28 AK26 AK28 AM27 AJ28 AH27 AK27 AM26",
@@ -131,8 +131,8 @@ _io = [
             IOStandard("DIFF_POD12")),
         Subsignal("dqs_n", Pins("AH21 AJ25 AK20 AP21 AL28 AP30 AJ33 AP34"),
             IOStandard("DIFF_POD12")),
-        Subsignal("clk_p", Pins("AE16"), IOStandard("DIFF_SSTL2_DCI")),
-        Subsignal("clk_n", Pins("AE15"), IOStandard("DIFF_SSTL2_DCI")),
+        Subsignal("clk_p", Pins("AE16"), IOStandard("DIFF_SSTL12_DCI")),
+        Subsignal("clk_n", Pins("AE15"), IOStandard("DIFF_SSTL12_DCI")),
         Subsignal("cke", Pins("AD15"), IOStandard("SSTL12_DCI")),
         Subsignal("odt", Pins("AJ18"), IOStandard("SSTL12_DCI")),
         Subsignal("reset_n", Pins("AL18"), IOStandard("LVCMOS12")),
@@ -184,6 +184,10 @@ _io = [
         Subsignal("n", Pins("N26"), IOStandard("LVDS_25"))
     ),
 
+    ("si570_refclk", 0,
+        Subsignal("p", Pins("P6")),
+        Subsignal("n", Pins("P5"))
+    ),
 
     ("user_sma_mgt_refclk", 0,
         Subsignal("p", Pins("V6")),
@@ -204,13 +208,29 @@ _io = [
         Subsignal("rxp", Pins("T2")),
         Subsignal("rxn", Pins("T1"))
     ),
+    ("sfp_tx", 0,
+        Subsignal("p", Pins("U4")),
+        Subsignal("n", Pins("U3")),
+    ),
+    ("sfp_rx", 0,
+        Subsignal("p", Pins("T2")),
+        Subsignal("n", Pins("T1")),
+    ),
     ("sfp_tx_disable_n", 0, Pins("AL8"), IOStandard("LVCMOS18")),
 
     ("sfp", 1,
         Subsignal("txp", Pins("W4")),
         Subsignal("txn", Pins("W3")),
         Subsignal("rxp", Pins("V2")),
-        Subsignal("rxn", Pins("V1"))		
+        Subsignal("rxn", Pins("V1"))
+    ),
+    ("sfp_tx", 1,
+        Subsignal("p", Pins("W4")),
+        Subsignal("n", Pins("W3")),
+    ),
+    ("sfp_rx", 1,
+        Subsignal("p", Pins("V2")),
+        Subsignal("n", Pins("V1")),
     ),
     ("sfp_tx_disable_n", 1, Pins("D28"), IOStandard("LVCMOS18")),
 ]
@@ -467,3 +487,9 @@ class Platform(XilinxPlatform):
 
     def create_programmer(self):
         return VivadoProgrammer()
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
+        self.add_platform_command("set_property INTERNAL_VREF {{0.84}} [get_iobanks 44]")
+        self.add_platform_command("set_property INTERNAL_VREF {{0.84}} [get_iobanks 45]")
+        self.add_platform_command("set_property INTERNAL_VREF {{0.84}} [get_iobanks 46]")

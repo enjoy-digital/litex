@@ -140,6 +140,41 @@ _io = [
         Misc("VCCAUX_IO=HIGH")
     ),
 
+    ("ddram_dual_rank", 0,
+        Subsignal("a", Pins(
+            "AH12 AG13 AG12 AF12 AJ12 AJ13 AJ14 AH14",
+            "AK13 AK14 AF13 AE13 AJ11 AH11 AK10 AK11"),
+            IOStandard("SSTL15")),
+        Subsignal("ba", Pins("AH9 AG9 AK9"), IOStandard("SSTL15")),
+        Subsignal("ras_n", Pins("AD9"), IOStandard("SSTL15")),
+        Subsignal("cas_n", Pins("AC11"), IOStandard("SSTL15")),
+        Subsignal("we_n", Pins("AE9"), IOStandard("SSTL15")),
+        Subsignal("cs_n", Pins("AC12 AE8"), IOStandard("SSTL15")),
+        Subsignal("dm", Pins("Y16 AB17 AF17 AE16 AK5 AJ3 AF6 AC7"),
+            IOStandard("SSTL15")),
+        Subsignal("dq", Pins(
+            "AA15 AA16 AC14 AD14 AA17 AB15 AE15 Y15",
+            "AB19 AD16 AC19 AD17 AA18 AB18 AE18 AD18",
+            "AG19 AK19 AG18 AF18 AH19 AJ19 AE19 AD19",
+            "AK16 AJ17 AG15 AF15 AH17 AG14 AH15 AK15",
+            "AK8 AK6 AG7 AF7 AF8 AK4 AJ8 AJ6",
+            "AH5 AH6 AJ2 AH2 AH4 AJ4 AK1 AJ1",
+            "AF1 AF2 AE4 AE3 AF3 AF5 AE1 AE5",
+            "AC1 AD3 AC4 AC5 AE6 AD6 AC2 AD4"),
+            IOStandard("SSTL15_T_DCI")),
+        Subsignal("dqs_p", Pins("AC16 Y19 AJ18 AH16 AH7 AG2 AG4 AD2"),
+            IOStandard("DIFF_SSTL15")),
+        Subsignal("dqs_n", Pins("AC15 Y18 AK18 AJ16 AJ7 AH1 AG3 AD1"),
+            IOStandard("DIFF_SSTL15")),
+        Subsignal("clk_p", Pins("AG10 AE11"), IOStandard("DIFF_SSTL15")),
+        Subsignal("clk_n", Pins("AH10 AF11"), IOStandard("DIFF_SSTL15")),
+        Subsignal("cke", Pins("AF10 AE10"), IOStandard("SSTL15")),
+        Subsignal("odt", Pins("AD8 AC10"), IOStandard("SSTL15")),
+        Subsignal("reset_n", Pins("AK3"), IOStandard("LVCMOS15")),
+        Misc("SLEW=FAST"),
+        Misc("VCCAUX_IO=HIGH")
+    ),
+
     ("eth_clocks", 0,
         Subsignal("tx", Pins("M28")),
         Subsignal("gtx", Pins("K30")),
@@ -206,6 +241,10 @@ _io = [
         Subsignal("n", Pins("G7"))
     ),
 
+    ("user_sma_mgt_refclk", 0,
+        Subsignal("p", Pins("J8")),
+        Subsignal("n", Pins("J7"))
+    ),
     ("user_sma_mgt_tx", 0,
         Subsignal("p", Pins("K2")),
         Subsignal("n", Pins("K1"))
@@ -213,6 +252,12 @@ _io = [
     ("user_sma_mgt_rx", 0,
         Subsignal("p", Pins("K6")),
         Subsignal("n", Pins("K5"))
+    ),
+    ("sfp", 0,  # inverted prior to HW rev 1.1
+        Subsignal("txp", Pins("H2")),
+        Subsignal("txn", Pins("H1")),
+        Subsignal("rxp", Pins("G4")),
+        Subsignal("rxn", Pins("G3")),
     ),
     ("sfp_tx", 0,  # inverted prior to HW rev 1.1
         Subsignal("p", Pins("H2")),
@@ -481,7 +526,7 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk156"
     default_clk_period = 6.4
 
-    def __init__(self, toolchain="vivado", programmer="xc3sprog"):
+    def __init__(self, toolchain="vivado", programmer="vivado"):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors,
             toolchain=toolchain)
         if toolchain == "ise":

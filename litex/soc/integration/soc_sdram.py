@@ -1,3 +1,5 @@
+from math import log2
+
 from migen import *
 from migen.genlib.record import *
 
@@ -5,8 +7,8 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.integration.soc_core import *
 
-from litedram.frontend import crossbar
-from litedram.frontend.bridge import LiteDRAMWishboneBridge
+from litedram.frontend.wishbone import *
+from litedram.frontend.axi import *
 from litedram import dfii, core
 
 
@@ -15,17 +17,19 @@ __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 class ControllerInjector(Module, AutoCSR):
     def __init__(self, phy, geom_settings, timing_settings, **kwargs):
-        self.submodules.dfii = dfii.DFIInjector(geom_settings.addressbits, geom_settings.bankbits,
-                phy.settings.dfi_databits, phy.settings.nphases)
+        self.submodules.dfii = dfii.DFIInjector(
+            geom_settings.addressbits,
+            geom_settings.bankbits,
+            phy.settings.nranks,
+            phy.settings.dfi_databits,
+            phy.settings.nphases)
         self.comb += self.dfii.master.connect(phy.dfi)
 
-        self.submodules.controller = controller = core.LiteDRAMController(phy.settings,
-                                                                          geom_settings,
-                                                                          timing_settings,
-                                                                          **kwargs)
+        self.submodules.controller = controller = core.LiteDRAMController(
+            phy.settings, geom_settings, timing_settings, **kwargs)
         self.comb += controller.dfi.connect(self.dfii.slave)
 
-        self.submodules.crossbar = crossbar.LiteDRAMCrossbar(controller.interface, controller.nrowbits)
+        self.submodules.crossbar = core.LiteDRAMCrossbar(controller.interface)
 
 
 class SoCSDRAM(SoCCore):
@@ -37,8 +41,9 @@ class SoCSDRAM(SoCCore):
 
     def __init__(self, platform, clk_freq, l2_size=8192, **kwargs):
         SoCCore.__init__(self, platform, clk_freq, **kwargs)
-        if self.cpu_type is not None and self.csr_data_width != 8:
-             raise NotImplementedError("BIOS supports SDRAM initialization only for csr_data_width=8")
+        if not self.integrated_main_ram_size:
+            if self.cpu_type is not None and self.csr_data_width != 8:
+                 raise NotImplementedError("BIOS supports SDRAM initialization only for csr_data_width=8")
         self.l2_size = l2_size
 
         self._sdram_phy = []
@@ -50,20 +55,19 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, geom_settings, timing_settings, **kwargs):
+    def register_sdram(self, phy, geom_settings, timing_settings, use_axi=False, use_full_memory_we=True, **kwargs):
         assert not self._sdram_phy
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
-        self.submodules.sdram = ControllerInjector(phy,
-                                                   geom_settings,
-                                                   timing_settings,
-                                                   **kwargs)
+        self.submodules.sdram = ControllerInjector(
+            phy, geom_settings, timing_settings, **kwargs)
 
         dfi_databits_divisor = 1 if phy.settings.memtype == "SDR" else 2
         sdram_width = phy.settings.dfi_databits//dfi_databits_divisor
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +
                             geom_settings.colbits)*sdram_width//8
+
         # TODO: modify mem_map to allow larger memories.
         main_ram_size = min(main_ram_size, 256*1024*1024)
         self.add_constant("L2_SIZE", self.l2_size)
@@ -75,17 +79,26 @@ class SoCSDRAM(SoCCore):
 
         if self.l2_size:
             port = self.sdram.crossbar.get_port()
-            l2_cache = wishbone.Cache(self.l2_size//4, self._wb_sdram, wishbone.Interface(port.dw))
-            # XXX Vivado ->2015.1 workaround, Vivado is not able to map correctly our L2 cache.
-            # Issue is reported to Xilinx and should be fixed in next releases (2015.2?).
-            # Remove this workaround when fixed by Xilinx.
+            port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
+            l2_size         = 2**int(log2(self.l2_size))    # Round to nearest power of 2
+            l2_cache = wishbone.Cache(l2_size//4, self._wb_sdram, wishbone.Interface(port.data_width))
+            # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
+            # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
             from litex.build.xilinx.vivado import XilinxVivadoToolchain
-            if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+            if isinstance(self.platform.toolchain, XilinxVivadoToolchain) and use_full_memory_we:
                 from migen.fhdl.simplify import FullMemoryWE
                 self.submodules.l2_cache = FullMemoryWE()(l2_cache)
             else:
                 self.submodules.l2_cache = l2_cache
-            self.submodules.wishbone_bridge = LiteDRAMWishboneBridge(self.l2_cache.slave, port)
+            if use_axi:
+                axi_port = LiteDRAMAXIPort(
+                    port.data_width,
+                    port.address_width + log2_int(port.data_width//8))
+                axi2native = LiteDRAMAXI2Native(axi_port, port)
+                self.submodules += axi2native
+                self.submodules.wishbone_bridge = LiteDRAMWishbone2AXI(self.l2_cache.slave, axi_port)
+            else:
+                self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
 
     def do_finalize(self):
         if not self.integrated_main_ram_size:
@@ -93,8 +106,8 @@ class SoCSDRAM(SoCCore):
                 raise FinalizeError("Need to call SDRAMSoC.register_sdram()")
 
             # arbitrate wishbone interfaces to the DRAM
-            self.submodules.wb_sdram_con = wishbone.Arbiter(self._wb_sdram_ifs,
-                                                            self._wb_sdram)
+            self.submodules.wb_sdram_con = wishbone.Arbiter(
+                self._wb_sdram_ifs, self._wb_sdram)
         SoCCore.do_finalize(self)
 
 

@@ -9,10 +9,15 @@
 
 [> Intro
 --------
-LiteX is an alternative to MiSoC maintained and used by Enjoy-Digital to build
-our cores, integrate them in complete SoC and load/flash them to the hardware
-and experiment new features. (structure is kept close to MiSoC to ease
-collaboration)
+LiteX is a FPGA design/SoC builder that can be used to build cores, create
+SoCs and full FPGA designs.
+
+LiteX is based on Migen and provides specific building/debugging tools for
+a higher level of abstraction and compatibily with the LiteX core ecosystem.
+
+Think of Migen as a toolbox to create FPGA designs in Python and LiteX as a
+toolbox to create/develop/debug FPGA SoCs in Python.
+
 
 Typical LiteX design flow:
 --------------------------
@@ -43,7 +48,7 @@ and is compatible with the LiteX's Cores Ecosystem:
 - LiteEth: https://github.com/enjoy-digital/liteeth
 - LitePCIe: https://github.com/enjoy-digital/litepcie
 - LiteSATA: https://github.com/enjoy-digital/litesata
-- LiteUSB: https://github.com/enjoy-digital/litesata
+- LiteUSB: https://github.com/enjoy-digital/liteusb
 - LiteSDCard: https://github.com/enjoy-digital/litesdcard
 - LiteICLink: https://github.com/enjoy-digital/liteiclink
 - LiteJESD204B: https://github.com/enjoy-digital/litejesd204b
@@ -131,9 +136,11 @@ FPGA lessons/tutorials can be found at: https://github.com/enjoy-digital/fpga_10
 
 5. ... and/or install Verilator and test LiteX on your computer:
   Download and install Verilator: http://www.veripool.org/
-  Install libevent-devel / json-c-devel packages
-  Go to boards/targets
-  ./sim.py
+  On Fedora:
+      sudo dnf install libevent-devel json-c-devel
+  On Ubuntu:
+      sudo apt install libevent-dev libjson-c-dev
+  run: litex_sim
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
   You should get the BIOS prompt.

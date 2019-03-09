@@ -203,7 +203,6 @@ class LiteXTerm:
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
         frame.payload = self.kernel_address.to_bytes(4, "big")
-        # frame.payload = b"\x00\x00\x00\x00"
         self.send_frame(frame)
 
     def detect_prompt(self, data):

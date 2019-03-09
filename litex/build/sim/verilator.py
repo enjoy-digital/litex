@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2015-2016 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
 #                            2017 Pierre-Olivier Vauboin <po@lambdaconcept.com>
 # License: BSD
 
@@ -60,7 +60,7 @@ def _generate_sim_cpp_struct(name, index, siglist):
     return content
 
 
-def _generate_sim_cpp(platform):
+def _generate_sim_cpp(platform, trace=False):
     content = """\
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,11 +69,26 @@ def _generate_sim_cpp(platform):
 #include <verilated.h>
 #include "dut_header.h"
 
+extern "C" void litex_sim_init_tracer(void *vdut);
+extern "C" void litex_sim_tracer_dump();
+
+extern "C" void litex_sim_dump()
+{
+"""
+    if trace:
+        content += """\
+    litex_sim_tracer_dump();
+"""
+    content  += """\
+}
+
 extern "C" void litex_sim_init(void **out)
 {
     Vdut *dut;
 
     dut = new Vdut;
+
+    litex_sim_init_tracer(dut);
 
 """
     for args in platform.sim_requested:
@@ -90,7 +105,6 @@ def _generate_sim_variables(include_paths):
     include = ""
     for path in include_paths:
         include += "-I"+path+" "
-
     content = """\
 SRC_DIR = {}
 INC_DIR = {}
@@ -103,16 +117,25 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(platform, build_name, verbose):
+def _build_sim(build_name, sources, threads, coverage):
     makefile = os.path.join(core_directory, 'Makefile')
+    cc_srcs = []
+    for filename, language, library in sources:
+        cc_srcs.append("--cc " + filename + " ")
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {}
+make -C . -f {} {} {} {}
 mkdir -p modules && cp obj_dir/*.so modules
-""".format(makefile)
+""".format(makefile,
+    "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
+    "THREADS={}".format(threads) if int(threads) > 1 else "",
+    "COVERAGE=1" if coverage else "",
+    )
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
 
+def _compile_sim(build_name, verbose):
+    build_script_file = "build_" + build_name + ".sh"
     p = subprocess.Popen(["bash", build_script_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output, _ = p.communicate()
     output = output.decode('utf-8')
@@ -125,11 +148,9 @@ mkdir -p modules && cp obj_dir/*.so modules
     if verbose:
         print(output)
 
-
-def _run_sim(build_name):
-    run_script_contents = """\
-sudo obj_dir/Vdut
-"""
+def _run_sim(build_name, as_root=False):
+    run_script_contents = "sudo " if as_root else ""
+    run_script_contents += "obj_dir/Vdut"
     run_script_file = "run_" + build_name + ".sh"
     tools.write_to_file(run_script_file, run_script_contents, force_unix=True)
     if sys.platform != "win32":
@@ -140,41 +161,52 @@ sudo obj_dir/Vdut
         if r != 0:
             raise OSError("Subprocess failed")
     except:
-        if sys.platform != "win32":
-            termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
+        pass
+    if sys.platform != "win32":
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
 
 
 class SimVerilatorToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="dut",
-            toolchain_path=None, serial="console", run=True, verbose=True,
-            sim_config=None):
+            toolchain_path=None, serial="console", build=True, run=True, threads=1,
+            verbose=True, sim_config=None, trace=False, coverage=False):
+
+        # create build directory
         os.makedirs(build_dir, exist_ok=True)
         os.chdir(build_dir)
 
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
+        if build:
+            # finalize design
+            if not isinstance(fragment, _Fragment):
+                fragment = fragment.get_fragment()
+            platform.finalize(fragment)
 
-        v_output = platform.get_verilog(fragment, name=build_name)
-        named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_output.write(build_name + ".v")
+            # generate top module
+            top_output = platform.get_verilog(fragment,
+                name=build_name, dummy_signal=False, regular_comb=False, blocking_assign=True)
+            named_sc, named_pc = platform.resolve_signals(top_output.ns)
+            top_file = build_name + ".v"
+            top_output.write(top_file)
+            platform.add_source(top_file)
 
-        include_paths = []
-        for source in platform.sources:
-            path = os.path.dirname(source[0]).replace("\\", "\/")
-            if path not in include_paths:
-                include_paths.append(path)
-        include_paths += platform.verilog_include_paths
-        _generate_sim_h(platform)
-        _generate_sim_cpp(platform)
-        _generate_sim_variables(include_paths)
-        if sim_config:
-            _generate_sim_config(sim_config)
-        _build_sim(platform, build_name, verbose)
+            # generate cpp header/main/variables
+            _generate_sim_h(platform)
+            _generate_sim_cpp(platform, trace)
+            _generate_sim_variables(platform.verilog_include_paths)
 
+            # generate sim config
+            if sim_config:
+                _generate_sim_config(sim_config)
+
+            # build
+            _build_sim(build_name, platform.sources, threads, coverage)
+
+        # run
         if run:
-            _run_sim(build_name)
+            _compile_sim(build_name, verbose)
+            _run_sim(build_name, as_root=sim_config.has_module("ethernet"))
 
-        os.chdir("..")
+        os.chdir("../../")
 
-        return v_output.ns
+        if build:
+            return top_output.ns

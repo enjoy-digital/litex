@@ -129,6 +129,10 @@ _io = [
 
 _connectors = [
     ("LPC", {
+        "DP0_C2M_P": "D7",
+        "DP0_C2M_N": "C7",
+        "DP0_M2C_P": "D9",
+        "DP0_M2C_N": "C9",
         "GBTCLK0_M2C_P": "F10",
         "GBTCLK0_M2C_N": "E10",
         "LA01_CC_P": "J20",

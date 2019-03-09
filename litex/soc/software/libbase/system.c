@@ -4,7 +4,7 @@
 #include <spr-defs.h>
 #endif
 
-#ifdef __vexriscv__
+#if defined (__vexriscv__)
 #include <csr-defs.h>
 #endif
 
@@ -50,6 +50,9 @@ void flush_cpu_icache(void)
 		"nop\n"
 		"nop\n"
 	);
+#elif defined (__minerva__)
+	/* no instruction cache */
+	asm volatile("nop");
 #else
 #error Unsupported architecture
 #endif
@@ -89,6 +92,9 @@ void flush_cpu_dcache(void)
 	for(register unsigned long idx = 0;idx < cache_way_size;idx += cache_line_size){
 		asm volatile("mv x10, %0 \n .word(0b01110000000001010101000000001111)"::"r"(idx));
 	}
+#elif defined (__minerva__)
+	/* no data cache */
+	asm volatile("nop");
 #else
 #error Unsupported architecture
 #endif

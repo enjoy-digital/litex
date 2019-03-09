@@ -140,7 +140,7 @@ class Timeout(Module):
 
         # # #
 
-        timer = WaitTimer(cycles)
+        timer = WaitTimer(int(cycles))
         self.submodules += timer
         self.comb += [
             timer.wait.eq(master.stb & master.cyc & ~master.ack),
@@ -153,11 +153,12 @@ class Timeout(Module):
 
 
 class InterconnectShared(Module):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=2**16):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         shared = Interface()
         self.submodules.arbiter = Arbiter(masters, shared)
         self.submodules.decoder = Decoder(shared, slaves, register)
-        self.submodules.timeout = Timeout(shared, timeout_cycles)
+        if timeout_cycles is not None:
+            self.submodules.timeout = Timeout(shared, timeout_cycles)
 
 
 class Crossbar(Module):
@@ -651,7 +652,7 @@ class SRAM(Module):
         # generate write enable signal
         if not read_only:
             self.comb += [port.we[i].eq(self.bus.cyc & self.bus.stb & self.bus.we & self.bus.sel[i])
-                for i in range(4)]
+                for i in range(bus_data_width//8)]
         # address and data
         self.comb += [
             port.adr.eq(self.bus.adr[:len(port.adr)]),

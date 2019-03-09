@@ -10,6 +10,7 @@ __pycache__/
 .Python
 env/
 build/
+!litex/build
 develop-eggs/
 dist/
 downloads/

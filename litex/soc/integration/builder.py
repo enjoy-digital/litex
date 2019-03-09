@@ -4,7 +4,7 @@ import struct
 import shutil
 
 from litex.build.tools import write_to_file
-from litex.soc.integration import cpu_interface, soc_sdram
+from litex.soc.integration import cpu_interface, soc_core, soc_sdram
 
 from litedram import sdram_init
 
@@ -60,10 +60,6 @@ class Builder:
         flash_boot_address = getattr(self.soc, "flash_boot_address", None)
         csr_regions = self.soc.get_csr_regions()
         constants = self.soc.get_constants()
-        if isinstance(self.soc, soc_sdram.SoCSDRAM) and self.soc._sdram_phy:
-            sdram_phy_settings = self.soc._sdram_phy[0].settings
-        else:
-            sdram_phy_settings = None
 
         buildinc_dir = os.path.join(self.output_dir, "software", "include")
         generated_dir = os.path.join(buildinc_dir, "generated")
@@ -72,7 +68,21 @@ class Builder:
         variables_contents = []
         def define(k, v):
             variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
-        for k, v in cpu_interface.get_cpu_mak(cpu_type):
+        for k, v in cpu_interface.get_cpu_mak(self.soc.cpu):
+            define(k, v)
+        # Distinguish between LiteX and MiSoC.
+        define("LITEX", "1")
+        # Distinguish between applications running from main RAM and
+        # flash for user-provided software packages.
+        exec_profiles = {
+            "COPY_TO_MAIN_RAM" : "0",
+            "EXECUTE_IN_PLACE" : "0"
+        }
+        if "main_ram" in (m[0] for m in memory_regions):
+            exec_profiles["COPY_TO_MAIN_RAM"] = "1"
+        else:
+            exec_profiles["EXECUTE_IN_PLACE"] = "1"
+        for k, v in exec_profiles.items():
             define(k, v)
         define("SOC_DIRECTORY", soc_directory)
         variables_contents.append("export BUILDINC_DIRECTORY\n")
@@ -85,7 +95,7 @@ class Builder:
 
         write_to_file(
             os.path.join(generated_dir, "output_format.ld"),
-            cpu_interface.get_linker_output_format(cpu_type))
+            cpu_interface.get_linker_output_format(self.soc.cpu))
         write_to_file(
             os.path.join(generated_dir, "regions.ld"),
             cpu_interface.get_linker_regions(memory_regions))
@@ -97,10 +107,13 @@ class Builder:
             os.path.join(generated_dir, "csr.h"),
             cpu_interface.get_csr_header(csr_regions, constants))
 
-        if sdram_phy_settings is not None:
-            write_to_file(
-                os.path.join(generated_dir, "sdram_phy.h"),
-                sdram_init.get_sdram_phy_header(sdram_phy_settings))
+        if isinstance(self.soc, soc_sdram.SoCSDRAM):
+            if hasattr(self.soc, "sdram"):
+                write_to_file(
+                    os.path.join(generated_dir, "sdram_phy.h"),
+                    sdram_init.get_sdram_phy_c_header(
+                        self.soc.sdram.controller.settings.phy,
+                        self.soc.sdram.controller.settings.timing))
 
     def _generate_csr_csv(self):
         memory_regions = self.soc.get_memory_regions()
@@ -129,20 +142,9 @@ class Builder:
                     subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
 
     def _initialize_rom(self):
-        bios_file = os.path.join(self.output_dir, "software", "bios",
-                                 "bios.bin")
-        endianness =  cpu_interface.cpu_endianness[self.soc.cpu_type]
-        with open(bios_file, "rb") as boot_file:
-            boot_data = []
-            while True:
-                w = boot_file.read(4)
-                if not w:
-                    break
-                if endianness == 'little':
-                    boot_data.append(struct.unpack("<I", w)[0])
-                else:
-                    boot_data.append(struct.unpack(">I", w)[0])
-        self.soc.initialize_rom(boot_data)
+        bios_file = os.path.join(self.output_dir, "software", "bios","bios.bin")
+        bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu.endianness)
+        self.soc.initialize_rom(bios_data)
 
     def build(self, toolchain_path=None, **kwargs):
         self.soc.finalize()

@@ -1,10 +1,13 @@
-import os
+import os, sys
+from litex.build import tools
 
 
 class GenericProgrammer:
     def __init__(self, flash_proxy_basename=None):
         self.flash_proxy_basename = flash_proxy_basename
         self.flash_proxy_dirs = [
+            "~/.migen", "/usr/local/share/migen", "/usr/share/migen",
+            "~/.mlabs", "/usr/local/share/mlabs", "/usr/share/mlabs",
             "~/.litex", "/usr/local/share/litex", "/usr/share/litex"]
 
     def set_flash_proxy_dir(self, flash_proxy_dir):
@@ -14,7 +17,7 @@ class GenericProgrammer:
     def find_flash_proxy(self):
         for d in self.flash_proxy_dirs:
             fulldir = os.path.abspath(os.path.expanduser(d))
-            fullname = os.path.join(fulldir, self.flash_proxy_basename)
+            fullname = tools.cygpath(os.path.join(fulldir, self.flash_proxy_basename))
             if os.path.exists(fullname):
                 return fullname
         raise OSError("Failed to find flash proxy bitstream")

@@ -102,6 +102,9 @@ _connectors = [
 ]
 
 class Platform(XilinxPlatform):
+    default_clk_name = "clk200"
+    default_clk_period = 5
+
     def __init__(self, programmer="vivado"):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
         self.programmer = programmer
@@ -115,6 +118,6 @@ class Platform(XilinxPlatform):
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
         try:
-            self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
+            self.add_period_constraint(self.lookup_request("eth_clocks").rx, 8.0)
         except ConstraintError:
             pass

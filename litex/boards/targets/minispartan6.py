@@ -14,6 +14,7 @@ from litex.soc.integration.builder import *
 from litedram.modules import AS4C16M16
 from litedram.phy import GENSDRPHY
 
+# CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
     def __init__(self, platform, clk_freq):
@@ -65,27 +66,29 @@ class _CRG(Module):
                                   i_C0=self.cd_sys.clk, i_C1=~self.cd_sys.clk,
                                   o_Q=platform.request("sdram_clock"))
 
+# BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
     def __init__(self, **kwargs):
-        clk_freq = 80*1000000
         platform = minispartan6.Platform()
-        SoCSDRAM.__init__(self, platform, clk_freq,
+        sys_clk_freq = int(80e6)
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
                           **kwargs)
 
-        self.submodules.crg = _CRG(platform, clk_freq)
+        self.submodules.crg = _CRG(platform, sys_clk_freq)
 
         if not self.integrated_main_ram_size:
             self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
-            sdram_module = AS4C16M16(clk_freq, "1:1")
+            sdram_module = AS4C16M16(sys_clk_freq, "1:1")
             self.register_sdram(self.sdrphy,
                                 sdram_module.geom_settings,
                                 sdram_module.timing_settings)
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC port to the MiniSpartan6")
+    parser = argparse.ArgumentParser(description="LiteX SoC on MiniSpartan6")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()

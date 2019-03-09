@@ -18,7 +18,23 @@ _start:
 
 .org 0x00000010 # IRQ
 _irq_vector:
-  j _irq
+  addi sp, sp, -16
+  sw t0, 4(sp)
+  sw ra, 8(sp)
+  /* By convention, q2 holds true IRQ vector, but remains caller-save.
+  We rely on the assumption that compiler-generated code will never touch
+  the QREGs. q3 is truly scratch/caller-save. */
+  picorv32_getq_insn(t0, q2)
+  sw t0, 12(sp)
+
+  jalr t0 // Call the true IRQ vector.
+
+  lw t0, 12(sp)
+  picorv32_setq_insn(q2, t0) // Restore the true IRQ vector.
+  lw ra, 8(sp)
+  lw t0, 4(sp)
+  addi sp, sp, 16
+  picorv32_retirq_insn() // return from interrupt
 
 
 /*
@@ -132,9 +148,7 @@ _irq:
   /* restore x1 - x2 from q registers */
   picorv32_getq_insn(x1, q1)
   picorv32_getq_insn(x2, q2)
-
-  /* return from interrupt */
-  picorv32_retirq_insn()
+  ret
 
 /*
  * Reset handler, branched to from the vector.
@@ -180,8 +194,36 @@ _crt0:
   la t1, _irq_mask
   sw t0, 0(t1)
 
+#ifdef EXECUTE_IN_PLACE
+  /* Load DATA */
+  la t0, _erodata
+  la t1, _fdata
+  la t2, _edata
+3:
+  lw t3, 0(t0)
+  sw t3, 0(t1)
+  /* _edata is aligned to 16 bytes. Use word-xfers. */
+  addi t0, t0, 4
+  addi t1, t1, 4
+  bltu t1, t2, 3b
+#endif
+
+  /* Clear BSS */
+  la t0, _fbss
+  la t1, _ebss
+2:
+  sw zero, 0(t0)
+  addi t0, t0, 4
+  bltu t0, t1, 2b
+
   /* set main stack */
   la sp, _fstack
+
+  /* Set up address to IRQ handler since vector is hardcoded.
+  By convention, q2 keeps the pointer to the true IRQ handler,
+  to emulate relocatable interrupts. */
+  la t0, _irq
+  picorv32_setq_insn(q2, t0)
 
   /* jump to main */
   jal ra, main
@@ -206,7 +248,7 @@ _irq_enable:
   picorv32_maskirq_insn(zero, t0)
   ret
 
-/* 
+/*
  * Disable interrupts by masking all interrupts (the mask should already be
  * up to date)
  */
@@ -239,7 +281,7 @@ _irq_setmask:
   picorv32_maskirq_insn(zero, a0)
 1:
   ret
-  
+
 
 .section .bss
 irq_regs:
@@ -272,4 +314,3 @@ _irq_mask:
 .global _irq_enabled
 _irq_enabled:
   .word 0
-

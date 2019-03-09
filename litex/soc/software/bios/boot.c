@@ -28,9 +28,14 @@ static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, uns
 #ifdef __picorv32__
 	ctrl_progaddr_irq_write(addr + 0x00000010);
 #endif
+/* FIXME: understand why flushing icache on Vexriscv make boot fail  */
+#ifndef __vexriscv__
 	flush_cpu_icache();
+#endif
 	flush_cpu_dcache();
+#ifdef L2_SIZE
 	flush_l2_cache();
+#endif
 	boot_helper(r1, r2, r3, addr);
 	while(1);
 }

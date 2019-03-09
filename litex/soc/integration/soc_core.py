@@ -1,15 +1,23 @@
+import struct
 import inspect
 from operator import itemgetter
 
 from migen import *
 
 from litex.soc.cores import identifier, timer, uart
-from litex.soc.cores.cpu import lm32, mor1kx, picorv32, vexriscv
+from litex.soc.cores.cpu import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 
 
-__all__ = ["mem_decoder", "SoCCore", "soc_core_args", "soc_core_argdict"]
+__all__ = [
+    "mem_decoder",
+    "get_mem_data",
+    "csr_map_update",
+    "SoCCore",
+    "soc_core_args",
+    "soc_core_argdict"
+]
 
 
 def version(with_time=True):
@@ -27,6 +35,26 @@ def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
 
+def get_mem_data(filename, endianness="big", mem_size=None):
+    data = []
+    with open(filename, "rb") as mem_file:
+        while True:
+            w = mem_file.read(4)
+            if not w:
+                break
+            if endianness == "little":
+                data.append(struct.unpack("<I", w)[0])
+            else:
+                data.append(struct.unpack(">I", w)[0])
+    data_size = len(data)*4
+    assert data_size > 0
+    if mem_size is not None:
+        assert data_size < mem_size, (
+            "file is too big: {}/{} bytes".format(
+                data_size, mem_size))
+    return data
+
+
 class ReadOnlyDict(dict):
     def __readonly__(self, *args, **kwargs):
         raise RuntimeError("Cannot modify ReadOnlyDict")
@@ -38,6 +66,11 @@ class ReadOnlyDict(dict):
     update = __readonly__
     setdefault = __readonly__
     del __readonly__
+
+
+def csr_map_update(csr_map, csr_peripherals):
+    csr_map.update(dict((n, v)
+        for v, n in enumerate(csr_peripherals, start=max(csr_map.values()) + 1)))
 
 
 class SoCController(Module, AutoCSR):
@@ -100,6 +133,7 @@ class SoCCore(Module):
                 csr_data_width=8, csr_address_width=14, csr_expose=False,
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
+                wishbone_timeout_cycles=1e6,
                 reserve_nmi_interrupt=True,
                 with_timer=True,
                 with_ctrl=True):
@@ -108,6 +142,8 @@ class SoCCore(Module):
         self.platform = platform
         self.clk_freq = clk_freq
 
+        if cpu_type == "None":
+            cpu_type = None
         self.cpu_type = cpu_type
         self.cpu_variant = cpu_variant
         if integrated_rom_size:
@@ -124,6 +160,8 @@ class SoCCore(Module):
         self.uart_baudrate = uart_baudrate
 
         self.shadow_base = shadow_base
+
+        self.wishbone_timeout_cycles = wishbone_timeout_cycles
 
         self.csr_data_width = csr_data_width
         self.csr_address_width = csr_address_width
@@ -145,22 +183,24 @@ class SoCCore(Module):
 
         if cpu_type is not None:
             if cpu_type == "lm32":
-                self.add_cpu_or_bridge(lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "or1k":
-                self.add_cpu_or_bridge(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "picorv32":
-                self.add_cpu_or_bridge(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
                 if with_ctrl:
                     # wire up the programmable interrupt vector from CSR storage to picorv32 input
-                    self.comb += self.cpu_or_bridge.progaddr_irq.eq(self.ctrl.progaddr_irq)
+                    self.comb += self.cpu.progaddr_irq.eq(self.ctrl.progaddr_irq)
             elif cpu_type == "vexriscv":
-                self.add_cpu_or_bridge(vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_cpu(vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
+            elif cpu_type == "minerva":
+                self.add_cpu(minerva.Minerva(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
-            self.add_wb_master(self.cpu_or_bridge.ibus)
-            self.add_wb_master(self.cpu_or_bridge.dbus)
+            self.add_wb_master(self.cpu.ibus)
+            self.add_wb_master(self.cpu.dbus)
             if with_ctrl:
-                self.comb += self.cpu_or_bridge.reset.eq(self.ctrl.reset)
+                self.comb += self.cpu.reset.eq(self.ctrl.reset)
         self.config["CPU_TYPE"] = str(cpu_type).upper()
         if self.cpu_variant:
             self.config["CPU_VARIANT"] = str(cpu_type).upper()
@@ -237,12 +277,17 @@ class SoCCore(Module):
         self.interrupt_rmap = ReadOnlyDict(interrupt_rmap)
 
 
-    def add_cpu_or_bridge(self, cpu_or_bridge):
+    def add_cpu(self, cpu):
         if self.finalized:
             raise FinalizeError
-        if hasattr(self, "cpu_or_bridge"):
+        if hasattr(self, "cpu"):
             raise NotImplementedError("More than one CPU is not supported")
-        self.submodules.cpu_or_bridge = cpu_or_bridge
+        self.submodules.cpu = cpu
+
+    def add_cpu_or_bridge(self, cpu_or_bridge):
+        print("[WARNING] Please update SoCCore's \"add_cpu_or_bridge\" call to \"add_cpu\"")
+        self.add_cpu(cpu_or_bridge)
+        self.cpu_or_bridge = self.cpu
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
@@ -277,6 +322,10 @@ class SoCCore(Module):
 
     def get_memory_regions(self):
         return self._memory_regions
+
+    def check_csr_range(self, name, addr):
+        if addr >= 1<<(self.csr_address_width+2):
+            raise ValueError("{} CSR out of range, increase csr_address_width".format(name))
 
     def check_csr_region(self, name, origin):
         for n, o, l, obj in self._csr_regions:
@@ -325,8 +374,8 @@ class SoCCore(Module):
         if len(self._wb_masters):
             # Wishbone
             self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
-                self._wb_slaves, register=True)
-            if self.with_ctrl:
+                self._wb_slaves, register=True, timeout_cycles=self.wishbone_timeout_cycles)
+            if self.with_ctrl and (self.wishbone_timeout_cycles is not None):
                 self.comb += self.ctrl.bus_error.eq(self.wishbonecon.timeout.error)
 
             # CSR
@@ -340,8 +389,10 @@ class SoCCore(Module):
                 self.submodules.csrcon = csr_bus.Interconnect(
                     self.wishbone2csr.csr, self.csrbankarray.get_buses())
             for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+                self.check_csr_range(name, 0x800*mapaddr)
                 self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
             for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+                self.check_csr_range(name, 0x800*mapaddr)
                 self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
             for name, constant in self.csrbankarray.constants:
                 self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
@@ -349,14 +400,15 @@ class SoCCore(Module):
                 self._constants.append(("CONFIG_" + name.upper(), value))
 
             # Interrupts
-            if hasattr(self.cpu_or_bridge, "interrupt"):
-                for interrupt, mod_name in sorted(self.interrupt_rmap.items()):
-                    if mod_name == "nmi":
-                        continue
-                    if hasattr(self, mod_name):
-                        mod_impl = getattr(self, mod_name)
-                        assert hasattr(mod_impl, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % mod_name
-                        self.comb += self.cpu_or_bridge.interrupt[interrupt].eq(mod_impl.ev.irq)
+            if hasattr(self, "cpu"):
+                if hasattr(self.cpu, "interrupt"):
+                    for interrupt, mod_name in sorted(self.interrupt_rmap.items()):
+                        if mod_name == "nmi":
+                            continue
+                        if hasattr(self, mod_name):
+                            mod_impl = getattr(self, mod_name)
+                            assert hasattr(mod_impl, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % mod_name
+                            self.comb += self.cpu.interrupt[interrupt].eq(mod_impl.ev.irq)
 
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
@@ -364,18 +416,25 @@ class SoCCore(Module):
 
 def soc_core_args(parser):
     parser.add_argument("--cpu-type", default=None,
-                        help="select CPU: lm32, or1k, riscv32")
+                        help="select CPU: lm32, or1k, picorv32, vexriscv, minerva")
     parser.add_argument("--cpu-variant", default=None,
                         help="select CPU variant")
     parser.add_argument("--integrated-rom-size", default=None, type=int,
                         help="size/enable the integrated (BIOS) ROM")
     parser.add_argument("--integrated-main-ram-size", default=None, type=int,
                         help="size/enable the integrated main RAM")
+    parser.add_argument("--uart-stub", default=False, type=bool,
+                        help="enable uart stub")
 
 
 def soc_core_argdict(args):
     r = dict()
-    for a in "cpu_type", "cpu_variant", "integrated_rom_size", "integrated_main_ram_size":
+    for a in [
+        "cpu_type",
+        "cpu_variant",
+        "integrated_rom_size",
+        "integrated_main_ram_size",
+        "uart_stub"]:
         arg = getattr(args, a)
         if arg is not None:
             r[a] = arg

@@ -5,72 +5,59 @@ from migen import *
 
 from litex.soc.interconnect.csr import CSRStatus
 
-cpu_endianness = {
-    "lm32": "big",
-    "or1k": "big",
-    "picorv32": "little",
-    "vexriscv": "little"
-}
-
 def get_cpu_mak(cpu):
+    # select between clang and gcc
     clang = os.getenv("CLANG", "")
     if clang != "":
         clang = bool(int(clang))
     else:
         clang = None
-
-    if cpu == "lm32":
-        assert not clang, "lm32 not supported with clang."
-        triple = "lm32-elf"
-        cpuflags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
-        clang = False
-    elif cpu == "or1k":
-        # Default to CLANG unless told otherwise
-        if clang is None:
-           clang = True
-
-        triple = "or1k-elf"
-        cpuflags = "-mhard-mul -mhard-div -mror"
+    if not hasattr(cpu, "clang_triple"):
         if clang:
-            triple = "or1k-linux"
-            cpuflags += "-mffl1 -maddc"
-    elif cpu == "picorv32":
-        assert not clang, "picorv32 not supported with clang."
-        if which("riscv64-unknown-elf-gcc"):
-            triple = "riscv64-unknown-elf"
+            raise ValueError(cpu.name + "not supported with clang.")
         else:
-            triple = "riscv32-unknown-elf"
-        cpuflags = "-D__picorv32__ -mno-save-restore -march=rv32im -mabi=ilp32"
-        clang = False
-    elif cpu == "vexriscv":
-        assert not clang, "vexriscv not supported with clang."
-        if which("riscv64-unknown-elf-gcc"):
-            triple = "riscv64-unknown-elf"
-        else:
-            triple = "riscv32-unknown-elf"
-        cpuflags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
-        clang = False
+            clang = False
     else:
-        raise ValueError("Unsupported CPU type: "+cpu)
-
+        # Default to clang unless told otherwise
+        if clang is None:
+            clang = True
     assert isinstance(clang, bool)
+    if clang:
+        triple = cpu.clang_triple
+        flags = cpu.clang_flags
+    else:
+        triple = cpu.gcc_triple
+        flags = cpu.gcc_flags
+
+    # select triple when more than one
+    def select_triple(triple):
+        r = None
+        if not isinstance(triple, tuple):
+            triple = (triple,)
+        for i in range(len(triple)):
+            t = triple[i]
+            if which(t+"-gcc"):
+                r = t
+                break
+        if r is None:
+            msg = "Unable to find any of the cross compilation toolchains:\n"
+            for i in range(len(triple)):
+                msg += "- " + triple[i] + "\n"
+            raise OSError(msg)
+        return r
+
+    # return informations
     return [
-        ("TRIPLE", triple),
-        ("CPU", cpu),
-        ("CPUFLAGS", cpuflags),
-        ("CPUENDIANNESS", cpu_endianness[cpu]),
+        ("TRIPLE", select_triple(triple)),
+        ("CPU", cpu.name),
+        ("CPUFLAGS", flags),
+        ("CPUENDIANNESS", cpu.endianness),
         ("CLANG", str(int(clang)))
     ]
 
 
-def get_linker_output_format(cpu_type):
-    linker_output_formats = {
-        "lm32": "elf32-lm32",
-        "or1k": "elf32-or1k",
-        "picorv32": "elf32-littleriscv",
-        "vexriscv": "elf32-littleriscv"
-    }
-    return "OUTPUT_FORMAT(\"" + linker_output_formats[cpu_type] + "\")\n"
+def get_linker_output_format(cpu):
+    return "OUTPUT_FORMAT(\"" + cpu.linker_output_format + "\")\n"
 
 
 def get_linker_regions(regions):
@@ -112,12 +99,12 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
     if with_access_functions:
         r += "static inline "+ctype+" "+reg_name+"_read(void) {\n"
         if size > 1:
-            r += "\t"+ctype+" r = MMPTR("+hex(reg_base)+");\n"
+            r += "\t"+ctype+" r = csr_readl("+hex(reg_base)+");\n"
             for byte in range(1, nwords):
-                r += "\tr <<= "+str(busword)+";\n\tr |= MMPTR("+hex(reg_base+4*byte)+");\n"
+                r += "\tr <<= "+str(busword)+";\n\tr |= csr_readl("+hex(reg_base+4*byte)+");\n"
             r += "\treturn r;\n}\n"
         else:
-            r += "\treturn MMPTR("+hex(reg_base)+");\n}\n"
+            r += "\treturn csr_readl("+hex(reg_base)+");\n}\n"
 
         if not read_only:
             r += "static inline void "+reg_name+"_write("+ctype+" value) {\n"
@@ -127,7 +114,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
                     value_shifted = "value >> "+str(shift)
                 else:
                     value_shifted = "value"
-                r += "\tMMPTR("+hex(reg_base+4*word)+") = "+value_shifted+";\n"
+                r += "\tcsr_writel("+value_shifted+", "+hex(reg_base+4*word)+");\n"
             r += "}\n"
     return r
 
@@ -135,11 +122,22 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
 def get_csr_header(regions, constants, with_access_functions=True, with_shadow_base=True, shadow_base=0x80000000):
     r = "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
+        r += "#include <stdint.h>\n"
+        r += "#ifdef CSR_ACCESSORS_DEFINED\n"
+        r += "extern void csr_writeb(uint8_t value, uint32_t addr);\n"
+        r += "extern uint8_t csr_readb(uint32_t addr);\n"
+        r += "extern void csr_writew(uint16_t value, uint32_t addr);\n"
+        r += "extern uint16_t csr_readw(uint32_t addr);\n"
+        r += "extern void csr_writel(uint32_t value, uint32_t addr);\n"
+        r += "extern uint32_t csr_readl(uint32_t addr);\n"
+        r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
         r += "#include <hw/common.h>\n"
+        r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
     for name, origin, busword, obj in regions:
         if not with_shadow_base:
             origin &= (~shadow_base)
         if isinstance(obj, Memory):
+            r += "\n/* "+name+" */\n"
             r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
         else:
             r += "\n/* "+name+" */\n"

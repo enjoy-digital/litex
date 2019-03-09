@@ -1,3 +1,5 @@
+import math
+
 from migen import *
 from migen.genlib.record import *
 from migen.genlib import fifo
@@ -41,12 +43,12 @@ class EndpointDescription:
 
 
 class Endpoint(Record):
-    def __init__(self, description_or_layout):
+    def __init__(self, description_or_layout, name=None, **kwargs):
         if isinstance(description_or_layout, EndpointDescription):
             self.description = description_or_layout
         else:
             self.description = EndpointDescription(description_or_layout)
-        Record.__init__(self, self.description.get_full_layout())
+        Record.__init__(self, self.description.get_full_layout(), name, **kwargs)
 
     def __getattr__(self, name):
         try:
@@ -104,8 +106,11 @@ class SyncFIFO(_FIFOWrapper):
 
 
 class AsyncFIFO(_FIFOWrapper):
-    def __init__(self, layout, depth):
-        _FIFOWrapper.__init__(self, fifo.AsyncFIFO, layout, depth)
+    def __init__(self, layout, depth, buffered=False):
+        _FIFOWrapper.__init__(
+            self,
+            fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
+            layout, depth)
 
 
 class Multiplexer(Module):
@@ -354,6 +359,61 @@ class StrideConverter(Module):
         else:
             raise ValueError
 
+
+def lcm(a, b):
+    return (a*b)//math.gcd(a, b)
+
+
+def inc_mod(s, m):
+    return [s.eq(s + 1), If(s == (m -1), s.eq(0))]
+
+
+class Gearbox(Module):
+    def __init__(self, i_dw, o_dw):
+        self.sink = sink = Endpoint([("data", i_dw)])
+        self.source = source = Endpoint([("data", o_dw)])
+
+        # # #
+
+        io_lcm = lcm(i_dw, o_dw)
+
+        # control path
+
+        level     = Signal(max=io_lcm)
+        i_inc    = Signal()
+        i_count  = Signal(max=io_lcm//i_dw)
+        o_inc   = Signal()
+        o_count = Signal(max=io_lcm//o_dw)
+
+        self.comb += [
+            sink.ready.eq(level < (io_lcm - i_dw)),
+            source.valid.eq(level >= o_dw),
+        ]
+        self.comb += [
+            i_inc.eq(sink.valid & sink.ready),
+            o_inc.eq(source.valid & source.ready)
+        ]
+        self.sync += [
+            If(i_inc, *inc_mod(i_count, io_lcm//i_dw)),
+            If(o_inc, *inc_mod(o_count, io_lcm//o_dw)),
+            If(i_inc & ~o_inc, level.eq(level + i_dw)),
+            If(~i_inc & o_inc, level.eq(level - o_dw)),
+            If(i_inc & o_inc, level.eq(level + i_dw - o_dw))
+        ]
+
+        # data path
+
+        shift_register = Signal(io_lcm)
+
+        i_cases = {}
+        for i in range(io_lcm//i_dw):
+            i_cases[i] = shift_register[io_lcm - i_dw*(i+1):io_lcm - i_dw*i].eq(sink.data)
+        self.sync += If(sink.valid & sink.ready, Case(i_count, i_cases))
+
+        o_cases = {}
+        for i in range(io_lcm//o_dw):
+            o_cases[i] = source.data.eq(shift_register[io_lcm - o_dw*(i+1):io_lcm - o_dw*i])
+        self.comb += Case(o_count, o_cases)
 
 # TODO: clean up code below
 # XXX

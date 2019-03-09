@@ -38,7 +38,12 @@ class CommUART:
             remaining -= written
             pos += written
 
+    def _flush(self):
+        if self.port.inWaiting() > 0:
+            self.port.read(self.port.inWaiting())
+
     def read(self, addr, length=None):
+        self._flush()
         data = []
         length_int = 1 if length is None else length
         self._write([self.msg_type["read"], length_int])
@@ -53,6 +58,7 @@ class CommUART:
         return data
 
     def write(self, addr, data):
+        self._flush()
         data = data if isinstance(data, list) else [data]
         length = len(data)
         offset = 0

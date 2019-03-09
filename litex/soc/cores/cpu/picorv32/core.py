@@ -6,7 +6,15 @@ from litex.soc.interconnect import wishbone
 
 
 class PicoRV32(Module):
+    name = "picorv32"
+    endianness = "little"
+    gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
+    gcc_flags_template = "-D__picorv32__ -mno-save-restore -march=rv32{ext} -mabi=ilp32"
+    linker_output_format = "elf32-littleriscv"
+
     def __init__(self, platform, progaddr_reset, variant):
+        self.gcc_flags = ""
+
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -25,31 +33,53 @@ class PicoRV32(Module):
         mem_wstrb = Signal(4)
         mem_rdata = Signal(32)
 
-        self.specials += Instance("picorv32",
-            # parameters
-            p_ENABLE_COUNTERS=1,
-            p_ENABLE_COUNTERS64=1,
-            p_ENABLE_REGS_16_31=1,
-            p_ENABLE_REGS_DUALPORT=1,
-            p_LATCHED_MEM_RDATA=0,
-            p_TWO_STAGE_SHIFT=1,
-            p_TWO_CYCLE_COMPARE=0,
-            p_TWO_CYCLE_ALU=0,
-            p_CATCH_MISALIGN=1,
-            p_CATCH_ILLINSN=1,
-            p_ENABLE_PCPI=0,
-            p_ENABLE_MUL=1,
-            p_ENABLE_DIV=1,
-            p_ENABLE_FAST_MUL=0,
-            p_ENABLE_IRQ=1,
-            p_ENABLE_IRQ_QREGS=1,
-            p_ENABLE_IRQ_TIMER=1,
-            p_ENABLE_TRACE=0,
-            p_MASKED_IRQ=0x00000000,
-            p_LATCHED_IRQ=0xffffffff,
-            p_PROGADDR_RESET=progaddr_reset,
-            p_STACKADDR=0xffffffff,
+        # PicoRV32 parameters. To create a new variant, modify this dictionary
+        # and change the desired parameters.
+        picorv32_params = {
+            "p_ENABLE_COUNTERS" : 1,
+            "p_ENABLE_COUNTERS64" : 1,
+            # Changing REGS has no effect as on FPGAs, the registers are
+            # implemented using a register file stored in DPRAM.
+            "p_ENABLE_REGS_16_31" : 1,
+            "p_ENABLE_REGS_DUALPORT" : 1,
+            "p_LATCHED_MEM_RDATA" : 0,
+            "p_TWO_STAGE_SHIFT" : 1,
+            "p_TWO_CYCLE_COMPARE" : 0,
+            "p_TWO_CYCLE_ALU" : 0,
+            "p_CATCH_MISALIGN" : 1,
+            "p_CATCH_ILLINSN" : 1,
+            "p_ENABLE_PCPI" : 0,
+            "p_ENABLE_MUL" : 1,
+            "p_ENABLE_DIV" : 1,
+            "p_ENABLE_FAST_MUL" : 0,
+            "p_ENABLE_IRQ" : 1,
+            "p_ENABLE_IRQ_QREGS" : 1,
+            "p_ENABLE_IRQ_TIMER" : 1,
+            "p_ENABLE_TRACE" : 0,
+            "p_MASKED_IRQ" : 0x00000000,
+            "p_LATCHED_IRQ" : 0xffffffff,
+            "p_PROGADDR_RESET" : progaddr_reset,
+            # "p_PROGADDR_IRQ" : progaddr_reset + 0x00000010,
+            "p_STACKADDR" : 0xffffffff
+        }
 
+        if variant == None:
+            self.gcc_flags = PicoRV32.gcc_flags_template.format(ext="im")
+        elif variant == "minimal":
+            picorv32_params.update({
+                "p_ENABLE_COUNTERS" : 0,
+                "p_ENABLE_COUNTERS64" : 0,
+                "p_TWO_STAGE_SHIFT" : 0,
+                "p_CATCH_MISALIGN" : 0,
+                "p_ENABLE_MUL" : 0,
+                "p_ENABLE_DIV" : 0,
+                "p_ENABLE_IRQ_TIMER" : 0
+            })
+            self.gcc_flags = PicoRV32.gcc_flags_template.format(ext="i")
+
+        self.specials += Instance("picorv32",
+            # parameters dictionary
+            **picorv32_params,
             # clock / reset
             i_clk=ClockSignal(),
             i_resetn=~(ResetSignal() | self.reset),

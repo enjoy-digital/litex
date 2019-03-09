@@ -2,42 +2,54 @@ import unittest
 import random
 
 from migen import *
-from migen.genlib.cdc import Gearbox
 
-# TODO:
-# connect two gearbox together:
-# first gearbox: iwidth > owidth
-# second gearbox: iwidth < owidth
-# use 2 clock domains
-# compare input data to output data, should be similar
-# various datawidth/clock ratios
+from litex.soc.interconnect.stream import Gearbox
 
 
-def data_generator(dut):
-    for i in range(256):
-        yield dut.i.eq(i)
+def data_generator(dut, gearbox, datas):
+    prng = random.Random(42)
+    for i, data in enumerate(datas):
+        while prng.randrange(4):
+            yield
+        yield gearbox.sink.valid.eq(1)
+        yield gearbox.sink.data.eq(data)
         yield
-    yield
+        while (yield gearbox.sink.ready) == 0:
+            yield
+        yield gearbox.sink.valid.eq(0)
 
-@passive
-def data_checker(dut):
-    while True:
-        #print((yield dut.o))
-        yield
+
+def data_checker(dut, gearbox, datas):
+        prng = random.Random(42)
+        dut.errors = 0
+        for i, reference in enumerate(datas):
+            yield gearbox.source.ready.eq(1)
+            yield
+            while (yield gearbox.source.valid) == 0:
+                yield
+            data =  (yield gearbox.source.data)
+            if data != reference:
+                dut.errors += 1
+            yield gearbox.source.ready.eq(0)
+            while prng.randrange(4):
+                yield
 
 
 class GearboxDUT(Module):
     def __init__(self):
-        self.submodules.gearbox_down = Gearbox(10, "user", 8, "gearbox")
-        self.submodules.gearbox_up = Gearbox(8, "gearbox", 10, "user")
-        self.comb += self.gearbox_up.i.eq(self.gearbox_down.o)
-        self.i, self.o = self.gearbox_down.i, self.gearbox_up.o
+        self.submodules.gearbox0 = Gearbox(20, 32)
+        self.submodules.gearbox1 = Gearbox(32, 20)
+        self.comb += self.gearbox0.source.connect(self.gearbox1.sink)
 
 
 class TestGearbox(unittest.TestCase):
     def test_gearbox(self):
+        prng = random.Random(42)
         dut = GearboxDUT()
-        generators = {"user": [data_generator(dut), data_checker(dut)]}
-        clocks = {"user": 12.5, "gearbox": 10}
-        run_simulation(dut, generators, clocks, vcd_name="sim.vcd")
-        self.assertEqual(0, 0)
+        datas = [prng.randrange(2**20) for i in range(128)]
+        generators = [
+            data_generator(dut, dut.gearbox0, datas),
+            data_checker(dut, dut.gearbox1, datas)
+        ]
+        run_simulation(dut, generators, vcd_name="sim.vcd")
+        self.assertEqual(dut.errors, 0)

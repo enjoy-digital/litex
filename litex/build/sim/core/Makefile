@@ -1,8 +1,10 @@
 include variables.mak
 
 CC = gcc
-CFLAGS = -Wall -O3 -ggdb
+CFLAGS = -Wall -O3 -ggdb $(if $(COVERAGE), -DVM_COVERAGE)
 LDFLAGS = -lpthread -ljson-c -lm -lstdc++ -ldl -levent
+
+CC_SRCS ?= "--cc dut.v"
 
 SRC_DIR ?= .
 INC_DIR ?= .
@@ -24,12 +26,18 @@ $(OBJS_SIM): %.o: $(SRC_DIR)/%.c
 
 .PHONY: sim
 sim: mkdir $(OBJS_SIM)
-	verilator -Wno-fatal -O3 --cc dut.v --top-module dut --exe \
+	verilator -Wno-fatal -O3 $(CC_SRCS) --top-module dut --exe \
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
 		--top-module dut \
+		$(if $(THREADS), --threads $(THREADS),) \
 		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
 		-LDFLAGS "$(LDFLAGS)" \
-		-trace $(INC_DIR)
+		--trace \
+		$(if $(COVERAGE), --coverage,) \
+		--unroll-count 256 \
+		$(INC_DIR) \
+		-Wno-BLKANDNBLK \
+		-Wno-WIDTH
 	make -j -C $(OBJ_DIR) -f Vdut.mk Vdut
 
 .PHONY: modules
