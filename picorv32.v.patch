@@ -1,25 +1,17 @@
 diff --git a/picorv32.v b/picorv32.v
-index af634b4..800253b 100644
+index af634b4..013f660 100644
 --- a/picorv32.v
 +++ b/picorv32.v
-@@ -79,7 +79,6 @@ module picorv32 #(
- 	parameter [31:0] MASKED_IRQ = 32'h 0000_0000,
- 	parameter [31:0] LATCHED_IRQ = 32'h ffff_ffff,
- 	parameter [31:0] PROGADDR_RESET = 32'h 0000_0000,
--	parameter [31:0] PROGADDR_IRQ = 32'h 0000_0010,
- 	parameter [31:0] STACKADDR = 32'h ffff_ffff
- ) (
- 	input clk, resetn,
-@@ -111,6 +110,8 @@ module picorv32 #(
- 	input             pcpi_wait,
- 	input             pcpi_ready,
- 
-+	input 	   [31:0] progaddr_irq,
-+
- 	// IRQ Interface
+@@ -115,6 +115,8 @@ module picorv32 #(
  	input      [31:0] irq,
  	output reg [31:0] eoi,
-@@ -1482,7 +1483,7 @@ module picorv32 #(
+ 
++	input      [31:0] progaddr_irq,
++
+ `ifdef RISCV_FORMAL
+ 	output reg        rvfi_valid,
+ 	output reg [63:0] rvfi_order,
+@@ -1482,7 +1484,7 @@ module picorv32 #(
  						`debug($display("ST_RD:  %2d 0x%08x", latched_rd, latched_stalu ? alu_out_q : reg_out);)
  					end
  					ENABLE_IRQ && irq_state[0]: begin
@@ -28,36 +20,3 @@ index af634b4..800253b 100644
  						irq_active <= 1;
  						mem_do_rinst <= 1;
  					end
-@@ -2597,7 +2598,6 @@ module picorv32_axi #(
- 		.MASKED_IRQ          (MASKED_IRQ          ),
- 		.LATCHED_IRQ         (LATCHED_IRQ         ),
- 		.PROGADDR_RESET      (PROGADDR_RESET      ),
--		.PROGADDR_IRQ        (PROGADDR_IRQ        ),
- 		.STACKADDR           (STACKADDR           )
- 	) picorv32_core (
- 		.clk      (clk   ),
-@@ -2620,6 +2620,7 @@ module picorv32_axi #(
- 		.pcpi_rd   (pcpi_rd   ),
- 		.pcpi_wait (pcpi_wait ),
- 		.pcpi_ready(pcpi_ready),
-+		.progaddr_irq(PROGADDR_IRQ),
- 
- 		.irq(irq),
- 		.eoi(eoi),
-@@ -2861,7 +2862,6 @@ module picorv32_wb #(
- 		.MASKED_IRQ          (MASKED_IRQ          ),
- 		.LATCHED_IRQ         (LATCHED_IRQ         ),
- 		.PROGADDR_RESET      (PROGADDR_RESET      ),
--		.PROGADDR_IRQ        (PROGADDR_IRQ        ),
- 		.STACKADDR           (STACKADDR           )
- 	) picorv32_core (
- 		.clk      (clk   ),
-@@ -2885,6 +2885,8 @@ module picorv32_wb #(
- 		.pcpi_wait (pcpi_wait ),
- 		.pcpi_ready(pcpi_ready),
- 
-+		.progaddr_irq (PROGADDR_IRQ),
-+
- 		.irq(irq),
- 		.eoi(eoi),
- 

@@ -1,0 +1,13 @@
+diff --git a/src/lib/tapcfg_unix_linux.h b/src/lib/tapcfg_unix_linux.h
+index a3649ca..7d80f46 100644
+--- a/src/lib/tapcfg_unix_linux.h
++++ b/src/lib/tapcfg_unix_linux.h
+@@ -61,7 +61,7 @@ tapcfg_start_dev(tapcfg_t *tapcfg, const char *ifname, int fallback)
+ 
+ 	/* Set the device name to be the one we got from OS */
+ 	taplog_log(&tapcfg->taplog, TAPLOG_DEBUG, "Device name %s", ifr.ifr_name);
+-	strncpy(tapcfg->ifname, ifr.ifr_name, sizeof(tapcfg->ifname)-1);
++	strncpy(tapcfg->ifname, ifr.ifr_name, sizeof(tapcfg->ifname));
+ 
+ 	/* Create a temporary socket for SIOCGIFHWADDR */
+ 	s = socket(AF_INET, SOCK_DGRAM, 0);

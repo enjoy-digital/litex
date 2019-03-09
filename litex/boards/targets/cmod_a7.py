@@ -49,7 +49,7 @@ class BaseSoC(SoCCore):
         soc_core_args(parser)
         parser.add_argument("--clk_freq", type=int, default=int(100e6),
                             help="Clock frequency [Hz]")
-        parser.add_argument("--platform", default="cmod_a7",
+        parser.add_argument("--platform", default="litex.boards.platforms.cmod_a7",
                             help="Hardware platform module name")
         parser.add_argument("--spiflash", default="None",
                             choices=["None", "spiflash_1x", "spiflash_4x"],
@@ -62,7 +62,7 @@ class BaseSoC(SoCCore):
         platform_module = importlib.import_module(kwargs["platform"])
         try:
             platform = platform_module.Platform()
-        except Exception:
+        except AttributeError:
             platform = platform_module.SimPlatform()
         self.platform = platform
         print("platform", platform)
