@@ -135,6 +135,14 @@ class VexRiscv(Module, AutoCSR):
             i.err.eq(i_err),
             d.err.eq(d_err),
         ]
+
+        timer = Signal(15)
+        timerInterrupt = Signal()
+        self.sync += [
+            timer.eq(timer + 1),
+            timerInterrupt.eq(timer == 0)
+        ]
+
         self.specials += Instance("VexRiscv",
                 **cpu_args,
 
@@ -145,7 +153,7 @@ class VexRiscv(Module, AutoCSR):
                 i_externalInterruptArray=self.interrupt,
                 i_timerInterrupt=0,
 
-                i_timerInterruptS=0,
+                i_timerInterruptS=timerInterrupt,
                 i_externalInterrupt=0,
 
                 o_iBusWishbone_ADR=i.adr,
