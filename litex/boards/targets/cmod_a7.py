@@ -3,45 +3,36 @@ Target support for the Digilent Cmod A7 Board
 Inherit from the BaseSoC class in your design
 """
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores import spi_flash
-from litex.soc.cores.clock import period_ns, S7MMCM
+from litex.soc.cores.clock import S7MMCM
 import argparse
 import importlib
 from pprint import pprint
-
-class _CRG(Module):
-    """
-    clock and reset generator
-    Inherit from this class to make sys_clk adjustable
-    """
-    def __init__(self, platform, clk_freq):
-        self.clock_domains.cd_sys = ClockDomain()
-        # self.clock_domains.cd_clk200 = ClockDomain()
-        self.submodules.mmcm = mmcm = S7MMCM(speedgrade=-1)
-        mmcm.register_clkin(platform.request("clk12"), 12e6)
-        # create_clkout also takes care of generating BUFG / BUFR instances
-        mmcm.create_clkout(self.cd_sys, clk_freq)
-        # mmcm.create_clkout(self.cd_clk200, 200e6)
-        # self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
-
-        # Add reset button
-        # self.comb += mmcm.reset.eq(~platform.request("cpu_reset"))
-
-        # Not sure if needed?
-        self.cd_sys.clk.attr.add("keep")
-        platform.add_period_constraint(
-            self.cd_sys.clk,
-            period_ns(clk_freq)
-        )
 
 
 class NamespaceView(object):
     """ hack to address a dict() with . notation """
     def __init__(self, d):
         self.__dict__ = d
+
+
+class _CRG(Module):
+    """
+    clock and reset generator
+    clk should be a 12 MHz clock
+    creates a cd_sys ClockDomain of clk_freq Hz
+    """
+    def __init__(self, clk, clk_freq=int(100e6)):
+        self.clock_domains.cd_sys = ClockDomain()
+        # self.clock_domains.cd_clk200 = ClockDomain()
+        self.submodules.mmcm = mmcm = S7MMCM(speedgrade=-1)
+        mmcm.register_clkin(clk, 12e6)
+        # create_clkout also takes care of generating BUFG / BUFR instances
+        mmcm.create_clkout(self.cd_sys, clk_freq)
+        # mmcm.create_clkout(self.cd_clk200, 200e6)
+        # self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
 
 class BaseSoC(SoCCore):
@@ -59,24 +50,22 @@ class BaseSoC(SoCCore):
         pprint(kwargs)
 
         # Find the platform module
-        platform_module = importlib.import_module(kwargs["platform"])
-        try:
-            platform = platform_module.Platform()
-        except AttributeError:
-            platform = platform_module.SimPlatform()
-        self.platform = platform
+        platform = importlib.import_module(kwargs["platform"]).Platform()
         print("platform", platform)
-
+        self.platform = kwargs["platform"] = platform
         # Add reset and clocking
-        self.submodules.crg = _CRG(platform, kwargs["clk_freq"])
-
+        if "crg" in kwargs:
+            self.submodules.crg = kwargs["crg"](
+                platform.request("sys_clk"),
+                kwargs["clk_freq"]
+            )
+        else:
+            self.submodules.crg = _CRG(
+                platform.request("clk12"),
+                kwargs["clk_freq"]
+            )
         self.addMemories(**kwargs)
-        SoCCore.__init__(
-            self,
-            platform,
-            kwargs["clk_freq"],
-            **soc_core_argdict(NamespaceView(kwargs))
-        )
+        SoCCore.__init__(self, **kwargs)
 
     def addMemories(self, **kwargs):
         # spi flash

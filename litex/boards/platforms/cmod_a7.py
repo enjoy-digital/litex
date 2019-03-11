@@ -1,6 +1,7 @@
 # This file is Copyright (c) 2017 Tim 'mithro' Ansell <mithro@mithro.com>
 # License: BSD
 
+from migen import *
 from litex.build.generic_platform import *
 from litex.build.openocd import OpenOCD
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
@@ -136,7 +137,6 @@ _con = [
     #set_property -dict { PACKAGE_PIN K18   IOSTANDARD LVCMOS33 } [get_ports { ja[7] }]; #IO_L8N_T1_D12_14 Sch=ja[10]
     ("PMOD", "G17 G19 N18 L18 H17 H19 J19 K18")
 ]
-
 
 class Platform(XilinxPlatform):
     name = "cmod_a7"
