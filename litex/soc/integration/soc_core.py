@@ -136,7 +136,7 @@ class SoCCore(Module):
                 wishbone_timeout_cycles=1e6,
                 reserve_nmi_interrupt=True,
                 with_timer=True,
-                with_ctrl=True):
+                with_ctrl=True, **kwargs):
         self.config = dict()
 
         self.platform = platform
