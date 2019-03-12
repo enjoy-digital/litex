@@ -505,10 +505,7 @@ int main(int i, char **c)
 {
 	char buffer[64];
 	int sdr_ok;
-#ifdef __picorv32__
-	// Set picorv32 interrupt vector to 0x10
-	ctrl_progaddr_irq_write( 0x00000010 );
-#endif
+
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
