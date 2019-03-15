@@ -155,8 +155,8 @@ class VexRiscv(Module, AutoCSR):
             "std_debug":  "VexRiscv_Debug.v",
             "lite":       "VexRiscv_Lite.v",
             "lite_debug": "VexRiscv_LiteDebug.v",
-            "min":        "VexRiscv_Lite.v",
-            "min_debug":  "VexRiscv_LiteDebug.v",
+            "min":        "VexRiscv_Min.v",
+            "min_debug":  "VexRiscv_MinDebug.v",
         }
         cpu_filename = verilog_variants[variant]
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
