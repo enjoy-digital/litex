@@ -1,5 +1,7 @@
+import os
 import struct
 import inspect
+import json
 from operator import itemgetter
 
 from migen import *
@@ -36,24 +38,43 @@ def mem_decoder(address, start=26, end=29):
 
 
 def get_mem_data(filename, endianness="big", mem_size=None):
-    data = []
-    with open(filename, "rb") as mem_file:
-        while True:
-            w = mem_file.read(4)
-            if not w:
-                break
-            if endianness == "little":
-                data.append(struct.unpack("<I", w)[0])
-            else:
-                data.append(struct.unpack(">I", w)[0])
-    data_size = len(data)*4
+    # create memory regions
+    _, ext = os.path.splitext(filename)
+    if ext == ".json":
+        f = open(filename, "r")
+        regions = json.load(f)
+        f.close()
+    else:
+        regions = {filename: "0x00000000"}
+
+    # determine data_size
+    data_size = 0
+    for filename, base in regions.items():
+        data_size = max(int(base, 16) + os.path.getsize(filename), data_size)
     assert data_size > 0
     if mem_size is not None:
         assert data_size < mem_size, (
             "file is too big: {}/{} bytes".format(
-                data_size, mem_size))
-    return data
+             data_size, mem_size))
 
+    # fill data
+    data = [0]*(data_size//4)
+    for filename, base in regions.items():
+        with open(filename, "rb") as f:
+            i = 0
+            while True:
+                w = f.read(4)
+                if not w:
+                    break
+                if len(w) != 4:
+                    for i in range(len(w), 4):
+                        w += b'\x00'
+                if endianness == "little":
+                    data[i] = struct.unpack("<I", w)[0]
+                else:
+                    data[i] = struct.unpack(">I", w)[0]
+                i += 1
+    return data
 
 class ReadOnlyDict(dict):
     def __readonly__(self, *args, **kwargs):
