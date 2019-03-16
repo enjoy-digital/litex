@@ -215,14 +215,20 @@ def main():
 
     sim_config = SimConfig(default_clk="sys_clk")
     sim_config.add_module("serial2console", "serial")
+
+    cpu_endianness = "big"
+    if "cpu_type" in soc_kwargs:
+        if soc_kwargs["cpu_type"] in ["picorv32", "vexriscv"]:
+            cpu_endianness = "little"
+
     if args.rom_init:
-        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init)
+        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
     if not args.with_sdram:
-        soc_kwargs["integrated_main_ram_size"] = 0x10000
+        soc_kwargs["integrated_main_ram_size"] = 0x1000000 # 256 MB
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init)
-            soc_kwargs["integrated_main_ram_size"] = max(len(soc_kwargs["integrated_main_ram_init"]), 0x10000)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu_endianness)
     else:
+        assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
     if args.with_ethernet:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
@@ -235,6 +241,8 @@ def main():
         with_etherbone=args.with_etherbone,
         with_analyzer=args.with_analyzer,
         **soc_kwargs)
+    if args.ram_init is not None:
+        soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     vns = builder.build(run=False, threads=args.threads, sim_config=sim_config, trace=args.trace)
