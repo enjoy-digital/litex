@@ -2,21 +2,28 @@
 # License: BSD
 
 from litex.build.generic_platform import Pins, IOStandard, Subsignal
-from litex.build.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer
-from litex.build.openocd import OpenOCD
+from litex.build.xilinx import XilinxPlatform, XC3SProg, iMPACT
 
 _io = [
     # 4 LEDs above PCIE finger
-    ("user_led", 0, Pins("W15"), IOStandard("LVCMOS33")),
-    ("user_led", 1, Pins("D21"), IOStandard("LVCMOS33")),
-    ("user_led", 2, Pins("AB4"), IOStandard("LVCMOS33")),
-    ("user_led", 3, Pins("D17"), IOStandard("LVCMOS33")),
+    ("user_led", 0, Pins("D17"), IOStandard("LVCMOS25")),
+    ("user_led", 1, Pins("AB4"), IOStandard("LVCMOS25")),
+    ("user_led", 2, Pins("D21"), IOStandard("LVCMOS25")),
+    ("user_led", 3, Pins("W15"), IOStandard("LVCMOS25")),
 
-    ("user_btn", 0, Pins("F3"), IOStandard("LVCMOS33")),
-    ("user_btn", 1, Pins("G6"), IOStandard("LVCMOS33")),
-    ("user_btn", 2, Pins("F5"), IOStandard("LVCMOS33")),
-    ("user_btn", 3, Pins("C1"), IOStandard("LVCMOS33")),
-    ("cpu_reset", 0, Pins("H8"), IOStandard("LVCMOS33")),
+    ("user_btn", 0, Pins("F3"), IOStandard("LVCMOS15")),
+    ("user_btn", 1, Pins("G6"), IOStandard("LVCMOS15")),
+    ("user_btn", 2, Pins("F5"), IOStandard("LVCMOS15")),
+    ("user_btn", 3, Pins("C1"), IOStandard("LVCMOS15")),
+    ("cpu_reset", 0, Pins("H8"), IOStandard("LVCMOS15")),
+
+    ("serial", 0,
+        Subsignal("cts", Pins("F19")),
+        Subsignal("rts", Pins("F18")),
+        Subsignal("tx", Pins("B21")),
+        Subsignal("rx", Pins("H17")),
+        IOStandard("LVCMOS25")
+    ),
 
     ("clk200", 0,
         Subsignal("p", Pins("K21"), IOStandard("LVDS_25")),
@@ -25,8 +32,9 @@ _io = [
 ]
 
 _connectors = [
-
+    # t.b.a
 ]
+
 
 class Platform(XilinxPlatform):
     default_clk_name = "clk200"
@@ -43,7 +51,9 @@ class Platform(XilinxPlatform):
 
     def create_programmer(self, programmer="xc3sprog"):
         if programmer == "xc3sprog":
-            return XC3SProg("jtaghs2")
+            return XC3SProg("xpc", p=1)
+        elif programmer == "impact":
+            return iMPACT()
         else:
             raise ValueError("{} programmer is not supported"
                              .format(programmer))
