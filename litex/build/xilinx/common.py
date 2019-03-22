@@ -265,7 +265,7 @@ setattr -set keep 1 a:async_reg=true
 
 synth_xilinx -top top
 
-write_edif -attrprop {build_name}.edif
+write_edif -pvector bra -attrprop {build_name}.edif
 """.format(build_name=build_name)
 
     ys_name = build_name + ".ys"
