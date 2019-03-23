@@ -6,16 +6,16 @@ from litex.build.xilinx import XilinxPlatform, XC3SProg, iMPACT
 
 _io = [
     # 4 LEDs above PCIE finger
-    ("user_led", 0, Pins("D17"), IOStandard("LVCMOS18")),
-    ("user_led", 1, Pins("AB4"), IOStandard("LVCMOS18")),
-    ("user_led", 2, Pins("D21"), IOStandard("LVCMOS18")),
-    ("user_led", 3, Pins("W15"), IOStandard("LVCMOS18")),
+    ("user_led", 0, Pins("D17"), IOStandard("LVCMOS25")),
+    ("user_led", 1, Pins("AB4"), IOStandard("LVCMOS25")),
+    ("user_led", 2, Pins("D21"), IOStandard("LVCMOS25")),
+    ("user_led", 3, Pins("W15"), IOStandard("LVCMOS25")),
 
-    ("user_btn", 0, Pins("F3"), IOStandard("LVCMOS15")),
-    ("user_btn", 1, Pins("G6"), IOStandard("LVCMOS15")),
-    ("user_btn", 2, Pins("F5"), IOStandard("LVCMOS15")),
-    ("user_btn", 3, Pins("C1"), IOStandard("LVCMOS15")),
-    ("cpu_reset", 0, Pins("H8"), IOStandard("LVCMOS15")),
+    ("user_btn", 0, Pins("F3"), IOStandard("LVCMOS25")),
+    ("user_btn", 1, Pins("G6"), IOStandard("LVCMOS25")),
+    ("user_btn", 2, Pins("F5"), IOStandard("LVCMOS25")),
+    ("user_btn", 3, Pins("C1"), IOStandard("LVCMOS25")),
+    ("cpu_reset", 0, Pins("H8"), IOStandard("LVCMOS25")),
 
     ("serial", 0,
         Subsignal("cts", Pins("F19")),
@@ -114,7 +114,20 @@ _connectors = [
         "LA30_P": "Y15",
         "LA30_N": "AB15",
         "LA32_P": "W17"
-    })
+    }),
+    ("SMA_GPIO", {
+        "P": "B3",
+        "N": "A3"
+    }),
+    ("SMA_USER_CLK", {
+        "P": "M20",
+        "N": "M19"
+    }),
+    ("SMA_MGT_CLK", {
+        "P": "C11",
+        "N": "D11"
+    }),
+
 ]
 
 
