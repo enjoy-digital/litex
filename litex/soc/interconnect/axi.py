@@ -78,8 +78,6 @@ class AXI2Wishbone(Module):
                 NextState("DO-WRITE")
             )
         )
-        axi_ar_addr = Signal(32)
-        self.comb += axi_ar_addr.eq(axi.ar.addr - base_address)
         fsm.act("DO-READ",
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
