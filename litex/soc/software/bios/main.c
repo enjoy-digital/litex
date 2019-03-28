@@ -302,8 +302,7 @@ static void wcsr(char *csr, char *value)
 
 static void help(void)
 {
-	puts("LiteX SoC BIOS");
-	puts("Available commands:");
+	puts("LiteX BIOS, available commands:");
 	puts("mr         - read address space");
 	puts("mw         - write address space");
 	puts("mc         - copy address space");
@@ -433,10 +432,10 @@ static void crcbios(void)
 	length = (unsigned int)&_edata - offset_bios;
 	actual_crc = crc32((unsigned char *)offset_bios, length);
 	if(expected_crc == actual_crc)
-		printf("BIOS CRC passed (%08x)\n", actual_crc);
+		printf(" BIOS CRC passed (%08x)\n", actual_crc);
 	else {
-		printf("BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
-		printf("The system will continue, but expect problems.\n");
+		printf(" BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
+		printf(" The system will continue, but expect problems.\n");
 	}
 }
 
@@ -509,12 +508,22 @@ int main(int i, char **c)
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
+
 	printf("\n");
 	printf("\e[1m        __   _ __      _  __\e[0m\n");
 	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
 	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
 	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
-	printf("\e[1m SoC BIOS / CPU: ");
+	printf("\n");
+	printf(" (c) Copyright 2012-2019 Enjoy-Digital\n");
+	printf(" (c) Copyright 2012-2015 M-Labs Ltd\n");
+	printf("\n");
+	printf(" BIOS built on "__DATE__" "__TIME__"\n");
+	crcbios();
+	printf("\n");
+
+	printf("--============ \e[1mSoC info\e[0m ================--\n");
+	printf("\e[1mCPU: \e[0m");
 #ifdef __lm32__
 	printf("LM32");
 #elif __or1k__
@@ -528,13 +537,14 @@ int main(int i, char **c)
 #else
 	printf("Unknown");
 #endif
-	printf(" / %3dMHz\e[0m\n", SYSTEM_CLOCK_FREQUENCY/1000000);
+	printf("\n");
+	printf("\e[1mFrequency\e[0m: %dMHz\n", SYSTEM_CLOCK_FREQUENCY/1000000);
+	printf("\e[1mROM\e[0m:  %dKB\n", ROM_SIZE/1024);
+	printf("\e[1mSRAM\e[0m: %dKB\n", SRAM_SIZE/1024);
+	printf("\e[1mMAIN-RAM\e[0m: %dKB\n", MAIN_RAM_SIZE/1024);
+	printf("\n");
 
-	puts(
-	"(c) Copyright 2012-2018 Enjoy-Digital\n"
-	"(c) Copyright 2007-2018 M-Labs Limited\n"
-	"Built "__DATE__" "__TIME__"\n");
-	crcbios();
+	printf("--========= \e[1mPeripherals init\e[0m ===========--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
@@ -547,11 +557,16 @@ int main(int i, char **c)
 	sdr_ok = 1;
 #endif
 #endif
+	if (sdr_ok !=1)
+		printf("Memory initialization failed\n");
+	printf("\n");
+
+	printf("--========== \e[1mBoot sequence\e[0m =============--\n");
 	if(sdr_ok)
 		boot_sequence();
-	else
-		printf("Memory initialization failed\n");
+	printf("\n");
 
+	printf("--============= \e[1mConsole\e[0m ================--\n");
 	while(1) {
 		putsnonl("\e[1mBIOS>\e[0m ");
 		readstr(buffer, 64);
