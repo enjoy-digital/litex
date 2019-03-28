@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Tilda files
+*~
+
 # C extensions
 *.so
 

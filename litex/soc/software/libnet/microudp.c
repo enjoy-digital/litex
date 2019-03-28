@@ -463,6 +463,7 @@ static void busy_wait(unsigned int ds)
 
 void eth_init(void)
 {
+#ifdef CSR_ETHPHY_CRG_RESET_ADDR
 	ethphy_crg_reset_write(0);
 	busy_wait(2);
 	/* that pesky ethernet PHY needs two resets at times... */
@@ -470,6 +471,7 @@ void eth_init(void)
 	busy_wait(2);
 	ethphy_crg_reset_write(0);
 	busy_wait(2);
+#endif
 }
 
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
