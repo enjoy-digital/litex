@@ -60,12 +60,12 @@ class AXIInterface(Record):
 
 class AXI2Wishbone(Module):
     def __init__(self, axi, wishbone, base_address):
-        assert axi.data_width    == 32
-        assert axi.address_width == 32
+        assert axi.data_width    == len(wishbone.dat_r)
+        assert axi.address_width == len(wishbone.adr) + 2
 
         _data       = Signal(axi.data_width)
-        _read_addr  = Signal(32)
-        _write_addr = Signal(32)
+        _read_addr  = Signal(axi.address_width)
+        _write_addr = Signal(axi.address_width)
 
         self.comb += _read_addr.eq(axi.ar.addr - base_address)
         self.comb += _write_addr.eq(axi.aw.addr - base_address)
