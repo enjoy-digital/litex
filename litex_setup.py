@@ -5,20 +5,23 @@ import sys
 from collections import OrderedDict
 
 
+# This is needed for eg: when you are installing from a fork
+LITEX_ROOT_URL = os.genev("LITEX_URL", "http://github.com/enjoy-digital/")
+
 current_path = os.path.dirname(os.path.realpath(__file__))
 
 # name,  (url, recursive clone, develop)
 repos = [
     ("migen",      ("http://github.com/m-labs/",        True,  True)),
-    ("litex",      ("http://github.com/enjoy-digital/", True,  True)),
-    ("liteeth",    ("http://github.com/enjoy-digital/", False, True)),
-    ("liteusb",    ("http://github.com/enjoy-digital/", False, True)),
-    ("litedram",   ("http://github.com/enjoy-digital/", False, True)),
-    ("litepcie",   ("http://github.com/enjoy-digital/", False, True)),
-    ("litesdcard", ("http://github.com/enjoy-digital/", False, True)),
-    ("liteiclink", ("http://github.com/enjoy-digital/", False, True)),
-    ("litevideo",  ("http://github.com/enjoy-digital/", False, True)),
-    ("litescope",  ("http://github.com/enjoy-digital/", False, True)),
+    ("litex",      (LITEX_ROOT_URL, True,  True)),
+    ("liteeth",    (LITEX_ROOT_URL, False, True)),
+    ("liteusb",    (LITEX_ROOT_URL, False, True)),
+    ("litedram",   (LITEX_ROOT_URL, False, True)),
+    ("litepcie",   (LITEX_ROOT_URL, False, True)),
+    ("litesdcard", (LITEX_ROOT_URL, False, True)),
+    ("liteiclink", (LITEX_ROOT_URL, False, True)),
+    ("litevideo",  (LITEX_ROOT_URL, False, True)),
+    ("litescope",  (LITEX_ROOT_URL, False, True)),
 ]
 repos = OrderedDict(repos)
 
