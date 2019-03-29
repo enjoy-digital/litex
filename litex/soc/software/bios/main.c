@@ -186,118 +186,6 @@ static void ident(void)
 	printf("Ident: %s\n", buffer);
 }
 
-#ifdef __lm32__
-enum {
-	CSR_IE = 1, CSR_IM, CSR_IP, CSR_ICC, CSR_DCC, CSR_CC, CSR_CFG, CSR_EBA,
-	CSR_DC, CSR_DEBA, CSR_JTX, CSR_JRX, CSR_BP0, CSR_BP1, CSR_BP2, CSR_BP3,
-	CSR_WP0, CSR_WP1, CSR_WP2, CSR_WP3,
-};
-
-/* processor registers */
-static int parse_csr(const char *csr)
-{
-	if(!strcmp(csr, "ie"))   return CSR_IE;
-	if(!strcmp(csr, "im"))   return CSR_IM;
-	if(!strcmp(csr, "ip"))   return CSR_IP;
-	if(!strcmp(csr, "icc"))  return CSR_ICC;
-	if(!strcmp(csr, "dcc"))  return CSR_DCC;
-	if(!strcmp(csr, "cc"))   return CSR_CC;
-	if(!strcmp(csr, "cfg"))  return CSR_CFG;
-	if(!strcmp(csr, "eba"))  return CSR_EBA;
-	if(!strcmp(csr, "dc"))   return CSR_DC;
-	if(!strcmp(csr, "deba")) return CSR_DEBA;
-	if(!strcmp(csr, "jtx"))  return CSR_JTX;
-	if(!strcmp(csr, "jrx"))  return CSR_JRX;
-	if(!strcmp(csr, "bp0"))  return CSR_BP0;
-	if(!strcmp(csr, "bp1"))  return CSR_BP1;
-	if(!strcmp(csr, "bp2"))  return CSR_BP2;
-	if(!strcmp(csr, "bp3"))  return CSR_BP3;
-	if(!strcmp(csr, "wp0"))  return CSR_WP0;
-	if(!strcmp(csr, "wp1"))  return CSR_WP1;
-	if(!strcmp(csr, "wp2"))  return CSR_WP2;
-	if(!strcmp(csr, "wp3"))  return CSR_WP3;
-
-	return 0;
-}
-
-static void rcsr(char *csr)
-{
-	unsigned int csr2;
-	register unsigned int value;
-
-	if(*csr == 0) {
-		printf("rcsr <csr>\n");
-		return;
-	}
-
-	csr2 = parse_csr(csr);
-	if(csr2 == 0) {
-		printf("incorrect csr\n");
-		return;
-	}
-
-	switch(csr2) {
-		case CSR_IE:   asm volatile ("rcsr %0,ie":"=r"(value)); break;
-		case CSR_IM:   asm volatile ("rcsr %0,im":"=r"(value)); break;
-		case CSR_IP:   asm volatile ("rcsr %0,ip":"=r"(value)); break;
-		case CSR_CC:   asm volatile ("rcsr %0,cc":"=r"(value)); break;
-		case CSR_CFG:  asm volatile ("rcsr %0,cfg":"=r"(value)); break;
-		case CSR_EBA:  asm volatile ("rcsr %0,eba":"=r"(value)); break;
-		case CSR_DEBA: asm volatile ("rcsr %0,deba":"=r"(value)); break;
-		case CSR_JTX:  asm volatile ("rcsr %0,jtx":"=r"(value)); break;
-		case CSR_JRX:  asm volatile ("rcsr %0,jrx":"=r"(value)); break;
-		default: printf("csr write only\n"); return;
-	}
-
-	printf("%08x\n", value);
-}
-
-static void wcsr(char *csr, char *value)
-{
-	char *c;
-	unsigned int csr2;
-	register unsigned int value2;
-
-	if((*csr == 0) || (*value == 0)) {
-		printf("wcsr <csr> <address>\n");
-		return;
-	}
-
-	csr2 = parse_csr(csr);
-	if(csr2 == 0) {
-		printf("incorrect csr\n");
-		return;
-	}
-	value2 = strtoul(value, &c, 0);
-	if(*c != 0) {
-		printf("incorrect value\n");
-		return;
-	}
-
-	switch(csr2) {
-		case CSR_IE:   asm volatile ("wcsr ie,%0"::"r"(value2)); break;
-		case CSR_IM:   asm volatile ("wcsr im,%0"::"r"(value2)); break;
-		case CSR_ICC:  asm volatile ("wcsr icc,%0"::"r"(value2)); break;
-		case CSR_DCC:  asm volatile ("wcsr dcc,%0"::"r"(value2)); break;
-		case CSR_EBA:  asm volatile ("wcsr eba,%0"::"r"(value2)); break;
-		case CSR_DC:   asm volatile ("wcsr dcc,%0"::"r"(value2)); break;
-		case CSR_DEBA: asm volatile ("wcsr deba,%0"::"r"(value2)); break;
-		case CSR_JTX:  asm volatile ("wcsr jtx,%0"::"r"(value2)); break;
-		case CSR_JRX:  asm volatile ("wcsr jrx,%0"::"r"(value2)); break;
-		case CSR_BP0:  asm volatile ("wcsr bp0,%0"::"r"(value2)); break;
-		case CSR_BP1:  asm volatile ("wcsr bp1,%0"::"r"(value2)); break;
-		case CSR_BP2:  asm volatile ("wcsr bp2,%0"::"r"(value2)); break;
-		case CSR_BP3:  asm volatile ("wcsr bp3,%0"::"r"(value2)); break;
-		case CSR_WP0:  asm volatile ("wcsr wp0,%0"::"r"(value2)); break;
-		case CSR_WP1:  asm volatile ("wcsr wp1,%0"::"r"(value2)); break;
-		case CSR_WP2:  asm volatile ("wcsr wp2,%0"::"r"(value2)); break;
-		case CSR_WP3:  asm volatile ("wcsr wp3,%0"::"r"(value2)); break;
-		default: printf("csr read only\n"); return;
-	}
-}
-
-#endif /* __lm32__ */
-
 /* Init + command line */
 
 static void help(void)
@@ -306,12 +194,10 @@ static void help(void)
 	puts("mr         - read address space");
 	puts("mw         - write address space");
 	puts("mc         - copy address space");
+	puts("");
 	puts("crc        - compute CRC32 of a part of the address space");
 	puts("ident      - display identifier");
-#ifdef __lm32__
-	puts("rcsr       - read processor CSR");
-	puts("wcsr       - write processor CSR");
-#endif
+	puts("");
 #ifdef CSR_CTRL_BASE
 	puts("reboot     - reset processor");
 #endif
@@ -325,6 +211,7 @@ static void help(void)
 #ifdef ROM_BOOT_ADDRESS
 	puts("romboot    - boot from embedded rom");
 #endif
+	puts("");
 #ifdef CSR_SDRAM_BASE
 	puts("memtest    - run a memory test");
 #endif
@@ -383,11 +270,6 @@ static void do_command(char *c)
 #endif
 
 	else if(strcmp(token, "help") == 0) help();
-
-#ifdef __lm32__
-	else if(strcmp(token, "rcsr") == 0) rcsr(get_token(&c));
-	else if(strcmp(token, "wcsr") == 0) wcsr(get_token(&c), get_token(&c));
-#endif
 
 #ifdef CSR_SDRAM_BASE
 	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
