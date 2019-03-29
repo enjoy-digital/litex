@@ -6,7 +6,8 @@ from collections import OrderedDict
 
 
 # This is needed for eg: when you are installing from a fork
-LITEX_ROOT_URL = os.genev("LITEX_URL", "http://github.com/enjoy-digital/")
+LITEX_ROOT_URL = os.genev("LITEX_ROOT_URL", "http://github.com/enjoy-digital/")
+LITEOTHER_ROOT_URL = os.genev("LITEOTHER_ROOT_URL", "http://github.com/enjoy-digital/")
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -14,14 +15,14 @@ current_path = os.path.dirname(os.path.realpath(__file__))
 repos = [
     ("migen",      ("http://github.com/m-labs/",        True,  True)),
     ("litex",      (LITEX_ROOT_URL, True,  True)),
-    ("liteeth",    (LITEX_ROOT_URL, False, True)),
-    ("liteusb",    (LITEX_ROOT_URL, False, True)),
-    ("litedram",   (LITEX_ROOT_URL, False, True)),
-    ("litepcie",   (LITEX_ROOT_URL, False, True)),
-    ("litesdcard", (LITEX_ROOT_URL, False, True)),
-    ("liteiclink", (LITEX_ROOT_URL, False, True)),
-    ("litevideo",  (LITEX_ROOT_URL, False, True)),
-    ("litescope",  (LITEX_ROOT_URL, False, True)),
+    ("liteeth",    (LITEOTHER_ROOT_URL, False, True)),
+    ("liteusb",    (LITEOTHER_ROOT_URL, False, True)),
+    ("litedram",   (LITEOTHER_ROOT_URL, False, True)),
+    ("litepcie",   (LITEOTHER_ROOT_URL, False, True)),
+    ("litesdcard", (LITEOTHER_ROOT_URL, False, True)),
+    ("liteiclink", (LITEOTHER_ROOT_URL, False, True)),
+    ("litevideo",  (LITEOTHER_ROOT_URL, False, True)),
+    ("litescope",  (LITEOTHER_ROOT_URL, False, True)),
 ]
 repos = OrderedDict(repos)
 
