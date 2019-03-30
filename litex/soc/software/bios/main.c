@@ -443,10 +443,10 @@ int main(int i, char **c)
 		printf("Memory initialization failed\n");
 	printf("\n");
 
-	printf("--========== \e[1mBoot sequence\e[0m =============--\n");
 	if(sdr_ok)
+		printf("--========== \e[1mBoot sequence\e[0m =============--\n");
 		boot_sequence();
-	printf("\n");
+		printf("\n");
 
 	printf("--============= \e[1mConsole\e[0m ================--\n");
 	while(1) {
