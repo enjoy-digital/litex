@@ -405,7 +405,7 @@ int main(int i, char **c)
 	printf("\n");
 
 	printf("--============ \e[1mSoC info\e[0m ================--\n");
-	printf("\e[1mCPU: \e[0m");
+	printf("\e[1mCPU\e[0m:       ");
 #ifdef __lm32__
 	printf("LM32");
 #elif __or1k__
@@ -419,11 +419,13 @@ int main(int i, char **c)
 #else
 	printf("Unknown");
 #endif
-	printf("\n");
-	printf("\e[1mFrequency\e[0m: %dMHz\n", SYSTEM_CLOCK_FREQUENCY/1000000);
-	printf("\e[1mROM\e[0m:  %dKB\n", ROM_SIZE/1024);
-	printf("\e[1mSRAM\e[0m: %dKB\n", SRAM_SIZE/1024);
-	printf("\e[1mMAIN-RAM\e[0m: %dKB\n", MAIN_RAM_SIZE/1024);
+	printf(" @ %dMHz\n", SYSTEM_CLOCK_FREQUENCY/1000000);
+	printf("\e[1mROM\e[0m:       %dKB\n", ROM_SIZE/1024);
+	printf("\e[1mSRAM\e[0m:      %dKB\n", SRAM_SIZE/1024);
+#ifdef L2_SIZE
+	printf("\e[1mL2\e[0m:        %dKB\n", L2_SIZE/1024);
+#endif
+	printf("\e[1mMAIN-RAM\e[0m:  %dKB\n", MAIN_RAM_SIZE/1024);
 	printf("\n");
 
 	printf("--========= \e[1mPeripherals init\e[0m ===========--\n");
@@ -443,10 +445,11 @@ int main(int i, char **c)
 		printf("Memory initialization failed\n");
 	printf("\n");
 
-	if(sdr_ok)
+	if(sdr_ok) {
 		printf("--========== \e[1mBoot sequence\e[0m =============--\n");
 		boot_sequence();
 		printf("\n");
+	}
 
 	printf("--============= \e[1mConsole\e[0m ================--\n");
 	while(1) {
