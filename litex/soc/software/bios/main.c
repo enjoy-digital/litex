@@ -425,7 +425,9 @@ int main(int i, char **c)
 #ifdef L2_SIZE
 	printf("\e[1mL2\e[0m:        %dKB\n", L2_SIZE/1024);
 #endif
+#ifdef MAIN_RAM_SIZE
 	printf("\e[1mMAIN-RAM\e[0m:  %dKB\n", MAIN_RAM_SIZE/1024);
+#endif
 	printf("\n");
 
 	printf("--========= \e[1mPeripherals init\e[0m ===========--\n");
