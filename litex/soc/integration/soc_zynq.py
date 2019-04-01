@@ -199,6 +199,7 @@ class SoCZynq(SoCCore):
         self.add_wb_master(wb)
 
     def do_finalize(self):
+        SoCCore.do_finalize(self)
         self.specials += Instance(self.ps7_name, **self.ps7_params)
 
     def generate_software_header(self, filename):
