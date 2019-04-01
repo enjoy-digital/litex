@@ -20,26 +20,31 @@ def ax_description(address_width, id_width):
         ("burst", 2), # Burst type
         ("len",   8), # Number of data (-1) transfers (up to 256)
         ("size",  4), # Number of bytes (-1) of each data transfer (up to 1024 bits)
+        ("lock",  2),
+        ("prot",  3),
+        ("cache", 4),
+        ("qos",   4),
         ("id",    id_width)
     ]
 
-def w_description(data_width):
+def w_description(data_width, id_width):
     return [
         ("data", data_width),
-        ("strb", data_width//8)
+        ("strb", data_width//8),
+        ("id",   id_width)
     ]
 
 def b_description(id_width):
     return [
         ("resp", 2),
-        ("id", id_width)
+        ("id",   id_width)
     ]
 
 def r_description(data_width, id_width):
     return [
         ("resp", 2),
         ("data", data_width),
-        ("id", id_width)
+        ("id",   id_width)
     ]
 
 
@@ -51,7 +56,7 @@ class AXIInterface(Record):
         self.clock_domain = clock_domain
 
         self.aw = stream.Endpoint(ax_description(address_width, id_width))
-        self.w = stream.Endpoint(w_description(data_width))
+        self.w = stream.Endpoint(w_description(data_width, id_width))
         self.b = stream.Endpoint(b_description(id_width))
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r = stream.Endpoint(r_description(data_width, id_width))
