@@ -8,6 +8,19 @@ from litex.soc.integration.cpu_interface import get_csr_header
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 
+# Record layouts -----------------------------------------------------------------------------------
+
+def axi_fifo_ctrl_layout():
+    return [
+        ("racount",         3, DIR_M_TO_S),
+        ("rcount",          8, DIR_M_TO_S),
+        ("rdissuecapen",    1, DIR_S_TO_M),
+        ("wacount",         6, DIR_M_TO_S),
+        ("wcount",          8, DIR_M_TO_S),
+        ("wrissuecapen",    1, DIR_S_TO_M),
+    ]
+
+# SoC Zync -----------------------------------------------------------------------------------------
 
 class SoCZynq(SoCCore):
     SoCCore.mem_map["csr"] = 0x00000000
@@ -62,6 +75,8 @@ class SoCZynq(SoCCore):
         )
         platform.add_ip(os.path.join("ip", ps7_name + ".xci"))
 
+    # GP0 ------------------------------------------------------------------------------------------
+
     def add_gp0(self):
         self.axi_gp0 = axi_gp0 = axi.AXIInterface(data_width=32, address_width=32, id_width=12)
         self.ps7_params.update(
@@ -82,7 +97,7 @@ class SoCZynq(SoCCore):
             o_M_AXI_GP0_WVALID=axi_gp0.w.valid,
             o_M_AXI_GP0_WLAST=axi_gp0.w.last,
             i_M_AXI_GP0_WREADY=axi_gp0.w.ready,
-            #o_M_AXI_GP0_WID=,
+            o_M_AXI_GP0_WID=axi_gp0.w.id,
             o_M_AXI_GP0_WDATA=axi_gp0.w.data,
             o_M_AXI_GP0_WSTRB=axi_gp0.w.strb,
 
@@ -112,6 +127,69 @@ class SoCZynq(SoCCore):
             i_M_AXI_GP0_RID=axi_gp0.r.id,
             i_M_AXI_GP0_RRESP=axi_gp0.r.resp,
             i_M_AXI_GP0_RDATA=axi_gp0.r.data,
+        )
+
+    # HP0 ------------------------------------------------------------------------------------------
+
+    def add_hp0(self):
+        self.axi_hp0 = axi_hp0 = axi.AXIInterface(data_width=64, address_width=32, id_width=6)
+        self.axi_hp0_fifo_ctrl = axi_hp0_fifo_ctrl = Record(axi_fifo_ctrl_layout())
+        self.ps7_params.update(
+            # axi hp0 aw
+            i_M_AXI_HP0_AWVALID=axi_hp0.aw.valid,
+            o_M_AXI_HP0_AWREADY=axi_hp0.aw.ready,
+            i_M_AXI_HP0_AWADDR=axi_hp0.aw.addr,
+            i_M_AXI_HP0_AWBURST=axi_hp0.aw.burst,
+            i_M_AXI_HP0_AWLEN=axi_hp0.aw.len,
+            i_M_AXI_HP0_AWSIZE=axi_hp0.aw.size,
+            i_M_AXI_HP0_AWID=axi_hp0.aw.id,
+            i_M_AXI_HP0_AWLOCK=axi_hp0.aw.lock,
+            i_M_AXI_HP0_AWPROT=axi_hp0.aw.prot,
+            i_M_AXI_HP0_AWCACHE=axi_hp0.aw.cache,
+            i_M_AXI_HP0_AWQOS=axi_hp0.aw.qos,
+
+            # axi hp0 w
+            i_M_AXI_HP0_WVALID=axi_hp0.w.valid,
+            i_M_AXI_HP0_WLAST=axi_hp0.w.last,
+            o_M_AXI_HP0_WREADY=axi_hp0.w.ready,
+            i_M_AXI_HP0_WID=axi_hp0.w.id,
+            i_M_AXI_HP0_WDATA=axi_hp0.w.data,
+            i_M_AXI_HP0_WSTRB=axi_hp0.w.strb,
+
+            # axi hp0 b
+            o_M_AXI_HP0_BVALID=axi_hp0.b.valid,
+            i_M_AXI_HP0_BREADY=axi_hp0.b.ready,
+            o_M_AXI_HP0_BID=axi_hp0.b.id,
+            o_M_AXI_HP0_BRESP=axi_hp0.b.resp,
+
+            # axi hp0 ar
+            i_M_AXI_HP0_ARVALID=axi_hp0.ar.valid,
+            o_M_AXI_HP0_ARREADY=axi_hp0.ar.ready,
+            i_M_AXI_HP0_ARADDR=axi_hp0.ar.addr,
+            i_M_AXI_HP0_ARBURST=axi_hp0.ar.burst,
+            i_M_AXI_HP0_ARLEN=axi_hp0.ar.len,
+            i_M_AXI_HP0_ARID=axi_hp0.ar.id,
+            i_M_AXI_HP0_ARLOCK=axi_hp0.ar.lock,
+            i_M_AXI_HP0_ARSIZE=axi_hp0.ar.size,
+            i_M_AXI_HP0_ARPROT=axi_hp0.ar.prot,
+            i_M_AXI_HP0_ARCACHE=axi_hp0.ar.cache,
+            i_M_AXI_HP0_ARQOS=axi_hp0.ar.qos,
+
+            # axi hp0 r
+            o_M_AXI_HP0_RVALID=axi_hp0.r.valid,
+            i_M_AXI_HP0_RREADY=axi_hp0.r.ready,
+            o_M_AXI_HP0_RLAST=axi_hp0.r.last,
+            o_M_AXI_HP0_RID=axi_hp0.r.id,
+            o_M_AXI_HP0_RRESP=axi_hp0.r.resp,
+            o_M_AXI_HP0_RDATA=axi_hp0.r.data,
+
+            # axi hp0 fifo ctrl
+            i_S_AXI_HP0_FIFO_CTRL_0_RACOUNT=axi_hp0_fifo_ctrl.racount,
+            i_S_AXI_HP0_FIFO_CTRL_0_RCOUNT=axi_hp0_fifo_ctrl.rcount,
+            o_S_AXI_HP0_FIFO_CTRL_0_RDISSUECAPEN=axi_hp0_fifo_ctrl.rdissuecapen,
+            i_S_AXI_HP0_FIFO_CTRL_0_WACOUNT=axi_hp0_fifo_ctrl.wacount,
+            i_S_AXI_HP0_FIFO_CTRL_0_WCOUNT=axi_hp0_fifo_ctrl.wcount,
+            o_S_AXI_HP0_FIFO_CTRL_0_WRISSUECAPEN=axi_hp0_fifo_ctrl.wrissuecapen
         )
 
     def add_axi_to_wishbone(self, axi_port, base_address=0x43c00000):
