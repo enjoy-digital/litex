@@ -57,10 +57,10 @@ class SoCZynq(SoCCore):
             # fabric clk
             o_FCLK_CLK0=ClockSignal("sys"),
 
-            # axi clk
+            # axi gp0 clk
             i_M_AXI_GP0_ACLK=ClockSignal("sys"),
 
-            # axi aw
+            # axi gp0 aw
             o_M_AXI_GP0_AWVALID=axi_gp0.aw.valid,
             i_M_AXI_GP0_AWREADY=axi_gp0.aw.ready,
             o_M_AXI_GP0_AWADDR=axi_gp0.aw.addr,
@@ -68,12 +68,12 @@ class SoCZynq(SoCCore):
             o_M_AXI_GP0_AWLEN=axi_gp0.aw.len,
             o_M_AXI_GP0_AWSIZE=axi_gp0.aw.size,
             o_M_AXI_GP0_AWID=axi_gp0.aw.id,
-            #o_M_AXI_GP0_AWLOCK  =,
-            #o_M_AXI_GP0_AWPROT  =,
-            #o_M_AXI_GP0_AWCACHE =,
-            #o_M_AXI_GP0_AWQOS   =,
+            o_M_AXI_GP0_AWLOCK=axi_gp0.aw.lock,
+            o_M_AXI_GP0_AWPROT=axi_gp0.aw.prot,
+            o_M_AXI_GP0_AWCACHE=axi_gp0.aw.cache,
+            o_M_AXI_GP0_AWQOS=axi_gp0.aw.qos,
 
-            # axi w
+            # axi gp0 w
             o_M_AXI_GP0_WVALID=axi_gp0.w.valid,
             o_M_AXI_GP0_WLAST=axi_gp0.w.last,
             i_M_AXI_GP0_WREADY=axi_gp0.w.ready,
@@ -81,26 +81,26 @@ class SoCZynq(SoCCore):
             o_M_AXI_GP0_WDATA=axi_gp0.w.data,
             o_M_AXI_GP0_WSTRB=axi_gp0.w.strb,
 
-            # axi b
+            # axi gp0 b
             i_M_AXI_GP0_BVALID=axi_gp0.b.valid,
             o_M_AXI_GP0_BREADY=axi_gp0.b.ready,
             i_M_AXI_GP0_BID=axi_gp0.b.id,
             i_M_AXI_GP0_BRESP=axi_gp0.b.resp,
 
-            # axi ar
+            # axi gp0 ar
             o_M_AXI_GP0_ARVALID=axi_gp0.ar.valid,
             i_M_AXI_GP0_ARREADY=axi_gp0.ar.ready,
             o_M_AXI_GP0_ARADDR=axi_gp0.ar.addr,
             o_M_AXI_GP0_ARBURST=axi_gp0.ar.burst,
             o_M_AXI_GP0_ARLEN=axi_gp0.ar.len,
             o_M_AXI_GP0_ARID=axi_gp0.ar.id,
-            #o_M_AXI_GP0_ARLOCK=,
-            #o_M_AXI_GP0_ARSIZE=,
-            #o_M_AXI_GP0_ARPROT=,
-            #o_M_AXI_GP0_ARCACHE=,
-            #o_M_AXI_GP0_ARQOS=,
+            o_M_AXI_GP0_ARLOCK=axi_gp0.ar.lock,
+            o_M_AXI_GP0_ARSIZE=axi_gp0.ar.size,
+            o_M_AXI_GP0_ARPROT=axi_gp0.ar.prot,
+            o_M_AXI_GP0_ARCACHE=axi_gp0.ar.cache,
+            o_M_AXI_GP0_ARQOS=axi_gp0.ar.qos,
 
-            # axi r
+            # axi gp0 r
             i_M_AXI_GP0_RVALID=axi_gp0.r.valid,
             o_M_AXI_GP0_RREADY=axi_gp0.r.ready,
             i_M_AXI_GP0_RLAST=axi_gp0.r.last,
