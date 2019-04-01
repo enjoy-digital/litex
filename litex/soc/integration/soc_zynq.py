@@ -12,12 +12,12 @@ from litex.soc.interconnect import axi
 class SoCZynq(SoCCore):
     SoCCore.mem_map["csr"] = 0x00000000
     def __init__(self, platform, clk_freq, ps7_name, **kwargs):
+        self.ps7_name = ps7_name
         SoCCore.__init__(self, platform, clk_freq, cpu_type=None, shadow_base=0x00000000, **kwargs)
 
-        # PS7 --------------------------------------------------------------------------------------
-        self.axi_gp0 = axi_gp0 = axi.AXIInterface(data_width=32, address_width=32, id_width=12)
+        # PS7 (Minimal) ----------------------------------------------------------------------------
         ps7_ddram_pads = platform.request("ps7_ddram")
-        self.specials += Instance(ps7_name,
+        self.ps7_params = dict(
             # clk/rst
             io_PS_CLK=platform.request("ps7_clk"),
             io_PS_PORB=platform.request("ps7_porb"),
@@ -59,7 +59,12 @@ class SoCZynq(SoCCore):
 
             # axi gp0 clk
             i_M_AXI_GP0_ACLK=ClockSignal("sys"),
+        )
+        platform.add_ip(os.path.join("ip", ps7_name + ".xci"))
 
+    def add_gp0(self):
+        self.axi_gp0 = axi_gp0 = axi.AXIInterface(data_width=32, address_width=32, id_width=12)
+        self.ps7_params.update(
             # axi gp0 aw
             o_M_AXI_GP0_AWVALID=axi_gp0.aw.valid,
             i_M_AXI_GP0_AWREADY=axi_gp0.aw.ready,
@@ -108,13 +113,15 @@ class SoCZynq(SoCCore):
             i_M_AXI_GP0_RRESP=axi_gp0.r.resp,
             i_M_AXI_GP0_RDATA=axi_gp0.r.data,
         )
-        platform.add_ip(os.path.join("ip", ps7_name + ".xci"))
 
-        # AXI to Wishbone --------------------------------------------------------------------------
-        self.wb_gp0 = wb_gp0 = wishbone.Interface()
-        axi2wishbone = axi.AXI2Wishbone(axi_gp0, wb_gp0, base_address=0x43c00000)
+    def add_axi_to_wishbone(self, axi_port, base_address=0x43c00000):
+        wb = wishbone.Interface()
+        axi2wishbone = axi.AXI2Wishbone(axi_port, wb, base_address)
         self.submodules += axi2wishbone
-        self.add_wb_master(wb_gp0)
+        self.add_wb_master(wb)
+
+    def do_finalize(self):
+        self.specials += Instance(self.ps7_name, **self.ps7_params)
 
     def generate_software_header(self, filename):
         csr_header = get_csr_header(self.get_csr_regions(),
