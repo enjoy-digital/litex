@@ -6,10 +6,11 @@ from litex.build.xilinx import XilinxPlatform, XC3SProg, iMPACT
 
 _io = [
     # 4 LEDs above PCIE finger
-    ("user_led", 0, Pins("D17"), IOStandard("LVCMOS25")),
-    ("user_led", 1, Pins("AB4"), IOStandard("LVCMOS25")),
-    ("user_led", 2, Pins("D21"), IOStandard("LVCMOS25")),
-    ("user_led", 3, Pins("W15"), IOStandard("LVCMOS25")),
+    ("user_led", 0, Pins("D17"), IOStandard("LVCMOS25")),  # DS3
+    ("user_led", 1, Pins("AB4"), IOStandard("LVCMOS25")),  # DS4
+    ("user_led", 2, Pins("D21"), IOStandard("LVCMOS25")),  # DS5
+    ("user_led", 3, Pins("W15"), IOStandard("LVCMOS25")),  # DS6
+    ("user_led", 4, Pins("V19"), IOStandard("LVCMOS25")),  # DS7 (FPGA_AWAKE)
 
     ("user_btn", 0, Pins("F3"), IOStandard("LVCMOS25")),
     ("user_btn", 1, Pins("G6"), IOStandard("LVCMOS25")),
