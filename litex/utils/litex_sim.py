@@ -111,7 +111,7 @@ class SimSoC(SoCSDRAM):
         with_etherbone=False, etherbone_mac_address=0x10e2d5000000, etherbone_ip_address="192.168.1.50",
         with_analyzer=False,
         **kwargs):
-        platform = Platform()
+        self.platform = platform = Platform()
         sys_clk_freq = int(1e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             integrated_rom_size=0x8000,

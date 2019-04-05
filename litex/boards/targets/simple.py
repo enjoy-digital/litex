@@ -66,7 +66,8 @@ def main():
                         help="FPGA gateware toolchain used for build")
     args = parser.parse_args()
 
-    platform_module = importlib.import_module(args.platform)
+    platform_module = importlib.import_module('litex.boards.platforms.{}'.format(args.platform))
+
     if args.gateware_toolchain is not None:
         platform = platform_module.Platform(toolchain=args.gateware_toolchain)
     else:
