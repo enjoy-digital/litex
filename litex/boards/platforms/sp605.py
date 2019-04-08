@@ -17,7 +17,6 @@ _io = [
     ("user_btn", 2, Pins("F5"), IOStandard("LVCMOS25")),
     ("user_btn", 3, Pins("C1"), IOStandard("LVCMOS25")),
     ("cpu_reset", 0, Pins("H8"), IOStandard("LVCMOS25")),
-
     ("serial", 0,
         Subsignal("cts", Pins("F19")),
         Subsignal("rts", Pins("F18")),
@@ -25,11 +24,31 @@ _io = [
         Subsignal("rx", Pins("H17")),
         IOStandard("LVCMOS25")
     ),
-
     ("clk200", 0,
         Subsignal("p", Pins("K21"), IOStandard("LVDS_25")),
         Subsignal("n", Pins("K22"), IOStandard("LVDS_25"))
-    )
+    ),
+    ("eth_clocks", 0,
+        Subsignal("tx", Pins("L20")),
+        Subsignal("gtx", Pins("AB7")),
+        Subsignal("rx", Pins("P20")),
+        IOStandard("LVCMOS25")
+    ),
+    ("eth", 0,
+        Subsignal("rst_n", Pins("J22")),
+        Subsignal("int_n", Pins("J20")),
+        Subsignal("mdio", Pins("V20")),
+        Subsignal("mdc", Pins("R19")),
+        Subsignal("rx_dv", Pins("T22")),
+        Subsignal("rx_er", Pins("U20")),
+        Subsignal("rx_data", Pins("P19 Y22 Y21 W22 W20 V22 V21 U22")),
+        Subsignal("tx_en", Pins("T8")),
+        Subsignal("tx_er", Pins("U8")),
+        Subsignal("tx_data", Pins("U10 T10 AB8 AA8 AB9 Y9 Y12 W12")),
+        Subsignal("col", Pins("M16")),
+        Subsignal("crs", Pins("N15")),
+        IOStandard("LVCMOS25")
+    ),
 ]
 
 _connectors = [
