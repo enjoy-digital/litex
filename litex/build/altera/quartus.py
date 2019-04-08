@@ -50,7 +50,7 @@ def _format_qsf(signame, pin, others, resname):
     return '\n'.join(fmt_c)
 
 
-def _build_qsf(named_sc, named_pc):
+def _build_qsf(named_sc, named_pc, build_name):
     lines = []
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
@@ -64,7 +64,8 @@ def _build_qsf(named_sc, named_pc):
         lines.append("")
         lines.append("\n\n".join(named_pc))
 
-    lines.append("set_global_assignment -name top_level_entity top")
+    # Set top level name to "build_name" in .qsf file instead always use "top" name
+    lines.append("set_global_assignment -name top_level_entity " + build_name)
     return "\n".join(lines)
 
 
@@ -86,7 +87,7 @@ def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
         lines.append("set_global_assignment -name SEARCH_PATH {}".format(
             path.replace("\\", "/")))
 
-    lines.append(_build_qsf(named_sc, named_pc))
+    lines.append(_build_qsf(named_sc, named_pc, build_name))
     lines.append("set_global_assignment -name DEVICE {}".format(device))
     tools.write_to_file("{}.qsf".format(build_name), "\n".join(lines))
 
