@@ -29,7 +29,7 @@ _io = [
         Subsignal("n", Pins("K22"), IOStandard("LVDS_25"))
     ),
     ("eth_clocks", 0,
-        Subsignal("tx", Pins("L20")),
+        # Subsignal("tx", Pins("L20")),  # Comment to force GMII 1G only mode
         Subsignal("gtx", Pins("AB7")),
         Subsignal("rx", Pins("P20")),
         IOStandard("LVCMOS25")
