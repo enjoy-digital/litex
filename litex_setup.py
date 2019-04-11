@@ -15,6 +15,7 @@ repos = [
     ("liteusb",    ("http://github.com/enjoy-digital/", False, True)),
     ("litedram",   ("http://github.com/enjoy-digital/", False, True)),
     ("litepcie",   ("http://github.com/enjoy-digital/", False, True)),
+    ("litesata",   ("http://github.com/enjoy-digital/", False, True)),
     ("litesdcard", ("http://github.com/enjoy-digital/", False, True)),
     ("liteiclink", ("http://github.com/enjoy-digital/", False, True)),
     ("litevideo",  ("http://github.com/enjoy-digital/", False, True)),
