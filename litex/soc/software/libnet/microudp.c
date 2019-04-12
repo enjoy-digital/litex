@@ -1,4 +1,6 @@
 #include <generated/csr.h>
+#include <generated/mem.h>
+
 #ifdef CSR_ETHMAC_BASE
 
 #include <stdio.h>
@@ -6,7 +8,6 @@
 #include <system.h>
 #include <crc.h>
 #include <hw/flags.h>
-#include <hw/ethmac_mem.h>
 
 #include <net/microudp.h>
 
@@ -415,10 +416,10 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
 	ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 
-	rxbuffer0 = (ethernet_buffer *)ETHMAC_RX0_BASE;
-	rxbuffer1 = (ethernet_buffer *)ETHMAC_RX1_BASE;
-	txbuffer0 = (ethernet_buffer *)ETHMAC_TX0_BASE;
-	txbuffer1 = (ethernet_buffer *)ETHMAC_TX1_BASE;
+	rxbuffer0 = (ethernet_buffer *)(ETHMAC_BASE + 0*ETHMAC_SLOT_SIZE);
+	rxbuffer1 = (ethernet_buffer *)(ETHMAC_BASE + 1*ETHMAC_SLOT_SIZE);
+	txbuffer0 = (ethernet_buffer *)(ETHMAC_BASE + 2*ETHMAC_SLOT_SIZE);
+	txbuffer1 = (ethernet_buffer *)(ETHMAC_BASE + 3*ETHMAC_SLOT_SIZE);
 
 	rxslot = 0;
 	txslot = 0;
