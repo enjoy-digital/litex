@@ -25,8 +25,9 @@ _io = [
         IOStandard("LVCMOS25")
     ),
     ("clk200", 0,
-        Subsignal("p", Pins("K21"), IOStandard("LVDS_25")),
-        Subsignal("n", Pins("K22"), IOStandard("LVDS_25"))
+        Subsignal("p", Pins("K21")),
+        Subsignal("n", Pins("K22")),
+        IOStandard("LVDS_25")
     ),
     ("eth_clocks", 0,
         # Subsignal("tx", Pins("L20")),  # Comment to force GMII 1G only mode
