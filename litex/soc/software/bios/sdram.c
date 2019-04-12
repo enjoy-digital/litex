@@ -17,7 +17,7 @@
 #define MAIN_RAM_BASE SRAM_BASE
 #endif
 
-static void cdelay(int i)
+__attribute__((unused)) static void cdelay(int i)
 {
 	while(i > 0) {
 #if defined (__lm32__)
