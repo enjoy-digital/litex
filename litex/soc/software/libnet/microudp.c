@@ -111,7 +111,7 @@ struct ethernet_frame {
 
 typedef union {
 	struct ethernet_frame frame;
-	unsigned char raw[1532];
+	unsigned char raw[ETHMAC_SLOT_SIZE];
 } ethernet_buffer;
 
 
