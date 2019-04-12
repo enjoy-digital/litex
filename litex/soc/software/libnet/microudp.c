@@ -114,12 +114,8 @@ typedef union {
 	unsigned char raw[ETHMAC_SLOT_SIZE];
 } ethernet_buffer;
 
-
-static unsigned int rxslot;
 static unsigned int rxlen;
 static ethernet_buffer *rxbuffer;
-static ethernet_buffer *rxbuffer0;
-static ethernet_buffer *rxbuffer1;
 static unsigned int txslot;
 static unsigned int txlen;
 static ethernet_buffer *txbuffer;
@@ -416,15 +412,11 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
 	ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 
-	rxbuffer0 = (ethernet_buffer *)(ETHMAC_BASE + 0*ETHMAC_SLOT_SIZE);
-	rxbuffer1 = (ethernet_buffer *)(ETHMAC_BASE + 1*ETHMAC_SLOT_SIZE);
 	txbuffer0 = (ethernet_buffer *)(ETHMAC_BASE + 2*ETHMAC_SLOT_SIZE);
 	txbuffer1 = (ethernet_buffer *)(ETHMAC_BASE + 3*ETHMAC_SLOT_SIZE);
 
-	rxslot = 0;
 	txslot = 0;
 
-	rxbuffer = rxbuffer0;
 	txbuffer = txbuffer0;
 
 	for(i=0;i<6;i++)
@@ -435,18 +427,17 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
+	rxbuffer = (ethernet_buffer *)ETHMAC_BASE;
 	rx_callback = (udp_callback)0;
 }
 
 void microudp_service(void)
 {
+	unsigned int rxslot;
 	if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
 		rxslot = ethmac_sram_writer_slot_read();
+		rxbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * rxslot);
 		rxlen = ethmac_sram_writer_length_read();
-		if (rxslot)
-			rxbuffer = rxbuffer1;
-		else
-			rxbuffer = rxbuffer0;
 		process_frame();
 		ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 	}
