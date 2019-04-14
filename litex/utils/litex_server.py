@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import argparse
+
 import sys
 import socket
 import time
@@ -10,8 +12,9 @@ from litex.soc.tools.remote.etherbone import EtherboneIPC
 
 
 class RemoteServer(EtherboneIPC):
-    def __init__(self, comm, port=1234):
+    def __init__(self, comm, bind, port=1234):
         self.comm = comm
+        self.bind = bind
         self.port = port
         self.lock = False
 
@@ -21,7 +24,7 @@ class RemoteServer(EtherboneIPC):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         for i in range(32):
             try:
-                self.socket.bind(("localhost", self.port + i))
+                self.socket.bind((bind, self.port + i))
                 break
             except:
                 pass
@@ -95,46 +98,57 @@ class RemoteServer(EtherboneIPC):
 
 def main():
     print("LiteX remote server")
-    if len(sys.argv) < 2 or len(sys.argv) > 4:
-        print("usages:")
-        print("litex_server uart [port] [baudrate]")
-        print("litex_server udp [server] [server_port]")
-        print("litex_server pcie [bar]")
-        sys.exit()
-    comm = sys.argv[1]
-    if comm == "uart":
+    parser = argparse.ArgumentParser()
+    # Common arguments
+    parser.add_argument("--bind", default="localhost",
+                        help="Host binding address")
+
+    # UART arguments
+    parser.add_argument("--uart", action="store_true",
+                        help="Select UART interface")
+    parser.add_argument("--uart-port", default="",
+                        help="Set UART port")
+    parser.add_argument("--uart-baudrate", default=115200,
+                        help="Set UART baudrate")
+
+    # UDP arguments
+    parser.add_argument("--udp", action="store_true",
+                        help="Select UDP interface")
+    parser.add_argument("--udp-ip", default="192.168.1.50",
+                        help="Set UDP remote IP address")
+    parser.add_argument("--udp-port", default=1234,
+                        help="Set UDP remote port")
+
+    # PCIe arguments
+    parser.add_argument("--pcie", action="store_true",
+                        help="Select PCIe interface")
+    parser.add_argument("--pcie-bar", default="",
+                        help="Set PCIe BAR")
+    args = parser.parse_args()
+
+
+    if args.uart:
         from litex.soc.tools.remote import CommUART
-        uart_port = None
-        uart_baudrate = 115200
-        if len(sys.argv) > 2:
-            uart_port = sys.argv[2]
-        if len(sys.argv) > 3:
-            uart_baudrate = int(float(sys.argv[3]))
+        uart_port = args.uart_port
+        uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
         comm = CommUART(uart_port, uart_baudrate)
-    elif comm == "udp":
+    elif args.udp:
         from litex.soc.tools.remote import CommUDP
-        server = "192.168.1.50"
-        server_port = 1234
-        if len(sys.argv) > 2:
-            server = sys.argv[2]
-        if len(sys.argv) > 3:
-            server_port = int(sys.argv[3])
-        print("[CommUDP] server: {} / port: {} / ".format(server, server_port), end="")
-        comm = CommUDP(server, server_port)
-    elif comm == "pcie":
+        udp_ip = args.udp_ip
+        udp_port = int(args.udp_port)
+        print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
+        comm = CommUDP(udp_ip, udp_port)
+    elif args.pcie:
         from litex.soc.tools.remote import CommPCIe
-        bar = ""
-        if len(sys.argv) > 2:
-            bar = sys.argv[2]
-        if len(sys.argv) > 3:
-            bar_size = int(sys.argv[3])
-        print("[CommPCIe] bar: {} / ".format(bar), end="")
-        comm = CommPCIe(bar)
+        pcie_bar = args.pcie_bar
+        print("[CommPCIe] bar: {} / ".format(args.pcie_bar), end="")
+        comm = CommPCIe(args.pcie_bar)
     else:
-        raise NotImplementedError
+        parser.print_help()
+        exit()
 
-    server = RemoteServer(comm)
+    server = RemoteServer(comm, args.bind)
     server.open()
     server.start(4)
     try:
