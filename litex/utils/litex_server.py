@@ -12,23 +12,18 @@ from litex.soc.tools.remote.etherbone import EtherboneIPC
 
 
 class RemoteServer(EtherboneIPC):
-    def __init__(self, comm, bind, port=1234):
+    def __init__(self, comm, bind_ip, bind_port=1234):
         self.comm = comm
-        self.bind = bind
-        self.port = port
+        self.bind_ip = bind_ip
+        self.bind_port = bind_port
         self.lock = False
 
     def open(self):
         if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        for i in range(32):
-            try:
-                self.socket.bind((bind, self.port + i))
-                break
-            except:
-                pass
-        print("tcp port: {:d}".format(self.port + i))
+        self.socket.bind((self.bind_ip, self.bind_port))
+        print("tcp port: {:d}".format(self.bind_port))
         self.socket.listen(1)
         self.comm.open()
 
@@ -100,8 +95,10 @@ def main():
     print("LiteX remote server")
     parser = argparse.ArgumentParser()
     # Common arguments
-    parser.add_argument("--bind", default="localhost",
-                        help="Host binding address")
+    parser.add_argument("--bind-ip", default="localhost",
+                        help="Host bind address")
+    parser.add_argument("--bind-port", default=1234,
+                        help="Host bind port")
 
     # UART arguments
     parser.add_argument("--uart", action="store_true",
@@ -148,7 +145,7 @@ def main():
         parser.print_help()
         exit()
 
-    server = RemoteServer(comm, args.bind)
+    server = RemoteServer(comm, args.bind_ip, int(args.bind_port))
     server.open()
     server.start(4)
     try:
