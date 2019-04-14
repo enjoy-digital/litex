@@ -103,7 +103,7 @@ def main():
     # UART arguments
     parser.add_argument("--uart", action="store_true",
                         help="Select UART interface")
-    parser.add_argument("--uart-port", default="",
+    parser.add_argument("--uart-port", default=None,
                         help="Set UART port")
     parser.add_argument("--uart-baudrate", default=115200,
                         help="Set UART baudrate")
@@ -119,13 +119,16 @@ def main():
     # PCIe arguments
     parser.add_argument("--pcie", action="store_true",
                         help="Select PCIe interface")
-    parser.add_argument("--pcie-bar", default="",
+    parser.add_argument("--pcie-bar", default=None,
                         help="Set PCIe BAR")
     args = parser.parse_args()
 
 
     if args.uart:
         from litex.soc.tools.remote import CommUART
+        if args.uart_port is None:
+            print("Need to specify --uart-port, exiting.")
+            exit()
         uart_port = args.uart_port
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
@@ -139,6 +142,9 @@ def main():
     elif args.pcie:
         from litex.soc.tools.remote import CommPCIe
         pcie_bar = args.pcie_bar
+        if args.pcie_bar is None:
+            print("Need to speficy --pcie-bar, exiting.")
+            exit()
         print("[CommPCIe] bar: {} / ".format(args.pcie_bar), end="")
         comm = CommPCIe(args.pcie_bar)
     else:
