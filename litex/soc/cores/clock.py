@@ -16,7 +16,8 @@ class S7Clocking(Module, AutoCSR):
     clkfbout_mult_frange = (2, 64+1)
     clkout_divide_range = (1, 128+1)
 
-    def __init__(self):
+    def __init__(self, vco_margin=0):
+        self.vco_margin = vco_margin
         self.reset = Signal()
         self.locked = Signal()
         self.clkin_freq = None
@@ -57,30 +58,32 @@ class S7Clocking(Module, AutoCSR):
 
     def compute_config(self):
         config = {}
-        config["divclk_divide"] = 1
-        for clkfbout_mult in range(*self.clkfbout_mult_frange):
-            all_valid = True
-            vco_freq = self.clkin_freq*clkfbout_mult
-            (vco_freq_min, vco_freq_max) = self.vco_freq_range
-            if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                    valid = False
-                    for d in range(*self.clkout_divide_range):
-                        clk_freq = vco_freq/d
-                        if abs(clk_freq - f) < f*m:
-                            config["clkout{}_freq".format(n)] = clk_freq
-                            config["clkout{}_divide".format(n)] = d
-                            config["clkout{}_phase".format(n)] = p
-                            valid = True
-                            break
-                    if not valid:
-                        all_valid = False
-            else:
-                all_valid = False
-            if all_valid:
-                config["vco"] = vco_freq
-                config["clkfbout_mult"] = clkfbout_mult
-                return config
+        for divclk_divide in range(*self.divclk_divide_range):
+            config["divclk_divide"] = divclk_divide
+            for clkfbout_mult in range(*self.clkfbout_mult_frange):
+                all_valid = True
+                vco_freq = self.clkin_freq*clkfbout_mult/divclk_divide
+                (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
+                    vco_freq <= vco_freq_max*(1 - self.vco_margin)):
+                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                        valid = False
+                        for d in range(*self.clkout_divide_range):
+                            clk_freq = vco_freq/d
+                            if abs(clk_freq - f) < f*m:
+                                config["clkout{}_freq".format(n)] = clk_freq
+                                config["clkout{}_divide".format(n)] = d
+                                config["clkout{}_phase".format(n)] = p
+                                valid = True
+                                break
+                        if not valid:
+                            all_valid = False
+                else:
+                    all_valid = False
+                if all_valid:
+                    config["vco"] = vco_freq
+                    config["clkfbout_mult"] = clkfbout_mult
+                    return config
         raise ValueError("No PLL config found")
 
     def expose_drp(self):
@@ -122,6 +125,7 @@ class S7PLL(S7Clocking):
 
     def __init__(self, speedgrade=-1):
         S7Clocking.__init__(self)
+        self.divclk_divide_range = (1, 56+1)
         self.vco_freq_range = {
             -1: (800e6, 2133e6),
             -2: (800e6, 1866e6),
@@ -152,6 +156,7 @@ class S7MMCM(S7Clocking):
 
     def __init__(self, speedgrade=-1):
         S7Clocking.__init__(self)
+        self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
             -1: (10e6, 800e6),
             -2: (10e6, 933e6),
@@ -208,7 +213,8 @@ class USClocking(Module, AutoCSR):
     clkfbout_mult_frange = (2, 64+1)
     clkout_divide_range = (1, 128+1)
 
-    def __init__(self):
+    def __init__(self, vco_margin=0):
+        self.vco_margin = vco_margin
         self.reset = Signal()
         self.locked = Signal()
         self.clkin_freq = None
@@ -249,30 +255,32 @@ class USClocking(Module, AutoCSR):
 
     def compute_config(self):
         config = {}
-        config["divclk_divide"] = 1
-        for clkfbout_mult in range(*self.clkfbout_mult_frange):
-            all_valid = True
-            vco_freq = self.clkin_freq*clkfbout_mult
-            (vco_freq_min, vco_freq_max) = self.vco_freq_range
-            if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                    valid = False
-                    for d in range(*self.clkout_divide_range):
-                        clk_freq = vco_freq/d
-                        if abs(clk_freq - f) < f*m:
-                            config["clkout{}_freq".format(n)] = clk_freq
-                            config["clkout{}_divide".format(n)] = d
-                            config["clkout{}_phase".format(n)] = p
-                            valid = True
-                            break
-                    if not valid:
-                        all_valid = False
-            else:
-                all_valid = False
-            if all_valid:
-                config["vco"] = vco_freq
-                config["clkfbout_mult"] = clkfbout_mult
-                return config
+        for divclk_divide in range(*self.divclk_divide_range):
+            config["divclk_divide"] = divclk_divide
+            for clkfbout_mult in range(*self.clkfbout_mult_frange):
+                all_valid = True
+                vco_freq = self.clkin_freq*clkfbout_mult/divclk_divide
+                (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
+                    vco_freq <= vco_freq_max*(1 - self.vco_margin)):
+                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                        valid = False
+                        for d in range(*self.clkout_divide_range):
+                            clk_freq = vco_freq/d
+                            if abs(clk_freq - f) < f*m:
+                                config["clkout{}_freq".format(n)] = clk_freq
+                                config["clkout{}_divide".format(n)] = d
+                                config["clkout{}_phase".format(n)] = p
+                                valid = True
+                                break
+                        if not valid:
+                            all_valid = False
+                else:
+                    all_valid = False
+                if all_valid:
+                    config["vco"] = vco_freq
+                    config["clkfbout_mult"] = clkfbout_mult
+                    return config
         raise ValueError("No PLL config found")
 
     def expose_drp(self):
@@ -313,12 +321,12 @@ class USPLL(USClocking):
 
     def __init__(self, speedgrade=-1):
         USClocking.__init__(self)
+        self.divclk_divide_range = (1, 56+1)
         self.clkin_freq_range = {
             -1: (70e6, 800e6),
             -2: (70e6, 933e6),
             -3: (70e6, 1066e6),
         }[speedgrade]
-
         self.vco_freq_range = {
             -1: (600e6, 1200e6),
             -2: (600e6, 1335e6),
@@ -349,12 +357,12 @@ class USMMCM(USClocking):
 
     def __init__(self, speedgrade=-1):
         USClocking.__init__(self)
+        self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
             -1: (10e6, 800e6),
             -2: (10e6, 933e6),
             -3: (10e6, 1066e6),
         }[speedgrade]
-
         self.vco_freq_range = {
             -1: (600e6, 1200e6),
             -2: (600e6, 1440e6),
