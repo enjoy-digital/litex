@@ -22,6 +22,7 @@ class RemoteServer(EtherboneIPC):
         if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self.socket.bind((self.bind_ip, self.bind_port))
         print("tcp port: {:d}".format(self.bind_port))
         self.socket.listen(1)
