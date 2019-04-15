@@ -4,6 +4,7 @@
 import os
 import subprocess
 import sys
+import math
 
 from migen.fhdl.structure import _Fragment
 
@@ -250,6 +251,7 @@ class XilinxVivadoToolchain:
     def add_period_constraint(self, platform, clk, period):
         if clk in self.clocks:
             raise ValueError("A period constraint already exists")
+        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
         self.clocks[clk] = period
 
     def add_false_path_constraint(self, platform, from_, to):
