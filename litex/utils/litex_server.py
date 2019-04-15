@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import argparse
+
 import sys
 import socket
 import time
@@ -10,22 +12,19 @@ from litex.soc.tools.remote.etherbone import EtherboneIPC
 
 
 class RemoteServer(EtherboneIPC):
-    def __init__(self, comm, port=1234):
+    def __init__(self, comm, bind_ip, bind_port=1234):
         self.comm = comm
-        self.port = port
+        self.bind_ip = bind_ip
+        self.bind_port = bind_port
         self.lock = False
 
     def open(self):
         if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        for i in range(32):
-            try:
-                self.socket.bind(("localhost", self.port + i))
-                break
-            except:
-                pass
-        print("tcp port: {:d}".format(self.port + i))
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        self.socket.bind((self.bind_ip, self.bind_port))
+        print("tcp port: {:d}".format(self.bind_port))
         self.socket.listen(1)
         self.comm.open()
 
@@ -95,46 +94,65 @@ class RemoteServer(EtherboneIPC):
 
 def main():
     print("LiteX remote server")
-    if len(sys.argv) < 2 or len(sys.argv) > 4:
-        print("usages:")
-        print("litex_server uart [port] [baudrate]")
-        print("litex_server udp [server] [server_port]")
-        print("litex_server pcie [bar]")
-        sys.exit()
-    comm = sys.argv[1]
-    if comm == "uart":
+    parser = argparse.ArgumentParser()
+    # Common arguments
+    parser.add_argument("--bind-ip", default="localhost",
+                        help="Host bind address")
+    parser.add_argument("--bind-port", default=1234,
+                        help="Host bind port")
+
+    # UART arguments
+    parser.add_argument("--uart", action="store_true",
+                        help="Select UART interface")
+    parser.add_argument("--uart-port", default=None,
+                        help="Set UART port")
+    parser.add_argument("--uart-baudrate", default=115200,
+                        help="Set UART baudrate")
+
+    # UDP arguments
+    parser.add_argument("--udp", action="store_true",
+                        help="Select UDP interface")
+    parser.add_argument("--udp-ip", default="192.168.1.50",
+                        help="Set UDP remote IP address")
+    parser.add_argument("--udp-port", default=1234,
+                        help="Set UDP remote port")
+
+    # PCIe arguments
+    parser.add_argument("--pcie", action="store_true",
+                        help="Select PCIe interface")
+    parser.add_argument("--pcie-bar", default=None,
+                        help="Set PCIe BAR")
+    args = parser.parse_args()
+
+
+    if args.uart:
         from litex.soc.tools.remote import CommUART
-        uart_port = None
-        uart_baudrate = 115200
-        if len(sys.argv) > 2:
-            uart_port = sys.argv[2]
-        if len(sys.argv) > 3:
-            uart_baudrate = int(float(sys.argv[3]))
+        if args.uart_port is None:
+            print("Need to specify --uart-port, exiting.")
+            exit()
+        uart_port = args.uart_port
+        uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
         comm = CommUART(uart_port, uart_baudrate)
-    elif comm == "udp":
+    elif args.udp:
         from litex.soc.tools.remote import CommUDP
-        server = "192.168.1.50"
-        server_port = 1234
-        if len(sys.argv) > 2:
-            server = sys.argv[2]
-        if len(sys.argv) > 3:
-            server_port = int(sys.argv[3])
-        print("[CommUDP] server: {} / port: {} / ".format(server, server_port), end="")
-        comm = CommUDP(server, server_port)
-    elif comm == "pcie":
+        udp_ip = args.udp_ip
+        udp_port = int(args.udp_port)
+        print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
+        comm = CommUDP(udp_ip, udp_port)
+    elif args.pcie:
         from litex.soc.tools.remote import CommPCIe
-        bar = ""
-        if len(sys.argv) > 2:
-            bar = sys.argv[2]
-        if len(sys.argv) > 3:
-            bar_size = int(sys.argv[3])
-        print("[CommPCIe] bar: {} / ".format(bar), end="")
-        comm = CommPCIe(bar)
+        pcie_bar = args.pcie_bar
+        if args.pcie_bar is None:
+            print("Need to speficy --pcie-bar, exiting.")
+            exit()
+        print("[CommPCIe] bar: {} / ".format(args.pcie_bar), end="")
+        comm = CommPCIe(args.pcie_bar)
     else:
-        raise NotImplementedError
+        parser.print_help()
+        exit()
 
-    server = RemoteServer(comm)
+    server = RemoteServer(comm, args.bind_ip, int(args.bind_port))
     server.open()
     server.start(4)
     try:
