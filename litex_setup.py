@@ -19,6 +19,7 @@ repos = [
     ("liteusb",    (LITEOTHER_ROOT_URL, False, True)),
     ("litedram",   (LITEOTHER_ROOT_URL, False, True)),
     ("litepcie",   (LITEOTHER_ROOT_URL, False, True)),
+    ("litesata",   (LITEOTHER_ROOT_URL, False, True)),
     ("litesdcard", (LITEOTHER_ROOT_URL, False, True)),
     ("liteiclink", (LITEOTHER_ROOT_URL, False, True)),
     ("litevideo",  (LITEOTHER_ROOT_URL, False, True)),
