@@ -1,9 +1,4 @@
-"""
-Clock Abstraction Modules
-
-
-Made in Paris-CDG while waiting a delayed Air-France KLM flight...
-"""
+"""Clock Abstraction Modules"""
 
 from migen import *
 from migen.genlib.io import DifferentialInput
@@ -15,7 +10,7 @@ from litex.soc.interconnect.csr import *
 def period_ns(freq):
     return 1e9/freq
 
-# Xilinx / 7-Series
+# Xilinx / 7-Series --------------------------------------------------------------------------------
 
 class S7Clocking(Module, AutoCSR):
     clkfbout_mult_frange = (2, 64+1)
@@ -204,7 +199,7 @@ class S7IDELAYCTRL(Module):
             )
         self.specials += Instance("IDELAYCTRL", i_REFCLK=cd.clk, i_RST=ic_reset)
 
-# Xilinx / Ultrascale
+# Xilinx / Ultrascale ------------------------------------------------------------------------------
 
 # TODO:
 # - use Ultrascale primitives instead of 7-Series' ones. (Vivado recognize and convert them).
@@ -404,7 +399,7 @@ class USIDELAYCTRL(Module):
             i_REFCLK=cd.clk,
             i_RST=ic_reset)
 
-# Lattice / ECP5
+# Lattice / ECP5 -----------------------------------------------------------------------------------
 
 # TODO:
 # - add proper phase support.
