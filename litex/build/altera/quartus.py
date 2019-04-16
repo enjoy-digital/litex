@@ -1,8 +1,9 @@
-# This file is Copyright (c) 2013 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2013-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 import os
 import subprocess
+import math
 
 from migen.fhdl.structure import _Fragment
 
@@ -69,6 +70,22 @@ def _build_qsf(named_sc, named_pc, build_name):
     return "\n".join(lines)
 
 
+def _build_sdc(clocks, false_paths, vns, build_name):
+    lines = []
+    for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
+        lines.append(
+            "create_clock -name {clk} -period ".format(clk=vns.get_name(clk)) + str(period) +
+            " [get_ports {{{clk}}}]".format(clk=vns.get_name(clk)))
+    for from_, to in sorted(false_paths,
+                            key=lambda x: (x[0].duid, x[1].duid)):
+        lines.append(
+            "set_false_path "
+            "-from [get_clocks {{{from_}}}] "
+            "-to [get_clocks {{{to}}}]".format(
+            from_=vns.get_name(from_), to=vns.get_name(to)))
+    tools.write_to_file("{}.sdc".format(build_name), "\n".join(lines))
+
+
 def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
     lines = []
     for filename, language, library in sources:
@@ -82,6 +99,7 @@ def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
                 lang=language.upper(),
                 path=filename.replace("\\", "/"),
                 lib=library))
+    lines.append("set_global_assignment -name SDC_FILE {}.sdc".format(build_name))
 
     for path in vincpaths:
         lines.append("set_global_assignment -name SEARCH_PATH {}".format(
@@ -117,6 +135,10 @@ fi
 
 
 class AlteraQuartusToolchain:
+    def __init__(self):
+        self.clocks = dict()
+        self.false_paths = set()
+
     def build(self, platform, fragment, build_dir="build", build_name="top",
               toolchain_path=None, run=True, **kwargs):
         if toolchain_path is None:
@@ -140,6 +162,8 @@ class AlteraQuartusToolchain:
                      named_sc,
                      named_pc,
                      build_name)
+
+        _build_sdc(self.clocks, self.false_paths, v_output.ns, build_name)
         if run:
             _run_quartus(build_name, toolchain_path)
 
@@ -148,12 +172,11 @@ class AlteraQuartusToolchain:
         return v_output.ns
 
     def add_period_constraint(self, platform, clk, period):
-        # TODO: handle differential clk
-        platform.add_platform_command(
-            "set_global_assignment -name duty_cycle 50 -section_id {clk}",
-            clk=clk)
-        platform.add_platform_command(
-            "set_global_assignment -name fmax_requirement \"{freq} MHz\" "
-            "-section_id {clk}".format(freq=(1. / period) * 1000,
-                                       clk="{clk}"),
-            clk=clk)
+        if clk in self.clocks:
+            raise ValueError("A period constraint already exists")
+        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
+        self.clocks[clk] = period
+
+    def add_false_path_constraint(self, platform, from_, to):
+        if (to, from_) not in self.false_paths:
+            self.false_paths.add((from_, to))
