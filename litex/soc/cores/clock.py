@@ -85,6 +85,7 @@ class S7Clocking(Module, AutoCSR):
             if all_valid:
                 config["vco"] = vco_freq
                 config["clkfbout_mult"] = clkfbout_mult
+                print("S7Clocking:", config)
                 return config
         raise ValueError("No PLL config found")
 
@@ -186,7 +187,44 @@ class S6PLL(S7Clocking):
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)] = clk
         self.specials += Instance("PLL_ADV", **self.params)
-        print(config)
+
+
+class S6DCM(S7Clocking):
+    """ single output with f_out = f_in * {2 .. 256} / {1 .. 256} """
+    nclkouts_max = 1
+    clkfbout_mult_frange = (2, 256 + 1)
+    clkout_divide_range = (1, 256 + 1)
+
+    def __init__(self, speedgrade=-1):
+        S7Clocking.__init__(self)
+        self.clkin_freq_range = {
+            -1: (0.5e6, 200e6),
+            -2: (0.5e6, 333e6),
+            -3: (0.5e6, 375e6),
+        }[speedgrade]
+
+        self.vco_freq_range = {
+            -1: (5e6, 1e16),
+            -2: (5e6, 1e16),
+            -3: (5e6, 1e16),
+        }[speedgrade]
+
+    def do_finalize(self):
+        S7Clocking.do_finalize(self)
+        config = self.compute_config()
+        clk, f, p, m = sorted(self.clkouts.items())[0][1]
+        self.params.update(
+            p_CLKFX_MULTIPLY=config["clkfbout_mult"],
+            p_CLKFX_DIVIDE=config["clkout0_divide"] * config["divclk_divide"],
+            p_SPREAD_SPECTRUM="NONE",
+            p_CLKIN_PERIOD=period_ns(self.clkin_freq),
+            i_CLKIN=self.clkin,
+            i_RST=self.reset,
+            i_FREEZEDCM=0,
+            o_CLKFX=clk,
+            o_LOCKED=self.locked,
+        )
+        self.specials += Instance("DCM_CLKGEN", **self.params)
 
 
 class S7MMCM(S7Clocking):
