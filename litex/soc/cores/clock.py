@@ -169,9 +169,7 @@ class S6PLL(S7Clocking):
         config = self.compute_config()
         pll_fb = Signal()
         self.params.update(
-            p_BANDWIDTH="OPTIMIZED",
             p_SIM_DEVICE="SPARTAN6",
-            p_REF_JITTER1=0.01,
             p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
             p_CLKIN2_PERIOD=period_ns(self.clkin_freq),
             p_CLKFBOUT_MULT=config["clkfbout_mult"],
@@ -188,6 +186,7 @@ class S6PLL(S7Clocking):
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)] = clk
         self.specials += Instance("PLL_ADV", **self.params)
+        print(config)
 
 
 class S7MMCM(S7Clocking):
