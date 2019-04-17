@@ -17,6 +17,11 @@ extern "C" void litex_sim_eval(void *vdut)
   dut->eval();
 }
 
+extern "C" void litex_sim_init_cmdargs(int argc, char *argv[])
+{
+  Verilated::commandArgs(argc, argv);
+}
+
 extern "C" void litex_sim_init_tracer(void *vdut)
 {
   Vdut *dut = (Vdut*)vdut;

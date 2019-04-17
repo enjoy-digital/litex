@@ -203,7 +203,7 @@ static void cb(int sock, short which, void *arg)
   }
 }
 
-int main()
+int main(int argc, char *argv[])
 {
   void *vdut=NULL;
   struct timeval tv;
@@ -224,6 +224,7 @@ int main()
     goto out;
   }
 
+  litex_sim_init_cmdargs(argc, argv);
   if(RC_OK != (ret = litex_sim_initialize_all(&vdut, base)))
   {
     goto out;
