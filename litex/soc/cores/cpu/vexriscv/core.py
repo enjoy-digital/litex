@@ -16,8 +16,11 @@ class VexRiscv(Module, AutoCSR):
     def __init__(self, platform, cpu_reset_address, variant=None):
         variant = "std" if variant is None else variant
         variant = "std_debug" if variant == "debug" else variant
-        variants = ("std", "std_debug", "lite", "lite_debug", "min", "min_debug")
+        variants = ("std", "std_debug", "lite", "lite_debug", "min", "min_debug", "full", "full_debug")
         assert variant in variants, "Unsupported variant %s" % variant
+        self.platform = platform
+        self.variant = variant
+        self.external_variant = None
         self.reset = Signal()
         self.ibus = ibus = wishbone.Interface()
         self.dbus = dbus = wishbone.Interface()
@@ -59,9 +62,6 @@ class VexRiscv(Module, AutoCSR):
 
         if "debug" in variant:
             self.add_debug()
-
-        # add verilog sources
-        self.add_sources(platform, variant)
 
     def add_debug(self):
         debug_reset = Signal()
@@ -156,12 +156,20 @@ class VexRiscv(Module, AutoCSR):
             "std_debug":  "VexRiscv_Debug.v",
             "lite":       "VexRiscv_Lite.v",
             "lite_debug": "VexRiscv_LiteDebug.v",
-            "min":        "VexRiscv_Lite.v",
-            "min_debug":  "VexRiscv_LiteDebug.v",
+            "min":        "VexRiscv_Min.v",
+            "min_debug":  "VexRiscv_MinDebug.v",
+            "full":       "VexRiscv_Full.v",
+            "full_debug": "VexRiscv_FullDebug.v",
         }
         cpu_filename = verilog_variants[variant]
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_source(os.path.join(vdir, cpu_filename))
 
+    def use_external_variant(self, variant_filename):
+        self.external_variant = True
+        self.platform.add_source(variant_filename)
+
     def do_finalize(self):
+        if not self.external_variant:
+            self.add_sources(self.platform, self.variant)
         self.specials += Instance("VexRiscv", **self.cpu_params)

@@ -17,7 +17,7 @@
 #define MAIN_RAM_BASE SRAM_BASE
 #endif
 
-static void cdelay(int i)
+__attribute__((unused)) static void cdelay(int i)
 {
 	while(i > 0) {
 #if defined (__lm32__)
@@ -210,15 +210,17 @@ void sdrwr(char *startaddr)
 
 #if defined (USDDRPHY)
 #define ERR_DDRPHY_DELAY 512
+#define ERR_DDRPHY_BITSLIP 8
+#define NBMODULES DFII_PIX_DATA_SIZE/2
 #elif defined (ECP5DDRPHY)
 #define ERR_DDRPHY_DELAY 8
+#define ERR_DDRPHY_BITSLIP 1
+#define NBMODULES DFII_PIX_DATA_SIZE/4
 #else
 #define ERR_DDRPHY_DELAY 32
+#define ERR_DDRPHY_BITSLIP 8
+#define NBMODULES DFII_PIX_DATA_SIZE/2
 #endif
-
-#define ERR_DDRPHY_BITSLIP DFII_NPHASES*2
-
-#define NBMODULES DFII_PIX_DATA_SIZE*DFII_NPHASES/8
 
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
 
@@ -462,6 +464,9 @@ static int read_level_scan(int module, int bitslip)
 #ifdef USDDRPHY
 		show = (j%16 == 0);
 #endif
+#ifdef ECP5DDRPHY
+		ddrphy_burstdet_clr_write(1);
+#endif
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
 		working = 1;
@@ -471,6 +476,10 @@ static int read_level_scan(int module, int bitslip)
 			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
+#ifdef ECP5DDRPHY
+		if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
+			working = 0;
+#endif
 		if (show)
 			printf("%d", working);
 		score += working;
@@ -526,6 +535,9 @@ static void read_level(int module)
 	delay = 0;
 	read_delay_rst(module);
 	while(1) {
+#ifdef ECP5DDRPHY
+		ddrphy_burstdet_clr_write(1);
+#endif
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
 		working = 1;
@@ -535,6 +547,10 @@ static void read_level(int module)
 			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
+#ifdef ECP5DDRPHY
+		if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
+			working = 0;
+#endif
 		if(working)
 			break;
 		delay++;
@@ -557,6 +573,9 @@ static void read_level(int module)
 
 	/* Find largest working delay */
 	while(1) {
+#ifdef ECP5DDRPHY
+		ddrphy_burstdet_clr_write(1);
+#endif
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
 		working = 1;
@@ -566,6 +585,10 @@ static void read_level(int module)
 			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
+#ifdef ECP5DDRPHY
+		if (((ddrphy_burstdet_seen_read() >> module) & 0x1) != 1)
+			working = 0;
+#endif
 		if(!working)
 			break;
 		delay++;

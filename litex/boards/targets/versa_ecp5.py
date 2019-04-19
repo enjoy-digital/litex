@@ -13,7 +13,10 @@ from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
 from litedram.modules import MT41K64M16
-from litedram.phy import ECP5DDRPHY, ECP5DDRPHYInit
+from litedram.phy import ECP5DDRPHY
+
+from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
+from liteeth.core.mac import LiteEthMAC
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -70,7 +73,7 @@ class BaseSoC(SoCSDRAM):
     csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, toolchain="diamond", **kwargs):
         platform = versa_ecp5.Platform(toolchain=toolchain)
-        sys_clk_freq = int(50e6)
+        sys_clk_freq = int(75e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
                           **kwargs)
@@ -84,24 +87,61 @@ class BaseSoC(SoCSDRAM):
             platform.request("ddram"),
             sys_clk_freq=sys_clk_freq)
         self.add_constant("ECP5DDRPHY", None)
-        ddrphy_init = ECP5DDRPHYInit(self.crg, self.ddrphy)
-        self.submodules += ddrphy_init
+        self.comb += crg.stop.eq(self.ddrphy.init.stop)
         sdram_module = MT41K64M16(sys_clk_freq, "1:2")
         self.register_sdram(self.ddrphy,
             sdram_module.geom_settings,
             sdram_module.timing_settings)
 
+# EthernetSoC --------------------------------------------------------------------------------------
+
+class EthernetSoC(BaseSoC):
+    csr_map = {
+        "ethphy": 18,
+        "ethmac": 19
+    }
+    csr_map.update(BaseSoC.csr_map)
+
+    interrupt_map = {
+        "ethmac": 3,
+    }
+    interrupt_map.update(BaseSoC.interrupt_map)
+
+    mem_map = {
+        "ethmac": 0x30000000,  # (shadow @0xb0000000)
+    }
+    mem_map.update(BaseSoC.mem_map)
+
+    def __init__(self, toolchain="diamond", **kwargs):
+        BaseSoC.__init__(self, toolchain=toolchain, **kwargs)
+
+        self.submodules.ethphy = LiteEthPHYRGMII(
+            self.platform.request("eth_clocks"),
+            self.platform.request("eth"))
+        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
+            interface="wishbone", endianness=self.cpu.endianness)
+        self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
+        self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+
+        self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
+        self.ethphy.crg.cd_eth_tx.clk.attr.add("keep")
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/125e6)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC on ECP5")
+    parser = argparse.ArgumentParser(description="LiteX SoC on Versa ECP5")
     parser.add_argument("--gateware-toolchain", dest="toolchain", default="diamond",
         help='gateware toolchain to use, diamond (default) or  trellis')
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--with-ethernet", action="store_true",
+                        help="enable Ethernet support")
     args = parser.parse_args()
 
-    soc = BaseSoC(toolchain=args.toolchain, **soc_sdram_argdict(args))
+    cls = EthernetSoC if args.with_ethernet else BaseSoC
+    soc = cls(args.toolchain, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 

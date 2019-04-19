@@ -14,6 +14,9 @@ from litex.soc.integration.builder import *
 from litedram.modules import EDY4016A
 from litedram.phy import usddrphy
 
+from liteeth.phy.ku_1000basex import KU_1000BASEX
+from liteeth.core.mac import LiteEthMAC
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -92,15 +95,61 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
 
+
+# EthernetSoC ------------------------------------------------------------------------------------------
+
+class EthernetSoC(BaseSoC):
+    csr_map = {
+        "ethphy": 18,
+        "ethmac": 19
+    }
+    csr_map.update(BaseSoC.csr_map)
+
+    interrupt_map = {
+        "ethmac": 3,
+    }
+    interrupt_map.update(BaseSoC.interrupt_map)
+
+    mem_map = {
+        "ethmac": 0x30000000,  # (shadow @0xb0000000)
+    }
+    mem_map.update(BaseSoC.mem_map)
+
+    def __init__(self, **kwargs):
+        BaseSoC.__init__(self, **kwargs)
+
+        self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
+        self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
+            self.platform.request("sfp", 0), sys_clk_freq=self.clk_freq)
+        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
+            interface="wishbone", endianness=self.cpu.endianness)
+        self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
+        self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+
+        self.crg.cd_sys.clk.attr.add("keep")
+        self.ethphy.cd_eth_rx.clk.attr.add("keep")
+        self.ethphy.cd_eth_tx.clk.attr.add("keep")
+        self.platform.add_period_constraint(self.ethphy.cd_eth_rx.clk, 1e9/125e6)
+        self.platform.add_period_constraint(self.ethphy.cd_eth_tx.clk, 1e9/125e6)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.ethphy.cd_eth_rx.clk,
+            self.ethphy.cd_eth_tx.clk)
+
+        self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on KCU105")
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--with-ethernet", action="store_true",
+                        help="enable Ethernet support")
     args = parser.parse_args()
 
-    soc = BaseSoC(**soc_sdram_argdict(args))
+    cls = EthernetSoC if args.with_ethernet else BaseSoC
+    soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 

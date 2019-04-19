@@ -1,4 +1,6 @@
 #include <generated/csr.h>
+#include <generated/mem.h>
+
 #ifdef CSR_ETHMAC_BASE
 
 #include <stdio.h>
@@ -6,7 +8,6 @@
 #include <system.h>
 #include <crc.h>
 #include <hw/flags.h>
-#include <hw/ethmac_mem.h>
 
 #include <net/microudp.h>
 
@@ -110,24 +111,17 @@ struct ethernet_frame {
 
 typedef union {
 	struct ethernet_frame frame;
-	unsigned char raw[1532];
+	unsigned char raw[ETHMAC_SLOT_SIZE];
 } ethernet_buffer;
 
-
-static unsigned int rxslot;
 static unsigned int rxlen;
 static ethernet_buffer *rxbuffer;
-static ethernet_buffer *rxbuffer0;
-static ethernet_buffer *rxbuffer1;
-static unsigned int txslot;
 static unsigned int txlen;
 static ethernet_buffer *txbuffer;
-static ethernet_buffer *txbuffer0;
-static ethernet_buffer *txbuffer1;
 
 static void send_packet(void)
 {
-
+	unsigned int txslot;
 #ifndef HW_PREAMBLE_CRC
 	unsigned int crc;
 	crc = crc32(&txbuffer->raw[8], txlen-8);
@@ -147,15 +141,13 @@ static void send_packet(void)
 	printf("\n");
 #endif
 
-	ethmac_sram_reader_slot_write(txslot);
 	ethmac_sram_reader_length_write(txlen);
-	while(!(ethmac_sram_reader_ready_read()));
 	ethmac_sram_reader_start_write(1);
-	txslot = (txslot+1)%2;
-	if (txslot)
-		txbuffer = txbuffer1;
-	else
-		txbuffer = txbuffer0;
+	while(!(ethmac_sram_reader_ready_read()));
+	txslot = ethmac_sram_reader_slot_read();
+	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * (ETHMAC_RX_SLOTS + txslot));
+	txslot = (txslot+1)%ETHMAC_TX_SLOTS;
+	ethmac_sram_reader_slot_write(txslot);
 }
 
 static unsigned char my_mac[6];
@@ -415,17 +407,6 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
 	ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 
-	rxbuffer0 = (ethernet_buffer *)ETHMAC_RX0_BASE;
-	rxbuffer1 = (ethernet_buffer *)ETHMAC_RX1_BASE;
-	txbuffer0 = (ethernet_buffer *)ETHMAC_TX0_BASE;
-	txbuffer1 = (ethernet_buffer *)ETHMAC_TX1_BASE;
-
-	rxslot = 0;
-	txslot = 0;
-
-	rxbuffer = rxbuffer0;
-	txbuffer = txbuffer0;
-
 	for(i=0;i<6;i++)
 		my_mac[i] = macaddr[i];
 	my_ip = ip;
@@ -434,18 +415,21 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
+	ethmac_sram_reader_slot_write(0);
+	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * ETHMAC_RX_SLOTS);
+
+
+	rxbuffer = (ethernet_buffer *)ETHMAC_BASE;
 	rx_callback = (udp_callback)0;
 }
 
 void microudp_service(void)
 {
+	unsigned int rxslot;
 	if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
 		rxslot = ethmac_sram_writer_slot_read();
+		rxbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * rxslot);
 		rxlen = ethmac_sram_writer_length_read();
-		if (rxslot)
-			rxbuffer = rxbuffer1;
-		else
-			rxbuffer = rxbuffer0;
 		process_frame();
 		ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 	}
@@ -463,13 +447,12 @@ static void busy_wait(unsigned int ds)
 
 void eth_init(void)
 {
-	ethphy_crg_reset_write(0);
-	busy_wait(2);
-	/* that pesky ethernet PHY needs two resets at times... */
+#ifdef CSR_ETHPHY_CRG_RESET_ADDR
 	ethphy_crg_reset_write(1);
 	busy_wait(2);
 	ethphy_crg_reset_write(0);
 	busy_wait(2);
+#endif
 }
 
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR

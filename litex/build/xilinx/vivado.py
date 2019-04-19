@@ -1,9 +1,10 @@
-# This file is Copyright (c) 2014 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 import os
 import subprocess
 import sys
+import math
 
 from migen.fhdl.structure import _Fragment
 
@@ -117,8 +118,9 @@ class XilinxVivadoToolchain:
             for filename, language, library in sources:
                 filename_tcl = "{" + filename + "}"
                 tcl.append("add_files " + filename_tcl)
-                tcl.append("set_property library {} [get_files {}]"
-                           .format(library, filename_tcl))
+                if language == "vhdl":
+                    tcl.append("set_property library {} [get_files {}]"
+                               .format(library, filename_tcl))
         for filename in edifs:
             filename_tcl = "{" + filename + "}"
             tcl.append("read_edif " + filename_tcl)
@@ -196,23 +198,23 @@ class XilinxVivadoToolchain:
         # The asynchronous input to a MultiReg is a false path
         platform.add_platform_command(
             "set_false_path -quiet "
-            "-to [get_nets -filter {{mr_ff == TRUE}}]"
+            "-to [get_nets -quiet -filter {{mr_ff == TRUE}}]"
         )
         # The asychronous reset input to the AsyncResetSynchronizer is a false
         # path
         platform.add_platform_command(
             "set_false_path -quiet "
-            "-to [get_pins -filter {{REF_PIN_NAME == PRE}} "
-                "-of [get_cells -filter {{ars_ff1 == TRUE || ars_ff2 == TRUE}}]]"
+            "-to [get_pins -quiet -filter {{REF_PIN_NAME == PRE}} "
+                "-of [get_cells -quiet -filter {{ars_ff1 == TRUE || ars_ff2 == TRUE}}]]"
         )
         # clock_period-2ns to resolve metastability on the wire between the
         # AsyncResetSynchronizer FFs
         platform.add_platform_command(
             "set_max_delay 2 -quiet "
-            "-from [get_pins -filter {{REF_PIN_NAME == Q}} "
-                "-of [get_cells -filter {{ars_ff1 == TRUE}}]] "
-            "-to [get_pins -filter {{REF_PIN_NAME == D}} "
-                "-of [get_cells -filter {{ars_ff2 == TRUE}}]]"
+            "-from [get_pins -quiet -filter {{REF_PIN_NAME == Q}} "
+                "-of [get_cells -quiet -filter {{ars_ff1 == TRUE}}]] "
+            "-to [get_pins -quiet -filter {{REF_PIN_NAME == D}} "
+                "-of [get_cells -quiet -filter {{ars_ff2 == TRUE}}]]"
         )
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
@@ -250,6 +252,7 @@ class XilinxVivadoToolchain:
     def add_period_constraint(self, platform, clk, period):
         if clk in self.clocks:
             raise ValueError("A period constraint already exists")
+        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
         self.clocks[clk] = period
 
     def add_false_path_constraint(self, platform, from_, to):
