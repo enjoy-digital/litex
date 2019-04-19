@@ -122,6 +122,16 @@ def main():
                         help="Select PCIe interface")
     parser.add_argument("--pcie-bar", default=None,
                         help="Set PCIe BAR")
+
+    # USB arguments
+    parser.add_argument("--usb", action="store_true",
+                        help="Select USB interface")
+    parser.add_argument("--usb-vid", default=None,
+                        help="Set USB vendor ID")
+    parser.add_argument("--usb-pid", default=None,
+                        help="Set USB product ID")
+    parser.add_argument("--usb-max-retries", default=10,
+                        help="Number of times to try reconnecting to USB")
     args = parser.parse_args()
 
 
@@ -148,6 +158,19 @@ def main():
             exit()
         print("[CommPCIe] bar: {} / ".format(args.pcie_bar), end="")
         comm = CommPCIe(args.pcie_bar)
+    elif args.usb:
+        from litex.soc.tools.remote import CommUSB
+        if args.usb_pid is None and args.usb_vid is None:
+            print("Need to speficy --usb-vid or --usb-pid, exiting.")
+            exit()
+        print("[CommUSB] vid: {} / pid: {} / ".format(args.usb_vid, args.usb_pid), end="")
+        pid = args.usb_pid
+        if pid is not None:
+            pid = int(pid, base=0)
+        vid = args.usb_vid
+        if vid is not None:
+            vid = int(vid, base=0)
+        comm = CommUSB(vid=vid, pid=pid, max_retries=args.usb_max_retries)
     else:
         parser.print_help()
         exit()
