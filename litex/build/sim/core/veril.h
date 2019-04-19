@@ -4,6 +4,7 @@
 #define __VERIL_H_
 
 #ifdef __cplusplus
+extern "C" void litex_sim_init_cmdargs(int argc, char *argv[]);
 extern "C" void litex_sim_eval(void *vdut);
 extern "C" void litex_sim_init_tracer(void *vdut);
 extern "C" void litex_sim_tracer_dump();
