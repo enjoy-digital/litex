@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2014 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 import os
@@ -118,8 +118,9 @@ class XilinxVivadoToolchain:
             for filename, language, library in sources:
                 filename_tcl = "{" + filename + "}"
                 tcl.append("add_files " + filename_tcl)
-                tcl.append("set_property library {} [get_files {}]"
-                           .format(library, filename_tcl))
+                if language == "vhdl":
+                    tcl.append("set_property library {} [get_files {}]"
+                               .format(library, filename_tcl))
         for filename in edifs:
             filename_tcl = "{" + filename + "}"
             tcl.append("read_edif " + filename_tcl)
