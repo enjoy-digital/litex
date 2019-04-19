@@ -24,6 +24,7 @@ class VexRiscv(Module, AutoCSR):
         self.reset = Signal()
         self.ibus = ibus = wishbone.Interface()
         self.dbus = dbus = wishbone.Interface()
+        self.cpu_reset_address = cpu_reset_address
 
         self.interrupt = Signal(32)
 
@@ -31,7 +32,7 @@ class VexRiscv(Module, AutoCSR):
                 i_clk=ClockSignal(),
                 i_reset=ResetSignal() | self.reset,
 
-                i_externalResetVector=cpu_reset_address,
+                i_externalResetVector=self.cpu_reset_address,
                 i_externalInterruptArray=self.interrupt,
                 i_timerInterrupt=0,
 
