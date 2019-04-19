@@ -1,10 +1,20 @@
+"""Avalon support for LiteX"""
+
 from migen import *
 
 from litex.soc.interconnect import stream
 
-# AvalonST to/from Native --------------------------------------------------------------------------
+# Avalon-ST to/from native LiteX's stream ----------------------------------------------------------
+
+# In native LiteX's streams, ready signal has no latency (similar to AXI). In Avalon-ST streams the
+# ready signal has a latency: If ready is asserted on cycle n, then cycle n + latency is a "ready"
+# in the LiteX/AXI's sense) cycle. This means that:
+# - when converting to Avalon-ST, we need to add this latency on datas.
+# - when converting from Avalon-ST, we need to make sure we are able to store datas for "latency"
+# cycles after ready deassertion on the native interface.
 
 class Native2AvalonST(Module):
+    """Native LiteX's stream to Avalon-ST stream"""
     def __init__(self, layout, latency=2):
         self.sink = sink = stream.Endpoint(layout)
         self.source = source = stream.Endpoint(layout)
@@ -23,6 +33,7 @@ class Native2AvalonST(Module):
 
 
 class AvalonST2Native(Module):
+    """Avalon-ST Stream to native LiteX's stream"""
     def __init__(self, layout, latency=2):
         self.sink = sink = stream.Endpoint(layout)
         self.source = source = stream.Endpoint(layout)
