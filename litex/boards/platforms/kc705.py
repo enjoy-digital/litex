@@ -526,18 +526,14 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk156"
     default_clk_period = 6.4
 
-    def __init__(self, toolchain="vivado", programmer="vivado"):
-        XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors,
-            toolchain=toolchain)
-        if toolchain == "ise":
-            self.toolchain.bitgen_opt = "-g LCK_cycle:6 -g Binary:Yes -w -g ConfigRate:12 -g SPI_buswidth:4"
-        elif toolchain == "vivado":
-            self.add_platform_command("""
+    def __init__(self, programmer="vivado"):
+        XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
+        self.add_platform_command("""
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 2.5 [current_design]
 """)
-            self.toolchain.bitstream_commands = ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
-            self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
+        self.toolchain.bitstream_commands = ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
+        self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
         self.programmer = programmer
 
     def create_programmer(self):
@@ -545,8 +541,6 @@ set_property CONFIG_VOLTAGE 2.5 [current_design]
             return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
         elif self.programmer == "vivado":
             return VivadoProgrammer()
-        elif self.programmer == "impact":
-            return iMPACT()
         else:
             raise ValueError("{} programmer is not supported".format(programmer))
 
@@ -564,7 +558,4 @@ set_property CONFIG_VOLTAGE 2.5 [current_design]
             self.add_period_constraint(self.lookup_request("eth_clocks").tx, 1e9/125e6)
         except ConstraintError:
             pass
-        if isinstance(self.toolchain, XilinxISEToolchain):
-            self.add_platform_command("CONFIG DCI_CASCADE = \"33 32 34\";")
-        else:
-            self.add_platform_command("set_property DCI_CASCADE {{32 34}} [get_iobanks 33]")
+        self.add_platform_command("set_property DCI_CASCADE {{32 34}} [get_iobanks 33]")
