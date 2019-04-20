@@ -1,7 +1,7 @@
 import socket
 
-from litex.soc.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
-from litex.soc.tools.remote.etherbone import EtherboneReads, EtherboneWrites
+from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
+from litex.tools.remote.etherbone import EtherboneReads, EtherboneWrites
 
 
 class CommUDP:

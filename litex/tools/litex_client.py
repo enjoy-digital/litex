@@ -1,9 +1,9 @@
 import socket
 
-from litex.soc.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
-from litex.soc.tools.remote.etherbone import EtherboneReads, EtherboneWrites
-from litex.soc.tools.remote.etherbone import EtherboneIPC
-from litex.soc.tools.remote.csr_builder import CSRBuilder
+from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
+from litex.tools.remote.etherbone import EtherboneReads, EtherboneWrites
+from litex.tools.remote.etherbone import EtherboneIPC
+from litex.tools.remote.csr_builder import CSRBuilder
 
 
 class RemoteClient(EtherboneIPC, CSRBuilder):

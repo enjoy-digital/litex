@@ -16,9 +16,9 @@ ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif
 ifeq ($(CPUENDIANNESS),little)
-	$(PYTHON) -m litex.soc.tools.mkmscimg $@ --little
+	$(PYTHON) -m litex.soc.software.mkmscimg $@ --little
 else
-	$(PYTHON) -m litex.soc.tools.mkmscimg $@
+	$(PYTHON) -m litex.soc.software.mkmscimg $@
 endif
 
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)

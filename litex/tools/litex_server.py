@@ -7,8 +7,8 @@ import socket
 import time
 import threading
 
-from litex.soc.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
-from litex.soc.tools.remote.etherbone import EtherboneIPC
+from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
+from litex.tools.remote.etherbone import EtherboneIPC
 
 
 class RemoteServer(EtherboneIPC):
@@ -136,7 +136,7 @@ def main():
 
 
     if args.uart:
-        from litex.soc.tools.remote import CommUART
+        from litex.tools.remote import CommUART
         if args.uart_port is None:
             print("Need to specify --uart-port, exiting.")
             exit()
@@ -145,13 +145,13 @@ def main():
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
         comm = CommUART(uart_port, uart_baudrate)
     elif args.udp:
-        from litex.soc.tools.remote import CommUDP
+        from litex.tools.remote import CommUDP
         udp_ip = args.udp_ip
         udp_port = int(args.udp_port)
         print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
         comm = CommUDP(udp_ip, udp_port)
     elif args.pcie:
-        from litex.soc.tools.remote import CommPCIe
+        from litex.tools.remote import CommPCIe
         pcie_bar = args.pcie_bar
         if args.pcie_bar is None:
             print("Need to speficy --pcie-bar, exiting.")
@@ -159,7 +159,7 @@ def main():
         print("[CommPCIe] bar: {} / ".format(args.pcie_bar), end="")
         comm = CommPCIe(args.pcie_bar)
     elif args.usb:
-        from litex.soc.tools.remote import CommUSB
+        from litex.tools.remote import CommUSB
         if args.usb_pid is None and args.usb_vid is None:
             print("Need to speficy --usb-vid or --usb-pid, exiting.")
             exit()
