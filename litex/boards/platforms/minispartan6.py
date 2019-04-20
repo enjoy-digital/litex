@@ -3,8 +3,9 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
-from litex.build.xilinx.programmer import XC3SProg, FpgaProg
+from litex.build.xilinx.programmer import FpgaProg
 
+# IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     ("user_led", 0, Pins("P11"), IOStandard("LVCMOS33")),
@@ -99,6 +100,8 @@ _io = [
     )
 ]
 
+# Connectors ---------------------------------------------------------------------------------------
+
 _connectors = [
     ("A", "E7 C8 D8 E8 D9 A10 B10 C10 E10 F9 F10 D11"),
     ("B", "E11 D14 D12 E12 E13 F13 F12 F14 G12 H14 J14"),
@@ -108,6 +111,7 @@ _connectors = [
     ("F", "E2 E1 E4 F4 F5 G3 F3 G1 H3 H1 H2 J1")
 ]
 
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
     default_clk_name = "clk32"

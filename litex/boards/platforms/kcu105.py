@@ -1,6 +1,7 @@
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
 
+# IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     ("user_led", 0, Pins("AP8"), IOStandard("LVCMOS18")),
@@ -234,6 +235,8 @@ _io = [
     ),
     ("sfp_tx_disable_n", 1, Pins("D28"), IOStandard("LVCMOS18")),
 ]
+
+# Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
     ("HPC", {
@@ -476,6 +479,7 @@ _connectors = [
     )
 ]
 
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
     default_clk_name = "clk125"

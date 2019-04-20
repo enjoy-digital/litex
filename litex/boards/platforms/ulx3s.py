@@ -4,6 +4,7 @@
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
 
+# IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     ("clk25", 0, Pins("G2"), IOStandard("LVCMOS33")),
@@ -64,6 +65,7 @@ _io = [
     ),
 ]
 
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(LatticePlatform):
     default_clk_name = "clk100"

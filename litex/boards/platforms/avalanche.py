@@ -4,6 +4,8 @@
 from litex.build.generic_platform import *
 from litex.build.microsemi import MicrosemiPlatform
 
+# IOs ----------------------------------------------------------------------------------------------
+
 _io = [
     ("clk50", 0, Pins("R1"), IOStandard("LVCMOS25")),
     ("clk50", 1, Pins("J3"), IOStandard("LVCMOS25")),
@@ -81,6 +83,8 @@ _io = [
         IOStandard("LVCMOS25")
     ),
 ]
+
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(MicrosemiPlatform):
     default_clk_name = "clk50"

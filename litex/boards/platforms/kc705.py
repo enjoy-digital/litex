@@ -1,7 +1,7 @@
 from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer, iMPACT
-from litex.build.xilinx.ise import XilinxISEToolchain
+from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
 
+# IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     ("user_led", 0, Pins("AB8"), IOStandard("LVCMOS15")),
@@ -58,7 +58,8 @@ _io = [
         Subsignal("rts", Pins("K23")),
         Subsignal("tx", Pins("K24")),
         Subsignal("rx", Pins("M19")),
-        IOStandard("LVCMOS25")),
+        IOStandard("LVCMOS25")
+    ),
 
     ("spiflash", 0,  # clock needs to be accessed through STARTUPE2
         Subsignal("cs_n", Pins("U19")),
@@ -284,6 +285,7 @@ _io = [
     ),
 ]
 
+# Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
     ("HPC", {
@@ -303,10 +305,10 @@ _connectors = [
         "DP0_C2M_N": "D1",
         "DP0_M2C_P": "E4",
         "DP0_M2C_N": "E3",
-        "LA06_P": "H30",
-        "LA06_N": "G30",
-        "LA10_P": "D29",
-        "LA10_N": "C30",
+        "LA06_P"   : "H30",
+        "LA06_N"   : "G30",
+        "LA10_P"   : "D29",
+        "LA10_N"   : "C30",
         "LA14_P": "B28",
         "LA14_N": "A28",
         "LA18_CC_P": "F21",
@@ -521,6 +523,7 @@ _connectors = [
     ),
 ]
 
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
     default_clk_name = "clk156"

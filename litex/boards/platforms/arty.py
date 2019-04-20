@@ -5,7 +5,9 @@
 # License: BSD
 
 from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer
+from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+
+# IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     ("user_led", 0, Pins("H5"), IOStandard("LVCMOS33")),
@@ -58,7 +60,8 @@ _io = [
     ("serial", 0,
         Subsignal("tx", Pins("D10")),
         Subsignal("rx", Pins("A9")),
-        IOStandard("LVCMOS33")),
+        IOStandard("LVCMOS33")
+    ),
 
     ("spi", 0,
         Subsignal("clk", Pins("F1")),
@@ -136,6 +139,8 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 ]
+
+# Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
     ("pmoda", "G13 B11 A11 D12 D13 B18 A18 K16"),
@@ -228,6 +233,7 @@ _connectors = [
         } ),
 ]
 
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
     default_clk_name = "clk100"
