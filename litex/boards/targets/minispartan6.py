@@ -21,6 +21,11 @@ class _CRG(Module):
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_sys_ps = ClockDomain()
 
+        # # #
+
+        self.cd_sys.clk.attr.add("keep")
+        self.cd_sys_ps.clk.attr.add("keep")
+
         f0 = 32*1000000
         clk32 = platform.request("clk32")
         clk32a = Signal()

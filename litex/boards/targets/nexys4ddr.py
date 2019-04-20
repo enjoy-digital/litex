@@ -25,6 +25,14 @@ class _CRG(Module):
         self.clock_domains.cd_clk200 = ClockDomain()
         self.clock_domains.cd_clk100 = ClockDomain()
 
+        # # #
+
+        self.cd_sys.clk.attr.add("keep")
+        self.cd_sys2x.clk.attr.add("keep")
+        self.cd_sys2x_dqs.clk.attr.add("keep")
+        self.cd_clk200.clk.attr.add("keep")
+        self.cd_clk100.clk.attr.add("keep")
+
         self.submodules.pll = pll = S7MMCM(speedgrade=-1)
         self.comb += pll.reset.eq(~platform.request("cpu_reset"))
         pll.register_clkin(platform.request("clk100"), 100e6)

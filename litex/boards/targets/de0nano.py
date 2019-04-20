@@ -60,6 +60,12 @@ class _CRG(Module):
         self.clock_domains.cd_sys_ps = ClockDomain()
         self.clock_domains.cd_por = ClockDomain(reset_less=True)
 
+        # # #
+
+        self.cd_sys.clk.attr.add("keep")
+        self.cd_sys_ps.clk.attr.add("keep")
+        self.cd_por.clk.attr.add("keep")
+
         clk50 = platform.request("clk50")
 
         sys_pll = _ALTPLL(20, "sys", 0, "NORMAL")

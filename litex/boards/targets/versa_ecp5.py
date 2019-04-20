@@ -30,6 +30,12 @@ class _CRG(Module):
 
         # # #
 
+        self.cd_init.clk.attr.add("keep")
+        self.cd_por.clk.attr.add("keep")
+        self.cd_sys.clk.attr.add("keep")
+        self.cd_sys2x.clk.attr.add("keep")
+        self.cd_sys2x_i.clk.attr.add("keep")
+
         self.stop = Signal()
 
         # clk / rst
