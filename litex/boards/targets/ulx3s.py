@@ -49,7 +49,8 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, platform, **kwargs):
+    def __init__(self, device="LFE5U-45F", toolchain="diamond", **kwargs):
+        platform = ulx3s.Platform(device=device, toolchain=toolchain)
         sys_clk_freq = int(50e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
@@ -76,8 +77,7 @@ def main():
     soc_sdram_args(parser)
     args = parser.parse_args()
 
-    platform = ulx3s.Platform(device=args.device, toolchain=args.toolchain)
-    soc = BaseSoC(platform, **soc_sdram_argdict(args))
+    soc = BaseSoC(args.device, args.toolchain, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
