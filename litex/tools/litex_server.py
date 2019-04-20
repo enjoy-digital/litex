@@ -21,8 +21,13 @@ class RemoteServer(EtherboneIPC):
     def open(self):
         if hasattr(self, "socket"):
             return
+        socket_flags = 0
+        if hasattr(socket, "SO_REUSEADDR"):
+            socket_flags = socket_flags | socket.SO_REUSEADDR
+        if hasattr(socket, "SO_REUSEPORT"):
+            socket_flags = socket_flags | socket.SO_REUSEPORT
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket_flags, 1)
         self.socket.bind((self.bind_ip, self.bind_port))
         print("tcp port: {:d}".format(self.bind_port))
         self.socket.listen(1)
