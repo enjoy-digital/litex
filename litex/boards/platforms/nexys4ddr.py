@@ -86,20 +86,12 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk100"
     default_clk_period = 10.0
 
-    def __init__(self, programmer="vivado"):
+    def __init__(self):
         XilinxPlatform.__init__(self, "xc7a100t-CSG324-1", _io, toolchain="vivado")
-        self.programmer = programmer
         self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 34]")
 
-
     def create_programmer(self):
-        if self.programmer == "xc3sprog":
-            return XC3SProg("nexys4")
-        elif self.programmer == "vivado":
-            return VivadoProgrammer()
-        else:
-            raise ValueError("{} programmer is not supported"
-                             .format(self.programmer))
+        return VivadoProgrammer()
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)

@@ -105,15 +105,11 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk200"
     default_clk_period = 5
 
-    def __init__(self, programmer="vivado"):
+    def __init__(self):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
-        self.programmer = programmer
 
     def create_programmer(self):
-        if self.programmer == "vivado":
-            return VivadoProgrammer()
-        else:
-            raise ValueError("{} programmer is not supported".format(programmer))
+        return VivadoProgrammer()
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)

@@ -482,8 +482,7 @@ class Platform(XilinxPlatform):
     default_clk_period = 8.0
 
     def __init__(self):
-        XilinxPlatform.__init__(self, "xcku040-ffva1156-2-e", _io, _connectors,
-            toolchain="vivado")
+        XilinxPlatform.__init__(self, "xcku040-ffva1156-2-e", _io, _connectors, toolchain="vivado")
 
     def create_programmer(self):
         return VivadoProgrammer()

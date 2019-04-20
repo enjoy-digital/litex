@@ -526,7 +526,7 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk156"
     default_clk_period = 6.4
 
-    def __init__(self, programmer="vivado"):
+    def __init__(self):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
         self.add_platform_command("""
 set_property CFGBVS VCCO [current_design]
@@ -534,7 +534,6 @@ set_property CONFIG_VOLTAGE 2.5 [current_design]
 """)
         self.toolchain.bitstream_commands = ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
-        self.programmer = programmer
 
     def create_programmer(self):
         if self.programmer == "xc3sprog":

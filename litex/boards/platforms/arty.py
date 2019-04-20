@@ -233,22 +233,14 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk100"
     default_clk_period = 10.0
 
-    def __init__(self, toolchain="vivado", programmer="vivado"):
-        XilinxPlatform.__init__(self, "xc7a35ticsg324-1L", _io, _connectors,
-                                toolchain=toolchain)
+    def __init__(self):
+        XilinxPlatform.__init__(self, "xc7a35ticsg324-1L", _io, _connectors, toolchain="vivado")
         self.toolchain.bitstream_commands = \
             ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = \
             ["write_cfgmem -force -format bin -interface spix4 -size 16 "
              "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
-        self.programmer = programmer
         self.add_platform_command("set_property INTERNAL_VREF 0.675 [get_iobanks 34]")
 
     def create_programmer(self):
-        if self.programmer == "xc3sprog":
-            return XC3SProg("nexys4")
-        elif self.programmer == "vivado":
-            return VivadoProgrammer(flash_part="n25q128-3.3v-spi-x1_x2_x4")
-        else:
-            raise ValueError("{} programmer is not supported"
-                             .format(self.programmer))
+        return VivadoProgrammer(flash_part="n25q128-3.3v-spi-x1_x2_x4")
