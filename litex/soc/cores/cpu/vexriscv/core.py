@@ -16,7 +16,7 @@ class VexRiscv(Module, AutoCSR):
     def __init__(self, platform, cpu_reset_address, variant=None):
         variant = "std" if variant is None else variant
         variant = "std_debug" if variant == "debug" else variant
-        variants = ("std", "std_debug", "lite", "lite_debug", "min", "min_debug")
+        variants = ("std", "std_debug", "lite", "lite_debug", "min", "min_debug", "full", "full_debug")
         assert variant in variants, "Unsupported variant %s" % variant
         self.platform = platform
         self.variant = variant
@@ -157,6 +157,8 @@ class VexRiscv(Module, AutoCSR):
             "lite_debug": "VexRiscv_LiteDebug.v",
             "min":        "VexRiscv_Min.v",
             "min_debug":  "VexRiscv_MinDebug.v",
+            "full":       "VexRiscv_Full.v",
+            "full_debug": "VexRiscv_FullDebug.v",
         }
         cpu_filename = verilog_variants[variant]
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
