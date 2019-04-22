@@ -70,7 +70,7 @@ class TestAXILite(unittest.TestCase):
             for _ in range(8):
                 yield
         dut = AXILiteDUT()
-        run_simulation(dut, generator(dut.dut), vcd_name='axi-write-read.vcd')
+        run_simulation(dut, generator(dut.dut))
 
     def test_simultaneous(dut):
         def generator(dut):
@@ -101,4 +101,4 @@ class TestAXILite(unittest.TestCase):
 
 
         dut = AXILiteDUT()
-        run_simulation(dut, generator(dut.dut), vcd_name='axi-simultaneous.vcd')
+        run_simulation(dut, generator(dut.dut))

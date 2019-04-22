@@ -51,5 +51,5 @@ class TestGearbox(unittest.TestCase):
             data_generator(dut, dut.gearbox0, datas),
             data_checker(dut, dut.gearbox1, datas)
         ]
-        run_simulation(dut, generators, vcd_name="sim.vcd")
+        run_simulation(dut, generators)
         self.assertEqual(dut.errors, 0)
