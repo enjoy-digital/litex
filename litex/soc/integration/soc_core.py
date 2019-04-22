@@ -141,7 +141,7 @@ class SoCCore(Module):
         "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
     def __init__(self, platform, clk_freq,
-                cpu_type="lm32", cpu_reset_address=0x00000000, cpu_variant=None,
+                cpu_type="vexriscv", cpu_reset_address=0x00000000, cpu_variant=None,
                 integrated_rom_size=0, integrated_rom_init=[],
                 integrated_sram_size=4096,
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
