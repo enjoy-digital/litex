@@ -57,7 +57,6 @@ class TestTargets(unittest.TestCase):
         self.assertEqual(errors, 0)
 
     # lattice boards
-
     def test_versa_ecp5(self):
         from litex.boards.targets.versa_ecp5 import BaseSoC
         errors = build_test([BaseSoC(**self.kwargs)])
@@ -85,7 +84,7 @@ class TestTargets(unittest.TestCase):
             "versa_ecp5"
         ]
         for p in platforms:
-            os.system("litex_simple litex.boards.platforms." + p +
+            os.system("litex/boards/targets/simple.py litex.boards.platforms." + p +
                 " --cpu-type=vexriscv " +
                 " --no-compile-software " +
                 " --no-compile-gateware " +
