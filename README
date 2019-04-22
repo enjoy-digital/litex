@@ -87,23 +87,6 @@ Migen documentation can be found here: https://m-labs.hk/migen/manual
 
 FPGA lessons/tutorials can be found at: https://github.com/enjoy-digital/fpga_101
 
-[> Medium Quick start guide with Conda
------------------------------------------
-
-0. Get miniconda by following instructions at https://conda.io/miniconda.html
-
-1. Clone LiteX
-  git clone --recurse-submodules https://github.com/enjoy-digital/litex.git
-
-2. Create a LiteX environment from environment.yml
-  conda env create -f environment.yml
-
-3. Enter conda environment
-  conda activate litex
-
-4. Build the target of your board...:
-  Go to boards/targets and execute the target you want to build
-
 
 [> Quick start guide (for advanced users)
 -----------------------------------------

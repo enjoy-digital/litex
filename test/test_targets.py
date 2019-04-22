@@ -18,53 +18,54 @@ def build_test(socs):
 
 
 class TestTargets(unittest.TestCase):
+    kwargs = {"cpu_type": "vexriscv"}
     # altera boards
     def test_de0nano(self):
         from litex.boards.targets.de0nano import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     # xilinx boards
     def test_minispartan6(self):
         from litex.boards.targets.minispartan6 import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     def test_arty(self):
         from litex.boards.targets.arty import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**self.kwargs), EthernetSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     def test_nexys4ddr(self):
         from litex.boards.targets.nexys4ddr import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     def test_nexys_video(self):
         from litex.boards.targets.nexys_video import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**self.kwargs), EthernetSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     def test_genesys2(self):
         from litex.boards.targets.genesys2 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**self.kwargs), EthernetSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     def test_kc705(self):
         from litex.boards.targets.kc705 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**self.kwargs), EthernetSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     # lattice boards
 
     def test_versa_ecp5(self):
         from litex.boards.targets.versa_ecp5 import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     def test_versa_ulx3s(self):
         from litex.boards.targets.ulx3s import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**self.kwargs)])
         self.assertEqual(errors, 0)
 
     # build simple design for all platforms
@@ -85,6 +86,7 @@ class TestTargets(unittest.TestCase):
         ]
         for p in platforms:
             os.system("litex_simple litex.boards.platforms." + p +
+                " --cpu-type=vexriscv " +
                 " --no-compile-software " +
                 " --no-compile-gateware " +
                 " --uart-stub=True")

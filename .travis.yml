@@ -1,19 +1,16 @@
 language: python
-python:
- - "3.6"
+dist: Xenial
+python: "3.6"
 
 install:
- - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
- - bash miniconda.sh -b -p $HOME/miniconda
- - export PATH="$HOME/miniconda/bin:$PATH"
- - hash -r
- - conda config --set always_yes yes --set changeps1 no
+  # Get Migen / LiteX / Cores
+  - wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+  - python3 litex_setup.py init install
 
 before_script:
- - export -f travis_nanoseconds
- - export -f travis_fold
- - export -f travis_time_start
- - export -f travis_time_finish
+  # Get RISC-V toolchain
+  - wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
+  - tar -xvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
+  - export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6/bin/
 
-script:
- - ./.travis-build-socs.sh
+script: python setup.py test
