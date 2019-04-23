@@ -92,7 +92,7 @@ else:
         return p
 
 def git_revision():
-    return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("utf-8")
+    return "--------"
 
 def generated_banner(line_comment="//"):
     r = line_comment + "-"*60 + "\n"
