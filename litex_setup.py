@@ -46,7 +46,7 @@ if "install" in sys.argv[1:]:
         print("[installing " + name + "]...")
         if need_develop:
             os.chdir(os.path.join(current_path, name))
-            os.system("python3 setup.py develop")
+            os.system("python3 setup.py develop --user")
 
 if "update" in sys.argv[1:]:
     for name in repos.keys():
