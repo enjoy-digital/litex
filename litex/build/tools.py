@@ -88,3 +88,6 @@ if sys.platform == "cygwin":
 else:
     def cygpath(p):
         return p
+
+def git_version():
+    return subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
