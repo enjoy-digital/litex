@@ -110,6 +110,11 @@ def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
 xst -ifn {build_name}.xst{fail_stmt}
 """
 
+    # This generates a .v file for post synthesis simulation
+    build_script_contents += """
+netgen -ofmt verilog -w -sim {build_name}.{ext} {build_name}_synth.v
+"""
+
     build_script_contents += """
 ngdbuild {ngdbuild_opt} -uc {build_name}.ucf {build_name}.{ext} {build_name}.ngd{fail_stmt}
 """
