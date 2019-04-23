@@ -18,18 +18,20 @@ def build_test(socs):
 
 
 class TestTargets(unittest.TestCase):
-    # altera boards
+    # Altera boards
     def test_de0nano(self):
         from litex.boards.targets.de0nano import BaseSoC
         errors = build_test([BaseSoC()])
         self.assertEqual(errors, 0)
 
-    # xilinx boards
+    # Xilinx boards
+    # Spartan-6
     def test_minispartan6(self):
         from litex.boards.targets.minispartan6 import BaseSoC
         errors = build_test([BaseSoC()])
         self.assertEqual(errors, 0)
 
+    # Artix-7
     def test_arty(self):
         from litex.boards.targets.arty import BaseSoC, EthernetSoC
         errors = build_test([BaseSoC(), EthernetSoC()])
@@ -45,6 +47,7 @@ class TestTargets(unittest.TestCase):
         errors = build_test([BaseSoC(), EthernetSoC()])
         self.assertEqual(errors, 0)
 
+    # Kintex-7
     def test_genesys2(self):
         from litex.boards.targets.genesys2 import BaseSoC, EthernetSoC
         errors = build_test([BaseSoC(), EthernetSoC()])
@@ -55,7 +58,14 @@ class TestTargets(unittest.TestCase):
         errors = build_test([BaseSoC(), EthernetSoC()])
         self.assertEqual(errors, 0)
 
-    # lattice boards
+    # Kintex-Ultrascale
+    def test_kcu105(self):
+        from litex.boards.targets.kcu105 import BaseSoC
+        errors = build_test([BaseSoC()])
+        self.assertEqual(errors, 0)
+
+    # Lattice boards
+    # ECP5
     def test_versa_ecp5(self):
         from litex.boards.targets.versa_ecp5 import BaseSoC
         errors = build_test([BaseSoC()])
@@ -66,22 +76,27 @@ class TestTargets(unittest.TestCase):
         errors = build_test([BaseSoC()])
         self.assertEqual(errors, 0)
 
-    # build simple design for all platforms
+    # Build simple design for all platforms
     def test_simple(self):
-        platforms = [
-            "arty",
-            "de0nano",
-            "genesys2",
-            "kc705",
-            "kcu105",
-            "machxo3",
-            "minispartan6",
-            "nexys4ddr",
-            "nexys_video",
-            "tinyfpga_bx",
-            "versa_ecp3",
-            "versa_ecp5"
-        ]
+        platforms = []
+        # Xilinx
+        platforms += ["minispartan6", "sp605"]                     # Spartan6
+        platforms += ["arty", "nexys4ddr", "nexys_video", "ac701"] # Artix7
+        platforms += ["kc705", "genesys2"]                         # Kintex7
+        platforms += ["kcu105"]                                    # Kintex Ultrascale
+
+        # Altera
+        platforms += ["de0nano"]                                   # Cyclone4
+
+        # Lattice
+        platforms += ["tinyfpga_bx"]                               # iCE40
+        platforms += ["machxo3"]                                   # MachXO3
+        platforms += ["versa_ecp3"]                                # ECP3
+        platforms += ["versa_ecp5", "ulx3s"]                       # ECP5
+
+        # Microsemi
+        platforms += ["avalanche"]                                 # PolarFire
+
         for p in platforms:
             os.system("litex/boards/targets/simple.py litex.boards.platforms." + p +
                 " --cpu-type=vexriscv " +
