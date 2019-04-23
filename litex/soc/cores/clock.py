@@ -151,6 +151,80 @@ class S7PLL(S7Clocking):
         self.specials += Instance("PLLE2_ADV", **self.params)
 
 
+class S6PLL(S7Clocking):
+    nclkouts_max = 6
+    clkin_freq_range = (19e6, 540e6)
+
+    def __init__(self, speedgrade=-1):
+        S7Clocking.__init__(self)
+        self.vco_freq_range = {
+            -1: (400e6, 1000e6),
+            -2: (400e6, 1000e6),
+            -3: (400e6, 1080e6),
+        }[speedgrade]
+
+    def do_finalize(self):
+        S7Clocking.do_finalize(self)
+        config = self.compute_config()
+        pll_fb = Signal()
+        self.params.update(
+            p_SIM_DEVICE="SPARTAN6",
+            p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
+            p_CLKIN2_PERIOD=period_ns(self.clkin_freq),
+            p_CLKFBOUT_MULT=config["clkfbout_mult"],
+            p_DIVCLK_DIVIDE=config["divclk_divide"],
+            i_CLKINSEL=1,
+            i_RST=self.reset,
+            i_CLKIN1=self.clkin,
+            i_CLKFBIN=pll_fb,
+            o_CLKFBOUT=pll_fb,
+            o_LOCKED=self.locked,
+        )
+        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+            self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
+            self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
+            self.params["o_CLKOUT{}".format(n)] = clk
+        self.specials += Instance("PLL_ADV", **self.params)
+
+
+class S6DCM(S7Clocking):
+    """ single output with f_out = f_in * {2 .. 256} / {1 .. 256} """
+    nclkouts_max = 1
+    clkfbout_mult_frange = (2, 256 + 1)
+    clkout_divide_range = (1, 256 + 1)
+
+    def __init__(self, speedgrade=-1):
+        S7Clocking.__init__(self)
+        self.clkin_freq_range = {
+            -1: (0.5e6, 200e6),
+            -2: (0.5e6, 333e6),
+            -3: (0.5e6, 375e6),
+        }[speedgrade]
+
+        self.vco_freq_range = {
+            -1: (5e6, 1e16),
+            -2: (5e6, 1e16),
+            -3: (5e6, 1e16),
+        }[speedgrade]
+
+    def do_finalize(self):
+        S7Clocking.do_finalize(self)
+        config = self.compute_config()
+        clk, f, p, m = sorted(self.clkouts.items())[0][1]
+        self.params.update(
+            p_CLKFX_MULTIPLY=config["clkfbout_mult"],
+            p_CLKFX_DIVIDE=config["clkout0_divide"] * config["divclk_divide"],
+            p_SPREAD_SPECTRUM="NONE",
+            p_CLKIN_PERIOD=period_ns(self.clkin_freq),
+            i_CLKIN=self.clkin,
+            i_RST=self.reset,
+            i_FREEZEDCM=0,
+            o_CLKFX=clk,
+            o_LOCKED=self.locked,
+        )
+        self.specials += Instance("DCM_CLKGEN", **self.params)
+
+
 class S7MMCM(S7Clocking):
     nclkouts_max = 7
 
