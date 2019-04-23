@@ -153,14 +153,14 @@ class LiteXTerm:
             elif reply == sfl_ack_crcerror:
                 retry = 1
             else:
-                print("[TERM] Got unknown reply '{}' from the device, aborting.".format(reply))
+                print("[LXTERM] Got unknown reply '{}' from the device, aborting.".format(reply))
                 return 0
         return 1
 
     def upload(self, filename, address):
         with open(filename, "rb") as f:
             data = f.read()
-        print("[TERM] Uploading {} ({} bytes)...".format(filename, len(data)))
+        print("[LXTERM] Uploading {} ({} bytes)...".format(filename, len(data)))
         current_address = address
         position = 0
         length = len(data)
@@ -185,11 +185,11 @@ class LiteXTerm:
                 data = []
         end = time.time()
         elapsed = end - start
-        print("[TERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
+        print("[LXTERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
         return length
 
     def boot(self):
-        print("[TERM] Booting the device.")
+        print("[LXTERM] Booting the device.")
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
         frame.payload = self.kernel_address.to_bytes(4, "big")
@@ -203,7 +203,7 @@ class LiteXTerm:
             return False
 
     def answer_prompt(self):
-        print("[TERM] Received serial boot prompt from the device.")
+        print("[LXTERM] Received serial boot prompt from the device.")
         self.port.write(sfl_prompt_ack)
 
     def detect_magic(self, data):
@@ -214,12 +214,12 @@ class LiteXTerm:
             return False
 
     def answer_magic(self):
-        print("[TERM] Received firmware download request from the device.")
+        print("[LXTERM] Received firmware download request from the device.")
         if os.path.exists(self.kernel_image):
             self.port.write(sfl_magic_ack)
             self.upload(self.kernel_image, self.kernel_address)
             self.boot()
-        print("[TERM] Done.");
+        print("[LXTERM] Done.");
 
     def reader(self):
         try:
@@ -276,7 +276,7 @@ class LiteXTerm:
         self.writer_thread.join()
 
     def start(self):
-        print("[TERM] Starting....")
+        print("[LXTERM] Starting....")
         self.start_reader()
         self.start_writer()
 
