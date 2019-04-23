@@ -29,7 +29,6 @@ class _CRG(Module):
 
         self.cd_sys.clk.attr.add("keep")
         self.cd_sys4x.clk.attr.add("keep")
-        self.cd_clk200.clk.attr.add("keep")
 
         self.submodules.pll = pll = S7MMCM(speedgrade=-2)
         self.comb += pll.reset.eq(~platform.request("cpu_reset_n"))

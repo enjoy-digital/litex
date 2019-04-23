@@ -32,8 +32,6 @@ class _CRG(Module):
         self.cd_sys.clk.attr.add("keep")
         self.cd_sys4x.clk.attr.add("keep")
         self.cd_sys4x_dqs.clk.attr.add("keep")
-        self.cd_clk200.clk.attr.add("keep")
-        self.cd_clk100.clk.attr.add("keep")
 
         self.submodules.pll = pll = S7MMCM(speedgrade=-1)
         self.comb += pll.reset.eq(~platform.request("cpu_reset"))
@@ -42,7 +40,6 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq)
         pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
         pll.create_clkout(self.cd_clk200, 200e6)
-        pll.create_clkout(self.cd_clk100, 100e6)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
