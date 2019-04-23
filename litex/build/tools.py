@@ -89,5 +89,5 @@ else:
     def cygpath(p):
         return p
 
-def git_version():
-    return subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
+def git_revision():
+    return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("utf-8")
