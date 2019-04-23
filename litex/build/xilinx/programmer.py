@@ -45,19 +45,18 @@ flashmem "{address}" "{data_file}" noverify
 class XC3SProg(GenericProgrammer):
     needs_bitreverse = False
 
-    def __init__(self, cable, flash_proxy_basename=None, p=0):
-        """ p = Use device at JTAG Chain position <val> """
+    def __init__(self, cable, flash_proxy_basename=None, position=0):
         GenericProgrammer.__init__(self, flash_proxy_basename)
         self.cable = cable
-        self.p = str(p)
+        self.position = position
 
     def load_bitstream(self, bitstream_file):
-        subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-p", self.p, bitstream_file])
+        subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-p", str(self.position), bitstream_file])
 
     def flash(self, address, data_file):
         flash_proxy = self.find_flash_proxy()
-        subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
-
+        subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-p", str(self.position),
+            "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
 
 
 class FpgaProg(GenericProgrammer):
