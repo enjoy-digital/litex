@@ -539,12 +539,7 @@ set_property CONFIG_VOLTAGE 2.5 [current_design]
         self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
 
     def create_programmer(self):
-        if self.programmer == "xc3sprog":
-            return XC3SProg("jtaghs1_fast", "bscan_spi_kc705.bit")
-        elif self.programmer == "vivado":
-            return VivadoProgrammer()
-        else:
-            raise ValueError("{} programmer is not supported".format(programmer))
+        return VivadoProgrammer()
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
