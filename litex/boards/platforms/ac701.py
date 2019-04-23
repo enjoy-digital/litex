@@ -1,7 +1,10 @@
-from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform, XC3SProg, VivadoProgrammer, iMPACT
-from litex.build.xilinx.ise import XilinxISEToolchain
+# This file is Copyright (c) 2019 Vamsi K Vytla <vamsi.vytla@gmail.com>
+# License: BSD
 
+from litex.build.generic_platform import *
+from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+
+# IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     ("user_led", 0, Pins("M26"), IOStandard("LVCMOS33")),
@@ -26,7 +29,8 @@ _io = [
         Subsignal("rts", Pins("W19")),
         Subsignal("tx", Pins("U19")),
         Subsignal("rx", Pins("T19")),
-        IOStandard("LVCMOS18")),
+        IOStandard("LVCMOS18")
+    ),
 
     ("eth_clocks", 0,
         Subsignal("tx", Pins("U22")),
@@ -85,6 +89,7 @@ _io = [
      Subsignal("p", Pins("AA13")),
      Subsignal("n", Pins("AB13"))
     ),
+
     ("sfp", 0,
         Subsignal("txp", Pins("AC10")),
         Subsignal("txn", Pins("AD10")),
@@ -95,130 +100,125 @@ _io = [
     ("sfp_mgt_clk_sel1", 0, Pins("C24"), IOStandard("LVCMOS25")),
     ("sfp_tx_disable_n", 0, Pins("R18"), IOStandard("LVCMOS33")),
     ("sfp_rx_los", 0, Pins("R23"), IOStandard("LVCMOS33")),
-    ("XADC", 0,
-        Subsignal("GPIO0", Pins("H17")),
-        Subsignal("GPIO1", Pins("E22")),
-        Subsignal("GPIO2", Pins("K18")),
-        Subsignal("GPIO3", Pins("L19")),
-        Subsignal("VAUX0_N", Pins("J16")),
-        Subsignal("VAUX0_P", Pins("K15")),
-        Subsignal("VAUX8_N", Pins("J15")),
-        Subsignal("VAUX8_P", Pins("J14")),
-     IOStandard("LVCMOS25")),
-
 ]
+
+# Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
-    ('HPC',
-     {'CLK0_M2C_N': 'C19',
-      'CLK0_M2C_P': 'D19',
-      'CLK1_M2C_N': 'H22',
-      'CLK1_M2C_P': 'H21',
-      'LA00_CC_N': 'C18',
-      'LA00_CC_P': 'D18',
-      'LA01_CC_N': 'E18',
-      'LA01_CC_P': 'E17',
-      'LA02_N': 'H15',
-      'LA02_P': 'H14',
-      'LA03_N': 'F17',
-      'LA03_P': 'G17',
-      'LA04_N': 'F19',
-      'LA04_P': 'F18',
-      'LA05_N': 'F15',
-      'LA05_P': 'G15',
-      'LA06_N': 'F20',
-      'LA06_P': 'G19',
-      'LA07_N': 'G16',
-      'LA07_P': 'H16',
-      'LA08_N': 'B17',
-      'LA08_P': 'C17',
-      'LA09_N': 'D16',
-      'LA09_P': 'E16',
-      'LA10_N': 'A18',
-      'LA10_P': 'A17',
-      'LA11_N': 'A19',
-      'LA11_P': 'B19',
-      'LA12_N': 'D20',
-      'LA12_P': 'E20',
-      'LA13_N': 'A20',
-      'LA13_P': 'B20',
-      'LA14_N': 'B21',
-      'LA14_P': 'C21',
-      'LA15_N': 'A22',
-      'LA15_P': 'B22',
-      'LA16_N': 'D21',
-      'LA16_P': 'E21',
-      'LA17_CC_N': 'J21',
-      'LA17_CC_P': 'K21',
-      'LA18_CC_N': 'G21',
-      'LA18_CC_P': 'G20',
-      'LA19_N': 'L14',
-      'LA19_P': 'M14',
-      'LA20_N': 'M17',
-      'LA20_P': 'M16',
-      'LA21_N': 'H19',
-      'LA21_P': 'J19',
-      'LA22_N': 'L18',
-      'LA22_P': 'L17',
-      'LA23_N': 'J20',
-      'LA23_P': 'K20',
-      'LA24_N': 'H18',
-      'LA24_P': 'J18',
-      'LA25_N': 'F22',
-      'LA25_P': 'G22',
-      'LA26_N': 'H24',
-      'LA26_P': 'J24',
-      'LA27_N': 'E23',
-      'LA27_P': 'F23',
-      'LA28_N': 'K23',
-      'LA28_P': 'K22',
-      'LA29_N': 'F24',
-      'LA29_P': 'G24',
-      'LA30_N': 'D25',
-      'LA30_P': 'E25',
-      'LA31_N': 'D26',
-      'LA31_P': 'E26',
-      'LA32_N': 'G26',
-      'LA32_P': 'H26',
-      'LA33_N': 'F25',
-      'LA33_P': 'G25',
-      'PRSNT_M2C_L': 'N16',
-      'PWR_GOOD_FLASH_RST_B': 'P15'})
+    ("HPC", {
+      "CLK0_M2C_N": "C19",
+      "CLK0_M2C_P": "D19",
+      "CLK1_M2C_N": "H22",
+      "CLK1_M2C_P": "H21",
+      "LA00_CC_N": "C18",
+      "LA00_CC_P": "D18",
+      "LA01_CC_N": "E18",
+      "LA01_CC_P": "E17",
+      "LA02_N": "H15",
+      "LA02_P": "H14",
+      "LA03_N": "F17",
+      "LA03_P": "G17",
+      "LA04_N": "F19",
+      "LA04_P": "F18",
+      "LA05_N": "F15",
+      "LA05_P": "G15",
+      "LA06_N": "F20",
+      "LA06_P": "G19",
+      "LA07_N": "G16",
+      "LA07_P": "H16",
+      "LA08_N": "B17",
+      "LA08_P": "C17",
+      "LA09_N": "D16",
+      "LA09_P": "E16",
+      "LA10_N": "A18",
+      "LA10_P": "A17",
+      "LA11_N": "A19",
+      "LA11_P": "B19",
+      "LA12_N": "D20",
+      "LA12_P": "E20",
+      "LA13_N": "A20",
+      "LA13_P": "B20",
+      "LA14_N": "B21",
+      "LA14_P": "C21",
+      "LA15_N": "A22",
+      "LA15_P": "B22",
+      "LA16_N": "D21",
+      "LA16_P": "E21",
+      "LA17_CC_N": "J21",
+      "LA17_CC_P": "K21",
+      "LA18_CC_N": "G21",
+      "LA18_CC_P": "G20",
+      "LA19_N": "L14",
+      "LA19_P": "M14",
+      "LA20_N": "M17",
+      "LA20_P": "M16",
+      "LA21_N": "H19",
+      "LA21_P": "J19",
+      "LA22_N": "L18",
+      "LA22_P": "L17",
+      "LA23_N": "J20",
+      "LA23_P": "K20",
+      "LA24_N": "H18",
+      "LA24_P": "J18",
+      "LA25_N": "F22",
+      "LA25_P": "G22",
+      "LA26_N": "H24",
+      "LA26_P": "J24",
+      "LA27_N": "E23",
+      "LA27_P": "F23",
+      "LA28_N": "K23",
+      "LA28_P": "K22",
+      "LA29_N": "F24",
+      "LA29_P": "G24",
+      "LA30_N": "D25",
+      "LA30_P": "E25",
+      "LA31_N": "D26",
+      "LA31_P": "E26",
+      "LA32_N": "G26",
+      "LA32_P": "H26",
+      "LA33_N": "F25",
+      "LA33_P": "G25",
+      "PRSNT_M2C_L": "N16",
+      "PWR_GOOD_FLASH_RST_B": "P15"}
+    ),
+    ("XADC", {
+        "GPIO0": "H17",
+        "GPIO1": "E22",
+        "GPIO2": "K18",
+        "GPIO3": "L19",
+        "VAUX0_N": "J16",
+        "VAUX0_P": "K15",
+        "VAUX8_N": "J15",
+        "VAUX8_P": "J14",
+        }
+    ),
 ]
 
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
     default_clk_name = "clk156"
     default_clk_period = 6.4
 
-    def __init__(self, toolchain="vivado", programmer="vivado"):
-        XilinxPlatform.__init__(self, "xc7a200t-fbg676-2", _io, _connectors,
-            toolchain=toolchain)
+    def __init__(self):
+        XilinxPlatform.__init__(self, "xc7a200t-fbg676-2", _io, _connectors, toolchain="vivado")
         self.toolchain.bitstream_commands = ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
-        self.programmer = programmer
 
     def create_programmer(self):
-        if self.programmer == "xc3sprog":
-            return XC3SProg("jtaghs1_fast")
-        elif self.programmer == "vivado":
-            return VivadoProgrammer()
-        elif self.programmer == "impact":
-            return iMPACT()
-        else:
-            raise ValueError("{} programmer is not supported".format(programmer))
+        return VivadoProgrammer()
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
         try:
-            self.add_period_constraint(self.lookup_request("clk200").p, 5.0)
+            self.add_period_constraint(self.lookup_request("clk200").p, 1e9/200e6)
         except ConstraintError:
             pass
         try:
-            self.add_period_constraint(self.lookup_request("eth_clocks").rx, 8.0)
+            self.add_period_constraint(self.lookup_request("eth_clocks").rx, 1e9/125e6)
         except ConstraintError:
             pass
         try:
-            self.add_period_constraint(self.lookup_request("eth_clocks").tx, 8.0)
+            self.add_period_constraint(self.lookup_request("eth_clocks").tx, 1e9/125e6)
         except ConstraintError:
             pass
