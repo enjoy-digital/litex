@@ -36,11 +36,16 @@ setup(
     include_package_data=True,
     entry_points={
         "console_scripts": [
+            # full names
             "litex_term=litex.tools.litex_term:main",
             "litex_server=litex.tools.litex_server:main",
             "litex_sim=litex.tools.litex_sim:main",
             "litex_read_verilog=litex.tools.litex_read_verilog:main",
             "litex_simple=litex.boards.targets.simple:main",
+            # short names
+            "lxterm=litex.tools.litex_term:main",
+            "lxserver=litex.tools.litex_server:main",
+            "lxsim=litex.tools.litex_sim:main",
         ],
     },
 )
