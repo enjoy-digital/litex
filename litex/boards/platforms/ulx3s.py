@@ -68,8 +68,8 @@ _io = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(LatticePlatform):
-    default_clk_name = "clk100"
-    default_clk_period = 10
+    default_clk_name = "clk25"
+    default_clk_period = 40
 
     def __init__(self, device="LFE5U-45F", **kwargs):
         LatticePlatform.__init__(self, device + "-6BG381C", _io, **kwargs)
