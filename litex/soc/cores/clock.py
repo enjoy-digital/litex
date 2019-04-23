@@ -126,6 +126,7 @@ class S6PLL(XilinxClocking):
 
     def __init__(self, speedgrade=-1):
         XilinxClocking.__init__(self)
+        self.divclk_divide_range = (1, 52 + 1)
         self.vco_freq_range = {
             -1: (400e6, 1000e6),
             -2: (400e6, 1000e6),
@@ -164,6 +165,7 @@ class S6DCM(XilinxClocking):
 
     def __init__(self, speedgrade=-1):
         XilinxClocking.__init__(self)
+        self.divclk_divide_range = (1, 1) # FIXME
         self.clkin_freq_range = {
             -1: (0.5e6, 200e6),
             -2: (0.5e6, 333e6),
