@@ -57,7 +57,8 @@ class CSRMemoryRegion:
 
 class CSRBuilder:
     def __init__(self, comm, csr_csv, csr_data_width=None):
-        self.constants = self.build_constants(csr_csv)
+        self.items = self.get_csr_items(csr_csv)
+        self.constants = self.build_constants()
 
         # Load csr_data_width from the constants, otherwise it must be provided
         constant_csr_data_width = self.constants.d.get('csr_data_width', None)
@@ -70,23 +71,25 @@ class CSRBuilder:
                 csr_data_width, constant_csr_data_width))
 
         self.csr_data_width = csr_data_width
-        self.bases = self.build_bases(csr_csv)
-        self.regs = self.build_registers(csr_csv, comm.read, comm.write)
-        self.mems = self.build_memories(csr_csv)
+        self.bases = self.build_bases()
+        self.regs = self.build_registers(comm.read, comm.write)
+        self.mems = self.build_memories()
 
-    def build_bases(self, csr_csv):
-        csv_reader = csv.reader(open(csr_csv), delimiter=',', quotechar='#')
+    @staticmethod
+    def get_csr_items(csr_csv):
+        return list(csv.reader(filter(lambda row: row[0] != "#", open(csr_csv))))
+
+    def build_bases(self):
         d = {}
-        for item in csv_reader:
+        for item in self.items:
             group, name, addr, dummy0, dummy1 = item
             if group == "csr_base":
                 d[name] = int(addr.replace("0x", ""), 16)
         return CSRElements(d)
 
-    def build_registers(self, csr_csv, readfn, writefn):
-        csv_reader = csv.reader(open(csr_csv), delimiter=',', quotechar='#')
+    def build_registers(self, readfn, writefn):
         d = {}
-        for item in csv_reader:
+        for item in self.items:
             group, name, addr, length, mode = item
             if group == "csr_register":
                 addr = int(addr.replace("0x", ""), 16)
@@ -94,10 +97,9 @@ class CSRBuilder:
                 d[name] = CSRRegister(readfn, writefn, name, addr, length, self.csr_data_width, mode)
         return CSRElements(d)
 
-    def build_constants(self, csr_csv):
-        csv_reader = csv.reader(open(csr_csv), delimiter=',', quotechar='#')
+    def build_constants(self):
         d = {}
-        for item in csv_reader:
+        for item in self.items:
             group, name, value, dummy0, dummy1 = item
             if group == "constant":
                 try:
@@ -106,10 +108,9 @@ class CSRBuilder:
                     d[name] = value
         return CSRElements(d)
 
-    def build_memories(self, csr_csv):
-        csv_reader = csv.reader(open(csr_csv), delimiter=',', quotechar='#')
+    def build_memories(self):
         d = {}
-        for item in csv_reader:
+        for item in self.items:
             group, name, base, size, dummy1 = item
             if group == "memory_region":
                 d[name] = CSRMemoryRegion(int(base, 16), int(size))
