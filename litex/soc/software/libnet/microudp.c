@@ -114,14 +114,20 @@ typedef union {
 	unsigned char raw[ETHMAC_SLOT_SIZE];
 } ethernet_buffer;
 
+static unsigned int rxslot;
 static unsigned int rxlen;
 static ethernet_buffer *rxbuffer;
+
+static unsigned int txslot;
 static unsigned int txlen;
 static ethernet_buffer *txbuffer;
 
 static void send_packet(void)
 {
-	unsigned int txslot;
+	/* wait buffer to be available */
+	while(!(ethmac_sram_reader_ready_read()));
+
+	/* fill txbuffer */
 #ifndef HW_PREAMBLE_CRC
 	unsigned int crc;
 	crc = crc32(&txbuffer->raw[8], txlen-8);
@@ -131,7 +137,6 @@ static void send_packet(void)
 	txbuffer->raw[txlen+3] = (crc & 0xff000000) >> 24;
 	txlen += 4;
 #endif
-	txlen += 4; //FIXME: padding?
 
 #ifdef DEBUG_MICROUDP_TX
 	int j;
@@ -141,13 +146,14 @@ static void send_packet(void)
 	printf("\n");
 #endif
 
+	/* fill slot, length and send */
+	ethmac_sram_reader_slot_write(txslot);
 	ethmac_sram_reader_length_write(txlen);
 	ethmac_sram_reader_start_write(1);
-	while(!(ethmac_sram_reader_ready_read()));
-	txslot = ethmac_sram_reader_slot_read();
-	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * (ETHMAC_RX_SLOTS + txslot));
+
+	/* update txslot / txbuffer */
 	txslot = (txslot+1)%ETHMAC_TX_SLOTS;
-	ethmac_sram_reader_slot_write(txslot);
+	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * (ETHMAC_RX_SLOTS + txslot));
 }
 
 static unsigned char my_mac[6];
@@ -415,17 +421,17 @@ void microudp_start(const unsigned char *macaddr, unsigned int ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
-	ethmac_sram_reader_slot_write(0);
-	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * ETHMAC_RX_SLOTS);
+	txslot = 0;
+	ethmac_sram_reader_slot_write(txslot);
+	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * (ETHMAC_RX_SLOTS + txslot));
 
-
-	rxbuffer = (ethernet_buffer *)ETHMAC_BASE;
+	rxslot = 0;
+	rxbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * rxslot);
 	rx_callback = (udp_callback)0;
 }
 
 void microudp_service(void)
 {
-	unsigned int rxslot;
 	if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
 		rxslot = ethmac_sram_writer_slot_read();
 		rxbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * rxslot);
