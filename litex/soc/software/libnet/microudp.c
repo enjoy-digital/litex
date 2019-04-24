@@ -219,7 +219,7 @@ int microudp_arp_resolve(unsigned int ip)
 	for(i=0;i<6;i++)
 		cached_mac[i] = 0;
 
-	for(tries=0;tries<5;tries++) {
+	for(tries=0;tries<100;tries++) {
 		/* Send an ARP request */
 		fill_eth_header(&txbuffer->frame.eth_header,
 				broadcast,
@@ -242,7 +242,7 @@ int microudp_arp_resolve(unsigned int ip)
 		send_packet();
 
 		/* Do we get a reply ? */
-		for(timeout=0;timeout<2000000;timeout++) {
+		for(timeout=0;timeout<100000;timeout++) {
 			microudp_service();
 			for(i=0;i<6;i++)
 				if(cached_mac[i]) return 1;
