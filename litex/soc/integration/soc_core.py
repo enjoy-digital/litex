@@ -143,7 +143,7 @@ class SoCCore(Module):
     def __init__(self, platform, clk_freq,
                 cpu_type="vexriscv", cpu_reset_address=0x00000000, cpu_variant=None,
                 integrated_rom_size=0, integrated_rom_init=[],
-                integrated_sram_size=4096,
+                integrated_sram_size=4096, integrated_sram_init=[],
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
                 shadow_base=0x80000000,
                 csr_data_width=8, csr_address_width=14, csr_expose=False,
@@ -223,7 +223,7 @@ class SoCCore(Module):
             self.register_rom(self.rom.bus, integrated_rom_size)
 
         if integrated_sram_size:
-            self.submodules.sram = wishbone.SRAM(integrated_sram_size)
+            self.submodules.sram = wishbone.SRAM(integrated_sram_size, init=integrated_sram_init)
             self.register_mem("sram", self.mem_map["sram"], self.sram.bus, integrated_sram_size)
 
         # Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
