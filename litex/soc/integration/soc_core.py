@@ -70,9 +70,9 @@ def get_mem_data(filename, endianness="big", mem_size=None):
                     for i in range(len(w), 4):
                         w += b'\x00'
                 if endianness == "little":
-                    data[i] = struct.unpack("<I", w)[0]
+                    data[int(base, 16)//4 + i] = struct.unpack("<I", w)[0]
                 else:
-                    data[i] = struct.unpack(">I", w)[0]
+                    data[int(base, 16)//4 + i] = struct.unpack(">I", w)[0]
                 i += 1
     return data
 
