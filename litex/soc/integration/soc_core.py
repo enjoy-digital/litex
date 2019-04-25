@@ -2,6 +2,7 @@ import os
 import struct
 import inspect
 import json
+import math
 from operator import itemgetter
 
 from migen import *
@@ -58,7 +59,7 @@ def get_mem_data(filename, endianness="big", mem_size=None):
              data_size, mem_size))
 
     # fill data
-    data = [0]*(data_size//4)
+    data = [0]*math.ceil(data_size/4)
     for filename, base in regions.items():
         with open(filename, "rb") as f:
             i = 0
@@ -67,7 +68,7 @@ def get_mem_data(filename, endianness="big", mem_size=None):
                 if not w:
                     break
                 if len(w) != 4:
-                    for i in range(len(w), 4):
+                    for _ in range(len(w), 4):
                         w += b'\x00'
                 if endianness == "little":
                     data[int(base, 16)//4 + i] = struct.unpack("<I", w)[0]
