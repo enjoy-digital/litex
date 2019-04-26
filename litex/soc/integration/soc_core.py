@@ -202,6 +202,8 @@ class SoCCore(Module):
         self.cpu_type = cpu_type
 
         # Support the old style which used underscore for separator
+        if cpu_variant is None:
+            cpu_variant = "standard"
         cpu_variant = cpu_variant.replace('_', '+')
         # Check for valid CPU variants.
         cpu_variant_processor, *cpu_variant_ext = cpu_variant.split('+')
