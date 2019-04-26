@@ -54,7 +54,7 @@ Invalid extension in cpu_variant value: {}
 
 Possible Values:
 """.format(variant)
-        for e in CPU_VARIANTS_EXTENSIONS.items():
+        for e in CPU_VARIANTS_EXTENSIONS:
             msg += " - {}\n".format(e)
         ValueError.__init__(self, msg)
 
@@ -217,8 +217,8 @@ class SoCCore(Module):
 
         # Check for valid CPU extensions.
         for ext in sorted(cpu_variant_ext):
-            if cpu_variant_ext not in CPU_VARIANTS_EXTENSIONS:
-                raise InvalidCPUExtension(cpu_variant)
+            if ext not in CPU_VARIANTS_EXTENSIONS:
+                raise InvalidCPUExtensionError(cpu_variant)
             self.cpu_variant += "+"+ext
 
         if integrated_rom_size:

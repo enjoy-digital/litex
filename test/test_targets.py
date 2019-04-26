@@ -1,9 +1,13 @@
+import subprocess
 import unittest
 import os
 
 from migen import *
 
 from litex.soc.integration.builder import *
+
+
+RUNNING_ON_TRAVIS = (os.getenv('TRAVIS', 'false').lower() == 'true')
 
 
 def build_test(socs):
@@ -98,8 +102,54 @@ class TestTargets(unittest.TestCase):
         platforms += ["avalanche"]                                 # PolarFire
 
         for p in platforms:
-            os.system("litex/boards/targets/simple.py litex.boards.platforms." + p +
-                " --cpu-type=vexriscv " +
-                " --no-compile-software " +
-                " --no-compile-gateware " +
-                " --uart-stub=True")
+            with self.subTest(platform=p):
+                cmd = """\
+litex/boards/targets/simple.py litex.boards.platforms.{p} \
+    --cpu-type=vexriscv     \
+    --no-compile-software   \
+    --no-compile-gateware   \
+    --uart-stub=True        \
+""".format(p=p)
+                subprocess.check_call(cmd, shell=True)
+
+    def run_variants(self, cpu, variants):
+        for v in variants:
+            with self.subTest(cpu=cpu, variant=v):
+                self.run_variant(cpu, v)
+
+    def run_variant(self, cpu, variant):
+        cmd = """\
+litex/boards/targets/simple.py litex.boards.platforms.arty \
+    --cpu-type={c}          \
+    --cpu-variant={v}       \
+    --no-compile-software   \
+    --no-compile-gateware   \
+    --uart-stub=True        \
+""".format(c=cpu, v=variant)
+        subprocess.check_output(cmd, shell=True)
+
+    # Build some variants for the arty platform to make sure they work.
+    def test_variants_riscv(self):
+        cpu_variants = {
+            'picorv32': ('standard', 'minimal'),
+            'vexriscv': ('standard', 'minimal', 'lite', 'lite+debug', 'full+debug'),
+            'minerva': ('standard',),
+        }
+        for cpu, variants in cpu_variants.items():
+            self.run_variants(cpu, variants)
+
+    def test_bad_variants(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.run_variant('vexriscv', 'bad')
+
+    def test_bad_variant_extension(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.run_variant('vexriscv', 'standard+bad')
+
+    @unittest.skipIf(RUNNING_ON_TRAVIS, "No lm32 toolchain on Travis-CI")
+    def test_variants_lm32(self):
+        self.run_variants('lm32', ('standard', 'minimal', 'lite'))
+
+    @unittest.skipIf(RUNNING_ON_TRAVIS, "No or1k toolchain on Travis-CI")
+    def test_variants_or1k(self):
+        self.run_variants('or1k', ('standard', 'linux'))
