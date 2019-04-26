@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import struct
 import inspect
@@ -21,6 +22,42 @@ __all__ = [
     "soc_core_args",
     "soc_core_argdict"
 ]
+
+
+CPU_VARIANTS = {
+    # "official name": ["alias 1", "alias 2"],
+    "minimal" : ["min",],
+    "lite" : ["light", "zephyr", "nuttx"],
+    "standard": [None, "std"],
+    "full": [],
+    "linux" : [],
+}
+CPU_VARIANTS_EXTENSIONS = ["debug"]
+
+
+class InvalidCPUVariantError(ValueError):
+    def __init__(self, variant):
+        msg = """\
+Invalid cpu_variant value: {}
+
+Possible Values:
+""".format(variant)
+        for k, v in CPU_VARIANTS.items():
+            msg += " - {} (aliases: {})\n".format(k, ", ".join(str(s) for s in v))
+        ValueError.__init__(self, msg)
+
+
+class InvalidCPUExtensionError(ValueError):
+    def __init__(self, variant):
+        msg = """\
+Invalid extension in cpu_variant value: {}
+
+Possible Values:
+""".format(variant)
+        for e in CPU_VARIANTS_EXTENSIONS.items():
+            msg += " - {}\n".format(e)
+        ValueError.__init__(self, msg)
+
 
 
 def version(with_time=True):
@@ -76,6 +113,7 @@ def get_mem_data(filename, endianness="big", mem_size=None):
                     data[int(base, 16)//4 + i] = struct.unpack(">I", w)[0]
                 i += 1
     return data
+
 
 class ReadOnlyDict(dict):
     def __readonly__(self, *args, **kwargs):
@@ -162,7 +200,25 @@ class SoCCore(Module):
         if cpu_type == "None":
             cpu_type = None
         self.cpu_type = cpu_type
-        self.cpu_variant = cpu_variant
+
+        # Support the old style which used underscore for separator
+        cpu_variant = cpu_variant.replace('_', '+')
+        # Check for valid CPU variants.
+        cpu_variant_processor, *cpu_variant_ext = cpu_variant.split('+')
+        for key, values in CPU_VARIANTS.items():
+            if cpu_variant_processor not in [key,]+values:
+                continue
+            self.cpu_variant = key
+            break
+        else:
+            raise InvalidCPUVariantError(cpu_variant)
+
+        # Check for valid CPU extensions.
+        for ext in sorted(cpu_variant_ext):
+            if cpu_variant_ext not in CPU_VARIANTS_EXTENSIONS:
+                raise InvalidCPUExtension(cpu_variant)
+            self.cpu_variant += "+"+ext
+
         if integrated_rom_size:
             cpu_reset_address = self.mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address

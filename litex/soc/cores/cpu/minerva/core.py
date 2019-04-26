@@ -12,8 +12,8 @@ class Minerva(Module):
     gcc_flags = "-D__minerva__ -march=rv32i -mabi=ilp32"
     linker_output_format = "elf32-littleriscv"
 
-    def __init__(self, platform, cpu_reset_address, variant=None):
-        assert variant is None, "Unsupported variant %s" % variant
+    def __init__(self, platform, cpu_reset_address, variant="standard"):
+        assert variant is "standard", "Unsupported variant %s" % variant
         self.reset = Signal()
         self.ibus = wishbone.Interface()
         self.dbus = wishbone.Interface()

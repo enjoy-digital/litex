@@ -12,8 +12,8 @@ class LM32(Module):
     gcc_flags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
     linker_output_format = "elf32-lm32"
 
-    def __init__(self, platform, eba_reset, variant=None):
-        assert variant in (None, "lite", "minimal"), "Unsupported variant %s" % variant
+    def __init__(self, platform, eba_reset, variant="standard"):
+        assert variant in ("standard", "lite", "minimal"), "Unsupported variant %s" % variant
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -66,7 +66,7 @@ class LM32(Module):
         self.add_sources(platform, variant)
 
     @staticmethod
-    def add_sources(platform, variant=None):
+    def add_sources(platform, variant):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_sources(os.path.join(vdir, "submodule", "rtl"),
@@ -93,5 +93,7 @@ class LM32(Module):
             platform.add_verilog_include_path(os.path.join(vdir, "config_minimal"))
         elif variant == "lite":
             platform.add_verilog_include_path(os.path.join(vdir, "config_lite"))
-        else:
+        elif variant == "standard":
             platform.add_verilog_include_path(os.path.join(vdir, "config"))
+        else:
+            raise TypeError("Unknown variant {}".format(variant))

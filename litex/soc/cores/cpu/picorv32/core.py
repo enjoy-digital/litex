@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 
 from migen import *
@@ -12,7 +13,7 @@ class PicoRV32(Module):
     gcc_flags_template = "-D__picorv32__ -mno-save-restore -march=rv32{ext} -mabi=ilp32"
     linker_output_format = "elf32-littleriscv"
 
-    def __init__(self, platform, progaddr_reset, variant):
+    def __init__(self, platform, progaddr_reset, variant="standard"):
         self.gcc_flags = ""
 
         self.reset = Signal()
@@ -61,7 +62,7 @@ class PicoRV32(Module):
             "p_STACKADDR" : 0xffffffff
         }
 
-        if variant == None:
+        if variant == "standard":
             self.gcc_flags = PicoRV32.gcc_flags_template.format(ext="im")
         elif variant == "minimal":
             picorv32_params.update({
