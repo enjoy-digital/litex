@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 
 from migen import *
@@ -12,8 +13,8 @@ class MOR1KX(Module):
     gcc_flags = "-mhard-mul -mhard-div -mror"
     linker_output_format = "elf32-or1k"
 
-    def __init__(self, platform, reset_pc, variant=None):
-        assert variant in (None, "linux"), "Unsupported variant %s" % variant
+    def __init__(self, platform, reset_pc, variant="standard"):
+        assert variant in ("standard", "linux"), "Unsupported variant %s" % variant
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -47,7 +48,7 @@ class MOR1KX(Module):
             p_DBUS_WB_TYPE="B3_REGISTERED_FEEDBACK",
         )
 
-        if variant == None:
+        if variant == "standard":
             # Use the default configuration
             pass
         elif variant == "linux":

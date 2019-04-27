@@ -6,18 +6,51 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
 
+CPU_VARIANTS = {
+    "minimal":          "VexRiscv_Min",
+    "minimal+debug":    "VexRiscv_MinDebug",
+    "lite":             "VexRiscv_Lite",
+    "lite+debug":       "VexRiscv_LiteDebug",
+    "standard":         "VexRiscv",
+    "standard+debug":   "VexRiscv_Debug",
+    "full":             "VexRiscv_Full",
+    "full+debug":       "VexRiscv_FullDebug",
+    "linux":            "VexRiscv_Linux",
+}
+
+
+GCC_FLAGS = {
+    #                               /-------- Base ISA
+    #                               |/------- Hardware Multiply + Divide
+    #                               ||/----- Atomics
+    #                               |||/---- Compressed ISA
+    #                               ||||/--- Single-Precision Floating-Point
+    #                               |||||/-- Double-Precision Floating-Point
+    #                               imacfd
+    "minimal":          "-march=rv32i      -mabi=ilp32",
+    "minimal+debug":    "-march=rv32i      -mabi=ilp32",
+    "lite":             "-march=rv32i      -mabi=ilp32",
+    "lite+debug":       "-march=rv32i      -mabi=ilp32",
+    "standard":         "-march=rv32im     -mabi=ilp32",
+    "standard+debug":   "-march=rv32im     -mabi=ilp32",
+    # Does full have floating point? - Add -march=fd, and -mabi=fd
+    "full":             "-march=rv32imac   -mabi=ilp32",
+    "full+debug":       "-march=rv32imac   -mabi=ilp32",
+    "linux":            "-march=rv32imac   -mabi=ilp32",
+}
+
+
 class VexRiscv(Module, AutoCSR):
     name = "vexriscv"
     endianness = "little"
     gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
-    gcc_flags = "-D__vexriscv__ -march=rv32im  -mabi=ilp32"
     linker_output_format = "elf32-littleriscv"
 
-    def __init__(self, platform, cpu_reset_address, variant=None):
-        variant = "std" if variant is None else variant
-        variant = "std_debug" if variant == "debug" else variant
-        variants = ("std", "std_debug", "lite", "lite_debug", "min", "min_debug", "full", "full_debug")
-        assert variant in variants, "Unsupported variant %s" % variant
+    def __init__(self, platform, cpu_reset_address, variant="standard"):
+        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
+
+        self.gcc_flags = GCC_FLAGS[variant]
+
         self.platform = platform
         self.variant = variant
         self.external_variant = None
@@ -150,18 +183,8 @@ class VexRiscv(Module, AutoCSR):
         )
 
     @staticmethod
-    def add_sources(platform, variant="std"):
-        verilog_variants = {
-            "std":        "VexRiscv.v",
-            "std_debug":  "VexRiscv_Debug.v",
-            "lite":       "VexRiscv_Lite.v",
-            "lite_debug": "VexRiscv_LiteDebug.v",
-            "min":        "VexRiscv_Min.v",
-            "min_debug":  "VexRiscv_MinDebug.v",
-            "full":       "VexRiscv_Full.v",
-            "full_debug": "VexRiscv_FullDebug.v",
-        }
-        cpu_filename = verilog_variants[variant]
+    def add_sources(platform, variant="standard"):
+        cpu_filename = CPU_VARIANTS[variant]
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_source(os.path.join(vdir, cpu_filename))
 
