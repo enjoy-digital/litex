@@ -49,7 +49,7 @@ class VexRiscv(Module, AutoCSR):
     def __init__(self, platform, cpu_reset_address, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
 
-        self.gcc_flags = GCC_FLAGS[variant]
+        self.gcc_flags = GCC_FLAGS[variant] + " -D__vexriscv__"
 
         self.platform = platform
         self.variant = variant
@@ -184,7 +184,7 @@ class VexRiscv(Module, AutoCSR):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        cpu_filename = CPU_VARIANTS[variant]
+        cpu_filename = CPU_VARIANTS[variant] + ".v"
         vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_source(os.path.join(vdir, cpu_filename))
 
