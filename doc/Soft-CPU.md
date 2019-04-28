@@ -1,4 +1,4 @@
-All LiteX SoCs need some type of CPU to operate correctly. Most use an "Soft CPU" embedded in the gateware for this purpose, but in some cases a host computer is used instead (for example this can be true in the PCIe card case).
+LiteX can create SoCs with or without CPU. Some simple SoCs don’t use any CPU (bridging SoCs for example), some SoCs use a CPU but external to the FPGA (PCIe SoCs for example where the CPU is directly the CPU of the Host machine) but in most of the cases the SoC embedded a "Soft CPU" to control the system and/or ease splitting tasks between software/hardware.
 
 # Summary of Soft CPUs
 
@@ -12,11 +12,11 @@ Currently the supported Soft CPUs are:
 
 *   [`vexriscv`](https://github.com/enjoy-digital/litex/tree/master/litex/soc/cores/cpu/vexriscv) -- an [FPGA Friendly RISC V core by SpinalHDL](https://github.com/SpinalHDL/VexRiscv), implementing the `rv32im` instruction set (hardware multiply optional)
 
-*   [`minerva`](https://github.com/enjoy-digital/litex/tree/master/litex/soc/cores/cpu/minerva) -- an Minerva is a CPU core that currently implements the RISC-V RV32I instruction set and its microarchitecture is described in plain Python code using the [nMigen toolbox](https://github.com/m-labs/nmigen).
+*   [`minerva`](https://github.com/enjoy-digital/litex/tree/master/litex/soc/cores/cpu/minerva) -- a CPU core that currently implements the RISC-V RV32I instruction set with its microarchitecture described in plain Python code using the [nMigen toolbox](https://github.com/m-labs/nmigen).
 
 # Soft CPU Variants
 
-Most of these CPUs have multiple configuration "variants" which customize the configuration to target a specific type of firmware and performance. All these CPUs can be used with your own bare metal firmware.
+Most of these CPUs have multiple configuration variants which customize the configuration to target a specific type of firmware, performance and resource usage. All these CPUs can be used with your own bare metal firmware.
 
 ## `minimal`
 
@@ -62,9 +62,22 @@ Standard is the default configuration which should work well for bare metal firm
 
 ### Recommended FPGAs
 
- * Xilinx Series 7 - Artix 7, Kintex 7, Spartan 7
- * Xilinx Spartan 6
+ * Xilinx 7-Series - Artix7, Kintex7, Spartan7
+ * Xilinx Spartan6
  * Lattice ECP5
+
+## `full`
+
+This target enables **all** features of each CPU.
+
+### Supported CPUs
+
+ * (TODO) - lm32
+ * (TODO) - minerva
+ * (TODO) - picorv32
+ * (TODO) - or1k
+ * vexriscv
+
 
 ## `linux`
 
@@ -102,6 +115,15 @@ The `mmu` extension enables a memory protection unit.
 ## TODO - `hmul`
 
 The `hmul` extension enables hardware multiplication acceleration.
+
+## TODO - `fpu`
+
+The `fpu` extension enables a floating point acceleration unit.
+
+### Supported CPUs
+
+ * or1k
+
 
 ---
 
@@ -231,7 +253,7 @@ A [small RISC V core by Clifford Wolf](https://github.com/cliffordwolf/picorv32)
 
 ## RISC-V - [`minerva`](https://github.com/enjoy-digital/litex/tree/master/litex/soc/cores/cpu/minerva)
 
-The Minerva is a CPU core that currently implements the RISC-V RV32I instruction set and its microarchitecture is described in plain Python code using the [nMigen toolbox](https://github.com/m-labs/nmigen).
+The Minerva is a CPU core that currently implements the RISC-V RV32I instruction set with its microarchitecture described in plain Python code using the [nMigen toolbox](https://github.com/m-labs/nmigen).
 
 ### CPU Variants
 
