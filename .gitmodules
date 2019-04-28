@@ -16,3 +16,6 @@
 [submodule "litex/soc/cores/cpu/vexriscv/verilog"]
 	path = litex/soc/cores/cpu/vexriscv/verilog
 	url = https://github.com/enjoy-digital/VexRiscv-verilog.git
+[submodule "litex/soc/cores/cpu/minerva/verilog"]
+	path = litex/soc/cores/cpu/minerva/verilog
+	url = http://github.com/enjoy-digital/minerva-verilog
