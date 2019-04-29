@@ -6,16 +6,49 @@ from migen import *
 from litex.soc.interconnect import wishbone
 
 
+CPU_VARIANTS = ["minimal", "standard"]
+
+GCC_FLAGS = {
+    #                               /-------- Base ISA
+    #                               |/------- Hardware Multiply + Divide
+    #                               ||/----- Atomics
+    #                               |||/---- Compressed ISA
+    #                               ||||/--- Single-Precision Floating-Point
+    #                               |||||/-- Double-Precision Floating-Point
+    #                               imacfd
+    "minimal":          "-march=rv32i      -mabi=ilp32 ",
+    "standard":         "-march=rv32im     -mabi=ilp32 ",
+}
+
+
 class PicoRV32(Module):
-    name = "picorv32"
-    endianness = "little"
-    gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
-    gcc_flags_template = "-D__picorv32__ -mno-save-restore -march=rv32{ext} -mabi=ilp32"
-    linker_output_format = "elf32-littleriscv"
+    @property
+    def name(self):
+        return "picorv32"
+
+    @property
+    def endianness(self):
+        return "little"
+
+    @property
+    def gcc_triple(self):
+        return ("riscv64-unknown-elf", "riscv32-unknown-elf")
+
+    @property
+    def gcc_flags(self):
+        flags =  "-mno-save-restore "
+        flags += GCC_FLAGS[self.variant]
+        flags += "-D__picorv32__ "
+        return flags
+
+    @property
+    def linker_output_format(self):
+        return "elf32-littleriscv"
 
     def __init__(self, platform, progaddr_reset, variant="standard"):
-        self.gcc_flags = ""
-
+        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
+        self.platform = platform
+        self.variant = variant
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -62,9 +95,7 @@ class PicoRV32(Module):
             "p_STACKADDR" : 0xffffffff
         }
 
-        if variant == "standard":
-            self.gcc_flags = PicoRV32.gcc_flags_template.format(ext="im")
-        elif variant == "minimal":
+        if variant == "minimal":
             picorv32_params.update({
                 "p_ENABLE_COUNTERS" : 0,
                 "p_ENABLE_COUNTERS64" : 0,
@@ -74,7 +105,6 @@ class PicoRV32(Module):
                 "p_ENABLE_DIV" : 0,
                 "p_ENABLE_IRQ_TIMER" : 0
             })
-            self.gcc_flags = PicoRV32.gcc_flags_template.format(ext="i")
 
         self.specials += Instance("picorv32",
             # parameters dictionary

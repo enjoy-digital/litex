@@ -4,16 +4,37 @@ from migen import *
 
 from litex.soc.interconnect import wishbone
 
+CPU_VARIANTS = ["standard"]
+
 
 class Minerva(Module):
-    name = "minerva"
-    endianness = "little"
-    gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
-    gcc_flags = "-march=rv32i -mabi=ilp32" + " -D__minerva__"
-    linker_output_format = "elf32-littleriscv"
+    @property
+    def name(self):
+        return "minerva"
+
+    @property
+    def endianness(self):
+        return "little"
+
+    @property
+    def gcc_triple(self):
+        return ("riscv64-unknown-elf", "riscv32-unknown-elf")
+
+    @property
+    def gcc_flags(self):
+        flags =  "-march=rv32i "
+        flags += "-mabi=ilp32 "
+        flags += "-D__minerva__ "
+        return flags
+
+    @property
+    def linker_output_format(self):
+        return "elf32-littleriscv"
 
     def __init__(self, platform, cpu_reset_address, variant="standard"):
         assert variant is "standard", "Unsupported variant %s" % variant
+        self.platform = platform
+        self.variant = variant
         self.reset = Signal()
         self.ibus = wishbone.Interface()
         self.dbus = wishbone.Interface()

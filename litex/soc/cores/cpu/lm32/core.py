@@ -4,16 +4,39 @@ from migen import *
 
 from litex.soc.interconnect import wishbone
 
+CPU_VARIANTS = ["minimal", "lite", "standard"]
+
 
 class LM32(Module):
-    name = "lm32"
-    endianness = "big"
-    gcc_triple = "lm32-elf"
-    gcc_flags = "-mbarrel-shift-enabled -mmultiply-enabled -mdivide-enabled -msign-extend-enabled"
-    linker_output_format = "elf32-lm32"
+    @property
+    def name(self):
+        return "lm32"
+
+    @property
+    def endianness(self):
+        return "big"
+
+    @property
+    def gcc_triple(self):
+        return "lm32-elf"
+
+    @property
+    def gcc_flags(self):
+        flags =  "-mbarrel-shift-enabled "
+        flags += "-mmultiply-enabled "
+        flags += "-mdivide-enabled "
+        flags += "-msign-extend-enabled "
+        flags += "-D__lm32__ "
+        return flags
+
+    @property
+    def linker_output_format(self):
+        return "elf32-lm32"
 
     def __init__(self, platform, eba_reset, variant="standard"):
-        assert variant in ("standard", "lite", "minimal"), "Unsupported variant %s" % variant
+        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
+        self.platform = platform
+        self.variant = variant
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()

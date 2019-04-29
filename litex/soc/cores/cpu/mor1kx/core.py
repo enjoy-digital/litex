@@ -5,16 +5,52 @@ from migen import *
 
 from litex.soc.interconnect import wishbone
 
+CPU_VARIANTS = ["standard", "linux"]
+
 
 class MOR1KX(Module):
-    name = "or1k"
-    endianness = "big"
-    gcc_triple = "or1k-elf"
-    gcc_flags = "-mhard-mul -mhard-div -mror"
-    linker_output_format = "elf32-or1k"
+    @property
+    def name(self):
+        return "or1k"
+
+    @property
+    def endianness(self):
+        return "big"
+
+    @property
+    def gcc_triple(self):
+        return "or1k-elf"
+
+    @property
+    def gcc_flags(self):
+        flags =  "-mhard-mul "
+        flags += "-mhard-div "
+        flags += "-mror "
+        flags += "-D__mor1kx__ "
+        return flags
+
+    @property
+    def clang_triple(self):
+        return "or1k-linux"
+
+    @property
+    def clang_flags(self):
+        flags =  "-mhard-mul "
+        flags += "-mhard-div "
+        flags += "-mror "
+        flags += "-mffl1 "
+        flags += "-maddc "
+        flags += "-D__mor1kx__ "
+        return flags
+
+    @property
+    def linker_output_format(self):
+        return "elf32-or1k"
 
     def __init__(self, platform, reset_pc, variant="standard"):
-        assert variant in ("standard", "linux"), "Unsupported variant %s" % variant
+        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
+        self.platform = platform
+        self.variant = variant
         self.reset = Signal()
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
@@ -48,12 +84,7 @@ class MOR1KX(Module):
             p_DBUS_WB_TYPE="B3_REGISTERED_FEEDBACK",
         )
 
-        if variant == "standard":
-            # Use the default configuration
-            pass
-        elif variant == "linux":
-            self.clang_triple = "or1k-linux"
-            self.clang_flags = "-mhard-mul -mhard-div -mror -mffl1 -maddc"
+        if variant == "linux":
             cpu_args.update(dict(
                 # Linux needs the memory management units.
                 p_FEATURE_IMMU="ENABLED",
@@ -69,9 +100,6 @@ class MOR1KX(Module):
             )
             for to_remove in use_defaults:
                 del cpu_args[to_remove]
-
-        else:
-            assert False, "Unsupported variant %s" % variant
 
         i_adr_o = Signal(32)
         d_adr_o = Signal(32)

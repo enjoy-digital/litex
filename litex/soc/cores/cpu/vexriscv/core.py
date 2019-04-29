@@ -33,24 +33,37 @@ GCC_FLAGS = {
     "lite+debug":       "-march=rv32i      -mabi=ilp32",
     "standard":         "-march=rv32im     -mabi=ilp32",
     "standard+debug":   "-march=rv32im     -mabi=ilp32",
-    # Does full have floating point? - Add -march=fd, and -mabi=fd
-    "full":             "-march=rv32imac   -mabi=ilp32",
-    "full+debug":       "-march=rv32imac   -mabi=ilp32",
+    "full":             "-march=rv32im     -mabi=ilp32",
+    "full+debug":       "-march=rv32im     -mabi=ilp32",
     "linux":            "-march=rv32imac   -mabi=ilp32",
 }
 
 
 class VexRiscv(Module, AutoCSR):
-    name = "vexriscv"
-    endianness = "little"
-    gcc_triple = ("riscv64-unknown-elf", "riscv32-unknown-elf")
-    linker_output_format = "elf32-littleriscv"
+    @property
+    def name(self):
+        return "vexriscv"
+
+    @property
+    def endianness(self):
+        return "little"
+
+    @property
+    def gcc_triple(self):
+        return ("riscv64-unknown-elf", "riscv32-unknown-elf")
+
+    @property
+    def gcc_flags(self):
+        flags = GCC_FLAGS[self.variant]
+        flags += " -D__vexriscv__"
+        return flags
+
+    @property
+    def linker_output_format(self):
+        return "elf32-littleriscv"
 
     def __init__(self, platform, cpu_reset_address, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-
-        self.gcc_flags = GCC_FLAGS[variant] + " -D__vexriscv__"
-
         self.platform = platform
         self.variant = variant
         self.external_variant = None
