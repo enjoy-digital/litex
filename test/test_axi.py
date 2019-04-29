@@ -23,7 +23,7 @@ class Burst:
                 offset = i*2**(self.size)
                 r += [Beat(self.addr + offset)]
             elif self.type == BURST_WRAP:
-                offset = (i*2**(self.size))%((2**self.size)*(self.len))
+                offset = (i*2**(self.size))%((2**self.size)*(self.len + 1))
                 r += [Beat(self.addr + offset)]
             else:
                 r += [Beat(self.addr)]
