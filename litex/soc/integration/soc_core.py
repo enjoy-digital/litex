@@ -8,6 +8,8 @@ from operator import itemgetter
 
 from migen import *
 
+from litex.build.tools import deprecated_warning
+
 from litex.soc.cores import identifier, timer, uart
 from litex.soc.cores.cpu import *
 from litex.soc.interconnect.csr import *
@@ -259,7 +261,9 @@ class SoCCore(Module):
         if cpu_type is not None:
             if cpu_type == "lm32":
                 self.add_cpu(lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "or1k":
+            elif cpu_type == "mor1kx" or cpu_type == "or1k":
+                if cpu_type == "or1k":
+                    deprecated_warning("SoCCore's \"cpu-type\" to \"mor1kx\"")
                 self.add_cpu(mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "picorv32":
                 self.add_cpu(picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
@@ -357,7 +361,7 @@ class SoCCore(Module):
         self.submodules.cpu = cpu
 
     def add_cpu_or_bridge(self, cpu_or_bridge):
-        print("[WARNING] Please update SoCCore's \"add_cpu_or_bridge\" call to \"add_cpu\"")
+        deprecated_warning("SoCCore's \"add_cpu_or_bridge\" call to \"add_cpu\"")
         self.add_cpu(cpu_or_bridge)
         self.cpu_or_bridge = self.cpu
 
