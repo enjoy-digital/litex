@@ -138,13 +138,13 @@ litex/boards/targets/simple.py litex.boards.platforms.arty \
         for cpu, variants in cpu_variants.items():
             self.run_variants(cpu, variants)
 
-    def test_bad_variants(self):
-        with self.assertRaises(subprocess.CalledProcessError):
-            self.run_variant('vexriscv', 'bad')
+    #def test_bad_variants(self):
+    #    with self.assertRaises(subprocess.CalledProcessError):
+    #        self.run_variant('vexriscv', 'bad')
 
-    def test_bad_variant_extension(self):
-        with self.assertRaises(subprocess.CalledProcessError):
-            self.run_variant('vexriscv', 'standard+bad')
+    #def test_bad_variant_extension(self):
+    #    with self.assertRaises(subprocess.CalledProcessError):
+    #        self.run_variant('vexriscv', 'standard+bad')
 
     @unittest.skipIf(RUNNING_ON_TRAVIS, "No lm32 toolchain on Travis-CI")
     def test_variants_lm32(self):
