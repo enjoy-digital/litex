@@ -21,7 +21,7 @@
 /* General address space functions */
 
 #define NUMBER_OF_BYTES_ON_A_LINE 16
-static void dump_bytes(unsigned int *ptr, int count, unsigned addr)
+static void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
 {
 	char *data = (char *)ptr;
 	int line_bytes = 0, i = 0;
@@ -83,7 +83,7 @@ static void mr(char *startaddr, char *len)
 		}
 	}
 
-	dump_bytes(addr, length, (unsigned)addr);
+	dump_bytes(addr, length, (unsigned long)addr);
 }
 
 static void mw(char *addr, char *value, char *count)
@@ -298,8 +298,8 @@ extern unsigned int _ftext, _edata;
 
 static void crcbios(void)
 {
-	unsigned int offset_bios;
-	unsigned int length;
+	unsigned long offset_bios;
+	unsigned long length;
 	unsigned int expected_crc;
 	unsigned int actual_crc;
 
@@ -309,9 +309,9 @@ static void crcbios(void)
 	 * We also use the address of _edata to know the length
 	 * of our code.
 	 */
-	offset_bios = (unsigned int)&_ftext;
+	offset_bios = (unsigned long)&_ftext;
 	expected_crc = _edata;
-	length = (unsigned int)&_edata - offset_bios;
+	length = (unsigned long)&_edata - offset_bios;
 	actual_crc = crc32((unsigned char *)offset_bios, length);
 	if(expected_crc == actual_crc)
 		printf(" BIOS CRC passed (%08x)\n", actual_crc);
