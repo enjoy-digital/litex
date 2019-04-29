@@ -20,9 +20,9 @@ def get_cpu_mak(cpu):
         else:
             clang = False
     else:
-        # Default to clang unless told otherwise
+        # Default to gcc unless told otherwise
         if clang is None:
-            clang = True
+            clang = False
     assert isinstance(clang, bool)
     if clang:
         triple = cpu.clang_triple
