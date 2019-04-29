@@ -118,16 +118,19 @@ class AXIBurst2Beat(Module):
 # AXI to Wishbone ----------------------------------------------------------------------------------
 
 class AXI2Wishbone(Module):
-    def __init__(self, axi, wishbone, base_address):
+    def __init__(self, axi, wishbone, base_address=0x00000000):
         assert axi.data_width    == len(wishbone.dat_r)
         assert axi.address_width == len(wishbone.adr) + 2
 
-        _data       = Signal(axi.data_width)
-        _read_addr  = Signal(axi.address_width)
-        _write_addr = Signal(axi.address_width)
+        ax_burst = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
+        ax_beat = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
+        ax_burst2beat = AXIBurst2Beat(ax_burst, ax_beat)
+        self.submodules += ax_burst2beat
 
-        self.comb += _read_addr.eq(axi.ar.addr - base_address)
-        self.comb += _write_addr.eq(axi.aw.addr - base_address)
+        _data       = Signal(axi.data_width)
+        _addr  = Signal(axi.address_width)
+
+        self.comb += _addr.eq(ax_beat.addr - base_address)
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
@@ -138,43 +141,55 @@ class AXI2Wishbone(Module):
             )
         )
         fsm.act("DO-READ",
+            axi.ar.connect(ax_burst),
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
-            wishbone.adr.eq(_read_addr[2:]),
+            wishbone.adr.eq(_addr[2:]),
             If(wishbone.ack,
                 NextValue(_data, wishbone.dat_r),
                 NextState("SEND-READ-RESPONSE")
             )
         )
         fsm.act("SEND-READ-RESPONSE",
+            axi.ar.connect(ax_burst),
             axi.r.valid.eq(1),
-            axi.r.last.eq(1),
             axi.r.resp.eq(RESP_OKAY),
-            axi.r.id.eq(axi.ar.id),
+            axi.r.id.eq(ax_beat.id),
             axi.r.data.eq(_data),
             If(axi.r.ready,
-                axi.ar.ready.eq(1),
-                NextState("IDLE")
+                ax_beat.ready.eq(1),
+                If(ax_beat.last,
+                    axi.r.last.eq(1),
+                    NextState("IDLE"),
+                ).Else(
+                    NextState("DO-READ")
+                )
             )
         )
         fsm.act("DO-WRITE",
-            wishbone.stb.eq(1),
-            wishbone.cyc.eq(1),
+            axi.aw.connect(ax_burst),
+            wishbone.stb.eq(axi.w.valid),
+            wishbone.cyc.eq(axi.w.valid),
             wishbone.we.eq(1),
-            wishbone.adr.eq(_write_addr[2:]),
+            wishbone.adr.eq(_addr[2:]),
             wishbone.sel.eq(axi.w.strb),
             wishbone.dat_w.eq(axi.w.data),
             If(wishbone.ack,
-                NextState("SEND-WRITE-RESPONSE")
+                ax_beat.ready.eq(1),
+                axi.w.ready.eq(1),
+                If(ax_beat.last,
+                    ax_beat.ready.eq(0),
+                    NextState("SEND-WRITE-RESPONSE")
+                )
             )
         )
         fsm.act("SEND-WRITE-RESPONSE",
+            axi.aw.connect(ax_burst),
             axi.b.valid.eq(1),
             axi.b.resp.eq(RESP_OKAY),
-            axi.b.id.eq(axi.aw.id),
+            axi.b.id.eq(ax_beat.id),
             If(axi.b.ready,
-                axi.aw.ready.eq(1),
-                axi.w.ready.eq(1),
+                ax_beat.ready.eq(1),
                 NextState("IDLE")
             )
         )
