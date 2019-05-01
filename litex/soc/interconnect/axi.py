@@ -122,10 +122,12 @@ class AXI2Wishbone(Module):
         assert axi.data_width    == len(wishbone.dat_r)
         assert axi.address_width == len(wishbone.adr) + 2
 
+        ax_buffer = stream.Buffer(ax_description(axi.address_width, axi.id_width))
         ax_burst = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
         ax_beat = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
-        ax_burst2beat = AXIBurst2Beat(ax_burst, ax_beat)
-        self.submodules += ax_burst2beat
+        self.comb += ax_burst.connect(ax_buffer.sink)
+        ax_burst2beat = AXIBurst2Beat(ax_buffer.source, ax_beat)
+        self.submodules += ax_buffer, ax_burst2beat
 
         _data       = Signal(axi.data_width)
         _addr  = Signal(axi.address_width)
