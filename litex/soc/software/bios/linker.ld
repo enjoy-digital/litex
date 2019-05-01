@@ -14,7 +14,7 @@ SECTIONS
 
 	.rodata :
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
@@ -22,13 +22,13 @@ SECTIONS
 		/* Make sure the file is aligned on disk as well
 		   as in memory; CRC calculation requires that. */
 		FILL(0);
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_erodata = .;
 	} > rom
 
 	.data :
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_fdata = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
@@ -37,13 +37,13 @@ SECTIONS
 		/* Make sure the file is aligned on disk as well
 		   as in memory; CRC calculation requires that. */
 		FILL(0);
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_edata = .;
 	} > rom
 
 	.bss :
 	{
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_fbss = .;
 		*(.dynsbss)
 		*(.sbss .sbss.* .gnu.linkonce.sb.*)
@@ -51,7 +51,7 @@ SECTIONS
 		*(.dynbss)
 		*(.bss .bss.* .gnu.linkonce.b.*)
 		*(COMMON)
-		. = ALIGN(4);
+		. = ALIGN(8);
 		_ebss = .;
 		_end = .;
 	} > sram
@@ -63,4 +63,4 @@ SECTIONS
 	}
 }
 
-PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 4);
+PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram) - 8);

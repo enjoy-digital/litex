@@ -17,9 +17,9 @@
 #include "sfl.h"
 #include "boot.h"
 
-extern void boot_helper(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int addr);
+extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
-static void __attribute__((noreturn)) boot(unsigned int r1, unsigned int r2, unsigned int r3, unsigned int addr)
+static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
 {
 	printf("Executing booted program at 0x%08x\n", addr);
 	uart_sync();
@@ -83,7 +83,7 @@ int serialboot(void)
 {
 	struct sfl_frame frame;
 	int failed;
-	unsigned int cmdline_adr, initrdstart_adr, initrdend_adr;
+	unsigned long cmdline_adr, initrdstart_adr, initrdend_adr;
 	static const char str[SFL_MAGIC_LEN+1] = SFL_MAGIC_REQ;
 	const char *c;
 	int ack_status;
@@ -146,49 +146,49 @@ int serialboot(void)
 
 				failed = 0;
 				writepointer = (char *)(
-					 ((unsigned int)frame.payload[0] << 24)
-					|((unsigned int)frame.payload[1] << 16)
-					|((unsigned int)frame.payload[2] << 8)
-					|((unsigned int)frame.payload[3] << 0));
+					 ((unsigned long)frame.payload[0] << 24)
+					|((unsigned long)frame.payload[1] << 16)
+					|((unsigned long)frame.payload[2] <<  8)
+					|((unsigned long)frame.payload[3] <<  0));
 				for(i=4;i<frame.length;i++)
 					*(writepointer++) = frame.payload[i];
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			}
 			case SFL_CMD_JUMP: {
-				unsigned int addr;
+				unsigned long addr;
 
 				failed = 0;
-				addr =  ((unsigned int)frame.payload[0] << 24)
-					|((unsigned int)frame.payload[1] << 16)
-					|((unsigned int)frame.payload[2] << 8)
-					|((unsigned int)frame.payload[3] << 0);
+				addr =   ((unsigned long)frame.payload[0] << 24)
+					|((unsigned long)frame.payload[1] << 16)
+					|((unsigned long)frame.payload[2] <<  8)
+					|((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
 				boot(cmdline_adr, initrdstart_adr, initrdend_adr, addr);
 				break;
 			}
 			case SFL_CMD_CMDLINE:
 				failed = 0;
-				cmdline_adr =  ((unsigned int)frame.payload[0] << 24)
-					      |((unsigned int)frame.payload[1] << 16)
-					      |((unsigned int)frame.payload[2] << 8)
-					      |((unsigned int)frame.payload[3] << 0);
+				cmdline_adr =  ((unsigned long)frame.payload[0] << 24)
+					      |((unsigned long)frame.payload[1] << 16)
+					      |((unsigned long)frame.payload[2] <<  8)
+					      |((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			case SFL_CMD_INITRDSTART:
 				failed = 0;
-				initrdstart_adr =  ((unsigned int)frame.payload[0] << 24)
-					          |((unsigned int)frame.payload[1] << 16)
-					          |((unsigned int)frame.payload[2] << 8)
-					          |((unsigned int)frame.payload[3] << 0);
+				initrdstart_adr =  ((unsigned long)frame.payload[0] << 24)
+					          |((unsigned long)frame.payload[1] << 16)
+					          |((unsigned long)frame.payload[2] <<  8)
+					          |((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			case SFL_CMD_INITRDEND:
 				failed = 0;
-				initrdend_adr =  ((unsigned int)frame.payload[0] << 24)
-					        |((unsigned int)frame.payload[1] << 16)
-					        |((unsigned int)frame.payload[2] << 8)
-					        |((unsigned int)frame.payload[3] << 0);
+				initrdend_adr =  ((unsigned long)frame.payload[0] << 24)
+					        |((unsigned long)frame.payload[1] << 16)
+					        |((unsigned long)frame.payload[2] <<  8)
+					        |((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			default:
@@ -243,7 +243,7 @@ static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 void netboot(void)
 {
 	int size;
-	unsigned int cmdline_adr, initrdstart_adr, initrdend_adr;
+	unsigned long cmdline_adr, initrdstart_adr, initrdend_adr;
 	unsigned int ip;
         unsigned short tftp_port;
 
