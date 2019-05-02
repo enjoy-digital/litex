@@ -119,8 +119,10 @@ class AXIBurst2Beat(Module):
 
 class AXI2Wishbone(Module):
     def __init__(self, axi, wishbone, base_address=0x00000000):
+        wishbone_adr_shift = log2_int(axi.data_width//8)
         assert axi.data_width    == len(wishbone.dat_r)
-        assert axi.address_width == len(wishbone.adr) + 2
+        assert axi.address_width == len(wishbone.adr) + wishbone_adr_shift
+
 
         ax_buffer = stream.Buffer(ax_description(axi.address_width, axi.id_width))
         ax_burst = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
@@ -146,7 +148,7 @@ class AXI2Wishbone(Module):
             axi.ar.connect(ax_burst),
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
-            wishbone.adr.eq(_addr[2:]),
+            wishbone.adr.eq(_addr[wishbone_adr_shift:]),
             If(wishbone.ack,
                 NextValue(_data, wishbone.dat_r),
                 NextState("SEND-READ-RESPONSE")
@@ -173,7 +175,7 @@ class AXI2Wishbone(Module):
             wishbone.stb.eq(axi.w.valid),
             wishbone.cyc.eq(axi.w.valid),
             wishbone.we.eq(1),
-            wishbone.adr.eq(_addr[2:]),
+            wishbone.adr.eq(_addr[wishbone_adr_shift:]),
             wishbone.sel.eq(axi.w.strb),
             wishbone.dat_w.eq(axi.w.data),
             If(wishbone.ack,
