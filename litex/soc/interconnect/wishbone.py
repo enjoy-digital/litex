@@ -13,7 +13,7 @@ from litex.soc.interconnect import csr
 
 
 _layout = [
-    ("adr",             30, DIR_M_TO_S),
+    ("adr",    "adr_width", DIR_M_TO_S),
     ("dat_w", "data_width", DIR_M_TO_S),
     ("dat_r", "data_width", DIR_S_TO_M),
     ("sel",    "sel_width", DIR_M_TO_S),
@@ -28,8 +28,9 @@ _layout = [
 
 
 class Interface(Record):
-    def __init__(self, data_width=32):
+    def __init__(self, data_width=32, adr_width=30):
         Record.__init__(self, set_layout_parameters(_layout,
+            adr_width=adr_width,
             data_width=data_width,
             sel_width=data_width//8))
 
