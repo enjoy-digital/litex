@@ -139,13 +139,14 @@ class AXI2Wishbone(Module):
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(axi.ar.valid,
+                axi.ar.connect(ax_burst),
                 NextState("DO-READ")
             ).Elif(axi.aw.valid,
+                axi.aw.connect(ax_burst),
                 NextState("DO-WRITE")
             )
         )
         fsm.act("DO-READ",
-            axi.ar.connect(ax_burst),
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
             wishbone.adr.eq(_addr[wishbone_adr_shift:]),
@@ -155,7 +156,6 @@ class AXI2Wishbone(Module):
             )
         )
         fsm.act("SEND-READ-RESPONSE",
-            axi.ar.connect(ax_burst),
             axi.r.valid.eq(1),
             axi.r.resp.eq(RESP_OKAY),
             axi.r.id.eq(ax_beat.id),
@@ -171,7 +171,6 @@ class AXI2Wishbone(Module):
             )
         )
         fsm.act("DO-WRITE",
-            axi.aw.connect(ax_burst),
             wishbone.stb.eq(axi.w.valid),
             wishbone.cyc.eq(axi.w.valid),
             wishbone.we.eq(1),
@@ -188,7 +187,6 @@ class AXI2Wishbone(Module):
             )
         )
         fsm.act("SEND-WRITE-RESPONSE",
-            axi.aw.connect(ax_burst),
             axi.b.valid.eq(1),
             axi.b.resp.eq(RESP_OKAY),
             axi.b.id.eq(ax_beat.id),
