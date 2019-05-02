@@ -170,25 +170,25 @@ int serialboot(void)
 			case SFL_CMD_CMDLINE:
 				failed = 0;
 				cmdline_adr =  ((unsigned long)frame.payload[0] << 24)
-					      |((unsigned long)frame.payload[1] << 16)
-					      |((unsigned long)frame.payload[2] <<  8)
-					      |((unsigned long)frame.payload[3] <<  0);
+						  |((unsigned long)frame.payload[1] << 16)
+						  |((unsigned long)frame.payload[2] <<  8)
+						  |((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			case SFL_CMD_INITRDSTART:
 				failed = 0;
 				initrdstart_adr =  ((unsigned long)frame.payload[0] << 24)
-					          |((unsigned long)frame.payload[1] << 16)
-					          |((unsigned long)frame.payload[2] <<  8)
-					          |((unsigned long)frame.payload[3] <<  0);
+							  |((unsigned long)frame.payload[1] << 16)
+							  |((unsigned long)frame.payload[2] <<  8)
+							  |((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			case SFL_CMD_INITRDEND:
 				failed = 0;
 				initrdend_adr =  ((unsigned long)frame.payload[0] << 24)
-					        |((unsigned long)frame.payload[1] << 16)
-					        |((unsigned long)frame.payload[2] <<  8)
-					        |((unsigned long)frame.payload[3] <<  0);
+							|((unsigned long)frame.payload[1] << 16)
+							|((unsigned long)frame.payload[2] <<  8)
+							|((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			default:
@@ -226,7 +226,7 @@ int serialboot(void)
 #endif
 
 static int tftp_get_v(unsigned int ip, unsigned short server_port,
-    const char *filename, char *buffer)
+const char *filename, char *buffer)
 {
 	int r;
 
@@ -243,9 +243,9 @@ static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 void netboot(void)
 {
 	int size;
-	unsigned long cmdline_adr, initrdstart_adr, initrdend_adr;
 	unsigned int ip;
-        unsigned short tftp_port;
+	unsigned long tftp_dst_addr;
+	unsigned short tftp_port;
 
 	printf("Booting from network...\n");
 	printf("Local IP : %d.%d.%d.%d\n", LOCALIP1, LOCALIP2, LOCALIP3, LOCALIP4);
@@ -258,40 +258,47 @@ void netboot(void)
 	tftp_port = TFTP_SERVER_PORT;
 	printf("Fetching from: UDP/%d\n", tftp_port);
 
-	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)MAIN_RAM_BASE);
-
-	if ((size <= 0) && (tftp_port != DEFAULT_TFTP_SERVER_PORT)) {
-		/* Try default TFTP port if timed out on non-standard port */
-		tftp_port = DEFAULT_TFTP_SERVER_PORT;
-		printf("Fetching from: UDP/%d\n", tftp_port);
-
-		size = tftp_get_v(ip, tftp_port, "boot.bin",
-			(void *)MAIN_RAM_BASE);
-        }
-
-        if (size <= 0) {
+#ifdef NETBOOT_LINUX_VEXRISCV
+	tftp_dst_addr = MAIN_RAM_BASE;
+	size = tftp_get_v(ip, tftp_port, "Image", (void *)tftp_dst_addr);
+	if (size <= 0) {
 		printf("Network boot failed\n");
 		return;
 	}
 
-	cmdline_adr = MAIN_RAM_BASE+0x1000000;
-	size = tftp_get_v(ip, tftp_port, "cmdline.txt", (void *)cmdline_adr);
+	tftp_dst_addr = MAIN_RAM_BASE + 0x02000000;
+	size = tftp_get_v(ip, tftp_port, "rootfs.cpio", (void *)tftp_dst_addr);
 	if(size <= 0) {
-		printf("No command line parameters found\n");
-		cmdline_adr = 0;
-	} else
-		*((char *)(cmdline_adr+size)) = 0x00;
+		printf("No rootfs.cpio found\n");
+		return;
+	}
 
-	initrdstart_adr = MAIN_RAM_BASE+0x1002000;
-	size = tftp_get_v(ip, tftp_port, "initrd.bin", (void *)initrdstart_adr);
+	tftp_dst_addr = MAIN_RAM_BASE + 0x03000000;
+	size = tftp_get_v(ip, tftp_port, "rv32.dtb", (void *)tftp_dst_addr);
 	if(size <= 0) {
-		printf("No initial ramdisk found\n");
-		initrdstart_adr = 0;
-		initrdend_adr = 0;
-	} else
-		initrdend_adr = initrdstart_adr + size;
+		printf("No rv32.dtb found\n");
+		return;
+	}
 
-	boot(cmdline_adr, initrdstart_adr, initrdend_adr, MAIN_RAM_BASE);
+	tftp_dst_addr = MM_RAM_BASE;
+	size = tftp_get_v(ip, tftp_port, "emulator.bin", (void *)tftp_dst_addr);
+	if(size <= 0) {
+		printf("No emulator.bin found\n");
+		return;
+	}
+
+	boot(0, 0, 0, MM_RAM_BASE);
+#else
+	tftp_dst_addr = MAIN_RAM_BASE;
+	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)tftp_dst_addr);
+	if (size <= 0) {
+		printf("Network boot failed\n");
+		return;
+	}
+
+	boot(0, 0, 0, MAIN_RAM_BASE);
+#endif
+
 }
 
 #endif
