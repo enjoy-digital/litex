@@ -3,7 +3,7 @@ import os
 from migen import *
 
 from litex.soc.interconnect import wishbone
-from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
+from litex.soc.interconnect.csr import *
 
 
 CPU_VARIANTS = {
@@ -35,8 +35,27 @@ GCC_FLAGS = {
     "standard+debug":   "-march=rv32im     -mabi=ilp32",
     "full":             "-march=rv32im     -mabi=ilp32",
     "full+debug":       "-march=rv32im     -mabi=ilp32",
-    "linux":            "-march=rv32imac   -mabi=ilp32",
+    "linux":            "-march=rv32ima    -mabi=ilp32",
 }
+
+
+class VexRiscvTimer(Module, AutoCSR):
+    def __init__(self):
+        self._latch = CSR()
+        self._time = CSRStatus(64)
+        self._time_cmp = CSRStorage(64, reset=2**64-1)
+        self.interrupt = Signal()
+
+        # # #
+
+        time = Signal(64)
+        self.sync += time.eq(time + 1)
+        self.sync += If(self._latch.re, self._time.status.eq(time))
+
+        time_cmp = Signal(64, reset=2**64-1)
+        self.sync += If(self._latch.re, time_cmp.eq(self._time_cmp.storage))
+
+        self.comb += self.interrupt.eq(time >= time_cmp)
 
 
 class VexRiscv(Module, AutoCSR):
@@ -105,6 +124,9 @@ class VexRiscv(Module, AutoCSR):
                 i_dBusWishbone_DAT_MISO=dbus.dat_r,
                 i_dBusWishbone_ACK=dbus.ack,
                 i_dBusWishbone_ERR=dbus.err)
+
+        if "linux" in variant:
+            self.add_timer()
 
         if "debug" in variant:
             self.add_debug()
@@ -194,6 +216,10 @@ class VexRiscv(Module, AutoCSR):
             o_debug_bus_rsp_data=self.o_rsp_data,
             o_debug_resetOut=self.o_resetOut
         )
+
+    def add_timer(self):
+        self.submodules.timer = VexRiscvTimer()
+        self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
 
     @staticmethod
     def add_sources(platform, variant="standard"):
