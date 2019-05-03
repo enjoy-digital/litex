@@ -281,14 +281,14 @@ void netboot(void)
 		return;
 	}
 
-	tftp_dst_addr = MM_RAM_BASE;
+	tftp_dst_addr = EMULATOR_RAM_BASE;
 	size = tftp_get_v(ip, tftp_port, "emulator.bin", (void *)tftp_dst_addr);
 	if(size <= 0) {
 		printf("No emulator.bin found\n");
 		return;
 	}
 
-	boot(0, 0, 0, MM_RAM_BASE);
+	boot(0, 0, 0, EMULATOR_RAM_BASE);
 #else
 	tftp_dst_addr = MAIN_RAM_BASE;
 	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)tftp_dst_addr);
