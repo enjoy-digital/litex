@@ -22,12 +22,13 @@ def ax_description(address_width, id_width):
         ("burst", 2), # Burst type
         ("len",   8), # Number of data (-1) transfers (up to 256)
         ("size",  4), # Number of bytes (-1) of each data transfer (up to 1024 bits)
-        ("lock",  2),
-        ("prot",  3),
-        ("cache", 4),
-        ("qos",   4),
+        ("lock",  2), # *
+        ("prot",  3), # *
+        ("cache", 4), # *
+        ("qos",   4), # *
         ("id",    id_width)
     ]
+    # * present for interconnect with others cores but not used by LiteX.
 
 def w_description(data_width, id_width):
     return [
