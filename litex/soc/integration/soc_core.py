@@ -77,15 +77,19 @@ def mem_decoder(address, start=26, end=29):
     return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
 
 
-def get_mem_data(filename, endianness="big", mem_size=None):
+def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
     # create memory regions
-    _, ext = os.path.splitext(filename)
-    if ext == ".json":
-        f = open(filename, "r")
-        regions = json.load(f)
-        f.close()
+    if isinstance(filename_or_regions, dict):
+        regions = filename_or_regions
     else:
-        regions = {filename: "0x00000000"}
+        filename = filename_or_regions
+        _, ext = os.path.splitext(filename)
+        if ext == ".json":
+            f = open(filename, "r")
+            regions = json.load(f)
+            f.close()
+        else:
+            regions = {filename: "0x00000000"}
 
     # determine data_size
     data_size = 0
