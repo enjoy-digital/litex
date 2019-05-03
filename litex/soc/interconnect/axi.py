@@ -1,4 +1,4 @@
-"""AXI4 support for LiteX"""
+"""AXI4 Full/Lite support for LiteX"""
 
 from migen import *
 
@@ -147,14 +147,16 @@ class AXIBurst2Beat(Module):
             )
         ]
 
-# AXI to Wishbone ----------------------------------------------------------------------------------
 
-class AXI2Wishbone(Module):
-    def __init__(self, axi, wishbone, base_address=0x00000000):
-        wishbone_adr_shift = log2_int(axi.data_width//8)
-        assert axi.data_width    == len(wishbone.dat_r)
-        assert axi.address_width == len(wishbone.adr) + wishbone_adr_shift
+# AXI to AXI Lite ----------------------------------------------------------------------------------
 
+class AXI2AXILite(Module):
+    # Note: Since this AXI bridge will mostly be used to target buses that are not supporting
+    # simultaneous writes/reads, to reduce ressource usage the AXIBurst2Beat module is shared
+    # between writes/reads.
+    def __init__(self, axi, axi_lite):
+        assert axi.data_width    == axi_lite.data_width
+        assert axi.address_width == axi_lite.address_width
 
         ax_buffer = stream.Buffer(ax_description(axi.address_width, axi.id_width))
         ax_burst = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
@@ -163,62 +165,69 @@ class AXI2Wishbone(Module):
         ax_burst2beat = AXIBurst2Beat(ax_buffer.source, ax_beat)
         self.submodules += ax_buffer, ax_burst2beat
 
-        _data       = Signal(axi.data_width)
-        _addr  = Signal(axi.address_width)
+        _data      = Signal(axi.data_width)
+        _cmd_done  = Signal()
 
-        self.comb += _addr.eq(ax_beat.addr - base_address)
-
+        # FIXME: add anti-starvation
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
+            NextValue(_cmd_done, 0),
             If(axi.ar.valid,
                 axi.ar.connect(ax_burst),
-                NextState("DO-READ")
+                NextState("READ")
             ).Elif(axi.aw.valid,
                 axi.aw.connect(ax_burst),
-                NextState("DO-WRITE")
+                NextState("WRITE")
             )
         )
-        fsm.act("DO-READ",
-            wishbone.stb.eq(1),
-            wishbone.cyc.eq(1),
-            wishbone.adr.eq(_addr[wishbone_adr_shift:]),
-            If(wishbone.ack,
-                NextValue(_data, wishbone.dat_r),
-                NextState("SEND-READ-RESPONSE")
-            )
-        )
-        fsm.act("SEND-READ-RESPONSE",
-            axi.r.valid.eq(1),
+        fsm.act("READ",
+            # cmd
+            axi_lite.ar.valid.eq(ax_beat.valid & ~_cmd_done),
+            axi_lite.ar.addr.eq(ax_beat.addr),
+            ax_beat.ready.eq(axi_lite.ar.ready & ~_cmd_done),
+            If(ax_beat.valid & ax_beat.last,
+                If(axi_lite.ar.ready,
+                    ax_beat.ready.eq(0),
+                    NextValue(_cmd_done, 1)
+                )
+            ),
+            # data
+            axi.r.valid.eq(axi_lite.r.valid),
+            axi.r.last.eq(_cmd_done),
             axi.r.resp.eq(RESP_OKAY),
             axi.r.id.eq(ax_beat.id),
-            axi.r.data.eq(_data),
-            If(axi.r.ready,
+            axi.r.data.eq(axi_lite.r.data),
+            axi_lite.r.ready.eq(axi.r.ready),
+            # exit
+            If(axi.r.valid & axi.r.last & axi.r.ready,
                 ax_beat.ready.eq(1),
-                If(ax_beat.last,
-                    axi.r.last.eq(1),
-                    NextState("IDLE"),
-                ).Else(
-                    NextState("DO-READ")
-                )
+                NextState("IDLE")
             )
         )
-        fsm.act("DO-WRITE",
-            wishbone.stb.eq(axi.w.valid),
-            wishbone.cyc.eq(axi.w.valid),
-            wishbone.we.eq(1),
-            wishbone.adr.eq(_addr[wishbone_adr_shift:]),
-            wishbone.sel.eq(axi.w.strb),
-            wishbone.dat_w.eq(axi.w.data),
-            If(wishbone.ack,
-                ax_beat.ready.eq(1),
-                axi.w.ready.eq(1),
-                If(ax_beat.last,
+        # always accept write responses
+        self.comb += axi_lite.b.ready.eq(1)
+        fsm.act("WRITE",
+            # cmd
+            axi_lite.aw.valid.eq(ax_beat.valid & ~_cmd_done),
+            axi_lite.aw.addr.eq(ax_beat.addr),
+            ax_beat.ready.eq(axi_lite.aw.ready & ~_cmd_done),
+            If(ax_beat.valid & ax_beat.last,
+                If(axi_lite.aw.ready,
                     ax_beat.ready.eq(0),
-                    NextState("SEND-WRITE-RESPONSE")
+                    NextValue(_cmd_done, 1)
                 )
+            ),
+            # data
+            axi_lite.w.valid.eq(axi.w.valid),
+            axi_lite.w.data.eq(axi.w.data),
+            axi_lite.w.strb.eq(axi.w.strb),
+            axi.w.ready.eq(axi_lite.w.ready),
+            # exit
+            If(axi.w.valid & axi.w.last & axi.w.ready,
+                NextState("WRITE-RESP")
             )
         )
-        fsm.act("SEND-WRITE-RESPONSE",
+        fsm.act("WRITE-RESP",
             axi.b.valid.eq(1),
             axi.b.resp.eq(RESP_OKAY),
             axi.b.id.eq(ax_beat.id),
@@ -227,3 +236,73 @@ class AXI2Wishbone(Module):
                 NextState("IDLE")
             )
         )
+
+# AXI Lite to Wishbone -----------------------------------------------------------------------------
+
+class AXILite2Wishbone(Module):
+    def __init__(self, axi_lite, wishbone, base_address=0x00000000):
+        wishbone_adr_shift = log2_int(axi_lite.data_width//8)
+        assert axi_lite.data_width    == len(wishbone.dat_r)
+        assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
+
+        _data = Signal(axi_lite.data_width)
+        _r_addr = Signal(axi_lite.address_width)
+        _w_addr = Signal(axi_lite.address_width)
+        self.comb += _r_addr.eq(axi_lite.ar.addr - base_address)
+        self.comb += _w_addr.eq(axi_lite.aw.addr - base_address)
+
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(axi_lite.ar.valid,
+                NextState("DO-READ")
+            ).Elif(axi_lite.aw.valid,
+                NextState("DO-WRITE")
+            )
+        )
+        fsm.act("DO-READ",
+            wishbone.stb.eq(1),
+            wishbone.cyc.eq(1),
+            wishbone.adr.eq(_r_addr[wishbone_adr_shift:]),
+            If(wishbone.ack,
+                axi_lite.ar.ready.eq(1),
+                NextValue(_data, wishbone.dat_r),
+                NextState("SEND-READ-RESPONSE")
+            )
+        )
+        fsm.act("SEND-READ-RESPONSE",
+            axi_lite.r.valid.eq(1),
+            axi_lite.r.resp.eq(RESP_OKAY),
+            axi_lite.r.data.eq(_data),
+            If(axi_lite.r.ready,
+                NextState("IDLE")
+            )
+        )
+        fsm.act("DO-WRITE",
+            wishbone.stb.eq(axi_lite.w.valid),
+            wishbone.cyc.eq(axi_lite.w.valid),
+            wishbone.we.eq(1),
+            wishbone.adr.eq(_w_addr[wishbone_adr_shift:]),
+            wishbone.sel.eq(axi_lite.w.strb),
+            wishbone.dat_w.eq(axi_lite.w.data),
+            If(wishbone.ack,
+                axi_lite.aw.ready.eq(1),
+                axi_lite.w.ready.eq(1),
+                NextState("SEND-WRITE-RESPONSE")
+            )
+        )
+        fsm.act("SEND-WRITE-RESPONSE",
+            axi_lite.b.valid.eq(1),
+            axi_lite.b.resp.eq(RESP_OKAY),
+            If(axi_lite.b.ready,
+                NextState("IDLE")
+            )
+        )
+
+# AXI to Wishbone ----------------------------------------------------------------------------------
+
+class AXI2Wishbone(Module):
+    def __init__(self, axi, wishbone, base_address=0x00000000):
+        axi_lite = AXILiteInterface(axi.data_width, axi.address_width)
+        axi2axi_lite = AXI2AXILite(axi, axi_lite)
+        axi_lite2wishbone = AXILite2Wishbone(axi_lite, wishbone, base_address)
+        self.submodules += axi2axi_lite, axi_lite2wishbone
