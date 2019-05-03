@@ -50,7 +50,6 @@ def r_description(data_width, id_width):
         ("id",   id_width)
     ]
 
-
 class AXIInterface(Record):
     def __init__(self, data_width, address_width, id_width=1, clock_domain="sys"):
         self.data_width = data_width
@@ -63,6 +62,38 @@ class AXIInterface(Record):
         self.b = stream.Endpoint(b_description(id_width))
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r = stream.Endpoint(r_description(data_width, id_width))
+
+# AXI Lite Definition -----------------------------------------------------------------------------------
+
+def ax_lite_description(address_width):
+    return [("addr",  address_width)]
+
+def w_lite_description(data_width):
+    return [
+        ("data", data_width),
+        ("strb", data_width//8)
+    ]
+
+def b_lite_description():
+    return [("resp", 2)]
+
+def r_lite_description(data_width):
+    return [
+        ("resp", 2),
+        ("data", data_width)
+    ]
+
+class AXILiteInterface(Record):
+    def __init__(self, data_width, address_width, clock_domain="sys"):
+        self.data_width = data_width
+        self.address_width = address_width
+        self.clock_domain = clock_domain
+
+        self.aw = stream.Endpoint(ax_lite_description(address_width))
+        self.w = stream.Endpoint(w_lite_description(data_width))
+        self.b = stream.Endpoint(b_lite_description())
+        self.ar = stream.Endpoint(ax_lite_description(address_width))
+        self.r = stream.Endpoint(r_lite_description(data_width))
 
 # AXI Bursts to Beats ------------------------------------------------------------------------------
 
