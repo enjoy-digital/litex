@@ -126,6 +126,9 @@ class VexRiscv(Module, AutoCSR):
                 i_dBusWishbone_ERR=dbus.err)
 
         if "linux" in variant:
+            # Tie zero to prevent 1'bx here
+            self.cpu_params["i_softwareInterrupt"] = 0
+            self.cpu_params["i_externalInterruptS"] = 0
             self.add_timer()
 
         if "debug" in variant:
