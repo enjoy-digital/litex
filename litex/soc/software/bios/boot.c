@@ -304,6 +304,28 @@ void netboot(void)
 
 #endif
 
+#ifdef FLASHBOOT_LINUX_VEXRISCV
+
+/* TODO: add configurable flash mapping, improve integration */
+
+void flashboot(void)
+{
+	printf("Loading Image from flash...\n");
+	memcpy((void *)MAIN_RAM_BASE + 0x00000000, (void *)0x50400000, 0x400000);
+
+	printf("Loading rootfs.cpio from flash...\n");
+	memcpy((void *)MAIN_RAM_BASE + 0x02000000, (void *)0x50800000, 0x700000);
+
+	printf("Loading rv32.dtb from flash...\n");
+	memcpy((void *)MAIN_RAM_BASE + 0x03000000, (void *)0x50f00000, 0x001000);
+
+	printf("Loading emulator.bin from flash...\n");
+	memcpy((void *)EMULATOR_RAM_BASE + 0x00000000, (void *)0x50f80000, 0x004000);
+
+	boot(0, 0, 0, EMULATOR_RAM_BASE);
+}
+#else
+
 #ifdef FLASH_BOOT_ADDRESS
 
 /* On systems with exernal SDRAM we copy out of the SPI flash into the SDRAM
@@ -344,6 +366,8 @@ void flashboot(void)
 	}
 	boot(0, 0, 0, FIRMWARE_BASE_ADDRESS);
 }
+#endif
+
 #endif
 
 #ifdef ROM_BOOT_ADDRESS
