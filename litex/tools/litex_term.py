@@ -6,6 +6,7 @@ import time
 import serial
 import threading
 import argparse
+import json
 
 
 if sys.platform == "win32":
@@ -118,10 +119,18 @@ class SFLFrame:
 
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address):
+    def __init__(self, serial_boot, kernel_image, kernel_address, json_images):
         self.serial_boot = serial_boot
-        self.kernel_image = kernel_image
-        self.kernel_address = kernel_address
+        assert not (kernel_image is not None and json_images is not None)
+        self.mem_regions = {}
+        if kernel_image is not None:
+            self.mem_regions = {kernel_image: kernel_address}
+            self.boot_address = kernel_address
+        if json_images is not None:
+            f = open(json_images, "r")
+            self.mem_regions.update(json.load(f))
+            self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
+            f.close()
 
         self.reader_alive = False
         self.writer_alive = False
@@ -160,7 +169,7 @@ class LiteXTerm:
     def upload(self, filename, address):
         with open(filename, "rb") as f:
             data = f.read()
-        print("[LXTERM] Uploading {} ({} bytes)...".format(filename, len(data)))
+        print("[LXTERM] Uploading {} to 0x{:08x} ({} bytes)...".format(filename, address, len(data)))
         current_address = address
         position = 0
         length = len(data)
@@ -192,7 +201,7 @@ class LiteXTerm:
         print("[LXTERM] Booting the device.")
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
-        frame.payload = self.kernel_address.to_bytes(4, "big")
+        frame.payload = int(self.boot_address, 16).to_bytes(4, "big")
         self.send_frame(frame)
 
     def detect_prompt(self, data):
@@ -215,10 +224,11 @@ class LiteXTerm:
 
     def answer_magic(self):
         print("[LXTERM] Received firmware download request from the device.")
-        if os.path.exists(self.kernel_image):
+        if(len(self.mem_regions)):
             self.port.write(sfl_magic_ack)
-            self.upload(self.kernel_image, self.kernel_address)
-            self.boot()
+        for filename, base in self.mem_regions.items():
+            self.upload(filename, int(base, 16))
+        self.boot()
         print("[LXTERM] Done.");
 
     def reader(self):
@@ -231,7 +241,7 @@ class LiteXTerm:
                     sys.stdout.buffer.write(c)
                 sys.stdout.flush()
 
-                if self.kernel_image is not None:
+                if len(self.mem_regions):
                     if self.serial_boot and self.detect_prompt(c):
                         self.answer_prompt()
                     if self.detect_magic(c):
@@ -297,16 +307,17 @@ def _get_args():
     parser.add_argument("--serial-boot", default=False, action='store_true',
                         help="automatically initiate serial boot")
     parser.add_argument("--kernel", default=None, help="kernel image")
-    parser.add_argument("--kernel-adr", type=lambda a: int(a, 0), default=0x40000000, help="kernel address")
+    parser.add_argument("--kernel-adr", default="0x40000000", help="kernel address")
+    parser.add_argument("--images", default=None, help="json description of the images to load to memory")
     return parser.parse_args()
 
 
 def main():
     args = _get_args()
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr)
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images)
     term.console.configure()
     try:
-        term.open(args.port, args.speed)
+        term.open(args.port, int(float(args.speed)))
         term.start()
         term.join(True)
     except KeyboardInterrupt:
