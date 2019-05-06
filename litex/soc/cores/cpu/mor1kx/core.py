@@ -47,6 +47,10 @@ class MOR1KX(Module):
     def linker_output_format(self):
         return "elf32-or1k"
 
+    @property
+    def reserved_interrupts(self):
+        return { "nmi": 0 }
+
     def __init__(self, platform, reset_pc, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform

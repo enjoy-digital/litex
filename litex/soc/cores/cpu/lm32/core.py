@@ -33,6 +33,10 @@ class LM32(Module):
     def linker_output_format(self):
         return "elf32-lm32"
 
+    @property
+    def reserved_interrupts(self):
+        return {}
+
     def __init__(self, platform, eba_reset, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform
