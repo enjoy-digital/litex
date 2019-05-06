@@ -174,7 +174,6 @@ class SoCCore(Module):
         "buttons":        6,  # user
         "leds":           7,  # user
     }
-    interrupt_map = {}
     soc_interrupt_map = {
         "timer0": 1, # LiteX Timer
         "uart":   2, # LiteX UART (IRQ 2 for UART matches mor1k standard config).
@@ -197,7 +196,8 @@ class SoCCore(Module):
                 wishbone_timeout_cycles=1e6,
                 reserve_nmi_interrupt=True,
                 with_timer=True,
-                with_ctrl=True):
+                with_ctrl=True,
+                user_interrupts={}):
         self.config = dict()
 
         self.platform = platform
@@ -329,12 +329,16 @@ class SoCCore(Module):
         #else:
         #    del self.soc_interrupt_map["timer0"]
 
+        self.interrupt_map = user_interrupts.copy()
+
         # Invert the interrupt map.
         interrupt_rmap = {}
         for mod_name, interrupt in self.interrupt_map.items():
             assert interrupt not in interrupt_rmap, (
                 "Interrupt vector conflict for IRQ %s, user defined %s conflicts with user defined %s" % (
                     interrupt, mod_name, interrupt_rmap[interrupt]))
+            assert interrupt >= 8 and interrupt <= 31, (
+                "User IRQ %s defined out of allowed range 8-31: %s" % (mod_name, interrupt))
 
             interrupt_rmap[interrupt] = mod_name
 
