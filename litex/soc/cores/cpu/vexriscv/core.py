@@ -81,6 +81,10 @@ class VexRiscv(Module, AutoCSR):
     def linker_output_format(self):
         return "elf32-littleriscv"
 
+    @property
+    def reserved_interrupts(self):
+        return {}
+
     def __init__(self, platform, cpu_reset_address, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform
