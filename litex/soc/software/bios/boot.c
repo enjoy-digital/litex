@@ -267,14 +267,14 @@ void netboot(void)
 		return;
 	}
 
-	tftp_dst_addr = MAIN_RAM_BASE + 0x02000000;
+	tftp_dst_addr = MAIN_RAM_BASE + 0x00800000;
 	size = tftp_get_v(ip, tftp_port, "rootfs.cpio", (void *)tftp_dst_addr);
 	if(size <= 0) {
 		printf("No rootfs.cpio found\n");
 		return;
 	}
 
-	tftp_dst_addr = MAIN_RAM_BASE + 0x03000000;
+	tftp_dst_addr = MAIN_RAM_BASE + 0x01000000;
 	size = tftp_get_v(ip, tftp_port, "rv32.dtb", (void *)tftp_dst_addr);
 	if(size <= 0) {
 		printf("No rv32.dtb found\n");
@@ -314,10 +314,10 @@ void flashboot(void)
 	memcpy((void *)MAIN_RAM_BASE + 0x00000000, (void *)0x50400000, 0x400000);
 
 	printf("Loading rootfs.cpio from flash...\n");
-	memcpy((void *)MAIN_RAM_BASE + 0x02000000, (void *)0x50800000, 0x700000);
+	memcpy((void *)MAIN_RAM_BASE + 0x00800000, (void *)0x50800000, 0x700000);
 
 	printf("Loading rv32.dtb from flash...\n");
-	memcpy((void *)MAIN_RAM_BASE + 0x03000000, (void *)0x50f00000, 0x001000);
+	memcpy((void *)MAIN_RAM_BASE + 0x01000000, (void *)0x50f00000, 0x001000);
 
 	printf("Loading emulator.bin from flash...\n");
 	memcpy((void *)EMULATOR_RAM_BASE + 0x00000000, (void *)0x50f80000, 0x004000);
