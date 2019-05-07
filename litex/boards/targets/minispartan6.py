@@ -81,9 +81,9 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, **kwargs):
+    def __init__(self, sys_clk_freq=int(80e6), **kwargs):
+        assert sys_clk_freq == int(80e6)
         platform = minispartan6.Platform()
-        sys_clk_freq = int(80e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
                           **kwargs)

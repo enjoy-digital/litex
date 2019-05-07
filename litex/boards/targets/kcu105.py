@@ -82,9 +82,8 @@ class BaseSoC(SoCSDRAM):
         "ddrphy":    16,
     }
     csr_map.update(SoCSDRAM.csr_map)
-    def __init__(self, **kwargs):
+    def __init__(self, sys_clk_freq=int(125e6), **kwargs):
         platform = kcu105.Platform()
-        sys_clk_freq = int(125e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                          integrated_rom_size=0x8000,
                          integrated_sram_size=0x8000,

@@ -77,9 +77,8 @@ class BaseSoC(SoCSDRAM):
         "ddrphy":    16,
     }
     csr_map.update(SoCSDRAM.csr_map)
-    def __init__(self, toolchain="diamond", **kwargs):
+    def __init__(self, sys_clk_freq=int(75e6), toolchain="diamond", **kwargs):
         platform = versa_ecp5.Platform(toolchain=toolchain)
-        sys_clk_freq = int(75e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
                           **kwargs)

@@ -17,7 +17,7 @@ from litedram.phy import GENSDRPHY
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform):
+    def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
 
@@ -35,8 +35,8 @@ class _CRG(Module):
         self.submodules.pll = pll = ECP5PLL()
         self.comb += pll.reset.eq(rst)
         pll.register_clkin(clk25, 25e6)
-        pll.create_clkout(self.cd_sys, 50e6, phase=11)
-        pll.create_clkout(self.cd_sys_ps, 50e6, phase=20)
+        pll.create_clkout(self.cd_sys, sys_clk_freq, phase=11)
+        pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=20)
         self.specials += AsyncResetSynchronizer(self.cd_sys, rst)
 
         # sdram clock
@@ -56,7 +56,7 @@ class BaseSoC(SoCSDRAM):
                           integrated_rom_size=0x8000,
                           **kwargs)
 
-        self.submodules.crg = _CRG(platform)
+        self.submodules.crg = _CRG(platform, sys_clk_freq)
 
         if not self.integrated_main_ram_size:
             self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
