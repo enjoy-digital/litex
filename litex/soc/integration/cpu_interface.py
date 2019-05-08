@@ -74,9 +74,9 @@ def get_mem_header(regions, flash_boot_address):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, base, size in regions:
-        r += "#define {name}_BASE 0x{base:08x}\n#define {name}_SIZE 0x{size:08x}\n\n".format(name=name.upper(), base=base, size=size)
+        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(name=name.upper(), base=base, size=size)
     if flash_boot_address is not None:
-        r += "#define FLASH_BOOT_ADDRESS 0x{:08x}\n\n".format(flash_boot_address)
+        r += "#define FLASH_BOOT_ADDRESS 0x{:08x}L\n\n".format(flash_boot_address)
     r += "#endif\n"
     return r
 
@@ -84,7 +84,7 @@ def get_mem_header(regions, flash_boot_address):
 def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_access_functions):
     r = ""
 
-    r += "#define CSR_"+reg_name.upper()+"_ADDR "+hex(reg_base)+"\n"
+    r += "#define CSR_"+reg_name.upper()+"_ADDR "+hex(reg_base)+"L\n"
     r += "#define CSR_"+reg_name.upper()+"_SIZE "+str(nwords)+"\n"
 
     size = nwords*busword
@@ -102,12 +102,12 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
     if with_access_functions:
         r += "static inline "+ctype+" "+reg_name+"_read(void) {\n"
         if size > 1:
-            r += "\t"+ctype+" r = csr_readl("+hex(reg_base)+");\n"
+            r += "\t"+ctype+" r = csr_readl("+hex(reg_base)+"L);\n"
             for byte in range(1, nwords):
-                r += "\tr <<= "+str(busword)+";\n\tr |= csr_readl("+hex(reg_base+4*byte)+");\n"
+                r += "\tr <<= "+str(busword)+";\n\tr |= csr_readl("+hex(reg_base+4*byte)+"L);\n"
             r += "\treturn r;\n}\n"
         else:
-            r += "\treturn csr_readl("+hex(reg_base)+");\n}\n"
+            r += "\treturn csr_readl("+hex(reg_base)+"L);\n}\n"
 
         if not read_only:
             r += "static inline void "+reg_name+"_write("+ctype+" value) {\n"
@@ -117,7 +117,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
                     value_shifted = "value >> "+str(shift)
                 else:
                     value_shifted = "value"
-                r += "\tcsr_writel("+value_shifted+", "+hex(reg_base+4*word)+");\n"
+                r += "\tcsr_writel("+value_shifted+", "+hex(reg_base+4*word)+"L);\n"
             r += "}\n"
     return r
 
@@ -128,12 +128,12 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
     if with_access_functions:
         r += "#include <stdint.h>\n"
         r += "#ifdef CSR_ACCESSORS_DEFINED\n"
-        r += "extern void csr_writeb(uint8_t value, uint32_t addr);\n"
-        r += "extern uint8_t csr_readb(uint32_t addr);\n"
-        r += "extern void csr_writew(uint16_t value, uint32_t addr);\n"
-        r += "extern uint16_t csr_readw(uint32_t addr);\n"
-        r += "extern void csr_writel(uint32_t value, uint32_t addr);\n"
-        r += "extern uint32_t csr_readl(uint32_t addr);\n"
+        r += "extern void csr_writeb(uint8_t value, unsigned long addr);\n"
+        r += "extern uint8_t csr_readb(unsigned long addr);\n"
+        r += "extern void csr_writew(uint16_t value, unsigned long addr);\n"
+        r += "extern uint16_t csr_readw(unsigned long addr);\n"
+        r += "extern void csr_writel(uint32_t value, unsigned long addr);\n"
+        r += "extern uint32_t csr_readl(unsigned long addr);\n"
         r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
@@ -142,10 +142,10 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
             origin &= (~shadow_base)
         if isinstance(obj, Memory):
             r += "\n/* "+name+" */\n"
-            r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
+            r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
         else:
             r += "\n/* "+name+" */\n"
-            r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"\n"
+            r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
             for csr in obj:
                 nr = (csr.size + busword - 1)//busword
                 r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus), with_access_functions)
