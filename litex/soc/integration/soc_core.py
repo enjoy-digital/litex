@@ -164,16 +164,7 @@ class SoCController(Module, AutoCSR):
 
 
 class SoCCore(Module):
-    csr_map = {
-        "ctrl":           0,  # provided by default (optional)
-        "crg":            1,  # user
-        "uart_phy":       2,  # provided by default (optional)
-        "uart":           3,  # provided by default (optional)
-        "identifier_mem": 4,  # provided by default (optional)
-        "timer0":         5,  # provided by default (optional)
-        "buttons":        6,  # user
-        "leds":           7,  # user
-    }
+    csr_map = {}
     interrupt_map = {}
     mem_map = {
         "rom":      0x00000000,  # (default shadow @0x80000000)
@@ -254,10 +245,12 @@ class SoCCore(Module):
         self._wb_masters = []
         self._wb_slaves = []
 
+        self.soc_csr_map = {}
         self.soc_interrupt_map = {}
 
         if with_ctrl:
             self.submodules.ctrl = SoCController()
+            self.add_csr("ctrl")
 
         if cpu_type is not None:
             if cpu_type == "lm32":
@@ -274,17 +267,22 @@ class SoCCore(Module):
                 self.add_cpu(minerva.Minerva(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
+            self.add_csr("cpu")
             self.add_wb_master(self.cpu.ibus)
             self.add_wb_master(self.cpu.dbus)
             if with_ctrl:
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
             # add cpu reserved interrupts
-            for name, _id in self.cpu.reserved_interrupts.items():
-                self.add_interrupt(name, _id)
+            for _name, _id in self.cpu.reserved_interrupts.items():
+                self.add_interrupt(_name, _id)
 
         # add user interrupts
-        for name, _id in self.interrupt_map.items():
-            self.add_interrupt(name, _id)
+        for _name, _id in self.interrupt_map.items():
+            self.add_interrupt(_name, _id)
+
+        # add user csrs
+        for _name, _id in self.csr_map.items():
+            self.add_csr(_name, _id)
 
         self.config["CPU_TYPE"] = str(cpu_type).upper()
         if self.cpu_variant:
@@ -315,17 +313,21 @@ class SoCCore(Module):
             else:
                 self.submodules.uart_phy = uart.RS232PHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
+            self.add_csr("uart_phy")
+            self.add_csr("uart")
             self.add_interrupt("uart")
 
         if ident:
             if ident_version:
                 ident = ident + " " + version()
             self.submodules.identifier = identifier.Identifier(ident)
+            self.add_csr("identifier_mem")
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
         self.add_constant("SYSTEM_CLOCK_FREQUENCY", int(clk_freq))
 
         if with_timer:
             self.submodules.timer0 = timer.Timer()
+            self.add_csr("timer0")
             self.add_interrupt("timer0")
 
     def add_cpu(self, cpu):
@@ -343,11 +345,10 @@ class SoCCore(Module):
     def add_interrupt(self, interrupt_name, interrupt_id=None):
         # check that interrupt_name is not already used
         if interrupt_name in self.soc_interrupt_map.keys():
-            print(self.soc_interrupt_map)
             raise ValueError("Interrupt conflit, {} name already used".format(interrupt_name))
 
         # check that interrupt_id is in range
-        if interrupt_id is not None and interrupt_id > 31:
+        if interrupt_id is not None and interrupt_id >= 32:
             raise ValueError("{} Interrupt ID out of range ({}, max=31)".format(
                 interrupt_namename, interrupt_id))
 
@@ -365,6 +366,31 @@ class SoCCore(Module):
                     raise ValueError("Interrupt conflict, {} already used by {} interrupt".format(
                         interrupt_id, _name))
             self.soc_interrupt_map.update({interrupt_name: interrupt_id})
+
+    def add_csr(self, csr_name, csr_id=None):
+        # check that csr_name is not already used
+        if csr_name in self.soc_csr_map.keys():
+            raise ValueError("CSR conflit, {} name already used".format(csr_name))
+
+        # check that csr_id is in range
+        if csr_id is not None and csr_id >= 2**self.csr_address_width:
+            raise ValueError("{} CSR ID out of range ({}, max=31)".format(
+                csr_name, csr_id))
+
+        # csr_id not provided: allocate csr to the first available id
+        if csr_id is None:
+            for n in range(2**self.csr_address_width):
+                if n not in self.soc_csr_map.values():
+                    self.soc_csr_map.update({csr_name: n})
+                    return
+            raise ValueError("No more space to allocate {} csr".format(name))
+        # csr_id provided: check that csr_id is not already used and add csr
+        else:
+            for _name, _id in self.soc_csr_map.items():
+                if csr_id == _id:
+                    raise ValueError("CSR conflict, {} already used by {} csr".format(
+                        csr_id, _name))
+            self.soc_csr_map.update({csr_name: csr_id})
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
@@ -430,12 +456,12 @@ class SoCCore(Module):
         if memory is not None:
             name = name + "_" + memory.name_override
         try:
-            return self.csr_map[name]
+            return self.soc_csr_map[name]
         except KeyError as e:
             msg = "Undefined \"{}\" CSR.\n".format(name)
             msg += "Avalaible CSRs in {} ({}):\n".format(
                 self.__class__.__name__, inspect.getfile(self.__class__))
-            for k in sorted(self.csr_map.keys()):
+            for k in sorted(self.soc_csr_map.keys()):
                 msg += "- {}\n".format(k)
             raise RuntimeError(msg)
         except ValueError:
