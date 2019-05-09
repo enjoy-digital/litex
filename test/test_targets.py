@@ -75,7 +75,7 @@ class TestTargets(unittest.TestCase):
         errors = build_test([BaseSoC()])
         self.assertEqual(errors, 0)
 
-    def test_versa_ulx3s(self):
+    def test_ulx3s(self):
         from litex.boards.targets.ulx3s import BaseSoC
         errors = build_test([BaseSoC()])
         self.assertEqual(errors, 0)
