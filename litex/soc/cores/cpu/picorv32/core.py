@@ -47,7 +47,11 @@ class PicoRV32(Module):
 
     @property
     def reserved_interrupts(self):
-        return { "picorv32_timer": 0, "picorv32_ebreak_ecall_illegal": 1, "picorv32_bus_error": 2 }
+        return {
+            "timer":                0,
+            "ebreak_ecall_illegal": 1,
+            "bus_error":            2
+        }
 
     def __init__(self, platform, progaddr_reset, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant

@@ -49,7 +49,7 @@ class MOR1KX(Module):
 
     @property
     def reserved_interrupts(self):
-        return { "nmi": 0 }
+        return {"nmi": 0}
 
     def __init__(self, platform, reset_pc, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant

@@ -175,10 +175,6 @@ class SoCCore(Module):
         "leds":           7,  # user
     }
     interrupt_map = {}
-    soc_interrupt_map = {
-        "timer0": 1, # LiteX Timer
-        "uart":   2, # LiteX UART (IRQ 2 for UART matches mor1k standard config).
-    }
     mem_map = {
         "rom":      0x00000000,  # (default shadow @0x80000000)
         "sram":     0x10000000,  # (default shadow @0x90000000)
@@ -195,7 +191,6 @@ class SoCCore(Module):
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
                 wishbone_timeout_cycles=1e6,
-                reserve_nmi_interrupt=True,
                 with_timer=True,
                 with_ctrl=True):
         self.config = dict()
@@ -259,6 +254,8 @@ class SoCCore(Module):
         self._wb_masters = []
         self._wb_slaves = []
 
+        self.soc_interrupt_map = {}
+
         if with_ctrl:
             self.submodules.ctrl = SoCController()
 
@@ -281,6 +278,14 @@ class SoCCore(Module):
             self.add_wb_master(self.cpu.dbus)
             if with_ctrl:
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
+            # add cpu reserved interrupts
+            for name, _id in self.cpu.reserved_interrupts.items():
+                self.add_interrupt(name, _id)
+
+        # add user interrupts
+        for name, _id in self.interrupt_map.items():
+            self.add_interrupt(name, _id)
+
         self.config["CPU_TYPE"] = str(cpu_type).upper()
         if self.cpu_variant:
             self.config["CPU_VARIANT"] = str(cpu_type).upper()
@@ -304,18 +309,13 @@ class SoCCore(Module):
         self.add_constant("CSR_DATA_WIDTH", csr_data_width)
         self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
 
-        if reserve_nmi_interrupt:
-            self.soc_interrupt_map["nmi"] = 0 # Reserve zero for "non-maskable interrupt"
-
         if with_uart:
             if uart_stub:
                 self.submodules.uart  = uart.UARTStub()
             else:
                 self.submodules.uart_phy = uart.RS232PHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
-
-        #else:
-        #    del self.soc_interrupt_map["uart"]
+            self.add_interrupt("uart")
 
         if ident:
             if ident_version:
@@ -326,36 +326,7 @@ class SoCCore(Module):
 
         if with_timer:
             self.submodules.timer0 = timer.Timer()
-        #else:
-        #    del self.soc_interrupt_map["timer0"]
-
-        # Invert the interrupt map.
-        interrupt_rmap = {}
-        for mod_name, interrupt in self.interrupt_map.items():
-            assert interrupt not in interrupt_rmap, (
-                "Interrupt vector conflict for IRQ %s, user defined %s conflicts with user defined %s" % (
-                    interrupt, mod_name, interrupt_rmap[interrupt]))
-
-            interrupt_rmap[interrupt] = mod_name
-
-        # Add the base SoC's interrupt map
-        for mod_name, interrupt in self.soc_interrupt_map.items():
-            assert interrupt not in interrupt_rmap or mod_name == interrupt_rmap[interrupt], (
-                "Interrupt vector conflict for IRQ %s, user defined %s conflicts with SoC inbuilt %s" % (
-                    interrupt, mod_name, interrupt_rmap[interrupt]))
-
-            self.interrupt_map[mod_name] = interrupt
-            interrupt_rmap[interrupt] = mod_name
-
-        # Make sure other functions are not using this value.
-        self.soc_interrupt_map = None
-
-        # Make the interrupt vector read only
-        self.interrupt_map = ReadOnlyDict(self.interrupt_map)
-
-        # Save the interrupt reverse map
-        self.interrupt_rmap = ReadOnlyDict(interrupt_rmap)
-
+            self.add_interrupt("timer0")
 
     def add_cpu(self, cpu):
         if self.finalized:
@@ -368,6 +339,32 @@ class SoCCore(Module):
         deprecated_warning("SoCCore's \"add_cpu_or_bridge\" call to \"add_cpu\"")
         self.add_cpu(cpu_or_bridge)
         self.cpu_or_bridge = self.cpu
+
+    def add_interrupt(self, interrupt_name, interrupt_id=None):
+        # check that interrupt_name is not already used
+        if interrupt_name in self.soc_interrupt_map.keys():
+            print(self.soc_interrupt_map)
+            raise ValueError("Interrupt conflit, {} name already used".format(interrupt_name))
+
+        # check that interrupt_id is in range
+        if interrupt_id is not None and interrupt_id > 31:
+            raise ValueError("{} Interrupt ID out of range ({}, max=31)".format(
+                interrupt_namename, interrupt_id))
+
+        # interrupt_id not provided: allocate interrupt to the first available id
+        if interrupt_id is None:
+            for n in range(32):
+                if n not in self.soc_interrupt_map.values():
+                    self.soc_interrupt_map.update({interrupt_name: n})
+                    return
+            raise ValueError("No more space to allocate {} interrupt".format(name))
+        # interrupt_id provided: check that interrupt_id is not already used and add interrupt
+        else:
+            for _name, _id in self.soc_interrupt_map.items():
+                if interrupt_id == _id:
+                    raise ValueError("Interrupt conflict, {} already used by {} interrupt".format(
+                        interrupt_id, _name))
+            self.soc_interrupt_map.update({interrupt_name: interrupt_id})
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
@@ -424,8 +421,8 @@ class SoCCore(Module):
 
     def get_constants(self):
         r = []
-        for interrupt, name in sorted(self.interrupt_rmap.items()):
-            r.append((name.upper() + "_INTERRUPT", interrupt))
+        for _name, _id in sorted(self.soc_interrupt_map.items()):
+            r.append((_name.upper() + "_INTERRUPT", _id))
         r += self._constants
         return r
 
@@ -482,13 +479,13 @@ class SoCCore(Module):
             # Interrupts
             if hasattr(self, "cpu"):
                 if hasattr(self.cpu, "interrupt"):
-                    for interrupt, mod_name in sorted(self.interrupt_rmap.items()):
-                        if mod_name == "nmi":
+                    for _name, _id in sorted(self.soc_interrupt_map.items()):
+                        if _name in self.cpu.reserved_interrupts.keys():
                             continue
-                        if hasattr(self, mod_name):
-                            mod_impl = getattr(self, mod_name)
-                            assert hasattr(mod_impl, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % mod_name
-                            self.comb += self.cpu.interrupt[interrupt].eq(mod_impl.ev.irq)
+                        if hasattr(self, _name):
+                            module = getattr(self, _name)
+                            assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
+                            self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
 
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
