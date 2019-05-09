@@ -146,7 +146,7 @@ def main():
     args = parser.parse_args()
 
     cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(args.toolchain, **soc_sdram_argdict(args))
+    soc = cls(toolchain=args.toolchain, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 

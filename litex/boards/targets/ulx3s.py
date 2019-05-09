@@ -77,7 +77,7 @@ def main():
     soc_sdram_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(args.device, args.toolchain, **soc_sdram_argdict(args))
+    soc = BaseSoC(device=args.device, toolchain=args.toolchain, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
