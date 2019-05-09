@@ -16,7 +16,6 @@ from litedram.phy import s7ddrphy
 
 # CRG ----------------------------------------------------------------------------------------------
 
-
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys = ClockDomain()
@@ -43,10 +42,6 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    csr_map = {
-        "ddrphy": 16,
-    }
-    csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, sys_clk_freq=int(100e6), **kwargs):
         platform = nexys4ddr.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -58,6 +53,7 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"), memtype="DDR2", nphases=2, sys_clk_freq=sys_clk_freq)
+        self.add_csr("ddrphy")
         sdram_module = MT47H64M16(sys_clk_freq, "1:2")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,

@@ -42,10 +42,6 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    csr_map = {
-        "ddrphy":    16,
-    }
-    csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, sys_clk_freq=int(125e6), **kwargs):
         platform = genesys2.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -57,6 +53,7 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = s7ddrphy.K7DDRPHY(platform.request("ddram"), sys_clk_freq=sys_clk_freq)
+        self.add_csr("ddrphy")
         sdram_module = MT41J256M16(self.clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
@@ -65,12 +62,6 @@ class BaseSoC(SoCSDRAM):
 # EthernetSoC ------------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
-    csr_map = {
-        "ethphy": 18,
-        "ethmac": 19
-    }
-    csr_map.update(BaseSoC.csr_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -81,10 +72,12 @@ class EthernetSoC(BaseSoC):
 
         self.submodules.ethphy = LiteEthPHYRGMII(self.platform.request("eth_clocks"),
                                                  self.platform.request("eth"))
+        self.add_csr("ethphy")
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
             interface="wishbone", endianness=self.cpu.endianness)
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+        self.add_csr("ethmac")
         self.add_interrupt("ethmac")
 
         self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")

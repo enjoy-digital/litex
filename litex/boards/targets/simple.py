@@ -26,12 +26,6 @@ class BaseSoC(SoCCore):
 # EthernetSoC --------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
-    csr_map = {
-        "ethphy": 20,
-        "ethmac": 21
-    }
-    csr_map.update(BaseSoC.csr_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -42,10 +36,12 @@ class EthernetSoC(BaseSoC):
 
         self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"),
                                             platform.request("eth"))
+        self.add_csr("ethphy")
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
             interface="wishbone", endianness=self.cpu.endianness, with_preamble_crc=False)
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+        self.add_csr("ethmac")
         self.add_interrupt("ethmac")
 
 # Build --------------------------------------------------------------------------------------------

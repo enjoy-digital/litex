@@ -47,10 +47,6 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    csr_map = {
-        "ddrphy":    16,
-    }
-    csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, sys_clk_freq=int(100e6), **kwargs):
         platform = ac701.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -62,6 +58,7 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"), sys_clk_freq=sys_clk_freq)
+        self.add_csr("ddrphy")
         sdram_module = MT8JTF12864(sys_clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
                             sdram_module.geom_settings,
@@ -70,12 +67,6 @@ class BaseSoC(SoCSDRAM):
 # EthernetSoC --------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
-    csr_map = {
-        "ethphy": 18,
-        "ethmac": 19
-    }
-    csr_map.update(BaseSoC.csr_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -88,6 +79,7 @@ class EthernetSoC(BaseSoC):
         if phy == "rgmii":
             self.submodules.ethphy = LiteEthPHYRGMII(self.platform.request("eth_clocks"),
                                                      self.platform.request("eth"))
+            self.add_csr("ethphy")
             self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
             self.ethphy.crg.cd_eth_tx.clk.attr.add("keep")
             self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
@@ -128,6 +120,7 @@ class EthernetSoC(BaseSoC):
             interface="wishbone", endianness=self.cpu.endianness)
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+        self.add_csr("ethmac")
         self.add_interrupt("ethmac")
 
 # Build --------------------------------------------------------------------------------------------

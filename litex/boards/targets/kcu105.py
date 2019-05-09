@@ -78,10 +78,6 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    csr_map = {
-        "ddrphy":    16,
-    }
-    csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, sys_clk_freq=int(125e6), **kwargs):
         platform = kcu105.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -93,6 +89,7 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = usddrphy.USDDRPHY(platform.request("ddram"), memtype="DDR4", sys_clk_freq=sys_clk_freq)
+        self.add_csr("ddrphy")
         self.add_constant("USDDRPHY", None)
         sdram_module = EDY4016A(sys_clk_freq, "1:4")
         self.register_sdram(self.ddrphy,
@@ -103,12 +100,6 @@ class BaseSoC(SoCSDRAM):
 # EthernetSoC ------------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
-    csr_map = {
-        "ethphy": 18,
-        "ethmac": 19
-    }
-    csr_map.update(BaseSoC.csr_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -120,10 +111,12 @@ class EthernetSoC(BaseSoC):
         self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
         self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
             self.platform.request("sfp", 0), sys_clk_freq=self.clk_freq)
+        self.add_csr("ethphy")
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
             interface="wishbone", endianness=self.cpu.endianness)
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+        self.add_csr("ethmac")
         self.add_interrupt("ethmac")
 
         self.ethphy.cd_eth_rx.clk.attr.add("keep")

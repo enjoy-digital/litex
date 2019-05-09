@@ -84,22 +84,6 @@ class Platform(SimPlatform):
 
 
 class SimSoC(SoCSDRAM):
-    csr_peripherals = [
-        "ethphy",
-        "ethmac",
-
-        "etherbonephy",
-        "etherbonecore",
-
-        "analyzer",
-    ]
-    csr_map_update(SoCSDRAM.csr_map, csr_peripherals)
-
-    interrupt_map = {
-        "ethmac": 3,
-    }
-    interrupt_map.update(SoCSDRAM.interrupt_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -157,6 +141,7 @@ class SimSoC(SoCSDRAM):
         if with_ethernet:
             # eth phy
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+            self.add_csr("ethphy")
             # eth mac
             ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
                 interface="wishbone", endianness=self.cpu.endianness)
@@ -165,11 +150,14 @@ class SimSoC(SoCSDRAM):
             self.submodules.ethmac = ethmac
             self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
             self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+            self.add_csr("ethmac")
+            self.add_interrupt("ethmac")
 
         # etherbone
         if with_etherbone:
             # eth phy
             self.submodules.etherbonephy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
+            self.add_csr("etherbonephy")
             # eth core
             etherbonecore = LiteEthUDPIPCore(self.etherbonephy,
                 etherbone_mac_address, convert_ip(etherbone_ip_address), sys_clk_freq)
@@ -188,6 +176,7 @@ class SimSoC(SoCSDRAM):
                 self.cpu.dbus
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
+            self.add_csr("analyzer")
 
 
 def main():

@@ -73,10 +73,6 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    csr_map = {
-        "ddrphy":    16,
-    }
-    csr_map.update(SoCSDRAM.csr_map)
     def __init__(self, sys_clk_freq=int(75e6), toolchain="diamond", **kwargs):
         platform = versa_ecp5.Platform(toolchain=toolchain)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
@@ -91,6 +87,7 @@ class BaseSoC(SoCSDRAM):
         self.submodules.ddrphy = ECP5DDRPHY(
             platform.request("ddram"),
             sys_clk_freq=sys_clk_freq)
+        self.add_csr("ddrphy")
         self.add_constant("ECP5DDRPHY", None)
         self.comb += crg.stop.eq(self.ddrphy.init.stop)
         sdram_module = MT41K64M16(sys_clk_freq, "1:2")
@@ -101,12 +98,6 @@ class BaseSoC(SoCSDRAM):
 # EthernetSoC --------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
-    csr_map = {
-        "ethphy": 18,
-        "ethmac": 19
-    }
-    csr_map.update(BaseSoC.csr_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -118,10 +109,12 @@ class EthernetSoC(BaseSoC):
         self.submodules.ethphy = LiteEthPHYRGMII(
             self.platform.request("eth_clocks"),
             self.platform.request("eth"))
+        self.add_csr("ethphy")
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
             interface="wishbone", endianness=self.cpu.endianness)
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+        self.add_csr("ethmac")
         self.add_interrupt("ethmac")
 
         self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
