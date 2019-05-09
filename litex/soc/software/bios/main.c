@@ -416,6 +416,8 @@ int main(int i, char **c)
 	printf("VexRiscv");
 #elif __minerva__
 	printf("Minerva");
+#elif __rocket__
+	printf("RocketRV64[imac]");
 #else
 	printf("Unknown");
 #endif

@@ -167,8 +167,9 @@ class SoCCore(Module):
     csr_map = {}
     interrupt_map = {}
     mem_map = {
-        "rom":      0x00000000,  # (default shadow @0x80000000)
-        "sram":     0x10000000,  # (default shadow @0x90000000)
+        # RocketChip reserves the first 256MBytes for internal use
+        "rom":      0x10000000,  # (default shadow @0x90000000)
+        "sram":     0x20000000,  # (default shadow @0xa0000000)
         "main_ram": 0x40000000,  # (default shadow @0xc0000000)
         "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
@@ -267,6 +268,8 @@ class SoCCore(Module):
                 self.add_cpu(vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "minerva":
                 self.add_cpu(minerva.Minerva(platform, self.cpu_reset_address, self.cpu_variant))
+            elif cpu_type == "rocket":
+                self.add_cpu(rocket.RocketRV64(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             self.add_csr("cpu", allow_user_defined=True)

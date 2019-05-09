@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <system.h>
+#include <generated/csr.h>
 
 #ifdef __picorv32__
 // PicoRV32 has a very limited interrupt support, implemented via custom
@@ -28,6 +29,17 @@ extern void _irq_disable(void);
 extern void _irq_setmask(unsigned int);
 #endif
 
+#ifdef __rocket__
+// The RocketChip uses a Platform-Level Interrupt Controller (PLIC) which
+// is programmed and queried via a set of MMIO registers.
+
+#define PLIC_BASE    0x0c000000L // Base address and per-pin priority array
+#define PLIC_PENDING 0x0c001000L // Bit field matching currently pending pins
+#define PLIC_ENABLED 0x0c002000L // Bit field corresponding to the current mask
+#define PLIC_THRSHLD 0x0c200000L // Per-pin priority must be >= this to trigger
+#define PLIC_CLAIM   0x0c200004L // Claim & completion register address
+#endif /* __rocket__ */
+
 static inline unsigned int irq_getie(void)
 {
 #if defined (__lm32__)
@@ -41,6 +53,8 @@ static inline unsigned int irq_getie(void)
 #elif defined (__vexriscv__)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 #elif defined (__minerva__)
+	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
+#elif defined (__rocket__)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 #else
 #error Unsupported architecture
@@ -64,6 +78,8 @@ static inline void irq_setie(unsigned int ie)
 #elif defined (__vexriscv__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 #elif defined (__minerva__)
+	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
+#elif defined (__rocket__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 #else
 #error Unsupported architecture
@@ -90,6 +106,8 @@ static inline unsigned int irq_getmask(void)
 	unsigned int mask;
 	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_IRQ_MASK));
 	return mask;
+#elif defined (__rocket__)
+	return csr_readl(PLIC_ENABLED) >> 1;
 #else
 #error Unsupported architecture
 #endif
@@ -109,6 +127,8 @@ static inline void irq_setmask(unsigned int mask)
 	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
 #elif defined (__minerva__)
 	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
+#elif defined (__rocket__)
+	csr_writel(mask << 1, PLIC_ENABLED);
 #else
 #error Unsupported architecture
 #endif
@@ -132,6 +152,8 @@ static inline unsigned int irq_pending(void)
 	unsigned int pending;
 	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_IRQ_PENDING));
 	return pending;
+#elif defined (__rocket__)
+	return csr_readl(PLIC_PENDING) >> 1;
 #else
 #error Unsupported architecture
 #endif
