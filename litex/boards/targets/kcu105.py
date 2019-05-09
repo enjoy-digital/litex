@@ -109,11 +109,6 @@ class EthernetSoC(BaseSoC):
     }
     csr_map.update(BaseSoC.csr_map)
 
-    interrupt_map = {
-        "ethmac": 3,
-    }
-    interrupt_map.update(BaseSoC.interrupt_map)
-
     mem_map = {
         "ethmac": 0x30000000,  # (shadow @0xb0000000)
     }
@@ -129,6 +124,7 @@ class EthernetSoC(BaseSoC):
             interface="wishbone", endianness=self.cpu.endianness)
         self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
         self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+        self.add_interrupt("ethmac")
 
         self.ethphy.cd_eth_rx.clk.attr.add("keep")
         self.ethphy.cd_eth_tx.clk.attr.add("keep")
