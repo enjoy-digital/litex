@@ -41,6 +41,11 @@ class TestTargets(unittest.TestCase):
         errors = build_test([BaseSoC(), EthernetSoC()])
         self.assertEqual(errors, 0)
 
+    def test_netv2(self):
+        from litex.boards.targets.netv2 import BaseSoC, EthernetSoC
+        errors = build_test([BaseSoC(), EthernetSoC()])
+        self.assertEqual(errors, 0)
+
     def test_nexys4ddr(self):
         from litex.boards.targets.nexys4ddr import BaseSoC
         errors = build_test([BaseSoC()])
@@ -85,7 +90,8 @@ class TestTargets(unittest.TestCase):
         platforms = []
         # Xilinx
         platforms += ["minispartan6", "sp605"]                     # Spartan6
-        platforms += ["arty", "nexys4ddr", "nexys_video", "ac701"] # Artix7
+        platforms += ["arty", "netv2", "nexys4ddr", "nexys_video", # Artix7
+                      "ac701"]
         platforms += ["kc705", "genesys2"]                         # Kintex7
         platforms += ["kcu105"]                                    # Kintex Ultrascale
 
