@@ -248,9 +248,13 @@ class SoCCore(Module):
         self.soc_csr_map = {}
         self.soc_interrupt_map = {}
 
+        # add user csrs
+        for _name, _id in self.csr_map.items():
+            self.add_csr(_name, _id)
+
         if with_ctrl:
             self.submodules.ctrl = SoCController()
-            self.add_csr("ctrl")
+            self.add_csr("ctrl", allow_user_defined=True)
 
         if cpu_type is not None:
             if cpu_type == "lm32":
@@ -267,7 +271,7 @@ class SoCCore(Module):
                 self.add_cpu(minerva.Minerva(platform, self.cpu_reset_address, self.cpu_variant))
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
-            self.add_csr("cpu")
+            self.add_csr("cpu", allow_user_defined=True)
             self.add_wb_master(self.cpu.ibus)
             self.add_wb_master(self.cpu.dbus)
             if with_ctrl:
@@ -279,10 +283,6 @@ class SoCCore(Module):
         # add user interrupts
         for _name, _id in self.interrupt_map.items():
             self.add_interrupt(_name, _id)
-
-        # add user csrs
-        for _name, _id in self.csr_map.items():
-            self.add_csr(_name, _id)
 
         self.config["CPU_TYPE"] = str(cpu_type).upper()
         if self.cpu_variant:
@@ -313,22 +313,22 @@ class SoCCore(Module):
             else:
                 self.submodules.uart_phy = uart.RS232PHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
-            self.add_csr("uart_phy")
-            self.add_csr("uart")
-            self.add_interrupt("uart")
+            self.add_csr("uart_phy", allow_user_defined=True)
+            self.add_csr("uart", allow_user_defined=True)
+            self.add_interrupt("uart", allow_user_defined=True)
 
         if ident:
             if ident_version:
                 ident = ident + " " + version()
             self.submodules.identifier = identifier.Identifier(ident)
-            self.add_csr("identifier_mem")
+            self.add_csr("identifier_mem", allow_user_defined=True)
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
         self.add_constant("SYSTEM_CLOCK_FREQUENCY", int(clk_freq))
 
         if with_timer:
             self.submodules.timer0 = timer.Timer()
-            self.add_csr("timer0")
-            self.add_interrupt("timer0")
+            self.add_csr("timer0", allow_user_defined=True)
+            self.add_interrupt("timer0", allow_user_defined=True)
 
     def add_cpu(self, cpu):
         if self.finalized:
@@ -342,10 +342,13 @@ class SoCCore(Module):
         self.add_cpu(cpu_or_bridge)
         self.cpu_or_bridge = self.cpu
 
-    def add_interrupt(self, interrupt_name, interrupt_id=None):
+    def add_interrupt(self, interrupt_name, interrupt_id=None, allow_user_defined=False):
         # check that interrupt_name is not already used
         if interrupt_name in self.soc_interrupt_map.keys():
-            raise ValueError("Interrupt conflit, {} name already used".format(interrupt_name))
+            if allow_user_defined:
+                return
+            else:
+                raise ValueError("Interrupt conflit, {} name already used".format(interrupt_name))
 
         # check that interrupt_id is in range
         if interrupt_id is not None and interrupt_id >= 32:
@@ -367,10 +370,13 @@ class SoCCore(Module):
                         interrupt_id, _name))
             self.soc_interrupt_map.update({interrupt_name: interrupt_id})
 
-    def add_csr(self, csr_name, csr_id=None):
+    def add_csr(self, csr_name, csr_id=None, allow_user_defined=False):
         # check that csr_name is not already used
         if csr_name in self.soc_csr_map.keys():
-            raise ValueError("CSR conflit, {} name already used".format(csr_name))
+            if allow_user_defined:
+                return
+            else:
+                raise ValueError("CSR conflit, {} name already used".format(csr_name))
 
         # check that csr_id is in range
         if csr_id is not None and csr_id >= 2**self.csr_address_width:
