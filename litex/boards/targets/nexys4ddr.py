@@ -14,6 +14,9 @@ from litex.soc.integration.builder import *
 from litedram.modules import MT47H64M16
 from litedram.phy import s7ddrphy
 
+from liteeth.phy.rmii import LiteEthPHYRMII
+from liteeth.core.mac import LiteEthMAC
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -22,6 +25,7 @@ class _CRG(Module):
         self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys2x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
+        self.clock_domains.cd_eth = ClockDomain()
 
         # # #
 
@@ -36,6 +40,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys2x, 2*sys_clk_freq)
         pll.create_clkout(self.cd_sys2x_dqs, 2*sys_clk_freq, phase=90)
         pll.create_clkout(self.cd_clk200, 200e6)
+        pll.create_clkout(self.cd_eth, 50e6)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
@@ -59,6 +64,37 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.geom_settings,
                             sdram_module.timing_settings)
         self.add_constant("MEMTEST_ADDR_SIZE", 0) # FIXME
+
+# EthernetSoC --------------------------------------------------------------------------------------
+
+class EthernetSoC(BaseSoC):
+    mem_map = {
+        "ethmac": 0x30000000,  # (shadow @0xb0000000)
+    }
+    mem_map.update(BaseSoC.mem_map)
+
+    def __init__(self, **kwargs):
+        BaseSoC.__init__(self, **kwargs)
+
+        self.submodules.ethphy = LiteEthPHYRMII(self.platform.request("eth_clocks"),
+                                                self.platform.request("eth"))
+        self.add_csr("ethphy")
+        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
+            interface="wishbone", endianness=self.cpu.endianness)
+        self.add_wb_slave(mem_decoder(self.mem_map["ethmac"]), self.ethmac.bus)
+        self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+        self.add_csr("ethmac")
+        self.add_interrupt("ethmac")
+
+        self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
+        self.ethphy.crg.cd_eth_tx.clk.attr.add("keep")
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/12.5e6)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/12.5e6)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.ethphy.crg.cd_eth_rx.clk,
+            self.ethphy.crg.cd_eth_tx.clk)
+
 
 # Build --------------------------------------------------------------------------------------------
 

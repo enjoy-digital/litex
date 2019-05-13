@@ -81,6 +81,24 @@ _io = [
         Subsignal("cs_n", Pins("K6"), IOStandard("SSTL18_II")),
         Misc("SLEW=FAST"),
     ),
+
+    ("eth_clocks", 0,
+        Subsignal("ref_clk", Pins("D5")),
+        IOStandard("LVCMOS33"),
+    ),
+
+    ("eth", 0,
+        Subsignal("rst_n", Pins("B3")),
+        Subsignal("rx_data", Pins("C11 D10")),
+        Subsignal("crs_dv", Pins("D9")),
+        Subsignal("tx_en", Pins("B9")),
+        Subsignal("tx_data", Pins("A10 A8")),
+        Subsignal("mdc", Pins("C9")),
+        Subsignal("mdio", Pins("A9")),
+        Subsignal("rx_er", Pins("C10")),
+        Subsignal("int_n", Pins("D8")),
+        IOStandard("LVCMOS33")
+     ),
 ]
 
 # Platform -----------------------------------------------------------------------------------------
