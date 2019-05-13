@@ -16,6 +16,7 @@ CPU_VARIANTS = {
     "full":             "VexRiscv_Full",
     "full+debug":       "VexRiscv_FullDebug",
     "linux":            "VexRiscv_Linux",
+    "linux+debug":      "VexRiscv_LinuxDebug",
 }
 
 
@@ -36,6 +37,7 @@ GCC_FLAGS = {
     "full":             "-march=rv32im     -mabi=ilp32",
     "full+debug":       "-march=rv32im     -mabi=ilp32",
     "linux":            "-march=rv32ima    -mabi=ilp32",
+    "linux+debug":      "-march=rv32ima    -mabi=ilp32",
 }
 
 
@@ -104,6 +106,7 @@ class VexRiscv(Module, AutoCSR):
                 i_externalResetVector=self.cpu_reset_address,
                 i_externalInterruptArray=self.interrupt,
                 i_timerInterrupt=0,
+                i_softwareInterrupt=0,
 
                 o_iBusWishbone_ADR=ibus.adr,
                 o_iBusWishbone_DAT_MOSI=ibus.dat_w,
@@ -130,9 +133,6 @@ class VexRiscv(Module, AutoCSR):
                 i_dBusWishbone_ERR=dbus.err)
 
         if "linux" in variant:
-            # Tie zero to prevent 1'bx here
-            self.cpu_params["i_softwareInterrupt"] = 0
-            self.cpu_params["i_externalInterruptS"] = 0
             self.add_timer()
 
         if "debug" in variant:
