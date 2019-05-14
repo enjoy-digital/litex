@@ -28,8 +28,8 @@ _io = [
     ("sw", 3, Pins("M15"), IOStandard("3.3-V LVTTL")),
 
     ("serial", 0,
-        Subsignal("tx", Pins("D3"), IOStandard("3.3-V LVTTL")),
-        Subsignal("rx", Pins("C3"), IOStandard("3.3-V LVTTL"))
+        Subsignal("tx", Pins("B4"), IOStandard("3.3-V LVTTL")),
+        Subsignal("rx", Pins("B5"), IOStandard("3.3-V LVTTL"))
     ),
 
     ("sdram_clock", 0, Pins("R4"), IOStandard("3.3-V LVTTL")),
