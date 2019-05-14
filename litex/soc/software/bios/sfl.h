@@ -17,11 +17,6 @@ struct sfl_frame {
 #define SFL_CMD_LOAD		0x01
 #define SFL_CMD_JUMP		0x02
 
-/* Linux-specific commands */
-#define SFL_CMD_CMDLINE		0x03
-#define SFL_CMD_INITRDSTART	0x04
-#define SFL_CMD_INITRDEND	0x05
-
 /* Replies */
 #define SFL_ACK_SUCCESS		'K'
 #define SFL_ACK_CRCERROR	'C'

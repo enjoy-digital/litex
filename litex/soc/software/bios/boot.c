@@ -84,7 +84,6 @@ int serialboot(void)
 {
 	struct sfl_frame frame;
 	int failed;
-	unsigned long cmdline_adr, initrdstart_adr, initrdend_adr;
 	static const char str[SFL_MAGIC_LEN+1] = SFL_MAGIC_REQ;
 	const char *c;
 	int ack_status;
@@ -109,7 +108,6 @@ int serialboot(void)
 	/* assume ACK_OK */
 
 	failed = 0;
-	cmdline_adr = initrdstart_adr = initrdend_adr = 0;
 	while(1) {
 		int i;
 		int actualcrc;
@@ -165,33 +163,9 @@ int serialboot(void)
 					|((unsigned long)frame.payload[2] <<  8)
 					|((unsigned long)frame.payload[3] <<  0);
 				uart_write(SFL_ACK_SUCCESS);
-				boot(cmdline_adr, initrdstart_adr, initrdend_adr, addr);
+				boot(0, 0, 0, addr);
 				break;
 			}
-			case SFL_CMD_CMDLINE:
-				failed = 0;
-				cmdline_adr =  ((unsigned long)frame.payload[0] << 24)
-						  |((unsigned long)frame.payload[1] << 16)
-						  |((unsigned long)frame.payload[2] <<  8)
-						  |((unsigned long)frame.payload[3] <<  0);
-				uart_write(SFL_ACK_SUCCESS);
-				break;
-			case SFL_CMD_INITRDSTART:
-				failed = 0;
-				initrdstart_adr =  ((unsigned long)frame.payload[0] << 24)
-							  |((unsigned long)frame.payload[1] << 16)
-							  |((unsigned long)frame.payload[2] <<  8)
-							  |((unsigned long)frame.payload[3] <<  0);
-				uart_write(SFL_ACK_SUCCESS);
-				break;
-			case SFL_CMD_INITRDEND:
-				failed = 0;
-				initrdend_adr =  ((unsigned long)frame.payload[0] << 24)
-							|((unsigned long)frame.payload[1] << 16)
-							|((unsigned long)frame.payload[2] <<  8)
-							|((unsigned long)frame.payload[3] <<  0);
-				uart_write(SFL_ACK_SUCCESS);
-				break;
 			default:
 				failed++;
 				if(failed == MAX_FAILED) {
