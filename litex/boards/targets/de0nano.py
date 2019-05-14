@@ -14,46 +14,6 @@ from litedram.phy import GENSDRPHY
 
 # CRG ----------------------------------------------------------------------------------------------
 
-class _ALTPLL(Module):
-    def __init__(self, period_in, name, phase_shift, operation_mode):
-        self.clk_in = Signal()
-        self.clk_out = Signal()
-
-        self.specials += \
-            Instance("ALTPLL",
-                p_bandwidth_type="AUTO",
-                p_clk0_divide_by=1,
-                p_clk0_duty_cycle=50,
-                p_clk0_multiply_by=2,
-                p_clk0_phase_shift="{}".format(str(phase_shift)),
-                p_compensate_clock="CLK0",
-                p_inclk0_input_frequency=int(period_in*1000),
-                p_intended_device_family="Cyclone IV E",
-                p_lpm_hint="CBX_MODULE_PREFIX={}_pll".format(name),
-                p_lpm_type="altpll",
-                p_operation_mode=operation_mode,
-                i_inclk=self.clk_in,
-                o_clk=self.clk_out,
-                i_areset=0,
-                i_clkena=0x3f,
-                i_clkswitch=0,
-                i_configupdate=0,
-                i_extclkena=0xf,
-                i_fbin=1,
-                i_pfdena=1,
-                i_phasecounterselect=0xf,
-                i_phasestep=1,
-                i_phaseupdown=1,
-                i_pllena=1,
-                i_scanaclr=0,
-                i_scanclk=0,
-                i_scanclkena=1,
-                i_scandata=0,
-                i_scanread=0,
-                i_scanwrite=0
-            )
-
-
 class _CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
@@ -66,23 +26,7 @@ class _CRG(Module):
         self.cd_sys_ps.clk.attr.add("keep")
         self.cd_por.clk.attr.add("keep")
 
-        clk50 = platform.request("clk50")
-
-        sys_pll = _ALTPLL(20, "sys", 0, "NORMAL")
-        self.submodules += sys_pll
-        self.comb += [
-            sys_pll.clk_in.eq(clk50),
-            self.cd_sys.clk.eq(sys_pll.clk_out)
-        ]
-
-        sdram_pll = _ALTPLL(20, "sdram", -3000, "ZERO_DELAY_BUFFER")
-        self.submodules += sdram_pll
-        self.comb += [
-            sdram_pll.clk_in.eq(clk50),
-            self.cd_sys_ps.clk.eq(sdram_pll.clk_out)
-        ]
-
-        # Power on Reset (vendor agnostic)
+        # power on rst
         rst_n = Signal()
         self.sync.por += rst_n.eq(1)
         self.comb += [
@@ -91,13 +35,35 @@ class _CRG(Module):
             self.cd_sys_ps.rst.eq(~rst_n)
         ]
 
+        # sys clk / sdram clk
+        clk50 = platform.request("clk50")
+        self.comb += self.cd_sys.clk.eq(clk50)
+        self.specials += \
+            Instance("ALTPLL",
+                p_BANDWIDTH_TYPE="AUTO",
+                p_CLK0_DIVIDE_BY=1,
+                p_CLK0_DUTY_CYCLE=50,
+                p_CLK0_MULTIPLY_BY=1,
+                p_CLK0_PHASE_SHIFT="-3000",
+                p_COMPENSATE_CLOCK="CLK0",
+                p_INCLK0_INPUT_FREQUENCY=20000,
+                p_OPERATION_MODE="ZERO_DELAY_BUFFER",
+                i_INCLK=clk50,
+                o_CLK=self.cd_sys_ps.clk,
+                i_ARESET=~rst_n,
+                i_CLKENA=0x3f,
+                i_EXTCLKENA=0xf,
+                i_FBIN=1,
+                i_PFDENA=1,
+                i_PLLENA=1,
+            )
         self.comb += platform.request("sdram_clock").eq(self.cd_sys_ps.clk)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(100e6), **kwargs):
-        assert sys_clk_freq == int(100e6)
+    def __init__(self, sys_clk_freq=int(50e6), **kwargs):
+        assert sys_clk_freq == int(50e6)
         platform = de0nano.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
