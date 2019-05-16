@@ -178,7 +178,7 @@ class SoCCore(Module):
                 integrated_sram_size=4096, integrated_sram_init=[],
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
                 shadow_base=0x80000000,
-                csr_data_width=8, csr_address_width=14, csr_expose=False,
+                csr_data_width=8, csr_address_width=14,
                 with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
                 ident="", ident_version=False,
                 wishbone_timeout_cycles=1e6,
@@ -232,9 +232,6 @@ class SoCCore(Module):
 
         self.csr_data_width = csr_data_width
         self.csr_address_width = csr_address_width
-        self.csr_expose = csr_expose
-        if csr_expose:
-            self.csr = csr_bus.Interface(csr_data_width, csr_address_width)
 
         self.with_ctrl = with_ctrl
 
@@ -244,6 +241,7 @@ class SoCCore(Module):
 
         self._wb_masters = []
         self._wb_slaves = []
+        self._csr_masters = []
 
         self.soc_csr_map = {}
         self.soc_interrupt_map = {}
@@ -303,6 +301,7 @@ class SoCCore(Module):
 
         self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
             bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
+        self.add_csr_master(self.wishbone2csr.csr)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.add_constant("CSR_DATA_WIDTH", csr_data_width)
         self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
@@ -411,6 +410,12 @@ class SoCCore(Module):
             raise FinalizeError
         self._wb_slaves.append((address_decoder, interface))
 
+    def add_csr_master(self, csrm):
+        # CSR masters are not arbitrated, use this with precaution.
+        if self.finalized:
+            raise FinalizeError
+        self._csr_masters.append(csrm)
+
     def add_memory_region(self, name, origin, length):
         def in_this_region(addr):
             return addr >= origin and addr < origin + length
@@ -480,44 +485,40 @@ class SoCCore(Module):
                 if mem not in registered_mems:
                     raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
 
+        # Wishbone
         if len(self._wb_masters):
-            # Wishbone
             self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
                 self._wb_slaves, register=True, timeout_cycles=self.wishbone_timeout_cycles)
             if self.with_ctrl and (self.wishbone_timeout_cycles is not None):
                 self.comb += self.ctrl.bus_error.eq(self.wishbonecon.timeout.error)
 
-            # CSR
-            self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
-                self.get_csr_dev_address,
-                data_width=self.csr_data_width, address_width=self.csr_address_width)
-            if self.csr_expose:
-                self.submodules.csrcon = csr_bus.InterconnectShared(
-                    [self.csr, self.wishbone2csr.csr], self.csrbankarray.get_buses())
-            else:
-                self.submodules.csrcon = csr_bus.Interconnect(
-                    self.wishbone2csr.csr, self.csrbankarray.get_buses())
-            for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
-                self.check_csr_range(name, 0x800*mapaddr)
-                self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
-            for name, memory, mapaddr, mmap in self.csrbankarray.srams:
-                self.check_csr_range(name, 0x800*mapaddr)
-                self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
-            for name, constant in self.csrbankarray.constants:
-                self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
-            for name, value in sorted(self.config.items(), key=itemgetter(0)):
-                self._constants.append(("CONFIG_" + name.upper(), value))
+        # CSR
+        self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
+            self.get_csr_dev_address,
+            data_width=self.csr_data_width, address_width=self.csr_address_width)
+        self.submodules.csrcon = csr_bus.InterconnectShared(
+                self._csr_masters, self.csrbankarray.get_buses())
+        for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+            self.check_csr_range(name, 0x800*mapaddr)
+            self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
+        for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+            self.check_csr_range(name, 0x800*mapaddr)
+            self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
+        for name, constant in self.csrbankarray.constants:
+            self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
+        for name, value in sorted(self.config.items(), key=itemgetter(0)):
+            self._constants.append(("CONFIG_" + name.upper(), value))
 
-            # Interrupts
-            if hasattr(self, "cpu"):
-                if hasattr(self.cpu, "interrupt"):
-                    for _name, _id in sorted(self.soc_interrupt_map.items()):
-                        if _name in self.cpu.reserved_interrupts.keys():
-                            continue
-                        if hasattr(self, _name):
-                            module = getattr(self, _name)
-                            assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
-                            self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
+        # Interrupts
+        if hasattr(self, "cpu"):
+            if hasattr(self.cpu, "interrupt"):
+                for _name, _id in sorted(self.soc_interrupt_map.items()):
+                    if _name in self.cpu.reserved_interrupts.keys():
+                        continue
+                    if hasattr(self, _name):
+                        module = getattr(self, _name)
+                        assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
+                        self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
 
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
