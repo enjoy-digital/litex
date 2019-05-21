@@ -111,7 +111,14 @@ class CommUSB:
             if value is None:
                 raise TypeError
             return int.from_bytes(value, byteorder="little")
-        except (usb.core.USBError, TypeError):
+        except usb.core.USBError as e:
+            if e.errno == 13:
+                print("Access Denied. Maybe try using sudo?")
+            self.close()
+            self.open()
+            if depth < self.MAX_RECURSION_COUNT:
+                return self.usb_read(addr, depth+1)
+        except TypeError:
             self.close()
             self.open()
             if depth < self.MAX_RECURSION_COUNT:
@@ -127,7 +134,7 @@ class CommUSB:
 
     def usb_write(self, addr, value, depth=0):
         try:
-            self.dev.ctrl_transfer(bmRequestType=0x43, bRequest=0x00,
+            value = self.dev.ctrl_transfer(bmRequestType=0x43, bRequest=0x00,
                     wValue=addr & 0xffff,
                     wIndex=(addr >> 16) & 0xffff,
                     data_or_wLength=bytes([(value >> 0) & 0xff,
@@ -135,7 +142,9 @@ class CommUSB:
                                            (value >> 16) & 0xff,
                                            (value >> 24) & 0xff]
                                           ), timeout=None)
-        except usb.core.USBError:
+        except usb.core.USBError as e:
+            if e.errno == 13:
+                print("Access Denied. Maybe try using sudo?")
             self.close()
             self.open()
             if depth < self.MAX_RECURSION_COUNT:
