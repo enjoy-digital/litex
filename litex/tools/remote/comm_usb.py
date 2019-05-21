@@ -20,12 +20,12 @@ import time
 # The SETUP packet looks like this:
 #
 # +----+----+----------+----+----+
-# | C0 | 00 | ADDRESS  | 04 | 00 |   read packet
+# | C3 | 00 | ADDRESS  | 04 | 00 |   read packet
 # +----+----+----------+----+----+
 #   1    1        4      1    1
 #
 # +----+----+----------+----+----+
-# | 40 | 00 | ADDRESS  | 04 | 00 |   write packet
+# | 43 | 00 | ADDRESS  | 04 | 00 |   write packet
 # +----+----+----------+----+----+
 #   1    1        4      1    1
 #
@@ -37,8 +37,8 @@ import time
 # byte indicates what type of packet it is, and that it is a Wishbone Bridge
 # packet.  This is the value "0x40" (VENDOR type packet destined for DEVICE)
 # with the "Data Phase Transfer" bit either set or cleared:
-#     - Read:  0xc0
-#     - Write: 0x40
+#     - Read:  0xc3
+#     - Write: 0x43
 #
 # The next byte is bRequest, which in the current implementation is unused.
 # Set this value to 0.
@@ -103,7 +103,7 @@ class CommUSB:
 
     def usb_read(self, addr, depth=0):
         try:
-            value = self.dev.ctrl_transfer(bmRequestType=0xc0,
+            value = self.dev.ctrl_transfer(bmRequestType=0xc3,
                         bRequest=0x00,
                         wValue=addr & 0xffff,
                         wIndex=(addr >> 16) & 0xffff,
@@ -111,7 +111,14 @@ class CommUSB:
             if value is None:
                 raise TypeError
             return int.from_bytes(value, byteorder="little")
-        except (usb.core.USBError, TypeError):
+        except usb.core.USBError as e:
+            if e.errno == 13:
+                print("Access Denied. Maybe try using sudo?")
+            self.close()
+            self.open()
+            if depth < self.MAX_RECURSION_COUNT:
+                return self.usb_read(addr, depth+1)
+        except TypeError:
             self.close()
             self.open()
             if depth < self.MAX_RECURSION_COUNT:
@@ -127,7 +134,7 @@ class CommUSB:
 
     def usb_write(self, addr, value, depth=0):
         try:
-            self.dev.ctrl_transfer(bmRequestType=0x40, bRequest=0x00,
+            value = self.dev.ctrl_transfer(bmRequestType=0x43, bRequest=0x00,
                     wValue=addr & 0xffff,
                     wIndex=(addr >> 16) & 0xffff,
                     data_or_wLength=bytes([(value >> 0) & 0xff,
@@ -135,7 +142,9 @@ class CommUSB:
                                            (value >> 16) & 0xff,
                                            (value >> 24) & 0xff]
                                           ), timeout=None)
-        except usb.core.USBError:
+        except usb.core.USBError as e:
+            if e.errno == 13:
+                print("Access Denied. Maybe try using sudo?")
             self.close()
             self.open()
             if depth < self.MAX_RECURSION_COUNT:
