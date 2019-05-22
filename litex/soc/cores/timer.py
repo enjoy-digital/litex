@@ -30,6 +30,7 @@ class Timer(Module, AutoCSR):
             ).Else(
                 value.eq(self._load.storage)
             ),
-            If(self._update_value.re, self._value.status.eq(value))
+            If(self._update_value.re, self._value.status.eq(value)),
+            self._value.status.eq(value)
         ]
         self.comb += self.ev.zero.trigger.eq(value != 0)
