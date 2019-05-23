@@ -116,6 +116,7 @@ class SimSoC(SoCSDRAM):
             sdram_module =  MT48LC16M16(100e6, "1:1") # use 100MHz timings
             phy_settings = PhySettings(
                 memtype="SDR",
+                databits=32,
                 dfi_databits=16,
                 nphases=1,
                 rdphase=0,
