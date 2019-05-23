@@ -19,3 +19,6 @@
 [submodule "litex/soc/cores/cpu/minerva/verilog"]
 	path = litex/soc/cores/cpu/minerva/verilog
 	url = http://github.com/enjoy-digital/minerva-verilog
+[submodule "litex/soc/cores/cpu/rocket/verilog"]
+	path = litex/soc/cores/cpu/rocket/verilog
+	url = https://github.com/gsomlo/rocket-litex-verilog
