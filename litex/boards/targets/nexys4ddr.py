@@ -47,7 +47,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(50e6), **kwargs):
+    def __init__(self, sys_clk_freq=int(100e6), **kwargs):
         platform = nexys4ddr.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                          integrated_rom_size=0x8000,
@@ -102,12 +102,14 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Nexys4DDR")
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--sys-clk-freq", default=75e6,
+	                    help="system clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
     args = parser.parse_args()
 
     cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(**soc_sdram_argdict(args))
+    soc = cls(sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 

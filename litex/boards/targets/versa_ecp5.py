@@ -73,7 +73,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(50e6), toolchain="diamond", **kwargs):
+    def __init__(self, sys_clk_freq=int(75e6), toolchain="diamond", **kwargs):
         platform = versa_ecp5.Platform(toolchain=toolchain)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                           integrated_rom_size=0x8000,
@@ -130,12 +130,14 @@ def main():
         help='gateware toolchain to use, diamond (default) or  trellis')
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--sys-clk-freq", default=75e6,
+	                    help="system clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
     args = parser.parse_args()
 
     cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(toolchain=args.toolchain, **soc_sdram_argdict(args))
+    soc = cls(toolchain=args.toolchain, sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
