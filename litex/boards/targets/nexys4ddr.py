@@ -47,7 +47,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(100e6), **kwargs):
+    def __init__(self, sys_clk_freq=int(50e6), **kwargs):
         platform = nexys4ddr.Platform()
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
                          integrated_rom_size=0x8000,
