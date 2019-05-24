@@ -167,9 +167,8 @@ class SoCCore(Module):
     csr_map = {}
     interrupt_map = {}
     mem_map = {
-        # RocketChip reserves the first 256MBytes for internal use
-        "rom":      0x10000000,  # (default shadow @0x90000000)
-        "sram":     0x20000000,  # (default shadow @0xa0000000)
+        "rom":      0x00000000,  # (default shadow @0x80000000)
+        "sram":     0x10000000,  # (default shadow @0x90000000)
         "main_ram": 0x40000000,  # (default shadow @0xc0000000)
         "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
@@ -189,6 +188,16 @@ class SoCCore(Module):
 
         self.platform = platform
         self.clk_freq = clk_freq
+
+        self.soc_csr_map = {}
+        self.soc_interrupt_map = {}
+        self.soc_mem_map = self.mem_map
+
+        # FIXME: RocketChip reserves the first 256Mbytes for internal use
+        # remap rom to 0x10000000, sram to 0x20000000
+        if cpu_type == "rocket":
+            self.soc_mem_map["rom"]  = 0x10000000
+            self.soc_mem_map["sram"] = 0x20000000
 
         if cpu_type == "None":
             cpu_type = None
@@ -215,7 +224,7 @@ class SoCCore(Module):
             self.cpu_variant += "+"+ext
 
         if integrated_rom_size:
-            cpu_reset_address = self.mem_map["rom"]
+            cpu_reset_address = self.soc_mem_map["rom"]
         self.cpu_reset_address = cpu_reset_address
         self.config["CPU_RESET_ADDR"] = self.cpu_reset_address
 
@@ -243,9 +252,6 @@ class SoCCore(Module):
         self._wb_masters = []
         self._wb_slaves = []
         self._csr_masters = []
-
-        self.soc_csr_map = {}
-        self.soc_interrupt_map = {}
 
         # add user csrs
         for _name, _id in self.csr_map.items():
@@ -295,19 +301,19 @@ class SoCCore(Module):
 
         if integrated_sram_size:
             self.submodules.sram = wishbone.SRAM(integrated_sram_size, init=integrated_sram_init)
-            self.register_mem("sram", self.mem_map["sram"], self.sram.bus, integrated_sram_size)
+            self.register_mem("sram", self.soc_mem_map["sram"], self.sram.bus, integrated_sram_size)
 
         # Note: Main Ram can be used when no external SDRAM is available and use SDRAM mapping.
         if integrated_main_ram_size:
             self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size, init=integrated_main_ram_init)
-            self.register_mem("main_ram", self.mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
+            self.register_mem("main_ram", self.soc_mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
 
         self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
             bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
         self.add_csr_master(self.wishbone2csr.csr)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.add_constant("CSR_DATA_WIDTH", csr_data_width)
-        self.register_mem("csr", self.mem_map["csr"], self.wishbone2csr.wishbone)
+        self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone)
 
         if with_uart:
             if uart_stub:
@@ -434,7 +440,7 @@ class SoCCore(Module):
             self.add_memory_region(name, address, size)
 
     def register_rom(self, interface, rom_size=0xa000):
-        self.add_wb_slave(mem_decoder(self.mem_map["rom"]), interface)
+        self.add_wb_slave(mem_decoder(self.soc_mem_map["rom"]), interface)
         self.add_memory_region("rom", self.cpu_reset_address, rom_size)
 
     def get_memory_regions(self):
@@ -503,10 +509,10 @@ class SoCCore(Module):
                 self._csr_masters, self.csrbankarray.get_buses())
         for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
             self.check_csr_range(name, 0x800*mapaddr)
-            self.add_csr_region(name, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
+            self.add_csr_region(name, (self.soc_mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, csrs)
         for name, memory, mapaddr, mmap in self.csrbankarray.srams:
             self.check_csr_range(name, 0x800*mapaddr)
-            self.add_csr_region(name + "_" + memory.name_override, (self.mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
+            self.add_csr_region(name + "_" + memory.name_override, (self.soc_mem_map["csr"] + 0x800*mapaddr) | self.shadow_base, self.csr_data_width, memory)
         for name, constant in self.csrbankarray.constants:
             self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
         for name, value in sorted(self.config.items(), key=itemgetter(0)):
