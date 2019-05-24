@@ -34,7 +34,7 @@ void isr(void)
 			printf("# plic_pending:    %08x\n", irq_pending());
 			printf("# mepc:    %016lx\n", csrr(mepc));
 			printf("# mcause:  %016lx\n", csrr(mcause));
-			printf("# mtval:   %016lx\n", csrr(mtval));
+			//printf("# mtval:   %016lx\n", csrr(mtval)); // FIXME
 			printf("# mie:     %016lx\n", csrr(mie));
 			printf("# mip:     %016lx\n", csrr(mip));
 			printf("###########################\n\n");
