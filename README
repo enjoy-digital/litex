@@ -99,9 +99,9 @@ FPGA lessons/tutorials can be found at: https://github.com/enjoy-digital/fpga_10
   ./litex_setup.py update
 
 2. Install a RISC-V toolchain:
-  wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-  tar -xvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-  export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6/bin/
+  wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
+  tar -xvf riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
+  export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 
 3. Build the target of your board...:
   Go to boards/targets and execute the target you want to build
