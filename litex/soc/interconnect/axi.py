@@ -167,16 +167,30 @@ class AXI2AXILite(Module):
 
         _data      = Signal(axi.data_width)
         _cmd_done  = Signal()
+        _last_ar_aw_n = Signal()
 
-        # FIXME: add anti-starvation
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(_cmd_done, 0),
-            If(axi.ar.valid,
+            If(axi.ar.valid & axi.aw.valid,
+                # If last access was a read, do a write
+                If(_last_ar_aw_n,
+                    axi.aw.connect(ax_burst),
+                    NextValue(_last_ar_aw_n, 0),
+                    NextState("WRITE")
+                # If last access was a write, do a read
+                ).Else(
+                    axi.ar.connect(ax_burst),
+                    NextValue(_last_ar_aw_n, 1),
+                    NextState("READ"),
+                )
+            ).Elif(axi.ar.valid,
                 axi.ar.connect(ax_burst),
-                NextState("READ")
+                NextValue(_last_ar_aw_n, 1),
+                NextState("READ"),
             ).Elif(axi.aw.valid,
                 axi.aw.connect(ax_burst),
+                NextValue(_last_ar_aw_n, 0),
                 NextState("WRITE")
             )
         )
@@ -248,14 +262,27 @@ class AXILite2Wishbone(Module):
         _data = Signal(axi_lite.data_width)
         _r_addr = Signal(axi_lite.address_width)
         _w_addr = Signal(axi_lite.address_width)
+        _last_ar_aw_n = Signal()
         self.comb += _r_addr.eq(axi_lite.ar.addr - base_address)
         self.comb += _w_addr.eq(axi_lite.aw.addr - base_address)
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            If(axi_lite.ar.valid,
+            If(axi_lite.ar.valid & axi_lite.aw.valid,
+                # If last access was a read, do a write
+                If(_last_ar_aw_n,
+                    NextValue(_last_ar_aw_n, 0),
+                    NextState("DO-WRITE")
+                # If last access was a write, do a read
+                ).Else(
+                    NextValue(_last_ar_aw_n, 1),
+                    NextState("DO-READ")
+                )
+            ).Elif(axi_lite.ar.valid,
+                NextValue(_last_ar_aw_n, 1),
                 NextState("DO-READ")
             ).Elif(axi_lite.aw.valid,
+                NextValue(_last_ar_aw_n, 0),
                 NextState("DO-WRITE")
             )
         )
