@@ -9,8 +9,8 @@ install:
 
 before_script:
   # Get RISC-V toolchain
-  - wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-  - tar -xvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-  - export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6/bin/
+  - wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
+  - tar -xvf riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
+  - export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 
 script: python setup.py test
