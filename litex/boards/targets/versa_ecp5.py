@@ -131,7 +131,7 @@ def main():
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--sys-clk-freq", default=75e6,
-	                    help="system clock frequency (default=75MHz)")
+                        help="system clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
     args = parser.parse_args()
