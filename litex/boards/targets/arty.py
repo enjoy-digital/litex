@@ -25,6 +25,7 @@ class _CRG(Module):
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
+        self.clock_domains.cd_eth = ClockDomain()
 
         # # #
 
@@ -39,14 +40,11 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq)
         pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
         pll.create_clkout(self.cd_clk200, 200e6)
+        pll.create_clkout(self.cd_eth, 25e6)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
-        eth_clk = Signal()
-        self.specials += [
-            Instance("BUFR", p_BUFR_DIVIDE="4", i_CE=1, i_CLR=0, i_I=self.cd_sys.clk, o_O=eth_clk),
-            Instance("BUFG", i_I=eth_clk, o_O=platform.request("eth_ref_clk")),
-        ]
+        self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
