@@ -369,7 +369,7 @@ def inc_mod(s, m):
 
 
 class Gearbox(Module):
-    def __init__(self, i_dw, o_dw):
+    def __init__(self, i_dw, o_dw, msb_first=True):
         self.sink = sink = Endpoint([("data", i_dw)])
         self.source = source = Endpoint([("data", o_dw)])
 
@@ -406,14 +406,24 @@ class Gearbox(Module):
         shift_register = Signal(io_lcm)
 
         i_cases = {}
+        i_data = Signal(i_dw)
+        if msb_first:
+            self.comb += i_data.eq(sink.data)
+        else:
+            self.comb += i_data.eq(sink.data[::-1])
         for i in range(io_lcm//i_dw):
-            i_cases[i] = shift_register[io_lcm - i_dw*(i+1):io_lcm - i_dw*i].eq(sink.data)
+            i_cases[i] = shift_register[io_lcm - i_dw*(i+1):io_lcm - i_dw*i].eq(i_data)
         self.sync += If(sink.valid & sink.ready, Case(i_count, i_cases))
 
         o_cases = {}
+        o_data = Signal(o_dw)
         for i in range(io_lcm//o_dw):
-            o_cases[i] = source.data.eq(shift_register[io_lcm - o_dw*(i+1):io_lcm - o_dw*i])
+            o_cases[i] = o_data.eq(shift_register[io_lcm - o_dw*(i+1):io_lcm - o_dw*i])
         self.comb += Case(o_count, o_cases)
+        if msb_first:
+            self.comb += source.data.eq(o_data)
+        else:
+            self.comb += source.data.eq(o_data[::-1])
 
 # TODO: clean up code below
 # XXX
