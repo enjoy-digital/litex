@@ -140,12 +140,9 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
     for name, origin, busword, obj in regions:
         if not with_shadow_base:
             origin &= (~shadow_base)
-        if isinstance(obj, Memory):
-            r += "\n/* "+name+" */\n"
-            r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
-        else:
-            r += "\n/* "+name+" */\n"
-            r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
+        r += "\n/* "+name+" */\n"
+        r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
+        if not isinstance(obj, Memory):
             for csr in obj:
                 nr = (csr.size + busword - 1)//busword
                 r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus), with_access_functions)
