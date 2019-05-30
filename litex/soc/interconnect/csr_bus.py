@@ -159,20 +159,21 @@ class CSRBank(csr.GenericBank):
         csr.GenericBank.__init__(self, description, len(self.bus.dat_w))
 
         sel = Signal()
-        self.comb += sel.eq(self.bus.adr[9:] == address)
+        self.comb += sel.eq((self.bus.adr[9:] == address) & \
+                            (self.bus.adr[0] == 0))
 
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
                 c.r.eq(self.bus.dat_w[:c.size]),
                 c.re.eq(sel & \
                     self.bus.we & \
-                    (self.bus.adr[:self.decode_bits] == i))
+                    (self.bus.adr[1:self.decode_bits+1] == i))
             ]
 
         brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
         self.sync += [
             self.bus.dat_r.eq(0),
-            If(sel, Case(self.bus.adr[:self.decode_bits], brcases))
+            If(sel, Case(self.bus.adr[1:self.decode_bits+1], brcases))
         ]
 
 

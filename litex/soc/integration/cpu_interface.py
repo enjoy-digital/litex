@@ -120,7 +120,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
         if size > 1:
             r += "\t"+ctype+" r = csr_readl("+hex(reg_base)+"L);\n"
             for byte in range(1, nwords):
-                r += "\tr <<= "+str(busword)+";\n\tr |= csr_readl("+hex(reg_base+4*byte)+"L);\n"
+                r += "\tr <<= "+str(busword)+";\n\tr |= csr_readl("+hex(reg_base+8*byte)+"L);\n"
             r += "\treturn r;\n}\n"
         else:
             r += "\treturn csr_readl("+hex(reg_base)+"L);\n}\n"
@@ -133,7 +133,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
                     value_shifted = "value >> "+str(shift)
                 else:
                     value_shifted = "value"
-                r += "\tcsr_writel("+value_shifted+", "+hex(reg_base+4*word)+"L);\n"
+                r += "\tcsr_writel("+value_shifted+", "+hex(reg_base+8*word)+"L);\n"
             r += "}\n"
     return r
 
@@ -162,7 +162,7 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
             for csr in obj:
                 nr = (csr.size + busword - 1)//busword
                 r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, busword, isinstance(csr, CSRStatus), with_access_functions)
-                origin += 4*nr
+                origin += 8*nr
 
     r += "\n/* constants */\n"
     for name, value in constants:
@@ -196,7 +196,7 @@ def get_csr_csv(csr_regions=None, constants=None, memory_regions=None):
                 for csr in obj:
                     nr = (csr.size + busword - 1)//busword
                     r += "csr_register,{}_{},0x{:08x},{},{}\n".format(name, csr.name, origin, nr, "ro" if isinstance(csr, CSRStatus) else "rw")
-                    origin += 4*nr
+                    origin += 8*nr
 
     if constants is not None:
         for name, value in constants:
