@@ -397,7 +397,7 @@ class SoCCore(Module):
                 if n not in self.soc_csr_map.values():
                     self.soc_csr_map.update({csr_name: n})
                     return
-            raise ValueError("No more space to allocate {} csr".format(name))
+            raise ValueError("No more space to allocate {} csr".format(csr_name))
         # csr_id provided: check that csr_id is not already used and add csr
         else:
             for _name, _id in self.soc_csr_map.items():
