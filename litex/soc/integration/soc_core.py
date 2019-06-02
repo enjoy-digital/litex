@@ -361,7 +361,7 @@ class SoCCore(Module):
         # check that interrupt_id is in range
         if interrupt_id is not None and interrupt_id >= 32:
             raise ValueError("{} Interrupt ID out of range ({}, max=31)".format(
-                interrupt_namename, interrupt_id))
+                interrupt_name, interrupt_id))
 
         # interrupt_id not provided: allocate interrupt to the first available id
         if interrupt_id is None:
@@ -369,7 +369,7 @@ class SoCCore(Module):
                 if n not in self.soc_interrupt_map.values():
                     self.soc_interrupt_map.update({interrupt_name: n})
                     return
-            raise ValueError("No more space to allocate {} interrupt".format(name))
+            raise ValueError("No more space to allocate {} interrupt".format(interrupt_name))
         # interrupt_id provided: check that interrupt_id is not already used and add interrupt
         else:
             for _name, _id in self.soc_interrupt_map.items():
