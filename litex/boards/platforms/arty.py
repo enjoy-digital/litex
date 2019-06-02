@@ -239,8 +239,12 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk100"
     default_clk_period = 10.0
 
-    def __init__(self):
-        XilinxPlatform.__init__(self, "xc7a35ticsg324-1L", _io, _connectors, toolchain="vivado")
+    def __init__(self, variant="a7-35"):
+        device = {
+            "a7-35":  "xc7a35ticsg324-1L",
+            "a7-100": "xc7a100tcsg324-1"
+        }[variant]
+        XilinxPlatform.__init__(self, device, _io, _connectors, toolchain="vivado")
         self.toolchain.bitstream_commands = \
             ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = \
