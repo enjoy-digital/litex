@@ -125,6 +125,10 @@ class Builder:
         if shadow_base:
             constants.append(('shadow_base',  shadow_base))
 
+        flash_boot_address = getattr(self.soc, "flash_boot_address", None)
+        if flash_boot_address:
+            constants.append(('flash_boot_address',  flash_boot_address))
+
         csr_dir = os.path.dirname(os.path.realpath(self.csr_csv))
         os.makedirs(csr_dir, exist_ok=True)
         write_to_file(
