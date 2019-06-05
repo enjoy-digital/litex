@@ -70,13 +70,15 @@ def get_linker_regions(regions):
     return r
 
 
-def get_mem_header(regions, flash_boot_address):
+def get_mem_header(regions, flash_boot_address, shadow_base):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, base, size in regions:
         r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(name=name.upper(), base=base, size=size)
     if flash_boot_address is not None:
         r += "#define FLASH_BOOT_ADDRESS 0x{:08x}L\n\n".format(flash_boot_address)
+    if shadow_base is not None:
+        r += "#define SHADOW_BASE 0x{:08x}L\n\n".format(shadow_base)
     r += "#endif\n"
     return r
 
