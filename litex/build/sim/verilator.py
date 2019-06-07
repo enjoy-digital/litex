@@ -60,7 +60,7 @@ def _generate_sim_cpp_struct(name, index, siglist):
     return content
 
 
-def _generate_sim_cpp(platform, trace=False):
+def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1):
     content = """\
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,7 +69,7 @@ def _generate_sim_cpp(platform, trace=False):
 #include <verilated.h>
 #include "dut_header.h"
 
-extern "C" void litex_sim_init_tracer(void *vdut);
+extern "C" void litex_sim_init_tracer(void *vdut, long start, long end);
 extern "C" void litex_sim_tracer_dump();
 
 extern "C" void litex_sim_dump()
@@ -80,17 +80,17 @@ extern "C" void litex_sim_dump()
     litex_sim_tracer_dump();
 """
     content  += """\
-}
+}}
 
 extern "C" void litex_sim_init(void **out)
-{
+{{
     Vdut *dut;
 
     dut = new Vdut;
 
-    litex_sim_init_tracer(dut);
+    litex_sim_init_tracer(dut, {},{});
 
-"""
+""".format(trace_start, trace_end)
     for args in platform.sim_requested:
         content += _generate_sim_cpp_struct(*args)
 
@@ -169,7 +169,8 @@ def _run_sim(build_name, as_root=False):
 class SimVerilatorToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="dut",
             toolchain_path=None, serial="console", build=True, run=True, threads=1,
-            verbose=True, sim_config=None, trace=False, coverage=False):
+            verbose=True, sim_config=None, coverage=False,
+            trace=False, trace_start=0, trace_end=-1):
 
         # create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -191,7 +192,7 @@ class SimVerilatorToolchain:
 
             # generate cpp header/main/variables
             _generate_sim_h(platform)
-            _generate_sim_cpp(platform, trace)
+            _generate_sim_cpp(platform, trace, trace_start, trace_end)
             _generate_sim_variables(platform.verilog_include_paths)
 
             # generate sim config
