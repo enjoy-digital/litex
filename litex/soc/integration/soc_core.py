@@ -576,7 +576,7 @@ class SoCCore(Module):
 
 def soc_core_args(parser):
     parser.add_argument("--cpu-type", default=None,
-                        help="select CPU: lm32, or1k, picorv32, vexriscv, minerva")
+                        help="select CPU: lm32, or1k, picorv32, vexriscv, minerva, rocket")
     parser.add_argument("--cpu-variant", default=None,
                         help="select CPU variant")
     parser.add_argument("--integrated-rom-size", default=None, type=int,
