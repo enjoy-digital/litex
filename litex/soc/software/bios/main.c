@@ -457,7 +457,7 @@ int main(int i, char **c)
 
 	printf("--============= \e[1mConsole\e[0m ================--\n");
 	while(1) {
-		putsnonl("\e[1mBIOS>\e[0m ");
+		putsnonl("\e[92;1mlitex\e[0m> ");
 		readstr(buffer, 64);
 		do_command(buffer);
 	}
