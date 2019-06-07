@@ -204,6 +204,8 @@ def main():
                         help="cycle to start VCD tracing")
     parser.add_argument("--trace-end", default=-1,
                         help="cycle to end VCD tracing")
+    parser.add_argument("--opt-level", default="O3",
+                        help="compilation optimization level")
     args = parser.parse_args()
 
     soc_kwargs = soc_sdram_argdict(args)
@@ -242,10 +244,12 @@ def main():
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     vns = builder.build(run=False, threads=args.threads, sim_config=sim_config,
+        opt_level=args.opt_level,
         trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
     if args.with_analyzer:
         soc.analyzer.export_csv(vns, "analyzer.csv")
     builder.build(build=False, threads=args.threads, sim_config=sim_config,
+        opt_level=args.opt_level,
         trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
 
 

@@ -117,19 +117,20 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(build_name, sources, threads, coverage):
+def _build_sim(build_name, sources, threads, coverage, opt_level="O3"):
     makefile = os.path.join(core_directory, 'Makefile')
     cc_srcs = []
     for filename, language, library in sources:
         cc_srcs.append("--cc " + filename + " ")
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {} {} {}
+make -C . -f {} {} {} {} {}
 mkdir -p modules && cp obj_dir/*.so modules
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "THREADS={}".format(threads) if int(threads) > 1 else "",
     "COVERAGE=1" if coverage else "",
+    "OPT_LEVEL={}".format(opt_level),
     )
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
@@ -169,7 +170,7 @@ def _run_sim(build_name, as_root=False):
 class SimVerilatorToolchain:
     def build(self, platform, fragment, build_dir="build", build_name="dut",
             toolchain_path=None, serial="console", build=True, run=True, threads=1,
-            verbose=True, sim_config=None, coverage=False,
+            verbose=True, sim_config=None, coverage=False, opt_level="O0",
             trace=False, trace_start=0, trace_end=-1):
 
         # create build directory
@@ -200,7 +201,7 @@ class SimVerilatorToolchain:
                 _generate_sim_config(sim_config)
 
             # build
-            _build_sim(build_name, platform.sources, threads, coverage)
+            _build_sim(build_name, platform.sources, threads, coverage, opt_level)
 
         # run
         if run:
