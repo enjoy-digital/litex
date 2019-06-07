@@ -1,7 +1,7 @@
 include variables.mak
 
 CC = gcc
-CFLAGS = -Wall -O3 -ggdb $(if $(COVERAGE), -DVM_COVERAGE)
+CFLAGS = -Wall -O0 -ggdb $(if $(COVERAGE), -DVM_COVERAGE)
 LDFLAGS = -lpthread -ljson-c -lm -lstdc++ -ldl -levent
 
 CC_SRCS ?= "--cc dut.v"
