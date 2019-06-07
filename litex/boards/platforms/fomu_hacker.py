@@ -1,14 +1,13 @@
+# fomu hacker board
+# schematic at https://github.com/im-tomu/fomu-hardware/tree/master/hacker/releases/v0.0-19-g154fecc
+#
+
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
 from litex.build.lattice.programmer import IceStormProgrammer
 
 
 _io = [
-    ("serial", 0,
-        Subsignal("rx", Pins("C3")),
-        Subsignal("tx", Pins("B3"), Misc("PULLUP")),
-        IOStandard("LVCMOS33")
-    ),
     ("rgb_led", 0,
         Subsignal("r", Pins("C5")),
         Subsignal("g", Pins("B5")),
@@ -41,13 +40,6 @@ _io = [
         Subsignal("clk", Pins("D1"), IOStandard("LVCMOS33")),
         Subsignal("mosi", Pins("F1"), IOStandard("LVCMOS33")),
         Subsignal("miso", Pins("E1"), IOStandard("LVCMOS33")),
-        Subsignal("wp",   Pins("A1"), IOStandard("LVCMOS33")),
-        Subsignal("hold", Pins("B1"), IOStandard("LVCMOS33")),
-    ),
-    ("spiflash4x", 0,
-        Subsignal("cs_n", Pins("C1"), IOStandard("LVCMOS33")),
-        Subsignal("clk",  Pins("D1"), IOStandard("LVCMOS33")),
-        Subsignal("dq",   Pins("E1 F1 A1 B1"), IOStandard("LVCMOS33")),
     ),
 ]
 

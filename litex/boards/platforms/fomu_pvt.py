@@ -1,14 +1,13 @@
+# fomu pvt board from crowd funding
+# design files at https://github.com/im-tomu/fomu-hardware/tree/pvt/hardware/pcb
+#
+
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
 from litex.build.lattice.programmer import IceStormProgrammer
 
 
 _io = [
-    ("serial", 0,
-        Subsignal("rx", Pins("C3")),
-        Subsignal("tx", Pins("B3"), Misc("PULLUP")),
-        IOStandard("LVCMOS33")
-    ),
     ("rgb_led", 0,
         Subsignal("r", Pins("C5")),
         Subsignal("g", Pins("B5")),

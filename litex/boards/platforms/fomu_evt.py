@@ -1,3 +1,6 @@
+# fomu evt board from from crowd funding
+# design files at https://github.com/im-tomu/fomu-hardware/tree/evt/hardware/pcb
+#
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
 from litex.build.lattice.programmer import IceStormProgrammer
