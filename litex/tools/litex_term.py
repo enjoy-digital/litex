@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import signal
 import os
 import time
 import serial
@@ -39,7 +40,6 @@ else:
 
         def getkey(self):
             return os.read(self.fd, 1)
-
 
 sfl_prompt_req = b"F7:    boot from serial\n"
 sfl_prompt_ack = b"\x06"
@@ -140,6 +140,9 @@ class LiteXTerm:
 
         self.console = Console()
 
+        signal.signal(signal.SIGINT, self.sigint)
+        self.sigint_time_last = 0
+
     def open(self, port, baudrate):
         if hasattr(self, "port"):
             return
@@ -150,6 +153,17 @@ class LiteXTerm:
             return
         self.port.close()
         del self.port
+
+    def sigint(self, sig, frame):
+        self.port.write(b"\x03")
+        sigint_time_current = time.time()
+        # Exit term if 2 CTRL-C pressed in less than 0.5s.
+        if (sigint_time_current - self.sigint_time_last < 0.5):
+            self.console.unconfigure()
+            self.close()
+            sys.exit()
+        else:
+            self.sigint_time_last = sigint_time_current
 
     def send_frame(self, frame):
         retry = 1
@@ -316,15 +330,9 @@ def main():
     args = _get_args()
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images)
     term.console.configure()
-    try:
-        term.open(args.port, int(float(args.speed)))
-        term.start()
-        term.join(True)
-    except KeyboardInterrupt:
-        term.console.unconfigure()
-    finally:
-        term.console.unconfigure()
-        term.close()
+    term.open(args.port, int(float(args.speed)))
+    term.start()
+    term.join(True)
 
 if __name__ == "__main__":
     main()
