@@ -32,7 +32,7 @@ setup(
         "Programming Language :: Python",
     ],
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
-    install_requires=["pyserial"],
+    install_requires=["migen", "pyserial"],
     include_package_data=True,
     entry_points={
         "console_scripts": [
