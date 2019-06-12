@@ -6,8 +6,6 @@ from migen import *
 from litex.soc.interconnect.axi import *
 from litex.soc.interconnect import wishbone
 
-from litex.gen.sim import *
-
 
 def rand_wait(level):
     prng = random.Random(42)
