@@ -433,7 +433,7 @@ int main(int i, char **c)
 	printf("\n");
 
 	printf("--========= \e[1mPeripherals init\e[0m ===========--\n");
-#ifdef CSR_ETHPHY_CRG_RESET_ADDR
+#ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
 #ifdef CSR_SDRAM_BASE
