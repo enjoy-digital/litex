@@ -36,10 +36,16 @@ from migen import *
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 
-CPU_VARIANTS = ["standard"]
+CPU_VARIANTS = {
+    "standard": "freechips.rocketchip.system.LitexConfig",
+    "linux":    "freechips.rocketchip.system.LitexLinuxConfig",
+    "full":     "freechips.rocketchip.system.LitexFullConfig",
+}
 
 GCC_FLAGS = {
-    "standard": "-march=rv64imac -mabi=lp64 ",
+    "standard": "-march=rv64imac   -mabi=lp64 ",
+    "linux":    "-march=rv64imac   -mabi=lp64 ",
+    "full":     "-march=rv64imafdc -mabi=lp64 ",
 }
 
 class RocketRV64(Module):
@@ -223,16 +229,16 @@ class RocketRV64(Module):
         self.submodules += mem_a2w, mem_dc, mmio_a2w, mmio_dc
 
         # add verilog sources
-        self.add_sources(platform)
+        self.add_sources(platform, variant)
 
     @staticmethod
-    def add_sources(platform):
+    def add_sources(platform, variant="standard"):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_sources(
             os.path.join(vdir, "generated-src"),
-            "freechips.rocketchip.system.LitexConfig.v",
-            "freechips.rocketchip.system.LitexConfig.behav_srams.v",
+            CPU_VARIANTS[variant] + ".v",
+            CPU_VARIANTS[variant] + ".behav_srams.v",
         )
         platform.add_sources(
             os.path.join(vdir, "vsrc"),
