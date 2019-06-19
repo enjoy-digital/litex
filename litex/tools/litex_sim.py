@@ -214,10 +214,10 @@ def main():
     sim_config = SimConfig(default_clk="sys_clk")
     sim_config.add_module("serial2console", "serial")
 
-    cpu_endianness = "big"
+    cpu_endianness = "little"
     if "cpu_type" in soc_kwargs:
-        if soc_kwargs["cpu_type"] in ["picorv32", "vexriscv"]:
-            cpu_endianness = "little"
+        if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
+            cpu_endianness = "big"
 
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
