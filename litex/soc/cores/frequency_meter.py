@@ -32,8 +32,8 @@ class Sampler(Module):
 
 
 class FrequencyMeter(Module, AutoCSR):
-    def __init__(self, period, width=6):
-        self.clk = Signal()
+    def __init__(self, period, width=6, clk=None):
+        self.clk = Signal() if clk is None else clk
         self.value = CSRStatus(32)
 
         # # #
