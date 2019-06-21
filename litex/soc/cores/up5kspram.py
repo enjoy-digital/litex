@@ -1,11 +1,13 @@
 from migen import *
 from litex.soc.interconnect import wishbone
 
-# ICE40 UltraPlus family-specific Wishbone interface to the Single Port RAM
-# (SPRAM) primitives. Because SPRAM is much more coarse grained than Block
-# RAM resources, this RAM is only minimally configurable at present (64kB or
-# 128kB). Because it is single port, this module is meant to be used as the
-# CPU's RAM region, leaving block RAM free for other use.
+"""
+ICE40 UltraPlus family-specific Wishbone interface to the Single Port RAM
+(SPRAM) primitives. Because SPRAM is much more coarse grained than Block
+RAM resources, this RAM is only minimally configurable at present (64kB or
+128kB). Because it is single port, this module is meant to be used as the
+CPU's RAM region, leaving block RAM free for other use.
+"""
 
 class Up5kSPRAM(Module):
     def __init__(self, width=32, size=64*1024):
