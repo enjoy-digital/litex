@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
+# License: BSD
+
 import subprocess
 import unittest
 import os
