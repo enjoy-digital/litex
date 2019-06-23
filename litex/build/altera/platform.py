@@ -1,3 +1,8 @@
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
+# License: BSD
+
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.altera import common, quartus
 

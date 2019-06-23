@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018 David Shah <dave@ds0.me>
+# License: BSD
+
 #!/usr/bin/env python3
 
 import argparse

@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 """AXI4 Full/Lite support for LiteX"""
 
 from migen import *

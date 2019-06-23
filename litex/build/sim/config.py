@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
+# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 import json
 
 class SimConfig():

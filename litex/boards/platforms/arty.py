@@ -1,7 +1,5 @@
-# This file is Copyright (c) 2015 Yann Sionneau <yann@sionneau.net>
-# This file is Copyright (c) 2015 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2018 Caleb Jamison <cbjamo@gmail.com>
+# This file is Copyright (c) 2015 Yann Sionneau <yann.sionneau@gmail.com>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from litex.build.generic_platform import *

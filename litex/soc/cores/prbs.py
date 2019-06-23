@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# License: BSD
+
 from operator import xor, add
 from functools import reduce
 

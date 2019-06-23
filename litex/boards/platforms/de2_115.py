@@ -1,6 +1,5 @@
-# SPDX-License-Identifier: BSD-2-Clause
-#
-# Copyright (c) 2019 Antony Pavlov <antonynpavlov@gmail.com>
+# This file is Copyright (c) 2019 Antony Pavlov <antonynpavlov@gmail.com>
+# License: BSD
 
 from litex.build.generic_platform import *
 from litex.build.altera import AlteraPlatform

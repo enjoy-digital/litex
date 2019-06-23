@@ -1,4 +1,5 @@
-# Copyright 2014-2015 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
+# License: BSD
 
 from migen import *
 

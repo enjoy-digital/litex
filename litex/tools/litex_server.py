@@ -1,3 +1,8 @@
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
+# License: BSD
+
 #!/usr/bin/env python3
 
 import argparse

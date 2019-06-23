@@ -1,4 +1,5 @@
 # This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018-2019 David Shah <dave@ds0.me>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # License: BSD
 

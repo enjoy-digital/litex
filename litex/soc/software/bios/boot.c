@@ -1,3 +1,12 @@
+// This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+// This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2018 Ewen McNeill <ewen@naos.co.nz>
+// This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
+// This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
+// This file is Copyright (c) 2017 Tim 'mithro' Ansell <mithro@mithis.com>
+// This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+// License: BSD
+
 #include <stdio.h>
 #include <console.h>
 #include <uart.h>

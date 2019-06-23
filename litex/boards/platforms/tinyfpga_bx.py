@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
 from litex.build.lattice.programmer import TinyProgProgrammer

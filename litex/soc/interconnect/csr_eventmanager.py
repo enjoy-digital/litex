@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2016-2019 Tim 'mithro' Ansell <me@mith.ro>
+# License: BSD
+
 """
 The event manager provides a systematic way to generate standard interrupt
 controllers.

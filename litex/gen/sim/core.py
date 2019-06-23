@@ -1,3 +1,12 @@
+# This file is Copyright (c) 2015-2016 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2015-2018 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2016-2018 whitequark <whitequark@whitequark.org>
+# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018 N. Engelhardt <nakengelhardt@gmail.com>
+# This file is Copyright (c) 2018 Robin Ole Heinemann <robin.ole.heinemann@t-online.de>
+
+# License: BSD
+
 import operator
 import collections
 import inspect

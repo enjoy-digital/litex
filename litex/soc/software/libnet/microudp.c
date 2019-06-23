@@ -1,3 +1,10 @@
+// This file is Copyright (c) 2013 Werner Almesberger <werner@almesberger.net>
+// This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+// This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2018 Jean-François Nguyen <jf@lse.epita.fr>
+// This file is Copyright (c) 2013 Robert Jordens <jordens@gmail.com>
+// License: BSD
+
 #include <generated/csr.h>
 #include <generated/mem.h>
 

@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# License: BSD
+
+
 import os, sys
 from litex.build import tools
 

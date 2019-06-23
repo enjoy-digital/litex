@@ -1,3 +1,14 @@
+# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2017 bunnie <bunnie@kosagi.com>
+# This file is Copyright (c) 2018-2017 Tim 'mithro' Ansell <me@mith.ro>
+# This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# This file is Copyright (c) 2019 Larry Doolittle <ldoolitt@recycle.lbl.gov>
+
+# License: BSD
+
+
 import os
 import subprocess
 import sys

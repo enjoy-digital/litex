@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2017 Tim Ansell <mithro@mithis.com>
+# License: BSD
+
 import math
 import struct
 

@@ -1,0 +1,71 @@
+LiteX ecosystem would not exist without the collaborative work of contributors! Here is below the
+list of all the LiteX contributors.
+
+In the source code, each file list the main authors/contributors:
+- author(s) that created the initial content.
+- contributor(s) that added essential features/improvements.
+
+If you think you should be in this list and don't find yourself, write to florent@enjoy-digital.fr
+and we'll fix it!
+
+Contributors:
+Copyright (c) 2011-2012 Alain Péteut <alain.peteut@yahoo.com>
+Copyright (c) 2019 Ambroz Bizjak <ambrop7@gmail.com>
+Copyright (c) 2019 Antony Pavlov <antonynpavlov@gmail.com>
+Copyright (c) 2012-2013 Brandon Hamilton <brandon.hamilton@gmail.com>
+Copyright (c) 2017-2019 bunnie <bunnie@kosagi.com>
+Copyright (c) 2019 Caleb Jamison <cbjamo@gmail.com>
+Copyright (c) 2019 chmousset <ch.mousset@gmail.com>
+Copyright (c) 2018 Chris Ballance <chris.ballance@physics.ox.ac.uk>
+Copyright (c) 2013 David Carne <davidcarne@gmail.com>
+Copyright (c) 2018-2019 David Shah <dave@ds0.me>
+Copyright (c) 2018 Deano Calver <me@deanoc.com>
+Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
+Copyright (c) 2018 Ewen McNeill <ewen@naos.co.nz>
+Copyright (c) 2014 Fabien Marteau <fabien.marteau@armadeus.com>
+Copyright (c) 2017-2018 Felix Held <felix-github@felixheld.de>
+Copyright (c) 2012-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
+Copyright (c) 2017 Greg Darke <greg@tsukasa.net.au>
+Copyright (c) 2015-2014 Guy Hutchison <ghutchis@gmail.com>
+Copyright (c) 2019 Ilia Sergachev <ilia.sergachev@protonmail.ch>
+Copyright (c) 2014 Jannis Harder <jix@jixco.de>
+Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.com>
+Copyright (c) 2019 Joanna Brozek <jbrozek@antmicro.com>
+Copyright (c) 2015 Joe Britton <joe.britton@gmail.com>
+Copyright (c) 2017 Joel Addison <joel@addison.net.au>
+Copyright (c) 2019 Kees Jongenburger <kees.jongenburger@gmail.com>
+Copyright (c) 2013 Kenneth Ryerson <kryerson@vermeer.com>
+Copyright (c) 2019 Kurt Kiefer <kekiefer@gmail.com>
+Copyright (c) 2019 Larry Doolittle <ldoolitt@recycle.lbl.gov>
+Copyright (c) 2012-2013 Lars-Peter Clausen <lars@metafoo.de>
+Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
+Copyright (c) 2017 Matt Kelly <Matthew.Joseph.Kelly@gmail.com>
+Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
+Copyright (c) 2012 Michael Walle <michael@walle.cc>
+Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
+Copyright (c) 2013 Nina Engelhardt <nakengelhardt@gmail.com>
+Copyright (c) 2015 numato <sales@numato.com>
+Copyright (c) 2015 Olof Kindgren <olof.kindgren@gmail.com>
+Copyright (c) 2018 Paul Schulz <paul@mawsonlakes.org>
+Copyright (c) 2018 Peter Gielda <pgielda@antmicro.com>
+Copyright (c) 2018 phlipped <phlipped@gmail.com>
+Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
+Copyright (c) 2015 psmears <patrick@smears.org>
+Copyright (c) 2013-2016 Robert Jordens <jordens@gmail.com>
+Copyright (c) 2015 Rohit Kumar Singh <rohit91.2008@gmail.com>
+Copyright (c) 2015 Ryan Verner <ryan.verner@gmail.com>
+Copyright (c) 2018-2019 Sean Cross <sean@xobs.io>
+Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+Copyright (c) 2017-2018 Sergiusz Bazanski <q3k@q3k.org>
+Copyright (c) 2018 Stafford Horne <shorne@gmail.com>
+Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
+Copyright (c) 2019 Tom Keddie <git@bronwenandtom.com>
+Copyright (c) 2019 Vamsi K Vytla <vamsi.vytla@gmail.com>
+Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
+Copyright (c) 2013 Werner Almesberger <werner@almesberger.net>
+Copyright (c) 2015-2016 whitequark <whitequark@whitequark.org>
+Copyright (c) 2015-2019 William D. Jones <thor0505@comcast.net>
+Copyright (c) 2013-2014 Yann Sionneau <yann.sionneau@gmail.com>
+Copyright (c) 2015 Yves Delley <hack@delley.net>
+Copyright (c) 2015 Zach Smith <IAmSparticle@gmail.com>

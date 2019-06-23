@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
+# License: BSD
+
 """Clock Abstraction Modules"""
 
 from migen import *

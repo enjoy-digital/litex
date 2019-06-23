@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 import random
 import math
 from copy import deepcopy

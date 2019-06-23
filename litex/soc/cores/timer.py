@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# License: BSD
+
+
 from migen import *
 
 from litex.soc.interconnect.csr import *

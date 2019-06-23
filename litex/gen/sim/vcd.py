@@ -1,3 +1,9 @@
+# This file is Copyright (c) 2015-2016 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2018 whitequark <whitequark@whitequark.org>
+# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
+
 from itertools import count
 import tempfile
 import os

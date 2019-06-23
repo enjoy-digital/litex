@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 from migen import *
 from migen.genlib.misc import timeline
 

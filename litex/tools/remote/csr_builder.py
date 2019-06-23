@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
+# License: BSD
+
 import csv
 
 

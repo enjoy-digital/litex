@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2019 Vamsi K Vytla <vamsi.vytla@gmail.com>
+# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 #!/usr/bin/env python3
 
 import argparse

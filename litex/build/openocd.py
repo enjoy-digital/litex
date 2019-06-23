@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# License: BSD
+
 import subprocess
 
 from litex.build.generic_programmer import GenericProgrammer

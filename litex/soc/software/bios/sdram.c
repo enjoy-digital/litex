@@ -1,3 +1,13 @@
+// This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+// This file is Copyright (c) 2013-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2018 Chris Ballance <chris.ballance@physics.ox.ac.uk>
+// This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
+// This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
+// This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
+// This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
+// This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
+// License: BSD
+
 #include <generated/csr.h>
 
 #include <stdio.h>

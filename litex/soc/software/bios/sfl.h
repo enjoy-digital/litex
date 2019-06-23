@@ -1,3 +1,6 @@
+// This file is Copyright (c) 2012-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+// License: BSD
+
 #ifndef __SFL_H
 #define __SFL_H
 

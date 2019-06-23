@@ -1,3 +1,7 @@
+# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
+# License: BSD
+
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Instance
 from migen.genlib.io import DifferentialInput, DifferentialOutput

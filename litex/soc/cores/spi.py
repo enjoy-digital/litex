@@ -1,3 +1,9 @@
+# This file is Copyright (c) 2017-2018 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2015-2017 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2016 William D. Jones <thor0505@comcast.net>
+# License: BSD
+
 from itertools import product
 
 from migen import *

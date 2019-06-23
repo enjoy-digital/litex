@@ -1,3 +1,8 @@
+# This file is Copyright (c) 2017-2018 Tim 'mithro' Ansell <me@mith.ro>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
+
 from litex.soc.cores.cpu.lm32 import LM32
 from litex.soc.cores.cpu.mor1kx import MOR1KX
 from litex.soc.cores.cpu.picorv32 import PicoRV32

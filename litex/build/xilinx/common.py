@@ -1,3 +1,9 @@
+# This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2014-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2016-2018 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2015 William D. Jones <thor0505@comcast.net>
+# License: BSD
+
 import os
 import sys
 import subprocess

@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
+# License: BSD
+
 import usb.core
 import time
 

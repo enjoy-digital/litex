@@ -1,3 +1,8 @@
+# This file is Copyright (c) 2019 William D. Jones <thor0505@comcast.net>
+# This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
+# License: BSD
+
+
 from migen import *
 from litex.soc.interconnect import wishbone
 

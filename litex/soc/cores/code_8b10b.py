@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2016-2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+# License: BSD
+
 """
 IBM's 8b/10b Encoding
 

@@ -1,4 +1,6 @@
-# This file is Copyright (c) 2013-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
+# This file is Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
 # License: BSD
 
 import os

@@ -1,3 +1,8 @@
+# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
+# License: BSD
+
 from functools import reduce
 from operator import or_
 

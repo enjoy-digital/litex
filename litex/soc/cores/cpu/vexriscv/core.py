@@ -1,3 +1,14 @@
+# This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018-2019 Sean Cross <sean@xobs.io>
+# This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
+# This file is Copyright (c) 2019 David Shah <dave@ds0.me>
+# This file is Copyright (c) 2019 Joanna Brozek <jbrozek@antmicro.com>
+# This file is Copyright (c) 2019 Kurt Kiefer <kekiefer@gmail.com>
+# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
+
+# License: BSD
+
 import os
 
 from migen import *

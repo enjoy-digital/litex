@@ -1,3 +1,19 @@
+// This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+// This file is Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
+// This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
+// This file is Copyright (c) 2019 Ambroz Bizjak <ambrop7@gmail.com>
+// This file is Copyright (c) 2019 Caleb Jamison <cbjamo@gmail.com>
+// This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
+// This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
+// This file is Copyright (c) 2014 Florent Kermarec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
+// This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
+// This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
+// This file is Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
+
+// License: BSD
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <console.h>

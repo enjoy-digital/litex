@@ -1,11 +1,7 @@
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 #!/usr/bin/env python3
-#
-# SPDX-License-Identifier: BSD-2-Clause
-#
-# Copyright (C) 2019 Antony Pavlov <antonynpavlov@gmail.com>
-#
-# based on litex/boards/platforms/de0nano.py
-#
 
 import argparse
 

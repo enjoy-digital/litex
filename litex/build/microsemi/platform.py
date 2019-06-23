@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.microsemi import common, libero_soc
 

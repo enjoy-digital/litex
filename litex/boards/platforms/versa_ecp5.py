@@ -1,4 +1,5 @@
-# This file is Copyright (c) 2017 Serge 'q3k' Bazanski <serge@bazanski.pl>
+# This file is Copyright (c) 2017 Sergiusz Bazanski <q3k@q3k.org>
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from litex.build.generic_platform import *

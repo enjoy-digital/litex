@@ -1,3 +1,16 @@
+# This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2013-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2013-2017 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2016-2018 whitequark <whitequark@whitequark.org>
+# This file is Copyright (c) 2017 Adam Greig <adam@adamgreig.com>
+# This file is Copyright (c) 2016 Ben Reynwar <ben@reynwar.net>
+# This file is Copyright (c) 2018 David Craven <david@craven.ch>
+# This file is Copyright (c) 2015 Guy Hutchison <ghutchis@gmail.com>
+# This file is Copyright (c) 2013 Nina Engelhardt <nina.engelhardt@omnium-gatherum.de>
+# This file is Copyright (c) 2018 Robin Ole Heinemann <robin.ole.heinemann@t-online.de>
+
+# License: BSD
+
 from functools import partial
 from operator import itemgetter
 import collections

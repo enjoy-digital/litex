@@ -1,4 +1,8 @@
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 #!/usr/bin/env python3
+
 import os
 import sys
 import json

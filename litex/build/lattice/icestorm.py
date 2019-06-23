@@ -1,5 +1,6 @@
-# This file is Copyright (c) 2016-2017 William D. Jones <thor0505@comcast.net>
+# This file is Copyright (c) 2017-2018 William D. Jones <thor0505@comcast.net>
 # License: BSD
+
 
 import os
 import sys

@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2019 msloniewski <marcin.sloniewski@gmail.com>
+# License: BSD
+
 from litex.build.generic_platform import *
 from litex.build.altera import AlteraPlatform
 from litex.build.altera.programmer import USBBlaster

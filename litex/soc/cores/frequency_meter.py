@@ -1,3 +1,6 @@
+# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 from migen import *
 from migen.genlib.cdc import MultiReg, GrayCounter
 from migen.genlib.cdc import GrayDecoder

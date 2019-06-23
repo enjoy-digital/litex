@@ -1,3 +1,11 @@
+// This file is Copyright (c) 2013 Werner Almesberger <werner@almesberger.net>
+// This file is Copyright (c) 2013-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
+// This file is Copyright (c) 2014-2015 Florent Kermarec <florent@enjoy-digital.fr>
+// This file is Copyright (c) 2017 Greg Darke <greg@tsukasa.net.au>
+// This file is Copyright (c) 2018 Ewen McNeill <ewen@naos.co.nz>
+
+// License: BSD
+
 #include <stdint.h>
 #include <string.h>
 
