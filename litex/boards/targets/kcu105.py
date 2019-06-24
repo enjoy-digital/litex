@@ -18,7 +18,7 @@ from litedram.modules import EDY4016A
 from litedram.phy import usddrphy
 
 from liteeth.phy.ku_1000basex import KU_1000BASEX
-from liteeth.core.mac import LiteEthMAC
+from liteeth.mac import LiteEthMAC
 
 # CRG ----------------------------------------------------------------------------------------------
 

@@ -18,7 +18,7 @@ from litedram.modules import MT47H64M16
 from litedram.phy import s7ddrphy
 
 from liteeth.phy.rmii import LiteEthPHYRMII
-from liteeth.core.mac import LiteEthMAC
+from liteeth.mac import LiteEthMAC
 
 # CRG ----------------------------------------------------------------------------------------------
 

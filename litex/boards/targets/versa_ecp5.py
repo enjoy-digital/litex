@@ -20,7 +20,7 @@ from litedram.modules import MT41K64M16
 from litedram.phy import ECP5DDRPHY
 
 from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
-from liteeth.core.mac import LiteEthMAC
+from liteeth.mac import LiteEthMAC
 
 # CRG ----------------------------------------------------------------------------------------------
 

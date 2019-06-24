@@ -25,7 +25,7 @@ from litedram.phy.model import SDRAMPHYModel
 
 from liteeth.common import convert_ip
 from liteeth.phy.model import LiteEthPHYModel
-from liteeth.core.mac import LiteEthMAC
+from liteeth.mac import LiteEthMAC
 from liteeth.core import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
 

@@ -14,7 +14,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
 from liteeth.phy import LiteEthPHY
-from liteeth.core.mac import LiteEthMAC
+from liteeth.mac import LiteEthMAC
 
 # BaseSoC ------------------------------------------------------------------------------------------
 

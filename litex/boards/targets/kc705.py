@@ -20,7 +20,7 @@ from litedram.modules import MT8JTF12864
 from litedram.phy import s7ddrphy
 
 from liteeth.phy import LiteEthPHY
-from liteeth.core.mac import LiteEthMAC
+from liteeth.mac import LiteEthMAC
 
 # CRG ----------------------------------------------------------------------------------------------
 
