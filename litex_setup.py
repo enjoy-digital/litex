@@ -12,7 +12,6 @@ repos = [
     ("migen",      ("http://github.com/m-labs/",        True,  True)),
     ("litex",      ("http://github.com/enjoy-digital/", True,  True)),
     ("liteeth",    ("http://github.com/enjoy-digital/", False, True)),
-    ("liteusb",    ("http://github.com/enjoy-digital/", False, True)),
     ("litedram",   ("http://github.com/enjoy-digital/", False, True)),
     ("litepcie",   ("http://github.com/enjoy-digital/", False, True)),
     ("litesata",   ("http://github.com/enjoy-digital/", False, True)),
