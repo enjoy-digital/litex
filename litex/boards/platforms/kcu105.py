@@ -1,4 +1,3 @@
-# This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
 # This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
