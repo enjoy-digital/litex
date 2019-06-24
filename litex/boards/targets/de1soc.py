@@ -1,7 +1,7 @@
+#!/usr/bin/env python3
+
 # This file is Copyright (c) 2019 Antony Pavlov <antonynpavlov@gmail.com>
 # License: BSD
-
-#!/usr/bin/env python3
 
 import argparse
 

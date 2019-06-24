@@ -1,8 +1,8 @@
+#!/usr/bin/env python3
+
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
 # License: BSD
-
-#!/usr/bin/env python3
 
 import argparse
 import binascii
