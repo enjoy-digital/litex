@@ -31,6 +31,10 @@
 #include <net/microudp.h>
 #endif
 
+#ifdef FLASH_BOOT_ADDRESS
+#include <spiflash.h>
+#endif
+
 #include "sdram.h"
 #include "boot.h"
 
@@ -136,6 +140,40 @@ static void mw(char *addr, char *value, char *count)
 	for (i=0;i<count2;i++) *addr2++ = value2;
 }
 
+static void fw(char *addr, char *value, char *count)
+{
+	char *c;
+	unsigned int addr2;
+	unsigned int value2;
+	unsigned int count2;
+	unsigned int i;
+
+	if((*addr == 0) || (*value == 0)) {
+		printf("fw <offset> <value> [count]\n");
+		return;
+	}
+	addr2 = strtoul(addr, &c, 0);
+	if(*c != 0) {
+		printf("incorrect offset\n");
+		return;
+	}
+	value2 = strtoul(value, &c, 0);
+	if(*c != 0) {
+		printf("incorrect value\n");
+		return;
+	}
+	if(*count == 0) {
+		count2 = 1;
+	} else {
+		count2 = strtoul(count, &c, 0);
+		if(*c != 0) {
+			printf("incorrect count\n");
+			return;
+		}
+	}
+	for (i=0;i<count2;i++) write_to_flash(addr2, (unsigned char *)&value2, 4);
+}
+
 static void mc(char *dstaddr, char *srcaddr, char *count)
 {
 	char *c;
@@ -222,6 +260,7 @@ static void help(void)
 #endif
 	puts("serialboot - boot via SFL");
 #ifdef FLASH_BOOT_ADDRESS
+	puts("fw         - write to flash");
 	puts("flashboot  - boot from flash");
 #endif
 #ifdef ROM_BOOT_ADDRESS
@@ -275,6 +314,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "reboot") == 0) reboot();
 #endif
 #ifdef FLASH_BOOT_ADDRESS
+	else if(strcmp(token, "fw") == 0) fw(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "flashboot") == 0) flashboot();
 #endif
 #ifdef ROM_BOOT_ADDRESS
