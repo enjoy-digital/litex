@@ -36,7 +36,7 @@ def _format_cmd(cmd, spi_width):
 
 
 class SpiFlashDualQuad(Module, AutoCSR):
-    def __init__(self, pads, dummy=15, div=2, endianness="big"):
+    def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big"):
         """
         Simple SPI flash.
         Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
@@ -45,6 +45,11 @@ class SpiFlashDualQuad(Module, AutoCSR):
         self.bus = bus = wishbone.Interface()
         spi_width = len(pads.dq)
         assert spi_width >= 2
+
+        if with_bitbang:
+            self.bitbang = CSRStorage(4)
+            self.miso = CSRStatus()
+            self.bitbang_en = CSRStorage()
 
         # # #
 
@@ -71,12 +76,45 @@ class SpiFlashDualQuad(Module, AutoCSR):
         else:
             self.comb += bus.dat_r.eq(reverse_bytes(sr))
 
-        self.comb += [
+        hw_read_logic = [
             pads.clk.eq(clk),
             pads.cs_n.eq(cs_n),
             dq.o.eq(sr[-spi_width:]),
             dq.oe.eq(dq_oe)
         ]
+
+        if with_bitbang:
+            bitbang_logic = [
+                pads.clk.eq(self.bitbang.storage[1]),
+                pads.cs_n.eq(self.bitbang.storage[2]),
+
+                # In Dual/Quad mode, no single data pin is consistently
+                # an input or output thanks to dual/quad reads, so we need a bit
+                # to swap direction of the pins. Aside from this additional bit,
+                # bitbang mode is identical for Single/Dual/Quad; dq[0] is mosi
+                # and dq[1] is miso, meaning remaining data pin values don't
+                # appear in CSR registers.
+                If(self.bitbang.storage[3],
+                    dq.oe.eq(0)
+                ).Else(
+                    dq.oe.eq(1)
+                ),
+                If(self.bitbang.storage[1], # CPOL=0/CPHA=0 or CPOL=1/CPHA=1 only.
+                    self.miso.status.eq(dq.i[1])
+                ),
+                dq.o.eq(Cat(self.bitbang.storage[0], Replicate(1, spi_width-1)))
+            ]
+
+            self.comb += [
+                If(self.bitbang_en.storage,
+                    bitbang_logic
+                ).Else(
+                    hw_read_logic
+                )
+            ]
+
+        else:
+            self.comb += hw_read_logic
 
         if div < 2:
             raise ValueError("Unsupported value \'{}\' for div parameter for SpiFlash core".format(div))
@@ -125,12 +163,17 @@ class SpiFlashDualQuad(Module, AutoCSR):
 
 
 class SpiFlashSingle(Module, AutoCSR):
-    def __init__(self, pads, dummy=15, div=2, endianness="big"):
+    def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big"):
         """
         Simple SPI flash.
         Supports 1-bit reads. Only supports mode0 (cpol=0, cpha=0).
         """
         self.bus = bus = wishbone.Interface()
+
+        if with_bitbang:
+            self.bitbang = CSRStorage(4)
+            self.miso = CSRStatus()
+            self.bitbang_en = CSRStorage()
 
         # # #
 
@@ -154,11 +197,32 @@ class SpiFlashSingle(Module, AutoCSR):
         else:
             self.comb += bus.dat_r.eq(reverse_bytes(sr))
 
-        self.comb += [
+        hw_read_logic = [
             pads.clk.eq(clk),
             pads.cs_n.eq(cs_n),
             pads.mosi.eq(sr[-1:])
         ]
+
+        if with_bitbang:
+            bitbang_logic = [
+                pads.clk.eq(self.bitbang.storage[1]),
+                pads.cs_n.eq(self.bitbang.storage[2]),
+                If(self.bitbang.storage[1], # CPOL=0/CPHA=0 or CPOL=1/CPHA=1 only.
+                    self.miso.status.eq(pads.miso)
+                ),
+                pads.mosi.eq(self.bitbang.storage[0])
+            ]
+
+            self.comb += [
+                If(self.bitbang_en.storage,
+                    bitbang_logic
+                ).Else(
+                    hw_read_logic
+                )
+            ]
+
+        else:
+            self.comb += hw_read_logic
 
         if div < 2:
             raise ValueError("Unsupported value \'{}\' for div parameter for SpiFlash core".format(div))
