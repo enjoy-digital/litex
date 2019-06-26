@@ -50,6 +50,7 @@ class SpiNorFlashOpCodes:
     BE_4K_PMC         = _Op(0xd7, "Erase 4KiB block on PMC chips")
     BE_32K            = _Op(0x52, "Erase 32KiB block")
     CHIP_ERASE        = _Op(0xc7, "Erase whole flash chip")
+    CHIP_ERASE_ALT    = _Op(0x60, "Erase whole flash chip on some chips")
     CHIP_ERASE_ATMEL  = _Op(0x62, "Erase whole flash chip on Atmel chips")
     SE                = _Op(0xd8, "Sector erase (usually 64KiB)")
 
