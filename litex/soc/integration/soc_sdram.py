@@ -66,11 +66,9 @@ class SoCSDRAM(SoCCore):
         self.submodules.sdram = ControllerInjector(
             phy, geom_settings, timing_settings, **kwargs)
 
-        # TODO: modify mem_map to allow larger memories.
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +
                             geom_settings.colbits)*phy.settings.databits//8
-        main_ram_size = min(main_ram_size, 256*1024*1024)
         self.add_constant("L2_SIZE", self.l2_size)
 
         # add a Wishbone interface to the DRAM
