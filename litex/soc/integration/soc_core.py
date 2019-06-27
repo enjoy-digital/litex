@@ -93,8 +93,9 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
                 i += 1
     return data
 
-def mem_decoder(address, start=26, end=29):
-    return lambda a: a[start:end] == ((address >> (start+2)) & (2**(end-start))-1)
+def mem_decoder(address, size=0x10000000):
+    address &= ~0x80000000
+    return lambda a: (a[:-1] >= address//4) & (a[:-1] < (address + size)//4)
 
 def csr_map_update(csr_map, csr_peripherals):
     csr_map.update(dict((n, v)
@@ -397,9 +398,13 @@ class SoCCore(Module):
             raise FinalizeError
         self._wb_masters.append(wbm)
 
-    def add_wb_slave(self, address_decoder, interface):
+    def add_wb_slave(self, address_or_address_decoder, interface, size=None):
         if self.finalized:
             raise FinalizeError
+        if size is not None:
+            address_decoder = mem_decoder(address_or_address_decoder, size)
+        else:
+            address_decoder = address_or_address_decoder
         self._wb_slaves.append((address_decoder, interface))
 
     def add_csr_master(self, csrm):
