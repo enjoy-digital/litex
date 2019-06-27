@@ -422,13 +422,12 @@ class SoCCore(Module):
 
         self._memory_regions.append((name, origin, length))
 
-    def register_mem(self, name, address, interface, size=None):
-        self.add_wb_slave(mem_decoder(address), interface)
-        if size is not None:
-            self.add_memory_region(name, address, size)
+    def register_mem(self, name, address, interface, size=0x10000000):
+        self.add_wb_slave(address, interface, size)
+        self.add_memory_region(name, address, size)
 
     def register_rom(self, interface, rom_size=0xa000):
-        self.add_wb_slave(mem_decoder(self.soc_mem_map["rom"]), interface)
+        self.add_wb_slave(self.soc_mem_map["rom"], interface, rom_size)
         self.add_memory_region("rom", self.cpu_reset_address, rom_size)
 
     def get_memory_regions(self):
