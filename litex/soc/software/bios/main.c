@@ -140,7 +140,7 @@ static void mw(char *addr, char *value, char *count)
 	for (i=0;i<count2;i++) *addr2++ = value2;
 }
 
-#ifdef CSR_SPIFLASH_BASE
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 static void fw(char *addr, char *value, char *count)
 {
 	char *c;
@@ -250,6 +250,9 @@ static void help(void)
 	puts("mr         - read address space");
 	puts("mw         - write address space");
 	puts("mc         - copy address space");
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+	puts("fw         - write to flash");
+#endif
 	puts("");
 	puts("crc        - compute CRC32 of a part of the address space");
 	puts("ident      - display identifier");
@@ -262,7 +265,6 @@ static void help(void)
 #endif
 	puts("serialboot - boot via SFL");
 #ifdef FLASH_BOOT_ADDRESS
-	puts("fw         - write to flash");
 	puts("flashboot  - boot from flash");
 #endif
 #ifdef ROM_BOOT_ADDRESS
@@ -306,6 +308,9 @@ static void do_command(char *c)
 	if(strcmp(token, "mr") == 0) mr(get_token(&c), get_token(&c));
 	else if(strcmp(token, "mw") == 0) mw(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "mc") == 0) mc(get_token(&c), get_token(&c), get_token(&c));
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+	else if(strcmp(token, "fw") == 0) fw(get_token(&c), get_token(&c), get_token(&c));
+#endif
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
 	else if(strcmp(token, "ident") == 0) ident();
 
@@ -316,7 +321,6 @@ static void do_command(char *c)
 	else if(strcmp(token, "reboot") == 0) reboot();
 #endif
 #ifdef FLASH_BOOT_ADDRESS
-	else if(strcmp(token, "fw") == 0) fw(get_token(&c), get_token(&c), get_token(&c));
 	else if(strcmp(token, "flashboot") == 0) flashboot();
 #endif
 #ifdef ROM_BOOT_ADDRESS
