@@ -12,8 +12,6 @@
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
 # License: BSD
 
-#!/usr/bin/env python3
-
 import os
 import struct
 import inspect
