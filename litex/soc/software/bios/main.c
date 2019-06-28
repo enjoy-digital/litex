@@ -31,7 +31,7 @@
 #include <net/microudp.h>
 #endif
 
-#ifdef FLASH_BOOT_ADDRESS
+#ifdef CSR_SPIFLASH_BASE
 #include <spiflash.h>
 #endif
 
@@ -140,6 +140,7 @@ static void mw(char *addr, char *value, char *count)
 	for (i=0;i<count2;i++) *addr2++ = value2;
 }
 
+#ifdef CSR_SPIFLASH_BASE
 static void fw(char *addr, char *value, char *count)
 {
 	char *c;
@@ -173,6 +174,7 @@ static void fw(char *addr, char *value, char *count)
 	}
 	for (i=0;i<count2;i++) write_to_flash(addr2, (unsigned char *)&value2, 4);
 }
+#endif
 
 static void mc(char *dstaddr, char *srcaddr, char *count)
 {
