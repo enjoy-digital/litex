@@ -134,9 +134,9 @@ class SoCCore(Module):
     interrupt_map = {}
     mem_map       = {
         "rom":      0x00000000,  # (default shadow @0x80000000)
-        "sram":     0x10000000,  # (default shadow @0x90000000)
+        "sram":     0x01000000,  # (default shadow @0x81000000)
+        "csr":      0x02000000,  # (default shadow @0x82000000)
         "main_ram": 0x40000000,  # (default shadow @0xc0000000)
-        "csr":      0x60000000,  # (default shadow @0xe0000000)
     }
     def __init__(self, platform, clk_freq,
                 # CPU parameters
