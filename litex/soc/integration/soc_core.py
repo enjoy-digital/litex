@@ -186,11 +186,11 @@ class SoCCore(Module):
 
         # Parameters managment ---------------------------------------------------------------------
 
-        # FIXME: RocketChip reserves the first 256Mbytes for internal use
-        # remap rom to 0x10000000, sram to 0x20000000
+        # FIXME: RocketChip reserves the first 256Mbytes for internal use, change default mem_map
         if cpu_type == "rocket":
             self.soc_mem_map["rom"]  = 0x10000000
-            self.soc_mem_map["sram"] = 0x20000000
+            self.soc_mem_map["sram"] = 0x11000000
+            self.soc_mem_map["csr"]  = 0x12000000
 
         if cpu_type == "None":
             cpu_type = None
