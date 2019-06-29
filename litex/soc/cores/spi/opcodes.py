@@ -10,9 +10,9 @@ _Op = SpiNorFlashOpCode
 class SpiNorFlashOpCodes:
     """SPI NOR Flash command opcodes."""
 
-    # Release Power-Down / Device ID
+    UNKNOWN           = _Op(0x00, "Unknown")
 
-    # Flash opcodes
+    # Release Power-Down / Device ID
     WREN              = _Op(0x06, "Write enable")
     RDSR              = _Op(0x05, "Read status register")
     WRSR              = _Op(0x01, "Write status register 1 byte")
@@ -46,13 +46,19 @@ class SpiNorFlashOpCodes:
     PP_1_8_8          = _Op(0xc2, "Octal page program")
 
     # Erasing op codes
+    SE                = _Op(0xd8, "Sector erase (usually 64KiB)")
+
+    BE_256            = _Op(0xdb, "Erase 256B block")
     BE_4K             = _Op(0x20, "Erase 4KiB block")
     BE_4K_PMC         = _Op(0xd7, "Erase 4KiB block on PMC chips")
     BE_32K            = _Op(0x52, "Erase 32KiB block")
+    BE_ALT1           = _Op(0x50, "Erase ??? block")
+    BE_ALT2           = _Op(0x81, "Erase ??? block")
+
     CHIP_ERASE        = _Op(0xc7, "Erase whole flash chip")
     CHIP_ERASE_ALT    = _Op(0x60, "Erase whole flash chip on some chips")
     CHIP_ERASE_ATMEL  = _Op(0x62, "Erase whole flash chip on Atmel chips")
-    SE                = _Op(0xd8, "Sector erase (usually 64KiB)")
+
 
     # Register opcodes
     RDID              = _Op(0x9f, "Read JEDEC ID")
@@ -118,7 +124,6 @@ class SpiNorFlashOpCodes:
     # Used for SST flashes only.
     BP                = _Op(0x02, "Byte program")
     WRDI              = _Op(0x04, "Write disable")
-    AAI_WP            = _Op(0xad, "Auto address increment word program")
 
     # Used for S3AN flashes only
     XSE               = _Op(0x50, "Sector erase")
@@ -136,3 +141,24 @@ class SpiNorFlashOpCodes:
     # Used for Micron flashes only.
     RD_EVCR           = _Op(0x65, "Read EVCR register")
     WD_EVCR           = _Op(0x61, "Write EVCR register")
+
+    # JEDEC "Auto address increment" mode.
+    # - AAI supported, but opcode is 0xAF
+    AAI_WP            = _Op(0xad, "Auto address increment word program")
+
+    # JEDEC Aliases for various op codes
+    JEDEC_READ              = READ          # 0x03
+    JEDEC_READ_FAST         = READ_FAST     # 0x0b
+    JEDEC_READ_4BA          = READ_4B       # 0x13
+    JEDEC_READ_4BA_FAST     = READ_FAST_4B  # 0x0c
+    JEDEC_READ_EXT_ADDR_REG = RDEAR         # 0xc8
+    JEDEC_AAI_WORD_PROGRAM  = AAI_WP        # 0xad
+
+
+class Features(enum.FlagEnum):
+    FEATURE_ERASED_ZERO     = auto
+    FEATURE_OTP             = auto
+    FEATURE_WRSR_EITHER     = auto
+    FEATURE_WRSR_EWSR       = auto
+    FEATURE_WRSR_WREN       = auto
+
