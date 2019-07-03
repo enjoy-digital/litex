@@ -340,6 +340,7 @@ class GenericBank(Module):
         self.simple_csrs = []
         for c in description:
             if isinstance(c, CSR):
+                assert c.size <= busword
                 self.simple_csrs.append(c)
             else:
                 c.finalize(busword)
