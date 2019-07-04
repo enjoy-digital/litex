@@ -1,5 +1,8 @@
 graft litex/build/sim
 graft litex/soc/software
 graft litex/soc/cores/cpu/lm32/verilog
+graft litex/soc/cores/cpu/minerva/verilog
 graft litex/soc/cores/cpu/mor1kx/verilog
 graft litex/soc/cores/cpu/picorv32/verilog
+graft litex/soc/cores/cpu/rocket/verilog
+graft litex/soc/cores/cpu/vexriscv/verilog
