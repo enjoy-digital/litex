@@ -12,8 +12,10 @@ from migen.genlib.misc import timeline
 from litex.gen import *
 
 from litex.soc.interconnect import wishbone
-from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRStatus
+from litex.soc.interconnect.csr import *
+from litex.soc.cores.spi import SPIMaster
 
+# SpiFlash Quad/Dual/Single (memory-mapped) --------------------------------------------------------
 
 _FAST_READ = 0x0b
 _DIOFR = 0xbb
@@ -275,3 +277,31 @@ def SpiFlash(pads, *args, **kw):
         return SpiFlashSingle(pads, *args, **kw)
     else:
         return SpiFlashDualQuad(pads, *args, **kw)
+
+
+# Xilinx 7-Series FPGAs SPI Flash (non-memory-mapped) ----------------------------------------------
+
+class S7SPIFlash(Module, AutoCSR):
+    def __init__(self, pads, sys_clk_freq, spi_clk_freq=25e6):
+        self.submodules.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
+        self.specials += Instance("STARTUPE2",
+                i_CLK=0,
+                i_GSR=0,
+                i_GTS=0,
+                i_KEYCLEARB=0,
+                i_PACK=0,
+                i_USRCCLKO=spi.pads.clk,
+                i_USRCCLKTS=0,
+                i_USRDONEO=1,
+                i_USRDONETS=1
+        )
+        if hasattr(pads, "vpp"):
+            pads.vpp.reset = 1
+        if hasattr(pads, "hold"):
+            pads.hold.reset = 1
+
+        self.comb += [
+            pads.cs_n.eq(spi.pads.cs_n),
+            pads.mosi.eq(spi.pads.mosi),
+            spi.pads.miso.eq(pads.miso)
+        ]
