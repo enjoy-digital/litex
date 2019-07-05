@@ -26,10 +26,3 @@ class GPIOInOut(Module):
 
     def get_csrs(self):
         return self.gpio_in.get_csrs() + self.gpio_out.get_csrs()
-
-
-class Blinker(Module):
-    def __init__(self, signal, divbits=26):
-        counter = Signal(divbits)
-        self.comb += signal.eq(counter[divbits-1])
-        self.sync += counter.eq(counter + 1)
