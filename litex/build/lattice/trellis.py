@@ -138,7 +138,7 @@ class LatticeTrellisToolchain:
         self.yosys_template = [
             "{read_files}",
             "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
-            "synth_ecp5 -json {build_name}.json -top {build_name}",
+            "synth_ecp5 -abc9 -json {build_name}.json -top {build_name}",
         ]
 
         self.build_template = [
