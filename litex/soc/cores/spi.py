@@ -30,7 +30,8 @@ class SPIMaster(Module, AutoCSR):
         self._status  = CSRStatus(1)
         self._mosi    = CSRStorage(data_width)
         self._miso    = CSRStatus(data_width)
-        self._cs      = CSRStorage(len(pads.cs_n), reset=1)
+        if hasattr(pads, "cs_n"):
+            self._cs      = CSRStorage(len(pads.cs_n), reset=1)
 
         self.irq = Signal()
 
@@ -101,8 +102,9 @@ class SPIMaster(Module, AutoCSR):
         )
 
         # Chip Select generation -------------------------------------------------------------------
-        for i in range(len(pads.cs_n)):
-            self.comb += pads.cs_n[i].eq(~self._cs.storage[i] | ~cs)
+        if hasattr(pads, "cs_n"):
+            for i in range(len(pads.cs_n)):
+                self.comb += pads.cs_n[i].eq(~self._cs.storage[i] | ~cs)
 
         # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ---------------
         mosi_data = Signal(data_width)
