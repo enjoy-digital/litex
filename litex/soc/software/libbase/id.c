@@ -8,12 +8,9 @@
 void get_ident(char *ident)
 {
 #ifdef CSR_IDENTIFIER_MEM_BASE
-    int len, i;
-    
-    len = MMPTR(CSR_IDENTIFIER_MEM_BASE);
-    for(i=0;i<len;i++)
+    int i;
+    for(i=0;i<256;i++)
         ident[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE + 4*i);
-    ident[i] = 0;
 #else
     ident[0] = 0;
 #endif
