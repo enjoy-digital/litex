@@ -536,7 +536,7 @@ static void read_level(int module)
 	/* Write test pattern */
 	for(p=0;p<DFII_NPHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-			MMPTR(sdram_dfii_pix_wrdata_addr[p]+4*i) = prs[DFII_PIX_DATA_SIZE*p+i];
+			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = prs[DFII_PIX_DATA_SIZE*p+i];
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);

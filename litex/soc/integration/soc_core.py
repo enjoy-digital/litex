@@ -186,11 +186,14 @@ class SoCCore(Module):
 
         # Parameters managment ---------------------------------------------------------------------
 
-        # FIXME: RocketChip reserves the first 256Mbytes for internal use, change default mem_map
+        # NOTE: RocketChip reserves the first 256Mbytes for internal use,
+        #       so we must change default mem_map;
+        #       Also, CSRs *must* be 64-bit aligned.
         if cpu_type == "rocket":
             self.soc_mem_map["rom"]  = 0x10000000
             self.soc_mem_map["sram"] = 0x11000000
             self.soc_mem_map["csr"]  = 0x12000000
+            csr_alignment = 64
 
         if cpu_type == "None":
             cpu_type = None
