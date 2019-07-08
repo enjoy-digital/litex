@@ -51,6 +51,8 @@ __attribute__((unused)) static void cdelay(int i)
 
 #ifdef CSR_SDRAM_BASE
 
+#define DFII_ADDR_SHIFT CONFIG_CSR_ALIGNMENT/8
+
 void sdrsw(void)
 {
 	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
@@ -103,7 +105,7 @@ void sdrrdbuf(int dq)
 
 	for(p=0;p<DFII_NPHASES;p++)
 		for(i=first_byte;i<DFII_PIX_DATA_SIZE;i+=step)
-			printf("%02x", MMPTR(sdram_dfii_pix_rddata_addr[p]+4*i));
+			printf("%02x", MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
 	printf("\n");
 }
 
@@ -167,7 +169,7 @@ void sdrrderr(char *count)
 		cdelay(15);
 		for(p=0;p<DFII_NPHASES;p++)
 			for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-				prev_data[p*DFII_PIX_DATA_SIZE+i] = MMPTR(sdram_dfii_pix_rddata_addr[p]+4*i);
+				prev_data[p*DFII_PIX_DATA_SIZE+i] = MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i);
 
 		for(j=0;j<_count;j++) {
 			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
@@ -176,7 +178,7 @@ void sdrrderr(char *count)
 				for(i=0;i<DFII_PIX_DATA_SIZE;i++) {
 					unsigned char new_data;
 
-					new_data = MMPTR(sdram_dfii_pix_rddata_addr[p]+4*i);
+					new_data = MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i);
 					errs[p*DFII_PIX_DATA_SIZE+i] |= prev_data[p*DFII_PIX_DATA_SIZE+i] ^ new_data;
 					prev_data[p*DFII_PIX_DATA_SIZE+i] = new_data;
 				}
@@ -211,7 +213,7 @@ void sdrwr(char *startaddr)
 
 	for(p=0;p<DFII_NPHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-			MMPTR(sdram_dfii_pix_wrdata_addr[p]+4*i) = 0x10*p + i;
+			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = 0x10*p + i;
 
 	sdram_dfii_piwr_address_write(addr);
 	sdram_dfii_piwr_baddress_write(0);
@@ -309,7 +311,7 @@ int write_level(void)
 	cdelay(100);
 	for(i=0;i<NBMODULES;i++) {
 		printf("m%d: |", i);
-		dq_address = sdram_dfii_pix_rddata_addr[0]+4*(NBMODULES-1-i);
+		dq_address = sdram_dfii_pix_rddata_addr[0]+DFII_ADDR_SHIFT*(NBMODULES-1-i);
 
 		/* rst delay */
 		write_delay_rst(i);
@@ -458,7 +460,7 @@ static int read_level_scan(int module, int bitslip)
 	/* Write test pattern */
 	for(p=0;p<DFII_NPHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-			MMPTR(sdram_dfii_pix_wrdata_addr[p]+4*i) = prs[DFII_PIX_DATA_SIZE*p+i];
+			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = prs[DFII_PIX_DATA_SIZE*p+i];
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -483,9 +485,9 @@ static int read_level_scan(int module, int bitslip)
 		cdelay(15);
 		working = 1;
 		for(p=0;p<DFII_NPHASES;p++) {
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
 				working = 0;
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
 #ifdef ECP5DDRPHY
@@ -554,9 +556,9 @@ static void read_level(int module)
 		cdelay(15);
 		working = 1;
 		for(p=0;p<DFII_NPHASES;p++) {
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
 				working = 0;
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
 #ifdef ECP5DDRPHY
@@ -592,9 +594,9 @@ static void read_level(int module)
 		cdelay(15);
 		working = 1;
 		for(p=0;p<DFII_NPHASES;p++) {
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
 				working = 0;
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+4*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
 				working = 0;
 		}
 #ifdef ECP5DDRPHY

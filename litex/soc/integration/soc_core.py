@@ -150,7 +150,7 @@ class SoCCore(Module):
                 # MAIN_RAM parameters
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
                 # CSR parameters
-                csr_data_width=8, csr_address_width=14,
+                csr_data_width=8, csr_alignment=32, csr_address_width=14,
                 # Identifier parameters
                 ident="", ident_version=False,
                 # UART parameters
@@ -210,7 +210,10 @@ class SoCCore(Module):
         self.integrated_sram_size = integrated_sram_size
         self.integrated_main_ram_size = integrated_main_ram_size
 
+        assert csr_data_width in [8, 32, 64]
+        assert csr_alignment in [32, 64]
         self.csr_data_width = csr_data_width
+        self.csr_alignment = csr_alignment
         self.csr_address_width = csr_address_width
 
         self.with_ctrl = with_ctrl
@@ -291,6 +294,7 @@ class SoCCore(Module):
             bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
         self.add_csr_master(self.wishbone2csr.csr)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
+        self.config["CSR_ALIGNMENT"] = csr_alignment
         self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone)
 
         # Add UART
@@ -495,7 +499,9 @@ class SoCCore(Module):
         # Collect and create CSRs
         self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
             self.get_csr_dev_address,
-            data_width=self.csr_data_width, address_width=self.csr_address_width)
+            data_width=self.csr_data_width,
+            address_width=self.csr_address_width,
+            alignment=self.csr_alignment)
 
         # Add CSRs interconnect
         self.submodules.csrcon = csr_bus.InterconnectShared(

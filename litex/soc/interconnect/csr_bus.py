@@ -32,7 +32,8 @@ _layout = [
 
 
 class Interface(Record):
-    def __init__(self, data_width=8, address_width=14):
+    def __init__(self, data_width=8, address_width=14, alignment=32):
+        self.alignment = alignment
         Record.__init__(self, set_layout_parameters(_layout,
             data_width=data_width, address_width=address_width))
 
@@ -160,19 +161,23 @@ class CSRBank(csr.GenericBank):
 
         sel = Signal()
         self.comb += sel.eq(self.bus.adr[9:] == address)
+        if bus.alignment == 64:
+            self.comb += If(self.bus.adr[0], sel.eq(0))
+
+        adr_shift = log2_int(bus.alignment//32)
 
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
                 c.r.eq(self.bus.dat_w[:c.size]),
                 c.re.eq(sel & \
                     self.bus.we & \
-                    (self.bus.adr[:self.decode_bits] == i))
+                    (self.bus.adr[adr_shift:adr_shift+self.decode_bits] == i))
             ]
 
         brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
         self.sync += [
             self.bus.dat_r.eq(0),
-            If(sel, Case(self.bus.adr[:self.decode_bits], brcases))
+            If(sel, Case(self.bus.adr[adr_shift:adr_shift+self.decode_bits], brcases))
         ]
 
 
