@@ -345,7 +345,7 @@ class SoCCore(Module):
             if allow_user_defined:
                 return
             else:
-                raise ValueError("Interrupt conflit, {} name already used".format(interrupt_name))
+                raise ValueError("Interrupt conflict, {} name already used".format(interrupt_name))
 
         # Check that interrupt_id is in range
         if interrupt_id is not None and interrupt_id >= 32:
@@ -373,7 +373,7 @@ class SoCCore(Module):
             if allow_user_defined:
                 return
             else:
-                raise ValueError("CSR conflit, {} name already used".format(csr_name))
+                raise ValueError("CSR conflict, {} name already used".format(csr_name))
 
         # Check that csr_id is in range
         if csr_id is not None and csr_id >= 2**self.csr_address_width:
