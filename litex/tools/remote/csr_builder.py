@@ -65,13 +65,13 @@ class CSRBuilder:
         self.constants = self.build_constants()
 
         # Load csr_data_width from the constants, otherwise it must be provided
-        constant_csr_data_width = self.constants.d.get('csr_data_width', None)
+        constant_csr_data_width = self.constants.d.get("config_csr_data_width", None)
         if csr_data_width is None:
             csr_data_width = constant_csr_data_width
         if csr_data_width is None:
-            raise KeyError('csr_data_width not found in constants, please provide!')
+            raise KeyError("csr_data_width not found in constants, please provide!")
         if csr_data_width != constant_csr_data_width:
-            raise KeyError('csr_data_width of {} provided but {} found in constants'.format(
+            raise KeyError("csr_data_width of {} provided but {} found in constants".format(
                 csr_data_width, constant_csr_data_width))
 
         self.csr_data_width = csr_data_width

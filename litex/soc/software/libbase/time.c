@@ -6,7 +6,7 @@ void time_init(void)
 	int t;
 
 	timer0_en_write(0);
-	t = 2*SYSTEM_CLOCK_FREQUENCY;
+	t = 2*CONFIG_CLOCK_FREQUENCY;
 	timer0_reload_write(t);
 	timer0_load_write(t);
 	timer0_en_write(1);

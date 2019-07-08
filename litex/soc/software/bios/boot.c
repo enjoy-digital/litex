@@ -40,7 +40,7 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 	flush_cpu_icache();
 #endif
 	flush_cpu_dcache();
-#ifdef L2_SIZE
+#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
 	boot_helper(r1, r2, r3, addr);
@@ -60,7 +60,7 @@ static int check_ack(void)
 
 	timer0_en_write(0);
 	timer0_reload_write(0);
-	timer0_load_write(SYSTEM_CLOCK_FREQUENCY/4);
+	timer0_load_write(CONFIG_CLOCK_FREQUENCY/4);
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	recognized = 0;

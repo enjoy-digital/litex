@@ -667,7 +667,7 @@ static int memtest_bus(void)
 		array[i] = ONEZERO;
 	}
 	flush_cpu_dcache();
-#ifdef L2_SIZE
+#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
@@ -684,7 +684,7 @@ static int memtest_bus(void)
 		array[i] = ZEROONE;
 	}
 	flush_cpu_dcache();
-#ifdef L2_SIZE
+#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
 	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
@@ -724,7 +724,7 @@ static int memtest_data(void)
 
 	seed_32 = 0;
 	flush_cpu_dcache();
-#ifdef L2_SIZE
+#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
@@ -764,7 +764,7 @@ static int memtest_addr(void)
 
 	seed_16 = 0;
 	flush_cpu_dcache();
-#ifdef L2_SIZE
+#ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {

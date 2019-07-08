@@ -291,7 +291,6 @@ class SoCCore(Module):
             bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
         self.add_csr_master(self.wishbone2csr.csr)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
-        self.add_constant("CSR_DATA_WIDTH", csr_data_width)
         self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone)
 
         # Add UART
@@ -312,7 +311,6 @@ class SoCCore(Module):
             self.submodules.identifier = identifier.Identifier(ident)
             self.add_csr("identifier_mem", allow_user_defined=True)
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
-        self.add_constant("SYSTEM_CLOCK_FREQUENCY", int(clk_freq))
 
         # Add Timer
         if with_timer:
