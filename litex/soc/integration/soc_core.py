@@ -298,7 +298,7 @@ class SoCCore(Module):
         self.add_csr_master(self.wishbone2csr.csr)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.config["CSR_ALIGNMENT"] = csr_alignment
-        self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone)
+        self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 2**(csr_address_width + 2))
 
         # Add UART
         if with_uart:
