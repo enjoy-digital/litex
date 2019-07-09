@@ -69,6 +69,7 @@ class SoCSDRAM(SoCCore):
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +
                             geom_settings.colbits)*phy.settings.databits//8
+        main_ram_size = min(main_ram_size, 0x20000000) # FIXME: limit to 512MB for now
         self.config["L2_SIZE"] = self.l2_size
 
         # add a Wishbone interface to the DRAM
