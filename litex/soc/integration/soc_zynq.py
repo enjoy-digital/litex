@@ -72,9 +72,6 @@ class SoCZynq(SoCCore):
 
             # fabric clk
             o_FCLK_CLK0=ClockSignal("sys"),
-
-            # axi gp0 clk
-            i_M_AXI_GP0_ACLK=ClockSignal("sys"),
         )
         platform.add_ip(os.path.join("ip", ps7_name + ".xci"))
 
@@ -83,6 +80,9 @@ class SoCZynq(SoCCore):
     def add_gp0(self):
         self.axi_gp0 = axi_gp0 = axi.AXIInterface(data_width=32, address_width=32, id_width=12)
         self.ps7_params.update(
+            # axi gp0 clk
+            i_M_AXI_GP0_ACLK=ClockSignal("sys"),
+
             # axi gp0 aw
             o_M_AXI_GP0_AWVALID=axi_gp0.aw.valid,
             i_M_AXI_GP0_AWREADY=axi_gp0.aw.ready,
