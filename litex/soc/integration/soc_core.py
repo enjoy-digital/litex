@@ -530,6 +530,8 @@ class SoCCore(Module):
             self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
         for name, value in sorted(self.config.items(), key=itemgetter(0)):
             self._constants.append(("CONFIG_" + name.upper(), value))
+            if isinstance(value, str):
+                self._constants.append(("CONFIG_" + name.upper() + "_" + value, 1))
 
         # Connect interrupts
         if hasattr(self, "cpu"):
