@@ -239,6 +239,7 @@ class SoCCore(Module):
 
         # Add CPU
         self.config["CPU_TYPE"] = str(cpu_type).upper()
+        self.config["CPU_VARIANT"] = str(cpu_variant).upper()
         if cpu_type is not None:
             # CPU selection / instance
             if cpu_type == "lm32":
