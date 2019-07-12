@@ -142,7 +142,7 @@ class SoCZynq(SoCCore):
         self.axi_hp0_fifo_ctrl = axi_hp0_fifo_ctrl = Record(axi_fifo_ctrl_layout())
         self.ps7_params.update(
             # axi hp0 clk
-            i_M_AXI_HP0_ACLK=ClockSignal("sys"),
+            i_S_AXI_HP0_ACLK=ClockSignal("sys"),
 
             # axi hp0 aw
             i_S_AXI_HP0_AWVALID=axi_hp0.aw.valid,
