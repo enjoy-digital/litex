@@ -26,7 +26,7 @@ class SPIMaster(Module, AutoCSR):
             pads = Record(self.pads_layout)
         self.pads = pads
 
-        self._control = CSR(16)
+        self._control = CSRStorage(16)
         self._status  = CSRStatus(1)
         self._mosi    = CSRStorage(data_width)
         self._miso    = CSRStatus(data_width)
@@ -47,8 +47,8 @@ class SPIMaster(Module, AutoCSR):
         done   = Signal()
 
         # XFER start: initialize SPI XFER on SPI_CONTROL_START write and latch length
-        self.comb += start.eq(self._control.re & self._control.r[SPI_CONTROL_START])
-        self.sync += If(self._control.re, length.eq(self._control.r[SPI_CONTROL_LENGTH:]))
+        self.comb += start.eq(self._control.re & self._control.storage[SPI_CONTROL_START])
+        self.sync += If(self._control.re, length.eq(self._control.storage[SPI_CONTROL_LENGTH:]))
 
         # XFER done
         self.comb += self._status.status[SPI_STATUS_DONE].eq(done)
