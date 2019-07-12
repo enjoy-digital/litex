@@ -32,6 +32,7 @@ class SoCZynq(SoCCore):
         SoCCore.__init__(self, platform, clk_freq, cpu_type=None, shadow_base=0x00000000, **kwargs)
 
         # PS7 (Minimal) ----------------------------------------------------------------------------
+        fclk_reset0_n = Signal()
         ps7_ddram_pads = platform.request("ps7_ddram")
         self.ps7_params = dict(
             # clk/rst
@@ -70,9 +71,11 @@ class SoCZynq(SoCCore):
             # usb0
             i_USB0_VBUS_PWRFAULT=0,
 
-            # fabric clk
+            # fabric clk/rst
             o_FCLK_CLK0=ClockSignal("sys"),
+            o_FCLK_RESET0_N=fclk_reset0_n
         )
+        self.comb += ResetSignal("sys").eq(~fclk_reset0_n)
         platform.add_ip(os.path.join("ip", ps7_name + ".xci"))
 
     # GP0 ------------------------------------------------------------------------------------------
