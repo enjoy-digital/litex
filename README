@@ -75,6 +75,30 @@ boards:
   official ones that are used for development/CI. More boards are available at:
   https://github.com/litex-hub/litex-boards
 
+[> Papers, Presentations, Tutorials, Links
+------------------------------------------
+FPGA lessons/tutorials:
+- https://github.com/enjoy-digital/fpga_101
+
+OSDA paper/slides:
+- https://osda.gitlab.io/19/1.1.pdf
+- https://osda.gitlab.io/19/1.1-slides.pdf
+
+Linux on LiteX-Vexriscv:
+- https://github.com/litex-hub/linux-on-litex-vexriscv
+
+RISC-V Getting Started Guide:
+- https://risc-v-getting-started-guide.readthedocs.io/en/latest/
+
+LiteX vs. Vivado First Impressions:
+- https://www.bunniestudios.com/blog/?p=5018
+
+35C3 - Snakes and Rabbits - How CCC shaped an open hardware success:
+- https://www.youtube.com/watch?v=AlmVxR0417c
+
+Tim has to many projects - LatchUp Edition:
+https://www.youtube.com/watch?v=v7WrTmexod0
+
 [> Very Quick start guide (for newcomers)
 -----------------------------------------
 TimVideos.us has done an awesome job for setting up a LiteX environment easily in
@@ -85,9 +109,6 @@ and multiple examples provided! You can even run Linux on your FPGA using LiteX
 very easily!
 
 Migen documentation can be found here: https://m-labs.hk/migen/manual
-
-FPGA lessons/tutorials can be found at: https://github.com/enjoy-digital/fpga_101
-
 
 [> Quick start guide (for advanced users)
 -----------------------------------------
