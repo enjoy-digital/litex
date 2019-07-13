@@ -21,37 +21,31 @@ class SPIMaster(Module, AutoCSR):
     configurable data_width and frequency.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
-    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq):
+    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_control=True):
         if pads is None:
             pads = Record(self.pads_layout)
-        self.pads = pads
+        if not hasattr(pads, "cs_n"):
+            pads.cs_n = Signal()
+        self.pads       = pads
+        self.data_width = data_width
 
-        self._control = CSRStorage(16)
-        self._status  = CSRStatus(1)
-        self._mosi    = CSRStorage(data_width)
-        self._miso    = CSRStatus(data_width)
-        if hasattr(pads, "cs_n"):
-            self._cs      = CSRStorage(len(pads.cs_n), reset=1)
+        self.start    = Signal()
+        self.length   = Signal(8)
+        self.done     = Signal()
+        self.irq      = Signal()
+        self.mosi     = Signal(data_width)
+        self.miso     = Signal(data_width)
+        self.cs       = Signal(len(pads.cs_n), reset=1)
+        self.loopback = Signal()
 
-        self.irq = Signal()
+        if with_control:
+            self.add_control()
 
         # # #
 
         bits  = Signal(8)
-        cs    = Signal()
+        xfer  = Signal()
         shift = Signal()
-
-        # Control/Status ---------------------------------------------------------------------------
-        start  = Signal()
-        length = Signal(8)
-        done   = Signal()
-
-        # XFER start: initialize SPI XFER on SPI_CONTROL_START write and latch length
-        self.comb += start.eq(self._control.re & self._control.storage[SPI_CONTROL_START])
-        self.sync += If(self._control.re, length.eq(self._control.storage[SPI_CONTROL_LENGTH:]))
-
-        # XFER done
-        self.comb += self._status.status[SPI_STATUS_DONE].eq(done)
 
         # Clock generation -------------------------------------------------------------------------
         clk_divide  = math.ceil(sys_clk_freq/spi_clk_freq)
@@ -59,7 +53,7 @@ class SPIMaster(Module, AutoCSR):
         clk_rise    = Signal()
         clk_fall    = Signal()
         self.sync += [
-            If(clk_rise,   pads.clk.eq(cs)),
+            If(clk_rise, pads.clk.eq(xfer)),
             If(clk_fall, pads.clk.eq(0)),
             If(clk_fall,
                 clk_divider.eq(0)
@@ -73,8 +67,8 @@ class SPIMaster(Module, AutoCSR):
         # Control FSM ------------------------------------------------------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            done.eq(1),
-            If(start,
+            self.done.eq(1),
+            If(self.start,
                 NextValue(bits, 0),
                 NextState("WAIT-CLK-FALL")
             )
@@ -85,12 +79,12 @@ class SPIMaster(Module, AutoCSR):
             )
         )
         fsm.act("XFER",
-            If(bits == length,
+            If(bits == self.length,
                 NextState("END")
             ).Elif(clk_fall,
                 NextValue(bits, bits + 1)
             ),
-            cs.eq(1),
+            xfer.eq(1),
             shift.eq(1)
         )
         fsm.act("END",
@@ -104,13 +98,13 @@ class SPIMaster(Module, AutoCSR):
         # Chip Select generation -------------------------------------------------------------------
         if hasattr(pads, "cs_n"):
             for i in range(len(pads.cs_n)):
-                self.comb += pads.cs_n[i].eq(~self._cs.storage[i] | ~cs)
+                self.comb += pads.cs_n[i].eq(~self.cs[i] | ~xfer)
 
         # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ---------------
         mosi_data = Signal(data_width)
         self.sync += \
-            If(start,
-                mosi_data.eq(self._mosi.storage)
+            If(self.start,
+                mosi_data.eq(self.mosi)
             ).Elif(clk_rise & shift,
                 mosi_data.eq(Cat(Signal(), mosi_data[:-1]))
             ).Elif(clk_fall,
@@ -119,7 +113,7 @@ class SPIMaster(Module, AutoCSR):
 
         # Master In Slave Out (MISO) capture (captured on spi_clk rising edge) --------------------
         miso      = Signal()
-        miso_data = self._miso.status
+        miso_data = self.miso
         self.sync += \
             If(shift,
                 If(clk_rise,
@@ -128,3 +122,25 @@ class SPIMaster(Module, AutoCSR):
                     miso_data.eq(Cat(miso, miso_data[:-1]))
                 )
             )
+
+        # Loopback ---------------------------------------------------------------------------------
+        self.comb += If(self.loopback, pads.miso.eq(pads.mosi))
+
+    def add_control(self):
+        self._control  = CSRStorage(16)
+        self._status   = CSRStatus()
+        self._mosi     = CSRStorage(self.data_width)
+        self._miso     = CSRStatus(self.data_width)
+        self._cs       = CSRStorage(len(self.cs), reset=1)
+        self._loopback = CSRStorage()
+
+        self.comb += [
+            self.start.eq(self._control.re & self._control.storage[SPI_CONTROL_START]),
+            self.length.eq(self._control.storage[SPI_CONTROL_LENGTH:]),
+            self.mosi.eq(self._mosi.storage),
+            self.cs.eq(self._cs.storage),
+            self.loopback.eq(self._loopback.storage),
+
+            self._status.status[SPI_STATUS_DONE].eq(self.done),
+            self._miso.status.eq(self.miso),
+        ]
