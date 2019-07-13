@@ -117,14 +117,15 @@ class SPIMaster(Module, AutoCSR):
         self.sync += \
             If(shift,
                 If(clk_rise,
-                    miso.eq(pads.miso),
+                    If(self.loopback,
+                        miso.eq(pads.mosi)
+                    ).Else(
+                        miso.eq(pads.miso)
+                    )
                 ).Elif(clk_fall,
                     miso_data.eq(Cat(miso, miso_data[:-1]))
                 )
             )
-
-        # Loopback ---------------------------------------------------------------------------------
-        self.comb += If(self.loopback, pads.miso.eq(pads.mosi))
 
     def add_control(self):
         self._control  = CSRStorage(16)
