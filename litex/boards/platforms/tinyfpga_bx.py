@@ -63,6 +63,7 @@ class Platform(LatticePlatform):
 
     def __init__(self):
         LatticePlatform.__init__(self, "ice40-lp8k-cm81", _io, _connectors, toolchain="icestorm")
+        self.add_extension(serial)
 
     def create_programmer(self):
         return TinyProgProgrammer()
