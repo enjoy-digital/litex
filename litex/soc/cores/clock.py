@@ -476,7 +476,7 @@ class ECP5PLL(Module):
             p_CLKI_DIV=1,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            n_to_l = {0: "P", 1: "S", 2: "OS2"}
+            n_to_l = {0: "P", 1: "S", 2: "S2"}
             self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
             self.params["p_CLKO{}_DIV".format(n_to_l[n])] = config["clko{}_div".format(n)]
             self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
