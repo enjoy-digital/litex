@@ -37,7 +37,10 @@ __all__ = [
     "csr_map_update",
     "SoCCore",
     "soc_core_args",
-    "soc_core_argdict"
+    "soc_core_argdict",
+    "SoCMini",
+    "soc_mini_args",
+    "soc_mini_argdict",
 ]
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -542,7 +545,7 @@ class SoCCore(Module):
                         self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
 
 
-# SoCCores arguments -------------------------------------------------------------------------------
+# SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
     parser.add_argument("--cpu-type", default=None,
@@ -569,3 +572,23 @@ def soc_core_argdict(args):
         if arg is not None:
             r[a] = arg
     return r
+
+# SoCMini ---------------------------------------------------------------------------------------
+
+class SoCMini(SoCCore):
+     def __init__(self, *args, **kwargs):
+        if "cpu_type" not in kwargs.keys():
+            kwargs["cpu_type"] = None
+        if "integrated_sram_size" not in kwargs.keys():
+            kwargs["integrated_sram_size"] = 0
+        if "with_uart" not in kwargs.keys():
+            kwargs["with_uart"] = False
+        if "with_timer" not in kwargs.keys():
+            kwargs["with_timer"] = False
+
+        SoCCore.__init__(self, *args, **kwargs)
+
+# SoCMini arguments -----------------------------------------------------------------------------
+
+soc_mini_args = soc_core_args
+soc_mini_argdict = soc_core_argdict
