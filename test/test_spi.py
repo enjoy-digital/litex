@@ -26,5 +26,5 @@ class TestSPI(unittest.TestCase):
                 yield
             self.assertEqual((yield dut.miso), 0xdeadbeef)
 
-        dut = SPIMaster(pads=None, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_control=False)
+        dut = SPIMaster(pads=None, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_csr=False)
         run_simulation(dut, generator(dut))

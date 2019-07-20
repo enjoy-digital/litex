@@ -21,7 +21,7 @@ class SPIMaster(Module, AutoCSR):
     configurable data_width and frequency.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
-    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_control=True):
+    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True):
         if pads is None:
             pads = Record(self.pads_layout)
         if not hasattr(pads, "cs_n"):
@@ -38,8 +38,8 @@ class SPIMaster(Module, AutoCSR):
         self.cs       = Signal(len(pads.cs_n), reset=1)
         self.loopback = Signal()
 
-        if with_control:
-            self.add_control()
+        if with_csr:
+            self.add_csr()
 
         # # #
 
@@ -127,7 +127,7 @@ class SPIMaster(Module, AutoCSR):
                 )
             )
 
-    def add_control(self):
+    def add_csr(self):
         self._control  = CSRStorage(16)
         self._status   = CSRStatus()
         self._mosi     = CSRStorage(self.data_width)
