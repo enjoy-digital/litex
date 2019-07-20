@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2015 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from migen import *
@@ -16,42 +16,44 @@ class PWM(Module, AutoCSR):
     Pulse Width Modulation can be useful for various purposes: dim leds, regulate a fan, control
     an oscillator. Software can configure the PWM width and period and enable/disable it.
     """
-    def __init__(self, pwm=None, clock_domain="sys"):
+    def __init__(self, pwm=None, with_csr=True):
         if pwm is None:
             self.pwm = pwm = Signal()
-        self._enable = CSRStorage(reset=1)
-        self._width  = CSRStorage(32, reset=2**19)
-        self._period = CSRStorage(32, reset=2**20)
+        self.enable = Signal()
+        self.width  = Signal(32)
+        self.period = Signal(32)
 
         # # #
 
         counter = Signal(32)
-        enable  = Signal()
-        width   = Signal(32)
-        period  = Signal(32)
 
-        # Resynchronize to clock_domain ------------------------------------------------------------
-        self.specials += [
-            MultiReg(self._enable.storage, enable, clock_domain),
-            MultiReg(self._width.storage,  width,  clock_domain),
-            MultiReg(self._period.storage, period, clock_domain),
-        ]
-
-        # PWM generation  --------------------------------------------------------------------------
-        sync = getattr(self.sync, clock_domain)
-        sync += \
-            If(enable,
-                If(counter < width,
+        self.sync += [
+            If(self.enable,
+                counter.eq(counter + 1),
+                If(counter < self.width,
                     pwm.eq(1)
                 ).Else(
                     pwm.eq(0)
                 ),
-                If(counter == period-1,
+                If(counter == (self.period - 1),
                     counter.eq(0)
-                ).Else(
-                    counter.eq(counter+1)
                 )
             ).Else(
                 counter.eq(0),
                 pwm.eq(0)
             )
+        ]
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._enable = CSRStorage(reset=1)
+        self._width  = CSRStorage(32, reset=2**19)
+        self._period = CSRStorage(32, reset=2**20)
+
+        self.comb += [
+            self.enable.eq(self._enable.storage),
+            self.width.eq(self._width.storage),
+            self.period.eq(self._period.storage)
+        ]
