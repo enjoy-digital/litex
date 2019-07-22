@@ -224,8 +224,14 @@ const char *filename, char *buffer)
 
 static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
+#define KERNEL_IMAGE_RAM_OFFSET      0x00000000
 #define ROOTFS_IMAGE_RAM_OFFSET      0x00800000
 #define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
+
+#ifndef EMULATOR_RAM_BASE
+#define EMULATOR_RAM_BASE 0x50000000
+#endif
+#define EMULATOR_IMAGE_RAM_OFFSET    0x00000000
 
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tftp_port)
@@ -233,7 +239,7 @@ static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tf
 	unsigned long tftp_dst_addr;
 	int size;
 
-	tftp_dst_addr = MAIN_RAM_BASE;
+	tftp_dst_addr = MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET;
 	size = tftp_get_v(ip, tftp_port, "Image", (void *)tftp_dst_addr);
 	if (size <= 0) {
 		printf("Network boot failed\n");
@@ -254,7 +260,7 @@ static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tf
 		return 0;
 	}
 
-	tftp_dst_addr = EMULATOR_RAM_BASE;
+	tftp_dst_addr = EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET;
 	size = tftp_get_v(ip, tftp_port, "emulator.bin", (void *)tftp_dst_addr);
 	if(size <= 0) {
 		printf("No emulator.bin found\n");
@@ -286,7 +292,7 @@ void netboot(void)
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 	if(try_get_kernel_rootfs_dtb_emulator(ip, tftp_port))
 	{
-		boot(0, 0, 0, EMULATOR_RAM_BASE);
+		boot(0, 0, 0, EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 		return;
 	}
 	printf("Unable to download Linux images, falling back to boot.bin\n");
@@ -368,13 +374,13 @@ void flashboot(void)
 	printf("Loading emulator.bin from flash...\n");
 	result = copy_image_from_flash_to_ram(
 		(unsigned int *)(FLASH_BOOT_ADDRESS + EMULATOR_IMAGE_FLASH_OFFSET),
-		(unsigned int *)(EMULATOR_RAM_BASE));
+		(unsigned int *)(EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET));
 
 	if(result) {
 		printf("Loading Image from flash...\n");
 		result &= copy_image_from_flash_to_ram(
-			(unsigned int *)FLASH_BOOT_ADDRESS + KERNEL_IMAGE_FLASH_OFFSET,
-			(unsigned int *)MAIN_RAM_BASE);
+			(unsigned int *)(FLASH_BOOT_ADDRESS + KERNEL_IMAGE_FLASH_OFFSET),
+			(unsigned int *)(MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET));
 	}
 
 	if(result) {
@@ -392,17 +398,15 @@ void flashboot(void)
 	}
 
 	if(result) {
-		boot(0, 0, 0, EMULATOR_RAM_BASE);
+		boot(0, 0, 0, EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 		return;
 	}
 #endif
 
 	printf("Booting from flash...\n");
-	length = check_image_in_flash((unsigned int *)FLASH_BOOT_ADDRESS);
+	length = check_image_in_flash((unsigned int *) FLASH_BOOT_ADDRESS);
 	if(!length)
-	{
 		return;
-	}
 
 #ifdef MAIN_RAM_BASE
 	printf("Loading %d bytes from flash...\n", length);
