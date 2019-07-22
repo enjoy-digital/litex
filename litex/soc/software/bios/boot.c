@@ -216,7 +216,7 @@ const char *filename, char *buffer)
 
 	r = tftp_get(ip, server_port, filename, buffer);
 	if(r > 0)
-		printf("Successfully downloaded %d bytes from %s over TFTP\n", r, filename);
+		printf("Downloaded %d bytes from %s over TFTP to 0x%08x\n", r, filename, buffer);
 	else
 		printf("Unable to download %s over TFTP\n", filename);
 	return r;
@@ -226,7 +226,6 @@ static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
 #define ROOTFS_IMAGE_RAM_OFFSET      0x00800000
 #define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
-#define EMULATOR_IMAGE_RAM_OFFSET    0x02000000
 
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tftp_port)
@@ -255,7 +254,7 @@ static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tf
 		return 0;
 	}
 
-	tftp_dst_addr = MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET;
+	tftp_dst_addr = EMULATOR_RAM_BASE;
 	size = tftp_get_v(ip, tftp_port, "emulator.bin", (void *)tftp_dst_addr);
 	if(size <= 0) {
 		printf("No emulator.bin found\n");
@@ -287,9 +286,10 @@ void netboot(void)
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 	if(try_get_kernel_rootfs_dtb_emulator(ip, tftp_port))
 	{
-		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+		boot(0, 0, 0, EMULATOR_RAM_BASE);
 		return;
 	}
+	printf("Unable to download Linux images, falling back to boot.bin\n");
 #endif
 	tftp_dst_addr = MAIN_RAM_BASE;
 	size = tftp_get_v(ip, tftp_port, "boot.bin", (void *)tftp_dst_addr);
@@ -368,7 +368,7 @@ void flashboot(void)
 	printf("Loading emulator.bin from flash...\n");
 	result = copy_image_from_flash_to_ram(
 		(unsigned int *)(FLASH_BOOT_ADDRESS + EMULATOR_IMAGE_FLASH_OFFSET),
-		(unsigned int *)(MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET));
+		(unsigned int *)(EMULATOR_RAM_BASE));
 
 	if(result) {
 		printf("Loading Image from flash...\n");
@@ -392,7 +392,7 @@ void flashboot(void)
 	}
 
 	if(result) {
-		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+		boot(0, 0, 0, EMULATOR_RAM_BASE);
 		return;
 	}
 #endif
