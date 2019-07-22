@@ -47,7 +47,7 @@ class Up5kSPRAM(Module):
                 wren = Signal()
                 self.comb += [
                     datain.eq(self.bus.dat_w[16*w:16*(w+1)]),
-                    If(self.bus.adr[14:16] == d,
+                    If(self.bus.adr[14:14+log2_int(depth_cascading)+1] == d,
                         wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
                         self.bus.dat_r[16*w:16*(w+1)].eq(dataout)
                     ),
