@@ -46,7 +46,8 @@ class SpiFlashCommon(Module):
         self.pads = pads
 
     def add_clk_primitive(self, device):
-        assert hasattr(self, "clk_primitive_needed")
+        if not hasattr(self, "clk_primitive_needed"):
+            return
         # Xilinx 7-series
         if device[:3] == "xc7":
             self.specials += Instance("STARTUPE2",
