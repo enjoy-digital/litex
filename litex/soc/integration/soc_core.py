@@ -98,7 +98,10 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
 
 def mem_decoder(address, size=0x10000000):
     address &= ~0x80000000
-    return lambda a: (a[:-1] >= address//4) & (a[:-1] < (address + size)//4)
+    assert (address & (size - 1)) == 0
+    address >>= 2 # bytes to words aligned
+    size    >>= 2 # bytes to words aligned
+    return lambda a: (a[log2_int(size):-1] == (address >> log2_int(size)))
 
 def csr_map_update(csr_map, csr_peripherals):
     csr_map.update(dict((n, v)
