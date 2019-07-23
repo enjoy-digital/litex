@@ -98,6 +98,7 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
 
 def mem_decoder(address, size=0x10000000):
     address &= ~0x80000000
+    size = 2**log2_int(size, False)
     assert (address & (size - 1)) == 0
     address >>= 2 # bytes to words aligned
     size    >>= 2 # bytes to words aligned
@@ -431,6 +432,7 @@ class SoCCore(Module):
         def in_this_region(addr):
             return addr >= origin and addr < origin + length
         for n, o, l in self._memory_regions:
+            l = 2**log2_int(l, False)
             if n == name or in_this_region(o) or in_this_region(o+l-1):
                 raise ValueError("Memory region conflict between {} and {}".format(n, name))
 
