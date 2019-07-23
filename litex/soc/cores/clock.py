@@ -17,8 +17,8 @@ def period_ns(freq):
 # Xilinx / Generic ---------------------------------------------------------------------------------
 
 class XilinxClocking(Module, AutoCSR):
-    clkfbout_mult_frange = (2, 64+1)
-    clkout_divide_range = (1, 128+1)
+    clkfbout_mult_frange = (2,  64+1)
+    clkout_divide_range  = (1, 128+1)
 
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
@@ -92,10 +92,10 @@ class XilinxClocking(Module, AutoCSR):
 
     def expose_drp(self):
         self.drp_reset = CSR()
-        self.drp_read = CSR()
+        self.drp_read  = CSR()
         self.drp_write = CSR()
-        self.drp_drdy = CSRStatus()
-        self.drp_adr = CSRStorage(7)
+        self.drp_drdy  = CSRStatus()
+        self.drp_adr   = CSRStorage(7)
         self.drp_dat_w = CSRStorage(16)
         self.drp_dat_r = CSRStatus(16)
 
@@ -240,8 +240,8 @@ class S7MMCM(XilinxClocking):
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
-            -1: (10e6, 800e6),
-            -2: (10e6, 933e6),
+            -1: (10e6,  800e6),
+            -2: (10e6,  933e6),
             -3: (10e6, 1066e6),
         }[speedgrade]
 
@@ -298,8 +298,8 @@ class USPLL(XilinxClocking):
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 56+1)
         self.clkin_freq_range = {
-            -1: (70e6, 800e6),
-            -2: (70e6, 933e6),
+            -1: (70e6,  800e6),
+            -2: (70e6,  933e6),
             -3: (70e6, 1066e6),
         }[speedgrade]
         self.vco_freq_range = {
@@ -334,8 +334,8 @@ class USMMCM(XilinxClocking):
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
-            -1: (10e6, 800e6),
-            -2: (10e6, 933e6),
+            -1: (10e6,  800e6),
+            -2: (10e6,  933e6),
             -3: (10e6, 1066e6),
         }[speedgrade]
         self.vco_freq_range = {
@@ -485,10 +485,10 @@ class iCE40PLL(Module):
 class ECP5PLL(Module):
     nclkouts_max = 3
     clkfb_div_range = (1, 128+1)
-    clko_div_range = (1, 128+1)
-    clki_freq_range = (8e6, 400e6)
-    clko_freq_range = (3.125e6, 400e6)
-    vco_freq_range = (550e6, 1250e6)
+    clko_div_range  = (1, 128+1)
+    clki_freq_range = (    8e6,  400e6)
+    clko_freq_range = (3.125e6,  400e6)
+    vco_freq_range  = (  550e6, 1250e6)
 
     def __init__(self):
         self.reset = Signal()
@@ -554,10 +554,10 @@ class ECP5PLL(Module):
         clkfb = Signal()
         self.params.update(
             attr=[
-                ("ICP_CURRENT", "6"),
-                ("LPF_RESISTOR", "16"),
+                ("ICP_CURRENT",            "6"),
+                ("LPF_RESISTOR",          "16"),
                 ("MFG_ENABLE_FILTEROPAMP", "1"),
-                ("MFG_GMCREF_SEL", "2")],
+                ("MFG_GMCREF_SEL",         "2")],
             i_RST=self.reset,
 
             i_CLKI=self.clkin,
