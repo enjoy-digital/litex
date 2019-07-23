@@ -229,7 +229,7 @@ static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 #define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
 
 #ifndef EMULATOR_RAM_BASE
-#define EMULATOR_RAM_BASE 0x50000000
+#define EMULATOR_RAM_BASE 0x20000000
 #endif
 #define EMULATOR_IMAGE_RAM_OFFSET    0x00000000
 
