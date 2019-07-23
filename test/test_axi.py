@@ -9,12 +9,6 @@ from migen import *
 from litex.soc.interconnect.axi import *
 from litex.soc.interconnect import wishbone
 
-
-def rand_wait(level):
-    prng = random.Random(42)
-    while prng.randrange(100) < level:
-        yield
-
 # Software Models ----------------------------------------------------------------------------------
 
 class Burst:
@@ -122,25 +116,27 @@ class TestAXI(unittest.TestCase):
 
     def _test_axi2wishbone(self,
         naccesses=16, simultaneous_writes_reads=False,
-        # rand_level: 0: min (no random), 100: max.
+        # random: 0: min (no random), 100: max.
         # burst randomness
         id_rand_enable   = False,
         len_rand_enable  = False,
         data_rand_enable = False,
         # flow valid randomness
-        aw_valid_rand_level = 0,
-        w_valid_rand_level  = 0,
-        ar_valid_rand_level = 0,
-        r_valid_rand_level  = 0,
+        aw_valid_random = 0,
+        w_valid_random  = 0,
+        ar_valid_random = 0,
+        r_valid_random  = 0,
         # flow ready randomness
-        w_ready_rand_level  = 0,
-        b_ready_rand_level  = 0,
-        r_ready_rand_level  = 0
+        w_ready_random  = 0,
+        b_ready_random  = 0,
+        r_ready_random  = 0
         ):
 
         def writes_cmd_generator(axi_port, writes):
+            prng = random.Random(42)
             for write in writes:
-                yield from rand_wait(aw_valid_rand_level)
+                while prng.randrange(100) < aw_valid_random:
+                    yield
                 # send command
                 yield axi_port.aw.valid.eq(1)
                 yield axi_port.aw.addr.eq(write.addr<<2)
@@ -154,10 +150,12 @@ class TestAXI(unittest.TestCase):
                 yield axi_port.aw.valid.eq(0)
 
         def writes_data_generator(axi_port, writes):
+            prng = random.Random(42)
             yield axi_port.w.strb.eq(2**(len(axi_port.w.data)//8) - 1)
             for write in writes:
                 for i, data in enumerate(write.data):
-                    yield from rand_wait(w_valid_rand_level)
+                    while prng.randrange(100) < w_valid_random:
+                        yield
                     # send data
                     yield axi_port.w.valid.eq(1)
                     if (i == (len(write.data) - 1)):
@@ -172,6 +170,7 @@ class TestAXI(unittest.TestCase):
             axi_port.reads_enable = True
 
         def writes_response_generator(axi_port, writes):
+            prng = random.Random(42)
             self.writes_id_errors = 0
             for write in writes:
                 # wait response
@@ -179,17 +178,20 @@ class TestAXI(unittest.TestCase):
                 yield
                 while (yield axi_port.b.valid) == 0:
                     yield
-                yield from rand_wait(b_ready_rand_level)
+                while prng.randrange(100) < b_ready_random:
+                    yield
                 yield axi_port.b.ready.eq(1)
                 yield
                 if (yield axi_port.b.id) != write.id:
                     self.writes_id_errors += 1
 
         def reads_cmd_generator(axi_port, reads):
+            prng = random.Random(42)
             while not axi_port.reads_enable:
                 yield
             for read in reads:
-                yield from rand_wait(ar_valid_rand_level)
+                while prng.randrange(100) < ar_valid_random:
+                    yield
                 # send command
                 yield axi_port.ar.valid.eq(1)
                 yield axi_port.ar.addr.eq(read.addr<<2)
@@ -203,6 +205,7 @@ class TestAXI(unittest.TestCase):
                 yield axi_port.ar.valid.eq(0)
 
         def reads_response_data_generator(axi_port, reads):
+            prng = random.Random(42)
             self.reads_data_errors = 0
             self.reads_id_errors = 0
             self.reads_last_errors = 0
@@ -215,7 +218,8 @@ class TestAXI(unittest.TestCase):
                     yield
                     while (yield axi_port.r.valid) == 0:
                         yield
-                    yield from rand_wait(r_ready_rand_level)
+                    while prng.randrange(100) < r_ready_random:
+                        yield
                     yield axi_port.r.ready.eq(1)
                     yield
                     if (yield axi_port.r.data) != data:
@@ -288,25 +292,25 @@ class TestAXI(unittest.TestCase):
             data_rand_enable=True)
 
     def test_axi2wishbone_random_w_ready(self):
-        self._test_axi2wishbone(w_ready_rand_level=90)
+        self._test_axi2wishbone(w_ready_random=90)
 
     def test_axi2wishbone_random_b_ready(self):
-        self._test_axi2wishbone(b_ready_rand_level=90)
+        self._test_axi2wishbone(b_ready_random=90)
 
     def test_axi2wishbone_random_r_ready(self):
-        self._test_axi2wishbone(r_ready_rand_level=90)
+        self._test_axi2wishbone(r_ready_random=90)
 
     def test_axi2wishbone_random_aw_valid(self):
-        self._test_axi2wishbone(aw_valid_rand_level=90)
+        self._test_axi2wishbone(aw_valid_random=90)
 
     def test_axi2wishbone_random_w_valid(self):
-        self._test_axi2wishbone(w_valid_rand_level=90)
+        self._test_axi2wishbone(w_valid_random=90)
 
     def test_axi2wishbone_random_ar_valid(self):
-        self._test_axi2wishbone(ar_valid_rand_level=90)
+        self._test_axi2wishbone(ar_valid_random=90)
 
     def test_axi2wishbone_random_r_valid(self):
-        self._test_axi2wishbone(r_valid_rand_level=90)
+        self._test_axi2wishbone(r_valid_random=90)
 
     # now let's stress things a bit... :)
     def test_axi2wishbone_random_all(self):
@@ -314,11 +318,11 @@ class TestAXI(unittest.TestCase):
             simultaneous_writes_reads=False,
             id_rand_enable=True,
             len_rand_enable=True,
-            aw_valid_rand_level=50,
-            w_ready_rand_level=50,
-            b_ready_rand_level=50,
-            w_valid_rand_level=50,
-            ar_valid_rand_level=90,
-            r_valid_rand_level=90,
-            r_ready_rand_level=90
+            aw_valid_random=50,
+            w_ready_random=50,
+            b_ready_random=50,
+            w_valid_random=50,
+            ar_valid_random=90,
+            r_valid_random=90,
+            r_ready_random=90
         )
