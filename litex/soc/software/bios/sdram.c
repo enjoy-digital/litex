@@ -255,7 +255,9 @@ void sdrwloff(void)
 }
 
 static void write_delay_rst(int module) {
+#ifdef USDDRPHY
 	int i;
+#endif
 
 	/* sel module */
 	ddrphy_dly_sel_write(1 << module);
