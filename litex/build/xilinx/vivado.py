@@ -106,6 +106,7 @@ class XilinxVivadoToolchain:
         self.additional_commands = []
         self.pre_synthesis_commands = []
         self.with_phys_opt = False
+        self.incremental_implementation = False
         self.clocks = dict()
         self.false_paths = set()
 
@@ -154,6 +155,8 @@ class XilinxVivadoToolchain:
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_synth.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_synth.rpt".format(build_name))
         tcl.append("opt_design")
+        if self.incremental_implementation:
+            tcl.append("read_checkpoint -incremental {}_route.dcp".format(build_name))
         tcl.append("place_design")
         if self.with_phys_opt:
             tcl.append("phys_opt_design -directive AddRetime")
