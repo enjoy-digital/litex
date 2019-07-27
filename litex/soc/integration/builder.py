@@ -103,20 +103,22 @@ class Builder:
         write_to_file(
             os.path.join(generated_dir, "variables.mak"),
             "".join(variables_contents))
-
         write_to_file(
             os.path.join(generated_dir, "output_format.ld"),
             cpu_interface.get_linker_output_format(self.soc.cpu))
         write_to_file(
             os.path.join(generated_dir, "regions.ld"),
             cpu_interface.get_linker_regions(memory_regions))
-
         write_to_file(
             os.path.join(generated_dir, "mem.h"),
             cpu_interface.get_mem_header(memory_regions, flash_boot_address, shadow_base))
         write_to_file(
             os.path.join(generated_dir, "csr.h"),
             cpu_interface.get_csr_header(csr_regions, constants))
+        write_to_file(
+            os.path.join(generated_dir, "git.h"),
+            cpu_interface.get_git_header()
+        )
 
         if isinstance(self.soc, soc_sdram.SoCSDRAM):
             if hasattr(self.soc, "sdram"):

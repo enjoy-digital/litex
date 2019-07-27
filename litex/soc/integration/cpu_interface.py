@@ -217,3 +217,12 @@ def get_csr_csv(csr_regions=None, constants=None, memory_regions=None):
             r += "memory_region,{},0x{:08x},{:d},\n".format(name.lower(), origin, length)
 
     return r
+
+def get_git_header():
+    from litex.build.tools import get_migen_git_revision, get_litex_git_revision
+    r = generated_banner("//")
+    r += "#ifndef __GENERATED_GIT_H\n#define __GENERATED_GIT_H\n\n"
+    r += "#define MIGEN_GIT_SHA1 \"{}\"\n".format(get_migen_git_revision())
+    r += "#define LITEX_GIT_SHA1 \"{}\"\n".format(get_litex_git_revision())
+    r += "#endif\n"
+    return r

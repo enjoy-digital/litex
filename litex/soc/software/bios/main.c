@@ -26,6 +26,7 @@
 
 #include <generated/csr.h>
 #include <generated/mem.h>
+#include <generated/git.h>
 
 #ifdef CSR_ETHMAC_BASE
 #include <net/microudp.h>
@@ -465,7 +466,9 @@ int main(int i, char **c)
 	printf(" BIOS built on "__DATE__" "__TIME__"\n");
 	crcbios();
 	printf("\n");
-
+	printf(" Migen git sha1: "MIGEN_GIT_SHA1"\n");
+	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
+	printf("\n");
 	printf("--============ \e[1mSoC info\e[0m ================--\n");
 	printf("\e[1mCPU\e[0m:       ");
 #ifdef __lm32__
