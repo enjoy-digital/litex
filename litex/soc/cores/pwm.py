@@ -48,9 +48,9 @@ class PWM(Module, AutoCSR):
             self.add_csr()
 
     def add_csr(self):
-        self._enable = CSRStorage(reset=1)
-        self._width  = CSRStorage(32, reset=2**19)
-        self._period = CSRStorage(32, reset=2**20)
+        self._enable = CSRStorage()
+        self._width  = CSRStorage(32)
+        self._period = CSRStorage(32)
 
         self.comb += [
             self.enable.eq(self._enable.storage),
