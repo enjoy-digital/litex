@@ -114,6 +114,7 @@ class XilinxVivadoToolchain:
         assert synth_mode in ["vivado", "yosys"]
         tcl = []
         tcl.append("create_project -force -name {} -part {}".format(build_name, platform.device))
+        tcl.append("set_msg_config -id {Common 17-55} -new_severity {Warning}")
         if enable_xpm:
             tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
         if synth_mode == "vivado":
