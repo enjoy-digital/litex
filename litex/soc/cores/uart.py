@@ -13,6 +13,7 @@ from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.wishbonebridge import WishboneStreamingBridge
 
+# RS232 PHY ----------------------------------------------------------------------------------------
 
 class RS232PHYInterface:
     def __init__(self):
@@ -157,6 +158,7 @@ class RS232PHYModel(Module):
             pads.sink_ready.eq(self.source.ready)
         ]
 
+# UART ---------------------------------------------------------------------------------------------
 
 def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     if sink_cd != source_cd:
@@ -165,6 +167,18 @@ def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     else:
         return stream.SyncFIFO([("data", 8)], depth, buffered=True)
 
+def UARTPHY(pads, clk_freq, baudrate):
+    # FT245 async FIFO mode (baudrate ignored)
+    if hasattr(pads, "rd_n") and hasattr(pads, "wr_n"):
+        from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
+        return FT245PHYAsynchronous(pads, clk_freq)
+    # FT245 sync FIFO mode (baudrate ignored)
+    if hasattr(pads, "rd_n") and hasattr(pads, "wr_n") and hasattr(pads, "oe_n"):
+        from litex.soc.cores.usb_fifo import FT245PHYSynchronous
+        return FT245PHYSynchronous(pads, clk_freq)
+    # RS232
+    else:
+        return  RS232PHY(pads, clk_freq, baudrate)
 
 class UART(Module, AutoCSR):
     def __init__(self, phy,
