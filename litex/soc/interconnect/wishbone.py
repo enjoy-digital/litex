@@ -653,7 +653,8 @@ class SRAM(Module):
         ###
 
         # memory
-        port = self.mem.get_port(write_capable=not read_only, we_granularity=8)
+        port = self.mem.get_port(write_capable=not read_only, we_granularity=8,
+            mode=READ_FIRST if read_only else WRITE_FIRST)
         self.specials += self.mem, port
         # generate write enable signal
         if not read_only:
