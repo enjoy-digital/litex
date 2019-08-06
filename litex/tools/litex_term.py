@@ -268,6 +268,7 @@ class LiteXTerm:
 
         except serial.SerialException:
             self.reader_alive = False
+            self.console.unconfigure()
             raise
 
     def start_reader(self):
@@ -292,6 +293,7 @@ class LiteXTerm:
                     self.port.write(b)
         except:
             self.writer_alive = False
+            self.console.unconfigure()
             raise
 
     def start_writer(self):
@@ -334,8 +336,8 @@ def _get_args():
 def main():
     args = _get_args()
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images)
-    term.console.configure()
     term.open(args.port, int(float(args.speed)))
+    term.console.configure()
     term.start()
     term.join(True)
 
