@@ -143,9 +143,13 @@ class S6PLL(XilinxClocking):
         pll_fb = Signal()
         self.params.update(
             p_SIM_DEVICE="SPARTAN6",
+            p_BANDWIDTH="OPTIMIZED",
+            p_COMPENSATION="INTERNAL",
+            p_REF_JITTER=.01, p_CLK_FEEDBACK="CLKFBOUT",
             p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
-            p_CLKIN2_PERIOD=period_ns(self.clkin_freq),
+            p_CLKIN2_PERIOD=0.,
             p_CLKFBOUT_MULT=config["clkfbout_mult"],
+            p_CLKFBOUT_PHASE=0.,
             p_DIVCLK_DIVIDE=config["divclk_divide"],
             i_CLKINSEL=1,
             i_RST=self.reset,
@@ -156,7 +160,8 @@ class S6PLL(XilinxClocking):
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
-            self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
+            self.params["p_CLKOUT{}_PHASE".format(n)] = float(config["clkout{}_phase".format(n)])
+            self.params["p_CLKOUT{}_DUTY_CYCLE".format(n)] = 0.5
             self.params["o_CLKOUT{}".format(n)] = clk
         self.specials += Instance("PLL_ADV", **self.params)
 
