@@ -35,7 +35,7 @@ _io = [
 
 class Platform(LatticePlatform):
     default_clk_name = "clk12"
-    default_clk_period = 83
+    default_clk_period = 1e9/12e6
 
     def __init__(self):
         LatticePlatform.__init__(self, "LCMXO3L-6900C-5BG256C", _io)

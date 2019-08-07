@@ -88,7 +88,7 @@ _io = [
 
 class Platform(MicrosemiPlatform):
     default_clk_name = "clk50"
-    default_clk_period = 20.0
+    default_clk_period = 1e9/50e6
 
     def __init__(self):
         MicrosemiPlatform.__init__(self, "MPF300TS_ES-FCG484-1", _io)

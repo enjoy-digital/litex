@@ -79,7 +79,7 @@ _io = [
 
 class Platform(LatticePlatform):
     default_clk_name = "clk100"
-    default_clk_period = 10
+    default_clk_period = 1e9/100e6
 
     def __init__(self):
         LatticePlatform.__init__(self, "LFE3-35EA-6FN484C", _io)

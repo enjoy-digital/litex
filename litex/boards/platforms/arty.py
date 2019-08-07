@@ -237,7 +237,7 @@ _connectors = [
 
 class Platform(XilinxPlatform):
     default_clk_name = "clk100"
-    default_clk_period = 10.0
+    default_clk_period = 1e9/100e6
 
     def __init__(self, variant="a7-35"):
         device = {
