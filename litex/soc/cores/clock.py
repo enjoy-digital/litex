@@ -146,7 +146,7 @@ class S6PLL(XilinxClocking):
             p_BANDWIDTH="OPTIMIZED",
             p_COMPENSATION="INTERNAL",
             p_REF_JITTER=.01, p_CLK_FEEDBACK="CLKFBOUT",
-            p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
+            p_CLKIN1_PERIOD=1e9/self.clkin_freq,
             p_CLKIN2_PERIOD=0.,
             p_CLKFBOUT_MULT=config["clkfbout_mult"],
             p_CLKFBOUT_PHASE=0.,
@@ -195,7 +195,7 @@ class S6DCM(XilinxClocking):
             p_CLKFX_MULTIPLY=config["clkfbout_mult"],
             p_CLKFX_DIVIDE=config["clkout0_divide"] * config["divclk_divide"],
             p_SPREAD_SPECTRUM="NONE",
-            p_CLKIN_PERIOD=period_ns(self.clkin_freq),
+            p_CLKIN_PERIOD=1e9/self.clkin_freq,
             i_CLKIN=self.clkin,
             i_RST=self.reset,
             i_FREEZEDCM=0,
@@ -227,7 +227,7 @@ class S7PLL(XilinxClocking):
             p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked,
 
             # VCO
-            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
+            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
             p_CLKFBOUT_MULT=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
             i_CLKIN1=self.clkin, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
         )
@@ -264,7 +264,7 @@ class S7MMCM(XilinxClocking):
             p_BANDWIDTH="OPTIMIZED", o_LOCKED=self.locked,
 
             # VCO
-            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
+            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
             p_CLKFBOUT_MULT_F=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
             i_CLKIN1=self.clkin, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
         )
@@ -321,7 +321,7 @@ class USPLL(XilinxClocking):
             p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked,
 
             # VCO
-            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
+            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
             p_CLKFBOUT_MULT=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
             i_CLKIN1=self.clkin, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
         )
@@ -357,7 +357,7 @@ class USMMCM(XilinxClocking):
             p_BANDWIDTH="OPTIMIZED", o_LOCKED=self.locked,
 
             # VCO
-            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=period_ns(self.clkin_freq),
+            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
             p_CLKFBOUT_MULT_F=config["clkfbout_mult"], p_DIVCLK_DIVIDE=config["divclk_divide"],
             i_CLKIN1=self.clkin, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
         )
