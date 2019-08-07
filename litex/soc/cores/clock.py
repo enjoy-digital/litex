@@ -64,7 +64,7 @@ class XilinxClocking(Module, AutoCSR):
         config = {}
         for divclk_divide in range(*self.divclk_divide_range):
             config["divclk_divide"] = divclk_divide
-            for clkfbout_mult in range(*self.clkfbout_mult_frange):
+            for clkfbout_mult in reversed(range(*self.clkfbout_mult_frange)):
                 all_valid = True
                 vco_freq = self.clkin_freq*clkfbout_mult/divclk_divide
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
