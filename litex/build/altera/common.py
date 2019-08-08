@@ -12,11 +12,14 @@ from migen.fhdl.structure import *
 
 class AlteraDifferentialInputImpl(Module):
     def __init__(self, i_p, i_n, o):
-        self.specials += Instance("ALT_INBUF_DIFF",
-                                  name="ibuf_diff",
-                                  i_i=i_p,
-                                  i_ibar=i_n,
-                                  o_o=o)
+        self.specials += [
+            Instance("ALT_INBUF_DIFF",
+                name="ibuf_diff",
+                i_i=i_p,
+                i_ibar=i_n,
+                o_o=o
+            )
+        ]
 
 
 class AlteraDifferentialInput:
@@ -27,17 +30,21 @@ class AlteraDifferentialInput:
 
 class AlteraDifferentialOutputImpl(Module):
     def __init__(self, i, o_p, o_n):
-        self.specials += Instance("ALT_OUTBUF_DIFF",
-                                  name="obuf_diff",
-                                  i_i=i,
-                                  o_o=o_p,
-                                  o_obar=o_n)
+        self.specials += [
+            Instance("ALT_OUTBUF_DIFF",
+                name="obuf_diff",
+                i_i=i,
+                o_o=o_p,
+                o_obar=o_n
+            )
+        ]
 
 
 class AlteraDifferentialOutput:
     @staticmethod
     def lower(dr):
         return AlteraDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
+
 
 class AlteraAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
@@ -46,13 +53,18 @@ class AlteraAsyncResetSynchronizerImpl(Module):
             self.comb += async_reset.eq(i)
         rst_meta = Signal()
         self.specials += [
-            Instance("DFF", i_d=0, i_clk=cd.clk, i_clrn=1,
-                     i_prn=async_reset, o_q=rst_meta,
-                     attr={"async_reg", "ars_ff1"}),
-            Instance("DFF", i_d=rst_meta, i_clk=cd.clk, i_clrn=1,
-                     i_prn=async_reset,  o_q=cd.rst,
-                     attr={"async_reg", "ars_ff2"})
+            Instance("DFF",
+                i_d=0, i_clk=cd.clk, i_clrn=1,
+                i_prn=async_reset, o_q=rst_meta,
+                attr={"async_reg", "ars_ff1"}
+            ),
+            Instance("DFF",
+                i_d=rst_meta, i_clk=cd.clk, i_clrn=1,
+                i_prn=async_reset,  o_q=cd.rst,
+                attr={"async_reg", "ars_ff2"}
+            )
         ]
+
 
 class AlteraAsyncResetSynchronizer:
     @staticmethod
