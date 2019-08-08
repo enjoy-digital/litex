@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
 # License: BSD
 
@@ -48,20 +48,17 @@ class AlteraDifferentialOutput:
 
 class AlteraAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
-        if not hasattr(async_reset, "attr"):
-            i, async_reset = async_reset, Signal()
-            self.comb += async_reset.eq(i)
         rst_meta = Signal()
         self.specials += [
             Instance("DFF",
-                i_d=0, i_clk=cd.clk, i_clrn=1,
-                i_prn=async_reset, o_q=rst_meta,
-                attr={"async_reg", "ars_ff1"}
+                i_d=0, i_clk=cd.clk,
+                i_clrn=1, i_prn=~async_reset,
+                o_q=rst_meta
             ),
             Instance("DFF",
-                i_d=rst_meta, i_clk=cd.clk, i_clrn=1,
-                i_prn=async_reset,  o_q=cd.rst,
-                attr={"async_reg", "ars_ff2"}
+                i_d=rst_meta, i_clk=cd.clk,
+                i_clrn=1, i_prn=~async_reset,
+                o_q=cd.rst
             )
         ]
 
