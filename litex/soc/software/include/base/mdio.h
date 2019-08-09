@@ -7,6 +7,12 @@
 
 #define MDIO_DI	0x01
 
+#define MDIO_PREAMBLE    0xffffffff
+#define MDIO_START       0x1
+#define MDIO_READ        0x2
+#define MDIO_WRITE       0x1
+#define MDIO_TURN_AROUND 0x2
+
 void mdio_write(int phyadr, int reg, int val);
 int mdio_read(int phyadr, int reg);
 

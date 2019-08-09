@@ -7,7 +7,8 @@
 
 static void delay(void)
 {
-/* no delay FIXME */
+	volatile int i;
+	for(i=0;i<100;i++);
 }
 
 static void raw_write(unsigned int word, int bitcount)
@@ -54,20 +55,17 @@ static void raw_turnaround(void)
 	delay();
 	ethphy_mdio_w_write(0);
 	delay();
-	ethphy_mdio_w_write(MDIO_CLK);
-	delay();
-	ethphy_mdio_w_write(0);
-	delay();
 }
 
 void mdio_write(int phyadr, int reg, int val)
 {
 	ethphy_mdio_w_write(MDIO_OE);
-	raw_write(0xffffffff, 32); /* < sync */
-	raw_write(0x05, 4); /* < start + write */
+	raw_write(MDIO_PREAMBLE, 32);
+	raw_write(MDIO_START, 2);
+	raw_write(MDIO_WRITE, 2);
 	raw_write(phyadr, 5);
 	raw_write(reg, 5);
-	raw_write(0x02, 2); /* < turnaround */
+	raw_write(MDIO_TURN_AROUND, 2);
 	raw_write(val, 16);
 	raw_turnaround();
 }
@@ -77,8 +75,9 @@ int mdio_read(int phyadr, int reg)
 	int r;
 
 	ethphy_mdio_w_write(MDIO_OE);
-	raw_write(0xffffffff, 32); /* < sync */
-	raw_write(0x06, 4); /* < start + read */
+	raw_write(MDIO_PREAMBLE, 32);
+	raw_write(MDIO_START, 2);
+	raw_write(MDIO_READ, 2);
 	raw_write(phyadr, 5);
 	raw_write(reg, 5);
 	raw_turnaround();
