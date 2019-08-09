@@ -84,7 +84,7 @@ class VexRiscv(Module, AutoCSR):
 
     @property
     def gcc_triple(self):
-        return ("riscv64-unknown-elf", "riscv32-unknown-elf")
+        return ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
 
     @property
     def gcc_flags(self):
