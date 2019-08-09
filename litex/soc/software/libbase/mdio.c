@@ -16,15 +16,17 @@ static void raw_write(unsigned int word, int bitcount)
 	word <<= 32 - bitcount;
 	while(bitcount > 0) {
 		if(word & 0x80000000) {
+			ethphy_mdio_w_write(MDIO_DO|MDIO_OE);
+			delay();
 			ethphy_mdio_w_write(MDIO_CLK|MDIO_DO|MDIO_OE);
 			delay();
 			ethphy_mdio_w_write(MDIO_DO|MDIO_OE);
-			delay();
 		} else {
+			ethphy_mdio_w_write(MDIO_OE);
+			delay();
 			ethphy_mdio_w_write(MDIO_CLK|MDIO_OE);
 			delay();
 			ethphy_mdio_w_write(MDIO_OE);
-			delay();
 		}
 		word <<= 1;
 		bitcount--;
@@ -39,22 +41,26 @@ static unsigned int raw_read(void)
 	word = 0;
 	for(i=0;i<16;i++) {
 		word <<= 1;
+		if(ethphy_mdio_r_read() & MDIO_DI)
+			word |= 1;
 		ethphy_mdio_w_write(MDIO_CLK);
 		delay();
 		ethphy_mdio_w_write(0);
 		delay();
-		if(ethphy_mdio_r_read() & MDIO_DI)
-			word |= 1;
 	}
 	return word;
 }
 
 static void raw_turnaround(void)
 {
+	delay();
 	ethphy_mdio_w_write(MDIO_CLK);
 	delay();
 	ethphy_mdio_w_write(0);
 	delay();
+	ethphy_mdio_w_write(MDIO_CLK);
+	delay();
+	ethphy_mdio_w_write(0);
 }
 
 void mdio_write(int phyadr, int reg, int val)
