@@ -2,7 +2,7 @@ include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 OBJECTS=exception.o libc.o errno.o crc16.o crc32.o console.o \
-	system.o id.o uart.o time.o qsort.o strtod.o spiflash.o strcasecmp.o
+	system.o id.o uart.o time.o qsort.o strtod.o spiflash.o strcasecmp.o mdio.o
 
 all: crt0-$(CPU)-ctr.o crt0-$(CPU)-xip.o libbase.a libbase-nofloat.a
 

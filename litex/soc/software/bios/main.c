@@ -1,12 +1,11 @@
 // This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+// This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
 // This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 // This file is Copyright (c) 2019 Ambroz Bizjak <ambrop7@gmail.com>
 // This file is Copyright (c) 2019 Caleb Jamison <cbjamo@gmail.com>
 // This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
 // This file is Copyright (c) 2018 Felix Held <felix-github@felixheld.de>
-// This file is Copyright (c) 2014 Florent Kermarec <florent@enjoy-digital.fr>
-// This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 // This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
 // This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
 // This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
@@ -34,6 +33,10 @@
 
 #ifdef CSR_SPIFLASH_BASE
 #include <spiflash.h>
+#endif
+
+#ifdef CSR_ETHPHY_MDIO_W_ADDR
+#include <mdio.h>
 #endif
 
 #include "sdram.h"
@@ -141,6 +144,40 @@ static void mw(char *addr, char *value, char *count)
 	for (i=0;i<count2;i++) *addr2++ = value2;
 }
 
+static void mc(char *dstaddr, char *srcaddr, char *count)
+{
+	char *c;
+	unsigned int *dstaddr2;
+	unsigned int *srcaddr2;
+	unsigned int count2;
+	unsigned int i;
+
+	if((*dstaddr == 0) || (*srcaddr == 0)) {
+		printf("mc <dst> <src> [count]\n");
+		return;
+	}
+	dstaddr2 = (unsigned int *)strtoul(dstaddr, &c, 0);
+	if(*c != 0) {
+		printf("incorrect destination address\n");
+		return;
+	}
+	srcaddr2 = (unsigned int *)strtoul(srcaddr, &c, 0);
+	if(*c != 0) {
+		printf("incorrect source address\n");
+		return;
+	}
+	if(*count == 0) {
+		count2 = 1;
+	} else {
+		count2 = strtoul(count, &c, 0);
+		if(*c != 0) {
+			printf("incorrect count\n");
+			return;
+		}
+	}
+	for (i=0;i<count2;i++) *dstaddr2++ = *srcaddr2++;
+}
+
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 static void fw(char *addr, char *value, char *count)
 {
@@ -177,39 +214,90 @@ static void fw(char *addr, char *value, char *count)
 }
 #endif
 
-static void mc(char *dstaddr, char *srcaddr, char *count)
+#ifdef CSR_ETHPHY_MDIO_W_ADDR
+static void mdiow(char *phyadr, char *reg, char *val)
 {
 	char *c;
-	unsigned int *dstaddr2;
-	unsigned int *srcaddr2;
-	unsigned int count2;
-	unsigned int i;
+	unsigned int phyadr2;
+	unsigned int reg2;
+	unsigned int val2;
 
-	if((*dstaddr == 0) || (*srcaddr == 0)) {
-		printf("mc <dst> <src> [count]\n");
+	if((*phyadr == 0) || (*reg == 0) || (*val == 0)) {
+		printf("mdiow <phyadr> <reg> <value>\n");
 		return;
 	}
-	dstaddr2 = (unsigned int *)strtoul(dstaddr, &c, 0);
+	phyadr2 = strtoul(phyadr, &c, 0);
 	if(*c != 0) {
-		printf("incorrect destination address\n");
+		printf("incorrect phyadr\n");
 		return;
 	}
-	srcaddr2 = (unsigned int *)strtoul(srcaddr, &c, 0);
+	reg2 = strtoul(reg, &c, 0);
 	if(*c != 0) {
-		printf("incorrect source address\n");
+		printf("incorrect reg\n");
 		return;
 	}
-	if(*count == 0) {
-		count2 = 1;
-	} else {
-		count2 = strtoul(count, &c, 0);
-		if(*c != 0) {
-			printf("incorrect count\n");
-			return;
-		}
+	val2 = strtoul(val, &c, 0);
+	if(*c != 0) {
+		printf("incorrect val\n");
+		return;
 	}
-	for (i=0;i<count2;i++) *dstaddr2++ = *srcaddr2++;
+	mdio_write(phyadr2, reg2, val2);
 }
+
+static void mdior(char *phyadr, char *reg)
+{
+	char *c;
+	unsigned int phyadr2;
+	unsigned int reg2;
+	unsigned int val;
+
+	if((*phyadr == 0) || (*reg == 0)) {
+		printf("mdior <phyadr> <reg>\n");
+		return;
+	}
+	phyadr2 = strtoul(phyadr, &c, 0);
+	if(*c != 0) {
+		printf("incorrect phyadr\n");
+		return;
+	}
+	reg2 = strtoul(reg, &c, 0);
+	if(*c != 0) {
+		printf("incorrect reg\n");
+		return;
+	}
+	val = mdio_read(phyadr2, reg2);
+	printf("reg %d: 0x%04x\n", reg2, val);
+}
+
+static void mdiod(char *phyadr, char *count)
+{
+	char *c;
+	unsigned int phyadr2;
+	unsigned int count2;
+	unsigned int val;
+	int i;
+
+	if((*phyadr == 0) || (*count == 0)) {
+		printf("mdiod <phyadr> <count>\n");
+		return;
+	}
+	phyadr2 = strtoul(phyadr, &c, 0);
+	if(*c != 0) {
+		printf("incorrect phyadr\n");
+		return;
+	}
+	count2 = strtoul(count, &c, 0);
+	if(*c != 0) {
+		printf("incorrect count\n");
+		return;
+	}
+	printf("MDIO dump @0x%x:\n", phyadr2);
+	for (i=0; i<count2; i++) {
+		val = mdio_read(phyadr2, i);
+		printf("reg %d: 0x%04x\n", i, val);
+	}
+}
+#endif
 
 static void crc(char *startaddr, char *len)
 {
@@ -253,6 +341,11 @@ static void help(void)
 	puts("mc         - copy address space");
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 	puts("fw         - write to flash");
+#endif
+#ifdef CSR_ETHPHY_MDIO_W_ADDR
+	puts("mdiow      - write MDIO register");
+	puts("mdior      - read MDIO register");
+	puts("mdiod      - dump MDIO registers");
 #endif
 	puts("");
 	puts("crc        - compute CRC32 of a part of the address space");
@@ -311,6 +404,11 @@ static void do_command(char *c)
 	else if(strcmp(token, "mc") == 0) mc(get_token(&c), get_token(&c), get_token(&c));
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 	else if(strcmp(token, "fw") == 0) fw(get_token(&c), get_token(&c), get_token(&c));
+#endif
+#ifdef CSR_ETHPHY_MDIO_W_ADDR
+	else if(strcmp(token, "mdiow") == 0) mdiow(get_token(&c), get_token(&c), get_token(&c));
+	else if(strcmp(token, "mdior") == 0) mdior(get_token(&c), get_token(&c));
+	else if(strcmp(token, "mdiod") == 0) mdiod(get_token(&c), get_token(&c));
 #endif
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
 	else if(strcmp(token, "ident") == 0) ident();
