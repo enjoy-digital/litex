@@ -214,9 +214,9 @@ class S7PLL(XilinxClocking):
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 56+1)
         self.vco_freq_range = {
-            -1: (800e6, 2133e6),
+            -1: (800e6, 1600e6),
             -2: (800e6, 1866e6),
-            -3: (800e6, 1600e6),
+            -3: (800e6, 2133e6),
         }[speedgrade]
 
     def do_finalize(self):
