@@ -501,7 +501,7 @@ class SoCCore(Module):
         if self.cpu_type is not None:
             for mem in "rom", "sram":
                 if mem not in registered_mems:
-                    raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
+                    raise FinalizeError("CPU needs \"{}\" to be registered with SoC.register_mem()".format(mem))
 
         # Add the Wishbone Masters/Slaves interconnect
         if len(self._wb_masters):
