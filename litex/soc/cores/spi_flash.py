@@ -337,9 +337,9 @@ class S7SPIFlash(Module, AutoCSR):
             pads.vpp.reset = 1
         if hasattr(pads, "hold"):
             pads.hold.reset = 1
-
+        if hasattr(pads, "cs_n"):
+            self.comb += pads.cs_n.eq(spi.pads.cs_n)
         self.comb += [
-            pads.cs_n.eq(spi.pads.cs_n),
             pads.mosi.eq(spi.pads.mosi),
             spi.pads.miso.eq(pads.miso)
         ]
