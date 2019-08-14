@@ -891,15 +891,16 @@ int sdrinit(void)
 #endif
 #endif
 	sdrhw();
-#ifdef CSR_DDRCTRL_BASE
-	ddrctrl_init_done_write(1);
-#endif
 	if(!memtest()) {
 #ifdef CSR_DDRCTRL_BASE
+		ddrctrl_init_done_write(1);
 		ddrctrl_init_error_write(1);
 #endif
 		return 0;
 	}
+#ifdef CSR_DDRCTRL_BASE
+	ddrctrl_init_done_write(1);
+#endif
 
 	return 1;
 }
