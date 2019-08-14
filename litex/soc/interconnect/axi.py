@@ -113,7 +113,7 @@ class AXIBurst2Beat(Module):
 
         # compute parameters
         self.comb += beat_size.eq(1 << ax_burst.size)
-        self.comb += beat_wrap.eq(ax_burst.len*beat_size)
+        self.comb += beat_wrap.eq(ax_burst.len << ax_burst.size)
 
         # combinatorial logic
         self.comb += [
