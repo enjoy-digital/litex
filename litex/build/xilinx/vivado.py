@@ -105,7 +105,6 @@ class XilinxVivadoToolchain:
         self.bitstream_commands = []
         self.additional_commands = []
         self.pre_synthesis_commands = []
-        self.with_phys_opt = False  # deprecated -> vivado_post_place_phys_opt_directive
         self.incremental_implementation = False
         self.vivado_synth_directive = 'default'
         self.opt_directive = 'default'
@@ -166,9 +165,6 @@ class XilinxVivadoToolchain:
         if self.incremental_implementation:
             tcl.append("read_checkpoint -incremental {}_route.dcp".format(build_name))
         tcl.append("place_design -directive {}".format(self.vivado_place_directive))
-        if self.with_phys_opt:
-            tools.deprecated_warning('with_phys_opt -> vivado_post_place_phys_opt_directive')
-            self.vivado_post_place_phys_opt_directive = 'AddRetime'
         if self.vivado_post_place_phys_opt_directive:
             tcl.append("phys_opt_design -directive {}".format(self.vivado_post_place_phys_opt_directive))
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_place.rpt".format(build_name))
