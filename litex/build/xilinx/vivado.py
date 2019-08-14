@@ -106,12 +106,12 @@ class XilinxVivadoToolchain:
         self.additional_commands = []
         self.pre_synthesis_commands = []
         self.incremental_implementation = False
-        self.vivado_synth_directive = 'default'
-        self.opt_directive = 'default'
-        self.vivado_place_directive = 'default'
+        self.vivado_synth_directive = "default"
+        self.opt_directive = "default"
+        self.vivado_place_directive = "default"
         self.vivado_post_place_phys_opt_directive = None
-        self.vivado_route_directive = 'default'
-        self.vivado_post_route_phys_opt_directive = 'default'
+        self.vivado_route_directive = "default"
+        self.vivado_post_route_phys_opt_directive = "default"
         self.clocks = dict()
         self.false_paths = set()
 
