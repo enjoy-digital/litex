@@ -105,8 +105,14 @@ class XilinxVivadoToolchain:
         self.bitstream_commands = []
         self.additional_commands = []
         self.pre_synthesis_commands = []
-        self.with_phys_opt = False
+        self.with_phys_opt = False  # deprecated -> vivado_post_place_phys_opt_directive
         self.incremental_implementation = False
+        self.vivado_synth_directive = 'default'
+        self.opt_directive = 'default'
+        self.vivado_place_directive = 'default'
+        self.vivado_post_place_phys_opt_directive = None
+        self.vivado_route_directive = 'default'
+        self.vivado_post_route_phys_opt_directive = 'default'
         self.clocks = dict()
         self.false_paths = set()
 
@@ -142,10 +148,11 @@ class XilinxVivadoToolchain:
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
 
         if synth_mode == "vivado":
+            synth_cmd = "synth_design -directive {} -top {} -part {}".format(self.vivado_synth_directive,
+                                                                             build_name, platform.device)
             if platform.verilog_include_paths:
-                tcl.append("synth_design -top {} -part {} -include_dirs {{{}}}".format(build_name, platform.device, " ".join(platform.verilog_include_paths)))
-            else:
-                tcl.append("synth_design -top {} -part {}".format(build_name, platform.device))
+                synth_cmd += " -include_dirs {{{}}}".format(" ".join(platform.verilog_include_paths))
+            tcl.append(synth_cmd)
         elif synth_mode == "yosys":
             tcl.append("read_edif {}.edif".format(build_name))
             tcl.append("link_design -top {} -part {}".format(build_name, platform.device))
@@ -155,19 +162,22 @@ class XilinxVivadoToolchain:
         tcl.append("report_timing_summary -file {}_timing_synth.rpt".format(build_name))
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_synth.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_synth.rpt".format(build_name))
-        tcl.append("opt_design")
+        tcl.append("opt_design -directive {}".format(self.opt_directive))
         if self.incremental_implementation:
             tcl.append("read_checkpoint -incremental {}_route.dcp".format(build_name))
-        tcl.append("place_design")
+        tcl.append("place_design -directive {}".format(self.vivado_place_directive))
         if self.with_phys_opt:
-            tcl.append("phys_opt_design -directive AddRetime")
+            tools.deprecated_warning('with_phys_opt -> vivado_post_place_phys_opt_directive')
+            self.vivado_post_place_phys_opt_directive = 'AddRetime'
+        if self.vivado_post_place_phys_opt_directive:
+            tcl.append("phys_opt_design -directive {}".format(self.vivado_post_place_phys_opt_directive))
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_place.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_place.rpt".format(build_name))
         tcl.append("report_io -file {}_io.rpt".format(build_name))
         tcl.append("report_control_sets -verbose -file {}_control_sets.rpt".format(build_name))
         tcl.append("report_clock_utilization -file {}_clock_utilization.rpt".format(build_name))
-        tcl.append("route_design")
-        tcl.append("phys_opt_design")
+        tcl.append("route_design -directive {}".format(self.vivado_route_directive))
+        tcl.append("phys_opt_design -directive {}".format(self.vivado_post_route_phys_opt_directive))
         tcl.append("report_timing_summary -no_header -no_detailed_paths")
         tcl.append("write_checkpoint -force {}_route.dcp".format(build_name))
         tcl.append("report_route_status -file {}_route_status.rpt".format(build_name))
