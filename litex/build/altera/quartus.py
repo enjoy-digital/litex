@@ -89,11 +89,13 @@ def _build_sdc(clocks, false_paths, vns, build_name):
     tools.write_to_file("{}.sdc".format(build_name), "\n".join(lines))
 
 
-def _build_files(device, sources, vincpaths, named_sc, named_pc, build_name):
+def _build_files(device, ips, sources, vincpaths, named_sc, named_pc, build_name):
     lines = []
+    for filename in ips:
+           lines.append("set_global_assignment -name QSYS_FILE {path} ".format(
+                path=filename.replace("\\", "/")))
     for filename, language, library in sources:
-        # Enforce use of SystemVerilog
-        # (Quartus does not support global parameters in Verilog)
+        # Enforce use of SystemVerilog since Quartus does not support global parameters in Verilog
         if language == "verilog":
             language = "systemverilog"
         lines.append(
@@ -168,9 +170,10 @@ class AlteraQuartusToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
-        sources = platform.sources | {(v_file, "verilog", "work")}
+        platform.add_source(v_file)
         _build_files(platform.device,
-                     sources,
+                     platform.ips,
+                     platform.sources,
                      platform.verilog_include_paths,
                      named_sc,
                      named_pc,
