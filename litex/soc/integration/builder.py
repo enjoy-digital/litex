@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
 # This file is Copyright (c) 2018 Peter Gielda <pgielda@antmicro.com>
 # This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
@@ -41,7 +41,7 @@ class Builder:
     def __init__(self, soc, output_dir=None,
                  compile_software=True, compile_gateware=True,
                  gateware_toolchain_path=None,
-                 csr_csv=None):
+                 csr_json=None, csr_csv=None):
         self.soc = soc
         if output_dir is None:
             output_dir = "soc_{}_{}".format(
@@ -54,6 +54,7 @@ class Builder:
         self.compile_gateware = compile_gateware
         self.gateware_toolchain_path = gateware_toolchain_path
         self.csr_csv = csr_csv
+        self.csr_json = csr_json
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -128,7 +129,7 @@ class Builder:
                         self.soc.sdram.controller.settings.phy,
                         self.soc.sdram.controller.settings.timing))
 
-    def _generate_csr_csv(self):
+    def _generate_csr_map(self, csr_json=None, csr_csv=None):
         memory_regions = self.soc.get_memory_regions()
         csr_regions = self.soc.get_csr_regions()
         constants = self.soc.get_constants()
@@ -141,11 +142,15 @@ class Builder:
         if flash_boot_address:
             constants.append(('flash_boot_address',  flash_boot_address))
 
-        csr_dir = os.path.dirname(os.path.realpath(self.csr_csv))
-        os.makedirs(csr_dir, exist_ok=True)
-        write_to_file(
-            self.csr_csv,
-            cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
+        if csr_json is not None:
+            csr_dir = os.path.dirname(os.path.realpath(csr_json))
+            os.makedirs(csr_dir, exist_ok=True)
+            write_to_file(csr_json, cpu_interface.get_csr_json(csr_regions, constants, memory_regions))
+
+        if csr_csv is not None:
+            csr_dir = os.path.dirname(os.path.realpath(csr_csv))
+            os.makedirs(csr_dir, exist_ok=True)
+            write_to_file(csr_csv, cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
 
     def _prepare_software(self):
         for name, src_dir in self.software_packages:
@@ -180,8 +185,7 @@ class Builder:
                 if not self.soc.integrated_rom_initialized:
                     self._initialize_rom()
 
-        if self.csr_csv is not None:
-            self._generate_csr_csv()
+        self._generate_csr_map(self.csr_json, self.csr_csv)
 
         if self.gateware_toolchain_path is not None:
             toolchain_path = self.gateware_toolchain_path
@@ -208,6 +212,9 @@ def builder_args(parser):
                              "installation path")
     parser.add_argument("--csr-csv", default=None,
                         help="store CSR map in CSV format into the "
+                             "specified file")
+    parser.add_argument("--csr-json", default=None,
+                        help="store CSR map in JSON format into the "
                              "specified file")
 
 

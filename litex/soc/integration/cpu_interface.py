@@ -13,6 +13,7 @@
 # License: BSD
 
 import os
+import json
 from shutil import which
 
 from migen import *
@@ -192,30 +193,55 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
     r += "\n#endif\n"
     return r
 
-
-def get_csr_csv(csr_regions=None, constants=None, memory_regions=None):
+def get_csr_json(csr_regions=[], constants=[], memory_regions=[]):
     alignment = 32 if constants is None else get_constant("CONFIG_CSR_ALIGNMENT", constants)
+
+    d = {
+        "csr_bases":     {},
+        "csr_registers": {},
+        "constants":     {},
+        "memories":      {},
+    }
+
+    for name, origin, busword, obj in csr_regions:
+        d["csr_bases"][name] = origin
+        if not isinstance(obj, Memory):
+            for csr in obj:
+                size = (csr.size + busword - 1)//busword
+                d["csr_registers"][name + "_" + csr.name] = {
+                    "addr": origin,
+                    "size": size,
+                    "type": "ro" if isinstance(csr, CSRStatus) else "rw"
+                }
+                origin += alignment//8*size
+
+    for name, value in constants:
+        d["constants"][name.lower()] = value.lower() if isinstance(value, str) else value
+
+    for name, origin, length in memory_regions:
+        d["memories"][name.lower()] = {
+            "base": origin,
+            "size": length
+        }
+
+    return json.dumps(d, indent=4)
+
+def get_csr_csv(csr_regions=[], constants=[], memory_regions=[]):
+    d = json.loads(get_csr_json(csr_regions, constants, memory_regions))
     r = generated_banner("#")
-
-    if csr_regions is not None:
-        for name, origin, busword, obj in csr_regions:
-            r += "csr_base,{},0x{:08x},,\n".format(name, origin)
-
-        for name, origin, busword, obj in csr_regions:
-            if not isinstance(obj, Memory):
-                for csr in obj:
-                    nr = (csr.size + busword - 1)//busword
-                    r += "csr_register,{}_{},0x{:08x},{},{}\n".format(name, csr.name, origin, nr, "ro" if isinstance(csr, CSRStatus) else "rw")
-                    origin += alignment//8*nr
-
-    if constants is not None:
-        for name, value in constants:
-            r += "constant,{},{},,\n".format(name.lower(), value)
-
-    if memory_regions is not None:
-        for name, origin, length in memory_regions:
-            r += "memory_region,{},0x{:08x},{:d},\n".format(name.lower(), origin, length)
-
+    for name, value in d["csr_bases"].items():
+        r += "csr_base,{},0x{:08x},,\n".format(name, value)
+    for name in d["csr_registers"].keys():
+        r += "csr_register,{},0x{:08x},{},{}\n".format(name,
+            d["csr_registers"][name]["addr"],
+            d["csr_registers"][name]["size"],
+            d["csr_registers"][name]["type"])
+    for name, value in d["constants"].items():
+        r += "constant,{},{},,\n".format(name, value)
+    for name in d["memories"].keys():
+        r += "memory_region,{},0x{:08x},{:d},\n".format(name,
+            d["memories"][name]["base"],
+            d["memories"][name]["size"])
     return r
 
 def get_git_header():
