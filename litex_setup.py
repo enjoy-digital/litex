@@ -9,16 +9,16 @@ current_path = os.path.dirname(os.path.realpath(__file__))
 
 # name,  (url, recursive clone, develop)
 repos = [
-    ("migen",      ("http://github.com/m-labs/",        True,  True)),
-    ("litex",      ("http://github.com/enjoy-digital/", True,  True)),
-    ("liteeth",    ("http://github.com/enjoy-digital/", False, True)),
-    ("litedram",   ("http://github.com/enjoy-digital/", False, True)),
-    ("litepcie",   ("http://github.com/enjoy-digital/", False, True)),
-    ("litesata",   ("http://github.com/enjoy-digital/", False, True)),
-    ("litesdcard", ("http://github.com/enjoy-digital/", False, True)),
-    ("liteiclink", ("http://github.com/enjoy-digital/", False, True)),
-    ("litevideo",  ("http://github.com/enjoy-digital/", False, True)),
-    ("litescope",  ("http://github.com/enjoy-digital/", False, True)),
+    ("migen",      ("https://github.com/m-labs/",        True,  True)),
+    ("litex",      ("https://github.com/enjoy-digital/", True,  True)),
+    ("liteeth",    ("https://github.com/enjoy-digital/", False, True)),
+    ("litedram",   ("https://github.com/enjoy-digital/", False, True)),
+    ("litepcie",   ("https://github.com/enjoy-digital/", False, True)),
+    ("litesata",   ("https://github.com/enjoy-digital/", False, True)),
+    ("litesdcard", ("https://github.com/enjoy-digital/", False, True)),
+    ("liteiclink", ("https://github.com/enjoy-digital/", False, True)),
+    ("litevideo",  ("https://github.com/enjoy-digital/", False, True)),
+    ("litescope",  ("https://github.com/enjoy-digital/", False, True)),
 ]
 repos = OrderedDict(repos)
 
