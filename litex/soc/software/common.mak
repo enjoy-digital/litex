@@ -1,4 +1,8 @@
+ifeq ($(TRIPLE),--native--)
+TARGET_PREFIX=
+else
 TARGET_PREFIX=$(TRIPLE)-
+endif
 
 RM ?= rm -f
 PYTHON ?= python3
