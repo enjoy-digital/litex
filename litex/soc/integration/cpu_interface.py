@@ -15,6 +15,7 @@
 import os
 import json
 from shutil import which
+from sysconfig import get_platform
 
 from migen import *
 
@@ -58,8 +59,13 @@ def get_cpu_mak(cpu):
         r = None
         if not isinstance(triple, tuple):
             triple = (triple,)
+        p = get_platform()
         for i in range(len(triple)):
             t = triple[i]
+            # use native toolchain if host and target platforms are the same
+            if t == 'riscv64-unknown-elf' and p == 'linux-riscv64':
+                r = '--native--'
+                break
             if which(t+"-gcc"):
                 r = t
                 break
