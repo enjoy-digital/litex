@@ -201,16 +201,21 @@ def _printattr(attr, attr_translate):
         if isinstance(attr, tuple):
             # platform-dependent attribute
             attr_name, attr_value = attr
-        else:
+        elif attr in attr_translate:
             # translated attribute
             at = attr_translate[attr]
             if at is None:
                 continue
             attr_name, attr_value = at
+        else:
+            # attribute without value
+            attr_name, attr_value = (attr, None)
         if not firsta:
             r += ", "
         firsta = False
-        r += attr_name + " = \"" + attr_value + "\""
+        r += attr_name
+        if attr_value is not None:
+            r += " = \"" + attr_value + "\""
     if r:
         r = "(* " + r + " *)"
     return r
