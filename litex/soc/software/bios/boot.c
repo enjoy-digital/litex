@@ -122,7 +122,7 @@ int serialboot(void)
 		int actualcrc;
 		int goodcrc;
 
-		/* Grab one frame */
+		/* Get one Frame */
 		frame.length = uart_read();
 		frame.crc[0] = uart_read();
 		frame.crc[1] = uart_read();
@@ -130,26 +130,29 @@ int serialboot(void)
 		for(i=0;i<frame.length;i++)
 			frame.payload[i] = uart_read();
 
-		/* Check CRC */
-		actualcrc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
-		goodcrc = crc16(&frame.cmd, frame.length+1);
-		if(actualcrc != goodcrc) {
-			failed++;
-			if(failed == MAX_FAILED) {
-				printf("Too many consecutive errors, aborting");
-				return 1;
+		/* Check Frame CRC (if CMD has a CRC) */
+		if (frame.cmd != SFL_CMD_LOAD_NO_CRC) {
+			actualcrc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
+			goodcrc = crc16(&frame.cmd, frame.length+1);
+			if(actualcrc != goodcrc) {
+				failed++;
+				if(failed == MAX_FAILED) {
+					printf("Too many consecutive errors, aborting");
+					return 1;
+				}
+				uart_write(SFL_ACK_CRCERROR);
+				continue;
 			}
-			uart_write(SFL_ACK_CRCERROR);
-			continue;
 		}
 
-		/* CRC OK */
+		/* Execute Frame CMD */
 		switch(frame.cmd) {
 			case SFL_CMD_ABORT:
 				failed = 0;
 				uart_write(SFL_ACK_SUCCESS);
 				return 1;
-			case SFL_CMD_LOAD: {
+			case SFL_CMD_LOAD:
+			case SFL_CMD_LOAD_NO_CRC: {
 				char *writepointer;
 
 				failed = 0;
@@ -160,7 +163,8 @@ int serialboot(void)
 					|((unsigned long)frame.payload[3] <<  0));
 				for(i=4;i<frame.length;i++)
 					*(writepointer++) = frame.payload[i];
-				uart_write(SFL_ACK_SUCCESS);
+				if (frame.cmd == SFL_CMD_LOAD)
+					uart_write(SFL_ACK_SUCCESS);
 				break;
 			}
 			case SFL_CMD_JUMP: {
