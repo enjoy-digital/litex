@@ -52,6 +52,8 @@ sfl_prompt_ack = b"\x06"
 sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
+sfl_payload_length = 251
+
 # General commands
 sfl_cmd_abort = b"\x00"
 sfl_cmd_load  = b"\x01"
@@ -199,7 +201,7 @@ class LiteXTerm:
                                                     100*position//length))
             sys.stdout.flush()
             frame = SFLFrame()
-            frame_data = data[:251]
+            frame_data = data[:sfl_payload_length]
             frame.cmd = sfl_cmd_load
             frame.payload = current_address.to_bytes(4, "big")
             frame.payload += frame_data
@@ -208,7 +210,7 @@ class LiteXTerm:
             current_address += len(frame_data)
             position += len(frame_data)
             try:
-                data = data[251:]
+                data = data[sfl_payload_length:]
             except:
                 data = []
         end = time.time()
