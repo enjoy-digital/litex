@@ -152,6 +152,8 @@ class LiteXTerm:
         signal.signal(signal.SIGINT, self.sigint)
         self.sigint_time_last = 0
 
+        self.lf_insert = True
+
     def open(self, port, baudrate):
         if hasattr(self, "port"):
             return
@@ -259,9 +261,16 @@ class LiteXTerm:
 
     def reader(self):
         try:
+            c_last = 0
             while self.reader_alive:
                 c = self.port.read()
-                if c == b"\r":
+                if c_last == b"\r":
+                    if c == b"\n":
+                        self.lf_insert = False
+                    else:
+                        self.lf_insert = True
+                c_last = c
+                if self.lf_insert and c == b"\r":
                     sys.stdout.buffer.write(b"\n")
                 else:
                     sys.stdout.buffer.write(c)
