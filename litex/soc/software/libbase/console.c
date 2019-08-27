@@ -25,6 +25,8 @@ int putchar(int c)
 	uart_write(c);
 	if(write_hook != NULL)
 		write_hook(c);
+	if (c == '\n')
+		putchar('\r');
 	return c;
 }
 

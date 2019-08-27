@@ -72,7 +72,7 @@ void read_handler(int fd, short event, void *arg)
   struct session_s *s = (struct session_s*)arg;
   char buffer[1024];
   ssize_t read_len;
-  
+
   int i;
   read_len = read(fd, buffer, 1024);
   for(i = 0; i < read_len; i++) {
@@ -137,7 +137,7 @@ static int serial2console_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "source_valid", (void**)&s->tx_valid);
     litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
-  
+
   if(!strcmp(plist->name, "sys_clk"))
     litex_sim_module_pads_get(pads, "sys_clk", (void**) &s->sys_clk);
 
@@ -154,8 +154,6 @@ static int serial2console_tick(void *sess) {
 
   *s->tx_ready = 1;
   if(*s->tx_valid) {
-    if(*s->tx == '\n')
-      printf("\r");
     printf("%c", *s->tx);
     fflush(stdout);
   }
