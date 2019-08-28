@@ -198,11 +198,13 @@ def _printattr(attr, attr_translate):
     firsta = True
     for attr in sorted(attr,
                        key=lambda x: ("", x) if isinstance(x, str) else x):
+        # platform-dependent attribute
         if isinstance(attr, tuple):
-            # platform-dependent attribute
             attr_name, attr_value = attr
+        elif attr not in attr_translate.keys():
+            attr_name, attr_value = attr, None
+        # translated attribute
         else:
-            # translated attribute
             at = attr_translate[attr]
             if at is None:
                 continue
@@ -210,7 +212,9 @@ def _printattr(attr, attr_translate):
         if not firsta:
             r += ", "
         firsta = False
-        r += attr_name + " = \"" + attr_value + "\""
+        r += attr_name
+        if attr_value is not None:
+            r += " = \"" + attr_value + "\""
     if r:
         r = "(* " + r + " *)"
     return r
@@ -366,14 +370,9 @@ def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
     return r
 
 
-class DummyAttrTranslate:
-    def __getitem__(self, k):
-        return (k, "true")
-
-
 def convert(f, ios=None, name="top",
   special_overrides=dict(),
-  attr_translate=DummyAttrTranslate(),
+  attr_translate={},
   create_clock_domains=True,
   display_run=False,
   reg_initialization=True,

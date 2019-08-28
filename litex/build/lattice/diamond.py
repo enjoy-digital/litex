@@ -10,8 +10,6 @@ import shutil
 
 from migen.fhdl.structure import _Fragment
 
-from litex.gen.fhdl.verilog import DummyAttrTranslate
-
 from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.lattice import common
