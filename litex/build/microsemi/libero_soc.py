@@ -69,7 +69,7 @@ def _build_tcl(platform, sources, build_dir, build_name):
         "-standalone_peripheral_initialization 0",
         "-instantiate_in_smartdesign 1",
         "-ondemand_build_dh 0",
-        "-use_enhanced_constraint_flow 0",
+        "-use_enhanced_constraint_flow 1",
         "-hdl {VERILOG}",
         "-family {PolarFire}",
         "-die {}",
