@@ -315,7 +315,11 @@ class SoCCore(Module):
             if uart_stub:
                 self.submodules.uart  = uart.UARTStub()
             else:
-                self.submodules.uart_phy = uart.UARTPHY(platform.request(uart_name), clk_freq, uart_baudrate)
+                if uart_name == "jtag_atlantic":
+                    from litex.soc.cores.jtag import JTAGAtlantic
+                    self.submodules.uart_phy = JTAGAtlantic()
+                else:
+                    self.submodules.uart_phy = uart.UARTPHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
             self.add_csr("uart_phy", allow_user_defined=True)
             self.add_csr("uart", allow_user_defined=True)
