@@ -38,11 +38,11 @@ static const unsigned int crc16_table[256] = {
 unsigned short crc16(const unsigned char *buffer, int len)
 {
 	unsigned short crc;
-	
+
 	crc = 0;
 	while(len-- > 0)
 	    crc = crc16_table[((crc >> 8) ^ (*buffer++)) & 0xFF] ^ (crc << 8);
-	
+
 	return crc;
 }
 #else
