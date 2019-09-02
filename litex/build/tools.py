@@ -28,8 +28,13 @@ def write_to_file(filename, contents, force_unix=False):
     newline = None
     if force_unix:
         newline = "\n"
-    with open(filename, "w", newline=newline) as f:
-        f.write(contents)
+    old_contents = None
+    if os.path.exists(filename):
+        with open(filename, "r", newline=newline) as f:
+            old_contents = f.read()
+    if old_contents != contents:
+        with open(filename, "w", newline=newline) as f:
+            f.write(contents)
 
 
 def arch_bits():
