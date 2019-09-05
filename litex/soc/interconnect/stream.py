@@ -8,6 +8,9 @@ import math
 from migen import *
 from migen.genlib.record import *
 from migen.genlib import fifo
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
+
+from litex.soc.interconnect.csr import *
 
 (DIR_SINK, DIR_SOURCE) = range(2)
 
@@ -429,6 +432,74 @@ class Gearbox(Module):
             self.comb += source.data.eq(o_data)
         else:
             self.comb += source.data.eq(o_data[::-1])
+
+
+class Monitor(Module, AutoCSR):
+    def __init__(self, endpoint, count_width=32, clock_domain="sys",
+        with_tokens=False,
+        with_overflows=False,
+        with_underflows=False):
+
+        self.reset = CSR()
+        self.latch = CSR()
+        if with_tokens:
+            self.tokens = CSRStatus(count_width)
+        if with_overflows:
+            self.overflows = CSRStatus(count_width)
+        if with_underflows:
+            self.underflows = CSRStatus(count_width)
+
+        # # #
+
+        reset = Signal()
+        latch = Signal()
+        if clock_domain == "sys":
+            self.comb += reset.eq(self.reset.re)
+            self.comb += latch.eq(self.latch.re)
+        else:
+            reset_ps = PulseSynchronizer("sys", clock_domain)
+            latch_ps = PulseSynchronizer("sys", clock_domain)
+            self.submodules += reset_ps, latch_ps
+            self.comb += reset_ps.i.eq(self.reset.re)
+            self.comb += reset.eq(reset_ps.o)
+            self.comb += latch_ps.i.eq(self.latch.re)
+            self.comb += latch.eq(latch_ps.o)
+
+        # Generic Monitor Counter ------------------------------------------------------------------
+        class MonitorCounter(Module):
+            def __init__(self, reset, latch, enable, count):
+                _count = Signal.like(count)
+                _count_latched = Signal.like(count)
+                _sync = getattr(self.sync, clock_domain)
+                _sync += [
+                    If(reset,
+                        _count.eq(0),
+                        _count_latched.eq(0),
+                    ).Elif(enable,
+                        If(_count != (2**len(count)-1),
+                            _count.eq(_count + 1)
+                        )
+                    ),
+                    If(latch,
+                        _count_latched.eq(_count)
+                    )
+                ]
+                self.specials += MultiReg(_count_latched, count)
+
+        # Tokens Count -----------------------------------------------------------------------------
+        if with_tokens:
+            tokens_counter = MonitorCounter(reset, latch, endpoint.valid & endpoint.ready, self.tokens.status)
+            self.submodules += token_counter
+
+        # Overflows Count (only useful when endpoint is expected to always be ready) ---------------
+        if with_overflows:
+            overflow_counter = MonitorCounter(reset, latch, endpoint.valid & ~endpoint.ready, self.overflows.status)
+            self.submodules += overflow_counter
+
+        # Underflows Count (only useful when endpoint is expected to always be valid) --------------
+        if with_underflows:
+            underflow_counter = MonitorCounter(reset, latch, ~endpoint.valid & endpoint.ready, self.underflows.status)
+            self.submodules += underflow_counter
 
 # TODO: clean up code below
 # XXX
