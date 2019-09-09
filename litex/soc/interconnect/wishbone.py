@@ -291,6 +291,15 @@ class DownConverter(Module):
             )
 
 
+@ResetInserter()
+@CEInserter()
+class FlipFlop(Module):
+    def __init__(self, *args, **kwargs):
+        self.d = Signal(*args, **kwargs)
+        self.q = Signal(*args, **kwargs)
+        self.sync += self.q.eq(self.d)
+
+
 class UpConverter(Module):
     """UpConverter
 
