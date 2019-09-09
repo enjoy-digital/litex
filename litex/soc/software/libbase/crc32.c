@@ -68,7 +68,6 @@ static const unsigned int crc_table[256] = {
 
 unsigned int crc32(const unsigned char *buffer, unsigned int len)
 {
-	return 0;
 	unsigned int crc;
 	crc = 0;
 	crc = crc ^ 0xffffffffL;
