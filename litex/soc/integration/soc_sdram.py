@@ -20,7 +20,7 @@ __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 
 class ControllerInjector(Module, AutoCSR):
-    def __init__(self, phy, geom_settings, timing_settings, **kwargs):
+    def __init__(self, phy, geom_settings, timing_settings, clk_freq, **kwargs):
         self.submodules.dfii = dfii.DFIInjector(
             geom_settings.addressbits,
             geom_settings.bankbits,
@@ -30,7 +30,8 @@ class ControllerInjector(Module, AutoCSR):
         self.comb += self.dfii.master.connect(phy.dfi)
 
         self.submodules.controller = controller = core.LiteDRAMController(
-            phy.settings, geom_settings, timing_settings, **kwargs)
+            phy.settings, geom_settings, timing_settings,
+            clk_freq, **kwargs)
         self.comb += controller.dfi.connect(self.dfii.slave)
 
         self.submodules.crossbar = core.LiteDRAMCrossbar(controller.interface)
@@ -64,7 +65,7 @@ class SoCSDRAM(SoCCore):
         self._sdram_phy.append(phy)  # encapsulate in list to prevent CSR scanning
 
         self.submodules.sdram = ControllerInjector(
-            phy, geom_settings, timing_settings, **kwargs)
+            phy, geom_settings, timing_settings, self.clk_freq, **kwargs)
 
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +

@@ -16,7 +16,7 @@ import shutil
 from litex.build.tools import write_to_file
 from litex.soc.integration import cpu_interface, soc_core, soc_sdram
 
-from litedram import sdram_init
+from litedram.init import get_sdram_phy_c_header
 
 __all__ = ["soc_software_packages", "soc_directory",
            "Builder", "builder_args", "builder_argdict"]
@@ -125,7 +125,7 @@ class Builder:
             if hasattr(self.soc, "sdram"):
                 write_to_file(
                     os.path.join(generated_dir, "sdram_phy.h"),
-                    sdram_init.get_sdram_phy_c_header(
+                    get_sdram_phy_c_header(
                         self.soc.sdram.controller.settings.phy,
                         self.soc.sdram.controller.settings.timing))
 
