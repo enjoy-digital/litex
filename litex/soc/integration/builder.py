@@ -194,6 +194,7 @@ class Builder:
             kwargs["run"] = self.compile_gateware
         vns = self.soc.build(build_dir=os.path.join(self.output_dir, "gateware"),
                              toolchain_path=toolchain_path, **kwargs)
+        self.soc.do_exit(vns=vns)
         return vns
 
 
