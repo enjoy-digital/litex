@@ -30,7 +30,7 @@ def get_constant(name, constants):
             return v
     return None
 
-def get_cpu_mak(cpu):
+def get_cpu_mak(cpu, compile_software):
     # select between clang and gcc
     clang = os.getenv("CLANG", "")
     if clang != "":
@@ -70,6 +70,8 @@ def get_cpu_mak(cpu):
                 r = t
                 break
         if r is None:
+            if not compile_software:
+                return "--not-found--"
             msg = "Unable to find any of the cross compilation toolchains:\n"
             for i in range(len(triple)):
                 msg += "- " + triple[i] + "\n"

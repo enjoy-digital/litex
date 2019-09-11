@@ -80,7 +80,7 @@ class Builder:
         variables_contents = []
         def define(k, v):
             variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
-        for k, v in cpu_interface.get_cpu_mak(self.soc.cpu):
+        for k, v in cpu_interface.get_cpu_mak(self.soc.cpu, self.compile_software):
             define(k, v)
         # Distinguish between LiteX and MiSoC.
         define("LITEX", "1")
