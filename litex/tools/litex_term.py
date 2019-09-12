@@ -193,20 +193,22 @@ class LiteXTerm:
         return 1
 
     def upload(self, filename, address):
-        with open(filename, "rb") as f:
-            data = f.read()
-        print("[LXTERM] Uploading {} to 0x{:08x} ({} bytes)...".format(filename, address, len(data)))
+        f = open(filename, "rb")
+        f.seek(0, 2)
+        length = f.tell()
+        f.seek(0, 0)
+        print("[LXTERM] Uploading {} to 0x{:08x} ({} bytes)...".format(filename, address, length))
         current_address = address
         position = 0
-        length = len(data)
         start = time.time()
-        while len(data):
+        remaining = length
+        while remaining:
             sys.stdout.write("|{}>{}| {}%\r".format('=' * (20*position//length),
                                                     ' ' * (20-20*position//length),
                                                     100*position//length))
             sys.stdout.flush()
             frame = SFLFrame()
-            frame_data = data[:sfl_payload_length]
+            frame_data = f.read(min(remaining, sfl_payload_length))
             frame.cmd = sfl_cmd_load if not self.no_crc else sfl_cmd_load_no_crc
             frame.payload = current_address.to_bytes(4, "big")
             frame.payload += frame_data
@@ -214,12 +216,10 @@ class LiteXTerm:
                 return
             current_address += len(frame_data)
             position += len(frame_data)
-            try:
-                data = data[sfl_payload_length:]
-            except:
-                data = []
+            remaining -= len(frame_data)
         end = time.time()
         elapsed = end - start
+        f.close()
         print("[LXTERM] Upload complete ({0:.1f}KB/s).".format(length/(elapsed*1024)))
         return length
 
