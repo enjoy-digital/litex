@@ -122,6 +122,57 @@ class _CompoundCSR(_CSRBase, Module):
         raise NotImplementedError
 
 
+class CSRField(Signal):
+    def __init__(self, name, size=1, offset=None, reset=0, description=None, values=None):
+        assert name == name.lower()
+        self.name        = name
+        self.size        = size
+        self.offset      = offset
+        self.reset_value = reset
+        self.description = description
+        self.values      = values
+        Signal.__init__(self, size, name=name, reset=reset)
+
+
+class CSRFieldCompound:
+    def __init__(self, fields):
+        self.check_names(fields)
+        self.check_ordering_overlap(fields)
+        self.fields = fields
+        for field in fields:
+            setattr(self, field.name, field)
+
+    @staticmethod
+    def check_names(fields):
+        names = []
+        for field in fields:
+            if field.name in names:
+                raise ValueError("CSRField \"{}\" name is already used in CSR".format(field.name))
+            else:
+                names.append(field.name)
+
+    @staticmethod
+    def check_ordering_overlap(fields):
+        offset = 0
+        for field in fields:
+            if field.offset is not None:
+                if field.offset < offset:
+                    raise ValueError("CSRField ordering/overlap issue on \"{}\" field".format(field.name))
+                offset = field.offset
+            else:
+                field.offset = offset
+            offset += field.size
+
+    def get_size(self):
+        return self.fields[-1].offset + self.fields[-1].size
+
+    def get_reset(self):
+        reset = 0
+        for field in self.fields:
+            reset |= (field.reset_value << field.offset)
+        return reset
+
+
 class CSRStatus(_CompoundCSR):
     """Status Register.
 
@@ -156,9 +207,15 @@ class CSRStatus(_CompoundCSR):
         The value of the CSRStatus register.
     """
 
-    def __init__(self, size=1, reset=0, name=None):
+    def __init__(self, size=1, reset=0, fields=[], name=None, description=None):
+        if fields != []:
+            self.fields = CSRFieldCompound(fields)
+            size  = self.fields.get_size()
+            reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
         self.status = Signal(self.size, reset=reset)
+        for field in fields:
+            self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
     def do_finalize(self, busword):
         nwords = (self.size + busword - 1)//busword
@@ -227,7 +284,11 @@ class CSRStorage(_CompoundCSR):
         ???
     """
 
-    def __init__(self, size=1, reset=0, atomic_write=False, write_from_dev=False, alignment_bits=0, name=None):
+    def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, alignment_bits=0, name=None, description=None):
+        if fields != []:
+            self.fields = CSRFieldCompound(fields)
+            size  = self.fields.get_size()
+            reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
         self.alignment_bits = alignment_bits
         self.storage_full = Signal(self.size, reset=reset)
@@ -239,6 +300,8 @@ class CSRStorage(_CompoundCSR):
             self.we = Signal()
             self.dat_w = Signal(self.size - self.alignment_bits)
             self.sync += If(self.we, self.storage_full.eq(self.dat_w << self.alignment_bits))
+        for field in [*fields]:
+            self.comb += getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
 
     def do_finalize(self, busword):
         nwords = (self.size + busword - 1)//busword
