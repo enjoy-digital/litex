@@ -123,13 +123,14 @@ class _CompoundCSR(_CSRBase, Module):
 
 
 class CSRField(Signal):
-    def __init__(self, name, size=1, offset=None, reset=0, description=None, values=None):
+    def __init__(self, name, size=1, offset=None, reset=0, description=None, pulse=False, values=None):
         assert name == name.lower()
         self.name        = name
         self.size        = size
         self.offset      = offset
         self.reset_value = reset
         self.description = description
+        self.pulse       = pulse
         self.values      = values
         Signal.__init__(self, size, name=name, reset=reset)
 
@@ -301,7 +302,11 @@ class CSRStorage(_CompoundCSR):
             self.dat_w = Signal(self.size - self.alignment_bits)
             self.sync += If(self.we, self.storage_full.eq(self.dat_w << self.alignment_bits))
         for field in [*fields]:
-            self.comb += getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
+            field_assign = getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
+            if field.pulse:
+                self.comb += If(self.storage.re, field_assign)
+            else:
+                self.comb += field_assign
 
     def do_finalize(self, busword):
         nwords = (self.size + busword - 1)//busword
