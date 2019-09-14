@@ -123,24 +123,32 @@ class _CompoundCSR(_CSRBase, Module):
 
 
 class CSRField(Signal):
-    def __init__(self, name, size=1, offset=None, reset=0, description=None, pulse=False, values=None):
+    def __init__(self, name, size=1, offset=None, reset=0, description=None, pulse=False, access=None, values=None):
         assert name == name.lower()
+        assert access in [None, "write-only", "read-only", "read-write"]
         self.name        = name
         self.size        = size
         self.offset      = offset
         self.reset_value = reset
         self.description = description
+        self.access      = access
         self.pulse       = pulse
         self.values      = values
         Signal.__init__(self, size, name=name, reset=reset)
 
 
 class CSRFieldCompound:
-    def __init__(self, fields):
+    def __init__(self, fields, access):
         self.check_names(fields)
         self.check_ordering_overlap(fields)
         self.fields = fields
         for field in fields:
+            if field.access is None:
+                field.access = access
+            elif access == "read-only":
+                assert field.access == "read-only"
+            elif access == "read-write":
+                assert field.access in ["read-write", "write-only"]
             setattr(self, field.name, field)
 
     @staticmethod
@@ -210,7 +218,7 @@ class CSRStatus(_CompoundCSR):
 
     def __init__(self, size=1, reset=0, fields=[], name=None, description=None):
         if fields != []:
-            self.fields = CSRFieldCompound(fields)
+            self.fields = CSRFieldCompound(fields, "read-only")
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
@@ -287,7 +295,7 @@ class CSRStorage(_CompoundCSR):
 
     def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, alignment_bits=0, name=None, description=None):
         if fields != []:
-            self.fields = CSRFieldCompound(fields)
+            self.fields = CSRFieldCompound(fields, "read-write")
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
