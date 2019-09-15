@@ -298,9 +298,6 @@ class CSRStorage(_CompoundCSR):
         Allow the design to update the CSRStorage value. *Warning*: The atomicity of reads by the
          CPU is not guaranteed.
 
-    alignment_bits : int
-        ???
-
     name : string
         Provide (or override the name) of the ``CSRStatus`` register.
 
@@ -325,22 +322,21 @@ class CSRStorage(_CompoundCSR):
         ???
     """
 
-    def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, alignment_bits=0, name=None, description=None):
+    def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, name=None, description=None):
         if fields != []:
             self.fields = CSRFieldAggregate(fields, "read-write")
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
-        self.alignment_bits = alignment_bits
         self.storage_full = Signal(self.size, reset=reset)
-        self.storage = Signal(self.size - self.alignment_bits, reset=reset >> alignment_bits)
-        self.comb += self.storage.eq(self.storage_full[self.alignment_bits:])
+        self.storage = Signal(self.size, reset=reset)
+        self.comb += self.storage.eq(self.storage_full)
         self.atomic_write = atomic_write
         self.re = Signal()
         if write_from_dev:
             self.we = Signal()
-            self.dat_w = Signal(self.size - self.alignment_bits)
-            self.sync += If(self.we, self.storage_full.eq(self.dat_w << self.alignment_bits))
+            self.dat_w = Signal(self.size)
+            self.sync += If(self.we, self.storage_full.eq(self.dat_w))
         for field in [*fields]:
             field_assign = getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
             if field.pulse:
@@ -359,13 +355,7 @@ class CSRStorage(_CompoundCSR):
             lo = i*busword
             hi = lo+nbits
             # read
-            if lo >= self.alignment_bits:
-                self.comb += sc.w.eq(self.storage_full[lo:hi])
-            elif hi > self.alignment_bits:
-                self.comb += sc.w.eq(Cat(Replicate(0, hi - self.alignment_bits),
-                    self.storage_full[self.alignment_bits:hi]))
-            else:
-                self.comb += sc.w.eq(0)
+            self.comb += sc.w.eq(self.storage_full[lo:hi])
             # write
             if nwords > 1 and self.atomic_write:
                 if i:
@@ -378,11 +368,11 @@ class CSRStorage(_CompoundCSR):
 
     def read(self):
         """Read method for simulation."""
-        return (yield self.storage) << self.alignment_bits
+        return (yield self.storage)
 
     def write(self, value):
         """Write method for simulation."""
-        yield self.storage.eq(value >> self.alignment_bits)
+        yield self.storage.eq(value)
         yield self.re.eq(1)
         yield
         yield self.re.eq(0)
