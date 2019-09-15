@@ -14,8 +14,8 @@ are helper classes for dealing with values larger than the CSR buses data
 width.
 
  * ``CSRConstant``, for constant values.
- * ``CSRStatus``, for providing information to the CPU.
- * ``CSRStorage``, for allowing control via the CPU.
+ * ``CSRStatus``,   for providing information to the CPU.
+ * ``CSRStorage``,  for allowing control via the CPU.
 
 Generating register banks
 =========================
@@ -34,6 +34,7 @@ from migen import *
 from migen.util.misc import xdir
 from migen.fhdl.tracer import get_obj_var_name
 
+# CSRBase ------------------------------------------------------------------------------------------
 
 class _CSRBase(DUID):
     def __init__(self, size, name):
@@ -43,6 +44,7 @@ class _CSRBase(DUID):
             raise ValueError("Cannot extract CSR name from code, need to specify.")
         self.size = size
 
+# CSRConstant --------------------------------------------------------------------------------------
 
 class CSRConstant(DUID):
     """Register which contains a constant value.
@@ -62,6 +64,7 @@ class CSRConstant(DUID):
         """Read method for simulation."""
         return self.value.value
 
+# CSR ----------------------------------------------------------------------------------------------
 
 class CSR(_CSRBase):
     """Basic CSR register.
@@ -121,8 +124,37 @@ class _CompoundCSR(_CSRBase, Module):
     def do_finalize(self, busword):
         raise NotImplementedError
 
+# CSRField -----------------------------------------------------------------------------------------
 
 class CSRField(Signal):
+    """CSR Field.
+
+    Parameters / Attributes
+    -----------------------
+    name : string
+        Name of the CSR field.
+
+    size : int
+        Size of the CSR field in bits.
+
+    offset : int (optional)
+        Offset of the CSR field on the CSR register in bits.
+
+    reset: int (optional)
+        Reset value of the CSR field.
+
+    description: string (optional)
+        Description of the CSR Field (can be used to document the code and/or to be reused by tools
+        to create the documentation).
+
+    pulse: boolean (optional)
+        Field value is only valid for one cycle when set to True. Only valid for 1-bit fields.
+
+    access: TBD
+
+    values: TBD
+    """
+
     def __init__(self, name, size=1, offset=None, reset=0, description=None, pulse=False, access=None, values=None):
         assert name == name.lower()
         assert access in [None, "write-only", "read-only", "read-write"]
@@ -137,7 +169,9 @@ class CSRField(Signal):
         Signal.__init__(self, size, name=name, reset=reset)
 
 
-class CSRFieldCompound:
+class CSRFieldAggregate:
+    """CSR Field Aggregate."""
+
     def __init__(self, fields, access):
         self.check_names(fields)
         self.check_ordering_overlap(fields)
@@ -156,7 +190,7 @@ class CSRFieldCompound:
         names = []
         for field in fields:
             if field.name in names:
-                raise ValueError("CSRField \"{}\" name is already used in CSR".format(field.name))
+                raise ValueError("CSRField \"{}\" name is already used in CSR register".format(field.name))
             else:
                 names.append(field.name)
 
@@ -181,20 +215,20 @@ class CSRFieldCompound:
             reset |= (field.reset_value << field.offset)
         return reset
 
+# CSRStatus ----------------------------------------------------------------------------------------
 
 class CSRStatus(_CompoundCSR):
     """Status Register.
 
-    The ``CSRStatus`` class is meant to be used as a status register that is
-    read-only from the CPU.
+    The ``CSRStatus`` class is meant to be used as a status register that is read-only from the CPU.
 
     The user design is expected to drive its ``status`` signal.
 
-    The advantage of using ``CSRStatus`` instead of using ``CSR`` and driving
-    ``w`` is that the width of ``CSRStatus`` can be arbitrary.
+    The advantage of using ``CSRStatus`` instead of using ``CSR`` and driving ``w`` is that the
+    width of ``CSRStatus`` can be arbitrary.
 
-    Status registers larger than the bus word width are automatically broken
-    down into several ``CSR`` registers to span several addresses.
+    Status registers larger than the bus word width are automatically broken down into several
+    ``CSR`` registers to span several addresses.
 
     *Be careful, though:* the atomicity of reads is not guaranteed.
 
@@ -218,7 +252,7 @@ class CSRStatus(_CompoundCSR):
 
     def __init__(self, size=1, reset=0, fields=[], name=None, description=None):
         if fields != []:
-            self.fields = CSRFieldCompound(fields, "read-only")
+            self.fields = CSRFieldAggregate(fields, "read-only")
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
@@ -238,33 +272,31 @@ class CSRStatus(_CompoundCSR):
         """Read method for simulation."""
         return (yield self.status)
 
+# CSRStorage ---------------------------------------------------------------------------------------
 
 class CSRStorage(_CompoundCSR):
     """Control Register.
 
-    The ``CSRStorage`` class provides a memory location that can be read and
-    written by the CPU, and read and optionally written by the design.
+    The ``CSRStorage`` class provides a memory location that can be read and written by the CPU, and read and optionally written by the design.
 
     It can span several CSR addresses.
 
     Parameters
     ----------
     size : int
-        Size of the CSR register in bits.
-        Can be bigger than the CSR bus width.
+        Size of the CSR register in bits. Can be bigger than the CSR bus width.
 
     reset : string
         Value of the register after reset.
 
     atomic_write : bool
-        Provide an mechanism for atomic CPU writes is provided.
-        When enabled, writes to the first CSR addresses go to a back-buffer
-        whose contents are atomically copied to the main buffer when the last
-        address is written.
+        Provide an mechanism for atomic CPU writes is provided. When enabled, writes to the first
+        CSR addresses go to a back-buffer whose contents are atomically copied to the main buffer
+        when the last address is written.
 
     write_from_dev : bool
-        Allow the design to update the CSRStorage value.
-        *Warning*: The atomicity of reads by the CPU is not guaranteed.
+        Allow the design to update the CSRStorage value. *Warning*: The atomicity of reads by the
+         CPU is not guaranteed.
 
     alignment_bits : int
         ???
@@ -281,8 +313,8 @@ class CSRStorage(_CompoundCSR):
         Signal providing the value of the ``CSRStorage`` object.
 
     re : Signal(), in
-        The strobe signal indicating a write to the ``CSRStorage`` register.
-        It is active for one cycle, after or during a write from the bus.
+        The strobe signal indicating a write to the ``CSRStorage`` register. It is active for one
+        cycle, after or during a write from the bus.
 
     we : Signal(), out
         Only available when ``write_from_dev == True``
@@ -295,7 +327,7 @@ class CSRStorage(_CompoundCSR):
 
     def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, alignment_bits=0, name=None, description=None):
         if fields != []:
-            self.fields = CSRFieldCompound(fields, "read-write")
+            self.fields = CSRFieldAggregate(fields, "read-write")
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
@@ -355,6 +387,7 @@ class CSRStorage(_CompoundCSR):
         yield
         yield self.re.eq(0)
 
+# AutoCSR & Helpers --------------------------------------------------------------------------------
 
 def csrprefix(prefix, csrs, done):
     for csr in csrs:
@@ -396,13 +429,11 @@ def _make_gatherer(method, cls, prefix_cb):
 class AutoCSR:
     """MixIn to provide bus independent access to CSR registers.
 
-    A module can inherit from the ``AutoCSR`` class, which provides
-    ``get_csrs``, ``get_memories`` and ``get_constants`` methods that scan for
-    CSR and memory attributes and return their list.
+    A module can inherit from the ``AutoCSR`` class, which provides ``get_csrs``, ``get_memories``
+    and ``get_constants`` methods that scan for CSR and memory attributes and return their list.
 
-    If the module has child objects that implement ``get_csrs``,
-    ``get_memories`` or ``get_constants``, they will be called by the
-    ``AutoCSR`` methods and their CSR and memories added to the lists returned,
+    If the module has child objects that implement ``get_csrs``, ``get_memories`` or ``get_constants``,
+    they will be called by the``AutoCSR`` methods and their CSR and memories added to the lists returned,
     with the child objects' names as prefixes.
     """
     get_memories = _make_gatherer("get_memories", Memory, memprefix)
