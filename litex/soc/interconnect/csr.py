@@ -360,7 +360,7 @@ class CSRStorage(_CompoundCSR):
         for field in [*fields]:
             field_assign = getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
             if field.pulse:
-                self.comb += If(self.storage.re, field_assign)
+                self.comb += If(self.re, field_assign)
             else:
                 self.comb += field_assign
 

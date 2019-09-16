@@ -10,11 +10,6 @@ from litex.soc.interconnect.csr import *
 
 # SPI Master ---------------------------------------------------------------------------------------
 
-SPI_CONTROL_START  = 0
-SPI_CONTROL_LENGTH = 8
-
-SPI_STATUS_DONE = 0
-
 class SPIMaster(Module, AutoCSR):
     """4-wire SPI Master
 
@@ -129,21 +124,24 @@ class SPIMaster(Module, AutoCSR):
             )
 
     def add_csr(self):
-        self._control  = CSRStorage(16)
-        self._status   = CSRStatus()
+        self._control  = CSRStorage(fields=[
+            CSRField("start",  size=1, offset=0, pulse=True),
+            CSRField("length", size=8, offset=8)])
+        self._status   = CSRStatus(fields=[
+            CSRField("done", size=1, offset=0)])
         self._mosi     = CSRStorage(self.data_width)
         self._miso     = CSRStatus(self.data_width)
         self._cs       = CSRStorage(len(self.cs), reset=1)
         self._loopback = CSRStorage()
 
         self.comb += [
-            self.start.eq(self._control.re & self._control.storage[SPI_CONTROL_START]),
-            self.length.eq(self._control.storage[SPI_CONTROL_LENGTH:]),
+            self.start.eq(self._control.fields.start),
+            self.length.eq(self._control.fields.length),
             self.mosi.eq(self._mosi.storage),
             self.cs.eq(self._cs.storage),
             self.loopback.eq(self._loopback.storage),
 
-            self._status.status[SPI_STATUS_DONE].eq(self.done),
+            self._status.fields.done.eq(self.done),
             self._miso.status.eq(self.miso),
         ]
 
