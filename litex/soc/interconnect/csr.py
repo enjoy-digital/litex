@@ -30,6 +30,8 @@ class, which provides ``get_csrs`` and ``get_memories`` methods that scan for
 CSR and memory attributes and return their list.
 """
 
+from enum import IntEnum
+
 from migen import *
 from migen.util.misc import xdir
 from migen.fhdl.tracer import get_obj_var_name
@@ -124,6 +126,13 @@ class _CompoundCSR(_CSRBase, Module):
     def do_finalize(self, busword):
         raise NotImplementedError
 
+# CSRAccess ----------------------------------------------------------------------------------------
+
+class CSRAccess(IntEnum):
+    WriteOnly = 0
+    ReadOnly  = 1
+    ReadWrite = 2
+
 # CSRField -----------------------------------------------------------------------------------------
 
 class CSRField(Signal):
@@ -156,8 +165,7 @@ class CSRField(Signal):
     """
 
     def __init__(self, name, size=1, offset=None, reset=0, description=None, pulse=False, access=None, values=None):
-        assert name == name.lower()
-        assert access in [None, "write-only", "read-only", "read-write"]
+        assert access is None or (access in CSRAccess.values())
         self.name        = name
         self.size        = size
         self.offset      = offset
@@ -179,10 +187,13 @@ class CSRFieldAggregate:
         for field in fields:
             if field.access is None:
                 field.access = access
-            elif access == "read-only":
-                assert field.access == "read-only"
-            elif access == "read-write":
-                assert field.access in ["read-write", "write-only"]
+            elif field.access == CSRAccess.ReadOnly:
+                assert not field.pulse
+                assert field.access == CSRAccess.ReadOnly
+            elif field.access == CSRAccess.ReadWrite:
+                assert field.access in [CSRAccess.ReadWrite, CSRAccess.WriteOnly]
+                if field.pulse:
+                    field.access = CSRAccess.WriteOnly
             setattr(self, field.name, field)
 
     @staticmethod
@@ -252,7 +263,7 @@ class CSRStatus(_CompoundCSR):
 
     def __init__(self, size=1, reset=0, fields=[], name=None, description=None):
         if fields != []:
-            self.fields = CSRFieldAggregate(fields, "read-only")
+            self.fields = CSRFieldAggregate(fields, CSRAccess.ReadOnly)
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
@@ -324,7 +335,7 @@ class CSRStorage(_CompoundCSR):
 
     def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, name=None, description=None):
         if fields != []:
-            self.fields = CSRFieldAggregate(fields, "read-write")
+            self.fields = CSRFieldAggregate(fields, CSRAccess.ReadWrite)
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
