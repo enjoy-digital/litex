@@ -8,12 +8,6 @@ from litex.soc.interconnect.csr import *
 
 # I2C Master Bit-Banging ---------------------------------------------------------------------------
 
-I2C_W_SCL = 0
-I2C_W_OE  = 1
-I2C_W_SDA = 2
-
-I2C_R_SDA = 0
-
 class I2CMaster(Module, AutoCSR):
     """I2C Master Bit-Banging
 
@@ -27,8 +21,14 @@ class I2CMaster(Module, AutoCSR):
         if pads is None:
             pads = Record(self.pads_layout)
         self.pads = pads
-        self._w = CSRStorage(8, name="w")
-        self._r = CSRStatus(1,  name="r")
+        self._w = CSRStorage(fields=[
+            CSRField("scl", size=1, offset=0),
+            CSRField("oe",  size=1, offset=1),
+            CSRField("sda", size=1, offset=2)],
+            name="w")
+        self._r = CSRStatus(fields=[
+            CSRField("sda", size=1, offset=0)],
+            name="r")
 
         # # #
 
@@ -36,23 +36,15 @@ class I2CMaster(Module, AutoCSR):
         _sda_oe = Signal()
         _sda_r  = Signal()
         self.comb += [
-            pads.scl.eq(self._w.storage[I2C_W_SCL]),
-            _sda_oe.eq( self._w.storage[I2C_W_OE]),
-            _sda_w.eq(  self._w.storage[I2C_W_SDA]),
-            self._r.status[I2C_R_SDA].eq(_sda_r),
+            pads.scl.eq(self._w.fields.scl),
+            _sda_oe.eq( self._w.fields.oe),
+            _sda_w.eq(  self._w.fields.sda),
+            self._r.fields.sda.eq(_sda_r),
         ]
         self.specials += Tristate(pads.sda, _sda_w, _sda_oe, _sda_r)
 
 
 # SPI Master Bit-Banging ---------------------------------------------------------------------------
-
-SPI_W_CLK  = 0
-SPI_W_MOSI = 1
-SPI_W_OE   = 2
-SPI_W_CS   = 4
-
-SPI_R_MOSI = 1
-SPI_R_MISO = 0
 
 class SPIMaster(Module, AutoCSR):
     """3/4-wire SPI Master Bit-Banging
@@ -69,8 +61,16 @@ class SPIMaster(Module, AutoCSR):
             pads = Record(self.pads_layout)
         self.pads = pads
         assert len(pads.cs_n) <= 4
-        self._w = CSRStorage(8, name="w")
-        self._r = CSRStatus(2,  name="r")
+        self._w = CSRStorage(fields=[
+            CSRField("clk",  size=1, offset=0),
+            CSRField("mosi", size=1, offset=1),
+            CSRField("oe",   size=1, offset=2),
+            CSRField("cs",   size=1, offset=4)],
+            name="w")
+        self._r = CSRStatus(fields=[
+            CSRField("miso", size=1, offset=0),
+            CSRField("mosi", size=1, offset=1)],
+            name="r")
 
         # # #
 
@@ -79,12 +79,12 @@ class SPIMaster(Module, AutoCSR):
         _mosi_r  = Signal()
         _cs      = Signal(4)
         self.comb += [
-            pads.clk.eq(  self._w.storage[SPI_W_CLK]),
-            _mosi_w.eq(   self._w.storage[SPI_W_MOSI]),
-            _mosi_oe.eq(  self._w.storage[SPI_W_OE]),
-            pads.cs_n.eq(~self._w.storage[SPI_W_CS]),
-            self._r.status[SPI_R_MOSI].eq(_mosi_r),
+            pads.clk.eq(  self._w.fields.clk),
+            _mosi_w.eq(   self._w.fields.mosi),
+            _mosi_oe.eq(  self._w.fields.oe),
+            pads.cs_n.eq(~self._w.fields.cs),
+            self._r.fields.mosi.eq(_mosi_r),
         ]
         if hasattr(pads, "miso"):
-            self._r.status[SPI_R_MISO].eq(pads.miso)
+            self._r.fields.miso.eq(pads.miso)
         self.specials += Tristate(pads.mosi, _mosi_w, _mosi_oe, _mosi_r)
