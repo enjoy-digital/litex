@@ -94,3 +94,31 @@ class TestCSR(unittest.TestCase):
 
         dut = CSRDUT()
         run_simulation(dut, generator(dut))
+
+    def test_csr_fields(self):
+        def generator(dut):
+            # check reset values
+            self.assertEqual((yield dut._storage.fields.foo), 0xa)
+            self.assertEqual((yield dut._storage.fields.bar), 0x5a)
+            self.assertEqual((yield dut._storage.storage), 0x5a000a)
+            yield
+            yield
+            self.assertEqual((yield dut._status.fields.foo), 0xa)
+            self.assertEqual((yield dut._status.fields.bar), 0x5a)
+
+        class DUT(Module):
+            def __init__(self):
+                self._storage = csr.CSRStorage(fields=[
+                    csr.CSRField("foo", size=4, offset=0,  reset=0xa,  description="foo"),
+                    csr.CSRField("bar", size=8, offset=16, reset=0x5a, description="bar")
+                ])
+                self._status = csr.CSRStatus(fields=[
+                    csr.CSRField("foo", size=4, offset=4, description="foo"),
+                    csr.CSRField("bar", size=8, offset=8, description="bar")
+                ])
+                self.comb += [
+                    self._status.fields.foo.eq(self._storage.fields.foo),
+                    self._status.fields.bar.eq(self._storage.fields.bar),
+                ]
+        dut = DUT()
+        run_simulation(dut, generator(dut))

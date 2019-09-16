@@ -181,6 +181,10 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
                 r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, busword, alignment,
                     isinstance(csr, CSRStatus), with_access_functions)
                 origin += alignment//8*nr
+                if hasattr(csr, "fields"):
+                    for field in csr.fields.fields:
+                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_OFFSET "+str(field.offset)+"\n"
+                        r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+str(field.size)+"\n"
 
     r += "\n/* constants */\n"
     for name, value in constants:
