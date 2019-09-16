@@ -314,9 +314,6 @@ class CSRStorage(_CompoundCSR):
 
     Attributes
     ----------
-    storage_full : Signal(size), out
-        ???
-
     storage : Signal(size), out
         Signal providing the value of the ``CSRStorage`` object.
 
@@ -339,15 +336,13 @@ class CSRStorage(_CompoundCSR):
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
-        self.storage_full = Signal(self.size, reset=reset)
         self.storage = Signal(self.size, reset=reset)
-        self.comb += self.storage.eq(self.storage_full)
         self.atomic_write = atomic_write
         self.re = Signal()
         if write_from_dev:
             self.we = Signal()
             self.dat_w = Signal(self.size)
-            self.sync += If(self.we, self.storage_full.eq(self.dat_w))
+            self.sync += If(self.we, self.storage.eq(self.dat_w))
         for field in [*fields]:
             field_assign = getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
             if field.pulse:
@@ -366,15 +361,15 @@ class CSRStorage(_CompoundCSR):
             lo = i*busword
             hi = lo+nbits
             # read
-            self.comb += sc.w.eq(self.storage_full[lo:hi])
+            self.comb += sc.w.eq(self.storage[lo:hi])
             # write
             if nwords > 1 and self.atomic_write:
                 if i:
                     self.sync += If(sc.re, backstore[lo-busword:hi-busword].eq(sc.r))
                 else:
-                    self.sync += If(sc.re, self.storage_full.eq(Cat(sc.r, backstore)))
+                    self.sync += If(sc.re, self.storage.eq(Cat(sc.r, backstore)))
             else:
-                self.sync += If(sc.re, self.storage_full[lo:hi].eq(sc.r))
+                self.sync += If(sc.re, self.storage[lo:hi].eq(sc.r))
         self.sync += self.re.eq(sc.re)
 
     def read(self):
