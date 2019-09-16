@@ -159,9 +159,21 @@ class CSRField(Signal):
     pulse: boolean (optional)
         Field value is only valid for one cycle when set to True. Only valid for 1-bit fields.
 
-    access: TBD
+    access: enum (optional)
+        Access type of the CSR field.
 
-    values: TBD
+    values: list (optional)
+        A list of supported values.
+        If this is specified, a table will be generated containing the values in the specified order.
+        The `value` must be an integer in order to allow for automatic constant generation in an IDE,
+        except "do not care" bits are allowed.
+        In the three-tuple variation, the middle value represents an enum value that can be displayed
+        instead of the value.
+                    [
+                        ("0b0000", "disable the timer"),
+                        ("0b0001", "slow", "slow timer"),
+                        ("0b1xxx", "fast timer"),
+                    ]
     """
 
     def __init__(self, name, size=1, offset=None, reset=0, description=None, pulse=False, access=None, values=None):
@@ -318,16 +330,17 @@ class CSRStorage(_CompoundCSR):
         Signal providing the value of the ``CSRStorage`` object.
 
     re : Signal(), in
-        The strobe signal indicating a write to the ``CSRStorage`` register. It is active for one
-        cycle, after or during a write from the bus.
+        The strobe signal indicating a write to the ``CSRStorage`` register from the CPU. It is active
+        for one cycle, after or during a write from the bus.
 
     we : Signal(), out
-        Only available when ``write_from_dev == True``
-        ???
+        The strobe signal to write to the ``CSRStorage`` register from the logic. Only available when
+        ``write_from_dev == True``
+
 
     dat_w : Signal(), out
-        Only available when ``write_from_dev == True``
-        ???
+        The write data to write to the ``CSRStorage`` register from the logic. Only available when
+        ``write_from_dev == True``
     """
 
     def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, name=None, description=None):
