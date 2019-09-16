@@ -1,6 +1,7 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2016-2019 Tim 'mithro' Ansell <me@mith.ro>
+# This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
 # License: BSD
 
 
