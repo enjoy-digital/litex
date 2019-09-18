@@ -78,9 +78,10 @@ class SoCSDRAM(SoCCore):
         self.add_wb_sdram_if(wb_sdram)
         self.register_mem("main_ram", self.mem_map["main_ram"], wb_sdram, main_ram_size)
 
+        # insert optional l2_cache inbetween DRAM and exposed wb interface:
+        port = self.sdram.crossbar.get_port()
+        port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
         if self.l2_size:
-            port = self.sdram.crossbar.get_port()
-            port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
             l2_size         = 2**int(log2(self.l2_size))    # Round to nearest power of 2
             l2_cache = wishbone.Cache(l2_size//4, self._wb_sdram, wishbone.Interface(port.data_width))
             # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
@@ -91,15 +92,20 @@ class SoCSDRAM(SoCCore):
                 self.submodules.l2_cache = FullMemoryWE()(l2_cache)
             else:
                 self.submodules.l2_cache = l2_cache
-            if use_axi:
-                axi_port = LiteDRAMAXIPort(
-                    port.data_width,
-                    port.address_width + log2_int(port.data_width//8))
-                axi2native = LiteDRAMAXI2Native(axi_port, port)
-                self.submodules += axi2native
-                self.submodules.wishbone_bridge = LiteDRAMWishbone2AXI(self.l2_cache.slave, axi_port)
-            else:
-                self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
+            wb_slave = self.l2_cache.slave
+        else:
+            converter = wishbone.Converter(self._wb_sdram, wishbone.Interface(port.data_width))
+            self.submodules += converter
+            wb_slave = converter.slave
+        if use_axi:
+            axi_port = LiteDRAMAXIPort(
+                port.data_width,
+                port.address_width + log2_int(port.data_width//8))
+            axi2native = LiteDRAMAXI2Native(axi_port, port)
+            self.submodules += axi2native
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2AXI(wb_slave, axi_port)
+        else:
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(wb_slave, port)
 
     def do_finalize(self):
         if not self.integrated_main_ram_size:
