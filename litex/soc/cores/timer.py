@@ -19,7 +19,7 @@ class Timer(Module, AutoCSR):
         self._reload = CSRStorage(width, description=
             """Reload value when timer reaches 0.
             This register is used to create a Periodic timer and specify the timer's period in clock
-            cycles. For a One-Shot timer, this register need to be set to 0.""")
+            cycles. For a One-Shot timer, this register needs to be set to 0.""")
         self._en = CSRStorage(1, description=
             """Enable. Write 1 to enable/start the timer, 0 to disable the timer""")
         self._update_value = CSRStorage(1, description=
