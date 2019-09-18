@@ -280,6 +280,7 @@ class CSRStatus(_CompoundCSR):
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
+        self.description = description
         self.status = Signal(self.size, reset=reset)
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
@@ -350,6 +351,7 @@ class CSRStorage(_CompoundCSR):
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
+        self.description = description
         self.storage = Signal(self.size, reset=reset)
         self.atomic_write = atomic_write
         self.re = Signal()
