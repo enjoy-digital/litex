@@ -11,19 +11,48 @@ from litex.soc.interconnect.csr_eventmanager import *
 
 
 class Timer(Module, AutoCSR):
+    """Timer
+
+    Provides a generic Timer core.
+
+    The Timer is implemented as a countdown timer that can be used in various modes:
+    - Polling : Returns current countdown value to software.
+    - One-Shot: Loads itself and stops when value reaches 0.
+    - Periodic: (Re-)Loads itself when value reaches 0.
+
+    `en` register allows the user to enable/disable the Timer. When the Timer is enabled, it is
+    automatically loaded with the value of `load' register.
+
+    When the Timer reaches 0, it is automatically reloaded with value of `reload` register.
+
+    The user can latch the current countdown value by writing to `update_value` register, it will
+    update `value` register with current countdown value.
+
+    To use the Timer in One-Shot mode, the user needs to:
+    - Disable the timer.
+    - Set the `load` register to the expected duration.
+    - (Re-)Enable the Timer.
+
+    To use the Timer in Periodic mode, the user needs to:
+    - Disable the Timer.
+    - Set the `load` register to 0.
+    - Set the `reload` register to the expected period.
+    - Enable the Timer.
+
+    For both modes, the CPU can be advertised by an IRQ that the duration/period has elapsed. (The
+    CPU can also do software polling with `update_value` and `value` to know the elapsed duration)
+    """
     def __init__(self, width=32):
-        self._load = CSRStorage(width, description=
-            """Load value when timer is (re-)enabled.
-            This register is only used to create a One-Shot timer and specify the timer's duration
-            in clock cycles: Disable the timer, write load value and re-enable the timer""")
-        self._reload = CSRStorage(width, description=
-            """Reload value when timer reaches 0.
-            This register is used to create a Periodic timer and specify the timer's period in clock
-            cycles. For a One-Shot timer, this register needs to be set to 0.""")
-        self._en = CSRStorage(1, description=
-            """Enable. Write 1 to enable/start the timer, 0 to disable the timer""")
-        self._update_value = CSRStorage(1, description=
-            """Update. Write 1 to latch current countdown to value register.""")
+        self._load = CSRStorage(width, description="""Load value when Timer is (re-)enabled.""" +
+            """In One-Shot mode, the value written to this register specify the Timer's duration in
+            clock cycles.""")
+        self._reload = CSRStorage(width, description="""Reload value when Timer reaches 0.""" +
+            """In Periodic mode, the value written to this register specify the Timer's period in
+            clock cycles.""")
+        self._en = CSRStorage(1, description="""Enable of the Timer.""" +
+            """Set if to 1 to enable/start the Timer and 0 to disable the Timer""")
+        self._update_value = CSRStorage(1, description="""Update of the current countdown value."""+
+            """A write to this register latches the current countdown value to `value` register.""")
         self._value = CSRStatus(width, description="""Latched countdown value""")
 
         self.submodules.ev = EventManager()
