@@ -12,6 +12,7 @@ from operator import or_
 
 from migen import *
 from migen.util.misc import xdir
+from migen.fhdl.tracer import get_obj_var_name
 
 from litex.soc.interconnect.csr import *
 
@@ -35,14 +36,23 @@ class _EventSource(DUID):
     clear : Signal(), in
         Clear after a trigger event.
         Ignored by some event sources.
+
+    name : str
+        A short name for this EventSource, usable as a Python identifier
+
+    description: str
+        A formatted description of this EventSource, including when
+        it will fire and how it behaves.
     """
 
-    def __init__(self):
+    def __init__(self, name=None, description=None):
         DUID.__init__(self)
         self.status = Signal()
         self.pending = Signal()
         self.trigger = Signal()
         self.clear = Signal()
+        self.name = get_obj_var_name(name)
+        self.description = description
 
 
 class EventSourcePulse(Module, _EventSource):
@@ -55,8 +65,8 @@ class EventSourcePulse(Module, _EventSource):
     of a character in a UART.
     """
 
-    def __init__(self):
-        _EventSource.__init__(self)
+    def __init__(self, name=None, description=None):
+        _EventSource.__init__(self, name, description)
         self.comb += self.status.eq(0)
         self.sync += [
             If(self.clear, self.pending.eq(0)),
@@ -70,8 +80,8 @@ class EventSourceProcess(Module, _EventSource):
     The purpose of this event source is to monitor the status of processes and
     generate an interrupt on their completion.
     """
-    def __init__(self):
-        _EventSource.__init__(self)
+    def __init__(self, name=None, description=None):
+        _EventSource.__init__(self, name, description)
         self.comb += self.status.eq(self.trigger)
         old_trigger = Signal()
         self.sync += [
@@ -88,8 +98,8 @@ class EventSourceLevel(Module, _EventSource):
     controller with several slots can use this event source to signal that one
     or more slots require CPU attention.
     """
-    def __init__(self):
-        _EventSource.__init__(self)
+    def __init__(self, name=None, description=None):
+        _EventSource.__init__(self, name, description)
         self.comb += [
             self.status.eq(self.trigger),
             self.pending.eq(self.trigger)
