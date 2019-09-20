@@ -7,6 +7,7 @@
 import os
 import sys
 import subprocess
+from distutils.spawn import find_executable
 
 from litex.build.generic_programmer import GenericProgrammer
 from litex.build.xilinx import common
@@ -116,22 +117,25 @@ quit
 
 
 def _run_vivado(path, ver, cmds):
+    vivado_cmd = "echo 0"
     if sys.platform == "win32" or sys.platform == "cygwin":
         vivado_cmd = "vivado -mode tcl"
     else:
-        # For backwards compatibility with ISE paths, also
-        # look for a version in a subdirectory named "Vivado"
-        # under the current directory.
-        paths_to_try = [path, os.path.join(path, "Vivado")]
-        for p in paths_to_try:
-            try:
-                settings = common.settings(p, ver)
-            except OSError:
-                continue
-            break
-        else:
-            raise OSError("Unable to locate Vivado directory or settings.")
-        vivado_cmd = "bash -c \"source " + settings + "&& vivado -mode tcl\""
+        if not find_executable("vivado"):
+            # For backwards compatibility with ISE paths, also
+            # look for a version in a subdirectory named "Vivado"
+            # under the current directory.
+            paths_to_try = [path, os.path.join(path, "Vivado")]
+            for p in paths_to_try:
+                try:
+                    settings = common.settings(p, ver)
+                except OSError:
+                    continue
+                break
+            else:
+                raise OSError("Unable to locate Vivado directory or settings.")
+            vivado_cmd += "source " + settings
+        vivado_cmd += " && vivado -mode tcl"
     with subprocess.Popen(vivado_cmd, stdin=subprocess.PIPE, shell=True) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
