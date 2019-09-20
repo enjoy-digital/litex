@@ -87,9 +87,18 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         assert spi_width >= 2
 
         if with_bitbang:
-            self.bitbang = CSRStorage(4)
-            self.miso = CSRStatus()
-            self.bitbang_en = CSRStorage()
+            self.bitbang = CSRStorage(4, fields=[
+                CSRField("mosi", description="MOSI output pin, valid whenever `dir` is `0`."),
+                CSRField("clk", description="Output value for SPI CLK line."),
+                CSRField("cs_n", description="Output value of SPI CSn line."),
+                CSRField("dir", description="Dual/Quad SPI reuses pins SPI pin direction.", values=[
+                    ("0", "OUT", "SPI pins are all output"),
+                    ("1", "IN", "SPI pins are all input"),
+                ])
+            ], description="""Bitbang controls for SPI output.  Only standard 1x SPI is supported,
+                            meaning the IO2 and IO3 lines will be hardwired to `1` during bitbang mode.""")
+            self.miso = CSRStatus(description="Incoming value of MISO signal.")
+            self.bitbang_en = CSRStorage(description="Write a `1` here to disable memory-mapped mode and enable bitbang mode.")
 
         # # #
 
@@ -212,9 +221,14 @@ class SpiFlashSingle(SpiFlashCommon, AutoCSR):
         self.bus = bus = wishbone.Interface()
 
         if with_bitbang:
-            self.bitbang = CSRStorage(4)
-            self.miso = CSRStatus()
-            self.bitbang_en = CSRStorage()
+            self.bitbang = CSRStorage(4, fields=[
+                CSRField("mosi", description="MOSI output pin.  Always valid in this design."),
+                CSRField("clk", description="Output value for SPI CLK line."),
+                CSRField("cs_n", description="Output value of SPI CSn line."),
+                CSRField("dir", description="Unused in this design.")
+            ], description="""Bitbang controls for SPI output.""")
+            self.miso = CSRStatus(description="Incoming value of MISO signal.")
+            self.bitbang_en = CSRStorage(description="Write a `1` here to disable memory-mapped mode and enable bitbang mode.")
 
         # # #
 
