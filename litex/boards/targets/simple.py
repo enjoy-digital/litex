@@ -19,10 +19,10 @@ from liteeth.mac import LiteEthMAC
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform, **kwargs):
+    def __init__(self, platform, integrated_rom_size=0x8000, **kwargs):
         sys_clk_freq = int(1e9/platform.default_clk_period)
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size=0x8000,
+            integrated_rom_size=integrated_rom_size,
             integrated_main_ram_size=16*1024,
             **kwargs)
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
@@ -35,7 +35,7 @@ class EthernetSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, **kwargs):
+    def __init__(self, platform, integrated_rom_size=0x10000, **kwargs):
         BaseSoC.__init__(self, platform, **kwargs)
 
         self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"),
