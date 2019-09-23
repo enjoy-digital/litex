@@ -77,39 +77,40 @@ class Builder:
         generated_dir = os.path.join(buildinc_dir, "generated")
         os.makedirs(generated_dir, exist_ok=True)
 
-        variables_contents = []
-        def define(k, v):
-            variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
-        for k, v in cpu_interface.get_cpu_mak(self.soc.cpu, self.compile_software):
-            define(k, v)
-        # Distinguish between LiteX and MiSoC.
-        define("LITEX", "1")
-        # Distinguish between applications running from main RAM and
-        # flash for user-provided software packages.
-        exec_profiles = {
-            "COPY_TO_MAIN_RAM" : "0",
-            "EXECUTE_IN_PLACE" : "0"
-        }
-        if "main_ram" in (m[0] for m in memory_regions):
-            exec_profiles["COPY_TO_MAIN_RAM"] = "1"
-        else:
-            exec_profiles["EXECUTE_IN_PLACE"] = "1"
-        for k, v in exec_profiles.items():
-            define(k, v)
-        define("SOC_DIRECTORY", soc_directory)
-        variables_contents.append("export BUILDINC_DIRECTORY\n")
-        define("BUILDINC_DIRECTORY", buildinc_dir)
-        for name, src_dir in self.software_packages:
-            define(name.upper() + "_DIRECTORY", src_dir)
-        write_to_file(
-            os.path.join(generated_dir, "variables.mak"),
-            "".join(variables_contents))
-        write_to_file(
-            os.path.join(generated_dir, "output_format.ld"),
-            cpu_interface.get_linker_output_format(self.soc.cpu))
-        write_to_file(
-            os.path.join(generated_dir, "regions.ld"),
-            cpu_interface.get_linker_regions(memory_regions))
+        if cpu_type is not None:
+            variables_contents = []
+            def define(k, v):
+                variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
+            for k, v in cpu_interface.get_cpu_mak(self.soc.cpu, self.compile_software):
+                define(k, v)
+            # Distinguish between LiteX and MiSoC.
+            define("LITEX", "1")
+            # Distinguish between applications running from main RAM and
+            # flash for user-provided software packages.
+            exec_profiles = {
+                "COPY_TO_MAIN_RAM" : "0",
+                "EXECUTE_IN_PLACE" : "0"
+            }
+            if "main_ram" in (m[0] for m in memory_regions):
+                exec_profiles["COPY_TO_MAIN_RAM"] = "1"
+            else:
+                exec_profiles["EXECUTE_IN_PLACE"] = "1"
+            for k, v in exec_profiles.items():
+                define(k, v)
+            define("SOC_DIRECTORY", soc_directory)
+            variables_contents.append("export BUILDINC_DIRECTORY\n")
+            define("BUILDINC_DIRECTORY", buildinc_dir)
+            for name, src_dir in self.software_packages:
+                define(name.upper() + "_DIRECTORY", src_dir)
+            write_to_file(
+                os.path.join(generated_dir, "variables.mak"),
+                "".join(variables_contents))
+            write_to_file(
+                os.path.join(generated_dir, "output_format.ld"),
+                cpu_interface.get_linker_output_format(self.soc.cpu))
+            write_to_file(
+                os.path.join(generated_dir, "regions.ld"),
+                cpu_interface.get_linker_regions(memory_regions))
         write_to_file(
             os.path.join(generated_dir, "mem.h"),
             cpu_interface.get_mem_header(memory_regions, flash_boot_address, shadow_base))
@@ -128,24 +129,6 @@ class Builder:
                     get_sdram_phy_c_header(
                         self.soc.sdram.controller.settings.phy,
                         self.soc.sdram.controller.settings.timing))
-
-    def _generate_standalone_includes(self):
-        buildinc_dir = os.path.join(self.output_dir, "software", "include")
-        generated_dir = os.path.join(buildinc_dir, "generated")
-        csr_regions = self.soc.get_csr_regions()
-        constants = self.soc.get_constants()
-        os.makedirs(generated_dir, exist_ok=True)
-        write_to_file(
-            os.path.join(generated_dir, "csr.h"),
-            cpu_interface.get_csr_header(csr_regions, constants))
-        if isinstance(self.soc, soc_sdram.SoCSDRAM):
-            if hasattr(self.soc, "sdram"):
-                write_to_file(
-                    os.path.join(generated_dir, "sdram_phy.h"),
-                    get_sdram_phy_c_header(
-                        self.soc.sdram.controller.settings.phy,
-                        self.soc.sdram.controller.settings.timing))
-
 
     def _generate_csr_map(self, csr_json=None, csr_csv=None):
         memory_regions = self.soc.get_memory_regions()
@@ -195,11 +178,9 @@ class Builder:
 
         os.makedirs(self.output_dir, exist_ok=True)
 
-        if self.soc.cpu_type is None:
-            self._generate_standalone_includes()
-        else:
+        self._generate_includes()
+        if self.soc.cpu_type is not None:
             self._prepare_software()
-            self._generate_includes()
             self._generate_software(not self.soc.integrated_rom_initialized)
             if self.soc.integrated_rom_size and self.compile_software:
                 if not self.soc.integrated_rom_initialized:
