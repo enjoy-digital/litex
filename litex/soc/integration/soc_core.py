@@ -232,6 +232,7 @@ class SoCCore(Module):
         self.with_uart = with_uart
         self.uart_baudrate = uart_baudrate
 
+        self.with_wishbone = with_wishbone
         self.wishbone_timeout_cycles = wishbone_timeout_cycles
 
         # Modules instances ------------------------------------------------------------------------
