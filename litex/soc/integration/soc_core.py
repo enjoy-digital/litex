@@ -204,8 +204,15 @@ class SoCCore(Module):
 
         if cpu_type == "None":
             cpu_type = None
-        self.cpu_type = cpu_type
+            self.soc_mem_map["csr"]  = 0
+            l2_size = 0
+            integrated_rom_size = 0
+            integrated_sram_size = 0
+            with_uart = False
+            with_timer = False
+            with_ctrl = False
 
+        self.cpu_type = cpu_type
         self.cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
 
         if integrated_rom_size:
@@ -302,13 +309,14 @@ class SoCCore(Module):
             self.register_mem("main_ram", self.soc_mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
 
         # Add Wishbone to CSR bridge
-        self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
-            bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
-        self.add_csr_master(self.wishbone2csr.csr)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.config["CSR_ALIGNMENT"] = csr_alignment
         assert 2**(csr_address_width + 2) <= 0x1000000
-        self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
+        if cpu_type is not None:
+            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
+                bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
+            self.add_csr_master(self.wishbone2csr.csr)
+            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
 
         # Add UART
         if with_uart:
