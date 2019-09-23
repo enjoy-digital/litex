@@ -167,7 +167,7 @@ class SoCCore(Module):
                 # Controller parameters
                 with_ctrl=True,
                 # Wishbone parameters
-                wishbone_timeout_cycles=1e6):
+                with_wishbone=True, wishbone_timeout_cycles=1e6):
         self.platform = platform
         self.clk_freq = clk_freq
 
@@ -333,6 +333,17 @@ class SoCCore(Module):
             self.submodules.timer0 = timer.Timer()
             self.add_csr("timer0", allow_user_defined=True)
             self.add_interrupt("timer0", allow_user_defined=True)
+
+        # Add Wishbone to CSR bridge
+        self.config["CSR_DATA_WIDTH"] = self.csr_data_width
+        self.config["CSR_ALIGNMENT"]  = self.csr_alignment
+        if with_wishbone:
+            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
+                bus_csr=csr_bus.Interface(
+                    address_width=self.csr_address_width,
+                    data_width=self.csr_data_width))
+            self.add_csr_master(self.wishbone2csr.csr)
+            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
 
     # Methods --------------------------------------------------------------------------------------
 
@@ -501,19 +512,6 @@ class SoCCore(Module):
             for mem in "rom", "sram":
                 if mem not in registered_mems:
                     raise FinalizeError("CPU needs \"{}\" to be registered with SoC.register_mem()".format(mem))
-
-        # Add Wishbone to CSR bridge
-        self.finalized = False # FIXME
-        self.config["CSR_DATA_WIDTH"] = self.csr_data_width
-        self.config["CSR_ALIGNMENT"]  = self.csr_alignment
-        if len(self._wb_masters):
-            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
-                bus_csr=csr_bus.Interface(
-                    address_width=self.csr_address_width,
-                    data_width=self.csr_address_width))
-            self.add_csr_master(self.wishbone2csr.csr)
-            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
-        self.finalized = True # FIXME
 
         # Add the Wishbone Masters/Slaves interconnect
         if len(self._wb_masters):
