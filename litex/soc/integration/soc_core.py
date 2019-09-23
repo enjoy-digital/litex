@@ -205,6 +205,9 @@ class SoCCore(Module):
         if cpu_type == "None":
             cpu_type = None
 
+        if not with_wishbone:
+            self.soc_mem_map["csr"]  = 0x00000000
+
         self.cpu_type    = cpu_type
         self.cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
 
