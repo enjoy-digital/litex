@@ -204,15 +204,8 @@ class SoCCore(Module):
 
         if cpu_type == "None":
             cpu_type = None
-            self.soc_mem_map["csr"]  = 0
-            l2_size = 0
-            integrated_rom_size = 0
-            integrated_sram_size = 0
-            with_uart = False
-            with_timer = False
-            with_ctrl = False
 
-        self.cpu_type = cpu_type
+        self.cpu_type    = cpu_type
         self.cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
 
         if integrated_rom_size:
@@ -229,6 +222,7 @@ class SoCCore(Module):
 
         assert csr_data_width in [8, 32, 64]
         assert csr_alignment in [32, 64]
+        assert 2**(csr_address_width + 2) <= 0x1000000
         self.csr_data_width = csr_data_width
         self.csr_alignment = csr_alignment
         self.csr_address_width = csr_address_width
@@ -307,16 +301,6 @@ class SoCCore(Module):
         if integrated_main_ram_size:
             self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size, init=integrated_main_ram_init)
             self.register_mem("main_ram", self.soc_mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
-
-        # Add Wishbone to CSR bridge
-        self.config["CSR_DATA_WIDTH"] = csr_data_width
-        self.config["CSR_ALIGNMENT"] = csr_alignment
-        assert 2**(csr_address_width + 2) <= 0x1000000
-        if cpu_type is not None:
-            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
-                bus_csr=csr_bus.Interface(csr_data_width, csr_address_width))
-            self.add_csr_master(self.wishbone2csr.csr)
-            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
 
         # Add UART
         if with_uart:
@@ -517,6 +501,19 @@ class SoCCore(Module):
             for mem in "rom", "sram":
                 if mem not in registered_mems:
                     raise FinalizeError("CPU needs \"{}\" to be registered with SoC.register_mem()".format(mem))
+
+        # Add Wishbone to CSR bridge
+        self.finalized = False # FIXME
+        self.config["CSR_DATA_WIDTH"] = self.csr_data_width
+        self.config["CSR_ALIGNMENT"]  = self.csr_alignment
+        if len(self._wb_masters):
+            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
+                bus_csr=csr_bus.Interface(
+                    address_width=self.csr_address_width,
+                    data_width=self.csr_address_width))
+            self.add_csr_master(self.wishbone2csr.csr)
+            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
+        self.finalized = True # FIXME
 
         # Add the Wishbone Masters/Slaves interconnect
         if len(self._wb_masters):
