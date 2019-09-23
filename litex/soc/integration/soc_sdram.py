@@ -82,8 +82,8 @@ class SoCSDRAM(SoCCore):
                             geom_settings.colbits)*phy.settings.databits//8
         main_ram_size = min(main_ram_size, 0x20000000) # FIXME: limit to 512MB for now
 
-        l2_size = 2**int(log2(self.l2_size))             # Round to nearest power of 2
-        l2_size = max(l2_size, int(2*port.data_width/8)) # L2 has a minimal size, use it if lower
+        l2_size = max(self.l2_size, int(2*port.data_width/8)) # L2 has a minimal size, use it if lower
+        l2_size = 2**int(log2(l2_size))                       # Round to nearest power of 2
 
         # SoC <--> L2 Cache Wishbone interface -----------------------------------------------------
         wb_sdram = wishbone.Interface()
