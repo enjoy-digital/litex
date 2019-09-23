@@ -202,6 +202,15 @@ class SoCCore(Module):
             self.soc_mem_map["csr"]  = 0x12000000
             csr_alignment = 64
 
+        # Mainline Linux OpenRISC arch code requires Linux kernel to be loaded
+        # at the physical address of 0x0. As we are running Linux from the
+        # MAIN_RAM region - move it to satisfy that requirement.
+        if cpu_type == "mor1kx" and cpu_variant == "linux":
+            self.soc_mem_map["main_ram"] = 0x00000000
+            self.soc_mem_map["rom"]      = 0x10000000
+            self.soc_mem_map["sram"]     = 0x50000000
+            self.soc_mem_map["csr"]      = 0x60000000
+
         if cpu_type == "None":
             cpu_type = None
 
