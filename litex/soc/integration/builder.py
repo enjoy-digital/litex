@@ -129,6 +129,24 @@ class Builder:
                         self.soc.sdram.controller.settings.phy,
                         self.soc.sdram.controller.settings.timing))
 
+    def _generate_standalone_includes(self):
+        buildinc_dir = os.path.join(self.output_dir, "software", "include")
+        generated_dir = os.path.join(buildinc_dir, "generated")
+        csr_regions = self.soc.get_csr_regions()
+        constants = self.soc.get_constants()
+        os.makedirs(generated_dir, exist_ok=True)
+        write_to_file(
+            os.path.join(generated_dir, "csr.h"),
+            cpu_interface.get_csr_header(csr_regions, constants))
+        if isinstance(self.soc, soc_sdram.SoCSDRAM):
+            if hasattr(self.soc, "sdram"):
+                write_to_file(
+                    os.path.join(generated_dir, "sdram_phy.h"),
+                    get_sdram_phy_c_header(
+                        self.soc.sdram.controller.settings.phy,
+                        self.soc.sdram.controller.settings.timing))
+
+
     def _generate_csr_map(self, csr_json=None, csr_csv=None):
         memory_regions = self.soc.get_memory_regions()
         csr_regions = self.soc.get_csr_regions()
@@ -177,7 +195,9 @@ class Builder:
 
         os.makedirs(self.output_dir, exist_ok=True)
 
-        if self.soc.cpu_type is not None:
+        if self.soc.cpu_type is None:
+            self._generate_standalone_includes()
+        else:
             self._prepare_software()
             self._generate_includes()
             self._generate_software(not self.soc.integrated_rom_initialized)
