@@ -64,7 +64,7 @@ class ModuleDoc(DUID):
         self._title = title
         self._format = format
 
-        if file == None and body == None and self.__doc__ is None:
+        if file is None and body is None and self.__doc__ is None:
             raise ValueError("Must specify `file` or `body` when constructing a ModuleDoc()")
         if file is not None:
             if not os.path.isabs(file):
