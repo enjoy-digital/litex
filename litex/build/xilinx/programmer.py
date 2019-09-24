@@ -117,10 +117,10 @@ quit
 
 
 def _run_vivado(path, ver, cmds):
-    vivado_cmd = "echo 0"
     if sys.platform == "win32" or sys.platform == "cygwin":
         vivado_cmd = "vivado -mode tcl"
     else:
+        vivado_cmd = ""
         if not find_executable("vivado"):
             # For backwards compatibility with ISE paths, also
             # look for a version in a subdirectory named "Vivado"
