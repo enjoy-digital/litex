@@ -171,7 +171,10 @@ class CSRBank(csr.GenericBank):
                 c.r.eq(self.bus.dat_w[:c.size]),
                 c.re.eq(sel & \
                     self.bus.we & \
-                    (self.bus.adr[adr_shift:adr_shift+self.decode_bits] == i))
+                    (self.bus.adr[adr_shift:adr_shift+self.decode_bits] == i)),
+                c.we.eq(sel & \
+                    ~self.bus.we & \
+                    (self.bus.adr[adr_shift:adr_shift+self.decode_bits] == i)),
             ]
 
         brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))

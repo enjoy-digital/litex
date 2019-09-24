@@ -94,17 +94,26 @@ class CSR(_CSRBase):
     w : Signal(size), in
         The value to be read from the bus.
         Must be provided at all times.
+
+    we : Signal(), out
+        The strobe signal for ``w``.
+        It is active for one cycle, after or during a read from the bus.
     """
 
     def __init__(self, size=1, name=None):
         _CSRBase.__init__(self, size, name)
         self.re = Signal(name=self.name + "_re")
-        self.r = Signal(self.size, name=self.name + "_r")
-        self.w = Signal(self.size, name=self.name + "_w")
+        self.r  = Signal(self.size, name=self.name + "_r")
+        self.we = Signal(name=self.name + "_we")
+        self.w  = Signal(self.size, name=self.name + "_w")
 
     def read(self):
         """Read method for simulation."""
-        return (yield self.w)
+        yield self.we.eq(1)
+        value = (yield self.w)
+        yield
+        yield self.we.eq(0)
+        return value
 
     def write(self, value):
         """Write method for simulation."""
@@ -282,6 +291,7 @@ class CSRStatus(_CompoundCSR):
         _CompoundCSR.__init__(self, size, name)
         self.description = description
         self.status = Signal(self.size, reset=reset)
+        self.we = Signal()
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
@@ -292,10 +302,15 @@ class CSRStatus(_CompoundCSR):
             sc = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
             self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
             self.simple_csrs.append(sc)
+        self.comb += self.we.eq(sc.we)
 
     def read(self):
         """Read method for simulation."""
-        return (yield self.status)
+        yield self.we.eq(1)
+        value = (yield self.status)
+        yield
+        yield self.we.eq(0)
+        return value
 
 # CSRStorage ---------------------------------------------------------------------------------------
 
