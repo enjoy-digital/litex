@@ -541,7 +541,8 @@ class SoCCore(Module):
             alignment=self.csr_alignment)
 
         # Add CSRs interconnect
-        self.submodules.csrcon = csr_bus.InterconnectShared(
+        if len(self._csr_masters) != 0:
+            self.submodules.csrcon = csr_bus.InterconnectShared(
                 self._csr_masters, self.csrbankarray.get_buses())
 
         # Check and add CSRs regions

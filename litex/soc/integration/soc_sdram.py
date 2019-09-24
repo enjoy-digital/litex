@@ -121,7 +121,8 @@ class SoCSDRAM(SoCCore):
                 raise FinalizeError("Need to call SoCSDRAM.register_sdram()")
 
             # Arbitrate wishbone interfaces to the DRAM
-            self.submodules.wb_sdram_con = wishbone.Arbiter(self._wb_sdram_ifs, self._wb_sdram)
+            if len(self._wb_sdram_ifs) != 0:
+                self.submodules.wb_sdram_con = wishbone.Arbiter(self._wb_sdram_ifs, self._wb_sdram)
         SoCCore.do_finalize(self)
 
 
