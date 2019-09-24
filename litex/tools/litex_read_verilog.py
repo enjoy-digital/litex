@@ -57,6 +57,7 @@ def main():
         print("\n".join(migen_def))
 
     # keep things clean after us
+    os.system("rm yosys_v2j.ys")
     os.system("rm " + json_file)
 
 
