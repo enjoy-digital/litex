@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from migen import *
@@ -17,16 +17,23 @@ class WB2CSR(Module):
             bus_csr = csr_bus.Interface()
         self.csr = bus_csr
 
-        ###
+        # # #
 
-        self.sync += [
-            self.csr.we.eq(0),
+        self.comb += [
             self.csr.dat_w.eq(self.wishbone.dat_w),
-            self.csr.adr.eq(self.wishbone.adr),
             self.wishbone.dat_r.eq(self.csr.dat_r)
         ]
-        self.sync += timeline(self.wishbone.cyc & self.wishbone.stb, [
-            (1, [self.csr.we.eq(self.wishbone.we)]),
-            (2, [self.wishbone.ack.eq(1)]),
-            (3, [self.wishbone.ack.eq(0)])
-        ])
+
+        fsm = FSM(reset_state="WRITE-READ")
+        self.submodules += fsm
+        fsm.act("WRITE-READ",
+            If(self.wishbone.cyc & self.wishbone.stb,
+                self.csr.adr.eq(self.wishbone.adr),
+                self.csr.we.eq(self.wishbone.we),
+                NextState("ACK")
+            )
+        )
+        fsm.act("ACK",
+            self.wishbone.ack.eq(1),
+            NextState("WRITE-READ")
+        )
