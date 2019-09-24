@@ -8,9 +8,9 @@ from migen import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
+from litex.soc.integration.doc import ModuleDoc
 
-
-class Timer(Module, AutoCSR):
+class Timer(Module, AutoCSR, ModuleDoc):
     """Timer
 
     Provides a generic Timer core.
@@ -21,7 +21,7 @@ class Timer(Module, AutoCSR):
     - Periodic: (Re-)Loads itself when value reaches 0.
 
     `en` register allows the user to enable/disable the Timer. When the Timer is enabled, it is
-    automatically loaded with the value of `load' register.
+    automatically loaded with the value of `load` register.
 
     When the Timer reaches 0, it is automatically reloaded with value of `reload` register.
 
