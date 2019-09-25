@@ -63,7 +63,7 @@ class BaseSoC(SoCSDRAM):
         self.submodules.crg = _CRG(platform, sys_clk_freq)
 
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"), cl=3)
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"), cl=2)
             sdram_module = MT48LC16M16(sys_clk_freq, "1:1")
             self.register_sdram(self.sdrphy,
                                 sdram_module.geom_settings,
