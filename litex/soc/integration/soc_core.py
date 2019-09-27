@@ -280,6 +280,7 @@ class SoCCore(Module):
                 self.add_cpu(cpu.rocket.RocketRV64(platform, self.cpu_reset_address, self.cpu_variant))
             elif cpu_type == "serv":
                 self.add_cpu(cpu.serv.SERV(platform, self.cpu_reset_address, self.cpu_variant))
+                self.add_constant("UART_POLLING", None)
             else:
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
 
