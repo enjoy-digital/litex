@@ -11,6 +11,18 @@ from litex.soc.cores.cpu.minerva import Minerva
 from litex.soc.cores.cpu.rocket import RocketRV64
 from litex.soc.cores.cpu.serv import SERV
 
+# CPUS ---------------------------------------------------------------------------------------------
+
+CPUS = {
+    "lm32"       : LM32,
+    "mor1kx"     : MOR1KX,
+    "picorv32"   : PicoRV32,
+    "vexriscv"   : VexRiscv,
+    "minerva"    : Minerva,
+    "rocket"     : RocketRV64,
+    "serv"       : SERV
+}
+
 # CPU Variants/Extensions Definition ---------------------------------------------------------------
 
 CPU_VARIANTS = {

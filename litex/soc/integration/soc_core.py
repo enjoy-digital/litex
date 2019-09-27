@@ -264,25 +264,9 @@ class SoCCore(Module):
             if cpu_variant is not None:
                 self.config["CPU_VARIANT"] = str(cpu_variant.split('+')[0]).upper()
             # CPU selection / instance
-            if cpu_type == "lm32":
-                self.add_cpu(cpu.lm32.LM32(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "mor1kx" or cpu_type == "or1k":
-                if cpu_type == "or1k":
-                    deprecated_warning("SoCCore's \"cpu-type\" to \"mor1kx\"")
-                self.add_cpu(cpu.mor1kx.MOR1KX(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "picorv32":
-                self.add_cpu(cpu.picorv32.PicoRV32(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "vexriscv":
-                self.add_cpu(cpu.vexriscv.VexRiscv(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "minerva":
-                self.add_cpu(cpu.minerva.Minerva(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "rocket":
-                self.add_cpu(cpu.rocket.RocketRV64(platform, self.cpu_reset_address, self.cpu_variant))
-            elif cpu_type == "serv":
-                self.add_cpu(cpu.serv.SERV(platform, self.cpu_reset_address, self.cpu_variant))
-                self.add_constant("UART_POLLING", None)
-            else:
+            if cpu_type not in cpu.CPUS.keys():
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
+            self.add_cpu(cpu.CPUS[cpu_type](platform, self.cpu_reset_address, self.cpu_variant))
 
             # Add Instruction/Data buses as Wisbone masters
             self.add_wb_master(self.cpu.ibus)
