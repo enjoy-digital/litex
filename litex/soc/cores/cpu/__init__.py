@@ -9,6 +9,7 @@ from litex.soc.cores.cpu.picorv32 import PicoRV32
 from litex.soc.cores.cpu.vexriscv import VexRiscv
 from litex.soc.cores.cpu.minerva import Minerva
 from litex.soc.cores.cpu.rocket import RocketRV64
+from litex.soc.cores.cpu.serv import SERV
 
 # CPU Variants/Extensions Definition ---------------------------------------------------------------
 
