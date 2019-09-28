@@ -76,9 +76,9 @@ class RocketRV64(Module):
     def reserved_interrupts(self):
         return {}
 
-    def __init__(self, platform, cpu_reset_addr, variant="standard"):
+    def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        assert cpu_reset_addr == 0x10000000, "cpu_reset_addr hardcoded in Chisel elaboration!"
+
 
         self.platform = platform
         self.variant = variant
@@ -231,6 +231,11 @@ class RocketRV64(Module):
         # add verilog sources
         self.add_sources(platform, variant)
 
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        assert reset_address == 0x10000000, "cpu_reset_addr hardcoded in during elaboration!"
+
     @staticmethod
     def add_sources(platform, variant="standard"):
         vdir = os.path.join(
@@ -248,4 +253,5 @@ class RocketRV64(Module):
         )
 
     def do_finalize(self):
+        assert hasattr(self, "reset_address")
         self.specials += Instance("ExampleRocketSystem", **self.cpu_params)

@@ -58,7 +58,7 @@ class MOR1KX(Module):
     def reserved_interrupts(self):
         return {"nmi": 0}
 
-    def __init__(self, platform, reset_pc, variant="standard"):
+    def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform
         self.variant = variant
@@ -90,7 +90,6 @@ class MOR1KX(Module):
             p_FEATURE_CMOV="ENABLED",
             p_FEATURE_FFL1="ENABLED",
             p_OPTION_CPU0="CAPPUCCINO",
-            p_OPTION_RESET_PC=reset_pc,
             p_IBUS_WB_TYPE="B3_REGISTERED_FEEDBACK",
             p_DBUS_WB_TYPE="B3_REGISTERED_FEEDBACK",
         )
@@ -157,6 +156,11 @@ class MOR1KX(Module):
         # add verilog sources
         self.add_sources(platform)
 
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        self.cpu_params.update(p_OPTION_RESET_PC=reset_address)
+
     @staticmethod
     def add_sources(platform):
         vdir = os.path.join(
@@ -166,4 +170,5 @@ class MOR1KX(Module):
         platform.add_verilog_include_path(vdir)
 
     def do_finalize(self):
+        assert hasattr(self, "reset_address")
         self.specials += Instance("mor1kx", **self.cpu_params)

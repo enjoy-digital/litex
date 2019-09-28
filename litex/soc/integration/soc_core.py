@@ -266,7 +266,8 @@ class SoCCore(Module):
             # CPU selection / instance
             if cpu_type not in cpu.CPUS.keys():
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
-            self.add_cpu(cpu.CPUS[cpu_type](platform, self.cpu_reset_address, self.cpu_variant))
+            self.add_cpu(cpu.CPUS[cpu_type](platform, self.cpu_variant))
+            self.cpu.set_reset_address(cpu_reset_address)
 
             # Add Instruction/Data buses as Wisbone masters
             self.add_wb_master(self.cpu.ibus)

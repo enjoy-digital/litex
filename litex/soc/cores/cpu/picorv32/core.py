@@ -61,7 +61,7 @@ class PicoRV32(Module):
             "bus_error":            2
         }
 
-    def __init__(self, platform, progaddr_reset, variant="standard"):
+    def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform
         self.variant = variant
@@ -106,8 +106,6 @@ class PicoRV32(Module):
             p_ENABLE_TRACE=0,
             p_MASKED_IRQ=0x00000000,
             p_LATCHED_IRQ=0xffffffff,
-            p_PROGADDR_RESET=progaddr_reset,
-            p_PROGADDR_IRQ=progaddr_reset + 0x00000010,
             p_STACKADDR=0xffffffff
         )
 
@@ -195,6 +193,14 @@ class PicoRV32(Module):
         # add verilog sources
         self.add_sources(platform)
 
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        self.cpu_params.update(
+            p_PROGADDR_RESET=reset_address,
+            p_PROGADDR_IRQ=reset_address + 0x00000010
+        )
+
     @staticmethod
     def add_sources(platform):
         vdir = os.path.join(
@@ -202,4 +208,5 @@ class PicoRV32(Module):
         platform.add_source(os.path.join(vdir, "picorv32.v"))
 
     def do_finalize(self):
+        assert hasattr(self, "reset_address")
         self.specials += Instance("picorv32", **self.cpu_params)

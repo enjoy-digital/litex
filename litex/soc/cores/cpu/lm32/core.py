@@ -44,7 +44,7 @@ class LM32(Module):
     def reserved_interrupts(self):
         return {}
 
-    def __init__(self, platform, eba_reset, variant="standard"):
+    def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform
         self.variant = variant
@@ -58,8 +58,6 @@ class LM32(Module):
         i_adr_o = Signal(32)
         d_adr_o = Signal(32)
         self.cpu_params = dict(
-            p_eba_reset=Instance.PreformattedParam("32'h{:08x}".format(eba_reset)),
-
             i_clk_i=ClockSignal(),
             i_rst_i=ResetSignal() | self.reset,
 
@@ -99,6 +97,13 @@ class LM32(Module):
         # add verilog sources
         self.add_sources(platform, variant)
 
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        self.cpu_params.update(
+            p_eba_reset=Instance.PreformattedParam("32'h{:08x}".format(reset_address))
+        )
+
     @staticmethod
     def add_sources(platform, variant):
         vdir = os.path.join(
@@ -133,4 +138,5 @@ class LM32(Module):
             raise TypeError("Unknown variant {}".format(variant))
 
     def do_finalize(self):
+        assert hasattr(self, "reset_address")
         self.specials += Instance("lm32_cpu", **self.cpu_params)

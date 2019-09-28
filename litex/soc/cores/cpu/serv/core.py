@@ -39,7 +39,7 @@ class SERV(Module):
     def reserved_interrupts(self):
         return {}
 
-    def __init__(self, platform, cpu_reset_address, variant="standard"):
+    def __init__(self, platform, variant="standard"):
         assert variant is "standard", "Unsupported variant %s" % variant
         self.platform  = platform
         self.variant   = variant
@@ -51,8 +51,6 @@ class SERV(Module):
         # # #
 
         self.cpu_params -= dict(
-            p_RESET_PC=cpu_reset_address,
-
             # clock / reset
             i_clk   = ClockSignal(),
             i_i_rst = ResetSignal(),
@@ -84,6 +82,11 @@ class SERV(Module):
         # add verilog sources
         self.add_sources(platform)
 
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        self.cpu_params.update(p_RESET_PC=reset_address)
+
     @staticmethod
     def add_sources(platform):
         vdir = os.path.join(
@@ -93,4 +96,5 @@ class SERV(Module):
         platform.add_verilog_include_path(vdir)
 
     def do_finalize(self):
+        assert hasattr(self, "reset_address")
         self.specials += Instance("serv_top", **self.cpu_params)

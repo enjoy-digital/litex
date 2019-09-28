@@ -100,7 +100,7 @@ class VexRiscv(Module, AutoCSR):
     def reserved_interrupts(self):
         return {}
 
-    def __init__(self, platform, cpu_reset_address, variant="standard"):
+    def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform
         self.variant = variant
@@ -108,7 +108,6 @@ class VexRiscv(Module, AutoCSR):
         self.reset = Signal()
         self.ibus = ibus = wishbone.Interface()
         self.dbus = dbus = wishbone.Interface()
-        self.cpu_reset_address = cpu_reset_address
 
         self.interrupt = Signal(32)
 
@@ -116,7 +115,6 @@ class VexRiscv(Module, AutoCSR):
                 i_clk=ClockSignal(),
                 i_reset=ResetSignal() | self.reset,
 
-                i_externalResetVector=self.cpu_reset_address,
                 i_externalInterruptArray=self.interrupt,
                 i_timerInterrupt=0,
                 i_softwareInterrupt=0,
@@ -237,6 +235,11 @@ class VexRiscv(Module, AutoCSR):
             o_debug_resetOut=self.o_resetOut
         )
 
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        self.cpu_params.update(i_externalResetVector=reset_address)
+
     def add_timer(self):
         self.submodules.timer = VexRiscvTimer()
         self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
@@ -252,6 +255,7 @@ class VexRiscv(Module, AutoCSR):
         self.platform.add_source(variant_filename)
 
     def do_finalize(self):
+        assert hasattr(self, "reset_address")
         if not self.external_variant:
             self.add_sources(self.platform, self.variant)
         self.specials += Instance("VexRiscv", **self.cpu_params)
