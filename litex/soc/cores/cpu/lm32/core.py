@@ -57,7 +57,7 @@ class LM32(Module):
 
         i_adr_o = Signal(32)
         d_adr_o = Signal(32)
-        self.specials += Instance("lm32_cpu",
+        self.cpu_params = dict(
             p_eba_reset=Instance.PreformattedParam("32'h{:08x}".format(eba_reset)),
 
             i_clk_i=ClockSignal(),
@@ -131,3 +131,6 @@ class LM32(Module):
             platform.add_verilog_include_path(os.path.join(vdir, "config"))
         else:
             raise TypeError("Unknown variant {}".format(variant))
+
+    def do_finalize(self):
+        self.specials += Instance("lm32_cpu", **self.cpu_params)

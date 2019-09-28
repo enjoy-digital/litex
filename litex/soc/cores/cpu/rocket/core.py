@@ -100,7 +100,7 @@ class RocketRV64(Module):
 
         # # #
 
-        self.specials += Instance("ExampleRocketSystem",
+        self.cpu_params += dict(
             # clock, reset
             i_clock=ClockSignal(),
             i_reset=ResetSignal() | self.reset,
@@ -246,3 +246,6 @@ class RocketRV64(Module):
             "AsyncResetReg.v",
             "EICG_wrapper.v",
         )
+
+    def do_finalize(self):
+        self.specials += Instance("ExampleRocketSystem", **self.cpu_params)

@@ -50,7 +50,7 @@ class SERV(Module):
 
         # # #
 
-        self.specials += Instance("serv_top",
+        self.cpu_params -= dict(
             p_RESET_PC=cpu_reset_address,
 
             # clock / reset
@@ -91,3 +91,6 @@ class SERV(Module):
             "verilog", "rtl")
         platform.add_source_dir(vdir)
         platform.add_verilog_include_path(vdir)
+
+    def do_finalize(self):
+        self.specials += Instance("serv_top", **self.cpu_params)

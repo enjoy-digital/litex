@@ -50,7 +50,7 @@ class Minerva(Module):
 
         # # #
 
-        self.specials += Instance("minerva_cpu",
+        self.cpu_params = dict(
             # clock / reset
             i_clk=ClockSignal(),
             i_rst=ResetSignal(),
@@ -93,3 +93,6 @@ class Minerva(Module):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_source(os.path.join(vdir, "minerva.v"))
+
+    def do_finalize(self):
+        self.specials += Instance("minerva_cpu", **self.cpu_params)

@@ -96,14 +96,14 @@ class MOR1KX(Module):
         )
 
         if variant == "linux":
-            cpu_args.update(dict(
+            cpu_args.update(
                 # Linux needs the memory management units.
                 p_FEATURE_IMMU="ENABLED",
                 p_FEATURE_DMMU="ENABLED",
                 # FIXME: Currently we need the or1k timer when we should be
                 # using the litex timer.
                 p_FEATURE_TIMER="ENABLED",
-            ))
+            )
             # FIXME: Check if these are needed?
             use_defaults = (
                 "p_FEATURE_SYSCALL", "p_FEATURE_TRAP", "p_FEATURE_RANGE",
@@ -114,7 +114,7 @@ class MOR1KX(Module):
 
         i_adr_o = Signal(32)
         d_adr_o = Signal(32)
-        self.specials += Instance("mor1kx",
+        self.cpu_params = dict(
             **cpu_args,
 
             i_clk=ClockSignal(),
@@ -146,7 +146,8 @@ class MOR1KX(Module):
             i_dwbm_dat_i=d.dat_r,
             i_dwbm_ack_i=d.ack,
             i_dwbm_err_i=d.err,
-            i_dwbm_rty_i=0)
+            i_dwbm_rty_i=0
+        )
 
         self.comb += [
             self.ibus.adr.eq(i_adr_o[2:]),
@@ -163,3 +164,6 @@ class MOR1KX(Module):
             "verilog", "rtl", "verilog")
         platform.add_source_dir(vdir)
         platform.add_verilog_include_path(vdir)
+
+    def do_finalize(self):
+        self.specials += Instance("mor1kx", **self.cpu_params)

@@ -83,49 +83,46 @@ class PicoRV32(Module):
 
         # PicoRV32 parameters. To create a new variant, modify this dictionary
         # and change the desired parameters.
-        picorv32_params = {
-            "p_ENABLE_COUNTERS" : 1,
-            "p_ENABLE_COUNTERS64" : 1,
+        self.cpu_params = dict(
+            p_ENABLE_COUNTERS=1,
+            p_ENABLE_COUNTERS64=1,
             # Changing REGS has no effect as on FPGAs, the registers are
             # implemented using a register file stored in DPRAM.
-            "p_ENABLE_REGS_16_31" : 1,
-            "p_ENABLE_REGS_DUALPORT" : 1,
-            "p_LATCHED_MEM_RDATA" : 0,
-            "p_TWO_STAGE_SHIFT" : 1,
-            "p_TWO_CYCLE_COMPARE" : 0,
-            "p_TWO_CYCLE_ALU" : 0,
-            "p_CATCH_MISALIGN" : 1,
-            "p_CATCH_ILLINSN" : 1,
-            "p_ENABLE_PCPI" : 0,
-            "p_ENABLE_MUL" : 1,
-            "p_ENABLE_DIV" : 1,
-            "p_ENABLE_FAST_MUL" : 0,
-            "p_ENABLE_IRQ" : 1,
-            "p_ENABLE_IRQ_QREGS" : 1,
-            "p_ENABLE_IRQ_TIMER" : 1,
-            "p_ENABLE_TRACE" : 0,
-            "p_MASKED_IRQ" : 0x00000000,
-            "p_LATCHED_IRQ" : 0xffffffff,
-            "p_PROGADDR_RESET" : progaddr_reset,
-            "p_PROGADDR_IRQ" : progaddr_reset + 0x00000010,
-            "p_STACKADDR" : 0xffffffff
-        }
+            p_ENABLE_REGS_16_31=1,
+            p_ENABLE_REGS_DUALPORT=1,
+            p_LATCHED_MEM_RDATA=0,
+            p_TWO_STAGE_SHIFT=1,
+            p_TWO_CYCLE_COMPARE=0,
+            p_TWO_CYCLE_ALU=0,
+            p_CATCH_MISALIGN=1,
+            p_CATCH_ILLINSN=1,
+            p_ENABLE_PCPI=0,
+            p_ENABLE_MUL=1,
+            p_ENABLE_DIV=1,
+            p_ENABLE_FAST_MUL=0,
+            p_ENABLE_IRQ=1,
+            p_ENABLE_IRQ_QREGS=1,
+            p_ENABLE_IRQ_TIMER=1,
+            p_ENABLE_TRACE=0,
+            p_MASKED_IRQ=0x00000000,
+            p_LATCHED_IRQ=0xffffffff,
+            p_PROGADDR_RESET=progaddr_reset,
+            p_PROGADDR_IRQ=progaddr_reset + 0x00000010,
+            p_STACKADDR=0xffffffff
+        )
 
         if variant == "minimal":
-            picorv32_params.update({
-                "p_ENABLE_COUNTERS" : 0,
-                "p_ENABLE_COUNTERS64" : 0,
-                "p_TWO_STAGE_SHIFT" : 0,
-                "p_CATCH_MISALIGN" : 0,
-                "p_ENABLE_MUL" : 0,
-                "p_ENABLE_DIV" : 0,
-                "p_ENABLE_IRQ_TIMER" : 0
-            })
+            self.cpu_params.update(
+                p_ENABLE_COUNTER=0,
+                p_ENABLE_COUNTERS64=0,
+                p_TWO_STAGE_SHIFT=0,
+                p_CATCH_MISALIGN=0,
+                p_ENABLE_MUL=0,
+                p_ENABLE_DIV=0,
+                p_ENABLE_IRQ_TIMER=0
+            )
 
-        self.specials += Instance("picorv32",
-            # parameters dictionary
-            **picorv32_params,
-
+        self.cpu_params.update(
             # clock / reset
             i_clk=ClockSignal(),
             i_resetn=~(ResetSignal() | self.reset),
@@ -203,3 +200,6 @@ class PicoRV32(Module):
         vdir = os.path.join(
             os.path.abspath(os.path.dirname(__file__)), "verilog")
         platform.add_source(os.path.join(vdir, "picorv32.v"))
+
+    def do_finalize(self):
+        self.specials += Instance("picorv32", **self.cpu_params)
