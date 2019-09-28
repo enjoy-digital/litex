@@ -338,11 +338,6 @@ class SoCCore(Module):
             raise NotImplementedError("More than one CPU is not supported")
         self.submodules.cpu = cpu
 
-    def add_cpu_or_bridge(self, cpu_or_bridge):
-        deprecated_warning("SoCCore's \"add_cpu_or_bridge\" call to \"add_cpu\"")
-        self.add_cpu(cpu_or_bridge)
-        self.cpu_or_bridge = self.cpu
-
     def add_interrupt(self, interrupt_name, interrupt_id=None, allow_user_defined=False):
         # Check that interrupt_name is not already used
         if interrupt_name in self.soc_interrupt_map.keys():
