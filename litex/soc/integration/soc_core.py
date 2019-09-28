@@ -34,7 +34,6 @@ from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 __all__ = [
     "mem_decoder",
     "get_mem_data",
-    "csr_map_update",
     "SoCCore",
     "soc_core_args",
     "soc_core_argdict",
@@ -103,10 +102,6 @@ def mem_decoder(address, size=0x10000000):
     address >>= 2 # bytes to words aligned
     size    >>= 2 # bytes to words aligned
     return lambda a: (a[log2_int(size):-1] == (address >> log2_int(size)))
-
-def csr_map_update(csr_map, csr_peripherals):
-    csr_map.update(dict((n, v)
-        for v, n in enumerate(csr_peripherals, start=max(csr_map.values()) + 1)))
 
 # SoCController ------------------------------------------------------------------------------------
 
