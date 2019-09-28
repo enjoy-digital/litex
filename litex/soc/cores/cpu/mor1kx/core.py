@@ -25,6 +25,18 @@ class MOR1KX(Module):
         return "big"
 
     @property
+    def mem_map_linux(self):
+        # Mainline Linux OpenRISC arch code requires Linux kernel to be loaded at the physical
+        # address of 0x0. As we are running Linux from the MAIN_RAM region - move it to satisfy
+        # that requirement.
+        return {
+            "main_ram" : 0x00000000,
+            "rom"      : 0x10000000,
+            "sram"     : 0x50000000,
+            "csr"      : 0x60000000,
+        }
+
+    @property
     def gcc_triple(self):
         return "or1k-elf"
 
@@ -66,6 +78,9 @@ class MOR1KX(Module):
         self.ibus = i = wishbone.Interface()
         self.dbus = d = wishbone.Interface()
         self.interrupt = Signal(32)
+
+        if variant == "linux":
+            self.mem_map = self.mem_map_linux
 
         # # #
 

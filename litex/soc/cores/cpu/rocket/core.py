@@ -58,6 +58,15 @@ class RocketRV64(Module):
         return "little"
 
     @property
+    def mem_map(self):
+        # Rocket reserves the first 256Mbytes for internal use, so we must change default mem_map.
+        return {
+            "rom"  : 0x10000000,
+            "sram" : 0x11000000,
+            "csr"  : 0x12000000,
+        }
+
+    @property
     def gcc_triple(self):
         return ("riscv64-unknown-elf")
 
@@ -100,7 +109,7 @@ class RocketRV64(Module):
 
         # # #
 
-        self.cpu_params += dict(
+        self.cpu_params = dict(
             # clock, reset
             i_clock=ClockSignal(),
             i_reset=ResetSignal() | self.reset,

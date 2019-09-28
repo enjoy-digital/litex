@@ -192,38 +192,18 @@ class SoCCore(Module):
         self._csr_masters = []
 
         # Parameters managment ---------------------------------------------------------------------
-
-        # NOTE: RocketChip reserves the first 256Mbytes for internal use,
-        #       so we must change default mem_map;
-        #       Also, CSRs *must* be 64-bit aligned.
-        if cpu_type == "rocket":
-            self.soc_mem_map["rom"]  = 0x10000000
-            self.soc_mem_map["sram"] = 0x11000000
-            self.soc_mem_map["csr"]  = 0x12000000
-            csr_alignment = 64
-
-        # Mainline Linux OpenRISC arch code requires Linux kernel to be loaded
-        # at the physical address of 0x0. As we are running Linux from the
-        # MAIN_RAM region - move it to satisfy that requirement.
-        if cpu_type == "mor1kx" and cpu_variant == "linux":
-            self.soc_mem_map["main_ram"] = 0x00000000
-            self.soc_mem_map["rom"]      = 0x10000000
-            self.soc_mem_map["sram"]     = 0x50000000
-            self.soc_mem_map["csr"]      = 0x60000000
-
         if cpu_type == "None":
             cpu_type = None
+
+        # FIXME: On RocketChip, CSRs *must* be 64-bit aligned.
+        if cpu_type == "rocket":
+            csr_alignment = 64
 
         if not with_wishbone:
             self.soc_mem_map["csr"]  = 0x00000000
 
         self.cpu_type    = cpu_type
         self.cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
-
-        if integrated_rom_size:
-            cpu_reset_address = self.soc_mem_map["rom"]
-        self.cpu_reset_address = cpu_reset_address
-        self.config["CPU_RESET_ADDR"] = self.cpu_reset_address
 
         self.shadow_base = shadow_base
 
@@ -263,11 +243,19 @@ class SoCCore(Module):
         if cpu_type is not None:
             if cpu_variant is not None:
                 self.config["CPU_VARIANT"] = str(cpu_variant.split('+')[0]).upper()
-            # CPU selection / instance
+            # Check type
             if cpu_type not in cpu.CPUS.keys():
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
+            # Add the CPU
             self.add_cpu(cpu.CPUS[cpu_type](platform, self.cpu_variant))
-            self.cpu.set_reset_address(cpu_reset_address)
+
+            # Override Memory Map (if needed by CPU)
+            if hasattr(self.cpu, "mem_map"):
+                self.soc_mem_map.update(self.cpu.mem_map)
+
+            # Set reset address
+            self.cpu.set_reset_address(self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
+            self.config["CPU_RESET_ADDR"] = self.cpu.reset_address
 
             # Add Instruction/Data buses as Wisbone masters
             self.add_wb_master(self.cpu.ibus)
@@ -455,7 +443,7 @@ class SoCCore(Module):
 
     def register_rom(self, interface, rom_size=0xa000):
         self.add_wb_slave(self.soc_mem_map["rom"], interface, rom_size)
-        self.add_memory_region("rom", self.cpu_reset_address, rom_size)
+        self.add_memory_region("rom", self.cpu.reset_address, rom_size)
 
     def get_memory_regions(self):
         return self._memory_regions
