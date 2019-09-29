@@ -160,5 +160,5 @@ litex/boards/targets/simple.py litex.boards.platforms.arty \
         self.run_variants('lm32', ('standard', 'minimal', 'lite'))
 
     @unittest.skipIf(RUNNING_ON_TRAVIS, "No or1k toolchain on Travis-CI")
-    def test_variants_or1k(self):
-        self.run_variants('or1k', ('standard', 'linux'))
+    def test_variants_mor1kx(self):
+        self.run_variants('mor1kx', ('standard', 'linux'))
