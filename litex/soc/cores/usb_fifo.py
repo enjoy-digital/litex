@@ -9,6 +9,7 @@ from migen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect import stream
 
+# Layout/Helpers -----------------------------------------------------------------------------------
 
 def phy_description(dw):
     payload_layout = [("data", dw)]
@@ -31,6 +32,7 @@ def anti_starvation(module, timeout):
             module.comb += max_time.eq(0)
         return en, max_time
 
+# FT245 Synchronous FIFO Mode ----------------------------------------------------------------------
 
 class FT245PHYSynchronous(Module):
     def __init__(self, pads, clk_freq,
@@ -141,6 +143,7 @@ class FT245PHYSynchronous(Module):
                 )
         ]
 
+# FT245 Asynchronous FIFO Mode ---------------------------------------------------------------------
 
 class FT245PHYAsynchronous(Module):
     def __init__(self, pads, clk_freq,
@@ -329,6 +332,7 @@ class FT245PHYAsynchronous(Module):
             t += clk_period_ns/2
         return math.ceil(t/clk_period_ns)
 
+# FT245 FIFO Mode PHY (Automatic Asynchronous/Synchronous selection) -------------------------------
 
 def FT245PHY(pads, *args, **kwargs):
     # autodetect PHY

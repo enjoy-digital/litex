@@ -248,6 +248,7 @@ class UARTWishboneBridge(WishboneStreamingBridge):
         self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
         WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
 
+# UART Mutltiplexer --------------------------------------------------------------------------------
 
 def UARTPads():
     return Record([("tx", 1), ("rx", 1)])

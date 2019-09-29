@@ -8,6 +8,7 @@ from functools import reduce
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+# PRBS Generators ----------------------------------------------------------------------------------
 
 class PRBSGenerator(Module):
     def __init__(self, n_out, n_state=23, taps=[17, 22]):
@@ -43,6 +44,7 @@ class PRBS31Generator(PRBSGenerator):
     def __init__(self, n_out):
         PRBSGenerator.__init__(self, n_out, n_state=31, taps=[27, 30])
 
+# PRBS TX ------------------------------------------------------------------------------------------
 
 class PRBSTX(Module):
     def __init__(self, width, reverse=False):
@@ -86,6 +88,7 @@ class PRBSTX(Module):
                 self.o.eq(prbs_data)
             )
 
+# PRBS Checkers ------------------------------------------------------------------------------------
 
 class PRBSChecker(Module):
     def __init__(self, n_in, n_state=23, taps=[17, 22]):
@@ -119,6 +122,7 @@ class PRBS31Checker(PRBSChecker):
     def __init__(self, n_out):
         PRBSChecker.__init__(self, n_out, n_state=31, taps=[27, 30])
 
+# PRBS RX ------------------------------------------------------------------------------------------
 
 class PRBSRX(Module):
     def __init__(self, width, reverse=False):

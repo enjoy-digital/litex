@@ -10,6 +10,8 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.integration.doc import ModuleDoc
 
+# Timer --------------------------------------------------------------------------------------------
+
 class Timer(Module, AutoCSR, ModuleDoc):
     """Timer
 
@@ -56,7 +58,7 @@ class Timer(Module, AutoCSR, ModuleDoc):
         self._value = CSRStatus(width, description="""Latched countdown value""")
 
         self.submodules.ev = EventManager()
-        self.ev.zero = EventSourceProcess()
+        self.ev.zero       = EventSourceProcess()
         self.ev.finalize()
 
         # # #

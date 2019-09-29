@@ -1,9 +1,11 @@
 # Copyright 2014-2015 Robert Jordens <jordens@gmail.com>
+# License: BSD
 
 from migen import *
 
 from litex.soc.interconnect.csr import *
 
+# XADC ---------------------------------------------------------------------------------------------
 
 class XADC(Module, AutoCSR):
     def __init__(self):
@@ -17,16 +19,16 @@ class XADC(Module, AutoCSR):
 
         # Alarms
         self.alarm = Signal(8)
-        self.ot = Signal()
+        self.ot    = Signal()
 
         # # #
 
-        busy = Signal()
+        busy    = Signal()
         channel = Signal(7)
-        eoc = Signal()
-        eos = Signal()
-        data = Signal(16)
-        drdy = Signal()
+        eoc     = Signal()
+        eos     = Signal()
+        data    = Signal(16)
+        drdy    = Signal()
 
         self.specials += Instance("XADC",
             # from ug480
@@ -50,10 +52,10 @@ class XADC(Module, AutoCSR):
         )
 
         channels = {
-                0: self.temperature,
-                1: self.vccint,
-                2: self.vccaux,
-                6: self.vccbram
+            0: self.temperature,
+            1: self.vccint,
+            2: self.vccaux,
+            6: self.vccbram
         }
 
         self.sync += [
