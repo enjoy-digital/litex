@@ -8,36 +8,13 @@ from migen import *
 from migen.genlib.record import *
 
 from litex.soc.interconnect import wishbone
-from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.integration.soc_core import *
 
 from litedram.frontend.wishbone import *
 from litedram.frontend.axi import *
-from litedram import dfii, core
-
+from litedram.core import LiteDRAMCore
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
-
-# Controller Injector ------------------------------------------------------------------------------
-
-# FIXME: move to LiteDRAM
-
-class ControllerInjector(Module, AutoCSR):
-    def __init__(self, phy, geom_settings, timing_settings, clk_freq, **kwargs):
-        self.submodules.dfii = dfii.DFIInjector(
-            geom_settings.addressbits,
-            geom_settings.bankbits,
-            phy.settings.nranks,
-            phy.settings.dfi_databits,
-            phy.settings.nphases)
-        self.comb += self.dfii.master.connect(phy.dfi)
-
-        self.submodules.controller = controller = core.LiteDRAMController(
-            phy.settings, geom_settings, timing_settings,
-            clk_freq, **kwargs)
-        self.comb += controller.dfi.connect(self.dfii.slave)
-
-        self.submodules.crossbar = core.LiteDRAMCrossbar(controller.interface)
 
 # SoCSDRAM -----------------------------------------------------------------------------------------
 
@@ -69,8 +46,12 @@ class SoCSDRAM(SoCCore):
         self._sdram_phy.append(phy) # encapsulate in list to prevent CSR scanning
 
         # LiteDRAM core ----------------------------------------------------------------------------
-        self.submodules.sdram = ControllerInjector(
-            phy, geom_settings, timing_settings, self.clk_freq, **kwargs)
+        self.submodules.sdram = LiteDRAMCore(
+            phy             = phy,
+            geom_settings   = geom_settings,
+            timing_settings = timing_settings,
+            clk_freq        = self.clk_freq,
+            **kwargs)
 
         # SoC <--> L2 Cache <--> LiteDRAM ----------------------------------------------------------
         if self.with_wishbone:
@@ -107,8 +88,8 @@ class SoCSDRAM(SoCCore):
             # L2 Cache <--> LiteDRAM bridge --------------------------------------------------------
             if use_axi:
                 axi_port = LiteDRAMAXIPort(
-                    port.data_width,
-                    port.address_width + log2_int(port.data_width//8))
+                    data_width    = port.data_width,
+                    address_width = port.address_width + log2_int(port.data_width//8))
                 axi2native = LiteDRAMAXI2Native(axi_port, port)
                 self.submodules += axi2native
                 self.submodules.wishbone_bridge = LiteDRAMWishbone2AXI(self.l2_cache.slave, axi_port)
@@ -126,5 +107,5 @@ class SoCSDRAM(SoCCore):
         SoCCore.do_finalize(self)
 
 
-soc_sdram_args = soc_core_args
+soc_sdram_args    = soc_core_args
 soc_sdram_argdict = soc_core_argdict
