@@ -7,8 +7,9 @@ from migen.genlib.cdc import GrayDecoder
 
 from litex.soc.interconnect.csr import *
 
+# Sampler ------------------------------------------------------------------------------------------
 
-class Sampler(Module):
+class _Sampler(Module):
     def __init__(self, width):
         self.latch = Signal()
         self.i = Signal(width)
@@ -16,15 +17,14 @@ class Sampler(Module):
 
         # # #
 
-        inc = Signal(width)
+        inc     = Signal(width)
         counter = Signal(32)
 
-        # use wrapping property of unsigned arithmeric to reset the counter
-        # each cycle (reseting fmeter clock domain is unreliable)
+        # Use wrapping property of unsigned arithmeric to reset the counter at each cycle. Doing
+        # it in fmeter clock domain would not be reliable.
         i_d = Signal(width)
         self.sync += i_d.eq(self.i)
         self.comb += inc.eq(self.i - i_d)
-
         self.sync += \
             If(self.latch,
                 counter.eq(0),
@@ -33,10 +33,11 @@ class Sampler(Module):
                 counter.eq(counter + inc)
             )
 
+# Freq Meter ---------------------------------------------------------------------------------------
 
-class FrequencyMeter(Module, AutoCSR):
+class FreqMeter(Module, AutoCSR):
     def __init__(self, period, width=6, clk=None):
-        self.clk = Signal() if clk is None else clk
+        self.clk   = Signal() if clk is None else clk
         self.value = CSRStatus(32)
 
         # # #
@@ -44,8 +45,8 @@ class FrequencyMeter(Module, AutoCSR):
         self.clock_domains.cd_fmeter = ClockDomain(reset_less=True)
         self.comb += self.cd_fmeter.clk.eq(self.clk)
 
-        # period generation
-        period_done = Signal()
+        # Period generation
+        period_done    = Signal()
         period_counter = Signal(32)
         self.comb += period_done.eq(period_counter == period)
         self.sync += \
@@ -55,10 +56,10 @@ class FrequencyMeter(Module, AutoCSR):
                 period_counter.eq(period_counter + 1)
             )
 
-        # frequency measurement
+        # Frequency measurement
         event_counter = ClockDomainsRenamer("fmeter")(GrayCounter(width))
-        gray_decoder = GrayDecoder(width)
-        sampler = Sampler(width)
+        gray_decoder  = GrayDecoder(width)
+        sampler       = _Sampler(width)
         self.submodules += event_counter, gray_decoder, sampler
 
         self.specials += MultiReg(event_counter.q, gray_decoder.i)
