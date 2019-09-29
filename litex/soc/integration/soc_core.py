@@ -124,10 +124,6 @@ class SoCCore(Module):
         if cpu_type == "None":
             cpu_type = None
 
-        # FIXME: On RocketChip, CSRs *must* be 64-bit aligned.
-        if cpu_type == "rocket":
-            csr_alignment = 64
-
         if not with_wishbone:
             self.soc_mem_map["csr"]  = 0x00000000
 
@@ -142,10 +138,8 @@ class SoCCore(Module):
         self.integrated_main_ram_size = integrated_main_ram_size
 
         assert csr_data_width in [8, 32, 64]
-        assert csr_alignment in [32, 64]
         assert 2**(csr_address_width + 2) <= 0x1000000
         self.csr_data_width = csr_data_width
-        self.csr_alignment = csr_alignment
         self.csr_address_width = csr_address_width
 
         self.with_ctrl = with_ctrl
@@ -252,13 +246,16 @@ class SoCCore(Module):
             self.add_interrupt("timer0", allow_user_defined=True)
 
         # Add Wishbone to CSR bridge
-        self.config["CSR_DATA_WIDTH"] = self.csr_data_width
-        self.config["CSR_ALIGNMENT"]  = self.csr_alignment
+        csr_alignment = max(csr_alignment, self.cpu.data_width)
+        self.config["CSR_DATA_WIDTH"] = csr_data_width
+        self.config["CSR_ALIGNMENT"]  = csr_alignment
+        self.csr_data_width = csr_data_width
+        self.csr_alignment = csr_alignment
         if with_wishbone:
             self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
                 bus_csr=csr_bus.Interface(
-                    address_width=self.csr_address_width,
-                    data_width=self.csr_data_width))
+                    address_width = csr_address_width,
+                    data_width    = csr_data_width))
             self.add_csr_master(self.wishbone2csr.csr)
             self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
 
