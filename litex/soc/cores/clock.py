@@ -22,14 +22,14 @@ class XilinxClocking(Module, AutoCSR):
 
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
-        self.reset = Signal()
-        self.locked = Signal()
+        self.reset      = Signal()
+        self.locked     = Signal()
         self.clkin_freq = None
-        self.vcxo_freq = None
-        self.nclkouts = 0
-        self.clkouts = {}
-        self.config = {}
-        self.params = {}
+        self.vcxo_freq  = None
+        self.nclkouts   = 0
+        self.clkouts    = {}
+        self.config     = {}
+        self.params     = {}
 
     def register_clkin(self, clkin, freq):
         self.clkin = Signal()
@@ -75,9 +75,9 @@ class XilinxClocking(Module, AutoCSR):
                         for d in range(*self.clkout_divide_range):
                             clk_freq = vco_freq/d
                             if abs(clk_freq - f) < f*m:
-                                config["clkout{}_freq".format(n)] = clk_freq
+                                config["clkout{}_freq".format(n)]   = clk_freq
                                 config["clkout{}_divide".format(n)] = d
-                                config["clkout{}_phase".format(n)] = p
+                                config["clkout{}_phase".format(n)]  = p
                                 valid = True
                                 break
                         if not valid:
@@ -103,13 +103,13 @@ class XilinxClocking(Module, AutoCSR):
 
         drp_drdy = Signal()
         self.params.update(
-            i_DCLK=ClockSignal(),
-            i_DWE=self.drp_write.re,
-            i_DEN=self.drp_read.re | self.drp_write.re,
-            o_DRDY=drp_drdy,
-            i_DADDR=self.drp_adr.storage,
-            i_DI=self.drp_dat_w.storage,
-            o_DO=self.drp_dat_r.status
+            i_DCLK  = ClockSignal(),
+            i_DWE   = self.drp_write.re,
+            i_DEN   = self.drp_read.re | self.drp_write.re,
+            o_DRDY  = drp_drdy,
+            i_DADDR = self.drp_adr.storage,
+            i_DI    = self.drp_dat_w.storage,
+            o_DO    = self.drp_dat_r.status
         )
         self.sync += [
             If(self.drp_read.re | self.drp_write.re,
@@ -131,7 +131,7 @@ class S6PLL(XilinxClocking):
     def __init__(self, speedgrade=-1):
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 52 + 1)
-        self.vco_freq_range = {
+        self.vco_freq_range      = {
             -1: (400e6, 1000e6),
             -2: (400e6, 1000e6),
             -3: (400e6, 1080e6),
@@ -142,27 +142,27 @@ class S6PLL(XilinxClocking):
         config = self.compute_config()
         pll_fb = Signal()
         self.params.update(
-            p_SIM_DEVICE="SPARTAN6",
-            p_BANDWIDTH="OPTIMIZED",
-            p_COMPENSATION="INTERNAL",
-            p_REF_JITTER=.01, p_CLK_FEEDBACK="CLKFBOUT",
-            p_CLKIN1_PERIOD=1e9/self.clkin_freq,
-            p_CLKIN2_PERIOD=0.,
-            p_CLKFBOUT_MULT=config["clkfbout_mult"],
-            p_CLKFBOUT_PHASE=0.,
-            p_DIVCLK_DIVIDE=config["divclk_divide"],
-            i_CLKINSEL=1,
-            i_RST=self.reset,
-            i_CLKIN1=self.clkin,
-            i_CLKFBIN=pll_fb,
-            o_CLKFBOUT=pll_fb,
-            o_LOCKED=self.locked,
+            p_SIM_DEVICE     = "SPARTAN6",
+            p_BANDWIDTH      = "OPTIMIZED",
+            p_COMPENSATION   = "INTERNAL",
+            p_REF_JITTER     = .01, p_CLK_FEEDBACK="CLKFBOUT",
+            p_CLKIN1_PERIOD  = 1e9/self.clkin_freq,
+            p_CLKIN2_PERIOD  = 0.,
+            p_CLKFBOUT_MULT  = config["clkfbout_mult"],
+            p_CLKFBOUT_PHASE = 0.,
+            p_DIVCLK_DIVIDE  = config["divclk_divide"],
+            i_CLKINSEL       = 1,
+            i_RST            = self.reset,
+            i_CLKIN1         = self.clkin,
+            i_CLKFBIN        = pll_fb,
+            o_CLKFBOUT       = pll_fb,
+            o_LOCKED         = self.locked,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
-            self.params["p_CLKOUT{}_PHASE".format(n)] = float(config["clkout{}_phase".format(n)])
+            self.params["p_CLKOUT{}_DIVIDE".format(n)]     = config["clkout{}_divide".format(n)]
+            self.params["p_CLKOUT{}_PHASE".format(n)]      = float(config["clkout{}_phase".format(n)])
             self.params["p_CLKOUT{}_DUTY_CYCLE".format(n)] = 0.5
-            self.params["o_CLKOUT{}".format(n)] = clk
+            self.params["o_CLKOUT{}".format(n)]            = clk
         self.specials += Instance("PLL_ADV", **self.params)
 
 
@@ -170,7 +170,7 @@ class S6DCM(XilinxClocking):
     """ single output with f_out = f_in * {2 .. 256} / {1 .. 256} """
     nclkouts_max = 1
     clkfbout_mult_frange = (2, 256 + 1)
-    clkout_divide_range = (1, 256 + 1)
+    clkout_divide_range  = (1, 256 + 1)
 
     def __init__(self, speedgrade=-1):
         XilinxClocking.__init__(self)
@@ -192,15 +192,15 @@ class S6DCM(XilinxClocking):
         config = self.compute_config()
         clk, f, p, m = sorted(self.clkouts.items())[0][1]
         self.params.update(
-            p_CLKFX_MULTIPLY=config["clkfbout_mult"],
-            p_CLKFX_DIVIDE=config["clkout0_divide"] * config["divclk_divide"],
-            p_SPREAD_SPECTRUM="NONE",
-            p_CLKIN_PERIOD=1e9/self.clkin_freq,
-            i_CLKIN=self.clkin,
-            i_RST=self.reset,
-            i_FREEZEDCM=0,
-            o_CLKFX=clk,
-            o_LOCKED=self.locked,
+            p_CLKFX_MULTIPLY  = config["clkfbout_mult"],
+            p_CLKFX_DIVIDE    = config["clkout0_divide"] * config["divclk_divide"],
+            p_SPREAD_SPECTRUM = "NONE",
+            p_CLKIN_PERIOD    = 1e9/self.clkin_freq,
+            i_CLKIN           = self.clkin,
+            i_RST             = self.reset,
+            i_FREEZEDCM       = 0,
+            o_CLKFX           = clk,
+            o_LOCKED          = self.locked,
         )
         self.specials += Instance("DCM_CLKGEN", **self.params)
 
@@ -274,14 +274,14 @@ class S7MMCM(XilinxClocking):
             else:
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)] = clk
+            self.params["o_CLKOUT{}".format(n)]       = clk
         self.specials += Instance("MMCME2_ADV", **self.params)
 
 
 class S7IDELAYCTRL(Module):
     def __init__(self, cd):
         reset_counter = Signal(4, reset=15)
-        ic_reset = Signal(reset=1)
+        ic_reset      = Signal(reset=1)
         sync = getattr(self.sync, cd.name)
         sync += \
             If(reset_counter != 0,
@@ -327,8 +327,8 @@ class USPLL(XilinxClocking):
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
-            self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)] = clk
+            self.params["p_CLKOUT{}_PHASE".format(n)]  = config["clkout{}_phase".format(n)]
+            self.params["o_CLKOUT{}".format(n)]        = clk
         self.specials += Instance("PLLE2_ADV", **self.params)
 
 
@@ -367,7 +367,7 @@ class USMMCM(XilinxClocking):
             else:
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)] = clk
+            self.params["o_CLKOUT{}".format(n)]       = clk
         self.specials += Instance("MMCME2_ADV", **self.params)
 
 
@@ -383,9 +383,10 @@ class USIDELAYCTRL(Module):
                 ic_reset.eq(0)
             )
         self.specials += Instance("IDELAYCTRL",
-            p_SIM_DEVICE="ULTRASCALE",
-            i_REFCLK=cd.clk,
-            i_RST=ic_reset)
+            p_SIM_DEVICE = "ULTRASCALE",
+            i_REFCLK     = cd.clk,
+            i_RST        = ic_reset
+        )
 
 # Lattice / iCE40 ----------------------------------------------------------------------------------
 
@@ -403,14 +404,14 @@ class iCE40PLL(Module):
     vco_freq_range  = (533e6, 1066e6)
 
     def __init__(self):
-        self.reset = Signal()
-        self.locked = Signal()
+        self.reset      = Signal()
+        self.locked     = Signal()
         self.clkin_freq = None
-        self.vcxo_freq = None
-        self.nclkouts = 0
-        self.clkouts = {}
-        self.config = {}
-        self.params = {}
+        self.vcxo_freq  = None
+        self.nclkouts   = 0
+        self.clkouts    = {}
+        self.config     = {}
+        self.params     = {}
 
     def register_clkin(self, clkin, freq):
         (clki_freq_min, clki_freq_max) = self.clki_freq_range
@@ -469,16 +470,16 @@ class iCE40PLL(Module):
                 filter_range = v
                 break
         self.params.update(
-            p_FEEDBACK_PATH="SIMPLE",
-            p_FILTER_RANGE=filter_range,
-            i_RESETB=~self.reset,
-            i_REFERENCECLK=self.clkin,
-            o_LOCK=self.locked,
+            p_FEEDBACK_PATH = "SIMPLE",
+            p_FILTER_RANGE  = filter_range,
+            i_RESETB        = ~self.reset,
+            i_REFERENCECLK  = self.clkin,
+            o_LOCK          = self.locked,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-            self.params["p_DIVR"] = config["divr"]
-            self.params["p_DIVF"] = config["divf"]
-            self.params["p_DIVQ"] = config["divq"]
+            self.params["p_DIVR"]         = config["divr"]
+            self.params["p_DIVF"]         = config["divf"]
+            self.params["p_DIVQ"]         = config["divq"]
             self.params["o_PLLOUTGLOBAL"] = clk
         self.specials += Instance("SB_PLL40_CORE", **self.params)
 
@@ -488,7 +489,7 @@ class iCE40PLL(Module):
 # - add proper phase support.
 
 class ECP5PLL(Module):
-    nclkouts_max = 3
+    nclkouts_max    = 3
     clkfb_div_range = (1, 128+1)
     clko_div_range  = (1, 128+1)
     clki_freq_range = (    8e6,  400e6)
@@ -496,14 +497,14 @@ class ECP5PLL(Module):
     vco_freq_range  = (  550e6, 1250e6)
 
     def __init__(self):
-        self.reset = Signal()
-        self.locked = Signal()
+        self.reset      = Signal()
+        self.locked     = Signal()
         self.clkin_freq = None
-        self.vcxo_freq = None
-        self.nclkouts = 0
-        self.clkouts = {}
-        self.config = {}
-        self.params = {}
+        self.vcxo_freq  = None
+        self.nclkouts   = 0
+        self.clkouts    = {}
+        self.config     = {}
+        self.params     = {}
 
     def register_clkin(self, clkin, freq):
         (clki_freq_min, clki_freq_max) = self.clki_freq_range
@@ -565,12 +566,12 @@ class ECP5PLL(Module):
                 ("MFG_GMCREF_SEL",         "2")],
             i_RST=self.reset,
 
-            i_CLKI=self.clkin,
-            o_LOCK=self.locked,
+            i_CLKI = self.clkin,
+            o_LOCK = self.locked,
 
-            p_FEEDBK_PATH="INT_OS3",   # CLKOS3 reserved for
-            p_CLKOS3_ENABLE="ENABLED", # feedback with div=1.
-            p_CLKOS3_DIV=1,
+            p_FEEDBK_PATH   = "INT_OS3",   # CLKOS3 reserved for
+            p_CLKOS3_ENABLE = "ENABLED", # feedback with div=1.
+            p_CLKOS3_DIV    = 1,
 
             p_CLKFB_DIV=config["clkfb_div"],
             p_CLKI_DIV=1,
@@ -578,8 +579,8 @@ class ECP5PLL(Module):
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2"}
             self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
-            self.params["p_CLKO{}_DIV".format(n_to_l[n])] = config["clko{}_div".format(n)]
+            self.params["p_CLKO{}_DIV".format(n_to_l[n])]    = config["clko{}_div".format(n)]
             self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
             self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = p
-            self.params["o_CLKO{}".format(n_to_l[n])] = clk
+            self.params["o_CLKO{}".format(n_to_l[n])]        = clk
         self.specials += Instance("EHXPLLL", **self.params)
