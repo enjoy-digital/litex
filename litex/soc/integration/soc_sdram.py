@@ -11,7 +11,6 @@ from litex.soc.interconnect import wishbone
 from litex.soc.integration.soc_core import *
 
 from litedram.frontend.wishbone import *
-from litedram.frontend.axi import *
 from litedram.core import LiteDRAMCore
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
@@ -20,8 +19,8 @@ __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
 class SoCSDRAM(SoCCore):
     csr_map = {
-        "sdram":           8,
-        "l2_cache":        9
+        "sdram":    8,
+        "l2_cache": 9,
     }
     csr_map.update(SoCCore.csr_map)
 
@@ -41,7 +40,7 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, geom_settings, timing_settings, use_axi=False, use_full_memory_we=True, **kwargs):
+    def register_sdram(self, phy, geom_settings, timing_settings, use_full_memory_we=True, **kwargs):
         assert not self._sdram_phy
         self._sdram_phy.append(phy) # encapsulate in list to prevent CSR scanning
 
@@ -86,15 +85,7 @@ class SoCSDRAM(SoCCore):
             self.config["L2_SIZE"] = l2_size
 
             # L2 Cache <--> LiteDRAM bridge --------------------------------------------------------
-            if use_axi:
-                axi_port = LiteDRAMAXIPort(
-                    data_width    = port.data_width,
-                    address_width = port.address_width + log2_int(port.data_width//8))
-                axi2native = LiteDRAMAXI2Native(axi_port, port)
-                self.submodules += axi2native
-                self.submodules.wishbone_bridge = LiteDRAMWishbone2AXI(self.l2_cache.slave, axi_port)
-            else:
-                self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
 
     def do_finalize(self):
         if not self.integrated_main_ram_size:
