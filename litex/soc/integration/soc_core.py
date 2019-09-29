@@ -41,8 +41,8 @@ __all__ = [
 
 class SoCController(Module, AutoCSR):
     def __init__(self):
-        self._reset = CSR()
-        self._scratch = CSRStorage(32, reset=0x12345678)
+        self._reset      = CSR()
+        self._scratch    = CSRStorage(32, reset=0x12345678)
         self._bus_errors = CSRStatus(32)
 
         # # #
@@ -53,7 +53,7 @@ class SoCController(Module, AutoCSR):
 
         # bus errors
         self.bus_error = Signal()
-        bus_errors = Signal(32)
+        bus_errors     = Signal(32)
         self.sync += \
             If(bus_errors != (2**len(bus_errors)-1),
                 If(self.bus_error,
@@ -104,18 +104,18 @@ class SoCCore(Module):
         self.config = dict()
 
         # SoC's register/interrupt/memory mappings (default or user defined + dynamically allocateds)
-        self.soc_csr_map = {}
+        self.soc_csr_map       = {}
         self.soc_interrupt_map = {}
-        self.soc_mem_map = self.mem_map
+        self.soc_mem_map       = self.mem_map
 
         # Regions / Constants lists
         self._memory_regions = []  # (name, origin, length)
-        self._csr_regions = []     # (name, origin, busword, csr_list/Memory)
-        self._constants = []       # (name, value)
+        self._csr_regions    = []  # (name, origin, busword, csr_list/Memory)
+        self._constants      = []  # (name, value)
 
         # Wishbone masters/slaves lists
         self._wb_masters = []
-        self._wb_slaves = []
+        self._wb_slaves  = []
 
         # CSR masters list
         self._csr_masters = []
@@ -132,22 +132,22 @@ class SoCCore(Module):
 
         self.shadow_base = shadow_base
 
-        self.integrated_rom_size = integrated_rom_size
+        self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
-        self.integrated_sram_size = integrated_sram_size
-        self.integrated_main_ram_size = integrated_main_ram_size
+        self.integrated_sram_size       = integrated_sram_size
+        self.integrated_main_ram_size   = integrated_main_ram_size
 
         assert csr_data_width in [8, 32, 64]
         assert 2**(csr_address_width + 2) <= 0x1000000
-        self.csr_data_width = csr_data_width
+        self.csr_data_width    = csr_data_width
         self.csr_address_width = csr_address_width
 
         self.with_ctrl = with_ctrl
 
-        self.with_uart = with_uart
+        self.with_uart     = with_uart
         self.uart_baudrate = uart_baudrate
 
-        self.with_wishbone = with_wishbone
+        self.with_wishbone           = with_wishbone
         self.wishbone_timeout_cycles = wishbone_timeout_cycles
 
         # Modules instances ------------------------------------------------------------------------
@@ -250,7 +250,7 @@ class SoCCore(Module):
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.config["CSR_ALIGNMENT"]  = csr_alignment
         self.csr_data_width = csr_data_width
-        self.csr_alignment = csr_alignment
+        self.csr_alignment  = csr_alignment
         if with_wishbone:
             self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
                 bus_csr=csr_bus.Interface(
@@ -432,9 +432,10 @@ class SoCCore(Module):
         # Collect and create CSRs
         self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
             self.get_csr_dev_address,
-            data_width=self.csr_data_width,
-            address_width=self.csr_address_width,
-            alignment=self.csr_alignment)
+            data_width    = self.csr_data_width,
+            address_width = self.csr_address_width,
+            alignment     = self.csr_alignment
+        )
 
         # Add CSRs interconnect
         if len(self._csr_masters) != 0:
