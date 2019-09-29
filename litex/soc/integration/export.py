@@ -23,12 +23,16 @@ from litex.soc.interconnect.csr import CSRStatus
 
 from litex.build.tools import generated_banner
 
+# Helpers ----------------------------------------------------------------------------------------
+
 # FIXME: use OrderedDict for constants?
 def get_constant(name, constants):
     for n, v in constants:
         if n == name:
             return v
     return None
+
+# CPU files ----------------------------------------------------------------------------------------
 
 def get_cpu_mak(cpu, compile_software):
     # select between clang and gcc
@@ -100,11 +104,23 @@ def get_linker_regions(regions):
     return r
 
 
+# C Export -----------------------------------------------------------------------------------------
+
+def get_git_header():
+    from litex.build.tools import get_migen_git_revision, get_litex_git_revision
+    r = generated_banner("//")
+    r += "#ifndef __GENERATED_GIT_H\n#define __GENERATED_GIT_H\n\n"
+    r += "#define MIGEN_GIT_SHA1 \"{}\"\n".format(get_migen_git_revision())
+    r += "#define LITEX_GIT_SHA1 \"{}\"\n".format(get_litex_git_revision())
+    r += "#endif\n"
+    return r
+
 def get_mem_header(regions, flash_boot_address, shadow_base):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, base, size in regions:
-        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(name=name.upper(), base=base, size=size)
+        r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(
+            name=name.upper(), base=base, size=size)
     if flash_boot_address is not None:
         r += "#define FLASH_BOOT_ADDRESS 0x{:08x}L\n\n".format(flash_boot_address)
     if shadow_base is not None:
@@ -205,6 +221,8 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
     r += "\n#endif\n"
     return r
 
+# JSON Export --------------------------------------------------------------------------------------
+
 def get_csr_json(csr_regions=[], constants=[], memory_regions=[]):
     alignment = 32 if constants is None else get_constant("CONFIG_CSR_ALIGNMENT", constants)
 
@@ -238,6 +256,9 @@ def get_csr_json(csr_regions=[], constants=[], memory_regions=[]):
 
     return json.dumps(d, indent=4)
 
+
+# CSV Export --------------------------------------------------------------------------------------
+
 def get_csr_csv(csr_regions=[], constants=[], memory_regions=[]):
     d = json.loads(get_csr_json(csr_regions, constants, memory_regions))
     r = generated_banner("#")
@@ -254,13 +275,4 @@ def get_csr_csv(csr_regions=[], constants=[], memory_regions=[]):
         r += "memory_region,{},0x{:08x},{:d},\n".format(name,
             d["memories"][name]["base"],
             d["memories"][name]["size"])
-    return r
-
-def get_git_header():
-    from litex.build.tools import get_migen_git_revision, get_litex_git_revision
-    r = generated_banner("//")
-    r += "#ifndef __GENERATED_GIT_H\n#define __GENERATED_GIT_H\n\n"
-    r += "#define MIGEN_GIT_SHA1 \"{}\"\n".format(get_migen_git_revision())
-    r += "#define LITEX_GIT_SHA1 \"{}\"\n".format(get_litex_git_revision())
-    r += "#endif\n"
     return r
