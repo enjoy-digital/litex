@@ -14,6 +14,7 @@ from operator import xor
 
 from migen import *
 
+# Helpers ------------------------------------------------------------------------------------------
 
 def compute_m_n(k):
     m = 1
@@ -50,6 +51,7 @@ def compute_cover_positions(m, p):
         i += 2*p
     return r
 
+# SECDED (Single Error Detection, Double Error Detection) ------------------------------------------
 
 class SECDED:
     def place_data(self, data, codeword):
@@ -82,6 +84,7 @@ class SECDED:
         self.comb += parity.eq(reduce(xor,
             [codeword[i] for i in range(len(codeword))]))
 
+# ECC Encoder --------------------------------------------------------------------------------------
 
 class ECCEncoder(SECDED, Module):
     def __init__(self, k):
@@ -109,6 +112,7 @@ class ECCEncoder(SECDED, Module):
         # output codeword + parity
         self.comb += o.eq(Cat(parity, codeword_d_p))
 
+# ECC Decoder --------------------------------------------------------------------------------------
 
 class ECCDecoder(SECDED, Module):
     def __init__(self, k):
