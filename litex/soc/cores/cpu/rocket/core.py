@@ -76,24 +76,20 @@ class RocketRV64(CPU):
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
 
-
         self.platform = platform
-        self.variant = variant
-        self.reset = Signal()
+        self.variant  = variant
 
+        self.reset     = Signal()
         self.interrupt = Signal(4)
 
-        self.mem_axi = mem_axi = axi.AXIInterface(
-            data_width=64, address_width=32, id_width=4)
-        self.mmio_axi = mmio_axi = axi.AXIInterface(
-            data_width=64, address_width=32, id_width=4)
+        self.mem_axi  = mem_axi  = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
+        self.mmio_axi = mmio_axi = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
 
-        self.mem_wb = mem_wb = wishbone.Interface(data_width=64, adr_width=29)
+        self.mem_wb  = mem_wb  = wishbone.Interface(data_width=64, adr_width=29)
         self.mmio_wb = mmio_wb = wishbone.Interface(data_width=64, adr_width=29)
 
         self.ibus = ibus = wishbone.Interface()
         self.dbus = dbus = wishbone.Interface()
-
 
         # # #
 
@@ -103,116 +99,114 @@ class RocketRV64(CPU):
             i_reset=ResetSignal() | self.reset,
 
             # debug (ignored)
-            #o_debug_clockeddmi_dmi_req_ready=,
-            i_debug_clockeddmi_dmi_req_valid=0,
-            i_debug_clockeddmi_dmi_req_bits_addr=0,
-            i_debug_clockeddmi_dmi_req_bits_data=0,
-            i_debug_clockeddmi_dmi_req_bits_op=0,
-            i_debug_clockeddmi_dmi_resp_ready=0,
-            #o_debug_clockeddmi_dmi_resp_valid=,
-            #o_debug_clockeddmi_dmi_resp_bits_data=,
-            #o_debug_clockeddmi_dmi_resp_bits_resp=,
-            i_debug_clockeddmi_dmiClock=0,
-            i_debug_clockeddmi_dmiReset=0,
-            #o_debug_ndreset=,
-            #o_debug_dmactive=,
+            #o_debug_clockeddmi_dmi_req_ready      = ,
+            i_debug_clockeddmi_dmi_req_valid       = 0,
+            i_debug_clockeddmi_dmi_req_bits_addr   = 0,
+            i_debug_clockeddmi_dmi_req_bits_data   = 0,
+            i_debug_clockeddmi_dmi_req_bits_op     = 0,
+            i_debug_clockeddmi_dmi_resp_ready      = 0,
+            #o_debug_clockeddmi_dmi_resp_valid     = ,
+            #o_debug_clockeddmi_dmi_resp_bits_data = ,
+            #o_debug_clockeddmi_dmi_resp_bits_resp = ,
+            i_debug_clockeddmi_dmiClock            = 0,
+            i_debug_clockeddmi_dmiReset            = 0,
+            #o_debug_ndreset                       = ,
+            #o_debug_dmactive                      = ,
 
 
             # irq
             i_interrupts=self.interrupt,
 
             # axi memory (L1-cached)
-            i_mem_axi4_0_aw_ready=mem_axi.aw.ready,
-            o_mem_axi4_0_aw_valid=mem_axi.aw.valid,
-            o_mem_axi4_0_aw_bits_id=mem_axi.aw.id,
-            o_mem_axi4_0_aw_bits_addr=mem_axi.aw.addr,
-            o_mem_axi4_0_aw_bits_len=mem_axi.aw.len,
-            o_mem_axi4_0_aw_bits_size=mem_axi.aw.size,
-            o_mem_axi4_0_aw_bits_burst=mem_axi.aw.burst,
-            o_mem_axi4_0_aw_bits_lock=mem_axi.aw.lock,
-            o_mem_axi4_0_aw_bits_cache=mem_axi.aw.cache,
-            o_mem_axi4_0_aw_bits_prot=mem_axi.aw.prot,
-            o_mem_axi4_0_aw_bits_qos=mem_axi.aw.qos,
+            i_mem_axi4_0_aw_ready      = mem_axi.aw.ready,
+            o_mem_axi4_0_aw_valid      = mem_axi.aw.valid,
+            o_mem_axi4_0_aw_bits_id    = mem_axi.aw.id,
+            o_mem_axi4_0_aw_bits_addr  = mem_axi.aw.addr,
+            o_mem_axi4_0_aw_bits_len   = mem_axi.aw.len,
+            o_mem_axi4_0_aw_bits_size  = mem_axi.aw.size,
+            o_mem_axi4_0_aw_bits_burst = mem_axi.aw.burst,
+            o_mem_axi4_0_aw_bits_lock  = mem_axi.aw.lock,
+            o_mem_axi4_0_aw_bits_cache = mem_axi.aw.cache,
+            o_mem_axi4_0_aw_bits_prot  = mem_axi.aw.prot,
+            o_mem_axi4_0_aw_bits_qos   = mem_axi.aw.qos,
 
-            i_mem_axi4_0_w_ready=mem_axi.w.ready,
-            o_mem_axi4_0_w_valid=mem_axi.w.valid,
-            o_mem_axi4_0_w_bits_data=mem_axi.w.data,
-            o_mem_axi4_0_w_bits_strb=mem_axi.w.strb,
-            o_mem_axi4_0_w_bits_last=mem_axi.w.last,
+            i_mem_axi4_0_w_ready       = mem_axi.w.ready,
+            o_mem_axi4_0_w_valid       = mem_axi.w.valid,
+            o_mem_axi4_0_w_bits_data   = mem_axi.w.data,
+            o_mem_axi4_0_w_bits_strb   = mem_axi.w.strb,
+            o_mem_axi4_0_w_bits_last   = mem_axi.w.last,
 
-            o_mem_axi4_0_b_ready=mem_axi.b.ready,
-            i_mem_axi4_0_b_valid=mem_axi.b.valid,
-            i_mem_axi4_0_b_bits_id=mem_axi.b.id,
-            i_mem_axi4_0_b_bits_resp=mem_axi.b.resp,
+            o_mem_axi4_0_b_ready       = mem_axi.b.ready,
+            i_mem_axi4_0_b_valid       = mem_axi.b.valid,
+            i_mem_axi4_0_b_bits_id     = mem_axi.b.id,
+            i_mem_axi4_0_b_bits_resp   = mem_axi.b.resp,
 
-            i_mem_axi4_0_ar_ready=mem_axi.ar.ready,
-            o_mem_axi4_0_ar_valid=mem_axi.ar.valid,
-            o_mem_axi4_0_ar_bits_id=mem_axi.ar.id,
-            o_mem_axi4_0_ar_bits_addr=mem_axi.ar.addr,
-            o_mem_axi4_0_ar_bits_len=mem_axi.ar.len,
-            o_mem_axi4_0_ar_bits_size=mem_axi.ar.size,
-            o_mem_axi4_0_ar_bits_burst=mem_axi.ar.burst,
-            o_mem_axi4_0_ar_bits_lock=mem_axi.ar.lock,
-            o_mem_axi4_0_ar_bits_cache=mem_axi.ar.cache,
-            o_mem_axi4_0_ar_bits_prot=mem_axi.ar.prot,
-            o_mem_axi4_0_ar_bits_qos=mem_axi.ar.qos,
+            i_mem_axi4_0_ar_ready      = mem_axi.ar.ready,
+            o_mem_axi4_0_ar_valid      = mem_axi.ar.valid,
+            o_mem_axi4_0_ar_bits_id    = mem_axi.ar.id,
+            o_mem_axi4_0_ar_bits_addr  = mem_axi.ar.addr,
+            o_mem_axi4_0_ar_bits_len   = mem_axi.ar.len,
+            o_mem_axi4_0_ar_bits_size  = mem_axi.ar.size,
+            o_mem_axi4_0_ar_bits_burst = mem_axi.ar.burst,
+            o_mem_axi4_0_ar_bits_lock  = mem_axi.ar.lock,
+            o_mem_axi4_0_ar_bits_cache = mem_axi.ar.cache,
+            o_mem_axi4_0_ar_bits_prot  = mem_axi.ar.prot,
+            o_mem_axi4_0_ar_bits_qos   = mem_axi.ar.qos,
 
-            o_mem_axi4_0_r_ready=mem_axi.r.ready,
-            i_mem_axi4_0_r_valid=mem_axi.r.valid,
-            i_mem_axi4_0_r_bits_id=mem_axi.r.id,
-            i_mem_axi4_0_r_bits_data=mem_axi.r.data,
-            i_mem_axi4_0_r_bits_resp=mem_axi.r.resp,
-            i_mem_axi4_0_r_bits_last=mem_axi.r.last,
+            o_mem_axi4_0_r_ready       = mem_axi.r.ready,
+            i_mem_axi4_0_r_valid       = mem_axi.r.valid,
+            i_mem_axi4_0_r_bits_id     = mem_axi.r.id,
+            i_mem_axi4_0_r_bits_data   = mem_axi.r.data,
+            i_mem_axi4_0_r_bits_resp   = mem_axi.r.resp,
+            i_mem_axi4_0_r_bits_last   = mem_axi.r.last,
 
             # axi mmio (not cached)
-            i_mmio_axi4_0_aw_ready=mmio_axi.aw.ready,
-            o_mmio_axi4_0_aw_valid=mmio_axi.aw.valid,
-            o_mmio_axi4_0_aw_bits_id=mmio_axi.aw.id,
-            o_mmio_axi4_0_aw_bits_addr=mmio_axi.aw.addr,
-            o_mmio_axi4_0_aw_bits_len=mmio_axi.aw.len,
-            o_mmio_axi4_0_aw_bits_size=mmio_axi.aw.size,
-            o_mmio_axi4_0_aw_bits_burst=mmio_axi.aw.burst,
-            o_mmio_axi4_0_aw_bits_lock=mmio_axi.aw.lock,
-            o_mmio_axi4_0_aw_bits_cache=mmio_axi.aw.cache,
-            o_mmio_axi4_0_aw_bits_prot=mmio_axi.aw.prot,
-            o_mmio_axi4_0_aw_bits_qos=mmio_axi.aw.qos,
+            i_mmio_axi4_0_aw_ready      = mmio_axi.aw.ready,
+            o_mmio_axi4_0_aw_valid      = mmio_axi.aw.valid,
+            o_mmio_axi4_0_aw_bits_id    = mmio_axi.aw.id,
+            o_mmio_axi4_0_aw_bits_addr  = mmio_axi.aw.addr,
+            o_mmio_axi4_0_aw_bits_len   = mmio_axi.aw.len,
+            o_mmio_axi4_0_aw_bits_size  = mmio_axi.aw.size,
+            o_mmio_axi4_0_aw_bits_burst = mmio_axi.aw.burst,
+            o_mmio_axi4_0_aw_bits_lock  = mmio_axi.aw.lock,
+            o_mmio_axi4_0_aw_bits_cache = mmio_axi.aw.cache,
+            o_mmio_axi4_0_aw_bits_prot  = mmio_axi.aw.prot,
+            o_mmio_axi4_0_aw_bits_qos   = mmio_axi.aw.qos,
 
-            i_mmio_axi4_0_w_ready=mmio_axi.w.ready,
-            o_mmio_axi4_0_w_valid=mmio_axi.w.valid,
-            o_mmio_axi4_0_w_bits_data=mmio_axi.w.data,
-            o_mmio_axi4_0_w_bits_strb=mmio_axi.w.strb,
-            o_mmio_axi4_0_w_bits_last=mmio_axi.w.last,
+            i_mmio_axi4_0_w_ready       = mmio_axi.w.ready,
+            o_mmio_axi4_0_w_valid       = mmio_axi.w.valid,
+            o_mmio_axi4_0_w_bits_data   = mmio_axi.w.data,
+            o_mmio_axi4_0_w_bits_strb   = mmio_axi.w.strb,
+            o_mmio_axi4_0_w_bits_last   = mmio_axi.w.last,
 
-            o_mmio_axi4_0_b_ready=mmio_axi.b.ready,
-            i_mmio_axi4_0_b_valid=mmio_axi.b.valid,
-            i_mmio_axi4_0_b_bits_id=mmio_axi.b.id,
-            i_mmio_axi4_0_b_bits_resp=mmio_axi.b.resp,
+            o_mmio_axi4_0_b_ready       = mmio_axi.b.ready,
+            i_mmio_axi4_0_b_valid       = mmio_axi.b.valid,
+            i_mmio_axi4_0_b_bits_id     = mmio_axi.b.id,
+            i_mmio_axi4_0_b_bits_resp   = mmio_axi.b.resp,
 
-            i_mmio_axi4_0_ar_ready=mmio_axi.ar.ready,
-            o_mmio_axi4_0_ar_valid=mmio_axi.ar.valid,
-            o_mmio_axi4_0_ar_bits_id=mmio_axi.ar.id,
-            o_mmio_axi4_0_ar_bits_addr=mmio_axi.ar.addr,
-            o_mmio_axi4_0_ar_bits_len=mmio_axi.ar.len,
-            o_mmio_axi4_0_ar_bits_size=mmio_axi.ar.size,
-            o_mmio_axi4_0_ar_bits_burst=mmio_axi.ar.burst,
-            o_mmio_axi4_0_ar_bits_lock=mmio_axi.ar.lock,
-            o_mmio_axi4_0_ar_bits_cache=mmio_axi.ar.cache,
-            o_mmio_axi4_0_ar_bits_prot=mmio_axi.ar.prot,
-            o_mmio_axi4_0_ar_bits_qos=mmio_axi.ar.qos,
+            i_mmio_axi4_0_ar_ready      = mmio_axi.ar.ready,
+            o_mmio_axi4_0_ar_valid      = mmio_axi.ar.valid,
+            o_mmio_axi4_0_ar_bits_id    = mmio_axi.ar.id,
+            o_mmio_axi4_0_ar_bits_addr  = mmio_axi.ar.addr,
+            o_mmio_axi4_0_ar_bits_len   = mmio_axi.ar.len,
+            o_mmio_axi4_0_ar_bits_size  = mmio_axi.ar.size,
+            o_mmio_axi4_0_ar_bits_burst = mmio_axi.ar.burst,
+            o_mmio_axi4_0_ar_bits_lock  = mmio_axi.ar.lock,
+            o_mmio_axi4_0_ar_bits_cache = mmio_axi.ar.cache,
+            o_mmio_axi4_0_ar_bits_prot  = mmio_axi.ar.prot,
+            o_mmio_axi4_0_ar_bits_qos   = mmio_axi.ar.qos,
 
-            o_mmio_axi4_0_r_ready=mmio_axi.r.ready,
-            i_mmio_axi4_0_r_valid=mmio_axi.r.valid,
-            i_mmio_axi4_0_r_bits_id=mmio_axi.r.id,
-            i_mmio_axi4_0_r_bits_data=mmio_axi.r.data,
-            i_mmio_axi4_0_r_bits_resp=mmio_axi.r.resp,
-            i_mmio_axi4_0_r_bits_last=mmio_axi.r.last,
+            o_mmio_axi4_0_r_ready       = mmio_axi.r.ready,
+            i_mmio_axi4_0_r_valid       = mmio_axi.r.valid,
+            i_mmio_axi4_0_r_bits_id     = mmio_axi.r.id,
+            i_mmio_axi4_0_r_bits_data   = mmio_axi.r.data,
+            i_mmio_axi4_0_r_bits_resp   = mmio_axi.r.resp,
+            i_mmio_axi4_0_r_bits_last   = mmio_axi.r.last,
         )
 
         # adapt axi interfaces to wishbone
-        mem_a2w = ResetInserter()(
-            axi.AXI2Wishbone(mem_axi, mem_wb, base_address=0))
-        mmio_a2w = ResetInserter()(
-            axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
+        mem_a2w = ResetInserter()(axi.AXI2Wishbone(mem_axi, mem_wb, base_address=0))
+        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
         # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
         self.comb += [
             mem_a2w.reset.eq(ResetSignal() | self.reset),

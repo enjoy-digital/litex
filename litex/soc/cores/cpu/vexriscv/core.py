@@ -57,8 +57,8 @@ GCC_FLAGS = {
 
 class VexRiscvTimer(Module, AutoCSR):
     def __init__(self):
-        self._latch = CSR()
-        self._time = CSRStatus(64)
+        self._latch    = CSR()
+        self._time     = CSRStatus(64)
         self._time_cmp = CSRStorage(64, reset=2**64-1)
         self.interrupt = Signal()
 
@@ -89,46 +89,46 @@ class VexRiscv(CPU, AutoCSR):
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        self.platform = platform
-        self.variant = variant
+        self.platform         = platform
+        self.variant          = variant
         self.external_variant = None
-        self.reset = Signal()
-        self.ibus = ibus = wishbone.Interface()
-        self.dbus = dbus = wishbone.Interface()
-
+        self.reset     = Signal()
+        self.ibus      = ibus = wishbone.Interface()
+        self.dbus      = dbus = wishbone.Interface()
         self.interrupt = Signal(32)
 
         self.cpu_params = dict(
                 i_clk=ClockSignal(),
                 i_reset=ResetSignal() | self.reset,
 
-                i_externalInterruptArray=self.interrupt,
-                i_timerInterrupt=0,
-                i_softwareInterrupt=0,
+                i_externalInterruptArray = self.interrupt,
+                i_timerInterrupt         = 0,
+                i_softwareInterrupt      = 0,
 
-                o_iBusWishbone_ADR=ibus.adr,
-                o_iBusWishbone_DAT_MOSI=ibus.dat_w,
-                o_iBusWishbone_SEL=ibus.sel,
-                o_iBusWishbone_CYC=ibus.cyc,
-                o_iBusWishbone_STB=ibus.stb,
-                o_iBusWishbone_WE=ibus.we,
-                o_iBusWishbone_CTI=ibus.cti,
-                o_iBusWishbone_BTE=ibus.bte,
-                i_iBusWishbone_DAT_MISO=ibus.dat_r,
-                i_iBusWishbone_ACK=ibus.ack,
-                i_iBusWishbone_ERR=ibus.err,
+                o_iBusWishbone_ADR      = ibus.adr,
+                o_iBusWishbone_DAT_MOSI = ibus.dat_w,
+                o_iBusWishbone_SEL      = ibus.sel,
+                o_iBusWishbone_CYC      = ibus.cyc,
+                o_iBusWishbone_STB      = ibus.stb,
+                o_iBusWishbone_WE       = ibus.we,
+                o_iBusWishbone_CTI      = ibus.cti,
+                o_iBusWishbone_BTE      = ibus.bte,
+                i_iBusWishbone_DAT_MISO = ibus.dat_r,
+                i_iBusWishbone_ACK      = ibus.ack,
+                i_iBusWishbone_ERR      = ibus.err,
 
-                o_dBusWishbone_ADR=dbus.adr,
-                o_dBusWishbone_DAT_MOSI=dbus.dat_w,
-                o_dBusWishbone_SEL=dbus.sel,
-                o_dBusWishbone_CYC=dbus.cyc,
-                o_dBusWishbone_STB=dbus.stb,
-                o_dBusWishbone_WE=dbus.we,
-                o_dBusWishbone_CTI=dbus.cti,
-                o_dBusWishbone_BTE=dbus.bte,
-                i_dBusWishbone_DAT_MISO=dbus.dat_r,
-                i_dBusWishbone_ACK=dbus.ack,
-                i_dBusWishbone_ERR=dbus.err)
+                o_dBusWishbone_ADR      = dbus.adr,
+                o_dBusWishbone_DAT_MOSI = dbus.dat_w,
+                o_dBusWishbone_SEL      = dbus.sel,
+                o_dBusWishbone_CYC      = dbus.cyc,
+                o_dBusWishbone_STB      = dbus.stb,
+                o_dBusWishbone_WE       = dbus.we,
+                o_dBusWishbone_CTI      = dbus.cti,
+                o_dBusWishbone_BTE      = dbus.bte,
+                i_dBusWishbone_DAT_MISO = dbus.dat_r,
+                i_dBusWishbone_ACK      = dbus.ack,
+                i_dBusWishbone_ERR      = dbus.err
+            )
 
         if "linux" in variant:
             self.add_timer()
@@ -142,18 +142,18 @@ class VexRiscv(CPU, AutoCSR):
         ibus_err = Signal()
         dbus_err = Signal()
 
-        self.i_cmd_valid = Signal()
-        self.i_cmd_payload_wr = Signal()
+        self.i_cmd_valid           = Signal()
+        self.i_cmd_payload_wr      = Signal()
         self.i_cmd_payload_address = Signal(8)
-        self.i_cmd_payload_data = Signal(32)
-        self.o_cmd_ready = Signal()
-        self.o_rsp_data = Signal(32)
-        self.o_resetOut = Signal()
+        self.i_cmd_payload_data    = Signal(32)
+        self.o_cmd_ready           = Signal()
+        self.o_rsp_data            = Signal(32)
+        self.o_resetOut            = Signal()
 
         reset_debug_logic = Signal()
 
-        self.transfer_complete = Signal()
-        self.transfer_in_progress = Signal()
+        self.transfer_complete     = Signal()
+        self.transfer_in_progress  = Signal()
         self.transfer_wait_for_ack = Signal()
 
         self.debug_bus = wishbone.Interface()
@@ -212,14 +212,14 @@ class VexRiscv(CPU, AutoCSR):
             i_reset=ResetSignal() | self.reset | debug_reset,
             i_iBusWishbone_ERR=self.ibus.err | ibus_err,
             i_dBusWishbone_ERR=self.dbus.err | dbus_err,
-            i_debugReset=ResetSignal(),
-            i_debug_bus_cmd_valid=self.i_cmd_valid,
-            i_debug_bus_cmd_payload_wr=self.i_cmd_payload_wr,
-            i_debug_bus_cmd_payload_address=self.i_cmd_payload_address,
-            i_debug_bus_cmd_payload_data=self.i_cmd_payload_data,
-            o_debug_bus_cmd_ready=self.o_cmd_ready,
-            o_debug_bus_rsp_data=self.o_rsp_data,
-            o_debug_resetOut=self.o_resetOut
+            i_debugReset                    = ResetSignal(),
+            i_debug_bus_cmd_valid           = self.i_cmd_valid,
+            i_debug_bus_cmd_payload_wr      = self.i_cmd_payload_wr,
+            i_debug_bus_cmd_payload_address = self.i_cmd_payload_address,
+            i_debug_bus_cmd_payload_data    = self.i_cmd_payload_data,
+            o_debug_bus_cmd_ready           = self.o_cmd_ready,
+            o_debug_bus_rsp_data            = self.o_rsp_data,
+            o_debug_resetOut                = self.o_resetOut
         )
 
     def set_reset_address(self, reset_address):

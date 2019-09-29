@@ -55,19 +55,19 @@ class PicoRV32(CPU):
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform = platform
-        self.variant = variant
-        self.reset = Signal()
-        self.ibus = i = wishbone.Interface()
-        self.dbus = d = wishbone.Interface()
+        self.variant  = variant
+        self.reset     = Signal()
+        self.ibus      = i = wishbone.Interface()
+        self.dbus      = d = wishbone.Interface()
         self.interrupt = Signal(32)
-        self.trap = Signal()
+        self.trap      = Signal()
 
         # # #
 
         mem_valid = Signal()
         mem_instr = Signal()
         mem_ready = Signal()
-        mem_addr = Signal(32)
+        mem_addr  = Signal(32)
         mem_wdata = Signal(32)
         mem_wstrb = Signal(4)
         mem_rdata = Signal(32)
@@ -75,80 +75,80 @@ class PicoRV32(CPU):
         # PicoRV32 parameters. To create a new variant, modify this dictionary
         # and change the desired parameters.
         self.cpu_params = dict(
-            p_ENABLE_COUNTERS=1,
-            p_ENABLE_COUNTERS64=1,
+            p_ENABLE_COUNTERS      = 1,
+            p_ENABLE_COUNTERS64    = 1,
             # Changing REGS has no effect as on FPGAs, the registers are
             # implemented using a register file stored in DPRAM.
-            p_ENABLE_REGS_16_31=1,
-            p_ENABLE_REGS_DUALPORT=1,
-            p_LATCHED_MEM_RDATA=0,
-            p_TWO_STAGE_SHIFT=1,
-            p_TWO_CYCLE_COMPARE=0,
-            p_TWO_CYCLE_ALU=0,
-            p_CATCH_MISALIGN=1,
-            p_CATCH_ILLINSN=1,
-            p_ENABLE_PCPI=0,
-            p_ENABLE_MUL=1,
-            p_ENABLE_DIV=1,
-            p_ENABLE_FAST_MUL=0,
-            p_ENABLE_IRQ=1,
-            p_ENABLE_IRQ_QREGS=1,
-            p_ENABLE_IRQ_TIMER=1,
-            p_ENABLE_TRACE=0,
-            p_MASKED_IRQ=0x00000000,
-            p_LATCHED_IRQ=0xffffffff,
-            p_STACKADDR=0xffffffff
+            p_ENABLE_REGS_16_31    = 1,
+            p_ENABLE_REGS_DUALPORT = 1,
+            p_LATCHED_MEM_RDATA    = 0,
+            p_TWO_STAGE_SHIFT      = 1,
+            p_TWO_CYCLE_COMPARE    = 0,
+            p_TWO_CYCLE_ALU        = 0,
+            p_CATCH_MISALIGN       = 1,
+            p_CATCH_ILLINSN        = 1,
+            p_ENABLE_PCPI          = 0,
+            p_ENABLE_MUL           = 1,
+            p_ENABLE_DIV           = 1,
+            p_ENABLE_FAST_MUL      = 0,
+            p_ENABLE_IRQ           = 1,
+            p_ENABLE_IRQ_QREGS     = 1,
+            p_ENABLE_IRQ_TIMER     = 1,
+            p_ENABLE_TRACE         = 0,
+            p_MASKED_IRQ           = 0x00000000,
+            p_LATCHED_IRQ          = 0xffffffff,
+            p_STACKADDR            = 0xffffffff,
         )
 
         if variant == "minimal":
             self.cpu_params.update(
-                p_ENABLE_COUNTER=0,
-                p_ENABLE_COUNTERS64=0,
-                p_TWO_STAGE_SHIFT=0,
-                p_CATCH_MISALIGN=0,
-                p_ENABLE_MUL=0,
-                p_ENABLE_DIV=0,
-                p_ENABLE_IRQ_TIMER=0
+                p_ENABLE_COUNTER    = 0,
+                p_ENABLE_COUNTERS64 = 0,
+                p_TWO_STAGE_SHIFT   = 0,
+                p_CATCH_MISALIGN    = 0,
+                p_ENABLE_MUL        = 0,
+                p_ENABLE_DIV        = 0,
+                p_ENABLE_IRQ_TIMER  = 0,
             )
 
         self.cpu_params.update(
             # clock / reset
-            i_clk=ClockSignal(),
-            i_resetn=~(ResetSignal() | self.reset),
+            i_clk    =ClockSignal(),
+            i_resetn =~(ResetSignal() | self.reset),
 
             # trap
             o_trap=self.trap,
 
             # memory interface
-            o_mem_valid=mem_valid,
-            o_mem_instr=mem_instr,
-            i_mem_ready=mem_ready,
+            o_mem_valid = mem_valid,
+            o_mem_instr = mem_instr,
+            i_mem_ready = mem_ready,
 
-            o_mem_addr=mem_addr,
-            o_mem_wdata=mem_wdata,
-            o_mem_wstrb=mem_wstrb,
-            i_mem_rdata=mem_rdata,
+            o_mem_addr  = mem_addr,
+            o_mem_wdata = mem_wdata,
+            o_mem_wstrb = mem_wstrb,
+            i_mem_rdata = mem_rdata,
 
             # look ahead interface (not used)
-            o_mem_la_read=Signal(),
-            o_mem_la_write=Signal(),
-            o_mem_la_addr=Signal(32),
-            o_mem_la_wdata=Signal(32),
-            o_mem_la_wstrb=Signal(4),
+            o_mem_la_read  = Signal(),
+            o_mem_la_write = Signal(),
+            o_mem_la_addr  = Signal(32),
+            o_mem_la_wdata = Signal(32),
+            o_mem_la_wstrb = Signal(4),
 
             # co-processor interface (not used)
-            o_pcpi_valid=Signal(),
-            o_pcpi_insn=Signal(32),
-            o_pcpi_rs1=Signal(32),
-            o_pcpi_rs2=Signal(32),
-            i_pcpi_wr=0,
-            i_pcpi_rd=0,
-            i_pcpi_wait=0,
-            i_pcpi_ready=0,
+            o_pcpi_valid = Signal(),
+            o_pcpi_insn  = Signal(32),
+            o_pcpi_rs1   = Signal(32),
+            o_pcpi_rs2   = Signal(32),
+            i_pcpi_wr    = 0,
+            i_pcpi_rd    = 0,
+            i_pcpi_wait  = 0,
+            i_pcpi_ready = 0,
 
             # irq interface
-            i_irq=self.interrupt,
-            o_eoi=Signal(32)) # not used
+            i_irq = self.interrupt,
+            o_eoi = Signal(32)) # not used
 
         # adapt memory interface to wishbone
         self.comb += [
@@ -188,8 +188,8 @@ class PicoRV32(CPU):
         assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
         self.cpu_params.update(
-            p_PROGADDR_RESET=reset_address,
-            p_PROGADDR_IRQ=reset_address + 0x00000010
+            p_PROGADDR_RESET = reset_address,
+            p_PROGADDR_IRQ   = reset_address + 0x00000010
         )
 
     @staticmethod
