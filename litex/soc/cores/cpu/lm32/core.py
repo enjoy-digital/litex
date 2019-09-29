@@ -10,22 +10,17 @@ import os
 from migen import *
 
 from litex.soc.interconnect import wishbone
+from litex.soc.cores.cpu import CPU
 
 CPU_VARIANTS = ["minimal", "lite", "standard"]
 
 
-class LM32(Module):
-    @property
-    def name(self):
-        return "lm32"
-
-    @property
-    def endianness(self):
-        return "big"
-
-    @property
-    def gcc_triple(self):
-        return "lm32-elf"
+class LM32(CPU):
+    name                 = "lm32"
+    data_width           = 32
+    endianness           = "big"
+    gcc_triple           = "lm32-elf"
+    linker_output_format = "elf32-lm32"
 
     @property
     def gcc_flags(self):
@@ -35,14 +30,6 @@ class LM32(Module):
         flags += "-msign-extend-enabled "
         flags += "-D__lm32__ "
         return flags
-
-    @property
-    def linker_output_format(self):
-        return "elf32-lm32"
-
-    @property
-    def reserved_interrupts(self):
-        return {}
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant

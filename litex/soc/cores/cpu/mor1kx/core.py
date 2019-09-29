@@ -4,25 +4,23 @@
 # This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
 # License: BSD
 
-#!/usr/bin/env python3
-
 import os
 
 from migen import *
 
 from litex.soc.interconnect import wishbone
+from litex.soc.cores.cpu import CPU
 
 CPU_VARIANTS = ["standard", "linux"]
 
 
-class MOR1KX(Module):
-    @property
-    def name(self):
-        return "or1k"
-
-    @property
-    def endianness(self):
-        return "big"
+class MOR1KX(CPU):
+    name                 = "mor1kx"
+    data_width           = 32
+    endianness           = "big"
+    gcc_triple           = "or1k-elf"
+    clang_triple         = "or1k-linux"
+    linker_output_format = "elf32-or1k"
 
     @property
     def mem_map_linux(self):
@@ -49,10 +47,6 @@ class MOR1KX(Module):
         return flags
 
     @property
-    def clang_triple(self):
-        return "or1k-linux"
-
-    @property
     def clang_flags(self):
         flags =  "-mhard-mul "
         flags += "-mhard-div "
@@ -61,10 +55,6 @@ class MOR1KX(Module):
         flags += "-maddc "
         flags += "-D__mor1kx__ "
         return flags
-
-    @property
-    def linker_output_format(self):
-        return "elf32-or1k"
 
     @property
     def reserved_interrupts(self):

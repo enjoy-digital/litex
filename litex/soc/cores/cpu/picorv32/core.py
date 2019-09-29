@@ -12,6 +12,7 @@ import os
 from migen import *
 
 from litex.soc.interconnect import wishbone
+from litex.soc.cores.cpu import CPU
 
 
 CPU_VARIANTS = ["minimal", "standard"]
@@ -29,18 +30,12 @@ GCC_FLAGS = {
 }
 
 
-class PicoRV32(Module):
-    @property
-    def name(self):
-        return "picorv32"
-
-    @property
-    def endianness(self):
-        return "little"
-
-    @property
-    def gcc_triple(self):
-        return ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
+class PicoRV32(CPU):
+    name                 = "picorv32"
+    data_width           = 32
+    endianness           = "little"
+    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
+    linker_output_format = "elf32-littleriscv"
 
     @property
     def gcc_flags(self):
@@ -48,10 +43,6 @@ class PicoRV32(Module):
         flags += GCC_FLAGS[self.variant]
         flags += "-D__picorv32__ "
         return flags
-
-    @property
-    def linker_output_format(self):
-        return "elf32-littleriscv"
 
     @property
     def reserved_interrupts(self):

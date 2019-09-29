@@ -178,9 +178,8 @@ class SoCCore(Module):
             # Add the CPU
             self.add_cpu(cpu.CPUS[cpu_type](platform, self.cpu_variant))
 
-            # Override Memory Map (if needed by CPU)
-            if hasattr(self.cpu, "mem_map"):
-                self.soc_mem_map.update(self.cpu.mem_map)
+            # Update Memory Map (if defined by CPU)
+            self.soc_mem_map.update(self.cpu.mem_map)
 
             # Set reset address
             self.cpu.set_reset_address(self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
@@ -193,15 +192,15 @@ class SoCCore(Module):
             # Add CPU CSR (dynamic)
             self.add_csr("cpu", allow_user_defined=True)
 
-            # Add CPU reserved interrupts
-            for _name, _id in self.cpu.reserved_interrupts.items():
+            # Add CPU interrupts
+            for _name, _id in self.cpu.interrupts.items():
                 self.add_interrupt(_name, _id)
 
             # Allow SoCController to reset the CPU
             if with_ctrl:
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
 
-        # Add user's interrupts (needs to be done after CPU reserved interrupts are allocated)
+        # Add user's interrupts (needs to be done after CPU interrupts are allocated)
         for _name, _id in self.interrupt_map.items():
             self.add_interrupt(_name, _id)
 
@@ -470,7 +469,7 @@ class SoCCore(Module):
         if hasattr(self, "cpu"):
             if hasattr(self.cpu, "interrupt"):
                 for _name, _id in sorted(self.soc_interrupt_map.items()):
-                    if _name in self.cpu.reserved_interrupts.keys():
+                    if _name in self.cpu.interrupts.keys():
                         continue
                     if hasattr(self, _name):
                         module = getattr(self, _name)

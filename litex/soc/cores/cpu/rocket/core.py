@@ -35,6 +35,8 @@ from migen import *
 
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
+from litex.soc.cores.cpu import CPU
+
 
 CPU_VARIANTS = {
     "standard": "freechips.rocketchip.system.LitexConfig",
@@ -48,14 +50,12 @@ GCC_FLAGS = {
     "full":     "-march=rv64imafdc -mabi=lp64 ",
 }
 
-class RocketRV64(Module):
-    @property
-    def name(self):
-        return "rocket"
-
-    @property
-    def endianness(self):
-        return "little"
+class RocketRV64(CPU):
+    name                 = "rocket"
+    data_width           = 64
+    endianness           = "little"
+    gcc_triple           = ("riscv64-unknown-elf")
+    linker_output_format = "elf64-littleriscv"
 
     @property
     def mem_map(self):
@@ -67,23 +67,11 @@ class RocketRV64(Module):
         }
 
     @property
-    def gcc_triple(self):
-        return ("riscv64-unknown-elf")
-
-    @property
     def gcc_flags(self):
         flags =  "-mno-save-restore "
         flags += GCC_FLAGS[self.variant]
         flags += "-D__rocket__ "
         return flags
-
-    @property
-    def linker_output_format(self):
-        return "elf64-littleriscv"
-
-    @property
-    def reserved_interrupts(self):
-        return {}
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant

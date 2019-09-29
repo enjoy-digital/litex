@@ -15,6 +15,7 @@ from migen import *
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
+from litex.soc.cores.cpu import CPU
 
 
 CPU_VARIANTS = {
@@ -73,32 +74,18 @@ class VexRiscvTimer(Module, AutoCSR):
         self.comb += self.interrupt.eq(time >= time_cmp)
 
 
-class VexRiscv(Module, AutoCSR):
-    @property
-    def name(self):
-        return "vexriscv"
-
-    @property
-    def endianness(self):
-        return "little"
-
-    @property
-    def gcc_triple(self):
-        return ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
+class VexRiscv(CPU, AutoCSR):
+    name                 = "vexriscv"
+    data_width           = 32
+    endianness           = "little"
+    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
+    linker_output_format = "elf32-littleriscv"
 
     @property
     def gcc_flags(self):
         flags = GCC_FLAGS[self.variant]
         flags += " -D__vexriscv__"
         return flags
-
-    @property
-    def linker_output_format(self):
-        return "elf32-littleriscv"
-
-    @property
-    def reserved_interrupts(self):
-        return {}
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant

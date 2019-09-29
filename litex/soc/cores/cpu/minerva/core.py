@@ -7,22 +7,17 @@ import os
 from migen import *
 
 from litex.soc.interconnect import wishbone
+from litex.soc.cores.cpu import CPU
 
 CPU_VARIANTS = ["standard"]
 
 
-class Minerva(Module):
-    @property
-    def name(self):
-        return "minerva"
-
-    @property
-    def endianness(self):
-        return "little"
-
-    @property
-    def gcc_triple(self):
-        return ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
+class Minerva(CPU):
+    name                 = "minerva"
+    data_width           = 32
+    endianness           = "little"
+    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
+    linker_output_format = "elf32-littleriscv"
 
     @property
     def gcc_flags(self):
@@ -30,14 +25,6 @@ class Minerva(Module):
         flags += "-mabi=ilp32 "
         flags += "-D__minerva__ "
         return flags
-
-    @property
-    def linker_output_format(self):
-        return "elf32-littleriscv"
-
-    @property
-    def reserved_interrupts(self):
-        return {}
 
     def __init__(self, platform, variant="standard"):
         assert variant is "standard", "Unsupported variant %s" % variant
