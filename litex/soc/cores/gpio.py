@@ -6,18 +6,21 @@ from migen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 
+# GPIO Input ----------------------------------------------------------------------------------------
 
 class GPIOIn(Module, AutoCSR):
     def __init__(self, signal):
         self._in = CSRStatus(len(signal))
         self.specials += MultiReg(signal, self._in.status)
 
+# GPIO Output --------------------------------------------------------------------------------------
 
 class GPIOOut(Module, AutoCSR):
     def __init__(self, signal):
         self._out = CSRStorage(len(signal))
         self.comb += signal.eq(self._out.storage)
 
+# GPIO Input/Output --------------------------------------------------------------------------------
 
 class GPIOInOut(Module):
     def __init__(self, in_signal, out_signal):
