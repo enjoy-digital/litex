@@ -22,6 +22,3 @@
 [submodule "litex/soc/cores/cpu/rocket/verilog"]
 	path = litex/soc/cores/cpu/rocket/verilog
 	url = https://github.com/enjoy-digital/rocket-litex-verilog
-[submodule "litex/soc/cores/cpu/serv/verilog"]
-	path = litex/soc/cores/cpu/serv/verilog
-	url = https://github.com/olofk/serv

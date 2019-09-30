@@ -56,9 +56,6 @@ void flush_cpu_icache(void)
 #elif defined (__rocket__)
 	/* FIXME: do something useful here! */
 	asm volatile("nop");
-#elif defined (__serv__)
-	/* no instruction cache */
-	asm volatile("nop");
 #else
 #error Unsupported architecture
 #endif
@@ -103,9 +100,6 @@ void flush_cpu_dcache(void)
 	asm volatile("nop");
 #elif defined (__rocket__)
 	/* FIXME: do something useful here! */
-	asm volatile("nop");
-#elif defined (__serv__)
-	/* no data cache */
 	asm volatile("nop");
 #else
 #error Unsupported architecture

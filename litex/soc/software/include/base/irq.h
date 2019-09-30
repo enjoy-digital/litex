@@ -56,8 +56,6 @@ static inline unsigned int irq_getie(void)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 #elif defined (__rocket__)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
-#elif defined (__serv__)
-	return 0; /* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -83,8 +81,6 @@ static inline void irq_setie(unsigned int ie)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 #elif defined (__rocket__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
-#elif defined (__serv__)
-	/* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -112,8 +108,6 @@ static inline unsigned int irq_getmask(void)
 	return mask;
 #elif defined (__rocket__)
 	return csr_readl(PLIC_ENABLED) >> 1;
-#elif defined (__serv__)
-	return 0; /* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -135,8 +129,6 @@ static inline void irq_setmask(unsigned int mask)
 	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
 #elif defined (__rocket__)
 	csr_writel(mask << 1, PLIC_ENABLED);
-#elif defined (__serv__)
-	/* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -162,8 +154,6 @@ static inline unsigned int irq_pending(void)
 	return pending;
 #elif defined (__rocket__)
 	return csr_readl(PLIC_PENDING) >> 1;
-#elif defined (__serv__)
-	return 0;/* FIXME */
 #else
 #error Unsupported architecture
 #endif
