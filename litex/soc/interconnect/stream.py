@@ -4,13 +4,17 @@
 # License: BSD
 
 import math
+from copy import copy
 
 from migen import *
+from migen.util.misc import xdir
 from migen.genlib.record import *
 from migen.genlib import fifo
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
 from litex.soc.interconnect.csr import *
+
+# Endpoint -----------------------------------------------------------------------------------------
 
 (DIR_SINK, DIR_SOURCE) = range(2)
 
@@ -64,6 +68,91 @@ class Endpoint(Record):
         except:
             return getattr(object.__getattribute__(self, "param"), name)
 
+# Actor --------------------------------------------------------------------------------------------
+
+def _rawbits_layout(l):
+    if isinstance(l, int):
+        return [("rawbits", l)]
+    else:
+        return l
+
+def pack_layout(l, n):
+    return [("chunk"+str(i), l) for i in range(n)]
+
+def get_endpoints(obj, filt=Endpoint):
+    if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
+        return obj.get_endpoints(filt)
+    r = dict()
+    for k, v in xdir(obj, True):
+        if isinstance(v, filt):
+            r[k] = v
+    return r
+
+def get_single_ep(obj, filt):
+    eps = get_endpoints(obj, filt)
+    if len(eps) != 1:
+        raise ValueError("More than one endpoint")
+    return list(eps.items())[0]
+
+
+class BinaryActor(Module):
+    def __init__(self, *args, **kwargs):
+        self.build_binary_control(self.sink, self.source, *args, **kwargs)
+
+    def build_binary_control(self, sink, source):
+        raise NotImplementedError("Binary actor classes must overload build_binary_control_fragment")
+
+
+class CombinatorialActor(BinaryActor):
+    def build_binary_control(self, sink, source):
+        self.comb += [
+            source.valid.eq(sink.valid),
+            source.first.eq(sink.first),
+            source.last.eq(sink.last),
+            sink.ready.eq(source.ready),
+        ]
+
+
+class PipelinedActor(BinaryActor):
+    def __init__(self, latency):
+        self.latency = latency
+        self.pipe_ce = Signal()
+        self.busy = Signal()
+        BinaryActor.__init__(self, latency)
+
+    def build_binary_control(self, sink, source, latency):
+        busy = 0
+        valid = sink.valid
+        for i in range(latency):
+            valid_n = Signal()
+            self.sync += If(self.pipe_ce, valid_n.eq(valid))
+            valid = valid_n
+            busy = busy | valid
+
+        self.comb += [
+            self.pipe_ce.eq(source.ready | ~valid),
+            sink.ready.eq(self.pipe_ce),
+            source.valid.eq(valid),
+            self.busy.eq(busy)
+        ]
+        first = sink.valid & sink.first
+        last = sink.valid & sink.last
+        for i in range(latency):
+            first_n = Signal()
+            last_n = Signal()
+            self.sync += \
+                If(self.pipe_ce,
+                    first_n.eq(first),
+                    last_n.eq(last)
+                )
+            first = first_n
+            last = last_n
+        self.comb += [
+            source.first.eq(first),
+            source.last.eq(last)
+        ]
+
+# FIFO ---------------------------------------------------------------------------------------------
 
 class _FIFOWrapper(Module):
     def __init__(self, fifo_class, layout, depth):
@@ -120,6 +209,7 @@ class AsyncFIFO(_FIFOWrapper):
             fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
             layout, depth)
 
+# Mux/Demux ----------------------------------------------------------------------------------------
 
 class Multiplexer(Module):
     def __init__(self, layout, n):
@@ -156,6 +246,7 @@ class Demultiplexer(Module):
             cases[i] = self.sink.connect(source)
         self.comb += Case(self.sel, cases)
 
+# Converter ----------------------------------------------------------------------------------------
 
 class _UpConverter(Module):
     def __init__(self, nbits_from, nbits_to, ratio, reverse):
@@ -367,6 +458,7 @@ class StrideConverter(Module):
         else:
             raise ValueError
 
+# Gearbox ------------------------------------------------------------------------------------------
 
 def lcm(a, b):
     return (a*b)//math.gcd(a, b)
@@ -433,6 +525,7 @@ class Gearbox(Module):
         else:
             self.comb += source.data.eq(o_data[::-1])
 
+# Monitor ------------------------------------------------------------------------------------------
 
 class Monitor(Module, AutoCSR):
     def __init__(self, endpoint, count_width=32, clock_domain="sys",
@@ -501,94 +594,7 @@ class Monitor(Module, AutoCSR):
             underflow_counter = MonitorCounter(reset, latch, ~endpoint.valid & endpoint.ready, self.underflows.status)
             self.submodules += underflow_counter
 
-# TODO: clean up code below
-# XXX
-
-from copy import copy
-from migen.util.misc import xdir
-
-def _rawbits_layout(l):
-    if isinstance(l, int):
-        return [("rawbits", l)]
-    else:
-        return l
-
-def pack_layout(l, n):
-    return [("chunk"+str(i), l) for i in range(n)]
-
-def get_endpoints(obj, filt=Endpoint):
-    if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
-        return obj.get_endpoints(filt)
-    r = dict()
-    for k, v in xdir(obj, True):
-        if isinstance(v, filt):
-            r[k] = v
-    return r
-
-def get_single_ep(obj, filt):
-    eps = get_endpoints(obj, filt)
-    if len(eps) != 1:
-        raise ValueError("More than one endpoint")
-    return list(eps.items())[0]
-
-
-class BinaryActor(Module):
-    def __init__(self, *args, **kwargs):
-        self.build_binary_control(self.sink, self.source, *args, **kwargs)
-
-    def build_binary_control(self, sink, source):
-        raise NotImplementedError("Binary actor classes must overload build_binary_control_fragment")
-
-
-class CombinatorialActor(BinaryActor):
-    def build_binary_control(self, sink, source):
-        self.comb += [
-            source.valid.eq(sink.valid),
-            source.first.eq(sink.first),
-            source.last.eq(sink.last),
-            sink.ready.eq(source.ready),
-        ]
-
-
-class PipelinedActor(BinaryActor):
-    def __init__(self, latency):
-        self.latency = latency
-        self.pipe_ce = Signal()
-        self.busy = Signal()
-        BinaryActor.__init__(self, latency)
-
-    def build_binary_control(self, sink, source, latency):
-        busy = 0
-        valid = sink.valid
-        for i in range(latency):
-            valid_n = Signal()
-            self.sync += If(self.pipe_ce, valid_n.eq(valid))
-            valid = valid_n
-            busy = busy | valid
-
-        self.comb += [
-            self.pipe_ce.eq(source.ready | ~valid),
-            sink.ready.eq(self.pipe_ce),
-            source.valid.eq(valid),
-            self.busy.eq(busy)
-        ]
-        first = sink.valid & sink.first
-        last = sink.valid & sink.last
-        for i in range(latency):
-            first_n = Signal()
-            last_n = Signal()
-            self.sync += \
-                If(self.pipe_ce,
-                    first_n.eq(first),
-                    last_n.eq(last)
-                )
-            first = first_n
-            last = last_n
-        self.comb += [
-            source.first.eq(first),
-            source.last.eq(last)
-        ]
-
+# Buffer -------------------------------------------------------------------------------------------
 
 class Buffer(PipelinedActor):
     def __init__(self, layout):
@@ -601,6 +607,7 @@ class Buffer(PipelinedActor):
                 self.source.param.eq(self.sink.param)
             )
 
+# Cast ---------------------------------------------------------------------------------------------
 
 class Cast(CombinatorialActor):
     def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
@@ -620,6 +627,7 @@ class Cast(CombinatorialActor):
             raise TypeError
         self.comb += Cat(*sigs_to).eq(Cat(*sigs_from))
 
+# Unpack/Pack --------------------------------------------------------------------------------------
 
 class Unpack(Module):
     def __init__(self, n, layout_to, reverse=False):
@@ -715,6 +723,7 @@ class Pack(Module):
             )
         ]
 
+# Pipeline -----------------------------------------------------------------------------------------
 
 class Pipeline(Module):
     def __init__(self, *modules):
@@ -742,6 +751,7 @@ class Pipeline(Module):
         if hasattr(m, "source"):
             self.source = m.source
 
+# BufferizeEndpoints -------------------------------------------------------------------------------
 
 # Add buffers on Endpoints (can be used to improve timings)
 class BufferizeEndpoints(ModuleTransformer):
@@ -765,6 +775,3 @@ class BufferizeEndpoints(ModuleTransformer):
                 setattr(submodule, name, buf.source)
             else:
                 raise ValueError
-
-
-# XXX
