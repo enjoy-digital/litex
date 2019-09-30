@@ -23,15 +23,6 @@ from litex.soc.interconnect.csr import CSRStatus
 
 from litex.build.tools import generated_banner
 
-# Helpers ----------------------------------------------------------------------------------------
-
-# FIXME: use OrderedDict for constants?
-def get_constant(name, constants):
-    for n, v in constants:
-        if n == name:
-            return v
-    return None
-
 # CPU files ----------------------------------------------------------------------------------------
 
 def get_cpu_mak(cpu, compile_software):
@@ -98,8 +89,8 @@ def get_linker_output_format(cpu):
 
 def get_linker_regions(regions):
     r = "MEMORY {\n"
-    for name, origin, length in regions:
-        r += "\t{} : ORIGIN = 0x{:08x}, LENGTH = 0x{:08x}\n".format(name, origin, length)
+    for name, region in regions.items():
+        r += "\t{} : ORIGIN = 0x{:08x}, LENGTH = 0x{:08x}\n".format(name, region.origin, region.length)
     r += "}\n"
     return r
 
@@ -115,19 +106,14 @@ def get_git_header():
     r += "#endif\n"
     return r
 
-def get_mem_header(regions, flash_boot_address, shadow_base):
+def get_mem_header(regions):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
-    for name, base, size in regions:
+    for name, region in regions.items():
         r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(
-            name=name.upper(), base=base, size=size)
-    if flash_boot_address is not None:
-        r += "#define FLASH_BOOT_ADDRESS 0x{:08x}L\n\n".format(flash_boot_address)
-    if shadow_base is not None:
-        r += "#define SHADOW_BASE 0x{:08x}L\n\n".format(shadow_base)
+            name=name.upper(), base=region.origin, size=region.length)
     r += "#endif\n"
     return r
-
 
 def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, with_access_functions):
     r = ""
@@ -171,7 +157,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
 
 
 def get_csr_header(regions, constants, with_access_functions=True, with_shadow_base=True, shadow_base=0x80000000):
-    alignment = get_constant("CONFIG_CSR_ALIGNMENT", constants)
+    alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
     r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
@@ -186,15 +172,16 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
         r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
-    for name, origin, busword, obj in regions:
+    for name, region in regions.items():
+        origin = region.origin
         if not with_shadow_base:
             origin &= (~shadow_base)
         r += "\n/* "+name+" */\n"
         r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
-        if not isinstance(obj, Memory):
-            for csr in obj:
-                nr = (csr.size + busword - 1)//busword
-                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, busword, alignment,
+        if not isinstance(region.obj, Memory):
+            for csr in region.obj:
+                nr = (csr.size + region.busword - 1)//region.busword
+                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, region.busword, alignment,
                     isinstance(csr, CSRStatus), with_access_functions)
                 origin += alignment//8*nr
                 if hasattr(csr, "fields"):
@@ -203,7 +190,7 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
                         r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+str(field.size)+"\n"
 
     r += "\n/* constants */\n"
-    for name, value in constants:
+    for name, value in constants.items():
         if value is None:
             r += "#define "+name+"\n"
             continue
@@ -223,8 +210,8 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
 
 # JSON Export --------------------------------------------------------------------------------------
 
-def get_csr_json(csr_regions=[], constants=[], memory_regions=[]):
-    alignment = 32 if constants is None else get_constant("CONFIG_CSR_ALIGNMENT", constants)
+def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
+    alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
 
     d = {
         "csr_bases":     {},
@@ -233,25 +220,26 @@ def get_csr_json(csr_regions=[], constants=[], memory_regions=[]):
         "memories":      {},
     }
 
-    for name, origin, busword, obj in csr_regions:
-        d["csr_bases"][name] = origin
-        if not isinstance(obj, Memory):
-            for csr in obj:
-                size = (csr.size + busword - 1)//busword
+    for name, region in csr_regions.items():
+        d["csr_bases"][name] = region.origin
+        region_origin = region.origin
+        if not isinstance(region.obj, Memory):
+            for csr in region.obj:
+                size = (csr.size + region.busword - 1)//region.busword
                 d["csr_registers"][name + "_" + csr.name] = {
-                    "addr": origin,
+                    "addr": region_origin,
                     "size": size,
                     "type": "ro" if isinstance(csr, CSRStatus) else "rw"
                 }
-                origin += alignment//8*size
+                region_origin += alignment//8*size
 
-    for name, value in constants:
+    for name, value in constants.items():
         d["constants"][name.lower()] = value.lower() if isinstance(value, str) else value
 
-    for name, origin, length in memory_regions:
+    for name, region in mem_regions.items():
         d["memories"][name.lower()] = {
-            "base": origin,
-            "size": length
+            "base": region.origin,
+            "size": region.length
         }
 
     return json.dumps(d, indent=4)
@@ -259,8 +247,8 @@ def get_csr_json(csr_regions=[], constants=[], memory_regions=[]):
 
 # CSV Export --------------------------------------------------------------------------------------
 
-def get_csr_csv(csr_regions=[], constants=[], memory_regions=[]):
-    d = json.loads(get_csr_json(csr_regions, constants, memory_regions))
+def get_csr_csv(csr_regions={}, constants={}, mem_regions={}):
+    d = json.loads(get_csr_json(csr_regions, constants, mem_regions))
     r = generated_banner("#")
     for name, value in d["csr_bases"].items():
         r += "csr_base,{},0x{:08x},,\n".format(name, value)

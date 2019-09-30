@@ -10,6 +10,8 @@ import datetime
 
 from migen import *
 
+# Helpers ----------------------------------------------------------------------------------------
+
 def mem_decoder(address, size=0x10000000):
     address &= ~0x80000000
     size = 2**log2_int(size, False)
@@ -68,3 +70,19 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
                     data[int(base, 16)//4 + i] = struct.unpack(">I", w)[0]
                 i += 1
     return data
+
+# SoC primitives -----------------------------------------------------------------------------------
+
+def SoCConstant(value):
+    return value
+
+class SoCMemRegion:
+    def __init__(self, origin, length):
+        self.origin = origin
+        self.length = length
+
+class SoCCSRRegion:
+    def __init__(self, origin, busword, obj):
+        self.origin  = origin
+        self.busword = busword
+        self.obj     = obj

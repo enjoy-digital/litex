@@ -66,18 +66,11 @@ class Builder:
         self.software_packages.append((name, src_dir))
 
     def _generate_includes(self):
-        cpu_type = self.soc.cpu_type
-        memory_regions = self.soc.get_memory_regions()
-        flash_boot_address = getattr(self.soc, "flash_boot_address", None)
-        shadow_base = getattr(self.soc, "shadow_base", None)
-        csr_regions = self.soc.get_csr_regions()
-        constants = self.soc.get_constants()
-
-        buildinc_dir = os.path.join(self.output_dir, "software", "include")
+        buildinc_dir  = os.path.join(self.output_dir, "software", "include")
         generated_dir = os.path.join(buildinc_dir, "generated")
         os.makedirs(generated_dir, exist_ok=True)
 
-        if cpu_type is not None:
+        if self.soc.cpu_type is not None:
             variables_contents = []
             def define(k, v):
                 variables_contents.append("{}={}\n".format(k, _makefile_escape(v)))
@@ -91,7 +84,7 @@ class Builder:
                 "COPY_TO_MAIN_RAM" : "0",
                 "EXECUTE_IN_PLACE" : "0"
             }
-            if "main_ram" in (m[0] for m in memory_regions):
+            if "main_ram" in self.soc.mem_regions.keys():
                 exec_profiles["COPY_TO_MAIN_RAM"] = "1"
             else:
                 exec_profiles["EXECUTE_IN_PLACE"] = "1"
@@ -110,13 +103,13 @@ class Builder:
                 cpu_interface.get_linker_output_format(self.soc.cpu))
             write_to_file(
                 os.path.join(generated_dir, "regions.ld"),
-                cpu_interface.get_linker_regions(memory_regions))
+                cpu_interface.get_linker_regions(self.soc.mem_regions))
         write_to_file(
             os.path.join(generated_dir, "mem.h"),
-            cpu_interface.get_mem_header(memory_regions, flash_boot_address, shadow_base))
+            cpu_interface.get_mem_header(self.soc.mem_regions))
         write_to_file(
             os.path.join(generated_dir, "csr.h"),
-            cpu_interface.get_csr_header(csr_regions, constants))
+            cpu_interface.get_csr_header(self.soc.csr_regions, self.soc.constants))
         write_to_file(
             os.path.join(generated_dir, "git.h"),
             cpu_interface.get_git_header()
@@ -131,27 +124,15 @@ class Builder:
                         self.soc.sdram.controller.settings.timing))
 
     def _generate_csr_map(self, csr_json=None, csr_csv=None):
-        memory_regions = self.soc.get_memory_regions()
-        csr_regions = self.soc.get_csr_regions()
-        constants = self.soc.get_constants()
-
-        shadow_base = getattr(self.soc, "shadow_base", None)
-        if shadow_base:
-            constants.append(('shadow_base',  shadow_base))
-
-        flash_boot_address = getattr(self.soc, "flash_boot_address", None)
-        if flash_boot_address:
-            constants.append(('flash_boot_address',  flash_boot_address))
-
         if csr_json is not None:
             csr_dir = os.path.dirname(os.path.realpath(csr_json))
             os.makedirs(csr_dir, exist_ok=True)
-            write_to_file(csr_json, cpu_interface.get_csr_json(csr_regions, constants, memory_regions))
+            write_to_file(csr_json, cpu_interface.get_csr_json(self.soc.csr_regions, self.soc.constants, self.soc.mem_regions))
 
         if csr_csv is not None:
             csr_dir = os.path.dirname(os.path.realpath(csr_csv))
             os.makedirs(csr_dir, exist_ok=True)
-            write_to_file(csr_csv, cpu_interface.get_csr_csv(csr_regions, constants, memory_regions))
+            write_to_file(csr_csv, cpu_interface.get_csr_csv(self.soc.csr_regions, self.soc.constants, self.soc.mem_regions))
 
     def _prepare_software(self):
         for name, src_dir in self.software_packages:

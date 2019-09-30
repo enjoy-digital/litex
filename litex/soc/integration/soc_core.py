@@ -100,18 +100,16 @@ class SoCCore(Module):
         self.platform = platform
         self.clk_freq = clk_freq
 
-        # config dictionary (store all SoC's parameters to be exported to software)
-        self.config = dict()
-
-        # SoC's register/interrupt/memory mappings (default or user defined + dynamically allocateds)
+        # SoC's CSR/Mem/Interrupt mapping (default or user defined + dynamically allocateds)
         self.soc_csr_map       = {}
         self.soc_interrupt_map = {}
         self.soc_mem_map       = self.mem_map
 
-        # Regions / Constants lists
-        self._memory_regions = []  # (name, origin, length)
-        self._csr_regions    = []  # (name, origin, busword, csr_list/Memory)
-        self._constants      = []  # (name, value)
+        # SoC's Config/Constants/Regions
+        self.config      = {}
+        self.constants   = {}
+        self.mem_regions = {}
+        self.csr_regions = {}
 
         # Wishbone masters/slaves lists
         self._wb_masters = []
@@ -131,6 +129,7 @@ class SoCCore(Module):
         self.cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
 
         self.shadow_base = shadow_base
+        self.config["SHADOW_BASE"] = shadow_base
 
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
@@ -352,12 +351,11 @@ class SoCCore(Module):
     def add_memory_region(self, name, origin, length):
         def in_this_region(addr):
             return addr >= origin and addr < origin + length
-        for n, o, l in self._memory_regions:
-            l = 2**log2_int(l, False)
-            if n == name or in_this_region(o) or in_this_region(o+l-1):
+        for n, r in self.mem_regions.items():
+            r.length = 2**log2_int(r.length, False)
+            if n == name or in_this_region(r.origin) or in_this_region(r.origin + r.length - 1):
                 raise ValueError("Memory region conflict between {} and {}".format(n, name))
-
-        self._memory_regions.append((name, origin, length))
+        self.mem_regions[name] = SoCMemRegion(origin, length)
 
     def register_mem(self, name, address, interface, size=0x10000000):
         self.add_wb_slave(address, interface, size)
@@ -367,34 +365,23 @@ class SoCCore(Module):
         self.add_wb_slave(self.soc_mem_map["rom"], interface, rom_size)
         self.add_memory_region("rom", self.cpu.reset_address, rom_size)
 
-    def get_memory_regions(self):
-        return self._memory_regions
-
     def check_csr_range(self, name, addr):
         if addr >= 1<<(self.csr_address_width+2):
             raise ValueError("{} CSR out of range, increase csr_address_width".format(name))
 
     def check_csr_region(self, name, origin):
-        for n, o, l, obj in self._csr_regions:
-            if n == name or o == origin:
+        for n, r in self.csr_regions.items():
+            if n == name or r.origin == origin:
                 raise ValueError("CSR region conflict between {} and {}".format(n, name))
 
     def add_csr_region(self, name, origin, busword, obj):
         self.check_csr_region(name, origin)
-        self._csr_regions.append((name, origin, busword, obj))
-
-    def get_csr_regions(self):
-        return self._csr_regions
+        self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
     def add_constant(self, name, value=None):
-        self._constants.append((name, value))
-
-    def get_constants(self):
-        r = []
-        for _name, _id in sorted(self.soc_interrupt_map.items()):
-            r.append((_name.upper() + "_INTERRUPT", _id))
-        r += self._constants
-        return r
+        if name in self.constants.keys():
+            raise ValueError("Constant {} already declared.".format(name))
+        self.constants[name] = SoCConstant(value)
 
     def get_csr_dev_address(self, name, memory):
         if memory is not None:
@@ -418,11 +405,10 @@ class SoCCore(Module):
 
     def do_finalize(self):
         # Verify CPU has required memories
-        registered_mems = {regions[0] for regions in self._memory_regions}
         if self.cpu_type is not None:
-            for mem in "rom", "sram":
-                if mem not in registered_mems:
-                    raise FinalizeError("CPU needs \"{}\" to be registered with SoC.register_mem()".format(mem))
+            for name in "rom", "sram":
+                if name not in self.mem_regions.keys():
+                    raise FinalizeError("CPU needs \"{}\" to be registered with SoC.register_mem()".format(name))
 
         # Add the Wishbone Masters/Slaves interconnect
         if len(self._wb_masters):
@@ -459,11 +445,11 @@ class SoCCore(Module):
 
         # Add CSRs / Config items to constants
         for name, constant in self.csrbankarray.constants:
-            self._constants.append(((name + "_" + constant.name).upper(), constant.value.value))
+            self.add_constant(name + "_" + constant.name, constant.value.value)
         for name, value in sorted(self.config.items(), key=itemgetter(0)):
-            self._constants.append(("CONFIG_" + name.upper(), value))
+            self.add_constant("CONFIG_" + name.upper(), value)
             if isinstance(value, str):
-                self._constants.append(("CONFIG_" + name.upper() + "_" + value, 1))
+                self.add_constant("CONFIG_" + name.upper() + "_" + value)
 
         # Connect interrupts
         if hasattr(self, "cpu"):
@@ -475,7 +461,7 @@ class SoCCore(Module):
                         module = getattr(self, _name)
                         assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
                         self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
-
+                    self.constants[_name.upper() + "_INTERRUPT"] = _id
 
 # SoCCore arguments --------------------------------------------------------------------------------
 
