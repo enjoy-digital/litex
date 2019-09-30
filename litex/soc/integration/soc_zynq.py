@@ -212,7 +212,7 @@ class SoCZynq(SoCCore):
         self.specials += Instance(self.ps7_name, **self.ps7_params)
 
     def generate_software_header(self, filename):
-        csr_header = get_csr_header(self.get_csr_regions(),
-                                    self.get_constants(),
+        csr_header = get_csr_header(self.csr_regions,
+                                    self.constants,
                                     with_access_functions=False)
         tools.write_to_file(filename, csr_header)
