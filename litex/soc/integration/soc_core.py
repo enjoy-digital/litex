@@ -193,6 +193,8 @@ class SoCCore(Module):
             # Allow SoCController to reset the CPU
             if with_ctrl:
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
+        else:
+            self.add_cpu(cpu.CPUNone())
 
         # Add user's interrupts (needs to be done after CPU interrupts are allocated)
         for _name, _id in self.interrupt_map.items():

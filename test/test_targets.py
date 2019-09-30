@@ -121,6 +121,11 @@ litex/boards/targets/simple.py litex.boards.platforms.{p} \
 """.format(p=p)
                 subprocess.check_call(cmd, shell=True)
 
+    def test_cpu_none(self):
+        from litex.boards.targets.arty import BaseSoC
+        errors = build_test([BaseSoC(cpu_type=None)])
+        self.assertEqual(errors, 0)
+
     def run_variants(self, cpu, variants):
         for v in variants:
             with self.subTest(cpu=cpu, variant=v):

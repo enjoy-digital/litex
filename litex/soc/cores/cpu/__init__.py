@@ -18,6 +18,10 @@ class CPU(Module):
     interrupts           = {}
     mem_map              = {}
 
+class CPUNone(CPU):
+    data_width           = 32
+    reset_address        = 0x00000000
+
 # CPUS ---------------------------------------------------------------------------------------------
 
 from litex.soc.cores.cpu.lm32 import LM32
