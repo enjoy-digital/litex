@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from migen import *
@@ -10,31 +10,31 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-# TODO: clean up code below
-# XXX
+# Status -------------------------------------------------------------------------------------------
 
 class Status(Module):
     def __init__(self, endpoint):
-        self.first = first = Signal(reset=1)
-        self.last = last = Signal()
+        self.first   = Signal(reset=1)
+        self.last    = Signal()
         self.ongoing = Signal()
 
         ongoing = Signal()
         self.comb += \
             If(endpoint.valid,
-                last.eq(endpoint.last & endpoint.ready)
+                self.last.eq(endpoint.last & endpoint.ready)
             )
-        self.sync += ongoing.eq((endpoint.valid | ongoing) & ~last)
-        self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~last)
+        self.sync += ongoing.eq((endpoint.valid | ongoing) & ~self.last)
+        self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~self.last)
 
         self.sync += [
-            If(last,
-                first.eq(1)
+            If(self.last,
+                self.first.eq(1)
             ).Elif(endpoint.valid & endpoint.ready,
-                first.eq(0)
+                self.first.eq(0)
             )
         ]
 
+# Arbiter ------------------------------------------------------------------------------------------
 
 class Arbiter(Module):
     def __init__(self, masters, slave):
@@ -54,6 +54,7 @@ class Arbiter(Module):
                 cases[i] = [master.connect(slave)]
             self.comb += Case(self.grant, cases)
 
+# Dispatcher ---------------------------------------------------------------------------------------
 
 class Dispatcher(Module):
     def __init__(self, master, slaves, one_hot=False):
@@ -95,12 +96,13 @@ class Dispatcher(Module):
             cases["default"] = [master.ready.eq(1)]
             self.comb += Case(sel, cases)
 
+# Header -------------------------------------------------------------------------------------------
 
 class HeaderField:
     def __init__(self, byte, offset, width):
-        self.byte = byte
+        self.byte   = byte
         self.offset = offset
-        self.width = width
+        self.width  = width
 
 
 class Header:
@@ -149,10 +151,11 @@ class Header:
                 r.append(field.eq(signal[start:end]))
         return r
 
+# Packetizer ---------------------------------------------------------------------------------------
 
 class Packetizer(Module):
     def __init__(self, sink_description, source_description, header):
-        self.sink = sink = stream.Endpoint(sink_description)
+        self.sink   =   sink = stream.Endpoint(sink_description)
         self.source = source = stream.Endpoint(source_description)
         self.header = Signal(header.length*8)
 
@@ -160,13 +163,13 @@ class Packetizer(Module):
 
         dw = len(self.sink.data)
 
-        header_reg = Signal(header.length*8, reset_less=True)
-        header_words = (header.length*8)//dw
-        load = Signal()
-        shift = Signal()
-        counter = Signal(max=max(header_words, 2))
+        header_reg    = Signal(header.length*8, reset_less=True)
+        header_words  = (header.length*8)//dw
+        load          = Signal()
+        shift         = Signal()
+        counter       = Signal(max=max(header_words, 2))
         counter_reset = Signal()
-        counter_ce = Signal()
+        counter_ce    = Signal()
         self.sync += \
             If(counter_reset,
                 counter.eq(0)
@@ -196,7 +199,7 @@ class Packetizer(Module):
         if header_words == 1:
             idle_next_state = "COPY"
         else:
-            idle_next_state = "SEND_HEADER"
+            idle_next_state = "SEND-HEADER"
 
         fsm.act("IDLE",
             sink.ready.eq(1),
@@ -213,7 +216,7 @@ class Packetizer(Module):
             )
         )
         if header_words != 1:
-            fsm.act("SEND_HEADER",
+            fsm.act("SEND-HEADER",
                 source.valid.eq(1),
                 source.last.eq(0),
                 source.data.eq(header_reg[dw:2*dw]),
@@ -239,6 +242,7 @@ class Packetizer(Module):
             )
         )
 
+# Depacketizer -------------------------------------------------------------------------------------
 
 class Depacketizer(Module):
     def __init__(self, sink_description, source_description, header):
@@ -253,10 +257,10 @@ class Depacketizer(Module):
         header_reg = Signal(header.length*8, reset_less=True)
         header_words = (header.length*8)//dw
 
-        shift = Signal()
-        counter = Signal(max=max(header_words, 2))
+        shift         = Signal()
+        counter       = Signal(max=max(header_words, 2))
         counter_reset = Signal()
-        counter_ce = Signal()
+        counter_ce    = Signal()
         self.sync += \
             If(counter_reset,
                 counter.eq(0)
@@ -323,5 +327,3 @@ class Depacketizer(Module):
                 NextState("IDLE")
             )
         )
-
-# XXX
