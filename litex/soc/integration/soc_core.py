@@ -445,7 +445,8 @@ class SoCCore(Module):
 
         # Add CSRs / Config items to constants
         for name, constant in self.csrbankarray.constants:
-            self.add_constant(name + "_" + constant.name, constant.value.value)
+            self.add_constant(name.upper() + "_" + constant.name.upper(),
+                              constant.value.value)
         for name, value in sorted(self.config.items(), key=itemgetter(0)):
             self.add_constant("CONFIG_" + name.upper(), value)
             if isinstance(value, str):
