@@ -5,11 +5,11 @@ import unittest
 
 from migen import *
 
-from litex.soc.cores.icap import ICAP
+from litex.soc.cores.icap import ICAP, ICAPBitstream
 
 
 class TestICAP(unittest.TestCase):
-    def test_reload(self):
+    def test_icap_command_reload(self):
         def generator(dut):
             yield dut.addr.storage.eq(0x4)
             yield dut.data.storage.eq(0xf)
@@ -25,3 +25,6 @@ class TestICAP(unittest.TestCase):
         clocks = {"sys": 10,
                   "icap":20}
         run_simulation(dut, generator(dut), clocks, vcd_name="icap.vcd")
+
+    def test_icap_bitstream_syntax(self):
+        dut = ICAPBitstream(simulation=True)
