@@ -1,13 +1,17 @@
 include ../variables.mak
 CFLAGS += -Itapcfg/src/include
 
-all: $(OBJ_DIR)/ethernet.so
+#all: $(OBJ_DIR)/ethernet.so $(OBJ_DIR)/xgmii_ethernet.so
+all: $(OBJ_DIR)/xgmii_ethernet.so
 
 include ../rules.mak
 
-OBJS = $(addprefix $(OBJ_DIR)/, ethernet.o tapcfg.o taplog.o)
+OBJS = $(addprefix $(OBJ_DIR)/, xgmii_ethernet.o tapcfg.o taplog.o)
 
-$(OBJ_DIR)/ethernet.so: $(OBJS)
+# $(OBJ_DIR)/ethernet.so: $(OBJS)
+# 	$(CC) $(LDFLAGS) -Wl,-soname,$@ -o $@ $^
+
+$(OBJ_DIR)/xgmii_ethernet.so: $(OBJS)
 	$(CC) $(LDFLAGS) -Wl,-soname,$@ -o $@ $^
 
 $(OBJ_DIR)/tapcfg.o: tapcfg/src/lib/tapcfg.c

@@ -16,7 +16,7 @@ repos = [
     ("litex",      ("https://github.com/enjoy-digital/", True,  True)),
 
     # LiteX cores ecosystem
-    ("liteeth",    ("https://github.com/enjoy-digital/", False, True)),
+    ("liteeth",    ("https://github.com/jersey99/", False, True)),
     ("litedram",   ("https://github.com/enjoy-digital/", False, True)),
     ("litepcie",   ("https://github.com/enjoy-digital/", False, True)),
     ("litesata",   ("https://github.com/enjoy-digital/", False, True)),

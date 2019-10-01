@@ -24,6 +24,7 @@ from litedram.phy.model import SDRAMPHYModel
 
 from liteeth.common import convert_ip
 from liteeth.phy.model import LiteEthPHYModel
+from liteeth.phy.xgmii import LiteEthPHYXGMII
 from liteeth.mac import LiteEthMAC
 from liteeth.core import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
@@ -47,22 +48,22 @@ _io = [
         Subsignal("sink_valid", SimPins()),
         Subsignal("sink_ready", SimPins()),
         Subsignal("sink_data", SimPins(8)),
-    ),
+     ),
     ("eth_clocks", 0,
         Subsignal("none", SimPins()),
-    ),
+     ),
     ("eth", 0,
         Subsignal("source_valid", SimPins()),
         Subsignal("source_ready", SimPins()),
-        Subsignal("source_data", SimPins(8)),
+        Subsignal("source_data", SimPins(64)),
 
         Subsignal("sink_valid", SimPins()),
         Subsignal("sink_ready", SimPins()),
-        Subsignal("sink_data", SimPins(8)),
-    ),
+        Subsignal("sink_data", SimPins(64)),
+     ),
     ("eth_clocks", 1,
         Subsignal("none", SimPins()),
-    ),
+     ),
     ("eth", 1,
         Subsignal("source_valid", SimPins()),
         Subsignal("source_ready", SimPins()),
@@ -71,16 +72,51 @@ _io = [
         Subsignal("sink_valid", SimPins()),
         Subsignal("sink_ready", SimPins()),
         Subsignal("sink_data", SimPins(8)),
-    ),
+     ),
 ]
 
 
+def xgmii_io(dw):
+    return [
+        ("sys_clk", 0, SimPins(1)),
+        ("sys_rst", 0, SimPins(1)),
+        ("serial", 0,
+         Subsignal("source_valid", SimPins()),
+         Subsignal("source_ready", SimPins()),
+         Subsignal("source_data", SimPins(8)),
+         Subsignal("sink_valid", SimPins()),
+         Subsignal("sink_ready", SimPins()),
+         Subsignal("sink_data", SimPins(8)),
+        ),
+        ("eth_clocks", 0,
+         Subsignal("none", SimPins()),
+        ),
+        ("eth", 0,
+         Subsignal("tx_data", SimPins(dw)),
+         Subsignal("tx_ctl", SimPins(dw//8)),
+         Subsignal("rx_data", SimPins(dw)),
+         Subsignal("rx_ctl", SimPins(dw//8)),
+        ),
+        ("eth_clocks", 1,
+         Subsignal("none", SimPins()),
+        ),
+        ("eth", 1,
+         Subsignal("source_valid", SimPins()),
+         Subsignal("source_ready", SimPins()),
+         Subsignal("source_data", SimPins(8)),
+
+         Subsignal("sink_valid", SimPins()),
+         Subsignal("sink_ready", SimPins()),
+         Subsignal("sink_data", SimPins(8)),
+        ),
+    ]
+
 class Platform(SimPlatform):
     default_clk_name = "sys_clk"
-    default_clk_period = 1000 # ~ 1MHz
+    default_clk_period = 1000  # ~ 1MHz
 
-    def __init__(self):
-        SimPlatform.__init__(self, "SIM", _io)
+    def __init__(self, io=_io):
+        SimPlatform.__init__(self, "SIM", io)
 
     def do_finalize(self, fragment):
         pass
@@ -93,30 +129,34 @@ class SimSoC(SoCSDRAM):
     mem_map.update(SoCSDRAM.mem_map)
 
     def __init__(self,
-        with_sdram=False,
-        with_ethernet=False,
-        with_etherbone=False, etherbone_mac_address=0x10e2d5000000, etherbone_ip_address="192.168.1.50",
-        with_analyzer=False,
-        **kwargs):
-        platform = Platform()
+                 with_sdram=False,
+                 with_ethernet=False,
+                 with_udp=False,
+                 with_etherbone=False, mac_address=0x10e2d5000000, ip_address="192.168.1.50",
+                 with_analyzer=False,
+                 xgmii_dw=32,
+                 platform=Platform(),
+                 **kwargs):
+        # platform = Platform()
         sys_clk_freq = int(1e6)
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size=0x8000,
-            ident="LiteX Simulation", ident_version=True,
-            with_uart=False,
-            **kwargs)
+                          integrated_rom_size=0x8000,
+                          ident="LiteX Simulation", ident_version=True,
+                          with_uart=False,
+                          **kwargs)
         # crg
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
         # serial
-        self.submodules.uart_phy = uart.RS232PHYModel(platform.request("serial"))
+        self.submodules.uart_phy = uart.RS232PHYModel(
+            platform.request("serial"))
         self.submodules.uart = uart.UART(self.uart_phy)
         self.add_csr("uart")
         self.add_interrupt("uart")
 
         # sdram
         if with_sdram:
-            sdram_module =  MT48LC16M16(100e6, "1:1") # use 100MHz timings
+            sdram_module = MT48LC16M16(100e6, "1:1")  # use 100MHz timings
             phy_settings = PhySettings(
                 memtype="SDR",
                 databits=32,
@@ -139,37 +179,59 @@ class SimSoC(SoCSDRAM):
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
-        assert not (with_ethernet and with_etherbone) # FIXME: fix simulator with 2 ethernet interfaces
+        # FIXME: fix simulator with 2 ethernet interfaces
+        assert not (with_ethernet and with_etherbone)
 
         # ethernet
         if with_ethernet:
             # eth phy
-            self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+            self.submodules.ethphy = LiteEthPHYModel(
+                self.platform.request("eth", 0))
             self.add_csr("ethphy")
             # eth mac
             ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-                interface="wishbone", endianness=self.cpu.endianness)
+                                interface="wishbone", endianness=self.cpu.endianness)
             if with_etherbone:
-                ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
+                ethmac = ClockDomainsRenamer(
+                    {"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
             self.submodules.ethmac = ethmac
             self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
-            self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+            self.add_memory_region(
+                "ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
             self.add_csr("ethmac")
             self.add_interrupt("ethmac")
+
+        if with_udp:
+            # eth phy
+            # self.submodules.ethphy = LiteEthPHYModel(
+            #    self.platform.request("eth", 0))
+            self.submodules.ethphy = LiteEthPHYXGMII(
+                self.platform.request("eth_clocks", 0),
+                self.platform.request("eth", 0),
+                model=True,
+                dw=xgmii_dw)
+            self.add_csr("ethphy")
+            # udp ip
+            self.submodules.core = LiteEthUDPIPCore(
+                self.ethphy, mac_address, convert_ip(ip_address), sys_clk_freq, mac_dw=xgmii_dw)
 
         # etherbone
         if with_etherbone:
             # eth phy
-            self.submodules.etherbonephy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
+            self.submodules.etherbonephy = LiteEthPHYModel(
+                self.platform.request("eth", 0))  # FIXME
             self.add_csr("etherbonephy")
             # eth core
             etherbonecore = LiteEthUDPIPCore(self.etherbonephy,
-                etherbone_mac_address, convert_ip(etherbone_ip_address), sys_clk_freq)
+                                             mac_address, convert_ip(ip_address), sys_clk_freq)
             if with_ethernet:
-                etherbonecore = ClockDomainsRenamer({"eth_tx": "etherbonephy_eth_tx", "eth_rx":  "etherbonephy_eth_rx"})(etherbonecore)
+                etherbonecore = ClockDomainsRenamer(
+                    {"eth_tx": "etherbonephy_eth_tx",
+                     "eth_rx": "etherbonephy_eth_rx"})(etherbonecore)
             self.submodules.etherbonecore = etherbonecore
             # etherbone
-            self.submodules.etherbone = LiteEthEtherbone(self.etherbonecore.udp, 1234, mode="master")
+            self.submodules.etherbone = LiteEthEtherbone(
+                self.etherbonecore.udp, 1234, mode="master")
             self.add_wb_master(self.etherbone.wishbone.bus)
 
         # analyzer
@@ -184,7 +246,8 @@ class SimSoC(SoCSDRAM):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
+    parser = argparse.ArgumentParser(
+        description="Generic LiteX SoC Simulation")
     builder_args(parser)
     soc_sdram_args(parser)
     parser.add_argument("--threads", default=1,
@@ -223,18 +286,22 @@ def main():
             cpu_endianness = "big"
 
     if args.rom_init:
-        soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
+        soc_kwargs["integrated_rom_init"] = get_mem_data(
+            args.rom_init, cpu_endianness)
     if not args.with_sdram:
-        soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
+        soc_kwargs["integrated_main_ram_size"] = 0x10000000  # 256 MB
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu_endianness)
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(
+                args.ram_init, cpu_endianness)
     else:
         assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
     if args.with_ethernet:
-        sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
+        sim_config.add_module("ethernet", "eth", args={
+                              "interface": "tap0", "ip": "192.168.1.100"})
     if args.with_etherbone:
-        sim_config.add_module('ethernet', "eth", args={"interface": "tap1", "ip": "192.168.1.101"})
+        sim_config.add_module('ethernet', "eth", args={
+                              "interface": "tap1", "ip": "192.168.1.101"})
 
     soc = SimSoC(
         with_sdram=args.with_sdram,
@@ -247,13 +314,13 @@ def main():
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     vns = builder.build(run=False, threads=args.threads, sim_config=sim_config,
-        opt_level=args.opt_level,
-        trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
+                        opt_level=args.opt_level,
+                        trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
     if args.with_analyzer:
         soc.analyzer.export_csv(vns, "analyzer.csv")
     builder.build(build=False, threads=args.threads, sim_config=sim_config,
-        opt_level=args.opt_level,
-        trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
+                  opt_level=args.opt_level,
+                  trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
 
 
 if __name__ == "__main__":
