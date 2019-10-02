@@ -218,18 +218,20 @@ class Packetizer(Module):
                source.data.eq(self.header[:dw]),
                If(source.valid & source.ready,
                   load.eq(1),
+                  NextValue(transitioning, 1),
                   NextState(idle_next_state)
                )
             )
         )
-        if header_words != 1:
-            if header_residue:
-                self.sync += [header_leftover.eq(header_reg[2*dw:(2*dw+header_residue*8)]),
-                              last_buf.eq(sink.last),
-                              data_buf.eq(sink.data),
-                              valid_buf.eq(sink.valid),
-                ]
+        if header_residue and header_words >= 2:
+            self.sync += [header_leftover.eq(header_reg[2*dw:(2*dw+header_residue*8)]),
+            ]
 
+        self.sync += [last_buf.eq(sink.last),
+                      data_buf.eq(sink.data),
+                      valid_buf.eq(sink.valid),
+        ]
+        if header_words != 1:
             fsm.act("SEND_HEADER",
                 source.valid.eq(1),
                 source.last.eq(0),
@@ -253,7 +255,10 @@ class Packetizer(Module):
             cw = dw//8
             rotate_by = header.length % cw
             x = [sink.last_be[(i + rotate_by) % cw] for i in range(cw)]
-            self.comb += source.last_be.eq(Cat(*x))
+            self.comb += If(sink.last_be == 0,
+                            source.last_be.eq(1 << header_residue)
+            ).Else(
+                source.last_be.eq(Cat(*x)))
         if header_residue:
             header_offset_multiplier = hom = 1 if header_words == 1 else 2
             fsm.act("STAGGERCOPY",
@@ -263,7 +268,7 @@ class Packetizer(Module):
                        source.data.eq(Cat(header_reg[hom*dw:hom*dw+header_residue*8],
                                           sink.data[:(cw-header_residue)*8]))
                     ).Else(
-                       source.data.eq(Cat(data_buf[header_residue*8:],
+                       source.data.eq(Cat(data_buf[(cw-header_residue)*8:],
                                           sink.data[:(cw-header_residue)*8]))
                     ),
                     If(source.valid & source.ready,
