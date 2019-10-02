@@ -13,7 +13,7 @@ repos = [
     ("migen",      ("https://github.com/m-labs/",        True,  True)),
 
     # LiteX SoC builder
-    ("litex",      ("https://github.com/enjoy-digital/", True,  True)),
+    ("litex",      ("https://github.com/jersey99/", True,  True)),
 
     # LiteX cores ecosystem
     ("liteeth",    ("https://github.com/jersey99/", False, True)),

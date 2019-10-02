@@ -16,18 +16,31 @@ struct eth_packet_s {
   struct eth_packet_s *next;
 };
 
+// #define DW_64
+
 struct session_s {
+  #ifdef DW_64
   unsigned long int tx;
-  char tx_valid;
   unsigned long int rx;
+  #else
+  unsigned int tx;
+  unsigned int rx;
+  #endif
+  char tx_valid;
   char rx_valid;
   char rx_ready;
 
+  #ifdef DW_64
   unsigned long int *tx_data;
+  unsigned long int *rx_data;
+  #else
+  unsigned int *tx_data;
+  unsigned int *rx_data;
+  #endif
+
   char *tx_ctl;
   char terminate;
   char preamble;
-  unsigned long int *rx_data;
   char *rx_ctl;
   char *sys_clk;
 
@@ -206,11 +219,17 @@ out:
   return ret;
 }
 
-
+#ifdef DW_64
 char g_preamble = 0;
 char g_dw = 64;
-char g_mask = 0xff;
+unsigned long int g_mask = 0xff;
 unsigned long int g_idle = 0x0707070707070707;
+#else
+char g_preamble = 0;
+char g_dw = 32;
+unsigned int g_mask = 0xff;
+unsigned int g_idle = 0x07070707;
+#endif
 
 static int xgmii_ethernet_tick(void *sess)
 {
@@ -222,18 +241,22 @@ static int xgmii_ethernet_tick(void *sess)
     return RC_OK;
   }
 
+  #ifdef DW_64
   unsigned long int u;
+  #else
+  unsigned int u;
+  #endif
   // XGMII stuff
   u = *s->tx_data;
   s->tx = u;
-  printf("%16lx\t\t%x\n", u, *s->tx_ctl & g_mask);
+  // printf("%16lx\t\t%x\n", u, *s->tx_ctl & g_mask);
   if (u != g_idle) {
-    printf("%16lx\t\t%x\n", u, *s->tx_ctl & g_mask);
-    printf("preamble: %02x\n", g_preamble);
+    // printf("%16lx\t\t%x\n", u, *s->tx_ctl & g_mask);
+    // printf("preamble: %02x\n", g_preamble);
   }
 
   if ((g_preamble == 0) && (*s->tx_ctl & g_mask) == 0x1) {
-    g_preamble = 1;
+    g_preamble = (g_dw == 64)? 2: 1;
   } else if (g_preamble == 1) {
     g_preamble = 2;
   } else if (g_preamble == 2) {
@@ -246,15 +269,16 @@ static int xgmii_ethernet_tick(void *sess)
       /*   if ((s->terminate & mask) == 0) */
       /* 	s->databuf[s->datalen++] = (char)((s->tx >> (8*m)) & 0xff); */
       /* } */
-      printf("Sending: \n");
-      for(int i=0; i < s->datalen; printf("%02x ", s->databuf[i++] & 0xff));
-      printf("\n%u\n", s->datalen);
+
+      // Enable for debugging
+      // printf("Sending: \n"); for(int i=0; i < s->datalen; printf("%02x ", s->databuf[i++] & 0xff)); printf("\n%u\n", s->datalen);
+      printf("%u\n", s->datalen);
       tapcfg_write(s->tapcfg, s->databuf, s->datalen);
       s->datalen=0;
       g_preamble=0;
     } else {
-      for (int i = 0; i < g_dw/8; i++) {
-	s->databuf[s->datalen++]= (char) ((s->tx & (0xff << (8 * i))) >> (8*i));
+      for (int i = 0; i < (g_dw >> 3); i++) {
+	s->databuf[s->datalen++]= (char) ((u & (g_mask << (8 * i))) >> (8*i));
       }
     }
   }
@@ -271,9 +295,8 @@ static int xgmii_ethernet_tick(void *sess)
   } else {
     if(s->ethpack) {
       memcpy(s->inbuf, s->ethpack->data, s->ethpack->len);
-      printf("Received: \n");
-      for(int i=0; i< s->ethpack->len; printf("%02x ", s->inbuf[i++] & 0xff));
-      printf("\n%ld\n", s->ethpack->len);
+      printf("Received: %ld\n", s->ethpack->len );
+      // for(int i=0; i< s->ethpack->len; printf("%02x ", s->inbuf[i++] & 0xff));
       s->inlen = s->ethpack->len;
       pep=s->ethpack->next;
       free(s->ethpack);
