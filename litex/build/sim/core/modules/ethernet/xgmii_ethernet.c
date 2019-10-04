@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,14 +11,14 @@
 #include "tapcfg.h"
 #include "modules.h"
 
+#define ETH_LEN 9000
 struct eth_packet_s {
-  char data[2000];
+  char data[ETH_LEN];
   size_t len;
   struct eth_packet_s *next;
 };
 
-// #define DW_64
-
+#define DW_64
 struct session_s {
   #ifdef DW_64
   unsigned long int tx;
@@ -46,9 +47,10 @@ struct session_s {
 
   tapcfg_t *tapcfg;
   int fd;
-  char databuf[2000];
+  char databuf[ETH_LEN];
+  char rx_state;
   int datalen;
-  char inbuf[2000];
+  char inbuf[ETH_LEN];
   int inlen;
   int insent;
   struct eth_packet_s *ethpack;
@@ -133,7 +135,7 @@ void event_handler(int fd, short event, void *arg)
   if (event & EV_READ) {
     ep = malloc(sizeof(struct eth_packet_s));
     memset(ep, 0, sizeof(struct eth_packet_s));
-    ep->len = tapcfg_read(s->tapcfg, ep->data, 2000);
+    ep->len = tapcfg_read(s->tapcfg, ep->data, ETH_LEN);
     if(ep->len < 60)
       ep->len = 60;
 
@@ -272,31 +274,83 @@ static int xgmii_ethernet_tick(void *sess)
 
       // Enable for debugging
       // printf("Sending: \n"); for(int i=0; i < s->datalen; printf("%02x ", s->databuf[i++] & 0xff)); printf("\n%u\n", s->datalen);
-      printf("%u\n", s->datalen);
+      printf("Sent %u\n", s->datalen);
       tapcfg_write(s->tapcfg, s->databuf, s->datalen);
       s->datalen=0;
       g_preamble=0;
     } else {
       for (int i = 0; i < (g_dw >> 3); i++) {
+	assert(s->datalen <= ETH_LEN);
 	s->databuf[s->datalen++]= (char) ((u & (g_mask << (8 * i))) >> (8*i));
       }
     }
   }
 
-
-  s->rx_valid=0;
+  #ifdef DW_64
+  unsigned long int local_data = 0x0707070707070707;
+  unsigned long int temp_data = 0;  // This is here just to avoid an ugly cast later
+  #else
+  unsigned int local_data = 0x07070707;
+  unsigned int temp_data = 0;
+  #endif
+  char temp_ctl = 0;
+  char local_ctl = 0;
   if(s->inlen) {
-    s->rx_valid=1;
-    s->rx = s->inbuf[s->insent++];
-    if(s->insent == s->inlen) {
+    printf("%x    ", s->rx_state);
+    if (s->rx_state == 0) {
+      *s->rx_data = 0xd5555555555555fb;
+      *s->rx_ctl = 1;
+      s->rx_state = 1;
+    } else if ((s->rx_state == 1) && (s->insent + (g_dw >> 3) < s->inlen)) {
+      *s->rx_ctl = 0;
+      local_data = 0;
+      for (unsigned int i = 0; i < (g_dw >> 3); i++) {
+	temp_data = (unsigned char) s->inbuf[s->insent++];
+	local_data |=  (temp_data << (i << 3));
+      }
+      *s->rx_data = local_data;
+    } else if ((s->rx_state == 1) && (s->insent + (g_dw >> 3) >= s->inlen)) {
+      printf("%d, %d\n", s->insent, s->inlen);
+      for (unsigned int i = 0; i < (g_dw >> 3); i++) {
+	if (s->insent < s->inlen) {
+	  temp_data = (unsigned char) s->inbuf[s->insent++];
+	} else if (s->insent == s->inlen) {
+	  temp_data = 0xfd;
+	  temp_ctl = 1;
+	} else {
+	  temp_data = 0x07;
+	  temp_ctl = 1;
+	}
+	local_data |= (temp_data << (i << 3));
+	local_ctl |= (temp_ctl  << i);
+      }
+      *s->rx_data = local_data;
+      *s->rx_ctl = local_ctl;
+      if (s->insent == s->inlen)
+	s->rx_state = 2;
+      else {
+	s->insent =0;
+	s->inlen = 0;
+	s->rx_state = 0;
+      }
+    } else if (s->rx_state == 2) {
+      *s->rx_ctl = 0xff;
+      *s->rx_data = 0x07070707070707fd;
       s->insent =0;
       s->inlen = 0;
+      s->rx_state = 0;
+    } else {
+      *s->rx_ctl = 0xff;
+      *s->rx_data = local_data;
     }
+    printf("%x, %16lx, %x\n", s->rx_state, *s->rx_data, *s->rx_ctl);
   } else {
+    *s->rx_ctl = 0xff;
+    *s->rx_data = local_data;
     if(s->ethpack) {
       memcpy(s->inbuf, s->ethpack->data, s->ethpack->len);
       printf("Received: %ld\n", s->ethpack->len );
-      // for(int i=0; i< s->ethpack->len; printf("%02x ", s->inbuf[i++] & 0xff));
+      for(int i=0; i< s->ethpack->len; printf("%02x ", s->inbuf[i++] & 0xff));
       s->inlen = s->ethpack->len;
       pep=s->ethpack->next;
       free(s->ethpack);
