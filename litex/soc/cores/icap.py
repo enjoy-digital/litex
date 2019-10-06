@@ -31,12 +31,12 @@ class ICAP(Module, AutoCSR):
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
         self.sync += self.cd_icap.clk.eq(icap_clk_counter[3])
 
-        # Resychronize send pulse to icap domain ---------------------------------------------------
+        # Resynchronize send pulse to icap domain ---------------------------------------------------
         ps_send = PulseSynchronizer("sys", "icap")
         self.submodules += ps_send
         self.comb += [ps_send.i.eq(self.send.re)]
 
-        # Generate icap bitstream write sequenceenerate icap bitstream write sequence
+        # Generate icap bitstream write sequence
         _csib = Signal(reset=1)
         _i = Signal(32)
         _addr = self.addr.storage << 13
