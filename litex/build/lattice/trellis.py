@@ -138,7 +138,7 @@ class LatticeTrellisToolchain:
         self.yosys_template = [
             "{read_files}",
             "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
-            "synth_ecp5 -abc9 -json {build_name}.json -top {build_name}",
+            "synth_ecp5 -abc9 {nwl} -json {build_name}.json -top {build_name}",
         ]
 
         self.build_template = [
@@ -150,7 +150,7 @@ class LatticeTrellisToolchain:
         self.freq_constraints = dict()
 
     def build(self, platform, fragment, build_dir="build", build_name="top",
-              toolchain_path=None, run=True, **kwargs):
+              toolchain_path=None, run=True, nowidelut=False, **kwargs):
         if toolchain_path is None:
             toolchain_path = "/usr/share/trellis/"
         os.makedirs(build_dir, exist_ok=True)
@@ -175,6 +175,7 @@ class LatticeTrellisToolchain:
         # generate yosys script
         yosys_script_file = build_name + ".ys"
         yosys_script_contents = "\n".join(_.format(build_name=build_name,
+                                                   nwl="-nowidelut" if nowidelut else "",
                                                    read_files=yosys_import_sources(platform))
                                           for _ in self.yosys_template)
         tools.write_to_file(yosys_script_file, yosys_script_contents)
@@ -202,3 +203,12 @@ class LatticeTrellisToolchain:
     # constraints.
     def add_period_constraint(self, platform, clk, period):
         platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
+
+def yosys_args(parser):
+    parser.add_argument("--yosys-nowidelut", action="store_true",
+                        help="pass '-nowidelut' to yosys synth_ecp5")
+
+def yosys_argdict(args):
+    return {
+        "nowidelut": args.yosys_nowidelut
+    }
