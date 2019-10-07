@@ -8,6 +8,7 @@ import argparse
 from migen import *
 
 from litex.boards.platforms import arty
+from litex.build.xilinx.vivado import vivado_build_args, vivado_build_argdict
 
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_sdram import *
@@ -105,6 +106,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Arty")
     builder_args(parser)
     soc_sdram_args(parser)
+    vivado_build_args(parser)
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
     args = parser.parse_args()
@@ -112,7 +114,7 @@ def main():
     cls = EthernetSoC if args.with_ethernet else BaseSoC
     soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build()
+    builder.build(**vivado_build_argdict(args))
 
 
 if __name__ == "__main__":
