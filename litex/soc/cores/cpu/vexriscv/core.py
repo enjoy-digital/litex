@@ -82,6 +82,15 @@ class VexRiscv(CPU, AutoCSR):
     linker_output_format = "elf32-littleriscv"
 
     @property
+    def mem_map_linux(self):
+        return {
+            "rom":          0x00000000,
+            "sram":         0x10000000,
+            "main_ram":     0xc0000000,
+            "csr":          0xf0000000,
+        }
+
+    @property
     def gcc_flags(self):
         flags = GCC_FLAGS[self.variant]
         flags += " -D__vexriscv__"
@@ -132,6 +141,7 @@ class VexRiscv(CPU, AutoCSR):
 
         if "linux" in variant:
             self.add_timer()
+            self.mem_map = self.mem_map_linux
 
         if "debug" in variant:
             self.add_debug()
