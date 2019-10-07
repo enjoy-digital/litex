@@ -270,3 +270,10 @@ class XilinxVivadoToolchain:
     def add_false_path_constraint(self, platform, from_, to):
         if (to, from_) not in self.false_paths:
             self.false_paths.add((from_, to))
+
+def vivado_build_args(parser):
+    parser.add_argument("--synth-mode", default=None, help="synthesis mode (vivado or yosys)")
+
+
+def vivado_build_argdict(args):
+    return {"synth_mode": args.synth_mode}
