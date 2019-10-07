@@ -241,6 +241,7 @@ def _run_yosys(device, sources, vincpaths, build_name):
     for path in vincpaths:
         incflags += " -I" + path
     for filename, language, library in sources:
+        assert language != "vhdl"
         ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 
     ys_contents += """\
