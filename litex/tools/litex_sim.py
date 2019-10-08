@@ -55,11 +55,11 @@ _io = [
     ("eth", 0,
         Subsignal("source_valid", SimPins()),
         Subsignal("source_ready", SimPins()),
-        Subsignal("source_data", SimPins(64)),
+        Subsignal("source_data", SimPins(8)),
 
         Subsignal("sink_valid", SimPins()),
         Subsignal("sink_ready", SimPins()),
-        Subsignal("sink_data", SimPins(64)),
+        Subsignal("sink_data", SimPins(8)),
      ),
     ("eth_clocks", 1,
         Subsignal("none", SimPins()),
@@ -134,6 +134,7 @@ class SimSoC(SoCSDRAM):
                  with_udp=False,
                  with_etherbone=False, mac_address=0x10e2d5000000, ip_address="192.168.1.50",
                  with_analyzer=False,
+                 xgmii=False,
                  xgmii_dw=32,
                  platform=Platform(),
                  **kwargs):
@@ -203,17 +204,22 @@ class SimSoC(SoCSDRAM):
 
         if with_udp:
             # eth phy
-            # self.submodules.ethphy = LiteEthPHYModel(
-            #    self.platform.request("eth", 0))
-            self.submodules.ethphy = LiteEthPHYXGMII(
-                self.platform.request("eth_clocks", 0),
-                self.platform.request("eth", 0),
-                model=True,
-                dw=xgmii_dw)
+            if xgmii:
+                self.submodules.ethphy = LiteEthPHYXGMII(
+                    self.platform.request("eth_clocks", 0),
+                    self.platform.request("eth", 0),
+                    model=True,
+                    dw=xgmii_dw)
+                self.submodules.core = LiteEthUDPIPCore(
+                    self.ethphy, mac_address, convert_ip(ip_address),
+                    sys_clk_freq, mac_dw=xgmii_dw)
+            else:
+                self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+                self.submodules.core = LiteEthUDPIPCore(
+                    self.ethphy, mac_address, convert_ip(ip_address),
+                    sys_clk_freq)
             self.add_csr("ethphy")
             # udp ip
-            self.submodules.core = LiteEthUDPIPCore(
-                self.ethphy, mac_address, convert_ip(ip_address), sys_clk_freq, mac_dw=xgmii_dw)
 
         # etherbone
         if with_etherbone:

@@ -109,14 +109,14 @@ void event_handler(int fd, short event, void *arg)
   struct  session_s *s = (struct session_s*)arg;
   struct eth_packet_s *ep;
   struct eth_packet_s *tep;
-  
+
   if (event & EV_READ) {
     ep = malloc(sizeof(struct eth_packet_s));
     memset(ep, 0, sizeof(struct eth_packet_s));
     ep->len = tapcfg_read(s->tapcfg, ep->data, 2000);
     if(ep->len < 60)
       ep->len = 60;
-    
+
     if(!s->ethpack)
       s->ethpack = ep;
     else {
@@ -169,7 +169,7 @@ static int ethernet_new(void **sess, char *args)
 
   s->ev = event_new(base, s->fd, EV_READ | EV_PERSIST, event_handler, s);
   event_add(s->ev, &tv);
-  
+
 out:
   *sess=(void*)s;
   return ret;
@@ -193,7 +193,6 @@ static int ethernet_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "source_valid", (void**)&s->tx_valid);
     litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
-  
   if(!strcmp(plist->name, "sys_clk"))
     litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
 
@@ -206,7 +205,7 @@ static int ethernet_tick(void *sess)
   char c;
   struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;
-  
+
   if(*s->sys_clk == 0)
     return RC_OK;
 
@@ -220,7 +219,7 @@ static int ethernet_tick(void *sess)
       s->datalen=0;
     }
   }
-  
+
   *s->rx_valid=0;
   if(s->inlen) {
     *s->rx_valid=1;
