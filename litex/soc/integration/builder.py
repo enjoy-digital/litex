@@ -109,7 +109,10 @@ class Builder:
             cpu_interface.get_mem_header(self.soc.mem_regions))
         write_to_file(
             os.path.join(generated_dir, "csr.h"),
-            cpu_interface.get_csr_header(self.soc.csr_regions, self.soc.constants))
+            cpu_interface.get_csr_header(self.soc.csr_regions,
+                                         self.soc.constants,
+                                         shadow_base=self.soc.shadow_base)
+        )
         write_to_file(
             os.path.join(generated_dir, "git.h"),
             cpu_interface.get_git_header()
