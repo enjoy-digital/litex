@@ -356,11 +356,15 @@ class SoCCore(Module):
         for region_origin, region_length in self.soc_io_regions.items():
             if (origin >= region_origin) & ((origin + length) < (region_origin + region_length)):
                 return
-        msg = "{} region: 0x{:08x}-0x{:x} not located in an IO region.\n".format(
+        msg = "{} region (0x{:08x}-0x{:08x}) is not located in an IO region.\n".format(
             name, origin, origin + length - 1)
-        msg += "Avalaible IO regions:\n"
-        for region_origin, region_length in self.soc_io_regions.items():
-            msg += "- 0x{:08x}-0x{:x}\n".format(region_origin, region_origin + region_length - 1)
+        msg += "Available IO regions: "
+        if not bool(self.soc_io_regions):
+            msg += "None\n"
+        else:
+            msg += "\n"
+            for region_origin, region_length in self.soc_io_regions.items():
+                msg += "- 0x{:08x}-0x{:08x}\n".format(region_origin, region_origin + region_length - 1)
         raise ValueError(msg)
 
     def add_memory_region(self, name, origin, length, io_region=False):
