@@ -56,15 +56,17 @@ class RocketRV64(CPU):
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf")
     linker_output_format = "elf64-littleriscv"
-    io_regions           = {0x80000000: 0x80000000} # origin, length
+    io_regions           = {0x10000000: 0x70000000} # origin, length
 
     @property
     def mem_map(self):
         # Rocket reserves the first 256Mbytes for internal use, so we must change default mem_map.
         return {
-            "rom"  : 0x10000000,
-            "sram" : 0x11000000,
-            "csr"  : 0x92000000,
+            "rom"      : 0x10000000,
+            "sram"     : 0x11000000,
+            "csr"      : 0x12000000,
+            "ethmac"   : 0x30000000,
+            "main_ram" : 0x80000000,
         }
 
     @property
