@@ -88,7 +88,7 @@ class Platform(SimPlatform):
 
 class SimSoC(SoCSDRAM):
     mem_map = {
-        "ethmac": 0x30000000,  # (shadow @0xb0000000)
+        "ethmac": 0xb0000000,
     }
     mem_map.update(SoCSDRAM.mem_map)
 
@@ -153,7 +153,7 @@ class SimSoC(SoCSDRAM):
                 ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
             self.submodules.ethmac = ethmac
             self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
-            self.add_memory_region("ethmac", self.mem_map["ethmac"] | self.shadow_base, 0x2000)
+            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, io_region=True)
             self.add_csr("ethmac")
             self.add_interrupt("ethmac")
 
