@@ -17,10 +17,12 @@ class CPU(Module):
     linker_output_format = None
     interrupts           = {}
     mem_map              = {}
+    io_regions           = {}
 
 class CPUNone(CPU):
     data_width           = 32
     reset_address        = 0x00000000
+    io_regions           = {0x00000000: 0xf0000000} # origin, length
 
 # CPUS ---------------------------------------------------------------------------------------------
 

@@ -198,6 +198,7 @@ class SoCCore(Module):
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
         else:
             self.add_cpu(cpu.CPUNone())
+            self.soc_io_regions.update(self.cpu.io_regions)
 
         # Add user's interrupts (needs to be done after CPU interrupts are allocated)
         for _name, _id in self.interrupt_map.items():
