@@ -110,8 +110,7 @@ class Builder:
         write_to_file(
             os.path.join(generated_dir, "csr.h"),
             cpu_interface.get_csr_header(self.soc.csr_regions,
-                                         self.soc.constants,
-                                         shadow_base=self.soc.shadow_base)
+                                         self.soc.constants)
         )
         write_to_file(
             os.path.join(generated_dir, "git.h"),

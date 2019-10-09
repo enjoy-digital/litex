@@ -21,6 +21,7 @@ class LM32(CPU):
     endianness           = "big"
     gcc_triple           = "lm32-elf"
     linker_output_format = "elf32-lm32"
+    io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
     def gcc_flags(self):

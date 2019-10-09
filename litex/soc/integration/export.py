@@ -156,7 +156,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
     return r
 
 
-def get_csr_header(regions, constants, with_access_functions=True, with_shadow_base=True, shadow_base=0x80000000):
+def get_csr_header(regions, constants, with_access_functions=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
     r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
@@ -174,8 +174,6 @@ def get_csr_header(regions, constants, with_access_functions=True, with_shadow_b
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
     for name, region in regions.items():
         origin = region.origin
-        if not with_shadow_base:
-            origin &= (~shadow_base)
         r += "\n/* "+name+" */\n"
         r += "#define CSR_"+name.upper()+"_BASE "+hex(origin)+"L\n"
         if not isinstance(region.obj, Memory):

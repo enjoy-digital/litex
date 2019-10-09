@@ -36,6 +36,7 @@ class PicoRV32(CPU):
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed")
     linker_output_format = "elf32-littleriscv"
+    io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
     def gcc_flags(self):
