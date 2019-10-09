@@ -64,7 +64,7 @@ class RocketRV64(CPU):
         return {
             "rom"  : 0x10000000,
             "sram" : 0x11000000,
-            "csr"  : 0x12000000,
+            "csr"  : 0x92000000,
         }
 
     @property
