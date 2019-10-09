@@ -115,7 +115,8 @@ Migen documentation can be found here: https://m-labs.hk/migen/manual
 
 1. Install Migen/LiteX and the LiteX's cores:
   wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
-  ./litex_setup.py init install
+  chmod +x litex_setup.py
+  ./litex_setup.py init install --user (--user to install to user directory)
   Later, if you need to update all repositories:
   ./litex_setup.py update
 
@@ -125,7 +126,7 @@ Migen documentation can be found here: https://m-labs.hk/migen/manual
   export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 
 3. Build the target of your board...:
-  Go to boards/targets and execute the target you want to build
+  Go to litex-boards/litex_boards/**/targets (** being community/official/partner) and execute the target you want to build
 
 4. ... and/or install Verilator and test LiteX on your computer:
   Download and install Verilator: http://www.veripool.org/
