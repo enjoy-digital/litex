@@ -88,13 +88,13 @@ class RocketRV64(CPU):
         self.mem_axi  = mem_axi  = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
         self.mmio_axi = mmio_axi = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
 
-        self.mem_wb  = mem_wb  = wishbone.Interface(data_width=64, adr_width=29)
-        self.mmio_wb = mmio_wb = wishbone.Interface(data_width=64, adr_width=29)
+        self.mem_wb64  = mem_wb64  = wishbone.Interface(data_width=64, adr_width=29)
+        self.mmio_wb64 = mmio_wb64 = wishbone.Interface(data_width=64, adr_width=29)
 
-        self.ibus = ibus = wishbone.Interface()
-        self.dbus = dbus = wishbone.Interface()
+        self.mem_wb32 = mem_wb32 = wishbone.Interface()
+        self.mmio_wb32 = mmio_wb32 = wishbone.Interface()
 
-        self.buses = [ibus, dbus]
+        self.buses = [mem_wb32, mmio_wb32]
 
         # # #
 
@@ -210,8 +210,8 @@ class RocketRV64(CPU):
         )
 
         # adapt axi interfaces to wishbone
-        mem_a2w = ResetInserter()(axi.AXI2Wishbone(mem_axi, mem_wb, base_address=0))
-        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
+        mem_a2w = ResetInserter()(axi.AXI2Wishbone(mem_axi, mem_wb64, base_address=0))
+        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb64, base_address=0))
         # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
         self.comb += [
             mem_a2w.reset.eq(ResetSignal() | self.reset),
@@ -219,8 +219,8 @@ class RocketRV64(CPU):
         ]
 
         # down-convert wishbone from 64 to 32 bit data width
-        mem_dc = wishbone.Converter(mem_wb, ibus)
-        mmio_dc = wishbone.Converter(mmio_wb, dbus)
+        mem_dc = wishbone.Converter(mem_wb64, mem_wb32)
+        mmio_dc = wishbone.Converter(mmio_wb64, mmio_wb32)
 
         self.submodules += mem_a2w, mem_dc, mmio_a2w, mmio_dc
 
