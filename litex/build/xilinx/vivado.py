@@ -126,11 +126,11 @@ class XilinxVivadoToolchain:
             # "-include_dirs {}" crashes Vivado 2016.4
             for filename, language, library in sources:
                 filename_tcl = "{" + filename + "}"
-                if ("systemverilog" == language):
+                if (language == "systemverilog"):
                     tcl.append("read_verilog -sv " + filename_tcl)
-                elif ("verilog" == language):
+                elif (language == "verilog"):
                     tcl.append("read_verilog " + filename_tcl)
-                elif ("vhdl" == language):
+                elif (language == "vhdl"):
                     tcl.append("read_vhdl " + filename_tcl)
                     tcl.append("set_property library {} [get_files {}]"
                                .format(library, filename_tcl))
