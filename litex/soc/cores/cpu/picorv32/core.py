@@ -58,9 +58,8 @@ class PicoRV32(CPU):
         self.platform  = platform
         self.variant   = variant
         self.reset     = Signal()
-        self.ibus      = i = wishbone.Interface()
-        self.dbus      = d = wishbone.Interface()
-        self.buses     = [i, d]
+        self.idbus     = idbus = wishbone.Interface()
+        self.buses     = [idbus]
         self.interrupt = Signal(32)
         self.trap      = Signal()
 
@@ -154,33 +153,17 @@ class PicoRV32(CPU):
 
         # adapt memory interface to wishbone
         self.comb += [
-             # instruction
-             i.adr.eq(mem_addr[2:]),
-             i.dat_w.eq(mem_wdata),
-             i.we.eq(mem_wstrb != 0),
-             i.sel.eq(mem_wstrb),
-             i.cyc.eq(mem_valid & mem_instr),
-             i.stb.eq(mem_valid & mem_instr),
-             i.cti.eq(0),
-             i.bte.eq(0),
-             If(mem_instr,
-                 mem_ready.eq(i.ack),
-                 mem_rdata.eq(i.dat_r),
-             ),
-
-             # data
-             d.adr.eq(mem_addr[2:]),
-             d.dat_w.eq(mem_wdata),
-             d.we.eq(mem_wstrb != 0),
-             d.sel.eq(mem_wstrb),
-             d.cyc.eq(mem_valid & ~mem_instr),
-             d.stb.eq(mem_valid & ~mem_instr),
-             d.cti.eq(0),
-             d.bte.eq(0),
-             If(~mem_instr,
-                 mem_ready.eq(d.ack),
-                 mem_rdata.eq(d.dat_r)
-             )
+            # instruction
+            idbus.adr.eq(mem_addr[2:]),
+            idbus.dat_w.eq(mem_wdata),
+            idbus.we.eq(mem_wstrb != 0),
+            idbus.sel.eq(mem_wstrb),
+            idbus.cyc.eq(mem_valid),
+            idbus.stb.eq(mem_valid),
+            idbus.cti.eq(0),
+            idbus.bte.eq(0),
+            mem_ready.eq(idbus.ack),
+            mem_rdata.eq(idbus.dat_r),
         ]
 
         # add verilog sources
