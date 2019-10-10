@@ -29,7 +29,7 @@ class SoCZynq(SoCCore):
     SoCCore.mem_map["csr"] = 0x00000000
     def __init__(self, platform, clk_freq, ps7_name, **kwargs):
         self.ps7_name = ps7_name
-        SoCCore.__init__(self, platform, clk_freq, cpu_type=None, shadow_base=0x00000000, **kwargs)
+        SoCCore.__init__(self, platform, clk_freq, cpu_type=None, **kwargs)
 
         # PS7 (Minimal) ----------------------------------------------------------------------------
         fclk_reset0_n = Signal()
