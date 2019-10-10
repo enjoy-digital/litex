@@ -34,8 +34,8 @@ class LM32(CPU):
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        self.platform = platform
-        self.variant  = variant
+        self.platform  = platform
+        self.variant   = variant
         self.reset     = Signal()
         self.ibus      = i = wishbone.Interface()
         self.dbus      = d = wishbone.Interface()

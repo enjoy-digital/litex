@@ -29,8 +29,8 @@ class Minerva(CPU):
 
     def __init__(self, platform, variant="standard"):
         assert variant is "standard", "Unsupported variant %s" % variant
-        self.platform = platform
-        self.variant  = variant
+        self.platform  = platform
+        self.variant   = variant
         self.reset     = Signal()
         self.ibus      = wishbone.Interface()
         self.dbus      = wishbone.Interface()

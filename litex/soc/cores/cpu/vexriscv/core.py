@@ -102,11 +102,11 @@ class VexRiscv(CPU, AutoCSR):
         self.platform         = platform
         self.variant          = variant
         self.external_variant = None
-        self.reset      = Signal()
-        self.ibus       = ibus = wishbone.Interface()
-        self.dbus       = dbus = wishbone.Interface()
-        self.buses      = [ibus, dbus]
-        self.interrupt  = Signal(32)
+        self.reset            = Signal()
+        self.ibus             = ibus = wishbone.Interface()
+        self.dbus             = dbus = wishbone.Interface()
+        self.buses            = [ibus, dbus]
+        self.interrupt        = Signal(32)
 
         self.cpu_params = dict(
                 i_clk=ClockSignal(),
