@@ -345,7 +345,11 @@ class GenericPlatform:
                 if os.path.isfile(os.path.join(path, item)):
                     dir_files.append(os.path.join(path, item))
         for filename in dir_files:
-            self.add_source(filename, language, library)
+            _language = language
+            if _language is None:
+                _language = tools.language_by_filename(filename)
+            if _language is not None:
+                self.add_source(filename, _language, library)
 
     def add_verilog_include_path(self, path):
         self.verilog_include_paths.add(os.path.abspath(path))
