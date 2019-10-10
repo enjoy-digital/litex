@@ -182,9 +182,9 @@ class SoCCore(Module):
             self.cpu.set_reset_address(self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
             self.config["CPU_RESET_ADDR"] = self.cpu.reset_address
 
-            # Add Instruction/Data buses as Wisbone masters
-            self.add_wb_master(self.cpu.ibus)
-            self.add_wb_master(self.cpu.dbus)
+            # Add CPU buses as Wisbone masters
+            for bus in self.cpu.buses:
+                self.add_wb_master(bus)
 
             # Add CPU CSR (dynamic)
             self.add_csr("cpu", allow_user_defined=True)

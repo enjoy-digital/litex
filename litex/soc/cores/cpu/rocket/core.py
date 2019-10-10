@@ -94,6 +94,8 @@ class RocketRV64(CPU):
         self.ibus = ibus = wishbone.Interface()
         self.dbus = dbus = wishbone.Interface()
 
+        self.buses = [ibus, dbus]
+
         # # #
 
         self.cpu_params = dict(

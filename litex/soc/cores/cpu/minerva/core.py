@@ -34,6 +34,7 @@ class Minerva(CPU):
         self.reset     = Signal()
         self.ibus      = wishbone.Interface()
         self.dbus      = wishbone.Interface()
+        self.buses     = [self.ibus, self.dbus]
         self.interrupt = Signal(32)
 
         # # #

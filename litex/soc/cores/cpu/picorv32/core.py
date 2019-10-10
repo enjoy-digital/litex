@@ -60,6 +60,7 @@ class PicoRV32(CPU):
         self.reset     = Signal()
         self.ibus      = i = wishbone.Interface()
         self.dbus      = d = wishbone.Interface()
+        self.buses     = [i, d]
         self.interrupt = Signal(32)
         self.trap      = Signal()
 
