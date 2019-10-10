@@ -115,6 +115,27 @@ def get_mem_header(regions):
     r += "#endif\n"
     return r
 
+def get_soc_header(constants, with_access_functions=True):
+    r = generated_banner("//")
+    r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
+    for name, value in constants.items():
+        if value is None:
+            r += "#define "+name+"\n"
+            continue
+        if isinstance(value, str):
+            value = "\"" + value + "\""
+            ctype = "const char *"
+        else:
+            value = str(value)
+            ctype = "int"
+        r += "#define "+name+" "+value+"\n"
+        if with_access_functions:
+            r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
+            r += "\treturn "+value+";\n}\n"
+
+    r += "\n#endif\n"
+    return r
+
 def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, with_access_functions):
     r = ""
 
@@ -159,6 +180,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
 def get_csr_header(regions, constants, with_access_functions=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
+    r += "#include <generated/soc.h>\n"
     r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
         r += "#include <stdint.h>\n"
@@ -186,22 +208,6 @@ def get_csr_header(regions, constants, with_access_functions=True):
                     for field in csr.fields.fields:
                         r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_OFFSET "+str(field.offset)+"\n"
                         r += "#define CSR_"+name.upper()+"_"+csr.name.upper()+"_"+field.name.upper()+"_SIZE "+str(field.size)+"\n"
-
-    r += "\n/* constants */\n"
-    for name, value in constants.items():
-        if value is None:
-            r += "#define "+name+"\n"
-            continue
-        if isinstance(value, str):
-            value = "\"" + value + "\""
-            ctype = "const char *"
-        else:
-            value = str(value)
-            ctype = "int"
-        r += "#define "+name+" "+value+"\n"
-        if with_access_functions:
-            r += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
-            r += "\treturn "+value+";\n}\n"
 
     r += "\n#endif\n"
     return r

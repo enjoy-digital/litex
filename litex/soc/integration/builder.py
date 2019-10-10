@@ -108,6 +108,9 @@ class Builder:
             os.path.join(generated_dir, "mem.h"),
             cpu_interface.get_mem_header(self.soc.mem_regions))
         write_to_file(
+            os.path.join(generated_dir, "soc.h"),
+            cpu_interface.get_soc_header(self.soc.constants))
+        write_to_file(
             os.path.join(generated_dir, "csr.h"),
             cpu_interface.get_csr_header(self.soc.csr_regions,
                                          self.soc.constants)
