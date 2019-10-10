@@ -153,7 +153,6 @@ class PicoRV32(CPU):
 
         # adapt memory interface to wishbone
         self.comb += [
-            # instruction
             idbus.adr.eq(mem_addr[2:]),
             idbus.dat_w.eq(mem_wdata),
             idbus.we.eq(mem_wstrb != 0),
