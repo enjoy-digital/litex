@@ -19,8 +19,10 @@ def language_by_filename(name):
     extension = name.rsplit(".")[-1]
     if extension in ["v", "vh", "vo"]:
         return "verilog"
-    if extension in ["vhd", "vhdl", "vho"]:
+    elif extension in ["vhd", "vhdl", "vho"]:
         return "vhdl"
+    elif extension in ["sv"]:
+        return "systemverilog"
     return None
 
 
