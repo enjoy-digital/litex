@@ -595,6 +595,8 @@ int main(int i, char **c)
 #endif
 	printf("\n");
 
+	sdr_ok = 1;
+#if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE)
 	printf("--========= \e[1mPeripherals init\e[0m ===========--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
@@ -604,13 +606,12 @@ int main(int i, char **c)
 #else
 #ifdef MAIN_RAM_TEST
 	sdr_ok = memtest();
-#else
-	sdr_ok = 1;
 #endif
 #endif
 	if (sdr_ok !=1)
 		printf("Memory initialization failed\n");
 	printf("\n");
+#endif
 
 	if(sdr_ok) {
 		printf("--========== \e[1mBoot sequence\e[0m =============--\n");
