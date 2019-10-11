@@ -460,7 +460,7 @@ static void busy_wait(unsigned int ds)
 
 void eth_init(void)
 {
-	printf("Ethernet init...");
+	printf("Ethernet init...\n");
 #ifdef CSR_ETHPHY_CRG_RESET_ADDR
 	ethphy_crg_reset_write(1);
 	busy_wait(2);

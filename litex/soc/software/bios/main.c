@@ -566,7 +566,7 @@ int main(int i, char **c)
 	printf(" Migen git sha1: "MIGEN_GIT_SHA1"\n");
 	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
 	printf("\n");
-	printf("--============ \e[1mSoC info\e[0m ================--\n");
+	printf("--=============== \e[1mSoC\e[0m ==================--\n");
 	printf("\e[1mCPU\e[0m:       ");
 #ifdef __lm32__
 	printf("LM32");
@@ -596,7 +596,7 @@ int main(int i, char **c)
 
 	sdr_ok = 1;
 #if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE)
-	printf("--========= \e[1mPeripherals init\e[0m ===========--\n");
+	printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
@@ -613,7 +613,7 @@ int main(int i, char **c)
 #endif
 
 	if(sdr_ok) {
-		printf("--========== \e[1mBoot sequence\e[0m =============--\n");
+		printf("--============== \e[1mBoot\e[0m ==================--\n");
 		boot_sequence();
 		printf("\n");
 	}

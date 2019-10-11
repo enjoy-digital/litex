@@ -30,7 +30,7 @@ extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, un
 
 static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
 {
-	printf("Executing booted program at 0x%08x\n", addr);
+	printf("Executing booted program at 0x%08x\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
 	uart_sync();
 	irq_setmask(0);
