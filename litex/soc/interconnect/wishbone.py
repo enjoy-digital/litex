@@ -486,7 +486,7 @@ class Converter(Module):
             upconverter = UpConverter(master, slave)
             self.submodules += upconverter
         else:
-            master.connect(slave)
+            self.comb += master.connect(slave)
 
 
 class Cache(Module):
