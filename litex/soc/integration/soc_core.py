@@ -182,15 +182,12 @@ class SoCCore(Module):
             self.cpu.set_reset_address(self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
             self.config["CPU_RESET_ADDR"] = self.cpu.reset_address
 
-            # Add CPU buses as Wisbone masters
-            for bus in self.cpu.buses:
-                assert bus.data_width in [32, 64, 128]
-                # Down Convert CPU buses to 32-bit if needed
-                if bus.data_width != 32:
-                    dc_bus = wishbone.Interface()
-                    self.submodules += wishbone.Converter(bus, dc_bus)
-                    bus = dc_bus
-                self.add_wb_master(bus)
+            # Add CPU buses as 32-bit Wishbone masters
+            for cpu_bus in self.cpu.buses:
+                assert cpu_bus.data_width in [32, 64, 128]
+                soc_bus = wishbone.Interface(data_width=32)
+                self.submodules += wishbone.Converter(cpu_bus, soc_bus)
+                self.add_wb_master(soc_bus)
 
             # Add CPU CSR (dynamic)
             self.add_csr("cpu", allow_user_defined=True)
