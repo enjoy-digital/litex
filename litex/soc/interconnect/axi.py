@@ -14,10 +14,10 @@ BURST_INCR     = 0b01
 BURST_WRAP     = 0b10
 BURST_RESERVED = 0b11
 
-RESP_OKAY   = 0b00
-RESP_EXOKAY = 0b01
-RESP_SLVERR = 0b10
-RESP_DECERR = 0b11
+RESP_OKAY      = 0b00
+RESP_EXOKAY    = 0b01
+RESP_SLVERR    = 0b10
+RESP_DECERR    = 0b11
 
 def ax_description(address_width, id_width):
     return [
@@ -55,16 +55,16 @@ def r_description(data_width, id_width):
 
 class AXIInterface(Record):
     def __init__(self, data_width, address_width, id_width=1, clock_domain="sys"):
-        self.data_width = data_width
+        self.data_width    = data_width
         self.address_width = address_width
-        self.id_width = id_width
-        self.clock_domain = clock_domain
+        self.id_width      = id_width
+        self.clock_domain  = clock_domain
 
         self.aw = stream.Endpoint(ax_description(address_width, id_width))
-        self.w = stream.Endpoint(w_description(data_width, id_width))
-        self.b = stream.Endpoint(b_description(id_width))
+        self.w  = stream.Endpoint(w_description(data_width, id_width))
+        self.b  = stream.Endpoint(b_description(id_width))
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
-        self.r = stream.Endpoint(r_description(data_width, id_width))
+        self.r  = stream.Endpoint(r_description(data_width, id_width))
 
 # AXI Lite Definition -----------------------------------------------------------------------------------
 
@@ -88,15 +88,15 @@ def r_lite_description(data_width):
 
 class AXILiteInterface(Record):
     def __init__(self, data_width, address_width, clock_domain="sys"):
-        self.data_width = data_width
+        self.data_width    = data_width
         self.address_width = address_width
-        self.clock_domain = clock_domain
+        self.clock_domain  = clock_domain
 
         self.aw = stream.Endpoint(ax_lite_description(address_width))
-        self.w = stream.Endpoint(w_lite_description(data_width))
-        self.b = stream.Endpoint(b_lite_description())
+        self.w  = stream.Endpoint(w_lite_description(data_width))
+        self.b  = stream.Endpoint(b_lite_description())
         self.ar = stream.Endpoint(ax_lite_description(address_width))
-        self.r = stream.Endpoint(r_lite_description(data_width))
+        self.r  = stream.Endpoint(r_lite_description(data_width))
 
 # AXI Bursts to Beats ------------------------------------------------------------------------------
 
@@ -162,14 +162,14 @@ class AXI2AXILite(Module):
         assert axi.address_width == axi_lite.address_width
 
         ax_buffer = stream.Buffer(ax_description(axi.address_width, axi.id_width))
-        ax_burst = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
-        ax_beat = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
+        ax_burst  = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
+        ax_beat   = stream.Endpoint(ax_description(axi.address_width, axi.id_width))
         self.comb += ax_burst.connect(ax_buffer.sink)
         ax_burst2beat = AXIBurst2Beat(ax_buffer.source, ax_beat)
         self.submodules += ax_buffer, ax_burst2beat
 
-        _data      = Signal(axi.data_width)
-        _cmd_done  = Signal()
+        _data         = Signal(axi.data_width)
+        _cmd_done     = Signal()
         _last_ar_aw_n = Signal()
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -262,9 +262,9 @@ class AXILite2Wishbone(Module):
         assert axi_lite.data_width    == len(wishbone.dat_r)
         assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
 
-        _data = Signal(axi_lite.data_width)
-        _r_addr = Signal(axi_lite.address_width)
-        _w_addr = Signal(axi_lite.address_width)
+        _data         = Signal(axi_lite.data_width)
+        _r_addr       = Signal(axi_lite.address_width)
+        _w_addr       = Signal(axi_lite.address_width)
         _last_ar_aw_n = Signal()
         self.comb += _r_addr.eq(axi_lite.ar.addr - base_address)
         self.comb += _w_addr.eq(axi_lite.aw.addr - base_address)
@@ -332,7 +332,7 @@ class AXILite2Wishbone(Module):
 
 class AXI2Wishbone(Module):
     def __init__(self, axi, wishbone, base_address=0x00000000):
-        axi_lite = AXILiteInterface(axi.data_width, axi.address_width)
-        axi2axi_lite = AXI2AXILite(axi, axi_lite)
+        axi_lite          = AXILiteInterface(axi.data_width, axi.address_width)
+        axi2axi_lite      = AXI2AXILite(axi, axi_lite)
         axi_lite2wishbone = AXILite2Wishbone(axi_lite, wishbone, base_address)
         self.submodules += axi2axi_lite, axi_lite2wishbone
