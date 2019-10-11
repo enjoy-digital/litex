@@ -223,9 +223,9 @@ class Packetizer(Module):
                )
             )
         )
-        if header_residue and header_words >= 2:
-            self.sync += [header_leftover.eq(header_reg[2*dw:(2*dw+header_residue*8)]),
-            ]
+        # if header_residue and header_words >= 2:
+        #     self.sync += [header_leftover.eq(header_reg[2*dw:(2*dw+header_residue*8)]),
+        #     ]
 
         self.sync += [last_buf.eq(sink.last),
                       data_buf.eq(sink.data),
@@ -305,9 +305,13 @@ class Depacketizer(Module):
         # # #
 
         dw = len(sink.data)
+        cw = dw // 8
 
         header_reg = Signal(header.length*8, reset_less=True)
         header_words = (header.length*8)//dw
+        header_residue = header.length % cw
+        if header_residue:
+            header_leftover = Signal(header_residue*8)
 
         shift = Signal()
         counter = Signal(max=max(header_words, 2))
@@ -320,23 +324,29 @@ class Depacketizer(Module):
                 counter.eq(counter + 1)
             )
 
-        if header_words == 1:
+        if header_words == 1 and header_residue == 0:
             self.sync += \
                 If(shift,
-                    header_reg.eq(sink.data)
+                   header_reg.eq(sink.data)
                 )
         else:
             self.sync += \
                 If(shift,
-                    header_reg.eq(Cat(header_reg[dw:], sink.data))
+                   header_reg.eq(Cat(header_reg[dw:], sink.data))
                 )
         self.comb += self.header.eq(header_reg)
 
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
+        self.transitioning = transitioning = Signal()  # TODO: Perhaps fsm already has a transitioning signal
 
-        if header_words == 1:
+        last_buf, valid_buf = Signal(), Signal()
+        self.data_buf = data_buf = Signal(len(sink.data))
+
+        if header_words == 1 and header_residue == 0:
             idle_next_state = "COPY"
+        elif header_words == 1 and header_residue:
+            idle_next_state = "STAGGERCOPY"
         else:
             idle_next_state = "RECEIVE_HEADER"
 
@@ -344,10 +354,17 @@ class Depacketizer(Module):
             sink.ready.eq(1),
             counter_reset.eq(1),
             If(sink.valid,
-                shift.eq(1),
-                NextState(idle_next_state)
+               shift.eq(1),
+               NextValue(transitioning, 1),
+               NextState(idle_next_state)
             )
         )
+
+        self.sync += [last_buf.eq(sink.last),
+                      data_buf.eq(sink.data),
+                      valid_buf.eq(sink.valid),
+        ]
+        print(header_words)
         if header_words != 1:
             fsm.act("RECEIVE_HEADER",
                 sink.ready.eq(1),
@@ -355,29 +372,61 @@ class Depacketizer(Module):
                     counter_ce.eq(1),
                     shift.eq(1),
                     If(counter == header_words-2,
-                        NextState("COPY")
+                       counter_ce.eq(1 if header_residue else 0),
+                       NextValue(transitioning, 1),
+                       NextState("STAGGERCOPY" if header_residue else "COPY")
                     )
                 )
             )
         no_payload = Signal()
         self.sync += \
-            If(fsm.before_entering("COPY"),
+            If(fsm.before_entering("COPY") | fsm.before_entering("STAGGERCOPY"),
                 no_payload.eq(sink.last)
             )
 
         if hasattr(sink, "error"):
             self.comb += source.error.eq(sink.error)
+        if hasattr(sink, "last_be"):
+            # header_lengh + last_be
+            cw = dw//8
+            rotate_by = header.length % cw
+            x = [sink.last_be[(i + rotate_by) % cw] for i in range(cw)]
+            self.comb += If(sink.last_be == 0,
+                            source.last_be.eq(1 << header_residue)
+            ).Else(
+                source.last_be.eq(Cat(*x)))
         self.comb += [
-            source.last.eq(sink.last | no_payload),
-            source.data.eq(sink.data),
+            # source.last.eq(sink.last | no_payload),
+            # source.data.eq(sink.data),
             header.decode(self.header, source)
         ]
-        fsm.act("COPY",
-            sink.ready.eq(source.ready),
-            source.valid.eq(sink.valid | no_payload),
-            If(source.valid & source.ready & source.last,
-                NextState("IDLE")
+        if header_residue:
+            header_offset_multiplier = hom = 1 if header_words == 1 else 2
+            fsm.act("STAGGERCOPY",
+                    sink.ready.eq(source.ready),
+                    source.last.eq(last_buf | no_payload),
+                    source.valid.eq(valid_buf & ~transitioning | no_payload),
+                    If(transitioning,
+                       NextValue(header_reg, Cat(header_reg[header_residue*8:],
+                                                 sink.data[:header_residue*8]))
+                    ).Else(
+                        source.data.eq(Cat(data_buf[header_residue*8:],
+                                           sink.data[:header_residue*8])),
+                    ),
+                    If(source.ready & sink.valid,
+                       NextValue(transitioning, 0)
+                    ),
+                    If(source.valid & source.ready & source.last,
+                       NextState("IDLE")
+                    ),
             )
-        )
-
-# XXX
+        else:
+             fsm.act("COPY",
+                     source.last.eq(sink.last | no_payload),
+                     source.data.eq(sink.data),
+                     sink.ready.eq(source.ready),
+                     source.valid.eq(sink.valid | no_payload),
+                     If(source.valid & source.ready & source.last,
+                        NextState("IDLE")
+                     )
+             )

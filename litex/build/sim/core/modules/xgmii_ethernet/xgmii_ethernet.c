@@ -273,7 +273,9 @@ static int xgmii_ethernet_tick(void *sess)
       /* } */
 
       // Enable for debugging
-      // printf("Sending: \n"); for(int i=0; i < s->datalen; printf("%02x ", s->databuf[i++] & 0xff)); printf("\n%u\n", s->datalen);
+      printf("Sending: \n");
+      for(int i=0; i < s->datalen; printf("%02x ", s->databuf[i++] & 0xff));
+      printf("\n%u\n", s->datalen);
       printf("Sent %u\n", s->datalen);
       tapcfg_write(s->tapcfg, s->databuf, s->datalen);
       s->datalen=0;
@@ -296,7 +298,7 @@ static int xgmii_ethernet_tick(void *sess)
   char temp_ctl = 0;
   char local_ctl = 0;
   if(s->inlen) {
-    printf("%x    ", s->rx_state);
+    // printf("%x    ", s->rx_state);
     if (s->rx_state == 0) {
       *s->rx_data = 0xd5555555555555fb;
       *s->rx_ctl = 1;
@@ -310,26 +312,30 @@ static int xgmii_ethernet_tick(void *sess)
       }
       *s->rx_data = local_data;
     } else if ((s->rx_state == 1) && (s->insent + (g_dw >> 3) >= s->inlen)) {
-      printf("%d, %d\n", s->insent, s->inlen);
+      // printf("%d, %d\n", s->insent, s->inlen);
+      local_data = 0;
       for (unsigned int i = 0; i < (g_dw >> 3); i++) {
 	if (s->insent < s->inlen) {
 	  temp_data = (unsigned char) s->inbuf[s->insent++];
 	} else if (s->insent == s->inlen) {
-	  temp_data = 0xfd;
+	  temp_data = (unsigned char) 0xfd;
 	  temp_ctl = 1;
+	  s->insent++;
 	} else {
-	  temp_data = 0x07;
+	  temp_data = (unsigned char) 0x07;
 	  temp_ctl = 1;
+	  s->insent++;
 	}
 	local_data |= (temp_data << (i << 3));
 	local_ctl |= (temp_ctl  << i);
+	//printf("%16lx %02x\n", local_data, local_ctl);
       }
       *s->rx_data = local_data;
       *s->rx_ctl = local_ctl;
       if (s->insent == s->inlen)
 	s->rx_state = 2;
       else {
-	s->insent =0;
+	s->insent = 0;
 	s->inlen = 0;
 	s->rx_state = 0;
       }
@@ -343,14 +349,18 @@ static int xgmii_ethernet_tick(void *sess)
       *s->rx_ctl = 0xff;
       *s->rx_data = local_data;
     }
-    printf("%x, %16lx, %x\n", s->rx_state, *s->rx_data, *s->rx_ctl);
+    // printf("%x, %16lx, %x\n", s->rx_state, *s->rx_data, *s->rx_ctl);
   } else {
     *s->rx_ctl = 0xff;
     *s->rx_data = local_data;
     if(s->ethpack) {
       memcpy(s->inbuf, s->ethpack->data, s->ethpack->len);
       printf("Received: %ld\n", s->ethpack->len );
-      for(int i=0; i< s->ethpack->len; printf("%02x ", s->inbuf[i++] & 0xff));
+      for(int i=0; i< s->ethpack->len;) {
+	printf("%02x ", s->inbuf[i++] & 0xff);
+	if (i%8 == 0 && i > 0);
+      }
+      printf("\n");
       s->inlen = s->ethpack->len;
       pep=s->ethpack->next;
       free(s->ethpack);
