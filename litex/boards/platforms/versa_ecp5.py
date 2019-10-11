@@ -121,6 +121,26 @@ _io = [
         Subsignal("tx_n", Pins("W5")),
         Subsignal("perst", Pins("A6"), IOStandard("LVCMOS33")),
     ),
+
+    ("refclk_en", 0, Pins("C12"), IOStandard("LVCMOS33")),
+    ("refclk_rst_n", 0, Pins("R1"), IOStandard("LVCMOS33")),
+    ("refclk", 0,
+        Subsignal("p", Pins("Y11")),
+        Subsignal("n", Pins("Y12")),
+    ),
+    ("refclk", 1,
+        Subsignal("p", Pins("Y19")),
+        Subsignal("n", Pins("W20")),
+    ),
+
+    ("sma_tx", 0,
+        Subsignal("p", Pins("W8")),
+        Subsignal("n", Pins("W9")),
+    ),
+    ("sma_rx", 0,
+        Subsignal("p", Pins("Y7")),
+        Subsignal("n", Pins("Y8")),
+    ),
 ]
 
 
