@@ -528,9 +528,10 @@ def soc_core_args(parser):
 def soc_core_argdict(args):
     r = dict()
     for a in inspect.getargspec(SoCCore.__init__).args:
-        arg = getattr(args, a, None)
-        if arg is not None:
-            r[a] = arg
+        if a not in ["self", "platform"]:
+            arg = getattr(args, a, None)
+            if arg is not None:
+                r[a] = arg
     return r
 
 # SoCMini ---------------------------------------------------------------------------------------
