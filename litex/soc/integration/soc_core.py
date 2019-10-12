@@ -527,13 +527,8 @@ def soc_core_args(parser):
 
 def soc_core_argdict(args):
     r = dict()
-    for a in [
-        "cpu_type",
-        "cpu_variant",
-        "integrated_rom_size",
-        "integrated_main_ram_size",
-        "uart_stub"]:
-        arg = getattr(args, a)
+    for a in inspect.getargspec(SoCCore.__init__).args:
+        arg = getattr(args, a, None)
         if arg is not None:
             r[a] = arg
     return r
