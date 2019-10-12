@@ -389,9 +389,8 @@ class Depacketizer(Module):
         if hasattr(sink, "last_be"):
             # header_lengh + last_be
             cw = dw//8
-            rotate_by = header.length % cw
-            x = [sink.last_be[(i + rotate_by) % cw] for i in range(cw)]
-            self.comb += If(sink.last_be == 0,
+            x = [sink.last_be[(i + header_residue) % cw] for i in range(cw)]
+            self.comb += If(sink.last_be == Signal(cw, reset=1 << (cw - 1)),
                             source.last_be.eq(1 << header_residue)
             ).Else(
                 source.last_be.eq(Cat(*x)))
@@ -401,20 +400,21 @@ class Depacketizer(Module):
             header.decode(self.header, source)
         ]
         if header_residue:
-            header_offset_multiplier = hom = 1 if header_words == 1 else 2
             fsm.act("STAGGERCOPY",
+                    source.last.eq(sink.last | no_payload),
                     sink.ready.eq(source.ready),
-                    source.last.eq(last_buf | no_payload),
-                    source.valid.eq(valid_buf & ~transitioning | no_payload),
-                    If(transitioning,
-                       NextValue(header_reg, Cat(header_reg[header_residue*8:],
-                                                 sink.data[:header_residue*8]))
-                    ).Else(
-                        source.data.eq(Cat(data_buf[header_residue*8:],
-                                           sink.data[:header_residue*8])),
-                    ),
-                    If(source.ready & sink.valid,
-                       NextValue(transitioning, 0)
+                    source.valid.eq(sink.valid & ~transitioning | no_payload),
+                    If(sink.valid,
+                       If(transitioning,
+                          NextValue(header_reg, Cat(header_reg[header_residue*8:],
+                                                    sink.data[:header_residue*8]))
+                       ).Else(
+                           source.data.eq(Cat(data_buf[header_residue*8:],
+                                              sink.data[:header_residue*8])),
+                       ),
+                       If(source.ready,
+                          NextValue(transitioning, 0)
+                       ),
                     ),
                     If(source.valid & source.ready & source.last,
                        NextState("IDLE")
