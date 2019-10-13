@@ -103,7 +103,7 @@ class PicoRV32(CPU):
 
         if variant == "minimal":
             self.cpu_params.update(
-                p_ENABLE_COUNTER    = 0,
+                p_ENABLE_COUNTERS   = 0,
                 p_ENABLE_COUNTERS64 = 0,
                 p_TWO_STAGE_SHIFT   = 0,
                 p_CATCH_MISALIGN    = 0,
