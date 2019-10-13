@@ -360,8 +360,7 @@ class Depacketizer(Module):
             )
         )
 
-        self.sync += [last_buf.eq(sink.last),
-                      data_buf.eq(sink.data),
+        self.sync += [If(sink.ready, data_buf.eq(sink.data)),
                       valid_buf.eq(sink.valid),
         ]
         print(header_words)
@@ -395,8 +394,6 @@ class Depacketizer(Module):
             ).Else(
                 source.last_be.eq(Cat(*x)))
         self.comb += [
-            # source.last.eq(sink.last | no_payload),
-            # source.data.eq(sink.data),
             header.decode(self.header, source)
         ]
         if header_residue:
@@ -404,7 +401,7 @@ class Depacketizer(Module):
                     source.last.eq(sink.last | no_payload),
                     sink.ready.eq(source.ready),
                     source.valid.eq(sink.valid & ~transitioning | no_payload),
-                    If(sink.valid,
+                    If(sink.valid & source.ready,
                        If(transitioning,
                           NextValue(header_reg, Cat(header_reg[header_residue*8:],
                                                     sink.data[:header_residue*8]))
@@ -412,9 +409,7 @@ class Depacketizer(Module):
                            source.data.eq(Cat(data_buf[header_residue*8:],
                                               sink.data[:header_residue*8])),
                        ),
-                       If(source.ready,
-                          NextValue(transitioning, 0)
-                       ),
+                       NextValue(transitioning, 0)
                     ),
                     If(source.valid & source.ready & source.last,
                        NextState("IDLE")
