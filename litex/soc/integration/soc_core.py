@@ -542,7 +542,7 @@ def soc_core_args(parser):
     # UART parameters
     parser.add_argument("--with-uart", default=None, type=bool,
                         help="with UART (default=True)")
-    parser.add_argument("--uart-name", default="\"serial\"", type=str,
+    parser.add_argument("--uart-name", default="serial", type=str,
                         help="UART type/name (default=serial)")
     parser.add_argument("--uart-baudrate", default=None, type=int,
                         help="UART baudrate (default=115200)")
