@@ -266,11 +266,11 @@ static int xgmii_ethernet_tick(void *sess)
       // Intentionally ignoring errors for now (since we don't really have retransmission)
       // So this means last word
       // TODO: Check for end of frame mid word
-      /* for (int m = 0; m < 3; m++) { */
-      /*   int mask = 1 << m; */
-      /*   if ((s->terminate & mask) == 0) */
-      /* 	s->databuf[s->datalen++] = (char)((s->tx >> (8*m)) & 0xff); */
-      /* } */
+      for (int m = 0; m < (g_dw >> 3); m++) {
+        char mask = 1 << m;
+        if ((*s->tx_ctl & mask) == 0)
+	  s->databuf[s->datalen++] = (char) ((u & (g_mask << (8*m))) >> (8*m));
+      }
 
       // Enable for debugging
       printf("Sending: \n");
