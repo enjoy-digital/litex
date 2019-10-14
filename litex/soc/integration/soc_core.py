@@ -513,17 +513,47 @@ class SoCCore(Module):
 # SoCCore arguments --------------------------------------------------------------------------------
 
 def soc_core_args(parser):
+    # CPU parameters
     parser.add_argument("--cpu-type", default=None,
                         help="select CPU: {}".format(", ".join(iter(cpu.CPUS.keys()))))
     parser.add_argument("--cpu-variant", default=None,
-                        help="select CPU variant")
+                        help="select CPU variant, (default=standard)")
+    parser.add_argument("--cpu-reset-address", default=None, type=int,
+                        help="CPU reset address (default=0x00000000 or ROM)")
+    # ROM parameters
     parser.add_argument("--integrated-rom-size", default=None, type=int,
                         help="size/enable the integrated (BIOS) ROM")
+    # SRAM parameters
+    parser.add_argument("--integrated_sram_size", default=None,
+                        help="size/enable the integrated SRAM")
+    # MAIN_RAM parameters
     parser.add_argument("--integrated-main-ram-size", default=None, type=int,
                         help="size/enable the integrated main RAM")
+    # CSR parameters
+    parser.add_argument("--csr-data-width", default=None, type=int,
+                        help="CSR bus data-width (8 or 32, default=8)")
+    parser.add_argument("--csr-address-width", default=14, type=int,
+                        help="CSR bus address-width")
+    # Identifier parameters
+    parser.add_argument("--ident", default=None, type=str,
+                        help="SoC identifier (default=\"\"")
+    parser.add_argument("--ident-version", default=None, type=bool,
+                        help="add date/time to SoC identifier (default=False)")
+    # UART parameters
+    parser.add_argument("--with-uart", default=None, type=bool,
+                        help="with UART (default=True)")
+    parser.add_argument("--uart-name", default="\"serial\"", type=str,
+                        help="UART type/name (default=serial)")
+    parser.add_argument("--uart-baudrate", default=None, type=int,
+                        help="UART baudrate (default=115200)")
     parser.add_argument("--uart-stub", default=False, type=bool,
-                        help="enable uart stub")
-
+                        help="enable UART stub (default=False)")
+    # Timer parameters
+    parser.add_argument("--with-timer", default=None, type=bool,
+                        help="with Timer (default=True)")
+    # Controller parameters
+    parser.add_argument("--with-ctrl", default=None, type=bool,
+                        help="with Controller (default=True)")
 
 def soc_core_argdict(args):
     r = dict()
