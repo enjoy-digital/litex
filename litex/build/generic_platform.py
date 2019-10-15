@@ -322,9 +322,6 @@ class GenericPlatform:
     def add_source(self, filename, language=None, library=None):
         if language is None:
             language = tools.language_by_filename(filename)
-        if language is None:
-            language = "verilog"
-
         if library is None:
             library = "work"
 
