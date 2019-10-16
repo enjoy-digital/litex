@@ -37,10 +37,10 @@ class ICAP(Module, AutoCSR):
         self.comb += [ps_send.i.eq(self.send.re)]
 
         # Generate icap bitstream write sequence
-        _csib = Signal(reset=1)
-        _i = Signal(32)
-        _addr = self.addr.storage << 13
-        _data = self.data.storage
+        self._csib = _csib = Signal(reset=1)
+        self._i    = _i =  Signal(32)
+        _addr      = self.addr.storage << 13
+        _data      = self.data.storage
         self.sync.icap += [
             _i.eq(0xffffffff), # dummy
             timeline(ps_send.o, [
@@ -61,9 +61,6 @@ class ICAP(Module, AutoCSR):
             ])
         ]
 
-        self._csib = _csib
-        self._i    = _i
-
         # ICAP instance
         if not simulation:
             self.specials += [
@@ -78,29 +75,30 @@ class ICAP(Module, AutoCSR):
 
 
 class ICAPBitstream(Module, AutoCSR):
-    """ICAP
+    """ICAP Bitstream
 
     Allow sending bitstreams to ICAPE2 of Xilinx 7-Series FPGAs.
+
+    The CPU can push stream of data to the ICAPE2 by reading `sink_ready` CSR to verify that there is
+    space available in the FIFO; then write the data to `sink_data` register. Each word written to the
+    FIFO is transmitted to the ICAPE2 using the slow icap_clk (with expected bit/byte reordering).
+
+    The CPU accesses/FIFO must be fast/large enough to ensure there is no gap in the stream sent to
+    the ICAPE2.
     """
-    def __init__(self, fifo_depth=8, simulation=False):
+    def __init__(self, fifo_depth=8, icap_clk_div=4, simulation=False):
         self.sink_data  = CSRStorage(32)
         self.sink_ready = CSRStatus()
-        self.start      = CSR()
-        self.done       = CSRStatus()
 
         # # #
 
-        _run  = Signal()
-        _csib = Signal(reset=1)
-        _i    = Signal(32, reset=0xffffffff)
-
-        # Create slow icap clk (sys_clk/4) ---------------------------------------------------------
+        # Create slow icap_clk (sys_clk/4) ---------------------------------------------------------
+        icap_clk_counter = Signal(log2_int(icap_clk_div))
         self.clock_domains.cd_icap = ClockDomain()
-        icap_clk_counter = Signal(4)
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
-        self.sync += self.cd_icap.clk.eq(icap_clk_counter[1])
+        self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
 
-        # FIFO
+        # FIFO (sys_clk to icap_clk) ---------------------------------------------------------------
         fifo = stream.AsyncFIFO([("data", 32)], fifo_depth)
         fifo = ClockDomainsRenamer({"write": "sys", "read": "icap"})(fifo)
         self.submodules += fifo
@@ -110,27 +108,17 @@ class ICAPBitstream(Module, AutoCSR):
             self.sink_ready.status.eq(fifo.sink.ready),
         ]
 
-        # Generate ICAP commands
-        self.sync.icap += [
-            If(self.start.re,
-                _run.eq(1),
-            ).Elif(~fifo.source.valid,
-                _run.eq(0)
-            )
-        ]
+        # Generate ICAP commands -------------------------------------------------------------------
+        self._csib = _csib = Signal(reset=1)
+        self._i    =    _i = Signal(32, reset=0xffffffff)
         self.comb += [
-            self.done.status.eq(~_run),
-            If(_run,
-                _i.eq(fifo.source.data),
+            If(fifo.source.valid,
                 _csib.eq(0),
-                fifo.source.ready.eq(1)
+                _i.eq(fifo.source.data)
             )
         ]
 
-        self._csib = _csib
-        self._i    = _i
-
-        # ICAP instance
+        # ICAP instance ----------------------------------------------------------------------------
         if not simulation:
             self.specials += [
                 Instance("ICAPE2",
