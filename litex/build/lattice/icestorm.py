@@ -137,13 +137,14 @@ class LatticeIceStormToolchain:
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         v_file = build_name + ".v"
         v_output.write(v_file)
+        platform.add_source(v_file)
 
         if use_nextpnr:
             chosen_yosys_template = self.nextpnr_yosys_template
         else:
             chosen_yosys_template = self.yosys_template
         ys_contents = "\n".join(_.format(build_name=build_name,
-                                         read_files=self.gen_read_files(platform, v_file),
+                                         read_files=self.gen_read_files(platform),
                                          synth_opts=synth_opts)
                                 for _ in chosen_yosys_template)
 
@@ -218,13 +219,12 @@ class LatticeIceStormToolchain:
     def get_size_string(self, series_size_str):
         return series_size_str[2:]
 
-    def gen_read_files(self, platform, main):
-        sources = platform.sources | {(main, "verilog", "work")}
+    def gen_read_files(self, platform):
         incflags = ""
         read_files = list()
         for path in platform.verilog_include_paths:
             incflags += " -I" + path
-        for filename, language, library in sources:
+        for filename, language, library in platform.sources:
             read_files.append("read_{}{} {}".format(language,
                                                     incflags,
                                                     filename))
