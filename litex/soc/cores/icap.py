@@ -112,9 +112,9 @@ class ICAPBitstream(Module, AutoCSR):
         self._csib = _csib = Signal(reset=1)
         self._i    =    _i = Signal(32, reset=0xffffffff)
         self.comb += [
+            fifo.source.ready.eq(1),
             If(fifo.source.valid,
                 _csib.eq(0),
-                fifo.source.ready.eq(1),
                 _i.eq(fifo.source.data)
             )
         ]
