@@ -181,6 +181,7 @@ class SoCCore(Module):
 
         # Regions / Constants lists
         self._memory_regions = []  # (name, origin, length)
+        self._linker_regions = []  # (name, origin, length)
         self._csr_regions = []     # (name, origin, busword, csr_list/Memory)
         self._constants = []       # (name, value)
 
@@ -428,6 +429,9 @@ class SoCCore(Module):
             raise FinalizeError
         self._csr_masters.append(csrm)
 
+    def add_linker_region(self, name, origin, length):
+        self._linker_regions.append((name, origin, length))
+
     def add_memory_region(self, name, origin, length):
         def in_this_region(addr):
             return addr >= origin and addr < origin + length
@@ -448,6 +452,9 @@ class SoCCore(Module):
 
     def get_memory_regions(self):
         return self._memory_regions
+
+    def get_linker_regions(self):
+        return self._linker_regions
 
     def check_csr_range(self, name, addr):
         if addr >= 1<<(self.csr_address_width+2):
@@ -497,11 +504,11 @@ class SoCCore(Module):
 
     def do_finalize(self):
         # Verify CPU has required memories
-        registered_mems = {regions[0] for regions in self._memory_regions}
+        registered_mems = {regions[0] for regions in self._memory_regions + self._linker_regions}
         if self.cpu_type is not None:
             for mem in "rom", "sram":
                 if mem not in registered_mems:
-                    raise FinalizeError("CPU needs a {} to be registered with SoC.register_mem()".format(mem))
+                    raise FinalizeError("CPU needs a {} to be defined as memory or linker region".format(mem))
 
         # Add the Wishbone Masters/Slaves interconnect
         if len(self._wb_masters):

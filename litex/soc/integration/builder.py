@@ -67,6 +67,7 @@ class Builder:
     def _generate_includes(self):
         cpu_type = self.soc.cpu_type
         memory_regions = self.soc.get_memory_regions()
+        linker_regions = self.soc.get_linker_regions()
         flash_boot_address = getattr(self.soc, "flash_boot_address", None)
         shadow_base = getattr(self.soc, "shadow_base", None)
         csr_regions = self.soc.get_csr_regions()
@@ -109,11 +110,11 @@ class Builder:
             cpu_interface.get_linker_output_format(self.soc.cpu))
         write_to_file(
             os.path.join(generated_dir, "regions.ld"),
-            cpu_interface.get_linker_regions(memory_regions))
+            cpu_interface.get_linker_regions(memory_regions + linker_regions))
 
         write_to_file(
             os.path.join(generated_dir, "mem.h"),
-            cpu_interface.get_mem_header(memory_regions, flash_boot_address, shadow_base))
+            cpu_interface.get_mem_header(memory_regions + linker_regions, flash_boot_address, shadow_base))
         write_to_file(
             os.path.join(generated_dir, "csr.h"),
             cpu_interface.get_csr_header(csr_regions, constants))
