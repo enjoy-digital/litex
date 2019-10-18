@@ -114,6 +114,7 @@ class ICAPBitstream(Module, AutoCSR):
         self.comb += [
             If(fifo.source.valid,
                 _csib.eq(0),
+                fifo.source.ready.eq(1),
                 _i.eq(fifo.source.data)
             )
         ]
