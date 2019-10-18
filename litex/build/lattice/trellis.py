@@ -143,7 +143,7 @@ class LatticeTrellisToolchain:
 
         self.build_template = [
             "yosys -q -l {build_name}.rpt {build_name}.ys",
-            "nextpnr-ecp5 --json {build_name}.json --lpf {build_name}.lpf --textcfg {build_name}.config --{architecture} --package {package} --freq {freq_constraint}",
+            "nextpnr-ecp5 --json {build_name}.json --lpf {build_name}.lpf --textcfg {build_name}.config --{architecture} --package {package} --freq {freq_constraint} --timing-allow-fail",
             "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit"
         ]
 
