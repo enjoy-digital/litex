@@ -210,7 +210,7 @@ static void fw(char *addr, char *value, char *count)
 			return;
 		}
 	}
-	for (i=0;i<count2;i++) write_to_flash(addr2, (unsigned char *)&value2, 4);
+	for (i=0;i<count2;i++) write_to_flash(addr2 + i * 4, (unsigned char *)&value2, 4);
 }
 #endif
 
