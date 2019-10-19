@@ -255,10 +255,7 @@ class Packetizer(Module):
             cw = dw//8
             rotate_by = header.length % cw
             x = [sink.last_be[(i + rotate_by) % cw] for i in range(cw)]
-            self.comb += If(sink.last_be == 0,
-                            source.last_be.eq(1 << header_residue)
-            ).Else(
-                source.last_be.eq(Cat(*x)))
+            self.comb += source.last_be.eq(Cat(*x))
         if header_residue:
             header_offset_multiplier = hom = 1 if header_words == 1 else 2
             fsm.act("STAGGERCOPY",
@@ -287,6 +284,7 @@ class Packetizer(Module):
                     source.last.eq(sink.last),
                     source.data.eq(sink.data),
                     If(source.valid & source.ready,
+                       NextValue(transitioning, 0),
                        sink.ready.eq(1),
                        If(source.last,
                           NextState("IDLE")
@@ -305,13 +303,12 @@ class Depacketizer(Module):
         # # #
 
         dw = len(sink.data)
+
         cw = dw // 8
 
         header_reg = Signal(header.length*8, reset_less=True)
         header_words = (header.length*8)//dw
         header_residue = header.length % cw
-        if header_residue:
-            header_leftover = Signal(header_residue*8)
 
         shift = Signal()
         counter = Signal(max=max(header_words, 2))
@@ -338,7 +335,8 @@ class Depacketizer(Module):
 
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
-        self.transitioning = transitioning = Signal()  # TODO: Perhaps fsm already has a transitioning signal
+        # TODO: Perhaps fsm already has a transitioning signal
+        self.transitioning = transitioning = Signal()
 
         last_buf, valid_buf = Signal(), Signal()
         self.data_buf = data_buf = Signal(len(sink.data))
@@ -363,7 +361,7 @@ class Depacketizer(Module):
         self.sync += [If(sink.ready, data_buf.eq(sink.data)),
                       valid_buf.eq(sink.valid),
         ]
-        print(header_words)
+
         if header_words != 1:
             fsm.act("RECEIVE_HEADER",
                 sink.ready.eq(1),
@@ -388,11 +386,8 @@ class Depacketizer(Module):
         if hasattr(sink, "last_be"):
             # header_lengh + last_be
             cw = dw//8
-            x = [sink.last_be[(i + header_residue) % cw] for i in range(cw)]
-            self.comb += If(sink.last_be == Signal(cw, reset=1 << (cw - 1)),
-                            source.last_be.eq(1 << header_residue)
-            ).Else(
-                source.last_be.eq(Cat(*x)))
+            x = [sink.last_be[(i - (cw - header_residue)) % cw] for i in range(cw)]
+            self.comb += source.last_be.eq(Cat(*x))
         self.comb += [
             header.decode(self.header, source)
         ]
@@ -421,7 +416,10 @@ class Depacketizer(Module):
                      source.data.eq(sink.data),
                      sink.ready.eq(source.ready),
                      source.valid.eq(sink.valid | no_payload),
-                     If(source.valid & source.ready & source.last,
-                        NextState("IDLE")
+                     If(source.valid & source.ready,
+                        NextValue(transitioning, 0),
+                        If(source.last,
+                           NextState("IDLE")
+                        )
                      )
              )
