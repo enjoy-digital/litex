@@ -11,7 +11,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.boards.platforms import versa_ecp5
 
-from litex.build.lattice.trellis import yosys_args, yosys_argdict
+from litex.build.lattice.trellis import trellis_args, trellis_argdict
 
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_sdram import *
@@ -135,7 +135,7 @@ def main():
         help='gateware toolchain to use, diamond (default) or  trellis')
     builder_args(parser)
     soc_sdram_args(parser)
-    yosys_args(parser)
+    trellis_args(parser)
     parser.add_argument("--sys-clk-freq", default=75e6,
                         help="system clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",
@@ -145,7 +145,7 @@ def main():
     cls = EthernetSoC if args.with_ethernet else BaseSoC
     soc = cls(toolchain=args.toolchain, sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build(**yosys_argdict(args))
+    builder.build(**trellis_argdict(args))
 
 if __name__ == "__main__":
     main()
