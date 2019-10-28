@@ -143,22 +143,22 @@ litex/boards/targets/simple.py litex.boards.platforms.arty \
         subprocess.check_output(cmd, shell=True)
 
     # Build some variants for the arty platform to make sure they work.
-    def test_variants_riscv(self):
+    def test_variants_picorv32(self):
+        self.run_variants("picorv32", ('standard', 'minimal'))
+
+    def test_variants_vexriscv(self):
+        self.run_variants("vexriscv", ('standard', 'minimal', 'lite', 'lite+debug', 'full+debug'))
+
+    @unittest.skipIf(RUNNING_ON_TRAVIS, "No nMigen/Yosys on Travis-CI")
+    def test_variants_minerva(self):
+        self.run_variants("minerva", ('standard',))
+
+    def test_variants_vexriscv(self):
         cpu_variants = {
-            'picorv32': ('standard', 'minimal'),
             'vexriscv': ('standard', 'minimal', 'lite', 'lite+debug', 'full+debug'),
-            'minerva': ('standard',),
         }
         for cpu, variants in cpu_variants.items():
             self.run_variants(cpu, variants)
-
-    #def test_bad_variants(self):
-    #    with self.assertRaises(subprocess.CalledProcessError):
-    #        self.run_variant('vexriscv', 'bad')
-
-    #def test_bad_variant_extension(self):
-    #    with self.assertRaises(subprocess.CalledProcessError):
-    #        self.run_variant('vexriscv', 'standard+bad')
 
     @unittest.skipIf(RUNNING_ON_TRAVIS, "No lm32 toolchain on Travis-CI")
     def test_variants_lm32(self):
