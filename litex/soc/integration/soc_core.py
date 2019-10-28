@@ -371,20 +371,35 @@ class SoCCore(Module):
                 msg += "- 0x{:08x}-0x{:08x}\n".format(region_origin, region_origin + region_length - 1)
         raise ValueError(msg)
 
-    def add_memory_region(self, name, origin, length, io_region=False):
+    @staticmethod
+    def check_regions_overlap(regions):
+        i = 0
+        while i < len(regions):
+            n0 =  list(regions.keys())[i]
+            r0 = regions[n0]
+            for n1 in list(regions.keys())[i+1:]:
+                r1 = regions[n1]
+                if r0.linker_region or r1.linker_region:
+                    continue
+                if r0.origin >= (r1.origin + r1.length):
+                    continue
+                if r1.origin >= (r0.origin + r0.length):
+                    continue
+                return (n0, n1)
+            i += 1
+        return None
+
+    def add_memory_region(self, name, origin, length, io_region=False, linker_region=False):
+        length = 2**log2_int(length, False)
         if io_region:
             self.check_io_region(name, origin, length)
-        def memory_overlap(o0, l0, o1, l1):
-            if o0 >= (o1 + l1):
-                return False
-            if o1 >= (o0 + l0):
-                return False
-            return True
-        for n, r in self.mem_regions.items():
-            r.length = 2**log2_int(r.length, False)
-            if n == name or memory_overlap(o0=r.origin, l0=r.length, o1=origin, l1=length):
-                raise ValueError("Memory region conflict between {} and {}".format(n, name))
-        self.mem_regions[name] = SoCMemRegion(origin, length)
+        if name in self.mem_regions.keys():
+            raise ValueError("Memory region conflict, {} name already used".format(name))
+        self.mem_regions[name] = SoCMemRegion(origin, length,
+            io_region=io_region, linker_region=linker_region)
+        overlap = self.check_regions_overlap(self.mem_regions)
+        if overlap is not None:
+            raise ValueError("Memory region conflict between {} and {}".format(overlap[0], overlap[1]))
 
     def register_mem(self, name, address, interface, size=0x10000000):
         self.add_wb_slave(address, interface, size)
@@ -436,9 +451,9 @@ class SoCCore(Module):
     def do_finalize(self):
         # Verify CPU has required memories
         if self.cpu_type is not None:
-            for name in "rom", "sram":
+            for name in ["rom", "sram"]:
                 if name not in self.mem_regions.keys():
-                    raise FinalizeError("CPU needs \"{}\" to be registered with SoC.register_mem()".format(name))
+                    raise FinalizeError("CPU needs \"{}\" to be defined as memory or linker region".format(name))
 
         # Add the Wishbone Masters/Slaves interconnect
         if len(self._wb_masters):

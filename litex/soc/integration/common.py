@@ -77,9 +77,11 @@ def SoCConstant(value):
     return value
 
 class SoCMemRegion:
-    def __init__(self, origin, length):
-        self.origin = origin
-        self.length = length
+    def __init__(self, origin, length, io_region=False, linker_region=False):
+        self.origin        = origin
+        self.length        = length
+        self.io_region     = io_region
+        self.linker_region = linker_region
 
 class SoCCSRRegion:
     def __init__(self, origin, busword, obj):
