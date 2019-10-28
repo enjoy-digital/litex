@@ -18,7 +18,7 @@
 	url = https://github.com/enjoy-digital/VexRiscv-verilog.git
 [submodule "litex/soc/cores/cpu/minerva/verilog"]
 	path = litex/soc/cores/cpu/minerva/verilog
-	url = https://github.com/enjoy-digital/minerva-verilog
+	url = https://github.com/lambdaconcept/minerva
 [submodule "litex/soc/cores/cpu/rocket/verilog"]
 	path = litex/soc/cores/cpu/rocket/verilog
 	url = https://github.com/enjoy-digital/rocket-litex-verilog

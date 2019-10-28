@@ -3,6 +3,7 @@
 # License: BSD
 
 import os
+import subprocess
 
 from migen import *
 
@@ -22,7 +23,7 @@ class Minerva(CPU):
 
     @property
     def gcc_flags(self):
-        flags =  "-march=rv32i "
+        flags =  "-march=rv32im "
         flags += "-mabi=ilp32 "
         flags += "-D__minerva__ "
         return flags
@@ -37,6 +38,11 @@ class Minerva(CPU):
         self.buses     = [self.ibus, self.dbus]
         self.interrupt = Signal(32)
 
+        # TODO: create variants
+        self.with_icache = False
+        self.with_dcache = False
+        self.with_muldiv = True
+
         # # #
 
         self.cpu_params = dict(
@@ -45,7 +51,9 @@ class Minerva(CPU):
             i_rst=ResetSignal(),
 
             # interrupts
-            i_external_interrupt=self.interrupt,
+            i_timer_interrupt    = 0,
+            i_software_interrupt = 0,
+            i_external_interrupt = self.interrupt,
 
             # ibus
             o_ibus__stb   = self.ibus.stb,
@@ -74,20 +82,32 @@ class Minerva(CPU):
             i_dbus__dat_r = self.dbus.dat_r,
         )
 
-        # add verilog sources
-        self.add_sources(platform)
-
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
-        assert reset_address == 0x00000000, "cpu_reset_addr hardcoded during elaboration!"
 
     @staticmethod
-    def add_sources(platform):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
-        platform.add_source(os.path.join(vdir, "minerva.v"))
+    def elaborate(reset_address, with_icache, with_dcache, with_muldiv):
+        vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
+        cli_params = []
+        cli_params.append("--reset-addr={}".format(reset_address))
+        if with_icache:
+            cli_params.append("--with-icache")
+        if with_dcache:
+            cli_params.append("--with-dcache")
+        if with_muldiv:
+            cli_params.append("--with-muldiv")
+        if subprocess.call(["python3", os.path.join(vdir, "cli.py"), *cli_params, "generate"],
+            stdout=open(os.path.join(vdir, "minerva.v"), "w")):
+            raise OSError("Error while generating Minerva CPU")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
+        self.elaborate(
+            reset_address = self.reset_address,
+            with_icache   = self.with_icache,
+            with_dcache   = self.with_dcache,
+            with_muldiv   = self.with_muldiv)
+        vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
+        self.platform.add_source_dir(vdir)
         self.specials += Instance("minerva_cpu", **self.cpu_params)
