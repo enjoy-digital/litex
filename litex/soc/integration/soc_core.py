@@ -374,11 +374,15 @@ class SoCCore(Module):
     def add_memory_region(self, name, origin, length, io_region=False):
         if io_region:
             self.check_io_region(name, origin, length)
-        def in_this_region(addr):
-            return addr >= origin and addr < origin + length
+        def memory_overlap(o0, l0, o1, l1):
+            if o0 >= (o1 + l1):
+                return False
+            if o1 >= (o0 + l0):
+                return False
+            return True
         for n, r in self.mem_regions.items():
             r.length = 2**log2_int(r.length, False)
-            if n == name or in_this_region(r.origin) or in_this_region(r.origin + r.length - 1):
+            if n == name or memory_overlap(o0=r.origin, l0=r.length, o1=origin, l1=length):
                 raise ValueError("Memory region conflict between {} and {}".format(n, name))
         self.mem_regions[name] = SoCMemRegion(origin, length)
 
