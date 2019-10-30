@@ -379,7 +379,7 @@ class SoCCore(Module):
             r0 = regions[n0]
             for n1 in list(regions.keys())[i+1:]:
                 r1 = regions[n1]
-                if r0.linker_region or r1.linker_region:
+                if ("linker" in r0.type) or ("linker" in r1.type):
                     continue
                 if r0.origin >= (r1.origin + r1.length):
                     continue
@@ -389,14 +389,16 @@ class SoCCore(Module):
             i += 1
         return None
 
-    def add_memory_region(self, name, origin, length, io_region=False, linker_region=False):
+    def add_memory_region(self, name, origin, length, type="cached", io_region=False):
+        if io_region: # 2019-10-30: io_region retro-compatibility
+            deprecated_warning(": io_region replaced by type=\"io\".")
+            type = "io"
         length = 2**log2_int(length, False)
-        if io_region:
+        if "io" in type:
             self.check_io_region(name, origin, length)
         if name in self.mem_regions.keys():
             raise ValueError("Memory region conflict, {} name already used".format(name))
-        self.mem_regions[name] = SoCMemRegion(origin, length,
-            io_region=io_region, linker_region=linker_region)
+        self.mem_regions[name] = SoCMemRegion(origin, length, type)
         overlap = self.check_regions_overlap(self.mem_regions)
         if overlap is not None:
             raise ValueError("Memory region conflict between {} and {}".format(overlap[0], overlap[1]))

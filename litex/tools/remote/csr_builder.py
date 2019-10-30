@@ -54,10 +54,10 @@ class CSRRegister:
 
 
 class CSRMemoryRegion:
-    def __init__(self, base, size):
+    def __init__(self, base, size, type):
         self.base = base
         self.size = size
-
+        self.type = type
 
 class CSRBuilder:
     def __init__(self, comm, csr_csv, csr_data_width=None):
@@ -115,7 +115,7 @@ class CSRBuilder:
     def build_memories(self):
         d = {}
         for item in self.items:
-            group, name, base, size, dummy1 = item
+            group, name, base, size, type = item
             if group == "memory_region":
-                d[name] = CSRMemoryRegion(int(base, 16), int(size))
+                d[name] = CSRMemoryRegion(int(base, 16), int(size), type)
         return CSRElements(d)

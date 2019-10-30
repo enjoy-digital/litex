@@ -77,11 +77,11 @@ def SoCConstant(value):
     return value
 
 class SoCMemRegion:
-    def __init__(self, origin, length, io_region=False, linker_region=False):
-        self.origin        = origin
-        self.length        = length
-        self.io_region     = io_region
-        self.linker_region = linker_region
+    def __init__(self, origin, length, type):
+        assert type in ["cached", "io", "cached+linker", "io+linker"]
+        self.origin = origin
+        self.length = length
+        self.type   = type
 
 class SoCCSRRegion:
     def __init__(self, origin, busword, obj):

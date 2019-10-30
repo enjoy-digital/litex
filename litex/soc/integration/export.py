@@ -243,7 +243,8 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
     for name, region in mem_regions.items():
         d["memories"][name.lower()] = {
             "base": region.origin,
-            "size": region.length
+            "size": region.length,
+            "type": region.type,
         }
 
     return json.dumps(d, indent=4)
@@ -264,7 +265,9 @@ def get_csr_csv(csr_regions={}, constants={}, mem_regions={}):
     for name, value in d["constants"].items():
         r += "constant,{},{},,\n".format(name, value)
     for name in d["memories"].keys():
-        r += "memory_region,{},0x{:08x},{:d},\n".format(name,
+        r += "memory_region,{},0x{:08x},{:d},{:s}\n".format(name,
             d["memories"][name]["base"],
-            d["memories"][name]["size"])
+            d["memories"][name]["size"],
+            d["memories"][name]["type"],
+            )
     return r
