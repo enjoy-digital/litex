@@ -401,7 +401,11 @@ class SoCCore(Module):
         self.mem_regions[name] = SoCMemRegion(origin, length, type)
         overlap = self.check_regions_overlap(self.mem_regions)
         if overlap is not None:
-            raise ValueError("Memory region conflict between {} and {}".format(overlap[0], overlap[1]))
+            o0, o1 = overlap[0], overlap[1]
+            raise ValueError("Memory region conflict between {} ({}) and {} ({})".format(
+                o0, self.mem_regions[o0],
+                o1, self.mem_regions[o1],
+            ))
 
     def register_mem(self, name, address, interface, size=0x10000000):
         self.add_wb_slave(address, interface, size)

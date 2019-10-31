@@ -83,6 +83,11 @@ class SoCMemRegion:
         self.length = length
         self.type   = type
 
+    def __str__(self):
+        return "<SoCMemRegion 0x{:x} 0x{:x} {}>".format(
+            self.origin, self.length, self.type)
+
+
 class SoCCSRRegion:
     def __init__(self, origin, busword, obj):
         self.origin  = origin
