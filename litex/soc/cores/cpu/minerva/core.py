@@ -88,7 +88,6 @@ class Minerva(CPU):
 
     @staticmethod
     def elaborate(reset_address, with_icache, with_dcache, with_muldiv):
-        vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
         cli_params = []
         cli_params.append("--reset-addr={}".format(reset_address))
         if with_icache:
@@ -97,8 +96,9 @@ class Minerva(CPU):
             cli_params.append("--with-dcache")
         if with_muldiv:
             cli_params.append("--with-muldiv")
-        if subprocess.call(["python3", os.path.join(vdir, "cli.py"), *cli_params, "generate"],
-            stdout=open(os.path.join(vdir, "minerva.v"), "w")):
+        _dir = os.path.abspath(os.path.dirname(__file__))
+        if subprocess.call(["python3", os.path.join(_dir, "verilog", "cli.py"), *cli_params, "generate"],
+            stdout=open(os.path.join(_dir, "minerva.v"), "w")):
             raise OSError("Unable to elaborate Minerva CPU, please check your nMigen/Yosys install")
 
     def do_finalize(self):
@@ -108,6 +108,5 @@ class Minerva(CPU):
             with_icache   = self.with_icache,
             with_dcache   = self.with_dcache,
             with_muldiv   = self.with_muldiv)
-        vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
-        self.platform.add_source_dir(vdir)
+        self.platform.add_source_dir(os.path.abspath(os.path.dirname(__file__)))
         self.specials += Instance("minerva_cpu", **self.cpu_params)
