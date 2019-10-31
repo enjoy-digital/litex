@@ -99,7 +99,7 @@ class Minerva(CPU):
             cli_params.append("--with-muldiv")
         if subprocess.call(["python3", os.path.join(vdir, "cli.py"), *cli_params, "generate"],
             stdout=open(os.path.join(vdir, "minerva.v"), "w")):
-            raise OSError("Error while generating Minerva CPU")
+            raise OSError("Unable to elaborate Minerva CPU, please check your nMigen/Yosys install")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
