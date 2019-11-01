@@ -160,9 +160,11 @@ class Builder:
         self.soc.initialize_rom(bios_data)
 
     def build(self, toolchain_path=None, **kwargs):
-        self.soc.finalize()
+        self.soc.platform.output_dir = self.output_dir
+        os.makedirs(os.path.join(self.output_dir, "gateware"), exist_ok=True)
+        os.makedirs(os.path.join(self.output_dir, "software"), exist_ok=True)
 
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.soc.finalize()
 
         self._generate_includes()
         if self.soc.cpu_type is not None:

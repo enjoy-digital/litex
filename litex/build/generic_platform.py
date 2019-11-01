@@ -268,6 +268,7 @@ class GenericPlatform:
         self.name = name
         self.sources = []
         self.verilog_include_paths = []
+        self.output_dir = None
         self.finalized = False
 
     def request(self, *args, **kwargs):
