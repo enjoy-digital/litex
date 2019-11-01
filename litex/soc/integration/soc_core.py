@@ -540,7 +540,7 @@ class SoCCore(Module):
 def soc_core_args(parser):
     # CPU parameters
     parser.add_argument("--cpu-type", default=None,
-                        help="select CPU: {}".format(", ".join(iter(cpu.CPUS.keys()))))
+                        help="select CPU: {}, (default=vexriscv)".format(", ".join(iter(cpu.CPUS.keys()))))
     parser.add_argument("--cpu-variant", default=None,
                         help="select CPU variant, (default=standard)")
     parser.add_argument("--cpu-reset-address", default=None, type=int,
