@@ -56,7 +56,7 @@ def _build_files(device, sources, vincpaths, build_name):
     for path in vincpaths:
         tcl.append("prj_impl option {include path} {\"" + path + "\"}")
     for filename, language, library in sources:
-        tcl.append("prj_src add \"" + filename + "\" -work " + library)
+        tcl.append("prj_src add \"" + filename.replace("\\", "/") + "\" -work " + library)
     tcl.append("prj_impl option top \"{}\"".format(build_name))
     tcl.append("prj_project save")
     tcl.append("prj_run Synthesis -impl impl -forceOne")
