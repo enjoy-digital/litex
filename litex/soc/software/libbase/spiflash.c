@@ -8,6 +8,7 @@
 #define WRDI_CMD         0x04
 #define RDSR_CMD         0x05
 #define WREN_CMD         0x06
+#define CHIP_ERASE_CMD   0xc7
 #define SE_CMD           0xd8
 
 #define BITBANG_CLK         (1 << 1)
@@ -82,6 +83,23 @@ void erase_flash_sector(unsigned int addr)
 
     flash_write_byte(SE_CMD);
     flash_write_addr(sector_addr);
+    spiflash_bitbang_write(BITBANG_CS_N);
+
+    wait_for_device_ready();
+
+    spiflash_bitbang_en_write(0);
+}
+
+void erase_flash(void)
+{
+    spiflash_bitbang_en_write(1);
+
+    wait_for_device_ready();
+
+    flash_write_byte(WREN_CMD);
+    spiflash_bitbang_write(BITBANG_CS_N);
+
+    flash_write_byte(CHIP_ERASE_CMD);
     spiflash_bitbang_write(BITBANG_CS_N);
 
     wait_for_device_ready();

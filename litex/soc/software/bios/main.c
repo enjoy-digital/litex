@@ -212,6 +212,12 @@ static void fw(char *addr, char *value, char *count)
 	}
 	for (i=0;i<count2;i++) write_to_flash(addr2 + i * 4, (unsigned char *)&value2, 4);
 }
+
+static void ef(void)
+{
+	erase_flash();
+	printf("flash erased\n");
+}
 #endif
 
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
@@ -341,6 +347,7 @@ static void help(void)
 	puts("mc         - copy address space");
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 	puts("fw         - write to flash");
+	puts("ef         - erase whole flash");
 #endif
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
 	puts("mdiow      - write MDIO register");
@@ -404,6 +411,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "mc") == 0) mc(get_token(&c), get_token(&c), get_token(&c));
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 	else if(strcmp(token, "fw") == 0) fw(get_token(&c), get_token(&c), get_token(&c));
+	else if(strcmp(token, "ef") == 0) ef();
 #endif
 #ifdef CSR_ETHPHY_MDIO_W_ADDR
 	else if(strcmp(token, "mdiow") == 0) mdiow(get_token(&c), get_token(&c), get_token(&c));
