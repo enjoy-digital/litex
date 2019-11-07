@@ -180,7 +180,8 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
 def get_csr_header(regions, constants, with_access_functions=True):
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
-    r += "#include <generated/soc.h>\n"
+    if with_access_functions: # FIXME
+        r += "#include <generated/soc.h>\n"
     r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
     if with_access_functions:
         r += "#include <stdint.h>\n"
