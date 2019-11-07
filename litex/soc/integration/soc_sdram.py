@@ -1,5 +1,6 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # License: BSD
 
 from math import log2
