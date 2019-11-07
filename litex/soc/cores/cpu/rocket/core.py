@@ -50,6 +50,13 @@ GCC_FLAGS = {
     "full":     "-march=rv64imafdc -mabi=lp64 ",
 }
 
+AXI_DATA_WIDTHS = {
+    # variant : (mem, mmio)
+    "standard": ( 64,  64),
+    "linux":    ( 64,  64),
+    "full":     ( 64,  64),
+}
+
 class RocketRV64(CPU):
     name                 = "rocket"
     data_width           = 64
@@ -85,13 +92,14 @@ class RocketRV64(CPU):
         self.reset     = Signal()
         self.interrupt = Signal(4)
 
-        self.mem_axi   =  mem_axi = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
-        self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
+        mem_dw, mmio_dw = AXI_DATA_WIDTHS[self.variant]
 
-        self.mem_wb    =  mem_wb = wishbone.Interface(data_width=64, adr_width=29)
-        self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=64, adr_width=29)
+        self.mem_axi   =  mem_axi = axi.AXIInterface(data_width= mem_dw, address_width=32, id_width=4)
+        self.mmio_axi  = mmio_axi = axi.AXIInterface(data_width=mmio_dw, address_width=32, id_width=4)
 
-        self.buses     = [mem_wb, mmio_wb]
+        self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
+
+        self.buses     = [mmio_wb]
 
         # # #
 
@@ -207,14 +215,11 @@ class RocketRV64(CPU):
         )
 
         # adapt axi interfaces to wishbone
-        mem_a2w  = ResetInserter()(axi.AXI2Wishbone(mem_axi, mem_wb, base_address=0))
-        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb, base_address=0))
         # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
-        self.comb += [
-            mem_a2w.reset.eq( ResetSignal() | self.reset),
-            mmio_a2w.reset.eq(ResetSignal() | self.reset),
-        ]
-        self.submodules += mem_a2w, mmio_a2w
+        mmio_a2w = ResetInserter()(axi.AXI2Wishbone(mmio_axi, mmio_wb,
+                                                    base_address=0))
+        self.comb += mmio_a2w.reset.eq(ResetSignal() | self.reset)
+        self.submodules += mmio_a2w
 
         # add verilog sources
         self.add_sources(platform, variant)

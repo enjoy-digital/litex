@@ -11,6 +11,7 @@ from litex.soc.interconnect import wishbone
 from litex.soc.integration.soc_core import *
 
 from litedram.frontend.wishbone import *
+from litedram.frontend.axi import *
 from litedram.core import LiteDRAMCore
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
@@ -52,18 +53,38 @@ class SoCSDRAM(SoCCore):
             clk_freq        = self.clk_freq,
             **kwargs)
 
-        # SoC <--> L2 Cache <--> LiteDRAM ----------------------------------------------------------
-        if self.with_wishbone:
-            # LiteDRAM port ------------------------------------------------------------------------
-            port = self.sdram.crossbar.get_port()
-            port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
+        # LiteDRAM port ------------------------------------------------------------------------
+        port = self.sdram.crossbar.get_port()
+        port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
 
-            # Parameters ---------------------------------------------------------------------------
-            main_ram_size = 2**(geom_settings.bankbits +
-                                geom_settings.rowbits +
-                                geom_settings.colbits)*phy.settings.databits//8
-            main_ram_size = min(main_ram_size, 0x20000000) # FIXME: limit to 512MB for now
+        # Main RAM size ------------------------------------------------------------------------
+        main_ram_size = 2**(geom_settings.bankbits +
+                            geom_settings.rowbits +
+                            geom_settings.colbits)*phy.settings.databits//8
 
+        # SoC [<--> L2 Cache] <--> LiteDRAM ----------------------------------------------------
+        if self.cpu.name == "rocket":
+            # Rocket has its own I/D L1 cache: connect directly to LiteDRAM, also bypassing MMIO/CSR wb bus:
+            if port.data_width == self.cpu.mem_axi.data_width:
+                # straightforward AXI link, no data_width conversion needed:
+                self.submodules += LiteDRAMAXI2Native(self.cpu.mem_axi, port,
+                                                      base_address=self.mem_map["main_ram"])
+            else:
+                # FIXME: replace WB data-width converter with native AXI converter!!!
+                mem_wb  = wishbone.Interface(data_width=self.cpu.mem_axi.data_width,
+                                             adr_width=32-log2_int(self.cpu.mem_axi.data_width//8))
+                # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
+                mem_a2w = ResetInserter()(AXI2Wishbone(self.cpu.mem_axi, mem_wb, base_address=0))
+                self.comb += mem_a2w.reset.eq(ResetSignal() | self.cpu.reset)
+                self.submodules += mem_a2w
+                litedram_wb = wishbone.Interface(port.data_width)
+                self.submodules += LiteDRAMWishbone2Native(litedram_wb, port,
+                                                           base_address=self.mem_map["main_ram"])
+                self.submodules += wishbone.Converter(mem_wb, litedram_wb)
+            # Register main_ram region (so it will be added to generated/mem.h):
+            self.add_memory_region("main_ram", self.mem_map["main_ram"], main_ram_size)
+        elif self.with_wishbone:
+            # Insert L2 cache inbetween Wishbone bus and LiteDRAM
             l2_size = max(self.l2_size, int(2*port.data_width/8)) # L2 has a minimal size, use it if lower
             l2_size = 2**int(log2(l2_size))                       # Round to nearest power of 2
 
