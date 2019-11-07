@@ -42,7 +42,7 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, geom_settings, timing_settings, **kwargs):
+    def register_sdram(self, phy, geom_settings, timing_settings, main_ram_size_limit=None, **kwargs):
         assert not self._sdram_phy
         self._sdram_phy.append(phy) # encapsulate in list to prevent CSR scanning
 
@@ -62,6 +62,8 @@ class SoCSDRAM(SoCCore):
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +
                             geom_settings.colbits)*phy.settings.databits//8
+        if main_ram_size_limit is not None:
+            main_ram_size = min(main_ram_size, main_ram_size_limit)
 
         # SoC [<--> L2 Cache] <--> LiteDRAM ----------------------------------------------------
         if self.cpu.name == "rocket":
