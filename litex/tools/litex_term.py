@@ -59,6 +59,8 @@ sfl_cmd_abort       = b"\x00"
 sfl_cmd_load        = b"\x01"
 sfl_cmd_load_no_crc = b"\x03"
 sfl_cmd_jump        = b"\x02"
+sfl_cmd_flash       = b"\x04"
+sfl_cmd_reboot      = b"\x05"
 
 # Replies
 sfl_ack_success  = b"K"
@@ -127,7 +129,7 @@ class SFLFrame:
 
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, no_crc):
+    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, no_crc, flash):
         self.serial_boot = serial_boot
         assert not (kernel_image is not None and json_images is not None)
         self.mem_regions = {}
@@ -140,6 +142,8 @@ class LiteXTerm:
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
             f.close()
         self.no_crc = no_crc
+        self.flash = flash
+        self.ignore_download = False
 
         self.reader_alive = False
         self.writer_alive = False
@@ -197,8 +201,12 @@ class LiteXTerm:
         f.seek(0, 2)
         length = f.tell()
         f.seek(0, 0)
-        print("[LXTERM] Uploading {} to 0x{:08x} ({} bytes)...".format(filename, address, length))
-        current_address = address
+        if self.flash:
+            print("[LXTERM] Flashing {} ({} bytes)...".format(filename, length))
+            current_address = 0
+        else:
+            print("[LXTERM] Uploading {} to 0x{:08x} ({} bytes)...".format(filename, address, length))
+            current_address = address
         position = 0
         start = time.time()
         remaining = length
@@ -209,7 +217,10 @@ class LiteXTerm:
             sys.stdout.flush()
             frame = SFLFrame()
             frame_data = f.read(min(remaining, sfl_payload_length))
-            frame.cmd = sfl_cmd_load if not self.no_crc else sfl_cmd_load_no_crc
+            if self.flash:
+                frame.cmd = sfl_cmd_flash
+            else:
+                frame.cmd = sfl_cmd_load if not self.no_crc else sfl_cmd_load_no_crc
             frame.payload = current_address.to_bytes(4, "big")
             frame.payload += frame_data
             if self.send_frame(frame) == 0:
@@ -228,6 +239,12 @@ class LiteXTerm:
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
         frame.payload = int(self.boot_address, 16).to_bytes(4, "big")
+        self.send_frame(frame)
+
+    def reboot(self):
+        print("[LXTERM] Rebooting the device.")
+        frame = SFLFrame()
+        frame.cmd = sfl_cmd_reboot
         self.send_frame(frame)
 
     def detect_prompt(self, data):
@@ -249,12 +266,20 @@ class LiteXTerm:
             return False
 
     def answer_magic(self):
+        if self.ignore_download:
+            self.ignore_download = False
+            return
         print("[LXTERM] Received firmware download request from the device.")
         if(len(self.mem_regions)):
             self.port.write(sfl_magic_ack)
         for filename, base in self.mem_regions.items():
             self.upload(filename, int(base, 16))
-        self.boot()
+        if self.flash:
+            # ignore next download request to do a reboot to the flashed image
+            self.ignore_download = True
+            self.reboot()
+        else:
+            self.boot()
         print("[LXTERM] Done.");
 
     def reader(self):
@@ -334,14 +359,16 @@ def _get_args():
     parser.add_argument("--kernel-adr", default="0x40000000", help="kernel address")
     parser.add_argument("--images", default=None, help="json description of the images to load to memory")
     parser.add_argument("--no-crc", default=False, action='store_true', help="disable CRC check (speedup serialboot)")
+    parser.add_argument("--flash", default=False, action='store_true', help="flash data with serialboot command")
     return parser.parse_args()
 
 
 def main():
     args = _get_args()
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.no_crc)
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.no_crc, args.flash)
     term.open(args.port, int(float(args.speed)))
     term.console.configure()
+
     term.start()
     term.join(True)
 
