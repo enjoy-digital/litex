@@ -1,4 +1,5 @@
 # This file is Copyright (c) 2016-2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 """
@@ -14,6 +15,9 @@ signal.
 Note: This encoding is *not* used by DVI/HDMI (that uses a *different* 8b/10b
 scheme called TMDS).
 """
+
+from functools import reduce
+from operator import add
 
 from migen import *
 
@@ -267,6 +271,7 @@ class Decoder(Module):
         self.input = Signal(10)
         self.d = Signal(8)
         self.k = Signal()
+        self.invalid = Signal()
 
         # # #
 
@@ -304,3 +309,9 @@ class Decoder(Module):
         ]
 
         self.comb += self.d.eq(Cat(code5b, code3b))
+
+        # Basic invalid symbols detection: check that we have 4,5 or 6 ones in the symbol. This does
+        # not report all invalid symbols but still allow detecting issues with the link.
+        ones = Signal(4)
+        self.sync += ones.eq(reduce(add, [self.input[i] for i in range(10)]))
+        self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
