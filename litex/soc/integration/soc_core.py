@@ -540,6 +540,8 @@ def soc_core_args(parser):
     # ROM parameters
     parser.add_argument("--integrated-rom-size", default=None, type=int,
                         help="size/enable the integrated (BIOS) ROM")
+    parser.add_argument("--integrated-rom-file", default=None, type=str,
+                        help="integrated (BIOS) ROM binary file")
     # SRAM parameters
     parser.add_argument("--integrated_sram_size", default=None,
                         help="size/enable the integrated SRAM")
@@ -574,6 +576,10 @@ def soc_core_args(parser):
 
 def soc_core_argdict(args):
     r = dict()
+    rom_file = getattr(args, "integrated_rom_file", None)
+    if rom_file is not None:
+        args.integrated_rom_init = get_mem_data(rom_file, "little") # FIXME: endianness
+        args.integrated_rom_size = len(args.integrated_rom_init)*4
     for a in inspect.getargspec(SoCCore.__init__).args:
         if a not in ["self", "platform"]:
             arg = getattr(args, a, None)
