@@ -270,12 +270,13 @@ class SoCCore(Module):
 
     # Methods --------------------------------------------------------------------------------------
 
-    def add_cpu(self, cpu):
+    def add_cpu(self, cpu_):
         if self.finalized:
             raise FinalizeError
         if hasattr(self, "cpu"):
-            raise NotImplementedError("More than one CPU is not supported")
-        self.submodules.cpu = cpu
+            if not isinstance(self.cpu, cpu.CPUNone):
+                raise NotImplementedError("More than one CPU is not supported")
+        self.submodules.cpu = cpu_
 
     def add_interrupt(self, interrupt_name, interrupt_id=None, allow_user_defined=False):
         # Check that interrupt_name is not already used
