@@ -8,6 +8,7 @@
 // License: BSD
 
 #include <stdio.h>
+#include <stdint.h>
 #include <console.h>
 #include <uart.h>
 #include <system.h>
@@ -21,6 +22,10 @@
 #ifdef CSR_ETHMAC_BASE
 #include <net/microudp.h>
 #include <net/tftp.h>
+#endif
+
+#ifdef CSR_SPIFLASH_BASE
+#include <spiflash.h>
 #endif
 
 #include "sfl.h"
@@ -95,6 +100,14 @@ static int check_ack(void)
 	return ACK_TIMEOUT;
 }
 
+static uint32_t get_uint32(unsigned char* data)
+{
+	return ((uint32_t) data[0] << 24) |
+        ((uint32_t) data[1] << 16) |
+		((uint32_t) data[2] << 8) |
+		(uint32_t) data[3];
+}
+
 #define MAX_FAILED 5
 
 /* Returns 1 if other boot methods should be tried */
@@ -165,11 +178,7 @@ int serialboot(void)
 				char *writepointer;
 
 				failed = 0;
-				writepointer = (char *)(
-					 ((unsigned long)frame.payload[0] << 24)
-					|((unsigned long)frame.payload[1] << 16)
-					|((unsigned long)frame.payload[2] <<  8)
-					|((unsigned long)frame.payload[3] <<  0));
+				writepointer = (char *) get_uint32(&frame.payload[0]);
 				for(i=4;i<frame.length;i++)
 					*(writepointer++) = frame.payload[i];
 				if (frame.cmd == SFL_CMD_LOAD)
@@ -177,17 +186,39 @@ int serialboot(void)
 				break;
 			}
 			case SFL_CMD_JUMP: {
-				unsigned long addr;
+				uint32_t addr;
 
 				failed = 0;
-				addr =   ((unsigned long)frame.payload[0] << 24)
-					|((unsigned long)frame.payload[1] << 16)
-					|((unsigned long)frame.payload[2] <<  8)
-					|((unsigned long)frame.payload[3] <<  0);
+				addr = get_uint32(&frame.payload[0]);
 				uart_write(SFL_ACK_SUCCESS);
 				boot(0, 0, 0, addr);
 				break;
 			}
+			case SFL_CMD_FLASH: {
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+				uint32_t addr;
+
+				failed = 0;
+				addr = get_uint32(&frame.payload[0]);
+                
+				for (i = 4; i < frame.length; i++) {
+					// erase page at sector boundaries before writing
+					if ((addr & (SPIFLASH_SECTOR_SIZE - 1)) == 0) {
+						erase_flash_sector(addr);
+					}
+					write_to_flash(addr, &frame.payload[i], 1);
+					addr++;
+				}
+				uart_write(SFL_ACK_SUCCESS);
+#endif
+				break;
+			}
+			case SFL_CMD_REBOOT:
+#ifdef CSR_CTRL_BASE
+				uart_write(SFL_ACK_SUCCESS);
+				ctrl_reset_write(1);
+#endif
+				break;
 			default:
 				failed++;
 				if(failed == MAX_FAILED) {
