@@ -169,8 +169,8 @@ class SoCCore(Module):
             # Check type
             if cpu_type not in cpu.CPUS.keys():
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
-            # Add the CPU
-            self.add_cpu(cpu.CPUS[cpu_type](platform, self.cpu_variant))
+            # Declare the CPU
+            self.submodules.cpu = cpu.CPUS[cpu_type](platform, self.cpu_variant)
 
             # Update Memory Map (if defined by CPU)
             self.soc_mem_map.update(self.cpu.mem_map)
@@ -200,7 +200,7 @@ class SoCCore(Module):
             if with_ctrl:
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
         else:
-            self.add_cpu(cpu.CPUNone())
+            self.submodules.cpu = cpu.CPUNone()
             self.soc_io_regions.update(self.cpu.io_regions)
 
         # Add user's interrupts (needs to be done after CPU interrupts are allocated)
@@ -269,13 +269,6 @@ class SoCCore(Module):
             self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
 
     # Methods --------------------------------------------------------------------------------------
-
-    def add_cpu(self, cpu):
-        if self.finalized:
-            raise FinalizeError
-        if hasattr(self, "cpu"):
-            raise NotImplementedError("More than one CPU is not supported")
-        self.submodules.cpu = cpu
 
     def add_interrupt(self, interrupt_name, interrupt_id=None, allow_user_defined=False):
         # Check that interrupt_name is not already used
@@ -456,7 +449,7 @@ class SoCCore(Module):
 
     def do_finalize(self):
         # Verify CPU has required memories
-        if self.cpu_type is not None:
+        if not isinstance(self.cpu, cpu.CPUNone):
             for name in ["rom", "sram"]:
                 if name not in self.mem_regions.keys():
                     raise FinalizeError("CPU needs \"{}\" to be defined as memory or linker region".format(name))
@@ -504,16 +497,15 @@ class SoCCore(Module):
                 self.add_constant("CONFIG_" + name.upper() + "_" + value)
 
         # Connect interrupts
-        if hasattr(self, "cpu"):
-            if hasattr(self.cpu, "interrupt"):
-                for _name, _id in sorted(self.soc_interrupt_map.items()):
-                    if _name in self.cpu.interrupts.keys():
-                        continue
-                    if hasattr(self, _name):
-                        module = getattr(self, _name)
-                        assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
-                        self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
-                    self.constants[_name.upper() + "_INTERRUPT"] = _id
+        if hasattr(self.cpu, "interrupt"):
+            for _name, _id in sorted(self.soc_interrupt_map.items()):
+                if _name in self.cpu.interrupts.keys():
+                    continue
+                if hasattr(self, _name):
+                    module = getattr(self, _name)
+                    assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
+                    self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
+                self.constants[_name.upper() + "_INTERRUPT"] = _id
 
 
     # API retro-compatibility layer ----------------------------------------------------------------
