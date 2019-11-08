@@ -103,9 +103,9 @@ static int check_ack(void)
 static uint32_t get_uint32(unsigned char* data)
 {
 	return ((uint32_t) data[0] << 24) |
-        ((uint32_t) data[1] << 16) |
-		((uint32_t) data[2] << 8) |
-		(uint32_t) data[3];
+		   ((uint32_t) data[1] << 16) |
+		   ((uint32_t) data[2] << 8) |
+		    (uint32_t) data[3];
 }
 
 #define MAX_FAILED 5
@@ -200,7 +200,7 @@ int serialboot(void)
 
 				failed = 0;
 				addr = get_uint32(&frame.payload[0]);
-                
+
 				for (i = 4; i < frame.length; i++) {
 					// erase page at sector boundaries before writing
 					if ((addr & (SPIFLASH_SECTOR_SIZE - 1)) == 0) {

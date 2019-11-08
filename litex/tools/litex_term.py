@@ -201,12 +201,9 @@ class LiteXTerm:
         f.seek(0, 2)
         length = f.tell()
         f.seek(0, 0)
-        if self.flash:
-            print("[LXTERM] Flashing {} ({} bytes)...".format(filename, length))
-            current_address = 0
-        else:
-            print("[LXTERM] Uploading {} to 0x{:08x} ({} bytes)...".format(filename, address, length))
-            current_address = address
+        print("[LXTERM] {} {} to 0x{:08x} ({} bytes)...".format(
+            "Flashing" if self.flash else "Uploading", filename, address, length))
+        current_address = address
         position = 0
         start = time.time()
         remaining = length
@@ -368,7 +365,6 @@ def main():
     term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.no_crc, args.flash)
     term.open(args.port, int(float(args.speed)))
     term.console.configure()
-
     term.start()
     term.join(True)
 
