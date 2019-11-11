@@ -143,7 +143,6 @@ class LiteXTerm:
             f.close()
         self.no_crc = no_crc
         self.flash = flash
-        self.ignore_download = False
 
         self.reader_alive = False
         self.writer_alive = False
@@ -263,18 +262,14 @@ class LiteXTerm:
             return False
 
     def answer_magic(self):
-        if self.ignore_download:
-            self.ignore_download = False
-            return
         print("[LXTERM] Received firmware download request from the device.")
         if(len(self.mem_regions)):
             self.port.write(sfl_magic_ack)
         for filename, base in self.mem_regions.items():
             self.upload(filename, int(base, 16))
         if self.flash:
-            # ignore next download request to do a reboot to the flashed image
-            self.ignore_download = True
-            self.reboot()
+            # clear mem_regions to avoid re-flashing on next reboot(s)
+            self.mem_regions = {}
         else:
             self.boot()
         print("[LXTERM] Done.");
