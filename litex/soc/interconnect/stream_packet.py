@@ -165,7 +165,6 @@ class Packetizer(Module):
         header_residue = header.length % cw
         if header_residue:
             header_leftover = Signal(header_residue*8)
-        print(header.length, dw, header_residue)
         load = Signal()
         shift = Signal()
         counter = Signal(max=max(header_words, 2))
