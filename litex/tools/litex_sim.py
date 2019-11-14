@@ -30,11 +30,11 @@ from liteeth.frontend.etherbone import LiteEthEtherbone
 
 from litescope import LiteScopeAnalyzer
 
+# IOs ----------------------------------------------------------------------------------------------
 
 class SimPins(Pins):
     def __init__(self, n=1):
         Pins.__init__(self, "s "*n)
-
 
 _io = [
     ("sys_clk", 0, SimPins(1)),
@@ -42,11 +42,11 @@ _io = [
     ("serial", 0,
         Subsignal("source_valid", SimPins()),
         Subsignal("source_ready", SimPins()),
-        Subsignal("source_data", SimPins(8)),
+        Subsignal("source_data",  SimPins(8)),
 
-        Subsignal("sink_valid", SimPins()),
-        Subsignal("sink_ready", SimPins()),
-        Subsignal("sink_data", SimPins(8)),
+        Subsignal("sink_valid",   SimPins()),
+        Subsignal("sink_ready",   SimPins()),
+        Subsignal("sink_data",    SimPins(8)),
     ),
     ("eth_clocks", 0,
         Subsignal("none", SimPins()),
@@ -54,11 +54,11 @@ _io = [
     ("eth", 0,
         Subsignal("source_valid", SimPins()),
         Subsignal("source_ready", SimPins()),
-        Subsignal("source_data", SimPins(8)),
+        Subsignal("source_data",  SimPins(8)),
 
-        Subsignal("sink_valid", SimPins()),
-        Subsignal("sink_ready", SimPins()),
-        Subsignal("sink_data", SimPins(8)),
+        Subsignal("sink_valid",   SimPins()),
+        Subsignal("sink_ready",   SimPins()),
+        Subsignal("sink_data",    SimPins(8)),
     ),
     ("eth_clocks", 1,
         Subsignal("none", SimPins()),
@@ -66,14 +66,15 @@ _io = [
     ("eth", 1,
         Subsignal("source_valid", SimPins()),
         Subsignal("source_ready", SimPins()),
-        Subsignal("source_data", SimPins(8)),
+        Subsignal("source_data",  SimPins(8)),
 
-        Subsignal("sink_valid", SimPins()),
-        Subsignal("sink_ready", SimPins()),
-        Subsignal("sink_data", SimPins(8)),
+        Subsignal("sink_valid",   SimPins()),
+        Subsignal("sink_ready",   SimPins()),
+        Subsignal("sink_data",    SimPins(8)),
     ),
 ]
 
+# Platform -----------------------------------------------------------------------------------------
 
 class Platform(SimPlatform):
     default_clk_name = "sys_clk"
@@ -85,6 +86,7 @@ class Platform(SimPlatform):
     def do_finalize(self, fragment):
         pass
 
+# Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCSDRAM):
     mem_map = {
@@ -93,86 +95,91 @@ class SimSoC(SoCSDRAM):
     mem_map.update(SoCSDRAM.mem_map)
 
     def __init__(self,
-        with_sdram=False,
-        with_ethernet=False,
-        with_etherbone=False, etherbone_mac_address=0x10e2d5000000, etherbone_ip_address="192.168.1.50",
-        with_analyzer=False,
+        with_sdram            = False,
+        with_ethernet         = False,
+        with_etherbone        = False,
+        etherbone_mac_address = 0x10e2d5000000,
+        etherbone_ip_address  = "192.168.1.50",
+        with_analyzer         = False,
         **kwargs):
-        platform = Platform()
+        platform     = Platform()
         sys_clk_freq = int(1e6)
+
+        # SoCSDRAM ---------------------------------------------------------------------------------
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size=0x8000,
-            ident="LiteX Simulation", ident_version=True,
-            with_uart=False,
+            integrated_rom_size = 0x8000,
+            ident               = "LiteX Simulation", ident_version=True,
+            with_uart           = False,
             **kwargs)
-        # crg
+        # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
-        # serial
+        # Serial -----------------------------------------------------------------------------------
         self.submodules.uart_phy = uart.RS232PHYModel(platform.request("serial"))
         self.submodules.uart = uart.UART(self.uart_phy)
         self.add_csr("uart")
         self.add_interrupt("uart")
 
-        # sdram
+        # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
             sdram_module =  MT48LC16M16(100e6, "1:1") # use 100MHz timings
             phy_settings = PhySettings(
-                memtype="SDR",
-                databits=32,
-                dfi_databits=16,
-                nphases=1,
-                rdphase=0,
-                wrphase=0,
-                rdcmdphase=0,
-                wrcmdphase=0,
-                cl=2,
-                read_latency=4,
-                write_latency=0
+                memtype       = "SDR",
+                databits      = 32,
+                dfi_databits  = 16,
+                nphases       = 1,
+                rdphase       = 0,
+                wrphase       = 0,
+                rdcmdphase    = 0,
+                wrcmdphase    = 0,
+                cl            = 2,
+                read_latency  = 4,
+                write_latency = 0
             )
             self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings)
             self.register_sdram(
                 self.sdrphy,
                 sdram_module.geom_settings,
                 sdram_module.timing_settings)
-            # reduce memtest size for simulation speedup
+            # Reduce memtest size for simulation speedup
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
         assert not (with_ethernet and with_etherbone) # FIXME: fix simulator with 2 ethernet interfaces
 
-        # ethernet
+        # Ethernet ---------------------------------------------------------------------------------
         if with_ethernet:
-            # eth phy
+            # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             self.add_csr("ethphy")
-            # eth mac
+            # Ethernet MAC
             ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-                interface="wishbone", endianness=self.cpu.endianness)
+                interface  = "wishbone",
+                endianness = self.cpu.endianness)
             if with_etherbone:
                 ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
             self.submodules.ethmac = ethmac
             self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
-            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, io_region=True)
+            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
             self.add_csr("ethmac")
             self.add_interrupt("ethmac")
 
-        # etherbone
+        # Ethernet ---------------------------------------------------------------------------------
         if with_etherbone:
-            # eth phy
+            # Ethernet PHY
             self.submodules.etherbonephy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
             self.add_csr("etherbonephy")
-            # eth core
+            # Ethernet MAC
             etherbonecore = LiteEthUDPIPCore(self.etherbonephy,
-                etherbone_mac_address, convert_ip(etherbone_ip_address), sys_clk_freq)
-            if with_ethernet:
-                etherbonecore = ClockDomainsRenamer({"eth_tx": "etherbonephy_eth_tx", "eth_rx":  "etherbonephy_eth_rx"})(etherbonecore)
+                mac_address = etherbone_mac_address,
+                ip_address  = etherbone_ip_address,
+                clk_freq    = sys_clk_freq)
             self.submodules.etherbonecore = etherbonecore
-            # etherbone
+            # Etherbone
             self.submodules.etherbone = LiteEthEtherbone(self.etherbonecore.udp, 1234, mode="master")
             self.add_wb_master(self.etherbone.wishbone.bus)
 
-        # analyzer
+        # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             analyzer_signals = [
                 # FIXME: find interesting signals to probe
@@ -182,6 +189,7 @@ class SimSoC(SoCSDRAM):
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
             self.add_csr("analyzer")
 
+# Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
@@ -217,6 +225,8 @@ def main():
     sim_config = SimConfig(default_clk="sys_clk")
     sim_config.add_module("serial2console", "serial")
 
+    # Configuration --------------------------------------------------------------------------------
+
     cpu_endianness = "little"
     if "cpu_type" in soc_kwargs:
         if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
@@ -236,14 +246,18 @@ def main():
     if args.with_etherbone:
         sim_config.add_module('ethernet', "eth", args={"interface": "tap1", "ip": "192.168.1.101"})
 
+    # SoC ------------------------------------------------------------------------------------------
+
     soc = SimSoC(
-        with_sdram=args.with_sdram,
-        with_ethernet=args.with_ethernet,
-        with_etherbone=args.with_etherbone,
-        with_analyzer=args.with_analyzer,
+        with_sdram     = args.with_sdram,
+        with_ethernet  = args.with_ethernet,
+        with_etherbone = args.with_etherbone,
+        with_analyzer  = args.with_analyzer,
         **soc_kwargs)
     if args.ram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
+
+    # Build/Run ------------------------------------------------------------------------------------
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     vns = builder.build(run=False, threads=args.threads, sim_config=sim_config,
