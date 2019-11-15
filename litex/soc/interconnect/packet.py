@@ -262,11 +262,11 @@ class Packetizer(Module):
         )
 
         # Error ------------------------------------------------------------------------------------
-        if hasattr(sink, "error"):
+        if hasattr(sink, "error") and hasattr(source, "error"):
             self.comb += source.error.eq(sink.error)
 
         # Last BE ----------------------------------------------------------------------------------
-        if hasattr(sink, "last_be"):
+        if hasattr(sink, "last_be") and hasattr(source, "last_be"):
             rotate_by = header.length%bytes_per_clk
             x = [sink.last_be[(i + rotate_by)%bytes_per_clk] for i in range(bytes_per_clk)]
             self.comb += source.last_be.eq(Cat(*x))
@@ -375,11 +375,11 @@ class Depacketizer(Module):
         )
 
         # Error ------------------------------------------------------------------------------------
-        if hasattr(sink, "error"):
+        if hasattr(sink, "error") and hasattr(source, "error"):
             self.comb += source.error.eq(sink.error)
 
         # Last BE ----------------------------------------------------------------------------------
-        if hasattr(sink, "last_be"):
+        if hasattr(sink, "last_be") and hasattr(source, "last_be"):
             x = [sink.last_be[(i - (bytes_per_clk - header_leftover))%bytes_per_clk]
                 for i in range(bytes_per_clk)]
             self.comb += source.last_be.eq(Cat(*x))
