@@ -108,3 +108,12 @@ class TestPacket(unittest.TestCase):
 
     def test_8bit_loopback(self):
         self.loopback_test(dw=8)
+
+    def test_32bit_loopback(self):
+        self.loopback_test(dw=32)
+
+    def test_64bit_loopback(self):
+        self.loopback_test(dw=64)
+
+    def test_128bit_loopback(self):
+        self.loopback_test(dw=128)
