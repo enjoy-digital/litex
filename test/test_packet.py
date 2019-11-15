@@ -38,7 +38,7 @@ class Packet:
 
 
 class TestPacket(unittest.TestCase):
-    def test_loopback(self):
+    def loopback_test(self, dw):
         prng = random.Random(42)
         # Prepare packets
         npackets = 8
@@ -50,7 +50,7 @@ class TestPacket(unittest.TestCase):
             header["field_32b"]  = prng.randrange(2**32)
             header["field_64b"]  = prng.randrange(2**64)
             header["field_128b"] = prng.randrange(2**128)
-            datas = [prng.randrange(2**8) for _ in range(prng.randrange(2**7))]
+            datas = [prng.randrange(2**dw) for _ in range(prng.randrange(2**7))]
             packets.append(Packet(header, datas))
 
         def generator(dut):
@@ -84,7 +84,7 @@ class TestPacket(unittest.TestCase):
                     for field in ["field_8b", "field_16b", "field_32b", "field_64b", "field_128b"]:
                         if (yield getattr(dut.source, field)) != packet.header[field]:
                             dut.header_errors += 1
-                    #print("{:02x} vs {:02x}".format((yield dut.source.data), data))
+                    #print("{:x} vs {:x}".format((yield dut.source.data), data))
                     if ((yield dut.source.data) != data):
                         dut.data_errors += 1
                     if ((yield dut.source.last) != (n == (len(packet.datas) - 1))):
@@ -94,8 +94,8 @@ class TestPacket(unittest.TestCase):
 
         class DUT(Module):
             def __init__(self):
-                packetizer   = Packetizer(packet_description(8), raw_description(8), packet_header)
-                depacketizer = Depacketizer(raw_description(8), packet_description(8), packet_header)
+                packetizer   = Packetizer(packet_description(dw), raw_description(dw), packet_header)
+                depacketizer = Depacketizer(raw_description(dw), packet_description(dw), packet_header)
                 self.submodules += packetizer, depacketizer
                 self.comb += packetizer.source.connect(depacketizer.sink)
                 self.sink, self.source = packetizer.sink, depacketizer.source
@@ -105,3 +105,6 @@ class TestPacket(unittest.TestCase):
         self.assertEqual(dut.header_errors, 0)
         self.assertEqual(dut.data_errors,   0)
         self.assertEqual(dut.last_errors,   0)
+
+    def test_8bit_loopback(self):
+        self.loopback_test(dw=8)
