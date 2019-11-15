@@ -177,13 +177,9 @@ class Packetizer(Module):
 
         # Header Encode/Load/Shift -----------------------------------------------------------------
         self.comb += header.encode(sink, self.header)
-        self.sync += [
-            If(sr_load,
-                sr.eq(self.header)
-            ).Elif(sr_shift,
-                sr.eq(sr[data_width:])
-            )
-        ]
+        self.sync += If(sr_load, sr.eq(self.header))
+        if header_words != 1:
+            self.sync += If(sr_shift, sr.eq(sr[data_width:]))
 
         # FSM --------------------------------------------------------------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -214,7 +210,7 @@ class Packetizer(Module):
         fsm.act("HEADER-SEND",
             source.valid.eq(1),
             source.last.eq(0),
-            source.data.eq(sr[data_width:]),
+            source.data.eq(sr[min(data_width, len(sr)-1):]),
             If(source.valid & source.ready,
                 sr_shift.eq(1),
                 If(count == (header_words - 1),
@@ -247,9 +243,9 @@ class Packetizer(Module):
             source.valid.eq(sink_d.valid),
             source.last.eq(sink_d.last),
             If(fsm_from_idle,
-                source.data[:header_leftover*8].eq(sr[header_offset_multiplier*data_width:])
+                source.data[:max(header_leftover*8, 1)].eq(sr[min(header_offset_multiplier*data_width, len(sr)-1):])
             ).Else(
-                source.data[:header_leftover*8].eq(sink_d.data[(bytes_per_clk-header_leftover)*8:])
+                source.data[:max(header_leftover*8, 1)].eq(sink_d.data[min((bytes_per_clk-header_leftover)*8, data_width-1):])
             ),
             source.data[header_leftover*8:].eq(sink.data),
             If(source.valid & source.ready,
@@ -283,7 +279,7 @@ class Depacketizer(Module):
 
         # Parameters -------------------------------------------------------------------------------
         data_width      = len(sink.data)
-        bytes_per_clk   = data_width// 8
+        bytes_per_clk   = data_width//8
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
 
@@ -296,14 +292,13 @@ class Depacketizer(Module):
         sink_d            = stream.Endpoint(sink_description)
 
         # Header Shift/Decode ----------------------------------------------------------------------
-        self.sync += [
-            If((header_words == 1) & (header_leftover == 0),
-                If(sr_shift, sr.eq(sink.data))
-            ).Else(
+        if (header_words) == 1 and (header_leftover == 0):
+            self.sync += If(sr_shift, sr.eq(sink.data))
+        else:
+            self.sync += [
                 If(sr_shift,          sr.eq(Cat(sr[bytes_per_clk*8:],   sink.data))),
                 If(sr_shift_leftover, sr.eq(Cat(sr[header_leftover*8:], sink.data)))
-            )
-        ]
+            ]
         self.comb += self.header.eq(sr)
         self.comb += header.decode(self.header, source)
 
@@ -355,7 +350,7 @@ class Depacketizer(Module):
                     sr_shift_leftover.eq(1),
                 ).Else(
                     source.data.eq(sink_d.data[header_leftover*8:]),
-                    source.data[(bytes_per_clk-header_leftover)*8:].eq(sink.data)
+                    source.data[min((bytes_per_clk-header_leftover)*8, data_width-1):].eq(sink.data)
                 ),
                 If(source.last,
                     NextState("IDLE")
