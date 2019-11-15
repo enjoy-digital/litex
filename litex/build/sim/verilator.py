@@ -206,8 +206,12 @@ class SimVerilatorToolchain:
         # run
         if run:
             _compile_sim(build_name, verbose)
-            _run_sim(build_name, as_root=sim_config.has_module("ethernet") or
-                     sim_config.has_module("xgmii_ethernet"))
+            run_as_root = False
+            if sim_config.has_module("ethernet"):
+                run_as_root = True
+            if sim_config.has_module("xgmii_ethernet"):
+                run_as_root = True
+            _run_sim(build_name, as_root=run_as_root)
 
         os.chdir("../../")
 
