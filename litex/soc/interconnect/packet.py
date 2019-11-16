@@ -238,7 +238,7 @@ class Packetizer(Module):
             )
         )
         header_offset_multiplier = 1 if header_words == 1 else 2
-        self.sync += If(sink.ready, sink_d.eq(sink))
+        self.sync += If(source.ready, sink_d.eq(sink))
         fsm.act("UNALIGNED-DATA-COPY",
             source.valid.eq(sink.valid | sink_d.last),
             source.last.eq(sink_d.last),
@@ -249,7 +249,7 @@ class Packetizer(Module):
             ),
             source.data[header_leftover*8:].eq(sink.data),
             If(source.valid & source.ready,
-                sink.ready.eq(1),
+                sink.ready.eq(~source.last),
                 NextValue(fsm_from_idle, 0),
                 If(source.last,
                     NextState("IDLE")
@@ -339,11 +339,11 @@ class Depacketizer(Module):
                 )
             )
         )
-        self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
+        self.sync += If(sink.ready, sink_d.eq(sink))
         fsm.act("UNALIGNED-DATA-COPY",
             source.valid.eq((sink.valid & ~fsm_from_idle) | no_payload),
             source.last.eq(sink.last | no_payload),
-            sink.ready.eq(source.ready),
+            sink.ready.eq(source.ready | fsm_from_idle),
             If(sink.valid & sink.ready,
                 NextValue(fsm_from_idle, 0),
                 If(fsm_from_idle,

@@ -74,16 +74,21 @@ class TestPacket(unittest.TestCase):
                     while prng.randrange(100) < valid_rand:
                         yield
 
-        def checker(dut):
+        def checker(dut, ready_rand=50):
             dut.header_errors = 0
             dut.data_errors   = 0
             dut.last_errors   = 0
             # Receive and check packets
-            yield dut.source.ready.eq(1)
             for packet in packets:
                 for n, data in enumerate(packet.datas):
+                    yield dut.source.ready.eq(0)
+                    yield
                     while (yield dut.source.valid) == 0:
                         yield
+                    while prng.randrange(100) < ready_rand:
+                        yield
+                    yield dut.source.ready.eq(1)
+                    yield
                     for field in ["field_8b", "field_16b", "field_32b", "field_64b", "field_128b"]:
                         if (yield getattr(dut.source, field)) != packet.header[field]:
                             dut.header_errors += 1
@@ -92,7 +97,6 @@ class TestPacket(unittest.TestCase):
                         dut.data_errors += 1
                     if ((yield dut.source.last) != (n == (len(packet.datas) - 1))):
                         dut.last_errors += 1
-                    yield
             yield
 
         class DUT(Module):
