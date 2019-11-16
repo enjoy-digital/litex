@@ -53,7 +53,7 @@ class TestPacket(unittest.TestCase):
             datas = [prng.randrange(2**dw) for _ in range(prng.randrange(2**7))]
             packets.append(Packet(header, datas))
 
-        def generator(dut):
+        def generator(dut, valid_rand=50):
             # Send packets
             for packet in packets:
                 yield dut.sink.field_8b.eq(packet.header["field_8b"])
@@ -69,7 +69,10 @@ class TestPacket(unittest.TestCase):
                     yield
                     while (yield dut.sink.ready) == 0:
                         yield
-                    dut.sink.valid.eq(0)
+                    yield dut.sink.valid.eq(0)
+                    yield dut.sink.last.eq(0)
+                    while prng.randrange(100) < valid_rand:
+                        yield
 
         def checker(dut):
             dut.header_errors = 0
