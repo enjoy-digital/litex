@@ -20,6 +20,8 @@
 #include <hw/flags.h>
 #include <system.h>
 
+#include <inet.h> // for hton/ntoh (byteswap) functions
+
 #include "sdram.h"
 
 // FIXME(hack): If we don't have main ram, just target the sram instead.
@@ -54,6 +56,26 @@ __attribute__((unused)) static void cdelay(int i)
 #ifdef CSR_SDRAM_BASE
 
 #define DFII_ADDR_SHIFT CONFIG_CSR_ALIGNMENT/8
+
+#define CSR_DATA_BYTES CONFIG_CSR_DATA_WIDTH/8
+
+#define DFII_PIX_DATA_BYTES DFII_PIX_DATA_SIZE*CSR_DATA_BYTES
+
+#if CSR_DATA_BYTES == 1
+	typedef uint8_t csr_dw_t;
+	#define csr_dw_hton(x) (x)
+	#define csr_dw_ntoh(x) (x)
+#elif CSR_DATA_BYTES == 2
+	typedef uint16_t csr_dw_t;
+	#define csr_dw_hton(x) htons(x)
+	#define csr_dw_ntoh(x) ntohs(x)
+#elif CSR_DATA_BYTES == 4
+	typedef uint32_t csr_dw_t;
+	#define csr_dw_hton(x) htonl(x)
+	#define csr_dw_ntoh(x) ntohl(x)
+#else
+#error Unsupported CSR data width
+#endif
 
 void sdrsw(void)
 {
@@ -96,18 +118,23 @@ void sdrrdbuf(int dq)
 {
 	int i, p;
 	int first_byte, step;
+	csr_dw_t buf[DFII_PIX_DATA_SIZE];
+	unsigned char *buf_bytes = (unsigned char *)&(buf[0]);
 
 	if(dq < 0) {
 		first_byte = 0;
 		step = 1;
 	} else {
-		first_byte = DFII_PIX_DATA_SIZE/2 - 1 - dq;
-		step = DFII_PIX_DATA_SIZE/2;
+		first_byte = DFII_PIX_DATA_BYTES/2 - 1 - dq;
+		step = DFII_PIX_DATA_BYTES/2;
 	}
 
-	for(p=0;p<DFII_NPHASES;p++)
-		for(i=first_byte;i<DFII_PIX_DATA_SIZE;i+=step)
-			printf("%02x", MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
+	for(p=0;p<DFII_NPHASES;p++) {
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+			buf[i] = csr_dw_ntoh(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
+		for(i=first_byte;i<DFII_PIX_DATA_BYTES;i+=step)
+			printf("%02x", buf_bytes[i]);
+	}
 	printf("\n");
 }
 
@@ -149,8 +176,9 @@ void sdrrderr(char *count)
 	char *c;
 	int _count;
 	int i, j, p;
-	unsigned char prev_data[DFII_NPHASES*DFII_PIX_DATA_SIZE];
-	unsigned char errs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
+	csr_dw_t prev_data[DFII_NPHASES][DFII_PIX_DATA_SIZE];
+	csr_dw_t err_data[DFII_NPHASES][DFII_PIX_DATA_SIZE];
+	unsigned char *errs = (unsigned char *)&(err_data[0][0]);
 
 	if(*count == 0) {
 		printf("sdrrderr <count>\n");
@@ -162,8 +190,9 @@ void sdrrderr(char *count)
 		return;
 	}
 
-	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++)
-			errs[i] = 0;
+	for(p=0;p<DFII_NPHASES;p++)
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+			err_data[p][i] = 0;
 	for(addr=0;addr<16;addr++) {
 		sdram_dfii_pird_address_write(addr*8);
 		sdram_dfii_pird_baddress_write(0);
@@ -171,40 +200,40 @@ void sdrrderr(char *count)
 		cdelay(15);
 		for(p=0;p<DFII_NPHASES;p++)
 			for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-				prev_data[p*DFII_PIX_DATA_SIZE+i] = MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i);
+				prev_data[p][i] = csr_dw_ntoh(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
 
 		for(j=0;j<_count;j++) {
 			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 			cdelay(15);
 			for(p=0;p<DFII_NPHASES;p++)
 				for(i=0;i<DFII_PIX_DATA_SIZE;i++) {
-					unsigned char new_data;
+					csr_dw_t new_data = csr_dw_ntoh(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
 
-					new_data = MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i);
-					errs[p*DFII_PIX_DATA_SIZE+i] |= prev_data[p*DFII_PIX_DATA_SIZE+i] ^ new_data;
-					prev_data[p*DFII_PIX_DATA_SIZE+i] = new_data;
+					err_data[p][i] |= prev_data[p][i] ^ new_data;
+					prev_data[p][i] = new_data;
 				}
 		}
 	}
 
-	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++)
+	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_BYTES;i++)
 		printf("%02x", errs[i]);
 	printf("\n");
 	for(p=0;p<DFII_NPHASES;p++)
-		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-			printf("%2x", DFII_PIX_DATA_SIZE/2 - 1 - (i % (DFII_PIX_DATA_SIZE/2)));
+		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
+			printf("%2x", DFII_PIX_DATA_BYTES/2 - 1 - (i % (DFII_PIX_DATA_BYTES/2)));
 	printf("\n");
 }
 
 void sdrwr(char *startaddr)
 {
+	int i, p;
 	char *c;
 	unsigned int addr;
-	int i;
-	int p;
+	csr_dw_t buf[DFII_PIX_DATA_SIZE];
+	unsigned char *buf_bytes = (unsigned char *)&(buf[0]);
 
 	if(*startaddr == 0) {
-		printf("sdrrd <address>\n");
+		printf("sdrwr <address>\n");
 		return;
 	}
 	addr = strtoul(startaddr, &c, 0);
@@ -213,9 +242,12 @@ void sdrwr(char *startaddr)
 		return;
 	}
 
-	for(p=0;p<DFII_NPHASES;p++)
+	for(p=0;p<DFII_NPHASES;p++) {
+		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
+			buf_bytes[i] = 0x10*p + i;
 		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = 0x10*p + i;
+			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = csr_dw_hton(buf[i]);
+	}
 
 	sdram_dfii_piwr_address_write(addr);
 	sdram_dfii_piwr_baddress_write(0);
@@ -227,15 +259,15 @@ void sdrwr(char *startaddr)
 #if defined (USDDRPHY)
 #define ERR_DDRPHY_DELAY 512
 #define ERR_DDRPHY_BITSLIP 8
-#define NBMODULES DFII_PIX_DATA_SIZE/2
+#define NBMODULES DFII_PIX_DATA_BYTES/2
 #elif defined (ECP5DDRPHY)
 #define ERR_DDRPHY_DELAY 8
 #define ERR_DDRPHY_BITSLIP 1
-#define NBMODULES DFII_PIX_DATA_SIZE/4
+#define NBMODULES DFII_PIX_DATA_BYTES/4
 #else
 #define ERR_DDRPHY_DELAY 32
 #define ERR_DDRPHY_BITSLIP 8
-#define NBMODULES DFII_PIX_DATA_SIZE/2
+#define NBMODULES DFII_PIX_DATA_BYTES/2
 #endif
 
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
@@ -290,10 +322,7 @@ static void write_delay_inc(int module) {
 
 int write_level(void)
 {
-	int i, j, k;
-
-	int dq_address;
-	unsigned char dq;
+	int i, j, k, l;
 
 	int err_ddrphy_wdly;
 
@@ -305,6 +334,9 @@ int write_level(void)
 
 	int delays[NBMODULES];
 
+	csr_dw_t buf[DFII_PIX_DATA_SIZE];
+	unsigned char *buf_bytes = (unsigned char *)&(buf[0]);
+
 	int ok;
 
 	err_ddrphy_wdly = ERR_DDRPHY_DELAY - ddrphy_half_sys8x_taps_read();
@@ -315,7 +347,6 @@ int write_level(void)
 	cdelay(100);
 	for(i=0;i<NBMODULES;i++) {
 		printf("m%d: |", i);
-		dq_address = sdram_dfii_pix_rddata_addr[0]+DFII_ADDR_SHIFT*(NBMODULES-1-i);
 
 		/* rst delay */
 		write_delay_rst(i);
@@ -331,8 +362,9 @@ int write_level(void)
 			for (k=0; k<128; k++) {
 				ddrphy_wlevel_strobe_write(1);
 				cdelay(10);
-				dq = MMPTR(dq_address);
-				if (dq != 0)
+				for (l=0;l<DFII_PIX_DATA_SIZE;l++)
+					buf[l] = csr_dw_ntoh(MMPTR(sdram_dfii_pix_rddata_addr[0]+DFII_ADDR_SHIFT*l));
+				if (buf_bytes[NBMODULES-1-i] != 0)
 					one_count++;
 				else
 					zero_count++;
@@ -444,16 +476,19 @@ static void read_bitslip_inc(char m)
 static int read_level_scan(int module, int bitslip)
 {
 	unsigned int prv;
-	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
+	csr_dw_t prs[DFII_NPHASES][DFII_PIX_DATA_SIZE];
+	csr_dw_t tst[DFII_PIX_DATA_SIZE];
+	unsigned char *prs_bytes, *tst_bytes;
 	int p, i, j;
 	int score;
 
 	/* Generate pseudo-random sequence */
 	prv = 42;
-	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++) {
-		prv = 1664525*prv + 1013904223;
-		prs[i] = prv;
-	}
+	for(p=0;p<DFII_NPHASES;p++)
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++) {
+			prv = 1664525*prv + 1013904223;
+			prs[p][i] = prv;
+		}
 
 	/* Activate */
 	sdram_dfii_pi0_address_write(0);
@@ -464,7 +499,7 @@ static int read_level_scan(int module, int bitslip)
 	/* Write test pattern */
 	for(p=0;p<DFII_NPHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = prs[DFII_PIX_DATA_SIZE*p+i];
+			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = csr_dw_hton(prs[p][i]);
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -477,7 +512,7 @@ static int read_level_scan(int module, int bitslip)
 	printf("m%d, b%d: |", module, bitslip);
 	read_delay_rst(module);
 	for(j=0; j<ERR_DDRPHY_DELAY;j++) {
-		int working;
+		int working = 1;
 		int show = 1;
 #ifdef USDDRPHY
 		show = (j%16 == 0);
@@ -487,11 +522,15 @@ static int read_level_scan(int module, int bitslip)
 #endif
 		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
-		working = 1;
 		for(p=0;p<DFII_NPHASES;p++) {
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
-				working = 0;
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+			/* read back test pattern */
+			for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+				tst[i] = csr_dw_ntoh(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
+			prs_bytes = (unsigned char *)&(prs[p][0]);
+			tst_bytes = (unsigned char *)&(tst[0]);
+			/* verify bytes matching current 'module' */
+			if (prs_bytes[  NBMODULES-1-module] != tst_bytes[  NBMODULES-1-module] ||
+			    prs_bytes[2*NBMODULES-1-module] != tst_bytes[2*NBMODULES-1-module])
 				working = 0;
 		}
 #ifdef ECP5DDRPHY
@@ -517,7 +556,9 @@ static int read_level_scan(int module, int bitslip)
 static void read_level(int module)
 {
 	unsigned int prv;
-	unsigned char prs[DFII_NPHASES*DFII_PIX_DATA_SIZE];
+	csr_dw_t prs[DFII_NPHASES][DFII_PIX_DATA_SIZE];
+	csr_dw_t tst[DFII_PIX_DATA_SIZE];
+	unsigned char *prs_bytes, *tst_bytes;
 	int p, i, j;
 	int working;
 	int delay, delay_min, delay_max;
@@ -526,10 +567,11 @@ static void read_level(int module)
 
 	/* Generate pseudo-random sequence */
 	prv = 42;
-	for(i=0;i<DFII_NPHASES*DFII_PIX_DATA_SIZE;i++) {
-		prv = 1664525*prv + 1013904223;
-		prs[i] = prv;
-	}
+	for(p=0;p<DFII_NPHASES;p++)
+		for(i=0;i<DFII_PIX_DATA_SIZE;i++) {
+			prv = 1664525*prv + 1013904223;
+			prs[p][i] = prv;
+		}
 
 	/* Activate */
 	sdram_dfii_pi0_address_write(0);
@@ -540,7 +582,7 @@ static void read_level(int module)
 	/* Write test pattern */
 	for(p=0;p<DFII_NPHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_SIZE;i++)
-			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = prs[DFII_PIX_DATA_SIZE*p+i];
+			MMPTR(sdram_dfii_pix_wrdata_addr[p]+DFII_ADDR_SHIFT*i) = csr_dw_hton(prs[p][i]);
 	sdram_dfii_piwr_address_write(0);
 	sdram_dfii_piwr_baddress_write(0);
 	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
@@ -560,9 +602,14 @@ static void read_level(int module)
 		cdelay(15);
 		working = 1;
 		for(p=0;p<DFII_NPHASES;p++) {
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
-				working = 0;
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+			/* read back test pattern */
+			for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+				tst[i] = csr_dw_ntoh(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
+			prs_bytes = (unsigned char *)&(prs[p][0]);
+			tst_bytes = (unsigned char *)&(tst[0]);
+			/* verify bytes matching current 'module' */
+			if (prs_bytes[  NBMODULES-1-module] != tst_bytes[  NBMODULES-1-module] ||
+			    prs_bytes[2*NBMODULES-1-module] != tst_bytes[2*NBMODULES-1-module])
 				working = 0;
 		}
 #ifdef ECP5DDRPHY
@@ -598,9 +645,14 @@ static void read_level(int module)
 		cdelay(15);
 		working = 1;
 		for(p=0;p<DFII_NPHASES;p++) {
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+(NBMODULES-module-1)])
-				working = 0;
-			if(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*(2*NBMODULES-module-1)) != prs[DFII_PIX_DATA_SIZE*p+2*NBMODULES-module-1])
+			/* read back test pattern */
+			for(i=0;i<DFII_PIX_DATA_SIZE;i++)
+				tst[i] = csr_dw_ntoh(MMPTR(sdram_dfii_pix_rddata_addr[p]+DFII_ADDR_SHIFT*i));
+			prs_bytes = (unsigned char *)&(prs[p][0]);
+			tst_bytes = (unsigned char *)&(tst[0]);
+			/* verify bytes matching current 'module' */
+			if (prs_bytes[  NBMODULES-1-module] != tst_bytes[  NBMODULES-1-module] ||
+			    prs_bytes[2*NBMODULES-1-module] != tst_bytes[2*NBMODULES-1-module])
 				working = 0;
 		}
 #ifdef ECP5DDRPHY
