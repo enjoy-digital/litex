@@ -355,10 +355,10 @@ class Depacketizer(Module):
             )
         )
         fsm.act("ALIGNED-DATA-COPY",
-            source.last.eq(sink.last | sink_d.last),
-            source.data.eq(sink.data),
-            sink.ready.eq(source.ready),
             source.valid.eq(sink.valid | sink_d.last),
+            source.last.eq(sink.last | sink_d.last),
+            sink.ready.eq(source.ready),
+            source.data.eq(sink.data),
             If(source.valid & source.ready,
                If(source.last,
                   NextState("IDLE")
