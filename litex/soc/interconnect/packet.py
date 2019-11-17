@@ -287,7 +287,6 @@ class Depacketizer(Module):
         sr                = Signal(header.length*8, reset_less=True)
         sr_shift          = Signal()
         sr_shift_leftover = Signal()
-        no_payload        = Signal()
         count             = Signal(max=max(header_words, 2))
         sink_d            = stream.Endpoint(sink_description)
 
@@ -312,7 +311,6 @@ class Depacketizer(Module):
                 sr_shift.eq(1),
                 NextValue(fsm_from_idle, 1),
                 If(header_words == 1,
-                    NextValue(no_payload, sink.last),
                     If(header_leftover,
                         NextState("UNALIGNED-DATA-COPY")
                     ).Else(
@@ -329,7 +327,6 @@ class Depacketizer(Module):
                 NextValue(count, count + 1),
                 sr_shift.eq(1),
                 If(count == (header_words - 1),
-                    NextValue(no_payload, sink.last),
                     If(header_leftover,
                         NextValue(count, count + 1),
                         NextState("UNALIGNED-DATA-COPY")
@@ -341,8 +338,8 @@ class Depacketizer(Module):
         )
         self.sync += If(sink.ready, sink_d.eq(sink))
         fsm.act("UNALIGNED-DATA-COPY",
-            source.valid.eq((sink.valid & ~fsm_from_idle) | no_payload),
-            source.last.eq(sink.last | no_payload),
+            source.valid.eq((sink.valid & ~fsm_from_idle) | sink_d.last),
+            source.last.eq(sink.last | sink_d.last),
             sink.ready.eq(source.ready | fsm_from_idle),
             If(sink.valid & sink.ready,
                 NextValue(fsm_from_idle, 0),
@@ -358,10 +355,10 @@ class Depacketizer(Module):
             )
         )
         fsm.act("ALIGNED-DATA-COPY",
-            source.last.eq(sink.last | no_payload),
+            source.last.eq(sink.last | sink_d.last),
             source.data.eq(sink.data),
             sink.ready.eq(source.ready),
-            source.valid.eq(sink.valid | no_payload),
+            source.valid.eq(sink.valid | sink_d.last),
             If(source.valid & source.ready,
                If(source.last,
                   NextState("IDLE")
