@@ -338,17 +338,20 @@ class Depacketizer(Module):
         )
         self.sync += If(sink.ready, sink_d.eq(sink))
         fsm.act("UNALIGNED-DATA-COPY",
-            source.valid.eq((sink.valid & ~fsm_from_idle) | sink_d.last),
+            source.valid.eq(sink.valid | sink_d.last),
             source.last.eq(sink.last | sink_d.last),
-            sink.ready.eq(source.ready | fsm_from_idle),
-            If(sink.valid & sink.ready,
-                NextValue(fsm_from_idle, 0),
-                If(fsm_from_idle,
+            sink.ready.eq(source.ready),
+            source.data.eq(sink_d.data[header_leftover*8:]),
+            source.data[min((bytes_per_clk-header_leftover)*8, data_width-1):].eq(sink.data),
+            If(fsm_from_idle,
+                source.valid.eq(sink_d.last),
+                sink.ready.eq(1),
+                If(sink.valid,
+                    NextValue(fsm_from_idle, 0),
                     sr_shift_leftover.eq(1),
-                ).Else(
-                    source.data.eq(sink_d.data[header_leftover*8:]),
-                    source.data[min((bytes_per_clk-header_leftover)*8, data_width-1):].eq(sink.data)
-                ),
+                )
+            ),
+            If(source.valid & source.ready,
                 If(source.last,
                     NextState("IDLE")
                 )
