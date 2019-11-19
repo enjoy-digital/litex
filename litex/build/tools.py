@@ -109,7 +109,8 @@ def get_migen_git_revision():
     d = os.getcwd()
     os.chdir(os.path.dirname(migen.__file__))
     try:
-        r = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])[:-1].decode("utf-8")
+        r = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL)[:-1].decode("utf-8")
     except:
         r = "--------"
     os.chdir(d)
@@ -120,7 +121,8 @@ def get_litex_git_revision():
     d = os.getcwd()
     os.chdir(os.path.dirname(litex.__file__))
     try:
-        r = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])[:-1].decode("utf-8")
+        r = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL)[:-1].decode("utf-8")
     except:
         r = "--------"
     os.chdir(d)
