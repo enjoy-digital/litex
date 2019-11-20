@@ -15,7 +15,7 @@ class Burst:
     def __init__(self, addr, type=BURST_FIXED, len=0, size=0):
         self.addr = addr
         self.type = type
-        self.len = len
+        self.len  = len
         self.size = size
 
     def to_beats(self):
@@ -41,7 +41,7 @@ class Access(Burst):
     def __init__(self, addr, data, id, **kwargs):
         Burst.__init__(self, addr, **kwargs)
         self.data = data
-        self.id = id
+        self.id   = id
 
 
 class Write(Access):
@@ -122,14 +122,14 @@ class TestAXI(unittest.TestCase):
         len_rand_enable  = False,
         data_rand_enable = False,
         # flow valid randomness
-        aw_valid_random = 0,
-        w_valid_random  = 0,
-        ar_valid_random = 0,
-        r_valid_random  = 0,
+        aw_valid_random  = 0,
+        w_valid_random   = 0,
+        ar_valid_random  = 0,
+        r_valid_random   = 0,
         # flow ready randomness
-        w_ready_random  = 0,
-        b_ready_random  = 0,
-        r_ready_random  = 0
+        w_ready_random   = 0,
+        b_ready_random   = 0,
+        r_ready_random   = 0
         ):
 
         def writes_cmd_generator(axi_port, writes):
@@ -207,7 +207,7 @@ class TestAXI(unittest.TestCase):
         def reads_response_data_generator(axi_port, reads):
             prng = random.Random(42)
             self.reads_data_errors = 0
-            self.reads_id_errors = 0
+            self.reads_id_errors   = 0
             self.reads_last_errors = 0
             while not axi_port.reads_enable:
                 yield
@@ -236,7 +236,7 @@ class TestAXI(unittest.TestCase):
         # dut
         class DUT(Module):
             def __init__(self):
-                self.axi = AXIInterface(data_width=32, address_width=32, id_width=8)
+                self.axi      = AXIInterface(data_width=32, address_width=32, id_width=8)
                 self.wishbone = wishbone.Interface(data_width=32)
 
                 axi2wishbone = AXI2Wishbone(self.axi, self.wishbone)
@@ -248,7 +248,7 @@ class TestAXI(unittest.TestCase):
         dut = DUT()
 
         # generate writes/reads
-        prng = random.Random(42)
+        prng   = random.Random(42)
         writes = []
         offset = 1
         for i in range(naccesses):
@@ -286,10 +286,10 @@ class TestAXI(unittest.TestCase):
     # test randomness one parameter at a time
     def test_axi2wishbone_writes_then_reads_random_bursts(self):
         self._test_axi2wishbone(
-            simultaneous_writes_reads=False,
-            id_rand_enable=True,
-            len_rand_enable=True,
-            data_rand_enable=True)
+            simultaneous_writes_reads = False,
+            id_rand_enable   = True,
+            len_rand_enable  = True,
+            data_rand_enable = True)
 
     def test_axi2wishbone_random_w_ready(self):
         self._test_axi2wishbone(w_ready_random=90)
@@ -315,14 +315,14 @@ class TestAXI(unittest.TestCase):
     # now let's stress things a bit... :)
     def test_axi2wishbone_random_all(self):
         self._test_axi2wishbone(
-            simultaneous_writes_reads=False,
-            id_rand_enable=True,
-            len_rand_enable=True,
-            aw_valid_random=50,
-            w_ready_random=50,
-            b_ready_random=50,
-            w_valid_random=50,
-            ar_valid_random=90,
-            r_valid_random=90,
-            r_ready_random=90
+            simultaneous_writes_reads = False,
+            id_rand_enable  = True,
+            len_rand_enable = True,
+            aw_valid_random = 50,
+            w_ready_random  = 50,
+            b_ready_random  = 50,
+            w_valid_random  = 50,
+            ar_valid_random = 90,
+            r_valid_random  = 90,
+            r_ready_random  = 90
         )
