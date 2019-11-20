@@ -92,6 +92,7 @@ class XilinxClocking(Module, AutoCSR):
 
     def expose_drp(self):
         self.drp_reset = CSR()
+        self.drp_locked = CSR()
         self.drp_read  = CSR()
         self.drp_write = CSR()
         self.drp_drdy  = CSRStatus()
@@ -261,7 +262,7 @@ class S7MMCM(XilinxClocking):
         config = self.compute_config()
         mmcm_fb = Signal()
         self.params.update(
-            p_BANDWIDTH="OPTIMIZED", o_LOCKED=self.locked,
+            p_BANDWIDTH="OPTIMIZED", o_LOCKED=self.locked, i_RST=self.reset,
 
             # VCO
             p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
