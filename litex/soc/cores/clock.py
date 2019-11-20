@@ -225,7 +225,7 @@ class S7PLL(XilinxClocking):
         config = self.compute_config()
         pll_fb = Signal()
         self.params.update(
-            p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked,
+            p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked, i_RST=self.reset,
 
             # VCO
             p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
@@ -319,7 +319,7 @@ class USPLL(XilinxClocking):
         config = self.compute_config()
         pll_fb = Signal()
         self.params.update(
-            p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked,
+            p_STARTUP_WAIT="FALSE", o_LOCKED=self.locked, i_RST=self.reset,
 
             # VCO
             p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
@@ -355,7 +355,7 @@ class USMMCM(XilinxClocking):
         config = self.compute_config()
         mmcm_fb = Signal()
         self.params.update(
-            p_BANDWIDTH="OPTIMIZED", o_LOCKED=self.locked,
+            p_BANDWIDTH="OPTIMIZED", o_LOCKED=self.locked, i_RST=self.reset,
 
             # VCO
             p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/self.clkin_freq,
