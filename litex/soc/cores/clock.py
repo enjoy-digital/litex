@@ -91,14 +91,14 @@ class XilinxClocking(Module, AutoCSR):
         raise ValueError("No PLL config found")
 
     def expose_drp(self):
-        self.drp_reset = CSR()
-        self.drp_locked = CSR()
-        self.drp_read  = CSR()
-        self.drp_write = CSR()
-        self.drp_drdy  = CSRStatus()
-        self.drp_adr   = CSRStorage(7)
-        self.drp_dat_w = CSRStorage(16)
-        self.drp_dat_r = CSRStatus(16)
+        self.drp_reset  = CSR()
+        self.drp_locked = CSRStatus()
+        self.drp_read   = CSR()
+        self.drp_write  = CSR()
+        self.drp_drdy   = CSRStatus()
+        self.drp_adr    = CSRStorage(7)
+        self.drp_dat_w  = CSRStorage(16)
+        self.drp_dat_r  = CSRStatus(16)
 
         # # #
 
@@ -119,6 +119,7 @@ class XilinxClocking(Module, AutoCSR):
                 self.drp_drdy.status.eq(1)
             )
         ]
+        self.comb += self.drp_locked.status.eq(self.locked)
 
     def do_finalize(self):
         assert hasattr(self, "clkin")
