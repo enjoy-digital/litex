@@ -66,7 +66,7 @@ class AXIInterface(Record):
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r  = stream.Endpoint(r_description(data_width, id_width))
 
-# AXI Lite Definition -----------------------------------------------------------------------------------
+# AXI Lite Definition ------------------------------------------------------------------------------
 
 def ax_lite_description(address_width):
     return [("addr",  address_width)]
@@ -336,3 +336,78 @@ class AXI2Wishbone(Module):
         axi2axi_lite      = AXI2AXILite(axi, axi_lite)
         axi_lite2wishbone = AXILite2Wishbone(axi_lite, wishbone, base_address)
         self.submodules += axi2axi_lite, axi_lite2wishbone
+
+# Wishbone to AXILite ------------------------------------------------------------------------------
+
+class Wishbone2AXILite(Module):
+    def __init__(self, wishbone, axi_lite, base_address=0x00000000):
+        wishbone_adr_shift = log2_int(axi_lite.data_width//8)
+        assert axi_lite.data_width    == len(wishbone.dat_r)
+        assert axi_lite.address_width == len(wishbone.adr) + wishbone_adr_shift
+
+        _cmd_done  = Signal()
+        _data_done = Signal()
+        _addr      = Signal(len(wishbone.adr))
+        self.comb += _addr.eq(wishbone.adr - base_address//4)
+
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            NextValue(_cmd_done,  0),
+            NextValue(_data_done, 0),
+            If(wishbone.stb & wishbone.cyc,
+                If(wishbone.we,
+                    NextState("WRITE")
+                ).Else(
+                    NextState("READ")
+                )
+            )
+        )
+        fsm.act("WRITE",
+            # cmd
+            axi_lite.aw.valid.eq(~_cmd_done),
+            axi_lite.aw.addr[wishbone_adr_shift:].eq(_addr),
+            If(axi_lite.aw.valid & axi_lite.aw.ready,
+                NextValue(_cmd_done, 1)
+            ),
+            # data
+            axi_lite.w.valid.eq(~_data_done),
+            axi_lite.w.data.eq(wishbone.dat_w),
+            axi_lite.w.strb.eq(wishbone.sel),
+            If(axi_lite.w.valid & axi_lite.w.ready,
+                NextValue(_data_done, 1),
+            ),
+            # resp
+            axi_lite.b.ready.eq(_cmd_done & _data_done),
+            If(axi_lite.b.valid & axi_lite.b.ready,
+                If(axi_lite.b.resp == RESP_OKAY,
+                    wishbone.ack.eq(1),
+                    NextState("IDLE")
+                ).Else(
+                    NextState("ERROR")
+                )
+            )
+        )
+        fsm.act("READ",
+            # cmd
+            axi_lite.ar.valid.eq(~_cmd_done),
+            axi_lite.ar.addr[wishbone_adr_shift:].eq(_addr),
+            If(axi_lite.ar.valid & axi_lite.ar.ready,
+                NextValue(_cmd_done, 1)
+            ),
+            # data & resp
+            axi_lite.r.ready.eq(_cmd_done),
+            If(axi_lite.r.valid & axi_lite.r.ready,
+                If(axi_lite.r.resp == RESP_OKAY,
+                    wishbone.dat_r.eq(axi_lite.r.data),
+                    wishbone.ack.eq(1),
+                    NextState("IDLE"),
+                ).Else(
+                    NextState("ERROR")
+                )
+            )
+        )
+        fsm.act("ERROR",
+            wishbone.ack.eq(1),
+            wishbone.err.eq(1),
+            NextState("IDLE")
+        )
