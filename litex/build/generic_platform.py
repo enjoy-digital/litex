@@ -325,7 +325,9 @@ class GenericPlatform:
             language = tools.language_by_filename(filename)
         if library is None:
             library = "work"
-
+        for f, _, _ in self.sources:
+            if f == filename:
+                return
         self.sources.append((os.path.abspath(filename), language, library))
 
     def add_sources(self, path, *filenames, language=None, library=None):
