@@ -17,17 +17,14 @@ class CommUDP:
     def open(self):
         if hasattr(self, "tx_socket"):
             return
-        self.tx_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rx_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rx_socket.bind(("", self.port))
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind(("", self.port))
 
     def close(self):
         if not hasattr(self, "tx_socket"):
             return
-        self.tx_socket.close()
-        del self.tx_socket
-        self.rx_socket.close()
-        del self.rx_socket
+        self.socket.close()
+        del self.socket
 
     def read(self, addr, length=None):
         length_int = 1 if length is None else length
@@ -38,9 +35,9 @@ class CommUDP:
         packet = EtherbonePacket()
         packet.records = [record]
         packet.encode()
-        self.tx_socket.sendto(bytes(packet), (self.server, self.port))
+        self.socket.sendto(bytes(packet), (self.server, self.port))
 
-        datas, dummy = self.rx_socket.recvfrom(8192)
+        datas, dummy = self.socket.recvfrom(8192)
         packet = EtherbonePacket(datas)
         packet.decode()
         datas = packet.records.pop().writes.get_datas()
@@ -59,7 +56,7 @@ class CommUDP:
         packet = EtherbonePacket()
         packet.records = [record]
         packet.encode()
-        self.tx_socket.sendto(bytes(packet), (self.server, self.port))
+        self.socket.sendto(bytes(packet), (self.server, self.port))
 
         if self.debug:
             for i, value in enumerate(datas):
