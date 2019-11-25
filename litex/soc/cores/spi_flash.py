@@ -79,7 +79,7 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         """
         Simple SPI flash.
         Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
-        Read). Only supports mode0 (cpol=0, cpha=0).
+        Read). Only supports mode3 (cpol=1, cpha=1).
         """
         SpiFlashCommon.__init__(self, pads)
         self.bus = bus = wishbone.Interface()
@@ -88,17 +88,20 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
 
         if with_bitbang:
             self.bitbang = CSRStorage(4, fields=[
-                CSRField("mosi", description="MOSI output pin, valid whenever `dir` is `0`."),
-                CSRField("clk", description="Output value for SPI CLK line."),
-                CSRField("cs_n", description="Output value of SPI CSn line."),
-                CSRField("dir", description="Dual/Quad SPI reuses pins SPI pin direction.", values=[
+                CSRField("mosi", description="Output value for MOSI pin, valid whenever ``dir`` is ``0``."),
+                CSRField("clk", description="Output value for SPI CLK pin."),
+                CSRField("cs_n", description="Output value for SPI CSn pin."),
+                CSRField("dir", description="Sets the direction for *ALL* SPI data pins except CLK and CSn.", values=[
                     ("0", "OUT", "SPI pins are all output"),
                     ("1", "IN", "SPI pins are all input"),
                 ])
-            ], description="""Bitbang controls for SPI output.  Only standard 1x SPI is supported,
-                            meaning the IO2 and IO3 lines will be hardwired to `1` during bitbang mode.""")
+            ], description="""
+                Bitbang controls for SPI output.  Only standard 1x SPI is supported, and as
+                a result all four wires are ganged together.  This means that it is only possible
+                to perform half-duplex operations, using this SPI core.
+            """)
             self.miso = CSRStatus(description="Incoming value of MISO signal.")
-            self.bitbang_en = CSRStorage(description="Write a `1` here to disable memory-mapped mode and enable bitbang mode.")
+            self.bitbang_en = CSRStorage(description="Write a ``1`` here to disable memory-mapped mode and enable bitbang mode.")
 
         # # #
 
@@ -214,21 +217,21 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
 class SpiFlashSingle(SpiFlashCommon, AutoCSR):
     def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big"):
         """
-        Simple SPI flash.
-        Supports 1-bit reads. Only supports mode0 (cpol=0, cpha=0).
+        Simple memory-mapped SPI flash.
+        Supports 1-bit reads. Only supports mode3 (cpol=1, cpha=1).
         """
         SpiFlashCommon.__init__(self, pads)
         self.bus = bus = wishbone.Interface()
 
         if with_bitbang:
             self.bitbang = CSRStorage(4, fields=[
-                CSRField("mosi", description="MOSI output pin.  Always valid in this design."),
-                CSRField("clk", description="Output value for SPI CLK line."),
-                CSRField("cs_n", description="Output value of SPI CSn line."),
+                CSRField("mosi", description="Output value for SPI MOSI pin."),
+                CSRField("clk", description="Output value for SPI CLK pin."),
+                CSRField("cs_n", description="Output value for SPI CSn pin."),
                 CSRField("dir", description="Unused in this design.")
             ], description="""Bitbang controls for SPI output.""")
-            self.miso = CSRStatus(description="Incoming value of MISO signal.")
-            self.bitbang_en = CSRStorage(description="Write a `1` here to disable memory-mapped mode and enable bitbang mode.")
+            self.miso = CSRStatus(description="Incoming value of MISO pin.")
+            self.bitbang_en = CSRStorage(description="Write a ``1`` here to disable memory-mapped mode and enable bitbang mode.")
 
         # # #
 
