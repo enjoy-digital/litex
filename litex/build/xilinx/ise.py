@@ -85,9 +85,17 @@ def _run_yosys(device, sources, vincpaths, build_name):
     for filename, language, library in sources:
         ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 
+    family = ""
+    if (device.startswith("xc7") or device.startswith("xa7") or device.startswith("xq7")):
+        family = "xc7"
+    elif (device.startswith("xc6s") or device.startswith("xa6s") or device.startswith("xq6s")):
+        family = "xc6s"
+    else:
+        raise OSError("Unsupported device")
+
     ys_contents += """hierarchy -top top
-synth_xilinx -top top -family xc6s -ise
-write_edif -pvector bra {build_name}.edif""".format(build_name=build_name)
+synth_xilinx -top top -family {family} -ise
+write_edif -pvector bra {build_name}.edif""".format(build_name=build_name, family=family)
 
     ys_name = build_name + ".ys"
     tools.write_to_file(ys_name, ys_contents)
