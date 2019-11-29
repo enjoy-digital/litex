@@ -69,10 +69,12 @@ class SoCSDRAM(SoCCore):
         if self.cpu.name == "rocket":
             # Rocket has its own I/D L1 cache: connect directly to LiteDRAM, also bypassing MMIO/CSR wb bus:
             if port.data_width == self.cpu.mem_axi.data_width:
+                print("# Matching AXI MEM data width ({})\n".format(port.data_width))
                 # straightforward AXI link, no data_width conversion needed:
                 self.submodules += LiteDRAMAXI2Native(self.cpu.mem_axi, port,
                                                       base_address=self.mem_map["main_ram"])
             else:
+                print("# Converting MEM data width: ram({}) to cpu({}), via Wishbone\n".format(port.data_width, self.cpu.mem_axi.data_width))
                 # FIXME: replace WB data-width converter with native AXI converter!!!
                 mem_wb  = wishbone.Interface(data_width=self.cpu.mem_axi.data_width,
                                              adr_width=32-log2_int(self.cpu.mem_axi.data_width//8))
