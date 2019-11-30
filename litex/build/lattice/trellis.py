@@ -32,6 +32,8 @@ nextpnr_ecp5_architectures = {
 def nextpnr_ecp5_package(package):
     if "285" in package:
         return "CSFBGA285"
+    elif "256" in package:
+        return "CABGA256"
     elif "381" in package:
         return "CABGA381"
     elif "554" in package:
