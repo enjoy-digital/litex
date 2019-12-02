@@ -411,8 +411,15 @@ class CSRStorage(_CompoundCSR):
         """Write method for simulation."""
         yield self.storage.eq(value)
         yield self.re.eq(1)
+        if hasattr(self, "fields"):
+            for field in [*self.fields.fields]:
+                yield getattr(self.fields, field.name).eq((value >> field.offset) & (2**field.size -1))
         yield
         yield self.re.eq(0)
+        if hasattr(self, "fields"):
+            for field in [*self.fields.fields]:
+                if field.pulse:
+                    yield getattr(self.fields, field.name).eq(0)
 
 # AutoCSR & Helpers --------------------------------------------------------------------------------
 
