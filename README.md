@@ -41,7 +41,7 @@ and is compatible with the LiteX's Cores Ecosystem:
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- | ----------------------------- |
 | [LiteDRAM](http://github.com/enjoy-digital/litedram)         | [![](https://travis-ci.org/enjoy-digital/litedram.svg?branch=master)](https://travis-ci.org/enjoy-digital/litedram)     | DRAM        |
 | [LiteEth](http://github.com/enjoy-digital/liteeth)           | [![](https://travis-ci.com/enjoy-digital/liteeth.svg?branch=master)](https://travis-ci.com/enjoy-digital/liteeth)       | Ethernet                      |
-| [LitePCIe](http://github.com/enjoy-digital/litepcie)         | [![](https://travis-ci.com/enjoy-digital/litepcie.svg?branch=master)](https://travis-ci.com/enjoy-digital/litpcie)     | PCIe                          |
+| [LitePCIe](http://github.com/enjoy-digital/litepcie)         | [![](https://travis-ci.com/enjoy-digital/litepcie.svg?branch=master)](https://travis-ci.com/enjoy-digital/litepcie)     | PCIe                          |
 | [LiteSATA](http://github.com/enjoy-digital/litesata)         | [![](https://travis-ci.com/enjoy-digital/litesata.svg?branch=master)](https://travis-ci.com/enjoy-digital/litesata)     | SATA                          |
 | [LiteSDCard](http://github.com/enjoy-digital/litesdcard)     | [![](https://travis-ci.com/enjoy-digital/litesdcard.svg?branch=master)](https://travis-ci.com/enjoy-digital/litesdcard)   | SD card                       |
 | [LiteICLink](http://github.com/enjoy-digital/liteiclink)     | [![](https://travis-ci.com/enjoy-digital/liteiclink.svg?branch=master)](https://travis-ci.com/enjoy-digital/liteiclink)   | Inter-Chip communication      |
