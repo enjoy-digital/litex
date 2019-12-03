@@ -13,7 +13,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
-from litedram.modules import MT41J128M16
+from litedram.modules import K4B2G1646F
 from litedram.phy import s7ddrphy
 
 from liteeth.phy.rmii import LiteEthPHYRMII
@@ -69,7 +69,7 @@ class BaseSoC(SoCSDRAM):
                 nphases      = 4,
                 sys_clk_freq = sys_clk_freq)
             self.add_csr("ddrphy")
-            sdram_module = MT41J128M16(sys_clk_freq, "1:4")
+            sdram_module = K4B2G1646F(sys_clk_freq, "1:4")
             self.register_sdram(self.ddrphy,
                 geom_settings   = sdram_module.geom_settings,
                 timing_settings = sdram_module.timing_settings)
