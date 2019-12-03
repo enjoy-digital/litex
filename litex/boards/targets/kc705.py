@@ -25,8 +25,8 @@ from liteeth.mac import LiteEthMAC
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
-        self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
+        self.clock_domains.cd_sys    = ClockDomain()
+        self.clock_domains.cd_sys4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
 
         # # #
@@ -37,8 +37,8 @@ class _CRG(Module):
         self.submodules.pll = pll = S7MMCM(speedgrade=-2)
         self.comb += pll.reset.eq(platform.request("cpu_reset"))
         pll.register_clkin(platform.request("clk200"), 200e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq)
+        pll.create_clkout(self.cd_sys,    sys_clk_freq)
+        pll.create_clkout(self.cd_sys4x,  4*sys_clk_freq)
         pll.create_clkout(self.cd_clk200, 200e6)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
@@ -48,22 +48,29 @@ class _CRG(Module):
 class BaseSoC(SoCSDRAM):
     def __init__(self, sys_clk_freq=int(125e6), integrated_rom_size=0x8000, **kwargs):
         platform = kc705.Platform()
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-                         integrated_rom_size=integrated_rom_size,
-                         integrated_sram_size=0x8000,
-                          **kwargs)
 
+        # SoCSDRAM ---------------------------------------------------------------------------------
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
+            integrated_rom_size  = integrated_rom_size,
+            integrated_sram_size = 0x8000,
+            **kwargs)
+
+        # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
 
-        # sdram
-        self.submodules.ddrphy = s7ddrphy.K7DDRPHY(platform.request("ddram"), sys_clk_freq=sys_clk_freq)
-        self.add_csr("ddrphy")
-        sdram_module = MT8JTF12864(sys_clk_freq, "1:4")
-        self.register_sdram(self.ddrphy,
-                            sdram_module.geom_settings,
-                            sdram_module.timing_settings)
+        # DDR3 SDRAM -------------------------------------------------------------------------------
+        if not self.integrated_main_ram_size:
+            self.submodules.ddrphy = s7ddrphy.K7DDRPHY(platform.request("ddram"),
+                memtype      = "DDR3",
+                nphases      = 4,
+                sys_clk_freq = sys_clk_freq)
+            self.add_csr("ddrphy")
+            sdram_module = MT8JTF12864(sys_clk_freq, "1:4")
+            self.register_sdram(self.ddrphy,
+                geom_settings   = sdram_module.geom_settings,
+                timing_settings = sdram_module.timing_settings)
 
-# EthernetSoC ------------------------------------------------------------------------------------------
+# EthernetSoC --------------------------------------------------------------------------------------
 
 class EthernetSoC(BaseSoC):
     mem_map = {
