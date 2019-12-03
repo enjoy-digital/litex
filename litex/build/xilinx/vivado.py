@@ -131,7 +131,7 @@ class XilinxVivadoToolchain:
                 elif (language == "verilog"):
                     tcl.append("read_verilog " + filename_tcl)
                 elif (language == "vhdl"):
-                    tcl.append("read_vhdl " + filename_tcl)
+                    tcl.append("read_vhdl -vhdl2008 " + filename_tcl)
                     tcl.append("set_property library {} [get_files {}]"
                                .format(library, filename_tcl))
                 else:
