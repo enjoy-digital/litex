@@ -72,7 +72,6 @@ class BaseSoC(SoCSDRAM):
             self.register_sdram(self.ddrphy,
                 geom_settings   = sdram_module.geom_settings,
                 timing_settings = sdram_module.timing_settings)
-            self.add_constant("MEMTEST_ADDR_SIZE", 0) # FIXME
 
 # EthernetSoC --------------------------------------------------------------------------------------
 
