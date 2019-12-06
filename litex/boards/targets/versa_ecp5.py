@@ -139,7 +139,10 @@ def main():
     cls = EthernetSoC if args.with_ethernet else BaseSoC
     soc = cls(toolchain=args.toolchain, sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build(**trellis_argdict(args))
+    builder_kargs = {}
+    if args.toolchain == "trellis":
+        builder_kargs == trellis_argdict(args)
+    builder.build(**builder_kargs)
 
 if __name__ == "__main__":
     main()
