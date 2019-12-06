@@ -85,9 +85,17 @@ def _run_yosys(device, sources, vincpaths, build_name):
     for filename, language, library in sources:
         ys_contents += "read_{}{} {}\n".format(language, incflags, filename)
 
-    ys_contents += """hierarchy -check -top top
-proc; memory; opt; fsm; opt
-synth_xilinx -top top -edif {build_name}.edif""".format(build_name=build_name)
+    family = ""
+    if (device.startswith("xc7") or device.startswith("xa7") or device.startswith("xq7")):
+        family = "xc7"
+    elif (device.startswith("xc6s") or device.startswith("xa6s") or device.startswith("xq6s")):
+        family = "xc6s"
+    else:
+        raise OSError("Unsupported device")
+
+    ys_contents += """hierarchy -top top
+synth_xilinx -top top -family {family} -ise
+write_edif -pvector bra {build_name}.edif""".format(build_name=build_name, family=family)
 
     ys_name = build_name + ".ys"
     tools.write_to_file(ys_name, ys_contents)
@@ -114,7 +122,10 @@ def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
         settings = common.settings(ise_path, ver, "ISE_DS")
         build_script_contents += source_cmd + tools.cygpath(settings) + "\n"
     if mode == "edif":
-        ext = "edif"
+        ext = "ngo"
+        build_script_contents += """
+edif2ngd {build_name}.edif {build_name}.{ext}{fail_stmt}
+"""
     else:
         ext = "ngc"
         build_script_contents += """
@@ -207,7 +218,8 @@ class XilinxISEToolchain:
                     _build_xst_files(platform.device, platform.sources, platform.verilog_include_paths, build_name, self.xst_opt)
                     isemode = mode
                 else:
-                    _run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
+                    if run:
+                        _run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
                     isemode = "edif"
                     ngdbuild_opt += "-p " + platform.device
 
