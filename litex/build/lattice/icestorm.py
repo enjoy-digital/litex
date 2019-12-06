@@ -231,8 +231,8 @@ class LatticeIceStormToolchain:
         return "\n".join(read_files)
 
     def add_period_constraint(self, platform, clk, period):
+        clk.attr.add("keep")
         new_freq = 1000.0/period
-
         if clk not in self.freq_constraints.keys():
             self.freq_constraints[clk] = new_freq
         else:

@@ -194,6 +194,7 @@ class LatticeDiamondToolchain:
         return v_output.ns
 
     def add_period_constraint(self, platform, clk, period):
+        clk.attr.add("keep")
         # TODO: handle differential clk
         platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(
             freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)

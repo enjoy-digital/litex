@@ -249,6 +249,7 @@ class XilinxISEToolchain:
     # them through clock objects like DCM and PLL objects.
 
     def add_period_constraint(self, platform, clk, period):
+        clk.attr.add("keep")
         platform.add_platform_command(
             """
 NET "{clk}" TNM_NET = "PRD{clk}";
@@ -258,6 +259,8 @@ TIMESPEC "TS{clk}" = PERIOD "PRD{clk}" """ + str(period) + """ ns HIGH 50%;
             )
 
     def add_false_path_constraint(self, platform, from_, to):
+        from_.attr.add("keep")
+        to.attr.add("keep")
         platform.add_platform_command(
             """
 NET "{from_}" TNM_NET = "TIG{from_}";
