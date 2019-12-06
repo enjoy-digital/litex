@@ -56,21 +56,36 @@ def _build_qsf_constraints(named_sc, named_pc):
 
 # Timing Constraints (.sdc) ------------------------------------------------------------------------
 
-def _build_sdc(clocks, false_paths, vns, build_name):
+def _build_sdc(clocks, false_paths, vns, named_sc, build_name, additional_sdc_commands):
     sdc = []
+
     # Clock constraints
     for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
-        tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
-        sdc.append(tpl.format(clk=vns.get_name(clk), period=str(period)))
+        is_port = False
+        for sig, pins, others, resname in named_sc:
+            if sig == vns.get_name(clk):
+                is_port = True
+        if is_port:
+            tpl = "create_clock -name {clk} -period {period} [get_ports {{{clk}}}]"
+            sdc.append(tpl.format(clk=vns.get_name(clk), period=str(period)))
+        else:
+            tpl = "create_clock -name {clk} -period {period} [get_nets {{{clk}}}]"
+            sdc.append(tpl.format(clk=vns.get_name(clk), period=str(period)))
+
     # False path constraints
     for from_, to in sorted(false_paths, key=lambda x: (x[0].duid, x[1].duid)):
         tpl = "set_false_path -from [get_clocks {{{from_}}}] -to [get_clocks {{{to}}}]"
         sdc.append(tpl.format(from_=vns.get_name(from_), to=vns.get_name(to)))
+
+    # Add additional commands
+    sdc += additional_sdc_commands
+
+    # Generate .sdc
     tools.write_to_file("{}.sdc".format(build_name), "\n".join(sdc))
 
 # Project (.qsf) -----------------------------------------------------------------------------------
 
-def _build_qsf(device, ips, sources, vincpaths, named_sc, named_pc, build_name):
+def _build_qsf(device, ips, sources, vincpaths, named_sc, named_pc, build_name, additional_qsf_commands):
     qsf = []
 
     # Set device
@@ -100,7 +115,10 @@ def _build_qsf(device, ips, sources, vincpaths, named_sc, named_pc, build_name):
     # Set timing constraints
     qsf.append("set_global_assignment -name SDC_FILE {}.sdc".format(build_name))
 
-    # Generate qsf
+    # Add additional commands
+    qsf += additional_qsf_commands
+
+    # Generate .qsf
     tools.write_to_file("{}.qsf".format(build_name), "\n".join(qsf))
 
 # Script -------------------------------------------------------------------------------------------
@@ -144,6 +162,8 @@ class AlteraQuartusToolchain:
     def __init__(self):
         self.clocks      = dict()
         self.false_paths = set()
+        self.additional_sdc_commands = []
+        self.additional_qsf_commands = []
 
     def build(self, platform, fragment,
         build_dir      = "build",
@@ -175,20 +195,23 @@ class AlteraQuartusToolchain:
 
         # Generate design timing constraints file (.sdc)
         _build_sdc(
-            clocks      = self.clocks,
-            false_paths = self.false_paths,
-            vns         = v_output.ns,
-            build_name  = build_name)
+            clocks                  = self.clocks,
+            false_paths             = self.false_paths,
+            vns                     = v_output.ns,
+            named_sc                = named_sc,
+            build_name              = build_name,
+            additional_sdc_commands = self.additional_sdc_commands)
 
         # Generate design project and location constraints file (.qsf)
         _build_qsf(
-            device     = platform.device,
-            ips        = platform.ips,
-            sources    = platform.sources,
-            vincpaths  = platform.verilog_include_paths,
-            named_sc   = named_sc,
-            named_pc   = named_pc,
-            build_name = build_name)
+            device                  = platform.device,
+            ips                     = platform.ips,
+            sources                 = platform.sources,
+            vincpaths               = platform.verilog_include_paths,
+            named_sc                = named_sc,
+            named_pc                = named_pc,
+            build_name              = build_name,
+            additional_qsf_commands = self.additional_qsf_commands)
 
         # Generate build script
         script = _build_script(build_name, toolchain_path, platform.create_rbf)
