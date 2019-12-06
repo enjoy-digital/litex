@@ -19,7 +19,7 @@ from litex.build.lattice import common
 def _produces_jedec(device):
     return device.startswith("LCMX")
 
-# IO Constraints (.lpf) ----------------------------------------------------------------------------
+# Constraints (.lpf) -------------------------------------------------------------------------------
 
 def _format_constraint(c):
     if isinstance(c, Pins):
@@ -176,11 +176,11 @@ class LatticeDiamondToolchain:
         v_output.write(v_file)
         platform.add_source(v_file)
 
+        # Generate design constraints file (.lpf)
+        _build_lpf(named_sc, named_pc, build_name)
+
         # Generate design script file (.tcl)
         _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name)
-
-        # Generate design timing constraints file (.lpf)
-        _build_lpf(named_sc, named_pc, build_name)
 
         # Generate build script
         script = _build_script(build_name, platform.device, toolchain_path)

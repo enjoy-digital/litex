@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2017-2018 William D. Jones <thor0505@comcast.net>
 # License: BSD
 
@@ -8,6 +8,7 @@ import subprocess
 from litex.build.generic_programmer import GenericProgrammer
 from litex.build import tools
 
+# LatticeProgrammer --------------------------------------------------------------------------------
 
 class LatticeProgrammer(GenericProgrammer):
     needs_bitreverse = False
@@ -21,6 +22,7 @@ class LatticeProgrammer(GenericProgrammer):
         tools.write_to_file(xcf_file, xcf_content)
         subprocess.call(["pgrcmd", "-infile", xcf_file])
 
+# IceStormProgrammer -------------------------------------------------------------------------------
 
 class IceStormProgrammer(GenericProgrammer):
     needs_bitreverse = False
@@ -31,6 +33,7 @@ class IceStormProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         subprocess.call(["iceprog", "-S", bitstream_file])
 
+# IceBurnProgrammer --------------------------------------------------------------------------------
 
 class IceBurnProgrammer(GenericProgrammer):
     def __init__(self, iceburn_path):
@@ -42,6 +45,7 @@ class IceBurnProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         subprocess.call([self.iceburn, "-evw", bitstream_file])
 
+# TinyFpgaBProgrammer ------------------------------------------------------------------------------
 
 class TinyFpgaBProgrammer(GenericProgrammer):
     needs_bitreverse = False
@@ -57,6 +61,7 @@ class TinyFpgaBProgrammer(GenericProgrammer):
     def boot(self):
         subprocess.call(["tinyfpgab", "-b"])
 
+# TinyProgProgrammer -------------------------------------------------------------------------------
 
 # Different bootloader protocol requires different application. In the basic
 # case, command-line arguments are the same. Note that this programmer can
@@ -85,6 +90,7 @@ class TinyProgProgrammer(GenericProgrammer):
     def boot(self):
         subprocess.call(["tinyprog", "-b"])
 
+# MyStormProgrammer --------------------------------------------------------------------------------
 
 class MyStormProgrammer(GenericProgrammer):
     def __init__(self, serial_port):
