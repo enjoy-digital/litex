@@ -29,9 +29,6 @@ class _CRG(Module):
 
         # # #
 
-        self.cd_sys.clk.attr.add("keep")
-        self.cd_sys_ps.clk.attr.add("keep")
-
         self.submodules.pll = pll = S6PLL(speedgrade=-1)
         pll.register_clkin(platform.request("clk32"), 32e6)
         pll.create_clkout(self.cd_sys,    clk_freq)

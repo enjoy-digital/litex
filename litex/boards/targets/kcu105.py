@@ -30,9 +30,6 @@ class _CRG(Module):
 
         # # #
 
-        self.cd_sys.clk.attr.add("keep")
-        self.cd_sys4x.clk.attr.add("keep")
-
         self.submodules.pll = pll = USMMCM(speedgrade=-2)
         self.comb += pll.reset.eq(platform.request("cpu_reset"))
         self.clock_domains.cd_pll4x = ClockDomain(reset_less=True)
@@ -127,8 +124,6 @@ class EthernetSoC(BaseSoC):
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
 
-        self.ethphy.cd_eth_rx.clk.attr.add("keep")
-        self.ethphy.cd_eth_tx.clk.attr.add("keep")
         self.platform.add_period_constraint(self.ethphy.cd_eth_rx.clk, 1e9/125e6)
         self.platform.add_period_constraint(self.ethphy.cd_eth_tx.clk, 1e9/125e6)
         self.platform.add_false_path_constraints(

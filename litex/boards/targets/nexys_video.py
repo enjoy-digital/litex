@@ -31,10 +31,6 @@ class _CRG(Module):
 
         # # #
 
-        self.cd_sys.clk.attr.add("keep")
-        self.cd_sys4x.clk.attr.add("keep")
-        self.cd_sys4x_dqs.clk.attr.add("keep")
-
         self.submodules.pll = pll = S7MMCM(speedgrade=-1)
         self.comb += pll.reset.eq(~platform.request("cpu_reset"))
         pll.register_clkin(platform.request("clk100"), 100e6)
@@ -94,8 +90,6 @@ class EthernetSoC(BaseSoC):
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
 
-        self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
-        self.ethphy.crg.cd_eth_tx.clk.attr.add("keep")
         self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
         self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/125e6)
         self.platform.add_false_path_constraints(

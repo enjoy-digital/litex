@@ -25,10 +25,6 @@ class _CRG(Module):
 
         # # #
 
-        self.cd_sys.clk.attr.add("keep")
-        self.cd_sys_ps.clk.attr.add("keep")
-        self.cd_por.clk.attr.add("keep")
-
         # Power on reset
         rst_n = Signal()
         self.sync.por += rst_n.eq(1)
