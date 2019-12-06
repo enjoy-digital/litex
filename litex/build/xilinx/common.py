@@ -7,12 +7,6 @@
 import os
 import sys
 import subprocess
-try:
-    import colorama
-    colorama.init()  # install escape sequence translation on Windows
-    _have_colorama = True
-except ImportError:
-    _have_colorama = False
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
@@ -23,6 +17,14 @@ from migen.genlib.io import *
 
 from litex.build import tools
 
+# Colorama -----------------------------------------------------------------------------------------
+
+try:
+    import colorama
+    colorama.init()  # install escape sequence translation on Windows
+    _have_colorama = True
+except ImportError:
+    _have_colorama = False
 
 colors = []
 if _have_colorama:
@@ -37,6 +39,7 @@ if _have_colorama:
          r"\g<0>" + colorama.Style.RESET_ALL),
     ]
 
+# Settings -----------------------------------------------------------------------------------------
 
 def settings(path, ver=None, sub=None):
     if ver is None:
@@ -66,6 +69,7 @@ def settings(path, ver=None, sub=None):
 
     raise OSError("no Xilinx tools settings file found")
 
+# Common MultiReg ----------------------------------------------------------------------------------
 
 class XilinxMultiRegImpl(MultiRegImpl):
     def __init__(self, *args, **kwargs):
@@ -85,6 +89,7 @@ class XilinxMultiReg:
     def lower(dr):
         return XilinxMultiRegImpl(dr.i, dr.o, dr.odomain, dr.n)
 
+# Common AsyncResetSynchronizer --------------------------------------------------------------------
 
 class XilinxAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
@@ -94,13 +99,23 @@ class XilinxAsyncResetSynchronizerImpl(Module):
         rst_meta = Signal()
         self.specials += [
             Instance("FDPE",
-                p_INIT=1, i_D=0, i_PRE=async_reset,
-                i_CE=1, i_C=cd.clk, o_Q=rst_meta,
-                attr={"async_reg", "ars_ff1"}),
-            Instance("FDPE", p_INIT=1,
-                i_D=rst_meta, i_PRE=async_reset,
-                i_CE=1, i_C=cd.clk, o_Q=cd.rst,
-                attr={"async_reg", "ars_ff2"})
+                attr   = {"async_reg", "ars_ff1"},
+                p_INIT = 1,
+                i_PRE  = async_reset,
+                i_CE   = 1,
+                i_C    = cd.clk,
+                i_D    = 0,
+                o_Q    = rst_meta,
+            ),
+            Instance("FDPE",
+                attr   = {"async_reg", "ars_ff2"},
+                p_INIT = 1,
+                i_PRE  = async_reset,
+                i_CE   = 1,
+                i_C    = cd.clk,
+                i_D    = rst_meta,
+                o_Q    = cd.rst
+            )
         ]
 
 
@@ -109,10 +124,15 @@ class XilinxAsyncResetSynchronizer:
     def lower(dr):
         return XilinxAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
+# Common DifferentialInput -------------------------------------------------------------------------
 
 class XilinxDifferentialInputImpl(Module):
     def __init__(self, i_p, i_n, o):
-        self.specials += Instance("IBUFDS", i_I=i_p, i_IB=i_n, o_O=o)
+        self.specials += Instance("IBUFDS",
+            i_I  = i_p,
+            i_IB = i_n,
+            o_O  = o
+        )
 
 
 class XilinxDifferentialInput:
@@ -120,10 +140,15 @@ class XilinxDifferentialInput:
     def lower(dr):
         return XilinxDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
 
+# Common XilinxDifferentialOutput ------------------------------------------------------------------
 
 class XilinxDifferentialOutputImpl(Module):
     def __init__(self, i, o_p, o_n):
-        self.specials += Instance("OBUFDS", i_I=i, o_O=o_p, o_OB=o_n)
+        self.specials += Instance("OBUFDS",
+            i_I  = i,
+            o_O  = o_p,
+            o_OB = o_n
+        )
 
 
 class XilinxDifferentialOutput:
@@ -131,6 +156,7 @@ class XilinxDifferentialOutput:
     def lower(dr):
         return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+# Common Special Overrides -------------------------------------------------------------------------
 
 xilinx_special_overrides = {
     MultiReg:               XilinxMultiReg,
@@ -139,13 +165,22 @@ xilinx_special_overrides = {
     DifferentialOutput:     XilinxDifferentialOutput
 }
 
+# Spartan6 DDROutput -------------------------------------------------------------------------------
 
 class XilinxDDROutputImplS6(Module):
     def __init__(self, i1, i2, o, clk):
         self.specials += Instance("ODDR2",
-            p_DDR_ALIGNMENT="C0", p_INIT=0, p_SRTYPE="ASYNC",
-            i_C0=clk, i_C1=~clk, i_CE=1, i_S=0, i_R=0,
-            i_D0=i1, i_D1=i2, o_Q=o,
+            p_DDR_ALIGNMENT = "C0",
+            p_INIT   = 0,
+            p_SRTYPE = "ASYNC",
+            i_C0     = clk,
+            i_C1     = ~clk,
+            i_CE     = 1,
+            i_S      = 0,
+            i_R      = 0,
+            i_D0     = i1,
+            i_D1     = i2,
+            o_Q      = o
         )
 
 
@@ -154,18 +189,25 @@ class XilinxDDROutputS6:
     def lower(dr):
         return XilinxDDROutputImplS6(dr.i1, dr.i2, dr.o, dr.clk)
 
+# Spartan6 Special Overrides -----------------------------------------------------------------------
 
 xilinx_s6_special_overrides = {
-    DDROutput:              XilinxDDROutputS6
+    DDROutput: XilinxDDROutputS6
 }
 
+# 7-Series DDROutput -------------------------------------------------------------------------------
 
 class XilinxDDROutputImplS7(Module):
     def __init__(self, i1, i2, o, clk):
         self.specials += Instance("ODDR",
             p_DDR_CLK_EDGE="SAME_EDGE",
-            i_C=clk, i_CE=1, i_S=0, i_R=0,
-            i_D1=i1, i_D2=i2, o_Q=o,
+            i_C  = clk,
+            i_CE = 1,
+            i_S  = 0,
+            i_R  = 0,
+            i_D1 = i1,
+            i_D2 = i2,
+            o_Q  = o
         )
 
 
@@ -174,13 +216,19 @@ class XilinxDDROutputS7:
     def lower(dr):
         return XilinxDDROutputImplS7(dr.i1, dr.i2, dr.o, dr.clk)
 
+# 7-Series DDRInput --------------------------------------------------------------------------------
 
 class XilinxDDRInputImplS7(Module):
     def __init__(self, i, o1, o2, clk):
         self.specials += Instance("IDDR",
             p_DDR_CLK_EDGE="SAME_EDGE",
-            i_C=clk, i_CE=1, i_S=0, i_R=0,
-            i_D=i, o_Q1=o1, o_Q2=o2,
+            i_C  = clk,
+            i_CE = 1,
+            i_S  = 0,
+            i_R  = 0,
+            i_D  = i,
+            o_Q1 = o1,
+            o_Q2 = o2
         )
 
 
@@ -189,51 +237,61 @@ class XilinxDDRInputS7:
     def lower(dr):
         return XilinxDDRInputImplS7(dr.i, dr.o1, dr.o2, dr.clk)
 
+# 7-Series Special Overrides -----------------------------------------------------------------------
 
 xilinx_s7_special_overrides = {
-    DDROutput:              XilinxDDROutputS7,
-    DDRInput:               XilinxDDRInputS7
+    DDROutput: XilinxDDROutputS7,
+    DDRInput:  XilinxDDRInputS7
 }
 
+# Ultrascale DDROutput -----------------------------------------------------------------------------
 
-class XilinxDDROutputImplKU(Module):
+class XilinxDDROutputImplUS(Module):
     def __init__(self, i1, i2, o, clk):
         self.specials += Instance("ODDRE1",
-            i_C=clk, i_SR=0,
-            i_D1=i1, i_D2=i2, o_Q=o,
+            i_C  = clk,
+            i_SR = 0,
+            i_D1 = i1,
+            i_D2 = i2,
+            o_Q  = o
         )
 
 
-class XilinxDDROutputKU:
+class XilinxDDROutputUS:
     @staticmethod
     def lower(dr):
-        return XilinxDDROutputImplKU(dr.i1, dr.i2, dr.o, dr.clk)
+        return XilinxDDROutputImplUS(dr.i1, dr.i2, dr.o, dr.clk)
 
+# Ultrascale DDRInput ------------------------------------------------------------------------------
 
-class XilinxDDRInputImplKU(Module):
+class XilinxDDRInputImplUS(Module):
     def __init__(self, i, o1, o2, clk):
         self.specials += Instance("IDDRE1",
             p_DDR_CLK_EDGE="SAME_EDGE_PIPELINED",
-            p_IS_C_INVERTED=0,
-            p_IS_CB_INVERTED=1,
-            i_D=i,
-            o_Q1=o1, o_Q2=o2,
-            i_C=clk, i_CB=clk,
-            i_R=0
+            p_IS_C_INVERTED  = 0,
+            p_IS_CB_INVERTED = 1,
+            i_C  = clk,
+            i_CB = clk,
+            i_R  = 0,
+            i_D  = i,
+            o_Q1 = o1,
+            o_Q2 = o2
         )
 
 
-class XilinxDDRInputKU:
+class XilinxDDRInputUS:
     @staticmethod
     def lower(dr):
-        return XilinxDDRInputImplKU(dr.i, dr.o1, dr.o2, dr.clk)
+        return XilinxDDRInputImplUS(dr.i, dr.o1, dr.o2, dr.clk)
 
+# Ultrascale Specials Overrides --------------------------------------------------------------------
 
-xilinx_ku_special_overrides = {
-    DDROutput:              XilinxDDROutputKU,
-    DDRInput:               XilinxDDRInputKU
+xilinx_us_special_overrides = {
+    DDROutput: XilinxDDROutputUS,
+    DDRInput:  XilinxDDRInputUS
 }
 
+# Yosys Run ----------------------------------------------------------------------------------------
 
 def _run_yosys(device, sources, vincpaths, build_name):
     ys_contents = ""

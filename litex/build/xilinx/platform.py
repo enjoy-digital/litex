@@ -7,6 +7,7 @@ import os
 from litex.build.generic_platform import GenericPlatform
 from litex.build.xilinx import common, vivado, ise
 
+# XilinxPlatform -----------------------------------------------------------------------------------
 
 class XilinxPlatform(GenericPlatform):
     bitstream_ext = ".bit"
@@ -14,7 +15,7 @@ class XilinxPlatform(GenericPlatform):
     def __init__(self, *args, toolchain="ise", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
-        self.ips = set()
+        self.ips   = set()
         if toolchain == "ise":
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
@@ -35,10 +36,10 @@ class XilinxPlatform(GenericPlatform):
         if self.device[:3] == "xc7":
             so.update(common.xilinx_s7_special_overrides)
         if self.device[:4] == "xcku":
-            so.update(common.xilinx_ku_special_overrides)
+            so.update(common.xilinx_us_special_overrides)
         so.update(special_overrides)
-        return GenericPlatform.get_verilog(self, *args,
-            special_overrides=so, attr_translate=self.toolchain.attr_translate, **kwargs)
+        return GenericPlatform.get_verilog(self, *args, special_overrides=so,
+            attr_translate=self.toolchain.attr_translate, **kwargs)
 
     def get_edif(self, fragment, **kwargs):
         return GenericPlatform.get_edif(self, fragment, "UNISIMS", "Xilinx", self.device, **kwargs)

@@ -12,6 +12,7 @@ from distutils.spawn import find_executable
 from litex.build.generic_programmer import GenericProgrammer
 from litex.build.xilinx import common
 
+# UrJTAG -------------------------------------------------------------------------------------------
 
 def _run_urjtag(cmds):
     with subprocess.Popen("jtag", stdin=subprocess.PIPE) as process:
@@ -48,6 +49,7 @@ flashmem "{address}" "{data_file}" noverify
            cable=self.cable)
         _run_urjtag(cmds)
 
+# XC3SProg -----------------------------------------------------------------------------------------
 
 class XC3SProg(GenericProgrammer):
     needs_bitreverse = False
@@ -65,6 +67,7 @@ class XC3SProg(GenericProgrammer):
         subprocess.call(["xc3sprog", "-v", "-c", self.cable, "-p", str(self.position),
             "-I"+flash_proxy, "{}:w:0x{:x}:BIN".format(data_file, address)])
 
+# FpgaProg -----------------------------------------------------------------------------------------
 
 class FpgaProg(GenericProgrammer):
     needs_bitreverse = False
@@ -82,6 +85,7 @@ class FpgaProg(GenericProgrammer):
         subprocess.call(["fpgaprog", "-v", "-sa", "-r", "-b", flash_proxy,
                    "-f", data_file])
 
+# iMPACT -------------------------------------------------------------------------------------------
 
 def _run_impact(cmds):
     with subprocess.Popen("impact -batch", stdin=subprocess.PIPE, shell=True) as process:
@@ -115,6 +119,7 @@ quit
 """.format(bitstream=bitstream_file)
         _run_impact(cmds)
 
+# Vivado -------------------------------------------------------------------------------------------
 
 def _run_vivado(path, ver, cmds):
     if sys.platform == "win32" or sys.platform == "cygwin":
@@ -195,6 +200,7 @@ quit
 """.format(data=data_file, flash_part=self.flash_part, device=device)
         _run_vivado(self.vivado_path, self.vivado_ver, cmds)
 
+# Adept --------------------------------------------------------------------------------------------
 
 class Adept(GenericProgrammer):
     """Using the Adept tool with an onboard Digilent "USB JTAG" cable.
