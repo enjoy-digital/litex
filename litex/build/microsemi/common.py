@@ -1,9 +1,10 @@
-# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+# AsyncResetSynchronizer ---------------------------------------------------------------------------
 
 class MicrosemiPolarfireAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
@@ -25,6 +26,7 @@ class MicrosemiPolarfireAsyncResetSynchronizer:
     def lower(dr):
         return MicrosemiPolarfireAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
+# Special Overrides --------------------------------------------------------------------------------
 
 microsemi_polarfire_special_overrides = {
     AsyncResetSynchronizer: MicrosemiPolarfireAsyncResetSynchronizer,
