@@ -186,7 +186,7 @@ class LatticeTrellisToolchain:
             fragment = fragment.get_fragment()
         platform.finalize(fragment)
 
-         # Generate verilog
+        # Generate verilog
         v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
         named_sc, named_pc = platform.resolve_signals(v_output.ns)
         top_file = build_name + ".v"
