@@ -298,13 +298,11 @@ class XilinxVivadoToolchain:
         # Generate design constraints (.xdc)
         tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
 
-        # Generate build script
-        script = _build_script(build_name, toolchain_path, source)
-
         # Run
         if run:
             if synth_mode == "yosys":
                 common._run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
+            script = _build_script(build_name, toolchain_path, source)
             _run_script(script)
 
         os.chdir(cwd)
