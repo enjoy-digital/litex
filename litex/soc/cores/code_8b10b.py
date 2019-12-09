@@ -286,6 +286,12 @@ class Decoder(Module):
         code5b = Signal(5)
         code4b = input_msb_first[:4]
         code3b = Signal(3)
+
+        mem_6b5b  = Memory(5, len(table_6b5b), init=table_6b5b)
+        port_6b5b = mem_6b5b.get_port()
+        self.specials += mem_6b5b, port_6b5b
+        self.comb += port_6b5b.adr.eq(code6b)
+
         self.sync += [
             self.k.eq(0),
             If(code6b == 0b001111,
@@ -305,9 +311,8 @@ class Decoder(Module):
                 ),
                 code3b.eq(Array(table_4b3b)[code4b])
             ),
-            code5b.eq(Array(table_6b5b)[code6b])
         ]
-
+        self.comb += code5b.eq(port_6b5b.dat_r)
         self.comb += self.d.eq(Cat(code5b, code3b))
 
         # Basic invalid symbols detection: check that we have 4,5 or 6 ones in the symbol. This does
