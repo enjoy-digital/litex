@@ -627,6 +627,110 @@ int main(int i, char **c)
 		printf("\n");
 	}
 
+	printf("1.scratch8: %s\n",
+		(ctrl_scratch8_read() == 0x10) ? "pass":"fail");
+	printf("1.scratch16: %s\n",
+		(ctrl_scratch16_read() == 0x2021) ? "pass":"fail");
+	printf("1.scratch32: %s\n",
+		(ctrl_scratch32_read() == 0x30313233) ? "pass":"fail");
+	printf("1.scratch48: %s\n",
+		(ctrl_scratch48_read() == 0xa0a1a2a3a4a5) ? "pass":"fail");
+	printf("1.scratch64: %s\n",
+		(ctrl_scratch64_read() == 0x4041424344454647) ? "pass":"fail");
+	union {
+		uint64_t ll[2];
+		uint32_t  l[4];
+		uint16_t  s[8];
+		uint8_t  c[16];
+	} foo;
+/* write test */
+	csr_rd_buf_uint8(CSR_CTRL_SCRATCH128_ADDR, &(foo.c[0]), 16);
+	for (int i = 0; i < 16; i++)
+		foo.c[i] += 0x10;
+	csr_wr_buf_uint8(CSR_CTRL_SCRATCH128_ADDR, &(foo.c[0]), 16);
+
+	csr_rd_buf_uint16(CSR_CTRL_SCRATCH128_ADDR, &(foo.s[0]), 8);
+	for (int i = 0; i < 8; i++)
+		foo.s[i] += 0x1000;
+	csr_wr_buf_uint16(CSR_CTRL_SCRATCH128_ADDR, &(foo.s[0]), 8);
+
+	csr_rd_buf_uint32(CSR_CTRL_SCRATCH128_ADDR, &(foo.l[0]), 4);
+	for (int i = 0; i < 4; i++)
+		foo.l[i] += 0x10000000;
+	csr_wr_buf_uint32(CSR_CTRL_SCRATCH128_ADDR, &(foo.l[0]), 4);
+
+	csr_rd_buf_uint64(CSR_CTRL_SCRATCH128_ADDR, &(foo.ll[0]), 2);
+	for (int i = 0; i < 2; i++)
+		foo.ll[i] += 0x1000000000000000;
+	csr_wr_buf_uint64(CSR_CTRL_SCRATCH128_ADDR, &(foo.ll[0]), 3);
+/* read test */
+	csr_rd_buf_uint8(CSR_CTRL_SCRATCH128_ADDR, &(foo.c[0]), 16);
+	printf("8bit array:");
+	for (int i = 0; i < 16; i++)
+		printf(" %02x", foo.c[i]);
+	printf("\n");
+	csr_rd_buf_uint16(CSR_CTRL_SCRATCH128_ADDR, &(foo.s[0]), 8);
+	printf("16bit array:");
+	for (int i = 0; i < 8; i++)
+		printf(" %04x", foo.s[i]);
+	printf("\n");
+	csr_rd_buf_uint32(CSR_CTRL_SCRATCH128_ADDR, &(foo.l[0]), 4);
+	printf("32bit array:");
+	for (int i = 0; i < 4; i++)
+		printf(" %08x", foo.l[i]);
+	printf("\n");
+	csr_rd_buf_uint64(CSR_CTRL_SCRATCH128_ADDR, &(foo.ll[0]), 2);
+	printf("64bit array (Only prints ok on rocket!):");
+	for (int i = 0; i < 2; i++)
+		printf(" %016Lx", foo.ll[i]);
+	printf("\n");
+/* Output should match following results from (csr_data_width == 8):
+ *
+ * - with write test commented out:
+ *
+ *   8bit array: 50 51 52 53 54 55 56 57 58 59 5a 5b 5c 5d 5e 5f
+ *   16bit array: 5051 5253 5455 5657 5859 5a5b 5c5d 5e5f
+ *   32bit array: 50515253 54555657 58595a5b 5c5d5e5f
+ *   64bit array (Only prints ok on rocket!): 5051525354555657 58595a5b5c5d5e5f
+ *
+ * - with write test enabled:
+ *
+ *   8bit array: 90 61 72 63 84 65 76 67 98 69 7a 6b 8c 6d 7e 6f
+ *   16bit array: 9061 7263 8465 7667 9869 7a6b 8c6d 7e6f
+ *   32bit array: 90617263 84657667 98697a6b 8c6d7e6f
+ *   64bit array (Only prints ok on rocket!): 9061726384657667 98697a6b8c6d7e6f
+ */
+        ctrl_scratch8_write(0xa0);
+        ctrl_scratch16_write(0xb0b1);
+        ctrl_scratch32_write(0xc0c1c2c3);
+        ctrl_scratch48_write(0x404142434445);
+        ctrl_scratch64_write(0xd0d1d2d3d4d5d6d7);
+	printf("2.scratch8: %s\n",
+		(ctrl_scratch8_read() == 0xa0) ? "pass":"fail");
+	printf("2.scratch16: %s\n",
+		(ctrl_scratch16_read() == 0xb0b1) ? "pass":"fail");
+	printf("2.scratch32: %s\n",
+		(ctrl_scratch32_read() == 0xc0c1c2c3) ? "pass":"fail");
+	printf("2.scratch48: %s\n",
+		(ctrl_scratch48_read() == 0x404142434445) ? "pass":"fail");
+	printf("2.scratch64: %s\n",
+		(ctrl_scratch64_read() == 0xd0d1d2d3d4d5d6d7) ? "pass":"fail");
+        csr_wr_uint8(0x01, CSR_CTRL_SCRATCH8_ADDR);
+        csr_wr_uint16(0x2345, CSR_CTRL_SCRATCH16_ADDR);
+        csr_wr_uint32(0x6789abcd, CSR_CTRL_SCRATCH32_ADDR);
+        csr_wr_uint64(0xef0123456789abcd, CSR_CTRL_SCRATCH64_ADDR);
+	printf("3.scratch8: %s\n",
+		(csr_rd_uint8(CSR_CTRL_SCRATCH8_ADDR) == 0x01) ?
+		"pass":"fail");
+	printf("3.scratch16: %s\n",
+		(csr_rd_uint16(CSR_CTRL_SCRATCH16_ADDR) == 0x2345) ?
+		"pass":"fail");
+	printf("3.scratch32: %s\n",
+		(csr_rd_uint32(CSR_CTRL_SCRATCH32_ADDR) == 0x6789abcd) ?
+		"pass":"fail");
+	printf("3.scratch64: %s\n",
+		(csr_rd_uint64(CSR_CTRL_SCRATCH64_ADDR) == 0xef0123456789abcd) ?
+		"pass":"fail");
 	printf("--============= \e[1mConsole\e[0m ================--\n");
 	while(1) {
 		putsnonl("\e[92;1mlitex\e[0m> ");

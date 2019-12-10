@@ -43,10 +43,16 @@ class SoCController(Module, AutoCSR):
     def __init__(self):
         self._reset      = CSRStorage(1, description="""
             Write a ``1`` to this register to reset the SoC.""")
-        self._scratch    = CSRStorage(32, reset=0x12345678, description="""
-            Use this register as a scratch space to verify that software read/write accesses
-            to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
-            can be used to verify endianness.""")
+        #self._scratch    = CSRStorage(32, reset=0x12345678, description="""
+        #    Use this register as a scratch space to verify that software read/write accesses
+        #    to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
+        #    can be used to verify endianness.""")
+        self._scratch8   = CSRStorage(  8, reset=0x10)
+        self._scratch16  = CSRStorage( 16, reset=0x2021)
+        self._scratch32  = CSRStorage( 32, reset=0x30313233)
+        self._scratch48  = CSRStorage( 48, reset=0xa0a1a2a3a4a5)
+        self._scratch64  = CSRStorage( 64, reset=0x4041424344454647)
+        self._scratch128 = CSRStorage(128, reset=0x505152535455565758595a5b5c5d5e5f)
         self._bus_errors = CSRStatus(32, description="""
             Total number of Wishbone bus errors (timeouts) since last reset.""")
 
