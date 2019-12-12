@@ -138,7 +138,6 @@ class SoCCore(Module):
         self.integrated_main_ram_size   = integrated_main_ram_size
 
         assert csr_data_width in [8, 32, 64]
-        assert 2**(csr_address_width + 2) <= 0x1000000
         self.csr_data_width    = csr_data_width
         self.csr_address_width = csr_address_width
 
@@ -266,7 +265,7 @@ class SoCCore(Module):
                     address_width = csr_address_width,
                     data_width    = csr_data_width))
             self.add_csr_master(self.wishbone2csr.csr)
-            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 0x1000000)
+            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 2**(csr_address_width + 2))
 
     # Methods --------------------------------------------------------------------------------------
 
