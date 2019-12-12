@@ -487,6 +487,9 @@ class SoCCore(Module):
                 (self.soc_mem_map["csr"] + 0x800*mapaddr),
                 self.csr_data_width, memory)
 
+        # Sort CSR regions by origin
+        self.csr_regions = {k: v for k, v in sorted(self.csr_regions.items(), key=lambda item: item[1].origin)}
+
         # Add CSRs / Config items to constants
         for name, constant in self.csrbankarray.constants:
             self.add_constant(name.upper() + "_" + constant.name.upper(),
