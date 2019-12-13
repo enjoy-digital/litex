@@ -137,7 +137,7 @@ class SoCCore(Module):
         self.integrated_sram_size       = integrated_sram_size
         self.integrated_main_ram_size   = integrated_main_ram_size
 
-        assert csr_data_width in [8, 32, 64]
+        assert csr_data_width in [8, 16, 32]
         self.csr_data_width    = csr_data_width
         self.csr_address_width = csr_address_width
 
@@ -257,6 +257,7 @@ class SoCCore(Module):
         csr_alignment = max(csr_alignment, self.cpu.data_width)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.config["CSR_ALIGNMENT"]  = csr_alignment
+        assert csr_data_width <= csr_alignment
         self.csr_data_width = csr_data_width
         self.csr_alignment  = csr_alignment
         if with_wishbone:
