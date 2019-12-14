@@ -8,7 +8,6 @@
 
 # License: BSD
 
-
 import os
 import subprocess
 import sys
@@ -19,6 +18,7 @@ from litex.build.generic_platform import *
 from litex.build import tools
 from litex.build.xilinx import common
 
+# Constraints (.ucf) -------------------------------------------------------------------------------
 
 def _format_constraint(c):
     if isinstance(c, Pins):
@@ -30,7 +30,6 @@ def _format_constraint(c):
     elif isinstance(c, Misc):
         return c.misc
 
-
 def _format_ucf(signame, pin, others, resname):
     fmt_c = []
     for c in [Pins(pin)] + others:
@@ -41,7 +40,6 @@ def _format_ucf(signame, pin, others, resname):
     if resname[2] is not None:
         fmt_r += "." + resname[2]
     return "NET \"" + signame + "\" " + " | ".join(fmt_c) + "; # " + fmt_r + "\n"
-
 
 def _build_ucf(named_sc, named_pc):
     r = ""
@@ -55,8 +53,9 @@ def _build_ucf(named_sc, named_pc):
         r += "\n" + "\n\n".join(named_pc)
     return r
 
+# Project (.xst) -----------------------------------------------------------------------------------
 
-def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
+def _build_xst(device, sources, vincpaths, build_name, xst_opt):
     prj_contents = ""
     for filename, language, library in sources:
         prj_contents += language + " " + library + " " + tools.cygpath(filename) + "\n"
@@ -76,6 +75,7 @@ def _build_xst_files(device, sources, vincpaths, build_name, xst_opt):
         xst_contents += "}"
     tools.write_to_file(build_name + ".xst", xst_contents)
 
+# Yosys Run ----------------------------------------------------------------------------------------
 
 def _run_yosys(device, sources, vincpaths, build_name):
     ys_contents = ""
@@ -103,6 +103,7 @@ write_edif -pvector bra {build_name}.edif""".format(build_name=build_name, famil
     if r != 0:
         raise OSError("Subprocess failed")
 
+# ISE Run ------------------------------------------------------------------------------------------
 
 def _run_ise(build_name, ise_path, source, mode, ngdbuild_opt,
         toolchain, platform, ver=None):
@@ -164,33 +165,37 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
     if r != 0:
         raise OSError("Subprocess failed")
 
+# XilinxISEToolchain --------------------------------------------------------------------------------
 
 class XilinxISEToolchain:
     attr_translate = {
-        "keep": ("keep", "true"),
-        "no_retiming": ("register_balancing", "no"),
-        "async_reg": None,
-        "mr_ff": None,
-        "ars_ff1": None,
-        "ars_ff2": None,
+        "keep":             ("keep", "true"),
+        "no_retiming":      ("register_balancing", "no"),
+        "async_reg":        None,
+        "mr_ff":            None,
+        "ars_ff1":          None,
+        "ars_ff2":          None,
         "no_shreg_extract": ("shreg_extract", "no")
     }
 
     def __init__(self):
-        self.xst_opt = """-ifmt MIXED
--use_new_parser yes
--opt_mode SPEED
--register_balancing yes"""
+        self.xst_opt = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
         self.map_opt = "-ol high -w"
         self.par_opt = "-ol high -w"
         self.ngdbuild_opt = ""
-        self.bitgen_opt = "-g Binary:Yes -w"
+        self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
 
-    def build(self, platform, fragment, build_dir="build", build_name="top",
-            toolchain_path=None, source=True, run=True, mode="xst", **kwargs):
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
+    def build(self, platform, fragment,
+        build_dir      = "build",
+        build_name     = "top",
+        toolchain_path = None,
+        source         = True,
+        run            = True,
+        mode           = "xst",
+        **kwargs):
+
+        # Get default toolchain path (if not specified)
         if toolchain_path is None:
             if sys.platform == "win32":
                 toolchain_path = "C:\\Xilinx"
@@ -199,35 +204,40 @@ class XilinxISEToolchain:
             else:
                 toolchain_path = "/opt/Xilinx"
 
-        platform.finalize(fragment)
-        ngdbuild_opt = self.ngdbuild_opt
-        vns = None
-
+        # Create build directory
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
+
+        # Finalize design
+        if not isinstance(fragment, _Fragment):
+            fragment = fragment.get_fragment()
+        platform.finalize(fragment)
+
+        vns = None
         try:
-            if mode in ("xst", "yosys", "cpld"):
+            if mode in ["xst", "yosys", "cpld"]:
+                # Generate verilog
                 v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
                 vns = v_output.ns
                 named_sc, named_pc = platform.resolve_signals(vns)
                 v_file = build_name + ".v"
                 v_output.write(v_file)
                 platform.add_source(v_file)
-                if mode in ("xst", "cpld"):
-                    _build_xst_files(platform.device, platform.sources, platform.verilog_include_paths, build_name, self.xst_opt)
+
+                # Generate design project (.xst)
+                if mode in ["xst", "cpld"]:
+                    _build_xst(platform.device, platform.sources, platform.verilog_include_paths, build_name, self.xst_opt)
                     isemode = mode
                 else:
+                    # Run Yosys
                     if run:
                         _run_yosys(platform.device, platform.sources, platform.verilog_include_paths, build_name)
                     isemode = "edif"
-                    ngdbuild_opt += "-p " + platform.device
+                    self.ngdbuild_opt += "-p " + platform.device
 
-            if mode == "mist":
-                from mist import synthesize
-                synthesize(fragment, platform.constraint_manager.get_io_signals())
-
-            if mode == "edif" or mode == "mist":
+            if mode in ["edif"]:
+                # Generate edif
                 e_output = platform.get_edif(fragment)
                 vns = e_output.ns
                 named_sc, named_pc = platform.resolve_signals(vns)
@@ -235,10 +245,12 @@ class XilinxISEToolchain:
                 e_output.write(e_file)
                 isemode = "edif"
 
+            # Generate design constraints (.ucf)
             tools.write_to_file(build_name + ".ucf", _build_ucf(named_sc, named_pc))
+
+            # Run ISE
             if run:
-                _run_ise(build_name, toolchain_path, source, isemode,
-                         ngdbuild_opt, self, platform)
+                _run_ise(build_name, toolchain_path, source, isemode, self.ngdbuild_opt, self, platform)
         finally:
             os.chdir(cwd)
 
