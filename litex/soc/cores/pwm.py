@@ -16,7 +16,7 @@ class PWM(Module, AutoCSR):
     Pulse Width Modulation can be useful for various purposes: dim leds, regulate a fan, control
     an oscillator. Software can configure the PWM width and period and enable/disable it.
     """
-    def __init__(self, pwm=None, with_csr=True):
+    def __init__(self, pwm=None, clock_domain="sys", with_csr=True):
         if pwm is None:
             self.pwm = pwm = Signal()
         self.enable = Signal()
@@ -27,7 +27,8 @@ class PWM(Module, AutoCSR):
 
         counter = Signal(32)
 
-        self.sync += [
+        sync = getattr(self.sync, clock_domain)
+        sync += [
             If(self.enable,
                 counter.eq(counter + 1),
                 If(counter < self.width,
@@ -45,15 +46,17 @@ class PWM(Module, AutoCSR):
         ]
 
         if with_csr:
-            self.add_csr()
+            self.add_csr(clock_domain)
 
-    def add_csr(self):
+    def add_csr(self, clock_domain):
         self._enable = CSRStorage()
         self._width  = CSRStorage(32)
         self._period = CSRStorage(32)
 
-        self.comb += [
-            self.enable.eq(self._enable.storage),
-            self.width.eq(self._width.storage),
-            self.period.eq(self._period.storage)
+        n = 0 if clock_domain == "sys" else 2
+        print(n)
+        self.specials += [
+            MultiReg(self._enable.storage, self.enable, n=n),
+            MultiReg(self._width.storage,  self.width,  n=n),
+            MultiReg(self._period.storage, self.period, n=n),
         ]
