@@ -78,7 +78,8 @@ class XilinxMultiRegImpl(MultiRegImpl):
         if not hasattr(i, "attr"):
             i0, i = i, Signal()
             self.comb += i.eq(i0)
-        self.regs[0].attr.add("mr_ff")
+        if len(self.regs):
+            self.regs[0].attr.add("mr_ff")
         for r in self.regs:
             r.attr.add("async_reg")
             r.attr.add("no_shreg_extract")
