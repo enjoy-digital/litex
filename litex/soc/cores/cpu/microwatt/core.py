@@ -45,7 +45,7 @@ class Microwatt(CPU):
             # Wishbone instruction bus
             i_wishbone_insn_dat_r = wb_insn.dat_r,
             i_wishbone_insn_ack   = wb_insn.ack,
-            i_wishbone_insn_stall = 0,
+            i_wishbone_insn_stall = wb_insn.cyc & ~wb_insn.ack, # No burst support
 
             o_wishbone_insn_adr   = Cat(Signal(4), wb_insn.adr),
             o_wishbone_insn_dat_w = wb_insn.dat_w,
@@ -57,7 +57,7 @@ class Microwatt(CPU):
             # Wishbone data bus
             i_wishbone_data_dat_r = wb_data.dat_r,
             i_wishbone_data_ack   = wb_data.ack,
-            i_wishbone_data_stall = 0,
+            i_wishbone_data_stall = wb_data.cyc & ~wb_data.ack, # No burst support
 
             o_wishbone_data_adr   = Cat(Signal(4), wb_data.adr),
             o_wishbone_data_dat_w = wb_data.dat_w,
