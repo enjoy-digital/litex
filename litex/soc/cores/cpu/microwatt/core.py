@@ -95,38 +95,40 @@ class Microwatt(CPU):
     @staticmethod
     def add_sources(platform):
         sdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sources")
-        platform.add_source(os.path.join(sdir, "decode_types.vhdl"))
-        platform.add_source(os.path.join(sdir, "wishbone_types.vhdl"))
-        platform.add_source(os.path.join(sdir, "common.vhdl"))
-        platform.add_source(os.path.join(sdir, "fetch1.vhdl"))
-        platform.add_source(os.path.join(sdir, "fetch2.vhdl"))
-        platform.add_source(os.path.join(sdir, "decode1.vhdl"))
-        platform.add_source(os.path.join(sdir, "helpers.vhdl"))
-        platform.add_source(os.path.join(sdir, "decode2.vhdl"))
-        platform.add_source(os.path.join(sdir, "register_file.vhdl"))
-        platform.add_source(os.path.join(sdir, "cr_file.vhdl"))
-        platform.add_source(os.path.join(sdir, "crhelpers.vhdl"))
-        platform.add_source(os.path.join(sdir, "ppc_fx_insns.vhdl"))
-        platform.add_source(os.path.join(sdir, "sim_console.vhdl"))
-        platform.add_source(os.path.join(sdir, "logical.vhdl"))
-        platform.add_source(os.path.join(sdir, "countzero.vhdl"))
-        platform.add_source(os.path.join(sdir, "gpr_hazard.vhdl"))
-        platform.add_source(os.path.join(sdir, "cr_hazard.vhdl"))
-        platform.add_source(os.path.join(sdir, "control.vhdl"))
-        platform.add_source(os.path.join(sdir, "execute1.vhdl"))
-        platform.add_source(os.path.join(sdir, "loadstore1.vhdl"))
-        platform.add_source(os.path.join(sdir, "dcache.vhdl"))
-        platform.add_source(os.path.join(sdir, "multiply.vhdl"))
-        platform.add_source(os.path.join(sdir, "divider.vhdl"))
-        platform.add_source(os.path.join(sdir, "rotator.vhdl"))
-        platform.add_source(os.path.join(sdir, "writeback.vhdl"))
-        platform.add_source(os.path.join(sdir, "insn_helpers.vhdl"))
-        platform.add_source(os.path.join(sdir, "core.vhdl"))
-        platform.add_source(os.path.join(sdir, "icache.vhdl"))
-        platform.add_source(os.path.join(sdir, "plru.vhdl"))
-        platform.add_source(os.path.join(sdir, "cache_ram.vhdl"))
-        platform.add_source(os.path.join(sdir, "core_debug.vhdl"))
-        platform.add_source(os.path.join(sdir, "utils.vhdl"))
+        platform.add_source(sdir,
+            "decode_types.vhdl",
+            "wishbone_types.vhdl",
+            "common.vhdl",
+            "fetch1.vhdl",
+            "fetch2.vhdl",
+            "decode1.vhdl",
+            "helpers.vhdl",
+            "decode2.vhdl",
+            "register_file.vhdl",
+            "cr_file.vhdl",
+            "crhelpers.vhdl",
+            "ppc_fx_insns.vhdl",
+            "sim_console.vhdl",
+            "logical.vhdl",
+            "countzero.vhdl",
+            "gpr_hazard.vhdl",
+            "cr_hazard.vhdl",
+            "control.vhdl",
+            "execute1.vhdl",
+            "loadstore1.vhdl",
+            "dcache.vhdl",
+            "multiply.vhdl",
+            "divider.vhdl",
+            "rotator.vhdl",
+            "writeback.vhdl",
+            "insn_helpers.vhdl",
+            "core.vhdl",
+            "icache.vhdl",
+            "plru.vhdl",
+            "cache_ram.vhdl",
+            "core_debug.vhdl",
+            "utils.vhdl"
+        )
         platform.add_source(os.path.join(sdir, "..", "microwatt_wrapper.vhdl"))
 
     def do_finalize(self):
