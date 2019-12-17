@@ -156,5 +156,6 @@ class Platform(XilinxPlatform):
     default_clk_name = "clk50"
     default_clk_period = 1e9/50e6
 
-    def __init__(self):
-        XilinxPlatform.__init__(self, "xc7a35t-fgg484-2", _io, toolchain="vivado")
+    def __init__(self, device="xc7a35t"):
+        assert device in ["xc7a35t", "xc7a100t"]
+        XilinxPlatform.__init__(self, device + "-fgg484-2", _io, toolchain="vivado")
