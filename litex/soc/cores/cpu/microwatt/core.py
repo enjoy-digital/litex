@@ -19,11 +19,19 @@ class Microwatt(CPU):
     endianness           = "little"
     gcc_triple           = ("powerpc64le-linux")
     linker_output_format = "elf64-powerpc64le"
-    io_regions           = {0x80000000: 0x80000000} # origin, length FIXME: check default IO regions
+    io_regions           = {0xc0000000: 0x10000000} # origin, length
 
     @property
     def gcc_flags(self):
-        # FIXME: add default flags
+        flags  = "-m64 "
+        flags += "-mabi=elfv2 "
+        flags += "-msoft-float "
+        flags += "-mno-string "
+        flags += "-mno-multiple "
+        flags += "-mno-vsx "
+        flags += "-mno-altivec "
+        flags += "-mlittle-endian "
+        flags += "-mstrict-align "
         flags += "-D__microwatt__ "
         return flags
 
