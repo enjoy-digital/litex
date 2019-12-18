@@ -141,6 +141,8 @@ class SoCCore(Module):
         self.csr_data_width    = csr_data_width
         self.csr_address_width = csr_address_width
 
+        assert csr_alignment in [32, 64]
+
         self.with_ctrl = with_ctrl
 
         self.with_uart     = with_uart
@@ -200,6 +202,9 @@ class SoCCore(Module):
             # Allow SoCController to reset the CPU
             if with_ctrl:
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
+
+            assert csr_alignment <= self.cpu.data_width
+            csr_alignment = self.cpu.data_width
         else:
             self.submodules.cpu = cpu.CPUNone()
             self.soc_io_regions.update(self.cpu.io_regions)
@@ -256,7 +261,6 @@ class SoCCore(Module):
             self.add_interrupt("timer0", allow_user_defined=True)
 
         # Add Wishbone to CSR bridge
-        csr_alignment = max(csr_alignment, self.cpu.data_width)
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.config["CSR_ALIGNMENT"]  = csr_alignment
         assert csr_data_width <= csr_alignment
