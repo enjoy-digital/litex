@@ -22,6 +22,10 @@ class Microwatt(CPU):
     io_regions           = {0xc0000000: 0x10000000} # origin, length
 
     @property
+    def mem_map(self):
+        return {"csr": 0xc0000000}
+
+    @property
     def gcc_flags(self):
         flags  = "-m64 "
         flags += "-mabi=elfv2 "
