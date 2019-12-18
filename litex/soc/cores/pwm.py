@@ -54,7 +54,6 @@ class PWM(Module, AutoCSR):
         self._period = CSRStorage(32)
 
         n = 0 if clock_domain == "sys" else 2
-        print(n)
         self.specials += [
             MultiReg(self._enable.storage, self.enable, n=n),
             MultiReg(self._width.storage,  self.width,  n=n),
