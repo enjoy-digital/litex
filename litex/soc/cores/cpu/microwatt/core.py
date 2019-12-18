@@ -95,7 +95,7 @@ class Microwatt(CPU):
     @staticmethod
     def add_sources(platform):
         sdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sources")
-        platform.add_source(sdir,
+        platform.add_sources(sdir,
             "decode_types.vhdl",
             "wishbone_types.vhdl",
             "common.vhdl",
