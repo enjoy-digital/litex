@@ -210,7 +210,8 @@ def _printattr(attr, attr_translate):
         if not firsta:
             r += ", "
         firsta = False
-        r += attr_name + " = \"" + attr_value + "\""
+        const_expr = "\"" + attr_value + "\"" if not isinstance(attr_value, int) else str(attr_value)
+        r += attr_name + " = " + const_expr
     if r:
         r = "(* " + r + " *)"
     return r
