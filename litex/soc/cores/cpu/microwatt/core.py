@@ -18,7 +18,7 @@ class Microwatt(CPU):
     data_width           = 64
     endianness           = "little"
     gcc_triple           = ("powerpc64le-linux")
-    linker_output_format = "elf64-powerpc64le"
+    linker_output_format = "elf64-powerpcle"
     io_regions           = {0xc0000000: 0x10000000} # origin, length
 
     @property

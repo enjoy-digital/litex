@@ -170,6 +170,8 @@ class SoCCore(Module):
                 raise ValueError("Unsupported CPU type: {}".format(cpu_type))
             # Declare the CPU
             self.submodules.cpu = cpu.CPUS[cpu_type](platform, self.cpu_variant)
+            if cpu_type == "microwatt":
+                self.add_constant("UART_POLLING", None)
 
             # Update Memory Map (if defined by CPU)
             self.soc_mem_map.update(self.cpu.mem_map)

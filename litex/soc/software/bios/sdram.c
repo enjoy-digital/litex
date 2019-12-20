@@ -46,6 +46,8 @@ __attribute__((unused)) static void cdelay(int i)
 		__asm__ volatile("nop");
 #elif defined (__powerpc__)
 		__asm__ volatile("nop");
+#elif defined (__microwatt__)
+		__asm__ volatile("nop");
 #else
 #error Unsupported architecture
 #endif

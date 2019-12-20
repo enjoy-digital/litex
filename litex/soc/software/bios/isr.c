@@ -56,7 +56,9 @@ void isr(void)
 
 	irqs = irq_pending() & irq_getmask();
 
+#ifndef UART_POLLING
 	if(irqs & (1 << UART_INTERRUPT))
 		uart_isr();
+#endif
 }
 #endif
