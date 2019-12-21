@@ -53,6 +53,8 @@ CPU_VARIANTS = {
     "standard": [None, "std"],
     "full": [],
     "linux" : [],
+    "linuxd" : [],
+    "linuxq" : [],
 }
 CPU_VARIANTS_EXTENSIONS = ["debug", "no-dsp"]
 

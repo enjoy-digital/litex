@@ -41,12 +41,16 @@ from litex.soc.cores.cpu import CPU
 CPU_VARIANTS = {
     "standard": "freechips.rocketchip.system.LitexConfig",
     "linux":    "freechips.rocketchip.system.LitexLinuxConfig",
+    "linuxd":   "freechips.rocketchip.system.LitexLinuxDConfig",
+    "linuxq":   "freechips.rocketchip.system.LitexLinuxQConfig",
     "full":     "freechips.rocketchip.system.LitexFullConfig",
 }
 
 GCC_FLAGS = {
     "standard": "-march=rv64imac   -mabi=lp64 ",
     "linux":    "-march=rv64imac   -mabi=lp64 ",
+    "linuxd":   "-march=rv64imac   -mabi=lp64 ",
+    "linuxq":   "-march=rv64imac   -mabi=lp64 ",
     "full":     "-march=rv64imafdc -mabi=lp64 ",
 }
 
@@ -54,6 +58,8 @@ AXI_DATA_WIDTHS = {
     # variant : (mem, mmio)
     "standard": ( 64,  64),
     "linux":    ( 64,  64),
+    "linuxd":   (128,  64),
+    "linuxq":   (256,  64),
     "full":     ( 64,  64),
 }
 
