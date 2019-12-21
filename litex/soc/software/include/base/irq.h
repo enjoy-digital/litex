@@ -111,7 +111,7 @@ static inline unsigned int irq_getmask(void)
 	asm volatile ("csrr %0, %1" : "=r"(mask) : "i"(CSR_IRQ_MASK));
 	return mask;
 #elif defined (__rocket__)
-	return csr_readl(PLIC_ENABLED) >> 1;
+	return *((unsigned int *)PLIC_ENABLED) >> 1;
 #elif defined (__microwatt__)
 	return 0; // FIXME
 #else
@@ -134,7 +134,7 @@ static inline void irq_setmask(unsigned int mask)
 #elif defined (__minerva__)
 	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
 #elif defined (__rocket__)
-	csr_writel(mask << 1, PLIC_ENABLED);
+	*((unsigned int *)PLIC_ENABLED) = mask << 1;
 #elif defined (__microwatt__)
 	// FIXME
 #else
@@ -161,7 +161,7 @@ static inline unsigned int irq_pending(void)
 	asm volatile ("csrr %0, %1" : "=r"(pending) : "i"(CSR_IRQ_PENDING));
 	return pending;
 #elif defined (__rocket__)
-	return csr_readl(PLIC_PENDING) >> 1;
+	return *((unsigned int *)PLIC_PENDING) >> 1;
 #elif defined (__microwatt__)
 	return 0; // FIXME
 #else

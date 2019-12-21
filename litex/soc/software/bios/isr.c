@@ -16,11 +16,11 @@ void plic_init(void)
 
 	// priorities for interrupt pins 1..4
 	for (i = 1; i <= 4; i++)
-		csr_writel(1, PLIC_BASE + 4*i);
+		*((unsigned int *)PLIC_BASE + i) = 1;
 	// enable interrupt pins 1..4
-	csr_writel(0xf << 1, PLIC_ENABLED);
+	*((unsigned int *)PLIC_ENABLED) = 0xf << 1;
 	// set priority threshold to 0 (any priority > 0 triggers interrupt)
-	csr_writel(0, PLIC_THRSHLD);
+	*((unsigned int *)PLIC_THRSHLD) = 0;
 }
 
 void isr(void);
@@ -28,7 +28,7 @@ void isr(void)
 {
 	unsigned int claim;
 
-	while ((claim = csr_readl(PLIC_CLAIM))) {
+	while ((claim = *((unsigned int *)PLIC_CLAIM))) {
 		switch (claim - 1) {
 		case UART_INTERRUPT:
 			uart_isr();
@@ -45,7 +45,7 @@ void isr(void)
 			printf("###########################\n\n");
 			break;
 		}
-		csr_writel(claim, PLIC_CLAIM);
+		*((unsigned int *)PLIC_CLAIM) = claim;
 	}
 }
 #else
