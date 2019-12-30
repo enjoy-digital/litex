@@ -193,7 +193,12 @@ class LatticeIceStormToolchain:
         return v_output.ns
 
     def add_period_constraint(self, platform, clk, period):
+        clk_ns = 1e3/period
         clk.attr.add("keep")
         if clk in self.clocks:
-            raise ValueError("A period constraint already exists")
-        self.clocks[clk] = 1e3/period
+            if clk_ns != self.clocks[clk]:
+                raise ValueError(
+                    "A period constraint already exists"
+                    "(wanted: {:.2f}ns, got {:.2f}ns)".format(
+                        clk_ns, self.clocks[clk]))
+        self.clocks[clk] = clk_ns
