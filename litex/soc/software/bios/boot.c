@@ -232,6 +232,19 @@ int serialboot(void)
 	return 1;
 }
 
+#if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
+
+#define KERNEL_IMAGE_RAM_OFFSET      0x00000000
+#define ROOTFS_IMAGE_RAM_OFFSET      0x00800000
+#define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
+
+#ifndef EMULATOR_RAM_BASE
+#define EMULATOR_RAM_BASE 0x20000000
+#endif
+#define EMULATOR_IMAGE_RAM_OFFSET    0x00000000
+
+#endif
+
 #ifdef CSR_ETHMAC_BASE
 
 #ifndef LOCALIP1
@@ -268,14 +281,6 @@ const char *filename, char *buffer)
 
 static const unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
-#define KERNEL_IMAGE_RAM_OFFSET      0x00000000
-#define ROOTFS_IMAGE_RAM_OFFSET      0x00800000
-#define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
-
-#ifndef EMULATOR_RAM_BASE
-#define EMULATOR_RAM_BASE 0x20000000
-#endif
-#define EMULATOR_IMAGE_RAM_OFFSET    0x00000000
 
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tftp_port)
