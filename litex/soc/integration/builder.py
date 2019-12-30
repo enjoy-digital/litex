@@ -14,9 +14,16 @@ import struct
 import shutil
 
 from litex.build.tools import write_to_file
-from litex.soc.integration import cpu_interface, soc_core, soc_sdram
+from litex.soc.integration import cpu_interface, soc_core
 
-from litedram.init import get_sdram_phy_c_header
+try:
+    from litex.soc.integration import soc_sdram
+    from litedram.init import get_sdram_phy_c_header
+except ImportError:
+    class soc_sdram:
+        class SoCSDRAM:
+            pass
+
 
 __all__ = ["soc_software_packages", "soc_directory",
            "Builder", "builder_args", "builder_argdict"]
