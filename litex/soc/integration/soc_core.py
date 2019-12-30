@@ -167,9 +167,13 @@ class SoCCore(Module):
         if cpu_type is not None:
             if cpu_variant is not None:
                 self.config["CPU_VARIANT"] = str(cpu_variant.split('+')[0]).upper()
+
             # Check type
             if cpu_type not in cpu.CPUS.keys():
-                raise ValueError("Unsupported CPU type: {}".format(cpu_type))
+                raise ValueError(
+                    "Unsupported CPU type: {} -- supported CPU types: {}".format(
+                        cpu_type, ", ".join(cpu.CPUS.keys())))
+
             # Declare the CPU
             self.submodules.cpu = cpu.CPUS[cpu_type](platform, self.cpu_variant)
             if cpu_type == "microwatt":
