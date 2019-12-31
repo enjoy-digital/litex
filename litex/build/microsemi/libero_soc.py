@@ -288,7 +288,9 @@ class MicrosemiLiberoSoCPolarfireToolchain:
 
     def add_period_constraint(self, platform, clk, period):
         if clk in self.clocks:
-            raise ValueError("A period constraint already exists")
+            if period != self.clocks[clk]:
+                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
+                    .format(self.clocks[clk], period))
         self.clocks[clk] = period
 
     def add_false_path_constraint(self, platform, from_, to):
