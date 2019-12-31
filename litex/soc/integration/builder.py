@@ -16,15 +16,6 @@ import shutil
 from litex.build.tools import write_to_file
 from litex.soc.integration import cpu_interface, soc_core
 
-try:
-    from litex.soc.integration import soc_sdram
-    from litedram.init import get_sdram_phy_c_header
-except ImportError:
-    class soc_sdram:
-        class SoCSDRAM:
-            pass
-
-
 __all__ = ["soc_software_packages", "soc_directory",
            "Builder", "builder_args", "builder_argdict"]
 
@@ -127,13 +118,12 @@ class Builder:
             cpu_interface.get_git_header()
         )
 
-        if isinstance(self.soc, soc_sdram.SoCSDRAM):
-            if hasattr(self.soc, "sdram"):
-                write_to_file(
-                    os.path.join(generated_dir, "sdram_phy.h"),
-                    get_sdram_phy_c_header(
-                        self.soc.sdram.controller.settings.phy,
-                        self.soc.sdram.controller.settings.timing))
+        if hasattr(self.soc, "sdram"):
+            from litedram.init import get_sdram_phy_c_header
+            write_to_file(os.path.join(generated_dir, "sdram_phy.h"),
+                get_sdram_phy_c_header(
+                    self.soc.sdram.controller.settings.phy,
+                    self.soc.sdram.controller.settings.timing))
 
     def _generate_csr_map(self, csr_json=None, csr_csv=None):
         if csr_json is not None:
