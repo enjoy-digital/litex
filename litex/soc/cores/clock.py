@@ -74,7 +74,7 @@ class XilinxClocking(Module, AutoCSR):
                         valid = False
                         for d in range(*self.clkout_divide_range):
                             clk_freq = vco_freq/d
-                            if abs(clk_freq - f) < f*m:
+                            if abs(clk_freq - f) <= f*m:
                                 config["clkout{}_freq".format(n)]   = clk_freq
                                 config["clkout{}_divide".format(n)] = d
                                 config["clkout{}_phase".format(n)]  = p
