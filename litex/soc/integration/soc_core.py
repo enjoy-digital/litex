@@ -45,8 +45,8 @@ class SoCController(Module, AutoCSR):
             Write a ``1`` to this register to reset the SoC.""")
         self._scratch    = CSRStorage(32, reset=0x12345678, description="""
             Use this register as a scratch space to verify that software read/write accesses
-            to the Wishbone/CSR bus are working correctly. The initial reset value can be used
-            to verify endianness.""")
+            to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
+            can be used to verify endianness.""")
         self._bus_errors = CSRStatus(32, description="""
             Total number of Wishbone bus errors (timeouts) since last reset.""")
 
