@@ -42,14 +42,13 @@ __all__ = [
 class SoCController(Module, AutoCSR):
     def __init__(self):
         self._reset      = CSRStorage(1, description="""
-            Write a ``1`` to this register to trigger a system reset.""")
+            Write a ``1`` to this register to reset the SoC.""")
         self._scratch    = CSRStorage(32, reset=0x12345678, description="""
-            This register is not used by LiteX, and is available
-            for use as scratch space.  For example, you can use
-            this register to ensure the Wishbone bus is working.""")
+            Use this register as a scratch space to verify that software read/write accesses
+            to the Wishbone/CSR bus are working correctly. The initial reset value can be used
+            to verify endianness.""")
         self._bus_errors = CSRStatus(32, description="""
-            A running total of the number of bus errors, such
-            as Wishbone timeouts.""")
+            Total number of Wishbone bus errors (timeouts) since last reset.""")
 
         # # #
 
