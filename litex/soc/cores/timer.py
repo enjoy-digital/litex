@@ -48,17 +48,18 @@ class Timer(Module, AutoCSR, ModuleDoc):
     CPU can also do software polling with ``update_value`` and ``value`` to know the elapsed duration)
     """
     def __init__(self, width=32):
-        self._load = CSRStorage(width, description="""Load value when Timer is (re-)enabled.""" +
-            """In One-Shot mode, the value written to this register specify the Timer's duration in
+        self._load = CSRStorage(width, description="""Load value when Timer is (re-)enabled.
+            In One-Shot mode, the value written to this register specifies the Timer's duration in
             clock cycles.""")
-        self._reload = CSRStorage(width, description="""Reload value when Timer reaches 0.""" +
-            """In Periodic mode, the value written to this register specify the Timer's period in
+        self._reload = CSRStorage(width, description="""Reload value when Timer reaches ``0``.
+            In Periodic mode, the value written to this register specify the Timer's period in
             clock cycles.""")
-        self._en = CSRStorage(1, description="""Enable of the Timer.""" +
-            """Set if to 1 to enable/start the Timer and 0 to disable the Timer""")
-        self._update_value = CSRStorage(1, description="""Update of the current countdown value."""+
-            """A write to this register latches the current countdown value to `value` register.""")
-        self._value = CSRStatus(width, description="""Latched countdown value""")
+        self._en = CSRStorage(1, description="""Enable flag of the Timer.
+            Set this flag to ``1`` to enable/start the Timer.  Set to ``0`` to disable the Timer.""")
+        self._update_value = CSRStorage(1, description="""Update trigger for the current countdown value.
+            A write to this register latches the current countdown value to ``value`` register.""")
+        self._value = CSRStatus(width, description="""Latched countdown value.
+            This value is updated by writing to ``update_value``.""")
 
         self.submodules.ev = EventManager()
         self.ev.zero       = EventSourceProcess()
