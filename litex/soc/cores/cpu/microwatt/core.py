@@ -100,38 +100,56 @@ class Microwatt(CPU):
     def add_sources(platform):
         sdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sources")
         platform.add_sources(sdir,
+            # Common / Types / Helpers
             "decode_types.vhdl",
             "wishbone_types.vhdl",
+            "utils.vhdl",
             "common.vhdl",
+            "helpers.vhdl",
+
+            # Fetch
             "fetch1.vhdl",
             "fetch2.vhdl",
+
+            # Instruction/Data Cache
+            "cache_ram.vhdl",
+            "plru.vhdl",
+            "dcache.vhdl",
+            "icache.vhdl",
+
+            # Decode
+            "insn_helpers.vhdl",
             "decode1.vhdl",
-            "helpers.vhdl",
-            "decode2.vhdl",
-            "register_file.vhdl",
-            "cr_file.vhdl",
-            "crhelpers.vhdl",
-            "ppc_fx_insns.vhdl",
-            "sim_console.vhdl",
-            "logical.vhdl",
-            "countzero.vhdl",
             "gpr_hazard.vhdl",
             "cr_hazard.vhdl",
             "control.vhdl",
+            "decode2.vhdl",
+
+            # Register/CR File
+            "register_file.vhdl",
+            "crhelpers.vhdl",
+            "cr_file.vhdl",
+
+            # Execute
+            "ppc_fx_insns.vhdl",
+            "logical.vhdl",
+            "rotator.vhdl",
+            "countzero.vhdl",
             "execute1.vhdl",
+
+            # Load/Store
             "loadstore1.vhdl",
-            "dcache.vhdl",
+
+            # Multiply/Divide
             "multiply.vhdl",
             "divider.vhdl",
-            "rotator.vhdl",
+
+            # Writeback
             "writeback.vhdl",
-            "insn_helpers.vhdl",
-            "core.vhdl",
-            "icache.vhdl",
-            "plru.vhdl",
-            "cache_ram.vhdl",
+
+            # Core
             "core_debug.vhdl",
-            "utils.vhdl"
+            "core.vhdl",
         )
         platform.add_source(os.path.join(sdir, "..", "microwatt_wrapper.vhdl"))
 
