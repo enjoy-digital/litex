@@ -13,13 +13,19 @@ class XADC(Module, AutoCSR):
     def __init__(self, analog=None):
         # add a CSR bank for controlling the XADC DRP. Adds bloat to the gateware
         # if you're not using this feature, but makes the code more elegant.
-        self.drp_enable = CSRStatus()  # must set this to 1 to use DRP, otherwise auto-sample
+        self.drp_enable = CSRStorage()  # must set this to 1 to use DRP, otherwise auto-sample
         self.drp_read = CSR()
         self.drp_write = CSR()
         self.drp_drdy = CSRStatus()
         self.drp_adr = CSRStorage(7)
         self.drp_dat_w = CSRStorage(16)
         self.drp_dat_r = CSRStatus(16)
+
+        # monitor EOC/EOS so we can poll if the ADC has been updated
+        self.eoc = CSRStatus()
+        self.eos = CSRStatus()
+        # TODO: hook up the alarm as interrupt
+
         drp_drdy = Signal()
 
         if analog == None:
@@ -60,7 +66,7 @@ class XADC(Module, AutoCSR):
         data    = Signal(16)
 
         auto = Signal()
-        self.comb += auto.eq(~self.drp_enable.status)
+        self.comb += auto.eq(~self.drp_enable.storage)
         adr = Signal(7)
         self.comb += [
             If(auto,
@@ -90,7 +96,18 @@ class XADC(Module, AutoCSR):
             i_DI=self.drp_dat_w.storage, i_DWE=self.drp_write.re,
             # o_JTAGBUSY=, o_JTAGLOCKED=, o_JTAGMODIFIED=, o_MUXADDR=,
         )
-        self.comb += self.drp_dat_r.status.eq(data)
+        self.sync += [
+            If(drp_drdy,
+               self.drp_dat_r.status.eq(data),
+            ).Else(
+               self.drp_dat_r.status.eq(self.drp_dat_r.status),
+            )
+        ]
+
+        self.sync += [
+            self.eoc.status.eq((~self.eoc.we & self.eoc.status) | eoc),
+            self.eos.status.eq((~self.eos.we & self.eos.status) | eos),
+        ]
 
         channels = {
             0: self.temperature,
