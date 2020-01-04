@@ -86,7 +86,7 @@ class SRAM(Module):
             mem = Memory(data_width, mem_or_size//(data_width//8), init=init)
         mem_size = int(mem.width*mem.depth/8)
         if mem_size > 512:
-            print("WARNING: memory > 512 bytes in CSR region requires paged access".format(mem_size))
+            print("WARNING: memory > 512 bytes in CSR region requires paged access (mem_size = {} bytes)".format(mem_size))
         csrw_per_memw = (mem.width + data_width - 1)//data_width
         word_bits = log2_int(csrw_per_memw)
         page_bits = log2_int((mem.depth*csrw_per_memw + 511)//512, False)
@@ -109,11 +109,15 @@ class SRAM(Module):
         sel_r = Signal()
         self.sync += sel_r.eq(sel)
         self.comb += sel.eq(self.bus.adr[9:] == address)
+        if bus.alignment == 64:
+            self.comb += If(self.bus.adr[0], sel.eq(0))
+
+        adr_shift = log2_int(bus.alignment//32)
 
         if word_bits:
             word_index = Signal(word_bits)
             word_expanded = Signal(csrw_per_memw*data_width)
-            self.sync += word_index.eq(self.bus.adr[:word_bits])
+            self.sync += word_index.eq(self.bus.adr[adr_shift:adr_shift+word_bits])
             self.comb += [
                 word_expanded.eq(port.dat_r),
                 If(sel_r,
@@ -124,11 +128,11 @@ class SRAM(Module):
                 wregs = []
                 for i in range(csrw_per_memw-1):
                     wreg = Signal(data_width)
-                    self.sync += If(sel & self.bus.we & (self.bus.adr[:word_bits] == i), wreg.eq(self.bus.dat_w))
+                    self.sync += If(sel & self.bus.we & (self.bus.adr[adr_shift:adr_shift+word_bits] == i), wreg.eq(self.bus.dat_w))
                     wregs.append(wreg)
                 memword_chunks = [self.bus.dat_w] + list(reversed(wregs))
                 self.comb += [
-                    port.we.eq(sel & self.bus.we & (self.bus.adr[:word_bits] == csrw_per_memw - 1)),
+                    port.we.eq(sel & self.bus.we & (self.bus.adr[adr_shift:adr_shift+word_bits] == csrw_per_memw - 1)),
                     port.dat_w.eq(Cat(*memword_chunks))
                 ]
         else:
@@ -140,10 +144,10 @@ class SRAM(Module):
                 ]
 
         if self._page is None:
-            self.comb += port.adr.eq(self.bus.adr[word_bits:word_bits+len(port.adr)])
+            self.comb += port.adr.eq(self.bus.adr[adr_shift+word_bits:adr_shift+word_bits+len(port.adr)])
         else:
             pv = self._page.storage
-            self.comb += port.adr.eq(Cat(self.bus.adr[word_bits:word_bits+len(port.adr)-len(pv)], pv))
+            self.comb += port.adr.eq(Cat(self.bus.adr[adr_shift+word_bits:adr_shift+word_bits+len(port.adr)-len(pv)], pv))
 
     def get_csrs(self):
         if self._page is None:

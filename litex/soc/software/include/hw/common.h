@@ -14,7 +14,7 @@
 #ifdef __ASSEMBLER__
 #define MMPTR(x) x
 #else /* ! __ASSEMBLER__ */
-#define MMPTR(x) (*((volatile unsigned int *)(x)))
+#define MMPTR(x) (*((volatile unsigned long *)(x)))
 
 static inline void csr_writeb(uint8_t value, unsigned long addr)
 {
