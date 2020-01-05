@@ -29,7 +29,7 @@ class Minerva(CPU):
         return flags
 
     def __init__(self, platform, variant="standard"):
-        assert variant is "standard", "Unsupported variant %s" % variant
+        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
         self.platform  = platform
         self.variant   = variant
         self.reset     = Signal()
