@@ -1,4 +1,6 @@
-# Copyright 2014-2015 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
+# This file is Copyright (c) 2019 bunnie <bunnie@kosagi.com>
+# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from migen import *
@@ -7,8 +9,10 @@ from litex.soc.interconnect.csr import *
 
 # XADC ---------------------------------------------------------------------------------------------
 
+analog_layout = [("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)]
+
 class XADC(Module, AutoCSR):
-    def __init__(self):
+    def __init__(self, analog_pads=None):
         # Temperature(°C) = adc_value*503.975/4096 - 273.15
         self.temperature = CSRStatus(12)
 
@@ -16,6 +20,10 @@ class XADC(Module, AutoCSR):
         self.vccint  = CSRStatus(12)
         self.vccaux  = CSRStatus(12)
         self.vccbram = CSRStatus(12)
+
+        # End of Convertion/Sequence
+        self.eoc = CSRStatus()
+        self.eos = CSRStatus()
 
         # Alarms
         self.alarm = Signal(8)
@@ -27,11 +35,16 @@ class XADC(Module, AutoCSR):
         channel = Signal(7)
         eoc     = Signal()
         eos     = Signal()
-        data    = Signal(16)
-        drdy    = Signal()
 
+        # XADC instance ----------------------------------------------------------------------------
+        self.dwe  = Signal()
+        self.den  = Signal()
+        self.drdy = Signal()
+        self.dadr = Signal(7)
+        self.di   = Signal(16)
+        self.do   = Signal(16)
         self.specials += Instance("XADC",
-            # from ug480
+            # From ug480
             p_INIT_40=0x9000, p_INIT_41=0x2ef0, p_INIT_42=0x0400,
             p_INIT_48=0x4701, p_INIT_49=0x000f,
             p_INIT_4A=0x4700, p_INIT_4B=0x0000,
@@ -42,26 +55,77 @@ class XADC(Module, AutoCSR):
             p_INIT_54=0xa93a, p_INIT_55=0x5111,
             p_INIT_56=0x91eb, p_INIT_57=0xae4e,
             p_INIT_58=0x5999, p_INIT_5C=0x5111,
-            o_ALM=self.alarm, o_OT=self.ot,
-            o_BUSY=busy, o_CHANNEL=channel, o_EOC=eoc, o_EOS=eos,
-            i_VAUXN=0, i_VAUXP=1, i_VN=0, i_VP=1,
-            i_CONVST=0, i_CONVSTCLK=0, i_RESET=ResetSignal(),
-            o_DO=data, o_DRDY=drdy, i_DADDR=channel, i_DCLK=ClockSignal(),
-            i_DEN=eoc, i_DI=0, i_DWE=0,
-            # o_JTAGBUSY=, o_JTAGLOCKED=, o_JTAGMODIFIED=, o_MUXADDR=,
+            o_ALM       = self.alarm,
+            o_OT        = self.ot,
+            o_BUSY      = busy,
+            o_CHANNEL   = channel,
+            o_EOC       = eoc,
+            o_EOS       = eos,
+            i_VAUXP     = 0 if analog_pads is None else analog_pads.vauxp,
+            i_VAUXN     = 0 if analog_pads is None else analog_pads.vauxn,
+            i_VP        = 0 if analog_pads is None else analog_pads.vp,
+            i_VN        = 0 if analog_pads is None else analog_pads.vn,
+            i_CONVST    = 0,
+            i_CONVSTCLK = 0,
+            i_RESET     = ResetSignal(),
+            i_DCLK      = ClockSignal(),
+            i_DWE       = self.dwe,
+            i_DEN       = self.den,
+            o_DRDY      = self.drdy,
+            i_DADDR     = self.dadr,
+            i_DI        = self.di,
+            o_DO        = self.do
         )
+        self.comb += [
+            self.den.eq(eoc),
+            self.dadr.eq(channel),
+        ]
 
+        # Channels update --------------------------------------------------------------------------
         channels = {
             0: self.temperature,
             1: self.vccint,
             2: self.vccaux,
             6: self.vccbram
         }
-
         self.sync += [
-                If(drdy,
+                If(self.drdy,
                     Case(channel, dict(
-                        (k, v.status.eq(data >> 4))
+                        (k, v.status.eq(self.do >> 4))
                     for k, v in channels.items()))
                 )
+        ]
+
+        # End of Convertion/Sequence update --------------------------------------------------------
+        self.sync += [
+            self.eoc.status.eq((self.eoc.status & ~self.eoc.we) | eoc),
+            self.eos.status.eq((self.eos.status & ~self.eos.we) | eos),
+        ]
+
+    def expose_drp(self):
+        self.drp_enable = CSRStorage() # Set to 1 to use DRP and disable auto-sampling
+        self.drp_read   = CSR()
+        self.drp_write  = CSR()
+        self.drp_drdy   = CSRStatus()
+        self.drp_adr    = CSRStorage(7)
+        self.drp_dat_w  = CSRStorage(16)
+        self.drp_dat_r  = CSRStatus(16)
+
+        # # #
+
+        self.comb += [
+            self.dwe.eq(self.drp_write.re),
+            self.di.eq(self.drp_dat_w.storage),
+            self.drp_dat_r.status.eq(self.do),
+            If(self.drp_enable.storage,
+                self.den.eq(self.drp_read.re | self.drp_write.re),
+                self.dadr.eq(self.drp_adr.storage),
+            ),
+        ]
+        self.sync += [
+            If(self.drp_read.re | self.drp_write.re,
+                self.drp_drdy.status.eq(0)
+            ).Elif(self.drdy,
+                self.drp_drdy.status.eq(1)
+            )
         ]
