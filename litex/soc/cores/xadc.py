@@ -9,6 +9,8 @@ from litex.soc.interconnect.csr import *
 
 # XADC ---------------------------------------------------------------------------------------------
 
+analog_layout = [("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)]
+
 class XADC(Module, AutoCSR):
     def __init__(self, analog_pads=None):
         # Temperature(°C) = adc_value*503.975/4096 - 273.15
@@ -26,12 +28,6 @@ class XADC(Module, AutoCSR):
         # Alarms
         self.alarm = Signal(8)
         self.ot    = Signal()
-
-        # Analog
-        if analog_pads == None:
-            self.analog = Record([("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)])
-        else:
-            self.analog = analog_pads
 
         # # #
 
@@ -65,10 +61,10 @@ class XADC(Module, AutoCSR):
             o_CHANNEL   = channel,
             o_EOC       = eoc,
             o_EOS       = eos,
-            i_VAUXN     = self.analog.vauxn,
-            i_VAUXP     = self.analog.vauxp,
-            i_VN        = self.analog.vn,
-            i_VP        = self.analog.vp,
+            i_VAUXP     = 0 if analog_pads is None else analog_pads.vauxp,
+            i_VAUXN     = 0 if analog_pads is None else analog_pads.vauxn,
+            i_VP        = 0 if analog_pads is None else analog_pads.vp,
+            i_VN        = 0 if analog_pads is None else analog_pads.vn,
             i_CONVST    = 0,
             i_CONVSTCLK = 0,
             i_RESET     = ResetSignal(),
