@@ -10,7 +10,7 @@ from litex.soc.interconnect.csr import *
 # XADC ---------------------------------------------------------------------------------------------
 
 class XADC(Module, AutoCSR):
-    def __init__(self):
+    def __init__(self, analog_pads=None):
         # Temperature(°C) = adc_value*503.975/4096 - 273.15
         self.temperature = CSRStatus(12)
 
@@ -28,9 +28,10 @@ class XADC(Module, AutoCSR):
         self.ot    = Signal()
 
         # Analog
-        self.analog = Record([("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)])
-        self.analog.vauxp.reset = 1
-        self.analog.vp.reset    = 1
+        if analog_pads == None:
+            self.analog = Record([("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)])
+        else:
+            self.analog = analog_pads
 
         # # #
 
