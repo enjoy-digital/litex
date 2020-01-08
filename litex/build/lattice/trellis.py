@@ -74,6 +74,28 @@ def _build_yosys(template, platform, nowidelut, build_name):
         ))
     tools.write_to_file(build_name + ".ys", "\n".join(ys))
 
+def nextpnr_ecp5_parse_device(device):
+    device      = device.lower()
+    family      = device.split("-")[0]
+    size        = device.split("-")[1]
+    speed_grade = device.split("-")[2][0]
+    if speed_grade not in ["6", "7", "8"]:
+       raise ValueError("Invalid speed grade {}".format(speed_grade))
+    package     = device.split("-")[2][1:]
+    if "256" in package:
+        package = "CABGA256"
+    elif "285" in package:
+        package = "CSFBGA285"
+    elif "381" in package:
+        package = "CABGA381"
+    elif "554" in package:
+        package = "CABGA554"
+    elif "756" in package:
+        package = "CABGA756"
+    else:
+       raise ValueError("Invalid package {}".format(package))
+    return (family, size, speed_grade, package)
+
 nextpnr_ecp5_architectures = {
     "lfe5u-25f"   : "25k",
     "lfe5u-45f"   : "45k",
@@ -85,22 +107,6 @@ nextpnr_ecp5_architectures = {
     "lfe5um5g-45f": "um5g-45k",
     "lfe5um5g-85f": "um5g-85k",
 }
-
-def nextpnr_ecp5_package(package):
-    if "256" in package:
-        return "CABGA256"
-    elif "285" in package:
-        return "CSFBGA285"
-    elif "381" in package:
-        return "CABGA381"
-    elif "554" in package:
-        return "CABGA554"
-    elif "756" in package:
-        return "CABGA756"
-    raise ValueError("Unknown package {}".format(package))
-
-def nextpnr_ecp5_speed_grade(package):
-    return package[0] if package[0] in ["6", "7", "8"] else "6"
 
 # Script -------------------------------------------------------------------------------------------
 
@@ -203,11 +209,9 @@ class LatticeTrellisToolchain:
         # Generate Yosys script
         _build_yosys(self.yosys_template, platform, nowidelut, build_name)
 
-        # Translate device to Nextpnr architecture/package
-        (family, size, package) = platform.device.split("-")
-        architecture = nextpnr_ecp5_architectures[(family + "-" + size).lower()]
-        speed_grade  = nextpnr_ecp5_speed_grade(package)
-        package      = nextpnr_ecp5_package(package)
+        # Translate device to Nextpnr architecture/package/speed_grade
+        (family, size, speed_grade, package) = nextpnr_ecp5_parse_device(platform.device)
+        architecture = nextpnr_ecp5_architectures[(family + "-" + size)]
 
         # Generate build script
         script = _build_script(False, self.build_template, build_name, architecture, package,
