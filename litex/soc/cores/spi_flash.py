@@ -8,6 +8,7 @@
 
 from migen import *
 from migen.genlib.misc import timeline
+from migen.fhdl.specials import Tristate
 
 from litex.gen import *
 
@@ -120,7 +121,11 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         addr_width = 24
 
         dq = TSTriple(spi_width)
-        self.specials.dq = dq.get_tristate(pads.dq)
+        # Keep DQ2,DQ3 as outputs during bitbang, this ensures they activate ~WP or ~HOLD functions
+        self.specials.dq0 = Tristate(pads.dq[0], o=dq.o[0], i=dq.i[0], oe=dq.oe)
+        self.specials.dq1 = Tristate(pads.dq[1], o=dq.o[1], i=dq.i[1], oe=dq.oe)
+        self.specials.dq2 = Tristate(pads.dq[2], o=dq.o[2], i=dq.i[2], oe=(dq.oe | self.bitbang_en.storage))
+        self.specials.dq3 = Tristate(pads.dq[3], o=dq.o[3], i=dq.i[3], oe=(dq.oe | self.bitbang_en.storage))
 
         sr = Signal(max(cmd_width, addr_width, wbone_width))
         if endianness == "big":
