@@ -73,14 +73,11 @@ _io = [
         IOStandard("LVCMOS33"), Drive(8), Misc("SLEW=FAST")
     ),
 
-    ("sd", 0,
-        Subsignal("sck", Pins("L12")),
-        Subsignal("d3", Pins("K12")),
-        Subsignal("d", Pins("M10")),
-        Subsignal("d1", Pins("L10")),
-        Subsignal("d2", Pins("J11")),
-        Subsignal("cmd", Pins("K11")),
-        IOStandard("LVCMOS33")
+    ("sdcard", 0,
+        Subsignal("data", Pins("M10 L10 J11 K12"), Misc("PULLUP")),
+        Subsignal("cmd", Pins("K11"), Misc("PULLUP")),
+        Subsignal("clk", Pins("L12")),
+        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
     ),
 
     ("dvi_in", 0,
