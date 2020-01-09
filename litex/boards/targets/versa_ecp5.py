@@ -37,19 +37,19 @@ class _CRG(Module):
 
         self.stop = Signal()
 
-        # clk / rst
+        # Clk / Rst
         clk100 = platform.request("clk100")
         rst_n  = platform.request("rst_n")
         platform.add_period_constraint(clk100, 1e9/100e6)
 
-        # power on reset
+        # Power on reset
         por_count = Signal(16, reset=2**16-1)
         por_done  = Signal()
         self.comb += self.cd_por.clk.eq(ClockSignal())
         self.comb += por_done.eq(por_count == 0)
         self.sync.por += If(~por_done, por_count.eq(por_count - 1))
 
-        # pll
+        # PLL
         self.submodules.pll = pll = ECP5PLL()
         pll.register_clkin(clk100, 100e6)
         pll.create_clkout(self.cd_sys2x_i, 2*sys_clk_freq)
