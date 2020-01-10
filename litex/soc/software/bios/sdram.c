@@ -841,6 +841,51 @@ static int memtest_addr(void)
 	return errors;
 }
 
+static void memspeed(void)
+{
+	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	int i;
+	unsigned int start, end;
+	unsigned long write_speed;
+	unsigned long read_speed;
+	__attribute__((unused)) unsigned int data;
+
+	/* init timer */
+	timer0_en_write(0);
+	timer0_reload_write(0);
+	timer0_load_write(0xffffffff);
+	timer0_en_write(1);
+
+	/* write speed */
+	timer0_update_value_write(1);
+	start = timer0_value_read();
+	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+		array[i] = i;
+	}
+	timer0_update_value_write(1);
+	end = timer0_value_read();
+	write_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
+
+	/* flush CPU and L2 caches */
+	flush_cpu_dcache();
+#ifdef CONFIG_L2_SIZE
+	flush_l2_cache();
+#endif
+
+	/* read speed */
+	timer0_en_write(1);
+	timer0_update_value_write(1);
+	start = timer0_value_read();
+	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+		data = array[i];
+	}
+	timer0_update_value_write(1);
+	end = timer0_value_read();
+	read_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
+
+	printf("Memspeed Writes: %dMbps Reads: %dMbps\n", write_speed, read_speed);
+}
+
 int memtest(void)
 {
 	int bus_errors, data_errors, addr_errors;
@@ -861,6 +906,7 @@ int memtest(void)
 		return 0;
 	else {
 		printf("Memtest OK\n");
+		memspeed();
 		return 1;
 	}
 }
