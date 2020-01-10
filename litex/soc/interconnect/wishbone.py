@@ -606,7 +606,10 @@ class Cache(Module):
                 If(tag_do.dirty,
                     NextState("EVICT")
                 ).Else(
-                    NextState("REFILL_WRTAG")
+                    # Write the tag first to set the slave address
+                    tag_port.we.eq(1),
+                    word_clr.eq(1),
+                    NextState("REFILL")
                 )
             )
         )
@@ -618,15 +621,12 @@ class Cache(Module):
             If(slave.ack,
                 word_inc.eq(1),
                  If(word_is_last(word),
-                    NextState("REFILL_WRTAG")
+                    # Write the tag first to set the slave address
+                    tag_port.we.eq(1),
+                    word_clr.eq(1),
+                    NextState("REFILL")
                 )
             )
-        )
-        fsm.act("REFILL_WRTAG",
-            # Write the tag first to set the slave address
-            tag_port.we.eq(1),
-            word_clr.eq(1),
-            NextState("REFILL")
         )
         fsm.act("REFILL",
             slave.stb.eq(1),
