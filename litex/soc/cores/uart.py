@@ -267,3 +267,26 @@ class UARTMultiplexer(Module):
                 uarts[n].rx.eq(uart.rx)
             ]
         self.comb += Case(self.sel, cases)
+
+class BridgedUart(UART):
+    """
+    Creates a UART that's fully compatible with the existing
+    UART class, except it adds a second UART that can be read
+    over the Wishbone bridge.
+
+    This allows a program on the other end of the Wishbone
+    bridge to act as a terminal emulator on a board where
+    the UART is otherwise used as a Wishbone bridge.
+    """
+    def __init__(self, **kw):
+        class BridgedUartPhy:
+            def __init__(self):
+                self.sink = stream.Endpoint([("data", 8)])
+                self.source = stream.Endpoint([("data", 8)])
+        class CrossoverPhy:
+            def __init__(self, phy):
+                self.source = phy.sink
+                self.sink = phy.source
+        phy = BridgedUartPhy()
+        UART.__init__(self, phy, **kw)
+        self.submodules.xover = UART(CrossoverPhy(phy))
