@@ -240,7 +240,9 @@ class SoCCore(Module):
         # Add UART
         if with_uart:
             if uart_stub:
-                self.submodules.uart  = uart.UARTStub()
+                self.submodules.uart = uart.UARTStub()
+            elif uart_name == "emulator":
+                self.submodules.uart = uart.UARTEmulator()
             else:
                 if uart_name == "jtag_atlantic":
                     from litex.soc.cores.jtag import JTAGAtlantic

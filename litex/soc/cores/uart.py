@@ -13,13 +13,15 @@ from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.wishbonebridge import WishboneStreamingBridge
 
-# RS232 PHY ----------------------------------------------------------------------------------------
-
-class RS232PHYInterface:
+class UARTInterface:
     def __init__(self):
-        self.sink = stream.Endpoint([("data", 8)])
+        self.sink   = stream.Endpoint([("data", 8)])
         self.source = stream.Endpoint([("data", 8)])
 
+# RS232 PHY ----------------------------------------------------------------------------------------
+
+class RS232PHYInterface(UARTInterface):
+    pass
 
 class RS232PHYRX(Module):
     def __init__(self, pads, tuning_word):
@@ -268,25 +270,21 @@ class UARTMultiplexer(Module):
             ]
         self.comb += Case(self.sel, cases)
 
-class BridgedUart(UART):
-    """
-    Creates a UART that's fully compatible with the existing
-    UART class, except it adds a second UART that can be read
-    over the Wishbone bridge.
+# UART Emulator ------------------------------------------------------------------------------------
 
-    This allows a program on the other end of the Wishbone
-    bridge to act as a terminal emulator on a board where
-    the UART is otherwise used as a Wishbone bridge.
+class UARTEmulator(UART):
     """
-    def __init__(self, **kw):
-        class BridgedUartPhy:
-            def __init__(self):
-                self.sink = stream.Endpoint([("data", 8)])
-                self.source = stream.Endpoint([("data", 8)])
-        class CrossoverPhy:
-            def __init__(self, phy):
-                self.source = phy.sink
-                self.sink = phy.source
-        phy = BridgedUartPhy()
-        UART.__init__(self, phy, **kw)
-        self.submodules.xover = UART(CrossoverPhy(phy))
+    UART emulation over Wishbone bridge.
+
+    Creates a fully compatible UART that can be used by the CPU as a regular UART and adds a second
+    UART, cross-connected to the main one to allow terminal emulation over a Wishbone bridge.
+    """
+    def __init__(self, **kwargs):
+        uart_phy = UARTInterface()
+        emul_phy = UARTInterface()
+        UART.__init__(self, uart_phy, **kwargs)
+        self.submodules.emul = UART(emul_phy)
+        self.comb += [
+            uart_phy.source.connect(emul_phy.sink),
+            emul_phy.source.connect(uart_phy.sink)
+        ]
