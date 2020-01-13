@@ -23,12 +23,6 @@ class UARTInterface:
         self.sink   = stream.Endpoint([("data", 8)])
         self.source = stream.Endpoint([("data", 8)])
 
-    def connect(self, other):
-        return [
-            other.source.connect(self.sink),
-            self.source.connect(other.sink)
-        ]
-
 # RS232 PHY ----------------------------------------------------------------------------------------
 
 class RS232PHYInterface(UARTInterface):
@@ -278,4 +272,7 @@ class UARTCrossover(UART):
         assert kwargs.get("phy", None) == None
         UART.__init__(self, **kwargs)
         self.submodules.xover = UART(tx_fifo_depth=2, rx_fifo_depth=2)
-        self.comb += self.connect(self.xover)
+        self.comb += [
+            self.source.connect(self.xover.sink),
+            self.xover.source.connect(self.sink)
+        ]
