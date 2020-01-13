@@ -81,10 +81,7 @@ class BaseSoC(SoCSDRAM):
         platform = kcu105.Platform()
 
         # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size  = integrated_rom_size,
-            integrated_sram_size = 0x8000,
-             **kwargs)
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -111,7 +108,7 @@ class EthernetSoC(BaseSoC):
     mem_map.update(BaseSoC.mem_map)
 
     def __init__(self, **kwargs):
-        BaseSoC.__init__(self, integrated_rom_size=0x10000, **kwargs)
+        BaseSoC.__init__(self, **kwargs)
 
         self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
         self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,

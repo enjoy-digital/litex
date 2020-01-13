@@ -85,7 +85,7 @@ class SoCCore(Module):
                 # CPU parameters
                 cpu_type="vexriscv", cpu_reset_address=0x00000000, cpu_variant=None,
                 # ROM parameters
-                integrated_rom_size=0, integrated_rom_init=[],
+                integrated_rom_size=32768, integrated_rom_init=[],
                 # SRAM parameters
                 integrated_sram_size=4096, integrated_sram_init=[],
                 # MAIN_RAM parameters
@@ -560,13 +560,13 @@ def soc_core_args(parser):
     parser.add_argument("--cpu-reset-address", default=None, type=int,
                         help="CPU reset address (default=0x00000000 or ROM)")
     # ROM parameters
-    parser.add_argument("--integrated-rom-size", default=None, type=int,
+    parser.add_argument("--integrated-rom-size", default=0x8000, type=int,
                         help="size/enable the integrated (BIOS) ROM")
     parser.add_argument("--integrated-rom-file", default=None, type=str,
-                        help="integrated (BIOS) ROM binary file")
+                        help="integrated (BIOS) ROM binary file (default=32KB)")
     # SRAM parameters
-    parser.add_argument("--integrated_sram_size", default=None,
-                        help="size/enable the integrated SRAM")
+    parser.add_argument("--integrated_sram_size", default=0x1000,
+                        help="size/enable the integrated SRAM (default=4KB)")
     # MAIN_RAM parameters
     parser.add_argument("--integrated-main-ram-size", default=None, type=int,
                         help="size/enable the integrated main RAM")

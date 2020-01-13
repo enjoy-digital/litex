@@ -49,9 +49,7 @@ class BaseSoC(SoCSDRAM):
         platform = minispartan6.Platform()
 
         # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size = 0x8000,
-            **kwargs)
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)

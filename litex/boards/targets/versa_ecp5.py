@@ -72,13 +72,11 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(75e6), toolchain="diamond", integrated_rom_size=0x8000, **kwargs):
+    def __init__(self, sys_clk_freq=int(75e6), toolchain="diamond", **kwargs):
         platform = versa_ecp5.Platform(toolchain=toolchain)
 
         # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size=integrated_rom_size,
-            **kwargs)
+        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -105,7 +103,7 @@ class EthernetSoC(BaseSoC):
     mem_map.update(BaseSoC.mem_map)
 
     def __init__(self, toolchain="diamond", **kwargs):
-        BaseSoC.__init__(self, toolchain=toolchain, integrated_rom_size=0x10000, **kwargs)
+        BaseSoC.__init__(self, toolchain=toolchain, **kwargs)
 
         self.submodules.ethphy = LiteEthPHYRGMII(
             self.platform.request("eth_clocks"),
