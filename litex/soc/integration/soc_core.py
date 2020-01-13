@@ -242,7 +242,7 @@ class SoCCore(Module):
             if uart_name in ["stub", "stream"]:
                 self.submodules.uart = uart.UART()
                 if uart_name == "stub":
-                    self.comb += uart.sink.ready.eq(1)
+                    self.comb += self.uart.sink.ready.eq(1)
             elif uart_name == "crossover":
                 self.submodules.uart = uart.UARTCrossover()
             else:
