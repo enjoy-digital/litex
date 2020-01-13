@@ -85,9 +85,9 @@ class SoCCore(Module):
                 # CPU parameters
                 cpu_type="vexriscv", cpu_reset_address=0x00000000, cpu_variant=None,
                 # ROM parameters
-                integrated_rom_size=32768, integrated_rom_init=[],
+                integrated_rom_size=0x8000, integrated_rom_init=[],
                 # SRAM parameters
-                integrated_sram_size=4096, integrated_sram_init=[],
+                integrated_sram_size=0x1000, integrated_sram_init=[],
                 # MAIN_RAM parameters
                 integrated_main_ram_size=0, integrated_main_ram_init=[],
                 # CSR parameters
