@@ -243,6 +243,8 @@ class SoCCore(Module):
                 self.submodules.uart = uart.UART()
                 if uart_name == "stub":
                     self.comb += uart.sink.ready.eq(1)
+            elif uart_name == "crossover":
+                self.submodules.uart = uart.UARTCrossover()
             else:
                 if uart_name == "jtag_atlantic":
                     from litex.soc.cores.jtag import JTAGAtlantic

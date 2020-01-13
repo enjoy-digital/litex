@@ -264,3 +264,18 @@ class UARTMultiplexer(Module):
                 uarts[n].rx.eq(uart.rx)
             ]
         self.comb += Case(self.sel, cases)
+
+# UART Crossover -----------------------------------------------------------------------------------
+
+class UARTCrossover(UART):
+    """
+    UART crossover trough Wishbone bridge.
+
+    Creates a fully compatible UART that can be used by the CPU as a regular UART and adds a second
+    UART, cross-connected to the main one to allow terminal emulation over a Wishbone bridge.
+    """
+    def __init__(self, **kwargs):
+        assert kwargs.get("phy", None) == None
+        UART.__init__(self, **kwargs)
+        self.submodules.xover = UART(tx_fifo_depth=2, rx_fifo_depth=2)
+        self.comb += self.connect(self.xover)
