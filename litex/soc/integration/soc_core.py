@@ -95,7 +95,7 @@ class SoCCore(Module):
                 # Identifier parameters
                 ident="", ident_version=False,
                 # UART parameters
-                with_uart=True, uart_name="serial", uart_baudrate=115200, uart_stub=False,
+                with_uart=True, uart_name="serial", uart_baudrate=115200,
                 # Timer parameters
                 with_timer=True,
                 # Controller parameters
@@ -239,10 +239,10 @@ class SoCCore(Module):
 
         # Add UART
         if with_uart:
-            if uart_stub:
-                self.submodules.uart = uart.UARTStub()
-            elif uart_name == "emulator":
-                self.submodules.uart = uart.UARTEmulator()
+            if uart_name in ["stub", "stream"]:
+                self.submodules.uart = uart.UART()
+                if uart_name == "stub":
+                    self.comb += uart.sink.ready.eq(1)
             else:
                 if uart_name == "jtag_atlantic":
                     from litex.soc.cores.jtag import JTAGAtlantic
