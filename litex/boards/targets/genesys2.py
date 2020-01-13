@@ -61,7 +61,9 @@ class BaseSoC(SoCSDRAM):
                 sys_clk_freq = sys_clk_freq)
             self.add_csr("ddrphy")
             sdram_module = MT41J256M16(self.clk_freq, "1:4")
-            self.register_sdram(self.ddrphy, sdram_module.geom_settings, sdram_module.timing_settings)
+            self.register_sdram(self.ddrphy,
+                geom_settings       = sdram_module.geom_settings,
+                timing_settings     = sdram_module.timing_settings)
 
 # EthernetSoC --------------------------------------------------------------------------------------
 
