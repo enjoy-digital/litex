@@ -107,7 +107,6 @@ class SimSoC(SoCSDRAM):
 
         # SoCSDRAM ---------------------------------------------------------------------------------
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size = 0x8000,
             ident               = "LiteX Simulation", ident_version=True,
             with_uart           = False,
             **kwargs)
