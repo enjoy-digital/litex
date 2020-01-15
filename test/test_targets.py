@@ -24,69 +24,70 @@ def build_test(socs):
     os.system("rm -rf build")
     return errors
 
+test_kwargs = {"integrated_rom_size": 0x8000}
 
 class TestTargets(unittest.TestCase):
     # Altera boards
     def test_de0nano(self):
         from litex.boards.targets.de0nano import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     # Xilinx boards
     # Spartan-6
     def test_minispartan6(self):
         from litex.boards.targets.minispartan6 import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     # Artix-7
     def test_arty(self):
         from litex.boards.targets.arty import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     def test_netv2(self):
         from litex.boards.targets.netv2 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     def test_nexys4ddr(self):
         from litex.boards.targets.nexys4ddr import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     def test_nexys_video(self):
         from litex.boards.targets.nexys_video import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     # Kintex-7
     def test_genesys2(self):
         from litex.boards.targets.genesys2 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     def test_kc705(self):
         from litex.boards.targets.kc705 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(), EthernetSoC()])
+        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     # Kintex-Ultrascale
     def test_kcu105(self):
         from litex.boards.targets.kcu105 import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     # Lattice boards
     # ECP5
     def test_versa_ecp5(self):
         from litex.boards.targets.versa_ecp5 import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     def test_ulx3s(self):
         from litex.boards.targets.ulx3s import BaseSoC
-        errors = build_test([BaseSoC()])
+        errors = build_test([BaseSoC(**test_kwargs)])
         self.assertEqual(errors, 0)
 
     # Build simple design for all platforms
