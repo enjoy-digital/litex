@@ -77,7 +77,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(125e6), integrated_rom_size=0x8000, **kwargs):
+    def __init__(self, sys_clk_freq=int(125e6), **kwargs):
         platform = kcu105.Platform()
 
         # SoCSDRAM ---------------------------------------------------------------------------------
