@@ -18,6 +18,8 @@ from litedram.phy import s7ddrphy
 
 from liteeth.phy.s7rgmii import LiteEthPHYRGMII
 from liteeth.mac import LiteEthMAC
+from liteeth.core import LiteEthUDPIPCore
+from liteeth.frontend.etherbone import LiteEthEtherbone
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -97,17 +99,48 @@ class EthernetSoC(BaseSoC):
             self.ethphy.crg.cd_eth_rx.clk,
             self.ethphy.crg.cd_eth_tx.clk)
 
+# EtherboneSoC -------------------------------------------------------------------------------------
+
+class EtherboneSoC(BaseSoC):
+    def __init__(self, **kwargs):
+        BaseSoC.__init__(self, **kwargs)
+
+        # Ethernet ---------------------------------------------------------------------------------
+        # phy
+        self.submodules.ethphy = LiteEthPHYRGMII(
+            clock_pads = self.platform.request("eth_clocks"),
+            pads       = self.platform.request("eth"))
+        self.add_csr("ethphy")
+        # core
+        self.submodules.ethcore = LiteEthUDPIPCore(
+            phy         = self.ethphy,
+            mac_address = 0x10e2d5000000,
+            ip_address  = "192.168.1.50",
+            clk_freq    = self.clk_freq)
+        # etherbone
+        self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234)
+        self.add_wb_master(self.etherbone.wishbone.bus)
+        # timing constraints
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/125e6)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.ethphy.crg.cd_eth_rx.clk,
+            self.ethphy.crg.cd_eth_tx.clk)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Genesys2")
     builder_args(parser)
     soc_sdram_args(parser)
-    parser.add_argument("--with-ethernet", action="store_true",
-                        help="enable Ethernet support")
+    parser.add_argument("--with-ethernet",  action="store_true", help="enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true", help="enable Etherbone support")
     args = parser.parse_args()
 
+    assert not (args.with_ethernet and args.with_etherbone)
     cls = EthernetSoC if args.with_ethernet else BaseSoC
+    cls = EtherboneSoC if args.with_etherbone else BaseSoC
     soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
