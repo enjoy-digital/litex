@@ -84,10 +84,10 @@ class EthernetSoC(BaseSoC):
 
         # Ethernet ---------------------------------------------------------------------------------
         # phy
-        self.submodules.eth_phy = LiteEthPHYMII(
+        self.submodules.ethphy = LiteEthPHYMII(
             clock_pads = self.platform.request("eth_clocks"),
             pads       = self.platform.request("eth"))
-        self.add_csr("eth_phy")
+        self.add_csr("ethphy")
         # mac
         self.submodules.ethmac = LiteEthMAC(
             phy        = self.ethphy,
@@ -115,26 +115,26 @@ class EtherboneSoC(BaseSoC):
 
         # Ethernet ---------------------------------------------------------------------------------
         # phy
-        self.submodules.eth_phy = LiteEthPHYMII(
+        self.submodules.ethphy = LiteEthPHYMII(
             clock_pads = self.platform.request("eth_clocks"),
             pads       = self.platform.request("eth"))
-        self.add_csr("eth_phy")
+        self.add_csr("ethphy")
         # core
-        self.submodules.eth_core = LiteEthUDPIPCore(
-            phy         = self.eth_phy,
+        self.submodules.ethcore = LiteEthUDPIPCore(
+            phy         = self.ethphy,
             mac_address = 0x10e2d5000000,
             ip_address  = "192.168.1.50",
             clk_freq    = self.clk_freq)
         # etherbone
-        self.submodules.etherbone = LiteEthEtherbone(self.eth_core.udp, 1234)
+        self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234)
         self.add_wb_master(self.etherbone.wishbone.bus)
         # timing constraints
-        self.platform.add_period_constraint(self.eth_phy.crg.cd_eth_rx.clk, 1e9/25e6)
-        self.platform.add_period_constraint(self.eth_phy.crg.cd_eth_tx.clk, 1e9/25e6)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/25e6)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/25e6)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.eth_phy.crg.cd_eth_rx.clk,
-            self.eth_phy.crg.cd_eth_tx.clk)
+            self.ethphy.crg.cd_eth_rx.clk,
+            self.ethphy.crg.cd_eth_tx.clk)
 
 # Build --------------------------------------------------------------------------------------------
 

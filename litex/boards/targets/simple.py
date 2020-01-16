@@ -39,9 +39,13 @@ class EthernetSoC(BaseSoC):
     def __init__(self, platform, **kwargs):
         BaseSoC.__init__(self, platform, **kwargs)
 
-        self.submodules.ethphy = LiteEthPHY(platform.request("eth_clocks"),
-                                            platform.request("eth"))
+        # Ethernet ---------------------------------------------------------------------------------
+        # phy
+        self.submodules.ethphy = LiteEthPHY(
+            clock_pads = self.platform.request("eth_clocks"),
+            pads       = self.platform.request("eth"))
         self.add_csr("ethphy")
+        # mac
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
             interface="wishbone", endianness=self.cpu.endianness, with_preamble_crc=False)
         self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)

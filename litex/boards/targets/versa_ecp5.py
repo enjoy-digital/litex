@@ -105,19 +105,26 @@ class EthernetSoC(BaseSoC):
     def __init__(self, toolchain="diamond", **kwargs):
         BaseSoC.__init__(self, toolchain=toolchain, **kwargs)
 
+        # Ethernet ---------------------------------------------------------------------------------
+        # phy
         self.submodules.ethphy = LiteEthPHYRGMII(
             self.platform.request("eth_clocks"),
             self.platform.request("eth"))
         self.add_csr("ethphy")
+        # mac
         self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
             interface="wishbone", endianness=self.cpu.endianness)
         self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
         self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
-
+        # timing constraints
         self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
         self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/125e6)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.ethphy.crg.cd_eth_rx.clk,
+            self.ethphy.crg.cd_eth_tx.clk)
 
 # Build --------------------------------------------------------------------------------------------
 

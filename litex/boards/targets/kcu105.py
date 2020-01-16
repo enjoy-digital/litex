@@ -110,25 +110,31 @@ class EthernetSoC(BaseSoC):
     def __init__(self, **kwargs):
         BaseSoC.__init__(self, **kwargs)
 
-        self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
+        # Ethernet ---------------------------------------------------------------------------------
+        # phy
         self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
-            self.platform.request("sfp", 0), sys_clk_freq=self.clk_freq)
+            data_pads    = self.platform.request("sfp", 0),
+            sys_clk_freq = self.clk_freq)
         self.add_csr("ethphy")
-        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-            interface="wishbone", endianness=self.cpu.endianness)
+        self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
+        self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
+        # mac
+        self.submodules.ethmac = LiteEthMAC(
+            phy        = self.ethphy,
+            dw         = 32,
+            interface  = "wishbone",
+            endianness = self.cpu.endianness)
         self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
         self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
-
+        # timing constraints
         self.platform.add_period_constraint(self.ethphy.cd_eth_rx.clk, 1e9/125e6)
         self.platform.add_period_constraint(self.ethphy.cd_eth_tx.clk, 1e9/125e6)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             self.ethphy.cd_eth_rx.clk,
             self.ethphy.cd_eth_tx.clk)
-
-        self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
 
 # Build --------------------------------------------------------------------------------------------
 

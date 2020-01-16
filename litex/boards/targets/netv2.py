@@ -23,23 +23,23 @@ from liteeth.mac import LiteEthMAC
 
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
-        self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
+        self.clock_domains.cd_sys       = ClockDomain()
+        self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
-        self.clock_domains.cd_clk200 = ClockDomain()
-        self.clock_domains.cd_clk100 = ClockDomain()
-        self.clock_domains.cd_eth = ClockDomain()
+        self.clock_domains.cd_clk200    = ClockDomain()
+        self.clock_domains.cd_clk100    = ClockDomain()
+        self.clock_domains.cd_eth       = ClockDomain()
 
         # # #
 
         self.submodules.pll = pll = S7PLL(speedgrade=-1)
         pll.register_clkin(platform.request("clk50"), 50e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq)
+        pll.create_clkout(self.cd_sys,       sys_clk_freq)
+        pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
         pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
-        pll.create_clkout(self.cd_clk200, 200e6)
-        pll.create_clkout(self.cd_clk100, 100e6)
-        pll.create_clkout(self.cd_eth, 50e6)
+        pll.create_clkout(self.cd_clk200,    200e6)
+        pll.create_clkout(self.cd_clk100,    100e6)
+        pll.create_clkout(self.cd_eth,       50e6)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
@@ -78,23 +78,29 @@ class EthernetSoC(BaseSoC):
     def __init__(self, **kwargs):
         BaseSoC.__init__(self, **kwargs)
 
-        self.submodules.ethphy = LiteEthPHYRMII(self.platform.request("eth_clocks"),
-                                                self.platform.request("eth"))
+        # Ethernet ---------------------------------------------------------------------------------
+        # phy
+        self.submodules.ethphy = LiteEthPHYRMII(
+            clock_pads = self.platform.request("eth_clocks"),
+            pads       = self.platform.request("eth"))
         self.add_csr("ethphy")
-        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-            interface="wishbone", endianness=self.cpu.endianness)
+        # mac
+        self.submodules.ethmac = LiteEthMAC(
+            phy        = self.ethphy,
+            dw         = 32,
+            interface  = "wishbone",
+            endianness = self.cpu.endianness)
         self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
         self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
-
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/12.5e6)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/12.5e6)
+        # timing constraints
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/50e6)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/50e6)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             self.ethphy.crg.cd_eth_rx.clk,
             self.ethphy.crg.cd_eth_tx.clk)
-
 
 # Build --------------------------------------------------------------------------------------------
 
