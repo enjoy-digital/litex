@@ -336,7 +336,7 @@ class Depacketizer(Module):
                 )
             )
         )
-        self.sync += If(sink.ready, sink_d.eq(sink))
+        self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
         fsm.act("UNALIGNED-DATA-COPY",
             source.valid.eq(sink.valid | sink_d.last),
             source.last.eq(sink.last | sink_d.last),
