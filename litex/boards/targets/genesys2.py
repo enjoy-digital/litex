@@ -139,8 +139,11 @@ def main():
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
-    cls = EthernetSoC if args.with_ethernet else BaseSoC
-    cls = EtherboneSoC if args.with_etherbone else BaseSoC
+    cls = BaseSoC
+    if args.with_ethernet:
+        cls = EthernetSoC
+    if args.with_etherbone:
+        cls = EtherboneSoC
     soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
