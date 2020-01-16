@@ -191,7 +191,8 @@ class UART(Module, AutoCSR, UARTInterface):
     def __init__(self, phy=None,
                  tx_fifo_depth=16,
                  rx_fifo_depth=16,
-                 phy_cd="sys"):
+                 rx_fifo_rx_we=False,
+                 phy_cd="sys",):
         self._rxtx = CSR(8)
         self._txfull = CSRStatus()
         self._rxempty = CSRStatus()
@@ -233,7 +234,7 @@ class UART(Module, AutoCSR, UARTInterface):
             self.sink.connect(rx_fifo.sink),
             self._rxempty.status.eq(~rx_fifo.source.valid),
             self._rxtx.w.eq(rx_fifo.source.data),
-            rx_fifo.source.ready.eq(self.ev.rx.clear),
+            rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
             # Generate RX IRQ when tx_fifo becomes non-empty
             self.ev.rx.trigger.eq(~rx_fifo.source.valid)
         ]
@@ -271,7 +272,7 @@ class UARTCrossover(UART):
     def __init__(self, **kwargs):
         assert kwargs.get("phy", None) == None
         UART.__init__(self, **kwargs)
-        self.submodules.xover = UART(tx_fifo_depth=2, rx_fifo_depth=2)
+        self.submodules.xover = UART(tx_fifo_depth=2, rx_fifo_depth=2, rx_fifo_rx_we=False)
         self.comb += [
             self.source.connect(self.xover.sink),
             self.xover.source.connect(self.sink)
