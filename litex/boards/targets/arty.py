@@ -19,6 +19,8 @@ from litedram.phy import s7ddrphy
 
 from liteeth.phy.mii import LiteEthPHYMII
 from liteeth.mac import LiteEthMAC
+from liteeth.core import LiteEthUDPIPCore
+from liteeth.frontend.etherbone import LiteEthEtherbone
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -80,23 +82,59 @@ class EthernetSoC(BaseSoC):
     def __init__(self, **kwargs):
         BaseSoC.__init__(self, **kwargs)
 
-        self.submodules.ethphy = LiteEthPHYMII(self.platform.request("eth_clocks"),
-                                               self.platform.request("eth"))
-        self.add_csr("ethphy")
-        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-            interface="wishbone", endianness=self.cpu.endianness)
+        # Ethernet ---------------------------------------------------------------------------------
+        # phy
+        self.submodules.eth_phy = LiteEthPHYMII(
+            clock_pads = self.platform.request("eth_clocks"),
+            pads       = self.platform.request("eth"))
+        self.add_csr("eth_phy")
+        # mac
+        self.submodules.ethmac = LiteEthMAC(
+            phy        = self.ethphy,
+            dw         = 32,
+            interface  = "wishbone",
+            endianness = self.cpu.endianness)
         self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
         self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
-
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/12.5e6)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/12.5e6)
+        # timing constraints
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/25e6)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/25e6)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             self.ethphy.crg.cd_eth_rx.clk,
             self.ethphy.crg.cd_eth_tx.clk)
 
+
+# EtherboneSoC -------------------------------------------------------------------------------------
+
+class EtherboneSoC(BaseSoC):
+    def __init__(self, **kwargs):
+        BaseSoC.__init__(self, **kwargs)
+
+        # Ethernet ---------------------------------------------------------------------------------
+        # phy
+        self.submodules.eth_phy = LiteEthPHYMII(
+            clock_pads = self.platform.request("eth_clocks"),
+            pads       = self.platform.request("eth"))
+        self.add_csr("eth_phy")
+        # core
+        self.submodules.eth_core = LiteEthUDPIPCore(
+            phy         = self.eth_phy,
+            mac_address = 0x10e2d5000000,
+            ip_address  = "192.168.1.50",
+            clk_freq    = self.clk_freq)
+        # etherbone
+        self.submodules.etherbone = LiteEthEtherbone(self.eth_core.udp, 1234)
+        self.add_wb_master(self.etherbone.wishbone.bus)
+        # timing constraints
+        self.platform.add_period_constraint(self.eth_phy.crg.cd_eth_rx.clk, 1e9/25e6)
+        self.platform.add_period_constraint(self.eth_phy.crg.cd_eth_tx.clk, 1e9/25e6)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.eth_phy.crg.cd_eth_rx.clk,
+            self.eth_phy.crg.cd_eth_tx.clk)
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -105,11 +143,13 @@ def main():
     builder_args(parser)
     soc_sdram_args(parser)
     vivado_build_args(parser)
-    parser.add_argument("--with-ethernet", action="store_true",
-                        help="enable Ethernet support")
+    parser.add_argument("--with-ethernet", action="store_true", help="enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true", help="enable Etherbone support")
     args = parser.parse_args()
 
+    assert not (args.with_ethernet and args.with_etherbone)
     cls = EthernetSoC if args.with_ethernet else BaseSoC
+    cls = EtherboneSoC if args.with_etherbone else BaseSoC
     soc = cls(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(**vivado_build_argdict(args))
