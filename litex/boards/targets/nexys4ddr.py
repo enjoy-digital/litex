@@ -79,7 +79,7 @@ class EthernetSoC(BaseSoC):
 
         # Ethernet ---------------------------------------------------------------------------------
         # phy
-        self.submodules.ethphy = LiteEthPHYMII(
+        self.submodules.ethphy = LiteEthPHYRMII(
             clock_pads = self.platform.request("eth_clocks"),
             pads       = self.platform.request("eth"))
         self.add_csr("ethphy")
