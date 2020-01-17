@@ -26,13 +26,14 @@ class SoCSDRAM(SoCCore):
     }
     csr_map.update(SoCCore.csr_map)
 
-    def __init__(self, platform, clk_freq, l2_size=8192, l2_data_width=128, **kwargs):
+    def __init__(self, platform, clk_freq, l2_size=8192, min_l2_data_width=128, max_sdram_size=None, **kwargs):
         SoCCore.__init__(self, platform, clk_freq, **kwargs)
         if not self.integrated_main_ram_size:
             if self.cpu_type is not None and self.csr_data_width > 32:
                  raise NotImplementedError("BIOS supports SDRAM initialization only for csr_data_width<=32")
-        self.l2_size       = l2_size
-        self.l2_data_width = l2_data_width
+        self.l2_size           = l2_size
+        self.min_l2_data_width = min_l2_data_width
+        self.max_sdram_size    = max_sdram_size
 
         self._sdram_phy    = []
         self._wb_sdram_ifs = []
@@ -43,7 +44,7 @@ class SoCSDRAM(SoCCore):
             raise FinalizeError
         self._wb_sdram_ifs.append(interface)
 
-    def register_sdram(self, phy, geom_settings, timing_settings, main_ram_size_limit=None, **kwargs):
+    def register_sdram(self, phy, geom_settings, timing_settings, **kwargs):
         assert not self._sdram_phy
         self._sdram_phy.append(phy) # encapsulate in list to prevent CSR scanning
 
@@ -63,8 +64,8 @@ class SoCSDRAM(SoCCore):
         main_ram_size = 2**(geom_settings.bankbits +
                             geom_settings.rowbits +
                             geom_settings.colbits)*phy.settings.databits//8
-        if main_ram_size_limit is not None:
-            main_ram_size = min(main_ram_size, main_ram_size_limit)
+        if self.max_sdram_size is not None:
+            main_ram_size = min(main_ram_size, self.max_sdram_size)
 
         # SoC [<--> L2 Cache] <--> LiteDRAM ----------------------------------------------------
         if self.cpu.name == "rocket":
@@ -100,7 +101,7 @@ class SoCSDRAM(SoCCore):
             self.register_mem("main_ram", self.mem_map["main_ram"], wb_sdram, main_ram_size)
 
             # L2 Cache -----------------------------------------------------------------------------
-            l2_data_width = max(port.data_width, self.l2_data_width)
+            l2_data_width = max(port.data_width, self.min_l2_data_width)
             l2_cache = wishbone.Cache(l2_size//4, self._wb_sdram, wishbone.Interface(l2_data_width))
             # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
             # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
@@ -126,5 +127,25 @@ class SoCSDRAM(SoCCore):
         SoCCore.do_finalize(self)
 
 
-soc_sdram_args    = soc_core_args
-soc_sdram_argdict = soc_core_argdict
+# SoCSDRAM arguments --------------------------------------------------------------------------------
+
+def soc_sdram_args(parser):
+    soc_core_args(parser)
+    # L2 Cache
+    parser.add_argument("--l2-size", default=8192,
+                        help="L2 cache size (default=8192)")
+    parser.add_argument("--min-l2-datawidth", default=128,
+                        help="Minimum L2 cache datawidth (default=128)")
+
+    # SDRAM
+    parser.add_argument("--max-sdram-size", default=None,
+                        help="Maximum SDRAM size mapped to the SoC (default=None))")
+
+def soc_sdram_argdict(args):
+    r = soc_core_argdict(args)
+    for a in inspect.getargspec(SoCSDRAM.__init__).args:
+        if a not in ["self", "platform", "clk_freq"]:
+            arg = getattr(args, a, None)
+            if arg is not None:
+                r[a] = arg
+    return r

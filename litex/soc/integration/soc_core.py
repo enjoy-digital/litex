@@ -628,5 +628,5 @@ class SoCMini(SoCCore):
 
 # SoCMini arguments -----------------------------------------------------------------------------
 
-soc_mini_args = soc_core_args
+soc_mini_args    = soc_core_args
 soc_mini_argdict = soc_core_argdict
