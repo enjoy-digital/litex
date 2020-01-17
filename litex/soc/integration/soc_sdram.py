@@ -4,6 +4,7 @@
 # License: BSD
 
 from math import log2
+import inspect
 
 from migen import *
 from migen.genlib.record import *
@@ -138,8 +139,8 @@ def soc_sdram_args(parser):
                         help="Minimum L2 cache datawidth (default=128)")
 
     # SDRAM
-    parser.add_argument("--max-sdram-size", default=None,
-                        help="Maximum SDRAM size mapped to the SoC (default=None))")
+    parser.add_argument("--max-sdram-size", default=0x40000000,
+                        help="Maximum SDRAM size mapped to the SoC (default=1GB))")
 
 def soc_sdram_argdict(args):
     r = soc_core_argdict(args)
