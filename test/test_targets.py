@@ -24,7 +24,10 @@ def build_test(socs):
     os.system("rm -rf build")
     return errors
 
-test_kwargs = {"integrated_rom_size": 0x8000}
+test_kwargs = {
+    "integrated_rom_size": 0x8000,
+    "max_sdram_size": 0x4000000
+}
 
 class TestTargets(unittest.TestCase):
     # Altera boards
