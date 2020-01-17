@@ -96,8 +96,7 @@ class BaseSoC(SoCSDRAM):
             sdram_module = EDY4016A(sys_clk_freq, "1:4")
             self.register_sdram(self.ddrphy,
                 geom_settings       = sdram_module.geom_settings,
-                timing_settings     = sdram_module.timing_settings,
-                main_ram_size_limit = 0x40000000)
+                timing_settings     = sdram_module.timing_settings)
 
 # EthernetSoC --------------------------------------------------------------------------------------
 
