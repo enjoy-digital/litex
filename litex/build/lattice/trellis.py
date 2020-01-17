@@ -173,6 +173,7 @@ class LatticeTrellisToolchain:
     def __init__(self):
         self.yosys_template   = _yosys_template
         self.build_template   = _build_template
+        self.false_paths = set() # FIXME: use it
 
     def build(self, platform, fragment,
         build_dir      = "build",
@@ -230,6 +231,12 @@ class LatticeTrellisToolchain:
     def add_period_constraint(self, platform, clk, period):
         platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(
             freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
+
+    def add_false_path_constraint(self, platform, from_, to):
+        from_.attr.add("keep")
+        to.attr.add("keep")
+        if (to, from_) not in self.false_paths:
+            self.false_paths.add((from_, to))
 
 def trellis_args(parser):
     parser.add_argument("--yosys-nowidelut", action="store_true",

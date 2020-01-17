@@ -152,6 +152,9 @@ class LatticeDiamondToolchain:
 
     special_overrides = common.lattice_ecpx_special_overrides
 
+    def __init__(self):
+        self.false_paths = set() # FIXME: use it
+
     def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
@@ -200,3 +203,9 @@ class LatticeDiamondToolchain:
         # TODO: handle differential clk
         platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(
             freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
+
+    def add_false_path_constraint(self, platform, from_, to):
+        from_.attr.add("keep")
+        to.attr.add("keep")
+        if (to, from_) not in self.false_paths:
+            self.false_paths.add((from_, to))
