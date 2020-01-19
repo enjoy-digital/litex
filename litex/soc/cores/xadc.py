@@ -43,6 +43,7 @@ class XADC(Module, AutoCSR):
         self.dadr = Signal(7)
         self.di   = Signal(16)
         self.do   = Signal(16)
+        self.drp_en = Signal()
         self.specials += Instance("XADC",
             # From ug480
             p_INIT_40=0x9000, p_INIT_41=0x2ef0, p_INIT_42=0x0400,
@@ -77,8 +78,10 @@ class XADC(Module, AutoCSR):
             o_DO        = self.do
         )
         self.comb += [
-            self.den.eq(eoc),
-            self.dadr.eq(channel),
+            If(~self.drp_en,
+                self.den.eq(eoc),
+                self.dadr.eq(channel),
+            )
         ]
 
         # Channels update --------------------------------------------------------------------------
@@ -113,16 +116,20 @@ class XADC(Module, AutoCSR):
 
         # # #
 
+        den_pipe = Signal() # add a register to ease timing closure of den
+
         self.comb += [
-            self.dwe.eq(self.drp_write.re),
             self.di.eq(self.drp_dat_w.storage),
             self.drp_dat_r.status.eq(self.do),
-            If(self.drp_enable.storage,
-                self.den.eq(self.drp_read.re | self.drp_write.re),
-                self.dadr.eq(self.drp_adr.storage),
-            ),
+            If(self.drp_en,
+               self.den.eq(den_pipe),
+               self.dadr.eq(self.drp_adr.storage),
+            )
         ]
         self.sync += [
+            self.dwe.eq(self.drp_write.re),
+            self.drp_en.eq(self.drp_enable.storage),
+            den_pipe.eq(self.drp_read.re | self.drp_write.re),
             If(self.drp_read.re | self.drp_write.re,
                 self.drp_drdy.status.eq(0)
             ).Elif(self.drdy,
