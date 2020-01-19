@@ -119,7 +119,6 @@ class XADC(Module, AutoCSR):
         den_pipe = Signal() # add a register to ease timing closure of den
 
         self.comb += [
-            self.dwe.eq(self.drp_write.re),
             self.di.eq(self.drp_dat_w.storage),
             self.drp_dat_r.status.eq(self.do),
             If(self.drp_en,
@@ -128,9 +127,10 @@ class XADC(Module, AutoCSR):
             )
         ]
         self.sync += [
+            self.dwe.eq(self.drp_write.re),
             self.drp_en.eq(self.drp_enable.storage),
             den_pipe.eq(self.drp_read.re | self.drp_write.re),
-            If(den_pipe,
+            If(self.drp_read.re | self.drp_write.re,
                 self.drp_drdy.status.eq(0)
             ).Elif(self.drdy,
                 self.drp_drdy.status.eq(1)
