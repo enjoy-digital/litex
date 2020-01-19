@@ -102,22 +102,17 @@ class XilinxClocking(Module, AutoCSR):
 
         # # #
 
-        den_pipe = Signal()
-        dwe_pipe = Signal()
-
         drp_drdy = Signal()
         self.params.update(
             i_DCLK  = ClockSignal(),
-            i_DWE   = dwe_pipe,
-            i_DEN   = den_pipe,
+            i_DWE   = self.drp_write.re,
+            i_DEN   = self.drp_read.re | self.drp_write.re,
             o_DRDY  = drp_drdy,
             i_DADDR = self.drp_adr.storage,
             i_DI    = self.drp_dat_w.storage,
             o_DO    = self.drp_dat_r.status
         )
         self.sync += [
-            den_pipe.eq(self.drp_read.re | self.drp_write.re),
-            dwe_pipe.eq(self.drp_write.re),
             If(self.drp_read.re | self.drp_write.re,
                 self.drp_drdy.status.eq(0)
             ).Elif(drp_drdy,
