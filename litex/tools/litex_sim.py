@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # License: BSD
 
 import argparse
 
 from migen import *
-from migen.genlib.io import CRG
 
 from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
 
-from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.cores import uart
@@ -22,7 +20,6 @@ from litedram.common import PhySettings
 from litedram.modules import MT48LC16M16
 from litedram.phy.model import SDRAMPHYModel
 
-from liteeth.common import convert_ip
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.mac import LiteEthMAC
 from liteeth.core import LiteEthUDPIPCore
@@ -32,59 +29,38 @@ from litescope import LiteScopeAnalyzer
 
 # IOs ----------------------------------------------------------------------------------------------
 
-class SimPins(Pins):
-    def __init__(self, n=1):
-        Pins.__init__(self, "s "*n)
-
 _io = [
-    ("sys_clk", 0, SimPins(1)),
-    ("sys_rst", 0, SimPins(1)),
+    ("sys_clk", 0, Pins(1)),
+    ("sys_rst", 0, Pins(1)),
     ("serial", 0,
-        Subsignal("source_valid", SimPins()),
-        Subsignal("source_ready", SimPins()),
-        Subsignal("source_data",  SimPins(8)),
+        Subsignal("source_valid", Pins(1)),
+        Subsignal("source_ready", Pins(1)),
+        Subsignal("source_data",  Pins(8)),
 
-        Subsignal("sink_valid",   SimPins()),
-        Subsignal("sink_ready",   SimPins()),
-        Subsignal("sink_data",    SimPins(8)),
+        Subsignal("sink_valid",   Pins(1)),
+        Subsignal("sink_ready",   Pins(1)),
+        Subsignal("sink_data",    Pins(8)),
     ),
     ("eth_clocks", 0,
-        Subsignal("none", SimPins()),
+        Subsignal("tx", Pins(1)),
+        Subsignal("rx", Pins(1)),
     ),
     ("eth", 0,
-        Subsignal("source_valid", SimPins()),
-        Subsignal("source_ready", SimPins()),
-        Subsignal("source_data",  SimPins(8)),
+        Subsignal("source_valid", Pins(1)),
+        Subsignal("source_ready", Pins(1)),
+        Subsignal("source_data",  Pins(8)),
 
-        Subsignal("sink_valid",   SimPins()),
-        Subsignal("sink_ready",   SimPins()),
-        Subsignal("sink_data",    SimPins(8)),
-    ),
-    ("eth_clocks", 1,
-        Subsignal("none", SimPins()),
-    ),
-    ("eth", 1,
-        Subsignal("source_valid", SimPins()),
-        Subsignal("source_ready", SimPins()),
-        Subsignal("source_data",  SimPins(8)),
-
-        Subsignal("sink_valid",   SimPins()),
-        Subsignal("sink_ready",   SimPins()),
-        Subsignal("sink_data",    SimPins(8)),
+        Subsignal("sink_valid",   Pins(1)),
+        Subsignal("sink_ready",   Pins(1)),
+        Subsignal("sink_data",    Pins(8)),
     ),
 ]
 
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(SimPlatform):
-    default_clk_name = "sys_clk"
-    default_clk_period = 1000 # ~ 1MHz
-
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)
-
-    def do_finalize(self, fragment):
-        pass
 
 # Simulation SoC -----------------------------------------------------------------------------------
 
@@ -144,7 +120,7 @@ class SimSoC(SoCSDRAM):
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
-        assert not (with_ethernet and with_etherbone) # FIXME: fix simulator with 2 ethernet interfaces
+        assert not (with_ethernet and with_etherbone)
 
         # Ethernet ---------------------------------------------------------------------------------
         if with_ethernet:
@@ -163,25 +139,24 @@ class SimSoC(SoCSDRAM):
             self.add_csr("ethmac")
             self.add_interrupt("ethmac")
 
-        # Ethernet ---------------------------------------------------------------------------------
+        # Etherbone --------------------------------------------------------------------------------
         if with_etherbone:
             # Ethernet PHY
-            self.submodules.etherbonephy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
-            self.add_csr("etherbonephy")
-            # Ethernet MAC
-            etherbonecore = LiteEthUDPIPCore(self.etherbonephy,
+            self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
+            self.add_csr("ethphy")
+            # Ethernet Core
+            ethcore = LiteEthUDPIPCore(self.ethphy,
                 mac_address = etherbone_mac_address,
                 ip_address  = etherbone_ip_address,
                 clk_freq    = sys_clk_freq)
-            self.submodules.etherbonecore = etherbonecore
+            self.submodules.ethcore = ethcore
             # Etherbone
-            self.submodules.etherbone = LiteEthEtherbone(self.etherbonecore.udp, 1234, mode="master")
+            self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234, mode="master")
             self.add_wb_master(self.etherbone.wishbone.bus)
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             analyzer_signals = [
-                # FIXME: find interesting signals to probe
                 self.cpu.ibus,
                 self.cpu.dbus
             ]
@@ -194,31 +169,20 @@ def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     builder_args(parser)
     soc_sdram_args(parser)
-    parser.add_argument("--threads", default=1,
-                        help="set number of threads (default=1)")
-    parser.add_argument("--rom-init", default=None,
-                        help="rom_init file")
-    parser.add_argument("--ram-init", default=None,
-                        help="ram_init file")
-    parser.add_argument("--with-sdram", action="store_true",
-                        help="enable SDRAM support")
-    parser.add_argument("--with-ethernet", action="store_true",
-                        help="enable Ethernet support")
-    parser.add_argument("--with-etherbone", action="store_true",
-                        help="enable Etherbone support")
-    parser.add_argument("--with-analyzer", action="store_true",
-                        help="enable Analyzer support")
-    parser.add_argument("--trace", action="store_true",
-                        help="enable VCD tracing")
-    parser.add_argument("--trace-start", default=0,
-                        help="cycle to start VCD tracing")
-    parser.add_argument("--trace-end", default=-1,
-                        help="cycle to end VCD tracing")
-    parser.add_argument("--opt-level", default="O3",
-                        help="compilation optimization level")
+    parser.add_argument("--threads",        default=1,           help="Set number of threads (default=1)")
+    parser.add_argument("--rom-init",       default=None,        help="rom_init file")
+    parser.add_argument("--ram-init",       default=None,        help="ram_init file")
+    parser.add_argument("--with-sdram",     action="store_true", help="Enable SDRAM support")
+    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
+    parser.add_argument("--with-analyzer",  action="store_true", help="Enable Analyzer support")
+    parser.add_argument("--trace",          action="store_true", help="Enable VCD tracing")
+    parser.add_argument("--trace-start",    default=0,           help="Cycle to start VCD tracing")
+    parser.add_argument("--trace-end",      default=-1,          help="Cycle to end VCD tracing")
+    parser.add_argument("--opt-level",      default="O3",        help="Compilation optimization level")
     args = parser.parse_args()
 
-    soc_kwargs = soc_sdram_argdict(args)
+    soc_kwargs     = soc_sdram_argdict(args)
     builder_kwargs = builder_argdict(args)
 
     sim_config = SimConfig(default_clk="sys_clk")
@@ -240,10 +204,8 @@ def main():
     else:
         assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
-    if args.with_ethernet:
+    if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
-    if args.with_etherbone:
-        sim_config.add_module('ethernet', "eth", args={"interface": "tap1", "ip": "192.168.1.101"})
 
     # SoC ------------------------------------------------------------------------------------------
 
@@ -265,9 +227,11 @@ def main():
     if args.with_analyzer:
         soc.analyzer.export_csv(vns, "analyzer.csv")
     builder.build(build=False, threads=args.threads, sim_config=sim_config,
-        opt_level=args.opt_level,
-        trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
-
+        opt_level   = args.opt_level,
+        trace       = args.trace,
+        trace_start = int(args.trace_start),
+        trace_end   = int(args.trace_end)
+    )
 
 if __name__ == "__main__":
     main()
