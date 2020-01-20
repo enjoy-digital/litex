@@ -403,23 +403,68 @@ class SoCCore(Module):
             i += 1
         return None
 
+    def alloc_mem_region(self, name, length, type):
+        # Use type to limit search regions
+        search_regions = []
+        if "io" in type:
+            for _origin, _length in self.soc_io_regions.items():
+                search_regions.append(SoCMemRegion(origin=_origin, length=_length, type=type))
+        else:
+            search_regions.append(SoCMemRegion(origin=0x00000000, length=0x80000000, type=type))
+        # Iterate over search_regions and origin to find a candidate region
+        for search_region in search_regions:
+            origin = search_region.origin
+            while (origin + length) < (search_region.origin + search_region.length):
+                # Create a candidate mem region.
+                candidate_region  = SoCMemRegion(origin=origin, length=length, type=type)
+                candidate_overlap = False
+                # Check candidate does not overlap with allocated mem regions.
+                for _, allocated_region in self.mem_regions.items():
+                    if self.check_regions_overlap({"0": allocated_region, "1": candidate_region}) is not None:
+                        origin = allocated_region.origin + allocated_region.length
+                        candidate_overlap = True
+                        break
+                if not candidate_overlap:
+                    # If no overlap, the candidate is selected.
+                    #print("{} region allocated at: {:08x}".format(name, candidate_region.origin))
+                    return candidate_region
+        msg = "Not enough addressable memory space to allocate mem region {} of length 0x{:0x}".format(
+            name, length)
+        raise ValueError(msg)
+
+    def add_mem_region(self, name, length, type="cached"):
+        # Check name conflicts.
+        if name in self.mem_regions.keys():
+            raise ValueError("Memory region conflict, {} name already used".format(name))
+        # Round length to next power of 2.
+        length = 2**log2_int(length, False)
+        # Get mem origin; if not defined in mem_map, allocate a new mem region, else use mem_map
+        # mapping and check for type/overlap conflicts.
+        origin = self.mem_map.get(name, None)
+        if origin is None:
+            self.mem_regions[name] = self.alloc_mem_region(name, length, type)
+        else:
+            # Check type
+            if "io" in type:
+                self.check_io_region(name,origin, length)
+            # Add region
+            self.mem_regions[name] = SoCMemRegion(origin, length, type)
+            # Check overlap
+            overlap = self.check_regions_overlap(self.mem_regions)
+            if overlap is not None:
+                o0, o1 = overlap[0], overlap[1]
+                raise ValueError("Memory region conflict between {} ({}) and {} ({})".format(
+                    o0, self.mem_regions[o0],
+                    o1, self.mem_regions[o1],
+                ))
+
+    # FIXME: add deprecated warning?
     def add_memory_region(self, name, origin, length, type="cached", io_region=False):
         if io_region: # 2019-10-30: io_region retro-compatibility
             deprecated_warning(": io_region replaced by type=\"io\".")
             type = "io"
-        length = 2**log2_int(length, False)
-        if "io" in type:
-            self.check_io_region(name, origin, length)
-        if name in self.mem_regions.keys():
-            raise ValueError("Memory region conflict, {} name already used".format(name))
-        self.mem_regions[name] = SoCMemRegion(origin, length, type)
-        overlap = self.check_regions_overlap(self.mem_regions)
-        if overlap is not None:
-            o0, o1 = overlap[0], overlap[1]
-            raise ValueError("Memory region conflict between {} ({}) and {} ({})".format(
-                o0, self.mem_regions[o0],
-                o1, self.mem_regions[o1],
-            ))
+        assert name in self.mem_map.keys()
+        self.add_mem_region(name, length, type)
 
     def register_mem(self, name, address, interface, size=0x10000000):
         self.add_wb_slave(address, interface, size)
