@@ -158,8 +158,8 @@ class SimSoC(SoCSDRAM):
             if with_etherbone:
                 ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
             self.submodules.ethmac = ethmac
-            self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
             self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
+            self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
             self.add_csr("ethmac")
             self.add_interrupt("ethmac")
 
