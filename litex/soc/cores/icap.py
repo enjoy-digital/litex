@@ -73,6 +73,10 @@ class ICAP(Module, AutoCSR):
                 )
             ]
 
+    def add_timing_constraints(self, platform, sys_clk_freq, sys_clk):
+        platform.add_period_constraint(self.cd_icap.clk, 16*1e9/sys_clk_freq)
+        platform.add_false_path_constraints(self.cd_icap.clk, sys_clk)
+
 
 class ICAPBitstream(Module, AutoCSR):
     """ICAP Bitstream
@@ -130,3 +134,7 @@ class ICAPBitstream(Module, AutoCSR):
                     i_I=Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)]),
                 )
             ]
+
+    def add_timing_constraints(self, platform, sys_clk_freq, sys_clk):
+        platform.add_period_constraint(self.cd_icap.clk, 16*1e9/sys_clk_freq)
+        platform.add_false_path_constraints(self.cd_icap.clk, sys_clk)
