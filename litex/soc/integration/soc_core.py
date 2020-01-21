@@ -612,7 +612,7 @@ def soc_core_args(parser):
     parser.add_argument("--integrated-rom-file", default=None, type=str,
                         help="integrated (BIOS) ROM binary file (default=32KB)")
     # SRAM parameters
-    parser.add_argument("--integrated_sram_size", default=0x1000,
+    parser.add_argument("--integrated_sram_size", default=0x1000, type=int,
                         help="size/enable the integrated SRAM (default=4KB)")
     # MAIN_RAM parameters
     parser.add_argument("--integrated-main-ram-size", default=None, type=int,
