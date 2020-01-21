@@ -13,17 +13,28 @@ class DNA(Module, AutoCSR):
 
         # # #
 
-        do = Signal()
-        cnt = Signal(max=2*n + 1)
+        self.do    = do    = Signal()
+        self.count = count = Signal(max=2*n + 1)
+        self.clk   = clk   = Signal()
 
+        self.comb += clk.eq(count[0])
         self.specials += Instance("DNA_PORT",
-                i_DIN=self._id.status[-1], o_DOUT=do,
-                i_CLK=cnt[0], i_READ=cnt < 2, i_SHIFT=1)
+                i_DIN   = self._id.status[-1],
+                o_DOUT  = do,
+                i_CLK   = clk,
+                i_READ  = count < 2,
+                i_SHIFT = 1
+        )
 
-        self.sync += \
-                If(cnt < 2*n,
-                    cnt.eq(cnt + 1),
-                    If(cnt[0],
-                        self._id.status.eq(Cat(do, self._id.status))
-                    )
+        self.sync += [
+            If(count < 2*n,
+                count.eq(count + 1),
+                If(clk,
+                    self._id.status.eq(Cat(do, self._id.status))
                 )
+            )
+        ]
+
+    def add_timing_constraints(self, platform, sys_clk_freq, sys_clk):
+        platform.add_period_constraint(self.clk, 2*1e9/sys_clk_freq)
+        platform.add_false_path_constraints(self.clk, sys_clk)
