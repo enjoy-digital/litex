@@ -113,6 +113,8 @@ class XilinxVivadoToolchain:
         self.bitstream_commands                   = []
         self.additional_commands                  = []
         self.pre_synthesis_commands               = []
+        self.pre_placement_commands               = []
+        self.pre_routing_commands                 = []
         self.incremental_implementation           = False
         self.vivado_synth_directive               = "default"
         self.opt_directive                        = "default"
@@ -172,7 +174,7 @@ class XilinxVivadoToolchain:
         # Add pre-synthesis commands
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
 
-        # Design flow
+        # Synthesis
         if synth_mode == "vivado":
             synth_cmd = "synth_design -directive {} -top {} -part {}".format(self.vivado_synth_directive,
                                                                              build_name, platform.device)
@@ -184,13 +186,19 @@ class XilinxVivadoToolchain:
             tcl.append("link_design -top {} -part {}".format(build_name, platform.device))
         else:
             raise OSError("Unknown synthesis mode! {}".format(synth_mode))
-
         tcl.append("report_timing_summary -file {}_timing_synth.rpt".format(build_name))
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_synth.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_synth.rpt".format(build_name))
+
+        # Optimize
         tcl.append("opt_design -directive {}".format(self.opt_directive))
         if self.incremental_implementation:
             tcl.append("read_checkpoint -incremental {}_route.dcp".format(build_name))
+
+        # Add pre-placement commands
+        tcl.extend(c.format(build_name=build_name) for c in self.pre_placement_commands)
+
+        # Placement
         tcl.append("place_design -directive {}".format(self.vivado_place_directive))
         if self.vivado_post_place_phys_opt_directive:
             tcl.append("phys_opt_design -directive {}".format(self.vivado_post_place_phys_opt_directive))
@@ -199,6 +207,11 @@ class XilinxVivadoToolchain:
         tcl.append("report_io -file {}_io.rpt".format(build_name))
         tcl.append("report_control_sets -verbose -file {}_control_sets.rpt".format(build_name))
         tcl.append("report_clock_utilization -file {}_clock_utilization.rpt".format(build_name))
+
+        # Add pre-routing commands
+        tcl.extend(c.format(build_name=build_name) for c in self.pre_routing_commands)
+
+        # Routing
         tcl.append("route_design -directive {}".format(self.vivado_route_directive))
         tcl.append("phys_opt_design -directive {}".format(self.vivado_post_route_phys_opt_directive))
         tcl.append("report_timing_summary -no_header -no_detailed_paths")
@@ -209,9 +222,13 @@ class XilinxVivadoToolchain:
         tcl.append("report_power -file {}_power.rpt".format(build_name))
         for bitstream_command in self.bitstream_commands:
             tcl.append(bitstream_command.format(build_name=build_name))
+
+        # Bitstream generation
         tcl.append("write_bitstream -force {}.bit ".format(build_name))
         for additional_command in self.additional_commands:
             tcl.append(additional_command.format(build_name=build_name))
+
+        # Quit
         tcl.append("quit")
         tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
