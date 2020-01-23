@@ -16,9 +16,9 @@ from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.cores import uart
 
+from litedram import modules as litedram_modules
 from litedram.common import PhySettings
 from litedram.phy.model import SDRAMPHYModel
-from litedram import modules as litedram_modules
 
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.mac import LiteEthMAC
@@ -99,9 +99,10 @@ class SimSoC(SoCSDRAM):
 
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
-            sdram_clk_freq = int(100e6)
+            sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
             sdram_module_cls = getattr(litedram_modules, sdram_module)
-            sdram_module =  sdram_module_cls(sdram_clk_freq, "1:1") # use 100MHz timings
+            sdram_module     = sdram_module_cls(sdram_clk_freq, "1:1")
+            assert sdram_module.memtype == "SDR"
             phy_settings = PhySettings(
                 memtype       = "SDR",
                 databits      = sdram_data_width,
@@ -177,6 +178,8 @@ def main():
     parser.add_argument("--rom-init",           default=None,           help="rom_init file")
     parser.add_argument("--ram-init",           default=None,           help="ram_init file")
     parser.add_argument("--with-sdram",         action="store_true",    help="Enable SDRAM support")
+    parser.add_argument("--sdram-module",       default="MT48LC16M16",  help="Select SDRAM chip")
+    parser.add_argument("--sdram-data-width",   default=32,             help="Set SDRAM chip data width")
     parser.add_argument("--with-ethernet",      action="store_true",    help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",     action="store_true",    help="Enable Etherbone support")
     parser.add_argument("--with-analyzer",      action="store_true",    help="Enable Analyzer support")
@@ -184,8 +187,6 @@ def main():
     parser.add_argument("--trace-start",        default=0,              help="Cycle to start VCD tracing")
     parser.add_argument("--trace-end",          default=-1,             help="Cycle to end VCD tracing")
     parser.add_argument("--opt-level",          default="O3",           help="Compilation optimization level")
-    parser.add_argument("--sdram-module",       default="MT48LC16M16",  help="Select DRAM chip to use")
-    parser.add_argument("--sdram-data-width",   default=32,             help="Set DRAM chip data bus width")
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
