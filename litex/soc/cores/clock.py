@@ -41,7 +41,7 @@ class XilinxClocking(Module, AutoCSR):
             raise ValueError
         self.clkin_freq = freq
 
-    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True):
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, clk_ce=None):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
@@ -57,6 +57,10 @@ class XilinxClocking(Module, AutoCSR):
                 self.specials += Instance("BUFG", i_I=clkout, o_O=clkout_buf)
             elif buf == "bufr":
                 self.specials += Instance("BUFR", i_I=clkout, o_O=clkout_buf)
+            elif buf == "bufgce" and clk_ce != None:
+                self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_buf, i_CE=clk_ce)
+            elif buf == "bufio":
+                self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
             else:
                 raise ValueError
 
