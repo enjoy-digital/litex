@@ -17,7 +17,7 @@ from litex.soc.integration.builder import *
 from litex.soc.cores import uart
 
 from litedram import modules as litedram_modules
-from litedram.common import PhySettings
+from litedram.common import *
 from litedram.phy.model import SDRAMPHYModel
 
 from liteeth.phy.model import LiteEthPHYModel
@@ -62,6 +62,71 @@ class Platform(SimPlatform):
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)
 
+# DFI PHY model settings ---------------------------------------------------------------------------
+
+sdram_module_nphases = {
+    "SDR": 1,
+    "DDR": 2,
+    "LPDDR": 2,
+    "DDR2": 2,
+    "DDR3": 4,
+}
+
+def get_sdram_phy_settings(memtype, data_width, clk_freq):
+    nphases = sdram_module_nphases[memtype]
+
+    # Default litex_sim settings
+    if memtype == "SDR":
+        rdphase             = 0
+        wrphase             = 0
+        rdcmdphase          = 0
+        wrcmdphase          = 0
+        cl                  = 2
+        cwl                 = None
+        read_latency        = 4
+        write_latency       = 0
+    # Settings taken from s6ddrphy
+    elif memtype in ["DDR", "LPDDR"]:
+        rdphase             = 0
+        wrphase             = 1
+        rdcmdphase          = 1
+        wrcmdphase          = 0
+        cl                  = 3
+        cwl                 = None
+        read_latency        = 5
+        write_latency       = 0
+    # Settings taken from s7ddrphy
+    elif memtype in ["DDR2", "DDR3"]:
+        tck                 = 2/(2*nphases*clk_freq)
+        cmd_latency         = 0
+        cl, cwl             = get_cl_cw(memtype, tck)
+        cl_sys_latency      = get_sys_latency(nphases, cl)
+        cwl                 = cwl + cmd_latency
+        cwl_sys_latency     = get_sys_latency(nphases, cwl)
+        rdcmdphase, rdphase = get_sys_phases(nphases, cl_sys_latency, cl)
+        wrcmdphase, wrphase = get_sys_phases(nphases, cwl_sys_latency, cwl)
+        read_latency        = 2 + cl_sys_latency + 2 + 3
+        write_latency       = cwl_sys_latency
+
+    sdram_phy_settings = {
+        "nphases": nphases,
+        "rdphase": rdphase,
+        "wrphase": wrphase,
+        "rdcmdphase": rdcmdphase,
+        "wrcmdphase": wrcmdphase,
+        "cl": cl,
+        "cwl": cwl,
+        "read_latency": read_latency,
+        "write_latency": write_latency,
+    }
+
+    return PhySettings(
+        memtype             = memtype,
+        databits            = data_width,
+        dfi_databits        = data_width if memtype == "SDR" else 2*data_width,
+        **sdram_phy_settings,
+    )
+
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCSDRAM):
@@ -101,21 +166,9 @@ class SimSoC(SoCSDRAM):
         if with_sdram:
             sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
             sdram_module_cls = getattr(litedram_modules, sdram_module)
-            sdram_module     = sdram_module_cls(sdram_clk_freq, "1:1")
-            assert sdram_module.memtype == "SDR"
-            phy_settings = PhySettings(
-                memtype       = "SDR",
-                databits      = sdram_data_width,
-                dfi_databits  = 16,
-                nphases       = 1,
-                rdphase       = 0,
-                wrphase       = 0,
-                rdcmdphase    = 0,
-                wrcmdphase    = 0,
-                cl            = 2,
-                read_latency  = 4,
-                write_latency = 0
-            )
+            sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
+            sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
+            phy_settings     = get_sdram_phy_settings(sdram_module.memtype, sdram_data_width, sdram_clk_freq)
             self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings)
             self.register_sdram(
                 self.sdrphy,
