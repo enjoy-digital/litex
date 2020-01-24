@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2020 Piotr Binkowski <pbinkowski@antmicro.com>
 # This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # License: BSD
 
@@ -65,38 +66,38 @@ class Platform(SimPlatform):
 # DFI PHY model settings ---------------------------------------------------------------------------
 
 sdram_module_nphases = {
-    "SDR": 1,
-    "DDR": 2,
+    "SDR":   1,
+    "DDR":   2,
     "LPDDR": 2,
-    "DDR2": 2,
-    "DDR3": 4,
+    "DDR2":  2,
+    "DDR3":  4,
 }
 
 def get_sdram_phy_settings(memtype, data_width, clk_freq):
     nphases = sdram_module_nphases[memtype]
 
-    # Default litex_sim settings
     if memtype == "SDR":
-        rdphase             = 0
-        wrphase             = 0
-        rdcmdphase          = 0
-        wrcmdphase          = 0
-        cl                  = 2
-        cwl                 = None
-        read_latency        = 4
-        write_latency       = 0
-    # Settings taken from s6ddrphy
+        # Settings from gensdrphy
+        rdphase       = 0
+        wrphase       = 0
+        rdcmdphase    = 0
+        wrcmdphase    = 0
+        cl            = 2
+        cwl           = None
+        read_latency  = 4
+        write_latency = 0
     elif memtype in ["DDR", "LPDDR"]:
-        rdphase             = 0
-        wrphase             = 1
-        rdcmdphase          = 1
-        wrcmdphase          = 0
-        cl                  = 3
-        cwl                 = None
-        read_latency        = 5
-        write_latency       = 0
-    # Settings taken from s7ddrphy
+        # Settings from s6ddrphy
+        rdphase       = 0
+        wrphase       = 1
+        rdcmdphase    = 1
+        wrcmdphase    = 0
+        cl            = 3
+        cwl           = None
+        read_latency  = 5
+        write_latency = 0
     elif memtype in ["DDR2", "DDR3"]:
+        # Settings from s7ddrphy
         tck                 = 2/(2*nphases*clk_freq)
         cmd_latency         = 0
         cl, cwl             = get_cl_cw(memtype, tck)
@@ -109,21 +110,21 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
         write_latency       = cwl_sys_latency
 
     sdram_phy_settings = {
-        "nphases": nphases,
-        "rdphase": rdphase,
-        "wrphase": wrphase,
-        "rdcmdphase": rdcmdphase,
-        "wrcmdphase": wrcmdphase,
-        "cl": cl,
-        "cwl": cwl,
-        "read_latency": read_latency,
+        "nphases":       nphases,
+        "rdphase":       rdphase,
+        "wrphase":       wrphase,
+        "rdcmdphase":    rdcmdphase,
+        "wrcmdphase":    wrcmdphase,
+        "cl":            cl,
+        "cwl":           cwl,
+        "read_latency":  read_latency,
         "write_latency": write_latency,
     }
 
     return PhySettings(
-        memtype             = memtype,
-        databits            = data_width,
-        dfi_databits        = data_width if memtype == "SDR" else 2*data_width,
+        memtype      = memtype,
+        databits     = data_width,
+        dfi_databits = data_width if memtype == "SDR" else 2*data_width,
         **sdram_phy_settings,
     )
 
@@ -168,7 +169,10 @@ class SimSoC(SoCSDRAM):
             sdram_module_cls = getattr(litedram_modules, sdram_module)
             sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
             sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
-            phy_settings     = get_sdram_phy_settings(sdram_module.memtype, sdram_data_width, sdram_clk_freq)
+            phy_settings     = get_sdram_phy_settings(
+                memtype    = sdram_module.memtype,
+                data_width = sdram_data_width,
+                clk_freq   = sdram_clk_freq)
             self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings)
             self.register_sdram(
                 self.sdrphy,
