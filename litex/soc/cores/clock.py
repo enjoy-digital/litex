@@ -59,6 +59,8 @@ class XilinxClocking(Module, AutoCSR):
                 self.specials += Instance("BUFR", i_I=clkout, o_O=clkout_buf)
             elif buf == "bufgce" and clk_ce != None:
                 self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_buf, i_CE=clk_ce)
+            elif buf == "bufio":
+                self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
             else:
                 raise ValueError
 
