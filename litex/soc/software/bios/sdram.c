@@ -419,6 +419,12 @@ static void read_delay_rst(int module) {
 
 	/* unsel module */
 	ddrphy_dly_sel_write(0);
+
+#ifdef ECP5DDRPHY
+	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
+	ddrphy_dly_sel_write(0xFF);
+	ddrphy_dly_sel_write(0);
+#endif
 }
 
 static void read_delay_inc(int module) {
@@ -430,6 +436,12 @@ static void read_delay_inc(int module) {
 
 	/* unsel module */
 	ddrphy_dly_sel_write(0);
+
+#ifdef ECP5DDRPHY
+	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
+	ddrphy_dly_sel_write(0xFF);
+	ddrphy_dly_sel_write(0);
+#endif
 }
 
 static void read_bitslip_rst(char m)
@@ -943,12 +955,6 @@ int sdrlevel(void)
 		printf("\n");
 	}
 
-#ifdef ECP5DDRPHY
-	/* Toggle all dly_sel lines. 
-	 * Which toggles all DQSBUFM.PAUSE lines, this ensures they're using the correct delays. */
-	ddrphy_dly_sel_write(0xFF);
-	ddrphy_dly_sel_write(0);
-#endif
 
 	return 1;
 }
