@@ -943,6 +943,13 @@ int sdrlevel(void)
 		printf("\n");
 	}
 
+#ifdef ECP5DDRPHY
+	/* Toggle all dly_sel lines. 
+	 * Which toggles all DQSBUFM.PAUSE lines, this ensures they're using the correct delays. */
+	ddrphy_dly_sel_write(0xFF);
+	ddrphy_dly_sel_write(0);
+#endif
+
 	return 1;
 }
 #endif
