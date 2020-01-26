@@ -71,6 +71,37 @@ _io = [
         Misc("SLEW=FAST"),
     ),
 
+    # pcie
+    ("pcie_x1", 0,
+        Subsignal("rst_n", Pins("E18"), IOStandard("LVCMOS33")),
+        Subsignal("clk_p", Pins("F10")),
+        Subsignal("clk_n", Pins("E10")),
+        Subsignal("rx_p", Pins("D11")),
+        Subsignal("rx_n", Pins("C11")),
+        Subsignal("tx_p", Pins("D5")),
+        Subsignal("tx_n", Pins("C5"))
+    ),
+
+    ("pcie_x2", 0,
+        Subsignal("rst_n", Pins("E18"), IOStandard("LVCMOS33")),
+        Subsignal("clk_p", Pins("F10")),
+        Subsignal("clk_n", Pins("E10")),
+        Subsignal("rx_p", Pins("D11 B10")),
+        Subsignal("rx_n", Pins("C11 A10")),
+        Subsignal("tx_p", Pins("D5 B6")),
+        Subsignal("tx_n", Pins("C5 A6"))
+    ),
+
+    ("pcie_x4", 0,
+        Subsignal("rst_n", Pins("E18"), IOStandard("LVCMOS33")),
+        Subsignal("clk_p", Pins("F10")),
+        Subsignal("clk_n", Pins("E10")),
+        Subsignal("rx_p", Pins("D11 B10 D9 B8")),
+        Subsignal("rx_n", Pins("C11 A10 C9 A8")),
+        Subsignal("tx_p", Pins("D5 B6 D7 B4")),
+        Subsignal("tx_n", Pins("C5 A6 C7 A4"))
+    ),
+
     # ethernet
     ("eth_clocks", 0,
         Subsignal("ref_clk", Pins("D17")),
