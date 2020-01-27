@@ -25,6 +25,7 @@ int sdrlevel(void);
 
 int memtest_silent(void);
 int memtest(void);
+int sdram_benchmark(char *access, char *order);
 int sdrinit(void);
 
 #endif /* __SDRAM_H */

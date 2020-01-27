@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef CSR_SDRAM_BASE
 #include <generated/sdram_phy.h>
@@ -678,6 +679,129 @@ static unsigned short seed_to_data_16(unsigned short seed, int random)
 		return 25173*seed + 13849;
 	else
 		return seed + 1;
+}
+
+#ifdef MEMTEST_DATA_SIZE // litex_sim
+#define BENCHMARK_SIZE MEMTEST_DATA_SIZE
+// for MT48LC16M16
+#define SDRAM_COLBITS  9
+#define SDRAM_ROWBITS  13
+#define SDRAM_BANKBITS 2
+#else // assumes Arty
+#define BENCHMARK_SIZE (32*1024)
+#define SDRAM_COLBITS  10
+#define SDRAM_ROWBITS  14
+#define SDRAM_BANKBITS 3
+#endif
+
+static int sdram_address(uint32_t col, uint32_t row, uint32_t bank) {
+	// address is stored in ROW_BANK_COL order
+	uint32_t adr = (row << (SDRAM_COLBITS + SDRAM_BANKBITS)) | (bank << SDRAM_COLBITS) | (col);
+	return adr;
+}
+
+static int benchmark_address_colwise(uint32_t i) {
+	// bank(row(col)) -> i = col + row*col_w + bank*col_w*row_w
+	uint32_t col = i % (1 << SDRAM_COLBITS);
+	uint32_t row = (i / (1 << SDRAM_COLBITS)) % (1 << SDRAM_ROWBITS);
+	uint32_t bank = i / ((1 << SDRAM_COLBITS) * (1 << SDRAM_ROWBITS));
+	return sdram_address(col, row, bank);
+}
+
+static int benchmark_address_rowwise(uint32_t i) {
+	// bank(col(row)) -> i = row + col*row_w + bank*row_w*col_w
+	uint32_t row = i % (1 << SDRAM_ROWBITS);
+	uint32_t col = (i / (1 << SDRAM_ROWBITS)) % (1 << SDRAM_COLBITS);
+	uint32_t bank = i / ((1 << SDRAM_COLBITS) * (1 << SDRAM_ROWBITS));
+	return sdram_address(col, row, bank);
+}
+
+static int sdram_benchmark_run(int is_rw_access, int is_col_order)
+{
+	volatile unsigned int *array = (unsigned int *) MAIN_RAM_BASE;
+	__attribute__((unused)) unsigned int data;
+	uint32_t i = 0;
+
+	/* flush CPU and L2 caches */
+	flush_cpu_dcache();
+#ifdef CONFIG_L2_SIZE
+	flush_l2_cache();
+#endif
+
+	// reset
+	sdram_controller_bandwidth_update_write(1);
+
+	for (i = 0; i < BENCHMARK_SIZE / 4; ++i) {
+		uint32_t j = is_col_order ? benchmark_address_colwise(i) : benchmark_address_rowwise(i);
+		data = array[j];
+		if (is_rw_access) {
+			array[j] = data & 0x1;
+		}
+	}
+
+	// update registers
+	sdram_controller_bandwidth_update_write(1);
+
+	return (is_rw_access ? 2 : 1) * i;
+}
+
+int sdram_benchmark(char *access, char *order)
+{
+	if (strcmp(access, "all") == 0) {
+		printf("sdrbench r col:\n");
+		sdram_benchmark("r", "col");
+		printf("sdrbench r row:\n");
+		sdram_benchmark("r", "row");
+		printf("sdrbench rw col:\n");
+		sdram_benchmark("rw", "col");
+		printf("sdrbench rw row:\n");
+		sdram_benchmark("rw", "row");
+		return 0;
+	}
+
+	if ((*access == 0) || (*order == 0)) {
+		printf("sdrbench <r|rw> <col|row> | sdrbench all\n");
+		return 1;
+	}
+
+	int is_rw_access, is_col_order;
+	if (strcmp(access, "r") == 0) {
+		is_rw_access = 0;
+	} else if (strcmp(access, "rw") == 0) {
+		is_rw_access = 1;
+	} else {
+		printf("incorrect access type, use 'r' or 'rw'\n");
+		return 1;
+	}
+
+	if (strcmp(order, "col") == 0) {
+		is_col_order = 1;
+	} else if (strcmp(order, "row") == 0) {
+		is_col_order = 0;
+	} else {
+		printf("incorrect access type, use 'col' or 'row'\n");
+		return 1;
+	}
+
+	uint32_t n_ops = sdram_benchmark_run(is_rw_access, is_col_order);
+
+	uint32_t n_reads = sdram_controller_bandwidth_nreads_read();
+	uint32_t n_writes = sdram_controller_bandwidth_nwrites_read();
+	uint32_t n_activates = sdram_controller_bandwidth_nactivates_read();
+
+	/* double efficiency = (double) (n_reads + n_writes) / (n_reads + n_writes + n_activates) * 100.0; */
+	double efficiency = (double) n_ops / (n_ops + n_activates) * 100.0;
+	uint32_t efficiency_i = efficiency;
+
+	printf("    n_reads            = %lu\n", n_reads);
+	printf("    n_writes           = %lu\n", n_writes);
+	printf("    n_activates        = %lu\n", n_activates);
+	printf("    bus_efficiency     = %d.%02d %%\n",
+				 (uint32_t) efficiency,
+				 (uint32_t) (efficiency * 100) - (100 * efficiency_i)
+				);
+
+	return 0;
 }
 
 #define ONEZERO 0xAAAAAAAA

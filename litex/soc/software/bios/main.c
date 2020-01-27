@@ -375,6 +375,7 @@ static void help(void)
 	puts("");
 #ifdef CSR_SDRAM_BASE
 	puts("memtest    - run a memory test");
+	puts("sdrbench   - run SDRAM bus efficiency benchmark");
 #endif
 }
 
@@ -458,6 +459,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdrlevel") == 0) sdrlevel();
 #endif
 	else if(strcmp(token, "memtest") == 0) memtest();
+	else if(strcmp(token, "sdrbench") == 0) sdram_benchmark(get_token(&c), get_token(&c));
 #endif
 
 	else if(strcmp(token, "") != 0)
