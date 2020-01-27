@@ -1,6 +1,6 @@
 ![LiteX](https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png)
 ```
-              Copyright 2012-2019 / EnjoyDigital
+              Copyright 2012-2020 / EnjoyDigital
 ```
 [![](https://travis-ci.com/enjoy-digital/litex.svg?branch=master)](https://travis-ci.com/enjoy-digital/litex)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
@@ -8,8 +8,8 @@
 LiteX is a FPGA design/SoC builder that can be used to build cores, create
 SoCs and full FPGA designs.
 
-LiteX is based on Migen and provides specific building/debugging tools for
-a higher level of abstraction and compatibily with the LiteX core ecosystem.
+LiteX is based on Migen/MiSoC and provides specific building/debugging tools
+for a higher level of abstraction and compatibily with the LiteX core ecosystem.
 
 Think of Migen as a toolbox to create FPGA designs in Python and LiteX as a
 SoC builder to create/develop/debug FPGA SoCs in Python.

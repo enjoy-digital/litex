@@ -1,6 +1,10 @@
-LiteX is a MiSoC-based SoC builder using Migen as Python DSL.
+LiteX is a FPGA design/SoC builder that can be used to build cores, create
+SoCs and full FPGA designs.
 
-Unless otherwise noted, LiteX is copyright (C) 2012-2019 Enjoy-Digital.
+LiteX is based on Migen/MiSoC and provides specific building/debugging tools
+for a higher level of abstraction and compatibily with the LiteX core ecosystem.
+
+Unless otherwise noted, LiteX is copyright (C) 2012-2020 Enjoy-Digital.
 Unless otherwise noted, MiSoC is copyright (C) 2012-2015 Enjoy-Digital.
 Unless otherwise noted, MiSoC is copyright (C) 2007-2015 M-Labs Ltd.
 All rights reserved.
