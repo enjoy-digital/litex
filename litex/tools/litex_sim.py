@@ -13,6 +13,7 @@ from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
 from litex.build.sim.config import SimConfig
 
+from litex.soc.integration.common import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.cores import uart
@@ -144,6 +145,7 @@ class SimSoC(SoCSDRAM):
         etherbone_ip_address  = "192.168.1.50",
         with_analyzer         = False,
         sdram_module          = "MT48LC16M16",
+        sdram_init            = [],
         sdram_data_width      = 32,
         **kwargs):
         platform     = Platform()
@@ -173,7 +175,7 @@ class SimSoC(SoCSDRAM):
                 memtype    = sdram_module.memtype,
                 data_width = sdram_data_width,
                 clk_freq   = sdram_clk_freq)
-            self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings)
+            self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings, init=sdram_init)
             self.register_sdram(
                 self.sdrphy,
                 sdram_module.geom_settings,
@@ -237,6 +239,7 @@ def main():
     parser.add_argument("--with-sdram",         action="store_true",    help="Enable SDRAM support")
     parser.add_argument("--sdram-module",       default="MT48LC16M16",  help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",   default=32,             help="Set SDRAM chip data width")
+    parser.add_argument("--sdram-init",         default=None,           help="SDRAM init file")
     parser.add_argument("--with-ethernet",      action="store_true",    help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",     action="store_true",    help="Enable Etherbone support")
     parser.add_argument("--with-analyzer",      action="store_true",    help="Enable Analyzer support")
@@ -270,16 +273,17 @@ def main():
         soc_kwargs["integrated_main_ram_size"] = 0x0
         soc_kwargs["sdram_module"] = args.sdram_module
         soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
+
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
 
     # SoC ------------------------------------------------------------------------------------------
-
     soc = SimSoC(
         with_sdram     = args.with_sdram,
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
         with_analyzer  = args.with_analyzer,
+        sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
         **soc_kwargs)
     if args.ram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
