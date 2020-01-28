@@ -72,6 +72,7 @@ sdram_module_nphases = {
     "LPDDR": 2,
     "DDR2":  2,
     "DDR3":  4,
+    "DDR4":  4,
 }
 
 def get_sdram_phy_settings(memtype, data_width, clk_freq):
@@ -108,6 +109,18 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
         rdcmdphase, rdphase = get_sys_phases(nphases, cl_sys_latency, cl)
         wrcmdphase, wrphase = get_sys_phases(nphases, cwl_sys_latency, cwl)
         read_latency        = 2 + cl_sys_latency + 2 + 3
+        write_latency       = cwl_sys_latency
+    elif memtype == "DDR4":
+        # Settings from usddrphy
+        tck                 = 2/(2*nphases*clk_freq)
+        cmd_latency         = 0
+        cl, cwl             = get_cl_cw(memtype, tck)
+        cl_sys_latency      = get_sys_latency(nphases, cl)
+        cwl                 = cwl + cmd_latency
+        cwl_sys_latency     = get_sys_latency(nphases, cwl)
+        rdcmdphase, rdphase = get_sys_phases(nphases, cl_sys_latency, cl)
+        wrcmdphase, wrphase = get_sys_phases(nphases, cwl_sys_latency, cwl)
+        read_latency        = 2 + cl_sys_latency + 1 + 3
         write_latency       = cwl_sys_latency
 
     sdram_phy_settings = {
