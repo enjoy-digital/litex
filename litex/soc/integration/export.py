@@ -136,7 +136,7 @@ def get_soc_header(constants, with_access_functions=True):
     r += "\n#endif\n"
     return r
 
-def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_access_functions):
+def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, with_access_functions):
     r = ""
 
     addr_str = "CSR_{}_ADDR".format(reg_name.upper())
@@ -146,7 +146,7 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
 
     size = nwords*busword//8
     if size > 8:
-        # FIXME: maybe implement some "memcpy-like" semantics for larger blobs?
+        # downstream should select appropriate `csr_[rd|wr]_buf_uintX()` pair!
         return r
     elif size > 4:
         ctype = "uint64_t"
@@ -157,13 +157,28 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, read_only, with_acc
     else:
         ctype = "uint8_t"
 
+    stride = alignment//8;
     if with_access_functions:
         r += "static inline {} {}_read(void) {{\n".format(ctype, reg_name)
-        r += "\treturn _csr_rd((unsigned long *){}, {});\n}}\n".format(addr_str, size)
+        if nwords > 1:
+            r += "\t{} r = csr_read_simple({}L);\n".format(ctype, hex(reg_base))
+            for sub in range(1, nwords):
+                r += "\tr <<= {};\n".format(busword)
+                r += "\tr |= csr_read_simple({}L);\n".format(hex(reg_base+sub*stride))
+            r += "\treturn r;\n}\n"
+        else:
+            r += "\treturn csr_read_simple({}L);\n}}\n".format(hex(reg_base))
 
         if not read_only:
             r += "static inline void {}_write({} v) {{\n".format(reg_name, ctype)
-            r += "\t_csr_wr((unsigned long *){}, v, {});\n}}\n".format(addr_str, size)
+            for sub in range(nwords):
+                shift = (nwords-sub-1)*busword
+                if shift:
+                    v_shift = "v >> {}".format(shift)
+                else:
+                    v_shift = "v"
+                r += "\tcsr_write_simple({}, {}L);\n".format(v_shift, hex(reg_base+sub*stride))
+            r += "}\n"
     return r
 
 
@@ -176,14 +191,8 @@ def get_csr_header(regions, constants, with_access_functions=True):
     if with_access_functions:
         r += "#include <stdint.h>\n"
         r += "#ifdef CSR_ACCESSORS_DEFINED\n"
-        r += "extern void csr_wr_uint8(uint8_t v, unsigned long a);\n"
-        r += "extern void csr_wr_uint16(uint16_t v, unsigned long a);\n"
-        r += "extern void csr_wr_uint32(uint32_t v, unsigned long a);\n"
-        r += "extern void csr_wr_uint64(uint64_t v, unsigned long a);\n"
-        r += "extern uint8_t csr_rd_uint8(unsigned long a);\n"
-        r += "extern uint16_t csr_rd_uint16(unsigned long a);\n"
-        r += "extern uint32_t csr_rd_uint32(unsigned long a);\n"
-        r += "extern uint64_t csr_rd_uint64(unsigned long a);\n"
+        r += "extern void csr_write_simple(unsigned long v, unsigned long a);\n"
+        r += "extern unsigned long csr_read_simple(unsigned long a);\n"
         r += "#else /* ! CSR_ACCESSORS_DEFINED */\n"
         r += "#include <hw/common.h>\n"
         r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
@@ -194,7 +203,7 @@ def get_csr_header(regions, constants, with_access_functions=True):
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 nr = (csr.size + region.busword - 1)//region.busword
-                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, region.busword,
+                r += _get_rw_functions_c(name + "_" + csr.name, origin, nr, region.busword, alignment,
                     isinstance(csr, CSRStatus), with_access_functions)
                 origin += alignment//8*nr
                 if hasattr(csr, "fields"):

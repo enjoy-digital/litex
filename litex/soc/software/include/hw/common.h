@@ -3,9 +3,8 @@
 
 #include <stdint.h>
 
-/* To overwrite CSR accessors, define extern, non-inlined versions
- * of csr_rd_uint[8|16|32|64]() and csr_wr_uint[8|16|32|64](), and
- * define CSR_ACCESSORS_DEFINED.
+/* To overwrite CSR subregister accessors, define extern, non-inlined versions
+ * of csr_[read|write]_simple(), and define CSR_ACCESSORS_DEFINED.
  */
 
 #ifndef CSR_ACCESSORS_DEFINED
@@ -35,11 +34,22 @@
  * #endif
  */
 
-/* CSR data width (subregister width) in bytes, for direct comparson to sizeof() */
+/* CSR data width (subreg. width) in bytes, for direct comparson to sizeof() */
 #define CSR_DW_BYTES (CONFIG_CSR_DATA_WIDTH/8)
 
-/* CSR subregisters are embedded inside native CPU word aligned locations: */
+/* CSR subregisters (a.k.a. "simple CSRs") are embedded inside native CPU-word
+ * aligned locations: */
 #define MMPTR(a) (*((volatile unsigned long *)(a)))
+
+static inline void csr_write_simple(unsigned long v, unsigned long a)
+{
+	MMPTR(a) = v;
+}
+
+static inline unsigned long csr_read_simple(unsigned long a)
+{
+	return MMPTR(a);
+}
 
 /* Number of subregs required for various total byte sizes, by subreg width:
  * NOTE: 1, 2, 4, and 8 bytes represent uint[8|16|32|64]_t C types; However,
