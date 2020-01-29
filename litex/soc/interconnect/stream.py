@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
 # License: BSD
 
@@ -606,6 +606,59 @@ class Buffer(PipelinedActor):
                 self.source.payload.eq(self.sink.payload),
                 self.source.param.eq(self.sink.param)
             )
+
+# Pipe ---------------------------------------------------------------------------------------------
+
+class PipeValid(Module):
+    """Pipe valid/payload to cut timing path"""
+    def __init__(self, layout):
+        self.sink   = sink   = Endpoint(layout)
+        self.source = source = Endpoint(layout)
+
+        # # #
+
+        # Pipe when source is not valid or is ready.
+        self.sync += [
+            If(~source.valid | source.ready,
+                source.valid.eq(sink.valid),
+                source.first.eq(sink.first),
+                source.last.eq(sink.last),
+                source.payload.eq(sink.payload),
+                source.param.eq(sink.param),
+            )
+        ]
+        self.comb += sink.ready.eq(~source.valid | source.ready)
+
+
+class PipeReady(Module):
+    """Pipe ready to cut timing path"""
+    def __init__(self, layout):
+        self.sink   = sink   = Endpoint(layout)
+        self.source = source = Endpoint(layout)
+
+        # # #
+
+        valid  = Signal()
+        sink_d = Endpoint(layout)
+
+        self.sync += [
+            If(sink.valid & ~source.ready,
+                valid.eq(1)
+            ).Elif(source.ready,
+                valid.eq(0)
+            ),
+            If(~source.ready & ~valid,
+                sink_d.eq(sink)
+            )
+        ]
+        self.comb += [
+            sink.ready.eq(~valid),
+            If(valid,
+                sink_d.connect(source, omit={"ready"})
+            ).Else(
+                sink.connect(source, omit={"ready"})
+            )
+        ]
 
 # Cast ---------------------------------------------------------------------------------------------
 
