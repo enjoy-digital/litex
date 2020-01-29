@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 import os
@@ -14,6 +14,12 @@ from litex.build import tools
 from litex.build.xilinx import common
 
 # Constraints (.xdc) -------------------------------------------------------------------------------
+
+def _xdc_separator(msg):
+    r =  "#"*80 + "\n"
+    r += "# " + msg + "\n"
+    r += "#"*80 + "\n"
+    return r
 
 def _format_xdc_constraint(c):
     if isinstance(c, Pins):
@@ -35,15 +41,16 @@ def _format_xdc(signame, resname, *constraints):
     fmt_r = resname[0] + ":" + str(resname[1])
     if resname[2] is not None:
         fmt_r += "." + resname[2]
-    r = " ## {}\n".format(fmt_r)
+    r = "# {}\n".format(fmt_r)
     for c in fmt_c:
         if c is not None:
             r += c + " [get_ports " + signame + "]\n"
+    r += "\n"
     return r
 
 
 def _build_xdc(named_sc, named_pc):
-    r = ""
+    r = _xdc_separator("IO constraints")
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):
@@ -52,6 +59,7 @@ def _build_xdc(named_sc, named_pc):
             r += _format_xdc(sig, resname, Pins(pins[0]), *others)
         else:
             r += _format_xdc(sig, resname, *others)
+    r += _xdc_separator("Design constraints")
     if named_pc:
         r += "\n" + "\n\n".join(named_pc)
     return r
@@ -130,15 +138,18 @@ class XilinxVivadoToolchain:
         tcl = []
 
         # Create project
+        tcl.append("\n# Create Project\n")
         tcl.append("create_project -force -name {} -part {}".format(build_name, platform.device))
         tcl.append("set_msg_config -id {Common 17-55} -new_severity {Warning}")
 
         # Enable Xilinx Parameterized Macros
         if enable_xpm:
+            tcl.append("\n# Enable Xilinx Parameterized Macros\n")
             tcl.append("set_property XPM_LIBRARIES {XPM_CDC XPM_MEMORY} [current_project]")
 
         # Add sources (when Vivado used for synthesis)
         if synth_mode == "vivado":
+            tcl.append("\n# Add Sources\n")
             # "-include_dirs {}" crashes Vivado 2016.4
             for filename, language, library in platform.sources:
                 filename_tcl = "{" + filename + "}"
@@ -154,11 +165,13 @@ class XilinxVivadoToolchain:
                     tcl.append("add_files " + filename_tcl)
 
         # Add EDIFs
+        tcl.append("\n# Add EDIFs\n")
         for filename in platform.edifs:
             filename_tcl = "{" + filename + "}"
             tcl.append("read_edif " + filename_tcl)
 
-        # Add Ips
+        # Add IPs
+        tcl.append("\n# Add IPs\n")
         for filename in platform.ips:
             filename_tcl = "{" + filename + "}"
             ip = os.path.splitext(os.path.basename(filename))[0]
@@ -169,39 +182,51 @@ class XilinxVivadoToolchain:
             tcl.append("get_files -all -of_objects [get_files {}]".format(filename_tcl))
 
         # Add constraints
+        tcl.append("\n# Add constraints\n")
         tcl.append("read_xdc {}.xdc".format(build_name))
 
         # Add pre-synthesis commands
+        tcl.append("\n# Add pre-synthesis commands\n")
         tcl.extend(c.format(build_name=build_name) for c in self.pre_synthesis_commands)
 
         # Synthesis
         if synth_mode == "vivado":
+            tcl.append("\n# Synthesis\n")
             synth_cmd = "synth_design -directive {} -top {} -part {}".format(self.vivado_synth_directive,
                                                                              build_name, platform.device)
             if platform.verilog_include_paths:
                 synth_cmd += " -include_dirs {{{}}}".format(" ".join(platform.verilog_include_paths))
             tcl.append(synth_cmd)
         elif synth_mode == "yosys":
+            tcl.append("\n# Read Yosys EDIF\n")
             tcl.append("read_edif {}.edif".format(build_name))
             tcl.append("link_design -top {} -part {}".format(build_name, platform.device))
         else:
             raise OSError("Unknown synthesis mode! {}".format(synth_mode))
+        tcl.append("\n# Synthesis report\n")
         tcl.append("report_timing_summary -file {}_timing_synth.rpt".format(build_name))
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_synth.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_synth.rpt".format(build_name))
 
         # Optimize
+        tcl.append("\n# Optimize design\n")
         tcl.append("opt_design -directive {}".format(self.opt_directive))
+
+        # Incremental implementation
         if self.incremental_implementation:
+            tcl.append("\n# Read design checkpoint\n")
             tcl.append("read_checkpoint -incremental {}_route.dcp".format(build_name))
 
         # Add pre-placement commands
+        tcl.append("\n# Add pre-placement commands\n")
         tcl.extend(c.format(build_name=build_name) for c in self.pre_placement_commands)
 
         # Placement
+        tcl.append("\n# Placement\n")
         tcl.append("place_design -directive {}".format(self.vivado_place_directive))
         if self.vivado_post_place_phys_opt_directive:
             tcl.append("phys_opt_design -directive {}".format(self.vivado_post_place_phys_opt_directive))
+        tcl.append("\n# Placement report\n")
         tcl.append("report_utilization -hierarchical -file {}_utilization_hierarchical_place.rpt".format(build_name))
         tcl.append("report_utilization -file {}_utilization_place.rpt".format(build_name))
         tcl.append("report_io -file {}_io.rpt".format(build_name))
@@ -209,13 +234,16 @@ class XilinxVivadoToolchain:
         tcl.append("report_clock_utilization -file {}_clock_utilization.rpt".format(build_name))
 
         # Add pre-routing commands
+        tcl.append("\n# Add pre-routing commands\n")
         tcl.extend(c.format(build_name=build_name) for c in self.pre_routing_commands)
 
         # Routing
+        tcl.append("\n# Routing\n")
         tcl.append("route_design -directive {}".format(self.vivado_route_directive))
         tcl.append("phys_opt_design -directive {}".format(self.vivado_post_route_phys_opt_directive))
-        tcl.append("report_timing_summary -no_header -no_detailed_paths")
         tcl.append("write_checkpoint -force {}_route.dcp".format(build_name))
+        tcl.append("\n# Routing report\n")
+        tcl.append("report_timing_summary -no_header -no_detailed_paths")
         tcl.append("report_route_status -file {}_route_status.rpt".format(build_name))
         tcl.append("report_drc -file {}_drc.rpt".format(build_name))
         tcl.append("report_timing_summary -datasheet -max_paths 10 -file {}_timing.rpt".format(build_name))
@@ -224,15 +252,18 @@ class XilinxVivadoToolchain:
             tcl.append(bitstream_command.format(build_name=build_name))
 
         # Bitstream generation
+        tcl.append("\n# Bitstream generation\n")
         tcl.append("write_bitstream -force {}.bit ".format(build_name))
         for additional_command in self.additional_commands:
             tcl.append(additional_command.format(build_name=build_name))
 
         # Quit
+        tcl.append("\n# End\n")
         tcl.append("quit")
         tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
     def _build_clock_constraints(self, platform):
+        platform.add_platform_command(_xdc_separator("Clock constraints"))
         for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             platform.add_platform_command(
                 "create_clock -name {clk} -period " + str(period) +
@@ -250,6 +281,7 @@ class XilinxVivadoToolchain:
         del self.false_paths
 
     def _build_false_path_constraints(self, platform):
+        platform.add_platform_command(_xdc_separator("False path constraints"))
         # The asynchronous input to a MultiReg is a false path
         platform.add_platform_command(
             "set_false_path -quiet "
