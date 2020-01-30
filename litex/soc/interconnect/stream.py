@@ -31,10 +31,10 @@ def _make_m2s(layout):
 class EndpointDescription:
     def __init__(self, payload_layout, param_layout=[]):
         self.payload_layout = payload_layout
-        self.param_layout = param_layout
+        self.param_layout   = param_layout
 
     def get_full_layout(self):
-        reserved = {"valid", "ready", "payload", "param", "first", "last", "description"}
+        reserved   = {"valid", "ready", "payload", "param", "first", "last", "description"}
         attributed = set()
         for f in self.payload_layout + self.param_layout:
             if f[0] in attributed:
@@ -44,12 +44,12 @@ class EndpointDescription:
             attributed.add(f[0])
 
         full_layout = [
-            ("valid", 1, DIR_M_TO_S),
-            ("ready", 1, DIR_S_TO_M),
-            ("first", 1, DIR_M_TO_S),
-            ("last", 1, DIR_M_TO_S),
+            ("valid",   1, DIR_M_TO_S),
+            ("ready",   1, DIR_S_TO_M),
+            ("first",   1, DIR_M_TO_S),
+            ("last",    1, DIR_M_TO_S),
             ("payload", _make_m2s(self.payload_layout)),
-            ("param", _make_m2s(self.param_layout))
+            ("param",   _make_m2s(self.param_layout))
         ]
         return full_layout
 
@@ -117,11 +117,11 @@ class PipelinedActor(BinaryActor):
     def __init__(self, latency):
         self.latency = latency
         self.pipe_ce = Signal()
-        self.busy = Signal()
+        self.busy    = Signal()
         BinaryActor.__init__(self, latency)
 
     def build_binary_control(self, sink, source, latency):
-        busy = 0
+        busy  = 0
         valid = sink.valid
         for i in range(latency):
             valid_n = Signal()
@@ -136,7 +136,7 @@ class PipelinedActor(BinaryActor):
             self.busy.eq(busy)
         ]
         first = sink.valid & sink.first
-        last = sink.valid & sink.last
+        last  = sink.valid & sink.last
         for i in range(latency):
             first_n = Signal()
             last_n = Signal()
@@ -156,19 +156,21 @@ class PipelinedActor(BinaryActor):
 
 class _FIFOWrapper(Module):
     def __init__(self, fifo_class, layout, depth):
-        self.sink = Endpoint(layout)
+        self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
 
         # # #
 
         description = self.sink.description
-        fifo_layout = [("payload", description.payload_layout),
-                       ("param", description.param_layout),
-                       ("first", 1),
-                       ("last", 1)]
+        fifo_layout = [
+            ("payload", description.payload_layout),
+            ("param",   description.param_layout),
+            ("first",   1),
+            ("last",    1)
+        ]
 
         self.submodules.fifo = fifo_class(layout_len(fifo_layout), depth)
-        fifo_in = Record(fifo_layout)
+        fifo_in  = Record(fifo_layout)
         fifo_out = Record(fifo_layout)
         self.comb += [
             self.fifo.din.eq(fifo_in.raw_bits()),
@@ -194,20 +196,20 @@ class _FIFOWrapper(Module):
 
 class SyncFIFO(_FIFOWrapper):
     def __init__(self, layout, depth, buffered=False):
-        _FIFOWrapper.__init__(
-            self,
-            fifo.SyncFIFOBuffered if buffered else fifo.SyncFIFO,
-            layout, depth)
+        _FIFOWrapper.__init__(self,
+            fifo_class = fifo.SyncFIFOBuffered if buffered else fifo.SyncFIFO,
+            layout     = layout,
+            depth      = depth)
         self.depth = self.fifo.depth
         self.level = self.fifo.level
 
 
 class AsyncFIFO(_FIFOWrapper):
     def __init__(self, layout, depth, buffered=False):
-        _FIFOWrapper.__init__(
-            self,
-            fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
-            layout, depth)
+        _FIFOWrapper.__init__(self,
+            fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
+            layout     = layout,
+            depth      = depth)
 
 # Mux/Demux ----------------------------------------------------------------------------------------
 
@@ -250,16 +252,15 @@ class Demultiplexer(Module):
 
 class _UpConverter(Module):
     def __init__(self, nbits_from, nbits_to, ratio, reverse):
-        self.sink = sink = Endpoint([("data", nbits_from)])
-        self.source = source = Endpoint([("data", nbits_to),
-                                         ("valid_token_count", bits_for(ratio))])
+        self.sink   = sink   = Endpoint([("data", nbits_from)])
+        self.source = source = Endpoint([("data", nbits_to), ("valid_token_count", bits_for(ratio))])
         self.latency = 1
 
         # # #
 
-        # control path
-        demux = Signal(max=ratio)
-        load_part = Signal()
+        # Control path
+        demux      = Signal(max=ratio)
+        load_part  = Signal()
         strobe_all = Signal()
         self.comb += [
             sink.ready.eq(~strobe_all | source.ready),
@@ -293,30 +294,29 @@ class _UpConverter(Module):
             )
         ]
 
-        # data path
+        # Data path
         cases = {}
         for i in range(ratio):
             n = ratio-i-1 if reverse else i
             cases[i] = source.data[n*nbits_from:(n+1)*nbits_from].eq(sink.data)
         self.sync += If(load_part, Case(demux, cases))
 
-        # valid token count
+        # Valid token count
         self.sync += If(load_part, source.valid_token_count.eq(demux + 1))
 
 
 class _DownConverter(Module):
     def __init__(self, nbits_from, nbits_to, ratio, reverse):
-        self.sink = sink = Endpoint([("data", nbits_from)])
-        self.source = source = Endpoint([("data", nbits_to),
-                                         ("valid_token_count", 1)])
+        self.sink   = sink   = Endpoint([("data", nbits_from)])
+        self.source = source = Endpoint([("data", nbits_to), ("valid_token_count", 1)])
         self.latency = 0
 
         # # #
 
-        # control path
-        mux = Signal(max=ratio)
+        # Control path
+        mux   = Signal(max=ratio)
         first = Signal()
-        last = Signal()
+        last  = Signal()
         self.comb += [
             first.eq(mux == 0),
             last.eq(mux == (ratio-1)),
@@ -334,22 +334,21 @@ class _DownConverter(Module):
                 )
             )
 
-        # data path
+        # Data path
         cases = {}
         for i in range(ratio):
             n = ratio-i-1 if reverse else i
             cases[i] = source.data.eq(sink.data[n*nbits_to:(n+1)*nbits_to])
         self.comb += Case(mux, cases).makedefault()
 
-        # valid token count
+        # Valid token count
         self.comb += source.valid_token_count.eq(last)
 
 
 class _IdentityConverter(Module):
     def __init__(self, nbits_from, nbits_to, ratio, reverse):
-        self.sink = sink = Endpoint([("data", nbits_from)])
-        self.source = source = Endpoint([("data", nbits_to),
-                                         ("valid_token_count", 1)])
+        self.sink   = sink   = Endpoint([("data", nbits_from)])
+        self.source = source = Endpoint([("data", nbits_to), ("valid_token_count", 1)])
         self.latency = 0
 
         # # #
@@ -374,13 +373,13 @@ def _get_converter_ratio(nbits_from, nbits_to):
     else:
         converter_cls = _IdentityConverter
         ratio = 1
-
     return converter_cls, ratio
 
 
 class Converter(Module):
-    def __init__(self, nbits_from, nbits_to, reverse=False,
-        report_valid_token_count=False):
+    def __init__(self, nbits_from, nbits_to,
+        reverse                  = False,
+        report_valid_token_count = False):
         self.cls, self.ratio = _get_converter_ratio(nbits_from, nbits_to)
 
         # # #
@@ -394,24 +393,23 @@ class Converter(Module):
             self.source = converter.source
         else:
             self.source = Endpoint([("data", nbits_to)])
-            self.comb += converter.source.connect(self.source,
-                            omit=set(["valid_token_count"]))
+            self.comb += converter.source.connect(self.source, omit=set(["valid_token_count"]))
 
 
 class StrideConverter(Module):
     def __init__(self, description_from, description_to, reverse=False):
-        self.sink = sink = Endpoint(description_from)
+        self.sink   = sink   = Endpoint(description_from)
         self.source = source = Endpoint(description_to)
 
         # # #
 
         nbits_from = len(sink.payload.raw_bits())
-        nbits_to = len(source.payload.raw_bits())
+        nbits_to   = len(source.payload.raw_bits())
 
         converter = Converter(nbits_from, nbits_to, reverse)
         self.submodules += converter
 
-        # cast sink to converter.sink (user fields --> raw bits)
+        # Cast sink to converter.sink (user fields --> raw bits)
         self.comb += [
             converter.sink.valid.eq(sink.valid),
             converter.sink.first.eq(sink.first),
@@ -431,7 +429,7 @@ class StrideConverter(Module):
             self.comb += converter.sink.data.eq(sink.payload.raw_bits())
 
 
-        # cast converter.source to source (raw bits --> user fields)
+        # Cast converter.source to source (raw bits --> user fields)
         self.comb += [
             source.valid.eq(converter.source.valid),
             source.first.eq(converter.source.first),
@@ -450,7 +448,7 @@ class StrideConverter(Module):
         else:
             self.comb += source.payload.raw_bits().eq(converter.source.data)
 
-        # connect params
+        # Connect params
         if converter.latency == 0:
             self.comb += source.param.eq(sink.param)
         elif converter.latency == 1:
@@ -477,11 +475,11 @@ class Gearbox(Module):
 
         io_lcm = lcm(i_dw, o_dw)
 
-        # control path
+        # Control path
 
-        level     = Signal(max=io_lcm)
-        i_inc    = Signal()
-        i_count  = Signal(max=io_lcm//i_dw)
+        level   = Signal(max=io_lcm)
+        i_inc   = Signal()
+        i_count = Signal(max=io_lcm//i_dw)
         o_inc   = Signal()
         o_count = Signal(max=io_lcm//o_dw)
 
@@ -498,10 +496,10 @@ class Gearbox(Module):
             If(o_inc, *inc_mod(o_count, io_lcm//o_dw)),
             If(i_inc & ~o_inc, level.eq(level + i_dw)),
             If(~i_inc & o_inc, level.eq(level - o_dw)),
-            If(i_inc & o_inc, level.eq(level + i_dw - o_dw))
+            If(i_inc & o_inc, level.eq(level + i_dw - o_dw)),
         ]
 
-        # data path
+        # Data path
 
         shift_register = Signal(io_lcm)
 
@@ -529,9 +527,9 @@ class Gearbox(Module):
 
 class Monitor(Module, AutoCSR):
     def __init__(self, endpoint, count_width=32, clock_domain="sys",
-        with_tokens=False,
-        with_overflows=False,
-        with_underflows=False):
+        with_tokens     = False,
+        with_overflows  = False,
+        with_underflows = False):
 
         self.reset = CSR()
         self.latch = CSR()
@@ -561,7 +559,7 @@ class Monitor(Module, AutoCSR):
         # Generic Monitor Counter ------------------------------------------------------------------
         class MonitorCounter(Module):
             def __init__(self, reset, latch, enable, count):
-                _count = Signal.like(count)
+                _count         = Signal.like(count)
                 _count_latched = Signal.like(count)
                 _sync = getattr(self.sync, clock_domain)
                 _sync += [
@@ -598,7 +596,7 @@ class Monitor(Module, AutoCSR):
 
 class Buffer(PipelinedActor):
     def __init__(self, layout):
-        self.sink = Endpoint(layout)
+        self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
         PipelinedActor.__init__(self, 1)
         self.sync += \
@@ -664,7 +662,7 @@ class PipeReady(Module):
 
 class Cast(CombinatorialActor):
     def __init__(self, layout_from, layout_to, reverse_from=False, reverse_to=False):
-        self.sink = Endpoint(_rawbits_layout(layout_from))
+        self.sink   = Endpoint(_rawbits_layout(layout_from))
         self.source = Endpoint(_rawbits_layout(layout_to))
         CombinatorialActor.__init__(self)
 
@@ -691,9 +689,9 @@ class Unpack(Module):
 
         # # #
 
-        mux = Signal(max=n)
+        mux   = Signal(max=n)
         first = Signal()
-        last = Signal()
+        last  = Signal()
         self.comb += [
             first.eq(mux == 0),
             last.eq(mux == (n-1)),
