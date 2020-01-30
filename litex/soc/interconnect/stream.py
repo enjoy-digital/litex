@@ -592,19 +592,6 @@ class Monitor(Module, AutoCSR):
             underflow_counter = MonitorCounter(reset, latch, ~endpoint.valid & endpoint.ready, self.underflows.status)
             self.submodules += underflow_counter
 
-# Buffer -------------------------------------------------------------------------------------------
-
-class Buffer(PipelinedActor):
-    def __init__(self, layout):
-        self.sink   = Endpoint(layout)
-        self.source = Endpoint(layout)
-        PipelinedActor.__init__(self, 1)
-        self.sync += \
-            If(self.pipe_ce,
-                self.source.payload.eq(self.sink.payload),
-                self.source.param.eq(self.sink.param)
-            )
-
 # Pipe ---------------------------------------------------------------------------------------------
 
 class PipeValid(Module):
@@ -657,6 +644,10 @@ class PipeReady(Module):
                 sink.connect(source, omit={"ready"})
             )
         ]
+
+# Buffer -------------------------------------------------------------------------------------------
+
+class Buffer(PipeValid): pass # FIXME: Replace Buffer with PipeValid in codebase?
 
 # Cast ---------------------------------------------------------------------------------------------
 
