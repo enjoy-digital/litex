@@ -33,7 +33,7 @@ def _format_constraint(c, signame, fmt_r):
             return tpl.format(signame=signame, name=fmt_r, misc=c.misc)
         else:
             tpl = "set_instance_assignment -comment \"{name}\"  -name {misc} -to {signame}"
-            return tpl.format(signame=signame, name=fmt.r, misc=c.misc)
+            return tpl.format(signame=signame, name=fmt_r, misc=c.misc)
 
 def _format_qsf_constraint(signame, pin, others, resname):
     fmt_r = "{}:{}".format(*resname[:2])
