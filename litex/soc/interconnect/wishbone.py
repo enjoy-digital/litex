@@ -495,7 +495,7 @@ class Cache(Module):
     This module is a write-back wishbone cache that can be used as a L2 cache.
     Cachesize (in 32-bit words) is the size of the data store and must be a power of 2
     """
-    def __init__(self, cachesize, master, slave):
+    def __init__(self, cachesize, master, slave, reverse=True):
         self.master = master
         self.slave = slave
 
@@ -538,12 +538,12 @@ class Cache(Module):
             ).Else(
                 data_port.dat_w.eq(Replicate(master.dat_w, max(dw_to//dw_from, 1))),
                 If(master.cyc & master.stb & master.we & master.ack,
-                    displacer(master.sel, adr_offset, data_port.we, 2**offsetbits, reverse=True)
+                    displacer(master.sel, adr_offset, data_port.we, 2**offsetbits, reverse=reverse)
                 )
             ),
             chooser(data_port.dat_r, word, slave.dat_w),
             slave.sel.eq(2**(dw_to//8)-1),
-            chooser(data_port.dat_r, adr_offset_r, master.dat_r, reverse=True)
+            chooser(data_port.dat_r, adr_offset_r, master.dat_r, reverse=reverse)
         ]
 
 
