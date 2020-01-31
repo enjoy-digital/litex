@@ -27,12 +27,13 @@ class SoCSDRAM(SoCCore):
     }
     csr_map.update(SoCCore.csr_map)
 
-    def __init__(self, platform, clk_freq, l2_size=8192, min_l2_data_width=128, max_sdram_size=None, **kwargs):
+    def __init__(self, platform, clk_freq, l2_size=8192, l2_reverse=True, min_l2_data_width=128, max_sdram_size=None, **kwargs):
         SoCCore.__init__(self, platform, clk_freq, **kwargs)
         if not self.integrated_main_ram_size:
             if self.cpu_type is not None and self.csr_data_width > 32:
                  raise NotImplementedError("BIOS supports SDRAM initialization only for csr_data_width<=32")
         self.l2_size           = l2_size
+        self.l2_reverse        = l2_reverse
         self.min_l2_data_width = min_l2_data_width
         self.max_sdram_size    = max_sdram_size
 
@@ -103,7 +104,11 @@ class SoCSDRAM(SoCCore):
 
             # L2 Cache -----------------------------------------------------------------------------
             l2_data_width = max(port.data_width, self.min_l2_data_width)
-            l2_cache = wishbone.Cache(l2_size//4, self._wb_sdram, wishbone.Interface(l2_data_width))
+            l2_cache = wishbone.Cache(
+                cachesize = l2_size//4,
+                master    = self._wb_sdram,
+                slave     = wishbone.Interface(l2_data_width),
+                reverse   = self.l2_reverse)
             # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
             # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
             from litex.build.xilinx.vivado import XilinxVivadoToolchain
