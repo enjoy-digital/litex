@@ -243,6 +243,9 @@ class SoCCore(Module):
                 self.submodules.uart = uart.UART()
                 if uart_name == "stub":
                     self.comb += self.uart.sink.ready.eq(1)
+            elif uart_name == "bridge":
+                self.submodules.uart = uart.UARTWishboneBridge(platform.request("serial"), clk_freq, uart_baudrate)
+                self.add_wb_master(self.uart.wishbone)
             elif uart_name == "crossover":
                 self.submodules.uart = uart.UARTCrossover()
             else:
