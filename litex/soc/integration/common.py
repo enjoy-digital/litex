@@ -9,6 +9,7 @@ import os
 import struct
 import time
 
+from typing import Sequence
 from collections import namedtuple
 
 from migen import *
@@ -80,8 +81,127 @@ def SoCConstant(value):
     return value
 
 
-class SoCMemRegion(namedtuple("SoCMemRegion", "origin length properties")):
+class SoCRegion:
+    """A continuous region of address space.
+
+    Attributes
+    ----------
+    start
+    end
+    length : int
+        Length of the region.
+    name : str
+        Name for the region.
     """
+
+    def __new__(cls, origin: int, length: int, *args, **kw):
+        if not isinstance(origin, int):
+            raise TypeError("origin must be a int: {}".format(repr(origin)))
+        if not isinstance(length, int):
+            raise TypeError("length must be a int: {}".format(repr(length)))
+        if origin < 0:
+            raise TypeError("origin must be positive: {}".format(origin))
+        return super().__new__(cls, origin, length, *args, **kw)
+
+    @property
+    def start(self) -> int:
+        """Starting address (inclusive)."""
+        return self.origin
+
+    @property
+    def end(self) -> int:
+        """Ending address (exclusive).
+        >>> a = SoCMemRegion(0x0, 8, "io")
+        >>> a.start
+        0
+        >>> a.end
+        8
+        >>> b = SoCMemRegion(0x4, 8, "io")
+        >>> b.start
+        4
+        >>> b.end
+        12
+        """
+        return self.start + self.length
+
+    def overlaps(self, other: "SoCRegion") -> bool:
+        """Does this region overlap with another SoCRegion?
+
+        >>> a = SoCMemRegion(0x0, 8, "io")
+        >>> b = SoCMemRegion(0x4, 8, "io")
+        >>> c = SoCMemRegion(0x8, 8, "io")
+        >>> a.overlaps(b)
+        True
+        >>> b.overlaps(a)
+        True
+        >>> a.overlaps(c)
+        False
+        >>> c.overlaps(a)
+        False
+        >>> b.overlaps(c)
+        True
+        >>> c.overlaps(b)
+        True
+        """
+        if self.origin == other.origin:
+            return True
+        elif self.origin < other.origin:
+            first = self
+            second = other
+        elif self.origin > other.origin:
+            first = other
+            second = self
+
+        return first.end > second.start
+
+    def contains(self, other: "SoCRegion") -> bool:
+        """Does this region fully contain another SoCMemRegion?
+
+        >>> a = SoCMemRegion(0x0, 8, "io")
+        >>> b = SoCMemRegion(0x0, 8, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (True, True)
+        >>> b = SoCMemRegion(0x0, 9, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (False, True)
+        >>> b = SoCMemRegion(0x0, 4, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (True, True)
+        >>> b = SoCMemRegion(0x0, 4, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (True, True)
+        >>> b = SoCMemRegion(0x4, 4, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (True, True)
+        >>> b = SoCMemRegion(0x4, 5, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (False, True)
+        >>> b = SoCMemRegion(0x8, 4, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (False, False)
+        >>> a = SoCMemRegion(0x8, 8, "io")
+        >>> b = SoCMemRegion(0x4, 4, "io")
+        >>> a.contains(b), a.overlaps(b)
+        (False, False)
+        """
+        if not self.overlaps(other):
+            return False
+
+        if self.length < other.length:
+            return False
+
+        if other.origin < self.origin:
+            return False
+
+        if other.end > self.end:
+            return False
+
+        return True
+
+
+class SoCMemRegion(SoCRegion, namedtuple("SoCMemRegion", "origin length properties name")):
+    """A continuous region of address space.
+
     >>> SoCMemRegion(-4, 10, "io")
     Traceback (most recent call last):
         ...
@@ -100,7 +220,7 @@ class SoCMemRegion(namedtuple("SoCMemRegion", "origin length properties")):
     TypeError: length must be a int: 'hello'
     >>> a = SoCMemRegion(0, 10, "io")
     >>> a
-    SoCMemRegion(origin=0, length=10, properties=<Properties.io: 1>)
+    SoCMemRegion(origin=0, length=10, properties=<Properties.io: 1>, name='<anonymous>')
     >>> a.io
     True
     >>> a.cached
@@ -109,7 +229,7 @@ class SoCMemRegion(namedtuple("SoCMemRegion", "origin length properties")):
     False
     >>> a = SoCMemRegion(20, 10, "cached+linker")
     >>> a
-    SoCMemRegion(origin=20, length=10, properties=<Properties.linker_only|cached: 6>)
+    SoCMemRegion(origin=20, length=10, properties=<Properties.linker_only|cached: 6>, name='<anonymous>')
     >>> a.io
     False
     >>> a.cached
@@ -155,146 +275,50 @@ class SoCMemRegion(namedtuple("SoCMemRegion", "origin length properties")):
                 raise TypeError(" ".join(errors))
             return r
 
-    def __new__(cls, origin, length, properties):
+    origin: int
+    length: int
+    properties: Properties
+
+    def __new__(cls, origin: int, length: int, properties: Properties, name: str='<anonymous>'):
         if isinstance(properties, str):
             properties = SoCMemRegion.Properties.from_string(properties)
-        if not isinstance(origin, int):
-            raise TypeError("origin must be a int: {}".format(repr(origin)))
-        if not isinstance(length, int):
-            raise TypeError("length must be a int: {}".format(repr(length)))
-        if origin < 0:
-            raise TypeError("origin must be positive: {}".format(origin))
-        return super().__new__(cls, origin, length, properties)
+        return super().__new__(cls, origin, length, properties, name=name)
 
     def __init__(self, origin, length, properties):
         pass
 
     @property
-    def io(self):
+    def io(self) -> bool:
         return self.Properties.io in self.properties
 
     @property
-    def cached(self):
+    def cached(self) -> bool:
         return self.Properties.cached in self.properties
 
     @property
-    def linker_only(self):
+    def linker_only(self) -> bool:
         return self.Properties.linker_only in self.properties
 
-    @property
-    def start(self):
-        return self.origin
-
-    @property
-    def end(self):
-        """
-        >>> a = SoCMemRegion(0x0, 8, "io")
-        >>> a.start
-        0
-        >>> a.end
-        8
-        >>> b = SoCMemRegion(0x4, 8, "io")
-        >>> b.start
-        4
-        >>> b.end
-        12
-        """
-        return self.origin + self.length
-
-    def overlaps(self, other):
-        """Does this region overlap with another SoCMemRegion?
-
-        >>> a = SoCMemRegion(0x0, 8, "io")
-        >>> b = SoCMemRegion(0x4, 8, "io")
-        >>> c = SoCMemRegion(0x8, 8, "io")
-        >>> a.overlaps(b)
-        True
-        >>> b.overlaps(a)
-        True
-        >>> a.overlaps(c)
-        False
-        >>> c.overlaps(a)
-        False
-        >>> b.overlaps(c)
-        True
-        >>> c.overlaps(b)
-        True
-        """
-        if self.origin == other.origin:
-            return True
-        elif self.origin < other.origin:
-            first = self
-            second = other
-        elif self.origin > other.origin:
-            first = other
-            second = self
-
-        return first.end > second.start
-
-    def contains(self, other):
-        """Does this region fully contain another SoCMemRegion?
-
-        >>> a = SoCMemRegion(0x0, 8, "io")
-        >>> b = SoCMemRegion(0x0, 8, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (True, True)
-        >>> b = SoCMemRegion(0x0, 9, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (False, True)
-        >>> b = SoCMemRegion(0x0, 4, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (True, True)
-        >>> b = SoCMemRegion(0x0, 4, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (True, True)
-        >>> b = SoCMemRegion(0x4, 4, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (True, True)
-        >>> b = SoCMemRegion(0x4, 5, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (False, True)
-        >>> b = SoCMemRegion(0x8, 4, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (False, False)
-        >>> a = SoCMemRegion(0x8, 8, "io")
-        >>> b = SoCMemRegion(0x4, 4, "io")
-        >>> a.contains(b), a.overlaps(b)
-        (False, False)
-        """
-        if not self.overlaps(other):
-            return False
-
-        if self.length < other.length:
-            return False
-
-        if other.origin < self.origin:
-            return False
-
-        if other.end > self.end:
-            return False
-
-        return True
-
     @classmethod
-    def merge(cls, regions):
+    def merge(cls, regions: Sequence["SocMemRegion"]) -> "SoCMemRegion":
         """Create a SoCMemRegion covering all the given regions.
 
         >>> a = SoCMemRegion(0x0, 4, "io")
         >>> b = SoCMemRegion(0x4, 4, "io")
         >>> c = SoCMemRegion(0x8, 4, "io")
         >>> SoCMemRegion.merge([a, b])
-        SoCMemRegion(origin=0, length=8, properties=<Properties.io: 1>)
+        SoCMemRegion(origin=0, length=8, properties=<Properties.io: 1>, name='<anonymous>')
         >>> SoCMemRegion.merge([a, c])
-        SoCMemRegion(origin=0, length=12, properties=<Properties.io: 1>)
+        SoCMemRegion(origin=0, length=12, properties=<Properties.io: 1>, name='<anonymous>')
         >>> SoCMemRegion.merge([b, c])
-        SoCMemRegion(origin=4, length=8, properties=<Properties.io: 1>)
+        SoCMemRegion(origin=4, length=8, properties=<Properties.io: 1>, name='<anonymous>')
         >>> SoCMemRegion.merge([c, b])
-        SoCMemRegion(origin=4, length=8, properties=<Properties.io: 1>)
+        SoCMemRegion(origin=4, length=8, properties=<Properties.io: 1>, name='<anonymous>')
         >>> d = SoCMemRegion(0x2, 4, "cached")
         >>> SoCMemRegion.merge([a, d])
         Traceback (most recent call last):
             ...
-        TypeError: Can't merge regions with mismatch properties: SoCMemRegion(origin=0, length=4, properties=<Properties.io: 1>) SoCMemRegion(origin=2, length=4, properties=<Properties.cached: 2>)
+        TypeError: Can't merge regions with mismatch properties: SoCMemRegion(origin=0, length=4, properties=<Properties.io: 1>, name='<anonymous>') SoCMemRegion(origin=2, length=4, properties=<Properties.cached: 2>, name='<anonymous>')
         """
         assert len(regions) > 0, regions
 
@@ -311,6 +335,29 @@ class SoCMemRegion(namedtuple("SoCMemRegion", "origin length properties")):
             start = min(start, r.start)
             end = max(end, r.end)
         return cls(start, end-start, f.properties)
+
+
+class SoCFlashRegion(SoCRegion, namedtuple("SoCFlashRegion", "origin length flash_base name")):
+    """A continuous region of flash spaced memory mapped at flash_base.
+
+    >>> a = SoCFlashRegion(1, 2, flash_base=3)
+    >>> a.start
+    4
+    >>> a.end
+    6
+    >>> a.length
+    2
+    """
+
+    def __new__(cls, origin: int, length: int, flash_base: int, name: str = '<anonymous>'):
+        if not isinstance(flash_base, int):
+            raise TypeError("flash_base must be a int: {}".format(repr(flash_base)))
+        return super().__new__(cls, origin, length, flash_base, name)
+
+    @property
+    def start(self) -> int:
+        return self.flash_base + self.origin
+
 
 
 class SoCCSRRegion(namedtuple("SoCCSRRegion", "origin busword obj")):
