@@ -402,67 +402,69 @@ class SoCCore(Module):
         return None
 
     def alloc_mem_region(self, name, length, type):
-        # Use type to limit search regions
-        search_regions = []
-        if "io" in type:
-            for _origin, _length in self.soc_io_regions.items():
-                search_regions.append(SoCMemRegion(origin=_origin, length=_length, type=type))
-        else:
-            search_regions.append(SoCMemRegion(origin=0x00000000, length=0x80000000, type=type))
-        # Iterate over search_regions and origin to find a candidate region
-        for search_region in search_regions:
-            origin = search_region.origin
-            while (origin + length) < (search_region.origin + search_region.length):
-                # Create a candidate mem region.
-                candidate_region  = SoCMemRegion(origin=origin, length=length, type=type)
-                candidate_overlap = False
-                # Check candidate does not overlap with allocated mem regions.
-                for _, allocated_region in self.mem_regions.items():
-                    if self.check_regions_overlap({"0": allocated_region, "1": candidate_region}) is not None:
-                        origin = allocated_region.origin + allocated_region.length
-                        candidate_overlap = True
-                        break
-                if not candidate_overlap:
-                    # If no overlap, the candidate is selected.
-                    #print("{} region allocated at: {:08x}".format(name, candidate_region.origin))
-                    return candidate_region
-        msg = "Not enough addressable memory space to allocate mem region {} of length 0x{:0x}".format(
-            name, length)
-        raise ValueError(msg)
+        # Linker only regions have to be explicitly specified.
+        assert SoCMemRegion.Properties.linker_only not in type
 
-    def add_mem_region(self, name, length, type="cached"):
-        # Check name conflicts.
-        if name in self.mem_regions.keys():
-            raise ValueError("Memory region conflict, {} name already used".format(name))
-        # Round length to next power of 2.
-        length = 2**log2_int(length, False)
-        # Get mem origin; if not defined in mem_map, allocate a new mem region, else use mem_map
-        # mapping and check for type/overlap conflicts.
-        origin = self.mem_map.get(name, None)
-        if origin is None:
-            self.mem_regions[name] = self.alloc_mem_region(name, length, type)
+        CACHED_BOUNDRY = 0x80000000
+        if type == SoCMemRegion.Properties.cached:
+            search_region = SoCMemRegion(0x00000000, CACHED_BOUNDRY, "cached")
+        elif type == SoCMemRegion.Properties.io:
+            search_region = SoCMemRegion(CACHED_BOUNDRY, 2**32 - CACHED_BOUNDRY, "io")
+
+        used = [x for x in sorted(self.mem_regions.items()) if x.overlaps(search_region)]
+
+        start = search_region.start
+        while True:
+            new_region = SoCMemRegion(start, length, type)
+            assert new_region.overlaps(search_region)
+            for u in used:
+                if new_region.overlaps(u):
+                    start = new_region.end
+            if new_region.start == start:
+                break
+
+        assert search_region.contains(new_region)
+        return new_region.start
+
+    def add_mem_region(self, name, length, origin=None, type="cached"):
+
+        if origin is not None:
+            # If origin is provided, it must match value in soc_mem_map
+            if name in self.soc_mem_map:
+                assert self.soc_mem_map[name] == origin
         else:
-            # Check type
-            if "io" in type:
-                self.check_io_region(name,origin, length)
-            # Add region
-            self.mem_regions[name] = SoCMemRegion(origin, length, type)
-            # Check overlap
-            overlap = self.check_regions_overlap(self.mem_regions)
-            if overlap is not None:
-                o0, o1 = overlap[0], overlap[1]
-                raise ValueError("Memory region conflict between {} ({}) and {} ({})".format(
-                    o0, self.mem_regions[o0],
-                    o1, self.mem_regions[o1],
-                ))
+            # If origin is not provided, get it from soc_mem_map or allocate it
+            origin = self.soc_mem_map.get(name, None)
+
+            if origin is None:
+                origin = self.alloc_mem_region(name, length, type)
+
+        new_region = SoCMemRegion(origin, length, type)
+
+        # Check if region exists, it is identical to the provided value.
+        if name in self.mem_regions:
+            if self.mem_regions[name] == new_region:
+                return
+            raise ValueError("Can't create memory region {} with {} as it has already created with {}".format(name, new_region, self.mem_map[name]))
+
+        # Check for overlaps
+        if not new_region.linker_only:
+            # Check for conflicts
+            for existing_name, existing_region in self.mem_regions.items():
+                if not new_region.overlaps(existing_region):
+                    continue
+                raise ValueError(
+                    "Can't create memory region {} with {} as it overlaps with existing region {} ({})".format(name, new_region, existing_name, existing_region))
+
+        self.soc_mem_map[name] = new_region.origin
+        self.mem_regions[name] = new_region
 
     # FIXME: add deprecated warning?
     def add_memory_region(self, name, origin, length, type="cached", io_region=False):
         if io_region: # 2019-10-30: io_region retro-compatibility
             deprecated_warning(": io_region replaced by type=\"io\".")
             type = "io"
-        assert name in self.mem_map.keys()
-        self.add_mem_region(name, length, type)
+        self.add_mem_region(name, length, origin=origin, type=type)
 
     def register_mem(self, name, address, interface, size=0x10000000):
         self.add_wb_slave(address, interface, size)
