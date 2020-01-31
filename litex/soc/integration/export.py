@@ -19,7 +19,7 @@ from sysconfig import get_platform
 
 from migen import *
 
-from litex.soc.interconnect.csr import CSRStatus
+from litex.soc.interconnect.csr import CSRStatus, CSRStorage
 
 from litex.build.tools import generated_banner
 
@@ -213,6 +213,70 @@ def get_csr_header(regions, constants, with_access_functions=True):
 
     r += "\n#endif\n"
     return r
+
+
+# SVD Export ---------------------------------------------------------------------------------------
+
+def get_csr_svd(csr_regions={}, constants={}, mem_regions={}):
+    alignment_bits = constants.get("CONFIG_CSR_ALIGNMENT", 32)
+
+    r = """<?xml version="1.0" encoding="utf-8"?>
+<device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd" >
+    <name>LiteX SoC</name>
+    <addressUnitBits>8</addressUnitBits>
+    <width>32</width>
+    <peripherals>
+"""
+    for name, region in csr_regions.items():
+        busword_bits = region.busword
+        if not isinstance(region.obj, Memory):
+            r += 8 * " " + "<peripheral>\n"
+            r += 12 * " " + "<name>%s</name>\n" % name
+            r += 12 * " " + "<baseAddress>0x%08x</baseAddress>\n" % region.origin
+            r += 12 * " " + "<registers>\n"
+            csr_offset = 0
+            for csr in region.obj:
+                csr_size_bits = csr.size
+                nwords = (csr_size_bits + busword_bits - 1) // busword_bits
+                if nwords > 1 and alignment_bits != busword_bits:
+                    raise ValueError("Multi-word registers are not supported")
+                r += 16 * " " + "<register>\n"
+                r += 20 * " " + "<name>%s</name>\n" % csr.name
+                r += 20 * " " + "<addressOffset>0x%02x</addressOffset>\n" % csr_offset
+                r += 20 * " " + "<size>%d</size>\n" % (nwords * busword_bits)
+                access = "read-only" if isinstance(csr, CSRStatus) else "read-write"
+                r += 20 * " " + "<access>%s</access>\n" % access
+                reset_value = 0
+                if isinstance(csr, CSRStatus):
+                    reset_value = csr.status.reset
+                if isinstance(csr, CSRStorage):
+                    reset_value = csr.storage.reset
+                if isinstance(reset_value, Constant):
+                    reset_value = reset_value.value
+                if not isinstance(reset_value, int):
+                    raise TypeError("Unsupported reset value type")
+                r += 20 * " " + "<resetValue>0x%x</resetValue>\n" % reset_value
+                if hasattr(csr, "fields"):
+                    r += 20 * " " + "<fields>\n"
+                    for field in csr.fields.fields:
+                        r += 24 * " " + "<field>\n"
+                        r += 28 * " " + "<name>%s</name>\n" % field.name
+                        r += 28 * " " + "<bitOffset>%d</bitOffset>\n" % field.offset
+                        r += 28 * " " + "<bitWidth>%d</bitWidth>\n" % field.size
+                        r += 24 * " " + "</field>\n"
+                    r += 20 * " " + "</fields>\n"
+                r += 16 * " " + "</register>\n"
+                csr_offset += alignment_bits//8 * nwords
+            r += 12 * " " + "</registers>\n"
+            r += 8 * " " + "</peripheral>\n"
+
+
+    r += """
+    </peripherals>
+</device>
+"""
+    return r
+
 
 # JSON Export --------------------------------------------------------------------------------------
 
