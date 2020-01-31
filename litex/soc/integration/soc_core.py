@@ -609,9 +609,9 @@ def soc_core_args(parser):
                         help="CPU reset address (default=0x00000000 or ROM)")
     # ROM parameters
     parser.add_argument("--integrated-rom-size", default=0x8000, type=int,
-                        help="size/enable the integrated (BIOS) ROM")
+                        help="size/enable the integrated (BIOS) ROM (default=32KB)")
     parser.add_argument("--integrated-rom-file", default=None, type=str,
-                        help="integrated (BIOS) ROM binary file (default=32KB)")
+                        help="integrated (BIOS) ROM binary file")
     # SRAM parameters
     parser.add_argument("--integrated-sram-size", default=0x1000, type=int,
                         help="size/enable the integrated SRAM (default=4KB)")
