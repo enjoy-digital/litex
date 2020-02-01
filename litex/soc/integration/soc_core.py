@@ -345,6 +345,15 @@ class SoCCore(Module):
                         csr_id, _name))
             self.soc_csr_map.update({csr_name: csr_id})
 
+    def add_memory(self, name, XXX):
+        pass
+
+    def add_linker_region(self, name, XXXX):
+        pass
+
+    def add_flash_region(self, name, XXXX):
+        pass
+
     def initialize_rom(self, data):
         self.rom.mem.init = data
 
