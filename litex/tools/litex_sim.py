@@ -168,6 +168,7 @@ class SimSoC(SoCSDRAM):
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             ident               = "LiteX Simulation", ident_version=True,
             with_uart           = False,
+            l2_reverse          = False,
             **kwargs)
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
