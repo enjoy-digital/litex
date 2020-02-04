@@ -10,7 +10,7 @@ from .csr import DocumentedCSRRegion
 from .module import gather_submodules, ModuleNotDocumented, DocumentedModule, DocumentedInterrupts
 from .rst import reflow
 
-sphinx_configuration = """
+default_sphinx_configuration = """
 project = '{}'
 copyright = '{}, {}'
 author = '{}'
@@ -26,6 +26,7 @@ html_theme = 'alabaster'
 html_static_path = ['_static']
 """
 
+
 def sub_csr_bit_range(busword, csr, offset):
     nwords = (csr.size + busword - 1)//busword
     i = nwords - offset - 1
@@ -34,13 +35,17 @@ def sub_csr_bit_range(busword, csr, offset):
     origin = i*busword
     return (origin, nbits, name)
 
+
 def print_svd_register(csr, csr_address, description, length, svd):
     print('                <register>', file=svd)
     print('                    <name>{}</name>'.format(csr.short_numbered_name), file=svd)
     if description is not None:
-        print('                    <description><![CDATA[{}]]></description>'.format(description), file=svd)
-    print('                    <addressOffset>0x{:04x}</addressOffset>'.format(csr_address), file=svd)
-    print('                    <resetValue>0x{:02x}</resetValue>'.format(csr.reset_value), file=svd)
+        print(
+            '                    <description><![CDATA[{}]]></description>'.format(description), file=svd)
+    print(
+        '                    <addressOffset>0x{:04x}</addressOffset>'.format(csr_address), file=svd)
+    print(
+        '                    <resetValue>0x{:02x}</resetValue>'.format(csr.reset_value), file=svd)
     print('                    <size>{}</size>'.format(length), file=svd)
     print('                    <access>{}</access>'.format(csr.access), file=svd)
     csr_address = csr_address + 4
@@ -48,11 +53,16 @@ def print_svd_register(csr, csr_address, description, length, svd):
     if hasattr(csr, "fields") and len(csr.fields) > 0:
         for field in csr.fields:
             print('                        <field>', file=svd)
-            print('                            <name>{}</name>'.format(field.name), file=svd)
-            print('                            <msb>{}</msb>'.format(field.offset + field.size - 1), file=svd)
-            print('                            <bitRange>[{}:{}]</bitRange>'.format(field.offset + field.size - 1, field.offset), file=svd)
-            print('                            <lsb>{}</lsb>'.format(field.offset), file=svd)
-            print('                            <description><![CDATA[{}]]></description>'.format(reflow(field.description)), file=svd)
+            print(
+                '                            <name>{}</name>'.format(field.name), file=svd)
+            print('                            <msb>{}</msb>'.format(field.offset +
+                                                                     field.size - 1), file=svd)
+            print('                            <bitRange>[{}:{}]</bitRange>'.format(
+                field.offset + field.size - 1, field.offset), file=svd)
+            print(
+                '                            <lsb>{}</lsb>'.format(field.offset), file=svd)
+            print('                            <description><![CDATA[{}]]></description>'.format(
+                reflow(field.description)), file=svd)
             print('                        </field>', file=svd)
     else:
         field_size = csr.size
@@ -67,11 +77,13 @@ def print_svd_register(csr, csr_address, description, length, svd):
         print('                        <field>', file=svd)
         print('                            <name>{}</name>'.format(field_name), file=svd)
         print('                            <msb>{}</msb>'.format(field_size - 1), file=svd)
-        print('                            <bitRange>[{}:{}]</bitRange>'.format(field_size - 1, 0), file=svd)
+        print(
+            '                            <bitRange>[{}:{}]</bitRange>'.format(field_size - 1, 0), file=svd)
         print('                            <lsb>{}</lsb>'.format(0), file=svd)
         print('                        </field>', file=svd)
     print('                    </fields>', file=svd)
     print('                </register>', file=svd)
+
 
 def generate_svd(soc, buildpath, vendor="litex", name="soc", filename=None, description=None):
     interrupts = {}
@@ -85,9 +97,11 @@ def generate_svd(soc, buildpath, vendor="litex", name="soc", filename=None, desc
         raw_regions = soc.get_csr_regions()
     else:
         for region_name, region in soc.csr_regions.items():
-            raw_regions.append((region_name, region.origin, region.busword, region.obj))
+            raw_regions.append((region_name, region.origin,
+                                region.busword, region.obj))
     for csr_region in raw_regions:
-        documented_regions.append(DocumentedCSRRegion(csr_region, csr_data_width=soc.csr_data_width))
+        documented_regions.append(DocumentedCSRRegion(
+            csr_region, csr_data_width=soc.csr_data_width))
 
     if filename is None:
         filename = name + ".svd"
@@ -98,7 +112,8 @@ def generate_svd(soc, buildpath, vendor="litex", name="soc", filename=None, desc
         print('    <vendor>{}</vendor>'.format(vendor), file=svd)
         print('    <name>{}</name>'.format(name.upper()), file=svd)
         if description is not None:
-            print('    <description><![CDATA[{}]]></description>'.format(reflow(description)), file=svd)
+            print(
+                '    <description><![CDATA[{}]]></description>'.format(reflow(description)), file=svd)
         print('', file=svd)
         print('    <addressUnitBits>8</addressUnitBits>', file=svd)
         print('    <width>32</width>', file=svd)
@@ -113,10 +128,13 @@ def generate_svd(soc, buildpath, vendor="litex", name="soc", filename=None, desc
             csr_address = 0
             print('        <peripheral>', file=svd)
             print('            <name>{}</name>'.format(region.name.upper()), file=svd)
-            print('            <baseAddress>0x{:08X}</baseAddress>'.format(region.origin), file=svd)
-            print('            <groupName>{}</groupName>'.format(region.name.upper()), file=svd)
+            print(
+                '            <baseAddress>0x{:08X}</baseAddress>'.format(region.origin), file=svd)
+            print(
+                '            <groupName>{}</groupName>'.format(region.name.upper()), file=svd)
             if len(region.sections) > 0:
-                print('            <description><![CDATA[{}]]></description>'.format(reflow(region.sections[0].body())), file=svd)
+                print('            <description><![CDATA[{}]]></description>'.format(
+                    reflow(region.sections[0].body())), file=svd)
             print('            <registers>', file=svd)
             for csr in region.csrs:
                 description = None
@@ -125,42 +143,53 @@ def generate_svd(soc, buildpath, vendor="litex", name="soc", filename=None, desc
                 if isinstance(csr, _CompoundCSR) and len(csr.simple_csrs) > 1:
                     is_first = True
                     for i in range(len(csr.simple_csrs)):
-                        (start, length, name) = sub_csr_bit_range(region.busword, csr, i)
-                        sub_name = csr.name.upper() + "_" + name
+                        (start, length, name) = sub_csr_bit_range(
+                            region.busword, csr, i)
                         if length > 0:
-                            bits_str = "Bits {}-{} of `{}`.".format(start, start+length, csr.name)
+                            bits_str = "Bits {}-{} of `{}`.".format(
+                                start, start+length, csr.name)
                         else:
-                            bits_str = "Bit {} of `{}`.".format(start, csr.name)
+                            bits_str = "Bit {} of `{}`.".format(
+                                start, csr.name)
                         if is_first:
                             if description is not None:
-                                print_svd_register(csr.simple_csrs[i], csr_address, bits_str + " " + description, length, svd)
+                                print_svd_register(
+                                    csr.simple_csrs[i], csr_address, bits_str + " " + description, length, svd)
                             else:
-                                print_svd_register(csr.simple_csrs[i], csr_address, bits_str, length, svd)
+                                print_svd_register(
+                                    csr.simple_csrs[i], csr_address, bits_str, length, svd)
                             is_first = False
                         else:
-                            print_svd_register(csr.simple_csrs[i], csr_address, bits_str, length, svd)
+                            print_svd_register(
+                                csr.simple_csrs[i], csr_address, bits_str, length, svd)
                         csr_address = csr_address + 4
                 else:
-                    length = ((csr.size + region.busword - 1)//region.busword) * region.busword
-                    print_svd_register(csr, csr_address, description, length, svd)
+                    length = ((csr.size + region.busword - 1) //
+                              region.busword) * region.busword
+                    print_svd_register(
+                        csr, csr_address, description, length, svd)
                     csr_address = csr_address + 4
             print('            </registers>', file=svd)
             print('            <addressBlock>', file=svd)
             print('                <offset>0</offset>', file=svd)
-            print('                <size>0x{:x}</size>'.format(csr_address), file=svd)
+            print(
+                '                <size>0x{:x}</size>'.format(csr_address), file=svd)
             print('                <usage>registers</usage>', file=svd)
             print('            </addressBlock>', file=svd)
             if region.name in interrupts:
                 print('            <interrupt>', file=svd)
                 print('                <name>{}</name>'.format(region.name), file=svd)
-                print('                <value>{}</value>'.format(interrupts[region.name]), file=svd)
+                print(
+                    '                <value>{}</value>'.format(interrupts[region.name]), file=svd)
                 print('            </interrupt>', file=svd)
             print('        </peripheral>', file=svd)
         print('    </peripherals>', file=svd)
         print('</device>', file=svd)
 
+
 def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
-            author="Anonymous", sphinx_extensions=[], quiet=False, note_pulses=False):
+                  author="Anonymous", sphinx_extensions=[], quiet=False, note_pulses=False,
+                  from_scratch=True):
     """Possible extra extensions:
         [
             'm2r',
@@ -177,13 +206,17 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
     # Ensure the output directory exists
     pathlib.Path(base_dir + "/_static").mkdir(parents=True, exist_ok=True)
 
-    # Create various Sphinx plumbing
-    with open(base_dir + "conf.py", "w", encoding="utf-8") as conf:
-        year = datetime.datetime.now().year
-        sphinx_ext_str = ""
-        for ext in sphinx_extensions:
-            sphinx_ext_str += "\n    \"{}\",".format(ext)
-        print(sphinx_configuration.format(project_name, year, author, author, sphinx_ext_str), file=conf)
+    # Create the sphinx configuration file if the user has requested,
+    # or if it doesn't exist already.
+    if from_scratch or not os.path.isfile(base_dir + "conf.py"):
+        with open(base_dir + "conf.py", "w", encoding="utf-8") as conf:
+            year = datetime.datetime.now().year
+            sphinx_ext_str = ""
+            for ext in sphinx_extensions:
+                sphinx_ext_str += "\n    \"{}\",".format(ext)
+            print(default_sphinx_configuration.format(project_name, year,
+                                                      author, author, sphinx_ext_str), file=conf)
+
     if not quiet:
         print("Generate the documentation by running `sphinx-build -M html {} {}_build`".format(base_dir, base_dir))
 
@@ -200,13 +233,16 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
     documented_regions = []
     seen_modules = set()
     regions = []
+
     # Previously, litex contained a function to gather csr regions.
     if hasattr(soc, "get_csr_regions"):
         regions = soc.get_csr_regions()
     else:
         # Now we just access the regions directly.
         for region_name, region in soc.csr_regions.items():
-            regions.append((region_name, region.origin, region.busword, region.obj))
+            regions.append((region_name, region.origin,
+                            region.busword, region.obj))
+
     for csr_region in regions:
         module = None
         if hasattr(soc, csr_region[0]):
@@ -214,9 +250,11 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
             seen_modules.add(module)
         submodules = gather_submodules(module)
 
-        documented_region = DocumentedCSRRegion(csr_region, module, submodules, csr_data_width=soc.csr_data_width)
+        documented_region = DocumentedCSRRegion(
+            csr_region, module, submodules, csr_data_width=soc.csr_data_width)
         if documented_region.name in interrupts:
-            documented_region.document_interrupt(soc, submodules, interrupts[documented_region.name])
+            documented_region.document_interrupt(
+                soc, submodules, interrupts[documented_region.name])
         documented_regions.append(documented_region)
 
     # Document any modules that are not CSRs.
@@ -231,38 +269,41 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
             except ModuleNotDocumented:
                 pass
 
-    with open(base_dir + "index.rst", "w", encoding="utf-8") as index:
-        print("""
+    # Create index.rst containing links to all of the generated files.
+    # If the user has set `from_scratch=False`, then skip this step.
+    if from_scratch or not os.path.isfile(base_dir + "index.rst"):
+        with open(base_dir + "index.rst", "w", encoding="utf-8") as index:
+            print("""
 Documentation for {}
 {}
 
-.. toctree::
-    :hidden:
 """.format(project_name, "="*len("Documentation for " + project_name)), file=index)
-        for module in additional_modules:
-            print("    {}".format(module.name), file=index)
-        for region in documented_regions:
-            print("    {}".format(region.name), file=index)
 
-        if len(additional_modules) > 0:
-            print("""
+            if len(additional_modules) > 0:
+                print("""
 Modules
-=======
-""", file=index)
-            for module in additional_modules:
-                print("* :doc:`{} <{}>`".format(module.name.upper(), module.name), file=index)
+-------
 
-        if len(documented_regions) > 0:
-            print("""
+.. toctree::
+    :maxdepth: 1
+""", file=index)
+                for module in additional_modules:
+                    print("    {}".format(module.name), file=index)
+
+            if len(documented_regions) > 0:
+                print("""
 Register Groups
-===============
-""", file=index)
-            for region in documented_regions:
-                print("* :doc:`{} <{}>`".format(region.name.upper(), region.name), file=index)
+---------------
 
-        print("""
+.. toctree::
+    :maxdepth: 1
+""", file=index)
+                for region in documented_regions:
+                    print("    {}".format(region.name), file=index)
+
+            print("""
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
@@ -279,10 +320,10 @@ Indices and tables
         with open(base_dir + region.name + ".rst", "w", encoding="utf-8") as outfile:
             region.print_region(outfile, base_dir, note_pulses)
 
+    # Copy over wavedrom javascript and configuration files
     with open(os.path.dirname(__file__) + "/static/WaveDrom.js", "r") as wd_in:
         with open(base_dir + "/_static/WaveDrom.js", "w") as wd_out:
             wd_out.write(wd_in.read())
-
     with open(os.path.dirname(__file__) + "/static/default.js", "r") as wd_in:
         with open(base_dir + "/_static/default.js", "w") as wd_out:
             wd_out.write(wd_in.read())
