@@ -566,6 +566,7 @@ int main(int i, char **c)
 	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
 	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
 	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
+	printf("\e[1m   Build your hardware, easily!\e[0m\n");
 	printf("\n");
 	printf(" (c) Copyright 2012-2020 Enjoy-Digital\n");
 	printf(" (c) Copyright 2007-2015 M-Labs\n");
