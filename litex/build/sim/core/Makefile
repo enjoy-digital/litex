@@ -1,8 +1,8 @@
 include variables.mak
 
-CC = gcc
-CFLAGS = -Wall -$(OPT_LEVEL) -ggdb $(if $(COVERAGE), -DVM_COVERAGE)
-LDFLAGS = -lpthread -Wl,--no-as-needed -ljson-c -lm -lstdc++ -Wl,--no-as-needed -ldl -levent
+CC ?= gcc
+CFLAGS += -Wall -$(OPT_LEVEL) -ggdb $(if $(COVERAGE), -DVM_COVERAGE)
+LDFLAGS += -lpthread -Wl,--no-as-needed -ljson-c -lm -lstdc++ -Wl,--no-as-needed -ldl -levent
 
 CC_SRCS ?= "--cc dut.v"
 
