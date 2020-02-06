@@ -130,25 +130,25 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
             if sim == False:
                 if i == 1: # only wire up o_CNTVALUEOUT for one instance
                     self.specials += Instance("IDELAYE2",
-                             p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
-                             p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="FALSE", p_REFCLK_FREQUENCY=200.0,
-                             p_PIPE_SEL="FALSE", p_IDELAY_VALUE=dq_delay_taps, p_IDELAY_TYPE=delay_type,
+                         p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
+                         p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="FALSE", p_REFCLK_FREQUENCY=200.0,
+                         p_PIPE_SEL="FALSE", p_IDELAY_VALUE=dq_delay_taps, p_IDELAY_TYPE=delay_type,
 
-                             i_C=ClockSignal(), i_CINVCTRL=0, i_REGRST=0, i_LDPIPEEN=0, i_INC=0, i_CE=0,
-                             i_LD=self.delay_update,
-                             i_CNTVALUEIN=self.delay_config.fields.d, o_CNTVALUEOUT=self.delay_status.fields.q,
-                             i_IDATAIN=dq.i[i-1], o_DATAOUT=dq_delayed[i],
+                         i_C=ClockSignal(), i_CINVCTRL=0, i_REGRST=0, i_LDPIPEEN=0, i_INC=0, i_CE=0,
+                         i_LD=self.delay_update,
+                         i_CNTVALUEIN=self.delay_config.fields.d, o_CNTVALUEOUT=self.delay_status.fields.q,
+                         i_IDATAIN=dq.i[i-1], o_DATAOUT=dq_delayed[i],
                     ),
                 else: # don't wire up o_CNTVALUEOUT for others
                     self.specials += Instance("IDELAYE2",
-                              p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
-                              p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="FALSE", p_REFCLK_FREQUENCY=200.0,
-                              p_PIPE_SEL="FALSE", p_IDELAY_VALUE=dq_delay_taps, p_IDELAY_TYPE=delay_type,
+                          p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
+                          p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="FALSE", p_REFCLK_FREQUENCY=200.0,
+                          p_PIPE_SEL="FALSE", p_IDELAY_VALUE=dq_delay_taps, p_IDELAY_TYPE=delay_type,
 
-                              i_C=ClockSignal(), i_CINVCTRL=0, i_REGRST=0, i_LDPIPEEN=0, i_INC=0, i_CE=0,
-                              i_LD=self.delay_update,
-                              i_CNTVALUEIN=self.delay_config.fields.d,
-                              i_IDATAIN=dq.i[i-1], o_DATAOUT=dq_delayed[i],
+                          i_C=ClockSignal(), i_CINVCTRL=0, i_REGRST=0, i_LDPIPEEN=0, i_INC=0, i_CE=0,
+                          i_LD=self.delay_update,
+                          i_CNTVALUEIN=self.delay_config.fields.d,
+                          i_IDATAIN=dq.i[i-1], o_DATAOUT=dq_delayed[i],
                   ),
             else:
                 self.comb += dq_delayed[i].eq(dq.i[i-1])
@@ -160,7 +160,7 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         # SPI SDR register
         self.specials += [
             Instance("FDRE", name="{}".format(miso_name), i_C=~ClockSignal("spinor"), i_CE=1, i_R=0, o_Q=self.miso,
-                     i_D=dq_delayed[1],
+                 i_D=dq_delayed[1],
             )
         ]
 
@@ -184,15 +184,15 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         if sim == False:
             self.specials += [
             Instance("IDELAYE2",
-                     p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
-                     p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="FALSE", p_REFCLK_FREQUENCY=200.0,
-                     p_PIPE_SEL="FALSE", p_IDELAY_VALUE=dq_delay_taps, p_IDELAY_TYPE=delay_type,
+                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
+                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="FALSE", p_REFCLK_FREQUENCY=200.0,
+                 p_PIPE_SEL="FALSE", p_IDELAY_VALUE=dq_delay_taps, p_IDELAY_TYPE=delay_type,
 
-                     i_C=ClockSignal(), i_CINVCTRL=0, i_REGRST=0, i_LDPIPEEN=0, i_INC=0, i_CE=0,
-                     i_LD=self.delay_update,
-                     i_CNTVALUEIN=self.delay_config.fields.d,
-                     i_IDATAIN=dq_mosi.i, o_DATAOUT=dq_delayed[0],
-                     ),
+                 i_C=ClockSignal(), i_CINVCTRL=0, i_REGRST=0, i_LDPIPEEN=0, i_INC=0, i_CE=0,
+                 i_LD=self.delay_update,
+                 i_CNTVALUEIN=self.delay_config.fields.d,
+                 i_IDATAIN=dq_mosi.i, o_DATAOUT=dq_delayed[0],
+                 ),
             ]
         else:
             self.comb += dq_delayed[0].eq(dq_mosi.i)
@@ -202,14 +202,14 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         self.specials += [
             # de-activate the CCLK interface, parallel it with a GPIO
             Instance("STARTUPE2",
-                     i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0, i_USRDONEO=1, i_USRDONETS=1,
-                     i_USRCCLKO=0, i_USRCCLKTS=1,  # force to tristate
-                     ),
+                 i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0, i_USRDONEO=1, i_USRDONETS=1,
+                 i_USRCCLKO=0, i_USRCCLKTS=1,  # force to tristate
+                 ),
             Instance("ODDR", name=sclk_name, # need to name this so we can constrain it properly
-                     p_DDR_CLK_EDGE="SAME_EDGE",
-                     i_C=ClockSignal("spinor"), i_R=ResetSignal("spinor"), i_S=0, i_CE=1,
-                     i_D1=clk_en, i_D2=0, o_Q=pads.sclk,
-                     )
+                 p_DDR_CLK_EDGE="SAME_EDGE",
+                 i_C=ClockSignal("spinor"), i_R=ResetSignal("spinor"), i_S=0, i_CE=1,
+                 i_D1=clk_en, i_D2=0, o_Q=pads.sclk,
+                 )
         ]
 
         # wire up CS_N
@@ -397,21 +397,21 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
             # two DQS strobes (as they are pipe-filling) and (b) alternates with the correct phase so we are
             # sampling 32-bit data into the FIFO.
             Instance("FDCE", name="FDCE_WREN",
-                     i_C=dqs_iobuf, i_D=~wrendiv, o_Q=wrendiv, i_CE=1, i_CLR=~rx_wren,
+                 i_C=dqs_iobuf, i_D=~wrendiv, o_Q=wrendiv, i_CE=1, i_CLR=~rx_wren,
             ),
             Instance("FDCE", name="FDCE_WREN",
-                     i_C=dqs_iobuf, i_D=~wrendiv2, o_Q=wrendiv2, i_CE=wrendiv & ~wrendiv2, i_CLR=~rx_wren,
+                 i_C=dqs_iobuf, i_D=~wrendiv2, o_Q=wrendiv2, i_CE=wrendiv & ~wrendiv2, i_CLR=~rx_wren,
             ),
             # Direct FIFO primitive is more resource-efficient and faster than migen primitive.
             Instance("FIFO_DUALCLOCK_MACRO",
-                     p_DEVICE="7SERIES", p_FIFO_SIZE="18Kb", p_DATA_WIDTH=32, p_FIRST_WORD_FALL_THROUGH="TRUE",
-                     p_ALMOST_EMPTY_OFFSET=6, p_ALMOST_FULL_OFFSET=(512- (8*prefetch_lines)),
+                 p_DEVICE="7SERIES", p_FIFO_SIZE="18Kb", p_DATA_WIDTH=32, p_FIRST_WORD_FALL_THROUGH="TRUE",
+                 p_ALMOST_EMPTY_OFFSET=6, p_ALMOST_FULL_OFFSET=(512- (8*prefetch_lines)),
 
-                     o_ALMOSTEMPTY=rx_almostempty, o_ALMOSTFULL=rx_almostfull,
-                     o_DO=opi_fifo_rd, o_EMPTY=rx_empty, o_FULL=rx_full,
-                     o_RDCOUNT=rx_rdcount, o_RDERR=rx_rderr, o_WRCOUNT=rx_wrcount, o_WRERR=rx_wrerr,
-                     i_DI=opi_fifo_wd, i_RDCLK=ClockSignal(), i_RDEN=rx_rden,
-                     i_WRCLK=dqs_iobuf, i_WREN=wrendiv & wrendiv2, i_RST=rx_fifo_rst,
+                 o_ALMOSTEMPTY=rx_almostempty, o_ALMOSTFULL=rx_almostfull,
+                 o_DO=opi_fifo_rd, o_EMPTY=rx_empty, o_FULL=rx_full,
+                 o_RDCOUNT=rx_rdcount, o_RDERR=rx_rderr, o_WRCOUNT=rx_wrcount, o_WRERR=rx_wrerr,
+                 i_DI=opi_fifo_wd, i_RDCLK=ClockSignal(), i_RDEN=rx_rden,
+                 i_WRCLK=dqs_iobuf, i_WREN=wrendiv & wrendiv2, i_RST=rx_fifo_rst,
             )
         ]
         self.sync.dqs += opi_di.eq(self.di)
