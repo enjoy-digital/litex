@@ -25,6 +25,7 @@ from litex.soc.cores import cpu
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 from litex.soc.integration.common import *
+from litex.soc.integration.soc import SoCRegion, SoC
 
 __all__ = [
     "mem_decoder",
@@ -69,7 +70,7 @@ class SoCController(Module, AutoCSR):
 
 # SoCCore ------------------------------------------------------------------------------------------
 
-class SoCCore(Module):
+class SoCCore(SoC):
     # default register/interrupt/memory mappings (can be redefined by user)
     csr_map       = {}
     interrupt_map = {}
@@ -106,6 +107,24 @@ class SoCCore(Module):
         self.platform = platform
         self.clk_freq = clk_freq
 
+        SoC.__init__(self,
+            bus_standard         = "wishbone",
+            bus_data_width       = 32,
+            bus_address_width    = 32,
+            bus_timeout          = wishbone_timeout_cycles,
+            bus_reserved_regions = {},
+
+            csr_data_width       = csr_data_width,
+            csr_address_width    = csr_address_width,
+            csr_alignment        = csr_alignment,
+            csr_paging           = 0x800,
+            csr_reserved_csrs    = self.csr_map,
+
+            irq_n_irqs           = 32,
+            irq_reserved_irqs    = {},
+        )
+        self.mem_regions = self.bus.regions
+
         # SoC's CSR/Mem/Interrupt mapping (default or user defined + dynamically allocateds)
         self.soc_csr_map       = {}
         self.soc_interrupt_map = {}
@@ -115,17 +134,10 @@ class SoCCore(Module):
         # SoC's Config/Constants/Regions
         self.config      = {}
         self.constants   = {}
-        self.mem_regions = {}
         self.csr_regions = {}
-
-        # Wishbone masters/slaves lists
-        self._wb_masters = []
-        self._wb_slaves  = []
 
         # CSR masters list
         self._csr_masters = []
-
-        self.add_retro_compat(kwargs)
 
         # Parameters managment ---------------------------------------------------------------------
         if cpu_type == "None":
@@ -134,38 +146,31 @@ class SoCCore(Module):
         if not with_wishbone:
             self.soc_mem_map["csr"]  = 0x00000000
 
-        self.cpu_type    = cpu_type
-        self.cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
+        self.cpu_type                   = cpu_type
+        self.cpu_variant                = cpu.check_format_cpu_variant(cpu_variant)
 
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
         self.integrated_sram_size       = integrated_sram_size
         self.integrated_main_ram_size   = integrated_main_ram_size
 
-        assert csr_data_width in [8, 16, 32]
-        self.csr_data_width    = csr_data_width
-        self.csr_address_width = csr_address_width
+        self.csr_data_width             = csr_data_width
+        self.csr_address_width          = csr_address_width
 
-        assert csr_alignment in [32, 64]
+        self.with_ctrl                  = with_ctrl
 
-        self.with_ctrl = with_ctrl
+        self.with_uart                  = with_uart
+        self.uart_baudrate              = uart_baudrate
 
-        self.with_uart     = with_uart
-        self.uart_baudrate = uart_baudrate
-
-        self.with_wishbone           = with_wishbone
-        self.wishbone_timeout_cycles = wishbone_timeout_cycles
+        self.with_wishbone              = with_wishbone
+        self.wishbone_timeout_cycles    = wishbone_timeout_cycles
 
         # Modules instances ------------------------------------------------------------------------
-
-        # Add user's CSRs (needs to be done before the first dynamic allocation)
-        for _name, _id in self.csr_map.items():
-            self.add_csr(_name, _id)
 
         # Add SoCController
         if with_ctrl:
             self.submodules.ctrl = SoCController()
-            self.add_csr("ctrl", allow_user_defined=True)
+            self.add_csr("ctrl")
 
         # Add CPU
         self.config["CPU_TYPE"] = str(cpu_type).upper()
@@ -197,12 +202,12 @@ class SoCCore(Module):
             # Add CPU buses as 32-bit Wishbone masters
             for cpu_bus in self.cpu.buses:
                 assert cpu_bus.data_width in [32, 64, 128]
-                soc_bus = wishbone.Interface(data_width=32)
+                soc_bus = wishbone.Interface(data_width=self.bus.data_width)
                 self.submodules += wishbone.Converter(cpu_bus, soc_bus)
                 self.add_wb_master(soc_bus)
 
             # Add CPU CSR (dynamic)
-            self.add_csr("cpu", allow_user_defined=True)
+            self.add_csr("cpu")
 
             # Add CPU interrupts
             for _name, _id in self.cpu.interrupts.items():
@@ -258,23 +263,23 @@ class SoCCore(Module):
                 else:
                     self.submodules.uart_phy = uart.UARTPHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
-            self.add_csr("uart_phy", allow_user_defined=True)
-            self.add_csr("uart", allow_user_defined=True)
-            self.add_interrupt("uart", allow_user_defined=True)
+            self.add_csr("uart_phy")
+            self.add_csr("uart")
+            self.add_interrupt("uart")
 
         # Add Identifier
         if ident:
             if ident_version:
                 ident = ident + " " + get_version()
             self.submodules.identifier = identifier.Identifier(ident)
-            self.add_csr("identifier_mem", allow_user_defined=True)
+            self.add_csr("identifier_mem")
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
 
         # Add Timer
         if with_timer:
             self.submodules.timer0 = timer.Timer()
-            self.add_csr("timer0", allow_user_defined=True)
-            self.add_interrupt("timer0", allow_user_defined=True)
+            self.add_csr("timer0")
+            self.add_interrupt("timer0")
 
         # Add Wishbone to CSR bridge
         self.config["CSR_DATA_WIDTH"] = csr_data_width
@@ -293,77 +298,24 @@ class SoCCore(Module):
     # Methods --------------------------------------------------------------------------------------
 
     def add_interrupt(self, interrupt_name, interrupt_id=None, allow_user_defined=False):
-        # Check that interrupt_name is not already used
-        if interrupt_name in self.soc_interrupt_map.keys():
-            if allow_user_defined:
-                return
-            else:
-                raise ValueError("Interrupt conflict, {} name already used".format(interrupt_name))
-
-        # Check that interrupt_id is in range
-        if interrupt_id is not None and interrupt_id >= 32:
-            raise ValueError("{} Interrupt ID out of range ({}, max=31)".format(
-                interrupt_name, interrupt_id))
-
-        # Interrupt_id not provided: allocate interrupt to the first available id
-        if interrupt_id is None:
-            for n in range(32):
-                if n not in self.soc_interrupt_map.values():
-                    self.soc_interrupt_map.update({interrupt_name: n})
-                    return
-            raise ValueError("No more space to allocate {} interrupt".format(interrupt_name))
-        # Interrupt_id provided: check that interrupt_id is not already used and add interrupt
-        else:
-            for _name, _id in self.soc_interrupt_map.items():
-                if interrupt_id == _id:
-                    raise ValueError("Interrupt conflict, {} already used by {} interrupt".format(
-                        interrupt_id, _name))
-            self.soc_interrupt_map.update({interrupt_name: interrupt_id})
+        self.irq.add(interrupt_name, interrupt_id)
 
     def add_csr(self, csr_name, csr_id=None, allow_user_defined=False):
-        # Check that csr_name is not already used
-        if csr_name in self.soc_csr_map.keys():
-            if allow_user_defined:
-                return
-            else:
-                raise ValueError("CSR conflict, {} name already used".format(csr_name))
-
-        # Check that csr_id is in range
-        if csr_id is not None and csr_id >= 2**self.csr_address_width:
-            raise ValueError("{} CSR ID out of range ({}, max=31)".format(
-                csr_name, csr_id))
-
-        # csr_id not provided: allocate csr to the first available id
-        if csr_id is None:
-            for n in range(2**self.csr_address_width):
-                if n not in self.soc_csr_map.values():
-                    self.soc_csr_map.update({csr_name: n})
-                    return
-            raise ValueError("No more space to allocate {} csr".format(csr_name))
-        # csr_id provided: check that csr_id is not already used and add csr
-        else:
-            for _name, _id in self.soc_csr_map.items():
-                if csr_id == _id:
-                    raise ValueError("CSR conflict, {} already used by {} csr".format(
-                        csr_id, _name))
-            self.soc_csr_map.update({csr_name: csr_id})
+        self.csr.add(csr_name, csr_id)
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
 
     def add_wb_master(self, wbm):
-        if self.finalized:
-            raise FinalizeError
-        self._wb_masters.append(wbm)
+        self.bus.add_master(master=wbm)
 
-    def add_wb_slave(self, address_or_address_decoder, interface, size=None):
-        if self.finalized:
-            raise FinalizeError
-        if size is not None:
-            address_decoder = mem_decoder(address_or_address_decoder, size)
-        else:
-            address_decoder = address_or_address_decoder
-        self._wb_slaves.append((address_decoder, interface))
+    def add_wb_slave(self, address, interface, size=None):
+        wb_name = None
+        for name, region in self.bus.regions.items():
+            if address == region.origin:
+                wb_name = name
+                break
+        self.bus.add_slave(name=wb_name, slave=interface)
 
     def add_csr_master(self, csrm):
         # CSR masters are not arbitrated, use this with precaution.
@@ -386,107 +338,17 @@ class SoCCore(Module):
                 msg += "- 0x{:08x}-0x{:08x}\n".format(region_origin, region_origin + region_length - 1)
         raise ValueError(msg)
 
-    @staticmethod
-    def check_regions_overlap(regions):
-        i = 0
-        while i < len(regions):
-            n0 =  list(regions.keys())[i]
-            r0 = regions[n0]
-            for n1 in list(regions.keys())[i+1:]:
-                r1 = regions[n1]
-                if ("linker" in r0.type) or ("linker" in r1.type):
-                    continue
-                if r0.origin >= (r1.origin + r1.length):
-                    continue
-                if r1.origin >= (r0.origin + r0.length):
-                    continue
-                return (n0, n1)
-            i += 1
-        return None
-
-    def alloc_mem_region(self, name, length, type):
-        # Use type to limit search regions
-        search_regions = []
-        if "io" in type:
-            for _origin, _length in self.soc_io_regions.items():
-                search_regions.append(SoCMemRegion(origin=_origin, length=_length, type=type))
-        else:
-            search_regions.append(SoCMemRegion(origin=0x00000000, length=0x80000000, type=type))
-        # Iterate over search_regions and origin to find a candidate region
-        for search_region in search_regions:
-            origin = search_region.origin
-            while (origin + length) < (search_region.origin + search_region.length):
-                # Create a candidate mem region.
-                candidate_region  = SoCMemRegion(origin=origin, length=length, type=type)
-                candidate_overlap = False
-                # Check candidate does not overlap with allocated mem regions.
-                for _, allocated_region in self.mem_regions.items():
-                    if self.check_regions_overlap({"0": allocated_region, "1": candidate_region}) is not None:
-                        origin = allocated_region.origin + allocated_region.length
-                        candidate_overlap = True
-                        break
-                if not candidate_overlap:
-                    # If no overlap, the candidate is selected.
-                    #print("{} region allocated at: {:08x}".format(name, candidate_region.origin))
-                    return candidate_region
-        msg = "Not enough addressable memory space to allocate mem region {} of length 0x{:0x}".format(
-            name, length)
-        raise ValueError(msg)
-
-    def add_mem_region(self, name, length, type="cached"):
-        # Check name conflicts.
-        if name in self.mem_regions.keys():
-            raise ValueError("Memory region conflict, {} name already used".format(name))
-        # Round length to next power of 2.
-        length = 2**log2_int(length, False)
-        # Get mem origin; if not defined in mem_map, allocate a new mem region, else use mem_map
-        # mapping and check for type/overlap conflicts.
-        origin = self.mem_map.get(name, None)
-        if origin is None:
-            self.mem_regions[name] = self.alloc_mem_region(name, length, type)
-        else:
-            # Check type
-            if "io" in type:
-                self.check_io_region(name,origin, length)
-            # Add region
-            self.mem_regions[name] = SoCMemRegion(origin, length, type)
-            # Check overlap
-            overlap = self.check_regions_overlap(self.mem_regions)
-            if overlap is not None:
-                o0, o1 = overlap[0], overlap[1]
-                raise ValueError("Memory region conflict between {} ({}) and {} ({})".format(
-                    o0, self.mem_regions[o0],
-                    o1, self.mem_regions[o1],
-                ))
-
-    # FIXME: add deprecated warning?
-    def add_memory_region(self, name, origin, length, type="cached", io_region=False):
-        if io_region: # 2019-10-30: io_region retro-compatibility
-            deprecated_warning(": io_region replaced by type=\"io\".")
-            type = "io"
-        assert name in self.mem_map.keys()
-        self.add_mem_region(name, length, type)
+    def add_memory_region(self, name, origin, length, type="cached"):
+        self.bus.add_region(name, SoCRegion(origin=origin, size=length, cached="cached" in type))
 
     def register_mem(self, name, address, interface, size=0x10000000):
-        self.add_wb_slave(address, interface, size)
-        self.add_memory_region(name, address, size)
+        self.bus.add_slave(name, interface, SoCRegion(origin=address, size=size))
 
     def register_rom(self, interface, rom_size=0xa000):
-        self.add_wb_slave(self.soc_mem_map["rom"], interface, rom_size)
-        self.add_memory_region("rom", self.cpu.reset_address, rom_size)
-
-    def check_csr_range(self, name, addr):
-        if addr >= 1<<(self.csr_address_width+2):
-            raise ValueError("{} CSR out of range, increase csr_address_width".format(name))
-
-    def check_csr_region(self, name, origin):
-        for n, r in self.csr_regions.items():
-            if n == name or r.origin == origin:
-                raise ValueError("CSR region conflict between {} and {}".format(n, name))
+        self.bus.add_slave("rom", interface, SoCRegion(origin=self.cpu.reset_address, size=rom_size))
 
     def add_csr_region(self, name, origin, busword, obj):
         self.check_io_region(name, origin, 0x800)
-        self.check_csr_region(name, origin)
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
     def add_constant(self, name, value=None):
@@ -498,12 +360,12 @@ class SoCCore(Module):
         if memory is not None:
             name = name + "_" + memory.name_override
         try:
-            return self.soc_csr_map[name]
+            return self.csr.csrs[name]
         except KeyError as e:
             msg = "Undefined \"{}\" CSR.\n".format(name)
             msg += "Avalaible CSRs in {} ({}):\n".format(
                 self.__class__.__name__, inspect.getfile(self.__class__))
-            for k in sorted(self.soc_csr_map.keys()):
+            for k in sorted(self.csr.csrs.keys()):
                 msg += "- {}\n".format(k)
             raise RuntimeError(msg)
         except ValueError:
@@ -515,18 +377,22 @@ class SoCCore(Module):
     # Finalization ---------------------------------------------------------------------------------
 
     def do_finalize(self):
+        # retro-compat
+        for region in self.bus.regions.values():
+            region.length = region.size
+            region.type   = "cached" if region.cached else "io"
+
         # Verify CPU has required memories
         if not isinstance(self.cpu, cpu.CPUNone):
             for name in ["rom", "sram"]:
-                if name not in self.mem_regions.keys():
+                if name not in self.bus.regions.keys():
                     raise FinalizeError("CPU needs \"{}\" to be defined as memory or linker region".format(name))
 
+        SoC.do_finalize(self)
+
         # Add the Wishbone Masters/Slaves interconnect
-        if len(self._wb_masters):
-            self.submodules.wishbonecon = wishbone.InterconnectShared(self._wb_masters,
-                self._wb_slaves, register=True, timeout_cycles=self.wishbone_timeout_cycles)
-            if self.with_ctrl and (self.wishbone_timeout_cycles is not None):
-                self.comb += self.ctrl.bus_error.eq(self.wishbonecon.timeout.error)
+        if self.with_ctrl and (self.wishbone_timeout_cycles is not None):
+            self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
 
         # Collect and create CSRs
         self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
@@ -543,13 +409,11 @@ class SoCCore(Module):
 
         # Check and add CSRs regions
         for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
-            self.check_csr_range(name, 0x800*mapaddr)
             self.add_csr_region(name, (self.soc_mem_map["csr"] + 0x800*mapaddr),
                 self.csr_data_width, csrs)
 
         # Check and add Memory regions
         for name, memory, mapaddr, mmap in self.csrbankarray.srams:
-            self.check_csr_range(name, 0x800*mapaddr)
             self.add_csr_region(name + "_" + memory.name_override,
                 (self.soc_mem_map["csr"] + 0x800*mapaddr),
                 self.csr_data_width, memory)
@@ -559,8 +423,7 @@ class SoCCore(Module):
 
         # Add CSRs / Config items to constants
         for name, constant in self.csrbankarray.constants:
-            self.add_constant(name.upper() + "_" + constant.name.upper(),
-                              constant.value.value)
+            self.add_constant(name.upper() + "_" + constant.name.upper(), constant.value.value)
         for name, value in sorted(self.config.items(), key=itemgetter(0)):
             self.add_constant("CONFIG_" + name.upper(), value)
             if isinstance(value, str):
@@ -568,7 +431,7 @@ class SoCCore(Module):
 
         # Connect interrupts
         if hasattr(self.cpu, "interrupt"):
-            for _name, _id in sorted(self.soc_interrupt_map.items()):
+            for _name, _id in sorted(self.irq.irqs.items()):
                 if _name in self.cpu.interrupts.keys():
                     continue
                 if hasattr(self, _name):
@@ -576,26 +439,6 @@ class SoCCore(Module):
                     assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
                     self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
                 self.constants[_name.upper() + "_INTERRUPT"] = _id
-
-
-    # API retro-compatibility layer ----------------------------------------------------------------
-    # Allow user to build the design the old API for ~3 months after the API change is introduced.
-    # Adds warning and artificical delay to encourage user to update.
-
-    def add_retro_compat(self, kwargs):
-        # 2019-10-09 : deprecate shadow_base, introduce io_regions
-        if "shadow_base" in kwargs.keys():
-            deprecated_warning(": shadow_base replaced by IO regions.")
-        self.retro_compat_shadow_base = kwargs.get("shadow_base", 0x80000000)
-        self.config["SHADOW_BASE"] = self.retro_compat_shadow_base
-
-    def __getattr__(self, name):
-        # 2019-10-09: deprecate shadow_base, introduce io_regions
-        if name == "shadow_base":
-            deprecated_warning(": shadow_base replaced by IO regions.")
-            return self.retro_compat_shadow_base
-        else:
-            return Module.__getattr__(self, name)
 
 # SoCCore arguments --------------------------------------------------------------------------------
 
