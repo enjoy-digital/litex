@@ -1019,7 +1019,7 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         self.specials += MultiReg(pads.ecs_n, ecs_n)
 
         self.submodules.ev = EventManager()
-        self.ev.ecc_error = EventSourceProcess()  # Falling edge triggered
+        self.ev.ecc_error = EventSourceProcess(description="An ECC event has happened on the current block; triggered by falling edge of ECC_N")
         self.ev.finalize()
         self.comb += self.ev.ecc_error.trigger.eq(ecs_n)
         ecc_reported = Signal()
