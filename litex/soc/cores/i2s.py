@@ -131,11 +131,11 @@ class i2s_slave(Module, AutoCSR, AutoDoc):
         # interrupts
         self.submodules.ev = EventManager()
         if hasattr(pads, 'rx'):
-            self.ev.rx_ready = EventSourcePulse()  # rising edge triggered, indicates FIFO is ready to read
-            self.ev.rx_error = EventSourcePulse()  # indicates a rx error has happened
+            self.ev.rx_ready = EventSourcePulse(description="Indicates FIFO is ready to read")  # rising edge triggered
+            self.ev.rx_error = EventSourcePulse(description="Indicates an Rx error has happened (over/underflow)")
         if hasattr(pads, 'tx'):
-            self.ev.tx_ready = EventSourcePulse()  # indicates space available in Tx buffer for next quantum
-            self.ev.tx_error = EventSourcePulse()  # indicates a tx error has happened
+            self.ev.tx_ready = EventSourcePulse(description="Indicates enough space available for next Tx quanta of {} words".format(fifodepth))
+            self.ev.tx_error = EventSourcePulse(description="Indicates a Tx error has happened (over/underflow")
         self.ev.finalize()
 
 
