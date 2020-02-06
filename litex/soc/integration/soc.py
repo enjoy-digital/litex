@@ -323,30 +323,33 @@ class SoCCSR:
         self.logger.info(colorer("CSR Bus Handler created.", color="cyan"))
 
     # Add ------------------------------------------------------------------------------------------
-    def add(self, name, n=None):
+    def add(self, name, n=None, use_loc_if_exists=False):
         allocated = False
-        if name in self.csrs.keys():
-            self.logger.error("{} CSR name already used.".format(colorer(name, "red")))
-            self.logger.error(self)
-            raise
-        if n in self.csrs.values():
-            self.logger.error("{} CSR Location already used.".format(colorer(n, "red")))
-            self.logger.error(self)
-            raise
-        if n is None:
-            allocated = True
-            n = self.alloc(name)
+        if not (use_loc_if_exists and name in self.csrs.keys()):
+            if name in self.csrs.keys():
+                self.logger.error("{} CSR name already used.".format(colorer(name, "red")))
+                self.logger.error(self)
+                raise
+            if n in self.csrs.values():
+                self.logger.error("{} CSR Location already used.".format(colorer(n, "red")))
+                self.logger.error(self)
+                raise
+            if n is None:
+                allocated = True
+                n = self.alloc(name)
+            else:
+                if n < 0:
+                    self.logger.error("{} CSR Location should be positive.".format(
+                        colorer(n, color="red")))
+                    raise
+                if n > self.n_csrs:
+                    self.logger.error("{} CSR Location too high (Up to {}).".format(
+                        colorer(n, color="red"),
+                        colorer(self.n_csrs, color="green")))
+                    raise
+            self.csrs[name] = n
         else:
-            if n < 0:
-                self.logger.error("{} CSR Location should be positive.".format(
-                    colorer(n, color="red")))
-                raise
-            if n > self.n_csrs:
-                self.logger.error("{} CSR Location too high (Up to {}).".format(
-                    colorer(n, color="red"),
-                    colorer(self.n_csrs, color="green")))
-                raise
-        self.csrs[name] = n
+            n = self.csrs[name]
         self.logger.info("{} CSR {} at Location {}.".format(
             colorer(name, color="underline"),
             colorer("allocated" if allocated else "added", color="yellow" if allocated else "green"),

@@ -170,7 +170,7 @@ class SoCCore(SoC):
         # Add SoCController
         if with_ctrl:
             self.submodules.ctrl = SoCController()
-            self.add_csr("ctrl")
+            self.add_csr("ctrl", allow_user_defined=True)
 
         # Add CPU
         self.config["CPU_TYPE"] = str(cpu_type).upper()
@@ -207,7 +207,7 @@ class SoCCore(SoC):
                 self.add_wb_master(soc_bus)
 
             # Add CPU CSR (dynamic)
-            self.add_csr("cpu")
+            self.add_csr("cpu", allow_user_defined=True)
 
             # Add CPU interrupts
             for _name, _id in self.cpu.interrupts.items():
@@ -263,8 +263,8 @@ class SoCCore(SoC):
                 else:
                     self.submodules.uart_phy = uart.UARTPHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
-            self.add_csr("uart_phy")
-            self.add_csr("uart")
+            self.add_csr("uart_phy", allow_user_defined=True)
+            self.add_csr("uart", allow_user_defined=True)
             self.add_interrupt("uart")
 
         # Add Identifier
@@ -272,13 +272,13 @@ class SoCCore(SoC):
             if ident_version:
                 ident = ident + " " + get_version()
             self.submodules.identifier = identifier.Identifier(ident)
-            self.add_csr("identifier_mem")
+            self.add_csr("identifier_mem", allow_user_defined=True)
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
 
         # Add Timer
         if with_timer:
             self.submodules.timer0 = timer.Timer()
-            self.add_csr("timer0")
+            self.add_csr("timer0", allow_user_defined=True)
             self.add_interrupt("timer0")
 
         # Add Wishbone to CSR bridge
@@ -301,7 +301,7 @@ class SoCCore(SoC):
         self.irq.add(interrupt_name, interrupt_id)
 
     def add_csr(self, csr_name, csr_id=None, allow_user_defined=False):
-        self.csr.add(csr_name, csr_id)
+        self.csr.add(csr_name, csr_id, use_loc_if_exists=allow_user_defined)
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
