@@ -265,7 +265,7 @@ class SoCCore(SoC):
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
             self.add_csr("uart_phy", allow_user_defined=True)
             self.add_csr("uart", allow_user_defined=True)
-            self.add_interrupt("uart")
+            self.add_interrupt("uart", allow_user_defined=True)
 
         # Add Identifier
         if ident:
@@ -279,7 +279,7 @@ class SoCCore(SoC):
         if with_timer:
             self.submodules.timer0 = timer.Timer()
             self.add_csr("timer0", allow_user_defined=True)
-            self.add_interrupt("timer0")
+            self.add_interrupt("timer0", allow_user_defined=True)
 
         # Add Wishbone to CSR bridge
         self.config["CSR_DATA_WIDTH"] = csr_data_width
@@ -298,7 +298,7 @@ class SoCCore(SoC):
     # Methods --------------------------------------------------------------------------------------
 
     def add_interrupt(self, interrupt_name, interrupt_id=None, allow_user_defined=False):
-        self.irq.add(interrupt_name, interrupt_id)
+        self.irq.add(interrupt_name, interrupt_id, use_loc_if_exists=allow_user_defined)
 
     def add_csr(self, csr_name, csr_id=None, allow_user_defined=False):
         self.csr.add(csr_name, csr_id, use_loc_if_exists=allow_user_defined)

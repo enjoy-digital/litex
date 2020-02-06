@@ -404,29 +404,32 @@ class SoCIRQ:
         self.logger.info(colorer("IRQ Handler created.", color="cyan"))
 
     # Add ------------------------------------------------------------------------------------------
-    def add(self, name, n=None):
+    def add(self, name, n=None, use_loc_if_exists=False):
         allocated = False
-        if name in self.irqs.keys():
-            self.logger.error("{} IRQ name already used.".format(colorer(name, "red")))
-            self.logger.error(self)
-            raise
-        if n in self.irqs.values():
-            self.logger.error("{} IRQ Location already used.".format(colorer(n, "red")))
-            self.logger.error(self)
-            raise
-        if n is None:
-            allocated = True
-            n = self.alloc(name)
+        if not (use_loc_if_exists and name in self.irqs.keys()):
+            if name in self.irqs.keys():
+                self.logger.error("{} IRQ name already used.".format(colorer(name, "red")))
+                self.logger.error(self)
+                raise
+            if n in self.irqs.values():
+                self.logger.error("{} IRQ Location already used.".format(colorer(n, "red")))
+                self.logger.error(self)
+                raise
+            if n is None:
+                allocated = True
+                n = self.alloc(name)
+            else:
+                if n < 0:
+                    self.logger.error("{} IRQ Location should be positive.".format(
+                        colorer(n, color="red")))
+                    raise
+                if n > self.n_irqs:
+                    self.logger.error("{} IRQ Location too high (Up to {}).".format(
+                        colorer(n, color="red"),
+                        colorer(self.n_csrs, color="green")))
+                    raise
         else:
-            if n < 0:
-                self.logger.error("{} IRQ Location should be positive.".format(
-                    colorer(n, color="red")))
-                raise
-            if n > self.n_irqs:
-                self.logger.error("{} IRQ Location too high (Up to {}).".format(
-                    colorer(n, color="red"),
-                    colorer(self.n_csrs, color="green")))
-                raise
+            n = self.irqs[name]
         self.irqs[name] = n
         self.logger.info("{} IRQ {} at Location {}.".format(
             colorer(name, color="underline"),
