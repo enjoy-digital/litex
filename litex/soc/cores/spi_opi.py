@@ -9,13 +9,13 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         self.intro = ModuleDoc("""
         Intro
         ********
-        
+
         SpiOpi implements a dual-mode SPI or OPI interface. OPI is an octal (8-bit) wide
         variant of SPI, which is unique to Macronix parts. It is concurrently interoperable
         with SPI. The chip supports "DTR mode" (double transfer rate, e.g. DDR) where data
         is transferred on each edge of the clock, and there is a source-synchronous DQS
         associated with the input data.
-        
+
         The chip by default boots into SPI-only mode (unless NV bits are burned otherwise)
         so to enable OPI, a config register needs to be written with SPI mode. Note that once
         the config register is written, the only way to return to SPI mode is to change
@@ -23,32 +23,32 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         reconfiguring the FPGA: a simple JTAG command to reload from SPI will not yank PROG_B low,
         and so the SPI ROM will be in DOPI, and SPI loading will fail. Thus, system architects
         must take into consideration a hard reset for the ROM whenever a bitstream reload
-        is demanded of the FPGA. 
-        
+        is demanded of the FPGA.
+
         The SpiOpi architecture is split into two levels: a command manager, and a
         cycle manager. The command manager is responsible for taking the current wishbone
         request and CSR state and unpacking these into cycle-by-cycle requests. The cycle
-        manager is responsible for coordinating the cycle-by-cycle requests. 
-        
+        manager is responsible for coordinating the cycle-by-cycle requests.
+
         In SPI mode, this means marshalling byte-wide requests into a series of 8 serial cyles.
-        
+
         In OPI [DOPI] mode, this means marshalling 16-bit wide requests into a pair of back-to-back DDR
         cycles. Note that because the cycles are DDR, this means one 16-bit wide request must be
-        issued every cycle to keep up with the interface. 
-        
-        For the output of data to ROM, expects a clock called "spinor_delayed" which is a delayed 
-        version of "sys". The delay is necessary to get the correct phase relationship between 
+        issued every cycle to keep up with the interface.
+
+        For the output of data to ROM, expects a clock called "spinor_delayed" which is a delayed
+        version of "sys". The delay is necessary to get the correct phase relationship between
         the SIO and SCLK in DTR/DDR mode, and it also has to compensate for the special-case
         difference in the CCLK pad vs other I/O.
-        
+
         For the input, DQS signal is independently delayed relative to the DQ signals using
         an IDELAYE2 block. At a REFCLK frequency of 200 MHz, each delay tap adds 78ps, so up
         to a 2.418ns delay is possible between DQS and DQ. The goal is to delay DQS relative
         to DQ, because the SPI chip launches both with concurrent rising edges (to within 0.6ns),
         but the IDDR register needs the rising edge of DQS to be centered inside the DQ eye.
-        
-        In DOPI mode, there is a prefetch buffer. It will read `prefetch_lines` cache lines of 
-        data into the prefetch buffer. A cache line is 256 bits (or 8x32-bit words). The maximum 
+
+        In DOPI mode, there is a prefetch buffer. It will read `prefetch_lines` cache lines of
+        data into the prefetch buffer. A cache line is 256 bits (or 8x32-bit words). The maximum
         value is 63 lines (one line is necessary for synchronization margin). The downside of
         setting prefetch_lines high is that the prefetcher is running constantly and burning
         power, while throwing away most data. In practice, the CPU will typically consume data
@@ -57,12 +57,12 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         1-3 lines read-ahead of the CPU. Any higher than 3 lines probably just wastes power.
         In short simulations, 1 line of prefetch seems to be enough to keep the prefetcher
         ahead of the CPU even when it's simply running straight-line code.
-        
+
         Note the "sim" parameter exists because there seems to be a bug in xvlog that doesn't
         correctly simulate the IDELAY machines. Setting "sim" to True removes the IDELAY machines
         and passes the data through directly, but in real hardware the IDELAY machines are
-        necessary to meet timing between DQS and DQ.  
-        
+        necessary to meet timing between DQS and DQ.
+
         dq_delay_taps probably doesn't need to be adjusted; it can be tweaked for timing
         closure. The delays can also be adjusted at runtime.
         """)
@@ -227,13 +227,13 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         self.architecture = ModuleDoc("""
         Architecture
         **************
-        
+
         The machine is split into two separate pieces, one to handle SPI, and one to handle OPI.
-        
+
         SPI
         =====
-        The SPI machine architecture is split into two levels: MAC and PHY. 
-        
+        The SPI machine architecture is split into two levels: MAC and PHY.
+
         The MAC layer is responsible for:
         - receiving requests via CSR register to perform config/status/special command sequences,
         and dispatching these to the SPI PHY
@@ -242,69 +242,69 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
         - managing the chip select to the chip, and ensuring that one dummy cycle is inserted after
         chip select is asserted, or before it is de-asserted; and that the chip select "high" times
         are adequate (1 cycle between reads, 4 cycles for all other operations)
-        
+
         On boot, the interface runs in SPI; once the wakeup sequence is executed, the chip permanently
-        switches to OPI mode unless the CR2 registers are written to fall back, or the 
+        switches to OPI mode unless the CR2 registers are written to fall back, or the
         reset to the chip is asserted.
-          
+
         The PHY layers are responsible for the following tasks:
         - Serializing and deserializing data, standardized on 8 bits for SPI and 16 bits for OPI
         - counting dummy cycles
         - managing the clock enable
-        
-        PHY cycles are initiated with a "req" signal, which is only sampled for 
-        one cycle and then ignored until the PHY issues an "ack" that the current cycle is complete. 
+
+        PHY cycles are initiated with a "req" signal, which is only sampled for
+        one cycle and then ignored until the PHY issues an "ack" that the current cycle is complete.
         Thus holding "req" high can allow the PHY to back-to-back issue cycles without pause.
-        
+
         OPI
         =====
-        The OPI machine is split into three parts: a command controller, a Tx PHY, and an Rx PHY. 
-        
+        The OPI machine is split into three parts: a command controller, a Tx PHY, and an Rx PHY.
+
         The Tx PHY is configured with a "dummy cycle" count register, as there is a variable length
         delay for dummy cycles in OPI.
-        
+
         In OPI mode, read data is `mesochronous`, that is, they return at precisely the same frequency
         as SCLK, but with an unknown phase relationship. The DQS strobe is provided as a "hint" to
         the receiving side to help retime the data. The mesochronous nature of the read data is
         why the Tx and Rx PHY must be split into two separate machines, as they are operating in
         different clock domains.
-        
-        DQS is implemented on the ROM as an extra data output that is guaranteed to change polarity with 
+
+        DQS is implemented on the ROM as an extra data output that is guaranteed to change polarity with
         each data byte; the skew mismatch of DQS to data is within +/-0.6ns or so. It turns out the mere
         act of routing the DQS into a BUFR buffer before clocking the data into an IDDR primitive
-        is sufficient to delay the DQS signal and meet setup and hold time on the IDDR. 
-        
+        is sufficient to delay the DQS signal and meet setup and hold time on the IDDR.
+
         Once captured by the IDDR, the data is fed into a dual-clock FIFO to make the transition
-        from the DQS to sysclk domains cleanly. 
-        
+        from the DQS to sysclk domains cleanly.
+
         Because of the latency involved in going from pin->IDDR->FIFO, excess read cycles are
-        required beyond the end of the requested cache line. However, there is virtually no 
-        penalty in pre-filling the FIFO with data; if a new cache line has to be fetched, 
+        required beyond the end of the requested cache line. However, there is virtually no
+        penalty in pre-filling the FIFO with data; if a new cache line has to be fetched,
         the FIFO can simply be reset and all pointers zeroed. In fact, pre-filling the FIFO
         can lead to great performance benefits if sequential cache lines are requested. In
         simulation, a cache line can be filled in 10 bus cycles if it happens to be prefetched
         (as opposed to 49 bus cycles for random reads). Either way, this compares favorably to
-        288 cycles for random reads in 100MHz SPI mode (or 576 for the spimemio.v, which runs at 
-        50MHz).   
-        
+        288 cycles for random reads in 100MHz SPI mode (or 576 for the spimemio.v, which runs at
+        50MHz).
+
         The command controller is repsonsible for sequencing all commands other than fast reads. Most
         commands have some special-case structure to them, and as more commands are implemented, the
         state machine is expected to grow fairly large. Fast reads are directly handled in "tx_run"
         mode, where the TxPhy and RxPhy run a tight loop to watch incoming read bus cycles, check
-        the current address, fill the prefetch fifo, and respond to bus cycles. 
-        
+        the current address, fill the prefetch fifo, and respond to bus cycles.
+
         Writes to ROM might lock up the machine; a TODO is to test this and do something more sane,
         like ignore writes by sending an ACK immediately while discarding the data.
-        
+
         Thus, an OPI read proceeds as follows:
-        
+
         - When BUS/STB are asserted:
            TxPhy:
-           
+
            - capture bus_adr, and compare against the *next read* address pointer
               - if they match, allow the PHYs to do the work
-           
-           - if bus_adr and next read address don't match, save to next read address pointer, and 
+
+           - if bus_adr and next read address don't match, save to next read address pointer, and
              cycle wr/rd clk for 5 cycle while asserting reset to reset the FIFO
            - initiate an 8DTRD with the read address pointer
            - wait the specified dummy cycles
@@ -312,24 +312,24 @@ class SpiOpi(Module, AutoCSR, AutoDoc):
            - greedily pre-fill the FIFO by continuing to clock DQS until either:
              - the FIFO is full
              - pre-fetch is aborted because bus_adr and next read address don't match and FIFO is reset
-        
+
            RxPHY:
            - while CTI==2, assemble data into 32-bit words as soon as EMPTY is deasserted,
              present a bus_ack, and increment the next read address pointer
            - when CTI==7, ack the data, and wait until the next bus cycle with CTI==2 to resume
              reading
-        
+
         - A FIFO_SYNC_MACRO is used to instantiate the FIFO. This is chosen because:
            - we can specify RAMB18's, which seem to be under-utilized by the auto-inferred memories by migen
            - the XPM_FIFO_ASYNC macro claims no instantiation support, and also looks like it has weird
              requirements for resetting the pointers: you must check the reset outputs, and the time to
              reset is reported to be as high as around 200ns (anecdotally -- could be just that the sim I
-             read on the web is using a really slow clock, but I'm guessing it's around 10 cycles). 
+             read on the web is using a really slow clock, but I'm guessing it's around 10 cycles).
            - the FIFO_SYNC_MACRO has a well-specified fixed reset latency of 5 cycles.
-           - The main downside of FIFO_SYNC_MACRO over XPM_FIFO_ASYNC is that XPM_FIFO_ASYNC can automatically 
+           - The main downside of FIFO_SYNC_MACRO over XPM_FIFO_ASYNC is that XPM_FIFO_ASYNC can automatically
              allow for output data to be read at 32-bit widths, with writes at 16-bit widths. However, with a
              bit of additional logic and pipelining, we can aggregate data into 32-bit words going into a
-             32-bit FIFO_SYNC_MACRO, which is what we do in this implementation. 
+             32-bit FIFO_SYNC_MACRO, which is what we do in this implementation.
         """)
         self.bus = wishbone.Interface()
 
