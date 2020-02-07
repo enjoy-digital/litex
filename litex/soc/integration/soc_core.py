@@ -131,8 +131,7 @@ class SoCCore(SoC):
 
         # Add SoCController
         if with_ctrl:
-            self.submodules.ctrl = SoCController()
-            self.add_csr("ctrl", use_loc_if_exists=True)
+            self.add_controller("ctrl")
 
         # Add CPU
         self.config["CPU_TYPE"] = str(cpu_type).upper()
@@ -224,19 +223,11 @@ class SoCCore(SoC):
             self.add_csr("uart", use_loc_if_exists=True)
             self.add_interrupt("uart", use_loc_if_exists=True)
 
-        # Add Identifier
-        if ident:
-            if ident_version:
-                ident = ident + " " + get_version()
-            self.submodules.identifier = identifier.Identifier(ident)
-            self.add_csr("identifier_mem", use_loc_if_exists=True)
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
 
         # Add Timer
         if with_timer:
-            self.submodules.timer0 = timer.Timer()
-            self.add_csr("timer0", use_loc_if_exists=True)
-            self.add_interrupt("timer0", use_loc_if_exists=True)
+            self.add_timer(name="timer0")
 
         # Add Wishbone to CSR bridge
         self.config["CSR_DATA_WIDTH"] = csr_data_width

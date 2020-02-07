@@ -9,6 +9,8 @@ import datetime
 
 from migen import *
 
+from litex.soc.cores.identifier import Identifier
+from litex.soc.cores.timer import Timer
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone
 
@@ -31,19 +33,19 @@ def colorer(s, color="bright"):
     trailer = "\x1b[0m"
     return header + str(s) + trailer
 
-def buildtime(with_time=True):
+def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
 
 # SoCRegion ----------------------------------------------------------------------------------------
 
 class SoCRegion:
-    def __init__(self, origin=None, size=None, cached=True, read_only=False):
+    def __init__(self, origin=None, size=None, mode="rw", cached=True):
         self.logger    = logging.getLogger("SoCRegion")
         self.origin    = origin
         self.size      = size
+        self.mode      = mode
         self.cached    = cached
-        self.read_only = read_only
 
     def decoder(self):
         origin = self.origin
@@ -64,9 +66,8 @@ class SoCRegion:
             r += "Origin: {}, ".format(colorer("0x{:08x}".format(self.origin)))
         if self.size is not None:
             r += "Size: {}, ".format(colorer("0x{:08x}".format(self.size)))
+        r += "Mode: {}, ".format(colorer(self.mode.upper()))
         r += "Cached: {}".format(colorer(self.cached))
-        if self.read_only:
-            r += ", Read Only"
         return r
 
 
@@ -502,7 +503,7 @@ class SoC(Module):
         self.logger.info(colorer("  Build your hardware, easily!", color="bright"))
 
         self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(colorer("Creating new SoC... ({})".format(buildtime()), color="cyan"))
+        self.logger.info(colorer("Creating new SoC... ({})".format(build_time()), color="cyan"))
         self.logger.info(colorer("-"*80, color="bright"))
 
         # SoC Bus Handler --------------------------------------------------------------------------
@@ -538,14 +539,18 @@ class SoC(Module):
         self.logger.info(colorer("-"*80, color="bright"))
 
 
-    # SoC main components --------------------------------------------------------------------------
-    def add_ram(self, name, origin, size, contents=[], read_only=False):
-        ram_bus = wishbone.Interface(data_width=self.bus.data_width)
-        ram     = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=read_only)
-        self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, read_only=read_only))
+    # SoC Helpers ----------------------------------------------------------------------------------
+    def check_if_exists(self, name):
         if hasattr(self, name):
-            self.logger.error("{} name already used.".format(colorer(name, "red")))
+            self.logger.error("{} SubModule already declared.".format(colorer(name, "red")))
             raise
+
+    # SoC Main components --------------------------------------------------------------------------
+    def add_ram(self, name, origin, size, contents=[], mode="rw"):
+        ram_bus = wishbone.Interface(data_width=self.bus.data_width)
+        ram     = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
+        self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
+        self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
             colorer(name),
             colorer("added", "green"),
@@ -553,7 +558,25 @@ class SoC(Module):
         setattr(self.submodules, name, ram)
 
     def add_rom(self, name, origin, size, contents=[]):
-        self.add_ram(name, origin, size, contents, read_only=True)
+        self.add_ram(name, origin, size, contents, mode="r")
+
+    def add_controller(self, name="ctrl"):
+        self.check_if_exists(name)
+        setattr(self.submodules, name, SoCController())
+        self.csr.add(name, use_loc_if_exists=True)
+
+    def add_identifier(self, name="identifier", identifier="LiteX SoC", with_build_time=True):
+        self.check_if_exists(name)
+        if with_build_time:
+            identifier += " " + build_time()
+        setattr(self.submodules, name, Identifier(ident))
+        self.csr.add(name + "_mem", use_loc_if_exists=True)
+
+    def add_timer(self, name="timer0"):
+        self.check_if_exists(name)
+        setattr(self.submodules, name, Timer())
+        self.csr.add(name, use_loc_if_exists=True)
+        self.irq.add(name, use_loc_if_exists=True)
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
