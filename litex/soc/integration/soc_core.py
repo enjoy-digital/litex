@@ -282,21 +282,6 @@ class SoCCore(SoC):
         self.check_io_region(name, origin, 0x800)
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
-    def get_csr_dev_address(self, name, memory):
-        if memory is not None:
-            name = name + "_" + memory.name_override
-        try:
-            return self.csr.locs[name]
-        except KeyError as e:
-            msg = "Undefined \"{}\" CSR.\n".format(name)
-            msg += "Avalaible CSRs in {} ({}):\n".format(
-                self.__class__.__name__, inspect.getfile(self.__class__))
-            for k in sorted(self.csr.locs.keys()):
-                msg += "- {}\n".format(k)
-            raise RuntimeError(msg)
-        except ValueError:
-            return None
-
     def build(self, *args, **kwargs):
         return self.platform.build(self, *args, **kwargs)
 
