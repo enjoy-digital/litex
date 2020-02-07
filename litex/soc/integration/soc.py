@@ -11,8 +11,11 @@ from migen import *
 
 from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
+
 from litex.soc.interconnect.csr import *
+from litex.soc.interconnect import csr_bus
 from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import wishbone2csr
 
 # TODO:
 # - replace raise with exit on logging error.
@@ -378,6 +381,11 @@ class SoCCSRHandler(SoCLocHandler):
                 colorer(alignment, color="red"),
                 colorer(", ".join(str(x) for x in self.supported_alignment), color="green")))
             raise
+        if data_width > alignment:
+            self.logger.error("Alignment ({}) should be >= data_width ({})".format(
+                colorer(alignment,  color="red"),
+                colorer(data_width, color="red")))
+            raise
 
         # Check Paging
         if paging not in self.supported_paging:
@@ -577,6 +585,14 @@ class SoC(Module):
         setattr(self.submodules, name, Timer())
         self.csr.add(name, use_loc_if_exists=True)
         self.irq.add(name, use_loc_if_exists=True)
+
+    def add_csr_bridge(self, origin):
+        self.submodules.csr_bridge = wishbone2csr.WB2CSR(
+            bus_csr       = csr_bus.Interface(
+            address_width = self.csr.address_width,
+            data_width    = self.csr.data_width))
+        csr_size = 2**(self.csr.address_width + 2)
+        self.bus.add_slave("csr", self.csr_bridge.wishbone, SoCRegion(origin=origin, size=csr_size))
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):

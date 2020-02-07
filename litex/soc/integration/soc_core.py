@@ -123,6 +123,7 @@ class SoCCore(SoC):
 
         self.csr_data_width             = csr_data_width
         self.csr_address_width          = csr_address_width
+        self.csr_alignment              = csr_alignment
 
         self.with_wishbone              = with_wishbone
         self.wishbone_timeout_cycles    = wishbone_timeout_cycles
@@ -232,16 +233,9 @@ class SoCCore(SoC):
         # Add Wishbone to CSR bridge
         self.config["CSR_DATA_WIDTH"] = csr_data_width
         self.config["CSR_ALIGNMENT"]  = csr_alignment
-        assert csr_data_width <= csr_alignment
-        self.csr_data_width = csr_data_width
-        self.csr_alignment  = csr_alignment
         if with_wishbone:
-            self.submodules.wishbone2csr = wishbone2csr.WB2CSR(
-                bus_csr=csr_bus.Interface(
-                    address_width = csr_address_width,
-                    data_width    = csr_data_width))
-            self.add_csr_master(self.wishbone2csr.csr)
-            self.register_mem("csr", self.soc_mem_map["csr"], self.wishbone2csr.wishbone, 2**(csr_address_width + 2))
+            self.add_csr_bridge(self.soc_mem_map["csr"])
+            self.add_csr_master(self.csr_bridge.csr) # FIXME
 
     # Methods --------------------------------------------------------------------------------------
 
