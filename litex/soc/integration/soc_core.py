@@ -95,8 +95,6 @@ class SoCCore(SoC):
         self.mem_regions = self.bus.regions
 
         # SoC's CSR/Mem/Interrupt mapping (default or user defined + dynamically allocateds)
-        self.soc_csr_map       = {}
-        self.soc_interrupt_map = {}
         self.soc_mem_map       = self.mem_map
         self.soc_io_regions    = self.io_regions
 
@@ -126,12 +124,6 @@ class SoCCore(SoC):
         self.csr_data_width             = csr_data_width
         self.csr_address_width          = csr_address_width
 
-        self.with_ctrl                  = with_ctrl
-
-        self.with_uart                  = with_uart
-        self.uart_baudrate              = uart_baudrate
-
-        self.with_wishbone              = with_wishbone
         self.wishbone_timeout_cycles    = wishbone_timeout_cycles
 
         # Modules instances ------------------------------------------------------------------------
@@ -139,7 +131,7 @@ class SoCCore(SoC):
         # Add SoCController
         if with_ctrl:
             self.submodules.ctrl = SoCController()
-            self.add_csr("ctrl", allow_user_defined=True)
+            self.add_csr("ctrl", use_loc_if_exists=True)
 
         # Add CPU
         self.config["CPU_TYPE"] = str(cpu_type).upper()
@@ -176,7 +168,7 @@ class SoCCore(SoC):
                 self.add_wb_master(soc_bus)
 
             # Add CPU CSR (dynamic)
-            self.add_csr("cpu", allow_user_defined=True)
+            self.add_csr("cpu", use_loc_if_exists=True)
 
             # Add CPU interrupts
             for _name, _id in self.cpu.interrupts.items():
@@ -232,23 +224,23 @@ class SoCCore(SoC):
                 else:
                     self.submodules.uart_phy = uart.UARTPHY(platform.request(uart_name), clk_freq, uart_baudrate)
                 self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
-            self.add_csr("uart_phy", allow_user_defined=True)
-            self.add_csr("uart", allow_user_defined=True)
-            self.add_interrupt("uart", allow_user_defined=True)
+            self.add_csr("uart_phy", use_loc_if_exists=True)
+            self.add_csr("uart", use_loc_if_exists=True)
+            self.add_interrupt("uart", use_loc_if_exists=True)
 
         # Add Identifier
         if ident:
             if ident_version:
                 ident = ident + " " + get_version()
             self.submodules.identifier = identifier.Identifier(ident)
-            self.add_csr("identifier_mem", allow_user_defined=True)
+            self.add_csr("identifier_mem", use_loc_if_exists=True)
         self.config["CLOCK_FREQUENCY"] = int(clk_freq)
 
         # Add Timer
         if with_timer:
             self.submodules.timer0 = timer.Timer()
-            self.add_csr("timer0", allow_user_defined=True)
-            self.add_interrupt("timer0", allow_user_defined=True)
+            self.add_csr("timer0", use_loc_if_exists=True)
+            self.add_interrupt("timer0", use_loc_if_exists=True)
 
         # Add Wishbone to CSR bridge
         self.config["CSR_DATA_WIDTH"] = csr_data_width
@@ -266,11 +258,11 @@ class SoCCore(SoC):
 
     # Methods --------------------------------------------------------------------------------------
 
-    def add_interrupt(self, interrupt_name, interrupt_id=None, allow_user_defined=False):
-        self.irq.add(interrupt_name, interrupt_id, use_loc_if_exists=allow_user_defined)
+    def add_interrupt(self, interrupt_name, interrupt_id=None, use_loc_if_exists=False):
+        self.irq.add(interrupt_name, interrupt_id, use_loc_if_exists=use_loc_if_exists)
 
-    def add_csr(self, csr_name, csr_id=None, allow_user_defined=False):
-        self.csr.add(csr_name, csr_id, use_loc_if_exists=allow_user_defined)
+    def add_csr(self, csr_name, csr_id=None, use_loc_if_exists=False):
+        self.csr.add(csr_name, csr_id, use_loc_if_exists=use_loc_if_exists)
 
     def initialize_rom(self, data):
         self.rom.mem.init = data
@@ -360,7 +352,7 @@ class SoCCore(SoC):
         SoC.do_finalize(self)
 
         # Add the Wishbone Masters/Slaves interconnect
-        if self.with_ctrl and (self.wishbone_timeout_cycles is not None):
+        if hasattr(self, "ctrl") and (self.wishbone_timeout_cycles is not None):
             self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
 
         # Collect and create CSRs

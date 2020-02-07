@@ -420,7 +420,7 @@ class SoCIRQHandler(SoCLocHandler):
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
-        r ="IRQ Handler (up to {} Locations).".format(colorer(self.n_locs))
+        r ="IRQ Handler (up to {} Locations).\n".format(colorer(self.n_locs))
         r += SoCLocHandler.__str__(self)
         r = r[:-1]
         return r
