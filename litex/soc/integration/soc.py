@@ -228,7 +228,7 @@ class SoCBusHandler(Module):
             self.logger.error(self)
             raise
         if master.data_width != self.data_width:
-            self.logger.error("{} Bus Master {} from {}-bit to {}-bit.".format(
+            self.logger.info("{} Bus Master {} from {}-bit to {}-bit.".format(
                 colorer(name),
                 colorer("converted", color="yellow"),
                 colorer(master.data_width),
@@ -237,7 +237,9 @@ class SoCBusHandler(Module):
             self.submodules += wishbone.Converter(master, new_master)
             master = new_master
         self.masters[name] = master
-        self.logger.info("{} {} as Bus Master.".format(colorer(name, color="underline"), colorer("added", color="green")))
+        self.logger.info("{} {} as Bus Master.".format(
+            colorer(name,    color="underline"),
+            colorer("added", color="green")))
         # FIXME: handle IO regions
 
     def add_slave(self, name=None, slave=None, region=None):
@@ -404,6 +406,7 @@ class SoCCSRHandler(SoCLocHandler):
         self.address_width = address_width
         self.alignment     = alignment
         self.paging        = paging
+        self.masters       = {}
         self.logger.info("{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
             colorer(self.data_width),
             colorer(2**self.address_width/2**10),
@@ -415,7 +418,38 @@ class SoCCSRHandler(SoCLocHandler):
         for name, n in reserved_csrs.items():
             self.add(name, n)
 
-        self.logger.info(colorer("CSR Bus Handler created.", color="cyan"))
+        self.logger.info(colorer("CSR Handler created.", color="cyan"))
+
+    # Add Master -----------------------------------------------------------------------------------
+    def add_master(self, name=None, master=None):
+        if name is None:
+            name = "master{:d}".format(len(self.masters))
+        if name in self.masters.keys():
+            self.logger.error("{} already declared as CSR Master:".format(colorer(name, color="red")))
+            self.logger.error(self)
+            raise
+        print(master)
+        if master.data_width != self.data_width:
+            self.logger.error("{} Master/Handler data_width {} ({} vs {}).".format(
+                colorer(name),
+                colorer("missmatch"),
+                colorer(master.data_width, color="red"),
+                colorer(self.data_width,   color="red")))
+            raise
+        self.masters[name] = master
+        self.logger.info("{} {} as CSR Master.".format(
+            colorer(name,    color="underline"),
+            colorer("added", color="green")))
+        # FIXME: handle IO regions
+
+    # Address map ----------------------------------------------------------------------------------
+    def address_map(self, name, memory):
+        if memory is not None:
+            name = name + "_" + memory.name_override
+        if self.locs.get(name, None) is None:
+            self.logger.error("Undefined {} CSR.".format(colorer(name, color="red")))
+            raise
+        return self.locs[name]
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
@@ -615,6 +649,7 @@ class SoC(Module):
             data_width    = self.csr.data_width))
         csr_size = 2**(self.csr.address_width + 2)
         self.bus.add_slave("csr", self.csr_bridge.wishbone, SoCRegion(origin=origin, size=csr_size))
+        self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
@@ -635,6 +670,34 @@ class SoC(Module):
                 slaves         = bus_slaves,
                 register       = True,
                 timeout_cycles = self.bus.timeout)
+        if hasattr(self, "ctrl") and self.bus.timeout is not None:
+            self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
+
+        # SoC CSR Interconnect ---------------------------------------------------------------------
+        self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
+            address_map   = self.csr.address_map,
+            data_width    = self.csr.data_width,
+            address_width = self.csr.address_width,
+            alignment     = self.csr.alignment
+        )
+        if len(self.csr.masters):
+            self.submodules.csr_interconnect = csr_bus.InterconnectShared(
+                masters = list(self.csr.masters.values()),
+                slaves  = self.csr_bankarray.get_buses())
+
+        # SoC IRQ Interconnect ---------------------------------------------------------------------
+        if hasattr(self, "cpu"):
+            if hasattr(self.cpu, "interrupt"):
+                for name, loc in sorted(self.irq.locs.items()):
+                    if name in self.cpu.interrupts.keys():
+                        continue
+                    if hasattr(self, name):
+                        module = getattr(self, name)
+                        if not hasattr(module, "ev"):
+                            self.logger.error("No EventManager found on {} SubModule".format(
+                                colorer(name, color="red")))
+                        self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
+                    self.add_constant(name + "_INTERRUPT", loc)
 
 # Test (FIXME: move to litex/text and improve) -----------------------------------------------------
 

@@ -102,9 +102,6 @@ class SoCCore(SoC):
         self.config      = {}
         self.csr_regions = {}
 
-        # CSR masters list
-        self._csr_masters = []
-
         # Parameters managment ---------------------------------------------------------------------
         if cpu_type == "None":
             cpu_type = None
@@ -234,7 +231,6 @@ class SoCCore(SoC):
         self.add_config("CSR_ALIGNMENT", csr_alignment)
         if with_wishbone:
             self.add_csr_bridge(self.soc_mem_map["csr"])
-            self.add_csr_master(self.csr_bridge.csr) # FIXME
 
     # Methods --------------------------------------------------------------------------------------
 
@@ -257,12 +253,6 @@ class SoCCore(SoC):
                 wb_name = name
                 break
         self.bus.add_slave(name=wb_name, slave=interface)
-
-    def add_csr_master(self, csrm):
-        # CSR masters are not arbitrated, use this with precaution.
-        if self.finalized:
-            raise FinalizeError
-        self._csr_masters.append(csrm)
 
     def check_io_region(self, name, origin, length):
         for region_origin, region_length in self.soc_io_regions.items():
@@ -326,30 +316,13 @@ class SoCCore(SoC):
 
         SoC.do_finalize(self)
 
-        # Add the Wishbone Masters/Slaves interconnect
-        if hasattr(self, "ctrl") and (self.wishbone_timeout_cycles is not None):
-            self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
-
-        # Collect and create CSRs
-        self.submodules.csrbankarray = csr_bus.CSRBankArray(self,
-            self.get_csr_dev_address,
-            data_width    = self.csr_data_width,
-            address_width = self.csr_address_width,
-            alignment     = self.csr_alignment
-        )
-
-        # Add CSRs interconnect
-        if len(self._csr_masters) != 0:
-            self.submodules.csrcon = csr_bus.InterconnectShared(
-                self._csr_masters, self.csrbankarray.get_buses())
-
         # Check and add CSRs regions
-        for name, csrs, mapaddr, rmap in self.csrbankarray.banks:
+        for name, csrs, mapaddr, rmap in self.csr_bankarray.banks:
             self.add_csr_region(name, (self.soc_mem_map["csr"] + 0x800*mapaddr),
                 self.csr_data_width, csrs)
 
         # Check and add Memory regions
-        for name, memory, mapaddr, mmap in self.csrbankarray.srams:
+        for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
             self.add_csr_region(name + "_" + memory.name_override,
                 (self.soc_mem_map["csr"] + 0x800*mapaddr),
                 self.csr_data_width, memory)
@@ -358,21 +331,10 @@ class SoCCore(SoC):
         self.csr_regions = {k: v for k, v in sorted(self.csr_regions.items(), key=lambda item: item[1].origin)}
 
         # Add CSRs / Config items to constants
-        for name, constant in self.csrbankarray.constants:
+        for name, constant in self.csr_bankarray.constants:
             self.add_constant(name.upper() + "_" + constant.name.upper(), constant.value.value)
         for name, value in self.config.items():
             self.add_config(name, value)
-
-        # Connect interrupts
-        if hasattr(self.cpu, "interrupt"):
-            for _name, _id in sorted(self.irq.locs.items()):
-                if _name in self.cpu.interrupts.keys():
-                    continue
-                if hasattr(self, _name):
-                    module = getattr(self, _name)
-                    assert hasattr(module, 'ev'), "Submodule %s does not have EventManager (xx.ev) module" % _name
-                    self.comb += self.cpu.interrupt[_id].eq(module.ev.irq)
-                self.constants[_name.upper() + "_INTERRUPT"] = _id
 
 # SoCCore arguments --------------------------------------------------------------------------------
 
