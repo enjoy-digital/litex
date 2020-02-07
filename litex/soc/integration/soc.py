@@ -9,6 +9,7 @@ import datetime
 
 from migen import *
 
+from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone
 
 # TODO:
@@ -423,6 +424,34 @@ class SoCIRQHandler(SoCLocHandler):
         r += SoCLocHandler.__str__(self)
         r = r[:-1]
         return r
+
+# SoCController ------------------------------------------------------------------------------------
+
+class SoCController(Module, AutoCSR):
+    def __init__(self):
+        self._reset      = CSRStorage(1, description="""
+            Write a ``1`` to this register to reset the SoC.""")
+        self._scratch    = CSRStorage(32, reset=0x12345678, description="""
+            Use this register as a scratch space to verify that software read/write accesses
+            to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
+            can be used to verify endianness.""")
+        self._bus_errors = CSRStatus(32, description="""
+            Total number of Wishbone bus errors (timeouts) since last reset.""")
+
+        # # #
+
+        # Reset
+        self.reset = Signal()
+        self.comb += self.reset.eq(self._reset.re)
+
+        # Bus errors
+        self.bus_error = Signal()
+        bus_errors     = Signal(32)
+        self.sync += \
+            If(bus_errors != (2**len(bus_errors)-1),
+                If(self.bus_error, bus_errors.eq(bus_errors + 1))
+            )
+        self.comb += self._bus_errors.status.eq(bus_errors)
 
 # SoC ----------------------------------------------------------------------------------------------
 

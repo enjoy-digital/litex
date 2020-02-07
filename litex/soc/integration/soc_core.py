@@ -22,10 +22,9 @@ from litex.build.tools import deprecated_warning
 
 from litex.soc.cores import identifier, timer, uart
 from litex.soc.cores import cpu
-from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 from litex.soc.integration.common import *
-from litex.soc.integration.soc import SoCRegion, SoC
+from litex.soc.integration.soc import SoCRegion, SoC, SoCController
 
 __all__ = [
     "mem_decoder",
@@ -37,36 +36,6 @@ __all__ = [
     "soc_mini_args",
     "soc_mini_argdict",
 ]
-
-# SoCController ------------------------------------------------------------------------------------
-
-class SoCController(Module, AutoCSR):
-    def __init__(self):
-        self._reset      = CSRStorage(1, description="""
-            Write a ``1`` to this register to reset the SoC.""")
-        self._scratch    = CSRStorage(32, reset=0x12345678, description="""
-            Use this register as a scratch space to verify that software read/write accesses
-            to the Wishbone/CSR bus are working correctly. The initial reset value of 0x1234578
-            can be used to verify endianness.""")
-        self._bus_errors = CSRStatus(32, description="""
-            Total number of Wishbone bus errors (timeouts) since last reset.""")
-
-        # # #
-
-        # reset
-        self.reset = Signal()
-        self.comb += self.reset.eq(self._reset.re)
-
-        # bus errors
-        self.bus_error = Signal()
-        bus_errors     = Signal(32)
-        self.sync += \
-            If(bus_errors != (2**len(bus_errors)-1),
-                If(self.bus_error,
-                    bus_errors.eq(bus_errors + 1)
-                )
-            )
-        self.comb += self._bus_errors.status.eq(bus_errors)
 
 # SoCCore ------------------------------------------------------------------------------------------
 
