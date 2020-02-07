@@ -14,15 +14,13 @@
 
 import os
 import inspect
-from operator import itemgetter
 
 from migen import *
 
 from litex.build.tools import deprecated_warning
 
-from litex.soc.cores import identifier, timer, uart
 from litex.soc.cores import cpu
-from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
+from litex.soc.interconnect import wishbone
 from litex.soc.integration.common import *
 from litex.soc.integration.soc import SoCConstant, SoCRegion, SoC, SoCController
 
