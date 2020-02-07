@@ -40,6 +40,11 @@ def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     return datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
 
+# SoCConstant --------------------------------------------------------------------------------------
+
+def SoCConstant(value):
+    return value
+
 # SoCRegion ----------------------------------------------------------------------------------------
 
 class SoCRegion:
@@ -514,6 +519,9 @@ class SoC(Module):
         self.logger.info(colorer("Creating new SoC... ({})".format(build_time()), color="cyan"))
         self.logger.info(colorer("-"*80, color="bright"))
 
+        # SoC attributes ---------------------------------------------------------------------------
+        self.constants = {}
+
         # SoC Bus Handler --------------------------------------------------------------------------
         self.submodules.bus = SoCBusHandler(
             standard         = bus_standard,
@@ -553,6 +561,20 @@ class SoC(Module):
             self.logger.error("{} SubModule already declared.".format(colorer(name, "red")))
             raise
 
+    def add_constant(self, name, value=None):
+        name = name.upper()
+        if name in self.constants.keys():
+            self.logger.error("{} Constant already declared.".format(colorer(name, "red")))
+            raise
+        self.constants[name] = SoCConstant(value)
+
+    def add_config(self, name, value):
+        name = "CONFIG_" + name
+        if isinstance(value, str):
+            self.add_constant(name + "_" + value)
+        else:
+            self.add_constant(name, value)
+
     # SoC Main components --------------------------------------------------------------------------
     def add_ram(self, name, origin, size, contents=[], mode="rw"):
         ram_bus = wishbone.Interface(data_width=self.bus.data_width)
@@ -561,7 +583,7 @@ class SoC(Module):
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
             colorer(name),
-            colorer("added", "green"),
+            colorer("added", color="green"),
             self.bus.regions[name]))
         setattr(self.submodules, name, ram)
 
@@ -613,8 +635,6 @@ class SoC(Module):
                 slaves         = bus_slaves,
                 register       = True,
                 timeout_cycles = self.bus.timeout)
-
-        #exit()
 
 # Test (FIXME: move to litex/text and improve) -----------------------------------------------------
 

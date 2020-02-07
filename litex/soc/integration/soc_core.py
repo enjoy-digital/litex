@@ -24,7 +24,7 @@ from litex.soc.cores import identifier, timer, uart
 from litex.soc.cores import cpu
 from litex.soc.interconnect import wishbone, csr_bus, wishbone2csr
 from litex.soc.integration.common import *
-from litex.soc.integration.soc import SoCRegion, SoC, SoCController
+from litex.soc.integration.soc import SoCConstant, SoCRegion, SoC, SoCController
 
 __all__ = [
     "mem_decoder",
@@ -100,7 +100,6 @@ class SoCCore(SoC):
 
         # SoC's Config/Constants/Regions
         self.config      = {}
-        self.constants   = {}
         self.csr_regions = {}
 
         # CSR masters list
@@ -135,10 +134,10 @@ class SoCCore(SoC):
             self.add_controller("ctrl")
 
         # Add CPU
-        self.config["CPU_TYPE"] = str(cpu_type).upper()
+        self.add_config("CPU_TYPE", str(cpu_type).upper())
         if cpu_type is not None:
             if cpu_variant is not None:
-                self.config["CPU_VARIANT"] = str(cpu_variant.split('+')[0]).upper()
+                self.add_config("CPU_VARIANT", str(cpu_variant.split('+')[0]))
 
             # Check type
             if cpu_type not in cpu.CPUS.keys():
@@ -159,7 +158,7 @@ class SoCCore(SoC):
 
             # Set reset address
             self.cpu.set_reset_address(self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
-            self.config["CPU_RESET_ADDR"] = self.cpu.reset_address
+            self.add_config("CPU_RESET_ADDR", self.cpu.reset_address)
 
             # Add CPU buses as 32-bit Wishbone masters
             for cpu_bus in self.cpu.buses:
@@ -224,15 +223,15 @@ class SoCCore(SoC):
             self.add_csr("uart", use_loc_if_exists=True)
             self.add_interrupt("uart", use_loc_if_exists=True)
 
-        self.config["CLOCK_FREQUENCY"] = int(clk_freq)
+        self.add_config("CLOCK_FREQUENCY", int(clk_freq))
 
         # Add Timer
         if with_timer:
             self.add_timer(name="timer0")
 
         # Add Wishbone to CSR bridge
-        self.config["CSR_DATA_WIDTH"] = csr_data_width
-        self.config["CSR_ALIGNMENT"]  = csr_alignment
+        self.add_config("CSR_DATA_WIDTH", csr_data_width)
+        self.add_config("CSR_ALIGNMENT", csr_alignment)
         if with_wishbone:
             self.add_csr_bridge(self.soc_mem_map["csr"])
             self.add_csr_master(self.csr_bridge.csr) # FIXME
@@ -292,11 +291,6 @@ class SoCCore(SoC):
     def add_csr_region(self, name, origin, busword, obj):
         self.check_io_region(name, origin, 0x800)
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
-
-    def add_constant(self, name, value=None):
-        if name in self.constants.keys():
-            raise ValueError("Constant {} already declared.".format(name))
-        self.constants[name] = SoCConstant(value)
 
     def get_csr_dev_address(self, name, memory):
         if memory is not None:
@@ -366,10 +360,8 @@ class SoCCore(SoC):
         # Add CSRs / Config items to constants
         for name, constant in self.csrbankarray.constants:
             self.add_constant(name.upper() + "_" + constant.name.upper(), constant.value.value)
-        for name, value in sorted(self.config.items(), key=itemgetter(0)):
-            self.add_constant("CONFIG_" + name.upper(), value)
-            if isinstance(value, str):
-                self.add_constant("CONFIG_" + name.upper() + "_" + value)
+        for name, value in self.config.items():
+            self.add_config(name, value)
 
         # Connect interrupts
         if hasattr(self.cpu, "interrupt"):
