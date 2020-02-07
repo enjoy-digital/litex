@@ -72,7 +72,7 @@ class SoCLinkerRegion(SoCRegion):
 
 # SoCBusHandler ------------------------------------------------------------------------------------
 
-class SoCBusHandler:
+class SoCBusHandler(Module):
     supported_standard      = ["wishbone"]
     supported_data_width    = [32, 64]
     supported_address_width = [32]
@@ -215,6 +215,15 @@ class SoCBusHandler:
             self.logger.error("{} already declared as Bus Master:".format(colorer(name, color="red")))
             self.logger.error(self)
             raise
+        if master.data_width != self.data_width:
+            self.logger.error("{} Bus Master {} from {}-bit to {}-bit.".format(
+                colorer(name),
+                colorer("converted", color="yellow"),
+                colorer(master.data_width),
+                colorer(self.data_width)))
+            new_master = wishbone.Interface(data_width=self.data_width)
+            self.submodules += wishbone.Converter(master, new_master)
+            master = new_master
         self.masters[name] = master
         self.logger.info("{} {} as Bus Master.".format(colorer(name, color="underline"), colorer("added", color="green")))
         # FIXME: handle IO regions
@@ -240,6 +249,15 @@ class SoCBusHandler:
             self.logger.error("{} already declared as Bus Slave:".format(colorer(name, color="red")))
             self.logger.error(self)
             raise
+        if slave.data_width != self.data_width:
+            self.logger.error("{} Bus Slave {} from {}-bit to {}-bit.".format(
+                colorer(name),
+                colorer("converted", color="yellow"),
+                colorer(slave.data_width),
+                colorer(self.data_width)))
+            new_slave = wishbone.Interface(data_width=self.data_width)
+            self.submodules += wishbone.Converter(slave, new_slave)
+            slave = new_slave
         self.slaves[name] = slave
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
@@ -263,7 +281,7 @@ class SoCBusHandler:
 
 # SoCLocHandler --------------------------------------------------------------------------------------
 
-class SoCLocHandler:
+class SoCLocHandler(Module):
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, name, n_locs):
         self.name   = name
@@ -485,7 +503,7 @@ class SoC(Module):
         self.logger.info(colorer("-"*80, color="bright"))
 
         # SoC Bus Handler --------------------------------------------------------------------------
-        self.bus = SoCBusHandler(
+        self.submodules.bus = SoCBusHandler(
             standard         = bus_standard,
             data_width       = bus_data_width,
             address_width    = bus_address_width,
@@ -494,7 +512,7 @@ class SoC(Module):
            )
 
         # SoC Bus Handler --------------------------------------------------------------------------
-        self.csr = SoCCSRHandler(
+        self.submodules.csr = SoCCSRHandler(
             data_width    = csr_data_width,
             address_width = csr_address_width,
             alignment     = csr_alignment,
@@ -503,7 +521,7 @@ class SoC(Module):
         )
 
         # SoC IRQ Handler --------------------------------------------------------------------------
-        self.irq = SoCIRQHandler(
+        self.submodules.irq = SoCIRQHandler(
             n_irqs        = irq_n_irqs,
             reserved_irqs = irq_reserved_irqs
         )
@@ -515,7 +533,6 @@ class SoC(Module):
         self.logger.info(self.csr)
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
-
 
     def do_finalize(self):
         self.logger.info(colorer("-"*80, color="bright"))

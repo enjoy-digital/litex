@@ -162,10 +162,7 @@ class SoCCore(SoC):
 
             # Add CPU buses as 32-bit Wishbone masters
             for cpu_bus in self.cpu.buses:
-                assert cpu_bus.data_width in [32, 64, 128]
-                soc_bus = wishbone.Interface(data_width=self.bus.data_width)
-                self.submodules += wishbone.Converter(cpu_bus, soc_bus)
-                self.add_wb_master(soc_bus)
+                self.add_wb_master(cpu_bus)
 
             # Add CPU CSR (dynamic)
             self.add_csr("cpu", use_loc_if_exists=True)
