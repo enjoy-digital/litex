@@ -124,6 +124,7 @@ class SoCCore(SoC):
         self.csr_data_width             = csr_data_width
         self.csr_address_width          = csr_address_width
 
+        self.with_wishbone              = with_wishbone
         self.wishbone_timeout_cycles    = wishbone_timeout_cycles
 
         # Modules instances ------------------------------------------------------------------------
@@ -192,13 +193,11 @@ class SoCCore(SoC):
 
         # Add integrated SRAM
         if integrated_sram_size:
-            self.submodules.sram = wishbone.SRAM(integrated_sram_size, init=integrated_sram_init)
-            self.register_mem("sram", self.soc_mem_map["sram"], self.sram.bus, integrated_sram_size)
+            self.add_ram("sram", self.soc_mem_map["sram"], integrated_sram_size)
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available)
         if integrated_main_ram_size:
-            self.submodules.main_ram = wishbone.SRAM(integrated_main_ram_size, init=integrated_main_ram_init)
-            self.register_mem("main_ram", self.soc_mem_map["main_ram"], self.main_ram.bus, integrated_main_ram_size)
+            self.add_ram("main_ram", self.soc_mem_map["main_ram"], integrated_main_ram_size)
 
         # Add UART
         if with_uart:

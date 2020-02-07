@@ -38,11 +38,12 @@ def buildtime(with_time=True):
 # SoCRegion ----------------------------------------------------------------------------------------
 
 class SoCRegion:
-    def __init__(self, origin=None, size=None, cached=True):
-        self.logger = logging.getLogger("SoCRegion")
-        self.origin = origin
-        self.size   = size
-        self.cached = cached
+    def __init__(self, origin=None, size=None, cached=True, read_only=False):
+        self.logger    = logging.getLogger("SoCRegion")
+        self.origin    = origin
+        self.size      = size
+        self.cached    = cached
+        self.read_only = read_only
 
     def decoder(self):
         origin = self.origin
@@ -64,6 +65,8 @@ class SoCRegion:
         if self.size is not None:
             r += "Size: {}, ".format(colorer("0x{:08x}".format(self.size)))
         r += "Cached: {}".format(colorer(self.cached))
+        if self.read_only:
+            r += ", Read Only"
         return r
 
 
@@ -534,6 +537,25 @@ class SoC(Module):
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
 
+
+    # SoC main components --------------------------------------------------------------------------
+    def add_ram(self, name, origin, size, contents=[], read_only=False):
+        ram_bus = wishbone.Interface(data_width=self.bus.data_width)
+        ram     = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=read_only)
+        self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, read_only=read_only))
+        if hasattr(self, name):
+            self.logger.error("{} name already used.".format(colorer(name, "red")))
+            raise
+        self.logger.info("RAM {} {} {}.".format(
+            colorer(name),
+            colorer("added", "green"),
+            self.bus.regions[name]))
+        setattr(self.submodules, name, ram)
+
+    def add_rom(self, name, origin, size, contents=[]):
+        self.add_ram(name, origin, size, contents, read_only=True)
+
+    # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(colorer("Finalized SoC:", color="cyan"))
