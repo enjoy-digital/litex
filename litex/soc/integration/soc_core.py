@@ -360,12 +360,12 @@ class SoCCore(SoC):
         if memory is not None:
             name = name + "_" + memory.name_override
         try:
-            return self.csr.csrs[name]
+            return self.csr.locs[name]
         except KeyError as e:
             msg = "Undefined \"{}\" CSR.\n".format(name)
             msg += "Avalaible CSRs in {} ({}):\n".format(
                 self.__class__.__name__, inspect.getfile(self.__class__))
-            for k in sorted(self.csr.csrs.keys()):
+            for k in sorted(self.csr.locs.keys()):
                 msg += "- {}\n".format(k)
             raise RuntimeError(msg)
         except ValueError:
@@ -431,7 +431,7 @@ class SoCCore(SoC):
 
         # Connect interrupts
         if hasattr(self.cpu, "interrupt"):
-            for _name, _id in sorted(self.irq.irqs.items()):
+            for _name, _id in sorted(self.irq.locs.items()):
                 if _name in self.cpu.interrupts.keys():
                     continue
                 if hasattr(self, _name):

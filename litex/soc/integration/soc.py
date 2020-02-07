@@ -13,7 +13,6 @@ from litex.soc.interconnect import wishbone
 
 # TODO:
 # - replace raise with exit on logging error.
-# - use common module for SoCCSR/SoCIRQ.
 # - add configurable CSR paging.
 # - manage IO/Linker regions.
 
@@ -70,16 +69,16 @@ class SoCRegion:
 class SoCLinkerRegion(SoCRegion):
     pass
 
-# SoCBus -------------------------------------------------------------------------------------------
+# SoCBusHandler ------------------------------------------------------------------------------------
 
-class SoCBus:
+class SoCBusHandler:
     supported_standard      = ["wishbone"]
     supported_data_width    = [32, 64]
     supported_address_width = [32]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, standard, data_width=32, address_width=32, timeout=1e6, reserved_regions={}):
-        self.logger = logging.getLogger("SoCBus")
+        self.logger = logging.getLogger("SoCBusHandler")
         self.logger.info(colorer("Creating new Bus Handler...", color="cyan"))
 
         # Check Standard
@@ -261,9 +260,70 @@ class SoCBus:
         r = r[:-1]
         return r
 
-# SoCCSR ----------------------------------------------------------------------------------------
+# SoCLocHandler --------------------------------------------------------------------------------------
 
-class SoCCSR:
+class SoCLocHandler:
+    # Creation -------------------------------------------------------------------------------------
+    def __init__(self, name, n_locs):
+        self.name   = name
+        self.locs   = {}
+        self.n_locs = n_locs
+
+    # Add ------------------------------------------------------------------------------------------
+    def add(self, name, n=None, use_loc_if_exists=False):
+        allocated = False
+        if not (use_loc_if_exists and name in self.locs.keys()):
+            if name in self.locs.keys():
+                self.logger.error("{} {} name already used.".format(colorer(name, "red"), self.name))
+                self.logger.error(self)
+                raise
+            if n in self.locs.values():
+                self.logger.error("{} {} Location already used.".format(colorer(n, "red"), self.name))
+                self.logger.error(self)
+                raise
+            if n is None:
+                allocated = True
+                n = self.alloc(name)
+            else:
+                if n < 0:
+                    self.logger.error("{} {} Location should be positive.".format(
+                        colorer(n, color="red"),
+                        self.name))
+                    raise
+                if n > self.n_locs:
+                    self.logger.error("{} {} Location too high (Up to {}).".format(
+                        colorer(n, color="red"),
+                        self.name,
+                        colorer(self.n_csrs, color="green")))
+                    raise
+            self.locs[name] = n
+        else:
+            n = self.locs[name]
+        self.logger.info("{} {} {} at Location {}.".format(
+            colorer(name, color="underline"),
+            self.name,
+            colorer("allocated" if allocated else "added", color="yellow" if allocated else "green"),
+            colorer(n)))
+
+    # Alloc ----------------------------------------------------------------------------------------
+    def alloc(self, name):
+        for n in range(self.n_locs):
+            if n not in self.locs.values():
+                return n
+        self.logger.error("Not enough Locations.")
+        self.logger.error(self)
+        raise
+
+    # Str ------------------------------------------------------------------------------------------
+    def __str__(self):
+        r = "{} Locations: ({})\n".format(self.name, len(self.locs.keys())) if len(self.locs.keys()) else ""
+        for name in self.locs.keys():
+           r += "- {}{}: {}\n".format(colorer(name, color="underline"), " "*(20-len(name)), colorer(self.locs[name]))
+        return r
+
+# SoCCSRHandler ------------------------------------------------------------------------------------
+
+class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
     supported_address_width = [14, 15]
     supported_alignment     = [32, 64]
@@ -271,7 +331,8 @@ class SoCCSR:
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
-        self.logger = logging.getLogger("SoCCSR")
+        SoCLocHandler.__init__(self, "CSR", n_locs=4*2**address_width//paging) # FIXME
+        self.logger = logging.getLogger("SoCCSRHandler")
         self.logger.info(colorer("Creating new CSR Handler...", color="cyan"))
 
         # Check Data Width
@@ -307,13 +368,11 @@ class SoCCSR:
         self.address_width = address_width
         self.alignment     = alignment
         self.paging        = paging
-        self.csrs          = {}
-        self.n_csrs        = 4*2**address_width//paging # FIXME
         self.logger.info("{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
             colorer(self.data_width),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
-            self.n_csrs))
+            colorer(self.n_locs)))
 
         # Adding reserved CSRs
         self.logger.info("Adding {} CSRs...".format(colorer("reserved")))
@@ -322,67 +381,24 @@ class SoCCSR:
 
         self.logger.info(colorer("CSR Bus Handler created.", color="cyan"))
 
-    # Add ------------------------------------------------------------------------------------------
-    def add(self, name, n=None, use_loc_if_exists=False):
-        allocated = False
-        if not (use_loc_if_exists and name in self.csrs.keys()):
-            if name in self.csrs.keys():
-                self.logger.error("{} CSR name already used.".format(colorer(name, "red")))
-                self.logger.error(self)
-                raise
-            if n in self.csrs.values():
-                self.logger.error("{} CSR Location already used.".format(colorer(n, "red")))
-                self.logger.error(self)
-                raise
-            if n is None:
-                allocated = True
-                n = self.alloc(name)
-            else:
-                if n < 0:
-                    self.logger.error("{} CSR Location should be positive.".format(
-                        colorer(n, color="red")))
-                    raise
-                if n > self.n_csrs:
-                    self.logger.error("{} CSR Location too high (Up to {}).".format(
-                        colorer(n, color="red"),
-                        colorer(self.n_csrs, color="green")))
-                    raise
-            self.csrs[name] = n
-        else:
-            n = self.csrs[name]
-        self.logger.info("{} CSR {} at Location {}.".format(
-            colorer(name, color="underline"),
-            colorer("allocated" if allocated else "added", color="yellow" if allocated else "green"),
-            colorer(n)))
-
-    # Alloc ----------------------------------------------------------------------------------------
-    def alloc(self, name):
-        for n in range(self.data_width//8*2**self.address_width//self.paging):
-            if n not in self.csrs.values():
-                return n
-        self.logger.error("Not enough CSR Locations.")
-        self.logger.error(self)
-        raise
-
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
         r = "{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
             colorer(self.data_width),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
-            self.n_csrs)
-        r += "CSR Locations: ({})\n".format(len(self.csrs.keys())) if len(self.csrs.keys()) else ""
-        for name in self.csrs.keys():
-           r += "- {}{}: {}\n".format(colorer(name, color="underline"), " "*(20-len(name)), colorer(self.csrs[name]))
+            colorer(self.n_locs))
+        r += SoCLocHandler.__str__(self)
         r = r[:-1]
         return r
 
-# SoCIRQ -------------------------------------------------------------------------------------------
+# SoCIRQHandler ------------------------------------------------------------------------------------
 
-class SoCIRQ:
+class SoCIRQHandler(SoCLocHandler):
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, n_irqs=32, reserved_irqs={}):
-        self.logger = logging.getLogger("SoCIRQ")
+        SoCLocHandler.__init__(self, "IRQ", n_locs=n_irqs)
+        self.logger = logging.getLogger("SoCIRQHandler")
         self.logger.info(colorer("Creating new SoC IRQ Handler...", color="cyan"))
 
         # Check IRQ Number
@@ -392,8 +408,6 @@ class SoCIRQ:
             raise
 
         # Create IRQ Handler
-        self.n_irqs = n_irqs
-        self.irqs   = {}
         self.logger.info("IRQ Handler (up to {} Locations).".format(colorer(n_irqs)))
 
         # Adding reserved IRQs
@@ -403,54 +417,10 @@ class SoCIRQ:
 
         self.logger.info(colorer("IRQ Handler created.", color="cyan"))
 
-    # Add ------------------------------------------------------------------------------------------
-    def add(self, name, n=None, use_loc_if_exists=False):
-        allocated = False
-        if not (use_loc_if_exists and name in self.irqs.keys()):
-            if name in self.irqs.keys():
-                self.logger.error("{} IRQ name already used.".format(colorer(name, "red")))
-                self.logger.error(self)
-                raise
-            if n in self.irqs.values():
-                self.logger.error("{} IRQ Location already used.".format(colorer(n, "red")))
-                self.logger.error(self)
-                raise
-            if n is None:
-                allocated = True
-                n = self.alloc(name)
-            else:
-                if n < 0:
-                    self.logger.error("{} IRQ Location should be positive.".format(
-                        colorer(n, color="red")))
-                    raise
-                if n > self.n_irqs:
-                    self.logger.error("{} IRQ Location too high (Up to {}).".format(
-                        colorer(n, color="red"),
-                        colorer(self.n_csrs, color="green")))
-                    raise
-        else:
-            n = self.irqs[name]
-        self.irqs[name] = n
-        self.logger.info("{} IRQ {} at Location {}.".format(
-            colorer(name, color="underline"),
-            colorer("allocated" if allocated else "added", color="yellow" if allocated else "green"),
-            colorer(n)))
-
-    # Alloc ----------------------------------------------------------------------------------------
-    def alloc(self, name):
-        for n in range(self.n_irqs):
-            if n not in self.irqs.values():
-                return n
-        self.logger.error("Not enough Locations.")
-        self.logger.error(self)
-        raise
-
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
-        r ="IRQ Handler (up to {} Locations).\n".format(colorer(self.n_irqs))
-        r += "IRQs Locations:\n" if len(self.irqs.keys()) else ""
-        for name in self.irqs.keys():
-           r += "- {}{}: {}\n".format(colorer(name, color="underline"), " "*(20-len(name)), colorer(self.irqs[name]))
+        r ="IRQ Handler (up to {} Locations).".format(colorer(self.n_locs))
+        r += SoCLocHandler.__str__(self)
         r = r[:-1]
         return r
 
@@ -486,7 +456,7 @@ class SoC(Module):
         self.logger.info(colorer("-"*80, color="bright"))
 
         # SoC Bus Handler --------------------------------------------------------------------------
-        self.bus = SoCBus(
+        self.bus = SoCBusHandler(
             standard         = bus_standard,
             data_width       = bus_data_width,
             address_width    = bus_address_width,
@@ -495,7 +465,7 @@ class SoC(Module):
            )
 
         # SoC Bus Handler --------------------------------------------------------------------------
-        self.csr = SoCCSR(
+        self.csr = SoCCSRHandler(
             data_width    = csr_data_width,
             address_width = csr_address_width,
             alignment     = csr_alignment,
@@ -504,7 +474,7 @@ class SoC(Module):
         )
 
         # SoC IRQ Handler --------------------------------------------------------------------------
-        self.irq = SoCIRQ(
+        self.irq = SoCIRQHandler(
             n_irqs        = irq_n_irqs,
             reserved_irqs = irq_reserved_irqs
         )
@@ -542,7 +512,7 @@ class SoC(Module):
 # Test (FIXME: move to litex/text and improve) -----------------------------------------------------
 
 if __name__ == "__main__":
-    bus = SoCBus("wishbone", reserved_regions={
+    bus = SoCBusHandler("wishbone", reserved_regions={
         "rom": SoCRegion(origin=0x00000100, size=1024),
         "ram": SoCRegion(size=512),
         }
@@ -552,7 +522,7 @@ if __name__ == "__main__":
     bus.add_slave("ram", None, SoCRegion(size=1024))
 
 
-    csr = SoCCSR(reserved_csrs={"ctrl": 0, "uart": 1})
+    csr = SoCCSRHandler(reserved_csrs={"ctrl": 0, "uart": 1})
     csr.add("csr0")
     csr.add("csr1", 0)
     #csr.add("csr2", 46)
@@ -560,6 +530,6 @@ if __name__ == "__main__":
     print(bus)
     print(csr)
 
-    irq = SoCIRQ(reserved_irqs={"uart": 1})
+    irq = SoCIRQHandler(reserved_irqs={"uart": 1})
 
     soc = SoC()
