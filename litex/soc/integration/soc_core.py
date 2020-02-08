@@ -17,8 +17,6 @@ import inspect
 
 from migen import *
 
-from litex.build.tools import deprecated_warning
-
 from litex.soc.cores import cpu
 from litex.soc.interconnect import wishbone
 from litex.soc.integration.common import *
@@ -71,9 +69,6 @@ class SoCCore(SoC):
                 # Wishbone parameters
                 with_wishbone=True, wishbone_timeout_cycles=1e6,
                 **kwargs):
-        self.platform = platform
-        self.clk_freq = clk_freq
-
         SoC.__init__(self, platform, clk_freq,
             bus_standard         = "wishbone",
             bus_data_width       = 32,
@@ -91,10 +86,11 @@ class SoCCore(SoC):
             irq_reserved_irqs    = {},
         )
         self.mem_regions = self.bus.regions
+        self.clk_freq    = self.sys_clk_freq
 
         # SoC's CSR/Mem/Interrupt mapping (default or user defined + dynamically allocateds)
-        self.soc_mem_map       = self.mem_map
-        self.soc_io_regions    = self.io_regions
+        self.soc_mem_map    = self.mem_map
+        self.soc_io_regions = self.io_regions
 
         # SoC's Config/Constants/Regions
         self.config      = {}
@@ -115,10 +111,6 @@ class SoCCore(SoC):
         self.integrated_sram_size       = integrated_sram_size
         self.integrated_main_ram_size   = integrated_main_ram_size
 
-        self.csr_data_width             = csr_data_width
-        self.csr_address_width          = csr_address_width
-        self.csr_alignment              = csr_alignment
-
         self.with_wishbone              = with_wishbone
         self.wishbone_timeout_cycles    = wishbone_timeout_cycles
 
@@ -129,7 +121,7 @@ class SoCCore(SoC):
             self.add_controller("ctrl")
 
         # Add CPU
-        self.add_config("CPU_TYPE", str(cpu_type).upper())
+        self.add_config("CPU_TYPE", str(cpu_type))
         if cpu_type is not None:
             if cpu_variant is not None:
                 self.add_config("CPU_VARIANT", str(cpu_variant.split('+')[0]))
@@ -143,7 +135,7 @@ class SoCCore(SoC):
             # Declare the CPU
             self.submodules.cpu = cpu.CPUS[cpu_type](platform, self.cpu_variant)
             if cpu_type == "microwatt":
-                self.add_constant("UART_POLLING", None)
+                self.add_constant("UART_POLLING")
 
             # Update Memory Map (if defined by CPU)
             self.soc_mem_map.update(self.cpu.mem_map)
@@ -197,15 +189,11 @@ class SoCCore(SoC):
         if with_uart:
             self.add_uart(name=uart_name, baudrate=uart_baudrate)
 
-        self.add_config("CLOCK_FREQUENCY", int(clk_freq))
-
         # Add Timer
         if with_timer:
             self.add_timer(name="timer0")
 
         # Add Wishbone to CSR bridge
-        self.add_config("CSR_DATA_WIDTH", csr_data_width)
-        self.add_config("CSR_ALIGNMENT", csr_alignment)
         if with_wishbone:
             self.add_csr_bridge(self.soc_mem_map["csr"])
 
@@ -259,9 +247,6 @@ class SoCCore(SoC):
         self.check_io_region(name, origin, 0x800)
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
-    def build(self, *args, **kwargs):
-        return self.platform.build(self, *args, **kwargs)
-
     # Finalization ---------------------------------------------------------------------------------
 
     def do_finalize(self):
@@ -280,21 +265,21 @@ class SoCCore(SoC):
 
         # Check and add CSRs regions
         for name, csrs, mapaddr, rmap in self.csr_bankarray.banks:
-            self.add_csr_region(name, (self.soc_mem_map["csr"] + 0x800*mapaddr),
-                self.csr_data_width, csrs)
+            self.add_csr_region(name, (self.bus.regions["csr"].origin + 0x800*mapaddr),
+                self.csr.data_width, csrs)
 
         # Check and add Memory regions
         for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
             self.add_csr_region(name + "_" + memory.name_override,
-                (self.soc_mem_map["csr"] + 0x800*mapaddr),
-                self.csr_data_width, memory)
+                (self.bus.regions["csr"].origin + 0x800*mapaddr),
+                self.csr.data_width, memory)
 
         # Sort CSR regions by origin
         self.csr_regions = {k: v for k, v in sorted(self.csr_regions.items(), key=lambda item: item[1].origin)}
 
         # Add CSRs / Config items to constants
         for name, constant in self.csr_bankarray.constants:
-            self.add_constant(name.upper() + "_" + constant.name.upper(), constant.value.value)
+            self.add_constant(name + "_" + constant.name, constant.value.value)
         for name, value in self.config.items():
             self.add_config(name, value)
 

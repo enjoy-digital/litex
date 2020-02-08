@@ -593,6 +593,7 @@ class SoC(Module):
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
 
+        self.add_config("CLOCK_FREQUENCY", int(sys_clk_freq))
 
     # SoC Helpers ----------------------------------------------------------------------------------
     def check_if_exists(self, name):
@@ -655,6 +656,8 @@ class SoC(Module):
         csr_size = 2**(self.csr.address_width + 2)
         self.bus.add_slave("csr", self.csr_bridge.wishbone, SoCRegion(origin=origin, size=csr_size))
         self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
+        self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
+        self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
     # SoC Peripherals ------------------------------------------------------------------------------
     def add_uart(self, name, baudrate=115200):
@@ -735,3 +738,7 @@ class SoC(Module):
                                 colorer(name, color="red")))
                         self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
                     self.add_constant(name + "_INTERRUPT", loc)
+
+    # SoC build ------------------------------------------------------------------------------------
+    def build(self, *args, **kwargs):
+        return self.platform.build(self, *args, **kwargs)
