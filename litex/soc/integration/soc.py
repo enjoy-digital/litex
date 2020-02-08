@@ -92,7 +92,7 @@ class SoCBusHandler(Module):
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, standard, data_width=32, address_width=32, timeout=1e6, reserved_regions={}):
         self.logger = logging.getLogger("SoCBusHandler")
-        self.logger.info(colorer("Creating new Bus Handler...", color="cyan"))
+        self.logger.info(colorer("Creating new Bus Handler..."))
 
         # Check Standard
         if standard not in self.supported_standard:
@@ -133,7 +133,7 @@ class SoCBusHandler(Module):
                 region = SoCRegion(origin=region, size=0x1000000)
             self.add_region(name, region)
 
-        self.logger.info(colorer("Bus Handler created.", color="cyan"))
+        self.logger.info(colorer("Bus Handler created."))
 
     # Add/Allog/Check Regions ----------------------------------------------------------------------
     def add_region(self, name, region):
@@ -161,7 +161,7 @@ class SoCBusHandler(Module):
                     raise
             self.logger.info("{} Region {} {}.".format(
                 colorer(name, color="underline"),
-                colorer("allocated" if allocated else "added", color="yellow" if allocated else "green"),
+                colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
                 str(region)))
         else:
             self.logger.error("{} is not a supported Region".format(colorer(name, color="red")))
@@ -230,7 +230,7 @@ class SoCBusHandler(Module):
         if master.data_width != self.data_width:
             self.logger.info("{} Bus Master {} from {}-bit to {}-bit.".format(
                 colorer(name),
-                colorer("converted", color="yellow"),
+                colorer("converted", color="cyan"),
                 colorer(master.data_width),
                 colorer(self.data_width)))
             new_master = wishbone.Interface(data_width=self.data_width)
@@ -266,7 +266,7 @@ class SoCBusHandler(Module):
         if slave.data_width != self.data_width:
             self.logger.error("{} Bus Slave {} from {}-bit to {}-bit.".format(
                 colorer(name),
-                colorer("converted", color="yellow"),
+                colorer("converted", color="cyan"),
                 colorer(slave.data_width),
                 colorer(self.data_width)))
             new_slave = wishbone.Interface(data_width=self.data_width)
@@ -335,7 +335,7 @@ class SoCLocHandler(Module):
         self.logger.info("{} {} {} at Location {}.".format(
             colorer(name, color="underline"),
             self.name,
-            colorer("allocated" if allocated else "added", color="yellow" if allocated else "green"),
+            colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
             colorer(n)))
 
     # Alloc ----------------------------------------------------------------------------------------
@@ -366,7 +366,7 @@ class SoCCSRHandler(SoCLocHandler):
     def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
         SoCLocHandler.__init__(self, "CSR", n_locs=4*2**address_width//paging) # FIXME
         self.logger = logging.getLogger("SoCCSRHandler")
-        self.logger.info(colorer("Creating new CSR Handler...", color="cyan"))
+        self.logger.info(colorer("Creating new CSR Handler..."))
 
         # Check Data Width
         if data_width not in self.supported_data_width:
@@ -418,7 +418,7 @@ class SoCCSRHandler(SoCLocHandler):
         for name, n in reserved_csrs.items():
             self.add(name, n)
 
-        self.logger.info(colorer("CSR Handler created.", color="cyan"))
+        self.logger.info(colorer("CSR Handler created."))
 
     # Add Master -----------------------------------------------------------------------------------
     def add_master(self, name=None, master=None):
@@ -469,7 +469,7 @@ class SoCIRQHandler(SoCLocHandler):
     def __init__(self, n_irqs=32, reserved_irqs={}):
         SoCLocHandler.__init__(self, "IRQ", n_locs=n_irqs)
         self.logger = logging.getLogger("SoCIRQHandler")
-        self.logger.info(colorer("Creating new SoC IRQ Handler...", color="cyan"))
+        self.logger.info(colorer("Creating new SoC IRQ Handler..."))
 
         # Check IRQ Number
         if n_irqs > 32:
@@ -485,7 +485,7 @@ class SoCIRQHandler(SoCLocHandler):
         for name, n in reserved_irqs.items():
             self.add(name, n)
 
-        self.logger.info(colorer("IRQ Handler created.", color="cyan"))
+        self.logger.info(colorer("IRQ Handler created."))
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
@@ -551,7 +551,7 @@ class SoC(Module):
         self.logger.info(colorer("  Build your hardware, easily!", color="bright"))
 
         self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(colorer("Creating new SoC... ({})".format(build_time()), color="cyan"))
+        self.logger.info(colorer("Creating new SoC... ({})".format(build_time())))
         self.logger.info(colorer("-"*80, color="bright"))
 
         # SoC attributes ---------------------------------------------------------------------------
@@ -584,7 +584,7 @@ class SoC(Module):
         )
 
         self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(colorer("Initial SoC:", color="cyan"))
+        self.logger.info(colorer("Initial SoC:"))
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(self.bus)
         self.logger.info(self.csr)
@@ -689,7 +689,7 @@ class SoC(Module):
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
         self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(colorer("Finalized SoC:", color="cyan"))
+        self.logger.info(colorer("Finalized SoC:"))
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(self.bus)
         self.logger.info(self.csr)
