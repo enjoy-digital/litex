@@ -74,7 +74,7 @@ class SoCCore(SoC):
         self.platform = platform
         self.clk_freq = clk_freq
 
-        SoC.__init__(self,
+        SoC.__init__(self, platform, clk_freq,
             bus_standard         = "wishbone",
             bus_data_width       = 32,
             bus_address_width    = 32,
@@ -195,28 +195,7 @@ class SoCCore(SoC):
 
         # Add UART
         if with_uart:
-            if uart_name in ["stub", "stream"]:
-                self.submodules.uart = uart.UART()
-                if uart_name == "stub":
-                    self.comb += self.uart.sink.ready.eq(1)
-            elif uart_name == "bridge":
-                self.submodules.uart = uart.UARTWishboneBridge(platform.request("serial"), clk_freq, uart_baudrate)
-                self.add_wb_master(self.uart.wishbone)
-            elif uart_name == "crossover":
-                self.submodules.uart = uart.UARTCrossover()
-            else:
-                if uart_name == "jtag_atlantic":
-                    from litex.soc.cores.jtag import JTAGAtlantic
-                    self.submodules.uart_phy = JTAGAtlantic()
-                elif uart_name == "jtag_uart":
-                    from litex.soc.cores.jtag import JTAGPHY
-                    self.submodules.uart_phy = JTAGPHY(device=platform.device)
-                else:
-                    self.submodules.uart_phy = uart.UARTPHY(platform.request(uart_name), clk_freq, uart_baudrate)
-                self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
-            self.add_csr("uart_phy", use_loc_if_exists=True)
-            self.add_csr("uart", use_loc_if_exists=True)
-            self.add_interrupt("uart", use_loc_if_exists=True)
+            self.add_uart(name=uart_name, baudrate=uart_baudrate)
 
         self.add_config("CLOCK_FREQUENCY", int(clk_freq))
 

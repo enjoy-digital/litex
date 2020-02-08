@@ -525,7 +525,8 @@ class SoCController(Module, AutoCSR):
 # SoC ----------------------------------------------------------------------------------------------
 
 class SoC(Module):
-    def __init__(self,
+    def __init__(self, platform, sys_clk_freq,
+
         bus_standard         = "wishbone",
         bus_data_width       = 32,
         bus_address_width    = 32,
@@ -554,7 +555,9 @@ class SoC(Module):
         self.logger.info(colorer("-"*80, color="bright"))
 
         # SoC attributes ---------------------------------------------------------------------------
-        self.constants = {}
+        self.platform     = platform
+        self.sys_clk_freq = sys_clk_freq
+        self.constants    = {}
 
         # SoC Bus Handler --------------------------------------------------------------------------
         self.submodules.bus = SoCBusHandler(
@@ -651,6 +654,38 @@ class SoC(Module):
         self.bus.add_slave("csr", self.csr_bridge.wishbone, SoCRegion(origin=origin, size=csr_size))
         self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
 
+    # SoC Peripherals ------------------------------------------------------------------------------
+    def add_uart(self, name, baudrate=115200):
+        from litex.soc.cores import uart
+        if name in ["stub", "stream"]:
+            self.submodules.uart = uart.UART()
+            if name == "stub":
+                self.comb += self.uart.sink.ready.eq(1)
+        elif name == "bridge":
+            self.submodules.uart = uart.UARTWishboneBridge(
+                pads     = self.platform.request("serial"),
+                clk_freq = self.sys_clk_freq,
+                baudrate = baudrate)
+            self.bus.master(name="uart_bridge", master=self.uart.wishbone)
+        elif name == "crossover":
+            self.submodules.uart = uart.UARTCrossover()
+        else:
+            if name == "jtag_atlantic":
+                from litex.soc.cores.jtag import JTAGAtlantic
+                self.submodules.uart_phy = JTAGAtlantic()
+            elif name == "jtag_uart":
+                from litex.soc.cores.jtag import JTAGPHY
+                self.submodules.uart_phy = JTAGPHY(device=self.platform.device)
+            else:
+                self.submodules.uart_phy = uart.UARTPHY(
+                    pads     = self.platform.request(name),
+                    clk_freq = self.sys_clk_freq,
+                    baudrate = baudrate)
+            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
+        self.csr.add("uart_phy", use_loc_if_exists=True)
+        self.csr.add("uart", use_loc_if_exists=True)
+        self.irq.add("uart", use_loc_if_exists=True)
+
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
         self.logger.info(colorer("-"*80, color="bright"))
@@ -698,28 +733,3 @@ class SoC(Module):
                                 colorer(name, color="red")))
                         self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
                     self.add_constant(name + "_INTERRUPT", loc)
-
-# Test (FIXME: move to litex/text and improve) -----------------------------------------------------
-
-if __name__ == "__main__":
-    bus = SoCBusHandler("wishbone", reserved_regions={
-        "rom": SoCRegion(origin=0x00000100, size=1024),
-        "ram": SoCRegion(size=512),
-        }
-    )
-    bus.add_master("cpu", None)
-    bus.add_slave("rom", None, SoCRegion(size=1024))
-    bus.add_slave("ram", None, SoCRegion(size=1024))
-
-
-    csr = SoCCSRHandler(reserved_csrs={"ctrl": 0, "uart": 1})
-    csr.add("csr0")
-    csr.add("csr1", 0)
-    #csr.add("csr2", 46)
-    csr.add("csr3", -1)
-    print(bus)
-    print(csr)
-
-    irq = SoCIRQHandler(reserved_irqs={"uart": 1})
-
-    soc = SoC()
