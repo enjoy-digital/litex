@@ -282,7 +282,8 @@ class SoCBusHandler(Module):
         r = "{}-bit {} Bus, {}GiB Address Space.\n".format(
             colorer(self.data_width), colorer(self.standard), colorer(2**self.address_width/2**30))
         r += "Bus Regions: ({})\n".format(len(self.regions.keys())) if len(self.regions.keys()) else ""
-        for name, region in self.regions.items():
+        regions = {k: v for k, v in sorted(self.regions.items(), key=lambda item: item[1].origin)}
+        for name, region in regions.items():
            r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
         r += "Bus Masters: ({})\n".format(len(self.masters.keys())) if len(self.masters.keys()) else ""
         for name in self.masters.keys():
@@ -350,7 +351,8 @@ class SoCLocHandler(Module):
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
         r = "{} Locations: ({})\n".format(self.name, len(self.locs.keys())) if len(self.locs.keys()) else ""
-        for name in self.locs.keys():
+        locs = {k: v for k, v in sorted(self.locs.items(), key=lambda item: item[1])}
+        for name in locs.keys():
            r += "- {}{}: {}\n".format(colorer(name, color="underline"), " "*(20-len(name)), colorer(self.locs[name]))
         return r
 
