@@ -1,6 +1,10 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
+ifeq ($(CPU),blackparrot)
+BP_LIBS =  -L$(BP_EXTERNAL_DIR)/lib/gcc/riscv64-unknown-elf/8.3.0 
+BP_FLAGS = -lgcc
+endif
 # Permit TFTP_SERVER_PORT override from shell environment / command line
 ifdef TFTP_SERVER_PORT
 CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
@@ -23,6 +27,7 @@ endif
 
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
+
 %.elf: ../libbase/crt0-$(CPU)-ctr.o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
 		../libbase/crt0-$(CPU)-ctr.o \
@@ -30,7 +35,10 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		-L../libnet \
 		-L../libbase \
 		-L../libcompiler_rt \
-		-lnet -lbase-nofloat -lcompiler_rt
+		$(BP_LIBS) \
+		-lnet -lbase-nofloat -lcompiler_rt \
+		$(BP_FLAGS)
+	
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif

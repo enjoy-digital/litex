@@ -33,6 +33,7 @@ from litex.soc.cores.cpu.vexriscv import VexRiscv
 from litex.soc.cores.cpu.minerva import Minerva
 from litex.soc.cores.cpu.rocket import RocketRV64
 from litex.soc.cores.cpu.microwatt import Microwatt
+from litex.soc.cores.cpu.blackparrot import BlackParrotRV64
 
 CPUS = {
     "lm32"       : LM32,
@@ -42,6 +43,7 @@ CPUS = {
     "minerva"    : Minerva,
     "rocket"     : RocketRV64,
     "microwatt"  : Microwatt,
+    "blackparrot" : BlackParrotRV64,
 }
 
 # CPU Variants/Extensions Definition ---------------------------------------------------------------
