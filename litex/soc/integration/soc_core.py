@@ -123,56 +123,18 @@ class SoCCore(SoC):
             self.add_controller("ctrl")
 
         # Add CPU
-        self.add_config("CPU_TYPE", str(cpu_type))
         if cpu_type is not None:
-            if cpu_variant is not None:
-                self.add_config("CPU_VARIANT", str(cpu_variant.split('+')[0]))
-
-            # Check type
-            if cpu_type not in cpu.CPUS.keys():
-                raise ValueError(
-                    "Unsupported CPU type: {} -- supported CPU types: {}".format(
-                        cpu_type, ", ".join(cpu.CPUS.keys())))
-
-            # Declare the CPU
-            self.submodules.cpu = cpu.CPUS[cpu_type](platform, self.cpu_variant)
-            if cpu_type == "microwatt":
-                self.add_constant("UART_POLLING")
-
-            # Update Memory Map (if defined by CPU)
-            self.soc_mem_map.update(self.cpu.mem_map)
-
-            # Update IO Regions (if defined by CPU)
-            self.soc_io_regions.update(self.cpu.io_regions)
-
-            # Set reset address
-            self.cpu.set_reset_address(self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
-            self.add_config("CPU_RESET_ADDR", self.cpu.reset_address)
-
-            # Add CPU buses as 32-bit Wishbone masters
-            for cpu_bus in self.cpu.buses:
-                self.add_wb_master(cpu_bus)
-
-            # Add CPU CSR (dynamic)
-            self.add_csr("cpu", use_loc_if_exists=True)
-
-            # Add CPU interrupts
-            for _name, _id in self.cpu.interrupts.items():
-                self.add_interrupt(_name, _id)
-
-            # Allow SoCController to reset the CPU
-            if with_ctrl:
-                self.comb += self.cpu.reset.eq(self.ctrl.reset)
-
-            assert csr_alignment <= self.cpu.data_width
-            csr_alignment = self.cpu.data_width
+            self.add_cpu(
+                name          = cpu_type,
+                variant       = cpu_variant,
+                reset_address = self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
         else:
             self.submodules.cpu = cpu.CPUNone()
             self.soc_io_regions.update(self.cpu.io_regions)
 
         # Add user's interrupts (needs to be done after CPU interrupts are allocated)
-        for _name, _id in self.interrupt_map.items():
-            self.add_interrupt(_name, _id)
+        for name, loc in self.interrupt_map.items():
+            self.irq.add(name, loc)
 
         # Add integrated ROM
         if integrated_rom_size:

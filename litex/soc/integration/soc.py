@@ -7,6 +7,7 @@ import datetime
 
 from migen import *
 
+from litex.soc.cores import cpu
 from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
 
@@ -688,6 +689,31 @@ class SoC(Module):
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
         self.irq.add("uart", use_loc_if_exists=True)
+
+    def add_cpu(self, name="vexriscv", variant=None, reset_address=None):
+        variant = "standard" if variant is None else variant # FIXME
+        if name not in cpu.CPUS.keys():
+            self.logger.error("{} CPU not supported, supporteds: {}".format(
+                colorer(name, color="red"),
+                colorer(", ".join(cpu.CPUS.keys()), color="green")))
+            raise
+        # Add CPU + Bus Masters + CSR + IRQs
+        self.submodules.cpu = cpu.CPUS[name](self.platform, variant)
+        self.cpu.set_reset_address(reset_address)
+        for n, cpu_bus in enumerate(self.cpu.buses):
+            self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
+        self.add_csr("cpu", use_loc_if_exists=True)
+        for name, loc in self.cpu.interrupts.items():
+            self.irq.add(name, loc)
+        if hasattr(self, "ctrl"):
+            self.comb += self.cpu.reset.eq(self.ctrl.reset)
+        # Update SoC with CPU constraints
+        self.soc_mem_map.update(self.cpu.mem_map)       # FIXME
+        self.soc_io_regions.update(self.cpu.io_regions) # FIXME
+        # Define constants
+        self.add_config("CPU_TYPE",       str(name))
+        self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))
+        self.add_config("CPU_RESET_ADDR", reset_address)
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
