@@ -27,4 +27,4 @@
 	url = https://github.com/antonblanchard/microwatt
 [submodule "litex/soc/cores/cpu/blackparrot/pre-alpha-release"]
 	path = litex/soc/cores/cpu/blackparrot/pre-alpha-release
-	url = https://github.com/black-parrot/pre-alpha-release.git
+	url = https://github.com/enjoy-digital/black-parrot.git
