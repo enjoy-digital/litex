@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
@@ -710,8 +708,8 @@ class SoC(Module):
                 slaves         = bus_slaves,
                 register       = True,
                 timeout_cycles = self.bus.timeout)
-        if hasattr(self, "ctrl") and self.bus.timeout is not None:
-            self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
+            if hasattr(self, "ctrl") and self.bus.timeout is not None:
+                self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,

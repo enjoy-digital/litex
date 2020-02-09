@@ -111,6 +111,8 @@ class SoCCore(SoC):
         self.integrated_sram_size       = integrated_sram_size
         self.integrated_main_ram_size   = integrated_main_ram_size
 
+        self.csr_data_width             = csr_data_width
+
         self.with_wishbone              = with_wishbone
         self.wishbone_timeout_cycles    = wishbone_timeout_cycles
 
