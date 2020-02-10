@@ -18,6 +18,7 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import csr_bus
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import wishbone2csr
+from litex.soc.interconnect import axi
 
 from litedram.core import LiteDRAMCore
 from litedram.frontend.wishbone import LiteDRAMWishbone2Native
@@ -919,7 +920,7 @@ class LiteXSoC(SoC):
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
         if self.cpu.name == "rocket":
-            # Rocket has its own I/D L1 cache: connect directly to LiteDRAM, also bypassing MMIO/CSR wb bus:
+            # Rocket has its own I/D L1 cache: connect directly to LiteDRAM when possible.
             if port.data_width == self.cpu.mem_axi.data_width:
                 self.logger.info("Matching AXI MEM data width ({})\n".format(port.data_width))
                 self.submodules += LiteDRAMAXI2Native(
@@ -935,7 +936,7 @@ class LiteXSoC(SoC):
                     data_width = self.cpu.mem_axi.data_width,
                     adr_width  = 32-log2_int(self.cpu.mem_axi.data_width//8))
                 # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
-                mem_a2w = ResetInserter()(AXI2Wishbone(
+                mem_a2w = ResetInserter()(axi.AXI2Wishbone(
                     axi          = self.cpu.mem_axi,
                     wishbone     = mem_wb,
                     base_address = 0))
@@ -947,11 +948,9 @@ class LiteXSoC(SoC):
                     port         = port,
                     base_address = origin)
                 self.submodules += wishbone.Converter(mem_wb, litedram_wb)
-            # Register main_ram region (so it will be added to generated/mem.h):
-            self.bus.region.add_memory_region("main_ram", SoCRegion(origin, sdram_size))
         elif self.with_wishbone:
             # Insert L2 cache inbetween Wishbone bus and LiteDRAM
-            l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # L2 has a minimal size, use it if lower
+            l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # Use minimal size if lower
             l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
             self.add_config("L2_SIZE", l2_cache_size)
 
@@ -966,8 +965,7 @@ class LiteXSoC(SoC):
                 master    = wb_sdram,
                 slave     = wishbone.Interface(l2_cache_data_width),
                 reverse   = l2_cache_reverse)
-            # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
-            # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
+            # XXX Vivado workaround, Vivado is not able to map correctly our L2 cache.
             from litex.build.xilinx.vivado import XilinxVivadoToolchain
             if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
                 from migen.fhdl.simplify import FullMemoryWE
