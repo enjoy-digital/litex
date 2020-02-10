@@ -905,6 +905,7 @@ class LiteXSoC(SoC):
             timing_settings = module.timing_settings,
             clk_freq        = self.sys_clk_freq,
             **kwargs)
+        self.csr.add("sdram")
 
         # LiteDRAM port ----------------------------------------------------------------------------
         port = self.sdram.crossbar.get_port()

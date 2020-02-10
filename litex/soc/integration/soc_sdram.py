@@ -18,12 +18,6 @@ __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 # SoCSDRAM -----------------------------------------------------------------------------------------
 
 class SoCSDRAM(SoCCore):
-    csr_map = {
-        "sdram":    8,
-        "l2_cache": 9,
-    }
-    csr_map.update(SoCCore.csr_map)
-
     def __init__(self, platform, clk_freq,
         l2_size           = 8192,
         l2_reverse        = True,
