@@ -614,7 +614,12 @@ class SoC(Module):
         else:
             self.add_constant(name, value)
 
-    # SoC Main components --------------------------------------------------------------------------
+    # SoC Main Components --------------------------------------------------------------------------
+    def add_controller(self, name="ctrl"):
+        self.check_if_exists(name)
+        setattr(self.submodules, name, SoCController())
+        self.csr.add(name, use_loc_if_exists=True)
+
     def add_ram(self, name, origin, size, contents=[], mode="rw"):
         ram_bus = wishbone.Interface(data_width=self.bus.data_width)
         ram     = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
@@ -629,11 +634,42 @@ class SoC(Module):
     def add_rom(self, name, origin, size, contents=[]):
         self.add_ram(name, origin, size, contents, mode="r")
 
-    def add_controller(self, name="ctrl"):
-        self.check_if_exists(name)
-        setattr(self.submodules, name, SoCController())
-        self.csr.add(name, use_loc_if_exists=True)
+    def add_csr_bridge(self, origin):
+        self.submodules.csr_bridge = wishbone2csr.WB2CSR(
+            bus_csr       = csr_bus.Interface(
+            address_width = self.csr.address_width,
+            data_width    = self.csr.data_width))
+        csr_size = 2**(self.csr.address_width + 2)
+        self.bus.add_slave("csr", self.csr_bridge.wishbone, SoCRegion(origin=origin, size=csr_size))
+        self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
+        self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
+        self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
+    def add_cpu(self, name="vexriscv", variant="standard", reset_address=None):
+        if name not in cpu.CPUS.keys():
+            self.logger.error("{} CPU not supported, supporteds: {}".format(
+                colorer(name, color="red"),
+                colorer(", ".join(cpu.CPUS.keys()), color="green")))
+            raise
+        # Add CPU + Bus Masters + CSR + IRQs
+        self.submodules.cpu = cpu.CPUS[name](self.platform, variant)
+        self.cpu.set_reset_address(reset_address)
+        for n, cpu_bus in enumerate(self.cpu.buses):
+            self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
+        self.add_csr("cpu", use_loc_if_exists=True)
+        for name, loc in self.cpu.interrupts.items():
+            self.irq.add(name, loc)
+        if hasattr(self, "ctrl"):
+            self.comb += self.cpu.reset.eq(self.ctrl.reset)
+        # Update SoC with CPU constraints
+        self.soc_mem_map.update(self.cpu.mem_map)       # FIXME
+        self.soc_io_regions.update(self.cpu.io_regions) # FIXME
+        # Define constants
+        self.add_config("CPU_TYPE",       str(name))
+        self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))
+        self.add_config("CPU_RESET_ADDR", reset_address)
+
+    # SoC Main Peripherals -------------------------------------------------------------------------
     def add_identifier(self, name="identifier", identifier="LiteX SoC", with_build_time=True):
         self.check_if_exists(name)
         if with_build_time:
@@ -647,18 +683,6 @@ class SoC(Module):
         self.csr.add(name, use_loc_if_exists=True)
         self.irq.add(name, use_loc_if_exists=True)
 
-    def add_csr_bridge(self, origin):
-        self.submodules.csr_bridge = wishbone2csr.WB2CSR(
-            bus_csr       = csr_bus.Interface(
-            address_width = self.csr.address_width,
-            data_width    = self.csr.data_width))
-        csr_size = 2**(self.csr.address_width + 2)
-        self.bus.add_slave("csr", self.csr_bridge.wishbone, SoCRegion(origin=origin, size=csr_size))
-        self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
-        self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
-        self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
-
-    # SoC Peripherals ------------------------------------------------------------------------------
     def add_uart(self, name, baudrate=115200):
         from litex.soc.cores import uart
         if name in ["stub", "stream"]:
@@ -689,31 +713,6 @@ class SoC(Module):
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
         self.irq.add("uart", use_loc_if_exists=True)
-
-    def add_cpu(self, name="vexriscv", variant=None, reset_address=None):
-        variant = "standard" if variant is None else variant # FIXME
-        if name not in cpu.CPUS.keys():
-            self.logger.error("{} CPU not supported, supporteds: {}".format(
-                colorer(name, color="red"),
-                colorer(", ".join(cpu.CPUS.keys()), color="green")))
-            raise
-        # Add CPU + Bus Masters + CSR + IRQs
-        self.submodules.cpu = cpu.CPUS[name](self.platform, variant)
-        self.cpu.set_reset_address(reset_address)
-        for n, cpu_bus in enumerate(self.cpu.buses):
-            self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
-        self.add_csr("cpu", use_loc_if_exists=True)
-        for name, loc in self.cpu.interrupts.items():
-            self.irq.add(name, loc)
-        if hasattr(self, "ctrl"):
-            self.comb += self.cpu.reset.eq(self.ctrl.reset)
-        # Update SoC with CPU constraints
-        self.soc_mem_map.update(self.cpu.mem_map)       # FIXME
-        self.soc_io_regions.update(self.cpu.io_regions) # FIXME
-        # Define constants
-        self.add_config("CPU_TYPE",       str(name))
-        self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))
-        self.add_config("CPU_RESET_ADDR", reset_address)
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):

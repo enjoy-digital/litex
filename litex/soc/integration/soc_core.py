@@ -126,7 +126,7 @@ class SoCCore(SoC):
         if cpu_type is not None:
             self.add_cpu(
                 name          = cpu_type,
-                variant       = cpu_variant,
+                variant       = "standard" if cpu_variant is None else cpu_variant,
                 reset_address = self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
         else:
             self.submodules.cpu = cpu.CPUNone()
