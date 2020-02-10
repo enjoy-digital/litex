@@ -178,8 +178,8 @@ class SimSoC(SoCCore):
         # Serial -----------------------------------------------------------------------------------
         self.submodules.uart_phy = uart.RS232PHYModel(platform.request("serial"))
         self.submodules.uart = uart.UART(self.uart_phy)
-        self.add_csr("uart")
-        self.add_interrupt("uart")
+        self.csr.add("uart")
+        self.irq.add("uart")
 
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
@@ -207,24 +207,21 @@ class SimSoC(SoCCore):
         if with_ethernet:
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
-            self.add_csr("ethphy")
+            self.csr.add("ethphy")
             # Ethernet MAC
             ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
                 interface  = "wishbone",
                 endianness = self.cpu.endianness)
-            if with_etherbone:
-                ethmac = ClockDomainsRenamer({"eth_tx": "ethphy_eth_tx", "eth_rx":  "ethphy_eth_rx"})(ethmac)
             self.submodules.ethmac = ethmac
-            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
-            self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
-            self.add_csr("ethmac")
-            self.add_interrupt("ethmac")
+            self.bus.add_slave("ethmac", self.ethmac.bus, SoCRegion(origin=0xb0000000, size=0x2000, cached=False))
+            self.csr.add("ethmac")
+            self.irq.add("ethmac")
 
         # Etherbone --------------------------------------------------------------------------------
         if with_etherbone:
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
-            self.add_csr("ethphy")
+            self.csr.add("ethphy")
             # Ethernet Core
             ethcore = LiteEthUDPIPCore(self.ethphy,
                 mac_address = etherbone_mac_address,
@@ -233,7 +230,7 @@ class SimSoC(SoCCore):
             self.submodules.ethcore = ethcore
             # Etherbone
             self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234, mode="master")
-            self.add_wb_master(self.etherbone.wishbone.bus)
+            self.bus.add_master(master=self.etherbone.wishbone.bus)
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
@@ -242,7 +239,7 @@ class SimSoC(SoCCore):
                 self.cpu.dbus
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
-            self.add_csr("analyzer")
+            self.csr.add("analyzer")
 
 # Build --------------------------------------------------------------------------------------------
 
