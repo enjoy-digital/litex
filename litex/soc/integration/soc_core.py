@@ -39,7 +39,7 @@ __all__ = [
 
 # SoCCore ------------------------------------------------------------------------------------------
 
-class SoCCore(SoC):
+class SoCCore(LiteXSoC):
     # default register/interrupt/memory mappings (can be redefined by user)
     csr_map       = {}
     interrupt_map = {}
@@ -85,8 +85,8 @@ class SoCCore(SoC):
         # Others
         **kwargs):
 
-        # New SoC class ----------------------------------------------------------------------------
-        SoC.__init__(self, platform, clk_freq,
+        # New LiteXSoC class ----------------------------------------------------------------------------
+        LiteXSoC.__init__(self, platform, clk_freq,
             bus_standard         = "wishbone",
             bus_data_width       = 32,
             bus_address_width    = 32,

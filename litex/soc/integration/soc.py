@@ -759,7 +759,98 @@ class SoC(Module):
         self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))
         self.add_config("CPU_RESET_ADDR", reset_address)
 
-    # SoC Main Peripherals -------------------------------------------------------------------------
+    def add_timer(self, name="timer0"):
+        self.check_if_exists(name)
+        setattr(self.submodules, name, Timer())
+        self.csr.add(name, use_loc_if_exists=True)
+        self.irq.add(name, use_loc_if_exists=True)
+
+    # SoC finalization -----------------------------------------------------------------------------
+    def do_finalize(self):
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(colorer("Finalized SoC:"))
+        self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info(self.bus)
+        self.logger.info(self.csr)
+        self.logger.info(self.irq)
+        self.logger.info(colorer("-"*80, color="bright"))
+
+        # SoC Bus Interconnect ---------------------------------------------------------------------
+        bus_masters = self.bus.masters.values()
+        bus_slaves  = [(self.bus.regions[n].decoder(), s) for n, s in self.bus.slaves.items()]
+        if len(bus_masters) and len(bus_slaves):
+            self.submodules.bus_interconnect = wishbone.InterconnectShared(
+                masters        = bus_masters,
+                slaves         = bus_slaves,
+                register       = True,
+                timeout_cycles = self.bus.timeout)
+            if hasattr(self, "ctrl") and self.bus.timeout is not None:
+                self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
+
+        # SoC CSR Interconnect ---------------------------------------------------------------------
+        self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
+            address_map   = self.csr.address_map,
+            data_width    = self.csr.data_width,
+            address_width = self.csr.address_width,
+            alignment     = self.csr.alignment
+        )
+        if len(self.csr.masters):
+            self.submodules.csr_interconnect = csr_bus.InterconnectShared(
+                masters = list(self.csr.masters.values()),
+                slaves  = self.csr_bankarray.get_buses())
+
+        # Add CSRs regions
+        for name, csrs, mapaddr, rmap in self.csr_bankarray.banks:
+            self.csr.add_region(name, SoCCSRRegion(
+                origin   = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
+                busword  = self.csr.data_width,
+                obj      = csrs))
+
+        # Add Memory regions
+        for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
+            self.csr.add_region(name + "_" + memory.name_override, SoCCSRRegion(
+                origin   = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
+                busworkd = self.csr.data_width,
+                obj      = memory))
+
+        # Sort CSR regions by origin
+        self.csr.regions = {k: v for k, v in sorted(self.csr.regions.items(), key=lambda item: item[1].origin)}
+
+        # Add CSRs / Config items to constants
+        for name, constant in self.csr_bankarray.constants:
+            self.add_constant(name + "_" + constant.name, constant.value.value)
+
+        # SoC CPU Check ----------------------------------------------------------------------------
+        if not isinstance(self.cpu, cpu.CPUNone):
+            for name in ["rom", "sram"]:
+                if name not in list(self.bus.regions.keys()) + list(self.bus.ld_regions.keys()):
+                    self.logger.error("CPU needs {} Region to be defined as Bus or Linker Region.".format(
+                        colorer(name, color="red")))
+                    self.logger.error(self.bus)
+                    raise
+
+        # SoC IRQ Interconnect ---------------------------------------------------------------------
+        if hasattr(self, "cpu"):
+            if hasattr(self.cpu, "interrupt"):
+                for name, loc in sorted(self.irq.locs.items()):
+                    if name in self.cpu.interrupts.keys():
+                        continue
+                    if hasattr(self, name):
+                        module = getattr(self, name)
+                        if not hasattr(module, "ev"):
+                            self.logger.error("No EventManager found on {} SubModule".format(
+                                colorer(name, color="red")))
+                        self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
+                    self.add_constant(name + "_INTERRUPT", loc)
+
+    # SoC build ------------------------------------------------------------------------------------
+    def build(self, *args, **kwargs):
+        return self.platform.build(self, *args, **kwargs)
+
+# LiteXSoC -----------------------------------------------------------------------------------------
+
+class LiteXSoC(SoC):
+    # Add Identifier -------------------------------------------------------------------------------
     def add_identifier(self, name="identifier", identifier="LiteX SoC", with_build_time=True):
         self.check_if_exists(name)
         if with_build_time:
@@ -767,12 +858,7 @@ class SoC(Module):
         setattr(self.submodules, name, Identifier(ident))
         self.csr.add(name + "_mem", use_loc_if_exists=True)
 
-    def add_timer(self, name="timer0"):
-        self.check_if_exists(name)
-        setattr(self.submodules, name, Timer())
-        self.csr.add(name, use_loc_if_exists=True)
-        self.irq.add(name, use_loc_if_exists=True)
-
+    # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name, baudrate=115200):
         from litex.soc.cores import uart
         if name in ["stub", "stream"]:
@@ -804,6 +890,7 @@ class SoC(Module):
         self.csr.add("uart", use_loc_if_exists=True)
         self.irq.add("uart", use_loc_if_exists=True)
 
+    # Add SDRAM ------------------------------------------------------------------------------------
     def add_sdram(self, name,
         phy,
         geom_settings,
@@ -895,85 +982,3 @@ class SoC(Module):
 
             # L2 Cache <--> LiteDRAM bridge --------------------------------------------------------
             self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
-
-    # SoC finalization -----------------------------------------------------------------------------
-    def do_finalize(self):
-        self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(colorer("Finalized SoC:"))
-        self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(self.bus)
-        self.logger.info(self.csr)
-        self.logger.info(self.irq)
-        self.logger.info(colorer("-"*80, color="bright"))
-
-        # SoC Bus Interconnect ---------------------------------------------------------------------
-        bus_masters = self.bus.masters.values()
-        bus_slaves  = [(self.bus.regions[n].decoder(), s) for n, s in self.bus.slaves.items()]
-        if len(bus_masters) and len(bus_slaves):
-            self.submodules.bus_interconnect = wishbone.InterconnectShared(
-                masters        = bus_masters,
-                slaves         = bus_slaves,
-                register       = True,
-                timeout_cycles = self.bus.timeout)
-            if hasattr(self, "ctrl") and self.bus.timeout is not None:
-                self.comb += self.ctrl.bus_error.eq(self.bus_interconnect.timeout.error)
-
-        # SoC CSR Interconnect ---------------------------------------------------------------------
-        self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
-            address_map   = self.csr.address_map,
-            data_width    = self.csr.data_width,
-            address_width = self.csr.address_width,
-            alignment     = self.csr.alignment
-        )
-        if len(self.csr.masters):
-            self.submodules.csr_interconnect = csr_bus.InterconnectShared(
-                masters = list(self.csr.masters.values()),
-                slaves  = self.csr_bankarray.get_buses())
-
-        # Add CSRs regions
-        for name, csrs, mapaddr, rmap in self.csr_bankarray.banks:
-            self.csr.add_region(name, SoCCSRRegion(
-                origin   = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
-                busword  = self.csr.data_width,
-                obj      = csrs))
-
-        # Add Memory regions
-        for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
-            self.csr.add_region(name + "_" + memory.name_override, SoCCSRRegion(
-                origin   = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
-                busworkd = self.csr.data_width,
-                obj      = memory))
-
-        # Sort CSR regions by origin
-        self.csr.regions = {k: v for k, v in sorted(self.csr.regions.items(), key=lambda item: item[1].origin)}
-
-        # Add CSRs / Config items to constants
-        for name, constant in self.csr_bankarray.constants:
-            self.add_constant(name + "_" + constant.name, constant.value.value)
-
-        # SoC CPU Check ----------------------------------------------------------------------------
-        if not isinstance(self.cpu, cpu.CPUNone):
-            for name in ["rom", "sram"]:
-                if name not in list(self.bus.regions.keys()) + list(self.bus.ld_regions.keys()):
-                    self.logger.error("CPU needs {} Region to be defined as Bus or Linker Region.".format(
-                        colorer(name, color="red")))
-                    self.logger.error(self.bus)
-                    raise
-
-        # SoC IRQ Interconnect ---------------------------------------------------------------------
-        if hasattr(self, "cpu"):
-            if hasattr(self.cpu, "interrupt"):
-                for name, loc in sorted(self.irq.locs.items()):
-                    if name in self.cpu.interrupts.keys():
-                        continue
-                    if hasattr(self, name):
-                        module = getattr(self, name)
-                        if not hasattr(module, "ev"):
-                            self.logger.error("No EventManager found on {} SubModule".format(
-                                colorer(name, color="red")))
-                        self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
-                    self.add_constant(name + "_INTERRUPT", loc)
-
-    # SoC build ------------------------------------------------------------------------------------
-    def build(self, *args, **kwargs):
-        return self.platform.build(self, *args, **kwargs)
