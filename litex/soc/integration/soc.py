@@ -295,6 +295,19 @@ class SoCBusHandler(Module):
         return is_io
 
     # Add Master/Slave -----------------------------------------------------------------------------
+    def add_adapter(self, name, interface):
+        if interface.data_width != self.data_width:
+            self.logger.info("{} Bus {} from {}-bit to {}-bit.".format(
+                colorer(name),
+                colorer("converted", color="cyan"),
+                colorer(interface.data_width),
+                colorer(self.data_width)))
+            new_interface = wishbone.Interface(data_width=self.data_width)
+            self.submodules += wishbone.Converter(interface, new_interface)
+            return new_interface
+        else:
+            return interface
+
     def add_master(self, name=None, master=None):
         if name is None:
             name = "master{:d}".format(len(self.masters))
@@ -302,20 +315,11 @@ class SoCBusHandler(Module):
             self.logger.error("{} already declared as Bus Master:".format(colorer(name, color="red")))
             self.logger.error(self)
             raise
-        if master.data_width != self.data_width:
-            self.logger.info("{} Bus Master {} from {}-bit to {}-bit.".format(
-                colorer(name),
-                colorer("converted", color="cyan"),
-                colorer(master.data_width),
-                colorer(self.data_width)))
-            new_master = wishbone.Interface(data_width=self.data_width)
-            self.submodules += wishbone.Converter(master, new_master)
-            master = new_master
+        master = self.add_adapter(name, master)
         self.masters[name] = master
         self.logger.info("{} {} as Bus Master.".format(
             colorer(name,    color="underline"),
             colorer("added", color="green")))
-        # FIXME: handle IO regions
 
     def add_slave(self, name=None, slave=None, region=None):
         no_name   = name is None
@@ -338,15 +342,7 @@ class SoCBusHandler(Module):
             self.logger.error("{} already declared as Bus Slave:".format(colorer(name, color="red")))
             self.logger.error(self)
             raise
-        if slave.data_width != self.data_width:
-            self.logger.error("{} Bus Slave {} from {}-bit to {}-bit.".format(
-                colorer(name),
-                colorer("converted", color="cyan"),
-                colorer(slave.data_width),
-                colorer(self.data_width)))
-            new_slave = wishbone.Interface(data_width=self.data_width)
-            self.submodules += wishbone.Converter(slave, new_slave)
-            slave = new_slave
+        slave = self.add_adapter(name, slave)
         self.slaves[name] = slave
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
