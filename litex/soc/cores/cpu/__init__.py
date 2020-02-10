@@ -18,6 +18,8 @@ class CPU(Module):
     interrupts           = {}
     mem_map              = {}
     io_regions           = {}
+    def __init__(self, *args, **kwargs):
+        pass
 
 class CPUNone(CPU):
     data_width           = 32
@@ -35,6 +37,7 @@ from litex.soc.cores.cpu.rocket import RocketRV64
 from litex.soc.cores.cpu.microwatt import Microwatt
 
 CPUS = {
+    "None"       : CPUNone,
     "lm32"       : LM32,
     "mor1kx"     : MOR1KX,
     "picorv32"   : PicoRV32,

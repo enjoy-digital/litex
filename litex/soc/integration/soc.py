@@ -737,24 +737,26 @@ class SoC(Module):
                 colorer(name, color="red"),
                 colorer(", ".join(cpu.CPUS.keys()), color="green")))
             raise
-        # Add CPU + Bus Masters + CSR + IRQs
+        # Add CPU
         self.submodules.cpu = cpu.CPUS[name](self.platform, variant)
-        self.cpu.set_reset_address(reset_address)
-        for n, cpu_bus in enumerate(self.cpu.buses):
-            self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
-        self.add_csr("cpu", use_loc_if_exists=True)
-        for name, loc in self.cpu.interrupts.items():
-            self.irq.add(name, loc)
-        if hasattr(self, "ctrl"):
-            self.comb += self.cpu.reset.eq(self.ctrl.reset)
+        # Add Bus Masters/CSR/IRQs
+        if not isinstance(self.cpu, cpu.CPUNone):
+            self.cpu.set_reset_address(reset_address)
+            for n, cpu_bus in enumerate(self.cpu.buses):
+                self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
+            self.add_csr("cpu", use_loc_if_exists=True)
+            for name, loc in self.cpu.interrupts.items():
+                self.irq.add(name, loc)
+            if hasattr(self, "ctrl"):
+                self.comb += self.cpu.reset.eq(self.ctrl.reset)
+            self.add_config("CPU_RESET_ADDR", reset_address)
         # Update SoC with CPU constraints
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         self.mem_map.update(self.cpu.mem_map) # FIXME
-        # Define constants
-        self.add_config("CPU_TYPE",       str(name))
-        self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))
-        self.add_config("CPU_RESET_ADDR", reset_address)
+        # Add constants
+        self.add_config("CPU_TYPE",    str(name))
+        self.add_config("CPU_VARIANT", str(variant.split('+')[0]))
 
     def add_timer(self, name="timer0"):
         self.check_if_exists(name)

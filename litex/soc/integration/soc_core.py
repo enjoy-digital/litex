@@ -136,15 +136,10 @@ class SoCCore(LiteXSoC):
             self.add_controller("ctrl")
 
         # Add CPU
-        if cpu_type is not None:
-            self.add_cpu(
-                name          = cpu_type,
-                variant       = "standard" if cpu_variant is None else cpu_variant,
-                reset_address = self.mem_map["rom"] if integrated_rom_size else cpu_reset_address)
-        else:
-            self.submodules.cpu = cpu.CPUNone()
-            for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
-                self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
+        self.add_cpu(
+            name          = str(cpu_type),
+            variant       = "standard" if cpu_variant is None else cpu_variant,
+            reset_address = self.mem_map["rom"] if integrated_rom_size else cpu_reset_address)
 
         # Add User's interrupts
         for name, loc in self.interrupt_map.items():
@@ -286,7 +281,7 @@ def soc_core_argdict(args):
 class SoCMini(SoCCore):
      def __init__(self, *args, **kwargs):
         if "cpu_type" not in kwargs.keys():
-            kwargs["cpu_type"] = None
+            kwargs["cpu_type"] = "None"
         if "integrated_sram_size" not in kwargs.keys():
             kwargs["integrated_sram_size"] = 0
         if "with_uart" not in kwargs.keys():
