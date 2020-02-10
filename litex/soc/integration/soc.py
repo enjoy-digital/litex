@@ -198,7 +198,7 @@ class SoCBusHandler(Module):
             # If no origin specified, allocate region.
             if region.origin is None:
                 allocated = True
-                region    = self.alloc_region(region.size, region.cached)
+                region    = self.alloc_region(name, region.size, region.cached)
                 self.regions[name] = region
             # Else add region and check for overlaps.
             else:
@@ -227,18 +227,14 @@ class SoCBusHandler(Module):
             self.logger.error("{} is not a supported Region".format(colorer(name, color="red")))
             raise
 
-    def alloc_region(self, size, cached=True):
+    def alloc_region(self, name, size, cached=True):
         self.logger.info("Allocating {} Region of size {}...".format(
             colorer("Cached" if cached else "IO"),
             colorer("0x{:08x}".format(size))))
 
         # Limit Search Regions
-        uncached_regions = {}
-        for _, region in self.regions.items():
-            if region.cached == False:
-                uncached_regions[name] = region
         if cached == False:
-            search_regions = uncached_regions
+            search_regions = self.io_regions
         else:
             search_regions = {"main": SoCRegion(origin=0x00000000, size=2**self.address_width-1)}
 
