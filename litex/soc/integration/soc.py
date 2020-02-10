@@ -62,18 +62,17 @@ class SoCRegion:
         self.mode      = mode
         self.cached    = cached
 
-    def decoder(self):
+    def decoder(self, bus):
         origin = self.origin
         size   = self.size
-        origin &= ~0x80000000
         size   = 2**log2_int(size, False)
         if (origin & (size - 1)) != 0:
             self.logger.error("Origin needs to be aligned on size:")
             self.logger.error(self)
             raise
-        origin >>= 2 # bytes to words aligned
-        size   >>= 2 # bytes to words aligned
-        return lambda a: (a[log2_int(size):-1] == (origin >> log2_int(size)))
+        origin >>= int(log2(bus.data_width//8)) # bytes to words aligned
+        size   >>= int(log2(bus.data_width//8)) # bytes to words aligned
+        return lambda a: (a[log2_int(size):] == (origin >> log2_int(size)))
 
     def __str__(self):
         r = ""
@@ -772,7 +771,7 @@ class SoC(Module):
 
         # SoC Bus Interconnect ---------------------------------------------------------------------
         bus_masters = self.bus.masters.values()
-        bus_slaves  = [(self.bus.regions[n].decoder(), s) for n, s in self.bus.slaves.items()]
+        bus_slaves  = [(self.bus.regions[n].decoder(self.bus), s) for n, s in self.bus.slaves.items()]
         if len(bus_masters) and len(bus_slaves):
             self.submodules.bus_interconnect = wishbone.InterconnectShared(
                 masters        = bus_masters,
