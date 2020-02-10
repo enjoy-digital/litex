@@ -213,7 +213,7 @@ class SimSoC(SoCCore):
                 interface  = "wishbone",
                 endianness = self.cpu.endianness)
             self.submodules.ethmac = ethmac
-            self.bus.add_slave("ethmac", self.ethmac.bus, SoCRegion(origin=0xb0000000, size=0x2000, cached=False))
+            self.bus.add_slave("ethmac", self.ethmac.bus, SoCRegion(size=0x2000, cached=False))
             self.csr.add("ethmac")
             self.irq.add("ethmac")
 
