@@ -20,7 +20,7 @@ from migen import *
 from litex.soc.cores import cpu
 from litex.soc.interconnect import wishbone
 from litex.soc.integration.common import *
-from litex.soc.integration.soc import SoCConstant, SoCRegion, SoC, SoCController
+from litex.soc.integration.soc import *
 
 __all__ = [
     "mem_decoder",
@@ -45,7 +45,6 @@ class SoCCore(SoC):
         "main_ram": 0x40000000,
         "csr":      0x82000000,
     }
-    io_regions   = {}
 
     def __init__(self, platform, clk_freq,
                 # CPU parameters
@@ -90,7 +89,6 @@ class SoCCore(SoC):
 
         # SoC's CSR/Mem/Interrupt mapping (default or user defined + dynamically allocateds)
         self.soc_mem_map    = self.mem_map
-        self.soc_io_regions = self.io_regions
 
         # SoC's Config/Constants/Regions
         self.config      = {}
@@ -130,7 +128,8 @@ class SoCCore(SoC):
                 reset_address = self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
         else:
             self.submodules.cpu = cpu.CPUNone()
-            self.soc_io_regions.update(self.cpu.io_regions)
+            for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
+                self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
 
         # Add user's interrupts (needs to be done after CPU interrupts are allocated)
         for name, loc in self.interrupt_map.items():
@@ -183,21 +182,6 @@ class SoCCore(SoC):
                 break
         self.bus.add_slave(name=wb_name, slave=interface)
 
-    def check_io_region(self, name, origin, length):
-        for region_origin, region_length in self.soc_io_regions.items():
-            if (origin >= region_origin) & ((origin + length) < (region_origin + region_length)):
-                return
-        msg = "{} region (0x{:08x}-0x{:08x}) is not located in an IO region.\n".format(
-            name, origin, origin + length - 1)
-        msg += "Available IO regions: "
-        if not bool(self.soc_io_regions):
-            msg += "None\n"
-        else:
-            msg += "\n"
-            for region_origin, region_length in self.soc_io_regions.items():
-                msg += "- 0x{:08x}-0x{:08x}\n".format(region_origin, region_origin + region_length - 1)
-        raise ValueError(msg)
-
     def add_memory_region(self, name, origin, length, type="cached"):
         self.bus.add_region(name, SoCRegion(origin=origin, size=length, cached="cached" in type))
 
@@ -208,7 +192,6 @@ class SoCCore(SoC):
         self.bus.add_slave("rom", interface, SoCRegion(origin=self.cpu.reset_address, size=rom_size))
 
     def add_csr_region(self, name, origin, busword, obj):
-        self.check_io_region(name, origin, 0x800)
         self.csr_regions[name] = SoCCSRRegion(origin, busword, obj)
 
     # Finalization ---------------------------------------------------------------------------------
@@ -227,12 +210,12 @@ class SoCCore(SoC):
 
         SoC.do_finalize(self)
 
-        # Check and add CSRs regions
+        # Add CSRs regions
         for name, csrs, mapaddr, rmap in self.csr_bankarray.banks:
             self.add_csr_region(name, (self.bus.regions["csr"].origin + 0x800*mapaddr),
                 self.csr.data_width, csrs)
 
-        # Check and add Memory regions
+        # Add Memory regions
         for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
             self.add_csr_region(name + "_" + memory.name_override,
                 (self.bus.regions["csr"].origin + 0x800*mapaddr),

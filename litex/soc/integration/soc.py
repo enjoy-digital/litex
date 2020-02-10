@@ -19,7 +19,7 @@ from litex.soc.interconnect import wishbone2csr
 # TODO:
 # - replace raise with exit on logging error.
 # - add configurable CSR paging.
-# - manage IO/Linker regions.
+# - manage SoCLinkerRegion
 
 logging.basicConfig(level=logging.INFO)
 
@@ -77,9 +77,9 @@ class SoCRegion:
         r += "Cached: {}".format(colorer(self.cached))
         return r
 
+class SoCIORegion(SoCRegion): pass
 
-class SoCLinkerRegion(SoCRegion):
-    pass
+class SoCLinkerRegion(SoCRegion): pass
 
 # SoCBusHandler ------------------------------------------------------------------------------------
 
@@ -121,6 +121,8 @@ class SoCBusHandler(Module):
         self.masters       = {}
         self.slaves        = {}
         self.regions       = {}
+        self.io_regions    = {}
+        self.ld_regions    = {}
         self.timeout       = timeout
         self.logger.info("{}-bit {} Bus, {}GiB Address Space.".format(
             colorer(data_width), colorer(standard), colorer(2**address_width/2**30)))
@@ -137,9 +139,44 @@ class SoCBusHandler(Module):
     # Add/Allog/Check Regions ----------------------------------------------------------------------
     def add_region(self, name, region):
         allocated = False
+        # Check if SoCIORegion
+        if isinstance(region, SoCIORegion):
+            if name in self.masters.keys():
+                self.logger.error("{} already declared as IO Region:".format(colorer(name, color="red")))
+                self.logger.error(self)
+                raise
+            self.io_regions[name] = region
+            overlap = self.check_regions_overlap(self.io_regions)
+            if overlap is not None:
+                self.logger.error("IO Region overlap between {} and {}:".format(
+                    colorer(overlap[0], color="red"),
+                    colorer(overlap[1], color="red")))
+                self.logger.error(str(self.regions[overlap[0]]))
+                self.logger.error(str(self.regions[overlap[1]]))
+                raise
+            self.logger.info("{} Region {} {}.".format(
+                colorer(name,    color="underline"),
+                colorer("added", color="green"),
+                str(region)))
         # Check if SoCLinkerRegion
-        if isinstance(region, SoCLinkerRegion):
-            self.logger.info("FIXME: SoCLinkerRegion")
+        elif isinstance(region, SoCLinkerRegion):
+            if name in self.masters.keys():
+                self.logger.error("{} already declared as Linker Region:".format(colorer(name, color="red")))
+                self.logger.error(self)
+                raise
+            self.ld_regions[name] = region
+            overlap = self.check_regions_overlap(self.ld_regions)
+            if overlap is not None:
+                self.logger.error("Linker Region overlap between {} and {}:".format(
+                    colorer(overlap[0], color="red"),
+                    colorer(overlap[1], color="red")))
+                self.logger.error(str(self.regions[overlap[0]]))
+                self.logger.error(str(self.regions[overlap[1]]))
+                raise
+            self.logger.info("{} Region {} {}.".format(
+                colorer(name,    color="underline"),
+                colorer("added", color="green"),
+                str(region)))
         # Check if SoCRegion
         elif isinstance(region, SoCRegion):
             # If no origin specified, allocate region.
@@ -149,8 +186,16 @@ class SoCBusHandler(Module):
                 self.regions[name] = region
             # Else add region and check for overlaps.
             else:
+                if not region.cached:
+                    if not self.check_region_is_io(region):
+                        self.logger.error("{} Region {}: {}".format(
+                            colorer(name, color="red"),
+                            colorer("not cached but not in IO region", color="red"),
+                            str(region)))
+                        self.logger.error(self)
+                        raise
                 self.regions[name] = region
-                overlap = self.check_region(self.regions)
+                overlap = self.check_regions_overlap(self.regions)
                 if overlap is not None:
                     self.logger.error("Region overlap between {} and {}:".format(
                         colorer(overlap[0], color="red"),
@@ -190,7 +235,7 @@ class SoCBusHandler(Module):
                 overlap   = False
                 # Check Candidate does not overlap with allocated existing regions
                 for _, allocated in self.regions.items():
-                    if self.check_region({"0": allocated, "1": candidate}) is not None:
+                    if self.check_regions_overlap({"0": allocated, "1": candidate}) is not None:
                         origin  = allocated.origin + allocated.size
                         overlap = True
                         break
@@ -201,7 +246,7 @@ class SoCBusHandler(Module):
         self.logger.error("Not enough Address Space to allocate Region")
         raise
 
-    def check_region(self, regions):
+    def check_regions_overlap(self, regions):
         i = 0
         while i < len(regions):
             n0 =  list(regions.keys())[i]
@@ -218,8 +263,23 @@ class SoCBusHandler(Module):
             i += 1
         return None
 
+    def check_region_is_in(self, region, container):
+        is_in = True
+        if not (region.origin >= container.origin):
+            is_in = False
+        if not ((region.origin + region.size) < (container.origin + container.size)):
+            is_in = False
+        return is_in
+
+    def check_region_is_io(self, region):
+        is_io = False
+        for _, io_region in self.io_regions.items():
+            if self.check_region_is_in(region, io_region):
+                is_io = True
+        return is_io
+
     # Add Master/Slave -----------------------------------------------------------------------------
-    def add_master(self, name=None, master=None, io_regions={}):
+    def add_master(self, name=None, master=None):
         if name is None:
             name = "master{:d}".format(len(self.masters))
         if name in self.masters.keys():
@@ -280,6 +340,14 @@ class SoCBusHandler(Module):
     def __str__(self):
         r = "{}-bit {} Bus, {}GiB Address Space.\n".format(
             colorer(self.data_width), colorer(self.standard), colorer(2**self.address_width/2**30))
+        r += "IO Regions: ({})\n".format(len(self.io_regions.keys())) if len(self.io_regions.keys()) else ""
+        io_regions = {k: v for k, v in sorted(self.io_regions.items(), key=lambda item: item[1].origin)}
+        for name, region in io_regions.items():
+           r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
+        r += "Linker Regions: ({})\n".format(len(self.ld_regions.keys())) if len(self.ld_regions.keys()) else ""
+        ld_regions = {k: v for k, v in sorted(self.ld_regions.items(), key=lambda item: item[1].origin)}
+        for name, region in ld_regions.items():
+           r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
         r += "Bus Regions: ({})\n".format(len(self.regions.keys())) if len(self.regions.keys()) else ""
         regions = {k: v for k, v in sorted(self.regions.items(), key=lambda item: item[1].origin)}
         for name, region in regions.items():
@@ -429,7 +497,6 @@ class SoCCSRHandler(SoCLocHandler):
             self.logger.error("{} already declared as CSR Master:".format(colorer(name, color="red")))
             self.logger.error(self)
             raise
-        print(master)
         if master.data_width != self.data_width:
             self.logger.error("{} Master/Handler data_width {} ({} vs {}).".format(
                 colorer(name),
@@ -441,7 +508,6 @@ class SoCCSRHandler(SoCLocHandler):
         self.logger.info("{} {} as CSR Master.".format(
             colorer(name,    color="underline"),
             colorer("added", color="green")))
-        # FIXME: handle IO regions
 
     # Address map ----------------------------------------------------------------------------------
     def address_map(self, name, memory):
@@ -639,8 +705,9 @@ class SoC(Module):
             bus_csr       = csr_bus.Interface(
             address_width = self.csr.address_width,
             data_width    = self.csr.data_width))
-        csr_size = 2**(self.csr.address_width + 2)
-        self.bus.add_slave("csr", self.csr_bridge.wishbone, SoCRegion(origin=origin, size=csr_size))
+        csr_size   = 2**(self.csr.address_width + 2)
+        csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
+        self.bus.add_slave("csr", self.csr_bridge.wishbone, csr_region)
         self.csr.add_master(name="bridge", master=self.csr_bridge.csr)
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
@@ -662,8 +729,9 @@ class SoC(Module):
         if hasattr(self, "ctrl"):
             self.comb += self.cpu.reset.eq(self.ctrl.reset)
         # Update SoC with CPU constraints
+        for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
+            self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         self.soc_mem_map.update(self.cpu.mem_map)       # FIXME
-        self.soc_io_regions.update(self.cpu.io_regions) # FIXME
         # Define constants
         self.add_config("CPU_TYPE",       str(name))
         self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))
