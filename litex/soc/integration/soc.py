@@ -753,7 +753,7 @@ class SoC(Module):
         # Update SoC with CPU constraints
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
-        self.soc_mem_map.update(self.cpu.mem_map)       # FIXME
+        self.mem_map.update(self.cpu.mem_map) # FIXME
         # Define constants
         self.add_config("CPU_TYPE",       str(name))
         self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))

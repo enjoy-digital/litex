@@ -3,13 +3,14 @@
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # License: BSD
 
-from math import log2
+####################################################################################################
+#          DISCLAIMER: ONLY USE FOR RETRO-COMPATIBILITY, NOT RECOMMENDED FOR NEW DESIGNS           #
+####################################################################################################
+
 import inspect
 
 from migen import *
-from migen.genlib.record import *
 
-from litex.soc.interconnect import wishbone
 from litex.soc.integration.soc_core import *
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
@@ -23,7 +24,12 @@ class SoCSDRAM(SoCCore):
     }
     csr_map.update(SoCCore.csr_map)
 
-    def __init__(self, platform, clk_freq, l2_size=8192, l2_reverse=True, min_l2_data_width=128, max_sdram_size=None, **kwargs):
+    def __init__(self, platform, clk_freq,
+        l2_size           = 8192,
+        l2_reverse        = True,
+        min_l2_data_width = 128,
+        max_sdram_size    = None,
+        **kwargs):
         SoCCore.__init__(self, platform, clk_freq, **kwargs)
         self.l2_size           = l2_size
         self.l2_reverse        = l2_reverse

@@ -12,6 +12,10 @@
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
 # License: BSD
 
+####################################################################################################
+#          DISCLAIMER: ONLY USE FOR RETRO-COMPATIBILITY, NOT RECOMMENDED FOR NEW DESIGNS           #
+####################################################################################################
+
 import os
 import inspect
 
@@ -47,27 +51,41 @@ class SoCCore(SoC):
     }
 
     def __init__(self, platform, clk_freq,
-                # CPU parameters
-                cpu_type="vexriscv", cpu_reset_address=0x00000000, cpu_variant=None,
-                # ROM parameters
-                integrated_rom_size=0, integrated_rom_init=[],
-                # SRAM parameters
-                integrated_sram_size=0x1000, integrated_sram_init=[],
-                # MAIN_RAM parameters
-                integrated_main_ram_size=0, integrated_main_ram_init=[],
-                # CSR parameters
-                csr_data_width=8, csr_alignment=32, csr_address_width=14,
-                # Identifier parameters
-                ident="", ident_version=False,
-                # UART parameters
-                with_uart=True, uart_name="serial", uart_baudrate=115200,
-                # Timer parameters
-                with_timer=True,
-                # Controller parameters
-                with_ctrl=True,
-                # Wishbone parameters
-                with_wishbone=True, wishbone_timeout_cycles=1e6,
-                **kwargs):
+        # CPU parameters
+        cpu_type                 = "vexriscv",
+        cpu_reset_address        = 0x00000000,
+        cpu_variant              = None,
+        # ROM parameters
+        integrated_rom_size      = 0,
+        integrated_rom_init      = [],
+        # SRAM parameters
+        integrated_sram_size     = 0x1000,
+        integrated_sram_init     = [],
+        # MAIN_RAM parameters
+        integrated_main_ram_size = 0,
+        integrated_main_ram_init = [],
+        # CSR parameters
+        csr_data_width           = 8,
+        csr_alignment            = 32,
+        csr_address_width        = 14,
+        # Identifier parameters
+        ident                    = "",
+        ident_version            = False,
+        # UART parameters
+        with_uart                = True,
+        uart_name                = "serial",
+        uart_baudrate            = 115200,
+        # Timer parameters
+        with_timer               = True,
+        # Controller parameters
+        with_ctrl                = True,
+        # Wishbone parameters
+        with_wishbone            = True,
+        wishbone_timeout_cycles  = 1e6,
+        # Others
+        **kwargs):
+
+        # New SoC class ----------------------------------------------------------------------------
         SoC.__init__(self, platform, clk_freq,
             bus_standard         = "wishbone",
             bus_data_width       = 32,
@@ -84,21 +102,19 @@ class SoCCore(SoC):
             irq_n_irqs           = 32,
             irq_reserved_irqs    = {},
         )
+
+        # Attributes
         self.mem_regions = self.bus.regions
         self.clk_freq    = self.sys_clk_freq
-
-        # SoC's CSR/Mem/Interrupt mapping (default or user defined + dynamically allocateds)
-        self.soc_mem_map    = self.mem_map
-
-        # SoC's Config/Constants/Regions
+        self.mem_map     = self.mem_map
         self.config      = {}
 
-        # Parameters managment ---------------------------------------------------------------------
+        # Parameters management --------------------------------------------------------------------
         if cpu_type == "None":
             cpu_type = None
 
         if not with_wishbone:
-            self.soc_mem_map["csr"]  = 0x00000000
+            self.mem_map["csr"]  = 0x00000000
 
         self.cpu_type                   = cpu_type
         self.cpu_variant                = cpu.check_format_cpu_variant(cpu_variant)
@@ -124,13 +140,13 @@ class SoCCore(SoC):
             self.add_cpu(
                 name          = cpu_type,
                 variant       = "standard" if cpu_variant is None else cpu_variant,
-                reset_address = self.soc_mem_map["rom"] if integrated_rom_size else cpu_reset_address)
+                reset_address = self.mem_map["rom"] if integrated_rom_size else cpu_reset_address)
         else:
             self.submodules.cpu = cpu.CPUNone()
             for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
                 self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
 
-        # Add user's interrupts (needs to be done after CPU interrupts are allocated)
+        # Add User's interrupts
         for name, loc in self.interrupt_map.items():
             self.irq.add(name, loc)
 
@@ -141,11 +157,11 @@ class SoCCore(SoC):
 
         # Add integrated SRAM
         if integrated_sram_size:
-            self.add_ram("sram", self.soc_mem_map["sram"], integrated_sram_size)
+            self.add_ram("sram", self.mem_map["sram"], integrated_sram_size)
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available)
         if integrated_main_ram_size:
-            self.add_ram("main_ram", self.soc_mem_map["main_ram"], integrated_main_ram_size)
+            self.add_ram("main_ram", self.mem_map["main_ram"], integrated_main_ram_size)
 
         # Add UART
         if with_uart:
@@ -157,7 +173,7 @@ class SoCCore(SoC):
 
         # Add Wishbone to CSR bridge
         if with_wishbone:
-            self.add_csr_bridge(self.soc_mem_map["csr"])
+            self.add_csr_bridge(self.mem_map["csr"])
 
     # Methods --------------------------------------------------------------------------------------
 
