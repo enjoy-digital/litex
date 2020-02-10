@@ -147,8 +147,7 @@ class SoCCore(LiteXSoC):
 
         # Add integrated ROM
         if integrated_rom_size:
-            self.submodules.rom = wishbone.SRAM(integrated_rom_size, read_only=True, init=integrated_rom_init)
-            self.register_rom(self.rom.bus, integrated_rom_size)
+            self.add_rom("rom", self.cpu.reset_address, integrated_rom_size, integrated_rom_init)
 
         # Add integrated SRAM
         if integrated_sram_size:
