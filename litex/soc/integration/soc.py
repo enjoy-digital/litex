@@ -485,7 +485,7 @@ class SoCCSRHandler(SoCLocHandler):
         self.paging        = paging
         self.masters       = {}
         self.regions       = {}
-        self.logger.info("{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
+        self.logger.info("{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).".format(
             colorer(self.data_width),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
