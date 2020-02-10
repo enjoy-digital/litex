@@ -92,7 +92,6 @@ class SoCCore(SoC):
 
         # SoC's Config/Constants/Regions
         self.config      = {}
-        self.csr_regions = {}
 
         # Parameters managment ---------------------------------------------------------------------
         if cpu_type == "None":
@@ -197,30 +196,12 @@ class SoCCore(SoC):
     # Finalization ---------------------------------------------------------------------------------
 
     def do_finalize(self):
-        # retro-compat
+        SoC.do_finalize(self)
+        # Retro-compatibility
         for region in self.bus.regions.values():
             region.length = region.size
             region.type   = "cached" if region.cached else "io"
-
-        SoC.do_finalize(self)
-
-        # Add CSRs regions
-        for name, csrs, mapaddr, rmap in self.csr_bankarray.banks:
-            self.add_csr_region(name, (self.bus.regions["csr"].origin + 0x800*mapaddr),
-                self.csr.data_width, csrs)
-
-        # Add Memory regions
-        for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
-            self.add_csr_region(name + "_" + memory.name_override,
-                (self.bus.regions["csr"].origin + 0x800*mapaddr),
-                self.csr.data_width, memory)
-
-        # Sort CSR regions by origin
-        self.csr_regions = {k: v for k, v in sorted(self.csr_regions.items(), key=lambda item: item[1].origin)}
-
-        # Add CSRs / Config items to constants
-        for name, constant in self.csr_bankarray.constants:
-            self.add_constant(name + "_" + constant.name, constant.value.value)
+        self.csr_regions = self.csr.regions
         for name, value in self.config.items():
             self.add_config(name, value)
 

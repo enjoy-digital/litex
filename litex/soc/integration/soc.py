@@ -1,4 +1,5 @@
-# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # License: BSD
 
 import logging
@@ -20,6 +21,7 @@ from litex.soc.interconnect import wishbone2csr
 # - replace raise with exit on logging error.
 # - add configurable CSR paging.
 # - manage SoCLinkerRegion
+# - cleanup SoCCSRRegion
 
 logging.basicConfig(level=logging.INFO)
 
@@ -80,6 +82,14 @@ class SoCRegion:
 class SoCIORegion(SoCRegion): pass
 
 class SoCLinkerRegion(SoCRegion): pass
+
+# SoCCSRRegion -------------------------------------------------------------------------------------
+
+class SoCCSRRegion:
+    def __init__(self, origin, busword, obj):
+        self.origin  = origin
+        self.busword = busword
+        self.obj     = obj
 
 # SoCBusHandler ------------------------------------------------------------------------------------
 
@@ -476,6 +486,7 @@ class SoCCSRHandler(SoCLocHandler):
         self.alignment     = alignment
         self.paging        = paging
         self.masters       = {}
+        self.regions       = {}
         self.logger.info("{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
             colorer(self.data_width),
             colorer(2**self.address_width/2**10),
@@ -508,6 +519,11 @@ class SoCCSRHandler(SoCLocHandler):
         self.logger.info("{} {} as CSR Master.".format(
             colorer(name,    color="underline"),
             colorer("added", color="green")))
+
+    # Add Region -----------------------------------------------------------------------------------
+    def add_region(self, name, region):
+        # FIXME: add checks
+        self.regions[name] = region
 
     # Address map ----------------------------------------------------------------------------------
     def address_map(self, name, memory):
@@ -625,6 +641,7 @@ class SoC(Module):
         self.platform     = platform
         self.sys_clk_freq = sys_clk_freq
         self.constants    = {}
+        self.csr_regions  = {}
 
         # SoC Bus Handler --------------------------------------------------------------------------
         self.submodules.bus = SoCBusHandler(
@@ -815,6 +832,27 @@ class SoC(Module):
             self.submodules.csr_interconnect = csr_bus.InterconnectShared(
                 masters = list(self.csr.masters.values()),
                 slaves  = self.csr_bankarray.get_buses())
+
+        # Add CSRs regions
+        for name, csrs, mapaddr, rmap in self.csr_bankarray.banks:
+            self.csr.add_region(name, SoCCSRRegion(
+                origin   = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
+                busword  = self.csr.data_width,
+                obj      = csrs))
+
+        # Add Memory regions
+        for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
+            self.csr.add_region(name + "_" + memory.name_override, SoCCSRRegion(
+                origin   = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
+                busworkd = self.csr.data_width,
+                obj      = memory))
+
+        # Sort CSR regions by origin
+        self.csr.regions = {k: v for k, v in sorted(self.csr.regions.items(), key=lambda item: item[1].origin)}
+
+        # Add CSRs / Config items to constants
+        for name, constant in self.csr_bankarray.constants:
+            self.add_constant(name + "_" + constant.name, constant.value.value)
 
         # SoC CPU Check ----------------------------------------------------------------------------
         if not isinstance(self.cpu, cpu.CPUNone):
