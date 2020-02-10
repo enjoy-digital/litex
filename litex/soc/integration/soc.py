@@ -1,10 +1,12 @@
 # This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
+# This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # License: BSD
 
 import logging
 import time
 import datetime
+from math import log2
 
 from migen import *
 
@@ -16,6 +18,9 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import csr_bus
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import wishbone2csr
+
+from litedram.core import LiteDRAMCore
+from litedram.frontend.wishbone import LiteDRAMWishbone2Native
 
 # TODO:
 # - replace raise with exit on logging error.
@@ -798,6 +803,98 @@ class SoC(Module):
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
         self.irq.add("uart", use_loc_if_exists=True)
+
+    def add_sdram(self, name,
+        phy,
+        geom_settings,
+        timing_settings,
+        l2_cache_size           = 8192,
+        l2_cache_min_data_width = 128,
+        l2_cache_reverse        = True,
+        origin                  = 0x40000000,
+        max_sdram_size          = None,
+        **kwargs):
+
+        # LiteDRAM core ----------------------------------------------------------------------------
+        self.submodules.sdram = LiteDRAMCore(
+            phy             = phy,
+            geom_settings   = geom_settings,
+            timing_settings = timing_settings,
+            clk_freq        = self.sys_clk_freq,
+            **kwargs)
+
+        # LiteDRAM port ----------------------------------------------------------------------------
+        port = self.sdram.crossbar.get_port()
+        port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
+
+        # Main RAM size ----------------------------------------------------------------------------
+        main_ram_size = 2**(geom_settings.bankbits +
+                            geom_settings.rowbits +
+                            geom_settings.colbits)*phy.settings.databits//8
+        if self.max_sdram_size is not None:
+            main_ram_size = min(main_ram_size, self.max_sdram_size)
+        self.bus.add_region("main_ram", SoCRegion(origin, main_ram_size))
+
+        # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
+        if self.cpu.name == "rocket":
+            # Rocket has its own I/D L1 cache: connect directly to LiteDRAM, also bypassing MMIO/CSR wb bus:
+            if port.data_width == self.cpu.mem_axi.data_width:
+                self.logger.info("Matching AXI MEM data width ({})\n".format(port.data_width))
+                self.submodules += LiteDRAMAXI2Native(
+                    axi          = self.cpu.mem_axi,
+                    port         = port,
+                    base_address = self.bus.regions["main_ram"].origin)
+            else:
+                self.logger.info("Converting MEM data width: {} to {} via Wishbone".format(
+                    port.data_width,
+                    self.cpu.mem_axi.data_width))
+                # FIXME: replace WB data-width converter with native AXI converter!!!
+                mem_wb  = wishbone.Interface(
+                    data_width = self.cpu.mem_axi.data_width,
+                    adr_width  = 32-log2_int(self.cpu.mem_axi.data_width//8))
+                # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
+                mem_a2w = ResetInserter()(AXI2Wishbone(
+                    axi          = self.cpu.mem_axi,
+                    wishbone     = mem_wb,
+                    base_address = 0))
+                self.comb += mem_a2w.reset.eq(ResetSignal() | self.cpu.reset)
+                self.submodules += mem_a2w
+                litedram_wb = wishbone.Interface(port.data_width)
+                self.submodules += LiteDRAMWishbone2Native(
+                    wishbone     = litedram_wb,
+                    port         = port,
+                    base_address = origin)
+                self.submodules += wishbone.Converter(mem_wb, litedram_wb)
+            # Register main_ram region (so it will be added to generated/mem.h):
+            self.bus.region.add_memory_region("main_ram", SoCRegion(origin, main_ram_size))
+        elif self.with_wishbone:
+            # Insert L2 cache inbetween Wishbone bus and LiteDRAM
+            l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # L2 has a minimal size, use it if lower
+            l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
+            self.add_config("L2_SIZE", l2_cache_size)
+
+            # SoC <--> L2 Cache Wishbone interface -------------------------------------------------
+            wb_sdram = wishbone.Interface()
+            self.bus.add_slave("main_ram", wb_sdram, SoCRegion(origin=origin, size=main_ram_size))
+
+            # L2 Cache -----------------------------------------------------------------------------
+            l2_cache_data_width = max(port.data_width, l2_cache_min_data_width)
+            l2_cache = wishbone.Cache(
+                cachesize = l2_cache_size//4,
+                master    = wb_sdram,
+                slave     = wishbone.Interface(l2_cache_data_width),
+                reverse   = l2_cache_reverse)
+            # XXX Vivado ->2018.2 workaround, Vivado is not able to map correctly our L2 cache.
+            # Issue is reported to Xilinx, Remove this if ever fixed by Xilinx...
+            from litex.build.xilinx.vivado import XilinxVivadoToolchain
+            if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+                from migen.fhdl.simplify import FullMemoryWE
+                self.submodules.l2_cache = FullMemoryWE()(l2_cache)
+            else:
+                self.submodules.l2_cache = l2_cache
+
+            # L2 Cache <--> LiteDRAM bridge --------------------------------------------------------
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
