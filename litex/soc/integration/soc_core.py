@@ -202,12 +202,6 @@ class SoCCore(SoC):
             region.length = region.size
             region.type   = "cached" if region.cached else "io"
 
-        # Verify CPU has required memories
-        if not isinstance(self.cpu, cpu.CPUNone):
-            for name in ["rom", "sram"]:
-                if name not in self.bus.regions.keys():
-                    raise FinalizeError("CPU needs \"{}\" to be defined as memory or linker region".format(name))
-
         SoC.do_finalize(self)
 
         # Add CSRs regions

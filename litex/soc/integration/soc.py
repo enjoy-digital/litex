@@ -816,6 +816,15 @@ class SoC(Module):
                 masters = list(self.csr.masters.values()),
                 slaves  = self.csr_bankarray.get_buses())
 
+        # SoC CPU Check ----------------------------------------------------------------------------
+        if not isinstance(self.cpu, cpu.CPUNone):
+            for name in ["rom", "sram"]:
+                if name not in list(self.bus.regions.keys()) + list(self.bus.ld_regions.keys()):
+                    self.logger.error("CPU needs {} Region to be defined as Bus or Linker Region.".format(
+                        colorer(name, color="red")))
+                    self.logger.error(self.bus)
+                    raise
+
         # SoC IRQ Interconnect ---------------------------------------------------------------------
         if hasattr(self, "cpu"):
             if hasattr(self.cpu, "interrupt"):
