@@ -891,22 +891,17 @@ class LiteXSoC(SoC):
         self.irq.add("uart", use_loc_if_exists=True)
 
     # Add SDRAM ------------------------------------------------------------------------------------
-    def add_sdram(self, name,
-        phy,
-        geom_settings,
-        timing_settings,
+    def add_sdram(self, name, phy, module, origin, size=None,
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = True,
-        origin                  = 0x40000000,
-        max_sdram_size          = None,
         **kwargs):
 
         # LiteDRAM core ----------------------------------------------------------------------------
         self.submodules.sdram = LiteDRAMCore(
             phy             = phy,
-            geom_settings   = geom_settings,
-            timing_settings = timing_settings,
+            geom_settings   = module.geom_settings,
+            timing_settings = module.timing_settings,
             clk_freq        = self.sys_clk_freq,
             **kwargs)
 
@@ -914,13 +909,13 @@ class LiteXSoC(SoC):
         port = self.sdram.crossbar.get_port()
         port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
 
-        # Main RAM size ----------------------------------------------------------------------------
-        main_ram_size = 2**(geom_settings.bankbits +
-                            geom_settings.rowbits +
-                            geom_settings.colbits)*phy.settings.databits//8
-        if self.max_sdram_size is not None:
-            main_ram_size = min(main_ram_size, self.max_sdram_size)
-        self.bus.add_region("main_ram", SoCRegion(origin, main_ram_size))
+        # SDRAM size -------------------------------------------------------------------------------
+        sdram_size = 2**(module.geom_settings.bankbits +
+                         module.geom_settings.rowbits +
+                         module.geom_settings.colbits)*phy.settings.databits//8
+        if size is not None:
+            sdram_size = min(sdram_size, size)
+        self.bus.add_region("main_ram", SoCRegion(origin, sdram_size))
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
         if self.cpu.name == "rocket":
@@ -953,7 +948,7 @@ class LiteXSoC(SoC):
                     base_address = origin)
                 self.submodules += wishbone.Converter(mem_wb, litedram_wb)
             # Register main_ram region (so it will be added to generated/mem.h):
-            self.bus.region.add_memory_region("main_ram", SoCRegion(origin, main_ram_size))
+            self.bus.region.add_memory_region("main_ram", SoCRegion(origin, sdram_size))
         elif self.with_wishbone:
             # Insert L2 cache inbetween Wishbone bus and LiteDRAM
             l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # L2 has a minimal size, use it if lower
@@ -962,7 +957,7 @@ class LiteXSoC(SoC):
 
             # SoC <--> L2 Cache Wishbone interface -------------------------------------------------
             wb_sdram = wishbone.Interface()
-            self.bus.add_slave("main_ram", wb_sdram, SoCRegion(origin=origin, size=main_ram_size))
+            self.bus.add_slave("main_ram", wb_sdram, SoCRegion(origin=origin, size=sdram_size))
 
             # L2 Cache -----------------------------------------------------------------------------
             l2_cache_data_width = max(port.data_width, l2_cache_min_data_width)

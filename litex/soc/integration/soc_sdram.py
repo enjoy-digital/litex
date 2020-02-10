@@ -37,14 +37,18 @@ class SoCSDRAM(SoCCore):
         self.max_sdram_size    = max_sdram_size
 
     def register_sdram(self, phy, geom_settings, timing_settings, **kwargs):
+        class _SDRAMModule: pass
+        module = _SDRAMModule()
+        module.geom_settings   = geom_settings
+        module.timing_settings = timing_settings
         self.add_sdram("sdram",
             phy                     = phy,
-            geom_settings           = geom_settings,
-            timing_settings         = timing_settings,
+            module                  = module,
+            origin                  = self.mem_map["main_ram"],
+            size                    = self.max_sdram_size,
             l2_cache_size           = self.l2_size,
             l2_cache_min_data_width = self.min_l2_data_width,
             l2_cache_reverse        = self.l2_reverse,
-            max_sdram_size          = self.max_sdram_size,
             **kwargs,
         )
 
