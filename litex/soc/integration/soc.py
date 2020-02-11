@@ -734,8 +734,14 @@ class SoC(Module):
             raise
         # Add CPU
         self.submodules.cpu = cpu.CPUS[name](self.platform, variant)
+        # Update SoC with CPU constraints
+        for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
+            self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
+        self.mem_map.update(self.cpu.mem_map) # FIXME
         # Add Bus Masters/CSR/IRQs
         if not isinstance(self.cpu, cpu.CPUNone):
+            if reset_address is None:
+                reset_address = self.mem_map["rom"]
             self.cpu.set_reset_address(reset_address)
             for n, cpu_bus in enumerate(self.cpu.buses):
                 self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
@@ -745,10 +751,6 @@ class SoC(Module):
             if hasattr(self, "ctrl"):
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
             self.add_config("CPU_RESET_ADDR", reset_address)
-        # Update SoC with CPU constraints
-        for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
-            self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
-        self.mem_map.update(self.cpu.mem_map) # FIXME
         # Add constants
         self.add_config("CPU_TYPE",    str(name))
         self.add_config("CPU_VARIANT", str(variant.split('+')[0]))

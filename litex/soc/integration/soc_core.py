@@ -149,7 +149,7 @@ class SoCCore(LiteXSoC):
         self.add_cpu(
             name          = str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
-            reset_address = self.mem_map["rom"] if integrated_rom_size else cpu_reset_address)
+            reset_address = None if integrated_rom_size else cpu_reset_address)
 
         # Add User's interrupts
         for name, loc in self.interrupt_map.items():
