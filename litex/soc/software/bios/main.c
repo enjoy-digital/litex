@@ -459,7 +459,6 @@ static void do_command(char *c)
 #endif
 	else if(strcmp(token, "memtest") == 0) memtest();
 #endif
-
 	else if(strcmp(token, "") != 0)
 		printf("Command not found\n");
 }
@@ -591,6 +590,8 @@ int main(int i, char **c)
 	printf("Minerva");
 #elif __rocket__
 	printf("RocketRV64[imac]");
+#elif __blackparrot__
+        printf("BlackParrotRV64[ia]");
 #else
 	printf("Unknown");
 #endif
@@ -605,9 +606,10 @@ int main(int i, char **c)
 #endif
 	printf("\n");
 
-	sdr_ok = 1;
+        sdr_ok = 1;
+
 #if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE)
-	printf("--========== \e[1mInitialization\e[0m ============--\n");
+    printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
@@ -630,7 +632,7 @@ int main(int i, char **c)
 	}
 
 	printf("--============= \e[1mConsole\e[0m ================--\n");
-	while(1) {
+    while(1) {
 		putsnonl("\e[92;1mlitex\e[0m> ");
 		readstr(buffer, 64);
 		do_command(buffer);

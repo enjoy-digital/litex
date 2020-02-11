@@ -24,7 +24,7 @@ class CPU(Module):
 class CPUNone(CPU):
     data_width           = 32
     reset_address        = 0x00000000
-    io_regions           = {0x00000000: 0xf0000000} # origin, length
+    io_regions           = {0x00000000: 0x100000000} # origin, length
 
 # CPUS ---------------------------------------------------------------------------------------------
 
@@ -35,6 +35,7 @@ from litex.soc.cores.cpu.vexriscv import VexRiscv
 from litex.soc.cores.cpu.minerva import Minerva
 from litex.soc.cores.cpu.rocket import RocketRV64
 from litex.soc.cores.cpu.microwatt import Microwatt
+from litex.soc.cores.cpu.blackparrot import BlackParrotRV64
 
 CPUS = {
     "None"       : CPUNone,
@@ -45,6 +46,7 @@ CPUS = {
     "minerva"    : Minerva,
     "rocket"     : RocketRV64,
     "microwatt"  : Microwatt,
+    "blackparrot" : BlackParrotRV64,
 }
 
 # CPU Variants/Extensions Definition ---------------------------------------------------------------

@@ -8,7 +8,20 @@
 #include <uart.h>
 #include <stdio.h>
 
-#ifdef __rocket__
+ 
+#if defined(__blackparrot__) /*TODO: Update this function for BP*/ //
+
+void isr(void);
+void isr(void)
+{
+  static int onetime = 0;
+  if ( onetime == 0){
+    printf("ISR blackparrot\n");
+    printf("TRAP!!\n");
+    onetime++;
+  }
+}
+#elif defined(__rocket__) 
 void plic_init(void);
 void plic_init(void)
 {

@@ -43,7 +43,6 @@ def mem_decoder(address, size=0x10000000):
     size    >>= 2 # bytes to words aligned
     return lambda a: (a[log2_int(size):] == (address >> log2_int(size)))
 
-
 # SoCCore ------------------------------------------------------------------------------------------
 
 class SoCCore(LiteXSoC):
