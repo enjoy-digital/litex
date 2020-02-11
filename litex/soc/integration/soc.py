@@ -45,7 +45,7 @@ def colorer(s, color="bright"):
 
 def build_time(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
-    return datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
 # SoCConstant --------------------------------------------------------------------------------------
 

@@ -14,7 +14,7 @@ from migen import *
 
 def get_version(with_time=True):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
-    return datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
 def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
     # create memory regions
