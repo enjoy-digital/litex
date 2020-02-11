@@ -33,9 +33,12 @@ _layout = [
 
 class Interface(Record):
     def __init__(self, data_width=8, address_width=14, alignment=32):
-        self.alignment = alignment
+        self.data_width    = data_width
+        self.address_width = address_width
+        self.alignment     = alignment
         Record.__init__(self, set_layout_parameters(_layout,
-            data_width=data_width, address_width=address_width))
+            data_width    = data_width,
+            address_width = address_width))
 
     @classmethod
     def like(self, other):

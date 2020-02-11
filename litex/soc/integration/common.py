@@ -58,26 +58,3 @@ def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
                     data[int(base, 16)//4 + i] = struct.unpack(">I", w)[0]
                 i += 1
     return data
-
-# SoC primitives -----------------------------------------------------------------------------------
-
-def SoCConstant(value):
-    return value
-
-class SoCMemRegion:
-    def __init__(self, origin, length, type):
-        assert type in ["cached", "io", "cached+linker", "io+linker"]
-        self.origin = origin
-        self.length = length
-        self.type   = type
-
-    def __str__(self):
-        return "<SoCMemRegion 0x{:x} 0x{:x} {}>".format(
-            self.origin, self.length, self.type)
-
-
-class SoCCSRRegion:
-    def __init__(self, origin, busword, obj):
-        self.origin  = origin
-        self.busword = busword
-        self.obj     = obj
