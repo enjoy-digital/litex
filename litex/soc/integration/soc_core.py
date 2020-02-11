@@ -135,6 +135,8 @@ class SoCCore(LiteXSoC):
         self.with_wishbone              = with_wishbone
         self.wishbone_timeout_cycles    = wishbone_timeout_cycles
 
+        self.wb_slaves = {}
+
         # Modules instances ------------------------------------------------------------------------
 
         # Add SoCController
@@ -195,7 +197,10 @@ class SoCCore(LiteXSoC):
             if address == region.origin:
                 wb_name = name
                 break
-        self.bus.add_slave(name=wb_name, slave=interface)
+        if wb_name is None:
+            self.wb_slaves[address] = interface
+        else:
+            self.bus.add_slave(name=wb_name, slave=interface)
 
     def add_memory_region(self, name, origin, length, type="cached"):
         self.bus.add_region(name, SoCRegion(origin=origin, size=length,
@@ -214,6 +219,15 @@ class SoCCore(LiteXSoC):
     # Finalization ---------------------------------------------------------------------------------
 
     def do_finalize(self):
+        # Retro-compatibility
+        for address, interface in self.wb_slaves.items():
+            wb_name = None
+            for name, region in self.bus.regions.items():
+                if address == region.origin:
+                    wb_name = name
+                    break
+            self.bus.add_slave(name=wb_name, slave=interface)
+
         SoC.do_finalize(self)
         # Retro-compatibility
         for region in self.bus.regions.values():
