@@ -106,7 +106,7 @@ class SoCBusHandler(Module):
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, standard, data_width=32, address_width=32, timeout=1e6, reserved_regions={}):
         self.logger = logging.getLogger("SoCBusHandler")
-        self.logger.info(colorer("Creating new Bus Handler..."))
+        self.logger.info("Creating Bus Handler...")
 
         # Check Standard
         if standard not in self.supported_standard:
@@ -143,13 +143,13 @@ class SoCBusHandler(Module):
             colorer(data_width), colorer(standard), colorer(2**address_width/2**30)))
 
         # Adding reserved regions
-        self.logger.info("Adding {} Regions...".format(colorer("reserved")))
+        self.logger.info("Adding {} Bus Regions...".format(colorer("reserved", color="cyan")))
         for name, region in reserved_regions.items():
             if isinstance(region, int):
                 region = SoCRegion(origin=region, size=0x1000000)
             self.add_region(name, region)
 
-        self.logger.info(colorer("Bus Handler created."))
+        self.logger.info("Bus Handler {}.".format(colorer("created", color="green")))
 
     # Add/Allog/Check Regions ----------------------------------------------------------------------
     def add_region(self, name, region):
@@ -442,7 +442,7 @@ class SoCCSRHandler(SoCLocHandler):
     def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
         SoCLocHandler.__init__(self, "CSR", n_locs=4*2**address_width//paging) # FIXME
         self.logger = logging.getLogger("SoCCSRHandler")
-        self.logger.info(colorer("Creating new CSR Handler..."))
+        self.logger.info("Creating CSR Handler...")
 
         # Check Data Width
         if data_width not in self.supported_data_width:
@@ -491,11 +491,11 @@ class SoCCSRHandler(SoCLocHandler):
             colorer(self.n_locs)))
 
         # Adding reserved CSRs
-        self.logger.info("Adding {} CSRs...".format(colorer("reserved")))
+        self.logger.info("Adding {} CSRs...".format(colorer("reserved", color="cyan")))
         for name, n in reserved_csrs.items():
             self.add(name, n)
 
-        self.logger.info(colorer("CSR Handler created."))
+        self.logger.info("CSR Handler {}.".format(colorer("created", color="green")))
 
     # Add Master -----------------------------------------------------------------------------------
     def add_master(self, name=None, master=None):
@@ -549,7 +549,7 @@ class SoCIRQHandler(SoCLocHandler):
     def __init__(self, n_irqs=32, reserved_irqs={}):
         SoCLocHandler.__init__(self, "IRQ", n_locs=n_irqs)
         self.logger = logging.getLogger("SoCIRQHandler")
-        self.logger.info(colorer("Creating new SoC IRQ Handler..."))
+        self.logger.info("Creating IRQ Handler...")
 
         # Check IRQ Number
         if n_irqs > 32:
@@ -561,11 +561,11 @@ class SoCIRQHandler(SoCLocHandler):
         self.logger.info("IRQ Handler (up to {} Locations).".format(colorer(n_irqs)))
 
         # Adding reserved IRQs
-        self.logger.info("Adding {} IRQs...".format(colorer("reserved")))
+        self.logger.info("Adding {} IRQs...".format(colorer("reserved", color="cyan")))
         for name, n in reserved_irqs.items():
             self.add(name, n)
 
-        self.logger.info(colorer("IRQ Handler created."))
+        self.logger.info("IRQ Handler {}.".format(colorer("created", color="green")))
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
@@ -631,7 +631,7 @@ class SoC(Module):
         self.logger.info(colorer("  Build your hardware, easily!", color="bright"))
 
         self.logger.info(colorer("-"*80, color="bright"))
-        self.logger.info(colorer("Creating new SoC... ({})".format(build_time())))
+        self.logger.info(colorer("Creating SoC... ({})".format(build_time())))
         self.logger.info(colorer("-"*80, color="bright"))
 
         # SoC attributes ---------------------------------------------------------------------------
