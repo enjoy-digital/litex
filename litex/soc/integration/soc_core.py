@@ -202,7 +202,9 @@ class SoCCore(LiteXSoC):
         self.bus.add_slave(name=wb_name, slave=interface)
 
     def add_memory_region(self, name, origin, length, type="cached"):
-        self.bus.add_region(name, SoCRegion(origin=origin, size=length, cached="cached" in type))
+        self.bus.add_region(name, SoCRegion(origin=origin, size=length,
+            cached="cached" in type,
+            linker="linker" in type))
 
     def register_mem(self, name, address, interface, size=0x10000000):
         self.bus.add_slave(name, interface, SoCRegion(origin=address, size=size))

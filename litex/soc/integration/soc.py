@@ -26,7 +26,6 @@ from litedram.frontend.wishbone import LiteDRAMWishbone2Native
 # TODO:
 # - replace raise with exit on logging error.
 # - add configurable CSR paging.
-# - manage SoCLinkerRegion
 # - cleanup SoCCSRRegion
 
 logging.basicConfig(level=logging.INFO)
@@ -55,12 +54,13 @@ def SoCConstant(value):
 # SoCRegion ----------------------------------------------------------------------------------------
 
 class SoCRegion:
-    def __init__(self, origin=None, size=None, mode="rw", cached=True):
+    def __init__(self, origin=None, size=None, mode="rw", cached=True, linker=False):
         self.logger    = logging.getLogger("SoCRegion")
         self.origin    = origin
         self.size      = size
         self.mode      = mode
         self.cached    = cached
+        self.linker    = linker
 
     def decoder(self, bus):
         origin = self.origin
@@ -81,12 +81,11 @@ class SoCRegion:
         if self.size is not None:
             r += "Size: {}, ".format(colorer("0x{:08x}".format(self.size)))
         r += "Mode: {}, ".format(colorer(self.mode.upper()))
-        r += "Cached: {}".format(colorer(self.cached))
+        r += "Cached: {} ".format(colorer(self.cached))
+        r += "Linker: {}".format(colorer(self.linker))
         return r
 
 class SoCIORegion(SoCRegion): pass
-
-class SoCLinkerRegion(SoCRegion): pass
 
 # SoCCSRRegion -------------------------------------------------------------------------------------
 
@@ -137,7 +136,6 @@ class SoCBusHandler(Module):
         self.slaves        = {}
         self.regions       = {}
         self.io_regions    = {}
-        self.ld_regions    = {}
         self.timeout       = timeout
         self.logger.info("{}-bit {} Bus, {}GiB Address Space.".format(
             colorer(data_width), colorer(standard), colorer(2**address_width/2**30)))
@@ -154,35 +152,16 @@ class SoCBusHandler(Module):
     # Add/Allog/Check Regions ----------------------------------------------------------------------
     def add_region(self, name, region):
         allocated = False
+        if name in self.regions.keys() or name in self.io_regions.keys():
+            self.logger.error("{} already declared as Region:".format(colorer(name, color="red")))
+            self.logger.error(self)
+            raise
         # Check if SoCIORegion
         if isinstance(region, SoCIORegion):
-            if name in self.masters.keys():
-                self.logger.error("{} already declared as IO Region:".format(colorer(name, color="red")))
-                self.logger.error(self)
-                raise
             self.io_regions[name] = region
             overlap = self.check_regions_overlap(self.io_regions)
             if overlap is not None:
                 self.logger.error("IO Region overlap between {} and {}:".format(
-                    colorer(overlap[0], color="red"),
-                    colorer(overlap[1], color="red")))
-                self.logger.error(str(self.regions[overlap[0]]))
-                self.logger.error(str(self.regions[overlap[1]]))
-                raise
-            self.logger.info("{} Region {} {}.".format(
-                colorer(name,    color="underline"),
-                colorer("added", color="green"),
-                str(region)))
-        # Check if SoCLinkerRegion
-        elif isinstance(region, SoCLinkerRegion):
-            if name in self.masters.keys():
-                self.logger.error("{} already declared as Linker Region:".format(colorer(name, color="red")))
-                self.logger.error(self)
-                raise
-            self.ld_regions[name] = region
-            overlap = self.check_regions_overlap(self.ld_regions)
-            if overlap is not None:
-                self.logger.error("Linker Region overlap between {} and {}:".format(
                     colorer(overlap[0], color="red"),
                     colorer(overlap[1], color="red")))
                 self.logger.error(str(self.regions[overlap[0]]))
@@ -257,15 +236,16 @@ class SoCBusHandler(Module):
         self.logger.error("Not enough Address Space to allocate Region")
         raise
 
-    def check_regions_overlap(self, regions):
+    def check_regions_overlap(self, regions, check_linker=False):
         i = 0
         while i < len(regions):
             n0 =  list(regions.keys())[i]
             r0 = regions[n0]
             for n1 in list(regions.keys())[i+1:]:
                 r1 = regions[n1]
-                if isinstance(r0, SoCLinkerRegion) or isinstance(r1, SoCLinkerRegion):
-                    continue
+                if r0.linker or r1.linker:
+                    if not check_linker:
+                        continue
                 if r0.origin >= (r1.origin + r1.size):
                     continue
                 if r1.origin >= (r0.origin + r0.size):
@@ -350,10 +330,6 @@ class SoCBusHandler(Module):
         r += "IO Regions: ({})\n".format(len(self.io_regions.keys())) if len(self.io_regions.keys()) else ""
         io_regions = {k: v for k, v in sorted(self.io_regions.items(), key=lambda item: item[1].origin)}
         for name, region in io_regions.items():
-           r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
-        r += "Linker Regions: ({})\n".format(len(self.ld_regions.keys())) if len(self.ld_regions.keys()) else ""
-        ld_regions = {k: v for k, v in sorted(self.ld_regions.items(), key=lambda item: item[1].origin)}
-        for name, region in ld_regions.items():
            r += colorer(name, color="underline") + " "*(20-len(name)) + ": " + str(region) + "\n"
         r += "Bus Regions: ({})\n".format(len(self.regions.keys())) if len(self.regions.keys()) else ""
         regions = {k: v for k, v in sorted(self.regions.items(), key=lambda item: item[1].origin)}
@@ -448,7 +424,7 @@ class SoCCSRHandler(SoCLocHandler):
         if data_width not in self.supported_data_width:
             self.logger.error("Unsupported data_width: {} supporteds: {:s}".format(
                 colorer(data_width, color="red"),
-                colorer(", ".join(str(x) for x in self.supported_data_width)), color="green"))
+                colorer(", ".join(str(x) for x in self.supported_data_width), color="green")))
             raise
 
         # Check Address Width
@@ -819,7 +795,7 @@ class SoC(Module):
         # SoC CPU Check ----------------------------------------------------------------------------
         if not isinstance(self.cpu, cpu.CPUNone):
             for name in ["rom", "sram"]:
-                if name not in list(self.bus.regions.keys()) + list(self.bus.ld_regions.keys()):
+                if name not in self.bus.regions.keys():
                     self.logger.error("CPU needs {} Region to be defined as Bus or Linker Region.".format(
                         colorer(name, color="red")))
                     self.logger.error(self.bus)
