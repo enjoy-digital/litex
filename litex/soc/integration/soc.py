@@ -889,6 +889,7 @@ class LiteXSoC(SoC):
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = True,
+        l2_cache_full_memory_we = True,
         **kwargs):
 
         # LiteDRAM core ----------------------------------------------------------------------------
@@ -910,7 +911,7 @@ class LiteXSoC(SoC):
                          module.geom_settings.colbits)*phy.settings.databits//8
         if size is not None:
             sdram_size = min(sdram_size, size)
-        self.bus.add_region("main_ram", SoCRegion(origin, sdram_size))
+        self.bus.add_region("main_ram", SoCRegion(origin=origin, size=sdram_size))
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
         if self.cpu.name == "rocket":
@@ -947,31 +948,25 @@ class LiteXSoC(SoC):
             wb_sdram = wishbone.Interface()
             self.bus.add_slave("main_ram", wb_sdram, SoCRegion(origin=origin, size=sdram_size))
 
+            # L2 Cache -----------------------------------------------------------------------------
             if l2_cache_size != 0:
                 # Insert L2 cache inbetween Wishbone bus and LiteDRAM
                 l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # Use minimal size if lower
                 l2_cache_size = 2**int(log2(l2_cache_size))                  # Round to nearest power of 2
-                self.add_config("L2_SIZE", l2_cache_size)
-
-                # L2 Cache -------------------------------------------------------------------------
                 l2_cache_data_width = max(port.data_width, l2_cache_min_data_width)
-                l2_cache = wishbone.Cache(
+                l2_cache            = wishbone.Cache(
                     cachesize = l2_cache_size//4,
                     master    = wb_sdram,
                     slave     = wishbone.Interface(l2_cache_data_width),
                     reverse   = l2_cache_reverse)
-                # XXX Vivado workaround, Vivado is not able to map correctly our L2 cache.
-                from litex.build.xilinx.vivado import XilinxVivadoToolchain
-                if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
-                    from migen.fhdl.simplify import FullMemoryWE
-                    self.submodules.l2_cache = FullMemoryWE()(l2_cache)
-                else:
-                    self.submodules.l2_cache = l2_cache
-                # L2 Cache <--> LiteDRAM bridge ----------------------------------------------------
-                self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(self.l2_cache.slave, port)
+                if l2_cache_full_memory_we:
+                    l2_cache = FullMemoryWE()(l2_cache)
+                self.submodules.l2_cache = l2_cache
+                litedram_wb = self.l2_cache.slave
             else:
-                self.add_config("L2_SIZE", l2_cache_size)
-                litedram_wb = wishbone.Interface(port.data_width)
+                litedram_wb     = wishbone.Interface(port.data_width)
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
-                # Wishbone Slave <--> LiteDRAM bridge ----------------------------------------------
-                self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port)
+            self.add_config("L2_SIZE", l2_cache_size)
+
+            # Wishbone Slave <--> LiteDRAM bridge --------------------------------------------------
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port)
