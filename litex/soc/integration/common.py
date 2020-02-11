@@ -20,12 +20,8 @@ def mem_decoder(address, size=0x10000000):
     return lambda a: (a[log2_int(size):] == (address >> log2_int(size)))
 
 def get_version(with_time=True):
-    if with_time:
-        return datetime.datetime.fromtimestamp(
-                time.time()).strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        return datetime.datetime.fromtimestamp(
-                time.time()).strftime("%Y-%m-%d")
+    fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
+    return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
 
 def get_mem_data(filename_or_regions, endianness="big", mem_size=None):
     # create memory regions
