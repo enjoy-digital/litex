@@ -876,7 +876,7 @@ class LiteXSoC(SoC):
                 pads     = self.platform.request("serial"),
                 clk_freq = self.sys_clk_freq,
                 baudrate = baudrate)
-            self.bus.master(name="uart_bridge", master=self.uart.wishbone)
+            self.bus.add_master(name="uart_bridge", master=self.uart.wishbone)
         elif name == "crossover":
             self.submodules.uart = uart.UARTCrossover()
         else:
