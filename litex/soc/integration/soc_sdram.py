@@ -3,6 +3,11 @@
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # License: BSD
 
+####################################################################################################
+#       DISCLAIMER: Provides retro-compatibility layer for existing SoCSDRAM based designs.
+#     Most of the SoC code has been refactored/improved and is now located in integration/soc.py
+####################################################################################################
+
 import inspect
 
 from migen import *

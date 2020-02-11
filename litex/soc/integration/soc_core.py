@@ -12,6 +12,10 @@
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
 # License: BSD
 
+####################################################################################################
+#       DISCLAIMER: Provides retro-compatibility layer for existing SoCCore based designs.
+#     Most of the SoC code has been refactored/improved and is now located in integration/soc.py
+####################################################################################################
 
 import os
 import inspect
