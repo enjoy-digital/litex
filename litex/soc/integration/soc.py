@@ -812,9 +812,9 @@ class SoC(Module):
         # Add Memory regions
         for name, memory, mapaddr, mmap in self.csr_bankarray.srams:
             self.csr.add_region(name + "_" + memory.name_override, SoCCSRRegion(
-                origin   = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
-                busworkd = self.csr.data_width,
-                obj      = memory))
+                origin  = (self.bus.regions["csr"].origin + self.csr.paging*mapaddr),
+                busword = self.csr.data_width,
+                obj     = memory))
 
         # Sort CSR regions by origin
         self.csr.regions = {k: v for k, v in sorted(self.csr.regions.items(), key=lambda item: item[1].origin)}
