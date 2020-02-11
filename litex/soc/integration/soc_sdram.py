@@ -3,10 +3,6 @@
 # This file is Copyright (c) 2019 Gabriel L. Somlo <somlo@cmu.edu>
 # License: BSD
 
-####################################################################################################
-#          DISCLAIMER: ONLY USE FOR RETRO-COMPATIBILITY, NOT RECOMMENDED FOR NEW DESIGNS           #
-####################################################################################################
-
 import inspect
 
 from migen import *

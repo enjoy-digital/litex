@@ -12,9 +12,6 @@
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
 # License: BSD
 
-####################################################################################################
-#          DISCLAIMER: ONLY USE FOR RETRO-COMPATIBILITY, NOT RECOMMENDED FOR NEW DESIGNS           #
-####################################################################################################
 
 import os
 import inspect
