@@ -109,23 +109,26 @@ class SoCBusHandler(Module):
 
         # Check Standard
         if standard not in self.supported_standard:
-            self.logger.error("Unsupported Standard: {} supporteds: {:s}".format(
-                colorer(standard, color="red"),
-                colorer(", ".join(self.supported_standard), color="green")))
+            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+                colorer("Bus standard", color="red"),
+                colorer(standard),
+                colorer(", ".join(self.supported_standard))))
             raise
 
         # Check Data Width
         if data_width not in self.supported_data_width:
-            self.logger.error("Unsupported Data_Width: {} supporteds: {:s}".format(
-                colorer(data_width, color="red"),
-                colorer(", ".join(str(x) for x in self.supported_data_width), color="green")))
+            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+                colorer("Data Width", color="red"),
+                colorer(data_width),
+                colorer(", ".join(str(x) for x in self.supported_data_width))))
             raise
 
         # Check Address Width
         if address_width not in self.supported_address_width:
-            self.logger.error("Unsupported Address Width: {} supporteds: {:s}".format(
-                colorer(data_width, color="red"),
-                colorer(", ".join(str(x) for x in self.supported_address_width), color="green")))
+            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+                colorer("Address Width", color="red"),
+                colorer(data_width),
+                colorer(", ".join(str(x) for x in self.supported_address_width))))
             raise
 
         # Create Bus
@@ -161,11 +164,12 @@ class SoCBusHandler(Module):
             self.io_regions[name] = region
             overlap = self.check_regions_overlap(self.io_regions)
             if overlap is not None:
-                self.logger.error("IO Region overlap between {} and {}:".format(
-                    colorer(overlap[0], color="red"),
-                    colorer(overlap[1], color="red")))
-                self.logger.error(str(self.regions[overlap[0]]))
-                self.logger.error(str(self.regions[overlap[1]]))
+                self.logger.error("IO Region {} between {} and {}:".format(
+                    colorer("overlap", color="red"),
+                    colorer(overlap[0]),
+                    colorer(overlap[1])))
+                self.logger.error(str(self.io_regions[overlap[0]]))
+                self.logger.error(str(self.io_regions[overlap[1]]))
                 raise
             self.logger.info("{} Region {} {}.".format(
                 colorer(name,    color="underline"),
@@ -182,18 +186,19 @@ class SoCBusHandler(Module):
             else:
                 if not region.cached:
                     if not self.check_region_is_io(region):
-                        self.logger.error("{} Region {}: {}".format(
-                            colorer(name, color="red"),
-                            colorer("not cached but not in IO region", color="red"),
+                        self.logger.error("{} Region {}: {}.".format(
+                            colorer(name),
+                            colorer("not in IO region", color="red"),
                             str(region)))
                         self.logger.error(self)
                         raise
                 self.regions[name] = region
                 overlap = self.check_regions_overlap(self.regions)
                 if overlap is not None:
-                    self.logger.error("Region overlap between {} and {}:".format(
-                        colorer(overlap[0], color="red"),
-                        colorer(overlap[1], color="red")))
+                    self.logger.error("Region {} between {} and {}:".format(
+                        colorer("overlap", color="red"),
+                        colorer(overlap[0]),
+                        colorer(overlap[1])))
                     self.logger.error(str(self.regions[overlap[0]]))
                     self.logger.error(str(self.regions[overlap[1]]))
                     raise
@@ -202,7 +207,7 @@ class SoCBusHandler(Module):
                 colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
                 str(region)))
         else:
-            self.logger.error("{} is not a supported Region".format(colorer(name, color="red")))
+            self.logger.error("{} is not a supported Region.".format(colorer(name, color="red")))
             raise
 
     def alloc_region(self, name, size, cached=True):
@@ -233,7 +238,7 @@ class SoCBusHandler(Module):
                     # If no overlap, the Candidate is selected
                     return candidate
 
-        self.logger.error("Not enough Address Space to allocate Region")
+        self.logger.error("Not enough Address Space to allocate Region.")
         raise
 
     def check_regions_overlap(self, regions, check_linker=False):
@@ -287,7 +292,9 @@ class SoCBusHandler(Module):
         if name is None:
             name = "master{:d}".format(len(self.masters))
         if name in self.masters.keys():
-            self.logger.error("{} already declared as Bus Master:".format(colorer(name, color="red")))
+            self.logger.error("{} {} as Bus Master:".format(
+                colorer(name),
+                colorer("already declared", color="red")))
             self.logger.error(self)
             raise
         master = self.add_adapter(name, master)
@@ -300,21 +307,26 @@ class SoCBusHandler(Module):
         no_name   = name is None
         no_region = region is None
         if no_name and no_region:
-            self.logger.error("Please specify at least {} or {} of Bus Slave".format(
-                colorer("name",   color="red"),
-                colorer("region", color="red")))
+            self.logger.error("Please {} {} or/and {} of Bus Slave.".format(
+                colorer("specify", color="red"),
+                colorer("name"),
+                colorer("region")))
             raise
         if no_name:
             name = "slave{:d}".format(len(self.slaves))
         if no_region:
             region = self.regions.get(name, None)
             if region is None:
-                self.logger.error("Unable to find Region {}".format(colorer(name, color="red")))
+                self.logger.error("{} Region {}.".format(
+                    colorer(name),
+                    colorer("not found", color="red")))
                 raise
         else:
              self.add_region(name, region)
         if name in self.slaves.keys():
-            self.logger.error("{} already declared as Bus Slave:".format(colorer(name, color="red")))
+            self.logger.error("{} {} as Bus Slave:".format(
+                colorer(name),
+                colorer("already declared", color="red")))
             self.logger.error(self)
             raise
         slave = self.add_adapter(name, slave)
@@ -358,11 +370,13 @@ class SoCLocHandler(Module):
         allocated = False
         if not (use_loc_if_exists and name in self.locs.keys()):
             if name in self.locs.keys():
-                self.logger.error("{} {} name already used.".format(colorer(name, "red"), self.name))
+                self.logger.error("{} {} name {}.".format(
+                    colorer(name), self.name, colorer("already used", color="red")))
                 self.logger.error(self)
                 raise
             if n in self.locs.values():
-                self.logger.error("{} {} Location already used.".format(colorer(n, "red"), self.name))
+                self.logger.error("{} {} Location {}.".format(
+                    colorer(n), self.name, colorer("already used", color="red")))
                 self.logger.error(self)
                 raise
             if n is None:
@@ -370,15 +384,17 @@ class SoCLocHandler(Module):
                 n = self.alloc(name)
             else:
                 if n < 0:
-                    self.logger.error("{} {} Location should be positive.".format(
-                        colorer(n, color="red"),
-                        self.name))
+                    self.logger.error("{} {} Location should be {}.".format(
+                        colorer(n),
+                        self.name,
+                        colorer("positive", color="red")))
                     raise
                 if n > self.n_locs:
-                    self.logger.error("{} {} Location too high (Up to {}).".format(
-                        colorer(n, color="red"),
+                    self.logger.error("{} {} Location {} than maximum: {}.".format(
+                        colorer(n),
                         self.name,
-                        colorer(self.n_csrs, color="green")))
+                        colorer("higher", color="red"),
+                        colorer(self.n_locs)))
                     raise
             self.locs[name] = n
         else:
@@ -422,35 +438,40 @@ class SoCCSRHandler(SoCLocHandler):
 
         # Check Data Width
         if data_width not in self.supported_data_width:
-            self.logger.error("Unsupported data_width: {} supporteds: {:s}".format(
-                colorer(data_width, color="red"),
-                colorer(", ".join(str(x) for x in self.supported_data_width), color="green")))
+            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+                colorer("Data Width", color="red"),
+                colorer(data_width),
+                colorer(", ".join(str(x) for x in self.supported_data_width))))
             raise
 
         # Check Address Width
         if address_width not in self.supported_address_width:
-            self.logger.error("Unsupported address_width: {} supporteds: {:s}".format(
-                colorer(address_width, color="red"),
-                colorer(", ".join(str(x) for x in self.supported_address_width), color="green")))
+            self.logger.error("Unsupported {} {} supporteds: {:s}".format(
+                colorer("Address Width", color="red"),
+                colorer(address_width),
+                colorer(", ".join(str(x) for x in self.supported_address_width))))
             raise
 
         # Check Alignment
         if alignment not in self.supported_alignment:
-            self.logger.error("Unsupported alignment: {} supporteds: {:s}".format(
-                colorer(alignment, color="red"),
-                colorer(", ".join(str(x) for x in self.supported_alignment), color="green")))
+            self.logger.error("Unsupported {}: {} supporteds: {:s}".format(
+                colorer("Alignment", color="red"),
+                colorer(alignment),
+                colorer(", ".join(str(x) for x in self.supported_alignment))))
             raise
         if data_width > alignment:
-            self.logger.error("Alignment ({}) should be >= data_width ({})".format(
-                colorer(alignment,  color="red"),
-                colorer(data_width, color="red")))
+            self.logger.error("Alignment ({}) {} Data Width ({})".format(
+                colorer(alignment),
+                colorer("should be >=", color="red"),
+                colorer(data_width)))
             raise
 
         # Check Paging
         if paging not in self.supported_paging:
-            self.logger.error("Unsupported paging: {} supporteds: {:s}".format(
-                colorer(paging, color="red"),
-                colorer(", ".join(str(x) for x in self.supported_paging), color="green")))
+            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+                colorer("Paging", color="red"),
+                colorer(paging),
+                colorer(", ".join(str(x) for x in self.supported_paging))))
             raise
 
         # Create CSR Handler
@@ -478,15 +499,17 @@ class SoCCSRHandler(SoCLocHandler):
         if name is None:
             name = "master{:d}".format(len(self.masters))
         if name in self.masters.keys():
-            self.logger.error("{} already declared as CSR Master:".format(colorer(name, color="red")))
+            self.logger.error("{} {} as CSR Master:".format(
+                colorer(name),
+                colorer("already declared", color="red")))
             self.logger.error(self)
             raise
         if master.data_width != self.data_width:
-            self.logger.error("{} Master/Handler data_width {} ({} vs {}).".format(
+            self.logger.error("{} Master/Handler Data Width {} ({} vs {}).".format(
                 colorer(name),
-                colorer("missmatch"),
-                colorer(master.data_width, color="red"),
-                colorer(self.data_width,   color="red")))
+                colorer("missmatch", color="red"),
+                colorer(master.data_width),
+                colorer(self.data_width)))
             raise
         self.masters[name] = master
         self.logger.info("{} {} as CSR Master.".format(
@@ -503,7 +526,10 @@ class SoCCSRHandler(SoCLocHandler):
         if memory is not None:
             name = name + "_" + memory.name_override
         if self.locs.get(name, None) is None:
-            self.logger.error("Undefined {} CSR.".format(colorer(name, color="red")))
+            self.logger.error("CSR {} {}.".format(
+                colorer(name),
+                colorer("not found", color="red")))
+            self.logger.error(self)
             raise
         return self.locs[name]
 
@@ -653,13 +679,17 @@ class SoC(Module):
     # SoC Helpers ----------------------------------------------------------------------------------
     def check_if_exists(self, name):
         if hasattr(self, name):
-            self.logger.error("{} SubModule already declared.".format(colorer(name, "red")))
+            self.logger.error("{} SubModule already {}.".format(
+                colorer(name),
+                colorer("declared", color="red")))
             raise
 
     def add_constant(self, name, value=None):
         name = name.upper()
         if name in self.constants.keys():
-            self.logger.error("{} Constant already declared.".format(colorer(name, "red")))
+            self.logger.error("{} Constant already {}.".format(
+                colorer(name),
+                colorer("declared", color="red")))
             raise
         self.constants[name] = SoCConstant(value)
 
@@ -704,9 +734,10 @@ class SoC(Module):
 
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None):
         if name not in cpu.CPUS.keys():
-            self.logger.error("{} CPU not supported, supporteds: {}".format(
-                colorer(name, color="red"),
-                colorer(", ".join(cpu.CPUS.keys()), color="green")))
+            self.logger.error("{} CPU {}, supporteds: {}".format(
+                colorer(name),
+                colorer("not supported", color="red"),
+                colorer(", ".join(cpu.CPUS.keys()))))
             raise
         # Add CPU
         self.submodules.cpu = cpu.CPUS[name](self.platform, variant)
@@ -796,8 +827,9 @@ class SoC(Module):
         if not isinstance(self.cpu, cpu.CPUNone):
             for name in ["rom", "sram"]:
                 if name not in self.bus.regions.keys():
-                    self.logger.error("CPU needs {} Region to be defined as Bus or Linker Region.".format(
-                        colorer(name, color="red")))
+                    self.logger.error("CPU needs {} Region to be {} as Bus or Linker Region.".format(
+                        colorer(name),
+                        colorer("defined", color="red")))
                     self.logger.error(self.bus)
                     raise
 
@@ -810,8 +842,10 @@ class SoC(Module):
                     if hasattr(self, name):
                         module = getattr(self, name)
                         if not hasattr(module, "ev"):
-                            self.logger.error("No EventManager found on {} SubModule".format(
-                                colorer(name, color="red")))
+                            self.logger.error("EventManager {} in {} SubModule.".format(
+                                colorer("not found", color="red"),
+                                colorer(name)))
+                            raise
                         self.comb += self.cpu.interrupt[loc].eq(module.ev.irq)
                     self.add_constant(name + "_INTERRUPT", loc)
 
