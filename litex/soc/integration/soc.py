@@ -958,7 +958,7 @@ class LiteXSoC(SoC):
         elif self.with_wishbone:
             # Wishbone Slave SDRAM interface -------------------------------------------------------
             wb_sdram = wishbone.Interface()
-            self.bus.add_slave("main_ram", wb_sdram, SoCRegion(origin=origin, size=sdram_size))
+            self.bus.add_slave("main_ram", wb_sdram)
 
             # L2 Cache -----------------------------------------------------------------------------
             if l2_cache_size != 0:
