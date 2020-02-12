@@ -482,8 +482,9 @@ class SoCCSRHandler(SoCLocHandler):
         self.paging        = paging
         self.masters       = {}
         self.regions       = {}
-        self.logger.info("{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).".format(
+        self.logger.info("{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging (Up to {} Locations).".format(
             colorer(self.data_width),
+            colorer(self.alignment),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
             colorer(self.n_locs)))
@@ -504,6 +505,10 @@ class SoCCSRHandler(SoCLocHandler):
                 colorer(alignment),
                 colorer(", ".join(str(x) for x in self.supported_alignment))))
             raise
+        self.logger.info("Alignment {} from {}-bit to {}-bit.".format(
+            colorer("updated", color="cyan"),
+            colorer(self.alignment),
+            colorer(alignment)))
         self.alignment = alignment
 
     # Add Master -----------------------------------------------------------------------------------
@@ -547,8 +552,9 @@ class SoCCSRHandler(SoCLocHandler):
 
     # Str ------------------------------------------------------------------------------------------
     def __str__(self):
-        r = "{}-bit CSR Bus, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
+        r = "{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging (Up to {} Locations).\n".format(
             colorer(self.data_width),
+            colorer(self.alignment),
             colorer(2**self.address_width/2**10),
             colorer(self.paging),
             colorer(self.n_locs))
