@@ -22,6 +22,7 @@ from litex.soc.interconnect import axi
 
 from litedram.core import LiteDRAMCore
 from litedram.frontend.wishbone import LiteDRAMWishbone2Native
+from litedram.frontend.axi import LiteDRAMAXI2Native
 
 # TODO:
 # - replace raise with exit on logging error.
@@ -607,6 +608,7 @@ class SoCController(Module, AutoCSR):
 # SoC ----------------------------------------------------------------------------------------------
 
 class SoC(Module):
+    mem_map = {}
     def __init__(self, platform, sys_clk_freq,
 
         bus_standard         = "wishbone",
@@ -752,7 +754,7 @@ class SoC(Module):
             self.cpu.set_reset_address(reset_address)
             for n, cpu_bus in enumerate(self.cpu.buses):
                 self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
-            self.add_csr("cpu", use_loc_if_exists=True)
+            self.csr.add("cpu", use_loc_if_exists=True)
             for name, loc in self.cpu.interrupts.items():
                 self.irq.add(name, loc)
             if hasattr(self, "ctrl"):
