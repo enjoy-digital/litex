@@ -495,6 +495,17 @@ class SoCCSRHandler(SoCLocHandler):
 
         self.logger.info("CSR Handler {}.".format(colorer("created", color="green")))
 
+    # Update CSR Alignment ----------------------------------------------------------------------------
+    def update_alignment(self, alignment):
+        # Check Alignment
+        if alignment not in self.supported_alignment:
+            self.logger.error("Unsupported {}: {} supporteds: {:s}".format(
+                colorer("Alignment", color="red"),
+                colorer(alignment),
+                colorer(", ".join(str(x) for x in self.supported_alignment))))
+            raise
+        self.alignment = alignment
+
     # Add Master -----------------------------------------------------------------------------------
     def add_master(self, name=None, master=None):
         if name is None:
@@ -747,6 +758,7 @@ class SoC(Module):
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
         self.mem_map.update(self.cpu.mem_map) # FIXME
+        self.csr.update_alignment(self.cpu.data_width)
         # Add Bus Masters/CSR/IRQs
         if not isinstance(self.cpu, cpu.CPUNone):
             if reset_address is None:
