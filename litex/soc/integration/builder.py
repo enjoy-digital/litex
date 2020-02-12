@@ -5,6 +5,7 @@
 # This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
 # This file is Copyright (c) 2016-2017 Tim 'mithro' Ansell <mithro@mithis.com>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# This file is Copyright (c) 2020 Xiretza <xiretza@xiretza.xyz>
 # License: BSD
 
 
@@ -37,23 +38,25 @@ def _makefile_escape(s):
 
 class Builder:
     def __init__(self, soc,
-                 output_dir=None,
-                 gateware_dir=None,
-                 software_dir=None,
-                 include_dir=None,
-                 generated_dir=None,
-                 compile_software=True, compile_gateware=True,
-                 gateware_toolchain_path=None,
-                 csr_json=None, csr_csv=None):
+        output_dir              = None,
+        gateware_dir            = None,
+        software_dir            = None,
+        include_dir             = None,
+        generated_dir           = None,
+        compile_software        = True,
+        compile_gateware        = True,
+        gateware_toolchain_path = None,
+        csr_json                = None,
+        csr_csv                 = None):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path
         # elements to create include '..'
-        self.output_dir    = os.path.abspath(output_dir or "soc_{}_{}".format(soc.__class__.__name__.lower(), soc.platform.name))
-        self.gateware_dir  = os.path.abspath(gateware_dir or os.path.join(self.output_dir, "gateware"))
-        self.software_dir  = os.path.abspath(software_dir or os.path.join(self.output_dir, "software"))
-        self.include_dir   = os.path.abspath(include_dir or os.path.join(self.software_dir, "include"))
-        self.generated_dir = os.path.abspath(generated_dir or os.path.join(self.include_dir, "generated"))
+        self.output_dir    = os.path.abspath(output_dir    or "soc_{}_{}".format(soc.__class__.__name__.lower(), soc.platform.name))
+        self.gateware_dir  = os.path.abspath(gateware_dir  or os.path.join(self.output_dir,   "gateware"))
+        self.software_dir  = os.path.abspath(software_dir  or os.path.join(self.output_dir,   "software"))
+        self.include_dir   = os.path.abspath(include_dir   or os.path.join(self.software_dir, "include"))
+        self.generated_dir = os.path.abspath(generated_dir or os.path.join(self.include_dir,  "generated"))
 
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
