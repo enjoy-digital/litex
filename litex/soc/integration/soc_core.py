@@ -120,14 +120,14 @@ class SoCCore(LiteXSoC):
         self.config      = {}
 
         # Parameters management --------------------------------------------------------------------
-        if cpu_type == "None":
-            cpu_type = None
+        cpu_type    = None if cpu_type == "None" else cpu_type
+        cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
 
         if not with_wishbone:
             self.mem_map["csr"]  = 0x00000000
 
         self.cpu_type                   = cpu_type
-        self.cpu_variant                = cpu.check_format_cpu_variant(cpu_variant)
+        self.cpu_variant                = cpu_variant
 
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
