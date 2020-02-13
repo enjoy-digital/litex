@@ -333,7 +333,7 @@ def get_svd(soc, vendor="litex", name="soc", description=None):
         svd.append('                </register>')
 
     interrupts = {}
-    for csr, irq in sorted(soc.soc_interrupt_map.items()):
+    for csr, irq in sorted(soc.irq.locs.items()):
         interrupts[csr] = irq
 
     documented_regions = []

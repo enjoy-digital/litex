@@ -70,7 +70,7 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
 
     # Gather all interrupts so we can easily map IRQ numbers to CSR sections
     interrupts = {}
-    for csr, irq in sorted(soc.soc_interrupt_map.items()):
+    for csr, irq in sorted(soc.irq.locs.items()):
         interrupts[csr] = irq
 
     # Convert each CSR region into a DocumentedCSRRegion.
