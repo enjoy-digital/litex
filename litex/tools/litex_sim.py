@@ -160,6 +160,8 @@ class SimSoC(SoCSDRAM):
         sdram_module          = "MT48LC16M16",
         sdram_init            = [],
         sdram_data_width      = 32,
+        sdram_timing_checker  = False,
+        sdram_verbose_timings = False,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -189,7 +191,13 @@ class SimSoC(SoCSDRAM):
                 memtype    = sdram_module.memtype,
                 data_width = sdram_data_width,
                 clk_freq   = sdram_clk_freq)
-            self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings, init=sdram_init)
+            self.submodules.sdrphy = SDRAMPHYModel(
+                sdram_module,
+                phy_settings,
+                sdram_clk_freq,
+                use_timing_checker=sdram_timing_checker,
+                verbose_timing_checker=sdram_verbose_timings,
+                init=sdram_init)
             self.register_sdram(
                 self.sdrphy,
                 sdram_module.geom_settings,
@@ -247,20 +255,22 @@ def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     builder_args(parser)
     soc_sdram_args(parser)
-    parser.add_argument("--threads",            default=1,              help="Set number of threads (default=1)")
-    parser.add_argument("--rom-init",           default=None,           help="rom_init file")
-    parser.add_argument("--ram-init",           default=None,           help="ram_init file")
-    parser.add_argument("--with-sdram",         action="store_true",    help="Enable SDRAM support")
-    parser.add_argument("--sdram-module",       default="MT48LC16M16",  help="Select SDRAM chip")
-    parser.add_argument("--sdram-data-width",   default=32,             help="Set SDRAM chip data width")
-    parser.add_argument("--sdram-init",         default=None,           help="SDRAM init file")
-    parser.add_argument("--with-ethernet",      action="store_true",    help="Enable Ethernet support")
-    parser.add_argument("--with-etherbone",     action="store_true",    help="Enable Etherbone support")
-    parser.add_argument("--with-analyzer",      action="store_true",    help="Enable Analyzer support")
-    parser.add_argument("--trace",              action="store_true",    help="Enable VCD tracing")
-    parser.add_argument("--trace-start",        default=0,              help="Cycle to start VCD tracing")
-    parser.add_argument("--trace-end",          default=-1,             help="Cycle to end VCD tracing")
-    parser.add_argument("--opt-level",          default="O3",           help="Compilation optimization level")
+    parser.add_argument("--threads",              default=1,             help="Set number of threads (default=1)")
+    parser.add_argument("--rom-init",             default=None,          help="rom_init file")
+    parser.add_argument("--ram-init",             default=None,          help="ram_init file")
+    parser.add_argument("--with-sdram",           action="store_true",   help="Enable SDRAM support")
+    parser.add_argument("--sdram-module",         default="MT48LC16M16", help="Select SDRAM chip")
+    parser.add_argument("--sdram-data-width",     default=32,            help="Set SDRAM chip data width")
+    parser.add_argument("--sdram-init",           default=None,          help="SDRAM init file")
+    parser.add_argument("--sdram-no-timing",      action="store_true",   help="Disable SDRAM timing verification checks")
+    parser.add_argument("--sdram-verbose-timing", action="store_true",   help="Enable SDRAM verbose timing logging")
+    parser.add_argument("--with-ethernet",        action="store_true",   help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone",       action="store_true",   help="Enable Etherbone support")
+    parser.add_argument("--with-analyzer",        action="store_true",   help="Enable Analyzer support")
+    parser.add_argument("--trace",                action="store_true",   help="Enable VCD tracing")
+    parser.add_argument("--trace-start",          default=0,             help="Cycle to start VCD tracing")
+    parser.add_argument("--trace-end",            default=-1,            help="Cycle to end VCD tracing")
+    parser.add_argument("--opt-level",            default="O3",          help="Compilation optimization level")
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
@@ -287,6 +297,8 @@ def main():
         soc_kwargs["integrated_main_ram_size"] = 0x0
         soc_kwargs["sdram_module"] = args.sdram_module
         soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
+        soc_kwargs["sdram_timing_checker"] = not args.sdram_no_timing
+        soc_kwargs["sdram_verbose_timings"] = args.sdram_verbose_timing
 
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
