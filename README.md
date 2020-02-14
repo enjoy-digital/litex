@@ -1,4 +1,4 @@
-![LiteX](https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png)
+![LiteX](doc/litex.png)
 ```
               Copyright 2012-2020 / EnjoyDigital
 ```
@@ -95,6 +95,9 @@ Migen documentation can be found here: https://m-labs.hk/migen/manual
 # Quick start guide (for advanced users)
 0. Install Python 3.5+ and FPGA vendor's development tools.
 1. Install Migen/LiteX and the LiteX's cores:
+
+On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``brew install wget``.
+
 ```sh
 $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
 $ chmod +x litex_setup.py
@@ -105,28 +108,47 @@ $ ./litex_setup.py init install --user (--user to install to user directory)
 $ ./litex_setup.py update
 ```
 3. Install a RISC-V toolchain:
+
+For Linux:
 ```sh
 $ wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
 $ tar -xvf riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
 $ export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 ```
+MacOS:
+```sh
+$ wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin.tar.gz
+$ tar -xvf riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin.tar.gz
+$ export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin/bin/
+```
 4. Build the target of your board...:
   Go to litex-boards/litex_boards/xxyy/targets (xxyy being community/official/partner) and execute the target you want to build
 
-5. ... and/or install Verilator and test LiteX on your computer:
-  Download and install Verilator: http://www.veripool.org/
-  On Fedora:
+5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX on your computer 
+
+On Fedora:
 ```sh
 $ sudo dnf install libevent-devel json-c-devel
 ```
-  On Ubuntu:
+On Ubuntu:
 ```sh
-$ sudo apt install libevent-dev libjson-c-dev
+$ sudo apt install libevent-dev libjson-c-dev verilator
+$ litex_sim
+```
+On MacOS:
+
+
+```sh
+$ brew install json-c verilator libevent
+$ brew cask install tuntap
 $ litex_sim
 ```
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
-  You should get the BIOS prompt.
+
+  You should get the BIOS prompt like the one below.
+
+![bios_screenshot](doc/bios_screenshot.png)
 
 # Contact
 E-mail: florent@enjoy-digital.fr
