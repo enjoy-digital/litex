@@ -169,6 +169,10 @@ class SoCCore(LiteXSoC):
         if integrated_main_ram_size:
             self.add_ram("main_ram", self.mem_map["main_ram"], integrated_main_ram_size)
 
+        # Add Identifier
+        if ident != "":
+            self.add_identifier("identifier", identifier=ident, with_build_time=ident_version)
+
         # Add UART
         if with_uart:
             self.add_uart(name=uart_name, baudrate=uart_baudrate)

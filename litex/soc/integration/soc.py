@@ -881,7 +881,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         if with_build_time:
             identifier += " " + build_time()
-        setattr(self.submodules, name, Identifier(ident))
+        setattr(self.submodules, name, Identifier(identifier))
         self.csr.add(name + "_mem", use_loc_if_exists=True)
 
     # Add UART -------------------------------------------------------------------------------------
