@@ -160,8 +160,7 @@ class SimSoC(SoCSDRAM):
         sdram_module          = "MT48LC16M16",
         sdram_init            = [],
         sdram_data_width      = 32,
-        sdram_timing_checker  = False,
-        sdram_verbose_timings = False,
+        sdram_verbosity       = 0,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -192,12 +191,11 @@ class SimSoC(SoCSDRAM):
                 data_width = sdram_data_width,
                 clk_freq   = sdram_clk_freq)
             self.submodules.sdrphy = SDRAMPHYModel(
-                sdram_module,
-                phy_settings,
-                sdram_clk_freq,
-                use_timing_checker=sdram_timing_checker,
-                verbose_timing_checker=sdram_verbose_timings,
-                init=sdram_init)
+                module    = sdram_module,
+                settings  = phy_settings,
+                clk_freq  = sdram_clk_freq,
+                verbosity = sdram_verbosity,
+                init      = sdram_init)
             self.register_sdram(
                 self.sdrphy,
                 sdram_module.geom_settings,
@@ -262,8 +260,7 @@ def main():
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
-    parser.add_argument("--sdram-no-timing",      action="store_true",     help="Disable SDRAM timing verification checks")
-    parser.add_argument("--sdram-verbose-timing", action="store_true",     help="Enable SDRAM verbose timing logging")
+    parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
@@ -297,10 +294,9 @@ def main():
     else:
         assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
-        soc_kwargs["sdram_module"] = args.sdram_module
-        soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
-        soc_kwargs["sdram_timing_checker"] = not args.sdram_no_timing
-        soc_kwargs["sdram_verbose_timings"] = args.sdram_verbose_timing
+        soc_kwargs["sdram_module"]             = args.sdram_module
+        soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
+        soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
 
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
