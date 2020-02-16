@@ -26,7 +26,6 @@ from litedram.frontend.axi import LiteDRAMAXI2Native
 
 # TODO:
 # - replace raise with exit on logging error.
-# - add configurable CSR paging.
 # - cleanup SoCCSRRegion
 
 logging.basicConfig(level=logging.INFO)
@@ -429,7 +428,7 @@ class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
     supported_address_width = [14, 15]
     supported_alignment     = [32, 64]
-    supported_paging        = [0x800]
+    supported_paging        = [0x800, 0x1000]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
@@ -815,7 +814,8 @@ class SoC(Module):
             address_map   = self.csr.address_map,
             data_width    = self.csr.data_width,
             address_width = self.csr.address_width,
-            alignment     = self.csr.alignment
+            alignment     = self.csr.alignment,
+            paging        = self.csr.paging,
         )
         if len(self.csr.masters):
             self.submodules.csr_interconnect = csr_bus.InterconnectShared(
