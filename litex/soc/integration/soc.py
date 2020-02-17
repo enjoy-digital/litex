@@ -426,9 +426,9 @@ class SoCLocHandler(Module):
 
 class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
-    supported_address_width = [14, 15]
+    supported_address_width = [14+i for i in range(4)]
     supported_alignment     = [32, 64]
-    supported_paging        = [0x800*2**i for i in range(3)]
+    supported_paging        = [0x800*2**i for i in range(4)]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
