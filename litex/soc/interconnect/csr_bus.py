@@ -78,22 +78,23 @@ class InterconnectShared(Module):
 
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, address, paging=0x800, read_only=None, init=None, bus=None):
+    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800):
         if bus is None:
             bus = Interface()
         self.bus = bus
+        aligned_paging = paging//(bus.alignment//8)
         data_width = len(self.bus.dat_w)
         if isinstance(mem_or_size, Memory):
             mem = mem_or_size
         else:
             mem = Memory(data_width, mem_or_size//(data_width//8), init=init)
         mem_size = int(mem.width*mem.depth/8)
-        if mem_size > paging//4:
+        if mem_size > aligned_paging:
             print("WARNING: memory > {} bytes in CSR region requires paged access (mem_size = {} bytes)".format(
                 paging//4, mem_size))
         csrw_per_memw = (mem.width + data_width - 1)//data_width
         word_bits = log2_int(csrw_per_memw)
-        page_bits = log2_int((mem.depth*csrw_per_memw + paging//4 - 1)//(paging//4), False)
+        page_bits = log2_int((mem.depth*csrw_per_memw + aligned_paging - 1)//aligned_paging, False)
         if page_bits:
             self._page = CSRStorage(page_bits, name=mem.name_override + "_page")
         else:
@@ -112,7 +113,7 @@ class SRAM(Module):
         sel = Signal()
         sel_r = Signal()
         self.sync += sel_r.eq(sel)
-        self.comb += sel.eq(self.bus.adr[log2_int(paging//4):] == address)
+        self.comb += sel.eq(self.bus.adr[log2_int(aligned_paging):] == address)
         if bus.alignment == 64:
             self.comb += If(self.bus.adr[0], sel.eq(0))
 
@@ -165,13 +166,13 @@ class CSRBank(csr.GenericBank):
         if bus is None:
             bus = Interface()
         self.bus = bus
-
+        aligned_paging = paging//(bus.alignment//8)
         ###
 
         csr.GenericBank.__init__(self, description, len(self.bus.dat_w))
 
         sel = Signal()
-        self.comb += sel.eq(self.bus.adr[log2_int(paging//4):] == address)
+        self.comb += sel.eq(self.bus.adr[log2_int(aligned_paging):] == address)
         if bus.alignment == 64:
             self.comb += If(self.bus.adr[0], sel.eq(0))
 

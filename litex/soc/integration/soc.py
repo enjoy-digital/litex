@@ -428,11 +428,11 @@ class SoCCSRHandler(SoCLocHandler):
     supported_data_width    = [8, 32]
     supported_address_width = [14, 15]
     supported_alignment     = [32, 64]
-    supported_paging        = [0x800, 0x1000]
+    supported_paging        = [0x800*2**i for i in range(3)]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, reserved_csrs={}):
-        SoCLocHandler.__init__(self, "CSR", n_locs=4*2**address_width//paging) # FIXME
+        SoCLocHandler.__init__(self, "CSR", n_locs=alignment//8*(2**address_width)//paging)
         self.logger = logging.getLogger("SoCCSRHandler")
         self.logger.info("Creating CSR Handler...")
 
@@ -468,10 +468,10 @@ class SoCCSRHandler(SoCLocHandler):
 
         # Check Paging
         if paging not in self.supported_paging:
-            self.logger.error("Unsupported {} {}, supporteds: {:s}".format(
+            self.logger.error("Unsupported {} 0x{}, supporteds: {:s}".format(
                 colorer("Paging", color="red"),
-                colorer(paging),
-                colorer(", ".join(str(x) for x in self.supported_paging))))
+                colorer("{:x}".format(paging)),
+                colorer(", ".join("0x{:x}".format(x) for x in self.supported_paging))))
             raise
 
         # Create CSR Handler
