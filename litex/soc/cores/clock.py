@@ -292,8 +292,8 @@ class S7MMCM(XilinxClocking):
 
 
 class S7IDELAYCTRL(Module):
-    def __init__(self, cd):
-        reset_counter = Signal(4, reset=15)
+    def __init__(self, cd, reset_cycles=16):
+        reset_counter = Signal(log2_int(reset_cycles), reset=reset_cycles - 1)
         ic_reset      = Signal(reset=1)
         sync = getattr(self.sync, cd.name)
         sync += \
@@ -385,8 +385,8 @@ class USMMCM(XilinxClocking):
 
 
 class USIDELAYCTRL(Module):
-    def __init__(self, cd):
-        reset_counter = Signal(6, reset=63)
+    def __init__(self, cd, reset_cycles=64):
+        reset_counter = Signal(log2_int(reset_cycles), reset=reset_cycles - 1)
         ic_reset = Signal(reset=1)
         sync = getattr(self.sync, cd.name)
         sync += \
