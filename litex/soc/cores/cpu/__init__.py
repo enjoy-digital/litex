@@ -93,6 +93,8 @@ def check_format_cpu_variant(variant):
 	# Support the old style which used underscore for separator
     if variant is None:
         variant = "standard"
+    if variant == "debug":
+        variant = "standard+debug"
     variant = variant.replace('_', '+')
 
     # Check for valid CPU variants.
