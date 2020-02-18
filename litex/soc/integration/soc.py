@@ -171,7 +171,7 @@ class SoCBusHandler(Module):
                 self.logger.error(str(self.io_regions[overlap[0]]))
                 self.logger.error(str(self.io_regions[overlap[1]]))
                 raise
-            self.logger.info("{} Region {} {}.".format(
+            self.logger.info("{} Region {} at {}.".format(
                 colorer(name,    color="underline"),
                 colorer("added", color="green"),
                 str(region)))
@@ -202,7 +202,7 @@ class SoCBusHandler(Module):
                     self.logger.error(str(self.regions[overlap[0]]))
                     self.logger.error(str(self.regions[overlap[1]]))
                     raise
-            self.logger.info("{} Region {} {}.".format(
+            self.logger.info("{} Region {} at {}.".format(
                 colorer(name, color="underline"),
                 colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
                 str(region)))
