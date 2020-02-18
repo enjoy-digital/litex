@@ -409,10 +409,18 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 }
 #endif
 
-#define KERNEL_IMAGE_FLASH_OFFSET      0x00000000 //  0MB
-#define ROOTFS_IMAGE_FLASH_OFFSET      0x00500000 //  5MB
-#define DEVICE_TREE_IMAGE_FLASH_OFFSET 0x00D00000 // 13MB
-#define EMULATOR_IMAGE_FLASH_OFFSET    0x00E00000 // 14MB
+#ifndef KERNEL_IMAGE_FLASH_OFFSET
+	#define KERNEL_IMAGE_FLASH_OFFSET      0x00000000 //  0MB
+#endif
+#ifndef ROOTFS_IMAGE_FLASH_OFFSET
+	#define ROOTFS_IMAGE_FLASH_OFFSET      0x00500000 //  5MB
+#endif
+#ifndef DEVICE_TREE_IMAGE_FLASH_OFFSET
+	#define DEVICE_TREE_IMAGE_FLASH_OFFSET 0x00D00000 // 13MB
+#endif
+#ifndef EMULATOR_IMAGE_FLASH_OFFSET
+	#define EMULATOR_IMAGE_FLASH_OFFSET    0x00E00000 // 14MB
+#endif
 
 void flashboot(void)
 {
