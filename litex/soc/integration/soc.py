@@ -811,12 +811,12 @@ class SoC(Module):
 
         # SoC CSR Interconnect ---------------------------------------------------------------------
         self.submodules.csr_bankarray = csr_bus.CSRBankArray(self,
-            address_map   = self.csr.address_map,
-            data_width    = self.csr.data_width,
-            address_width = self.csr.address_width,
-            alignment     = self.csr.alignment,
-            paging        = self.csr.paging,
-        )
+            address_map        = self.csr.address_map,
+            data_width         = self.csr.data_width,
+            address_width      = self.csr.address_width,
+            alignment          = self.csr.alignment,
+            paging             = self.csr.paging,
+            soc_bus_data_width = self.bus.data_width)
         if len(self.csr.masters):
             self.submodules.csr_interconnect = csr_bus.InterconnectShared(
                 masters = list(self.csr.masters.values()),

@@ -78,11 +78,11 @@ class InterconnectShared(Module):
 
 
 class SRAM(Module):
-    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800):
+    def __init__(self, mem_or_size, address, read_only=None, init=None, bus=None, paging=0x800, soc_bus_data_width=32):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        aligned_paging = paging//(bus.alignment//8)
+        aligned_paging = paging//(soc_bus_data_width//8)
         data_width = len(self.bus.dat_w)
         if isinstance(mem_or_size, Memory):
             mem = mem_or_size
@@ -91,7 +91,7 @@ class SRAM(Module):
         mem_size = int(mem.width*mem.depth/8)
         if mem_size > aligned_paging:
             print("WARNING: memory > {} bytes in CSR region requires paged access (mem_size = {} bytes)".format(
-                paging//4, mem_size))
+                aligned_paging, mem_size))
         csrw_per_memw = (mem.width + data_width - 1)//data_width
         word_bits = log2_int(csrw_per_memw)
         page_bits = log2_int((mem.depth*csrw_per_memw + aligned_paging - 1)//aligned_paging, False)
@@ -105,7 +105,7 @@ class SRAM(Module):
             else:
                 read_only = False
 
-        ###
+        # # #
 
         port = mem.get_port(write_capable=not read_only)
         self.specials += mem, port
@@ -162,12 +162,13 @@ class SRAM(Module):
 
 
 class CSRBank(csr.GenericBank):
-    def __init__(self, description, address=0, bus=None, paging=0x800):
+    def __init__(self, description, address=0, bus=None, paging=0x800, soc_bus_data_width=32):
         if bus is None:
             bus = Interface()
         self.bus = bus
-        aligned_paging = paging//(bus.alignment//8)
-        ###
+        aligned_paging = paging//(soc_bus_data_width//8)
+
+        # # #
 
         csr.GenericBank.__init__(self, description, len(self.bus.dat_w))
 
@@ -176,7 +177,7 @@ class CSRBank(csr.GenericBank):
         if bus.alignment == 64:
             self.comb += If(self.bus.adr[0], sel.eq(0))
 
-        adr_shift = log2_int(bus.alignment//32)
+        adr_shift = log2_int(bus.alignment//soc_bus_data_width)
 
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
@@ -203,10 +204,11 @@ class CSRBank(csr.GenericBank):
 # address_map is called exactly once for each object at each call to
 # scan(), so it can have side effects.
 class CSRBankArray(Module):
-    def __init__(self, source, address_map, *ifargs, paging=0x800, **ifkwargs):
-        self.source      = source
-        self.address_map = address_map
-        self.paging      = paging
+    def __init__(self, source, address_map, *ifargs, paging=0x800, soc_bus_data_width=32, **ifkwargs):
+        self.source             = source
+        self.address_map        = address_map
+        self.paging             = paging
+        self.soc_bus_data_width = soc_bus_data_width
         self.scan(ifargs, ifkwargs)
 
     def scan(self, ifargs, ifkwargs):
@@ -229,8 +231,10 @@ class CSRBankArray(Module):
                     if mapaddr is None:
                         continue
                     sram_bus = Interface(*ifargs, **ifkwargs)
-                    mmap = SRAM(memory, mapaddr, read_only=read_only,
-                                bus=sram_bus, paging=self.paging)
+                    mmap = SRAM(memory, mapaddr,
+                        read_only = read_only,
+                        bus       = sram_bus,
+                        paging    = self.paging)
                     self.submodules += mmap
                     csrs += mmap.get_csrs()
                     self.srams.append((name, memory, mapaddr, mmap))
@@ -242,7 +246,10 @@ class CSRBankArray(Module):
                 if mapaddr is None:
                     continue
                 bank_bus = Interface(*ifargs, **ifkwargs)
-                rmap = CSRBank(csrs, mapaddr, bus=bank_bus, paging=self.paging)
+                rmap = CSRBank(csrs, mapaddr,
+                    bus                = bank_bus,
+                    paging             = self.paging,
+                    soc_bus_data_width = self.soc_bus_data_width)
                 self.submodules += rmap
                 self.banks.append((name, csrs, mapaddr, rmap))
 
