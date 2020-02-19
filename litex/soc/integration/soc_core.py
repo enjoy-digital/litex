@@ -168,7 +168,7 @@ class SoCCore(LiteXSoC):
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available)
         if integrated_main_ram_size:
-            self.add_ram("main_ram", self.mem_map["main_ram"], integrated_main_ram_size)
+            self.add_ram("main_ram", self.mem_map["main_ram"], integrated_main_ram_size, integrated_main_ram_init)
 
         # Add Identifier
         if ident != "":
