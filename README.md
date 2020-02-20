@@ -101,11 +101,11 @@ On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``b
 ```sh
 $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
 $ chmod +x litex_setup.py
-$ ./litex_setup.py init install --user (--user to install to user directory)
+$ ./litex_setup.py --init --install --user (--user to install to user directory)
 ```
   Later, if you need to update all repositories:
 ```sh
-$ ./litex_setup.py update
+$ ./litex_setup.py --update
 ```
 3. Install a RISC-V toolchain:
 
@@ -124,7 +124,7 @@ $ export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-da
 4. Build the target of your board...:
   Go to litex-boards/litex_boards/xxyy/targets (xxyy being community/official/partner) and execute the target you want to build
 
-5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX on your computer 
+5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX on your computer
 
 On Fedora:
 ```sh

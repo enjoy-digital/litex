@@ -2,8 +2,8 @@
 
 import os
 import sys
+import argparse
 from collections import OrderedDict
-
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -31,14 +31,14 @@ repos = [
 ]
 repos = OrderedDict(repos)
 
-if len(sys.argv) < 2:
-    print("Available commands:")
-    print("- init")
-    print("- install (add --user to install to user directory)")
-    print("- update")
-    exit()
+parser = argparse.ArgumentParser()
+parser.add_argument("--init",    action="store_true")
+parser.add_argument("--install", action="store_true")
+parser.add_argument("--update",  action="store_true")
+parser.add_argument("--user",    action="store_true")
+args = parser.parse_args()
 
-if "init" in sys.argv[1:]:
+if args.init:
     for name in repos.keys():
         url, need_recursive, need_develop = repos[name]
         # clone repo (recursive if needed)
@@ -47,19 +47,19 @@ if "init" in sys.argv[1:]:
         opts = "--recursive" if need_recursive else ""
         os.system("git clone " + full_url + " " + opts)
 
-if "install" in sys.argv[1:]:
+if args.install:
     for name in repos.keys():
         url, need_recursive, need_develop = repos[name]
         # develop if needed
         print("[installing " + name + "]...")
         if need_develop:
             os.chdir(os.path.join(current_path, name))
-            if "--user" in sys.argv[1:]:
+            if args.user:
                 os.system("python3 setup.py develop --user")
             else:
                 os.system("python3 setup.py develop")
 
-if "update" in sys.argv[1:]:
+if args.update:
     for name in repos.keys():
         # update
         print("[updating " + name + "]...")
