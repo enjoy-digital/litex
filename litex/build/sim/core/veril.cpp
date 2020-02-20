@@ -4,12 +4,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include "Vdut.h"
-#include "Vdut.h"
 #include "verilated.h"
+#ifdef TRACE_FST
+#include "verilated_fst_c.h"
+#else
 #include "verilated_vcd_c.h"
-#include <verilated.h>
+#endif
 
+#ifdef TRACE_FST
+VerilatedFstC* tfp;
+#else
 VerilatedVcdC* tfp;
+#endif
 long tfp_start;
 long tfp_end;
 
@@ -30,9 +36,15 @@ extern "C" void litex_sim_init_tracer(void *vdut, long start, long end)
   tfp_start = start;
   tfp_end = end;
   Verilated::traceEverOn(true);
-  tfp = new VerilatedVcdC;
-  dut->trace(tfp, 99);
-  tfp->open("dut.vcd");
+#ifdef TRACE_FST
+      tfp = new VerilatedFstC;
+      dut->trace(tfp, 99);
+      tfp->open("dut.fst");
+#else
+      tfp = new VerilatedVcdC;
+      dut->trace(tfp, 99);
+      tfp->open("dut.vcd");
+#endif
 }
 
 extern "C" void litex_sim_tracer_dump()

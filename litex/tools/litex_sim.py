@@ -266,9 +266,10 @@ def main():
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
     parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server (default=192.168.1.100)")
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support")
-    parser.add_argument("--trace",                action="store_true",     help="Enable VCD tracing")
-    parser.add_argument("--trace-start",          default=0,               help="Cycle to start VCD tracing")
-    parser.add_argument("--trace-end",            default=-1,              help="Cycle to end VCD tracing")
+    parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
+    parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
+    parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
+    parser.add_argument("--trace-end",            default=-1,              help="Cycle to end tracing")
     parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
     args = parser.parse_args()
 
@@ -321,13 +322,17 @@ def main():
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     vns = builder.build(run=False, threads=args.threads, sim_config=sim_config,
-        opt_level=args.opt_level,
-        trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
+        opt_level   = args.opt_level,
+        trace       = args.trace,
+        trace_fst   = args.trace_fst,
+        trace_start = int(args.trace_start),
+        trace_end   = int(args.trace_end))
     if args.with_analyzer:
         soc.analyzer.export_csv(vns, "analyzer.csv")
     builder.build(build=False, threads=args.threads, sim_config=sim_config,
         opt_level   = args.opt_level,
         trace       = args.trace,
+        trace_fst   = args.trace,
         trace_start = int(args.trace_start),
         trace_end   = int(args.trace_end)
     )

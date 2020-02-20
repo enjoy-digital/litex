@@ -7,7 +7,7 @@ ifeq ($(UNAME_S),Darwin)
 	LDFLAGS += -lpthread -ljson-c -lm -lstdc++ -ldl -levent
 else
 	CC ?= gcc
-	CFLAGS += -Wall -$(OPT_LEVEL) -ggdb $(if $(COVERAGE), -DVM_COVERAGE)
+	CFLAGS += -Wall -$(OPT_LEVEL) -ggdb $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST)
 	LDFLAGS += -lpthread -Wl,--no-as-needed -ljson-c -lm -lstdc++ -Wl,--no-as-needed -ldl -levent
 endif
 
@@ -42,6 +42,7 @@ sim: mkdir $(OBJS_SIM)
 		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
 		-LDFLAGS "$(LDFLAGS)" \
 		--trace \
+		$(if $(TRACE_FST), --trace-fst,) \
 		$(if $(COVERAGE), --coverage,) \
 		--unroll-count 256 \
 		$(INC_DIR) \
