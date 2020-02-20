@@ -66,18 +66,12 @@ class BaseSoC(SoCSDRAM):
                 geom_settings   = sdram_module.geom_settings,
                 timing_settings = sdram_module.timing_settings)
 
-# EthernetSoC --------------------------------------------------------------------------------------
+    def add_ethernet(self):
+        mem_map = {
+            "ethmac": 0xb0000000,
+        }
+        mem_map.update(self.mem_map)
 
-class EthernetSoC(BaseSoC):
-    mem_map = {
-        "ethmac": 0xb0000000,
-    }
-    mem_map.update(BaseSoC.mem_map)
-
-    def __init__(self, **kwargs):
-        BaseSoC.__init__(self, **kwargs)
-
-        # Ethernet ---------------------------------------------------------------------------------
         # phy
         self.submodules.ethphy = LiteEthPHYRMII(
             clock_pads = self.platform.request("eth_clocks"),
@@ -113,8 +107,9 @@ def main():
                         help="enable Ethernet support")
     args = parser.parse_args()
 
-    cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
+    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
+    if args.with_ethernet:
+        soc.add_ethernet()
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
