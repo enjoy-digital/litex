@@ -1,4 +1,7 @@
+import os
 import sys
+
+litex_third_party_dir = os.path.join(os.path.dirname(__file__), "..", "third_party")
 
 # retro-compat 2019-09-30
 from litex.soc.interconnect import packet

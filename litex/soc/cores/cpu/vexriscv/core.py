@@ -247,7 +247,8 @@ class VexRiscv(CPU, AutoCSR):
     @staticmethod
     def add_sources(platform, variant="standard"):
         cpu_filename = CPU_VARIANTS[variant] + ".v"
-        vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
+        from litex import litex_third_party_dir
+        vdir = os.path.join(litex_third_party_dir, "litex_cpu_vexriscv")
         platform.add_source(os.path.join(vdir, cpu_filename))
 
     def use_external_variant(self, variant_filename):

@@ -237,8 +237,7 @@ class RocketRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = os.path.join(litex_third_party_dir, "litex_cpu_rocket")
         platform.add_sources(
             os.path.join(vdir, "generated-src"),
             CPU_VARIANTS[variant] + ".v",

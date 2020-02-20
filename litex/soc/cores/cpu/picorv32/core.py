@@ -179,8 +179,7 @@ class PicoRV32(CPU):
 
     @staticmethod
     def add_sources(platform):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = os.path.join(litex_third_party_dir, "litex_cpu_picorv32")
         platform.add_source(os.path.join(vdir, "picorv32.v"))
 
     def do_finalize(self):

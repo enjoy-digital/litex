@@ -98,7 +98,7 @@ class Microwatt(CPU):
 
     @staticmethod
     def add_sources(platform):
-        sdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sources")
+        sdir = os.path.join(litex_third_party_dir, "litex_cpu_microwatt", "sources")
         platform.add_sources(sdir,
             # Common / Types / Helpers
             "decode_types.vhdl",

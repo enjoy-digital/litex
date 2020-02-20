@@ -96,8 +96,7 @@ class LM32(CPU):
 
     @staticmethod
     def add_sources(platform, variant):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        os.path.join(litex_third_party_dir, "litex_cpu_lm32")
         platform.add_sources(os.path.join(vdir, "submodule", "rtl"),
             "lm32_cpu.v",
             "lm32_instruction_unit.v",
