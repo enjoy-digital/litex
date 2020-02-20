@@ -19,6 +19,12 @@ from litedram.phy import s7ddrphy
 from liteeth.phy.rmii import LiteEthPHYRMII
 from liteeth.mac import LiteEthMAC
 
+from litesdcard.phy import SDPHY
+from litesdcard.clocker import SDClockerS7
+from litesdcard.core import SDCore
+from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
+from litex.soc.cores.timer import Timer
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -28,8 +34,11 @@ class _CRG(Module):
         self.clock_domains.cd_sys2x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200    = ClockDomain()
         self.clock_domains.cd_eth       = ClockDomain()
+        self.clock_domains.cd_sdcard    = ClockDomain(reset_less=True)
 
         # # #
+
+        self.sd_clk_freq = int(100e6)
 
         self.submodules.pll = pll = S7MMCM(speedgrade=-1)
         self.comb += pll.reset.eq(~platform.request("cpu_reset"))
@@ -39,6 +48,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys2x_dqs, 2*sys_clk_freq, phase=90)
         pll.create_clkout(self.cd_clk200,    200e6)
         pll.create_clkout(self.cd_eth,       50e6)
+        pll.create_clkout(self.cd_sdcard,    self.sd_clk_freq)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
 
@@ -66,18 +76,12 @@ class BaseSoC(SoCSDRAM):
                 geom_settings   = sdram_module.geom_settings,
                 timing_settings = sdram_module.timing_settings)
 
-# EthernetSoC --------------------------------------------------------------------------------------
+    def add_ethernet(self):
+        mem_map = {
+            "ethmac": 0xb0000000,
+        }
+        mem_map.update(self.mem_map)
 
-class EthernetSoC(BaseSoC):
-    mem_map = {
-        "ethmac": 0xb0000000,
-    }
-    mem_map.update(BaseSoC.mem_map)
-
-    def __init__(self, **kwargs):
-        BaseSoC.__init__(self, **kwargs)
-
-        # Ethernet ---------------------------------------------------------------------------------
         # phy
         self.submodules.ethphy = LiteEthPHYRMII(
             clock_pads = self.platform.request("eth_clocks"),
@@ -101,6 +105,33 @@ class EthernetSoC(BaseSoC):
             self.ethphy.crg.cd_eth_rx.clk,
             self.ethphy.crg.cd_eth_tx.clk)
 
+    def add_sdcard(self):
+        sdcard_pads = self.platform.request("sdcard")
+        self.comb += sdcard_pads.rst.eq(0)
+        self.submodules.sdclk = SDClockerS7(clkin=ClockSignal("sdcard"), clkin_freq=self.crg.sd_clk_freq)
+        self.submodules.sdphy = SDPHY(sdcard_pads, self.platform.device)
+        self.submodules.sdcore = SDCore(self.sdphy)
+        self.submodules.sdtimer = Timer()
+        self.add_csr("sdclk")
+        self.add_csr("sdphy")
+        self.add_csr("sdcore")
+        self.add_csr("sdtimer")
+
+        self.submodules.bist_generator = BISTBlockGenerator(random=True)
+        self.submodules.bist_checker = BISTBlockChecker(random=True)
+        self.add_csr("bist_generator")
+        self.add_csr("bist_checker")
+        self.comb += [
+            self.sdcore.source.connect(self.bist_checker.sink),
+            self.bist_generator.source.connect(self.sdcore.sink)
+        ]
+        self.platform.add_period_constraint(self.sdclk.cd_sd.clk, period_ns(self.crg.sd_clk_freq))
+        self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, period_ns(self.crg.sd_clk_freq))
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.sdclk.cd_sd.clk,
+            self.sdclk.cd_sd_fb.clk)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -111,10 +142,15 @@ def main():
                         help="system clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
+    parser.add_argument("--with-sdcard", action="store_true",
+                        help="enable SDCard support")
     args = parser.parse_args()
 
-    cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
+    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
+    if args.with_ethernet:
+        soc.add_ethernet()
+    if args.with_sdcard:
+        soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 

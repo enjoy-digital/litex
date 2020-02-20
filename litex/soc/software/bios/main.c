@@ -40,6 +40,7 @@
 #endif
 
 #include "sdram.h"
+#include "sdcard.h"
 #include "boot.h"
 
 /* General address space functions */
@@ -376,6 +377,12 @@ static void help(void)
 #ifdef CSR_SDRAM_BASE
 	puts("memtest    - run a memory test");
 #endif
+	puts("");
+#ifdef CSR_SDCORE_BASE
+	puts("sdclk <freq>   - SDCard set clk frequency (Mhz)");
+	puts("sdinit         - SDCard initialization");
+	puts("sdtest <loops> - SDCard test");
+#endif
 }
 
 static char *get_token(char **str)
@@ -459,6 +466,13 @@ static void do_command(char *c)
 #endif
 	else if(strcmp(token, "memtest") == 0) memtest();
 #endif
+
+#ifdef CSR_SDCORE_BASE
+	else if(strcmp(token, "sdclk") == 0) sdclk_set_clk(atoi(get_token(&c)));
+	else if(strcmp(token, "sdinit") == 0) sdcard_init();
+	else if(strcmp(token, "sdtest") == 0) sdcard_test(atoi(get_token(&c)));
+#endif
+
 	else if(strcmp(token, "") != 0)
 		printf("Command not found\n");
 }
