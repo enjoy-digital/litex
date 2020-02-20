@@ -19,15 +19,15 @@ To document your modules, import the `doc` module and call `doc.generate_docs(so
 You can also generate an SVD file.  For example:
 
 ```python
-import litex.soc.doc
+from litex.soc.doc import generate_docs, generate_svd
 
 ...
     soc = BaseSoC(platform)
     builder = Builder(soc)
     vns = builder.build()
     soc.do_exit(vns)
-    doc.generate_docs(soc, "build/documentation")
-    doc.generate_svd(soc, "build/software")
+    generate_docs(soc, "build/documentation")
+    generate_svd(soc, "build/software")
 ```
 
 After you build your design, you will have a Sphinx documentation source available
