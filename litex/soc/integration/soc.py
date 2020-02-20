@@ -1001,4 +1001,5 @@ class LiteXSoC(SoC):
             self.add_config("L2_SIZE", l2_cache_size)
 
             # Wishbone Slave <--> LiteDRAM bridge --------------------------------------------------
-            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port)
+            self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port,
+                base_address = self.bus.regions["main_ram"].origin)
