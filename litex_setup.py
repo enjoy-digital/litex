@@ -13,7 +13,7 @@ repos = [
     ("migen",      ("https://github.com/m-labs/",        True,  True)),
 
     # LiteX SoC builder
-    ("litex",      ("https://github.com/enjoy-digital/", True,  True)),
+    ("litex",      ("https://github.com/enjoy-digital/", False,  True)),
 
     # LiteX cores ecosystem
     ("liteeth",      ("https://github.com/enjoy-digital/", False, True)),
@@ -50,7 +50,7 @@ parser.add_argument("--init",           action="store_true", help="Download and 
 parser.add_argument("--update",         action="store_true", help="Update LiteX repositories")
 parser.add_argument("--install",        action="store_true", help="Install LiteX repositories on the system (for all users)")
 parser.add_argument("--install-user",   action="store_true", help="Install LiteX repositories on the system (for current user)")
-parser.add_argument("--submodule-init", default="all",       help="Init submodule(s) (all or {})".format(", ".join(submodules.keys())))
+parser.add_argument("--submodule-init", default=None,        help="Init Submodule(s) (all or {})".format(", ".join(submodules.keys())))
 args = parser.parse_args()
 
 if args.init:
@@ -81,11 +81,11 @@ if args.update:
         os.chdir(os.path.join(current_path, name))
         os.system("git pull")
 
-if args.submodule_init != None:
+if args.submodule_init is not None:
     submodules_init = []
     if args.submodule_init == "all":
         submodules_init = submodules.keys()
     else:
         submodules_init = [args.submodule_init]
     for name in submodules_init:
-        os.system("git submodule update --init --recursive third_party/{}".format(name.replace("-", "_")))
+        os.system("cd litex && git submodule update --init --recursive third_party/{}".format(name.replace("-", "_")))
