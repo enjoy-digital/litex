@@ -2,9 +2,13 @@ language: python
 dist: Xenial
 python: "3.6"
 
+git:
+  clone: false
+  submodules: false
+
 install:
   # Get Migen / LiteX / Cores
-  - wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+  - wget https://raw.githubusercontent.com/enjoy-digital/litex/setup_third_party/litex_setup.py
   - python3 litex_setup.py --init --install
   - python3 litex_setup.py --submodule-init=all
 
@@ -14,4 +18,4 @@ before_script:
   - tar -xvf riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
   - export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 
-script: python setup.py test
+script: cd litex && python setup.py test
