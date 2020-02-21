@@ -1,6 +1,6 @@
 include ../variables.mak
 LITEX_THIRD_PARTY = ../../../../../../third_party
-CFLAGS += -I$(LITEX_THIRD_PARTY)/litex_sim_tapcfg/src/include
+CFLAGS += -I$(LITEX_THIRD_PARTY)/litex_tapcfg/src/include
 UNAME_S := $(shell uname -s)
 
 all: $(OBJ_DIR)/xgmii_ethernet.so

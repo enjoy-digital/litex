@@ -4,14 +4,14 @@
 [submodule "third_party/litex_cpu_mor1kx"]
 	path = third_party/litex_cpu_mor1kx
 	url = https://github.com/openrisc/mor1kx.git
-[submodule "third_party/litex_soft_compiler_rt"]
-	path = third_party/litex_soft_compiler_rt
+[submodule "third_party/litex_compiler_rt"]
+	path = third_party/litex_compiler_rt
 	url = https://git.llvm.org/git/compiler-rt
 [submodule "third_party/litex_cpu_picorv32"]
 	path = third_party/litex_cpu_picorv32
 	url = https://github.com/cliffordwolf/picorv32
-[submodule "third_party/litex_sim_tapcfg"]
-	path = third_party/litex_sim_tapcfg
+[submodule "third_party/litex_tapcfg"]
+	path = third_party/litex_tapcfg
 	url = https://github.com/enjoy-digital/tapcfg
 [submodule "third_party/litex_cpu_vexriscv"]
 	path = third_party/litex_cpu_vexriscv

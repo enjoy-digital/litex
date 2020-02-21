@@ -41,8 +41,8 @@ submodules = {
     "litex-cpu-picorv32":     False,
     "litex-cpu-rocket":       False,
     "litex-cpu-vexriscv":     False,
-    "litex-sim-tapcfg":       False,
-    "litex-soft-compiler_rt": False,
+    "litex-tapcfg":           False,
+    "litex-compiler_rt":      False,
 }
 
 parser = argparse.ArgumentParser()
