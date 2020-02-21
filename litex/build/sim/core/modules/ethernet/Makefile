@@ -1,5 +1,6 @@
 include ../variables.mak
-CFLAGS += -Itapcfg/src/include
+LITEX_THIRD_PARTY = ../../../../../../third_party
+CFLAGS += -I$(LITEX_THIRD_PARTY)/litex_sim_tapcfg/src/include
 UNAME_S := $(shell uname -s)
 
 all: $(OBJ_DIR)/ethernet.so
@@ -15,8 +16,8 @@ else
 	$(CC) $(LDFLAGS) -Wl,-soname,$@ -o $@ $^
 endif
 
-$(OBJ_DIR)/tapcfg.o: tapcfg/src/lib/tapcfg.c
+$(OBJ_DIR)/tapcfg.o: $(LITEX_THIRD_PARTY)/litex_sim_tapcfg/src/lib/tapcfg.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(OBJ_DIR)/taplog.o: tapcfg/src/lib/taplog.c
+$(OBJ_DIR)/taplog.o: $(LITEX_THIRD_PARTY)/litex_sim_tapcfg/src/lib/taplog.c
 	$(CC) $(CFLAGS) -c -o $@ $<
