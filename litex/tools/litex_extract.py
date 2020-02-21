@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+
+import argparse
+
+from migen import *
+
+from litex.soc.integration.soc_core import *
+from litex.soc.integration.builder import *
+from litex.soc.interconnect import wishbone
+
+from litex.soc.cores.pwm import PWM
+from litex.soc.cores.gpio import GPIOTristate
+from litex.soc.cores.spi import SPIMaster, SPISlave
+from litex.build.generic_platform import *
+
+class Platform(GenericPlatform):
+    def __init__(self, io):
+        GenericPlatform.__init__(self, "extractor", io)
+
+    def build(self, fragment, build_dir="build", **kwargs):
+        os.makedirs(build_dir, exist_ok=True)
+        os.chdir(build_dir)
+        
+        top_output = self.get_verilog(fragment)
+        top_file = "top.v"
+        
+        top_output.write(top_file)
+
+_io = [
+    ("sys_clk", 0, Pins(1)),
+    ("sys_rst", 0, Pins(1)),
+    ("serial", 0,
+        Subsignal("rx", Pins(1)),
+        Subsignal("tx", Pins(1)),
+    ),
+    ("pwm", 0, Pins(1)),
+]
+
+class BaseSoC(SoCMini):
+    SoCMini.mem_map["csr"] = 0x00000000
+    def __init__(self, sys_clk_freq=int(100e6),
+                 with_pwm=False,
+                 with_gpio=False, gpio_width=32,
+                 with_spi_master=False, spi_master_data_width=8, spi_master_clk_freq=8e6,
+                 **kwargs):
+
+        platform = Platform(_io)
+
+        kwargs["integrated_rom_size"] = 0
+        kwargs["integrated_sram_size"] = 0
+
+        # CRG -------------------------------------------------------------------------------------
+        self.submodules.crg = CRG(platform.request("sys_clk"), rst=platform.request("sys_rst"))
+
+        # SoCMini ---------------------------------------------------------------------------------
+        SoCMini.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+
+        if with_spi_master:
+            platform.add_extension([("spi_m", 0,
+                Subsignal("clk", Pins(1)),
+                Subsignal("cs_n", Pins(1)),
+                Subsignal("mosi", Pins(1)),
+                Subsignal("miso", Pins(1)),
+            )])
+            self.submodules.spi_m = SPIMaster(
+                platform.request("spi_m"),
+                spi_master_data_width,
+                sys_clk_freq,
+                spi_master_clk_freq,
+            )
+            self.add_csr("spi_m")
+
+        if with_pwm:
+            self.submodules.pwm = PWM(platform.request("pwm"))
+            self.add_csr('pwm')
+
+        if with_gpio:
+            platform.add_extension([("gpio", 0, Pins(gpio_width))])
+            self.submodules.gpio = GPIOTristate(platform.request("gpio"))
+            self.add_csr('gpio')
+
+        self.wb_bus = wishbone.Interface()
+        self.bus.add_master(name="wb_master", master=self.wb_bus)
+        self.wb_bus.connect_to_pads(self, platform, 'wb', mode='slave')
+
+        for name, loc in sorted(self.irq.locs.items()):
+            module = getattr(self, name)
+            platform.add_extension([("irq_"+name, 0, Pins(1))])
+            irq_pin = platform.request("irq_"+name)
+            self.comb += irq_pin.eq(module.ev.irq)
+
+# Build -------------------------------------------------------------------------------------------
+
+def soc_argdict(args):
+    ret = {}
+    for arg in ["with_pwm", "with_uart", "with_ctrl", "with_timer",
+                "with_gpio", "gpio_width",
+                "with_spi_master", "spi_master_data_width", "spi_master_clk_freq",
+                "csr_data_width", "csr_address_width", "csr_paging"]:
+        ret[arg] = getattr(args, arg)
+    return ret
+
+def main():
+    parser = argparse.ArgumentParser(description="LiteX SoC")
+    builder_args(parser)
+
+    # Cores
+    parser.add_argument("--with-pwm",   action="store_true",
+                        help="Add PWM core")
+    parser.add_argument("--with-uart",  action="store_true",
+                        help="Add UART core")
+    parser.add_argument("--with-ctrl",  action="store_true",
+                        help="Add bus controller core")
+    parser.add_argument("--with-timer", action="store_true",
+                        help="Add timer core")
+    parser.add_argument("--with-spi-master", action="store_true",
+                        help="Add SPI master core")
+    parser.add_argument("--spi-master-data-width", default=8, type=int,
+                        help="SPI master data width")
+    parser.add_argument("--spi-master-clk-freq", default=8e6, type=int,
+                        help="SPI master output clock frequency")
+    parser.add_argument("--with-gpio", action="store_true",
+                        help="Add GPIO core")
+    parser.add_argument("--gpio-width", default=32, type=int,
+                        help="GPIO signals width")
+
+    # CSR settings
+    parser.add_argument("--csr-data-width", default=8, type=int,
+                        help="CSR bus data-width (8 or 32, default=8)")
+    parser.add_argument("--csr-address-width", default=14, type=int,
+                        help="CSR bus address-width")
+    parser.add_argument("--csr-paging", default=0x800, type=int,
+                        help="CSR bus paging")
+
+    args = parser.parse_args()
+
+    soc = BaseSoC(**soc_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()
