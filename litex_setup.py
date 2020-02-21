@@ -32,10 +32,10 @@ repos = [
 repos = OrderedDict(repos)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--init",    action="store_true")
-parser.add_argument("--install", action="store_true")
-parser.add_argument("--update",  action="store_true")
-parser.add_argument("--user",    action="store_true")
+parser.add_argument("--init",         action="store_true", description="Download and init LiteX repositories")
+parser.add_argument("--update",       action="store_true", description="Update LiteX repositories")
+parser.add_argument("--install",      action="store_true", description="Install LiteX repositories on the system (for all users)")
+parser.add_argument("--install-user", action="store_true", description="Install LiteX repositories on the system (for current user)")
 args = parser.parse_args()
 
 if args.init:
@@ -47,17 +47,17 @@ if args.init:
         opts = "--recursive" if need_recursive else ""
         os.system("git clone " + full_url + " " + opts)
 
-if args.install:
+if args.install or args.install_user:
     for name in repos.keys():
         url, need_recursive, need_develop = repos[name]
         # develop if needed
         print("[installing " + name + "]...")
         if need_develop:
             os.chdir(os.path.join(current_path, name))
-            if args.user:
-                os.system("python3 setup.py develop --user")
-            else:
-                os.system("python3 setup.py develop")
+            cmd = "python3 setup.py develop"
+            if args.install_user:
+                cmd += " --user"
+            os.system(cmd)
 
 if args.update:
     for name in repos.keys():
