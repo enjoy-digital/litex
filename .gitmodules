@@ -28,3 +28,23 @@
 [submodule "third_party/litex_cpu_blackparrot"]
 	path = third_party/litex_cpu_blackparrot
 	url = https://github.com/enjoy-digital/black-parrot.git
+[submodule "litex_cpu_vexriscv"]
+	shallow = true
+[submodule "litex_cpu_rocket"]
+	shallow = true
+[submodule "litex_cpu_microwatt"]
+	shallow = true
+[submodule "litex_cpu_blackparrot"]
+	shallow = true
+[submodule "litex_cpu_lm32"]
+	shallow = true
+[submodule "litex_cpu_mor1kx"]
+	shallow = true
+[submodule "litex_cpu_minerva"]
+	shallow = true
+[submodule "litex_compiler_rt"]
+	shallow = true
+[submodule "litex_tapcfg"]
+	shallow = true
+[submodule "litex_tar"]
+	shallow = true
