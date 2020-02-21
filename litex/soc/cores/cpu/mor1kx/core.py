@@ -172,6 +172,7 @@ class MOR1KX(CPU):
 
     @staticmethod
     def add_sources(platform):
+        from litex import litex_third_party_dir
         vdir = os.path.join(litex_third_party_dir, "litex_cpu_mor1kx", "rtl", "verilog")
         platform.add_source_dir(vdir)
         platform.add_verilog_include_path(vdir)

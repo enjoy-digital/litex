@@ -96,6 +96,7 @@ class LM32(CPU):
 
     @staticmethod
     def add_sources(platform, variant):
+        from litex import litex_third_party_dir
         os.path.join(litex_third_party_dir, "litex_cpu_lm32")
         platform.add_sources(os.path.join(vdir, "submodule", "rtl"),
             "lm32_cpu.v",

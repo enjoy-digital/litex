@@ -237,6 +237,7 @@ class RocketRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
+        from litex import litex_third_party_dir
         vdir = os.path.join(litex_third_party_dir, "litex_cpu_rocket")
         platform.add_sources(
             os.path.join(vdir, "generated-src"),

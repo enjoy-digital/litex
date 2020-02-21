@@ -98,6 +98,7 @@ class Microwatt(CPU):
 
     @staticmethod
     def add_sources(platform):
+        from litex import litex_third_party_dir
         sdir = os.path.join(litex_third_party_dir, "litex_cpu_microwatt", "sources")
         platform.add_sources(sdir,
             # Common / Types / Helpers

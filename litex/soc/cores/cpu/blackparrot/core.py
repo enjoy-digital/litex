@@ -114,6 +114,7 @@ class BlackParrotRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
+        from litex import litex_third_party_dir
         filename = os.path.join(litex_third_party_dir, "litex_cpu_blackparrot", "flist_litex.verilator")
         with open(filename) as openfileobject:
             for line in openfileobject:

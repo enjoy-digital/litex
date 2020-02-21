@@ -179,6 +179,7 @@ class PicoRV32(CPU):
 
     @staticmethod
     def add_sources(platform):
+        from litex import litex_third_party_dir
         vdir = os.path.join(litex_third_party_dir, "litex_cpu_picorv32")
         platform.add_source(os.path.join(vdir, "picorv32.v"))
 
