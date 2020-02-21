@@ -6,6 +6,7 @@ install:
   # Get Migen / LiteX / Cores
   - wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
   - python3 litex_setup.py --init --install
+  - python3 litex_setup.py --submodule-init=all
 
 before_script:
   # Get RISC-V toolchain
