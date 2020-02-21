@@ -100,8 +100,9 @@ On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``b
 
 ```sh
 $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
-$ chmod +x litex_setup.py
-$ ./litex_setup.py --init --install --user (--user to install to user directory)
+$ python3 litex_setup.py --init --install (or --install-user to install to user directory)
+$ python3 litex_setup.py --submodule-init=litex_soft_compiler_rt
+$ python3 litex_setup.py --submodule-init=litex_cpu_vexriscv
 ```
   Later, if you need to update all repositories:
 ```sh
