@@ -61,6 +61,8 @@ if args.init:
         full_url = url + name
         opts = "--recursive" if need_recursive else ""
         os.system("git clone " + full_url + " " + opts)
+        if name == "litex": # FIXME: remove
+            os.system("cd litex && git checkout setup_thrid_party")
 
 if args.install or args.install_user:
     for name in repos.keys():
