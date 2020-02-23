@@ -43,6 +43,7 @@ repos = [
     ("litex-data-cpu-microwatt",   ("https://github.com/litex-hub/", False, True)),
     ("litex-data-cpu-picorv32",    ("https://github.com/litex-hub/", False, True)),
     ("litex-data-cpu-rocket",      ("https://github.com/litex-hub/", False, True)),
+    ("litex-data-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True)),
     ("litex-data-misc-tapcfg",     ("https://github.com/litex-hub/", False, True)),
 ]
 repos = OrderedDict(repos)
