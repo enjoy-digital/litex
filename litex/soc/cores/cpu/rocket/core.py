@@ -33,6 +33,7 @@ import os
 
 from migen import *
 
+from litex.data.find import find_data
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -238,8 +239,7 @@ class RocketRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = find_data("cpu", "rocket")
         platform.add_sources(
             os.path.join(vdir, "generated-src"),
             CPU_VARIANTS[variant] + ".v",

@@ -8,6 +8,7 @@ import os
 
 from migen import *
 
+from litex.data.find import find_data
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
