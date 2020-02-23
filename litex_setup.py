@@ -8,7 +8,8 @@ from collections import OrderedDict
 
 import urllib.request
 
-current_path = os.path.dirname(os.path.realpath(__file__))
+current_path = os.path.abspath(os.curdir)
+
 
 # Repositories -------------------------------------------------------------------------------------
 
