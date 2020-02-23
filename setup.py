@@ -14,9 +14,20 @@ setup(
     test_suite="test",
     license="BSD",
     python_requires="~=3.6",
-    install_requires=["migen", "pyserial"],
+    install_requires=["migen", "pyserial", "litex-data-software-compiler_rt"],
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
     include_package_data=True,
+    platforms=["Any"],
+    keywords="HDL ASIC FPGA hardware design",
+    classifiers=[
+        "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+        "Environment :: Console",
+        "Development Status :: Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: BSD License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+    ],
     entry_points={
         "console_scripts": [
             # full names
