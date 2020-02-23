@@ -1,7 +1,9 @@
 def find_data(data_type, data_name):
     imp = "from litex.data.{} import {} as dm".format(data_type, data_name)
     try:
-        exec(imp)
+        l = {}
+        exec(imp, {}, l)
+        dm = l['dm']
         return dm.data_location
     except ImportError as e:
         raise ImportError("""\
