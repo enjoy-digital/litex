@@ -14,7 +14,11 @@ setup(
     test_suite="test",
     license="BSD",
     python_requires="~=3.6",
-    install_requires=["migen", "pyserial", "litex-data-software-compiler_rt"],
+    install_requires=[
+        "migen",
+        "pyserial",
+        "litex-data-software-compiler_rt",
+    ],
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
     include_package_data=True,
     platforms=["Any"],
