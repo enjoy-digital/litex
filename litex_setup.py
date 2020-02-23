@@ -37,13 +37,13 @@ repos = [
     ("litex-boards", ("https://github.com/litex-hub/",     False, True)),
 
     # Optional LiteX data
-    ('litex-data-cpu-blackparrot', ("https://github.com/litex-hub/", False, True))
-    ('litex-data-cpu-mor1kx',      ("https://github.com/litex-hub/", False, True))
-    ('litex-data-cpu-lm32',        ("https://github.com/litex-hub/", False, True))
-    ('litex-data-cpu-microwatt',   ("https://github.com/litex-hub/", False, True))
-    ('litex-data-cpu-picorv32',    ("https://github.com/litex-hub/", False, True))
-    ('litex-data-cpu-rocket',      ("https://github.com/litex-hub/", False, True))
-    ('litex-data-misc-tapcfg',     ("https://github.com/litex-hub/", False, True))
+    ("litex-data-cpu-blackparrot", ("https://github.com/litex-hub/", False, True))
+    ("litex-data-cpu-mor1kx",      ("https://github.com/litex-hub/", False, True))
+    ("litex-data-cpu-lm32",        ("https://github.com/litex-hub/", False, True))
+    ("litex-data-cpu-microwatt",   ("https://github.com/litex-hub/", False, True))
+    ("litex-data-cpu-picorv32",    ("https://github.com/litex-hub/", False, True))
+    ("litex-data-cpu-rocket",      ("https://github.com/litex-hub/", False, True))
+    ("litex-data-misc-tapcfg",     ("https://github.com/litex-hub/", False, True))
 ]
 repos = OrderedDict(repos)
 
