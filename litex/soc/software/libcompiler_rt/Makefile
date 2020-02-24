@@ -23,7 +23,7 @@ libcompiler_rt.a: $(OBJECTS)
 mulsi3.o: $(SOC_DIRECTORY)/software/libcompiler_rt/mulsi3.c
 	$(compile)
 
-%.o: $(SOC_DIRECTORY)/software/compiler_rt/lib/builtins/%.c
+%.o: $(COMPILER_RT_DIRECTORY)/lib/builtins/%.c
 	$(compile)
 
 .PHONY: all clean
