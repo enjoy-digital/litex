@@ -70,58 +70,30 @@ class Interface(Record):
         yield from self._do_transaction()
         return (yield self.dat_r)
 
-    def _signals_in_channels(self, channels):
-        for channel_name in channels:
-            s = getattr(self, channel_name)
-            for l in _layout:
-                if l[0] == channel_name:
-                    yield channel_name, s.nbits, l[2]
+    def get_ios(self, bus_name="wb"):
+        subsignals = []
+        for name, width, direction in self.layout:
+            subsignals.append(Subsignal(name, Pins(width)))
+        ios = [(bus_name , 0) + tuple(subsignals)]
+        return ios
 
-    def to_pads(self, bus_name='wb'):
-        wb_bus = {}
-        for name, width, direction in self._signals_in_channels(['adr', 'dat_w', 'dat_r',
-                                                                'sel', 'cyc', 'stb', 'ack',
-                                                                'we', 'cti', 'bte', 'err']):
-            signal_name = name
-            wb_bus[signal_name] = width
-
-        signals = []
-        for pad in wb_bus:
-            signals.append(Subsignal(pad, Pins(wb_bus[pad])))
-
-        pads = [
-                (bus_name , 0) + tuple(signals)
-                ]
-        print(pads)
-        return pads
-
-    def connect_to_pads(self, module, platform, bus_name, mode='master'):
-
-        def _get_signals(pads, name):
-            signal_name = name
-            wb_signal = getattr(self, signal_name)
-            pads_signal = getattr(pads, signal_name)
-            return pads_signal, wb_signal
-
-        wb_pads = self.to_pads(bus_name)
-        platform.add_extension(wb_pads)
-        pads = platform.request(bus_name)
-
-        for name, width, direction in self._signals_in_channels(['adr', 'dat_w', 'dat_r',
-                                                                           'sel', 'cyc', 'stb', 'ack',
-                                                                           'we', 'cti', 'bte', 'err']):
-            pads_signal, wb_signal = _get_signals(pads, name)
-
-            if mode == 'master':
+    def connect_to_pads(self, pads, mode="master"):
+        assert mode in ["slave", "master"]
+        r = []
+        for name, width, direction in self.layout:
+            sig  = getattr(self, name)
+            pad  = getattr(pads, name)
+            if mode == "master":
                 if direction == DIR_M_TO_S:
-                    module.comb += pads_signal.eq(wb_signal)
+                    r.append(pad.eq(sig))
                 else:
-                    module.comb += wb_signal.eq(pads_signal)
+                    r.append(sig.eq(pad))
             else:
                 if direction == DIR_S_TO_M:
-                    module.comb += pads_signal.eq(wb_signal)
+                    r.append(pad.eq(sig))
                 else:
-                    module.comb += wb_signal.eq(pads_signal)
+                    r.append(sig.eq(pad))
+        return r
 
 
 class InterconnectPointToPoint(Module):
