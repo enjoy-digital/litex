@@ -68,80 +68,6 @@ class AXIInterface(Record):
         self.ar = stream.Endpoint(ax_description(address_width, id_width))
         self.r  = stream.Endpoint(r_description(data_width, id_width))
 
-    def _signals_in_channels(self, channels):
-        for channel_name in channels:
-            channel = getattr(self, channel_name)
-            for signal in channel.layout:
-                if signal[0] == 'param':
-                    continue
-                if signal[0] == 'payload':
-                    for s in signal[1]:
-                        yield s[0], channel_name, s[1], s[2]
-                else:
-                    if signal[0] == 'first':
-                        continue
-                    if signal[0] == 'last' and channel_name != 'w' and channel_name != 'r':
-                        continue
-                    yield signal[0], channel_name, signal[1], signal[2]
-
-
-    def to_pads(self, bus_name='axi'):
-        axi_bus = {}
-        for signal, channel, width, direction in self._signals_in_channels(['aw', 'w', 'b', 'ar', 'r']):
-            signal_name = channel + signal
-            axi_bus[signal_name] = width
-
-        signals = []
-        for pad in axi_bus:
-            signals.append(Subsignal(pad, Pins(axi_bus[pad])))
-
-        pads = [
-                (bus_name , 0) + tuple(signals)
-                ]
-        return pads
-
-    def connect_to_pads(self, module, platform, bus_name, mode='master'):
-
-        def _get_signals(pads, channel, signal):
-            signal_name = channel + signal
-            channel = getattr(self, channel)
-            axi_signal = getattr(channel, signal)
-            pads_signal = getattr(pads, signal_name)
-            return pads_signal, axi_signal
-
-        axi_pads = self.to_pads(bus_name)
-        platform.add_extension(axi_pads)
-        pads = platform.request(bus_name)
-
-        for signal, channel, width, direction in self._signals_in_channels(['aw', 'w', 'ar']):
-            pads_signal, axi_signal = _get_signals(pads, channel, signal)
-
-            if mode == 'master':
-                if direction == DIR_M_TO_S:
-                    module.comb += pads_signal.eq(axi_signal)
-                else:
-                    module.comb += axi_signal.eq(pads_signal)
-            else:
-                if direction == DIR_S_TO_M:
-                    module.comb += pads_signal.eq(axi_signal)
-                else:
-                    module.comb += axi_signal.eq(pads_signal)
-
-        for signal, channel, width, direction in self._signals_in_channels(['r', 'b']):
-            pads_signal, axi_signal = _get_signals(pads, channel, signal)
-
-            if mode == 'master':
-                if direction == DIR_S_TO_M:
-                    module.comb += pads_signal.eq(axi_signal)
-                else:
-                    module.comb += axi_signal.eq(pads_signal)
-            else:
-                if direction == DIR_M_TO_S:
-                    module.comb += pads_signal.eq(axi_signal)
-                else:
-                    module.comb += axi_signal.eq(pads_signal)
-
-
 # AXI Lite Definition ------------------------------------------------------------------------------
 
 def ax_lite_description(address_width):
@@ -173,6 +99,44 @@ class AXILiteInterface(Record):
         self.b  = stream.Endpoint(b_lite_description())
         self.ar = stream.Endpoint(ax_lite_description(address_width))
         self.r  = stream.Endpoint(r_lite_description(data_width))
+
+    def get_ios(self, bus_name="wb"):
+        subsignals = []
+        for channel in ["aw", "w", "b", "ar", "r"]:
+            for name in ["valid", "ready"]:
+                subsignals.append(Subsignal(channel + name, Pins(1)))
+            for name, width in getattr(self, channel).description.payload_layout:
+                subsignals.append(Subsignal(channel + name, Pins(width)))
+        ios = [(bus_name , 0) + tuple(subsignals)]
+        return ios
+
+    def connect_to_pads(self, pads, bus_name, mode="master"):
+        assert mode in ["slave", "master"]
+        r = []
+        def swap_mode(mode): return "master" if mode == "slave" else "slave"
+        channel_modes = {
+            "aw": mode,
+            "w" : mode,
+            "b" : swap_mode(mode),
+            "ar": mode,
+            "r" : swap_mode(mode),
+        }
+        for channel, mode in channel_modes.items():
+            for name, width in [("valid", 1)] + getattr(self, channel).description.payload_layout:
+                sig  = getattr(getattr(self, channel), name)
+                pad  = getattr(pads, channel + name)
+                if mode == "master":
+                    r.append(pad.eq(sig))
+                else:
+                    r.append(sig.eq(pad))
+            for name, width in [("ready", 1)]:
+                sig  = getattr(getattr(self, channel), name)
+                pad  = getattr(pads, channel + name)
+                if mode == "master":
+                    r.append(sig.eq(pad))
+                else:
+                    r.append(pad.eq(sig))
+        return r
 
 # AXI Bursts to Beats ------------------------------------------------------------------------------
 
