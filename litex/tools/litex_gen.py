@@ -7,14 +7,16 @@ import argparse
 
 from migen import *
 
+from litex.build.generic_platform import *
+
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import axi
 
 from litex.soc.cores.pwm import PWM
 from litex.soc.cores.gpio import GPIOTristate
 from litex.soc.cores.spi import SPIMaster, SPISlave
-from litex.build.generic_platform import *
 
 # Platform -----------------------------------------------------------------------------------------
 
@@ -84,9 +86,23 @@ class LiteXCore(SoCMini):
             self.add_csr("gpio")
 
         # Wishbone Master
-        self.wb_bus = wishbone.Interface()
-        self.bus.add_master(master=self.wb_bus)
-        self.wb_bus.connect_to_pads(self, platform, "wb", mode="slave")
+        if kwargs["bus"] == "wishbone":
+            wb_bus = wishbone.Interface()
+            self.bus.add_master(master=wb_bus)
+            platform.add_extension(wb_bus.get_ios("wb"))
+            wb_pads = platform.request("wb")
+            self.comb += wb_bus.connect_to_pads(wb_pads, mode="slave")
+
+        # AXI-Lite Master
+        if kwargs["bus"] == "axi":
+            axi_bus = axi.AXILiteInterface(data_width=32, address_width=32)
+            wb_bus = wishbone.Interface()
+            axi2wb = axi.AXILite2Wishbone(axi_bus, wb_bus)
+            self.submodules += axi2wb
+            self.bus.add_master(master=wb_bus)
+            platform.add_extension(axi_bus.get_ios("axi"))
+            axi_pads = platform.request("axi")
+            self.comb += axi_bus.connect_to_pads(axi_pads, "axi", mode="slave")
 
         # IRQs
         for name, loc in sorted(self.irq.locs.items()):
@@ -100,6 +116,7 @@ class LiteXCore(SoCMini):
 def soc_argdict(args):
     ret = {}
     for arg in [
+        "bus",
         "with_pwm",
         "with_uart",
         "with_ctrl",
@@ -118,6 +135,9 @@ def soc_argdict(args):
 def main():
     parser = argparse.ArgumentParser(description="LiteX standalone core generator")
     builder_args(parser)
+
+    # Bus
+    parser.add_argument("--bus",                   default="wishbone",    type=str, help="Type of Bus (wishbone, axi)")
 
     # Cores
     parser.add_argument("--with-pwm",              action="store_true",   help="Add PWM core")
