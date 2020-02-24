@@ -110,7 +110,7 @@ class AXILiteInterface(Record):
         ios = [(bus_name , 0) + tuple(subsignals)]
         return ios
 
-    def connect_to_pads(self, pads, bus_name, mode="master"):
+    def connect_to_pads(self, pads, mode="master"):
         assert mode in ["slave", "master"]
         r = []
         def swap_mode(mode): return "master" if mode == "slave" else "slave"

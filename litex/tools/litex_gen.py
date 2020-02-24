@@ -102,7 +102,7 @@ class LiteXCore(SoCMini):
             self.bus.add_master(master=wb_bus)
             platform.add_extension(axi_bus.get_ios("axi"))
             axi_pads = platform.request("axi")
-            self.comb += axi_bus.connect_to_pads(axi_pads, "axi", mode="slave")
+            self.comb += axi_bus.connect_to_pads(axi_pads, mode="slave")
 
         # IRQs
         for name, loc in sorted(self.irq.locs.items()):
