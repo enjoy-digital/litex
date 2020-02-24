@@ -418,8 +418,11 @@ class SoCLocHandler(Module):
     def __str__(self):
         r = "{} Locations: ({})\n".format(self.name, len(self.locs.keys())) if len(self.locs.keys()) else ""
         locs = {k: v for k, v in sorted(self.locs.items(), key=lambda item: item[1])}
+        length = 0
         for name in locs.keys():
-           r += "- {}{}: {}\n".format(colorer(name, color="underline"), " "*(20-len(name)), colorer(self.locs[name]))
+            if len(name) > length: length = len(name)
+        for name in locs.keys():
+           r += "- {}{}: {}\n".format(colorer(name, color="underline"), " "*(length + 1 - len(name)), colorer(self.locs[name]))
         return r
 
 # SoCCSRHandler ------------------------------------------------------------------------------------
