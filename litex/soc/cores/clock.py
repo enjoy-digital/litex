@@ -507,7 +507,7 @@ class ECP5PLL(Module):
     clko_div_range  = (1, 128+1)
     clki_freq_range = (    8e6,  400e6)
     clko_freq_range = (3.125e6,  400e6)
-    vco_freq_range  = (  550e6, 1250e6)
+    vco_freq_range  = (  400e6,  800e6)
 
     def __init__(self):
         self.reset      = Signal()
