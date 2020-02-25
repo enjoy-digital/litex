@@ -49,6 +49,15 @@ class LiteXCore(SoCMini):
 
         platform = Platform(_io)
 
+        # UART
+        if kwargs["with_uart"]:
+            platform.add_extension([
+                ("serial", 0,
+                    Subsignal("tx",  Pins(1)),
+                    Subsignal("rx", Pins(1)),
+                )
+            ])
+
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"), rst=platform.request("sys_rst"))
 
