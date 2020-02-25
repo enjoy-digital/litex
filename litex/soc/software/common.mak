@@ -14,7 +14,11 @@ else
 CC_normal      := $(TARGET_PREFIX)gcc -std=gnu99
 CX_normal      := $(TARGET_PREFIX)g++
 endif
+ifneq ($(CPU), lm32)
 AR_normal      := $(TARGET_PREFIX)gcc-ar
+else
+AR_normal      := $(TARGET_PREFIX)ar
+endif
 LD_normal      := $(TARGET_PREFIX)ld
 OBJCOPY_normal := $(TARGET_PREFIX)objcopy
 
@@ -46,7 +50,10 @@ DEPFLAGS += -MD -MP
 # Toolchain options
 #
 INCLUDES = -I$(SOC_DIRECTORY)/software/include/base -I$(SOC_DIRECTORY)/software/include -I$(SOC_DIRECTORY)/common -I$(BUILDINC_DIRECTORY)
-COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES) -flto -fuse-linker-plugin -ffunction-sections -fdata-sections -nostartfiles -nostdlib -nodefaultlibs
+COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES) -ffunction-sections -fdata-sections -nostartfiles -nostdlib -nodefaultlibs
+ifneq ($(CPU), lm32)
+COMMONFLAGS += -flto -fuse-linker-plugin
+endif
 CFLAGS = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fexceptions -fno-rtti -ffreestanding
 LDFLAGS = -nostdlib -nodefaultlibs -Os $(CPUFLAGS) -L$(BUILDINC_DIRECTORY)
