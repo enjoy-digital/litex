@@ -56,7 +56,7 @@ def r_description(data_width, id_width):
     ]
 
 class AXIInterface(Record):
-    def __init__(self, data_width, address_width, mode="master", id_width=1, clock_domain="sys"):
+    def __init__(self, data_width, address_width, id_width=1, clock_domain="sys"):
         self.data_width    = data_width
         self.address_width = address_width
         self.id_width      = id_width
