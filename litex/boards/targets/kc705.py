@@ -57,8 +57,10 @@ class BaseSoC(SoCSDRAM):
             self.submodules.ddrphy = s7ddrphy.K7DDRPHY(platform.request("ddram"),
                 memtype      = "DDR3",
                 nphases      = 4,
-                sys_clk_freq = sys_clk_freq)
+                sys_clk_freq = sys_clk_freq,
+                cmd_latency  = 1)
             self.add_csr("ddrphy")
+            self.add_constant("DDRPHY_CMD_DELAY", 13)
             sdram_module = MT8JTF12864(sys_clk_freq, "1:4")
             self.register_sdram(self.ddrphy,
                 geom_settings   = sdram_module.geom_settings,
