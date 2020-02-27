@@ -13,10 +13,10 @@ repos = [
     ("migen",      ("https://github.com/m-labs/",        True,  True)),
 
     # LiteX SoC builder
-    ("litex",      ("https://github.com/enjoy-digital/", True,  True)),
+    ("litex",      ("https://github.com/jersey99/", True,  True)),
 
     # LiteX cores ecosystem
-    ("liteeth",      ("https://github.com/enjoy-digital/", False, True)),
+    ("liteeth",      ("https://github.com/jersey99/", False, True)),
     ("litedram",     ("https://github.com/enjoy-digital/", False, True)),
     ("litepcie",     ("https://github.com/enjoy-digital/", False, True)),
     ("litesata",     ("https://github.com/enjoy-digital/", False, True)),
@@ -27,7 +27,7 @@ repos = [
     ("litejesd204b", ("https://github.com/enjoy-digital/", False, True)),
 
     # LiteX boards support
-    ("litex-boards",   ("https://github.com/litex-hub/", False, True)),
+    ("litex-boards",   ("https://github.com/jersey99/", False, True)),
 ]
 repos = OrderedDict(repos)
 
