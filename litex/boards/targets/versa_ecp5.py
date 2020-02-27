@@ -66,7 +66,7 @@ class _CRG(Module):
                 i_RST     = self.cd_sys2x.rst,
                 o_CDIVX   = self.cd_sys.clk),
             AsyncResetSynchronizer(self.cd_init, ~por_done | ~pll.locked | ~rst_n),
-            AsyncResetSynchronizer(self.cd_sys, ~por_done | ~pll.locked | ~rst_n)
+            AsyncResetSynchronizer(self.cd_sys,  ~por_done | ~pll.locked | ~rst_n)
         ]
 
 # BaseSoC ------------------------------------------------------------------------------------------
