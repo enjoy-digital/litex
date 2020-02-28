@@ -128,6 +128,7 @@ def soc_argdict(args):
         "bus",
         "with_pwm",
         "with_uart",
+        "uart_no_fifo",
         "with_ctrl",
         "with_timer",
         "with_gpio",
@@ -151,6 +152,7 @@ def main():
     # Cores
     parser.add_argument("--with-pwm",              action="store_true",   help="Add PWM core")
     parser.add_argument("--with-uart",             action="store_true",   help="Add UART core")
+    parser.add_argument("--uart-no-fifo",          action="store_true",   help="Add UART core no FIFOs implementation")
     parser.add_argument("--with-ctrl",             action="store_true",   help="Add bus controller core")
     parser.add_argument("--with-timer",            action="store_true",   help="Add timer core")
     parser.add_argument("--with-spi-master",       action="store_true",   help="Add SPI master core")
