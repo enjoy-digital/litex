@@ -176,7 +176,9 @@ class SimSoC(SoCSDRAM):
 
         # Serial -----------------------------------------------------------------------------------
         self.submodules.uart_phy = uart.RS232PHYModel(platform.request("serial"))
-        self.submodules.uart = uart.UART(self.uart_phy)
+        self.submodules.uart = uart.UART(self.uart_phy,
+            tx_fifo_depth=kwargs["uart_fifo_depth"],
+            rx_fifo_depth=kwargs["uart_fifo_depth"])
         self.add_csr("uart")
         self.add_interrupt("uart")
 

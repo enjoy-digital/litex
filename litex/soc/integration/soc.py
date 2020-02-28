@@ -888,10 +888,10 @@ class LiteXSoC(SoC):
         self.csr.add(name + "_mem", use_loc_if_exists=True)
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name, baudrate=115200):
+    def add_uart(self, name, baudrate=115200, fifo_depth=16):
         from litex.soc.cores import uart
         if name in ["stub", "stream"]:
-            self.submodules.uart = uart.UART()
+            self.submodules.uart = uart.UART(tx_fifo_depth=0, rx_fifo_depth=0)
             if name == "stub":
                 self.comb += self.uart.sink.ready.eq(1)
         elif name == "bridge":
@@ -914,7 +914,9 @@ class LiteXSoC(SoC):
                     pads     = self.platform.request(name),
                     clk_freq = self.sys_clk_freq,
                     baudrate = baudrate)
-            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy))
+            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+                tx_fifo_depth = fifo_depth,
+                rx_fifo_depth = fifo_depth))
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
         self.irq.add("uart", use_loc_if_exists=True)

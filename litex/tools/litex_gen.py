@@ -62,6 +62,7 @@ class LiteXCore(SoCMini):
         self.submodules.crg = CRG(platform.request("sys_clk"), rst=platform.request("sys_rst"))
 
         # SoCMini ----------------------------------------------------------------------------------
+        print(kwargs)
         SoCMini.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # SPI Master
@@ -128,6 +129,7 @@ def soc_argdict(args):
         "bus",
         "with_pwm",
         "with_uart",
+        "uart_fifo_depth",
         "with_ctrl",
         "with_timer",
         "with_gpio",
@@ -151,6 +153,7 @@ def main():
     # Cores
     parser.add_argument("--with-pwm",              action="store_true",   help="Add PWM core")
     parser.add_argument("--with-uart",             action="store_true",   help="Add UART core")
+    parser.add_argument("--uart-fifo-depth",       default=16, type=int,  help="UART FIFO depth (default=16)")
     parser.add_argument("--with-ctrl",             action="store_true",   help="Add bus controller core")
     parser.add_argument("--with-timer",            action="store_true",   help="Add timer core")
     parser.add_argument("--with-spi-master",       action="store_true",   help="Add SPI master core")
