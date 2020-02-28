@@ -34,12 +34,19 @@ class GPIOInOut(Module):
 
 class GPIOTristate(Module, AutoCSR):
     def __init__(self, pads):
-        self._oe  = CSRStorage(len(pads))
-        self._in  = CSRStatus(len(pads))
-        self._out = CSRStorage(len(pads))
+        nbits     = len(pads)
+        self._oe  = CSRStorage(nbits)
+        self._in  = CSRStatus(nbits)
+        self._out = CSRStorage(nbits)
 
-        t = TSTriple(len(pads))
-        self.specials += t.get_tristate(pads)
-        self.comb += t.oe.eq(self._oe.storage)
-        self.comb += t.o.eq(self._out.storage)
-        self.specials += MultiReg(t.i, self._in.status)
+        # # #
+
+        _pads = Signal(nbits)
+        self.comb += _pads.eq(pads)
+
+        for i in range(nbits):
+            t = TSTriple()
+            self.specials += t.get_tristate(_pads[i])
+            self.comb += t.oe.eq(self._oe.storage[i])
+            self.comb += t.o.eq(self._out.storage[i])
+            self.specials += MultiReg(t.i, self._in.status[i])
