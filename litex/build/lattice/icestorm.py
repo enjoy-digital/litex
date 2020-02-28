@@ -88,7 +88,7 @@ def parse_device(device):
 # Script -------------------------------------------------------------------------------------------
 
 _build_template = [
-    "yosys -q -l {build_name}.rpt {build_name}.ys",
+    "yosys -l {build_name}.rpt {build_name}.ys",
     "nextpnr-ice40 --json {build_name}.json --pcf {build_name}.pcf --asc {build_name}.txt \
     --pre-pack {build_name}_pre_pack.py --{architecture} --package {package}",
     "icepack {build_name}.txt {build_name}.bin"

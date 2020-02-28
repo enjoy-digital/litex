@@ -111,7 +111,7 @@ nextpnr_ecp5_architectures = {
 # Script -------------------------------------------------------------------------------------------
 
 _build_template = [
-    "yosys -q -l {build_name}.rpt {build_name}.ys",
+    "yosys -l {build_name}.rpt {build_name}.ys",
     "nextpnr-ecp5 --json {build_name}.json --lpf {build_name}.lpf --textcfg {build_name}.config  \
     --{architecture} --package {package} --speed {speed_grade} {timefailarg} {ignoreloops}",
     "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit"
