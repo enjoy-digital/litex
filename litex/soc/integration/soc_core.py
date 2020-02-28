@@ -86,6 +86,7 @@ class SoCCore(LiteXSoC):
         with_uart                = True,
         uart_name                = "serial",
         uart_baudrate            = 115200,
+        uart_no_fifo             = False,
         # Timer parameters
         with_timer               = True,
         # Controller parameters
@@ -176,7 +177,7 @@ class SoCCore(LiteXSoC):
 
         # Add UART
         if with_uart:
-            self.add_uart(name=uart_name, baudrate=uart_baudrate)
+            self.add_uart(name=uart_name, baudrate=uart_baudrate, no_fifo=uart_no_fifo)
 
         # Add Timer
         if with_timer:
@@ -288,6 +289,8 @@ def soc_core_args(parser):
                         help="UART baudrate (default=115200)")
     parser.add_argument("--uart-stub", default=False, type=bool,
                         help="enable UART stub (default=False)")
+    parser.add_argument("--uart-no-fifo", default=False, type=bool,
+                        help="UART without FIFOs implementation (default=False)")
     # Timer parameters
     parser.add_argument("--with-timer", default=None, type=bool,
                         help="with Timer (default=True)")

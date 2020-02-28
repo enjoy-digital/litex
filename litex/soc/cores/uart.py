@@ -93,21 +93,21 @@ class RS232PHYTX(Module):
 
         tx_reg = Signal(8)
         tx_bitcount = Signal(4)
-        tx_busy = Signal()
+        self.tx_busy = Signal()
         self.sync += [
             self.sink.ready.eq(0),
-            If(self.sink.valid & ~tx_busy & ~self.sink.ready,
+            If(self.sink.valid & ~self.tx_busy & ~self.sink.ready,
                 tx_reg.eq(self.sink.data),
                 tx_bitcount.eq(0),
-                tx_busy.eq(1),
+                self.tx_busy.eq(1),
                 pads.tx.eq(0)
-            ).Elif(uart_clk_txen & tx_busy,
+            ).Elif(uart_clk_txen & self.tx_busy,
                 tx_bitcount.eq(tx_bitcount + 1),
                 If(tx_bitcount == 8,
                     pads.tx.eq(1)
                 ).Elif(tx_bitcount == 9,
                     pads.tx.eq(1),
-                    tx_busy.eq(0),
+                    self.tx_busy.eq(0),
                     self.sink.ready.eq(1),
                 ).Else(
                     pads.tx.eq(tx_reg[0]),
@@ -116,7 +116,7 @@ class RS232PHYTX(Module):
             )
         ]
         self.sync += [
-                If(tx_busy,
+                If(self.tx_busy,
                     Cat(phase_accumulator_tx, uart_clk_txen).eq(phase_accumulator_tx + tuning_word)
                 ).Else(
                     Cat(phase_accumulator_tx, uart_clk_txen).eq(0)
@@ -192,7 +192,8 @@ class UART(Module, AutoCSR, UARTInterface):
                  tx_fifo_depth=16,
                  rx_fifo_depth=16,
                  rx_fifo_rx_we=False,
-                 phy_cd="sys",):
+                 phy_cd="sys",
+                 no_fifo=False):
         self._rxtx = CSR(8)
         self._txfull = CSRStatus()
         self._rxempty = CSRStatus()
@@ -213,31 +214,49 @@ class UART(Module, AutoCSR, UARTInterface):
                 self.source.connect(phy.sink)
             ]
 
-        # TX
-        tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
-        self.submodules += tx_fifo
+        if no_fifo:
+            self.comb += [
+                self.source.valid.eq(self._rxtx.re),
+                self.source.data.eq(self._rxtx.r),
+                self._txfull.status.eq(phy.tx.tx_busy),
+                # Generate TX IRQ when tx_fifo becomes non-full
+                self.ev.tx.trigger.eq(~self.source.ready)
+            ]
 
-        self.comb += [
-            tx_fifo.sink.valid.eq(self._rxtx.re),
-            tx_fifo.sink.data.eq(self._rxtx.r),
-            self._txfull.status.eq(~tx_fifo.sink.ready),
-            tx_fifo.source.connect(self.source),
-            # Generate TX IRQ when tx_fifo becomes non-full
-            self.ev.tx.trigger.eq(~tx_fifo.sink.ready)
-        ]
+            self.comb += [
+                self._rxempty.status.eq(~self.ev.rx.pending),
+                self._rxtx.w.eq(self.sink.data),
+                self.sink.ready.eq(self._rxtx.we),
+                # Generate RX IRQ when rx_fifo becomes non-empty
+                self.ev.rx.trigger.eq(self.sink.valid)
+            ]
 
-        # RX
-        rx_fifo = _get_uart_fifo(rx_fifo_depth, sink_cd=phy_cd)
-        self.submodules += rx_fifo
+        else:
+            # TX
+            tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
+            self.submodules += tx_fifo
 
-        self.comb += [
-            self.sink.connect(rx_fifo.sink),
-            self._rxempty.status.eq(~rx_fifo.source.valid),
-            self._rxtx.w.eq(rx_fifo.source.data),
-            rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
-            # Generate RX IRQ when tx_fifo becomes non-empty
-            self.ev.rx.trigger.eq(~rx_fifo.source.valid)
-        ]
+            self.comb += [
+                tx_fifo.sink.valid.eq(self._rxtx.re),
+                tx_fifo.sink.data.eq(self._rxtx.r),
+                self._txfull.status.eq(~tx_fifo.sink.ready),
+                tx_fifo.source.connect(self.source),
+                # Generate TX IRQ when tx_fifo becomes non-full
+                self.ev.tx.trigger.eq(~tx_fifo.sink.ready)
+            ]
+
+            # RX
+            rx_fifo = _get_uart_fifo(rx_fifo_depth, sink_cd=phy_cd)
+            self.submodules += rx_fifo
+
+            self.comb += [
+                self.sink.connect(rx_fifo.sink),
+                self._rxempty.status.eq(~rx_fifo.source.valid),
+                self._rxtx.w.eq(rx_fifo.source.data),
+                rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
+                # Generate RX IRQ when rx_fifo becomes non-empty
+                self.ev.rx.trigger.eq(~rx_fifo.source.valid)
+            ]
 
 class UARTWishboneBridge(WishboneStreamingBridge):
     def __init__(self, pads, clk_freq, baudrate=115200):
