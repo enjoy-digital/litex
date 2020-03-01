@@ -1009,3 +1009,27 @@ class LiteXSoC(SoC):
             # Wishbone Slave <--> LiteDRAM bridge
             self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port,
                 base_address = self.bus.regions["main_ram"].origin)
+
+    # Add Ethernet ---------------------------------------------------------------------------------
+    def add_ethernet(self, phy):
+        # Imports
+        from liteeth.mac import LiteEthMAC
+        # PHY
+        self.add_csr("ethphy")
+        # MAC
+        self.submodules.ethmac = LiteEthMAC(
+            phy        = phy,
+            dw         = 32,
+            interface  = "wishbone",
+            endianness = self.cpu.endianness)
+        ethmac_region = SoCRegion(size=0x2000, cached=False)
+        self.bus.add_slave(name="ethmac", slave=self.ethmac.bus, region=ethmac_region)
+        self.add_csr("ethmac")
+        self.add_interrupt("ethmac")
+        # Timing constraints
+        self.platform.add_period_constraint(phy.crg.cd_eth_rx.clk, 1e9/phy.rx_clk_freq)
+        self.platform.add_period_constraint(phy.crg.cd_eth_tx.clk, 1e9/phy.tx_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            phy.crg.cd_eth_rx.clk,
+            phy.crg.cd_eth_tx.clk)
