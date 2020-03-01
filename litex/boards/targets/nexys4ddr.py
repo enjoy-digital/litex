@@ -17,7 +17,6 @@ from litedram.modules import MT47H64M16
 from litedram.phy import s7ddrphy
 
 from liteeth.phy.rmii import LiteEthPHYRMII
-from liteeth.mac import LiteEthMAC
 
 from litesdcard.phy import SDPHY
 from litesdcard.clocker import SDClockerS7
@@ -55,7 +54,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(100e6), **kwargs):
+    def __init__(self, sys_clk_freq=int(75e6), with_ethernet=False, **kwargs):
         platform = nexys4ddr.Platform()
 
         # SoCSDRAM ---------------------------------------------------------------------------------
@@ -76,34 +75,12 @@ class BaseSoC(SoCSDRAM):
                 geom_settings   = sdram_module.geom_settings,
                 timing_settings = sdram_module.timing_settings)
 
-    def add_ethernet(self):
-        mem_map = {
-            "ethmac": 0xb0000000,
-        }
-        mem_map.update(self.mem_map)
-
-        # phy
-        self.submodules.ethphy = LiteEthPHYRMII(
-            clock_pads = self.platform.request("eth_clocks"),
-            pads       = self.platform.request("eth"))
-        self.add_csr("ethphy")
-        # mac
-        self.submodules.ethmac = LiteEthMAC(
-            phy        = self.ethphy,
-            dw         = 32,
-            interface  = "wishbone",
-            endianness = self.cpu.endianness)
-        self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
-        self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
-        self.add_csr("ethmac")
-        self.add_interrupt("ethmac")
-        # timing constraints
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/25e6)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/25e6)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.ethphy.crg.cd_eth_rx.clk,
-            self.ethphy.crg.cd_eth_tx.clk)
+        # Ethernet ---------------------------------------------------------------------------------
+        if with_ethernet:
+            self.submodules.ethphy = LiteEthPHYRMII(
+                clock_pads = self.platform.request("eth_clocks"),
+                pads       = self.platform.request("eth"))
+            self.add_ethernet(phy=self.ethphy)
 
     def add_sdcard(self):
         sdcard_pads = self.platform.request("sdcard")
@@ -146,9 +123,9 @@ def main():
                         help="enable SDCard support")
     args = parser.parse_args()
 
-    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
-    if args.with_ethernet:
-        soc.add_ethernet()
+    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
+        with_ethernet=args.with_ethernet,
+        **soc_sdram_argdict(args))
     if args.with_sdcard:
         soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
