@@ -20,10 +20,6 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import wishbone2csr
 from litex.soc.interconnect import axi
 
-from litedram.core import LiteDRAMCore
-from litedram.frontend.wishbone import LiteDRAMWishbone2Native
-from litedram.frontend.axi import LiteDRAMAXI2Native
-
 # TODO:
 # - replace raise with exit on logging error.
 # - cleanup SoCCSRRegion
@@ -929,7 +925,12 @@ class LiteXSoC(SoC):
         l2_cache_full_memory_we = True,
         **kwargs):
 
-        # LiteDRAM core ----------------------------------------------------------------------------
+        # Imports
+        from litedram.core import LiteDRAMCore
+        from litedram.frontend.wishbone import LiteDRAMWishbone2Native
+        from litedram.frontend.axi import LiteDRAMAXI2Native
+
+        # LiteDRAM core
         self.submodules.sdram = LiteDRAMCore(
             phy             = phy,
             geom_settings   = module.geom_settings,
@@ -938,11 +939,11 @@ class LiteXSoC(SoC):
             **kwargs)
         self.csr.add("sdram")
 
-        # LiteDRAM port ----------------------------------------------------------------------------
+        # LiteDRAM port
         port = self.sdram.crossbar.get_port()
         port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
 
-        # SDRAM size -------------------------------------------------------------------------------
+        # SDRAM size
         sdram_size = 2**(module.geom_settings.bankbits +
                          module.geom_settings.rowbits +
                          module.geom_settings.colbits)*phy.settings.databits//8
@@ -981,11 +982,11 @@ class LiteXSoC(SoC):
                     base_address = origin)
                 self.submodules += wishbone.Converter(mem_wb, litedram_wb)
         elif self.with_wishbone:
-            # Wishbone Slave SDRAM interface -------------------------------------------------------
+            # Wishbone Slave SDRAM interface
             wb_sdram = wishbone.Interface()
             self.bus.add_slave("main_ram", wb_sdram)
 
-            # L2 Cache -----------------------------------------------------------------------------
+            # L2 Cache
             if l2_cache_size != 0:
                 # Insert L2 cache inbetween Wishbone bus and LiteDRAM
                 l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # Use minimal size if lower
@@ -1005,6 +1006,6 @@ class LiteXSoC(SoC):
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
             self.add_config("L2_SIZE", l2_cache_size)
 
-            # Wishbone Slave <--> LiteDRAM bridge --------------------------------------------------
+            # Wishbone Slave <--> LiteDRAM bridge
             self.submodules.wishbone_bridge = LiteDRAMWishbone2Native(litedram_wb, port,
                 base_address = self.bus.regions["main_ram"].origin)
