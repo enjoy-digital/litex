@@ -1014,8 +1014,6 @@ class LiteXSoC(SoC):
     def add_ethernet(self, phy):
         # Imports
         from liteeth.mac import LiteEthMAC
-        # PHY
-        self.add_csr("ethphy")
         # MAC
         self.submodules.ethmac = LiteEthMAC(
             phy        = phy,

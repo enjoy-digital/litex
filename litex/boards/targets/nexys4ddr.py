@@ -80,6 +80,7 @@ class BaseSoC(SoCSDRAM):
             self.submodules.ethphy = LiteEthPHYRMII(
                 clock_pads = self.platform.request("eth_clocks"),
                 pads       = self.platform.request("eth"))
+            self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
     def add_sdcard(self):
