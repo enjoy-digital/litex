@@ -27,6 +27,10 @@ from litex.soc.interconnect import axi
 logging.basicConfig(level=logging.INFO)
 
 # Helpers ------------------------------------------------------------------------------------------
+
+def auto_int(x):
+    return int(x, 0)
+
 def colorer(s, color="bright"):
     header  = {
         "bright": "\x1b[1m",
