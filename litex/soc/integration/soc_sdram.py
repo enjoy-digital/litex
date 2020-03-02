@@ -54,7 +54,7 @@ def soc_sdram_args(parser):
     # L2 Cache
     parser.add_argument("--l2-size", default=8192,
                         help="L2 cache size (default=8192)")
-    parser.add_argument("--min-l2-datawidth", default=128,
+    parser.add_argument("--min-l2-data-width", default=128,
                         help="Minimum L2 cache datawidth (default=128)")
 
     # SDRAM

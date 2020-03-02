@@ -10,6 +10,7 @@ from migen import *
 from litex.boards.platforms import nexys4ddr
 
 from litex.soc.cores.clock import *
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
@@ -53,7 +54,7 @@ class _CRG(Module):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCSDRAM):
+class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=int(75e6), with_ethernet=False, **kwargs):
         platform = nexys4ddr.Platform()
 
@@ -70,10 +71,15 @@ class BaseSoC(SoCSDRAM):
                 nphases      = 2,
                 sys_clk_freq = sys_clk_freq)
             self.add_csr("ddrphy")
-            sdram_module = MT47H64M16(sys_clk_freq, "1:2")
-            self.register_sdram(self.ddrphy,
-                geom_settings   = sdram_module.geom_settings,
-                timing_settings = sdram_module.timing_settings)
+            self.add_sdram("sdram",
+                phy                     = self.ddrphy,
+                module                  = MT47H64M16(sys_clk_freq, "1:2"),
+                origin                  = self.mem_map["main_ram"],
+                size                    = kwargs["max_sdram_size"],
+                l2_cache_size           = kwargs["l2_size"],
+                l2_cache_min_data_width = kwargs["min_l2_data_width"],
+                l2_cache_reverse        = True
+            )
 
         # Ethernet ---------------------------------------------------------------------------------
         if with_ethernet:
