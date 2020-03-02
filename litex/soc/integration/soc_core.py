@@ -281,8 +281,8 @@ def soc_core_args(parser):
     parser.add_argument("--ident-version", default=None, type=bool,
                         help="add date/time to SoC identifier (default=False)")
     # UART parameters
-    parser.add_argument("--with-uart", default=None, type=bool,
-                        help="with UART (default=True)")
+    parser.add_argument("--no-uart", action="store_true",
+                        help="Disable UART (default=False)")
     parser.add_argument("--uart-name", default="serial", type=str,
                         help="UART type/name (default=serial)")
     parser.add_argument("--uart-baudrate", default=None, type=auto_int,
@@ -290,11 +290,11 @@ def soc_core_args(parser):
     parser.add_argument("--uart-fifo-depth", default=16, type=auto_int,
                         help="UART FIFO depth (default=16)")
     # Timer parameters
-    parser.add_argument("--with-timer", default=None, type=bool,
-                        help="with Timer (default=True)")
+    parser.add_argument("--no-timer", action="store_true",
+                        help="Disable Timer (default=False)")
     # Controller parameters
-    parser.add_argument("--with-ctrl", default=None, type=bool,
-                        help="with Controller (default=True)")
+    parser.add_argument("--no-ctrl", action="store_true",
+                        help="Disable Controller (default=False)")
 
 def soc_core_argdict(args):
     r = dict()
@@ -304,7 +304,10 @@ def soc_core_argdict(args):
         args.integrated_rom_size = len(args.integrated_rom_init)*4
     for a in inspect.getargspec(SoCCore.__init__).args:
         if a not in ["self", "platform"]:
-            arg = getattr(args, a, None)
+            if a in ["with_uart", "with_timer", "with_ctrl"]:
+                arg = not getattr(args, a.replace("with", "no"), True)
+            else:
+                arg = getattr(args, a, None)
             if arg is not None:
                 r[a] = arg
     return r
