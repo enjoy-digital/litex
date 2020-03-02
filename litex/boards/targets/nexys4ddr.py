@@ -75,9 +75,9 @@ class BaseSoC(SoCCore):
                 phy                     = self.ddrphy,
                 module                  = MT47H64M16(sys_clk_freq, "1:2"),
                 origin                  = self.mem_map["main_ram"],
-                size                    = kwargs["max_sdram_size"],
-                l2_cache_size           = kwargs["l2_size"],
-                l2_cache_min_data_width = kwargs["min_l2_data_width"],
+                size                    = kwargs.get("max_sdram_size", 0x40000000),
+                l2_cache_size           = kwargs.get("l2_size", 8192),
+                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
                 l2_cache_reverse        = True
             )
 
