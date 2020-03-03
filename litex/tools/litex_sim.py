@@ -168,7 +168,6 @@ class SimSoC(SoCSDRAM):
         # SoCSDRAM ---------------------------------------------------------------------------------
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             ident               = "LiteX Simulation", ident_version=True,
-            with_uart           = False,
             l2_reverse          = False,
             **kwargs)
         # CRG --------------------------------------------------------------------------------------
@@ -287,7 +286,7 @@ def main():
     if "cpu_type" in soc_kwargs:
         if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
             cpu_endianness = "big"
-
+    soc_kwargs["with_uart"] = False
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
     if not args.with_sdram:
