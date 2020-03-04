@@ -151,7 +151,6 @@ class LatticeIceStormToolchain:
     def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
-        toolchain_path = None,
         synth_opts     = "",
         run            = True,
         **kwargs):

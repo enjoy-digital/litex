@@ -178,16 +178,11 @@ class LatticeTrellisToolchain:
     def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
-        toolchain_path = None,
         run            = True,
         nowidelut      = False,
         timingstrict   = False,
         ignoreloops    = False,
         **kwargs):
-
-        # Get default toolchain path (if not specified)
-        if toolchain_path is None:
-            toolchain_path = "/usr/share/trellis/"
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)

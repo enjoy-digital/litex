@@ -45,7 +45,6 @@ class Builder:
         generated_dir           = None,
         compile_software        = True,
         compile_gateware        = True,
-        gateware_toolchain_path = None,
         csr_json                = None,
         csr_csv                 = None):
         self.soc = soc
@@ -60,7 +59,6 @@ class Builder:
 
         self.compile_software = compile_software
         self.compile_gateware = compile_gateware
-        self.gateware_toolchain_path = gateware_toolchain_path
         self.csr_csv = csr_csv
         self.csr_json = csr_json
 
@@ -168,7 +166,7 @@ class Builder:
         bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu.endianness)
         self.soc.initialize_rom(bios_data)
 
-    def build(self, toolchain_path=None, **kwargs):
+    def build(self, **kwargs):
         self.soc.platform.output_dir = self.output_dir
         os.makedirs(self.gateware_dir, exist_ok=True)
         os.makedirs(self.software_dir, exist_ok=True)
@@ -185,13 +183,9 @@ class Builder:
 
         self._generate_csr_map(self.csr_json, self.csr_csv)
 
-        if self.gateware_toolchain_path is not None:
-            toolchain_path = self.gateware_toolchain_path
-
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
-        vns = self.soc.build(build_dir=self.gateware_dir,
-                             toolchain_path=toolchain_path, **kwargs)
+        vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
         self.soc.do_exit(vns=vns)
         return vns
 
@@ -215,9 +209,6 @@ def builder_args(parser):
     parser.add_argument("--no-compile-gateware", action="store_true",
                         help="do not compile the gateware, only generate "
                              "HDL source files and build scripts")
-    parser.add_argument("--gateware-toolchain-path", default=None,
-                        help="set gateware toolchain (ISE, Quartus, etc.) "
-                             "installation path")
     parser.add_argument("--csr-csv", default=None,
                         help="store CSR map in CSV format into the "
                              "specified file")
@@ -235,7 +226,6 @@ def builder_argdict(args):
         "generated_dir": args.generated_dir,
         "compile_software": not args.no_compile_software,
         "compile_gateware": not args.no_compile_gateware,
-        "gateware_toolchain_path": args.gateware_toolchain_path,
         "csr_csv": args.csr_csv,
         "csr_json": args.csr_json,
     }
