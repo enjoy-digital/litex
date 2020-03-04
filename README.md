@@ -95,10 +95,8 @@ Provides definitions/modules to build cores (bus, bank, flow), cores and tools t
 Provides platforms and targets for the supported boards. All Migen's platforms can also be used in LiteX. The boards present in the LiteX repository are the official ones that are used for development/CI. More boards are available at: https://github.com/litex-hub/litex-boards
 
 # Quick start guide
-0. Install Python 3.5+ and FPGA vendor's development tools.
-1. Install Migen/LiteX and the LiteX's cores:
-
-On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``brew install wget``.
+1. Install Python 3.5+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
+2. Install Migen/LiteX and the LiteX's cores:
 
 ```sh
 $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
@@ -109,41 +107,46 @@ $ ./litex_setup.py init install --user (--user to install to user directory)
 ```sh
 $ ./litex_setup.py update
 ```
-3. Install a RISC-V toolchain:
 
-For Linux:
+> **Note:** On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``brew install wget``.
+
+> **Note:** On Windows, it's possible you'll have to set `SHELL` environment variable to `SHELL=cmd.exe`.
+
+3. Install a RISC-V toolchain (Only if you want to test/create a SoC with a CPU):
+
+On Linux (Ubuntu):
 ```sh
 $ wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
 $ tar -xvf riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
 $ export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 ```
-MacOS:
+On MacOS:
 ```sh
 $ wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin.tar.gz
 $ tar -xvf riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin.tar.gz
 $ export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin/bin/
 ```
+On Windows:
+
+You can Get and install the RISC-V toolchain from https://gnutoolchains.com/risc-v/.
+
 4. Build the target of your board...:
-  Go to litex-boards/litex_boards/xxyy/targets (xxyy being community/official/partner) and execute the target you want to build
 
-5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX on your computer
+Go to litex-boards/litex_boards/targets and execute the target you want to build.
 
-On Fedora:
-```sh
-$ sudo dnf install libevent-devel json-c-devel
-```
-On Ubuntu:
+5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
+
+On Linux (Ubuntu):
 ```sh
 $ sudo apt install libevent-dev libjson-c-dev verilator
-$ litex_sim
+$ lxsim --cpu-type=vexriscv
 ```
+
 On MacOS:
-
-
 ```sh
 $ brew install json-c verilator libevent
 $ brew cask install tuntap
-$ litex_sim
+$ lxsim --cpu-type=vexriscv
 ```
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
