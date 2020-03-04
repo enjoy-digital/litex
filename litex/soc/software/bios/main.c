@@ -360,6 +360,11 @@ static void help(void)
 	puts("crc        - compute CRC32 of a part of the address space");
 	puts("ident      - display identifier");
 	puts("");
+	puts("flush_cpu_dcache - flush CPU data cache");
+#ifdef CONFIG_L2_SIZE
+	puts("flush_l2_cache   - flush L2 cache");
+#endif
+	puts("");
 #ifdef CSR_CTRL_BASE
 	puts("reboot     - reset processor");
 #endif
@@ -429,9 +434,11 @@ static void do_command(char *c)
 	else if(strcmp(token, "crc") == 0) crc(get_token(&c), get_token(&c));
 	else if(strcmp(token, "ident") == 0) ident();
 
+	else if(strcmp(token, "flush_cpu_dcache") == 0) flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
-	else if(strcmp(token, "flushl2") == 0) flush_l2_cache();
+	else if(strcmp(token, "flush_l2_cache") == 0) flush_l2_cache();
 #endif
+
 #ifdef CSR_CTRL_BASE
 	else if(strcmp(token, "reboot") == 0) reboot();
 #endif
