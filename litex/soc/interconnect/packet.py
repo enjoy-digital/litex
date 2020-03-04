@@ -178,7 +178,7 @@ class Packetizer(Module):
         # Header Encode/Load/Shift -----------------------------------------------------------------
         self.comb += header.encode(sink, self.header)
         self.sync += If(sr_load, sr.eq(self.header))
-        if header_words != 1:
+        if header_words > 1:
             self.sync += If(sr_shift, sr.eq(sr[data_width:]))
 
         # FSM --------------------------------------------------------------------------------------
@@ -195,7 +195,7 @@ class Packetizer(Module):
                 If(source.valid & source.ready,
                     sr_load.eq(1),
                     NextValue(fsm_from_idle, 1),
-                    If(header_words == 1,
+                    If(header_words <= 1,
                         If(header_leftover != 0,
                             NextState("UNALIGNED-DATA-COPY")
                         ).Else(
@@ -237,7 +237,7 @@ class Packetizer(Module):
                )
             )
         )
-        header_offset_multiplier = 1 if header_words == 1 else 2
+        header_offset_multiplier = 1 if header_words <= 1 else 2
         self.sync += If(source.ready, sink_d.eq(sink))
         fsm.act("UNALIGNED-DATA-COPY",
             source.valid.eq(sink.valid | sink_d.last),
@@ -291,7 +291,7 @@ class Depacketizer(Module):
         sink_d            = stream.Endpoint(sink_description)
 
         # Header Shift/Decode ----------------------------------------------------------------------
-        if (header_words) == 1 and (header_leftover == 0):
+        if (header_words == 1 and (header_leftover == 0)) or header_words == 0:
             self.sync += If(sr_shift, sr.eq(sink.data))
         else:
             self.sync += [
@@ -310,7 +310,7 @@ class Depacketizer(Module):
             If(sink.valid,
                 sr_shift.eq(1),
                 NextValue(fsm_from_idle, 1),
-                If(header_words == 1,
+                If(header_words <= 1,
                     If(header_leftover,
                         NextState("UNALIGNED-DATA-COPY")
                     ).Else(
