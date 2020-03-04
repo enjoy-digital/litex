@@ -35,9 +35,13 @@ def generate_svd(soc, buildpath, filename=None, name="soc", **kwargs):
         svd.write(export.get_svd(soc, **kwargs))
 
 
-def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
-                  author="Anonymous", sphinx_extensions=[], quiet=False, note_pulses=False,
-                  from_scratch=True):
+def generate_docs(soc, base_dir,
+    project_name      = "LiteX SoC Project",
+    author            = "Anonymous",
+    sphinx_extensions = [],
+    quiet             = False,
+    note_pulses       = False,
+    from_scratch      = True):
     """Possible extra extensions:
         [
             'm2r',
@@ -79,7 +83,7 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
     # that are larger than the buswidth will be turned into multiple
     # DocumentedCSRs.
     documented_regions = []
-    seen_modules = set()
+    seen_modules       = set()
     for name, region in soc.csr.regions.items():
         module = None
         if hasattr(soc, name):
