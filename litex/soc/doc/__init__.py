@@ -80,26 +80,18 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
     # DocumentedCSRs.
     documented_regions = []
     seen_modules = set()
-    regions = []
-
-    # Previously, litex contained a function to gather csr regions.
-    if hasattr(soc, "get_csr_regions"):
-        regions = soc.get_csr_regions()
-    else:
-        # Now we just access the regions directly.
-        for region_name, region in soc.csr_regions.items():
-            regions.append((region_name, region.origin,
-                            region.busword, region.obj))
-
-    for csr_region in regions:
+    for name, region in soc.csr.regions.items():
         module = None
-        if hasattr(soc, csr_region[0]):
-            module = getattr(soc, csr_region[0])
+        if hasattr(soc, name):
+            module = getattr(soc, name)
             seen_modules.add(module)
         submodules = gather_submodules(module)
-
         documented_region = DocumentedCSRRegion(
-            csr_region, module, submodules, csr_data_width=soc.csr_data_width)
+            name           = name,
+            region         = region,
+            module         = module,
+            submodules     = submodules,
+            csr_data_width = soc.csr.data_width)
         if documented_region.name in interrupts:
             documented_region.document_interrupt(
                 soc, submodules, interrupts[documented_region.name])
