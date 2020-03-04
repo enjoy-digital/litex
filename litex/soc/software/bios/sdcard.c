@@ -73,10 +73,10 @@ void sdclk_set_clk(unsigned int freq) {
 #else
 
 static void sdclk_mmcm_write(unsigned int adr, unsigned int data) {
-	sdclk_mmcm_adr_write(adr);
-	sdclk_mmcm_dat_w_write(data);
-	sdclk_mmcm_write_write(1);
-	while(!sdclk_mmcm_drdy_read());
+	sdclk_mmcm_drp_adr_write(adr);
+	sdclk_mmcm_drp_dat_w_write(data);
+	sdclk_mmcm_drp_write_write(1);
+	while(!sdclk_mmcm_drp_drdy_read());
 }
 
 
