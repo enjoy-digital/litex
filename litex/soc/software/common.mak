@@ -58,7 +58,7 @@ DEPFLAGS += -MD -MP
 INCLUDES    = -I$(SOC_DIRECTORY)/software/include/base -I$(SOC_DIRECTORY)/software/include -I$(SOC_DIRECTORY)/common -I$(BUILDINC_DIRECTORY)
 COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -fomit-frame-pointer -Wall -fno-builtin -nostdinc $(INCLUDES)
 COMMONFLAGS += -ffunction-sections -fdata-sections -nostartfiles -nostdlib -nodefaultlibs
-ifneq ($(LTO), 1)
+ifeq ($(LTO), 1)
 COMMONFLAGS += -flto -fuse-linker-plugin
 endif
 CFLAGS   = $(COMMONFLAGS) -fexceptions -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
