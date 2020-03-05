@@ -898,6 +898,7 @@ class LiteXSoC(SoC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sdrams = {}
+        self.has_l2 = False
 
     # Add Identifier -------------------------------------------------------------------------------
     def add_identifier(self, name="identifier", identifier="LiteX SoC", with_build_time=True):
@@ -1034,12 +1035,10 @@ class LiteXSoC(SoC):
                 self.submodules += l2_cache
                 litedram_wb = l2_cache.slave
                 region.l2_cache_size = l2_cache_size
+                self.has_l2 = True
             else:
                 litedram_wb     = wishbone.Interface(port.data_width)
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
-            # FIXME: make sure all L2s have the same size or add support for different sizes
-            if region_name == 'main_ram':
-                self.add_config("L2_SIZE", l2_cache_size)
 
             # Wishbone Slave <--> LiteDRAM bridge
             self.submodules += LiteDRAMWishbone2Native(litedram_wb, port,
@@ -1071,4 +1070,9 @@ class LiteXSoC(SoC):
     def do_finalize(self):
         if len(self.sdrams) > 0:
             self.add_config("SDRAM_PHYS_COUNT", len(self.sdrams))
+
+        if self.has_l2:
+            self.add_config("L2", None)
+            self.add_config("L2_SIZE", 8192) # Just to not break code yet
+
         super().do_finalize()
