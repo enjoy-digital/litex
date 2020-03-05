@@ -898,6 +898,7 @@ class LiteXSoC(SoC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sdrams = {}
+        self.main_ram_subregions = {}
         self.has_l2 = False
 
     # Add Identifier -------------------------------------------------------------------------------
@@ -948,6 +949,7 @@ class LiteXSoC(SoC):
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = True,
         l2_cache_full_memory_we = True,
+        main_ram = True,
         **kwargs):
 
         # Imports
@@ -977,11 +979,15 @@ class LiteXSoC(SoC):
         sdram_size = 2**(module.geom_settings.bankbits +
                          module.geom_settings.rowbits +
                          module.geom_settings.colbits)*phy.settings.databits//8
+
         if size is not None:
             sdram_size = min(sdram_size, size)
-        region_name = "main_ram" if "main_ram" not in self.mem_regions else name
+
+        # SDRAM region -----------------------------------------------------------------------------
         region = SoCSDRAMRegion(origin=origin, size=sdram_size, l2_cache_size=0)
-        self.bus.add_region(region_name, region)
+        self.bus.add_region(name, region)
+        if main_ram:
+            self.main_ram_subregions[name] = region
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
         if self.cpu.name == "rocket":
@@ -992,7 +998,7 @@ class LiteXSoC(SoC):
                 self.submodules += LiteDRAMAXI2Native(
                     axi          = self.cpu.mem_axi,
                     port         = port,
-                    base_address = self.bus.regions[region_name].origin)
+                    base_address = region.origin)
             else:
                 self.logger.info("Converting MEM data width: {} to {} via Wishbone".format(
                     port.data_width,
@@ -1012,12 +1018,12 @@ class LiteXSoC(SoC):
                 self.submodules += LiteDRAMWishbone2Native(
                     wishbone     = litedram_wb,
                     port         = port,
-                    base_address = origin)
+                    base_address = region.origin)
                 self.submodules += wishbone.Converter(mem_wb, litedram_wb)
         elif self.with_wishbone:
             # Wishbone Slave SDRAM interface
             wb_sdram = wishbone.Interface()
-            self.bus.add_slave(region_name, wb_sdram)
+            self.bus.add_slave(name, wb_sdram)
 
             # L2 Cache
             if l2_cache_size != 0:
@@ -1042,7 +1048,7 @@ class LiteXSoC(SoC):
 
             # Wishbone Slave <--> LiteDRAM bridge
             self.submodules += LiteDRAMWishbone2Native(litedram_wb, port,
-                base_address = self.bus.regions[region_name].origin)
+                base_address = region.origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
     def add_ethernet(self, phy):
@@ -1074,5 +1080,35 @@ class LiteXSoC(SoC):
         if self.has_l2:
             self.add_config("L2", None)
             self.add_config("L2_SIZE", 8192) # Just to not break code yet
+
+        # Create "main_ram" linker region which spans all SDRAMs with
+        # "main_ram" argument set to True
+        if len(self.main_ram_subregions) > 0:
+            origin = 0
+            size   = 0
+            for name, region in sorted(self.main_ram_subregions.items(), key=lambda i: i[1].origin):
+                if size == 0:
+                    origin = region.origin
+                    size   = region.size
+                    self.logger.info("{} Region {} to {} Linker Region.".format(
+                        colorer(name, color="underline"),
+                        colorer("added", "green"),
+                        colorer("main_ram")))
+                elif origin + size == region.origin:
+                    size += region.size
+                    self.logger.info("{} Region {} to {} LinkerRegion.".format(
+                        colorer(name, color="underline"),
+                        colorer("added", "green"),
+                        colorer("main_ram")))
+                else:
+                    self.logger.error("{} Region would create a {} if added to {} Linker Region.".format(
+                        colorer(name, color="underline"),
+                        colorer("hole", color="red"),
+                        colorer("main_ram"),
+                        ))
+                    raise
+
+            if size != 0:
+                self.bus.add_region("main_ram", SoCRegion(origin=origin, size=size, linker=True))
 
         super().do_finalize()
