@@ -238,7 +238,7 @@ class SoCCore(LiteXSoC):
                     break
             self.bus.add_slave(name=wb_name, slave=interface)
 
-        SoC.do_finalize(self)
+        super().do_finalize()
         # Retro-compatibility
         for region in self.bus.regions.values():
             region.length = region.size
