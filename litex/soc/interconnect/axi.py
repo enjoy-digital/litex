@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Karol Gugala <kgugala@antmicro.com>
+# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 # License: BSD
 
 """AXI4 Full/Lite support for LiteX"""

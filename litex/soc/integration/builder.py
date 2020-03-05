@@ -1,7 +1,6 @@
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
-# This file is Copyright (c) 2018 Peter Gielda <pgielda@antmicro.com>
+# This file is Copyright (c) 2018-2019 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
 # This file is Copyright (c) 2016-2017 Tim 'mithro' Ansell <mithro@mithis.com>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
