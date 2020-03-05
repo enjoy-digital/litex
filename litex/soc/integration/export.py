@@ -117,6 +117,27 @@ def get_mem_header(regions):
     for name, region in regions.items():
         r += "#define {name}_BASE 0x{base:08x}L\n#define {name}_SIZE 0x{size:08x}\n\n".format(
             name=name.upper(), base=region.origin, size=region.length)
+
+    r += "\n"
+    r += "struct mem_region_t {\n"
+    r += "    unsigned long base;\n"
+    r += "    unsigned long size;\n"
+    r += "    unsigned l2_cache_size;\n"
+    r += "};\n\n"
+
+    r += "static const struct mem_region_t mem_regions_sdram[] = {\n"
+
+    sdram_regions = dict((n,r) for n,r in regions.items() if r.region_type == "sdram" and not r.linker)
+    if len(sdram_regions.keys()) > 0:
+        max_name_len = max(len(n) for n in sdram_regions.keys())
+        entries = []
+        for name, region in sdram_regions.items():
+            l2 = f"0x{region.l2_cache_size:x}" if hasattr(region, "l2_cache_size") else "0"
+            entries.append(f"    /* {name:{max_name_len}} */ {{ 0x{region.origin:08x}, 0x{region.size:08x}, {l2} }}")
+        r += ",\n".join(entries) + "\n"
+
+    r += "};\n\n"
+
     r += "#endif\n"
     return r
 
