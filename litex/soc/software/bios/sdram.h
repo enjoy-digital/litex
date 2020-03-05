@@ -24,7 +24,7 @@ int sdrlevel(void);
 #endif
 
 int memtest_silent(void);
-int memtest(void);
+int memtest(char *addr, char *len);
 int sdrinit(void);
 
 #endif /* __SDRAM_H */

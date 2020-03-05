@@ -720,22 +720,22 @@ static unsigned short seed_to_data_16(unsigned short seed, int random)
 
 //#define MEMTEST_BUS_DEBUG
 
-static int memtest_bus(void)
+static int memtest_bus(unsigned long addr, unsigned long len)
 {
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	volatile unsigned int *array = (unsigned int *)addr;
 	int i, errors;
 	unsigned int rdata;
 
 	errors = 0;
 
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		array[i] = ONEZERO;
 	}
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		rdata = array[i];
 		if(rdata != ONEZERO) {
 			errors++;
@@ -745,14 +745,14 @@ static int memtest_bus(void)
 		}
 	}
 
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		array[i] = ZEROONE;
 	}
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
-	for(i=0;i<MEMTEST_BUS_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		rdata = array[i];
 		if(rdata != ZEROONE) {
 			errors++;
@@ -772,9 +772,9 @@ static int memtest_bus(void)
 
 //#define MEMTEST_DATA_DEBUG
 
-static int memtest_data(void)
+static int memtest_data(unsigned long addr, unsigned long len)
 {
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	volatile unsigned int *array = (unsigned int *)addr;
 	int i, errors;
 	unsigned int seed_32;
 	unsigned int rdata;
@@ -782,7 +782,7 @@ static int memtest_data(void)
 	errors = 0;
 	seed_32 = 0;
 
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		array[i] = seed_32;
 	}
@@ -792,7 +792,7 @@ static int memtest_data(void)
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		rdata = array[i];
 		if(rdata != seed_32) {
@@ -812,9 +812,9 @@ static int memtest_data(void)
 
 //#define MEMTEST_ADDR_DEBUG
 
-static int memtest_addr(void)
+static int memtest_addr(unsigned long addr, unsigned long len)
 {
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	volatile unsigned int *array = (unsigned int *)addr;
 	int i, errors;
 	unsigned short seed_16;
 	unsigned short rdata;
@@ -822,7 +822,10 @@ static int memtest_addr(void)
 	errors = 0;
 	seed_16 = 0;
 
-	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
+	if(len/4 > 0x10000)
+		len = 4 * 0x10000;
+
+	for(i=0;i<len/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		array[(unsigned int) seed_16] = i;
 	}
@@ -832,7 +835,7 @@ static int memtest_addr(void)
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
 #endif
-	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		rdata = array[(unsigned int) seed_16];
 		if(rdata != i) {
@@ -846,9 +849,9 @@ static int memtest_addr(void)
 	return errors;
 }
 
-static void memspeed(void)
+static void memspeed(unsigned long addr, unsigned long len)
 {
-	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
+	volatile unsigned int *array = (unsigned int *)addr;
 	int i;
 	unsigned int start, end;
 	unsigned long write_speed;
@@ -864,12 +867,12 @@ static void memspeed(void)
 	/* write speed */
 	timer0_update_value_write(1);
 	start = timer0_value_read();
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		array[i] = i;
 	}
 	timer0_update_value_write(1);
 	end = timer0_value_read();
-	write_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
+	write_speed = (8*len*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
 
 	/* flush CPU and L2 caches */
 	flush_cpu_dcache();
@@ -881,37 +884,70 @@ static void memspeed(void)
 	timer0_en_write(1);
 	timer0_update_value_write(1);
 	start = timer0_value_read();
-	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
+	for(i=0;i<len/4;i++) {
 		data = array[i];
 	}
 	timer0_update_value_write(1);
 	end = timer0_value_read();
-	read_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
+	read_speed = (8*len*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
 
 	printf("Memspeed Writes: %dMbps Reads: %dMbps\n", write_speed, read_speed);
 }
 
-int memtest(void)
+int memtest(char *addr, char *len)
 {
+	char *c;
+	unsigned long array_addr = MAIN_RAM_BASE;
+	unsigned long size = 0;
+	static const char suffixes[] = {'K', 'M', 'G'};
+	int i;
+
 	int bus_errors, data_errors, addr_errors;
 
-	bus_errors = memtest_bus();
+	if(addr != NULL && *addr != 0) {
+		array_addr = strtoul(addr, &c, 0);
+		if(*c != 0)
+			printf("incorrect address\n");
+		else if(len != NULL && *len != 0) {
+			size = strtoul(len, &c, 0);
+			for(i = 0; i < sizeof(suffixes); i++) {
+				if(*c == suffixes[i]) {
+					size <<= 10*(i+1);
+					c++;
+					break;
+				}
+			}
+			if(*c != 0)
+				printf("incorrect length\n");
+		}
+
+		if(*c != 0) {
+			printf("memtest [address [length]]\n");
+			return 1;
+		}
+	}
+
+	const unsigned long bus_size  = size == 0 ? MEMTEST_BUS_SIZE  : size;
+	const unsigned long data_size = size == 0 ? MEMTEST_DATA_SIZE : size;
+	const unsigned long addr_size = size == 0 ? MEMTEST_ADDR_SIZE : size;
+
+	bus_errors = memtest_bus(array_addr, bus_size);
 	if(bus_errors != 0)
-		printf("Memtest bus failed: %d/%d errors\n", bus_errors, 2*128);
+		printf("Memtest bus failed: %d/%d errors\n", bus_errors, 2*bus_size/4);
 
-	data_errors = memtest_data();
+	data_errors = memtest_data(array_addr, data_size);
 	if(data_errors != 0)
-		printf("Memtest data failed: %d/%d errors\n", data_errors, MEMTEST_DATA_SIZE/4);
+		printf("Memtest data failed: %d/%d errors\n", data_errors, data_size/4);
 
-	addr_errors = memtest_addr();
+	addr_errors = memtest_addr(array_addr, addr_size);
 	if(addr_errors != 0)
-		printf("Memtest addr failed: %d/%d errors\n", addr_errors, MEMTEST_ADDR_SIZE/4);
+		printf("Memtest addr failed: %d/%d errors\n", addr_errors, addr_size/4);
 
 	if(bus_errors + data_errors + addr_errors != 0)
 		return 0;
 	else {
 		printf("Memtest OK\n");
-		memspeed();
+		memspeed(array_addr, data_size);
 		return 1;
 	}
 }
@@ -1003,7 +1039,7 @@ int sdrinit(void)
 #endif
 #endif
 	sdrhw();
-	if(!memtest()) {
+	if(!memtest(NULL, NULL)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_done_write(1);
 		ddrctrl_init_error_write(1);

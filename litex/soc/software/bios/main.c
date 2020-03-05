@@ -471,7 +471,7 @@ static void do_command(char *c)
 #endif
 	else if(strcmp(token, "sdrlevel") == 0) sdrlevel();
 #endif
-	else if(strcmp(token, "memtest") == 0) memtest();
+	else if(strcmp(token, "memtest") == 0) memtest(get_token(&c), get_token(&c));
 #endif
 
 #ifdef CSR_SDCORE_BASE
@@ -638,7 +638,7 @@ int main(int i, char **c)
 	sdr_ok = sdrinit();
 #else
 #ifdef MAIN_RAM_TEST
-	sdr_ok = memtest();
+	sdr_ok = memtest(NULL, NULL);
 #endif
 #endif
 	if (sdr_ok !=1)
