@@ -184,6 +184,7 @@ class Packetizer(Module):
         # FSM --------------------------------------------------------------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
+        print("hw", header_words)
         fsm.act("IDLE",
             sink.ready.eq(1),
             NextValue(count, 1),
@@ -191,20 +192,28 @@ class Packetizer(Module):
                 sink.ready.eq(0),
                 source.valid.eq(1),
                 source.last.eq(0),
-                source.data.eq(self.header[:data_width]),
-                If(source.valid & source.ready,
-                    sr_load.eq(1),
-                    NextValue(fsm_from_idle, 1),
-                    If(header_words <= 1,
-                        If(header_leftover != 0,
-                            NextState("UNALIGNED-DATA-COPY")
-                        ).Else(
-                            NextState("ALIGNED-DATA-COPY")
-                        )
-                    ).Else(
-                        NextState("HEADER-SEND")
+                If(header_words < 1,
+                    source.data.eq(Cat(self.header, sink.data[:data_width - header.length*8])),
+                    If(source.valid & source.ready,
+                        sr_load.eq(1),
+                        NextState("UNALIGNED-DATA-COPY")
                     )
-               )
+                ).Else(
+                    source.data.eq(self.header[:data_width]),
+                    If(source.valid & source.ready,
+                        sr_load.eq(1),
+                        NextValue(fsm_from_idle, 1),
+                        If(header_words == 1,
+                            If(header_leftover != 0,
+                                NextState("UNALIGNED-DATA-COPY")
+                            ).Else(
+                                NextState("ALIGNED-DATA-COPY")
+                            )
+                        ).Else(
+                            NextState("HEADER-SEND")
+                        )
+                   )
+                ),
             )
         )
         fsm.act("HEADER-SEND",
