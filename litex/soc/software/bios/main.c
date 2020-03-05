@@ -43,6 +43,8 @@
 #include "sdcard.h"
 #include "boot.h"
 
+#define COUNT(x) (sizeof(x)/sizeof(x[0]))
+
 /* General address space functions */
 
 #define NUMBER_OF_BYTES_ON_A_LINE 16
@@ -572,7 +574,7 @@ static void boot_sequence(void)
 	}
 }
 
-int main(int i, char **c)
+int main(int argc, char **argv)
 {
 	char buffer[64];
 	int sdr_ok;
@@ -617,13 +619,21 @@ int main(int i, char **c)
 	printf("Unknown");
 #endif
 	printf(" @ %dMHz\n", CONFIG_CLOCK_FREQUENCY/1000000);
-	printf("\e[1mROM\e[0m:       %dKB\n", ROM_SIZE/1024);
-	printf("\e[1mSRAM\e[0m:      %dKB\n", SRAM_SIZE/1024);
-#ifdef CONFIG_L2_SIZE
-	printf("\e[1mL2\e[0m:        %dKB\n", CONFIG_L2_SIZE/1024);
-#endif
+	printf("\e[1mROM\e[0m:       %7dKB\n", ROM_SIZE/1024);
+	printf("\e[1mSRAM\e[0m:      %7dKB\n", SRAM_SIZE/1024);
 #ifdef MAIN_RAM_SIZE
-	printf("\e[1mMAIN-RAM\e[0m:  %dKB\n", MAIN_RAM_SIZE/1024);
+	printf("\e[1mMAIN-RAM\e[0m:  %7dKB\n", MAIN_RAM_SIZE/1024);
+
+	int i;
+	for(i = 0; i < COUNT(mem_regions_sdram); i++) {
+		const struct mem_region_t *ram = &mem_regions_sdram[i];
+
+		printf("\e[1mSDRAM%d\e[0m:    %7dKB", i, ram->size/1024);
+		if(ram->l2_cache_size > 0)
+			printf(" (\e[1mL2\e[0m: %dKB)\n", ram->l2_cache_size/1024);
+		else
+			printf("\n");
+	}
 #endif
 	printf("\n");
 
