@@ -379,7 +379,7 @@ static void help(void)
 	puts("romboot    - boot from embedded rom");
 #endif
 	puts("");
-#ifdef CSR_SDRAM_BASE
+#ifdef CONFIG_SDRAM_PHYS_COUNT
 	puts("memtest    - run a memory test");
 #endif
 	puts("");
@@ -455,7 +455,7 @@ static void do_command(char *c)
 
 	else if(strcmp(token, "help") == 0) help();
 
-#ifdef CSR_SDRAM_BASE
+#ifdef CONFIG_SDRAM_PHYS_COUNT
 	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
 	else if(strcmp(token, "sdrsw") == 0) sdrsw();
 	else if(strcmp(token, "sdrhw") == 0) sdrhw();
@@ -629,12 +629,12 @@ int main(int i, char **c)
 
         sdr_ok = 1;
 
-#if defined(CSR_ETHMAC_BASE) || defined(CSR_SDRAM_BASE)
+#if defined(CSR_ETHMAC_BASE) || defined(CONFIG_SDRAM_PHYS_COUNT)
     printf("--========== \e[1mInitialization\e[0m ============--\n");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 #endif
-#ifdef CSR_SDRAM_BASE
+#ifdef CONFIG_SDRAM_PHYS_COUNT
 	sdr_ok = sdrinit();
 #else
 #ifdef MAIN_RAM_TEST

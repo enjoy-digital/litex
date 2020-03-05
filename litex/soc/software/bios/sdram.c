@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef CSR_SDRAM_BASE
+#ifdef CONFIG_SDRAM_PHYS_COUNT
 #include <generated/sdram_phy.h>
 #endif
 #include <generated/mem.h>
@@ -55,7 +55,7 @@ __attribute__((unused)) static void cdelay(int i)
 	}
 }
 
-#ifdef CSR_SDRAM_BASE
+#ifdef CONFIG_SDRAM_PHYS_COUNT
 
 #define DFII_ADDR_SHIFT CONFIG_CSR_ALIGNMENT/8
 
@@ -693,7 +693,7 @@ static void read_level(int module)
 }
 #endif /* CSR_DDRPHY_BASE */
 
-#endif /* CSR_SDRAM_BASE */
+#endif /* CONFIG_SDRAM_PHYS_COUNT */
 
 static unsigned int seed_to_data_32(unsigned int seed, int random)
 {
@@ -952,7 +952,7 @@ int memtest(char *addr, char *len)
 	}
 }
 
-#ifdef CSR_SDRAM_BASE
+#ifdef CONFIG_SDRAM_PHYS_COUNT
 
 #ifdef CSR_DDRPHY_BASE
 int sdrlevel(void)
