@@ -71,6 +71,21 @@ static inline unsigned dfii_pix_data_bytes(const struct sdram_phy_t *phy) {
 	return phy->pix_data_size * CSR_DATA_BYTES;
 }
 
+void meminfo(void)
+{
+	int i;
+	printf("Name    Address     Size        L2 Cache    Part of Main RAM?\n");
+	for(i = 0; i < COUNT(mem_regions_sdram); i++) {
+		const struct mem_region_t *ram = &mem_regions_sdram[i];
+
+		int is_main_ram = ram->base >= MAIN_RAM_BASE \
+		        && (ram->base+ram->size) <= (MAIN_RAM_BASE+MAIN_RAM_SIZE);
+		printf("SDRAM%d  0x%08x  0x%08x  0x%08x  %s\n",
+		       i, ram->base, ram->size, ram->l2_cache_size,
+		       is_main_ram?"Yes":"No");
+	}
+}
+
 static int current_phy_id = 0;
 
 void currentsdramphy(char *phy_id)

@@ -3,6 +3,7 @@
 
 #include <generated/csr.h>
 
+void meminfo(void);
 void currentsdramphy(char *phy_id);
 void sdrsw(int phy_id);
 void sdrhw(int phy_id);

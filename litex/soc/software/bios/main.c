@@ -382,6 +382,7 @@ static void help(void)
 #endif
 	puts("");
 #ifdef CONFIG_SDRAM_PHYS_COUNT
+	puts("meminfo    - show SDRAMs list");
 	puts("memtest    - run a memory test");
 #endif
 	puts("");
@@ -458,6 +459,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "help") == 0) help();
 
 #ifdef CONFIG_SDRAM_PHYS_COUNT
+	else if(strcmp(token, "meminfo") == 0) meminfo();
 	else if(strcmp(token, "currentsdramphy") == 0) currentsdramphy(get_token(&c));
 	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
 	else if(strcmp(token, "sdrsw") == 0) sdrsw(-1);
