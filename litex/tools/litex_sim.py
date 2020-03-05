@@ -161,6 +161,7 @@ class SimSoC(SoCSDRAM):
         sdram_init            = [],
         sdram_data_width      = 32,
         sdram_verbosity       = 0,
+        sdrams                = [],
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -201,6 +202,53 @@ class SimSoC(SoCSDRAM):
                 self.sdrphy,
                 sdram_module.geom_settings,
                 sdram_module.timing_settings)
+
+        for sdram in sdrams:
+            assert sdram["module"] is not None
+
+            sdram["data-width"]  = int(str(sdram["data-width"]), 0)
+            sdram["address"]     = (int(str(sdram["address"]), 0)
+                                    if sdram["address"] is not None
+                                    else None)
+            sdram["max-size"]    = (int(str(sdram["max-size"]), 0)
+                                    if sdram["max-size"] is not None
+                                    else self.max_sdram_size)
+            sdram["region-name"] = sdram["region-name"] or f"sdram_{sdram['address']:08x}"
+            sdram["verbosity"]   = int(str(sdram["verbosity"]), 0)
+
+            self.mem_map[sdram["region-name"]] = sdram["address"]
+
+            sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
+            sdram_module_cls = getattr(litedram_modules, sdram["module"])
+            sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
+            sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
+            phy_settings     = get_sdram_phy_settings(
+                memtype    = sdram_module.memtype,
+                data_width = sdram["data-width"],
+                clk_freq   = sdram_clk_freq)
+            sdrphy           = SDRAMPHYModel(
+                module    = sdram_module,
+                settings  = phy_settings,
+                clk_freq  = sdram_clk_freq,
+                verbosity = sdram["verbosity"],
+                init      = sdram["init"])
+            self.submodules += sdrphy
+
+            class _SDRAMModule: pass
+            module = _SDRAMModule()
+            module.geom_settings   = sdram_module.geom_settings
+            module.timing_settings = sdram_module.timing_settings
+            self.add_sdram(sdram["region-name"],
+                phy                     = sdrphy,
+                module                  = module,
+                origin                  = sdram["address"],
+                size                    = sdram["max-size"],
+                l2_cache_size           = self.l2_size,
+                l2_cache_min_data_width = self.min_l2_data_width,
+                l2_cache_reverse        = self.l2_reverse,
+            )
+
+        if with_sdram or len(sdrams) > 0:
             # Reduce memtest size for simulation speedup
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
@@ -250,6 +298,49 @@ class SimSoC(SoCSDRAM):
 
 # Build --------------------------------------------------------------------------------------------
 
+class AppendDictAction(argparse.Action):
+    def __init__(self, parser=None, nargs="+", metavar="key=val", **kwargs):
+        super().__init__(nargs=nargs, metavar=metavar, **kwargs)
+        self.properties = {}
+        self.parser     = parser
+        self.help_group = None
+
+        # Create a group with fake positional arguments in order
+        # to show help section with properties description
+        if parser is not None and "option_strings" in kwargs:
+            opt = "/".join(kwargs["option_strings"])
+            self.help_group = parser.add_argument_group(f"Available properties for {opt}")
+
+    class _NoAction(argparse.Action):
+        def __init__(self, nargs=0, default=argparse.SUPPRESS, **kwargs):
+            super().__init__(nargs=nargs, default=default, **kwargs)
+        def __call__(self, *args, **kwargs):
+            pass
+
+    def add_property(self, name, default=None, help=argparse.SUPPRESS):
+        self.properties[name] = {"default": default, "help": help}
+        if self.help_group:
+            self.help_group.add_argument(f"{name}", help=help, action=AppendDictAction._NoAction)
+        return self
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        items = getattr(namespace, self.dest, [])
+        if items is None:
+            items = []
+
+        values_dict = dict((k,v['default']) for k,v in self.properties.items())
+        for v in values:
+            try:
+                key,val = v.split("=", 1)
+            except ValueError:
+                raise argparse.ArgumentError(self, f"invalid syntax: {v} (expected: key=value)")
+            if key not in self.properties:
+                valid_keys = ", ".join(self.properties.keys())
+                raise argparse.ArgumentError(self, f"unknown property: {key} (expected one of: {valid_keys})")
+            values_dict[key] = val
+        items.append(values_dict)
+        setattr(namespace, self.dest, items)
+
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     builder_args(parser)
@@ -262,6 +353,15 @@ def main():
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
+    parser.add_argument("--add-sdram",            dest="sdrams",           help="Add SDRAM module with specified configuration",
+                        action=AppendDictAction, default=[], parser=parser) \
+                       .add_property("module",       default="MT48LC16M16",   help="SDRAM chip") \
+                       .add_property("data-width",   default=32,              help="SDRAM chip data width") \
+                       .add_property("address",      default=None,            help="Memory region base address") \
+                       .add_property("max-size",     default=None,            help="Memory region maximum size") \
+                       .add_property("region-name",  default=None,            help="Memory region name") \
+                       .add_property("verbosity",    default=0,               help="SDRAM checker verbosity") \
+                       .add_property("init",         default=None,            help="Init file")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
     parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
@@ -289,16 +389,20 @@ def main():
     soc_kwargs["with_uart"] = False
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
-    if not args.with_sdram:
-        soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
-        if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu_endianness)
-    else:
+
+    if args.with_sdram:
         assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
         soc_kwargs["sdram_module"]             = args.sdram_module
         soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
         soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
+    elif len(args.sdrams) > 0:
+        assert args.ram_init is None
+        soc_kwargs["integrated_main_ram_size"] = 0x0
+    else:
+        soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
+        if args.ram_init is not None:
+            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init, cpu_endianness)
 
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
@@ -310,6 +414,7 @@ def main():
         with_etherbone = args.with_etherbone,
         with_analyzer  = args.with_analyzer,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
+        sdrams         = args.sdrams,
         **soc_kwargs)
     if args.ram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
