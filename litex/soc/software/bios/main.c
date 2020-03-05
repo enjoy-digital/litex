@@ -363,7 +363,7 @@ static void help(void)
 	puts("ident      - display identifier");
 	puts("");
 	puts("flush_cpu_dcache - flush CPU data cache");
-#ifdef CONFIG_L2_SIZE
+#ifdef CONFIG_L2
 	puts("flush_l2_cache   - flush L2 cache");
 #endif
 	puts("");
@@ -438,7 +438,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "ident") == 0) ident();
 
 	else if(strcmp(token, "flush_cpu_dcache") == 0) flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
+#ifdef CONFIG_L2
 	else if(strcmp(token, "flush_l2_cache") == 0) flush_l2_cache();
 #endif
 

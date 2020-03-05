@@ -45,7 +45,7 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 	flush_cpu_icache();
 #endif
 	flush_cpu_dcache();
-#ifdef CONFIG_L2_SIZE
+#ifdef CONFIG_L2
 	flush_l2_cache();
 #endif
 
