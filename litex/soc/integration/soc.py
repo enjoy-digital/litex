@@ -1048,3 +1048,9 @@ class LiteXSoC(SoC):
             self.crg.cd_sys.clk,
             phy.crg.cd_eth_rx.clk,
             phy.crg.cd_eth_tx.clk)
+
+    # LiteXSoC finalization ------------------------------------------------------------------------
+    def do_finalize(self):
+        if len(self.sdrams) > 0:
+            self.add_config("SDRAM_PHYS_COUNT", len(self.sdrams))
+        super().do_finalize()
