@@ -3,8 +3,9 @@
 
 #include <generated/csr.h>
 
-void sdrsw(void);
-void sdrhw(void);
+void currentsdramphy(char *phy_id);
+void sdrsw(int phy_id);
+void sdrhw(int phy_id);
 void sdrrow(char *_row);
 void sdrrdbuf(int dq);
 void sdrrd(char *startaddr, char *dq);

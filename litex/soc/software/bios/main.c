@@ -458,9 +458,10 @@ static void do_command(char *c)
 	else if(strcmp(token, "help") == 0) help();
 
 #ifdef CONFIG_SDRAM_PHYS_COUNT
+	else if(strcmp(token, "currentsdramphy") == 0) currentsdramphy(get_token(&c));
 	else if(strcmp(token, "sdrrow") == 0) sdrrow(get_token(&c));
-	else if(strcmp(token, "sdrsw") == 0) sdrsw();
-	else if(strcmp(token, "sdrhw") == 0) sdrhw();
+	else if(strcmp(token, "sdrsw") == 0) sdrsw(-1);
+	else if(strcmp(token, "sdrhw") == 0) sdrhw(-1);
 	else if(strcmp(token, "sdrrdbuf") == 0) sdrrdbuf(-1);
 	else if(strcmp(token, "sdrrd") == 0) sdrrd(get_token(&c), get_token(&c));
 	else if(strcmp(token, "sdrrderr") == 0) sdrrderr(get_token(&c));

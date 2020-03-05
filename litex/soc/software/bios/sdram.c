@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #ifdef CONFIG_SDRAM_PHYS_COUNT
 #include <generated/sdram_phy.h>
@@ -21,6 +22,8 @@
 #include <system.h>
 
 #include "sdram.h"
+
+#define COUNT(x) (sizeof(x)/sizeof(x[0]))
 
 // FIXME(hack): If we don't have main ram, just target the sram instead.
 #ifndef MAIN_RAM_BASE
@@ -61,32 +64,63 @@ __attribute__((unused)) static void cdelay(int i)
 
 #define CSR_DATA_BYTES CONFIG_CSR_DATA_WIDTH/8
 
-#define DFII_PIX_DATA_BYTES DFII_PIX_DATA_SIZE*CSR_DATA_BYTES
+#define DFII_PIX_DATA_BYTES_MAX DFII_PIX_DATA_SIZE_MAX*CSR_DATA_BYTES
+#define DFII_PIX_DATA_BYTES DFII_PIX_DATA_SIZE*CSR_DATA_BYTES // backward compat
 
-void sdrsw(void)
-{
-	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
-	printf("SDRAM now under software control\n");
+static inline unsigned dfii_pix_data_bytes(const struct sdram_phy_t *phy) {
+	return phy->pix_data_size * CSR_DATA_BYTES;
 }
 
-void sdrhw(void)
+static int current_phy_id = 0;
+
+void currentsdramphy(char *phy_id)
 {
-	int i;
-	for(i = 0; i < CONFIG_SDRAM_PHYS_COUNT; i++) {
-		sdram_phys[i].control_write(DFII_CONTROL_SEL);
-		printf("SDRAM %d now under hardware control\n", i);
+	char *c;
+	unsigned id;
+
+	if(*phy_id != 0) {
+		id = strtoul(phy_id, &c, 0);
+		if(*c != 0 || id >= CONFIG_SDRAM_PHYS_COUNT) {
+			printf("incorrect id: must be in range 0..%d\n", CONFIG_SDRAM_PHYS_COUNT-1);
+			return;
+		}
+		current_phy_id = id;
 	}
+	printf("current id: %d\n", current_phy_id);
+}
+
+void sdrsw(int phy_id)
+{
+	assert(phy_id < CONFIG_SDRAM_PHYS_COUNT);
+	if(phy_id < 0)
+		phy_id = current_phy_id;
+	const struct sdram_phy_t *phy = &sdram_phys[phy_id];
+
+	phy->control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
+	printf("SDRAM %d now under software control\n", phy_id);
+}
+
+void sdrhw(int phy_id)
+{
+	assert(phy_id < CONFIG_SDRAM_PHYS_COUNT);
+	if(phy_id < 0)
+		phy_id = current_phy_id;
+	const struct sdram_phy_t *phy = &sdram_phys[phy_id];
+
+	phy->control_write(DFII_CONTROL_SEL);
+	printf("SDRAM %d now under hardware control\n", phy_id);
 }
 
 void sdrrow(char *_row)
 {
 	char *c;
 	unsigned int row;
+	const struct sdram_phy_t *phy = &sdram_phys[current_phy_id];
 
 	if(*_row == 0) {
-		sdram_dfii_pi0_address_write(0x0000);
-		sdram_dfii_pi0_baddress_write(0);
-		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+		phy->pix_address_write[0](0x0000);
+		phy->pix_baddress_write[0](0);
+		phy->command_px[0](DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 		cdelay(15);
 		printf("Precharged\n");
 	} else {
@@ -95,9 +129,9 @@ void sdrrow(char *_row)
 			printf("incorrect row\n");
 			return;
 		}
-		sdram_dfii_pi0_address_write(row);
-		sdram_dfii_pi0_baddress_write(0);
-		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
+		phy->pix_address_write[0](row);
+		phy->pix_baddress_write[0](0);
+		phy->command_px[0](DFII_COMMAND_RAS|DFII_COMMAND_CS);
 		cdelay(15);
 		printf("Activated row %d\n", row);
 	}
@@ -107,20 +141,21 @@ void sdrrdbuf(int dq)
 {
 	int i, p;
 	int first_byte, step;
-	unsigned char buf[DFII_PIX_DATA_BYTES];
+	unsigned char buf[DFII_PIX_DATA_BYTES_MAX];
+	const struct sdram_phy_t *phy = &sdram_phys[current_phy_id];
+	const unsigned data_bytes = dfii_pix_data_bytes(phy);
 
 	if(dq < 0) {
 		first_byte = 0;
 		step = 1;
 	} else {
-		first_byte = DFII_PIX_DATA_BYTES/2 - 1 - dq;
-		step = DFII_PIX_DATA_BYTES/2;
+		first_byte = data_bytes/2 - 1 - dq;
+		step = data_bytes/2;
 	}
 
-	for(p=0;p<DFII_NPHASES;p++) {
-		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p],
-				 buf, DFII_PIX_DATA_BYTES);
-		for(i=first_byte;i<DFII_PIX_DATA_BYTES;i+=step)
+	for(p=0;p<phy->nphases;p++) {
+		csr_rd_buf_uint8(phy->pix_rddata_addr[p], buf, data_bytes);
+		for(i=first_byte;i<data_bytes;i+=step)
 			printf("%02x", buf[i]);
 	}
 	printf("\n");
@@ -131,6 +166,7 @@ void sdrrd(char *startaddr, char *dq)
 	char *c;
 	unsigned int addr;
 	int _dq;
+	const struct sdram_phy_t *phy = &sdram_phys[current_phy_id];
 
 	if(*startaddr == 0) {
 		printf("sdrrd <address>\n");
@@ -151,9 +187,9 @@ void sdrrd(char *startaddr, char *dq)
 		}
 	}
 
-	sdram_dfii_pird_address_write(addr);
-	sdram_dfii_pird_baddress_write(0);
-	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+	phy->pird_address_write(addr);
+	phy->pird_baddress_write(0);
+	phy->command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
 	sdrrdbuf(_dq);
 }
@@ -164,9 +200,11 @@ void sdrrderr(char *count)
 	char *c;
 	int _count;
 	int i, j, p;
-	unsigned char prev_data[DFII_NPHASES][DFII_PIX_DATA_BYTES];
-	unsigned char errs[DFII_NPHASES][DFII_PIX_DATA_BYTES];
-	unsigned char new_data[DFII_PIX_DATA_BYTES];
+	const struct sdram_phy_t *phy = &sdram_phys[current_phy_id];
+	unsigned char prev_data[DFII_NPHASES_MAX][DFII_PIX_DATA_BYTES_MAX];
+	unsigned char errs[DFII_NPHASES_MAX][DFII_PIX_DATA_BYTES_MAX];
+	unsigned char new_data[DFII_PIX_DATA_BYTES_MAX];
+	const unsigned data_bytes = dfii_pix_data_bytes(phy);
 
 	if(*count == 0) {
 		printf("sdrrderr <count>\n");
@@ -178,26 +216,24 @@ void sdrrderr(char *count)
 		return;
 	}
 
-	for(p=0;p<DFII_NPHASES;p++)
-		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
+	for(p=0;p<phy->nphases;p++)
+		for(i=0;i<data_bytes;i++)
 			errs[p][i] = 0;
 
 	for(addr=0;addr<16;addr++) {
-		sdram_dfii_pird_address_write(addr*8);
-		sdram_dfii_pird_baddress_write(0);
-		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+		phy->pird_address_write(addr*8);
+		phy->pird_baddress_write(0);
+		phy->command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 		cdelay(15);
-		for(p=0;p<DFII_NPHASES;p++)
-			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p],
-					 prev_data[p], DFII_PIX_DATA_BYTES);
+		for(p=0;p<phy->nphases;p++)
+			csr_rd_buf_uint8(phy->pix_rddata_addr[p], prev_data[p], data_bytes);
 
 		for(j=0;j<_count;j++) {
-			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+			phy->command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 			cdelay(15);
-			for(p=0;p<DFII_NPHASES;p++) {
-				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p],
-						 new_data, DFII_PIX_DATA_BYTES);
-				for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
+			for(p=0;p<phy->nphases;p++) {
+				csr_rd_buf_uint8(phy->pix_rddata_addr[p], new_data, data_bytes);
+				for(i=0;i<data_bytes;i++) {
 					errs[p][i] |= prev_data[p][i] ^ new_data[i];
 					prev_data[p][i] = new_data[i];
 				}
@@ -205,13 +241,13 @@ void sdrrderr(char *count)
 		}
 	}
 
-	for(p=0;p<DFII_NPHASES;p++)
-		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
+	for(p=0;p<phy->nphases;p++)
+		for(i=0;i<data_bytes;i++)
 			printf("%02x", errs[p][i]);
 	printf("\n");
-	for(p=0;p<DFII_NPHASES;p++)
-		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
-			printf("%2x", DFII_PIX_DATA_BYTES/2 - 1 - (i % (DFII_PIX_DATA_BYTES/2)));
+	for(p=0;p<phy->nphases;p++)
+		for(i=0;i<data_bytes;i++)
+			printf("%2x", data_bytes/2 - 1 - (i % (data_bytes/2)));
 	printf("\n");
 }
 
@@ -220,7 +256,9 @@ void sdrwr(char *startaddr)
 	int i, p;
 	char *c;
 	unsigned int addr;
-	unsigned char buf[DFII_PIX_DATA_BYTES];
+	unsigned char buf[DFII_PIX_DATA_BYTES_MAX];
+	const struct sdram_phy_t *phy = &sdram_phys[current_phy_id];
+	const unsigned data_bytes = dfii_pix_data_bytes(phy);
 
 	if(*startaddr == 0) {
 		printf("sdrwr <address>\n");
@@ -232,16 +270,15 @@ void sdrwr(char *startaddr)
 		return;
 	}
 
-	for(p=0;p<DFII_NPHASES;p++) {
-		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
+	for(p=0;p<phy->nphases;p++) {
+		for(i=0;i<data_bytes;i++)
 			buf[i] = 0x10*p + i;
-		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr[p],
-				 buf, DFII_PIX_DATA_BYTES);
+		csr_wr_buf_uint8(phy->pix_wrdata_addr[p], buf, data_bytes);
 	}
 
-	sdram_dfii_piwr_address_write(addr);
-	sdram_dfii_piwr_baddress_write(0);
-	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
+	phy->piwr_address_write(addr);
+	phy->piwr_baddress_write(0);
+	phy->command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
 }
 
 #ifdef CSR_DDRPHY_BASE
@@ -966,7 +1003,7 @@ int sdrlevel(void)
 	int best_score;
 	int best_bitslip;
 
-	sdrsw();
+	sdrsw(-1);
 
 	for(module=0; module<NBMODULES; module++) {
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
@@ -1020,6 +1057,7 @@ int sdrlevel(void)
 
 int sdrinit(void)
 {
+	unsigned int i;
 	printf("Initializing SDRAM...\n");
 
 #ifdef CSR_DDRCTRL_BASE
@@ -1041,13 +1079,18 @@ int sdrinit(void)
 	ddrphy_en_vtc_write(1);
 #endif
 #endif
-	sdrhw();
-	if(!memtest(NULL, NULL)) {
+	for(i = 0; i < CONFIG_SDRAM_PHYS_COUNT; i++) {
+		sdrhw(i);
+
+		char addr[12];
+		snprintf(addr, sizeof(addr), "0x%lx", mem_regions_sdram[i].base);
+		if(!memtest(addr, NULL)) {
 #ifdef CSR_DDRCTRL_BASE
-		ddrctrl_init_done_write(1);
-		ddrctrl_init_error_write(1);
+			ddrctrl_init_done_write(1);
+			ddrctrl_init_error_write(1);
 #endif
-		return 0;
+			return 0;
+		}
 	}
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
