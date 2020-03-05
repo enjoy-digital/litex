@@ -3,9 +3,8 @@
 # This file is Copyright (c) 2018-2019 Sean Cross <sean@xobs.io>
 # This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
 # This file is Copyright (c) 2019 David Shah <dave@ds0.me>
-# This file is Copyright (c) 2019 Joanna Brozek <jbrozek@antmicro.com>
+# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2019 Kurt Kiefer <kekiefer@gmail.com>
-# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
 
 # License: BSD
 

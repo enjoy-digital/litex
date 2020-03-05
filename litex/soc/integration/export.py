@@ -3,7 +3,7 @@
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
 # This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
-# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
+# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2013 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2018 Sean Cross <sean@xobs.io>
 # This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>

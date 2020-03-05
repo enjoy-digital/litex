@@ -2,7 +2,7 @@
 # This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2017-2019 Tim 'mithro' Ansell <me@mith.ro>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
-# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
+# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
 # License: BSD
 
 import os
