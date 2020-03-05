@@ -128,12 +128,16 @@ class Builder:
             cpu_interface.get_git_header()
         )
 
-        if hasattr(self.soc, "sdram"):
+        if hasattr(self.soc, "sdrams") and len(self.soc.sdrams) > 0:
             from litedram.init import get_sdram_phy_c_header
+            sdram_settings = [
+                (sdram.controller.settings.phy,
+                 sdram.controller.settings.timing,
+                 name)
+                for name,sdram in self.soc.sdrams.items()
+            ]
             write_to_file(os.path.join(self.generated_dir, "sdram_phy.h"),
-                get_sdram_phy_c_header(
-                    self.soc.sdram.controller.settings.phy,
-                    self.soc.sdram.controller.settings.timing))
+                          get_sdram_phy_c_header(sdram_settings))
 
     def _generate_csr_map(self, csr_json=None, csr_csv=None):
         if csr_json is not None:
