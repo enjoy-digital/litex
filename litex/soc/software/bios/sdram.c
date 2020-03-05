@@ -71,8 +71,11 @@ void sdrsw(void)
 
 void sdrhw(void)
 {
-	sdram_dfii_control_write(DFII_CONTROL_SEL);
-	printf("SDRAM now under hardware control\n");
+	int i;
+	for(i = 0; i < CONFIG_SDRAM_PHYS_COUNT; i++) {
+		sdram_phys[i].control_write(DFII_CONTROL_SEL);
+		printf("SDRAM %d now under hardware control\n", i);
+	}
 }
 
 void sdrrow(char *_row)
@@ -1024,7 +1027,7 @@ int sdrinit(void)
 	ddrctrl_init_error_write(0);
 #endif
 
-	init_sequence();
+	sdram_phy_init_all();
 #ifdef CSR_DDRPHY_BASE
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(0);
