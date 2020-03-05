@@ -12,6 +12,8 @@
 #include <generated/mem.h>
 #include <generated/csr.h>
 
+#define COUNT(x) (sizeof(x)/sizeof(x[0]))
+
 void flush_cpu_icache(void)
 {
 #if defined (__lm32__)
@@ -119,12 +121,14 @@ void flush_cpu_dcache(void)
 #endif
 }
 
-#ifdef CONFIG_L2_SIZE
+#ifdef CONFIG_L2
 void flush_l2_cache(void)
 {
-	unsigned int i;
-	for(i=0;i<2*CONFIG_L2_SIZE/4;i++) {
-		((volatile unsigned int *) MAIN_RAM_BASE)[i];
+	unsigned int i, j;
+	for(i = 0; i < COUNT(mem_regions_sdram); i++) {
+		for(j = 0; j < 2*mem_regions_sdram[i].l2_cache_size/4; j++) {
+			((volatile unsigned int *) mem_regions_sdram[i].base)[j];
+		}
 	}
 }
 #endif
