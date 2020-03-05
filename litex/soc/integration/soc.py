@@ -54,13 +54,14 @@ def SoCConstant(value):
 # SoCRegion ----------------------------------------------------------------------------------------
 
 class SoCRegion:
-    def __init__(self, origin=None, size=None, mode="rw", cached=True, linker=False):
-        self.logger    = logging.getLogger("SoCRegion")
-        self.origin    = origin
-        self.size      = size
-        self.mode      = mode
-        self.cached    = cached
-        self.linker    = linker
+    def __init__(self, origin=None, size=None, mode="rw", cached=True, linker=False, region_type=None):
+        self.logger        = logging.getLogger("SoCRegion")
+        self.origin        = origin
+        self.size          = size
+        self.mode          = mode
+        self.cached        = cached
+        self.linker        = linker
+        self.region_type   = region_type
 
     def decoder(self, bus):
         origin = self.origin
@@ -83,9 +84,23 @@ class SoCRegion:
         r += "Mode: {}, ".format(colorer(self.mode.upper()))
         r += "Cached: {} ".format(colorer(self.cached))
         r += "Linker: {}".format(colorer(self.linker))
+        if self.region_type is not None:
+            r += " Type: {}".format(colorer(self.region_type))
         return r
 
 class SoCIORegion(SoCRegion): pass
+
+class SoCSDRAMRegion(SoCRegion):
+    def __init__(self, l2_cache_size, *args, **kwargs):
+        kwargs["region_type"] = "sdram"
+        super().__init__(*args, **kwargs)
+        self.l2_cache_size = l2_cache_size
+
+    def __str__(self):
+        r = super().__str__()
+        if self.l2_cache_size > 0:
+            r += " L2 size: {}".format(colorer(f"0x{self.l2_cache_size:06x}"))
+        return r
 
 # SoCCSRRegion -------------------------------------------------------------------------------------
 
@@ -728,9 +743,10 @@ class SoC(Module):
         self.csr.add(name, use_loc_if_exists=True)
 
     def add_ram(self, name, origin, size, contents=[], mode="rw"):
-        ram_bus = wishbone.Interface(data_width=self.bus.data_width)
-        ram     = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
-        self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode))
+        ram_bus  = wishbone.Interface(data_width=self.bus.data_width)
+        ram      = wishbone.SRAM(size, bus=ram_bus, init=contents, read_only=(mode == "r"))
+        type     = "ram" if mode == "rw" else "rom"
+        self.bus.add_slave(name, ram.bus, SoCRegion(origin=origin, size=size, mode=mode, region_type=type))
         self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
             colorer(name),
@@ -963,7 +979,8 @@ class LiteXSoC(SoC):
         if size is not None:
             sdram_size = min(sdram_size, size)
         region_name = "main_ram" if "main_ram" not in self.mem_regions else name
-        self.bus.add_region(region_name, SoCRegion(origin=origin, size=sdram_size))
+        region = SoCSDRAMRegion(origin=origin, size=sdram_size, l2_cache_size=0)
+        self.bus.add_region(region_name, region)
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
         if self.cpu.name == "rocket":
@@ -1016,6 +1033,7 @@ class LiteXSoC(SoC):
                     l2_cache = FullMemoryWE()(l2_cache)
                 self.submodules += l2_cache
                 litedram_wb = l2_cache.slave
+                region.l2_cache_size = l2_cache_size
             else:
                 litedram_wb     = wishbone.Interface(port.data_width)
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
