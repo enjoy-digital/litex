@@ -152,12 +152,12 @@ class Builder:
             os.makedirs(svd_dir, exist_ok=True)
             write_to_file(self.csr_svd, export.get_csr_svd(self.soc))
 
-    def _prepare_software(self):
+    def _prepare_rom_software(self):
         for name, src_dir in self.software_packages:
             dst_dir = os.path.join(self.software_dir, name)
             os.makedirs(dst_dir, exist_ok=True)
 
-    def _generate_software(self, compile_bios=True):
+    def _generate_rom_software(self, compile_bios=True):
          for name, src_dir in self.software_packages:
             if name == "bios" and not compile_bios:
                 pass
@@ -167,7 +167,7 @@ class Builder:
                 if self.compile_software:
                     subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
 
-    def _initialize_rom(self):
+    def _initialize_rom_software(self):
         bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
         bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu.endianness)
         self.soc.initialize_rom(bios_data)
@@ -182,11 +182,11 @@ class Builder:
         self._generate_includes()
         self._generate_csr_map()
         if self.soc.cpu_type is not None:
-            self._prepare_software()
-            self._generate_software(not self.soc.integrated_rom_initialized)
+            self._prepare_rom_software()
+            self._generate_rom_software(not self.soc.integrated_rom_initialized)
             if self.soc.integrated_rom_size and self.compile_software:
                 if not self.soc.integrated_rom_initialized:
-                    self._initialize_rom()
+                    self._initialize_rom_software()
 
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
