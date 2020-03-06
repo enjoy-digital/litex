@@ -32,7 +32,7 @@ def generate_svd(soc, buildpath, filename=None, name="soc", **kwargs):
         filename = name + ".svd"
     kwargs["name"] = name
     with open(buildpath + "/" + filename, "w", encoding="utf-8") as svd:
-        svd.write(export.get_svd(soc, **kwargs))
+        svd.write(export.get_csr_svd(soc, **kwargs))
 
 
 def generate_docs(soc, base_dir,

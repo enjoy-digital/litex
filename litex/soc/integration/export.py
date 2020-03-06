@@ -281,7 +281,7 @@ def get_csr_csv(csr_regions={}, constants={}, mem_regions={}):
 
 # SVD Export --------------------------------------------------------------------------------------
 
-def get_svd(soc, vendor="litex", name="soc", description=None):
+def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     def sub_csr_bit_range(busword, csr, offset):
         nwords = (csr.size + busword - 1)//busword
         i = nwords - offset - 1
@@ -337,17 +337,12 @@ def get_svd(soc, vendor="litex", name="soc", description=None):
         interrupts[csr] = irq
 
     documented_regions = []
-
-    raw_regions = []
-    if hasattr(soc, "get_csr_regions"):
-        raw_regions = soc.get_csr_regions()
-    else:
-        for region_name, region in soc.csr_regions.items():
-            raw_regions.append((region_name, region.origin,
-                                region.busword, region.obj))
-    for csr_region in raw_regions:
+    for name, region in soc.csr.regions.items():
         documented_regions.append(DocumentedCSRRegion(
-            csr_region, csr_data_width=soc.csr_data_width))
+            name           = name,
+            region         = region,
+            csr_data_width = soc.csr.data_width)
+        )
 
     svd = []
     svd.append('<?xml version="1.0" encoding="utf-8"?>')
