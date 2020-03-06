@@ -180,14 +180,13 @@ class Builder:
         self.soc.finalize()
 
         self._generate_includes()
+        self._generate_csr_map()
         if self.soc.cpu_type is not None:
             self._prepare_software()
             self._generate_software(not self.soc.integrated_rom_initialized)
             if self.soc.integrated_rom_size and self.compile_software:
                 if not self.soc.integrated_rom_initialized:
                     self._initialize_rom()
-
-        self._generate_csr_map()
 
         if "run" not in kwargs:
             kwargs["run"] = self.compile_gateware
