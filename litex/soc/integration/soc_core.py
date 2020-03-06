@@ -63,7 +63,7 @@ class SoCCore(LiteXSoC):
     def __init__(self, platform, clk_freq,
         # CPU parameters
         cpu_type                 = "vexriscv",
-        cpu_reset_address        = 0x00000000,
+        cpu_reset_address        = None,
         cpu_variant              = None,
         # ROM parameters
         integrated_rom_size      = 0,
@@ -122,7 +122,8 @@ class SoCCore(LiteXSoC):
         self.config      = {}
 
         # Parameters management --------------------------------------------------------------------
-        cpu_type    = None if cpu_type == "None" else cpu_type
+        cpu_type          = None if cpu_type == "None" else cpu_type
+        cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
         cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
 
         if not with_wishbone:
@@ -256,7 +257,7 @@ def soc_core_args(parser):
     parser.add_argument("--cpu-variant", default=None,
                         help="select CPU variant, (default=standard)")
     parser.add_argument("--cpu-reset-address", default=None, type=auto_int,
-                        help="CPU reset address (default=0x00000000 or ROM)")
+                        help="CPU reset address (default=None (Integrated ROM)")
     # ROM parameters
     parser.add_argument("--integrated-rom-size", default=0x8000, type=auto_int,
                         help="size/enable the integrated (BIOS) ROM (default=32KB)")

@@ -18,6 +18,7 @@ class CPU(Module):
     interrupts           = {}
     mem_map              = {}
     io_regions           = {}
+    use_rom              = False
     def __init__(self, *args, **kwargs):
         pass
 
