@@ -58,14 +58,19 @@ class SoCRegion:
         self.logger    = logging.getLogger("SoCRegion")
         self.origin    = origin
         self.size      = size
+        if size != 2**log2_int(size, False):
+            self.logger.info("Region size {} internally from {} to {}.".format(
+                colorer("rounded", color="cyan"),
+                colorer("0x{:08x}".format(size)),
+                colorer("0x{:08x}".format(2**log2_int(size, False)))))
+        self.size_pow2 = 2**log2_int(size, False)
         self.mode      = mode
         self.cached    = cached
         self.linker    = linker
 
     def decoder(self, bus):
         origin = self.origin
-        size   = self.size
-        size   = 2**log2_int(size, False)
+        size   = self.size_pow2
         if (origin & (size - 1)) != 0:
             self.logger.error("Origin needs to be aligned on size:")
             self.logger.error(self)
@@ -224,14 +229,14 @@ class SoCBusHandler(Module):
         # Iterate on Search_Regions to find a Candidate
         for _, search_region in search_regions.items():
             origin = search_region.origin
-            while (origin + size) < (search_region.origin + search_region.size):
+            while (origin + size) < (search_region.origin + search_region.size_pow2):
                 # Create a Candicate.
                 candidate = SoCRegion(origin=origin, size=size, cached=cached)
                 overlap   = False
                 # Check Candidate does not overlap with allocated existing regions
                 for _, allocated in self.regions.items():
                     if self.check_regions_overlap({"0": allocated, "1": candidate}) is not None:
-                        origin  = allocated.origin + allocated.size
+                        origin  = allocated.origin + allocated.size_pow2
                         overlap = True
                         break
                 if not overlap:
@@ -251,9 +256,9 @@ class SoCBusHandler(Module):
                 if r0.linker or r1.linker:
                     if not check_linker:
                         continue
-                if r0.origin >= (r1.origin + r1.size):
+                if r0.origin >= (r1.origin + r1.size_pow2):
                     continue
-                if r1.origin >= (r0.origin + r0.size):
+                if r1.origin >= (r0.origin + r0.size_pow2):
                     continue
                 return (n0, n1)
             i += 1
