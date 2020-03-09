@@ -3,184 +3,123 @@
 # This file is Copyright (c) 2019 Sean Cross <sean@xobs.io>
 # This file is Copyright (c) 2018 David Shah <dave@ds0.me>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
-# This target was originally based on the Fomu target.
-
 import argparse
+
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex.soc.cores import up5kspram, spi_flash
-from litex.soc.integration.soc_core import SoCCore
-from litex.soc.integration.builder import Builder, builder_argdict, builder_args
-from litex.soc.integration.soc_core import soc_core_argdict, soc_core_args
-from litex.soc.integration.doc import AutoDoc
+from litex.boards.platforms import icebreaker
 
-from litex_boards.platforms.icebreaker import Platform
+from litex.soc.cores.up5kspram import Up5kSPRAM
+from litex.soc.cores.spi_flash import SpiFlash
+from litex.soc.cores.clock import iCE40PLL
+from litex.soc.integration.soc_core import *
+from litex.soc.integration.builder import *
 
-from litex.soc.interconnect import wishbone
-from litex.soc.cores.uart import UARTWishboneBridge
-from litex.soc.cores.gpio import GPIOOut
-
-
-class JumpToAddressROM(wishbone.SRAM):
-    def __init__(self, size, addr):
-        data = [
-            0x00000537 | ((addr & 0xfffff000) << 0),   # lui   a0,%hi(addr)
-            0x00052503 | ((addr & 0x00000fff) << 20),  # lw    a0,%lo(addr)(a0)
-            0x000500e7,                                # jalr  a0
-        ]
-        wishbone.SRAM.__init__(self, size, read_only=True, init=data)
+kB = 1024
+mB = 1024*kB
 
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform):
+    def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_por = ClockDomain()
 
-        self.reset = Signal()
-
         # # #
 
-        reset_delay = Signal(12, reset=4095)
-
-        # Clocks
+        # Clocking
         clk12 = platform.request("clk12")
-        platform.add_period_constraint(clk12, 1e9/12e6)
-        self.comb += self.cd_sys.clk.eq(clk12)
-        self.comb += self.cd_por.clk.eq(clk12)
-        self.comb += self.cd_sys.rst.eq(reset_delay != 0)
+        rst_n = platform.request("user_btn_n")
+        if sys_clk_freq == 12e6:
+            self.comb += self.cd_sys.clk.eq(clk12)
+        else:
+            self.submodules.pll = pll = iCE40PLL(primitive="SB_PLL40_PAD")
+            pll.register_clkin(clk12, 12e6)
+            pll.create_clkout(self.cd_sys, sys_clk_freq)
+        platform.add_period_constraint(self.cd_sys.clk, 1e9/sys_clk_freq)
 
         # Power On Reset
-        self.sync.por += If(reset_delay != 0, reset_delay.eq(reset_delay - 1))
-        self.specials += AsyncResetSynchronizer(self.cd_por, self.reset)
+        por_cycles  = 4096
+        por_counter = Signal(log2_int(por_cycles), reset=por_cycles-1)
+        self.comb += self.cd_por.clk.eq(self.cd_sys.clk)
+        platform.add_period_constraint(self.cd_por.clk, 1e9/sys_clk_freq)
+        self.sync.por += If(por_counter != 0, por_counter.eq(por_counter - 1))
+        self.specials += AsyncResetSynchronizer(self.cd_por, ~rst_n)
+        self.specials += AsyncResetSynchronizer(self.cd_sys, (por_counter != 0))
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    """A SoC on iCEBreaker, optionally with a softcore CPU"""
-
-    # Statically-define the memory map, to prevent it from shifting across various litex versions.
     SoCCore.mem_map = {
-        "rom":              0x00000000,  # (default shadow @0x80000000)
-        "sram":             0x10000000,  # (default shadow @0xa0000000)
-        "spiflash":         0x20000000,  # (default shadow @0xa0000000)
-        "csr":              0xe0000000,  # (default shadow @0x60000000)
-        "vexriscv_debug":   0xf00f0000,
+        "sram":             0x10000000,
+        "spiflash":         0x20000000,
+        "csr":              0xf0000000,
     }
+    def __init__(self, bios_flash_offset, **kwargs):
+        sys_clk_freq = int(24e6)
+        platform     = icebreaker.Platform()
 
-    def __init__(self, debug=True, boot_vector=0x2001a000, **kwargs):
-        """Create a basic SoC for iCEBreaker.
-
-        Create a basic SoC for iCEBreaker.  The `sys` frequency will run at 12 MHz.
-
-        Returns:
-            Newly-constructed SoC
-        """
-        platform = Platform()
-
-        kwargs["cpu_variant"]       = "lite"
-        kwargs["cpu_reset_address"] = boot_vector
-        if debug:
-            kwargs["uart_name"]   = "crossover"
-            kwargs["cpu_variant"] = "lite+debug"
-
-        clk_freq = int(12e6)
-
-        # Force the SRAM size to 0, because we add our own SRAM with SPRAM
+        # Disable Integrated ROM/SRAM since too large for iCE40 and UP5K has specific SPRAM.
         kwargs["integrated_sram_size"] = 0
         kwargs["integrated_rom_size"]  = 0
 
-        SoCCore.__init__(self, platform, clk_freq, **kwargs)
+         # Set CPU variant / reset address
+        kwargs["cpu_reset_address"] = self.mem_map["spiflash"] + bios_flash_offset
 
-        # If there is a VexRiscv CPU, add a fake ROM that simply tells the CPU
-        # to jump to the given address.
-        if hasattr(self, "cpu") and self.cpu.name == "vexriscv":
-            self.add_memory_region("rom", 0, 16)
-            self.submodules.rom = JumpToAddressROM(16, boot_vector)
+        # CRG --------------------------------------------------------------------------------------
+        self.submodules.crg = _CRG(platform, sys_clk_freq)
 
-        self.submodules.crg = _CRG(platform)
+        # SoCCore ----------------------------------------------------------------------------------
+        SoCCore.__init__(self, platform, sys_clk_freq, **kwargs)
 
-        # UP5K has single port RAM, which is a dedicated 128 kilobyte block.
-        # Use this as CPU RAM.
-        spram_size = 128 * 1024
-        self.submodules.spram = up5kspram.Up5kSPRAM(size=spram_size)
-        self.register_mem("sram", self.mem_map["sram"], self.spram.bus, spram_size)
+        # 128KB SPRAM (used as SRAM) ---------------------------------------------------------------
+        self.submodules.spram = Up5kSPRAM(size=64*kB)
+        self.register_mem("sram", self.mem_map["sram"], self.spram.bus, 64*kB)
 
-        # The litex SPI module supports memory-mapped reads, as well as a bit-banged mode
-        # for doing writes.
-        spi_pads = platform.request("spiflash4x")
-        self.submodules.lxspi = spi_flash.SpiFlash(spi_pads, dummy=6, endianness="little")
-        self.register_mem("spiflash", self.mem_map["spiflash"], self.lxspi.bus, size=16 * 1024 * 1024)
-        self.add_csr("lxspi")
+        # SPI Flash --------------------------------------------------------------------------------
+        self.submodules.spiflash = SpiFlash(platform.request("spiflash4x"), dummy=6, endianness="little")
+        self.register_mem("spiflash", self.mem_map["spiflash"], self.spiflash.bus, size=16*mB)
+        self.add_csr("spiflash")
 
-        # In debug mode, add a UART bridge.  This takes over from the normal UART bridge,
-        # however you can use the "crossover" UART to communicate with this over the bridge.
-        if debug:
-            self.submodules.uart_bridge = UARTWishboneBridge(platform.request("serial"), clk_freq, baudrate=115200)
-            self.add_wb_master(self.uart_bridge.wishbone)
-            if hasattr(self, "cpu") and self.cpu.name == "vexriscv":
-                self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu.debug_bus, 0x100)
+        # Add ROM linker region --------------------------------------------------------------------
+        self.add_memory_region("rom", self.mem_map["spiflash"] + bios_flash_offset, 32*kB, type="cached+linker")
 
-        self.submodules.leds = GPIOOut(Cat(
-            platform.request("user_ledr_n"),
-            platform.request("user_ledg_n")))
-        self.add_csr("leds")
+        # Leds -------------------------------------------------------------------------------------
+        counter = Signal(32)
+        self.sync += counter.eq(counter + 1)
+        self.comb += platform.request("user_ledr_n").eq(counter[26])
+        self.comb += platform.request("user_ledg_n").eq(~counter[26])
 
-        # self.add_memory_region("rom", 0x2001a000, 16 * 1024 * 1024 - 0x1a000, type="cached+linker")
-        # self.add_memory_region("boot", 0, 16, type="cached+linker")
-        # self.mem_regions["rom"] = SoCMemRegion(0x2001a000, 16 * 1024 * 1024 - 0x1a000, "cached")
-        # self.mem_regions["boot"] = SoCMemRegion(0, 16, "cached")
+# Flash --------------------------------------------------------------------------------------------
 
-    def set_yosys_nextpnr_settings(self, nextpnr_seed=0, nextpnr_placer="heap"):
-        """Set Yosys/Nextpnr settings by overriding default LiteX's settings.
-        Args:
-            nextpnr_seed   (int): Seed to use in Nextpnr
-            nextpnr_placer (str): Placer to use in Nextpnr
-        """
-        assert hasattr(self.platform.toolchain, "yosys_template")
-        assert hasattr(self.platform.toolchain, "build_template")
-        self.platform.toolchain.yosys_template = [
-            "{read_files}",
-            "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
-            # Use "-relut -dffe_min_ce_use 4" to the synth_ice40 command. The "-reult" adds an additional
-            # LUT pass to pack more stuff in, and the "-dffe_min_ce_use 4" flag prevents Yosys from
-            # generating a Clock Enable signal for a LUT that has fewer than 4 flip-flops. This increases
-            # density, and lets us use the FPGA more efficiently.
-            "synth_ice40 -json {build_name}.json -top {build_name} -relut -abc2 -dffe_min_ce_use 4 -relut",
-        ]
-        self.platform.toolchain.build_template = [
-            "yosys -q -l {build_name}.rpt {build_name}.ys",
-            "nextpnr-ice40 --json {build_name}.json --pcf {build_name}.pcf --asc {build_name}.txt"
-            + " --pre-pack {build_name}_pre_pack.py --{architecture} --package {package}"
-            + " --seed {}".format(nextpnr_seed)
-            + " --placer {}".format(nextpnr_placer),
-            # Disable final deep-sleep power down so firmware words are loaded onto softcore's address bus.
-            "icepack -s {build_name}.txt {build_name}.bin"
-        ]
+def flash(bios_flash_offset):
+    from litex.build.lattice.programmer import IceStormProgrammer
+    prog = IceStormProgrammer()
+    prog.flash(bios_flash_offset, "soc_basesoc_icebreaker/software/bios/bios.bin")
+    prog.flash(0x00000000,        "soc_basesoc_icebreaker/gateware/top.bin")
+    exit()
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on iCEBreaker")
-    parser.add_argument("--nextpnr-seed",   default=0, help="Seed to use in Nextpnr")
-    parser.add_argument("--nextpnr-placer", default="heap", choices=["sa", "heap"], help="Placer implementation to use in Nextpnr")
+    parser.add_argument("--bios-flash-offset", default=0x40000, help="BIOS offset in SPI Flash")
+    parser.add_argument("--flash", action="store_true", help="Load Bitstream")
     builder_args(parser)
     soc_core_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(debug=True, **soc_core_argdict(args))
-    soc.set_yosys_nextpnr_settings(nextpnr_seed=args.nextpnr_seed, nextpnr_placer=args.nextpnr_placer)
+    if args.flash:
+        flash(args.bios_flash_offset)
 
-    # Don't build software -- we don't include it since we just jump to SPI flash.
-    builder_kwargs = builder_argdict(args)
-    builder_kwargs["compile_software"] = False
-    builder = Builder(soc, **builder_kwargs)
+    soc     = BaseSoC(args.bios_flash_offset, **soc_core_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
     builder.build()
-
 
 if __name__ == "__main__":
     main()
