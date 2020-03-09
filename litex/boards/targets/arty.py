@@ -14,7 +14,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
-
+from litex.soc.cores.spi_flash import *
 from litedram.modules import MT41K128M16
 from litedram.phy import s7ddrphy
 
@@ -50,6 +50,11 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
+    mem_map = {
+        "spi_flash4x0": 0x50000000,
+    }
+    mem_map.update(SoCSDRAM.mem_map)
+    
     def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
         platform = arty.Platform()
 
@@ -93,6 +98,12 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_etherbone(phy=self.ethphy)
 
+        # spi_flash
+        pads = self.platform.request("spiflash4x", 0)
+        self.submodules.spi_flash4x0 = SpiFlash(pads, dummy=10, div=2, with_bitbang=True, endianness="little", with_quad=True)
+        self.add_memory_region("spi_flash4x0", self.mem_map["spi_flash4x0"], 0x1000000)
+        self.add_wb_slave(self.mem_regions["spi_flash4x0"].origin, self.spi_flash4x0.bus, 0x1000000)        
+        self.add_csr("spi_flash4x0")
 # Build --------------------------------------------------------------------------------------------
 
 def main():

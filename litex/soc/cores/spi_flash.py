@@ -80,7 +80,7 @@ class SpiFlashCommon(Module):
 
 
 class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
-    def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big"):
+    def __init__(self, pads, dummy=15, div=2, with_bitbang=True, endianness="big", with_quad=False):
         """
         Simple SPI flash.
         Supports multi-bit pseudo-parallel reads (aka Dual or Quad I/O Fast
@@ -110,6 +110,7 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
             self.bitbang_en = CSRStorage(description="Write a ``1`` here to disable memory-mapped mode and enable bitbang mode.")
 
         queue = self.queue = CSRStatus(4)
+        self.en_quad = CSRStorage(1)
         in_len = self.in_len = CSRStorage(4)
         out_len = self.out_len = CSRStorage(4)
         in_left = self.in_left = Signal(max=2**8)
@@ -128,12 +129,6 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
 
         dq = TSTriple(spi_width)
 
-        sr = Signal(max(cmd_width, addr_width, wbone_width))
-        if endianness == "big":
-            self.comb += bus.dat_r.eq(sr)
-        else:
-            self.comb += bus.dat_r.eq(reverse_bytes(sr))
-
         self.specials.dq0 = Tristate(pads.dq[0], o=dq.o[0], i=dq.i[0], oe=dq.oe)
         self.specials.dq1 = Tristate(pads.dq[1], o=dq.o[1], i=dq.i[1], oe=dq.oe)
         if with_bitbang:
@@ -143,7 +138,7 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         else:
             self.specials.dq2 = Tristate(pads.dq[2], o=dq.o[2], i=dq.i[2], oe=dq.oe)
             self.specials.dq3 = Tristate(pads.dq[3], o=dq.o[3], i=dq.i[3], oe=dq.oe)
-
+            
         sr = Signal(max(cmd_width, addr_width, wbone_width, max_transfer_size))
 
         if endianness == "big":
@@ -233,6 +228,37 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
             ),
         ]
 
+        if with_quad:
+            quad_read_seq = [
+                (cmd_width//spi_width*div,
+                 [dq_oe.eq(1), cs_n.eq(0), sr[-cmd_width:].eq(_QIOFR), self.quad_transfer.eq(1)]),
+                (addr_width//spi_width*div,
+                    [sr[-addr_width:].eq(Cat(z, bus.adr))]),
+                ((1+dummy + wbone_width//spi_width)*div,
+                    [dq_oe.eq(0)]),
+                (1,
+                    [bus.ack.eq(1), cs_n.eq(1)]),
+                (div,
+                    [bus.ack.eq(0)]),
+                (0,
+                 [queue.status[0].eq(0)]),
+            ]
+
+            quad_write_seq = [
+                (cmd_width//spi_width*div,
+                    [dq_oe.eq(1), cs_n.eq(0), sr[-cmd_width:].eq(_QIOPP), self.quad_transfer.eq(1)]),
+                (addr_width//spi_width*div,
+                    [sr[-addr_width:].eq(Cat(z, bus.adr))]),
+                ((wbone_width//spi_width)*div,
+                    [sr[-wbone_width:].eq(reverse_bytes(bus.dat_w))]),
+                (1,
+                    [bus.ack.eq(1), cs_n.eq(1)]),
+                (div,
+                    [bus.ack.eq(0)]),
+                (0,
+                 [queue.status[1].eq(0)]),
+            ]
+
         read_seq = [
             (4*cmd_width//spi_width*div,
                 [dq_oe.eq(1), cs_n.eq(0), sr[-cmd_width:].eq(_QIOFR), self.quad_transfer.eq(0)]),
@@ -265,6 +291,13 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         ]
 
         # prepare spi transfer
+        if with_quad:            
+            self.sync += If(self.in_len.re & (self.in_len.storage != 0) & self.en_quad.storage[0],
+                            [queue.status[2].eq(1),
+                             self.in_left.eq(Cat(0, in_len.storage)),
+                             self.quad_transfer.eq(1)]
+            )
+
         self.sync += If(self.out_len.re & (self.out_len.storage != 0) & self.en_quad.storage[0],
                         self.out_left.eq(Cat(1, self.out_len.storage)
                         )
@@ -283,6 +316,10 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         )
 
         # write data to sr
+        if with_quad:
+            self.sync += If(queue.status[2] & (i == div - 1) & self.en_quad.storage[0],
+                            sr[-max_transfer_size:].eq(self.spi_in.storage), queue.status[2].eq(0), queue.status[3].eq(1), cs_n.eq(0), dq_oe.eq(1))            
+
         self.sync += If(queue.status[2] & (i == div - 1) & ~self.en_quad.storage[0],
                         sr[-max_transfer_size:].eq(self.spi_in.storage), queue.status[2].eq(0), queue.status[3].eq(1), cs_n.eq(0), dq_oe.eq(1))            
 
@@ -306,7 +343,11 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         self.sync += If(~self.mode & bus.cyc & bus.stb & ~bus.we, queue.status[0].eq(1))
         self.sync += If(~self.mode & bus.cyc & bus.stb & bus.we, queue.status[1].eq(1))
 
+        if with_quad:       
+            self.sync += timeline(queue.status[0] & self.en_quad.storage[0] & (i == div - 1), accumulate_timeline_deltas(quad_read_seq))
         self.sync += timeline(queue.status[0] & ~self.en_quad.storage[0] & (i == div - 1), accumulate_timeline_deltas(read_seq))
+        if with_quad:     
+            self.sync += timeline(queue.status[1] & self.en_quad.storage[0] & (i == div - 1), accumulate_timeline_deltas(quad_write_seq))
         self.sync += timeline(queue.status[1] & ~self.en_quad.storage[0] & (i == div - 1), accumulate_timeline_deltas(write_seq))
 
 
