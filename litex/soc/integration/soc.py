@@ -774,7 +774,6 @@ class SoC(Module):
         self.csr.update_alignment(self.cpu.data_width)
         # Add Bus Masters/CSR/IRQs
         if not isinstance(self.cpu, cpu.CPUNone):
-            self.cpu.use_rom = (reset_address is None)
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
             self.cpu.set_reset_address(reset_address)
@@ -854,20 +853,20 @@ class SoC(Module):
 
         # SoC CPU Check ----------------------------------------------------------------------------
         if not isinstance(self.cpu, cpu.CPUNone):
-            for name in ["sram"] + ["rom"] if self.cpu.use_rom else []:
-                if name not in self.bus.regions.keys():
-                    self.logger.error("CPU needs {} Region to be {} as Bus or Linker Region.".format(
-                        colorer(name),
-                        colorer("defined", color="red")))
-                    self.logger.error(self.bus)
-                    raise
-
+            if "sram" not in self.bus.regions.keys():
+                self.logger.error("CPU needs {} Region to be {} as Bus or Linker Region.".format(
+                    colorer("sram"),
+                    colorer("defined", color="red")))
+                self.logger.error(self.bus)
+                raise
             cpu_reset_address_valid = False
-            for container in self.bus.regions.values():
+            for name, container in self.bus.regions.items():
                 if self.bus.check_region_is_in(
                     region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
                     container = container):
                     cpu_reset_address_valid = True
+                    if name == "rom":
+                        self.cpu.use_rom = True
             if not cpu_reset_address_valid:
                 self.logger.error("CPU needs {} to be in a {} Region.".format(
                     colorer("reset address 0x{:08x}".format(self.cpu.reset_address)),

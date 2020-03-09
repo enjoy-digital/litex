@@ -68,7 +68,7 @@ class BaseSoC(SoCCore):
         kwargs["integrated_sram_size"] = 0
         kwargs["integrated_rom_size"]  = 0
 
-         # Set CPU variant / reset address
+        # Set CPU variant / reset address
         kwargs["cpu_reset_address"] = self.mem_map["spiflash"] + bios_flash_offset
 
         # CRG --------------------------------------------------------------------------------------
