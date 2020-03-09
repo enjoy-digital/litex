@@ -40,7 +40,7 @@ def _build_pre_pack(vns, clocks):
 _yosys_template = [
     "{read_files}",
     "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
-    "synth_ice40 {synth_opts} -json {build_name}.json -top {build_name}",
+    "synth_ice40 {synth_opts} -json {build_name}.json -top {build_name} -dsp",
 ]
 
 def _yosys_import_sources(platform):
@@ -91,7 +91,7 @@ _build_template = [
     "yosys -l {build_name}.rpt {build_name}.ys",
     "nextpnr-ice40 --json {build_name}.json --pcf {build_name}.pcf --asc {build_name}.txt \
     --pre-pack {build_name}_pre_pack.py --{architecture} --package {package}",
-    "icepack {build_name}.txt {build_name}.bin"
+    "icepack -s {build_name}.txt {build_name}.bin"
 ]
 
 def _build_script(build_template, build_name, architecture, package):
