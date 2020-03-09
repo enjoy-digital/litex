@@ -416,7 +416,9 @@ class iCE40PLL(Module):
     clko_freq_range = ( 16e6,  275e9)
     vco_freq_range  = (533e6, 1066e6)
 
-    def __init__(self):
+    def __init__(self, primitive="SB_PLL40_CORE"):
+        assert primitive in ["SB_PLL40_CORE", "SB_PLL40_PAD"]
+        self.primitive  = primitive
         self.reset      = Signal()
         self.locked     = Signal()
         self.clkin_freq = None
@@ -486,15 +488,18 @@ class iCE40PLL(Module):
             p_FEEDBACK_PATH = "SIMPLE",
             p_FILTER_RANGE  = filter_range,
             i_RESETB        = ~self.reset,
-            i_REFERENCECLK  = self.clkin,
             o_LOCK          = self.locked,
         )
+        if self.primitive == "SB_PLL40_CORE":
+            self.params.update(i_REFERENCECLK=self.clkin)
+        if self.primitive == "SB_PLL40_PAD":
+            self.params.update(i_PACKAGEPIN=self.clkin)
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             self.params["p_DIVR"]         = config["divr"]
             self.params["p_DIVF"]         = config["divf"]
             self.params["p_DIVQ"]         = config["divq"]
             self.params["o_PLLOUTGLOBAL"] = clk
-        self.specials += Instance("SB_PLL40_CORE", **self.params)
+        self.specials += Instance(self.primitive, **self.params)
 
 # Lattice / ECP5 -----------------------------------------------------------------------------------
 
