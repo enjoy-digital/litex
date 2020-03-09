@@ -388,6 +388,12 @@ static void help(void)
 	puts("sdinit         - SDCard initialization");
 	puts("sdtest <loops> - SDCard test");
 #endif
+#ifdef USDDRPHY_DEBUG
+	puts("");
+	puts("sdram_cal                       - run SDRAM calibration");
+	puts("sdram_mpr                       - read SDRAM MPR");
+	puts("sdram_mrwr reg value            - write SDRAM mode registers");
+#endif
 }
 
 static char *get_token(char **str)
@@ -479,7 +485,22 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdinit") == 0) sdcard_init();
 	else if(strcmp(token, "sdtest") == 0) sdcard_test(atoi(get_token(&c)));
 #endif
-
+#ifdef USDDRPHY_DEBUG
+	else if(strcmp(token, "sdram_cal") == 0)
+		sdrcal();
+	else if(strcmp(token, "sdram_mpr") == 0)
+		sdrmpr();
+	else if(strcmp(token, "sdram_mrwr") == 0) {
+		unsigned int reg;
+		unsigned int value;
+		reg = atoi(get_token(&c));
+		value = atoi(get_token(&c));
+		sdrsw();
+		printf("Writing 0x%04x to SDRAM mode register %d\n", value, reg);
+		sdrmrwr(reg, value);
+		sdrhw();
+	}
+#endif
 	else if(strcmp(token, "") != 0)
 		printf("Command not found\n");
 }

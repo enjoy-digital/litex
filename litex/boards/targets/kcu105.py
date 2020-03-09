@@ -93,6 +93,7 @@ class BaseSoC(SoCSDRAM):
                 sys_clk_freq = sys_clk_freq)
             self.add_csr("ddrphy")
             self.add_constant("USDDRPHY", None)
+            self.add_constant("USDDRPHY_DEBUG", None)
             sdram_module = EDY4016A(sys_clk_freq, "1:4")
             self.register_sdram(self.ddrphy,
                 geom_settings       = sdram_module.geom_settings,

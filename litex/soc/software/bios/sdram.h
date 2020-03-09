@@ -27,4 +27,10 @@ int memtest_silent(void);
 int memtest(void);
 int sdrinit(void);
 
+#ifdef USDDRPHY_DEBUG
+void sdrcal(void);
+void sdrmrwr(char reg, int value);
+void sdrmpr(void);
+#endif
+
 #endif /* __SDRAM_H */
