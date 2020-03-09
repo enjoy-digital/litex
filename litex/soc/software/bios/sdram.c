@@ -1063,6 +1063,7 @@ static void sdrmproff(void)
 void sdrmpr(void)
 {
 	int module, phase;
+	unsigned char buf[DFII_PIX_DATA_BYTES];
 	printf("Read SDRAM MPR...\n");
 
 	/* rst phy */
@@ -1084,8 +1085,10 @@ void sdrmpr(void)
 	for (module=0; module < NBMODULES; module++) {
 		printf("m%d: ", module);
 		for(phase=0; phase<DFII_NPHASES; phase++) {
-			printf("%d", MMPTR(sdram_dfii_pix_rddata_addr[phase]+4*(NBMODULES-module-1)) & 0x1);
-			printf("%d", MMPTR(sdram_dfii_pix_rddata_addr[phase]+4*(2*NBMODULES-module-1)) & 0x1);
+			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[phase],
+					 buf, DFII_PIX_DATA_BYTES);
+			printf("%d", buf[  NBMODULES-module-1] & 0x1);
+			printf("%d", buf[2*NBMODULES-module-1] & 0x1);
 		}
 		printf("\n");
 	}
