@@ -7,7 +7,7 @@ endif
 RM ?= rm -f
 PYTHON ?= python3
 
-ifneq ($(CPU), lm32)
+ifeq ($(CPU), lm32)
 LTO = 0
 else
 LTO = 1
@@ -20,7 +20,7 @@ else
 CC_normal      := $(TARGET_PREFIX)gcc -std=gnu99
 CX_normal      := $(TARGET_PREFIX)g++
 endif
-ifneq ($(LTO), 1)
+ifeq ($(LTO), 1)
 AR_normal      := $(TARGET_PREFIX)gcc-ar
 else
 AR_normal      := $(TARGET_PREFIX)ar
