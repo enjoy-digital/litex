@@ -195,7 +195,7 @@ class Packetizer(Module):
                 If(header_words < 1,
                     source.data.eq(Cat(self.header, sink.data[:data_width - header.length*8])),
                     If(source.valid & source.ready,
-                        sr_load.eq(1),
+                        sink.ready.eq(1),
                         NextState("UNALIGNED-DATA-COPY")
                     )
                 ).Else(
