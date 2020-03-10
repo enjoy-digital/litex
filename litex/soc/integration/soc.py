@@ -661,6 +661,8 @@ class SoC(Module):
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(colorer("Creating SoC... ({})".format(build_time())))
         self.logger.info(colorer("-"*80, color="bright"))
+        self.logger.info("FPGA device : {}.".format(platform.device))
+        self.logger.info("System clock: {:3.2f}MHz.".format(sys_clk_freq/1e6))
 
         # SoC attributes ---------------------------------------------------------------------------
         self.platform     = platform
