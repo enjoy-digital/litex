@@ -11,9 +11,7 @@ from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
 class S7I2SSlave(Module, AutoCSR, AutoDoc):
     def __init__(self, pads, fifo_depth=256):
-        self.intro = ModuleDoc("""
-        Intro
-        *******
+        self.intro = ModuleDoc("""Intro
 
         I2S slave creates a slave audio interface instance. Tx and Rx interfaces are inferred based
         upon the presence or absence of the respective pins in the "pads" argument.
@@ -24,7 +22,7 @@ class S7I2SSlave(Module, AutoCSR, AutoDoc):
         to a CODEC without a programmable bit offset!
 
         System Interface
-        =================
+        ----------------
 
         Audio interchange is done with the system using 16-bit stereo samples, with the right channel
         mapped to the least significant word of a 32-bit word. Thus each 32-bit word is a single
@@ -56,12 +54,12 @@ class S7I2SSlave(Module, AutoCSR, AutoDoc):
         - enable the Tx FIFO to run
         - poll or wait for interrupt; upon interrupt, write `fifo_depth` words. Repeat.
         - to close stream, mute the DAC and stop the request clock. Ideally, this can be completed
-        before the FIFO is emptied, so there is no jarring pop or truncation of data
+          before the FIFO is emptied, so there is no jarring pop or truncation of data
         - stop FIFO running. Next initiation should reset the FIFO to ensure leftover previous data
-        in FIFO is cleared.
+          in FIFO is cleared.
 
         CODEC Interface
-        ================
+        ---------------
 
         The interface assumes we have a sysclk domain running around 100MHz, and that our typical max
         audio rate is 44.1kHz * 24bits * 2channels = 2.1168MHz audio clock. Thus, the architecture
@@ -87,12 +85,11 @@ class S7I2SSlave(Module, AutoCSR, AutoDoc):
         - Data is updated on the falling edge
         - Data is sampled on the rising edge
         - Words are MSB-to-LSB, left-justified (**NOTE: this is a deviation from strict I2S, which
-        offsets by 1 from the left**)
+          offsets by 1 from the left**)
         - Sync is an input (FPGA is slave, codec is master): low => left channel, high => right channel
         - Sync can be longer than the wordlen, extra bits are just ignored
         - Tx is data to the codec (SDI pin on LM49352)
         - Rx is data from the codec (SDO pin on LM49352)
-
         """)
 
         # One cache line is 8 32-bit words, need to always have enough space for one line or else
