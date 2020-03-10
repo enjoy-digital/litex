@@ -4,15 +4,49 @@
 
 """Clock Abstraction Modules"""
 
+import logging
+
 from migen import *
 from migen.genlib.io import DifferentialInput
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.soc.integration.soc import colorer
 from litex.soc.interconnect.csr import *
 
+logging.basicConfig(level=logging.INFO)
 
 def period_ns(freq):
     return 1e9/freq
+
+# Logging ------------------------------------------------------------------------------------------
+
+def register_clkin_log(logger, clkin, freq):
+    logger.info("Registering {} {} of {}.".format(
+        colorer("Differential") if isinstance(clkin, Record) else colorer("Single Ended"),
+        colorer("ClkIn"),
+        colorer("{:3.2f}MHz".format(freq/1e6))
+    ))
+
+def create_clkout_log(logger, name, freq, margin, nclkouts):
+    logger.info("Creating {} of {} {}.".format(
+        colorer("ClkOut{} {}".format(nclkouts, name)),
+        colorer("{:3.2f}MHz".format(freq/1e6)),
+        "(+-{:3.2f}ppm)".format(margin*1e6),
+    ))
+
+def compute_config_log(logger, config):
+    log    = "Config:\n"
+    length = 0
+    for name in config.keys():
+        if len(name) > length: length = len(name)
+    for name, value in config.items():
+        if "freq" in name or "vco" in name:
+            value = "{:3.2f}MHz".format(value/1e6)
+        if "phase" in name:
+            value = "{:3.2f}°".format(value)
+        log += "{}{}: {}\n".format(name, " "*(length-len(name)), value)
+    log = log[:-1]
+    logger.info(log)
 
 # Xilinx / Generic ---------------------------------------------------------------------------------
 
@@ -40,12 +74,12 @@ class XilinxClocking(Module, AutoCSR):
         else:
             raise ValueError
         self.clkin_freq = freq
+        register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, ce=None):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
-        self.nclkouts += 1
         if with_reset:
             self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
         if buf is None:
@@ -65,6 +99,8 @@ class XilinxClocking(Module, AutoCSR):
                 self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
             else:
                 raise ValueError("Unsupported clock buffer: {}".format(buf))
+        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+        self.nclkouts += 1
 
     def compute_config(self):
         config = {}
@@ -91,8 +127,9 @@ class XilinxClocking(Module, AutoCSR):
                 else:
                     all_valid = False
                 if all_valid:
-                    config["vco"] = vco_freq
+                    config["vco"]           = vco_freq
                     config["clkfbout_mult"] = clkfbout_mult
+                    compute_config_log(self.logger, config)
                     return config
         raise ValueError("No PLL config found")
 
@@ -131,6 +168,7 @@ class XilinxClocking(Module, AutoCSR):
             )
         ]
         self.comb += self.drp_locked.status.eq(self.locked)
+        self.logger.info("Exposing DRP interface.")
 
     def do_finalize(self):
         assert hasattr(self, "clkin")
@@ -142,6 +180,8 @@ class S6PLL(XilinxClocking):
     clkin_freq_range = (19e6, 540e6)
 
     def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("S6PLL")
+        self.logger.info("Creating S6PLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 52 + 1)
         self.vco_freq_range      = {
@@ -186,6 +226,8 @@ class S6DCM(XilinxClocking):
     clkout_divide_range  = (1, 256 + 1)
 
     def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("S6DCM")
+        self.logger.info("Creating S6DCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 1) # FIXME
         self.clkin_freq_range = {
@@ -224,6 +266,8 @@ class S7PLL(XilinxClocking):
     clkin_freq_range = (19e6, 800e6)
 
     def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("S7PLL")
+        self.logger.info("Creating S7PLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 56+1)
         self.vco_freq_range = {
@@ -255,6 +299,8 @@ class S7MMCM(XilinxClocking):
     nclkouts_max = 7
 
     def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("S7MMCM")
+        self.logger.info("Creating S7MMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
@@ -313,6 +359,8 @@ class USPLL(XilinxClocking):
     nclkouts_max = 6
 
     def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("USPLL")
+        self.logger.info("Creating USPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 56+1)
         self.clkin_freq_range = {
@@ -349,6 +397,8 @@ class USMMCM(XilinxClocking):
     nclkouts_max = 7
 
     def __init__(self, speedgrade=-1):
+        self.logger = logging.getLogger("USMMCM")
+        self.logger.info("Creating UMMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
@@ -418,6 +468,8 @@ class iCE40PLL(Module):
 
     def __init__(self, primitive="SB_PLL40_CORE"):
         assert primitive in ["SB_PLL40_CORE", "SB_PLL40_PAD"]
+        self.logger = logging.getLogger("iCE40PLL")
+        self.logger.info("Creating iCE40PLL, {} primitive.".format(colorer(primitive)))
         self.primitive  = primitive
         self.reset      = Signal()
         self.locked     = Signal()
@@ -438,6 +490,7 @@ class iCE40PLL(Module):
         else:
             raise ValueError
         self.clkin_freq = freq
+        register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, margin=1e-2):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
@@ -446,8 +499,9 @@ class iCE40PLL(Module):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, 0, margin)
-        self.nclkouts += 1
         self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+        self.nclkouts += 1
 
     def compute_config(self):
         config = {}
@@ -462,7 +516,8 @@ class iCE40PLL(Module):
                         for divq in range(*self.divq_range):
                             clk_freq = vco_freq/(2**divq)
                             if abs(clk_freq - f) <= f*m:
-                                config["divq"] = divq
+                                config["clkout_freq"] = clk_freq
+                                config["divq"]        = divq
                                 valid = True
                                 break
                         if not valid:
@@ -473,6 +528,7 @@ class iCE40PLL(Module):
                     config["vco"] = vco_freq
                     config["divr"] = divr
                     config["divf"] = divf
+                    compute_config_log(self.logger, config)
                     return config
         raise ValueError("No PLL config found")
 
@@ -515,6 +571,8 @@ class ECP5PLL(Module):
     vco_freq_range  = (  400e6,  800e6)
 
     def __init__(self):
+        self.logger = logging.getLogger("ECP5PLL")
+        self.logger.info("Creating ECP5PLL.")
         self.reset      = Signal()
         self.locked     = Signal()
         self.clkin_freq = None
@@ -534,6 +592,7 @@ class ECP5PLL(Module):
         else:
             raise ValueError
         self.clkin_freq = freq
+        register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2):
         (clko_freq_min, clko_freq_max) = self.clko_freq_range
@@ -542,8 +601,9 @@ class ECP5PLL(Module):
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
-        self.nclkouts += 1
         self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+        self.nclkouts += 1
 
     def compute_config(self):
         config = {}
@@ -570,6 +630,7 @@ class ECP5PLL(Module):
             if all_valid:
                 config["vco"] = vco_freq
                 config["clkfb_div"] = clkfb_div
+                compute_config_log(self.logger, config)
                 return config
         raise ValueError("No PLL config found")
 
