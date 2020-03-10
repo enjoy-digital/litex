@@ -27,6 +27,10 @@ int memtest_silent(void);
 int memtest(void);
 int sdrinit(void);
 
+#if defined(DDRPHY_CMD_DELAY) || defined(USDDRPHY_DEBUG)
+void ddrphy_cdly(unsigned int delay);
+#endif
+
 #ifdef USDDRPHY_DEBUG
 void sdrcal(void);
 void sdrmrwr(char reg, int value);

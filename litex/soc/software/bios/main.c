@@ -390,6 +390,7 @@ static void help(void)
 #endif
 #ifdef USDDRPHY_DEBUG
 	puts("");
+	puts("sdram_cdly value                - Set SDRAM clk/cmd delay");
 	puts("sdram_cal                       - run SDRAM calibration");
 	puts("sdram_mpr                       - read SDRAM MPR");
 	puts("sdram_mrwr reg value            - write SDRAM mode registers");
@@ -486,6 +487,8 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdtest") == 0) sdcard_test(atoi(get_token(&c)));
 #endif
 #ifdef USDDRPHY_DEBUG
+	else if(strcmp(token, "sdram_cdly") == 0)
+		ddrphy_cdly(atoi(get_token(&c)));
 	else if(strcmp(token, "sdram_cal") == 0)
 		sdrcal();
 	else if(strcmp(token, "sdram_mpr") == 0)

@@ -257,8 +257,9 @@ void sdrwr(char *startaddr)
 #define NBMODULES DFII_PIX_DATA_BYTES/2
 #endif
 
-#ifdef DDRPHY_CMD_DELAY
-static void ddrphy_cdly(unsigned int delay) {
+#if defined(DDRPHY_CMD_DELAY) || defined(USDDRPHY_DEBUG)
+void ddrphy_cdly(unsigned int delay) {
+	printf("Setting clk/cmd delay to %d taps\n", delay);
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(0);
 #endif
@@ -994,7 +995,6 @@ int sdrinit(void)
 	ddrphy_en_vtc_write(0);
 #endif
 #ifdef DDRPHY_CMD_DELAY
-	printf("Setting clk/cmd delay to %d taps\n", DDRPHY_CMD_DELAY);
 	ddrphy_cdly(DDRPHY_CMD_DELAY);
 #endif
 	sdrlevel();
