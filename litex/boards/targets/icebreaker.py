@@ -71,11 +71,11 @@ class BaseSoC(SoCCore):
         # Set CPU variant / reset address
         kwargs["cpu_reset_address"] = self.mem_map["spiflash"] + bios_flash_offset
 
-        # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
-
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq, **kwargs)
+
+        # CRG --------------------------------------------------------------------------------------
+        self.submodules.crg = _CRG(platform, sys_clk_freq)
 
         # 128KB SPRAM (used as SRAM) ---------------------------------------------------------------
         self.submodules.spram = Up5kSPRAM(size=64*kB)
