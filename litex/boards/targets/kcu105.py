@@ -25,13 +25,13 @@ class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys    = ClockDomain()
         self.clock_domains.cd_sys4x  = ClockDomain(reset_less=True)
+        self.clock_domains.cd_pll4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
 
         # # #
 
         self.submodules.pll = pll = USMMCM(speedgrade=-2)
         self.comb += pll.reset.eq(platform.request("cpu_reset"))
-        self.clock_domains.cd_pll4x = ClockDomain(reset_less=True)
         pll.register_clkin(platform.request("clk125"), 125e6)
         pll.create_clkout(self.cd_pll4x, sys_clk_freq*4, buf=None, with_reset=False)
         pll.create_clkout(self.cd_clk200, 200e6, with_reset=False)
