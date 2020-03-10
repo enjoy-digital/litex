@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2019 Michael Betz <michibetz@gmail.com>
 # License: BSD
 
@@ -435,21 +435,39 @@ class USMMCM(XilinxClocking):
 
 
 class USIDELAYCTRL(Module):
-    def __init__(self, cd, reset_cycles=64):
-        reset_counter = Signal(log2_int(reset_cycles), reset=reset_cycles - 1)
-        ic_reset = Signal(reset=1)
-        sync = getattr(self.sync, cd.name)
-        sync += \
-            If(reset_counter != 0,
-                reset_counter.eq(reset_counter - 1)
+    def __init__(self, cd_ref, cd_sys, reset_cycles=64, ready_cycles=64):
+        cd_sys.rst.reset = 1
+        self.clock_domains.cd_ic = ClockDomain()
+        ic_reset_counter = Signal(max=reset_cycles, reset=reset_cycles-1)
+        ic_reset         = Signal(reset=1)
+        cd_ref_sync      = getattr(self.sync, cd_ref.name)
+        cd_ref_sync += [
+            If(ic_reset_counter != 0,
+                ic_reset_counter.eq(ic_reset_counter - 1)
             ).Else(
                 ic_reset.eq(0)
             )
-        self.specials += Instance("IDELAYCTRL",
-            p_SIM_DEVICE = "ULTRASCALE",
-            i_REFCLK     = cd.clk,
-            i_RST        = ic_reset
-        )
+        ]
+        ic_ready_counter = Signal(max=ready_cycles, reset=ready_cycles-1)
+        ic_ready         = Signal()
+        self.comb += self.cd_ic.clk.eq(cd_sys.clk)
+        self.sync.ic += [
+            If(ic_ready,
+                If(ic_ready_counter != 0,
+                    ic_ready_counter.eq(ic_ready_counter - 1)
+                ).Else(
+                    cd_sys.rst.eq(0)
+                )
+            )
+        ]
+        self.specials += [
+            Instance("IDELAYCTRL",
+                p_SIM_DEVICE = "ULTRASCALE",
+                i_REFCLK     = cd_ref.clk,
+                i_RST        = ic_reset,
+                o_RDY        = ic_ready),
+            AsyncResetSynchronizer(self.cd_ic, ic_reset)
+        ]
 
 # Lattice / iCE40 ----------------------------------------------------------------------------------
 
