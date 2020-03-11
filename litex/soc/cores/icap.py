@@ -18,10 +18,10 @@ class ICAP(Module, AutoCSR):
     reloaded from SPI Flash by writing 0x00000000 at address @0x4.
     """
     def __init__(self, simulation=False):
-        self.addr = CSRStorage(5)
-        self.data = CSRStorage(32)
-        self.send = CSR()
-        self.done = CSRStatus(reset=1)
+        self.addr = CSRStorage(5,  description="ICAP Write Address.")
+        self.data = CSRStorage(32, description="ICAP Write Data.")
+        self.send = CSRStorage(description="ICAP Control.\n\n Write ``1`` send a write command to the ICAP.")
+        self.done = CSRStatus(reset=1, description="ICAP Status.\n\n Write command done when read as ``1``.")
 
         # # #
 
