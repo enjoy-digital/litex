@@ -18,9 +18,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         sim            = False,
         spiread        = False,
         prefetch_lines = 1):
-        self.intro = ModuleDoc("""
-        Intro
-        ********
+        self.intro = ModuleDoc("""Intro
 
         SpiOpi implements a dual-mode SPI or OPI interface. OPI is an octal (8-bit) wide variant of
         SPI, which is unique to Macronix parts. It is concurrently interoperable with SPI. The chip
@@ -300,14 +298,13 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
             ),
         ]
 
-        self.architecture = ModuleDoc("""
-        Architecture
-        **************
+        self.architecture = ModuleDoc("""Architecture
 
         The machine is split into two separate pieces, one to handle SPI, and one to handle OPI.
 
         SPI
-        =====
+        -----
+
         The SPI machine architecture is split into two levels: MAC and PHY.
 
         The MAC layer is responsible for:
@@ -333,7 +330,8 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
         Thus holding "req" high can allow the PHY to back-to-back issue cycles without pause.
 
         OPI
-        =====
+        -----
+
         The OPI machine is split into three parts: a command controller, a Tx PHY, and an Rx PHY.
 
         The Tx PHY is configured with a "dummy cycle" count register, as there is a variable length
@@ -389,6 +387,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
              - pre-fetch is aborted because bus_adr and next read address don't match and FIFO is reset
 
            RxPHY:
+
            - while CTI==2, assemble data into 32-bit words as soon as EMPTY is deasserted,
              present a bus_ack, and increment the next read address pointer
            - when CTI==7, ack the data, and wait until the next bus cycle with CTI==2 to resume
