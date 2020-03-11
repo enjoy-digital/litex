@@ -10,21 +10,21 @@ from litex.soc.interconnect.csr import *
 
 class GPIOIn(Module, AutoCSR):
     def __init__(self, signal):
-        self._in = CSRStatus(len(signal))
+        self._in = CSRStatus(len(signal), description="GPIO Input(s) Status.")
         self.specials += MultiReg(signal, self._in.status)
 
 # GPIO Output --------------------------------------------------------------------------------------
 
 class GPIOOut(Module, AutoCSR):
     def __init__(self, signal):
-        self._out = CSRStorage(len(signal))
+        self._out = CSRStorage(len(signal), description="GPIO Output(s) Control.")
         self.comb += signal.eq(self._out.storage)
 
 # GPIO Input/Output --------------------------------------------------------------------------------
 
 class GPIOInOut(Module):
     def __init__(self, in_signal, out_signal):
-        self.submodules.gpio_in = GPIOIn(in_signal)
+        self.submodules.gpio_in  = GPIOIn(in_signal)
         self.submodules.gpio_out = GPIOOut(out_signal)
 
     def get_csrs(self):
@@ -35,9 +35,9 @@ class GPIOInOut(Module):
 class GPIOTristate(Module, AutoCSR):
     def __init__(self, pads):
         nbits     = len(pads)
-        self._oe  = CSRStorage(nbits)
-        self._in  = CSRStatus(nbits)
-        self._out = CSRStorage(nbits)
+        self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
+        self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
+        self._out = CSRStorage(nbits, description="GPIO Ouptut(s) Control.")
 
         # # #
 
