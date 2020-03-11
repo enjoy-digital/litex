@@ -1,6 +1,6 @@
 # This file is Copyright (c) 2014-2015 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2019 bunnie <bunnie@kosagi.com>
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from migen import *
@@ -13,17 +13,21 @@ analog_layout = [("vauxp", 16), ("vauxn", 16), ("vp", 1), ("vn", 1)]
 
 class XADC(Module, AutoCSR):
     def __init__(self, analog_pads=None):
-        # Temperature(°C) = adc_value*503.975/4096 - 273.15
-        self.temperature = CSRStatus(12)
+        # Temperature
+        self.temperature = CSRStatus(12, description="""Raw Temperature value from XADC.\n
+            Temperature (°C) = ``Value`` x 503.975 / 4096 - 273.15.""")
 
-        # Voltage(V) = adc_value*)/4096*3
-        self.vccint  = CSRStatus(12)
-        self.vccaux  = CSRStatus(12)
-        self.vccbram = CSRStatus(12)
+        # Voltages
+        self.vccint  = CSRStatus(12, description="""Raw VCCINT value from XADC.\n
+            VCCINT (V) = ``Value`` x 3 / 4096.""")
+        self.vccaux  = CSRStatus(12, description="""Raw VCCAUX value from XADC.\n
+            VCCAUX (V) = ``Value`` x 3 / 4096.""")
+        self.vccbram = CSRStatus(12, description="""Raw VCCBRAM value from XADC.\n
+            VCCBRAM (V) = ``Value`` x 3 / 4096.""")
 
         # End of Convertion/Sequence
-        self.eoc = CSRStatus()
-        self.eos = CSRStatus()
+        self.eoc = CSRStatus(description="End of Convertion Status, ``1``: Convertion Done.")
+        self.eos = CSRStatus(description="End of Sequence Status, ``1``: Sequence Done.")
 
         # Alarms
         self.alarm = Signal(8)
