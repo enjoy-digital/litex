@@ -1044,7 +1044,8 @@ class LiteXSoC(SoC):
             dw         = 32,
             interface  = "wishbone",
             endianness = self.cpu.endianness)
-        ethmac_region = SoCRegion(size=0x2000, cached=False)
+        ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None),
+                                  size=0x2000, cached=False)
         self.bus.add_slave(name="ethmac", slave=self.ethmac.bus, region=ethmac_region)
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
