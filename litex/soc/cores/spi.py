@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 import math
@@ -125,14 +125,18 @@ class SPIMaster(Module, AutoCSR):
 
     def add_csr(self):
         self._control  = CSRStorage(fields=[
-            CSRField("start",  size=1, offset=0, pulse=True),
-            CSRField("length", size=8, offset=8)])
+            CSRField("start",  size=1, offset=0, pulse=True, description="Write ``1`` to start SPI Xfer"),
+            CSRField("length", size=8, offset=8, description="SPI Xfer length (in bits).")
+        ], description="SPI Control.")
         self._status   = CSRStatus(fields=[
-            CSRField("done", size=1, offset=0)])
-        self._mosi     = CSRStorage(self.data_width)
-        self._miso     = CSRStatus(self.data_width)
-        self._cs       = CSRStorage(len(self.cs), reset=1)
-        self._loopback = CSRStorage()
+            CSRField("done", size=1, offset=0, description="SPI Xfer done when read as ``1``.")
+        ], description="SPI Status.")
+        self._mosi     = CSRStorage(self.data_width, description="SPI MOSI data (MSB-first serialization).")
+        self._miso     = CSRStatus(self.data_width,  description="SPI MISO data (MSB-first de-serialization).")
+        self._cs       = CSRStorage(fields=[
+            CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")
+        ], description="SPI Chip Select.")
+        self._loopback = CSRStorage(description="SPI loopback mode.\n\n Write ``1`` to enable MOSI to MISO internal loopback.")
 
         self.comb += [
             self.start.eq(self._control.fields.start),
