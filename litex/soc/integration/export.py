@@ -423,9 +423,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     return "\n".join(svd)
 
 
-# Rust Export -------------------------------------------------------------------------------------
+# Memory.x Export ----------------------------------------------------------------------------------
 
-def get_mr_memory_x(soc):
+def get_memory_x(soc):
     r = get_linker_regions(soc.mem_regions)
     r += '\n'
     r += 'REGION_ALIAS("REGION_TEXT", spiflash);\n'

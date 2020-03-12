@@ -38,17 +38,17 @@ def _makefile_escape(s):
 
 class Builder:
     def __init__(self, soc,
-        output_dir              = None,
-        gateware_dir            = None,
-        software_dir            = None,
-        include_dir             = None,
-        generated_dir           = None,
-        compile_software        = True,
-        compile_gateware        = True,
-        csr_json                = None,
-        csr_csv                 = None,
-        csr_svd                 = None,
-        mr_memory_x             = None):
+        output_dir       = None,
+        gateware_dir     = None,
+        software_dir     = None,
+        include_dir      = None,
+        generated_dir    = None,
+        compile_software = True,
+        compile_gateware = True,
+        csr_json         = None,
+        csr_csv          = None,
+        csr_svd          = None,
+        memory_x         = None):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path
@@ -64,7 +64,7 @@ class Builder:
         self.csr_csv  = csr_csv
         self.csr_json = csr_json
         self.csr_svd  = csr_svd
-        self.mr_memory_x = mr_memory_x
+        self.memory_x = memory_x
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -156,10 +156,10 @@ class Builder:
             write_to_file(self.csr_svd, export.get_csr_svd(self.soc))
 
     def _generate_mem_region_map(self):
-        if self.mr_memory_x is not None:
-            mr_memory_x_dir = os.path.dirname(os.path.realpath(self.mr_memory_x))
-            os.makedirs(mr_memory_x_dir, exist_ok=True)
-            write_to_file(self.mr_memory_x, export.get_mr_memory_x(self.soc))
+        if self.memory_x is not None:
+            memory_x_dir = os.path.dirname(os.path.realpath(self.memory_x))
+            os.makedirs(memory_x_dir, exist_ok=True)
+            write_to_file(self.memory_x, export.get_memory_x(self.soc))
 
     def _prepare_rom_software(self):
         for name, src_dir in self.software_packages:
@@ -234,8 +234,8 @@ def builder_args(parser):
     parser.add_argument("--csr-svd", default=None,
                         help="store CSR map in SVD format into the "
                              "specified file")
-    parser.add_argument("--mr-memory-x", default=None,
-                        help="store memory regions in memory-x format into the "
+    parser.add_argument("--memory-x", default=None,
+                        help="store Mem regions in memory-x format into the "
                              "specified file")
 
 
@@ -251,5 +251,5 @@ def builder_argdict(args):
         "csr_csv":          args.csr_csv,
         "csr_json":         args.csr_json,
         "csr_svd":          args.csr_svd,
-        "mr_memory_x":      args.mr_memory_x,
+        "memory_x":         args.memory_x,
     }
