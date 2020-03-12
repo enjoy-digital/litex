@@ -5,6 +5,7 @@
 # This file is Copyright (c) 2016-2017 Tim 'mithro' Ansell <mithro@mithis.com>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Xiretza <xiretza@xiretza.xyz>
+# This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
 # License: BSD
 
 
@@ -46,7 +47,8 @@ class Builder:
         compile_gateware        = True,
         csr_json                = None,
         csr_csv                 = None,
-        csr_svd                 = None):
+        csr_svd                 = None,
+        mr_memory_x             = None):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path
@@ -62,6 +64,7 @@ class Builder:
         self.csr_csv  = csr_csv
         self.csr_json = csr_json
         self.csr_svd  = csr_svd
+        self.mr_memory_x = mr_memory_x
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -152,6 +155,12 @@ class Builder:
             os.makedirs(svd_dir, exist_ok=True)
             write_to_file(self.csr_svd, export.get_csr_svd(self.soc))
 
+    def _generate_mem_region_map(self):
+        if self.mr_memory_x is not None:
+            mr_memory_x_dir = os.path.dirname(os.path.realpath(self.mr_memory_x))
+            os.makedirs(mr_memory_x_dir, exist_ok=True)
+            write_to_file(self.mr_memory_x, export.get_mr_memory_x(self.soc))
+
     def _prepare_rom_software(self):
         for name, src_dir in self.software_packages:
             dst_dir = os.path.join(self.software_dir, name)
@@ -181,6 +190,7 @@ class Builder:
 
         self._generate_includes()
         self._generate_csr_map()
+        self._generate_mem_region_map()
         if self.soc.cpu_type is not None:
             if self.soc.cpu.use_rom:
                 self._prepare_rom_software()
@@ -224,6 +234,9 @@ def builder_args(parser):
     parser.add_argument("--csr-svd", default=None,
                         help="store CSR map in SVD format into the "
                              "specified file")
+    parser.add_argument("--mr-memory-x", default=None,
+                        help="store memory regions in memory-x format into the "
+                             "specified file")
 
 
 def builder_argdict(args):
@@ -238,4 +251,5 @@ def builder_argdict(args):
         "csr_csv":          args.csr_csv,
         "csr_json":         args.csr_json,
         "csr_svd":          args.csr_svd,
+        "mr_memory_x":      args.mr_memory_x,
     }
