@@ -10,6 +10,7 @@
 # This file is Copyright (c) 2018-2016 Tim 'mithro' Ansell <me@mith.ro>
 # This file is Copyright (c) 2015 whitequark <whitequark@whitequark.org>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
+# This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
 # License: BSD
 
 import os
@@ -420,3 +421,19 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     svd.append('    </peripherals>')
     svd.append('</device>')
     return "\n".join(svd)
+
+
+# Rust Export -------------------------------------------------------------------------------------
+
+def get_mr_memory_x(soc):
+    r = get_linker_regions(soc.mem_regions)
+    r += '\n'
+    r += 'REGION_ALIAS("REGION_TEXT", spiflash);\n'
+    r += 'REGION_ALIAS("REGION_RODATA", spiflash);\n'
+    r += 'REGION_ALIAS("REGION_DATA", sram);\n'
+    r += 'REGION_ALIAS("REGION_BSS", sram);\n'
+    r += 'REGION_ALIAS("REGION_HEAP", sram);\n'
+    r += 'REGION_ALIAS("REGION_STACK", sram);\n\n'
+    r += '/* CPU reset location. */\n'
+    r += '_stext = {:#08x};\n'.format(soc.cpu.reset_address)
+    return r
