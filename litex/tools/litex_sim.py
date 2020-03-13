@@ -24,8 +24,13 @@ from litedram.phy.model import SDRAMPHYModel
 
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.mac import LiteEthMAC
+from liteeth.core.arp import LiteEthARP
+from liteeth.core.ip import LiteEthIP
+from liteeth.core.udp import LiteEthUDP
+from liteeth.core.icmp import LiteEthICMP
 from liteeth.core import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
+from liteeth.common import *
 
 from litescope import LiteScopeAnalyzer
 
@@ -154,8 +159,8 @@ class SimSoC(SoCSDRAM):
         with_sdram            = False,
         with_ethernet         = False,
         with_etherbone        = False,
-        etherbone_mac_address = 0x10e2d5000000,
-        etherbone_ip_address  = "192.168.1.50",
+        etherbone_mac_address = 0x10e2d5000001,
+        etherbone_ip_address  = "192.168.1.51",
         with_analyzer         = False,
         sdram_module          = "MT48LC16M16",
         sdram_init            = [],
@@ -205,10 +210,36 @@ class SimSoC(SoCSDRAM):
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
-        assert not (with_ethernet and with_etherbone)
+        #assert not (with_ethernet and with_etherbone)
+
+        if with_ethernet and with_etherbone:
+            dw = 8
+            etherbone_ip_address = convert_ip(etherbone_ip_address)
+            # Ethernet PHY
+            self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+            self.add_csr("ethphy")
+            # Ethernet MAC
+            self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=dw,
+                interface  = "hybrid",
+                endianness = self.cpu.endianness,
+                hw_mac     = etherbone_mac_address)
+
+            # SoftCPU
+            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
+            self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
+            self.add_csr("ethmac")
+            self.add_interrupt("ethmac")
+            # HW ethernet
+            self.submodules.arp = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=dw)
+            self.submodules.ip = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=dw)
+            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=dw)
+            self.submodules.udp = LiteEthUDP(self.ip, etherbone_ip_address, dw=dw)
+            # Etherbone
+            self.submodules.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
+            self.add_wb_master(self.etherbone.wishbone.bus)
 
         # Ethernet ---------------------------------------------------------------------------------
-        if with_ethernet:
+        elif with_ethernet:
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             self.add_csr("ethphy")
@@ -225,7 +256,7 @@ class SimSoC(SoCSDRAM):
             self.add_interrupt("ethmac")
 
         # Etherbone --------------------------------------------------------------------------------
-        if with_etherbone:
+        elif with_etherbone:
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
             self.add_csr("ethphy")
