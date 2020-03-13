@@ -53,6 +53,7 @@ def compute_config_log(logger, config):
 class XilinxClocking(Module, AutoCSR):
     clkfbout_mult_frange = (2,  64+1)
     clkout_divide_range  = (1, 128+1)
+    clkout0_divide_range = (2, (128+0.125), 0.125)
 
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
@@ -122,6 +123,19 @@ class XilinxClocking(Module, AutoCSR):
                                 config["clkout{}_phase".format(n)]  = p
                                 valid = True
                                 break
+                        if not valid and n == 0:
+                            # clkout0 supports fractional division, try the fractional range as a fallback
+                            (start, stop, step) = self.clkout0_divide_range
+                            d = start
+                            while d < stop:
+                                clk_freq = vco_freq / d
+                                if abs(clk_freq - f) <= f * m:
+                                    config["clkout{}_freq".format(n)] = clk_freq
+                                    config["clkout{}_divide".format(n)] = d
+                                    config["clkout{}_phase".format(n)] = p
+                                    valid = True
+                                    break
+                                d += step
                         if not valid:
                             all_valid = False
                 else:
