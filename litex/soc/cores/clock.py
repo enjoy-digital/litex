@@ -4,6 +4,7 @@
 
 """Clock Abstraction Modules"""
 
+import math
 import logging
 
 from migen import *
@@ -48,12 +49,22 @@ def compute_config_log(logger, config):
     log = log[:-1]
     logger.info(log)
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def clkdiv_range(start, stop, step=1):
+    start   = float(start)
+    stop    = float(stop)
+    step    = float(step)
+    current = start
+    while current < stop:
+        yield int(current) if math.floor(current) == current else current
+        current += step
+
 # Xilinx / Generic ---------------------------------------------------------------------------------
 
 class XilinxClocking(Module, AutoCSR):
     clkfbout_mult_frange = (2,  64+1)
     clkout_divide_range  = (1, 128+1)
-    clkout0_divide_range = (2, (128+0.125), 0.125)
 
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
@@ -115,7 +126,9 @@ class XilinxClocking(Module, AutoCSR):
                     vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
                         valid = False
-                        for d in range(*self.clkout_divide_range):
+                        d_range = self.clkout_divide_range
+                        d_range = getattr(self, "clkout{}_divide_range".format(n), d_range)
+                        for d in clkdiv_range(*d_range):
                             clk_freq = vco_freq/d
                             if abs(clk_freq - f) <= f*m:
                                 config["clkout{}_freq".format(n)]   = clk_freq
@@ -123,19 +136,6 @@ class XilinxClocking(Module, AutoCSR):
                                 config["clkout{}_phase".format(n)]  = p
                                 valid = True
                                 break
-                        if not valid and n == 0:
-                            # clkout0 supports fractional division, try the fractional range as a fallback
-                            (start, stop, step) = self.clkout0_divide_range
-                            d = start
-                            while d < stop:
-                                clk_freq = vco_freq / d
-                                if abs(clk_freq - f) <= f * m:
-                                    config["clkout{}_freq".format(n)] = clk_freq
-                                    config["clkout{}_divide".format(n)] = d
-                                    config["clkout{}_phase".format(n)] = p
-                                    valid = True
-                                    break
-                                d += step
                         if not valid:
                             all_valid = False
                 else:
@@ -310,7 +310,8 @@ class S7PLL(XilinxClocking):
 
 
 class S7MMCM(XilinxClocking):
-    nclkouts_max = 7
+    nclkouts_max         = 7
+    clkout0_divide_range = (1, (128 + 1/8), 1/8) # Fractional Divide available on CLKOUT0
 
     def __init__(self, speedgrade=-1):
         self.logger = logging.getLogger("S7MMCM")
