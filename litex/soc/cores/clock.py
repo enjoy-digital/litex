@@ -229,7 +229,7 @@ class S6DCM(XilinxClocking):
         self.logger = logging.getLogger("S6DCM")
         self.logger.info("Creating S6DCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
-        self.divclk_divide_range = (1, 1) # FIXME
+        self.divclk_divide_range = (1, 2) # FIXME
         self.clkin_freq_range = {
             -1: (0.5e6, 200e6),
             -2: (0.5e6, 333e6),
