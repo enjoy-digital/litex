@@ -266,7 +266,8 @@ class DocumentedCSRRegion:
             print("                {\"name\": \"" + reg.short_name.lower() + self.bit_range(reg.offset, reg.offset + reg.size, empty_if_zero=True) + "\", " + attr_str + "\"bits\": " + str(reg.size) + "}" + term, file=stream)
             if reg.size != self.csr_data_width:
                 print("                {\"bits\": " + str(self.csr_data_width - reg.size) + "},", file=stream)
-        print("            ], \"config\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": 1 }, \"options\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": 1}", file=stream)
+        lanes = self.busword / 8
+        print("            ], \"config\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": " + str(lanes) + " }, \"options\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": " + str(lanes) + "}", file=stream)
         print("        }", file=stream)
         print("", file=stream)
 
