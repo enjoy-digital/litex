@@ -6,8 +6,15 @@
 # This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
-import argparse
+# The iCEBreaker is the first open source iCE40 FPGA development board designed for teachers and
+# students: https://www.crowdsupply.com/1bitsquared/icebreaker-fpga
 
+# This target file provides a minimal LiteX SoC for the iCEBreaker with a CPU, its ROM (in SPI Flash),
+# its SRAM, close to the others LiteX targets. A more complete example of LiteX SoC for the iCEBreaker
+# with more features, examples to run C/Rust code on the RISC-V CPU and documentation can be found
+# at: https://github.com/icebreaker-fpga/icebreaker-litex-examples
+
+import argparse
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
