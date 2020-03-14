@@ -70,7 +70,7 @@ void sdclk_set_clk(unsigned int freq) {
 	while(!(sdclk_status_read() & CLKGEN_STATUS_LOCKED));
 }
 
-#else
+#elif CSR_SDCLK_MMCM_DRP_WRITE_ADDR
 
 static void sdclk_mmcm_write(unsigned int adr, unsigned int data) {
 	sdclk_mmcm_drp_adr_write(adr);
@@ -131,6 +131,12 @@ void sdclk_set_clk(unsigned int freq) {
 
 	sdclk_get_config(1000*freq, &clk_m, &clk_d);
 	sdclk_set_config(clk_m, clk_d);
+}
+
+#else
+
+void sdclk_set_clk(unsigned int freq) {
+	printf("Unimplemented!\n");
 }
 
 #endif
