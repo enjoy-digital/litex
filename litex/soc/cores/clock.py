@@ -126,16 +126,20 @@ class XilinxClocking(Module, AutoCSR):
                     vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
                         valid = False
-                        d_range = self.clkout_divide_range
-                        d_range = getattr(self, "clkout{}_divide_range".format(n), d_range)
-                        for d in clkdiv_range(*d_range):
-                            clk_freq = vco_freq/d
-                            if abs(clk_freq - f) <= f*m:
-                                config["clkout{}_freq".format(n)]   = clk_freq
-                                config["clkout{}_divide".format(n)] = d
-                                config["clkout{}_phase".format(n)]  = p
-                                valid = True
-                                break
+                        d_ranges = [self.clkout_divide_range]
+                        if getattr(self, "clkout{}_divide_range".format(n), None) is not None:
+                            d_ranges += [getattr(self, "clkout{}_divide_range".format(n))]
+                        for d_range in d_ranges:
+                            for d in clkdiv_range(*d_range):
+                                clk_freq = vco_freq/d
+                                if abs(clk_freq - f) <= f*m:
+                                    config["clkout{}_freq".format(n)]   = clk_freq
+                                    config["clkout{}_divide".format(n)] = d
+                                    config["clkout{}_phase".format(n)]  = p
+                                    valid = True
+                                    break
+                                if valid:
+                                    break
                         if not valid:
                             all_valid = False
                 else:
