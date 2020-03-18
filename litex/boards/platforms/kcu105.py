@@ -151,8 +151,8 @@ _io = [
         Subsignal("clk_n", Pins("AB5")),
         Subsignal("rx_p", Pins("AB2")),
         Subsignal("rx_n", Pins("AB1")),
-        Subsignal("tx_p", Pins("AC3")),
-        Subsignal("tx_n", Pins("AC4"))
+        Subsignal("tx_p", Pins("AC4")),
+        Subsignal("tx_n", Pins("AC3"))
     ),
 
     ("pcie_x2", 0,
@@ -161,8 +161,8 @@ _io = [
         Subsignal("clk_n", Pins("AB5")),
         Subsignal("rx_p", Pins("AB2 AD2")),
         Subsignal("rx_n", Pins("AB1 AD1")),
-        Subsignal("tx_p", Pins("AC3 AE4")),
-        Subsignal("tx_n", Pins("AC4 AE3"))
+        Subsignal("tx_p", Pins("AC4 AE4")),
+        Subsignal("tx_n", Pins("AC3 AE3"))
     ),
 
     ("pcie_x4", 0,
@@ -171,8 +171,8 @@ _io = [
         Subsignal("clk_n", Pins("AB5")),
         Subsignal("rx_p", Pins("AB2 AD2 AF2 AH2")),
         Subsignal("rx_n", Pins("AB1 AD1 AF1 AH1")),
-        Subsignal("tx_p", Pins("AC3 AE4 AG4 AH6")),
-        Subsignal("tx_n", Pins("AC4 AE3 AG3 AH5"))
+        Subsignal("tx_p", Pins("AC4 AE4 AG4 AH6")),
+        Subsignal("tx_n", Pins("AC3 AE3 AG3 AH5"))
     ),
 
     ("pcie_x8", 0,
@@ -181,8 +181,8 @@ _io = [
         Subsignal("clk_n", Pins("AB5")),
         Subsignal("rx_p", Pins("AB2 AD2 AF2 AH2 AJ4 AK2 AM2 AP2")),
         Subsignal("rx_n", Pins("AB1 AD1 AF1 AH1 AJ3 AK1 AM1 AP1")),
-        Subsignal("tx_p", Pins("AC3 AE4 AG4 AH6 AK6 AL4 AM6 AN4")),
-        Subsignal("tx_n", Pins("AC4 AE3 AG3 AH5 AK5 AL3 AM5 AN3"))
+        Subsignal("tx_p", Pins("AC4 AE4 AG4 AH6 AK6 AL4 AM6 AN4")),
+        Subsignal("tx_n", Pins("AC3 AE3 AG3 AH5 AK5 AL3 AM5 AN3"))
     ),
 
     ("sgmii_clock", 0,
