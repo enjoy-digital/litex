@@ -87,7 +87,8 @@ class BaseSoC(SoCCore):
 
     def add_sdcard(self):
         sdcard_pads = self.platform.request("sdcard")
-        self.comb += sdcard_pads.rst.eq(0)
+        if hasattr(sdcard_pads, "rst"):
+            self.comb += sdcard_pads.rst.eq(0)
         self.submodules.sdclk = SDClockerS7(sys_clk_freq=self.sys_clk_freq)
         self.submodules.sdphy = SDPHY(sdcard_pads, self.platform.device)
         self.submodules.sdcore = SDCore(self.sdphy)
