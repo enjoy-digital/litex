@@ -25,6 +25,8 @@ from litesdcard.core import SDCore
 from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
 from litex.soc.cores.timer import Timer
 
+from litex.soc.cores.spi import SPIMaster
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -85,6 +87,13 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
+    def add_spisdcard(self):
+        spisdcard_pads = self.platform.request("spisdcard")
+        if hasattr(spisdcard_pads, "rst"):
+            self.comb += spisdcard_pads.rst.eq(0)
+        self.submodules.spisdcard = SPIMaster(spisdcard_pads, 8, self.sys_clk_freq, 400e3)
+        self.add_csr("spisdcard")
+
     def add_sdcard(self):
         sdcard_pads = self.platform.request("sdcard")
         if hasattr(sdcard_pads, "rst"):
@@ -123,6 +132,8 @@ def main():
                         help="system clock frequency (default=75MHz)")
     parser.add_argument("--with-ethernet", action="store_true",
                         help="enable Ethernet support")
+    parser.add_argument("--with-spi-sdcard", action="store_true",
+                        help="enable SPI-mode SDCard support")
     parser.add_argument("--with-sdcard", action="store_true",
                         help="enable SDCard support")
     args = parser.parse_args()
@@ -130,7 +141,11 @@ def main():
     soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
         with_ethernet=args.with_ethernet,
         **soc_sdram_argdict(args))
+    if args.with_spi_sdcard:
+        soc.add_spisdcard()
     if args.with_sdcard:
+        if args.with_spi_sdcard:
+            raise ValueError("'--with-spi-sdcard' and '--with-sdcard' are mutually exclusive!")
         soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
