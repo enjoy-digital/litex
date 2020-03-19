@@ -505,11 +505,19 @@ void spisdcardboot(void)
 		return;
 	}
 
+#if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 	if(spi_sdcard_readFile("IMAGE","",MAIN_RAM_BASE+KERNEL_IMAGE_RAM_OFFSET)==0) return;
 	if(spi_sdcard_readFile("ROOTFS~1","CPI",MAIN_RAM_BASE+ROOTFS_IMAGE_RAM_OFFSET)==0) return;
 	if(spi_sdcard_readFile("RV32","DTB",MAIN_RAM_BASE+DEVICE_TREE_IMAGE_RAM_OFFSET)==0) return;
 	if(spi_sdcard_readFile("EMULATOR","BIN",EMULATOR_RAM_BASE)==0) return;
 
 	boot(0,0,0,EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+#else
+	if(spi_sdcard_readFile("BOOT","BIN",MAIN_RAM_BASE)==0) {
+		printf("SD Card SPI boot failed\n");
+		return;
+	}
+	boot(0, 0, 0, MAIN_RAM_BASE);
+#endif
 }
 #endif
