@@ -20,11 +20,11 @@
 #include <time.h>
 #include <string.h>
 
-#ifdef CSR_SPI_BASE
+#ifdef CSR_SPISDCARD_BASE
 // Import prototypes for the functions
-#include <spi.h>
+#include <spisdcard.h>
 
-// SPI 
+// SPI
 //      cs line - high to indicate DESELECT
 //              - low to indicate SELECT
 #define CS_HIGH         0x00
@@ -57,14 +57,14 @@ void spi_write_byte(unsigned char char_to_send)
 {
     // Place data into MOSI register
     // Pulse the START bit and set LENGTH=8
-    spi_mosi_write(char_to_send);
-    spi_control_write(ONEBYTE | SPI_START);
-    
+    spisdcard_mosi_write(char_to_send);
+    spisdcard_control_write(ONEBYTE | SPI_START);
+
     // Wait for DONE
-    while( (spi_status_read() != SPI_DONE)) {}
- 
+    while( (spisdcard_status_read() != SPI_DONE)) {}
+
     // Signal end of transfer
-    spi_control_write( 0x00 );
+    spisdcard_control_write( 0x00 );
 }
 
 
@@ -83,16 +83,16 @@ unsigned char spi_read_rbyte(void);
 unsigned char spi_read_rbyte(void)
 {
     int timeout=32;
-    unsigned char r=0;    
-    
+    unsigned char r=0;
+
     // Check if MISO is 0x0xxxxxxx as MSB=0 indicates valid response
-    r = spi_miso_read();
+    r = spisdcard_miso_read();
     while( ((r&0x80)!=0) && timeout>0) {
-        spi_mosi_write( 0xff );
-        spi_control_write(ONEBYTE | SPI_START);
-        while( (spi_status_read() != SPI_DONE)) {}
-        r = spi_miso_read();
-        spi_control_write( 0x00 );
+        spisdcard_mosi_write( 0xff );
+        spisdcard_control_write(ONEBYTE | SPI_START);
+        while( (spisdcard_status_read() != SPI_DONE)) {}
+        r = spisdcard_miso_read();
+        spisdcard_control_write( 0x00 );
         timeout--;
     }
 
@@ -117,10 +117,10 @@ unsigned char spi_read_byte(void);
 unsigned char spi_read_byte(void)
 {
     unsigned char r=0;
-    
+
     spi_write_byte( 0xff );
-    r = spi_miso_read();
-    
+    r = spisdcard_miso_read();
+
     return r;
 }
 
@@ -142,26 +142,26 @@ unsigned char spi_setspimode(void)
     // Send pulses
      do {
         // set CS HIGH and send pulses
-        spi_cs_write(CS_HIGH);
+        spisdcard_cs_write(CS_HIGH);
          for (i=0; i<10; i++) {
-            spi_write_byte( 0xff );        
+            spi_write_byte( 0xff );
         }
-        
+
         // set CS LOW and send pulses
-        spi_cs_write(CS_LOW);
+        spisdcard_cs_write(CS_LOW);
         r = spi_read_rbyte();
-        
+
         timeout--;
     } while ( (timeout>0) && (r==0) );
 
     if(timeout==0) return FAILURE;
-    
+
     return SUCCESS;
 }
 
 // SPI_SDCARD_GOIDLE
 //      Function exposed to BIOS to initialise SPI mode
-//      
+//
 //      Sequence
 //          Set 100KHz timer mode
 //          Send CLK pulses to set SD CARD to SPI mode
@@ -188,7 +188,7 @@ unsigned char spi_sdcard_goidle(void)
     spi_write_byte( 0xff ); spi_write_byte( 0x40 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x95 );
     r = spi_read_rbyte();
     if(r!=0x01) return FAILURE;
-    
+
     // CMD8 - Check SD CARD type
     // Command sequence is DUMMY=0xff CMD8=0x48 0x00 0x00 0x01 0xaa CRC=0x87
     // Expected R7 response is 0x01 followed by 0x00 0x00 0x01 0xaa (these trailing 4 bytes not currently checked)
@@ -198,7 +198,7 @@ unsigned char spi_sdcard_goidle(void)
     // Receive the trailing 4 bytes for R7 response - FIXME should check for 0x00 0x00 0x01 0xaa
     for(i=0; i<4; i++)
         r=spi_read_byte();
-     
+
     // CMD55+ACMD41 - Force SD CARD READY - prepare card for reading/writing
     // Command sequence is CMD55 followed by ACMD41
     //      Send commands repeatedly until SD CARD indicates READY 0x00
@@ -207,15 +207,15 @@ unsigned char spi_sdcard_goidle(void)
     // Expected R1 response is 0x00 indicating SD CARD is READY
     timeout=32;
     do {
-        spi_write_byte( 0xff ); spi_write_byte( 0x77 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 );      
+        spi_write_byte( 0xff ); spi_write_byte( 0x77 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 );
         r = spi_read_rbyte();
-        
-        spi_write_byte( 0xff ); spi_write_byte( 0x69 ); spi_write_byte( 0x40 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 );      
+
+        spi_write_byte( 0xff ); spi_write_byte( 0x69 ); spi_write_byte( 0x40 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 );
         r = spi_read_rbyte();
         timeout--;
     } while ((r != 0x00) && (timeout>0));
     if(r!=0x00) return FAILURE;
-    
+
     // CMD58 - Read SD CARD OCR (status register)
     // FIXME - Find details on expected response from CMD58 to allow accurate checking of SD CARD R3 response
     // Command sequence is DUMMY=0xff CMD58=0x7a 0x00 0x00 0x01 0xaa CRC=0xff
@@ -226,12 +226,12 @@ unsigned char spi_sdcard_goidle(void)
     // // Receive the trailing 4 bytes for R3 response
     for(i=0; i<4; i++)
         r=spi_read_byte();
-    
+
     // CMD16 - Set SD CARD block size to 512 - Sector Size for the SD CARD
     // Command Sequence is DUMMY=0xff (512 as unsigned long = 0x00000200) 0x00 0x00 0x02 0x00 CRC=0xff
     // Expected R1 response is 0x00 indicating SD CARD is READY
     spi_write_byte( 0xff ); spi_write_byte( 0x50 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x02 ); spi_write_byte( 0x00 ); spi_write_byte( 0xff );
-    r=spi_read_rbyte();    
+    r=spi_read_rbyte();
     if(r!=0x00) return FAILURE;
 
     return SUCCESS;
@@ -256,11 +256,11 @@ unsigned char readSector(unsigned int sectorNumber, unsigned char *storage)
 {
     unsigned int n,timeout;                                                                                                             // Number of bytes loop, timeout loop awaiting response bytes
     unsigned char r;                                                                                                                    // Response bytes from SD CARD
-    
+
     // CMD17 - Read Block
     // Command Sequence is DUMMY=0xff CMD17=0x51 SECTORNUMBER (32bit UNSIGNED as bits 32-25,24-17, 16-9, 8-1) CRC=0xff
     // Expected R1 response is 0x00 indicating SD CARD is processing
-    spi_write_byte( 0xff ); spi_write_byte( 0x51 ); spi_write_byte( (sectorNumber>>24)&0xff ); spi_write_byte( (sectorNumber>>16)&0xff ); spi_write_byte( (sectorNumber>>8)&0xff ); spi_write_byte( (sectorNumber)&0xff ); spi_write_byte( 0xff ); 
+    spi_write_byte( 0xff ); spi_write_byte( 0x51 ); spi_write_byte( (sectorNumber>>24)&0xff ); spi_write_byte( (sectorNumber>>16)&0xff ); spi_write_byte( (sectorNumber>>8)&0xff ); spi_write_byte( (sectorNumber)&0xff ); spi_write_byte( 0xff );
     r=spi_read_rbyte();
     if( r!=0x00 ) return FAILURE;
 
@@ -269,14 +269,14 @@ unsigned char readSector(unsigned int sectorNumber, unsigned char *storage)
     timeout=16384;
     while( (r!=0xfe) && (timeout>0) ) {
         r=spi_read_byte();
-        timeout--;    
+        timeout--;
     }
     if( r!=0xfe ) return FAILURE;
 
     // Read 512 bytes into storage
     for(n=0; n<512; n++)
         storage[n]=spi_read_byte();
-    
+
     // Read 8 dummy bytes
     for(n=0; n<8; n++)
         r=spi_read_byte();
@@ -316,7 +316,7 @@ typedef struct {
     unsigned short number_of_heads;
     unsigned long hidden_sectors;
     unsigned long total_sectors_long;
-    
+
     unsigned char drive_number;
     unsigned char current_head;
     unsigned char boot_signature;
@@ -340,7 +340,7 @@ typedef struct {
     unsigned short modify_date;
     unsigned short starting_cluster;
     unsigned long file_size;
-} __attribute((packed)) Fat16Entry;                             
+} __attribute((packed)) Fat16Entry;
 
 Fat16Entry *sdCardFat16RootDir;
 
@@ -367,13 +367,13 @@ unsigned char spi_sdcard_readMBR(void)
 {
     int i, n;
 
-    // Read Sector 0x00000000    
+    // Read Sector 0x00000000
     printf("Reading MBR\n");
     if( readSector(0x00000000, sdCardSector)==SUCCESS ) {
         // Copy Partition 1 Entry from byte 0x1be
         // FIXME should check 0x55 0xaa at end of sector
         memcpy(&sdCardPartition, &sdCardSector[0x1be], sizeof(PartitionTable));
-        
+
         // Check Partition 1 is valid, FIRST_BYTE=0x00 or 0x80
         // Check Partition 1 has type 4, 6 or 14 (FAT16 of various sizes)
         printf("Partition 1 Information: Active=0x%02x, Type=0x%02x, LBAStart=0x%08x\n", sdCardPartition.first_byte, sdCardPartition.partition_type, sdCardPartition.start_sector);
@@ -403,7 +403,7 @@ unsigned char spi_sdcard_readMBR(void)
         printf("Failed to read FAT16 Boot Sector\n");
         return FAILURE;
     }
-    
+
     // Print details of Parition 1
     printf("  Jump Code:              0x%02x 0x%02x 0x%02x\n",sdCardFatBootSector.jmp[0],sdCardFatBootSector.jmp[1],sdCardFatBootSector.jmp[2]);
     printf("  OEM Code:               [");
@@ -441,12 +441,12 @@ unsigned char spi_sdcard_readMBR(void)
         printf("Error reading FAT16 Boot Sector\n");
         return FAILURE;
     }
-    
+
     // Read in FAT16 File Allocation Table, array of 16bit unsinged integers
     // Calculate Storage from TOP of MAIN RAM
     sdCardFatTable = (unsigned short *)(MAIN_RAM_BASE+MAIN_RAM_SIZE-sdCardFatBootSector.sector_size*sdCardFatBootSector.fat_size_sectors);
     printf("sdCardFatTable = 0x%08x  Reading Fat16 Table (%d Sectors Long)\n\n",sdCardFatTable,sdCardFatBootSector.fat_size_sectors);
-    
+
     // Calculate Start of FAT16 File Allocation Table (start of partition plus reserved sectors)
     fatSectorStart=sdCardPartition.start_sector+sdCardFatBootSector.reserved_sectors;
     for(n=0; n<sdCardFatBootSector.fat_size_sectors; n++) {
@@ -455,12 +455,12 @@ unsigned char spi_sdcard_readMBR(void)
             return FAILURE;
         }
     }
-    
+
     // Read in FAT16 Root Directory
     // Calculate Storage from TOP of MAIN RAM
     sdCardFat16RootDir= (Fat16Entry *)(MAIN_RAM_BASE+MAIN_RAM_SIZE-sdCardFatBootSector.sector_size*sdCardFatBootSector.fat_size_sectors-sdCardFatBootSector.root_dir_entries*sizeof(Fat16Entry));
     printf("sdCardFat16RootDir = 0x%08x  Reading Root Directory (%d Sectors Long)\n\n",sdCardFat16RootDir,sdCardFatBootSector.root_dir_entries*sizeof(Fat16Entry)/sdCardFatBootSector.sector_size);
-    
+
     // Calculate Start of FAT ROOT DIRECTORY (start of partition plues reserved sectors plus size of File Allocation Table(s))
     rootDirSectorStart=sdCardPartition.start_sector+sdCardFatBootSector.reserved_sectors+sdCardFatBootSector.number_of_fats*sdCardFatBootSector.fat_size_sectors;
     for(n=0; n<sdCardFatBootSector.root_dir_entries*sizeof(Fat16Entry)/sdCardFatBootSector.sector_size; n++) {
@@ -493,14 +493,14 @@ unsigned char spi_sdcard_readMBR(void)
             printf("] @ Cluster %d for %d bytes\n",sdCardFat16RootDir[n].starting_cluster,sdCardFat16RootDir[n].file_size);
         }
     }
-    
+
     printf("\n");
     return SUCCESS;
 }
 
 // SPI_SDCARD_READFILE
 //      Function exposed to BIOS to retrieve FILENAME+EXT into ADDRESS
-// 
+//
 // FIXME only checks UPPERCASE 8+3 filenames
 //
 //      Return 0 success, 1 failure
@@ -534,7 +534,7 @@ unsigned char spi_sdcard_readFile(char *filename, char *ext, unsigned long addre
             n++;
         }
     }
-    
+
     // If starting cluster number is still 0 then file not found
     if(fileClusterStart==0) {
         printf("File not found\n");
@@ -545,7 +545,7 @@ unsigned char spi_sdcard_readFile(char *filename, char *ext, unsigned long addre
 
     // ZERO Length file are automatically assumed to have been read SUCCESS
     if( fileLength==0 ) return SUCCESS;
-    
+
     // Read each cluster sector by sector, i being number of clusters
     bytesRemaining=fileLength;
     printf("Clusters: ");
@@ -575,7 +575,7 @@ unsigned char spi_sdcard_readFile(char *filename, char *ext, unsigned long addre
                 bytesRemaining=0;
             }
         }
-        
+
         // Move to next cluster
         fileClusterStart=sdCardFatTable[fileClusterStart];
     }

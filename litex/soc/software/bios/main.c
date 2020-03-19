@@ -395,8 +395,8 @@ static void help(void)
 	puts("sdram_mpr                       - read SDRAM MPR");
 	puts("sdram_mrwr reg value            - write SDRAM mode registers");
 #endif
-#ifdef CSR_SPI_BASE
-        puts("spisdboot   - boot from SDCard via SPI hardware bitbang");
+#ifdef CSR_SPISDCARD_BASE
+        puts("spisdcardboot   - boot from SDCard via SPI hardware bitbang");
 #endif
 }
 
@@ -507,8 +507,8 @@ static void do_command(char *c)
 		sdrhw();
 	}
 #endif
-#ifdef CSR_SPI_BASE
-        else if(strcmp(token, "spisdboot") == 0) spisdboot();
+#ifdef CSR_SPISDCARD_BASE
+        else if(strcmp(token, "spisdcardboot") == 0) spisdcardboot();
 #endif
 
 	else if(strcmp(token, "") != 0)

@@ -489,10 +489,10 @@ void romboot(void)
 #endif
 
 // SPI HARDWARE BITBANG
-#ifdef CSR_SPI_BASE
-#include <spi.h>
+#ifdef CSR_SPISDCARD_BASE
+#include <spisdcard.h>
 
-void spisdboot(void)
+void spisdcardboot(void)
 {
     printf("SD Card via SPI Initialising\n");
     if(spi_sdcard_goidle() == 0) {
