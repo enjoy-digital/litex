@@ -487,3 +487,29 @@ void romboot(void)
 	boot(0, 0, 0, ROM_BOOT_ADDRESS);
 }
 #endif
+
+// SPI HARDWARE BITBANG
+#ifdef CSR_SPI_BASE
+#include <spi.h>
+
+void spisdboot(void)
+{
+    printf("SD Card via SPI Initialising\n");
+    if(spi_sdcard_goidle() == 0) {
+        printf("SD Card Timeout\n");
+        return;
+    }
+    
+    if(spi_sdcard_readMBR() == 0) {
+        printf("SD Card MBR Timeout\n");
+        return;
+    }
+    
+    if(spi_sdcard_readFile("IMAGE","",MAIN_RAM_BASE+KERNEL_IMAGE_RAM_OFFSET)==0) return;
+    if(spi_sdcard_readFile("ROOTFS~1","CPI",MAIN_RAM_BASE+ROOTFS_IMAGE_RAM_OFFSET)==0) return;
+    if(spi_sdcard_readFile("RV32","DTB",MAIN_RAM_BASE+DEVICE_TREE_IMAGE_RAM_OFFSET)==0) return;
+    if(spi_sdcard_readFile("EMULATOR","BIN",EMULATOR_RAM_BASE)==0) return;
+    
+    boot(0,0,0,EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+}
+#endif
