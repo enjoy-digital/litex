@@ -25,8 +25,6 @@ from litesdcard.core import SDCore
 from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
 from litex.soc.cores.timer import Timer
 
-from litex.soc.cores.spi import SPIMaster
-
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -87,13 +85,6 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
-    def add_spisdcard(self):
-        spisdcard_pads = self.platform.request("spisdcard")
-        if hasattr(spisdcard_pads, "rst"):
-            self.comb += spisdcard_pads.rst.eq(0)
-        self.submodules.spisdcard = SPIMaster(spisdcard_pads, 8, self.sys_clk_freq, 400e3)
-        self.add_csr("spisdcard")
-
     def add_sdcard(self):
         sdcard_pads = self.platform.request("sdcard")
         if hasattr(sdcard_pads, "rst"):
@@ -142,7 +133,7 @@ def main():
         with_ethernet=args.with_ethernet,
         **soc_sdram_argdict(args))
     if args.with_spi_sdcard:
-        soc.add_spisdcard()
+        soc.add_spi_sdcard()
     if args.with_sdcard:
         if args.with_spi_sdcard:
             raise ValueError("'--with-spi-sdcard' and '--with-sdcard' are mutually exclusive!")
