@@ -6,13 +6,14 @@
 import logging
 import time
 import datetime
-from math import log2
+from math import log2, ceil
 
 from migen import *
 
 from litex.soc.cores import cpu
 from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
+from litex.soc.cores.spi_flash import SpiFlash
 from litex.soc.cores.spi import SPIMaster
 
 from litex.soc.interconnect.csr import *
@@ -1045,8 +1046,7 @@ class LiteXSoC(SoC):
             dw         = 32,
             interface  = "wishbone",
             endianness = self.cpu.endianness)
-        ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None),
-                                  size=0x2000, cached=False)
+        ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=0x2000, cached=False)
         self.bus.add_slave(name="ethmac", slave=self.ethmac.bus, region=ethmac_region)
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
@@ -1057,6 +1057,23 @@ class LiteXSoC(SoC):
             self.crg.cd_sys.clk,
             phy.crg.cd_eth_rx.clk,
             phy.crg.cd_eth_tx.clk)
+
+    # Add SPI Flash --------------------------------------------------------------------------------
+    def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None):
+        assert dummy_cycles is not None                 # FIXME: Get dummy_cycles from SPI Flash
+        assert mode in ["4x"]                           # FIXME: Add 1x support.
+        if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
+        spiflash = SpiFlash(
+            pads         = self.platform.request(name + mode),
+            dummy        = dummy_cycles,
+            div          = ceil(self.clk_freq/clk_freq),
+            with_bitbang = True,
+            endianness   = self.cpu.endianness)
+        spiflash.add_clk_primitive(self.platform.device)
+        setattr(self.submodules, name, spiflash)
+        self.add_memory_region(name, self.mem_map[name], 0x1000000) # FIXME: Get size from SPI Flash
+        self.add_wb_slave(self.mem_map[name], spiflash.bus)
+        self.add_csr(name)
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", clk_freq=400e3):
