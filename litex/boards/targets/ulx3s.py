@@ -15,6 +15,7 @@ from litex_boards.platforms import ulx3s
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
 
 from litex.soc.cores.clock import *
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
@@ -51,13 +52,14 @@ class _CRG(Module):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCSDRAM):
+class BaseSoC(SoCCore):
     def __init__(self, device="LFE5U-45F", toolchain="trellis",
         sys_clk_freq=int(50e6), sdram_module_cls="MT48LC16M16", **kwargs):
 
         platform = ulx3s.Platform(device=device, toolchain=toolchain)
-        # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+
+        # SoCCore ----------------------------------------------------------------------------------
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -65,10 +67,15 @@ class BaseSoC(SoCSDRAM):
         # SDR SDRAM --------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
             self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"), cl=2)
-            sdram_module = getattr(litedram_modules, sdram_module_cls)(sys_clk_freq, "1:1")
-            self.register_sdram(self.sdrphy,
-                                sdram_module.geom_settings,
-                                sdram_module.timing_settings)
+            self.add_sdram("sdram",
+                phy                     = self.sdrphy,
+                module                  = getattr(litedram_modules, sdram_module_cls)(sys_clk_freq, "1:1"),
+                origin                  = self.mem_map["main_ram"],
+                size                    = kwargs.get("max_sdram_size", 0x40000000),
+                l2_cache_size           = kwargs.get("l2_size", 8192),
+                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_reverse        = True
+            )
 
 # Build --------------------------------------------------------------------------------------------
 

@@ -10,6 +10,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex_boards.platforms import de0nano
 
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
@@ -70,13 +71,13 @@ class _CRG(Module):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCSDRAM):
+class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=int(50e6), **kwargs):
         assert sys_clk_freq == int(50e6)
         platform = de0nano.Platform()
 
-        # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        # SoCCore ----------------------------------------------------------------------------------
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform)
@@ -84,10 +85,15 @@ class BaseSoC(SoCSDRAM):
         # SDR SDRAM --------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
             self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
-            sdram_module = IS42S16160(self.clk_freq, "1:1")
-            self.register_sdram(self.sdrphy,
-                geom_settings   = sdram_module.geom_settings,
-                timing_settings = sdram_module.timing_settings)
+            self.add_sdram("sdram",
+                phy                     = self.sdrphy,
+                module                  = IS42S16160(self.clk_freq, "1:1"),
+                origin                  = self.mem_map["main_ram"],
+                size                    = kwargs.get("max_sdram_size", 0x40000000),
+                l2_cache_size           = kwargs.get("l2_size", 8192),
+                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_reverse        = True
+            )
 
 # Build --------------------------------------------------------------------------------------------
 
