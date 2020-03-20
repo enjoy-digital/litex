@@ -228,7 +228,7 @@ unsigned char spi_sdcard_goidle(void)
         r=spi_read_byte();
 
     // CMD16 - Set SD CARD block size to 512 - Sector Size for the SD CARD
-    // Command Sequence is DUMMY=0xff (512 as unsigned long = 0x00000200) 0x00 0x00 0x02 0x00 CRC=0xff
+    // Command Sequence is DUMMY=0xff (512 as unsigned int = 0x00000200) 0x00 0x00 0x02 0x00 CRC=0xff
     // Expected R1 response is 0x00 indicating SD CARD is READY
     spi_write_byte( 0xff ); spi_write_byte( 0x50 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x02 ); spi_write_byte( 0x00 ); spi_write_byte( 0xff );
     r=spi_read_rbyte();
@@ -294,8 +294,8 @@ typedef struct {
     unsigned char start_chs[3];
     unsigned char partition_type;
     unsigned char end_chs[3];
-    unsigned long start_sector;
-    unsigned long length_sectors;
+    unsigned int start_sector;
+    unsigned int length_sectors;
 } __attribute((packed)) PartitionTable;
 
 PartitionTable sdCardPartition;
@@ -314,13 +314,13 @@ typedef struct {
     unsigned short fat_size_sectors;
     unsigned short sectors_per_track;
     unsigned short number_of_heads;
-    unsigned long hidden_sectors;
-    unsigned long total_sectors_long;
+    unsigned int hidden_sectors;
+    unsigned int total_sectors_long;
 
     unsigned char drive_number;
     unsigned char current_head;
     unsigned char boot_signature;
-    unsigned long volume_id;
+    unsigned int volume_id;
     char volume_label[11];
     char fs_type[8];
     char boot_code[448];
@@ -339,7 +339,7 @@ typedef struct {
     unsigned short modify_time;
     unsigned short modify_date;
     unsigned short starting_cluster;
-    unsigned long file_size;
+    unsigned int file_size;
 } __attribute((packed)) Fat16Entry;
 
 Fat16Entry *sdCardFat16RootDir;
@@ -510,7 +510,7 @@ unsigned char spi_sdcard_readFile(char *filename, char *ext, unsigned long addre
 {
     int i, n, sector;
     unsigned short fileClusterStart;
-    unsigned long fileLength, bytesRemaining, clusterSectorStart;
+    unsigned int fileLength, bytesRemaining, clusterSectorStart;
     unsigned short nameMatch;
     printf("Reading File [%s.%s] into 0x%08x : ",filename, ext, address);
 
