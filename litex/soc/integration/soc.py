@@ -13,6 +13,7 @@ from migen import *
 from litex.soc.cores import cpu
 from litex.soc.cores.identifier import Identifier
 from litex.soc.cores.timer import Timer
+from litex.soc.cores.spi import SPIMaster
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import csr_bus
@@ -1056,3 +1057,12 @@ class LiteXSoC(SoC):
             self.crg.cd_sys.clk,
             phy.crg.cd_eth_rx.clk,
             phy.crg.cd_eth_tx.clk)
+
+    # Add SPI SDCard -------------------------------------------------------------------------------
+    def add_spi_sdcard(self, name="spisdcard", clk_freq=400e3):
+        pads = self.platform.request(name)
+        if hasattr(pads, "rst"):
+            self.comb += pads.rst.eq(0)
+        spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, 400e3)
+        setattr(self.submodules, name, spisdcard)
+        self.add_csr(name)
