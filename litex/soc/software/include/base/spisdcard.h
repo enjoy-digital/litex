@@ -1,6 +1,6 @@
 int spi_sdcard_init(uint32_t device);
-int spi_sdcard_read_sector(uint32_t device, unsigned long lba,unsigned char *buf);
+int spi_sdcard_read_sector(uint32_t device, uint32_t lba,uint_least8_t *buf);
 
-unsigned char spi_sdcard_goidle(void);
-unsigned char spi_sdcard_readMBR(void);
-unsigned char spi_sdcard_readFile(char *, char *, unsigned long);
+uint8_t spi_sdcard_goidle(void);
+uint8_t spi_sdcard_readMBR(void);
+uint8_t spi_sdcard_readFile(char *, char *, uint32_t);
