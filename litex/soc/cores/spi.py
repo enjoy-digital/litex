@@ -25,14 +25,15 @@ class SPIMaster(Module, AutoCSR):
         self.pads       = pads
         self.data_width = data_width
 
-        self.start    = Signal()
-        self.length   = Signal(8)
-        self.done     = Signal()
-        self.irq      = Signal()
-        self.mosi     = Signal(data_width)
-        self.miso     = Signal(data_width)
-        self.cs       = Signal(len(pads.cs_n), reset=1)
-        self.loopback = Signal()
+        self.start       = Signal()
+        self.length      = Signal(8)
+        self.done        = Signal()
+        self.irq         = Signal()
+        self.mosi        = Signal(data_width)
+        self.miso        = Signal(data_width)
+        self.cs          = Signal(len(pads.cs_n), reset=1)
+        self.loopback    = Signal()
+        self.clk_divider = Signal(16, reset=math.ceil(sys_clk_freq/spi_clk_freq))
 
         if with_csr:
             self.add_csr()
@@ -44,8 +45,7 @@ class SPIMaster(Module, AutoCSR):
         shift = Signal()
 
         # Clock generation -------------------------------------------------------------------------
-        clk_divide  = math.ceil(sys_clk_freq/spi_clk_freq)
-        clk_divider = Signal(max=clk_divide)
+        clk_divider = Signal(16)
         clk_rise    = Signal()
         clk_fall    = Signal()
         self.sync += [
@@ -57,8 +57,8 @@ class SPIMaster(Module, AutoCSR):
                 clk_divider.eq(clk_divider + 1)
             )
         ]
-        self.comb += clk_rise.eq(clk_divider == (clk_divide//2 - 1))
-        self.comb += clk_fall.eq(clk_divider == (clk_divide - 1))
+        self.comb += clk_rise.eq(clk_divider == (self.clk_divider[1:] - 1))
+        self.comb += clk_fall.eq(clk_divider == (self.clk_divider - 1))
 
         # Control FSM ------------------------------------------------------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
@@ -137,6 +137,7 @@ class SPIMaster(Module, AutoCSR):
             CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")
         ], description="SPI Chip Select.")
         self._loopback = CSRStorage(description="SPI loopback mode.\n\n Write ``1`` to enable MOSI to MISO internal loopback.")
+        self._clk_divider = CSRStorage(16, description="SPI Clk Divider.", reset=self.clk_divider.reset)
 
         self.comb += [
             self.start.eq(self._control.fields.start),
@@ -144,6 +145,7 @@ class SPIMaster(Module, AutoCSR):
             self.mosi.eq(self._mosi.storage),
             self.cs.eq(self._cs.storage),
             self.loopback.eq(self._loopback.storage),
+            self.clk_divider.eq(self._clk_divider.storage),
 
             self._status.fields.done.eq(self.done),
             self._miso.status.eq(self.miso),
