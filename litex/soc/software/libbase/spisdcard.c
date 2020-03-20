@@ -15,6 +15,7 @@
 #include <generated/soc.h>
 #include <generated/mem.h>
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -52,8 +53,8 @@
 //      No return values
 //
 //      Details from https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/ section "SD Commands"
-void spi_write_byte(unsigned char char_to_send);
-void spi_write_byte(unsigned char char_to_send)
+void spi_write_byte(uint8_t char_to_send);
+void spi_write_byte(uint8_t char_to_send)
 {
     // Place data into MOSI register
     // Pulse the START bit and set LENGTH=8
@@ -79,11 +80,11 @@ void spi_write_byte(unsigned char char_to_send)
 //          Calling function to determine if the correct response has been received
 //
 //      Details from https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/ section "SD Commands"
-unsigned char spi_read_rbyte(void);
-unsigned char spi_read_rbyte(void)
+uint8_t spi_read_rbyte(void);
+uint8_t spi_read_rbyte(void)
 {
     int timeout=32;
-    unsigned char r=0;
+    uint8_t r=0;
 
     // Check if MISO is 0x0xxxxxxx as MSB=0 indicates valid response
     r = spisdcard_miso_read();
@@ -113,10 +114,10 @@ unsigned char spi_read_rbyte(void)
 //          NOTE no error status as assumed bytes are read via CLK pulses
 //
 //      Details from https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/ section "SD Commands"
-unsigned char spi_read_byte(void);
-unsigned char spi_read_byte(void)
+uint8_t spi_read_byte(void);
+uint8_t spi_read_byte(void)
 {
-    unsigned char r=0;
+    uint8_t r=0;
 
     spi_write_byte( 0xff );
     r = spisdcard_miso_read();
@@ -132,11 +133,12 @@ unsigned char spi_read_byte(void)
 //      Return 0 success, 1 failure
 //
 //      Details from https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/ section "Initializing the SD Card"
-unsigned char spi_setspimode(void);
-unsigned char spi_setspimode(void)
+uint8_t spi_setspimode(void);
+uint8_t spi_setspimode(void)
 {
-    unsigned int i, r, timeout=32;
-
+    uint32_t r;
+    int i, timeout=32;
+    
     // Initialise SPI mode
     // set CS to HIGH
     // Send pulses
@@ -174,9 +176,9 @@ unsigned char spi_setspimode(void)
 //      Return 0 success, 1 failure
 //
 //      Details from https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/ section "Initializing the SD Card"
-unsigned char spi_sdcard_goidle(void)
+uint8_t spi_sdcard_goidle(void)
 {
-    unsigned char r;                                                                                                                // Response from SD CARD
+    uint8_t r;                                                                                                                // Response from SD CARD
     int i, timeout;                                                                                                                 // TIMEOUT loop to send CMD55+ACMD41 repeatedly
 
     r = spi_setspimode();                                                                                                               // Set SD CARD to SPI mode
@@ -228,7 +230,7 @@ unsigned char spi_sdcard_goidle(void)
         r=spi_read_byte();
 
     // CMD16 - Set SD CARD block size to 512 - Sector Size for the SD CARD
-    // Command Sequence is DUMMY=0xff (512 as unsigned int = 0x00000200) 0x00 0x00 0x02 0x00 CRC=0xff
+    // Command Sequence is DUMMY=0xff CMD16=0x50 (512 as unsigned 32bit = 0x00000200) 0x00 0x00 0x02 0x00 CRC=0xff
     // Expected R1 response is 0x00 indicating SD CARD is READY
     spi_write_byte( 0xff ); spi_write_byte( 0x50 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x02 ); spi_write_byte( 0x00 ); spi_write_byte( 0xff );
     r=spi_read_rbyte();
@@ -251,11 +253,11 @@ unsigned char spi_sdcard_goidle(void)
 //      Return 0 success, 1 failure
 //
 //      Details from https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/ section "Read/Write SD Card"
-unsigned char readSector(unsigned int sectorNumber, unsigned char *storage);
-unsigned char readSector(unsigned int sectorNumber, unsigned char *storage)
+uint8_t readSector(uint32_t sectorNumber, uint8_t *storage);
+uint8_t readSector(uint32_t sectorNumber, uint8_t *storage)
 {
-    unsigned int n,timeout;                                                                                                             // Number of bytes loop, timeout loop awaiting response bytes
-    unsigned char r;                                                                                                                    // Response bytes from SD CARD
+    int n, timeout;                                                                                                             // Number of bytes loop, timeout loop awaiting response bytes
+    uint8_t r;                                                                                                                    // Response bytes from SD CARD
 
     // CMD17 - Read Block
     // Command Sequence is DUMMY=0xff CMD17=0x51 SECTORNUMBER (32bit UNSIGNED as bits 32-25,24-17, 16-9, 8-1) CRC=0xff
@@ -290,41 +292,41 @@ unsigned char readSector(unsigned int sectorNumber, unsigned char *storage)
 
 // Structure to store SD CARD partition table
 typedef struct {
-    unsigned char first_byte;
-    unsigned char start_chs[3];
-    unsigned char partition_type;
-    unsigned char end_chs[3];
-    unsigned int start_sector;
-    unsigned int length_sectors;
+    uint8_t first_byte;
+    uint8_t start_chs[3];
+    uint8_t partition_type;
+    uint8_t end_chs[3];
+    uint32_t start_sector;
+    uint32_t length_sectors;
 } __attribute((packed)) PartitionTable;
 
 PartitionTable sdCardPartition;
 
 // Structure to store SD CARD FAT16 Boot Sector (boot code is ignored, provides layout of the FAT16 partition on the SD CARD)
 typedef struct {
-    unsigned char jmp[3];
-    char oem[8];
-    unsigned short sector_size;
-    unsigned char sectors_per_cluster;
-    unsigned short reserved_sectors;
-    unsigned char number_of_fats;
-    unsigned short root_dir_entries;
-    unsigned short total_sectors_short; // if zero, later field is used
-    unsigned char media_descriptor;
-    unsigned short fat_size_sectors;
-    unsigned short sectors_per_track;
-    unsigned short number_of_heads;
-    unsigned int hidden_sectors;
-    unsigned int total_sectors_long;
+    uint8_t jmp[3];
+    uint8_t oem[8];
+    uint16_t sector_size;
+    uint8_t sectors_per_cluster;
+    uint16_t reserved_sectors;
+    uint8_t number_of_fats;
+    uint16_t root_dir_entries;
+    uint16_t total_sectors_short; // if zero, later field is used
+    uint8_t media_descriptor;
+    uint16_t fat_size_sectors;
+    uint16_t sectors_per_track;
+    uint16_t number_of_heads;
+    uint32_t hidden_sectors;
+    uint32_t total_sectors_long;
 
-    unsigned char drive_number;
-    unsigned char current_head;
-    unsigned char boot_signature;
-    unsigned int volume_id;
-    char volume_label[11];
-    char fs_type[8];
-    char boot_code[448];
-    unsigned short boot_sector_signature;
+    uint8_t drive_number;
+    uint8_t current_head;
+    uint8_t boot_signature;
+    uint32_t volume_id;
+    uint8_t volume_label[11];
+    uint8_t fs_type[8];
+    uint8_t boot_code[448];
+    uint16_t boot_sector_signature;
 } __attribute((packed)) Fat16BootSector;
 
 Fat16BootSector sdCardFatBootSector;
@@ -332,27 +334,27 @@ Fat16BootSector sdCardFatBootSector;
 // Structure to store SD CARD FAT16 Root Directory Entries
 //      Allocated to MAIN RAM - hence pointer
 typedef struct {
-    unsigned char filename[8];
-    unsigned char ext[3];
-    unsigned char attributes;
-    unsigned char reserved[10];
-    unsigned short modify_time;
-    unsigned short modify_date;
-    unsigned short starting_cluster;
-    unsigned int file_size;
+    uint8_t filename[8];
+    uint8_t ext[3];
+    uint8_t attributes;
+    uint8_t reserved[10];
+    uint16_t modify_time;
+    uint16_t modify_date;
+    uint16_t starting_cluster;
+    uint32_t file_size;
 } __attribute((packed)) Fat16Entry;
 
 Fat16Entry *sdCardFat16RootDir;
 
 // Structure to store SD CARD FAT16 Entries
-//      Array of UNSIGNED SHORTS (16bit integers)
-unsigned short *sdCardFatTable;
+//      Array of uint16_tS (16bit integers)
+uint16_t *sdCardFatTable;
 
 // Calculated sector numbers on the SD CARD for the FAT16 Entries and ROOT DIRECTORY
-unsigned int fatSectorStart, rootDirSectorStart;
+uint32_t fatSectorStart, rootDirSectorStart;
 
 // Storage for SECTOR read from SD CARD
-unsigned char sdCardSector[512];
+uint8_t sdCardSector[512];
 
 // SPI_SDCARD_READMBR
 //      Function exposed to BIOS to retrieve FAT16 partition details, FAT16 Entry Table, FAT16 Root Directory
@@ -363,7 +365,7 @@ unsigned char sdCardSector[512];
 //      Return 0 success, 1 failure
 //
 // Details from https://codeandlife.com/2012/04/02/simple-fat-and-sd-tutorial-part-1/
-unsigned char spi_sdcard_readMBR(void)
+uint8_t spi_sdcard_readMBR(void)
 {
     int i, n;
 
@@ -444,13 +446,13 @@ unsigned char spi_sdcard_readMBR(void)
 
     // Read in FAT16 File Allocation Table, array of 16bit unsinged integers
     // Calculate Storage from TOP of MAIN RAM
-    sdCardFatTable = (unsigned short *)(MAIN_RAM_BASE+MAIN_RAM_SIZE-sdCardFatBootSector.sector_size*sdCardFatBootSector.fat_size_sectors);
+    sdCardFatTable = (uint16_t *)(MAIN_RAM_BASE+MAIN_RAM_SIZE-sdCardFatBootSector.sector_size*sdCardFatBootSector.fat_size_sectors);
     printf("sdCardFatTable = 0x%08x  Reading Fat16 Table (%d Sectors Long)\n\n",sdCardFatTable,sdCardFatBootSector.fat_size_sectors);
 
     // Calculate Start of FAT16 File Allocation Table (start of partition plus reserved sectors)
     fatSectorStart=sdCardPartition.start_sector+sdCardFatBootSector.reserved_sectors;
     for(n=0; n<sdCardFatBootSector.fat_size_sectors; n++) {
-        if( readSector(fatSectorStart+n, (unsigned char *)((unsigned char*)sdCardFatTable)+sdCardFatBootSector.sector_size*n)==FAILURE ) {
+        if( readSector(fatSectorStart+n, (uint8_t *)((uint8_t*)sdCardFatTable)+sdCardFatBootSector.sector_size*n)==FAILURE ) {
             printf("Error reading FAT16 table - sector %d\n",n);
             return FAILURE;
         }
@@ -464,7 +466,7 @@ unsigned char spi_sdcard_readMBR(void)
     // Calculate Start of FAT ROOT DIRECTORY (start of partition plues reserved sectors plus size of File Allocation Table(s))
     rootDirSectorStart=sdCardPartition.start_sector+sdCardFatBootSector.reserved_sectors+sdCardFatBootSector.number_of_fats*sdCardFatBootSector.fat_size_sectors;
     for(n=0; n<sdCardFatBootSector.root_dir_entries*sizeof(Fat16Entry)/sdCardFatBootSector.sector_size; n++) {
-        if( readSector(rootDirSectorStart+n, (unsigned char *)(sdCardFatBootSector.sector_size*n+(unsigned char *)(sdCardFat16RootDir)))==FAILURE ) {
+        if( readSector(rootDirSectorStart+n, (uint8_t *)(sdCardFatBootSector.sector_size*n+(uint8_t *)(sdCardFat16RootDir)))==FAILURE ) {
             printf("Error reading Root Dir - sector %d\n",n);
             return FAILURE;
         }
@@ -506,12 +508,12 @@ unsigned char spi_sdcard_readMBR(void)
 //      Return 0 success, 1 failure
 //
 // Details from https://codeandlife.com/2012/04/02/simple-fat-and-sd-tutorial-part-1/
-unsigned char spi_sdcard_readFile(char *filename, char *ext, unsigned long address)
+uint8_t spi_sdcard_readFile(char *filename, char *ext, uint32_t address)
 {
     int i, n, sector;
-    unsigned short fileClusterStart;
-    unsigned int fileLength, bytesRemaining, clusterSectorStart;
-    unsigned short nameMatch;
+    uint16_t fileClusterStart;
+    uint32_t fileLength, bytesRemaining, clusterSectorStart;
+    uint16_t nameMatch;
     printf("Reading File [%s.%s] into 0x%08x : ",filename, ext, address);
 
     // Find FILENAME+EXT in Root Directory
@@ -560,7 +562,7 @@ unsigned char spi_sdcard_readFile(char *filename, char *ext, unsigned long addre
             // If whole sector to be read, read directly into memory
             // Otherwise, read to sdCardSector buffer and transfer appropriate number of bytes
             if(bytesRemaining>sdCardFatBootSector.sector_size) {
-                if( readSector(clusterSectorStart+sector,(unsigned char *)address) == FAILURE ) {
+                if( readSector(clusterSectorStart+sector,(uint8_t *)address) == FAILURE ) {
                     printf("Read Error\n");
                     return FAILURE;
                 }
@@ -571,7 +573,7 @@ unsigned char spi_sdcard_readFile(char *filename, char *ext, unsigned long addre
                     printf("Read Error\n");
                     return FAILURE;
                 }
-                memcpy((unsigned char *)address, sdCardSector, bytesRemaining);
+                memcpy((uint8_t *)address, sdCardSector, bytesRemaining);
                 bytesRemaining=0;
             }
         }
