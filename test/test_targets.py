@@ -45,13 +45,19 @@ class TestTargets(unittest.TestCase):
 
     # Artix-7
     def test_arty(self):
-        from litex.boards.targets.arty import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
+        from litex.boards.targets.arty import BaseSoC
+        errors = build_test([
+            BaseSoC(**test_kwargs),
+            BaseSoC(with_ethernet=True, **test_kwargs)
+        ])
         self.assertEqual(errors, 0)
 
     def test_netv2(self):
-        from litex.boards.targets.netv2 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
+        from litex.boards.targets.netv2 import BaseSoC
+        errors = build_test([
+            BaseSoC(**test_kwargs),
+            BaseSoC(with_ethernet=True, **test_kwargs)
+        ])
         self.assertEqual(errors, 0)
 
     def test_nexys4ddr(self):
@@ -60,19 +66,28 @@ class TestTargets(unittest.TestCase):
         self.assertEqual(errors, 0)
 
     def test_nexys_video(self):
-        from litex.boards.targets.nexys_video import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
+        from litex.boards.targets.nexys_video import BaseSoC
+        errors = build_test([
+            BaseSoC(**test_kwargs),
+            BaseSoC(with_ethernet=True, **test_kwargs)
+        ])
         self.assertEqual(errors, 0)
 
     # Kintex-7
     def test_genesys2(self):
-        from litex.boards.targets.genesys2 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
+        from litex.boards.targets.genesys2 import BaseSoC
+        errors = build_test([
+            BaseSoC(**test_kwargs),
+            BaseSoC(with_ethernet=True, **test_kwargs)
+        ])
         self.assertEqual(errors, 0)
 
     def test_kc705(self):
-        from litex.boards.targets.kc705 import BaseSoC, EthernetSoC
-        errors = build_test([BaseSoC(**test_kwargs), EthernetSoC(**test_kwargs)])
+        from litex.boards.targets.kc705 import BaseSoC
+        errors = build_test([
+            BaseSoC(**test_kwargs),
+            BaseSoC(with_ethernet=True, **test_kwargs)
+        ])
         self.assertEqual(errors, 0)
 
     # Kintex-Ultrascale

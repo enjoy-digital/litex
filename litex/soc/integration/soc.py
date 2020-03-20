@@ -1051,12 +1051,18 @@ class LiteXSoC(SoC):
         self.add_csr("ethmac")
         self.add_interrupt("ethmac")
         # Timing constraints
-        self.platform.add_period_constraint(phy.crg.cd_eth_rx.clk, 1e9/phy.rx_clk_freq)
-        self.platform.add_period_constraint(phy.crg.cd_eth_tx.clk, 1e9/phy.tx_clk_freq)
+        if hasattr(phy, "crg"):
+            eth_rx_clk = phy.crg.cd_eth_rx.clk
+            eth_tx_clk = phy.crg.cd_eth_tx.clk
+        else:
+            eth_rx_clk = phy.cd_eth_rx.clk
+            eth_tx_clk = phy.cd_eth_tx.clk
+        self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+        self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            phy.crg.cd_eth_rx.clk,
-            phy.crg.cd_eth_tx.clk)
+            eth_rx_clk,
+            eth_tx_clk)
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None):

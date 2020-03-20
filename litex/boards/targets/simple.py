@@ -14,12 +14,11 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
 from liteeth.phy import LiteEthPHY
-from liteeth.mac import LiteEthMAC
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, platform, **kwargs):
+    def __init__(self, platform, with_ethernet=False, **kwargs):
         sys_clk_freq = int(1e9/platform.default_clk_period)
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -28,30 +27,14 @@ class BaseSoC(SoCCore):
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request(platform.default_clk_name))
 
-# EthernetSoC --------------------------------------------------------------------------------------
-
-class EthernetSoC(BaseSoC):
-    mem_map = {
-        "ethmac": 0xb0000000,
-    }
-    mem_map.update(BaseSoC.mem_map)
-
-    def __init__(self, platform, **kwargs):
-        BaseSoC.__init__(self, platform, **kwargs)
-
         # Ethernet ---------------------------------------------------------------------------------
-        # phy
-        self.submodules.ethphy = LiteEthPHY(
-            clock_pads = self.platform.request("eth_clocks"),
-            pads       = self.platform.request("eth"))
-        self.add_csr("ethphy")
-        # mac
-        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-            interface="wishbone", endianness=self.cpu.endianness, with_preamble_crc=False)
-        self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
-        self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
-        self.add_csr("ethmac")
-        self.add_interrupt("ethmac")
+        if with_ethernet:
+            self.submodules.ethphy = LiteEthPHY(
+                clock_pads = self.platform.request("eth_clocks"),
+                pads       = self.platform.request("eth"),
+                clk_freq   = self.clk_freq)
+            self.add_csr("ethphy")
+            self.add_ethernet(phy=self.ethphy)
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -72,8 +55,7 @@ def main():
         platform = platform_module.Platform(toolchain=args.gateware_toolchain)
     else:
         platform = platform_module.Platform()
-    cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(platform, **soc_core_argdict(args))
+    soc = BaseSoC(platform, with_ethernet=args.with_ethernet, **soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 
