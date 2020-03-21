@@ -1065,6 +1065,39 @@ class LiteXSoC(SoC):
             eth_rx_clk,
             eth_tx_clk)
 
+    # Add Etherbone --------------------------------------------------------------------------------
+    def add_etherbone(self, name="etherbone", phy=None,
+        mac_address = 0x10e2d5000000,
+        ip_address  = "192.168.1.50",
+        udp_port    = 1234):
+        # Imports
+        from liteeth.core import LiteEthUDPIPCore
+        from liteeth.frontend.etherbone import LiteEthEtherbone
+        # Core
+        ethcore = LiteEthUDPIPCore(
+            phy         = self.ethphy,
+            mac_address = mac_address,
+            ip_address  = ip_address,
+            clk_freq    = self.clk_freq)
+        self.submodules += ethcore
+        # Etherbone
+        etherbone = LiteEthEtherbone(ethcore.udp, udp_port)
+        setattr(self.submodules, name, etherbone)
+        self.add_wb_master(etherbone.wishbone.bus)
+        # Timing constraints
+        if hasattr(phy, "crg"):
+            eth_rx_clk = phy.crg.cd_eth_rx.clk
+            eth_tx_clk = phy.crg.cd_eth_tx.clk
+        else:
+            eth_rx_clk = phy.cd_eth_rx.clk
+            eth_tx_clk = phy.cd_eth_tx.clk
+        self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+        self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            eth_rx_clk,
+            eth_tx_clk)
+
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None):
         assert dummy_cycles is not None                 # FIXME: Get dummy_cycles from SPI Flash
