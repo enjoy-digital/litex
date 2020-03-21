@@ -10,7 +10,7 @@ import sys
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex_boards.platforms import ulx3s
+from litex.boards.platforms import ulx3s
 
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
 

@@ -54,8 +54,8 @@ class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=int(75e6), with_ethernet=False, **kwargs):
         platform = nexys4ddr.Platform()
 
-        # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        # SoCCore ----------------------------------_-----------------------------------------------
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)

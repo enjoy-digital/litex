@@ -49,7 +49,7 @@ class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, **kwargs):
         platform = netv2.Platform()
 
-        # SoCCore ---------------------------------------------------------------------------------
+        # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
