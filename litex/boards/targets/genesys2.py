@@ -18,8 +18,6 @@ from litedram.modules import MT41J256M16
 from litedram.phy import s7ddrphy
 
 from liteeth.phy.s7rgmii import LiteEthPHYRGMII
-from liteeth.core import LiteEthUDPIPCore
-from liteeth.frontend.etherbone import LiteEthEtherbone
 
 # CRG ----------------------------------------------------------------------------------------------
 
