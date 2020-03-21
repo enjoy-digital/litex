@@ -1037,19 +1037,20 @@ class LiteXSoC(SoC):
                 base_address = self.bus.regions["main_ram"].origin)
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, phy):
+    def add_ethernet(self, name="ethmac", phy=None):
         # Imports
         from liteeth.mac import LiteEthMAC
         # MAC
-        self.submodules.ethmac = LiteEthMAC(
+        ethmac = LiteEthMAC(
             phy        = phy,
             dw         = 32,
             interface  = "wishbone",
             endianness = self.cpu.endianness)
-        ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=0x2000, cached=False)
-        self.bus.add_slave(name="ethmac", slave=self.ethmac.bus, region=ethmac_region)
-        self.add_csr("ethmac")
-        self.add_interrupt("ethmac")
+        setattr(self.submodules, name, ethmac)
+        ethmac_region = SoCRegion(origin=self.mem_map.get(name, None), size=0x2000, cached=False)
+        self.bus.add_slave(name=name, slave=ethmac.bus, region=ethmac_region)
+        self.add_csr(name)
+        self.add_interrupt(name)
         # Timing constraints
         if hasattr(phy, "crg"):
             eth_rx_clk = phy.crg.cd_eth_rx.clk
