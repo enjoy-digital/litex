@@ -444,6 +444,17 @@ uint8_t spi_sdcard_readMBR(void)
         return FAILURE;
     }
 
+    // Reclock the card
+    // Calculate 16MHz as an integer divider from the CONFIG_CLOCK_FREQUENCY
+    // Add 1 as will be rounded down
+    // Always ensure divider is at least 2 - half the processor speed
+    int divider;
+    divider = (int)(CONFIG_CLOCK_FREQUENCY/(16e6)) + 1;
+    if( divider<2 )
+        divider=2;
+    printf("Reclocking from %dKHz to %dKHz\n\n", CONFIG_CLOCK_FREQUENCY/(int)spisdcard_clk_divider_read()/1000, CONFIG_CLOCK_FREQUENCY/divider/1000);
+    spisdcard_clk_divider_write(divider);
+    
     // Read in FAT16 File Allocation Table, array of 16bit unsinged integers
     // Calculate Storage from TOP of MAIN RAM
     sdCardFatTable = (uint16_t *)(MAIN_RAM_BASE+MAIN_RAM_SIZE-sdCardFatBootSector.sector_size*sdCardFatBootSector.fat_size_sectors);
