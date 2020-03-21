@@ -52,7 +52,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, **kwargs):
+    def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
         platform = arty.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -87,34 +87,13 @@ class BaseSoC(SoCCore):
             self.add_csr("ethphy")
             self.add_ethernet(phy=self.ethphy)
 
-# EtherboneSoC -------------------------------------------------------------------------------------
-
-class EtherboneSoC(BaseSoC):
-    def __init__(self, **kwargs):
-        BaseSoC.__init__(self, **kwargs)
-
-        # Ethernet ---------------------------------------------------------------------------------
-        # phy
-        self.submodules.ethphy = LiteEthPHYMII(
-            clock_pads = self.platform.request("eth_clocks"),
-            pads       = self.platform.request("eth"))
-        self.add_csr("ethphy")
-        # core
-        self.submodules.ethcore = LiteEthUDPIPCore(
-            phy         = self.ethphy,
-            mac_address = 0x10e2d5000000,
-            ip_address  = "192.168.1.50",
-            clk_freq    = self.clk_freq)
-        # etherbone
-        self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234)
-        self.add_wb_master(self.etherbone.wishbone.bus)
-        # timing constraints
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/25e6)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/25e6)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.ethphy.crg.cd_eth_rx.clk,
-            self.ethphy.crg.cd_eth_tx.clk)
+        # Etherbone --------------------------------------------------------------------------------
+        if with_etherbone:
+            self.submodules.ethphy = LiteEthPHYMII(
+                clock_pads = self.platform.request("eth_clocks"),
+                pads       = self.platform.request("eth"))
+            self.add_csr("ethphy")
+            self.add_etherbone(phy=self.ethphy)
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -128,12 +107,8 @@ def main():
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
-    cls = BaseSoC
-    if args.with_ethernet:
-        cls = BaseSoC
-    if args.with_etherbone:
-        cls = EtherboneSoC
-    soc = cls(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
+    soc = BaseSoC(with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
+        **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(**vivado_build_argdict(args))
 
