@@ -234,14 +234,18 @@ int serialboot(void)
 
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 
-#define KERNEL_IMAGE_RAM_OFFSET      0x00000000
-#define ROOTFS_IMAGE_RAM_OFFSET      0x00800000
-#define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
-
-#ifndef EMULATOR_RAM_BASE
-#define EMULATOR_RAM_BASE 0x20000000
+#ifndef KERNEL_IMAGE_RAM_OFFSET
+#define KERNEL_IMAGE_RAM_OFFSET 0x00000000
 #endif
-#define EMULATOR_IMAGE_RAM_OFFSET    0x00000000
+#ifndef ROOTFS_IMAGE_RAM_OFFSET
+#define ROOTFS_IMAGE_RAM_OFFSET 0x00800000
+#endif
+#ifndef DEVICE_TREE_IMAGE_RAM_OFFSET
+#define DEVICE_TREE_IMAGE_RAM_OFFSET 0x01000000
+#endif
+#ifndef EMULATOR_IMAGE_RAM_OFFSET
+#define EMULATOR_IMAGE_RAM_OFFSET 0x01100000
+#endif
 
 #endif
 
@@ -309,7 +313,7 @@ static int try_get_kernel_rootfs_dtb_emulator(unsigned int ip, unsigned short tf
 		return 0;
 	}
 
-	tftp_dst_addr = EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET;
+	tftp_dst_addr =  MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET;
 	size = tftp_get_v(ip, tftp_port, "emulator.bin", (void *)tftp_dst_addr);
 	if(size <= 0) {
 		printf("No emulator.bin found\n");
@@ -341,7 +345,7 @@ void netboot(void)
 #if defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
 	if(try_get_kernel_rootfs_dtb_emulator(ip, tftp_port))
 	{
-		boot(0, 0, 0, EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 		return;
 	}
 	printf("Unable to download Linux images, falling back to boot.bin\n");
@@ -453,11 +457,11 @@ void flashboot(void)
 		printf("Loading emulator.bin from flash...\n");
 		result &= copy_image_from_flash_to_ram(
 			(FLASH_BOOT_ADDRESS + EMULATOR_IMAGE_FLASH_OFFSET),
-			(EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET));
+			(MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET));
 	}
 
 	if(result) {
-		boot(0, 0, 0, EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+		boot(0, 0, 0, MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 		return;
 	}
 #endif
@@ -509,9 +513,9 @@ void spisdcardboot(void)
 	if(spi_sdcard_readFile("IMAGE","",MAIN_RAM_BASE+KERNEL_IMAGE_RAM_OFFSET)==0) return;
 	if(spi_sdcard_readFile("ROOTFS~1","CPI",MAIN_RAM_BASE+ROOTFS_IMAGE_RAM_OFFSET)==0) return;
 	if(spi_sdcard_readFile("RV32","DTB",MAIN_RAM_BASE+DEVICE_TREE_IMAGE_RAM_OFFSET)==0) return;
-	if(spi_sdcard_readFile("EMULATOR","BIN",EMULATOR_RAM_BASE)==0) return;
+	if(spi_sdcard_readFile("EMULATOR","BIN",MAIN_RAM_BASE+EMULATOR_IMAGE_RAM_OFFSET)==0) return;
 
-	boot(0,0,0,EMULATOR_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
+	boot(0,0,0,MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET);
 #else
 	if(spi_sdcard_readFile("BOOT","BIN",MAIN_RAM_BASE)==0) {
 		printf("SD Card SPI boot failed\n");
