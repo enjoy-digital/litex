@@ -242,8 +242,12 @@ class DocumentedCSRRegion:
             for field in reg.fields:
                 field_name = field.name
                 attr_str = ""
-                if field.reset_value != 0:
-                    attr_str = "\"attr\": '" + str(field.reset_value) + "', "
+                if isinstance(field.reset_value, Constant):
+                    field_reset_value = field.reset_value.value
+                else:
+                    field_reset_value = field.reset_value
+                if field_reset_value != 0:
+                    attr_str = "\"attr\": '" + str(field_reset_value) + "', "
                 type_str = ""
                 if field.pulse:
                     type_str = "\"type\": 4, "
