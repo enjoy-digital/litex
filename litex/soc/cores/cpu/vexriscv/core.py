@@ -87,7 +87,7 @@ class VexRiscv(CPU, AutoCSR):
         return {
             "rom":          0x00000000,
             "sram":         0x10000000,
-            "main_ram":     0xc0000000,
+            "main_ram":     0x40000000,
             "csr":          0xf0000000,
         }
 
