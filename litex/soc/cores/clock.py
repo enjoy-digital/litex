@@ -596,9 +596,6 @@ class iCE40PLL(Module):
 
 # Lattice / ECP5 -----------------------------------------------------------------------------------
 
-# TODO:
-# - add proper phase support.
-
 class ECP5PLL(Module):
     nclkouts_max    = 3
     clkfb_div_range = (1, 128+1)
@@ -655,8 +652,8 @@ class ECP5PLL(Module):
                     for d in range(*self.clko_div_range):
                         clk_freq = vco_freq/d
                         if abs(clk_freq - f) <= f*m:
-                            config["clko{}_freq".format(n)] = clk_freq
-                            config["clko{}_div".format(n)] = d
+                            config["clko{}_freq".format(n)]  = clk_freq
+                            config["clko{}_div".format(n)]   = d
                             config["clko{}_phase".format(n)] = p
                             valid = True
                             break
@@ -673,30 +670,29 @@ class ECP5PLL(Module):
 
     def do_finalize(self):
         config = self.compute_config()
-        clkfb = Signal()
+        clkfb  = Signal()
         self.params.update(
             attr=[
                 ("ICP_CURRENT",            "6"),
                 ("LPF_RESISTOR",          "16"),
                 ("MFG_ENABLE_FILTEROPAMP", "1"),
                 ("MFG_GMCREF_SEL",         "2")],
-            i_RST=self.reset,
-
-            i_CLKI = self.clkin,
-            o_LOCK = self.locked,
-
-            p_FEEDBK_PATH   = "INT_OS3",   # CLKOS3 reserved for
-            p_CLKOS3_ENABLE = "ENABLED", # feedback with div=1.
+            i_RST           = self.reset,
+            i_CLKI          = self.clkin,
+            o_LOCK          = self.locked,
+            p_FEEDBK_PATH   = "INT_OS3", # CLKOS3 reserved for feedback with div=1.
+            p_CLKOS3_ENABLE = "ENABLED",
             p_CLKOS3_DIV    = 1,
-
-            p_CLKFB_DIV=config["clkfb_div"],
-            p_CLKI_DIV=1,
+            p_CLKFB_DIV     = config["clkfb_div"],
+            p_CLKI_DIV      = 1,
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2"}
+            div    = config["clko{}_div".format(n)]
+            cphase = int(p*(div + 1)/360 + div)
             self.params["p_CLKO{}_ENABLE".format(n_to_l[n])] = "ENABLED"
-            self.params["p_CLKO{}_DIV".format(n_to_l[n])]    = config["clko{}_div".format(n)]
+            self.params["p_CLKO{}_DIV".format(n_to_l[n])]    = div
             self.params["p_CLKO{}_FPHASE".format(n_to_l[n])] = 0
-            self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = p
+            self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = cphase
             self.params["o_CLKO{}".format(n_to_l[n])]        = clk
         self.specials += Instance("EHXPLLL", **self.params)
