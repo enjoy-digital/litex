@@ -33,19 +33,16 @@ class LatticeECPXAsyncResetSynchronizer:
     def lower(dr):
         return LatticeECPXAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
-# ECPX Differential Output -------------------------------------------------------------------------
+# ECPX DDDR Output ---------------------------------------------------------------------------------
 
 class LatticeECPXDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += [
-            Instance("ODDRXD1",
-                synthesis_directive="ODDRAPPS=\"SCLK_ALIGNED\"",
-                i_SCLK = clk,
-                i_DA   = i1,
-                i_DB   = i2,
-                o_Q    = o)
-        ]
-
+        self.specials += Instance("ODDRX1F",
+            i_SCLK = clk,
+            i_D0   = i1,
+            i_D1   = i2,
+            o_Q    = o,
+        )
 
 class LatticeECPXDDROutput:
     @staticmethod
