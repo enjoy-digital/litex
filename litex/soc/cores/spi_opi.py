@@ -494,7 +494,7 @@ class S7SPIOPI(Module, AutoCSR, AutoDoc):
                 p_DATA_WIDTH              = 32,
                 p_FIRST_WORD_FALL_THROUGH = "TRUE",
                 p_ALMOST_EMPTY_OFFSET     = 6,
-                p_ALMOST_FULL_OFFSET      = (512- (8*prefetch_lines)),
+                p_ALMOST_FULL_OFFSET      = (511 - (8*prefetch_lines)),
 
                 o_ALMOSTEMPTY = rx_almostempty,
                 o_ALMOSTFULL  = rx_almostfull,
