@@ -146,7 +146,7 @@ class LatticeDiamondToolchain:
         "no_shreg_extract": None
     }
 
-    special_overrides = common.lattice_ecpx_special_overrides
+    special_overrides = common.lattice_ecp5_special_overrides
 
     def __init__(self):
         self.false_paths = set() # FIXME: use it

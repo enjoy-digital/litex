@@ -23,7 +23,7 @@ class LatticePlatform(GenericPlatform):
             raise ValueError("Unknown toolchain")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
-        so = dict()  # No common overrides between ECPX and iCE40.
+        so = dict()  # No common overrides between ECP5 and iCE40.
         so.update(self.toolchain.special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args, special_overrides=so,

@@ -9,9 +9,9 @@ from migen.fhdl.bitcontainer import value_bits_sign
 from migen.genlib.io import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-# ECPX AsyncResetSynchronizer ----------------------------------------------------------------------
+# ECP5 AsyncResetSynchronizer ----------------------------------------------------------------------
 
-class LatticeECPXAsyncResetSynchronizerImpl(Module):
+class LatticeECP5AsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
         rst1 = Signal()
         self.specials += [
@@ -28,14 +28,14 @@ class LatticeECPXAsyncResetSynchronizerImpl(Module):
         ]
 
 
-class LatticeECPXAsyncResetSynchronizer:
+class LatticeECP5AsyncResetSynchronizer:
     @staticmethod
     def lower(dr):
-        return LatticeECPXAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
+        return LatticeECP5AsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
-# ECPX DDDR Output ---------------------------------------------------------------------------------
+# ECP5 DDDR Output ---------------------------------------------------------------------------------
 
-class LatticeECPXDDROutputImpl(Module):
+class LatticeECP5DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
         self.specials += Instance("ODDRX1F",
             i_SCLK = clk,
@@ -44,21 +44,21 @@ class LatticeECPXDDROutputImpl(Module):
             o_Q    = o,
         )
 
-class LatticeECPXDDROutput:
+class LatticeECP5DDROutput:
     @staticmethod
     def lower(dr):
-        return LatticeECPXDDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+        return LatticeECP5DDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
-# ECPX Special Overrides ---------------------------------------------------------------------------
+# ECP5 Special Overrides ---------------------------------------------------------------------------
 
-lattice_ecpx_special_overrides = {
-    AsyncResetSynchronizer: LatticeECPXAsyncResetSynchronizer,
-    DDROutput:              LatticeECPXDDROutput
+lattice_ecp5_special_overrides = {
+    AsyncResetSynchronizer: LatticeECP5AsyncResetSynchronizer,
+    DDROutput:              LatticeECP5DDROutput
 }
 
-# ECPX Trellis Tristate ----------------------------------------------------------------------------
+# ECP5 Trellis Tristate ----------------------------------------------------------------------------
 
-class LatticeECPXTrellisTristateImpl(Module):
+class LatticeECP5TrellisTristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
         if nbits == 1:
@@ -84,17 +84,17 @@ class LatticeECPXTrellisTristateImpl(Module):
                 ]
 
 
-class LatticeECPXTrellisTristate(Module):
+class LatticeECP5TrellisTristate(Module):
     @staticmethod
     def lower(dr):
-        return LatticeECPXTrellisTristateImpl(dr.target, dr.o, dr.oe, dr.i)
+        return LatticeECP5TrellisTristateImpl(dr.target, dr.o, dr.oe, dr.i)
 
-# ECPX Trellis Special Overrides -------------------------------------------------------------------
+# ECP5 Trellis Special Overrides -------------------------------------------------------------------
 
-lattice_ecpx_trellis_special_overrides = {
-    AsyncResetSynchronizer: LatticeECPXAsyncResetSynchronizer,
-    Tristate:               LatticeECPXTrellisTristate,
-    DDROutput:              LatticeECPXDDROutput
+lattice_ecp5_trellis_special_overrides = {
+    AsyncResetSynchronizer: LatticeECP5AsyncResetSynchronizer,
+    Tristate:               LatticeECP5TrellisTristate,
+    DDROutput:              LatticeECP5DDROutput
 }
 
 # iCE40 AsyncResetSynchronizer ----------------------------------------------------------------------

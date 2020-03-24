@@ -168,7 +168,7 @@ class LatticeTrellisToolchain:
         "no_shreg_extract": None
     }
 
-    special_overrides = common.lattice_ecpx_trellis_special_overrides
+    special_overrides = common.lattice_ecp5_trellis_special_overrides
 
     def __init__(self):
         self.yosys_template   = _yosys_template
