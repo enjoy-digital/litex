@@ -9,7 +9,7 @@
 #define SFL_MAGIC_ACK "z6IHG7cYDID6o\n"
 
 struct sfl_frame {
-	unsigned char length;
+	unsigned char payload_length;
 	unsigned char crc[2];
 	unsigned char cmd;
 	unsigned char payload[255];

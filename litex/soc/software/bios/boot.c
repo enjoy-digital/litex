@@ -122,6 +122,7 @@ int serialboot(void)
 	printf("Booting from serial...\n");
 	printf("Press Q or ESC to abort boot completely.\n");
 
+	// send the "magic" request to host for a firmware download
 	c = str;
 	while(*c) {
 		uart_write(*c);
@@ -145,18 +146,22 @@ int serialboot(void)
 		int goodcrc;
 
 		/* Get one Frame */
-		frame.length = uart_read();
+		frame.payload_length = uart_read();
 		frame.crc[0] = uart_read();
 		frame.crc[1] = uart_read();
 		frame.cmd = uart_read();
-		for(i=0;i<frame.length;i++)
+		for(i=0;i<frame.payload_length;i++)
 			frame.payload[i] = uart_read();
 
 		/* Check Frame CRC (if CMD has a CRC) */
 		if (frame.cmd != SFL_CMD_LOAD_NO_CRC) {
 			actualcrc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
-			goodcrc = crc16(&frame.cmd, frame.length+1);
+			goodcrc = crc16(&frame.cmd, frame.payload_length+1);
 			if(actualcrc != goodcrc) {
+				// clear out the RX buffer
+				while (uart_read_nonblock()) {
+					uart_read();
+				}
 				failed++;
 				if(failed == MAX_FAILED) {
 					printf("Too many consecutive errors, aborting");
@@ -179,7 +184,7 @@ int serialboot(void)
 
 				failed = 0;
 				writepointer = (char *) get_uint32(&frame.payload[0]);
-				for(i=4;i<frame.length;i++)
+				for(i=4;i<frame.payload_length;i++)
 					*(writepointer++) = frame.payload[i];
 				if (frame.cmd == SFL_CMD_LOAD)
 					uart_write(SFL_ACK_SUCCESS);
@@ -201,7 +206,7 @@ int serialboot(void)
 				failed = 0;
 				addr = get_uint32(&frame.payload[0]);
 
-				for (i = 4; i < frame.length; i++) {
+				for (i = 4; i < frame.payload_length; i++) {
 					// erase page at sector boundaries before writing
 					if ((addr & (SPIFLASH_SECTOR_SIZE - 1)) == 0) {
 						erase_flash_sector(addr);
