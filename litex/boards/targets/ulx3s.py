@@ -40,8 +40,8 @@ class _CRG(Module):
         self.submodules.pll = pll = ECP5PLL()
         self.comb += pll.reset.eq(rst)
         pll.register_clkin(clk25, 25e6)
-        pll.create_clkout(self.cd_sys,    sys_clk_freq, phase=11)
-        pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=20)
+        pll.create_clkout(self.cd_sys,    sys_clk_freq)
+        pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | rst)
 
         # SDRAM clock
@@ -66,7 +66,7 @@ class BaseSoC(SoCCore):
 
         # SDR SDRAM --------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"), cl=2)
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
                 module                  = getattr(litedram_modules, sdram_module_cls)(sys_clk_freq, "1:1"),

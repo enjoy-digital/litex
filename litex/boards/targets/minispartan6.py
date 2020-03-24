@@ -9,6 +9,7 @@ import argparse
 from fractions import Fraction
 
 from migen import *
+from migen.genlib.io import DDROutput
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.boards.platforms import minispartan6
@@ -26,27 +27,22 @@ from litedram.phy import GENSDRPHY
 class _CRG(Module):
     def __init__(self, platform, clk_freq):
         self.clock_domains.cd_sys    = ClockDomain()
-        self.clock_domains.cd_sys_ps = ClockDomain()
+        self.clock_domains.cd_sys_ps = ClockDomain(reset_less=True)
 
         # # #
 
         self.submodules.pll = pll = S6PLL(speedgrade=-1)
         pll.register_clkin(platform.request("clk32"), 32e6)
         pll.create_clkout(self.cd_sys,    clk_freq)
-        pll.create_clkout(self.cd_sys_ps, clk_freq, phase=270)
+        pll.create_clkout(self.cd_sys_ps, clk_freq, phase=90)
 
-        self.specials += Instance("ODDR2",
-            p_DDR_ALIGNMENT="NONE",
-            p_INIT=0, p_SRTYPE="SYNC",
-            i_D0=0, i_D1=1, i_S=0, i_R=0, i_CE=1,
-            i_C0=self.cd_sys.clk, i_C1=~self.cd_sys.clk,
-            o_Q=platform.request("sdram_clock"))
+        # SDRAM clock
+        self.specials += DDROutput(0, 1, platform.request("sdram_clock"), ClockSignal("sys_ps"))
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=int(80e6), **kwargs):
-        assert sys_clk_freq == int(80e6)
         platform = minispartan6.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -57,7 +53,7 @@ class BaseSoC(SoCCore):
 
         # SDR SDRAM --------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"), cmd_latency=2)
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
                 module                  = AS4C16M16(sys_clk_freq, "1:1"),
