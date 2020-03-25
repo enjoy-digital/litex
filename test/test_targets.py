@@ -123,7 +123,6 @@ class TestTargets(unittest.TestCase):
         # Lattice
         platforms += ["tinyfpga_bx"]                               # iCE40
         platforms += ["machxo3"]                                   # MachXO3
-        platforms += ["versa_ecp3"]                                # ECP3
         platforms += ["versa_ecp5", "ulx3s"]                       # ECP5
 
         # Microsemi
