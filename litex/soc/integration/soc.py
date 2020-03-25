@@ -912,33 +912,51 @@ class LiteXSoC(SoC):
     # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name, baudrate=115200, fifo_depth=16):
         from litex.soc.cores import uart
+
+        # Stub / Stream
         if name in ["stub", "stream"]:
             self.submodules.uart = uart.UART(tx_fifo_depth=0, rx_fifo_depth=0)
             if name == "stub":
                 self.comb += self.uart.sink.ready.eq(1)
-        elif name == "bridge":
+
+        # Bridge
+        elif name in ["bridge"]:
             self.submodules.uart = uart.UARTWishboneBridge(
                 pads     = self.platform.request("serial"),
                 clk_freq = self.sys_clk_freq,
                 baudrate = baudrate)
             self.bus.add_master(name="uart_bridge", master=self.uart.wishbone)
-        elif name == "crossover":
+
+        # Crossover
+        elif name in ["crossover"]:
             self.submodules.uart = uart.UARTCrossover()
-        else:
-            if name == "jtag_atlantic":
-                from litex.soc.cores.jtag import JTAGAtlantic
-                self.submodules.uart_phy = JTAGAtlantic()
-            elif name == "jtag_uart":
-                from litex.soc.cores.jtag import JTAGPHY
-                self.submodules.uart_phy = JTAGPHY(device=self.platform.device)
-            else:
-                self.submodules.uart_phy = uart.UARTPHY(
-                    pads     = self.platform.request(name),
-                    clk_freq = self.sys_clk_freq,
-                    baudrate = baudrate)
+
+        # JTAG Atlantic
+        elif name in ["jtag_atlantic"]:
+            from litex.soc.cores.jtag import JTAGAtlantic
+            self.submodules.uart_phy = JTAGAtlantic()
             self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth))
+
+        # JTAG UART
+        elif name in ["jtag_uart"]:
+            from litex.soc.cores.jtag import JTAGPHY
+            self.submodules.uart_phy = JTAGPHY(device=self.platform.device)
+            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+                tx_fifo_depth = fifo_depth,
+                rx_fifo_depth = fifo_depth))
+
+        # Classic UART
+        else:
+            self.submodules.uart_phy = uart.UARTPHY(
+                pads     = self.platform.request(name),
+                clk_freq = self.sys_clk_freq,
+                baudrate = baudrate)
+            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+                tx_fifo_depth = fifo_depth,
+                rx_fifo_depth = fifo_depth))
+
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
         self.irq.add("uart", use_loc_if_exists=True)
