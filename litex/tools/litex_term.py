@@ -52,7 +52,7 @@ sfl_prompt_ack = b"\x06"
 sfl_magic_req = b"sL5DdSMmkekro\n"
 sfl_magic_ack = b"z6IHG7cYDID6o\n"
 
-sfl_payload_length = 64#251
+sfl_payload_length = 64
 
 # General commands
 sfl_cmd_abort       = b"\x00"
@@ -224,6 +224,7 @@ class LiteXTerm:
             current_address += len(frame_data)
             position += len(frame_data)
             remaining -= len(frame_data)
+            time.sleep(1e-6) # FIXME: small delay needed with FT245 FIFO ("usb_fifo"), understand why.
         end = time.time()
         elapsed = end - start
         f.close()
