@@ -122,7 +122,7 @@ int serialboot(void)
 	printf("Booting from serial...\n");
 	printf("Press Q or ESC to abort boot completely.\n");
 
-	// send the "magic" request to host for a firmware download
+	/* send the serialboot "magic" request to Host */
 	c = str;
 	while(*c) {
 		uart_write(*c);
@@ -158,10 +158,8 @@ int serialboot(void)
 			actualcrc = ((int)frame.crc[0] << 8)|(int)frame.crc[1];
 			goodcrc = crc16(&frame.cmd, frame.payload_length+1);
 			if(actualcrc != goodcrc) {
-				// clear out the RX buffer
-				while (uart_read_nonblock()) {
-					uart_read();
-				}
+				/* Clear out the RX buffer */
+				while (uart_read_nonblock()) uart_read();
 				failed++;
 				if(failed == MAX_FAILED) {
 					printf("Too many consecutive errors, aborting");
