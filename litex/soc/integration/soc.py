@@ -931,6 +931,13 @@ class LiteXSoC(SoC):
         elif name in ["crossover"]:
             self.submodules.uart = uart.UARTCrossover()
 
+        # Model/Sim
+        elif name in ["model", "sim"]:
+            self.submodules.uart_phy = uart.RS232PHYModel(self.platform.request("serial"))
+            self.submodules.uart = ResetInserter()(uart.UART(self.uart_phy,
+                tx_fifo_depth = fifo_depth,
+                rx_fifo_depth = fifo_depth))
+
         # JTAG Atlantic
         elif name in ["jtag_atlantic"]:
             from litex.soc.cores.jtag import JTAGAtlantic
