@@ -16,7 +16,6 @@ from litex.build.sim.config import SimConfig
 from litex.soc.integration.common import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
-from litex.soc.cores import uart
 
 from litedram import modules as litedram_modules
 from litedram.common import *
@@ -178,14 +177,6 @@ class SimSoC(SoCSDRAM):
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
-        # Serial -----------------------------------------------------------------------------------
-        self.submodules.uart_phy = uart.RS232PHYModel(platform.request("serial"))
-        self.submodules.uart = uart.UART(self.uart_phy,
-            tx_fifo_depth=kwargs["uart_fifo_depth"],
-            rx_fifo_depth=kwargs["uart_fifo_depth"])
-        self.add_csr("uart")
-        self.add_interrupt("uart")
-
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
             sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
@@ -317,7 +308,7 @@ def main():
     if "cpu_type" in soc_kwargs:
         if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
             cpu_endianness = "big"
-    soc_kwargs["with_uart"] = False
+    soc_kwargs["uart_name"] = "sim"
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
     if not args.with_sdram:
