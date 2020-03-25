@@ -37,6 +37,17 @@ def write_to_file(filename, contents, force_unix=False):
         with open(filename, "w", newline=newline) as f:
             f.write(contents)
 
+def replace_in_file(filename, _from, _to):
+    # Read in the file
+    with open(filename, "r") as file :
+        filedata = file.read()
+
+    # Replace the target string
+    filedata = filedata.replace(_from, _to)
+
+    # Write the file out again
+    with open(filename, "w") as file:
+        file.write(filedata)
 
 def sub_rules(line, rules, max_matches=1):
     for pattern, color in rules:
