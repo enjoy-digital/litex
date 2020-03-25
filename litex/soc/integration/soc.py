@@ -954,6 +954,14 @@ class LiteXSoC(SoC):
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth))
 
+        # USB CDC (with ValentyUSB core)
+        elif name in ["usb_cdc"]:
+            import valentyusb.usbcore.io as usbio
+            import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
+            usb_pads = self.platform.request("usb")
+            usb_iobuf = usbio.IoBuf(usb_pads.d_p, usb_pads.d_n, usb_pads.pullup)
+            self.submodules.uart = cdc_eptri.CDCUsb(usb_iobuf)
+
         # Classic UART
         else:
             self.submodules.uart_phy = uart.UARTPHY(
