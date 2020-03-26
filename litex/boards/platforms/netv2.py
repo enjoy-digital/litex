@@ -23,7 +23,7 @@ _io = [
         Subsignal("cs_n", Pins("T19")),
         Subsignal("mosi", Pins("P22")),
         Subsignal("miso", Pins("R22")),
-        Subsignal("vpp", Pins("P21")),
+        Subsignal("wp",   Pins("P21")),
         Subsignal("hold", Pins("R21")),
         IOStandard("LVCMOS33")
     ),
