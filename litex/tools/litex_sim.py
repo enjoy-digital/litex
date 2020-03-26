@@ -16,6 +16,8 @@ from litex.build.sim.config import SimConfig
 from litex.soc.integration.common import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.spi_xip import LiteSPI
+from litex.soc.cores.spi_xip.phy.model import LiteSPIPHYModel
 
 from litedram import modules as litedram_modules
 from litedram.common import *
@@ -151,11 +153,13 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
 class SimSoC(SoCSDRAM):
     mem_map = {
         "ethmac": 0xb0000000,
+        "spixip": 0xc0000000,
     }
     mem_map.update(SoCSDRAM.mem_map)
 
     def __init__(self,
         with_sdram            = False,
+        with_spi_xip          = False,
         with_ethernet         = False,
         with_etherbone        = False,
         etherbone_mac_address = 0x10e2d5000001,
@@ -176,6 +180,14 @@ class SimSoC(SoCSDRAM):
             **kwargs)
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
+
+        # SPI XIP ----------------------------------------------------------------------------------
+        if with_spi_xip:
+            xip_size = kwargs["spi_xip_size"]
+            self.submodules.spiphy = LiteSPIPHYModel(xip_size, init=kwargs["spi_flash_init"])
+            self.submodules.spi = LiteSPI(phy=self.spiphy, endianness=self.cpu.endianness)
+            self.add_memory_region("spixip", self.mem_map["spixip"], xip_size, type="io")
+            self.add_wb_slave(self.mem_regions["spixip"].origin, self.spi.bus, xip_size)
 
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
@@ -279,6 +291,8 @@ def main():
     parser.add_argument("--threads",              default=1,               help="Set number of threads (default=1)")
     parser.add_argument("--rom-init",             default=None,            help="rom_init file")
     parser.add_argument("--ram-init",             default=None,            help="ram_init file")
+    parser.add_argument("--with-spi-xip",         action="store_true",     help="Enable SPI XIP support")
+    parser.add_argument("--spi-init",             default=None,            help="spi_init file")
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support")
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
@@ -311,6 +325,9 @@ def main():
     soc_kwargs["uart_name"] = "sim"
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
+    if args.with_spi_xip:
+        soc_kwargs["spi_xip_size"] = 8*1024*1024
+        soc_kwargs["spi_flash_init"] = get_mem_data(args.spi_init, "big") if args.spi_init is not None else None
     if not args.with_sdram:
         soc_kwargs["integrated_main_ram_size"] = 0x10000000 # 256 MB
         if args.ram_init is not None:
@@ -328,6 +345,7 @@ def main():
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram     = args.with_sdram,
+        with_spi_xip   = args.with_spi_xip,
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
         with_analyzer  = args.with_analyzer,
