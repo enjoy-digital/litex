@@ -1154,5 +1154,6 @@ class LiteXSoC(SoC):
         if hasattr(pads, "rst"):
             self.comb += pads.rst.eq(0)
         spisdcard = SPIMaster(pads, 8, self.sys_clk_freq, 400e3)
+        spisdcard.add_clk_divider()
         setattr(self.submodules, name, spisdcard)
         self.add_csr(name)

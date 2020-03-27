@@ -137,7 +137,6 @@ class SPIMaster(Module, AutoCSR):
             CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")
         ], description="SPI Chip Select.")
         self._loopback = CSRStorage(description="SPI loopback mode.\n\n Write ``1`` to enable MOSI to MISO internal loopback.")
-        self._clk_divider = CSRStorage(16, description="SPI Clk Divider.", reset=self.clk_divider.reset)
 
         self.comb += [
             self.start.eq(self._control.fields.start),
@@ -145,11 +144,14 @@ class SPIMaster(Module, AutoCSR):
             self.mosi.eq(self._mosi.storage),
             self.cs.eq(self._cs.storage),
             self.loopback.eq(self._loopback.storage),
-            self.clk_divider.eq(self._clk_divider.storage),
 
             self._status.fields.done.eq(self.done),
             self._miso.status.eq(self.miso),
         ]
+
+    def add_clk_divider(self):
+        self._clk_divider = CSRStorage(16, description="SPI Clk Divider.", reset=self.clk_divider.reset)
+        self.comb += self.clk_divider.eq(self._clk_divider.storage)
 
 # SPI Slave ----------------------------------------------------------------------------------------
 
