@@ -593,6 +593,9 @@ static void boot_sequence(void)
 #ifdef ROM_BOOT_ADDRESS
 		romboot();
 #endif
+#ifdef CSR_SPISDCARD_BASE
+		spisdcardboot();
+#endif
 #ifdef CSR_ETHMAC_BASE
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
 		eth_mode();
