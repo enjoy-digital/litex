@@ -143,16 +143,6 @@ void sdclk_set_clk(unsigned int freq) {
 
 /* command utils */
 
-static void busy_wait(unsigned int ms)
-{
-	timer0_en_write(0);
-	timer0_reload_write(0);
-	timer0_load_write(CONFIG_CLOCK_FREQUENCY/1000*ms);
-	timer0_en_write(1);
-	timer0_update_value_write(1);
-	while(timer0_value_read()) timer0_update_value_write(1);
-}
-
 static void sdtimer_init(void)
 {
 	sdtimer_en_write(0);

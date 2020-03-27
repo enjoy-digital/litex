@@ -448,24 +448,14 @@ void microudp_service(void)
 	}
 }
 
-static void busy_wait(unsigned int ds)
-{
-	timer0_en_write(0);
-	timer0_reload_write(0);
-	timer0_load_write(CONFIG_CLOCK_FREQUENCY/10*ds);
-	timer0_en_write(1);
-	timer0_update_value_write(1);
-	while(timer0_value_read()) timer0_update_value_write(1);
-}
-
 void eth_init(void)
 {
 	printf("Ethernet init...\n");
 #ifdef CSR_ETHPHY_CRG_RESET_ADDR
 	ethphy_crg_reset_write(1);
-	busy_wait(2);
+	busy_wait(200);
 	ethphy_crg_reset_write(0);
-	busy_wait(2);
+	busy_wait(200);
 #endif
 }
 
