@@ -19,6 +19,9 @@ from litedram.phy import s7ddrphy
 
 from liteeth.phy.rmii import LiteEthPHYRMII
 
+from litex.soc.cores.spi_xip import LiteSPI
+from litex.soc.cores.spi_xip.phy.generic import LiteSPIPHY
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -46,6 +49,10 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
+    mem_map = {
+        "spixip": 0xc0000000,
+    }
+    mem_map.update(SoCCore.mem_map)
     def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, **kwargs):
         platform = netv2.Platform()
 
@@ -71,6 +78,17 @@ class BaseSoC(SoCCore):
                 l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
                 l2_cache_reverse        = True
             )
+
+        with_spi=True
+
+        if with_spi:
+            spi_size = 1024*1024*8
+            spipads = platform.request("spiflash4x")
+            #spipads = platform.request("flash")
+            self.submodules.spiphy = LiteSPIPHY(spipads)
+            self.submodules.spictl = LiteSPI(phy=self.spiphy, endianness=self.cpu.endianness)
+            self.add_memory_region("spixip", self.mem_map["spixip"], spi_size, type="io")
+            self.add_wb_slave(self.mem_regions["spixip"].origin, self.spictl.bus, spi_size)
 
         # Ethernet ---------------------------------------------------------------------------------
         if with_ethernet:
