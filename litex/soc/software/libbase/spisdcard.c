@@ -523,7 +523,7 @@ uint8_t spi_sdcard_readMBR(void)
 //      Return 0 success, 1 failure
 //
 // Details from https://codeandlife.com/2012/04/02/simple-fat-and-sd-tutorial-part-1/
-uint8_t spi_sdcard_readFile(char *filename, char *ext, uint32_t address)
+uint8_t spi_sdcard_readFile(char *filename, char *ext, unsigned long address)
 {
     int i, n, sector;
     uint16_t fileClusterStart;
