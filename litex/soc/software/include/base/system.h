@@ -9,6 +9,8 @@ void flush_cpu_icache(void);
 void flush_cpu_dcache(void);
 void flush_l2_cache(void);
 
+void busy_wait(unsigned int ms);
+
 #ifdef __or1k__
 #include <spr-defs.h>
 static inline unsigned long mfspr(unsigned long add)

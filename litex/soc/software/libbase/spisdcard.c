@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <system.h>
 
 #define USE_SPISCARD_RECLOCKING
 
@@ -217,6 +218,7 @@ uint8_t spi_sdcard_goidle(void)
         spi_write_byte( 0xff ); spi_write_byte( 0x69 ); spi_write_byte( 0x40 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 ); spi_write_byte( 0x00 );
         r = spi_read_rbyte();
         timeout--;
+        busy_wait(20);
     } while ((r != 0x00) && (timeout>0));
     if(r!=0x00) return FAILURE;
 
@@ -523,7 +525,7 @@ uint8_t spi_sdcard_readMBR(void)
 //      Return 0 success, 1 failure
 //
 // Details from https://codeandlife.com/2012/04/02/simple-fat-and-sd-tutorial-part-1/
-uint8_t spi_sdcard_readFile(char *filename, char *ext, uint32_t address)
+uint8_t spi_sdcard_readFile(char *filename, char *ext, unsigned long address)
 {
     int i, n, sector;
     uint16_t fileClusterStart;
