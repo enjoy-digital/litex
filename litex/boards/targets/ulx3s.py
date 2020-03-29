@@ -32,8 +32,8 @@ class _CRG(Module):
         # # #
 
         # Clk / Rst
-        clk25 = platform.request("clk25")
-        rst   = platform.request("rst")
+        clk25 = platform.request("clk25") 
+        rst   = platform.request("rst") # CPU Reset: this is B1; labeled as F1 (Fire 1) button on ULX3S PCB
         platform.add_period_constraint(clk25, 1e9/25e6)
 
         # PLL

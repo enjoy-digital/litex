@@ -134,6 +134,20 @@ You can Get and install the RISC-V toolchain from https://gnutoolchains.com/risc
 
 Go to litex-boards/litex_boards/targets and execute the target you want to build.
 
+For example, build a picorv32 on the ULX3SL:
+```
+cd ./litex-boards/litex_boards/targets
+./ulx3s.py --device LFE5U-85F --cpu-type picorv32
+```
+
+The soft CPU is called `top.bit` and should be in:
+
+`/litex-boards/litex_boards/targets/soc_basesoc_ulx3s/gateware`
+
+The BIOS firmware is called `bios.bin` and should be in:
+
+`/litex-boards/litex_boards/targets/soc_basesoc_ulx3s/software/bios`
+
 5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
 
 On Linux (Ubuntu):
@@ -149,11 +163,27 @@ $ brew cask install tuntap
 $ lxsim --cpu-type=vexriscv
 ```
 
+The soft CPU `top.bit` needs to be loaded onto the FPGA. For example the ULX3S can use [ujprog](https://github.com/emard/ulx3s-examples/tree/master/bin) like this:
+
+```
+cd $WORKSPACE/litex-boards/litex_boards/targets/soc_basesoc_ulx3s/gateware
+$WORKSPACE/ulx3s-examples/bin/ujprog.exe top.bit
+```
+
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
 
   You should get the BIOS prompt like the one below.
 
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/bios_screenshot.png"></p>
+
+Or, to load the compiled BIOS.bin to be executed by our new soft CPU:
+
+```
+litex_term --serial-boot --kernel bios.bin /dev/ttyS15 # be sure to select your proper USB device number
+```
+
+Press the RST (Reset) button defined for the respective CPU to reload the RSIC-V compiled `bios.bin` BIOS firmware.
+
 
 # Community
 
@@ -164,6 +194,10 @@ LiteX has been initially developed by EnjoyDigital to create custom SoCs/Systems
 around LiteX and the ecosystem of cores. Feedbacks and contributions have already greatly improved
 the project, EnjoyDigital still leads the development but it is now a community project and collaborative
 projects created around/with LiteX can be found at https://github.com/litex-hub.
+
+# Other Resources
+
+* See [LiteX blog](https://gojimmypi.blogspot.com/2020/03/litex-soft-cpu-on-ulx3s-reloading.html) by gojimmypi, including this [ULX3S example](https://github.com/gojimmypi/ulx3s-toolchain/blob/master/soft_cpu.sh)
 
 # Contact
 E-mail: florent@enjoy-digital.fr

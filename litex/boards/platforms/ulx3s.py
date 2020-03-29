@@ -8,7 +8,7 @@ from litex.build.lattice import LatticePlatform
 
 _io = [
     ("clk25", 0, Pins("G2"), IOStandard("LVCMOS33")),
-    ("rst", 0, Pins("R1"), IOStandard("LVCMOS33")),
+    ("rst", 0, Pins("R1"), IOStandard("LVCMOS33")), # this is B1 aka F1 aka Fire 1
 
     ("user_led", 0, Pins("B2"), IOStandard("LVCMOS33")),
     ("user_led", 1, Pins("C2"), IOStandard("LVCMOS33")),

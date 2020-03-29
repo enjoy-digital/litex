@@ -37,9 +37,15 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 {
 	printf("Executing booted program at 0x%08x\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
-	uart_sync();
+
+	// wait and flush any data left in the UART
+	uart_sync(); 
+
+	// disable interrupts
+	// printf also relies on interrupts, so once you've disable interrupts printf no longer works. (thanks  @GregDavill)
 	irq_setmask(0);
 	irq_setie(0);
+
 /* FIXME: understand why flushing icache on Vexriscv make boot fail  */
 #ifndef __vexriscv__
 	flush_cpu_icache();
@@ -57,7 +63,15 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 	addr += 0x100;
 #endif
 
+	// load the boot image
+	// for example:
+	//   litex_term --serial-boot --kernel bios.bin /dev/ttyS15
 	boot_helper(r1, r2, r3, addr);
+
+	// wait forever. To load another software image, press the RST button. 
+	// see respective [target].py file in boards/targets for rst, 
+	// and pin definition in [target].py in boards/platforms for [_io] 
+	// 
 	while(1);
 }
 
