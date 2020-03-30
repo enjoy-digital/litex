@@ -25,6 +25,7 @@ repos = [
     ("litevideo",    ("https://github.com/enjoy-digital/", False, True)),
     ("litescope",    ("https://github.com/enjoy-digital/", False, True)),
     ("litejesd204b", ("https://github.com/enjoy-digital/", False, True)),
+    ("litespi",      ("https://github.com/litex-hub/",     False, True)),
 
     # LiteX boards support
     ("litex-boards",   ("https://github.com/litex-hub/", False, True)),
