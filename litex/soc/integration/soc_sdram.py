@@ -13,6 +13,7 @@ import inspect
 from migen import *
 
 from litex.soc.integration.soc_core import *
+from litex.soc.integration.soc import auto_int
 
 __all__ = ["SoCSDRAM", "soc_sdram_args", "soc_sdram_argdict"]
 
@@ -52,13 +53,13 @@ class SoCSDRAM(SoCCore):
 def soc_sdram_args(parser):
     soc_core_args(parser)
     # L2 Cache
-    parser.add_argument("--l2-size", default=8192,
+    parser.add_argument("--l2-size", default=8192, type=auto_int,
                         help="L2 cache size (default=8192)")
-    parser.add_argument("--min-l2-datawidth", default=128,
+    parser.add_argument("--min-l2-data-width", default=128, type=auto_int,
                         help="Minimum L2 cache datawidth (default=128)")
 
     # SDRAM
-    parser.add_argument("--max-sdram-size", default=0x40000000,
+    parser.add_argument("--max-sdram-size", default=0x40000000, type=auto_int,
                         help="Maximum SDRAM size mapped to the SoC (default=1GB))")
 
 def soc_sdram_argdict(args):

@@ -1,4 +1,5 @@
 # This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 # License: BSD
 
 """AXI4 Full/Lite support for LiteX"""
@@ -6,6 +7,7 @@
 from migen import *
 
 from litex.soc.interconnect import stream
+from litex.build.generic_platform import *
 
 # AXI Definition -----------------------------------------------------------------------------------
 
@@ -53,8 +55,8 @@ def r_description(data_width, id_width):
         ("id",   id_width)
     ]
 
-class AXIInterface(Record):
-    def __init__(self, data_width, address_width, id_width=1, clock_domain="sys"):
+class AXIInterface:
+    def __init__(self, data_width=32, address_width=32, id_width=1, clock_domain="sys"):
         self.data_width    = data_width
         self.address_width = address_width
         self.id_width      = id_width
@@ -86,8 +88,8 @@ def r_lite_description(data_width):
         ("data", data_width)
     ]
 
-class AXILiteInterface(Record):
-    def __init__(self, data_width, address_width, clock_domain="sys"):
+class AXILiteInterface:
+    def __init__(self, data_width=32, address_width=32, clock_domain="sys"):
         self.data_width    = data_width
         self.address_width = address_width
         self.clock_domain  = clock_domain
@@ -97,6 +99,76 @@ class AXILiteInterface(Record):
         self.b  = stream.Endpoint(b_lite_description())
         self.ar = stream.Endpoint(ax_lite_description(address_width))
         self.r  = stream.Endpoint(r_lite_description(data_width))
+
+    def get_ios(self, bus_name="wb"):
+        subsignals = []
+        for channel in ["aw", "w", "b", "ar", "r"]:
+            for name in ["valid", "ready"]:
+                subsignals.append(Subsignal(channel + name, Pins(1)))
+            for name, width in getattr(self, channel).description.payload_layout:
+                subsignals.append(Subsignal(channel + name, Pins(width)))
+        ios = [(bus_name , 0) + tuple(subsignals)]
+        return ios
+
+    def connect_to_pads(self, pads, mode="master"):
+        assert mode in ["slave", "master"]
+        r = []
+        def swap_mode(mode): return "master" if mode == "slave" else "slave"
+        channel_modes = {
+            "aw": mode,
+            "w" : mode,
+            "b" : swap_mode(mode),
+            "ar": mode,
+            "r" : swap_mode(mode),
+        }
+        for channel, mode in channel_modes.items():
+            for name, width in [("valid", 1)] + getattr(self, channel).description.payload_layout:
+                sig  = getattr(getattr(self, channel), name)
+                pad  = getattr(pads, channel + name)
+                if mode == "master":
+                    r.append(pad.eq(sig))
+                else:
+                    r.append(sig.eq(pad))
+            for name, width in [("ready", 1)]:
+                sig  = getattr(getattr(self, channel), name)
+                pad  = getattr(pads, channel + name)
+                if mode == "master":
+                    r.append(sig.eq(pad))
+                else:
+                    r.append(pad.eq(sig))
+        return r
+
+# AXI Stream Definition ----------------------------------------------------------------------------
+
+class AXIStreamInterface(stream.Endpoint):
+    def __init__(self, data_width=32):
+        self.data_width = data_width
+        stream.Endpoint.__init__(self, [("data", data_width)])
+
+    def get_ios(self, bus_name="axi"):
+        subsignals = [
+            Subsignal("tvalid", Pins(1)),
+            Subsignal("tlast",  Pins(1)),
+            Subsignal("tready", Pins(1)),
+            Subsignal("tdata",  Pins(self.data_width)),
+        ]
+        ios = [(bus_name , 0) + tuple(subsignals)]
+        return ios
+
+    def connect_to_pads(self, pads, mode="master"):
+        assert mode in ["slave", "master"]
+        r = []
+        if mode == "master":
+            r.append(pads.tvalid.eq(self.valid))
+            r.append(self.ready.eq(pads.tready))
+            r.append(pads.tlast.eq(self.last))
+            r.append(pads.tdata.eq(self.data))
+        if mode == "slave":
+            r.append(self.valid.eq(pads.tvalid))
+            r.append(pads.tready.eq(self.ready))
+            r.append(self.last.eq(pads.tlast))
+            r.append(self.data.eq(pads.tdata))
+        return r
 
 # AXI Bursts to Beats ------------------------------------------------------------------------------
 

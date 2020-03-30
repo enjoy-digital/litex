@@ -1,7 +1,7 @@
 # This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018-2017 Tim 'mithro' Ansell <me@mith.ro>
-# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
+# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
 # License: BSD
 
 import os

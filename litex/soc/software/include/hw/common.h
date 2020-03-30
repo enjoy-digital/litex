@@ -70,7 +70,7 @@ static inline int num_subregs(int csr_bytes)
 }
 
 /* Read a CSR of size 'csr_bytes' located at address 'a'. */
-static inline uint64_t _csr_rd(unsigned long *a, int csr_bytes)
+static inline uint64_t _csr_rd(volatile unsigned long *a, int csr_bytes)
 {
 	uint64_t r = a[0];
 	for (int i = 1; i < num_subregs(csr_bytes); i++) {
@@ -81,7 +81,7 @@ static inline uint64_t _csr_rd(unsigned long *a, int csr_bytes)
 }
 
 /* Write value 'v' to a CSR of size 'csr_bytes' located at address 'a'. */
-static inline void _csr_wr(unsigned long *a, uint64_t v, int csr_bytes)
+static inline void _csr_wr(volatile unsigned long *a, uint64_t v, int csr_bytes)
 {
 	int ns = num_subregs(csr_bytes);
 	for (int i = 0; i < ns; i++)
@@ -92,42 +92,42 @@ static inline void _csr_wr(unsigned long *a, uint64_t v, int csr_bytes)
 
 static inline uint8_t csr_rd_uint8(unsigned long a)
 {
-	return _csr_rd((unsigned long *)a, sizeof(uint8_t));
+	return _csr_rd((volatile unsigned long *)a, sizeof(uint8_t));
 }
 
 static inline void csr_wr_uint8(uint8_t v, unsigned long a)
 {
-	_csr_wr((unsigned long *)a, v, sizeof(uint8_t));
+	_csr_wr((volatile unsigned long *)a, v, sizeof(uint8_t));
 }
 
 static inline uint16_t csr_rd_uint16(unsigned long a)
 {
-	return _csr_rd((unsigned long *)a, sizeof(uint16_t));
+	return _csr_rd((volatile unsigned long *)a, sizeof(uint16_t));
 }
 
 static inline void csr_wr_uint16(uint16_t v, unsigned long a)
 {
-	_csr_wr((unsigned long *)a, v, sizeof(uint16_t));
+	_csr_wr((volatile unsigned long *)a, v, sizeof(uint16_t));
 }
 
 static inline uint32_t csr_rd_uint32(unsigned long a)
 {
-	return _csr_rd((unsigned long *)a, sizeof(uint32_t));
+	return _csr_rd((volatile unsigned long *)a, sizeof(uint32_t));
 }
 
 static inline void csr_wr_uint32(uint32_t v, unsigned long a)
 {
-	_csr_wr((unsigned long *)a, v, sizeof(uint32_t));
+	_csr_wr((volatile unsigned long *)a, v, sizeof(uint32_t));
 }
 
 static inline uint64_t csr_rd_uint64(unsigned long a)
 {
-	return _csr_rd((unsigned long *)a, sizeof(uint64_t));
+	return _csr_rd((volatile unsigned long *)a, sizeof(uint64_t));
 }
 
 static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 {
-	_csr_wr((unsigned long *)a, v, sizeof(uint64_t));
+	_csr_wr((volatile unsigned long *)a, v, sizeof(uint64_t));
 }
 
 /* Read a CSR located at address 'a' into an array 'buf' of 'cnt' elements.
@@ -145,7 +145,7 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 #define _csr_rd_buf(a, buf, cnt) \
 { \
 	int i, j, nsubs, n_sub_elem; \
-	unsigned long *addr = (unsigned long *)(a); \
+	volatile unsigned long *addr = (volatile unsigned long *)(a); \
 	uint64_t r; \
 	if (sizeof(buf[0]) >= CSR_DW_BYTES) { \
 		/* one or more subregisters per element */ \
@@ -176,7 +176,7 @@ static inline void csr_wr_uint64(uint64_t v, unsigned long a)
 #define _csr_wr_buf(a, buf, cnt) \
 { \
 	int i, j, nsubs, n_sub_elem; \
-	unsigned long *addr = (unsigned long *)(a); \
+	volatile unsigned long *addr = (volatile unsigned long *)(a); \
 	uint64_t v; \
 	if (sizeof(buf[0]) >= CSR_DW_BYTES) { \
 		/* one or more subregisters per element */ \

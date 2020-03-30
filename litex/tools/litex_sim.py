@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2020 Piotr Binkowski <pbinkowski@antmicro.com>
+# This file is Copyright (c) 2020 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # License: BSD
 
@@ -16,7 +16,6 @@ from litex.build.sim.config import SimConfig
 from litex.soc.integration.common import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
-from litex.soc.cores import uart
 
 from litedram import modules as litedram_modules
 from litedram.common import *
@@ -24,8 +23,13 @@ from litedram.phy.model import SDRAMPHYModel
 
 from liteeth.phy.model import LiteEthPHYModel
 from liteeth.mac import LiteEthMAC
+from liteeth.core.arp import LiteEthARP
+from liteeth.core.ip import LiteEthIP
+from liteeth.core.udp import LiteEthUDP
+from liteeth.core.icmp import LiteEthICMP
 from liteeth.core import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
+from liteeth.common import *
 
 from litescope import LiteScopeAnalyzer
 
@@ -154,12 +158,13 @@ class SimSoC(SoCSDRAM):
         with_sdram            = False,
         with_ethernet         = False,
         with_etherbone        = False,
-        etherbone_mac_address = 0x10e2d5000000,
-        etherbone_ip_address  = "192.168.1.50",
+        etherbone_mac_address = 0x10e2d5000001,
+        etherbone_ip_address  = "192.168.1.51",
         with_analyzer         = False,
         sdram_module          = "MT48LC16M16",
         sdram_init            = [],
         sdram_data_width      = 32,
+        sdram_verbosity       = 0,
         **kwargs):
         platform     = Platform()
         sys_clk_freq = int(1e6)
@@ -167,17 +172,10 @@ class SimSoC(SoCSDRAM):
         # SoCSDRAM ---------------------------------------------------------------------------------
         SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq,
             ident               = "LiteX Simulation", ident_version=True,
-            with_uart           = False,
             l2_reverse          = False,
             **kwargs)
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
-
-        # Serial -----------------------------------------------------------------------------------
-        self.submodules.uart_phy = uart.RS232PHYModel(platform.request("serial"))
-        self.submodules.uart = uart.UART(self.uart_phy)
-        self.add_csr("uart")
-        self.add_interrupt("uart")
 
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
@@ -189,7 +187,12 @@ class SimSoC(SoCSDRAM):
                 memtype    = sdram_module.memtype,
                 data_width = sdram_data_width,
                 clk_freq   = sdram_clk_freq)
-            self.submodules.sdrphy = SDRAMPHYModel(sdram_module, phy_settings, init=sdram_init)
+            self.submodules.sdrphy = SDRAMPHYModel(
+                module    = sdram_module,
+                settings  = phy_settings,
+                clk_freq  = sdram_clk_freq,
+                verbosity = sdram_verbosity,
+                init      = sdram_init)
             self.register_sdram(
                 self.sdrphy,
                 sdram_module.geom_settings,
@@ -198,10 +201,36 @@ class SimSoC(SoCSDRAM):
             self.add_constant("MEMTEST_DATA_SIZE", 8*1024)
             self.add_constant("MEMTEST_ADDR_SIZE", 8*1024)
 
-        assert not (with_ethernet and with_etherbone)
+        #assert not (with_ethernet and with_etherbone)
+
+        if with_ethernet and with_etherbone:
+            dw = 8
+            etherbone_ip_address = convert_ip(etherbone_ip_address)
+            # Ethernet PHY
+            self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+            self.add_csr("ethphy")
+            # Ethernet MAC
+            self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=dw,
+                interface  = "hybrid",
+                endianness = self.cpu.endianness,
+                hw_mac     = etherbone_mac_address)
+
+            # SoftCPU
+            self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
+            self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
+            self.add_csr("ethmac")
+            self.add_interrupt("ethmac")
+            # HW ethernet
+            self.submodules.arp = LiteEthARP(self.ethmac, etherbone_mac_address, etherbone_ip_address, sys_clk_freq, dw=dw)
+            self.submodules.ip = LiteEthIP(self.ethmac, etherbone_mac_address, etherbone_ip_address, self.arp.table, dw=dw)
+            self.submodules.icmp = LiteEthICMP(self.ip, etherbone_ip_address, dw=dw)
+            self.submodules.udp = LiteEthUDP(self.ip, etherbone_ip_address, dw=dw)
+            # Etherbone
+            self.submodules.etherbone = LiteEthEtherbone(self.udp, 1234, mode="master")
+            self.add_wb_master(self.etherbone.wishbone.bus)
 
         # Ethernet ---------------------------------------------------------------------------------
-        if with_ethernet:
+        elif with_ethernet:
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
             self.add_csr("ethphy")
@@ -218,7 +247,7 @@ class SimSoC(SoCSDRAM):
             self.add_interrupt("ethmac")
 
         # Etherbone --------------------------------------------------------------------------------
-        if with_etherbone:
+        elif with_etherbone:
             # Ethernet PHY
             self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth", 0)) # FIXME
             self.add_csr("ethphy")
@@ -247,20 +276,24 @@ def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC Simulation")
     builder_args(parser)
     soc_sdram_args(parser)
-    parser.add_argument("--threads",            default=1,              help="Set number of threads (default=1)")
-    parser.add_argument("--rom-init",           default=None,           help="rom_init file")
-    parser.add_argument("--ram-init",           default=None,           help="ram_init file")
-    parser.add_argument("--with-sdram",         action="store_true",    help="Enable SDRAM support")
-    parser.add_argument("--sdram-module",       default="MT48LC16M16",  help="Select SDRAM chip")
-    parser.add_argument("--sdram-data-width",   default=32,             help="Set SDRAM chip data width")
-    parser.add_argument("--sdram-init",         default=None,           help="SDRAM init file")
-    parser.add_argument("--with-ethernet",      action="store_true",    help="Enable Ethernet support")
-    parser.add_argument("--with-etherbone",     action="store_true",    help="Enable Etherbone support")
-    parser.add_argument("--with-analyzer",      action="store_true",    help="Enable Analyzer support")
-    parser.add_argument("--trace",              action="store_true",    help="Enable VCD tracing")
-    parser.add_argument("--trace-start",        default=0,              help="Cycle to start VCD tracing")
-    parser.add_argument("--trace-end",          default=-1,             help="Cycle to end VCD tracing")
-    parser.add_argument("--opt-level",          default="O3",           help="Compilation optimization level")
+    parser.add_argument("--threads",              default=1,               help="Set number of threads (default=1)")
+    parser.add_argument("--rom-init",             default=None,            help="rom_init file")
+    parser.add_argument("--ram-init",             default=None,            help="ram_init file")
+    parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support")
+    parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
+    parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
+    parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
+    parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
+    parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
+    parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC (default=192.168.1.50)")
+    parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server (default=192.168.1.100)")
+    parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support")
+    parser.add_argument("--trace",                action="store_true",     help="Enable Tracing")
+    parser.add_argument("--trace-fst",            action="store_true",     help="Enable FST tracing (default=VCD)")
+    parser.add_argument("--trace-start",          default=0,               help="Cycle to start tracing")
+    parser.add_argument("--trace-end",            default=-1,              help="Cycle to end tracing")
+    parser.add_argument("--opt-level",            default="O3",            help="Compilation optimization level")
     args = parser.parse_args()
 
     soc_kwargs     = soc_sdram_argdict(args)
@@ -275,7 +308,7 @@ def main():
     if "cpu_type" in soc_kwargs:
         if soc_kwargs["cpu_type"] in ["mor1kx", "lm32"]:
             cpu_endianness = "big"
-
+    soc_kwargs["uart_name"] = "sim"
     if args.rom_init:
         soc_kwargs["integrated_rom_init"] = get_mem_data(args.rom_init, cpu_endianness)
     if not args.with_sdram:
@@ -285,11 +318,12 @@ def main():
     else:
         assert args.ram_init is None
         soc_kwargs["integrated_main_ram_size"] = 0x0
-        soc_kwargs["sdram_module"] = args.sdram_module
-        soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
+        soc_kwargs["sdram_module"]             = args.sdram_module
+        soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
+        soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
 
     if args.with_ethernet or args.with_etherbone:
-        sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
+        sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
@@ -301,18 +335,27 @@ def main():
         **soc_kwargs)
     if args.ram_init is not None:
         soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
+    if args.with_ethernet:
+        for i in range(4):
+            soc.add_constant("LOCALIP{}".format(i+1), int(args.local_ip.split(".")[i]))
+        for i in range(4):
+            soc.add_constant("REMOTEIP{}".format(i+1), int(args.remote_ip.split(".")[i]))
 
     # Build/Run ------------------------------------------------------------------------------------
     builder_kwargs["csr_csv"] = "csr.csv"
     builder = Builder(soc, **builder_kwargs)
     vns = builder.build(run=False, threads=args.threads, sim_config=sim_config,
-        opt_level=args.opt_level,
-        trace=args.trace, trace_start=int(args.trace_start), trace_end=int(args.trace_end))
+        opt_level   = args.opt_level,
+        trace       = args.trace,
+        trace_fst   = args.trace_fst,
+        trace_start = int(args.trace_start),
+        trace_end   = int(args.trace_end))
     if args.with_analyzer:
         soc.analyzer.export_csv(vns, "analyzer.csv")
     builder.build(build=False, threads=args.threads, sim_config=sim_config,
         opt_level   = args.opt_level,
         trace       = args.trace,
+        trace_fst   = args.trace,
         trace_start = int(args.trace_start),
         trace_end   = int(args.trace_end)
     )

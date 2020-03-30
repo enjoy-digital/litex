@@ -6,7 +6,6 @@
 
 import os
 import struct
-from distutils.version import StrictVersion
 import re
 import subprocess
 import sys
@@ -38,21 +37,17 @@ def write_to_file(filename, contents, force_unix=False):
         with open(filename, "w", newline=newline) as f:
             f.write(contents)
 
+def replace_in_file(filename, _from, _to):
+    # Read in the file
+    with open(filename, "r") as file :
+        filedata = file.read()
 
-def arch_bits():
-    return struct.calcsize("P")*8
+    # Replace the target string
+    filedata = filedata.replace(_from, _to)
 
-
-def versions(path):
-    for n in os.listdir(path):
-        full = os.path.join(path, n)
-        if not os.path.isdir(full):
-            continue
-        try:
-            yield StrictVersion(n)
-        except ValueError:
-            continue
-
+    # Write the file out again
+    with open(filename, "w") as file:
+        file.write(filedata)
 
 def sub_rules(line, rules, max_matches=1):
     for pattern, color in rules:

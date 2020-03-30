@@ -1,6 +1,6 @@
-# lxsocdoc: Document your LiteX SoC Automatically
+# Litex Documentation: Document your LiteX SoC Automatically
 
-`lxsocdoc` lets you take a synthesized LiteX SoC and generate full
+Litex lets you take a synthesized SoC and generate full
 register-level documentation.  Additionally, it will generate `.svd` files,
 suitable for use with various header generation programs.
 
@@ -15,19 +15,19 @@ $ pip3 install sphinxcontrib-wavedrom sphinx
 
 ## Usage
 
-To use `lxsocdoc`, import the module and call `lxsocdoc.generate_docs(soc, path)`.
+To document your modules, import the `doc` module and call `doc.generate_docs(soc, path)`.
 You can also generate an SVD file.  For example:
 
 ```python
-import lxsocdoc
+from litex.soc.doc import generate_docs, generate_svd
 
 ...
     soc = BaseSoC(platform)
     builder = Builder(soc)
     vns = builder.build()
     soc.do_exit(vns)
-    lxsocdoc.generate_docs(soc, "build/documentation")
-    lxsocdoc.generate_svd(soc, "build/software")
+    generate_docs(soc, "build/documentation")
+    generate_svd(soc, "build/software")
 ```
 
 After you build your design, you will have a Sphinx documentation source available
@@ -39,10 +39,7 @@ For example, if `sphinx-build` is in your path, you can run:
 
 `sphinx-build` may be located in `~/.local/bin/` depending on your installation environment.
 
-You can then verify the contents by starting a local webserver and opening a web
-browser to [localhost:8000](http://localhost:8000):
-
-`python3 -m http.server --directory build/documentation/_build/html`
+You can then verify the contents by opening the file `build/documentation/_build/html/index.html`
 
 ## Documenting your Registers
 
@@ -113,7 +110,7 @@ You may pass a single string to the constructor, in which case the first line be
     as a body""")
 ```
 
-Note that the default documentatino format is `rst`. You can switch to markdown by passing `format="markdown"` to the constructor, however support is not very good.
+Note that the default documentation format is `rst`. You can switch to markdown by passing `format="markdown"` to the constructor, however support is not very good.
 
 ### External Documentation
 

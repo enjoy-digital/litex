@@ -1,6 +1,6 @@
 # This file is Copyright (c) 2016-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
-# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
+# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # License: BSD
@@ -35,7 +35,7 @@ class PicoRV32(CPU):
     data_width           = 32
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
-                            "riscv64-linux")
+                            "riscv64-linux", "riscv-sifive-elf")
     linker_output_format = "elf32-littleriscv"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 

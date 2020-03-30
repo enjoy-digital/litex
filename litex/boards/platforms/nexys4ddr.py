@@ -57,6 +57,15 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
+    ("spisdcard", 0,
+        Subsignal("rst",  Pins("E2")),
+        Subsignal("clk",  Pins("B1")),
+        Subsignal("mosi", Pins("C1"), Misc("PULLUP True")),
+        Subsignal("cs_n", Pins("D2"), Misc("PULLUP True")),
+        Subsignal("miso", Pins("C2"), Misc("PULLUP True")),
+        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+    ),
+
     ("sdcard", 0,
         Subsignal("rst", Pins("E2"), Misc("PULLUP True")),
         Subsignal("data", Pins("C2 E1 F1 D2"), Misc("PULLUP True")),

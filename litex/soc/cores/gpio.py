@@ -10,21 +10,21 @@ from litex.soc.interconnect.csr import *
 
 class GPIOIn(Module, AutoCSR):
     def __init__(self, signal):
-        self._in = CSRStatus(len(signal))
+        self._in = CSRStatus(len(signal), description="GPIO Input(s) Status.")
         self.specials += MultiReg(signal, self._in.status)
 
 # GPIO Output --------------------------------------------------------------------------------------
 
 class GPIOOut(Module, AutoCSR):
     def __init__(self, signal):
-        self._out = CSRStorage(len(signal))
+        self._out = CSRStorage(len(signal), description="GPIO Output(s) Control.")
         self.comb += signal.eq(self._out.storage)
 
 # GPIO Input/Output --------------------------------------------------------------------------------
 
 class GPIOInOut(Module):
     def __init__(self, in_signal, out_signal):
-        self.submodules.gpio_in = GPIOIn(in_signal)
+        self.submodules.gpio_in  = GPIOIn(in_signal)
         self.submodules.gpio_out = GPIOOut(out_signal)
 
     def get_csrs(self):
@@ -34,12 +34,19 @@ class GPIOInOut(Module):
 
 class GPIOTristate(Module, AutoCSR):
     def __init__(self, pads):
-        self._oe  = CSRStorage(len(pads))
-        self._in  = CSRStatus(len(pads))
-        self._out = CSRStorage(len(pads))
+        nbits     = len(pads)
+        self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
+        self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
+        self._out = CSRStorage(nbits, description="GPIO Ouptut(s) Control.")
 
-        t = TSTriple(len(pads))
-        self.specials += t.get_tristate(pads)
-        self.comb += t.oe.eq(self._oe.storage)
-        self.comb += t.o.eq(self._out.storage)
-        self.specials += MultiReg(t.i, self._in.status)
+        # # #
+
+        _pads = Signal(nbits)
+        self.comb += _pads.eq(pads)
+
+        for i in range(nbits):
+            t = TSTriple()
+            self.specials += t.get_tristate(_pads[i])
+            self.comb += t.oe.eq(self._oe.storage[i])
+            self.comb += t.o.eq(self._out.storage[i])
+            self.specials += MultiReg(t.i, self._in.status[i])

@@ -63,7 +63,7 @@ class SoCCore(LiteXSoC):
     def __init__(self, platform, clk_freq,
         # CPU parameters
         cpu_type                 = "vexriscv",
-        cpu_reset_address        = 0x00000000,
+        cpu_reset_address        = None,
         cpu_variant              = None,
         # ROM parameters
         integrated_rom_size      = 0,
@@ -78,6 +78,7 @@ class SoCCore(LiteXSoC):
         csr_data_width           = 8,
         csr_alignment            = 32,
         csr_address_width        = 14,
+        csr_paging               = 0x800,
         # Identifier parameters
         ident                    = "",
         ident_version            = False,
@@ -85,6 +86,7 @@ class SoCCore(LiteXSoC):
         with_uart                = True,
         uart_name                = "serial",
         uart_baudrate            = 115200,
+        uart_fifo_depth          = 16,
         # Timer parameters
         with_timer               = True,
         # Controller parameters
@@ -106,7 +108,7 @@ class SoCCore(LiteXSoC):
             csr_data_width       = csr_data_width,
             csr_address_width    = csr_address_width,
             csr_alignment        = csr_alignment,
-            csr_paging           = 0x800,
+            csr_paging           = csr_paging,
             csr_reserved_csrs    = self.csr_map,
 
             irq_n_irqs           = 32,
@@ -120,14 +122,15 @@ class SoCCore(LiteXSoC):
         self.config      = {}
 
         # Parameters management --------------------------------------------------------------------
-        if cpu_type == "None":
-            cpu_type = None
+        cpu_type          = None if cpu_type == "None" else cpu_type
+        cpu_reset_address = None if cpu_reset_address == "None" else cpu_reset_address
+        cpu_variant = cpu.check_format_cpu_variant(cpu_variant)
 
         if not with_wishbone:
             self.mem_map["csr"]  = 0x00000000
 
         self.cpu_type                   = cpu_type
-        self.cpu_variant                = cpu.check_format_cpu_variant(cpu_variant)
+        self.cpu_variant                = cpu_variant
 
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
@@ -167,11 +170,15 @@ class SoCCore(LiteXSoC):
 
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available)
         if integrated_main_ram_size:
-            self.add_ram("main_ram", self.mem_map["main_ram"], integrated_main_ram_size)
+            self.add_ram("main_ram", self.mem_map["main_ram"], integrated_main_ram_size, integrated_main_ram_init)
+
+        # Add Identifier
+        if ident != "":
+            self.add_identifier("identifier", identifier=ident, with_build_time=ident_version)
 
         # Add UART
         if with_uart:
-            self.add_uart(name=uart_name, baudrate=uart_baudrate)
+            self.add_uart(name=uart_name, baudrate=uart_baudrate, fifo_depth=uart_fifo_depth)
 
         # Add Timer
         if with_timer:
@@ -249,44 +256,46 @@ def soc_core_args(parser):
                         help="select CPU: {}, (default=vexriscv)".format(", ".join(iter(cpu.CPUS.keys()))))
     parser.add_argument("--cpu-variant", default=None,
                         help="select CPU variant, (default=standard)")
-    parser.add_argument("--cpu-reset-address", default=None, type=int,
-                        help="CPU reset address (default=0x00000000 or ROM)")
+    parser.add_argument("--cpu-reset-address", default=None, type=auto_int,
+                        help="CPU reset address (default=None (Integrated ROM)")
     # ROM parameters
-    parser.add_argument("--integrated-rom-size", default=0x8000, type=int,
+    parser.add_argument("--integrated-rom-size", default=0x8000, type=auto_int,
                         help="size/enable the integrated (BIOS) ROM (default=32KB)")
     parser.add_argument("--integrated-rom-file", default=None, type=str,
                         help="integrated (BIOS) ROM binary file")
     # SRAM parameters
-    parser.add_argument("--integrated-sram-size", default=0x1000, type=int,
+    parser.add_argument("--integrated-sram-size", default=0x1000, type=auto_int,
                         help="size/enable the integrated SRAM (default=4KB)")
     # MAIN_RAM parameters
-    parser.add_argument("--integrated-main-ram-size", default=None, type=int,
+    parser.add_argument("--integrated-main-ram-size", default=None, type=auto_int,
                         help="size/enable the integrated main RAM")
     # CSR parameters
-    parser.add_argument("--csr-data-width", default=None, type=int,
+    parser.add_argument("--csr-data-width", default=None, type=auto_int,
                         help="CSR bus data-width (8 or 32, default=8)")
-    parser.add_argument("--csr-address-width", default=14, type=int,
+    parser.add_argument("--csr-address-width", default=14, type=auto_int,
                         help="CSR bus address-width")
+    parser.add_argument("--csr-paging", default=0x800, type=auto_int,
+                        help="CSR bus paging")
     # Identifier parameters
     parser.add_argument("--ident", default=None, type=str,
                         help="SoC identifier (default=\"\"")
     parser.add_argument("--ident-version", default=None, type=bool,
                         help="add date/time to SoC identifier (default=False)")
     # UART parameters
-    parser.add_argument("--with-uart", default=None, type=bool,
-                        help="with UART (default=True)")
+    parser.add_argument("--no-uart", action="store_true",
+                        help="Disable UART (default=False)")
     parser.add_argument("--uart-name", default="serial", type=str,
                         help="UART type/name (default=serial)")
-    parser.add_argument("--uart-baudrate", default=None, type=int,
+    parser.add_argument("--uart-baudrate", default=None, type=auto_int,
                         help="UART baudrate (default=115200)")
-    parser.add_argument("--uart-stub", default=False, type=bool,
-                        help="enable UART stub (default=False)")
+    parser.add_argument("--uart-fifo-depth", default=16, type=auto_int,
+                        help="UART FIFO depth (default=16)")
     # Timer parameters
-    parser.add_argument("--with-timer", default=None, type=bool,
-                        help="with Timer (default=True)")
+    parser.add_argument("--no-timer", action="store_true",
+                        help="Disable Timer (default=False)")
     # Controller parameters
-    parser.add_argument("--with-ctrl", default=None, type=bool,
-                        help="with Controller (default=True)")
+    parser.add_argument("--no-ctrl", action="store_true",
+                        help="Disable Controller (default=False)")
 
 def soc_core_argdict(args):
     r = dict()
@@ -296,7 +305,10 @@ def soc_core_argdict(args):
         args.integrated_rom_size = len(args.integrated_rom_init)*4
     for a in inspect.getargspec(SoCCore.__init__).args:
         if a not in ["self", "platform"]:
-            arg = getattr(args, a, None)
+            if a in ["with_uart", "with_timer", "with_ctrl"]:
+                arg = not getattr(args, a.replace("with", "no"), True)
+            else:
+                arg = getattr(args, a, None)
             if arg is not None:
                 r[a] = arg
     return r

@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
-# This file is Copyright (c) 2015-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2018 Tim 'mithro' Ansell <me@mith.ro>
 # License: BSD
@@ -34,17 +34,17 @@ class RS232PHYRX(Module):
 
         # # #
 
-        uart_clk_rxen = Signal()
+        uart_clk_rxen        = Signal()
         phase_accumulator_rx = Signal(32)
 
-        rx = Signal()
-        self.specials += MultiReg(pads.rx, rx)
-        rx_r = Signal()
-        rx_reg = Signal(8)
+        rx          = Signal()
+        rx_r        = Signal()
+        rx_reg      = Signal(8)
         rx_bitcount = Signal(4)
-        rx_busy = Signal()
-        rx_done = self.source.valid
-        rx_data = self.source.data
+        rx_busy     = Signal()
+        rx_done     = self.source.valid
+        rx_data     = self.source.data
+        self.specials += MultiReg(pads.rx, rx)
         self.sync += [
             rx_done.eq(0),
             rx_r.eq(rx),
@@ -86,14 +86,14 @@ class RS232PHYTX(Module):
 
         # # #
 
-        uart_clk_txen = Signal()
+        uart_clk_txen        = Signal()
         phase_accumulator_tx = Signal(32)
 
         pads.tx.reset = 1
 
-        tx_reg = Signal(8)
+        tx_reg      = Signal(8)
         tx_bitcount = Signal(4)
-        tx_busy = Signal()
+        tx_busy     = Signal()
         self.sync += [
             self.sink.ready.eq(0),
             If(self.sink.valid & ~tx_busy & ~self.sink.ready,
@@ -126,7 +126,7 @@ class RS232PHYTX(Module):
 
 class RS232PHY(Module, AutoCSR):
     def __init__(self, pads, clk_freq, baudrate=115200):
-        self._tuning_word = CSRStorage(32, reset=int((baudrate/clk_freq)*2**32))
+        self._tuning_word  = CSRStorage(32, reset=int((baudrate/clk_freq)*2**32))
         self.submodules.tx = RS232PHYTX(pads, self._tuning_word.storage)
         self.submodules.rx = RS232PHYRX(pads, self._tuning_word.storage)
         self.sink, self.source = self.tx.sink, self.rx.source
@@ -152,7 +152,7 @@ class RS232PHYMultiplexer(Module):
 
 class RS232PHYModel(Module):
     def __init__(self, pads):
-        self.sink = stream.Endpoint([("data", 8)])
+        self.sink   = stream.Endpoint([("data", 8)])
         self.source = stream.Endpoint([("data", 8)])
 
         self.comb += [
@@ -189,12 +189,12 @@ def UARTPHY(pads, clk_freq, baudrate):
 
 class UART(Module, AutoCSR, UARTInterface):
     def __init__(self, phy=None,
-                 tx_fifo_depth=16,
-                 rx_fifo_depth=16,
-                 rx_fifo_rx_we=False,
-                 phy_cd="sys",):
-        self._rxtx = CSR(8)
-        self._txfull = CSRStatus()
+                 tx_fifo_depth = 16,
+                 rx_fifo_depth = 16,
+                 rx_fifo_rx_we = False,
+                 phy_cd        = "sys"):
+        self._rxtx    = CSR(8)
+        self._txfull  = CSRStatus()
         self._rxempty = CSRStatus()
 
         self.submodules.ev = EventManager()
@@ -272,7 +272,7 @@ class UARTCrossover(UART):
     def __init__(self, **kwargs):
         assert kwargs.get("phy", None) == None
         UART.__init__(self, **kwargs)
-        self.submodules.xover = UART(tx_fifo_depth=2, rx_fifo_depth=2, rx_fifo_rx_we=True)
+        self.submodules.xover = UART(tx_fifo_depth=1, rx_fifo_depth=1, rx_fifo_rx_we=True)
         self.comb += [
             self.source.connect(self.xover.sink),
             self.xover.source.connect(self.sink)

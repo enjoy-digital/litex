@@ -10,6 +10,7 @@ from migen import *
 from litex.boards.platforms import kcu105
 
 from litex.soc.cores.clock import *
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
@@ -17,7 +18,6 @@ from litedram.modules import EDY4016A
 from litedram.phy import usddrphy
 
 from liteeth.phy.ku_1000basex import KU_1000BASEX
-from liteeth.mac import LiteEthMAC
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -25,14 +25,13 @@ class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys    = ClockDomain()
         self.clock_domains.cd_sys4x  = ClockDomain(reset_less=True)
+        self.clock_domains.cd_pll4x  = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
-        self.clock_domains.cd_ic     = ClockDomain()
 
         # # #
 
         self.submodules.pll = pll = USMMCM(speedgrade=-2)
         self.comb += pll.reset.eq(platform.request("cpu_reset"))
-        self.clock_domains.cd_pll4x = ClockDomain(reset_less=True)
         pll.register_clkin(platform.request("clk125"), 125e6)
         pll.create_clkout(self.cd_pll4x, sys_clk_freq*4, buf=None, with_reset=False)
         pll.create_clkout(self.cd_clk200, 200e6, with_reset=False)
@@ -46,42 +45,16 @@ class _CRG(Module):
             AsyncResetSynchronizer(self.cd_clk200, ~pll.locked),
         ]
 
-        ic_reset_counter = Signal(max=64, reset=63)
-        ic_reset = Signal(reset=1)
-        self.sync.clk200 += \
-            If(ic_reset_counter != 0,
-                ic_reset_counter.eq(ic_reset_counter - 1)
-            ).Else(
-                ic_reset.eq(0)
-            )
-        ic_rdy = Signal()
-        ic_rdy_counter = Signal(max=64, reset=63)
-        self.cd_sys.rst.reset = 1
-        self.comb += self.cd_ic.clk.eq(self.cd_sys.clk)
-        self.sync.ic += [
-            If(ic_rdy,
-                If(ic_rdy_counter != 0,
-                    ic_rdy_counter.eq(ic_rdy_counter - 1)
-                ).Else(
-                    self.cd_sys.rst.eq(0)
-                )
-            )
-        ]
-        self.specials += [
-            Instance("IDELAYCTRL", p_SIM_DEVICE="ULTRASCALE",
-                     i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset,
-                     o_RDY=ic_rdy),
-            AsyncResetSynchronizer(self.cd_ic, ic_reset)
-        ]
+        self.submodules.idelayctrl = USIDELAYCTRL(cd_ref=self.cd_clk200, cd_sys=self.cd_sys)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(125e6), **kwargs):
+class BaseSoC(SoCCore):
+    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, **kwargs):
         platform = kcu105.Platform()
 
-        # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        # SoCCore ----------------------------------------------------------------------------------
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -89,51 +62,32 @@ class BaseSoC(SoCSDRAM):
         # DDR4 SDRAM -------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
             self.submodules.ddrphy = usddrphy.USDDRPHY(platform.request("ddram"),
-                memtype      = "DDR4",
-                sys_clk_freq = sys_clk_freq)
+                memtype          = "DDR4",
+                sys_clk_freq     = sys_clk_freq,
+                iodelay_clk_freq = 200e6,
+                cmd_latency      = 0)
             self.add_csr("ddrphy")
-            self.add_constant("USDDRPHY", None)
-            sdram_module = EDY4016A(sys_clk_freq, "1:4")
-            self.register_sdram(self.ddrphy,
-                geom_settings       = sdram_module.geom_settings,
-                timing_settings     = sdram_module.timing_settings)
-
-# EthernetSoC --------------------------------------------------------------------------------------
-
-class EthernetSoC(BaseSoC):
-    mem_map = {
-        "ethmac": 0xb0000000,
-    }
-    mem_map.update(BaseSoC.mem_map)
-
-    def __init__(self, **kwargs):
-        BaseSoC.__init__(self, **kwargs)
+            self.add_constant("USDDRPHY")
+            self.add_constant("USDDRPHY_DEBUG")
+            self.add_sdram("sdram",
+                phy                     = self.ddrphy,
+                module                  = EDY4016A(sys_clk_freq, "1:4"),
+                origin                  = self.mem_map["main_ram"],
+                size                    = kwargs.get("max_sdram_size", 0x40000000),
+                l2_cache_size           = kwargs.get("l2_size", 8192),
+                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_reverse        = True
+            )
 
         # Ethernet ---------------------------------------------------------------------------------
-        # phy
-        self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
-            data_pads    = self.platform.request("sfp", 0),
-            sys_clk_freq = self.clk_freq)
-        self.add_csr("ethphy")
-        self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
-        self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
-        # mac
-        self.submodules.ethmac = LiteEthMAC(
-            phy        = self.ethphy,
-            dw         = 32,
-            interface  = "wishbone",
-            endianness = self.cpu.endianness)
-        self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
-        self.add_wb_slave(self.mem_regions["ethmac"].origin, self.ethmac.bus, 0x2000)
-        self.add_csr("ethmac")
-        self.add_interrupt("ethmac")
-        # timing constraints
-        self.platform.add_period_constraint(self.ethphy.cd_eth_rx.clk, 1e9/125e6)
-        self.platform.add_period_constraint(self.ethphy.cd_eth_tx.clk, 1e9/125e6)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.ethphy.cd_eth_rx.clk,
-            self.ethphy.cd_eth_tx.clk)
+        if with_ethernet:
+            self.submodules.ethphy = KU_1000BASEX(self.crg.cd_clk200.clk,
+                data_pads    = self.platform.request("sfp", 0),
+                sys_clk_freq = self.clk_freq)
+            self.add_csr("ethphy")
+            self.comb += self.platform.request("sfp_tx_disable_n", 0).eq(1)
+            self.platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-1753]")
+            self.add_ethernet(phy=self.ethphy)
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -145,8 +99,7 @@ def main():
                         help="enable Ethernet support")
     args = parser.parse_args()
 
-    cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(**soc_sdram_argdict(args))
+    soc = BaseSoC(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build()
 

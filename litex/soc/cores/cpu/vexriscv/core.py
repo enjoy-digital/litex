@@ -3,9 +3,8 @@
 # This file is Copyright (c) 2018-2019 Sean Cross <sean@xobs.io>
 # This file is Copyright (c) 2019 Tim 'mithro' Ansell <me@mith.ro>
 # This file is Copyright (c) 2019 David Shah <dave@ds0.me>
-# This file is Copyright (c) 2019 Joanna Brozek <jbrozek@antmicro.com>
+# This file is Copyright (c) 2019 Antmicro <www.antmicro.com>
 # This file is Copyright (c) 2019 Kurt Kiefer <kekiefer@gmail.com>
-# This file is Copyright (c) 2019 Mateusz Holenko <mholenko@antmicro.com>
 
 # License: BSD
 
@@ -79,7 +78,7 @@ class VexRiscv(CPU, AutoCSR):
     data_width           = 32
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
-                            "riscv64-linux")
+                            "riscv64-linux", "riscv-sifive-elf")
     linker_output_format = "elf32-littleriscv"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
@@ -88,7 +87,7 @@ class VexRiscv(CPU, AutoCSR):
         return {
             "rom":          0x00000000,
             "sram":         0x10000000,
-            "main_ram":     0xc0000000,
+            "main_ram":     0x40000000,
             "csr":          0xf0000000,
         }
 

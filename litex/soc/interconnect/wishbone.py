@@ -13,6 +13,7 @@ from migen.genlib.misc import split, displacer, chooser, WaitTimer
 from migen.genlib.fsm import FSM, NextState
 
 from litex.soc.interconnect import csr
+from litex.build.generic_platform import *
 
 # TODO: rewrite without FlipFlop
 
@@ -68,6 +69,31 @@ class Interface(Record):
         yield self.we.eq(0)
         yield from self._do_transaction()
         return (yield self.dat_r)
+
+    def get_ios(self, bus_name="wb"):
+        subsignals = []
+        for name, width, direction in self.layout:
+            subsignals.append(Subsignal(name, Pins(width)))
+        ios = [(bus_name , 0) + tuple(subsignals)]
+        return ios
+
+    def connect_to_pads(self, pads, mode="master"):
+        assert mode in ["slave", "master"]
+        r = []
+        for name, width, direction in self.layout:
+            sig  = getattr(self, name)
+            pad  = getattr(pads, name)
+            if mode == "master":
+                if direction == DIR_M_TO_S:
+                    r.append(pad.eq(sig))
+                else:
+                    r.append(sig.eq(pad))
+            else:
+                if direction == DIR_S_TO_M:
+                    r.append(pad.eq(sig))
+                else:
+                    r.append(sig.eq(pad))
+        return r
 
 
 class InterconnectPointToPoint(Module):

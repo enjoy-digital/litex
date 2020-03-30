@@ -1,41 +1,41 @@
-![LiteX](https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png)
+<p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png"></p>
+
 ```
-              Copyright 2012-2020 / EnjoyDigital
+                          Copyright 2012-2020 / Enjoy-Digital
 ```
 [![](https://travis-ci.com/enjoy-digital/litex.svg?branch=master)](https://travis-ci.com/enjoy-digital/litex)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
 # Welcome to LiteX!
-LiteX is a FPGA design/SoC builder that can be used to build cores, create
-SoCs and full FPGA designs.
 
-LiteX is based on Migen/MiSoC and provides specific building/debugging tools
-for a higher level of abstraction and compatibily with the LiteX core ecosystem.
+LiteX is a Migen/MiSoC based Core/SoC builder that provides the infrastructure to easily create Cores/SoCs (with or without CPU).
+The common components of a SoC are provided directly: Buses and Streams (Wishbone, AXI, Avalon-ST), Interconnect, Common cores (RAM, ROM, Timer, UART, etc...), CPU wrappers/integration, etc... and SoC creation capabilities can be greatly extended with the ecosystem of LiteX cores (DRAM, PCIe, Ethernet, SATA, etc...) than can be integrated/simulated/build easily with LiteX. It also provides build backends for open-source and vendors toolchains.
 
 Think of Migen as a toolbox to create FPGA designs in Python and LiteX as a
 SoC builder to create/develop/debug FPGA SoCs in Python.
 
+**A question or want to get in touch? Our IRC channel is [#litex at freenode.net](https://webchat.freenode.net/?channels=litex)**
+
 # Typical LiteX design flow:
 ```
-                        +---------------+
-                        |FPGA toolchains|
-                        +----^-----+----+
-                             |     |
-                          +--+-----v--+
-         +-------+        |           |
-         | Migen +-------->           |
-         +-------+        |           |        Your design
-                          |   LiteX   +---> ready to be used!
-                          |           |
-+----------------------+  |           |
-|LiteX Cores Ecosystem +-->           |
-+----------------------+  +-^-------^-+
- (Eth, SATA, DRAM, USB,     |       |
-  PCIe, Video, etc...)      +       +
-                           board   target
-                           file    file
+                                      +---------------+
+                                      |FPGA toolchains|
+                                      +----^-----+----+
+                                           |     |
+                                        +--+-----v--+
+                       +-------+        |           |
+                       | Migen +-------->           |
+                       +-------+        |           |        Your design
+                                        |   LiteX   +---> ready to be used!
+                                        |           |
+              +----------------------+  |           |
+              |LiteX Cores Ecosystem +-->           |
+              +----------------------+  +-^-------^-+
+               (Eth, SATA, DRAM, USB,     |       |
+                PCIe, Video, etc...)      +       +
+                                         board   target
+                                         file    file
 ```
-LiteX already supports various softcores CPUs: LM32, Mor1kx, PicoRV32, VexRiscv
-and is compatible with the LiteX's Cores Ecosystem:
+LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, PicoRV32 and is compatible with the LiteX's Cores Ecosystem:
 
 | Name                                                         | Build Status                                                            | Description                   |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- | ----------------------------- |
@@ -49,24 +49,19 @@ and is compatible with the LiteX's Cores Ecosystem:
 | [LiteVideo](http://github.com/enjoy-digital/litevideo)       | [![](https://travis-ci.com/enjoy-digital/litevideo.svg?branch=master)](https://travis-ci.com/enjoy-digital/litevideo)    | VGA, DVI, HDMI                     |
 | [LiteScope](http://github.com/enjoy-digital/litescope)       | [![](https://travis-ci.com/enjoy-digital/litescope.svg?branch=master)](https://travis-ci.com/enjoy-digital/litescope)    | Logic analyzer  |
 
-# Sub-packages
-**litex.gen**
-Provides specific or experimental modules to generate HDL that are not integrated in Migen.
+Combining LiteX with the ecosystem of cores allows the creation of complex SoCs such as the one below
+created for the NeTV2 board to do HDMI capture/playback over PCIe:
 
-**litex.build:**
-Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to simulate HDL code or full SoCs.
-
-**litex.soc:**
-Provides definitions/modules to build cores (bus, bank, flow), cores and tools to build a SoC from such cores.
-
-**litex.boards:**
-Provides platforms and targets for the supported boards. All Migen's platforms can also be used in LiteX. The boards present in the LiteX repository are the official ones that are used for development/CI. More boards are available at: https://github.com/litex-hub/litex-boards
+<p align="center"><img width="800" src="https://raw.githubusercontent.com/enjoy-digital/netv2/master/doc/architecture.png"></p>
 
 # Papers, Presentations, Tutorials, Links
 **FPGA lessons/tutorials:**
 - https://github.com/enjoy-digital/fpga_101
 
-**OSDA paper/slides:**
+**Migen tutorial:**
+- https://m-labs.hk/migen/manual
+
+**OSDA 2019 paper/slides:**
 - https://osda.gitlab.io/19/1.1.pdf
 - https://osda.gitlab.io/19/1.1-slides.pdf
 
@@ -85,16 +80,24 @@ Provides platforms and targets for the supported boards. All Migen's platforms c
 **Tim has to many projects - LatchUp Edition:**
 https://www.youtube.com/watch?v=v7WrTmexod0
 
-# Very Quick start guide (for newcomers)
-TimVideos.us has done an awesome job for setting up a LiteX environment easily in the litex-buildenv repo: https://github.com/timvideos/litex-buildenv
 
-It's recommended for newcomers to go this way. Various FPGA boards are supported and multiple examples provided! You can even run Linux on your FPGA using LiteX very easily!
+# Sub-packages
+**litex.gen**
+Provides specific or experimental modules to generate HDL that are not integrated in Migen.
 
-Migen documentation can be found here: https://m-labs.hk/migen/manual
+**litex.build:**
+Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to simulate HDL code or full SoCs.
 
-# Quick start guide (for advanced users)
-0. Install Python 3.5+ and FPGA vendor's development tools.
-1. Install Migen/LiteX and the LiteX's cores:
+**litex.soc:**
+Provides definitions/modules to build cores (bus, bank, flow), cores and tools to build a SoC from such cores.
+
+**litex.boards:**
+Provides platforms and targets for the supported boards. All Migen's platforms can also be used in LiteX. The boards present in the LiteX repository are the official ones that are used for development/CI. More boards are available at: https://github.com/litex-hub/litex-boards
+
+# Quick start guide
+1. Install Python 3.5+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
+2. Install Migen/LiteX and the LiteX's cores:
+
 ```sh
 $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
 $ chmod +x litex_setup.py
@@ -104,29 +107,63 @@ $ ./litex_setup.py init install --user (--user to install to user directory)
 ```sh
 $ ./litex_setup.py update
 ```
-3. Install a RISC-V toolchain:
+
+> **Note:** On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``brew install wget``.
+
+> **Note:** On Windows, it's possible you'll have to set `SHELL` environment variable to `SHELL=cmd.exe`.
+
+3. Install a RISC-V toolchain (Only if you want to test/create a SoC with a CPU):
+
+On Linux (Ubuntu):
 ```sh
 $ wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
 $ tar -xvf riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
 $ export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 ```
-4. Build the target of your board...:
-  Go to litex-boards/litex_boards/xxyy/targets (xxyy being community/official/partner) and execute the target you want to build
-
-5. ... and/or install Verilator and test LiteX on your computer:
-  Download and install Verilator: http://www.veripool.org/
-  On Fedora:
+On MacOS:
 ```sh
-$ sudo dnf install libevent-devel json-c-devel
+$ wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin.tar.gz
+$ tar -xvf riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin.tar.gz
+$ export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-apple-darwin/bin/
 ```
-  On Ubuntu:
+On Windows:
+
+You can Get and install the RISC-V toolchain from https://gnutoolchains.com/risc-v/.
+
+4. Build the target of your board...:
+
+Go to litex-boards/litex_boards/targets and execute the target you want to build.
+
+5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
+
+On Linux (Ubuntu):
 ```sh
-$ sudo apt install libevent-dev libjson-c-dev
-$ litex_sim
+$ sudo apt install libevent-dev libjson-c-dev verilator
+$ lxsim --cpu-type=vexriscv
+```
+
+On MacOS:
+```sh
+$ brew install json-c verilator libevent
+$ brew cask install tuntap
+$ lxsim --cpu-type=vexriscv
 ```
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
-  You should get the BIOS prompt.
+
+  You should get the BIOS prompt like the one below.
+
+<p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/bios_screenshot.png"></p>
+
+# Community
+
+<p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex-hub.png" width="400"></p>
+
+LiteX has been initially developed by EnjoyDigital to create custom SoCs/Systems for our clients
+(and we are still using it for that purpose :)); but over the years a friendly community has grown
+around LiteX and the ecosystem of cores. Feedbacks and contributions have already greatly improved
+the project, EnjoyDigital still leads the development but it is now a community project and collaborative
+projects created around/with LiteX can be found at https://github.com/litex-hub.
 
 # Contact
 E-mail: florent@enjoy-digital.fr

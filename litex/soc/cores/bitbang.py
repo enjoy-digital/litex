@@ -86,5 +86,5 @@ class SPIMaster(Module, AutoCSR):
             self._r.fields.mosi.eq(_mosi_r),
         ]
         if hasattr(pads, "miso"):
-            self._r.fields.miso.eq(pads.miso)
+            self.comb += self._r.fields.miso.eq(pads.miso)
         self.specials += Tristate(pads.mosi, _mosi_w, _mosi_oe, _mosi_r)

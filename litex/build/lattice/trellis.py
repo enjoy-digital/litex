@@ -111,7 +111,7 @@ nextpnr_ecp5_architectures = {
 # Script -------------------------------------------------------------------------------------------
 
 _build_template = [
-    "yosys -q -l {build_name}.rpt {build_name}.ys",
+    "yosys -l {build_name}.rpt {build_name}.ys",
     "nextpnr-ecp5 --json {build_name}.json --lpf {build_name}.lpf --textcfg {build_name}.config  \
     --{architecture} --package {package} --speed {speed_grade} {timefailarg} {ignoreloops}",
     "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit"
@@ -168,7 +168,7 @@ class LatticeTrellisToolchain:
         "no_shreg_extract": None
     }
 
-    special_overrides = common.lattice_ecpx_trellis_special_overrides
+    special_overrides = common.lattice_ecp5_trellis_special_overrides
 
     def __init__(self):
         self.yosys_template   = _yosys_template
@@ -178,16 +178,11 @@ class LatticeTrellisToolchain:
     def build(self, platform, fragment,
         build_dir      = "build",
         build_name     = "top",
-        toolchain_path = None,
         run            = True,
         nowidelut      = False,
         timingstrict   = False,
         ignoreloops    = False,
         **kwargs):
-
-        # Get default toolchain path (if not specified)
-        if toolchain_path is None:
-            toolchain_path = "/usr/share/trellis/"
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)

@@ -14,6 +14,7 @@ from litex.boards.platforms import versa_ecp5
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
 
 from litex.soc.cores.clock import *
+from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 
@@ -21,7 +22,6 @@ from litedram.modules import MT41K64M16
 from litedram.phy import ECP5DDRPHY
 
 from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
-from liteeth.mac import LiteEthMAC
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -66,17 +66,17 @@ class _CRG(Module):
                 i_RST     = self.cd_sys2x.rst,
                 o_CDIVX   = self.cd_sys.clk),
             AsyncResetSynchronizer(self.cd_init, ~por_done | ~pll.locked | ~rst_n),
-            AsyncResetSynchronizer(self.cd_sys, ~por_done | ~pll.locked | ~rst_n)
+            AsyncResetSynchronizer(self.cd_sys,  ~por_done | ~pll.locked | ~rst_n)
         ]
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCSDRAM):
-    def __init__(self, sys_clk_freq=int(75e6), toolchain="diamond", **kwargs):
+class BaseSoC(SoCCore):
+    def __init__(self, sys_clk_freq=int(75e6), with_ethernet=False, toolchain="trellis", **kwargs):
         platform = versa_ecp5.Platform(toolchain=toolchain)
 
-        # SoCSDRAM ---------------------------------------------------------------------------------
-        SoCSDRAM.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
+        # SoCCore -----------------------------------------_----------------------------------------
+        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -87,51 +87,32 @@ class BaseSoC(SoCSDRAM):
                 platform.request("ddram"),
                 sys_clk_freq=sys_clk_freq)
             self.add_csr("ddrphy")
-            self.add_constant("ECP5DDRPHY", None)
+            self.add_constant("ECP5DDRPHY")
             self.comb += self.crg.stop.eq(self.ddrphy.init.stop)
-            sdram_module = MT41K64M16(sys_clk_freq, "1:2")
-            self.register_sdram(self.ddrphy,
-                geom_settings   = sdram_module.geom_settings,
-                timing_settings = sdram_module.timing_settings)
-
-# EthernetSoC --------------------------------------------------------------------------------------
-
-class EthernetSoC(BaseSoC):
-    mem_map = {
-        "ethmac": 0xb0000000,
-    }
-    mem_map.update(BaseSoC.mem_map)
-
-    def __init__(self, toolchain="diamond", **kwargs):
-        BaseSoC.__init__(self, toolchain=toolchain, **kwargs)
+            self.add_sdram("sdram",
+                phy                     = self.ddrphy,
+                module                  = MT41K64M16(sys_clk_freq, "1:2"),
+                origin                  = self.mem_map["main_ram"],
+                size                    = kwargs.get("max_sdram_size", 0x40000000),
+                l2_cache_size           = kwargs.get("l2_size", 8192),
+                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_reverse        = True
+            )
 
         # Ethernet ---------------------------------------------------------------------------------
-        # phy
-        self.submodules.ethphy = LiteEthPHYRGMII(
-            self.platform.request("eth_clocks"),
-            self.platform.request("eth"))
-        self.add_csr("ethphy")
-        # mac
-        self.submodules.ethmac = LiteEthMAC(phy=self.ethphy, dw=32,
-            interface="wishbone", endianness=self.cpu.endianness)
-        self.add_memory_region("ethmac", self.mem_map["ethmac"], 0x2000, type="io")
-        self.add_wb_slave(self.mem_map["ethmac"], self.ethmac.bus, 0x2000)
-        self.add_csr("ethmac")
-        self.add_interrupt("ethmac")
-        # timing constraints
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 1e9/125e6)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.ethphy.crg.cd_eth_rx.clk,
-            self.ethphy.crg.cd_eth_tx.clk)
+        if with_ethernet:
+            self.submodules.ethphy = LiteEthPHYRGMII(
+                clock_pads = self.platform.request("eth_clocks"),
+                pads       = self.platform.request("eth"))
+            self.add_csr("ethphy")
+            self.add_ethernet(phy=self.ethphy)
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Versa ECP5")
-    parser.add_argument("--gateware-toolchain", dest="toolchain", default="diamond",
-        help='gateware toolchain to use, diamond (default) or  trellis')
+    parser.add_argument("--gateware-toolchain", dest="toolchain", default="trellis",
+        help="gateware toolchain to use, trellis (default) or diamond")
     builder_args(parser)
     soc_sdram_args(parser)
     trellis_args(parser)
@@ -141,12 +122,9 @@ def main():
                         help="enable Ethernet support")
     args = parser.parse_args()
 
-    cls = EthernetSoC if args.with_ethernet else BaseSoC
-    soc = cls(toolchain=args.toolchain, sys_clk_freq=int(float(args.sys_clk_freq)), **soc_sdram_argdict(args))
+    soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)), with_ethernet=args.with_ethernet, toolchain=args.toolchain, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder_kargs = {}
-    if args.toolchain == "trellis":
-        builder_kargs == trellis_argdict(args)
+    builder_kargs = trellis_argdict(args) if args.toolchain == "trellis" else {}
     builder.build(**builder_kargs)
 
 if __name__ == "__main__":

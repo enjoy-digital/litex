@@ -49,9 +49,13 @@ class PWM(Module, AutoCSR):
             self.add_csr(clock_domain)
 
     def add_csr(self, clock_domain):
-        self._enable = CSRStorage()
-        self._width  = CSRStorage(32)
-        self._period = CSRStorage(32)
+        self._enable = CSRStorage(description="""PWM Enable.\n
+            Write ``1`` to enable PWM.""")
+        self._width  = CSRStorage(32, description="""PWM Width.\n
+            Defines the *Duty cycle* of the PWM. PWM is active high for *Width* ``{cd}_clk`` cycles and
+            active low for *Period - Width* ``{cd}_clk`` cycles.""".format(cd=clock_domain))
+        self._period = CSRStorage(32, description="""PWM Period.\n
+            Defines the *Period* of the PWM in ``{cd}_clk`` cycles.""".format(cd=clock_domain))
 
         n = 0 if clock_domain == "sys" else 2
         self.specials += [

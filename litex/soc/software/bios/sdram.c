@@ -257,6 +257,24 @@ void sdrwr(char *startaddr)
 #define NBMODULES DFII_PIX_DATA_BYTES/2
 #endif
 
+#if defined(DDRPHY_CMD_DELAY) || defined(USDDRPHY_DEBUG)
+void ddrphy_cdly(unsigned int delay) {
+	printf("Setting clk/cmd delay to %d taps\n", delay);
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(0);
+#endif
+	ddrphy_cdly_rst_write(1);
+	while (delay > 0) {
+		ddrphy_cdly_inc_write(1);
+		cdelay(1000);
+		delay--;
+	}
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(1);
+#endif
+}
+#endif
+
 #ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
 
 void sdrwlon(void)
@@ -976,6 +994,9 @@ int sdrinit(void)
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(0);
 #endif
+#ifdef DDRPHY_CMD_DELAY
+	ddrphy_cdly(DDRPHY_CMD_DELAY);
+#endif
 	sdrlevel();
 #if CSR_DDRPHY_EN_VTC_ADDR
 	ddrphy_en_vtc_write(1);
@@ -995,5 +1016,89 @@ int sdrinit(void)
 
 	return 1;
 }
+
+#ifdef USDDRPHY_DEBUG
+
+#define MPR0_SEL (0 << 0)
+#define MPR1_SEL (1 << 0)
+#define MPR2_SEL (2 << 0)
+#define MPR3_SEL (3 << 0)
+
+#define MPR_ENABLE (1 << 2)
+
+#define MPR_READ_SERIAL    (0 << 11)
+#define MPR_READ_PARALLEL  (1 << 11)
+#define MPR_READ_STAGGERED (2 << 11)
+
+void sdrcal(void)
+{
+#ifdef CSR_DDRPHY_BASE
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(0);
+#endif
+	sdrlevel();
+#if CSR_DDRPHY_EN_VTC_ADDR
+	ddrphy_en_vtc_write(1);
+#endif
+#endif
+	sdrhw();
+}
+
+void sdrmrwr(char reg, int value) {
+	sdram_dfii_pi0_address_write(value);
+	sdram_dfii_pi0_baddress_write(reg);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+}
+
+static void sdrmpron(char mpr)
+{
+	sdrmrwr(3, MPR_READ_SERIAL | MPR_ENABLE | mpr);
+}
+
+static void sdrmproff(void)
+{
+	sdrmrwr(3, 0);
+}
+
+void sdrmpr(void)
+{
+	int module, phase;
+	unsigned char buf[DFII_PIX_DATA_BYTES];
+	printf("Read SDRAM MPR...\n");
+
+	/* rst phy */
+	for(module=0; module<NBMODULES; module++) {
+#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
+		write_delay_rst(module);
+#endif
+		read_delay_rst(module);
+		read_bitslip_rst(module);
+	}
+
+	/* software control */
+	sdrsw();
+
+	printf("Reads with MPR0 (0b01010101) enabled...\n");
+	sdrmpron(MPR0_SEL);
+	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+	cdelay(15);
+	for (module=0; module < NBMODULES; module++) {
+		printf("m%d: ", module);
+		for(phase=0; phase<DFII_NPHASES; phase++) {
+			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[phase],
+					 buf, DFII_PIX_DATA_BYTES);
+			printf("%d", buf[  NBMODULES-module-1] & 0x1);
+			printf("%d", buf[2*NBMODULES-module-1] & 0x1);
+		}
+		printf("\n");
+	}
+	sdrmproff();
+
+	/* hardware control */
+	sdrhw();
+}
+
+#endif
+
 
 #endif

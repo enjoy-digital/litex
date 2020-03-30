@@ -33,9 +33,9 @@ def gather_submodules_inner(module, depth, seen_modules, submodules):
     return submodules
 
 def gather_submodules(module):
-    depth = 0
+    depth        = 0
     seen_modules = set()
-    submodules = {
+    submodules   = {
         "event_managers": [],
         "module_doc": [],
     }
@@ -50,7 +50,7 @@ class DocumentedModule:
     """Multi-section Documentation of a Module"""
 
     def __init__(self, name, module, has_documentation=False):
-        self.name = name
+        self.name     = name
         self.sections = []
 
         if isinstance(module, ModuleDoc):

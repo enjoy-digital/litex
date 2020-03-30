@@ -32,12 +32,16 @@ def generate_svd(soc, buildpath, filename=None, name="soc", **kwargs):
         filename = name + ".svd"
     kwargs["name"] = name
     with open(buildpath + "/" + filename, "w", encoding="utf-8") as svd:
-        svd.write(export.get_svd(soc, **kwargs))
+        svd.write(export.get_csr_svd(soc, **kwargs))
 
 
-def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
-                  author="Anonymous", sphinx_extensions=[], quiet=False, note_pulses=False,
-                  from_scratch=True):
+def generate_docs(soc, base_dir,
+    project_name      = "LiteX SoC Project",
+    author            = "Anonymous",
+    sphinx_extensions = [],
+    quiet             = False,
+    note_pulses       = False,
+    from_scratch      = True):
     """Possible extra extensions:
         [
             'm2r',
@@ -70,7 +74,7 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
 
     # Gather all interrupts so we can easily map IRQ numbers to CSR sections
     interrupts = {}
-    for csr, irq in sorted(soc.soc_interrupt_map.items()):
+    for csr, irq in sorted(soc.irq.locs.items()):
         interrupts[csr] = irq
 
     # Convert each CSR region into a DocumentedCSRRegion.
@@ -79,27 +83,19 @@ def generate_docs(soc, base_dir, project_name="LiteX SoC Project",
     # that are larger than the buswidth will be turned into multiple
     # DocumentedCSRs.
     documented_regions = []
-    seen_modules = set()
-    regions = []
-
-    # Previously, litex contained a function to gather csr regions.
-    if hasattr(soc, "get_csr_regions"):
-        regions = soc.get_csr_regions()
-    else:
-        # Now we just access the regions directly.
-        for region_name, region in soc.csr_regions.items():
-            regions.append((region_name, region.origin,
-                            region.busword, region.obj))
-
-    for csr_region in regions:
+    seen_modules       = set()
+    for name, region in soc.csr.regions.items():
         module = None
-        if hasattr(soc, csr_region[0]):
-            module = getattr(soc, csr_region[0])
+        if hasattr(soc, name):
+            module = getattr(soc, name)
             seen_modules.add(module)
         submodules = gather_submodules(module)
-
         documented_region = DocumentedCSRRegion(
-            csr_region, module, submodules, csr_data_width=soc.csr_data_width)
+            name           = name,
+            region         = region,
+            module         = module,
+            submodules     = submodules,
+            csr_data_width = soc.csr.data_width)
         if documented_region.name in interrupts:
             documented_region.document_interrupt(
                 soc, submodules, interrupts[documented_region.name])

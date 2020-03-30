@@ -34,29 +34,41 @@ class DocumentedCSR:
             return reflow(docstring)
         return None
 
-    def __init__(self, name, address, short_numbered_name="", short_name="", reset=0, offset=0, size=8, description=None, access="read-write", fields=[]):
-        self.name = name
-        self.short_name = short_name
+    def __init__(self, name, address,
+        short_numbered_name = "",
+        short_name          = "",
+        reset               = 0,
+        offset              = 0,
+        size                = 8,
+        description         = None,
+        access              = "read-write",
+        fields              = []):
+
+        self.name                = name
+        self.short_name          = short_name
         self.short_numbered_name = short_numbered_name
-        self.address = address
-        self.offset = offset
-        self.size = size
+        self.address             = address
+        self.offset              = offset
+        self.size                = size
         if size == 0:
             print("!!! Warning: creating CSR of size 0 {}".format(name))
         self.description = self.trim(description)
         self.reset_value = reset
-        self.fields = fields
-        self.access = access
+        self.fields      = fields
+        self.access      = access
         for f in self.fields:
             f.description = self.trim(f.description)
 
 class DocumentedCSRRegion:
-    def __init__(self, csr_region, module=None, submodules=[], csr_data_width=8):
-        (self.name, self.origin, self.busword, self.raw_csrs) = csr_region
+    def __init__(self, name, region, module=None, submodules=[], csr_data_width=8):
+        self.name            = name
+        self.origin          = region.origin
+        self.busword         = region.busword
+        self.raw_csrs        = region.obj
         self.current_address = self.origin
-        self.sections = []
-        self.csrs = []
-        self.csr_data_width = csr_data_width
+        self.sections        = []
+        self.csrs            = []
+        self.csr_data_width  = csr_data_width
 
         # If the section has extra documentation, gather it.
         if isinstance(module, ModuleDoc):
@@ -78,10 +90,16 @@ class DocumentedCSRRegion:
                     print("{}: Unknown module: {}".format(self.name, csr))
         elif isinstance(self.raw_csrs, Memory):
             self.csrs.append(DocumentedCSR(
-                self.name.upper(), self.origin, short_numbered_name=self.name.upper(), short_name=self.name.upper(), reset=0, size=self.raw_csrs.width,
-                description="{} x {}-bit memory".format(self.raw_csrs.width, self.raw_csrs.depth)
+                name                = self.name.upper(),
+                address             = self.origin,
+                short_numbered_name = self.name.upper(),
+                short_name          = self.name.upper(),
+                reset               = 0,
+                size                = self.raw_csrs.width,
+                description         = "{} x {}-bit memory".format(self.raw_csrs.width, self.raw_csrs.depth)
             ))
-            print("{}@{:x}: Found memory that's {} x {} (but memories aren't documented yet)".format(self.name, self.origin, self.raw_csrs.width, self.raw_csrs.depth))
+            print("{}@{:x}: Found memory that's {} x {} (but memories aren't documented yet)".format(
+                self.name, self.origin, self.raw_csrs.width, self.raw_csrs.depth))
         else:
             print("{}@{:x}: Unexpected item on the CSR bus: {}".format(self.name, self.origin, self.raw_csrs))
 
@@ -124,9 +142,15 @@ class DocumentedCSRRegion:
                         fields = []
                         for i, source in enumerate(sources):
                             if hasattr(source, "name") and source.name is not None:
-                                fields.append(DocumentedCSRField(CSRField(source.name, offset=i, description="Level of the `{}` event".format(source.name))))
+                                fields.append(DocumentedCSRField(CSRField(
+                                    name        = source.name,
+                                    offset      = i,
+                                    description = "Level of the `{}` event".format(source.name))))
                             else:
-                                fields.append(DocumentedCSRField(CSRField("event{}".format(i), offset=i, description="Level of the `event{}` event".format(i))))
+                                fields.append(DocumentedCSRField(CSRField(
+                                    name        = "event{}".format(i),
+                                    offset      = i,
+                                    description = "Level of the `event{}` event".format(i))))
                         dcsr.fields = fields
                     if dcsr.description is None:
                         dcsr.description = "This register contains the current raw level of the Event trigger.  Writes to this register have no effect."
@@ -135,9 +159,15 @@ class DocumentedCSRRegion:
                         fields = []
                         for i, source in enumerate(sources):
                             if hasattr(source, "name") and source.name is not None:
-                                fields.append(DocumentedCSRField(CSRField(source.name, offset=i, description=source_description(source))))
+                                fields.append(DocumentedCSRField(CSRField(
+                                    name        = source.name,
+                                    offset      = i,
+                                    description = source_description(source))))
                             else:
-                                fields.append(DocumentedCSRField(CSRField("event{}".format(i), offset=i, description=source_description(source))))
+                                fields.append(DocumentedCSRField(CSRField(
+                                    name        = "event{}".format(i),
+                                    offset      = i,
+                                    description = source_description(source))))
                         dcsr.fields = fields
                     if dcsr.description is None:
                         dcsr.description = "When an Event occurs, the corresponding bit will be set in this register.  To clear the Event, set the corresponding bit in this register."
@@ -146,18 +176,24 @@ class DocumentedCSRRegion:
                         fields = []
                         for i, source in enumerate(sources):
                             if hasattr(source, "name") and source.name is not None:
-                                fields.append(DocumentedCSRField(CSRField(source.name, offset=i, description="Write a `1` to enable the `{}` Event".format(source.name))))
+                                fields.append(DocumentedCSRField(CSRField(
+                                    name        = source.name,
+                                    offset      = i,
+                                    description = "Write a `1` to enable the `{}` Event".format(source.name))))
                             else:
-                                fields.append(DocumentedCSRField(CSRField("event{}".format(i), offset=i, description="Write a `1` to enable the `{}` Event".format(i))))
+                                fields.append(DocumentedCSRField(CSRField(
+                                    name        = "event{}".format(i),
+                                    offset      = i,
+                                    description = "Write a `1` to enable the `{}` Event".format(i))))
                         dcsr.fields = fields
                     if dcsr.description is None:
                         dcsr.description = "This register enables the corresponding Events.  Write a `0` to this register to disable individual events."
 
     def sub_csr_bit_range(self, csr, offset):
         nwords = (csr.size + self.busword - 1)//self.busword
-        i = nwords - offset - 1
-        nbits = min(csr.size - i*self.busword, self.busword) - 1
-        name = (csr.name + str(i) if nwords > 1 else csr.name).upper()
+        i      = nwords - offset - 1
+        nbits  = min(csr.size - i*self.busword, self.busword) - 1
+        name   = (csr.name + str(i) if nwords > 1 else csr.name).upper()
         origin = i*self.busword
         return (origin, nbits, name)
 
@@ -199,13 +235,19 @@ class DocumentedCSRRegion:
         print("", file=stream)
         print("        {", file=stream)
         print("            \"reg\": [", file=stream)
+        multilane = False
         if len(reg.fields) > 0:
+            min_field_size = self.csr_data_width
             bit_offset = 0
             for field in reg.fields:
                 field_name = field.name
                 attr_str = ""
-                if field.reset_value != 0:
-                    attr_str = "\"attr\": '" + str(field.reset_value) + "', "
+                if isinstance(field.reset_value, Constant):
+                    field_reset_value = field.reset_value.value
+                else:
+                    field_reset_value = field.reset_value
+                if field_reset_value != 0:
+                    attr_str = "\"attr\": '" + str(field_reset_value) + "', "
                 type_str = ""
                 if field.pulse:
                     type_str = "\"type\": 4, "
@@ -218,6 +260,9 @@ class DocumentedCSRRegion:
                     term=""
                 print("                {\"name\": \"" + field_name + "\",  " + type_str + attr_str + "\"bits\": " + str(field.size) + "}" + term, file=stream)
                 bit_offset = field.offset + field.size
+                min_field_size = min(min_field_size, field.size)
+            if min_field_size < 8:
+                multilane = True
             if bit_offset != self.busword:
                 print("                {\"bits\": " + str(self.busword - bit_offset) + "}", file=stream)
         else:
@@ -230,7 +275,13 @@ class DocumentedCSRRegion:
             print("                {\"name\": \"" + reg.short_name.lower() + self.bit_range(reg.offset, reg.offset + reg.size, empty_if_zero=True) + "\", " + attr_str + "\"bits\": " + str(reg.size) + "}" + term, file=stream)
             if reg.size != self.csr_data_width:
                 print("                {\"bits\": " + str(self.csr_data_width - reg.size) + "},", file=stream)
-        print("            ], \"config\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": 1 }, \"options\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": 1}", file=stream)
+            if reg.size < 8:
+                multilane = True
+        if multilane:
+            lanes = self.busword // 8
+        else:
+            lanes = 1
+        print("            ], \"config\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": " + str(lanes) + " }, \"options\": {\"hspace\": 400, \"bits\": " + str(self.busword) + ", \"lanes\": " + str(lanes) + "}", file=stream)
         print("        }", file=stream)
         print("", file=stream)
 
@@ -265,11 +316,11 @@ class DocumentedCSRRegion:
     def document_csr(self, csr):
         """Generates one or more DocumentedCSR, which will get appended
         to self.csrs"""
-        fields = []
-        description = None
+        fields       = []
+        description  = None
         atomic_write = False
-        full_name = self.name.upper() + "_" + csr.name.upper()
-        reset = 0
+        full_name    = self.name.upper() + "_" + csr.name.upper()
+        reset        = 0
         if isinstance(csr, CSRStatus):
             access = "read-only"
         else:
@@ -303,28 +354,49 @@ class DocumentedCSRRegion:
                     else:
                         d = bits_str + " " + reflow(d)
                     self.csrs.append(DocumentedCSR(
-                        sub_name, self.current_address, short_numbered_name=name.upper(), short_name=csr.name.upper(), reset=(reset>>start)&((2**length)-1),
-                        offset=start, size=self.csr_data_width,
-                        description=d, fields=self.split_fields(fields, start, start + length), access=access
+                        name                = sub_name,
+                        address             = self.current_address,
+                        short_numbered_name = name.upper(),
+                        short_name          = csr.name.upper(),
+                        reset               = (reset>>start)&((2**length)-1),
+                        offset              = start,
+                        size                = self.csr_data_width,
+                        description         = d,
+                        fields              = self.split_fields(fields, start, start + length),
+                        access              = access
                     ))
                 else:
                     self.csrs.append(DocumentedCSR(
-                        sub_name, self.current_address, short_numbered_name=name.upper(), short_name=csr.name.upper(), reset=(reset>>start)&((2**length)-1),
-                        offset=start, size=self.csr_data_width,
-                        description=bits_str, fields=self.split_fields(fields, start, start + length), access=access
+                        name                = sub_name,
+                        address             = self.current_address,
+                        short_numbered_name = name.upper(),
+                        short_name          = csr.name.upper(),
+                        reset               = (reset>>start)&((2**length)-1),
+                        offset              = start,
+                        size                = self.csr_data_width,
+                        description         = bits_str,
+                        fields              = self.split_fields(fields, start, start + length),
+                        access              = access
                     ))
                 self.current_address += 4
         else:
             self.csrs.append(DocumentedCSR(
-                full_name, self.current_address, short_numbered_name=csr.name.upper(), short_name=csr.name.upper(), reset=reset, size=size,
-                description=description, fields=fields, access=access
+                name                = full_name,
+                address             = self.current_address,
+                short_numbered_name = csr.name.upper(),
+                short_name          = csr.name.upper(),
+                reset               = reset,
+                size                = size,
+                description         = description,
+                fields              = fields,
+                access              = access
             ))
             self.current_address += 4
 
     def make_value_table(self, values):
-        ret = ""
-        max_value_width=len("Value")
-        max_description_width=len("Description")
+        ret                   = ""
+        max_value_width       = len("Value")
+        max_description_width = len("Description")
         for v in values:
             (value, name, description) = (None, None, None)
             if len(v) == 2:
@@ -377,7 +449,7 @@ class DocumentedCSRRegion:
 
         for section in self.sections:
             title = textwrap.dedent(section.title())
-            body = textwrap.dedent(section.body())
+            body  = textwrap.dedent(section.body())
             print("{}".format(title), file=stream)
             print("-" * len(title), file=stream)
 
@@ -414,11 +486,10 @@ class DocumentedCSRRegion:
                     print(textwrap.indent(csr.description, prefix="    "), file=stream)
                 self.print_reg(csr, stream)
                 if len(csr.fields) > 0:
-                    max_field_width=len("Field")
-                    max_name_width=len("Name")
-                    max_description_width=len("Description")
-                    value_tables = {}
-
+                    max_field_width       = len("Field")
+                    max_name_width        = len("Name")
+                    max_description_width = len("Description")
+                    value_tables          =  {}
                     for f in csr.fields:
                         field = self.bit_range(f.offset, f.offset + f.size)
                         max_field_width = max(max_field_width, len(field))
