@@ -174,8 +174,7 @@ class MOR1KX(CPU):
     @staticmethod
     def add_sources(platform):
         vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            "verilog", "rtl", "verilog")
+            find_data("cpu", "mor1kx"), "rtl", "verilog")
         platform.add_source_dir(vdir)
         platform.add_verilog_include_path(vdir)
 
