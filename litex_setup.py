@@ -136,7 +136,7 @@ if "update" in sys.argv[1:]:
         print("[updating " + name + "]...")
         os.chdir(os.path.join(current_path, name))
         subprocess.check_call(
-            "git pull",
+            "git pull --ff-only",
             shell=True)
         os.chdir(os.path.join(current_path))
 
