@@ -7,7 +7,7 @@ def find_data(data_type, data_name):
         return dm.data_location
     except ImportError as e:
         raise ImportError("""\
-litex-data-{dt}-{dn} module not install! Unable to use {dn} {dt}.
+litex-data-{dt}-{dn} module not installed! Unable to use {dn} {dt}.
 {e}
 
 You can install this by running;
