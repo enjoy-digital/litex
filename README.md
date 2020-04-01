@@ -134,19 +134,16 @@ You can Get and install the RISC-V toolchain from https://gnutoolchains.com/risc
 
 Go to litex-boards/litex_boards/targets and execute the target you want to build.
 
-For example, build a picorv32 on the ULX3SL:
-```
-cd ./litex-boards/litex_boards/targets
-./ulx3s.py --device LFE5U-85F --cpu-type picorv32
-```
+The SoC (soft CPU + peripherals) is called `top.bit` and should be in:
 
-The soft CPU is called `top.bit` and should be in:
-
-`/litex-boards/litex_boards/targets/soc_basesoc_ulx3s/gateware`
+`/litex-boards/litex_boards/targets/soc_basesoc_[target]/gateware`
 
 The BIOS firmware is called `bios.bin` and should be in:
 
-`/litex-boards/litex_boards/targets/soc_basesoc_ulx3s/software/bios`
+`/litex-boards/litex_boards/targets/soc_basesoc_[target]/software/bios`
+
+For more boards the bios.bin is also embedded inside the gateware. For a few very small devices like the iCE40 
+(or Spartan 6 LX9) the BIOS is stored on spiflash instead as there isn't enough ROM available inside the FPGA.
 
 5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
 
@@ -163,12 +160,12 @@ $ brew cask install tuntap
 $ lxsim --cpu-type=vexriscv
 ```
 
-The soft CPU `top.bit` needs to be loaded onto the FPGA. For example the ULX3S can use [ujprog](https://github.com/emard/ulx3s-examples/tree/master/bin) like this:
+The FPGA bitsteam `top.bit` needs to be loaded onto the FPGA. 
+This is the [gateware](https://github.com/timvideos/litex-buildenv/wiki/LiteX-for-Hardware-Engineers#glossary) 
+which contains the SoC (which itself contains the soft CPU and peripherals).
 
-```
-cd $WORKSPACE/litex-boards/litex_boards/targets/soc_basesoc_ulx3s/gateware
-$WORKSPACE/ulx3s-examples/bin/ujprog.exe top.bit
-```
+The file is typically loaded onto the target with a JTAG adapter, or a custom loader application such as [ujprog](https://github.com/emard/ulx3s-examples/tree/master/bin).
+See the specific example for your [target board](./litex/boards/targets/README.md) and [platform](./litex/boards/platforms/README.md).
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
 
@@ -176,10 +173,10 @@ $WORKSPACE/ulx3s-examples/bin/ujprog.exe top.bit
 
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/bios_screenshot.png"></p>
 
-Or, to load the compiled BIOS.bin to be executed by our new soft CPU:
+Or, to load the compiled BIOS.bin to be executed by our new soft SoC CPU (which also contains soft peripherals):
 
 ```
-litex_term --serial-boot --kernel bios.bin /dev/ttyS15 # be sure to select your proper USB device number
+litex_term --serial-boot --kernel bios.bin /dev/ttyS15 # be sure to select your actual USB device
 ```
 
 Press the RST (Reset) button defined for the respective CPU to reload the RSIC-V compiled `bios.bin` BIOS firmware.
@@ -201,3 +198,42 @@ projects created around/with LiteX can be found at https://github.com/litex-hub.
 
 # Contact
 E-mail: florent@enjoy-digital.fr
+
+
+
+# For Wiki:  
+
+Apparently there is [no way to submit a PR for a WiKi](https://github.community/t5/How-to-use-Git-and-GitHub/How-to-fork-a-wiki-and-send-a-PR/td-p/23557)?
+
+
+
+The [ULX3S](https://www.crowdsupply.com/radiona/ulx3s) is a fully open source, compact, robust and affordable 
+FPGA board equipped with a balanced spectrum of extra components and expansions. Although primarily developed 
+as a teaching tool for mastering the principles of digital circuit design, a wide selection of useful features 
+and interfaces enables it to serve as a broad spectrum module for installation in complex devices.
+
+The ULX3S [target](./litex/boards/targets/ulx3s.py) integrated in [LiteX-Boards](litex/boards/README.md) provides 
+a minimal LiteX SoC for the iCEBreaker with a CPU, its ROM (in SPI Flash), its SRAM, similar to the other LiteX targets.
+
+
+
+For example, build a picorv32 on the ULX3SL:
+```
+cd ./litex-boards/litex_boards/targets
+./ulx3s.py --device LFE5U-85F --cpu-type picorv32
+```
+
+Load the gateware onto the ECP5 for the ULX3S:
+
+```
+cd $WORKSPACE/litex-boards/litex_boards/targets/soc_basesoc_ulx3s/gateware
+$WORKSPACE/ulx3s-examples/bin/ujprog.exe top.bit
+```
+
+
+```
+litex_term --serial-boot --kernel bios.bin /dev/ttyS15 # be sure to select your proper USB device number
+```
+
+
+For more information, see the [WiKi](https://github.com/enjoy-digital/litex/wiki)

@@ -68,10 +68,12 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 	//   litex_term --serial-boot --kernel bios.bin /dev/ttyS15
 	boot_helper(r1, r2, r3, addr);
 
-	// wait forever. To load another software image, press the RST button. 
+	// To load another software image, press the RST button on the respective target. 
 	// see respective [target].py file in boards/targets for rst, 
 	// and pin definition in [target].py in boards/platforms for [_io] 
 	// 
+	// the above boot_helper() calls the loded binanry so we never actually reach this point 
+	// so we'll put in something to indicate the end of this thread:
 	while(1);
 }
 
