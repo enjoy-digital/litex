@@ -598,6 +598,7 @@ class iCE40PLL(Module):
 
 class ECP5PLL(Module):
     nclkouts_max    = 3
+    clki_div_range  = (1, 128+1)
     clkfb_div_range = (1, 128+1)
     clko_div_range  = (1, 128+1)
     clki_freq_range = (    8e6,  400e6)
@@ -641,31 +642,32 @@ class ECP5PLL(Module):
 
     def compute_config(self):
         config = {}
-        config["clki_div"] = 1
-        for clkfb_div in range(*self.clkfb_div_range):
-            all_valid = True
-            vco_freq = self.clkin_freq*clkfb_div*1 # clkos3_div=1
-            (vco_freq_min, vco_freq_max) = self.vco_freq_range
-            if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                    valid = False
-                    for d in range(*self.clko_div_range):
-                        clk_freq = vco_freq/d
-                        if abs(clk_freq - f) <= f*m:
-                            config["clko{}_freq".format(n)]  = clk_freq
-                            config["clko{}_div".format(n)]   = d
-                            config["clko{}_phase".format(n)] = p
-                            valid = True
-                            break
-                    if not valid:
-                        all_valid = False
-            else:
-                all_valid = False
-            if all_valid:
-                config["vco"] = vco_freq
-                config["clkfb_div"] = clkfb_div
-                compute_config_log(self.logger, config)
-                return config
+        for clki_div in range(*self.clki_div_range):
+            config["clki_div"] = clki_div
+            for clkfb_div in range(*self.clkfb_div_range):
+                all_valid = True
+                vco_freq = self.clkin_freq/clki_div*clkfb_div*1 # clkos3_div=1
+                (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
+                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                        valid = False
+                        for d in range(*self.clko_div_range):
+                            clk_freq = vco_freq/d
+                            if abs(clk_freq - f) <= f*m:
+                                config["clko{}_freq".format(n)]  = clk_freq
+                                config["clko{}_div".format(n)]   = d
+                                config["clko{}_phase".format(n)] = p
+                                valid = True
+                                break
+                        if not valid:
+                            all_valid = False
+                else:
+                    all_valid = False
+                if all_valid:
+                    config["vco"] = vco_freq
+                    config["clkfb_div"] = clkfb_div
+                    compute_config_log(self.logger, config)
+                    return config
         raise ValueError("No PLL config found")
 
     def do_finalize(self):
@@ -684,7 +686,7 @@ class ECP5PLL(Module):
             p_CLKOS3_ENABLE = "ENABLED",
             p_CLKOS3_DIV    = 1,
             p_CLKFB_DIV     = config["clkfb_div"],
-            p_CLKI_DIV      = 1,
+            p_CLKI_DIV      = config["clki_div"],
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2"}
