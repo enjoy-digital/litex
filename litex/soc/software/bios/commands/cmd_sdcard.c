@@ -52,34 +52,92 @@ define_command(sdclk, sdclk, "SDCard set clk frequency (Mhz)", SD_CMDS);
  *
  */
 #ifdef CSR_SDCORE_BASE
-define_command(sdinit, sdinit, "SDCard initialization", SD_CMDS);
+define_command(sdinit, sdcard_init, "SDCard initialization", SD_CMDS);
 #endif
 
 /**
  * Command "sdtest"
  *
- * Perform SDcard access tests
+ * Perform SDcard read/write tests
  *
  */
 #ifdef CSR_SDCORE_BASE
 static void sdtest(int nb_params, char **params)
 {
-	unsigned int loops;
+	unsigned int blocks;
 	char *c;
 
 	if (nb_params < 1) {
-		printf("sdtest <loops>");
+		printf("sdtest <number of blocks>");
 		return;
 	}
 
-	loops = strtoul(params[0], &c, 0);
+	blocks = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect number of loops");
+		printf("Incorrect number of blocks to write");
 		return;
 	}
 
-	sdcard_test(loops);
+	sdcard_test(blocks);
 }
 
 define_command(sdtest, sdtest, "SDCard test", SD_CMDS);
+#endif
+
+/**
+ * Command "sdtestread"
+ *
+ * Perform SDcard read test
+ *
+ */
+#ifdef CSR_SDCORE_BASE
+static void sdtestread(int nb_params, char **params)
+{
+	unsigned int block;
+	char *c;
+
+	if (nb_params < 1) {
+		printf("sdtestread <block number>");
+		return;
+	}
+
+	block = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect number of block to read");
+		return;
+	}
+
+	sdcard_test_read(block);
+}
+
+define_command(sdtestread, sdtestread, "SDCard test read", SD_CMDS);
+#endif
+
+/**
+ * Command "sdtestwrite"
+ *
+ * Perform SDcard write test
+ *
+ */
+#ifdef CSR_SDCORE_BASE
+static void sdtestwrite(int nb_params, char **params)
+{
+	unsigned int block;
+	char *c;
+
+	if (nb_params < 2) {
+		printf("sdtestread <block number> <str to write>");
+		return;
+	}
+
+	block = strtoul(params[0], &c, 0);
+	if (*c != 0) {
+		printf("Incorrect number of block to write");
+		return;
+	}
+
+	sdcard_test_write(block, params[1]);
+}
+
+define_command(sdtestwrite, sdtestwrite, "SDCard test write", SD_CMDS);
 #endif
