@@ -25,6 +25,12 @@ def _make_m2s(layout):
             r.append((f[0], _make_m2s(f[1])))
     return r
 
+def set_reset_less(field):
+    if isinstance(field, Signal):
+        field.reset_less = True
+    elif isinstance(field, Record):
+        for s, _ in field.iter_flat():
+            s.reset_less = True
 
 class EndpointDescription:
     def __init__(self, payload_layout, param_layout=[]):
@@ -59,6 +65,10 @@ class Endpoint(Record):
         else:
             self.description = EndpointDescription(description_or_layout)
         Record.__init__(self, self.description.get_full_layout(), name, **kwargs)
+        set_reset_less(self.first)
+        set_reset_less(self.last)
+        set_reset_less(self.payload)
+        set_reset_less(self.param)
 
     def __getattr__(self, name):
         try:
@@ -136,8 +146,8 @@ class PipelinedActor(BinaryActor):
         first = sink.valid & sink.first
         last  = sink.valid & sink.last
         for i in range(latency):
-            first_n = Signal()
-            last_n = Signal()
+            first_n = Signal(reset_less=True)
+            last_n  = Signal(reset_less=True)
             self.sync += \
                 If(self.pipe_ce,
                     first_n.eq(first),
@@ -482,7 +492,7 @@ def inc_mod(s, m):
 
 class Gearbox(Module):
     def __init__(self, i_dw, o_dw, msb_first=True):
-        self.sink = sink = Endpoint([("data", i_dw)])
+        self.sink   = sink   = Endpoint([("data", i_dw)])
         self.source = source = Endpoint([("data", o_dw)])
 
         # # #
@@ -515,7 +525,7 @@ class Gearbox(Module):
 
         # Data path
 
-        shift_register = Signal(io_lcm)
+        shift_register = Signal(io_lcm, reset_less=True)
 
         i_cases = {}
         i_data  = Signal(i_dw)
