@@ -5,7 +5,7 @@ python: "3.6"
 install:
   # Get Migen / LiteX / Cores
   - cd ~/
-  - wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+  - cp $TRAVIS_BUILD_DIR/litex_setup.py .
   - python3 litex_setup.py init install
   # Install the LiteX version being tested.
   - cd $TRAVIS_BUILD_DIR
@@ -13,8 +13,10 @@ install:
 
 before_script:
   # Get RISC-V toolchain
-  - wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
-  - tar -xvf riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14.tar.gz
+  - cd ~/
+  - python3 litex_setup.py gcc
   - export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
 
-script: python setup.py test
+script:
+  - cd $TRAVIS_BUILD_DIR
+  - python setup.py test
