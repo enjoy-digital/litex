@@ -2,6 +2,7 @@
 
 import os
 import sys
+import subprocess
 from collections import OrderedDict
 
 
@@ -46,7 +47,9 @@ if "init" in sys.argv[1:]:
         print("[cloning " + name + "]...")
         full_url = url + name
         opts = "--recursive" if need_recursive else ""
-        os.system("git clone " + full_url + " " + opts)
+        subprocess.check_call(
+            "git clone " + full_url + " " + opts,
+            shell=True)
 
 if "install" in sys.argv[1:]:
     for name in repos.keys():
@@ -56,13 +59,19 @@ if "install" in sys.argv[1:]:
         if need_develop:
             os.chdir(os.path.join(current_path, name))
             if "--user" in sys.argv[1:]:
-                os.system("python3 setup.py develop --user")
+                subprocess.check_call(
+                    "python3 setup.py develop --user",
+                    shell=True)
             else:
-                os.system("python3 setup.py develop")
+                subprocess.check_call(
+                    "python3 setup.py develop",
+                    shell=True)
 
 if "update" in sys.argv[1:]:
     for name in repos.keys():
         # update
         print("[updating " + name + "]...")
         os.chdir(os.path.join(current_path, name))
-        os.system("git pull")
+        subprocess.check_call(
+            "git pull",
+            shell=True)
