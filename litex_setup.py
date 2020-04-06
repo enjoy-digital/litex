@@ -11,10 +11,10 @@ current_path = os.path.dirname(os.path.realpath(__file__))
 # name,  (url, recursive clone, develop)
 repos = [
     # HDL
-    ("migen",      ("https://github.com/m-labs/",        True,  True)),
+    ("migen",        ("https://github.com/m-labs/",        True,  True)),
 
     # LiteX SoC builder
-    ("litex",      ("https://github.com/enjoy-digital/", True,  True)),
+    ("litex",        ("https://github.com/enjoy-digital/", True,  True)),
 
     # LiteX cores ecosystem
     ("liteeth",      ("https://github.com/enjoy-digital/", False, True)),
@@ -29,7 +29,7 @@ repos = [
     ("litespi",      ("https://github.com/litex-hub/",     False, True)),
 
     # LiteX boards support
-    ("litex-boards",   ("https://github.com/litex-hub/", False, True)),
+    ("litex-boards", ("https://github.com/litex-hub/",     False, True)),
 ]
 repos = OrderedDict(repos)
 
