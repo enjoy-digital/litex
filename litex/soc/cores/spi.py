@@ -131,7 +131,7 @@ class SPIMaster(Module, AutoCSR):
         self._status   = CSRStatus(fields=[
             CSRField("done", size=1, offset=0, description="SPI Xfer done when read as ``1``.")
         ], description="SPI Status.")
-        self._mosi     = CSRStorage(self.data_width, description="SPI MOSI data (MSB-first serialization).")
+        self._mosi     = CSRStorage(self.data_width, reset_less=True, description="SPI MOSI data (MSB-first serialization).")
         self._miso     = CSRStatus(self.data_width,  description="SPI MISO data (MSB-first de-serialization).")
         self._cs       = CSRStorage(fields=[
             CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")

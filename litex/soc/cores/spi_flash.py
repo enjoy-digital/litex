@@ -88,7 +88,7 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         assert spi_width >= 2
 
         if with_bitbang:
-            self.bitbang = CSRStorage(4, fields=[
+            self.bitbang = CSRStorage(4, reset_less=True, fields=[
                 CSRField("mosi", description="Output value for MOSI pin, valid whenever ``dir`` is ``0``."),
                 CSRField("clk", description="Output value for SPI CLK pin."),
                 CSRField("cs_n", description="Output value for SPI CSn pin."),
@@ -229,7 +229,7 @@ class SpiFlashSingle(SpiFlashCommon, AutoCSR):
         self.bus = bus = wishbone.Interface()
 
         if with_bitbang:
-            self.bitbang = CSRStorage(4, fields=[
+            self.bitbang = CSRStorage(4, reset_less=True, fields=[
                 CSRField("mosi", description="Output value for SPI MOSI pin."),
                 CSRField("clk", description="Output value for SPI CLK pin."),
                 CSRField("cs_n", description="Output value for SPI CSn pin."),

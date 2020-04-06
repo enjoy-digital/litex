@@ -114,8 +114,8 @@ class XADC(Module, AutoCSR):
         self.drp_read   = CSR()
         self.drp_write  = CSR()
         self.drp_drdy   = CSRStatus()
-        self.drp_adr    = CSRStorage(7)
-        self.drp_dat_w  = CSRStorage(16)
+        self.drp_adr    = CSRStorage(7,  reset_less=True)
+        self.drp_dat_w  = CSRStorage(16, reset_less=True)
         self.drp_dat_r  = CSRStatus(16)
 
         # # #
