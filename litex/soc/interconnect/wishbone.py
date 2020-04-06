@@ -38,9 +38,13 @@ class Interface(Record):
         self.data_width = data_width
         self.adr_width  = adr_width
         Record.__init__(self, set_layout_parameters(_layout,
-            adr_width=adr_width,
-            data_width=data_width,
-            sel_width=data_width//8))
+            adr_width  = adr_width,
+            data_width = data_width,
+            sel_width  = data_width//8))
+        self.adr.reset_less   = True
+        self.dat_w.reset_less = True
+        self.dat_r.reset_less = True
+        self.sel.reset_less   = True
 
     @staticmethod
     def like(other):
@@ -311,7 +315,7 @@ class DownConverter(Module):
         self.comb += Case(counter, cases)
 
 
-        cached_data = Signal(dw_from)
+        cached_data = Signal(dw_from, reset_less=True)
         self.comb += master.dat_r.eq(Cat(cached_data[dw_to:], slave.dat_r))
         self.sync += \
             If(read & counter_ce,
@@ -553,7 +557,7 @@ class Cache(Module):
         if adr_offset is None:
             adr_offset_r = None
         else:
-            adr_offset_r = Signal(offsetbits)
+            adr_offset_r = Signal(offsetbits, reset_less=True)
             self.sync += adr_offset_r.eq(adr_offset)
 
         self.comb += [
@@ -707,7 +711,7 @@ class SRAM(Module):
         # generate ack
         self.sync += [
             self.bus.ack.eq(0),
-            If(self.bus.cyc & self.bus.stb & ~self.bus.ack,    self.bus.ack.eq(1))
+            If(self.bus.cyc & self.bus.stb & ~self.bus.ack, self.bus.ack.eq(1))
         ]
 
 
