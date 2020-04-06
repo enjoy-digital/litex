@@ -19,7 +19,7 @@ repos = [
     ("migen",        ("https://github.com/m-labs/",        True,  True)),
 
     # LiteX SoC builder
-    ('litex-data-software-compiler_rt', ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/", False, True)),
     ("litex",        ("https://github.com/enjoy-digital/", False,  True)),
 
     # LiteX cores ecosystem
@@ -38,14 +38,14 @@ repos = [
     ("litex-boards", ("https://github.com/litex-hub/",     False, True)),
 
     # Optional LiteX data
-    ("litex-data-cpu-blackparrot", ("https://github.com/litex-hub/", False, True)),
-    ("litex-data-cpu-mor1kx",      ("https://github.com/litex-hub/", False, True)),
-    ("litex-data-cpu-lm32",        ("https://github.com/litex-hub/", False, True)),
-    ("litex-data-cpu-microwatt",   ("https://github.com/litex-hub/", False, True)),
-    ("litex-data-cpu-picorv32",    ("https://github.com/litex-hub/", False, True)),
-    ("litex-data-cpu-rocket",      ("https://github.com/litex-hub/", False, True)),
-    ("litex-data-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True)),
-    ("litex-data-misc-tapcfg",     ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-blackparrot", ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-mor1kx",      ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-lm32",        ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-microwatt",   ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-picorv32",    ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-rocket",      ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-misc-tapcfg",     ("https://github.com/litex-hub/", False, True)),
 ]
 repos = OrderedDict(repos)
 

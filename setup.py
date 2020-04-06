@@ -17,7 +17,7 @@ setup(
     install_requires=[
         "migen",
         "pyserial",
-        "litex-data-software-compiler_rt",
+        "pythondata-software-compiler_rt",
     ],
     packages=find_packages(exclude=("test*", "sim*", "doc*")),
     include_package_data=True,

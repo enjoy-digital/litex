@@ -14,8 +14,8 @@ import subprocess
 import struct
 import shutil
 
+from litex import get_data_mod
 from litex.build.tools import write_to_file
-from litex.data.find import find_data
 from litex.soc.integration import export, soc_core
 
 __all__ = ["soc_software_packages", "soc_directory",
@@ -102,7 +102,8 @@ class Builder:
             for k, v in exec_profiles.items():
                 define(k, v)
             define(
-                "COMPILER_RT_DIRECTORY", find_data("software", "compiler_rt"))
+                "COMPILER_RT_DIRECTORY",
+                get_data_mod("software", "compiler_rt").data_location)
             define("SOC_DIRECTORY", soc_directory)
             variables_contents.append("export BUILDINC_DIRECTORY\n")
             define("BUILDINC_DIRECTORY", self.include_dir)

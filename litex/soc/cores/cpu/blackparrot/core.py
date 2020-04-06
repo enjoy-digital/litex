@@ -32,7 +32,7 @@ import os
 
 from migen import *
 
-from litex.data.find import find_data
+from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -116,7 +116,8 @@ class BlackParrotRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        filename = os.path.join(find_data("cpu", "blackparrot"), "flist_litex.verilator")
+        filename = get_data_mod("cpu", "blackparrot").data_file(
+            "flist_litex.verilator")
         with open(filename) as openfileobject:
             for line in openfileobject:
                 temp = line

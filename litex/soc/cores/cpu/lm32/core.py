@@ -9,7 +9,7 @@ import os
 
 from migen import *
 
-from litex.data.find import find_data
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -97,7 +97,7 @@ class LM32(CPU):
 
     @staticmethod
     def add_sources(platform, variant):
-        vdir = find_data("cpu", "lm32")
+        vdir = get_data_mod("cpu", "lm32").data_location
         platform.add_sources(os.path.join(vdir, "rtl"),
             "lm32_cpu.v",
             "lm32_instruction_unit.v",
