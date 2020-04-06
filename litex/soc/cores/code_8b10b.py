@@ -153,8 +153,8 @@ class SingleEncoder(Module):
 
         # stage 1: 5b/6b and 3b/4b encoding
         code5b = self.d[:5]
-        code6b = Signal(6)
-        code6b_unbalanced = Signal()
+        code6b = Signal(6, reset_less=True)
+        code6b_unbalanced = Signal(reset_less=True)
         code6b_flip = Signal()
         self.sync += [
             If(self.k & (code5b == 28),
@@ -169,8 +169,8 @@ class SingleEncoder(Module):
         ]
 
         code3b = self.d[5:]
-        code4b = Signal(4)
-        code4b_unbalanced = Signal()
+        code4b = Signal(4, reset_less=True)
+        code4b_unbalanced = Signal(reset_less=True)
         code4b_flip = Signal()
         self.sync += [
             code4b.eq(Array(table_3b4b)[code3b]),
@@ -182,8 +182,8 @@ class SingleEncoder(Module):
             )
         ]
 
-        alt7_rd0 = Signal()  # if disparity is -1, use alternative D.x.7
-        alt7_rd1 = Signal()  # if disparity is +1, use alternative D.x.7
+        alt7_rd0 = Signal(reset_less=True)  # if disparity is -1, use alternative D.x.7
+        alt7_rd1 = Signal(reset_less=True)  # if disparity is +1, use alternative D.x.7
         self.sync += [
             alt7_rd0.eq(0),
             alt7_rd1.eq(0),
@@ -242,7 +242,7 @@ class Encoder(Module):
     def __init__(self, nwords=1, lsb_first=False):
         self.d = [Signal(8) for _ in range(nwords)]
         self.k = [Signal() for _ in range(nwords)]
-        self.output = [Signal(10) for _ in range(nwords)]
+        self.output = [Signal(10, reset_less=True) for _ in range(nwords)]
         self.disparity = [Signal() for _ in range(nwords)]
 
         # # #
@@ -260,6 +260,7 @@ class Encoder(Module):
                 encoder.d.eq(d),
                 encoder.k.eq(k)
             ]
+            output.reset_less = True
             self.sync += [
                 output.eq(encoder.output),
                 disparity.eq(encoder.disp_out)
@@ -285,7 +286,7 @@ class Decoder(Module):
         code6b = input_msb_first[4:]
         code5b = Signal(5)
         code4b = input_msb_first[:4]
-        code3b = Signal(3)
+        code3b = Signal(3, reset_less=True)
 
         mem_6b5b  = Memory(5, len(table_6b5b), init=table_6b5b)
         port_6b5b = mem_6b5b.get_port()
@@ -317,6 +318,6 @@ class Decoder(Module):
 
         # Basic invalid symbols detection: check that we have 4,5 or 6 ones in the symbol. This does
         # not report all invalid symbols but still allow detecting issues with the link.
-        ones = Signal(4)
+        ones = Signal(4, reset_less=True)
         self.sync += ones.eq(reduce(add, [self.input[i] for i in range(10)]))
         self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
