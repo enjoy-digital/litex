@@ -4,8 +4,12 @@ python: "3.6"
 
 install:
   # Get Migen / LiteX / Cores
+  - cd ~/
   - wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
   - python3 litex_setup.py init install
+  # Install the LiteX version being tested.
+  - cd $TRAVIS_BUILD_DIR
+  - python3 setup.py install
 
 before_script:
   # Get RISC-V toolchain
