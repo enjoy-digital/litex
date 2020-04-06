@@ -1,6 +1,31 @@
-language: python
-dist: Xenial
-python: "3.6"
+jobs:
+  include:
+#    - os: linux
+#      dist: xenial
+#      language: python
+#      python: "3.5"
+    - os: linux
+      dist: xenial
+      language: python
+      python: "3.6"
+#    - os: linux
+#      dist: xenial
+#      language: python
+#      python: "3.7"
+#    - os: linux
+#      dist: xenial
+#      language: python
+#      python: "3.8"
+    - os: osx
+      osx_image: xcode10.2 # Includes Python 3.7
+      language: shell
+    - os: windows
+      language: shell
+      before_install:
+        - choco info python3
+        - choco install python3
+        - export PATH=/c/Python38/:$PATH
+        - cp -a /c/Python38/python.exe /c/Python38/python3.exe
 
 install:
   # Get Migen / LiteX / Cores
@@ -15,8 +40,10 @@ before_script:
   # Get RISC-V toolchain
   - cd ~/
   - python3 litex_setup.py gcc
-  - export PATH=$PATH:$PWD/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/
+  - ls $PWD/riscv64-*/bin/
+  - export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)
+  - riscv64-unknown-elf-gcc --version
 
 script:
   - cd $TRAVIS_BUILD_DIR
-  - python setup.py test
+  - python3 setup.py test
