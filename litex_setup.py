@@ -62,23 +62,6 @@ def sifive_riscv_download():
     print("Extracting", fn)
     shutil.unpack_archive(fn)
 
-    if "--user" in sys.argv[1:] and not is_windows:
-        print("Linking compiler into ~/.local/bin")
-        local_bin_dir = os.path.join(
-            base_file + end_file.split('.', 1)[0], "bin")
-        assert os.path.exists(local_bin_dir), local_bin_dir
-        user_bin_dir = os.path.abspath(os.path.expanduser("~/.local/bin"))
-        if not os.path.exists(user_bin_dir):
-            os.makedirs(user_bin_dir)
-        for f in os.listdir(local_bin_dir):
-            src = os.path.abspath(os.path.join(local_bin_dir, f))
-            dst = os.path.join(user_bin_dir, f)
-            assert os.path.exists(src), src
-            if os.path.exists(dst):
-                os.unlink(dst)
-            assert not os.path.exists(dst), dst
-            os.symlink(src, dst)
-
 if os.environ.get('TRAVIS', '') == 'true':
     # Ignore `ssl.SSLCertVerificationError` on CI.
     import ssl
@@ -138,6 +121,6 @@ if "--user" in sys.argv[1:]:
     if ".local/bin" not in os.environ.get("PATH", ""):
         print("Make sure that ~/.local/bin is in your PATH")
         print("export PATH=$PATH:~/.local/bin")
-elif "gcc" in sys.argv[1:]:
+if "gcc" in sys.argv[1:] and 'riscv64' not in os.environ.get("PATH", ""):
     print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
     print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
