@@ -15,13 +15,13 @@ jobs:
     - os: osx
       osx_image: xcode10.2 # Includes Python 3.7
       language: shell
-    - os: windows
-      language: shell
-      before_install:
-        - choco info python3
-        - choco install python3
-        - export PATH=/c/Python38/:$PATH
-        - cp -a /c/Python38/python.exe /c/Python38/python3.exe
+#    - os: windows
+#      language: shell
+#      before_install:
+#        - choco info python3
+#        - choco install python3
+#        - export PATH=/c/Python38/:$PATH
+#        - cp -a /c/Python38/python.exe /c/Python38/python3.exe
 
 install:
   # Get Migen / LiteX / Cores
