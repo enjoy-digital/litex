@@ -139,5 +139,7 @@ if "update" in sys.argv[1:]:
 if "--user" in sys.argv[1:]:
     if ".local/bin" not in os.environ.get("PATH", ""):
         print("Make sure that ~/.local/bin is in your PATH")
+        print("export PATH=$PATH:~/.local/bin")
 elif "gcc" in sys.argv[1:]:
-    print("Make sure that the download RISC-V compiler is in your $PATH.")
+    print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
+    print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
