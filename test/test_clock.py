@@ -75,3 +75,11 @@ class TestClock(unittest.TestCase):
         for i in range(pll.nclkouts_max):
             pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
         pll.compute_config()
+
+    # Altera / CycloneV
+    def test_cyclonevpll(self):
+        pll = CycloneVPLL()
+        pll.register_clkin(Signal(), 50e6)
+        for i in range(pll.nclkouts_max):
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
+        pll.compute_config()
