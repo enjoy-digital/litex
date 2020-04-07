@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import shutil
 from collections import OrderedDict
 
 import urllib.request
@@ -59,14 +60,7 @@ def sifive_riscv_download():
         print("Using existing file", fn)
 
     print("Extracting", fn)
-    if fn.endswith(".tar.gz"):
-        import tarfile
-        with tarfile.open(fn) as t:
-            t.extractall()
-    elif fn.endswith(".zip"):
-        import zipfile
-        with zipfile.open(fn) as z:
-            z.extractall()
+    shutil.unpack_archive(fn)
 
     if "--user" in sys.argv[1:] and not is_windows:
         print("Linking compiler into ~/.local/bin")
