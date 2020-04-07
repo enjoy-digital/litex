@@ -10,6 +10,8 @@ import urllib.request
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 
+# Repositories -------------------------------------------------------------------------------------
+
 # name,  (url, recursive clone, develop)
 repos = [
     # HDL
@@ -35,25 +37,27 @@ repos = [
 ]
 repos = OrderedDict(repos)
 
+# RISC-V toolchain download ------------------------------------------------------------------------
 
 def sifive_riscv_download():
-    base_url = "https://static.dev.sifive.com/dev-tools/"
+    base_url  = "https://static.dev.sifive.com/dev-tools/"
     base_file = "riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-"
 
-    is_windows = (
-        sys.platform.startswith('win') or sys.platform.startswith('cygwin'))
-    if is_windows:
-        end_file = 'w64-mingw32.zip'
-    elif sys.platform.startswith('linux'):
-        end_file = 'linux-ubuntu14.tar.gz'
-    elif sys.platform.startswith('darwin'):
-        end_file = 'apple-darwin.tar.gz'
+    # Windows
+    if (sys.platform.startswith("win") or sys.platform.startswith("cygwin")):
+        end_file = "w64-mingw32.zip"
+    # Linux
+    elif sys.platform.startswith("linux"):
+        end_file = "linux-ubuntu14.tar.gz"
+    # Mac OS
+    elif sys.platform.startswith("darwin"):
+        end_file = "apple-darwin.tar.gz"
     else:
         raise NotImplementedError(sys.platform)
     fn = base_file + end_file
 
     if not os.path.exists(fn):
-        url = base_url+fn
+        url = base_url + fn
         print("Downloading", url, "to", fn)
         urllib.request.urlretrieve(url, fn)
     else:
@@ -62,7 +66,9 @@ def sifive_riscv_download():
     print("Extracting", fn)
     shutil.unpack_archive(fn)
 
-if os.environ.get('TRAVIS', '') == 'true':
+# Setup --------------------------------------------------------------------------------------------
+
+if os.environ.get("TRAVIS", "") == "true":
     # Ignore `ssl.SSLCertVerificationError` on CI.
     import ssl
     ssl._create_default_https_context = ssl._create_unverified_context
@@ -75,6 +81,7 @@ if len(sys.argv) < 2:
     print("- gcc")
     exit()
 
+# Repositories cloning
 if "init" in sys.argv[1:]:
     os.chdir(os.path.join(current_path))
     for name in repos.keys():
@@ -87,6 +94,7 @@ if "init" in sys.argv[1:]:
             "git clone " + full_url + " " + opts,
             shell=True)
 
+# Repositories installation
 if "install" in sys.argv[1:]:
     for name in repos.keys():
         url, need_recursive, need_develop = repos[name]
@@ -104,9 +112,12 @@ if "install" in sys.argv[1:]:
                     shell=True)
             os.chdir(os.path.join(current_path))
 
-if "gcc" in sys.argv[1:]:
-    sifive_riscv_download()
+    if "--user" in sys.argv[1:]:
+        if ".local/bin" not in os.environ.get("PATH", ""):
+            print("Make sure that ~/.local/bin is in your PATH")
+            print("export PATH=$PATH:~/.local/bin")
 
+# Repositories update
 if "update" in sys.argv[1:]:
     for name in repos.keys():
         # update
@@ -117,10 +128,9 @@ if "update" in sys.argv[1:]:
             shell=True)
         os.chdir(os.path.join(current_path))
 
-if "--user" in sys.argv[1:]:
-    if ".local/bin" not in os.environ.get("PATH", ""):
-        print("Make sure that ~/.local/bin is in your PATH")
-        print("export PATH=$PATH:~/.local/bin")
-if "gcc" in sys.argv[1:] and 'riscv64' not in os.environ.get("PATH", ""):
-    print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
-    print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
+# RISC-V GCC installation
+if "gcc" in sys.argv[1:]:
+    sifive_riscv_download()
+    if "riscv64" not in os.environ.get("PATH", ""):
+        print("Make sure that the downloaded RISC-V compiler is in your $PATH.")
+        print("export PATH=$PATH:$(echo $PWD/riscv64-*/bin/)")
