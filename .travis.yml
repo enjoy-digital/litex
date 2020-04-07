@@ -1,21 +1,21 @@
 jobs:
   include:
-#    - os: linux
-#      dist: xenial
-#      language: python
-#      python: "3.5"
+    - os: linux
+      dist: xenial
+      language: python
+      python: "3.5"
     - os: linux
       dist: xenial
       language: python
       python: "3.6"
-#    - os: linux
-#      dist: xenial
-#      language: python
-#      python: "3.7"
-#    - os: linux
-#      dist: xenial
-#      language: python
-#      python: "3.8"
+    - os: linux
+      dist: xenial
+      language: python
+      python: "3.7"
+    - os: linux
+      dist: xenial
+      language: python
+      python: "3.8"
     - os: osx
       osx_image: xcode10.2 # Includes Python 3.7
       language: shell
