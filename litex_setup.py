@@ -85,6 +85,10 @@ def sifive_riscv_download():
             assert not os.path.exists(dst), dst
             os.symlink(src, dst)
 
+if os.environ.get('TRAVIS', '') == 'true':
+    # Ignore `ssl.SSLCertVerificationError` on CI.
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
 
 if len(sys.argv) < 2:
     print("Available commands:")
