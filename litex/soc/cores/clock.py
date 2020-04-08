@@ -699,9 +699,9 @@ class ECP5PLL(Module):
             self.params["o_CLKO{}".format(n_to_l[n])]        = clk
         self.specials += Instance("EHXPLLL", **self.params)
 
-# Altera / Generic ---------------------------------------------------------------------------------
+# Intel / Generic ---------------------------------------------------------------------------------
 
-class AlteraClocking(Module, AutoCSR):
+class IntelClocking(Module, AutoCSR):
     def __init__(self, vco_margin=0):
         self.vco_margin = vco_margin
         self.reset      = Signal()
@@ -795,9 +795,9 @@ class AlteraClocking(Module, AutoCSR):
             self.comb += clk.eq(clks[n])
         self.specials += Instance("ALTPLL", **self.params)
 
-# Altera / CycloneIV -------------------------------------------------------------------------------
+# Intel / CycloneIV -------------------------------------------------------------------------------
 
-class CycloneIVPLL(AlteraClocking):
+class CycloneIVPLL(IntelClocking):
     nclkouts_max   = 5
     n_div_range    = (1, 512+1)
     m_div_range    = (1, 512+1)
@@ -806,7 +806,7 @@ class CycloneIVPLL(AlteraClocking):
     def __init__(self, speedgrade="-6"):
         self.logger = logging.getLogger("CycloneIVPLL")
         self.logger.info("Creating CycloneIVPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
-        AlteraClocking.__init__(self)
+        IntelClocking.__init__(self)
         self.clkin_freq_range = {
             "-6" : (5e6, 472.5e6),
             "-7" : (5e6, 472.5e6),
@@ -822,9 +822,9 @@ class CycloneIVPLL(AlteraClocking):
             "-9L": (0e6, 265e6),
         }[speedgrade]
 
-# Altera / CycloneV --------------------------------------------------------------------------------
+# Intel / CycloneV --------------------------------------------------------------------------------
 
-class CycloneVPLL(AlteraClocking):
+class CycloneVPLL(IntelClocking):
     nclkouts_max   = 5
     n_div_range    = (1, 512+1)
     m_div_range    = (1, 512+1)
@@ -834,7 +834,7 @@ class CycloneVPLL(AlteraClocking):
     def __init__(self, speedgrade="-C6"):
         self.logger = logging.getLogger("CycloneIVPLL")
         self.logger.info("Creating CycloneIVPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
-        AlteraClocking.__init__(self)
+        IntelClocking.__init__(self)
         self.clkin_freq_range = {
             "-C6" : (5e6, 670e6),
             "-C7" : (5e6, 622e6),
