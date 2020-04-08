@@ -832,8 +832,8 @@ class CycloneVPLL(IntelClocking):
     clkin_pfd_freq_range  = (5e6, 325e6)  # FIXME: use
     clkfin_pfd_freq_range = (50e6, 160e6) # FIXME: use
     def __init__(self, speedgrade="-C6"):
-        self.logger = logging.getLogger("CycloneIVPLL")
-        self.logger.info("Creating CycloneIVPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        self.logger = logging.getLogger("CycloneVPLL")
+        self.logger.info("Creating CycloneVPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         IntelClocking.__init__(self)
         self.clkin_freq_range = {
             "-C6" : (5e6, 670e6),
@@ -843,11 +843,11 @@ class CycloneVPLL(IntelClocking):
             "-A7" : (5e6, 500e6),
         }[speedgrade]
         self.vco_freq_range = {
-            "-C6" : (5e6, 1600e6),
-            "-C7" : (5e6, 1600e6),
-            "-I7" : (5e6, 1600e6),
-            "-C8" : (5e6, 1300e6),
-            "-A7" : (5e6, 1300e6),
+            "-C6" : (600e6, 1600e6),
+            "-C7" : (600e6, 1600e6),
+            "-I7" : (600e6, 1600e6),
+            "-C8" : (600e6, 1300e6),
+            "-A7" : (600e6, 1300e6),
         }[speedgrade]
         self.clko_freq_range = {
             "-C6" : (0e6, 550e6),
