@@ -9,6 +9,8 @@ from migen.fhdl.bitcontainer import value_bits_sign
 from migen.genlib.io import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen.io import *
+
 # ECP5 AsyncResetSynchronizer ----------------------------------------------------------------------
 
 class LatticeECP5AsyncResetSynchronizerImpl(Module):
@@ -33,7 +35,52 @@ class LatticeECP5AsyncResetSynchronizer:
     def lower(dr):
         return LatticeECP5AsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
-# ECP5 DDDR Output ---------------------------------------------------------------------------------
+
+# ECP5 SDR Input -----------------------------------------------------------------------------------
+
+class LatticeECP5SDRInputImpl(Module):
+    def __init__(self, i, o, clk):
+        for n in range(len(i)):
+            _i = Signal()
+            _o = Signal()
+            self.comb += _i.eq(i[n])
+            self.specials += Instance("IFS1P3BX",
+                i_SCLK = clk,
+                i_PD   = 0,
+                i_SP   = 1,
+                i_D    = _i,
+                o_Q    = _o,
+            )
+            self.comb += o[n].eq(_o)
+
+class LatticeECP5SDRInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5SDRInputImpl(dr.i, dr.o, dr.clk)
+
+# ECP5 SDR Output ----------------------------------------------------------------------------------
+
+class LatticeECP5SDROutputImpl(Module):
+    def __init__(self, i, o, clk):
+        for n in range(len(i)):
+            _i = Signal()
+            _o = Signal()
+            self.comb += _i.eq(i[n])
+            self.specials += Instance("OFS1P3BX",
+                i_SCLK = clk,
+                i_PD   = 0,
+                i_SP   = 1,
+                i_D    = _i,
+                o_Q    = _o,
+            )
+            self.comb += o[n].eq(_o)
+
+class LatticeECP5SDROutput:
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5SDROutputImpl(dr.i, dr.o, dr.clk)
+
+# ECP5 DDR Output ----------------------------------------------------------------------------------
 
 class LatticeECP5DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
@@ -53,6 +100,8 @@ class LatticeECP5DDROutput:
 
 lattice_ecp5_special_overrides = {
     AsyncResetSynchronizer: LatticeECP5AsyncResetSynchronizer,
+    SDRInput:               LatticeECP5SDRInput,
+    SDROutput:              LatticeECP5SDROutput,
     DDROutput:              LatticeECP5DDROutput
 }
 
@@ -83,7 +132,6 @@ class LatticeECP5TrellisTristateImpl(Module):
                     )
                 ]
 
-
 class LatticeECP5TrellisTristate(Module):
     @staticmethod
     def lower(dr):
@@ -94,6 +142,8 @@ class LatticeECP5TrellisTristate(Module):
 lattice_ecp5_trellis_special_overrides = {
     AsyncResetSynchronizer: LatticeECP5AsyncResetSynchronizer,
     Tristate:               LatticeECP5TrellisTristate,
+    SDRInput:               LatticeECP5SDRInput,
+    SDROutput:              LatticeECP5SDROutput,
     DDROutput:              LatticeECP5DDROutput
 }
 
