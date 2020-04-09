@@ -48,7 +48,8 @@ class BlackParrotRV64(CPU):
     name                 = "blackparrot"
     data_width           = 64
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf")
+    gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf",
+                            "riscv64-none-elf")
     linker_output_format = "elf64-littleriscv"
     io_regions           = {0x30000000: 0x20000000} # origin, length
 
