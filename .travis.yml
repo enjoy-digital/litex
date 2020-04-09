@@ -26,7 +26,7 @@ jobs:
 install:
   # Get Migen / LiteX / Cores
   - cd ~/
-  - wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+  - cp $TRAVIS_BUILD_DIR/litex_setup.py .
   - python3 litex_setup.py init install
   # Install the LiteX version being tested
   - cd $TRAVIS_BUILD_DIR
