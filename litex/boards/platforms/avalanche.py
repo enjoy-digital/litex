@@ -27,41 +27,41 @@ _io = [
     ),
 
     ("spiflash4x", 0,
-        Subsignal("clk", Pins("J1")),
+        Subsignal("clk",  Pins("J1")),
         Subsignal("cs_n", Pins("H1")),
-        Subsignal("dq", Pins("F2 F1 M7 M8")),
+        Subsignal("dq",   Pins("F2 F1 M7 M8")),
         IOStandard("LVCMOS25")
     ),
     ("spiflash", 0,
-        Subsignal("clk", Pins("J1")),
+        Subsignal("clk",  Pins("J1")),
         Subsignal("cs_n", Pins("H1")),
         Subsignal("mosi", Pins("F2")),
         Subsignal("miso", Pins("F1")),
-        Subsignal("wp", Pins("M7")),
+        Subsignal("wp",   Pins("M7")),
         Subsignal("hold", Pins("M8")),
         IOStandard("LVCMOS25"),
     ),
 
     ("ddram", 0,
         Subsignal("a", Pins(
-            "U5 U4 V4 W3 V5 W4 Y3 AA3",
+            "U5 U4  V4  W3 V5 W4  Y3 AA3",
             "Y4 Y5 AA2 AB2 V6 W6 AB3"),
             IOStandard("SSTL15II")),
-        Subsignal("ba", Pins("V7 Y6 U7"), IOStandard("SSTL15II")),
+        Subsignal("ba",    Pins("V7 Y6 U7"), IOStandard("SSTL15II")),
         Subsignal("ras_n", Pins("AA6"), IOStandard("SSTL15II")),
         Subsignal("cas_n", Pins("AA5"), IOStandard("SSTL15II")),
-        Subsignal("we_n", Pins("AB5"), IOStandard("SSTL15II")),
-        Subsignal("cs_n", Pins("W7"), IOStandard("SSTL15II")),
+        Subsignal("we_n",  Pins("AB5"), IOStandard("SSTL15II")),
+        Subsignal("cs_n",  Pins("W7"),  IOStandard("SSTL15II")),
         Subsignal("dm", Pins("Y9 R15"), IOStandard("SSTL15II")),
         Subsignal("dq", Pins(
-            "T7 T8 U8 U9 R10 V9 V10 W9",
+            "T7   T8  U8 U9  R10  V9 V10 W9",
             "V14 U14 R12 T11 U15 T13 U13 T15"),
             IOStandard("SSTL15II")),
         Subsignal("dqs_p", Pins("T10 R13"), IOStandard("SSTL15II")),
         Subsignal("dqs_n", Pins("U10 T12"), IOStandard("SSTL15II")),
         Subsignal("clk_p", Pins("V2"), IOStandard("SSTL15II")),
         Subsignal("clk_n", Pins("W2"), IOStandard("SSTL15II")),
-        Subsignal("cke", Pins("W8"), IOStandard("SSTL15II")),
+        Subsignal("cke", Pins("W8"),  IOStandard("SSTL15II")),
         Subsignal("odt", Pins("AA7"), IOStandard("SSTL15II")),
         Subsignal("reset_n", Pins("AB7"), IOStandard("SSTL15II")),
     ),
@@ -72,13 +72,13 @@ _io = [
         IOStandard("LVCMOS25")
     ),
     ("eth", 0,
-        Subsignal("rst_n", Pins("L8"), IOStandard("LVCMOS33")),
-        Subsignal("int_n", Pins("J4")),
-        Subsignal("mdio", Pins("H2")),
-        Subsignal("mdc", Pins("J2")),
-        Subsignal("rx_ctl", Pins("K5")),
+        Subsignal("rst_n",   Pins("L8"), IOStandard("LVCMOS33")),
+        Subsignal("int_n",   Pins("J4")),
+        Subsignal("mdio",    Pins("H2")),
+        Subsignal("mdc",     Pins("J2")),
+        Subsignal("rx_ctl",  Pins("K5")),
         Subsignal("rx_data", Pins("J9 K1 K6 K4")),
-        Subsignal("tx_ctl", Pins("L5")),
+        Subsignal("tx_ctl",  Pins("L5")),
         Subsignal("tx_data", Pins("K8 L1 L2 L3")),
         IOStandard("LVCMOS25")
     ),
@@ -87,7 +87,7 @@ _io = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(MicrosemiPlatform):
-    default_clk_name = "clk50"
+    default_clk_name   = "clk50"
     default_clk_period = 1e9/50e6
 
     def __init__(self):

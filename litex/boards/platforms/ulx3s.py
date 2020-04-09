@@ -29,7 +29,8 @@ _io = [
         Subsignal("mosi", Pins("J3"), Misc("PULLMODE=UP")),
         Subsignal("cs_n", Pins("H1"), Misc("PULLMODE=UP")),
         Subsignal("miso", Pins("K2"), Misc("PULLMODE=UP")),
-        IOStandard("LVCMOS33"), Misc("SLEWRATE=FAST")
+        Misc("SLEWRATE=FAST"),
+        IOStandard("LVCMOS33"),
     ),
 
     ("sdram_clock", 0, Pins("F19"),

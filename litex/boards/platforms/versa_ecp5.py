@@ -10,7 +10,7 @@ from litex.build.lattice.programmer import LatticeProgrammer
 
 _io = [
     ("clk100", 0, Pins("P3"), IOStandard("LVDS")),
-    ("rst_n", 0, Pins("T1"), IOStandard("LVCMOS33")),
+    ("rst_n",  0, Pins("T1"), IOStandard("LVCMOS33")),
 
     ("user_led", 0, Pins("E16"), IOStandard("LVCMOS25")),
     ("user_led", 1, Pins("D17"), IOStandard("LVCMOS25")),
@@ -21,10 +21,10 @@ _io = [
     ("user_led", 6, Pins("E17"), IOStandard("LVCMOS25")),
     ("user_led", 7, Pins("F16"), IOStandard("LVCMOS25")),
 
-    ("user_dip_btn", 0, Pins("H2"), IOStandard("LVCMOS15")),
-    ("user_dip_btn", 1, Pins("K3"), IOStandard("LVCMOS15")),
-    ("user_dip_btn", 2, Pins("G3"), IOStandard("LVCMOS15")),
-    ("user_dip_btn", 3, Pins("F2"), IOStandard("LVCMOS15")),
+    ("user_dip_btn", 0, Pins("H2"),  IOStandard("LVCMOS15")),
+    ("user_dip_btn", 1, Pins("K3"),  IOStandard("LVCMOS15")),
+    ("user_dip_btn", 2, Pins("G3"),  IOStandard("LVCMOS15")),
+    ("user_dip_btn", 3, Pins("F2"),  IOStandard("LVCMOS15")),
     ("user_dip_btn", 4, Pins("J18"), IOStandard("LVCMOS25")),
     ("user_dip_btn", 5, Pins("K18"), IOStandard("LVCMOS25")),
     ("user_dip_btn", 6, Pins("K19"), IOStandard("LVCMOS25")),
@@ -39,14 +39,14 @@ _io = [
         Subsignal("cs_n", Pins("R2")),
         Subsignal("mosi", Pins("W2")),
         Subsignal("miso", Pins("V2")),
-        Subsignal("wp", Pins("Y2")),
+        Subsignal("wp",   Pins("Y2")),
         Subsignal("hold", Pins("W1")),
         IOStandard("LVCMOS33"),
     ),
 
     ("spiflash4x", 0, # clock needs to be accessed through USRMCLK
         Subsignal("cs_n", Pins("R2")),
-        Subsignal("dq", Pins("W2 V2 Y2 W1")),
+        Subsignal("dq",   Pins("W2 V2 Y2 W1")),
         IOStandard("LVCMOS33")
     ),
 
@@ -55,21 +55,23 @@ _io = [
             "P2 C4 E5 F5 B3 F4 B5 E4",
             "C5 E3 D5 B4 C3"),
             IOStandard("SSTL135_I")),
-        Subsignal("ba", Pins("P5 N3 M3"), IOStandard("SSTL135_I")),
+        Subsignal("ba",    Pins("P5 N3 M3"), IOStandard("SSTL135_I")),
         Subsignal("ras_n", Pins("P1"), IOStandard("SSTL135_I")),
         Subsignal("cas_n", Pins("L1"), IOStandard("SSTL135_I")),
-        Subsignal("we_n", Pins("M1"), IOStandard("SSTL135_I")),
-        Subsignal("cs_n", Pins("K1"), IOStandard("SSTL135_I")),
+        Subsignal("we_n",  Pins("M1"), IOStandard("SSTL135_I")),
+        Subsignal("cs_n",  Pins("K1"), IOStandard("SSTL135_I")),
         Subsignal("dm", Pins("J4 H5"), IOStandard("SSTL135_I")),
         Subsignal("dq", Pins(
             "L5 F1 K4 G1 L4 H1 G2 J3",
             "D1 C1 E2 C2 F3 A2 E1 B1"),
             IOStandard("SSTL135_I"),
             Misc("TERMINATION=75")),
-        Subsignal("dqs_p", Pins("K2 H4"), IOStandard("SSTL135D_I"), Misc("TERMINATION=OFF"), Misc("DIFFRESISTOR=100")),
+        Subsignal("dqs_p", Pins("K2 H4"), IOStandard("SSTL135D_I"),
+            Misc("TERMINATION=OFF"),
+            Misc("DIFFRESISTOR=100")),
         Subsignal("clk_p", Pins("M4"), IOStandard("SSTL135D_I")),
-        Subsignal("cke", Pins("N2"), IOStandard("SSTL135_I")),
-        Subsignal("odt", Pins("L2"), IOStandard("SSTL135_I")),
+        Subsignal("cke",   Pins("N2"), IOStandard("SSTL135_I")),
+        Subsignal("odt",   Pins("L2"), IOStandard("SSTL135_I")),
         Subsignal("reset_n", Pins("N4"), IOStandard("SSTL135_I")),
         Misc("SLEWRATE=FAST"),
     ),
@@ -80,12 +82,12 @@ _io = [
         IOStandard("LVCMOS25")
     ),
     ("eth", 0,
-        Subsignal("rst_n", Pins("U17")),
-        Subsignal("mdio", Pins("U18")),
-        Subsignal("mdc", Pins("T18")),
-        Subsignal("rx_ctl", Pins("U19")),
+        Subsignal("rst_n",   Pins("U17")),
+        Subsignal("mdio",    Pins("U18")),
+        Subsignal("mdc",     Pins("T18")),
+        Subsignal("rx_ctl",  Pins("U19")),
         Subsignal("rx_data", Pins("T20 U20 T19 R18")),
-        Subsignal("tx_ctl", Pins("R20")),
+        Subsignal("tx_ctl",  Pins("R20")),
         Subsignal("tx_data", Pins("N19 N20 P18 P20")),
         IOStandard("LVCMOS25")
     ),
@@ -96,12 +98,12 @@ _io = [
         IOStandard("LVCMOS25")
     ),
     ("eth", 1,
-        Subsignal("rst_n", Pins("F20")),
-        Subsignal("mdio", Pins("H20")),
-        Subsignal("mdc", Pins("G19")),
-        Subsignal("rx_ctl", Pins("F19")),
+        Subsignal("rst_n",   Pins("F20")),
+        Subsignal("mdio",    Pins("H20")),
+        Subsignal("mdc",     Pins("G19")),
+        Subsignal("rx_ctl",  Pins("F19")),
         Subsignal("rx_data", Pins("G18 G16 H18 H17")),
-        Subsignal("tx_ctl", Pins("E19")),
+        Subsignal("tx_ctl",  Pins("E19")),
         Subsignal("tx_data", Pins("J17 J16 D19 D20")),
         IOStandard("LVCMOS25")
     ),
@@ -115,15 +117,15 @@ _io = [
     ("pcie_x1", 0,
         Subsignal("clk_p", Pins("Y11")),
         Subsignal("clk_n", Pins("Y12")),
-        Subsignal("rx_p", Pins("Y5")),
-        Subsignal("rx_n", Pins("Y6")),
-        Subsignal("tx_p", Pins("W4")),
-        Subsignal("tx_n", Pins("W5")),
+        Subsignal("rx_p",  Pins("Y5")),
+        Subsignal("rx_n",  Pins("Y6")),
+        Subsignal("tx_p",  Pins("W4")),
+        Subsignal("tx_n",  Pins("W5")),
         Subsignal("perst", Pins("A6"), IOStandard("LVCMOS33")),
     ),
 
-    ("refclk_en", 0, Pins("C12"), IOStandard("LVCMOS33")),
-    ("refclk_rst_n", 0, Pins("R1"), IOStandard("LVCMOS33")),
+    ("refclk_en",    0, Pins("C12"), IOStandard("LVCMOS33")),
+    ("refclk_rst_n", 0, Pins("R1"),  IOStandard("LVCMOS33")),
     ("refclk", 0,
         Subsignal("p", Pins("Y11")),
         Subsignal("n", Pins("Y12")),
@@ -148,19 +150,20 @@ _ecp5_soc_hat_io = [
     ("sdram_clock", 0, Pins("E14"), IOStandard("LVCMOS33")),
     ("sdram", 0,
          Subsignal("a", Pins(
-            "C6 E15 A16 B16 D15 C15 B15 E12",
-            "D12 B10 C7 A9 C10")),
+            "C6  E15 A16 B16 D15 C15 B15 E12",
+            "D12 B10  C7  A9 C10")),
          Subsignal("dq", Pins(
-            "B19 B12 B9 E6 D6 E7 D7 B11",
+            "B19 B12  B9  E6  D6  E7  D7 B11",
             "C14 A14 E13 D13 C13 B13 A13 A12")),
-         Subsignal("we_n", Pins("E9")),
+         Subsignal("we_n",  Pins("E9")),
          Subsignal("ras_n", Pins("B8")),
          Subsignal("cas_n", Pins("D9")),
-         Subsignal("cs_n", Pins("C8")),
-         Subsignal("cke", Pins("D11")),
-         Subsignal("ba", Pins("D8 E8")),
-         Subsignal("dm", Pins("B6 D14")),
-         IOStandard("LVCMOS33"), Misc("SLEWRATE=FAST")
+         Subsignal("cs_n",  Pins("C8")),
+         Subsignal("cke",   Pins("D11")),
+         Subsignal("ba",    Pins("D8 E8")),
+         Subsignal("dm",    Pins("B6 D14")),
+         Misc("SLEWRATE=FAST"),
+         IOStandard("LVCMOS33"),
     ),
 ]
 
@@ -215,7 +218,7 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(LatticePlatform):
-    default_clk_name = "clk100"
+    default_clk_name   = "clk100"
     default_clk_period = 1e9/100e6
 
     def __init__(self, **kwargs):

@@ -32,11 +32,11 @@ _io = [
     ("user_sw",  5, Pins("T18"), IOStandard("LVCMOS33")),
     ("user_sw",  6, Pins("U18"), IOStandard("LVCMOS33")),
     ("user_sw",  7, Pins("R13"), IOStandard("LVCMOS33")),
-    ("user_sw",  8, Pins("T8"), IOStandard("LVCMOS33")),
-    ("user_sw",  9, Pins("U8"), IOStandard("LVCMOS33")),
+    ("user_sw",  8, Pins("T8"),  IOStandard("LVCMOS33")),
+    ("user_sw",  9, Pins("U8"),  IOStandard("LVCMOS33")),
     ("user_sw", 10, Pins("R16"), IOStandard("LVCMOS33")),
     ("user_sw", 11, Pins("T13"), IOStandard("LVCMOS33")),
-    ("user_sw", 12, Pins("H6"), IOStandard("LVCMOS33")),
+    ("user_sw", 12, Pins("H6"),  IOStandard("LVCMOS33")),
     ("user_sw", 13, Pins("U12"), IOStandard("LVCMOS33")),
     ("user_sw", 14, Pins("U11"), IOStandard("LVCMOS33")),
     ("user_sw", 15, Pins("V10"), IOStandard("LVCMOS33")),
@@ -63,15 +63,17 @@ _io = [
         Subsignal("mosi", Pins("C1"), Misc("PULLUP True")),
         Subsignal("cs_n", Pins("D2"), Misc("PULLUP True")),
         Subsignal("miso", Pins("C2"), Misc("PULLUP True")),
-        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33"),
     ),
 
     ("sdcard", 0,
-        Subsignal("rst", Pins("E2"), Misc("PULLUP True")),
+        Subsignal("rst",  Pins("E2"),          Misc("PULLUP True")),
         Subsignal("data", Pins("C2 E1 F1 D2"), Misc("PULLUP True")),
-        Subsignal("cmd", Pins("C1"), Misc("PULLUP True")),
-        Subsignal("clk", Pins("B1")),
-        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+        Subsignal("cmd",  Pins("C1"),          Misc("PULLUP True")),
+        Subsignal("clk",  Pins("B1")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33"),
     ),
 
     ("ddram", 0,
@@ -79,10 +81,10 @@ _io = [
             "M4 P4 M6 T1 L3 P5 M2 N1",
             "L4 N5 R2 K5 N6"),
             IOStandard("SSTL18_II")),
-        Subsignal("ba", Pins("P2 P3 R1"), IOStandard("SSTL18_II")),
+        Subsignal("ba",    Pins("P2 P3 R1"), IOStandard("SSTL18_II")),
         Subsignal("ras_n", Pins("N4"), IOStandard("SSTL18_II")),
         Subsignal("cas_n", Pins("L1"), IOStandard("SSTL18_II")),
-        Subsignal("we_n", Pins("N2"), IOStandard("SSTL18_II")),
+        Subsignal("we_n",  Pins("N2"), IOStandard("SSTL18_II")),
         Subsignal("dm", Pins("T6 U1"), IOStandard("SSTL18_II")),
         Subsignal("dq", Pins(
             "R7 V6 R8 U7 V7 R6 U6 R5",
@@ -93,9 +95,9 @@ _io = [
         Subsignal("dqs_n", Pins("V9 V2"), IOStandard("DIFF_SSTL18_II")),
         Subsignal("clk_p", Pins("L6"), IOStandard("DIFF_SSTL18_II")),
         Subsignal("clk_n", Pins("L5"), IOStandard("DIFF_SSTL18_II")),
-        Subsignal("cke", Pins("M1"), IOStandard("SSTL18_II")),
-        Subsignal("odt", Pins("M3"), IOStandard("SSTL18_II")),
-        Subsignal("cs_n", Pins("K6"), IOStandard("SSTL18_II")),
+        Subsignal("cke",   Pins("M1"), IOStandard("SSTL18_II")),
+        Subsignal("odt",   Pins("M3"), IOStandard("SSTL18_II")),
+        Subsignal("cs_n",  Pins("K6"), IOStandard("SSTL18_II")),
         Misc("SLEW=FAST"),
     ),
 
@@ -105,15 +107,15 @@ _io = [
     ),
 
     ("eth", 0,
-        Subsignal("rst_n", Pins("B3")),
+        Subsignal("rst_n",   Pins("B3")),
         Subsignal("rx_data", Pins("C11 D10")),
-        Subsignal("crs_dv", Pins("D9")),
-        Subsignal("tx_en", Pins("B9")),
+        Subsignal("crs_dv",  Pins("D9")),
+        Subsignal("tx_en",   Pins("B9")),
         Subsignal("tx_data", Pins("A10 A8")),
-        Subsignal("mdc", Pins("C9")),
-        Subsignal("mdio", Pins("A9")),
-        Subsignal("rx_er", Pins("C10")),
-        Subsignal("int_n", Pins("D8")),
+        Subsignal("mdc",     Pins("C9")),
+        Subsignal("mdio",    Pins("A9")),
+        Subsignal("rx_er",   Pins("C10")),
+        Subsignal("int_n",   Pins("D8")),
         IOStandard("LVCMOS33")
      ),
 ]
@@ -121,7 +123,7 @@ _io = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
-    default_clk_name = "clk100"
+    default_clk_name   = "clk100"
     default_clk_period = 1e9/100e6
 
     def __init__(self):
@@ -130,6 +132,3 @@ class Platform(XilinxPlatform):
 
     def create_programmer(self):
         return VivadoProgrammer()
-
-    def do_finalize(self, fragment):
-        XilinxPlatform.do_finalize(self, fragment)
