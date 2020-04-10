@@ -10,6 +10,8 @@ import sys
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.build.io import DDROutput
+
 from litex.boards.platforms import ulx3s
 
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
@@ -45,7 +47,7 @@ class _CRG(Module):
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~pll.locked | rst)
 
         # SDRAM clock
-        self.comb += platform.request("sdram_clock").eq(self.cd_sys_ps.clk)
+        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), ClockSignal("sys_ps"))
 
         # Prevent ESP32 from resetting FPGA
         self.comb += platform.request("wifi_gpio0").eq(1)
