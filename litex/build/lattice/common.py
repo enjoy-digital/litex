@@ -39,18 +39,13 @@ class LatticeECP5AsyncResetSynchronizer:
 
 class LatticeECP5SDRInputImpl(Module):
     def __init__(self, i, o, clk):
-        for n in range(len(i)):
-            _i = Signal()
-            _o = Signal()
-            self.comb += _i.eq(i[n])
-            self.specials += Instance("IFS1P3BX",
-                i_SCLK = clk,
-                i_PD   = 0,
-                i_SP   = 1,
-                i_D    = _i,
-                o_Q    = _o,
-            )
-            self.comb += o[n].eq(_o)
+        self.specials += Instance("IFS1P3BX",
+            i_SCLK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
 
 class LatticeECP5SDRInput:
     @staticmethod
@@ -61,18 +56,13 @@ class LatticeECP5SDRInput:
 
 class LatticeECP5SDROutputImpl(Module):
     def __init__(self, i, o, clk):
-        for n in range(len(i)):
-            _i = Signal()
-            _o = Signal()
-            self.comb += _i.eq(i[n])
-            self.specials += Instance("OFS1P3BX",
-                i_SCLK = clk,
-                i_PD   = 0,
-                i_SP   = 1,
-                i_D    = _i,
-                o_Q    = _o,
-            )
-            self.comb += o[n].eq(_o)
+        self.specials += Instance("OFS1P3BX",
+            i_SCLK = clk,
+            i_PD   = 0,
+            i_SP   = 1,
+            i_D    = i,
+            o_Q    = o,
+        )
 
 class LatticeECP5SDROutput:
     @staticmethod
