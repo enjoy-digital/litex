@@ -39,7 +39,7 @@ LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, P
 
 | Name                                                         | Build Status                                                            | Description                   |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- | ----------------------------- |
-| [LiteDRAM](http://github.com/enjoy-digital/litedram)         | [![](https://travis-ci.org/enjoy-digital/litedram.svg?branch=master)](https://travis-ci.org/enjoy-digital/litedram)     | DRAM        |
+| [LiteDRAM](http://github.com/enjoy-digital/litedram)         | [![](https://travis-ci.com/enjoy-digital/litedram.svg?branch=master)](https://travis-ci.com/enjoy-digital/litedram)     | DRAM        |
 | [LiteEth](http://github.com/enjoy-digital/liteeth)           | [![](https://travis-ci.com/enjoy-digital/liteeth.svg?branch=master)](https://travis-ci.com/enjoy-digital/liteeth)       | Ethernet                      |
 | [LitePCIe](http://github.com/enjoy-digital/litepcie)         | [![](https://travis-ci.com/enjoy-digital/litepcie.svg?branch=master)](https://travis-ci.com/enjoy-digital/litepcie)     | PCIe                          |
 | [LiteSATA](http://github.com/enjoy-digital/litesata)         | [![](https://travis-ci.com/enjoy-digital/litesata.svg?branch=master)](https://travis-ci.com/enjoy-digital/litesata)     | SATA                          |
