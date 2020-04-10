@@ -8,8 +8,9 @@ import math
 import logging
 
 from migen import *
-from migen.genlib.io import DifferentialInput
 from migen.genlib.resetsync import AsyncResetSynchronizer
+
+from litex.build.io import DifferentialInput
 
 from litex.soc.integration.soc import colorer
 from litex.soc.interconnect.csr import *

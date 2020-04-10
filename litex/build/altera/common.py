@@ -2,12 +2,12 @@
 # This file is Copyright (c) 2019 vytautasb <v.buitvydas@limemicro.com>
 # License: BSD
 
+from migen import *
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Instance
-from migen.genlib.io import DifferentialInput, DifferentialOutput
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from migen.fhdl.structure import *
+from litex.build.io import *
 
 # DifferentialInput --------------------------------------------------------------------------------
 

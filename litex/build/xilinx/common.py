@@ -13,8 +13,8 @@ from migen.fhdl.specials import Instance
 from migen.fhdl.module import Module
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.io import *
 
+from litex.build.io import *
 from litex.build import tools
 
 # Colorama -----------------------------------------------------------------------------------------

@@ -6,10 +6,9 @@
 from migen.fhdl.module import Module
 from migen.fhdl.specials import Instance, Tristate
 from migen.fhdl.bitcontainer import value_bits_sign
-from migen.genlib.io import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex.gen.io import *
+from litex.build.io import *
 
 # ECP5 AsyncResetSynchronizer ----------------------------------------------------------------------
 
