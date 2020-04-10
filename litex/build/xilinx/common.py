@@ -9,7 +9,7 @@ import sys
 import subprocess
 
 from migen.fhdl.structure import *
-from migen.fhdl.specials import Instance
+from migen.fhdl.specials import Instance, Tristate
 from migen.fhdl.module import Module
 from migen.genlib.cdc import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -111,7 +111,7 @@ class XilinxDifferentialInput:
     def lower(dr):
         return XilinxDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
 
-# Common XilinxDifferentialOutput ------------------------------------------------------------------
+# Common DifferentialOutput ------------------------------------------------------------------------
 
 class XilinxDifferentialOutputImpl(Module):
     def __init__(self, i, o_p, o_n):
@@ -127,13 +127,14 @@ class XilinxDifferentialOutput:
     def lower(dr):
         return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+
 # Common Special Overrides -------------------------------------------------------------------------
 
 xilinx_special_overrides = {
     MultiReg:               XilinxMultiReg,
     AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
     DifferentialInput:      XilinxDifferentialInput,
-    DifferentialOutput:     XilinxDifferentialOutput
+    DifferentialOutput:     XilinxDifferentialOutput,
 }
 
 # Spartan6 DDROutput -------------------------------------------------------------------------------
@@ -142,16 +143,16 @@ class XilinxDDROutputImplS6(Module):
     def __init__(self, i1, i2, o, clk):
         self.specials += Instance("ODDR2",
             p_DDR_ALIGNMENT = "C0",
-            p_INIT   = 0,
-            p_SRTYPE = "ASYNC",
-            i_C0     = clk,
-            i_C1     = ~clk,
-            i_CE     = 1,
-            i_S      = 0,
-            i_R      = 0,
-            i_D0     = i1,
-            i_D1     = i2,
-            o_Q      = o
+            p_INIT          = 0,
+            p_SRTYPE        = "ASYNC",
+            i_C0 = clk,
+            i_C1 = ~clk,
+            i_CE = 1,
+            i_S  = 0,
+            i_R  = 0,
+            i_D0 = i1,
+            i_D1 = i2,
+            o_Q  = o
         )
 
 
@@ -160,10 +161,76 @@ class XilinxDDROutputS6:
     def lower(dr):
         return XilinxDDROutputImplS6(dr.i1, dr.i2, dr.o, dr.clk)
 
+# Spartan6 DDRInput --------------------------------------------------------------------------------
+
+class XilinxDDRInputImplS6(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("IDDR2",
+            p_DDR_ALIGNMENT = "C0",
+            p_INIT_Q0       = 0,
+            p_INIT_Q1       = 0,
+            p_SRTYPE        = "ASYNC",
+            i_C0 = clk,
+            i_C1 = ~clk,
+            i_CE = 1,
+            i_S  = 0,
+            i_R  = 0,
+            i_D  = i,
+            o_Q0 = o1,
+            o_Q1 = o2
+        )
+
+
+class XilinxDDRInputS6:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplS6(dr.i, dr.o1, dr.o2, dr.clk)
+
+# Spartan6 SDROutput -------------------------------------------------------------------------------
+
+class XilinxSDROutputS6:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDROutputImplS6(dr.i, dr.i, dr.o, dr.clk)
+
+
+# Spartan6 SDRInput --------------------------------------------------------------------------------
+
+class XilinxSDRInputS6:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplS6(dr.i, dr.o, Signal(), dr.clk)
+
+# Spartan6 SDRTristate -----------------------------------------------------------------------------
+
+class XilinxSDRTristateImplS6(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _o    = Signal()
+        _oe_n = Signal()
+        _i    = Signal()
+        self.specials += SDROutput(o, _o)
+        self.specials += SDROutput(~oe, _oe_n)
+        self.specials += SDRInput(_i, i)
+        self.specials += Instance("IOBUF",
+            io_IO = io,
+            o_O   = _i,
+            i_I   = _o,
+            i_T   = _oe_n,
+        )
+
+class XilinxSDRTristateS6:
+    @staticmethod
+    def lower(dr):
+        return XilinxSDRTristateImplS6(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+
 # Spartan6 Special Overrides -----------------------------------------------------------------------
 
 xilinx_s6_special_overrides = {
-    DDROutput: XilinxDDROutputS6
+    DDROutput:   XilinxDDROutputS6,
+    DDRInput:    XilinxDDRInputS6,
+    SDROutput:   XilinxSDROutputS6,
+    SDRInput:    XilinxSDRInputS6,
+    SDRTristate: XilinxSDRTristateS6,
 }
 
 # 7-Series DDROutput -------------------------------------------------------------------------------
