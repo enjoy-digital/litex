@@ -1,4 +1,5 @@
 # This file is Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2015 Sebastien Bourdeauducq <sb@m-labs.hk>
 # License: BSD
 
 from migen import *
@@ -38,7 +39,6 @@ class DifferentialOutput(Special):
     @staticmethod
     def lower(dr):
         raise NotImplementedError("Attempted to use a Differential Output, but platform does not support them")
-
 
 # SDR Input/Output ---------------------------------------------------------------------------------
 
@@ -111,3 +111,24 @@ class DDROutput(Special):
     @staticmethod
     def lower(dr):
         raise NotImplementedError("Attempted to use a DDR output, but platform does not support them")
+
+# Clock Reset Generator ----------------------------------------------------------------------------
+
+class CRG(Module):
+    def __init__(self, clk, rst=0):
+        self.clock_domains.cd_sys = ClockDomain()
+        self.clock_domains.cd_por = ClockDomain(reset_less=True)
+
+        if hasattr(clk, "p"):
+            clk_se = Signal()
+            self.specials += DifferentialInput(clk.p, clk.n, clk_se)
+            clk = clk_se
+
+        # Power on Reset (vendor agnostic)
+        int_rst = Signal(reset=1)
+        self.sync.por += int_rst.eq(rst)
+        self.comb += [
+            self.cd_sys.clk.eq(clk),
+            self.cd_por.clk.eq(clk),
+            self.cd_sys.rst.eq(int_rst)
+        ]

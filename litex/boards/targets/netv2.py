@@ -20,9 +20,6 @@ from litedram.phy import s7ddrphy
 
 from liteeth.phy.rmii import LiteEthPHYRMII
 
-from litespi import LiteSPI
-from litespi.phy.generic import LiteSPIPHY
-
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -78,6 +75,8 @@ class BaseSoC(SoCCore):
 
         # SPI XIP ----------------------------------------------------------------------------------
         if with_spi_xip:
+            from litespi import LiteSPI
+            from litespi.phy.generic import LiteSPIPHY
             spi_xip_size = 1024*1024*8
             self.submodules.spiphy = LiteSPIPHY(platform.request("spiflash4x"))
             self.submodules.spictl = LiteSPI(phy=self.spiphy, endianness=self.cpu.endianness)

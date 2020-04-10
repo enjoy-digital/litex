@@ -7,10 +7,10 @@ import os
 
 from migen.fhdl.structure import Signal
 from migen.genlib.record import Record
-from migen.genlib.io import CRG
 
 from litex.gen.fhdl import verilog
 
+from litex.build.io import CRG
 from litex.build import tools
 
 

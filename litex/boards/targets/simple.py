@@ -8,7 +8,8 @@ import argparse
 import importlib
 
 from migen import *
-from migen.genlib.io import CRG
+
+from litex.build.io import CRG
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
