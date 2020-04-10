@@ -20,7 +20,7 @@ class DifferentialInput(Special):
 
     @staticmethod
     def lower(dr):
-        raise NotImplementedError("Attempted to use a differential input, but platform does not support them")
+        raise NotImplementedError("Attempted to use a Differential Input, but platform does not support them")
 
 
 class DifferentialOutput(Special):
@@ -37,7 +37,7 @@ class DifferentialOutput(Special):
 
     @staticmethod
     def lower(dr):
-        raise NotImplementedError("Attempted to use a differential output, but platform does not support them")
+        raise NotImplementedError("Attempted to use a Differential Output, but platform does not support them")
 
 
 # SDR Input/Output ---------------------------------------------------------------------------------
