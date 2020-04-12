@@ -97,6 +97,7 @@ def nextpnr_ecp5_parse_device(device):
     return (family, size, speed_grade, package)
 
 nextpnr_ecp5_architectures = {
+    "lfe5u-12f"   : "12k",
     "lfe5u-25f"   : "25k",
     "lfe5u-45f"   : "45k",
     "lfe5u-85f"   : "85k",
