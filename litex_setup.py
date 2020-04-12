@@ -85,14 +85,15 @@ if len(sys.argv) < 2:
 if "init" in sys.argv[1:]:
     os.chdir(os.path.join(current_path))
     for name in repos.keys():
-        url, need_recursive, need_develop = repos[name]
-        # clone repo (recursive if needed)
-        print("[cloning " + name + "]...")
-        full_url = url + name
-        opts = "--recursive" if need_recursive else ""
-        subprocess.check_call(
-            "git clone " + full_url + " " + opts,
-            shell=True)
+        if not os.path.exists(name):
+            url, need_recursive, need_develop = repos[name]
+            # clone repo (recursive if needed)
+            print("[cloning " + name + "]...")
+            full_url = url + name
+            opts = "--recursive" if need_recursive else ""
+            subprocess.check_call(
+                "git clone " + full_url + " " + opts,
+                shell=True)
 
 # Repositories installation
 if "install" in sys.argv[1:]:
@@ -120,6 +121,8 @@ if "install" in sys.argv[1:]:
 # Repositories update
 if "update" in sys.argv[1:]:
     for name in repos.keys():
+        if not os.path.exists(name):
+            raise Exception("{} not initialized, please (re)-run init and install first.".format(name))
         # update
         print("[updating " + name + "]...")
         os.chdir(os.path.join(current_path, name))
