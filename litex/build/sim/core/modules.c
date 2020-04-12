@@ -20,7 +20,7 @@ int litex_sim_register_ext_module(struct ext_module_s *mod)
 {
   int ret=RC_OK;
   struct ext_module_list_s *ml=NULL;
-  
+
   if(!mod)
   {
     eprintf("Invalid arguments\n");
@@ -81,7 +81,7 @@ int litex_sim_load_ext_modules(struct ext_module_list_s **mlist)
 	eprintf("Can't load library %s\n", libdylib_last_error());
 	goto out;
       }
-      
+
       if(!libdylib_find(lib, "litex_sim_ext_module_init"))
       {
 	ret = RC_ERROR;
