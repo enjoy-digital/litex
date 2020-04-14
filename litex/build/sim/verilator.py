@@ -125,7 +125,6 @@ def _build_sim(build_name, sources, threads, coverage, opt_level="O3", trace_fst
     build_script_contents = """\
 rm -rf obj_dir/
 make -C . -f {} {} {} {} {} {}
-mkdir -p modules && cp obj_dir/*.so modules
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "THREADS={}".format(threads) if int(threads) > 1 else "",

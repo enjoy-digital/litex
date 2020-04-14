@@ -17,7 +17,7 @@ int litex_sim_register_pads(struct pad_s *pads, char *interface_name, int index)
   {
     ret = RC_INVARG;
     eprintf("Invalid argument\n");
-    goto out;    
+    goto out;
   }
 
   pl = (struct pad_list_s *)malloc(sizeof(struct pad_list_s));
@@ -36,7 +36,7 @@ int litex_sim_register_pads(struct pad_s *pads, char *interface_name, int index)
 
   pl->next = padlist;
   padlist = pl;
-  
+
 out:
   return ret;
 }
@@ -45,7 +45,7 @@ int litex_sim_pads_get_list(struct pad_list_s **plist)
 {
   int ret=RC_OK;
 
-  
+
   if(!plist)
   {
     ret = RC_INVARG;

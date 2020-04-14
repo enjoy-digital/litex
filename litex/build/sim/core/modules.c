@@ -20,7 +20,7 @@ int litex_sim_register_ext_module(struct ext_module_s *mod)
 {
   int ret=RC_OK;
   struct ext_module_list_s *ml=NULL;
-  
+
   if(!mod)
   {
     eprintf("Invalid arguments\n");
@@ -81,7 +81,7 @@ int litex_sim_load_ext_modules(struct ext_module_list_s **mlist)
 	eprintf("Can't load library %s\n", libdylib_last_error());
 	goto out;
       }
-      
+
       if(!libdylib_find(lib, "litex_sim_ext_module_init"))
       {
 	ret = RC_ERROR;
@@ -118,11 +118,11 @@ int litex_sim_find_ext_module(struct ext_module_list_s *first, char *name , stru
 {
   struct ext_module_list_s *list = NULL;
   int ret=RC_OK;
-  
+
   if(!first || !name || !found)
   {
     ret = RC_INVARG;
-    eprintf("Invalid arg\n");
+    eprintf("Invalid first:%s arg:%s found:%p\n", first, name, found);
     goto out;
   }
 
@@ -140,11 +140,11 @@ int litex_sim_find_module(struct module_s *first, char *name , struct module_s *
 {
   struct module_s *list = NULL;
   int ret=RC_OK;
-  
+
   if(!first || !name || !found)
   {
     ret = RC_INVARG;
-    eprintf("Invalid arg\n");
+    eprintf("Invalid first:%s arg:%s found:%p\n", first, name, found);
     goto out;
   }
 
