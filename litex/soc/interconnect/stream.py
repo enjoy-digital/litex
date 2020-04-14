@@ -228,7 +228,7 @@ class SyncFIFO(_FIFOWrapper):
 
 
 class AsyncFIFO(_FIFOWrapper):
-    def __init__(self, layout, depth, buffered=False):
+    def __init__(self, layout, depth=4, buffered=False):
         assert depth >= 4
         _FIFOWrapper.__init__(self,
             fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
