@@ -92,7 +92,7 @@ class TestPacket(unittest.TestCase):
                     for field in ["field_8b", "field_16b", "field_32b", "field_64b", "field_128b"]:
                         if (yield getattr(dut.source, field)) != packet.header[field]:
                             dut.header_errors += 1
-                    #print("{:x} vs {:x}".format((yield dut.source.data), data))
+                    # print("{:x} vs {:x}".format((yield dut.source.data), data))
                     if ((yield dut.source.data) != data):
                         dut.data_errors += 1
                     if ((yield dut.source.last) != (n == (len(packet.datas) - 1))):
@@ -124,3 +124,9 @@ class TestPacket(unittest.TestCase):
 
     def test_128bit_loopback(self):
         self.loopback_test(dw=128)
+
+    def test_256bit_loopback(self):
+        self.loopback_test(dw=256)
+
+    def test_512bit_loopback(self):
+        self.loopback_test(dw=512)

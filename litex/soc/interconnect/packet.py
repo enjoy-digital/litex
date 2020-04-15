@@ -184,7 +184,6 @@ class Packetizer(Module):
         # FSM --------------------------------------------------------------------------------------
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
-        print("hw", header_words)
         fsm.act("IDLE",
             sink.ready.eq(1),
             NextValue(count, 1),
@@ -346,13 +345,14 @@ class Depacketizer(Module):
             )
         )
         self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
+        print(header_words, header_leftover)
         fsm.act("UNALIGNED-DATA-COPY",
             source.valid.eq(sink.valid | sink_d.last),
             source.last.eq(sink.last | sink_d.last),
             sink.ready.eq(source.ready),
             source.data.eq(sink_d.data[header_leftover*8:]),
             source.data[min((bytes_per_clk-header_leftover)*8, data_width-1):].eq(sink.data),
-            If(fsm_from_idle,
+            If(fsm_from_idle & (header_words != 0),
                 source.valid.eq(sink_d.last),
                 sink.ready.eq(1),
                 If(sink.valid,
