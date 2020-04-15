@@ -249,7 +249,7 @@ void sdrwr(char *startaddr)
 #define NBMODULES DFII_PIX_DATA_BYTES/2
 #elif defined (ECP5DDRPHY)
 #define ERR_DDRPHY_DELAY 8
-#define ERR_DDRPHY_BITSLIP 1
+#define ERR_DDRPHY_BITSLIP 4
 #define NBMODULES DFII_PIX_DATA_BYTES/4
 #else
 #define ERR_DDRPHY_DELAY 32
