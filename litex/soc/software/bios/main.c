@@ -475,7 +475,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdrwr") == 0) sdrwr(get_token(&c));
 #ifdef CSR_DDRPHY_BASE
 	else if(strcmp(token, "sdrinit") == 0) sdrinit();
-#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
+#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	else if(strcmp(token, "sdrwlon") == 0) sdrwlon();
 	else if(strcmp(token, "sdrwloff") == 0) sdrwloff();
 #endif
