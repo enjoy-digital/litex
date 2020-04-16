@@ -67,7 +67,6 @@ class BaseSoC(SoCCore):
                 iodelay_clk_freq = 200e6,
                 cmd_latency      = 0)
             self.add_csr("ddrphy")
-            self.add_constant("USDDRPHY")
             self.add_constant("USDDRPHY_DEBUG")
             self.add_sdram("sdram",
                 phy                     = self.ddrphy,
