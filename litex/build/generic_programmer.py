@@ -5,7 +5,7 @@
 
 import os
 import sys
-import requests
+
 from litex.build import tools
 
 
@@ -38,6 +38,7 @@ class GenericProgrammer:
         if os.path.exists(fullname):
             return fullname
         # Search in repositories and download it
+        import requests
         os.makedirs(self.flash_proxy_local, exist_ok=True)
         for d in self.flash_proxy_repos:
             fullname = tools.cygpath(os.path.join(self.flash_proxy_local, self.flash_proxy_basename))
