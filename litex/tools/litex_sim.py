@@ -141,6 +141,7 @@ def get_sdram_phy_settings(memtype, data_width, clk_freq):
     }
 
     return PhySettings(
+        phytype      = "SDRAMPHYModel",
         memtype      = memtype,
         databits     = data_width,
         dfi_databits = data_width if memtype == "SDR" else 2*data_width,
