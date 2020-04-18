@@ -28,8 +28,10 @@ _io = [
     ("sw", 3, Pins("M15"), IOStandard("3.3-V LVTTL")),
 
     ("serial", 0,
-        Subsignal("tx", Pins("B4"), IOStandard("3.3-V LVTTL")), # gpio_05
-        Subsignal("rx", Pins("B5"), IOStandard("3.3-V LVTTL"))  # gpio_07
+        # Compatible with cheap FT232 based cables (ex: Gaoominy 6Pin Ftdi Ft232Rl Ft232)
+        # GND on JP1 Pin 12.
+        Subsignal("tx", Pins("B5"), IOStandard("3.3-V LVTTL")), # GPIO_07 (JP1 Pin 10)
+        Subsignal("rx", Pins("B4"), IOStandard("3.3-V LVTTL"))  # GPIO_05 (JP1 Pin 8)
     ),
 
     ("sdram_clock", 0, Pins("R4"), IOStandard("3.3-V LVTTL")),
