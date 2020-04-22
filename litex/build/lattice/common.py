@@ -99,27 +99,14 @@ lattice_ecp5_special_overrides = {
 class LatticeECP5TrellisTristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
-        if nbits == 1:
-            self.specials += [
-              Instance("TRELLIS_IO",
-                    p_DIR = "BIDIR",
-                    i_B   = io,
-                    i_I   = o,
-                    o_O   = i,
-                    i_T   = ~oe
-                )
-            ]
-        else:
-            for bit in range(nbits):
-                self.specials += [
-                    Instance("TRELLIS_IO",
-                        p_DIR="BIDIR",
-                        i_B = io[bit],
-                        i_I = o[bit],
-                        o_O = i[bit],
-                        i_T = ~oe
-                    )
-                ]
+        for bit in range(nbits):
+            self.specials += Instance("TRELLIS_IO",
+                p_DIR = "BIDIR",
+                i_B   = io[bit] if nbits > 1 else io,
+                i_I   = o[bit]  if nbits > 1 else o,
+                o_O   = i[bit]  if nbits > 1 else i,
+                i_T   = ~oe
+            )
 
 class LatticeECP5TrellisTristate(Module):
     @staticmethod
@@ -143,10 +130,10 @@ class LatticeiCE40AsyncResetSynchronizerImpl(Module):
         rst1 = Signal()
         self.specials += [
             Instance("SB_DFFS",
-                i_D= 0,
-                i_S= async_reset,
-                i_C= cd.clk,
-                o_Q= rst1),
+                i_D = 0,
+                i_S = async_reset,
+                i_C = cd.clk,
+                o_Q = rst1),
             Instance("SB_DFFS",
                 i_D = rst1,
                 i_S = async_reset,
@@ -165,28 +152,14 @@ class LatticeiCE40AsyncResetSynchronizer:
 class LatticeiCE40TristateImpl(Module):
     def __init__(self, io, o, oe, i):
         nbits, sign = value_bits_sign(io)
-        if nbits == 1:
-            self.specials +=  [
-                Instance("SB_IO",
-                    p_PIN_TYPE      = C(0b101001, 6), # PIN_OUTPUT_TRISTATE + PIN_INPUT
-                    io_PACKAGE_PIN  = io,
-                    i_OUTPUT_ENABLE = oe,
-                    i_D_OUT_0       = o,
-                    o_D_IN_0        = i
-                )
-            ]
-        else:
-            for bit in range(nbits):
-                self.specials += [
-                    Instance("SB_IO",
-                        p_PIN_TYPE      = C(0b101001, 6), # PIN_OUTPUT_TRISTATE + PIN_INPUT
-                        io_PACKAGE_PIN  = io[bit],
-                        i_OUTPUT_ENABLE = oe,
-                        i_D_OUT_0       = o[bit],
-                        o_D_IN_0        = i[bit]
-                    )
-                ]
-
+        for bit in range(nbits):
+            self.specials += Instance("SB_IO",
+                p_PIN_TYPE      = C(0b101001, 6), # PIN_OUTPUT_TRISTATE + PIN_INPUT
+                io_PACKAGE_PIN  = io[bit] if nbits > 1 else io,
+                i_OUTPUT_ENABLE = oe,
+                i_D_OUT_0       = o[bit]  if nbits > 1 else o,
+                o_D_IN_0        = i[bit]  if nbits > 1 else i,
+            )
 
 class LatticeiCE40Tristate(Module):
     @staticmethod
@@ -203,9 +176,7 @@ class LatticeiCE40DifferentialOutputImpl(Module):
                 p_IO_STANDARD  = "SB_LVCMOS",
                 io_PACKAGE_PIN = o_p,
                 i_D_OUT_0      = i
-            )
-        ]
-        self.specials += [
+            ),
             Instance("SB_IO",
                 p_PIN_TYPE     = C(0b011000, 6), # PIN_OUTPUT
                 p_IO_STANDARD  = "SB_LVCMOS",
@@ -213,7 +184,6 @@ class LatticeiCE40DifferentialOutputImpl(Module):
                 i_D_OUT_0      = ~i
             )
         ]
-
 
 class LatticeiCE40DifferentialOutput:
     @staticmethod
@@ -224,18 +194,16 @@ class LatticeiCE40DifferentialOutput:
 
 class LatticeiCE40DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += [
-            Instance("SB_IO",
-                p_PIN_TYPE      = C(0b010000, 6), # PIN_OUTPUT_DDR
-                p_IO_STANDARD   = "SB_LVCMOS",
-                io_PACKAGE_PIN  = o,
-                i_CLOCK_ENABLE  = 1,
-                i_OUTPUT_CLK    = clk,
-                i_OUTPUT_ENABLE = 1,
-                i_D_OUT_0       = i1,
-                i_D_OUT_1       = i2
-            )
-        ]
+        self.specials += Instance("SB_IO",
+            p_PIN_TYPE      = C(0b010000, 6), # PIN_OUTPUT_DDR
+            p_IO_STANDARD   = "SB_LVCMOS",
+            io_PACKAGE_PIN  = o,
+            i_CLOCK_ENABLE  = 1,
+            i_OUTPUT_CLK    = clk,
+            i_OUTPUT_ENABLE = 1,
+            i_D_OUT_0       = i1,
+            i_D_OUT_1       = i2
+        )
 
 
 class LatticeiCE40DDROutput:
@@ -247,17 +215,15 @@ class LatticeiCE40DDROutput:
 
 class LatticeiCE40DDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += [
-            Instance("SB_IO",
-                p_PIN_TYPE      = C(0b000000, 6),  # PIN_INPUT_DDR
-                p_IO_STANDARD   = "SB_LVCMOS",
-                io_PACKAGE_PIN  = i,
-                i_CLOCK_ENABLE  = 1,
-                i_INPUT_CLK     = clk,
-                o_D_IN_0        = o1,
-                o_D_IN_1        = o2
-            )
-        ]
+        self.specials += Instance("SB_IO",
+            p_PIN_TYPE      = C(0b000000, 6),  # PIN_INPUT_DDR
+            p_IO_STANDARD   = "SB_LVCMOS",
+            io_PACKAGE_PIN  = i,
+            i_CLOCK_ENABLE  = 1,
+            i_INPUT_CLK     = clk,
+            o_D_IN_0        = o1,
+            o_D_IN_1        = o2
+        )
 
 
 class LatticeiCE40DDRInput:
