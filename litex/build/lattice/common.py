@@ -251,10 +251,22 @@ class LatticeiCE40DDRInput:
 
 # iCE40 SDR Output ---------------------------------------------------------------------------------
 
+class LatticeiCE40SDROutputImpl(Module):
+    def __init__(self, i, o, clk):
+        self.specials += Instance("SB_IO",
+            p_PIN_TYPE      = C(0b010100, 6), # PIN_OUTPUT_REGISTERED
+            p_IO_STANDARD   = "SB_LVCMOS",
+            io_PACKAGE_PIN  = o,
+            i_CLOCK_ENABLE  = 1,
+            i_OUTPUT_CLK    = clk,
+            i_OUTPUT_ENABLE = 1,
+            i_D_OUT_0       = i
+        )
+
 class LatticeiCE40SDROutput:
     @staticmethod
     def lower(dr):
-        return LatticeiCE40DDROutputImpl(dr.i, dr.i, dr.o, dr.clk)
+        return LatticeiCE40SDROutputImpl(dr.i, dr.o, dr.clk)
 
 # iCE40 SDR Input ----------------------------------------------------------------------------------
 
@@ -262,6 +274,25 @@ class LatticeiCE40SDRInput:
     @staticmethod
     def lower(dr):
         return LatticeiCE40DDRInputImpl(dr.i, dr.o, Signal(), dr.clk)
+
+# iCE40 SDR Tristate -------------------------------------------------------------------------------
+
+class LatticeiCE40SDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        self.specials += Instance("SB_IO",
+            p_PIN_TYPE      = C(0b110100, 6), # PIN_OUTPUT_REGISTERED_ENABLE_REGISTERED + PIN_INPUT_REGISTERED
+            io_PACKAGE_PIN  = io,
+            i_INPUT_CLK     = clk,
+            i_OUTPUT_CLK    = clk,
+            i_OUTPUT_ENABLE = oe,
+            i_D_OUT_0       = o,
+            o_D_IN_0        = i,
+        )
+
+class LatticeiCE40SDRTristate(Module):
+    @staticmethod
+    def lower(dr):
+        return LatticeiCE40SDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
 # iCE40 Trellis Special Overrides ------------------------------------------------------------------
 
@@ -273,4 +304,5 @@ lattice_ice40_special_overrides = {
     DDRInput:               LatticeiCE40DDRInput,
     SDROutput:              LatticeiCE40SDROutput,
     SDRInput:               LatticeiCE40SDRInput,
+    SDRTristate:            LatticeiCE40SDRTristate,
 }
