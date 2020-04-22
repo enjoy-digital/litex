@@ -98,30 +98,31 @@ class SPIMaster(Module, AutoCSR):
 
         # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ---------------
         mosi_data = Signal(data_width)
-        self.sync += \
+        self.sync += [
             If(self.start,
                 mosi_data.eq(self.mosi)
             ).Elif(clk_rise & shift,
-                mosi_data.eq(Cat(Signal(), mosi_data[:-1]))
+                mosi_data.eq(Cat(Signal(), mosi_data))
             ).Elif(clk_fall,
                 pads.mosi.eq(mosi_data[-1])
             )
+        ]
 
         # Master In Slave Out (MISO) capture (captured on spi_clk rising edge) --------------------
         miso      = Signal()
         miso_data = self.miso
-        self.sync += \
-            If(shift,
-                If(clk_rise,
-                    If(self.loopback,
-                        miso.eq(pads.mosi)
-                    ).Else(
-                        miso.eq(pads.miso)
-                    )
-                ).Elif(clk_fall,
-                    miso_data.eq(Cat(miso, miso_data[:-1]))
+        self.sync += [
+            If(clk_rise & shift,
+                If(self.loopback,
+                    miso.eq(pads.mosi)
+                ).Else(
+                    miso.eq(pads.miso)
                 )
+            ),
+            If(clk_fall & shift,
+                miso_data.eq(Cat(miso, miso_data))
             )
+        ]
 
     def add_csr(self):
         self._control  = CSRStorage(fields=[
