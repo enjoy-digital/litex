@@ -69,6 +69,22 @@ class LatticeECP5SDROutput:
     def lower(dr):
         return LatticeECP5SDROutputImpl(dr.i, dr.o, dr.clk)
 
+# ECP5 DDR Input -----------------------------------------------------------------------------------
+
+class LatticeECP5DDRInputImpl(Module):
+    def __init__(self, i, o1, o2, clk):
+        self.specials += Instance("IDDRX1F",
+            i_SCLK = clk,
+            i_D    = i,
+            o_Q0   = o1,
+            o_Q1   = o2,
+        )
+
+class LatticeECP5DDRInput:
+    @staticmethod
+    def lower(dr):
+        return LatticeECP5DDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
+
 # ECP5 DDR Output ----------------------------------------------------------------------------------
 
 class LatticeECP5DDROutputImpl(Module):
@@ -91,7 +107,8 @@ lattice_ecp5_special_overrides = {
     AsyncResetSynchronizer: LatticeECP5AsyncResetSynchronizer,
     SDRInput:               LatticeECP5SDRInput,
     SDROutput:              LatticeECP5SDROutput,
-    DDROutput:              LatticeECP5DDROutput
+    DDRInput:               LatticeECP5DDRInput,
+    DDROutput:              LatticeECP5DDROutput,
 }
 
 # ECP5 Trellis Tristate ----------------------------------------------------------------------------
@@ -120,6 +137,7 @@ lattice_ecp5_trellis_special_overrides = {
     Tristate:               LatticeECP5TrellisTristate,
     SDRInput:               LatticeECP5SDRInput,
     SDROutput:              LatticeECP5SDROutput,
+    DDRInput:               LatticeECP5DDRInput,
     DDROutput:              LatticeECP5DDROutput
 }
 
