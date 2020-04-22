@@ -17,7 +17,8 @@ class SPIMaster(Module, AutoCSR):
     configurable data_width and frequency.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
-    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True):
+    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
+        assert mode in ["raw", "aligned"]
         if pads is None:
             pads = Record(self.pads_layout)
         if not hasattr(pads, "cs_n"):
@@ -96,15 +97,17 @@ class SPIMaster(Module, AutoCSR):
             for i in range(len(pads.cs_n)):
                 self.comb += pads.cs_n[i].eq(~self.cs[i] | ~xfer)
 
-        # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ---------------
-        mosi_data = Signal(data_width)
+        # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ----------------
+        mosi_data = Array(self.mosi[i] for i in range(data_width))
+        mosi_bit  = Signal(max=data_width)
         self.sync += [
             If(self.start,
-                mosi_data.eq(self.mosi)
+                mosi_bit.eq(self.length - 1 if mode == "aligned" else data_width - 1),
             ).Elif(clk_rise & shift,
-                mosi_data.eq(Cat(Signal(), mosi_data))
-            ).Elif(clk_fall,
-                pads.mosi.eq(mosi_data[-1])
+                mosi_bit.eq(mosi_bit - 1)
+            ),
+            If(clk_fall,
+                pads.mosi.eq(mosi_data[mosi_bit])
             )
         ]
 
