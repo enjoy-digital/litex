@@ -275,11 +275,28 @@ class XilinxDDRInputS7:
     def lower(dr):
         return XilinxDDRInputImplS7(dr.i, dr.o1, dr.o2, dr.clk)
 
+# 7-Series SDROutput -------------------------------------------------------------------------------
+
+class XilinxSDROutputS7:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDROutputImplS7(dr.i, dr.i, dr.o, dr.clk)
+
+
+# 7-Series SDRInput --------------------------------------------------------------------------------
+
+class XilinxSDRInputS7:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplS7(dr.i, dr.o, Signal(), dr.clk)
+
 # 7-Series Special Overrides -----------------------------------------------------------------------
 
 xilinx_s7_special_overrides = {
     DDROutput: XilinxDDROutputS7,
-    DDRInput:  XilinxDDRInputS7
+    DDRInput:  XilinxDDRInputS7,
+    SDROutput: XilinxSDROutputS7,
+    SDRInput:  XilinxSDRInputS7,
 }
 
 # Ultrascale DDROutput -----------------------------------------------------------------------------
@@ -322,11 +339,28 @@ class XilinxDDRInputUS:
     def lower(dr):
         return XilinxDDRInputImplUS(dr.i, dr.o1, dr.o2, dr.clk)
 
+# Ultrascale SDROutput -----------------------------------------------------------------------------
+
+class XilinxSDROutputUS:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDROutputImplUS(dr.i, dr.i, dr.o, dr.clk)
+
+
+# Ultrascale SDRInput ------------------------------------------------------------------------------
+
+class XilinxSDRInputUS:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplUS(dr.i, dr.o, Signal(), dr.clk)
+
 # Ultrascale Specials Overrides --------------------------------------------------------------------
 
 xilinx_us_special_overrides = {
     DDROutput: XilinxDDROutputUS,
-    DDRInput:  XilinxDDRInputUS
+    DDRInput:  XilinxDDRInputUS,
+    SDROutput: XilinxSDROutputUS,
+    SDRInput:  XilinxSDRInputUS,
 }
 
 # Yosys Run ----------------------------------------------------------------------------------------
