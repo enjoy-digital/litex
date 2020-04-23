@@ -394,6 +394,7 @@ static void help(void)
 	puts("sdram_cal                       - run SDRAM calibration");
 	puts("sdram_mpr                       - read SDRAM MPR");
 	puts("sdram_mrwr reg value            - write SDRAM mode registers");
+	puts("sdram_cdly_scan enabled         - enable/disable cdly scan");
 #endif
 #ifdef CSR_SPISDCARD_BASE
         puts("spisdcardboot   - boot from SDCard via SPI hardware bitbang");
@@ -505,6 +506,11 @@ static void do_command(char *c)
 		printf("Writing 0x%04x to SDRAM mode register %d\n", value, reg);
 		sdrmrwr(reg, value);
 		sdrhw();
+	}
+	else if(strcmp(token, "sdram_cdly_scan") == 0) {
+		unsigned int enabled;
+		enabled = atoi(get_token(&c));
+		sdr_cdly_scan(enabled);
 	}
 #endif
 #ifdef CSR_SPISDCARD_BASE
