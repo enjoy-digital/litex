@@ -62,6 +62,8 @@ void flush_cpu_icache(void)
 #elif defined (__blackparrot__)
 	/* TODO: BP do something useful here! */
 	asm volatile("nop");
+#elif defined (__serv__)
+	/* no instruction cache */
 #else
 #error Unsupported architecture
 #endif
@@ -114,6 +116,8 @@ void flush_cpu_dcache(void)
 #elif defined (__blackparrot__)
 	/* FIXME: do something useful here! */
 	asm volatile("nop");
+#elif defined (__serv__)
+	/* no data cache */
 #else
 #error Unsupported architecture
 #endif

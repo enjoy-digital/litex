@@ -75,6 +75,8 @@ static inline unsigned int irq_getie(void)
 	return 0; // FIXME
 #elif defined (__blackparrot__) 
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;//TODO
+#elif defined (__serv__)
+	return 0; /* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -104,6 +106,8 @@ static inline void irq_setie(unsigned int ie)
 	// FIXME
 #elif defined (__blackparrot__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);//TODO:BP
+#elif defined (__serv__)
+	/* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -135,6 +139,8 @@ static inline unsigned int irq_getmask(void)
 	return 0; // FIXME
 #elif defined (__blackparrot__)
 	//TODO:BP
+#elif defined (__serv__)
+	return 0; /* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -160,6 +166,8 @@ static inline void irq_setmask(unsigned int mask)
 	// FIXME
 #elif defined (__blackparrot__)
 	//TODO:BP
+#elif defined (__serv__)
+	/* FIXME */
 #else
 #error Unsupported architecture
 #endif
@@ -189,6 +197,8 @@ static inline unsigned int irq_pending(void)
 	return 0; // FIXME
 #elif defined (__blackparrot__)
 	return csr_readl(PLIC_PENDING) >> 1;//TODO:BP
+#elif defined (__serv__)
+	return 0;/* FIXME */
 #else
 #error Unsupported architecture
 #endif

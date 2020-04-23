@@ -1,0 +1,91 @@
+# This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+
+# License: BSD
+
+import os
+
+from migen import *
+
+from litex.soc.interconnect import wishbone
+from litex.soc.cores.cpu import CPU
+
+
+CPU_VARIANTS = ["standard"]
+
+
+class SERV(CPU):
+    name                 = "serv"
+    data_width           = 32
+    endianness           = "little"
+    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
+                            "riscv64-linux", "riscv-sifive-elf", "riscv64-none-elf")
+    linker_output_format = "elf32-littleriscv"
+    io_regions           = {0x80000000: 0x80000000} # origin, length
+
+    @property
+    def gcc_flags(self):
+        flags =  "-march=rv32i "
+        flags += "-mabi=ilp32 "
+        flags += "-D__serv__ "
+        return flags
+
+    def __init__(self, platform, variant="standard"):
+        assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
+        self.platform  = platform
+        self.variant   = variant
+        self.reset     = Signal()
+        self.ibus      = ibus = wishbone.Interface()
+        self.dbus      = dbus = wishbone.Interface()
+        self.buses     = [self.ibus, dbus]
+        self.interrupt = Signal(32)
+
+        # # #
+
+        self.cpu_params = dict(
+            # clock / reset
+            i_clk   = ClockSignal(),
+            i_i_rst = ResetSignal(),
+
+            # timer irq
+            i_i_timer_irq = 0,
+
+            # ibus
+            o_o_ibus_adr = ibus.adr,
+            o_o_ibus_cyc = ibus.cyc,
+            i_i_ibus_rdt = ibus.dat_r,
+            i_i_ibus_ack = ibus.ack,
+
+
+            # dbus
+            o_o_dbus_adr = dbus.adr,
+            o_o_dbus_dat = dbus.dat_w,
+            o_o_dbus_sel = dbus.sel,
+            o_o_dbus_we  = dbus.we,
+            o_o_dbus_cyc = dbus.cyc,
+            i_i_dbus_rdt = dbus.dat_r,
+            i_i_dbus_ack = dbus.ack,
+        )
+        self.comb += [
+            ibus.stb.eq(ibus.cyc),
+            dbus.stb.eq(dbus.cyc),
+        ]
+
+        # add verilog sources
+        self.add_sources(platform)
+
+    def set_reset_address(self, reset_address):
+        assert not hasattr(self, "reset_address")
+        self.reset_address = reset_address
+        self.cpu_params.update(p_RESET_PC=reset_address)
+
+    @staticmethod
+    def add_sources(platform):
+        # FIXME: add SERV as submodule
+        os.system("git clone https://github.com/olofk/serv")
+        vdir = os.path.join("serv", "rtl")
+        platform.add_source_dir(vdir)
+        platform.add_verilog_include_path(vdir)
+
+    def do_finalize(self):
+        assert hasattr(self, "reset_address")
+        self.specials += Instance("serv_top", **self.cpu_params)
