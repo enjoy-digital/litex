@@ -442,7 +442,7 @@ static void write_level_cdly_range(unsigned int *best_error, int *best_cdly,
 			delay_mean /= SDRAM_PHY_MODULES;
 
 			/* we want it to be at the start */
-			int ideal_delay = 1;
+			int ideal_delay = 4*SDRAM_PHY_DELAYS/32;
 			int error = ideal_delay - delay_mean;
 			if (error < 0)
 				error *= -1;
@@ -1069,13 +1069,11 @@ int sdrlevel(void)
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	printf("Write leveling:\n");
 	if (_write_level_cdly_scan) {
-		if(!write_level())
-			return 0;
+		write_level();
 	} else {
 		/* use only the current cdly */
 		int delays[SDRAM_PHY_MODULES];
-		if (!write_level_scan(delays, 1))
-			return 0;
+		write_level_scan(delays, 1);
 	}
 #endif
 
