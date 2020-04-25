@@ -13,6 +13,7 @@ endif
 OBJECTS=isr.o sdram.o sdcard.o main.o boot-helper-$(CPU).o boot.o
 
 all: bios.bin
+	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
