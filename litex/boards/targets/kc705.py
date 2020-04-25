@@ -60,7 +60,6 @@ class BaseSoC(SoCCore):
                 sys_clk_freq = sys_clk_freq,
                 cmd_latency  = 1)
             self.add_csr("ddrphy")
-            self.add_constant("DDRPHY_CMD_DELAY", 13)
             self.add_sdram("sdram",
                 phy                     = self.ddrphy,
                 module                  = MT8JTF12864(sys_clk_freq, "1:4"),
