@@ -310,7 +310,7 @@ static void write_delay_inc(int module) {
 	ddrphy_dly_sel_write(0);
 }
 
-static int write_level_scan(int *delays, int show)
+static int write_level_scan(int *delays, int loops, int show)
 {
 	int i, j, k;
 
@@ -345,7 +345,7 @@ static int write_level_scan(int *delays, int show)
 #if SDRAM_PHY_DELAYS > 32
 			show_iter = (j%16 == 0) && show;
 #endif
-			for (k=0; k<128; k++) {
+			for (k=0; k<loops; k++) {
 				ddrphy_wlevel_strobe_write(1);
 				cdelay(10);
 				csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[0],
@@ -433,7 +433,7 @@ static void write_level_cdly_range(unsigned int *best_error, int *best_cdly,
 		}
 
 		/* write level using this delay */
-		if (write_level_scan(delays, 0)) {
+		if (write_level_scan(delays, 8, 0)) {
 			/* use the mean of delays for error calulation */
 			int delay_mean = 0;
 			for (int i=0; i < SDRAM_PHY_MODULES; ++i) {
@@ -511,7 +511,7 @@ int write_level(void)
 	printf("Data scan:\n");
 
 	/* re-run write leveling the final time */
-	if (!write_level_scan(delays, 1))
+	if (!write_level_scan(delays, 128, 1))
 		return 0;
 
 	return best_cdly >= 0;
@@ -1073,7 +1073,7 @@ int sdrlevel(void)
 	} else {
 		/* use only the current cdly */
 		int delays[SDRAM_PHY_MODULES];
-		write_level_scan(delays, 1);
+		write_level_scan(delays, 128, 1);
 	}
 #endif
 
