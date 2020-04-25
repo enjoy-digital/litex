@@ -441,21 +441,19 @@ static void write_level_cdly_range(unsigned int *best_error, int *best_cdly,
 			}
 			delay_mean /= SDRAM_PHY_MODULES;
 
-			/* we want it to be in the middle */
-			int ideal_delay = (SDRAM_PHY_DELAYS - ddrphy_half_sys8x_taps_read()) / 2;
+			/* we want it to be at the start */
+			int ideal_delay = 1;
 			int error = ideal_delay - delay_mean;
 			if (error < 0)
 				error *= -1;
 
 			if (error < *best_error) {
-				printf("+");
 				*best_cdly = cdly;
 				*best_error = error;
-			} else {
-				printf("-");
 			}
+			printf("1");
 		} else {
-			printf(".");
+			printf("0");
 		}
 	}
 }
@@ -469,14 +467,17 @@ int write_level(void)
 	int cdly_range_end;
 	int cdly_range_step;
 
-	printf("cdly scan: ");
+	printf("Command/Clk scan:\n");
 
 	/* Center write leveling by varying cdly. Searching through all possible
 	 * values is slow, but we can use a simple optimization method of iterativly
 	 * scanning smaller ranges with decreasing step */
 	cdly_range_start = 0;
-	cdly_range_end = 512;
-	cdly_range_step = 64;
+	cdly_range_end = SDRAM_PHY_DELAYS;
+	if (SDRAM_PHY_DELAYS > 32)
+		cdly_range_step = SDRAM_PHY_DELAYS/8;
+	else
+		cdly_range_step = 1;
 	while (cdly_range_step > 0) {
 		printf("|");
 		write_level_cdly_range(&best_error, &best_cdly,
@@ -506,6 +507,8 @@ int write_level(void)
 			cdelay(10);
 		}
 	}
+
+	printf("Data scan:\n");
 
 	/* re-run write leveling the final time */
 	if (!write_level_scan(delays, 1))
