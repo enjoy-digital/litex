@@ -36,7 +36,7 @@ class SERV(CPU):
         self.reset     = Signal()
         self.ibus      = ibus = wishbone.Interface()
         self.dbus      = dbus = wishbone.Interface()
-        self.buses     = [self.ibus, dbus]
+        self.buses     = [ibus, dbus]
         self.interrupt = Signal(32)
 
         # # #
@@ -50,14 +50,13 @@ class SERV(CPU):
             i_i_timer_irq = 0,
 
             # ibus
-            o_o_ibus_adr = ibus.adr,
+            o_o_ibus_adr = Cat(Signal(2), ibus.adr),
             o_o_ibus_cyc = ibus.cyc,
             i_i_ibus_rdt = ibus.dat_r,
             i_i_ibus_ack = ibus.ack,
 
-
             # dbus
-            o_o_dbus_adr = dbus.adr,
+            o_o_dbus_adr = Cat(Signal(2), dbus.adr),
             o_o_dbus_dat = dbus.dat_w,
             o_o_dbus_sel = dbus.sel,
             o_o_dbus_we  = dbus.we,
@@ -67,6 +66,7 @@ class SERV(CPU):
         )
         self.comb += [
             ibus.stb.eq(ibus.cyc),
+            ibus.sel.eq(0xf),
             dbus.stb.eq(dbus.cyc),
         ]
 
