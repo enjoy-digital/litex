@@ -88,4 +88,4 @@ class SERV(CPU):
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
-        self.specials += Instance("serv_top", **self.cpu_params)
+        self.specials += Instance("serv_rf_top", **self.cpu_params)
