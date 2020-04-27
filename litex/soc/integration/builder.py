@@ -49,7 +49,8 @@ class Builder:
         csr_json         = None,
         csr_csv          = None,
         csr_svd          = None,
-        memory_x         = None):
+        memory_x         = None,
+        bios_options     = None):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path
@@ -66,6 +67,7 @@ class Builder:
         self.csr_json = csr_json
         self.csr_svd  = csr_svd
         self.memory_x = memory_x
+        self.bios_options = bios_options
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -109,6 +111,10 @@ class Builder:
             define("BUILDINC_DIRECTORY", self.include_dir)
             for name, src_dir in self.software_packages:
                 define(name.upper() + "_DIRECTORY", src_dir)
+
+            if self.bios_options is not None:
+                for option in self.bios_options:
+                    define(option, "1")
 
             write_to_file(
                 os.path.join(self.generated_dir, "variables.mak"),
