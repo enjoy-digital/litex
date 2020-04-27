@@ -7,6 +7,9 @@ extern "C" {
 
 #include <system.h>
 #include <generated/csr.h>
+#include <generated/soc.h>
+
+#ifdef CONFIG_CPU_HAS_INTERRUPT
 
 #ifdef __picorv32__
 // PicoRV32 has a very limited interrupt support, implemented via custom
@@ -71,12 +74,8 @@ static inline unsigned int irq_getie(void)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 #elif defined (__rocket__)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
-#elif defined (__microwatt__)
-	return 0; /* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0; /* FIXME */
-#elif defined (__serv__)
-	return 0; /* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -102,12 +101,8 @@ static inline void irq_setie(unsigned int ie)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 #elif defined (__rocket__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
-#elif defined (__microwatt__)
-	/* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE); /* FIXME */
-#elif defined (__serv__)
-	/* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -135,12 +130,8 @@ static inline unsigned int irq_getmask(void)
 	return mask;
 #elif defined (__rocket__)
 	return *((unsigned int *)PLIC_ENABLED) >> 1;
-#elif defined (__microwatt__)
-	return 0; /* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
 	return 0; /* FIXME */
-#elif defined (__serv__)
-	return 0; /* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -162,12 +153,8 @@ static inline void irq_setmask(unsigned int mask)
 	asm volatile ("csrw %0, %1" :: "i"(CSR_IRQ_MASK), "r"(mask));
 #elif defined (__rocket__)
 	*((unsigned int *)PLIC_ENABLED) = mask << 1;
-#elif defined (__microwatt__)
-	/* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
 	/* FIXME */
-#elif defined (__serv__)
-	/* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -193,12 +180,8 @@ static inline unsigned int irq_pending(void)
 	return pending;
 #elif defined (__rocket__)
 	return *((unsigned int *)PLIC_PENDING) >> 1;
-#elif defined (__microwatt__)
-	return 0; /* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
 	return csr_readl(PLIC_PENDING) >> 1; /* FIXME */
-#elif defined (__serv__)
-	return 0; /* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -206,6 +189,8 @@ static inline unsigned int irq_pending(void)
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
 
 #endif /* __IRQ_H */

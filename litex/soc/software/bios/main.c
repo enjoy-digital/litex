@@ -616,9 +616,10 @@ int main(int i, char **c)
 {
 	char buffer[64];
 	int sdr_ok;
-
+#ifdef CONFIG_CPU_HAS_INTERRUPT
 	irq_setmask(0);
 	irq_setie(1);
+#endif
 	uart_init();
 
 	printf("\n");

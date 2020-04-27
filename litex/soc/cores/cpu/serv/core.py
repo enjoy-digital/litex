@@ -37,7 +37,6 @@ class SERV(CPU):
         self.ibus      = ibus = wishbone.Interface()
         self.dbus      = dbus = wishbone.Interface()
         self.buses     = [ibus, dbus]
-        self.interrupt = Signal(32)
 
         # # #
 

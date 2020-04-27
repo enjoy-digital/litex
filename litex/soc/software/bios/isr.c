@@ -4,14 +4,16 @@
 
 
 #include <generated/csr.h>
+#include <generated/soc.h>
 #include <irq.h>
 #include <uart.h>
 #include <stdio.h>
 
+void isr(void);
+
+#ifdef CONFIG_CPU_HAS_INTERRUPT
 
 #if defined(__blackparrot__) /*TODO: Update this function for BP*/ //
-
-void isr(void);
 void isr(void)
 {
   static int onetime = 0;
@@ -36,7 +38,6 @@ void plic_init(void)
 	*((unsigned int *)PLIC_THRSHLD) = 0;
 }
 
-void isr(void);
 void isr(void)
 {
 	unsigned int claim;
@@ -62,7 +63,6 @@ void isr(void)
 	}
 }
 #else
-void isr(void);
 void isr(void)
 {
 	__attribute__((unused)) unsigned int irqs;
@@ -74,4 +74,10 @@ void isr(void)
 		uart_isr();
 #endif
 }
+#endif
+
+#else
+
+void isr(void){};
+
 #endif

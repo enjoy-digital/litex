@@ -132,9 +132,6 @@ class SoCCore(LiteXSoC):
         self.cpu_type                   = cpu_type
         self.cpu_variant                = cpu_variant
 
-        if cpu_type == "serv":
-            self.add_constant("UART_POLLING") # FIXME: use UART in polling mode for SERV bringup
-
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
         self.integrated_sram_size       = integrated_sram_size
