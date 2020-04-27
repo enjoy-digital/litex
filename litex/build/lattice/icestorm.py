@@ -38,7 +38,10 @@ def _build_pre_pack(vns, clocks):
 # Yosys/Nextpnr Helpers/Templates ------------------------------------------------------------------
 
 _yosys_template = [
+    "verilog_defaults -push",
+    "verilog_defaults -add -defer",
     "{read_files}",
+    "verilog_defaults -pop",
     "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
     "synth_ice40 {synth_opts} -json {build_name}.json -top {build_name} -dsp",
 ]
