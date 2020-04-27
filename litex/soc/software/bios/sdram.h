@@ -11,17 +11,11 @@ void sdrrd(char *startaddr, char *dq);
 void sdrrderr(char *count);
 void sdrwr(char *startaddr);
 
-#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
 void sdrwlon(void);
 void sdrwloff(void);
 int write_level(void);
-#endif
 
-#ifdef CSR_DDRPHY_BASE
-void sdrwlon(void);
-void sdrwloff(void);
 int sdrlevel(void);
-#endif
 
 int memtest_silent(void);
 int memtest(void);
@@ -35,6 +29,7 @@ void ddrphy_cdly(unsigned int delay);
 void sdrcal(void);
 void sdrmrwr(char reg, int value);
 void sdrmpr(void);
+void sdr_cdly_scan(int enabled);
 #endif
 
 #endif /* __SDRAM_H */

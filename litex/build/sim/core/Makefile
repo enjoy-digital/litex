@@ -52,7 +52,7 @@ sim: $(OBJS_SIM) | mkdir
 
 .PHONY: modules
 modules:
-	mkdir modules
+	mkdir -p modules
 	$(MAKE) -C modules -f $(MOD_DIR)/Makefile
 
 .PHONY: clean

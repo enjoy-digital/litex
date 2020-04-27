@@ -17,6 +17,7 @@ setup(
     install_requires=[
         "migen",
         "pyserial",
+        "requests",
         "pythondata-software-compiler_rt",
     ],
     packages=find_packages(exclude=("test*", "sim*", "doc*")),

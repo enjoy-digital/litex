@@ -5,7 +5,7 @@
 import math
 import struct
 
-from litex.soc.interconnect.stream_packet import HeaderField, Header
+from litex.soc.interconnect.packet import HeaderField, Header
 
 
 etherbone_magic = 0x4e6f

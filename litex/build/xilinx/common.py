@@ -1,5 +1,5 @@
 # This file is Copyright (c) 2014-2015 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2016-2018 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2015 William D. Jones <thor0505@comcast.net>
 # License: BSD
@@ -127,6 +127,27 @@ class XilinxDifferentialOutput:
     def lower(dr):
         return XilinxDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
+# Common SDRTristate -------------------------------------------------------------------------------
+
+class XilinxSDRTristateImpl(Module):
+    def __init__(self, io, o, oe, i, clk):
+        _o    = Signal()
+        _oe_n = Signal()
+        _i    = Signal()
+        self.specials += SDROutput(o, _o)
+        self.specials += SDROutput(~oe, _oe_n)
+        self.specials += SDRInput(_i, i)
+        self.specials += Instance("IOBUF",
+            io_IO = io,
+            o_O   = _i,
+            i_I   = _o,
+            i_T   = _oe_n,
+        )
+
+class XilinxSDRTristate:
+    @staticmethod
+    def lower(dr):
+        return XilinxSDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
 # Common Special Overrides -------------------------------------------------------------------------
 
@@ -135,6 +156,7 @@ xilinx_special_overrides = {
     AsyncResetSynchronizer: XilinxAsyncResetSynchronizer,
     DifferentialInput:      XilinxDifferentialInput,
     DifferentialOutput:     XilinxDifferentialOutput,
+    SDRTristate:            XilinxSDRTristate,
 }
 
 # Spartan6 DDROutput -------------------------------------------------------------------------------
@@ -201,28 +223,6 @@ class XilinxSDRInputS6:
     def lower(dr):
         return XilinxDDRInputImplS6(dr.i, dr.o, Signal(), dr.clk)
 
-# Spartan6 SDRTristate -----------------------------------------------------------------------------
-
-class XilinxSDRTristateImplS6(Module):
-    def __init__(self, io, o, oe, i, clk):
-        _o    = Signal()
-        _oe_n = Signal()
-        _i    = Signal()
-        self.specials += SDROutput(o, _o)
-        self.specials += SDROutput(~oe, _oe_n)
-        self.specials += SDRInput(_i, i)
-        self.specials += Instance("IOBUF",
-            io_IO = io,
-            o_O   = _i,
-            i_I   = _o,
-            i_T   = _oe_n,
-        )
-
-class XilinxSDRTristateS6:
-    @staticmethod
-    def lower(dr):
-        return XilinxSDRTristateImplS6(dr.io, dr.o, dr.oe, dr.i, dr.clk)
-
 # Spartan6 Special Overrides -----------------------------------------------------------------------
 
 xilinx_s6_special_overrides = {
@@ -230,7 +230,6 @@ xilinx_s6_special_overrides = {
     DDRInput:    XilinxDDRInputS6,
     SDROutput:   XilinxSDROutputS6,
     SDRInput:    XilinxSDRInputS6,
-    SDRTristate: XilinxSDRTristateS6,
 }
 
 # 7-Series DDROutput -------------------------------------------------------------------------------
@@ -275,11 +274,28 @@ class XilinxDDRInputS7:
     def lower(dr):
         return XilinxDDRInputImplS7(dr.i, dr.o1, dr.o2, dr.clk)
 
+# 7-Series SDROutput -------------------------------------------------------------------------------
+
+class XilinxSDROutputS7:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDROutputImplS7(dr.i, dr.i, dr.o, dr.clk)
+
+
+# 7-Series SDRInput --------------------------------------------------------------------------------
+
+class XilinxSDRInputS7:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplS7(dr.i, dr.o, Signal(), dr.clk)
+
 # 7-Series Special Overrides -----------------------------------------------------------------------
 
 xilinx_s7_special_overrides = {
     DDROutput: XilinxDDROutputS7,
-    DDRInput:  XilinxDDRInputS7
+    DDRInput:  XilinxDDRInputS7,
+    SDROutput: XilinxSDROutputS7,
+    SDRInput:  XilinxSDRInputS7,
 }
 
 # Ultrascale DDROutput -----------------------------------------------------------------------------
@@ -322,11 +338,28 @@ class XilinxDDRInputUS:
     def lower(dr):
         return XilinxDDRInputImplUS(dr.i, dr.o1, dr.o2, dr.clk)
 
+# Ultrascale SDROutput -----------------------------------------------------------------------------
+
+class XilinxSDROutputUS:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDROutputImplUS(dr.i, dr.i, dr.o, dr.clk)
+
+
+# Ultrascale SDRInput ------------------------------------------------------------------------------
+
+class XilinxSDRInputUS:
+    @staticmethod
+    def lower(dr):
+        return XilinxDDRInputImplUS(dr.i, dr.o, Signal(), dr.clk)
+
 # Ultrascale Specials Overrides --------------------------------------------------------------------
 
 xilinx_us_special_overrides = {
     DDROutput: XilinxDDROutputUS,
-    DDRInput:  XilinxDDRInputUS
+    DDRInput:  XilinxDDRInputUS,
+    SDROutput: XilinxSDROutputUS,
+    SDRInput:  XilinxSDRInputUS,
 }
 
 # Yosys Run ----------------------------------------------------------------------------------------

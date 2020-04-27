@@ -49,7 +49,10 @@ def _build_lpf(named_sc, named_pc, build_name):
 # Yosys/Nextpnr Helpers/Templates ------------------------------------------------------------------
 
 _yosys_template = [
+    "verilog_defaults -push",
+    "verilog_defaults -add -defer",
     "{read_files}",
+    "verilog_defaults -pop",
     "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
     "synth_ecp5 -abc9 {nwl} -json {build_name}.json -top {build_name}",
 ]
@@ -97,6 +100,7 @@ def nextpnr_ecp5_parse_device(device):
     return (family, size, speed_grade, package)
 
 nextpnr_ecp5_architectures = {
+    "lfe5u-12f"   : "12k",
     "lfe5u-25f"   : "25k",
     "lfe5u-45f"   : "45k",
     "lfe5u-85f"   : "85k",

@@ -244,6 +244,8 @@ class SoCCore(LiteXSoC):
         for region in self.bus.regions.values():
             region.length = region.size
             region.type   = "cached" if region.cached else "io"
+            if region.linker:
+                region.type += "+linker"
         self.csr_regions = self.csr.regions
         for name, value in self.config.items():
             self.add_config(name, value)

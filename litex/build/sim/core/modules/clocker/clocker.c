@@ -60,7 +60,7 @@ static int clocker_new(void **sess, char *args)
 
 out:
   *sess=(void*)s;
-  return ret;  
+  return ret;
 }
 
 static int clocker_add_pads(void *sess, struct pad_list_s *plist)
@@ -74,7 +74,7 @@ static int clocker_add_pads(void *sess, struct pad_list_s *plist)
     goto out;
   }
   pads = plist->pads;
-  
+
   if(!strcmp(plist->name, "sys_clk")) {
     litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
   }

@@ -394,6 +394,7 @@ static void help(void)
 	puts("sdram_cal                       - run SDRAM calibration");
 	puts("sdram_mpr                       - read SDRAM MPR");
 	puts("sdram_mrwr reg value            - write SDRAM mode registers");
+	puts("sdram_cdly_scan enabled         - enable/disable cdly scan");
 #endif
 #ifdef CSR_SPISDCARD_BASE
         puts("spisdcardboot   - boot from SDCard via SPI hardware bitbang");
@@ -475,7 +476,7 @@ static void do_command(char *c)
 	else if(strcmp(token, "sdrwr") == 0) sdrwr(get_token(&c));
 #ifdef CSR_DDRPHY_BASE
 	else if(strcmp(token, "sdrinit") == 0) sdrinit();
-#ifdef CSR_DDRPHY_WLEVEL_EN_ADDR
+#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	else if(strcmp(token, "sdrwlon") == 0) sdrwlon();
 	else if(strcmp(token, "sdrwloff") == 0) sdrwloff();
 #endif
@@ -505,6 +506,11 @@ static void do_command(char *c)
 		printf("Writing 0x%04x to SDRAM mode register %d\n", value, reg);
 		sdrmrwr(reg, value);
 		sdrhw();
+	}
+	else if(strcmp(token, "sdram_cdly_scan") == 0) {
+		unsigned int enabled;
+		enabled = atoi(get_token(&c));
+		sdr_cdly_scan(enabled);
 	}
 #endif
 #ifdef CSR_SPISDCARD_BASE
@@ -610,9 +616,10 @@ int main(int i, char **c)
 {
 	char buffer[64];
 	int sdr_ok;
-
+#ifdef CONFIG_CPU_HAS_INTERRUPT
 	irq_setmask(0);
 	irq_setie(1);
+#endif
 	uart_init();
 
 	printf("\n");
@@ -647,6 +654,8 @@ int main(int i, char **c)
 	printf("RocketRV64[imac]");
 #elif __blackparrot__
         printf("BlackParrotRV64[ia]");
+#elif __serv__
+	printf("SERV");
 #else
 	printf("Unknown");
 #endif

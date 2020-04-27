@@ -723,7 +723,7 @@ class SoC(Module):
             raise
         self.constants[name] = SoCConstant(value)
 
-    def add_config(self, name, value):
+    def add_config(self, name, value=None):
         name = "CONFIG_" + name
         if isinstance(value, str):
             self.add_constant(name + "_" + value)
@@ -784,8 +784,10 @@ class SoC(Module):
             for n, cpu_bus in enumerate(self.cpu.buses):
                 self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
             self.csr.add("cpu", use_loc_if_exists=True)
-            for name, loc in self.cpu.interrupts.items():
-                self.irq.add(name, loc)
+            if hasattr(self.cpu, "interrupt"):
+                for name, loc in self.cpu.interrupts.items():
+                    self.irq.add(name, loc)
+                self.add_config("CPU_HAS_INTERRUPT")
             if hasattr(self, "ctrl"):
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
             self.add_config("CPU_RESET_ADDR", reset_address)
@@ -797,7 +799,8 @@ class SoC(Module):
         self.check_if_exists(name)
         setattr(self.submodules, name, Timer())
         self.csr.add(name, use_loc_if_exists=True)
-        self.irq.add(name, use_loc_if_exists=True)
+        if hasattr(self.cpu, "interrupt"):
+            self.irq.add(name, use_loc_if_exists=True)
 
     # SoC finalization -----------------------------------------------------------------------------
     def do_finalize(self):
@@ -974,7 +977,10 @@ class LiteXSoC(SoC):
 
         self.csr.add("uart_phy", use_loc_if_exists=True)
         self.csr.add("uart", use_loc_if_exists=True)
-        self.irq.add("uart", use_loc_if_exists=True)
+        if hasattr(self.cpu, "interrupt"):
+            self.irq.add("uart", use_loc_if_exists=True)
+        else:
+            self.add_constant("UART_POLLING")
 
     # Add SDRAM ------------------------------------------------------------------------------------
     def add_sdram(self, name, phy, module, origin, size=None,

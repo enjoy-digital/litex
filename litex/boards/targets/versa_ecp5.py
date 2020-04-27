@@ -87,7 +87,6 @@ class BaseSoC(SoCCore):
                 platform.request("ddram"),
                 sys_clk_freq=sys_clk_freq)
             self.add_csr("ddrphy")
-            self.add_constant("ECP5DDRPHY")
             self.comb += self.crg.stop.eq(self.ddrphy.init.stop)
             self.add_sdram("sdram",
                 phy                     = self.ddrphy,

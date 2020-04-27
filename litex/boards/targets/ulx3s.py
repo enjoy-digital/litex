@@ -86,7 +86,7 @@ def main():
     parser.add_argument("--gateware-toolchain", dest="toolchain", default="trellis",
         help="gateware toolchain to use, trellis (default) or diamond")
     parser.add_argument("--device", dest="device", default="LFE5U-45F",
-        help="FPGA device, ULX3S can be populated with LFE5U-45F (default) or LFE5U-85F")
+        help="FPGA device, ULX3S can be populated with LFE5U-12F, LFE5U-25F, LFE5U-45F (default) or LFE5U-85F")
     parser.add_argument("--sys-clk-freq", default=50e6,
                         help="system clock frequency (default=50MHz)")
     parser.add_argument("--sdram-module", default="MT48LC16M16",
