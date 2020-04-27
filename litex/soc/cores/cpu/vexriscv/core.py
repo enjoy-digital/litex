@@ -103,14 +103,17 @@ class VexRiscv(CPU, AutoCSR):
         self.variant          = variant
         self.external_variant = None
         self.reset            = Signal()
+        self.interrupt        = Signal(32)
         self.ibus             = ibus = wishbone.Interface()
         self.dbus             = dbus = wishbone.Interface()
         self.periph_buses     = [ibus, dbus]
-        self.interrupt        = Signal(32)
+        self.memory_buses     = []
+
+        # # #
 
         self.cpu_params = dict(
-                i_clk=ClockSignal(),
-                i_reset=ResetSignal() | self.reset,
+                i_clk                    = ClockSignal(),
+                i_reset                  = ResetSignal() | self.reset,
 
                 i_externalInterruptArray = self.interrupt,
                 i_timerInterrupt         = 0,

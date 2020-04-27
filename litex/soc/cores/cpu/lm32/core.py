@@ -41,6 +41,7 @@ class LM32(CPU):
         self.dbus         = d = wishbone.Interface()
         self.interrupt    = Signal(32)
         self.periph_buses = [i, d]
+        self.memory_buses = []
 
         # # #
 

@@ -26,6 +26,8 @@ class CPUNone(CPU):
     data_width           = 32
     reset_address        = 0x00000000
     io_regions           = {0x00000000: 0x100000000} # origin, length
+    periph_buses         = []
+    memory_buses         = []
 
 # CPUS ---------------------------------------------------------------------------------------------
 

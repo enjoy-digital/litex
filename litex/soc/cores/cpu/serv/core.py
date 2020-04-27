@@ -37,6 +37,7 @@ class SERV(CPU):
         self.ibus         = ibus = wishbone.Interface()
         self.dbus         = dbus = wishbone.Interface()
         self.periph_buses = [ibus, dbus]
+        self.memory_buses = []
 
         # # #
 

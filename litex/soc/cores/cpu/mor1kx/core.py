@@ -66,10 +66,12 @@ class MOR1KX(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
+        self.interrupt    = Signal(32)
         self.ibus         = i = wishbone.Interface()
         self.dbus         = d = wishbone.Interface()
         self.periph_buses = [i, d]
-        self.interrupt    = Signal(32)
+        self.memory_buses = []
+
 
         if variant == "linux":
             self.mem_map = self.mem_map_linux

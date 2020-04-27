@@ -47,6 +47,7 @@ class Microwatt(CPU):
         self.wb_insn      = wb_insn = wishbone.Interface(data_width=64, adr_width=28)
         self.wb_data      = wb_data = wishbone.Interface(data_width=64, adr_width=28)
         self.periph_buses = [wb_insn, wb_data]
+        self.memory_buses = []
 
         # # #
 

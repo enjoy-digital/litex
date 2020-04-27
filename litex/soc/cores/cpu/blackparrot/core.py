@@ -79,6 +79,7 @@ class BlackParrotRV64(CPU):
         self.interrupt    = Signal(4)
         self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
         self.periph_buses = [idbus]
+        self.memory_buses = []
 
         # # #
 

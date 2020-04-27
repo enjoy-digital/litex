@@ -991,6 +991,7 @@ class LiteXSoC(SoC):
         **kwargs):
 
         # Imports
+        from litedram.common import LiteDRAMNativePort
         from litedram.core import LiteDRAMCore
         from litedram.frontend.wishbone import LiteDRAMWishbone2Native
         from litedram.frontend.axi import LiteDRAMAXI2Native
@@ -1004,50 +1005,73 @@ class LiteXSoC(SoC):
             **kwargs)
         self.csr.add("sdram")
 
-        # LiteDRAM port
-        port = self.sdram.crossbar.get_port()
-        port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2
-
-        # SDRAM size
+        # Compute/Check SDRAM size
         sdram_size = 2**(module.geom_settings.bankbits +
                          module.geom_settings.rowbits +
                          module.geom_settings.colbits)*phy.settings.databits//8
         if size is not None:
             sdram_size = min(sdram_size, size)
+
+        # Add SDRAM region
         self.bus.add_region("main_ram", SoCRegion(origin=origin, size=sdram_size))
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
-        if self.cpu.name == "rocket":
-            # Rocket has its own I/D L1 cache: connect directly to LiteDRAM when possible.
-            if port.data_width == self.cpu.mem_axi.data_width:
-                self.logger.info("Matching AXI MEM data width ({})\n".format(port.data_width))
-                self.submodules += LiteDRAMAXI2Native(
-                    axi          = self.cpu.mem_axi,
-                    port         = port,
-                    base_address = self.bus.regions["main_ram"].origin)
-            else:
-                self.logger.info("Converting MEM data width: {} to {} via Wishbone".format(
-                    port.data_width,
-                    self.cpu.mem_axi.data_width))
-                # FIXME: replace WB data-width converter with native AXI converter!!!
-                mem_wb  = wishbone.Interface(
-                    data_width = self.cpu.mem_axi.data_width,
-                    adr_width  = 32-log2_int(self.cpu.mem_axi.data_width//8))
-                # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
-                mem_a2w = ResetInserter()(axi.AXI2Wishbone(
-                    axi          = self.cpu.mem_axi,
-                    wishbone     = mem_wb,
-                    base_address = 0))
-                self.comb += mem_a2w.reset.eq(ResetSignal() | self.cpu.reset)
-                self.submodules += mem_a2w
-                litedram_wb = wishbone.Interface(port.data_width)
-                self.submodules += LiteDRAMWishbone2Native(
-                    wishbone     = litedram_wb,
-                    port         = port,
-                    base_address = origin)
-                self.submodules += wishbone.Converter(mem_wb, litedram_wb)
-        elif self.with_wishbone:
-            # Wishbone Slave SDRAM interface
+        if len(self.cpu.memory_buses):
+            # When CPU has at least a direct memory bus, connect them directly to LiteDRAM.
+            for mem_bus in self.cpu.memory_buses:
+                # Request a LiteDRAM native port.
+                port = self.sdram.crossbar.get_port()
+                port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
+
+                # Check if bus is an AXI bus and connect it.
+                if isinstance(mem_bus, axi.AXIInterface):
+                    # If same data_width, connect it directly.
+                    if port.data_width == mem_bus.data_width:
+                        self.logger.info("Matching AXI MEM data width ({})\n".format(port.data_width))
+                        self.submodules += LiteDRAMAXI2Native(
+                            axi          = self.cpu.mem_axi,
+                            port         = port,
+                            base_address = self.bus.regions["main_ram"].origin)
+                    # If different data_width, do the adaptation and connect it via Wishbone.
+                    else:
+                        self.logger.info("Converting MEM data width: {} to {} via Wishbone".format(
+                            port.data_width,
+                            self.cpu.mem_axi.data_width))
+                        # FIXME: replace WB data-width converter with native AXI converter!!!
+                        mem_wb  = wishbone.Interface(
+                            data_width = self.cpu.mem_axi.data_width,
+                            adr_width  = 32-log2_int(self.cpu.mem_axi.data_width//8))
+                        # NOTE: AXI2Wishbone FSMs must be reset with the CPU!
+                        mem_a2w = ResetInserter()(axi.AXI2Wishbone(
+                            axi          = self.cpu.mem_axi,
+                            wishbone     = mem_wb,
+                            base_address = 0))
+                        self.comb += mem_a2w.reset.eq(ResetSignal() | self.cpu.reset)
+                        self.submodules += mem_a2w
+                        litedram_wb = wishbone.Interface(port.data_width)
+                        self.submodules += LiteDRAMWishbone2Native(
+                            wishbone     = litedram_wb,
+                            port         = port,
+                            base_address = origin)
+                        self.submodules += wishbone.Converter(mem_wb, litedram_wb)
+                # Check if bus is a Native bus and connect it.
+                if isinstance(mem_bus, LiteDRAMNativePort):
+                    # If same data_width, connect it directly.
+                    if port.data_width == mem_bus.data_width:
+                        self.comb += mem_bus.cmd.connect(port.cmd)
+                        self.comb += mem_bus.wdata.connect(port.wdata)
+                        self.comb += port.rdata.connect(mem_bus.rdata)
+                    # Else raise Error.
+                    else:
+                        raise NotImplementedError
+        else:
+            # When CPU has no direct memory interface, create a Wishbone Slave interface to LiteDRAM.
+
+            # Request a LiteDRAM native port.
+            port = self.sdram.crossbar.get_port()
+            port.data_width = 2**int(log2(port.data_width)) # Round to nearest power of 2.
+
+            # Create Wishbone Slave.
             wb_sdram = wishbone.Interface()
             self.bus.add_slave("main_ram", wb_sdram)
 

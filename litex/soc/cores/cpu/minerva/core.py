@@ -34,10 +34,11 @@ class Minerva(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
+        self.interrupt    = Signal(32)
         self.ibus         = wishbone.Interface()
         self.dbus         = wishbone.Interface()
         self.periph_buses = [self.ibus, self.dbus]
-        self.interrupt    = Signal(32)
+        self.memory_buses = []
 
         # TODO: create variants
         self.with_icache = False
