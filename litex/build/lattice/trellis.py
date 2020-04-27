@@ -49,7 +49,10 @@ def _build_lpf(named_sc, named_pc, build_name):
 # Yosys/Nextpnr Helpers/Templates ------------------------------------------------------------------
 
 _yosys_template = [
+    "verilog_defaults -push",
+    "verilog_defaults -add -defer",
     "{read_files}",
+    "verilog_defaults -pop",
     "attrmap -tocase keep -imap keep=\"true\" keep=1 -imap keep=\"false\" keep=0 -remove keep=0",
     "synth_ecp5 -abc9 {nwl} -json {build_name}.json -top {build_name}",
 ]
