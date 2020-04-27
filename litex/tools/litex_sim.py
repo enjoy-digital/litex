@@ -270,10 +270,19 @@ class SimSoC(SoCSDRAM):
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             analyzer_signals = [
-                self.cpu.ibus,
-                self.cpu.dbus
+                self.cpu.ibus.stb,
+                self.cpu.ibus.cyc,
+                self.cpu.ibus.adr,
+                self.cpu.ibus.we,
+                self.cpu.ibus.ack,
+                self.cpu.ibus.sel,
+                self.cpu.ibus.dat_w,
+                self.cpu.ibus.dat_r,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 512,
+                clock_domain = "sys",
+                csr_csv      = "analyzer.csv")
             self.add_csr("analyzer")
 
 # Build --------------------------------------------------------------------------------------------
