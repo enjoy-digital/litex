@@ -56,13 +56,13 @@ class PicoRV32(CPU):
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        self.platform  = platform
-        self.variant   = variant
-        self.reset     = Signal()
-        self.idbus     = idbus = wishbone.Interface()
-        self.buses     = [idbus]
-        self.interrupt = Signal(32)
-        self.trap      = Signal()
+        self.platform     = platform
+        self.variant      = variant
+        self.reset        = Signal()
+        self.idbus        = idbus = wishbone.Interface()
+        self.periph_buses = [idbus]
+        self.interrupt    = Signal(32)
+        self.trap         = Signal()
 
         # # #
 

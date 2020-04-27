@@ -106,7 +106,7 @@ class RocketRV64(CPU):
 
         self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
 
-        self.buses     = [mmio_wb]
+        self.periph_buses = [mmio_wb]
 
         # # #
 

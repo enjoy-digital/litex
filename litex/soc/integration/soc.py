@@ -781,7 +781,7 @@ class SoC(Module):
             if reset_address is None:
                 reset_address = self.mem_map["rom"]
             self.cpu.set_reset_address(reset_address)
-            for n, cpu_bus in enumerate(self.cpu.buses):
+            for n, cpu_bus in enumerate(self.cpu.periph_buses):
                 self.bus.add_master(name="cpu_bus{}".format(n), master=cpu_bus)
             self.csr.add("cpu", use_loc_if_exists=True)
             if hasattr(self.cpu, "interrupt"):

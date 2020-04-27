@@ -73,12 +73,12 @@ class BlackParrotRV64(CPU):
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
 
-        self.platform  = platform
-        self.variant   = variant
-        self.reset     = Signal()
-        self.interrupt = Signal(4)
-        self.idbus     = idbus = wishbone.Interface(data_width=64, adr_width=37)
-        self.buses     = [idbus]
+        self.platform     = platform
+        self.variant      = variant
+        self.reset        = Signal()
+        self.interrupt    = Signal(4)
+        self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
+        self.periph_buses = [idbus]
 
         # # #
 

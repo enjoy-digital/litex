@@ -31,12 +31,12 @@ class SERV(CPU):
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        self.platform  = platform
-        self.variant   = variant
-        self.reset     = Signal()
-        self.ibus      = ibus = wishbone.Interface()
-        self.dbus      = dbus = wishbone.Interface()
-        self.buses     = [ibus, dbus]
+        self.platform     = platform
+        self.variant      = variant
+        self.reset        = Signal()
+        self.ibus         = ibus = wishbone.Interface()
+        self.dbus         = dbus = wishbone.Interface()
+        self.periph_buses = [ibus, dbus]
 
         # # #
 
