@@ -44,7 +44,7 @@ class SERV(CPU):
         self.cpu_params = dict(
             # clock / reset
             i_clk   = ClockSignal(),
-            i_i_rst = ResetSignal(),
+            i_i_rst = ResetSignal() | self.reset,
 
             # timer irq
             i_i_timer_irq = 0,
