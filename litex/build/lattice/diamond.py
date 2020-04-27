@@ -68,8 +68,8 @@ def _build_tcl(device, sources, vincpaths, build_name):
     ]))
 
     # Add include paths
-    for path in vincpaths:
-        tcl.append("prj_impl option {include path} {\"" + path + "\"}")
+    vincpath = ';'.join(map(lambda x: x.replace('\\', '/'), vincpaths))
+    tcl.append("prj_impl option {include path} {\"" + vincpath + "\"}")
 
     # Add sources
     for filename, language, library in sources:
