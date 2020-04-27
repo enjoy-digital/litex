@@ -8,7 +8,7 @@
 #include <uart.h>
 #include <stdio.h>
 
- 
+
 #if defined(__blackparrot__) /*TODO: Update this function for BP*/ //
 
 void isr(void);
@@ -21,7 +21,7 @@ void isr(void)
     onetime++;
   }
 }
-#elif defined(__rocket__) 
+#elif defined(__rocket__)
 void plic_init(void);
 void plic_init(void)
 {
@@ -65,7 +65,7 @@ void isr(void)
 void isr(void);
 void isr(void)
 {
-	unsigned int irqs;
+	__attribute__((unused)) unsigned int irqs;
 
 	irqs = irq_pending() & irq_getmask();
 

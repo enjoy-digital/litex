@@ -72,9 +72,11 @@ static inline unsigned int irq_getie(void)
 #elif defined (__rocket__)
 	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 #elif defined (__microwatt__)
-	return 0; // FIXME
-#elif defined (__blackparrot__) 
-	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;//TODO
+	return 0; /* No interrupt support on Microwatt */
+#elif defined (__blackparrot__)
+	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0; /* FIXME */
+#elif defined (__serv__)
+	return 0; /* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -101,9 +103,11 @@ static inline void irq_setie(unsigned int ie)
 #elif defined (__rocket__)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 #elif defined (__microwatt__)
-	// FIXME
+	/* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
-	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);//TODO:BP
+	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE); /* FIXME */
+#elif defined (__serv__)
+	/* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -132,9 +136,11 @@ static inline unsigned int irq_getmask(void)
 #elif defined (__rocket__)
 	return *((unsigned int *)PLIC_ENABLED) >> 1;
 #elif defined (__microwatt__)
-	return 0; // FIXME
+	return 0; /* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
-	//TODO:BP
+	return 0; /* FIXME */
+#elif defined (__serv__)
+	return 0; /* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -157,9 +163,11 @@ static inline void irq_setmask(unsigned int mask)
 #elif defined (__rocket__)
 	*((unsigned int *)PLIC_ENABLED) = mask << 1;
 #elif defined (__microwatt__)
-	// FIXME
+	/* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
-	//TODO:BP
+	/* FIXME */
+#elif defined (__serv__)
+	/* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif
@@ -186,9 +194,11 @@ static inline unsigned int irq_pending(void)
 #elif defined (__rocket__)
 	return *((unsigned int *)PLIC_PENDING) >> 1;
 #elif defined (__microwatt__)
-	return 0; // FIXME
+	return 0; /* No interrupt support on Microwatt */
 #elif defined (__blackparrot__)
-	return csr_readl(PLIC_PENDING) >> 1;//TODO:BP
+	return csr_readl(PLIC_PENDING) >> 1; /* FIXME */
+#elif defined (__serv__)
+	return 0; /* No interrupt support on SERV */
 #else
 #error Unsupported architecture
 #endif

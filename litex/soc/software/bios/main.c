@@ -653,6 +653,8 @@ int main(int i, char **c)
 	printf("RocketRV64[imac]");
 #elif __blackparrot__
         printf("BlackParrotRV64[ia]");
+#elif __serv__
+	printf("SERV");
 #else
 	printf("Unknown");
 #endif
