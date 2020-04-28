@@ -81,7 +81,7 @@ class BlackParrotRV64(CPU):
         self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
         self.periph_buses = [idbus]
         self.memory_buses = []
-        self.buses     = [wbn]
+#        self.buses     = [wbn]
 
         self.cpu_params = dict(
             # clock, reset
@@ -92,18 +92,18 @@ class BlackParrotRV64(CPU):
             #i_interrupts = self.interrupt,
             
             #wishbone
-            i_wbm_dat_i = wbn.dat_r,
-            o_wbm_dat_o = wbn.dat_w,
-            i_wbm_ack_i = wbn.ack,
-            i_wbm_err_i = wbn.err,
+            i_wbm_dat_i = idbus.dat_r,
+            o_wbm_dat_o = idbus.dat_w,
+            i_wbm_ack_i = idbus.ack,
+            i_wbm_err_i = idbus.err,
             #i_wbm_rty_i = 0,
-            o_wbm_adr_o = wbn.adr,
-            o_wbm_stb_o = wbn.stb,
-            o_wbm_cyc_o = wbn.cyc,
-            o_wbm_sel_o = wbn.sel,
-            o_wbm_we_o = wbn.we,
-            o_wbm_cti_o = wbn.cti,
-            o_wbm_bte_o = wbn.bte,
+            o_wbm_adr_o = idbus.adr,
+            o_wbm_stb_o = idbus.stb,
+            o_wbm_cyc_o = idbus.cyc,
+            o_wbm_sel_o = idbus.sel,
+            o_wbm_we_o = idbus.we,
+            o_wbm_cti_o = idbus.cti,
+            o_wbm_bte_o = idbus.bte,
 
             )
      
@@ -113,7 +113,8 @@ class BlackParrotRV64(CPU):
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
-        assert reset_address == 0x00000000, "cpu_reset_addr hardcoded to 0x00000000!"
+        #FIXME: set reset addr to 0x70000000
+        #assert reset_address == 0x00000000, "cpu_reset_addr hardcoded to 0x00000000!"
 
     @staticmethod
     def add_sources(platform, variant="standard"):
