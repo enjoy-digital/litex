@@ -10,7 +10,13 @@ ifdef TFTP_SERVER_PORT
 CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
-OBJECTS=isr.o sdram.o sdcard.o main.o boot-helper.o boot.o
+OBJECTS = isr.o			\
+	  sdram.o		\
+	  sdcard.o		\
+	  main.o		\
+	  boot-helper.o		\
+	  boot.o		\
+	  helpers.o
 
 ifdef TERM_NO_HIST
 CFLAGS += -DTERM_NO_HIST
