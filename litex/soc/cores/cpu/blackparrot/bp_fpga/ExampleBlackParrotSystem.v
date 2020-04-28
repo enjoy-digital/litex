@@ -171,7 +171,7 @@ bp_chip
        );
 
 
-  bind bp_be_top
+/*  bind bp_be_top
     bp_be_nonsynth_tracer
      #(.cfg_p(cfg_p))
      tracer
@@ -207,7 +207,7 @@ bp_chip
        ,.priv_mode_i(be_mem.csr.priv_mode_n)
        ,.mpp_i(be_mem.csr.mstatus_n.mpp)
        );
-
+*/
 /*bind bp_be_top
   bp_be_nonsynth_perf
    #(.cfg_p(cfg_p))

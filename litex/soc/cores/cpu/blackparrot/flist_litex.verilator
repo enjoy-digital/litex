@@ -203,7 +203,7 @@ $BP_COMMON_DIR/src/v/bp_addr_map.v
 // bsg_ip_cores files
 $BASEJUMP_STL_DIR/bsg_fsb/bsg_fsb_node_trace_replay.v
 // be files
-$BP_BE_DIR/test/common/bp_be_nonsynth_tracer.v
+//$BP_BE_DIR/test/common/bp_be_nonsynth_tracer.v
 // $BP_BE_DIR/test/common/bp_be_nonsynth_perf.v
 // me files
 // $BP_ME_DIR/test/common/bp_mem.v
@@ -218,9 +218,10 @@ $BP_ME_DIR/test/common/bp_cce_mmio_cfg_loader.v
 // top files
 $BP_TOP_DIR/test/common/bp_nonsynth_host.v
 // $BP_TOP_DIR/test/common/bp_nonsynth_if_verif.v
-$BP_TOP_DIR/test/common/bp_nonsynth_commit_tracer.v
+//$BP_TOP_DIR/test/common/bp_nonsynth_commit_tracer.v
 // /home/scanakci/Research_sado/litex/litex/litex/soc/cores/cpu/blackparrot/pre-alpha-release/bp_top/syn/results/verilator/bp_top_trace_demo.e_bp_single_core_cfg.build/wrapper.v
 // /home/scanakci/Research_sado/litex/litex/litex/soc/cores/cpu/blackparrot/pre-alpha-release/bp_top/syn/results/verilator/bp_top_trace_demo.e_bp_single_core_cfg.build/test_bp.cpp
+$BP_TOP_DIR/test/common/bp_monitor.cpp
 $BP_FPGA_DIR/bp2wb_convertor.v
 $BP_FPGA_DIR/ExampleBlackParrotSystem.v
 $BP_FPGA_DIR/bsg_mem_1rw_sync_mask_write_bit.v

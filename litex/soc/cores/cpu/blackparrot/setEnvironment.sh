@@ -38,7 +38,8 @@ export SYSTEMC_INCLUDE=$BP_EXTERNAL_DIR/include
 export SYSTEMC_LIBDIR=$BP_EXTERNAL_DIR/lib-linux64
 
 ## Add external tools and libraries to environment
-export LD_LIBRARY_PATH=$SYSTEMC_LIBDIR:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$SYSTEMC_LIBDIR
+#:$LD_LIBRARY_PATH
 #export PATH=$(BP_EXTERNAL_DIR)/bin:$(PATH)
 #export SYN_PATH=$(BP_TOP_DIR)/syn
 #export TB_PATH=$(BP_TOP_DIR)/test/tb

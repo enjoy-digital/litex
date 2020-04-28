@@ -117,10 +117,11 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	int i;
 	int length_before;
 	int spin = 0;
+        printf("DEBUGWTH?\n");
 
 	if(!microudp_arp_resolve(ip))
 		return -1;
-
+        printf("DEBUG0\n");
 	microudp_set_callback(rx_callback);
 
 	dst_buffer = buffer;
@@ -129,6 +130,8 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	transfer_finished = 0;
 	tries = 5;
 	while(1) {
+                
+                printf("DEBUG1\n");
 		packet_data = microudp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_RRQ, filename);
 		microudp_send(PORT_IN, server_port, len);
@@ -136,6 +139,8 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 			microudp_service();
 			if((total_length > 0) || transfer_finished) break;
 		}
+
+                printf("DEBUG2\n");
 		if((total_length > 0) || transfer_finished) break;
 		tries--;
 		if(tries == 0) {
@@ -144,6 +149,7 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 		}
 	}
 
+        printf("DEBUG3\n");
 	i = 12000000;
 	length_before = total_length;
 	while(!transfer_finished) {
@@ -162,8 +168,10 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 		microudp_service();
 	}
 
+        printf("DEBUG4\n");
 	microudp_set_callback(NULL);
 
+        printf("DEBUG5\n");
 	return total_length;
 }
 

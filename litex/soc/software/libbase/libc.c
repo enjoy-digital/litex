@@ -23,7 +23,7 @@
 #include <string.h>
 #include <limits.h>
 #include <inet.h>
-
+#include <errno.h>
 /**
  * strchr - Find the first occurrence of a character in a string
  * @s: The string to be searched
@@ -375,7 +375,7 @@ void *memchr(const void *s, int c, size_t n)
  * @base: The number base to use
  */
 unsigned long strtoul(const char *nptr, char **endptr, int base)
-{
+{       printf("HI\n");
 	unsigned long result = 0,value;
 
 	if (!base) {
@@ -392,11 +392,14 @@ unsigned long strtoul(const char *nptr, char **endptr, int base)
 		if (nptr[0] == '0' && toupper(nptr[1]) == 'X')
 			nptr += 2;
 	}
+        printf("HI2\n");
 	while (isxdigit(*nptr) &&
 	       (value = isdigit(*nptr) ? *nptr-'0' : toupper(*nptr)-'A'+10) < base) {
 		result = result*base + value;
 		nptr++;
+                printf("HI4\n");
 	}
+        printf("HI3\n");
 	if (endptr)
 		*endptr = (char *)nptr;
 	return result;
