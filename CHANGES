@@ -1,0 +1,32 @@
+[> 2020.04, released April 28th, 2020
+-------------------------------------
+
+	[> Description
+	--------------
+	First release of LiteX and the ecosystem of cores!
+
+	LiteX is a Migen/MiSoC based Core/SoC builder that provides the infrastructure to easily create
+	Cores/SoCs (with or without CPU).
+
+	The common components of a SoC are provided directly:
+	- Buses and Streams (Wishbone, AXI, Avalon-ST)
+	- Interconnect
+	- Common cores (RAM, ROM, Timer, UART, etc...)
+	- CPU wrappers/integration
+	- etc...
+	And SoC creation capabilities can be greatly extended with the ecosystem of LiteX cores (DRAM,
+	PCIe, Ethernet, SATA, etc...) that can be integrated/simulated/build easily with LiteX.
+
+	It also provides build backends for open-source and vendors toolchains.
+
+	[> Issues resolved
+	------------------
+	- NA
+
+	[> Added Features
+	------------------
+	- NA
+
+	[> API changes/Deprecation
+	--------------------------
+	- https://github.com/enjoy-digital/litex/pull/399: Converting LiteX to use Python modules.
