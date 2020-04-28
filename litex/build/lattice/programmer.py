@@ -32,28 +32,23 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         svf_file = bitstream_file.replace(".bit", ".svf")
 
-        subprocess.call(["openocd", "-f", self.openocd_config , "-c", "transport select jtag; init; svf \"{}\"; exit".format(svf_file)])
+        subprocess.call(["openocd", "-f", self.openocd_config , "-c", "transport select jtag; init; svf quiet progress \"{}\"; exit".format(svf_file)])
 
-    def flash(self, address, data, erase=False, verify=True):
+    def flash(self, address, data, verify=True):
         if self.flash_proxy_basename is None:
             flash_proxy = None
         else:
             flash_proxy = self.find_flash_proxy()
-
-        if erase:
-            erase = "erase"
-        else:
-            erase = ""
 
         script = "; ".join([
             "transport select jtag",
             "target create ecp5.spi0.proxy testee -chain-position ecp5.tap",
             "flash bank spi0 jtagspi 0 0 0 0 ecp5.spi0.proxy 0x32",
             "init",
-            "svf \"{}\"" if flash_proxy is not None else "".format(flash_proxy),
+            "svf quiet progress \"{}\"".format(flash_proxy) if flash_proxy is not None else "",
             "reset halt",
             "flash probe spi0",
-            "flash write_image {0} \"{1}\" 0x{2:x}".format(erase, data, address),
+            "flash write_image erase \"{0}\" 0x{1:x}".format(data, address),
             "flash verify_bank spi0 \"{0}\" 0x{1:x}" if verify else "".format(data, address),
             "exit"
         ])
