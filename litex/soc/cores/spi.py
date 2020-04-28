@@ -17,7 +17,7 @@ class SPIMaster(Module, AutoCSR):
     configurable data_width and frequency.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
-    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
+    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, cpol=0, cpha=0, with_csr=True, mode="raw"):
         assert mode in ["raw", "aligned"]
         if pads is None:
             pads = Record(self.pads_layout)
@@ -50,8 +50,8 @@ class SPIMaster(Module, AutoCSR):
         clk_rise    = Signal()
         clk_fall    = Signal()
         self.sync += [
-            If(clk_rise, pads.clk.eq(xfer)),
-            If(clk_fall, pads.clk.eq(0)),
+            If(clk_rise, pads.clk.eq(xfer ^ cpol ^ cpha)),
+            If(clk_fall, pads.clk.eq(cpol ^ cpha)),
             If(clk_fall,
                 clk_divider.eq(0)
             ).Else(
