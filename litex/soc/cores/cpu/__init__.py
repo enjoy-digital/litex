@@ -61,6 +61,7 @@ CPU_VARIANTS = {
     "minimal" : ["min",],
     "lite" : ["light", "zephyr", "nuttx"],
     "standard": [None, "std"],
+    "imac": [],
     "full": [],
     "linux" : [],
     "linuxd" : [],
