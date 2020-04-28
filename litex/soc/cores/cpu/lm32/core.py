@@ -9,6 +9,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -97,9 +98,8 @@ class LM32(CPU):
 
     @staticmethod
     def add_sources(platform, variant):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
-        platform.add_sources(os.path.join(vdir, "submodule", "rtl"),
+        vdir = get_data_mod("cpu", "lm32").data_location
+        platform.add_sources(os.path.join(vdir, "rtl"),
             "lm32_cpu.v",
             "lm32_instruction_unit.v",
             "lm32_decoder.v",
@@ -118,7 +118,7 @@ class LM32(CPU):
             "lm32_debug.v",
             "lm32_itlb.v",
             "lm32_dtlb.v")
-        platform.add_verilog_include_path(os.path.join(vdir, "submodule", "rtl"))
+        platform.add_verilog_include_path(os.path.join(vdir, "rtl"))
         if variant == "minimal":
             platform.add_verilog_include_path(os.path.join(vdir, "config_minimal"))
         elif variant == "lite":

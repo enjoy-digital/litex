@@ -8,6 +8,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -175,8 +176,8 @@ class MOR1KX(CPU):
     @staticmethod
     def add_sources(platform):
         vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            "verilog", "rtl", "verilog")
+            get_data_mod("cpu", "mor1kx").data_location,
+            "rtl", "verilog")
         platform.add_source_dir(vdir)
         platform.add_verilog_include_path(vdir)
 

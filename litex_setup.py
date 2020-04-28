@@ -8,7 +8,8 @@ from collections import OrderedDict
 
 import urllib.request
 
-current_path = os.path.dirname(os.path.realpath(__file__))
+current_path = os.path.abspath(os.curdir)
+
 
 # Repositories -------------------------------------------------------------------------------------
 
@@ -18,7 +19,8 @@ repos = [
     ("migen",        ("https://github.com/m-labs/",        True,  True)),
 
     # LiteX SoC builder
-    ("litex",        ("https://github.com/enjoy-digital/", True,  True)),
+    ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/", False, True)),
+    ("litex",        ("https://github.com/enjoy-digital/", False,  True)),
 
     # LiteX cores ecosystem
     ("liteeth",      ("https://github.com/enjoy-digital/", False, True)),
@@ -34,6 +36,16 @@ repos = [
 
     # LiteX boards support
     ("litex-boards", ("https://github.com/litex-hub/",     False, True)),
+
+    # Optional LiteX data
+    ("pythondata-cpu-blackparrot", ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-mor1kx",      ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-lm32",        ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-microwatt",   ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-picorv32",    ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-rocket",      ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-misc-tapcfg",     ("https://github.com/litex-hub/", False, True)),
 ]
 repos = OrderedDict(repos)
 
@@ -127,7 +139,7 @@ if "update" in sys.argv[1:]:
         print("[updating " + name + "]...")
         os.chdir(os.path.join(current_path, name))
         subprocess.check_call(
-            "git pull",
+            "git pull --ff-only",
             shell=True)
         os.chdir(os.path.join(current_path))
 

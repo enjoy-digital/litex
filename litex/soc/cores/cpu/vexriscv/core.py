@@ -12,6 +12,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.cpu import CPU
@@ -249,7 +250,7 @@ class VexRiscv(CPU, AutoCSR):
     @staticmethod
     def add_sources(platform, variant="standard"):
         cpu_filename = CPU_VARIANTS[variant] + ".v"
-        vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = get_data_mod("cpu", "vexriscv").data_location
         platform.add_source(os.path.join(vdir, cpu_filename))
 
     def use_external_variant(self, variant_filename):

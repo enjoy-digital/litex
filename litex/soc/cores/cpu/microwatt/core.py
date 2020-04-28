@@ -6,6 +6,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -99,7 +100,9 @@ class Microwatt(CPU):
 
     @staticmethod
     def add_sources(platform):
-        sdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sources")
+        sdir = os.path.join(
+            get_data_mod("cpu", "microwatt").data_location,
+            "sources")
         platform.add_sources(sdir,
             # Common / Types / Helpers
             "decode_types.vhdl",

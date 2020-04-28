@@ -11,6 +11,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -180,8 +181,7 @@ class PicoRV32(CPU):
 
     @staticmethod
     def add_sources(platform):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = get_data_mod("cpu", "picorv32").data_location
         platform.add_source(os.path.join(vdir, "picorv32.v"))
 
     def do_finalize(self):
