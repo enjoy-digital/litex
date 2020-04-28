@@ -6,6 +6,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -80,11 +81,9 @@ class SERV(CPU):
 
     @staticmethod
     def add_sources(platform):
-        # FIXME: add SERV as submodule
-        os.system("git clone https://github.com/olofk/serv")
-        vdir = os.path.join("serv", "rtl")
-        platform.add_source_dir(vdir)
-        platform.add_verilog_include_path(vdir)
+        vdir = get_data_mod("cpu", "serv").data_location
+        platform.add_source_dir(os.path.join(vdir, "rtl"))
+        platform.add_verilog_include_path(os.path.join(vdir, "rtl"))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")

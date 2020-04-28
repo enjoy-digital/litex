@@ -42,6 +42,7 @@ repos = [
     ("pythondata-cpu-lm32",        ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-mor1kx",      ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-picorv32",    ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-serv",        ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-rocket",      ("https://github.com/litex-hub/", False, True)),
 ]
