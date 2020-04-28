@@ -95,7 +95,7 @@ Provides definitions/modules to build cores (bus, bank, flow), cores and tools t
 Provides platforms and targets for the supported boards. All Migen's platforms can also be used in LiteX. The boards present in the LiteX repository are the official ones that are used for development/CI. More boards are available at: https://github.com/litex-hub/litex-boards
 
 # Quick start guide
-1. Install Python 3.5+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
+1. Install Python 3.6+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
 2. Install Migen/LiteX and the LiteX's cores:
 
 ```sh
