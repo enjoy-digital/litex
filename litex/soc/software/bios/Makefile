@@ -2,7 +2,7 @@ include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 ifeq ($(CPU),blackparrot)
-BP_LIBS  = -L$(BP_EXTERNAL_DIR)/lib/gcc/riscv64-unknown-elf/8.3.0
+BP_LIBS =  -L$(BP_EXTERNAL_DIR)/lib/gcc/riscv64-unknown-elf/8.3.0 
 BP_FLAGS = -lgcc
 endif
 # Permit TFTP_SERVER_PORT override from shell environment / command line
@@ -11,6 +11,17 @@ CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
 OBJECTS=isr.o sdram.o sdcard.o main.o boot-helper.o boot.o
+
+ifdef TERM_NO_HIST
+CFLAGS += -DTERM_NO_HIST
+endif
+
+ifdef TERM_MINI
+CFLAGS += -DTERM_MINI
+OBJECTS += readline_simple.o
+else
+OBJECTS += readline.o
+endif
 
 all: bios.bin
 	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
@@ -39,7 +50,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		$(BP_LIBS) \
 		-lnet -lbase-nofloat -lcompiler_rt \
 		$(BP_FLAGS)
-
+	
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif

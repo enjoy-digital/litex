@@ -10,6 +10,7 @@
 // This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
 // This file is Copyright (c) 2018 Sergiusz Bazanski <q3k@q3k.org>
 // This file is Copyright (c) 2016 Tim 'mithro' Ansell <mithro@mithis.com>
+// This file is Copyright (c) 2020 Franck Jullien <franck.jullien@gmail.com>
 
 // License: BSD
 
@@ -42,6 +43,7 @@
 #include "sdram.h"
 #include "sdcard.h"
 #include "boot.h"
+#include "readline.h"
 
 /* General address space functions */
 
@@ -548,48 +550,6 @@ static void crcbios(void)
 	}
 }
 
-static void readstr(char *s, int size)
-{
-	static char skip = 0;
-	char c[2];
-	int ptr;
-
-	c[1] = 0;
-	ptr = 0;
-	while(1) {
-		c[0] = readchar();
-		if (c[0] == skip)
-			continue;
-		skip = 0;
-		switch(c[0]) {
-			case 0x7f:
-			case 0x08:
-				if(ptr > 0) {
-					ptr--;
-					putsnonl("\x08 \x08");
-				}
-				break;
-			case 0x07:
-				break;
-			case '\r':
-				skip = '\n';
-				s[ptr] = 0x00;
-				putsnonl("\n");
-				return;
-			case '\n':
-				skip = '\r';
-				s[ptr] = 0x00;
-				putsnonl("\n");
-				return;
-			default:
-				putsnonl(c);
-				s[ptr] = c[0];
-				ptr++;
-				break;
-		}
-	}
-}
-
 static void boot_sequence(void)
 {
 	if(serialboot()) {
@@ -614,7 +574,7 @@ static void boot_sequence(void)
 
 int main(int i, char **c)
 {
-	char buffer[64];
+	char buffer[CMD_LINE_BUFFER_SIZE];
 	int sdr_ok;
 #ifdef CONFIG_CPU_HAS_INTERRUPT
 	irq_setmask(0);
@@ -696,10 +656,17 @@ int main(int i, char **c)
 	}
 
 	printf("--============= \e[1mConsole\e[0m ================--\n");
-    while(1) {
-		putsnonl("\e[92;1mlitex\e[0m> ");
-		readstr(buffer, 64);
-		do_command(buffer);
+#if !defined(TERM_MINI) && !defined(TERM_NO_HIST)
+	hist_init();
+#endif
+	printf("\n%s", PROMPT);
+	while(1) {
+		readline(buffer, CMD_LINE_BUFFER_SIZE);
+		if (buffer[0] != 0) {
+			printf("\n");
+			do_command(buffer);
+		}
+		printf("\n%s", PROMPT);
 	}
 	return 0;
 }
