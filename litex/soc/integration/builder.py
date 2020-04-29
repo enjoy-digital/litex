@@ -6,10 +6,12 @@
 # This file is Copyright (c) 2018 William D. Jones <thor0505@comcast.net>
 # This file is Copyright (c) 2020 Xiretza <xiretza@xiretza.xyz>
 # This file is Copyright (c) 2020 Piotr Esden-Tempski <piotr@esden.net>
+# This file is Copyright (c) 2020 John Kelley <john@kelley.ca>
 # License: BSD
 
 
 import os
+import re
 import subprocess
 import struct
 import shutil
@@ -41,6 +43,7 @@ class Builder:
         output_dir       = None,
         gateware_dir     = None,
         software_dir     = None,
+        sdk_dir          = None,
         include_dir      = None,
         generated_dir    = None,
         compile_software = True,
@@ -56,7 +59,8 @@ class Builder:
         self.output_dir    = os.path.abspath(output_dir    or "soc_{}_{}".format(soc.__class__.__name__.lower(), soc.platform.name))
         self.gateware_dir  = os.path.abspath(gateware_dir  or os.path.join(self.output_dir,   "gateware"))
         self.software_dir  = os.path.abspath(software_dir  or os.path.join(self.output_dir,   "software"))
-        self.include_dir   = os.path.abspath(include_dir   or os.path.join(self.software_dir, "include"))
+        self.sdk_dir       = os.path.abspath(sdk_dir       or os.path.join(self.software_dir, "sdk"))
+        self.include_dir   = os.path.abspath(include_dir   or os.path.join(self.sdk_dir, "include"))
         self.generated_dir = os.path.abspath(generated_dir or os.path.join(self.include_dir,  "generated"))
 
         self.compile_software = compile_software
@@ -103,6 +107,8 @@ class Builder:
             define("SOC_DIRECTORY", soc_directory)
             variables_contents.append("export BUILDINC_DIRECTORY\n")
             define("BUILDINC_DIRECTORY", self.include_dir)
+            variables_contents.append("export SDK_DIRECTORY\n")
+            define("SDK_DIRECTORY", self.sdk_dir)
             for name, src_dir in self.software_packages:
                 define(name.upper() + "_DIRECTORY", src_dir)
 
@@ -171,15 +177,38 @@ class Builder:
             if name == "bios" and not compile_bios:
                 pass
             else:
+                os.makedirs(os.path.join(self.sdk_dir, "lib"), exist_ok=True)
                 dst_dir = os.path.join(self.software_dir, name)
                 makefile = os.path.join(src_dir, "Makefile")
                 if self.compile_software:
-                    subprocess.check_call(["make", "-C", dst_dir, "-f", makefile])
+                    if name == "bios":
+                        subprocess.check_call(["make", "-C", dst_dir, "SDK_DIRECTORY="+self.sdk_dir, "-f", makefile])
+                    else:
+                        subprocess.check_call(["make", "-C", dst_dir, "SDK_DIRECTORY="+self.sdk_dir, "-f", makefile, "install"])
 
     def _initialize_rom_software(self):
         bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
         bios_data = soc_core.get_mem_data(bios_file, self.soc.cpu.endianness)
         self.soc.initialize_rom(bios_data)
+
+    def _sdk_copy_litex_headers(self):
+        src_dir = os.path.join(soc_directory, "software", "include")
+        shutil.copytree(src_dir, os.path.join(self.sdk_dir, "include"), dirs_exist_ok=True)
+        shutil.copy(os.path.join(soc_directory, "software", "common.mak"), self.sdk_dir)
+
+    def _sdk_copy_makefile(self):
+        src_file = os.path.join(soc_directory, "software", "common.mak")
+        dst_file = os.path.join(self.sdk_dir, "common.mak")
+        with open(dst_file, 'w') as dst:
+            with open(src_file) as src:
+                for line in src:
+                    if re.search("^INCLUDES*", line) is not None:
+                        line = "INCLUDES = -I$(SDK_DIR)/include -I$(SDK_DIR)/include/base\n"
+                    elif re.search("^LDFLAGS", line) is not None:
+                        line = re.sub("-L[^\s]*", "-L$(SDK_DIR)/lib -L$(SDK_DIR)/include", line)
+                    elif re.search("^CXXFLAGS", line) is not None:
+                        line = re.sub("-I[^\s]*", "-I$(SDK_DIR)/include/basec++", line)
+                    dst.write(line)
 
     def build(self, **kwargs):
         self.soc.platform.output_dir = self.output_dir
@@ -189,6 +218,8 @@ class Builder:
         self.soc.finalize()
 
         self._generate_includes()
+        self._sdk_copy_litex_headers()
+        self._sdk_copy_makefile()
         self._generate_csr_map()
         self._generate_mem_region_map()
         if self.soc.cpu_type is not None:
@@ -215,6 +246,8 @@ def builder_args(parser):
                         help="output directory for gateware files")
     parser.add_argument("--software-dir", default=None,
                         help="base output directory for software files")
+    parser.add_argument("--sdk-dir", default=None,
+                        help="base output directory for SDK (include and library) files")
     parser.add_argument("--include-dir", default=None,
                         help="output directory for header files")
     parser.add_argument("--generated-dir", default=None,
@@ -244,6 +277,7 @@ def builder_argdict(args):
         "output_dir":       args.output_dir,
         "gateware_dir":     args.gateware_dir,
         "software_dir":     args.software_dir,
+        "sdk_dir":          args.sdk_dir,
         "include_dir":      args.include_dir,
         "generated_dir":    args.generated_dir,
         "compile_software": not args.no_compile_software,

@@ -1,4 +1,4 @@
-include ../include/generated/variables.mak
+include $(SDK_DIRECTORY)/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 ifeq ($(CPU),blackparrot)

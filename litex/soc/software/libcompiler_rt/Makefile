@@ -1,4 +1,4 @@
-include ../include/generated/variables.mak
+include $(SDK_DIRECTORY)/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 ifeq ($(CPUENDIANNESS),big)
@@ -11,7 +11,12 @@ OBJECTS=umodsi3.o udivsi3.o divsi3.o modsi3.o comparesf2.o comparedf2.o negsf2.o
   floatsisf.o floatunsisf.o fixsfsi.o fixdfdi.o fixunssfsi.o fixunsdfdi.o adddf3.o subdf3.o muldf3.o divdf3.o floatsidf.o floatunsidf.o floatdidf.o fixdfsi.o fixunsdfsi.o \
   clzsi2.o ctzsi2.o udivdi3.o umoddi3.o moddi3.o ucmpdi2.o
 
-all: libcompiler_rt.a
+PRODUCTS=libcompiler_rt.a
+
+all: $(PRODUCTS)
+
+install: all
+	cp $(PRODUCTS) $(SDK_DIRECTORY)/lib
 
 libcompiler_rt.a: $(OBJECTS)
 	$(CC) -c $(CFLAGS) $(1) $(SOC_DIRECTORY)/software/libcompiler_rt/mulsi3.c -o mulsi3.o
