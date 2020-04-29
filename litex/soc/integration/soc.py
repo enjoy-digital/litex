@@ -762,7 +762,7 @@ class SoC(Module):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
 
-    def add_cpu(self, name="vexriscv", variant="standard", reset_address=None):
+    def add_cpu(self, name="vexriscv", variant="standard", cls=None, reset_address=None):
         if name not in cpu.CPUS.keys():
             self.logger.error("{} CPU {}, supporteds: {}".format(
                 colorer(name),
@@ -770,7 +770,8 @@ class SoC(Module):
                 colorer(", ".join(cpu.CPUS.keys()))))
             raise
         # Add CPU
-        self.submodules.cpu = cpu.CPUS[name](self.platform, variant)
+        cpu_cls = cls if cls is not None else cpu.CPUS[name]
+        self.submodules.cpu = cpu_cls(self.platform, variant)
         # Update SoC with CPU constraints
         for n, (origin, size) in enumerate(self.cpu.io_regions.items()):
             self.bus.add_region("io{}".format(n), SoCIORegion(origin=origin, size=size, cached=False))
