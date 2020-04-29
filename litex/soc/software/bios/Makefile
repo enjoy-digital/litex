@@ -16,7 +16,15 @@ OBJECTS = isr.o			\
 	  main.o		\
 	  boot-helper.o		\
 	  boot.o		\
-	  helpers.o
+	  helpers.o		\
+	  cmd_bios.o		\
+	  cmd_boot.o		\
+	  cmd_dram.o		\
+	  cmd_mdio.o		\
+	  cmd_mem_access.o	\
+	  cmd_sdcard.o		\
+	  cmd_spi_flash.o	\
+	  cmd_usddrphy.o
 
 ifdef TERM_NO_HIST
 CFLAGS += -DTERM_NO_HIST
@@ -65,6 +73,9 @@ endif
 -include $(OBJECTS:.o=.d)
 
 %.o: $(BIOS_DIRECTORY)/%.c
+	$(compile)
+
+%.o: $(BIOS_DIRECTORY)/commands/%.c
 	$(compile)
 
 %.o: $(BIOS_DIRECTORY)/%.S

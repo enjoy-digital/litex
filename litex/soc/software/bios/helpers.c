@@ -9,6 +9,7 @@
 
 #include "readline.h"
 #include "helpers.h"
+#include "command.h"
 
 extern unsigned int _ftext, _edata;
 
@@ -73,4 +74,55 @@ void crcbios(void)
 		printf(" BIOS CRC failed (expected %08x, got %08x)\n", expected_crc, actual_crc);
 		printf(" The system will continue, but expect problems.\n");
 	}
+}
+
+int get_param(char *buf, char **cmd, char **params)
+{
+	int nb_param = 0;
+	int i;
+
+	for (i = 0; i < MAX_PARAM; i++)
+		params[i] = NULL;
+
+	*cmd = buf;
+
+	while ((*buf != ' ') && (*buf !=0))
+		buf++;
+
+	if (*buf == 0)
+		return nb_param;
+
+	*buf++ = 0;
+
+	while (1) {
+		while ((*buf == ' ') && (*buf !=0))
+			buf++;
+
+
+		if (*buf == 0)
+			return nb_param;
+
+		params[nb_param++] = buf;
+
+		while ((*buf != ' ') && (*buf !=0))
+			buf++;
+
+		if (*buf == 0)
+			return nb_param;
+		*buf++ = 0;
+	}
+}
+
+struct command_struct *command_dispatcher(char *command, int nb_params, char **params)
+{
+	struct command_struct * const *cmd;
+
+	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+		if (!strcmp(command, (*cmd)->name)) {
+			(*cmd)->func(nb_params, params);
+			return (*cmd);
+		}
+	}
+
+	return NULL;
 }
