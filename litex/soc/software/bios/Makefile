@@ -26,6 +26,12 @@ OBJECTS = isr.o			\
 	  cmd_spi_flash.o	\
 	  cmd_usddrphy.o
 
+ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
+CFLAGS += -DTERM_NO_COMPLETE
+else
+OBJECTS += complete.o
+endif
+
 ifdef TERM_NO_HIST
 CFLAGS += -DTERM_NO_HIST
 endif

@@ -17,6 +17,7 @@
 #include <uart.h>
 
 #include "readline.h"
+#include "complete.h"
 
 #ifndef TERM_NO_HIST
 static int hist_max = 0;
@@ -191,6 +192,12 @@ int readline(char *buf, int len)
 	int insert = 1;
 	char ichar;
 
+#ifndef TERM_NO_COMPLETE
+	char tmp;
+	int reprint, i;
+	char *completestr;
+#endif
+
 	while (1) {
 
 		ichar = read_key();
@@ -200,6 +207,27 @@ int readline(char *buf, int len)
 
 		switch (ichar) {
 		case '\t':
+#ifndef TERM_NO_COMPLETE
+			buf[eol_num] = 0;
+			tmp = buf[num];
+
+			buf[num] = 0;
+			reprint = complete(buf, &completestr);
+			buf[num] = tmp;
+
+			if (reprint) {
+				printf("%s%s", PROMPT, buf);
+
+				if (tmp)
+					for (i = 0; i < eol_num - num; i++)
+						getcmd_putch(CTL_BACKSPACE);
+			}
+
+			i = 0;
+			while (completestr[i])
+				cread_add_char(completestr[i++], insert, &num,
+						&eol_num, buf, len);
+#endif
 			break;
 
 		case KEY_HOME:
