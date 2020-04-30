@@ -1,10 +1,15 @@
-include ../include/generated/variables.mak
+include $(SDK_DIRECTORY)/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 OBJECTS=exception.o libc.o errno.o crc16.o crc32.o console.o \
 	system.o id.o uart.o time.o qsort.o strtod.o spiflash.o spisdcard.o strcasecmp.o mdio.o
 
-all: crt0-$(CPU)-ctr.o crt0-$(CPU)-xip.o libbase.a libbase-nofloat.a
+PRODUCTS=crt0-$(CPU)-ctr.o crt0-$(CPU)-xip.o libbase.a libbase-nofloat.a
+
+all: $(PRODUCTS)
+
+install: all
+	cp $(PRODUCTS) $(SDK_DIRECTORY)/lib
 
 libbase.a: $(OBJECTS) vsnprintf.o
 	$(AR) crs libbase.a $(OBJECTS) vsnprintf.o

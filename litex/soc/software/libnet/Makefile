@@ -1,9 +1,14 @@
-include ../include/generated/variables.mak
+include $(SDK_DIRECTORY)/include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 OBJECTS=microudp.o tftp.o
 
-all: libnet.a
+PRODUCTS=libnet.a
+
+all: $(PRODUCTS)
+
+install: all
+	cp $(PRODUCTS) $(SDK_DIRECTORY)/lib
 
 libnet.a: $(OBJECTS)
 	$(AR) crs libnet.a $(OBJECTS)
