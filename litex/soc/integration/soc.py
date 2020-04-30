@@ -958,8 +958,8 @@ class LiteXSoC(SoC):
                 tx_fifo_depth = fifo_depth,
                 rx_fifo_depth = fifo_depth))
 
-        # USB CDC (with ValentyUSB core)
-        elif name in ["usb_cdc"]:
+        # USB ACM (with ValentyUSB core)
+        elif name in ["usb_acm"]:
             import valentyusb.usbcore.io as usbio
             import valentyusb.usbcore.cpu.cdc_eptri as cdc_eptri
             usb_pads = self.platform.request("usb")
