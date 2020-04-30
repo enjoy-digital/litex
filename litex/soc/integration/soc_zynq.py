@@ -7,7 +7,7 @@ from migen import *
 
 from litex.build.generic_platform import tools
 from litex.soc.integration.soc_core import *
-from litex.soc.integration.cpu_interface import get_csr_header
+from litex.soc.integration.export import get_csr_header
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
 
