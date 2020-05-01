@@ -8,6 +8,8 @@
 	[> Added Features
 	------------------
 	- Pluggable CPUs.
+	- Add nMigen dependency.
+	- Properly integrate Minerva CPU.
 
 	[> API changes/Deprecation
 	--------------------------
