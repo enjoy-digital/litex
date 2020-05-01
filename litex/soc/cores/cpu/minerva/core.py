@@ -7,6 +7,7 @@ import subprocess
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -98,8 +99,8 @@ class Minerva(CPU):
             cli_params.append("--with-dcache")
         if with_muldiv:
             cli_params.append("--with-muldiv")
-        os.system("git clone http://github.com/lambdaconcept/minerva") # FIXME: create pythondata.
-        if subprocess.call(["python3", os.path.join("minerva", "cli.py"), *cli_params, "generate"],
+        sdir = get_data_mod("cpu", "minerva").data_location
+        if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params, "generate"],
             stdout=open(verilog_filename, "w")):
             raise OSError("Unable to elaborate Minerva CPU, please check your nMigen/Yosys install")
 
