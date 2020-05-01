@@ -29,6 +29,7 @@
 
 __attribute__((unused)) static void cdelay(int i)
 {
+	/* FIXME: move nop definitions to CPUs */
 	while(i > 0) {
 #if defined (__lm32__)
 		__asm__ volatile("nop");

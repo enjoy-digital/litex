@@ -2,7 +2,7 @@ include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 ifeq ($(CPU),blackparrot)
-BP_LIBS =  -L$(BP_EXTERNAL_DIR)/lib/gcc/riscv64-unknown-elf/8.3.0 
+BP_LIBS  = -L$(BP_EXTERNAL_DIR)/lib/gcc/riscv64-unknown-elf/8.3.0
 BP_FLAGS = -lgcc
 endif
 # Permit TFTP_SERVER_PORT override from shell environment / command line
@@ -10,7 +10,7 @@ ifdef TFTP_SERVER_PORT
 CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
-OBJECTS=isr.o sdram.o sdcard.o main.o boot-helper-$(CPU).o boot.o
+OBJECTS=isr.o sdram.o sdcard.o main.o boot-helper.o boot.o
 
 all: bios.bin
 	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
@@ -29,9 +29,9 @@ endif
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 
-%.elf: ../libbase/crt0-$(CPU)-ctr.o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
+%.elf: ../libbase/crt0-ctr.o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
-		../libbase/crt0-$(CPU)-ctr.o \
+		../libbase/crt0-ctr.o \
 		$(OBJECTS) \
 		-L../libnet \
 		-L../libbase \
@@ -39,7 +39,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		$(BP_LIBS) \
 		-lnet -lbase-nofloat -lcompiler_rt \
 		$(BP_FLAGS)
-	
+
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif
@@ -51,6 +51,10 @@ endif
 	$(compile)
 
 %.o: $(BIOS_DIRECTORY)/%.S
+	$(assemble)
+
+boot-helper.o: $(CPU_DIRECTORY)/boot-helper.S
+	cp $(CPU_DIRECTORY)/boot-helper.S $(BIOS_DIRECTORY)/boot-helper.S
 	$(assemble)
 
 clean:

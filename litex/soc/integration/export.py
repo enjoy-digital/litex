@@ -15,6 +15,7 @@
 
 import os
 import json
+import inspect
 from shutil import which
 from sysconfig import get_platform
 
@@ -85,7 +86,8 @@ def get_cpu_mak(cpu, compile_software):
         ("CPU", cpu.name),
         ("CPUFLAGS", flags),
         ("CPUENDIANNESS", cpu.endianness),
-        ("CLANG", str(int(clang)))
+        ("CLANG", str(int(clang))),
+        ("CPU_DIRECTORY", os.path.dirname(inspect.getfile(cpu.__class__))),
     ]
 
 
