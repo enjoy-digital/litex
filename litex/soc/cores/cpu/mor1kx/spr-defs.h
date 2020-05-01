@@ -1,8 +1,8 @@
 /* spr-defs.h - Special purpose registers definitions file
-	
+
    Copyright (C) 2000 Damjan Lampret
    Copyright (C) 2008, 2010 Embecosm Limited
-   
+
    Contributor Damjan Lampret <lampret@opencores.org>
    Contributor Jeremy Bennett <jeremy.bennett@embecosm.com>
 
@@ -184,10 +184,10 @@
 #define SPR_CPUCFGR_OV64S  0x00000200  /* ORVDX64 supported */
 #define SPR_CPUCFGR_ND     0x00000400  /* No delay-slot */
 #define SPR_CPUCFGR_AVRP   0x00000800  /* Architecture version register present */
-#define SPR_CPUCFGR_EVBARP 0x00001000  /* Exception vector base address register 
+#define SPR_CPUCFGR_EVBARP 0x00001000  /* Exception vector base address register
 					  present */
 #define SPR_CPUCFGR_ISRP   0x00002000  /* Implementation-specific registers present */
-#define SPR_CPUCFGR_AECSRP 0x00004000  /* Arithmetic exception control/status 
+#define SPR_CPUCFGR_AECSRP 0x00004000  /* Arithmetic exception control/status
 					  registers present */
 #define SPR_CPUCFGR_RES	   0xffff8000  /* Reserved */
 
@@ -628,7 +628,7 @@
 #define SPR_PCMR_DDS	0x00004000  /* Data dependency stall event */
 #define SPR_PCMR_WPE	0x03ff8000  /* Watchpoint events */
 
-/* 
+/*
  * Bit definitions for the Power management register
  *
  */

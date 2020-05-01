@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-void flush_cpu_icache(void);
-void flush_cpu_dcache(void);
+__attribute__((unused)) static void flush_cpu_icache(void){}; /* FIXME: do something useful here! */
+__attribute__((unused)) static void flush_cpu_dcache(void){}; /* FIXME: do something useful here! */
 void flush_l2_cache(void);
 
 void busy_wait(unsigned int ms);
