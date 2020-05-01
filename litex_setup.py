@@ -17,6 +17,7 @@ current_path = os.path.abspath(os.curdir)
 repos = [
     # HDL
     ("migen",        ("https://github.com/m-labs/",        True,  True)),
+    ("nmigen",       ("https://github.com/nmigen/",        True,  True)),
 
     # LiteX SoC builder
     ("pythondata-software-compiler_rt", ("https://github.com/litex-hub/",     False, True)),
