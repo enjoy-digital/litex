@@ -77,7 +77,7 @@ class BlackParrotRV64(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.interrupt    = Signal(4)
+#        self.interrupt    = Signal(4)
         self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
         self.periph_buses = [idbus]
         self.memory_buses = []
@@ -118,8 +118,13 @@ class BlackParrotRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        filename = get_data_mod("cpu", "blackparrot").data_file(
-            "flist_litex.verilator")
+        simulation = 0
+        if (simulation == 1):
+            filename = get_data_mod("cpu", "blackparrot").data_file(
+            "flist.verilator")
+        else:
+            filename = get_data_mod("cpu", "blackparrot").data_file(
+            "flist.fpga")
         with open(filename) as openfileobject:
             for line in openfileobject:
                 temp = line

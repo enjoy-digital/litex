@@ -1005,7 +1005,7 @@ int memtest(void)
 		return 0;
 	else {
 		printf("Memtest OK\n");
-		//memspeed();
+		memspeed();
 		return 1;
 	}
 }

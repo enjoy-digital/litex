@@ -78,6 +78,8 @@ void isr(void)
 
 #else
 
-void isr(void){};
+void isr(void){
+printf("ISR blackparrot\n");
+};
 
 #endif
