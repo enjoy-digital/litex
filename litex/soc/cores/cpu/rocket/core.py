@@ -72,6 +72,7 @@ class RocketRV64(CPU):
     gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf",
                             "riscv64-none-elf")
     linker_output_format = "elf64-littleriscv"
+    nop                  = "nop"
     io_regions           = {0x10000000: 0x70000000} # origin, length
 
     @property

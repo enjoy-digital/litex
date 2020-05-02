@@ -29,31 +29,8 @@
 
 __attribute__((unused)) static void cdelay(int i)
 {
-	/* FIXME: move nop definitions to CPUs */
 	while(i > 0) {
-#if defined (__lm32__)
-		__asm__ volatile("nop");
-#elif defined (__or1k__)
-		__asm__ volatile("l.nop");
-#elif defined (__picorv32__)
-		__asm__ volatile("nop");
-#elif defined (__vexriscv__)
-		__asm__ volatile("nop");
-#elif defined (__minerva__)
-		__asm__ volatile("nop");
-#elif defined (__rocket__)
-		__asm__ volatile("nop");
-#elif defined (__powerpc__)
-		__asm__ volatile("nop");
-#elif defined (__microwatt__)
-		__asm__ volatile("nop");
-#elif defined (__blackparrot__)
-		__asm__ volatile("nop");
-#elif defined (__serv__)
-		__asm__ volatile("nop");
-#else
-#error Unsupported architecture
-#endif
+		__asm__ volatile(CONFIG_CPU_NOP);
 		i--;
 	}
 }

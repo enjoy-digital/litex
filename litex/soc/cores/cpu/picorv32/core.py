@@ -39,6 +39,7 @@ class PicoRV32(CPU):
     gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
                             "riscv64-linux", "riscv-sifive-elf", "riscv64-none-elf")
     linker_output_format = "elf32-littleriscv"
+    nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
