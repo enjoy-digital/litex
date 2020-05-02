@@ -78,28 +78,18 @@ void sdrhw(void)
 	printf("SDRAM now under hardware control\n");
 }
 
-void sdrrow(char *_row)
+void sdrrow(unsigned int row)
 {
-	char *c;
-	unsigned int row;
-
-	if(*_row == 0) {
+	if(row == 0) {
 		sdram_dfii_pi0_address_write(0x0000);
 		sdram_dfii_pi0_baddress_write(0);
 		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 		cdelay(15);
-		printf("Precharged\n");
 	} else {
-		row = strtoul(_row, &c, 0);
-		if(*c != 0) {
-			printf("incorrect row\n");
-			return;
-		}
 		sdram_dfii_pi0_address_write(row);
 		sdram_dfii_pi0_baddress_write(0);
 		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
 		cdelay(15);
-		printf("Activated row %d\n", row);
 	}
 }
 
@@ -126,57 +116,22 @@ void sdrrdbuf(int dq)
 	printf("\n");
 }
 
-void sdrrd(char *startaddr, char *dq)
+void sdrrd(unsigned int addr, int dq)
 {
-	char *c;
-	unsigned int addr;
-	int _dq;
-
-	if(*startaddr == 0) {
-		printf("sdrrd <address>\n");
-		return;
-	}
-	addr = strtoul(startaddr, &c, 0);
-	if(*c != 0) {
-		printf("incorrect address\n");
-		return;
-	}
-	if(*dq == 0)
-		_dq = -1;
-	else {
-		_dq = strtoul(dq, &c, 0);
-		if(*c != 0) {
-			printf("incorrect DQ\n");
-			return;
-		}
-	}
-
 	sdram_dfii_pird_address_write(addr);
 	sdram_dfii_pird_baddress_write(0);
 	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
-	sdrrdbuf(_dq);
+	sdrrdbuf(dq);
 }
 
-void sdrrderr(char *count)
+void sdrrderr(int count)
 {
 	int addr;
-	char *c;
-	int _count;
 	int i, j, p;
 	unsigned char prev_data[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
 	unsigned char errs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
 	unsigned char new_data[DFII_PIX_DATA_BYTES];
-
-	if(*count == 0) {
-		printf("sdrrderr <count>\n");
-		return;
-	}
-	_count = strtoul(count, &c, 0);
-	if(*c != 0) {
-		printf("incorrect count\n");
-		return;
-	}
 
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
@@ -191,7 +146,7 @@ void sdrrderr(char *count)
 			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p],
 					 prev_data[p], DFII_PIX_DATA_BYTES);
 
-		for(j=0;j<_count;j++) {
+		for(j=0;j<count;j++) {
 			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 			cdelay(15);
 			for(p=0;p<SDRAM_PHY_PHASES;p++) {
@@ -215,22 +170,10 @@ void sdrrderr(char *count)
 	printf("\n");
 }
 
-void sdrwr(char *startaddr)
+void sdrwr(unsigned int addr)
 {
 	int i, p;
-	char *c;
-	unsigned int addr;
 	unsigned char buf[DFII_PIX_DATA_BYTES];
-
-	if(*startaddr == 0) {
-		printf("sdrwr <address>\n");
-		return;
-	}
-	addr = strtoul(startaddr, &c, 0);
-	if(*c != 0) {
-		printf("incorrect address\n");
-		return;
-	}
 
 	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++)

@@ -26,6 +26,13 @@ SECTIONS
 		_erodata = .;
 	} > rom
 
+	.commands :
+	{
+		PROVIDE_HIDDEN (__bios_cmd_start = .);
+		KEEP(*(.bios_cmd))
+		PROVIDE_HIDDEN (__bios_cmd_end = .);
+	} > rom
+
 	.data :
 	{
 		. = ALIGN(8);
