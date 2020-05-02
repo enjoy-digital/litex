@@ -66,6 +66,7 @@ AXI_DATA_WIDTHS = {
 
 class RocketRV64(CPU):
     name                 = "rocket"
+    human_name           = "RocketRV64[imac]"
     data_width           = 64
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf",

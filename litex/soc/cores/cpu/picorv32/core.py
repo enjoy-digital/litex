@@ -33,6 +33,7 @@ GCC_FLAGS = {
 
 class PicoRV32(CPU):
     name                 = "picorv32"
+    human_name           = "PicoRV32"
     data_width           = 32
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",

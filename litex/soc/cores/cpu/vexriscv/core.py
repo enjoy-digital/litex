@@ -76,6 +76,7 @@ class VexRiscvTimer(Module, AutoCSR):
 
 class VexRiscv(CPU, AutoCSR):
     name                 = "vexriscv"
+    human_name           = "VexRiscv"
     data_width           = 32
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",

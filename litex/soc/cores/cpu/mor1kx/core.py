@@ -17,6 +17,7 @@ CPU_VARIANTS = ["standard", "linux"]
 
 class MOR1KX(CPU):
     name                 = "mor1kx"
+    human_name           = "MOR1KX"
     data_width           = 32
     endianness           = "big"
     gcc_triple           = "or1k-elf"

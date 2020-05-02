@@ -793,8 +793,9 @@ class SoC(Module):
                 self.comb += self.cpu.reset.eq(self.ctrl.reset)
             self.add_config("CPU_RESET_ADDR", reset_address)
         # Add constants
-        self.add_config("CPU_TYPE",    str(name))
-        self.add_config("CPU_VARIANT", str(variant.split('+')[0]))
+        self.add_config("CPU_TYPE",       str(name))
+        self.add_config("CPU_VARIANT",    str(variant.split('+')[0]))
+        self.add_constant("CONFIG_CPU_HUMAN_NAME", getattr(self.cpu, "human_name", "Unknown"))
 
     def add_timer(self, name="timer0"):
         self.check_if_exists(name)

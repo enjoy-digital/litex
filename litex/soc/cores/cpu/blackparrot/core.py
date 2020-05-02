@@ -47,13 +47,14 @@ GCC_FLAGS = {
 
 class BlackParrotRV64(CPU):
     name                 = "blackparrot"
+    human_name           = "BlackParrotRV64[ia]"
     data_width           = 64
     endianness           = "little"
     gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf",
                             "riscv64-none-elf")
     linker_output_format = "elf64-littleriscv"
     io_regions           = {0x50000000: 0x10000000} # origin, length
-   
+
     @property
     def mem_map(self):
         return {
@@ -87,10 +88,10 @@ class BlackParrotRV64(CPU):
             # clock, reset
             i_clk_i = ClockSignal(),
             i_reset_i = ResetSignal() | self.reset,
-            
-            # irq           
+
+            # irq
             #i_interrupts = self.interrupt,
-            
+
             #wishbone
             i_wbm_dat_i = idbus.dat_r,
             o_wbm_dat_o = idbus.dat_w,
@@ -105,7 +106,7 @@ class BlackParrotRV64(CPU):
             o_wbm_cti_o = idbus.cti,
             o_wbm_bte_o = idbus.bte,
             )
-     
+
            # add verilog sources
         self.add_sources(platform, variant)
 

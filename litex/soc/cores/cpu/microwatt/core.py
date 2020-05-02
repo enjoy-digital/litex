@@ -16,6 +16,7 @@ CPU_VARIANTS = ["standard"]
 
 class Microwatt(CPU):
     name                 = "microwatt"
+    human_name           = "Microwatt"
     data_width           = 64
     endianness           = "little"
     gcc_triple           = ("powerpc64le-linux")
