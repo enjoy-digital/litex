@@ -177,7 +177,6 @@ class SimSoC(SoCSDRAM):
             ident               = "LiteX Simulation", ident_version=True,
             l2_reverse          = False,
             **kwargs)
-#        self.add_constant("UART_POLLING",None)
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
 
@@ -353,8 +352,8 @@ def main():
         with_analyzer  = args.with_analyzer,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
         **soc_kwargs)
-    if args.ram_init is not None: #sdram_init
-        soc.add_constant("ROM_BOOT_ADDRESS", 0x80000000)
+    if args.ram_init is not None:
+        soc.add_constant("ROM_BOOT_ADDRESS", 0x40000000)
     if args.with_ethernet:
         for i in range(4):
             soc.add_constant("LOCALIP{}".format(i+1), int(args.local_ip.split(".")[i]))

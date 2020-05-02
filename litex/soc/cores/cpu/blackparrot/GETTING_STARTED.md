@@ -1,4 +1,4 @@
-# Getting started
+# Getting started (TODO:update)
 
 ## Running BP in LiteX
 
@@ -20,4 +20,5 @@ The top module is $BP_FPGA_DIR/ExampleBlackParrotSystem.v
 
 The transducer for wishbone communication is $BP_FPGA_DIR/bp2wb_convertor.v
 
-  
+if args.sdram_init is not None: #instead of ram_init for sdram init boot 
+        soc.add_constant("ROM_BOOT_ADDRESS", 0x80000000)

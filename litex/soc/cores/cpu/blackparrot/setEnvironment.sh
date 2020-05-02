@@ -15,10 +15,10 @@ export BP_EXTERNAL_DIR=$BP/external
 export BASEJUMP_STL_DIR=$BP_EXTERNAL_DIR/basejump_stl
 export LITEX_FPGA_DIR=$BP_LITEX_DIR/fpga
 export LITEX_SIMU_DIR=$BP_LITEX_DIR/simulation
-export LITEX_SOFTWARE=$BP_LITEX_DIR/software
+export BP_LITEX_SOFTWARE=$BP_LITEX_DIR/software
 
 ##SOFTWARE CHANGES##
 
 #for a reason, provided udivmoddi4.c is not functionally correct when used with either BP or Rocket under IA extension. Another version of udivmoddi4.c is a workaround to run BIOS on these architectures.
-cp $LITEX_SOFTWARE/udivmoddi4.c $LITEX_SOFTWARE_COMPILER_RT/pythondata_software_compiler_rt/data/lib/builtins/.
+cp $BP_LITEX_SOFTWARE/udivmoddi4.c $LITEX_SOFTWARE_COMPILER_RT/pythondata_software_compiler_rt/data/lib/builtins/.
 

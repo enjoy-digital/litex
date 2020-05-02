@@ -32,8 +32,6 @@
 #include "sfl.h"
 #include "boot.h"
 
-#define MEMTEST_DATA_SIZE2 (589824*4)
-
 extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
 
 static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
@@ -61,16 +59,7 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 	mtspr(SPR_EVBAR, addr);
 	addr += 0x100;
 #endif
-          
 
-/*        volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE;
-        int i;
-        unsigned int rdata;
-        for(i=0;i<MEMTEST_DATA_SIZE2/4;i++) {
-                rdata = array[i];
-                printf("[data 0x%0x]: 0x%08x\n",i,rdata);
-         }
-*/
 	boot_helper(r1, r2, r3, addr);
 	while(1);
 }

@@ -40,7 +40,7 @@ from litex.soc.cores.cpu import CPU
 CPU_VARIANTS = {
     "standard": "freechips.rocketchip.system.LitexConfig",
 }
-# -mcmodel=medany
+
 GCC_FLAGS = {
     "standard": "-march=rv64ia -mabi=lp64 -O0  ",
 }
@@ -104,7 +104,6 @@ class BlackParrotRV64(CPU):
             o_wbm_we_o = idbus.we,
             o_wbm_cti_o = idbus.cti,
             o_wbm_bte_o = idbus.bte,
-
             )
      
            # add verilog sources
@@ -120,7 +119,7 @@ class BlackParrotRV64(CPU):
     def add_sources(platform, variant="standard"):
         vdir = get_data_mod("cpu", "blackparrot").data_location
         bp_litex_dir = os.path.join(vdir,"bp_litex")
-        simulation = 0
+        simulation = 1
         if (simulation == 1):
             filename= os.path.join(bp_litex_dir,"flist.verilator")
         else:
@@ -137,7 +136,6 @@ class BlackParrotRV64(CPU):
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1] + line[s2:-1]
-                    #print("INCDIR" + vdir)
                     platform.add_verilog_include_path(vdir)  #this line might be changed
                 elif (temp[0]=='$') :
                     s2 = line.find('/')
@@ -145,7 +143,6 @@ class BlackParrotRV64(CPU):
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1]+ line[s2:-1]
-                    #print(vdir)
                     platform.add_source(vdir) #this line might be changed
                 elif (temp[0] == '/'):
                     assert("No support for absolute path for now")

@@ -2,7 +2,7 @@ include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 ifeq ($(CPU),blackparrot)
-BP_LIBS =  -L$(LITEX_SOFTWARE)
+BP_LIBS =  -L$(BP_LITEX_SOFTWARE)
 BP_FLAGS = -lgcc
 endif
 # Permit TFTP_SERVER_PORT override from shell environment / command line
