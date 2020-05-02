@@ -353,7 +353,7 @@ def main():
         with_analyzer  = args.with_analyzer,
         sdram_init     = [] if args.sdram_init is None else get_mem_data(args.sdram_init, cpu_endianness),
         **soc_kwargs)
-    if args.sdram_init is not None: #sdram_init
+    if args.ram_init is not None: #sdram_init
         soc.add_constant("ROM_BOOT_ADDRESS", 0x80000000)
     if args.with_ethernet:
         for i in range(4):

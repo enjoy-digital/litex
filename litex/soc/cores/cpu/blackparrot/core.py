@@ -118,13 +118,13 @@ class BlackParrotRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
+        vdir = get_data_mod("cpu", "blackparrot").data_location
+        bp_litex_dir = os.path.join(vdir,"bp_litex")
         simulation = 0
         if (simulation == 1):
-            filename = get_data_mod("cpu", "blackparrot").data_file(
-            "flist.verilator")
+            filename= os.path.join(bp_litex_dir,"flist.verilator")
         else:
-            filename = get_data_mod("cpu", "blackparrot").data_file(
-            "flist.fpga")
+            filename= os.path.join(bp_litex_dir,"flist.fpga")
         with open(filename) as openfileobject:
             for line in openfileobject:
                 temp = line
