@@ -10,7 +10,7 @@ extern "C" {
 __attribute__((unused)) static void flush_cpu_icache(void)
 {
   asm volatile(
-    ".word(0x400F)\n"
+    ".word(0x100F)\n"
     "nop\n"
     "nop\n"
     "nop\n"
