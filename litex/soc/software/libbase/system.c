@@ -1,12 +1,5 @@
 #include <irq.h>
 #include <uart.h>
-#ifdef __or1k__
-#include <spr-defs.h>
-#endif
-
-#if defined (__vexriscv__)
-#include <csr-defs.h>
-#endif
 
 #include <system.h>
 #include <generated/mem.h>
