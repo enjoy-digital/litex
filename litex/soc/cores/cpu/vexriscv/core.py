@@ -15,7 +15,7 @@ from migen import *
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 
 CPU_VARIANTS = {
@@ -79,8 +79,7 @@ class VexRiscv(CPU, AutoCSR):
     human_name           = "VexRiscv"
     data_width           = 32
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
-                            "riscv64-linux", "riscv-sifive-elf", "riscv64-none-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length

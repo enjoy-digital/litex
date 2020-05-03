@@ -36,7 +36,7 @@ from migen import *
 from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 
 CPU_VARIANTS = {
@@ -69,8 +69,7 @@ class RocketRV64(CPU):
     human_name           = "RocketRV64[imac]"
     data_width           = 64
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf",
-                            "riscv64-none-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
     io_regions           = {0x10000000: 0x70000000} # origin, length
