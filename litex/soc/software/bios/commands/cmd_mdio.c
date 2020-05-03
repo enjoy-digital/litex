@@ -5,6 +5,8 @@
 
 #include <generated/csr.h>
 
+#include <base/mdio.h>
+
 #include "../command.h"
 #include "../helpers.h"
 
