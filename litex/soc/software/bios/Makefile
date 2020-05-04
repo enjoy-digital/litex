@@ -88,7 +88,6 @@ endif
 	$(assemble)
 
 boot-helper.o: $(CPU_DIRECTORY)/boot-helper.S
-	cp $(CPU_DIRECTORY)/boot-helper.S $(BIOS_DIRECTORY)/boot-helper.S
 	$(assemble)
 
 clean:

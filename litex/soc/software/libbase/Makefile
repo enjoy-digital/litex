@@ -25,11 +25,9 @@ vsnprintf-nofloat.o: $(LIBBASE_DIRECTORY)/vsnprintf.c
 	$(assemble)
 
 crt0-ctr.o: $(CPU_DIRECTORY)/crt0.S
-	cp $(CPU_DIRECTORY)/crt0.S $(LIBBASE_DIRECTORY)/crt0-crt.S
 	$(assemble)
 
 crt0-xip.o: $(CPU_DIRECTORY)/crt0.S
-	cp $(CPU_DIRECTORY)/crt0.S $(LIBBASE_DIRECTORY)/crt0-xip.S
 	$(CC) -c -DEXECUTE_IN_PLACE $(CFLAGS) -o $@ $<
 
 .PHONY: all clean
