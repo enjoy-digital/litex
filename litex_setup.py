@@ -47,6 +47,7 @@ repos = [
     ("pythondata-cpu-vexriscv",    ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-rocket",      ("https://github.com/litex-hub/", False, True)),
     ("pythondata-cpu-minerva",     ("https://github.com/litex-hub/", False, True)),
+    ("pythondata-cpu-microwatt",   ("https://github.com/litex-hub/", False, True)),
 ]
 
 repos = OrderedDict(repos)

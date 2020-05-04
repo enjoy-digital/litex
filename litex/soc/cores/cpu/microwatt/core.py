@@ -102,9 +102,7 @@ class Microwatt(CPU):
 
     @staticmethod
     def add_sources(platform):
-        sdir = os.path.join(
-            get_data_mod("cpu", "microwatt").data_location,
-            "sources")
+        sdir = get_data_mod("cpu", "microwatt").data_location
         platform.add_sources(sdir,
             # Common / Types / Helpers
             "decode_types.vhdl",
@@ -157,7 +155,7 @@ class Microwatt(CPU):
             "core_debug.vhdl",
             "core.vhdl",
         )
-        platform.add_source(os.path.join(sdir, "..", "microwatt_wrapper.vhdl"))
+        platform.add_source(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("microwatt_wrapper", **self.cpu_params)
