@@ -3,10 +3,11 @@
 
 	[> Issues resolved
 	------------------
-	- NA
+	- Fix flush_cpu_icache on VexRiscv.
 
 	[> Added Features
 	------------------
+	- BIOS history, autocomplete.
 	- Pluggable CPUs.
 	- Add nMigen dependency.
 	- Properly integrate Minerva CPU.
