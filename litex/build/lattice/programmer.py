@@ -130,3 +130,11 @@ class MyStormProgrammer(GenericProgrammer):
         with serial.Serial(self.serial_port) as port:
             with open(bitstream_file, "rb") as f:
                 port.write(f.read())
+
+# UJProg -------------------------------------------------------------------------------------------
+
+class UJProg(GenericProgrammer):
+    needs_bitreverse = False
+
+    def load_bitstream(self, bitstream_file):
+        subprocess.call(["ujprog", bitstream_file])
