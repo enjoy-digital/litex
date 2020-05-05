@@ -1,1 +1,11 @@
 graft litex/build/sim
+graft litex/soc/software
+graft litex/soc/cores/cpu/blackparrot
+graft litex/soc/cores/cpu/lm32
+graft litex/soc/cores/cpu/microwatt
+graft litex/soc/cores/cpu/minerva
+graft litex/soc/cores/cpu/mor1kx
+graft litex/soc/cores/cpu/picorv32
+graft litex/soc/cores/cpu/rocket
+graft litex/soc/cores/cpu/serv
+graft litex/soc/cores/cpu/vexriscv
