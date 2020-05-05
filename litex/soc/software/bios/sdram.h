@@ -25,11 +25,4 @@ int sdrinit(void);
 void ddrphy_cdly(unsigned int delay);
 #endif
 
-#ifdef USDDRPHY_DEBUG
-void sdrcal(void);
-void sdrmrwr(char reg, int value);
-void sdrmpr(void);
-void sdr_cdly_scan(int enabled);
-#endif
-
 #endif /* __SDRAM_H */
