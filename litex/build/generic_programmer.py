@@ -47,9 +47,10 @@ class GenericProgrammer:
             fullname = tools.cygpath(os.path.join(self.prog_local, self.flash_proxy_basename))
             try:
                 r = requests.get(d + self.flash_proxy_basename)
-                with open(fullname, "wb") as f:
-                    f.write(r.content)
-                return fullname
+                if r.status_code != 404:
+                    with open(fullname, "wb") as f:
+                        f.write(r.content)
+                    return fullname
             except:
                 pass
         raise OSError("Failed to find flash proxy bitstream")
@@ -70,9 +71,10 @@ class GenericProgrammer:
             fullname = tools.cygpath(os.path.join(self.prog_local, self.config))
             try:
                 r = requests.get(d + self.config)
-                with open(fullname, "wb") as f:
-                    f.write(r.content)
-                return fullname
+                if r.status_code != 404:
+                    with open(fullname, "wb") as f:
+                        f.write(r.content)
+                    return fullname
             except:
                 pass
         raise OSError("Failed to find config file")
