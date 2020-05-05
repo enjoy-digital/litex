@@ -3,6 +3,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -230,9 +231,8 @@ class Platform(XilinxPlatform):
              "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
         self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 35]")
 
-
     def create_programmer(self):
-        return VivadoProgrammer(flash_part="n25q128-3.3v-spi-x1_x2_x4")
+        return OpenOCD("openocd_xilinx_xc7.cfg", "bscan_spi_xc7a200t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
@@ -240,3 +240,8 @@ class Platform(XilinxPlatform):
             self.add_period_constraint(self.lookup_request("eth_clocks").rx, 1e9/125e6)
         except ConstraintError:
             pass
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk100",     loose=True), 1e9/100e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks", loose=True), 1e9/125e6)

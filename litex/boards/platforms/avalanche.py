@@ -92,3 +92,8 @@ class Platform(MicrosemiPlatform):
 
     def __init__(self):
         MicrosemiPlatform.__init__(self, "MPF300TS_ES-FCG484-1", _io)
+
+    def do_finalize(self, fragment):
+        MicrosemiPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk50", 0, loose=True), 1e9/50e6)
+        self.add_period_constraint(self.lookup_request("clk50", 1, loose=True), 1e9/50e6)
