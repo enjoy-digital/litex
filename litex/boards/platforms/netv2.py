@@ -199,5 +199,5 @@ class Platform(XilinxPlatform):
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
-        self.add_period_constraint(self.lookup_request("clk50",      loose=True), 1e9/50e6)
-        self.add_period_constraint(self.lookup_request("eth_clocks", loose=True), 1e9/50e6)
+        self.add_period_constraint(self.lookup_request("clk50",              loose=True), 1e9/50e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks:ref_clk", loose=True), 1e9/50e6)
