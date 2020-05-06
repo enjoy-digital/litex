@@ -21,6 +21,7 @@
 #include <system.h>
 
 #include "sdram.h"
+#include "lfsr.h"
 
 // FIXME(hack): If we don't have main ram, just target the sram instead.
 #ifndef MAIN_RAM_BASE
@@ -514,7 +515,7 @@ static int read_level_scan(int module, int bitslip)
 	prv = 42;
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			prv = 1664525*prv + 1013904223;
+			return lfsr(32, seed);
 			prs[p][i] = prv;
 		}
 
@@ -594,7 +595,7 @@ static void read_level(int module)
 	prv = 42;
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			prv = 1664525*prv + 1013904223;
+			return lfsr(32, seed);
 			prs[p][i] = prv;
 		}
 
@@ -712,7 +713,7 @@ static void read_level(int module)
 static unsigned int seed_to_data_32(unsigned int seed, int random)
 {
 	if (random)
-		return 1664525*seed + 1013904223;
+		return lfsr(32, seed);
 	else
 		return seed + 1;
 }
@@ -720,7 +721,7 @@ static unsigned int seed_to_data_32(unsigned int seed, int random)
 static unsigned short seed_to_data_16(unsigned short seed, int random)
 {
 	if (random)
-		return 25173*seed + 13849;
+		return lfsr(16, seed);
 	else
 		return seed + 1;
 }
@@ -794,14 +795,14 @@ static int memtest_data(void)
 	unsigned int rdata;
 
 	errors = 0;
-	seed_32 = 0;
+	seed_32 = 1;
 
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		array[i] = seed_32;
 	}
 
-	seed_32 = 0;
+	seed_32 = 1;
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
@@ -834,14 +835,14 @@ static int memtest_addr(void)
 	unsigned short rdata;
 
 	errors = 0;
-	seed_16 = 0;
+	seed_16 = 1;
 
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		array[(unsigned int) seed_16] = i;
 	}
 
-	seed_16 = 0;
+	seed_16 = 1;
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
