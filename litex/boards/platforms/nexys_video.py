@@ -232,7 +232,7 @@ class Platform(XilinxPlatform):
         self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 35]")
 
     def create_programmer(self):
-        return OpenOCD("openocd_xilinx_xc7.cfg", "bscan_spi_xc7a200t.bit")
+        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a200t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
