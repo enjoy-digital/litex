@@ -167,6 +167,7 @@ class XilinxVivadoToolchain:
         # Add constraints
         tcl.append("\n# Add constraints\n")
         tcl.append("read_xdc {}.xdc".format(build_name))
+        tcl.append("set_property PROCESSING_ORDER EARLY [get_files {}.xdc]".format(build_name))
 
         # Add pre-synthesis commands
         tcl.append("\n# Add pre-synthesis commands\n")
@@ -276,7 +277,7 @@ class XilinxVivadoToolchain:
             "-to [get_pins -filter {{REF_PIN_NAME == PRE}} "
                 "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE || ars_ff2 == TRUE}}]]"
         )
-        # clock_period-2ns to resolve metastability on the wire between the AsyncResetSynchronizer FFs 
+        # clock_period-2ns to resolve metastability on the wire between the AsyncResetSynchronizer FFs
         platform.add_platform_command(
             "set_max_delay 2 -quiet "
             "-from [get_pins -filter {{REF_PIN_NAME == C}} "
