@@ -155,7 +155,7 @@ class XilinxVivadoToolchain:
 
         # Add IPs
         tcl.append("\n# Add IPs\n")
-        for filename in platform.ips:
+        for filename, disable_constraints in platform.ips.items():
             filename_tcl = "{" + filename + "}"
             ip = os.path.splitext(os.path.basename(filename))[0]
             tcl.append("read_ip " + filename_tcl)
@@ -163,6 +163,8 @@ class XilinxVivadoToolchain:
             tcl.append("generate_target all [get_ips {}]".format(ip))
             tcl.append("synth_ip [get_ips {}] -force".format(ip))
             tcl.append("get_files -all -of_objects [get_files {}]".format(filename_tcl))
+            if disable_constraints:
+                tcl.append("set_property is_enabled false [get_files -of_objects [get_files {}] -filter {{FILE_TYPE == XDC}}]".format(filename_tcl))
 
         # Add constraints
         tcl.append("\n# Add constraints\n")
