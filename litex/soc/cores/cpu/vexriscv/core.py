@@ -12,9 +12,10 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 
 CPU_VARIANTS = {
@@ -75,11 +76,12 @@ class VexRiscvTimer(Module, AutoCSR):
 
 class VexRiscv(CPU, AutoCSR):
     name                 = "vexriscv"
+    human_name           = "VexRiscv"
     data_width           = 32
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
-                            "riscv64-linux", "riscv-sifive-elf", "riscv64-none-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
+    nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
@@ -103,14 +105,17 @@ class VexRiscv(CPU, AutoCSR):
         self.variant          = variant
         self.external_variant = None
         self.reset            = Signal()
+        self.interrupt        = Signal(32)
         self.ibus             = ibus = wishbone.Interface()
         self.dbus             = dbus = wishbone.Interface()
-        self.buses            = [ibus, dbus]
-        self.interrupt        = Signal(32)
+        self.periph_buses     = [ibus, dbus]
+        self.memory_buses     = []
+
+        # # #
 
         self.cpu_params = dict(
-                i_clk=ClockSignal(),
-                i_reset=ResetSignal() | self.reset,
+                i_clk                    = ClockSignal(),
+                i_reset                  = ResetSignal() | self.reset,
 
                 i_externalInterruptArray = self.interrupt,
                 i_timerInterrupt         = 0,
@@ -246,7 +251,7 @@ class VexRiscv(CPU, AutoCSR):
     @staticmethod
     def add_sources(platform, variant="standard"):
         cpu_filename = CPU_VARIANTS[variant] + ".v"
-        vdir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = get_data_mod("cpu", "vexriscv").data_location
         platform.add_source(os.path.join(vdir, cpu_filename))
 
     def use_external_variant(self, variant_filename):

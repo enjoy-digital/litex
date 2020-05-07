@@ -3,7 +3,8 @@
 # This file is Copyright (c) 2015 Yann Sionneau <ys@m-labs.hk>
 
 from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+from litex.build.xilinx import XilinxPlatform
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -548,20 +549,11 @@ set_property CONFIG_VOLTAGE 2.5 [current_design]
         self.toolchain.additional_commands = ["write_cfgmem -force -format bin -interface spix4 -size 16 -loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
 
     def create_programmer(self):
-        return VivadoProgrammer()
+        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a325t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
-        try:
-            self.add_period_constraint(self.lookup_request("clk200").p, 1e9/200e6)
-        except ConstraintError:
-            pass
-        try:
-            self.add_period_constraint(self.lookup_request("eth_clocks").rx, 1e9/125e6)
-        except ConstraintError:
-            pass
-        try:
-            self.add_period_constraint(self.lookup_request("eth_clocks").tx, 1e9/125e6)
-        except ConstraintError:
-            pass
+        self.add_period_constraint(self.lookup_request("clk200",        loose=True), 1e9/200e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks:rx", loose=True), 1e9/125e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks:tx", loose=True), 1e9/125e6)
         self.add_platform_command("set_property DCI_CASCADE {{32 34}} [get_iobanks 33]")

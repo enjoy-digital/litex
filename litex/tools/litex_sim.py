@@ -166,6 +166,7 @@ class SimSoC(SoCSDRAM):
         sdram_module          = "MT48LC16M16",
         sdram_init            = [],
         sdram_data_width      = 32,
+        sdram_spd_data        = None,
         sdram_verbosity       = 0,
         **kwargs):
         platform     = Platform()
@@ -182,9 +183,12 @@ class SimSoC(SoCSDRAM):
         # SDRAM ------------------------------------------------------------------------------------
         if with_sdram:
             sdram_clk_freq   = int(100e6) # FIXME: use 100MHz timings
-            sdram_module_cls = getattr(litedram_modules, sdram_module)
-            sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
-            sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
+            if sdram_spd_data is None:
+                sdram_module_cls = getattr(litedram_modules, sdram_module)
+                sdram_rate       = "1:{}".format(sdram_module_nphases[sdram_module_cls.memtype])
+                sdram_module     = sdram_module_cls(sdram_clk_freq, sdram_rate)
+            else:
+                sdram_module = litedram_modules.SDRAMModule.from_spd_data(sdram_spd_data, sdram_clk_freq)
             phy_settings     = get_sdram_phy_settings(
                 memtype    = sdram_module.memtype,
                 data_width = sdram_data_width,
@@ -266,10 +270,19 @@ class SimSoC(SoCSDRAM):
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             analyzer_signals = [
-                self.cpu.ibus,
-                self.cpu.dbus
+                self.cpu.ibus.stb,
+                self.cpu.ibus.cyc,
+                self.cpu.ibus.adr,
+                self.cpu.ibus.we,
+                self.cpu.ibus.ack,
+                self.cpu.ibus.sel,
+                self.cpu.ibus.dat_w,
+                self.cpu.ibus.dat_r,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 512)
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                depth        = 512,
+                clock_domain = "sys",
+                csr_csv      = "analyzer.csv")
             self.add_csr("analyzer")
 
 # Build --------------------------------------------------------------------------------------------
@@ -285,6 +298,7 @@ def main():
     parser.add_argument("--sdram-module",         default="MT48LC16M16",   help="Select SDRAM chip")
     parser.add_argument("--sdram-data-width",     default=32,              help="Set SDRAM chip data width")
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file")
+    parser.add_argument("--sdram-from-spd-data",  default=None,            help="Generate SDRAM module based on SPD data from file")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity")
     parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support")
@@ -323,6 +337,9 @@ def main():
         soc_kwargs["sdram_module"]             = args.sdram_module
         soc_kwargs["sdram_data_width"]         = int(args.sdram_data_width)
         soc_kwargs["sdram_verbosity"]          = int(args.sdram_verbosity)
+        if args.sdram_from_spd_data:
+            with open(args.sdram_from_spd_data, "rb") as f:
+                soc_kwargs["sdram_spd_data"] = [int(b) for b in f.read()]
 
     if args.with_ethernet or args.with_etherbone:
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": args.remote_ip})

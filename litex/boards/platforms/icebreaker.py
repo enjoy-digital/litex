@@ -86,3 +86,7 @@ class Platform(LatticePlatform):
 
     def create_programmer(self):
         return IceStormProgrammer()
+
+    def do_finalize(self, fragment):
+        LatticePlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk12", loose=True), 1e9/12e6)

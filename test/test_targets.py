@@ -134,7 +134,6 @@ class TestTargets(unittest.TestCase):
 litex/boards/targets/simple.py litex.boards.platforms.{p} \
     --cpu-type=vexriscv     \
     --no-compile-software   \
-    --no-compile-gateware   \
     --uart-name=stub        \
 """.format(p=p)
                 subprocess.check_call(cmd, shell=True)
@@ -155,7 +154,6 @@ litex/boards/targets/simple.py litex.boards.platforms.arty \
     --cpu-type={c}          \
     --cpu-variant={v}       \
     --no-compile-software   \
-    --no-compile-gateware   \
     --uart-name=stub        \
 """.format(c=cpu, v=variant)
         subprocess.check_output(cmd, shell=True)

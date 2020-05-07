@@ -33,9 +33,10 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 
 CPU_VARIANTS = {
@@ -65,11 +66,12 @@ AXI_DATA_WIDTHS = {
 
 class RocketRV64(CPU):
     name                 = "rocket"
+    human_name           = "RocketRV64[imac]"
     data_width           = 64
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf",
-                            "riscv64-none-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
+    nop                  = "nop"
     io_regions           = {0x10000000: 0x70000000} # origin, length
 
     @property
@@ -106,7 +108,8 @@ class RocketRV64(CPU):
 
         self.mmio_wb   = mmio_wb = wishbone.Interface(data_width=mmio_dw, adr_width=32-log2_int(mmio_dw//8))
 
-        self.buses     = [mmio_wb]
+        self.periph_buses = [mmio_wb]
+        self.memory_buses = [mem_axi]
 
         # # #
 
@@ -238,8 +241,7 @@ class RocketRV64(CPU):
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = get_data_mod("cpu", "rocket").data_location
         platform.add_sources(
             os.path.join(vdir, "generated-src"),
             CPU_VARIANTS[variant] + ".v",

@@ -3,6 +3,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -116,11 +117,9 @@ class Platform(XilinxPlatform):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
 
     def create_programmer(self):
-        return VivadoProgrammer()
+        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a325t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
-        try:
-            self.add_period_constraint(self.lookup_request("eth_clocks").rx, 1e9/125e6)
-        except ConstraintError:
-            pass
+        self.add_period_constraint(self.lookup_request("clk200",        loose=True), 1e9/200e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks:rx", loose=True), 1e9/125e6)

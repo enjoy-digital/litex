@@ -14,6 +14,7 @@ import subprocess
 import struct
 import shutil
 
+from litex import get_data_mod
 from litex.build.tools import write_to_file
 from litex.soc.integration import export, soc_core
 
@@ -48,7 +49,8 @@ class Builder:
         csr_json         = None,
         csr_csv          = None,
         csr_svd          = None,
-        memory_x         = None):
+        memory_x         = None,
+        bios_options     = None):
         self.soc = soc
 
         # From Python doc: makedirs() will become confused if the path
@@ -65,6 +67,7 @@ class Builder:
         self.csr_json = csr_json
         self.csr_svd  = csr_svd
         self.memory_x = memory_x
+        self.bios_options = bios_options
 
         self.software_packages = []
         for name in soc_software_packages:
@@ -100,11 +103,18 @@ class Builder:
                 exec_profiles["EXECUTE_IN_PLACE"] = "1"
             for k, v in exec_profiles.items():
                 define(k, v)
+            define(
+                "COMPILER_RT_DIRECTORY",
+                get_data_mod("software", "compiler_rt").data_location)
             define("SOC_DIRECTORY", soc_directory)
             variables_contents.append("export BUILDINC_DIRECTORY\n")
             define("BUILDINC_DIRECTORY", self.include_dir)
             for name, src_dir in self.software_packages:
                 define(name.upper() + "_DIRECTORY", src_dir)
+
+            if self.bios_options is not None:
+                for option in self.bios_options:
+                    define(option, "1")
 
             write_to_file(
                 os.path.join(self.generated_dir, "variables.mak"),

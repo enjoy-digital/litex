@@ -5,11 +5,11 @@
 
 void sdrsw(void);
 void sdrhw(void);
-void sdrrow(char *_row);
+void sdrrow(unsigned int row);
 void sdrrdbuf(int dq);
-void sdrrd(char *startaddr, char *dq);
-void sdrrderr(char *count);
-void sdrwr(char *startaddr);
+void sdrrd(unsigned int addr, int dq);
+void sdrrderr(int count);
+void sdrwr(unsigned int addr);
 
 void sdrwlon(void);
 void sdrwloff(void);
@@ -23,12 +23,6 @@ int sdrinit(void);
 
 #if defined(DDRPHY_CMD_DELAY) || defined(USDDRPHY_DEBUG)
 void ddrphy_cdly(unsigned int delay);
-#endif
-
-#ifdef USDDRPHY_DEBUG
-void sdrcal(void);
-void sdrmrwr(char reg, int value);
-void sdrmpr(void);
 #endif
 
 #endif /* __SDRAM_H */

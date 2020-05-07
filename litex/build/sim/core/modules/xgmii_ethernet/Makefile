@@ -3,7 +3,7 @@ UNAME_S := $(shell uname -s)
 
 include $(SRC_DIR)/modules/rules.mak
 
-CFLAGS += -I$(MOD_SRC_DIR)/tapcfg/src/include
+CFLAGS += -I$(TAPCFG_DIRECTORY)/src/include
 OBJS = $(MOD).o tapcfg.o taplog.o
 
 $(MOD).so: $(OBJS)
@@ -13,8 +13,8 @@ else
 	$(CC) $(LDFLAGS) -Wl,-soname,$@ -o $@ $^
 endif
 
-tapcfg.o: $(MOD_SRC_DIR)/tapcfg/src/lib/tapcfg.c
+tapcfg.o: $(TAPCFG_DIRECTORY)/src/lib/tapcfg.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-taplog.o: $(MOD_SRC_DIR)/tapcfg/src/lib/taplog.c
+taplog.o: $(TAPCFG_DIRECTORY)/src/lib/taplog.c
 	$(CC) $(CFLAGS) -c -o $@ $<

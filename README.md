@@ -5,10 +5,13 @@
 ```
 [![](https://travis-ci.com/enjoy-digital/litex.svg?branch=master)](https://travis-ci.com/enjoy-digital/litex)
 ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+
+> **Note:** In release 2020.04, LiteX switched to Python modules instead of Git submodules. Existing users will have to reinstall LiteX following the [installation guide](https://github.com/enjoy-digital/litex/wiki/Installation#litex-installation-guide).
+
 # Welcome to LiteX!
 
 LiteX is a Migen/MiSoC based Core/SoC builder that provides the infrastructure to easily create Cores/SoCs (with or without CPU).
-The common components of a SoC are provided directly: Buses and Streams (Wishbone, AXI, Avalon-ST), Interconnect, Common cores (RAM, ROM, Timer, UART, etc...), CPU wrappers/integration, etc... and SoC creation capabilities can be greatly extended with the ecosystem of LiteX cores (DRAM, PCIe, Ethernet, SATA, etc...) than can be integrated/simulated/build easily with LiteX. It also provides build backends for open-source and vendors toolchains.
+The common components of a SoC are provided directly: Buses and Streams (Wishbone, AXI, Avalon-ST), Interconnect, Common cores (RAM, ROM, Timer, UART, etc...), CPU wrappers/integration, etc... and SoC creation capabilities can be greatly extended with the ecosystem of LiteX cores (DRAM, PCIe, Ethernet, SATA, etc...) that can be integrated/simulated/build easily with LiteX. It also provides build backends for open-source and vendors toolchains.
 
 Think of Migen as a toolbox to create FPGA designs in Python and LiteX as a
 SoC builder to create/develop/debug FPGA SoCs in Python.
@@ -95,7 +98,7 @@ Provides definitions/modules to build cores (bus, bank, flow), cores and tools t
 Provides platforms and targets for the supported boards. All Migen's platforms can also be used in LiteX. The boards present in the LiteX repository are the official ones that are used for development/CI. More boards are available at: https://github.com/litex-hub/litex-boards
 
 # Quick start guide
-1. Install Python 3.5+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
+1. Install Python 3.6+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
 2. Install Migen/LiteX and the LiteX's cores:
 
 ```sh

@@ -3,6 +3,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.lattice import LatticePlatform
+from litex.build.lattice.programmer import UJProg
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -84,6 +85,13 @@ _io = [
         Subsignal("n", Pins("C10")),
         IOStandard("LVCMOS33")
     ),
+
+    ("usb", 0,
+        Subsignal("d_p", Pins("D15")),
+        Subsignal("d_n", Pins("E15")),
+        Subsignal("pullup", Pins("B12 C12")),
+        IOStandard("LVCMOS33")
+    ),
 ]
 
 # Platform -----------------------------------------------------------------------------------------
@@ -94,3 +102,10 @@ class Platform(LatticePlatform):
 
     def __init__(self, device="LFE5U-45F", **kwargs):
         LatticePlatform.__init__(self, device + "-6BG381C", _io, **kwargs)
+
+    def create_programmer(self):
+        return UJProg()
+
+    def do_finalize(self, fragment):
+        LatticePlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk25", loose=True), 1e9/25e6)

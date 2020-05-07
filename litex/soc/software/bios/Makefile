@@ -2,7 +2,7 @@ include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
 ifeq ($(CPU),blackparrot)
-BP_LIBS =  -L$(BP_EXTERNAL_DIR)/lib/gcc/riscv64-unknown-elf/8.3.0 
+BP_LIBS =  -L$(BP_LITEX_SOFTWARE)
 BP_FLAGS = -lgcc
 endif
 # Permit TFTP_SERVER_PORT override from shell environment / command line
@@ -10,9 +10,40 @@ ifdef TFTP_SERVER_PORT
 CFLAGS += -DTFTP_SERVER_PORT=$(TFTP_SERVER_PORT)
 endif
 
-OBJECTS=isr.o sdram.o sdcard.o main.o boot-helper-$(CPU).o boot.o
+OBJECTS = isr.o			\
+	  sdram.o			\
+	  sdcard.o			\
+	  main.o			\
+	  boot-helper.o		\
+	  boot.o			\
+	  helpers.o			\
+	  cmd_bios.o		\
+	  cmd_boot.o		\
+	  cmd_dram.o		\
+	  cmd_mdio.o		\
+	  cmd_mem_access.o	\
+	  cmd_sdcard.o		\
+	  cmd_spi_flash.o	\
+
+ifneq "$(or $(TERM_NO_COMPLETE),$(TERM_MINI))" ""
+CFLAGS += -DTERM_NO_COMPLETE
+else
+OBJECTS += complete.o
+endif
+
+ifdef TERM_NO_HIST
+CFLAGS += -DTERM_NO_HIST
+endif
+
+ifdef TERM_MINI
+CFLAGS += -DTERM_MINI
+OBJECTS += readline_simple.o
+else
+OBJECTS += readline.o
+endif
 
 all: bios.bin
+	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
@@ -28,9 +59,9 @@ endif
 bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 
 
-%.elf: ../libbase/crt0-$(CPU)-ctr.o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
+%.elf: ../libbase/crt0-ctr.o ../libnet/libnet.a ../libbase/libbase-nofloat.a ../libcompiler_rt/libcompiler_rt.a
 	$(LD) $(LDFLAGS) -T $(BIOS_DIRECTORY)/linker.ld -N -o $@ \
-		../libbase/crt0-$(CPU)-ctr.o \
+		../libbase/crt0-ctr.o \
 		$(OBJECTS) \
 		-L../libnet \
 		-L../libbase \
@@ -38,7 +69,7 @@ bios.elf: $(BIOS_DIRECTORY)/linker.ld $(OBJECTS)
 		$(BP_LIBS) \
 		-lnet -lbase-nofloat -lcompiler_rt \
 		$(BP_FLAGS)
-	
+
 ifneq ($(OS),Windows_NT)
 	chmod -x $@
 endif
@@ -49,7 +80,13 @@ endif
 %.o: $(BIOS_DIRECTORY)/%.c
 	$(compile)
 
+%.o: $(BIOS_DIRECTORY)/commands/%.c
+	$(compile)
+
 %.o: $(BIOS_DIRECTORY)/%.S
+	$(assemble)
+
+boot-helper.o: $(CPU_DIRECTORY)/boot-helper.S
 	$(assemble)
 
 clean:

@@ -676,6 +676,7 @@ class ECP5PLL(Module):
         clkfb  = Signal()
         self.params.update(
             attr=[
+                ("FREQUENCY_PIN_CLKI",     str(self.clkin_freq/1e6)),
                 ("ICP_CURRENT",            "6"),
                 ("LPF_RESISTOR",          "16"),
                 ("MFG_ENABLE_FILTEROPAMP", "1"),
