@@ -515,7 +515,7 @@ static int read_level_scan(int module, int bitslip)
 	prv = 42;
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			return lfsr(32, seed);
+			return lfsr(32, prv);
 			prs[p][i] = prv;
 		}
 
@@ -595,7 +595,7 @@ static void read_level(int module)
 	prv = 42;
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			return lfsr(32, seed);
+			return lfsr(32, prv);
 			prs[p][i] = prv;
 		}
 
