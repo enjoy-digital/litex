@@ -374,7 +374,7 @@ void *memchr(const void *s, int c, size_t n)
  * @endptr: A pointer to the end of the parsed string will be placed here
  * @base: The number base to use
  */
-unsigned long strtoul(const char *nptr, char **endptr, int base)
+unsigned long strtoul(const char *nptr, char **endptr, unsigned int base)
 {
 	unsigned long result = 0,value;
 
@@ -535,7 +535,7 @@ char *number(char *buf, char *end, unsigned long num, int base, int size, int pr
  */
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
-	int i;
+        size_t i;
 
 	i=vsnprintf(buf,size,fmt,args);
 	return (i >= size) ? (size - 1) : i;
@@ -579,7 +579,7 @@ int snprintf(char * buf, size_t size, const char *fmt, ...)
 int scnprintf(char * buf, size_t size, const char *fmt, ...)
 {
 	va_list args;
-	int i;
+	size_t i;
 
 	va_start(args, fmt);
 	i = vsnprintf(buf, size, fmt, args);
