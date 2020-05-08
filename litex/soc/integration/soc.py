@@ -926,13 +926,9 @@ class LiteXSoC(SoC):
             if name == "stub":
                 self.comb += self.uart.sink.ready.eq(1)
 
-        # Bridge
-        elif name in ["bridge"]:
-            self.submodules.uart = uart.UARTWishboneBridge(
-                pads     = self.platform.request("serial"),
-                clk_freq = self.sys_clk_freq,
-                baudrate = baudrate)
-            self.bus.add_master(name="uart_bridge", master=self.uart.wishbone)
+        # UARTBone / Bridge
+        elif name in ["uartbone", "bridge"]:
+            self.add_uartbone(baudrate=baudrate)
 
         # Crossover
         elif name in ["crossover"]:
@@ -985,6 +981,15 @@ class LiteXSoC(SoC):
             self.irq.add("uart", use_loc_if_exists=True)
         else:
             self.add_constant("UART_POLLING")
+
+    # Add UARTbone ---------------------------------------------------------------------------------
+    def add_uartbone(self, name="serial", baudrate=115200):
+        from litex.soc.cores import uart
+        self.submodules.uartbone = uart.UARTBone(
+            pads     = self.platform.request(name),
+            clk_freq = self.sys_clk_freq,
+            baudrate = baudrate)
+        self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
     # Add SDRAM ------------------------------------------------------------------------------------
     def add_sdram(self, name, phy, module, origin, size=None,
