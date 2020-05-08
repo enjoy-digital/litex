@@ -120,7 +120,7 @@ class BlackParrotRV64(CPU):
     def add_sources(platform, variant="standard"):
         vdir = get_data_mod("cpu", "blackparrot").data_location
         bp_litex_dir = os.path.join(vdir,"bp_litex")
-        simulation = 1
+        simulation = 0
         if (simulation == 1):
             filename= os.path.join(bp_litex_dir,"flist.verilator")
         else:
@@ -144,7 +144,7 @@ class BlackParrotRV64(CPU):
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1]+ line[s2:-1]
-                    platform.add_source(vdir) #this line might be changed
+                    platform.add_source(vdir, "systemverilog") #this line might be changed
                 elif (temp[0] == '/'):
                     assert("No support for absolute path for now")
 
