@@ -8,27 +8,26 @@ from litex.soc.interconnect.csr import *
 
 # Led Chaser ---------------------------------------------------------------------------------------
 
+_CHASER_MODE  = 0
+_CONTROL_MODE = 1
+
 class LedChaser(Module, AutoCSR):
     def __init__(self, pads, sys_clk_freq, period=1e0):
-        self.control  = CSRStorage(fields=[
-            CSRField("mode", size=2, values=[
-                ("``0b0``", "Chaser mode."),
-                ("``0b1``", "CPU mode."),
-            ])
-        ])
-        self.value = CSRStorage(len(pads), description="Control value when in CPU mode.")
+        self._out = CSRStorage(len(pads), description="Led Output(s) Control.")
 
         # # #
 
-        n      = len(pads)
-        chaser = Signal(n)
-        timer  = WaitTimer(int(period*sys_clk_freq/(2*n)))
+        n         = len(pads)
+        chaser    = Signal(n)
+        mode      = Signal(reset=_CHASER_MODE)
+        timer     = WaitTimer(int(period*sys_clk_freq/(2*n)))
         self.submodules += timer
         self.comb += timer.wait.eq(~timer.done)
         self.sync += If(timer.done, chaser.eq(Cat(~chaser[-1], chaser)))
+        self.sync += If(self._out.re, mode.eq(_CONTROL_MODE))
         self.comb += [
-            If(self.control.fields.mode,
-                pads.eq(self.value.storage)
+            If(mode == _CONTROL_MODE,
+                pads.eq(self._out.storage)
             ).Else(
                 pads.eq(chaser)
             )
