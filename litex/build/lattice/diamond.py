@@ -104,6 +104,9 @@ def _build_tcl(device, sources, vincpaths, build_name):
     if _produces_jedec(device):
         tcl.append("prj_run Export -impl impl -task Jedecgen")
 
+    # Cleanly close the project
+    tcl.append("prj_project close")
+
     tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
 
 # Script -------------------------------------------------------------------------------------------
