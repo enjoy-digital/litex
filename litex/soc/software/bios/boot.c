@@ -366,6 +366,11 @@ void netboot(void)
 #endif
 
 #ifdef FLASH_BOOT_ADDRESS
+#ifdef FLASH_BOOT_OFFSET
+unsigned int flash_boot_address = FLASH_BOOT_ADDRESS + FLASH_BOOT_OFFSET;
+#else
+unsigned int flash_boot_address = FLASH_BOOT_ADDRESS;
+#endif
 
 /* On systems with exernal SDRAM we copy out of the SPI flash into the SDRAM
    before running, as it is faster.  If we have no SDRAM then we have to
@@ -374,7 +379,7 @@ void netboot(void)
 #define FIRMWARE_BASE_ADDRESS MAIN_RAM_BASE
 #else
 /* Firmware code starts after (a) length and (b) CRC -- both unsigned ints */
-#define FIRMWARE_BASE_ADDRESS (FLASH_BOOT_ADDRESS + 2 * sizeof(unsigned int))
+#define FIRMWARE_BASE_ADDRESS (flash_boot_address + 2 * sizeof(unsigned int))
 #endif
 
 static unsigned int check_image_in_flash(unsigned int base_address)
@@ -399,7 +404,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 	return length;
 }
 
-#if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
+#if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(FLASH_BOOT_ADDRESS)
 static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int ram_address)
 {
 	unsigned int length;
@@ -408,7 +413,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 	if(length > 0) {
 		printf("Copying %d bytes from 0x%08x to 0x%08x...\n", length, flash_address, ram_address);
 		// skip length and crc
-		memcpy((void *)ram_address, (void *)flash_address + 8, length);
+		memcpy((void *)ram_address, (unsigned int *)(flash_address + 2 * sizeof(unsigned int)), length);
 		return 1;
 	}
 
@@ -432,34 +437,34 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned int
 void flashboot(void)
 {
 	unsigned int length;
+	unsigned int result;
 
 #if defined(MAIN_RAM_BASE) && defined(CONFIG_CPU_TYPE_VEXRISCV) && defined(CONFIG_CPU_VARIANT_LINUX)
-	unsigned int result;
 
 	printf("Loading Image from flash...\n");
 	result = copy_image_from_flash_to_ram(
-		(FLASH_BOOT_ADDRESS + KERNEL_IMAGE_FLASH_OFFSET),
+		(flash_boot_address + KERNEL_IMAGE_FLASH_OFFSET),
 		(MAIN_RAM_BASE + KERNEL_IMAGE_RAM_OFFSET));
 
 
 	if(result) {
 		printf("Loading rootfs.cpio from flash...\n");
 		result &= copy_image_from_flash_to_ram(
-			(FLASH_BOOT_ADDRESS + ROOTFS_IMAGE_FLASH_OFFSET),
+			(flash_boot_address + ROOTFS_IMAGE_FLASH_OFFSET),
 			(MAIN_RAM_BASE + ROOTFS_IMAGE_RAM_OFFSET));
 	}
 
 	if(result) {
 		printf("Loading rv32.dtb from flash...\n");
 		result &= copy_image_from_flash_to_ram(
-			(FLASH_BOOT_ADDRESS + DEVICE_TREE_IMAGE_FLASH_OFFSET),
+			(flash_boot_address + DEVICE_TREE_IMAGE_FLASH_OFFSET),
 			(MAIN_RAM_BASE + DEVICE_TREE_IMAGE_RAM_OFFSET));
 	}
 
 	if(result) {
 		printf("Loading emulator.bin from flash...\n");
 		result &= copy_image_from_flash_to_ram(
-			(FLASH_BOOT_ADDRESS + EMULATOR_IMAGE_FLASH_OFFSET),
+			(flash_boot_address + EMULATOR_IMAGE_FLASH_OFFSET),
 			(MAIN_RAM_BASE + EMULATOR_IMAGE_RAM_OFFSET));
 	}
 
@@ -469,15 +474,15 @@ void flashboot(void)
 	}
 #endif
 
-	printf("Booting from flash...\n");
-	length = check_image_in_flash(FLASH_BOOT_ADDRESS);
+	printf("Booting from flash addr 0x%08x...\n", flash_boot_address);
+	length = check_image_in_flash(flash_boot_address);
 	if(!length)
 		return;
 
 #ifdef MAIN_RAM_BASE
-	printf("Loading %d bytes from flash...\n", length);
-	// skip length and crc
-	memcpy((void *)MAIN_RAM_BASE, (unsigned int *)(FLASH_BOOT_ADDRESS + 2 * sizeof(unsigned int)), length);
+	result = copy_image_from_flash_to_ram(flash_boot_address, MAIN_RAM_BASE);
+	if(!result)
+		return;
 #endif
 
 	boot(0, 0, 0, FIRMWARE_BASE_ADDRESS);
