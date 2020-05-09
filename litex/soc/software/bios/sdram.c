@@ -903,7 +903,7 @@ static void memspeed(void)
 	end = timer0_value_read();
 	read_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
 
-	printf("Memspeed Writes: %dMbps Reads: %dMbps\n", write_speed, read_speed);
+	printf("Memspeed Writes: %ldMbps Reads: %ldMbps\n", write_speed, read_speed);
 }
 
 int memtest(void)
