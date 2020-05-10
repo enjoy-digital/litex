@@ -282,7 +282,7 @@ class SoCBusHandler(Module):
         return is_io
 
     # Add Master/Slave -----------------------------------------------------------------------------
-    def add_adapter(self, name, interface):
+    def add_adapter(self, name, interface, is_master):
         if interface.data_width != self.data_width:
             self.logger.info("{} Bus {} from {}-bit to {}-bit.".format(
                 colorer(name),
@@ -290,7 +290,8 @@ class SoCBusHandler(Module):
                 colorer(interface.data_width),
                 colorer(self.data_width)))
             new_interface = wishbone.Interface(data_width=self.data_width)
-            self.submodules += wishbone.Converter(interface, new_interface)
+            args = (interface, new_interface) if is_master else (new_interface, interface)
+            self.submodules += wishbone.Converter(*args)
             return new_interface
         else:
             return interface
@@ -304,7 +305,7 @@ class SoCBusHandler(Module):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise
-        master = self.add_adapter(name, master)
+        master = self.add_adapter(name, master, True)
         self.masters[name] = master
         self.logger.info("{} {} as Bus Master.".format(
             colorer(name,    color="underline"),
@@ -336,7 +337,7 @@ class SoCBusHandler(Module):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise
-        slave = self.add_adapter(name, slave)
+        slave = self.add_adapter(name, slave, False)
         self.slaves[name] = slave
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
