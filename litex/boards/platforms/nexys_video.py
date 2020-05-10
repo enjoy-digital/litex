@@ -3,6 +3,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -60,10 +61,10 @@ _io = [
             "M2 M5 M3 M1 L6 P1 N3 N2",
             "M6 R1 L5 N5 N4 P2 P6"),
             IOStandard("SSTL15")),
-        Subsignal("ba", Pins("L3 K6 L4"), IOStandard("SSTL15")),
+        Subsignal("ba",    Pins("L3 K6 L4"), IOStandard("SSTL15")),
         Subsignal("ras_n", Pins("J4"), IOStandard("SSTL15")),
         Subsignal("cas_n", Pins("K3"), IOStandard("SSTL15")),
-        Subsignal("we_n", Pins("L1"), IOStandard("SSTL15")),
+        Subsignal("we_n",  Pins("L1"), IOStandard("SSTL15")),
         Subsignal("dm", Pins("G3 F1"), IOStandard("SSTL15")),
         Subsignal("dq", Pins(
             "G2 H4 H5 J1 K1 H3 H2 J5",
@@ -72,10 +73,10 @@ _io = [
             Misc("IN_TERM=UNTUNED_SPLIT_50")),
         Subsignal("dqs_p", Pins("K2 E1"), IOStandard("DIFF_SSTL15")),
         Subsignal("dqs_n", Pins("J2 D1"), IOStandard("DIFF_SSTL15")),
-        Subsignal("clk_p", Pins("P5"), IOStandard("DIFF_SSTL15")),
-        Subsignal("clk_n", Pins("P4"), IOStandard("DIFF_SSTL15")),
-        Subsignal("cke", Pins("J6"), IOStandard("SSTL15")),
-        Subsignal("odt", Pins("K4"), IOStandard("SSTL15")),
+        Subsignal("clk_p", Pins("P5"),    IOStandard("DIFF_SSTL15")),
+        Subsignal("clk_n", Pins("P4"),    IOStandard("DIFF_SSTL15")),
+        Subsignal("cke",   Pins("J6"),    IOStandard("SSTL15")),
+        Subsignal("odt",   Pins("K4"),    IOStandard("SSTL15")),
         Subsignal("reset_n", Pins("G1"), IOStandard("SSTL15")),
         Misc("SLEW=FAST"),
     ),
@@ -86,46 +87,46 @@ _io = [
         IOStandard("LVCMOS25")
     ),
     ("eth", 0,
-        Subsignal("rst_n", Pins("U7"), IOStandard("LVCMOS33")),
-        Subsignal("int_n", Pins("Y14")),
-        Subsignal("mdio", Pins("Y16")),
-        Subsignal("mdc", Pins("AA16")),
-        Subsignal("rx_ctl", Pins("W10")),
+        Subsignal("rst_n",   Pins("U7"), IOStandard("LVCMOS33")),
+        Subsignal("int_n",   Pins("Y14")),
+        Subsignal("mdio",    Pins("Y16")),
+        Subsignal("mdc",     Pins("AA16")),
+        Subsignal("rx_ctl",  Pins("W10")),
         Subsignal("rx_data", Pins("AB16 AA15 AB15 AB11")),
-        Subsignal("tx_ctl", Pins("V10")),
+        Subsignal("tx_ctl",  Pins("V10")),
         Subsignal("tx_data", Pins("Y12 W12 W11 Y11")),
         IOStandard("LVCMOS25")
     ),
 
     ("hdmi_in", 0,
-        Subsignal("clk_p", Pins("V4"), IOStandard("TMDS_33")),
-        Subsignal("clk_n", Pins("W4"), IOStandard("TMDS_33")),
-        Subsignal("data0_p", Pins("Y3"), IOStandard("TMDS_33")),
-        Subsignal("data0_n", Pins("AA3"), IOStandard("TMDS_33")),
-        Subsignal("data1_p", Pins("W2"), IOStandard("TMDS_33")),
-        Subsignal("data1_n", Pins("Y2"), IOStandard("TMDS_33")),
-        Subsignal("data2_p", Pins("U2"), IOStandard("TMDS_33")),
-        Subsignal("data2_n", Pins("V2"), IOStandard("TMDS_33")),
-        Subsignal("scl", Pins("Y4"), IOStandard("LVCMOS33")),
-        Subsignal("sda", Pins("AB5"), IOStandard("LVCMOS33")),
-        Subsignal("hpd_en", Pins("AB12"), IOStandard("LVCMOS25")),
-        Subsignal("cec", Pins("AA5"), IOStandard("LVCMOS33")),  # FIXME
-        Subsignal("txen", Pins("R3"), IOStandard("LVCMOS33")),  # FIXME
+        Subsignal("clk_p",   Pins("V4"),   IOStandard("TMDS_33")),
+        Subsignal("clk_n",   Pins("W4"),   IOStandard("TMDS_33")),
+        Subsignal("data0_p", Pins("Y3"),   IOStandard("TMDS_33")),
+        Subsignal("data0_n", Pins("AA3"),  IOStandard("TMDS_33")),
+        Subsignal("data1_p", Pins("W2"),   IOStandard("TMDS_33")),
+        Subsignal("data1_n", Pins("Y2"),   IOStandard("TMDS_33")),
+        Subsignal("data2_p", Pins("U2"),   IOStandard("TMDS_33")),
+        Subsignal("data2_n", Pins("V2"),   IOStandard("TMDS_33")),
+        Subsignal("scl",     Pins("Y4"),   IOStandard("LVCMOS33")),
+        Subsignal("sda",     Pins("AB5"),  IOStandard("LVCMOS33")),
+        Subsignal("hpd_en",  Pins("AB12"), IOStandard("LVCMOS25")),
+        Subsignal("cec",     Pins("AA5"),  IOStandard("LVCMOS33")), # FIXME
+        Subsignal("txen",    Pins("R3"),   IOStandard("LVCMOS33")), # FIXME
     ),
 
     ("hdmi_out", 0,
-        Subsignal("clk_p", Pins("T1"), IOStandard("TMDS_33")),
-        Subsignal("clk_n", Pins("U1"), IOStandard("TMDS_33")),
-        Subsignal("data0_p", Pins("W1"), IOStandard("TMDS_33")),
-        Subsignal("data0_n", Pins("Y1"), IOStandard("TMDS_33")),
-        Subsignal("data1_p", Pins("AA1"), IOStandard("TMDS_33")),
-        Subsignal("data1_n", Pins("AB1"), IOStandard("TMDS_33")),
-        Subsignal("data2_p", Pins("AB3"), IOStandard("TMDS_33")),
-        Subsignal("data2_n", Pins("AB2"), IOStandard("TMDS_33")),
-        Subsignal("scl", Pins("U3"), IOStandard("LVCMOS33")),
-        Subsignal("sda", Pins("V3"), IOStandard("LVCMOS33")),
-        Subsignal("cec", Pins("AA4"), IOStandard("LVCMOS33")),  # FIXME
-        Subsignal("hdp", Pins("AB13"), IOStandard("LVCMOS25")), # FIXME
+        Subsignal("clk_p",   Pins("T1"),   IOStandard("TMDS_33")),
+        Subsignal("clk_n",   Pins("U1"),   IOStandard("TMDS_33")),
+        Subsignal("data0_p", Pins("W1"),   IOStandard("TMDS_33")),
+        Subsignal("data0_n", Pins("Y1"),   IOStandard("TMDS_33")),
+        Subsignal("data1_p", Pins("AA1"),  IOStandard("TMDS_33")),
+        Subsignal("data1_n", Pins("AB1"),  IOStandard("TMDS_33")),
+        Subsignal("data2_p", Pins("AB3"),  IOStandard("TMDS_33")),
+        Subsignal("data2_n", Pins("AB2"),  IOStandard("TMDS_33")),
+        Subsignal("scl",     Pins("U3"),   IOStandard("LVCMOS33")),
+        Subsignal("sda",     Pins("V3"),   IOStandard("LVCMOS33")),
+        Subsignal("cec",     Pins("AA4"),  IOStandard("LVCMOS33")), # FIXME
+        Subsignal("hdp",     Pins("AB13"), IOStandard("LVCMOS25")), # FIXME
     ),
 ]
 
@@ -133,84 +134,84 @@ _io = [
 
 _connectors = [
     ("LPC", {
-        "DP0_C2M_P": "D7",
-        "DP0_C2M_N": "C7",
-        "DP0_M2C_P": "D9",
-        "DP0_M2C_N": "C9",
-        "GBTCLK0_M2C_P": "F10",
-        "GBTCLK0_M2C_N": "E10",
-        "LA01_CC_P": "J20",
-        "LA01_CC_N": "J21",
-        "LA05_P": "M21",
-        "LA05_N": "L21",
-        "LA09_P": "H20",
-        "LA09_N": "G20",
-        "LA13_P": "K17",
-        "LA13_N": "J17",
-        "LA17_CC_P": "B17",
-        "LA17_CC_N": "B18",
-        "LA23_P": "B21",
-        "LA23_N": "A21",
-        "LA26_P": "F18",
-        "LA26_N": "E18",
-        "CLK0_M2C_P": "J19",
-        "CLK0_M2C_N": "A19",
-        "LA02_P": "M18",
-        "LA02_N": "L18",
-        "LA04_P": "N20",
-        "LA04_N": "M20",
-        "LA07_P": "M13",
-        "LA07_N": "L13",
-        "LA11_P": "L14",
-        "LA11_N": "L15",
-        "LA15_P": "L16",
-        "LA15_N": "K16",
-        "LA19_P": "A18",
-        "LA19_N": "A19",
-        "LA21_P": "E19",
-        "LA21_N": "D19",
-        "LA24_P": "B15",
-        "LA24_N": "B16",
-        "LA28_P": "C13",
-        "LA28_N": "B13",
-        "LA30_P": "A13",
-        "LA30_N": "A14",
-        "LA32_P": "A15",
-        "LA32_N": "A16",
-        "LA06_P": "N22",
-        "LA06_N": "M22",
-        "LA10_P": "K21",
-        "LA10_N": "K22",
-        "LA14_P": "J22",
-        "LA14_N": "H22",
-        "LA18_CC_P": "D17",
-        "LA18_CC_N": "C17",
-        "LA27_P": "B20",
-        "LA27_N": "A20",
-        "CLK1_M2C_P": "C18",
-        "CLK1_M2C_N": "C19",
-        "LA00_CC_P": "K18",
-        "LA00_CC_N": "K19",
-        "LA03_P": "N18",
-        "LA03_N": "N19",
-        "LA08_P": "M15",
-        "LA08_N": "M16",
-        "LA12_P": "L19",
-        "LA12_N": "L20",
-        "LA16_P": "G17",
-        "LA16_N": "G18",
-        "LA20_P": "F19",
-        "LA20_N": "F20",
-        "LA22_P": "E21",
-        "LA22_N": "D21",
-        "LA25_P": "F16",
-        "LA25_N": "E17",
-        "LA29_P": "C14",
-        "LA29_N": "C15",
-        "LA31_P": "E13",
-        "LA31_N": "E14",
-        "LA33_P": "F13",
-        "LA33_N": "F14",
+        "DP0_C2M_P"     : "D7",
+        "DP0_C2M_N"     : "C7",
+        "DP0_M2C_P"     : "D9",
+        "DP0_M2C_N"     : "C9",
+        "GBTCLK0_M2C_P" : "F10",
+        "GBTCLK0_M2C_N" : "E10",
+        "LA01_CC_P"     : "J20",
+        "LA01_CC_N"     : "J21",
+        "LA05_P"        : "M21",
+        "LA05_N"        : "L21",
+        "LA09_P"        : "H20",
+        "LA09_N"        : "G20",
+        "LA13_P"        : "K17",
+        "LA13_N"        : "J17",
+        "LA17_CC_P"     : "B17",
+        "LA17_CC_N"     : "B18",
+        "LA23_P"        : "B21",
+        "LA23_N"        : "A21",
+        "LA26_P"        : "F18",
+        "LA26_N"        : "E18",
+        "CLK0_M2C_P"    : "J19",
+        "CLK0_M2C_N"    : "A19",
+        "LA02_P"        : "M18",
+        "LA02_N"        : "L18",
+        "LA04_P"        : "N20",
+        "LA04_N"        : "M20",
+        "LA07_P"        : "M13",
+        "LA07_N"        : "L13",
+        "LA11_P"        : "L14",
+        "LA11_N"        : "L15",
+        "LA15_P"        : "L16",
+        "LA15_N"        : "K16",
+        "LA19_P"        : "A18",
+        "LA19_N"        : "A19",
+        "LA21_P"        : "E19",
+        "LA21_N"        : "D19",
+        "LA24_P"        : "B15",
+        "LA24_N"        : "B16",
+        "LA28_P"        : "C13",
+        "LA28_N"        : "B13",
+        "LA30_P"        : "A13",
+        "LA30_N"        : "A14",
+        "LA32_P"        : "A15",
+        "LA32_N"        : "A16",
+        "LA06_P"        : "N22",
+        "LA06_N"        : "M22",
+        "LA10_P"        : "K21",
+        "LA10_N"        : "K22",
+        "LA14_P"        : "J22",
+        "LA14_N"        : "H22",
+        "LA18_CC_P"     : "D17",
+        "LA18_CC_N"     : "C17",
+        "LA27_P"        : "B20",
+        "LA27_N"        : "A20",
+        "CLK1_M2C_P"    : "C18",
+        "CLK1_M2C_N"    : "C19",
+        "LA00_CC_P"     : "K18",
+        "LA00_CC_N"     : "K19",
+        "LA03_P"        : "N18",
+        "LA03_N"        : "N19",
+        "LA08_P"        : "M15",
+        "LA08_N"        : "M16",
+        "LA12_P"        : "L19",
+        "LA12_N"        : "L20",
+        "LA16_P"        : "G17",
+        "LA16_N"        : "G18",
+        "LA20_P"        : "F19",
+        "LA20_N"        : "F20",
+        "LA22_P"        : "E21",
+        "LA22_N"        : "D21",
+        "LA25_P"        : "F16",
+        "LA25_N"        : "E17",
+        "LA29_P"        : "C14",
+        "LA29_N"        : "C15",
+        "LA31_P"        : "E13",
+        "LA31_N"        : "E14",
+        "LA33_P"        : "F13",
+        "LA33_N"        : "F14",
         }
     )
 ]
@@ -218,7 +219,7 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
-    default_clk_name = "clk100"
+    default_clk_name   = "clk100"
     default_clk_period = 1e9/100e6
 
     def __init__(self):
@@ -230,9 +231,8 @@ class Platform(XilinxPlatform):
              "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
         self.add_platform_command("set_property INTERNAL_VREF 0.750 [get_iobanks 35]")
 
-
     def create_programmer(self):
-        return VivadoProgrammer(flash_part="n25q128-3.3v-spi-x1_x2_x4")
+        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a200t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
@@ -240,3 +240,8 @@ class Platform(XilinxPlatform):
             self.add_period_constraint(self.lookup_request("eth_clocks").rx, 1e9/125e6)
         except ConstraintError:
             pass
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk100",        loose=True), 1e9/100e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks:rx", loose=True), 1e9/125e6)

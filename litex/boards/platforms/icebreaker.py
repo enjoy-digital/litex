@@ -22,7 +22,7 @@ _io = [
 
     ("serial", 0,
         Subsignal("rx", Pins("6")),
-        Subsignal("tx", Pins("9")),
+        Subsignal("tx", Pins("9"), Misc("PULLUP")),
         IOStandard("LVCMOS33")
     ),
 
@@ -47,7 +47,7 @@ _io = [
 # Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
-    ("PMOD1A", "4 2 47 45 3 48 46 44"),
+    ("PMOD1A", "4   2 47 45  3 48 46 44"),
     ("PMOD1B", "43 38 34 31 42 36 32 28"),
     ("PMOD2",  "27 25 21 19 26 23 20 18")
 ]
@@ -79,10 +79,14 @@ break_off_pmod = [
 
 class Platform(LatticePlatform):
     default_clk_name   = "clk12"
-    default_clk_period = 1e9 / 12e6
+    default_clk_period = 1e9/12e6
 
     def __init__(self):
         LatticePlatform.__init__(self, "ice40-up5k-sg48", _io, _connectors, toolchain="icestorm")
 
     def create_programmer(self):
         return IceStormProgrammer()
+
+    def do_finalize(self, fragment):
+        LatticePlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk12", loose=True), 1e9/12e6)

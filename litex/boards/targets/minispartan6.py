@@ -5,12 +5,14 @@
 # This file is Copyright (c) 2014 Yann Sionneau <ys@m-labs.hk>
 # License: BSD
 
+import os
 import argparse
 from fractions import Fraction
 
 from migen import *
-from migen.genlib.io import DDROutput
 from migen.genlib.resetsync import AsyncResetSynchronizer
+
+from litex.build.io import DDROutput
 
 from litex.boards.platforms import minispartan6
 
@@ -37,7 +39,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys_ps, clk_freq, phase=90)
 
         # SDRAM clock
-        self.specials += DDROutput(0, 1, platform.request("sdram_clock"), ClockSignal("sys_ps"))
+        self.specials += DDROutput(1, 0, platform.request("sdram_clock"), ClockSignal("sys_ps"))
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -53,7 +55,7 @@ class BaseSoC(SoCCore):
 
         # SDR SDRAM --------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
-            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"), cmd_latency=2)
+            self.submodules.sdrphy = GENSDRPHY(platform.request("sdram"))
             self.add_sdram("sdram",
                 phy                     = self.sdrphy,
                 module                  = AS4C16M16(sys_clk_freq, "1:1"),
@@ -68,14 +70,19 @@ class BaseSoC(SoCCore):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on MiniSpartan6")
+    parser.add_argument("--build", action="store_true", help="Build bitstream")
+    parser.add_argument("--load",  action="store_true", help="Load bitstream")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()
 
     soc = BaseSoC(**soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build()
+    builder.build(run=args.build)
 
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
 
 if __name__ == "__main__":
     main()

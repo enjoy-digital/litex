@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
 
-import sys
 from setuptools import setup
 from setuptools import find_packages
 
 
-if sys.version_info[:3] < (3, 5):
-    raise SystemExit("You need Python 3.5+")
-
-
 setup(
     name="litex",
-    version="0.2.dev",
-    description="Python tools to design FPGA cores and SoCs",
-    long_description=open("README.md").read(),
+    description="Python SoC/Core builder for building FPGA based systems.",
     author="Florent Kermarrec",
     author_email="florent@enjoy-digital.fr",
     url="http://enjoy-digital.fr",
     download_url="https://github.com/enjoy-digital/litex",
     test_suite="test",
     license="BSD",
+    python_requires="~=3.6",
+    install_requires=[
+        "migen",
+        "pyserial",
+        "requests",
+        "pythondata-software-compiler_rt",
+    ],
+    packages=find_packages(exclude=("test*", "sim*", "doc*")),
+    include_package_data=True,
     platforms=["Any"],
     keywords="HDL ASIC FPGA hardware design",
     classifiers=[
@@ -31,9 +33,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
     ],
-    packages=find_packages(exclude=("test*", "sim*", "doc*")),
-    install_requires=["migen", "pyserial"],
-    include_package_data=True,
     entry_points={
         "console_scripts": [
             # full names

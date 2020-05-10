@@ -18,6 +18,7 @@
 
 #include <generated/mem.h>
 #include <generated/csr.h>
+#include <generated/soc.h>
 
 #ifdef CSR_ETHMAC_BASE
 #include <net/microudp.h>
@@ -38,12 +39,11 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 	printf("Executing booted program at 0x%08x\n\n", addr);
 	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
 	uart_sync();
+#ifdef CONFIG_CPU_HAS_INTERRUPT
 	irq_setmask(0);
 	irq_setie(0);
-/* FIXME: understand why flushing icache on Vexriscv make boot fail  */
-#ifndef __vexriscv__
-	flush_cpu_icache();
 #endif
+	flush_cpu_icache();
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();

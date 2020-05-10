@@ -1,5 +1,2 @@
-include ../variables.mak
-
-all: $(OBJ_DIR)/serial2console.so
-
-include ../rules.mak
+include ../../variables.mak
+include $(SRC_DIR)/modules/rules.mak

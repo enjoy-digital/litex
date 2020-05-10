@@ -35,12 +35,12 @@ class RS232PHYRX(Module):
         # # #
 
         uart_clk_rxen        = Signal()
-        phase_accumulator_rx = Signal(32)
+        phase_accumulator_rx = Signal(32, reset_less=True)
 
         rx          = Signal()
         rx_r        = Signal()
-        rx_reg      = Signal(8)
-        rx_bitcount = Signal(4)
+        rx_reg      = Signal(8, reset_less=True)
+        rx_bitcount = Signal(4, reset_less=True)
         rx_busy     = Signal()
         rx_done     = self.source.valid
         rx_data     = self.source.data
@@ -87,12 +87,12 @@ class RS232PHYTX(Module):
         # # #
 
         uart_clk_txen        = Signal()
-        phase_accumulator_tx = Signal(32)
+        phase_accumulator_tx = Signal(32, reset_less=True)
 
         pads.tx.reset = 1
 
-        tx_reg      = Signal(8)
-        tx_bitcount = Signal(4)
+        tx_reg      = Signal(8, reset_less=True)
+        tx_bitcount = Signal(4, reset_less=True)
         tx_busy     = Signal()
         self.sync += [
             self.sink.ready.eq(0),
@@ -239,10 +239,12 @@ class UART(Module, AutoCSR, UARTInterface):
             self.ev.rx.trigger.eq(~rx_fifo.source.valid)
         ]
 
-class UARTWishboneBridge(WishboneStreamingBridge):
+class UARTBone(WishboneStreamingBridge):
     def __init__(self, pads, clk_freq, baudrate=115200):
         self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
         WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
+
+class UARTWishboneBridge(UARTBone): pass
 
 # UART Multiplexer ---------------------------------------------------------------------------------
 

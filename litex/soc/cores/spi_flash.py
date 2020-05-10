@@ -88,7 +88,7 @@ class SpiFlashDualQuad(SpiFlashCommon, AutoCSR):
         assert spi_width >= 2
 
         if with_bitbang:
-            self.bitbang = CSRStorage(4, fields=[
+            self.bitbang = CSRStorage(4, reset_less=True, fields=[
                 CSRField("mosi", description="Output value for MOSI pin, valid whenever ``dir`` is ``0``."),
                 CSRField("clk", description="Output value for SPI CLK pin."),
                 CSRField("cs_n", description="Output value for SPI CSn pin."),
@@ -229,7 +229,7 @@ class SpiFlashSingle(SpiFlashCommon, AutoCSR):
         self.bus = bus = wishbone.Interface()
 
         if with_bitbang:
-            self.bitbang = CSRStorage(4, fields=[
+            self.bitbang = CSRStorage(4, reset_less=True, fields=[
                 CSRField("mosi", description="Output value for SPI MOSI pin."),
                 CSRField("clk", description="Output value for SPI CLK pin."),
                 CSRField("cs_n", description="Output value for SPI CSn pin."),
@@ -354,6 +354,27 @@ class S7SPIFlash(Module, AutoCSR):
                 i_USRCCLKTS=0,
                 i_USRDONEO=1,
                 i_USRDONETS=1
+        )
+        if hasattr(pads, "vpp"):
+            pads.vpp.reset = 1
+        if hasattr(pads, "hold"):
+            pads.hold.reset = 1
+        if hasattr(pads, "cs_n"):
+            self.comb += pads.cs_n.eq(spi.pads.cs_n)
+        self.comb += [
+            pads.mosi.eq(spi.pads.mosi),
+            spi.pads.miso.eq(pads.miso)
+        ]
+
+
+# Lattice ECP5 FPGAs SPI Flash (non-memory-mapped) -------------------------------------------------
+
+class ECP5SPIFlash(Module, AutoCSR):
+    def __init__(self, pads, sys_clk_freq, spi_clk_freq=25e6):
+        self.submodules.spi = spi = SPIMaster(None, 40, sys_clk_freq, spi_clk_freq)
+        self.specials += Instance("USRMCLK",
+            i_USRMCLKI  = spi.pads.clk,
+            i_USRMCLKTS = 0
         )
         if hasattr(pads, "vpp"):
             pads.vpp.reset = 1

@@ -3,7 +3,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
-from litex.build.xilinx.programmer import FpgaProg
+from litex.build.xilinx.programmer import XC3SProg
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -51,47 +51,64 @@ _io = [
 
     ("sdram_clock", 0, Pins("G16"), IOStandard("LVCMOS33"), Misc("SLEW=FAST")),
     ("sdram", 0,
-        Subsignal("a", Pins("T15 R16 P15 P16 N16 M15 M16 L16 K15 K16 R15 J16 H15")),
-        Subsignal("dq", Pins("T13 T12 R12 T9 R9 T7 R7 T6 F16 E15 E16 D16 B16 B15 C16 C15")),
-        Subsignal("we_n", Pins("R5")),
+        Subsignal("a", Pins(
+            "T15 R16 P15 P16 N16 M15 M16 L16",
+            "K15 K16 R15 J16 H15")),
+        Subsignal("dq", Pins(
+            "T13 T12 R12  T9  R9  T7  R7  T6",
+            "F16 E15 E16 D16 B16 B15 C16 C15")),
+        Subsignal("we_n",  Pins("R5")),
         Subsignal("ras_n", Pins("R2")),
         Subsignal("cas_n", Pins("T4")),
-        Subsignal("cs_n", Pins("R1")),
-        Subsignal("cke", Pins("H16")),
-        Subsignal("ba", Pins("R14 T14")),
-        Subsignal("dm", Pins("T5 F15")),
-        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+        Subsignal("cs_n",  Pins("R1")),
+        Subsignal("cke",   Pins("H16")),
+        Subsignal("ba",    Pins("R14 T14")),
+        Subsignal("dm",    Pins("T5 F15")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33"),
     ),
 
     ("usb_fifo", 0,
-        Subsignal("data", Pins("M7 N6 M6 P5 N5 P4 P2 P1")),
+        Subsignal("data",  Pins("M7 N6 M6 P5 N5 P4 P2 P1")),
         Subsignal("rxf_n", Pins("N3")),
         Subsignal("txe_n", Pins("N1")),
-        Subsignal("rd_n", Pins("M1")),
-        Subsignal("wr_n", Pins("M2")),
+        Subsignal("rd_n",  Pins("M1")),
+        Subsignal("wr_n",  Pins("M2")),
         Subsignal("siwua", Pins("M3")),
-        IOStandard("LVCMOS33"), Drive(8), Misc("SLEW=FAST")
+        Misc("SLEW=FAST"),
+        Drive(8),
+        IOStandard("LVCMOS33"),
+    ),
+
+    ("spisdcard", 0,
+        Subsignal("clk",  Pins("L12")),
+        Subsignal("mosi", Pins("K11"), Misc("PULLUP")),
+        Subsignal("cs_n", Pins("K12"), Misc("PULLUP")),
+        Subsignal("miso", Pins("M10"), Misc("PULLUP")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33"),
     ),
 
     ("sdcard", 0,
         Subsignal("data", Pins("M10 L10 J11 K12"), Misc("PULLUP")),
-        Subsignal("cmd", Pins("K11"), Misc("PULLUP")),
-        Subsignal("clk", Pins("L12")),
-        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+        Subsignal("cmd",  Pins("K11"), Misc("PULLUP")),
+        Subsignal("clk",  Pins("L12")),
+        Misc("SLEW=FAST"),
+        IOStandard("LVCMOS33"),
     ),
 
     ("dvi_in", 0,
-        Subsignal("clk_p", Pins("C9"), IOStandard("TMDS_33")),
-        Subsignal("clk_n", Pins("A9"), IOStandard("TMDS_33")),
+        Subsignal("clk_p",  Pins("C9"), IOStandard("TMDS_33")),
+        Subsignal("clk_n",  Pins("A9"), IOStandard("TMDS_33")),
         Subsignal("data_p", Pins("C7 B6 B5"), IOStandard("TMDS_33")),
         Subsignal("data_n", Pins("A7 A6 A5"), IOStandard("TMDS_33")),
-        Subsignal("scl", Pins("C1"), IOStandard("LVCMOS33")),
-        Subsignal("sda", Pins("B1"), IOStandard("LVCMOS33"))
+        Subsignal("scl",    Pins("C1"), IOStandard("LVCMOS33")),
+        Subsignal("sda",    Pins("B1"), IOStandard("LVCMOS33"))
     ),
 
     ("dvi_out", 0,
-        Subsignal("clk_p", Pins("B14"), IOStandard("TMDS_33")),
-        Subsignal("clk_n", Pins("A14"), IOStandard("TMDS_33")),
+        Subsignal("clk_p",  Pins("B14"), IOStandard("TMDS_33")),
+        Subsignal("clk_n",  Pins("A14"), IOStandard("TMDS_33")),
         Subsignal("data_p", Pins("C13 B12 C11"), IOStandard("TMDS_33")),
         Subsignal("data_n", Pins("A13 A12 A11"), IOStandard("TMDS_33")),
     )
@@ -100,7 +117,7 @@ _io = [
 # Connectors ---------------------------------------------------------------------------------------
 
 _connectors = [
-    ("A", "E7 C8 D8 E8 D9 A10 B10 C10 E10 F9 F10 D11"),
+    ("A", "E7   C8  D8  E8  D9 A10 B10 C10 E10  F9 F10 D11"),
     ("B", "E11 D14 D12 E12 E13 F13 F12 F14 G12 H14 J14"),
     ("C", "J13 J12 K14 L14 L13 M14 M13 N14 M12 N12 P12 M11"),
     ("D", "D6 C6 E6 C5"),
@@ -111,7 +128,7 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
-    default_clk_name = "clk32"
+    default_clk_name   = "clk32"
     default_clk_period = 1e9/32e6
 
     def __init__(self, device="xc6slx25"):
@@ -119,4 +136,9 @@ class Platform(XilinxPlatform):
         XilinxPlatform.__init__(self, device+"-3-ftg256", _io, _connectors)
 
     def create_programmer(self):
-        return FpgaProg()
+        return XC3SProg(cable="ftdi")
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk32", loose=True), 1e9/32e6)
+        self.add_period_constraint(self.lookup_request("clk50", loose=True), 1e9/50e6)

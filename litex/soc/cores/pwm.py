@@ -25,7 +25,7 @@ class PWM(Module, AutoCSR):
 
         # # #
 
-        counter = Signal(32)
+        counter = Signal(32, reset_less=True)
 
         sync = getattr(self.sync, clock_domain)
         sync += [
@@ -36,7 +36,7 @@ class PWM(Module, AutoCSR):
                 ).Else(
                     pwm.eq(0)
                 ),
-                If(counter == (self.period - 1),
+                If(counter >= (self.period - 1),
                     counter.eq(0)
                 )
             ).Else(
@@ -51,10 +51,10 @@ class PWM(Module, AutoCSR):
     def add_csr(self, clock_domain):
         self._enable = CSRStorage(description="""PWM Enable.\n
             Write ``1`` to enable PWM.""")
-        self._width  = CSRStorage(32, description="""PWM Width.\n
+        self._width  = CSRStorage(32, reset_less=True, description="""PWM Width.\n
             Defines the *Duty cycle* of the PWM. PWM is active high for *Width* ``{cd}_clk`` cycles and
             active low for *Period - Width* ``{cd}_clk`` cycles.""".format(cd=clock_domain))
-        self._period = CSRStorage(32, description="""PWM Period.\n
+        self._period = CSRStorage(32, reset_less=True, description="""PWM Period.\n
             Defines the *Period* of the PWM in ``{cd}_clk`` cycles.""".format(cd=clock_domain))
 
         n = 0 if clock_domain == "sys" else 2

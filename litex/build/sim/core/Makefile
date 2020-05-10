@@ -29,11 +29,11 @@ all: modules sim
 mkdir:
 	mkdir -p $(OBJ_DIR)
 
-$(OBJS_SIM): %.o: $(SRC_DIR)/%.c
+$(OBJS_SIM): %.o: $(SRC_DIR)/%.c | mkdir
 	$(CC) -c $(CFLAGS) -o $(OBJ_DIR)/$@ $<
 
 .PHONY: sim
-sim: mkdir $(OBJS_SIM)
+sim: $(OBJS_SIM) | mkdir
 	verilator -Wno-fatal -O3 $(CC_SRCS) --top-module dut --exe \
 		-DPRINTF_COND=0 \
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
@@ -51,8 +51,9 @@ sim: mkdir $(OBJS_SIM)
 	make -j -C $(OBJ_DIR) -f Vdut.mk Vdut
 
 .PHONY: modules
-modules: mkdir
-	$(MAKE) -C $(MOD_DIR)
+modules:
+	mkdir -p modules
+	$(MAKE) -C modules -f $(MOD_DIR)/Makefile
 
 .PHONY: clean
 clean:

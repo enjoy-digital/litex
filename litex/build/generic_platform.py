@@ -7,10 +7,10 @@ import os
 
 from migen.fhdl.structure import Signal
 from migen.genlib.record import Record
-from migen.genlib.io import CRG
 
 from litex.gen.fhdl import verilog
 
+from litex.build.io import CRG
 from litex.build import tools
 
 
@@ -205,13 +205,21 @@ class ConstraintManager:
         self.matched.append((resource, obj))
         return obj
 
-    def lookup_request(self, name, number=None):
+    def lookup_request(self, name, number=None, loose=False):
+        subname = None
+        if ":" in name: name, subname = name.split(":")
         for resource, obj in self.matched:
             if resource[0] == name and (number is None or
                                         resource[1] == number):
-                return obj
+                if subname is not None:
+                    return getattr(obj, subname)
+                else:
+                    return obj
 
-        raise ConstraintError("Resource not found: {}:{}".format(name, number))
+        if loose:
+            return None
+        else:
+            raise ConstraintError("Resource not found: {}:{}".format(name, number))
 
     def add_platform_command(self, command, **signals):
         self.platform_commands.append((command, signals))

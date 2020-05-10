@@ -11,8 +11,9 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 
 CPU_VARIANTS = ["minimal", "standard"]
@@ -32,11 +33,12 @@ GCC_FLAGS = {
 
 class PicoRV32(CPU):
     name                 = "picorv32"
+    human_name           = "PicoRV32"
     data_width           = 32
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
-                            "riscv64-linux", "riscv-sifive-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf32-littleriscv"
+    nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
@@ -56,13 +58,14 @@ class PicoRV32(CPU):
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        self.platform  = platform
-        self.variant   = variant
-        self.reset     = Signal()
-        self.idbus     = idbus = wishbone.Interface()
-        self.buses     = [idbus]
-        self.interrupt = Signal(32)
-        self.trap      = Signal()
+        self.platform     = platform
+        self.variant      = variant
+        self.trap         = Signal()
+        self.reset        = Signal()
+        self.interrupt    = Signal(32)
+        self.idbus        = idbus = wishbone.Interface()
+        self.periph_buses = [idbus]
+        self.memory_buses = []
 
         # # #
 
@@ -179,8 +182,7 @@ class PicoRV32(CPU):
 
     @staticmethod
     def add_sources(platform):
-        vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "verilog")
+        vdir = get_data_mod("cpu", "picorv32").data_location
         platform.add_source(os.path.join(vdir, "picorv32.v"))
 
     def do_finalize(self):

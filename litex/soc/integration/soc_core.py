@@ -65,6 +65,7 @@ class SoCCore(LiteXSoC):
         cpu_type                 = "vexriscv",
         cpu_reset_address        = None,
         cpu_variant              = None,
+        cpu_cls                  = None,
         # ROM parameters
         integrated_rom_size      = 0,
         integrated_rom_init      = [],
@@ -131,6 +132,7 @@ class SoCCore(LiteXSoC):
 
         self.cpu_type                   = cpu_type
         self.cpu_variant                = cpu_variant
+        self.cpu_cls                    = cpu_cls
 
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
@@ -154,6 +156,7 @@ class SoCCore(LiteXSoC):
         self.add_cpu(
             name          = str(cpu_type),
             variant       = "standard" if cpu_variant is None else cpu_variant,
+            cls           = cpu_cls,
             reset_address = None if integrated_rom_size else cpu_reset_address)
 
         # Add User's interrupts
@@ -244,6 +247,8 @@ class SoCCore(LiteXSoC):
         for region in self.bus.regions.values():
             region.length = region.size
             region.type   = "cached" if region.cached else "io"
+            if region.linker:
+                region.type += "+linker"
         self.csr_regions = self.csr.regions
         for name, value in self.config.items():
             self.add_config(name, value)

@@ -3,6 +3,7 @@
 # This file is Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
+import os
 import argparse
 
 from migen import *
@@ -96,20 +97,25 @@ class BaseSoC(SoCCore):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC on Arty")
+    parser = argparse.ArgumentParser(description="LiteX SoC on Arty A7")
+    parser.add_argument("--build", action="store_true", help="Build bitstream")
+    parser.add_argument("--load",  action="store_true", help="Load bitstream")
     builder_args(parser)
     soc_sdram_args(parser)
     vivado_build_args(parser)
-    parser.add_argument("--with-ethernet", action="store_true", help="enable Ethernet support")
-    parser.add_argument("--with-etherbone", action="store_true", help="enable Etherbone support")
+    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
     soc = BaseSoC(with_ethernet=args.with_ethernet, with_etherbone=args.with_etherbone,
         **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build(**vivado_build_argdict(args))
+    builder.build(**vivado_build_argdict(args), run=args.build)
 
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
 
 if __name__ == "__main__":
     main()

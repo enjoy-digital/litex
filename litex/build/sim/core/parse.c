@@ -99,7 +99,7 @@ static int json_to_interface_list(json_object *interface, struct interface_s **i
   json_object *obj;
   json_object *name;
   json_object *index;
-  
+
   struct interface_s *t_iface=NULL;
 
   if(!interface || !iface)
@@ -108,7 +108,7 @@ static int json_to_interface_list(json_object *interface, struct interface_s **i
     eprintf("Invalid argument\n");
     goto out;
   }
-  
+
   if(!json_object_is_type(interface, json_type_array))
   {
     ret=RC_JSERROR;
@@ -166,7 +166,7 @@ out:
 
 static int module_list_free(struct module_s *mod)
 {
-  int ret=RC_OK; 
+  int ret=RC_OK;
   struct module_s *mnext;
   int i;
   while(mod)
@@ -247,7 +247,7 @@ static int json_to_module_list(json_object *obj, struct module_s **mod)
 
     tickfirst=NULL;
     json_object_object_get_ex(tobj, "tickfirst", &tickfirst);
-        
+
 
     if(m)
     {
@@ -275,7 +275,7 @@ static int json_to_module_list(json_object *obj, struct module_s **mod)
       goto out;
     }
     len = 0;
-    
+
     while(m->iface[len++].name);
     m->niface= len-1;
     m->name = strdup(json_object_get_string(name));

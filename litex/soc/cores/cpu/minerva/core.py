@@ -7,19 +7,21 @@ import subprocess
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 CPU_VARIANTS = ["standard"]
 
 
 class Minerva(CPU):
     name                 = "minerva"
+    human_name           = "Minerva"
     data_width           = 32
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
-                            "riscv64-linux", "riscv-sifive-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
+    nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
@@ -31,13 +33,14 @@ class Minerva(CPU):
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        self.platform  = platform
-        self.variant   = variant
-        self.reset     = Signal()
-        self.ibus      = wishbone.Interface()
-        self.dbus      = wishbone.Interface()
-        self.buses     = [self.ibus, self.dbus]
-        self.interrupt = Signal(32)
+        self.platform     = platform
+        self.variant      = variant
+        self.reset        = Signal()
+        self.interrupt    = Signal(32)
+        self.ibus         = wishbone.Interface()
+        self.dbus         = wishbone.Interface()
+        self.periph_buses = [self.ibus, self.dbus]
+        self.memory_buses = []
 
         # TODO: create variants
         self.with_icache = False
@@ -97,8 +100,8 @@ class Minerva(CPU):
             cli_params.append("--with-dcache")
         if with_muldiv:
             cli_params.append("--with-muldiv")
-        _dir = os.path.abspath(os.path.dirname(__file__))
-        if subprocess.call(["python3", os.path.join(_dir, "verilog", "cli.py"), *cli_params, "generate"],
+        sdir = get_data_mod("cpu", "minerva").data_location
+        if subprocess.call(["python3", os.path.join(sdir, "cli.py"), *cli_params, "generate"],
             stdout=open(verilog_filename, "w")):
             raise OSError("Unable to elaborate Minerva CPU, please check your nMigen/Yosys install")
 

@@ -7,7 +7,7 @@ import sys
 import subprocess
 
 from migen.fhdl.structure import _Fragment
-
+from litex import get_data_mod
 from litex.build import tools
 from litex.build.generic_platform import *
 
@@ -102,13 +102,15 @@ extern "C" void litex_sim_init(void **out)
 
 
 def _generate_sim_variables(include_paths):
+    tapcfg_dir = get_data_mod("misc", "tapcfg").data_location
     include = ""
     for path in include_paths:
         include += "-I"+path+" "
     content = """\
 SRC_DIR = {}
 INC_DIR = {}
-""".format(core_directory, include)
+TAPCFG_DIRECTORY = {}
+""".format(core_directory, include, tapcfg_dir)
     tools.write_to_file("variables.mak", content)
 
 
@@ -125,7 +127,6 @@ def _build_sim(build_name, sources, threads, coverage, opt_level="O3", trace_fst
     build_script_contents = """\
 rm -rf obj_dir/
 make -C . -f {} {} {} {} {} {}
-mkdir -p modules && cp obj_dir/*.so modules
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "THREADS={}".format(threads) if int(threads) > 1 else "",

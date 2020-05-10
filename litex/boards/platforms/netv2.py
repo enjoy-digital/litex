@@ -2,7 +2,8 @@
 # License: BSD
 
 from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+from litex.build.xilinx import XilinxPlatform
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -11,19 +12,19 @@ _io = [
     ("clk50", 0, Pins("J19"), IOStandard("LVCMOS33")),
 
     # leds
-    ("user_led", 0, Pins("M21"), IOStandard("LVCMOS33")),
-    ("user_led", 1, Pins("N20"), IOStandard("LVCMOS33")),
-    ("user_led", 2, Pins("L21"), IOStandard("LVCMOS33")),
+    ("user_led", 0, Pins("M21"),  IOStandard("LVCMOS33")),
+    ("user_led", 1, Pins("N20"),  IOStandard("LVCMOS33")),
+    ("user_led", 2, Pins("L21"),  IOStandard("LVCMOS33")),
     ("user_led", 3, Pins("AA21"), IOStandard("LVCMOS33")),
-    ("user_led", 4, Pins("R19"), IOStandard("LVCMOS33")),
-    ("user_led", 5, Pins("M16"), IOStandard("LVCMOS33")),
+    ("user_led", 4, Pins("R19"),  IOStandard("LVCMOS33")),
+    ("user_led", 5, Pins("M16"),  IOStandard("LVCMOS33")),
 
     # spiflash
     ("flash", 0,
         Subsignal("cs_n", Pins("T19")),
         Subsignal("mosi", Pins("P22")),
         Subsignal("miso", Pins("R22")),
-        Subsignal("vpp", Pins("P21")),
+        Subsignal("wp",   Pins("P21")),
         Subsignal("hold", Pins("R21")),
         IOStandard("LVCMOS33")
     ),
@@ -31,7 +32,7 @@ _io = [
     # spiflash4x
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("T19")),
-        Subsignal("dq", Pins("P22 R22 P21 R21")),
+        Subsignal("dq",   Pins("P22 R22 P21 R21")),
         IOStandard("LVCMOS33")
     ),
 
@@ -48,10 +49,10 @@ _io = [
             "U6 V4 W5 V5 AA1 Y2 AB1 AB3",
             "AB2 Y3 W6 Y1 V2 AA3"),
             IOStandard("SSTL15_R")),
-        Subsignal("ba", Pins("U5 W4 V7"), IOStandard("SSTL15_R")),
+        Subsignal("ba",    Pins("U5 W4 V7"), IOStandard("SSTL15_R")),
         Subsignal("ras_n", Pins("Y9"), IOStandard("SSTL15_R")),
         Subsignal("cas_n", Pins("Y7"), IOStandard("SSTL15_R")),
-        Subsignal("we_n", Pins("V8"), IOStandard("SSTL15_R")),
+        Subsignal("we_n",  Pins("V8"), IOStandard("SSTL15_R")),
         Subsignal("dm", Pins("G1 H4 M5 L3"), IOStandard("SSTL15_R")),
         Subsignal("dq", Pins(
             "C2 F1 B1 F3 A1 D2 B2 E2",
@@ -64,8 +65,8 @@ _io = [
         Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("clk_p", Pins("R3"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("clk_n", Pins("R2"), IOStandard("DIFF_SSTL15_R")),
-        Subsignal("cke", Pins("Y8"), IOStandard("SSTL15_R")),
-        Subsignal("odt", Pins("W9"), IOStandard("SSTL15_R")),
+        Subsignal("cke",   Pins("Y8"), IOStandard("SSTL15_R")),
+        Subsignal("odt",   Pins("W9"), IOStandard("SSTL15_R")),
         Subsignal("reset_n", Pins("AB5"), IOStandard("LVCMOS15")),
         Subsignal("cs_n", Pins("V9"), IOStandard("SSTL15_R")),
         Misc("SLEW=FAST"),
@@ -76,30 +77,30 @@ _io = [
         Subsignal("rst_n", Pins("E18"), IOStandard("LVCMOS33")),
         Subsignal("clk_p", Pins("F10")),
         Subsignal("clk_n", Pins("E10")),
-        Subsignal("rx_p", Pins("D11")),
-        Subsignal("rx_n", Pins("C11")),
-        Subsignal("tx_p", Pins("D5")),
-        Subsignal("tx_n", Pins("C5"))
+        Subsignal("rx_p",  Pins("D11")),
+        Subsignal("rx_n",  Pins("C11")),
+        Subsignal("tx_p",  Pins("D5")),
+        Subsignal("tx_n",  Pins("C5"))
     ),
 
     ("pcie_x2", 0,
         Subsignal("rst_n", Pins("E18"), IOStandard("LVCMOS33")),
         Subsignal("clk_p", Pins("F10")),
         Subsignal("clk_n", Pins("E10")),
-        Subsignal("rx_p", Pins("D11 B10")),
-        Subsignal("rx_n", Pins("C11 A10")),
-        Subsignal("tx_p", Pins("D5 B6")),
-        Subsignal("tx_n", Pins("C5 A6"))
+        Subsignal("rx_p",  Pins("D11 B10")),
+        Subsignal("rx_n",  Pins("C11 A10")),
+        Subsignal("tx_p",  Pins("D5 B6")),
+        Subsignal("tx_n",  Pins("C5 A6"))
     ),
 
     ("pcie_x4", 0,
         Subsignal("rst_n", Pins("E18"), IOStandard("LVCMOS33")),
         Subsignal("clk_p", Pins("F10")),
         Subsignal("clk_n", Pins("E10")),
-        Subsignal("rx_p", Pins("D11 B10 D9 B8")),
-        Subsignal("rx_n", Pins("C11 A10 C9 A8")),
-        Subsignal("tx_p", Pins("D5 B6 D7 B4")),
-        Subsignal("tx_n", Pins("C5 A6 C7 A4"))
+        Subsignal("rx_p",  Pins("D11 B10 D9 B8")),
+        Subsignal("rx_n",  Pins("C11 A10 C9 A8")),
+        Subsignal("tx_p",  Pins("D5 B6 D7 B4")),
+        Subsignal("tx_n",  Pins("C5 A6 C7 A4"))
     ),
 
     # ethernet
@@ -109,30 +110,30 @@ _io = [
     ),
 
     ("eth", 0,
-        Subsignal("rst_n", Pins("F16")),
+        Subsignal("rst_n",   Pins("F16")),
         Subsignal("rx_data", Pins("A20 B18")),
-        Subsignal("crs_dv", Pins("C20")),
-        Subsignal("tx_en", Pins("A19")),
+        Subsignal("crs_dv",  Pins("C20")),
+        Subsignal("tx_en",   Pins("A19")),
         Subsignal("tx_data", Pins("C18 C19")),
-        Subsignal("mdc", Pins("F14")),
-        Subsignal("mdio", Pins("F13")),
-        Subsignal("rx_er", Pins("B20")),
-        Subsignal("int_n", Pins("D21")),
+        Subsignal("mdc",     Pins("F14")),
+        Subsignal("mdio",    Pins("F13")),
+        Subsignal("rx_er",   Pins("B20")),
+        Subsignal("int_n",   Pins("D21")),
         IOStandard("LVCMOS33")
      ),
 
      # sdcard
      ("sdcard", 0,
         Subsignal("data", Pins("L15 L16 K14 M13"), Misc("PULLUP True")),
-        Subsignal("cmd", Pins("L13"), Misc("PULLUP True")),
-        Subsignal("clk", Pins("K18")),
+        Subsignal("cmd",  Pins("L13"), Misc("PULLUP True")),
+        Subsignal("clk",  Pins("K18")),
         IOStandard("LVCMOS33"), Misc("SLEW=FAST")
     ),
 
     # hdmi in
     ("hdmi_in", 0,
-        Subsignal("clk_p", Pins("L19"), IOStandard("TMDS_33"), Inverted()),
-        Subsignal("clk_n", Pins("L20"), IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_p",   Pins("L19"), IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_n",   Pins("L20"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_p", Pins("K21"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_n", Pins("K22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data1_p", Pins("J20"), IOStandard("TMDS_33"), Inverted()),
@@ -146,22 +147,22 @@ _io = [
     ),
 
     ("hdmi_in", 1,
-        Subsignal("clk_p", Pins("Y18"), IOStandard("TMDS_33"), Inverted()),
-        Subsignal("clk_n", Pins("Y19"), IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_p",   Pins("Y18"),  IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_n",   Pins("Y19"),  IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_p", Pins("AA18"), IOStandard("TMDS_33")),
         Subsignal("data0_n", Pins("AB18"), IOStandard("TMDS_33")),
         Subsignal("data1_p", Pins("AA19"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data1_n", Pins("AB20"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data2_p", Pins("AB21"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data2_n", Pins("AB22"), IOStandard("TMDS_33"), Inverted()),
-        Subsignal("scl", Pins("W17"), IOStandard("LVCMOS33"), Inverted()),
-        Subsignal("sda", Pins("R17"), IOStandard("LVCMOS33")),
+        Subsignal("scl",     Pins("W17"),  IOStandard("LVCMOS33"), Inverted()),
+        Subsignal("sda",     Pins("R17"),  IOStandard("LVCMOS33")),
     ),
 
     # hdmi out
     ("hdmi_out", 0,
-        Subsignal("clk_p", Pins("W19"), Inverted(), IOStandard("TMDS_33")),
-        Subsignal("clk_n", Pins("W20"), Inverted(), IOStandard("TMDS_33")),
+        Subsignal("clk_p",   Pins("W19"), IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_n",   Pins("W20"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_p", Pins("W21"), IOStandard("TMDS_33")),
         Subsignal("data0_n", Pins("W22"), IOStandard("TMDS_33")),
         Subsignal("data1_p", Pins("U20"), IOStandard("TMDS_33")),
@@ -171,8 +172,8 @@ _io = [
     ),
 
     ("hdmi_out", 1,
-        Subsignal("clk_p", Pins("G21"), IOStandard("TMDS_33"), Inverted()),
-        Subsignal("clk_n", Pins("G22"), IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_p",   Pins("G21"), IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_n",   Pins("G22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_p", Pins("E22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_n", Pins("D22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data1_p", Pins("C22"), IOStandard("TMDS_33"), Inverted()),
@@ -180,15 +181,23 @@ _io = [
         Subsignal("data2_p", Pins("B21"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data2_n", Pins("A21"), IOStandard("TMDS_33"), Inverted()),
     ),
-
 ]
 
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
-    default_clk_name = "clk50"
+    default_clk_name   = "clk50"
     default_clk_period = 1e9/50e6
 
     def __init__(self, device="xc7a35t"):
         assert device in ["xc7a35t", "xc7a100t"]
         XilinxPlatform.__init__(self, device + "-fgg484-2", _io, toolchain="vivado")
+
+    def create_programmer(self):
+        bscan_spi = "bscan_spi_xc7a100t.bit" if "xc7a100t" in self.device else "bscan_spi_xc7a35t.bit"
+        return OpenOCD("openocd_netv2_rpi.cfg", bscan_spi)
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk50",              loose=True), 1e9/50e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks:ref_clk", loose=True), 1e9/50e6)

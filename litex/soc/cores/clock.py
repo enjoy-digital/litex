@@ -8,8 +8,9 @@ import math
 import logging
 
 from migen import *
-from migen.genlib.io import DifferentialInput
 from migen.genlib.resetsync import AsyncResetSynchronizer
+
+from litex.build.io import DifferentialInput
 
 from litex.soc.integration.soc import colorer
 from litex.soc.interconnect.csr import *
@@ -157,8 +158,8 @@ class XilinxClocking(Module, AutoCSR):
         self.drp_read   = CSR()
         self.drp_write  = CSR()
         self.drp_drdy   = CSRStatus()
-        self.drp_adr    = CSRStorage(7)
-        self.drp_dat_w  = CSRStorage(16)
+        self.drp_adr    = CSRStorage(7,  reset_less=True)
+        self.drp_dat_w  = CSRStorage(16, reset_less=True)
         self.drp_dat_r  = CSRStatus(16)
 
         # # #
@@ -598,6 +599,7 @@ class iCE40PLL(Module):
 
 class ECP5PLL(Module):
     nclkouts_max    = 3
+    clki_div_range  = (1, 128+1)
     clkfb_div_range = (1, 128+1)
     clko_div_range  = (1, 128+1)
     clki_freq_range = (    8e6,  400e6)
@@ -641,31 +643,32 @@ class ECP5PLL(Module):
 
     def compute_config(self):
         config = {}
-        config["clki_div"] = 1
-        for clkfb_div in range(*self.clkfb_div_range):
-            all_valid = True
-            vco_freq = self.clkin_freq*clkfb_div*1 # clkos3_div=1
-            (vco_freq_min, vco_freq_max) = self.vco_freq_range
-            if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                    valid = False
-                    for d in range(*self.clko_div_range):
-                        clk_freq = vco_freq/d
-                        if abs(clk_freq - f) <= f*m:
-                            config["clko{}_freq".format(n)]  = clk_freq
-                            config["clko{}_div".format(n)]   = d
-                            config["clko{}_phase".format(n)] = p
-                            valid = True
-                            break
-                    if not valid:
-                        all_valid = False
-            else:
-                all_valid = False
-            if all_valid:
-                config["vco"] = vco_freq
-                config["clkfb_div"] = clkfb_div
-                compute_config_log(self.logger, config)
-                return config
+        for clki_div in range(*self.clki_div_range):
+            config["clki_div"] = clki_div
+            for clkfb_div in range(*self.clkfb_div_range):
+                all_valid = True
+                vco_freq = self.clkin_freq/clki_div*clkfb_div*1 # clkos3_div=1
+                (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
+                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                        valid = False
+                        for d in range(*self.clko_div_range):
+                            clk_freq = vco_freq/d
+                            if abs(clk_freq - f) <= f*m:
+                                config["clko{}_freq".format(n)]  = clk_freq
+                                config["clko{}_div".format(n)]   = d
+                                config["clko{}_phase".format(n)] = p
+                                valid = True
+                                break
+                        if not valid:
+                            all_valid = False
+                else:
+                    all_valid = False
+                if all_valid:
+                    config["vco"] = vco_freq
+                    config["clkfb_div"] = clkfb_div
+                    compute_config_log(self.logger, config)
+                    return config
         raise ValueError("No PLL config found")
 
     def do_finalize(self):
@@ -673,6 +676,7 @@ class ECP5PLL(Module):
         clkfb  = Signal()
         self.params.update(
             attr=[
+                ("FREQUENCY_PIN_CLKI",     str(self.clkin_freq/1e6)),
                 ("ICP_CURRENT",            "6"),
                 ("LPF_RESISTOR",          "16"),
                 ("MFG_ENABLE_FILTEROPAMP", "1"),
@@ -684,7 +688,7 @@ class ECP5PLL(Module):
             p_CLKOS3_ENABLE = "ENABLED",
             p_CLKOS3_DIV    = 1,
             p_CLKFB_DIV     = config["clkfb_div"],
-            p_CLKI_DIV      = 1,
+            p_CLKI_DIV      = config["clki_div"],
         )
         for n, (clk, f, p, m) in sorted(self.clkouts.items()):
             n_to_l = {0: "P", 1: "S", 2: "S2"}
@@ -696,3 +700,209 @@ class ECP5PLL(Module):
             self.params["p_CLKO{}_CPHASE".format(n_to_l[n])] = cphase
             self.params["o_CLKO{}".format(n_to_l[n])]        = clk
         self.specials += Instance("EHXPLLL", **self.params)
+
+# Intel / Generic ---------------------------------------------------------------------------------
+
+class IntelClocking(Module, AutoCSR):
+    def __init__(self, vco_margin=0):
+        self.vco_margin = vco_margin
+        self.reset      = Signal()
+        self.locked     = Signal()
+        self.clkin_freq = None
+        self.vcxo_freq  = None
+        self.nclkouts   = 0
+        self.clkouts    = {}
+        self.config     = {}
+        self.params     = {}
+
+    def register_clkin(self, clkin, freq):
+        self.clkin = Signal()
+        if isinstance(clkin, (Signal, ClockSignal)):
+            self.comb += self.clkin.eq(clkin)
+        elif isinstance(clkin, Record):
+            self.specials += DifferentialInput(clkin.p, clkin.n, self.clkin)
+        else:
+            raise ValueError
+        self.clkin_freq = freq
+        register_clkin_log(self.logger, clkin, freq)
+
+    def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
+        assert self.nclkouts < self.nclkouts_max
+        clkout = Signal()
+        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
+        if with_reset:
+            self.specials += AsyncResetSynchronizer(cd, ~self.locked | self.reset)
+        self.comb += cd.clk.eq(clkout)
+        create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
+        self.nclkouts += 1
+
+    def compute_config(self):
+        config = {}
+        for n in range(*self.n_div_range):
+            config["n"] = n
+            for m in reversed(range(*self.m_div_range)):
+                all_valid = True
+                vco_freq = self.clkin_freq*m/n
+                (vco_freq_min, vco_freq_max) = self.vco_freq_range
+                if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
+                    vco_freq <= vco_freq_max*(1 - self.vco_margin)):
+                    for _n, (clk, f, p, _m) in sorted(self.clkouts.items()):
+                        valid = False
+                        for c in clkdiv_range(*self.c_div_range):
+                            clk_freq = vco_freq/c
+                            if abs(clk_freq - f) <= f*_m:
+                                config["clk{}_freq".format(_n)]   = clk_freq
+                                config["clk{}_divide".format(_n)] = c
+                                config["clk{}_phase".format(_n)]  = p
+                                valid = True
+                                break
+                            if valid:
+                                break
+                    if not valid:
+                        all_valid = False
+                else:
+                    all_valid = False
+                if all_valid:
+                    config["vco"] = vco_freq
+                    config["m"]   = m
+                    compute_config_log(self.logger, config)
+                    return config
+        raise ValueError("No PLL config found")
+
+    def do_finalize(self):
+        assert hasattr(self, "clkin")
+        config = self.compute_config()
+        clks = Signal(self.nclkouts)
+        self.params.update(
+            p_BANDWIDTH_TYPE         = "AUTO",
+            p_COMPENSATE_CLOCK       = "CLK0",
+            p_INCLK0_INPUT_FREQUENCY = int(1e12/self.clkin_freq),
+            p_OPERATION_MODE         = "NORMAL",
+            i_INCLK                  = self.clkin,
+            o_CLK                    = clks,
+            i_ARESET                 = 0,
+            i_CLKENA                 = 2**self.nclkouts_max - 1,
+            i_EXTCLKENA              = 0xf,
+            i_FBIN                   = 1,
+            i_PFDENA                 = 1,
+            i_PLLENA                 = 1,
+            o_LOCKED                 = self.locked,
+        )
+        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+            clk_phase_ps = int((1e12/config["clk{}_freq".format(n)])*config["clk{}_phase".format(n)]/360)
+            self.params["p_CLK{}_DIVIDE_BY".format(n)]   = config["clk{}_divide".format(n)]
+            self.params["p_CLK{}_DUTY_CYCLE".format(n)]  = 50
+            self.params["p_CLK{}_MULTIPLY_BY".format(n)] = config["m"]
+            self.params["p_CLK{}_PHASE_SHIFT".format(n)] = clk_phase_ps
+            self.comb += clk.eq(clks[n])
+        self.specials += Instance("ALTPLL", **self.params)
+
+# Intel / CycloneIV -------------------------------------------------------------------------------
+
+class CycloneIVPLL(IntelClocking):
+    nclkouts_max   = 5
+    n_div_range    = (1, 512+1)
+    m_div_range    = (1, 512+1)
+    c_div_range    = (1, 512+1)
+    vco_freq_range = (600e6, 1300e6)
+    def __init__(self, speedgrade="-6"):
+        self.logger = logging.getLogger("CycloneIVPLL")
+        self.logger.info("Creating CycloneIVPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        IntelClocking.__init__(self)
+        self.clkin_freq_range = {
+            "-6" : (5e6, 472.5e6),
+            "-7" : (5e6, 472.5e6),
+            "-8" : (5e6, 472.5e6),
+            "-8L": (5e6, 362e6),
+            "-9L": (5e6, 256e6),
+        }[speedgrade]
+        self.clko_freq_range = {
+            "-6" : (0e6, 472.5e6),
+            "-7" : (0e6, 450e6),
+            "-8" : (0e6, 402.5e6),
+            "-8L": (0e6, 362e6),
+            "-9L": (0e6, 265e6),
+        }[speedgrade]
+
+# Intel / CycloneV --------------------------------------------------------------------------------
+
+class CycloneVPLL(IntelClocking):
+    nclkouts_max   = 5
+    n_div_range    = (1, 512+1)
+    m_div_range    = (1, 512+1)
+    c_div_range    = (1, 512+1)
+    clkin_pfd_freq_range  = (5e6, 325e6)  # FIXME: use
+    clkfin_pfd_freq_range = (50e6, 160e6) # FIXME: use
+    def __init__(self, speedgrade="-C6"):
+        self.logger = logging.getLogger("CycloneVPLL")
+        self.logger.info("Creating CycloneVPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        IntelClocking.__init__(self)
+        self.clkin_freq_range = {
+            "-C6" : (5e6, 670e6),
+            "-C7" : (5e6, 622e6),
+            "-I7" : (5e6, 622e6),
+            "-C8" : (5e6, 622e6),
+            "-A7" : (5e6, 500e6),
+        }[speedgrade]
+        self.vco_freq_range = {
+            "-C6" : (600e6, 1600e6),
+            "-C7" : (600e6, 1600e6),
+            "-I7" : (600e6, 1600e6),
+            "-C8" : (600e6, 1300e6),
+            "-A7" : (600e6, 1300e6),
+        }[speedgrade]
+        self.clko_freq_range = {
+            "-C6" : (0e6, 550e6),
+            "-C7" : (0e6, 550e6),
+            "-I7" : (0e6, 550e6),
+            "-C8" : (0e6, 460e6),
+            "-A7" : (0e6, 460e6),
+        }[speedgrade]
+
+# Intel / Cyclone10LP ------------------------------------------------------------------------------
+
+class Cyclone10LPPLL(IntelClocking):
+    nclkouts_max   = 5
+    n_div_range    = (1, 512+1)
+    m_div_range    = (1, 512+1)
+    c_div_range    = (1, 512+1)
+    clkin_pfd_freq_range  = (5e6, 325e6)  # FIXME: use
+    vco_freq_range        = (600e6, 1300e6)
+    def __init__(self, speedgrade="-C6"):
+        self.logger = logging.getLogger("Cyclone10LPPLL")
+        self.logger.info("Creating Cyclone10LPPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        IntelClocking.__init__(self)
+        self.clkin_freq_range = {
+            "-C6" : (5e6, 472.5e6),
+            "-C8" : (5e6, 472.5e6),
+            "-I7" : (5e6, 472.5e6),
+            "-A7" : (5e6, 472.5e6),
+            "-I8" : (5e6, 362e6),
+        }[speedgrade]
+        self.clko_freq_range = {
+            "-C6" : (0e6, 472.5e6),
+            "-C8" : (0e6, 402.5e6),
+            "-I7" : (0e6, 450e6),
+            "-A7" : (0e6, 450e6),
+            "-I8" : (0e6, 362e6),
+        }[speedgrade]
+
+# Intel / Max10 ------------------------------------------------------------------------------------
+
+class Max10PLL(IntelClocking):
+    nclkouts_max   = 5
+    n_div_range    = (1, 512+1)
+    m_div_range    = (1, 512+1)
+    c_div_range    = (1, 512+1)
+    clkin_freq_range     = (5e6, 472.5e6)
+    clkin_pfd_freq_range = (5e6, 325e6)  # FIXME: use
+    vco_freq_range       = (600e6, 1300e6)
+    def __init__(self, speedgrade="-6"):
+        self.logger = logging.getLogger("Max10PLL")
+        self.logger.info("Creating Max10PLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
+        IntelClocking.__init__(self)
+        self.clko_freq_range = {
+            "-6" : (0e6, 472.5e6),
+            "-7" : (0e6, 450e6),
+            "-8" : (0e6, 402.5e6),
+        }[speedgrade]

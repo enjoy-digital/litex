@@ -1,11 +1,13 @@
+include ../variables.mak
 MODULES = xgmii_ethernet ethernet serial2console serial2tcp clocker
-SHROBJS = $(MODULES:=.so)
 
 .PHONY: $(MODULES)
 all: $(MODULES)
 
 $(MODULES): %:
-	$(MAKE) -C $@
+	mkdir -p $@
+	$(MAKE) MOD=$@ -C $@ -f $(SRC_DIR)/modules/$@/Makefile
+	cp $@/$@.so $@.so
 
 .PHONY: clean
 clean:

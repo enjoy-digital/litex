@@ -1,22 +1,20 @@
-include ../variables.mak
-CFLAGS += -Itapcfg/src/include
+include ../../variables.mak
 UNAME_S := $(shell uname -s)
 
-all: $(OBJ_DIR)/xgmii_ethernet.so
+include $(SRC_DIR)/modules/rules.mak
 
-include ../rules.mak
+CFLAGS += -I$(TAPCFG_DIRECTORY)/src/include
+OBJS = $(MOD).o tapcfg.o taplog.o
 
-OBJS = $(addprefix $(OBJ_DIR)/, xgmii_ethernet.o tapcfg.o taplog.o)
-
-$(OBJ_DIR)/xgmii_ethernet.so: $(OBJS)
+$(MOD).so: $(OBJS)
 ifeq ($(UNAME_S),Darwin)
 	$(CC) $(LDFLAGS) -o $@ $^
 else
 	$(CC) $(LDFLAGS) -Wl,-soname,$@ -o $@ $^
 endif
 
-$(OBJ_DIR)/tapcfg.o: tapcfg/src/lib/tapcfg.c
+tapcfg.o: $(TAPCFG_DIRECTORY)/src/lib/tapcfg.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(OBJ_DIR)/taplog.o: tapcfg/src/lib/taplog.c
+taplog.o: $(TAPCFG_DIRECTORY)/src/lib/taplog.c
 	$(CC) $(CFLAGS) -c -o $@ $<

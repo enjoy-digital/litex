@@ -4,7 +4,8 @@
 
 from migen import *
 from migen.genlib.misc import timeline
-from migen.genlib.io import DifferentialOutput
+
+from litex.build.io import DifferentialOutput
 
 from litex.soc.interconnect import wishbone
 

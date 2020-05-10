@@ -8,6 +8,7 @@ import os
 
 from migen import *
 
+from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
 
@@ -16,11 +17,13 @@ CPU_VARIANTS = ["standard", "linux"]
 
 class MOR1KX(CPU):
     name                 = "mor1kx"
+    human_name           = "MOR1KX"
     data_width           = 32
     endianness           = "big"
     gcc_triple           = "or1k-elf"
     clang_triple         = "or1k-linux"
     linker_output_format = "elf32-or1k"
+    nop                  = "l.nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property
@@ -63,13 +66,15 @@ class MOR1KX(CPU):
 
     def __init__(self, platform, variant="standard"):
         assert variant in CPU_VARIANTS, "Unsupported variant %s" % variant
-        self.platform  = platform
-        self.variant   = variant
-        self.reset     = Signal()
-        self.ibus      = i = wishbone.Interface()
-        self.dbus      = d = wishbone.Interface()
-        self.buses     = [i, d]
-        self.interrupt = Signal(32)
+        self.platform     = platform
+        self.variant      = variant
+        self.reset        = Signal()
+        self.interrupt    = Signal(32)
+        self.ibus         = i = wishbone.Interface()
+        self.dbus         = d = wishbone.Interface()
+        self.periph_buses = [i, d]
+        self.memory_buses = []
+
 
         if variant == "linux":
             self.mem_map = self.mem_map_linux
@@ -173,8 +178,8 @@ class MOR1KX(CPU):
     @staticmethod
     def add_sources(platform):
         vdir = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            "verilog", "rtl", "verilog")
+            get_data_mod("cpu", "mor1kx").data_location,
+            "rtl", "verilog")
         platform.add_source_dir(vdir)
         platform.add_verilog_include_path(vdir)
 

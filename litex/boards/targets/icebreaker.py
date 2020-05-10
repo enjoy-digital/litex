@@ -14,6 +14,7 @@
 # with more features, examples to run C/Rust code on the RISC-V CPU and documentation can be found
 # at: https://github.com/icebreaker-fpga/icebreaker-litex-examples
 
+import os
 import argparse
 
 from migen import *
@@ -115,18 +116,24 @@ def flash(bios_flash_offset):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on iCEBreaker")
-    parser.add_argument("--bios-flash-offset", default=0x40000, help="BIOS offset in SPI Flash")
-    parser.add_argument("--flash", action="store_true", help="Load Bitstream")
+    parser.add_argument("--build",             action="store_true", help="Build bitstream")
+    parser.add_argument("--load",              action="store_true", help="Load bitstream")
+    parser.add_argument("--bios-flash-offset", default=0x40000,     help="BIOS offset in SPI Flash")
+    parser.add_argument("--flash",             action="store_true", help="Flash Bitstream")
     builder_args(parser)
     soc_core_args(parser)
     args = parser.parse_args()
 
-    if args.flash:
-        flash(args.bios_flash_offset)
-
     soc     = BaseSoC(args.bios_flash_offset, **soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build()
+    builder.build(run=args.build)
+
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bin"))
+
+    if args.flash:
+        flash(args.bios_flash_offset)
 
 if __name__ == "__main__":
     main()

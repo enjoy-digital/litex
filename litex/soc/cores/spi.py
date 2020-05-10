@@ -17,7 +17,8 @@ class SPIMaster(Module, AutoCSR):
     configurable data_width and frequency.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
-    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True):
+    def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
+        assert mode in ["raw", "aligned"]
         if pads is None:
             pads = Record(self.pads_layout)
         if not hasattr(pads, "cs_n"):
@@ -96,32 +97,35 @@ class SPIMaster(Module, AutoCSR):
             for i in range(len(pads.cs_n)):
                 self.comb += pads.cs_n[i].eq(~self.cs[i] | ~xfer)
 
-        # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ---------------
-        mosi_data = Signal(data_width)
-        self.sync += \
+        # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ----------------
+        mosi_data = Array(self.mosi[i] for i in range(data_width))
+        mosi_bit  = Signal(max=data_width)
+        self.sync += [
             If(self.start,
-                mosi_data.eq(self.mosi)
+                mosi_bit.eq(self.length - 1 if mode == "aligned" else data_width - 1),
             ).Elif(clk_rise & shift,
-                mosi_data.eq(Cat(Signal(), mosi_data[:-1]))
-            ).Elif(clk_fall,
-                pads.mosi.eq(mosi_data[-1])
+                mosi_bit.eq(mosi_bit - 1)
+            ),
+            If(clk_fall,
+                pads.mosi.eq(mosi_data[mosi_bit])
             )
+        ]
 
         # Master In Slave Out (MISO) capture (captured on spi_clk rising edge) --------------------
         miso      = Signal()
         miso_data = self.miso
-        self.sync += \
-            If(shift,
-                If(clk_rise,
-                    If(self.loopback,
-                        miso.eq(pads.mosi)
-                    ).Else(
-                        miso.eq(pads.miso)
-                    )
-                ).Elif(clk_fall,
-                    miso_data.eq(Cat(miso, miso_data[:-1]))
+        self.sync += [
+            If(clk_rise & shift,
+                If(self.loopback,
+                    miso.eq(pads.mosi)
+                ).Else(
+                    miso.eq(pads.miso)
                 )
+            ),
+            If(clk_fall & shift,
+                miso_data.eq(Cat(miso, miso_data))
             )
+        ]
 
     def add_csr(self):
         self._control  = CSRStorage(fields=[
@@ -131,7 +135,7 @@ class SPIMaster(Module, AutoCSR):
         self._status   = CSRStatus(fields=[
             CSRField("done", size=1, offset=0, description="SPI Xfer done when read as ``1``.")
         ], description="SPI Status.")
-        self._mosi     = CSRStorage(self.data_width, description="SPI MOSI data (MSB-first serialization).")
+        self._mosi     = CSRStorage(self.data_width, reset_less=True, description="SPI MOSI data (MSB-first serialization).")
         self._miso     = CSRStatus(self.data_width,  description="SPI MISO data (MSB-first de-serialization).")
         self._cs       = CSRStorage(fields=[
             CSRField("sel", len(self.cs), reset=1, description="Write ``1`` to corresponding bit to enable Xfer for chip.")

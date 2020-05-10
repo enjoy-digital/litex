@@ -329,6 +329,9 @@ class CSRStorage(_CompoundCSR):
     reset : string
         Value of the register after reset.
 
+    reset_less : bool
+        If `True`, do not generate reset logic for CSRStorage.
+
     atomic_write : bool
         Provide an mechanism for atomic CPU writes is provided. When enabled, writes to the first
         CSR addresses go to a back-buffer whose contents are atomically copied to the main buffer
@@ -360,14 +363,14 @@ class CSRStorage(_CompoundCSR):
         ``write_from_dev == True``
     """
 
-    def __init__(self, size=1, reset=0, fields=[], atomic_write=False, write_from_dev=False, name=None, description=None):
+    def __init__(self, size=1, reset=0, reset_less=False, fields=[], atomic_write=False, write_from_dev=False, name=None, description=None):
         if fields != []:
             self.fields = CSRFieldAggregate(fields, CSRAccess.ReadWrite)
             size  = self.fields.get_size()
             reset = self.fields.get_reset()
         _CompoundCSR.__init__(self, size, name)
         self.description = description
-        self.storage = Signal(self.size, reset=reset)
+        self.storage = Signal(self.size, reset=reset, reset_less=reset_less)
         self.atomic_write = atomic_write
         self.re = Signal()
         if write_from_dev:

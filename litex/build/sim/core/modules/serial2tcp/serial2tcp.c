@@ -97,9 +97,9 @@ void read_handler(int fd, short event, void *arg)
   struct session_s *s = (struct session_s*)arg;
   char buffer[1024];
   ssize_t read_len;
-  
+
   int i;
-  
+
   read_len = read(fd, buffer, 1024);
   for(i = 0; i < read_len; i++)
   {
@@ -118,10 +118,10 @@ static void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd, 
 {
   struct session_s *s = (struct session_s*)ctx;
   struct timeval tv = {1, 0};
-  
+
   s->fd = fd;
   s->ev = event_new(base, fd, EV_READ | EV_PERSIST , event_handler, s);
-  event_add(s->ev, &tv);  
+  event_add(s->ev, &tv);
 }
 
 static void
@@ -159,7 +159,7 @@ static int serial2tcp_new(void **sess, char *args)
     fprintf(stderr, "Invalid port selected!\n");
     goto out;
   }
-   
+
   s=(struct session_s*)malloc(sizeof(struct session_s));
   if(!s) {
     ret = RC_NOENMEM;
@@ -177,8 +177,8 @@ static int serial2tcp_new(void **sess, char *args)
     eprintf("Can't bind port %d\n!\n", port);
     goto out;
   }
-  evconnlistener_set_error_cb(listener, accept_error_cb); 
-  
+  evconnlistener_set_error_cb(listener, accept_error_cb);
+
 out:
   *sess=(void*)s;
   return ret;
@@ -202,19 +202,19 @@ static int serial2tcp_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "source_valid", (void**)&s->tx_valid);
     litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
-  
+
   if(!strcmp(plist->name, "sys_clk"))
     litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->sys_clk);
 
 out:
   return ret;
-  
+
 }
 static int serial2tcp_tick(void *sess)
 {
   char c;
   int ret = RC_OK;
-  
+
   struct session_s *s = (struct session_s*)sess;
   if(*s->sys_clk == 0)
     return RC_OK;
@@ -228,7 +228,7 @@ static int serial2tcp_tick(void *sess)
       goto out;
     }
   }
-  
+
   *s->rx_valid=0;
   if(s->datalen) {
     *s->rx=s->databuf[s->data_start];
@@ -236,7 +236,7 @@ static int serial2tcp_tick(void *sess)
     s->datalen--;
     *s->rx_valid=1;
   }
-  
+
 out:
   return ret;
 }

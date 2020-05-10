@@ -3,14 +3,15 @@
 # License: BSD
 
 from litex.build.generic_platform import *
-from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+from litex.build.xilinx import XilinxPlatform
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
-    ("user_led", 0, Pins("H5"), IOStandard("LVCMOS33")),
-    ("user_led", 1, Pins("J5"), IOStandard("LVCMOS33")),
-    ("user_led", 2, Pins("T9"), IOStandard("LVCMOS33")),
+    ("user_led", 0, Pins("H5"),  IOStandard("LVCMOS33")),
+    ("user_led", 1, Pins("J5"),  IOStandard("LVCMOS33")),
+    ("user_led", 2, Pins("T9"),  IOStandard("LVCMOS33")),
     ("user_led", 3, Pins("T10"), IOStandard("LVCMOS33")),
 
     ("rgb_led", 0,
@@ -41,7 +42,7 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
 
-    ("user_sw", 0, Pins("A8"), IOStandard("LVCMOS33")),
+    ("user_sw", 0, Pins("A8"),  IOStandard("LVCMOS33")),
     ("user_sw", 1, Pins("C11"), IOStandard("LVCMOS33")),
     ("user_sw", 2, Pins("C10"), IOStandard("LVCMOS33")),
     ("user_sw", 3, Pins("A10"), IOStandard("LVCMOS33")),
@@ -62,7 +63,7 @@ _io = [
     ),
 
     ("spi", 0,
-        Subsignal("clk", Pins("F1")),
+        Subsignal("clk",  Pins("F1")),
         Subsignal("cs_n", Pins("C1")),
         Subsignal("mosi", Pins("H1")),
         Subsignal("miso", Pins("G1")),
@@ -79,16 +80,16 @@ _io = [
 
     ("spiflash4x", 0,
         Subsignal("cs_n", Pins("L13")),
-        Subsignal("clk", Pins("L16")),
-        Subsignal("dq", Pins("K17", "K18", "L14", "M14")),
+        Subsignal("clk",  Pins("L16")),
+        Subsignal("dq",   Pins("K17", "K18", "L14", "M14")),
         IOStandard("LVCMOS33")
     ),
     ("spiflash", 0,
         Subsignal("cs_n", Pins("L13")),
-        Subsignal("clk", Pins("L16")),
+        Subsignal("clk",  Pins("L16")),
         Subsignal("mosi", Pins("K17")),
         Subsignal("miso", Pins("K18")),
-        Subsignal("wp", Pins("L14")),
+        Subsignal("wp",   Pins("L14")),
         Subsignal("hold", Pins("M14")),
         IOStandard("LVCMOS33"),
     ),
@@ -98,11 +99,11 @@ _io = [
             "R2 M6 N4 T1 N6 R7 V6 U7",
             "R8 V7 R6 U6 T6 T8"),
             IOStandard("SSTL135")),
-        Subsignal("ba", Pins("R1 P4 P2"), IOStandard("SSTL135")),
+        Subsignal("ba",    Pins("R1 P4 P2"), IOStandard("SSTL135")),
         Subsignal("ras_n", Pins("P3"), IOStandard("SSTL135")),
         Subsignal("cas_n", Pins("M4"), IOStandard("SSTL135")),
-        Subsignal("we_n", Pins("P5"), IOStandard("SSTL135")),
-        Subsignal("cs_n", Pins("U8"), IOStandard("SSTL135")),
+        Subsignal("we_n",  Pins("P5"), IOStandard("SSTL135")),
+        Subsignal("cs_n",  Pins("U8"), IOStandard("SSTL135")),
         Subsignal("dm", Pins("L1 U1"), IOStandard("SSTL135")),
         Subsignal("dq", Pins(
             "K5 L3 K3 L6 M3 M1 L4 M2",
@@ -117,8 +118,8 @@ _io = [
             Misc("IN_TERM=UNTUNED_SPLIT_40")),
         Subsignal("clk_p", Pins("U9"), IOStandard("DIFF_SSTL135")),
         Subsignal("clk_n", Pins("V9"), IOStandard("DIFF_SSTL135")),
-        Subsignal("cke", Pins("N5"), IOStandard("SSTL135")),
-        Subsignal("odt", Pins("R5"), IOStandard("SSTL135")),
+        Subsignal("cke",   Pins("N5"), IOStandard("SSTL135")),
+        Subsignal("odt",   Pins("R5"), IOStandard("SSTL135")),
         Subsignal("reset_n", Pins("K6"), IOStandard("SSTL135")),
         Misc("SLEW=FAST"),
     ),
@@ -130,16 +131,16 @@ _io = [
         IOStandard("LVCMOS33"),
     ),
     ("eth", 0,
-        Subsignal("rst_n", Pins("C16")),
-        Subsignal("mdio", Pins("K13")),
-        Subsignal("mdc", Pins("F16")),
-        Subsignal("rx_dv", Pins("G16")),
-        Subsignal("rx_er", Pins("C17")),
+        Subsignal("rst_n",   Pins("C16")),
+        Subsignal("mdio",    Pins("K13")),
+        Subsignal("mdc",     Pins("F16")),
+        Subsignal("rx_dv",   Pins("G16")),
+        Subsignal("rx_er",   Pins("C17")),
         Subsignal("rx_data", Pins("D18 E17 E18 G17")),
-        Subsignal("tx_en", Pins("H15")),
+        Subsignal("tx_en",   Pins("H15")),
         Subsignal("tx_data", Pins("H14 J14 J13 H17")),
-        Subsignal("col", Pins("D17")),
-        Subsignal("crs", Pins("G14")),
+        Subsignal("col",     Pins("D17")),
+        Subsignal("crs",     Pins("G14")),
         IOStandard("LVCMOS33"),
     ),
 ]
@@ -153,16 +154,16 @@ _connectors = [
     ("pmodd", "D4 D3 F4 F3 E2 D2 H2 G2"),
     ("ck_io", {
         # Outer Digital Header
-        "ck_io0" : "V15",
-        "ck_io1" : "U16",
-        "ck_io2" : "P14",
-        "ck_io3" : "T11",
-        "ck_io4" : "R12",
-        "ck_io5" : "T14",
-        "ck_io6" : "T15",
-        "ck_io7" : "T16",
-        "ck_io8" : "N15",
-        "ck_io9" : "M16",
+        "ck_io0"  : "V15",
+        "ck_io1"  : "U16",
+        "ck_io2"  : "P14",
+        "ck_io3"  : "T11",
+        "ck_io4"  : "R12",
+        "ck_io5"  : "T14",
+        "ck_io6"  : "T15",
+        "ck_io7"  : "T16",
+        "ck_io8"  : "N15",
+        "ck_io9"  : "M16",
         "ck_io10" : "V17",
         "ck_io11" : "U18",
         "ck_io12" : "R17",
@@ -204,18 +205,18 @@ _connectors = [
         } ),
     ("XADC", {
         # Outer Analog Header
-        "vaux4_n" : "C5",
-        "vaux4_p" : "C6",
-        "vaux5_n" : "A5",
-        "vaux5_p" : "A6",
-        "vaux6_n" : "B4",
-        "vaux6_p" : "C4",
-        "vaux7_n" : "A1",
-        "vaux7_p" : "B1",
+        "vaux4_n"  : "C5",
+        "vaux4_p"  : "C6",
+        "vaux5_n"  : "A5",
+        "vaux5_p"  : "A6",
+        "vaux6_n"  : "B4",
+        "vaux6_p"  : "C4",
+        "vaux7_n"  : "A1",
+        "vaux7_p"  : "B1",
         "vaux15_n" : "B2",
         "vaux15_p" : "B3",
-        "vaux0_n" : "C14",
-        "vaux0_p" : "D14",
+        "vaux0_n"  : "C14",
+        "vaux0_p"  : "D14",
 
         # Inner Analog Header
         "vaux12_n" : "B7",
@@ -226,12 +227,12 @@ _connectors = [
         "vaux14_p" : "A3",
 
         # Power Measurements
-        "vsnsuv_n" : "B17",
-        "vsnsuv_p" : "B16",
-        "vsns5v0_n" : "B12",
-        "vsns5v0_p" : "C12",
-        "isns5v0_n" : "F14",
-        "isns5v0_n" : "F13",
+        "vsnsuv_n"   : "B17",
+        "vsnsuv_p"   : "B16",
+        "vsns5v0_n"  : "B12",
+        "vsns5v0_p"  : "C12",
+        "isns5v0_n"  : "F14",
+        "isns5v0_n"  : "F13",
         "isns0v95_n" : "A16",
         "isns0v95_n" : "A15",
         } ),
@@ -240,7 +241,7 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
-    default_clk_name = "clk100"
+    default_clk_name   = "clk100"
     default_clk_period = 1e9/100e6
 
     def __init__(self, variant="a7-35"):
@@ -257,4 +258,9 @@ class Platform(XilinxPlatform):
         self.add_platform_command("set_property INTERNAL_VREF 0.675 [get_iobanks 34]")
 
     def create_programmer(self):
-        return VivadoProgrammer(flash_part="n25q128-3.3v-spi-x1_x2_x4")
+        bscan_spi = "bscan_spi_xc7a100t.bit" if "xc7a100t" in self.device else "bscan_spi_xc7a35t.bit"
+        return OpenOCD("openocd_xc7_ft2232.cfg", bscan_spi)
+
+    def do_finalize(self, fragment):
+        XilinxPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk100", loose=True), 1e9/100e6)

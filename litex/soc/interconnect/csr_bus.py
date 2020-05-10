@@ -39,6 +39,9 @@ class Interface(Record):
         Record.__init__(self, set_layout_parameters(_layout,
             data_width    = data_width,
             address_width = address_width))
+        self.adr.reset_less   = True
+        self.dat_w.reset_less = True
+        self.dat_r.reset_less = True
 
     @classmethod
     def like(self, other):
@@ -120,7 +123,7 @@ class SRAM(Module):
         adr_shift = log2_int(bus.alignment//32)
 
         if word_bits:
-            word_index = Signal(word_bits)
+            word_index = Signal(word_bits, reset_less=True)
             word_expanded = Signal(csrw_per_memw*data_width)
             self.sync += word_index.eq(self.bus.adr[adr_shift:adr_shift+word_bits])
             self.comb += [
@@ -132,7 +135,7 @@ class SRAM(Module):
             if not read_only:
                 wregs = []
                 for i in range(csrw_per_memw-1):
-                    wreg = Signal(data_width)
+                    wreg = Signal(data_width, reset_less=True)
                     self.sync += If(sel & self.bus.we & (self.bus.adr[adr_shift:adr_shift+word_bits] == i), wreg.eq(self.bus.dat_w))
                     wregs.append(wreg)
                 memword_chunks = [self.bus.dat_w] + list(reversed(wregs))

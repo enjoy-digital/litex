@@ -34,7 +34,7 @@ _io = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(LatticePlatform):
-    default_clk_name = "clk12"
+    default_clk_name   = "clk12"
     default_clk_period = 1e9/12e6
 
     def __init__(self):
@@ -92,3 +92,7 @@ class Platform(LatticePlatform):
 </ispXCF>
 """
         return LatticeProgrammer(_xcf_template)
+
+    def do_finalize(self, fragment):
+        LatticePlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk12", loose=True), 1e9/12e6)

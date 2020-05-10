@@ -3,6 +3,7 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -46,21 +47,21 @@ _io = [
 
     ("ddram", 0,
         Subsignal("a", Pins(
-            "AC12 AE8 AD8 AC10 AD9 AA13 AA10 AA11",
-            "Y10 Y11 AB8 AA8 AB12 AA12 AH9"),
+            "AC12 AE8 AD8 AC10 AD9  AA13 AA10 AA11",
+            "Y10  Y11 AB8  AA8 AB12 AA12 AH9"),
             IOStandard("SSTL15")),
-        Subsignal("ba", Pins("AE9 AB10 AC11"), IOStandard("SSTL15")),
+        Subsignal("ba",    Pins("AE9 AB10 AC11"), IOStandard("SSTL15")),
         Subsignal("ras_n", Pins("AE11"), IOStandard("SSTL15")),
         Subsignal("cas_n", Pins("AF11"), IOStandard("SSTL15")),
-        Subsignal("we_n", Pins("AG13"), IOStandard("SSTL15")),
-        Subsignal("cs_n", Pins("AH12"), IOStandard("SSTL15")),
+        Subsignal("we_n",  Pins("AG13"), IOStandard("SSTL15")),
+        Subsignal("cs_n",  Pins("AH12"), IOStandard("SSTL15")),
         Subsignal("dm", Pins("AD4 AF3 AH4 AF8"),
             IOStandard("SSTL15")),
         Subsignal("dq", Pins(
             "AD3 AC2 AC1 AC5 AC4 AD6 AE6 AC7",
             "AF2 AE1 AF1 AE4 AE3 AE5 AF5 AF6",
             "AJ4 AH6 AH5 AH2 AJ2 AJ1 AK1 AJ3",
-            "AF7  AG7 AJ6 AK6 AJ8 AK8 AK5 AK4"),
+            "AF7 AG7 AJ6 AK6 AJ8 AK8 AK5 AK4"),
             IOStandard("SSTL15_T_DCI")),
         Subsignal("dqs_p", Pins("AD2 AG4 AG2 AH7"),
             IOStandard("DIFF_SSTL15")),
@@ -68,8 +69,8 @@ _io = [
             IOStandard("DIFF_SSTL15")),
         Subsignal("clk_p", Pins("AB9"), IOStandard("DIFF_SSTL15")),
         Subsignal("clk_n", Pins("AC9"), IOStandard("DIFF_SSTL15")),
-        Subsignal("cke", Pins("AJ9"), IOStandard("SSTL15")),
-        Subsignal("odt", Pins("AK9"), IOStandard("SSTL15")),
+        Subsignal("cke",   Pins("AJ9"), IOStandard("SSTL15")),
+        Subsignal("odt",   Pins("AK9"), IOStandard("SSTL15")),
         Subsignal("reset_n", Pins("AG5"), IOStandard("LVCMOS15")),
         Misc("SLEW=FAST"),
         Misc("VCCAUX_IO=HIGH")
@@ -81,13 +82,13 @@ _io = [
         IOStandard("LVCMOS15")
     ),
     ("eth", 0,
-        Subsignal("rst_n", Pins("AH24"), IOStandard("LVCMOS33")),
-        Subsignal("int_n", Pins("AK16"), IOStandard("LVCMOS18")),
-        Subsignal("mdio", Pins("AG12"), IOStandard("LVCMOS15")),
-        Subsignal("mdc", Pins("AF12"), IOStandard("LVCMOS15")),
-        Subsignal("rx_ctl", Pins("AH11"), IOStandard("LVCMOS15")),
+        Subsignal("rst_n",   Pins("AH24"), IOStandard("LVCMOS33")),
+        Subsignal("int_n",   Pins("AK16"), IOStandard("LVCMOS18")),
+        Subsignal("mdio",    Pins("AG12"), IOStandard("LVCMOS15")),
+        Subsignal("mdc",     Pins("AF12"), IOStandard("LVCMOS15")),
+        Subsignal("rx_ctl",  Pins("AH11"), IOStandard("LVCMOS15")),
         Subsignal("rx_data", Pins("AJ14 AH14 AK13 AJ13"), IOStandard("LVCMOS15")),
-        Subsignal("tx_ctl", Pins(" AK14"), IOStandard("LVCMOS15")),
+        Subsignal("tx_ctl",  Pins(" AK14"), IOStandard("LVCMOS15")),
         Subsignal("tx_data", Pins("AJ12 AK11 AJ11 AK10"), IOStandard("LVCMOS15")),
     ),
 ]
@@ -96,10 +97,10 @@ _io = [
 
 _connectors = [
     ("HPC", {
-        "DP0_C2M_P": "Y2",
-        "DP0_C2M_N": "Y1",
-        "DP0_M2C_P": "AA4",
-        "DP0_M2C_N": "AA3",
+        "DP0_C2M_P":     "Y2",
+        "DP0_C2M_N":     "Y1",
+        "DP0_M2C_P":     "AA4",
+        "DP0_M2C_N":     "AA3",
         "GBTCLK0_M2C_P": "L8",
         "GBTCLK0_M2C_N": "L7",
         }
@@ -109,18 +110,16 @@ _connectors = [
 # Platform -----------------------------------------------------------------------------------------
 
 class Platform(XilinxPlatform):
-    default_clk_name = "clk200"
+    default_clk_name   = "clk200"
     default_clk_period = 1e9/200e6
 
     def __init__(self):
         XilinxPlatform.__init__(self, "xc7k325t-ffg900-2", _io, _connectors, toolchain="vivado")
 
     def create_programmer(self):
-        return VivadoProgrammer()
+        return OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a325t.bit")
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
-        try:
-            self.add_period_constraint(self.lookup_request("eth_clocks").rx, 1e9/125e6)
-        except ConstraintError:
-            pass
+        self.add_period_constraint(self.lookup_request("clk200",        loose=True), 1e9/200e6)
+        self.add_period_constraint(self.lookup_request("eth_clocks:rx", loose=True), 1e9/125e6)
