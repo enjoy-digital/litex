@@ -282,7 +282,8 @@ class SoCBusHandler(Module):
         return is_io
 
     # Add Master/Slave -----------------------------------------------------------------------------
-    def add_adapter(self, name, interface, is_master):
+    def add_adapter(self, name, interface, direction="m2s"):
+        assert direction in ["m2s", "s2m"]
         if interface.data_width != self.data_width:
             self.logger.info("{} Bus {} from {}-bit to {}-bit.".format(
                 colorer(name),
@@ -290,8 +291,11 @@ class SoCBusHandler(Module):
                 colorer(interface.data_width),
                 colorer(self.data_width)))
             new_interface = wishbone.Interface(data_width=self.data_width)
-            args = (interface, new_interface) if is_master else (new_interface, interface)
-            self.submodules += wishbone.Converter(*args)
+            if direction == "m2s":
+                converter = wishbone.Converter(master=interface, slave=new_interface)
+            if direction == "s2m":
+                converter = wishbone.Converter(master=new_interface, slave=interface)
+            self.submodules += converter
             return new_interface
         else:
             return interface
@@ -305,7 +309,7 @@ class SoCBusHandler(Module):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise
-        master = self.add_adapter(name, master, True)
+        master = self.add_adapter(name, master, "m2s")
         self.masters[name] = master
         self.logger.info("{} {} as Bus Master.".format(
             colorer(name,    color="underline"),
@@ -337,7 +341,7 @@ class SoCBusHandler(Module):
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise
-        slave = self.add_adapter(name, slave, False)
+        slave = self.add_adapter(name, slave, "s2m")
         self.slaves[name] = slave
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
