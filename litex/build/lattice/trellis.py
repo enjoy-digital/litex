@@ -117,7 +117,7 @@ nextpnr_ecp5_architectures = {
 _build_template = [
     "yosys -l {build_name}.rpt {build_name}.ys",
     "nextpnr-ecp5 --json {build_name}.json --lpf {build_name}.lpf --textcfg {build_name}.config  \
-    --{architecture} --package {package} --speed {speed_grade} {timefailarg} {ignoreloops} {seed}",
+    --{architecture} --package {package} --speed {speed_grade} {timefailarg} {ignoreloops} --seed {seed}",
     "ecppack {build_name}.config --svf {build_name}.svf --bit {build_name}.bit"
 ]
 
@@ -141,7 +141,7 @@ def _build_script(source, build_template, build_name, architecture, package, spe
             timefailarg     = "--timing-allow-fail" if not timingstrict else "",
             ignoreloops     = "--ignore-loops" if ignoreloops else "",
             fail_stmt       = fail_stmt,
-            seed            = f"--seed {seed}" if seed is not None else "")
+            seed            = seed)
 
     script_file = "build_" + build_name + script_ext
     tools.write_to_file(script_file, script_contents, force_unix=False)
@@ -187,7 +187,7 @@ class LatticeTrellisToolchain:
         nowidelut      = False,
         timingstrict   = False,
         ignoreloops    = False,
-        seed           = None,
+        seed           = 1,
         **kwargs):
 
         # Create build directory
@@ -246,10 +246,13 @@ def trellis_args(parser):
                         help="fail if timing not met, i.e., do NOT pass '--timing-allow-fail' to nextpnr")
     parser.add_argument("--nextpnr-ignoreloops", action="store_true",
                         help="ignore combinational loops in timing analysis, i.e. pass '--ignore-loops' to nextpnr")
+    parser.add_argument("--nextpnr-seed", default=1, type=int,
+                        help="seed to pass to nextpnr")
 
 def trellis_argdict(args):
     return {
         "nowidelut":    args.yosys_nowidelut,
         "timingstrict": args.nextpnr_timingstrict,
         "ignoreloops":  args.nextpnr_ignoreloops,
+        "seed":         args.nextpnr_seed,
     }
