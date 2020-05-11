@@ -6,6 +6,7 @@
 import os
 import re
 import sys
+import math
 import subprocess
 import shutil
 
@@ -41,28 +42,26 @@ def _format_lpf(signame, pin, others, resname):
     return "\n".join(lpf)
 
 
-def _build_lpf(named_sc, named_pc, cc, build_name):
+def _build_lpf(named_sc, named_pc, clocks, vns, build_name):
     lpf = []
     lpf.append("BLOCK RESETPATHS;")
     lpf.append("BLOCK ASYNCPATHS;")
-    clk_ports = set()
     for sig, pins, others, resname in named_sc:
         if len(pins) > 1:
             for i, p in enumerate(pins):
                 lpf.append(_format_lpf(sig + "[" + str(i) + "]", p, others, resname))
         else:
             lpf.append(_format_lpf(sig, pins[0], others, resname))
-        if sig in cc.keys():
-            clk_ports.add(sig)
     if named_pc:
         lpf.append("\n".join(named_pc))
 
-    # NOTE: The lpf is only used post-synthesis. Currently Synplify is fed no constraints,
-    # so defaults to inferring clocks and trying to hit 200MHz on all of them.
-    # NOTE: For additional options (PAR_ADJ, etc), use add_platform_command
-    for clk, freq in cc.items():
-        sig_type = "PORT" if clk in clk_ports else "NET"
-        lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(sig_type, clk, freq))
+    # Note: .lpf is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
+    for clk, period in clocks.items():
+        clk_name = vns.get_name(clk)
+        lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(
+            "PORT" if clk_name in [name for name, _, _, _ in named_sc] else "NET",
+            clk_name,
+            str(1e3/period)))
 
     tools.write_to_file(build_name + ".lpf", "\n".join(lpf))
 
@@ -104,7 +103,7 @@ def _build_tcl(device, sources, vincpaths, build_name):
     if _produces_jedec(device):
         tcl.append("prj_run Export -impl impl -task Jedecgen")
 
-    # Cleanly close the project
+    # Close project
     tcl.append("prj_project close")
 
     tools.write_to_file(build_name + ".tcl", "\n".join(tcl))
@@ -148,7 +147,6 @@ def _run_script(script):
     if subprocess.call(shell + [script]) != 0:
         raise OSError("Subprocess failed")
 
-# This operates the same way tmcheck does, but tmcheck isn't usable without gui
 def _check_timing(build_name):
     lines = open("impl/{}_impl.par".format(build_name), "r").readlines()
     runs = [None, None]
@@ -166,13 +164,13 @@ def _check_timing(build_name):
         if m is None: continue
         limit = 1e-8
         setup = m.group(2)
-        hold = m.group(4)
-        # if there were no freq constraints in lpf, ratings will be dashed.
+        hold  = m.group(4)
+        # If there were no freq constraints in lpf, ratings will be dashed.
         # results will likely be terribly unreliable, so bail
         assert not setup == hold == "-", "No timing constraints were provided"
         setup, hold = map(float, (setup, hold))
         if setup > limit and hold > limit:
-            # at least one run met timing
+            # At least one run met timing
             # XXX is this necessarily the run from which outputs will be used?
             return
     raise Exception("Failed to meet timing")
@@ -196,7 +194,7 @@ class LatticeDiamondToolchain:
     special_overrides = common.lattice_ecp5_special_overrides
 
     def __init__(self):
-        self.period_constraints = []
+        self.clocks      = {}
         self.false_paths = set() # FIXME: use it
 
     def build(self, platform, fragment,
@@ -223,15 +221,8 @@ class LatticeDiamondToolchain:
         v_output.write(v_file)
         platform.add_source(v_file)
 
-        cc = {}
-        for (clk, freq) in self.period_constraints:
-            clk_name = v_output.ns.get_name(clk)
-            if clk_name in cc and cc[clk_name] != freq:
-                raise ConstraintError("Differing period constraints on {}".format(clk_name))
-            cc[clk_name] = freq
-
         # Generate design constraints file (.lpf)
-        _build_lpf(named_sc, named_pc, cc, build_name)
+        _build_lpf(named_sc, named_pc, self.clocks, v_output.ns, build_name)
 
         # Generate design script file (.tcl)
         _build_tcl(platform.device, platform.sources, platform.verilog_include_paths, build_name)
@@ -250,10 +241,13 @@ class LatticeDiamondToolchain:
         return v_output.ns
 
     def add_period_constraint(self, platform, clk, period):
-        # TODO: handle differential clk
         clk.attr.add("keep")
-        freq = str(float(1/period)*1000)
-        self.period_constraints.append((clk, freq))
+        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
+        if clk in self.clocks:
+            if period != self.clocks[clk]:
+                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
+                    .format(self.clocks[clk], period))
+        self.clocks[clk] = period
 
     def add_false_path_constraint(self, platform, from_, to):
         from_.attr.add("keep")
