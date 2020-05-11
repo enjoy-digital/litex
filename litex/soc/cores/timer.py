@@ -65,6 +65,8 @@ class Timer(Module, AutoCSR, ModuleDoc):
         self.ev.zero       = EventSourceProcess()
         self.ev.finalize()
 
+        self._total_cycles_reg = CSRStatus(64, description="""Total number of cycles since start.""")        
+        self._update_total_cycles = CSRStorage(1, description="""Update trigger for the current total cycles""")
         # # #
 
         value = Signal(width)
@@ -81,4 +83,7 @@ class Timer(Module, AutoCSR, ModuleDoc):
             ),
             If(self._update_value.re, self._value.status.eq(value))
         ]
+        total_cycles_value = Signal(width)
+        self.sync += total_cycles_value.eq(total_cycles_value + 1)
+        self.sync += If(self._update_total_cycles.re, self._total_cycles_reg.status.eq(total_cycles_value))
         self.comb += self.ev.zero.trigger.eq(value != 0)
