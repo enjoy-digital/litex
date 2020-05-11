@@ -155,7 +155,7 @@ class XilinxVivadoToolchain:
 
         # Add IPs
         tcl.append("\n# Add IPs\n")
-        for filename in platform.ips:
+        for filename, disable_constraints in platform.ips.items():
             filename_tcl = "{" + filename + "}"
             ip = os.path.splitext(os.path.basename(filename))[0]
             tcl.append("read_ip " + filename_tcl)
@@ -163,10 +163,13 @@ class XilinxVivadoToolchain:
             tcl.append("generate_target all [get_ips {}]".format(ip))
             tcl.append("synth_ip [get_ips {}] -force".format(ip))
             tcl.append("get_files -all -of_objects [get_files {}]".format(filename_tcl))
+            if disable_constraints:
+                tcl.append("set_property is_enabled false [get_files -of_objects [get_files {}] -filter {{FILE_TYPE == XDC}}]".format(filename_tcl))
 
         # Add constraints
         tcl.append("\n# Add constraints\n")
         tcl.append("read_xdc {}.xdc".format(build_name))
+        tcl.append("set_property PROCESSING_ORDER EARLY [get_files {}.xdc]".format(build_name))
 
         # Add pre-synthesis commands
         tcl.append("\n# Add pre-synthesis commands\n")
@@ -276,7 +279,7 @@ class XilinxVivadoToolchain:
             "-to [get_pins -filter {{REF_PIN_NAME == PRE}} "
                 "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE || ars_ff2 == TRUE}}]]"
         )
-        # clock_period-2ns to resolve metastability on the wire between the AsyncResetSynchronizer FFs 
+        # clock_period-2ns to resolve metastability on the wire between the AsyncResetSynchronizer FFs
         platform.add_platform_command(
             "set_max_delay 2 -quiet "
             "-from [get_pins -filter {{REF_PIN_NAME == C}} "

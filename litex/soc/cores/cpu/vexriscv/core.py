@@ -15,7 +15,7 @@ from migen import *
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 
 CPU_VARIANTS = {
@@ -25,6 +25,8 @@ CPU_VARIANTS = {
     "lite+debug":       "VexRiscv_LiteDebug",
     "standard":         "VexRiscv",
     "standard+debug":   "VexRiscv_Debug",
+    "imac":             "VexRiscv_IMAC",
+    "imac+debug":       "VexRiscv_IMACDebug",
     "full":             "VexRiscv_Full",
     "full+debug":       "VexRiscv_FullDebug",
     "linux":            "VexRiscv_Linux",
@@ -47,6 +49,8 @@ GCC_FLAGS = {
     "lite+debug":       "-march=rv32i      -mabi=ilp32",
     "standard":         "-march=rv32im     -mabi=ilp32",
     "standard+debug":   "-march=rv32im     -mabi=ilp32",
+    "imac":             "-march=rv32imac   -mabi=ilp32",
+    "imac+debug":       "-march=rv32imac   -mabi=ilp32",
     "full":             "-march=rv32im     -mabi=ilp32",
     "full+debug":       "-march=rv32im     -mabi=ilp32",
     "linux":            "-march=rv32ima    -mabi=ilp32",
@@ -76,11 +80,12 @@ class VexRiscvTimer(Module, AutoCSR):
 
 class VexRiscv(CPU, AutoCSR):
     name                 = "vexriscv"
+    human_name           = "VexRiscv"
     data_width           = 32
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv32-unknown-elf", "riscv-none-embed",
-                            "riscv64-linux", "riscv-sifive-elf", "riscv64-none-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
+    nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property

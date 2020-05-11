@@ -43,10 +43,7 @@ static void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, u
 	irq_setmask(0);
 	irq_setie(0);
 #endif
-/* FIXME: understand why flushing icache on Vexriscv make boot fail  */
-#ifndef __vexriscv__
 	flush_cpu_icache();
-#endif
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();

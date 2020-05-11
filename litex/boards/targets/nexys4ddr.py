@@ -3,6 +3,7 @@
 # This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
+import os
 import argparse
 
 from migen import *
@@ -117,16 +118,14 @@ class BaseSoC(SoCCore):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Nexys4DDR")
+    parser.add_argument("--build", action="store_true", help="Build bitstream")
+    parser.add_argument("--load",  action="store_true", help="Load bitstream")
     builder_args(parser)
     soc_sdram_args(parser)
-    parser.add_argument("--sys-clk-freq", default=75e6,
-                        help="system clock frequency (default=75MHz)")
-    parser.add_argument("--with-ethernet", action="store_true",
-                        help="enable Ethernet support")
-    parser.add_argument("--with-spi-sdcard", action="store_true",
-                        help="enable SPI-mode SDCard support")
-    parser.add_argument("--with-sdcard", action="store_true",
-                        help="enable SDCard support")
+    parser.add_argument("--sys-clk-freq",  default=75e6,          help="System clock frequency (default=75MHz)")
+    parser.add_argument("--with-ethernet", action="store_true",   help="Enable Ethernet support")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard", action="store_true",     help="enable SDCard support")
     args = parser.parse_args()
 
     soc = BaseSoC(sys_clk_freq=int(float(args.sys_clk_freq)),
@@ -139,8 +138,11 @@ def main():
             raise ValueError("'--with-spi-sdcard' and '--with-sdcard' are mutually exclusive!")
         soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
-    builder.build()
+    builder.build(run=args.build)
 
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, "top.bit"))
 
 if __name__ == "__main__":
     main()

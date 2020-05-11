@@ -35,32 +35,33 @@ from migen import *
 from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.cpu import CPU
+from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
 
 CPU_VARIANTS = {
     "standard": "freechips.rocketchip.system.LitexConfig",
 }
 
 GCC_FLAGS = {
-    "standard": "-march=rv64ia   -mabi=lp64 -O0 ",
+    "standard": "-march=rv64ia -mabi=lp64 -O0  ",
 }
 
 class BlackParrotRV64(CPU):
     name                 = "blackparrot"
+    human_name           = "BlackParrotRV64[ia]"
     data_width           = 64
     endianness           = "little"
-    gcc_triple           = ("riscv64-unknown-elf", "riscv64-linux", "riscv-sifive-elf",
-                            "riscv64-none-elf")
+    gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
-    io_regions           = {0x30000000: 0x20000000} # origin, length
+    nop                  = "nop"
+    io_regions           = {0x50000000: 0x10000000} # origin, length
 
     @property
     def mem_map(self):
         return {
-            "ethmac"   : 0x30000000,
-            "csr"      : 0x40000000,
-            "rom"      : 0x50000000,
-            "sram"     : 0x51000000,
+            "csr"      : 0x50000000,
+#            "ethmac"   : 0x55000000,
+            "rom"      : 0x70000000,
+            "sram"     : 0x71000000,
             "main_ram" : 0x80000000,
         }
 
@@ -77,48 +78,53 @@ class BlackParrotRV64(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.interrupt    = Signal(4)
+#        self.interrupt    = Signal(4)
         self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
         self.periph_buses = [idbus]
         self.memory_buses = []
-
-        # # #
+#        self.buses     = [wbn]
 
         self.cpu_params = dict(
             # clock, reset
-            i_clk_i      = ClockSignal(),
-            i_reset_i    = ResetSignal() | self.reset,
+            i_clk_i = ClockSignal(),
+            i_reset_i = ResetSignal() | self.reset,
 
             # irq
-            i_interrupts = self.interrupt,
+            #i_interrupts = self.interrupt,
 
-            # wishbone
-            i_wbm_dat_i  = idbus.dat_r,
-            o_wbm_dat_o  = idbus.dat_w,
-            i_wbm_ack_i  = idbus.ack,
-            i_wbm_err_i  = 0,
-            i_wbm_rty_i  = 0,
-            o_wbm_adr_o  = idbus.adr,
-            o_wbm_stb_o  = idbus.stb,
-            o_wbm_cyc_o  = idbus.cyc,
-            o_wbm_sel_o  = idbus.sel,
-            o_wbm_we_o   = idbus.we,
-            o_wbm_cti_o  = idbus.cti,
-            o_wbm_bte_o  = idbus.bte,
-        )
+            #wishbone
+            i_wbm_dat_i = idbus.dat_r,
+            o_wbm_dat_o = idbus.dat_w,
+            i_wbm_ack_i = idbus.ack,
+            i_wbm_err_i = idbus.err,
+            #i_wbm_rty_i = 0,
+            o_wbm_adr_o = idbus.adr,
+            o_wbm_stb_o = idbus.stb,
+            o_wbm_cyc_o = idbus.cyc,
+            o_wbm_sel_o = idbus.sel,
+            o_wbm_we_o = idbus.we,
+            o_wbm_cti_o = idbus.cti,
+            o_wbm_bte_o = idbus.bte,
+            )
 
-        # add verilog sources
+           # add verilog sources
         self.add_sources(platform, variant)
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
         self.reset_address = reset_address
-        assert reset_address == 0x00000000, "cpu_reset_addr hardcoded to 0x00000000!"
+        #FIXME: set reset addr to 0x70000000
+        #assert reset_address == 0x00000000, "cpu_reset_addr hardcoded to 0x00000000!"
 
     @staticmethod
     def add_sources(platform, variant="standard"):
-        filename = get_data_mod("cpu", "blackparrot").data_file(
-            "flist_litex.verilator")
+        vdir = get_data_mod("cpu", "blackparrot").data_location
+        bp_litex_dir = os.path.join(vdir,"bp_litex")
+        simulation = 1
+        if (simulation == 1):
+            filename= os.path.join(bp_litex_dir,"flist.verilator")
+        else:
+            filename= os.path.join(bp_litex_dir,"flist.fpga")
         with open(filename) as openfileobject:
             for line in openfileobject:
                 temp = line
@@ -131,7 +137,6 @@ class BlackParrotRV64(CPU):
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1] + line[s2:-1]
-                    print("INCDIR" + vdir)
                     platform.add_verilog_include_path(vdir)  #this line might be changed
                 elif (temp[0]=='$') :
                     s2 = line.find('/')
@@ -139,7 +144,6 @@ class BlackParrotRV64(CPU):
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1]+ line[s2:-1]
-                    print(vdir)
                     platform.add_source(vdir) #this line might be changed
                 elif (temp[0] == '/'):
                     assert("No support for absolute path for now")

@@ -114,3 +114,7 @@ class Platform(AlteraPlatform):
 
     def create_programmer(self):
         return USBBlaster()
+
+    def do_finalize(self, fragment):
+        AlteraPlatform.do_finalize(self, fragment)
+        self.add_period_constraint(self.lookup_request("clk50", loose=True), 1e9/50e6)

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define STACK_TOP	0xffff4000
-
 #define FIXUP_ENDIAN						   \
 	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
 	b     191f;	  /* Skip trampoline if endian is good	*/ \
@@ -38,24 +36,17 @@
 	oris    r,r, (e)@h;			\
 	ori     r,r, (e)@l;
 
-	.section ".head","ax"
-
 	. = 0
 .global _start
 _start:
 	FIXUP_ENDIAN
 
 	/* setup stack */
-	LOAD_IMM64(%r1, STACK_TOP - 0x100)
+	LOAD_IMM64(%r1, _fstack - 0x100)
 	LOAD_IMM64(%r12, main)
 	mtctr	%r12,
 	bctrl
-	ba	0
-
-	/* XXX: litedram init should not take exceptions, maybe we could get
-	 *      rid of these to save space, along with a core tweak to suppress
-	 *      exceptions in case they happen (just terminate ?)
-	 */
+	b .
 
 #define EXCEPTION(nr)		\
 	.=  nr;      \

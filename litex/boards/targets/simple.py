@@ -4,6 +4,7 @@
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
 # License: BSD
 
+import os
 import argparse
 import importlib
 
@@ -41,14 +42,12 @@ class BaseSoC(SoCCore):
 
 def main():
     parser = argparse.ArgumentParser(description="Generic LiteX SoC")
+    parser.add_argument("--build", action="store_true", help="Build bitstream")
     builder_args(parser)
     soc_core_args(parser)
-    parser.add_argument("--with-ethernet", action="store_true",
-                        help="enable Ethernet support")
-    parser.add_argument("platform",
-                        help="module name of the platform to build for")
-    parser.add_argument("--gateware-toolchain", default=None,
-                        help="FPGA gateware toolchain used for build")
+    parser.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
+    parser.add_argument("platform",                             help="Module name of the platform to build for")
+    parser.add_argument("--gateware-toolchain", default=None,   help="FPGA gateware toolchain used for build")
     args = parser.parse_args()
 
     platform_module = importlib.import_module(args.platform)
@@ -58,7 +57,7 @@ def main():
         platform = platform_module.Platform()
     soc = BaseSoC(platform, with_ethernet=args.with_ethernet, **soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.build()
+    builder.build(run=args.build)
 
 
 if __name__ == "__main__":

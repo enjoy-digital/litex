@@ -107,7 +107,7 @@ double strtod(const char *str, char **endptr)
   switch (*p)
     {
     case '-':
-      negative = 1; /* Fall through to increment position */
+      negative = 1; /* FALLTHRU */ /* to increment position */
     case '+':
       p++;
     }
@@ -166,7 +166,7 @@ double strtod(const char *str, char **endptr)
       switch(*++p)
         {
         case '-':
-          negative = 1;   /* Fall through to increment pos */
+          negative = 1;   /* FALLTHRU */ /* to increment pos */
         case '+':
           p++;
         }

@@ -262,6 +262,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 			case 'X':
 				flags |= PRINTF_LARGE;
+                                /* FALLTHRU */
 			case 'x':
 				base = 16;
 				break;

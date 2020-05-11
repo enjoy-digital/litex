@@ -25,39 +25,31 @@ class LatticeProgrammer(GenericProgrammer):
 # OpenOCDJTAGProgrammer --------------------------------------------------------------------------------
 
 class OpenOCDJTAGProgrammer(GenericProgrammer):
-    def __init__(self, openocd_config, flash_proxy_basename=None):
-        GenericProgrammer.__init__(self, flash_proxy_basename=flash_proxy_basename)
-        self.openocd_config = openocd_config
+    def __init__(self, config, flash_proxy_basename=None):
+        GenericProgrammer.__init__(self, flash_proxy_basename)
+        self.config = config
 
     def load_bitstream(self, bitstream_file):
+        config   = self.find_config()
         svf_file = bitstream_file.replace(".bit", ".svf")
+        subprocess.call(["openocd", "-f", config, "-c", "transport select jtag; init; svf quiet progress \"{}\"; exit".format(svf_file)])
 
-        subprocess.call(["openocd", "-f", self.openocd_config , "-c", "transport select jtag; init; svf \"{}\"; exit".format(svf_file)])
-
-    def flash(self, address, data, erase=False, verify=True):
-        if self.flash_proxy_basename is None:
-            flash_proxy = None
-        else:
-            flash_proxy = self.find_flash_proxy()
-
-        if erase:
-            erase = "erase"
-        else:
-            erase = ""
-
+    def flash(self, address, data, verify=True):
+        config      = self.find_config()
+        flash_proxy = self.find_flash_proxy()
         script = "; ".join([
             "transport select jtag",
             "target create ecp5.spi0.proxy testee -chain-position ecp5.tap",
             "flash bank spi0 jtagspi 0 0 0 0 ecp5.spi0.proxy 0x32",
             "init",
-            "svf \"{}\"" if flash_proxy is not None else "".format(flash_proxy),
+            "svf quiet progress \"{}\"".format(flash_proxy),
             "reset halt",
             "flash probe spi0",
-            "flash write_image {0} \"{1}\" 0x{2:x}".format(erase, data, address),
+            "flash write_image erase \"{0}\" 0x{1:x}".format(data, address),
             "flash verify_bank spi0 \"{0}\" 0x{1:x}" if verify else "".format(data, address),
             "exit"
         ])
-        subprocess.call(["openocd", "-f", self.openocd_config, "-c", script])
+        subprocess.call(["openocd", "-f", config, "-c", script])
 
 # IceStormProgrammer -------------------------------------------------------------------------------
 
@@ -138,3 +130,11 @@ class MyStormProgrammer(GenericProgrammer):
         with serial.Serial(self.serial_port) as port:
             with open(bitstream_file, "rb") as f:
                 port.write(f.read())
+
+# UJProg -------------------------------------------------------------------------------------------
+
+class UJProg(GenericProgrammer):
+    needs_bitreverse = False
+
+    def load_bitstream(self, bitstream_file):
+        subprocess.call(["ujprog", bitstream_file])

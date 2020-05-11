@@ -33,6 +33,7 @@ class AlteraPlatform(GenericPlatform):
         return self.toolchain.build(self, *args, **kwargs)
 
     def add_period_constraint(self, clk, period):
+        if clk is None: return
         if hasattr(clk, "p"):
             clk = clk.p
         self.toolchain.add_period_constraint(self, clk, period)

@@ -16,10 +16,12 @@ CPU_VARIANTS = ["standard"]
 
 class Microwatt(CPU):
     name                 = "microwatt"
+    human_name           = "Microwatt"
     data_width           = 64
     endianness           = "little"
-    gcc_triple           = ("powerpc64le-linux")
+    gcc_triple           = ("powerpc64le-linux", "powerpc64le-linux-gnu")
     linker_output_format = "elf64-powerpcle"
+    nop                  = "nop"
     io_regions           = {0xc0000000: 0x10000000} # origin, length
 
     @property
@@ -45,8 +47,8 @@ class Microwatt(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.wb_insn      = wb_insn = wishbone.Interface(data_width=64, adr_width=28)
-        self.wb_data      = wb_data = wishbone.Interface(data_width=64, adr_width=28)
+        self.wb_insn      = wb_insn = wishbone.Interface(data_width=64, adr_width=29)
+        self.wb_data      = wb_data = wishbone.Interface(data_width=64, adr_width=29)
         self.periph_buses = [wb_insn, wb_data]
         self.memory_buses = []
 
@@ -62,7 +64,7 @@ class Microwatt(CPU):
             i_wishbone_insn_ack   = wb_insn.ack,
             i_wishbone_insn_stall = wb_insn.cyc & ~wb_insn.ack, # No burst support
 
-            o_wishbone_insn_adr   = Cat(Signal(4), wb_insn.adr),
+            o_wishbone_insn_adr   = Cat(Signal(3), wb_insn.adr),
             o_wishbone_insn_dat_w = wb_insn.dat_w,
             o_wishbone_insn_cyc   = wb_insn.cyc,
             o_wishbone_insn_stb   = wb_insn.stb,
@@ -74,7 +76,7 @@ class Microwatt(CPU):
             i_wishbone_data_ack   = wb_data.ack,
             i_wishbone_data_stall = wb_data.cyc & ~wb_data.ack, # No burst support
 
-            o_wishbone_data_adr   = Cat(Signal(4), wb_data.adr),
+            o_wishbone_data_adr   = Cat(Signal(3), wb_data.adr),
             o_wishbone_data_dat_w = wb_data.dat_w,
             o_wishbone_data_cyc   = wb_data.cyc,
             o_wishbone_data_stb   = wb_data.stb,
@@ -100,9 +102,7 @@ class Microwatt(CPU):
 
     @staticmethod
     def add_sources(platform):
-        sdir = os.path.join(
-            get_data_mod("cpu", "microwatt").data_location,
-            "sources")
+        sdir = get_data_mod("cpu", "microwatt").data_location
         platform.add_sources(sdir,
             # Common / Types / Helpers
             "decode_types.vhdl",
@@ -155,7 +155,7 @@ class Microwatt(CPU):
             "core_debug.vhdl",
             "core.vhdl",
         )
-        platform.add_source(os.path.join(sdir, "..", "microwatt_wrapper.vhdl"))
+        platform.add_source(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("microwatt_wrapper", **self.cpu_params)
