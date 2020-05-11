@@ -134,14 +134,14 @@ def _build_script(source, build_template, build_name, architecture, package, spe
     for s in build_template:
         s_fail = s + "{fail_stmt}\n"  # Required so Windows scripts fail early.
         script_contents += s_fail.format(
-            build_name      = build_name,
-            architecture    = architecture,
-            package         = package,
-            speed_grade     = speed_grade,
-            timefailarg     = "--timing-allow-fail" if not timingstrict else "",
-            ignoreloops     = "--ignore-loops" if ignoreloops else "",
-            fail_stmt       = fail_stmt,
-            seed            = seed)
+            build_name   = build_name,
+            architecture = architecture,
+            package      = package,
+            speed_grade  = speed_grade,
+            timefailarg  = "--timing-allow-fail" if not timingstrict else "",
+            ignoreloops  = "--ignore-loops" if ignoreloops else "",
+            fail_stmt    = fail_stmt,
+            seed         = seed)
 
     script_file = "build_" + build_name + script_ext
     tools.write_to_file(script_file, script_contents, force_unix=False)
