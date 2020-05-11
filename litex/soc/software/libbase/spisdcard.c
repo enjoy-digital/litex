@@ -567,10 +567,9 @@ uint8_t spi_sdcard_readFile(char *filename, char *ext, unsigned long address)
 
     // Read each cluster sector by sector, i being number of clusters
     bytesRemaining=fileLength;
-    printf("Clusters: ");
     // Calculate number of clusters (always >1)
     for(i=0; i<1+((fileLength/sdCardFatBootSector.sectors_per_cluster)/sdCardFatBootSector.sector_size); i++) {
-        printf("%d ",fileClusterStart);
+        printf("\rCluster: %d",fileClusterStart);
 
         // Locate start of cluster on SD CARD and read appropraite number of sectors
         clusterSectorStart=rootDirSectorStart+(fileClusterStart-1)*sdCardFatBootSector.sectors_per_cluster;
@@ -580,14 +579,14 @@ uint8_t spi_sdcard_readFile(char *filename, char *ext, unsigned long address)
             // Otherwise, read to sdCardSector buffer and transfer appropriate number of bytes
             if(bytesRemaining>sdCardFatBootSector.sector_size) {
                 if( readSector(clusterSectorStart+sector,(uint8_t *)address) == FAILURE ) {
-                    printf("Read Error\n");
+                    printf("\nRead Error\n");
                     return FAILURE;
                 }
                 bytesRemaining=bytesRemaining-sdCardFatBootSector.sector_size;
                 address=address+sdCardFatBootSector.sector_size;
             } else {
                 if( readSector(clusterSectorStart+sector,sdCardSector) == FAILURE ) {
-                    printf("Read Error\n");
+                    printf("\nRead Error\n");
                     return FAILURE;
                 }
                 memcpy((uint8_t *)address, sdCardSector, bytesRemaining);

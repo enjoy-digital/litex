@@ -15,7 +15,7 @@ class XilinxPlatform(GenericPlatform):
     def __init__(self, *args, toolchain="ise", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
-        self.ips   = set()
+        self.ips   = {}
         if toolchain == "ise":
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
@@ -26,8 +26,8 @@ class XilinxPlatform(GenericPlatform):
     def add_edif(self, filename):
         self.edifs.add((os.path.abspath(filename)))
 
-    def add_ip(self, filename):
-        self.ips.add((os.path.abspath(filename)))
+    def add_ip(self, filename, disable_constraints=False):
+        self.ips.update({os.path.abspath(filename): disable_constraints})
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.xilinx_special_overrides)
@@ -48,6 +48,7 @@ class XilinxPlatform(GenericPlatform):
         return self.toolchain.build(self, *args, **kwargs)
 
     def add_period_constraint(self, clk, period):
+        if clk is None: return
         if hasattr(clk, "p"):
             clk = clk.p
         self.toolchain.add_period_constraint(self, clk, period)

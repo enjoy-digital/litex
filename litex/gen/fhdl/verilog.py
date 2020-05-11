@@ -236,17 +236,17 @@ def _printheader(f, ios, name, ns, attr_translate,
         sig.type = "wire"
         if sig in inouts:
             sig.direction = "inout"
-            r += "\tinout " + _printsig(ns, sig)
+            r += "\tinout wire " + _printsig(ns, sig)
         elif sig in targets:
             sig.direction = "output"
             if sig in wires:
-                r += "\toutput " + _printsig(ns, sig)
+                r += "\toutput wire " + _printsig(ns, sig)
             else:
                 sig.type = "reg"
                 r += "\toutput reg " + _printsig(ns, sig)
         else:
             sig.direction = "input"
-            r += "\tinput " + _printsig(ns, sig)
+            r += "\tinput wire " + _printsig(ns, sig)
     r += "\n);\n\n"
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
         attr = _printattr(sig.attr, attr_translate)

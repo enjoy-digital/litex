@@ -68,7 +68,7 @@ bss_loop:
 bss_done:
 
 //  call plic_init // initialize external interrupt controller
-#  li a0, 0x800   // external interrupt sources only (using LiteX timer);
+  li a0, 0x800   // external interrupt sources only (using LiteX timer);
                  // NOTE: must still enable mstatus.MIE!
   csrw mie,a0
 

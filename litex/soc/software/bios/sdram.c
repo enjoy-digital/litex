@@ -21,6 +21,7 @@
 #include <system.h>
 
 #include "sdram.h"
+#include "lfsr.h"
 
 // FIXME(hack): If we don't have main ram, just target the sram instead.
 #ifndef MAIN_RAM_BASE
@@ -30,29 +31,7 @@
 __attribute__((unused)) static void cdelay(int i)
 {
 	while(i > 0) {
-#if defined (__lm32__)
-		__asm__ volatile("nop");
-#elif defined (__or1k__)
-		__asm__ volatile("l.nop");
-#elif defined (__picorv32__)
-		__asm__ volatile("nop");
-#elif defined (__vexriscv__)
-		__asm__ volatile("nop");
-#elif defined (__minerva__)
-		__asm__ volatile("nop");
-#elif defined (__rocket__)
-		__asm__ volatile("nop");
-#elif defined (__powerpc__)
-		__asm__ volatile("nop");
-#elif defined (__microwatt__)
-		__asm__ volatile("nop");
-#elif defined (__blackparrot__)
-		__asm__ volatile("nop");
-#elif defined (__serv__)
-		__asm__ volatile("nop");
-#else
-#error Unsupported architecture
-#endif
+		__asm__ volatile(CONFIG_CPU_NOP);
 		i--;
 	}
 }
@@ -77,28 +56,18 @@ void sdrhw(void)
 	printf("SDRAM now under hardware control\n");
 }
 
-void sdrrow(char *_row)
+void sdrrow(unsigned int row)
 {
-	char *c;
-	unsigned int row;
-
-	if(*_row == 0) {
+	if(row == 0) {
 		sdram_dfii_pi0_address_write(0x0000);
 		sdram_dfii_pi0_baddress_write(0);
 		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
 		cdelay(15);
-		printf("Precharged\n");
 	} else {
-		row = strtoul(_row, &c, 0);
-		if(*c != 0) {
-			printf("incorrect row\n");
-			return;
-		}
 		sdram_dfii_pi0_address_write(row);
 		sdram_dfii_pi0_baddress_write(0);
 		command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
 		cdelay(15);
-		printf("Activated row %d\n", row);
 	}
 }
 
@@ -125,57 +94,22 @@ void sdrrdbuf(int dq)
 	printf("\n");
 }
 
-void sdrrd(char *startaddr, char *dq)
+void sdrrd(unsigned int addr, int dq)
 {
-	char *c;
-	unsigned int addr;
-	int _dq;
-
-	if(*startaddr == 0) {
-		printf("sdrrd <address>\n");
-		return;
-	}
-	addr = strtoul(startaddr, &c, 0);
-	if(*c != 0) {
-		printf("incorrect address\n");
-		return;
-	}
-	if(*dq == 0)
-		_dq = -1;
-	else {
-		_dq = strtoul(dq, &c, 0);
-		if(*c != 0) {
-			printf("incorrect DQ\n");
-			return;
-		}
-	}
-
 	sdram_dfii_pird_address_write(addr);
 	sdram_dfii_pird_baddress_write(0);
 	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 	cdelay(15);
-	sdrrdbuf(_dq);
+	sdrrdbuf(dq);
 }
 
-void sdrrderr(char *count)
+void sdrrderr(int count)
 {
 	int addr;
-	char *c;
-	int _count;
 	int i, j, p;
 	unsigned char prev_data[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
 	unsigned char errs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
 	unsigned char new_data[DFII_PIX_DATA_BYTES];
-
-	if(*count == 0) {
-		printf("sdrrderr <count>\n");
-		return;
-	}
-	_count = strtoul(count, &c, 0);
-	if(*c != 0) {
-		printf("incorrect count\n");
-		return;
-	}
 
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
@@ -190,7 +124,7 @@ void sdrrderr(char *count)
 			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[p],
 					 prev_data[p], DFII_PIX_DATA_BYTES);
 
-		for(j=0;j<_count;j++) {
+		for(j=0;j<count;j++) {
 			command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
 			cdelay(15);
 			for(p=0;p<SDRAM_PHY_PHASES;p++) {
@@ -214,22 +148,10 @@ void sdrrderr(char *count)
 	printf("\n");
 }
 
-void sdrwr(char *startaddr)
+void sdrwr(unsigned int addr)
 {
 	int i, p;
-	char *c;
-	unsigned int addr;
 	unsigned char buf[DFII_PIX_DATA_BYTES];
-
-	if(*startaddr == 0) {
-		printf("sdrwr <address>\n");
-		return;
-	}
-	addr = strtoul(startaddr, &c, 0);
-	if(*c != 0) {
-		printf("incorrect address\n");
-		return;
-	}
 
 	for(p=0;p<SDRAM_PHY_PHASES;p++) {
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++)
@@ -245,7 +167,7 @@ void sdrwr(char *startaddr)
 
 #ifdef CSR_DDRPHY_BASE
 
-#if defined(DDRPHY_CMD_DELAY) || defined(USDDRPHY_DEBUG)
+#if defined(DDRPHY_CMD_DELAY)
 void ddrphy_cdly(unsigned int delay) {
 	printf("Setting clk/cmd delay to %d taps\n", delay);
 #if CSR_DDRPHY_EN_VTC_ADDR
@@ -593,7 +515,7 @@ static int read_level_scan(int module, int bitslip)
 	prv = 42;
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			prv = 1664525*prv + 1013904223;
+			prv = lfsr(32, prv);
 			prs[p][i] = prv;
 		}
 
@@ -673,7 +595,7 @@ static void read_level(int module)
 	prv = 42;
 	for(p=0;p<SDRAM_PHY_PHASES;p++)
 		for(i=0;i<DFII_PIX_DATA_BYTES;i++) {
-			prv = 1664525*prv + 1013904223;
+			prv = lfsr(32, prv);
 			prs[p][i] = prv;
 		}
 
@@ -791,7 +713,7 @@ static void read_level(int module)
 static unsigned int seed_to_data_32(unsigned int seed, int random)
 {
 	if (random)
-		return 1664525*seed + 1013904223;
+		return lfsr(32, seed);
 	else
 		return seed + 1;
 }
@@ -799,7 +721,7 @@ static unsigned int seed_to_data_32(unsigned int seed, int random)
 static unsigned short seed_to_data_16(unsigned short seed, int random)
 {
 	if (random)
-		return 25173*seed + 13849;
+		return lfsr(16, seed);
 	else
 		return seed + 1;
 }
@@ -873,14 +795,14 @@ static int memtest_data(void)
 	unsigned int rdata;
 
 	errors = 0;
-	seed_32 = 0;
+	seed_32 = 1;
 
 	for(i=0;i<MEMTEST_DATA_SIZE/4;i++) {
 		seed_32 = seed_to_data_32(seed_32, MEMTEST_DATA_RANDOM);
 		array[i] = seed_32;
 	}
 
-	seed_32 = 0;
+	seed_32 = 1;
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
@@ -913,14 +835,14 @@ static int memtest_addr(void)
 	unsigned short rdata;
 
 	errors = 0;
-	seed_16 = 0;
+	seed_16 = 1;
 
 	for(i=0;i<MEMTEST_ADDR_SIZE/4;i++) {
 		seed_16 = seed_to_data_16(seed_16, MEMTEST_ADDR_RANDOM);
 		array[(unsigned int) seed_16] = i;
 	}
 
-	seed_16 = 0;
+	seed_16 = 1;
 	flush_cpu_dcache();
 #ifdef CONFIG_L2_SIZE
 	flush_l2_cache();
@@ -981,7 +903,7 @@ static void memspeed(void)
 	end = timer0_value_read();
 	read_speed = (8*MEMTEST_DATA_SIZE*(CONFIG_CLOCK_FREQUENCY/1000000))/(start - end);
 
-	printf("Memspeed Writes: %dMbps Reads: %dMbps\n", write_speed, read_speed);
+	printf("Memspeed Writes: %ldMbps Reads: %ldMbps\n", write_speed, read_speed);
 }
 
 int memtest(void)
@@ -1126,94 +1048,5 @@ int sdrinit(void)
 
 	return 1;
 }
-
-#ifdef USDDRPHY_DEBUG
-
-#define MPR0_SEL (0 << 0)
-#define MPR1_SEL (1 << 0)
-#define MPR2_SEL (2 << 0)
-#define MPR3_SEL (3 << 0)
-
-#define MPR_ENABLE (1 << 2)
-
-#define MPR_READ_SERIAL    (0 << 11)
-#define MPR_READ_PARALLEL  (1 << 11)
-#define MPR_READ_STAGGERED (2 << 11)
-
-void sdrcal(void)
-{
-#ifdef CSR_DDRPHY_BASE
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(0);
-#endif
-	sdrlevel();
-#if CSR_DDRPHY_EN_VTC_ADDR
-	ddrphy_en_vtc_write(1);
-#endif
-#endif
-	sdrhw();
-}
-
-void sdrmrwr(char reg, int value) {
-	sdram_dfii_pi0_address_write(value);
-	sdram_dfii_pi0_baddress_write(reg);
-	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-}
-
-static void sdrmpron(char mpr)
-{
-	sdrmrwr(3, MPR_READ_SERIAL | MPR_ENABLE | mpr);
-}
-
-static void sdrmproff(void)
-{
-	sdrmrwr(3, 0);
-}
-
-void sdrmpr(void)
-{
-	int module, phase;
-	unsigned char buf[DFII_PIX_DATA_BYTES];
-	printf("Read SDRAM MPR...\n");
-
-	/* rst phy */
-	for(module=0; module<SDRAM_PHY_MODULES; module++) {
-#ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
-		write_delay_rst(module);
-#endif
-		read_delay_rst(module);
-		read_bitslip_rst(module);
-	}
-
-	/* software control */
-	sdrsw();
-
-	printf("Reads with MPR0 (0b01010101) enabled...\n");
-	sdrmpron(MPR0_SEL);
-	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
-	cdelay(15);
-	for (module=0; module < SDRAM_PHY_MODULES; module++) {
-		printf("m%d: ", module);
-		for(phase=0; phase<SDRAM_PHY_PHASES; phase++) {
-			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr[phase],
-					 buf, DFII_PIX_DATA_BYTES);
-			printf("%d", buf[  SDRAM_PHY_MODULES-module-1] & 0x1);
-			printf("%d", buf[2*SDRAM_PHY_MODULES-module-1] & 0x1);
-		}
-		printf("\n");
-	}
-	sdrmproff();
-
-	/* hardware control */
-	sdrhw();
-}
-
-void sdr_cdly_scan(int enabled)
-{
-	printf("Turning cdly scan %s\n", enabled ? "ON" : "OFF");
-	_write_level_cdly_scan = enabled;
-}
-
-#endif
 
 #endif

@@ -20,7 +20,10 @@ class GenericProgrammer:
         self.flash_proxy_repos = [
             "https://github.com/quartiq/bscan_spi_bitstreams/raw/master/",
         ]
-        self.flash_proxy_local = "flash_proxies"
+        self.config_repos = [
+            "https://raw.githubusercontent.com/litex-hub/litex-boards/master/litex_boards/prog/",
+        ]
+        self.prog_local = "prog"
 
     def set_flash_proxy_dir(self, flash_proxy_dir):
         if flash_proxy_dir is not None:
@@ -34,22 +37,47 @@ class GenericProgrammer:
             if os.path.exists(fullname):
                 return fullname
         # Search in local flash_proxy directory
-        fullname = tools.cygpath(os.path.join(self.flash_proxy_local, self.flash_proxy_basename))
+        fullname = tools.cygpath(os.path.join(self.prog_local, self.flash_proxy_basename))
         if os.path.exists(fullname):
             return fullname
         # Search in repositories and download it
         import requests
-        os.makedirs(self.flash_proxy_local, exist_ok=True)
+        os.makedirs(self.prog_local, exist_ok=True)
         for d in self.flash_proxy_repos:
-            fullname = tools.cygpath(os.path.join(self.flash_proxy_local, self.flash_proxy_basename))
+            fullname = tools.cygpath(os.path.join(self.prog_local, self.flash_proxy_basename))
             try:
                 r = requests.get(d + self.flash_proxy_basename)
-                with open(fullname, "wb") as f:
-                    f.write(r.content)
-                return fullname
+                if r.status_code != 404:
+                    with open(fullname, "wb") as f:
+                        f.write(r.content)
+                    return fullname
             except:
                 pass
         raise OSError("Failed to find flash proxy bitstream")
+
+    def find_config(self):
+        # Search in local directory
+        fullname = tools.cygpath(self.config)
+        if os.path.exists(fullname):
+            return self.config
+        # Search in local config directory
+        fullname = tools.cygpath(os.path.join(self.prog_local, self.config))
+        if os.path.exists(fullname):
+            return fullname
+        # Search in repositories and download it
+        import requests
+        os.makedirs(self.prog_local, exist_ok=True)
+        for d in self.config_repos:
+            fullname = tools.cygpath(os.path.join(self.prog_local, self.config))
+            try:
+                r = requests.get(d + self.config)
+                if r.status_code != 404:
+                    with open(fullname, "wb") as f:
+                        f.write(r.content)
+                    return fullname
+            except:
+                pass
+        raise OSError("Failed to find config file")
 
     # Must be overloaded by specific programmer
     def load_bitstream(self, bitstream_file):

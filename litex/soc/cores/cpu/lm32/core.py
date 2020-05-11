@@ -18,10 +18,12 @@ CPU_VARIANTS = ["minimal", "lite", "standard"]
 
 class LM32(CPU):
     name                 = "lm32"
+    human_name           = "LM32"
     data_width           = 32
     endianness           = "big"
     gcc_triple           = "lm32-elf"
     linker_output_format = "elf32-lm32"
+    nop                  = "nop"
     io_regions           = {0x80000000: 0x80000000} # origin, length
 
     @property

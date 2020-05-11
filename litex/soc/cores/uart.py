@@ -239,10 +239,12 @@ class UART(Module, AutoCSR, UARTInterface):
             self.ev.rx.trigger.eq(~rx_fifo.source.valid)
         ]
 
-class UARTWishboneBridge(WishboneStreamingBridge):
+class UARTBone(WishboneStreamingBridge):
     def __init__(self, pads, clk_freq, baudrate=115200):
         self.submodules.phy = RS232PHY(pads, clk_freq, baudrate)
         WishboneStreamingBridge.__init__(self, self.phy, clk_freq)
+
+class UARTWishboneBridge(UARTBone): pass
 
 # UART Multiplexer ---------------------------------------------------------------------------------
 
