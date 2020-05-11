@@ -758,8 +758,8 @@ class SoC(Module):
     def add_csr_bridge(self, origin):
         self.submodules.csr_bridge = wishbone2csr.WB2CSR(
             bus_csr       = csr_bus.Interface(
-            address_width = self.csr.address_width,
-            data_width    = self.csr.data_width))
+                address_width = self.csr.address_width,
+                data_width    = self.csr.data_width))
         csr_size   = 2**(self.csr.address_width + 2)
         csr_region = SoCRegion(origin=origin, size=csr_size, cached=False)
         self.bus.add_slave("csr", self.csr_bridge.wishbone, csr_region)
