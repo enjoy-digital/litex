@@ -1185,10 +1185,10 @@ class LiteXSoC(SoC):
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", dummy_cycles=None, clk_freq=None):
         assert dummy_cycles is not None                 # FIXME: Get dummy_cycles from SPI Flash
-        assert mode in ["4x"]                           # FIXME: Add 1x support.
+        assert mode in ["1x", "4x"]
         if clk_freq is None: clk_freq = self.clk_freq/2 # FIXME: Get max clk_freq from SPI Flash
         spiflash = SpiFlash(
-            pads         = self.platform.request(name + mode),
+            pads         = self.platform.request(name if mode == "1x" else name + mode),
             dummy        = dummy_cycles,
             div          = ceil(self.clk_freq/clk_freq),
             with_bitbang = True,
