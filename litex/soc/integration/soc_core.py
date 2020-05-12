@@ -85,6 +85,7 @@ class SoCCore(LiteXSoC):
         csr_alignment            = 32,
         csr_address_width        = 14,
         csr_paging               = 0x800,
+        csr_base                 = None,
         # Identifier parameters
         ident                    = "",
         ident_version            = False,
@@ -183,7 +184,9 @@ class SoCCore(LiteXSoC):
         if with_timer:
             self.add_timer(name="timer0")
 
-        # Add CSR bridge
+        # Add CSR bridge. Potentially override CSR base
+        if csr_base is not None:
+            self.mem_map["csr"] = csr_base;
         self.add_csr_bridge(self.mem_map["csr"])
 
     # Methods --------------------------------------------------------------------------------------
