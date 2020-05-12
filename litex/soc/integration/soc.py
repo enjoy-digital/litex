@@ -1034,7 +1034,8 @@ class LiteXSoC(SoC):
             sdram_size = min(sdram_size, size)
 
         # Add SDRAM region
-        self.bus.add_region("main_ram", SoCRegion(origin=origin, size=sdram_size))
+        if self.cpu_type is not None:
+            self.bus.add_region("main_ram", SoCRegion(origin=origin, size=sdram_size))
 
         # SoC [<--> L2 Cache] <--> LiteDRAM --------------------------------------------------------
         if len(self.cpu.memory_buses):
@@ -1085,7 +1086,7 @@ class LiteXSoC(SoC):
                     # Else raise Error.
                     else:
                         raise NotImplementedError
-        else:
+        elif self.cpu_type is not None:
             # When CPU has no direct memory interface, create a Wishbone Slave interface to LiteDRAM.
 
             # Request a LiteDRAM native port.
