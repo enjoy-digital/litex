@@ -109,16 +109,19 @@ class WishboneStreamingBridge(Module):
                 rx_data_ce.eq(1),
                 byte_counter_ce.eq(1),
                 If(byte_counter == 3,
-                    NextState("WRITE_DATA"),
+                    NextState("SYNCWAIT"),
                     byte_counter_reset.eq(1)
                 )
             )
         )
-        self.comb += [
+        self.sync += [
             self.wishbone.adr.eq(address + word_counter),
             self.wishbone.dat_w.eq(data),
             self.wishbone.sel.eq(2**len(self.wishbone.sel) - 1)
         ]
+        fsm.act("SYNCWAIT",
+            NextState("WRITE_DATA")
+        )
         fsm.act("WRITE_DATA",
             self.wishbone.stb.eq(1),
             self.wishbone.we.eq(1),
