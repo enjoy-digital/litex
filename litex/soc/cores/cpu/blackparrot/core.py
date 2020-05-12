@@ -29,7 +29,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-
+import sys
 from migen import *
 
 from litex import get_data_mod
@@ -108,7 +108,15 @@ class BlackParrotRV64(CPU):
             )
 
            # add verilog sources
-        self.add_sources(platform, variant)
+        try:  
+            os.environ["BP"]
+            os.environ["LITEX"]
+            self.add_sources(platform, variant)
+        except KeyError:
+            RED = '\033[91m'
+            print(RED + "Please set environment variables first, refer to readme file under litex/soc/cores/cpu/blackparrot for details!")
+            sys.exit(1)
+
 
     def set_reset_address(self, reset_address):
         assert not hasattr(self, "reset_address")
@@ -120,7 +128,7 @@ class BlackParrotRV64(CPU):
     def add_sources(platform, variant="standard"):
         vdir = get_data_mod("cpu", "blackparrot").data_location
         bp_litex_dir = os.path.join(vdir,"bp_litex")
-        simulation = 1
+        simulation = 0
         if (simulation == 1):
             filename= os.path.join(bp_litex_dir,"flist.verilator")
         else:
@@ -137,14 +145,14 @@ class BlackParrotRV64(CPU):
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1] + line[s2:-1]
-                    platform.add_verilog_include_path(vdir)  #this line might be changed
+                    platform.add_verilog_include_path(vdir)  
                 elif (temp[0]=='$') :
                     s2 = line.find('/')
                     dir_ = line[0:s2]
                     a = os.popen('echo '+ str(dir_))
                     dir_start = a.read()
                     vdir = dir_start[:-1]+ line[s2:-1]
-                    platform.add_source(vdir) #this line might be changed
+                    platform.add_source(vdir, "systemverilog") 
                 elif (temp[0] == '/'):
                     assert("No support for absolute path for now")
 

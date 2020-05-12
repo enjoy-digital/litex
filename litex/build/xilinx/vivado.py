@@ -137,7 +137,9 @@ class XilinxVivadoToolchain:
             for filename, language, library in platform.sources:
                 filename_tcl = "{" + filename + "}"
                 if (language == "systemverilog"):
-                    tcl.append("read_verilog -sv " + filename_tcl)
+                    tcl.append("read_verilog -v " + filename_tcl)
+                    tcl.append("set_property file_type SystemVerilog [get_files {}]"
+                            .format(filename_tcl))
                 elif (language == "verilog"):
                     tcl.append("read_verilog " + filename_tcl)
                 elif (language == "vhdl"):
